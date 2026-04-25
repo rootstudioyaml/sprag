@@ -4,7 +4,7 @@
   "description": "Save tokens on Claude Code — spike diagnosis, 1M-context detection, TTL countdown, statusline. (formerly claude-cache-monitor)",
   "type": "module",
   "bin": {
-    "claude-token-saver": "./bin/cli.js"
+    "claude-token-saver": "bin/cli.js"
   },
   "files": [
     "bin/",
@@ -31,6 +31,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rootstudioyaml/claude-token-saver"
+    "url": "git+https://github.com/rootstudioyaml/claude-token-saver.git"
   }
 }
