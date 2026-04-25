@@ -2,10 +2,12 @@
 
 > **Renamed from `claude-cache-monitor` in v2.0.** The old npm package is deprecated and points here. The `claude-cache-monitor` binary is gone — use `claude-token-saver` instead. See [migration notes](#migration-from-claude-cache-monitor).
 
-> 📺 **HNPulse Shorts** — 이 도구가 만들어진 배경 (캐시 TTL 1h→5m 변경 이슈):
-> **[▶ Watch the Short](https://www.youtube.com/shorts/oSx2sg935nI)** · [All HNPulse Shorts](https://www.youtube.com/@HNPulseKR/shorts)
+> 📺 **출시 영상 (60초)** — 왜 만들었고, 무엇을 보여주는지:
+> **[▶ Watch the launch Short](https://www.youtube.com/shorts/RaD8qMsPTnA)** · [All DeepPulse Shorts](https://www.youtube.com/@HNPulseKR/shorts)
 >
-> [![HNPulse Short](https://img.youtube.com/vi/oSx2sg935nI/hqdefault.jpg)](https://www.youtube.com/shorts/oSx2sg935nI)
+> [![claude-token-saver launch](https://img.youtube.com/vi/RaD8qMsPTnA/hqdefault.jpg)](https://www.youtube.com/shorts/RaD8qMsPTnA)
+>
+> Earlier context (cache TTL 1h→5m incident, the reason this tool exists): [HNPulse #025](https://www.youtube.com/shorts/oSx2sg935nI)
 
 **Save tokens on Claude Code.** Catch the session that suddenly burned 10× your usual input, figure out *why*, and get a one-line remediation you can paste.
 
