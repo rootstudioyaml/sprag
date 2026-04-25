@@ -201,9 +201,9 @@ function findLatestWarning(historyEntries, chipToCodes) {
 
 async function main() {
   // Subcommand: last — print the most recent warning + how to handle it.
-  // Designed for the /token-monitor slash command and the auto-skill so the
-  // user immediately sees "what just fired and how to fix it" without having
-  // to read the whole history file.
+  // Designed for the auto-trigger skill so the user immediately sees
+  // "what just fired and how to fix it" without having to read the whole
+  // history file.
   //   claude-token-saver last           # search last 1 day
   //   claude-token-saver last --days 7  # widen the lookback
   if (args[0] === 'last') {
@@ -329,38 +329,31 @@ async function main() {
     return;
   }
 
-  // Subcommand: install — write the Claude Code Skill and slash command so
-  // /token-monitor and the auto-trigger skill become available without any
-  // manual file editing. Cross-platform (uses node:path + node:fs).
-  //   claude-token-saver install              # install both
-  //   claude-token-saver install --skill      # only the skill
-  //   claude-token-saver install --command    # only the slash command
-  //   claude-token-saver install --force      # overwrite existing files
+  // Subcommand: install — write the Claude Code auto-trigger skill so the
+  // user can just mention chip wording and Claude responds. v2.6.0 dropped
+  // the redundant /token-monitor slash command in favor of the skill alone;
+  // a legacy command file is removed automatically. Cross-platform.
+  //   claude-token-saver install              # install/update the skill
+  //   claude-token-saver install --force      # overwrite existing skill file
   if (args[0] === 'install') {
-    const { installSkill, installCommand, installAll } = await import('../src/installer.js');
+    const { installAll } = await import('../src/installer.js');
     const force = hasFlag('--force');
-    const onlySkill = hasFlag('--skill');
-    const onlyCommand = hasFlag('--command');
     const print = (kind, r) => {
       const verb = r.action === 'exists' ? 'already exists' : r.action;
       console.log(`  ${kind}: ${r.path} (${verb})`);
     };
-    if (onlySkill && !onlyCommand) {
-      print('skill', installSkill({ force }));
-    } else if (onlyCommand && !onlySkill) {
-      print('command', installCommand({ force }));
-    } else {
-      const r = installAll({ force });
-      print('skill', r.skill);
-      print('command', r.command);
+    const r = installAll({ force });
+    print('skill', r.skill);
+    if (r.legacy.action === 'removed') {
+      print('legacy /token-monitor', r.legacy);
+      console.log('  (consolidated into the skill — same workflow, triggered by intent)');
     }
     console.log('');
-    console.log('Open Claude Code in any directory and try:');
-    console.log('  /token-monitor');
-    console.log('Or just mention "cache hit rate" / "1M context" — the skill auto-activates.');
+    console.log('Open Claude Code in any directory and just mention:');
+    console.log('  "cache hit rate" / "1M context" / "5H cap" — the skill auto-activates.');
     if (!force) {
       console.log('');
-      console.log('Tip: re-run with --force to overwrite existing files.');
+      console.log('Tip: re-run with --force to overwrite the existing skill file.');
     }
     return;
   }
@@ -562,8 +555,8 @@ async function main() {
   // refresh. Pull rate_limits + model out of it so we can surface cap-warn
   // (>=90%) chips, always-on usage segments, the model chip, record cap
   // transitions, and seed the table view's warning box. The table path falls
-  // back to the most-recent cached snapshot so the /token-monitor slash
-  // command (which doesn't pipe stdin) still has the data.
+  // back to the most-recent cached snapshot so the table view (which
+  // doesn't pipe stdin) still has the data.
   const stdinJson = readStdinJson();
   let caps = extractCaps(stdinJson);
   let model = extractModel(stdinJson);
@@ -616,7 +609,7 @@ async function main() {
       }
     }
     // Persist transitions to ~/.config/claude-token-saver/history/YYYY-MM-DD.md
-    // so /token-monitor and `claude-token-saver history` can replay them.
+    // so `claude-token-saver history` and the auto-skill can replay them.
     try {
       const { recordChip, recordCapTransition } = await import('../src/history.js');
       recordChip(spikeChip, { detail: chipDetail });

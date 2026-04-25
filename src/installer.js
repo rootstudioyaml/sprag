@@ -1,7 +1,11 @@
 /**
- * Installs the Claude Code integration assets:
+ * Installs the Claude Code integration asset:
  *   - Skill:  ~/.claude/skills/claude-token-saver/SKILL.md
- *   - Slash:  ~/.claude/commands/token-monitor.md
+ *
+ * v2.6.0 consolidates `/token-monitor` into the skill (was redundant with the
+ * auto-trigger). On install we actively remove a legacy
+ * ~/.claude/commands/token-monitor.md if present so users don't see two
+ * overlapping entry points.
  *
  * All paths are resolved with node:path so Windows backslashes and POSIX
  * forward-slashes are both handled. Directories are created with
@@ -9,7 +13,7 @@
  * exist on every platform.
  */
 
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { claudeUserDir } from './paths.js';
 
@@ -36,6 +40,9 @@ countdown, savings, and (when relevant) a leading warning chip.
   \`claude-token-saver handoff\`).
 - The user wants to see the token-usage history file or asks for a summary
   of recent warnings.
+- The user asks for a quick token report or "current state" check (the
+  skill replaces the legacy \`/token-monitor\` slash command — same workflow,
+  triggered by intent rather than a typed slash).
 
 ## What to do
 
@@ -97,41 +104,6 @@ History files live under the OS-appropriate user-data dir:
 Each day's file is plain Markdown — safe to open in any editor.
 `;
 
-const COMMAND_BODY = `---
-description: Show recent claude-token-saver warning history and a fresh report.
----
-
-You are responding to the \`/token-monitor\` slash command. The user wants a
-quick read of their Claude Code token usage and any active warnings — most
-importantly: **what just happened, and how do I handle it?**
-
-Steps:
-
-1. **Lead with the most recent warning.** Run \`claude-token-saver last\`
-   first and surface its output verbatim (or lightly summarized) at the top
-   of your reply. This returns the latest warning event (chip + detail +
-   timestamp) followed by the full advice block. If \`last\` says no recent
-   warnings, mention that and skip ahead — you can stop here unless the user
-   asked for more.
-2. Run \`claude-token-saver history --days 7\` and capture the output. Use it
-   only to add context — e.g. "this is the 3rd cache miss today" — not to
-   re-print the whole file. Each entry is bilingual and includes a \`💡\`
-   action tip inline.
-3. Run \`claude-token-saver --days 1\` and capture the output for any extra
-   color you want to add: TTL breakdown, cost impact, daily trend, or active
-   spikes. Skip if step 1 already covered what the user needs.
-4. Summarize for the user:
-   - **What just fired** — the chip + the time + a sentence on what caused it
-     (from \`last\`).
-   - **What to do** — the action tip from \`last\`. For cap-warn (\`🚨 5H/7D NN%\`),
-     surface \`claude-token-saver handoff\` prominently so they can back up
-     state before the cap blocks them.
-   - **Today's pattern** (optional) — when warnings cluster in time, mention it.
-
-Keep the summary to ~10 lines. The user can re-run the underlying commands
-themselves for the full output.
-`;
-
 function writeIfNeeded(file, body, force) {
   const existed = existsSync(file);
   if (existed && !force) return { path: file, action: 'exists' };
@@ -146,16 +118,18 @@ export function installSkill({ force = false } = {}) {
   return writeIfNeeded(file, SKILL_BODY, force);
 }
 
-export function installCommand({ force = false } = {}) {
-  const dir = join(claudeUserDir(), 'commands');
-  const file = join(dir, 'token-monitor.md');
-  mkdirSync(dir, { recursive: true });
-  return writeIfNeeded(file, COMMAND_BODY, force);
+// Removes the legacy /token-monitor slash command from prior versions.
+// v2.6.0 consolidated it into the skill — the file would otherwise linger.
+export function removeLegacyCommand() {
+  const file = join(claudeUserDir(), 'commands', 'token-monitor.md');
+  if (!existsSync(file)) return { path: file, action: 'absent' };
+  unlinkSync(file);
+  return { path: file, action: 'removed' };
 }
 
 export function installAll({ force = false } = {}) {
   return {
     skill: installSkill({ force }),
-    command: installCommand({ force }),
+    legacy: removeLegacyCommand(),
   };
 }

@@ -1,7 +1,7 @@
 /**
  * Statusline snapshot cache — the rate-limit numbers and model name only flow
  * through stdin from Claude Code's statusline contract, but we want the table
- * view (e.g. invoked by `/token-monitor`) to surface the same data. So
+ * view (`claude-token-saver --days N`) to surface the same data. So
  * whenever the statusline path sees them it writes them here, and the table
  * path reads them back if its own stdin was empty.
  *

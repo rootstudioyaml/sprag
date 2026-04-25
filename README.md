@@ -12,7 +12,7 @@
 **Why I built this.** I'm on the Max plan. On Opus 4.6 I never hit the *current-session* cap. After Opus 4.7 rolled out, I started hitting it on the same workflow — repeatedly. The official token statistics didn't match what I was actually feeling, and Claude Code's UI doesn't show prompt-cache health. This tool is what let me see *why*: low cache hit rate, 5m TTL writes that should have been 1h, 1M context auto-promoted in the background.
 
 v2.1 (2026-04) adds the workflow that follows the diagnosis:
-- **`claude-token-saver install`** — one command writes a Claude Code Skill (auto-activates when you mention "cache hit rate" / "1M context" / etc.) and a `/token-monitor` slash command.
+- **`claude-token-saver install`** — one command writes a Claude Code Skill that auto-activates when you mention "cache hit rate" / "1M context" / "5H cap" — no slash command needed.
 - **`claude-token-saver history`** — every warning chip transition is auto-logged to a daily Markdown file, so you can answer "when did this start" without grepping logs.
 - **Cross-platform paths** — Windows (`%APPDATA%`), macOS (`~/Library/Application Support`), Linux (`~/.config` / XDG) all handled.
 
@@ -208,11 +208,12 @@ One command wires up everything else this README mentions:
 claude-token-saver install
 ```
 
-This writes two files under your Claude user dir:
-- `~/.claude/skills/claude-token-saver/SKILL.md` — auto-activates whenever you mention chip wording ("⚠ 1M ON", "cache miss", etc.) or ask about token usage. Claude Code will then know to read history, drill into the table report, and explain the warning.
-- `~/.claude/commands/token-monitor.md` — adds a `/token-monitor` slash command that runs `claude-token-saver history` + a fresh report and summarizes both for you.
+This writes one file under your Claude user dir:
+- `~/.claude/skills/claude-token-saver/SKILL.md` — auto-activates whenever you mention chip wording ("⚠ 1M ON", "cache miss", "5H cap", etc.) or ask for a token report. Claude Code will then read `claude-token-saver last`, drill into history if needed, and explain the warning.
 
-Re-run with `--force` to overwrite. Install only one piece with `install --skill` or `install --command`.
+If you previously installed v2.5.x or earlier, `install` also removes the now-redundant legacy `~/.claude/commands/token-monitor.md` slash command — its workflow is fully absorbed into the skill (same behavior, triggered by intent rather than typing `/token-monitor`).
+
+Re-run with `--force` to overwrite the skill file.
 
 ## Warning history (`history`) — new in v2.1
 
@@ -286,7 +287,7 @@ That writes `./HANDOFF-YYYY-MM-DD-HHMM.md` in the current directory with:
   Read the most recent HANDOFF-*.md in this directory and continue the work.
   ```
 
-The handoff write is also recorded in history (`📝 handoff written: …`), so `/token-monitor` and `claude-token-saver history` show both the cap-warn and the backup event next to each other.
+The handoff write is also recorded in history (`📝 handoff written: …`), so `claude-token-saver history` and the auto-skill show both the cap-warn and the backup event next to each other.
 
 ## Hook Setup
 
