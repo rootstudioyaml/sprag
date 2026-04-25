@@ -5,6 +5,22 @@ import { ISSUE_MESSAGES } from '../advice.js';
 import { formatResetIn, formatResetClock } from '../format-time.js';
 import { labelForKey } from '../window-labels.js';
 
+const C = {
+  reset:  '\x1b[0m',
+  bold:   '\x1b[1m',
+  blink:  '\x1b[5m',
+  red:    '\x1b[31m',
+  yellow: '\x1b[33m',
+  cyan:   '\x1b[36m',
+};
+// Wrap text with ANSI codes — gracefully strips to plain when NO_COLOR set.
+const colorOk = !process.env.NO_COLOR;
+const r  = (s) => colorOk ? `${C.red}${s}${C.reset}` : s;
+const rb = (s) => colorOk ? `${C.bold}${C.red}${s}${C.reset}` : s;
+const rbl = (s) => colorOk ? `${C.blink}${C.bold}${C.red}${s}${C.reset}` : s;
+const y  = (s) => colorOk ? `${C.yellow}${s}${C.reset}` : s;
+const b  = (s) => colorOk ? `${C.bold}${s}${C.reset}` : s;
+
 function pad(str, len, align = 'left') {
   const s = String(str);
   if (align === 'right') return s.padStart(len);
@@ -66,11 +82,11 @@ function formatContextSize(n) {
 
 function renderSpikeSection(spikes, contextWindow) {
   const lines = [];
-  lines.push('  ⚠ Token spike detected');
-  lines.push(`  ${'─'.repeat(50)}`);
+  lines.push(rbl('  ⚠ Token spike detected'));
+  lines.push(r(`  ${'─'.repeat(50)}`));
   if (contextWindow && contextWindow.size === '1M') {
     lines.push(
-      `  Context mode: 1M  (max recent single-request input ${formatContextSize(contextWindow.maxContext)} tokens)`,
+      r(`  Context mode: 1M  (max recent single-request input ${formatContextSize(contextWindow.maxContext)} tokens)`),
     );
     lines.push('');
   }
@@ -78,18 +94,19 @@ function renderSpikeSection(spikes, contextWindow) {
     const m = spike.metrics;
     const ratioLabel = spike.ratio ? `${spike.ratio.toFixed(1)}× p95` : 'single-request > 250k';
     lines.push(
-      `  • ${shortSessionId(m.sessionId)} [${m.projectDir || 'unknown'}]  ` +
-        `total input ${formatContextSize(m.totalInput)}  (${ratioLabel}, ${m.requestCount} requests)`,
+      r(`  • ${shortSessionId(m.sessionId)} [${m.projectDir || 'unknown'}]  `) +
+        rb(`total input ${formatContextSize(m.totalInput)}`) +
+        r(`  (${ratioLabel}, ${m.requestCount} requests)`),
     );
     if (m.maxContextPerRequest > 0) {
       lines.push(
-        `      max single-request context: ${formatContextSize(m.maxContextPerRequest)} tokens`,
+        r(`      max single-request context: ${formatContextSize(m.maxContextPerRequest)} tokens`),
       );
     }
     for (const issue of spike.issues) {
       const info = ISSUE_MESSAGES[issue.code];
       if (!info) continue;
-      lines.push(`      · ${info.title}`);
+      lines.push(r(`      · ${info.title}`));
     }
     lines.push('');
   }
@@ -106,22 +123,24 @@ function renderSpikeSection(spikes, contextWindow) {
     }
   }
   if (uniqueIssues.length > 0) {
-    lines.push('  Recommended actions');
-    lines.push(`  ${'─'.repeat(50)}`);
+    lines.push(rb('  Recommended actions'));
+    lines.push(r(`  ${'─'.repeat(50)}`));
     for (const issue of uniqueIssues) {
       const info = ISSUE_MESSAGES[issue.code];
       if (!info) continue;
-      lines.push(`  ▸ ${info.title}`);
-      lines.push(`    ${info.explain}`);
+      lines.push(rb(`  ▸ ${info.title}`));
+      lines.push(r(`    ${info.explain}`));
       for (const action of info.actions()) {
-        lines.push(`    - ${action.label}`);
+        lines.push(r(`    - ${action.label}`));
         for (const cmd of action.commands) {
-          lines.push(`        ${cmd}`);
+          lines.push(r(`        ${cmd}`));
         }
       }
       lines.push('');
     }
   }
+  lines.push(rbl('  ▶ 상세 처치법: ') + rb('claude-token-saver last'));
+  lines.push('');
   return lines;
 }
 
@@ -132,8 +151,8 @@ function renderCapWarnSection(caps) {
   );
   if (warning.length === 0) return [];
   const lines = [];
-  lines.push('  🚨 Rate-limit cap is closing in');
-  lines.push(`  ${'─'.repeat(50)}`);
+  lines.push(rbl('  🚨 Rate-limit cap is closing in'));
+  lines.push(r(`  ${'─'.repeat(50)}`));
   for (const win of warning) {
     const label = labelForKey(win.key).long;
     const reset = formatResetIn(win.resetsAt);
@@ -142,12 +161,14 @@ function renderCapWarnSection(caps) {
     if (reset && clock) tail = `, resets in ${reset} (at ${clock})`;
     else if (reset) tail = `, resets in ${reset}`;
     else if (clock) tail = `, resets at ${clock}`;
-    lines.push(`  • ${label}: ${Math.round(win.usedPct)}% used${tail}`);
+    lines.push(rb(`  • ${label}: ${Math.round(win.usedPct)}% used${tail}`));
   }
   lines.push('');
-  lines.push('  Back up work before the cap hits:');
-  lines.push('    claude-token-saver handoff');
-  lines.push('  (writes a HANDOFF-*.md so a fresh session can pick up.)');
+  lines.push(r('  Back up work before the cap hits:'));
+  lines.push(rb('    claude-token-saver handoff'));
+  lines.push(r('  (writes a HANDOFF-*.md so a fresh session can pick up.)'));
+  lines.push('');
+  lines.push(rbl('  ▶ 상세 처치법: ') + rb('claude-token-saver last'));
   lines.push('');
   return lines;
 }
