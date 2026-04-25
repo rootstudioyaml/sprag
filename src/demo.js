@@ -10,6 +10,12 @@
  * it flows through formatReport() unchanged.
  */
 
+// Default cap usage attached to every scenario so the always-on ✦ / 📅
+// gauge segments render in the demo line. Individual scenarios override `caps`
+// when they're meant to surface a `🚨 5H/7D` cap-warn chip.
+const HEALTHY_CAPS = { fiveHour: 31, sevenDay: 10 };
+const DEFAULT_MODEL = 'Opus 4.7';
+
 const SCENARIOS = [
   {
     name: 'healthy',
@@ -21,6 +27,7 @@ const SCENARIOS = [
       elapsedSec: 30,
       contextSize: '200k',
       spikeChip: null,
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -33,6 +40,7 @@ const SCENARIOS = [
       elapsedSec: 30,
       contextSize: '200k',
       spikeChip: '⚠ Cache miss',
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -45,6 +53,7 @@ const SCENARIOS = [
       elapsedSec: 3000,         // ~10min remaining of 1h
       contextSize: '200k',
       spikeChip: null,
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -57,6 +66,7 @@ const SCENARIOS = [
       elapsedSec: 3360,         // ~4min remaining of 1h
       contextSize: '200k',
       spikeChip: null,
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -69,6 +79,7 @@ const SCENARIOS = [
       elapsedSec: 4000,         // past 1h
       contextSize: '200k',
       spikeChip: null,
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -82,6 +93,7 @@ const SCENARIOS = [
       elapsedSec: 60,
       contextSize: '200k',
       spikeChip: '⚠ 5m TTL',
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -94,6 +106,7 @@ const SCENARIOS = [
       elapsedSec: 30,
       contextSize: '1M',
       spikeChip: '⚠ 1M ON',
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -106,6 +119,7 @@ const SCENARIOS = [
       elapsedSec: 30,
       contextSize: '200k',
       spikeChip: '⚠ Input spike',
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -118,6 +132,7 @@ const SCENARIOS = [
       elapsedSec: 30,
       contextSize: '200k',
       spikeChip: '⚠ Rebuild churn',
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -130,6 +145,7 @@ const SCENARIOS = [
       elapsedSec: 30,
       contextSize: '200k',
       spikeChip: '⚠ Output heavy',
+      caps: HEALTHY_CAPS,
     },
   },
   {
@@ -142,6 +158,46 @@ const SCENARIOS = [
       elapsedSec: 30,
       contextSize: '200k',
       spikeChip: '⚠ Call surge',
+      caps: HEALTHY_CAPS,
+    },
+  },
+  {
+    name: '5h-cap-warn',
+    label: '🚨 5H cap 94% (imminent block)',
+    data: {
+      hitRate: 0.93,
+      pct1h: 0.95,
+      savings: 1840,
+      elapsedSec: 30,
+      contextSize: '200k',
+      spikeChip: null,
+      caps: { fiveHour: 94, sevenDay: 12 },
+    },
+  },
+  {
+    name: '7d-cap-warn',
+    label: '🚨 7D cap 92% (week pacing)',
+    data: {
+      hitRate: 0.91,
+      pct1h: 0.92,
+      savings: 4200,
+      elapsedSec: 30,
+      contextSize: '200k',
+      spikeChip: null,
+      caps: { fiveHour: 35, sevenDay: 92 },
+    },
+  },
+  {
+    name: 'caps-yellow',
+    label: '⚠ 5H 78% / 7D 70% (heads-up)',
+    data: {
+      hitRate: 0.95,
+      pct1h: 0.95,
+      savings: 2680,
+      elapsedSec: 30,
+      contextSize: '200k',
+      spikeChip: null,
+      caps: { fiveHour: 78, sevenDay: 70 },
     },
   },
 ];
@@ -220,6 +276,20 @@ export function buildTableDemoData(options = {}) {
 }
 
 
+// Build the rate-limit caps shape that statusline.js consumes. Reset times
+// are anchored to "wall-clock-ish" offsets so the cycle reads stable: 5H
+// resets ~2h out, 7D resets a few days out — matches what real /usage shows.
+function buildCapsShape(caps) {
+  if (!caps) return null;
+  const nowSec = Math.floor(Date.now() / 1000);
+  return {
+    windows: [
+      { key: 'five_hour', usedPct: caps.fiveHour, resetsAt: nowSec + 60 * 130 }, // ~2h10m
+      { key: 'seven_day', usedPct: caps.sevenDay, resetsAt: nowSec + 60 * 60 * 76 }, // ~3d4h
+    ],
+  };
+}
+
 export function buildScenarioData(scenarioName, options) {
   let scenario;
   if (scenarioName === 'cycle') {
@@ -231,7 +301,7 @@ export function buildScenarioData(scenarioName, options) {
     if (!scenario) return null;
   }
 
-  const { hitRate, pct1h, pct5m, savings, elapsedSec, contextSize, spikeChip } = scenario.data;
+  const { hitRate, pct1h, pct5m, savings, elapsedSec, contextSize, spikeChip, caps } = scenario.data;
   return {
     summary: { hitRate },
     ttl: { pct1h, pct5m: pct5m ?? (1 - pct1h) },
@@ -245,6 +315,8 @@ export function buildScenarioData(scenarioName, options) {
     lastActivity: Date.now() - elapsedSec * 1000,
     contextWindow: { size: contextSize },
     spikeChip,
+    caps: buildCapsShape(caps),
+    model: DEFAULT_MODEL,
     _demoLabel: scenario.label,
     _demoName: scenario.name,
   };

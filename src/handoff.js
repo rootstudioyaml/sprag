@@ -16,6 +16,9 @@ import { writeFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 
+import { formatResetIn, formatResetClock } from './format-time.js';
+import { labelForKey } from './window-labels.js';
+
 function pad(n) {
   return String(n).padStart(2, '0');
 }
@@ -50,16 +53,6 @@ function gitSnapshot(cwd) {
   const head = safeGit('rev-parse --short HEAD', cwd);
   const status = safeGit('status --short', cwd);
   return { branch, head, status };
-}
-
-function formatResetIn(resetsAt, now = new Date()) {
-  if (!Number.isFinite(resetsAt)) return null;
-  const remaining = Math.max(0, resetsAt - Math.floor(now.getTime() / 1000));
-  if (remaining <= 0) return '0m';
-  const h = Math.floor(remaining / 3600);
-  const m = Math.floor((remaining % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }
 
 function pickPath(cwd, now) {
@@ -99,15 +92,21 @@ function renderTemplate({ now, cwd, git, caps }) {
 
   lines.push('## Cap snapshot');
   lines.push('');
-  if (caps) {
-    const fmtRow = (label, info) => {
-      if (!info) return `- ${label}: (unknown — stdin had no rate-limit info)`;
-      const reset = formatResetIn(info.resetsAt, now);
-      const tail = reset ? `, resets in ${reset}` : '';
-      return `- ${label}: ${Math.round(info.usedPct)}%${tail}`;
-    };
-    lines.push(fmtRow('5-hour window', caps.fiveHour));
-    lines.push(fmtRow('7-day window', caps.sevenDay));
+  if (caps && Array.isArray(caps.windows) && caps.windows.length > 0) {
+    for (const win of caps.windows) {
+      const label = labelForKey(win.key).long;
+      if (!Number.isFinite(win.usedPct)) {
+        lines.push(`- ${label}: (unknown)`);
+        continue;
+      }
+      const reset = formatResetIn(win.resetsAt, now);
+      const clock = formatResetClock(win.resetsAt, now);
+      let tail = '';
+      if (reset && clock) tail = `, resets in ${reset} (at ${clock})`;
+      else if (reset) tail = `, resets in ${reset}`;
+      else if (clock) tail = `, resets at ${clock}`;
+      lines.push(`- ${label}: ${Math.round(win.usedPct)}%${tail}`);
+    }
   } else {
     lines.push('- (no cap data — run `handoff` from a Claude Code session for live numbers)');
   }
@@ -148,7 +147,7 @@ function renderTemplate({ now, cwd, git, caps }) {
  *
  * @param {object} [opts]
  * @param {string} [opts.cwd=process.cwd()]
- * @param {object|null} [opts.caps] - { fiveHour, sevenDay } from extractCaps
+ * @param {object|null} [opts.caps] - { windows: [...] } from extractCaps
  * @param {Date} [opts.now=new Date()]
  * @returns {{ path: string, git: { branch: string, head: string, status: string } | null }}
  */

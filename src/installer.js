@@ -39,15 +39,20 @@ countdown, savings, and (when relevant) a leading warning chip.
 
 ## What to do
 
-1. **Identify the chip.** If the user pasted a statusline, pull out the leading
-   \`⚠ ...\` chip. That maps to a specific issue category.
-2. **Show recent history.** Run \`claude-token-saver history\` (default last 7
-   days) to see the chronology of warning transitions. Each entry is timestamped
-   and includes a short detail string.
-3. **Drill down on the live state.** Run \`claude-token-saver --days 1\` (or
+1. **Lead with the most recent warning + how to handle it.** Run
+   \`claude-token-saver last\` first. It returns the most recent warning event
+   (chip + detail + timestamp) plus the full advice block for it. Surface that
+   to the user before anything else — this is what they came for.
+2. **Identify the chip.** If the user pasted a statusline (instead of relying
+   on \`last\`), pull out the leading \`⚠ ...\` chip. That maps to a specific
+   issue category.
+3. **Show recent history.** Run \`claude-token-saver history\` (default last 7
+   days) to see the chronology of warning transitions. Each entry is timestamped,
+   bilingual (English line + 한국어), and includes a \`💡\` action tip inline.
+4. **Drill down on the live state.** Run \`claude-token-saver --days 1\` (or
    another window) to render the full table view, which lists per-session
    spikes and recommended actions.
-4. **Explain the warning** in plain language. Use the chip → cause table:
+5. **Explain the warning** in plain language. Use the chip → cause table:
 
    | Chip               | Likely cause                                          |
    | ------------------ | ----------------------------------------------------- |
@@ -61,7 +66,7 @@ countdown, savings, and (when relevant) a leading warning chip.
    | \`⚠ Output heavy\`  | Output ratio dominates input — inspect long generations. |
    | \`⚠ Call surge\`    | Request count is well above baseline.                 |
 
-5. **Suggest the next action.** For \`🚨 5H/7D\` chips, recommend running
+6. **Suggest the next action.** For \`🚨 5H/7D\` chips, recommend running
    \`claude-token-saver handoff\` to back up the current work to a
    \`HANDOFF-*.md\` file before the cap hits, then continue in a fresh
    session. For 1M ON, mention \`CLAUDE_CODE_DISABLE_1M_CONTEXT=1\`. For
@@ -70,9 +75,12 @@ countdown, savings, and (when relevant) a leading warning chip.
 
 ## Useful commands
 
+- \`claude-token-saver last\` — most recent warning + full advice (start here).
+- \`claude-token-saver last --days 7\` — widen the lookback window.
 - \`claude-token-saver\` — full table report (default last 1 day).
 - \`claude-token-saver --days 7\` — wider window.
-- \`claude-token-saver history\` — recent warning transitions per day.
+- \`claude-token-saver history\` — recent warning transitions per day, with
+  inline \`💡\` action tips.
 - \`claude-token-saver history --days 30\` — longer history.
 - \`claude-token-saver handoff\` — write a HANDOFF-*.md template in cwd
   capturing git status + cap snapshot, so a fresh session can resume cleanly.
@@ -94,28 +102,31 @@ description: Show recent claude-token-saver warning history and a fresh report.
 ---
 
 You are responding to the \`/token-monitor\` slash command. The user wants a
-quick read of their Claude Code token usage and any active warnings.
+quick read of their Claude Code token usage and any active warnings — most
+importantly: **what just happened, and how do I handle it?**
 
 Steps:
 
-1. Run \`claude-token-saver history --days 7\` and capture the output. This
-   prints recent warning transitions (timestamps + chip + short detail),
-   including any \`🚨 5H NN%\` / \`🚨 7D NN%\` cap-warn entries and any
-   \`📝 handoff written: ...\` events.
-2. Run \`claude-token-saver --days 1\` and capture the output. This prints the
-   full table view: TTL breakdown, cost impact, daily trend, and any active
-   spikes with recommended actions. When a rate-limit cap is at >=90% the
-   table leads with a "🚨 Rate-limit cap is closing in" section.
-3. Summarize for the user:
-   - **Active warnings** — list the most recent unresolved chip(s) with the
-     time they appeared. Cap-warn (\`🚨 5H/7D NN%\`) outranks everything else.
-   - **Today's pattern** — when warnings cluster in time, mention it.
-   - **Recommended action** — for cap-warn, point at \`claude-token-saver
-     handoff\` so the user can back up state before the cap blocks them.
-     Otherwise pick the highest-leverage suggestion from the table report's
-     "Recommended actions" section.
-4. If the history is empty, say so plainly — no warnings means the cache has
-   been healthy and no caps were close in the configured window.
+1. **Lead with the most recent warning.** Run \`claude-token-saver last\`
+   first and surface its output verbatim (or lightly summarized) at the top
+   of your reply. This returns the latest warning event (chip + detail +
+   timestamp) followed by the full advice block. If \`last\` says no recent
+   warnings, mention that and skip ahead — you can stop here unless the user
+   asked for more.
+2. Run \`claude-token-saver history --days 7\` and capture the output. Use it
+   only to add context — e.g. "this is the 3rd cache miss today" — not to
+   re-print the whole file. Each entry is bilingual and includes a \`💡\`
+   action tip inline.
+3. Run \`claude-token-saver --days 1\` and capture the output for any extra
+   color you want to add: TTL breakdown, cost impact, daily trend, or active
+   spikes. Skip if step 1 already covered what the user needs.
+4. Summarize for the user:
+   - **What just fired** — the chip + the time + a sentence on what caused it
+     (from \`last\`).
+   - **What to do** — the action tip from \`last\`. For cap-warn (\`🚨 5H/7D NN%\`),
+     surface \`claude-token-saver handoff\` prominently so they can back up
+     state before the cap blocks them.
+   - **Today's pattern** (optional) — when warnings cluster in time, mention it.
 
 Keep the summary to ~10 lines. The user can re-run the underlying commands
 themselves for the full output.

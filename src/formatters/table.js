@@ -2,6 +2,8 @@
  * Terminal table formatter — zero dependencies.
  */
 import { ISSUE_MESSAGES } from '../advice.js';
+import { formatResetIn, formatResetClock } from '../format-time.js';
+import { labelForKey } from '../window-labels.js';
 
 function pad(str, len, align = 'left') {
   const s = String(str);
@@ -123,32 +125,24 @@ function renderSpikeSection(spikes, contextWindow) {
   return lines;
 }
 
-function formatResetIn(resetsAt, now = new Date()) {
-  if (!Number.isFinite(resetsAt)) return null;
-  const remaining = Math.max(0, resetsAt - Math.floor(now.getTime() / 1000));
-  if (remaining <= 0) return '0m';
-  const h = Math.floor(remaining / 3600);
-  const m = Math.floor((remaining % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
 function renderCapWarnSection(caps) {
-  const warning = [];
-  if (caps.fiveHour && caps.fiveHour.usedPct >= 90) {
-    warning.push({ label: '5-hour window', info: caps.fiveHour });
-  }
-  if (caps.sevenDay && caps.sevenDay.usedPct >= 90) {
-    warning.push({ label: '7-day window', info: caps.sevenDay });
-  }
+  if (!caps || !Array.isArray(caps.windows)) return [];
+  const warning = caps.windows.filter(
+    (w) => Number.isFinite(w.usedPct) && w.usedPct >= 90,
+  );
   if (warning.length === 0) return [];
   const lines = [];
   lines.push('  🚨 Rate-limit cap is closing in');
   lines.push(`  ${'─'.repeat(50)}`);
-  for (const { label, info } of warning) {
-    const reset = formatResetIn(info.resetsAt);
-    const tail = reset ? `, resets in ${reset}` : '';
-    lines.push(`  • ${label}: ${Math.round(info.usedPct)}% used${tail}`);
+  for (const win of warning) {
+    const label = labelForKey(win.key).long;
+    const reset = formatResetIn(win.resetsAt);
+    const clock = formatResetClock(win.resetsAt);
+    let tail = '';
+    if (reset && clock) tail = `, resets in ${reset} (at ${clock})`;
+    else if (reset) tail = `, resets in ${reset}`;
+    else if (clock) tail = `, resets at ${clock}`;
+    lines.push(`  • ${label}: ${Math.round(win.usedPct)}% used${tail}`);
   }
   lines.push('');
   lines.push('  Back up work before the cap hits:');

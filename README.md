@@ -242,6 +242,24 @@ Storage paths (cross-platform):
 
 Each day's file is plain Markdown — open it in any editor. Transitions are deduped, so the 1Hz statusline refresh doesn't spam.
 
+## Model + /usage segments (new in v2.3, generic in v2.4)
+
+Three more segments mirror the data Claude Code's `/usage` slash command shows, so you don't have to slash for it every few minutes:
+
+| Segment     | Icon mode example     | Source                          |
+| ----------- | --------------------- | ------------------------------- |
+| `model`     | `🤖 Opus 4.7`         | stdin `model.display_name`      |
+| `five_hour` | `✦ current ███▒░░ 47% 🔄 21:10`     | stdin `rate_limits.five_hour`   |
+| `seven_day` | `📅 weekly ▒░░░░░ 9% 🔄 Thu 13:00`   | stdin `rate_limits.seven_day`   |
+
+The window segments stay quiet under 70% (calm emerald), warm to amber at 70–89%, and yield to the leading `🚨 5H █████▓ 94%` / `🚨 7D █████▒ 92%` cap-warn chip at 90%+ — so you never see the same window twice. The gauge is 6 cells wide using a single density family (`█▓▒░`), so the fill→empty boundary reads as one smooth gradient instead of an awkward step between fractional and shaded glyphs. Colors render as a Tailwind-inspired muted palette (emerald-400 / amber-400 / rose-400) on truecolor terminals (`COLORTERM=truecolor`), with a graceful fallback to 8-color ANSI elsewhere. Filter the layout with `--segments=` if you only want a subset:
+
+```bash
+claude-token-saver --statusline --icon --segments=model,five_hour,seven_day,saved
+```
+
+`5h` and `7d` are kept as aliases for the older config files. Any new `rate_limits.*` window Anthropic ships (e.g. a Sonnet-only weekly bucket) renders automatically with a derived label — no config or version bump needed. As of 2026-04-25 the stdin contract exposes only `five_hour` + `seven_day`; the third row in `/usage` ("Current week — Sonnet only") is not in the payload yet, so we mirror what's there.
+
 ## Cap-warn + handoff (new in v2.2)
 
 Claude Code's statusline payload now includes rate-limit usage (`rate_limits.five_hour.used_percentage`, `rate_limits.seven_day.used_percentage`). claude-token-saver leads the statusline with a `🚨 5H 94%` (or `🚨 7D 92%`) chip the moment either window crosses **90%**, and writes the transition into history:

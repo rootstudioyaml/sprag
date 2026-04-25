@@ -17,12 +17,34 @@
  *   }
  */
 
+import { formatResetClock } from '../format-time.js';
+import { labelForKey } from '../window-labels.js';
+
+// The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
+// next to each other — terminal palettes set them with unbalanced perceptual
+// brightness, so the line ends up feeling loud. We emit a Tailwind-inspired
+// muted palette via 24-bit truecolor when the terminal advertises support
+// (`COLORTERM=truecolor`/`24bit`), and gracefully fall back to the legacy
+// 8-color codes on terminals that don't.
+//
+//   GREEN   → emerald-400 #34D399  (calm, balanced with the others)
+//   YELLOW  → amber-400   #FBBF24  (warm, not screamy)
+//   RED     → rose-400    #FB7185  (alarm without the eye-burn of pure red)
+//   CYAN    → cyan-400    #22D3EE
+//   MAGENTA → violet-400  #A78BFA  (model identity tone)
+//   GRAY    → slate-500   #64748B  (recedes for the gauge track / period footer)
+const TRUECOLOR =
+  process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
+const fg = (r, g, b, fallback) =>
+  TRUECOLOR ? `\x1b[38;2;${r};${g};${b}m` : fallback;
+
 const RESET = '\x1b[0m';
-const RED = '\x1b[31m';
-const GREEN = '\x1b[32m';
-const YELLOW = '\x1b[33m';
-const CYAN = '\x1b[36m';
-const GRAY = '\x1b[90m';
+const RED = fg(251, 113, 133, '\x1b[31m');
+const GREEN = fg(52, 211, 153, '\x1b[32m');
+const YELLOW = fg(251, 191, 36, '\x1b[33m');
+const CYAN = fg(34, 211, 238, '\x1b[36m');
+const MAGENTA = fg(167, 139, 250, '\x1b[35m');
+const GRAY = fg(100, 116, 139, '\x1b[90m');
 const BOLD = '\x1b[1m';
 
 function formatMoney(usd) {
@@ -34,6 +56,44 @@ function formatMoney(usd) {
 
 function formatPct(v) {
   return `${(v * 100).toFixed(1)}%`;
+}
+
+/**
+ * Render a 6-cell density-gradient gauge for `pct` (0..100). All cells share
+ * the same Unicode "Block Elements" density family — `█` (100%) → `▓` (75%)
+ * → `▒` (50%) → `░` (25%) — so the fill→empty boundary reads as one smooth
+ * gradient instead of an awkward step.
+ *
+ * Earlier we used partial-fill glyphs (`▏▎▍▌▋▊▉`) for sub-cell precision, but
+ * those have transparent halves that clash visually with the `░` track next
+ * to them (the eye sees "solid edge | gap | dotted track" — three zones).
+ * Density chars are the same shape, just darker/lighter, so the boundary
+ * cell reads as a single smooth fade.
+ *
+ * Each cell is ~17% wide; the boundary cell uses 3 intermediate density steps
+ * for ~4% effective precision around the fill edge. Stable monospace width
+ * across all terminal fonts that ship Block Elements (U+2580–U+259F).
+ */
+function gaugeBar(pct) {
+  const cells = 6;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const filled = (clamped / 100) * cells; // e.g. 4.32 cells filled
+  const fullCells = Math.floor(filled);
+  const remainder = filled - fullCells; // 0..1 — fill fraction of the boundary cell
+  // Boundary cell: ░ (empty), ▒ (1/3), ▓ (2/3), or roll over to a full █.
+  let partial = '';
+  let extra = 0;
+  if (remainder >= 0.83) {
+    extra = 1; // round up — fill the boundary cell completely
+  } else if (remainder >= 0.5) {
+    partial = '▓';
+  } else if (remainder >= 0.16) {
+    partial = '▒';
+  } // else: remainder is too small to show — leave the cell empty
+  const totalFull = Math.min(cells, fullCells + extra);
+  const usedCells = totalFull + (partial ? 1 : 0);
+  const empty = '░'.repeat(Math.max(0, cells - usedCells));
+  return '█'.repeat(totalFull) + partial + empty;
 }
 
 /**
@@ -50,29 +110,15 @@ function formatTimer(remainingSec) {
 }
 
 /**
- * Pick the cap-warn chip ({ kind, usedPct, resetsAt, label }) that should
- * surface, or null if neither window is at 90%+. When both windows are warning,
+ * Pick the cap-warn chip that should surface from any of the rate-limit
+ * windows, or null when none are at 90%+. When multiple windows are warning,
  * the one that resets sooner wins (it's the more imminent block).
  */
 export function pickCapWarn(caps) {
-  if (!caps) return null;
-  const candidates = [];
-  if (caps.fiveHour && caps.fiveHour.usedPct >= 90) {
-    candidates.push({
-      kind: 'five_hour',
-      label: '5H',
-      usedPct: caps.fiveHour.usedPct,
-      resetsAt: caps.fiveHour.resetsAt,
-    });
-  }
-  if (caps.sevenDay && caps.sevenDay.usedPct >= 90) {
-    candidates.push({
-      kind: 'seven_day',
-      label: '7D',
-      usedPct: caps.sevenDay.usedPct,
-      resetsAt: caps.sevenDay.resetsAt,
-    });
-  }
+  if (!caps || !Array.isArray(caps.windows)) return null;
+  const candidates = caps.windows
+    .filter((w) => Number.isFinite(w.usedPct) && w.usedPct >= 90)
+    .map((w) => ({ ...w, label: labelForKey(w.key).short }));
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => {
     const ar = Number.isFinite(a.resetsAt) ? a.resetsAt : Infinity;
@@ -89,10 +135,10 @@ export function pickCapWarn(caps) {
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, hit, ttl, saved, ctx, period. Null/undefined = all.
+ * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, model, hit, ttl, saved, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null } = {}) {
-  const { summary, ttl, cost, options, lastActivity, contextWindow, spikeChip, caps } = data;
+  const { summary, ttl, cost, options, lastActivity, contextWindow, spikeChip, caps, model } = data;
   const { hitRate } = summary;
 
   // Hit rate → color signal
@@ -190,12 +236,13 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   if (contextWindow && contextWindow.size && contextWindow.size !== 'unknown') {
     const label = contextWindow.size === '1M' ? '1M' : '200k';
     const ctxColor = contextWindow.size === '1M' ? RED : GREEN;
+    // `Ctx` (not the full word `Context`) across every mode — the icon already
+    // tells the eye what the chip is, and the short form fits the same cadence
+    // as `Hit`/`Saved` peers when we eventually shorten those too.
     if (isIcon && verbose) {
-      ctxSeg = `${c(ctxColor)}📦 Context ${label}${c(RESET)}`;
+      ctxSeg = `${c(ctxColor)}📦 Ctx ${label}${c(RESET)}`;
     } else if (isIcon) {
       ctxSeg = `${c(ctxColor)}📦 ${label}${c(RESET)}`;
-    } else if (verbose) {
-      ctxSeg = `${c(ctxColor)}Context ${label}${c(RESET)}`;
     } else {
       ctxSeg = `${c(ctxColor)}Ctx ${label}${c(RESET)}`;
     }
@@ -203,6 +250,76 @@ export function formatReport(data, { color = true, verbose = false, timer = true
 
   // Spike chip — one word only, keeps the statusline single-line.
   const spikeSeg = spikeChip ? `${c(RED)}${spikeChip}${c(RESET)}` : null;
+
+  // Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
+  // Cheap identity context: useful when the user toggles between Sonnet/Opus
+  // mid-session and wants to confirm at a glance which one is answering.
+  let modelSeg = null;
+  if (typeof model === 'string' && model.length > 0) {
+    // 🤖 + name is enough — the emoji disambiguates so the literal word "Model"
+    // is dead weight in icon mode. Text modes keep the bare name; the magenta
+    // tone marks it as identity context.
+    if (isIcon) {
+      modelSeg = `${c(MAGENTA)}🤖 ${model}${c(RESET)}`;
+    } else {
+      modelSeg = `${c(MAGENTA)}${model}${c(RESET)}`;
+    }
+  }
+
+  // Always-on usage segments — what /usage shows in Claude Code, mirrored
+  // to the statusline so the user doesn't have to slash-command for it.
+  // Today the stdin payload exposes the 5h ("Current session") and 7-day
+  // rolling ("Current week") windows; if Anthropic ships more (e.g. a
+  // Sonnet-only weekly), they render automatically with derived labels.
+  // Each renders as `{label} {pct}% · {countdown}`. When a window is at >=90%
+  // the cap-warn chip already shouts about it, so we suppress the always-on
+  // segment to avoid duplicate noise.
+  function buildUsageSeg({ labels, info, color: tone }) {
+    if (!info || !Number.isFinite(info.usedPct)) return null;
+    if (info.usedPct >= 90) return null; // cap-warn chip handles this case
+    const pct = Math.round(info.usedPct);
+    // Show only the wall-clock reset time (e.g. `🔄 21:10`). Absolute time
+    // doesn't tick second-by-second so the statusline reads stable, and the
+    // 🔄 icon itself separates the percent from the clock — no extra `·` needed.
+    const clock = formatResetClock(info.resetsAt);
+    const tail = clock ? ` 🔄 ${clock}` : '';
+    // `cap` reads as a rate-limit ceiling rather than a duration. Icon mode
+    // leans on the icon to identify the window (✦ = session/now, 📅 = week),
+    // so the 5H label is empty while the 7D label spells out "weekly". Text and
+    // verbose modes keep the `5H`/`7D` short label since they have no icon.
+    // Icon mode renders an inline ▰▱ gauge instead of the literal "cap used" —
+    // a glance at the bar conveys urgency faster than parsing a percent number,
+    // and the gauge stays the same width as the percent climbs.
+    if (isIcon) {
+      const labelPart = labels.usageLabel ? `${labels.usageLabel} ` : '';
+      const bar = gaugeBar(pct);
+      return `${c(tone)}${labels.icon} ${labelPart}${bar} ${pct}%${tail}${c(RESET)}`;
+    }
+    if (verbose) {
+      return `${c(tone)}${labels.short} cap ${pct}% used${tail}${c(RESET)}`;
+    }
+    return `${c(tone)}${labels.short} cap ${pct}%${tail}${c(RESET)}`;
+  }
+  // Color tone: green when <70%, yellow 70-89% (the segment is suppressed at
+  // 90+% in favor of cap-warn). Lets the user spot "I'm getting close" without
+  // waiting for the alarm chip.
+  function usageTone(info) {
+    if (!info || !Number.isFinite(info.usedPct)) return GRAY;
+    if (info.usedPct >= 70) return YELLOW;
+    return GREEN;
+  }
+  const usageSegs = [];
+  if (caps && Array.isArray(caps.windows)) {
+    for (const win of caps.windows) {
+      const labels = labelForKey(win.key);
+      const seg = buildUsageSeg({
+        labels,
+        info: win,
+        color: usageTone(win),
+      });
+      if (seg) usageSegs.push({ key: win.key, seg });
+    }
+  }
 
   // Cap-warn chip — leads everything when ANY rate-limit window is at 90%+.
   // It's the most actionable signal we can show: no point optimizing cache
@@ -212,14 +329,19 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   let capWarnSeg = null;
   if (capWarn) {
     const pct = Math.round(capWarn.usedPct);
-    if (isIcon && verbose) {
-      capWarnSeg = `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} cap ${pct}%${c(RESET)}`;
-    } else if (isIcon) {
-      capWarnSeg = `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} ${pct}%${c(RESET)}`;
-    } else if (verbose) {
-      capWarnSeg = `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${c(RESET)}`;
+    // At 90%+ the user wants to know "when can I send again" — wall-clock is
+    // the actionable bit. Same `🔄 HH:MM` shape as the always-on segments so
+    // the icon's meaning carries over to the alarm chip.
+    const clock = formatResetClock(capWarn.resetsAt);
+    const clockTail = clock ? ` 🔄 ${clock}` : '';
+    if (isIcon) {
+      // Gauge keeps shape parity with the always-on usage segment — the
+      // cap-warn is just the same gauge "filled to alarm". Visual continuity
+      // helps the eye understand "this is the 5H bar I was watching, just red now."
+      const bar = gaugeBar(pct);
+      capWarnSeg = `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
     } else {
-      capWarnSeg = `${c(BOLD)}${c(RED)}${capWarn.label} ${pct}%${c(RESET)}`;
+      capWarnSeg = `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
     }
   }
 
@@ -231,13 +353,29 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     ? new Set(segments.map((s) => s.toLowerCase()))
     : null;
   const want = (name) => !allow || allow.has(name);
+  // Legacy whitelist aliases: `5h` ↔ `five_hour`, `7d` ↔ `seven_day`. So
+  // existing `--segments` configs keep working after the generic refactor.
+  const usageWant = (key) => {
+    if (!allow) return true;
+    if (allow.has(key.toLowerCase())) return true;
+    if (key === 'five_hour' && allow.has('5h')) return true;
+    if (key === 'seven_day' && allow.has('7d')) return true;
+    return false;
+  };
   const segs = [];
   if (capWarnSeg && want('cap-warn')) segs.push(capWarnSeg);
   if (spikeSeg && want('spike')) segs.push(spikeSeg);
+  if (modelSeg && want('model')) segs.push(modelSeg);
   if (want('hit')) segs.push(hitSeg);
   if (want('ttl')) segs.push(ttlSeg);
-  if (want('saved')) segs.push(saveSeg);
+  for (const { key, seg } of usageSegs) {
+    if (usageWant(key)) segs.push(seg);
+  }
   if (ctxSeg && want('ctx')) segs.push(ctxSeg);
+  // Cache saved is the "lifetime brag" stat — useful but not actionable, so
+  // it sits near the tail. The period label closes the line as a quiet
+  // timeframe footer.
+  if (want('saved')) segs.push(saveSeg);
   if (want('period')) segs.push(periodSeg);
   return segs.join(' · ');
 }
