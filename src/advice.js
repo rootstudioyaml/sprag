@@ -285,6 +285,102 @@ export const ISSUE_MESSAGES = {
       },
     ],
   },
+  TTL_EXPIRY_IMMINENT: {
+    title: 'Cache TTL is about to expire',
+    titleKo: '캐시 TTL 만료 임박',
+    explain:
+      'Once the TTL window closes, the entire prefix cache is discarded and must be rebuilt ' +
+      'from scratch on the next call — paying full input cost again.',
+    explainKo:
+      'TTL 창이 닫히면 prefix 캐시 전체가 폐기되고 다음 호출에서 처음부터 재구축해야 합니다 — ' +
+      '전체 입력 비용이 다시 청구됩니다.',
+    actions: () => [
+      {
+        label: 'Send any prompt within the TTL window',
+        labelKo: 'TTL 창 안에 어떤 프롬프트든 보내기',
+        commands: [
+          'Even a short "." or summary request resets the TTL clock',
+          'Pro plan TTL = 5 min; Max plan TTL = 1 hour',
+        ],
+        commandsKo: [
+          '"." 한 글자나 짧은 요약 요청만 해도 TTL 타이머가 리셋됨',
+          'Pro 플랜 TTL = 5분; Max 플랜 TTL = 1시간',
+        ],
+      },
+      {
+        label: 'Use /compact before going idle',
+        labelKo: '자리를 비우기 전에 /compact 실행',
+        commands: [
+          '/compact summarizes the conversation in place and re-anchors the cache',
+          'The compacted summary is much smaller — next rebuild is cheaper',
+        ],
+        commandsKo: [
+          '/compact는 대화를 그 자리에서 요약하고 캐시를 재고정',
+          '요약된 컨텍스트는 훨씬 작아서 다음 재빌드 비용도 줄어듦',
+        ],
+      },
+      {
+        label: 'Upgrade to Max for 1h TTL',
+        labelKo: 'Max 플랜으로 업그레이드해 1시간 TTL 확보',
+        commands: [
+          'Pro plan is capped at 5-minute TTL — any break longer than that expires the cache',
+          'Max plan uses the 1-hour extended TTL bucket by default',
+        ],
+        commandsKo: [
+          'Pro 플랜은 5분 TTL 고정 — 5분 이상 공백이면 캐시 만료',
+          'Max 플랜은 기본적으로 1시간 TTL 버킷을 사용',
+        ],
+      },
+    ],
+  },
+  CONTEXT_NEAR_LIMIT: {
+    title: 'Context window is approaching the limit',
+    titleKo: '컨텍스트 창이 한계에 근접',
+    explain:
+      'As context grows toward 200k (or 1M), each turn becomes more expensive and cache ' +
+      'reuse efficiency drops. Past 200k, long-context pricing applies.',
+    explainKo:
+      '컨텍스트가 200k(또는 1M)에 가까워질수록 매 턴 비용이 높아지고 캐시 재사용 효율이 떨어집니다. ' +
+      '200k를 넘으면 장기 컨텍스트 요금이 적용됩니다.',
+    actions: () => [
+      {
+        label: '/compact at the next natural break',
+        labelKo: '다음 자연스러운 중단점에서 /compact',
+        commands: [
+          '/compact replaces the full conversation with a compact summary',
+          'Run it before context hits the limit — not after (compaction itself costs tokens)',
+        ],
+        commandsKo: [
+          '/compact는 전체 대화를 압축 요약으로 교체',
+          '한계에 도달하기 전에 실행 — 이후엔 compact 자체도 비쌈',
+        ],
+      },
+      {
+        label: 'Re-attach only what you need after /clear',
+        labelKo: '/clear 후 필요한 것만 재첨부',
+        commands: [
+          '/clear resets context to zero — cheapest option when task scope has shifted',
+          'Re-read only the files Claude needs right now, not everything from before',
+        ],
+        commandsKo: [
+          '/clear는 컨텍스트를 완전 초기화 — 작업 범위가 바뀌었을 때 가장 저렴',
+          '지금 필요한 파일만 다시 읽기, 이전 파일 전부 재로드 금지',
+        ],
+      },
+      {
+        label: 'Avoid 1M context unless required',
+        labelKo: '필요하지 않으면 1M 컨텍스트 비활성화',
+        commands: [
+          'export CLAUDE_MODEL_CONTEXT=200000  # force 200k cap',
+          'Max plan auto-promotes to 1M — disable if you don\'t need it',
+        ],
+        commandsKo: [
+          'export CLAUDE_MODEL_CONTEXT=200000  # 200k로 고정',
+          'Max 플랜은 자동으로 1M 승격 — 불필요하면 비활성화',
+        ],
+      },
+    ],
+  },
   FREQUENT_CACHE_REBUILD: {
     title: 'Cache writes outweigh cache reads',
     titleKo: '캐시 쓰기가 읽기보다 많음',
@@ -362,6 +458,14 @@ export const ISSUE_TIPS = {
     en: 'Continue one task in one session; use `/compact` at boundaries; avoid re-reading large files (use `git diff`)',
     ko: '한 작업은 한 세션에서; 분기점에선 `/compact`; 큰 파일 재읽기 대신 `git diff`',
   },
+  TTL_EXPIRY_IMMINENT: {
+    en: 'Send any prompt now to reset the TTL clock; or `/compact` before going idle (Pro = 5min, Max = 1h)',
+    ko: '지금 바로 아무 프롬프트나 보내 TTL 타이머 리셋; 또는 자리 비우기 전 `/compact` (Pro = 5분, Max = 1시간)',
+  },
+  CONTEXT_NEAR_LIMIT: {
+    en: '`/compact` before hitting the limit; `/clear` + re-attach only needed files; disable 1M: `export CLAUDE_MODEL_CONTEXT=200000`',
+    ko: '한계 도달 전 `/compact`; `/clear` 후 필요한 파일만 재첨부; 1M 끄기: `export CLAUDE_MODEL_CONTEXT=200000`',
+  },
 };
 
 /**
@@ -377,6 +481,9 @@ export const CHIP_TO_CODES = {
   '⚠ Rebuild churn': ['FREQUENT_CACHE_REBUILD'],
   '⚠ Output heavy': ['HIGH_OUTPUT_RATIO'],
   '⚠ Call surge': ['HIGH_REQUEST_COUNT'],
+  '⏳ Cache expires': ['TTL_EXPIRY_IMMINENT'],
+  '⏳': ['TTL_EXPIRY_IMMINENT'],
+  '📦': ['CONTEXT_NEAR_LIMIT'],
 };
 
 /**
