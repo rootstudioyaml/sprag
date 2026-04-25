@@ -123,7 +123,42 @@ function renderSpikeSection(spikes, contextWindow) {
   return lines;
 }
 
-export function formatReport({ summary: sum, trend, ttl, anomalies, cost, options, spikeReport, contextWindow }) {
+function formatResetIn(resetsAt, now = new Date()) {
+  if (!Number.isFinite(resetsAt)) return null;
+  const remaining = Math.max(0, resetsAt - Math.floor(now.getTime() / 1000));
+  if (remaining <= 0) return '0m';
+  const h = Math.floor(remaining / 3600);
+  const m = Math.floor((remaining % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function renderCapWarnSection(caps) {
+  const warning = [];
+  if (caps.fiveHour && caps.fiveHour.usedPct >= 90) {
+    warning.push({ label: '5-hour window', info: caps.fiveHour });
+  }
+  if (caps.sevenDay && caps.sevenDay.usedPct >= 90) {
+    warning.push({ label: '7-day window', info: caps.sevenDay });
+  }
+  if (warning.length === 0) return [];
+  const lines = [];
+  lines.push('  🚨 Rate-limit cap is closing in');
+  lines.push(`  ${'─'.repeat(50)}`);
+  for (const { label, info } of warning) {
+    const reset = formatResetIn(info.resetsAt);
+    const tail = reset ? `, resets in ${reset}` : '';
+    lines.push(`  • ${label}: ${Math.round(info.usedPct)}% used${tail}`);
+  }
+  lines.push('');
+  lines.push('  Back up work before the cap hits:');
+  lines.push('    claude-token-saver handoff');
+  lines.push('  (writes a HANDOFF-*.md so a fresh session can pick up.)');
+  lines.push('');
+  return lines;
+}
+
+export function formatReport({ summary: sum, trend, ttl, anomalies, cost, options, spikeReport, contextWindow, caps }) {
   const lines = [];
 
   // Header
@@ -133,7 +168,12 @@ export function formatReport({ summary: sum, trend, ttl, anomalies, cost, option
   lines.push(`  ${'═'.repeat(50)}`);
   lines.push('');
 
-  // Spike section goes FIRST — it's what the user acts on.
+  // Cap warning leads — it's the most time-sensitive signal we can show.
+  if (caps) {
+    lines.push(...renderCapWarnSection(caps));
+  }
+
+  // Spike section goes next — it's what the user acts on.
   if (spikeReport && spikeReport.spikes.length > 0) {
     lines.push(...renderSpikeSection(spikeReport.spikes, contextWindow));
   }

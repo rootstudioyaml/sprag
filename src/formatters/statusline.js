@@ -50,15 +50,49 @@ function formatTimer(remainingSec) {
 }
 
 /**
+ * Pick the cap-warn chip ({ kind, usedPct, resetsAt, label }) that should
+ * surface, or null if neither window is at 90%+. When both windows are warning,
+ * the one that resets sooner wins (it's the more imminent block).
+ */
+export function pickCapWarn(caps) {
+  if (!caps) return null;
+  const candidates = [];
+  if (caps.fiveHour && caps.fiveHour.usedPct >= 90) {
+    candidates.push({
+      kind: 'five_hour',
+      label: '5H',
+      usedPct: caps.fiveHour.usedPct,
+      resetsAt: caps.fiveHour.resetsAt,
+    });
+  }
+  if (caps.sevenDay && caps.sevenDay.usedPct >= 90) {
+    candidates.push({
+      kind: 'seven_day',
+      label: '7D',
+      usedPct: caps.sevenDay.usedPct,
+      resetsAt: caps.sevenDay.resetsAt,
+    });
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => {
+    const ar = Number.isFinite(a.resetsAt) ? a.resetsAt : Infinity;
+    const br = Number.isFinite(b.resetsAt) ? b.resetsAt : Infinity;
+    return ar - br;
+  });
+  return candidates[0];
+}
+
+/**
  * @param {object} data - output of main report pipeline (summary, ttl, cost, options, lastActivity)
  * @param {object} [opts]
  * @param {boolean} [opts.color=true] - emit ANSI escape codes
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
+ * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, hit, ttl, saved, ctx, period. Null/undefined = all.
  */
-export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text' } = {}) {
-  const { summary, ttl, cost, options, lastActivity, contextWindow, spikeChip } = data;
+export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null } = {}) {
+  const { summary, ttl, cost, options, lastActivity, contextWindow, spikeChip, caps } = data;
   const { hitRate } = summary;
 
   // Hit rate → color signal
@@ -170,12 +204,40 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Spike chip — one word only, keeps the statusline single-line.
   const spikeSeg = spikeChip ? `${c(RED)}${spikeChip}${c(RESET)}` : null;
 
+  // Cap-warn chip — leads everything when ANY rate-limit window is at 90%+.
+  // It's the most actionable signal we can show: no point optimizing cache
+  // hits if you're about to be rate-limited anyway. The chip body matches the
+  // English shape `🚨 5H 94%` / `🚨 7D 92%` so history parsers can dedupe on it.
+  const capWarn = pickCapWarn(caps);
+  let capWarnSeg = null;
+  if (capWarn) {
+    const pct = Math.round(capWarn.usedPct);
+    if (isIcon && verbose) {
+      capWarnSeg = `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} cap ${pct}%${c(RESET)}`;
+    } else if (isIcon) {
+      capWarnSeg = `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} ${pct}%${c(RESET)}`;
+    } else if (verbose) {
+      capWarnSeg = `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${c(RESET)}`;
+    } else {
+      capWarnSeg = `${c(BOLD)}${c(RED)}${capWarn.label} ${pct}%${c(RESET)}`;
+    }
+  }
+
   // Warning chip leads — a glance at the statusline catches "something's wrong"
   // before parsing any numbers. Healthy states have no chip and look unchanged.
+  // Cap-warn outranks spike: an imminent rate-limit block is more urgent than
+  // a single spiking session.
+  const allow = segments && segments.length
+    ? new Set(segments.map((s) => s.toLowerCase()))
+    : null;
+  const want = (name) => !allow || allow.has(name);
   const segs = [];
-  if (spikeSeg) segs.push(spikeSeg);
-  segs.push(hitSeg, ttlSeg, saveSeg);
-  if (ctxSeg) segs.push(ctxSeg);
-  segs.push(periodSeg);
+  if (capWarnSeg && want('cap-warn')) segs.push(capWarnSeg);
+  if (spikeSeg && want('spike')) segs.push(spikeSeg);
+  if (want('hit')) segs.push(hitSeg);
+  if (want('ttl')) segs.push(ttlSeg);
+  if (want('saved')) segs.push(saveSeg);
+  if (ctxSeg && want('ctx')) segs.push(ctxSeg);
+  if (want('period')) segs.push(periodSeg);
   return segs.join(' · ');
 }

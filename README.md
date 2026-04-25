@@ -23,7 +23,7 @@ v1.5 adds three things on top of the original `claude-cache-monitor`:
 
 The original functionality still works: cache hit rate, TTL breakdown, cost impact vs. no-cache, TTL countdown timer, and Claude Code statusline integration.
 
-**Runs standalone or as a plugin under another statusline.** Use `npx claude-token-saver` as a one-shot report, wire it into Claude Code's native statusline as the sole segment, or drop it in as an appended segment under a richer statusline like [rz1989s/claude-code-statusline](https://github.com/rz1989s/claude-code-statusline). See [Three Ways to Use It](#three-ways-to-use-it).
+**Run it standalone or wire it into Claude Code's statusline.** Use `npx claude-token-saver` as a one-shot report, or wire it into Claude Code's native statusline for an always-on chip. See [Two Ways to Use It](#two-ways-to-use-it).
 
 ---
 
@@ -36,7 +36,7 @@ v1.5 신규:
 
 기존 기능(캐시 히트율·TTL 분포·비용 절감·TTL 카운트다운·statusline)은 그대로 유지됩니다.
 
-**단독 도구로도, 다른 statusline의 플러그인으로도 동작합니다.** `npx claude-token-saver` 한 줄로 진단 리포트만 보는 것도 가능하고, Claude Code 내장 statusline에 직접 연결해 상시 표시할 수도 있고, [rz1989s/claude-code-statusline](https://github.com/rz1989s/claude-code-statusline) 같은 기존 statusline 아래에 세그먼트로 덧붙일 수도 있습니다. 자세한 용법은 [Three Ways to Use It](#three-ways-to-use-it) 참고.
+**단독 도구로도, Claude Code statusline 통합으로도 동작합니다.** `npx claude-token-saver` 한 줄로 진단 리포트만 보거나, 내장 statusline에 연결해 상시 표시할 수 있습니다. 자세한 용법은 [Two Ways to Use It](#two-ways-to-use-it) 참고.
 
 ## Quick Start
 
@@ -99,15 +99,12 @@ Issue codes detected:
 
 Remediation commands are chosen from `process.platform` — macOS/Linux/WSL get `~/.zshrc` snippets, Windows gets `setx` and the PowerShell equivalent.
 
-## Three Ways to Use It
-
-`claude-token-saver` is primarily a **standalone tool**; the plugin mode is just a convenience for users who already run another statusline.
+## Two Ways to Use It
 
 | Mode | What you run | When to pick this |
 |---|---|---|
 | **1. Standalone CLI report** | `npx claude-token-saver` | One-off diagnosis. Prints the full report (spikes + cache + cost + trend). Zero setup. |
-| **2. Standalone Claude Code statusline** | `claude-token-saver --statusline` wired via `~/.claude/settings.json` | You want the chip (hit rate · TTL countdown · Ctx 200k/1M · spike) visible all the time. The default story. |
-| **3. Plugin under another statusline** | `examples/statusline-with-rz1989s.sh` appends our segment to rz1989s or any wrapper script | You already have a rich statusline (repo info, cost, MCP, prayer times, themes) and want to bolt the token-saver segment on the end. |
+| **2. Claude Code statusline** | `claude-token-saver --statusline` wired via `~/.claude/settings.json` | You want the chip (hit rate · TTL countdown · Ctx 200k/1M · spike) visible all the time. |
 
 Detail for each mode below.
 
@@ -193,22 +190,6 @@ Works best in **Windows Terminal** or **PowerShell 7+** (ANSI color + emoji). Cl
 
 Same as Linux — install the package in your WSL Node.js and point to the POSIX sh script.
 
-#### Combine with rz1989s/claude-code-statusline
-
-If you already use [rz1989s/claude-code-statusline](https://github.com/rz1989s/claude-code-statusline) for its rich layout (repo, cost, MCP, prayer times, themes), drop in [`examples/statusline-with-rz1989s.sh`](examples/statusline-with-rz1989s.sh) to append our cache segment at the end — no conflict, no feature overlap.
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "bash ~/.claude/statusline-with-rz1989s.sh",
-    "refreshInterval": 1
-  }
-}
-```
-
----
-
 Claude Code calls this every ~300ms on events, plus once per `refreshInterval` second while idle. Colors are emitted when the terminal supports them:
 
 - **Hit rate** — 🟢 ≥85% · 🟡 70–85% · 🔴 <70%
@@ -260,6 +241,34 @@ Storage paths (cross-platform):
 - **Linux**: `$XDG_CONFIG_HOME/claude-token-saver/history/YYYY-MM-DD.md` (or `~/.config/...`)
 
 Each day's file is plain Markdown — open it in any editor. Transitions are deduped, so the 1Hz statusline refresh doesn't spam.
+
+## Cap-warn + handoff (new in v2.2)
+
+Claude Code's statusline payload now includes rate-limit usage (`rate_limits.five_hour.used_percentage`, `rate_limits.seven_day.used_percentage`). claude-token-saver leads the statusline with a `🚨 5H 94%` (or `🚨 7D 92%`) chip the moment either window crosses **90%**, and writes the transition into history:
+
+```
+- 14:32:08 🚨 5H 94% cap warning (resets in 1h 38m)
+- 16:10:21 ✓ 5H cap warning resolved
+```
+
+When you see the chip, back up the work in flight before the cap blocks you:
+
+```bash
+claude-token-saver handoff
+```
+
+That writes `./HANDOFF-YYYY-MM-DD-HHMM.md` in the current directory with:
+
+- timestamp, cwd, git branch / HEAD / dirty file list
+- the 5h/7d cap snapshot (and "resets in Hh Mm")
+- empty fillable sections for *what I just did*, *TODO*, *where to pick up next*, *gotchas*
+- a one-line resume prompt for a fresh Claude Code session:
+
+  ```
+  Read the most recent HANDOFF-*.md in this directory and continue the work.
+  ```
+
+The handoff write is also recorded in history (`📝 handoff written: …`), so `/token-monitor` and `claude-token-saver history` show both the cap-warn and the backup event next to each other.
 
 ## Hook Setup
 

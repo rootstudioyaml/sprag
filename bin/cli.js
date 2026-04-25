@@ -26,6 +26,50 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+/**
+ * Read the JSON blob Claude Code feeds the statusline command on stdin.
+ * Returns null when stdin is a TTY or empty (e.g. user invokes `--statusline`
+ * by hand) so callers can fall back to flag/env config.
+ *
+ * The blob shape (subset we consume):
+ *   {
+ *     "transcript_path": "...",
+ *     "rate_limits": {
+ *       "five_hour":  { "used_percentage": 94, "resets_at": 1777099200 },
+ *       "seven_day":  { "used_percentage": 7,  "resets_at": 1777521600 }
+ *     }
+ *   }
+ */
+function readStdinJson() {
+  if (process.stdin.isTTY) return null;
+  try {
+    const raw = readFileSync(0, 'utf8');
+    if (!raw || !raw.trim()) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function extractCaps(stdinJson) {
+  if (!stdinJson || !stdinJson.rate_limits) return null;
+  const rl = stdinJson.rate_limits;
+  const pick = (obj) => {
+    if (!obj || typeof obj !== 'object') return null;
+    const used = Number(obj.used_percentage);
+    if (!Number.isFinite(used)) return null;
+    const resetsAt = Number(obj.resets_at);
+    return {
+      usedPct: used,
+      resetsAt: Number.isFinite(resetsAt) ? resetsAt : null,
+    };
+  };
+  return {
+    fiveHour: pick(rl.five_hour),
+    sevenDay: pick(rl.seven_day),
+  };
+}
+
 import { parseAllSessions, getLastUserMessageTime } from '../src/parser.js';
 import {
   dailyTrend,
@@ -53,8 +97,11 @@ const PKG_VERSION = (() => {
 
 function getArg(name) {
   const idx = args.indexOf(name);
-  if (idx === -1) return undefined;
-  return args[idx + 1];
+  if (idx !== -1) return args[idx + 1];
+  const prefix = `${name}=`;
+  const eq = args.find((a) => a.startsWith(prefix));
+  if (eq) return eq.slice(prefix.length);
+  return undefined;
 }
 
 function hasFlag(name) {
@@ -91,6 +138,34 @@ async function main() {
       console.log(content.replace(/\n+$/, ''));
       console.log('');
     }
+    return;
+  }
+
+  // Subcommand: handoff — write a HANDOFF-YYYY-MM-DD-HHMM.md template in cwd
+  // capturing git status + the latest cap snapshot, so a fresh Claude Code
+  // session can pick up where this one stopped. Pairs with the cap-warn chip:
+  // when statusline shows 🚨 5H 90%+, run this to back up state before the cap
+  // hits.
+  //   claude-token-saver handoff             # write to cwd
+  //   claude-token-saver handoff --cwd PATH  # custom directory
+  if (args[0] === 'handoff') {
+    const { writeHandoff } = await import('../src/handoff.js');
+    const { recordHandoff } = await import('../src/history.js');
+    const cwd = getArg('--cwd') || process.cwd();
+    // Cap data only flows in via stdin (Claude Code statusline contract).
+    // Direct CLI invocations won't have it — that's fine, the template will
+    // note the gap.
+    const stdinJson = readStdinJson();
+    const caps = extractCaps(stdinJson);
+    const { path, git } = writeHandoff({ cwd, caps });
+    try { recordHandoff(path); } catch { /* non-critical */ }
+    console.log(`Handoff written: ${path}`);
+    if (git) {
+      console.log(`  git: ${git.branch}${git.head ? ` @ ${git.head}` : ''}${git.status ? ' (dirty)' : ' (clean)'}`);
+    }
+    console.log('');
+    console.log('Fill in the empty sections, then start a new Claude Code session with:');
+    console.log('  Read the most recent HANDOFF-*.md in this directory and continue the work.');
     return;
   }
 
@@ -234,11 +309,16 @@ async function main() {
       : (hasFlag('--no-verbose') || hasFlag('--compact') ? false : cfg.verbose);
     const showTimer = hasFlag('--no-timer') ? false : cfg.timer;
     const colorOk = !hasFlag('--no-color') && !process.env.NO_COLOR && cfg.color;
+    const segmentsArg = getArg('--segments');
+    const segments = segmentsArg
+      ? segmentsArg.split(',').map((s) => s.trim()).filter(Boolean)
+      : null;
     const out = formatReport(data, {
       color: colorOk,
       verbose: isVerbose,
       timer: showTimer,
       mode: isIcon ? 'icon' : 'text',
+      segments,
     });
     // For `cycle` mode, prefix with the scenario label so the screen recorder
     // shows what the viewer is looking at (only when explicitly requested).
@@ -318,6 +398,30 @@ async function main() {
   const spikeReport = detectSpikes(sessions, { recentHours: 24, multiplier: 3 });
   const contextWindow = detectContextWindow(sessions, { recentHours: 24 });
 
+  // Claude Code feeds the statusline command a JSON blob on stdin every
+  // refresh. Pull rate_limits out of it so we can surface cap-warn (>=90%)
+  // chips, record cap transitions, and seed the table view's warning box.
+  // The table path falls back to the most-recent cached snapshot so the
+  // /token-monitor slash command (which doesn't pipe stdin) still warns.
+  const stdinJson = readStdinJson();
+  let caps = extractCaps(stdinJson);
+  if (isStatusline && caps) {
+    try {
+      const { persistCaps } = await import('../src/caps-cache.js');
+      persistCaps(caps);
+    } catch {
+      // non-critical
+    }
+  }
+  if (!isStatusline && !caps) {
+    try {
+      const { loadRecentCaps } = await import('../src/caps-cache.js');
+      caps = loadRecentCaps();
+    } catch {
+      // ignore
+    }
+  }
+
   // For statusline: attach a single-word chip only when there's something
   // actionable right now. 1M context is always shown; otherwise only fire
   // if the most recent session actually appears in the spike list.
@@ -348,8 +452,14 @@ async function main() {
     // Persist transitions to ~/.config/claude-token-saver/history/YYYY-MM-DD.md
     // so /token-monitor and `claude-token-saver history` can replay them.
     try {
-      const { recordChip } = await import('../src/history.js');
+      const { recordChip, recordCapTransition } = await import('../src/history.js');
       recordChip(spikeChip, { detail: chipDetail });
+      // Cap-warn transitions are tracked independently per window — a session
+      // can hit 90% on the 5h window even when no spike chip is firing.
+      if (caps) {
+        recordCapTransition('five_hour', caps.fiveHour);
+        recordCapTransition('seven_day', caps.sevenDay);
+      }
     } catch {
       // history is non-critical — don't let it break the statusline render
     }
@@ -387,6 +497,7 @@ async function main() {
     spikeReport,
     contextWindow,
     spikeChip,
+    caps,
   };
 
   let output;
@@ -412,11 +523,16 @@ async function main() {
     const colorOk =
       !hasFlag('--no-color') && !process.env.NO_COLOR && cfg.color;
 
+    const segmentsArg = getArg('--segments');
+    const segments = segmentsArg
+      ? segmentsArg.split(',').map((s) => s.trim()).filter(Boolean)
+      : null;
     output = formatReport(data, {
       color: colorOk,
       verbose: isVerbose,
       timer: showTimer,
       mode: isIcon ? 'icon' : 'text',
+      segments,
     });
   } else {
     const { formatReport } = await import('../src/formatters/table.js');

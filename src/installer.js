@@ -15,7 +15,7 @@ import { claudeUserDir } from './paths.js';
 
 const SKILL_BODY = `---
 name: claude-token-saver
-description: Use when the user mentions Claude Code token usage, prompt cache hit rate, TTL/expiry, the 1M context window, cache misses, output spikes, or anything in the statusline produced by claude-token-saver (chips like "⚠ 1M ON", "⚠ Input spike", "⚠ Cache miss", "⚠ 5m TTL", "⚠ Rebuild churn", "⚠ Output heavy", "⚠ Call surge", "⏳ Cache expires", "💰 Cache saved", "🧠 Cache hit"). Also use when they ask to view token-usage history or want to understand a warning they just saw.
+description: Use when the user mentions Claude Code token usage, prompt cache hit rate, TTL/expiry, the 1M context window, cache misses, output spikes, rate-limit caps (5h/7d), or anything in the statusline produced by claude-token-saver (chips like "🚨 5H 94%", "🚨 7D 92%", "⚠ 1M ON", "⚠ Input spike", "⚠ Cache miss", "⚠ 5m TTL", "⚠ Rebuild churn", "⚠ Output heavy", "⚠ Call surge", "⏳ Cache expires", "💰 Cache saved", "🧠 Cache hit"). Also use when they ask to view token-usage history, want to understand a warning they just saw, or want to back up work before a session cap with \`claude-token-saver handoff\`.
 ---
 
 # claude-token-saver — Claude Code Token Monitor
@@ -26,11 +26,14 @@ countdown, savings, and (when relevant) a leading warning chip.
 
 ## When this skill should activate
 
-- The user references any chip wording: \`⚠ 1M ON\`, \`⚠ Input spike\`,
-  \`⚠ Cache miss\`, \`⚠ 5m TTL\`, \`⚠ Rebuild churn\`, \`⚠ Output heavy\`,
-  \`⚠ Call surge\`.
+- The user references any chip wording: \`🚨 5H NN%\`, \`🚨 7D NN%\`,
+  \`⚠ 1M ON\`, \`⚠ Input spike\`, \`⚠ Cache miss\`, \`⚠ 5m TTL\`,
+  \`⚠ Rebuild churn\`, \`⚠ Output heavy\`, \`⚠ Call surge\`.
 - The user asks "why is my cache hit rate low", "what does this warning mean",
   "when did this start happening", or similar.
+- The user is approaching a rate-limit cap and wants to back up the current
+  work so a fresh session can continue (point them at
+  \`claude-token-saver handoff\`).
 - The user wants to see the token-usage history file or asks for a summary
   of recent warnings.
 
@@ -48,6 +51,8 @@ countdown, savings, and (when relevant) a leading warning chip.
 
    | Chip               | Likely cause                                          |
    | ------------------ | ----------------------------------------------------- |
+   | \`🚨 5H NN%\`       | 5-hour rate-limit window at NN% (>=90%). Cap is imminent. |
+   | \`🚨 7D NN%\`       | 7-day rate-limit window at NN% (>=90%). Pace yourself.   |
    | \`⚠ 1M ON\`         | Auto-promoted to 1M context (Opus 4.7+ Max default).  |
    | \`⚠ Input spike\`   | One request consumed >250k or >3× the recent p95.     |
    | \`⚠ Cache miss\`    | Cache hit rate dropped below ~70%.                    |
@@ -56,10 +61,12 @@ countdown, savings, and (when relevant) a leading warning chip.
    | \`⚠ Output heavy\`  | Output ratio dominates input — inspect long generations. |
    | \`⚠ Call surge\`    | Request count is well above baseline.                 |
 
-5. **Suggest the next action.** For 1M ON, mention
-   \`CLAUDE_CODE_DISABLE_1M_CONTEXT=1\`. For 5m TTL, point at the Max plan's
-   1h bucket. For input spike, suggest splitting the conversation or
-   compacting context.
+5. **Suggest the next action.** For \`🚨 5H/7D\` chips, recommend running
+   \`claude-token-saver handoff\` to back up the current work to a
+   \`HANDOFF-*.md\` file before the cap hits, then continue in a fresh
+   session. For 1M ON, mention \`CLAUDE_CODE_DISABLE_1M_CONTEXT=1\`. For
+   5m TTL, point at the Max plan's 1h bucket. For input spike, suggest
+   splitting the conversation or compacting context.
 
 ## Useful commands
 
@@ -67,6 +74,8 @@ countdown, savings, and (when relevant) a leading warning chip.
 - \`claude-token-saver --days 7\` — wider window.
 - \`claude-token-saver history\` — recent warning transitions per day.
 - \`claude-token-saver history --days 30\` — longer history.
+- \`claude-token-saver handoff\` — write a HANDOFF-*.md template in cwd
+  capturing git status + cap snapshot, so a fresh session can resume cleanly.
 - \`claude-token-saver mode\` — show statusline preferences.
 - \`claude-token-saver mode icon verbose 1d\` — change preferences.
 
@@ -90,18 +99,23 @@ quick read of their Claude Code token usage and any active warnings.
 Steps:
 
 1. Run \`claude-token-saver history --days 7\` and capture the output. This
-   prints recent warning transitions (timestamps + chip + short detail).
+   prints recent warning transitions (timestamps + chip + short detail),
+   including any \`🚨 5H NN%\` / \`🚨 7D NN%\` cap-warn entries and any
+   \`📝 handoff written: ...\` events.
 2. Run \`claude-token-saver --days 1\` and capture the output. This prints the
    full table view: TTL breakdown, cost impact, daily trend, and any active
-   spikes with recommended actions.
+   spikes with recommended actions. When a rate-limit cap is at >=90% the
+   table leads with a "🚨 Rate-limit cap is closing in" section.
 3. Summarize for the user:
    - **Active warnings** — list the most recent unresolved chip(s) with the
-     time they appeared.
+     time they appeared. Cap-warn (\`🚨 5H/7D NN%\`) outranks everything else.
    - **Today's pattern** — when warnings cluster in time, mention it.
-   - **Recommended action** — pick the highest-leverage suggestion from the
-     table report's "Recommended actions" section.
+   - **Recommended action** — for cap-warn, point at \`claude-token-saver
+     handoff\` so the user can back up state before the cap blocks them.
+     Otherwise pick the highest-leverage suggestion from the table report's
+     "Recommended actions" section.
 4. If the history is empty, say so plainly — no warnings means the cache has
-   been healthy in the configured window.
+   been healthy and no caps were close in the configured window.
 
 Keep the summary to ~10 lines. The user can re-run the underlying commands
 themselves for the full output.
