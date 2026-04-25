@@ -1,6 +1,6 @@
 {
   "name": "claude-token-saver",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Save tokens on Claude Code — spike diagnosis, 1M-context detection, TTL countdown, statusline. (formerly claude-cache-monitor)",
   "type": "module",
   "bin": {
