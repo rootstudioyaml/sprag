@@ -60,6 +60,48 @@ export const ISSUE_MESSAGES = {
         commandsKo: [`${toggleShortcut()} 누르면 즉시 on/off 토글`],
       },
       {
+        label: 'Cap extended-thinking budget (⚠ check /effort first)',
+        labelKo: '확장 사고(thinking) 예산 제한 (⚠ /effort 먼저 확인)',
+        commands: [
+          '⚠ Run `/effort` to check current level — `xhigh` is the #1 cap killer',
+          '/effort medium  — Anthropic-official default (use this for normal coding)',
+          '/effort low     — for simple edits, labeling, boilerplate',
+          '/effort xhigh   — ONLY for complex architecture / multi-file refactor planning, then revert',
+          'export MAX_THINKING_TOKENS=8000  # global hard cap (overrides /effort)',
+        ],
+        commandsKo: [
+          '⚠ `/effort`로 현재 단계 확인 — `xhigh`가 캡 소진의 1순위 원인',
+          '/effort medium  — Anthropic 공식 기본값 (일반 코딩은 이걸로)',
+          '/effort low     — 단순 편집·라벨링·보일러플레이트',
+          '/effort xhigh   — 복잡한 아키텍처·다파일 리팩터 계획 한정, 끝나면 즉시 복귀',
+          'export MAX_THINKING_TOKENS=8000  # 전역 하드 캡 (/effort 위에 우선 적용)',
+        ],
+      },
+      {
+        label: 'Plan mode preemptively (Shift+Tab)',
+        labelKo: 'Plan 모드 선제 사용 (Shift+Tab)',
+        commands: [
+          'Plan mode forces a written plan before any edits — prevents wrong-direction rework',
+          'Rework after a misread spec costs more tokens than 1 extra plan turn',
+        ],
+        commandsKo: [
+          'Plan 모드는 편집 전에 계획을 쓰게 강제 — 잘못된 방향 재작업 방지',
+          '스펙 오독 후 재작업이 plan 1턴 추가보다 훨씬 비쌈',
+        ],
+      },
+      {
+        label: 'Compact or clear when context grows',
+        labelKo: '컨텍스트가 커지면 /compact 또는 /clear',
+        commands: [
+          '/compact  — summarize the session history in place',
+          '/clear    — drop history entirely at a clean task boundary',
+        ],
+        commandsKo: [
+          '/compact — 세션 히스토리를 그 자리에서 요약',
+          '/clear   — 작업 분기점에서 히스토리를 통째로 비우기',
+        ],
+      },
+      {
         label: '⚠ Known bug #31640',
         labelKo: '⚠ 알려진 버그 #31640',
         commands: [
@@ -86,14 +128,26 @@ export const ISSUE_MESSAGES = {
       {
         label: 'Avoid opening fresh sessions too often',
         labelKo: '새 세션을 너무 자주 열지 말기',
-        commands: ['Continue the same task in the same session (context switching = cache miss)'],
-        commandsKo: ['같은 작업은 같은 세션에서 계속 (컨텍스트 전환 = 캐시 미스)'],
+        commands: [
+          'Continue the same task in the same session (context switching = cache miss)',
+          'Resume with `claude --continue` instead of starting fresh — preserves the prefix cache',
+        ],
+        commandsKo: [
+          '같은 작업은 같은 세션에서 계속 (컨텍스트 전환 = 캐시 미스)',
+          '새로 시작 대신 `claude --continue`로 재개 — prefix 캐시 보존',
+        ],
       },
       {
         label: 'Stabilize the prompt prefix',
         labelKo: '프롬프트 prefix 안정화',
-        commands: ['System prompts / tool definitions that change per request invalidate the cache every time'],
-        commandsKo: ['요청마다 바뀌는 시스템 프롬프트 / 도구 정의는 매번 캐시를 무효화'],
+        commands: [
+          'System prompts / tool definitions that change per request invalidate the cache every time',
+          'Trim CLAUDE.md — every line ships on every turn; keep only durable rules',
+        ],
+        commandsKo: [
+          '요청마다 바뀌는 시스템 프롬프트 / 도구 정의는 매번 캐시를 무효화',
+          'CLAUDE.md 다이어트 — 모든 줄이 매 턴 실림; 영속적인 규칙만 유지',
+        ],
       },
     ],
   },
@@ -142,6 +196,36 @@ export const ISSUE_MESSAGES = {
           '긴 문서/README 생성 요청은 스크립트로 옮겨 출력 축소',
         ],
       },
+      {
+        label: 'Cap extended-thinking budget (⚠ check /effort)',
+        labelKo: '확장 사고(thinking) 예산 제한 (⚠ /effort 확인)',
+        commands: [
+          '⚠ Check `/effort` — `xhigh` burns thinking tokens that count as output',
+          '/effort medium  — Anthropic-official default; switch back from xhigh',
+          'export MAX_THINKING_TOKENS=8000  # global hard cap',
+        ],
+        commandsKo: [
+          '⚠ `/effort` 확인 — `xhigh`는 thinking 토큰을 다량 소비 (출력으로 집계)',
+          '/effort medium  — Anthropic 공식 기본값; xhigh에서 복귀',
+          'export MAX_THINKING_TOKENS=8000  # 전역 하드 캡',
+        ],
+      },
+      {
+        label: 'Model matching strategy (80/15/5 rule)',
+        labelKo: '모델 매칭 전략 (80/15/5 비율)',
+        commands: [
+          'Sonnet 80% — daily coding, edits, refactors',
+          'Opus 15%  — complex design, multi-file refactor planning, deep debugging',
+          'Haiku 5%  — boilerplate, labeling, summaries, subagent work',
+          'Switch with `/model sonnet` / `/model opus` / `/model haiku`',
+        ],
+        commandsKo: [
+          'Sonnet 80% — 일상 코딩, 편집, 리팩터링',
+          'Opus 15%  — 복잡한 설계, 다파일 리팩터 계획, 깊은 디버깅',
+          'Haiku 5%  — 보일러플레이트, 라벨링, 요약, 서브에이전트 작업',
+          '`/model sonnet` / `/model opus` / `/model haiku`로 전환',
+        ],
+      },
     ],
   },
   HIGH_REQUEST_COUNT: {
@@ -165,6 +249,40 @@ export const ISSUE_MESSAGES = {
         commands: ['Check that the agent is not repeating the same test/search in a loop'],
         commandsKo: ['에이전트가 동일한 테스트/검색을 루프로 반복하고 있지 않은지 확인'],
       },
+      {
+        label: 'Delegate large searches to a subagent (Sonnet by default)',
+        labelKo: '대형 검색은 서브에이전트로 위임 (Sonnet 기본)',
+        commands: [
+          'Use the Task tool with the Explore subagent for repo-wide searches',
+          'Pin custom subagents to Sonnet/Haiku in their frontmatter: `model: sonnet`',
+          'The subagent runs in its own context — main session keeps a clean prefix',
+        ],
+        commandsKo: [
+          '레포 전반 검색은 Task 도구의 Explore 서브에이전트로 위임',
+          '커스텀 서브에이전트는 frontmatter에 `model: sonnet` 명시 (Opus 자동 상속 방지)',
+          '서브에이전트는 자체 컨텍스트에서 실행 — 메인 세션 prefix가 깨끗하게 유지됨',
+        ],
+      },
+      {
+        label: 'Migrate MCP servers → Skills / CLI',
+        labelKo: 'MCP 서버 → Skills / CLI 전환',
+        commands: [
+          '30 MCP tools ≈ 3,600 tokens loaded every turn — measured by mcp2cli (HN 146pts)',
+          'Replacing rarely-used MCPs with Skills (loaded on demand) or shell CLI cuts ~96%',
+          'Audit `.mcp.json` and disable everything not used weekly',
+        ],
+        commandsKo: [
+          'MCP 도구 30개 ≈ 매 턴 3,600 토큰 상시 로드 (mcp2cli 측정, HN 146pts)',
+          '드물게 쓰는 MCP를 Skills(필요 시 로드) 또는 셸 CLI로 대체하면 ~96% 절감',
+          '`.mcp.json` 점검해 주간에 안 쓰는 건 모두 비활성화',
+        ],
+      },
+      {
+        label: 'Trim hooks that inject context',
+        labelKo: '컨텍스트 주입 훅 정리',
+        commands: ['Disable noisy PreToolUse/PostToolUse hooks unless they earn their tokens'],
+        commandsKo: ['값을 못 하는 PreToolUse/PostToolUse 훅은 비활성화'],
+      },
     ],
   },
   FREQUENT_CACHE_REBUILD: {
@@ -182,6 +300,30 @@ export const ISSUE_MESSAGES = {
         commands: ['Continue one task in one Claude Code session'],
         commandsKo: ['하나의 작업은 하나의 Claude Code 세션에서 계속'],
       },
+      {
+        label: 'Use /compact at task boundaries',
+        labelKo: '작업 분기점에서 /compact 사용',
+        commands: [
+          '/compact summarizes prior turns in place — keeps the session alive without re-reading everything',
+          'Better than starting a fresh session, which forces a full prefix rebuild',
+        ],
+        commandsKo: [
+          '/compact는 이전 턴을 그 자리에서 요약 — 전체 재읽기 없이 세션 유지',
+          '새 세션을 여는 것보다 나음 (새 세션은 prefix 전체 재구축 강제)',
+        ],
+      },
+      {
+        label: 'Avoid re-reading large files',
+        labelKo: '큰 파일 반복 Read 피하기',
+        commands: [
+          'Prefer `git diff` to see what changed instead of re-reading the whole file',
+          'Edit returns success silently — no need to Read after editing',
+        ],
+        commandsKo: [
+          '파일 전체 다시 읽기 대신 `git diff`로 변경분만 확인',
+          'Edit는 성공 시 조용히 끝남 — 편집 후 Read 다시 할 필요 없음',
+        ],
+      },
     ],
   },
 };
@@ -197,28 +339,28 @@ export const ISSUE_MESSAGES = {
  */
 export const ISSUE_TIPS = {
   LARGE_INPUT_PER_REQUEST: {
-    en: 'Disable 1M context: `export CLAUDE_CODE_DISABLE_1M_CONTEXT=1` (or ⌥P toggle)',
-    ko: '1M 컨텍스트 끄기: `export CLAUDE_CODE_DISABLE_1M_CONTEXT=1` (또는 ⌥P 토글)',
+    en: 'Check `/effort` — `xhigh` is the #1 cap killer; switch to `/effort medium` (or `low`); disable 1M context; `/compact` when context grows',
+    ko: '`/effort` 확인 — `xhigh`가 캡 소진 1순위 원인, `medium`(또는 `low`)으로 복귀; 1M 컨텍스트 끄기; 컨텍스트 커지면 `/compact`',
   },
   LOW_HIT_RATE: {
-    en: 'Continue same task in same session; keep prompt prefix stable',
-    ko: '같은 작업은 같은 세션에서 계속; 프롬프트 prefix 안정 유지',
+    en: 'Continue with `claude --continue`; keep CLAUDE.md trim — every line ships every turn',
+    ko: '`claude --continue`로 재개; CLAUDE.md 다이어트 — 모든 줄이 매 턴 실림',
   },
   BUCKET_5M_DOMINANT: {
     en: 'Send any prompt within 5min to keep cache warm; Max plan unlocks 1h TTL',
     ko: '5분 이내 한 번 더 보내 캐시 유지; Max 플랜은 1시간 TTL 제공',
   },
   HIGH_OUTPUT_RATIO: {
-    en: 'Avoid full-file rewrites — prefer Edit tool; move long generations to scripts',
-    ko: '파일 전체 재작성 피하기 — Edit 도구 사용; 긴 생성은 스크립트로',
+    en: 'Check `/effort` (`xhigh` inflates output); prefer Edit over full rewrites; model matching: Sonnet 80% / Opus 15% / Haiku 5%',
+    ko: '`/effort` 확인 (`xhigh`는 출력 폭증); Edit 도구 우선 (전체 재작성 피하기); 모델 매칭: Sonnet 80% / Opus 15% / Haiku 5%',
   },
   HIGH_REQUEST_COUNT: {
-    en: 'Bundle independent calls into one message; check for retry loops',
-    ko: '독립 호출은 한 메시지에 묶기; 재시도 루프 점검',
+    en: 'Bundle calls into one message; delegate to subagents (`model: sonnet`); migrate MCP→Skills/CLI (30 tools = ~3,600 tokens/turn)',
+    ko: '호출은 한 메시지에 묶기; 서브에이전트(`model: sonnet`)로 위임; MCP→Skills/CLI 전환 (30 tools ≈ 매 턴 3,600 토큰)',
   },
   FREQUENT_CACHE_REBUILD: {
-    en: 'Continue one task in one session — short sessions trigger rebuild',
-    ko: '한 작업은 한 세션에서 — 짧은 세션은 재빌드 유발',
+    en: 'Continue one task in one session; use `/compact` at boundaries; avoid re-reading large files (use `git diff`)',
+    ko: '한 작업은 한 세션에서; 분기점에선 `/compact`; 큰 파일 재읽기 대신 `git diff`',
   },
 };
 
