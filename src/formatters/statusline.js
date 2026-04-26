@@ -401,5 +401,13 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // digits from a prior frame leaking past the new shorter timer text.
   // \x1b[K is the standard "erase from cursor to EOL" CSI; safe on any
   // ANSI-compatible terminal and a no-op when stdout isn't a TTY.
-  return segs.join(' · ') + '\x1b[K';
+  // Defensive overwrite — terminals that miscount emoji width (JetBrains JediTerm
+  // is the known case, but others surface periodically) leave the cursor at the
+  // wrong column, which makes trailing `\x1b[K` erase the wrong region and
+  // leftover bytes from the previous frame fuse with the new one ("4:54" + "8"
+  // → "4:548"). Appending a run of spaces overwrites those leftover bytes
+  // positionally without any clear-then-redraw step (so no flicker), and is
+  // invisible on terminals that already redraw cleanly. `\x1b[K` still mops up
+  // anything beyond the padding.
+  return segs.join(' · ') + ' '.repeat(40) + '\x1b[K';
 }
