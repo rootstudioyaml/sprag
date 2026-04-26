@@ -13,17 +13,20 @@ A CLI to **diagnose and save tokens on Claude Code**. Cache hit rate, TTL countd
 ## Install
 
 ```bash
-# 1. (existing users) remove the old package
+# (existing users) remove the old package
 npm uninstall -g claude-cache-monitor
 
-# 2. install
+# install — the postinstall hook auto-registers the Skill and statusline
 npm i -g claude-token-saver
-
-# 3. wire into Claude Code (Skill + statusline guidance)
-claude-token-saver install
 ```
 
 Or run once with no install: `npx claude-token-saver`.
+
+If postinstall was skipped (e.g. `--ignore-scripts`, sudo, or sandboxed installs), register manually:
+
+```bash
+claude-token-saver install
+```
 
 ## What you see after install
 
@@ -67,7 +70,7 @@ Risk chips lead when something's wrong: `🚨 5H 94%`, `⚠ 1M ON`, `⚠ Cache m
 | `claude-token-saver` | Last 30 days diagnostic report |
 | `claude-token-saver --days 7` | Change window |
 | `claude-token-saver --statusline --icon` | One-line statusline output |
-| `claude-token-saver install` | Register Claude Code Skill (auto-activates on chip wording) |
+| `claude-token-saver install` | Manually register the Claude Code Skill (fallback when postinstall is skipped) |
 | `claude-token-saver history` | Last 7 days of chip transitions (1M ON, Cache miss, cap, …) |
 | `claude-token-saver handoff` | Back current work up to `HANDOFF-YYYY-MM-DD-HHMM.md` before a cap blocks you |
 | `claude-token-saver --install-hook` | Auto-log cache stats on every tool call |
