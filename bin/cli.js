@@ -344,6 +344,14 @@ async function main() {
     };
     const r = installAll({ force });
     print('skill', r.skill);
+    {
+      const s = r.statusline;
+      const verb = s.action === 'exists' ? 'already configured (refreshInterval=5)'
+        : s.action === 'skipped' ? `skipped — ${s.reason}`
+        : s.reason ? `${s.action} — ${s.reason}`
+        : s.action;
+      console.log(`  statusline: ${s.path} (${verb})`);
+    }
     if (r.legacy.action === 'removed') {
       print('legacy /token-monitor', r.legacy);
       console.log('  (consolidated into the skill — same workflow, triggered by intent)');

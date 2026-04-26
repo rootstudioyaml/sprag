@@ -53,12 +53,12 @@ TTL Breakdown / Cost Impact / Daily Trend ...
   "statusLine": {
     "type": "command",
     "command": "claude-token-saver --statusline --icon",
-    "refreshInterval": 1
+    "refreshInterval": 5
   }
 }
 ```
 
-`refreshInterval: 1`은 TTL 카운트다운이 idle 상태에서도 1초마다 갱신되게 합니다. Windows(PowerShell)는 `examples/statusline-command.ps1` 참고.
+`refreshInterval: 5`는 TTL 카운트다운이 idle 상태에서도 5초마다 갱신되게 합니다 (1초도 가능하지만 상시 I/O 부담을 피하려고 5초를 기본값으로 권장). Windows(PowerShell)는 `examples/statusline-command.ps1` 참고.
 
 ## 주요 명령
 

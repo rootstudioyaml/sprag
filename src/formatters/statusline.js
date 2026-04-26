@@ -100,11 +100,18 @@ function gaugeBar(pct) {
  * Format a remaining-seconds countdown as MM:SS (or H:MM when ≥ 1h).
  */
 function formatTimer(remainingSec) {
-  if (remainingSec <= 0) return 'EXPIRED';
-  const totalSec = Math.floor(remainingSec);
+  // Defensive: non-finite/NaN inputs (e.g. clock skew, stringified Date) used
+  // to slip through and render as "NaN:NaN" or stretched seconds. Treat any
+  // weird input as expired rather than rendering garbage in the statusline.
+  if (!Number.isFinite(remainingSec) || remainingSec <= 0) return 'EXPIRED';
+  const totalSec = Math.max(0, Math.floor(remainingSec));
   const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
+  const mRaw = Math.floor((totalSec % 3600) / 60);
+  const sRaw = totalSec % 60;
+  // Clamp explicitly so a future regression in the math (or padStart no-op
+  // truncation) can never produce m:sss like "4:547".
+  const m = Math.min(59, Math.max(0, mRaw));
+  const s = Math.min(59, Math.max(0, sRaw));
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
@@ -195,8 +202,18 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   //   icon verbose:   "⏳ Expires 1h 59:58"
   let ttlSeg;
   if (timer && lastActivity) {
-    const elapsed = (Date.now() - lastActivity) / 1000;
-    const remaining = ttlSeconds - elapsed;
+    // Coerce to a numeric ms timestamp. Some upstream paths handed in a Date,
+    // a stringified ISO timestamp, or epoch-seconds — any of which silently
+    // produces NaN/huge values when subtracted from Date.now(), which then
+    // bypasses formatTimer's normal MM:SS shape.
+    const laMs =
+      typeof lastActivity === 'number'
+        ? (lastActivity < 1e12 ? lastActivity * 1000 : lastActivity) // seconds → ms
+        : (lastActivity instanceof Date ? lastActivity.getTime() : Date.parse(lastActivity));
+    const elapsed = Number.isFinite(laMs) ? (Date.now() - laMs) / 1000 : Infinity;
+    // Clamp remaining into the bucket so a clock-skew or stale-state edge case
+    // can't display a value larger than the bucket itself.
+    const remaining = Math.min(ttlSeconds, ttlSeconds - elapsed);
     const text = formatTimer(remaining);
     const pct = remaining / ttlSeconds;
     const timerColor =

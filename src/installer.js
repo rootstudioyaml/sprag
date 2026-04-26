@@ -13,9 +13,12 @@
  * exist on every platform.
  */
 
-import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { claudeUserDir } from './paths.js';
+
+const STATUSLINE_COMMAND = 'claude-token-saver --statusline --icon';
+const STATUSLINE_REFRESH_INTERVAL = 5;
 
 const SKILL_BODY = `---
 name: claude-token-saver
@@ -127,9 +130,63 @@ export function removeLegacyCommand() {
   return { path: file, action: 'removed' };
 }
 
+// Registers/repairs the Claude Code statusLine entry in ~/.claude/settings.json.
+// - No statusLine yet: insert ours with refreshInterval:1.
+// - statusLine already points at claude-token-saver: ensure refreshInterval:1
+//   (this is the bit that makes the TTL countdown tick every second while idle).
+// - statusLine points at a different command: leave it alone unless --force.
+export function installStatusline({ force = false } = {}) {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  let settings = {};
+  if (existsSync(file)) {
+    try {
+      settings = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (e) {
+      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+    }
+  }
+
+  const cur = settings.statusLine;
+  const targetsUs = cur && typeof cur.command === 'string' && cur.command.includes('claude-token-saver');
+
+  if (!cur) {
+    settings.statusLine = {
+      type: 'command',
+      command: STATUSLINE_COMMAND,
+      refreshInterval: STATUSLINE_REFRESH_INTERVAL,
+    };
+    writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+    return { path: file, action: 'created' };
+  }
+
+  if (targetsUs) {
+    if (cur.refreshInterval === STATUSLINE_REFRESH_INTERVAL) {
+      return { path: file, action: 'exists' };
+    }
+    cur.refreshInterval = STATUSLINE_REFRESH_INTERVAL;
+    writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+    return { path: file, action: 'updated', reason: 'set refreshInterval=1' };
+  }
+
+  if (!force) {
+    return { path: file, action: 'skipped', reason: `existing statusLine command (${cur.command}) — re-run with --force to overwrite` };
+  }
+  settings.statusLine = {
+    type: 'command',
+    command: STATUSLINE_COMMAND,
+    refreshInterval: STATUSLINE_REFRESH_INTERVAL,
+  };
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'updated', reason: 'replaced previous statusLine' };
+}
+
 export function installAll({ force = false } = {}) {
   return {
     skill: installSkill({ force }),
+    statusline: installStatusline({ force }),
     legacy: removeLegacyCommand(),
   };
 }

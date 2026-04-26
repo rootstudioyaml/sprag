@@ -53,12 +53,12 @@ Risk chips lead when something's wrong: `🚨 5H 94%`, `⚠ 1M ON`, `⚠ Cache m
   "statusLine": {
     "type": "command",
     "command": "claude-token-saver --statusline --icon",
-    "refreshInterval": 1
+    "refreshInterval": 5
   }
 }
 ```
 
-`refreshInterval: 1` keeps the TTL countdown ticking while idle (Claude Code's statusline is otherwise event-driven). For Windows PowerShell, see `examples/statusline-command.ps1`.
+`refreshInterval: 5` keeps the TTL countdown ticking while idle (Claude Code's statusline is otherwise event-driven). 1s also works, but 5s is the recommended default to avoid constant I/O. For Windows PowerShell, see `examples/statusline-command.ps1`.
 
 ## Commands
 
