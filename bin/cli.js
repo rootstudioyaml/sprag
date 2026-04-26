@@ -700,10 +700,21 @@ async function main() {
     const { statuslineDefaults } = await import('../src/config.js');
     const cfg = statuslineDefaults();
 
+    // IntelliJ's Claude Code plugin renders the statusline through a custom
+    // widget that fuses prior frames with the new one when emoji are present,
+    // producing garbage like "59:548" that no ANSI escape can clean up
+    // (verified: emitting the same output directly into JediTerm renders
+    // cleanly, so the bug is in the plugin's render path, not the terminal).
+    // Force text mode unconditionally inside IntelliJ — even past an explicit
+    // `--icon` flag, since wrappers commonly hardcode `--icon` and the user
+    // can't easily edit them; icon mode is just broken there.
+    const isIntelliJ = process.env.TERMINAL_EMULATOR === 'JetBrains-JediTerm';
     // CLI flags take precedence; otherwise fall back to persisted config.
-    const isIcon = hasFlag('--icon')
-      ? true
-      : (hasFlag('--no-icon') || hasFlag('--text') ? false : cfg.icon);
+    const isIcon = isIntelliJ
+      ? false
+      : (hasFlag('--icon')
+          ? true
+          : (hasFlag('--no-icon') || hasFlag('--text') ? false : cfg.icon));
     const isVerbose = hasFlag('--verbose')
       ? true
       : (hasFlag('--no-verbose') || hasFlag('--compact') ? false : cfg.verbose);

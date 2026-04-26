@@ -143,6 +143,10 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 - [HN discussion](https://news.ycombinator.com/item?id=47736476) — 168 points, 142 comments
 - [HNPulse KR](https://www.youtube.com/@HNPulseKR) — Korean HN tech deep-dives
 
+## Known environment quirks
+
+**IntelliJ Claude Code plugin** — the statusline widget fuses prior and current frames at the character level when emoji are in the output, producing artifacts like `Cache expires 59:548`. v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically (`--icon` is also ignored under IntelliJ). Other terminals (iTerm, Terminal, WSL, etc.) are unaffected.
+
 ## License
 
 MIT

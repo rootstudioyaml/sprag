@@ -103,7 +103,7 @@ function formatTimer(remainingSec) {
   // Defensive: non-finite/NaN inputs (e.g. clock skew, stringified Date) used
   // to slip through and render as "NaN:NaN" or stretched seconds. Treat any
   // weird input as expired rather than rendering garbage in the statusline.
-  if (!Number.isFinite(remainingSec) || remainingSec <= 0) return padTimer('EXPIRED');
+  if (!Number.isFinite(remainingSec) || remainingSec <= 0) return 'EXPIRED';
   const totalSec = Math.max(0, Math.floor(remainingSec));
   const h = Math.floor(totalSec / 3600);
   const mRaw = Math.floor((totalSec % 3600) / 60);
@@ -112,22 +112,8 @@ function formatTimer(remainingSec) {
   // truncation) can never produce m:sss like "4:547".
   const m = Math.min(59, Math.max(0, mRaw));
   const s = Math.min(59, Math.max(0, sRaw));
-  if (h > 0) return padTimer(`${h}:${String(m).padStart(2, '0')}`);
-  return padTimer(`${m}:${String(s).padStart(2, '0')}`);
-}
-
-// Pad timer text to a fixed width so transitions never shrink the visible
-// length. Otherwise `42:38` (5 chars) → `1:00` (4 chars) on activity reset
-// leaves the trailing `8` on screen → fused garbage like `1:008`. Some
-// terminals (JetBrains JediTerm, certain Claude Code render paths) don't
-// fully clear the statusline region between frames, so column-stable output
-// is the only reliable defense — `\x1b[K` and trailing-space padding only
-// help if the cursor lands at the right spot to begin with.
-//   "EXPIRED" → "EXPIRED" (7 — already widest, used as the target width)
-//   "59:59"   → " 59:59 " no — left-pad only so the digits stay right-aligned
-const TIMER_WIDTH = 7;
-function padTimer(s) {
-  return s.padStart(TIMER_WIDTH, ' ');
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 /**
@@ -409,19 +395,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   if (want('saved')) segs.push(saveSeg);
   if (want('period')) segs.push(periodSeg);
   // Trailing erase-to-end-of-line so any leftover characters from a previous
-  // (longer) statusline render don't bleed into ours. Some terminals + the
-  // Claude Code statusline integration don't fully clear the line on rewrite,
-  // which surfaced as "Cache expires 4:574" or "Cache expires 43550" — old
-  // digits from a prior frame leaking past the new shorter timer text.
-  // \x1b[K is the standard "erase from cursor to EOL" CSI; safe on any
-  // ANSI-compatible terminal and a no-op when stdout isn't a TTY.
-  // Defensive overwrite — terminals that miscount emoji width (JetBrains JediTerm
-  // is the known case, but others surface periodically) leave the cursor at the
-  // wrong column, which makes trailing `\x1b[K` erase the wrong region and
-  // leftover bytes from the previous frame fuse with the new one ("4:54" + "8"
-  // → "4:548"). Appending a run of spaces overwrites those leftover bytes
-  // positionally without any clear-then-redraw step (so no flicker), and is
-  // invisible on terminals that already redraw cleanly. `\x1b[K` still mops up
-  // anything beyond the padding.
-  return segs.join(' · ') + ' '.repeat(40) + '\x1b[K';
+  // (longer) statusline render don't bleed into ours. \x1b[K is the standard
+  // "erase from cursor to EOL" CSI; safe on any ANSI-compatible terminal and
+  // a no-op when stdout isn't a TTY.
+  return segs.join(' · ') + '\x1b[K';
 }
