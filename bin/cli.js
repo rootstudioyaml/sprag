@@ -236,8 +236,13 @@ async function main() {
     const recent = readRecent(days);
     const latest = findLatestWarning(recent, CHIP_TO_CODES);
     if (!latest) {
-      console.log(`No warnings in the last ${days} day${days === 1 ? '' : 's'}.`);
-      console.log(`(History dir: ${historyDir()})`);
+      if (lang === 'ko') {
+        console.log(`최근 ${days}일 내 경고가 없습니다.`);
+        console.log(`(히스토리 디렉터리: ${historyDir()})`);
+      } else {
+        console.log(`No warnings in the last ${days} day${days === 1 ? '' : 's'}.`);
+        console.log(`(History dir: ${historyDir()})`);
+      }
       return;
     }
     // Header
@@ -303,18 +308,25 @@ async function main() {
     if (hasFlag('--list')) {
       const dates = listDates();
       if (dates.length === 0) {
-        console.log(`No history yet. Files will appear under: ${historyDir()}`);
+        console.log(lang === 'ko'
+          ? `히스토리가 아직 없습니다. 파일은 다음 위치에 생성됩니다: ${historyDir()}`
+          : `No history yet. Files will appear under: ${historyDir()}`);
         return;
       }
-      console.log(`History (${historyDir()}):`);
+      console.log(lang === 'ko' ? `히스토리 (${historyDir()}):` : `History (${historyDir()}):`);
       for (const d of dates) console.log(`  ${d}`);
       return;
     }
     const days = parseFloat(getArg('--days') || '7');
     const recent = readRecent(days);
     if (recent.length === 0) {
-      console.log(`No warning history in the last ${days} day${days === 1 ? '' : 's'}.`);
-      console.log(`(Files would be written to: ${historyDir()})`);
+      if (lang === 'ko') {
+        console.log(`최근 ${days}일 내 경고 히스토리가 없습니다.`);
+        console.log(`(파일이 생성될 위치: ${historyDir()})`);
+      } else {
+        console.log(`No warning history in the last ${days} day${days === 1 ? '' : 's'}.`);
+        console.log(`(Files would be written to: ${historyDir()})`);
+      }
       return;
     }
     for (const { content } of recent) {

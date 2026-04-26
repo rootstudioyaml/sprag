@@ -191,6 +191,9 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 
 ## Release notes
 
+### v2.9.2 (2026-04-27)
+- `last` / `history` empty-state messages now respect the language setting too. Previously they were hard-coded English, so users on `mode ko` still saw English when there were no warnings to report.
+
 ### v2.9.1 (2026-04-27)
 - Fix the README statusline sample so it matches actual output (includes the `✦ current` / `📅 weekly` window segments that were missing).
 - Add a 4-step "When a warning chip appears" Skill workflow — spot the chip → mention its wording to Claude → Skill runs `last` → apply remediation.
