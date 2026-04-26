@@ -12,6 +12,24 @@ A CLI to **diagnose and save tokens on Claude Code**. Cache hit rate, TTL countd
 
 ## Install
 
+### Prerequisite — Node.js (≥ 18)
+
+`npm` ships with Node.js. Check whether it's installed:
+
+```bash
+node -v   # v18.0.0 or later is fine
+```
+
+If not, install it:
+
+- **macOS** — `brew install node` (Homebrew) or the installer at [nodejs.org](https://nodejs.org/)
+- **Windows** — [nodejs.org](https://nodejs.org/) LTS installer, or `winget install OpenJS.NodeJS.LTS`
+- **Linux / WSL** — your distro's package manager (`apt install nodejs npm`, etc.) or — recommended — [nvm](https://github.com/nvm-sh/nvm) for a user-scoped install (no sudo)
+
+> Avoid installing globally with `sudo`. The postinstall hook writes the Skill into root's `~/.claude` instead of yours, and auto-registration silently misses. Use nvm/fnm/Volta, or set `npm config set prefix ~/.npm-global` first.
+
+### Install claude-token-saver
+
 ```bash
 # (existing users) remove the old package
 npm uninstall -g claude-cache-monitor
@@ -190,6 +208,9 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 **IntelliJ Claude Code plugin** — the statusline widget fuses prior and current frames at the character level when emoji are in the output, producing artifacts like `Cache expires 59:548`. v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically (`--icon` is also ignored under IntelliJ). Other terminals (iTerm, Terminal, WSL, etc.) are unaffected.
 
 ## Release notes
+
+### v2.9.4 (2026-04-27)
+- README now opens with a Node.js prerequisite block (macOS / Windows / Linux). First-time visitors arriving from GitHub no longer hit `npm: command not found` with no guidance. Also flags the `sudo` global-install trap where postinstall writes the Skill under root's home instead of the user's.
 
 ### v2.9.3 (2026-04-27)
 - Skill body (`SKILL.md`) now instructs Claude to respond in the user's configured output language. Previously even when the CLI was on `mode ko`, Claude itself still narrated the answer in English ("All clear — no warnings…"), so the language toggle felt half-applied.
