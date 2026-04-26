@@ -394,5 +394,12 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // timeframe footer.
   if (want('saved')) segs.push(saveSeg);
   if (want('period')) segs.push(periodSeg);
-  return segs.join(' · ');
+  // Trailing erase-to-end-of-line so any leftover characters from a previous
+  // (longer) statusline render don't bleed into ours. Some terminals + the
+  // Claude Code statusline integration don't fully clear the line on rewrite,
+  // which surfaced as "Cache expires 4:574" or "Cache expires 43550" — old
+  // digits from a prior frame leaking past the new shorter timer text.
+  // \x1b[K is the standard "erase from cursor to EOL" CSI; safe on any
+  // ANSI-compatible terminal and a no-op when stdout isn't a TTY.
+  return segs.join(' · ') + '\x1b[K';
 }
