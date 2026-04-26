@@ -103,7 +103,7 @@ function formatTimer(remainingSec) {
   // Defensive: non-finite/NaN inputs (e.g. clock skew, stringified Date) used
   // to slip through and render as "NaN:NaN" or stretched seconds. Treat any
   // weird input as expired rather than rendering garbage in the statusline.
-  if (!Number.isFinite(remainingSec) || remainingSec <= 0) return 'EXPIRED';
+  if (!Number.isFinite(remainingSec) || remainingSec <= 0) return padTimer('EXPIRED');
   const totalSec = Math.max(0, Math.floor(remainingSec));
   const h = Math.floor(totalSec / 3600);
   const mRaw = Math.floor((totalSec % 3600) / 60);
@@ -112,8 +112,22 @@ function formatTimer(remainingSec) {
   // truncation) can never produce m:sss like "4:547".
   const m = Math.min(59, Math.max(0, mRaw));
   const s = Math.min(59, Math.max(0, sRaw));
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}`;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  if (h > 0) return padTimer(`${h}:${String(m).padStart(2, '0')}`);
+  return padTimer(`${m}:${String(s).padStart(2, '0')}`);
+}
+
+// Pad timer text to a fixed width so transitions never shrink the visible
+// length. Otherwise `42:38` (5 chars) → `1:00` (4 chars) on activity reset
+// leaves the trailing `8` on screen → fused garbage like `1:008`. Some
+// terminals (JetBrains JediTerm, certain Claude Code render paths) don't
+// fully clear the statusline region between frames, so column-stable output
+// is the only reliable defense — `\x1b[K` and trailing-space padding only
+// help if the cursor lands at the right spot to begin with.
+//   "EXPIRED" → "EXPIRED" (7 — already widest, used as the target width)
+//   "59:59"   → " 59:59 " no — left-pad only so the digits stay right-aligned
+const TIMER_WIDTH = 7;
+function padTimer(s) {
+  return s.padStart(TIMER_WIDTH, ' ');
 }
 
 /**
