@@ -77,10 +77,31 @@ function extractCaps(stdinJson) {
  * `model.display_name` is the contract; fall back to `model.id` when it's
  * absent. Returns null when nothing usable is in the JSON.
  */
+// Bedrock/litellm proxies pass model IDs like
+//   global.anthropic.claude-opus-4-7-20251001-v1:0
+//   anthropic.claude-sonnet-4-6-20250930-v1:0
+//   bedrock/anthropic.claude-haiku-4-5
+// while Claude Code's `display_name` collapses these to a generic family
+// label ("Opus 4", "Sonnet 4") that hides the actual minor version. Pull the
+// version out of the id when we can spot it so the statusline shows the real
+// model in use (Opus 4.7 vs 4.6 matters a lot for token budgeting).
+function bedrockDisplayFromId(id) {
+  if (typeof id !== 'string') return null;
+  const m = id.match(/claude[-_](opus|sonnet|haiku)[-_](\d+)[-_](\d+)/i);
+  if (!m) return null;
+  const family = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+  return `${family} ${m[2]}.${m[3]}`;
+}
+
 function extractModel(stdinJson) {
   if (!stdinJson || !stdinJson.model) return null;
   const m = stdinJson.model;
-  if (typeof m === 'string') return m;
+  if (typeof m === 'string') return bedrockDisplayFromId(m) || m;
+  // Prefer the id when it carries a precise version (e.g. Bedrock IDs); fall
+  // back to display_name for the standard Claude Code path where display_name
+  // already says "Claude Opus 4.7".
+  const idDerived = bedrockDisplayFromId(m.id);
+  if (idDerived) return idDerived;
   if (typeof m.display_name === 'string' && m.display_name) return m.display_name;
   if (typeof m.id === 'string' && m.id) return m.id;
   return null;
