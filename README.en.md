@@ -33,16 +33,20 @@ claude-token-saver install
 After install, Claude Code's bottom statusline updates every 5 seconds with cache state (postinstall registers it in `~/.claude/settings.json` automatically).
 
 ```
-🤖 Opus 4.7 · 🧠 Cache hit 98.0% · ⏳ Cache expires 59:51 · 📦 Ctx 200k · 💰 Cache saved $221 · last 1d
+🤖 Opus 4.7 · 🧠 Cache hit 98.0% · ⏳ Cache expires 58:38 · ✦ current █░░░░░ 15% 🔄 08:50 · 📅 weekly █▒░░░░ 24% 🔄 Thu 13:00 · 📦 Ctx 200k · 💰 Cache saved $205 · last 1d
 ```
 
-Risk chips lead when something's wrong:
+Segments — `🤖 model` · `🧠 cache hit rate` · `⏳ TTL countdown` · `✦ current` (5-hour window) · `📅 weekly` (7-day window) · `📦 context` · `💰 cumulative savings` · `last <window>`.
+
+When excessive token usage is detected, a warning chip is prepended at the front of the statusline:
 
 ```
-🚨 5H 94% (resets in 12m) · 🤖 Opus 4.7 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📦 Ctx 200k · last 1d
+🚨 5H 94% (resets in 12m) · 🤖 Opus 4.7 · 🧠 Cache hit 72.1% · ⚠ Cache miss · ✦ current ██████ 94% · 📦 Ctx 200k · last 1d
 ```
 
 Risk chips: `🚨 5H/7D NN%`, `⚠ 1M ON`, `⚠ Input spike`, `⚠ Cache miss`, `⚠ 5m TTL`, `⚠ Rebuild churn`, `⚠ Output heavy`, `⚠ Call surge`.
+
+**What to do** — run the `/claude-token-saver` Skill in Claude. It calls `claude-token-saver last` and surfaces the root cause + step-by-step fix. Saying the chip wording out loud (e.g. "5H cap is up", "cache miss") also auto-activates the same Skill. See the [Skill workflow](#when-a-warning-chip-appears--skill-workflow) section below for the full flow.
 
 If postinstall was skipped (you already use a different statusline, etc.), wire it manually:
 
@@ -58,9 +62,16 @@ If postinstall was skipped (you already use a different statusline, etc.), wire 
 
 `refreshInterval: 5` keeps the TTL countdown ticking while idle. For Windows PowerShell see `examples/statusline-command.ps1`.
 
-## Skill — mention a chip, it activates
+## When a warning chip appears — Skill workflow
 
-The Claude Code Skill registered at install time auto-activates whenever you mention chip wording in chat ("cache hit rate", "1M context", "5H cap"). It runs `claude-token-saver last` to surface the most recent warning + remediation, then points you at `history` / `handoff` for follow-up. (v2.6.0 folded the legacy `/token-monitor` slash command into this Skill — older installs are cleaned up automatically the next time you run `claude-token-saver install`.)
+The Claude Code Skill registered at install time bridges "warning chip → remediation":
+
+1. **A risk chip appears in the statusline** — e.g. `🚨 5H 94%`, `⚠ Cache miss`, `⚠ 1M ON`.
+2. **Run `/claude-token-saver`** — invoking the Skill via slash is the simplest path. Mentioning the chip wording to Claude ("5H cap is up", "cache miss showing", "why is 1M context on?") auto-activates the same Skill.
+3. **The Skill fetches the remediation.** Internally it runs `claude-token-saver last` to surface the most recent warning + root-cause code + step-by-step fix, and recommends `claude-token-saver handoff` when a cap is imminent.
+4. **Run manually any time.** `claude-token-saver last` (latest event), `claude-token-saver history` (last 7 days of transitions), `claude-token-saver handoff` (back up before a cap blocks you) — same information, on demand.
+
+> v2.6.0 folded the legacy `/token-monitor` slash command into this Skill. On older installs, run `claude-token-saver install` once and the legacy file is cleaned up automatically.
 
 ## One-shot report
 
@@ -89,6 +100,8 @@ claude-token-saver mode       # show current settings
 ```
 
 ## Commands
+
+All of the commands below run in your **shell (terminal)**. Inside a Claude Code session, the only entry point is the `/claude-token-saver` Skill, which calls these commands for you. The `--statusline` form is invoked automatically by Claude Code on each statusline refresh — you never type it yourself.
 
 | Command | What it does |
 |---|---|
@@ -177,6 +190,11 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 **IntelliJ Claude Code plugin** — the statusline widget fuses prior and current frames at the character level when emoji are in the output, producing artifacts like `Cache expires 59:548`. v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically (`--icon` is also ignored under IntelliJ). Other terminals (iTerm, Terminal, WSL, etc.) are unaffected.
 
 ## Release notes
+
+### v2.9.1 (2026-04-27)
+- Fix the README statusline sample so it matches actual output (includes the `✦ current` / `📅 weekly` window segments that were missing).
+- Add a 4-step "When a warning chip appears" Skill workflow — spot the chip → mention its wording to Claude → Skill runs `last` → apply remediation.
+- Move `language` from `cfg.statusline.language` to top-level `cfg.language` (it doesn't belong with statusline toggles). The legacy location is still read as a fallback so existing configs migrate transparently. `mode` output also splits the statusline section from the output-language section.
 
 ### v2.9.0 (2026-04-27)
 - **Output language is now configurable.** `last` / `history` / advice render in a single language at a time. English by default; switch with `claude-token-saver mode ko`. Statusline chips remain symbolic.

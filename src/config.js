@@ -36,6 +36,7 @@ export function saveConfig(cfg) {
 
 // Each keyword maps to a single statusline option toggle.
 // Orthogonal — `mode icon verbose` flips both without resetting the rest.
+// Statusline-only toggles. Stored under `cfg.statusline`.
 const KEYWORDS = {
   icon:       { key: 'icon',    value: true  },
   text:       { key: 'icon',    value: false },
@@ -45,12 +46,16 @@ const KEYWORDS = {
   'no-timer': { key: 'timer',   value: false },
   color:      { key: 'color',   value: true  },
   'no-color': { key: 'color',   value: false },
-  // Language for advice / history / `last` output. Default is `en`.
-  // Statusline chips themselves stay symbolic (e.g. `🚨 5H 94%`) regardless.
-  en:         { key: 'language', value: 'en' },
-  english:    { key: 'language', value: 'en' },
-  ko:         { key: 'language', value: 'ko' },
-  korean:     { key: 'language', value: 'ko' },
+};
+
+// Output language for `last`/`history`/advice. Stored at top level
+// (`cfg.language`) because it has nothing to do with statusline rendering —
+// the chips themselves stay symbolic regardless.
+const LANG_KEYWORDS = {
+  en:      'en',
+  english: 'en',
+  ko:      'ko',
+  korean:  'ko',
 };
 
 // Window preset accepts forms like:
@@ -71,13 +76,15 @@ function parseWindow(word) {
   return null;
 }
 
-export const VALID_KEYWORDS = Object.keys(KEYWORDS).concat([
-  '<N>h (e.g. 1h, 6h, 24h)',
-  '<N>d (e.g. 1d, 7d, 30d)',
-  'lang=en | lang=ko',
-  'reset',
-  'default',
-]);
+export const VALID_KEYWORDS = Object.keys(KEYWORDS)
+  .concat(Object.keys(LANG_KEYWORDS))
+  .concat([
+    '<N>h (e.g. 1h, 6h, 24h)',
+    '<N>d (e.g. 1d, 7d, 30d)',
+    'lang=en | lang=ko',
+    'reset',
+    'default',
+  ]);
 
 /**
  * Apply user-supplied mode keywords to the persisted config.
@@ -94,14 +101,23 @@ export function applyMode(words) {
     const lower = String(w).toLowerCase();
     if (lower === 'reset' || lower === 'default') {
       cfg.statusline = {};
+      delete cfg.language;
       applied.push(lower);
       continue;
     }
     const langMatch = lower.match(/^lang(?:uage)?=(en|english|ko|korean)$/);
     if (langMatch) {
       const v = langMatch[1].startsWith('k') ? 'ko' : 'en';
-      cfg.statusline.language = v;
+      cfg.language = v;
+      // Migrate any legacy value that lived under cfg.statusline.language.
+      if (cfg.statusline) delete cfg.statusline.language;
       applied.push(`lang=${v}`);
+      continue;
+    }
+    if (LANG_KEYWORDS[lower]) {
+      cfg.language = LANG_KEYWORDS[lower];
+      if (cfg.statusline) delete cfg.statusline.language;
+      applied.push(`lang=${cfg.language}`);
       continue;
     }
     const hours = parseWindow(lower);
@@ -150,7 +166,6 @@ export function statuslineDefaults() {
     verbose:     s.verbose !== false,
     timer:       s.timer   !== false,
     color:       s.color   !== false,
-    language:    s.language === 'ko' ? 'ko' : 'en',
     windowHours,
     windowLabel: formatWindow(windowHours),
   };
@@ -158,9 +173,13 @@ export function statuslineDefaults() {
 
 // Resolve the user's preferred output language for advice/history/last.
 // Returns 'en' or 'ko'; defaults to 'en' for first-time users.
+// Reads `cfg.language` (current location) with a fallback to the legacy
+// `cfg.statusline.language` slot so configs from earlier 2.9.x installs
+// keep working.
 export function userLanguage() {
-  const s = loadConfig().statusline || {};
-  return s.language === 'ko' ? 'ko' : 'en';
+  const cfg = loadConfig();
+  const v = cfg.language || (cfg.statusline && cfg.statusline.language);
+  return v === 'ko' ? 'ko' : 'en';
 }
 
 /**

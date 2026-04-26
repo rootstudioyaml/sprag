@@ -33,16 +33,20 @@ claude-token-saver install
 설치 후 Claude Code 하단 statusline에 캐시 상태가 5초마다 갱신됩니다 (postinstall이 `~/.claude/settings.json`에 자동 등록).
 
 ```
-🤖 Opus 4.7 · 🧠 Cache hit 98.0% · ⏳ Cache expires 59:51 · 📦 Ctx 200k · 💰 Cache saved $221 · last 1d
+🤖 Opus 4.7 · 🧠 Cache hit 98.0% · ⏳ Cache expires 58:38 · ✦ current █░░░░░ 15% 🔄 08:50 · 📅 weekly █▒░░░░ 24% 🔄 Thu 13:00 · 📦 Ctx 200k · 💰 Cache saved $205 · last 1d
 ```
 
-위험 상황에서는 경고 칩이 맨 앞으로 나옵니다.
+세그먼트 — `🤖 모델` · `🧠 캐시 히트율` · `⏳ TTL 카운트다운` · `✦ current` (5시간 윈도) · `📅 weekly` (7일 윈도) · `📦 컨텍스트` · `💰 누적 절감액` · `last <기간>`.
+
+토큰이 과도하게 사용되는 상황이 감지되면 경고 칩이 맨 앞에 노출됩니다.
 
 ```
-🚨 5H 94% (resets in 12m) · 🤖 Opus 4.7 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📦 Ctx 200k · last 1d
+🚨 5H 94% (resets in 12m) · 🤖 Opus 4.7 · 🧠 Cache hit 72.1% · ⚠ Cache miss · ✦ current ██████ 94% · 📦 Ctx 200k · last 1d
 ```
 
-표시되는 경고 칩 — `🚨 5H/7D NN%`, `⚠ 1M ON`, `⚠ Input spike`, `⚠ Cache miss`, `⚠ 5m TTL`, `⚠ Rebuild churn`, `⚠ Output heavy`, `⚠ Call surge`.
+경고 칩 종류 — `🚨 5H/7D NN%`, `⚠ 1M ON`, `⚠ Input spike`, `⚠ Cache miss`, `⚠ 5m TTL`, `⚠ Rebuild churn`, `⚠ Output heavy`, `⚠ Call surge`.
+
+**해야 할 일** — Claude에서 `/claude-token-saver` Skill을 실행하면 됩니다. Skill이 `claude-token-saver last`를 호출해 원인 코드와 단계별 해결 명령을 자동으로 보여줍니다. 칩 문구(예: "5H cap 떴어", "cache miss")만 말해도 동일한 Skill이 자동 활성화됩니다. 자세한 흐름은 아래 [Skill 워크플로](#경고-칩이-떴을-때--skill-워크플로) 참고.
 
 수동 등록이 필요한 경우(다른 statusline을 이미 쓰고 있어 postinstall이 건너뛴 경우 등):
 
@@ -58,9 +62,16 @@ claude-token-saver install
 
 `refreshInterval: 5`는 idle 상태에서도 TTL 카운트다운을 5초마다 갱신합니다. Windows(PowerShell)는 `examples/statusline-command.ps1` 참고.
 
-## Skill — 칩을 언급하면 자동 활성화
+## 경고 칩이 떴을 때 — Skill 워크플로
 
-설치 시 함께 등록되는 Claude Code Skill 덕분에 대화 중 "cache hit rate", "1M context", "5H cap" 같은 칩 단어를 언급하면 Claude가 자동으로 `claude-token-saver last`를 실행해 가장 최근 경고와 처방을 보여주고, 필요 시 `history` / `handoff`로 후속 조치를 안내합니다. (v2.6.0에서 레거시 `/token-monitor` 슬래시 커맨드는 Skill로 흡수됐습니다 — 이전 버전 사용자는 `claude-token-saver install`을 한 번 다시 실행하면 자동 정리됩니다.)
+설치 시 함께 등록되는 Claude Code Skill이 "경고 칩 → 처방"의 다리 역할을 합니다.
+
+1. **statusline에 경고 칩이 뜬다** — 예: `🚨 5H 94%`, `⚠ Cache miss`, `⚠ 1M ON`.
+2. **`/claude-token-saver` Skill을 실행한다** — Claude에서 슬래시로 Skill을 직접 호출하는 게 가장 간단합니다. 또는 칩 문구를 그대로 말해도 동일한 Skill이 자동 활성화됩니다 ("5H cap 떴어", "cache miss 떴어", "1M context 왜 켜졌지?" 등 — 칩 텍스트가 트리거 단어로 등록돼 있음).
+3. **Skill이 처방을 가져온다** — 내부적으로 `claude-token-saver last`를 실행해 가장 최근 경고 + 원인 코드 + 단계별 해결 명령을 한 번에 보여주고, 캡 임박 시에는 `claude-token-saver handoff`로 현재 작업 백업을 권합니다.
+4. **수동 확인이 필요하면** — `claude-token-saver last` (최근 1건), `claude-token-saver history` (최근 7일 전이 로그), `claude-token-saver handoff` (cap 직전 백업)를 직접 실행해도 같은 정보를 얻을 수 있습니다.
+
+> v2.6.0에서 레거시 `/token-monitor` 슬래시 커맨드는 이 Skill로 흡수됐습니다. 이전 버전 사용자는 `claude-token-saver install`을 한 번 더 실행하면 자동 정리됩니다.
 
 ## 단발 리포트
 
@@ -89,6 +100,8 @@ claude-token-saver mode       # 현재 설정 확인
 ```
 
 ## 주요 명령
+
+아래 명령은 모두 **셸(터미널)에서 직접 실행**합니다. Claude Code 세션 안에서는 `/claude-token-saver` Skill 하나만 쓰며, Skill이 내부적으로 이 명령들을 호출합니다. `--statusline` 형식은 Claude Code가 statusline 갱신마다 자동으로 호출하므로 사용자가 직접 입력하지 않습니다.
 
 | 명령 | 설명 |
 |---|---|
@@ -137,6 +150,11 @@ Node.js ≥ 18 · macOS / Linux / Windows / WSL · 의존성 0.
 **IntelliJ Claude Code plugin** — statusline 위젯이 이전 프레임과 새 프레임을 글자 단위로 잘못 합쳐 `Cache expires 59:548` 같은 잔재 문자열이 보이는 버그가 있습니다 (이모지가 포함된 출력에서만 재현). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm`을 감지하면 자동으로 text 모드로 폴백해 이모지 없이 출력합니다 (`--icon` 플래그도 IntelliJ에서는 무시됩니다). 다른 터미널(iTerm, Terminal, WSL 등)에는 영향 없습니다.
 
 ## 릴리스 노트
+
+### v2.9.1 (2026-04-27)
+- README의 statusline 예시를 실제 출력(`✦ current` / `📅 weekly` 윈도 세그먼트 포함)으로 정정.
+- "경고 칩이 떴을 때" Skill 워크플로 4단계 가이드 추가 — 칩 발견 → Claude에게 칩 문구 그대로 말하기 → Skill이 `last` 실행 → 처방 적용.
+- `language` 설정 위치를 `cfg.statusline` 하위에서 top-level `cfg.language`로 이동(statusline 토글이 아니므로). 구버전 위치도 fallback으로 계속 읽어 마이그레이션은 자동. `mode` 출력도 statusline / output language를 분리해서 표시.
 
 ### v2.9.0 (2026-04-27)
 - **출력 언어 전환 추가** — `last` / `history` / 처방 메시지가 한 번에 한 언어만 출력합니다. 기본은 영어, `claude-token-saver mode ko`로 한국어 전환 (statusline 칩은 영향 없음).

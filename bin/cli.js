@@ -396,21 +396,23 @@ async function main() {
   //   claude-token-saver mode icon verbose       # set icon + verbose
   //   claude-token-saver mode reset              # clear back to defaults
   if (args[0] === 'mode') {
-    const { applyMode, loadConfig, configPath, statuslineDefaults, VALID_KEYWORDS } =
+    const { applyMode, loadConfig, configPath, statuslineDefaults, userLanguage, VALID_KEYWORDS } =
       await import('../src/config.js');
     const words = args.slice(1);
     if (words.length === 0) {
       const eff = statuslineDefaults();
-      const raw = loadConfig().statusline || {};
-      console.log('Statusline mode (effective):');
-      console.log(`  icon:     ${eff.icon}`);
-      console.log(`  verbose:  ${eff.verbose}`);
-      console.log(`  timer:    ${eff.timer}`);
-      console.log(`  color:    ${eff.color}`);
-      console.log(`  language: ${eff.language}  (advice / history / last)`);
-      console.log(`  window:   ${eff.windowLabel} (${eff.windowHours}h)`);
+      const raw = loadConfig();
+      console.log('Statusline (effective):');
+      console.log(`  icon:    ${eff.icon}`);
+      console.log(`  verbose: ${eff.verbose}`);
+      console.log(`  timer:   ${eff.timer}`);
+      console.log(`  color:   ${eff.color}`);
+      console.log(`  window:  ${eff.windowLabel} (${eff.windowHours}h)`);
       console.log('');
-      console.log(`Stored config (${configPath()}):`);
+      console.log('Output language (advice / history / last):');
+      console.log(`  language: ${userLanguage()}`);
+      console.log('');
+      console.log(`Stored config file (${configPath()}):`);
       console.log(`  ${Object.keys(raw).length === 0 ? '(none — using defaults)' : JSON.stringify(raw)}`);
       console.log('');
       console.log('Change with: claude-token-saver mode <keywords...>');
@@ -425,7 +427,7 @@ async function main() {
     }
     const eff = statuslineDefaults();
     console.log(`Updated: ${applied.join(', ')}`);
-    console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} language=${eff.language} window=${eff.windowLabel}`);
+    console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
     console.log('Statusline picks up the change on the next refresh (~1s).');
     return;
   }
