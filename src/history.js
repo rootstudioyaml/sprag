@@ -151,7 +151,9 @@ function tipsForEvent(chip, detail) {
     const tip = ISSUE_TIPS[code];
     if (!tip) continue;
     enLines.push(`  💡 ${tip.en}`);
-    koLines.push(`  💡 ${tip.ko}`);
+    // KR tip carries the `└` marker so language-filtered renderers can
+    // pair it with its EN counterpart (mirrors the event-line continuation).
+    koLines.push(`  └ 💡 ${tip.ko}`);
   }
   return { en: enLines.join('\n'), ko: koLines.join('\n') };
 }
@@ -288,7 +290,7 @@ export function recordCapTransition(window) {
     ko = `✓ ${labelKo} 캡 경고 해소`;
   }
   // Cap-warn entry → handoff tip; resolution → no tip (just the ✓ line).
-  const capTips = isWarn ? { en: `  💡 ${CAP_TIPS.en}`, ko: `  💡 ${CAP_TIPS.ko}` } : null;
+  const capTips = isWarn ? { en: `  💡 ${CAP_TIPS.en}`, ko: `  └ 💡 ${CAP_TIPS.ko}` } : null;
   appendDayLine(en, ko, now, capTips);
   state[slotKey] = isWarn;
   saveState(state);
@@ -308,6 +310,57 @@ export function recordHandoff(filePath) {
   const ko = `📝 핸드오프 백업 작성: ${filePath}`;
   appendDayLine(en, ko, now);
   return true;
+}
+
+/**
+ * Filter a daily-history file's content down to a single language.
+ *
+ * History files are written bilingual (EN line + `  └ KO` continuation +
+ * `  💡 EN tip` + `  └ 💡 KO tip`). This helper renders just the chosen side
+ * for display, while the on-disk file stays bilingual for archival.
+ *
+ *   en: drop every `  └ ...` line (KR continuations + KR tips).
+ *   ko: replace each EN line with the immediately following `  └ KO` line
+ *       (preserving the leading `- HH:MM:SS` from the EN line so timestamps
+ *       still appear); drop unpaired EN-only events.
+ *
+ * Lines that don't match the bilingual pattern (headers, blank lines,
+ * legacy entries from older versions without the `└ 💡` marker) pass through
+ * unchanged.
+ */
+export function formatHistoryForLanguage(content, lang) {
+  if (lang !== 'ko') {
+    // English: simply strip the `└` continuations.
+    return content
+      .split('\n')
+      .filter((line) => !/^\s*└\s/.test(line))
+      .join('\n');
+  }
+  // Korean: pair each line with its `└` continuation when present.
+  const lines = content.split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const next = lines[i + 1] || '';
+    const cont = next.match(/^(\s*)└\s+(.*)$/);
+    // Event line: `- HH:MM:SS <english>` → keep the timestamp prefix, swap text.
+    const evt = line.match(/^(- \d{2}:\d{2}:\d{2}\s+)(.*)$/);
+    if (evt && cont) {
+      out.push(`${evt[1]}${cont[2]}`);
+      i++;
+      continue;
+    }
+    // Tip line: `  💡 <english>` paired with `  └ 💡 <korean>`.
+    const tip = line.match(/^(\s*)💡\s+(.*)$/);
+    if (tip && cont && /^💡\s/.test(cont[2])) {
+      out.push(`${tip[1]}${cont[2]}`);
+      i++;
+      continue;
+    }
+    // Header / blank / unpaired line — pass through.
+    out.push(line);
+  }
+  return out.join('\n');
 }
 
 /**

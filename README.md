@@ -28,28 +28,23 @@ npm i -g claude-token-saver
 claude-token-saver install
 ```
 
-## 설치 후 보이는 것
+## Claude Code statusline
 
-**(A) 단발 리포트** — `claude-token-saver` 실행 시:
-
-```
-Claude 토큰 아껴쓰기 — Last 30 days
-Context window: 200k  ✓ 표준
-Cache hit rate: 98.2%  |  Total input: 1957.94M tokens
-TTL Breakdown / Cost Impact / Daily Trend ...
-```
-
-급증 세션이 있으면 상단에 `⚠ 토큰 급증 감지` 블록과 원인·해결 명령이 함께 출력됩니다.
-
-**(B) statusline 한 줄** — `~/.claude/settings.json`에 등록 시:
+설치 후 Claude Code 하단 statusline에 캐시 상태가 5초마다 갱신됩니다 (postinstall이 `~/.claude/settings.json`에 자동 등록).
 
 ```
-🧠 97.5% · ⏳ 1h 42:15 · 💰 $4.8K · 🤖 Opus 4.7 · ✦ 5H 47% · 📅 7D 9%
+🤖 Opus 4.7 · 🧠 Cache hit 98.0% · ⏳ Cache expires 59:51 · 📦 Ctx 200k · 💰 Cache saved $221 · last 1d
 ```
 
-위험 상황에서는 경고 칩이 맨 앞에 표시됩니다 — `🚨 5H 94%`, `⚠ 1M ON`, `⚠ Cache miss`, `⚠ 5m TTL` 등.
+위험 상황에서는 경고 칩이 맨 앞으로 나옵니다.
 
-## statusline 등록
+```
+🚨 5H 94% (resets in 12m) · 🤖 Opus 4.7 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📦 Ctx 200k · last 1d
+```
+
+표시되는 경고 칩 — `🚨 5H/7D NN%`, `⚠ 1M ON`, `⚠ Input spike`, `⚠ Cache miss`, `⚠ 5m TTL`, `⚠ Rebuild churn`, `⚠ Output heavy`, `⚠ Call surge`.
+
+수동 등록이 필요한 경우(다른 statusline을 이미 쓰고 있어 postinstall이 건너뛴 경우 등):
 
 ```json
 {
@@ -61,19 +56,50 @@ TTL Breakdown / Cost Impact / Daily Trend ...
 }
 ```
 
-`refreshInterval: 5`는 idle 상태에서도 TTL 카운트다운을 5초마다 갱신합니다 (1초도 가능하지만 상시 I/O 부담을 줄이기 위해 5초를 기본값으로 권장합니다). Windows(PowerShell) 환경은 `examples/statusline-command.ps1`을 참고하세요.
+`refreshInterval: 5`는 idle 상태에서도 TTL 카운트다운을 5초마다 갱신합니다. Windows(PowerShell)는 `examples/statusline-command.ps1` 참고.
+
+## Skill — 칩을 언급하면 자동 활성화
+
+설치 시 함께 등록되는 Claude Code Skill 덕분에 대화 중 "cache hit rate", "1M context", "5H cap" 같은 칩 단어를 언급하면 Claude가 자동으로 `claude-token-saver last`를 실행해 가장 최근 경고와 처방을 보여주고, 필요 시 `history` / `handoff`로 후속 조치를 안내합니다. (v2.6.0에서 레거시 `/token-monitor` 슬래시 커맨드는 Skill로 흡수됐습니다 — 이전 버전 사용자는 `claude-token-saver install`을 한 번 다시 실행하면 자동 정리됩니다.)
+
+## 단발 리포트
+
+`claude-token-saver`를 실행하면 최근 1일 진단 표가 출력됩니다.
+
+```
+  Claude Token Saver — Last 1 day
+  (claude-token-saver v2.9.0)
+  ══════════════════════════════════════════════════
+
+  Context window: 200k  ✓ 200k context (standard)
+  Sessions: 11  |  API calls: 578  |  Cache hit rate: 98.0%
+  TTL Breakdown / Cost Impact / Daily Trend …
+```
+
+급증 세션이 있으면 상단에 `⚠ Spike detected` 블록과 원인 코드(아래 표) · OS별 해결 명령이 함께 출력됩니다.
+
+## 출력 언어 전환
+
+`last` / `history` / 처방 메시지는 영어가 기본값이며 한 번에 한 언어만 출력합니다 (statusline 칩은 항상 동일한 기호 형식). 한국어로 바꾸려면:
+
+```bash
+claude-token-saver mode ko    # 또는: claude-token-saver mode lang=ko
+claude-token-saver mode en    # 영어로 복귀
+claude-token-saver mode       # 현재 설정 확인
+```
 
 ## 주요 명령
 
 | 명령 | 설명 |
 |---|---|
-| `claude-token-saver` | 최근 30일 진단 리포트 |
-| `claude-token-saver --days 7` | 기간 변경 |
-| `claude-token-saver --statusline --icon` | statusline용 한 줄 출력 |
-| `claude-token-saver install` | Claude Code Skill 수동 등록 (postinstall이 막힌 환경 대비) |
+| `claude-token-saver` | 최근 1일 진단 리포트 (`--days N`로 기간 변경) |
+| `claude-token-saver last` | 가장 최근 경고 1건 + 처방 (Skill이 호출하는 명령) |
 | `claude-token-saver history` | 최근 7일간 칩 전이 로그 (1M ON, Cache miss, cap 등) |
 | `claude-token-saver handoff` | 현재 작업을 `HANDOFF-YYYY-MM-DD-HHMM.md`로 백업 (cap 임박 시) |
-| `claude-token-saver --install-hook` | 매 도구 호출마다 캐시 통계 자동 로깅 |
+| `claude-token-saver mode [keywords...]` | 출력 모드 설정 (`icon`/`text`, `ko`/`en`, `verbose`, `1d`/`7d` 등) |
+| `claude-token-saver --statusline --icon` | statusline용 한 줄 출력 (Claude Code가 호출) |
+| `claude-token-saver install` | Skill·statusline 수동 등록 (postinstall이 막힌 환경) |
+| `claude-token-saver --install-hook` | 매 도구 호출마다 캐시 통계 자동 로깅 (선택) |
 
 전체 옵션은 `--help` 또는 [영문 README](./README.en.md#options).
 
@@ -109,6 +135,21 @@ Node.js ≥ 18 · macOS / Linux / Windows / WSL · 의존성 0.
 ## 알려진 환경 이슈
 
 **IntelliJ Claude Code plugin** — statusline 위젯이 이전 프레임과 새 프레임을 글자 단위로 잘못 합쳐 `Cache expires 59:548` 같은 잔재 문자열이 보이는 버그가 있습니다 (이모지가 포함된 출력에서만 재현). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm`을 감지하면 자동으로 text 모드로 폴백해 이모지 없이 출력합니다 (`--icon` 플래그도 IntelliJ에서는 무시됩니다). 다른 터미널(iTerm, Terminal, WSL 등)에는 영향 없습니다.
+
+## 릴리스 노트
+
+### v2.9.0 (2026-04-27)
+- **출력 언어 전환 추가** — `last` / `history` / 처방 메시지가 한 번에 한 언어만 출력합니다. 기본은 영어, `claude-token-saver mode ko`로 한국어 전환 (statusline 칩은 영향 없음).
+- 기존 history 파일은 이중언어로 보관되며, 표시할 때 선택한 언어만 필터링됩니다.
+
+### v2.8.6 (2026-04-27)
+- **Skill 자동 등록** — `npm i -g claude-token-saver` 시 postinstall 훅이 Skill과 statusline을 자동으로 `~/.claude`에 등록. 수동 `claude-token-saver install`은 `--ignore-scripts` / sudo 환경용 폴백으로 유지.
+- 한·영 README 문장 다듬기, `claude-cache-monitor` alias 제거 시점 설명 정정.
+
+### v2.8.5
+- IntelliJ Claude Code plugin에서 statusline 프레임 합성 버그 회피 — `TERMINAL_EMULATOR=JetBrains-JediTerm` 감지 시 자동 text 모드.
+
+이전 버전은 `git log`를 참고하세요.
 
 ## 라이선스
 

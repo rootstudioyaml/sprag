@@ -28,28 +28,23 @@ If postinstall was skipped (e.g. `--ignore-scripts`, sudo, or sandboxed installs
 claude-token-saver install
 ```
 
-## What you see after install
+## Claude Code statusline
 
-**(A) One-shot report** — `claude-token-saver`:
-
-```
-Claude token saver — Last 30 days
-Context window: 200k  ✓ standard
-Cache hit rate: 98.2%  |  Total input: 1957.94M tokens
-TTL Breakdown / Cost Impact / Daily Trend ...
-```
-
-If a session spiked, a `⚠ Spike detected` block leads the report with root cause + a paste-ready remediation command.
-
-**(B) Statusline chip** — once wired into `~/.claude/settings.json`:
+After install, Claude Code's bottom statusline updates every 5 seconds with cache state (postinstall registers it in `~/.claude/settings.json` automatically).
 
 ```
-🧠 97.5% · ⏳ 1h 42:15 · 💰 $4.8K · 🤖 Opus 4.7 · ✦ 5H 47% · 📅 7D 9%
+🤖 Opus 4.7 · 🧠 Cache hit 98.0% · ⏳ Cache expires 59:51 · 📦 Ctx 200k · 💰 Cache saved $221 · last 1d
 ```
 
-Risk chips lead when something's wrong: `🚨 5H 94%`, `⚠ 1M ON`, `⚠ Cache miss`, `⚠ 5m TTL`.
+Risk chips lead when something's wrong:
 
-## Wire up the statusline
+```
+🚨 5H 94% (resets in 12m) · 🤖 Opus 4.7 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📦 Ctx 200k · last 1d
+```
+
+Risk chips: `🚨 5H/7D NN%`, `⚠ 1M ON`, `⚠ Input spike`, `⚠ Cache miss`, `⚠ 5m TTL`, `⚠ Rebuild churn`, `⚠ Output heavy`, `⚠ Call surge`.
+
+If postinstall was skipped (you already use a different statusline, etc.), wire it manually:
 
 ```json
 {
@@ -61,19 +56,50 @@ Risk chips lead when something's wrong: `🚨 5H 94%`, `⚠ 1M ON`, `⚠ Cache m
 }
 ```
 
-`refreshInterval: 5` keeps the TTL countdown ticking while idle (Claude Code's statusline is otherwise event-driven). 1s also works, but 5s is the recommended default to avoid constant I/O. For Windows PowerShell, see `examples/statusline-command.ps1`.
+`refreshInterval: 5` keeps the TTL countdown ticking while idle. For Windows PowerShell see `examples/statusline-command.ps1`.
+
+## Skill — mention a chip, it activates
+
+The Claude Code Skill registered at install time auto-activates whenever you mention chip wording in chat ("cache hit rate", "1M context", "5H cap"). It runs `claude-token-saver last` to surface the most recent warning + remediation, then points you at `history` / `handoff` for follow-up. (v2.6.0 folded the legacy `/token-monitor` slash command into this Skill — older installs are cleaned up automatically the next time you run `claude-token-saver install`.)
+
+## One-shot report
+
+Run `claude-token-saver` for the last-day diagnostic table:
+
+```
+  Claude Token Saver — Last 1 day
+  (claude-token-saver v2.9.0)
+  ══════════════════════════════════════════════════
+
+  Context window: 200k  ✓ 200k context (standard)
+  Sessions: 11  |  API calls: 578  |  Cache hit rate: 98.0%
+  TTL Breakdown / Cost Impact / Daily Trend …
+```
+
+If a session spiked, a `⚠ Spike detected` block leads the report with the root-cause code (table below) and an OS-aware remediation command.
+
+## Output language
+
+`last` / `history` / advice messages render in one language at a time (statusline chips stay symbolic). English is the default — switch via:
+
+```bash
+claude-token-saver mode ko    # or: claude-token-saver mode lang=ko
+claude-token-saver mode en    # back to English
+claude-token-saver mode       # show current settings
+```
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `claude-token-saver` | Last 30 days diagnostic report |
-| `claude-token-saver --days 7` | Change window |
-| `claude-token-saver --statusline --icon` | One-line statusline output |
-| `claude-token-saver install` | Manually register the Claude Code Skill (fallback when postinstall is skipped) |
+| `claude-token-saver` | Last-1-day diagnostic report (`--days N` to change window) |
+| `claude-token-saver last` | Most recent warning + remediation (the command the Skill invokes) |
 | `claude-token-saver history` | Last 7 days of chip transitions (1M ON, Cache miss, cap, …) |
 | `claude-token-saver handoff` | Back current work up to `HANDOFF-YYYY-MM-DD-HHMM.md` before a cap blocks you |
-| `claude-token-saver --install-hook` | Auto-log cache stats on every tool call |
+| `claude-token-saver mode [keywords...]` | Configure output (`icon`/`text`, `en`/`ko`, `verbose`, `1d`/`7d`, …) |
+| `claude-token-saver --statusline --icon` | One-line statusline output (called by Claude Code) |
+| `claude-token-saver install` | Manually register Skill + statusline (postinstall fallback) |
+| `claude-token-saver --install-hook` | Optionally auto-log cache stats on every tool call |
 
 ## Options
 
@@ -149,6 +175,21 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 ## Known environment quirks
 
 **IntelliJ Claude Code plugin** — the statusline widget fuses prior and current frames at the character level when emoji are in the output, producing artifacts like `Cache expires 59:548`. v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically (`--icon` is also ignored under IntelliJ). Other terminals (iTerm, Terminal, WSL, etc.) are unaffected.
+
+## Release notes
+
+### v2.9.0 (2026-04-27)
+- **Output language is now configurable.** `last` / `history` / advice render in a single language at a time. English by default; switch with `claude-token-saver mode ko`. Statusline chips remain symbolic.
+- History files stay bilingual on disk; the language toggle is applied at display time.
+
+### v2.8.6 (2026-04-27)
+- **Skill auto-registers on install.** A `postinstall` hook wires the Claude Code Skill and statusline into `~/.claude` automatically — no second command. `claude-token-saver install` still works as a fallback for `--ignore-scripts` / sudo / sandboxed environments.
+- README polish in both languages; corrected the `claude-cache-monitor` alias-removal note (timing was reversed).
+
+### v2.8.5
+- IntelliJ Claude Code plugin: auto-fall back to text mode when `TERMINAL_EMULATOR=JetBrains-JediTerm` to avoid frame-fusion artefacts.
+
+Older versions: see `git log`.
 
 ## License
 

@@ -45,6 +45,12 @@ const KEYWORDS = {
   'no-timer': { key: 'timer',   value: false },
   color:      { key: 'color',   value: true  },
   'no-color': { key: 'color',   value: false },
+  // Language for advice / history / `last` output. Default is `en`.
+  // Statusline chips themselves stay symbolic (e.g. `🚨 5H 94%`) regardless.
+  en:         { key: 'language', value: 'en' },
+  english:    { key: 'language', value: 'en' },
+  ko:         { key: 'language', value: 'ko' },
+  korean:     { key: 'language', value: 'ko' },
 };
 
 // Window preset accepts forms like:
@@ -68,6 +74,7 @@ function parseWindow(word) {
 export const VALID_KEYWORDS = Object.keys(KEYWORDS).concat([
   '<N>h (e.g. 1h, 6h, 24h)',
   '<N>d (e.g. 1d, 7d, 30d)',
+  'lang=en | lang=ko',
   'reset',
   'default',
 ]);
@@ -88,6 +95,13 @@ export function applyMode(words) {
     if (lower === 'reset' || lower === 'default') {
       cfg.statusline = {};
       applied.push(lower);
+      continue;
+    }
+    const langMatch = lower.match(/^lang(?:uage)?=(en|english|ko|korean)$/);
+    if (langMatch) {
+      const v = langMatch[1].startsWith('k') ? 'ko' : 'en';
+      cfg.statusline.language = v;
+      applied.push(`lang=${v}`);
       continue;
     }
     const hours = parseWindow(lower);
@@ -136,9 +150,17 @@ export function statuslineDefaults() {
     verbose:     s.verbose !== false,
     timer:       s.timer   !== false,
     color:       s.color   !== false,
+    language:    s.language === 'ko' ? 'ko' : 'en',
     windowHours,
     windowLabel: formatWindow(windowHours),
   };
+}
+
+// Resolve the user's preferred output language for advice/history/last.
+// Returns 'en' or 'ko'; defaults to 'en' for first-time users.
+export function userLanguage() {
+  const s = loadConfig().statusline || {};
+  return s.language === 'ko' ? 'ko' : 'en';
 }
 
 /**

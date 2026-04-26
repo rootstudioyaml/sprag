@@ -230,6 +230,8 @@ async function main() {
   if (args[0] === 'last') {
     const { readRecent, historyDir } = await import('../src/history.js');
     const { ISSUE_MESSAGES, CHIP_TO_CODES, CAP_TIPS } = await import('../src/advice.js');
+    const { userLanguage } = await import('../src/config.js');
+    const lang = userLanguage();
     const days = parseFloat(getArg('--days') || '1');
     const recent = readRecent(days);
     const latest = findLatestWarning(recent, CHIP_TO_CODES);
@@ -247,10 +249,9 @@ async function main() {
     if (latest.isCap) {
       if (latest.capReset) console.log(`  Cap window: ${latest.capReset}`);
       console.log('');
-      console.log('💡 ' + CAP_TIPS.en);
-      console.log('💡 ' + CAP_TIPS.ko);
+      console.log('💡 ' + (lang === 'ko' ? CAP_TIPS.ko : CAP_TIPS.en));
       console.log('');
-      console.log('Run:');
+      console.log(lang === 'ko' ? '실행:' : 'Run:');
       console.log('  claude-token-saver handoff');
       return;
     }
@@ -258,31 +259,29 @@ async function main() {
     // bilingual (English first, `└ Korean` continuation per line — matches
     // the history.md format).
     if (latest.codes.length === 0) {
-      console.log('(No diagnostic code attached — open the table view: `claude-token-saver --days 1`)');
-      console.log('(진단 코드 없음 — 표 뷰를 열어보세요: `claude-token-saver --days 1`)');
+      console.log(lang === 'ko'
+        ? '(진단 코드 없음 — 표 뷰를 열어보세요: `claude-token-saver --days 1`)'
+        : '(No diagnostic code attached — open the table view: `claude-token-saver --days 1`)');
       return;
     }
+    // Pick a single language per field; fall back to EN when KO is missing.
+    const pick = (en, ko) => (lang === 'ko' && ko ? ko : en);
     for (const code of latest.codes) {
       const msg = ISSUE_MESSAGES[code];
       if (!msg) {
         console.log(`Code: ${code} (no advice registered)`);
         continue;
       }
-      console.log(`▎ ${msg.title}`);
-      if (msg.titleKo && msg.titleKo !== msg.title) console.log(`  └ ${msg.titleKo}`);
-      console.log(`  ${msg.explain}`);
-      if (msg.explainKo && msg.explainKo !== msg.explain) console.log(`  └ ${msg.explainKo}`);
+      console.log(`▎ ${pick(msg.title, msg.titleKo)}`);
+      console.log(`  ${pick(msg.explain, msg.explainKo)}`);
       const actions = typeof msg.actions === 'function' ? msg.actions() : msg.actions || [];
       for (const a of actions) {
         console.log('');
-        console.log(`  ${a.label}:`);
-        if (a.labelKo && a.labelKo !== a.label) console.log(`  └ ${a.labelKo}:`);
+        console.log(`  ${pick(a.label, a.labelKo)}:`);
         const cmds = a.commands || [];
         const cmdsKo = a.commandsKo || [];
         for (let i = 0; i < cmds.length; i++) {
-          console.log(`    - ${cmds[i]}`);
-          const ko = cmdsKo[i];
-          if (ko && ko !== cmds[i]) console.log(`      └ ${ko}`);
+          console.log(`    - ${pick(cmds[i], cmdsKo[i])}`);
         }
       }
       console.log('');
@@ -297,7 +296,10 @@ async function main() {
   //   claude-token-saver history --days 30    # custom window
   //   claude-token-saver history --list       # just list available dates
   if (args[0] === 'history') {
-    const { readRecent, listDates, historyDir } = await import('../src/history.js');
+    const { readRecent, listDates, historyDir, formatHistoryForLanguage } =
+      await import('../src/history.js');
+    const { userLanguage } = await import('../src/config.js');
+    const lang = userLanguage();
     if (hasFlag('--list')) {
       const dates = listDates();
       if (dates.length === 0) {
@@ -316,7 +318,8 @@ async function main() {
       return;
     }
     for (const { content } of recent) {
-      console.log(content.replace(/\n+$/, ''));
+      const filtered = formatHistoryForLanguage(content, lang);
+      console.log(filtered.replace(/\n+$/, ''));
       console.log('');
     }
     return;
@@ -400,11 +403,12 @@ async function main() {
       const eff = statuslineDefaults();
       const raw = loadConfig().statusline || {};
       console.log('Statusline mode (effective):');
-      console.log(`  icon:    ${eff.icon}`);
-      console.log(`  verbose: ${eff.verbose}`);
-      console.log(`  timer:   ${eff.timer}`);
-      console.log(`  color:   ${eff.color}`);
-      console.log(`  window:  ${eff.windowLabel} (${eff.windowHours}h)`);
+      console.log(`  icon:     ${eff.icon}`);
+      console.log(`  verbose:  ${eff.verbose}`);
+      console.log(`  timer:    ${eff.timer}`);
+      console.log(`  color:    ${eff.color}`);
+      console.log(`  language: ${eff.language}  (advice / history / last)`);
+      console.log(`  window:   ${eff.windowLabel} (${eff.windowHours}h)`);
       console.log('');
       console.log(`Stored config (${configPath()}):`);
       console.log(`  ${Object.keys(raw).length === 0 ? '(none — using defaults)' : JSON.stringify(raw)}`);
@@ -421,7 +425,7 @@ async function main() {
     }
     const eff = statuslineDefaults();
     console.log(`Updated: ${applied.join(', ')}`);
-    console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel}`);
+    console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} language=${eff.language} window=${eff.windowLabel}`);
     console.log('Statusline picks up the change on the next refresh (~1s).');
     return;
   }
