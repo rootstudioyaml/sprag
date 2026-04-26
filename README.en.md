@@ -191,6 +191,10 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 
 ## Release notes
 
+### v2.9.3 (2026-04-27)
+- Skill body (`SKILL.md`) now instructs Claude to respond in the user's configured output language. Previously even when the CLI was on `mode ko`, Claude itself still narrated the answer in English ("All clear — no warnings…"), so the language toggle felt half-applied.
+- `installSkill` now auto-updates the on-disk `SKILL.md` whenever the bundled body differs, so upgrades pick up new instructions without `--force`.
+
 ### v2.9.2 (2026-04-27)
 - `last` / `history` empty-state messages now respect the language setting too. Previously they were hard-coded English, so users on `mode ko` still saw English when there were no warnings to report.
 

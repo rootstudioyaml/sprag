@@ -31,6 +31,18 @@ This skill helps users interpret and act on the \`claude-token-saver\` statuslin
 in Claude Code. The statusline updates every ~1s and shows cache health, TTL
 countdown, savings, and (when relevant) a leading warning chip.
 
+## Response language
+
+Respond in the user's configured output language. Run
+\`claude-token-saver mode\` once at the start of the session and read the
+\`Output language\` field — if it shows \`language: ko\`, write **all of your
+prose to the user in Korean** (summary, "All clear" status lines, headings,
+recommendations). If it shows \`language: en\` (the default), write in
+English. Tool output (the body of \`last\`/\`history\`/the table report) is
+already localized by the CLI — do not retranslate it; just mirror your
+own narration to match. If the user asks for a different language inline,
+honor that for the rest of the turn without changing the saved setting.
+
 ## When this skill should activate
 
 - The user references any chip wording: \`🚨 5H NN%\`, \`🚨 7D NN%\`,
@@ -118,7 +130,14 @@ export function installSkill({ force = false } = {}) {
   const dir = join(claudeUserDir(), 'skills', 'claude-token-saver');
   const file = join(dir, 'SKILL.md');
   mkdirSync(dir, { recursive: true });
-  return writeIfNeeded(file, SKILL_BODY, force);
+  // SKILL.md is fully package-controlled — overwrite whenever the bundled
+  // body differs from what's on disk so postinstall picks up new instructions
+  // (e.g. the response-language directive added in v2.9.3) without forcing
+  // users to re-run \`install --force\`.
+  if (existsSync(file) && readFileSync(file, 'utf8') === SKILL_BODY) {
+    return { path: file, action: 'exists' };
+  }
+  return writeIfNeeded(file, SKILL_BODY, true);
 }
 
 // Removes the legacy /token-monitor slash command from prior versions.
