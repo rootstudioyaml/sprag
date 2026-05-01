@@ -168,3 +168,17 @@ if (hitRate < threshold && requests.size >= 5) {
     '\u26a0 Cache hit rate: ' + pct + '% (threshold: ' + (threshold * 100).toFixed(0) + '%) | 5m TTL: ' + pct5m + '% | ' + requests.size + ' API calls\n',
   );
 }
+
+// Harness analysis \u2014 best-effort, never throws into the hook stream. The
+// statusline picks up the resulting state file (`harness-state.json`) on
+// the next render, so warnings appear within ~1s of the triggering turn.
+try {
+  var harnessAnalyzer = require('./harness-analyzer.cjs');
+  var state = harnessAnalyzer.analyzeTranscript(sessionFile, {
+    sessionId: sessionId,
+    cwd: cwd,
+  });
+  if (state) harnessAnalyzer.writeState(state);
+} catch (_) {
+  // analyzer is purely advisory \u2014 never break the hook on failure
+}

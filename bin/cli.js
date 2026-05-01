@@ -444,6 +444,145 @@ async function main() {
     return;
   }
 
+  // Subcommand: harness — manage the project's CLAUDE.md harness rules.
+  //   claude-token-saver harness init       # write CLAUDE.md (5 sections) + ratchet.md
+  //   claude-token-saver harness uninit     # remove harness block from CLAUDE.md (backup kept)
+  //   claude-token-saver harness check      # show 🅷 N/5 + which sections are missing
+  //   claude-token-saver harness promote "<rule>"  # append a rule to ratchet.md
+  //   claude-token-saver harness off | on   # toggle the statusline 🅷 segment
+  if (args[0] === 'harness') {
+    const sub = args[1];
+    const { harnessInit, harnessUninit, harnessStatus, harnessPromote, findProjectRoot } =
+      await import('../src/harness.js');
+    const { HARNESS_SECTIONS } = await import('../src/harness-templates.js');
+    const { loadConfig, saveConfig } = await import('../src/config.js');
+
+    if (!sub || sub === 'check') {
+      const root = findProjectRoot();
+      const s = harnessStatus(root);
+      console.log(`🅷 ${s.configured}/${s.total} — ${root}`);
+      console.log(`CLAUDE.md: ${s.hasFile ? 'present' : 'missing'}` +
+        (s.hasFile ? `, harness block: ${s.hasBlock ? 'yes' : 'no'}` : ''));
+      if (s.missing.length) {
+        console.log('Missing sections:');
+        for (const id of s.missing) {
+          const sec = HARNESS_SECTIONS.find((x) => x.id === id);
+          console.log(`  - ${id}: ${sec ? sec.heading.replace(/^#+\s*/, '') : ''}`);
+        }
+        console.log('\nRun: claude-token-saver harness init');
+      } else {
+        console.log('All 5 harness sections present. ✅');
+      }
+      return;
+    }
+
+    if (sub === 'init') {
+      const force = hasFlag('--force');
+      const r = harnessInit({ force });
+      console.log(`Project root: ${r.root}`);
+      for (const p of r.backedUp) console.log(`Backed up: ${p}`);
+      for (const p of r.wrote) console.log(`Wrote:     ${p}`);
+      for (const p of r.skipped) console.log(`Skipped:   ${p}`);
+      console.log('\n🅷 Harness initialized. Statusline will show 🅷 5/5 on next refresh.');
+      return;
+    }
+
+    if (sub === 'promote') {
+      const raw = args.slice(2).join(' ').trim();
+      if (!raw) {
+        console.error('Usage: claude-token-saver harness promote <N>  # from statusline 🅷⚠ ratchet? #N');
+        console.error('   or: claude-token-saver harness promote "<rule text>"');
+        process.exit(1);
+      }
+      let rule = raw;
+      // Numeric arg → look up candidate #N from analyzer state and turn its
+      // detected error pattern into a starter ratchet rule. Saves the user
+      // from retyping the error; they can edit ratchet.md afterward.
+      if (/^\d+$/.test(raw)) {
+        const n = parseInt(raw, 10);
+        const analyzer = await import('../src/harness-analyzer.cjs');
+        const a = analyzer.default || analyzer;
+        const state = a.readState();
+        const list = (state && state.ratchetCandidates) || [];
+        const cand = list.find((c) => c.id === n);
+        if (!cand) {
+          console.error(`No ratchet candidate #${n} in state. Run \`harness analyze\` or wait for the hook to populate it.`);
+          if (list.length) {
+            console.error('Available candidates:');
+            for (const c of list) console.error(`  #${c.id} (×${c.count}): ${c.pattern}`);
+          }
+          process.exit(1);
+        }
+        rule = `반복 감지 ×${cand.count}: ${cand.pattern} — TODO: 원인·예방책 한 줄로`;
+      }
+      const r = harnessPromote(rule);
+      console.log(`Appended to ${r.path}:`);
+      console.log(`  - ${rule}`);
+      if (/^\d+$/.test(raw)) {
+        console.log('\n👉 ratchet.md를 열어 TODO 부분을 실제 룰로 다듬어주세요.');
+      }
+      return;
+    }
+
+    if (sub === 'analyze') {
+      // Run the analyzer once against the most recent session JSONL under
+      // ~/.claude/projects/ and dump the resulting state. Useful for users
+      // who don't have the hook installed but want to see warnings.
+      const analyzer = await import('../src/harness-analyzer.cjs');
+      const { analyzeTranscript, writeState } = analyzer.default || analyzer;
+      const { readdirSync, statSync } = await import('node:fs');
+      const { join: pj } = await import('node:path');
+      const { homedir } = await import('node:os');
+      const dir = pj(homedir(), '.claude', 'projects');
+      let latest = null;
+      let latestMtime = 0;
+      try {
+        for (const subdir of readdirSync(dir)) {
+          const full = pj(dir, subdir);
+          if (!statSync(full).isDirectory()) continue;
+          for (const f of readdirSync(full)) {
+            if (!f.endsWith('.jsonl')) continue;
+            const fp = pj(full, f);
+            const m = statSync(fp).mtimeMs;
+            if (m > latestMtime) { latestMtime = m; latest = fp; }
+          }
+        }
+      } catch {}
+      if (!latest) {
+        console.error('No session transcripts found under ~/.claude/projects/');
+        process.exit(1);
+      }
+      const state = analyzeTranscript(latest, { cwd: process.cwd() });
+      if (state) writeState(state);
+      console.log(JSON.stringify(state, null, 2));
+      return;
+    }
+
+    if (sub === 'uninit' || sub === 'remove') {
+      const purgeRatchet = args.includes('--purge-ratchet');
+      const r = harnessUninit({ purgeRatchet });
+      console.log(`Project root: ${r.root}`);
+      r.removed.forEach((f) => console.log(`  removed: ${f}`));
+      r.backedUp.forEach((f) => console.log(`  backup:  ${f}`));
+      r.skipped.forEach((f) => console.log(`  skip:    ${f}`));
+      if (r.removed.length === 0) console.log('Nothing to remove.');
+      return;
+    }
+
+    if (sub === 'off' || sub === 'on') {
+      const cfg = loadConfig();
+      cfg.harness = cfg.harness || {};
+      cfg.harness.enabled = sub === 'on';
+      saveConfig(cfg);
+      console.log(`Statusline 🅷 segment: ${sub}`);
+      return;
+    }
+
+    console.error(`Unknown harness subcommand: ${sub}`);
+    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|off|on]');
+    process.exit(1);
+  }
+
   // Hook management
   if (hasFlag('--install-hook')) {
     const { installHook } = await import('../src/hook-manager.js');

@@ -19,6 +19,8 @@
 
 import { formatResetClock } from '../format-time.js';
 import { labelForKey } from '../window-labels.js';
+import { harnessStatusForStatusline } from '../harness.js';
+import { loadConfig } from '../config.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
 // next to each other — terminal palettes set them with unbalanced perceptual
@@ -268,6 +270,31 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Spike chip — one word only, keeps the statusline single-line.
   const spikeSeg = spikeChip ? `${c(RED)}${spikeChip}${c(RESET)}` : null;
 
+  // Harness 🅷 N/5 — project-scoped completeness of CLAUDE.md harness rules.
+  // Silent when the project hasn't opted in (no CLAUDE.md and no .claude/);
+  // otherwise renders 🅷 5/5 (green) / 🅷 N/5 (yellow) so the user can spot
+  // a missing section at a glance and know to run `harness init`.
+  let harnessSeg = null;
+  try {
+    const harnessInfo = harnessStatusForStatusline(loadConfig());
+    if (harnessInfo) {
+      const icon = isIcon ? '🅷' : 'H';
+      if (harnessInfo.warning) {
+        // Warning state outranks the N/5 count — a runtime issue (repeated
+        // error / no-evidence / racing edits) is more actionable than a
+        // missing ratchet section. Always red so it stands out.
+        harnessSeg = `${c(RED)}${icon}⚠ ${harnessInfo.warning}${c(RESET)}`;
+      } else {
+        const tone = harnessInfo.configured >= harnessInfo.total ? GREEN : YELLOW;
+        harnessSeg = `${c(tone)}${icon} ${harnessInfo.configured}/${harnessInfo.total}${c(RESET)}`;
+      }
+    }
+  } catch {
+    // Harness check is best-effort — never break the statusline if the file
+    // read fails (corrupted CLAUDE.md, permission issue, etc.).
+    harnessSeg = null;
+  }
+
   // Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
   // Cheap identity context: useful when the user toggles between Sonnet/Opus
   // mid-session and wants to confirm at a glance which one is answering.
@@ -382,6 +409,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const segs = [];
   if (capWarnSeg && want('cap-warn')) segs.push(capWarnSeg);
   if (spikeSeg && want('spike')) segs.push(spikeSeg);
+  if (harnessSeg && want('harness')) segs.push(harnessSeg);
   if (modelSeg && want('model')) segs.push(modelSeg);
   if (want('hit')) segs.push(hitSeg);
   if (want('ttl')) segs.push(ttlSeg);
