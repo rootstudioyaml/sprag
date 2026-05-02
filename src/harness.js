@@ -82,18 +82,29 @@ export function harnessStatus(root = findProjectRoot()) {
     return { configured: 0, total: HARNESS_SECTIONS.length, missing: [], hasBlock: false, hasFile: true, root };
   }
   const hasBlock = content.includes(HARNESS_BLOCK_BEGIN);
+  // Opt-out marker — when the user intentionally customizes the harness block
+  // and doesn't want the statusline to nag, they can drop this comment
+  // anywhere in CLAUDE.md to silence the 🅷 indicator entirely.
+  const optOut = /<!--\s*harness-check:\s*off\s*-->/i.test(content);
   const present = [];
   const missing = [];
   for (const s of HARNESS_SECTIONS) {
     if (content.includes(s.heading)) present.push(s.id);
     else missing.push(s.id);
   }
+  // Custom state — user has the harness block but at least one header was
+  // hand-edited away from the canonical text. Treat as intentional divergence
+  // (don't show N/5 nag) but still surface a neutral 🅷 custom marker so they
+  // know the auto-check no longer applies.
+  const custom = hasBlock && present.length < HARNESS_SECTIONS.length;
   return {
     configured: present.length,
     total: HARNESS_SECTIONS.length,
     missing,
     hasBlock,
     hasFile: true,
+    optOut,
+    custom,
     root,
   };
 }
@@ -221,6 +232,52 @@ export function harnessPromote(ruleText, { root = findProjectRoot() } = {}) {
 }
 
 /**
+ * harness list — return numbered ratchet rules from .claude/ratchet.md.
+ * Numbering is 1-based and matches `harness rm <N>`.
+ */
+export function harnessListRules({ root = findProjectRoot() } = {}) {
+  const rmPath = ratchetMdPath(root);
+  if (!existsSync(rmPath)) return { path: rmPath, rules: [] };
+  const lines = readFileSync(rmPath, 'utf8').split('\n');
+  const rules = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // A "rule line" starts with "- " (markdown bullet). Header lines, blanks,
+    // and the "## Rules" anchor are ignored.
+    if (/^\s*-\s+/.test(line)) {
+      rules.push({ index: rules.length + 1, lineNo: i, text: line.replace(/^\s*-\s+/, '') });
+    }
+  }
+  return { path: rmPath, rules };
+}
+
+/**
+ * harness rm — remove a ratchet rule by its 1-based index. Writes a `.bak`
+ * before mutating so the user can recover. Returns the removed rule for the
+ * CLI to echo back.
+ *
+ * NOTE: Removal is intentionally a separate verb from `promote`. Ratchet's
+ * value is one-way accumulation; deleting should feel deliberate. The CLI
+ * surfaces a "narrow the condition instead" reminder around this call.
+ */
+export function harnessRmRule(n, { root = findProjectRoot() } = {}) {
+  const { path: rmPath, rules } = harnessListRules({ root });
+  if (!existsSync(rmPath)) {
+    return { ok: false, error: `ratchet.md not found at ${rmPath}` };
+  }
+  const target = rules.find((r) => r.index === n);
+  if (!target) {
+    return { ok: false, error: `No rule #${n} (have ${rules.length})`, rules };
+  }
+  const content = readFileSync(rmPath, 'utf8');
+  writeFileSync(rmPath + '.bak', content);
+  const lines = content.split('\n');
+  lines.splice(target.lineNo, 1);
+  writeFileSync(rmPath, lines.join('\n'));
+  return { ok: true, path: rmPath, backup: rmPath + '.bak', removed: target };
+}
+
+/**
  * Statusline segment shape for the 🅷 indicator. Returns null when the user
  * has explicitly disabled harness display, or when there's no CLAUDE.md and
  * no .claude/ at all (silent in non-init'd projects so we don't nag).
@@ -232,6 +289,7 @@ export function harnessStatusForStatusline(cfg, { root } = {}) {
   // Silent when the project has neither CLAUDE.md nor a .claude/ dir — the
   // user hasn't opted in, no point nagging.
   if (!status.hasFile && !existsSync(join(projectRoot, '.claude'))) return null;
+  if (status.optOut) return null;
   // Attach a warning derived from the analyzer state file (if any). Precedence:
   //   ratchet? > no-evidence > PEV-skip. Only surfaces when the state's
   //   sessionId or cwd matches this project, so unrelated sessions don't leak.

@@ -284,6 +284,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
         // error / no-evidence / racing edits) is more actionable than a
         // missing ratchet section. Always red so it stands out.
         harnessSeg = `${c(RED)}${icon}⚠ ${harnessInfo.warning}${c(RESET)}`;
+      } else if (harnessInfo.custom) {
+        harnessSeg = `${c(CYAN)}${icon} custom${c(RESET)}`;
       } else {
         const tone = harnessInfo.configured >= harnessInfo.total ? GREEN : YELLOW;
         harnessSeg = `${c(tone)}${icon} ${harnessInfo.configured}/${harnessInfo.total}${c(RESET)}`;

@@ -134,6 +134,31 @@ claude-token-saver mode       # 현재 설정 확인
 
 전체 옵션은 `--help` 또는 [영문 README](./README.en.md#options).
 
+## 🅷 Harness 모드
+
+다섯 가지 원칙(Ratchet, Evidence, PEV, Structured Task, Default Safe Path)을 한 줄 명령으로 `CLAUDE.md`에 셋업하고, statusline에 `🅷 5/5`로 점수화합니다. 같은 에러가 반복되면 `🅷⚠ ratchet?`로 알림이 뜹니다.
+
+```bash
+claude-token-saver harness init                # CLAUDE.md(5섹션) + .claude/ratchet.md
+claude-token-saver harness check               # 현재 점수
+claude-token-saver harness promote <N>         # statusline 경고 #N → ratchet에 한 줄 등록
+claude-token-saver harness list                # 등록된 ratchet 룰 번호 매겨 보기
+claude-token-saver harness rm <N>              # 룰 삭제 (자동 .bak 백업)
+claude-token-saver harness uninit              # harness 블록 제거 (CLAUDE.md 다른 내용은 보존)
+claude-token-saver harness off | on            # statusline 🅷 표시 토글
+```
+
+### ⚠️ 주의 — `harness rm`은 신중하게
+
+ratchet의 가치는 **"한 방향 누적"**에 있습니다. 룰을 가볍게 지우기 시작하면 같은 실수가 다시 새기 시작합니다. **지우기 전에 다음을 확인하세요**:
+
+- **룰이 너무 광범위해서 정상 케이스도 막나?** → ❌ 삭제 ✅ **조건을 좁혀서 다듬기**
+  - 예: `"하드코딩 금지"` → `"테스트 외 코드에서 하드코딩 금지"`
+- **룰이 너무 좁아 거의 발동 안 되나?** → ❌ 삭제 ✅ **그냥 두기** (비용 0)
+- **정말 잘못된 룰이라 확신?** → ✅ **그때만 삭제**
+
+대부분의 "과도한 ratchet" 문제는 **룰의 표현이 좁지 못해서** 생깁니다. 삭제는 마지막 수단으로 두고, 먼저 `.claude/ratchet.md`를 직접 열어 조건을 다듬는 쪽을 우선하세요. 삭제 시 자동 `.bak`이 남지만, **세션 컨텍스트(왜 그 룰이 박혔는지)는 백업으로 복원되지 않습니다**.
+
 ## 토큰 급증 원인 코드
 
 | 코드 | 의미 |
@@ -168,6 +193,9 @@ Node.js ≥ 18 · macOS / Linux / Windows / WSL · 의존성 0.
 **IntelliJ Claude Code plugin** — statusline 위젯이 이전 프레임과 새 프레임을 글자 단위로 잘못 합쳐 `Cache expires 59:548` 같은 잔재 문자열이 보이는 버그가 있습니다 (이모지가 포함된 출력에서만 재현). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm`을 감지하면 자동으로 text 모드로 폴백해 이모지 없이 출력합니다 (`--icon` 플래그도 IntelliJ에서는 무시됩니다). 다른 터미널(iTerm, Terminal, WSL 등)에는 영향 없습니다.
 
 ## 릴리스 노트
+
+### v2.11.0 (2026-05-02)
+- `harness list` / `harness rm <N>` 추가. 등록된 ratchet 룰을 번호로 보고 개별 삭제 가능 (자동 `.bak` 백업). 삭제 전 "조건을 좁혀서 다듬기" 우선 검토 안내가 CLI에 표시됩니다. README의 [⚠️ 주의 — `harness rm`은 신중하게](#️-주의--harness-rm은-신중하게) 항목 참고.
 
 ### v2.9.4 (2026-04-27)
 - README에 Node.js 사전 설치 안내 추가 (macOS/Windows/Linux별). GitHub에서 처음 본 사용자가 npm 명령부터 막히는 일을 방지. sudo 글로벌 설치 시 postinstall이 root 홈에 SKILL을 만드는 함정도 함께 안내.

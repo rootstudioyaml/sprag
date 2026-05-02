@@ -452,7 +452,7 @@ async function main() {
   //   claude-token-saver harness off | on   # toggle the statusline 🅷 segment
   if (args[0] === 'harness') {
     const sub = args[1];
-    const { harnessInit, harnessUninit, harnessStatus, harnessPromote, findProjectRoot } =
+    const { harnessInit, harnessUninit, harnessStatus, harnessPromote, harnessListRules, harnessRmRule, findProjectRoot } =
       await import('../src/harness.js');
     const { HARNESS_SECTIONS } = await import('../src/harness-templates.js');
     const { loadConfig, saveConfig } = await import('../src/config.js');
@@ -569,6 +569,50 @@ async function main() {
       return;
     }
 
+    if (sub === 'list' || sub === 'ls') {
+      const { path, rules } = harnessListRules();
+      if (!rules.length) {
+        console.log(`No ratchet rules in ${path}`);
+        return;
+      }
+      console.log(`📋 Ratchet rules — ${path}\n`);
+      for (const r of rules) console.log(`  #${r.index}  ${r.text}`);
+      console.log('\nRemove with: claude-token-saver harness rm <N>');
+      return;
+    }
+
+    if (sub === 'rm') {
+      const raw = (args[2] || '').trim();
+      if (!/^\d+$/.test(raw)) {
+        console.error('Usage: claude-token-saver harness rm <N>   # N from `harness list`');
+        process.exit(1);
+      }
+      const n = parseInt(raw, 10);
+      // ⚠️ Heads-up before deletion. Ratchet's value is one-way accumulation —
+      // dropping a rule is sometimes right, but more often the rule is just
+      // too narrow. Surface the alternative loudly here.
+      console.log('⚠️  주의: ratchet 룰 삭제는 신중하게.');
+      console.log('   같은 실수가 또 발생할 가능성이 큽니다. 보통은 "조건이 너무 좁아서"');
+      console.log('   문제가 되는 경우가 많아요. 지우기 전에 한 번 더 검토하세요:');
+      console.log('   - 룰이 너무 광범위해서 정상 케이스도 막나? → 조건을 좁혀서 다듬기');
+      console.log('   - 룰이 너무 좁아서 거의 발동 안 되나? → 그냥 두기 (비용 0)');
+      console.log('   - 정말 잘못된 룰이라 확신? → 그때만 삭제');
+      console.log('');
+      const r = harnessRmRule(n);
+      if (!r.ok) {
+        console.error(`❌ ${r.error}`);
+        if (r.rules) {
+          console.error('Available:');
+          for (const x of r.rules) console.error(`  #${x.index}  ${x.text}`);
+        }
+        process.exit(1);
+      }
+      console.log(`✅ Removed #${n}: ${r.removed.text}`);
+      console.log(`   Backup: ${r.backup}`);
+      console.log(`   복구: cp "${r.backup}" "${r.path}"`);
+      return;
+    }
+
     if (sub === 'off' || sub === 'on') {
       const cfg = loadConfig();
       cfg.harness = cfg.harness || {};
@@ -579,7 +623,7 @@ async function main() {
     }
 
     console.error(`Unknown harness subcommand: ${sub}`);
-    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|off|on]');
+    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|list|rm <N>|off|on]');
     process.exit(1);
   }
 
