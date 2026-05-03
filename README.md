@@ -1,12 +1,32 @@
 **한국어** · [English](./README.en.md)
 
+[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@deeppulse-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@deeppulse)
+[![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
+
 # claude-token-saver
 
 > v2.0에서 `claude-cache-monitor` → `claude-token-saver`로 이름이 바뀌었습니다. 기존 사용자는 아래 [마이그레이션](#마이그레이션-claude-cache-monitor에서) 항목을 참고하세요.
 
 Claude Code의 **토큰 사용량을 진단·절약**하는 CLI. 캐시 히트율, TTL 카운트다운, 1M 컨텍스트 감지, 5h/7d 한도 경고를 statusline 한 줄로 보여줍니다.
 
+![statusline 예시](./docs/statusline.png)
+
 📺 [출시 영상 (60초)](https://www.youtube.com/shorts/RaD8qMsPTnA)
+
+## 실제 효과 — harness 5/5 + ratchet 적용 전후
+
+![claude-token-saver 설치 전/후 효과](./docs/harness-impact.png)
+
+저자 본인의 Claude Code 사용 로그를 **사용자 메시지 1건당**으로 정규화해 비교한 결과 (2026-05-02 적용 시점, Opus 4.7 가격 기준):
+
+| 메트릭 | 설치 전 (7일 / 739msg) | 설치 후 (2일 / 157msg) | 변화 |
+|---|---:|---:|---:|
+| 메시지당 비용 | $2.345 | $1.910 | **−18.6%** |
+| 메시지당 출력 토큰 | 7,391 | 6,052 | −18.1% |
+| 메시지당 assistant 왕복 | 9.73 | 8.83 | −9.2% |
+| 메시지당 도구 호출 | 5.72 | 5.25 | −8.2% |
+
+> ⚠️ **샘플 주의** — POST 데이터는 2일치(157 msgs)로 통계적 의미가 약하고, 그 주에 무슨 작업을 했냐(긴 텍스트 vs 짧은 지시)가 결과에 섞여 있습니다. 5일치가 더 쌓이는 **2026-05-09경** 같은 분석을 다시 돌려 갱신할 예정입니다.
 
 ---
 
@@ -193,6 +213,10 @@ Node.js ≥ 18 · macOS / Linux / Windows / WSL · 의존성 0.
 **IntelliJ Claude Code plugin** — statusline 위젯이 이전 프레임과 새 프레임을 글자 단위로 잘못 합쳐 `Cache expires 59:548` 같은 잔재 문자열이 보이는 버그가 있습니다 (이모지가 포함된 출력에서만 재현). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm`을 감지하면 자동으로 text 모드로 폴백해 이모지 없이 출력합니다 (`--icon` 플래그도 IntelliJ에서는 무시됩니다). 다른 터미널(iTerm, Terminal, WSL 등)에는 영향 없습니다.
 
 ## 릴리스 노트
+
+### v2.13.1 (2026-05-04)
+- README에 실제 statusline 스크린샷과 "harness 5/5 + ratchet 적용 전후 효과" 차트 추가. 자체 사용 로그 기준 메시지당 비용 −18.6%, assistant 왕복 −9.2%, 일/월/년 환산 비용 절감 임팩트 카드 포함. 샘플 주의사항·작업 토픽 변수·갱신 일정(2026-05-09) 명시.
+- npm 패키지 메타데이터(homepage / bugs / author) 정비 — DeepPulse YouTube 채널 링크 노출.
 
 ### v2.11.0 (2026-05-02)
 - `harness list` / `harness rm <N>` 추가. 등록된 ratchet 룰을 번호로 보고 개별 삭제 가능 (자동 `.bak` 백업). 삭제 전 "조건을 좁혀서 다듬기" 우선 검토 안내가 CLI에 표시됩니다. README의 [⚠️ 주의 — `harness rm`은 신중하게](#️-주의--harness-rm은-신중하게) 항목 참고.

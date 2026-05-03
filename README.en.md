@@ -1,12 +1,32 @@
 [한국어](./README.md) · **English**
 
+[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@deeppulse-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@deeppulse)
+[![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
+
 # claude-token-saver
 
 > Renamed from `claude-cache-monitor` in v2.0. Existing users — see [Migration](#migration-from-claude-cache-monitor).
 
 A CLI to **diagnose and save tokens on Claude Code**. Cache hit rate, TTL countdown, 1M-context detection, 5h/7d cap warnings — all in one statusline chip.
 
+![statusline example](./docs/statusline.png)
+
 📺 [Launch Short (60s)](https://www.youtube.com/shorts/RaD8qMsPTnA)
+
+## Real-world impact — harness 5/5 + ratchet adoption
+
+![claude-token-saver before/after](./docs/harness-impact.png)
+
+Author's own Claude Code logs, normalized **per user message**, before/after adopting harness rules on 2026-05-02 (Opus 4.7 pricing):
+
+| metric | before (7d / 739 msgs) | after (2d / 157 msgs) | Δ |
+|---|---:|---:|---:|
+| cost / user message | $2.345 | $1.910 | **−18.6%** |
+| output tokens / user message | 7,391 | 6,052 | −18.1% |
+| assistant turns / user message | 9.73 | 8.83 | −9.2% |
+| tool calls / user message | 5.72 | 5.25 | −8.2% |
+
+> ⚠️ **Sample caveats** — POST window is only 2 days (157 msgs); statistical confidence is low. The work topic mix differs week to week (PRE week was video-script production with long pasted text, POST week was package release with short directives), so the tool/harness effect is not cleanly isolated. Refresh planned around **2026-05-09** once 5 more days of POST data are in.
 
 ---
 
@@ -148,6 +168,31 @@ All of the commands below run in your **shell (terminal)**. Inside a Claude Code
 | `--segments=…` | Limit statusline segments (e.g. `model,five_hour,seven_day,saved`) | all |
 | `--install-hook` / `--uninstall-hook` | Manage the PostToolUse hook | – |
 
+## 🅷 Harness mode
+
+Bootstrap five engineering principles (Ratchet, Evidence, PEV, Structured Task, Default Safe Path) into your project's `CLAUDE.md` with one command, then watch the statusline track your score (`🅷 5/5`). When the same error keeps recurring, a `🅷⚠ ratchet?` nudge appears.
+
+```bash
+claude-token-saver harness init                # writes CLAUDE.md (5 sections) + .claude/ratchet.md
+claude-token-saver harness check               # current score
+claude-token-saver harness promote <N>         # turn statusline warning #N into a one-line ratchet rule
+claude-token-saver harness list                # list registered ratchet rules with numbers
+claude-token-saver harness rm <N>              # delete rule N (auto .bak backup)
+claude-token-saver harness uninit              # remove the harness block (other CLAUDE.md content preserved)
+claude-token-saver harness off | on            # toggle the 🅷 chip
+```
+
+### ⚠️ `harness rm` — handle with care
+
+The whole point of the ratchet is **one-direction accumulation**. Deleting rules casually means the same mistakes start re-occurring. **Before deleting, ask**:
+
+- **Is the rule too broad and blocking valid cases?** → ❌ delete ✅ **narrow the condition instead**
+  - e.g. `"no hardcoded values"` → `"no hardcoded values outside tests"`
+- **Is the rule too narrow and almost never firing?** → ❌ delete ✅ **leave it** (zero cost)
+- **Genuinely wrong rule?** → ✅ delete then
+
+Most "over-ratcheting" complaints turn out to be **rules that weren't phrased tightly enough**. Open `.claude/ratchet.md` and refine the condition first; deletion is the last resort. An auto `.bak` is left behind, but **the session context that made the rule earn its place is not recoverable**.
+
 ## Spike issue codes
 
 | Code | Meaning |
@@ -208,6 +253,13 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 **IntelliJ Claude Code plugin** — the statusline widget fuses prior and current frames at the character level when emoji are in the output, producing artifacts like `Cache expires 59:548`. v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically (`--icon` is also ignored under IntelliJ). Other terminals (iTerm, Terminal, WSL, etc.) are unaffected.
 
 ## Release notes
+
+### v2.13.1 (2026-05-04)
+- README now opens with the actual statusline screenshot and a "harness 5/5 + ratchet — before/after" impact chart, with daily/monthly/yearly cost-savings impact card. Author's own logs show −18.6% cost / user message, −9.2% assistant turns. Sample caveats, work-topic confound, and refresh schedule (2026-05-09) called out.
+- npm package metadata cleaned up (homepage / bugs / author) — package page now links to the DeepPulse YouTube channel.
+
+### v2.11.0 (2026-05-02)
+- Added `harness list` / `harness rm <N>` to view registered ratchet rules with numbers and delete individually (auto `.bak` backup). The CLI prompts users to "narrow the condition first" before deleting; see [⚠️ `harness rm` — handle with care](#️-harness-rm--handle-with-care).
 
 ### v2.9.4 (2026-04-27)
 - README now opens with a Node.js prerequisite block (macOS / Windows / Linux). First-time visitors arriving from GitHub no longer hit `npm: command not found` with no guidance. Also flags the `sudo` global-install trap where postinstall writes the Skill under root's home instead of the user's.
