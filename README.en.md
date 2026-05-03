@@ -13,11 +13,11 @@ A CLI to **diagnose and save tokens on Claude Code**. Cache hit rate, TTL countd
 
 📺 [Launch Short (60s)](https://www.youtube.com/shorts/RaD8qMsPTnA)
 
-## Real-world impact — harness 5/5 + ratchet adoption
+## Cost-savings report — harness + ratchet adoption
 
-![claude-token-saver before/after](./docs/harness-impact.png)
+![claude-token-saver — harness + ratchet adoption impact](./docs/harness-impact.png)
 
-Author's own Claude Code logs, normalized **per user message**, before/after adopting harness rules on 2026-05-02 (Opus 4.7 pricing):
+The recently added **harness 5/5 + ratchet** features applied to the author's own Claude Code work, normalized **per user message** (cutoff 2026-05-02, Opus 4.7 pricing):
 
 | metric | before (7d / 739 msgs) | after (2d / 157 msgs) | Δ |
 |---|---:|---:|---:|
@@ -26,7 +26,17 @@ Author's own Claude Code logs, normalized **per user message**, before/after ado
 | assistant turns / user message | 9.73 | 8.83 | −9.2% |
 | tool calls / user message | 5.72 | 5.25 | −8.2% |
 
-> ⚠️ **Sample caveats** — POST window is only 2 days (157 msgs); statistical confidence is low. The work topic mix differs week to week (PRE week was video-script production with long pasted text, POST week was package release with short directives), so the tool/harness effect is not cleanly isolated. Refresh planned around **2026-05-09** once 5 more days of POST data are in.
+Same request resolved in fewer round-trips → first-try success rate up. Looks like the effect of PEV + Structured Task forcing one-shot delivery.
+
+### Why cache hit rate isn't in this measurement — Max vs Pro
+
+**Cache hit rate improvement isn't included** in this comparison. The author is on the Max plan with a 1-hour cache TTL and stays inside the same context for the full hour, so the hit rate had already converged near ~98% with little headroom left. **Pro-plan users (5-minute TTL)** see caches expire frequently, so the harness "one-shot" pattern + a "handoff right before TTL expiry" workflow likely **lifts hit rate itself**.
+
+### Handoff-before-expiry workflow
+
+Watching the TTL countdown in the statusline, the habit is now: just before expiry, run `claude-token-saver handoff` to dump current work state into a markdown brief, then start a fresh cache cycle. Same flow handles the 1M-context warning and 5H/7D cap chips.
+
+> ⚠️ **Sample caveats** — POST window is only 2 days (157 msgs); statistical confidence is low. The work topic mix differs week to week (PRE was video-script production with long pasted text, POST was package release with short directives), so the tool/harness effect isn't cleanly isolated. **Once 5 more days of POST data are in (around 2026-05-09)**, the same analysis will be re-run to check whether the trend stabilises, and an update will be posted.
 
 ---
 
@@ -253,6 +263,12 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 **IntelliJ Claude Code plugin** — the statusline widget fuses prior and current frames at the character level when emoji are in the output, producing artifacts like `Cache expires 59:548`. v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically (`--icon` is also ignored under IntelliJ). Other terminals (iTerm, Terminal, WSL, etc.) are unaffected.
 
 ## Release notes
+
+### v2.13.3 (2026-05-04)
+- "Real-world impact" section restructured as a **harness + ratchet adoption cost-savings report**. Added Max(1h)/Pro(5m) cache TTL distinction (different hit-rate headroom), the handoff-before-expiry workflow, and the 2026-05-09 refresh promise. Chart title updated to match.
+
+### v2.13.2 (2026-05-04)
+- YouTube channel handle corrected to `@DeepPulseKR` (package.json + both READMEs).
 
 ### v2.13.1 (2026-05-04)
 - README now opens with the actual statusline screenshot and a "harness 5/5 + ratchet — before/after" impact chart, with daily/monthly/yearly cost-savings impact card. Author's own logs show −18.6% cost / user message, −9.2% assistant turns. Sample caveats, work-topic confound, and refresh schedule (2026-05-09) called out.
