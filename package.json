@@ -1,6 +1,6 @@
 {
   "name": "claude-token-saver",
-  "version": "2.13.1",
+  "version": "2.13.2",
   "description": "Save tokens on Claude Code — spike diagnosis, 1M-context detection, TTL countdown, statusline. (formerly claude-cache-monitor)",
   "type": "module",
   "bin": {
@@ -37,9 +37,9 @@
     "type": "git",
     "url": "git+https://github.com/rootstudioyaml/claude-token-saver.git"
   },
-  "homepage": "https://www.youtube.com/@deeppulse",
+  "homepage": "https://www.youtube.com/@DeepPulseKR",
   "bugs": {
     "url": "https://github.com/rootstudioyaml/claude-token-saver/issues"
   },
-  "author": "DeepPulse (https://www.youtube.com/@deeppulse)"
+  "author": "DeepPulse (https://www.youtube.com/@DeepPulseKR)"
 }

@@ -1,6 +1,6 @@
 **한국어** · [English](./README.en.md)
 
-[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@deeppulse-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@deeppulse)
+[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
 # claude-token-saver

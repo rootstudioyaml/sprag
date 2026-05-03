@@ -1,6 +1,6 @@
 [한국어](./README.md) · **English**
 
-[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@deeppulse-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@deeppulse)
+[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
 # claude-token-saver
@@ -246,7 +246,7 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 
 - [GitHub Issue #46829](https://github.com/anthropics/claude-code/issues/46829) — cache TTL regression
 - [HN discussion](https://news.ycombinator.com/item?id=47736476) — 168 points, 142 comments
-- [HNPulse KR](https://www.youtube.com/@HNPulseKR) — Korean HN tech deep-dives
+- [HNPulse KR](https://www.youtube.com/@DeepPulseKR) — Korean HN tech deep-dives
 
 ## Known environment quirks
 
