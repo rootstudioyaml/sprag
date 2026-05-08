@@ -9,6 +9,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
+import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
 import {
   HARNESS_SECTIONS,
@@ -56,6 +57,14 @@ function claudeMdPath(root) {
 
 function ratchetMdPath(root) {
   return join(root, '.claude', 'ratchet.md');
+}
+
+function globalRatchetMdPath() {
+  return join(homedir(), '.claude', 'ratchet.md');
+}
+
+function resolveRatchetPath(scope, root) {
+  return scope === 'global' ? globalRatchetMdPath() : ratchetMdPath(root);
 }
 
 /**
@@ -217,8 +226,8 @@ export function harnessUninit({ root = findProjectRoot(), purgeRatchet = false }
  * harness promote — append a one-line rule to .claude/ratchet.md.
  * Creates the file from the initial template if missing.
  */
-export function harnessPromote(ruleText, { root = findProjectRoot() } = {}) {
-  const rmPath = ratchetMdPath(root);
+export function harnessPromote(ruleText, { root = findProjectRoot(), scope = 'project' } = {}) {
+  const rmPath = resolveRatchetPath(scope, root);
   let existing = '';
   if (existsSync(rmPath)) {
     existing = readFileSync(rmPath, 'utf8');
@@ -228,15 +237,15 @@ export function harnessPromote(ruleText, { root = findProjectRoot() } = {}) {
   }
   const next = appendRatchetRule(existing, ruleText);
   writeFileSync(rmPath, next);
-  return { path: rmPath, root };
+  return { path: rmPath, root, scope };
 }
 
 /**
  * harness list — return numbered ratchet rules from .claude/ratchet.md.
  * Numbering is 1-based and matches `harness rm <N>`.
  */
-export function harnessListRules({ root = findProjectRoot() } = {}) {
-  const rmPath = ratchetMdPath(root);
+export function harnessListRules({ root = findProjectRoot(), scope = 'project' } = {}) {
+  const rmPath = resolveRatchetPath(scope, root);
   if (!existsSync(rmPath)) return { path: rmPath, rules: [] };
   const lines = readFileSync(rmPath, 'utf8').split('\n');
   const rules = [];
@@ -260,8 +269,8 @@ export function harnessListRules({ root = findProjectRoot() } = {}) {
  * value is one-way accumulation; deleting should feel deliberate. The CLI
  * surfaces a "narrow the condition instead" reminder around this call.
  */
-export function harnessRmRule(n, { root = findProjectRoot() } = {}) {
-  const { path: rmPath, rules } = harnessListRules({ root });
+export function harnessRmRule(n, { root = findProjectRoot(), scope = 'project' } = {}) {
+  const { path: rmPath, rules } = harnessListRules({ root, scope });
   if (!existsSync(rmPath)) {
     return { ok: false, error: `ratchet.md not found at ${rmPath}` };
   }

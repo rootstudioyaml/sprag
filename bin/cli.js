@@ -488,10 +488,35 @@ async function main() {
     }
 
     if (sub === 'promote') {
-      const raw = args.slice(2).join(' ').trim();
+      // Parse scope flags before stripping. Accepts: --global, --project,
+      //   --scope=global|project, --scope global|project
+      const promoteArgs = args.slice(2);
+      let scope = null;
+      const scopeFlags = new Set();
+      for (let i = 0; i < promoteArgs.length; i++) {
+        const a = promoteArgs[i];
+        if (a === '--global') { scope = 'global'; scopeFlags.add(i); }
+        else if (a === '--project') { scope = 'project'; scopeFlags.add(i); }
+        else if (a === '--scope' && promoteArgs[i + 1]) {
+          const v = promoteArgs[i + 1];
+          if (v !== 'global' && v !== 'project') {
+            console.error(`Invalid --scope value: ${v} (expected "global" or "project")`);
+            process.exit(1);
+          }
+          scope = v; scopeFlags.add(i); scopeFlags.add(i + 1); i++;
+        } else if (a.startsWith('--scope=')) {
+          const v = a.slice('--scope='.length);
+          if (v !== 'global' && v !== 'project') {
+            console.error(`Invalid --scope value: ${v} (expected "global" or "project")`);
+            process.exit(1);
+          }
+          scope = v; scopeFlags.add(i);
+        }
+      }
+      const raw = promoteArgs.filter((_, i) => !scopeFlags.has(i)).join(' ').trim();
       if (!raw) {
-        console.error('Usage: claude-token-saver harness promote <N>  # from statusline 🅷⚠ ratchet? #N');
-        console.error('   or: claude-token-saver harness promote "<rule text>"');
+        console.error('Usage: claude-token-saver harness promote [--global|--project] <N>  # from statusline 🅷⚠ ratchet? #N');
+        console.error('   or: claude-token-saver harness promote [--global|--project] "<rule text>"');
         process.exit(1);
       }
       let rule = raw;
@@ -515,8 +540,33 @@ async function main() {
         }
         rule = `반복 감지 ×${cand.count}: ${cand.pattern} — TODO: 원인·예방책 한 줄로`;
       }
-      const r = harnessPromote(rule);
-      console.log(`Appended to ${r.path}:`);
+      // Scope resolution: explicit flag wins. Otherwise prompt interactively
+      // when running on a TTY; in non-TTY (CI/scripts) require an explicit
+      // flag so the choice is never silently made for the caller.
+      if (!scope) {
+        if (process.stdin.isTTY && process.stdout.isTTY) {
+          const readline = await import('node:readline');
+          const { homedir: hd } = await import('node:os');
+          const { findProjectRoot: fpr } = await import('../src/harness.js');
+          const projPath = `${fpr()}/.claude/ratchet.md`;
+          const globPath = `${hd()}/.claude/ratchet.md`;
+          const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+          const ask = (q) => new Promise((res) => rl.question(q, res));
+          console.log('Where should this rule live?');
+          console.log(`  [1] project  (${projPath})`);
+          console.log(`  [2] global   (${globPath})`);
+          const ans = (await ask('Choose [1/2] (default 1): ')).trim();
+          rl.close();
+          scope = (ans === '2' || ans.toLowerCase() === 'global' || ans.toLowerCase() === 'g')
+            ? 'global' : 'project';
+        } else {
+          console.error('Scope required in non-interactive mode.');
+          console.error('Pass --project or --global (or --scope=project|global).');
+          process.exit(1);
+        }
+      }
+      const r = harnessPromote(rule, { scope });
+      console.log(`Appended to ${r.path} [${r.scope}]:`);
       console.log(`  - ${rule}`);
       if (/^\d+$/.test(raw)) {
         console.log('\n👉 ratchet.md를 열어 TODO 부분을 실제 룰로 다듬어주세요.');
@@ -570,21 +620,30 @@ async function main() {
     }
 
     if (sub === 'list' || sub === 'ls') {
-      const { path, rules } = harnessListRules();
-      if (!rules.length) {
-        console.log(`No ratchet rules in ${path}`);
-        return;
-      }
-      console.log(`📋 Ratchet rules — ${path}\n`);
-      for (const r of rules) console.log(`  #${r.index}  ${r.text}`);
-      console.log('\nRemove with: claude-token-saver harness rm <N>');
+      const wantGlobal = hasFlag('--global');
+      const wantProject = hasFlag('--project') || !wantGlobal;
+      const print = (scope) => {
+        const { path, rules } = harnessListRules({ scope });
+        if (!rules.length) {
+          console.log(`No ratchet rules in ${path} [${scope}]`);
+          return;
+        }
+        console.log(`📋 Ratchet rules [${scope}] — ${path}\n`);
+        for (const r of rules) console.log(`  #${r.index}  ${r.text}`);
+        console.log('');
+      };
+      if (wantProject) print('project');
+      if (wantGlobal) print('global');
+      console.log('Remove with: claude-token-saver harness rm [--global|--project] <N>');
       return;
     }
 
     if (sub === 'rm') {
-      const raw = (args[2] || '').trim();
+      const rmScope = hasFlag('--global') ? 'global' : 'project';
+      const rmArgs = args.slice(2).filter((a) => a !== '--global' && a !== '--project');
+      const raw = (rmArgs[0] || '').trim();
       if (!/^\d+$/.test(raw)) {
-        console.error('Usage: claude-token-saver harness rm <N>   # N from `harness list`');
+        console.error('Usage: claude-token-saver harness rm [--global|--project] <N>   # N from `harness list`');
         process.exit(1);
       }
       const n = parseInt(raw, 10);
@@ -598,7 +657,7 @@ async function main() {
       console.log('   - 룰이 너무 좁아서 거의 발동 안 되나? → 그냥 두기 (비용 0)');
       console.log('   - 정말 잘못된 룰이라 확신? → 그때만 삭제');
       console.log('');
-      const r = harnessRmRule(n);
+      const r = harnessRmRule(n, { scope: rmScope });
       if (!r.ok) {
         console.error(`❌ ${r.error}`);
         if (r.rules) {
