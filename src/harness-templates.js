@@ -31,7 +31,11 @@ ${HARNESS_SECTIONS[0].heading}
 - 같은 에러·오해·반복 작업이 한 번 더 발생하면 즉시 \`.claude/ratchet.md\`에
   "조건 → 행동" 한 줄로 룰 추가.
 - claude-token-saver가 후보를 감지하면 statusline에 \`🅷⚠ ratchet?\`로 알림.
-  \`claude-token-saver harness promote "<rule>"\`로 승인.
+  \`claude-token-saver harness promote "<rule>" --project|--global\`로 승인.
+- **scope는 항상 사용자에게 먼저 물어볼 것** — 프로젝트 한정이면 \`--project\`,
+  도구·환경 일반 룰이면 \`--global\`(\`~/.claude/ratchet.md\`). Bash 환경은
+  non-TTY라 CLI의 readline 프롬프트가 안 뜨므로, 호출자(LLM)가 직접 묻고
+  플래그를 명시해야 함. 묻지 않고 기본값으로 등록하지 말 것.
 - 승인된 룰은 다음 세션부터 자동 적용.
 
 ${HARNESS_SECTIONS[1].heading}
@@ -71,7 +75,7 @@ ${HARNESS_SECTIONS[4].heading}
 
 📌 운영:
 - \`claude-token-saver harness check\` — 현재 셋업 점수
-- \`claude-token-saver harness promote "<룰>"\` — ratchet에 룰 추가
+- \`claude-token-saver harness promote "<룰>" --project|--global\` — ratchet에 룰 추가 (scope는 사용자에게 먼저 물어볼 것)
 - \`claude-token-saver harness off\` — statusline 표시 끄기
 ${HARNESS_BLOCK_END}
 `;
