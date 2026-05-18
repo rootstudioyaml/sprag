@@ -158,9 +158,14 @@ export function formatReport(data, { color = true, verbose = false, timer = true
 
   // TTL dominance → color signal (1h = good, 5m = warning).
   // The subscription plan fixes this, so the bucket rarely changes — it's the countdown that matters.
-  const is1h = ttl.pct1h >= 0.5;
-  const bucketLabel = is1h ? '1h' : '5m';
-  const bucketColor = is1h ? GREEN : YELLOW;
+  // When ttl.total === 0 (no cache writes observed in the window), we cannot
+  // infer the bucket. Default to 1h-sized countdown rather than 5m so Max
+  // users on idle don't see a misleading "Cache expires 5:00". The bucket
+  // label is shown as "?" so the uncertainty is visible.
+  const hasTtlData = ttl.total > 0;
+  const is1h = hasTtlData ? ttl.pct1h >= 0.5 : true;
+  const bucketLabel = hasTtlData ? (is1h ? '1h' : '5m') : '?';
+  const bucketColor = hasTtlData ? (is1h ? GREEN : YELLOW) : GRAY;
   const ttlSeconds = is1h ? 3600 : 300;
 
   const savings = cost?.savings ?? 0;

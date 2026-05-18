@@ -24,7 +24,7 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 
 /**
  * Read the JSON blob Claude Code feeds the statusline command on stdin.
@@ -804,12 +804,16 @@ async function main() {
     process.stderr.write('Scanning session files...\n');
   }
 
-  // Exclude the current Claude Code session when computing lastActivity —
-  // otherwise the agent's own tool calls reset the countdown every few seconds.
+  // The current Claude Code session is only excluded from the lastActivity
+  // timer (so the agent's own tool calls don't reset the countdown). It MUST
+  // still feed ttlBreakdown — otherwise when the user's only recent traffic
+  // lives in the current session, the bucket signal collapses to empty and
+  // the statusline falsely flips to the 5m default. (See issue: Max users
+  // seeing "Cache expires 5:00" on idle even though their plan is 1h.)
   const excludeSessionPath =
     getArg('--exclude-session') || process.env.CACHE_MONITOR_EXCLUDE_SESSION || undefined;
 
-  const sessions = await parseAllSessions({ days, projectFilter, excludeSessionPath });
+  const sessions = await parseAllSessions({ days, projectFilter });
 
   if (sessions.length === 0) {
     // Statusline must always emit a single line (no multi-line help spam every 300ms)
@@ -913,10 +917,16 @@ async function main() {
   }
 
   // Last API activity feeds the statusline TTL countdown.
-  // For every session that wasn't excluded, take the full endTime (any API call
-  // keeps the prefix cache warm — it doesn't matter whether it's user- or
-  // agent-driven because the cache is shared across sessions by prefix content).
+  // For every session OTHER than the excluded (current) one, take the full
+  // endTime (any API call keeps the prefix cache warm — it doesn't matter
+  // whether it's user- or agent-driven because the cache is shared across
+  // sessions by prefix content). The current session is filtered here rather
+  // than at the parser, so its writes still inform ttlBreakdown above.
+  const excludeAbs = excludeSessionPath
+    ? (isAbsolute(excludeSessionPath) ? excludeSessionPath : join(process.cwd(), excludeSessionPath))
+    : null;
   const otherLastActivity = sessions
+    .filter((s) => !excludeAbs || s.filePath !== excludeAbs)
     .map((s) => (s.endTime ? s.endTime.getTime() : 0))
     .reduce((a, b) => Math.max(a, b), 0);
   // For the excluded (current) session, only the user's prompts count — the
