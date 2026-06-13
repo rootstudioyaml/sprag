@@ -1,6 +1,8 @@
 [한국어](./README.md) · **English**
 
 [![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
+[![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
+[![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
 # claude-token-saver
@@ -256,13 +258,20 @@ Node.js ≥ 18 · macOS / Windows / Linux / WSL · zero dependencies.
 
 - [GitHub Issue #46829](https://github.com/anthropics/claude-code/issues/46829) — cache TTL regression
 - [HN discussion](https://news.ycombinator.com/item?id=47736476) — 168 points, 142 comments
-- [HNPulse KR](https://www.youtube.com/@DeepPulseKR) — Korean HN tech deep-dives
+- [DeepPulse KR](https://www.youtube.com/@DeepPulseKR) — Korean HN tech deep-dives
+- [DeepPulse EN](https://www.youtube.com/@DeepPulseEN) — English HN tech deep-dives
+- [Homepage](https://rootstudioyaml.github.io/) — project site
 
 ## Known environment quirks
 
 **IntelliJ Claude Code plugin** — the statusline widget fuses prior and current frames at the character level when emoji are in the output, producing artifacts like `Cache expires 59:548`. v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically (`--icon` is also ignored under IntelliJ). Other terminals (iTerm, Terminal, WSL, etc.) are unaffected.
 
 ## Release notes
+
+### v2.15.0 (2026-06-13)
+- **Global harness init** — `harness init`/`uninit`/`check` gain the same scope concept ratchet already had. `harness init --global` installs the 5 sections into `~/.claude/CLAUDE.md` (+ `~/.claude/ratchet.md`) once, so they **apply to every project**. The no-flag default stays `project` (back-compat).
+- `harness check` now treats global as a **fallback** — a project with no local block but a global harness installed reports `🅷 5/5 (covered by global)`, matching how Claude Code loads the global `CLAUDE.md` for every project. Use `--project`/`--global` to inspect a single scope.
+- npm package homepage changed to `https://rootstudioyaml.github.io/`; README adds the **@DeepPulseEN** channel and a homepage badge.
 
 ### v2.13.3 (2026-05-04)
 - "Real-world impact" section restructured as a **harness + ratchet adoption cost-savings report**. Added Max(1h)/Pro(5m) cache TTL distinction (different hit-rate headroom), the handoff-before-expiry workflow, and the 2026-05-09 refresh promise. Chart title updated to match.

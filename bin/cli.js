@@ -452,24 +452,44 @@ async function main() {
   //   claude-token-saver harness off | on   # toggle the statusline 🅷 segment
   if (args[0] === 'harness') {
     const sub = args[1];
+    // Scope flags for init/uninit/check (same convention as promote/list/rm):
+    //   --global | --project | --scope=global|project | --scope global|project
+    const parseHarnessScope = (argv, dflt) => {
+      for (let i = 0; i < argv.length; i++) {
+        const a = argv[i];
+        if (a === '--global') return 'global';
+        if (a === '--project') return 'project';
+        if (a === '--scope' && (argv[i + 1] === 'global' || argv[i + 1] === 'project')) return argv[i + 1];
+        if (a.startsWith('--scope=')) {
+          const v = a.slice('--scope='.length);
+          if (v === 'global' || v === 'project') return v;
+        }
+      }
+      return dflt;
+    };
     const { harnessInit, harnessUninit, harnessStatus, harnessPromote, harnessListRules, harnessRmRule, findProjectRoot } =
       await import('../src/harness.js');
     const { HARNESS_SECTIONS } = await import('../src/harness-templates.js');
     const { loadConfig, saveConfig } = await import('../src/config.js');
 
     if (!sub || sub === 'check') {
+      const scope = parseHarnessScope(args.slice(2), 'auto'); // auto = project, else global fallback
       const root = findProjectRoot();
-      const s = harnessStatus(root);
-      console.log(`🅷 ${s.configured}/${s.total} — ${root}`);
+      const s = harnessStatus(root, { scope });
+      // Only call out "covered by global" when we *fell back* to it (auto), not
+      // when the user explicitly asked for the global scope.
+      const via = (scope === 'auto' && s.source === 'global') ? ' (covered by global ~/.claude/CLAUDE.md)' : '';
+      console.log(`🅷 ${s.configured}/${s.total} — ${s.file}${via}`);
       console.log(`CLAUDE.md: ${s.hasFile ? 'present' : 'missing'}` +
-        (s.hasFile ? `, harness block: ${s.hasBlock ? 'yes' : 'no'}` : ''));
+        (s.hasFile ? `, harness block: ${s.hasBlock ? 'yes' : 'no'}` : '') + ` [${s.source}]`);
       if (s.missing.length) {
         console.log('Missing sections:');
         for (const id of s.missing) {
           const sec = HARNESS_SECTIONS.find((x) => x.id === id);
           console.log(`  - ${id}: ${sec ? sec.heading.replace(/^#+\s*/, '') : ''}`);
         }
-        console.log('\nRun: claude-token-saver harness init');
+        console.log('\nRun: claude-token-saver harness init        (this project)');
+        console.log('  or: claude-token-saver harness init --global  (all projects, ~/.claude/CLAUDE.md)');
       } else {
         console.log('All 5 harness sections present. ✅');
       }
@@ -477,9 +497,10 @@ async function main() {
     }
 
     if (sub === 'init') {
+      const scope = parseHarnessScope(args.slice(2), 'project'); // default project (back-compat)
       const force = hasFlag('--force');
-      const r = harnessInit({ force });
-      console.log(`Project root: ${r.root}`);
+      const r = harnessInit({ force, scope });
+      console.log(`Scope: ${scope}${scope === 'global' ? '  (~/.claude/CLAUDE.md — applies to all projects)' : `  (${r.root})`}`);
       for (const p of r.backedUp) console.log(`Backed up: ${p}`);
       for (const p of r.wrote) console.log(`Wrote:     ${p}`);
       for (const p of r.skipped) console.log(`Skipped:   ${p}`);
@@ -609,9 +630,10 @@ async function main() {
     }
 
     if (sub === 'uninit' || sub === 'remove') {
+      const scope = parseHarnessScope(args.slice(2), 'project');
       const purgeRatchet = args.includes('--purge-ratchet');
-      const r = harnessUninit({ purgeRatchet });
-      console.log(`Project root: ${r.root}`);
+      const r = harnessUninit({ purgeRatchet, scope });
+      console.log(`Scope: ${scope}${scope === 'global' ? '  (~/.claude/CLAUDE.md)' : `  (${r.root})`}`);
       r.removed.forEach((f) => console.log(`  removed: ${f}`));
       r.backedUp.forEach((f) => console.log(`  backup:  ${f}`));
       r.skipped.forEach((f) => console.log(`  skip:    ${f}`));

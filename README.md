@@ -1,6 +1,8 @@
 **한국어** · [English](./README.en.md)
 
 [![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
+[![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
+[![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
 # claude-token-saver
@@ -223,6 +225,11 @@ Node.js ≥ 18 · macOS / Linux / Windows / WSL · 의존성 0.
 **IntelliJ Claude Code plugin** — statusline 위젯이 이전 프레임과 새 프레임을 글자 단위로 잘못 합쳐 `Cache expires 59:548` 같은 잔재 문자열이 보이는 버그가 있습니다 (이모지가 포함된 출력에서만 재현). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm`을 감지하면 자동으로 text 모드로 폴백해 이모지 없이 출력합니다 (`--icon` 플래그도 IntelliJ에서는 무시됩니다). 다른 터미널(iTerm, Terminal, WSL 등)에는 영향 없습니다.
 
 ## 릴리스 노트
+
+### v2.15.0 (2026-06-13)
+- **글로벌 harness init** — `harness init`/`uninit`/`check`에 ratchet과 동일한 스코프 개념 도입. `harness init --global`이 `~/.claude/CLAUDE.md`(+ `~/.claude/ratchet.md`)에 5개 섹션을 한 번에 깔아 **모든 프로젝트에 적용**됩니다. 무플래그 기본값은 종전대로 `project`(하위호환).
+- `harness check`는 이제 글로벌을 **fallback**으로 인정 — 로컬 블록이 없어도 글로벌 harness가 깔려 있으면 `🅷 5/5 (covered by global)`로 표시(Claude Code가 전역 `CLAUDE.md`를 모든 프로젝트에 로드하는 실제 동작과 일치). `--project`/`--global`로 특정 스코프만 조회 가능.
+- npm 패키지 homepage를 `https://rootstudioyaml.github.io/`로 변경, README에 **@DeepPulseEN** 채널·홈페이지 배지 추가.
 
 ### v2.13.3 (2026-05-04)
 - "실제 효과" 섹션을 **harness + ratchet 도입 전후 비용 절감 리포트** 형태로 재구성. Max(1h)/Pro(5m) 캐시 TTL 차이에 따른 히트율 개선 여지 차이 설명, 만료 직전 handoff 워크플로 안내, 7일치 누적 시점(2026-05-09) 갱신 예고 추가. 차트 제목도 동일하게 갱신.

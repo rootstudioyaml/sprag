@@ -67,28 +67,41 @@ function resolveRatchetPath(scope, root) {
   return scope === 'global' ? globalRatchetMdPath() : ratchetMdPath(root);
 }
 
+// Global harness lives in ~/.claude/CLAUDE.md — Claude Code loads this for every
+// project, so a global init makes the 5 harness sections apply everywhere
+// (mirrors the project/global split that ratchet.md already has).
+function globalClaudeMdPath() {
+  return join(homedir(), '.claude', 'CLAUDE.md');
+}
+
+function resolveClaudeMdPath(scope, root) {
+  return scope === 'global' ? globalClaudeMdPath() : claudeMdPath(root);
+}
+
 /**
  * Count how many of the 5 harness sections appear in the project's CLAUDE.md.
  * Returns { configured, total, missing, hasBlock }. Cheap enough to call from
  * statusline — single file read + regex.
  */
-export function harnessStatus(root = findProjectRoot()) {
-  const path = claudeMdPath(root);
-  if (!existsSync(path)) {
+// Count harness sections in a single CLAUDE.md file. Shared by both scopes.
+function statusForFile(filePath) {
+  if (!existsSync(filePath)) {
     return {
       configured: 0,
       total: HARNESS_SECTIONS.length,
       missing: HARNESS_SECTIONS.map((s) => s.id),
       hasBlock: false,
       hasFile: false,
-      root,
+      optOut: false,
+      custom: false,
+      file: filePath,
     };
   }
   let content = '';
   try {
-    content = readFileSync(path, 'utf8');
+    content = readFileSync(filePath, 'utf8');
   } catch {
-    return { configured: 0, total: HARNESS_SECTIONS.length, missing: [], hasBlock: false, hasFile: true, root };
+    return { configured: 0, total: HARNESS_SECTIONS.length, missing: [], hasBlock: false, hasFile: true, optOut: false, custom: false, file: filePath };
   }
   const hasBlock = content.includes(HARNESS_BLOCK_BEGIN);
   // Opt-out marker — when the user intentionally customizes the harness block
@@ -114,8 +127,28 @@ export function harnessStatus(root = findProjectRoot()) {
     hasFile: true,
     optOut,
     custom,
-    root,
+    file: filePath,
   };
+}
+
+/**
+ * Harness status for a project, with scope control:
+ *   scope 'project' — count only <root>/CLAUDE.md
+ *   scope 'global'  — count only ~/.claude/CLAUDE.md
+ *   scope 'auto' (default) — use the project file if it carries the harness
+ *     block, otherwise fall back to the global file. This makes a project that
+ *     relies on a globally-installed harness report 🅷 5/5 (covered by global),
+ *     matching reality: Claude Code loads ~/.claude/CLAUDE.md for every project.
+ * The returned `source` ('project'|'global') tells callers which file was used.
+ */
+export function harnessStatus(root = findProjectRoot(), { scope = 'auto' } = {}) {
+  if (scope === 'project') return { ...statusForFile(claudeMdPath(root)), root, source: 'project' };
+  if (scope === 'global') return { ...statusForFile(globalClaudeMdPath()), root, source: 'global' };
+  const project = statusForFile(claudeMdPath(root));
+  if (project.hasBlock) return { ...project, root, source: 'project' };
+  const global = statusForFile(globalClaudeMdPath());
+  if (global.hasBlock) return { ...global, root, source: 'global' };
+  return { ...project, root, source: 'project' };
 }
 
 /**
@@ -125,10 +158,10 @@ export function harnessStatus(root = findProjectRoot()) {
  *
  * Returns { wrote: [], backedUp: [], skipped: [] } so the CLI can report.
  */
-export function harnessInit({ root = findProjectRoot(), force = false } = {}) {
-  const cmPath = claudeMdPath(root);
-  const rmPath = ratchetMdPath(root);
-  const result = { wrote: [], backedUp: [], skipped: [], root };
+export function harnessInit({ root = findProjectRoot(), force = false, scope = 'project' } = {}) {
+  const cmPath = resolveClaudeMdPath(scope, root); // global → ~/.claude/CLAUDE.md
+  const rmPath = resolveRatchetPath(scope, root);  // global → ~/.claude/ratchet.md
+  const result = { wrote: [], backedUp: [], skipped: [], root, scope };
 
   // CLAUDE.md
   const block = harnessClaudeMdBlock();
@@ -158,11 +191,12 @@ export function harnessInit({ root = findProjectRoot(), force = false } = {}) {
       result.wrote.push(cmPath + ' (harness block appended)');
     }
   } else {
+    mkdirSync(dirname(cmPath), { recursive: true }); // global: ensure ~/.claude exists
     writeFileSync(cmPath, block);
     result.wrote.push(cmPath);
   }
 
-  // .claude/ratchet.md (only if missing — don't clobber user-grown rules)
+  // ratchet.md (only if missing — don't clobber user-grown rules)
   if (!existsSync(rmPath)) {
     mkdirSync(dirname(rmPath), { recursive: true });
     writeFileSync(rmPath, harnessRatchetMdInitial());
@@ -181,10 +215,10 @@ export function harnessInit({ root = findProjectRoot(), force = false } = {}) {
  *
  * Returns { removed: [], backedUp: [], skipped: [] }.
  */
-export function harnessUninit({ root = findProjectRoot(), purgeRatchet = false } = {}) {
-  const cmPath = claudeMdPath(root);
-  const rmPath = ratchetMdPath(root);
-  const result = { removed: [], backedUp: [], skipped: [], root };
+export function harnessUninit({ root = findProjectRoot(), purgeRatchet = false, scope = 'project' } = {}) {
+  const cmPath = resolveClaudeMdPath(scope, root);
+  const rmPath = resolveRatchetPath(scope, root);
+  const result = { removed: [], backedUp: [], skipped: [], root, scope };
 
   if (existsSync(cmPath)) {
     const existing = readFileSync(cmPath, 'utf8');
