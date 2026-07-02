@@ -55,7 +55,7 @@ npm i -g claude-token-saver
 | `🧠` | 캐시 히트율 (85%+ 녹색) |
 | `⏳` | 캐시 TTL 카운트다운 — 만료 전에 메시지를 보내면 캐시 유지 |
 | `✦ current` / `📅 weekly` | 5시간 / 7일 rate-limit 윈도 사용률 + 리셋 시각 |
-| `📦` | 컨텍스트 윈도 (1M이면 빨간 경고 — 비용 급증 요인) |
+| `📦` | 컨텍스트 사용률 (예: `Ctx 68% of 1M`) — 사용률 기준 녹/황/적. 현재 모델은 1M이 기본·프리미엄 없음이지만, 토큰량 자체가 턴당 비용과 5H/7D 한도를 태웁니다 |
 | `💰` | 캐시가 절약해준 누적 금액 |
 
 문제가 감지되면 **경고 칩이 맨 앞에** 붙습니다:
@@ -64,7 +64,7 @@ npm i -g claude-token-saver
 🚨 5H █████▓ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 4.8 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📅 weekly ▓░░░░░ 12% 🔄 Sun 14:26 · 📦 Ctx 200k · last 1d
 ```
 
-칩 종류 — `🚨 5H/7D NN%`(캡 임박) · `⚠ 1M ON` · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. 두 윈도가 동시에 90%+면 리셋이 임박한 쪽이 🚨로 승격되고 나머지는 빨간 세그먼트로 유지됩니다 (v2.16.0+).
+칩 종류 — `🚨 5H/7D NN%`(캡 임박) · `⚠ Ctx 200k+`(단일 요청이 실제로 200k 초과) · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. 두 윈도가 동시에 90%+면 리셋이 임박한 쪽이 🚨로 승격되고 나머지는 빨간 세그먼트로 유지됩니다 (v2.16.0+).
 
 ### 경고 칩이 떴을 때
 
@@ -118,7 +118,7 @@ ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지
 
 | 코드 | 의미 |
 |---|---|
-| `LARGE_INPUT_PER_REQUEST` | 단일 요청 250k+ → 1M 컨텍스트 의심 |
+| `LARGE_INPUT_PER_REQUEST` | 단일 요청 입력이 200k 초과 — 턴당 재과금·한도 소모 급증 |
 | `LOW_HIT_RATE` | 캐시 히트율 50% 미만 |
 | `BUCKET_5M_DOMINANT` | 캐시 쓰기의 70%+가 5분 버킷 (Pro 플랜/Max 다운그레이드) |
 | `HIGH_OUTPUT_RATIO` | 출력/입력 비율 0.15 초과 (출력 단가는 입력의 5배) |
@@ -169,6 +169,11 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v2.18.0 (2026-07-02)
+- **1M 컨텍스트 경고 의미 재정의** — 현재 모델(Fable 5, Opus 4.6~4.8, Sonnet 5)은 전부 1M 윈도가 기본이고 Opus 4.7부터 장기 컨텍스트 프리미엄도 없어, "1M 모드 ON = 비쌈" 프레임을 폐기했습니다. 경고는 이제 **실사용 신호**입니다: `⚠ 1M ON` → `⚠ Ctx 200k+`(단일 요청이 실제로 200k 초과), 처방도 "1M 끄기" 우선에서 "`/compact`/`/clear` + `/effort` 점검" 우선으로 재정렬. 잘못된 "200k 초과 시 장기 요금 적용" 문구 정정.
+- **📦 세그먼트가 실시간 사용률 표시** — Claude Code stdin의 `context_window.used_percentage`를 사용해 `📦 Ctx 68% of 1M` 형태로 렌더 (사용률 기준 녹 <70 / 황 70–89 / 적 90+). stdin이 없으면 기존 크기 추론으로 폴백하되 1M은 빨강 대신 노랑.
+- 구버전 히스토리 호환: `⚠ 1M ON` 칩·구 디테일 문구도 계속 해석됩니다.
 
 ### v2.17.0 (2026-07-02)
 - **Fable 5 가격 티어 추가** — `claude-fable-5`/`claude-mythos-5`가 Sonnet 단가($3/$15)로 폴백돼 비용이 ~3배 과소 추정되던 문제 수정. 실제 단가(입력 $10 / 출력 $50 / 캐시쓰기 5m $12.50·1h $20 / 캐시읽기 $1) 적용.

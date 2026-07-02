@@ -93,6 +93,24 @@ function bedrockDisplayFromId(id) {
   return `${family} ${m[2]}.${m[3]}`;
 }
 
+/**
+ * Live context usage from Claude Code's stdin payload (`context_window`).
+ * More accurate than inferring from transcripts: it's the CURRENT session's
+ * real fill level, updated every refresh. Shape (subset):
+ *   "context_window": { "context_window_size": 200000, "used_percentage": 68 }
+ */
+function extractContextUsage(stdinJson) {
+  const cw = stdinJson && stdinJson.context_window;
+  if (!cw || typeof cw !== 'object') return null;
+  const usedPct = Number(cw.used_percentage);
+  const size = Number(cw.context_window_size);
+  if (!Number.isFinite(usedPct)) return null;
+  return {
+    usedPct,
+    size: Number.isFinite(size) && size > 0 ? size : null,
+  };
+}
+
 function extractModel(stdinJson) {
   if (!stdinJson || !stdinJson.model) return null;
   const m = stdinJson.model;
@@ -894,6 +912,7 @@ async function main() {
   const stdinJson = readStdinJson();
   let caps = extractCaps(stdinJson);
   let model = extractModel(stdinJson);
+  const ctxLive = extractContextUsage(stdinJson);
   if (isStatusline && (caps || model)) {
     try {
       const { persistSnapshot } = await import('../src/caps-cache.js');
@@ -923,7 +942,7 @@ async function main() {
   if (format === 'statusline') {
     if (contextWindow.size === '1M') {
       spikeChip = chipForIssues([], contextWindow);
-      chipDetail = `Context auto-promoted to 1M (max single-request ${Math.round(contextWindow.maxContext / 1000)}k tokens)`;
+      chipDetail = `Single-request context exceeded 200k (max ${Math.round(contextWindow.maxContext / 1000)}k tokens)`;
     } else {
       const recentSession = sessions
         .slice()
@@ -994,6 +1013,7 @@ async function main() {
     lastActivity,
     spikeReport,
     contextWindow,
+    ctxLive,
     spikeChip,
     caps,
     model,

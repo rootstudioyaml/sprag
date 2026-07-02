@@ -26,6 +26,7 @@ const SCENARIOS = [
       savings: 2123,
       elapsedSec: 30,
       contextSize: '200k',
+      ctxUsedPct: 34,
       spikeChip: null,
       caps: HEALTHY_CAPS,
     },
@@ -98,14 +99,15 @@ const SCENARIOS = [
   },
   {
     name: 'ctx-1m',
-    label: '⚠ 1M context auto-on',
+    label: '⚠ Context past 200k',
     data: {
       hitRate: 0.78,
       pct1h: 0.92,
       savings: 1340,
       elapsedSec: 30,
       contextSize: '1M',
-      spikeChip: '⚠ 1M ON',
+      ctxUsedPct: 28, // 28% of 1M ≈ 280k actually in context
+      spikeChip: '⚠ Ctx 200k+',
       caps: HEALTHY_CAPS,
     },
   },
@@ -271,7 +273,7 @@ export function buildTableDemoData(options = {}) {
     spikeReport: { spikes, baseline: { p95: 940_000 } },
     contextWindow: { size: '1M', maxContext: 280_000 },
     lastActivity: Date.now() - 60 * 1000,
-    spikeChip: '⚠ 1M ON',
+    spikeChip: '⚠ Ctx 200k+',
   };
 }
 
@@ -301,7 +303,7 @@ export function buildScenarioData(scenarioName, options) {
     if (!scenario) return null;
   }
 
-  const { hitRate, pct1h, pct5m, savings, elapsedSec, contextSize, spikeChip, caps } = scenario.data;
+  const { hitRate, pct1h, pct5m, savings, elapsedSec, contextSize, ctxUsedPct, spikeChip, caps } = scenario.data;
   return {
     summary: { hitRate },
     ttl: { pct1h, pct5m: pct5m ?? (1 - pct1h) },
@@ -314,6 +316,11 @@ export function buildScenarioData(scenarioName, options) {
     },
     lastActivity: Date.now() - elapsedSec * 1000,
     contextWindow: { size: contextSize },
+    // Live fill level (`📦 68%`) — scenarios that set ctxUsedPct exercise the
+    // stdin-driven segment; the rest fall back to the size-based chip.
+    ctxLive: ctxUsedPct != null
+      ? { usedPct: ctxUsedPct, size: contextSize === '1M' ? 1_000_000 : 200_000 }
+      : undefined,
     spikeChip,
     caps: buildCapsShape(caps),
     model: DEFAULT_MODEL,

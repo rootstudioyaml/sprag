@@ -55,7 +55,7 @@ The statusline appears at the bottom of Claude Code right away. If auto-registra
 | `🧠` | Cache hit rate (green at 85%+) |
 | `⏳` | Cache TTL countdown — send a message before expiry to keep the cache warm |
 | `✦ current` / `📅 weekly` | 5-hour / 7-day rate-limit window usage + reset time |
-| `📦` | Context window (1M shows red — a major cost driver) |
+| `📦` | Context usage (e.g. `Ctx 68% of 1M`) — colored by fill. Current models default to 1M with no premium, but token volume itself drives per-turn cost and 5H/7D burn |
 | `💰` | Cumulative savings from prompt caching |
 
 When something is wrong, a **warning chip leads the line**:
@@ -64,7 +64,7 @@ When something is wrong, a **warning chip leads the line**:
 🚨 5H █████▓ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 4.8 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📅 weekly ▓░░░░░ 12% 🔄 Sun 14:26 · 📦 Ctx 200k · last 1d
 ```
 
-Chips — `🚨 5H/7D NN%` (cap imminent) · `⚠ 1M ON` · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. When both windows cross 90% at once, the sooner-resetting one is promoted to 🚨 and the other stays visible as a red segment (v2.16.0+).
+Chips — `🚨 5H/7D NN%` (cap imminent) · `⚠ Ctx 200k+` (a single request actually exceeded 200k) · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. When both windows cross 90% at once, the sooner-resetting one is promoted to 🚨 and the other stays visible as a red segment (v2.16.0+).
 
 ### When a chip appears
 
@@ -137,7 +137,7 @@ An auto `.bak` is kept, but **the session context that earned the rule its place
 
 | Code | Meaning |
 |---|---|
-| `LARGE_INPUT_PER_REQUEST` | single request > 250k tokens → 1M context likely |
+| `LARGE_INPUT_PER_REQUEST` | single request > 200k input tokens — per-turn re-billing and cap burn spike |
 | `LOW_HIT_RATE` | cache hit rate < 50% |
 | `BUCKET_5M_DOMINANT` | > 70% of cache writes hit the 5m bucket |
 | `HIGH_OUTPUT_RATIO` | output/input > 0.15 (output is 5× input price) |
@@ -212,6 +212,11 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v2.18.0 (2026-07-02)
+- **1M-context warning re-scoped** — current models (Fable 5, Opus 4.6–4.8, Sonnet 5) all default to a 1M window with no long-context premium since Opus 4.7, so the "1M mode ON = expensive" framing is retired. The warning is now a **usage signal**: `⚠ 1M ON` → `⚠ Ctx 200k+` (a single request actually exceeded 200k), and remediation is reordered to lead with `/compact`/`/clear` + `/effort` instead of "disable 1M". The incorrect "long-context pricing kicks in past 200k" copy is fixed.
+- **📦 segment shows live usage** — reads `context_window.used_percentage` from Claude Code's stdin and renders `📦 Ctx 68% of 1M`, colored by fill (green <70 / yellow 70–89 / red 90+). Falls back to transcript-inferred size when stdin is absent (1M now yellow, not red).
+- Back-compat: the legacy `⚠ 1M ON` chip and old detail strings in existing history files still resolve.
 
 ### v2.17.0 (2026-07-02)
 - **Fable 5 pricing tier** — `claude-fable-5`/`claude-mythos-5` previously fell through to the Sonnet tier ($3/$15), under-estimating costs ~3×. Now priced at the real rates ($10 input / $50 output / $12.50 5m-write / $20 1h-write / $1 read).

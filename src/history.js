@@ -69,7 +69,8 @@ function saveState(state) {
 function chipKo(chip) {
   if (!chip) return chip;
   const map = {
-    '⚠ 1M ON': '⚠ 1M 컨텍스트 활성',
+    '⚠ Ctx 200k+': '⚠ 컨텍스트 200k 초과',
+    '⚠ 1M ON': '⚠ 1M 컨텍스트 활성', // legacy (pre-v2.18)
     '⚠ Cache miss': '⚠ 캐시 미스',
     '⚠ Rebuild churn': '⚠ 캐시 재빌드 빈발',
     '⚠ Input spike': '⚠ 입력 급증',
@@ -92,6 +93,9 @@ function chipKo(chip) {
  */
 function detailKo(detail) {
   if (!detail) return detail;
+  const m0 = detail.match(/^Single-request context exceeded 200k \(max (\d+)k tokens\)$/);
+  if (m0) return `단일 요청 컨텍스트 200k 초과 (최대 ${m0[1]}k 토큰)`;
+  // legacy detail shape (pre-v2.18)
   const m1 = detail.match(/^Context auto-promoted to 1M \(max single-request (\d+)k tokens\)$/);
   if (m1) return `1M 컨텍스트 자동 활성 (단일 요청 최대 ${m1[1]}k 토큰)`;
   const m2 = detail.match(/^session ([^:]+): (.+)$/);

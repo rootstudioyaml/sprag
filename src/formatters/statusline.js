@@ -214,7 +214,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '' } 
  * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, harness, model, hit, ttl, saved, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null } = {}) {
-  const { summary, ttl, cost, options, lastActivity, contextWindow, spikeChip, caps, model } = data;
+  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model } = data;
   const { hitRate } = summary;
 
   // Hit rate → color signal
@@ -321,15 +321,36 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
   }
 
-  // Context window chip (e.g. "📦 1M" or "📦 200k"). 1M gets a warning color
-  // because it's the expensive default on Max plans after Opus 4.7.
+  // Context chip. Two data sources, best first:
+  //
+  //  1. Live fill level from Claude Code's stdin (`context_window.used_percentage`)
+  //     — the current session's actual usage, refreshed every render. Rendered
+  //     as `📦 68%` and colored by fill (green <70, yellow 70–89, red 90+),
+  //     matching the cap-segment tone scale.
+  //  2. Fallback (table view / older Claude Code): transcript-inferred window
+  //     size. Note the semantics: `size === '1M'` means a real request already
+  //     carried >210k input tokens — actual heavy usage, not just the model
+  //     supporting 1M. Current models are all 1M by default with no price
+  //     premium, so this renders yellow ("your context is genuinely big"),
+  //     not red ("expensive mode on") like it used to.
   let ctxSeg = null;
-  if (contextWindow && contextWindow.size && contextWindow.size !== 'unknown') {
+  if (ctxLive && Number.isFinite(ctxLive.usedPct)) {
+    const pct = Math.max(0, Math.round(ctxLive.usedPct));
+    const tone = pct >= 90 ? RED : pct >= 70 ? YELLOW : GREEN;
+    const sizeLabel = ctxLive.size
+      ? (ctxLive.size >= 900_000 ? '1M' : `${Math.round(ctxLive.size / 1000)}k`)
+      : null;
+    const longLabel = sizeLabel ? `${pct}% of ${sizeLabel}` : `${pct}%`;
+    if (isIcon && verbose) {
+      ctxSeg = `${c(tone)}📦 Ctx ${longLabel}${c(RESET)}`;
+    } else if (isIcon) {
+      ctxSeg = `${c(tone)}📦 ${pct}%${c(RESET)}`;
+    } else {
+      ctxSeg = `${c(tone)}Ctx ${longLabel}${c(RESET)}`;
+    }
+  } else if (contextWindow && contextWindow.size && contextWindow.size !== 'unknown') {
     const label = contextWindow.size === '1M' ? '1M' : '200k';
-    const ctxColor = contextWindow.size === '1M' ? RED : GREEN;
-    // `Ctx` (not the full word `Context`) across every mode — the icon already
-    // tells the eye what the chip is, and the short form fits the same cadence
-    // as `Hit`/`Saved` peers when we eventually shorten those too.
+    const ctxColor = contextWindow.size === '1M' ? YELLOW : GREEN;
     if (isIcon && verbose) {
       ctxSeg = `${c(ctxColor)}📦 Ctx ${label}${c(RESET)}`;
     } else if (isIcon) {

@@ -39,25 +39,33 @@ function toggleShortcut() {
  */
 export const ISSUE_MESSAGES = {
   LARGE_INPUT_PER_REQUEST: {
-    title: 'Per-request input tokens are unusually large (1M context suspected)',
-    titleKo: '요청당 입력 토큰이 비정상적으로 큼 (1M 컨텍스트 의심)',
+    title: 'Per-request input tokens are unusually large (context past 200k)',
+    titleKo: '요청당 입력 토큰이 비정상적으로 큼 (컨텍스트 200k 초과)',
+    // Since Opus 4.7 there is NO long-context price premium — 1M is standard
+    // rate and the default window on current models. The cost driver is the
+    // token volume itself: a 500k-token context re-reads ~500k tokens every
+    // turn (cache-read billed) and burns the subscription 5H/7D windows
+    // several times faster. That's what this warning is about.
     explain:
-      'Since Opus 4.7, 1M context is priced at the standard rate, and Max plans auto-promote ' +
-      'sessions to 1M. Once context goes past 200k, long-context pricing kicks in and cache reuse drops.',
+      'Current models default to a 1M window with no long-context premium — but the token ' +
+      'volume itself is the cost: every turn re-reads the whole context (billed as cache reads) ' +
+      'and drains the 5H/7D rate-limit windows several times faster. Cache reuse also drops.',
     explainKo:
-      'Opus 4.7부터 1M 컨텍스트가 표준 요금이 되었고, Max 플랜은 세션을 자동으로 1M으로 승격합니다. ' +
-      '200k를 넘는 순간 장기 컨텍스트 요금이 적용되며 캐시 재사용률도 떨어집니다.',
+      '현재 모델은 1M 윈도가 기본이고 장기 컨텍스트 프리미엄도 없습니다 — 하지만 토큰량 자체가 비용입니다. ' +
+      '매 턴 컨텍스트 전체를 다시 읽고(캐시 읽기 과금) 5H/7D 한도도 몇 배 빠르게 소모됩니다. ' +
+      '캐시 재사용률도 떨어집니다.',
     actions: () => [
       {
-        label: 'Disable 1M context (env var)',
-        labelKo: '1M 컨텍스트 끄기 (환경변수)',
-        commands: disable1mEnvSnippet(),
-      },
-      {
-        label: 'In-session toggle',
-        labelKo: '세션 내 즉시 토글',
-        commands: [`Press ${toggleShortcut()} to toggle on/off instantly`],
-        commandsKo: [`${toggleShortcut()} 누르면 즉시 on/off 토글`],
+        label: 'Compact or clear when context grows (first lever)',
+        labelKo: '컨텍스트가 커지면 /compact 또는 /clear (1순위)',
+        commands: [
+          '/compact  — summarize the session history in place',
+          '/clear    — drop history entirely at a clean task boundary',
+        ],
+        commandsKo: [
+          '/compact — 세션 히스토리를 그 자리에서 요약',
+          '/clear   — 작업 분기점에서 히스토리를 통째로 비우기',
+        ],
       },
       {
         label: 'Cap extended-thinking budget (⚠ check /effort first)',
@@ -90,16 +98,14 @@ export const ISSUE_MESSAGES = {
         ],
       },
       {
-        label: 'Compact or clear when context grows',
-        labelKo: '컨텍스트가 커지면 /compact 또는 /clear',
-        commands: [
-          '/compact  — summarize the session history in place',
-          '/clear    — drop history entirely at a clean task boundary',
-        ],
-        commandsKo: [
-          '/compact — 세션 히스토리를 그 자리에서 요약',
-          '/clear   — 작업 분기점에서 히스토리를 통째로 비우기',
-        ],
+        label: 'Cap the window at 200k if you never need more (optional)',
+        labelKo: '더 큰 윈도가 필요 없으면 200k로 제한 (선택)',
+        commands: disable1mEnvSnippet().concat([
+          `Or press ${toggleShortcut()} to toggle in-session`,
+        ]),
+        commandsKo: disable1mEnvSnippet().concat([
+          `또는 ${toggleShortcut()}로 세션 내 즉시 토글`,
+        ]),
       },
       {
         label: '⚠ Known bug #31640',
@@ -337,11 +343,13 @@ export const ISSUE_MESSAGES = {
     title: 'Context window is approaching the limit',
     titleKo: '컨텍스트 창이 한계에 근접',
     explain:
-      'As context grows toward 200k (or 1M), each turn becomes more expensive and cache ' +
-      'reuse efficiency drops. Past 200k, long-context pricing applies.',
+      'As context grows, each turn becomes more expensive (the whole context is re-read every ' +
+      'turn) and cache reuse efficiency drops. There is no price premium past 200k on current ' +
+      'models — the token volume itself is the cost, and it drains the 5H/7D caps faster.',
     explainKo:
-      '컨텍스트가 200k(또는 1M)에 가까워질수록 매 턴 비용이 높아지고 캐시 재사용 효율이 떨어집니다. ' +
-      '200k를 넘으면 장기 컨텍스트 요금이 적용됩니다.',
+      '컨텍스트가 커질수록 매 턴 비용이 높아지고(전체 컨텍스트를 매 턴 다시 읽음) 캐시 재사용 효율이 ' +
+      '떨어집니다. 현재 모델은 200k 초과 프리미엄이 없습니다 — 토큰량 자체가 비용이며 5H/7D 한도도 ' +
+      '더 빠르게 소모됩니다.',
     actions: () => [
       {
         label: '/compact at the next natural break',
@@ -435,8 +443,8 @@ export const ISSUE_MESSAGES = {
  */
 export const ISSUE_TIPS = {
   LARGE_INPUT_PER_REQUEST: {
-    en: 'Check `/effort` — `xhigh` is the #1 cap killer; switch to `/effort medium` (or `low`); disable 1M context; `/compact` when context grows',
-    ko: '`/effort` 확인 — `xhigh`가 캡 소진 1순위 원인, `medium`(또는 `low`)으로 복귀; 1M 컨텍스트 끄기; 컨텍스트 커지면 `/compact`',
+    en: '`/compact` or `/clear` — big contexts re-bill every turn and burn the 5H/7D caps; check `/effort` (`xhigh` is the #1 cap killer)',
+    ko: '`/compact` 또는 `/clear` — 큰 컨텍스트는 매 턴 재과금되고 5H/7D 한도를 태움; `/effort` 확인 (`xhigh`가 캡 소진 1순위)',
   },
   LOW_HIT_RATE: {
     en: 'Continue with `claude --continue`; keep CLAUDE.md trim — every line ships every turn',
@@ -463,8 +471,8 @@ export const ISSUE_TIPS = {
     ko: '지금 바로 아무 프롬프트나 보내 TTL 타이머 리셋; 또는 자리 비우기 전 `/compact` (Pro = 5분, Max = 1시간)',
   },
   CONTEXT_NEAR_LIMIT: {
-    en: '`/compact` before hitting the limit; `/clear` + re-attach only needed files; disable 1M: `export CLAUDE_MODEL_CONTEXT=200000`',
-    ko: '한계 도달 전 `/compact`; `/clear` 후 필요한 파일만 재첨부; 1M 끄기: `export CLAUDE_MODEL_CONTEXT=200000`',
+    en: '`/compact` before hitting the limit; `/clear` + re-attach only needed files',
+    ko: '한계 도달 전 `/compact`; `/clear` 후 필요한 파일만 재첨부',
   },
 };
 
@@ -474,6 +482,9 @@ export const ISSUE_TIPS = {
  * need a fallback so history.js can still surface the right tip.
  */
 export const CHIP_TO_CODES = {
+  '⚠ Ctx 200k+': ['LARGE_INPUT_PER_REQUEST'],
+  // Legacy chip name (pre-v2.18) — kept so `last`/`history` can still resolve
+  // codes from history files written by older versions.
   '⚠ 1M ON': ['LARGE_INPUT_PER_REQUEST'],
   '⚠ Cache miss': ['LOW_HIT_RATE'],
   '⚠ Input spike': ['LARGE_INPUT_PER_REQUEST'],
@@ -502,7 +513,11 @@ export const CAP_TIPS = {
  * shown to a global audience.
  */
 export function chipForIssues(issues, contextWindow) {
-  if (contextWindow?.size === '1M') return '⚠ 1M ON';
+  // Fires on *actual usage* (a real request carried >210k input tokens), not
+  // on the model merely supporting 1M — current models are all 1M by default
+  // with no price premium, so "1M ON" stopped being a meaningful alarm. The
+  // meaningful signal is "your context genuinely exceeded 200k".
+  if (contextWindow?.size === '1M') return '⚠ Ctx 200k+';
   const codes = issues.map((i) => i.code);
   if (codes.includes('LARGE_INPUT_PER_REQUEST')) return '⚠ Input spike';
   if (codes.includes('BUCKET_5M_DOMINANT')) return '⚠ 5m TTL';
