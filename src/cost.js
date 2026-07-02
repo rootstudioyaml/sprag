@@ -8,7 +8,17 @@
  */
 
 const PRICING = {
-  // Opus 4.5+ (new pricing tier — includes 4.5, 4.6, 4.7, and future)
+  // Fable 5 / Mythos 5 — premium tier above Opus ($10/$50). Cache write
+  // rates follow the standard multipliers (1.25x input for 5m, 2x for 1h),
+  // cache read is 0.1x input.
+  'claude-fable-5': {
+    input: 10.0,
+    cacheWrite5m: 12.5,
+    cacheWrite1h: 20.0,
+    cacheRead: 1.0,
+    output: 50.0,
+  },
+  // Opus 4.5+ (new pricing tier — includes 4.5, 4.6, 4.7, 4.8, and future)
   'claude-opus-new': {
     input: 5.0,
     cacheWrite5m: 6.25,
@@ -65,6 +75,11 @@ const PRICING = {
 function detectPricingTier(model) {
   if (!model) return 'claude-sonnet';
   const m = model.toLowerCase();
+
+  // Fable 5 / Mythos 5 — must be checked before the generic fallback:
+  // without this, 'claude-fable-5' fell through to the Sonnet tier and
+  // under-estimated costs ~3x ($3/$15 vs the real $10/$50).
+  if (m.includes('fable') || m.includes('mythos')) return 'claude-fable-5';
 
   if (m.includes('opus')) {
     // Opus 4.5, 4.6, 4.7, and future 5+ use the new reduced pricing.
