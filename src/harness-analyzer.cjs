@@ -12,9 +12,11 @@
  *    keywords). <30% → ⚠ no-evidence — high chance the model is reporting
  *    "done" without showing it.
  *
- * 3. PEV-skip — many tool_use calls (5+) in the last 15 turns with no plan
- *    signal (no TodoWrite, no "plan"/"Phase"/"단계" mention). Suggests the
- *    model is racing through edits without a verify pass.
+ * 3. PEV-skip — many *mutating* tool_use calls (Edit/Write/Bash…, 5+) in the
+ *    last 15 assistant turns with no plan signal (no TodoWrite, no
+ *    "plan"/"Phase"/"단계" mention). Suggests the model is racing through
+ *    edits without a verify pass. Read-only exploration (Read/Grep/Glob)
+ *    deliberately doesn't count — reading five files is research, not racing.
  *
  * CommonJS so hook.cjs can `require()` it without a bundler step.
  */
@@ -28,10 +30,14 @@ const os = require('node:os');
 const STATE_DIR = stateDir();
 const STATE_PATH = path.join(STATE_DIR, 'harness-state.json');
 
-const RECENT_TURNS = 15;        // PEV / evidence window
+const RECENT_TURNS = 15;        // PEV / evidence window (assistant turns)
 const RATCHET_TURNS = 30;       // ratchet-candidate window
 const EVIDENCE_THRESHOLD = 0.3; // <30% → ⚠ no-evidence
 const PEV_TOOLUSE_THRESHOLD = 5;
+// Tools that change state. Only these count toward PEV-skip — an agentic
+// session trivially racks up 5+ *read* tool calls (Read/Grep/Glob) while
+// researching, which is exactly the behavior we don't want to punish.
+const MUTATING_TOOL_RE = /^(edit|write|multiedit|notebookedit|bash)$/i;
 
 function stateDir() {
   if (process.platform === 'win32') {
@@ -167,39 +173,42 @@ function findRatchetCandidates(entries) {
  * the immediate next user message also count as "shown the work."
  */
 function computeEvidenceRate(entries) {
-  const recent = entries.slice(-RECENT_TURNS * 2); // both user/assistant
-  const assistants = [];
-  for (let i = 0; i < recent.length; i++) {
-    const e = recent[i];
-    if (e && e.type === 'assistant') {
-      const text = assistantText(e.message);
-      let proof = looksLikeEvidence(text);
-      // If the *next* entry is a user message with tool_result blocks, count
-      // that as evidence for the assistant turn that triggered it.
-      const next = recent[i + 1];
-      if (!proof && next && next.type === 'user' && toolResultsIn(next.message).length > 0) {
-        proof = true;
-      }
-      assistants.push(proof);
-    }
+  // Window by *assistant turns*, not raw JSONL entries — one agentic turn can
+  // span dozens of entries, so an entry-sliced window covered only 1-2 real
+  // turns and made the rate jumpy.
+  const idxs = [];
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i] && entries[i].type === 'assistant') idxs.push(i);
   }
-  if (assistants.length === 0) return null;
-  const proofCount = assistants.filter(Boolean).length;
-  return proofCount / assistants.length;
+  const recentIdxs = idxs.slice(-RECENT_TURNS);
+  if (recentIdxs.length === 0) return null;
+  let proofCount = 0;
+  for (const i of recentIdxs) {
+    const text = assistantText(entries[i].message);
+    let proof = looksLikeEvidence(text);
+    // If the *next* entry is a user message with tool_result blocks, count
+    // that as evidence for the assistant turn that triggered it.
+    const next = entries[i + 1];
+    if (!proof && next && next.type === 'user' && toolResultsIn(next.message).length > 0) {
+      proof = true;
+    }
+    if (proof) proofCount++;
+  }
+  return proofCount / recentIdxs.length;
 }
 
 function computePevSkip(entries) {
-  const recent = entries.slice(-RECENT_TURNS);
-  let toolUseCount = 0;
+  const assistants = entries.filter((e) => e && e.type === 'assistant');
+  const recent = assistants.slice(-RECENT_TURNS);
+  let mutatingCount = 0;
   let planSignal = false;
   for (const e of recent) {
-    if (!e || e.type !== 'assistant') continue;
     const text = assistantText(e.message);
     const tus = toolUsesIn(e.message);
-    toolUseCount += tus.length;
+    mutatingCount += tus.filter((t) => MUTATING_TOOL_RE.test(t.name || '')).length;
     if (looksLikePlanSignal(text, tus)) planSignal = true;
   }
-  return toolUseCount >= PEV_TOOLUSE_THRESHOLD && !planSignal;
+  return mutatingCount >= PEV_TOOLUSE_THRESHOLD && !planSignal;
 }
 
 function analyzeTranscript(transcriptPath, opts) {

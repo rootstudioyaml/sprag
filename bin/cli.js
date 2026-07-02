@@ -838,12 +838,31 @@ async function main() {
   const sessions = await parseAllSessions({ days, projectFilter });
 
   if (sessions.length === 0) {
-    // Statusline must always emit a single line (no multi-line help spam every 300ms)
+    // Statusline must always emit a single line (no multi-line help spam every
+    // 300ms) — but the stdin payload (rate limits, model) is still live even
+    // with an empty analysis window (e.g. `mode 1h` + idle), and cap-warn /
+    // harness are exactly the signals that must not vanish then.
     if (format === 'statusline') {
-      const colorOk = !hasFlag('--no-color') && !process.env.NO_COLOR;
-      const gray = colorOk ? '\x1b[90m' : '';
-      const reset = colorOk ? '\x1b[0m' : '';
-      console.log(`${gray}🧠 no session data · ${days}d${reset}`);
+      const { formatNoSession } = await import('../src/formatters/statusline.js');
+      const { statuslineDefaults } = await import('../src/config.js');
+      const cfg = statuslineDefaults();
+      const colorOk = !hasFlag('--no-color') && !process.env.NO_COLOR && cfg.color;
+      const isIcon = hasFlag('--icon')
+        ? true
+        : (hasFlag('--no-icon') || hasFlag('--text') ? false : cfg.icon);
+      const stdinJson = readStdinJson();
+      const caps = extractCaps(stdinJson);
+      const model = extractModel(stdinJson);
+      if (caps || model) {
+        try {
+          const { persistSnapshot } = await import('../src/caps-cache.js');
+          persistSnapshot({ caps, model });
+        } catch { /* non-critical */ }
+      }
+      console.log(formatNoSession(
+        { caps, model, windowLabel },
+        { color: colorOk, mode: isIcon ? 'icon' : 'text' },
+      ));
       return;
     }
     console.log('No session data found for the given period.');

@@ -138,13 +138,80 @@ export function pickCapWarn(caps) {
 }
 
 /**
+ * Harness 🅷 segment builder — shared by the full report and the no-session
+ * fallback line. Best-effort: never throws into the statusline (corrupted
+ * CLAUDE.md, permission issue, etc. → null).
+ */
+function buildHarnessSeg(c, isIcon) {
+  try {
+    const harnessInfo = harnessStatusForStatusline(loadConfig());
+    if (!harnessInfo) return null;
+    const icon = isIcon ? '🅷' : 'H';
+    if (harnessInfo.warning) {
+      // Warning state outranks the N/5 count — a runtime issue (repeated
+      // error / no-evidence / racing edits) is more actionable than a
+      // missing ratchet section. Always red so it stands out.
+      return `${c(RED)}${icon}⚠ ${harnessInfo.warning}${c(RESET)}`;
+    }
+    if (harnessInfo.custom) return `${c(CYAN)}${icon} custom${c(RESET)}`;
+    const tone = harnessInfo.configured >= harnessInfo.total ? GREEN : YELLOW;
+    return `${c(tone)}${icon} ${harnessInfo.configured}/${harnessInfo.total}${c(RESET)}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cap-warn chip builder — shared by the full report and the no-session
+ * fallback line. At 90%+ the user wants to know "when can I send again", so
+ * the wall-clock reset time rides along in the same `🔄 HH:MM` shape as the
+ * always-on usage segments.
+ */
+function buildCapWarnSeg(capWarn, c, isIcon) {
+  if (!capWarn) return null;
+  const pct = Math.round(capWarn.usedPct);
+  const clock = formatResetClock(capWarn.resetsAt);
+  const clockTail = clock ? ` 🔄 ${clock}` : '';
+  if (isIcon) {
+    // Gauge keeps shape parity with the always-on usage segment — the
+    // cap-warn is just the same gauge "filled to alarm". Visual continuity
+    // helps the eye understand "this is the 5H bar I was watching, just red now."
+    const bar = gaugeBar(pct);
+    return `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
+  }
+  return `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
+}
+
+/**
+ * Fallback line for when no session data exists in the analysis window.
+ * The stdin payload (rate limits, model) is still live in that case, and a
+ * 90%+ cap warning is exactly the kind of signal that must not disappear
+ * just because the user has been idle past the window — so cap-warn,
+ * harness, and model chips still render around the "no session data" note.
+ */
+export function formatNoSession({ caps = null, model = null, windowLabel = '' } = {}, { color = true, mode = 'icon' } = {}) {
+  const c = (v) => (color ? v : '');
+  const isIcon = mode === 'icon';
+  const segs = [];
+  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon);
+  if (capSeg) segs.push(capSeg);
+  const harnessSeg = buildHarnessSeg(c, isIcon);
+  if (harnessSeg) segs.push(harnessSeg);
+  if (typeof model === 'string' && model.length > 0) {
+    segs.push(isIcon ? `${c(MAGENTA)}🤖 ${model}${c(RESET)}` : `${c(MAGENTA)}${model}${c(RESET)}`);
+  }
+  segs.push(`${c(GRAY)}🧠 no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
+  return segs.join(' · ') + (color ? '\x1b[K' : '');
+}
+
+/**
  * @param {object} data - output of main report pipeline (summary, ttl, cost, options, lastActivity)
  * @param {object} [opts]
  * @param {boolean} [opts.color=true] - emit ANSI escape codes
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, model, hit, ttl, saved, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
+ * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, harness, model, hit, ttl, saved, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null } = {}) {
   const { summary, ttl, cost, options, lastActivity, contextWindow, spikeChip, caps, model } = data;
@@ -279,28 +346,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Silent when the project hasn't opted in (no CLAUDE.md and no .claude/);
   // otherwise renders 🅷 5/5 (green) / 🅷 N/5 (yellow) so the user can spot
   // a missing section at a glance and know to run `harness init`.
-  let harnessSeg = null;
-  try {
-    const harnessInfo = harnessStatusForStatusline(loadConfig());
-    if (harnessInfo) {
-      const icon = isIcon ? '🅷' : 'H';
-      if (harnessInfo.warning) {
-        // Warning state outranks the N/5 count — a runtime issue (repeated
-        // error / no-evidence / racing edits) is more actionable than a
-        // missing ratchet section. Always red so it stands out.
-        harnessSeg = `${c(RED)}${icon}⚠ ${harnessInfo.warning}${c(RESET)}`;
-      } else if (harnessInfo.custom) {
-        harnessSeg = `${c(CYAN)}${icon} custom${c(RESET)}`;
-      } else {
-        const tone = harnessInfo.configured >= harnessInfo.total ? GREEN : YELLOW;
-        harnessSeg = `${c(tone)}${icon} ${harnessInfo.configured}/${harnessInfo.total}${c(RESET)}`;
-      }
-    }
-  } catch {
-    // Harness check is best-effort — never break the statusline if the file
-    // read fails (corrupted CLAUDE.md, permission issue, etc.).
-    harnessSeg = null;
-  }
+  const harnessSeg = buildHarnessSeg(c, isIcon);
 
   // Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
   // Cheap identity context: useful when the user toggles between Sonnet/Opus
@@ -322,12 +368,14 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Today the stdin payload exposes the 5h ("Current session") and 7-day
   // rolling ("Current week") windows; if Anthropic ships more (e.g. a
   // Sonnet-only weekly), they render automatically with derived labels.
-  // Each renders as `{label} {pct}% · {countdown}`. When a window is at >=90%
-  // the cap-warn chip already shouts about it, so we suppress the always-on
-  // segment to avoid duplicate noise.
-  function buildUsageSeg({ labels, info, color: tone }) {
+  // Each renders as `{label} {pct}% · {countdown}`. The window promoted to the
+  // cap-warn chip is suppressed here to avoid duplicate noise — but ONLY that
+  // one. When several windows are at 90%+ the chip shows just the most
+  // imminent, so the others must keep their always-on segment (red) or they'd
+  // vanish from the statusline entirely at the worst possible moment.
+  function buildUsageSeg({ labels, info, color: tone, suppressed }) {
     if (!info || !Number.isFinite(info.usedPct)) return null;
-    if (info.usedPct >= 90) return null; // cap-warn chip handles this case
+    if (suppressed) return null; // cap-warn chip handles this window
     const pct = Math.round(info.usedPct);
     // Show only the wall-clock reset time (e.g. `🔄 21:10`). Absolute time
     // doesn't tick second-by-second so the statusline reads stable, and the
@@ -351,14 +399,20 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
     return `${c(tone)}${labels.short} cap ${pct}%${tail}${c(RESET)}`;
   }
-  // Color tone: green when <70%, yellow 70-89% (the segment is suppressed at
-  // 90+% in favor of cap-warn). Lets the user spot "I'm getting close" without
-  // waiting for the alarm chip.
+  // Color tone: green <70%, yellow 70-89%, red 90+% (a 90+% window only
+  // renders here when a *different* window won the cap-warn chip slot).
   function usageTone(info) {
     if (!info || !Number.isFinite(info.usedPct)) return GRAY;
+    if (info.usedPct >= 90) return RED;
     if (info.usedPct >= 70) return YELLOW;
     return GREEN;
   }
+  // Cap-warn chip — leads everything when ANY rate-limit window is at 90%+.
+  // It's the most actionable signal we can show: no point optimizing cache
+  // hits if you're about to be rate-limited anyway. The chip body matches the
+  // English shape `🚨 5H 94%` / `🚨 7D 92%` so history parsers can dedupe on it.
+  // Computed before the usage segments so they know which window it claimed.
+  const capWarn = pickCapWarn(caps);
   const usageSegs = [];
   if (caps && Array.isArray(caps.windows)) {
     for (const win of caps.windows) {
@@ -367,34 +421,13 @@ export function formatReport(data, { color = true, verbose = false, timer = true
         labels,
         info: win,
         color: usageTone(win),
+        suppressed: !!capWarn && capWarn.key === win.key,
       });
       if (seg) usageSegs.push({ key: win.key, seg });
     }
   }
 
-  // Cap-warn chip — leads everything when ANY rate-limit window is at 90%+.
-  // It's the most actionable signal we can show: no point optimizing cache
-  // hits if you're about to be rate-limited anyway. The chip body matches the
-  // English shape `🚨 5H 94%` / `🚨 7D 92%` so history parsers can dedupe on it.
-  const capWarn = pickCapWarn(caps);
-  let capWarnSeg = null;
-  if (capWarn) {
-    const pct = Math.round(capWarn.usedPct);
-    // At 90%+ the user wants to know "when can I send again" — wall-clock is
-    // the actionable bit. Same `🔄 HH:MM` shape as the always-on segments so
-    // the icon's meaning carries over to the alarm chip.
-    const clock = formatResetClock(capWarn.resetsAt);
-    const clockTail = clock ? ` 🔄 ${clock}` : '';
-    if (isIcon) {
-      // Gauge keeps shape parity with the always-on usage segment — the
-      // cap-warn is just the same gauge "filled to alarm". Visual continuity
-      // helps the eye understand "this is the 5H bar I was watching, just red now."
-      const bar = gaugeBar(pct);
-      capWarnSeg = `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
-    } else {
-      capWarnSeg = `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
-    }
-  }
+  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon);
 
   // Warning chip leads — a glance at the statusline catches "something's wrong"
   // before parsing any numbers. Healthy states have no chip and look unchanged.
@@ -431,7 +464,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   if (want('period')) segs.push(periodSeg);
   // Trailing erase-to-end-of-line so any leftover characters from a previous
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard
-  // "erase from cursor to EOL" CSI; safe on any ANSI-compatible terminal and
-  // a no-op when stdout isn't a TTY.
-  return segs.join(' · ') + '\x1b[K';
+  // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
+  // allowed — --no-color/NO_COLOR consumers expect escape-free output.
+  return segs.join(' · ') + (color ? '\x1b[K' : '');
 }

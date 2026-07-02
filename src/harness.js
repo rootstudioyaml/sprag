@@ -101,7 +101,9 @@ function statusForFile(filePath) {
   try {
     content = readFileSync(filePath, 'utf8');
   } catch {
-    return { configured: 0, total: HARNESS_SECTIONS.length, missing: [], hasBlock: false, hasFile: true, optOut: false, custom: false, file: filePath };
+    // Unreadable file (permissions, etc.) — report every section missing so
+    // `harness check` can't print "All 5 sections present ✅" over a 0/5.
+    return { configured: 0, total: HARNESS_SECTIONS.length, missing: HARNESS_SECTIONS.map((s) => s.id), hasBlock: false, hasFile: true, optOut: false, custom: false, file: filePath };
   }
   const hasBlock = content.includes(HARNESS_BLOCK_BEGIN);
   // Opt-out marker — when the user intentionally customizes the harness block
@@ -334,13 +336,24 @@ export function harnessStatusForStatusline(cfg, { root } = {}) {
   if (!status.hasFile && !existsSync(join(projectRoot, '.claude'))) return null;
   if (status.optOut) return null;
   // Attach a warning derived from the analyzer state file (if any). Precedence:
-  //   ratchet? > no-evidence > PEV-skip. Only surfaces when the state's
-  //   sessionId or cwd matches this project, so unrelated sessions don't leak.
+  //   ratchet? > no-evidence > PEV-skip. Guards, in order:
+  //   - freshness: the hook rewrites the state on every tool use, so anything
+  //     older than WARNING_TTL_MS is a dead session's leftovers — a red 🅷⚠
+  //     must never linger for days after the triggering session ended.
+  //   - project match: state.cwd is the *session* cwd, which may be a subdir
+  //     of the repo, while projectRoot is the walked-up root. Normalize both
+  //     through findProjectRoot so launching Claude Code in a subdirectory
+  //     still surfaces (and correctly scopes) the warning. A state with no
+  //     cwd at all is unattributable — stay silent rather than leak it into
+  //     every project.
+  const WARNING_TTL_MS = 30 * 60 * 1000;
   const state = readHarnessState();
   let warning = null;
   if (state) {
-    const matches = (state.cwd && state.cwd === projectRoot) || !state.cwd;
-    if (matches) {
+    const ts = state.timestamp ? Date.parse(state.timestamp) : NaN;
+    const fresh = Number.isFinite(ts) && Date.now() - ts <= WARNING_TTL_MS;
+    const matches = !!state.cwd && findProjectRoot(state.cwd) === projectRoot;
+    if (fresh && matches) {
       if (state.ratchetCandidate && state.ratchetCandidate.count >= 2) {
         const id = state.ratchetCandidate.id || 1;
         warning = `ratchet? #${id}`;
