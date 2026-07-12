@@ -119,22 +119,37 @@ ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지
 </details>
 
 
-## 🔀 route-scan — "이 반복 작업, haiku로 내려도 됩니다"
+## 🔀 route-scan — "이 반복 작업, 더 싼 티어로 내려도 됩니다"
 
-세션 기록을 **에피소드(사용자 요청) 단위**로 분석해, 상위 모델(opus/fable)이 반복 처리해 온 easy 작업(적은 호출·적은 출력으로 끝난 요청)을 찾아 haiku 서브에이전트 위임 룰로 승격하도록 제안합니다. 전 과정 로컬, 토큰 비용 0.
+세션 기록을 **에피소드(사용자 요청) 단위**로 분석해 상위 모델(opus/fable)이 반복 처리해 온 작업을 **티어로 분류**하고, 위임 룰로 승격하도록 제안합니다. 전 과정 로컬, 토큰 비용 0. 기준 설계와 근거는 [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) 참고.
+
+- **T2 → haiku**: 적은 호출·작은 출력·변경 거의 없음·에러 0으로 끝난 요청 (탐색·조회, 붙여넣은 화면 질문, 단순 실행 등)
+- **T1 → sonnet**: 중간 출력·변경 소수·에러 ≤1 (빌드 파이프라인, 상태 점검 등)
+- **T0 유지**: 에러 반복, 대량 변경, 큰 출력, 설계·분석 키워드 — 세션 모델이 계속 담당
+
+판정 신호는 호출 수·출력 토큰·**변경성 도구 수(Edit/Write/Bash)**·**도구 에러 수**·요청 텍스트이고, 출력 임계값은 사용자 자신의 최근 14일 분포에서 자동 보정됩니다 (고정 상수는 워크로드가 바뀌면 어긋나기 때문).
 
 ```bash
-claude-token-saver route-scan                    # 스캔 (24h 캐시) + 후보 출력
-claude-token-saver harness promote R1 --project  # 후보 R1을 랫쳇 룰로 등록
+claude-token-saver route-scan                    # 스캔 (24h 캐시) + 티어별 후보 출력
+claude-token-saver harness promote R1 --project  # 후보 R1을 모델 피팅 룰로 등록
 claude-token-saver route-scan dismiss 1          # 관심 없으면 무시 (재스캔에도 안 뜸)
+claude-token-saver route-scan rules              # 등록된 모델 피팅 룰 목록 (rm <N>으로 제거)
 ```
+
+### 모델 피팅 랫쳇 — 사용자 룰과 분리, 로그 기반 자동 갱신
+
+승격된 위임 룰은 손으로 쓴 랫쳇 룰과 섞이지 않도록 ratchet.md 안의 **관리 블록**(`<!-- MODEL-FITTING -->`)에 따로 저장되고, 이후에도 살아 움직입니다:
+
+- **자동 갱신**: 매 스캔마다 반복 횟수·해당 유형의 에러율을 최신 로그로 다시 계산해 블록을 재작성합니다.
+- **rule-health**: 위임 대상 유형의 에러율이 20%를 넘으면 룰에 `⚠ rule-health` 경고가 붙어 조건을 좁히거나 제거하라고 알립니다 — "결과(outcome)로 난이도를 정의"하는 원칙을 룰 수명 관리에 재적용한 것.
+- 사용자 룰은 `harness list/rm`, 모델 피팅 룰은 `route-scan rules [rm <N>]`로 각각 관리 — 서로의 인덱스를 침범하지 않습니다.
 
 동작 구조 (실시간 라우팅이 아니라 **세션 경계 캘리브레이션**):
 1. `install` 시 SessionStart 훅이 등록되어, 새 세션 시작·`/clear` 때 캐시된 스캔 결과를 세션 컨텍스트로 주입합니다 (스캔 자체는 백그라운드에서 일 1회).
-2. 반복(≥3회) easy 패턴이 있으면 statusline에 `🅷⚠ route? R1` 칩이 뜨고, Claude가 등록 여부와 scope(`--project`/`--global`)를 물어봅니다.
-3. 등록된 룰은 ratchet.md에 쌓여 **다음 세션부터 메인 모델이 해당 유형을 haiku 서브에이전트로 자동 위임**합니다.
+2. 반복(≥3회) 패턴이 있으면 statusline에 `🅷⚠ route? R1` 칩이 뜨고, Claude가 등록 여부와 scope(`--project`/`--global`)를 물어봅니다.
+3. 등록된 룰은 **다음 세션부터 메인 모델이 해당 유형을 haiku/sonnet 서브에이전트로 자동 위임**하게 합니다.
 
-권장 사전 준비: `~/.claude/agents/`에 `model: haiku` 서브에이전트(예: haiku-explore / haiku-runner / haiku-translate)를 만들어 두면 룰이 바로 실행 가능해집니다.
+권장 사전 준비: `~/.claude/agents/`에 `model: haiku` 서브에이전트(예: haiku-explore / haiku-runner / haiku-translate)와 `model: sonnet` 범용 서브에이전트를 만들어 두면 룰이 바로 실행 가능해집니다.
 
 ## 토큰 급증 원인 코드
 
@@ -191,6 +206,11 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.2.0 (2026-07-13)
+- **티어 분류 (T0/T1/T2)** — route-scan이 이분법(easy/그외)에서 3티어로 진화. 신호에 변경성 도구 수·도구 에러 수 추가, 출력 임계값은 사용자 분포 기반 자동 보정(클램프 포함), 붙여넣은 화면·로그 질문 전용 카테고리 신설, 대화성 응답(출력 <100토큰) 제외. 기준 설계·리서치 근거는 `docs/TIER_CRITERIA.md`.
+- **모델 피팅 랫쳇 분리** — 승격된 위임 룰은 사용자 룰과 섞이지 않는 관리 블록(`MODEL-FITTING`)에 저장. `harness list/rm`은 관리 블록을 건너뛰고, 모델 피팅 룰은 `route-scan rules [rm <N>]`로 별도 관리.
+- **로그 기반 자동 갱신 + rule-health** — 매 스캔마다 등록 룰의 반복 횟수·에러율을 재계산해 블록을 재작성. 위임 대상 에러율 >20%면 `⚠ rule-health` 플래그로 조건 좁히기/제거를 제안.
 
 ### v3.1.0 (2026-07-13)
 - **frugon 연계 제거** — `claude-token-saver frugon` 서브커맨드(JSONL 내보내기)를 삭제했습니다. 외부 분석기의 집계 리포트는 랫쳇 룰(조건→행동)로 변환할 수 없어 위임 파이프라인에 기여하지 못했고, 3.x의 방향은 **세션 로그 기반 티어 분류를 자체적으로 탄탄히** 가져가는 것입니다. route-scan은 영향 없이 그대로 동작합니다 (공용 파서는 `src/session-records.js`로 분리).

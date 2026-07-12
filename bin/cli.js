@@ -478,6 +478,43 @@ async function main() {
     const { userLanguage } = await import('../src/config.js');
     const lang = userLanguage();
 
+    // route-scan rules [rm <N>] — the model-fitting rule registry (rules
+    // promoted from candidates; auto-refreshed from logs on every rescan).
+    if (args[1] === 'rules') {
+      const mr = await import('../src/model-rules.js');
+      if (args[2] === 'rm') {
+        const n = parseInt(args[3], 10);
+        const removed = Number.isFinite(n) ? mr.removeModelRule(n) : null;
+        if (!removed) {
+          console.error('Usage: claude-token-saver route-scan rules rm <N>   # N from `route-scan rules`');
+          process.exit(1);
+        }
+        const written = mr.syncAllBlocks();
+        // A target whose last rule was removed isn't in written — clear it.
+        const targetPath = removed.scope === 'global'
+          ? `${process.env.HOME}/.claude/ratchet.md`
+          : `${removed.targetRoot}/.claude/ratchet.md`;
+        if (!written.includes(targetPath)) {
+          try { mr.applyBlockToRatchet(targetPath, []); } catch { /* keep registry consistent regardless */ }
+        }
+        console.log(`Removed model-fitting rule #${n}: ${removed.rule}`);
+        return;
+      }
+      const { rules } = mr.loadModelRules();
+      if (rules.length === 0) {
+        console.log(lang === 'ko' ? '등록된 모델 피팅 룰 없음.' : 'No model-fitting rules registered.');
+        return;
+      }
+      console.log(lang === 'ko' ? '📐 모델 피팅 룰 (로그 기반 자동 갱신):' : '📐 Model-fitting rules (auto-refreshed from logs):');
+      rules.forEach((r, i) => {
+        const health = r.status === 'review' ? '  ⚠ rule-health' : '';
+        console.log(`  #${i + 1} [${r.tier}|${r.scope}] ×${r.count || 0} err ${Math.round((r.errRate || 0) * 100)}%${health}`);
+        console.log(`      ${r.rule}`);
+      });
+      console.log('\n제거: claude-token-saver route-scan rules rm <N>');
+      return;
+    }
+
     if (args[1] === 'dismiss') {
       const n = parseInt(args[2], 10);
       if (!Number.isFinite(n)) {
@@ -510,9 +547,10 @@ async function main() {
       const open = rs.openCandidates(cache);
       if (open.length === 0) return; // silent — nothing to inject
       const lines = [];
-      lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 상위 모델(opus/fable)이 처리한 반복 easy 작업이 감지되었습니다:`);
+      lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 상위 모델(opus/fable)이 처리한 위임 가능 반복 작업이 감지되었습니다:`);
       for (const c of open) {
-        lines.push(`  R${c.id} (×${c.count}, ${c.project}): ${c.label} → ${c.agent} 위임 권장 (scope 제안: ${c.suggestedScope})`);
+        const tierNote = c.tier === 'T1' ? 'sonnet 위임(중간 난도)' : `${c.agent} 위임(경량)`;
+        lines.push(`  R${c.id} [${c.tier || 'T2'}] (×${c.count}, ${c.project}): ${c.label} → ${tierNote} 권장 (scope 제안: ${c.suggestedScope})`);
         lines.push(`      예시: "${c.example}"`);
       }
       lines.push('이 패턴을 랫쳇 룰로 등록하면 다음 세션부터 자동 위임됩니다. 적절한 시점에 사용자에게 등록 여부와 scope를 물어본 뒤 실행하세요:');
@@ -545,7 +583,7 @@ async function main() {
     }
     console.log(lang === 'ko' ? '\n위임 후보:' : '\nDelegation candidates:');
     for (const c of open) {
-      console.log(`  R${c.id}  ×${c.count}  ${c.label} → ${c.agent}  [${c.project}] (scope 제안: ${c.suggestedScope})`);
+      console.log(`  R${c.id}  [${c.tier || 'T2'}] ×${c.count}  ${c.label} → ${c.agent}  [${c.project}] (scope 제안: ${c.suggestedScope})`);
       console.log(`       예시: "${c.example}"`);
       console.log(`       룰: ${c.rule}`);
     }
@@ -721,31 +759,56 @@ async function main() {
           process.exit(1);
         }
       }
-      // Route candidates were detected in a specific project's sessions — a
-      // --project rule must land in THAT project's ratchet.md, not the cwd's.
-      // The candidate carries the real session cwd (projectPath); older cached
-      // scans predate that field, so fall back to verifying the cwd matches.
-      let promoteRoot;
-      if (routeCandidate && scope === 'project') {
+      // Route candidates become MODEL-FITTING rules: they live in a
+      // tool-managed block (separate from user-authored ratchet rules) and
+      // keep updating from subsequent logs — recurrence counts, error rates,
+      // rule-health — on every rescan.
+      if (routeCandidate) {
         const rs = await import('../src/route-scan.js');
-        if (routeCandidate.projectPath) {
-          promoteRoot = findProjectRoot(routeCandidate.projectPath);
-        } else if (rs.mungeProjectPath(findProjectRoot()) !== routeCandidate.project) {
-          console.error(`Route candidate R${routeCandidateId} was detected in another project (${routeCandidate.project}),`);
-          console.error('but this cached scan predates project-path tracking.');
-          console.error('Re-scan to capture it, then promote again:');
-          console.error('  claude-token-saver route-scan --refresh');
-          process.exit(1);
+        const mr = await import('../src/model-rules.js');
+        // A --project rule must land in THE project the pattern was detected
+        // in, not the cwd's. Old caches without projectPath: verify cwd match.
+        let targetRoot = null;
+        if (scope === 'project') {
+          if (routeCandidate.projectPath) {
+            targetRoot = findProjectRoot(routeCandidate.projectPath);
+          } else if (rs.mungeProjectPath(findProjectRoot()) === routeCandidate.project) {
+            targetRoot = findProjectRoot();
+          } else {
+            console.error(`Route candidate R${routeCandidateId} was detected in another project (${routeCandidate.project}),`);
+            console.error('but this cached scan predates project-path tracking.');
+            console.error('Re-scan to capture it, then promote again:');
+            console.error('  claude-token-saver route-scan --refresh');
+            process.exit(1);
+          }
         }
+        const entry = mr.addModelRule({
+          signature: routeCandidate.signature,
+          tier: routeCandidate.tier || 'T2',
+          category: routeCandidate.category,
+          label: routeCandidate.label,
+          agent: routeCandidate.agent,
+          scope,
+          targetRoot,
+          project: routeCandidate.project,
+          rule: routeCandidate.rule,
+          example: routeCandidate.example,
+          count: routeCandidate.count,
+          promotedAt: new Date().toISOString().slice(0, 10),
+          lastSeen: new Date().toISOString().slice(0, 10),
+        });
+        const written = mr.syncAllBlocks();
+        rs.resolveCandidate(routeCandidateId);
+        console.log(`Model-fitting rule registered [${scope}${targetRoot ? ` → ${targetRoot}` : ''}] (tier ${entry.tier}):`);
+        console.log(`  - ${entry.rule}`);
+        for (const p of written) console.log(`  managed block updated: ${p}`);
+        console.log('(route candidate R' + routeCandidateId + ' resolved — 다음 세션부터 자동 위임, 이후 스캔마다 로그 기반 갱신됩니다)');
+        console.log('룰 목록/제거: claude-token-saver route-scan rules [rm <N>]');
+        return;
       }
-      const r = harnessPromote(rule, promoteRoot ? { scope, root: promoteRoot } : { scope });
+      const r = harnessPromote(rule, { scope });
       console.log(`Appended to ${r.path} [${r.scope}]:`);
       console.log(`  - ${rule}`);
-      if (routeCandidateId !== null) {
-        const rs = await import('../src/route-scan.js');
-        rs.resolveCandidate(routeCandidateId);
-        console.log(`(route candidate R${routeCandidateId} resolved — 다음 세션부터 자동 위임 룰로 적용됩니다)`);
-      }
       if (/^\d+$/.test(raw)) {
         console.log('\n👉 ratchet.md를 열어 TODO 부분을 실제 룰로 다듬어주세요.');
       }

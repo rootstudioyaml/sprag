@@ -138,22 +138,37 @@ An auto `.bak` is kept, but **the session context that earned the rule its place
 </details>
 
 
-## 🔀 route-scan — "this recurring task could run on haiku"
+## 🔀 route-scan — "this recurring task could run on a cheaper tier"
 
-Analyzes your session history at the **episode (user request) level**, finds easy work your expensive model (opus/fable) keeps doing (requests that finished in few calls with little output), and proposes promoting it into a haiku-subagent delegation rule. Fully local, zero token cost.
+Analyzes your session history at the **episode (user request) level**, classifies the work your expensive model (opus/fable) keeps doing into **tiers**, and proposes delegation rules. Fully local, zero token cost. Criteria design and evidence: [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md).
+
+- **T2 → haiku**: few calls, tiny output, near-zero mutation, no errors (lookups, pasted-screen Q&A, simple runs)
+- **T1 → sonnet**: moderate output, few mutations, ≤1 error (build pipelines, status checks)
+- **T0 stays**: repeated errors, heavy mutation, big output, design/analysis keywords — the session model keeps it
+
+Signals: call count, output tokens, **mutating tool calls (Edit/Write/Bash)**, **tool errors**, and request text. Output thresholds are auto-calibrated from your own 14-day distribution (fixed constants drift with workload).
 
 ```bash
-claude-token-saver route-scan                    # scan (24h cache) + print candidates
-claude-token-saver harness promote R1 --project  # promote candidate R1 to a ratchet rule
+claude-token-saver route-scan                    # scan (24h cache) + tiered candidates
+claude-token-saver harness promote R1 --project  # promote candidate R1 to a model-fitting rule
 claude-token-saver route-scan dismiss 1          # not interested — won't resurface
+claude-token-saver route-scan rules              # list model-fitting rules (rm <N> to remove)
 ```
+
+### Model-fitting ratchet — separate from your rules, continuously refreshed
+
+Promoted delegation rules never mix with hand-written ratchet rules: they live in a **managed block** (`<!-- MODEL-FITTING -->`) inside ratchet.md, and they stay alive afterward:
+
+- **Auto-refresh**: every rescan recomputes recurrence counts and the category's error rate from fresh logs and rewrites the block.
+- **rule-health**: when the delegated category's error rate exceeds 20%, the rule gets a `⚠ rule-health` flag suggesting you narrow or remove it — the "define difficulty by outcome" principle applied to rule lifecycle.
+- Your rules are managed by `harness list/rm`; model-fitting rules by `route-scan rules [rm <N>]` — the indexes never collide.
 
 How it works (session-boundary calibration, NOT a real-time router):
 1. `install` registers a SessionStart hook that injects the cached scan results as session context on startup and `/clear` (the scan itself refreshes in the background, once a day).
-2. When a recurring (≥3×) easy pattern exists, the statusline shows a `🅷⚠ route? R1` chip and Claude asks you whether to register it, and at which scope (`--project`/`--global`).
-3. Promoted rules accumulate in ratchet.md, so **from the next session on, the main model delegates that work type to a haiku subagent automatically**.
+2. When a recurring (≥3×) pattern exists, the statusline shows a `🅷⚠ route? R1` chip and Claude asks you whether to register it, and at which scope (`--project`/`--global`).
+3. Promoted rules make **the main model delegate that work type to a haiku/sonnet subagent automatically from the next session on**.
 
-Recommended companion setup: create `model: haiku` subagents under `~/.claude/agents/` (e.g. haiku-explore / haiku-runner / haiku-translate) so the rules are immediately actionable.
+Recommended companion setup: create `model: haiku` subagents under `~/.claude/agents/` (e.g. haiku-explore / haiku-runner / haiku-translate) plus a `model: sonnet` general worker so the rules are immediately actionable.
 
 ## Spike issue codes
 
@@ -234,6 +249,11 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.2.0 (2026-07-13)
+- **Tier classification (T0/T1/T2)** — route-scan grows from a binary easy/other split into three tiers. New signals: mutating tool calls and tool errors; output thresholds auto-calibrate to the user's own distribution (clamped); a dedicated category for pasted screen/log Q&A; conversational episodes (<100 output tokens) excluded. Design and research evidence in `docs/TIER_CRITERIA.md`.
+- **Model-fitting ratchet separated** — promoted delegation rules live in a managed block (`MODEL-FITTING`) that never mixes with hand-written rules. `harness list/rm` skips the block; model-fitting rules are managed via `route-scan rules [rm <N>]`.
+- **Log-driven auto-refresh + rule-health** — every rescan recomputes each registered rule's recurrence count and error rate and rewrites the block. Delegated-category error rate >20% flags the rule with `⚠ rule-health`, suggesting narrowing or removal.
 
 ### v3.1.0 (2026-07-13)
 - **frugon integration removed** — the `claude-token-saver frugon` JSONL-export subcommand is gone. An external analyzer's aggregate report can't be turned into ratchet rules (condition → action), so it never fed the delegation pipeline; 3.x instead invests in **first-party tier classification over session logs**. route-scan is unaffected (the shared parser moved to `src/session-records.js`).
