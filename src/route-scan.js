@@ -285,12 +285,25 @@ export async function runRouteScan({ days = 14 } = {}) {
   const prev = readRouteScan();
   const resolved = new Set(prev?.resolved || []);
 
+  // Never re-propose a pattern that already has a registered model-fitting
+  // rule (a global rule covers the category in every project). Without this,
+  // rules that entered the registry outside the promote flow — migrations,
+  // future imports — would resurface as candidates forever.
+  let registered = [];
+  try {
+    const { loadModelRules } = await import('./model-rules.js');
+    registered = loadModelRules().rules;
+  } catch { /* registry unreadable — candidates may repeat until promote */ }
+  const hasRule = (g) => registered.some((r) =>
+    r.tier === g.tier && r.category === g.category &&
+    (r.scope === 'global' || r.project === g.project));
+
   const ruleText = (g) => g.tier === 'T2'
     ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${g.agent}(haiku) 서브에이전트로 위임한다`
     : `"${g.label}" 유형의 중간 난도 요청(예: "${g.example}")은 model: sonnet 서브에이전트로 위임한다 (설계 판단·반복 에러 발생 시 메인 모델이 이어받음)`;
 
   const candidates = [...groups.values()]
-    .filter((g) => g.count >= MIN_RECURRENCE)
+    .filter((g) => g.count >= MIN_RECURRENCE && !hasRule(g))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8)
     .map((g, i) => ({

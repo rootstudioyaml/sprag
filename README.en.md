@@ -251,6 +251,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.2.2 (2026-07-13)
+- **No re-proposing registered rules** — (tier|category|project) combinations that already have a model-fitting rule are excluded from scan candidates (a global rule covers every project). Fixes rules registered outside the promote flow (e.g. migrations) resurfacing as candidates.
+
 ### v3.2.1 (2026-07-13)
 - **Instant pattern analysis on first setup** — `install` (including npm postinstall) analyzes your existing session logs inline when no cache exists, so tier-delegation candidates appear from the very first Claude Code session (previously the second).
 
