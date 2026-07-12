@@ -341,17 +341,11 @@ export function harnessListRules({ root = findProjectRoot(), scope = 'project' }
   if (!existsSync(rmPath)) return { path: rmPath, rules: [] };
   const lines = readFileSync(rmPath, 'utf8').split('\n');
   const rules = [];
-  let inManagedBlock = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    // Model-fitting rules live in a tool-managed block and are governed by
-    // `route-scan rules` — hide them from user list/rm so indexes never
-    // collide and a user rm can't corrupt the managed block.
-    if (line.includes('MODEL-FITTING:BEGIN')) { inManagedBlock = true; continue; }
-    if (line.includes('MODEL-FITTING:END')) { inManagedBlock = false; continue; }
-    if (inManagedBlock) continue;
     // A "rule line" starts with "- " (markdown bullet). Header lines, blanks,
-    // and the "## Rules" anchor are ignored.
+    // and the "## Rules" anchor are ignored. (Model-fitting rules live in a
+    // separate tool-owned file, ratchet-model.md — never listed here.)
     if (/^\s*-\s+/.test(line)) {
       rules.push({ index: rules.length + 1, lineNo: i, text: line.replace(/^\s*-\s+/, '') });
     }

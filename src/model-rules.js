@@ -4,29 +4,33 @@
  * Model-fitting rules (tier-delegation rules promoted from route-scan) are
  * managed SEPARATELY from user-authored ratchet rules, for two reasons the
  * user set as requirements:
- *   1. They must never tangle with hand-written rules — so they live inside
- *      a tool-owned managed block in ratchet.md, regenerated wholesale.
+ *   1. They must never tangle with hand-written rules — so they live in a
+ *      fully tool-owned FILE (ratchet-model.md) next to ratchet.md,
+ *      regenerated wholesale. A separate file (rather than a managed block
+ *      inside ratchet.md) keeps auto-refresh churn out of the user's file:
+ *      per-scan stat updates only ever touch ratchet-model.md, which can be
+ *      gitignored, and there are no block markers a hand edit could corrupt.
  *   2. They must keep updating from subsequent logs — recurrence counts and
  *      post-promotion error rates are refreshed on every route-scan, and a
  *      rule whose delegated episodes start failing gets flagged for review
  *      (rule-health, per docs/TIER_CRITERIA.md).
  *
- * Registry file: <stateDir>/model-rules.json
+ * Registry file (source of truth): <stateDir>/model-rules.json
  *   { rules: [ { signature, tier, category, label, agent, scope,   // 'project'|'global'
  *                targetRoot,           // project root path (project scope)
  *                rule, example, count, errRate, promotedAt, lastSeen,
  *                status } ] }          // 'active' | 'review'
  *
- * Managed block markers (inside .claude/ratchet.md / ~/.claude/ratchet.md):
- *   <!-- MODEL-FITTING:BEGIN ... --> ... <!-- MODEL-FITTING:END -->
+ * Rendered files (regenerated from the registry, never edited in place):
+ *   project scope → <root>/.claude/ratchet-model.md
+ *   global scope  → ~/.claude/ratchet-model.md
+ * The harness CLAUDE.md block points Claude at these files alongside
+ * ratchet.md.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
-
-export const BLOCK_BEGIN = '<!-- MODEL-FITTING:BEGIN — claude-token-saver가 로그 기반으로 자동 갱신하는 모델 피팅 랫쳇. 직접 수정하지 마세요 (제거: claude-token-saver route-scan rules rm <N>) -->';
-export const BLOCK_END = '<!-- MODEL-FITTING:END -->';
 
 // Post-promotion delegated-category error rate above this flags the rule
 // for review (rule-health). Calibrated against local T0 avg error incidence.
@@ -85,14 +89,17 @@ export function removeModelRule(index1) {
   return removed;
 }
 
-/** Render the managed block for one ratchet target (scope+root). */
-export function renderBlock(rules) {
-  const lines = [BLOCK_BEGIN];
-  lines.push('### Model-Fitting Rules (자동 관리 — 로그 기반 티어 위임)');
-  lines.push('');
-  if (rules.length === 0) {
-    lines.push('_(등록된 모델 피팅 룰 없음)_');
-  }
+/** Render the full ratchet-model.md for one target (scope+root). */
+export function renderModelRatchet(rules) {
+  const lines = [
+    '# Model-Fitting Ratchet (claude-token-saver 자동 관리)',
+    '',
+    '로그 기반 티어 위임 룰. 이 파일은 route-scan이 매 스캔마다 통째로 재생성하므로',
+    '직접 수정하지 마세요 — 목록/제거: `claude-token-saver route-scan rules [rm <N>]`.',
+    '',
+    '## Rules',
+    '',
+  ];
   for (const r of rules) {
     const health = r.status === 'review'
       ? ` ⚠ rule-health: 최근 위임 대상 에러율 ${Math.round((r.errRate || 0) * 100)}% — 조건을 좁히거나 제거 검토`
@@ -100,56 +107,40 @@ export function renderBlock(rules) {
     const stats = ` <!-- ×${r.count || 0}, err ${Math.round((r.errRate || 0) * 100)}%, seen ${r.lastSeen || r.promotedAt} -->`;
     lines.push(`- ${r.rule}${health}${stats}`);
   }
-  lines.push(BLOCK_END);
-  return lines.join('\n');
+  return lines.join('\n') + '\n';
+}
+
+export function modelRatchetPathFor(scope, targetRoot) {
+  return scope === 'global'
+    ? join(homedir(), '.claude', 'ratchet-model.md')
+    : join(targetRoot, '.claude', 'ratchet-model.md');
 }
 
 /**
- * Rewrite the managed block inside a ratchet.md (create file/block if
- * missing). User-authored lines outside the block are never touched.
+ * Regenerate ratchet-model.md for every target that carries model rules.
+ * A target whose rules are all gone gets its file removed (it's fully
+ * tool-owned, so deletion is safe).
  */
-export function applyBlockToRatchet(ratchetPath, rules) {
-  const block = renderBlock(rules);
-  let content = '';
-  if (existsSync(ratchetPath)) {
-    content = readFileSync(ratchetPath, 'utf8');
-  } else {
-    mkdirSync(dirname(ratchetPath), { recursive: true });
-    content = '# Ratchet Rules (auto-grown by claude-token-saver)\n\n## Rules\n\n';
-  }
-  const beginIdx = content.indexOf('<!-- MODEL-FITTING:BEGIN');
-  const endIdx = content.indexOf(BLOCK_END);
-  if (beginIdx !== -1 && endIdx !== -1) {
-    content = content.slice(0, beginIdx) + block + content.slice(endIdx + BLOCK_END.length);
-  } else {
-    const sep = content.endsWith('\n') ? '\n' : '\n\n';
-    content = content + sep + block + '\n';
-  }
-  writeFileSync(ratchetPath, content);
-  return ratchetPath;
-}
-
-function ratchetPathFor(rule) {
-  return rule.scope === 'global'
-    ? join(homedir(), '.claude', 'ratchet.md')
-    : join(rule.targetRoot, '.claude', 'ratchet.md');
-}
-
-/** Regenerate managed blocks in every ratchet.md that carries model rules. */
-export function syncAllBlocks() {
+export function syncAllFiles({ previousPaths = [] } = {}) {
   const data = loadModelRules();
   const byPath = new Map();
   for (const r of data.rules) {
-    const p = ratchetPathFor(r);
+    const p = modelRatchetPathFor(r.scope, r.targetRoot);
     if (!byPath.has(p)) byPath.set(p, []);
     byPath.get(p).push(r);
   }
   const written = [];
   for (const [p, rules] of byPath) {
     try {
-      applyBlockToRatchet(p, rules);
+      mkdirSync(dirname(p), { recursive: true });
+      writeFileSync(p, renderModelRatchet(rules));
       written.push(p);
     } catch { /* unwritable target — skip, registry stays authoritative */ }
+  }
+  for (const p of previousPaths) {
+    if (!byPath.has(p) && existsSync(p)) {
+      try { unlinkSync(p); } catch { /* leave stale file; regenerated next sync */ }
+    }
   }
   return written;
 }
@@ -177,7 +168,7 @@ export function refreshModelRules(episodeStats, { now } = {}) {
   }
   if (changed) {
     saveModelRules(data);
-    syncAllBlocks();
+    syncAllFiles();
   }
   return data;
 }

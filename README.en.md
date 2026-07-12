@@ -155,13 +155,14 @@ claude-token-saver route-scan dismiss 1          # not interested — won't resu
 claude-token-saver route-scan rules              # list model-fitting rules (rm <N> to remove)
 ```
 
-### Model-fitting ratchet — separate from your rules, continuously refreshed
+### Model-fitting ratchet — a separate file, continuously refreshed
 
-Promoted delegation rules never mix with hand-written ratchet rules: they live in a **managed block** (`<!-- MODEL-FITTING -->`) inside ratchet.md, and they stay alive afterward:
+Promoted delegation rules never mix with hand-written ratchet rules: they live in a **separate, fully tool-owned file** — `.claude/ratchet-model.md` per project, `~/.claude/ratchet-model.md` for global scope — regenerated wholesale on every scan, and they stay alive afterward:
 
-- **Auto-refresh**: every rescan recomputes recurrence counts and the category's error rate from fresh logs and rewrites the block.
+- **Auto-refresh**: every rescan recomputes recurrence counts and the category's error rate from fresh logs and rewrites the file. Your `ratchet.md` is never touched by stat churn, so repos that commit `.claude/` see no diff noise (`ratchet-model.md` is safe to gitignore — it's always regenerable from the registry).
 - **rule-health**: when the delegated category's error rate exceeds 20%, the rule gets a `⚠ rule-health` flag suggesting you narrow or remove it — the "define difficulty by outcome" principle applied to rule lifecycle.
-- Your rules are managed by `harness list/rm`; model-fitting rules by `route-scan rules [rm <N>]` — the indexes never collide.
+- Your rules are managed by `harness list/rm`; model-fitting rules by `route-scan rules [rm <N>]` — separate files, separate indexes.
+- The CLAUDE.md ratchet section planted by `harness init` references both files, so Claude applies them together (existing users: re-run `harness init` to refresh the block).
 
 How it works (session-boundary calibration, NOT a real-time router):
 1. `install` registers a SessionStart hook that injects the cached scan results as session context on startup and `/clear` (the scan itself refreshes in the background, once a day).
@@ -252,7 +253,7 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ### v3.2.0 (2026-07-13)
 - **Tier classification (T0/T1/T2)** — route-scan grows from a binary easy/other split into three tiers. New signals: mutating tool calls and tool errors; output thresholds auto-calibrate to the user's own distribution (clamped); a dedicated category for pasted screen/log Q&A; conversational episodes (<100 output tokens) excluded. Design and research evidence in `docs/TIER_CRITERIA.md`.
-- **Model-fitting ratchet separated** — promoted delegation rules live in a managed block (`MODEL-FITTING`) that never mixes with hand-written rules. `harness list/rm` skips the block; model-fitting rules are managed via `route-scan rules [rm <N>]`.
+- **Model-fitting ratchet separated** — promoted delegation rules live in their own file (`.claude/ratchet-model.md` / `~/.claude/ratchet-model.md`), file-level-separated from hand-written rules, managed via `route-scan rules [rm <N>]`; the harness CLAUDE.md block references both files.
 - **Log-driven auto-refresh + rule-health** — every rescan recomputes each registered rule's recurrence count and error rate and rewrites the block. Delegated-category error rate >20% flags the rule with `⚠ rule-health`, suggesting narrowing or removal.
 
 ### v3.1.0 (2026-07-13)

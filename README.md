@@ -136,13 +136,14 @@ claude-token-saver route-scan dismiss 1          # 관심 없으면 무시 (재�
 claude-token-saver route-scan rules              # 등록된 모델 피팅 룰 목록 (rm <N>으로 제거)
 ```
 
-### 모델 피팅 랫쳇 — 사용자 룰과 분리, 로그 기반 자동 갱신
+### 모델 피팅 랫쳇 — 사용자 룰과 파일부터 분리, 로그 기반 자동 갱신
 
-승격된 위임 룰은 손으로 쓴 랫쳇 룰과 섞이지 않도록 ratchet.md 안의 **관리 블록**(`<!-- MODEL-FITTING -->`)에 따로 저장되고, 이후에도 살아 움직입니다:
+승격된 위임 룰은 손으로 쓴 랫쳇 룰과 섞이지 않도록 **별도 파일**에 저장됩니다 — 프로젝트는 `.claude/ratchet-model.md`, 글로벌은 `~/.claude/ratchet-model.md`. 이 파일은 전적으로 도구 소유라 매 스캔마다 통째로 재생성되며, 이후에도 살아 움직입니다:
 
-- **자동 갱신**: 매 스캔마다 반복 횟수·해당 유형의 에러율을 최신 로그로 다시 계산해 블록을 재작성합니다.
+- **자동 갱신**: 매 스캔마다 반복 횟수·해당 유형의 에러율을 최신 로그로 다시 계산해 파일을 재작성합니다. 통계가 바뀌어도 사용자의 `ratchet.md`는 전혀 건드리지 않으므로, `.claude/`를 커밋하는 프로젝트에서도 diff 소음이 없습니다 (`ratchet-model.md`는 gitignore해도 무방 — 레지스트리에서 항상 재생성 가능).
 - **rule-health**: 위임 대상 유형의 에러율이 20%를 넘으면 룰에 `⚠ rule-health` 경고가 붙어 조건을 좁히거나 제거하라고 알립니다 — "결과(outcome)로 난이도를 정의"하는 원칙을 룰 수명 관리에 재적용한 것.
-- 사용자 룰은 `harness list/rm`, 모델 피팅 룰은 `route-scan rules [rm <N>]`로 각각 관리 — 서로의 인덱스를 침범하지 않습니다.
+- 사용자 룰은 `harness list/rm`, 모델 피팅 룰은 `route-scan rules [rm <N>]`로 각각 관리 — 서로의 파일도 인덱스도 침범하지 않습니다.
+- `harness init`이 심는 CLAUDE.md 랫쳇 섹션이 두 파일을 모두 참조하므로 Claude가 세션에서 함께 적용합니다 (기존 사용자는 `harness init` 재실행으로 블록 갱신).
 
 동작 구조 (실시간 라우팅이 아니라 **세션 경계 캘리브레이션**):
 1. `install` 시 SessionStart 훅이 등록되어, 새 세션 시작·`/clear` 때 캐시된 스캔 결과를 세션 컨텍스트로 주입합니다 (스캔 자체는 백그라운드에서 일 1회).
@@ -209,7 +210,7 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ### v3.2.0 (2026-07-13)
 - **티어 분류 (T0/T1/T2)** — route-scan이 이분법(easy/그외)에서 3티어로 진화. 신호에 변경성 도구 수·도구 에러 수 추가, 출력 임계값은 사용자 분포 기반 자동 보정(클램프 포함), 붙여넣은 화면·로그 질문 전용 카테고리 신설, 대화성 응답(출력 <100토큰) 제외. 기준 설계·리서치 근거는 `docs/TIER_CRITERIA.md`.
-- **모델 피팅 랫쳇 분리** — 승격된 위임 룰은 사용자 룰과 섞이지 않는 관리 블록(`MODEL-FITTING`)에 저장. `harness list/rm`은 관리 블록을 건너뛰고, 모델 피팅 룰은 `route-scan rules [rm <N>]`로 별도 관리.
+- **모델 피팅 랫쳇 분리** — 승격된 위임 룰은 별도 파일(`.claude/ratchet-model.md` / `~/.claude/ratchet-model.md`)에 저장돼 사용자 룰과 파일 단위로 분리. `route-scan rules [rm <N>]`로 관리하며, 하네스 CLAUDE.md 블록이 두 파일을 함께 참조.
 - **로그 기반 자동 갱신 + rule-health** — 매 스캔마다 등록 룰의 반복 횟수·에러율을 재계산해 블록을 재작성. 위임 대상 에러율 >20%면 `⚠ rule-health` 플래그로 조건 좁히기/제거를 제안.
 
 ### v3.1.0 (2026-07-13)

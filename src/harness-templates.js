@@ -37,6 +37,10 @@ ${HARNESS_SECTIONS[0].heading}
   non-TTY라 CLI의 readline 프롬프트가 안 뜨므로, 호출자(LLM)가 직접 묻고
   플래그를 명시해야 함. 묻지 않고 기본값으로 등록하지 말 것.
 - 승인된 룰은 다음 세션부터 자동 적용.
+- **모델 피팅 랫쳇**: \`.claude/ratchet-model.md\`(프로젝트)와
+  \`~/.claude/ratchet-model.md\`(글로벌)에 있는 티어 위임 룰도 ratchet.md와
+  동일하게 따를 것. 이 파일은 claude-token-saver가 로그 기반으로 자동
+  생성·갱신하므로 직접 수정하지 말 것 (관리: \`route-scan rules\`).
 
 ${HARNESS_SECTIONS[1].heading}
 완료 보고("다 됐어요", "테스트 통과") 시 다음 중 1개 이상을 항상 첨부:

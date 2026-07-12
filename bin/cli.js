@@ -489,14 +489,8 @@ async function main() {
           console.error('Usage: claude-token-saver route-scan rules rm <N>   # N from `route-scan rules`');
           process.exit(1);
         }
-        const written = mr.syncAllBlocks();
-        // A target whose last rule was removed isn't in written — clear it.
-        const targetPath = removed.scope === 'global'
-          ? `${process.env.HOME}/.claude/ratchet.md`
-          : `${removed.targetRoot}/.claude/ratchet.md`;
-        if (!written.includes(targetPath)) {
-          try { mr.applyBlockToRatchet(targetPath, []); } catch { /* keep registry consistent regardless */ }
-        }
+        // A target whose last rule was removed gets its (tool-owned) file deleted.
+        mr.syncAllFiles({ previousPaths: [mr.modelRatchetPathFor(removed.scope, removed.targetRoot)] });
         console.log(`Removed model-fitting rule #${n}: ${removed.rule}`);
         return;
       }
@@ -797,11 +791,11 @@ async function main() {
           promotedAt: new Date().toISOString().slice(0, 10),
           lastSeen: new Date().toISOString().slice(0, 10),
         });
-        const written = mr.syncAllBlocks();
+        const written = mr.syncAllFiles();
         rs.resolveCandidate(routeCandidateId);
         console.log(`Model-fitting rule registered [${scope}${targetRoot ? ` → ${targetRoot}` : ''}] (tier ${entry.tier}):`);
         console.log(`  - ${entry.rule}`);
-        for (const p of written) console.log(`  managed block updated: ${p}`);
+        for (const p of written) console.log(`  ratchet-model.md updated: ${p}`);
         console.log('(route candidate R' + routeCandidateId + ' resolved — 다음 세션부터 자동 위임, 이후 스캔마다 로그 기반 갱신됩니다)');
         console.log('룰 목록/제거: claude-token-saver route-scan rules [rm <N>]');
         return;
