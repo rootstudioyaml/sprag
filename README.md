@@ -97,11 +97,15 @@ claude-token-saver harness init                # 이 프로젝트에 셋업
 claude-token-saver harness init --global       # ~/.claude/CLAUDE.md — 모든 프로젝트 적용
 claude-token-saver harness check               # 현재 점수 (글로벌 fallback 인정)
 claude-token-saver harness promote <N> --project|--global   # 경고 #N → ratchet 룰 (스코프 필수)
+claude-token-saver harness promote "<룰 텍스트>" --project|--global  # 내가 직접 정의한 룰도 같은 명령으로 등록
+claude-token-saver harness pull                # 글로벌 랫쳇 룰을 이 프로젝트로 가져오기 (중복 자동 스킵)
+claude-token-saver harness pull --harness      # 글로벌 하네스 블록(5개 섹션)까지 함께 가져오기
 claude-token-saver harness list / rm <N>       # 룰 조회 / 삭제 (자동 .bak)
 claude-token-saver harness off | on            # 🅷 표시 토글
 ```
 
 - `promote`는 non-TTY(스크립트·LLM 호출)에서 `--project`/`--global` 플래그가 **필수** — 스코프가 묻지 않고 결정되는 사고를 막기 위한 설계입니다.
+- 설치(`install`)나 `init`은 프로젝트에 룰을 자동 주입하지 않습니다. 글로벌에 쌓아둔 룰을 새 프로젝트에서 쓰고 싶을 때만 `harness pull`로 명시적으로 가져오세요 (재실행해도 중복 없음).
 - 🅷⚠ 런타임 경고(`ratchet?` `no-evidence` `PEV-skip`)는 30분 후 자동 만료되고, 하위 디렉터리 세션도 프로젝트에 올바르게 매칭됩니다. PEV-skip은 변경성 도구(Edit/Write/Bash)만 카운트해 읽기 위주 세션에서는 발동하지 않습니다 (v2.16.0+).
 
 <details>
@@ -203,6 +207,11 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.0.0 (2026-07-13)
+- **메이저 승격** — v2.19 frugon 연계 + v2.20 route-scan으로 "사후 토큰 모니터링 도구"에서 "반복 easy 작업을 싼 모델로 내려보내는 라우팅 계층"으로 제품 성격이 바뀌어 메이저 버전을 올립니다. Breaking change는 없습니다 (기존 명령·설정 전부 호환).
+- **route-scan promote 교정** — `harness promote R<N> --project`가 이제 후보가 **감지된 프로젝트**의 `.claude/ratchet.md`에 룰을 기록합니다 (이전에는 CLI를 실행한 디렉터리에 기록되는 버그). 스캔이 후보에 실제 세션 경로(`projectPath`)를 저장하며, 이 필드가 없는 구버전 캐시에서 다른 프로젝트 후보를 승격하려 하면 `route-scan --refresh`를 안내하고 중단합니다.
+- **`harness pull` 신설** — 글로벌 랫쳇 룰을 프로젝트로 명시적으로 가져옵니다 (`--harness`로 글로벌 하네스 블록까지). 룰 텍스트 기준 중복 자동 스킵이라 재실행해도 안전(멱등). 설치·init은 계속 아무것도 자동 주입하지 않습니다 — 가져오기는 항상 opt-in.
 
 ### v2.20.0 (2026-07-13)
 - **route-scan**: 상위 모델이 반복 처리한 easy 작업 감지 → `🅷⚠ route? R<N>` 칩 + SessionStart 훅 컨텍스트 주입 + `harness promote R<N> --project|--global`로 haiku 위임 랫쳇 룰 승격.

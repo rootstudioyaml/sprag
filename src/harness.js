@@ -278,6 +278,82 @@ export function harnessPromote(ruleText, { root = findProjectRoot(), scope = 'pr
 }
 
 /**
+ * harness pull — copy the user's GLOBAL ratchet rules (~/.claude/ratchet.md)
+ * into the current project's .claude/ratchet.md, on demand. Opt-in by design:
+ * install/init never auto-injects rules; this is the explicit "땡겨오기" verb.
+ *
+ * Rules are deduped by text (ignoring the leading YYYY-MM-DD stamp) so
+ * repeated pulls are idempotent. With `includeBlock`, the global CLAUDE.md
+ * harness block (including any user customizations) is also copied into the
+ * project CLAUDE.md — replacing the project's block if one exists.
+ *
+ * Returns { root, added, skippedRules, wrote, skipped }.
+ */
+export function harnessPull({ root = findProjectRoot(), includeBlock = false } = {}) {
+  const result = { root, added: [], skippedRules: 0, wrote: [], skipped: [] };
+  const stripDate = (t) => t.replace(/^\d{4}-\d{2}-\d{2}:\s*/, '').trim();
+
+  // 1) Ratchet rules: global → project, dedup by rule text.
+  const globalRules = harnessListRules({ scope: 'global' }).rules;
+  const projPath = ratchetMdPath(root);
+  let content = existsSync(projPath)
+    ? readFileSync(projPath, 'utf8')
+    : harnessRatchetMdInitial();
+  const have = new Set(
+    harnessListRules({ root, scope: 'project' }).rules.map((r) => stripDate(r.text)),
+  );
+  for (const g of globalRules) {
+    const key = stripDate(g.text);
+    if (have.has(key)) {
+      result.skippedRules += 1;
+      continue;
+    }
+    content = appendRatchetRule(content, key);
+    have.add(key);
+    result.added.push(key);
+  }
+  if (result.added.length) {
+    mkdirSync(dirname(projPath), { recursive: true });
+    writeFileSync(projPath, content);
+    result.wrote.push(projPath);
+  }
+
+  // 2) Harness block (opt-in): copy the global block as-is so user edits to
+  //    the global sections travel with it.
+  if (includeBlock) {
+    const gPath = globalClaudeMdPath();
+    const blockRe = new RegExp(
+      `${escapeRe(HARNESS_BLOCK_BEGIN)}[\\s\\S]*?${escapeRe(HARNESS_BLOCK_END)}\\n?`,
+      'm',
+    );
+    const gContent = existsSync(gPath) ? readFileSync(gPath, 'utf8') : '';
+    const m = gContent.match(blockRe);
+    if (!m) {
+      result.skipped.push(`${gPath} (no global harness block to pull)`);
+    } else {
+      const block = m[0];
+      const pPath = claudeMdPath(root);
+      if (existsSync(pPath)) {
+        const pc = readFileSync(pPath, 'utf8');
+        if (pc.includes(HARNESS_BLOCK_BEGIN)) {
+          writeFileSync(pPath, pc.replace(blockRe, block));
+          result.wrote.push(`${pPath} (harness block replaced with global copy)`);
+        } else {
+          const sep = pc.endsWith('\n') ? '\n' : '\n\n';
+          writeFileSync(pPath, pc + sep + block);
+          result.wrote.push(`${pPath} (harness block appended from global)`);
+        }
+      } else {
+        writeFileSync(pPath, block);
+        result.wrote.push(pPath);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * harness list — return numbered ratchet rules from .claude/ratchet.md.
  * Numbering is 1-based and matches `harness rm <N>`.
  */

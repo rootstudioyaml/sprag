@@ -84,6 +84,7 @@ export async function collectSessionRecords(filePath, { cacheWeighted = true, in
   const records = new Map();
   let depth = 0;
   let lastUserText = '';
+  let lastCwd = '';
 
   const rl = createInterface({
     input: createReadStream(filePath, { encoding: 'utf8' }),
@@ -99,6 +100,7 @@ export async function collectSessionRecords(filePath, { cacheWeighted = true, in
     }
 
     const msg = entry.message;
+    if (typeof entry.cwd === 'string' && entry.cwd) lastCwd = entry.cwd;
     if (entry.type === 'user' && msg) {
       depth += 1;
       const text = contentText(msg.content);
@@ -131,6 +133,7 @@ export async function collectSessionRecords(filePath, { cacheWeighted = true, in
       depth,
       userText: includeContent ? lastUserText : '',
       assistantText: includeContent ? contentText(msg.content) : '',
+      cwd: lastCwd,
     });
   }
 

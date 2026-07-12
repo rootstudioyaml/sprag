@@ -109,12 +109,13 @@ function toEpisodes(records) {
   for (const r of records) {
     const text = (r.userText || '').trim();
     if (!cur || cur.text !== text) {
-      cur = { text, calls: 0, out: 0, models: new Set() };
+      cur = { text, calls: 0, out: 0, models: new Set(), cwd: '' };
       episodes.push(cur);
     }
     cur.calls += 1;
     cur.out += r.completion_tokens;
     cur.models.add(r.model);
+    if (!cur.cwd && r.cwd) cur.cwd = r.cwd;
   }
   return episodes;
 }
@@ -158,12 +159,14 @@ export async function runRouteScan({ days = 14 } = {}) {
         label: cat.label,
         agent: cat.agent,
         project: f.projectDir,
+        projectPath: '',
         count: 0,
         models: new Set(),
         example: '',
       };
       g.count += 1;
       for (const m of ep.models) g.models.add(m);
+      if (!g.projectPath && ep.cwd) g.projectPath = ep.cwd;
       if (!g.example || (ep.text.length < g.example.length && ep.text.length > 10)) {
         g.example = ep.text.slice(0, 80).replace(/\s+/g, ' ');
       }
@@ -186,6 +189,10 @@ export async function runRouteScan({ days = 14 } = {}) {
       label: g.label,
       agent: g.agent,
       project: g.project,
+      // Real session cwd for the project (munged `project` is lossy) — lets
+      // `harness promote R<N> --project` write the rule into the project the
+      // pattern was detected in, not whatever directory the CLI runs from.
+      projectPath: g.projectPath || null,
       count: g.count,
       models: [...g.models],
       example: g.example,
