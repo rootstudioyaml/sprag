@@ -136,7 +136,7 @@ claude-token-saver frugon --days 7 --project myproj --out logs.jsonl
 
 ## 🔀 route-scan — "이 반복 작업, haiku로 내려도 됩니다"
 
-frugon 연계의 실전 버전입니다. frugon식 난이도 분석을 **에피소드(사용자 요청) 단위**로 세션 기록에 적용해, 상위 모델(opus/fable)이 반복 처리해 온 easy 작업을 찾아 haiku 서브에이전트 위임 룰로 승격하도록 제안합니다. 전 과정 로컬, 토큰 비용 0.
+세션 기록을 **에피소드(사용자 요청) 단위**로 분석해, 상위 모델(opus/fable)이 반복 처리해 온 easy 작업(적은 호출·적은 출력으로 끝난 요청)을 찾아 haiku 서브에이전트 위임 룰로 승격하도록 제안합니다. 전 과정 로컬, 토큰 비용 0.
 
 ```bash
 claude-token-saver route-scan                    # 스캔 (24h 캐시) + 후보 출력

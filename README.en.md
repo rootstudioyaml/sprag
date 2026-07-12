@@ -155,7 +155,7 @@ claude-token-saver frugon --days 7 --project myproj --out logs.jsonl
 
 ## 🔀 route-scan — "this recurring task could run on haiku"
 
-The practical follow-through of the frugon integration. It applies frugon-style difficulty analysis at the **episode (user request) level** to your session history, finds easy work your expensive model (opus/fable) keeps doing, and proposes promoting it into a haiku-subagent delegation rule. Fully local, zero token cost.
+Analyzes your session history at the **episode (user request) level**, finds easy work your expensive model (opus/fable) keeps doing (requests that finished in few calls with little output), and proposes promoting it into a haiku-subagent delegation rule. Fully local, zero token cost.
 
 ```bash
 claude-token-saver route-scan                    # scan (24h cache) + print candidates

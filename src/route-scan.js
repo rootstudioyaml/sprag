@@ -2,18 +2,19 @@
  * route-scan — detect recurring "easy" work running on expensive models and
  * propose model-delegation ratchet rules.
  *
- * Runs the frugon-style difficulty idea at the EPISODE level (one user
- * request = the consecutive API calls it triggered), because per-call scoring
- * saturates on Claude Code's large session contexts. An episode is easy when
- * the whole request finished in few calls with little generation — exactly
- * the work a haiku subagent could take.
+ * Difficulty is judged at the EPISODE level (one user request = the
+ * consecutive API calls it triggered), because per-call scoring saturates on
+ * Claude Code's large session contexts — prompt size carries no signal when
+ * every call ships a 100k+ cached prefix. An episode is easy when the whole
+ * request finished in few calls with little generation — exactly the work a
+ * haiku subagent could take.
  *
  * Fully local, zero token cost. Results are cached (24h) so the SessionStart
  * hook can read them without re-parsing a month of transcripts.
  *
- * Pipeline position (per design discussion): frugon/this scan is NOT a
- * real-time router — it is a session-boundary calibrator that feeds the
- * existing ratchet promote flow (`harness promote R<N> --project|--global`).
+ * Pipeline position (per design discussion): this scan is NOT a real-time
+ * router — it is a session-boundary calibrator that feeds the existing
+ * ratchet promote flow (`harness promote R<N> --project|--global`).
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
