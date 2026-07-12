@@ -21,7 +21,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { discoverSessionFiles } from './parser.js';
-import { collectSessionRecords } from './frugon-export.js';
+import { collectSessionRecords } from './session-records.js';
 
 // Episode is "easy" when the whole user request finished within these bounds.
 // Calibrated on real data (2026-07): 27% of episodes, 3-6% of tokens.
@@ -138,9 +138,7 @@ export async function runRouteScan({ days = 14 } = {}) {
   for (const f of files) {
     let records;
     try {
-      // Raw counts are irrelevant here (we classify by output size), and
-      // content is required for categorization.
-      records = await collectSessionRecords(f.path, { cacheWeighted: false, includeContent: true });
+      records = await collectSessionRecords(f.path, { includeContent: true });
     } catch {
       continue;
     }

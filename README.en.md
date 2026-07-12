@@ -82,7 +82,6 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver handoff` | Back work up to `HANDOFF-*.md` before a cap blocks you |
 | `claude-token-saver mode [keywords...]` | Output config (`icon`/`text`, `en`/`ko`, `1h`–`30d` window, …) |
 | `claude-token-saver harness ...` | 🅷 Harness management (below) |
-| `claude-token-saver frugon` | Export sessions → [frugon](https://github.com/Rodiun/frugon)-compatible JSONL (model-routing savings analysis, below) |
 | `claude-token-saver route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
 | `claude-token-saver install` | Manually register Skill + statusline |
 
@@ -138,20 +137,6 @@ The whole point of the ratchet is **one-direction accumulation**. Deleting rules
 An auto `.bak` is kept, but **the session context that earned the rule its place is not recoverable.**
 </details>
 
-## 🔀 frugon integration — "which calls could a cheaper model handle?"
-
-claude-token-saver catches cache/context waste; [frugon](https://github.com/Rodiun/frugon) (a local LLM cost analyzer) covers **model routing** — finding calls that never needed your most expensive model. The `frugon` subcommand bridges the two:
-
-```bash
-claude-token-saver frugon               # last 30 days → ./frugon-export.jsonl
-claude-token-saver frugon --run         # export + run frugon analyze immediately
-claude-token-saver frugon --days 7 --project myproj --out logs.jsonl
-```
-
-- Converts `~/.claude/projects/` transcripts into the OpenAI-compatible JSONL frugon reads. **Analysis is fully local** — no logs or keys leave your machine (same principle frugon holds).
-- **Cache-weighted tokens (default):** frugon doesn't know about prompt caching, so raw physical tokens would overstate your spend ~10x. By default the export folds in Anthropic's cache multipliers (read 0.1x · 5m write 1.25x · 1h write 2x) so frugon's dollar figures match your real bill. Use `--raw-tokens` for physical counts.
-- Preserves the signals frugon's easy/hard router reads (prompt/completion tokens, conversation depth) plus the last user prompt and reply text for `--measure` quality sampling. Strip text with `--no-content`.
-- Install frugon with `pipx install frugon` (if models show as unpriced, run `frugon update`).
 
 ## 🔀 route-scan — "this recurring task could run on haiku"
 
@@ -249,6 +234,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.1.0 (2026-07-13)
+- **frugon integration removed** — the `claude-token-saver frugon` JSONL-export subcommand is gone. An external analyzer's aggregate report can't be turned into ratchet rules (condition → action), so it never fed the delegation pipeline; 3.x instead invests in **first-party tier classification over session logs**. route-scan is unaffected (the shared parser moved to `src/session-records.js`).
 
 ### v3.0.1 (2026-07-13)
 - **`harness pull` redefined** — v3.0.0's "copy global ratchet → project" was pointless (the global ratchet already applies to every project as the upper layer of the hierarchy) and is removed. `pull` now registers the **author-curated ratchet rules** bundled with the package (`presets/ratchet-rules.md`) into your global ratchet — six general-purpose rules promoted from real recurring mistakes; opt-in and idempotent.
