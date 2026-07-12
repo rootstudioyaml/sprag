@@ -251,6 +251,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.2.1 (2026-07-13)
+- **Instant pattern analysis on first setup** — `install` (including npm postinstall) analyzes your existing session logs inline when no cache exists, so tier-delegation candidates appear from the very first Claude Code session (previously the second).
+
 ### v3.2.0 (2026-07-13)
 - **Tier classification (T0/T1/T2)** — route-scan grows from a binary easy/other split into three tiers. New signals: mutating tool calls and tool errors; output thresholds auto-calibrate to the user's own distribution (clamped); a dedicated category for pasted screen/log Q&A; conversational episodes (<100 output tokens) excluded. Design and research evidence in `docs/TIER_CRITERIA.md`.
 - **Model-fitting ratchet separated** — promoted delegation rules live in their own file (`.claude/ratchet-model.md` / `~/.claude/ratchet-model.md`), file-level-separated from hand-written rules, managed via `route-scan rules [rm <N>]`; the harness CLAUDE.md block references both files.

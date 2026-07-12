@@ -412,6 +412,25 @@ async function main() {
       print('legacy /token-monitor', r.legacy);
       console.log('  (consolidated into the skill — same workflow, triggered by intent)');
     }
+    // First-time setup: analyze existing session logs right away so the
+    // very first session already sees delegation candidates — without this,
+    // the initial scan would only start from the first session's hook and
+    // its results would surface one session late. Runs inline (a few
+    // seconds on a typical 14-day history): a detached child can be reaped
+    // by sandboxed installers before it finishes, and postinstall carries
+    // `|| true` so a failure here never breaks the install.
+    {
+      const rs = await import('../src/route-scan.js');
+      if (!rs.readRouteScan()) {
+        try {
+          console.log('');
+          console.log('  route-scan: 기존 세션 로그의 사용 패턴을 분석하는 중...');
+          const cache = await rs.runRouteScan({ days: 14 });
+          console.log(`  route-scan: 에피소드 ${cache.totalEpisodes}건 분석 완료 — 위임 후보 ${cache.candidates.length}건.`);
+          console.log('              (다음 Claude Code 세션에서 티어 위임 후보가 표시됩니다)');
+        } catch { /* hook-triggered scan covers it on first session instead */ }
+      }
+    }
     console.log('');
     console.log('Open Claude Code in any directory and just mention:');
     console.log('  "cache hit rate" / "1M context" / "5H cap" — the skill auto-activates.');

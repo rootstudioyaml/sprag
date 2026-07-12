@@ -208,6 +208,9 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ## 릴리스 노트
 
+### v3.2.1 (2026-07-13)
+- **최초 설치 시 즉시 패턴 분석** — `install`(npm postinstall 포함)이 캐시가 없으면 기존 세션 로그를 그 자리에서 분석해, 첫 Claude Code 세션부터 티어 위임 후보가 표시됩니다 (기존에는 두 번째 세션부터).
+
 ### v3.2.0 (2026-07-13)
 - **티어 분류 (T0/T1/T2)** — route-scan이 이분법(easy/그외)에서 3티어로 진화. 신호에 변경성 도구 수·도구 에러 수 추가, 출력 임계값은 사용자 분포 기반 자동 보정(클램프 포함), 붙여넣은 화면·로그 질문 전용 카테고리 신설, 대화성 응답(출력 <100토큰) 제외. 기준 설계·리서치 근거는 `docs/TIER_CRITERIA.md`.
 - **모델 피팅 랫쳇 분리** — 승격된 위임 룰은 별도 파일(`.claude/ratchet-model.md` / `~/.claude/ratchet-model.md`)에 저장돼 사용자 룰과 파일 단위로 분리. `route-scan rules [rm <N>]`로 관리하며, 하네스 CLAUDE.md 블록이 두 파일을 함께 참조.
