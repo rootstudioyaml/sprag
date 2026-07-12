@@ -143,28 +143,16 @@ An auto `.bak` is kept, but **the session context that earned the rule its place
 
 ## 🔀 route-scan — "this recurring task could run on a cheaper tier"
 
-Analyzes your session history at the **episode (user request) level**, classifies the work your expensive model (opus/fable) keeps doing into **tiers**, and proposes delegation rules. Fully local, zero token cost. Criteria design and evidence: [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md).
+Finds the easy work your expensive model (opus/fable) keeps redoing in your session logs and proposes **haiku/sonnet delegation rules**. Fully local, zero token cost.
 
-- **T2 → haiku**: few calls, tiny output, near-zero mutation, no errors (lookups, pasted-screen Q&A, simple runs)
-- **T1 → sonnet**: moderate output, few mutations, ≤1 error (build pipelines, status checks)
-- **T0 stays**: repeated errors, heavy mutation, big output, design/analysis keywords — the session model keeps it
+- **T2 → haiku**: lookups, pasted-screen Q&A, simple runs — zero errors, near-zero mutation
+- **T1 → sonnet**: build pipelines, status checks — few mutations, ≤1 error
+- **T0 stays**: repeated errors, heavy mutation, design/analysis — the session model keeps it
 
-Signals: call count, output tokens, **mutating tool calls (Edit/Write/Bash)**, **tool errors**, and request text. Output thresholds are auto-calibrated from your own 14-day distribution (fixed constants drift with workload).
-
-<details>
-<summary>Why this design — research evidence (deep-research, 21 cross-verified sources + 553 locally measured episodes)</summary>
-
-A survey of existing LLM-routing research and systems shaped each axis of the design:
-
-- **Conservative demotion — "only send down what's clearly easy" — is the unexplored direction.** In RouterArena (2025), every academic and commercial router fell far short of the oracle (90.9%; best entrant 66.9), and the failure mode was consistently **over-routing to expensive models**. Per the routing-collapse work, the oracle needs the top model for under 20% of queries — while 73% of the author's episodes were still on the top tier. The headroom is large.
-- **Difficulty is defined by outcome, not text guessing.** RouterArena labels difficulty as "how many of 42 models actually got it right". Our logs already contain outcomes: tool errors, mutating tool calls, episode length. Local measurement confirms it — error incidence splits the tiers sharply (T2 candidates 2% / T1 8% / T0 36%).
-- **Thresholds calibrate to the user's own distribution.** RouteLLM's stated limitation is that fixed thresholds drift as the query distribution shifts — so output-token thresholds are recomputed from your last 14 days' p25/p75 (clamped).
-- **An escalation path makes demotion mistakes cheap.** The FrugalGPT cascade lesson ("start cheap, escalate on failure"). In Claude Code this falls out naturally: when a subagent gets stuck, the main model takes over — and promoted rules spell out that guard.
-- **Subagent `model:` is Anthropic's official cost-control mechanism.** The docs recommend routing to cheaper models like Haiku for cost control — yet Claude Code itself does no automatic model routing; even trivial turns resend the full context on the session model. That gap is exactly what route-scan fills.
-- **Learned classifiers (BERT/embeddings) deliberately excluded.** Even the best is 24 points off the oracle, we have no preference-pair training data, and it would break the zero-dependency principle. Regex categories + outcome signals are the current position.
-
-Sources (RouteLLM, FrugalGPT, RouterArena, routing-survey arxiv links), the full local-measurement table, and the complete tier criteria: [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md).
-</details>
+Three design pillars:
+1. Difficulty is judged by **outcome, not text guessing** — tool errors, mutating tool calls, output tokens
+2. Thresholds **auto-calibrate to your own 14-day distribution** — fixed constants drift with workload
+3. Promoted rules live in a tool-owned file (`.claude/ratchet-model.md`) that **refreshes itself every scan**, and a `⚠ rule-health` flag fires when a delegated category's error rate climbs — rules report their own staleness
 
 ```bash
 claude-token-saver route-scan                    # scan (24h cache) + tiered candidates
@@ -173,21 +161,7 @@ claude-token-saver route-scan dismiss 1          # not interested — won't resu
 claude-token-saver route-scan rules              # list model-fitting rules (rm <N> to remove)
 ```
 
-### Model-fitting ratchet — a separate file, continuously refreshed
-
-Promoted delegation rules never mix with hand-written ratchet rules: they live in a **separate, fully tool-owned file** — `.claude/ratchet-model.md` per project, `~/.claude/ratchet-model.md` for global scope — regenerated wholesale on every scan, and they stay alive afterward:
-
-- **Auto-refresh**: every rescan recomputes recurrence counts and the category's error rate from fresh logs and rewrites the file. Your `ratchet.md` is never touched by stat churn, so repos that commit `.claude/` see no diff noise (`ratchet-model.md` is safe to gitignore — it's always regenerable from the registry).
-- **rule-health**: when the delegated category's error rate exceeds 20%, the rule gets a `⚠ rule-health` flag suggesting you narrow or remove it — the "define difficulty by outcome" principle applied to rule lifecycle.
-- Your rules are managed by `harness list/rm`; model-fitting rules by `route-scan rules [rm <N>]` — separate files, separate indexes.
-- The CLAUDE.md ratchet section planted by `harness init` references both files, so Claude applies them together (existing users: re-run `harness init` to refresh the block).
-
-How it works (session-boundary calibration, NOT a real-time router):
-1. `install` registers a SessionStart hook that injects the cached scan results as session context on startup and `/clear`. Rescans are **data-triggered, not time-triggered**: ~5MB of new transcripts since the last scan rescans immediately, a small trickle rescans daily, and no change means no rescan at all (an unchanged-input scan is deterministic). A 1-hour minimum-interval guard applies, and promoting a rule triggers one immediate refresh to establish its stat baseline.
-2. When a recurring (≥3×) pattern exists, the statusline shows a `🅷⚠ route? R1` chip and Claude asks you whether to register it, and at which scope (`--project`/`--global`).
-3. Promoted rules make **the main model delegate that work type to a haiku/sonnet subagent automatically from the next session on**.
-
-Recommended companion setup: create `model: haiku` subagents under `~/.claude/agents/` (e.g. haiku-explore / haiku-runner / haiku-translate) plus a `model: sonnet` general worker so the rules are immediately actionable.
+Dig deeper: **tier criteria & research evidence** → [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) (Korean) · **rule-file mechanics, scan triggers, subagent setup** → [docs/ROUTE_SCAN.md](./docs/ROUTE_SCAN.md) (Korean + English)
 
 ## Spike issue codes
 
