@@ -278,79 +278,58 @@ export function harnessPromote(ruleText, { root = findProjectRoot(), scope = 'pr
 }
 
 /**
- * harness pull — copy the user's GLOBAL ratchet rules (~/.claude/ratchet.md)
- * into the current project's .claude/ratchet.md, on demand. Opt-in by design:
- * install/init never auto-injects rules; this is the explicit "땡겨오기" verb.
+ * harness pull — register the CURATED ratchet rules bundled with this package
+ * (presets/ratchet-rules.md) into the user's ratchet, global by default.
  *
- * Rules are deduped by text (ignoring the leading YYYY-MM-DD stamp) so
- * repeated pulls are idempotent. With `includeBlock`, the global CLAUDE.md
- * harness block (including any user customizations) is also copied into the
- * project CLAUDE.md — replacing the project's block if one exists.
+ * Rationale: a project ratchet already inherits the global one (global is the
+ * upper layer of the hierarchy), so there is nothing to copy between the
+ * user's own scopes. What CAN'T reach the user any other way is the package
+ * author's field-tested rules — pull ships those, strictly opt-in:
+ * install/init never auto-injects anything.
  *
- * Returns { root, added, skippedRules, wrote, skipped }.
+ * Deduped by rule text (ignoring the YYYY-MM-DD stamp) — idempotent.
+ * Returns { path, scope, added, skippedRules, presets }.
  */
-export function harnessPull({ root = findProjectRoot(), includeBlock = false } = {}) {
-  const result = { root, added: [], skippedRules: 0, wrote: [], skipped: [] };
+export function harnessPull({ root = findProjectRoot(), scope = 'global' } = {}) {
+  const presets = presetRules();
+  const rmPath = resolveRatchetPath(scope, root);
+  const result = { path: rmPath, scope, added: [], skippedRules: 0, presets: presets.length };
   const stripDate = (t) => t.replace(/^\d{4}-\d{2}-\d{2}:\s*/, '').trim();
 
-  // 1) Ratchet rules: global → project, dedup by rule text.
-  const globalRules = harnessListRules({ scope: 'global' }).rules;
-  const projPath = ratchetMdPath(root);
-  let content = existsSync(projPath)
-    ? readFileSync(projPath, 'utf8')
+  let content = existsSync(rmPath)
+    ? readFileSync(rmPath, 'utf8')
     : harnessRatchetMdInitial();
   const have = new Set(
-    harnessListRules({ root, scope: 'project' }).rules.map((r) => stripDate(r.text)),
+    harnessListRules({ root, scope }).rules.map((r) => stripDate(r.text)),
   );
-  for (const g of globalRules) {
-    const key = stripDate(g.text);
-    if (have.has(key)) {
+  for (const rule of presets) {
+    if (have.has(rule)) {
       result.skippedRules += 1;
       continue;
     }
-    content = appendRatchetRule(content, key);
-    have.add(key);
-    result.added.push(key);
+    content = appendRatchetRule(content, rule);
+    have.add(rule);
+    result.added.push(rule);
   }
   if (result.added.length) {
-    mkdirSync(dirname(projPath), { recursive: true });
-    writeFileSync(projPath, content);
-    result.wrote.push(projPath);
+    mkdirSync(dirname(rmPath), { recursive: true });
+    writeFileSync(rmPath, content);
   }
-
-  // 2) Harness block (opt-in): copy the global block as-is so user edits to
-  //    the global sections travel with it.
-  if (includeBlock) {
-    const gPath = globalClaudeMdPath();
-    const blockRe = new RegExp(
-      `${escapeRe(HARNESS_BLOCK_BEGIN)}[\\s\\S]*?${escapeRe(HARNESS_BLOCK_END)}\\n?`,
-      'm',
-    );
-    const gContent = existsSync(gPath) ? readFileSync(gPath, 'utf8') : '';
-    const m = gContent.match(blockRe);
-    if (!m) {
-      result.skipped.push(`${gPath} (no global harness block to pull)`);
-    } else {
-      const block = m[0];
-      const pPath = claudeMdPath(root);
-      if (existsSync(pPath)) {
-        const pc = readFileSync(pPath, 'utf8');
-        if (pc.includes(HARNESS_BLOCK_BEGIN)) {
-          writeFileSync(pPath, pc.replace(blockRe, block));
-          result.wrote.push(`${pPath} (harness block replaced with global copy)`);
-        } else {
-          const sep = pc.endsWith('\n') ? '\n' : '\n\n';
-          writeFileSync(pPath, pc + sep + block);
-          result.wrote.push(`${pPath} (harness block appended from global)`);
-        }
-      } else {
-        writeFileSync(pPath, block);
-        result.wrote.push(pPath);
-      }
-    }
-  }
-
   return result;
+}
+
+/** Parse the bundled preset rules (markdown bullets under presets/). */
+export function presetRules() {
+  try {
+    const path = join(dirname(new URL(import.meta.url).pathname), '..', 'presets', 'ratchet-rules.md');
+    return readFileSync(path, 'utf8')
+      .split('\n')
+      .filter((l) => /^\s*-\s+/.test(l))
+      .map((l) => l.replace(/^\s*-\s+/, '').trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 /**

@@ -632,7 +632,7 @@ async function main() {
   //   claude-token-saver harness uninit     # remove harness block from CLAUDE.md (backup kept)
   //   claude-token-saver harness check      # show 🅷 N/5 + which sections are missing
   //   claude-token-saver harness promote "<rule>"  # append a rule to ratchet.md
-  //   claude-token-saver harness pull [--harness]   # copy global ratchet rules (+block) into this project
+  //   claude-token-saver harness pull [--global|--project]  # register the package's curated preset rules (default global)
   //   claude-token-saver harness off | on   # toggle the statusline 🅷 segment
   if (args[0] === 'harness') {
     const sub = args[1];
@@ -870,22 +870,21 @@ async function main() {
     }
 
     if (sub === 'pull') {
-      // Pull the user's GLOBAL ratchet rules (and optionally the global
-      // harness block) into this project. Explicitly opt-in — install/init
-      // never auto-injects rules into a project.
-      const includeBlock = args.includes('--harness');
-      const r = harnessPull({ includeBlock });
-      console.log(`Pull global → project (${r.root})`);
+      // Register the package's curated preset rules (presets/ratchet-rules.md)
+      // into the user's ratchet — global by default (they're tool/environment
+      // rules, and a project ratchet inherits global anyway). Strictly opt-in:
+      // install/init never auto-injects rules.
+      const scope = parseHarnessScope(args.slice(2), 'global');
+      const r = harnessPull({ scope });
+      console.log(`Curated preset rules → ${r.path} [${r.scope}]`);
       if (r.added.length) {
-        console.log(`✅ ${r.added.length} rule(s) pulled into .claude/ratchet.md:`);
+        console.log(`✅ ${r.added.length}/${r.presets} rule(s) registered:`);
         for (const t of r.added) console.log(`  - ${t}`);
       } else {
-        console.log('No new rules to pull.');
+        console.log(`No new rules — all ${r.presets} presets already registered.`);
       }
-      if (r.skippedRules) console.log(`   (${r.skippedRules} already present — skipped)`);
-      for (const f of r.wrote.filter((w) => w.includes('CLAUDE.md'))) console.log(`✅ ${f}`);
-      for (const f of r.skipped) console.log(`   skip: ${f}`);
-      if (!includeBlock) console.log('\n글로벌 하네스 블록(CLAUDE.md 5개 섹션)까지 가져오려면: claude-token-saver harness pull --harness');
+      if (r.skippedRules && r.added.length) console.log(`   (${r.skippedRules} already present — skipped)`);
+      console.log('\n필요 없는 룰은 언제든: claude-token-saver harness list / rm <N>');
       return;
     }
 
@@ -952,7 +951,7 @@ async function main() {
     }
 
     console.error(`Unknown harness subcommand: ${sub}`);
-    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|pull [--harness]|list|rm <N>|off|on]');
+    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|pull [--global|--project]|list|rm <N>|off|on]');
     process.exit(1);
   }
 

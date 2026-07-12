@@ -117,14 +117,13 @@ claude-token-saver harness init --global       # ~/.claude/CLAUDE.md — every p
 claude-token-saver harness check               # current score (global fallback honored)
 claude-token-saver harness promote <N> --project|--global   # warning #N → ratchet rule (scope required)
 claude-token-saver harness promote "<rule text>" --project|--global  # register your own hand-written rules the same way
-claude-token-saver harness pull                # pull your global ratchet rules into this project (dedupes)
-claude-token-saver harness pull --harness      # also pull the global harness block (5 sections)
+claude-token-saver harness pull                # register the package's curated ratchet rules into your global ratchet (opt-in, dedupes)
 claude-token-saver harness list / rm <N>       # view / delete rules (auto .bak)
 claude-token-saver harness off | on            # toggle the 🅷 chip
 ```
 
 - `promote` **requires** `--project`/`--global` in non-TTY contexts (scripts, LLM calls) — a scope choice is never silently made for the caller.
-- `install` / `init` never auto-inject rules into a project. When you want the rules you've accumulated globally in a new project, pull them explicitly with `harness pull` (idempotent — re-running adds nothing twice).
+- `pull` registers the **author-curated ratchet rules** bundled with the package (`presets/ratchet-rules.md` — only general-purpose rules promoted from real recurring mistakes) into your global ratchet (`~/.claude/ratchet.md`). `install`/`init` never auto-inject anything; `pull` is always opt-in and idempotent. Drop any rule you dislike with `harness rm`.
 - 🅷⚠ runtime warnings (`ratchet?` `no-evidence` `PEV-skip`) expire after 30 minutes, subdirectory sessions match their project correctly, and PEV-skip counts only mutating tools (Edit/Write/Bash) so read-only research sessions don't trip it (v2.16.0+).
 
 <details>
@@ -251,10 +250,13 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.0.1 (2026-07-13)
+- **`harness pull` redefined** — v3.0.0's "copy global ratchet → project" was pointless (the global ratchet already applies to every project as the upper layer of the hierarchy) and is removed. `pull` now registers the **author-curated ratchet rules** bundled with the package (`presets/ratchet-rules.md`) into your global ratchet — six general-purpose rules promoted from real recurring mistakes; opt-in and idempotent.
+
 ### v3.0.0 (2026-07-13)
 - **Major bump** — with v2.19's frugon integration and v2.20's route-scan, the product's character shifted from "after-the-fact token monitor" to "a routing layer that pushes recurring easy work down to cheaper models", so this ships as a major. No breaking changes (every existing command and setting remains compatible).
 - **route-scan promote fix** — `harness promote R<N> --project` now writes the rule into the `.claude/ratchet.md` of the project the candidate was **detected in** (previously it landed in whatever directory the CLI ran from). The scan stores each candidate's real session path (`projectPath`); promoting a foreign-project candidate from a pre-3.0 cache without that field is refused with a pointer to `route-scan --refresh`.
-- **New `harness pull`** — explicitly pull your global ratchet rules into a project (`--harness` also pulls the global harness block). Dedupes by rule text, so re-running is idempotent. `install`/`init` still never auto-inject anything — pulling is always opt-in.
+- **New `harness pull`** — redefined in v3.0.1 (see above).
 
 ### v2.20.0 (2026-07-13)
 - **route-scan**: detect recurring easy work on expensive models → `🅷⚠ route? R<N>` chip + SessionStart hook context injection + `harness promote R<N> --project|--global` to promote haiku-delegation ratchet rules.
