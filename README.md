@@ -82,6 +82,7 @@ Claude 안에서 `/claude-token-saver` Skill을 실행하거나 칩 문구를 �
 | `claude-token-saver handoff` | 작업 상태를 `HANDOFF-*.md`로 백업 (캡 임박 시) |
 | `claude-token-saver mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
 | `claude-token-saver harness ...` | 🅷 Harness 관리 (아래 참고) |
+| `claude-token-saver frugon` | 세션 기록 → [frugon](https://github.com/Rodiun/frugon) 호환 JSONL 내보내기 (모델 라우팅 절감 분석, 아래 참고) |
 | `claude-token-saver install` | Skill·statusline 수동 등록 |
 
 출력 언어는 `mode ko` / `mode en`으로 전환합니다 (기본 영어, statusline 칩은 항상 기호). 전체 옵션은 [영문 README](./README.en.md#options) 참고.
@@ -113,6 +114,21 @@ ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지
 
 삭제 시 `.bak`이 남지만 **그 룰이 박힌 세션 컨텍스트(왜)는 복원되지 않습니다.**
 </details>
+
+## 🔀 frugon 연계 — "어떤 호출을 싼 모델로 내릴 수 있나"
+
+claude-token-saver가 캐시·컨텍스트 낭비를 잡는다면, [frugon](https://github.com/Rodiun/frugon)(로컬 LLM 비용 분석기)은 **모델 라우팅** 절감 — 굳이 비싼 모델이 필요 없는 호출 찾기 — 을 다룹니다. `frugon` 서브커맨드가 둘을 연결합니다:
+
+```bash
+claude-token-saver frugon               # 최근 30일 세션 → ./frugon-export.jsonl
+claude-token-saver frugon --run         # 내보내기 + frugon analyze 바로 실행
+claude-token-saver frugon --days 7 --project myproj --out logs.jsonl
+```
+
+- `~/.claude/projects/`의 transcript를 frugon이 읽는 OpenAI 호환 JSONL로 변환합니다. **분석은 전부 로컬** — 로그도 키도 밖으로 나가지 않습니다 (frugon의 원칙과 동일).
+- **캐시 가중 토큰(기본):** frugon은 프롬프트 캐싱을 모르기 때문에 물리 토큰을 그대로 주면 비용이 ~10배 과대평가됩니다. 기본값은 캐시 read 0.1x · 5m write 1.25x · 1h write 2x를 접어 넣은 유효 토큰이라 frugon의 달러 견적이 실제 청구액과 일치합니다. 물리 토큰이 필요하면 `--raw-tokens`.
+- frugon의 easy/hard 분류가 쓰는 신호(프롬프트·응답 토큰, 대화 깊이)와 `--measure` 품질 검증에 쓰는 마지막 유저 프롬프트·응답 텍스트를 보존합니다. 텍스트를 빼고 싶으면 `--no-content`.
+- frugon 설치: `pipx install frugon` (모델이 unpriced로 나오면 `frugon update`).
 
 ## 토큰 급증 원인 코드
 
@@ -169,6 +185,9 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v2.19.0 (2026-07-12)
+- **frugon 연계**: `claude-token-saver frugon` — 세션 transcript를 [frugon](https://github.com/Rodiun/frugon) 호환 JSONL로 내보내 모델 라우팅 절감 분석 (`--run`으로 즉시 분석, 캐시 가중 토큰 기본).
 
 ### v2.18.0 (2026-07-02)
 - **1M 컨텍스트 경고 의미 재정의** — 현재 모델(Fable 5, Opus 4.6~4.8, Sonnet 5)은 전부 1M 윈도가 기본이고 Opus 4.7부터 장기 컨텍스트 프리미엄도 없어, "1M 모드 ON = 비쌈" 프레임을 폐기했습니다. 경고는 이제 **실사용 신호**입니다: `⚠ 1M ON` → `⚠ Ctx 200k+`(단일 요청이 실제로 200k 초과), 처방도 "1M 끄기" 우선에서 "`/compact`/`/clear` + `/effort` 점검" 우선으로 재정렬. 잘못된 "200k 초과 시 장기 요금 적용" 문구 정정.

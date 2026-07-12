@@ -82,6 +82,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver handoff` | Back work up to `HANDOFF-*.md` before a cap blocks you |
 | `claude-token-saver mode [keywords...]` | Output config (`icon`/`text`, `en`/`ko`, `1h`–`30d` window, …) |
 | `claude-token-saver harness ...` | 🅷 Harness management (below) |
+| `claude-token-saver frugon` | Export sessions → [frugon](https://github.com/Rodiun/frugon)-compatible JSONL (model-routing savings analysis, below) |
 | `claude-token-saver install` | Manually register Skill + statusline |
 
 Switch output language with `mode ko` / `mode en` (English default; statusline chips stay symbolic).
@@ -132,6 +133,21 @@ The whole point of the ratchet is **one-direction accumulation**. Deleting rules
 
 An auto `.bak` is kept, but **the session context that earned the rule its place is not recoverable.**
 </details>
+
+## 🔀 frugon integration — "which calls could a cheaper model handle?"
+
+claude-token-saver catches cache/context waste; [frugon](https://github.com/Rodiun/frugon) (a local LLM cost analyzer) covers **model routing** — finding calls that never needed your most expensive model. The `frugon` subcommand bridges the two:
+
+```bash
+claude-token-saver frugon               # last 30 days → ./frugon-export.jsonl
+claude-token-saver frugon --run         # export + run frugon analyze immediately
+claude-token-saver frugon --days 7 --project myproj --out logs.jsonl
+```
+
+- Converts `~/.claude/projects/` transcripts into the OpenAI-compatible JSONL frugon reads. **Analysis is fully local** — no logs or keys leave your machine (same principle frugon holds).
+- **Cache-weighted tokens (default):** frugon doesn't know about prompt caching, so raw physical tokens would overstate your spend ~10x. By default the export folds in Anthropic's cache multipliers (read 0.1x · 5m write 1.25x · 1h write 2x) so frugon's dollar figures match your real bill. Use `--raw-tokens` for physical counts.
+- Preserves the signals frugon's easy/hard router reads (prompt/completion tokens, conversation depth) plus the last user prompt and reply text for `--measure` quality sampling. Strip text with `--no-content`.
+- Install frugon with `pipx install frugon` (if models show as unpriced, run `frugon update`).
 
 ## Spike issue codes
 
@@ -212,6 +228,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v2.19.0 (2026-07-12)
+- **frugon integration**: `claude-token-saver frugon` — export session transcripts as [frugon](https://github.com/Rodiun/frugon)-compatible JSONL for model-routing savings analysis (`--run` to analyze immediately; cache-weighted tokens by default).
 
 ### v2.18.0 (2026-07-02)
 - **1M-context warning re-scoped** — current models (Fable 5, Opus 4.6–4.8, Sonnet 5) all default to a 1M window with no long-context premium since Opus 4.7, so the "1M mode ON = expensive" framing is retired. The warning is now a **usage signal**: `⚠ 1M ON` → `⚠ Ctx 200k+` (a single request actually exceeded 200k), and remediation is reordered to lead with `/compact`/`/clear` + `/effort` instead of "disable 1M". The incorrect "long-context pricing kicks in past 200k" copy is fixed.

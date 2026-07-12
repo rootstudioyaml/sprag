@@ -9,6 +9,8 @@
  *   npx claude-token-saver --format json      # JSON output
  *   npx claude-token-saver --format csv       # CSV output
  *   npx claude-token-saver --project myproj   # filter by project
+ *   npx claude-token-saver frugon             # export transcripts → frugon JSONL (model-routing analysis)
+ *   npx claude-token-saver frugon --run       # export + run `frugon analyze`
  *   npx claude-token-saver --install-hook     # install PostToolUse hook
  *   npx claude-token-saver --uninstall-hook   # remove hook
  *   npx claude-token-saver --hook-run         # internal: called by hook
@@ -459,6 +461,75 @@ async function main() {
     console.log(`Updated: ${applied.join(', ')}`);
     console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
     console.log('Statusline picks up the change on the next refresh (~1s).');
+    return;
+  }
+
+  // Subcommand: frugon — export Claude Code transcripts to the JSONL format
+  // frugon (local LLM cost analyzer, github.com/Rodiun/frugon) analyzes, so
+  // users can see which calls could route to a cheaper model.
+  //   claude-token-saver frugon                      # export last 30 days → ./frugon-export.jsonl
+  //   claude-token-saver frugon --days 7             # narrower window
+  //   claude-token-saver frugon --project myproj     # filter by project dir substring
+  //   claude-token-saver frugon --out PATH           # custom output path
+  //   claude-token-saver frugon --raw-tokens         # physical token counts (no cache weighting)
+  //   claude-token-saver frugon --no-content         # strip prompt/reply text (counts only)
+  //   claude-token-saver frugon --run                # run `frugon analyze` on the export
+  if (args[0] === 'frugon') {
+    const { exportFrugonLogs } = await import('../src/frugon-export.js');
+    const { userLanguage } = await import('../src/config.js');
+    const lang = userLanguage();
+    const days = parseFloat(getArg('--days') || '30');
+    const outPath = getArg('--out') || 'frugon-export.jsonl';
+    const cacheWeighted = !hasFlag('--raw-tokens');
+    const includeContent = !hasFlag('--no-content');
+    const res = await exportFrugonLogs({
+      days,
+      projectFilter: getArg('--project') || undefined,
+      outPath,
+      cacheWeighted,
+      includeContent,
+    });
+    if (res.records === 0) {
+      console.log(lang === 'ko'
+        ? `최근 ${days}일 내 세션 기록이 없습니다 (~/.claude/projects).`
+        : `No session records in the last ${days} days (~/.claude/projects).`);
+      return;
+    }
+    console.log(lang === 'ko'
+      ? `frugon 로그 내보내기 완료: ${res.outPath}`
+      : `frugon log export complete: ${res.outPath}`);
+    console.log(`  ${res.records} calls / ${res.sessions} sessions / last ${days}d`);
+    const byModel = Object.entries(res.models).sort((a, b) => b[1] - a[1]);
+    for (const [model, count] of byModel) console.log(`    ${model}: ${count}`);
+    console.log(cacheWeighted
+      ? (lang === 'ko'
+        ? '  prompt_tokens는 캐시 가중치 적용값 (read 0.1x, 5m write 1.25x, 1h write 2x) — frugon 비용이 실제 청구액과 일치. 해제: --raw-tokens'
+        : '  prompt_tokens are cache-weighted (read 0.1x, 5m write 1.25x, 1h write 2x) so frugon costs match your real bill. Disable: --raw-tokens')
+      : (lang === 'ko'
+        ? '  prompt_tokens는 물리 토큰 수 (캐시 가중치 없음 — frugon 비용이 실제보다 크게 나옴)'
+        : '  prompt_tokens are raw physical counts (no cache weighting — frugon will overstate cost)'));
+    if (hasFlag('--run')) {
+      const { spawnSync } = await import('node:child_process');
+      console.log('');
+      const run = spawnSync('frugon', ['analyze', res.outPath], { stdio: 'inherit' });
+      if (run.error && run.error.code === 'ENOENT') {
+        console.error(lang === 'ko'
+          ? 'frugon이 PATH에 없습니다. 설치: pipx install frugon  (또는 pip install frugon)'
+          : 'frugon not found on PATH. Install: pipx install frugon  (or pip install frugon)');
+        process.exit(1);
+      }
+      if (typeof run.status === 'number' && run.status !== 0) process.exit(run.status);
+      return;
+    }
+    console.log('');
+    console.log(lang === 'ko' ? '다음 단계:' : 'Next step:');
+    console.log(`  frugon analyze ${res.outPath}`);
+    console.log(lang === 'ko'
+      ? '  (frugon 미설치 시: pipx install frugon — 분석은 전부 로컬에서 실행됩니다)'
+      : '  (if frugon is not installed: pipx install frugon — analysis runs fully local)');
+    console.log(lang === 'ko'
+      ? '  (unpriced 모델이 나오면: frugon update 로 가격표를 갱신하세요)'
+      : '  (if models show as unpriced: run `frugon update` to refresh the pricing table)');
     return;
   }
 
