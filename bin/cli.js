@@ -558,17 +558,37 @@ async function main() {
         } catch { /* refresh is best-effort; stale cache still usable below */ }
       }
       const open = rs.openCandidates(cache);
-      if (open.length === 0) return; // silent — nothing to inject
+      // Registered rules whose delegated-category error rate crossed the
+      // health threshold since promotion — the user approved these, so a
+      // status change must be briefed, not just written into the md file.
+      let reviewRules = [];
+      try {
+        const mr = await import('../src/model-rules.js');
+        reviewRules = mr.loadModelRules().rules
+          .map((r, i) => ({ ...r, n: i + 1 }))
+          .filter((r) => r.status === 'review');
+      } catch { /* registry unreadable — candidate briefing still goes out */ }
+      if (open.length === 0 && reviewRules.length === 0) return; // silent — nothing to inject
       const lines = [];
-      lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 상위 모델(opus/fable)이 처리한 위임 가능 반복 작업이 감지되었습니다:`);
-      for (const c of open) {
-        const tierNote = c.tier === 'T1' ? 'sonnet 위임(중간 난도)' : `${c.agent} 위임(경량)`;
-        lines.push(`  R${c.id} [${c.tier || 'T2'}] (×${c.count}, ${c.project}): ${c.label} → ${tierNote} 권장 (scope 제안: ${c.suggestedScope})`);
-        lines.push(`      예시: "${c.example}"`);
+      if (open.length > 0) {
+        lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 상위 모델(opus/fable)이 처리한 위임 가능 반복 작업이 감지되었습니다:`);
+        for (const c of open) {
+          const tierNote = c.tier === 'T1' ? 'sonnet 위임(중간 난도)' : `${c.agent} 위임(경량)`;
+          lines.push(`  R${c.id} [${c.tier || 'T2'}] (×${c.count}, ${c.project}): ${c.label} → ${tierNote} 권장 (scope 제안: ${c.suggestedScope})`);
+          lines.push(`      예시: "${c.example}"`);
+          lines.push(`      등록 시 ratchet-model.md에 기록될 룰: "${c.rule}"`);
+        }
+        lines.push('등록하면 다음 세션부터 자동 위임됩니다. 사용자에게 등록 여부를 물을 때 위 룰 원문을 그대로 보여주고, scope까지 확인한 뒤 실행하세요:');
+        lines.push('  claude-token-saver harness promote R<N> --project|--global   # scope는 반드시 사용자에게 확인');
+        lines.push('  claude-token-saver route-scan dismiss <N>                    # 사용자가 원치 않으면');
       }
-      lines.push('이 패턴을 랫쳇 룰로 등록하면 다음 세션부터 자동 위임됩니다. 적절한 시점에 사용자에게 등록 여부와 scope를 물어본 뒤 실행하세요:');
-      lines.push('  claude-token-saver harness promote R<N> --project|--global   # scope는 반드시 사용자에게 확인');
-      lines.push('  claude-token-saver route-scan dismiss <N>                    # 사용자가 원치 않으면');
+      if (reviewRules.length > 0) {
+        lines.push(`[claude-token-saver rule-health] 등록된 모델 피팅 룰 중 위임 대상 유형의 에러율이 기준(20%)을 넘은 룰이 있습니다 — 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:`);
+        for (const r of reviewRules) {
+          lines.push(`  #${r.n} [${r.tier}|${r.scope}] 에러율 ${Math.round((r.errRate || 0) * 100)}%: ${r.rule}`);
+        }
+        lines.push('  제거: claude-token-saver route-scan rules rm <N>');
+      }
       console.log(lines.join('\n'));
       return;
     }

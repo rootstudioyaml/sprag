@@ -97,6 +97,10 @@ export function renderModelRatchet(rules) {
     '로그 기반 티어 위임 룰. 이 파일은 route-scan이 매 스캔마다 통째로 재생성하므로',
     '직접 수정하지 마세요 — 목록/제거: `claude-token-saver route-scan rules [rm <N>]`.',
     '',
+    '아래 룰에 따라 위임을 실행할 때는 사용자에게 다음 한 줄을 먼저 표시할 것',
+    '(어떤 도구가 토큰을 아끼고 있는지 가시화):',
+    '`🔀 [claude-token-saver] 모델 피팅: "<유형>" → <agent> 위임`',
+    '',
     '## Rules',
     '',
   ];
@@ -108,6 +112,23 @@ export function renderModelRatchet(rules) {
     lines.push(`- ${r.rule}${health}${stats}`);
   }
   return lines.join('\n') + '\n';
+}
+
+/**
+ * Statusline helper (docs/TIER_CRITERIA.md §rule-health) — cheapest possible
+ * check, one small JSON read. Returns `rule-health R<N>` for the first
+ * review-flagged rule relevant to this project (its own root, or global
+ * scope), else null. N is the 1-based registry index, matching the numbering
+ * of `route-scan rules [rm <N>]` so the fix command is one lookup away.
+ */
+export function ruleHealthWarningForStatusline(projectRoot) {
+  const { rules } = loadModelRules();
+  for (let i = 0; i < rules.length; i++) {
+    const r = rules[i];
+    if (r.status !== 'review') continue;
+    if (r.scope === 'global' || r.targetRoot === projectRoot) return `rule-health R${i + 1}`;
+  }
+  return null;
 }
 
 export function modelRatchetPathFor(scope, targetRoot) {
@@ -150,8 +171,11 @@ export function syncAllFiles({ previousPaths = [] } = {}) {
  * for each registered rule, recompute recurrence count and the error rate
  * of episodes in its (tier-eligible) category — the rule-health signal.
  *
- * `episodeStats`: Map "category|project" → { count, errCount, epCount }
- * where errCount/epCount measure post-promotion delegated-category episodes.
+ * `episodeStats`: Map "category|project" (plus a "category|*" wildcard key
+ * that global-scope rules fall back to) → { count, errCount, epCount }.
+ * errCount/epCount measure the scan window's shape-eligible episodes — ones
+ * an expensive model handled directly that still look T1/T2 by shape (tier
+ * judged with the error signal zeroed; see route-scan's rule-health pass).
  */
 export function refreshModelRules(episodeStats, { now } = {}) {
   const data = loadModelRules();

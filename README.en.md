@@ -7,7 +7,9 @@
 
 # claude-token-saver
 
-**Diagnose and save Claude Code tokens from a single statusline.** Zero dependencies, one-line install.
+**Diagnose Claude Code token usage from a single statusline — and route the easy work your expensive model keeps repeating down to cheaper models.** Zero dependencies, one-line install.
+
+Since v3.x this is more than after-the-fact monitoring: it's a **model-fitting routing layer**. Session logs are classified into tiers (T0/T1/T2), recurring patterns get promoted to "haiku/sonnet is enough for this" delegation rules, and your main model auto-delegates them from the next session ([route-scan](#-route-scan--this-recurring-task-could-run-on-a-cheaper-tier)).
 
 ```bash
 npm i -g claude-token-saver   # postinstall auto-registers the statusline + Skill
@@ -19,6 +21,7 @@ npm i -g claude-token-saver   # postinstall auto-registers the statusline + Skil
 
 | | |
 |---|---|
+| 🔀 **Model-fitting delegation** | Classifies the easy work your expensive model (opus/fable) keeps repeating into tiers (T0/T1/T2) → promotes haiku/sonnet delegation rules, auto-applied from the next session |
 | 💸 **−18.6% measured cost** | Cost per user message $2.35 → $1.91 after adopting harness+ratchet (author's logs, [details](#real-world-impact--beforeafter-report)) |
 | 🚨 **No surprise rate limits** | Instant warning when the 5H/7D window hits 90% + `handoff` to back up your work |
 | 🧠 **Cache waste detection** | Hit rate, TTL countdown, 1M-context detection — token spikes diagnosed with issue codes |
@@ -148,6 +151,21 @@ Analyzes your session history at the **episode (user request) level**, classifie
 
 Signals: call count, output tokens, **mutating tool calls (Edit/Write/Bash)**, **tool errors**, and request text. Output thresholds are auto-calibrated from your own 14-day distribution (fixed constants drift with workload).
 
+<details>
+<summary>Why this design — research evidence (deep-research, 21 cross-verified sources + 553 locally measured episodes)</summary>
+
+A survey of existing LLM-routing research and systems shaped each axis of the design:
+
+- **Conservative demotion — "only send down what's clearly easy" — is the unexplored direction.** In RouterArena (2025), every academic and commercial router fell far short of the oracle (90.9%; best entrant 66.9), and the failure mode was consistently **over-routing to expensive models**. Per the routing-collapse work, the oracle needs the top model for under 20% of queries — while 73% of the author's episodes were still on the top tier. The headroom is large.
+- **Difficulty is defined by outcome, not text guessing.** RouterArena labels difficulty as "how many of 42 models actually got it right". Our logs already contain outcomes: tool errors, mutating tool calls, episode length. Local measurement confirms it — error incidence splits the tiers sharply (T2 candidates 2% / T1 8% / T0 36%).
+- **Thresholds calibrate to the user's own distribution.** RouteLLM's stated limitation is that fixed thresholds drift as the query distribution shifts — so output-token thresholds are recomputed from your last 14 days' p25/p75 (clamped).
+- **An escalation path makes demotion mistakes cheap.** The FrugalGPT cascade lesson ("start cheap, escalate on failure"). In Claude Code this falls out naturally: when a subagent gets stuck, the main model takes over — and promoted rules spell out that guard.
+- **Subagent `model:` is Anthropic's official cost-control mechanism.** The docs recommend routing to cheaper models like Haiku for cost control — yet Claude Code itself does no automatic model routing; even trivial turns resend the full context on the session model. That gap is exactly what route-scan fills.
+- **Learned classifiers (BERT/embeddings) deliberately excluded.** Even the best is 24 points off the oracle, we have no preference-pair training data, and it would break the zero-dependency principle. Regex categories + outcome signals are the current position.
+
+Sources (RouteLLM, FrugalGPT, RouterArena, routing-survey arxiv links), the full local-measurement table, and the complete tier criteria: [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md).
+</details>
+
 ```bash
 claude-token-saver route-scan                    # scan (24h cache) + tiered candidates
 claude-token-saver harness promote R1 --project  # promote candidate R1 to a model-fitting rule
@@ -250,6 +268,13 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.3.0 (2026-07-13)
+- **Delegation visibility & briefing** — the whole model-fitting loop is now surfaced to the user:
+  - The SessionStart hook injects, per candidate, **the exact rule text that would be written to ratchet-model.md** — you see precisely what you're approving.
+  - Rules flipped to review (delegated-category error rate over 20%) are announced on **both** the statusline (`🅷⚠ rule-health R<N>` chip — implementing the item from the design doc; precedence: session-quality warnings > rule-health > route? candidates) and the session-start briefing.
+  - The ratchet-model.md header now instructs the model to prefix each delegation with `🔀 [claude-token-saver] model-fitting: "<category>" → <agent>` — making it visible which tool is saving your tokens.
+- README updated to the 3.x identity (model-fitting delegation in the top pitch, collapsible research-evidence section under route-scan); fixed a stale comment in model-rules.js.
 
 ### v3.2.2 (2026-07-13)
 - **No re-proposing registered rules** — (tier|category|project) combinations that already have a model-fitting rule are excluded from scan candidates (a global rule covers every project). Fixes rules registered outside the promote flow (e.g. migrations) resurfacing as candidates.

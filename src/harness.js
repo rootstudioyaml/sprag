@@ -20,6 +20,7 @@ import {
   appendRatchetRule,
 } from './harness-templates.js';
 import { routeWarningForStatusline } from './route-scan.js';
+import { ruleHealthWarningForStatusline } from './model-rules.js';
 
 const require = createRequire(import.meta.url);
 function readHarnessState() {
@@ -418,6 +419,14 @@ export function harnessStatusForStatusline(cfg, { root } = {}) {
       else if (state.evidenceLow) warning = 'no-evidence';
       else if (state.pevSkip) warning = 'PEV-skip';
     }
+  }
+  // Below session-quality warnings: a promoted delegation rule whose
+  // category started failing (`rule-health R<N>`) — the user approved that
+  // rule, so its degradation outranks a mere new-candidate nudge.
+  if (!warning) {
+    try {
+      warning = ruleHealthWarningForStatusline(projectRoot);
+    } catch { /* registry unreadable — stay silent */ }
   }
   // Lowest precedence: route-scan delegation candidate (`route? R<N>`).
   // Session-quality warnings above always win — routing is an optimization
