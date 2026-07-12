@@ -17,7 +17,7 @@
  * ratchet promote flow (`harness promote R<N> --project|--global`).
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { discoverSessionFiles } from './parser.js';
@@ -45,8 +45,18 @@ export const MIN_DELEGABLE_OUT = 100;
 export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개선할|검토해보|비교|왜 |analyze|compare|evaluate|architect|refactor/i;
 // A pattern must recur this often before we nag about it.
 export const MIN_RECURRENCE = 3;
-// Cache is fresh for a day — the SessionStart hook never rescans inline.
-export const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+// ── Rescan gate (data-driven, not time-driven) ───────────────────────────
+// A scan over unchanged transcripts is deterministic — identical output —
+// so time alone is a bad trigger: it wastes scans on idle days and lags a
+// full day behind heavy ones. Instead we rescan when enough NEW transcript
+// data accumulated (~5MB ≈ 20-40 episodes on measured data — enough for a
+// pattern to newly cross MIN_RECURRENCE), with guardrails: a minimum
+// interval against session-churn thrash, a daily fallback so small trickles
+// still refresh rule-health, and a hard skip when nothing changed at all.
+export const RESCAN_MIN_INTERVAL_MS = 60 * 60 * 1000;      // never more than hourly
+export const RESCAN_BIG_DELTA_BYTES = 5 * 1024 * 1024;     // this much new data → rescan now
+export const RESCAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;      // any new data + a day old → rescan
 
 // Category → recommended subagent. First match wins; order matters
 // (paste before everything: keywords inside pasted UI/log text would
@@ -201,9 +211,11 @@ export async function runRouteScan({ days = 14 } = {}) {
   // Pass 1 — collect episodes (needed up front: thresholds are calibrated
   // from the full window's output distribution before any tiering).
   const all = []; // { ep, projectDir }
+  let dataBytes = 0; // window size snapshot — the rescan gate diffs against it
   for (const f of files) {
     let records;
     try {
+      dataBytes += statSync(f.path).size;
       records = await collectSessionRecords(f.path, { includeContent: true });
     } catch {
       continue;
@@ -234,8 +246,16 @@ export async function runRouteScan({ days = 14 } = {}) {
     if (![...ep.models].some(isExpensiveModel)) continue; // already cheap
     const cat = categorize(ep.text);
     if (cat) {
-      bumpStats(`${cat.id}|${projectDir}`, ep);
-      bumpStats(`${cat.id}|*`, ep);
+      // rule-health denominator: episodes that LOOK delegable by shape
+      // (tier judged with the error signal zeroed — using real errors here
+      // would be circular, since T2 requires errors=0 by definition). The
+      // numerator is those that still hit errors: exactly the "light-looking
+      // work in this category keeps failing" risk a delegation rule cares about.
+      const shapeTier = tierOf({ ...ep, errors: 0 }, cat, thresholds);
+      if (shapeTier === 'T1' || shapeTier === 'T2') {
+        bumpStats(`${cat.id}|${projectDir}`, ep);
+        bumpStats(`${cat.id}|*`, ep);
+      }
     }
     const tier = tierOf(ep, cat, thresholds);
     if (tier !== 'T1' && tier !== 'T2') continue;
@@ -308,6 +328,7 @@ export async function runRouteScan({ days = 14 } = {}) {
     scannedAt: new Date().toISOString(),
     days,
     totalEpisodes,
+    dataBytes,
     // kept as `easyEpisodes` for statusline/back-compat; now counts T1+T2.
     easyEpisodes: tieredEpisodes,
     thresholds,
@@ -342,10 +363,34 @@ export function readRouteScan() {
   }
 }
 
-export function isCacheFresh(cache) {
-  if (!cache?.scannedAt) return false;
+/**
+ * Data-driven rescan gate (see constants above). Cheap: one stat() per
+ * transcript file (~32 files on measured data) — a few milliseconds.
+ */
+export async function shouldRescan(cache, { days = 14 } = {}) {
+  if (!cache?.scannedAt) return true;
   const ts = Date.parse(cache.scannedAt);
-  return Number.isFinite(ts) && Date.now() - ts < CACHE_TTL_MS;
+  if (!Number.isFinite(ts)) return true;
+  const age = Date.now() - ts;
+  if (age < RESCAN_MIN_INTERVAL_MS) return false;
+
+  let total = 0;
+  let anyNew = false;
+  try {
+    for (const f of await discoverSessionFiles({ days })) {
+      const s = statSync(f.path);
+      total += s.size;
+      if (s.mtimeMs > ts) anyNew = true;
+    }
+  } catch {
+    return age >= RESCAN_MAX_AGE_MS; // can't stat — degrade to daily
+  }
+  if (!anyNew) return false; // nothing changed → identical scan, skip forever
+  // Append-only transcripts: window growth ≈ new data. Files aging out of
+  // the window shrink the total, making this estimate conservative.
+  const newBytes = Math.max(0, total - (cache.dataBytes || 0));
+  if (newBytes >= RESCAN_BIG_DELTA_BYTES) return true;
+  return age >= RESCAN_MAX_AGE_MS;
 }
 
 /** Candidates not yet promoted/dismissed. */

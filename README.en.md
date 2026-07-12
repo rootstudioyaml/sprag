@@ -165,7 +165,7 @@ Promoted delegation rules never mix with hand-written ratchet rules: they live i
 - The CLAUDE.md ratchet section planted by `harness init` references both files, so Claude applies them together (existing users: re-run `harness init` to refresh the block).
 
 How it works (session-boundary calibration, NOT a real-time router):
-1. `install` registers a SessionStart hook that injects the cached scan results as session context on startup and `/clear` (the scan itself refreshes in the background, once a day).
+1. `install` registers a SessionStart hook that injects the cached scan results as session context on startup and `/clear`. Rescans are **data-triggered, not time-triggered**: ~5MB of new transcripts since the last scan rescans immediately, a small trickle rescans daily, and no change means no rescan at all (an unchanged-input scan is deterministic). A 1-hour minimum-interval guard applies, and promoting a rule triggers one immediate refresh to establish its stat baseline.
 2. When a recurring (≥3×) pattern exists, the statusline shows a `🅷⚠ route? R1` chip and Claude asks you whether to register it, and at which scope (`--project`/`--global`).
 3. Promoted rules make **the main model delegate that work type to a haiku/sonnet subagent automatically from the next session on**.
 
@@ -254,7 +254,8 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 ### v3.2.0 (2026-07-13)
 - **Tier classification (T0/T1/T2)** — route-scan grows from a binary easy/other split into three tiers. New signals: mutating tool calls and tool errors; output thresholds auto-calibrate to the user's own distribution (clamped); a dedicated category for pasted screen/log Q&A; conversational episodes (<100 output tokens) excluded. Design and research evidence in `docs/TIER_CRITERIA.md`.
 - **Model-fitting ratchet separated** — promoted delegation rules live in their own file (`.claude/ratchet-model.md` / `~/.claude/ratchet-model.md`), file-level-separated from hand-written rules, managed via `route-scan rules [rm <N>]`; the harness CLAUDE.md block references both files.
-- **Log-driven auto-refresh + rule-health** — every rescan recomputes each registered rule's recurrence count and error rate and rewrites the block. Delegated-category error rate >20% flags the rule with `⚠ rule-health`, suggesting narrowing or removal.
+- **Log-driven auto-refresh + rule-health** — every rescan recomputes each registered rule's recurrence count and error rate (over delegation-shaped episodes) and rewrites the file. An error rate >20% flags the rule with `⚠ rule-health`, suggesting narrowing or removal.
+- **Data-triggered rescans** — the fixed 24h TTL is gone; new transcript volume triggers rescans (~5MB → immediately, a trickle → daily, no change → skip, 1h minimum interval, one immediate refresh after promote).
 
 ### v3.1.0 (2026-07-13)
 - **frugon integration removed** — the `claude-token-saver frugon` JSONL-export subcommand is gone. An external analyzer's aggregate report can't be turned into ratchet rules (condition → action), so it never fed the delegation pipeline; 3.x instead invests in **first-party tier classification over session logs**. route-scan is unaffected (the shared parser moved to `src/session-records.js`).

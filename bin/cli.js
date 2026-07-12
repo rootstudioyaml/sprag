@@ -531,7 +531,7 @@ async function main() {
     // prints delegation-candidate context for the new session.
     if (hasFlag('--hook')) {
       let cache = rs.readRouteScan();
-      if (!rs.isCacheFresh(cache)) {
+      if (await rs.shouldRescan(cache)) {
         try {
           const { spawn } = await import('node:child_process');
           spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
@@ -556,7 +556,7 @@ async function main() {
 
     const days = parseFloat(getArg('--days') || '14');
     let cache = rs.readRouteScan();
-    if (hasFlag('--refresh') || !rs.isCacheFresh(cache) || (cache && cache.days !== days)) {
+    if (hasFlag('--refresh') || (cache && cache.days !== days) || await rs.shouldRescan(cache, { days })) {
       cache = await rs.runRouteScan({ days });
     }
     if (hasFlag('--quiet')) return;
@@ -798,6 +798,13 @@ async function main() {
         for (const p of written) console.log(`  ratchet-model.md updated: ${p}`);
         console.log('(route candidate R' + routeCandidateId + ' resolved — 다음 세션부터 자동 위임, 이후 스캔마다 로그 기반 갱신됩니다)');
         console.log('룰 목록/제거: claude-token-saver route-scan rules [rm <N>]');
+        // Event-triggered refresh: establish the new rule's stat baseline
+        // right away instead of waiting for the next data-gated rescan.
+        try {
+          const { spawn } = await import('node:child_process');
+          spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
+            { detached: true, stdio: 'ignore' }).unref();
+        } catch { /* baseline arrives on the next gated rescan instead */ }
         return;
       }
       const r = harnessPromote(rule, { scope });
