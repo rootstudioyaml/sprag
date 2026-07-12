@@ -202,10 +202,47 @@ export function installStatusline({ force = false } = {}) {
   return { path: file, action: 'updated', reason: 'replaced previous statusLine' };
 }
 
+// Registers the SessionStart hook that surfaces route-scan delegation
+// candidates as session context (startup + /clear). Idempotent: skips when a
+// claude-token-saver route-scan hook is already present; never touches other
+// hooks the user configured.
+const ROUTE_SCAN_HOOK_COMMAND = 'claude-token-saver route-scan --hook';
+
+export function installSessionStartHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  let settings = {};
+  if (existsSync(file)) {
+    try {
+      settings = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (e) {
+      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+    }
+  }
+
+  settings.hooks = settings.hooks || {};
+  const list = Array.isArray(settings.hooks.SessionStart) ? settings.hooks.SessionStart : [];
+  const already = list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('route-scan --hook')),
+  );
+  if (already) return { path: file, action: 'exists' };
+
+  list.push({
+    matcher: 'startup|clear',
+    hooks: [{ type: 'command', command: ROUTE_SCAN_HOOK_COMMAND, timeout: 10 }],
+  });
+  settings.hooks.SessionStart = list;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'created' };
+}
+
 export function installAll({ force = false } = {}) {
   return {
     skill: installSkill({ force }),
     statusline: installStatusline({ force }),
+    sessionStartHook: installSessionStartHook(),
     legacy: removeLegacyCommand(),
   };
 }

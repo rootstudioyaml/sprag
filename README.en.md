@@ -83,6 +83,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver mode [keywords...]` | Output config (`icon`/`text`, `en`/`ko`, `1h`–`30d` window, …) |
 | `claude-token-saver harness ...` | 🅷 Harness management (below) |
 | `claude-token-saver frugon` | Export sessions → [frugon](https://github.com/Rodiun/frugon)-compatible JSONL (model-routing savings analysis, below) |
+| `claude-token-saver route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
 | `claude-token-saver install` | Manually register Skill + statusline |
 
 Switch output language with `mode ko` / `mode en` (English default; statusline chips stay symbolic).
@@ -148,6 +149,23 @@ claude-token-saver frugon --days 7 --project myproj --out logs.jsonl
 - **Cache-weighted tokens (default):** frugon doesn't know about prompt caching, so raw physical tokens would overstate your spend ~10x. By default the export folds in Anthropic's cache multipliers (read 0.1x · 5m write 1.25x · 1h write 2x) so frugon's dollar figures match your real bill. Use `--raw-tokens` for physical counts.
 - Preserves the signals frugon's easy/hard router reads (prompt/completion tokens, conversation depth) plus the last user prompt and reply text for `--measure` quality sampling. Strip text with `--no-content`.
 - Install frugon with `pipx install frugon` (if models show as unpriced, run `frugon update`).
+
+## 🔀 route-scan — "this recurring task could run on haiku"
+
+The practical follow-through of the frugon integration. It applies frugon-style difficulty analysis at the **episode (user request) level** to your session history, finds easy work your expensive model (opus/fable) keeps doing, and proposes promoting it into a haiku-subagent delegation rule. Fully local, zero token cost.
+
+```bash
+claude-token-saver route-scan                    # scan (24h cache) + print candidates
+claude-token-saver harness promote R1 --project  # promote candidate R1 to a ratchet rule
+claude-token-saver route-scan dismiss 1          # not interested — won't resurface
+```
+
+How it works (session-boundary calibration, NOT a real-time router):
+1. `install` registers a SessionStart hook that injects the cached scan results as session context on startup and `/clear` (the scan itself refreshes in the background, once a day).
+2. When a recurring (≥3×) easy pattern exists, the statusline shows a `🅷⚠ route? R1` chip and Claude asks you whether to register it, and at which scope (`--project`/`--global`).
+3. Promoted rules accumulate in ratchet.md, so **from the next session on, the main model delegates that work type to a haiku subagent automatically**.
+
+Recommended companion setup: create `model: haiku` subagents under `~/.claude/agents/` (e.g. haiku-explore / haiku-runner / haiku-translate) so the rules are immediately actionable.
 
 ## Spike issue codes
 
@@ -228,6 +246,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v2.20.0 (2026-07-13)
+- **route-scan**: detect recurring easy work on expensive models → `🅷⚠ route? R<N>` chip + SessionStart hook context injection + `harness promote R<N> --project|--global` to promote haiku-delegation ratchet rules.
 
 ### v2.19.0 (2026-07-12)
 - **frugon integration**: `claude-token-saver frugon` — export session transcripts as [frugon](https://github.com/Rodiun/frugon)-compatible JSONL for model-routing savings analysis (`--run` to analyze immediately; cache-weighted tokens by default).

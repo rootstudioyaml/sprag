@@ -19,6 +19,7 @@ import {
   harnessRatchetMdInitial,
   appendRatchetRule,
 } from './harness-templates.js';
+import { routeWarningForStatusline } from './route-scan.js';
 
 const require = createRequire(import.meta.url);
 function readHarnessState() {
@@ -361,6 +362,14 @@ export function harnessStatusForStatusline(cfg, { root } = {}) {
       else if (state.evidenceLow) warning = 'no-evidence';
       else if (state.pevSkip) warning = 'PEV-skip';
     }
+  }
+  // Lowest precedence: route-scan delegation candidate (`route? R<N>`).
+  // Session-quality warnings above always win — routing is an optimization
+  // nudge, not a correctness signal. Cheap: one small cached-JSON read.
+  if (!warning) {
+    try {
+      warning = routeWarningForStatusline(projectRoot);
+    } catch { /* scan cache unreadable — stay silent */ }
   }
   return { ...status, warning };
 }

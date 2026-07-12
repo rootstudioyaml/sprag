@@ -9,6 +9,7 @@
  *   npx claude-token-saver --format json      # JSON output
  *   npx claude-token-saver --format csv       # CSV output
  *   npx claude-token-saver --project myproj   # filter by project
+ *   npx claude-token-saver route-scan         # detect recurring easy work → haiku-delegation candidates
  *   npx claude-token-saver frugon             # export transcripts → frugon JSONL (model-routing analysis)
  *   npx claude-token-saver frugon --run       # export + run `frugon analyze`
  *   npx claude-token-saver --install-hook     # install PostToolUse hook
@@ -400,6 +401,7 @@ async function main() {
     };
     const r = installAll({ force });
     print('skill', r.skill);
+    print('SessionStart hook (route-scan)', r.sessionStartHook);
     {
       const s = r.statusline;
       const verb = s.action === 'exists' ? 'already configured (refreshInterval=5)'
@@ -461,6 +463,98 @@ async function main() {
     console.log(`Updated: ${applied.join(', ')}`);
     console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
     console.log('Statusline picks up the change on the next refresh (~1s).');
+    return;
+  }
+
+  // Subcommand: route-scan — detect recurring easy work on expensive models
+  // and propose model-delegation ratchet rules. Zero token cost, fully local.
+  //   claude-token-saver route-scan                 # scan (24h cache) + print candidates
+  //   claude-token-saver route-scan --refresh       # force rescan
+  //   claude-token-saver route-scan --days 30       # wider lookback
+  //   claude-token-saver route-scan --hook          # SessionStart hook mode (context injection)
+  //   claude-token-saver route-scan dismiss <N>     # mute candidate R<N>
+  // Promote a candidate to a ratchet rule (scope is always explicit):
+  //   claude-token-saver harness promote R<N> --project|--global
+  if (args[0] === 'route-scan') {
+    const rs = await import('../src/route-scan.js');
+    const { userLanguage } = await import('../src/config.js');
+    const lang = userLanguage();
+
+    if (args[1] === 'dismiss') {
+      const n = parseInt(args[2], 10);
+      if (!Number.isFinite(n)) {
+        console.error('Usage: claude-token-saver route-scan dismiss <N>   # N from `route? R<N>`');
+        process.exit(1);
+      }
+      const cand = rs.resolveCandidate(n);
+      if (!cand) {
+        console.error(`No route candidate R${n}. Run: claude-token-saver route-scan`);
+        process.exit(1);
+      }
+      console.log(lang === 'ko'
+        ? `R${n} 무시 처리: ${cand.label} (${cand.project}) — 재스캔에도 다시 뜨지 않습니다.`
+        : `Dismissed R${n}: ${cand.label} (${cand.project}) — won't resurface on rescans.`);
+      return;
+    }
+
+    // --hook: SessionStart hook mode. Never scans inline (session start must
+    // stay fast) — reads the cache, kicks a detached refresh when stale, and
+    // prints delegation-candidate context for the new session.
+    if (hasFlag('--hook')) {
+      let cache = rs.readRouteScan();
+      if (!rs.isCacheFresh(cache)) {
+        try {
+          const { spawn } = await import('node:child_process');
+          spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
+            { detached: true, stdio: 'ignore' }).unref();
+        } catch { /* refresh is best-effort; stale cache still usable below */ }
+      }
+      const open = rs.openCandidates(cache);
+      if (open.length === 0) return; // silent — nothing to inject
+      const lines = [];
+      lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 상위 모델(opus/fable)이 처리한 반복 easy 작업이 감지되었습니다:`);
+      for (const c of open) {
+        lines.push(`  R${c.id} (×${c.count}, ${c.project}): ${c.label} → ${c.agent} 위임 권장 (scope 제안: ${c.suggestedScope})`);
+        lines.push(`      예시: "${c.example}"`);
+      }
+      lines.push('이 패턴을 랫쳇 룰로 등록하면 다음 세션부터 자동 위임됩니다. 적절한 시점에 사용자에게 등록 여부와 scope를 물어본 뒤 실행하세요:');
+      lines.push('  claude-token-saver harness promote R<N> --project|--global   # scope는 반드시 사용자에게 확인');
+      lines.push('  claude-token-saver route-scan dismiss <N>                    # 사용자가 원치 않으면');
+      console.log(lines.join('\n'));
+      return;
+    }
+
+    const days = parseFloat(getArg('--days') || '14');
+    let cache = rs.readRouteScan();
+    if (hasFlag('--refresh') || !rs.isCacheFresh(cache) || (cache && cache.days !== days)) {
+      cache = await rs.runRouteScan({ days });
+    }
+    if (hasFlag('--quiet')) return;
+    if (hasFlag('--json')) {
+      console.log(JSON.stringify(cache, null, 2));
+      return;
+    }
+    const easyPct = cache.totalEpisodes ? Math.round(cache.easyEpisodes / cache.totalEpisodes * 100) : 0;
+    console.log(lang === 'ko'
+      ? `route-scan — 최근 ${cache.days}일: 에피소드 ${cache.totalEpisodes}건 중 easy ${cache.easyEpisodes}건 (${easyPct}%)  [스캔: ${cache.scannedAt}]`
+      : `route-scan — last ${cache.days}d: ${cache.easyEpisodes}/${cache.totalEpisodes} episodes easy (${easyPct}%)  [scanned: ${cache.scannedAt}]`);
+    const open = rs.openCandidates(cache);
+    if (open.length === 0) {
+      console.log(lang === 'ko'
+        ? '위임 후보 없음 (반복 3회 미만이거나 이미 처리됨).'
+        : 'No delegation candidates (below recurrence threshold or already resolved).');
+      return;
+    }
+    console.log(lang === 'ko' ? '\n위임 후보:' : '\nDelegation candidates:');
+    for (const c of open) {
+      console.log(`  R${c.id}  ×${c.count}  ${c.label} → ${c.agent}  [${c.project}] (scope 제안: ${c.suggestedScope})`);
+      console.log(`       예시: "${c.example}"`);
+      console.log(`       룰: ${c.rule}`);
+    }
+    console.log('');
+    console.log(lang === 'ko' ? '등록 / 무시:' : 'Promote / dismiss:');
+    console.log('  claude-token-saver harness promote R<N> --project|--global');
+    console.log('  claude-token-saver route-scan dismiss <N>');
     return;
   }
 
@@ -650,6 +744,26 @@ async function main() {
         }
         rule = `반복 감지 ×${cand.count}: ${cand.pattern} — TODO: 원인·예방책 한 줄로`;
       }
+      // R-prefixed arg → route-scan delegation candidate (statusline `route? R<N>`).
+      // The rule text is pre-generated by the scan; promoting also resolves the
+      // candidate so the chip stops and rescans don't resurface it.
+      let routeCandidateId = null;
+      if (/^[Rr]\d+$/.test(raw)) {
+        const n = parseInt(raw.slice(1), 10);
+        const rs = await import('../src/route-scan.js');
+        const cand = (rs.openCandidates(rs.readRouteScan()) || []).find((c) => c.id === n);
+        if (!cand) {
+          console.error(`No open route candidate R${n}. Run: claude-token-saver route-scan`);
+          process.exit(1);
+        }
+        rule = cand.rule;
+        routeCandidateId = n;
+        if (!scope) {
+          console.error(`Route candidate R${n} requires an explicit scope (suggested: --${cand.suggestedScope}).`);
+          console.error('Ask the user, then pass --project or --global.');
+          process.exit(1);
+        }
+      }
       // Scope resolution: explicit flag wins. Otherwise prompt interactively
       // when running on a TTY; in non-TTY (CI/scripts) require an explicit
       // flag so the choice is never silently made for the caller.
@@ -678,6 +792,11 @@ async function main() {
       const r = harnessPromote(rule, { scope });
       console.log(`Appended to ${r.path} [${r.scope}]:`);
       console.log(`  - ${rule}`);
+      if (routeCandidateId !== null) {
+        const rs = await import('../src/route-scan.js');
+        rs.resolveCandidate(routeCandidateId);
+        console.log(`(route candidate R${routeCandidateId} resolved — 다음 세션부터 자동 위임 룰로 적용됩니다)`);
+      }
       if (/^\d+$/.test(raw)) {
         console.log('\n👉 ratchet.md를 열어 TODO 부분을 실제 룰로 다듬어주세요.');
       }

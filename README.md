@@ -83,6 +83,7 @@ Claude 안에서 `/claude-token-saver` Skill을 실행하거나 칩 문구를 �
 | `claude-token-saver mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
 | `claude-token-saver harness ...` | 🅷 Harness 관리 (아래 참고) |
 | `claude-token-saver frugon` | 세션 기록 → [frugon](https://github.com/Rodiun/frugon) 호환 JSONL 내보내기 (모델 라우팅 절감 분석, 아래 참고) |
+| `claude-token-saver route-scan` | 상위 모델이 반복 처리한 easy 작업 감지 → haiku 위임 랫쳇 룰 제안 (아래 참고) |
 | `claude-token-saver install` | Skill·statusline 수동 등록 |
 
 출력 언어는 `mode ko` / `mode en`으로 전환합니다 (기본 영어, statusline 칩은 항상 기호). 전체 옵션은 [영문 README](./README.en.md#options) 참고.
@@ -129,6 +130,23 @@ claude-token-saver frugon --days 7 --project myproj --out logs.jsonl
 - **캐시 가중 토큰(기본):** frugon은 프롬프트 캐싱을 모르기 때문에 물리 토큰을 그대로 주면 비용이 ~10배 과대평가됩니다. 기본값은 캐시 read 0.1x · 5m write 1.25x · 1h write 2x를 접어 넣은 유효 토큰이라 frugon의 달러 견적이 실제 청구액과 일치합니다. 물리 토큰이 필요하면 `--raw-tokens`.
 - frugon의 easy/hard 분류가 쓰는 신호(프롬프트·응답 토큰, 대화 깊이)와 `--measure` 품질 검증에 쓰는 마지막 유저 프롬프트·응답 텍스트를 보존합니다. 텍스트를 빼고 싶으면 `--no-content`.
 - frugon 설치: `pipx install frugon` (모델이 unpriced로 나오면 `frugon update`).
+
+## 🔀 route-scan — "이 반복 작업, haiku로 내려도 됩니다"
+
+frugon 연계의 실전 버전입니다. frugon식 난이도 분석을 **에피소드(사용자 요청) 단위**로 세션 기록에 적용해, 상위 모델(opus/fable)이 반복 처리해 온 easy 작업을 찾아 haiku 서브에이전트 위임 룰로 승격하도록 제안합니다. 전 과정 로컬, 토큰 비용 0.
+
+```bash
+claude-token-saver route-scan                    # 스캔 (24h 캐시) + 후보 출력
+claude-token-saver harness promote R1 --project  # 후보 R1을 랫쳇 룰로 등록
+claude-token-saver route-scan dismiss 1          # 관심 없으면 무시 (재스캔에도 안 뜸)
+```
+
+동작 구조 (실시간 라우팅이 아니라 **세션 경계 캘리브레이션**):
+1. `install` 시 SessionStart 훅이 등록되어, 새 세션 시작·`/clear` 때 캐시된 스캔 결과를 세션 컨텍스트로 주입합니다 (스캔 자체는 백그라운드에서 일 1회).
+2. 반복(≥3회) easy 패턴이 있으면 statusline에 `🅷⚠ route? R1` 칩이 뜨고, Claude가 등록 여부와 scope(`--project`/`--global`)를 물어봅니다.
+3. 등록된 룰은 ratchet.md에 쌓여 **다음 세션부터 메인 모델이 해당 유형을 haiku 서브에이전트로 자동 위임**합니다.
+
+권장 사전 준비: `~/.claude/agents/`에 `model: haiku` 서브에이전트(예: haiku-explore / haiku-runner / haiku-translate)를 만들어 두면 룰이 바로 실행 가능해집니다.
 
 ## 토큰 급증 원인 코드
 
@@ -185,6 +203,9 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v2.20.0 (2026-07-13)
+- **route-scan**: 상위 모델이 반복 처리한 easy 작업 감지 → `🅷⚠ route? R<N>` 칩 + SessionStart 훅 컨텍스트 주입 + `harness promote R<N> --project|--global`로 haiku 위임 랫쳇 룰 승격.
 
 ### v2.19.0 (2026-07-12)
 - **frugon 연계**: `claude-token-saver frugon` — 세션 transcript를 [frugon](https://github.com/Rodiun/frugon) 호환 JSONL로 내보내 모델 라우팅 절감 분석 (`--run`으로 즉시 분석, 캐시 가중 토큰 기본).
