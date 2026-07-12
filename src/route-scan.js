@@ -406,6 +406,30 @@ export async function shouldRescan(cache, { days = 14 } = {}) {
   return age >= RESCAN_MAX_AGE_MS;
 }
 
+/**
+ * Human-readable labels for the T0/T1/T2 codes and scope values — used by
+ * every user-facing listing so a bare code never appears without its meaning
+ * (first-time users can't be expected to know the tier vocabulary).
+ */
+export function tierLabel(tier, lang = 'ko') {
+  const ko = {
+    T2: '단순 작업 — haiku급이면 충분',
+    T1: '중간 난도 — sonnet급이면 충분',
+    T0: '고난도 — 지금 모델 유지',
+  };
+  const en = {
+    T2: 'simple — haiku-class is enough',
+    T1: 'moderate — sonnet-class is enough',
+    T0: 'hard — stays on the session model',
+  };
+  return (lang === 'ko' ? ko : en)[tier] || tier;
+}
+
+export function scopeLabel(scope, lang = 'ko') {
+  if (lang === 'ko') return scope === 'global' ? '모든 프로젝트(글로벌)' : '이 프로젝트만';
+  return scope === 'global' ? 'all projects (global)' : 'this project only';
+}
+
 /** Candidates not yet promoted/dismissed. */
 export function openCandidates(cache) {
   if (!cache?.candidates) return [];

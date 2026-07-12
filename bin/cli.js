@@ -520,8 +520,13 @@ async function main() {
       }
       console.log(lang === 'ko' ? '📐 모델 피팅 룰 (로그 기반 자동 갱신):' : '📐 Model-fitting rules (auto-refreshed from logs):');
       rules.forEach((r, i) => {
-        const health = r.status === 'review' ? '  ⚠ rule-health' : '';
-        console.log(`  #${i + 1} [${r.tier}|${r.scope}] ×${r.count || 0} err ${Math.round((r.errRate || 0) * 100)}%${health}`);
+        const health = r.status === 'review'
+          ? (lang === 'ko' ? '  ⚠ 에러율 초과 — 재검토 필요' : '  ⚠ error rate over threshold — needs review')
+          : '';
+        const stat = lang === 'ko'
+          ? `${r.tier} (${rs.tierLabel(r.tier)}) · ${rs.scopeLabel(r.scope)} · 반복 ${r.count || 0}회 · 에러율 ${Math.round((r.errRate || 0) * 100)}%`
+          : `${r.tier} (${rs.tierLabel(r.tier, 'en')}) · ${rs.scopeLabel(r.scope, 'en')} · seen ×${r.count || 0} · err ${Math.round((r.errRate || 0) * 100)}%`;
+        console.log(`  #${i + 1} ${stat}${health}`);
         console.log(`      ${r.rule}`);
       });
       console.log('\n제거: claude-token-saver route-scan rules rm <N>');
@@ -571,21 +576,24 @@ async function main() {
       if (open.length === 0 && reviewRules.length === 0) return; // silent — nothing to inject
       const lines = [];
       if (open.length > 0) {
-        lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 상위 모델(opus/fable)이 처리한 위임 가능 반복 작업이 감지되었습니다:`);
+        lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 비싼 모델(opus/fable)이 반복 처리해 온, 더 싼 모델로 넘겨도 되는 작업이 감지되었습니다.`);
+        lines.push('(R<N>은 후보 번호, T2/T1은 난이도 등급입니다 — 사용자에게 전달할 때는 코드가 아니라 아래 풀어쓴 설명으로 브리핑하세요)');
         for (const c of open) {
-          const tierNote = c.tier === 'T1' ? 'sonnet 위임(중간 난도)' : `${c.agent} 위임(경량)`;
-          lines.push(`  R${c.id} [${c.tier || 'T2'}] (×${c.count}, ${c.project}): ${c.label} → ${tierNote} 권장 (scope 제안: ${c.suggestedScope})`);
-          lines.push(`      예시: "${c.example}"`);
+          const tier = c.tier || 'T2';
+          lines.push(`  후보 R${c.id} — "${c.label}" 유형, ${c.count}회 반복 (프로젝트: ${c.project})`);
+          lines.push(`      판정: ${tier} (${rs.tierLabel(tier)}) → ${c.agent} 서브에이전트 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
+          lines.push(`      예시 요청: "${c.example}"`);
           lines.push(`      등록 시 ratchet-model.md에 기록될 룰: "${c.rule}"`);
         }
-        lines.push('등록하면 다음 세션부터 자동 위임됩니다. 사용자에게 등록 여부를 물을 때 위 룰 원문을 그대로 보여주고, scope까지 확인한 뒤 실행하세요:');
-        lines.push('  claude-token-saver harness promote R<N> --project|--global   # scope는 반드시 사용자에게 확인');
+        lines.push('등록하면 다음 세션부터 자동 위임됩니다. 사용자에게 등록 여부를 물을 때 위 룰 원문을 그대로 보여주고, 적용 범위까지 확인한 뒤 실행하세요:');
+        lines.push('  claude-token-saver harness promote R<N> --project|--global   # 적용 범위는 반드시 사용자에게 확인');
         lines.push('  claude-token-saver route-scan dismiss <N>                    # 사용자가 원치 않으면');
       }
       if (reviewRules.length > 0) {
-        lines.push(`[claude-token-saver rule-health] 등록된 모델 피팅 룰 중 위임 대상 유형의 에러율이 기준(20%)을 넘은 룰이 있습니다 — 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:`);
+        lines.push(`[claude-token-saver rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 기준(20%)을 넘어 재검토가 필요한 룰이 있습니다 — 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:`);
         for (const r of reviewRules) {
-          lines.push(`  #${r.n} [${r.tier}|${r.scope}] 에러율 ${Math.round((r.errRate || 0) * 100)}%: ${r.rule}`);
+          lines.push(`  룰 #${r.n} (${r.tier} ${rs.tierLabel(r.tier)} · ${rs.scopeLabel(r.scope)}) — 최근 에러율 ${Math.round((r.errRate || 0) * 100)}%`);
+          lines.push(`      "${r.rule}"`);
         }
         lines.push('  제거: claude-token-saver route-scan rules rm <N>');
       }
@@ -614,11 +622,18 @@ async function main() {
         : 'No delegation candidates (below recurrence threshold or already resolved).');
       return;
     }
-    console.log(lang === 'ko' ? '\n위임 후보:' : '\nDelegation candidates:');
+    console.log(lang === 'ko' ? '\n위임 후보 (R<N>=후보 번호, T2/T1=난이도 등급):' : '\nDelegation candidates (R<N> = candidate id, T2/T1 = difficulty tier):');
     for (const c of open) {
-      console.log(`  R${c.id}  [${c.tier || 'T2'}] ×${c.count}  ${c.label} → ${c.agent}  [${c.project}] (scope 제안: ${c.suggestedScope})`);
-      console.log(`       예시: "${c.example}"`);
-      console.log(`       룰: ${c.rule}`);
+      const tier = c.tier || 'T2';
+      if (lang === 'ko') {
+        console.log(`  R${c.id}  "${c.label}" ×${c.count}회 [${c.project}]`);
+        console.log(`       판정: ${tier} (${rs.tierLabel(tier)}) → ${c.agent} 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
+      } else {
+        console.log(`  R${c.id}  "${c.label}" ×${c.count} [${c.project}]`);
+        console.log(`       verdict: ${tier} (${rs.tierLabel(tier, 'en')}) → delegate to ${c.agent} · suggested scope: ${rs.scopeLabel(c.suggestedScope, 'en')}`);
+      }
+      console.log(`       ${lang === 'ko' ? '예시' : 'example'}: "${c.example}"`);
+      console.log(`       ${lang === 'ko' ? '룰' : 'rule'}: ${c.rule}`);
     }
     console.log('');
     console.log(lang === 'ko' ? '등록 / 무시:' : 'Promote / dismiss:');
