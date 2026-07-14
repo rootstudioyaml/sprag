@@ -104,12 +104,37 @@ export function renderModelRatchet(rules) {
     '## Rules',
     '',
   ];
+  const healthOf = (r) => r.status === 'review'
+    ? ` ⚠ rule-health: 최근 위임 대상 에러율 ${Math.round((r.errRate || 0) * 100)}% — 조건을 좁히거나 제거 검토`
+    : '';
+  const statsOf = (r) => `×${r.count || 0}, err ${Math.round((r.errRate || 0) * 100)}%, seen ${r.lastSeen || r.promotedAt}`;
+
+  // A category can carry both a T2 (haiku) and a T1 (sonnet) rule. Tier is
+  // only known after an episode finishes, so two separate bullets give the
+  // reading LLM no way to pick one at request time — merge such pairs into a
+  // single conditional rule with explicit request-time criteria (default to
+  // the cheap agent, escalate on multi-step scope, hand back on judgement /
+  // irreversible actions).
+  const byCategory = new Map();
   for (const r of rules) {
-    const health = r.status === 'review'
-      ? ` ⚠ rule-health: 최근 위임 대상 에러율 ${Math.round((r.errRate || 0) * 100)}% — 조건을 좁히거나 제거 검토`
-      : '';
-    const stats = ` <!-- ×${r.count || 0}, err ${Math.round((r.errRate || 0) * 100)}%, seen ${r.lastSeen || r.promotedAt} -->`;
-    lines.push(`- ${r.rule}${health}${stats}`);
+    if (!byCategory.has(r.category)) byCategory.set(r.category, []);
+    byCategory.get(r.category).push(r);
+  }
+  for (const group of byCategory.values()) {
+    const t2 = group.find((r) => r.tier === 'T2');
+    const t1 = group.find((r) => r.tier === 'T1');
+    if (t2 && t1) {
+      const rule =
+        `"${t2.label}" 유형 요청은 기본적으로 ${t2.agent}(haiku) 서브에이전트로 위임한다(예: "${t2.example}"). ` +
+        `여러 단계·여러 파일 수정이 얽힌 중간 난도 요청(예: "${t1.example}")은 model: sonnet 서브에이전트로 위임한다. ` +
+        `설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이거나 위임 중 에러가 반복되면 위임하지 말고 메인 모델이 직접 처리한다`;
+      lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)} -->`);
+      for (const r of group) {
+        if (r !== t2 && r !== t1) lines.push(`- ${r.rule}${healthOf(r)} <!-- ${statsOf(r)} -->`);
+      }
+    } else {
+      for (const r of group) lines.push(`- ${r.rule}${healthOf(r)} <!-- ${statsOf(r)} -->`);
+    }
   }
   return lines.join('\n') + '\n';
 }
@@ -171,8 +196,10 @@ export function syncAllFiles({ previousPaths = [] } = {}) {
  * for each registered rule, recompute recurrence count and the error rate
  * of episodes in its (tier-eligible) category — the rule-health signal.
  *
- * `episodeStats`: Map "category|project" (plus a "category|*" wildcard key
- * that global-scope rules fall back to) → { count, errCount, epCount }.
+ * `episodeStats`: Map "tier|category|project" (plus a "tier|category|*"
+ * wildcard key that global-scope rules fall back to) → { count, errCount,
+ * epCount }. Tier is part of the key so a category carrying both a T2 and a
+ * T1 rule doesn't double-count every episode into both rules' stats.
  * errCount/epCount measure the scan window's shape-eligible episodes — ones
  * an expensive model handled directly that still look T1/T2 by shape (tier
  * judged with the error signal zeroed; see route-scan's rule-health pass).
@@ -181,8 +208,8 @@ export function refreshModelRules(episodeStats, { now } = {}) {
   const data = loadModelRules();
   let changed = false;
   for (const r of data.rules) {
-    const s = episodeStats.get(`${r.category}|${r.project}`)
-      || (r.scope === 'global' ? episodeStats.get(`${r.category}|*`) : null);
+    const s = episodeStats.get(`${r.tier}|${r.category}|${r.project}`)
+      || (r.scope === 'global' ? episodeStats.get(`${r.tier}|${r.category}|*`) : null);
     if (!s) continue;
     r.count = s.count;
     r.errRate = s.epCount > 0 ? s.errCount / s.epCount : 0;

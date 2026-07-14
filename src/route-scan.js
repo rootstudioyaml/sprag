@@ -42,7 +42,10 @@ export const T0_MIN_MUTATING = 7;
 // acks, feedback) — skip entirely.
 export const MIN_DELEGABLE_OUT = 100;
 // Escalation keywords: design/analysis judgement stays on the top tier.
-export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개선할|검토해보|비교|왜 |analyze|compare|evaluate|architect|refactor/i;
+// Irreversible/external actions (store submission, deploy, release, merge)
+// are included — they may look like light "run" episodes in the logs, but
+// delegating them defeats the harness's default-safe-path rule.
+export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개선할|검토해보|비교|왜 |제출|배포|출시|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge/i;
 // A pattern must recur this often before we nag about it.
 export const MIN_RECURRENCE = 3;
 
@@ -58,49 +61,84 @@ export const RESCAN_MIN_INTERVAL_MS = 60 * 60 * 1000;      // never more than ho
 export const RESCAN_BIG_DELTA_BYTES = 5 * 1024 * 1024;     // this much new data → rescan now
 export const RESCAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;      // any new data + a day old → rescan
 
-// Category → recommended subagent. First match wins; order matters
-// (paste before everything: keywords inside pasted UI/log text would
-// otherwise mislabel the episode; translate before read: "번역해줘" also
-// matches the read keywords).
+// Categories → recommended subagent. Classification is behavior-first with
+// weighted keyword scoring as fallback — see categorize().
 const PASTE_MIN_LEN = 400;
 const CATEGORIES = [
   {
     id: 'paste',
     label: '붙여넣은 화면·로그 질문',
     agent: 'haiku-explore',
-    re: null, // matched by length, see categorize()
+    kw: null, // matched by length, see categorize()
   },
   {
     id: 'translate',
     label: '배치 번역·정형 텍스트 변환',
     agent: 'haiku-translate',
-    re: /번역|translate|변환해|표로 정리|포맷팅/i,
+    kw: [[/번역|translate/i, 2], [/변환해|표로 정리|포맷팅/i, 1]],
   },
   {
     id: 'explore',
     label: '탐색·조회 (파일/값 찾기)',
     agent: 'haiku-explore',
-    re: /grep|검색|찾아|search|find|어디|위치|목록|살펴/i,
+    kw: [[/grep|검색|search|find/i, 2], [/찾아|어디|위치|목록|살펴/i, 1]],
   },
   {
     id: 'read',
     label: '읽기·요약·설명',
     agent: 'haiku-explore',
-    re: /읽어|요약|설명|정리해|summar|explain|보여줘|알려줘|뭐야|what/i,
-  },
-  {
-    id: 'run',
-    label: '명령 실행 (빌드·테스트·git)',
-    agent: 'haiku-runner',
-    re: /git |commit|push|실행|돌려|run |build|빌드|테스트|npm |pip|설치/i,
+    kw: [[/요약|summar|explain/i, 2], [/읽어|설명|정리해|보여줘|알려줘|뭐야|what/i, 1]],
   },
   {
     id: 'check',
     label: '상태 확인·검증',
     agent: 'haiku-explore',
-    re: /확인|맞아\?|되나|됐나|괜찮|체크|check|verify|status|점검/i,
+    kw: [[/확인|검증|verify|점검/i, 2], [/맞아\?|되나|됐나|됐어|되는지|괜찮|체크|check|status/i, 1]],
+  },
+  {
+    id: 'run',
+    label: '명령 실행 (빌드·테스트·git)',
+    agent: 'haiku-runner',
+    kw: [[/git |commit|push|npm |pip|빌드해|빌드 돌/i, 2], [/실행|돌려|run |build|빌드|테스트|설치/i, 1]],
   },
 ];
+
+// ── Behavior signal (1st) — what the episode actually DID ────────────────
+// The tool-call histogram is ground truth the prompt's wording is not:
+// "테스트 통과했는지 확인해줘" that actually ran `npx playwright test` IS a
+// run episode regardless of phrasing. Keyword scores only pick within (or,
+// when behavior is inconclusive, across) the plausible pool.
+const RUN_TOOLS = new Set(['Bash']);
+const LOOKUP_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch']);
+const WRITE_TOOLS = new Set(['Write', 'Edit', 'NotebookEdit']);
+const MIN_BEHAVIOR_CALLS = 2; // fewer calls than this → too little behavior to trust
+
+/**
+ * Narrow the candidate categories from the episode's tool mix.
+ * Returns an array of category ids (ordered — first is the default when
+ * keywords stay silent), or null when behavior is inconclusive.
+ */
+export function behaviorPool(toolCounts) {
+  let run = 0, lookup = 0, write = 0, total = 0;
+  for (const [name, n] of Object.entries(toolCounts || {})) {
+    total += n;
+    if (RUN_TOOLS.has(name)) run += n;
+    else if (LOOKUP_TOOLS.has(name)) lookup += n;
+    else if (WRITE_TOOLS.has(name)) write += n;
+  }
+  if (total < MIN_BEHAVIOR_CALLS) return null;
+  if (run > lookup + write) return ['run'];
+  if (lookup > run + write) return ['explore', 'read', 'check', 'translate'];
+  return null; // mixed / write-heavy — no reliable verdict, keywords decide
+}
+
+/** Weighted keyword score for one category (0 when it has no kw table). */
+function keywordScore(cat, text) {
+  if (!cat.kw) return 0;
+  let score = 0;
+  for (const [re, w] of cat.kw) if (re.test(text)) score += w;
+  return score;
+}
 
 // Episodes that are not user-delegable requests: bare continuations, injected
 // notifications, image pastes. These are easy but there is nothing to route.
@@ -127,10 +165,27 @@ export function mungeProjectPath(p) {
   return String(p).replace(/[^a-zA-Z0-9-]/g, '-');
 }
 
-function categorize(text) {
+/**
+ * Classify an episode. Gates (paste by length) run first, then the tool-mix
+ * behavior signal narrows the candidate pool, then weighted keyword scores
+ * pick within it (highest score wins; ties fall back to CATEGORIES order).
+ * A behavior verdict without any keyword hit still classifies (pool's first
+ * id); no behavior AND no keyword hit → null (nothing delegable to name).
+ */
+export function categorize(text, toolCounts) {
   if (text.length >= PASTE_MIN_LEN) return CATEGORIES.find((c) => c.id === 'paste');
-  for (const c of CATEGORIES) if (c.re && c.re.test(text)) return c;
-  return null;
+  const pool = behaviorPool(toolCounts);
+  const eligible = pool
+    ? pool.map((id) => CATEGORIES.find((c) => c.id === id))
+    : CATEGORIES.filter((c) => c.kw);
+  let best = null;
+  let bestScore = 0;
+  for (const c of eligible) {
+    const s = keywordScore(c, text);
+    if (s > bestScore) { best = c; bestScore = s; }
+  }
+  if (best) return best;
+  return pool ? eligible[0] : null;
 }
 
 function isSkippable(text) {
@@ -146,7 +201,7 @@ function toEpisodes(records) {
   for (const r of records) {
     const text = (r.userText || '').trim();
     if (!cur || cur.text !== text) {
-      cur = { text, calls: 0, out: 0, mutating: 0, errors: 0, delegated: 0, models: new Set(), cwd: '' };
+      cur = { text, calls: 0, out: 0, mutating: 0, errors: 0, delegated: 0, models: new Set(), cwd: '', tools: {} };
       episodes.push(cur);
     }
     cur.calls += 1;
@@ -154,6 +209,9 @@ function toEpisodes(records) {
     cur.mutating += r.mutatingToolCalls || 0;
     cur.errors += r.toolErrors || 0;
     cur.delegated += r.delegationCalls || 0;
+    for (const [name, n] of Object.entries(r.toolCounts || {})) {
+      cur.tools[name] = (cur.tools[name] || 0) + n;
+    }
     cur.models.add(r.model);
     if (!cur.cwd && r.cwd) cur.cwd = r.cwd;
   }
@@ -244,17 +302,20 @@ export async function runRouteScan({ days = 14 } = {}) {
   for (const { ep, projectDir } of all) {
     if (isSkippable(ep.text)) continue;
     if (![...ep.models].some(isExpensiveModel)) continue; // already cheap
-    const cat = categorize(ep.text);
+    const cat = categorize(ep.text, ep.tools);
     if (cat) {
       // rule-health denominator: episodes that LOOK delegable by shape
       // (tier judged with the error signal zeroed — using real errors here
       // would be circular, since T2 requires errors=0 by definition). The
       // numerator is those that still hit errors: exactly the "light-looking
       // work in this category keeps failing" risk a delegation rule cares about.
+      // Keyed by tier as well: a category can carry both a T2 and a T1 rule,
+      // and sharing one category-wide stat would double-count every episode
+      // into both rules (identical ×N / err% on unrelated tiers).
       const shapeTier = tierOf({ ...ep, errors: 0 }, cat, thresholds);
       if (shapeTier === 'T1' || shapeTier === 'T2') {
-        bumpStats(`${cat.id}|${projectDir}`, ep);
-        bumpStats(`${cat.id}|*`, ep);
+        bumpStats(`${shapeTier}|${cat.id}|${projectDir}`, ep);
+        bumpStats(`${shapeTier}|${cat.id}|*`, ep);
       }
     }
     const tier = tierOf(ep, cat, thresholds);
@@ -299,8 +360,8 @@ export async function runRouteScan({ days = 14 } = {}) {
     (r.scope === 'global' || r.project === g.project));
 
   const ruleText = (g) => g.tier === 'T2'
-    ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${g.agent}(haiku) 서브에이전트로 위임한다`
-    : `"${g.label}" 유형의 중간 난도 요청(예: "${g.example}")은 model: sonnet 서브에이전트로 위임한다 (설계 판단·반복 에러 발생 시 메인 모델이 이어받음)`;
+    ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${g.agent}(haiku) 서브에이전트로 위임한다 (설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이면 위임하지 않음)`
+    : `"${g.label}" 유형의 중간 난도 요청(예: "${g.example}")은 model: sonnet 서브에이전트로 위임한다 (설계 판단·비가역 작업·반복 에러 발생 시 메인 모델이 이어받음)`;
 
   const candidates = [...groups.values()]
     .filter((g) => g.count >= MIN_RECURRENCE && !hasRule(g))

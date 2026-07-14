@@ -79,14 +79,18 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
 
     let mutatingToolCalls = 0;
     let delegationCalls = 0;
+    const prev = records.get(reqId);
+    // Per-tool call histogram — what the call actually DID. route-scan's
+    // categorizer trusts this over the prompt's wording (behavior-first).
+    const toolCounts = { ...(prev?.toolCounts || {}) };
     if (Array.isArray(msg.content)) {
       for (const b of msg.content) {
         if (!b || b.type !== 'tool_use') continue;
         if (MUTATING_TOOLS.has(b.name)) mutatingToolCalls += 1;
         if (DELEGATION_TOOLS.has(b.name)) delegationCalls += 1;
+        if (typeof b.name === 'string') toolCounts[b.name] = (toolCounts[b.name] || 0) + 1;
       }
     }
-    const prev = records.get(reqId);
 
     lastRecord = {
       model: normalizeModelId(msg.model),
@@ -104,6 +108,7 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
       mutatingToolCalls: (prev?.mutatingToolCalls || 0) + mutatingToolCalls,
       delegationCalls: (prev?.delegationCalls || 0) + delegationCalls,
       toolErrors: prev?.toolErrors || 0,
+      toolCounts,
     };
     records.set(reqId, lastRecord);
   }
