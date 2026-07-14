@@ -115,8 +115,10 @@ const MIN_BEHAVIOR_CALLS = 2; // fewer calls than this → too little behavior t
 
 /**
  * Narrow the candidate categories from the episode's tool mix.
- * Returns an array of category ids (ordered — first is the default when
- * keywords stay silent), or null when behavior is inconclusive.
+ * Returns { ids, fallback } — ids are the candidate categories, fallback is
+ * the id to use when keywords stay silent (null = keywords are REQUIRED, an
+ * id-less episode is not a delegation candidate). Returns null when behavior
+ * is inconclusive.
  */
 export function behaviorPool(toolCounts) {
   let run = 0, lookup = 0, write = 0, total = 0;
@@ -127,9 +129,15 @@ export function behaviorPool(toolCounts) {
     else if (WRITE_TOOLS.has(name)) write += n;
   }
   if (total < MIN_BEHAVIOR_CALLS) return null;
-  if (run > lookup + write) return ['run'];
-  if (lookup > run + write) return ['explore', 'read', 'check', 'translate'];
-  return null; // mixed / write-heavy — no reliable verdict, keywords decide
+  if (run > lookup + write) return { ids: ['run'], fallback: 'run' };
+  if (lookup > run + write) return { ids: ['explore', 'read', 'check', 'translate'], fallback: 'explore' };
+  // Write-dominant episodes are EDITING work, not delegable lookups — without
+  // this they leak into read/explore via generic keywords ("설명이 필요해보이는데"
+  // + Edit×5 landed in read/T1). Only translate legitimately writes, so it is
+  // the sole candidate — and only with explicit translate keywords (no
+  // silent fallback: an editing episode is not a delegation candidate).
+  if (write > run + lookup) return { ids: ['translate'], fallback: null };
+  return null; // mixed — no reliable verdict, keywords decide
 }
 
 /** Weighted keyword score for one category (0 when it has no kw table). */
@@ -176,7 +184,7 @@ export function categorize(text, toolCounts) {
   if (text.length >= PASTE_MIN_LEN) return CATEGORIES.find((c) => c.id === 'paste');
   const pool = behaviorPool(toolCounts);
   const eligible = pool
-    ? pool.map((id) => CATEGORIES.find((c) => c.id === id))
+    ? pool.ids.map((id) => CATEGORIES.find((c) => c.id === id))
     : CATEGORIES.filter((c) => c.kw);
   let best = null;
   let bestScore = 0;
@@ -185,7 +193,8 @@ export function categorize(text, toolCounts) {
     if (s > bestScore) { best = c; bestScore = s; }
   }
   if (best) return best;
-  return pool ? eligible[0] : null;
+  if (pool?.fallback) return CATEGORIES.find((c) => c.id === pool.fallback);
+  return null;
 }
 
 function isSkippable(text) {
