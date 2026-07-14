@@ -223,6 +223,11 @@ export function installSessionStartHook() {
   }
 
   settings.hooks = settings.hooks || {};
+  // A present-but-non-array value is schema-invalid, but it's the user's
+  // data — back off instead of silently replacing it.
+  if (settings.hooks.SessionStart !== undefined && !Array.isArray(settings.hooks.SessionStart)) {
+    return { path: file, action: 'skipped', reason: 'hooks.SessionStart is not an array — fix settings.json manually' };
+  }
   const list = Array.isArray(settings.hooks.SessionStart) ? settings.hooks.SessionStart : [];
   const already = list.some((m) =>
     Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('route-scan --hook')),
@@ -260,6 +265,11 @@ export function installBriefHook() {
   }
 
   settings.hooks = settings.hooks || {};
+  // A present-but-non-array value is schema-invalid, but it's the user's
+  // data — back off instead of silently replacing it.
+  if (settings.hooks.UserPromptSubmit !== undefined && !Array.isArray(settings.hooks.UserPromptSubmit)) {
+    return { path: file, action: 'skipped', reason: 'hooks.UserPromptSubmit is not an array — fix settings.json manually' };
+  }
   const list = Array.isArray(settings.hooks.UserPromptSubmit) ? settings.hooks.UserPromptSubmit : [];
   const already = list.some((m) =>
     Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('brief --hook')),
