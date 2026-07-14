@@ -400,6 +400,7 @@ async function main() {
     const r = installAll({ force });
     print('skill', r.skill);
     print('SessionStart hook (route-scan)', r.sessionStartHook);
+    print('UserPromptSubmit hook (brief)', r.briefHook);
     {
       const s = r.statusline;
       const verb = s.action === 'exists' ? 'already configured (refreshInterval=5)'
@@ -492,6 +493,23 @@ async function main() {
   //   claude-token-saver route-scan dismiss <N>     # mute candidate R<N>
   // Promote a candidate to a ratchet rule (scope is always explicit):
   //   claude-token-saver harness promote R<N> --project|--global
+  // brief --hook — UserPromptSubmit hook mode: per-session, change-triggered
+  // briefing of state the statusline can only chip (ctx tier crossings,
+  // mid-session route/rule-health changes). Silent when nothing changed.
+  if (args[0] === 'brief') {
+    if (!hasFlag('--hook')) {
+      console.error('Usage: claude-token-saver brief --hook   (UserPromptSubmit hook mode)');
+      process.exit(1);
+    }
+    const ctx = readStdinJson() || {};
+    try {
+      const { runBrief } = await import('../src/brief.js');
+      const out = await runBrief({ sessionId: ctx.session_id, transcriptPath: ctx.transcript_path });
+      if (out) console.log(out);
+    } catch { /* briefing is best-effort — never block a prompt */ }
+    return;
+  }
+
   if (args[0] === 'route-scan') {
     const rs = await import('../src/route-scan.js');
     const { userLanguage } = await import('../src/config.js');

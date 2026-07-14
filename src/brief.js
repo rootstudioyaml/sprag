@@ -1,0 +1,183 @@
+/**
+ * brief — UserPromptSubmit hook: per-session, change-triggered briefing.
+ *
+ * The statusline can only show chips (`ctx 82%`, `route? R1`, `rule-health`),
+ * and the model cannot see the statusline at all — so a mid-session state
+ * change is invisible to the conversation unless a hook injects it. This
+ * module runs on every prompt submit, compares the CURRENT session's state
+ * against what was already briefed for that session, and emits a short
+ * briefing instruction only when something NEW crossed a threshold. No
+ * change → completely silent (zero context cost).
+ *
+ * Per-session by design (user requirement): context size is a property of
+ * one session's transcript, so both the measurement (from this session's
+ * transcript_path) and the "already briefed" markers are keyed by session_id.
+ *
+ * State: <stateDir>/brief-state.json
+ *   { sessions: { [session_id]: { ts, ctxTier, seeded, briefed: [signature] } } }
+ * Sessions untouched for 7 days are pruned on every write.
+ */
+
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+
+// Context tiers as a fraction of the session's context window. Tier 1 warns
+// (compaction/cost territory ahead), tier 2 urges wrapping up. A session only
+// ever hears about each tier once, and only on upward crossings.
+export const CTX_TIERS = [
+  { tier: 1, pct: 0.8 },
+  { tier: 2, pct: 0.95 },
+];
+// Requests above this input size can only exist on a 1M window.
+const WINDOW_1M_MIN_INPUT = 250_000;
+const PRUNE_MS = 7 * 24 * 60 * 60 * 1000;
+const TAIL_BYTES = 256 * 1024;
+
+function stateDir() {
+  if (process.platform === 'win32') {
+    return join(process.env.APPDATA || homedir(), 'claude-token-saver');
+  }
+  if (process.platform === 'darwin') {
+    return join(homedir(), 'Library', 'Application Support', 'claude-token-saver');
+  }
+  const xdg = process.env.XDG_CONFIG_HOME || join(homedir(), '.config');
+  return join(xdg, 'claude-token-saver');
+}
+
+export function briefStatePath() {
+  return join(stateDir(), 'brief-state.json');
+}
+
+function loadState() {
+  try {
+    const s = JSON.parse(readFileSync(briefStatePath(), 'utf8'));
+    return s && typeof s.sessions === 'object' ? s : { sessions: {} };
+  } catch {
+    return { sessions: {} };
+  }
+}
+
+function saveState(state, now) {
+  for (const [id, s] of Object.entries(state.sessions)) {
+    if (!s?.ts || now - s.ts > PRUNE_MS) delete state.sessions[id];
+  }
+  const dir = stateDir();
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(briefStatePath(), JSON.stringify(state) + '\n');
+}
+
+/**
+ * Last request's input size for THIS session, from the transcript tail.
+ * Reads at most TAIL_BYTES — prompt-submit hooks must stay fast.
+ */
+export function sessionCtx(transcriptPath) {
+  let size;
+  try { size = statSync(transcriptPath).size; } catch { return null; }
+  const start = Math.max(0, size - TAIL_BYTES);
+  const buf = Buffer.alloc(size - start);
+  let fd;
+  try {
+    fd = openSync(transcriptPath, 'r');
+    readSync(fd, buf, 0, buf.length, start);
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) try { closeSync(fd); } catch { /* already closed */ }
+  }
+  const lines = buf.toString('utf8').split('\n');
+  let input = null;
+  let maxInput = 0;
+  for (const line of lines) {
+    if (!line.includes('"usage"')) continue;
+    let e; try { e = JSON.parse(line); } catch { continue; }
+    const u = e?.message?.usage;
+    if (!u) continue;
+    const total = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+    if (total > 0) { input = total; maxInput = Math.max(maxInput, total); }
+  }
+  if (input == null) return null;
+  const window = maxInput > WINDOW_1M_MIN_INPUT ? 1_000_000 : 200_000;
+  return { input, window, pct: input / window };
+}
+
+function ctxTierOf(pct) {
+  let t = 0;
+  for (const { tier, pct: p } of CTX_TIERS) if (pct >= p) t = tier;
+  return t;
+}
+
+const fmtK = (n) => `${Math.round(n / 1000)}k`;
+
+/**
+ * Compute the briefing for one prompt-submit event. Returns the text to
+ * inject, or null when nothing new happened. Mutates + persists state.
+ *
+ * On a session's FIRST event, route/rule-health signatures are seeded as
+ * already-briefed WITHOUT emitting them — the SessionStart hook covered the
+ * session-start snapshot; this hook only owns what changes mid-session.
+ * Context tiers are NOT seeded: a session that starts (or resumes) already
+ * past a threshold still deserves the warning once.
+ */
+export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) {
+  if (!sessionId) return null;
+  const state = loadState();
+  const s = state.sessions[sessionId] || { ctxTier: 0, seeded: false, briefed: [] };
+  const items = [];
+
+  // ── context tier crossing (per-session) ──
+  const ctx = transcriptPath ? sessionCtx(transcriptPath) : null;
+  if (ctx) {
+    const tier = ctxTierOf(ctx.pct);
+    if (tier > (s.ctxTier || 0)) {
+      const winLabel = ctx.window >= 1_000_000 ? '1M' : '200k';
+      items.push(tier === 2
+        ? `이 세션의 컨텍스트가 ${winLabel} 창의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 곧 자동 압축으로 맥락 손실이 생길 수 있으니, 진행 중인 작업을 일단락하고 새 세션을 시작하는 편이 좋습니다.`
+        : `이 세션의 컨텍스트가 ${winLabel} 창의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이후 요청은 비용이 커지는 구간입니다 — 작업이 일단락되면 새 세션 시작을 권합니다.`);
+      s.ctxTier = tier;
+    }
+  }
+
+  // ── mid-session route-scan / rule-health changes (global state, briefed
+  //    at most once per session per signature) ──
+  try {
+    const rs = await import('./route-scan.js');
+    const mr = await import('./model-rules.js');
+    const briefed = new Set(s.briefed || []);
+    const fresh = [];
+    for (const c of rs.openCandidates(rs.readRouteScan())) {
+      const sig = `route|${c.signature}`;
+      if (briefed.has(sig)) continue;
+      briefed.add(sig);
+      fresh.push(['route', c]);
+    }
+    for (const r of mr.loadModelRules().rules) {
+      if (r.status !== 'review') continue;
+      const sig = `health|${r.signature}|${r.scope}`;
+      if (briefed.has(sig)) continue;
+      briefed.add(sig);
+      fresh.push(['health', r]);
+    }
+    if (s.seeded) {
+      for (const [kind, x] of fresh) {
+        items.push(kind === 'route'
+          ? `새 위임 후보가 감지되었습니다 — "${x.label}" 유형 ${x.count}회 반복(statusline의 route? R${x.id} 칩). 등록: claude-token-saver harness promote R${x.id} --project|--global (적용 범위는 사용자에게 확인) / 무시: route-scan dismiss ${x.id}`
+          : `승인된 위임 룰의 최근 에러율이 기준(20%)을 넘었습니다 — "${x.label}" (statusline의 rule-health 칩). 조건 좁히기/제거를 사용자와 상의하세요: claude-token-saver route-scan rules`);
+      }
+    }
+    // First event: session-start snapshot is SessionStart's job — swallow it.
+    s.briefed = [...briefed];
+    s.seeded = true;
+  } catch { /* caches unreadable — ctx briefing above still applies */ }
+
+  s.ts = now;
+  state.sessions[sessionId] = s;
+  saveState(state, now);
+
+  if (items.length === 0) return null;
+  const lines = [
+    '[claude-token-saver 브리핑] 아래 상태 변화를 사용자에게 알려주세요. 진행 중인 답변 흐름을 끊지 말고, 답변 말미에 `※ [claude-token-saver]` 라벨을 달아 각 항목을 1~2줄로 요약해 전달하면 됩니다 (이 브리핑은 항목당 한 번만 주입됩니다):',
+  ];
+  for (const it of items) lines.push(`- ${it}`);
+  return lines.join('\n');
+}

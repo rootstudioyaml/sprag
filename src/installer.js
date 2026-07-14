@@ -238,11 +238,48 @@ export function installSessionStartHook() {
   return { path: file, action: 'created' };
 }
 
+// Registers the UserPromptSubmit hook that briefs mid-session state changes
+// (ctx tier crossings, new route candidates, rule-health flips) into the
+// conversation — the model cannot see statusline chips, so without this a
+// change that happens mid-session goes unexplained until the user asks.
+// Silent (no output, zero context cost) when nothing changed. Idempotent.
+const BRIEF_HOOK_COMMAND = 'claude-token-saver brief --hook';
+
+export function installBriefHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  let settings = {};
+  if (existsSync(file)) {
+    try {
+      settings = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (e) {
+      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+    }
+  }
+
+  settings.hooks = settings.hooks || {};
+  const list = Array.isArray(settings.hooks.UserPromptSubmit) ? settings.hooks.UserPromptSubmit : [];
+  const already = list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('brief --hook')),
+  );
+  if (already) return { path: file, action: 'exists' };
+
+  list.push({
+    hooks: [{ type: 'command', command: BRIEF_HOOK_COMMAND, timeout: 10 }],
+  });
+  settings.hooks.UserPromptSubmit = list;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'created' };
+}
+
 export function installAll({ force = false } = {}) {
   return {
     skill: installSkill({ force }),
     statusline: installStatusline({ force }),
     sessionStartHook: installSessionStartHook(),
+    briefHook: installBriefHook(),
     legacy: removeLegacyCommand(),
   };
 }
