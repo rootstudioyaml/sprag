@@ -35,6 +35,10 @@ import { homedir } from 'node:os';
 // Post-promotion delegated-category error rate above this flags the rule
 // for review (rule-health). Calibrated against local T0 avg error incidence.
 export const HEALTH_ERR_RATE = 0.2;
+// Below this many shape-eligible episodes in the window the error rate is
+// noise (1 error in 4 episodes = 25% — instant flag), so the review flag is
+// withheld until the sample is large enough to mean something.
+export const HEALTH_MIN_SAMPLE = 10;
 
 function stateDir() {
   if (process.platform === 'win32') {
@@ -214,7 +218,7 @@ export function refreshModelRules(episodeStats, { now } = {}) {
     r.count = s.count;
     r.errRate = s.epCount > 0 ? s.errCount / s.epCount : 0;
     r.lastSeen = now || r.lastSeen;
-    r.status = r.errRate > HEALTH_ERR_RATE ? 'review' : 'active';
+    r.status = r.errRate > HEALTH_ERR_RATE && s.epCount >= HEALTH_MIN_SAMPLE ? 'review' : 'active';
     changed = true;
   }
   if (changed) {
