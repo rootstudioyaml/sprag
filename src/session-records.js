@@ -32,6 +32,24 @@ function contentText(content) {
 const MUTATING_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit', 'Bash']);
 const DELEGATION_TOOLS = new Set(['Task', 'Agent']);
 
+// Permission rejections and harness policy denials arrive as is_error
+// tool_results, but they encode the user's choice / the permission system's
+// policy, not task difficulty — counting them poisons the rule-health error
+// rate. Measured on a 14-day window: 6 user rejections + ~29 auto-mode
+// classifier denials out of 142 is_error results (~25% of the numerator).
+const REJECTION_RE = /doesn't want to proceed|tool use was rejected|doesn't want to take this action|denied by the claude code auto mode classifier|permission for this action was denied|requires approval/i;
+
+function toolResultText(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content.map((b) => (b && typeof b.text === 'string' ? b.text : '')).join(' ');
+}
+
+function isRealToolError(block) {
+  return block && block.type === 'tool_result' && block.is_error &&
+    !REJECTION_RE.test(toolResultText(block.content));
+}
+
 export async function collectSessionRecords(filePath, { includeContent = true } = {}) {
   const records = new Map();
   let depth = 0;
@@ -62,7 +80,7 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
       // follows the assistant call — attribute them to that call's record.
       if (lastRecord && Array.isArray(msg.content)) {
         for (const b of msg.content) {
-          if (b && b.type === 'tool_result' && b.is_error) lastRecord.toolErrors += 1;
+          if (isRealToolError(b)) lastRecord.toolErrors += 1;
         }
       }
       continue;
