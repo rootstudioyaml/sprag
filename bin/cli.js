@@ -572,6 +572,7 @@ async function main() {
     // stay fast) — reads the cache, kicks a detached refresh when stale, and
     // prints delegation-candidate context for the new session.
     if (hasFlag('--hook')) {
+      const hookCtx = readStdinJson() || {};
       let cache = rs.readRouteScan();
       if (await rs.shouldRescan(cache)) {
         try {
@@ -615,7 +616,18 @@ async function main() {
         }
         lines.push('  제거: claude-token-saver route-scan rules rm <N>');
       }
+      lines.push('위 내용은 사용자의 첫 메시지 주제와 무관하더라도(단순 인사여도) 첫 응답 말미에 `※ [claude-token-saver]` 라벨을 달아 요약 브리핑하세요 — 사용자가 물어볼 때까지 기다리지 말 것.');
       console.log(lines.join('\n'));
+      // Record what was actually briefed so the UserPromptSubmit brief hook
+      // suppresses exactly these — a candidate landing after this read (e.g.
+      // the detached rescan above finishing) still gets briefed next prompt.
+      try {
+        const { seedSessionBriefed } = await import('../src/brief.js');
+        seedSessionBriefed(hookCtx.session_id, [
+          ...open.map((c) => `route|${c.signature}`),
+          ...reviewRules.map((r) => `health|${r.signature}|${r.scope}`),
+        ]);
+      } catch { /* best-effort — worst case is one duplicate brief */ }
       return;
     }
 

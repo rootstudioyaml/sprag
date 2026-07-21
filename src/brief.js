@@ -14,8 +14,15 @@
  * transcript_path) and the "already briefed" markers are keyed by session_id.
  *
  * State: <stateDir>/brief-state.json
- *   { sessions: { [session_id]: { ts, ctxTier, seeded, briefed: [signature] } } }
+ *   { sessions: { [session_id]: { ts, ctxTier, briefed: [signature] } } }
  * Sessions untouched for 7 days are pruned on every write.
+ *
+ * Division of labor with the SessionStart hook: SessionStart prints the
+ * session-start snapshot and records the signatures it actually briefed via
+ * seedSessionBriefed(); this hook emits anything NOT in that record. A
+ * candidate that lands after the SessionStart read (e.g. the detached rescan
+ * finishing between session start and the first prompt) is therefore briefed
+ * on the next prompt instead of being lost for the whole session.
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
@@ -110,19 +117,33 @@ function ctxTierOf(pct) {
 const fmtK = (n) => `${Math.round(n / 1000)}k`;
 
 /**
+ * Called by the SessionStart hook after it prints the session-start snapshot:
+ * records the signatures it actually briefed so runBrief suppresses exactly
+ * those and nothing more. Signature format matches runBrief:
+ * `route|<sig>` / `health|<sig>|<scope>`.
+ */
+export function seedSessionBriefed(sessionId, signatures, now = Date.now()) {
+  if (!sessionId || !Array.isArray(signatures) || signatures.length === 0) return;
+  const state = loadState();
+  const s = state.sessions[sessionId] || { ctxTier: 0, briefed: [] };
+  s.briefed = [...new Set([...(s.briefed || []), ...signatures])];
+  s.ts = now;
+  state.sessions[sessionId] = s;
+  saveState(state, now);
+}
+
+/**
  * Compute the briefing for one prompt-submit event. Returns the text to
  * inject, or null when nothing new happened. Mutates + persists state.
  *
- * On a session's FIRST event, route/rule-health signatures are seeded as
- * already-briefed WITHOUT emitting them — the SessionStart hook covered the
- * session-start snapshot; this hook only owns what changes mid-session.
- * Context tiers are NOT seeded: a session that starts (or resumes) already
- * past a threshold still deserves the warning once.
+ * Route/rule-health signatures already briefed by the SessionStart hook
+ * (recorded via seedSessionBriefed) are skipped; every other fresh signature
+ * is emitted, including on the session's first event.
  */
 export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) {
   if (!sessionId) return null;
   const state = loadState();
-  const s = state.sessions[sessionId] || { ctxTier: 0, seeded: false, briefed: [] };
+  const s = state.sessions[sessionId] || { ctxTier: 0, briefed: [] };
   const items = [];
 
   // ── context tier crossing (per-session) ──
@@ -158,16 +179,12 @@ export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) 
       briefed.add(sig);
       fresh.push(['health', r]);
     }
-    if (s.seeded) {
-      for (const [kind, x] of fresh) {
-        items.push(kind === 'route'
-          ? `새 위임 후보가 감지되었습니다 — "${x.label}" 유형 ${x.count}회 반복(statusline의 route? R${x.id} 칩). 등록: claude-token-saver harness promote R${x.id} --project|--global (적용 범위는 사용자에게 확인) / 무시: route-scan dismiss ${x.id}`
-          : `승인된 위임 룰의 최근 에러율이 기준(20%)을 넘었습니다 — "${x.label}" (statusline의 rule-health 칩). 조건 좁히기/제거를 사용자와 상의하세요: claude-token-saver route-scan rules`);
-      }
+    for (const [kind, x] of fresh) {
+      items.push(kind === 'route'
+        ? `새 위임 후보가 감지되었습니다 — "${x.label}" 유형 ${x.count}회 반복(statusline의 route? R${x.id} 칩). 등록: claude-token-saver harness promote R${x.id} --project|--global (적용 범위는 사용자에게 확인) / 무시: route-scan dismiss ${x.id}`
+        : `승인된 위임 룰의 최근 에러율이 기준(20%)을 넘었습니다 — "${x.label}" (statusline의 rule-health 칩). 조건 좁히기/제거를 사용자와 상의하세요: claude-token-saver route-scan rules`);
     }
-    // First event: session-start snapshot is SessionStart's job — swallow it.
     s.briefed = [...briefed];
-    s.seeded = true;
   } catch { /* caches unreadable — ctx briefing above still applies */ }
 
   s.ts = now;
