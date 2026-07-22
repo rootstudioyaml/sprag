@@ -39,6 +39,16 @@ const DELEGATION_TOOLS = new Set(['Task', 'Agent']);
 // classifier denials out of 142 is_error results (~25% of the numerator).
 const REJECTION_RE = /doesn't want to proceed|tool use was rejected|doesn't want to take this action|denied by the claude code auto mode classifier|permission for this action was denied|requires approval/i;
 
+// Harness-mechanical / self-corrected tool errors also arrive as is_error
+// tool_results, but they reflect edit-ordering mechanics and the agent's own
+// immediate correction loop — not task difficulty. Counting them poisons the
+// rule-health error rate the same way permission denials do (v3.4.2). Measured
+// on a 14-day window they dominate the numerator (e.g. "File has not been read
+// yet" was 7/65 real errors in one project, edit-races + Task-lifecycle several
+// more). Kept NARROW on purpose: ambiguous shell failures ("Exit code N", "File
+// does not exist" on a Read) stay counted — those are genuine difficulty signal.
+const SELF_CORRECTED_RE = /File has not been read yet|has been modified since read|String to replace not found|is not running \(status:|<tool_use_error>Blocked:/i;
+
 function toolResultText(content) {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
@@ -46,8 +56,9 @@ function toolResultText(content) {
 }
 
 function isRealToolError(block) {
-  return block && block.type === 'tool_result' && block.is_error &&
-    !REJECTION_RE.test(toolResultText(block.content));
+  if (!block || block.type !== 'tool_result' || !block.is_error) return false;
+  const txt = toolResultText(block.content);
+  return !REJECTION_RE.test(txt) && !SELF_CORRECTED_RE.test(txt);
 }
 
 export async function collectSessionRecords(filePath, { includeContent = true } = {}) {
