@@ -200,6 +200,9 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ## 릴리스 노트
 
+### v3.6.2 (2026-07-26)
+- 문서 전용 릴리스 — 아래 v3.4.0~v3.5.3 릴리스 노트가 누락돼 있던 것을 복원했고, npm 패키지 페이지는 발행된 버전의 README를 보여주므로 이를 반영하기 위해 올립니다. 코드 변경 없음.
+
 ### v3.6.1 (2026-07-26)
 - **macOS·Windows에서 상태 파일이 갈라지던 버그 수정** — `route-scan.json` / `model-rules.json` / `brief-state.json`이 각자 복제된 경로 해석 함수를 갖고 있었고, 그 복사본들은 `XDG_CONFIG_HOME`을 리눅스에서만 인정했습니다. 그래서 macOS·Windows에서 XDG를 설정하면 `config.json`·세션 캐시만 옮겨가고 위 세 파일은 플랫폼 기본 경로에 남아, 위임 후보 브리핑과 룰이 조용히 사라졌습니다. 이제 전부 `paths.js` 한 곳에서 해석합니다. (v3.6.0에서 도입한 3-OS CI가 잡아낸 버그 — 복제본이 다시 생기지 않도록 회귀 테스트 추가)
 - `npm test` 스크립트가 Node 22에서 실패하던 문제 수정 (`node --test test/`의 디렉터리 인자를 Node 22가 모듈 경로로 해석).

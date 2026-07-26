@@ -243,6 +243,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.6.2 (2026-07-26)
+- Docs-only release — restores the missing v3.4.0–v3.5.3 release notes below. Published because the npm package page renders the README of the published version. No code changes.
+
 ### v3.6.1 (2026-07-26)
 - **Fixed state files splitting apart on macOS and Windows** — `route-scan.json`, `model-rules.json`, and `brief-state.json` each carried a private copy of the path resolver, and those copies honored `XDG_CONFIG_HOME` on Linux only. With XDG set on macOS or Windows, `config.json` and the session cache moved while those three stayed at the platform default, so delegation-candidate briefings and promoted rules silently vanished. All of them now resolve through `paths.js`. (Caught by the 3-OS CI added in v3.6.0; a regression test now keeps a fourth copy from reappearing.)
 - Fixed `npm test` failing on Node 22 — Node 22 resolves the directory argument of `node --test test/` as a module path.
