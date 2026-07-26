@@ -19,7 +19,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { userDataDir } from './paths.js';
 import { discoverSessionFiles } from './parser.js';
 import { collectSessionRecords } from './session-records.js';
 
@@ -159,16 +159,10 @@ function keywordScore(cat, text) {
 const SKIP_RE = /^(계속|이어서|continue|다음|proceed|진행|응|네|넵|ok|okay|yes|ㄱ+|고고)\b/i;
 const SKIP_PREFIX = ['<task-notification', '<system', '[Image:', '<local-command'];
 
-function stateDir() {
-  if (process.platform === 'win32') {
-    return join(process.env.APPDATA || homedir(), 'claude-token-saver');
-  }
-  if (process.platform === 'darwin') {
-    return join(homedir(), 'Library', 'Application Support', 'claude-token-saver');
-  }
-  const xdg = process.env.XDG_CONFIG_HOME || join(homedir(), '.config');
-  return join(xdg, 'claude-token-saver');
-}
+// Single source of truth for the state dir (paths.js). A local copy used to
+// live here and honored XDG_CONFIG_HOME on Linux only, so on macOS/Windows an
+// XDG override split this cache away from config.json and the session cache.
+const stateDir = userDataDir;
 
 export function routeScanCachePath() {
   return join(stateDir(), 'route-scan.json');

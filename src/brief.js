@@ -27,7 +27,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { userDataDir } from './paths.js';
 
 // Context tiers as a fraction of the session's context window. Tier 1 warns
 // (compaction/cost territory ahead), tier 2 urges wrapping up. A session only
@@ -41,16 +41,9 @@ const WINDOW_1M_MIN_INPUT = 250_000;
 const PRUNE_MS = 7 * 24 * 60 * 60 * 1000;
 const TAIL_BYTES = 256 * 1024;
 
-function stateDir() {
-  if (process.platform === 'win32') {
-    return join(process.env.APPDATA || homedir(), 'claude-token-saver');
-  }
-  if (process.platform === 'darwin') {
-    return join(homedir(), 'Library', 'Application Support', 'claude-token-saver');
-  }
-  const xdg = process.env.XDG_CONFIG_HOME || join(homedir(), '.config');
-  return join(xdg, 'claude-token-saver');
-}
+// See the note in route-scan.js — paths.js is the only place that resolves
+// this, so an XDG_CONFIG_HOME override moves every state file together.
+const stateDir = userDataDir;
 
 export function briefStatePath() {
   return join(stateDir(), 'brief-state.json');

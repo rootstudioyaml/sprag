@@ -31,6 +31,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
+import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
 
 // Post-promotion delegated-category error rate above this flags the rule
@@ -41,16 +42,9 @@ export const HEALTH_ERR_RATE = 0.2;
 // withheld until the sample is large enough to mean something.
 export const HEALTH_MIN_SAMPLE = 10;
 
-function stateDir() {
-  if (process.platform === 'win32') {
-    return join(process.env.APPDATA || homedir(), 'claude-token-saver');
-  }
-  if (process.platform === 'darwin') {
-    return join(homedir(), 'Library', 'Application Support', 'claude-token-saver');
-  }
-  const xdg = process.env.XDG_CONFIG_HOME || join(homedir(), '.config');
-  return join(xdg, 'claude-token-saver');
-}
+// See the note in route-scan.js — paths.js is the only place that resolves
+// this, so an XDG_CONFIG_HOME override moves every state file together.
+const stateDir = userDataDir;
 
 export function modelRulesPath() {
   return join(stateDir(), 'model-rules.json');

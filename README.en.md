@@ -243,6 +243,10 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.6.1 (2026-07-26)
+- **Fixed state files splitting apart on macOS and Windows** — `route-scan.json`, `model-rules.json`, and `brief-state.json` each carried a private copy of the path resolver, and those copies honored `XDG_CONFIG_HOME` on Linux only. With XDG set on macOS or Windows, `config.json` and the session cache moved while those three stayed at the platform default, so delegation-candidate briefings and promoted rules silently vanished. All of them now resolve through `paths.js`. (Caught by the 3-OS CI added in v3.6.0; a regression test now keeps a fourth copy from reappearing.)
+- Fixed `npm test` failing on Node 22 — Node 22 resolves the directory argument of `node --test test/` as a module path.
+
 ### v3.6.0 (2026-07-26)
 - **Statusline refreshes stop re-parsing everything** — parsed sessions are now cached under a `(path, mtime, size)` key. Transcripts are append-only, so that triple is a sound identity for a parse result. On a 217MB / 226-file 30-day window every refresh used to spend ~3s re-reading files that could not have changed; now only the files that actually grew (in practice, the current session) are read. A stale or corrupt cache is never fatal — every read path falls back to a full parse.
 - **ratchet-model.md renders in English** — the model reads this file as instructions, so a Korean-only file dragged English sessions into Korean. Header, rule text, and rule-health warnings now follow the `language` setting. Category labels and rule text are stored in both languages at scan time, so switching languages takes effect immediately without a rescan.

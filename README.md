@@ -200,6 +200,10 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ## 릴리스 노트
 
+### v3.6.1 (2026-07-26)
+- **macOS·Windows에서 상태 파일이 갈라지던 버그 수정** — `route-scan.json` / `model-rules.json` / `brief-state.json`이 각자 복제된 경로 해석 함수를 갖고 있었고, 그 복사본들은 `XDG_CONFIG_HOME`을 리눅스에서만 인정했습니다. 그래서 macOS·Windows에서 XDG를 설정하면 `config.json`·세션 캐시만 옮겨가고 위 세 파일은 플랫폼 기본 경로에 남아, 위임 후보 브리핑과 룰이 조용히 사라졌습니다. 이제 전부 `paths.js` 한 곳에서 해석합니다. (v3.6.0에서 도입한 3-OS CI가 잡아낸 버그 — 복제본이 다시 생기지 않도록 회귀 테스트 추가)
+- `npm test` 스크립트가 Node 22에서 실패하던 문제 수정 (`node --test test/`의 디렉터리 인자를 Node 22가 모듈 경로로 해석).
+
 ### v3.6.0 (2026-07-26)
 - **statusline 재실행 비용 제거** — 세션 파싱 결과를 `(경로, mtime, size)` 키로 캐싱. 트랜스크립트는 append-only라 이 조합이 파싱 결과의 정확한 신원이 됨. 217MB/226파일 30일 창 기준 매 갱신마다 3초씩 재파싱하던 것이 변경된 파일(사실상 현재 세션 1개)만 읽는 것으로 축소. 캐시가 깨져도 항상 전체 파싱으로 폴백하므로 실패 경로 없음.
 - **ratchet-model.md 영문 렌더링** — 이 파일은 LLM이 지시문으로 읽기 때문에, 한글 전용 파일은 영어 세션의 응답까지 한글로 끌어당김. `language` 설정에 따라 헤더·룰 원문·rule-health 경고를 영문으로 렌더. 카테고리 라벨과 룰 원문은 스캔 시점에 양쪽 언어로 저장돼, 언어를 바꿔도 재스캔 없이 즉시 반영.
