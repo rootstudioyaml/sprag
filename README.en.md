@@ -243,6 +243,12 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.6.0 (2026-07-26)
+- **Statusline refreshes stop re-parsing everything** — parsed sessions are now cached under a `(path, mtime, size)` key. Transcripts are append-only, so that triple is a sound identity for a parse result. On a 217MB / 226-file 30-day window every refresh used to spend ~3s re-reading files that could not have changed; now only the files that actually grew (in practice, the current session) are read. A stale or corrupt cache is never fatal — every read path falls back to a full parse.
+- **ratchet-model.md renders in English** — the model reads this file as instructions, so a Korean-only file dragged English sessions into Korean. Header, rule text, and rule-health warnings now follow the `language` setting. Category labels and rule text are stored in both languages at scan time, so switching languages takes effect immediately without a rescan.
+- **Tests and CI** — `npm test` runs 22 `node:test` cases, and GitHub Actions runs them across ubuntu/macOS/Windows × Node 18/22. The cross-platform user-path handling (XDG / APPDATA / Application Support) is exactly what a single-OS run would miss.
+- **bin/cli.js split up** — the 1,000-line CLI is now `src/commands/*` (install, harness, route-scan, brief, handoff, history, last, mode) plus arg-parsing and stdin-payload helpers. No behavior change.
+
 ### v3.3.1 (2026-07-13)
 - **Plain language instead of codes** — bare `R1`/`T2` codes were unreadable for first-time users. Every user-facing listing (SessionStart hook briefing, `route-scan` candidates, `route-scan rules`) now spells tiers out as `T2 (simple — haiku-class is enough)` and scopes as `this project only` / `all projects (global)`. The hook briefing also instructs the model to relay the spelled-out explanation, not the codes. (Statusline chips keep the terse `route? R1` for width; the session briefing carries the meaning.)
 

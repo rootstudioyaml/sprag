@@ -68,36 +68,42 @@ const CATEGORIES = [
   {
     id: 'paste',
     label: '붙여넣은 화면·로그 질문',
+    labelEn: 'questions about pasted screens/logs',
     agent: 'haiku-explore',
     kw: null, // matched by length, see categorize()
   },
   {
     id: 'translate',
     label: '배치 번역·정형 텍스트 변환',
+    labelEn: 'batch translation / mechanical text transforms',
     agent: 'haiku-translate',
     kw: [[/번역|translate/i, 2], [/변환해|표로 정리|포맷팅/i, 1]],
   },
   {
     id: 'explore',
     label: '탐색·조회 (파일/값 찾기)',
+    labelEn: 'lookup (finding files/values)',
     agent: 'haiku-explore',
     kw: [[/grep|검색|search|find/i, 2], [/찾아|어디|위치|목록|살펴/i, 1]],
   },
   {
     id: 'read',
     label: '읽기·요약·설명',
+    labelEn: 'reading / summarizing / explaining',
     agent: 'haiku-explore',
     kw: [[/요약|summar|explain/i, 2], [/읽어|설명|정리해|보여줘|알려줘|뭐야|what/i, 1]],
   },
   {
     id: 'check',
     label: '상태 확인·검증',
+    labelEn: 'status checks / verification',
     agent: 'haiku-explore',
     kw: [[/확인|검증|verify|점검/i, 2], [/맞아\?|되나|됐나|됐어|되는지|괜찮|체크|check|status/i, 1]],
   },
   {
     id: 'run',
     label: '명령 실행 (빌드·테스트·git)',
+    labelEn: 'running commands (build/test/git)',
     agent: 'haiku-runner',
     kw: [[/git |commit|push|npm |pip|빌드해|빌드 돌/i, 2], [/실행|돌려|run |build|빌드|테스트|설치/i, 1]],
   },
@@ -335,6 +341,7 @@ export async function runRouteScan({ days = 14 } = {}) {
       tier,
       category: cat.id,
       label: cat.label,
+      labelEn: cat.labelEn,
       agent: tier === 'T2' ? cat.agent : 'sonnet',
       project: projectDir,
       projectPath: '',
@@ -368,9 +375,15 @@ export async function runRouteScan({ days = 14 } = {}) {
     r.tier === g.tier && r.category === g.category &&
     (r.scope === 'global' || r.project === g.project));
 
+  // Both languages are computed at scan time and stored on the candidate, so
+  // switching `language` later re-renders (and promotes) correctly without
+  // waiting for a rescan.
   const ruleText = (g) => g.tier === 'T2'
     ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${g.agent}(haiku) 서브에이전트로 위임한다 (설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이면 위임하지 않음)`
     : `"${g.label}" 유형의 중간 난도 요청(예: "${g.example}")은 model: sonnet 서브에이전트로 위임한다 (설계 판단·비가역 작업·반복 에러 발생 시 메인 모델이 이어받음)`;
+  const ruleTextEn = (g) => g.tier === 'T2'
+    ? `Delegate simple "${g.labelEn}" requests (e.g. "${g.example}") to the ${g.agent} (haiku) subagent — never when the request mixes in design judgement or irreversible work like deploy/release/submission`
+    : `Delegate moderate "${g.labelEn}" requests (e.g. "${g.example}") to a model: sonnet subagent — hand back to the main model on design judgement, irreversible work, or repeated errors`;
 
   const candidates = [...groups.values()]
     .filter((g) => g.count >= MIN_RECURRENCE && !hasRule(g))
@@ -382,6 +395,7 @@ export async function runRouteScan({ days = 14 } = {}) {
       tier: g.tier,
       category: g.category,
       label: g.label,
+      labelEn: g.labelEn,
       agent: g.agent,
       project: g.project,
       // Real session cwd for the project (munged `project` is lossy) — lets
@@ -396,6 +410,7 @@ export async function runRouteScan({ days = 14 } = {}) {
       // the same category recurs across 2+ projects (then 'global').
       suggestedScope: 'project',
       rule: ruleText(g),
+      ruleEn: ruleTextEn(g),
     }));
 
   // Same category appearing in 2+ projects → suggest global for each.

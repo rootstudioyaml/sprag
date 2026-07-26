@@ -200,6 +200,12 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ## 릴리스 노트
 
+### v3.6.0 (2026-07-26)
+- **statusline 재실행 비용 제거** — 세션 파싱 결과를 `(경로, mtime, size)` 키로 캐싱. 트랜스크립트는 append-only라 이 조합이 파싱 결과의 정확한 신원이 됨. 217MB/226파일 30일 창 기준 매 갱신마다 3초씩 재파싱하던 것이 변경된 파일(사실상 현재 세션 1개)만 읽는 것으로 축소. 캐시가 깨져도 항상 전체 파싱으로 폴백하므로 실패 경로 없음.
+- **ratchet-model.md 영문 렌더링** — 이 파일은 LLM이 지시문으로 읽기 때문에, 한글 전용 파일은 영어 세션의 응답까지 한글로 끌어당김. `language` 설정에 따라 헤더·룰 원문·rule-health 경고를 영문으로 렌더. 카테고리 라벨과 룰 원문은 스캔 시점에 양쪽 언어로 저장돼, 언어를 바꿔도 재스캔 없이 즉시 반영.
+- **테스트·CI 도입** — `npm test`(node:test) 22개 + GitHub Actions에서 ubuntu/macOS/Windows × Node 18/22 매트릭스. 사용자 레벨 경로 처리(XDG/APPDATA/Application Support)가 단일 OS 실행으로는 잡히지 않는 부분이라 3-OS로 돌림.
+- **bin/cli.js 분할** — 1,000줄 단일 파일이던 CLI를 `src/commands/*`(install, harness, route-scan, brief, handoff, history, last, mode)와 인자 파싱·stdin 페이로드 헬퍼로 분리. 동작 변경 없음.
+
 ### v3.3.1 (2026-07-13)
 - **코드 대신 풀어쓴 설명** — `R1`, `T2` 같은 코드가 설명 없이 노출돼 처음 쓰는 사람이 알 수 없던 문제 수정. 모든 사용자 대면 출력(SessionStart 훅 브리핑, `route-scan` 후보 목록, `route-scan rules` 목록)에서 티어를 `T2 (단순 작업 — haiku급이면 충분)` 식으로 풀어쓰고, scope도 `이 프로젝트만`/`모든 프로젝트(글로벌)`로 표기. 훅 브리핑에는 "사용자에게 전달할 때 코드가 아니라 풀어쓴 설명으로 브리핑하라"는 지시 포함. (statusline 칩은 폭 제약상 `route? R1` 유지 — 의미는 세션 브리핑이 설명)
 

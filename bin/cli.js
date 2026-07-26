@@ -27,104 +27,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, isAbsolute, join } from 'node:path';
 
-/**
- * Read the JSON blob Claude Code feeds the statusline command on stdin.
- * Returns null when stdin is a TTY or empty (e.g. user invokes `--statusline`
- * by hand) so callers can fall back to flag/env config.
- *
- * The blob shape (subset we consume):
- *   {
- *     "transcript_path": "...",
- *     "rate_limits": {
- *       "five_hour":  { "used_percentage": 94, "resets_at": 1777099200 },
- *       "seven_day":  { "used_percentage": 7,  "resets_at": 1777521600 }
- *     }
- *   }
- *
- * extractCaps treats `rate_limits` as a generic object so any future window
- * Anthropic adds (e.g. a Sonnet-only weekly bucket) flows through without code
- * changes — known keys get curated labels, unknowns get derived ones.
- */
-function readStdinJson() {
-  if (process.stdin.isTTY) return null;
-  try {
-    const raw = readFileSync(0, 'utf8');
-    if (!raw || !raw.trim()) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function extractCaps(stdinJson) {
-  if (!stdinJson || !stdinJson.rate_limits || typeof stdinJson.rate_limits !== 'object') return null;
-  const windows = [];
-  for (const [key, value] of Object.entries(stdinJson.rate_limits)) {
-    if (!value || typeof value !== 'object') continue;
-    const usedPct = Number(value.used_percentage);
-    if (!Number.isFinite(usedPct)) continue;
-    const resetsAt = Number(value.resets_at);
-    windows.push({
-      key,
-      usedPct,
-      resetsAt: Number.isFinite(resetsAt) ? resetsAt : null,
-    });
-  }
-  return windows.length ? { windows } : null;
-}
-
-/**
- * Pull the human-friendly model name out of Claude Code's stdin payload.
- * `model.display_name` is the contract; fall back to `model.id` when it's
- * absent. Returns null when nothing usable is in the JSON.
- */
-// Bedrock/litellm proxies pass model IDs like
-//   global.anthropic.claude-opus-4-7-20251001-v1:0
-//   anthropic.claude-sonnet-4-6-20250930-v1:0
-//   bedrock/anthropic.claude-haiku-4-5
-// while Claude Code's `display_name` collapses these to a generic family
-// label ("Opus 4", "Sonnet 4") that hides the actual minor version. Pull the
-// version out of the id when we can spot it so the statusline shows the real
-// model in use (Opus 4.7 vs 4.6 matters a lot for token budgeting).
-function bedrockDisplayFromId(id) {
-  if (typeof id !== 'string') return null;
-  const m = id.match(/claude[-_](opus|sonnet|haiku)[-_](\d+)[-_](\d+)/i);
-  if (!m) return null;
-  const family = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
-  return `${family} ${m[2]}.${m[3]}`;
-}
-
-/**
- * Live context usage from Claude Code's stdin payload (`context_window`).
- * More accurate than inferring from transcripts: it's the CURRENT session's
- * real fill level, updated every refresh. Shape (subset):
- *   "context_window": { "context_window_size": 200000, "used_percentage": 68 }
- */
-function extractContextUsage(stdinJson) {
-  const cw = stdinJson && stdinJson.context_window;
-  if (!cw || typeof cw !== 'object') return null;
-  const usedPct = Number(cw.used_percentage);
-  const size = Number(cw.context_window_size);
-  if (!Number.isFinite(usedPct)) return null;
-  return {
-    usedPct,
-    size: Number.isFinite(size) && size > 0 ? size : null,
-  };
-}
-
-function extractModel(stdinJson) {
-  if (!stdinJson || !stdinJson.model) return null;
-  const m = stdinJson.model;
-  if (typeof m === 'string') return bedrockDisplayFromId(m) || m;
-  // Prefer the id when it carries a precise version (e.g. Bedrock IDs); fall
-  // back to display_name for the standard Claude Code path where display_name
-  // already says "Claude Opus 4.7".
-  const idDerived = bedrockDisplayFromId(m.id);
-  if (idDerived) return idDerived;
-  if (typeof m.display_name === 'string' && m.display_name) return m.display_name;
-  if (typeof m.id === 'string' && m.id) return m.id;
-  return null;
-}
+import {
+  readStdinJson,
+  extractCaps,
+  extractContextUsage,
+  extractModel,
+} from '../src/stdin-payload.js';
 
 import { parseAllSessions, getLastUserMessageTime } from '../src/parser.js';
 import {
@@ -139,6 +47,8 @@ import {
 } from '../src/stats.js';
 import { estimateCost } from '../src/cost.js';
 import { chipForIssues } from '../src/advice.js';
+import { debug } from '../src/debug.js';
+import { createArgs } from '../src/cli-args.js';
 
 const args = process.argv.slice(2);
 
@@ -151,93 +61,7 @@ const PKG_VERSION = (() => {
   }
 })();
 
-function getArg(name) {
-  const idx = args.indexOf(name);
-  if (idx !== -1) return args[idx + 1];
-  const prefix = `${name}=`;
-  const eq = args.find((a) => a.startsWith(prefix));
-  if (eq) return eq.slice(prefix.length);
-  return undefined;
-}
-
-function hasFlag(name) {
-  return args.includes(name);
-}
-
-/**
- * Scan recent history file contents (newest day first) and return the most
- * recent warning event — `{ time, chip, detail, codes, isCap, capLabel, capPct }`.
- * Returns null when no warning is found in the window.
- *
- * Recognized event lines (from history.js appendDayLine output):
- *   - HH:MM:SS ⚠ Cache miss — session abc1: LOW_HIT_RATE
- *   - HH:MM:SS ⚠ A → ⚠ B — detail
- *   - HH:MM:SS 🚨 5H 94% cap warning (resets in ...)
- *   - HH:MM:SS ✓ resolved (was ...)        ← skip
- *   - HH:MM:SS ✓ 5H cap warning resolved   ← skip
- *   - HH:MM:SS 📝 handoff written: ...     ← skip
- */
-function findLatestWarning(historyEntries, chipToCodes) {
-  const warnings = [];
-  for (const { date, content } of historyEntries) {
-    const lines = content.split('\n');
-    for (const line of lines) {
-      // Skip non-event lines
-      const m = line.match(/^- (\d{2}:\d{2}:\d{2})\s+(.+)$/);
-      if (!m) continue;
-      const time = m[1];
-      const rest = m[2];
-      // Skip resolutions and handoff entries
-      if (rest.startsWith('✓ ') || rest.startsWith('📝 ')) continue;
-      // Cap-warn line: `🚨 5H 94% cap warning (...)`
-      const cap = rest.match(/^🚨\s+(\S+)\s+(\d+)%\s+cap warning(?:\s*\((.+)\))?$/);
-      if (cap) {
-        warnings.push({
-          date,
-          time,
-          chip: `🚨 ${cap[1]} ${cap[2]}%`,
-          isCap: true,
-          capLabel: cap[1],
-          capPct: parseInt(cap[2], 10),
-          capReset: cap[3] || null,
-          codes: [],
-          detail: null,
-        });
-        continue;
-      }
-      // Chip line — last token after the chip is `— detail` (optional). The
-      // chip itself can be a plain `⚠ X` or a `⚠ A → ⚠ B` transition; we want
-      // the *current* chip (right side of the arrow if present).
-      const arrowMatch = rest.match(/^(.+?)\s+→\s+(.+?)(?:\s+—\s+(.+))?$/);
-      let chip;
-      let detail = null;
-      if (arrowMatch) {
-        chip = arrowMatch[2].trim();
-        detail = arrowMatch[3] || null;
-      } else {
-        const plain = rest.match(/^(\S+(?:\s+\S+)*?)(?:\s+—\s+(.+))?$/);
-        if (!plain) continue;
-        chip = plain[1].trim();
-        detail = plain[2] || null;
-      }
-      // Resolve codes: detail "session ID: A, B" → codes; else CHIP_TO_CODES.
-      const codes = [];
-      if (detail) {
-        const dm = detail.match(/^session [^:]+:\s*(.+)$/);
-        if (dm) {
-          for (const c of dm[1].split(',').map((s) => s.trim()).filter(Boolean)) {
-            if (!codes.includes(c)) codes.push(c);
-          }
-        }
-      }
-      if (chipToCodes[chip]) {
-        for (const c of chipToCodes[chip]) if (!codes.includes(c)) codes.push(c);
-      }
-      warnings.push({ date, time, chip, isCap: false, codes, detail });
-    }
-  }
-  return warnings.length ? warnings[warnings.length - 1] : null;
-}
+const { getArg, hasFlag, numArg } = createArgs(args);
 
 async function main() {
   // Subcommand: last — print the most recent warning + how to handle it.
@@ -247,70 +71,7 @@ async function main() {
   //   claude-token-saver last           # search last 1 day
   //   claude-token-saver last --days 7  # widen the lookback
   if (args[0] === 'last') {
-    const { readRecent, historyDir } = await import('../src/history.js');
-    const { ISSUE_MESSAGES, CHIP_TO_CODES, CAP_TIPS } = await import('../src/advice.js');
-    const { userLanguage } = await import('../src/config.js');
-    const lang = userLanguage();
-    const days = parseFloat(getArg('--days') || '1');
-    const recent = readRecent(days);
-    const latest = findLatestWarning(recent, CHIP_TO_CODES);
-    if (!latest) {
-      if (lang === 'ko') {
-        console.log(`최근 ${days}일 내 경고가 없습니다.`);
-        console.log(`(히스토리 디렉터리: ${historyDir()})`);
-      } else {
-        console.log(`No warnings in the last ${days} day${days === 1 ? '' : 's'}.`);
-        console.log(`(History dir: ${historyDir()})`);
-      }
-      return;
-    }
-    // Header
-    console.log(`Most recent warning — ${latest.date} ${latest.time}`);
-    console.log(`  ${latest.chip}${latest.detail ? `  — ${latest.detail}` : ''}`);
-    console.log('');
-    // Cap-warn path: handoff is the recommendation. Print the bilingual tip
-    // and a one-line "how to back up" pointer.
-    if (latest.isCap) {
-      if (latest.capReset) console.log(`  Cap window: ${latest.capReset}`);
-      console.log('');
-      console.log('💡 ' + (lang === 'ko' ? CAP_TIPS.ko : CAP_TIPS.en));
-      console.log('');
-      console.log(lang === 'ko' ? '실행:' : 'Run:');
-      console.log('  claude-token-saver handoff');
-      return;
-    }
-    // Chip warning path: render full ISSUE_MESSAGES advice for each code,
-    // bilingual (English first, `└ Korean` continuation per line — matches
-    // the history.md format).
-    if (latest.codes.length === 0) {
-      console.log(lang === 'ko'
-        ? '(진단 코드 없음 — 표 뷰를 열어보세요: `claude-token-saver --days 1`)'
-        : '(No diagnostic code attached — open the table view: `claude-token-saver --days 1`)');
-      return;
-    }
-    // Pick a single language per field; fall back to EN when KO is missing.
-    const pick = (en, ko) => (lang === 'ko' && ko ? ko : en);
-    for (const code of latest.codes) {
-      const msg = ISSUE_MESSAGES[code];
-      if (!msg) {
-        console.log(`Code: ${code} (no advice registered)`);
-        continue;
-      }
-      console.log(`▎ ${pick(msg.title, msg.titleKo)}`);
-      console.log(`  ${pick(msg.explain, msg.explainKo)}`);
-      const actions = typeof msg.actions === 'function' ? msg.actions() : msg.actions || [];
-      for (const a of actions) {
-        console.log('');
-        console.log(`  ${pick(a.label, a.labelKo)}:`);
-        const cmds = a.commands || [];
-        const cmdsKo = a.commandsKo || [];
-        for (let i = 0; i < cmds.length; i++) {
-          console.log(`    - ${pick(cmds[i], cmdsKo[i])}`);
-        }
-      }
-      console.log('');
-    }
-    return;
+    return (await import('../src/commands/last.js')).run({ numArg });
   }
 
   // Subcommand: history — print recent warning transitions captured by the
@@ -320,40 +81,7 @@ async function main() {
   //   claude-token-saver history --days 30    # custom window
   //   claude-token-saver history --list       # just list available dates
   if (args[0] === 'history') {
-    const { readRecent, listDates, historyDir, formatHistoryForLanguage } =
-      await import('../src/history.js');
-    const { userLanguage } = await import('../src/config.js');
-    const lang = userLanguage();
-    if (hasFlag('--list')) {
-      const dates = listDates();
-      if (dates.length === 0) {
-        console.log(lang === 'ko'
-          ? `히스토리가 아직 없습니다. 파일은 다음 위치에 생성됩니다: ${historyDir()}`
-          : `No history yet. Files will appear under: ${historyDir()}`);
-        return;
-      }
-      console.log(lang === 'ko' ? `히스토리 (${historyDir()}):` : `History (${historyDir()}):`);
-      for (const d of dates) console.log(`  ${d}`);
-      return;
-    }
-    const days = parseFloat(getArg('--days') || '7');
-    const recent = readRecent(days);
-    if (recent.length === 0) {
-      if (lang === 'ko') {
-        console.log(`최근 ${days}일 내 경고 히스토리가 없습니다.`);
-        console.log(`(파일이 생성될 위치: ${historyDir()})`);
-      } else {
-        console.log(`No warning history in the last ${days} day${days === 1 ? '' : 's'}.`);
-        console.log(`(Files would be written to: ${historyDir()})`);
-      }
-      return;
-    }
-    for (const { content } of recent) {
-      const filtered = formatHistoryForLanguage(content, lang);
-      console.log(filtered.replace(/\n+$/, ''));
-      console.log('');
-    }
-    return;
+    return (await import('../src/commands/history.js')).run({ hasFlag, numArg });
   }
 
   // Subcommand: handoff — write a HANDOFF-YYYY-MM-DD-HHMM.md template in cwd
@@ -364,24 +92,7 @@ async function main() {
   //   claude-token-saver handoff             # write to cwd
   //   claude-token-saver handoff --cwd PATH  # custom directory
   if (args[0] === 'handoff') {
-    const { writeHandoff } = await import('../src/handoff.js');
-    const { recordHandoff } = await import('../src/history.js');
-    const cwd = getArg('--cwd') || process.cwd();
-    // Cap data only flows in via stdin (Claude Code statusline contract).
-    // Direct CLI invocations won't have it — that's fine, the template will
-    // note the gap.
-    const stdinJson = readStdinJson();
-    const caps = extractCaps(stdinJson);
-    const { path, git } = writeHandoff({ cwd, caps });
-    try { recordHandoff(path); } catch { /* non-critical */ }
-    console.log(`Handoff written: ${path}`);
-    if (git) {
-      console.log(`  git: ${git.branch}${git.head ? ` @ ${git.head}` : ''}${git.status ? ' (dirty)' : ' (clean)'}`);
-    }
-    console.log('');
-    console.log('Fill in the empty sections, then start a new Claude Code session with:');
-    console.log('  Read the most recent HANDOFF-*.md in this directory and continue the work.');
-    return;
+    return (await import('../src/commands/handoff.js')).run({ getArg });
   }
 
   // Subcommand: install — write the Claude Code auto-trigger skill so the
@@ -391,55 +102,7 @@ async function main() {
   //   claude-token-saver install              # install/update the skill
   //   claude-token-saver install --force      # overwrite existing skill file
   if (args[0] === 'install') {
-    const { installAll } = await import('../src/installer.js');
-    const force = hasFlag('--force');
-    const print = (kind, r) => {
-      const verb = r.action === 'exists' ? 'already exists' : r.action;
-      console.log(`  ${kind}: ${r.path} (${verb})`);
-    };
-    const r = installAll({ force });
-    print('skill', r.skill);
-    print('SessionStart hook (route-scan)', r.sessionStartHook);
-    print('UserPromptSubmit hook (brief)', r.briefHook);
-    {
-      const s = r.statusline;
-      const verb = s.action === 'exists' ? 'already configured (refreshInterval=5)'
-        : s.action === 'skipped' ? `skipped — ${s.reason}`
-        : s.reason ? `${s.action} — ${s.reason}`
-        : s.action;
-      console.log(`  statusline: ${s.path} (${verb})`);
-    }
-    if (r.legacy.action === 'removed') {
-      print('legacy /token-monitor', r.legacy);
-      console.log('  (consolidated into the skill — same workflow, triggered by intent)');
-    }
-    // First-time setup: analyze existing session logs right away so the
-    // very first session already sees delegation candidates — without this,
-    // the initial scan would only start from the first session's hook and
-    // its results would surface one session late. Runs inline (a few
-    // seconds on a typical 14-day history): a detached child can be reaped
-    // by sandboxed installers before it finishes, and postinstall carries
-    // `|| true` so a failure here never breaks the install.
-    {
-      const rs = await import('../src/route-scan.js');
-      if (!rs.readRouteScan()) {
-        try {
-          console.log('');
-          console.log('  route-scan: 기존 세션 로그의 사용 패턴을 분석하는 중...');
-          const cache = await rs.runRouteScan({ days: 14 });
-          console.log(`  route-scan: 에피소드 ${cache.totalEpisodes}건 분석 완료 — 위임 후보 ${cache.candidates.length}건.`);
-          console.log('              (다음 Claude Code 세션에서 티어 위임 후보가 표시됩니다)');
-        } catch { /* hook-triggered scan covers it on first session instead */ }
-      }
-    }
-    console.log('');
-    console.log('Open Claude Code in any directory and just mention:');
-    console.log('  "cache hit rate" / "1M context" / "5H cap" — the skill auto-activates.');
-    if (!force) {
-      console.log('');
-      console.log('Tip: re-run with --force to overwrite the existing skill file.');
-    }
-    return;
+    return (await import('../src/commands/install.js')).run({ hasFlag });
   }
 
   // Subcommand: mode — persist statusline preferences so future runs pick
@@ -448,40 +111,7 @@ async function main() {
   //   claude-token-saver mode icon verbose       # set icon + verbose
   //   claude-token-saver mode reset              # clear back to defaults
   if (args[0] === 'mode') {
-    const { applyMode, loadConfig, configPath, statuslineDefaults, userLanguage, VALID_KEYWORDS } =
-      await import('../src/config.js');
-    const words = args.slice(1);
-    if (words.length === 0) {
-      const eff = statuslineDefaults();
-      const raw = loadConfig();
-      console.log('Statusline (effective):');
-      console.log(`  icon:    ${eff.icon}`);
-      console.log(`  verbose: ${eff.verbose}`);
-      console.log(`  timer:   ${eff.timer}`);
-      console.log(`  color:   ${eff.color}`);
-      console.log(`  window:  ${eff.windowLabel} (${eff.windowHours}h)`);
-      console.log('');
-      console.log('Output language (advice / history / last):');
-      console.log(`  language: ${userLanguage()}`);
-      console.log('');
-      console.log(`Stored config file (${configPath()}):`);
-      console.log(`  ${Object.keys(raw).length === 0 ? '(none — using defaults)' : JSON.stringify(raw)}`);
-      console.log('');
-      console.log('Change with: claude-token-saver mode <keywords...>');
-      console.log(`Keywords: ${VALID_KEYWORDS.join(', ')}`);
-      return;
-    }
-    const { applied, unknown } = applyMode(words);
-    if (unknown.length) {
-      console.error(`Unknown keyword${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}`);
-      console.error(`Valid: ${VALID_KEYWORDS.join(', ')}`);
-      process.exit(1);
-    }
-    const eff = statuslineDefaults();
-    console.log(`Updated: ${applied.join(', ')}`);
-    console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
-    console.log('Statusline picks up the change on the next refresh (~1s).');
-    return;
+    return (await import('../src/commands/mode.js')).run({ args });
   }
 
   // Subcommand: route-scan — detect recurring easy work on expensive models
@@ -497,179 +127,11 @@ async function main() {
   // briefing of state the statusline can only chip (ctx tier crossings,
   // mid-session route/rule-health changes). Silent when nothing changed.
   if (args[0] === 'brief') {
-    if (!hasFlag('--hook')) {
-      console.error('Usage: claude-token-saver brief --hook   (UserPromptSubmit hook mode)');
-      process.exit(1);
-    }
-    const ctx = readStdinJson() || {};
-    try {
-      const { runBrief } = await import('../src/brief.js');
-      const out = await runBrief({ sessionId: ctx.session_id, transcriptPath: ctx.transcript_path });
-      if (out) console.log(out);
-    } catch { /* briefing is best-effort — never block a prompt */ }
-    return;
+    return (await import('../src/commands/brief.js')).run({ hasFlag });
   }
 
   if (args[0] === 'route-scan') {
-    const rs = await import('../src/route-scan.js');
-    const { userLanguage } = await import('../src/config.js');
-    const lang = userLanguage();
-
-    // route-scan rules [rm <N>] — the model-fitting rule registry (rules
-    // promoted from candidates; auto-refreshed from logs on every rescan).
-    if (args[1] === 'rules') {
-      const mr = await import('../src/model-rules.js');
-      if (args[2] === 'rm') {
-        const n = parseInt(args[3], 10);
-        const removed = Number.isFinite(n) ? mr.removeModelRule(n) : null;
-        if (!removed) {
-          console.error('Usage: claude-token-saver route-scan rules rm <N>   # N from `route-scan rules`');
-          process.exit(1);
-        }
-        // A target whose last rule was removed gets its (tool-owned) file deleted.
-        mr.syncAllFiles({ previousPaths: [mr.modelRatchetPathFor(removed.scope, removed.targetRoot)] });
-        console.log(`Removed model-fitting rule #${n}: ${removed.rule}`);
-        return;
-      }
-      const { rules } = mr.loadModelRules();
-      if (rules.length === 0) {
-        console.log(lang === 'ko' ? '등록된 모델 피팅 룰 없음.' : 'No model-fitting rules registered.');
-        return;
-      }
-      console.log(lang === 'ko' ? '📐 모델 피팅 룰 (로그 기반 자동 갱신):' : '📐 Model-fitting rules (auto-refreshed from logs):');
-      rules.forEach((r, i) => {
-        const health = r.status === 'review'
-          ? (lang === 'ko' ? '  ⚠ 에러율 초과 — 재검토 필요' : '  ⚠ error rate over threshold — needs review')
-          : '';
-        const stat = lang === 'ko'
-          ? `${r.tier} (${rs.tierLabel(r.tier)}) · ${rs.scopeLabel(r.scope)} · 반복 ${r.count || 0}회 · 에러율 ${Math.round((r.errRate || 0) * 100)}%`
-          : `${r.tier} (${rs.tierLabel(r.tier, 'en')}) · ${rs.scopeLabel(r.scope, 'en')} · seen ×${r.count || 0} · err ${Math.round((r.errRate || 0) * 100)}%`;
-        console.log(`  #${i + 1} ${stat}${health}`);
-        console.log(`      ${r.rule}`);
-      });
-      console.log('\n제거: claude-token-saver route-scan rules rm <N>');
-      return;
-    }
-
-    if (args[1] === 'dismiss') {
-      const n = parseInt(args[2], 10);
-      if (!Number.isFinite(n)) {
-        console.error('Usage: claude-token-saver route-scan dismiss <N>   # N from `route? R<N>`');
-        process.exit(1);
-      }
-      const cand = rs.resolveCandidate(n);
-      if (!cand) {
-        console.error(`No route candidate R${n}. Run: claude-token-saver route-scan`);
-        process.exit(1);
-      }
-      console.log(lang === 'ko'
-        ? `R${n} 무시 처리: ${cand.label} (${cand.project}) — 재스캔에도 다시 뜨지 않습니다.`
-        : `Dismissed R${n}: ${cand.label} (${cand.project}) — won't resurface on rescans.`);
-      return;
-    }
-
-    // --hook: SessionStart hook mode. Never scans inline (session start must
-    // stay fast) — reads the cache, kicks a detached refresh when stale, and
-    // prints delegation-candidate context for the new session.
-    if (hasFlag('--hook')) {
-      const hookCtx = readStdinJson() || {};
-      let cache = rs.readRouteScan();
-      if (await rs.shouldRescan(cache)) {
-        try {
-          const { spawn } = await import('node:child_process');
-          spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
-            { detached: true, stdio: 'ignore' }).unref();
-        } catch { /* refresh is best-effort; stale cache still usable below */ }
-      }
-      const open = rs.openCandidates(cache);
-      // Registered rules whose delegated-category error rate crossed the
-      // health threshold since promotion — the user approved these, so a
-      // status change must be briefed, not just written into the md file.
-      let reviewRules = [];
-      try {
-        const mr = await import('../src/model-rules.js');
-        reviewRules = mr.loadModelRules().rules
-          .map((r, i) => ({ ...r, n: i + 1 }))
-          .filter((r) => r.status === 'review');
-      } catch { /* registry unreadable — candidate briefing still goes out */ }
-      if (open.length === 0 && reviewRules.length === 0) return; // silent — nothing to inject
-      const lines = [];
-      if (open.length > 0) {
-        lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 비싼 모델(opus/fable)이 반복 처리해 온, 더 싼 모델로 넘겨도 되는 작업이 감지되었습니다.`);
-        lines.push('(R<N>은 후보 번호, T2/T1은 난이도 등급입니다 — 사용자에게 전달할 때는 코드가 아니라 아래 풀어쓴 설명으로 브리핑하세요)');
-        for (const c of open) {
-          const tier = c.tier || 'T2';
-          lines.push(`  후보 R${c.id} — "${c.label}" 유형, ${c.count}회 반복 (프로젝트: ${c.project})`);
-          lines.push(`      판정: ${tier} (${rs.tierLabel(tier)}) → ${c.agent} 서브에이전트 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
-          lines.push(`      예시 요청: "${c.example}"`);
-          lines.push(`      등록 시 ratchet-model.md에 기록될 룰: "${c.rule}"`);
-        }
-        lines.push('등록하면 다음 세션부터 자동 위임됩니다. 사용자에게 등록 여부를 물을 때 위 룰 원문을 그대로 보여주고, 적용 범위까지 확인한 뒤 실행하세요:');
-        lines.push('  claude-token-saver harness promote R<N> --project|--global   # 적용 범위는 반드시 사용자에게 확인');
-        lines.push('  claude-token-saver route-scan dismiss <N>                    # 사용자가 원치 않으면');
-      }
-      if (reviewRules.length > 0) {
-        lines.push(`[claude-token-saver rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 기준(20%)을 넘어 재검토가 필요한 룰이 있습니다 — 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:`);
-        for (const r of reviewRules) {
-          lines.push(`  룰 #${r.n} (${r.tier} ${rs.tierLabel(r.tier)} · ${rs.scopeLabel(r.scope)}) — 최근 에러율 ${Math.round((r.errRate || 0) * 100)}%`);
-          lines.push(`      "${r.rule}"`);
-        }
-        lines.push('  제거: claude-token-saver route-scan rules rm <N>');
-      }
-      lines.push('위 내용은 사용자의 첫 메시지 주제와 무관하더라도(단순 인사여도) 첫 응답 말미에 `※ [claude-token-saver]` 라벨을 달아 요약 브리핑하세요 — 사용자가 물어볼 때까지 기다리지 말 것.');
-      console.log(lines.join('\n'));
-      // Record what was actually briefed so the UserPromptSubmit brief hook
-      // suppresses exactly these — a candidate landing after this read (e.g.
-      // the detached rescan above finishing) still gets briefed next prompt.
-      try {
-        const { seedSessionBriefed } = await import('../src/brief.js');
-        seedSessionBriefed(hookCtx.session_id, [
-          ...open.map((c) => `route|${c.signature}`),
-          ...reviewRules.map((r) => `health|${r.signature}|${r.scope}`),
-        ]);
-      } catch { /* best-effort — worst case is one duplicate brief */ }
-      return;
-    }
-
-    const days = parseFloat(getArg('--days') || '14');
-    let cache = rs.readRouteScan();
-    if (hasFlag('--refresh') || (cache && cache.days !== days) || await rs.shouldRescan(cache, { days })) {
-      cache = await rs.runRouteScan({ days });
-    }
-    if (hasFlag('--quiet')) return;
-    if (hasFlag('--json')) {
-      console.log(JSON.stringify(cache, null, 2));
-      return;
-    }
-    const easyPct = cache.totalEpisodes ? Math.round(cache.easyEpisodes / cache.totalEpisodes * 100) : 0;
-    console.log(lang === 'ko'
-      ? `route-scan — 최근 ${cache.days}일: 에피소드 ${cache.totalEpisodes}건 중 easy ${cache.easyEpisodes}건 (${easyPct}%)  [스캔: ${cache.scannedAt}]`
-      : `route-scan — last ${cache.days}d: ${cache.easyEpisodes}/${cache.totalEpisodes} episodes easy (${easyPct}%)  [scanned: ${cache.scannedAt}]`);
-    const open = rs.openCandidates(cache);
-    if (open.length === 0) {
-      console.log(lang === 'ko'
-        ? '위임 후보 없음 (반복 3회 미만이거나 이미 처리됨).'
-        : 'No delegation candidates (below recurrence threshold or already resolved).');
-      return;
-    }
-    console.log(lang === 'ko' ? '\n위임 후보 (R<N>=후보 번호, T2/T1=난이도 등급):' : '\nDelegation candidates (R<N> = candidate id, T2/T1 = difficulty tier):');
-    for (const c of open) {
-      const tier = c.tier || 'T2';
-      if (lang === 'ko') {
-        console.log(`  R${c.id}  "${c.label}" ×${c.count}회 [${c.project}]`);
-        console.log(`       판정: ${tier} (${rs.tierLabel(tier)}) → ${c.agent} 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
-      } else {
-        console.log(`  R${c.id}  "${c.label}" ×${c.count} [${c.project}]`);
-        console.log(`       verdict: ${tier} (${rs.tierLabel(tier, 'en')}) → delegate to ${c.agent} · suggested scope: ${rs.scopeLabel(c.suggestedScope, 'en')}`);
-      }
-      console.log(`       ${lang === 'ko' ? '예시' : 'example'}: "${c.example}"`);
-      console.log(`       ${lang === 'ko' ? '룰' : 'rule'}: ${c.rule}`);
-    }
-    console.log('');
-    console.log(lang === 'ko' ? '등록 / 무시:' : 'Promote / dismiss:');
-    console.log('  claude-token-saver harness promote R<N> --project|--global');
-    console.log('  claude-token-saver route-scan dismiss <N>');
-    return;
+    return (await import('../src/commands/route-scan.js')).run({ args, hasFlag, numArg });
   }
 
   // Subcommand: harness — manage the project's CLAUDE.md harness rules.
@@ -680,362 +142,13 @@ async function main() {
   //   claude-token-saver harness pull [--global|--project]  # register the package's curated preset rules (default global)
   //   claude-token-saver harness off | on   # toggle the statusline 🅷 segment
   if (args[0] === 'harness') {
-    const sub = args[1];
-    // Scope flags for init/uninit/check (same convention as promote/list/rm):
-    //   --global | --project | --scope=global|project | --scope global|project
-    const parseHarnessScope = (argv, dflt) => {
-      for (let i = 0; i < argv.length; i++) {
-        const a = argv[i];
-        if (a === '--global') return 'global';
-        if (a === '--project') return 'project';
-        if (a === '--scope' && (argv[i + 1] === 'global' || argv[i + 1] === 'project')) return argv[i + 1];
-        if (a.startsWith('--scope=')) {
-          const v = a.slice('--scope='.length);
-          if (v === 'global' || v === 'project') return v;
-        }
-      }
-      return dflt;
-    };
-    const { harnessInit, harnessUninit, harnessStatus, harnessPromote, harnessPull, harnessListRules, harnessRmRule, findProjectRoot } =
-      await import('../src/harness.js');
-    const { HARNESS_SECTIONS } = await import('../src/harness-templates.js');
-    const { loadConfig, saveConfig } = await import('../src/config.js');
-
-    if (!sub || sub === 'check') {
-      const scope = parseHarnessScope(args.slice(2), 'auto'); // auto = project, else global fallback
-      const root = findProjectRoot();
-      const s = harnessStatus(root, { scope });
-      // Only call out "covered by global" when we *fell back* to it (auto), not
-      // when the user explicitly asked for the global scope.
-      const via = (scope === 'auto' && s.source === 'global') ? ' (covered by global ~/.claude/CLAUDE.md)' : '';
-      console.log(`🅷 ${s.configured}/${s.total} — ${s.file}${via}`);
-      console.log(`CLAUDE.md: ${s.hasFile ? 'present' : 'missing'}` +
-        (s.hasFile ? `, harness block: ${s.hasBlock ? 'yes' : 'no'}` : '') + ` [${s.source}]`);
-      if (s.missing.length) {
-        console.log('Missing sections:');
-        for (const id of s.missing) {
-          const sec = HARNESS_SECTIONS.find((x) => x.id === id);
-          console.log(`  - ${id}: ${sec ? sec.heading.replace(/^#+\s*/, '') : ''}`);
-        }
-        console.log('\nRun: claude-token-saver harness init        (this project)');
-        console.log('  or: claude-token-saver harness init --global  (all projects, ~/.claude/CLAUDE.md)');
-      } else {
-        console.log('All 5 harness sections present. ✅');
-      }
-      return;
-    }
-
-    if (sub === 'init') {
-      const scope = parseHarnessScope(args.slice(2), 'project'); // default project (back-compat)
-      const force = hasFlag('--force');
-      const r = harnessInit({ force, scope });
-      console.log(`Scope: ${scope}${scope === 'global' ? '  (~/.claude/CLAUDE.md — applies to all projects)' : `  (${r.root})`}`);
-      for (const p of r.backedUp) console.log(`Backed up: ${p}`);
-      for (const p of r.wrote) console.log(`Wrote:     ${p}`);
-      for (const p of r.skipped) console.log(`Skipped:   ${p}`);
-      console.log('\n🅷 Harness initialized. Statusline will show 🅷 5/5 on next refresh.');
-      return;
-    }
-
-    if (sub === 'promote') {
-      // Parse scope flags before stripping. Accepts: --global, --project,
-      //   --scope=global|project, --scope global|project
-      const promoteArgs = args.slice(2);
-      let scope = null;
-      const scopeFlags = new Set();
-      for (let i = 0; i < promoteArgs.length; i++) {
-        const a = promoteArgs[i];
-        if (a === '--global') { scope = 'global'; scopeFlags.add(i); }
-        else if (a === '--project') { scope = 'project'; scopeFlags.add(i); }
-        else if (a === '--scope' && promoteArgs[i + 1]) {
-          const v = promoteArgs[i + 1];
-          if (v !== 'global' && v !== 'project') {
-            console.error(`Invalid --scope value: ${v} (expected "global" or "project")`);
-            process.exit(1);
-          }
-          scope = v; scopeFlags.add(i); scopeFlags.add(i + 1); i++;
-        } else if (a.startsWith('--scope=')) {
-          const v = a.slice('--scope='.length);
-          if (v !== 'global' && v !== 'project') {
-            console.error(`Invalid --scope value: ${v} (expected "global" or "project")`);
-            process.exit(1);
-          }
-          scope = v; scopeFlags.add(i);
-        }
-      }
-      const raw = promoteArgs.filter((_, i) => !scopeFlags.has(i)).join(' ').trim();
-      if (!raw) {
-        console.error('Usage: claude-token-saver harness promote [--global|--project] <N>  # from statusline 🅷⚠ ratchet? #N');
-        console.error('   or: claude-token-saver harness promote [--global|--project] "<rule text>"');
-        process.exit(1);
-      }
-      let rule = raw;
-      // Numeric arg → look up candidate #N from analyzer state and turn its
-      // detected error pattern into a starter ratchet rule. Saves the user
-      // from retyping the error; they can edit ratchet.md afterward.
-      if (/^\d+$/.test(raw)) {
-        const n = parseInt(raw, 10);
-        const analyzer = await import('../src/harness-analyzer.cjs');
-        const a = analyzer.default || analyzer;
-        const state = a.readState();
-        const list = (state && state.ratchetCandidates) || [];
-        const cand = list.find((c) => c.id === n);
-        if (!cand) {
-          console.error(`No ratchet candidate #${n} in state. Run \`harness analyze\` or wait for the hook to populate it.`);
-          if (list.length) {
-            console.error('Available candidates:');
-            for (const c of list) console.error(`  #${c.id} (×${c.count}): ${c.pattern}`);
-          }
-          process.exit(1);
-        }
-        rule = `반복 감지 ×${cand.count}: ${cand.pattern} — TODO: 원인·예방책 한 줄로`;
-      }
-      // R-prefixed arg → route-scan delegation candidate (statusline `route? R<N>`).
-      // The rule text is pre-generated by the scan; promoting also resolves the
-      // candidate so the chip stops and rescans don't resurface it.
-      let routeCandidateId = null;
-      let routeCandidate = null;
-      if (/^[Rr]\d+$/.test(raw)) {
-        const n = parseInt(raw.slice(1), 10);
-        const rs = await import('../src/route-scan.js');
-        const cand = (rs.openCandidates(rs.readRouteScan()) || []).find((c) => c.id === n);
-        if (!cand) {
-          console.error(`No open route candidate R${n}. Run: claude-token-saver route-scan`);
-          process.exit(1);
-        }
-        rule = cand.rule;
-        routeCandidateId = n;
-        routeCandidate = cand;
-        if (!scope) {
-          console.error(`Route candidate R${n} requires an explicit scope (suggested: --${cand.suggestedScope}).`);
-          console.error('Ask the user, then pass --project or --global.');
-          process.exit(1);
-        }
-      }
-      // Scope resolution: explicit flag wins. Otherwise prompt interactively
-      // when running on a TTY; in non-TTY (CI/scripts) require an explicit
-      // flag so the choice is never silently made for the caller.
-      if (!scope) {
-        if (process.stdin.isTTY && process.stdout.isTTY) {
-          const readline = await import('node:readline');
-          const { homedir: hd } = await import('node:os');
-          const { findProjectRoot: fpr } = await import('../src/harness.js');
-          const projPath = `${fpr()}/.claude/ratchet.md`;
-          const globPath = `${hd()}/.claude/ratchet.md`;
-          const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-          const ask = (q) => new Promise((res) => rl.question(q, res));
-          console.log('Where should this rule live?');
-          console.log(`  [1] project  (${projPath})`);
-          console.log(`  [2] global   (${globPath})`);
-          const ans = (await ask('Choose [1/2] (default 1): ')).trim();
-          rl.close();
-          scope = (ans === '2' || ans.toLowerCase() === 'global' || ans.toLowerCase() === 'g')
-            ? 'global' : 'project';
-        } else {
-          console.error('Scope required in non-interactive mode.');
-          console.error('Pass --project or --global (or --scope=project|global).');
-          process.exit(1);
-        }
-      }
-      // Route candidates become MODEL-FITTING rules: they live in a
-      // tool-managed block (separate from user-authored ratchet rules) and
-      // keep updating from subsequent logs — recurrence counts, error rates,
-      // rule-health — on every rescan.
-      if (routeCandidate) {
-        const rs = await import('../src/route-scan.js');
-        const mr = await import('../src/model-rules.js');
-        // A --project rule must land in THE project the pattern was detected
-        // in, not the cwd's. Old caches without projectPath: verify cwd match.
-        let targetRoot = null;
-        if (scope === 'project') {
-          if (routeCandidate.projectPath) {
-            targetRoot = findProjectRoot(routeCandidate.projectPath);
-          } else if (rs.mungeProjectPath(findProjectRoot()) === routeCandidate.project) {
-            targetRoot = findProjectRoot();
-          } else {
-            console.error(`Route candidate R${routeCandidateId} was detected in another project (${routeCandidate.project}),`);
-            console.error('but this cached scan predates project-path tracking.');
-            console.error('Re-scan to capture it, then promote again:');
-            console.error('  claude-token-saver route-scan --refresh');
-            process.exit(1);
-          }
-        }
-        const entry = mr.addModelRule({
-          signature: routeCandidate.signature,
-          tier: routeCandidate.tier || 'T2',
-          category: routeCandidate.category,
-          label: routeCandidate.label,
-          agent: routeCandidate.agent,
-          scope,
-          targetRoot,
-          project: routeCandidate.project,
-          rule: routeCandidate.rule,
-          example: routeCandidate.example,
-          count: routeCandidate.count,
-          promotedAt: new Date().toISOString().slice(0, 10),
-          lastSeen: new Date().toISOString().slice(0, 10),
-        });
-        const written = mr.syncAllFiles();
-        rs.resolveCandidate(routeCandidateId);
-        console.log(`Model-fitting rule registered [${scope}${targetRoot ? ` → ${targetRoot}` : ''}] (tier ${entry.tier}):`);
-        console.log(`  - ${entry.rule}`);
-        for (const p of written) console.log(`  ratchet-model.md updated: ${p}`);
-        console.log('(route candidate R' + routeCandidateId + ' resolved — 다음 세션부터 자동 위임, 이후 스캔마다 로그 기반 갱신됩니다)');
-        console.log('룰 목록/제거: claude-token-saver route-scan rules [rm <N>]');
-        // Event-triggered refresh: establish the new rule's stat baseline
-        // right away instead of waiting for the next data-gated rescan.
-        try {
-          const { spawn } = await import('node:child_process');
-          spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
-            { detached: true, stdio: 'ignore' }).unref();
-        } catch { /* baseline arrives on the next gated rescan instead */ }
-        return;
-      }
-      const r = harnessPromote(rule, { scope });
-      console.log(`Appended to ${r.path} [${r.scope}]:`);
-      console.log(`  - ${rule}`);
-      if (/^\d+$/.test(raw)) {
-        console.log('\n👉 ratchet.md를 열어 TODO 부분을 실제 룰로 다듬어주세요.');
-      }
-      return;
-    }
-
-    if (sub === 'analyze') {
-      // Run the analyzer once against the most recent session JSONL under
-      // ~/.claude/projects/ and dump the resulting state. Useful for users
-      // who don't have the hook installed but want to see warnings.
-      const analyzer = await import('../src/harness-analyzer.cjs');
-      const { analyzeTranscript, writeState } = analyzer.default || analyzer;
-      const { readdirSync, statSync } = await import('node:fs');
-      const { join: pj } = await import('node:path');
-      const { homedir } = await import('node:os');
-      const dir = pj(homedir(), '.claude', 'projects');
-      let latest = null;
-      let latestMtime = 0;
-      try {
-        for (const subdir of readdirSync(dir)) {
-          const full = pj(dir, subdir);
-          if (!statSync(full).isDirectory()) continue;
-          for (const f of readdirSync(full)) {
-            if (!f.endsWith('.jsonl')) continue;
-            const fp = pj(full, f);
-            const m = statSync(fp).mtimeMs;
-            if (m > latestMtime) { latestMtime = m; latest = fp; }
-          }
-        }
-      } catch {}
-      if (!latest) {
-        console.error('No session transcripts found under ~/.claude/projects/');
-        process.exit(1);
-      }
-      const state = analyzeTranscript(latest, { cwd: process.cwd() });
-      if (state) writeState(state);
-      console.log(JSON.stringify(state, null, 2));
-      return;
-    }
-
-    if (sub === 'uninit' || sub === 'remove') {
-      const scope = parseHarnessScope(args.slice(2), 'project');
-      const purgeRatchet = args.includes('--purge-ratchet');
-      const r = harnessUninit({ purgeRatchet, scope });
-      console.log(`Scope: ${scope}${scope === 'global' ? '  (~/.claude/CLAUDE.md)' : `  (${r.root})`}`);
-      r.removed.forEach((f) => console.log(`  removed: ${f}`));
-      r.backedUp.forEach((f) => console.log(`  backup:  ${f}`));
-      r.skipped.forEach((f) => console.log(`  skip:    ${f}`));
-      if (r.removed.length === 0) console.log('Nothing to remove.');
-      return;
-    }
-
-    if (sub === 'pull') {
-      // Register the package's curated preset rules (presets/ratchet-rules.md)
-      // into the user's ratchet — global by default (they're tool/environment
-      // rules, and a project ratchet inherits global anyway). Strictly opt-in:
-      // install/init never auto-injects rules.
-      const scope = parseHarnessScope(args.slice(2), 'global');
-      const r = harnessPull({ scope });
-      console.log(`Curated preset rules → ${r.path} [${r.scope}]`);
-      if (r.added.length) {
-        console.log(`✅ ${r.added.length}/${r.presets} rule(s) registered:`);
-        for (const t of r.added) console.log(`  - ${t}`);
-      } else {
-        console.log(`No new rules — all ${r.presets} presets already registered.`);
-      }
-      if (r.skippedRules && r.added.length) console.log(`   (${r.skippedRules} already present — skipped)`);
-      console.log('\n필요 없는 룰은 언제든: claude-token-saver harness list / rm <N>');
-      return;
-    }
-
-    if (sub === 'list' || sub === 'ls') {
-      const wantGlobal = hasFlag('--global');
-      const wantProject = hasFlag('--project') || !wantGlobal;
-      const print = (scope) => {
-        const { path, rules } = harnessListRules({ scope });
-        if (!rules.length) {
-          console.log(`No ratchet rules in ${path} [${scope}]`);
-          return;
-        }
-        console.log(`📋 Ratchet rules [${scope}] — ${path}\n`);
-        for (const r of rules) console.log(`  #${r.index}  ${r.text}`);
-        console.log('');
-      };
-      if (wantProject) print('project');
-      if (wantGlobal) print('global');
-      console.log('Remove with: claude-token-saver harness rm [--global|--project] <N>');
-      return;
-    }
-
-    if (sub === 'rm') {
-      const rmScope = hasFlag('--global') ? 'global' : 'project';
-      const rmArgs = args.slice(2).filter((a) => a !== '--global' && a !== '--project');
-      const raw = (rmArgs[0] || '').trim();
-      if (!/^\d+$/.test(raw)) {
-        console.error('Usage: claude-token-saver harness rm [--global|--project] <N>   # N from `harness list`');
-        process.exit(1);
-      }
-      const n = parseInt(raw, 10);
-      // ⚠️ Heads-up before deletion. Ratchet's value is one-way accumulation —
-      // dropping a rule is sometimes right, but more often the rule is just
-      // too narrow. Surface the alternative loudly here.
-      console.log('⚠️  주의: ratchet 룰 삭제는 신중하게.');
-      console.log('   같은 실수가 또 발생할 가능성이 큽니다. 보통은 "조건이 너무 좁아서"');
-      console.log('   문제가 되는 경우가 많아요. 지우기 전에 한 번 더 검토하세요:');
-      console.log('   - 룰이 너무 광범위해서 정상 케이스도 막나? → 조건을 좁혀서 다듬기');
-      console.log('   - 룰이 너무 좁아서 거의 발동 안 되나? → 그냥 두기 (비용 0)');
-      console.log('   - 정말 잘못된 룰이라 확신? → 그때만 삭제');
-      console.log('');
-      const r = harnessRmRule(n, { scope: rmScope });
-      if (!r.ok) {
-        console.error(`❌ ${r.error}`);
-        if (r.rules) {
-          console.error('Available:');
-          for (const x of r.rules) console.error(`  #${x.index}  ${x.text}`);
-        }
-        process.exit(1);
-      }
-      console.log(`✅ Removed #${n}: ${r.removed.text}`);
-      console.log(`   Backup: ${r.backup}`);
-      console.log(`   복구: cp "${r.backup}" "${r.path}"`);
-      return;
-    }
-
-    if (sub === 'off' || sub === 'on') {
-      const cfg = loadConfig();
-      cfg.harness = cfg.harness || {};
-      cfg.harness.enabled = sub === 'on';
-      saveConfig(cfg);
-      console.log(`Statusline 🅷 segment: ${sub}`);
-      return;
-    }
-
-    console.error(`Unknown harness subcommand: ${sub}`);
-    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|pull [--global|--project]|list|rm <N>|off|on]');
-    process.exit(1);
+    return (await import('../src/commands/harness.js')).run({ args, hasFlag });
   }
 
   // Hook management
   if (hasFlag('--install-hook')) {
     const { installHook } = await import('../src/hook-manager.js');
-    const threshold = parseFloat(getArg('--threshold') || '0.7');
+    const threshold = numArg('--threshold', { dflt: 0.7, min: 0, max: 1 });
     await installHook({ threshold });
     return;
   }
@@ -1074,7 +187,7 @@ async function main() {
     const { buildScenarioData, listScenarios } = await import('../src/demo.js');
     const { statuslineDefaults } = await import('../src/config.js');
     const cfg = statuslineDefaults();
-    const cycleSeconds = parseFloat(getArg('--demo-cycle-sec') || '3');
+    const cycleSeconds = numArg('--demo-cycle-sec', { dflt: 3, min: 0.1 });
     const data = buildScenarioData(demoArg, {
       cycleSeconds,
       windowHours: cfg.windowHours,
@@ -1133,14 +246,14 @@ async function main() {
     windowLabel = d.windowLabel;
   }
   // CLI overrides: --hours wins over --days; both win over config.
-  const hoursArg = getArg('--hours');
-  const daysArg = getArg('--days') || getArg('-d');
+  const hoursArg = numArg('--hours', { min: 0 });
+  const daysArg = numArg('--days', { min: 0 }) ?? numArg('-d', { min: 0 });
   if (hoursArg !== undefined) {
-    windowHours = parseFloat(hoursArg);
+    windowHours = hoursArg;
     windowLabel = `${windowHours}h`;
   } else if (daysArg !== undefined) {
-    windowHours = parseFloat(daysArg) * 24;
-    windowLabel = `${parseFloat(daysArg)}d`;
+    windowHours = daysArg * 24;
+    windowLabel = `${daysArg}d`;
   }
   const days = windowHours / 24;
   const format = isStatusline ? 'statusline' : (getArg('--format') || getArg('-f') || 'table');
@@ -1181,7 +294,7 @@ async function main() {
         try {
           const { persistSnapshot } = await import('../src/caps-cache.js');
           persistSnapshot({ caps, model });
-        } catch { /* non-critical */ }
+        } catch (e) { debug('caps-cache:persist', e); }
       }
       console.log(formatNoSession(
         { caps, model, windowLabel },
@@ -1223,8 +336,8 @@ async function main() {
     try {
       const { persistSnapshot } = await import('../src/caps-cache.js');
       persistSnapshot({ caps, model });
-    } catch {
-      // non-critical
+    } catch (e) {
+      debug('caps-cache:persist', e);
     }
   }
   if (!isStatusline && (!caps || !model)) {
@@ -1235,8 +348,8 @@ async function main() {
         if (!caps && snap.caps) caps = snap.caps;
         if (!model && snap.model) model = snap.model;
       }
-    } catch {
-      // ignore
+    } catch (e) {
+      debug('caps-cache:load', e);
     }
   }
 
@@ -1277,8 +390,8 @@ async function main() {
       if (caps && Array.isArray(caps.windows)) {
         for (const win of caps.windows) recordCapTransition(win);
       }
-    } catch {
-      // history is non-critical — don't let it break the statusline render
+    } catch (e) {
+      debug('history:record', e); // never let history break the statusline render
     }
   }
 
@@ -1303,8 +416,8 @@ async function main() {
     try {
       const t = await getLastUserMessageTime(excludeSessionPath);
       if (t) currentSessionLastUser = t.getTime();
-    } catch {
-      // ignore — keep 0 so it doesn't raise the max
+    } catch (e) {
+      debug('parser:last-user-message', e); // keep 0 so it doesn't raise the max
     }
   }
   const lastActivity = Math.max(otherLastActivity, currentSessionLastUser);
@@ -1385,7 +498,11 @@ main().catch((err) => {
     const colorOk = !process.argv.includes('--no-color') && !process.env.NO_COLOR;
     const red = colorOk ? '\x1b[31m' : '';
     const reset = colorOk ? '\x1b[0m' : '';
-    console.log(`${red}🧠 error${reset}`);
+    // Still exactly one line, but name the problem — a bad flag in a
+    // statusline wrapper is otherwise invisible ("🧠 error" for a typo the
+    // user cannot see the source of). Collapse newlines and cap the length.
+    const msg = String(err?.message || 'error').split('\n')[0].slice(0, 80);
+    console.log(`${red}🧠 ${msg}${reset}`);
     process.exit(0);
   }
   console.error('Error:', err.message);

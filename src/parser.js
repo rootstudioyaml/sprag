@@ -3,6 +3,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { join, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
+import { loadCache, getCached, putCached, saveCache } from './session-cache.js';
 
 const CLAUDE_DIR = join(homedir(), '.claude', 'projects');
 
@@ -158,7 +159,9 @@ export async function discoverSessionFiles(options = {}) {
       try {
         const s = await stat(fp);
         if (s.mtimeMs >= cutoff) {
-          files.push({ path: fp, projectDir: projDir, mtime: s.mtimeMs });
+          // `size` pairs with `mtime` as the session-cache key — transcripts
+          // are append-only, so the pair identifies a parse result exactly.
+          files.push({ path: fp, projectDir: projDir, mtime: s.mtimeMs, size: s.size });
         }
       } catch {
         continue;
@@ -170,21 +173,43 @@ export async function discoverSessionFiles(options = {}) {
 }
 
 /**
- * Parse all sessions with concurrency control
+ * Parse all sessions with concurrency control, backed by the (path, mtime,
+ * size) session cache so repeated runs — above all the statusline, which
+ * re-runs this every few seconds — only touch transcripts that changed.
+ *
+ * The returned sessions carry the aggregate summary WITHOUT the per-request
+ * array: it is an aggregation detail no consumer reads, and omitting it on
+ * both the cache-hit and fresh-parse paths keeps the two shapes identical.
+ * Call `parseSessionFile` directly if you need the raw requests.
+ *
+ * @param {object} [options] forwarded to discoverSessionFiles
+ * @param {boolean} [options.noCache=false] bypass the cache entirely
  */
 export async function parseAllSessions(options = {}) {
   const files = await discoverSessionFiles(options);
   const concurrency = 10;
   const results = [];
+  const useCache = !options.noCache;
+  const cache = useCache ? loadCache() : { entries: {} };
+  let misses = 0;
 
   for (let i = 0; i < files.length; i += concurrency) {
     const batch = files.slice(i, i + concurrency);
     const parsed = await Promise.all(
       batch.map(async (f) => {
+        if (useCache) {
+          const hit = getCached(cache, f);
+          if (hit) return hit;
+        }
         try {
           const session = await parseSessionFile(f.path);
           session.projectDir = f.projectDir;
-          return session;
+          const { requests, ...summary } = session;
+          if (useCache) {
+            putCached(cache, f, session);
+            misses++;
+          }
+          return summary;
         } catch {
           return null;
         }
@@ -192,6 +217,8 @@ export async function parseAllSessions(options = {}) {
     );
     results.push(...parsed.filter(Boolean));
   }
+
+  if (useCache && misses > 0) saveCache(cache);
 
   return results.filter((s) => s.requestCount > 0);
 }
