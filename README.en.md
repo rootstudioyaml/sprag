@@ -253,6 +253,37 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 - **Tests and CI** — `npm test` runs 22 `node:test` cases, and GitHub Actions runs them across ubuntu/macOS/Windows × Node 18/22. The cross-platform user-path handling (XDG / APPDATA / Application Support) is exactly what a single-OS run would miss.
 - **bin/cli.js split up** — the 1,000-line CLI is now `src/commands/*` (install, harness, route-scan, brief, handoff, history, last, mode) plus arg-parsing and stdin-payload helpers. No behavior change.
 
+### v3.5.3 (2026-07-22)
+- **rule-health: self-corrected and harness-guard errors excluded** — edit-ordering guards and self-correction errors (`File not read yet`, `String to replace not found`, `modified since read`, `Blocked:`, Task lifecycle) are part of a flow the model recovers from on its own, not a difficulty signal. Continues the permission-noise cleanup from v3.4.2. Ambiguous `Exit code N` / `File does not exist` stay counted.
+
+### v3.5.2 (2026-07-21)
+- **Session-start briefing is delivered proactively** — the SessionStart hook's wording was conditional ("when you relay this"), so the model could file it away as background. It now explicitly asks for a summary at the end of the first response under a `※ [claude-token-saver]` label, even when the user's opening message is unrelated small talk.
+- **Fixed a brief-seeding race** — the brief hook used to swallow every route/rule-health event on its first run; it now swallows only the signatures SessionStart actually briefed (`seedSessionBriefed()`). When a background rescan finishes just after session start and produces a new candidate, it used to go unmentioned for the whole session — now it's briefed on the next prompt.
+
+### v3.5.1 (2026-07-14)
+- **Hook install no longer overwrites schema-violating values** — a non-array `hooks.SessionStart` / `hooks.UserPromptSubmit` used to be replaced with an empty array. It's now skipped with a reason, to protect user data. Normal array merging (append, idempotent) is unchanged.
+
+### v3.5.0 (2026-07-14)
+- **Per-session change briefing hook (UserPromptSubmit)** — the model cannot see statusline chips, so mid-session state changes (context threshold crossed, new route candidate, rule-health flip) went unexplained until the user asked. Runs on every prompt submit and stays **completely silent when nothing changed** (zero context cost).
+  - Context measurement and briefing markers are both keyed by session_id — window auto-detection (200k/1M), tiers at 80% and 95%, each announced once.
+  - route/rule-health are seeded at the session's first event so they don't duplicate the SessionStart briefing; only what appears mid-session is injected.
+  - The installer registers the UserPromptSubmit hook idempotently, and session state untouched for 7 days is pruned.
+
+### v3.4.3 (2026-07-14)
+- **Write-dominant episodes are no longer delegation candidates** — editing work (Edit/Write dominant) leaked into read/explore through generic keywords. Measured: a 5-edit doc session classified as read/T1 and generated 67% error-rate noise. A write-dominant episode now maps to translate only with explicit translate keywords, and otherwise to nothing at all.
+
+### v3.4.2 (2026-07-14)
+- **rule-health numerator cleaned up — permission-class errors excluded** — user tool denials, auto-mode classifier denials, and permission-denied errors reflect user intent and policy, not task difficulty. A full 14-day audit found ~25% of 142 `is_error` events were this class, and they were what pinned a 24% ⚠ flag on the global run/T1 rule (18% after exclusion, clearing it; the real run/T1 error rate went 23% → 8%).
+
+### v3.4.1 (2026-07-14)
+- **Minimum-sample guard for rule-health (`HEALTH_MIN_SAMPLE=10`)** — 1 error out of 4 samples (25%) was enough to raise a review flag. Below 10 eligible episodes in the window the rate is noise, so the flag is withheld.
+
+### v3.4.0 (2026-07-14)
+- **Behavior-first categorization** — `categorize()` rewritten from first-match regexes into three stages: paste gate → tool-usage histogram (`behaviorPool`) to narrow the candidate pool → weighted keyword scoring. **What the episode actually did outranks how the prompt was worded** ("check whether the tests pass" that really ran `npx playwright test` is a run episode regardless of phrasing).
+- Added irreversible/external keywords to ESCALATE_RE (submit, deploy, release, merge, …) — they can look like light run episodes in the logs, but delegating them defeats the harness's default-safe-path rule.
+- rule-health statistics keyed by `tier|category|project` — removes the double counting that happened when a category's T2 and T1 rules shared one bucket.
+- ratchet-model.md rendering: a category's T2 and T1 rules are emitted as **one merged rule carrying the decision criteria at request time** (haiku by default → sonnet when multi-step → main model when irreversible).
+
 ### v3.3.1 (2026-07-13)
 - **Plain language instead of codes** — bare `R1`/`T2` codes were unreadable for first-time users. Every user-facing listing (SessionStart hook briefing, `route-scan` candidates, `route-scan rules`) now spells tiers out as `T2 (simple — haiku-class is enough)` and scopes as `this project only` / `all projects (global)`. The hook briefing also instructs the model to relay the spelled-out explanation, not the codes. (Statusline chips keep the terse `route? R1` for width; the session briefing carries the meaning.)
 

@@ -210,6 +210,37 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 - **테스트·CI 도입** — `npm test`(node:test) 22개 + GitHub Actions에서 ubuntu/macOS/Windows × Node 18/22 매트릭스. 사용자 레벨 경로 처리(XDG/APPDATA/Application Support)가 단일 OS 실행으로는 잡히지 않는 부분이라 3-OS로 돌림.
 - **bin/cli.js 분할** — 1,000줄 단일 파일이던 CLI를 `src/commands/*`(install, harness, route-scan, brief, handoff, history, last, mode)와 인자 파싱·stdin 페이로드 헬퍼로 분리. 동작 변경 없음.
 
+### v3.5.3 (2026-07-22)
+- **rule-health: 자가수정·하네스 가드 에러 제외** — 편집 순서 가드나 자가수정 계열(`File not read yet`, `String to replace not found`, `modified since read`, `Blocked:`, Task 라이프사이클)은 모델이 스스로 회복하는 흐름의 일부지 작업 난이도 신호가 아님. v3.4.2의 권한 노이즈 정화 연장선. 모호한 `Exit code N`·`File does not exist`는 난이도 신호로 유지.
+
+### v3.5.2 (2026-07-21)
+- **세션 시작 브리핑을 능동 전달** — SessionStart 훅 지시문이 조건부("전달할 때는")라 모델이 배경 정보로 흘려보낼 수 있었음. 사용자의 첫 메시지가 단순 인사여도 첫 응답 말미에 `※ [claude-token-saver]` 라벨로 요약 브리핑하도록 명시.
+- **brief 시딩 레이스 수정** — brief 훅이 첫 실행에서 route/rule-health 이벤트를 무조건 삼키던 것을, SessionStart가 **실제로 브리핑한 시그니처만** 삼키도록 변경(`seedSessionBriefed()`). 백그라운드 재스캔이 세션 시작 직후 끝나 새 후보가 생긴 경우, 이전에는 세션 내내 전달되지 않았지만 이제 다음 프롬프트에 브리핑됨.
+
+### v3.5.1 (2026-07-14)
+- **훅 설치 시 스키마 위반 값은 덮어쓰지 않음** — `hooks.SessionStart` / `hooks.UserPromptSubmit`가 배열이 아닌 값으로 존재하면 빈 배열로 대체하던 것을, 사용자 데이터 보호 차원에서 skip + 사유 반환으로 변경. 정상 배열 병합(append·idempotent)은 회귀 없음.
+
+### v3.5.0 (2026-07-14)
+- **세션별 상태 변화 브리핑 훅 (UserPromptSubmit)** — 모델은 statusline 칩을 볼 수 없어, 세션 중 상태 변화(컨텍스트 임계 돌파, 신규 route 후보, rule-health 플립)가 사용자가 묻기 전까지 설명되지 않던 공백을 메움. 프롬프트 제출마다 실행되되 **변화가 없으면 완전 침묵**(컨텍스트 비용 0).
+  - 컨텍스트 판별·브리핑 마커 모두 session_id 단위 — 창 크기 자동 감지(200k/1M), 80%/95% 티어를 각각 1회씩만 경고.
+  - route/rule-health는 세션 첫 이벤트에 시드해 SessionStart 브리핑과 중복 방지, 세션 중간에 새로 생긴 것만 주입.
+  - installer가 UserPromptSubmit 훅을 idempotent하게 등록, 7일 미사용 세션 상태는 자동 정리.
+
+### v3.4.3 (2026-07-14)
+- **write 우세 에피소드는 위임 후보에서 제외** — 편집 작업(Edit/Write 우세)이 범용 키워드("설명…")를 타고 read/explore로 새어 들어가던 오분류 수정. 실측에서 `Edit×5` 문서 편집이 read/T1로 잡혀 에러율 67% 노이즈를 만들었음. write 우세면 translate 키워드가 있을 때만 translate, 아니면 분류 없음(= 위임 후보 아님).
+
+### v3.4.2 (2026-07-14)
+- **rule-health 분자 정화 — 권한 계열 에러 제외** — 사용자 도구 거부·auto mode classifier 거부·permission denied류는 사용자 의사와 권한 정책의 산물이지 작업 난이도 신호가 아님. 14일 전수 감사에서 `is_error` 142건 중 약 25%가 이 계열이었고, 글로벌 run/T1 룰에 24% ⚠ 플래그를 띄운 주범이었음(제외 후 18%로 해제, 실제 run/T1 에러율 23% → 8%).
+
+### v3.4.1 (2026-07-14)
+- **rule-health 최소 표본 가드(`HEALTH_MIN_SAMPLE=10`)** — 표본 4건 중 에러 1건(25%)만으로 review 플래그가 뜨던 문제. 윈도 내 대상 에피소드가 10건 미만이면 에러율은 노이즈이므로 플래그를 유보.
+
+### v3.4.0 (2026-07-14)
+- **행동 우선(behavior-first) 분류** — `categorize()`를 first-match 정규식에서 3단 판정으로 재작성: paste 게이트 → 도구 사용 히스토그램(`behaviorPool`)으로 후보군 축소 → 가중 키워드 스코어링. **에피소드가 실제로 실행한 도구 구성이 프롬프트 표현보다 우선**한다("테스트 통과했는지 확인해줘"가 실제로 `npx playwright test`를 돌렸다면 표현과 무관하게 run 에피소드).
+- ESCALATE_RE에 비가역·외부 작업 키워드 추가(제출/배포/deploy/release/merge 등) — 로그상 가벼운 run 에피소드로 보여도 위임하면 하네스의 default-safe-path 원칙이 무너짐.
+- rule-health 통계 키를 `tier|category|project`로 확장 — 같은 카테고리의 T2/T1 룰이 통계를 공유하며 생기던 이중 계상 제거.
+- ratchet-model.md 렌더: 같은 카테고리의 T2+T1 룰을 **요청 시점 판별 조건이 담긴 하나의 병합 룰**로 출력(기본 haiku → 다단계는 sonnet → 비가역은 메인 모델).
+
 ### v3.3.1 (2026-07-13)
 - **코드 대신 풀어쓴 설명** — `R1`, `T2` 같은 코드가 설명 없이 노출돼 처음 쓰는 사람이 알 수 없던 문제 수정. 모든 사용자 대면 출력(SessionStart 훅 브리핑, `route-scan` 후보 목록, `route-scan rules` 목록)에서 티어를 `T2 (단순 작업 — haiku급이면 충분)` 식으로 풀어쓰고, scope도 `이 프로젝트만`/`모든 프로젝트(글로벌)`로 표기. 훅 브리핑에는 "사용자에게 전달할 때 코드가 아니라 풀어쓴 설명으로 브리핑하라"는 지시 포함. (statusline 칩은 폭 제약상 `route? R1` 유지 — 의미는 세션 브리핑이 설명)
 
