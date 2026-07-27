@@ -243,6 +243,12 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.6.3 (2026-07-27)
+- **Fixed: approved ratchet rules never reached the session** — `harness promote` appended rules to `ratchet.md`, but nothing ever read that file. Claude Code loads `CLAUDE.md` (plus whatever it imports) and the harness block carried no import line, so "approved rules apply automatically from the next session" was unimplemented. The block now imports `@.claude/ratchet.md` (project) / `@~/.claude/ratchet.md` (global). Re-running `harness init` upgrades an existing block in place.
+- **`ratchet-model.md` is imported explicitly too** — delegation rules now travel the same declared path instead of relying on a host that happens to pick the file up. To keep the import from dangling, `harness init` seeds an empty file and `syncAllFiles` empties rather than deletes a target that loses its last rule.
+- **New `🅷⚠ ratchet-unloaded` warning** — all five sections can be present while the rules are dead weight, so a missing import is reported separately from `N/5`. `harness check` says the same thing and prints the fix.
+- **New `harness prune`, plus ratchet size in `check`** — an imported ratchet costs tokens on every request. `harness check` now reports rule count and per-request tokens and warns past ~2,000. Trim with `harness prune [--tag <t>] [--older-than <months>] [--dry-run]`, which moves rules to `ratchet-archive.md` rather than deleting them. Prefix a rule with `[tags]` (`- 2026-05-08: [video] ...`) to prune by topic. (`@` imports are static, so load-time filtering is not possible — the only lever is fewer rules.)
+
 ### v3.6.2 (2026-07-26)
 - Docs-only release — restores the missing v3.4.0–v3.5.3 release notes below. Published because the npm package page renders the README of the published version. No code changes.
 

@@ -17,7 +17,36 @@ export const HARNESS_SECTIONS = [
   { id: 'safe-path', heading: '### 5. Default Safe Path — 파괴적 명령 항상 확인' },
 ];
 
-export function harnessClaudeMdBlock() {
+/**
+ * The `@` import that actually loads ratchet.md into the session.
+ *
+ * Without this line the promoted rules live in a file nobody reads: Claude Code
+ * only loads CLAUDE.md (plus whatever it imports), so `harness promote` was a
+ * write-only operation before v3.6.3. Project scope imports the repo-local
+ * ratchet, global scope the user-level one — mirroring resolveRatchetPath().
+ */
+export function ratchetImportLine(scope = 'project') {
+  return scope === 'global' ? '@~/.claude/ratchet.md' : '@.claude/ratchet.md';
+}
+
+/**
+ * The model-fitting ratchet is imported too, so the delegation rules reach the
+ * model through the same declared path as everything else instead of relying on
+ * a host that happens to pick the file up. harnessInit() seeds an empty
+ * ratchet-model.md and syncAllFiles() empties rather than deletes it, so this
+ * import never dangles.
+ */
+export function modelRatchetImportLine(scope = 'project') {
+  return scope === 'global' ? '@~/.claude/ratchet-model.md' : '@.claude/ratchet-model.md';
+}
+
+// Matches either scope's import line, so completeness checks don't need to know
+// which scope wrote the block. `(?!-)` keeps the ratchet-model import from
+// counting as the ratchet.md one.
+export const RATCHET_IMPORT_RE = /^@(?:~\/\.claude|\.claude)\/ratchet\.md\s*$/m;
+export const MODEL_RATCHET_IMPORT_RE = /^@(?:~\/\.claude|\.claude)\/ratchet-model\.md\s*$/m;
+
+export function harnessClaudeMdBlock(scope = 'project') {
   const sections = HARNESS_SECTIONS.map((s) => s.heading).join('\n\n... (see full block below)');
   return `${HARNESS_BLOCK_BEGIN}
 ## 🅷 Harness Rules (claude-token-saver)
@@ -36,7 +65,8 @@ ${HARNESS_SECTIONS[0].heading}
   도구·환경 일반 룰이면 \`--global\`(\`~/.claude/ratchet.md\`). Bash 환경은
   non-TTY라 CLI의 readline 프롬프트가 안 뜨므로, 호출자(LLM)가 직접 묻고
   플래그를 명시해야 함. 묻지 않고 기본값으로 등록하지 말 것.
-- 승인된 룰은 다음 세션부터 자동 적용.
+- 승인된 룰은 이 블록 맨 아래 \`@\` import로 매 세션 로드된다 — 그 import 라인을
+  지우면 ratchet.md는 컨텍스트에 들어오지 않으니 지우지 말 것.
 - **모델 피팅 랫쳇**: \`.claude/ratchet-model.md\`(프로젝트)와
   \`~/.claude/ratchet-model.md\`(글로벌)에 있는 티어 위임 룰도 ratchet.md와
   동일하게 따를 것. 이 파일은 claude-token-saver가 로그 기반으로 자동
@@ -81,6 +111,13 @@ ${HARNESS_SECTIONS[4].heading}
 - \`claude-token-saver harness check\` — 현재 셋업 점수
 - \`claude-token-saver harness promote "<룰>" --project|--global\` — ratchet에 룰 추가 (scope는 사용자에게 먼저 물어볼 것)
 - \`claude-token-saver harness off\` — statusline 표시 끄기
+
+---
+
+📥 ratchet 룰 로드 (이 줄들을 지우면 룰이 적용되지 않습니다):
+
+${ratchetImportLine(scope)}
+${modelRatchetImportLine(scope)}
 ${HARNESS_BLOCK_END}
 `;
 }
@@ -92,6 +129,11 @@ export function harnessRatchetMdInitial() {
 
 \`claude-token-saver harness promote "<rule>"\`로 룰을 추가하면 자동으로
 이 파일에 append 됩니다.
+
+이 파일은 CLAUDE.md의 \`@\` import로 매 세션 로드됩니다 — 즉 여기 있는 모든 줄이
+매 요청마다 토큰을 씁니다. 날짜 뒤에 \`[태그]\`를 붙여두면 나중에 묶어서 정리할 수
+있습니다: \`- 2026-05-08: [video,tts] ...\` →
+\`claude-token-saver harness prune --tag video\` (삭제 아니라 ratchet-archive.md로 이동).
 
 ## Rules
 

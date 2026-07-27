@@ -18,9 +18,11 @@ import {
   harnessClaudeMdBlock,
   harnessRatchetMdInitial,
   appendRatchetRule,
+  RATCHET_IMPORT_RE,
+  MODEL_RATCHET_IMPORT_RE,
 } from './harness-templates.js';
 import { routeWarningForStatusline } from './route-scan.js';
-import { ruleHealthWarningForStatusline } from './model-rules.js';
+import { ruleHealthWarningForStatusline, modelRatchetPathFor, renderModelRatchet } from './model-rules.js';
 
 const require = createRequire(import.meta.url);
 function readHarnessState() {
@@ -96,6 +98,8 @@ function statusForFile(filePath) {
       hasFile: false,
       optOut: false,
       custom: false,
+      hasRatchetImport: false,
+      hasModelRatchetImport: false,
       file: filePath,
     };
   }
@@ -105,7 +109,7 @@ function statusForFile(filePath) {
   } catch {
     // Unreadable file (permissions, etc.) — report every section missing so
     // `harness check` can't print "All 5 sections present ✅" over a 0/5.
-    return { configured: 0, total: HARNESS_SECTIONS.length, missing: HARNESS_SECTIONS.map((s) => s.id), hasBlock: false, hasFile: true, optOut: false, custom: false, file: filePath };
+    return { configured: 0, total: HARNESS_SECTIONS.length, missing: HARNESS_SECTIONS.map((s) => s.id), hasBlock: false, hasFile: true, optOut: false, custom: false, hasRatchetImport: false, hasModelRatchetImport: false, file: filePath };
   }
   const hasBlock = content.includes(HARNESS_BLOCK_BEGIN);
   // Opt-out marker — when the user intentionally customizes the harness block
@@ -131,6 +135,11 @@ function statusForFile(filePath) {
     hasFile: true,
     optOut,
     custom,
+    // Whether the promoted ratchet rules actually reach the model. Blocks
+    // written before v3.6.3 have all 5 sections but no import, so the rules
+    // sat in a file nothing read — worth flagging separately from N/5.
+    hasRatchetImport: RATCHET_IMPORT_RE.test(content),
+    hasModelRatchetImport: MODEL_RATCHET_IMPORT_RE.test(content),
     file: filePath,
   };
 }
@@ -168,7 +177,7 @@ export function harnessInit({ root = findProjectRoot(), force = false, scope = '
   const result = { wrote: [], backedUp: [], skipped: [], root, scope };
 
   // CLAUDE.md
-  const block = harnessClaudeMdBlock();
+  const block = harnessClaudeMdBlock(scope);
   if (existsSync(cmPath)) {
     const existing = readFileSync(cmPath, 'utf8');
     if (existing.includes(HARNESS_BLOCK_BEGIN) && !force) {
@@ -207,6 +216,20 @@ export function harnessInit({ root = findProjectRoot(), force = false, scope = '
     result.wrote.push(rmPath);
   } else {
     result.skipped.push(rmPath + ' (already exists)');
+  }
+
+  // ratchet-model.md — tool-owned, normally written by route-scan. The block
+  // imports it, so seed an empty one now rather than ship a dangling import
+  // into every project that has not been scanned yet.
+  const mrPath = modelRatchetPathFor(scope, root);
+  if (!existsSync(mrPath)) {
+    try {
+      mkdirSync(dirname(mrPath), { recursive: true });
+      writeFileSync(mrPath, renderModelRatchet([]));
+      result.wrote.push(mrPath);
+    } catch { /* unwritable — route-scan will retry on its next sync */ }
+  } else {
+    result.skipped.push(mrPath + ' (already exists)');
   }
 
   return result;
@@ -348,10 +371,74 @@ export function harnessListRules({ root = findProjectRoot(), scope = 'project' }
     // and the "## Rules" anchor are ignored. (Model-fitting rules live in a
     // separate tool-owned file, ratchet-model.md — never listed here.)
     if (/^\s*-\s+/.test(line)) {
-      rules.push({ index: rules.length + 1, lineNo: i, text: line.replace(/^\s*-\s+/, '') });
+      const text = line.replace(/^\s*-\s+/, '');
+      rules.push({ index: rules.length + 1, lineNo: i, text, ...parseRuleMeta(text) });
     }
   }
-  return { path: rmPath, rules };
+  return { path: rmPath, rules, bytes: Buffer.byteLength(readFileSync(rmPath, 'utf8'), 'utf8') };
+}
+
+/**
+ * Rule metadata, parsed from the line the user already writes:
+ *   "- 2026-05-08: [video,tts] 자막 렌더 시 ..."
+ * Both parts are optional — `date` is null on undated rules, `tags` empty on
+ * untagged ones. Tags exist to make pruning targeted (`prune --tag video`);
+ * they deliberately do NOT filter what gets loaded, because CLAUDE.md `@`
+ * imports are static — the file that is imported is the file that is read, so
+ * the only way to spend fewer tokens is to have fewer rules in it.
+ */
+export function parseRuleMeta(text) {
+  const dateM = text.match(/^(\d{4})-(\d{2})-(\d{2})\s*:/);
+  // Tags must lead the rule body (right after the date, or at the very start),
+  // so a bracketed aside later in the sentence is not mistaken for a tag list.
+  const tagM = text.match(/^(?:\d{4}-\d{2}-\d{2}\s*:\s*)?\[([^\]]+)\]/);
+  return {
+    date: dateM ? dateM[0].replace(/\s*:$/, '') : null,
+    tags: tagM ? tagM[1].split(',').map((t) => t.trim()).filter(Boolean) : [],
+  };
+}
+
+// Rough token cost of the imported ratchet, charged on every single request of
+// every session. 4 bytes/token is the usual mixed ko/en approximation.
+export const RATCHET_TOKEN_BUDGET = 2000;
+
+export function ratchetSizeStatus({ root = findProjectRoot(), scope = 'project' } = {}) {
+  const { path, rules, bytes = 0 } = harnessListRules({ root, scope });
+  const tokens = Math.round(bytes / 4);
+  return { path, count: rules.length, bytes, tokens, overBudget: tokens > RATCHET_TOKEN_BUDGET };
+}
+
+/**
+ * harness prune — move rules out of ratchet.md into ratchet-archive.md next to
+ * it. Selection is by tag and/or age; nothing is deleted, so a pruned rule can
+ * be pasted back. Returns the pruned rules for the CLI to echo.
+ */
+export function harnessPrune({ root = findProjectRoot(), scope = 'project', tag = null, olderThanMonths = null, dryRun = false } = {}) {
+  const { path: rmPath, rules } = harnessListRules({ root, scope });
+  if (!existsSync(rmPath)) return { ok: false, error: `ratchet.md not found at ${rmPath}` };
+  if (!tag && !olderThanMonths) return { ok: false, error: 'Nothing selected — pass --tag <t> and/or --older-than <months>' };
+  const cutoff = olderThanMonths ? Date.now() - olderThanMonths * 30 * 24 * 60 * 60 * 1000 : null;
+  const doomed = rules.filter((r) => {
+    if (tag && !r.tags.includes(tag)) return false;
+    // An undated rule has no age to judge, so age-based pruning leaves it be.
+    if (cutoff !== null) {
+      const t = r.date ? Date.parse(r.date) : NaN;
+      if (!Number.isFinite(t) || t >= cutoff) return false;
+    }
+    return true;
+  });
+  if (dryRun || doomed.length === 0) return { ok: true, path: rmPath, pruned: doomed, dryRun: true };
+  const content = readFileSync(rmPath, 'utf8');
+  writeFileSync(rmPath + '.bak', content);
+  const drop = new Set(doomed.map((r) => r.lineNo));
+  const kept = content.split('\n').filter((_, i) => !drop.has(i));
+  writeFileSync(rmPath, kept.join('\n'));
+  const archivePath = join(dirname(rmPath), 'ratchet-archive.md');
+  const header = existsSync(archivePath) ? '' : '# Ratchet Archive (pruned rules — not loaded into sessions)\n\n';
+  const stamp = new Date().toISOString().slice(0, 10);
+  const body = doomed.map((r) => `- ${r.text}  <!-- pruned ${stamp} -->`).join('\n') + '\n';
+  writeFileSync(archivePath, (existsSync(archivePath) ? readFileSync(archivePath, 'utf8').replace(/\n*$/, '\n') : header) + body);
+  return { ok: true, path: rmPath, backup: rmPath + '.bak', archive: archivePath, pruned: doomed };
 }
 
 /**
@@ -420,6 +507,10 @@ export function harnessStatusForStatusline(cfg, { root } = {}) {
       else if (state.pevSkip) warning = 'PEV-skip';
     }
   }
+  // Config defect, above the optimization nudges: the harness block is there
+  // but carries no `@` import, so every promoted ratchet rule is dead weight.
+  // One `harness init` re-run fixes it and the warning goes away for good.
+  if (!warning && status.hasBlock && !(status.hasRatchetImport && status.hasModelRatchetImport)) warning = 'ratchet-unloaded';
   // Below session-quality warnings: a promoted delegation rule whose
   // category started failing (`rule-health R<N>`) — the user approved that
   // rule, so its degradation outranks a mere new-candidate nudge.

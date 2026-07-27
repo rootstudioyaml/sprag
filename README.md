@@ -200,6 +200,12 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ## 릴리스 노트
 
+### v3.6.3 (2026-07-27)
+- **승인한 ratchet 룰이 세션에 전달되지 않던 버그 수정** — `harness promote`는 룰을 `ratchet.md`에 append했지만, 그 파일을 읽는 소비자가 어디에도 없었습니다. Claude Code는 `CLAUDE.md`(와 그것이 import하는 파일)만 로드하는데 harness 블록에 import 라인이 없었기 때문에, "승인된 룰은 다음 세션부터 자동 적용"은 사실상 미구현 상태였습니다. 이제 harness 블록이 `@.claude/ratchet.md`(project) / `@~/.claude/ratchet.md`(global)를 import합니다. `harness init`을 다시 돌리면 기존 블록도 제자리에서 갱신됩니다.
+- **`ratchet-model.md`도 명시적으로 import** — 모델 피팅 룰도 호스트가 알아서 읽어주길 기대하지 않고 같은 경로로 전달합니다. import가 끊기지 않도록 `harness init`이 빈 파일을 미리 만들고, 마지막 룰이 사라져도 `syncAllFiles`가 파일을 지우는 대신 비웁니다.
+- **`🅷⚠ ratchet-unloaded` 경고 추가** — 5개 섹션이 다 있어도 import 라인이 없으면 룰이 죽어 있는 상태라, `N/5`와 별개로 표시합니다. `harness check`도 같은 내용을 수정 명령과 함께 안내합니다.
+- **`harness prune` 추가 + ratchet 크기 표시** — import된 ratchet은 매 요청마다 토큰을 씁니다. `harness check`가 룰 수와 요청당 토큰을 보여주고 ~2,000 토큰을 넘으면 경고합니다. 정리는 `harness prune [--tag <t>] [--older-than <months>] [--dry-run]` — 삭제가 아니라 `ratchet-archive.md`로 이동합니다. 룰 앞에 `[태그]`를 붙여두면(`- 2026-05-08: [video] ...`) 묶어서 정리할 수 있습니다. (`@` import는 정적이라 로드 시점 필터링은 불가능합니다 — 줄일 방법은 룰 자체를 줄이는 것뿐)
+
 ### v3.6.2 (2026-07-26)
 - 문서 전용 릴리스 — 아래 v3.4.0~v3.5.3 릴리스 노트가 누락돼 있던 것을 복원했고, npm 패키지 페이지는 발행된 버전의 README를 보여주므로 이를 반영하기 위해 올립니다. 코드 변경 없음.
 

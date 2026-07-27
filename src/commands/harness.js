@@ -27,7 +27,7 @@ export async function run({ args, hasFlag }) {
       }
       return dflt;
     };
-    const { harnessInit, harnessUninit, harnessStatus, harnessPromote, harnessPull, harnessListRules, harnessRmRule, findProjectRoot } =
+    const { harnessInit, harnessUninit, harnessStatus, harnessPromote, harnessPull, harnessListRules, harnessRmRule, harnessPrune, ratchetSizeStatus, RATCHET_TOKEN_BUDGET, findProjectRoot } =
       await import('../harness.js');
     const { HARNESS_SECTIONS } = await import('../harness-templates.js');
     const { loadConfig, saveConfig, userLanguage } = await import('../config.js');
@@ -53,6 +53,29 @@ export async function run({ args, hasFlag }) {
         console.log('  or: claude-token-saver harness init --global  (all projects, ~/.claude/CLAUDE.md)');
       } else {
         console.log('All 5 harness sections present. ✅');
+      }
+      // Sections can all be present while ratchet.md still never reaches the
+      // model — blocks written before v3.6.3 have no `@` import line.
+      if (s.hasBlock && !(s.hasRatchetImport && s.hasModelRatchetImport)) {
+        const dead = [!s.hasRatchetImport && 'ratchet.md', !s.hasModelRatchetImport && 'ratchet-model.md'].filter(Boolean).join(' + ');
+        console.log(`\n⚠ ${dead} is NOT loaded into sessions — the harness block has no \`@\` import line for it.`);
+        console.log('  Those rules are being written to a file nothing reads.');
+        console.log(`  Fix: claude-token-saver harness init${s.source === 'global' ? ' --global' : ''}   (updates the block in place)`);
+      }
+      // Imported ratchets are charged on every request, so their size matters.
+      // Static `@` imports cannot be filtered at load time — the only lever is
+      // fewer rules, hence the prune pointer rather than a "filter" suggestion.
+      for (const sc of ['project', 'global']) {
+        const size = ratchetSizeStatus({ scope: sc });
+        if (!size.count) continue;
+        const line = `ratchet.md [${sc}]: ${size.count} rules, ~${size.tokens} tok/request`;
+        if (size.overBudget) {
+          console.log(`\n⚠ ${line} — over the ~${RATCHET_TOKEN_BUDGET} token budget.`);
+          console.log(`  Trim: claude-token-saver harness prune${sc === 'global' ? ' --global' : ''} --older-than 6 --dry-run`);
+          console.log('  (project-specific rules belong in --project scope, not global.)');
+        } else {
+          console.log(`${line}`);
+        }
       }
       return;
     }
@@ -322,6 +345,38 @@ export async function run({ args, hasFlag }) {
       if (wantProject) print('project');
       if (wantGlobal) print('global');
       console.log('Remove with: claude-token-saver harness rm [--global|--project] <N>');
+      console.log('Archive in bulk:  claude-token-saver harness prune [--global] [--tag <t>] [--older-than <months>] [--dry-run]');
+      return;
+    }
+
+    if (sub === 'prune') {
+      const pruneScope = parseHarnessScope(args.slice(2), 'project');
+      const argv = args.slice(2);
+      const valueOf = (flag) => {
+        const i = argv.indexOf(flag);
+        if (i !== -1 && argv[i + 1] && !argv[i + 1].startsWith('--')) return argv[i + 1];
+        const eq = argv.find((a) => a.startsWith(flag + '='));
+        return eq ? eq.slice(flag.length + 1) : null;
+      };
+      const months = valueOf('--older-than');
+      if (months !== null && !/^\d+$/.test(months)) {
+        console.error(`Invalid --older-than value: ${months} (expected a number of months)`);
+        process.exit(1);
+      }
+      const r = harnessPrune({
+        scope: pruneScope,
+        tag: valueOf('--tag'),
+        olderThanMonths: months ? parseInt(months, 10) : null,
+        dryRun: hasFlag('--dry-run'),
+      });
+      if (!r.ok) { console.error(r.error); process.exit(1); }
+      if (!r.pruned.length) { console.log(`Nothing matched — ${r.path} unchanged.`); return; }
+      console.log(`${r.dryRun ? 'Would prune' : 'Pruned'} ${r.pruned.length} rule(s) from ${r.path}:`);
+      for (const p of r.pruned) console.log(`  #${p.index}  ${p.text.slice(0, 100)}`);
+      if (!r.dryRun) {
+        console.log(`\nArchived to: ${r.archive}   (backup: ${r.backup})`);
+        console.log('Archived rules are NOT loaded into sessions — paste one back into ratchet.md to restore it.');
+      }
       return;
     }
 
@@ -378,6 +433,6 @@ export async function run({ args, hasFlag }) {
     }
 
     console.error(`Unknown harness subcommand: ${sub}`);
-    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|pull [--global|--project]|list|rm <N>|off|on]');
+    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|pull [--global|--project]|list|rm <N>|prune [--tag <t>] [--older-than <months>] [--dry-run]|off|on]');
     process.exit(1);
 }

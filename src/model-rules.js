@@ -28,7 +28,7 @@
  * ratchet.md.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { userDataDir } from './paths.js';
@@ -205,9 +205,11 @@ export function syncAllFiles({ previousPaths = [] } = {}) {
       written.push(p);
     } catch { /* unwritable target — skip, registry stays authoritative */ }
   }
+  // A target that lost its last rule is emptied, NOT deleted: CLAUDE.md
+  // imports this path, and a dangling `@` import is worse than an empty file.
   for (const p of previousPaths) {
     if (!byPath.has(p) && existsSync(p)) {
-      try { unlinkSync(p); } catch { /* leave stale file; regenerated next sync */ }
+      try { writeFileSync(p, renderModelRatchet([])); } catch { /* stale content; regenerated next sync */ }
     }
   }
   return written;
