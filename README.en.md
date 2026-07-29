@@ -243,6 +243,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.7.0 (2026-07-29)
+- **Fixed: delegation rules named subagents that may not exist** — generated T2 rules hard-coded preset names like `haiku-explore` / `haiku-runner`, which live in each user's own `~/.claude/agents/` and are not shipped by this package. On a machine without them, the rule told the model to delegate to a nonexistent agent. The default phrasing is now `model: haiku` (matching T1's `model: sonnet`), and the name is added only when the agent file is really present, e.g. `haiku-explore(model: haiku)`. Project-level `.claude/agents/` counts too. `ratchet-model.md` re-renders with the new phrasing on the next `route-scan`.
+
 ### v3.6.4 (2026-07-29)
 - **Fixed: false `🅷⚠ ratchet-unloaded`** — the import check looked at a single CLAUDE.md. When the project file carried the harness block, only that file was inspected, so the common layout of block-in-project + `@` imports-in-global raised the warning even though the rules loaded fine. Claude Code loads both files, so the flags are now the union of the two, and `importSource` (`project`/`global`/`both`) says which file carries them. The warning fires only when neither file imports.
 

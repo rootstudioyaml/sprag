@@ -33,6 +33,7 @@ import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
+import { agentPhrase, agentPhraseEn } from './agents.js';
 
 // Post-promotion delegated-category error rate above this flags the rule
 // for review (rule-health). Calibrated against local T0 avg error incidence.
@@ -144,10 +145,10 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
     const t1 = group.find((r) => r.tier === 'T1');
     if (t2 && t1) {
       const rule = ko
-        ? `"${t2.label}" 유형 요청은 기본적으로 ${t2.agent}(haiku) 서브에이전트로 위임한다(예: "${t2.example}"). ` +
+        ? `"${t2.label}" 유형 요청은 기본적으로 ${agentPhrase(t2.agent)} 서브에이전트로 위임한다(예: "${t2.example}"). ` +
           `여러 단계·여러 파일 수정이 얽힌 중간 난도 요청(예: "${t1.example}")은 model: sonnet 서브에이전트로 위임한다. ` +
           `설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이거나 위임 중 에러가 반복되면 위임하지 말고 메인 모델이 직접 처리한다`
-        : `Delegate "${t2.labelEn || t2.label}" requests to the ${t2.agent} (haiku) subagent by default (e.g. "${t2.example}"). ` +
+        : `Delegate "${t2.labelEn || t2.label}" requests to ${agentPhraseEn(t2.agent)} by default (e.g. "${t2.example}"). ` +
           `Escalate moderate ones that span multiple steps or file edits (e.g. "${t1.example}") to a model: sonnet subagent. ` +
           `Do not delegate at all — handle it on the main model — when the request mixes in design judgement or irreversible work (deploy, release, store submission), or when errors repeat during delegation`;
       lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)} -->`);

@@ -200,6 +200,9 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ## 릴리스 노트
 
+### v3.7.0 (2026-07-29)
+- **위임 룰이 없는 서브에이전트를 가리키던 문제 수정** — 생성되는 T2 룰이 `haiku-explore`·`haiku-runner` 같은 이름을 직접 적었는데, 이 preset 에이전트들은 각자의 `~/.claude/agents/`에 있는 것이라 패키지가 배포하지 않습니다. 그래서 해당 파일이 없는 환경에서는 "존재하지 않는 에이전트로 위임하라"는 룰이 자동 생성됐습니다. 이제 기본 표현은 `model: haiku`(T1의 `model: sonnet`과 통일)이고, 에이전트 파일이 실제로 있을 때만 `haiku-explore(model: haiku)`처럼 이름을 병기합니다. 프로젝트 `.claude/agents/`도 인식합니다. 다음 `route-scan` 때 `ratchet-model.md`가 새 표현으로 다시 렌더됩니다.
+
 ### v3.6.4 (2026-07-29)
 - **`🅷⚠ ratchet-unloaded`가 잘못 뜨던 버그 수정** — import 여부를 CLAUDE.md 한 파일에서만 확인했습니다. 프로젝트 `CLAUDE.md`에 harness 블록이 있으면 그 파일만 보고 판정했기 때문에, `@` import가 글로벌 `~/.claude/CLAUDE.md`에 있는 흔한 조합에서는 룰이 정상 로드되는데도 경고가 떴습니다. Claude Code는 두 파일을 모두 로드하므로 이제 양쪽의 import를 합쳐서 판정하고, 어느 쪽이 들고 있는지는 `importSource`(`project`/`global`/`both`)로 알려줍니다. 두 파일 다 import가 없을 때만 경고합니다.
 

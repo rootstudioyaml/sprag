@@ -22,6 +22,7 @@ import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { discoverSessionFiles } from './parser.js';
 import { collectSessionRecords } from './session-records.js';
+import { agentPhrase, agentPhraseEn } from './agents.js';
 
 // ── Tier bands (docs/TIER_CRITERIA.md §3) ────────────────────────────────
 // T2 (haiku): finished in few calls, tiny output, near-zero mutation, no
@@ -373,10 +374,10 @@ export async function runRouteScan({ days = 14 } = {}) {
   // switching `language` later re-renders (and promotes) correctly without
   // waiting for a rescan.
   const ruleText = (g) => g.tier === 'T2'
-    ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${g.agent}(haiku) 서브에이전트로 위임한다 (설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이면 위임하지 않음)`
+    ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${agentPhrase(g.agent)} 서브에이전트로 위임한다 (설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이면 위임하지 않음)`
     : `"${g.label}" 유형의 중간 난도 요청(예: "${g.example}")은 model: sonnet 서브에이전트로 위임한다 (설계 판단·비가역 작업·반복 에러 발생 시 메인 모델이 이어받음)`;
   const ruleTextEn = (g) => g.tier === 'T2'
-    ? `Delegate simple "${g.labelEn}" requests (e.g. "${g.example}") to the ${g.agent} (haiku) subagent — never when the request mixes in design judgement or irreversible work like deploy/release/submission`
+    ? `Delegate simple "${g.labelEn}" requests (e.g. "${g.example}") to ${agentPhraseEn(g.agent)} — never when the request mixes in design judgement or irreversible work like deploy/release/submission`
     : `Delegate moderate "${g.labelEn}" requests (e.g. "${g.example}") to a model: sonnet subagent — hand back to the main model on design judgement, irreversible work, or repeated errors`;
 
   const candidates = [...groups.values()]
