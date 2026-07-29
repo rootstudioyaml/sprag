@@ -243,6 +243,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.6.4 (2026-07-29)
+- **Fixed: false `🅷⚠ ratchet-unloaded`** — the import check looked at a single CLAUDE.md. When the project file carried the harness block, only that file was inspected, so the common layout of block-in-project + `@` imports-in-global raised the warning even though the rules loaded fine. Claude Code loads both files, so the flags are now the union of the two, and `importSource` (`project`/`global`/`both`) says which file carries them. The warning fires only when neither file imports.
+
 ### v3.6.3 (2026-07-27)
 - **Fixed: approved ratchet rules never reached the session** — `harness promote` appended rules to `ratchet.md`, but nothing ever read that file. Claude Code loads `CLAUDE.md` (plus whatever it imports) and the harness block carried no import line, so "approved rules apply automatically from the next session" was unimplemented. The block now imports `@.claude/ratchet.md` (project) / `@~/.claude/ratchet.md` (global). Re-running `harness init` upgrades an existing block in place.
 - **`ratchet-model.md` is imported explicitly too** — delegation rules now travel the same declared path instead of relying on a host that happens to pick the file up. To keep the import from dangling, `harness init` seeds an empty file and `syncAllFiles` empties rather than deletes a target that loses its last rule.

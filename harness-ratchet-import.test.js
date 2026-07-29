@@ -12,7 +12,10 @@ import {
   RATCHET_IMPORT_RE,
   MODEL_RATCHET_IMPORT_RE,
 } from './src/harness-templates.js';
-import { parseRuleMeta } from './src/harness.js';
+import { parseRuleMeta, harnessStatus } from './src/harness.js';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 test('project block imports the repo-local ratchet', () => {
   const block = harnessClaudeMdBlock('project');
@@ -50,6 +53,37 @@ test('model ratchet is imported too, in both scopes', () => {
 test('the two import detectors do not match each other', () => {
   assert.ok(!RATCHET_IMPORT_RE.test('@.claude/ratchet-model.md'));
   assert.ok(!MODEL_RATCHET_IMPORT_RE.test('@.claude/ratchet.md'));
+});
+
+// A project block with the imports living in the global CLAUDE.md is a valid
+// layout — Claude Code loads both files — so it must not report ratchet-unloaded.
+test('imports are detected across project + global CLAUDE.md', (t) => {
+  const home = mkdtempSync(join(tmpdir(), 'cts-home-'));
+  const root = mkdtempSync(join(tmpdir(), 'cts-proj-'));
+  const prevHome = process.env.HOME;
+  process.env.HOME = home;
+  t.after(() => { process.env.HOME = prevHome; });
+
+  // Project file: harness block, no `@` import at all.
+  writeFileSync(join(root, 'CLAUDE.md'), harnessClaudeMdBlock('project')
+    .replace('@.claude/ratchet.md\n', '')
+    .replace('@.claude/ratchet-model.md\n', ''));
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  writeFileSync(join(home, '.claude', 'CLAUDE.md'), harnessClaudeMdBlock('global'));
+
+  const s = harnessStatus(root);
+  assert.strictEqual(s.source, 'project');
+  assert.ok(s.hasRatchetImport, 'global import must count for a project block');
+  assert.ok(s.hasModelRatchetImport);
+  assert.strictEqual(s.importSource, 'global');
+
+  // Neither file importing is still the real defect.
+  writeFileSync(join(home, '.claude', 'CLAUDE.md'), harnessClaudeMdBlock('global')
+    .replace('@~/.claude/ratchet.md\n', '')
+    .replace('@~/.claude/ratchet-model.md\n', ''));
+  const bare = harnessStatus(root);
+  assert.ok(!bare.hasRatchetImport);
+  assert.strictEqual(bare.importSource, null);
 });
 
 test('rule metadata parses date and optional tags', () => {

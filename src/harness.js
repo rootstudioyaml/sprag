@@ -153,15 +153,37 @@ function statusForFile(filePath) {
  *     relies on a globally-installed harness report 🅷 5/5 (covered by global),
  *     matching reality: Claude Code loads ~/.claude/CLAUDE.md for every project.
  * The returned `source` ('project'|'global') tells callers which file was used.
+ *
+ * The `@` import flags are the union of both files, not just the source one:
+ * Claude Code loads ~/.claude/CLAUDE.md for every project *and* the project
+ * CLAUDE.md, so a project-scope block with the imports living in the global
+ * file still gets the ratchet rules. Checking only the source file made that
+ * layout report a false `ratchet-unloaded`. `importSource` says which file
+ * actually carries them ('project' | 'global' | 'both' | null).
  */
 export function harnessStatus(root = findProjectRoot(), { scope = 'auto' } = {}) {
-  if (scope === 'project') return { ...statusForFile(claudeMdPath(root)), root, source: 'project' };
-  if (scope === 'global') return { ...statusForFile(globalClaudeMdPath()), root, source: 'global' };
   const project = statusForFile(claudeMdPath(root));
-  if (project.hasBlock) return { ...project, root, source: 'project' };
   const global = statusForFile(globalClaudeMdPath());
-  if (global.hasBlock) return { ...global, root, source: 'global' };
-  return { ...project, root, source: 'project' };
+  const pick = (s, source) => ({ ...s, ...unionImports(project, global), root, source });
+  if (scope === 'project') return pick(project, 'project');
+  if (scope === 'global') return pick(global, 'global');
+  if (project.hasBlock) return pick(project, 'project');
+  if (global.hasBlock) return pick(global, 'global');
+  return pick(project, 'project');
+}
+
+// Union the two files' import flags. Same file read twice (project root === ~)
+// is harmless — OR is idempotent.
+function unionImports(project, global) {
+  const samePath = project.file === global.file;
+  const g = samePath ? { hasRatchetImport: false, hasModelRatchetImport: false } : global;
+  const inProject = project.hasRatchetImport || project.hasModelRatchetImport;
+  const inGlobal = g.hasRatchetImport || g.hasModelRatchetImport;
+  return {
+    hasRatchetImport: project.hasRatchetImport || g.hasRatchetImport,
+    hasModelRatchetImport: project.hasModelRatchetImport || g.hasModelRatchetImport,
+    importSource: inProject && inGlobal ? 'both' : inProject ? 'project' : inGlobal ? 'global' : null,
+  };
 }
 
 /**

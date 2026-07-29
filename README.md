@@ -200,6 +200,9 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ## 릴리스 노트
 
+### v3.6.4 (2026-07-29)
+- **`🅷⚠ ratchet-unloaded`가 잘못 뜨던 버그 수정** — import 여부를 CLAUDE.md 한 파일에서만 확인했습니다. 프로젝트 `CLAUDE.md`에 harness 블록이 있으면 그 파일만 보고 판정했기 때문에, `@` import가 글로벌 `~/.claude/CLAUDE.md`에 있는 흔한 조합에서는 룰이 정상 로드되는데도 경고가 떴습니다. Claude Code는 두 파일을 모두 로드하므로 이제 양쪽의 import를 합쳐서 판정하고, 어느 쪽이 들고 있는지는 `importSource`(`project`/`global`/`both`)로 알려줍니다. 두 파일 다 import가 없을 때만 경고합니다.
+
 ### v3.6.3 (2026-07-27)
 - **승인한 ratchet 룰이 세션에 전달되지 않던 버그 수정** — `harness promote`는 룰을 `ratchet.md`에 append했지만, 그 파일을 읽는 소비자가 어디에도 없었습니다. Claude Code는 `CLAUDE.md`(와 그것이 import하는 파일)만 로드하는데 harness 블록에 import 라인이 없었기 때문에, "승인된 룰은 다음 세션부터 자동 적용"은 사실상 미구현 상태였습니다. 이제 harness 블록이 `@.claude/ratchet.md`(project) / `@~/.claude/ratchet.md`(global)를 import합니다. `harness init`을 다시 돌리면 기존 블록도 제자리에서 갱신됩니다.
 - **`ratchet-model.md`도 명시적으로 import** — 모델 피팅 룰도 호스트가 알아서 읽어주길 기대하지 않고 같은 경로로 전달합니다. import가 끊기지 않도록 `harness init`이 빈 파일을 미리 만들고, 마지막 룰이 사라져도 `syncAllFiles`가 파일을 지우는 대신 비웁니다.
