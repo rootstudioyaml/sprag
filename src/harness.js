@@ -23,6 +23,7 @@ import {
 } from './harness-templates.js';
 import { routeWarningForStatusline } from './route-scan.js';
 import { ruleHealthWarningForStatusline, modelRatchetPathFor, renderModelRatchet } from './model-rules.js';
+import { compactWindowWarningForStatusline } from './compact-window.js';
 
 const require = createRequire(import.meta.url);
 function readHarnessState() {
@@ -533,6 +534,15 @@ export function harnessStatusForStatusline(cfg, { root } = {}) {
   // but carries no `@` import, so every promoted ratchet rule is dead weight.
   // One `harness init` re-run fixes it and the warning goes away for good.
   if (!warning && status.hasBlock && !(status.hasRatchetImport && status.hasModelRatchetImport)) warning = 'ratchet-unloaded';
+  // Same class of defect, one notch lower: the session runs on a 1M-context
+  // model with no `autoCompactWindow` cap, so compaction only fires past 800k
+  // and every request until then re-bills the whole context. 200k sessions are
+  // exempt — the setting cannot change anything for them.
+  if (!warning) {
+    try {
+      warning = compactWindowWarningForStatusline(projectRoot, cfg);
+    } catch { /* settings unreadable — stay silent */ }
+  }
   // Below session-quality warnings: a promoted delegation rule whose
   // category started failing (`rule-health R<N>`) — the user approved that
   // rule, so its degradation outranks a mere new-candidate nudge.

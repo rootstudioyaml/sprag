@@ -86,6 +86,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver mode [keywords...]` | Output config (`icon`/`text`, `en`/`ko`, `1h`–`30d` window, …) |
 | `claude-token-saver harness ...` | 🅷 Harness management (below) |
 | `claude-token-saver route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
+| `claude-token-saver compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
 | `claude-token-saver install` | Manually register Skill + statusline |
 
 Switch output language with `mode ko` / `mode en` (English default; statusline chips stay symbolic).
@@ -140,6 +141,25 @@ The whole point of the ratchet is **one-direction accumulation**. Deleting rules
 An auto `.bak` is kept, but **the session context that earned the rule its place is not recoverable.**
 </details>
 
+
+## 📦 compact-window — pin where a 1M session compacts
+
+Claude Code compacts when usage approaches `min(autoCompactWindow, model max context)`. On a 1M window, with that value unset, compaction only fires near 800k — and until then every request re-bills the whole context. Pinning 400k keeps twice a 200k session's headroom for the genuinely large pastes while cutting off the runaway tail.
+
+**200k sessions are never warned** — their window is already at or below 200k, so the setting cannot change anything.
+
+```bash
+claude-token-saver compact-window                       # status (model, window, value, source)
+claude-token-saver compact-window set --global          # pin 400k in ~/.claude/settings.json
+claude-token-saver compact-window set --project         # pin it in <root>/.claude/settings.json
+claude-token-saver compact-window set --global --value 250k   # explicit value (100k–1M)
+claude-token-saver compact-window off | on              # toggle the warning
+```
+
+- On a 1M model with the value unset or above 400k, the statusline shows `🅷⚠ compact-window?` and the session briefing hands the model the exact registration command.
+- Scope (`--global`/`--project`) is **required** for `set` — a global settings file is never edited on a guess.
+- Every other key in `settings.json` is preserved and a `.bak` is written first. Malformed JSON aborts the write untouched.
+- An exported `CLAUDE_CODE_AUTO_COMPACT_WINDOW` beats settings.json; `set` detects that and says so.
 
 ## 🔀 route-scan — "this recurring task could run on a cheaper tier"
 
@@ -242,6 +262,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.8.0 (2026-07-31)
+- **New `compact-window` — 1M sessions had no compaction cap** — Claude Code compacts near `min(autoCompactWindow, model max context)`. On a 1M window with that value unset, compaction only fires around 800k, and every request until then re-bills the entire context. A 1M model with the value unset or above 400k now raises `🅷⚠ compact-window?` on the statusline plus a session briefing, and `compact-window set --global|--project` pins 400k. 200k sessions are exempt — the setting cannot change anything for them.
 
 ### v3.7.0 (2026-07-29)
 - **Fixed: delegation rules named subagents that may not exist** — generated T2 rules hard-coded preset names like `haiku-explore` / `haiku-runner`, which live in each user's own `~/.claude/agents/` and are not shipped by this package. On a machine without them, the rule told the model to delegate to a nonexistent agent. The default phrasing is now `model: haiku` (matching T1's `model: sonnet`), and the name is added only when the agent file is really present, e.g. `haiku-explore(model: haiku)`. Project-level `.claude/agents/` counts too. `ratchet-model.md` re-renders with the new phrasing on the next `route-scan`.

@@ -180,6 +180,25 @@ export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) 
     s.briefed = [...briefed];
   } catch { /* caches unreadable — ctx briefing above still applies */ }
 
+  // ── auto-compact window misconfigured on a 1M model (once per session) ──
+  // Config defect, not a usage trend: on a 1M window compaction only fires
+  // past ~800k, so every request until then re-bills a context the session
+  // never needed. 200k sessions are exempt (their window is already <= 200k).
+  try {
+    const cw = await import('./compact-window.js');
+    const st = cw.compactWindowStatus({ root: process.cwd() });
+    if (!st.ok) {
+      const sig = `compact-window|${st.reason}`;
+      const briefed = new Set(s.briefed || []);
+      if (!briefed.has(sig)) {
+        briefed.add(sig);
+        s.briefed = [...briefed];
+        const now = st.window ? `현재 ${fmtK(st.window)}` : '현재 미설정';
+        items.push(`1M 컨텍스트 모델(${st.model})인데 autoCompactWindow가 ${now}입니다 — 자동 압축이 80만 토큰 근처에서야 걸려 그전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 40만으로 고정하면 1M 창은 그대로 두고 압축 시점만 앞당깁니다. 등록: claude-token-saver compact-window set --global|--project (적용 범위는 사용자에게 확인) / 끄기: compact-window off`);
+      }
+    }
+  } catch { /* settings unreadable — other briefings above still apply */ }
+
   s.ts = now;
   state.sessions[sessionId] = s;
   saveState(state, now);

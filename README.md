@@ -86,6 +86,7 @@ Claude 안에서 `/claude-token-saver` Skill을 실행하거나 칩 문구를 �
 | `claude-token-saver mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
 | `claude-token-saver harness ...` | 🅷 Harness 관리 (아래 참고) |
 | `claude-token-saver route-scan` | 상위 모델이 반복 처리한 easy 작업 감지 → haiku 위임 랫쳇 룰 제안 (아래 참고) |
+| `claude-token-saver compact-window` | 1M 컨텍스트인데 자동 압축 창이 안 잡혀 있으면 경고 → `set`으로 40만 고정 (아래 참고) |
 | `claude-token-saver install` | Skill·statusline 수동 등록 |
 
 출력 언어는 `mode ko` / `mode en`으로 전환합니다 (기본 영어, statusline 칩은 항상 기호). 전체 옵션은 [영문 README](./README.en.md#options) 참고.
@@ -121,6 +122,25 @@ ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지
 삭제 시 `.bak`이 남지만 **그 룰이 박힌 세션 컨텍스트(왜)는 복원되지 않습니다.**
 </details>
 
+
+## 📦 compact-window — 1M 컨텍스트의 자동 압축 지점 고정
+
+Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 대화를 자동 압축합니다. 1M 창을 쓰면 이 값이 잡혀 있지 않은 한 80만 토큰 근처까지 가서야 압축이 걸리고, 그전까지 모든 요청이 전체 컨텍스트를 통째로 재과금합니다. 40만으로 고정하면 큰 붙여넣기용 여유는 200k 세션의 두 배로 남기면서 꼬리만 잘라냅니다.
+
+**200k 컨텍스트는 경고 대상이 아닙니다** — 창이 이미 200k 이하라 이 설정이 바꿀 게 없습니다.
+
+```bash
+claude-token-saver compact-window                       # 현재 상태 (모델·창·설정값·출처)
+claude-token-saver compact-window set --global          # ~/.claude/settings.json 에 40만 고정
+claude-token-saver compact-window set --project         # <root>/.claude/settings.json 에 고정
+claude-token-saver compact-window set --global --value 250k   # 값 직접 지정 (10만~1M)
+claude-token-saver compact-window off | on              # 경고 표시 토글
+```
+
+- 1M 모델인데 미설정이거나 40만을 넘으면 statusline에 `🅷⚠ compact-window?`가 뜨고, 세션 브리핑이 등록 명령까지 알려줍니다.
+- 스코프(`--global`/`--project`)는 `set`에서 **필수** — 글로벌 설정 파일을 묻지 않고 고치지 않기 위한 설계입니다.
+- 기존 `settings.json`의 다른 키는 그대로 보존하고 `.bak`을 남깁니다. JSON이 깨져 있으면 아무것도 쓰지 않고 중단합니다.
+- 셸에 `CLAUDE_CODE_AUTO_COMPACT_WINDOW`가 export돼 있으면 그쪽이 settings.json보다 우선합니다 (`set`이 이 경우를 감지해 알려줍니다).
 
 ## 🔀 route-scan — "이 반복 작업, 더 싼 티어로 내려도 됩니다"
 
@@ -199,6 +219,9 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.8.0 (2026-07-31)
+- **`compact-window` 추가 — 1M 컨텍스트에서 자동 압축 지점이 방치되던 문제** — Claude Code는 `min(autoCompactWindow, 모델 최대 창)` 근처에서 압축합니다. 1M 창을 쓰면 이 값을 안 잡는 한 80만 토큰까지 커진 뒤에야 압축이 걸리고, 그전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 이제 1M 모델인데 미설정이거나 40만 초과면 statusline `🅷⚠ compact-window?` + 세션 브리핑으로 알리고, `compact-window set --global|--project`로 40만을 고정합니다. 200k 컨텍스트는 설정이 영향을 주지 않으므로 경고 대상에서 제외합니다.
 
 ### v3.7.0 (2026-07-29)
 - **위임 룰이 없는 서브에이전트를 가리키던 문제 수정** — 생성되는 T2 룰이 `haiku-explore`·`haiku-runner` 같은 이름을 직접 적었는데, 이 preset 에이전트들은 각자의 `~/.claude/agents/`에 있는 것이라 패키지가 배포하지 않습니다. 그래서 해당 파일이 없는 환경에서는 "존재하지 않는 에이전트로 위임하라"는 룰이 자동 생성됐습니다. 이제 기본 표현은 `model: haiku`(T1의 `model: sonnet`과 통일)이고, 에이전트 파일이 실제로 있을 때만 `haiku-explore(model: haiku)`처럼 이름을 병기합니다. 프로젝트 `.claude/agents/`도 인식합니다. 다음 `route-scan` 때 `ratchet-model.md`가 새 표현으로 다시 렌더됩니다.

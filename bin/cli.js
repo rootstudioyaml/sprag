@@ -145,6 +145,17 @@ async function main() {
     return (await import('../src/commands/harness.js')).run({ args, hasFlag });
   }
 
+  // Subcommand: compact-window — audit / pin Claude Code's autoCompactWindow.
+  // On a 1M-context model, compaction only fires near 800k unless the window is
+  // capped; 200k sessions are exempt.
+  //   claude-token-saver compact-window                  # status
+  //   claude-token-saver compact-window set --global     # pin 200k (~/.claude/settings.json)
+  //   claude-token-saver compact-window set --project    # pin 200k (<root>/.claude/settings.json)
+  //   claude-token-saver compact-window off | on         # toggle the statusline warning
+  if (args[0] === 'compact-window') {
+    return (await import('../src/commands/compact-window.js')).run({ args, hasFlag });
+  }
+
   // Hook management
   if (hasFlag('--install-hook')) {
     const { installHook } = await import('../src/hook-manager.js');
