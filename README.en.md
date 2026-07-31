@@ -263,6 +263,11 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.8.2 (2026-08-01)
+- **Fixed: the context tier never came back down after compaction** — the tier was kept as a high-water mark, so a session that compacted at 80% stayed at tier 1 even though its context had just been emptied, and it refilled to the cap with no signal at all. The tier now follows the measurement down and warns again on the next climb.
+- **Both windows are named** — with `autoCompactWindow` at 400k the briefing measured against 400k (80%) while Claude Code's own display measured against 1M (33%); two irreconcilable numbers for one session. The text now reads `자동 압축 창(400k)의 80% (… 화면의 1M 창 기준으로는 33%)`.
+- **No "start a new session" advice when a compact window is set** — that threshold is exactly where compaction runs on its own, so the briefing suggests writing decisions and next steps to a file instead.
+
 ### v3.8.1 (2026-07-31)
 - **Fixed: 1M sessions were judged against a 200k window** — the briefing inferred the window from the largest request seen so far, so a 1M session counted as 200k until it had already grown past 250k. At 160k of input it announced "past 80% of the 200k window" — really 16%. The window now comes from the configured model id, and when `autoCompactWindow` is set that is where the session actually turns over, so the percentage is measured against it (the text says `(autoCompactWindow 기준)`). The observed-size heuristic remains only as the fallback for an unreadable model id.
 

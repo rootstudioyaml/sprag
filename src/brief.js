@@ -85,18 +85,19 @@ function saveState(state, now) {
  * is unreadable (env override, settings we do not resolve).
  */
 export function ctxWindowFor(observedMax = 0, root = process.cwd()) {
-  let window = observedMax > WINDOW_1M_MIN_INPUT ? 1_000_000 : 200_000;
+  let modelWindow = observedMax > WINDOW_1M_MIN_INPUT ? 1_000_000 : 200_000;
+  let window = modelWindow;
   let compactCapped = false;
   try {
     const { model } = resolveModelId(root);
-    if (isOneMillionModel(model)) window = 1_000_000;
+    if (isOneMillionModel(model)) modelWindow = window = 1_000_000;
     const cap = effectiveWindow(root).value;
     if (cap !== null && cap < window) {
       window = cap;
       compactCapped = true;
     }
   } catch { /* settings unreadable — the observed-size fallback still holds */ }
-  return { window, compactCapped };
+  return { window, modelWindow, compactCapped };
 }
 
 /**
@@ -129,8 +130,8 @@ export function sessionCtx(transcriptPath, { root = process.cwd() } = {}) {
     if (total > 0) { input = total; maxInput = Math.max(maxInput, total); }
   }
   if (input == null) return null;
-  const { window, compactCapped } = ctxWindowFor(maxInput, root);
-  return { input, window, compactCapped, pct: input / window };
+  const { window, modelWindow, compactCapped } = ctxWindowFor(maxInput, root);
+  return { input, window, modelWindow, compactCapped, pct: input / window };
 }
 
 function ctxTierOf(pct) {
@@ -175,15 +176,30 @@ export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) 
   const ctx = transcriptPath ? sessionCtx(transcriptPath) : null;
   if (ctx) {
     const tier = ctxTierOf(ctx.pct);
+    // The tier is not monotonic: auto-compaction drops the live context back to
+    // a fraction of the window, which starts a new fill cycle. Holding the old
+    // high-water tier meant a session that compacted at 80% was never warned
+    // again — it silently refilled to the cap with no signal at all.
+    if (tier < (s.ctxTier || 0)) s.ctxTier = tier;
     if (tier > (s.ctxTier || 0)) {
-      // Name the window the percentage was actually computed against — when
-      // autoCompactWindow caps a 1M model at 400k, "1M 창의 80%" would be a
-      // number the user cannot reconcile with anything they configured.
+      // Name both denominators when they differ. Claude Code's own UI counts
+      // against the model window, so a bare "400k 창의 80%" reads as wrong to
+      // anyone looking at a statusline that says 32% of 1M — same session,
+      // two different windows, no way to reconcile them from the text alone.
       const winLabel = ctx.window >= 1_000_000 ? '1M' : fmtK(ctx.window);
-      const capNote = ctx.compactCapped ? ' (autoCompactWindow 기준)' : '';
+      const modelPct = Math.round((ctx.input / ctx.modelWindow) * 100);
+      const modelLabel = ctx.modelWindow >= 1_000_000 ? '1M' : fmtK(ctx.modelWindow);
+      const capNote = ctx.compactCapped ? `, 화면의 ${modelLabel} 창 기준으로는 ${modelPct}%` : '';
+      // With autoCompactWindow set, crossing the threshold means compaction is
+      // about to run on its own. Telling the user to start a new session there
+      // would be advice for a problem the setting already handles.
       items.push(tier === 2
-        ? `이 세션의 컨텍스트가 ${winLabel} 창${capNote}의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 곧 자동 압축으로 맥락 손실이 생길 수 있으니, 진행 중인 작업을 일단락하고 새 세션을 시작하는 편이 좋습니다.`
-        : `이 세션의 컨텍스트가 ${winLabel} 창${capNote}의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이후 요청은 비용이 커지는 구간입니다 — 작업이 일단락되면 새 세션 시작을 권합니다.`);
+        ? (ctx.compactCapped
+            ? `이 세션의 컨텍스트가 자동 압축 창(${winLabel})의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}${capNote}). 곧 자동 압축이 돌아 이전 대화가 요약으로 바뀝니다 — 지금 단계를 마무리하고 이어서 할 일은 파일에 적어두면 압축 뒤에도 안전합니다.`
+            : `이 세션의 컨텍스트가 ${winLabel} 창의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 곧 자동 압축으로 맥락 손실이 생길 수 있으니, 진행 중인 작업을 일단락하고 새 세션을 시작하는 편이 좋습니다.`)
+        : (ctx.compactCapped
+            ? `이 세션의 컨텍스트가 자동 압축 창(${winLabel})의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}${capNote}). 설정해 둔 압축 지점이 가까워졌습니다 — 압축은 알아서 돌아가니 새 세션을 서두를 필요는 없고, 여기까지의 결정과 다음 할 일만 파일에 남겨두면 됩니다.`
+            : `이 세션의 컨텍스트가 ${winLabel} 창의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이후 요청은 비용이 커지는 구간입니다 — 작업이 일단락되면 새 세션 시작을 권합니다.`));
       s.ctxTier = tier;
     }
   }
