@@ -263,6 +263,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.8.1 (2026-07-31)
+- **Fixed: 1M sessions were judged against a 200k window** — the briefing inferred the window from the largest request seen so far, so a 1M session counted as 200k until it had already grown past 250k. At 160k of input it announced "past 80% of the 200k window" — really 16%. The window now comes from the configured model id, and when `autoCompactWindow` is set that is where the session actually turns over, so the percentage is measured against it (the text says `(autoCompactWindow 기준)`). The observed-size heuristic remains only as the fallback for an unreadable model id.
+
 ### v3.8.0 (2026-07-31)
 - **New `compact-window` — 1M sessions had no compaction cap** — Claude Code compacts near `min(autoCompactWindow, model max context)`. On a 1M window with that value unset, compaction only fires around 800k, and every request until then re-bills the entire context. A 1M model with the value unset or above 400k now raises `🅷⚠ compact-window?` on the statusline plus a session briefing, and `compact-window set --global|--project` pins 400k. 200k sessions are exempt — the setting cannot change anything for them.
 

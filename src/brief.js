@@ -28,6 +28,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
+import { resolveModelId, isOneMillionModel, effectiveWindow } from './compact-window.js';
 
 // Context tiers as a fraction of the session's context window. Tier 1 warns
 // (compaction/cost territory ahead), tier 2 urges wrapping up. A session only
@@ -36,7 +37,9 @@ export const CTX_TIERS = [
   { tier: 1, pct: 0.8 },
   { tier: 2, pct: 0.95 },
 ];
-// Requests above this input size can only exist on a 1M window.
+// Requests above this input size can only exist on a 1M window. Used as a
+// fallback signal only — a 1M session that has not yet grown past 250k is
+// still a 1M session, so the configured model decides first (see sessionCtx).
 const WINDOW_1M_MIN_INPUT = 250_000;
 const PRUNE_MS = 7 * 24 * 60 * 60 * 1000;
 const TAIL_BYTES = 256 * 1024;
@@ -68,10 +71,39 @@ function saveState(state, now) {
 }
 
 /**
+ * The window a tier crossing should be measured against.
+ *
+ * Two corrections over "infer from the biggest request seen":
+ *  - The configured model decides the ceiling. A 1M session that has not yet
+ *    grown past 250k is still a 1M session; judging it against 200k fired the
+ *    80% warning at 160k, less than a fifth of the real window.
+ *  - `autoCompactWindow` lowers that ceiling. Once compaction is pinned at
+ *    400k, 400k — not 1M — is where the session actually turns over, so that
+ *    is the number a "you are at 80%" warning has to mean.
+ *
+ * `observedMax` stays as a floor: it proves a 1M window even when the model id
+ * is unreadable (env override, settings we do not resolve).
+ */
+export function ctxWindowFor(observedMax = 0, root = process.cwd()) {
+  let window = observedMax > WINDOW_1M_MIN_INPUT ? 1_000_000 : 200_000;
+  let compactCapped = false;
+  try {
+    const { model } = resolveModelId(root);
+    if (isOneMillionModel(model)) window = 1_000_000;
+    const cap = effectiveWindow(root).value;
+    if (cap !== null && cap < window) {
+      window = cap;
+      compactCapped = true;
+    }
+  } catch { /* settings unreadable — the observed-size fallback still holds */ }
+  return { window, compactCapped };
+}
+
+/**
  * Last request's input size for THIS session, from the transcript tail.
  * Reads at most TAIL_BYTES — prompt-submit hooks must stay fast.
  */
-export function sessionCtx(transcriptPath) {
+export function sessionCtx(transcriptPath, { root = process.cwd() } = {}) {
   let size;
   try { size = statSync(transcriptPath).size; } catch { return null; }
   const start = Math.max(0, size - TAIL_BYTES);
@@ -97,8 +129,8 @@ export function sessionCtx(transcriptPath) {
     if (total > 0) { input = total; maxInput = Math.max(maxInput, total); }
   }
   if (input == null) return null;
-  const window = maxInput > WINDOW_1M_MIN_INPUT ? 1_000_000 : 200_000;
-  return { input, window, pct: input / window };
+  const { window, compactCapped } = ctxWindowFor(maxInput, root);
+  return { input, window, compactCapped, pct: input / window };
 }
 
 function ctxTierOf(pct) {
@@ -144,10 +176,14 @@ export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) 
   if (ctx) {
     const tier = ctxTierOf(ctx.pct);
     if (tier > (s.ctxTier || 0)) {
-      const winLabel = ctx.window >= 1_000_000 ? '1M' : '200k';
+      // Name the window the percentage was actually computed against — when
+      // autoCompactWindow caps a 1M model at 400k, "1M 창의 80%" would be a
+      // number the user cannot reconcile with anything they configured.
+      const winLabel = ctx.window >= 1_000_000 ? '1M' : fmtK(ctx.window);
+      const capNote = ctx.compactCapped ? ' (autoCompactWindow 기준)' : '';
       items.push(tier === 2
-        ? `이 세션의 컨텍스트가 ${winLabel} 창의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 곧 자동 압축으로 맥락 손실이 생길 수 있으니, 진행 중인 작업을 일단락하고 새 세션을 시작하는 편이 좋습니다.`
-        : `이 세션의 컨텍스트가 ${winLabel} 창의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이후 요청은 비용이 커지는 구간입니다 — 작업이 일단락되면 새 세션 시작을 권합니다.`);
+        ? `이 세션의 컨텍스트가 ${winLabel} 창${capNote}의 95%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 곧 자동 압축으로 맥락 손실이 생길 수 있으니, 진행 중인 작업을 일단락하고 새 세션을 시작하는 편이 좋습니다.`
+        : `이 세션의 컨텍스트가 ${winLabel} 창${capNote}의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이후 요청은 비용이 커지는 구간입니다 — 작업이 일단락되면 새 세션 시작을 권합니다.`);
       s.ctxTier = tier;
     }
   }

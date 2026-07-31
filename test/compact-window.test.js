@@ -135,3 +135,38 @@ test('set refuses values Claude Code would reject, and unparseable settings', ()
   assert.match(r.error, /not valid JSON/);
   assert.equal(readFileSync(join(broken, '.claude', 'settings.json'), 'utf8'), '{ not json');
 });
+
+/**
+ * The briefing's context tier is measured against the window the session
+ * actually turns over at. Inferring it from "the biggest request seen so far"
+ * called a 1M session 200k until it had already grown past 250k, so the 80%
+ * warning fired at 160k — 16% of the real window.
+ */
+test('the briefing window follows the configured model, not the observed size', async () => {
+  const { ctxWindowFor } = await import('../src/brief.js');
+  const root = sandbox({ model: 'claude-opus-5[1m]' });
+  withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: root, USERPROFILE: root }, () => {
+    const w = ctxWindowFor(160_000, root);
+    assert.equal(w.window, 1_000_000);
+    assert.equal(w.compactCapped, false);
+  });
+});
+
+test('autoCompactWindow lowers the briefing window to where compaction fires', async () => {
+  const { ctxWindowFor } = await import('../src/brief.js');
+  const root = sandbox({ model: 'claude-opus-5[1m]', autoCompactWindow: 400_000 });
+  withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: root, USERPROFILE: root }, () => {
+    const w = ctxWindowFor(160_000, root);
+    assert.equal(w.window, 400_000);
+    assert.equal(w.compactCapped, true);
+  });
+});
+
+test('a huge observed request still proves 1M when the model id is unreadable', async () => {
+  const { ctxWindowFor } = await import('../src/brief.js');
+  const root = sandbox(null);
+  withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: root, USERPROFILE: root }, () => {
+    assert.equal(ctxWindowFor(300_000, root).window, 1_000_000);
+    assert.equal(ctxWindowFor(50_000, root).window, 200_000);
+  });
+});
