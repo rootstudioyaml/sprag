@@ -100,6 +100,45 @@ function detectPricingTier(model) {
   return 'claude-sonnet';
 }
 
+/**
+ * Relative price rank of a model's pricing tier. Delegation only pays off
+ * when the target tier is genuinely cheaper than the model that did the work,
+ * so route-scan needs an ORDER, not just "is it haiku?" — a Sonnet session
+ * must not produce "delegate to Sonnet" rules (the subagent would rebuild
+ * context for zero price difference).
+ */
+const TIER_RANK = {
+  'claude-fable-5': 3,
+  'claude-opus-legacy': 2,
+  'claude-opus-new': 2,
+  'claude-sonnet': 1,
+  'claude-haiku-4-5': 0,
+  'claude-haiku-3-5': 0,
+  'claude-haiku-3': 0,
+};
+
+export function modelRank(model) {
+  const rank = TIER_RANK[detectPricingTier(model)];
+  // Unknown ids fall through detectPricingTier to the Sonnet tier; ranking
+  // them 1 keeps the conservative reading (cheap enough that a Sonnet-target
+  // rule is not worth it, expensive enough that a haiku one still is).
+  return rank ?? 1;
+}
+
+/** Price rank each delegation tier targets: T2 → haiku, T1 → sonnet. */
+export const TIER_TARGET_RANK = { T2: 0, T1: 1 };
+
+/**
+ * Which delegation tier a subagent run at this price rank represents.
+ * null = the run was NOT a downgrade (same tier or higher), so it carries no
+ * delegation saving to attribute to a rule.
+ */
+export function tierForRank(rank) {
+  if (rank === 0) return 'T2';
+  if (rank === 1) return 'T1';
+  return null;
+}
+
 function tokensToMillions(n) {
   return n / 1_000_000;
 }

@@ -42,6 +42,46 @@ export const HEALTH_ERR_RATE = 0.2;
 // noise (1 error in 4 episodes = 25% — instant flag), so the review flag is
 // withheld until the sample is large enough to mean something.
 export const HEALTH_MIN_SAMPLE = 10;
+// Measured delegations needed before the real outcome replaces the proxy.
+// Lower than HEALTH_MIN_SAMPLE on purpose: a delegated run is DIRECT evidence
+// of the rule firing, so far fewer are needed to mean something than episodes
+// that merely resemble the rule's shape.
+export const HEALTH_MIN_SAMPLE_DELEGATED = 5;
+
+// Fallback budget for rules promoted before budgets were recorded — matches
+// route-scan's pre-calibration defaults. Kept as local constants rather than
+// imported: route-scan imports this module, and a static back-import would
+// close the cycle.
+const DEFAULT_BUDGET = { T2: { calls: 8, out: 1500 }, T1: { calls: null, out: 8000 } };
+
+/** The cap half of a budget clause, e.g. "도구 호출 8회·출력 1500 토큰". */
+export function budgetCapPhrase(rule, lang = userLanguage()) {
+  const b = rule.budget || DEFAULT_BUDGET[rule.tier] || DEFAULT_BUDGET.T2;
+  if (lang === 'ko') {
+    return b.calls ? `도구 호출 ${b.calls}회·출력 ${b.out} 토큰` : `출력 ${b.out} 토큰`;
+  }
+  return b.calls ? `${b.calls} tool calls / ${b.out} output tokens` : `${b.out} output tokens`;
+}
+
+/**
+ * Append the probe-then-commit budget to a rule's text.
+ *
+ * Kept here — not baked into the stored rule string — so it is composed in ONE
+ * place: rules promoted before budgets existed gain the clause too, and the
+ * promote preview and the written file can never drift apart (both call this).
+ *
+ * Why the clause matters: a rule is chosen from past statistics but FIRES on
+ * the request text alone, and difficulty mostly surfaces after the first tool
+ * call. Naming a cap turns an unavoidable mis-fire into a bounded probe
+ * instead of a cheap model grinding at work it cannot finish.
+ */
+export function composeRuleText(baseText, rule, lang = userLanguage()) {
+  const cap = budgetCapPhrase(rule, lang);
+  const clause = lang === 'ko'
+    ? `위임 상한은 ${cap}이며, 넘길 것 같거나 에러가 나면 거기서 멈춰 진행분만 보고하고 메인 모델이 이어받는다. 세션 모델이 이미 위임 목표와 같은 급 이하면 위임하지 않는다`
+    : `Cap the run at ${cap}; if it looks likely to exceed that or hits an error, it stops there and reports partial progress while the main model takes over. Skip delegation entirely when the session model is already at or below the target tier`;
+  return `${baseText.replace(/\s*$/, '')}. ${clause}`;
+}
 
 // See the note in route-scan.js — paths.js is the only place that resolves
 // this, so an XDG_CONFIG_HOME override moves every state file together.
@@ -124,10 +164,34 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
     '## Rules',
     '',
   ];
-  const healthOf = (r) => r.status !== 'review' ? '' : (ko
-    ? ` ⚠ rule-health: 최근 위임 대상 에러율 ${Math.round((r.errRate || 0) * 100)}% — 조건을 좁히거나 제거 검토`
-    : ` ⚠ rule-health: recent error rate ${Math.round((r.errRate || 0) * 100)}% for the delegated category — narrow the condition or remove`);
-  const statsOf = (r) => `×${r.count || 0}, err ${Math.round((r.errRate || 0) * 100)}%, seen ${r.lastSeen || r.promotedAt}`;
+  // Which number drove the review flag matters to the reader: a measured
+  // delegated error rate is evidence the rule itself is failing, while the
+  // proxy only says work of that shape tends to go wrong.
+  const pct = (v) => Math.round((v || 0) * 100);
+  const healthOf = (r) => {
+    if (r.status !== 'review') return '';
+    const measured = r.healthSource === 'delegated';
+    const rate = pct(measured ? r.delegatedErrRate : r.errRate);
+    if (ko) {
+      return measured
+        ? ` ⚠ rule-health: 실제 위임 ${r.delegatedRuns}건 중 에러율 ${rate}% — 조건을 좁히거나 제거 검토`
+        : ` ⚠ rule-health: 최근 위임 대상 에러율 ${rate}% — 조건을 좁히거나 제거 검토`;
+    }
+    return measured
+      ? ` ⚠ rule-health: ${rate}% error rate across ${r.delegatedRuns} measured delegations — narrow the condition or remove`
+      : ` ⚠ rule-health: recent error rate ${rate}% for the delegated category — narrow the condition or remove`;
+  };
+  const statsOf = (r) => {
+    const base = `×${r.count || 0}, err ${pct(r.errRate)}%, seen ${r.lastSeen || r.promotedAt}`;
+    if (!r.delegatedRuns) return base;
+    const saved = r.savedUsd ? `, saved ~$${r.savedUsd.toFixed(2)}` : '';
+    return `${base}, delegated ×${r.delegatedRuns} err ${pct(r.delegatedErrRate)}%${saved}`;
+  };
+  // Merged T2+T1 rules carry two caps, so they state both once rather than
+  // repeating the whole stop-condition per tier.
+  const mergedBudget = (t2, t1) => ko
+    ? `위임 상한은 haiku ${budgetCapPhrase(t2, 'ko')}, sonnet ${budgetCapPhrase(t1, 'ko')}이며, 넘길 것 같거나 에러가 나면 거기서 멈춰 진행분만 보고하고 메인 모델이 이어받는다. 세션 모델이 이미 위임 목표와 같은 급 이하면 위임하지 않는다`
+    : `Cap haiku runs at ${budgetCapPhrase(t2, 'en')} and sonnet runs at ${budgetCapPhrase(t1, 'en')}; a run likely to exceed its cap, or hitting an error, stops there and reports partial progress while the main model takes over. Skip delegation entirely when the session model is already at or below the target tier`;
 
   // A category can carry both a T2 (haiku) and a T1 (sonnet) rule. Tier is
   // only known after an episode finishes, so two separate bullets give the
@@ -147,16 +211,18 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
       const rule = ko
         ? `"${t2.label}" 유형 요청은 기본적으로 ${agentPhrase(t2.agent)} 서브에이전트로 위임한다(예: "${t2.example}"). ` +
           `여러 단계·여러 파일 수정이 얽힌 중간 난도 요청(예: "${t1.example}")은 model: sonnet 서브에이전트로 위임한다. ` +
-          `설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이거나 위임 중 에러가 반복되면 위임하지 말고 메인 모델이 직접 처리한다`
+          `설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이거나 위임 중 에러가 반복되면 위임하지 말고 메인 모델이 직접 처리한다. ` +
+          mergedBudget(t2, t1)
         : `Delegate "${t2.labelEn || t2.label}" requests to ${agentPhraseEn(t2.agent)} by default (e.g. "${t2.example}"). ` +
           `Escalate moderate ones that span multiple steps or file edits (e.g. "${t1.example}") to a model: sonnet subagent. ` +
-          `Do not delegate at all — handle it on the main model — when the request mixes in design judgement or irreversible work (deploy, release, store submission), or when errors repeat during delegation`;
+          `Do not delegate at all — handle it on the main model — when the request mixes in design judgement or irreversible work (deploy, release, store submission), or when errors repeat during delegation. ` +
+          mergedBudget(t2, t1);
       lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)} -->`);
       for (const r of group) {
-        if (r !== t2 && r !== t1) lines.push(`- ${r.rule}${healthOf(r)} <!-- ${statsOf(r)} -->`);
+        if (r !== t2 && r !== t1) lines.push(`- ${composeRuleText(r.rule, r, lang)}${healthOf(r)} <!-- ${statsOf(r)} -->`);
       }
     } else {
-      for (const r of group) lines.push(`- ${r.rule}${healthOf(r)} <!-- ${statsOf(r)} -->`);
+      for (const r of group) lines.push(`- ${composeRuleText(r.rule, r, lang)}${healthOf(r)} <!-- ${statsOf(r)} -->`);
     }
   }
   return lines.join('\n') + '\n';
@@ -229,17 +295,51 @@ export function syncAllFiles({ previousPaths = [] } = {}) {
  * an expensive model handled directly that still look T1/T2 by shape (tier
  * judged with the error signal zeroed; see route-scan's rule-health pass).
  */
-export function refreshModelRules(episodeStats, { now } = {}) {
+export function refreshModelRules(episodeStats, delegatedStats = new Map(), { now } = {}) {
   const data = loadModelRules();
   let changed = false;
+  const pick = (stats, r) => stats.get(`${r.tier}|${r.category}|${r.project}`)
+    || (r.scope === 'global' ? stats.get(`${r.tier}|${r.category}|*`) : null);
+
   for (const r of data.rules) {
-    const s = episodeStats.get(`${r.tier}|${r.category}|${r.project}`)
-      || (r.scope === 'global' ? episodeStats.get(`${r.tier}|${r.category}|*`) : null);
-    if (!s) continue;
-    r.count = s.count;
-    r.errRate = s.epCount > 0 ? s.errCount / s.epCount : 0;
+    const s = pick(episodeStats, r);
+    const d = pick(delegatedStats, r);
+    if (!s && !d) {
+      // A rule whose category didn't appear at all this window keeps its last
+      // known recurrence, but its measured-delegation fields must still read
+      // as "nothing measured" rather than stay undefined — the CLI and the
+      // rendered md both branch on them.
+      r.delegatedRuns = r.delegatedRuns ?? 0;
+      r.delegatedErrRate = r.delegatedErrRate ?? 0;
+      r.savedUsd = r.savedUsd ?? 0;
+      r.healthSource = r.healthSource ?? 'proxy';
+      continue;
+    }
+
+    if (s) {
+      r.count = s.count;
+      r.errRate = s.epCount > 0 ? s.errCount / s.epCount : 0;
+    }
+    // Window snapshot, not a running total: these describe the current scan
+    // window so a rule that stopped firing decays to zero instead of coasting
+    // on old credit.
+    r.delegatedRuns = d ? d.runs : 0;
+    r.delegatedErrRate = d && d.runs > 0 ? d.errRuns / d.runs : 0;
+    r.savedUsd = d ? Math.round(d.savedUsd * 100) / 100 : 0;
     r.lastSeen = now || r.lastSeen;
-    r.status = r.errRate > HEALTH_ERR_RATE && s.epCount >= HEALTH_MIN_SAMPLE ? 'review' : 'active';
+
+    // Measured outcome beats the proxy once there is enough of it. The proxy
+    // asks "does work SHAPED like this tend to fail?"; the measurement asks
+    // "does this rule fail when it actually fires?" — only the second can
+    // catch a rule that is mis-firing on requests it should never have taken.
+    if (r.delegatedRuns >= HEALTH_MIN_SAMPLE_DELEGATED) {
+      r.healthSource = 'delegated';
+      r.status = r.delegatedErrRate > HEALTH_ERR_RATE ? 'review' : 'active';
+    } else {
+      r.healthSource = 'proxy';
+      r.status = s && r.errRate > HEALTH_ERR_RATE && s.epCount >= HEALTH_MIN_SAMPLE
+        ? 'review' : 'active';
+    }
     changed = true;
   }
   if (changed) {

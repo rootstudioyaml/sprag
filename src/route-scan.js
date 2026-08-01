@@ -22,6 +22,8 @@ import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { discoverSessionFiles } from './parser.js';
 import { collectSessionRecords } from './session-records.js';
+import { collectSubagentRuns, indexRuns, runsForEpisode } from './subagent-records.js';
+import { estimateCost, modelRank, TIER_TARGET_RANK, tierForRank } from './cost.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 
 // ── Tier bands (docs/TIER_CRITERIA.md §3) ────────────────────────────────
@@ -211,7 +213,13 @@ function toEpisodes(records) {
   for (const r of records) {
     const text = (r.userText || '').trim();
     if (!cur || cur.text !== text) {
-      cur = { text, calls: 0, out: 0, mutating: 0, errors: 0, delegated: 0, models: new Set(), cwd: '', tools: {} };
+      cur = {
+        text, calls: 0, out: 0, mutating: 0, errors: 0, delegated: 0,
+        models: new Set(), cwd: '', tools: {},
+        // Delegation attribution (subagent-records): exact join key, plus the
+        // episode's time span for the fallback when a run has no meta file.
+        delegationToolUseIds: [], startedAt: null, endedAt: null,
+      };
       episodes.push(cur);
     }
     cur.calls += 1;
@@ -222,14 +230,61 @@ function toEpisodes(records) {
     for (const [name, n] of Object.entries(r.toolCounts || {})) {
       cur.tools[name] = (cur.tools[name] || 0) + n;
     }
+    for (const id of r.delegationToolUseIds || []) cur.delegationToolUseIds.push(id);
+    if (r.timestamp) {
+      const t = Date.parse(r.timestamp);
+      if (Number.isFinite(t)) {
+        if (cur.startedAt === null || t < cur.startedAt) cur.startedAt = t;
+        if (cur.endedAt === null || t > cur.endedAt) cur.endedAt = t;
+      }
+    }
     cur.models.add(r.model);
     if (!cur.cwd && r.cwd) cur.cwd = r.cwd;
   }
   return episodes;
 }
 
-function isExpensiveModel(model) {
-  return !/haiku/i.test(model);
+/**
+ * Price rank of the model that actually handled the episode (the most
+ * expensive one, when a session switched models mid-episode).
+ */
+export function episodeRank(ep) {
+  let rank = -1;
+  for (const m of ep.models) rank = Math.max(rank, modelRank(m));
+  return rank;
+}
+
+/**
+ * Delegation only pays when the target tier is strictly cheaper than what ran
+ * the work. Without this a Sonnet session produced "delegate to sonnet" T1
+ * rules — a subagent rebuilding context for zero price difference, which is a
+ * net loss. (Replaces the old boolean "is it haiku?" test, which could not
+ * tell a Sonnet session from a Fable one.)
+ */
+export function worthDelegating(tier, rank) {
+  const target = TIER_TARGET_RANK[tier];
+  return target !== undefined && rank > target;
+}
+
+/**
+ * USD a delegated run saved versus the session model doing the same work.
+ * Approximation, deliberately stated as one: it holds token counts constant,
+ * which a cheaper model would not reproduce exactly. Directionally right and
+ * enough to rank rules by value, so it is rendered as "~$X".
+ */
+export function runSaving(run, mainModel) {
+  if (!run.model || !mainModel) return 0;
+  const totals = {
+    input: run.input,
+    cacheCreation: run.cacheCreation,
+    cacheRead: run.cacheRead,
+    ephemeral5m: run.ephemeral5m,
+    ephemeral1h: run.ephemeral1h,
+    output: run.out,
+  };
+  const actual = estimateCost(totals, run.model).actual;
+  const counterfactual = estimateCost(totals, mainModel).actual;
+  return Math.max(0, counterfactual - actual);
 }
 
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
@@ -278,8 +333,9 @@ export async function runRouteScan({ days = 14 } = {}) {
 
   // Pass 1 — collect episodes (needed up front: thresholds are calibrated
   // from the full window's output distribution before any tiering).
-  const all = []; // { ep, projectDir }
+  const all = []; // { ep, projectDir, sessionPath }
   let dataBytes = 0; // window size snapshot — the rescan gate diffs against it
+  const runIndexBySession = new Map(); // sessionPath → indexRuns() result
   for (const f of files) {
     let records;
     try {
@@ -290,7 +346,17 @@ export async function runRouteScan({ days = 14 } = {}) {
     }
     for (const ep of toEpisodes(records)) {
       if (!ep.text) continue;
-      all.push({ ep, projectDir: f.projectDir });
+      all.push({ ep, projectDir: f.projectDir, sessionPath: f.path });
+    }
+    // Subagent transcripts of this session — the real outcome of every
+    // delegation it made. Best-effort: sessions that never delegated have no
+    // directory and cost one failed readdir.
+    const runs = await collectSubagentRuns(f.path);
+    if (runs.length > 0) {
+      runIndexBySession.set(f.path, indexRuns(runs));
+      // Subagent bytes count toward the window size so the rescan gate stays
+      // accurate for delegation-heavy workloads.
+      for (const r of runs) dataBytes += r.bytes || 0;
     }
   }
   const totalEpisodes = all.length;
@@ -311,7 +377,8 @@ export async function runRouteScan({ days = 14 } = {}) {
 
   for (const { ep, projectDir } of all) {
     if (isSkippable(ep.text)) continue;
-    if (![...ep.models].some(isExpensiveModel)) continue; // already cheap
+    const epRank = episodeRank(ep);
+    if (!worthDelegating('T2', epRank)) continue; // already at the cheapest tier
     const cat = categorize(ep.text, ep.tools);
     if (cat) {
       // rule-health denominator: episodes that LOOK delegable by shape
@@ -323,13 +390,16 @@ export async function runRouteScan({ days = 14 } = {}) {
       // and sharing one category-wide stat would double-count every episode
       // into both rules (identical ×N / err% on unrelated tiers).
       const shapeTier = tierOf({ ...ep, errors: 0 }, cat, thresholds);
-      if (shapeTier === 'T1' || shapeTier === 'T2') {
+      // Same rank gate as the candidate path below — a denominator counting
+      // episodes that can't produce a rule would skew that rule's error rate.
+      if ((shapeTier === 'T1' || shapeTier === 'T2') && worthDelegating(shapeTier, epRank)) {
         bumpStats(`${shapeTier}|${cat.id}|${projectDir}`, ep);
         bumpStats(`${shapeTier}|${cat.id}|*`, ep);
       }
     }
     const tier = tierOf(ep, cat, thresholds);
     if (tier !== 'T1' && tier !== 'T2') continue;
+    if (!worthDelegating(tier, epRank)) continue;
     tieredEpisodes += 1;
     const key = `${tier}|${cat.id}|${projectDir}`;
     const g = groups.get(key) || {
@@ -353,6 +423,50 @@ export async function runRouteScan({ days = 14 } = {}) {
     groups.set(key, g);
   }
 
+  // Pass 3 — measured delegation outcomes (rule-health v2). Episodes that
+  // DID delegate are excluded from tiering by design (tierOf returns T0 when
+  // ep.delegated > 0: there is nothing left to route). But they are exactly
+  // where a promoted rule's real success rate lives, so they get their own
+  // pass: join each episode to the subagent transcripts it spawned, and file
+  // the outcome under the tier that run's model represents — a haiku run is a
+  // T2 rule firing, a sonnet run a T1 one. Runs that were not a downgrade
+  // (same tier or higher) carry no delegation saving and are skipped.
+  const delegatedStats = new Map(); // "tier|category|project" → outcome aggregate
+  const bumpDelegated = (key, run, saved) => {
+    const d = delegatedStats.get(key) || { runs: 0, errRuns: 0, outTokens: 0, savedUsd: 0 };
+    d.runs += 1;
+    if (run.toolErrors > 0) d.errRuns += 1;
+    d.outTokens += run.out || 0;
+    d.savedUsd += saved;
+    delegatedStats.set(key, d);
+  };
+  for (const [sessionPath, index] of runIndexBySession) {
+    const used = new Set();
+    for (const { ep, projectDir, sessionPath: epSession } of all) {
+      if (epSession !== sessionPath) continue;
+      if (!ep.delegationToolUseIds.length && index.unjoined.length === 0) continue;
+      const runs = runsForEpisode(index, ep, used);
+      if (runs.length === 0) continue;
+      const cat = categorize(ep.text, ep.tools);
+      if (!cat) continue;
+      // Counterfactual = the priciest model on the episode, i.e. what would
+      // have done the work had it not been handed off.
+      let mainModel = null;
+      let mainRank = -1;
+      for (const m of ep.models) {
+        const r = modelRank(m);
+        if (r > mainRank) { mainRank = r; mainModel = m; }
+      }
+      for (const run of runs) {
+        const runTier = tierForRank(modelRank(run.model));
+        if (!runTier || !worthDelegating(runTier, mainRank)) continue;
+        const saved = runSaving(run, mainModel);
+        bumpDelegated(`${runTier}|${cat.id}|${projectDir}`, run, saved);
+        bumpDelegated(`${runTier}|${cat.id}|*`, run, saved);
+      }
+    }
+  }
+
   // Keep prior dismissed/promoted signatures across rescans.
   const prev = readRouteScan();
   const resolved = new Set(prev?.resolved || []);
@@ -373,6 +487,16 @@ export async function runRouteScan({ days = 14 } = {}) {
   // Both languages are computed at scan time and stored on the candidate, so
   // switching `language` later re-renders (and promotes) correctly without
   // waiting for a rescan.
+  // The probe-then-commit budget is deliberately NOT baked into this text:
+  // model-rules composes it on (composeRuleText), so rules promoted before
+  // budgets existed gain the clause too, and the promote preview can never
+  // drift from what lands in the file. What the candidate carries is the
+  // calibrated budget itself — the user's own thresholds, snapshotted at scan
+  // time rather than hardcoded downstream.
+  const budgetOf = (g) => ({
+    calls: g.tier === 'T2' ? T2_MAX_CALLS + 2 : null,
+    out: g.tier === 'T2' ? thresholds.t2Out : thresholds.t1Out,
+  });
   const ruleText = (g) => g.tier === 'T2'
     ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${agentPhrase(g.agent)} 서브에이전트로 위임한다 (설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이면 위임하지 않음)`
     : `"${g.label}" 유형의 중간 난도 요청(예: "${g.example}")은 model: sonnet 서브에이전트로 위임한다 (설계 판단·비가역 작업·반복 에러 발생 시 메인 모델이 이어받음)`;
@@ -400,6 +524,10 @@ export async function runRouteScan({ days = 14 } = {}) {
       count: g.count,
       models: [...g.models],
       example: g.example,
+      // Snapshot of the calibrated budget this rule was written against, so
+      // the merged T2+T1 rendering in ratchet-model.md can restate it without
+      // re-running a scan.
+      budget: budgetOf(g),
       // Concentrated in one project dir → project rule; the scan groups by
       // project already, so scope suggestion is per-candidate 'project' unless
       // the same category recurs across 2+ projects (then 'global').
@@ -441,7 +569,7 @@ export async function runRouteScan({ days = 14 } = {}) {
   // rates, and rule-health flags — and rewrites their managed blocks.
   try {
     const { refreshModelRules } = await import('./model-rules.js');
-    refreshModelRules(episodeStats, { now: cache.scannedAt });
+    refreshModelRules(episodeStats, delegatedStats, { now: cache.scannedAt });
   } catch { /* registry unwritable — scan result still valid */ }
 
   return cache;

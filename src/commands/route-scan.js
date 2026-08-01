@@ -40,7 +40,18 @@ export async function run({ args, hasFlag, numArg }) {
           ? `${r.tier} (${rs.tierLabel(r.tier)}) · ${rs.scopeLabel(r.scope)} · 반복 ${r.count || 0}회 · 에러율 ${Math.round((r.errRate || 0) * 100)}%`
           : `${r.tier} (${rs.tierLabel(r.tier, 'en')}) · ${rs.scopeLabel(r.scope, 'en')} · seen ×${r.count || 0} · err ${Math.round((r.errRate || 0) * 100)}%`;
         console.log(`  #${i + 1} ${stat}${health}`);
-        console.log(`      ${r.rule}`);
+        // Measured outcome of the rule actually firing, plus what it saved.
+        // A rule with no measured delegations shows "—", never "$0.00": the
+        // two mean opposite things (no data vs. data showing no value).
+        const measured = r.delegatedRuns
+          ? (lang === 'ko'
+            ? `실제 위임 ${r.delegatedRuns}건 · 에러율 ${Math.round((r.delegatedErrRate || 0) * 100)}% · 절감 ~$${(r.savedUsd || 0).toFixed(2)}`
+            : `measured ×${r.delegatedRuns} · err ${Math.round((r.delegatedErrRate || 0) * 100)}% · saved ~$${(r.savedUsd || 0).toFixed(2)}`)
+          : (lang === 'ko' ? '실제 위임 기록 — (아직 없음)' : 'measured delegations — (none yet)');
+        console.log(`      ${measured}`);
+        // Same composer the md file uses, so what is listed here is exactly
+        // what the model reads.
+        console.log(`      ${mr.composeRuleText(r.rule, r, lang)}`);
       });
       console.log(lang === 'ko'
         ? '\n제거: claude-token-saver route-scan rules rm <N>'
@@ -79,12 +90,17 @@ export async function run({ args, hasFlag, numArg }) {
         } catch (e) { debug('route-scan:spawn-refresh', e); /* stale cache is still usable below */ }
       }
       const open = rs.openCandidates(cache);
+      // Rule text shown to the model must be composed the same way the md file
+      // composes it, budget clause included — otherwise the briefing promises
+      // one rule and the file carries another.
+      const mrHook = await import('../model-rules.js');
+      const composed = (base, c) => mrHook.composeRuleText(base, c, lang);
       // Registered rules whose delegated-category error rate crossed the
       // health threshold since promotion — the user approved these, so a
       // status change must be briefed, not just written into the md file.
       let reviewRules = [];
       try {
-        const mr = await import('../model-rules.js');
+        const mr = mrHook;
         reviewRules = mr.loadModelRules().rules
           .map((r, i) => ({ ...r, n: i + 1 }))
           .filter((r) => r.status === 'review');
@@ -105,7 +121,7 @@ export async function run({ args, hasFlag, numArg }) {
         for (const c of open) {
           const tier = c.tier || 'T2';
           const label = lang === 'ko' ? c.label : (c.labelEn || c.label);
-          const rule = lang === 'ko' ? c.rule : (c.ruleEn || c.rule);
+          const rule = composed(lang === 'ko' ? c.rule : (c.ruleEn || c.rule), c);
           if (lang === 'ko') {
             lines.push(`  후보 R${c.id} — "${label}" 유형, ${c.count}회 반복 (프로젝트: ${c.project})`);
             lines.push(`      판정: ${tier} (${rs.tierLabel(tier)}) → ${c.agent} 서브에이전트 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
@@ -133,9 +149,17 @@ export async function run({ args, hasFlag, numArg }) {
           ? '[claude-token-saver rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 기준(20%)을 넘어 재검토가 필요한 룰이 있습니다 — 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:'
           : '[claude-token-saver rule-health] Some user-approved delegation rules now exceed the 20% error-rate threshold for their delegated category — brief the user and discuss narrowing or removing them:');
         for (const r of reviewRules) {
+          // Say WHICH signal tripped: a measured delegation failure rate is a
+          // much stronger claim than the shape-based proxy, and the user's
+          // decision (narrow vs. remove) depends on knowing which it is.
+          const measured = r.healthSource === 'delegated';
+          const rate = Math.round(((measured ? r.delegatedErrRate : r.errRate) || 0) * 100);
+          const evidence = lang === 'ko'
+            ? (measured ? `실제 위임 ${r.delegatedRuns}건 실측 에러율 ${rate}%` : `유형 에러율 ${rate}% (형태 기반 추정)`)
+            : (measured ? `${rate}% measured across ${r.delegatedRuns} real delegations` : `${rate}% for the category (shape-based proxy)`);
           lines.push(lang === 'ko'
-            ? `  룰 #${r.n} (${r.tier} ${rs.tierLabel(r.tier)} · ${rs.scopeLabel(r.scope)}) — 최근 에러율 ${Math.round((r.errRate || 0) * 100)}%`
-            : `  rule #${r.n} (${r.tier} ${rs.tierLabel(r.tier, 'en')} · ${rs.scopeLabel(r.scope, 'en')}) — recent error rate ${Math.round((r.errRate || 0) * 100)}%`);
+            ? `  룰 #${r.n} (${r.tier} ${rs.tierLabel(r.tier)} · ${rs.scopeLabel(r.scope)}) — ${evidence}`
+            : `  rule #${r.n} (${r.tier} ${rs.tierLabel(r.tier, 'en')} · ${rs.scopeLabel(r.scope, 'en')}) — ${evidence}`);
           lines.push(`      "${r.rule}"`);
         }
         lines.push(lang === 'ko'
@@ -191,7 +215,9 @@ export async function run({ args, hasFlag, numArg }) {
         console.log(`       verdict: ${tier} (${rs.tierLabel(tier, 'en')}) → delegate to ${c.agent} · suggested scope: ${rs.scopeLabel(c.suggestedScope, 'en')}`);
       }
       console.log(`       ${lang === 'ko' ? '예시' : 'example'}: "${c.example}"`);
-      console.log(`       ${lang === 'ko' ? '룰' : 'rule'}: ${lang === 'ko' ? c.rule : (c.ruleEn || c.rule)}`);
+      const mrList = await import('../model-rules.js');
+      const base = lang === 'ko' ? c.rule : (c.ruleEn || c.rule);
+      console.log(`       ${lang === 'ko' ? '룰' : 'rule'}: ${mrList.composeRuleText(base, c, lang)}`);
     }
     console.log('');
     console.log(lang === 'ko' ? '등록 / 무시:' : 'Promote / dismiss:');
