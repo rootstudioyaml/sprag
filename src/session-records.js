@@ -112,11 +112,18 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
     // Per-tool call histogram — what the call actually DID. route-scan's
     // categorizer trusts this over the prompt's wording (behavior-first).
     const toolCounts = { ...(prev?.toolCounts || {}) };
+    // tool_use ids of Task/Agent calls: the join key to the subagent
+    // transcripts under <session>/subagents/*.meta.json, which is how the
+    // outcome of a delegation is measured (rule-health v2).
+    const delegationToolUseIds = [...(prev?.delegationToolUseIds || [])];
     if (Array.isArray(msg.content)) {
       for (const b of msg.content) {
         if (!b || b.type !== 'tool_use') continue;
         if (MUTATING_TOOLS.has(b.name)) mutatingToolCalls += 1;
-        if (DELEGATION_TOOLS.has(b.name)) delegationCalls += 1;
+        if (DELEGATION_TOOLS.has(b.name)) {
+          delegationCalls += 1;
+          if (typeof b.id === 'string') delegationToolUseIds.push(b.id);
+        }
         if (typeof b.name === 'string') toolCounts[b.name] = (toolCounts[b.name] || 0) + 1;
       }
     }
@@ -129,6 +136,14 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
         (usage.cache_creation_input_tokens || 0) +
         (usage.cache_read_input_tokens || 0),
       completion_tokens: usage.output_tokens || 0,
+      // Per-bucket split, kept alongside the collapsed prompt_tokens: pricing
+      // differs per bucket, so costing a delegated run against what the
+      // session model would have charged needs them separated.
+      input_tokens: usage.input_tokens || 0,
+      cache_creation_tokens: usage.cache_creation_input_tokens || 0,
+      cache_read_tokens: usage.cache_read_input_tokens || 0,
+      ephemeral5m: usage.cache_creation?.ephemeral_5m_input_tokens || 0,
+      ephemeral1h: usage.cache_creation?.ephemeral_1h_input_tokens || 0,
       depth,
       userText: includeContent ? lastUserText : '',
       assistantText: includeContent ? contentText(msg.content) : '',
@@ -136,6 +151,7 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
       // Entries of the same request accumulate tool blocks and errors.
       mutatingToolCalls: (prev?.mutatingToolCalls || 0) + mutatingToolCalls,
       delegationCalls: (prev?.delegationCalls || 0) + delegationCalls,
+      delegationToolUseIds,
       toolErrors: prev?.toolErrors || 0,
       toolCounts,
     };
