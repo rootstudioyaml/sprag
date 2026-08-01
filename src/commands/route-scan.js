@@ -202,6 +202,7 @@ export async function run({ args, hasFlag, numArg }) {
       console.log(lang === 'ko'
         ? '위임 후보 없음 (반복 3회 미만이거나 이미 처리됨).'
         : 'No delegation candidates (below recurrence threshold or already resolved).');
+      (await import('../first-run-note.js')).printOnce('route-scan', lang);
       return;
     }
     console.log(lang === 'ko' ? '\n위임 후보 (R<N>=후보 번호, T2/T1=난이도 등급):' : '\nDelegation candidates (R<N> = candidate id, T2/T1 = difficulty tier):');
@@ -223,5 +224,7 @@ export async function run({ args, hasFlag, numArg }) {
     console.log(lang === 'ko' ? '등록 / 무시:' : 'Promote / dismiss:');
     console.log('  claude-token-saver harness promote R<N> --project|--global');
     console.log('  claude-token-saver route-scan dismiss <N>');
+    // 최초 1회만 — 매번 찍으면 도구가 광고판이 된다 (CTS_NO_NOTE=1 로 끔)
+    (await import('../first-run-note.js')).printOnce('route-scan', lang);
     return;
 }

@@ -17,6 +17,22 @@ npm i -g claude-token-saver   # postinstall이 statusline + Skill 자동 등록
 
 ![statusline 예시](./docs/statusline.png)
 
+## 📺 영상 보고 오셨다면 — 60초
+
+라우터가 아닙니다. 요청을 실시간으로 가로채지 않습니다.
+**세션이 끝난 뒤** 로컬 기록을 읽어서, 비싼 모델이 반복해서 처리해 온 쉬운 유형을 뽑고,
+그 유형은 **다음 세션부터** 싼 모델이 맡도록 룰로 겁니다. 룰은 글로벌·프로젝트로 범위가 나뉩니다.
+
+```bash
+npm i -g claude-token-saver@latest
+claude-token-saver route-scan         # 내 지난 세션에서 위임 후보 뽑기 (LLM 호출 0)
+claude-token-saver route-scan rules   # 승격된 룰 확인 · rm <N> 으로 삭제
+```
+
+기준선은 남의 벤치마크가 아니라 **내 최근 14일 분포(p25/p75)** 로 잡습니다.
+넘긴 뒤 실제로 잘 됐는지까지 재는 실측 rule-health는 [v3.9.0](#v390-2026-08-01)에 들어갔습니다.
+
+
 ## ⚡ 왜 쓰나 — 30초 요약
 
 | | |
@@ -221,6 +237,12 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.9.2 (2026-08-01)
+- **LICENSE 파일 추가 (MIT)** — `package.json`에만 있고 파일이 없어서, 사내 도입 검토 시 라이선스 확인이 막히던 문제. npm 패키지에도 포함되도록 `files`에 넣었습니다.
+- **패키지 설명·키워드를 현재 기능에 맞게 교체** — 캐시 모니터링 시절 문구가 남아 있어 모델 위임(`model-routing`·`delegation`·`subagent`)으로 검색되지 않았습니다.
+- **README 상단에 60초 진입로** — 라우터가 아니라 사후 분석이라는 점과, 설치부터 내 숫자 확인까지의 명령 3줄.
+- **`route-scan` 최초 1회 안내** — 기능 설명 영상 링크를 딱 한 번만 출력합니다. `CTS_NO_NOTE=1`로 끕니다.
 
 ### v3.9.1 (2026-08-01)
 - **compact-window 권장값이 단일 40만에서 40만~70만 범위로** — 40만은 실사용에서 너무 빡빡해 압축이 잦았습니다. 이제 범위를 제안하고, **그 안(또는 그보다 낮게) 잡아둔 세션은 경고하지 않습니다.** 미설정이거나 70만 초과일 때만 `🅷⚠ compact-window?`와 브리핑이 뜹니다. `set`의 기본값도 범위 중간인 50만으로 올렸고, 원하는 값은 `--value 600k`로 지정합니다.

@@ -17,6 +17,23 @@ npm i -g claude-token-saver   # postinstall auto-registers the statusline + Skil
 
 ![statusline example](./docs/statusline.png)
 
+## 📺 Came here from the video? — 60 seconds
+
+This is not a router. It never intercepts a request in realtime.
+**After a session ends** it reads your local logs, finds the easy patterns your expensive model
+kept handling, and promotes them into rules so a cheaper model takes them **from the next session
+onward**. Rules are scoped global or per-project.
+
+```bash
+npm i -g claude-token-saver@latest
+claude-token-saver route-scan         # find delegation candidates in your own history (0 LLM calls)
+claude-token-saver route-scan rules   # list promoted rules · rm <N> to remove
+```
+
+Thresholds come from **your own last-14-day distribution (p25/p75)**, not someone else's benchmark.
+Measured rule-health — whether a delegated run actually succeeded — landed in [v3.9.0](#v390-2026-08-01).
+
+
 ## ⚡ Why — the 30-second pitch
 
 | | |
@@ -264,6 +281,12 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.9.2 (2026-08-01)
+- **Added a LICENSE file (MIT)** — the field existed in `package.json` but the file did not, which blocked license review for company adoption. It ships in the npm tarball now via `files`.
+- **Package description and keywords rewritten for what this actually does** — leftover cache-monitoring copy meant it never surfaced for `model-routing` / `delegation` / `subagent`.
+- **A 60-second on-ramp at the top of the README** — that this is post-hoc analysis rather than a router, plus the three commands from install to seeing your own numbers.
+- **One-time note in `route-scan`** — prints the explainer link exactly once. Disable with `CTS_NO_NOTE=1`.
 
 ### v3.9.1 (2026-08-01)
 - **compact-window now recommends a 400k–700k band instead of a single 400k** — 400k proved too tight in practice and compacted too often. The advice is a range now, and **a window inside it (or below it) is never warned about**; only an unset value or one above 700k raises `🅷⚠ compact-window?` and the briefing. `set` defaults to 500k (mid-band); pick your own with `--value 600k`.

@@ -1,7 +1,7 @@
 {
   "name": "claude-token-saver",
-  "version": "3.9.1",
-  "description": "Save tokens on Claude Code — spike diagnosis, 1M-context detection, TTL countdown, statusline. (formerly claude-cache-monitor)",
+  "version": "3.9.2",
+  "description": "Route the easy work your expensive Claude model keeps repeating down to haiku/sonnet — post-hoc session analysis, no realtime router, no extra LLM calls.",
   "type": "module",
   "bin": {
     "claude-token-saver": "bin/cli.js"
@@ -16,22 +16,27 @@
     "presets/",
     "examples/",
     "README.md",
-    "README.en.md"
+    "README.en.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=18"
   },
   "keywords": [
     "claude",
-    "anthropic",
-    "cache",
-    "monitoring",
-    "prompt-caching",
-    "cli",
-    "statusline",
     "claude-code",
-    "token-usage",
+    "anthropic",
+    "model-routing",
+    "llm-router",
+    "delegation",
+    "subagent",
+    "haiku",
     "cost-savings",
+    "token-usage",
+    "prompt-caching",
+    "cache",
+    "statusline",
+    "cli",
     "1m-context"
   ],
   "license": "MIT",
