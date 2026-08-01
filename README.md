@@ -125,15 +125,17 @@ ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지
 
 ## 📦 compact-window — 1M 컨텍스트의 자동 압축 지점 고정
 
-Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 대화를 자동 압축합니다. 1M 창을 쓰면 이 값이 잡혀 있지 않은 한 80만 토큰 근처까지 가서야 압축이 걸리고, 그전까지 모든 요청이 전체 컨텍스트를 통째로 재과금합니다. 40만으로 고정하면 큰 붙여넣기용 여유는 200k 세션의 두 배로 남기면서 꼬리만 잘라냅니다.
+Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 대화를 자동 압축합니다. 1M 창을 쓰면 이 값이 잡혀 있지 않은 한 80만 토큰 근처까지 가서야 압축이 걸리고, 그전까지 모든 요청이 전체 컨텍스트를 통째로 재과금합니다. **1M은 너무 크니 40만~70만 범위를 권장합니다** — 큰 붙여넣기용 여유는 200k 세션의 2~3.5배로 남기면서 꼬리만 잘라냅니다.
+
+**권장 범위 안이면 경고하지 않습니다.** 40만은 절감이 압축 횟수를 이기는 하한이고, 긴 세션은 그보다 여유가 더 필요한 경우가 많습니다. 미설정이거나 70만을 넘을 때만 알립니다(그보다 낮게 잡은 건 더 공격적으로 아끼겠다는 선택이라 그냥 둡니다).
 
 **200k 컨텍스트는 경고 대상이 아닙니다** — 창이 이미 200k 이하라 이 설정이 바꿀 게 없습니다.
 
 ```bash
 claude-token-saver compact-window                       # 현재 상태 (모델·창·설정값·출처)
-claude-token-saver compact-window set --global          # ~/.claude/settings.json 에 40만 고정
+claude-token-saver compact-window set --global          # ~/.claude/settings.json 에 50만 고정 (범위 중간)
 claude-token-saver compact-window set --project         # <root>/.claude/settings.json 에 고정
-claude-token-saver compact-window set --global --value 250k   # 값 직접 지정 (10만~1M)
+claude-token-saver compact-window set --global --value 600k    # 값 직접 지정 (10만~1M)
 claude-token-saver compact-window off | on              # 경고 표시 토글
 ```
 
@@ -219,6 +221,9 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.9.1 (2026-08-01)
+- **compact-window 권장값이 단일 40만에서 40만~70만 범위로** — 40만은 실사용에서 너무 빡빡해 압축이 잦았습니다. 이제 범위를 제안하고, **그 안(또는 그보다 낮게) 잡아둔 세션은 경고하지 않습니다.** 미설정이거나 70만 초과일 때만 `🅷⚠ compact-window?`와 브리핑이 뜹니다. `set`의 기본값도 범위 중간인 50만으로 올렸고, 원하는 값은 `--value 600k`로 지정합니다.
 
 ### v3.9.0 (2026-08-01)
 

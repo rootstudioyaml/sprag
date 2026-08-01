@@ -246,7 +246,7 @@ export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) 
         briefed.add(sig);
         s.briefed = [...briefed];
         const now = st.window ? `현재 ${fmtK(st.window)}` : '현재 미설정';
-        items.push(`1M 컨텍스트 모델(${st.model})인데 autoCompactWindow가 ${now}입니다 — 자동 압축이 80만 토큰 근처에서야 걸려 그전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 40만으로 고정하면 1M 창은 그대로 두고 압축 시점만 앞당깁니다. 등록: claude-token-saver compact-window set --global|--project (적용 범위는 사용자에게 확인) / 끄기: compact-window off`);
+        items.push(`1M 컨텍스트 모델(${st.model})인데 autoCompactWindow가 ${now}입니다 — 자동 압축이 80만 토큰 근처에서야 걸려 그전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 1M은 너무 크니 ${fmtK(st.recommendedMin)}~${fmtK(st.recommendedMax)} 범위를 권장합니다(그 범위 안이면 경고하지 않습니다). 1M 창 자체는 그대로 두고 압축 시점만 앞당깁니다. 등록: claude-token-saver compact-window set --global|--project [--value ${fmtK(st.recommendedMax)}] (기본 ${fmtK(st.recommended)}, 적용 범위는 사용자에게 확인) / 끄기: compact-window off`);
       }
     }
   } catch { /* settings unreadable — other briefings above still apply */ }

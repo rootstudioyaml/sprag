@@ -144,19 +144,21 @@ An auto `.bak` is kept, but **the session context that earned the rule its place
 
 ## 📦 compact-window — pin where a 1M session compacts
 
-Claude Code compacts when usage approaches `min(autoCompactWindow, model max context)`. On a 1M window, with that value unset, compaction only fires near 800k — and until then every request re-bills the whole context. Pinning 400k keeps twice a 200k session's headroom for the genuinely large pastes while cutting off the runaway tail.
+Claude Code compacts when usage approaches `min(autoCompactWindow, model max context)`. On a 1M window, with that value unset, compaction only fires near 800k — and until then every request re-bills the whole context. **1M is too large; the recommendation is a 400k–700k band** — 2–3.5x a 200k session's headroom for the genuinely large pastes, with the runaway tail cut off.
+
+**Anything inside the band is left alone.** 400k is the floor where the saving beats the extra compactions, and long sessions often want more room than that. Only an unset window, or one above 700k, is warned about (a smaller one is a deliberate, more aggressive choice).
 
 **200k sessions are never warned** — their window is already at or below 200k, so the setting cannot change anything.
 
 ```bash
 claude-token-saver compact-window                       # status (model, window, value, source)
-claude-token-saver compact-window set --global          # pin 400k in ~/.claude/settings.json
+claude-token-saver compact-window set --global          # pin 500k (mid-band) in ~/.claude/settings.json
 claude-token-saver compact-window set --project         # pin it in <root>/.claude/settings.json
-claude-token-saver compact-window set --global --value 250k   # explicit value (100k–1M)
+claude-token-saver compact-window set --global --value 600k   # explicit value (100k–1M)
 claude-token-saver compact-window off | on              # toggle the warning
 ```
 
-- On a 1M model with the value unset or above 400k, the statusline shows `🅷⚠ compact-window?` and the session briefing hands the model the exact registration command.
+- On a 1M model with the value unset or above 700k, the statusline shows `🅷⚠ compact-window?` and the session briefing hands the model the exact registration command.
 - Scope (`--global`/`--project`) is **required** for `set` — a global settings file is never edited on a guess.
 - Every other key in `settings.json` is preserved and a `.bak` is written first. Malformed JSON aborts the write untouched.
 - An exported `CLAUDE_CODE_AUTO_COMPACT_WINDOW` beats settings.json; `set` detects that and says so.
@@ -262,6 +264,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.9.1 (2026-08-01)
+- **compact-window now recommends a 400k–700k band instead of a single 400k** — 400k proved too tight in practice and compacted too often. The advice is a range now, and **a window inside it (or below it) is never warned about**; only an unset value or one above 700k raises `🅷⚠ compact-window?` and the briefing. `set` defaults to 500k (mid-band); pick your own with `--value 600k`.
 
 ### v3.9.0 (2026-08-01)
 

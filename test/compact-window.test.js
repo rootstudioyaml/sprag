@@ -11,6 +11,8 @@ import {
   setAutoCompactWindow,
   effectiveWindow,
   RECOMMENDED_WINDOW,
+  RECOMMENDED_MIN,
+  RECOMMENDED_MAX,
 } from '../src/compact-window.js';
 
 /**
@@ -94,16 +96,26 @@ test('1M model with no window warns as unset', () => {
   });
 });
 
-test('a window above the recommendation still warns; at or below does not', () => {
+test('only a window above the recommended band warns', () => {
   const root = sandbox({ model: 'claude-opus-5[1m]', autoCompactWindow: 800000 });
   withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: root, USERPROFILE: root }, () => {
     assert.equal(compactWindowStatus({ root }).reason, 'too-large');
   });
-  const ok = sandbox({ model: 'claude-opus-5[1m]', autoCompactWindow: RECOMMENDED_WINDOW });
-  withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: ok, USERPROFILE: ok }, () => {
-    const s = compactWindowStatus({ root: ok });
-    assert.equal(s.ok, true);
-    assert.equal(s.reason, 'configured');
+  // Anywhere in (and below) the band is the user's call — 600k, the band edges,
+  // and the default pin all stay silent.
+  for (const w of [RECOMMENDED_MIN, RECOMMENDED_WINDOW, 600_000, RECOMMENDED_MAX, 200_000]) {
+    const ok = sandbox({ model: 'claude-opus-5[1m]', autoCompactWindow: w });
+    withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: ok, USERPROFILE: ok }, () => {
+      const s = compactWindowStatus({ root: ok });
+      assert.equal(s.ok, true, `window ${w} should not warn`);
+      assert.equal(s.reason, 'configured');
+      assert.equal(compactWindowWarningForStatusline(ok), null);
+    });
+  }
+  // One token above the band is still a defect.
+  const over = sandbox({ model: 'claude-opus-5[1m]', autoCompactWindow: RECOMMENDED_MAX + 1 });
+  withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: over, USERPROFILE: over }, () => {
+    assert.equal(compactWindowStatus({ root: over }).reason, 'too-large');
   });
 });
 

@@ -5,8 +5,13 @@
  * `min(settings.autoCompactWindow, model max context)`. On a 1M window the
  * default lets a session grow past 800k before compaction ever fires, so every
  * later request re-bills a context most sessions never needed. Pinning
- * `autoCompactWindow: 400000` keeps twice the headroom of a 200k session for
- * the genuinely large ones while capping the runaway tail.
+ * `autoCompactWindow` somewhere in 400k–700k keeps 2–3.5x the headroom of a
+ * 200k session for the genuinely large ones while capping the runaway tail.
+ *
+ * The recommendation is a range, not a number: 400k is the floor where the
+ * saving is worth the extra compactions, and in practice long sessions often
+ * want more room than that. Anything at or below 700k is left alone — only an
+ * unset window, or one above 700k, is a real config defect.
  *
  * 200k sessions are exempt by design: their window is already <= 200k, so the
  * setting changes nothing and a warning would be pure noise.
@@ -28,7 +33,13 @@ import { debug } from './debug.js';
 // the app would honor.
 export const MIN_WINDOW = 100_000;
 export const MAX_WINDOW = 1_000_000;
-export const RECOMMENDED_WINDOW = 400_000;
+// Recommended band. Warn only outside it on the high side (or when unset) —
+// a window below RECOMMENDED_MIN is a deliberate, more aggressive choice and
+// costs nothing, so it stays silent.
+export const RECOMMENDED_MIN = 400_000;
+export const RECOMMENDED_MAX = 700_000;
+// What `compact-window set` writes when no --value is given: middle of the band.
+export const RECOMMENDED_WINDOW = 500_000;
 
 // A model id whose context is the 1M variant. Claude Code spells it as a
 // suffix on the model id (`claude-opus-5[1m]`); the beta header form
@@ -116,10 +127,10 @@ export function effectiveWindow(root) {
 /**
  * Full audit result. `ok` is true when there is nothing to warn about — either
  * the session is not on a 1M model (exempt), or the window is already pinned at
- * or below the recommended 400k.
+ * or below the top of the recommended band (700k).
  *
  * `reason` names why it is not ok: 'unset' (no autoCompactWindow anywhere) or
- * 'too-large' (set, but above 400k — still lets context run away).
+ * 'too-large' (set, but above 700k — still lets context run away).
  */
 export function compactWindowStatus({ root = process.cwd() } = {}) {
   const { model, source: modelSource } = resolveModelId(root);
@@ -133,10 +144,12 @@ export function compactWindowStatus({ root = process.cwd() } = {}) {
     windowSource: win.source,
     windowPath: win.path || null,
     recommended: RECOMMENDED_WINDOW,
+    recommendedMin: RECOMMENDED_MIN,
+    recommendedMax: RECOMMENDED_MAX,
   };
   if (!is1m) return { ...base, ok: true, reason: 'not-1m' };
   if (win.value === null) return { ...base, ok: false, reason: 'unset' };
-  if (win.value > RECOMMENDED_WINDOW) return { ...base, ok: false, reason: 'too-large' };
+  if (win.value > RECOMMENDED_MAX) return { ...base, ok: false, reason: 'too-large' };
   return { ...base, ok: true, reason: 'configured' };
 }
 
