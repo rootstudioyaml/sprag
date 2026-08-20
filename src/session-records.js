@@ -9,10 +9,16 @@
 
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { resolveModelAlias } from './model-alias.js';
 
-/** Strip context-window suffixes like "[1m]" so model ids compare cleanly. */
+/**
+ * Strip context-window suffixes like "[1m]" so model ids compare cleanly, and
+ * turn a gateway inference-profile ARN back into a Claude alias. Ids that are
+ * already Claude aliases pass through untouched.
+ */
 export function normalizeModelId(model) {
-  return String(model || 'unknown').replace(/\[[^\]]*\]$/, '');
+  const resolved = resolveModelAlias(model || 'unknown');
+  return String(resolved).replace(/\[[^\]]*\]$/, '');
 }
 
 /** Extract plain text from a Claude transcript message content field. */

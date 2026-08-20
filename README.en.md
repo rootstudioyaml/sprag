@@ -202,6 +202,24 @@ claude-token-saver route-scan rules              # list model-fitting rules (rm 
 
 Dig deeper: **tier criteria & research evidence** → [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) (Korean) · **rule-file mechanics, scan triggers, subagent setup** → [docs/ROUTE_SCAN.md](./docs/ROUTE_SCAN.md) (Korean + English)
 
+### Behind a gateway (Bedrock / LiteLLM)
+
+Through a corporate gateway the transcript records an inference-profile ARN where the model id belongs. That string says nothing about `opus` or `haiku`, so older versions read every session as Sonnet — which made **T1 (→sonnet) rules unreachable and zeroed the savings figures**.
+
+Since v3.10.0 the profile id is mapped back to a role (main, opus, sonnet, haiku) and then to the alias your `ANTHROPIC_DEFAULT_*_MODEL` variables declare. The mapping is learned by joining each parent `Task` call to the subagent run it spawned via `toolUseId`. Below three observations, or when the role votes agree less than 80% of the time, the id stays `unknown` and drops out of the delegation aggregate rather than being guessed at.
+
+For environments the learner cannot reach, write the mapping yourself in `<userDataDir>/profile-map.json`. Account id and region may be wildcarded:
+
+```jsonc
+{
+  "modelAliases": {
+    "arn:aws:bedrock:*:*:application-inference-profile/<PROFILE_ID>": "claude-opus-5"
+  }
+}
+```
+
+That file holds internal identifiers in plain text — do not commit it. On a direct-API machine it is never created and behaviour is unchanged.
+
 ## Spike issue codes
 
 | Code | Meaning |
@@ -281,6 +299,12 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.10.0 (2026-08-20)
+- **Model tiers are detected again behind a Bedrock / LiteLLM gateway** — when the transcript's model id is an inference-profile ARN there is no `opus` or `haiku` in the string, so it fell back to Sonnet. Since `worthDelegating()` requires `rank > target`, **every T1 rule was rejected**, savings aggregated to zero, and cost was under-counted by roughly 1.67x. The profile id is now learned as a role (parent `Task` call joined to the subagent run by `toolUseId`) and mapped back to the alias your environment declares. The pricing table, the ranks, and the tiering logic are untouched.
+- **No confident mapping means no guess** — under three observations, or below 80% agreement, the id stays `unknown` and leaves the delegation aggregate. Quietly calling it Sonnet was the worse failure.
+- **Manual override** — `modelAliases` in `<userDataDir>/profile-map.json`, wildcards allowed. No profile id or AWS account id is ever hardcoded in this package.
+- Direct-API machines behave **exactly as before** and no new file is written.
 
 ### v3.9.2 (2026-08-01)
 - **Added a LICENSE file (MIT)** — the field existed in `package.json` but the file did not, which blocked license review for company adoption. It ships in the npm tarball now via `files`.

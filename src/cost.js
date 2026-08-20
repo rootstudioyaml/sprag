@@ -117,7 +117,22 @@ const TIER_RANK = {
   'claude-haiku-3': 0,
 };
 
+/**
+ * True for the explicit 'unknown' marker — an id that could not be resolved
+ * at all (see model-alias.js), as opposed to an id this table simply has no
+ * entry for. The two must not share a fate: an unresolved gateway id counted
+ * as Sonnet silently corrupts every delegation statistic, so it is dropped
+ * from the ranking instead of guessed at.
+ */
+export function isUnknownModel(model) {
+  return !model || String(model).toLowerCase() === 'unknown';
+}
+
 export function modelRank(model) {
+  // -1 sits below every real tier, so worthDelegating() rejects it and
+  // tierForRank() attributes no saving to it: the run leaves the aggregate
+  // rather than distorting it.
+  if (isUnknownModel(model)) return -1;
   const rank = TIER_RANK[detectPricingTier(model)];
   // Unknown ids fall through detectPricingTier to the Sonnet tier; ranking
   // them 1 keeps the conservative reading (cheap enough that a Sonnet-target

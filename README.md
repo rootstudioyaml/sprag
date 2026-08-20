@@ -182,6 +182,24 @@ claude-token-saver route-scan rules              # 등록된 모델 피팅 룰 �
 
 더 알아보기: **티어 기준·리서치 근거** → [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) · **룰 파일 구조·스캔 트리거·서브에이전트 준비** → [docs/ROUTE_SCAN.md](./docs/ROUTE_SCAN.md)
 
+### 게이트웨이(Bedrock·LiteLLM) 경유 환경
+
+사내 게이트웨이를 거치면 로그의 모델명 자리에 추론 프로파일 ARN이 기록됩니다. 그 문자열에는 `opus`·`haiku` 같은 단서가 없어서 예전 버전은 이것을 전부 Sonnet으로 읽었고, 그 결과 **T1(→sonnet) 위임 룰이 하나도 제안되지 않았으며 절감 집계가 0**이었습니다.
+
+v3.10.0부터는 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌린 뒤 `ANTHROPIC_DEFAULT_*_MODEL` 환경변수가 선언한 별칭으로 치환합니다. 매핑은 부모 세션의 `Task` 호출과 서브에이전트 기록을 `toolUseId`로 조인해 스스로 학습하며, 관측이 3건 미만이거나 역할 판정이 80% 미만으로 갈리면 **추측하지 않고 `unknown`으로 두고 위임 집계에서 제외**합니다.
+
+자동 학습이 닿지 않는 환경을 위한 수동 경로도 있습니다. `<userDataDir>/profile-map.json`에 아래처럼 적으면 되고, 계정 ID와 리전은 `*`로 가려도 매칭됩니다.
+
+```jsonc
+{
+  "modelAliases": {
+    "arn:aws:bedrock:*:*:application-inference-profile/<PROFILE_ID>": "claude-opus-5"
+  }
+}
+```
+
+이 파일에는 사내 식별자가 평문으로 남으므로 저장소에 커밋하지 마십시오. 게이트웨이를 쓰지 않는 환경에서는 파일이 아예 만들어지지 않고 기존 동작이 그대로 유지됩니다.
+
 ## 토큰 급증 원인 코드
 
 | 코드 | 의미 |
@@ -237,6 +255,12 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.10.0 (2026-08-20)
+- **게이트웨이(Bedrock·LiteLLM) 환경에서 모델 티어를 다시 인식합니다** — 로그의 모델명이 추론 프로파일 ARN이면 `opus`·`haiku` 단서가 없어 Sonnet으로 폴백했고, `worthDelegating()`이 `rank > target`을 요구하므로 **T1 위임이 전부 기각**됐습니다. 절감 집계는 0, 비용은 약 1.67배 과소 계상이었습니다. 이제 프로파일 ID를 역할로 학습해(부모 `Task` 호출 ↔ 서브에이전트 `toolUseId` 정확 조인) 환경변수가 선언한 별칭으로 되돌립니다. 가격표·랭크·판정 로직은 그대로입니다.
+- **확신이 없으면 숨기지 않고 드러냅니다** — 관측 3건 미만이거나 역할 동의율 80% 미만이면 `unknown`으로 두고 위임 집계에서 제외합니다. Sonnet으로 조용히 틀리던 기존 동작이 더 나빴습니다.
+- **수동 오버라이드** — `<userDataDir>/profile-map.json`의 `modelAliases`에 와일드카드 패턴으로 직접 지정할 수 있습니다. 프로파일 ID·AWS 계정 ID는 소스에 전혀 넣지 않습니다.
+- 게이트웨이를 쓰지 않는 환경은 **동작이 완전히 동일**합니다(파일도 만들지 않습니다).
 
 ### v3.9.2 (2026-08-01)
 - **LICENSE 파일 추가 (MIT)** — `package.json`에만 있고 파일이 없어서, 사내 도입 검토 시 라이선스 확인이 막히던 문제. npm 패키지에도 포함되도록 `files`에 넣었습니다.

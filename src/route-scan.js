@@ -24,6 +24,7 @@ import { discoverSessionFiles } from './parser.js';
 import { collectSessionRecords } from './session-records.js';
 import { collectSubagentRuns, indexRuns, runsForEpisode } from './subagent-records.js';
 import { estimateCost, modelRank, TIER_TARGET_RANK, tierForRank } from './cost.js';
+import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 
 // ── Tier bands (docs/TIER_CRITERIA.md §3) ────────────────────────────────
@@ -330,6 +331,16 @@ export function tierOf(ep, category, th) {
  */
 export async function runRouteScan({ days = 14 } = {}) {
   const files = await discoverSessionFiles({ days });
+
+  // Behind a Bedrock/LiteLLM gateway the transcripts carry an inference-profile
+  // ARN where the model id belongs, which reads as Sonnet and rejects every T1
+  // rule. Refresh the profile→role mapping before parsing so this scan resolves
+  // those ids; on a direct-API machine it finds nothing and writes nothing.
+  resetModelAliasCache();
+  try {
+    await learnProfileMapping({ sessionPaths: files.map((f) => f.path) });
+  } catch { /* learning is an optimization — the scan still runs without it */ }
+  resetModelAliasCache();
 
   // Pass 1 — collect episodes (needed up front: thresholds are calibrated
   // from the full window's output distribution before any tiering).

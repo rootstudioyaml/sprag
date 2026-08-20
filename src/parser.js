@@ -4,6 +4,7 @@ import { createInterface } from 'node:readline';
 import { join, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { loadCache, getCached, putCached, saveCache } from './session-cache.js';
+import { resolveModelAlias } from './model-alias.js';
 
 const CLAUDE_DIR = join(homedir(), '.claude', 'projects');
 
@@ -49,7 +50,7 @@ export async function parseSessionFile(filePath) {
 
     requests.set(reqId, {
       requestId: reqId,
-      model: msg.model || 'unknown',
+      model: resolveModelAlias(msg.model),
       inputTokens: usage.input_tokens || 0,
       cacheCreationTokens: usage.cache_creation_input_tokens || 0,
       cacheReadTokens: usage.cache_read_input_tokens || 0,
