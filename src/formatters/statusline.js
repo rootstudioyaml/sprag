@@ -260,12 +260,14 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // tier saved, summed from the rule registry route-scan maintains. Hidden
   // when zero or absent: a permanent "$0" is noise for direct-API users and
   // for anyone who has not delegated yet.
-  //   text:       "Delegated $3.2"                   |  same in verbose
-  //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Delegated $3.2"
+  // The label mirrors "Cache saved" on purpose: two savings figures reading in
+  // the same shape is what makes the second one legible at a glance.
+  //   text:       "Delegation saved $3.2"             |  same in verbose
+  //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Delegation saved $3.2"
   const delegationSaved = Number(data.delegationSaved) || 0;
   const delegateLabel = isIcon
-    ? (verbose ? '🔀 Delegated' : '🔀')
-    : 'Delegated';
+    ? (verbose ? '🔀 Delegation saved' : '🔀')
+    : 'Delegation saved';
   const delegateSeg = delegationSaved > 0
     ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
     : null;
