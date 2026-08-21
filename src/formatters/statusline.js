@@ -211,7 +211,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '' } 
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, harness, model, hit, ttl, saved, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
+ * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, harness, model, hit, ttl, saved, delegated, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null } = {}) {
   const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model } = data;
@@ -254,6 +254,21 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     ? (verbose ? '💰 Cache saved' : '💰')
     : 'Cache saved';
   const saveSeg = `${c(CYAN)}${saveLabel}${c(RESET)} ${formatMoney(savings)}`;
+
+  // Delegation savings — a DIFFERENT number from "Cache saved" above, which
+  // covers the prompt cache only. This one is what running work on a cheaper
+  // tier saved, summed from the rule registry route-scan maintains. Hidden
+  // when zero or absent: a permanent "$0" is noise for direct-API users and
+  // for anyone who has not delegated yet.
+  //   text:       "Delegated $3.2"                   |  same in verbose
+  //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Delegated $3.2"
+  const delegationSaved = Number(data.delegationSaved) || 0;
+  const delegateLabel = isIcon
+    ? (verbose ? '🔀 Delegated' : '🔀')
+    : 'Delegated';
+  const delegateSeg = delegationSaved > 0
+    ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
+    : null;
 
   // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").
   // Fall back to legacy `${days}d` when callers haven't supplied a label.
@@ -482,6 +497,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // it sits near the tail. The period label closes the line as a quiet
   // timeframe footer.
   if (want('saved')) segs.push(saveSeg);
+  // Both savings numbers sit side by side, then the period label closes the line.
+  if (delegateSeg && want('delegated')) segs.push(delegateSeg);
   if (want('period')) segs.push(periodSeg);
   // Trailing erase-to-end-of-line so any leftover characters from a previous
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard

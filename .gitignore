@@ -5,3 +5,9 @@ node_modules/
 # Local working / session-handoff notes — not part of the shipped artifact
 HANDOFF.md
 HANDOFF-*.md
+
+# Local credentials — never commit
+.env
+.env.*
+.npmrc
+.gitignore.bak

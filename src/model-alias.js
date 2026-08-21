@@ -200,10 +200,21 @@ function roleFromAgentType(agentType, cache) {
   return role;
 }
 
-function addVote(votes, pid, role) {
+/**
+ * Record one observation.
+ *
+ * `kind` matters more than the count. An 'explicit' vote comes from a stated
+ * model — a `Task(model: "haiku")` parameter or an agent definition's
+ * frontmatter. An 'inferred' vote is circumstantial: the record carried no
+ * sidechain flag, so it is *probably* the parent session's own model. Mixing
+ * the two by volume let 4 inferred votes outrank 1 explicit one and stamped a
+ * haiku profile as 'main' — see tallyVotes.
+ */
+function addVote(votes, pid, role, kind) {
   if (!pid || !role) return;
-  const v = (votes[pid] ||= {});
-  v[role] = (v[role] || 0) + 1;
+  const v = (votes[pid] ||= { explicit: {}, inferred: {} });
+  const bucket = v[kind] || (v[kind] = {});
+  bucket[role] = (bucket[role] || 0) + 1;
 }
 
 /**
@@ -235,7 +246,9 @@ async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCach
         const pid = profileIdFrom(msg.model);
         if (pid) {
           sawGateway = true;
-          addVote(votes, pid, 'main');
+          // Circumstantial: a subagent's records also land in the parent file
+          // without the flag often enough to outvote real evidence.
+          addVote(votes, pid, 'main', 'inferred');
         }
       }
 
@@ -289,18 +302,76 @@ async function subagentFiles(sessionPath) {
   }
 }
 
-/** Decide a role per profile id once the votes are numerous and consistent. */
+/**
+ * Whether two roles describe the same model. 'main' and 'opus' routinely do:
+ * the session model is the opus alias on a default setup, so a Task that asked
+ * for opus does not contradict "this is the parent's own profile".
+ */
+function rolesAgree(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const pair = new Set([a, b]);
+  return pair.has('main') && pair.has('opus');
+}
+
+/** Winner of one bucket, with the counts needed to judge confidence. */
+function topRole(tally) {
+  let role = null;
+  let top = 0;
+  let total = 0;
+  for (const [r, n] of Object.entries(tally || {})) {
+    total += n;
+    if (n > top) { top = n; role = r; }
+  }
+  return { role, top, total };
+}
+
+/**
+ * Decide a role per profile id.
+ *
+ * Explicit evidence decides alone whenever there is enough of it; inferred
+ * evidence is only consulted when the explicit bucket is too thin. Counting
+ * both together is what produced the original mis-classification: a haiku
+ * profile appeared 16 times in parent transcripts without a sidechain flag
+ * against 1,702 times as a subagent, and those 16 inferred 'main' votes beat
+ * the single explicit 'haiku' one at exactly the 80% line.
+ *
+ * When neither bucket is decisive the id stays unresolved. An 'unknown' that
+ * drops out of the aggregate beats a confident wrong answer that silently
+ * re-tiers every run on that profile.
+ */
 export function tallyVotes(votes, { minVotes = MIN_VOTES, minAgreement = MIN_AGREEMENT } = {}) {
   const learned = {};
-  for (const [pid, tally] of Object.entries(votes)) {
-    const total = Object.values(tally).reduce((a, b) => a + b, 0);
+  for (const [pid, buckets] of Object.entries(votes)) {
+    // Legacy flat shape (`{ haiku: 3 }`) is read as explicit evidence.
+    const split = buckets && (buckets.explicit || buckets.inferred)
+      ? { explicit: buckets.explicit || {}, inferred: buckets.inferred || {} }
+      : { explicit: buckets || {}, inferred: {} };
+
+    const explicit = topRole(split.explicit);
+    const inferred = topRole(split.inferred);
+
     let role = null;
-    let top = 0;
-    for (const [r, n] of Object.entries(tally)) {
-      if (n > top) { top = n; role = r; }
+    let source = null;
+    if (explicit.total >= minVotes && explicit.top / explicit.total >= minAgreement) {
+      role = explicit.role;
+      source = 'explicit';
+    } else if (inferred.total >= minVotes
+      && inferred.top / inferred.total >= minAgreement
+      && (explicit.total === 0 || rolesAgree(explicit.role, inferred.role))) {
+      // Thin explicit evidence still vetoes a contradicting inference: one
+      // stated `Task(model: "haiku")` outweighs any number of "no sidechain
+      // flag, so probably the session model" observations.
+      role = inferred.role;
+      source = 'inferred';
     }
-    const confident = total >= minVotes && top / total >= minAgreement;
-    learned[pid] = { role: confident ? role : null, votes: tally, total };
+
+    learned[pid] = {
+      role,
+      source,
+      votes: split,
+      total: explicit.total + inferred.total,
+    };
   }
   return learned;
 }
@@ -345,7 +416,9 @@ export async function learnProfileMapping({ sessionPaths = [], maxSessions = 40 
       const pid = await subagentProfileId(jsonl);
       if (!pid) continue;
       sawGateway = true;
-      addVote(votes, pid, role);
+      // Stated evidence: the Task call named this tier, or the agent
+      // definition it used did.
+      addVote(votes, pid, role, 'explicit');
     }
     if (sawGateway) gateway = true;
   }

@@ -77,6 +77,7 @@ The statusline appears at the bottom of Claude Code right away. If auto-registra
 | `✦ current` / `📅 weekly` | 5-hour / 7-day rate-limit window usage + reset time |
 | `📦` | Context usage (e.g. `Ctx 68% of 1M`) — colored by fill. Current models default to 1M with no premium, but token volume itself drives per-turn cost and 5H/7D burn |
 | `💰` | Cumulative savings from prompt caching |
+| `🔀` | Cumulative savings from delegation — what running work on a cheaper tier saved, a different number from `💰`. Hidden until a delegation has actually been measured |
 
 When something is wrong, a **warning chip leads the line**:
 
@@ -299,6 +300,10 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.11.0 (2026-08-21)
+- **Delegation savings chip in the statusline** — `🔀 Delegated $3.2`. The existing `💰 Cache saved` covers the prompt cache; this one is what running work on a cheaper tier saved. Zero or missing data hides the chip entirely, so nothing changes for direct-API users. The statusline only reads `model-rules.json` — it never triggers a scan (it re-renders every few seconds). Segment name: `delegated`.
+- **Role-learning mis-classification fixed** — subagent records sometimes land in the parent transcript without an `isSidechain` flag, and that circumstantial evidence could outvote stated evidence, confirming a haiku profile as the session model (measured: 16 against 1, agreement exactly at the 80% line). Stated evidence (`Task(model:)` parameters, agent-definition frontmatter) and inferred evidence are now tallied separately, and an inference is not adopted when stated evidence contradicts it. Undecided ids stay `unknown` and leave the aggregate.
 
 ### v3.10.0 (2026-08-20)
 - **Model tiers are detected again behind a Bedrock / LiteLLM gateway** — when the transcript's model id is an inference-profile ARN there is no `opus` or `haiku` in the string, so it fell back to Sonnet. Since `worthDelegating()` requires `rank > target`, **every T1 rule was rejected**, savings aggregated to zero, and cost was under-counted by roughly 1.67x. The profile id is now learned as a role (parent `Task` call joined to the subagent run by `toolUseId`) and mapped back to the alias your environment declares. The pricing table, the ranks, and the tiering logic are untouched.

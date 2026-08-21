@@ -433,6 +433,17 @@ async function main() {
   }
   const lastActivity = Math.max(otherLastActivity, currentSessionLastUser);
 
+  // What delegation has measurably saved, read straight from the registry
+  // route-scan maintains. A lookup, never a scan: the statusline re-renders
+  // every few seconds and a scan parses tens of MB of transcripts.
+  let delegationSaved = 0;
+  try {
+    const { delegationSavedUsd } = await import('../src/model-rules.js');
+    delegationSaved = delegationSavedUsd();
+  } catch (e) {
+    debug('model-rules:saved', e); // an unreadable registry just hides the chip
+  }
+
   const data = {
     summary: sum,
     trend,
@@ -447,6 +458,7 @@ async function main() {
     spikeChip,
     caps,
     model,
+    delegationSaved,
   };
 
   let output;

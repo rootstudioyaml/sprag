@@ -162,6 +162,37 @@ test('tallyVotes requires enough votes and enough agreement', () => {
   assert.equal(learned.clear.role, 'sonnet', '32 of 36 clears the 80% bar');
 });
 
+test('one stated vote outweighs several "no sidechain flag" inferences', () => {
+  // The real mis-classification: a haiku profile appeared 16 times in parent
+  // transcripts without the flag and once as a stated Task(model: "haiku").
+  // Counting both buckets together made it 'main' at exactly the 80% line.
+  const learned = tallyVotes({
+    haikuProfile: { explicit: { haiku: 1 }, inferred: { main: 4 } },
+  });
+  assert.notEqual(learned.haikuProfile.role, 'main', 'must not be stamped as the session model');
+  assert.equal(learned.haikuProfile.role, null, 'one vote is not enough to confirm haiku either');
+});
+
+test('enough stated votes decide on their own', () => {
+  const learned = tallyVotes({
+    haikuProfile: { explicit: { haiku: 3 }, inferred: { main: 900 } },
+  });
+  assert.equal(learned.haikuProfile.role, 'haiku');
+  assert.equal(learned.haikuProfile.source, 'explicit');
+});
+
+test('inference still identifies the session model when nothing contradicts it', () => {
+  const learned = tallyVotes({
+    mainOnly: { explicit: {}, inferred: { main: 5937 } },
+    // A Task that asked for opus does not contradict "this is the parent" —
+    // on a default setup both names resolve to the same alias.
+    mainWithOpusTasks: { explicit: { opus: 2 }, inferred: { main: 500 } },
+  });
+  assert.equal(learned.mainOnly.role, 'main');
+  assert.equal(learned.mainOnly.source, 'inferred');
+  assert.equal(learned.mainWithOpusTasks.role, 'main');
+});
+
 test('aliasForRole ignores an env value that is itself an ARN', () => {
   const env = { ANTHROPIC_DEFAULT_SONNET_MODEL: arn(PID_SONNET), ANTHROPIC_MODEL: OPUS_ALIAS };
   assert.equal(aliasForRole('sonnet', env), null);
@@ -216,6 +247,53 @@ test('learnProfileMapping joins a Task call to the run it spawned', async (t) =>
   resetModelAliasCache();
   assert.equal(modelRank(resolveModelAlias(arn(PID_MAIN))), 2);
   assert.equal(modelRank(resolveModelAlias(arn(PID_HAIKU))), 0);
+});
+
+test('a subagent profile leaking into the parent file is not learned as main', async (t) => {
+  // Reproduces the observed failure: a haiku profile showed up in parent
+  // transcripts without a sidechain flag more often than it was explicitly
+  // named, and was confirmed as the session model — which ranks it as opus and
+  // removes it from the T2 aggregate entirely.
+  const dir = isolated(t);
+  const sessionPath = join(dir, 'leak.jsonl');
+  const toolUseId = 'toolu_leak_1';
+
+  const lines = [
+    ...[1, 2, 3, 4].map((i) => ({
+      isSidechain: false,
+      timestamp: `2026-08-21T0${i}:00:00Z`,
+      message: { model: arn(PID_HAIKU), usage: { output_tokens: 5 }, id: `leak${i}` },
+    })),
+    {
+      isSidechain: false,
+      timestamp: '2026-08-21T05:00:00Z',
+      message: {
+        model: arn(PID_MAIN),
+        content: [{ type: 'tool_use', id: toolUseId, name: 'Task', input: { model: 'haiku' } }],
+      },
+    },
+  ];
+  writeFileSync(sessionPath, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+
+  const subDir = join(dir, 'leak', 'subagents');
+  mkdirSync(subDir, { recursive: true });
+  const jsonl = join(subDir, 'agent-1.jsonl');
+  writeFileSync(
+    jsonl,
+    JSON.stringify({ isSidechain: true, message: { model: arn(PID_HAIKU), id: 'a1' } }) + '\n',
+  );
+  writeFileSync(
+    jsonl.replace(/\.jsonl$/, '.meta.json'),
+    JSON.stringify({ agentType: 'x', toolUseId, spawnDepth: 1 }),
+  );
+
+  const { learned } = await learnProfileMapping({ sessionPaths: [sessionPath] });
+  assert.notEqual(learned[PID_HAIKU].role, 'main', 'the leak must not win');
+  assert.equal(learned[PID_HAIKU].role, null, 'one explicit vote is still too few to confirm');
+
+  resetModelAliasCache();
+  assert.equal(resolveModelAlias(arn(PID_HAIKU)), UNKNOWN_MODEL);
+  assert.equal(modelRank(resolveModelAlias(arn(PID_HAIKU))), -1, 'excluded, not mis-tiered');
 });
 
 test('a direct-API machine learns nothing and writes no profile map', async (t) => {

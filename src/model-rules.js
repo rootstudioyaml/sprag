@@ -100,6 +100,27 @@ export function loadModelRules() {
   }
 }
 
+/**
+ * USD that measured delegations have saved, summed across registered rules.
+ * Reads the file route-scan already wrote — the statusline refreshes every few
+ * seconds and must never start a scan of its own (a scan parses tens of MB of
+ * transcripts).
+ *
+ * Rules with no measured delegation contribute nothing, and an unreadable
+ * registry returns 0 rather than throwing: the statusline reads 0 as "draw no
+ * chip", which is the right outcome for anyone who never delegates.
+ */
+export function delegationSavedUsd() {
+  try {
+    return loadModelRules().rules.reduce(
+      (sum, r) => sum + (r.delegatedRuns ? (Number(r.savedUsd) || 0) : 0),
+      0,
+    );
+  } catch {
+    return 0;
+  }
+}
+
 export function saveModelRules(data) {
   const dir = stateDir();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
