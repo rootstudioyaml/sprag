@@ -77,7 +77,7 @@ The statusline appears at the bottom of Claude Code right away. If auto-registra
 | `✦ current` / `📅 weekly` | 5-hour / 7-day rate-limit window usage + reset time |
 | `📦` | Context usage (e.g. `Ctx 68% of 1M`) — colored by fill. Current models default to 1M with no premium, but token volume itself drives per-turn cost and 5H/7D burn |
 | `💰` | Cumulative savings from prompt caching |
-| `🔀` | Cumulative savings from delegation — what running work on a cheaper tier saved, a different number from `💰`. Hidden until a delegation has actually been measured |
+| `🔀` | **Cumulative savings from model routing** — what work handled by a cheaper model instead of this one saved. A different number from prompt-cache savings (`💰`). Hidden until a delegation has actually been measured |
 
 When something is wrong, a **warning chip leads the line**:
 
@@ -302,7 +302,7 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 ## Release notes
 
 ### v3.11.0 (2026-08-21)
-- **Delegation savings chip in the statusline** — `🔀 Delegation saved $3.2`. The existing `💰 Cache saved` covers the prompt cache; this one is what running work on a cheaper tier saved. Zero or missing data hides the chip entirely, so nothing changes for direct-API users. The statusline only reads `model-rules.json` — it never triggers a scan (it re-renders every few seconds). Segment name: `delegated`.
+- **Routing savings chip in the statusline** — `🔀 Routing saved $3.2`. Cumulative savings from model routing, placed right after the model name so it reads early in the line. The existing `💰 Cache saved` covers the prompt cache and is a different number. Zero or missing data hides the chip entirely, so nothing changes for direct-API users. The statusline only reads `model-rules.json` — it never triggers a scan (it re-renders every few seconds). Segment name: `delegated`.
 - **Role-learning mis-classification fixed** — subagent records sometimes land in the parent transcript without an `isSidechain` flag, and that circumstantial evidence could outvote stated evidence, confirming a haiku profile as the session model (measured: 16 against 1, agreement exactly at the 80% line). Stated evidence (`Task(model:)` parameters, agent-definition frontmatter) and inferred evidence are now tallied separately, and an inference is not adopted when stated evidence contradicts it. Undecided ids stay `unknown` and leave the aggregate.
 
 ### v3.10.0 (2026-08-20)

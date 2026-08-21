@@ -26,32 +26,32 @@ function data(delegationSaved) {
 const opts = { color: false, timer: false };
 
 test('the chip renders in text, icon, and icon+verbose modes', () => {
-  assert.match(formatReport(data(3.2), opts), /Delegation saved \$3\.2/);
+  assert.match(formatReport(data(3.2), opts), /Routing saved \$3\.2/);
   assert.match(formatReport(data(3.2), { ...opts, mode: 'icon' }), /🔀 \$3\.2/);
   const verbose = formatReport(data(3.2), { ...opts, mode: 'icon', verbose: true });
-  assert.match(verbose, /🔀 Delegation saved \$3\.2/);
+  assert.match(verbose, /🔀 Routing saved \$3\.2/);
 });
 
 test('nothing measured means no chip at all, not "$0"', () => {
   for (const value of [0, undefined, null, NaN]) {
     const out = formatReport(data(value), opts);
-    assert.doesNotMatch(out, /Delegation saved/, `value ${String(value)} should hide the chip`);
+    assert.doesNotMatch(out, /Routing saved/, `value ${String(value)} should hide the chip`);
     assert.match(out, /Cache saved/, 'the cache chip is unaffected');
   }
 });
 
-test('the existing cache-savings chip keeps its own value and label', () => {
+test('routing savings lead, cache savings keep their own value and place', () => {
   const out = formatReport(data(3.2), opts);
   assert.match(out, /Cache saved \$1\.5K/);
-  assert.ok(out.indexOf('Cache saved') < out.indexOf('Delegation saved'), 'delegation follows cache');
-  assert.ok(out.indexOf('Delegation saved') < out.indexOf('1d'), 'the period label still closes the line');
+  assert.ok(out.indexOf('Routing saved') < out.indexOf('Cache saved'), 'routing savings lead the line');
+  assert.ok(out.indexOf('Cache saved') < out.indexOf('1d'), 'the period label still closes the line');
 });
 
 test('the segment whitelist knows the chip by name', () => {
   const only = formatReport(data(3.2), { ...opts, segments: ['delegated'] });
-  assert.match(only, /Delegation saved \$3\.2/);
+  assert.match(only, /Routing saved \$3\.2/);
   assert.doesNotMatch(only, /Cache saved/);
-  assert.doesNotMatch(formatReport(data(3.2), { ...opts, segments: ['saved'] }), /Delegation saved/);
+  assert.doesNotMatch(formatReport(data(3.2), { ...opts, segments: ['saved'] }), /Routing saved/);
 });
 
 test('--no-color output carries no ANSI escapes', () => {

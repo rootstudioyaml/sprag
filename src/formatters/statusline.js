@@ -260,14 +260,15 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // tier saved, summed from the rule registry route-scan maintains. Hidden
   // when zero or absent: a permanent "$0" is noise for direct-API users and
   // for anyone who has not delegated yet.
-  // The label mirrors "Cache saved" on purpose: two savings figures reading in
-  // the same shape is what makes the second one legible at a glance.
-  //   text:       "Delegation saved $3.2"             |  same in verbose
-  //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Delegation saved $3.2"
+  // "Routing saved" says what earned the money — work that ran on a cheaper
+  // model instead of this one. It leads the line rather than trailing it
+  // because it is the headline number of the whole tool, not a footnote.
+  //   text:       "Routing saved $3.2"                |  same in verbose
+  //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Routing saved $3.2"
   const delegationSaved = Number(data.delegationSaved) || 0;
   const delegateLabel = isIcon
-    ? (verbose ? '🔀 Delegation saved' : '🔀')
-    : 'Delegation saved';
+    ? (verbose ? '🔀 Routing saved' : '🔀')
+    : 'Routing saved';
   const delegateSeg = delegationSaved > 0
     ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
     : null;
@@ -489,6 +490,10 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   if (spikeSeg && want('spike')) segs.push(spikeSeg);
   if (harnessSeg && want('harness')) segs.push(harnessSeg);
   if (modelSeg && want('model')) segs.push(modelSeg);
+  // Delegation savings ride up front, next to the model that would otherwise
+  // have done the work. "Cache saved" stays at the tail: it is a lifetime brag
+  // stat, while this one is the point of the tool.
+  if (delegateSeg && want('delegated')) segs.push(delegateSeg);
   if (want('hit')) segs.push(hitSeg);
   if (want('ttl')) segs.push(ttlSeg);
   for (const { key, seg } of usageSegs) {
@@ -499,8 +504,6 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // it sits near the tail. The period label closes the line as a quiet
   // timeframe footer.
   if (want('saved')) segs.push(saveSeg);
-  // Both savings numbers sit side by side, then the period label closes the line.
-  if (delegateSeg && want('delegated')) segs.push(delegateSeg);
   if (want('period')) segs.push(periodSeg);
   // Trailing erase-to-end-of-line so any leftover characters from a previous
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard
