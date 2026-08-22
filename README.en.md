@@ -6,9 +6,7 @@
 
 ## 🔀 Routing saved — the reason this tool exists
 
-```
-🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 · fable→haiku 1× $0.51 · opus→sonnet 2× $0.29
-```
+![statusline example — routing savings on row 1, diagnostics on row 2](./docs/statusline.png)
 
 **That figure on the first statusline row is the whole product.** It is money actually saved by moving the easy work your expensive model kept repeating onto cheaper ones — and right beside it is which model that money moved off, and onto what.
 
@@ -39,8 +37,6 @@ By run (newest first):
 ```bash
 npm i -g claude-token-saver   # postinstall auto-registers the statusline + Skill
 ```
-
-![statusline example](./docs/statusline.png)
 
 ---
 
@@ -86,6 +82,8 @@ npm i -g claude-token-saver
 ```
 
 The statusline appears at the bottom of Claude Code right away. If auto-registration was skipped (`--ignore-scripts`, sudo, sandboxed installs), run `claude-token-saver install`.
+
+One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷 Harness (5 principles), and a first route-scan.** The harness is **appended** to `~/.claude/CLAUDE.md` as a marked block (your existing content is backed up and preserved) and is left alone if one is already there. Skip it with `CTS_NO_HARNESS=1 npm i -g claude-token-saver`; undo it with `claude-token-saver harness uninit --global`.
 
 > ⚠️ Avoid `sudo` global installs — the Skill lands in root's `~/.claude` instead of yours. Use nvm/fnm/Volta or `npm config set prefix ~/.npm-global`.
 
@@ -338,6 +336,10 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.17.0 (2026-08-22)
+- **One install now sets up the 🅷 Harness too** — until now `harness init` was a separate step, without which the 🅷 score and ratchet-rule delivery did nothing. The install **appends** the 5-principle block to `~/.claude/CLAUDE.md` (existing content backed up and preserved; an existing block is left alone). Skip with `CTS_NO_HARNESS=1`, undo with `harness uninit --global`.
+- **The README leads with the real statusline screenshot** — the capture replaces the code block at the top, and the duplicate image further down was removed.
 
 ### v3.16.0 (2026-08-22)
 - **README restructured around routing savings** — `🔀 Routing saved` now opens the page, with how the figure is derived (before / after / gap) and the real `route-scan savings` output alongside it. Channel and homepage badges moved to a "Who makes this" section at the bottom.

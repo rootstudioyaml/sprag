@@ -59,6 +59,55 @@ export async function run({ hasFlag }) {
         } catch (e) { debug('install:route-scan-seed', e); /* hook-triggered scan covers it on the first session instead */ }
       }
     }
+    // Harness, set up as part of the install rather than left as a manual
+    // follow-up step. The 🅷 statusline segment and the ratchet rules that
+    // route-scan promotes both depend on the block existing in CLAUDE.md, so
+    // an install without it ships a tool that is half wired up.
+    //
+    // Scope is global (~/.claude/CLAUDE.md): a global install is not tied to
+    // any one project, and the harness principles are project-independent.
+    // Only ever ADDS — harnessInit appends its own marked block, backs up the
+    // previous file, and leaves surrounding content untouched. Skipped when a
+    // block is already there (nothing to do) and when CTS_NO_HARNESS=1 is set,
+    // for anyone who wants the statusline without the CLAUDE.md rules.
+    try {
+      const { harnessInit, harnessStatus } = await import('../harness.js');
+      const before = harnessStatus(undefined, { scope: 'global' });
+      if (process.env.CTS_NO_HARNESS === '1') {
+        console.log('');
+        console.log(lang === 'ko'
+          ? '  harness: CTS_NO_HARNESS=1 이므로 건너뜁니다 (나중에 `harness init --global`).'
+          : '  harness: skipped (CTS_NO_HARNESS=1) — run `harness init --global` later.');
+      } else if (before.hasBlock) {
+        console.log('');
+        console.log(lang === 'ko'
+          ? `  harness: 이미 설정됨 — 🅷 ${before.configured}/${before.total} (${before.file})`
+          : `  harness: already set up — 🅷 ${before.configured}/${before.total} (${before.file})`);
+      } else {
+        const h = harnessInit({ scope: 'global' });
+        console.log('');
+        for (const p of h.backedUp) {
+          console.log(lang === 'ko' ? `  harness: 백업 ${p}` : `  harness: backed up ${p}`);
+        }
+        for (const p of h.wrote) {
+          console.log(lang === 'ko' ? `  harness: 작성 ${p}` : `  harness: wrote ${p}`);
+        }
+        console.log(lang === 'ko'
+          ? '  harness: 5원칙을 ~/.claude/CLAUDE.md 에 설정했습니다 — statusline에 🅷 5/5 가 표시됩니다.'
+          : '  harness: 5 principles installed in ~/.claude/CLAUDE.md — the statusline now shows 🅷 5/5.');
+        console.log(lang === 'ko'
+          ? '           되돌리려면: claude-token-saver harness uninit --global'
+          : '           to undo: claude-token-saver harness uninit --global');
+      }
+    } catch (e) {
+      // Never fail an install over this — the statusline and Skill are already
+      // in place, and `harness init` remains available as a manual step.
+      debug('install:harness-init', e);
+      console.log(lang === 'ko'
+        ? '  harness: 자동 설정을 건너뛰었습니다 — `claude-token-saver harness init --global` 로 직접 설정하세요.'
+        : '  harness: auto-setup skipped — run `claude-token-saver harness init --global` yourself.');
+    }
+
     console.log('');
     console.log('Open Claude Code in any directory and just mention:');
     console.log('  "cache hit rate" / "1M context" / "5H cap" — the skill auto-activates.');

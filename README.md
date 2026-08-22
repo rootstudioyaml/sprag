@@ -6,9 +6,7 @@
 
 ## 🔀 Routing saved — 이 도구가 존재하는 이유
 
-```
-🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 · fable→haiku 1× $0.51 · opus→sonnet 2× $0.29
-```
+![statusline 예시 — 1줄째 라우팅 절감, 2줄째 진단 칩](./docs/statusline.png)
 
 **statusline 첫 줄에 뜨는 이 금액이 전부입니다.** 비싼 모델이 반복 처리해 온 쉬운 작업을 더 싼 모델로 내려보내서 **실제로 아낀 돈**이고, 옆에는 그 돈이 어느 모델에서 어느 모델로 옮겨서 생겼는지가 그대로 붙습니다.
 
@@ -39,8 +37,6 @@ $ claude-token-saver route-scan savings
 ```bash
 npm i -g claude-token-saver   # postinstall이 statusline + Skill 자동 등록
 ```
-
-![statusline 예시](./docs/statusline.png)
 
 ---
 
@@ -85,6 +81,8 @@ npm i -g claude-token-saver
 ```
 
 설치 즉시 Claude Code 하단에 statusline이 나타납니다. `--ignore-scripts`/sudo 등으로 자동 등록이 안 됐다면 `claude-token-saver install`로 수동 등록하세요.
+
+설치 한 번으로 **statusline · Skill · SessionStart 훅 · 🅷 Harness(5원칙) · 최초 route-scan** 이 모두 준비됩니다. Harness는 `~/.claude/CLAUDE.md`에 표시된 블록으로 **추가**되며(기존 내용은 백업 후 보존), 이미 설정돼 있으면 건드리지 않습니다. 원치 않으면 `CTS_NO_HARNESS=1 npm i -g claude-token-saver`로 건너뛰고, 되돌리려면 `claude-token-saver harness uninit --global`을 실행하세요.
 
 > ⚠️ sudo 글로벌 설치는 Skill이 root의 `~/.claude`에 등록되는 함정이 있습니다 — nvm/fnm/Volta로 사용자 영역 설치를 권장합니다.
 
@@ -304,6 +302,10 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.17.0 (2026-08-22)
+- **설치 한 번으로 🅷 Harness까지 적용됩니다** — 지금까지는 설치 후 `harness init`을 따로 실행해야 statusline의 🅷 점수와 ratchet 룰 전달이 동작했습니다. 이제 설치가 `~/.claude/CLAUDE.md`에 5원칙 블록을 **추가**합니다(기존 내용은 백업 후 보존, 이미 있으면 건드리지 않음). 건너뛰려면 `CTS_NO_HARNESS=1`, 되돌리려면 `harness uninit --global`.
+- **README 상단을 statusline 실제 스크린샷으로 교체** — 코드 블록 대신 실제 캡처를 최상단에 두고, 아래쪽에 중복으로 있던 이미지는 뺐습니다.
 
 ### v3.16.0 (2026-08-22)
 - **README를 라우팅 절감 중심으로 재구성** — 이 도구의 핵심이 무엇인지 첫 화면에서 바로 보이도록 `🔀 Routing saved`를 최상단에 올리고, 금액이 원장에서 어떻게 나오는지(before/after/차액)와 `route-scan savings` 실제 출력을 함께 실었습니다. 채널·홈페이지 배지는 최하단 "만든 곳"으로 내렸습니다.
