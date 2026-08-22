@@ -274,22 +274,20 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
     : null;
 
-  // Routing-totals headline line (multi-line layout). Week/month/lifetime
-  // sums from the delegation ledger — the number the whole tool exists to
-  // grow, so it gets line 1 to itself while the diagnostics move to line 2.
-  //   icon:  "🔀 Routing saved weekly $1.2 · monthly $3.4 · total $9.8"
-  //   text:  "Routing saved weekly $1.2 · monthly $3.4 · total $9.8"
+  // Routing-savings headline line (multi-line layout). The lifetime sum from
+  // the delegation ledger — the number the whole tool exists to grow, so it
+  // gets line 1 to itself while the diagnostics move to line 2.
+  //
+  // One figure, not three. The weekly and monthly sums used to sit here too,
+  // but the per-model breakdown that follows is a lifetime split, and next to
+  // a row of rolling windows it read as a breakdown of whichever one it
+  // touched. A single lifetime total makes the whole line one timeframe with
+  // nothing to mismatch.
+  //   icon:  "🔀 Routing saved $9.8 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
+  //   text:  "Routing saved $9.8 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
   const totals = data.delegationTotals;
   let totalsLine = null;
   if (!singleLine && totals && Number(totals.total) > 0) {
-    // Money is green throughout — it is saved cost, the one number on the
-    // line that is unambiguously good news. The period markers stay gray so
-    // the eye lands on the amounts, not on "wk / mo / all".
-    // Period first, amount second — three bare amounts in a row read as one
-    // number until the eye finds the trailing marker, so the label leads and
-    // the green amount answers it.
-    const part = (usd, label) =>
-      `${c(GRAY)}${label}${c(RESET)} ${c(GREEN)}${formatMoney(Number(usd) || 0)}${c(RESET)}`;
     const head = isIcon ? '🔀 Routing saved' : 'Routing saved';
     // Model changes behind the total, family-level and version-free: `opus →
     // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
@@ -301,18 +299,16 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // there are only so many tier-to-tier moves — so it stays short without
     // being cut.
     const pairs = Array.isArray(totals.pairs) ? totals.pairs : [];
-    // The breakdown stays entirely gray, amounts included. Only the three
-    // rolling totals are green: they are the headline figure, and repeating
-    // that green on every component would flatten the line into one loud
-    // block with nothing to land on first.
+    // The breakdown stays entirely gray, amounts included. Only the total is
+    // green: it is the headline figure, and repeating that green on every
+    // component would flatten the line into one loud block with nothing to
+    // land on first.
     const pairText = pairs
       .map((p) => `${c(GRAY)}${p.from}→${p.to} ${p.runs}× ${formatMoney(p.usd)}${c(RESET)}`)
       .join(` ${c(GRAY)}·${c(RESET)} `);
     totalsLine =
       `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
-      `${part(totals.week, 'weekly')} ${c(GRAY)}·${c(RESET)} ` +
-      `${part(totals.month, 'monthly')} ${c(GRAY)}·${c(RESET)} ` +
-      `${part(totals.total, 'total')}` +
+      `${c(GREEN)}${formatMoney(Number(totals.total) || 0)}${c(RESET)}` +
       (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 

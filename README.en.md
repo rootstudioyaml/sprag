@@ -306,6 +306,10 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.15.0 (2026-08-22)
+- **The statusline headline is one lifetime figure** — `🔀 Routing saved $2.09 | fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 …`. The weekly and monthly sums are gone: the per-model breakdown that follows is a lifetime split, and next to a row of rolling windows it read as a breakdown of whichever one it touched. One timeframe for the whole line leaves nothing to mismatch. The rolling windows are still in `route-scan savings`.
+- **The per-model breakdown is gray** — green is reserved for the lifetime total. Repeating that green on every component flattened the line into one loud block with nothing to land on first.
+
 ### v3.14.0 (2026-08-22)
 - **The statusline headline names the model changes behind the total** — `🔀 Routing saved weekly $1.4 · monthly $2.1 · total $2.1 | fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 …`. Versions are dropped (`claude-opus-4-5-20251101-v1:0` → `opus`) since they bump constantly and add nothing here. **Every** pair is listed rather than a top-N: the amounts sit next to a total, so a truncated list misstates what that total is made of. Families collapse the list on their own, so it stays short without being cut.
 - **New `route-scan savings`** — the evidence behind the headline: a per-model-change rollup (from, to, runs, dollars) and the per-run log (date, amount, model change, the rule that caused it).

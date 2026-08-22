@@ -36,7 +36,9 @@ test('totals headline takes line 1, diagnostics take line 2', () => {
   const out = formatReport(data(), opts);
   const lines = out.split('\n');
   assert.equal(lines.length, 2);
-  assert.match(lines[0], /^Routing saved weekly \$1\.25 · monthly \$4\.50 · total \$9\.75$/);
+  // One lifetime figure — the weekly/monthly sums were dropped so the line
+  // carries a single timeframe that the per-model breakdown also belongs to.
+  assert.match(lines[0], /^Routing saved \$9\.75$/);
   assert.match(lines[1], /Cache hit/);
   assert.match(lines[1], /Cache saved/);
   assert.doesNotMatch(lines[1], /Routing saved/, 'inline session chip is dropped when the headline renders');
@@ -44,7 +46,7 @@ test('totals headline takes line 1, diagnostics take line 2', () => {
 
 test('icon mode keeps the 🔀 prefix on the headline', () => {
   const out = formatReport(data(), { ...opts, mode: 'icon' });
-  assert.match(out.split('\n')[0], /^🔀 Routing saved weekly \$1\.25/);
+  assert.match(out.split('\n')[0], /^🔀 Routing saved \$9\.75/);
 });
 
 test('--single-line falls back to the legacy layout', () => {
@@ -93,7 +95,7 @@ test('ledger: upserts dedupe by run path and totals honor rolling windows', asyn
   assert.equal(totals.total, 7);
 });
 
-test('amounts render in the savings green, period markers in gray', () => {
+test('the total renders in the savings green', () => {
   const out = formatReport(data(), { timer: false }).split('\n')[0];
   // The palette degrades to the 8-color codes when the terminal does not
   // advertise truecolor, so the expected escapes depend on the environment
@@ -101,13 +103,8 @@ test('amounts render in the savings green, period markers in gray', () => {
   const truecolor =
     process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
   const GREEN = truecolor ? '\x1b[38;2;52;211;153m' : '\x1b[32m';
-  const GRAY = truecolor ? '\x1b[38;2;100;116;139m' : '\x1b[90m';
-  for (const amount of ['$1.25', '$4.50', '$9.75']) {
-    assert.ok(out.includes(`${GREEN}${amount}`), `${amount} should be green`);
-  }
-  for (const label of ['weekly', 'monthly', 'total']) {
-    assert.ok(out.includes(`${GRAY}${label}`), `${label} should stay gray`);
-  }
+  assert.ok(out.includes(`${GREEN}$9.75`), 'the lifetime total is green');
+  assert.doesNotMatch(out, /weekly|monthly/, 'the rolling windows are gone');
 });
 
 test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
@@ -195,11 +192,11 @@ test('the headline names every model change, version-free', async () => {
 test('no pairs means the headline is unchanged', () => {
   for (const pairs of [undefined, [], null]) {
     const line = formatReport(data({ delegationTotals: { week: 1, month: 2, total: 2, pairs } }), opts).split('\n')[0];
-    assert.equal(line, 'Routing saved weekly $1.00 · monthly $2.00 · total $2.00');
+    assert.equal(line, 'Routing saved $2.00');
   }
 });
 
-test('only the rolling totals are green; the model breakdown is all gray', () => {
+test('only the total is green; the model breakdown is all gray', () => {
   const truecolor =
     process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
   const GREEN = truecolor ? '\x1b[38;2;52;211;153m' : '\x1b[32m';
@@ -209,8 +206,7 @@ test('only the rolling totals are green; the model breakdown is all gray', () =>
   };
   const line = formatReport(data({ delegationTotals: totals }), { timer: false }).split('\n')[0];
   const [head, breakdown] = line.split('|');
-  assert.ok(head.includes(`${GREEN}$1.00`), 'the weekly total stays green');
-  assert.ok(head.includes(`${GREEN}$2.00`), 'the monthly/lifetime totals stay green');
+  assert.ok(head.includes(`${GREEN}$2.00`), 'the lifetime total stays green');
   assert.ok(!breakdown.includes(GREEN), 'no green survives into the breakdown');
   assert.match(breakdown, /opus→haiku 2× \$0\.57/);
 });

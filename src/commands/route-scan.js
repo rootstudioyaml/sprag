@@ -27,9 +27,11 @@ export async function run({ args, hasFlag, numArg }) {
       }
       const t = delegationSavedTotals();
       const money = (v) => `$${v.toFixed(2)}`;
+      // Lifetime leads (it is what the breakdown below adds up to); the
+      // rolling windows follow as context rather than as competing headlines.
       console.log(lang === 'ko'
-        ? `🔀 라우팅 절감 — 주간 ${money(t.week)} · 월간 ${money(t.month)} · 누적 ${money(t.total)}`
-        : `🔀 Routing saved — weekly ${money(t.week)} · monthly ${money(t.month)} · total ${money(t.total)}`);
+        ? `🔀 라우팅 절감 누적 ${money(t.total)}  (최근 7일 ${money(t.week)} · 30일 ${money(t.month)})`
+        : `🔀 Routing saved, lifetime ${money(t.total)}  (last 7d ${money(t.week)} · 30d ${money(t.month)})`);
 
       // Per model-pair rollup first: the "what moved where" question is what
       // this view exists to answer, and it is easier to read than the log.

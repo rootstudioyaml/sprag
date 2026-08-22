@@ -185,7 +185,7 @@ claude-token-saver route-scan savings            # 절감 원장 — 어느 룰�
 `route-scan savings`는 statusline의 `🔀 Routing saved` 한 줄 뒤에 있는 근거를 그대로 보여줍니다. 모델 이동별 합계와 실행별 내역이 함께 나오므로, 금액이 어디서 나왔는지 추적할 수 있습니다.
 
 ```
-🔀 라우팅 절감 — 주간 $1.40 · 월간 $2.09 · 누적 $2.09
+🔀 라우팅 절감 누적 $2.09  (최근 7일 $1.40 · 30일 $2.09)
 
 모델 이동별:
   claude-fable-5 → claude-sonnet-5  —  1회, $0.72
@@ -271,6 +271,10 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.15.0 (2026-08-22)
+- **statusline 헤드라인을 누적 한 줄로 줄였습니다** — `🔀 Routing saved $2.09 | fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 …`. 주간·월간 합계는 뺐습니다. 뒤에 붙는 모델 이동 내역이 누적 기준 분해인데 롤링 창 세 개와 나란히 있으면 어느 것의 내역인지 읽히지 않았습니다. 한 줄 전체가 한 시점 기준이 되면 어긋날 여지가 없습니다. 주간·월간은 `route-scan savings`에서 계속 확인할 수 있습니다.
+- **모델별 절감 내역은 회색으로** — 녹색은 누적 금액 하나에만 남깁니다. 구성 요소마다 같은 녹색을 반복하면 줄 전체가 한 덩어리로 시끄러워져 먼저 눈이 닿을 곳이 사라집니다.
 
 ### v3.14.0 (2026-08-22)
 - **statusline 헤드라인이 모델 이동을 함께 보여줍니다** — `🔀 Routing saved weekly $1.4 · monthly $2.1 · total $2.1 | fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 …`. 버전 숫자는 계속 올라가고 statusline에서는 잡음이라 계열명만 남깁니다(`claude-opus-4-5-20251101-v1:0` → `opus`). 이동 목록은 **자르지 않고 전부** 표시합니다 — 금액이 `total` 옆에 붙어 있어서 일부만 보이면 합계를 잘못 말하게 됩니다. 계열 단위로 접히면 조합 수가 원래 많지 않아 줄은 짧게 유지됩니다.
