@@ -301,6 +301,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.12.1 (2026-08-22)
+- **Routing-savings headline reads more clearly** — the amounts are now in the savings green (the one unambiguously good number on the line), `wk`/`mo`/`all` are spelled out as `weekly`/`monthly`/`total`, and the period now leads the amount. Three bare amounts in a row read as a single number until the eye found the trailing marker.
+
 ### v3.12.0 (2026-08-22)
 - **Routing saved now leads the statusline with weekly / monthly / lifetime totals** — `🔀 Routing saved weekly $1.3 · monthly $2.0 · total $9.8`. Each delegated subagent run's saving is recorded in a ledger (`delegation-ledger.json`) keyed by its transcript path, so overlapping re-scans upsert instead of double-counting; the statusline sums 7-day, 30-day, and lifetime windows on line 1 while the other chips move to line 2. An empty ledger keeps the legacy one-line layout, and `--single-line` forces it (some macOS Claude Code builds render only the first line). Totals start accruing from the release — no back-fill.
 - **`harness check` reports context weight** — the approximate per-request token cost of CLAUDE.md (warns over the ~4k guideline) and whether a `.claudeignore` exists. Advisory only; the 🅷 N/5 score is unaffected.
