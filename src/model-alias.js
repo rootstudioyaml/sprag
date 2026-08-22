@@ -134,8 +134,10 @@ function overrideAlias(model, map) {
   for (const [pattern, alias] of Object.entries(map.modelAliases || {})) {
     if (globMatch(pattern, model)) return alias;
     // Overrides are usually written without the LiteLLM `converse/` prefix.
-    const bare = model.slice(model.indexOf('arn:aws:bedrock:'));
-    if (globMatch(pattern, bare)) return alias;
+    // Only meaningful for ARNs — on a plain id indexOf returns -1 and the
+    // slice would hand the matcher a single trailing character.
+    const at = model.indexOf('arn:aws:bedrock:');
+    if (at > 0 && globMatch(pattern, model.slice(at))) return alias;
   }
   return null;
 }
@@ -150,12 +152,19 @@ function overrideAlias(model, map) {
 export function resolveModelAlias(rawModel, { env = process.env } = {}) {
   if (!rawModel) return UNKNOWN_MODEL;
   const model = String(rawModel);
-  if (!isGatewayModelId(model)) return model;
 
   const map = loadProfileMap();
 
+  // Overrides are consulted for EVERY id, not just ARNs. A gateway can be
+  // configured to report a house alias (`prod-large`, `team-fast`) that names
+  // no Claude family at all; those never reach the ARN branch below, and left
+  // alone they price as Sonnet by default. One `modelAliases` entry maps them
+  // back. Ids that already name a family are left untouched — an override
+  // pattern has to match before anything changes.
   const override = overrideAlias(model, map);
   if (override) return override;
+
+  if (!isGatewayModelId(model)) return model;
 
   const pid = profileIdFrom(model);
   if (!pid) return UNKNOWN_MODEL;

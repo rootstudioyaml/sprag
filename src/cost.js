@@ -128,6 +128,29 @@ export function isUnknownModel(model) {
   return !model || String(model).toLowerCase() === 'unknown';
 }
 
+/**
+ * True when the id actually names a Claude family this table can price, as
+ * opposed to falling through to the Sonnet default.
+ *
+ * `detectPricingTier` must keep defaulting — a plain cost estimate is better
+ * off guessing Sonnet than refusing to answer. But anything that compares two
+ * models must not: behind a company gateway an id can be a house alias
+ * (`prod-large`, `team-fast`) carrying no family name, and pricing that as
+ * Sonnet silently invents or erases a delegation saving. Callers that need a
+ * real comparison gate on this and skip when it is false.
+ *
+ * Covers the shapes gateways actually emit — Bedrock
+ * (`anthropic.claude-opus-4-5-v1:0`, `us.anthropic.…`), Vertex
+ * (`claude-opus-4-5@20251101`), and the `[1m]` context suffix — because all of
+ * them keep the family name in the string. House aliases that do not are
+ * exactly what this returns false for; map those in profile-map.json's
+ * `modelAliases`.
+ */
+export function isRecognizedModelId(model) {
+  if (isUnknownModel(model)) return false;
+  return /fable|mythos|opus|sonnet|haiku/i.test(String(model));
+}
+
 export function modelRank(model) {
   // -1 sits below every real tier, so worthDelegating() rejects it and
   // tierForRank() attributes no saving to it: the run leaves the aggregate

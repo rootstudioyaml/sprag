@@ -23,7 +23,7 @@ import { userDataDir } from './paths.js';
 import { discoverSessionFiles } from './parser.js';
 import { collectSessionRecords } from './session-records.js';
 import { collectSubagentRuns, indexRuns, runsForEpisode } from './subagent-records.js';
-import { estimateCost, modelRank, TIER_TARGET_RANK, tierForRank } from './cost.js';
+import { estimateCost, modelRank, isRecognizedModelId, TIER_TARGET_RANK, tierForRank } from './cost.js';
 import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 
@@ -390,6 +390,10 @@ export async function runRouteScan({ days = 14 } = {}) {
     // an expensive model handled directly, so the priciest model seen on them
     // is the before-picture the rule replaced.
     for (const m of ep.models) {
+      // Only ids the pricing table really recognizes may become a baseline —
+      // an unresolved gateway id or a house alias would be priced as Sonnet
+      // and quietly rewrite every saving computed against it.
+      if (!isRecognizedModelId(m)) continue;
       const r = modelRank(m);
       if (r > s.baselineRank) { s.baselineRank = r; s.baselineModel = m; }
     }
@@ -520,6 +524,12 @@ export async function runRouteScan({ days = 14 } = {}) {
         if (!rule) continue; // no rule routed this run — not our saving to claim
         const baseline = baselineFor(rule, runTier, cat.id, projectDir);
         if (!baseline) continue; // baseline unknown → no honest counterfactual
+        // Both sides of the comparison must be ids the pricing table really
+        // recognizes. A house alias from a company gateway prices as Sonnet by
+        // default, which would fabricate a saving against a cheap baseline or
+        // erase a real one — worse than showing nothing. Map such ids in
+        // profile-map.json's `modelAliases` to bring these runs back in.
+        if (!isRecognizedModelId(baseline) || !isRecognizedModelId(run.model)) continue;
         const routed = runSaving(run, baseline);
         if (routed > 0) {
           ledgerEvents.push({
