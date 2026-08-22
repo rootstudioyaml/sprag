@@ -11,3 +11,4 @@ HANDOFF-*.md
 .env.*
 .npmrc
 .gitignore.bak
+docs/statusline.html

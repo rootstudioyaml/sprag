@@ -1,6 +1,6 @@
 {
   "name": "claude-token-saver",
-  "version": "3.15.0",
+  "version": "3.16.0",
   "description": "Route the easy work your expensive Claude model keeps repeating down to haiku/sonnet — post-hoc session analysis, no realtime router, no extra LLM calls.",
   "type": "module",
   "bin": {
@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "node --test",
+    "docs:statusline": "node scripts/docs-statusline.mjs",
     "postinstall": "node bin/cli.js install || true"
   },
   "files": [

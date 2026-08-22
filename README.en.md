@@ -1,15 +1,40 @@
 [한국어](./README.md) · **English**
 
-[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
-[![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
-[![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
 # claude-token-saver
 
-**Diagnose Claude Code token usage from a single statusline — and route the easy work your expensive model keeps repeating down to cheaper models.** Zero dependencies, one-line install.
+## 🔀 Routing saved — the reason this tool exists
 
-Since v3.x this is more than after-the-fact monitoring: it's a **model-fitting routing layer**. Session logs are classified into tiers (T0/T1/T2), recurring patterns get promoted to "haiku/sonnet is enough for this" delegation rules, and your main model auto-delegates them from the next session ([route-scan](#-route-scan--this-recurring-task-could-run-on-a-cheaper-tier)).
+```
+🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 · fable→haiku 1× $0.51 · opus→sonnet 2× $0.29
+```
+
+**That figure on the first statusline row is the whole product.** It is money actually saved by moving the easy work your expensive model kept repeating onto cheaper ones — and right beside it is which model that money moved off, and onto what.
+
+It is not an estimate or a marketing number: it comes out of a **ledger**. For every delegated subagent run it records
+
+- **before** — the model that handled this category before the rule existed
+- **after** — the model that actually ran it
+- **the gap** — the same token counts priced against both
+
+so `route-scan savings` traces **every dollar back to the rule that produced it.**
+
+```bash
+$ claude-token-saver route-scan savings
+
+🔀 Routing saved, lifetime $2.09  (last 7d $1.40 · 30d $2.09)
+
+By model change:
+  claude-fable-5 → claude-sonnet-5           —  1 run, $0.72
+  claude-opus-5 → claude-haiku-4-5           —  1 run, $0.57
+
+By run (newest first):
+  2026-08-22    $0.51  claude-fable-5 → claude-haiku-4-5
+            rule: T2|paste|-Users-me-projects-my-app
+```
+
+**Counting honestly is the design principle.** Delegations no registered rule covers — `Explore`, your own agents, a plugin's subagents — were not routed by this tool, so they are **excluded**. When the pricing table cannot recognize a model id, the run is **dropped** rather than priced wrong. The number may be small, but it is real.
 
 ```bash
 npm i -g claude-token-saver   # postinstall auto-registers the statusline + Skill
@@ -17,35 +42,37 @@ npm i -g claude-token-saver   # postinstall auto-registers the statusline + Skil
 
 ![statusline example](./docs/statusline.png)
 
-## 📺 Came here from the video? — 60 seconds
-
-This is not a router. It never intercepts a request in realtime.
-**After a session ends** it reads your local logs, finds the easy patterns your expensive model
-kept handling, and promotes them into rules so a cheaper model takes them **from the next session
-onward**. Rules are scoped global or per-project.
-
-```bash
-npm i -g claude-token-saver@latest
-claude-token-saver route-scan         # find delegation candidates in your own history (0 LLM calls)
-claude-token-saver route-scan rules   # list promoted rules · rm <N> to remove
-```
-
-Thresholds come from **your own last-14-day distribution (p25/p75)**, not someone else's benchmark.
-Measured rule-health — whether a delegated run actually succeeded — landed in [v3.9.0](#v390-2026-08-01).
-
+---
 
 ## ⚡ Why — the 30-second pitch
 
 | | |
 |---|---|
-| 🔀 **Model-fitting delegation** | Classifies the easy work your expensive model (opus/fable) keeps repeating into tiers (T0/T1/T2) → promotes haiku/sonnet delegation rules, auto-applied from the next session |
+| 🔀 **Measured routing savings** | Every delegated run's saving is recorded in a ledger → lifetime total plus the model-change breakdown on statusline row 1 (audit it all with `route-scan savings`) |
+| 🎯 **Model-fitting delegation** | Classifies the easy work your expensive model (opus/fable) keeps repeating into tiers (T0/T1/T2) → promotes haiku/sonnet delegation rules, auto-applied from the next session |
 | 💸 **−18.6% measured cost** | Cost per user message $2.35 → $1.91 after adopting harness+ratchet (author's logs, [details](#real-world-impact--beforeafter-report)) |
 | 🚨 **No surprise rate limits** | Instant warning when the 5H/7D window hits 90% + `handoff` to back up your work |
 | 🧠 **Cache waste detection** | Hit rate, TTL countdown, 1M-context detection — token spikes diagnosed with issue codes |
 | 🅷 **Stop repeating mistakes** | Recurring errors get promoted to ratchet rules — auto-applied from the next session |
-| 💰 **Savings made visible** | See what prompt caching saved you, live (`💰 Cache saved $2.1K`) |
 
-📺 [Launch Short (60s)](https://www.youtube.com/shorts/RaD8qMsPTnA)
+## Not a router — 60 seconds
+
+It never intercepts a request in realtime.
+**After a session ends** it reads your local logs, finds the easy patterns your expensive model
+kept handling, and promotes them into rules so a cheaper model takes them **from the next session
+onward**. Rules are scoped global or per-project.
+
+Never switching models mid-session is the point. Prompt caches are per-model, so a mid-session switch throws away everything accumulated. This tool only ever delegates to **subagents**, leaving the main session's cache intact.
+
+```bash
+npm i -g claude-token-saver@latest
+claude-token-saver route-scan         # find delegation candidates in your own history (0 LLM calls)
+claude-token-saver route-scan rules   # list promoted rules · rm <N> to remove
+claude-token-saver route-scan savings # audit every dollar the routing saved
+```
+
+Thresholds come from **your own last-14-day distribution (p25/p75)**, not someone else's benchmark.
+Measured rule-health — whether a delegated run actually succeeded — landed in [v3.9.0](#v390-2026-08-01).
 
 ---
 
@@ -64,20 +91,25 @@ The statusline appears at the bottom of Claude Code right away. If auto-registra
 
 ## Reading the statusline
 
+Once the savings ledger has entries it renders as **two rows** — routing savings on row 1, diagnostics on row 2.
+
 ```
-🤖 Opus 4.8 · 🧠 Cache hit 98.0% · ⏳ Cache expires 58:38 · ✦ current █░░░░░ 15% 🔄 08:50 · 📅 weekly █▒░░░░ 24% 🔄 Thu 13:00 · 📦 Ctx 200k · 💰 Cache saved $205 · last 1d
+🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57
+⚠ Ctx 200k+ · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · ✦ current ███▓░░ 62% 🔄 21:33 · 📅 weekly ██▒░░░ 38% 🔄 Tue 19:33 · 📦 Ctx 47% of 1M · 💰 Cache saved $1.0K · last 1d
 ```
+
+With an empty ledger (no measured delegation yet) row 1 is not drawn and the layout stays single-line. If your build renders only the first row (some macOS Claude Code versions), pass `--single-line`.
 
 | Segment | Meaning |
 |---|---|
+| `🔀` **row 1** | **Lifetime routing savings + the model changes behind them.** The total is green, the breakdown gray. The breakdown sums exactly to the total (all pairs, never truncated) and drops version digits, which churn (`claude-opus-4-5-…` → `opus`). Full audit: `route-scan savings` |
 | `🤖` | Active model |
 | `🅷 5/5` | Harness principle score ([Harness mode](#-harness-mode)) |
 | `🧠` | Cache hit rate (green at 85%+) |
 | `⏳` | Cache TTL countdown — send a message before expiry to keep the cache warm |
 | `✦ current` / `📅 weekly` | 5-hour / 7-day rate-limit window usage + reset time |
 | `📦` | Context usage (e.g. `Ctx 68% of 1M`) — colored by fill. Current models default to 1M with no premium, but token volume itself drives per-turn cost and 5H/7D burn |
-| `💰` | Cumulative savings from prompt caching |
-| `🔀` | **Cumulative savings from model routing** — what work handled by a cheaper model instead of this one saved. A different number from prompt-cache savings (`💰`). Hidden until a delegation has actually been measured |
+| `💰` | Cumulative savings from prompt caching — a **different** number from row 1's `🔀` (model routing) |
 
 When something is wrong, a **warning chip leads the line**:
 
@@ -104,6 +136,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver mode [keywords...]` | Output config (`icon`/`text`, `en`/`ko`, `1h`–`30d` window, …) |
 | `claude-token-saver harness ...` | 🅷 Harness management (below) |
 | `claude-token-saver route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
+| `claude-token-saver route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
 | `claude-token-saver compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
 | `claude-token-saver install` | Manually register Skill + statusline |
 
@@ -301,10 +334,14 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 ```
 Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-saver …`.
 
-**Background:** [GitHub Issue #46829](https://github.com/anthropics/claude-code/issues/46829) (cache TTL regression) · [HN discussion](https://news.ycombinator.com/item?id=47736476) · [DeepPulse KR](https://www.youtube.com/@DeepPulseKR) / [EN](https://www.youtube.com/@DeepPulseEN) · [Homepage](https://rootstudioyaml.github.io/)
+**Background:** [GitHub Issue #46829](https://github.com/anthropics/claude-code/issues/46829) (cache TTL regression) · [HN discussion](https://news.ycombinator.com/item?id=47736476)
 </details>
 
 ## Release notes
+
+### v3.16.0 (2026-08-22)
+- **README restructured around routing savings** — `🔀 Routing saved` now opens the page, with how the figure is derived (before / after / gap) and the real `route-scan savings` output alongside it. Channel and homepage badges moved to a "Who makes this" section at the bottom.
+- **Statusline screenshot refreshed to the current two-row layout** — captured from real output rather than mocked up. Regenerate with `npm run docs:statusline` (headless Chrome; no dependencies added).
 
 ### v3.15.0 (2026-08-22)
 - **The statusline headline is one lifetime figure** — `🔀 Routing saved $2.09 | fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 …`. The weekly and monthly sums are gone: the per-model breakdown that follows is a lifetime split, and next to a row of rolling windows it read as a breakdown of whichever one it touched. One timeframe for the whole line leaves nothing to mismatch. The rolling windows are still in `route-scan savings`.
@@ -507,3 +544,13 @@ Older versions: see `git log`.
 ## License
 
 MIT
+
+---
+
+## Who makes this
+
+[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
+[![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
+[![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
+
+Built and used at **DeepPulse**, a channel about AI developer tooling. The [launch Short (60s)](https://www.youtube.com/shorts/RaD8qMsPTnA) covers where this came from and how it is used.

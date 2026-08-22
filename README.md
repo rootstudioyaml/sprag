@@ -1,15 +1,40 @@
 **한국어** · [English](./README.en.md)
 
-[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
-[![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
-[![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
 # claude-token-saver
 
-**Claude Code 토큰 사용량을 statusline 한 줄로 진단하고, 상위 모델이 반복 처리하는 easy 작업은 더 싼 모델로 내려보내는 CLI.** 의존성 0, 설치 한 줄이면 끝.
+## 🔀 Routing saved — 이 도구가 존재하는 이유
 
-v3.x부터는 사후 모니터링을 넘어 **모델 피팅 라우팅 계층**입니다: 세션 로그를 티어(T0/T1/T2)로 분류해 "이 반복 작업은 haiku/sonnet이면 충분하다"를 룰로 승격하고, 다음 세션부터 메인 모델이 자동 위임합니다 ([route-scan](#-route-scan--이-반복-작업-더-싼-티어로-내려도-됩니다)).
+```
+🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 · fable→haiku 1× $0.51 · opus→sonnet 2× $0.29
+```
+
+**statusline 첫 줄에 뜨는 이 금액이 전부입니다.** 비싼 모델이 반복 처리해 온 쉬운 작업을 더 싼 모델로 내려보내서 **실제로 아낀 돈**이고, 옆에는 그 돈이 어느 모델에서 어느 모델로 옮겨서 생겼는지가 그대로 붙습니다.
+
+이 숫자는 추정치나 홍보 문구가 아니라 **원장(ledger)에서 나옵니다.** 위임된 서브에이전트 실행 하나하나에 대해
+
+- **기준(before)** — 룰 승격 전 그 유형을 실제로 처리하던 모델
+- **결과(after)** — 실제로 그 일을 처리한 모델
+- **차액** — 같은 토큰량에 두 모델의 가격표를 각각 적용한 값
+
+을 기록합니다. 그래서 `route-scan savings` 한 줄이면 **모든 금액을 룰 단위까지 되짚을 수 있습니다.**
+
+```bash
+$ claude-token-saver route-scan savings
+
+🔀 라우팅 절감 누적 $2.09  (최근 7일 $1.40 · 30일 $2.09)
+
+모델 이동별:
+  claude-fable-5 → claude-sonnet-5           —  1회, $0.72
+  claude-opus-5 → claude-haiku-4-5           —  1회, $0.57
+
+실행별 (최근순):
+  2026-08-22    $0.51  claude-fable-5 → claude-haiku-4-5
+            룰: T2|paste|-Users-me-projects-my-app
+```
+
+**정직하게 세는 것이 설계 원칙입니다.** 등록된 룰이 커버하지 않는 위임(`Explore`, 직접 만든 에이전트, 플러그인 에이전트)은 이 도구가 라우팅한 것이 아니므로 **금액에서 제외**합니다. 모델명을 가격표가 알아보지 못하면 틀린 금액을 내놓는 대신 그 실행을 **빼버립니다**. 작게 나오더라도 실제 숫자입니다.
 
 ```bash
 npm i -g claude-token-saver   # postinstall이 statusline + Skill 자동 등록
@@ -17,34 +42,36 @@ npm i -g claude-token-saver   # postinstall이 statusline + Skill 자동 등록
 
 ![statusline 예시](./docs/statusline.png)
 
-## 📺 영상 보고 오셨다면 — 60초
-
-라우터가 아닙니다. 요청을 실시간으로 가로채지 않습니다.
-**세션이 끝난 뒤** 로컬 기록을 읽어서, 비싼 모델이 반복해서 처리해 온 쉬운 유형을 뽑고,
-그 유형은 **다음 세션부터** 싼 모델이 맡도록 룰로 겁니다. 룰은 글로벌·프로젝트로 범위가 나뉩니다.
-
-```bash
-npm i -g claude-token-saver@latest
-claude-token-saver route-scan         # 내 지난 세션에서 위임 후보 뽑기 (LLM 호출 0)
-claude-token-saver route-scan rules   # 승격된 룰 확인 · rm <N> 으로 삭제
-```
-
-기준선은 남의 벤치마크가 아니라 **내 최근 14일 분포(p25/p75)** 로 잡습니다.
-넘긴 뒤 실제로 잘 됐는지까지 재는 실측 rule-health는 [v3.9.0](#v390-2026-08-01)에 들어갔습니다.
-
+---
 
 ## ⚡ 왜 쓰나 — 30초 요약
 
 | | |
 |---|---|
-| 🔀 **모델 피팅 위임** | 상위 모델(opus/fable)이 반복 처리해 온 easy 작업을 티어(T0/T1/T2)로 분류 → haiku/sonnet 위임 룰로 승격, 다음 세션부터 자동 적용 |
+| 🔀 **라우팅 절감 실측** | 위임으로 아낀 금액을 원장에 실행 단위로 기록 → statusline 1줄째에 누적 + 모델 이동 내역 (`route-scan savings`로 전수 추적) |
+| 🎯 **모델 피팅 위임** | 상위 모델(opus/fable)이 반복 처리해 온 easy 작업을 티어(T0/T1/T2)로 분류 → haiku/sonnet 위임 룰로 승격, 다음 세션부터 자동 적용 |
 | 💸 **비용 실측 −18.6%** | harness+ratchet 도입 전후, 사용자 메시지당 비용 $2.35 → $1.91 (저자 로그, [상세](#실제-효과--도입-전후-리포트)) |
 | 🚨 **한도 초과 예방** | 5H/7D rate-limit 윈도 90% 도달 시 즉시 경고 + `handoff`로 작업 백업 |
 | 🧠 **캐시 낭비 감지** | 히트율·TTL 카운트다운·1M 컨텍스트 자동 감지 — 토큰 급증 원인을 코드로 진단 |
 | 🅷 **같은 실수 차단** | 반복 에러를 감지해 ratchet 룰로 승격 — 다음 세션부터 자동 적용 |
-| 💰 **절감액 가시화** | 프롬프트 캐시가 아껴준 금액을 실시간 표시 (`💰 Cache saved $2.1K`) |
 
-📺 [출시 영상 (60초)](https://www.youtube.com/shorts/RaD8qMsPTnA)
+## 라우터가 아닙니다 — 60초
+
+요청을 실시간으로 가로채지 않습니다.
+**세션이 끝난 뒤** 로컬 기록을 읽어서, 비싼 모델이 반복해서 처리해 온 쉬운 유형을 뽑고,
+그 유형은 **다음 세션부터** 싼 모델이 맡도록 룰로 겁니다. 룰은 글로벌·프로젝트로 범위가 나뉩니다.
+
+세션 중간에 모델을 바꾸지 않는 것이 핵심입니다. 프롬프트 캐시는 모델별이라 중간 전환은 누적 캐시를 통째로 날립니다. 이 도구는 **서브에이전트 위임**만 쓰므로 메인 세션의 캐시가 깨지지 않습니다.
+
+```bash
+npm i -g claude-token-saver@latest
+claude-token-saver route-scan         # 내 지난 세션에서 위임 후보 뽑기 (LLM 호출 0)
+claude-token-saver route-scan rules   # 승격된 룰 확인 · rm <N> 으로 삭제
+claude-token-saver route-scan savings # 위임으로 아낀 금액의 근거 전수 확인
+```
+
+기준선은 남의 벤치마크가 아니라 **내 최근 14일 분포(p25/p75)** 로 잡습니다.
+넘긴 뒤 실제로 잘 됐는지까지 재는 실측 rule-health는 [v3.9.0](#v390-2026-08-01)에 들어갔습니다.
 
 ---
 
@@ -63,20 +90,25 @@ npm i -g claude-token-saver
 
 ## statusline 읽는 법
 
+절감 원장에 기록이 쌓이면 **두 줄**로 나옵니다. 1줄째는 라우팅 절감만, 2줄째는 진단 칩입니다.
+
 ```
-🤖 Opus 4.8 · 🧠 Cache hit 98.0% · ⏳ Cache expires 58:38 · ✦ current █░░░░░ 15% 🔄 08:50 · 📅 weekly █▒░░░░ 24% 🔄 Thu 13:00 · 📦 Ctx 200k · 💰 Cache saved $205 · last 1d
+🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57
+⚠ Ctx 200k+ · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · ✦ current ███▓░░ 62% 🔄 21:33 · 📅 weekly ██▒░░░ 38% 🔄 Tue 19:33 · 📦 Ctx 47% of 1M · 💰 Cache saved $1.0K · last 1d
 ```
+
+원장이 비어 있으면(아직 위임 실측이 없으면) 1줄째는 그리지 않고 종전처럼 한 줄로 나옵니다. 일부 환경(macOS 구버전 Claude Code)에서 첫 줄만 렌더된다면 `--single-line`으로 한 줄 레이아웃을 유지하세요.
 
 | 세그먼트 | 의미 |
 |---|---|
+| `🔀` **1줄째** | **라우팅으로 아낀 누적 금액 + 모델 이동 내역.** 금액이 녹색, 내역은 회색입니다. 내역의 합은 누적과 정확히 일치하며(전부 표시, 잘라내지 않음), 버전 숫자는 계속 바뀌므로 계열명만 남깁니다(`claude-opus-4-5-…` → `opus`). 근거 전수는 `route-scan savings` |
 | `🤖` | 현재 모델 |
 | `🅷 5/5` | harness 원칙 점수 ([Harness 모드](#-harness-모드)) |
 | `🧠` | 캐시 히트율 (85%+ 녹색) |
 | `⏳` | 캐시 TTL 카운트다운 — 만료 전에 메시지를 보내면 캐시 유지 |
 | `✦ current` / `📅 weekly` | 5시간 / 7일 rate-limit 윈도 사용률 + 리셋 시각 |
 | `📦` | 컨텍스트 사용률 (예: `Ctx 68% of 1M`) — 사용률 기준 녹/황/적. 현재 모델은 1M이 기본·프리미엄 없음이지만, 토큰량 자체가 턴당 비용과 5H/7D 한도를 태웁니다 |
-| `💰` | 캐시가 절약해준 누적 금액 |
-| `🔀` | **모델 위임으로 아낀 누적 비용** — 같은 일을 더 싼 모델이 대신 처리해서 아낀 금액이며, 프롬프트 캐시 절감(`💰`)과는 다른 수치입니다. 실측 위임이 없으면 표시되지 않습니다 |
+| `💰` | 프롬프트 캐시가 절약해준 누적 금액 — 1줄째 `🔀`(모델 라우팅 절감)와는 **다른 수치**입니다 |
 
 문제가 감지되면 **경고 칩이 맨 앞에** 붙습니다:
 
@@ -103,6 +135,7 @@ Claude 안에서 `/claude-token-saver` Skill을 실행하거나 칩 문구를 �
 | `claude-token-saver mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
 | `claude-token-saver harness ...` | 🅷 Harness 관리 (아래 참고) |
 | `claude-token-saver route-scan` | 상위 모델이 반복 처리한 easy 작업 감지 → haiku 위임 랫쳇 룰 제안 (아래 참고) |
+| `claude-token-saver route-scan savings` | 라우팅 절감 원장 — 모델 이동별 합계 + 실행별 내역 (금액의 근거) |
 | `claude-token-saver compact-window` | 1M 컨텍스트인데 자동 압축 창이 안 잡혀 있으면 경고 → `set`으로 40만 고정 (아래 참고) |
 | `claude-token-saver install` | Skill·statusline 수동 등록 |
 
@@ -271,6 +304,10 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.16.0 (2026-08-22)
+- **README를 라우팅 절감 중심으로 재구성** — 이 도구의 핵심이 무엇인지 첫 화면에서 바로 보이도록 `🔀 Routing saved`를 최상단에 올리고, 금액이 원장에서 어떻게 나오는지(before/after/차액)와 `route-scan savings` 실제 출력을 함께 실었습니다. 채널·홈페이지 배지는 최하단 "만든 곳"으로 내렸습니다.
+- **statusline 스크린샷을 현재 2줄 레이아웃으로 갱신** — 목업이 아니라 실제 출력을 캡처합니다. `npm run docs:statusline`으로 재생성할 수 있습니다(headless Chrome 사용, 의존성 추가 없음).
 
 ### v3.15.0 (2026-08-22)
 - **statusline 헤드라인을 누적 한 줄로 줄였습니다** — `🔀 Routing saved $2.09 | fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 …`. 주간·월간 합계는 뺐습니다. 뒤에 붙는 모델 이동 내역이 누적 기준 분해인데 롤링 창 세 개와 나란히 있으면 어느 것의 내역인지 읽히지 않았습니다. 한 줄 전체가 한 시점 기준이 되면 어긋날 여지가 없습니다. 주간·월간은 `route-scan savings`에서 계속 확인할 수 있습니다.
@@ -473,3 +510,13 @@ manifest.build의 "다들 LLM 라우터 만드는데 우리는 폐기했다"(7�
 ## 라이선스
 
 MIT
+
+---
+
+## 만든 곳
+
+[![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
+[![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
+[![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
+
+AI 개발 도구를 다루는 채널 **DeepPulse**에서 만들고 씁니다. 이 도구의 배경과 사용법은 [출시 영상(60초)](https://www.youtube.com/shorts/RaD8qMsPTnA)에서 볼 수 있습니다.
