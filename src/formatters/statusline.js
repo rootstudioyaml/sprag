@@ -145,11 +145,12 @@ export function pickCapWarn(caps) {
 function buildKoreanSeg(c, isIcon, verbose) {
   try {
     if (!koreanStyleEnabled()) return null;
-    // Deliberately quiet (gray, one syllable): this is a "yes, it is on"
+    // Deliberately quiet (gray, one glyph): this is a "yes, it is on"
     // confirmation, not a warning. Without it a silently-failed hook looks
     // exactly like a working one, because the style only shows up when the
-    // model happens to write Korean.
-    if (isIcon) return `${c(GRAY)}${verbose ? '가 Korean style' : '가'}${c(RESET)}`;
+    // model happens to write Korean. The icon says "writing guidance", not
+    // "Korean" — the verbose label already carries the language.
+    if (isIcon) return `${c(GRAY)}${verbose ? '✍️ Korean style' : '✍️'}${c(RESET)}`;
     return `${c(GRAY)}Korean style${c(RESET)}`;
   } catch {
     return null;
