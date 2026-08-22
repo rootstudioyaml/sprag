@@ -135,6 +135,13 @@ async function main() {
     return (await import('../src/commands/route-scan.js')).run({ args, hasFlag, numArg });
   }
 
+  // Subcommand: korean — Korean writing guidance injected at session start,
+  // so the rules apply in every project without an output-style switch.
+  //   claude-token-saver korean on | off | status | show
+  if (args[0] === 'korean') {
+    return (await import('../src/commands/korean.js')).run({ args, hasFlag });
+  }
+
   // Subcommand: harness — manage the project's CLAUDE.md harness rules.
   //   claude-token-saver harness init       # write CLAUDE.md (5 sections) + ratchet.md
   //   claude-token-saver harness uninit     # remove harness block from CLAUDE.md (backup kept)

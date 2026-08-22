@@ -21,6 +21,7 @@ import { formatResetClock } from '../format-time.js';
 import { labelForKey } from '../window-labels.js';
 import { harnessStatusForStatusline } from '../harness.js';
 import { loadConfig } from '../config.js';
+import { koreanStyleEnabled } from '../korean-style.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
 // next to each other — terminal palettes set them with unbalanced perceptual
@@ -138,6 +139,24 @@ export function pickCapWarn(caps) {
 }
 
 /**
+ * Korean-style chip builder. Renders only when the session-start injection is
+ * enabled, so nothing changes for anyone who never asked for it.
+ */
+function buildKoreanSeg(c, isIcon, verbose) {
+  try {
+    if (!koreanStyleEnabled()) return null;
+    // Deliberately quiet (gray, one syllable): this is a "yes, it is on"
+    // confirmation, not a warning. Without it a silently-failed hook looks
+    // exactly like a working one, because the style only shows up when the
+    // model happens to write Korean.
+    if (isIcon) return `${c(GRAY)}${verbose ? '가 Korean style' : '가'}${c(RESET)}`;
+    return `${c(GRAY)}Korean style${c(RESET)}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Harness 🅷 segment builder — shared by the full report and the no-session
  * fallback line. Best-effort: never throws into the statusline (corrupted
  * CLAUDE.md, permission issue, etc. → null).
@@ -211,7 +230,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '' } 
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, harness, model, hit, ttl, saved, delegated, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
+ * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, harness, korean, model, hit, ttl, saved, delegated, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
@@ -426,6 +445,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // a missing section at a glance and know to run `harness init`.
   const harnessSeg = buildHarnessSeg(c, isIcon);
 
+  // Korean-style chip — rendered only when the session-start injection is on.
+  const koreanSeg = buildKoreanSeg(c, isIcon, verbose);
+
   // Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
   // Cheap identity context: useful when the user toggles between Sonnet/Opus
   // mid-session and wants to confirm at a glance which one is answering.
@@ -528,6 +550,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   if (capWarnSeg && want('cap-warn')) segs.push(capWarnSeg);
   if (spikeSeg && want('spike')) segs.push(spikeSeg);
   if (harnessSeg && want('harness')) segs.push(harnessSeg);
+  if (koreanSeg && want('korean')) segs.push(koreanSeg);
   if (modelSeg && want('model')) segs.push(modelSeg);
   // Delegation savings ride up front, next to the model that would otherwise
   // have done the work. "Cache saved" stays at the tail: it is a lifetime brag

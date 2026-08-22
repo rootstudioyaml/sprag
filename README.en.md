@@ -8,7 +8,9 @@
 
 ![statusline example — routing savings on row 1, diagnostics on row 2](./docs/statusline.png)
 
-**That figure on the first statusline row is the whole product.** It is money actually saved by moving the easy work your expensive model kept repeating onto cheaper ones — and right beside it is which model that money moved off, and onto what.
+**That figure on the first statusline row is the headline metric.** It is money actually saved by moving the easy work your expensive model kept repeating onto cheaper ones, and right beside it is which model that money moved off, and onto what.
+
+The other half of the savings comes from the **🅷 Harness and ratchet**. The harness blocks the habits that waste the most tokens — completion claims with no evidence, skipped verification — with five principles, and the ratchet freezes each error you hit into a rule so it does not recur. The measured −18.6% figure below comes from adopting those two, not from routing ([details](#real-world-impact--beforeafter-report)); routing savings sit on top of it. One install sets up all three.
 
 It is not an estimate or a marketing number: it comes out of a **ledger**. For every delegated subagent run it records
 
@@ -144,6 +146,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
 | `claude-token-saver route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
 | `claude-token-saver compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
+| `claude-token-saver korean on\|off\|status` | Inject Korean writing guidance at session start (below) |
 | `claude-token-saver install` | Manually register Skill + statusline |
 
 Switch output language with `mode ko` / `mode en` (English default; statusline chips stay symbolic).
@@ -265,6 +268,27 @@ For environments the learner cannot reach, write the mapping yourself in `<userD
 
 That file holds internal identifiers in plain text — do not commit it. On a direct-API machine it is never created and behaviour is unchanged.
 
+## 🇰🇷 Korean writing guidance
+
+Injects guidance that corrects how Claude writes Korean (dropped sentence parts, noun-stopped sentences, translationese, em-dash overuse) **once per session.**
+
+```bash
+claude-token-saver korean on       # on, for every project
+claude-token-saver korean status   # state, cost, provenance
+claude-token-saver korean show     # print the guidance itself
+claude-token-saver korean off      # off
+```
+
+Claude Code's output styles can do the same thing, but an output style is **a single global slot**: turning it on takes that slot away from anything else and has to be configured per machine. This ships the guidance inside the package and delivers it through the SessionStart hook that is already installed, so it **applies wherever the CLI is installed and leaves the output-style slot free.** It survives `/clear`, because the hook fires again.
+
+Cost is **~1.5k tokens per session, injected once at session start rather than per turn**, and covered by the prompt cache from the second request on. When it is on, a `가` chip appears in the statusline.
+
+**The default is decided at install time.** A Korean system locale (`ko_KR` and friends; on macOS the system setting is checked too) turns it on; anything else leaves it off, so users who never write Korean are not billed 1.5k tokens a session. **Once you have turned it on or off yourself, that choice sticks — an upgrade never overrides it.** Install with `CTS_NO_KOREAN=1` to skip the automatic decision.
+
+> **Source and license**
+> The guidance text comes from [fluent-korean](https://github.com/snflkd/fluent-korean). Copyright (c) 2026 snflkd, MIT License.
+> The wording is unmodified; only the output-style frontmatter was removed. The full license ships with the package at `presets/korean-style/LICENSE-fluent-korean`.
+
 ## Spike issue codes
 
 | Code | Meaning |
@@ -344,6 +368,11 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.19.0 (2026-08-22)
+- **Korean writing guidance** — corrects how Claude writes Korean (dropped sentence parts, noun-stopped sentences, translationese, em-dash overuse), injected once per session. Claude Code's output styles occupy a single global slot and must be configured per machine; this ships the guidance in the package and delivers it through the SessionStart hook already installed, so it **applies in every project and leaves the output-style slot free.** Text vendored from [fluent-korean](https://github.com/snflkd/fluent-korean) (Copyright (c) 2026 snflkd, MIT), license included.
+- **Decided at install time** — a Korean system locale turns it on; anything else leaves it off. Your own on/off choice is preserved, so upgrades never override it. Skip with `CTS_NO_KOREAN=1`; a `가` chip shows in the statusline when active.
+- **Corrected an overstated README claim** — routing savings were described as "the whole product", but the measured −18.6% comes from the harness and ratchet. The relationship between the three is now stated accurately.
 
 ### v3.18.0 (2026-08-22)
 - **Korean documentation rewritten for clarity** — full sentences with explicit predicates, and em dashes replaced by colons and conjunctions where they were compressing too much meaning.

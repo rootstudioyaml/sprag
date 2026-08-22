@@ -159,7 +159,21 @@ export async function run({ args, hasFlag, numArg }) {
           .map((r, i) => ({ ...r, n: i + 1 }))
           .filter((r) => r.status === 'review');
       } catch (e) { debug('route-scan:load-rules', e); /* candidate briefing still goes out */ }
-      if (open.length === 0 && reviewRules.length === 0) return; // silent — nothing to inject
+      // Korean writing guidance, when the user enabled it. Printed before the
+      // route-scan briefing and independently of it: the style has to reach a
+      // session even when there is no candidate to report, which is the usual
+      // case. Injecting here rather than through a separate hook keeps it on
+      // one SessionStart round-trip and one cached prefix.
+      let koreanBlock = null;
+      try {
+        const { koreanStyleInjection } = await import('../korean-style.js');
+        koreanBlock = koreanStyleInjection();
+      } catch (e) { debug('route-scan:korean-style', e); /* style is optional */ }
+
+      if (open.length === 0 && reviewRules.length === 0) {
+        if (koreanBlock) console.log(koreanBlock);
+        return; // nothing else to inject
+      }
       // This text is injected straight into the model's context, so it must
       // follow the user's configured language — a Korean-only briefing in an
       // English session steers the whole first response into Korean.
@@ -223,6 +237,9 @@ export async function run({ args, hasFlag, numArg }) {
       lines.push(lang === 'ko'
         ? '위 내용은 사용자의 첫 메시지 주제와 무관하더라도(단순 인사여도) 첫 응답 말미에 `※ [claude-token-saver]` 라벨을 달아 요약 브리핑하세요 — 사용자가 물어볼 때까지 기다리지 말 것.'
         : 'Summarize the above at the end of your first response under a `※ [claude-token-saver]` label, even if the user\'s first message is unrelated (a bare greeting counts) — do not wait to be asked.');
+      // Style first, briefing second: the briefing is Korean prose too, so the
+      // guidance has to be in context before the model reads it.
+      if (koreanBlock) console.log(koreanBlock + '\n');
       console.log(lines.join('\n'));
       // Record what was actually briefed so the UserPromptSubmit brief hook
       // suppresses exactly these — a candidate landing after this read (e.g.

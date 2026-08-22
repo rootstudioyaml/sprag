@@ -108,6 +108,45 @@ export async function run({ hasFlag }) {
         : '  harness: auto-setup skipped — run `claude-token-saver harness init --global` yourself.');
     }
 
+    // Korean writing guidance. Decided here rather than left to a command the
+    // user has to find, because the people who need it are exactly the ones
+    // who would not know to look for it. Enabled when the machine's locale
+    // says Korean; left alone once the user has answered either way, so an
+    // upgrade never re-enables something they turned off.
+    try {
+      const ks = await import('../korean-style.js');
+      if (process.env.CTS_NO_KOREAN === '1') {
+        console.log('');
+        console.log(lang === 'ko'
+          ? '  korean: CTS_NO_KOREAN=1 이므로 건너뜁니다 (나중에 `korean on`).'
+          : '  korean: skipped (CTS_NO_KOREAN=1) — run `korean on` later.');
+      } else if (ks.koreanStyleDecided()) {
+        console.log('');
+        console.log(lang === 'ko'
+          ? `  korean: 기존 설정 유지 — 한국어 문체 지침 ${ks.koreanStyleEnabled() ? '켜짐' : '꺼짐'}`
+          : `  korean: keeping your setting — Korean writing guidance is ${ks.koreanStyleEnabled() ? 'on' : 'off'}`);
+      } else if (ks.koreanLocaleDetected()) {
+        ks.setKoreanStyleEnabled(true);
+        console.log('');
+        console.log(lang === 'ko'
+          ? '  korean: 한국어 환경이 감지되어 문체 지침을 켰습니다 — 모든 프로젝트의 세션 시작 시 주입됩니다.'
+          : '  korean: Korean locale detected — writing guidance enabled, injected at session start in every project.');
+        console.log(lang === 'ko'
+          ? `           출처: ${ks.KOREAN_STYLE_SOURCE}`
+          : `           source: ${ks.KOREAN_STYLE_SOURCE}`);
+        console.log(lang === 'ko'
+          ? '           끄려면: claude-token-saver korean off'
+          : '           turn off with: claude-token-saver korean off');
+      } else {
+        console.log('');
+        console.log(lang === 'ko'
+          ? '  korean: 한국어 환경이 아니어서 꺼 두었습니다 — 필요하면 `claude-token-saver korean on`.'
+          : '  korean: left off (no Korean locale detected) — enable with `claude-token-saver korean on`.');
+      }
+    } catch (e) {
+      debug('install:korean-style', e); // optional feature; never fail install
+    }
+
     console.log('');
     console.log('Open Claude Code in any directory and just mention:');
     console.log('  "cache hit rate" / "1M context" / "5H cap" — the skill auto-activates.');
