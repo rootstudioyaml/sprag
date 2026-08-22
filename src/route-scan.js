@@ -379,10 +379,20 @@ export async function runRouteScan({ days = 14 } = {}) {
   const episodeStats = new Map(); // "category|project" (+ "category|*") → outcome stats
   let tieredEpisodes = 0;
   const bumpStats = (key, ep) => {
-    const s = episodeStats.get(key) || { count: 0, errCount: 0, epCount: 0 };
+    const s = episodeStats.get(key) || { count: 0, errCount: 0, epCount: 0, baselineModel: null, baselineRank: -1 };
     s.count += 1;
     s.epCount += 1;
     if (ep.errors > 0) s.errCount += 1;
+    // Baseline model: what actually handled this category BEFORE any rule sent
+    // it elsewhere. This is the only honest counterfactual for "routing saved
+    // money" — the session's priciest model is not, since it may never have
+    // touched work of this shape. Episodes counted here are by definition ones
+    // an expensive model handled directly, so the priciest model seen on them
+    // is the before-picture the rule replaced.
+    for (const m of ep.models) {
+      const r = modelRank(m);
+      if (r > s.baselineRank) { s.baselineRank = r; s.baselineModel = m; }
+    }
     episodeStats.set(key, s);
   };
 
@@ -454,7 +464,33 @@ export async function runRouteScan({ days = 14 } = {}) {
   // Ledger events feed the statusline's weekly/monthly "Routing saved"
   // totals. Keyed by run transcript path so overlapping re-scans upsert the
   // same event instead of double-counting it.
+  //
+  // What counts as a routing saving is narrower than what counts for
+  // rule-health above. A saving is the price difference a REGISTERED RULE
+  // caused: the model that used to handle this category (the rule's baseline,
+  // learned from episodes an expensive model handled directly) versus the
+  // model the run actually used. Subagent runs that no rule covers —
+  // Explore, a hand-written agent, a plugin's own subagent — would have gone
+  // to the same cheap model with or without this tool, so attributing their
+  // savings here would credit the tool for work it did not route.
   const ledgerEvents = [];
+  let ledgerRules = [];
+  try {
+    const { loadModelRules } = await import('./model-rules.js');
+    ledgerRules = loadModelRules().rules.filter((r) => r.status !== 'off');
+  } catch { /* no registry → no attributable savings, which is the honest zero */ }
+  // A rule's baseline: what it stored at promotion, else what this scan still
+  // observes handling the category directly (a rule promoted before baselines
+  // existed backfills on the next refresh).
+  const baselineFor = (rule, tier, catId, projectDir) => {
+    if (rule.baselineModel) return rule.baselineModel;
+    const s = episodeStats.get(`${tier}|${catId}|${projectDir}`)
+      || (rule.scope === 'global' ? episodeStats.get(`${tier}|${catId}|*`) : null);
+    return s?.baselineModel || null;
+  };
+  const ruleForRun = (tier, catId, projectDir) => ledgerRules.find((r) =>
+    r.tier === tier && r.category === catId &&
+    (r.scope === 'global' || r.project === projectDir));
   for (const [sessionPath, index] of runIndexBySession) {
     const used = new Set();
     for (const { ep, projectDir, sessionPath: epSession } of all) {
@@ -478,11 +514,21 @@ export async function runRouteScan({ days = 14 } = {}) {
         const saved = runSaving(run, mainModel);
         bumpDelegated(`${runTier}|${cat.id}|${projectDir}`, run, saved);
         bumpDelegated(`${runTier}|${cat.id}|*`, run, saved);
-        if (saved > 0) {
+        // Routing saving: priced against the rule's baseline (before → after),
+        // not against whatever the session's priciest model happened to be.
+        const rule = ruleForRun(runTier, cat.id, projectDir);
+        if (!rule) continue; // no rule routed this run — not our saving to claim
+        const baseline = baselineFor(rule, runTier, cat.id, projectDir);
+        if (!baseline) continue; // baseline unknown → no honest counterfactual
+        const routed = runSaving(run, baseline);
+        if (routed > 0) {
           ledgerEvents.push({
             key: run.path,
             ts: run.endedAt ?? run.startedAt ?? Date.now(),
-            usd: saved,
+            usd: routed,
+            rule: rule.signature,
+            from: baseline,
+            to: run.model,
           });
         }
       }

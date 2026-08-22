@@ -340,6 +340,14 @@ export function refreshModelRules(episodeStats, delegatedStats = new Map(), { no
     if (s) {
       r.count = s.count;
       r.errRate = s.epCount > 0 ? s.errCount / s.epCount : 0;
+      // Baseline = the model that handled this category before the rule moved
+      // it. Sticky once set: as a rule takes effect, fewer episodes stay on the
+      // expensive model, so a recomputed baseline would drift downward and
+      // shrink the very savings the rule is producing.
+      if (!r.baselineModel && s.baselineModel) {
+        r.baselineModel = s.baselineModel;
+        changed = true;
+      }
     }
     // Window snapshot, not a running total: these describe the current scan
     // window so a rule that stopped firing decays to zero instead of coasting

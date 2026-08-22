@@ -109,3 +109,37 @@ test('amounts render in the savings green, period markers in gray', () => {
     assert.ok(out.includes(`${GRAY}${label}`), `${label} should stay gray`);
   }
 });
+
+test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'cts-ledger-v1-'));
+  process.env.XDG_CONFIG_HOME = dir;
+  t.after(() => {
+    delete process.env.XDG_CONFIG_HOME;
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  const stateDir = join(dir, 'claude-token-saver');
+  mkdirSync(stateDir, { recursive: true });
+  // v1 priced against the session's priciest model — a different meaning.
+  writeFileSync(
+    join(stateDir, 'delegation-ledger.json'),
+    JSON.stringify({ events: { '/old.jsonl': { ts: Date.now(), usd: 99 } } }),
+  );
+  const m = await import('../src/savings-ledger.js?v1');
+  assert.deepEqual(m.delegationSavedTotals(), { week: 0, month: 0, total: 0 });
+
+  // A v2 write starts the file over and stamps the version.
+  m.recordDelegationEvents([
+    { key: '/new.jsonl', ts: Date.now(), usd: 0.5, rule: 'T1|run|p', from: 'claude-fable-5', to: 'claude-sonnet-5' },
+  ]);
+  const led = m.loadLedger();
+  assert.equal(led.version, 2);
+  assert.equal(Object.keys(led.events).length, 1);
+  assert.deepEqual(led.events['/new.jsonl'], {
+    ts: led.events['/new.jsonl'].ts,
+    usd: 0.5,
+    rule: 'T1|run|p',
+    from: 'claude-fable-5',
+    to: 'claude-sonnet-5',
+  });
+});
