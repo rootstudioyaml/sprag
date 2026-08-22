@@ -5,6 +5,8 @@
  * a legacy command file is removed automatically. Cross-platform.
  *   claude-token-saver install              # install/update the skill
  *   claude-token-saver install --force      # overwrite existing skill file
+ *   claude-token-saver install --yes        # take the defaults instead of asking
+ *   claude-token-saver install --no-input   # same as --yes; also implied by CTS_NO_INPUT=1
  */
 
 import { debug } from '../debug.js';

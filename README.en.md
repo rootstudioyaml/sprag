@@ -61,7 +61,7 @@ By run (newest first):
 |---|---|
 | 🚨 **No surprise rate limits** | Warns when the 5H/7D window hits 90%; `handoff` backs up your work |
 | 🧠 **Cache waste detection** | Hit rate, TTL, 1M-context detection — spikes diagnosed with issue codes |
-| 🇰🇷 **Korean writing guidance** | Enabled automatically on a Korean locale ([below](#-korean-writing-guidance)) |
+| 🇰🇷 **Korean writing guidance** | Offered at install time, defaulting to your locale ([below](#-korean-writing-guidance)) |
 
 ## Not a router — 60 seconds
 
@@ -103,7 +103,9 @@ npm i -g claude-token-saver
 
 The statusline appears at the bottom of Claude Code right away. If auto-registration was skipped (`--ignore-scripts`, sudo, sandboxed installs), run `claude-token-saver install`.
 
-One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷 Harness (5 principles), and a first route-scan.** The harness is **appended** to `~/.claude/CLAUDE.md` as a marked block (your existing content is backed up and preserved) and is left alone if one is already there. Skip it with `CTS_NO_HARNESS=1 npm i -g claude-token-saver`; undo it with `claude-token-saver harness uninit --global`.
+One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷 Harness (5 principles), and a first route-scan.** The harness and the Korean writing guidance **show what they add and ask before enabling it.** The harness is **appended** to `~/.claude/CLAUDE.md` as a marked block (your existing content is backed up and preserved) and is left alone if one is already there.
+
+Outside a terminal — npm `postinstall`, CI, piped stdin — the question is skipped and the old defaults apply. Use `--yes` or `--no-input` to skip it deliberately, `CTS_NO_HARNESS=1 npm i -g claude-token-saver` to skip the harness entirely, and `claude-token-saver harness uninit --global` to undo it.
 
 > ⚠️ Avoid `sudo` global installs — the Skill lands in root's `~/.claude` instead of yours. Use nvm/fnm/Volta or `npm config set prefix ~/.npm-global`.
 
@@ -291,9 +293,31 @@ claude-token-saver korean off      # off
 
 Claude Code's output styles can do the same thing, but an output style is **a single global slot**: turning it on takes that slot away from anything else and has to be configured per machine. This ships the guidance inside the package and delivers it through the SessionStart hook that is already installed, so it **applies wherever the CLI is installed and leaves the output-style slot free.** It survives `/clear`, because the hook fires again.
 
-Cost is **~1.5k tokens per session, injected once at session start rather than per turn**, and covered by the prompt cache from the second request on. When it is on, a `가` chip appears in the statusline.
+Cost is **~1.5k tokens per session, injected once at session start rather than per turn**, and covered by the prompt cache from the second request on. When it is on, a `✍️` chip appears in the statusline.
 
-**The default is decided at install time.** A Korean system locale (`ko_KR` and friends; on macOS the system setting is checked too) turns it on; anything else leaves it off, so users who never write Korean are not billed 1.5k tokens a session. **Once you have turned it on or off yourself, that choice sticks — an upgrade never overrides it.** Install with `CTS_NO_KOREAN=1` to skip the automatic decision.
+### Before and after
+
+From a real pipeline (yaml-sns-agent), where a Slack bot shells out to `claude -p` to investigate the repository and answers in a thread. The guidance was toggled off and then on, with the same question both times: "explain in three Korean sentences how to narrow down a render failure."
+
+**Before** (guidance off)
+
+> 렌더 실패 원인 좁히기 3단계: 먼저 `hn:still --check`로 스틸이 명세보다 최신인지(FRESH/STALE) 확인 — STALE이면 재생성 안 해서 옛 자산으로 렌더 시도한 게 원인. 다음 caption-blocks가 최신 나레이션과 단어열 일치하는지 직접 대조 — TTS 재생성 후 blocks 재생성 빠지면 자막·음성 어긋나 렌더 깨짐.
+
+**After** (guidance on)
+
+> 먼저 `hn:still --check` 돌려 스틸이 명세보다 최신인지 확인한다. STALE이면 재생성 안 해서 생긴 문제.
+>
+> 다음 caption-blocks가 captions.json 단어열과 일치하는지 본다. 내레이션 재TTS 후 blocks 재생성 빠지면 옛 자막이 새 음성 위에 뜬다.
+
+Three things change. Clauses chained with em dashes become separate sentences, so one sentence carries one fact. Noun-stopped phrases (확인, 대조, 렌더 깨짐 — "check", "compare", "render breaks") become predicates (확인한다, 본다, 뜬다), which makes it explicit that these are steps to take. And the particles come back where they had been dropped, so subject and object are legible on the first read.
+
+The technical content is identical in both. The guidance touches sentence construction only, not judgement or accuracy: the answer does not change, it just stops needing a second read. In a channel people scroll through, that difference cuts follow-up questions — and the tokens those follow-ups would have cost.
+
+### Asked at install time
+
+The install **prints what the guidance changes, its per-session cost and its source, then asks.** A Korean system locale (`ko_KR` and friends; on macOS the system setting is checked too) makes the question default to yes; anything else defaults to no, so users who never write Korean are not billed 1.5k tokens a session. The locale is only a default, so an English-locale machine used for Korean work can still turn it on right there.
+
+Installs with nobody attached — npm `postinstall`, CI, piped stdin — skip the question and apply the locale default, because a blocked prompt hangs the install. In that case, if the locale is not Korean the setting is **left undecided rather than recorded**, so a later run at a terminal still gets to ask. Use `--yes` or `--no-input` to force the non-interactive path, or `CTS_NO_KOREAN=1` to skip the feature entirely. **Once you have turned it on or off yourself, that choice sticks — an upgrade never overrides it.**
 
 > **Source and license**
 > The guidance text comes from [fluent-korean](https://github.com/snflkd/fluent-korean). Copyright (c) 2026 snflkd, MIT License.
@@ -379,12 +403,17 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.21.0 (2026-08-22)
+- **The install shows what it is about to enable, then asks** — the harness 5 principles and the Korean writing guidance used to be switched on by the installer, leaving the user with the result rather than the choice. The install now prints the five principle headings, and for the Korean guidance what it changes plus its per-session cost and source, before asking. Locale detection is demoted from an answer to the question's default, so an English-locale machine used for Korean work can enable it on the spot.
+- **Unattended installs behave exactly as before** — npm `postinstall`, CI, piped stdin and `CTS_NO_INPUT=1` skip the question and apply the old defaults, because a blocked prompt hangs an install. `--yes` and `--no-input` force that path explicitly. A non-interactive install on a non-Korean machine now leaves the setting undecided instead of recording an answer nobody gave, so a later run at a terminal still asks.
+- **The Korean-guidance statusline chip is now `✍️`, not `가`** — every other chip is an emoji, so a bare syllable read as a stray character rather than a status indicator.
+
 ### v3.20.0 (2026-08-22)
 - **The README opening is now scannable** — prose replaced by a one-line summary, the screenshot, and the install command up top. The three parts (routing, harness, ratchet) are a table; how a saving is computed (before → after → gap) is a diagram. The old 30-second pitch table, which repeated all of it, now lists only what the statusline additionally catches.
 
 ### v3.19.0 (2026-08-22)
 - **Korean writing guidance** — corrects how Claude writes Korean (dropped sentence parts, noun-stopped sentences, translationese, em-dash overuse), injected once per session. Claude Code's output styles occupy a single global slot and must be configured per machine; this ships the guidance in the package and delivers it through the SessionStart hook already installed, so it **applies in every project and leaves the output-style slot free.** Text vendored from [fluent-korean](https://github.com/snflkd/fluent-korean) (Copyright (c) 2026 snflkd, MIT), license included.
-- **Decided at install time** — a Korean system locale turns it on; anything else leaves it off. Your own on/off choice is preserved, so upgrades never override it. Skip with `CTS_NO_KOREAN=1`; a `가` chip shows in the statusline when active.
+- **Decided at install time** — a Korean system locale turns it on; anything else leaves it off. Your own on/off choice is preserved, so upgrades never override it. Skip with `CTS_NO_KOREAN=1`. (From v3.21.0 the install asks instead of deciding for you.)
 - **Corrected an overstated README claim** — routing savings were described as "the whole product", but the measured −18.6% comes from the harness and ratchet. The relationship between the three is now stated accurately.
 
 ### v3.18.0 (2026-08-22)

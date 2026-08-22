@@ -10,6 +10,8 @@
  *   npx claude-token-saver --format csv       # CSV output
  *   npx claude-token-saver --project myproj   # filter by project
  *   npx claude-token-saver route-scan         # detect recurring easy work → haiku-delegation candidates
+ *   npx claude-token-saver install            # set up skill/hooks/statusline; asks about harness + Korean guidance
+ *   npx claude-token-saver install --yes      # take the defaults without asking (same as --no-input)
  *   npx claude-token-saver --install-hook     # install PostToolUse hook
  *   npx claude-token-saver --uninstall-hook   # remove hook
  *   npx claude-token-saver --hook-run         # internal: called by hook
