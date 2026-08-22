@@ -9,11 +9,21 @@
 
 import { debug } from '../debug.js';
 
+/** Thrown when the user declines an optional step, so it is not reported as a failure. */
+class SkipStep extends Error {}
+
 export async function run({ hasFlag }) {
     const { installAll } = await import('../installer.js');
     const { userLanguage } = await import('../config.js');
+    const { canPrompt, confirm } = await import('../prompt.js');
     const lang = userLanguage();
     const force = hasFlag('--force');
+    // Two features below write to ~/.claude and cost tokens in every session,
+    // so the install shows what they contain and asks before turning them on.
+    // Asking is only possible with a human attached: postinstall, CI and pipes
+    // fall through to the previous automatic defaults so an unattended upgrade
+    // behaves exactly as it did before.
+    const interactive = canPrompt() && !hasFlag('--yes') && !hasFlag('--no-input');
     const print = (kind, r) => {
       const verb = r.action === 'exists' ? 'already exists' : r.action;
       console.log(`  ${kind}: ${r.path} (${verb})`);
@@ -84,6 +94,30 @@ export async function run({ hasFlag }) {
           ? `  harness: 이미 설정됨 — 🅷 ${before.configured}/${before.total} (${before.file})`
           : `  harness: already set up — 🅷 ${before.configured}/${before.total} (${before.file})`);
       } else {
+        // Show the five principle headings before writing them. The block goes
+        // into the file the model reads at the start of every session, so the
+        // user should see its contents before agreeing, not after.
+        const { HARNESS_SECTIONS } = await import('../harness-templates.js');
+        console.log('');
+        console.log(lang === 'ko'
+          ? '  harness: 다음 5원칙을 ~/.claude/CLAUDE.md 에 추가합니다 (모든 프로젝트에 적용).'
+          : '  harness: the following 5 principles would be added to ~/.claude/CLAUDE.md (all projects).');
+        for (const s of HARNESS_SECTIONS) {
+          console.log(`           ${s.heading.replace(/^###\s*/, '')}`);
+        }
+        console.log(lang === 'ko'
+          ? '           기존 내용은 지우지 않고 뒤에 덧붙이며, 원본은 .bak 으로 백업됩니다.'
+          : '           existing content is kept — the block is appended and the original is backed up as .bak.');
+        let proceed = true;
+        if (interactive) {
+          proceed = await confirm(lang === 'ko' ? '           지금 설정할까요?' : '           Set this up now?', { defaultValue: true });
+        }
+        if (!proceed) {
+          console.log(lang === 'ko'
+            ? '  harness: 건너뛰었습니다 — 나중에 `claude-token-saver harness init --global` 로 설정할 수 있습니다.'
+            : '  harness: skipped — set it up later with `claude-token-saver harness init --global`.');
+          throw new SkipStep();
+        }
         const h = harnessInit({ scope: 'global' });
         console.log('');
         for (const p of h.backedUp) {
@@ -100,12 +134,17 @@ export async function run({ hasFlag }) {
           : '           to undo: claude-token-saver harness uninit --global');
       }
     } catch (e) {
+      // A declined prompt already printed its own line; only real failures fall
+      // through to the advice below.
+      if (e instanceof SkipStep) { /* user said no — nothing to report */ }
+      else {
       // Never fail an install over this — the statusline and Skill are already
       // in place, and `harness init` remains available as a manual step.
       debug('install:harness-init', e);
       console.log(lang === 'ko'
         ? '  harness: 자동 설정을 건너뛰었습니다 — `claude-token-saver harness init --global` 로 직접 설정하세요.'
         : '  harness: auto-setup skipped — run `claude-token-saver harness init --global` yourself.');
+      }
     }
 
     // Korean writing guidance. Decided here rather than left to a command the
@@ -125,23 +164,49 @@ export async function run({ hasFlag }) {
         console.log(lang === 'ko'
           ? `  korean: 기존 설정 유지 — 한국어 문체 지침 ${ks.koreanStyleEnabled() ? '켜짐' : '꺼짐'}`
           : `  korean: keeping your setting — Korean writing guidance is ${ks.koreanStyleEnabled() ? 'on' : 'off'}`);
-      } else if (ks.koreanLocaleDetected()) {
-        ks.setKoreanStyleEnabled(true);
+      } else {
+        // The locale only decides what the question defaults to. It is a good
+        // guess, not an answer, so a user at a terminal gets to overrule it
+        // either way — including turning the guidance on where the locale is
+        // English but the person writing is not.
+        const detected = ks.koreanLocaleDetected();
         console.log('');
         console.log(lang === 'ko'
-          ? '  korean: 한국어 환경이 감지되어 문체 지침을 켰습니다 — 모든 프로젝트의 세션 시작 시 주입됩니다.'
-          : '  korean: Korean locale detected — writing guidance enabled, injected at session start in every project.');
+          ? '  korean: 한국어 문체 지침(fluent-korean)을 세션 시작 시 주입할 수 있습니다.'
+          : '  korean: Korean writing guidance (fluent-korean) can be injected at session start.');
+        console.log(lang === 'ko'
+          ? '           내용: 조사·어미를 생략하지 않고, 명사구가 아니라 서술어로 문장을 끝맺으며,'
+          : '           what it does: keeps particles and endings, ends sentences with a predicate,');
+        console.log(lang === 'ko'
+          ? '                 번역체 대신 자연스러운 한국어를 쓰도록 지시합니다. 코드와 주석에는 적용되지 않습니다.'
+          : '                 and asks for idiomatic Korean over translationese. Code and comments are exempt.');
+        console.log(lang === 'ko'
+          ? '           비용: 세션당 약 1.5k 토큰(턴마다가 아니라 세션 시작 시 1회, 이후 프롬프트 캐시에 포함).'
+          : '           cost: ~1.5k tokens per session (once at session start, cached from the second request on).');
         console.log(lang === 'ko'
           ? `           출처: ${ks.KOREAN_STYLE_SOURCE}`
           : `           source: ${ks.KOREAN_STYLE_SOURCE}`);
         console.log(lang === 'ko'
-          ? '           끄려면: claude-token-saver korean off'
-          : '           turn off with: claude-token-saver korean off');
-      } else {
-        console.log('');
-        console.log(lang === 'ko'
-          ? '  korean: 한국어 환경이 아니어서 꺼 두었습니다 — 필요하면 `claude-token-saver korean on`.'
-          : '  korean: left off (no Korean locale detected) — enable with `claude-token-saver korean on`.');
+          ? `           감지된 환경: ${detected ? '한국어 (기본값 켬)' : '한국어 아님 (기본값 끔)'}`
+          : `           detected locale: ${detected ? 'Korean (default on)' : 'not Korean (default off)'}`);
+        let enable = detected;
+        if (interactive) {
+          enable = await confirm(lang === 'ko' ? '           켤까요?' : '           Enable it?', { defaultValue: detected });
+        }
+        // Record the choice only when it is really a choice. An unattended
+        // install on a non-Korean machine leaves the setting undecided so that
+        // a later run at a terminal still gets to ask, instead of silently
+        // inheriting a default the user never saw.
+        if (interactive || enable) ks.setKoreanStyleEnabled(enable);
+        if (enable) {
+          console.log(lang === 'ko'
+            ? '  korean: 켰습니다 — 모든 프로젝트의 세션 시작 시 주입됩니다. 끄려면 `claude-token-saver korean off`.'
+            : '  korean: enabled — injected at session start in every project. Turn off with `claude-token-saver korean off`.');
+        } else {
+          console.log(lang === 'ko'
+            ? '  korean: 꺼 두었습니다 — 나중에 `claude-token-saver korean on` 으로 켤 수 있습니다.'
+            : '  korean: left off — enable later with `claude-token-saver korean on`.');
+        }
       }
     } catch (e) {
       debug('install:korean-style', e); // optional feature; never fail install
