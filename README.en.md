@@ -306,6 +306,12 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.14.0 (2026-08-22)
+- **The statusline headline names the model changes behind the total** — `🔀 Routing saved weekly $1.4 · monthly $2.1 · total $2.1 | fable→sonnet 1× $0.72 · opus→haiku 1× $0.57 …`. Versions are dropped (`claude-opus-4-5-20251101-v1:0` → `opus`) since they bump constantly and add nothing here. **Every** pair is listed rather than a top-N: the amounts sit next to a total, so a truncated list misstates what that total is made of. Families collapse the list on their own, so it stays short without being cut.
+- **New `route-scan savings`** — the evidence behind the headline: a per-model-change rollup (from, to, runs, dollars) and the per-run log (date, amount, model change, the rule that caused it).
+- **Baselines are the model that handled a category most, not the priciest seen** — transcripts routinely carry more than one model (a mid-session switch), and taking the priciest let a single Fable record set the baseline for a category Opus had handled thirty times, inflating every later saving. Ties break toward the pricier model. Baselines written under the old definition are recomputed once.
+- **The ledger is written after the rule refresh** — writing it first made a changed baseline take two scans to settle: the first stored the new baseline but billed against the old one.
+
 ### v3.13.0 (2026-08-22)
 - **Routing savings are now priced "model before the rule → model that ran it"** — previously the counterfactual was the session's priciest model, which booked a saving even when that model had never handled work of this shape. Each rule now remembers the **model that handled its category before promotion** (its baseline) and prices only against that. The baseline is sticky once set: as a rule takes effect fewer episodes stay on the expensive model, so a recomputed baseline would drift down and shrink the very saving the rule produces.
 - **Delegations no rule covers are excluded** — `Explore`, hand-written agents, and plugin subagents were all being counted, crediting this tool for routing it never did. Ledger events now carry `rule` / `from` / `to`, so every dollar is traceable to the rule and model change behind it.
