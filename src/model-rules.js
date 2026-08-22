@@ -344,8 +344,15 @@ export function refreshModelRules(episodeStats, delegatedStats = new Map(), { no
       // it. Sticky once set: as a rule takes effect, fewer episodes stay on the
       // expensive model, so a recomputed baseline would drift downward and
       // shrink the very savings the rule is producing.
-      if (!r.baselineModel && s.baselineModel) {
+      //
+      // `baselineSource` marks which definition produced it. Baselines written
+      // before the definition changed from "priciest model seen" to "model that
+      // handled the most episodes" are recomputed once — a single stray record
+      // of a pricier model could otherwise hold the baseline above what the
+      // category was really running on, inflating every saving priced against it.
+      if (s.baselineModel && (!r.baselineModel || r.baselineSource !== 'dominant')) {
         r.baselineModel = s.baselineModel;
+        r.baselineSource = 'dominant';
         changed = true;
       }
     }

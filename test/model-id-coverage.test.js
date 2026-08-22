@@ -62,3 +62,15 @@ test('modelAliases maps a house alias back to a real model', (t) => {
   assert.equal(resolveModelAlias('other-house-alias'), 'other-house-alias');
   assert.equal(resolveModelAlias(''), UNKNOWN_MODEL);
 });
+
+test('baseline picks the model that handled the most episodes, not the priciest', async () => {
+  const { dominantModel } = await import('../src/route-scan.js');
+  // One stray Fable record must not outrank thirty Opus episodes.
+  assert.equal(dominantModel({ 'claude-opus-5': 30, 'claude-fable-5': 1 }), 'claude-opus-5');
+  // A genuine majority wins even when it is the cheaper model.
+  assert.equal(dominantModel({ 'claude-sonnet-5': 9, 'claude-opus-5': 2 }), 'claude-sonnet-5');
+  // Ties break toward the pricier reading.
+  assert.equal(dominantModel({ 'claude-opus-5': 4, 'claude-fable-5': 4 }), 'claude-fable-5');
+  assert.equal(dominantModel({}), null);
+  assert.equal(dominantModel(null), null);
+});

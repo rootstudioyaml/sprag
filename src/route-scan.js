@@ -262,6 +262,24 @@ export function episodeRank(ep) {
  * net loss. (Replaces the old boolean "is it haiku?" test, which could not
  * tell a Sonnet session from a Fable one.)
  */
+/**
+ * The model a category was mostly handled by, from a { model → episodes } map.
+ * Ties break toward the pricier model: with no majority either way, the more
+ * expensive reading of "what this used to cost" is the one worth stating.
+ * Returns null for an empty map, which callers read as "no baseline yet".
+ */
+export function dominantModel(counts) {
+  let best = null;
+  let bestN = 0;
+  for (const [model, n] of Object.entries(counts || {})) {
+    if (n > bestN || (n === bestN && best && modelRank(model) > modelRank(best))) {
+      best = model;
+      bestN = n;
+    }
+  }
+  return best;
+}
+
 export function worthDelegating(tier, rank) {
   const target = TIER_TARGET_RANK[tier];
   return target !== undefined && rank > target;
@@ -379,24 +397,29 @@ export async function runRouteScan({ days = 14 } = {}) {
   const episodeStats = new Map(); // "category|project" (+ "category|*") → outcome stats
   let tieredEpisodes = 0;
   const bumpStats = (key, ep) => {
-    const s = episodeStats.get(key) || { count: 0, errCount: 0, epCount: 0, baselineModel: null, baselineRank: -1 };
+    const s = episodeStats.get(key) || { count: 0, errCount: 0, epCount: 0, baselineModel: null, modelCounts: {} };
     s.count += 1;
     s.epCount += 1;
     if (ep.errors > 0) s.errCount += 1;
     // Baseline model: what actually handled this category BEFORE any rule sent
     // it elsewhere. This is the only honest counterfactual for "routing saved
     // money" — the session's priciest model is not, since it may never have
-    // touched work of this shape. Episodes counted here are by definition ones
-    // an expensive model handled directly, so the priciest model seen on them
-    // is the before-picture the rule replaced.
+    // touched work of this shape.
+    //
+    // Counted, not maxed. A transcript routinely carries more than one model
+    // (the user switches mid-session, a compaction pass runs elsewhere), and
+    // taking the priciest of them would let a single Fable record set the
+    // baseline for a category that Opus handled thirty times — inflating every
+    // later saving. The model that handled the most episodes is the one the
+    // rule actually replaced; price breaks a tie.
     for (const m of ep.models) {
       // Only ids the pricing table really recognizes may become a baseline —
       // an unresolved gateway id or a house alias would be priced as Sonnet
       // and quietly rewrite every saving computed against it.
       if (!isRecognizedModelId(m)) continue;
-      const r = modelRank(m);
-      if (r > s.baselineRank) { s.baselineRank = r; s.baselineModel = m; }
+      s.modelCounts[m] = (s.modelCounts[m] || 0) + 1;
     }
+    s.baselineModel = dominantModel(s.modelCounts);
     episodeStats.set(key, s);
   };
 
@@ -522,33 +545,12 @@ export async function runRouteScan({ days = 14 } = {}) {
         // not against whatever the session's priciest model happened to be.
         const rule = ruleForRun(runTier, cat.id, projectDir);
         if (!rule) continue; // no rule routed this run — not our saving to claim
-        const baseline = baselineFor(rule, runTier, cat.id, projectDir);
-        if (!baseline) continue; // baseline unknown → no honest counterfactual
-        // Both sides of the comparison must be ids the pricing table really
-        // recognizes. A house alias from a company gateway prices as Sonnet by
-        // default, which would fabricate a saving against a cheap baseline or
-        // erase a real one — worse than showing nothing. Map such ids in
-        // profile-map.json's `modelAliases` to bring these runs back in.
-        if (!isRecognizedModelId(baseline) || !isRecognizedModelId(run.model)) continue;
-        const routed = runSaving(run, baseline);
-        if (routed > 0) {
-          ledgerEvents.push({
-            key: run.path,
-            ts: run.endedAt ?? run.startedAt ?? Date.now(),
-            usd: routed,
-            rule: rule.signature,
-            from: baseline,
-            to: run.model,
-          });
-        }
+        // Priced below, after this scan's baselines have been written back to
+        // the registry — see the note at the ledger write.
+        if (!isRecognizedModelId(run.model)) continue;
+        ledgerEvents.push({ run, rule, tier: runTier, catId: cat.id, projectDir });
       }
     }
-  }
-  try {
-    const { recordDelegationEvents } = await import('./savings-ledger.js');
-    recordDelegationEvents(ledgerEvents);
-  } catch {
-    // ledger write failure only delays the statusline totals, never the scan
   }
 
   // Keep prior dismissed/promoted signatures across rescans.
@@ -655,6 +657,40 @@ export async function runRouteScan({ days = 14 } = {}) {
     const { refreshModelRules } = await import('./model-rules.js');
     refreshModelRules(episodeStats, delegatedStats, { now: cache.scannedAt });
   } catch { /* registry unwritable — scan result still valid */ }
+
+  // Ledger last, so savings are priced against the baselines this scan just
+  // wrote. Pricing before the refresh made a changed baseline take two scans
+  // to show up: the first wrote the new baseline but billed against the old
+  // one, and the totals only settled on the second.
+  try {
+    const { recordDelegationEvents } = await import('./savings-ledger.js');
+    const { loadModelRules } = await import('./model-rules.js');
+    const fresh = loadModelRules().rules;
+    const priced = [];
+    for (const e of ledgerEvents) {
+      const rule = fresh.find((r) => r.signature === e.rule.signature) || e.rule;
+      const baseline = baselineFor(rule, e.tier, e.catId, e.projectDir);
+      // Both sides of the comparison must be ids the pricing table really
+      // recognizes. A house alias from a company gateway prices as Sonnet by
+      // default, which would fabricate a saving against a cheap baseline or
+      // erase a real one — worse than showing nothing. Map such ids in
+      // profile-map.json's `modelAliases` to bring these runs back in.
+      if (!baseline || !isRecognizedModelId(baseline)) continue;
+      const usd = runSaving(e.run, baseline);
+      if (usd <= 0) continue;
+      priced.push({
+        key: e.run.path,
+        ts: e.run.endedAt ?? e.run.startedAt ?? Date.now(),
+        usd,
+        rule: rule.signature,
+        from: baseline,
+        to: e.run.model,
+      });
+    }
+    recordDelegationEvents(priced);
+  } catch {
+    // ledger write failure only delays the statusline totals, never the scan
+  }
 
   return cache;
 }
