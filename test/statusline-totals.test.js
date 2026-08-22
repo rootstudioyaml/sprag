@@ -168,7 +168,7 @@ test('ledger events keep the model change and the rule that caused it', async (t
   }
 });
 
-test('the headline names the model change, version-free and capped at two', async () => {
+test('the headline names every model change, version-free', async () => {
   const { modelFamily } = await import('../src/savings-ledger.js');
   assert.equal(modelFamily('claude-opus-4-5-20251101-v1:0'), 'opus');
   assert.equal(modelFamily('us.anthropic.claude-haiku-4-5-v1:0'), 'haiku');
@@ -186,7 +186,9 @@ test('the headline names the model change, version-free and capped at two', asyn
   const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
   assert.match(line, /fable→sonnet 1× \$0\.72/);
   assert.match(line, /opus→haiku 2× \$0\.57/);
-  assert.doesNotMatch(line, /opus→sonnet/, 'only the two biggest are shown');
+  // Every pair is listed: the amounts sit next to a total, so a truncated
+  // list would misstate what the total is made of.
+  assert.match(line, /opus→sonnet 5× \$0\.11/);
   assert.doesNotMatch(line, /[45]-5|20251101/, 'no version digits reach the line');
 });
 

@@ -74,3 +74,19 @@ test('baseline picks the model that handled the most episodes, not the priciest'
   assert.equal(dominantModel({}), null);
   assert.equal(dominantModel(null), null);
 });
+
+test('region-prefixed settings.json aliases are recognized and fold to a family', async () => {
+  const { modelFamily } = await import('../src/savings-ledger.js');
+  // The shape `ANTHROPIC_*_MODEL` carries in a corporate settings.json.
+  const cases = [
+    ['ap-northeast-2.anthropic.claude-opus-5', 2, 'opus'],
+    ['ap-northeast-2.anthropic.claude-opus-5[1m]', 2, 'opus'],
+    ['ap-northeast-2.anthropic.claude-haiku-4-5', 0, 'haiku'],
+    ['us.anthropic.claude-sonnet-4-5-v1:0', 1, 'sonnet'],
+  ];
+  for (const [id, rank, family] of cases) {
+    assert.ok(isRecognizedModelId(id), `${id} should be recognized`);
+    assert.equal(modelRank(id), rank, `${id} rank`);
+    assert.equal(modelFamily(id), family, `${id} family`);
+  }
+});

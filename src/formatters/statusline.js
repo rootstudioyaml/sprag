@@ -293,9 +293,14 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const head = isIcon ? '🔀 Routing saved' : 'Routing saved';
     // Model changes behind the total, family-level and version-free: `opus →
     // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
-    // shape of the trade is the point. Capped at the two biggest so the line
-    // cannot grow without bound as rules accumulate.
-    const pairs = Array.isArray(totals.pairs) ? totals.pairs.slice(0, 2) : [];
+    // shape of the trade is the point.
+    //
+    // Every pair is listed, not a top-N: the amounts are shown next to a
+    // total, so a truncated list reads as "this is what the total is made of"
+    // and quietly misstates it. Families collapse the list on their own —
+    // there are only so many tier-to-tier moves — so it stays short without
+    // being cut.
+    const pairs = Array.isArray(totals.pairs) ? totals.pairs : [];
     const pairText = pairs
       .map((p) => `${c(GRAY)}${p.from}→${p.to}${c(RESET)} ${c(GRAY)}${p.runs}×${c(RESET)} ${c(GREEN)}${formatMoney(p.usd)}${c(RESET)}`)
       .join(` ${c(GRAY)}·${c(RESET)} `);
