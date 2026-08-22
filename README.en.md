@@ -4,54 +4,64 @@
 
 # claude-token-saver
 
-## 🔀 Routing saved — the reason this tool exists
+**Moves the easy work your expensive model keeps repeating onto cheaper ones, and shows what that actually saved — measured, in your statusline.** Zero dependencies, one-line install.
 
 ![statusline example — routing savings on row 1, diagnostics on row 2](./docs/statusline.png)
 
-**That figure on the first statusline row is the headline metric.** It is money actually saved by moving the easy work your expensive model kept repeating onto cheaper ones, and right beside it is which model that money moved off, and onto what.
+```bash
+npm i -g claude-token-saver
+```
 
-The other half of the savings comes from the **🅷 Harness and ratchet**. The harness blocks the habits that waste the most tokens — completion claims with no evidence, skipped verification — with five principles, and the ratchet freezes each error you hit into a rule so it does not recur. The measured −18.6% figure below comes from adopting those two, not from routing ([details](#real-world-impact--beforeafter-report)); routing savings sit on top of it. One install sets up all three.
+## Three parts, working together
 
-It is not an estimate or a marketing number: it comes out of a **ledger**. For every delegated subagent run it records
+| | What it does | Effect |
+|---|---|---|
+| 🔀 **Routing** | Delegates recurring easy work to cheaper models | Savings recorded per run in a ledger |
+| 🅷 **Harness** | Blocks the token-burning habits: unevidenced "done", skipped verification (5 principles) | **−18.6% cost** ([measured](#real-world-impact--beforeafter-report)) |
+| ⚙️ **Ratchet** | Freezes each error you hit into a rule | Same mistake stops recurring |
 
-- **before** — the model that handled this category before the rule existed
-- **after** — the model that actually ran it
-- **the gap** — the same token counts priced against both
+One install sets up all three. The measured −18.6% comes from the harness and ratchet; routing savings sit on top of it.
 
-so `route-scan savings` traces **every dollar back to the rule that produced it.**
+## 🔀 The savings figure is a ledger entry, not an estimate
+
+Every delegated run is recorded like this:
+
+```
+   before             after          gap
+  claude-opus-5  →  haiku-4-5   =   $0.57
+  (the model         (what          (same token counts,
+   handling this      actually       priced against
+   before the rule)   ran it)        both models)
+```
 
 ```bash
-$ claude-token-saver route-scan savings
+$ claude-token-saver route-scan savings      # trace every dollar back to its rule
 
 🔀 Routing saved, lifetime $2.09  (last 7d $1.40 · 30d $2.09)
 
 By model change:
-  claude-fable-5 → claude-sonnet-5           —  1 run, $0.72
-  claude-opus-5 → claude-haiku-4-5           —  1 run, $0.57
+  claude-fable-5 → claude-sonnet-5   —  1 run, $0.72
+  claude-opus-5 → claude-haiku-4-5   —  1 run, $0.57
 
 By run (newest first):
   2026-08-22    $0.51  claude-fable-5 → claude-haiku-4-5
             rule: T2|paste|-Users-me-projects-my-app
 ```
 
-**Counting honestly is the design principle.** Delegations no registered rule covers — `Explore`, your own agents, a plugin's subagents — were not routed by this tool, so they are **excluded**. When the pricing table cannot recognize a model id, the run is **dropped** rather than priced wrong. The number may be small, but it is real.
+**What is excluded** — an honest number beats a big one:
 
-```bash
-npm i -g claude-token-saver   # postinstall auto-registers the statusline + Skill
-```
+- Delegations no registered rule covers (`Explore`, your own agents, plugin subagents): this tool did not route them.
+- Model ids the pricing table cannot recognize: the run is dropped rather than priced wrong.
 
 ---
 
-## ⚡ Why — the 30-second pitch
+## ⚡ What else the statusline catches
 
 | | |
 |---|---|
-| 🔀 **Measured routing savings** | Every delegated run's saving is recorded in a ledger → lifetime total plus the model-change breakdown on statusline row 1 (audit it all with `route-scan savings`) |
-| 🎯 **Model-fitting delegation** | Classifies the easy work your expensive model (opus/fable) keeps repeating into tiers (T0/T1/T2) → promotes haiku/sonnet delegation rules, auto-applied from the next session |
-| 💸 **−18.6% measured cost** | Cost per user message $2.35 → $1.91 after adopting harness+ratchet (author's logs, [details](#real-world-impact--beforeafter-report)) |
-| 🚨 **No surprise rate limits** | Instant warning when the 5H/7D window hits 90% + `handoff` to back up your work |
-| 🧠 **Cache waste detection** | Hit rate, TTL countdown, 1M-context detection — token spikes diagnosed with issue codes |
-| 🅷 **Stop repeating mistakes** | Recurring errors get promoted to ratchet rules — auto-applied from the next session |
+| 🚨 **No surprise rate limits** | Warns when the 5H/7D window hits 90%; `handoff` backs up your work |
+| 🧠 **Cache waste detection** | Hit rate, TTL, 1M-context detection — spikes diagnosed with issue codes |
+| 🇰🇷 **Korean writing guidance** | Enabled automatically on a Korean locale ([below](#-korean-writing-guidance)) |
 
 ## Not a router — 60 seconds
 
@@ -368,6 +378,9 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.20.0 (2026-08-22)
+- **The README opening is now scannable** — prose replaced by a one-line summary, the screenshot, and the install command up top. The three parts (routing, harness, ratchet) are a table; how a saving is computed (before → after → gap) is a diagram. The old 30-second pitch table, which repeated all of it, now lists only what the statusline additionally catches.
 
 ### v3.19.0 (2026-08-22)
 - **Korean writing guidance** — corrects how Claude writes Korean (dropped sentence parts, noun-stopped sentences, translationese, em-dash overuse), injected once per session. Claude Code's output styles occupy a single global slot and must be configured per machine; this ships the guidance in the package and delivers it through the SessionStart hook already installed, so it **applies in every project and leaves the output-style slot free.** Text vendored from [fluent-korean](https://github.com/snflkd/fluent-korean) (Copyright (c) 2026 snflkd, MIT), license included.
