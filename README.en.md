@@ -305,6 +305,13 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 ## Release notes
 
+### v3.13.0 (2026-08-22)
+- **Routing savings are now priced "model before the rule → model that ran it"** — previously the counterfactual was the session's priciest model, which booked a saving even when that model had never handled work of this shape. Each rule now remembers the **model that handled its category before promotion** (its baseline) and prices only against that. The baseline is sticky once set: as a rule takes effect fewer episodes stay on the expensive model, so a recomputed baseline would drift down and shrink the very saving the rule produces.
+- **Delegations no rule covers are excluded** — `Explore`, hand-written agents, and plugin subagents were all being counted, crediting this tool for routing it never did. Ledger events now carry `rule` / `from` / `to`, so every dollar is traceable to the rule and model change behind it.
+- **Ledger schema version 2** — v1 events used the old counterfactual and are discarded rather than migrated; the next `route-scan` refills whatever is genuinely attributable.
+- **House alias model ids no longer price as Sonnet by accident** — when a gateway reports an alias carrying no family name (`prod-large`), the pricing table's default made it Sonnet, fabricating or erasing savings. Both sides of a comparison must now be recognizable ids. Bedrock (`anthropic.claude-opus-4-5-v1:0`), Vertex (`claude-opus-4-5@20251101`), and the `[1m]` suffix are recognized as-is; house aliases come back into the aggregate with one line in `modelAliases` (wildcards supported).
+- `harness check` also reports CLAUDE.md size and whether a `.claudeignore` exists (advisory; the 🅷 score is unaffected).
+
 ### v3.12.1 (2026-08-22)
 - **Routing-savings headline reads more clearly** — the amounts are now in the savings green (the one unambiguously good number on the line), `wk`/`mo`/`all` are spelled out as `weekly`/`monthly`/`total`, and the period now leads the amount. Three bare amounts in a row read as a single number until the eye found the trailing marker.
 
