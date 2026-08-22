@@ -431,6 +431,35 @@ export function ratchetSizeStatus({ root = findProjectRoot(), scope = 'project' 
   return { path, count: rules.length, bytes, tokens, overBudget: tokens > RATCHET_TOKEN_BUDGET };
 }
 
+// CLAUDE.md itself is also charged on every request. The community guideline
+// is "rules and file pointers, not documentation" — the harness block plus a
+// modest project section fits well under this; docs pasted wholesale do not.
+export const CLAUDE_MD_TOKEN_BUDGET = 4000;
+
+/**
+ * Advisory size/ignore facts for `harness check`:
+ *  - approx token weight of the project (or global) CLAUDE.md
+ *  - whether the project has a .claudeignore (limits what Claude Code will
+ *    read into context during searches)
+ * Purely informational — never affects the 🅷 N/5 score.
+ */
+export function contextWeightStatus({ root = findProjectRoot() } = {}) {
+  const out = { claudeMd: null, hasClaudeIgnore: false };
+  try {
+    out.hasClaudeIgnore = existsSync(join(root, '.claudeignore'));
+  } catch { /* fs error → treat as absent */ }
+  for (const file of [join(root, 'CLAUDE.md'), join(homedir(), '.claude', 'CLAUDE.md')]) {
+    try {
+      if (!existsSync(file)) continue;
+      const bytes = statSync(file).size;
+      const tokens = Math.round(bytes / 4);
+      out.claudeMd = { path: file, bytes, tokens, overBudget: tokens > CLAUDE_MD_TOKEN_BUDGET };
+      break; // project file wins; global only as fallback
+    } catch { /* unreadable → skip */ }
+  }
+  return out;
+}
+
 /**
  * harness prune — move rules out of ratchet.md into ratchet-archive.md next to
  * it. Selection is by tag and/or age; nothing is deleted, so a pruned rule can

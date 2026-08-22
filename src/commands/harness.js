@@ -27,7 +27,7 @@ export async function run({ args, hasFlag }) {
       }
       return dflt;
     };
-    const { harnessInit, harnessUninit, harnessStatus, harnessPromote, harnessPull, harnessListRules, harnessRmRule, harnessPrune, ratchetSizeStatus, RATCHET_TOKEN_BUDGET, findProjectRoot } =
+    const { harnessInit, harnessUninit, harnessStatus, harnessPromote, harnessPull, harnessListRules, harnessRmRule, harnessPrune, ratchetSizeStatus, RATCHET_TOKEN_BUDGET, contextWeightStatus, CLAUDE_MD_TOKEN_BUDGET, findProjectRoot } =
       await import('../harness.js');
     const { HARNESS_SECTIONS } = await import('../harness-templates.js');
     const { loadConfig, saveConfig, userLanguage } = await import('../config.js');
@@ -76,6 +76,24 @@ export async function run({ args, hasFlag }) {
         } else {
           console.log(`${line}`);
         }
+      }
+      // Advisory context-weight facts (never counted in 🅷 N/5): CLAUDE.md is
+      // charged on every request, and without a .claudeignore Claude Code can
+      // pull build artifacts and vendored code into context during searches.
+      try {
+        const w = contextWeightStatus({ root });
+        if (w.claudeMd) {
+          const line = `CLAUDE.md size: ~${w.claudeMd.tokens} tok/request (${w.claudeMd.path})`;
+          if (w.claudeMd.overBudget) {
+            console.log(`\n⚠ ${line} — over the ~${CLAUDE_MD_TOKEN_BUDGET} token guideline.`);
+            console.log('  Keep rules and file pointers here; move documentation into files it points to.');
+          } else {
+            console.log(line);
+          }
+        }
+        console.log(`.claudeignore: ${w.hasClaudeIgnore ? 'present' : 'absent — consider adding one so searches skip build output, vendored code, and large data files'}`);
+      } catch (e) {
+        debug('harness:context-weight', e);
       }
       return;
     }

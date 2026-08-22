@@ -451,6 +451,10 @@ export async function runRouteScan({ days = 14 } = {}) {
     d.savedUsd += saved;
     delegatedStats.set(key, d);
   };
+  // Ledger events feed the statusline's weekly/monthly "Routing saved"
+  // totals. Keyed by run transcript path so overlapping re-scans upsert the
+  // same event instead of double-counting it.
+  const ledgerEvents = [];
   for (const [sessionPath, index] of runIndexBySession) {
     const used = new Set();
     for (const { ep, projectDir, sessionPath: epSession } of all) {
@@ -474,8 +478,21 @@ export async function runRouteScan({ days = 14 } = {}) {
         const saved = runSaving(run, mainModel);
         bumpDelegated(`${runTier}|${cat.id}|${projectDir}`, run, saved);
         bumpDelegated(`${runTier}|${cat.id}|*`, run, saved);
+        if (saved > 0) {
+          ledgerEvents.push({
+            key: run.path,
+            ts: run.endedAt ?? run.startedAt ?? Date.now(),
+            usd: saved,
+          });
+        }
       }
     }
+  }
+  try {
+    const { recordDelegationEvents } = await import('./savings-ledger.js');
+    recordDelegationEvents(ledgerEvents);
+  } catch {
+    // ledger write failure only delays the statusline totals, never the scan
   }
 
   // Keep prior dismissed/promoted signatures across rescans.

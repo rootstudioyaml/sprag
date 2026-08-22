@@ -18,6 +18,7 @@
  *   npx claude-token-saver --statusline --no-color # strip ANSI colors
  *   npx claude-token-saver --statusline --icon     # use 🧠 ⏳ 💰 icons
  *   npx claude-token-saver --statusline --no-timer # hide the TTL countdown
+ *   npx claude-token-saver --statusline --single-line # legacy 1-line layout (no routing-totals headline)
  *   npx claude-token-saver --statusline --exclude-session <path>
  *                                               # exclude a JSONL path from lastActivity
  *                                               # (or set CACHE_MONITOR_EXCLUDE_SESSION env var)
@@ -231,6 +232,7 @@ async function main() {
       timer: showTimer,
       mode: isIcon ? 'icon' : 'text',
       segments,
+      singleLine: hasFlag('--single-line'),
     });
     // For `cycle` mode, prefix with the scenario label so the screen recorder
     // shows what the viewer is looking at (only when explicitly requested).
@@ -443,6 +445,15 @@ async function main() {
   } catch (e) {
     debug('model-rules:saved', e); // an unreadable registry just hides the chip
   }
+  // Rolling week/month/lifetime totals from the delegation ledger — the
+  // statusline's headline line. Falls back to null (chip hidden) on any error.
+  let delegationTotals = null;
+  try {
+    const { delegationSavedTotals } = await import('../src/savings-ledger.js');
+    delegationTotals = delegationSavedTotals();
+  } catch (e) {
+    debug('savings-ledger:totals', e);
+  }
 
   const data = {
     summary: sum,
@@ -459,6 +470,7 @@ async function main() {
     caps,
     model,
     delegationSaved,
+    delegationTotals,
   };
 
   let output;
@@ -505,6 +517,10 @@ async function main() {
       timer: showTimer,
       mode: isIcon ? 'icon' : 'text',
       segments,
+      // macOS builds of Claude Code have rendered only the first line of a
+      // multi-line statusline in some versions (anthropics/claude-code#35176)
+      // — --single-line restores the legacy one-line layout in that case.
+      singleLine: hasFlag('--single-line'),
     });
   } else {
     const { formatReport } = await import('../src/formatters/table.js');

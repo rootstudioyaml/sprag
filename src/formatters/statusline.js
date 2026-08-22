@@ -212,8 +212,9 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '' } 
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
  * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, harness, model, hit, ttl, saved, delegated, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
+ * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
-export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null } = {}) {
+export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
   const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model } = data;
   const { hitRate } = summary;
 
@@ -272,6 +273,24 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const delegateSeg = delegationSaved > 0
     ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
     : null;
+
+  // Routing-totals headline line (multi-line layout). Week/month/lifetime
+  // sums from the delegation ledger — the number the whole tool exists to
+  // grow, so it gets line 1 to itself while the diagnostics move to line 2.
+  //   icon:  "🔀 Routing saved $1.2 wk · $3.4 mo · $9.8 all"
+  //   text:  "Routing saved $1.2 wk · $3.4 mo · $9.8 all"
+  const totals = data.delegationTotals;
+  let totalsLine = null;
+  if (!singleLine && totals && Number(totals.total) > 0) {
+    const part = (usd, label) =>
+      `${formatMoney(Number(usd) || 0)} ${c(GRAY)}${label}${c(RESET)}`;
+    const head = isIcon ? '🔀 Routing saved' : 'Routing saved';
+    totalsLine =
+      `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
+      `${part(totals.week, 'wk')} ${c(GRAY)}·${c(RESET)} ` +
+      `${part(totals.month, 'mo')} ${c(GRAY)}·${c(RESET)} ` +
+      `${part(totals.total, 'all')}`;
+  }
 
   // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").
   // Fall back to legacy `${days}d` when callers haven't supplied a label.
@@ -493,7 +512,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Delegation savings ride up front, next to the model that would otherwise
   // have done the work. "Cache saved" stays at the tail: it is a lifetime brag
   // stat, while this one is the point of the tool.
-  if (delegateSeg && want('delegated')) segs.push(delegateSeg);
+  // When the totals headline owns line 1, the inline session chip would
+  // repeat the same story on line 2 — drop it there.
+  if (delegateSeg && want('delegated') && !totalsLine) segs.push(delegateSeg);
   if (want('hit')) segs.push(hitSeg);
   if (want('ttl')) segs.push(ttlSeg);
   for (const { key, seg } of usageSegs) {
@@ -509,5 +530,10 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard
   // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
   // allowed — --no-color/NO_COLOR consumers expect escape-free output.
-  return segs.join(' · ') + (color ? '\x1b[K' : '');
+  const eol = color ? '\x1b[K' : '';
+  const rest = segs.join(' · ') + eol;
+  if (totalsLine && want('delegated')) {
+    return totalsLine + eol + '\n' + rest;
+  }
+  return rest;
 }
