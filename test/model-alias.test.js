@@ -311,3 +311,24 @@ test('a direct-API machine learns nothing and writes no profile map', async (t) 
   assert.equal(gateway, false);
   assert.deepEqual(learned, {});
 });
+
+test('self-describing ARNs resolve without learning or env vars', (t) => {
+  isolated(t);
+  // foundation-model ARN: the resource IS the model id
+  const fm = resolveModelAlias(
+    'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0',
+  );
+  assert.equal(fm, 'anthropic.claude-haiku-4-5-20251001-v1:0');
+  assert.equal(modelRank(fm), 0, 'classified as haiku tier');
+  // system cross-region inference profile: region-prefixed model id
+  const sys = resolveModelAlias(
+    'arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-opus-5-v1:0',
+  );
+  assert.equal(sys, 'us.anthropic.claude-opus-5-v1:0');
+  assert.equal(modelRank(sys), 2, 'classified as opus tier');
+  // opaque application profile ids still require override/learning
+  assert.equal(
+    resolveModelAlias('converse/arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc123'),
+    UNKNOWN_MODEL,
+  );
+});

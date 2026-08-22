@@ -44,8 +44,10 @@ export function profileMapPath() {
 }
 
 // `converse/` (LiteLLM) or a bare ARN, foundation- or application-scoped.
+// `foundation-model` ARNs carry the model id directly in the resource part
+// (`foundation-model/anthropic.claude-haiku-…`), so they are captured too.
 const ARN_RE =
-  /arn:aws:bedrock:[^:]*:[^:]*:(?:application-)?inference-profile\/([A-Za-z0-9._:-]+)/;
+  /arn:aws:bedrock:[^:]*:[^:]*:(?:foundation-model|(?:application-)?inference-profile)\/([A-Za-z0-9._:-]+)/;
 
 /** True when the id came from a Bedrock gateway rather than the Claude API. */
 export function isGatewayModelId(model) {
@@ -157,6 +159,16 @@ export function resolveModelAlias(rawModel, { env = process.env } = {}) {
 
   const pid = profileIdFrom(model);
   if (!pid) return UNKNOWN_MODEL;
+
+  // Self-describing resource ids need no learning: foundation-model ARNs and
+  // system cross-region inference profiles both embed the model id
+  // (`anthropic.claude-haiku-4-5-…` / `us.anthropic.claude-haiku-4-5-…`).
+  // detectPricingTier() already classifies those strings, region prefix
+  // included — only opaque application-profile ids (random hex) fall through
+  // to the override / learned paths. Without this, a fresh gateway machine
+  // reported every run as 'unknown' until enough sessions accumulated to
+  // learn a mapping that the string had spelled out all along.
+  if (/claude/i.test(pid)) return pid;
 
   const entry = map.learned?.[pid];
   if (entry?.role) {
