@@ -277,22 +277,25 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Routing-totals headline line (multi-line layout). Week/month/lifetime
   // sums from the delegation ledger — the number the whole tool exists to
   // grow, so it gets line 1 to itself while the diagnostics move to line 2.
-  //   icon:  "🔀 Routing saved $1.2 wk · $3.4 mo · $9.8 all"
-  //   text:  "Routing saved $1.2 wk · $3.4 mo · $9.8 all"
+  //   icon:  "🔀 Routing saved weekly $1.2 · monthly $3.4 · total $9.8"
+  //   text:  "Routing saved weekly $1.2 · monthly $3.4 · total $9.8"
   const totals = data.delegationTotals;
   let totalsLine = null;
   if (!singleLine && totals && Number(totals.total) > 0) {
     // Money is green throughout — it is saved cost, the one number on the
     // line that is unambiguously good news. The period markers stay gray so
     // the eye lands on the amounts, not on "wk / mo / all".
+    // Period first, amount second — three bare amounts in a row read as one
+    // number until the eye finds the trailing marker, so the label leads and
+    // the green amount answers it.
     const part = (usd, label) =>
-      `${c(GREEN)}${formatMoney(Number(usd) || 0)}${c(RESET)} ${c(GRAY)}${label}${c(RESET)}`;
+      `${c(GRAY)}${label}${c(RESET)} ${c(GREEN)}${formatMoney(Number(usd) || 0)}${c(RESET)}`;
     const head = isIcon ? '🔀 Routing saved' : 'Routing saved';
     totalsLine =
       `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
-      `${part(totals.week, 'wk')} ${c(GRAY)}·${c(RESET)} ` +
-      `${part(totals.month, 'mo')} ${c(GRAY)}·${c(RESET)} ` +
-      `${part(totals.total, 'all')}`;
+      `${part(totals.week, 'weekly')} ${c(GRAY)}·${c(RESET)} ` +
+      `${part(totals.month, 'monthly')} ${c(GRAY)}·${c(RESET)} ` +
+      `${part(totals.total, 'total')}`;
   }
 
   // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").

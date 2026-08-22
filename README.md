@@ -258,7 +258,7 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 ## 릴리스 노트
 
 ### v3.12.0 (2026-08-22)
-- **Routing saved가 주간·월간·누적으로 statusline 1줄째에 올라옵니다** — `🔀 Routing saved $1.3 wk · $2.0 mo · $9.8 all`. 위임 절감 이벤트를 서브에이전트 run 단위로 원장(`delegation-ledger.json`)에 기록하고(트랜스크립트 경로 키라 재스캔이 겹쳐도 중복 집계 없음), 7일·30일·전체 합산을 표시합니다. 나머지 칩은 2줄째로 내려갑니다. 원장이 비어 있으면 기존 1줄 그대로이고, 일부 환경(macOS 구버전 Claude Code)에서 첫 줄만 보이면 `--single-line`으로 기존 레이아웃을 유지할 수 있습니다. 집계는 원장 도입 시점부터 시작합니다(소급 없음).
+- **Routing saved가 주간·월간·누적으로 statusline 1줄째에 올라옵니다** — `🔀 Routing saved weekly $1.3 · monthly $2.0 · total $9.8`. 위임 절감 이벤트를 서브에이전트 run 단위로 원장(`delegation-ledger.json`)에 기록하고(트랜스크립트 경로 키라 재스캔이 겹쳐도 중복 집계 없음), 7일·30일·전체 합산을 표시합니다. 나머지 칩은 2줄째로 내려갑니다. 원장이 비어 있으면 기존 1줄 그대로이고, 일부 환경(macOS 구버전 Claude Code)에서 첫 줄만 보이면 `--single-line`으로 기존 레이아웃을 유지할 수 있습니다. 집계는 원장 도입 시점부터 시작합니다(소급 없음).
 - **`harness check`가 컨텍스트 무게도 알려줍니다** — CLAUDE.md의 요청당 대략 토큰(~4k 가이드라인 초과 시 경고)과 `.claudeignore` 유무를 표시합니다. 자문 정보일 뿐 🅷 N/5 점수에는 반영하지 않습니다.
 - **모델명이 내장된 ARN은 학습 없이 즉시 해석** — `foundation-model/anthropic.claude-…`와 시스템 교차 리전 프로파일(`inference-profile/us.anthropic.claude-…`)은 자원 ID가 곧 모델명인데도 `unknown`으로 떨어져, 학습 표본이 쌓이기 전의 게이트웨이 환경에서 위임·비용 집계가 통째로 빠졌습니다. 이제 즉시 기존 티어 분류로 넘깁니다. 불투명한 application-profile ID는 종전대로 오버라이드/학습 경로입니다.
 

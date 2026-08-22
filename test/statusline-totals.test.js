@@ -1,6 +1,6 @@
 /**
  * Multi-line statusline: when the delegation ledger carries lifetime savings,
- * a "Routing saved $x wk · $y mo · $z all" headline owns line 1 and every
+ * a "Routing saved weekly $x · monthly $y · total $z" headline owns line 1 and every
  * other chip moves to line 2. --single-line and an empty ledger both fall
  * back to the legacy one-line layout. The savings ledger itself is covered
  * here too (upsert dedupe + rolling-window sums).
@@ -36,7 +36,7 @@ test('totals headline takes line 1, diagnostics take line 2', () => {
   const out = formatReport(data(), opts);
   const lines = out.split('\n');
   assert.equal(lines.length, 2);
-  assert.match(lines[0], /^Routing saved \$1\.25 wk · \$4\.50 mo · \$9\.75 all$/);
+  assert.match(lines[0], /^Routing saved weekly \$1\.25 · monthly \$4\.50 · total \$9\.75$/);
   assert.match(lines[1], /Cache hit/);
   assert.match(lines[1], /Cache saved/);
   assert.doesNotMatch(lines[1], /Routing saved/, 'inline session chip is dropped when the headline renders');
@@ -44,7 +44,7 @@ test('totals headline takes line 1, diagnostics take line 2', () => {
 
 test('icon mode keeps the 🔀 prefix on the headline', () => {
   const out = formatReport(data(), { ...opts, mode: 'icon' });
-  assert.match(out.split('\n')[0], /^🔀 Routing saved \$1\.25 wk/);
+  assert.match(out.split('\n')[0], /^🔀 Routing saved weekly \$1\.25/);
 });
 
 test('--single-line falls back to the legacy layout', () => {
@@ -105,7 +105,7 @@ test('amounts render in the savings green, period markers in gray', () => {
   for (const amount of ['$1.25', '$4.50', '$9.75']) {
     assert.ok(out.includes(`${GREEN}${amount}`), `${amount} should be green`);
   }
-  for (const label of ['wk', 'mo', 'all']) {
+  for (const label of ['weekly', 'monthly', 'total']) {
     assert.ok(out.includes(`${GRAY}${label}`), `${label} should stay gray`);
   }
 });
