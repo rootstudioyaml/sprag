@@ -301,8 +301,12 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // there are only so many tier-to-tier moves — so it stays short without
     // being cut.
     const pairs = Array.isArray(totals.pairs) ? totals.pairs : [];
+    // The breakdown stays entirely gray, amounts included. Only the three
+    // rolling totals are green: they are the headline figure, and repeating
+    // that green on every component would flatten the line into one loud
+    // block with nothing to land on first.
     const pairText = pairs
-      .map((p) => `${c(GRAY)}${p.from}→${p.to}${c(RESET)} ${c(GRAY)}${p.runs}×${c(RESET)} ${c(GREEN)}${formatMoney(p.usd)}${c(RESET)}`)
+      .map((p) => `${c(GRAY)}${p.from}→${p.to} ${p.runs}× ${formatMoney(p.usd)}${c(RESET)}`)
       .join(` ${c(GRAY)}·${c(RESET)} `);
     totalsLine =
       `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +

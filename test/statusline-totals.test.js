@@ -198,3 +198,19 @@ test('no pairs means the headline is unchanged', () => {
     assert.equal(line, 'Routing saved weekly $1.00 · monthly $2.00 · total $2.00');
   }
 });
+
+test('only the rolling totals are green; the model breakdown is all gray', () => {
+  const truecolor =
+    process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
+  const GREEN = truecolor ? '\x1b[38;2;52;211;153m' : '\x1b[32m';
+  const totals = {
+    week: 1, month: 2, total: 2,
+    pairs: [{ from: 'opus', to: 'haiku', runs: 2, usd: 0.57 }],
+  };
+  const line = formatReport(data({ delegationTotals: totals }), { timer: false }).split('\n')[0];
+  const [head, breakdown] = line.split('|');
+  assert.ok(head.includes(`${GREEN}$1.00`), 'the weekly total stays green');
+  assert.ok(head.includes(`${GREEN}$2.00`), 'the monthly/lifetime totals stay green');
+  assert.ok(!breakdown.includes(GREEN), 'no green survives into the breakdown');
+  assert.match(breakdown, /opus→haiku 2× \$0\.57/);
+});
