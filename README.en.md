@@ -199,6 +199,7 @@ claude-token-saver route-scan                    # scan (24h cache) + tiered can
 claude-token-saver harness promote R1 --project  # promote candidate R1 to a model-fitting rule
 claude-token-saver route-scan dismiss 1          # not interested — won't resurface
 claude-token-saver route-scan rules              # list model-fitting rules (rm <N> to remove)
+claude-token-saver route-scan savings            # the savings ledger — which rule moved work off which model, onto which
 ```
 
 Dig deeper: **tier criteria & research evidence** → [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) (Korean) · **rule-file mechanics, scan triggers, subagent setup** → [docs/ROUTE_SCAN.md](./docs/ROUTE_SCAN.md) (Korean + English)

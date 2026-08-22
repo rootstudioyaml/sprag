@@ -179,6 +179,17 @@ claude-token-saver route-scan                    # 스캔 (24h 캐시) + 티어�
 claude-token-saver harness promote R1 --project  # 후보 R1을 모델 피팅 룰로 등록
 claude-token-saver route-scan dismiss 1          # 관심 없으면 무시 (재스캔에도 안 뜸)
 claude-token-saver route-scan rules              # 등록된 모델 피팅 룰 목록 (rm <N>으로 제거)
+claude-token-saver route-scan savings            # 절감 원장 — 어느 룰이 어떤 모델에서 어떤 모델로 옮겼는지
+```
+
+`route-scan savings`는 statusline의 `🔀 Routing saved` 한 줄 뒤에 있는 근거를 그대로 보여줍니다. 모델 이동별 합계와 실행별 내역이 함께 나오므로, 금액이 어디서 나왔는지 추적할 수 있습니다.
+
+```
+🔀 라우팅 절감 — 주간 $1.40 · 월간 $2.09 · 누적 $2.09
+
+모델 이동별:
+  claude-fable-5 → claude-sonnet-5  —  1회, $0.72
+  claude-opus-5 → claude-haiku-4-5  —  1회, $0.57
 ```
 
 더 알아보기: **티어 기준·리서치 근거** → [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) · **룰 파일 구조·스캔 트리거·서브에이전트 준비** → [docs/ROUTE_SCAN.md](./docs/ROUTE_SCAN.md)

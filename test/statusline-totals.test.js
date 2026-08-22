@@ -143,3 +143,27 @@ test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
     to: 'claude-sonnet-5',
   });
 });
+
+test('ledger events keep the model change and the rule that caused it', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'cts-ledger-pair-'));
+  process.env.XDG_CONFIG_HOME = dir;
+  t.after(() => {
+    delete process.env.XDG_CONFIG_HOME;
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const m = await import('../src/savings-ledger.js?pair');
+  m.recordDelegationEvents([
+    { key: '/a.jsonl', ts: Date.now(), usd: 0.5, rule: 'T2|run|p', from: 'claude-opus-5', to: 'claude-haiku-4-5' },
+    { key: '/b.jsonl', ts: Date.now(), usd: 0.2, rule: 'T1|paste|p', from: 'claude-fable-5', to: 'claude-sonnet-5' },
+  ]);
+  const evs = m.loadLedger().events;
+  assert.equal(evs['/a.jsonl'].from, 'claude-opus-5');
+  assert.equal(evs['/a.jsonl'].to, 'claude-haiku-4-5');
+  assert.equal(evs['/a.jsonl'].rule, 'T2|run|p');
+  assert.equal(evs['/b.jsonl'].from, 'claude-fable-5');
+  // Every recorded dollar can be traced to a model change — nothing lands
+  // without one, which is what makes `route-scan savings` auditable.
+  for (const e of Object.values(evs)) {
+    assert.ok(e.from && e.to && e.rule, 'each event carries rule/from/to');
+  }
+});

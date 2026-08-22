@@ -10,6 +10,58 @@ export async function run({ args, hasFlag, numArg }) {
     const { userLanguage } = await import('../config.js');
     const lang = userLanguage();
 
+    // route-scan savings — the delegation ledger behind the statusline's
+    // "Routing saved" headline. The headline is one number; this is the
+    // evidence for it: which rule fired, which model the work moved off, and
+    // which model actually ran it.
+    if (args[1] === 'savings') {
+      const { loadLedger, delegationSavedTotals } = await import('../savings-ledger.js');
+      const events = Object.entries(loadLedger().events)
+        .map(([key, e]) => ({ key, ...e }))
+        .sort((a, b) => b.ts - a.ts);
+      if (events.length === 0) {
+        console.log(lang === 'ko'
+          ? '기록된 라우팅 절감 없음. 승격된 룰이 실제로 위임을 일으킨 뒤 `route-scan --refresh` 를 돌리면 채워집니다.'
+          : 'No routing savings recorded yet. Promote a rule, let it delegate, then run `route-scan --refresh`.');
+        return;
+      }
+      const t = delegationSavedTotals();
+      const money = (v) => `$${v.toFixed(2)}`;
+      console.log(lang === 'ko'
+        ? `🔀 라우팅 절감 — 주간 ${money(t.week)} · 월간 ${money(t.month)} · 누적 ${money(t.total)}`
+        : `🔀 Routing saved — weekly ${money(t.week)} · monthly ${money(t.month)} · total ${money(t.total)}`);
+
+      // Per model-pair rollup first: the "what moved where" question is what
+      // this view exists to answer, and it is easier to read than the log.
+      const pairs = new Map();
+      for (const e of events) {
+        const k = `${e.from || '?'} → ${e.to || '?'}`;
+        const p = pairs.get(k) || { runs: 0, usd: 0 };
+        p.runs += 1;
+        p.usd += Number(e.usd) || 0;
+        pairs.set(k, p);
+      }
+      console.log('');
+      console.log(lang === 'ko' ? '모델 이동별:' : 'By model change:');
+      for (const [k, p] of [...pairs].sort((a, b) => b[1].usd - a[1].usd)) {
+        const runs = lang === 'ko' ? `${p.runs}회` : `${p.runs} run${p.runs === 1 ? '' : 's'}`;
+        console.log(`  ${k}  —  ${runs}, ${money(p.usd)}`);
+      }
+
+      console.log('');
+      console.log(lang === 'ko' ? '실행별 (최근순):' : 'By run (newest first):');
+      for (const e of events) {
+        const when = new Date(e.ts).toISOString().slice(0, 10);
+        console.log(`  ${when}  ${money(Number(e.usd) || 0).padStart(7)}  ${e.from || '?'} → ${e.to || '?'}`);
+        console.log(`            ${lang === 'ko' ? '룰' : 'rule'}: ${e.rule || '(unattributed)'}`);
+      }
+      console.log('');
+      console.log(lang === 'ko'
+        ? '금액은 "룰 승격 전 그 유형을 처리하던 모델"과 실제 실행 모델의 가격 차이입니다 (토큰 수는 고정 가정).'
+        : 'Each amount is the price gap between the model that handled this category before the rule and the model that actually ran it (token counts held constant).');
+      return;
+    }
+
     // route-scan rules [rm <N>] — the model-fitting rule registry (rules
     // promoted from candidates; auto-refreshed from logs on every rescan).
     if (args[1] === 'rules') {
