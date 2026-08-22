@@ -126,7 +126,7 @@ test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
     JSON.stringify({ events: { '/old.jsonl': { ts: Date.now(), usd: 99 } } }),
   );
   const m = await import('../src/savings-ledger.js?v1');
-  assert.deepEqual(m.delegationSavedTotals(), { week: 0, month: 0, total: 0 });
+  assert.deepEqual(m.delegationSavedTotals(), { week: 0, month: 0, total: 0, pairs: [] });
 
   // A v2 write starts the file over and stamps the version.
   m.recordDelegationEvents([
@@ -165,5 +165,34 @@ test('ledger events keep the model change and the rule that caused it', async (t
   // without one, which is what makes `route-scan savings` auditable.
   for (const e of Object.values(evs)) {
     assert.ok(e.from && e.to && e.rule, 'each event carries rule/from/to');
+  }
+});
+
+test('the headline names the model change, version-free and capped at two', async () => {
+  const { modelFamily } = await import('../src/savings-ledger.js');
+  assert.equal(modelFamily('claude-opus-4-5-20251101-v1:0'), 'opus');
+  assert.equal(modelFamily('us.anthropic.claude-haiku-4-5-v1:0'), 'haiku');
+  assert.equal(modelFamily('claude-fable-5'), 'fable');
+  assert.equal(modelFamily('prod-large'), 'prod-large', 'unmapped ids stay visible');
+
+  const totals = {
+    week: 1, month: 2, total: 2,
+    pairs: [
+      { from: 'fable', to: 'sonnet', runs: 1, usd: 0.72 },
+      { from: 'opus', to: 'haiku', runs: 2, usd: 0.57 },
+      { from: 'opus', to: 'sonnet', runs: 5, usd: 0.11 },
+    ],
+  };
+  const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
+  assert.match(line, /fable→sonnet 1× \$0\.72/);
+  assert.match(line, /opus→haiku 2× \$0\.57/);
+  assert.doesNotMatch(line, /opus→sonnet/, 'only the two biggest are shown');
+  assert.doesNotMatch(line, /[45]-5|20251101/, 'no version digits reach the line');
+});
+
+test('no pairs means the headline is unchanged', () => {
+  for (const pairs of [undefined, [], null]) {
+    const line = formatReport(data({ delegationTotals: { week: 1, month: 2, total: 2, pairs } }), opts).split('\n')[0];
+    assert.equal(line, 'Routing saved weekly $1.00 · monthly $2.00 · total $2.00');
   }
 });

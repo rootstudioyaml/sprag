@@ -88,11 +88,31 @@ export function recordDelegationEvents(events) {
 }
 
 /**
- * Rolling totals: last 7 days, last 30 days, and lifetime. `now` is injectable
- * for tests. Never throws — an unreadable ledger yields all-zero totals.
+ * Family name of a model id, with the version dropped: `claude-opus-5` and
+ * `claude-opus-4-5-20251101-v1:0` both read as `opus`.
+ *
+ * Versions move constantly, and on a statusline the digits are noise — what
+ * the reader wants is the shape of the trade ("opus work now runs on haiku").
+ * Falls back to the id itself so an unmapped name is visible rather than
+ * silently folded into another family.
+ */
+export function modelFamily(model) {
+  const m = String(model || '').toLowerCase();
+  for (const f of ['fable', 'mythos', 'opus', 'sonnet', 'haiku']) {
+    if (m.includes(f)) return f;
+  }
+  return String(model || '?');
+}
+
+/**
+ * Rolling totals: last 7 days, last 30 days, and lifetime, plus `pairs` — the
+ * lifetime rollup by family-level model change, priciest first. `now` is
+ * injectable for tests. Never throws — an unreadable ledger yields zeros.
  */
 export function delegationSavedTotals(now = Date.now()) {
-  const totals = { week: 0, month: 0, total: 0 };
+  const empty = () => ({ week: 0, month: 0, total: 0, pairs: [] });
+  const totals = empty();
+  const byPair = new Map();
   try {
     for (const e of Object.values(loadLedger().events)) {
       const usd = Number(e.usd) || 0;
@@ -102,9 +122,16 @@ export function delegationSavedTotals(now = Date.now()) {
         if (now - e.ts <= WEEK_MS) totals.week += usd;
         if (now - e.ts <= MONTH_MS) totals.month += usd;
       }
+      if (!e.from || !e.to) continue;
+      const key = `${modelFamily(e.from)}→${modelFamily(e.to)}`;
+      const p = byPair.get(key) || { from: modelFamily(e.from), to: modelFamily(e.to), runs: 0, usd: 0 };
+      p.runs += 1;
+      p.usd += usd;
+      byPair.set(key, p);
     }
   } catch {
-    return { week: 0, month: 0, total: 0 };
+    return empty();
   }
+  totals.pairs = [...byPair.values()].sort((a, b) => b.usd - a.usd);
   return totals;
 }

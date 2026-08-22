@@ -291,11 +291,20 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const part = (usd, label) =>
       `${c(GRAY)}${label}${c(RESET)} ${c(GREEN)}${formatMoney(Number(usd) || 0)}${c(RESET)}`;
     const head = isIcon ? '🔀 Routing saved' : 'Routing saved';
+    // Model changes behind the total, family-level and version-free: `opus →
+    // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
+    // shape of the trade is the point. Capped at the two biggest so the line
+    // cannot grow without bound as rules accumulate.
+    const pairs = Array.isArray(totals.pairs) ? totals.pairs.slice(0, 2) : [];
+    const pairText = pairs
+      .map((p) => `${c(GRAY)}${p.from}→${p.to}${c(RESET)} ${c(GRAY)}${p.runs}×${c(RESET)} ${c(GREEN)}${formatMoney(p.usd)}${c(RESET)}`)
+      .join(` ${c(GRAY)}·${c(RESET)} `);
     totalsLine =
       `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
       `${part(totals.week, 'weekly')} ${c(GRAY)}·${c(RESET)} ` +
       `${part(totals.month, 'monthly')} ${c(GRAY)}·${c(RESET)} ` +
-      `${part(totals.total, 'total')}`;
+      `${part(totals.total, 'total')}` +
+      (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 
   // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").
