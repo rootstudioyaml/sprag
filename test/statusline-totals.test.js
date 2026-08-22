@@ -92,3 +92,20 @@ test('ledger: upserts dedupe by run path and totals honor rolling windows', asyn
   assert.equal(totals.month, 3);
   assert.equal(totals.total, 7);
 });
+
+test('amounts render in the savings green, period markers in gray', () => {
+  const out = formatReport(data(), { timer: false }).split('\n')[0];
+  // The palette degrades to the 8-color codes when the terminal does not
+  // advertise truecolor, so the expected escapes depend on the environment
+  // the suite runs in — same branch the formatter takes.
+  const truecolor =
+    process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
+  const GREEN = truecolor ? '\x1b[38;2;52;211;153m' : '\x1b[32m';
+  const GRAY = truecolor ? '\x1b[38;2;100;116;139m' : '\x1b[90m';
+  for (const amount of ['$1.25', '$4.50', '$9.75']) {
+    assert.ok(out.includes(`${GREEN}${amount}`), `${amount} should be green`);
+  }
+  for (const label of ['wk', 'mo', 'all']) {
+    assert.ok(out.includes(`${GRAY}${label}`), `${label} should stay gray`);
+  }
+});

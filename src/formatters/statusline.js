@@ -282,8 +282,11 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const totals = data.delegationTotals;
   let totalsLine = null;
   if (!singleLine && totals && Number(totals.total) > 0) {
+    // Money is green throughout — it is saved cost, the one number on the
+    // line that is unambiguously good news. The period markers stay gray so
+    // the eye lands on the amounts, not on "wk / mo / all".
     const part = (usd, label) =>
-      `${formatMoney(Number(usd) || 0)} ${c(GRAY)}${label}${c(RESET)}`;
+      `${c(GREEN)}${formatMoney(Number(usd) || 0)}${c(RESET)} ${c(GRAY)}${label}${c(RESET)}`;
     const head = isIcon ? '🔀 Routing saved' : 'Routing saved';
     totalsLine =
       `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
