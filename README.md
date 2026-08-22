@@ -4,19 +4,19 @@
 
 # claude-token-saver
 
-## 🔀 Routing saved — 이 도구가 존재하는 이유
+## 🔀 Routing saved: 이 도구가 존재하는 이유
 
-![statusline 예시 — 1줄째 라우팅 절감, 2줄째 진단 칩](./docs/statusline.png)
+![statusline 예시. 첫째 줄은 라우팅 절감액이고 둘째 줄은 진단 칩입니다](./docs/statusline.png)
 
-**statusline 첫 줄에 뜨는 이 금액이 전부입니다.** 비싼 모델이 반복 처리해 온 쉬운 작업을 더 싼 모델로 내려보내서 **실제로 아낀 돈**이고, 옆에는 그 돈이 어느 모델에서 어느 모델로 옮겨서 생겼는지가 그대로 붙습니다.
+**statusline 첫째 줄에 표시되는 이 금액이 이 도구의 전부입니다.** 비싼 모델이 반복해서 처리해 온 쉬운 작업을 더 싼 모델에 넘겨서 **실제로 절감한 비용**이며, 그 옆에는 어느 모델에서 어느 모델로 작업이 옮겨 가면서 그 금액이 발생했는지가 함께 표시됩니다.
 
-이 숫자는 추정치나 홍보 문구가 아니라 **원장(ledger)에서 나옵니다.** 위임된 서브에이전트 실행 하나하나에 대해
+이 숫자는 추정치나 홍보 문구가 아니라 **원장(ledger)에 기록된 실측값입니다.** 위임된 서브에이전트 실행 하나하나마다 다음 세 가지를 기록합니다.
 
-- **기준(before)** — 룰 승격 전 그 유형을 실제로 처리하던 모델
-- **결과(after)** — 실제로 그 일을 처리한 모델
-- **차액** — 같은 토큰량에 두 모델의 가격표를 각각 적용한 값
+- **기준 모델(before):** 룰을 승격하기 전에 그 유형을 실제로 처리하던 모델입니다.
+- **실행 모델(after):** 그 작업을 실제로 처리한 모델입니다.
+- **차액:** 동일한 토큰량에 두 모델의 가격표를 각각 적용해 계산한 값입니다.
 
-을 기록합니다. 그래서 `route-scan savings` 한 줄이면 **모든 금액을 룰 단위까지 되짚을 수 있습니다.**
+그래서 `route-scan savings` 명령 한 번이면 **모든 금액을 어떤 룰이 만들어 냈는지까지 거슬러 확인할 수 있습니다.**
 
 ```bash
 $ claude-token-saver route-scan savings
@@ -32,7 +32,7 @@ $ claude-token-saver route-scan savings
             룰: T2|paste|-Users-me-projects-my-app
 ```
 
-**정직하게 세는 것이 설계 원칙입니다.** 등록된 룰이 커버하지 않는 위임(`Explore`, 직접 만든 에이전트, 플러그인 에이전트)은 이 도구가 라우팅한 것이 아니므로 **금액에서 제외**합니다. 모델명을 가격표가 알아보지 못하면 틀린 금액을 내놓는 대신 그 실행을 **빼버립니다**. 작게 나오더라도 실제 숫자입니다.
+**정직하게 집계하는 것이 이 도구의 설계 원칙입니다.** 등록된 룰이 담당하지 않는 위임(`Explore`, 사용자가 직접 만든 에이전트, 플러그인이 제공하는 에이전트)은 이 도구가 라우팅한 결과가 아니므로 **금액에서 제외합니다.** 가격표가 모델명을 인식하지 못하는 경우에도 틀린 금액을 표시하는 대신 **그 실행을 집계에서 제외합니다.** 그래서 금액이 작게 나올 수는 있어도, 표시되는 값은 언제나 실제로 절감한 금액입니다.
 
 ```bash
 npm i -g claude-token-saver   # postinstall이 statusline + Skill 자동 등록
@@ -40,34 +40,42 @@ npm i -g claude-token-saver   # postinstall이 statusline + Skill 자동 등록
 
 ---
 
-## ⚡ 왜 쓰나 — 30초 요약
+## ⚡ 왜 쓰는가: 30초 요약
 
 | | |
 |---|---|
-| 🔀 **라우팅 절감 실측** | 위임으로 아낀 금액을 원장에 실행 단위로 기록 → statusline 1줄째에 누적 + 모델 이동 내역 (`route-scan savings`로 전수 추적) |
-| 🎯 **모델 피팅 위임** | 상위 모델(opus/fable)이 반복 처리해 온 easy 작업을 티어(T0/T1/T2)로 분류 → haiku/sonnet 위임 룰로 승격, 다음 세션부터 자동 적용 |
-| 💸 **비용 실측 −18.6%** | harness+ratchet 도입 전후, 사용자 메시지당 비용 $2.35 → $1.91 (저자 로그, [상세](#실제-효과--도입-전후-리포트)) |
-| 🚨 **한도 초과 예방** | 5H/7D rate-limit 윈도 90% 도달 시 즉시 경고 + `handoff`로 작업 백업 |
-| 🧠 **캐시 낭비 감지** | 히트율·TTL 카운트다운·1M 컨텍스트 자동 감지 — 토큰 급증 원인을 코드로 진단 |
-| 🅷 **같은 실수 차단** | 반복 에러를 감지해 ratchet 룰로 승격 — 다음 세션부터 자동 적용 |
+| 🔀 **라우팅 절감액 실측** | 위임으로 절감한 금액을 실행 단위로 원장에 기록하고, statusline 첫째 줄에 누적액과 모델 이동 내역을 함께 표시합니다 (`route-scan savings`로 전수 확인) |
+| 🎯 **모델 피팅 위임** | 상위 모델(opus·fable)이 반복 처리해 온 쉬운 작업을 티어(T0/T1/T2)로 분류한 뒤 haiku·sonnet 위임 룰로 승격하고, 다음 세션부터 자동으로 적용합니다 |
+| 💸 **비용 실측 −18.6%** | harness와 ratchet을 도입하기 전후로 사용자 메시지당 비용이 $2.35에서 $1.91로 줄었습니다 (저자의 실사용 로그, [상세](#실제-효과-도입-전후-리포트)) |
+| 🚨 **한도 초과 예방** | 5시간·7일 rate-limit 윈도가 90%에 도달하면 즉시 경고하고, `handoff`로 진행 중인 작업을 백업합니다 |
+| 🧠 **캐시 낭비 감지** | 히트율과 TTL 카운트다운, 1M 컨텍스트 사용 여부를 자동으로 감지해 토큰이 급증한 원인을 코드로 진단합니다 |
+| 🅷 **같은 실수 차단** | 반복되는 에러를 감지해 ratchet 룰로 승격하고, 다음 세션부터 자동으로 적용합니다 |
 
-## 라우터가 아닙니다 — 60초
+## 라우터가 아닙니다: 60초 설명
 
-요청을 실시간으로 가로채지 않습니다.
-**세션이 끝난 뒤** 로컬 기록을 읽어서, 비싼 모델이 반복해서 처리해 온 쉬운 유형을 뽑고,
-그 유형은 **다음 세션부터** 싼 모델이 맡도록 룰로 겁니다. 룰은 글로벌·프로젝트로 범위가 나뉩니다.
+이 도구는 요청을 실시간으로 가로채지 않습니다.
+**세션이 끝난 뒤에** 로컬 기록을 읽어서 비싼 모델이 반복해서 처리해 온 쉬운 유형을 찾아내고,
+그 유형은 **다음 세션부터** 더 싼 모델이 맡도록 룰로 등록합니다. 룰의 적용 범위는 글로벌과 프로젝트로 나뉩니다.
 
-세션 중간에 모델을 바꾸지 않는 것이 핵심입니다. 프롬프트 캐시는 모델별이라 중간 전환은 누적 캐시를 통째로 날립니다. 이 도구는 **서브에이전트 위임**만 쓰므로 메인 세션의 캐시가 깨지지 않습니다.
+### 실시간 모델 라우팅이 오히려 비용을 키우는 이유
+
+세션 도중에 모델을 바꾸지 않는다는 점이 이 도구의 핵심입니다.
+
+프롬프트 캐시는 **모델별로 따로 유지됩니다.** 그래서 세션 중간에 더 싼 모델로 전환하면 새 모델은 빈 캐시에서 시작하고, 그때까지 쌓인 대화 전체를 정가로 다시 읽어야 합니다. 캐시 히트는 원래 입력가의 10분의 1 수준이므로, 대화가 2만 토큰만 넘어가도 **전환 한 번에 그날 아낀 금액이 통째로 사라집니다.** 싼 모델로 옮겼는데 청구서는 더 커지는, 실시간 라우팅의 대표적인 역설입니다.
+
+실제로 라우팅 제품을 만들던 팀들이 같은 이유로 기능을 껐습니다: [LLM 라우터를 만든 사람들이 직접 껐습니다 #Shorts](https://www.youtube.com/shorts/SK-GoAABjbg)
+
+이 도구는 그래서 메인 세션의 모델을 건드리지 않습니다. **서브에이전트 위임만 사용하므로** 메인 세션의 캐시는 그대로 유지되고, 위임된 작업만 별도 컨텍스트에서 싼 모델이 처리합니다. 절감액이 캐시 손실로 상쇄되지 않는 이유가 여기에 있습니다.
 
 ```bash
 npm i -g claude-token-saver@latest
-claude-token-saver route-scan         # 내 지난 세션에서 위임 후보 뽑기 (LLM 호출 0)
+claude-token-saver route-scan         # 지난 세션에서 위임 후보 추출 (LLM 호출 없음)
 claude-token-saver route-scan rules   # 승격된 룰 확인 · rm <N> 으로 삭제
-claude-token-saver route-scan savings # 위임으로 아낀 금액의 근거 전수 확인
+claude-token-saver route-scan savings # 위임으로 절감한 금액의 근거를 전수 확인
 ```
 
-기준선은 남의 벤치마크가 아니라 **내 최근 14일 분포(p25/p75)** 로 잡습니다.
-넘긴 뒤 실제로 잘 됐는지까지 재는 실측 rule-health는 [v3.9.0](#v390-2026-08-01)에 들어갔습니다.
+판정 기준선은 다른 사람의 벤치마크가 아니라 **사용자 본인의 최근 14일 분포(p25/p75)** 로 잡습니다.
+위임한 뒤에 실제로 성공했는지까지 측정하는 rule-health는 [v3.9.0](#v390-2026-08-01)에 들어갔습니다.
 
 ---
 
@@ -80,45 +88,45 @@ npm uninstall -g claude-cache-monitor   # (구 패키지 사용자만)
 npm i -g claude-token-saver
 ```
 
-설치 즉시 Claude Code 하단에 statusline이 나타납니다. `--ignore-scripts`/sudo 등으로 자동 등록이 안 됐다면 `claude-token-saver install`로 수동 등록하세요.
+설치하면 Claude Code 화면 하단에 statusline이 곧바로 나타납니다. `--ignore-scripts` 옵션이나 sudo 사용 등으로 자동 등록이 되지 않았다면 `claude-token-saver install`을 실행해 직접 등록하십시오.
 
-설치 한 번으로 **statusline · Skill · SessionStart 훅 · 🅷 Harness(5원칙) · 최초 route-scan** 이 모두 준비됩니다. Harness는 `~/.claude/CLAUDE.md`에 표시된 블록으로 **추가**되며(기존 내용은 백업 후 보존), 이미 설정돼 있으면 건드리지 않습니다. 원치 않으면 `CTS_NO_HARNESS=1 npm i -g claude-token-saver`로 건너뛰고, 되돌리려면 `claude-token-saver harness uninit --global`을 실행하세요.
+설치 한 번으로 **statusline과 Skill, SessionStart 훅, 🅷 Harness(5원칙), 최초 route-scan이** 모두 준비됩니다. Harness는 `~/.claude/CLAUDE.md`에 표시가 붙은 블록으로 **추가되며**, 기존에 작성해 둔 내용은 백업한 뒤 그대로 보존합니다. 이미 설정되어 있는 경우에는 아무것도 바꾸지 않습니다. 자동 설정을 원하지 않으면 `CTS_NO_HARNESS=1 npm i -g claude-token-saver`로 건너뛸 수 있고, 이미 적용한 설정을 되돌리려면 `claude-token-saver harness uninit --global`을 실행하십시오.
 
-> ⚠️ sudo 글로벌 설치는 Skill이 root의 `~/.claude`에 등록되는 함정이 있습니다 — nvm/fnm/Volta로 사용자 영역 설치를 권장합니다.
+> ⚠️ sudo로 글로벌 설치를 하면 Skill이 사용자 계정이 아니라 root의 `~/.claude`에 등록되는 함정이 있습니다. nvm이나 fnm, Volta를 사용해 사용자 영역에 설치하기를 권장합니다.
 
 ## statusline 읽는 법
 
-절감 원장에 기록이 쌓이면 **두 줄**로 나옵니다. 1줄째는 라우팅 절감만, 2줄째는 진단 칩입니다.
+절감 원장에 기록이 쌓이면 statusline이 **두 줄로** 출력됩니다. 첫째 줄에는 라우팅 절감액만 표시하고, 둘째 줄에는 진단 칩을 표시합니다.
 
 ```
 🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57
 ⚠ Ctx 200k+ · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · ✦ current ███▓░░ 62% 🔄 21:33 · 📅 weekly ██▒░░░ 38% 🔄 Tue 19:33 · 📦 Ctx 47% of 1M · 💰 Cache saved $1.0K · last 1d
 ```
 
-원장이 비어 있으면(아직 위임 실측이 없으면) 1줄째는 그리지 않고 종전처럼 한 줄로 나옵니다. 일부 환경(macOS 구버전 Claude Code)에서 첫 줄만 렌더된다면 `--single-line`으로 한 줄 레이아웃을 유지하세요.
+원장이 비어 있으면, 다시 말해 아직 실측된 위임이 없으면 첫째 줄을 그리지 않고 종전처럼 한 줄로 출력합니다. 일부 환경(구버전 macOS Claude Code)에서 첫째 줄만 표시된다면 `--single-line` 옵션으로 한 줄 레이아웃을 유지하십시오.
 
 | 세그먼트 | 의미 |
 |---|---|
-| `🔀` **1줄째** | **라우팅으로 아낀 누적 금액 + 모델 이동 내역.** 금액이 녹색, 내역은 회색입니다. 내역의 합은 누적과 정확히 일치하며(전부 표시, 잘라내지 않음), 버전 숫자는 계속 바뀌므로 계열명만 남깁니다(`claude-opus-4-5-…` → `opus`). 근거 전수는 `route-scan savings` |
+| `🔀` **첫째 줄** | **라우팅으로 절감한 누적 금액과 모델 이동 내역입니다.** 누적 금액은 녹색으로, 내역은 회색으로 표시합니다. 내역을 모두 더하면 누적 금액과 정확히 일치하며(잘라내지 않고 전부 표시합니다), 버전 숫자는 계속 바뀌므로 계열명만 남깁니다(`claude-opus-4-5-…` → `opus`). 근거를 전부 확인하려면 `route-scan savings`를 실행하십시오 |
 | `🤖` | 현재 모델 |
 | `🅷 5/5` | harness 원칙 점수 ([Harness 모드](#-harness-모드)) |
 | `🧠` | 캐시 히트율 (85%+ 녹색) |
-| `⏳` | 캐시 TTL 카운트다운 — 만료 전에 메시지를 보내면 캐시 유지 |
+| `⏳` | 캐시 TTL 카운트다운입니다. 만료되기 전에 메시지를 보내면 캐시가 유지됩니다 |
 | `✦ current` / `📅 weekly` | 5시간 / 7일 rate-limit 윈도 사용률 + 리셋 시각 |
-| `📦` | 컨텍스트 사용률 (예: `Ctx 68% of 1M`) — 사용률 기준 녹/황/적. 현재 모델은 1M이 기본·프리미엄 없음이지만, 토큰량 자체가 턴당 비용과 5H/7D 한도를 태웁니다 |
-| `💰` | 프롬프트 캐시가 절약해준 누적 금액 — 1줄째 `🔀`(모델 라우팅 절감)와는 **다른 수치**입니다 |
+| `📦` | 컨텍스트 사용률입니다(예: `Ctx 68% of 1M`). 사용률에 따라 녹색·노란색·빨간색으로 표시합니다. 최신 모델은 1M 컨텍스트가 기본이고 별도 요금이 붙지 않지만, 토큰량 자체가 턴당 비용과 5시간·7일 한도를 빠르게 소모시킵니다 |
+| `💰` | 프롬프트 캐시가 절약해 준 누적 금액입니다. 첫째 줄의 `🔀`(모델 라우팅 절감액)와는 **서로 다른 수치입니다** |
 
-문제가 감지되면 **경고 칩이 맨 앞에** 붙습니다:
+문제가 감지되면 **경고 칩을 줄 맨 앞에** 붙입니다.
 
 ```
 🚨 5H █████▓ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 4.8 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📅 weekly ▓░░░░░ 12% 🔄 Sun 14:26 · 📦 Ctx 200k · last 1d
 ```
 
-칩 종류 — `🚨 5H/7D NN%`(캡 임박) · `⚠ Ctx 200k+`(단일 요청이 실제로 200k 초과) · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. 두 윈도가 동시에 90%+면 리셋이 임박한 쪽이 🚨로 승격되고 나머지는 빨간 세그먼트로 유지됩니다 (v2.16.0+).
+칩의 종류는 다음과 같습니다. `🚨 5H/7D NN%`(한도 임박) · `⚠ Ctx 200k+`(단일 요청이 실제로 200k를 초과) · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. 두 윈도가 동시에 90%를 넘으면 리셋이 더 임박한 쪽을 🚨로 올리고, 나머지 하나는 빨간 세그먼트로 계속 표시합니다 (v2.16.0 이상).
 
 ### 경고 칩이 떴을 때
 
-Claude 안에서 `/claude-token-saver` Skill을 실행하거나 칩 문구를 그대로 말하면("5H cap 떴어", "cache miss") Skill이 자동 활성화되어 **원인 코드 + 단계별 해결 명령**을 보여줍니다. 캡 임박 시에는 `claude-token-saver handoff`로 현재 작업을 마크다운으로 백업한 뒤 새 세션에서 이어가는 워크플로를 권합니다.
+Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적힌 문구를 그대로 말하기만 해도("5H cap 떴어", "cache miss") Skill이 자동으로 활성화되어 **원인 코드와 단계별 해결 명령을** 보여 줍니다. 한도가 임박한 상황에서는 `claude-token-saver handoff`로 진행 중인 작업을 마크다운 파일에 백업한 뒤 새 세션에서 이어가는 방식을 권장합니다.
 
 ## 주요 명령
 
@@ -132,12 +140,12 @@ Claude 안에서 `/claude-token-saver` Skill을 실행하거나 칩 문구를 �
 | `claude-token-saver handoff` | 작업 상태를 `HANDOFF-*.md`로 백업 (캡 임박 시) |
 | `claude-token-saver mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
 | `claude-token-saver harness ...` | 🅷 Harness 관리 (아래 참고) |
-| `claude-token-saver route-scan` | 상위 모델이 반복 처리한 easy 작업 감지 → haiku 위임 랫쳇 룰 제안 (아래 참고) |
-| `claude-token-saver route-scan savings` | 라우팅 절감 원장 — 모델 이동별 합계 + 실행별 내역 (금액의 근거) |
-| `claude-token-saver compact-window` | 1M 컨텍스트인데 자동 압축 창이 안 잡혀 있으면 경고 → `set`으로 40만 고정 (아래 참고) |
+| `claude-token-saver route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 랫쳇 룰을 제안합니다 (아래 참고) |
+| `claude-token-saver route-scan savings` | 라우팅 절감 원장입니다. 모델 이동별 합계와 실행별 내역을 함께 보여 주며, 표시되는 금액의 근거가 됩니다 |
+| `claude-token-saver compact-window` | 1M 컨텍스트를 쓰면서 자동 압축 창이 설정되지 않았으면 경고하고, `set`으로 40만에 고정합니다 (아래 참고) |
 | `claude-token-saver install` | Skill·statusline 수동 등록 |
 
-출력 언어는 `mode ko` / `mode en`으로 전환합니다 (기본 영어, statusline 칩은 항상 기호). 전체 옵션은 [영문 README](./README.en.md#options) 참고.
+출력 언어는 `mode ko`와 `mode en`으로 전환합니다. 기본값은 영어이며, statusline의 칩은 언제나 기호로 표시합니다. 전체 옵션은 [영문 README](./README.en.md#options)를 참고하십시오.
 
 ## 🅷 Harness 모드
 
@@ -145,7 +153,7 @@ Claude 안에서 `/claude-token-saver` Skill을 실행하거나 칩 문구를 �
 
 ```bash
 claude-token-saver harness init                # 이 프로젝트에 셋업
-claude-token-saver harness init --global       # ~/.claude/CLAUDE.md — 모든 프로젝트 적용
+claude-token-saver harness init --global       # ~/.claude/CLAUDE.md, 모든 프로젝트에 적용
 claude-token-saver harness check               # 현재 점수 (글로벌 fallback 인정)
 claude-token-saver harness promote <N> --project|--global   # 경고 #N → ratchet 룰 (스코프 필수)
 claude-token-saver harness promote "<룰 텍스트>" --project|--global  # 내가 직접 정의한 룰도 같은 명령으로 등록
@@ -154,12 +162,12 @@ claude-token-saver harness list / rm <N>       # 룰 조회 / 삭제 (자동 .ba
 claude-token-saver harness off | on            # 🅷 표시 토글
 ```
 
-- `promote`는 non-TTY(스크립트·LLM 호출)에서 `--project`/`--global` 플래그가 **필수** — 스코프가 묻지 않고 결정되는 사고를 막기 위한 설계입니다.
+- `promote`는 non-TTY 환경(스크립트나 LLM 호출)에서 `--project` 또는 `--global` 플래그가 **반드시 필요합니다.** 적용 범위가 사용자에게 묻지 않은 채 결정되는 사고를 막기 위한 설계입니다.
 - `pull`은 패키지에 동봉된 **제작자 큐레이션 랫쳇 룰**(`presets/ratchet-rules.md` — 실제 반복 사고에서 승격된 범용 룰만)을 내 글로벌 랫쳇(`~/.claude/ratchet.md`)에 등록합니다. 설치(`install`)나 `init`은 아무것도 자동 주입하지 않으며, `pull`은 항상 opt-in이고 재실행해도 중복이 없습니다(멱등). 마음에 안 드는 룰은 `harness rm`으로 제거하면 됩니다.
 - 🅷⚠ 런타임 경고(`ratchet?` `no-evidence` `PEV-skip`)는 30분 후 자동 만료되고, 하위 디렉터리 세션도 프로젝트에 올바르게 매칭됩니다. PEV-skip은 변경성 도구(Edit/Write/Bash)만 카운트해 읽기 위주 세션에서는 발동하지 않습니다 (v2.16.0+).
 
 <details>
-<summary>⚠️ <code>harness rm</code>은 신중하게 — 삭제 전 체크리스트</summary>
+<summary>⚠️ <code>harness rm</code>은 신중하게 사용하십시오: 삭제 전 확인 사항</summary>
 
 ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지우면 같은 실수가 다시 새기 시작합니다.
 
@@ -171,13 +179,13 @@ ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지
 </details>
 
 
-## 📦 compact-window — 1M 컨텍스트의 자동 압축 지점 고정
+## 📦 compact-window: 1M 컨텍스트의 자동 압축 지점 고정
 
 Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 대화를 자동 압축합니다. 1M 창을 쓰면 이 값이 잡혀 있지 않은 한 80만 토큰 근처까지 가서야 압축이 걸리고, 그전까지 모든 요청이 전체 컨텍스트를 통째로 재과금합니다. **1M은 너무 크니 40만~70만 범위를 권장합니다** — 큰 붙여넣기용 여유는 200k 세션의 2~3.5배로 남기면서 꼬리만 잘라냅니다.
 
 **권장 범위 안이면 경고하지 않습니다.** 40만은 절감이 압축 횟수를 이기는 하한이고, 긴 세션은 그보다 여유가 더 필요한 경우가 많습니다. 미설정이거나 70만을 넘을 때만 알립니다(그보다 낮게 잡은 건 더 공격적으로 아끼겠다는 선택이라 그냥 둡니다).
 
-**200k 컨텍스트는 경고 대상이 아닙니다** — 창이 이미 200k 이하라 이 설정이 바꿀 게 없습니다.
+**200k 컨텍스트는 경고 대상이 아닙니다.** 창이 이미 200k 이하이므로 이 설정으로 달라지는 것이 없기 때문입니다.
 
 ```bash
 claude-token-saver compact-window                       # 현재 상태 (모델·창·설정값·출처)
@@ -188,29 +196,29 @@ claude-token-saver compact-window off | on              # 경고 표시 토글
 ```
 
 - 1M 모델인데 미설정이거나 40만을 넘으면 statusline에 `🅷⚠ compact-window?`가 뜨고, 세션 브리핑이 등록 명령까지 알려줍니다.
-- 스코프(`--global`/`--project`)는 `set`에서 **필수** — 글로벌 설정 파일을 묻지 않고 고치지 않기 위한 설계입니다.
+- 적용 범위(`--global` 또는 `--project`)는 `set`에서 **반드시 지정해야 합니다.** 글로벌 설정 파일을 사용자에게 묻지 않고 수정하는 일을 막기 위한 설계입니다.
 - 기존 `settings.json`의 다른 키는 그대로 보존하고 `.bak`을 남깁니다. JSON이 깨져 있으면 아무것도 쓰지 않고 중단합니다.
 - 셸에 `CLAUDE_CODE_AUTO_COMPACT_WINDOW`가 export돼 있으면 그쪽이 settings.json보다 우선합니다 (`set`이 이 경우를 감지해 알려줍니다).
 
-## 🔀 route-scan — "이 반복 작업, 더 싼 티어로 내려도 됩니다"
+## 🔀 route-scan: "이 반복 작업은 더 싼 티어로 내려도 됩니다"
 
 세션 로그에서 상위 모델(opus/fable)이 반복 처리해 온 쉬운 작업을 찾아 **haiku/sonnet 위임 룰로 승격**을 제안합니다. 전 과정 로컬, 토큰 비용 0.
 
-- **T2 → haiku**: 탐색·조회·단순 실행 — 에러 0, 변경 거의 없음
-- **T1 → sonnet**: 빌드·상태 점검 — 변경 소수, 에러 ≤1
-- **T0 유지**: 에러 반복·대량 변경·설계/분석 — 세션 모델이 계속 담당
+- **T2 → haiku:** 탐색과 조회, 단순 실행에 해당합니다. 에러가 없고 변경도 거의 없는 작업입니다.
+- **T1 → sonnet:** 빌드와 상태 점검에 해당합니다. 변경이 적고 에러가 1건 이하인 작업입니다.
+- **T0 유지:** 에러가 반복되거나 변경이 많거나 설계와 분석이 필요한 작업입니다. 세션 모델이 계속 담당합니다.
 
 핵심 설계는 세 가지입니다:
-1. 난이도는 텍스트 추측이 아니라 **결과(outcome)로 판정** — 도구 에러·변경성 도구 수·출력 토큰
-2. 임계값은 **내 최근 14일 로그 분포에서 자동 보정** — 고정 상수는 워크로드가 바뀌면 어긋나므로
-3. 승격된 룰은 도구 소유 별도 파일(`.claude/ratchet-model.md`)에서 **자동 갱신**되고, 위임 후 에러율이 높아지면 `⚠ rule-health`로 경고 — 룰이 스스로 낡음을 알림
+1. 난이도를 텍스트로 추측하지 않고 **실제 결과로 판정합니다.** 도구 에러와 변경을 일으킨 도구의 수, 출력 토큰을 근거로 삼습니다.
+2. 임계값은 **사용자의 최근 14일 로그 분포에서 자동으로 보정합니다.** 고정된 상수는 워크로드가 바뀌면 곧 어긋나기 때문입니다.
+3. 승격된 룰은 도구가 관리하는 별도 파일(`.claude/ratchet-model.md`)에서 **자동으로 갱신되며,** 위임한 뒤 에러율이 높아지면 `⚠ rule-health`로 경고합니다. 룰이 낡았다는 사실을 스스로 알리는 셈입니다.
 
 ```bash
 claude-token-saver route-scan                    # 스캔 (24h 캐시) + 티어별 후보 출력
 claude-token-saver harness promote R1 --project  # 후보 R1을 모델 피팅 룰로 등록
 claude-token-saver route-scan dismiss 1          # 관심 없으면 무시 (재스캔에도 안 뜸)
 claude-token-saver route-scan rules              # 등록된 모델 피팅 룰 목록 (rm <N>으로 제거)
-claude-token-saver route-scan savings            # 절감 원장 — 어느 룰이 어떤 모델에서 어떤 모델로 옮겼는지
+claude-token-saver route-scan savings            # 절감 원장: 어느 룰이 어떤 모델에서 어떤 모델로 옮겼는지
 ```
 
 `route-scan savings`는 statusline의 `🔀 Routing saved` 한 줄 뒤에 있는 근거를 그대로 보여줍니다. 모델 이동별 합계와 실행별 내역이 함께 나오므로, 금액이 어디서 나왔는지 추적할 수 있습니다.
@@ -251,7 +259,7 @@ v3.10.0부터는 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌�
 
 | 코드 | 의미 |
 |---|---|
-| `LARGE_INPUT_PER_REQUEST` | 단일 요청 입력이 200k 초과 — 턴당 재과금·한도 소모 급증 |
+| `LARGE_INPUT_PER_REQUEST` | 단일 요청의 입력이 200k를 초과했습니다. 턴마다 다시 과금되고 한도 소모가 급격히 늘어납니다 |
 | `LOW_HIT_RATE` | 캐시 히트율 50% 미만 |
 | `BUCKET_5M_DOMINANT` | 캐시 쓰기의 70%+가 5분 버킷 (Pro 플랜/Max 다운그레이드) |
 | `HIGH_OUTPUT_RATIO` | 출력/입력 비율 0.15 초과 (출력 단가는 입력의 5배) |
@@ -260,9 +268,9 @@ v3.10.0부터는 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌�
 
 각 코드마다 OS별 해결 명령이 함께 출력됩니다.
 
-## 실제 효과 — 도입 전후 리포트
+## 실제 효과: 도입 전후 리포트
 
-![claude-token-saver — harness + ratchet 도입 효과](./docs/harness-impact.png)
+![claude-token-saver: harness와 ratchet 도입 효과](./docs/harness-impact.png)
 
 harness 5/5 + ratchet을 실제 적용한 전후 비교입니다 (저자 Claude Code 로그, **사용자 메시지 1건당** 정규화, 2026-05-02 기준, Opus 4.7 가격):
 
@@ -276,7 +284,7 @@ harness 5/5 + ratchet을 실제 적용한 전후 비교입니다 (저자 Claude 
 같은 요청을 더 적은 왕복으로 끝낸다 = 첫 시도 적중률 ↑. PEV·Structured Task가 한 번에 가게 만든 효과로 보입니다.
 
 <details>
-<summary>측정 배경 — 캐시 히트율이 빠진 이유 · 샘플 주의</summary>
+<summary>측정 배경: 캐시 히트율을 제외한 이유와 표본에 관한 주의 사항</summary>
 
 - 저자는 Max 플랜(캐시 TTL 1시간)이라 히트율이 이미 ~98%에 수렴해 개선 여지가 작았습니다. **Pro 플랜(5분 TTL) 사용자는** 만료 직전 handoff 워크플로 조합으로 히트율 자체가 오를 가능성이 큽니다.
 - 만료 직전 handoff 워크플로: statusline TTL 카운트다운을 보다가 만료 직전 `claude-token-saver handoff`로 작업 상태를 백업하고 새 캐시 사이클을 시작. 1M 경고·cap 칩도 같은 흐름으로 처리.
@@ -292,7 +300,7 @@ Node.js ≥ 18 · macOS / Linux / Windows / WSL · **의존성 0**.
 <details>
 <summary>알려진 환경 이슈 · 마이그레이션</summary>
 
-**IntelliJ Claude Code plugin** — statusline 위젯이 프레임을 잘못 합성해 `59:548` 같은 잔재가 보이는 버그가 있습니다(이모지 출력에서만). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm` 감지 시 자동으로 text 모드 폴백합니다.
+**IntelliJ Claude Code plugin:** statusline 위젯이 프레임을 잘못 합성해 `59:548` 같은 잔재가 보이는 버그가 있습니다(이모지 출력에서만). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm` 감지 시 자동으로 text 모드 폴백합니다.
 
 **claude-cache-monitor에서 마이그레이션:**
 ```bash
@@ -302,6 +310,10 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.18.0 (2026-08-22)
+- **한국어 문서를 다시 다듬었습니다** — 문장 성분을 생략하지 않고 서술어로 끝맺는 형태로 본문을 고쳐 썼습니다. 의미를 지나치게 함축하던 엠대시는 콜론과 접속사로 바꾸었습니다.
+- **실시간 모델 라우팅이 비용을 키우는 이유를 설명에 추가했습니다** — 프롬프트 캐시가 모델별로 유지되기 때문에 세션 중간에 모델을 바꾸면 절감액이 캐시 손실로 상쇄된다는 점, 그래서 이 도구가 서브에이전트 위임만 사용한다는 점을 명시했습니다.
 
 ### v3.17.0 (2026-08-22)
 - **설치 한 번으로 🅷 Harness까지 적용됩니다** — 지금까지는 설치 후 `harness init`을 따로 실행해야 statusline의 🅷 점수와 ratchet 룰 전달이 동작했습니다. 이제 설치가 `~/.claude/CLAUDE.md`에 5원칙 블록을 **추가**합니다(기존 내용은 백업 후 보존, 이미 있으면 건드리지 않음). 건너뛰려면 `CTS_NO_HARNESS=1`, 되돌리려면 `harness uninit --global`.

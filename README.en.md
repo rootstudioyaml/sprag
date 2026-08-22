@@ -58,7 +58,15 @@ It never intercepts a request in realtime.
 kept handling, and promotes them into rules so a cheaper model takes them **from the next session
 onward**. Rules are scoped global or per-project.
 
-Never switching models mid-session is the point. Prompt caches are per-model, so a mid-session switch throws away everything accumulated. This tool only ever delegates to **subagents**, leaving the main session's cache intact.
+### Why realtime model routing can cost more, not less
+
+Never switching models mid-session is the point of this design.
+
+Prompt caches are **kept per model.** Switch to a cheaper model mid-session and it starts from a cold cache, re-reading the whole conversation at full input price. A cache hit costs about a tenth of that, so past roughly 20k tokens of history **one switch can erase everything the cheaper model was going to save.** You moved the work down a tier and the bill went up: the central paradox of realtime routing.
+
+Teams shipping routing products have turned the feature off for exactly this reason: [LLM 라우터를 만든 사람들이 직접 껐습니다 #Shorts](https://www.youtube.com/shorts/SK-GoAABjbg) (Korean).
+
+So this tool never touches the main session's model. It delegates to **subagents only**, which leaves the main session's cache intact and runs the delegated work on a cheap model in its own context. That is why the savings are not cancelled out by cache loss.
 
 ```bash
 npm i -g claude-token-saver@latest
@@ -336,6 +344,10 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.18.0 (2026-08-22)
+- **Korean documentation rewritten for clarity** — full sentences with explicit predicates, and em dashes replaced by colons and conjunctions where they were compressing too much meaning.
+- **Added why realtime model routing can cost more** — prompt caches are per-model, so a mid-session switch cancels the savings via cache loss; this is why the tool delegates to subagents only.
 
 ### v3.17.0 (2026-08-22)
 - **One install now sets up the 🅷 Harness too** — until now `harness init` was a separate step, without which the 🅷 score and ratchet-rule delivery did nothing. The install **appends** the 5-principle block to `~/.claude/CLAUDE.md` (existing content backed up and preserved; an existing block is left alone). Skip with `CTS_NO_HARNESS=1`, undo with `harness uninit --global`.
