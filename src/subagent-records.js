@@ -150,6 +150,10 @@ export async function collectSubagentRuns(sessionPath) {
  * with the un-joinable ones kept aside for the timestamp fallback (a run
  * whose .meta.json is missing or predates toolUseId still happened, and
  * dropping it would silently under-count a rule's real error rate).
+ *
+ * `unjoined` is kept for callers that want only the no-id runs; the fallback
+ * itself works off `all` minus whatever the exact pass claimed, because a run
+ * CAN carry an id that no parent episode holds (see fallbackRunsForEpisode).
  */
 export function indexRuns(runs) {
   const byToolUse = new Map();
@@ -168,13 +172,38 @@ export function indexRuns(runs) {
  * (an episode's span can overlap a neighbouring episode's runs).
  */
 export function runsForEpisode(index, ep, used) {
+  return [...exactRunsForEpisode(index, ep, used), ...fallbackRunsForEpisode(index, ep, used)];
+}
+
+/** Runs this episode's own Task calls spawned. No guessing. */
+export function exactRunsForEpisode(index, ep, used) {
   const out = [];
   for (const id of ep.delegationToolUseIds || []) {
     const r = index.byToolUse.get(id);
     if (r && !used.has(r.path)) { used.add(r.path); out.push(r); }
   }
+  return out;
+}
+
+/**
+ * Runs that no episode's tool_use ids claimed, matched by start time falling
+ * inside this episode's span.
+ *
+ * The pool is every unclaimed run, not just the ones without a toolUseId. A
+ * nested delegation — a subagent spawning its own subagent — records the
+ * SIBLING's tool_use id, which appears in no parent transcript and therefore
+ * matches nothing. Gating the fallback on "has no toolUseId" made having one
+ * disqualify the run from the only path that could still attribute it, so
+ * every spawnDepth >= 2 run was dropped forever (measured: 3 of 3 over 14
+ * days, ~$3.42 of savings and three runs of rule-health evidence).
+ *
+ * Run session-wide AFTER every episode's exact join, so a timestamp guess
+ * cannot take a run that another episode can prove is its own.
+ */
+export function fallbackRunsForEpisode(index, ep, used) {
+  const out = [];
   if (ep.startedAt === null || ep.endedAt === null) return out;
-  for (const r of index.unjoined) {
+  for (const r of index.all) {
     if (used.has(r.path) || r.startedAt === null) continue;
     if (r.startedAt >= ep.startedAt && r.startedAt <= ep.endedAt) {
       used.add(r.path);

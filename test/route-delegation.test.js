@@ -8,6 +8,7 @@ import { modelRank, tierForRank, TIER_TARGET_RANK, estimateCost } from '../src/c
 import { episodeRank, worthDelegating, runSaving, isFailedRun } from '../src/route-scan.js';
 import {
   collectSubagentRun, collectSubagentRuns, subagentDirFor, indexRuns, runsForEpisode,
+  exactRunsForEpisode, fallbackRunsForEpisode,
 } from '../src/subagent-records.js';
 import { renderModelRatchet, composeRuleText, budgetCapPhrase } from '../src/model-rules.js';
 
@@ -305,4 +306,38 @@ test('a delegated run fails on error density, not on a single is_error', () => {
   assert.equal(isFailedRun({ calls: 218, toolErrors: 0 }), false);
   assert.equal(isFailedRun({ calls: 0, toolErrors: 1 }), true, 'no call count — treat as one call');
   assert.equal(isFailedRun(null), false);
+});
+
+test('a nested delegation is attributed by time even though it carries an id', () => {
+  // spawnDepth >= 2: the run's toolUseId names the SIBLING subagent's Task
+  // call, which no parent transcript contains. Gating the fallback on "has no
+  // toolUseId" made that id disqualify the run from the only path left, and
+  // all three such runs in a 14-day window were dropped forever.
+  const nested = { path: 'deep', toolUseId: 'toolu_from_sibling', startedAt: 120 };
+  const index = indexRuns([nested]);
+  const ep = { delegationToolUseIds: ['toolu_parent_only'], startedAt: 90, endedAt: 200 };
+  assert.deepEqual(exactRunsForEpisode(index, ep, new Set()), [], 'no parent Task matches it');
+  const used = new Set();
+  assert.deepEqual(
+    fallbackRunsForEpisode(index, ep, used).map((r) => r.path),
+    ['deep'],
+    'the time span still attributes it',
+  );
+  assert.deepEqual(fallbackRunsForEpisode(index, ep, used), [], 'and only once');
+});
+
+test('the exact join wins over a neighbour episode whose span also covers the run', () => {
+  // Why the scan settles every exact join session-wide before any fallback:
+  // run-by-run ordering would let an earlier, overlapping episode claim a run
+  // that a later episode can prove is its own.
+  const owned = { path: 'owned', toolUseId: 'toolu_late', startedAt: 150 };
+  const index = indexRuns([owned]);
+  const early = { delegationToolUseIds: [], startedAt: 100, endedAt: 200 };
+  const late = { delegationToolUseIds: ['toolu_late'], startedAt: 140, endedAt: 200 };
+
+  const used = new Set();
+  const lateGot = exactRunsForEpisode(index, late, used);
+  const earlyGot = fallbackRunsForEpisode(index, early, used);
+  assert.deepEqual(lateGot.map((r) => r.path), ['owned']);
+  assert.deepEqual(earlyGot, [], 'the neighbour gets nothing once the owner has claimed it');
 });

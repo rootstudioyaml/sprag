@@ -22,7 +22,9 @@ import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { discoverSessionFiles } from './parser.js';
 import { collectSessionRecords } from './session-records.js';
-import { collectSubagentRuns, indexRuns, runsForEpisode } from './subagent-records.js';
+import {
+  collectSubagentRuns, indexRuns, exactRunsForEpisode, fallbackRunsForEpisode,
+} from './subagent-records.js';
 import { estimateCost, modelRank, isRecognizedModelId, TIER_TARGET_RANK, tierForRank } from './cost.js';
 import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
@@ -534,10 +536,18 @@ export async function runRouteScan({ days = 14 } = {}) {
     (r.scope === 'global' || r.project === projectDir));
   for (const [sessionPath, index] of runIndexBySession) {
     const used = new Set();
-    for (const { ep, projectDir, sessionPath: epSession } of all) {
-      if (epSession !== sessionPath) continue;
-      if (!ep.delegationToolUseIds.length && index.unjoined.length === 0) continue;
-      const runs = runsForEpisode(index, ep, used);
+    const eps = all.filter((x) => x.sessionPath === sessionPath);
+    // Two passes over the session, not one per episode: every exact tool_use
+    // join is settled first, so the timestamp fallback can only ever claim a
+    // run that no episode was able to prove was its own.
+    const runsByEp = new Map();
+    for (const item of eps) runsByEp.set(item, exactRunsForEpisode(index, item.ep, used));
+    for (const item of eps) {
+      runsByEp.get(item).push(...fallbackRunsForEpisode(index, item.ep, used));
+    }
+    for (const item of eps) {
+      const { ep, projectDir } = item;
+      const runs = runsByEp.get(item);
       if (runs.length === 0) continue;
       const cat = categorize(ep.text, ep.tools);
       if (!cat) continue;
