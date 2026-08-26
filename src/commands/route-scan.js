@@ -107,6 +107,18 @@ export async function run({ args, hasFlag, numArg }) {
         // what the model reads.
         console.log(`      ${mr.composeRuleText(r.rule, r, lang)}`);
       });
+      // Runs on a model id we cannot price never reach the aggregate, so a
+      // rule whose tier runs entirely on such an id reads as "never fired".
+      // Say so here rather than leaving the zero unexplained.
+      const scan = rs.readRouteScan();
+      if (scan?.unresolvedRuns > 0) {
+        const ids = (scan.unresolvedModels || []).join(', ');
+        console.log(lang === 'ko'
+          ? `\n⚠ 해석되지 않은 모델 ID 때문에 위임 ${scan.unresolvedRuns}건이 집계에서 제외됐습니다${ids ? ` (${ids})` : ''}.`
+            + '\n  profile-map.json 의 modelAliases 에 해당 ID 를 매핑한 뒤 route-scan --refresh 를 실행하십시오.'
+          : `\n⚠ ${scan.unresolvedRuns} delegated run(s) were excluded — unpriceable model id${ids ? ` (${ids})` : ''}.`
+            + '\n  Map it under modelAliases in profile-map.json, then run route-scan --refresh.');
+      }
       console.log(lang === 'ko'
         ? '\n제거: claude-token-saver route-scan rules rm <N>'
         : '\nRemove with: claude-token-saver route-scan rules rm <N>');

@@ -55,6 +55,14 @@ const REJECTION_RE = /doesn't want to proceed|tool use was rejected|doesn't want
 // does not exist" on a Read) stay counted — those are genuine difficulty signal.
 const SELF_CORRECTED_RE = /File has not been read yet|has been modified since read|String to replace not found|is not running \(status:|<tool_use_error>Blocked:/i;
 
+// Environment constraints — a sandbox without `curl`/`wc`, a corporate proxy
+// timing a fetch out — are not task difficulty either. The agent routinely
+// routes around them and finishes: one 218-turn run that produced a 9,870-char
+// sourced report was scored a failure on two `command not found` results.
+// NARROW on purpose: only the shell's own "this binary is absent" wording and
+// curl's transport-timeout exit, never a generic non-zero exit.
+const ENVIRONMENT_RE = /command not found|curl: \(28\)|Operation timed out after|ETIMEDOUT|ENOTFOUND|getaddrinfo/i;
+
 function toolResultText(content) {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
@@ -64,7 +72,7 @@ function toolResultText(content) {
 function isRealToolError(block) {
   if (!block || block.type !== 'tool_result' || !block.is_error) return false;
   const txt = toolResultText(block.content);
-  return !REJECTION_RE.test(txt) && !SELF_CORRECTED_RE.test(txt);
+  return !REJECTION_RE.test(txt) && !SELF_CORRECTED_RE.test(txt) && !ENVIRONMENT_RE.test(txt);
 }
 
 export async function collectSessionRecords(filePath, { includeContent = true } = {}) {

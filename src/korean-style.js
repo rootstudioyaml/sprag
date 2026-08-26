@@ -123,7 +123,9 @@ export function koreanStyleInjection({ cfg = loadConfig() } = {}) {
   if (!text) return null;
   return [
     '[claude-token-saver korean-style] 이 세션에서 한국어를 출력할 때는 아래 지침을 따르십시오.',
-    '이 지침은 사용자가 claude-token-saver에 설정한 것이며, 답변·문서·주석이 아닌 산문 전반에 적용됩니다.',
+    '이 지침은 사용자가 claude-token-saver에 설정한 것입니다.',
+    '적용 대상: 대화 답변, 그리고 새로 작성하거나 수정하는 마크다운·문서·보고서의 한국어 산문을 모두 포함합니다.',
+    '적용 예외: 원문을 그대로 옮기는 인용, 코드, 코드 주석, 그리고 프로젝트의 기존 표기 관례를 따라야 하는 커밋 메시지와 로그 문자열입니다.',
     `(출처: ${KOREAN_STYLE_SOURCE})`,
     '',
     text,

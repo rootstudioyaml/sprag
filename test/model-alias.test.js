@@ -170,7 +170,23 @@ test('one stated vote outweighs several "no sidechain flag" inferences', () => {
     haikuProfile: { explicit: { haiku: 1 }, inferred: { main: 4 } },
   });
   assert.notEqual(learned.haikuProfile.role, 'main', 'must not be stamped as the session model');
-  assert.equal(learned.haikuProfile.role, null, 'one vote is not enough to confirm haiku either');
+  // Having vetoed the inference on that one stated vote, believe it: leaving
+  // the id unresolved dropped every delegated run on the profile out of the
+  // aggregate, which is how four T2 rules reported zero delegations.
+  assert.equal(learned.haikuProfile.role, 'haiku', 'the vetoing evidence is the surviving evidence');
+  assert.equal(learned.haikuProfile.source, 'explicit-veto');
+});
+
+test('a lone vote with nothing to contradict still needs the full threshold', () => {
+  // The veto branch only fires against a decisive contradicting inference.
+  // One stray Task(model:) on its own is still too thin to name a profile.
+  const learned = tallyVotes({
+    thin: { explicit: { haiku: 1 }, inferred: {} },
+    thinAgreeing: { explicit: { haiku: 1 }, inferred: { haiku: 4 } },
+  });
+  assert.equal(learned.thin.role, null, 'no contradiction, no veto, not enough votes');
+  assert.equal(learned.thinAgreeing.role, 'haiku');
+  assert.equal(learned.thinAgreeing.source, 'inferred', 'agreement is not a veto');
 });
 
 test('enough stated votes decide on their own', () => {
@@ -249,11 +265,12 @@ test('learnProfileMapping joins a Task call to the run it spawned', async (t) =>
   assert.equal(modelRank(resolveModelAlias(arn(PID_HAIKU))), 0);
 });
 
-test('a subagent profile leaking into the parent file is not learned as main', async (t) => {
+test('a profile used as both session model and subagent resolves to the stated role', async (t) => {
   // Reproduces the observed failure: a haiku profile showed up in parent
   // transcripts without a sidechain flag more often than it was explicitly
-  // named, and was confirmed as the session model — which ranks it as opus and
-  // removes it from the T2 aggregate entirely.
+  // named. Counting the buckets together confirmed it as the session model
+  // (ranked as opus); vetoing without adopting left it unresolved, which drops
+  // it from the T2 aggregate just as completely. It must resolve to haiku.
   const dir = isolated(t);
   const sessionPath = join(dir, 'leak.jsonl');
   const toolUseId = 'toolu_leak_1';
@@ -289,11 +306,11 @@ test('a subagent profile leaking into the parent file is not learned as main', a
 
   const { learned } = await learnProfileMapping({ sessionPaths: [sessionPath] });
   assert.notEqual(learned[PID_HAIKU].role, 'main', 'the leak must not win');
-  assert.equal(learned[PID_HAIKU].role, null, 'one explicit vote is still too few to confirm');
+  assert.equal(learned[PID_HAIKU].role, 'haiku', 'the stated Task(model:) decides');
+  assert.equal(learned[PID_HAIKU].source, 'explicit-veto');
 
   resetModelAliasCache();
-  assert.equal(resolveModelAlias(arn(PID_HAIKU)), UNKNOWN_MODEL);
-  assert.equal(modelRank(resolveModelAlias(arn(PID_HAIKU))), -1, 'excluded, not mis-tiered');
+  assert.equal(modelRank(resolveModelAlias(arn(PID_HAIKU))), 0, 'priced as haiku, not excluded');
 });
 
 test('a direct-API machine learns nothing and writes no profile map', async (t) => {

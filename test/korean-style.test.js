@@ -45,6 +45,16 @@ test('turning it on produces an injection block that frames the rules', async (t
   assert.match(block, /MIT/);
   // The guidance itself is present, not just the framing.
   assert.match(block, /문장 성분/);
+  // Scope has to read as inclusion. The old wording ("답변·문서·주석이 아닌
+  // 산문 전반") parses far more naturally as EXCLUDING documents, and a
+  // session that read it that way shipped 18 em dashes in a markdown
+  // deliverable while the rules were active.
+  assert.match(block, /적용 대상:.*문서/s);
+  assert.match(block, /적용 예외:/);
+  assert.doesNotMatch(block, /문서·주석이 아닌/, 'no negation governing the scope list');
+  // The exception list has to agree with the vendored text, which excludes
+  // quotes, code and code comments.
+  assert.match(block, /적용 예외:.*코드 주석/s);
 
   ks.setKoreanStyleEnabled(false);
   assert.equal(ks.koreanStyleInjection(), null);

@@ -357,9 +357,13 @@ function topRole(tally) {
  * against 1,702 times as a subagent, and those 16 inferred 'main' votes beat
  * the single explicit 'haiku' one at exactly the 80% line.
  *
- * When neither bucket is decisive the id stays unresolved. An 'unknown' that
- * drops out of the aggregate beats a confident wrong answer that silently
- * re-tiers every run on that profile.
+ * When a thin explicit bucket vetoes a decisive inference, the explicit role
+ * is adopted ('explicit-veto'): a stated `Task(model: ...)` is the stronger
+ * evidence, and it is the only evidence left once the inference is rejected.
+ *
+ * When neither bucket says anything usable the id stays unresolved. An
+ * 'unknown' that drops out of the aggregate beats a confident wrong answer
+ * that silently re-tiers every run on that profile.
  */
 export function tallyVotes(votes, { minVotes = MIN_VOTES, minAgreement = MIN_AGREEMENT } = {}) {
   const learned = {};
@@ -385,6 +389,16 @@ export function tallyVotes(votes, { minVotes = MIN_VOTES, minAgreement = MIN_AGR
       // flag, so probably the session model" observations.
       role = inferred.role;
       source = 'inferred';
+    } else if (explicit.total > 0
+      && explicit.top / explicit.total >= minAgreement
+      && inferred.role
+      && !rolesAgree(explicit.role, inferred.role)) {
+      // The veto above is only coherent if we then believe what did the
+      // vetoing. Leaving the id unresolved instead drops every delegated run
+      // on that profile out of the aggregate, which is how a haiku profile
+      // that doubles as somebody's session model reported zero delegations.
+      role = explicit.role;
+      source = 'explicit-veto';
     }
 
     learned[pid] = {

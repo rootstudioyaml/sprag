@@ -280,6 +280,18 @@ export function dominantModel(counts) {
   return best;
 }
 
+// A delegated run counts as failed on error DENSITY, not on the presence of a
+// single is_error. Binary counting scored a 218-call run that finished its task
+// identically to one that died on its first call. The floor keeps very short
+// runs honest: 1 error in 3 calls is still a failure.
+export const DELEGATED_ERR_DENSITY = 0.1;
+
+export function isFailedRun(run) {
+  if (!run || !(run.toolErrors > 0)) return false;
+  const calls = run.calls > 0 ? run.calls : 1;
+  return run.toolErrors / calls > DELEGATED_ERR_DENSITY;
+}
+
 export function worthDelegating(tier, rank) {
   const target = TIER_TARGET_RANK[tier];
   return target !== undefined && rank > target;
@@ -480,10 +492,12 @@ export async function runRouteScan({ days = 14 } = {}) {
   // T2 rule firing, a sonnet run a T1 one. Runs that were not a downgrade
   // (same tier or higher) carry no delegation saving and are skipped.
   const delegatedStats = new Map(); // "tier|category|project" → outcome aggregate
+  let unresolvedRuns = 0;           // delegated runs dropped for an unpriceable model id
+  const unresolvedModels = new Set();
   const bumpDelegated = (key, run, saved) => {
     const d = delegatedStats.get(key) || { runs: 0, errRuns: 0, outTokens: 0, savedUsd: 0 };
     d.runs += 1;
-    if (run.toolErrors > 0) d.errRuns += 1;
+    if (isFailedRun(run)) d.errRuns += 1;
     d.outTokens += run.out || 0;
     d.savedUsd += saved;
     delegatedStats.set(key, d);
@@ -537,6 +551,14 @@ export async function runRouteScan({ days = 14 } = {}) {
       }
       for (const run of runs) {
         const runTier = tierForRank(modelRank(run.model));
+        // Dropping unresolved model ids is deliberate (see cost.js) — pricing
+        // a gateway id as Sonnet would poison every number here. But dropping
+        // them SILENTLY is what made a whole tier of rules report zero
+        // delegations with no way to tell why, so keep a count to surface.
+        if (!isRecognizedModelId(run.model)) {
+          unresolvedRuns += 1;
+          if (run.model) unresolvedModels.add(run.model);
+        }
         if (!runTier || !worthDelegating(runTier, mainRank)) continue;
         const saved = runSaving(run, mainModel);
         bumpDelegated(`${runTier}|${cat.id}|${projectDir}`, run, saved);
@@ -641,6 +663,8 @@ export async function runRouteScan({ days = 14 } = {}) {
     thresholds,
     candidates,
     resolved: [...resolved],
+    unresolvedRuns,
+    unresolvedModels: [...unresolvedModels].slice(0, 5),
   };
   try {
     const dir = stateDir();

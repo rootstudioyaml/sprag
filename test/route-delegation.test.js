@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { modelRank, tierForRank, TIER_TARGET_RANK, estimateCost } from '../src/cost.js';
-import { episodeRank, worthDelegating, runSaving } from '../src/route-scan.js';
+import { episodeRank, worthDelegating, runSaving, isFailedRun } from '../src/route-scan.js';
 import {
   collectSubagentRun, collectSubagentRuns, subagentDirFor, indexRuns, runsForEpisode,
 } from '../src/subagent-records.js';
@@ -135,6 +135,23 @@ test('collectSubagentRun keeps the rejection/self-corrected error filters', asyn
   ].join('\n') + '\n');
   const run = await collectSubagentRun(p);
   assert.equal(run.toolErrors, 0, 'permission denials and self-corrections are not difficulty');
+});
+
+test('environment constraints are not counted as task difficulty either', async () => {
+  const root = tmpRoot();
+  const p = join(root, 'agent-env.jsonl');
+  writeFileSync(p, [
+    assistant({ model: 'claude-haiku-4-5', out: 10, ts: '2026-08-01T00:00:01.000Z' }),
+    toolError('Exit code 127\ncommand not found: curl'),
+    assistant({ model: 'claude-haiku-4-5', out: 10, ts: '2026-08-01T00:00:02.000Z' }),
+    toolError('curl: (28) Operation timed out after 15006ms'),
+    assistant({ model: 'claude-haiku-4-5', out: 10, ts: '2026-08-01T00:00:03.000Z' }),
+    toolError('Exit code 1: the file could not be parsed'),
+  ].join('\n') + '\n');
+  const run = await collectSubagentRun(p);
+  // A missing binary and a proxy timeout say nothing about the model; a plain
+  // non-zero exit still does, so exactly one error survives.
+  assert.equal(run.toolErrors, 1);
 });
 
 test('collectSubagentRuns returns [] when the session never delegated', async () => {
@@ -277,4 +294,15 @@ test('a review flag falls back to the proxy wording without measured runs', () =
     ...baseRule, tier: 'T2', rule: 'r2', status: 'review', healthSource: 'proxy', errRate: 0.4,
   }], 'ko');
   assert.match(md, /최근 위임 대상 에러율 40%/);
+});
+
+test('a delegated run fails on error density, not on a single is_error', () => {
+  // The case that made this matter: a 218-call run that produced a complete,
+  // sourced report was scored a failure on two `command not found` results,
+  // exactly like a run that died on its first call.
+  assert.equal(isFailedRun({ calls: 218, toolErrors: 2 }), false, 'two errors in 218 calls is not a failure');
+  assert.equal(isFailedRun({ calls: 3, toolErrors: 1 }), true, 'short runs are still judged');
+  assert.equal(isFailedRun({ calls: 218, toolErrors: 0 }), false);
+  assert.equal(isFailedRun({ calls: 0, toolErrors: 1 }), true, 'no call count — treat as one call');
+  assert.equal(isFailedRun(null), false);
 });
