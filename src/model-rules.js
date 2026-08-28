@@ -288,8 +288,15 @@ export function modelRatchetPathFor(scope, targetRoot) {
 
 /**
  * Regenerate ratchet-model.md for every target that carries model rules.
- * A target whose rules are all gone gets its file removed (it's fully
- * tool-owned, so deletion is safe).
+ * A target whose rules are all gone gets its file emptied — not deleted,
+ * because CLAUDE.md imports the path (see the note at the loop below).
+ *
+ * Writes are content-conditional: a target whose rendering already matches
+ * what is on disk is left alone, and the returned list names only the files
+ * that actually changed. That makes the call cheap enough to run on a cache
+ * hit, which is what closes the upgrade gap — the file is rendered from THIS
+ * version's template, so an upgrade that reworded the rules reaches the disk
+ * on the next session rather than waiting for a rescan to happen to fire.
  */
 export function syncAllFiles({ previousPaths = [] } = {}) {
   const data = loadModelRules();
@@ -299,19 +306,30 @@ export function syncAllFiles({ previousPaths = [] } = {}) {
     if (!byPath.has(p)) byPath.set(p, []);
     byPath.get(p).push(r);
   }
-  const written = [];
-  for (const [p, rules] of byPath) {
+  // Skip the write when the file already says exactly this. An unreadable or
+  // missing file reads as "" and therefore always differs, which is the right
+  // outcome — it gets written.
+  const writeIfChanged = (p, text) => {
+    try {
+      if (existsSync(p) && readFileSync(p, 'utf8') === text) return false;
+    } catch { /* unreadable → fall through and rewrite it */ }
     try {
       mkdirSync(dirname(p), { recursive: true });
-      writeFileSync(p, renderModelRatchet(rules));
-      written.push(p);
-    } catch { /* unwritable target — skip, registry stays authoritative */ }
+      writeFileSync(p, text);
+      return true;
+    } catch {
+      return false; // unwritable target — skip, registry stays authoritative
+    }
+  };
+  const written = [];
+  for (const [p, rules] of byPath) {
+    if (writeIfChanged(p, renderModelRatchet(rules))) written.push(p);
   }
   // A target that lost its last rule is emptied, NOT deleted: CLAUDE.md
   // imports this path, and a dangling `@` import is worse than an empty file.
   for (const p of previousPaths) {
     if (!byPath.has(p) && existsSync(p)) {
-      try { writeFileSync(p, renderModelRatchet([])); } catch { /* stale content; regenerated next sync */ }
+      if (writeIfChanged(p, renderModelRatchet([]))) written.push(p);
     }
   }
   return written;

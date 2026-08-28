@@ -161,6 +161,14 @@ export async function run({ args, hasFlag, numArg }) {
       // one rule and the file carries another.
       const mrHook = await import('../model-rules.js');
       const composed = (base, c) => mrHook.composeRuleText(base, c, lang);
+      // Re-render ratchet-model.md from THIS version's template. Rule text is
+      // composed in code, so an upgrade that rewords it leaves every existing
+      // file stale, and the rewrite used to ride along with refreshModelRules
+      // — which only runs on a rescan. A session that starts on a warm cache
+      // would keep reading the old wording indefinitely. The call writes only
+      // when the rendering differs, so the common case is a read and a string
+      // compare.
+      try { mrHook.syncAllFiles(); } catch (e) { debug('route-scan:sync-ratchet', e); }
       // Registered rules whose delegated-category error rate crossed the
       // health threshold since promotion — the user approved these, so a
       // status change must be briefed, not just written into the md file.

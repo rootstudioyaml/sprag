@@ -341,3 +341,52 @@ test('the exact join wins over a neighbour episode whose span also covers the ru
   assert.deepEqual(lateGot.map((r) => r.path), ['owned']);
   assert.deepEqual(earlyGot, [], 'the neighbour gets nothing once the owner has claimed it');
 });
+
+// ── syncAllFiles: content-conditional writes ─────────────────────────────
+// The rule text lives in code, so an upgrade that rewords it must reach every
+// ratchet-model.md already on disk. That rewrite now runs on a cache hit too,
+// which is only affordable if an unchanged file costs nothing to skip.
+
+function withRegistry(fn) {
+  const dir = tmpRoot();
+  const prev = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = dir;
+  try { return fn(dir); } finally {
+    if (prev === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = prev;
+  }
+}
+
+test('syncAllFiles writes a target once and then leaves it alone', async () => {
+  const mr = await import('../src/model-rules.js');
+  withRegistry(() => {
+    const root = tmpRoot();
+    mr.saveModelRules({ rules: [{
+      status: 'active', scope: 'project', targetRoot: root, tier: 'T2',
+      category: 'cmd', label: '명령 실행', labelEn: 'running commands',
+      example: 'ex', agent: 'haiku-runner', rule: 'r', signature: 'sig',
+      count: 5, errRate: 0,
+    }] });
+    const p = mr.modelRatchetPathFor('project', root);
+
+    assert.deepEqual(mr.syncAllFiles(), [p], 'first sync creates the file');
+    assert.deepEqual(mr.syncAllFiles(), [], 'an identical rendering is not rewritten');
+
+    writeFileSync(p, '# stale wording from an older version\n');
+    assert.deepEqual(mr.syncAllFiles(), [p], 'a file that drifted is rewritten');
+  });
+});
+
+test('syncAllFiles rewrites a drifted empty target, and reports it', async () => {
+  const mr = await import('../src/model-rules.js');
+  withRegistry(() => {
+    const root = tmpRoot();
+    mr.saveModelRules({ rules: [] });
+    const p = mr.modelRatchetPathFor('project', root);
+    mkdirSync(join(root, '.claude'), { recursive: true });
+    writeFileSync(p, '# leftover rules from a scope that lost them\n');
+
+    assert.deepEqual(mr.syncAllFiles({ previousPaths: [p] }), [p], 'emptied and reported');
+    assert.deepEqual(mr.syncAllFiles({ previousPaths: [p] }), [], 'already empty — no second write');
+  });
+});
