@@ -158,7 +158,9 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
 | `claude-token-saver route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
 | `claude-token-saver compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
-| `claude-token-saver korean on\|off\|status` | Inject Korean writing guidance at session start (below) |
+| `claude-token-saver korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
+| `claude-token-saver korean lint block\|warn\|off` | How the write-time check handles findings |
+| `claude-token-saver korean lint scope all\|prose` | Check every text file, or documents only |
 | `claude-token-saver install` | Manually register Skill + statusline |
 
 Switch output language with `mode ko` / `mode en` (English default; statusline chips stay symbolic).
@@ -312,6 +314,29 @@ From a real pipeline (yaml-sns-agent), where a Slack bot shells out to `claude -
 Three things change. Clauses chained with em dashes become separate sentences, so one sentence carries one fact. Noun-stopped phrases (확인, 대조, 렌더 깨짐 — "check", "compare", "render breaks") become predicates (확인한다, 본다, 뜬다), which makes it explicit that these are steps to take. And the particles come back where they had been dropped, so subject and object are legible on the first read.
 
 The technical content is identical in both. The guidance touches sentence construction only, not judgement or accuracy: the answer does not change, it just stops needing a second read. In a channel people scroll through, that difference cuts follow-up questions — and the tokens those follow-ups would have cost.
+
+### The write-time check (v3.24.0)
+
+Injecting the guidance once at session start turned out to be half the job. The model reads it, then writes dozens of files over the next hours with nothing re-reading the output. Sessions with the guidance active still shipped violations into documents, and it surfaced only when a human read the finished artifact. An August 2026 fix reworded the scope sentence to address this; it recurred, because rewording an instruction does not add a checkpoint.
+
+From v3.24.0 `korean on` also installs a PostToolUse hook. It opens the file the model just wrote, runs the clauses a machine can decide, and hands any findings back. The file is already saved, so nothing is lost — the model fixes it on the spot.
+
+```bash
+claude-token-saver korean lint block   # default: findings are handed back as blocking feedback
+claude-token-saver korean lint warn    # print findings, do not block
+claude-token-saver korean lint off     # disable the check
+
+claude-token-saver korean lint scope all     # default: every text file the session writes
+claude-token-saver korean lint scope prose   # documents only
+
+claude-token-saver korean lint docs/*.md     # check files already on disk
+```
+
+Checked: 15 figurative phrases, translationese markers, separators (`—`·`ㅡ`·`|`), three or more `의` particles in one phrase, and a period after a nominal ending. Clauses that need judgement stay with the guidance text.
+
+The default `all` scope covers code comments, UI strings, subtitles, templates, and build output, not just documents. The vendored guidance exempts comments, but comments are read by people and generated artifacts (PDF, HTML) are assembled from those strings, so exempting them reopens the exact gap that was reported. Only installed dependencies, VCS internals, lockfiles, and binary or image files are skipped; `dist/` and `build/` are checked. `korean lint scope prose` restores the narrow reading.
+
+The scope sentence in the injected guidance is generated from the same setting, so the model is never told one rule while being corrected against another.
 
 ### The encoding rule that ships with it (v3.23.2)
 

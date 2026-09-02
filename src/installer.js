@@ -284,6 +284,68 @@ export function installBriefHook() {
   return { path: file, action: 'created' };
 }
 
+// Registers the PostToolUse hook that checks Korean prose the session just
+// wrote. Session-start guidance teaches the model but is never re-read, so
+// files written later drift back to the patterns the guidance forbids and the
+// drift surfaces only when a human reads the artifact. This hook closes that
+// gap: it runs on the file the model just wrote, while it can still fix it.
+// Installed by `korean on`, removed by `korean off`. Idempotent.
+const KOREAN_LINT_HOOK_COMMAND = 'claude-token-saver korean --hook';
+
+export function installKoreanLintHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  let settings = {};
+  if (existsSync(file)) {
+    try {
+      settings = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (e) {
+      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+    }
+  }
+
+  settings.hooks = settings.hooks || {};
+  if (settings.hooks.PostToolUse !== undefined && !Array.isArray(settings.hooks.PostToolUse)) {
+    return { path: file, action: 'skipped', reason: 'hooks.PostToolUse is not an array — fix settings.json manually' };
+  }
+  const list = Array.isArray(settings.hooks.PostToolUse) ? settings.hooks.PostToolUse : [];
+  const already = list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('korean --hook')),
+  );
+  if (already) return { path: file, action: 'exists' };
+
+  list.push({
+    matcher: 'Write|Edit|MultiEdit',
+    hooks: [{ type: 'command', command: KOREAN_LINT_HOOK_COMMAND, timeout: 10 }],
+  });
+  settings.hooks.PostToolUse = list;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'created' };
+}
+
+export function removeKoreanLintHook() {
+  const file = join(claudeUserDir(), 'settings.json');
+  if (!existsSync(file)) return { path: file, action: 'absent' };
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (e) {
+    return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+  }
+  const list = settings?.hooks?.PostToolUse;
+  if (!Array.isArray(list)) return { path: file, action: 'absent' };
+  const kept = list.filter((m) =>
+    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('korean --hook'))),
+  );
+  if (kept.length === list.length) return { path: file, action: 'absent' };
+  if (kept.length === 0) delete settings.hooks.PostToolUse;
+  else settings.hooks.PostToolUse = kept;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'removed' };
+}
+
 export function installAll({ force = false } = {}) {
   return {
     skill: installSkill({ force }),

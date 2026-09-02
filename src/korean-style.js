@@ -117,6 +117,27 @@ export function koreanStyleText() {
  * "the user is asking about Korean writing rules" instead of "these rules
  * govern how I write from now on".
  */
+// The injected scope sentence and the write-time checker have to agree. When
+// they disagree the model is told one thing and corrected for another, which
+// is how the August 2026 report started: the scope line read as excluding
+// documents, so a session shipped 18 em dashes into a markdown deliverable
+// while the guidance was active. These lines are therefore derived from the
+// same `lintScope` setting the checker reads.
+export function koreanScopeLines(cfg = loadConfig()) {
+  const scope = cfg?.koreanStyle?.lintScope === 'prose' ? 'prose' : 'all';
+  if (scope === 'prose') {
+    return [
+      '적용 대상: 대화 답변, 그리고 새로 작성하거나 수정하는 마크다운·문서·보고서의 한국어 산문을 모두 포함합니다.',
+      '적용 예외: 원문을 그대로 옮기는 인용, 코드, 코드 주석, 그리고 프로젝트의 기존 표기 관례를 따라야 하는 커밋 메시지와 로그 문자열입니다.',
+    ];
+  }
+  return [
+    '적용 대상: 대화 답변, 그리고 세션이 쓰거나 고치는 모든 파일의 한국어를 포함합니다. 문서와 보고서는 물론이고 코드 주석, 화면에 나가는 문자열, 자막과 템플릿, 스크립트가 읽어 산출물을 만드는 데이터 파일까지 모두 해당합니다.',
+    '적용 예외: 원문을 그대로 옮기는 인용과, 프로젝트의 기존 표기 관례를 따라야 하는 커밋 메시지와 로그 문자열입니다.',
+    '쓰기 시점에 기계 검사가 함께 돌아갑니다. 위반을 알리면 그 파일을 고친 뒤에 다음 작업으로 넘어가십시오.',
+  ];
+}
+
 export function koreanStyleInjection({ cfg = loadConfig() } = {}) {
   if (!koreanStyleEnabled(cfg)) return null;
   const text = koreanStyleText();
@@ -124,8 +145,7 @@ export function koreanStyleInjection({ cfg = loadConfig() } = {}) {
   return [
     '[claude-token-saver korean-style] 이 세션에서 한국어를 출력할 때는 아래 지침을 따르십시오.',
     '이 지침은 사용자가 claude-token-saver에 설정한 것입니다.',
-    '적용 대상: 대화 답변, 그리고 새로 작성하거나 수정하는 마크다운·문서·보고서의 한국어 산문을 모두 포함합니다.',
-    '적용 예외: 원문을 그대로 옮기는 인용, 코드, 코드 주석, 그리고 프로젝트의 기존 표기 관례를 따라야 하는 커밋 메시지와 로그 문자열입니다.',
+    ...koreanScopeLines(cfg),
     '표기 규칙(예외 없이 적용): 도구 호출 인자에 한국어를 비롯한 비ASCII 문자열을 담을 때에는 반드시 리터럴 UTF-8로 작성하고, \\uXXXX 유니코드 이스케이프로는 절대 작성하지 마십시오. 이스케이프로 작성하면 글자가 깨진 채 파일에 기록되는 사례가 자주 발생합니다.',
     `(출처: ${KOREAN_STYLE_SOURCE})`,
     '',
