@@ -358,6 +358,7 @@ export function removeKoreanLintHook() {
 // actually bounds the work; the timeout is only a backstop.
 // Installed by `doc2md on`, removed by `doc2md off`. Idempotent.
 const DOC2MD_HOOK_COMMAND = 'claude-token-saver doc2md --hook';
+const DOC2MD_PROMPT_HOOK_COMMAND = 'claude-token-saver doc2md --hook-prompt';
 
 export function installDoc2mdHook() {
   const dir = claudeUserDir();
@@ -388,6 +389,23 @@ export function installDoc2mdHook() {
     hooks: [{ type: 'command', command: DOC2MD_HOOK_COMMAND }],
   });
   settings.hooks.PreToolUse = list;
+
+  // The Read hook alone covers only PDFs. Claude Code refuses pptx/xlsx/docx
+  // as binary before any PreToolUse hook runs, so for exactly the formats this
+  // feature exists for, the tool call is dead before doc2md is consulted.
+  // UserPromptSubmit runs earlier and sees the raw prompt text, which is where
+  // a path the user typed can still be turned into Markdown.
+  if (settings.hooks.UserPromptSubmit === undefined || Array.isArray(settings.hooks.UserPromptSubmit)) {
+    const prompts = Array.isArray(settings.hooks.UserPromptSubmit) ? settings.hooks.UserPromptSubmit : [];
+    const hasPromptHook = prompts.some((m) =>
+      Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('doc2md --hook-prompt')),
+    );
+    if (!hasPromptHook) {
+      prompts.push({ hooks: [{ type: 'command', command: DOC2MD_PROMPT_HOOK_COMMAND }] });
+      settings.hooks.UserPromptSubmit = prompts;
+    }
+  }
+
   writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
   return { path: file, action: 'created' };
 }
@@ -401,16 +419,22 @@ export function removeDoc2mdHook() {
   } catch (e) {
     return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
   }
-  const list = settings?.hooks?.PreToolUse;
-  if (!Array.isArray(list)) return { path: file, action: 'absent' };
-  // Only this tool's own entry goes; anything else registered under
-  // PreToolUse stays exactly where the user put it.
-  const kept = list.filter((m) =>
-    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('doc2md --hook'))),
-  );
-  if (kept.length === list.length) return { path: file, action: 'absent' };
-  if (kept.length === 0) delete settings.hooks.PreToolUse;
-  else settings.hooks.PreToolUse = kept;
+  // Both entries go, and only this tool's own: anything else registered under
+  // either event stays exactly where the user put it. The substring covers
+  // `--hook` and `--hook-prompt` alike.
+  let touched = false;
+  for (const event of ['PreToolUse', 'UserPromptSubmit']) {
+    const list = settings?.hooks?.[event];
+    if (!Array.isArray(list)) continue;
+    const kept = list.filter((m) =>
+      !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('doc2md --hook'))),
+    );
+    if (kept.length === list.length) continue;
+    touched = true;
+    if (kept.length === 0) delete settings.hooks[event];
+    else settings.hooks[event] = kept;
+  }
+  if (!touched) return { path: file, action: 'absent' };
   writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
   return { path: file, action: 'removed' };
 }

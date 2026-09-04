@@ -242,6 +242,64 @@ test('the install/remove pair touches only its own PreToolUse entry', (t) => {
   assert.deepEqual(settings.hooks.PreToolUse, [foreign], "someone else's hook survives");
 });
 
+test('document paths are picked out of prompt text in every form users write them', () => {
+  const d = require('../src/doc2md.cjs');
+  const found = d.documentPathsIn(
+    'compare @/tmp/a.pptx with "/tmp/b.xlsx" and /tmp/c.PDF, then ./rel/d.docx',
+  );
+  assert.ok(found.some((p) => p.endsWith('/tmp/a.pptx')), 'an @ reference');
+  assert.ok(found.some((p) => p.endsWith('/tmp/b.xlsx')), 'a quoted path');
+  assert.ok(found.some((p) => p.endsWith('/tmp/c.PDF')), 'an uppercase extension');
+  assert.ok(found.some((p) => p.endsWith('/rel/d.docx')), 'a relative path, resolved');
+  // Nothing to convert means nothing to say.
+  assert.deepEqual(d.documentPathsIn('fix the README and run the tests'), []);
+  assert.deepEqual(d.documentPathsIn(null), []);
+});
+
+test('a prompt naming a document gets its conversion as context', (t) => {
+  const dir = isolated(t);
+  const d = require('../src/doc2md.cjs');
+  const src = join(dir, 'deck.pptx');
+  writeFileSync(src, 'x');
+
+  // This path exists because PreToolUse cannot reach these formats at all:
+  // Claude Code refuses pptx/xlsx/docx as binary before any hook runs, which
+  // was verified by watching a .pdf Read fire the hook while a .pptx Read
+  // never did. UserPromptSubmit runs before all of that.
+  const ctx = d.contextForPrompt(
+    { hook_event_name: 'UserPromptSubmit', prompt: `요약해줘 ${src}` },
+    { converter: stubConverter(dir, OK_STUB), python: 'python3', lang: 'ko' },
+  );
+  if (ctx === null) {
+    t.skip('no python on this machine');
+    return;
+  }
+  assert.match(ctx, /doc2md/);
+  assert.match(ctx, /deck\.pptx/);
+  assert.match(ctx, /doc2md-cache/);
+
+  // A prompt with no document in it must cost nothing and say nothing.
+  assert.equal(d.contextForPrompt({ prompt: 'run the tests' }), null);
+  assert.equal(d.contextForPrompt({}), null);
+  assert.equal(d.contextForPrompt(null), null);
+
+  // A path that does not exist is not an error to report; the user may simply
+  // be talking about a file they intend to create.
+  assert.equal(d.contextForPrompt({ prompt: `see ${join(dir, 'ghost.pptx')}` }), null);
+});
+
+test('the session note tells the model both things it cannot work out alone', () => {
+  const d = require('../src/doc2md.cjs');
+  for (const lang of ['ko', 'en']) {
+    const note = d.sessionNote(lang);
+    assert.match(note, /doc2md/);
+    // The recovery for the binary-file refusal it will otherwise be stuck on.
+    assert.match(note, /claude-token-saver doc2md/);
+  }
+  // An English session must not be steered into Korean by an injected block.
+  assert.doesNotMatch(d.sessionNote('en'), /[가-힣]/);
+});
+
 test('a hook naming a subcommand this build lacks prints nothing at all', () => {
   // The failure this guards against actually shipped: a 3.25.0 global install
   // against a settings.json written by 3.26.0 did not recognise `doc2md`, fell

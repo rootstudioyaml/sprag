@@ -419,6 +419,119 @@ function decideForRead(context, opts = {}) {
   return null;
 }
 
+/**
+ * Document paths mentioned in a prompt.
+ *
+ * This exists because the PreToolUse hook cannot reach the formats it was
+ * written for. Claude Code rejects pptx/xlsx/docx as binary *before* running
+ * the hook — verified: a `.pdf` Read fires the hook, a `.pptx` Read never
+ * does — so by the time doc2md could speak, the tool call is already refused.
+ * UserPromptSubmit runs earlier than any of that and sees the raw text, so a
+ * path the user typed can be converted before the model tries to open it.
+ *
+ * Quoted, `@`-prefixed and bare paths all count. Windows drive letters are
+ * matched too, since the rest of the module is path-agnostic.
+ */
+function documentPathsIn(text) {
+  if (typeof text !== 'string' || !text) return [];
+  const exts = TARGET_EXTENSIONS.map((e) => e.slice(1)).join('|');
+  const re = new RegExp(`[@'"\`]?((?:[A-Za-z]:)?[~./][^\\s'"\`]*\\.(?:${exts}))`, 'gi');
+  const found = [];
+  for (const m of text.matchAll(re)) {
+    const raw = m[1];
+    const abs = raw.startsWith('~') ? path.join(os.homedir(), raw.slice(1)) : path.resolve(raw);
+    if (!found.includes(abs)) found.push(abs);
+  }
+  return found;
+}
+
+// One prompt naming a dozen decks should not turn a keystroke into a minute of
+// conversion. The rest are named in the note so nothing disappears quietly.
+const MAX_PROMPT_CONVERSIONS = 3;
+
+/**
+ * Context to inject for a UserPromptSubmit payload, or null.
+ *
+ * Returns plain text because that is what this hook can give the model:
+ * stdout becomes context it can act on. There is no decision to make here —
+ * the prompt is not blocked, it is answered better.
+ */
+function contextForPrompt(payload, opts = {}) {
+  const lang = opts.lang === 'ko' ? 'ko' : 'en';
+  if (!payload || typeof payload.prompt !== 'string') return null;
+  const paths = documentPathsIn(payload.prompt).filter((p) => {
+    try { return fs.statSync(p).isFile(); } catch { return false; }
+  });
+  if (paths.length === 0) return null;
+
+  const lines = [];
+  const targets = paths.slice(0, MAX_PROMPT_CONVERSIONS);
+  for (const p of targets) {
+    const name = path.basename(p);
+    const result = convert(p, opts);
+    if (result.ok) {
+      lines.push(`  ${name} → ${result.cacheFile}`);
+      if (result.meta && result.meta.note) lines.push(`      ${result.meta.note}`);
+      if (result.meta && result.meta.clipped) {
+        lines.push('      변환 결과가 너무 커서 뒷부분을 잘랐습니다. 전체가 필요하면 원본을 직접 다루십시오.');
+      }
+    } else if (result.reason === 'no-markitdown') {
+      lines.push(lang === 'ko'
+        ? `  ${name}: 변환기가 없어 변환하지 못했습니다. 설치: ${INSTALL_HINT}`
+        : `  ${name}: no converter installed. Install it with: ${INSTALL_HINT}`);
+    } else if (result.reason === 'sensitive') {
+      lines.push(lang === 'ko'
+        ? `  ${name}: 파일명이 민감 문서 패턴에 걸려 변환하지 않았습니다.`
+        : `  ${name}: skipped — the filename matches a sensitive-document pattern.`);
+    } else {
+      lines.push(lang === 'ko'
+        ? `  ${name}: 변환하지 못했습니다 (${result.reason}).`
+        : `  ${name}: conversion failed (${result.reason}).`);
+    }
+  }
+  if (paths.length > targets.length) {
+    lines.push(lang === 'ko'
+      ? `  (문서 ${paths.length}개 가운데 앞 ${targets.length}개만 변환했습니다. 나머지는 \`claude-token-saver doc2md <경로>\` 로 변환하십시오.)`
+      : `  (converted the first ${targets.length} of ${paths.length} documents; run \`claude-token-saver doc2md <path>\` for the rest.)`);
+  }
+
+  return lang === 'ko'
+    ? [
+      '[doc2md] 이 프롬프트에 문서 경로가 있어 Markdown 으로 변환해 두었습니다.',
+      ...lines,
+      '원본 대신 위 변환본을 Read 하십시오. pptx·xlsx·docx 는 Read 도구가 이진 파일이라며 거부하므로 원본을 직접 열 수 없습니다.',
+      '경로가 주어지지 않은 문서를 열어야 할 때는 `claude-token-saver doc2md <경로>` 를 실행해 변환본 경로를 얻으십시오.',
+    ].join('\n')
+    : [
+      '[doc2md] This prompt names document paths, which have been converted to Markdown:',
+      ...lines,
+      'Read the conversions above rather than the originals: Read refuses pptx/xlsx/docx as binary files, so the originals cannot be opened directly.',
+      'For a document whose path was not given here, run `claude-token-saver doc2md <path>` to get its conversion.',
+    ].join('\n');
+}
+
+/**
+ * The standing note injected at session start.
+ *
+ * Two things the model cannot work out on its own: that attaching a document
+ * costs far more than naming its path, and that the binary-file refusal it
+ * will meet on a pptx has a one-command answer.
+ */
+function sessionNote(lang = 'en') {
+  if (lang === 'ko') {
+    return [
+      '[doc2md] 문서(pptx·xlsx·pdf·docx)를 다룰 때의 규칙입니다.',
+      '  문서를 열어야 하는데 Read 가 이진 파일이라며 거부하면, `claude-token-saver doc2md <경로>` 를 실행하고 그 결과로 나온 .md 를 Read 하십시오.',
+      '  사용자가 문서를 메시지에 직접 첨부했다면, 첨부는 내용 전체가 컨텍스트에 실려 토큰을 크게 씁니다. 다음부터는 첨부 대신 파일 경로를 적어 달라고 안내하십시오. 경로로 주면 변환본만 읽습니다.',
+    ].join('\n');
+  }
+  return [
+    '[doc2md] Handling documents (pptx/xlsx/pdf/docx):',
+    '  If Read refuses a document as a binary file, run `claude-token-saver doc2md <path>` and Read the .md it prints.',
+    '  If the user attached a document to their message, its full contents were billed into the context. Tell them that naming the file path instead is far cheaper, since only the converted Markdown gets read.',
+  ].join('\n');
+}
+
 /** The decision rendered as the JSON Claude Code expects on stdout. */
 function formatHookOutput(decision) {
   if (!decision) return null;
@@ -444,6 +557,9 @@ module.exports = {
   metaPathFor,
   isTargetPath,
   isSensitivePath,
+  documentPathsIn,
+  contextForPrompt,
+  sessionNote,
   findInterpreter,
   readCache,
   writeCache,

@@ -69,6 +69,24 @@ export async function run({ args, hasFlag }) {
     return;
   }
 
+  // UserPromptSubmit entry point. Separate from `--hook` because the two speak
+  // different protocols: PreToolUse answers with a permission decision, this
+  // one answers with plain text that becomes context the model can act on.
+  if (hasFlag?.('--hook-prompt') || sub === '--hook-prompt') {
+    const { readStdinJson } = await import('../stdin-payload.js');
+    const payload = readStdinJson();
+    if (!payload) return;
+    const { userLanguage } = await import('../config.js');
+    try {
+      const context = doc2md.contextForPrompt(payload, { lang: userLanguage() });
+      if (context) console.log(context);
+    } catch {
+      // Never break a prompt over a conversion. Silence leaves the session
+      // exactly as it would have been without this feature.
+    }
+    return;
+  }
+
   if (sub === 'on') {
     const { installDoc2mdHook } = await import('../installer.js');
     const res = installDoc2mdHook();

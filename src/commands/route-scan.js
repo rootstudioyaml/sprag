@@ -5,8 +5,33 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
+
+/**
+ * Whether the user turned doc2md on.
+ *
+ * Read from settings.json rather than from a config flag because the hook
+ * registration *is* the switch: a note telling the model how to convert
+ * documents is noise in a session where nothing will convert them.
+ */
+function doc2mdHookRegistered() {
+  try {
+    const { homedir } = require('node:os');
+    const settings = JSON.parse(readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'));
+    return Object.values(settings?.hooks || {}).some((matchers) =>
+      (matchers || []).some((m) =>
+        (m.hooks || []).some((h) => typeof h.command === 'string' && h.command.includes('doc2md --hook')),
+      ),
+    );
+  } catch (e) {
+    debug('route-scan:doc2md-registered', e);
+    return false;
+  }
+}
 
 /** This package's own version — the baseline the upgrade offer compares against. */
 function readPackageVersion() {
@@ -218,6 +243,17 @@ export async function run({ args, hasFlag, numArg }) {
         koreanBlock = koreanStyleInjection();
       } catch (e) { debug('route-scan:korean-style', e); /* style is optional */ }
 
+      // doc2md's standing note, only when the user turned the feature on.
+      // Rides the same SessionStart round-trip as the style block for the same
+      // reason: one injection, one cached prefix. It carries the two things the
+      // model cannot work out for itself — that a binary-file refusal has a
+      // one-command answer, and that an attached document costs far more than
+      // the path to it.
+      let doc2mdBlock = null;
+      try {
+        if (doc2mdHookRegistered()) doc2mdBlock = require('../doc2md.cjs').sessionNote(lang);
+      } catch (e) { debug('route-scan:doc2md-note', e); /* the note is optional */ }
+
       // Upgrade offer. A statusline cannot open a dialog, so session start is
       // where the *asking* happens: the model gets one line telling it a newer
       // version exists and to ask before installing anything. Cached read only
@@ -252,10 +288,12 @@ export async function run({ args, hasFlag, numArg }) {
 
       if (open.length === 0 && reviewRules.length === 0) {
         if (updateBlock) console.log(updateBlock);
+        if (doc2mdBlock) console.log(doc2mdBlock);
         if (koreanBlock) console.log(koreanBlock);
         return; // nothing else to inject
       }
       if (updateBlock) console.log(updateBlock);
+      if (doc2mdBlock) console.log(doc2mdBlock);
       // This text is injected straight into the model's context, so it must
       // follow the user's configured language — a Korean-only briefing in an
       // English session steers the whole first response into Korean.

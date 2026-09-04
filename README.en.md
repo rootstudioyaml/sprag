@@ -384,6 +384,16 @@ Installs with nobody attached — npm `postinstall`, CI, piped stdin — skip th
 
 **This is opt-in.** Installing the CLI does not turn it on: both commands below are required, and a registered hook with no converter behind it does nothing at all.
 
+Three situations, three different interception points:
+
+| Situation | Where it is caught |
+|---|---|
+| A document path typed in the prompt (`@path`, quoted, or relative) | `UserPromptSubmit`: converted, and the conversion's path is handed back as context |
+| A document opened with `Read` mid-task | PDFs are caught by `PreToolUse(Read)`. pptx/xlsx/docx are not: Claude Code refuses them as binary *before* any hook runs, so the session-start note tells the model to run `doc2md <path>` instead |
+| A document attached to the message | **Not catchable.** No hook event receives attachment content. The session-start note has the model ask for a path next time |
+
+That second row is measured, not assumed: a `.pdf` Read fires the hook, and a `.pptx` Read in the same session leaves no hook log entry at all.
+
 ```bash
 claude-token-saver doc2md install-converter   # markitdown into a dedicated venv
 claude-token-saver doc2md on                  # register the Read hook
@@ -501,6 +511,11 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.27.0 (2026-09-04)
+- **A document path in the prompt is finally caught.** The 3.26.x `PreToolUse(Read)` hook never reached the formats it was written for: Claude Code refuses pptx/xlsx/docx as binary *before* running any hook. Measured — a `.pdf` Read fires the hook, a `.pptx` Read in the same session leaves no hook log entry. Interception now also happens at `UserPromptSubmit`, which sees the raw prompt: paths there are converted and the conversion is handed back as context. `@path`, quoted and relative forms all count.
+- **A session-start note was added.** It tells the model two things it cannot work out alone: that a binary-file refusal is answered by `doc2md <path>`, and that if the user attached a document, they should be asked for a path next time. An attachment bills its entire contents into the context, and no hook event receives attachment content, so there is nothing the tool itself can do about it.
+- **`doc2md on` registers both hooks**, and `off` removes only its own entries from both.
 
 ### v3.26.2 (2026-09-04)
 - **The converter installs itself.** The old instruction was `pip install`, which asks the user to modify a system interpreter — and if they skipped it, the hook sat registered and did nothing. `doc2md install-converter` builds a dedicated venv and puts markitdown in it.
