@@ -62,6 +62,7 @@ By run (newest first):
 | 🚨 **No surprise rate limits** | Warns when the 5H/7D window hits 90%; `handoff` backs up your work |
 | 🧠 **Cache waste detection** | Hit rate, TTL, 1M-context detection — spikes diagnosed with issue codes |
 | 🇰🇷 **Korean writing guidance** | Offered at install time, defaulting to your locale ([below](#-korean-writing-guidance)) |
+| 📄 **Document conversion** | pptx/xlsx/pdf/docx become Markdown before the model reads them, so unreadable bytes never reach the context window ([below](#-doc2md--attached-documents-become-markdown-before-the-model-reads-them)) |
 
 ## Not a router — 60 seconds
 
@@ -163,6 +164,9 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
 | `claude-token-saver korean lint block\|warn\|off` | How the write-time check handles findings |
 | `claude-token-saver korean lint scope all\|prose` | Check every text file, or documents only |
+| `claude-token-saver doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
+| `claude-token-saver doc2md <file>` | Convert one file by hand. Diagnostic: it prints the refusal reason instead of swallowing it |
+| `claude-token-saver mode ttl=5m\|1h\|auto` | Pin the cache TTL bucket. The default `auto` trusts the measured split, then falls back to gateway detection |
 | `claude-token-saver --version` | Print the installed version |
 | `claude-token-saver update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
 | `claude-token-saver upgrade` | Install the latest release with the package manager that installed this copy (`--print` shows the command only) |
@@ -374,6 +378,45 @@ Installs with nobody attached — npm `postinstall`, CI, piped stdin — skip th
 > The guidance text comes from [fluent-korean](https://github.com/snflkd/fluent-korean). Copyright (c) 2026 snflkd, MIT License.
 > The wording is unmodified; only the output-style frontmatter was removed. The full license ships with the package at `presets/korean-style/LICENSE-fluent-korean`.
 
+## 📄 doc2md — attached documents become Markdown before the model reads them
+
+`Read` a pptx, xlsx, pdf or docx and the raw bytes go into the context window, where the model cannot read them. This intercepts that `Read`, converts the file once, and hands over the Markdown instead.
+
+```bash
+pip install "markitdown[pptx,pdf,xlsx,docx]"   # the converter is a Python package
+claude-token-saver doc2md on                   # register the Read hook
+claude-token-saver doc2md report.pptx          # convert by hand and see the result
+```
+
+Conversion is [markitdown](https://github.com/microsoft/markitdown). Slide numbers, heading levels, tables, speaker notes and per-sheet headings all survive, and non-Latin text comes through intact.
+
+Several things it deliberately does not do:
+
+- **Images are not converted.** markitdown returns nothing for them, and OCR misread resource names in testing (`c5.xlarge` as `c.xlarge`). In a document where those names *are* the content, wrong text is worse than none. The model reads images natively anyway.
+- **A missing markitdown never fails silently.** The install command is shown once, then the original `Read` proceeds untouched. Repeating the notice on every read would be its own nuisance; saying nothing is how a broken converter hides.
+- **Conversions never land in your project.** They go under the tool's own state directory with mode `0700`, so there is nothing to add to `.gitignore`. Filenames matching payroll/contract/secret patterns are skipped entirely.
+- **Zip bombs are refused.** pptx/xlsx/docx are zip containers: the declared sizes are checked first, and since those are written by whoever built the file, the real decompressed bytes are counted against a ceiling too.
+- **Spreadsheets are capped by rows, not bytes.** Conversion time tracks row count (measured: a 6.3MB PDF in 0.9s, a 5.8MB workbook in 47.75s). Past 50,000 rows only the head is converted, and **the truncation and the true row count are both stated** in what the model is told.
+
+`claude-token-saver doc2md --clean` empties the conversion cache; `doc2md off` removes the hook. Removal filters for this tool's own entry, so anything else you registered under `PreToolUse` stays.
+
+## 🌐 Behind a gateway (Bedrock / Vertex)
+
+A gateway reports the cache-creation total but never the 5m/1h split. That left the tool unable to tell "nothing cached yet" from "this provider does not say", and the fallback assumed an hour — for a window that is really five minutes on Bedrock, overstating it twelvefold.
+
+Since v3.26.0 the gateway is detected from the model ids in the transcript, which fixes:
+
+- The countdown falls back to 5 minutes, labelled `5m?`. Three grades of certainty get three labels: measured (`5m`), inferred (`5m?`), unknown (`?`).
+- In a 5-minute bucket the countdown colour follows absolute time rather than a percentage. 30% of five minutes is 90 seconds, and green there promised comfort that was not there.
+- The `⚠ 5m TTL` warning finally reaches these users — with different advice, since no subscription plan changes a gateway's TTL.
+- `Extra cost if 5m-only` is only asked of sessions that have 1h writes to lose. Elsewhere the arithmetically honest `+$0` read as an endorsement of the bucket you are already stuck in.
+- Delegated runs dropped for an unpriceable model id show as `🔀 N unresolved` instead of nothing, which used to be indistinguishable from never having delegated.
+- Environment variables set to a `foundation-model` ARN now resolve. An opaque `application-inference-profile` id still does not: guessing at it is how wrong prices enter the ledger.
+
+If the detection is wrong, pin it with `claude-token-saver mode ttl=5m` (or `ttl=1h`). An explicit value outranks the measurement.
+
+One related non-bug: if your session model is already sonnet, a sonnet-delegation (T1) rule can never save anything, because there is no price gap to capture. That is correct, but `route-scan rules` displayed it identically to "no delegations yet", so it now says outright that the rule does not apply at the current default model.
+
 ## Spike issue codes
 
 | Code | Meaning |
@@ -453,6 +496,12 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.26.0 (2026-09-04)
+- **Attached documents are converted to Markdown before the model reads them.** Reading a pptx/xlsx/pdf/docx put unreadable bytes into the context window. `doc2md on` registers a `Read` hook that converts the file once, caches it outside your project, and points the model at the Markdown. A missing converter is announced once and then gets out of the way, zip bombs are refused, and workbooks past 50,000 rows are converted head-first with the truncation stated. See [doc2md](#-doc2md--attached-documents-become-markdown-before-the-model-reads-them).
+- **TTL display fixed for Bedrock/Vertex sessions.** Gateways never report the per-bucket split, and the fallback assumed an hour — twelvefold too long for a 5-minute-only backend. The gateway is now detected from the model ids, the fallback follows that evidence, and the label reads `5m?` to mark it as inferred. Pin it manually with `mode ttl=5m` if the detection is wrong.
+- **Delegated runs are no longer discarded in silence.** Runs excluded for an unpriceable model id surface as `🔀 N unresolved` on the statusline; previously that was indistinguishable from never having delegated, so an entire tier of rules could report zero with no way to find out why. Environment variables set to a `foundation-model` ARN now resolve as well.
+- **The Korean guidance stopped contradicting itself.** The injected scope claimed code comments while the vendored text disclaimed them twice, leaving the model nothing to decide on. The vendored wording is untouched; the block now states which side wins. The em dash in the attribution line — a mark that guidance itself forbids — became a colon.
 
 ### v3.25.0 (2026-09-04)
 - **The statusline now shows which version is running** — until now the version lived only in the table report's footer, so "which version am I on" meant running a full report. A `--version` flag was added alongside it.
