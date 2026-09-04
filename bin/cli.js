@@ -83,7 +83,23 @@ function readUpdateChip() {
   }
 }
 
+// Subcommands this build knows how to run. Used only by the guard below.
+const KNOWN_SUBCOMMANDS = new Set([
+  'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean',
+  'doc2md', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
+]);
+
 async function main() {
+  // A hook invocation names a subcommand and expects either silence or that
+  // subcommand's own protocol on stdout. If this build does not have the
+  // subcommand — an older global install against a newer settings.json, which
+  // is exactly what a mid-upgrade machine looks like — falling through to the
+  // default report would push a full table into the hook stream on every
+  // matching tool call. Say nothing instead.
+  if (hasFlag('--hook') && args[0] && !KNOWN_SUBCOMMANDS.has(args[0])) {
+    return;
+  }
+
   // Subcommand: last — print the most recent warning + how to handle it.
   // Designed for the auto-trigger skill so the user immediately sees
   // "what just fired and how to fix it" without having to read the whole

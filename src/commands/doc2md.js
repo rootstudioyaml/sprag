@@ -15,6 +15,27 @@ import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 
+/**
+ * Whether the Read hook is actually in settings.json.
+ *
+ * Status output that reports only the converter is misleading: a working
+ * converter with no hook, and a hook with no converter, both add up to
+ * "nothing happens", and the user has no way to tell which half is missing.
+ */
+function hookRegistered() {
+  try {
+    const { homedir } = require('node:os');
+    const settings = JSON.parse(
+      require('node:fs').readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'),
+    );
+    return (settings?.hooks?.PreToolUse || []).some((m) =>
+      (m.hooks || []).some((h) => typeof h.command === 'string' && h.command.includes('doc2md --hook')),
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function run({ args, hasFlag }) {
   const doc2md = require('../doc2md.cjs');
   const sub = args[1];
@@ -37,16 +58,30 @@ export async function run({ args, hasFlag }) {
     return;
   }
 
+  if (sub === 'install-converter') {
+    const res = doc2md.installConverter({ onProgress: (m) => console.log(`  ${m}`) });
+    if (res.ok) {
+      console.log(`✓ converter ready: ${res.python}`);
+      return;
+    }
+    console.error(`✗ ${res.reason}: ${res.detail}`);
+    process.exitCode = 1;
+    return;
+  }
+
   if (sub === 'on') {
     const { installDoc2mdHook } = await import('../installer.js');
     const res = installDoc2mdHook();
     console.log(res.action === 'skipped'
       ? `✗ ${res.reason}`
       : `✓ Read hook ${res.action} (${res.path})`);
+    // A registered hook with no converter behind it does nothing at all, and
+    // says nothing about it either, which reads as a broken feature. Offer the
+    // one command that closes the gap right where the gap is visible.
     const python = doc2md.findInterpreter();
     console.log(python
       ? `  converter: markitdown via ${python}`
-      : `  converter: not installed yet — ${doc2md.INSTALL_HINT}`);
+      : `  converter: missing — run \`${doc2md.INSTALL_HINT}\` or the hook will do nothing`);
     return;
   }
 
@@ -95,6 +130,8 @@ export async function run({ args, hasFlag }) {
   console.log(`  formats:   ${doc2md.TARGET_EXTENSIONS.join(' ')}`);
   console.log(`  converter: ${python ? `markitdown via ${python}` : `not installed — ${doc2md.INSTALL_HINT}`}`);
   console.log(`  cache:     ${dir} (${cached} file(s))`);
+  console.log(`  hook:      ${hookRegistered() ? 'registered on Read' : 'not registered'}`);
   console.log('');
+  if (!python) console.log(`Install the converter: ${doc2md.INSTALL_HINT}`);
   console.log('Enable with: claude-token-saver doc2md on');
 }

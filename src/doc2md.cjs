@@ -158,6 +158,11 @@ function findInterpreter() {
   const candidates = [];
   if (process.env.CTS_DOC2MD_PYTHON) candidates.push(process.env.CTS_DOC2MD_PYTHON);
   candidates.push(
+    // The tool's own venv, created by `doc2md install-converter`. First
+    // because it is the only one this tool controls: telling people to
+    // `pip install` into the system interpreter is how a token-saving CLI
+    // ends up owning a break in someone else's project.
+    managedPython(),
     path.join(os.homedir(), '.local', 'share', 'uv', 'tools', 'markitdown', 'bin', 'python'),
     path.join(os.homedir(), '.local', 'bin', 'markitdown-python'),
     'python3',
@@ -177,6 +182,60 @@ function findInterpreter() {
 }
 
 const CONVERTER = path.join(__dirname, '..', 'presets', 'doc2md', 'convert.py');
+
+/** Path to the interpreter inside the venv this tool manages. */
+function managedPython() {
+  const dir = path.join(userDataDir(), 'doc2md-venv');
+  return process.platform === 'win32'
+    ? path.join(dir, 'Scripts', 'python.exe')
+    : path.join(dir, 'bin', 'python');
+}
+
+const MARKITDOWN_SPEC = 'markitdown[pptx,pdf,xlsx,docx]';
+
+/**
+ * Build the managed venv and install markitdown into it.
+ *
+ * Kept behind an explicit command: creating a 300MB virtualenv is not
+ * something to do because somebody opened a spreadsheet once. But once asked
+ * for, it goes somewhere this tool owns, so uninstalling the CLI takes the
+ * whole thing with it and no system interpreter is touched.
+ */
+function installConverter({ onProgress = () => {} } = {}) {
+  const venv = path.join(userDataDir(), 'doc2md-venv');
+  const target = managedPython();
+
+  if (!fs.existsSync(target)) {
+    onProgress(`creating ${venv}`);
+    let created = false;
+    for (const base of ['python3', 'python']) {
+      const r = spawnSync(base, ['-m', 'venv', venv], { encoding: 'utf8', timeout: 180_000 });
+      if (r.status === 0) { created = true; break; }
+    }
+    if (!created) {
+      return { ok: false, reason: 'no-python', detail: 'no python3 with the venv module on PATH' };
+    }
+  }
+
+  onProgress(`installing ${MARKITDOWN_SPEC}`);
+  const install = spawnSync(target, ['-m', 'pip', 'install', '--quiet', MARKITDOWN_SPEC], {
+    encoding: 'utf8',
+    timeout: 900_000,
+  });
+  if (install.status !== 0) {
+    return { ok: false, reason: 'pip-failed', detail: (install.stderr || '').slice(0, 400) };
+  }
+
+  // The probe is the actual acceptance test: pip can exit 0 and still leave an
+  // interpreter that cannot import what was asked for.
+  const probe = spawnSync(target, ['-c', 'import markitdown'], { timeout: 60_000, stdio: 'ignore' });
+  if (probe.status !== 0) {
+    return { ok: false, reason: 'import-failed', detail: 'installed, but markitdown does not import' };
+  }
+  interpreterCache = target;
+  clearNotice();
+  return { ok: true, python: target };
+}
 
 /**
  * Convert one file. Returns `{ ok: true, cacheFile, meta }`, or
@@ -258,6 +317,18 @@ function noticeAlreadyShown() {
   }
 }
 
+/**
+ * Forget that the notice was shown.
+ *
+ * Called after the converter is installed, so that if it later disappears the
+ * user is told once more instead of meeting permanent silence.
+ */
+function clearNotice() {
+  try {
+    fs.rmSync(noticePath(), { force: true });
+  } catch { /* nothing to forget */ }
+}
+
 function markNoticeShown() {
   try {
     fs.mkdirSync(userDataDir(), { recursive: true });
@@ -265,7 +336,7 @@ function markNoticeShown() {
   } catch { /* an unwritable state dir just means the notice repeats */ }
 }
 
-const INSTALL_HINT = 'pip install "markitdown[pptx,pdf,xlsx,docx]"';
+const INSTALL_HINT = 'claude-token-saver doc2md install-converter';
 
 /**
  * Decide what to tell Claude Code about one PreToolUse(Read) payload.
@@ -364,6 +435,10 @@ module.exports = {
   TARGET_EXTENSIONS,
   MAX_SOURCE_BYTES,
   INSTALL_HINT,
+  MARKITDOWN_SPEC,
+  managedPython,
+  installConverter,
+  clearNotice,
   cacheDir,
   cachePathFor,
   metaPathFor,

@@ -382,18 +382,23 @@ Installs with nobody attached — npm `postinstall`, CI, piped stdin — skip th
 
 `Read` a pptx, xlsx, pdf or docx and the raw bytes go into the context window, where the model cannot read them. This intercepts that `Read`, converts the file once, and hands over the Markdown instead.
 
+**This is opt-in.** Installing the CLI does not turn it on: both commands below are required, and a registered hook with no converter behind it does nothing at all.
+
 ```bash
-pip install "markitdown[pptx,pdf,xlsx,docx]"   # the converter is a Python package
-claude-token-saver doc2md on                   # register the Read hook
-claude-token-saver doc2md report.pptx          # convert by hand and see the result
+claude-token-saver doc2md install-converter   # markitdown into a dedicated venv
+claude-token-saver doc2md on                  # register the Read hook
+claude-token-saver doc2md                     # check converter + hook registration
+claude-token-saver doc2md report.pptx         # convert by hand and see the result
 ```
+
+The converter goes into a venv this tool owns (`<state dir>/doc2md-venv`): no system interpreter is touched, and uninstalling the CLI takes it along. An existing markitdown on `uv tool` or `PATH` is preferred over building a new one.
 
 Conversion is [markitdown](https://github.com/microsoft/markitdown). Slide numbers, heading levels, tables, speaker notes and per-sheet headings all survive, and non-Latin text comes through intact.
 
 Several things it deliberately does not do:
 
 - **Images are not converted.** markitdown returns nothing for them, and OCR misread resource names in testing (`c5.xlarge` as `c.xlarge`). In a document where those names *are* the content, wrong text is worse than none. The model reads images natively anyway.
-- **A missing markitdown never fails silently.** The install command is shown once, then the original `Read` proceeds untouched. Repeating the notice on every read would be its own nuisance; saying nothing is how a broken converter hides.
+- **A missing converter never fails silently.** The install command is shown once, then the original `Read` proceeds untouched. Repeating the notice on every read would be its own nuisance; saying nothing is how a broken converter hides. Run `doc2md` with no arguments to see the converter and hook registration together.
 - **Conversions never land in your project.** They go under the tool's own state directory with mode `0700`, so there is nothing to add to `.gitignore`. Filenames matching payroll/contract/secret patterns are skipped entirely.
 - **Zip bombs are refused.** pptx/xlsx/docx are zip containers: the declared sizes are checked first, and since those are written by whoever built the file, the real decompressed bytes are counted against a ceiling too.
 - **Spreadsheets are capped by rows, not bytes.** Conversion time tracks row count (measured: a 6.3MB PDF in 0.9s, a 5.8MB workbook in 47.75s). Past 50,000 rows only the head is converted, and **the truncation and the true row count are both stated** in what the model is told.
@@ -496,6 +501,11 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.26.2 (2026-09-04)
+- **The converter installs itself.** The old instruction was `pip install`, which asks the user to modify a system interpreter — and if they skipped it, the hook sat registered and did nothing. `doc2md install-converter` builds a dedicated venv and puts markitdown in it.
+- **`doc2md` status now reports hook registration too.** Showing only the converter made "hook but no converter" and "converter but no hook" look identical, and both look like a broken feature.
+- **An unknown subcommand under `--hook` prints nothing.** A 3.25.0 global install meeting a settings.json written by 3.26.0 did not recognise `doc2md`, fell through to the default report, and pushed a full statistics table into the hook stream on every `Read`.
 
 ### v3.26.0 (2026-09-04)
 - **Attached documents are converted to Markdown before the model reads them.** Reading a pptx/xlsx/pdf/docx put unreadable bytes into the context window. `doc2md on` registers a `Read` hook that converts the file once, caches it outside your project, and points the model at the Markdown. A missing converter is announced once and then gets out of the way, zip bombs are refused, and workbooks past 50,000 rows are converted head-first with the truncation stated. See [doc2md](#-doc2md--attached-documents-become-markdown-before-the-model-reads-them).

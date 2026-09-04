@@ -242,6 +242,20 @@ test('the install/remove pair touches only its own PreToolUse entry', (t) => {
   assert.deepEqual(settings.hooks.PreToolUse, [foreign], "someone else's hook survives");
 });
 
+test('a hook naming a subcommand this build lacks prints nothing at all', () => {
+  // The failure this guards against actually shipped: a 3.25.0 global install
+  // against a settings.json written by 3.26.0 did not recognise `doc2md`, fell
+  // through to the default report, and pushed a full statistics table into the
+  // hook stream on every Read. Silence is the only safe answer.
+  const run = spawnSync(process.execPath, ['bin/cli.js', 'no-such-subcommand', '--hook'], {
+    encoding: 'utf8',
+    input: '{"tool_name":"Read","tool_input":{"file_path":"/tmp/x.pptx"}}',
+    cwd: new URL('..', import.meta.url).pathname,
+  });
+  assert.equal(run.status, 0);
+  assert.equal(run.stdout.trim(), '', 'an unknown subcommand under --hook must stay silent');
+});
+
 test('the registered hook sets no timeout of its own', (t) => {
   const dir = isolated(t);
   const home = join(dir, 'home');
