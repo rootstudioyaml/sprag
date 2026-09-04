@@ -1,6 +1,6 @@
 {
   "name": "claude-token-saver",
-  "version": "3.25.0",
+  "version": "3.25.1",
   "description": "Route the easy work your expensive Claude model keeps repeating down to haiku/sonnet — post-hoc session analysis, no realtime router, no extra LLM calls.",
   "type": "module",
   "bin": {
@@ -38,14 +38,19 @@
     "cache",
     "statusline",
     "cli",
-    "1m-context"
+    "1m-context",
+    "claude-code-statusline",
+    "claude-code-cost",
+    "model-fitting",
+    "ratchet",
+    "agent-harness"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rootstudioyaml/claude-token-saver.git"
   },
-  "homepage": "https://rootstudioyaml.github.io/",
+  "homepage": "https://github.com/rootstudioyaml/claude-token-saver#readme",
   "bugs": {
     "url": "https://github.com/rootstudioyaml/claude-token-saver/issues"
   },
