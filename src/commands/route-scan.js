@@ -2,8 +2,22 @@
 
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
+
+/** This package's own version — the baseline the upgrade offer compares against. */
+function readPackageVersion() {
+  try {
+    const pkg = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
+    return JSON.parse(readFileSync(pkg, 'utf8')).version || null;
+  } catch (e) {
+    debug('route-scan:pkg-version', e);
+    return null;
+  }
+}
 
 export async function run({ args, hasFlag, numArg }) {
     const rs = await import('../route-scan.js');
@@ -190,10 +204,44 @@ export async function run({ args, hasFlag, numArg }) {
         koreanBlock = koreanStyleInjection();
       } catch (e) { debug('route-scan:korean-style', e); /* style is optional */ }
 
+      // Upgrade offer. A statusline cannot open a dialog, so session start is
+      // where the *asking* happens: the model gets one line telling it a newer
+      // version exists and to ask before installing anything. Cached read only
+      // — the refresh runs detached off the statusline path, never here.
+      let updateBlock = null;
+      try {
+        const { updateStatus, maybeSpawnUpdateCheck } = await import('../update-check.js');
+        const pkgVersion = readPackageVersion();
+        // Session start is the one moment where a stale cache matters most, so
+        // kick the detached refresh here too. It lands in time for the
+        // statusline and for the next session, not for this line.
+        if (pkgVersion) maybeSpawnUpdateCheck(pkgVersion);
+        const u = pkgVersion ? updateStatus(pkgVersion) : null;
+        // `dismissed` is the whole point of asking once: a user who said no to
+        // this version must not be asked again every `/clear`.
+        if (u && u.available && !u.dismissed) {
+          updateBlock = lang === 'ko'
+            ? [
+                `[claude-token-saver update] 새 버전이 나와 있습니다: v${u.current} → ${u.latest}.`,
+                '사용자에게 지금 업그레이드할지 물어보고, 승낙하면 아래 명령을 실행하십시오. 묻지 않고 설치하지는 마십시오.',
+                '  claude-token-saver upgrade            # 업그레이드 실행',
+                '  claude-token-saver update-check --dismiss   # 사용자가 원치 않으면 (다음 버전이 나올 때까지 다시 묻지 않습니다)',
+              ].join('\n')
+            : [
+                `[claude-token-saver update] A newer version is available: v${u.current} → ${u.latest}.`,
+                'Ask the user whether to upgrade now, and run the command below only if they agree. Do not install without asking.',
+                '  claude-token-saver upgrade                  # perform the upgrade',
+                '  claude-token-saver update-check --dismiss   # if they decline (stays quiet until a newer release)',
+              ].join('\n');
+        }
+      } catch (e) { debug('route-scan:update-check', e); /* the offer is optional */ }
+
       if (open.length === 0 && reviewRules.length === 0) {
+        if (updateBlock) console.log(updateBlock);
         if (koreanBlock) console.log(koreanBlock);
         return; // nothing else to inject
       }
+      if (updateBlock) console.log(updateBlock);
       // This text is injected straight into the model's context, so it must
       // follow the user's configured language — a Korean-only briefing in an
       // English session steers the whole first response into Korean.

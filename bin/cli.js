@@ -52,6 +52,7 @@ import { estimateCost } from '../src/cost.js';
 import { chipForIssues } from '../src/advice.js';
 import { debug } from '../src/debug.js';
 import { createArgs } from '../src/cli-args.js';
+import { updateStatus, maybeSpawnUpdateCheck } from '../src/update-check.js';
 
 const args = process.argv.slice(2);
 
@@ -65,6 +66,22 @@ const PKG_VERSION = (() => {
 })();
 
 const { getArg, hasFlag, numArg } = createArgs(args);
+
+/**
+ * Version/update state for the statusline chip. Reads a cache file and, when
+ * that cache has aged past the check interval, kicks a detached child to
+ * refresh it for a later render. Never awaits the network, never throws into
+ * the render: a registry outage must not cost the statusline its other chips.
+ */
+function readUpdateChip() {
+  try {
+    maybeSpawnUpdateCheck(PKG_VERSION);
+    return updateStatus(PKG_VERSION);
+  } catch (e) {
+    debug('update-check:chip', e);
+    return null;
+  }
+}
 
 async function main() {
   // Subcommand: last — print the most recent warning + how to handle it.
@@ -164,6 +181,37 @@ async function main() {
   //   claude-token-saver compact-window off | on         # toggle the statusline warning
   if (args[0] === 'compact-window') {
     return (await import('../src/commands/compact-window.js')).run({ args, hasFlag });
+  }
+
+  // `--version` / `-v` — the flag every CLI is expected to answer. Until now
+  // the version was only visible in the table view's footer, which meant
+  // "which version am I on" required running a full report.
+  if (hasFlag('--version') || hasFlag('-v')) {
+    console.log(PKG_VERSION);
+    return;
+  }
+
+  // Subcommand: update-check — the registry lookup behind the ⬆ statusline
+  // chip and the session-start upgrade offer.
+  //   claude-token-saver update-check              # print cached status
+  //   claude-token-saver update-check --refresh    # hit the registry now (detached child uses this)
+  //   claude-token-saver update-check --dismiss    # stop offering THIS version at session start
+  if (args[0] === 'update-check') {
+    return (await import('../src/commands/update-check.js')).run({
+      hasFlag,
+      version: PKG_VERSION,
+    });
+  }
+
+  // Subcommand: upgrade — run the install command that matches how this copy
+  // got here, then confirm the new version.
+  //   claude-token-saver upgrade          # install the latest release
+  //   claude-token-saver upgrade --print  # just show the command, run nothing
+  if (args[0] === 'upgrade') {
+    return (await import('../src/commands/upgrade.js')).run({
+      hasFlag,
+      version: PKG_VERSION,
+    });
   }
 
   // Hook management
@@ -319,7 +367,7 @@ async function main() {
         } catch (e) { debug('caps-cache:persist', e); }
       }
       console.log(formatNoSession(
-        { caps, model, windowLabel },
+        { caps, model, windowLabel, version: PKG_VERSION, update: readUpdateChip() },
         { color: colorOk, mode: isIcon ? 'icon' : 'text' },
       ));
       return;
@@ -471,6 +519,8 @@ async function main() {
     anomalies,
     cost,
     options: { days, windowHours, windowLabel, version: PKG_VERSION },
+    // Cached-only; the background refresh it may trigger lands on a later render.
+    update: format === 'statusline' ? readUpdateChip() : null,
     lastActivity,
     spikeReport,
     contextWindow,

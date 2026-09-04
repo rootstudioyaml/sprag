@@ -158,6 +158,33 @@ function buildKoreanSeg(c, isIcon, verbose) {
 }
 
 /**
+ * Version segment builder — "which copy of this tool am I looking at", plus
+ * the upgrade nudge when a newer one has been published.
+ *
+ * Two states, deliberately different in weight:
+ *   - up to date  → `v3.24.0` in gray. Identity context, not news.
+ *   - update available → `⬆ v3.24.0 → 3.25.0` in yellow. Same tone as the
+ *     other "you should do something eventually" chips, never red: nothing is
+ *     broken, and a permanently-red statusline trains the eye to ignore red.
+ *
+ * A statusline cannot open a dialog, so the *asking* happens at session start
+ * (see route-scan --hook, which briefs the model to offer the upgrade). This
+ * chip is the persistent reminder between those offers, which is why it keeps
+ * rendering after the user declines — declining hides the session-start
+ * question, not the fact that a new version exists.
+ */
+function buildVersionSeg(version, update, c, isIcon, verbose) {
+  if (!version) return null;
+  if (update && update.available && update.latest) {
+    const body = verbose
+      ? `Update v${version} → ${update.latest}`
+      : `v${version} → ${update.latest}`;
+    return `${c(YELLOW)}${isIcon ? '⬆ ' : ''}${body}${c(RESET)}`;
+  }
+  return `${c(GRAY)}v${version}${c(RESET)}`;
+}
+
+/**
  * Harness 🅷 segment builder — shared by the full report and the no-session
  * fallback line. Best-effort: never throws into the statusline (corrupted
  * CLAUDE.md, permission issue, etc. → null).
@@ -209,18 +236,21 @@ function buildCapWarnSeg(capWarn, c, isIcon) {
  * just because the user has been idle past the window — so cap-warn,
  * harness, and model chips still render around the "no session data" note.
  */
-export function formatNoSession({ caps = null, model = null, windowLabel = '' } = {}, { color = true, mode = 'icon' } = {}) {
+export function formatNoSession({ caps = null, model = null, windowLabel = '', version = '', update = null } = {}, { color = true, mode = 'icon' } = {}) {
   const c = (v) => (color ? v : '');
   const isIcon = mode === 'icon';
   const segs = [];
   const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon);
   if (capSeg) segs.push(capSeg);
+  const versionSeg = buildVersionSeg(version, update, c, isIcon, false);
+  if (versionSeg && update && update.available) segs.push(versionSeg);
   const harnessSeg = buildHarnessSeg(c, isIcon);
   if (harnessSeg) segs.push(harnessSeg);
   if (typeof model === 'string' && model.length > 0) {
     segs.push(isIcon ? `${c(MAGENTA)}🤖 ${model}${c(RESET)}` : `${c(MAGENTA)}${model}${c(RESET)}`);
   }
   segs.push(`${c(GRAY)}🧠 no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
+  if (versionSeg && !(update && update.available)) segs.push(versionSeg);
   return segs.join(' · ') + (color ? '\x1b[K' : '');
 }
 
@@ -231,7 +261,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '' } 
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, harness, korean, model, hit, ttl, saved, delegated, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
+ * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, saved, delegated, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
@@ -446,6 +476,11 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // a missing section at a glance and know to run `harness init`.
   const harnessSeg = buildHarnessSeg(c, isIcon);
 
+  // Version / upgrade chip. Read from a cache written by a detached background
+  // check — this render path never touches the network.
+  const versionSeg = buildVersionSeg(options.version, data.update, c, isIcon, verbose);
+  const updateAvailable = !!(data.update && data.update.available);
+
   // Korean-style chip — rendered only when the session-start injection is on.
   const koreanSeg = buildKoreanSeg(c, isIcon, verbose);
 
@@ -550,6 +585,10 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const segs = [];
   if (capWarnSeg && want('cap-warn')) segs.push(capWarnSeg);
   if (spikeSeg && want('spike')) segs.push(spikeSeg);
+  // An available upgrade rides up front with the other "act on this" chips.
+  // When there is nothing to upgrade to, the same segment is pure identity and
+  // sits at the tail instead (pushed after `saved`, below).
+  if (versionSeg && updateAvailable && want('version')) segs.push(versionSeg);
   if (harnessSeg && want('harness')) segs.push(harnessSeg);
   if (koreanSeg && want('korean')) segs.push(koreanSeg);
   if (modelSeg && want('model')) segs.push(modelSeg);
@@ -569,6 +608,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // it sits near the tail. The period label closes the line as a quiet
   // timeframe footer.
   if (want('saved')) segs.push(saveSeg);
+  if (versionSeg && !updateAvailable && want('version')) segs.push(versionSeg);
   if (want('period')) segs.push(periodSeg);
   // Trailing erase-to-end-of-line so any leftover characters from a previous
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard

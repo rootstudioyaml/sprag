@@ -130,6 +130,8 @@ With an empty ledger (no measured delegation yet) row 1 is not drawn and the lay
 | `✦ current` / `📅 weekly` | 5-hour / 7-day rate-limit window usage + reset time |
 | `📦` | Context usage (e.g. `Ctx 68% of 1M`) — colored by fill. Current models default to 1M with no premium, but token volume itself drives per-turn cost and 5H/7D burn |
 | `💰` | Cumulative savings from prompt caching — a **different** number from row 1's `🔀` (model routing) |
+| `v3.24.0` | The version you are running. Gray, at the tail, when it is the latest one |
+| `⬆ v3.24.0 → 3.25.0` | A newer release exists. Actionable, so it moves to the front of the line ([Update notifications](#-update-notifications)) |
 
 When something is wrong, a **warning chip leads the line**:
 
@@ -161,6 +163,9 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
 | `claude-token-saver korean lint block\|warn\|off` | How the write-time check handles findings |
 | `claude-token-saver korean lint scope all\|prose` | Check every text file, or documents only |
+| `claude-token-saver --version` | Print the installed version |
+| `claude-token-saver update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
+| `claude-token-saver upgrade` | Install the latest release with the package manager that installed this copy (`--print` shows the command only) |
 | `claude-token-saver install` | Manually register Skill + statusline |
 
 Switch output language with `mode ko` / `mode en` (English default; statusline chips stay symbolic).
@@ -183,6 +188,16 @@ Switch output language with `mode ko` / `mode en` (English default; statusline c
 | `--segments=…` | Limit statusline segments (e.g. `model,five_hour,seven_day,saved`) | all |
 | `--install-hook` / `--uninstall-hook` | Manage the PostToolUse hook | – |
 </details>
+
+## ⬆ Update notifications
+
+A statusline cannot open a dialog, and it re-renders every ~300ms, so it can never touch the network while drawing. The notification is therefore split in two:
+
+- **The statusline tells you.** Up to date: a quiet gray `v3.24.0` at the tail. Newer release out: `⬆ v3.24.0 → 3.25.0` in yellow, moved to the front. Never red — nothing is broken.
+- **Session start asks you.** On a new session or `/clear`, the SessionStart hook injects one line telling the model a newer version exists and to ask before installing anything. Only after you agree does it run `claude-token-saver upgrade`.
+- **Declining sticks.** `claude-token-saver update-check --dismiss` mutes the offer for that version; the next release asks again. The statusline chip stays — you declined the question, not the fact.
+
+The registry lookup runs at most once every 24h in a detached background process and only ever writes a cache file (`update-check.json`) — the same shape npm's `update-notifier` uses. A failed check still stamps its timestamp, so an offline machine backs off instead of retrying on every render. Turn checks off entirely with `CTS_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER`.
 
 ## 🅷 Harness mode
 
@@ -438,6 +453,11 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.25.0 (2026-09-04)
+- **The statusline now shows which version is running** — until now the version lived only in the table report's footer, so "which version am I on" meant running a full report. A `--version` flag was added alongside it.
+- **A new release asks at session start** — a statusline cannot open a dialog, so telling and asking are split. The statusline only reports (`⬆ v3.24.0 → 3.25.0`); the SessionStart hook injects a line telling the model to ask the user whether to upgrade. On yes it runs `claude-token-saver upgrade`, which uses the package manager that installed this copy; on no, `update-check --dismiss` mutes that version until a newer one ships.
+- **The check never blocks a render** — the registry lookup runs at most once every 24h in a detached background process, and the render path only reads the cache file. A failed check still stamps its timestamp, so an offline machine backs off instead of retrying every render. Disable with `CTS_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER`.
 
 ### v3.21.0 (2026-08-22)
 - **The install shows what it is about to enable, then asks** — the harness 5 principles and the Korean writing guidance used to be switched on by the installer, leaving the user with the result rather than the choice. The install now prints the five principle headings, and for the Korean guidance what it changes plus its per-session cost and source, before asking. Locale detection is demoted from an answer to the question's default, so an English-locale machine used for Korean work can enable it on the spot.
