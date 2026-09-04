@@ -221,6 +221,9 @@ test('the install/remove pair touches only its own PreToolUse entry', (t) => {
     const steps = [];
     steps.push(installDoc2mdHook().action);
     steps.push(installDoc2mdHook().action);
+    const { readFileSync } = await import('node:fs');
+    const events = Object.keys(JSON.parse(readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8')).hooks).sort();
+    steps.push(events.join('+'));
     steps.push(removeDoc2mdHook().action);
     steps.push(removeDoc2mdHook().action);
     console.log(JSON.stringify(steps));
@@ -230,9 +233,12 @@ test('the install/remove pair touches only its own PreToolUse entry', (t) => {
     env: { ...process.env, HOME: home, USERPROFILE: home },
   });
   assert.equal(run.status, 0, run.stderr);
-  const [created, again, removed, absent] = JSON.parse(run.stdout.trim().split('\n').pop());
+  const [created, again, events, removed, absent] = JSON.parse(run.stdout.trim().split('\n').pop());
   assert.equal(created, 'created');
   assert.equal(again, 'exists', 'installing twice must not duplicate the entry');
+  // Both halves, or the feature only half works: PreToolUse cannot see pptx,
+  // and UserPromptSubmit is the only place that can.
+  assert.equal(events, 'PreToolUse+UserPromptSubmit');
   assert.equal(removed, 'removed');
   assert.equal(absent, 'absent');
 

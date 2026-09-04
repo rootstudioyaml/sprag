@@ -378,23 +378,28 @@ export function installDoc2mdHook() {
   if (settings.hooks.PreToolUse !== undefined && !Array.isArray(settings.hooks.PreToolUse)) {
     return { path: file, action: 'skipped', reason: 'hooks.PreToolUse is not an array — fix settings.json manually' };
   }
+  // Each event is checked on its own. Returning early on "the Read hook is
+  // already there" would leave anyone upgrading from 3.26.x with the half that
+  // cannot see pptx and without the half that can — which is exactly what
+  // happened on the first machine to try it.
   const list = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
-  const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('doc2md --hook')),
+  const hasReadHook = list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /doc2md --hook(?!-)/.test(h.command)),
   );
-  if (already) return { path: file, action: 'exists' };
-
-  list.push({
-    matcher: 'Read',
-    hooks: [{ type: 'command', command: DOC2MD_HOOK_COMMAND }],
-  });
-  settings.hooks.PreToolUse = list;
+  if (!hasReadHook) {
+    list.push({
+      matcher: 'Read',
+      hooks: [{ type: 'command', command: DOC2MD_HOOK_COMMAND }],
+    });
+    settings.hooks.PreToolUse = list;
+  }
 
   // The Read hook alone covers only PDFs. Claude Code refuses pptx/xlsx/docx
   // as binary before any PreToolUse hook runs, so for exactly the formats this
   // feature exists for, the tool call is dead before doc2md is consulted.
   // UserPromptSubmit runs earlier and sees the raw prompt text, which is where
   // a path the user typed can still be turned into Markdown.
+  let addedPrompt = false;
   if (settings.hooks.UserPromptSubmit === undefined || Array.isArray(settings.hooks.UserPromptSubmit)) {
     const prompts = Array.isArray(settings.hooks.UserPromptSubmit) ? settings.hooks.UserPromptSubmit : [];
     const hasPromptHook = prompts.some((m) =>
@@ -403,11 +408,15 @@ export function installDoc2mdHook() {
     if (!hasPromptHook) {
       prompts.push({ hooks: [{ type: 'command', command: DOC2MD_PROMPT_HOOK_COMMAND }] });
       settings.hooks.UserPromptSubmit = prompts;
+      addedPrompt = true;
     }
   }
 
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
-  return { path: file, action: 'created' };
+  if (!hasReadHook || addedPrompt) {
+    writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+    return { path: file, action: hasReadHook ? 'updated' : 'created' };
+  }
+  return { path: file, action: 'exists' };
 }
 
 export function removeDoc2mdHook() {
