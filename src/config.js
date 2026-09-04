@@ -82,6 +82,7 @@ export const VALID_KEYWORDS = Object.keys(KEYWORDS)
     '<N>h (e.g. 1h, 6h, 24h)',
     '<N>d (e.g. 1d, 7d, 30d)',
     'lang=en | lang=ko',
+    'ttl=5m | ttl=1h | ttl=auto',
     'reset',
     'default',
   ]);
@@ -118,6 +119,15 @@ export function applyMode(words) {
       cfg.language = LANG_KEYWORDS[lower];
       if (cfg.statusline) delete cfg.statusline.language;
       applied.push(`lang=${cfg.language}`);
+      continue;
+    }
+    // Checked before parseWindow, which would otherwise read the `5m`/`1h`
+    // part as an analysis window.
+    const ttlMatch = lower.match(/^ttl=(5m|1h|auto)$/);
+    if (ttlMatch) {
+      if (ttlMatch[1] === 'auto') delete cfg.statusline.ttlBucket;
+      else cfg.statusline.ttlBucket = ttlMatch[1];
+      applied.push(`ttl=${ttlMatch[1]}`);
       continue;
     }
     const hours = parseWindow(lower);
@@ -168,6 +178,11 @@ export function statuslineDefaults() {
     color:       s.color   !== false,
     windowHours,
     windowLabel: formatWindow(windowHours),
+    // 'auto' | '5m' | '1h'. Auto lets the measured split decide and falls back
+    // to gateway detection. An explicit value exists because detection can be
+    // wrong in either direction, and a user who can read their own clock
+    // should not have to wait for a release to correct it.
+    ttlBucket: s.ttlBucket === '5m' || s.ttlBucket === '1h' ? s.ttlBucket : 'auto',
   };
 }
 

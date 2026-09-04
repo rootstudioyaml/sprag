@@ -60,6 +60,36 @@ test('turning it on produces an injection block that frames the rules', async (t
   assert.equal(ks.koreanStyleInjection(), null);
 });
 
+test('the wide scope names which side wins where it contradicts the vendored text', async (t) => {
+  isolated(t);
+  const ks = await import('../src/korean-style.js?precedence');
+  ks.setKoreanStyleEnabled(true);
+
+  // The default scope claims code comments; the vendored text disclaims them,
+  // twice. Both sentences ship, so the block has to say which one governs or
+  // the model is left to guess. It guessed wrong in September 2026 and put em
+  // dashes in comments and log strings while the rules were active.
+  const wide = ks.koreanStyleInjection();
+  assert.match(wide, /코드 주석에도 지침을 적용하십시오/);
+  assert.match(wide, /바로 위의 적용 대상과 적용 예외가 그 문장보다 우선합니다/);
+
+  // The narrow scope already agrees with the vendored text, so an override
+  // there would only add noise and contradict the exception list above it.
+  const narrow = ks.koreanStyleInjection({ cfg: { koreanStyle: { enabled: true, lintScope: 'prose' } } });
+  assert.doesNotMatch(narrow, /코드 주석에도 지침을 적용하십시오/);
+  assert.match(narrow, /적용 예외:.*코드 주석/);
+
+  ks.setKoreanStyleEnabled(false);
+});
+
+test('the attribution line does not break the rule it cites', async () => {
+  const ks = await import('../src/korean-style.js?source');
+  // 구 단위 4번 조항이 엠대시를 금지합니다. 출처 문구가 그 표기를 쓰고 있으면
+  // 지침 스스로 어기는 예시가 되므로 콜론으로 적습니다.
+  assert.doesNotMatch(ks.KOREAN_STYLE_SOURCE, /—/);
+  assert.match(ks.KOREAN_STYLE_SOURCE, /snflkd/);
+});
+
 test('the vendored text drops the provenance comment but keeps the rules', async () => {
   const ks = await import('../src/korean-style.js?text');
   const raw = readFileSync(ks.KOREAN_STYLE_PATH, 'utf8');

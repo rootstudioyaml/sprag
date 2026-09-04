@@ -161,6 +161,13 @@ async function main() {
     return (await import('../src/commands/korean.js')).run({ args, hasFlag });
   }
 
+  // Subcommand: doc2md — convert pptx/xlsx/pdf/docx to Markdown before the
+  // model reads them, so an unreadable binary never enters the context window.
+  //   claude-token-saver doc2md on | off | <file> | --clean
+  if (args[0] === 'doc2md') {
+    return (await import('../src/commands/doc2md.js')).run({ args, hasFlag });
+  }
+
   // Subcommand: harness — manage the project's CLAUDE.md harness rules.
   //   claude-token-saver harness init       # write CLAUDE.md (5 sections) + ratchet.md
   //   claude-token-saver harness uninit     # remove harness block from CLAUDE.md (backup kept)
@@ -511,6 +518,27 @@ async function main() {
   } catch (e) {
     debug('savings-ledger:totals', e);
   }
+  // Delegated runs route-scan had to throw away because their model id could
+  // not be priced. Also a lookup of the cached scan, never a scan. Without it
+  // the statusline shows the same blank for "no delegation happened" and for
+  // "delegation happened and was silently discarded".
+  let unresolvedRuns = 0;
+  try {
+    const { readRouteScan } = await import('../src/route-scan.js');
+    unresolvedRuns = Number(readRouteScan()?.unresolvedRuns) || 0;
+  } catch (e) {
+    debug('route-scan:unresolved', e);
+  }
+  // 'auto' unless the user pinned a bucket. Read here rather than in the
+  // statusline branch below because the table and JSON formatters want the
+  // same answer.
+  let ttlBucket = 'auto';
+  try {
+    const { statuslineDefaults } = await import('../src/config.js');
+    ttlBucket = statuslineDefaults().ttlBucket;
+  } catch (e) {
+    debug('config:ttlBucket', e);
+  }
 
   const data = {
     summary: sum,
@@ -530,6 +558,8 @@ async function main() {
     model,
     delegationSaved,
     delegationTotals,
+    unresolvedRuns,
+    ttlBucket,
   };
 
   let output;

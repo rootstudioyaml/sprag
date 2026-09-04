@@ -69,8 +69,14 @@ const ROLES = ['main', 'opus', 'sonnet', 'haiku', 'fable'];
 
 /**
  * Alias for a role, taken from the environment Claude Code itself uses to
- * pick subagent models. Returns null when the variable is absent or is itself
- * an ARN (resolving an ARN to another ARN would loop).
+ * pick subagent models. Returns null when the variable is absent, or when it
+ * is an opaque ARN that names no model (resolving one of those to another ARN
+ * would loop).
+ *
+ * A `foundation-model` ARN is not opaque: it spells the model out in its
+ * resource part, so it is unwrapped rather than rejected. Users who point
+ * these variables straight at an ARN — a normal way to configure a private
+ * gateway — used to get no delegation stats at all, and no hint as to why.
  */
 export function aliasForRole(role, env = process.env) {
   const candidates = {
@@ -81,7 +87,13 @@ export function aliasForRole(role, env = process.env) {
     fable: [env.ANTHROPIC_DEFAULT_FABLE_MODEL],
   }[role] || [];
   for (const v of candidates) {
-    if (typeof v === 'string' && v && !isGatewayModelId(v)) return v;
+    if (typeof v !== 'string' || !v) continue;
+    if (!isGatewayModelId(v)) return v;
+    // `arn:…:foundation-model/anthropic.claude-haiku-4-5-…` → the model id.
+    // An `application-inference-profile` id is a random string and stays
+    // rejected: guessing at it is how wrong prices get into the ledger.
+    const inner = profileIdFrom(v);
+    if (inner && /claude/i.test(inner)) return inner;
   }
   return null;
 }

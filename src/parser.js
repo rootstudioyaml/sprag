@@ -4,9 +4,22 @@ import { createInterface } from 'node:readline';
 import { join, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { loadCache, getCached, putCached, saveCache } from './session-cache.js';
-import { resolveModelAlias } from './model-alias.js';
+import { resolveModelAlias, isGatewayModelId } from './model-alias.js';
 
 const CLAUDE_DIR = join(homedir(), '.claude', 'projects');
+
+/**
+ * Keys LiteLLM adds when it rewrites a Bedrock response into Anthropic shape.
+ * A stock Anthropic `usage` object carries none of them, so their presence is
+ * evidence of a gateway even when the model id looks ordinary. It is weak
+ * evidence — another gateway may not add them — so it is only consulted after
+ * the model id has already failed to answer the question.
+ */
+const GATEWAY_USAGE_KEYS = ['inference_geo', 'iterations', 'speed'];
+
+function usageLooksGatewayShaped(usage) {
+  return GATEWAY_USAGE_KEYS.some((k) => Object.prototype.hasOwnProperty.call(usage, k));
+}
 
 /**
  * Parse a single session JSONL file.
@@ -17,6 +30,7 @@ export async function parseSessionFile(filePath) {
   let sessionId = null;
   let firstTimestamp = null;
   let lastTimestamp = null;
+  let gatewayObserved = false;
 
   const rl = createInterface({
     input: createReadStream(filePath, { encoding: 'utf8' }),
@@ -47,6 +61,14 @@ export async function parseSessionFile(filePath) {
     const usage = msg.usage;
     const cc = usage.cache_creation || {};
     const reqId = entry.requestId || msg.id;
+
+    // Recorded from the RAW id, before resolveModelAlias() turns the ARN into
+    // a plain model name. Downstream this is the only thing that distinguishes
+    // "no cache writes yet" from "a gateway that never reports the TTL split",
+    // and those two states want opposite countdown defaults.
+    if (!gatewayObserved && (isGatewayModelId(msg.model) || usageLooksGatewayShaped(usage))) {
+      gatewayObserved = true;
+    }
 
     requests.set(reqId, {
       requestId: reqId,
@@ -87,6 +109,7 @@ export async function parseSessionFile(filePath) {
     totals,
     maxContextPerRequest,
     model: reqs[0]?.model || 'unknown',
+    gatewayObserved,
   };
 }
 

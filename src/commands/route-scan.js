@@ -100,6 +100,14 @@ export async function run({ args, hasFlag, numArg }) {
         return;
       }
       console.log(lang === 'ko' ? '📐 모델 피팅 룰 (로그 기반 자동 갱신):' : '📐 Model-fitting rules (auto-refreshed from logs):');
+      // A T1 rule delegates to sonnet, so in a session whose own model is
+      // already sonnet it can never save anything. That is correct behaviour,
+      // but listed as "measured delegations — (none yet)" it reads as a
+      // promise of savings that will never arrive.
+      const { aliasForRole } = await import('../model-alias.js');
+      const { modelRank } = await import('../cost.js');
+      const sessionModel = aliasForRole('main');
+      const sessionRank = sessionModel ? modelRank(sessionModel) : null;
       rules.forEach((r, i) => {
         const health = r.status === 'review'
           ? (lang === 'ko' ? '  ⚠ 에러율 초과 — 재검토 필요' : '  ⚠ error rate over threshold — needs review')
@@ -115,7 +123,13 @@ export async function run({ args, hasFlag, numArg }) {
           ? (lang === 'ko'
             ? `실제 위임 ${r.delegatedRuns}건 · 에러율 ${Math.round((r.delegatedErrRate || 0) * 100)}% · 절감 ~$${(r.savedUsd || 0).toFixed(2)}`
             : `measured ×${r.delegatedRuns} · err ${Math.round((r.delegatedErrRate || 0) * 100)}% · saved ~$${(r.savedUsd || 0).toFixed(2)}`)
-          : (lang === 'ko' ? '실제 위임 기록 — (아직 없음)' : 'measured delegations — (none yet)');
+          : (sessionRank !== null && !rs.worthDelegating(r.tier, sessionRank)
+            ? (lang === 'ko'
+              ? `이 규칙은 현재 기본 모델(${sessionModel}) 기준으로는 적용되지 않습니다. 세션 모델이 이미 위임 목표와 같은 급이어서 절감이 발생하지 않습니다.`
+              : `not in effect for the current default model (${sessionModel}) — the session already runs at the delegation target's tier`)
+            : (lang === 'ko'
+              ? '실제 위임 기록이 아직 없습니다.'
+              : 'measured delegations — (none yet)'));
         console.log(`      ${measured}`);
         // Same composer the md file uses, so what is listed here is exactly
         // what the model reads.

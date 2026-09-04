@@ -280,10 +280,27 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // infer the bucket. Default to 1h-sized countdown rather than 5m so Max
   // users on idle don't see a misleading "Cache expires 5:00". The bucket
   // label is shown as "?" so the uncertainty is visible.
+  //
+  // That default is exactly backwards behind a gateway. Bedrock and Vertex
+  // never report the per-bucket split, so ttl.total stays 0 there forever, and
+  // they offer only the 5m bucket: the countdown opened at 59:59 for a window
+  // that was really 5:00, overstating it twelvefold. So the fallback now
+  // follows the evidence — gateway seen, assume 5m; otherwise keep 1h. An
+  // explicit `ttlBucket` setting outranks both, so a gateway that starts
+  // reporting the split correctly does not need a release to be believed.
   const hasTtlData = ttl.total > 0;
-  const is1h = hasTtlData ? ttl.pct1h >= 0.5 : true;
-  const bucketLabel = hasTtlData ? (is1h ? '1h' : '5m') : '?';
-  const bucketColor = hasTtlData ? (is1h ? GREEN : YELLOW) : GRAY;
+  const override = data.ttlBucket === '5m' || data.ttlBucket === '1h' ? data.ttlBucket : null;
+  const is1h = override ? override === '1h' : (hasTtlData ? ttl.pct1h >= 0.5 : !ttl.gatewayObserved);
+  // Three grades of certainty, three labels: measured (`1h`/`5m`), inferred
+  // from a gateway model id (`5m?`), and unknown (`?`). Folding the middle
+  // case into `?` would hide a judgement the user could otherwise check.
+  const bucketKnown = hasTtlData || !!override;
+  const bucketLabel = bucketKnown
+    ? (is1h ? '1h' : '5m')
+    : (ttl.gatewayObserved ? '5m?' : '?');
+  const bucketColor = bucketKnown
+    ? (is1h ? GREEN : YELLOW)
+    : (ttl.gatewayObserved ? YELLOW : GRAY);
   const ttlSeconds = is1h ? 3600 : 300;
 
   const savings = cost?.savings ?? 0;
@@ -320,9 +337,18 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const delegateLabel = isIcon
     ? (verbose ? '🔀 Routing saved' : '🔀')
     : 'Routing saved';
+  // Zero savings has two very different causes and, until now, one appearance:
+  // nothing at all. "Never delegated" and "delegated plenty, but every run was
+  // dropped because the gateway model id could not be resolved" looked
+  // identical, so users in the second case had no reason to suspect anything
+  // was wrong. The count gets a chip; the explanation stays in `route-scan
+  // rules`, where there is room for it.
+  const unresolvedRuns = Number(data.unresolvedRuns) || 0;
   const delegateSeg = delegationSaved > 0
     ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
-    : null;
+    : (unresolvedRuns > 0
+      ? `${c(YELLOW)}🔀 ${unresolvedRuns} unresolved${c(RESET)}`
+      : null);
 
   // Routing-savings headline line (multi-line layout). The lifetime sum from
   // the delegation ledger — the number the whole tool exists to grow, so it
@@ -397,11 +423,15 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const remaining = Math.min(ttlSeconds, ttlSeconds - elapsed);
     const text = formatTimer(remaining);
     const pct = remaining / ttlSeconds;
+    // Percentages are the wrong unit in a 5-minute bucket: 30% of it is 90
+    // seconds, and green there reads as comfort the user does not have. Below
+    // an hour the thresholds are absolute, so the color tracks whether there
+    // is time to finish a thought rather than a share of a short window.
     const timerColor =
       remaining <= 0 ? RED :
-      pct > 0.30 ? GREEN :
-      pct > 0.10 ? YELLOW :
-      RED;
+      is1h
+        ? (pct > 0.30 ? GREEN : pct > 0.10 ? YELLOW : RED)
+        : (remaining > 60 ? GREEN : remaining > 30 ? YELLOW : RED);
 
     if (isIcon && verbose) {
       // Drop bucket here too — `⏳ Expires 1h 57:20` reads as "1h 57m 20s left"

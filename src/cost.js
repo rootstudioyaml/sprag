@@ -234,6 +234,12 @@ export function estimateCost(totals, model) {
     savingsRate: noCacheCost > 0 ? (noCacheCost - actual) / noCacheCost : 0,
     scenario5mCost: round(scenario5mCost),
     extraCostIf5m: round(scenario5mCost - actual),
+    // The row asks a counterfactual: what would dropping to 5m-only cost you?
+    // With no 1h writes there is nothing to lose, and the arithmetically
+    // honest `+$0` it printed read as "5m-only is free" — the opposite of the
+    // truth for a gateway user already confined to 5m. The display layer has
+    // to change the question rather than the number.
+    extraCostIf5mApplicable: write1h > 0,
   };
 }
 

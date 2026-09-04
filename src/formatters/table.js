@@ -241,7 +241,14 @@ export function formatReport({ summary: sum, trend, ttl, anomalies, cost, option
   lines.push('  ' + tableRow(['Without cache', `$${cost.noCacheCost}`], costW, costA));
   lines.push('  ' + tableSep(costW));
   lines.push('  ' + tableRow(['Savings', `$${cost.savings} (${pct(cost.savingsRate)})`], costW, costA));
-  lines.push('  ' + tableRow(['Extra cost if 5m-only', `+$${cost.extraCostIf5m}`], costW, costA));
+  // Only worth asking of someone who has 1h writes to lose. Everyone else got
+  // a `+$0` that read as an endorsement of the 5m bucket they were already
+  // stuck in.
+  if (cost.extraCostIf5mApplicable === false) {
+    lines.push('  ' + tableRow(['Already 5m-only', ttl.gatewayObserved ? 'gateway' : 'yes'], costW, costA));
+  } else {
+    lines.push('  ' + tableRow(['Extra cost if 5m-only', `+$${cost.extraCostIf5m}`], costW, costA));
+  }
   lines.push('  ' + tableBot(costW));
   lines.push('');
 

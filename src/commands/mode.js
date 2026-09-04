@@ -20,6 +20,7 @@ export async function run({ args }) {
       console.log(`  timer:   ${eff.timer}`);
       console.log(`  color:   ${eff.color}`);
       console.log(`  window:  ${eff.windowLabel} (${eff.windowHours}h)`);
+      console.log(`  ttl:     ${eff.ttlBucket}${eff.ttlBucket === 'auto' ? ' (measured split, else gateway detection)' : ' (pinned)'}`);
       console.log('');
       console.log('Output language (advice / history / last):');
       console.log(`  language: ${userLanguage()}`);

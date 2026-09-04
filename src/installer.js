@@ -346,6 +346,75 @@ export function removeKoreanLintHook() {
   return { path: file, action: 'removed' };
 }
 
+// Registers the PreToolUse hook that converts attached documents to Markdown
+// before the model reads them. PreToolUse rather than PostToolUse because the
+// point is to intervene before a pptx lands in the context window; afterwards
+// the tokens are already spent.
+//
+// No `timeout` is set, on purpose. Claude Code defaults command hooks to ten
+// minutes, so naming a number here could only lower that ceiling, and a cold
+// `import markitdown` measured at twelve seconds by itself, with a very large
+// workbook adding a minute on top. The row cap inside the converter is what
+// actually bounds the work; the timeout is only a backstop.
+// Installed by `doc2md on`, removed by `doc2md off`. Idempotent.
+const DOC2MD_HOOK_COMMAND = 'claude-token-saver doc2md --hook';
+
+export function installDoc2mdHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  let settings = {};
+  if (existsSync(file)) {
+    try {
+      settings = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (e) {
+      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+    }
+  }
+
+  settings.hooks = settings.hooks || {};
+  if (settings.hooks.PreToolUse !== undefined && !Array.isArray(settings.hooks.PreToolUse)) {
+    return { path: file, action: 'skipped', reason: 'hooks.PreToolUse is not an array — fix settings.json manually' };
+  }
+  const list = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
+  const already = list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('doc2md --hook')),
+  );
+  if (already) return { path: file, action: 'exists' };
+
+  list.push({
+    matcher: 'Read',
+    hooks: [{ type: 'command', command: DOC2MD_HOOK_COMMAND }],
+  });
+  settings.hooks.PreToolUse = list;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'created' };
+}
+
+export function removeDoc2mdHook() {
+  const file = join(claudeUserDir(), 'settings.json');
+  if (!existsSync(file)) return { path: file, action: 'absent' };
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (e) {
+    return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+  }
+  const list = settings?.hooks?.PreToolUse;
+  if (!Array.isArray(list)) return { path: file, action: 'absent' };
+  // Only this tool's own entry goes; anything else registered under
+  // PreToolUse stays exactly where the user put it.
+  const kept = list.filter((m) =>
+    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('doc2md --hook'))),
+  );
+  if (kept.length === list.length) return { path: file, action: 'absent' };
+  if (kept.length === 0) delete settings.hooks.PreToolUse;
+  else settings.hooks.PreToolUse = kept;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'removed' };
+}
+
 export function installAll({ force = false } = {}) {
   return {
     skill: installSkill({ force }),

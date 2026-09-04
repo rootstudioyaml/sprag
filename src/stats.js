@@ -59,10 +59,12 @@ export function dailyTrend(sessions) {
 export function ttlBreakdown(sessions) {
   let total5m = 0;
   let total1h = 0;
+  let gatewayObserved = false;
 
   for (const s of sessions) {
     total5m += s.totals.ephemeral5m;
     total1h += s.totals.ephemeral1h;
+    if (s.gatewayObserved) gatewayObserved = true;
   }
 
   const total = total5m + total1h;
@@ -72,6 +74,12 @@ export function ttlBreakdown(sessions) {
     total,
     pct5m: total > 0 ? total5m / total : 0,
     pct1h: total > 0 ? total1h / total : 0,
+    // Bedrock and Vertex fill only the `cache_creation_input_tokens` sum and
+    // leave the per-bucket split at zero, so `total === 0` there means "cannot
+    // tell" rather than "no cache writes happened". Carrying the observation
+    // alongside the numbers lets the display layer tell those two apart
+    // without going back to the environment.
+    gatewayObserved,
   };
 }
 
@@ -135,6 +143,7 @@ export function sessionMetrics(session) {
     outputRatio,
     writeToReadRatio,
     maxContextPerRequest: session.maxContextPerRequest || 0,
+    gatewayObserved: !!session.gatewayObserved,
     totals: t,
   };
 }
@@ -217,10 +226,22 @@ export function diagnoseSession(metrics, baseline) {
     });
   }
 
-  if (metrics.pct5m > 0.7 && (metrics.totals.ephemeral5m + metrics.totals.ephemeral1h) > 0) {
+  // The split is only knowable when the provider reports it. Requiring that
+  // sum outright meant gateway users — who are on a 5m-only backend and so
+  // need this warning most — never saw it at all.
+  const ttlSplitKnown = (metrics.totals.ephemeral5m + metrics.totals.ephemeral1h) > 0;
+  if (ttlSplitKnown && metrics.pct5m > 0.7) {
     issues.push({
       code: 'BUCKET_5M_DOMINANT',
       pct5m: metrics.pct5m,
+    });
+  } else if (!ttlSplitKnown && metrics.gatewayObserved && metrics.totals.cacheCreation > 0) {
+    // Bedrock and Vertex offer no 1h bucket, so every write is a 5m write.
+    // The advice differs from the subscription case: no plan change fixes it.
+    issues.push({
+      code: 'BUCKET_5M_DOMINANT_GATEWAY',
+      pct5m: 1.0,
+      inferred: true,
     });
   }
 

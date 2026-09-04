@@ -12,3 +12,6 @@ HANDOFF-*.md
 .npmrc
 .gitignore.bak
 docs/statusline.html
+
+handoff/
+logs/

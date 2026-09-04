@@ -35,7 +35,10 @@ const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const KOREAN_STYLE_PATH = join(packageRoot, 'presets', 'korean-style', 'fluent-korean.md');
 export const KOREAN_STYLE_LICENSE_PATH = join(packageRoot, 'presets', 'korean-style', 'LICENSE-fluent-korean');
-export const KOREAN_STYLE_SOURCE = 'fluent-korean by snflkd (MIT) — https://github.com/snflkd/fluent-korean';
+// The separator here is a colon, not an em dash. The guidance this line cites
+// bans em dashes in Korean prose, and shipping one inside its own attribution
+// is the kind of contradiction that teaches the model the rule is negotiable.
+export const KOREAN_STYLE_SOURCE = 'fluent-korean by snflkd (MIT): https://github.com/snflkd/fluent-korean';
 
 /** Whether session-start injection is enabled. Off unless the user asked. */
 export function koreanStyleEnabled(cfg = loadConfig()) {
@@ -134,6 +137,13 @@ export function koreanScopeLines(cfg = loadConfig()) {
   return [
     '적용 대상: 대화 답변, 그리고 세션이 쓰거나 고치는 모든 파일의 한국어를 포함합니다. 문서와 보고서는 물론이고 코드 주석, 화면에 나가는 문자열, 자막과 템플릿, 스크립트가 읽어 산출물을 만드는 데이터 파일까지 모두 해당합니다.',
     '적용 예외: 원문을 그대로 옮기는 인용과, 프로젝트의 기존 표기 관례를 따라야 하는 커밋 메시지와 로그 문자열입니다.',
+    // The vendored text says the opposite of the line above, and it says so
+    // twice. Left unaddressed the model has no way to decide which sentence
+    // governs a code comment, and in September 2026 that ambiguity shipped em
+    // dashes into comments and log strings while the guidance was active. The
+    // vendored wording stays untouched, so the conflict is resolved by naming
+    // which side wins rather than by editing the source.
+    '아래에 이어지는 fluent-korean 본문은 "인용, 코드, 코드 주석에는 이 지침들을 적용하지 않습니다"라고 적고 있으며 동작 범위 2번 조항에서 한 번 더 강조합니다. 그러나 이 세션에서는 바로 위의 적용 대상과 적용 예외가 그 문장보다 우선합니다. 즉 코드 주석에도 지침을 적용하십시오.',
     '쓰기 시점에 기계 검사가 함께 돌아갑니다. 위반을 알리면 그 파일을 고친 뒤에 다음 작업으로 넘어가십시오.',
   ];
 }

@@ -180,6 +180,34 @@ export const ISSUE_MESSAGES = {
       },
     ],
   },
+  // Same symptom as BUCKET_5M_DOMINANT, different remedy. On Bedrock/Vertex
+  // the 5m bucket is the only bucket, so telling the user to upgrade a
+  // subscription plan sends them to buy something that changes nothing.
+  BUCKET_5M_DOMINANT_GATEWAY: {
+    title: 'This gateway offers only the 5-minute TTL bucket',
+    titleKo: '이 게이트웨이는 5분 TTL 버킷만 제공합니다',
+    explain:
+      'Bedrock/Vertex do not expose the 1h extended bucket, and they do not report the ' +
+      'per-bucket split either, so this is inferred from the model ids in the transcript. ' +
+      'No subscription plan changes it.',
+    explainKo:
+      'Bedrock과 Vertex는 1시간 확장 버킷을 제공하지 않으며, 버킷별 분해 값도 내려보내지 않습니다. ' +
+      '그래서 이 판정은 트랜스크립트에 남은 모델 ID로 추정한 것입니다. 구독 플랜을 바꾸어도 해소되지 않습니다.',
+    actions: () => [
+      {
+        label: 'What actually helps here',
+        labelKo: '이 환경에서 실제로 듣는 대응',
+        commands: [
+          'Send the next request within 5 minutes — that window is all you get',
+          '`/compact` before stepping away, so the rebuild after expiry costs less',
+        ],
+        commandsKo: [
+          '다음 요청을 5분 안에 보내십시오. 이 환경에서 주어지는 창은 그것이 전부입니다.',
+          '작업을 중단하기 전에 `/compact`를 실행해 만료 후의 재빌드 비용을 낮추십시오.',
+        ],
+      },
+    ],
+  },
   HIGH_OUTPUT_RATIO: {
     title: 'Output share is abnormally high',
     titleKo: '출력 비중이 비정상적으로 높음',
@@ -454,6 +482,10 @@ export const ISSUE_TIPS = {
     en: 'Send any prompt within 5min to keep cache warm; Max plan unlocks 1h TTL',
     ko: '5분 이내 한 번 더 보내 캐시 유지; Max 플랜은 1시간 TTL 제공',
   },
+  BUCKET_5M_DOMINANT_GATEWAY: {
+    en: 'Gateway (Bedrock/Vertex) is 5m-only — no plan changes that; send within 5min or `/compact` before idling',
+    ko: '게이트웨이(Bedrock·Vertex)는 5분 고정이라 플랜으로 해소되지 않음; 5분 안에 보내거나 작업 중단 전 `/compact`',
+  },
   HIGH_OUTPUT_RATIO: {
     en: 'Check `/effort` (`xhigh` inflates output); prefer Edit over full rewrites; model matching: Sonnet 80% / Opus 15% / Haiku 5%',
     ko: '`/effort` 확인 (`xhigh`는 출력 폭증); Edit 도구 우선 (전체 재작성 피하기); 모델 매칭: Sonnet 80% / Opus 15% / Haiku 5%',
@@ -488,7 +520,7 @@ export const CHIP_TO_CODES = {
   '⚠ 1M ON': ['LARGE_INPUT_PER_REQUEST'],
   '⚠ Cache miss': ['LOW_HIT_RATE'],
   '⚠ Input spike': ['LARGE_INPUT_PER_REQUEST'],
-  '⚠ 5m TTL': ['BUCKET_5M_DOMINANT'],
+  '⚠ 5m TTL': ['BUCKET_5M_DOMINANT', 'BUCKET_5M_DOMINANT_GATEWAY'],
   '⚠ Rebuild churn': ['FREQUENT_CACHE_REBUILD'],
   '⚠ Output heavy': ['HIGH_OUTPUT_RATIO'],
   '⚠ Call surge': ['HIGH_REQUEST_COUNT'],
@@ -520,7 +552,7 @@ export function chipForIssues(issues, contextWindow) {
   if (contextWindow?.size === '1M') return '⚠ Ctx 200k+';
   const codes = issues.map((i) => i.code);
   if (codes.includes('LARGE_INPUT_PER_REQUEST')) return '⚠ Input spike';
-  if (codes.includes('BUCKET_5M_DOMINANT')) return '⚠ 5m TTL';
+  if (codes.includes('BUCKET_5M_DOMINANT') || codes.includes('BUCKET_5M_DOMINANT_GATEWAY')) return '⚠ 5m TTL';
   if (codes.includes('LOW_HIT_RATE')) return '⚠ Cache miss';
   if (codes.includes('FREQUENT_CACHE_REBUILD')) return '⚠ Rebuild churn';
   if (codes.includes('HIGH_OUTPUT_RATIO')) return '⚠ Output heavy';

@@ -26,7 +26,10 @@ import { debug } from './debug.js';
 const CACHE_PATH = join(userDataDir(), 'session-cache.json');
 // Bump when the cached summary's shape changes — old entries are dropped
 // wholesale rather than migrated.
-const CACHE_VERSION = 1;
+// 2: sessions carry `gatewayObserved`. Entries written by version 1 lack it,
+// and a missing flag reads as "not a gateway" — the wrong default for exactly
+// the users the flag exists for.
+const CACHE_VERSION = 2;
 // Entries for transcripts this old are pruned on write. Keeps the file
 // bounded without an existence check per entry (which would cost the syscalls
 // the cache exists to avoid).
