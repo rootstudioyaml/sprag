@@ -261,7 +261,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, saved, delegated, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
+ * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, saved, delegated, doc2md, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
@@ -350,6 +350,32 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       ? `${c(YELLOW)}🔀 ${unresolvedRuns} unresolved${c(RESET)}`
       : null);
 
+  // Document conversions — the same kind of number as "Routing saved", earned
+  // a different way: a document read as Markdown instead of attached whole.
+  // Kept as its own chip rather than folded into the routing total, because a
+  // single figure could not tell the reader which habit earned it.
+  //
+  // Conversions that saved nothing measurable still show as a count. For
+  // pptx/xlsx/docx the honest saving is zero — the client extracts much the
+  // same text — and a chip that disappeared on those would read as "doc2md
+  // did nothing" on the very formats it is the only way to open.
+  //   icon:  "📄 $0.42"   verbose: "📄 Doc2md saved $0.42 · 12 docs"
+  //   text:  "Doc2md saved $0.42"
+  const doc2md = data.doc2mdTotals;
+  const doc2mdUsd = Number(doc2md && doc2md.total) || 0;
+  const doc2mdDocs = Number(doc2md && doc2md.docs) || 0;
+  const doc2mdLabel = isIcon
+    ? (verbose ? '📄 Doc2md saved' : '📄')
+    : 'Doc2md saved';
+  let doc2mdSeg = null;
+  if (doc2mdUsd > 0) {
+    doc2mdSeg = `${c(GREEN)}${doc2mdLabel}${c(RESET)} ${formatMoney(doc2mdUsd)}`
+      + (verbose ? ` ${c(GRAY)}· ${doc2mdDocs} docs${c(RESET)}` : '');
+  } else if (doc2mdDocs > 0) {
+    const label = isIcon ? '📄' : 'Doc2md';
+    doc2mdSeg = `${c(GRAY)}${label} ${doc2mdDocs} docs${c(RESET)}`;
+  }
+
   // Routing-savings headline line (multi-line layout). The lifetime sum from
   // the delegation ledger — the number the whole tool exists to grow, so it
   // gets line 1 to itself while the diagnostics move to line 2.
@@ -386,6 +412,24 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
       `${c(GREEN)}${formatMoney(Number(totals.total) || 0)}${c(RESET)}` +
       (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
+  }
+
+  // Doc2md's own headline line, same anatomy as the routing one: a green
+  // lifetime total, then a gray per-format breakdown. Only built when there
+  // is money to report — a bare document count stays an inline chip, since a
+  // whole line for "3 docs" would be all frame and no figure.
+  //   icon:  "📄 Doc2md saved $1.8 | pptx 1× $1.55 · pdf 2× $0.27"
+  let doc2mdLine = null;
+  if (!singleLine && doc2mdUsd > 0) {
+    const head = isIcon ? '📄 Doc2md saved' : 'Doc2md saved';
+    const byExt = Array.isArray(doc2md.byExt) ? doc2md.byExt : [];
+    const extText = byExt
+      .map((r) => `${c(GRAY)}${r.ext} ${r.docs}× ${formatMoney(r.usd)}${c(RESET)}`)
+      .join(` ${c(GRAY)}·${c(RESET)} `);
+    doc2mdLine =
+      `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
+      `${c(GREEN)}${formatMoney(doc2mdUsd)}${c(RESET)}` +
+      (extText ? `  ${c(GRAY)}|${c(RESET)}  ${extText}` : '');
   }
 
   // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").
@@ -628,6 +672,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // When the totals headline owns line 1, the inline session chip would
   // repeat the same story on line 2 — drop it there.
   if (delegateSeg && want('delegated') && !totalsLine) segs.push(delegateSeg);
+  // Only when it did not already earn a headline line above.
+  if (doc2mdSeg && want('doc2md') && !doc2mdLine) segs.push(doc2mdSeg);
   if (want('hit')) segs.push(hitSeg);
   if (want('ttl')) segs.push(ttlSeg);
   for (const { key, seg } of usageSegs) {
@@ -646,8 +692,17 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // allowed — --no-color/NO_COLOR consumers expect escape-free output.
   const eol = color ? '\x1b[K' : '';
   const rest = segs.join(' · ') + eol;
+  // Each savings source that earned real money gets a headline line, ordered
+  // biggest saver first — the top line is the one the eye lands on, so it
+  // goes to whichever habit is actually paying for the tool. The diagnostics
+  // line always closes.
+  const headlines = [];
   if (totalsLine && want('delegated')) {
-    return totalsLine + eol + '\n' + rest;
+    headlines.push({ usd: Number(totals && totals.total) || 0, line: totalsLine });
   }
-  return rest;
+  if (doc2mdLine && want('doc2md')) {
+    headlines.push({ usd: doc2mdUsd, line: doc2mdLine });
+  }
+  headlines.sort((a, b) => b.usd - a.usd);
+  return headlines.map((h) => h.line + eol + '\n').join('') + rest;
 }

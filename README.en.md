@@ -4,23 +4,26 @@
 
 # claude-token-saver
 
-**Moves the easy work your expensive model keeps repeating onto cheaper ones, and shows what that actually saved — measured, in your statusline.** Zero dependencies, one-line install.
+**Shows what it saved, on two lines.** It moves the easy work your expensive model keeps repeating onto cheaper ones, and turns documents the model cannot read into Markdown. Both figures are ledger entries rather than estimates, and whichever saved more takes the top line. Zero dependencies, one-line install.
 
-![statusline example — routing savings on row 1, diagnostics on row 2](./docs/statusline.png)
+![statusline example — routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](./docs/statusline.png)
 
 ```bash
 npm i -g claude-token-saver
 ```
 
-## Three parts, working together
+## Four parts, working together
 
 | | What it does | Effect |
 |---|---|---|
 | 🔀 **Routing** | Delegates recurring easy work to cheaper models | Savings recorded per run in a ledger |
+| 📄 **Document conversion** | Turns pptx/xlsx/pdf/docx/fig into Markdown before the model reads them | **510,000 tokens** saved on one deck ([below](#-doc2md--documents-become-markdown-before-the-model-reads-them)) |
 | 🅷 **Harness** | Blocks the token-burning habits: unevidenced "done", skipped verification (5 principles) | **−18.6% cost** ([measured](#real-world-impact--beforeafter-report)) |
 | ⚙️ **Ratchet** | Freezes each error you hit into a rule | Same mistake stops recurring |
 
-One install sets up all three. The measured −18.6% comes from the harness and ratchet; routing savings sit on top of it.
+One install sets up all four. The measured −18.6% comes from the harness and ratchet; routing and conversion savings sit on top of it.
+
+The two savings figures are never added together, because they answer different questions. Routing says "the same work ran on a cheaper model". Conversion says "a file you could not read became readable, without pushing the original through the context window". The statusline gives each its own line and puts the larger one first.
 
 ## 🔀 The savings figure is a ledger entry, not an estimate
 
@@ -62,7 +65,6 @@ By run (newest first):
 | 🚨 **No surprise rate limits** | Warns when the 5H/7D window hits 90%; `handoff` backs up your work |
 | 🧠 **Cache waste detection** | Hit rate, TTL, 1M-context detection — spikes diagnosed with issue codes |
 | 🇰🇷 **Korean writing guidance** | Offered at install time, defaulting to your locale ([below](#-korean-writing-guidance)) |
-| 📄 **Document conversion** | pptx/xlsx/pdf/docx become Markdown before the model reads them, so unreadable bytes never reach the context window ([below](#-doc2md--attached-documents-become-markdown-before-the-model-reads-them)) |
 
 ## Not a router — 60 seconds
 
@@ -378,7 +380,7 @@ Installs with nobody attached — npm `postinstall`, CI, piped stdin — skip th
 > The guidance text comes from [fluent-korean](https://github.com/snflkd/fluent-korean). Copyright (c) 2026 snflkd, MIT License.
 > The wording is unmodified; only the output-style frontmatter was removed. The full license ships with the package at `presets/korean-style/LICENSE-fluent-korean`.
 
-## 📄 doc2md — attached documents become Markdown before the model reads them
+## 📄 doc2md — documents become Markdown before the model reads them
 
 `Read` a pptx, xlsx, pdf or docx and the raw bytes go into the context window, where the model cannot read them. This intercepts that `Read`, converts the file once, and hands over the Markdown instead.
 
@@ -389,13 +391,13 @@ Three situations, three different interception points:
 | Situation | Where it is caught |
 |---|---|
 | A document path typed in the prompt (`@path`, quoted, or relative) | `UserPromptSubmit`: converted, and the conversion's path is handed back as context |
-| A document opened with `Read` mid-task | PDFs are caught by `PreToolUse(Read)`. pptx/xlsx/docx are not: Claude Code refuses them as binary *before* any hook runs, so the session-start note tells the model to run `doc2md <path>` instead |
+| A document opened with `Read` mid-task | PDFs are caught by `PreToolUse(Read)`. pptx/xlsx/docx/fig are not: Claude Code refuses them as binary *before* any hook runs, so the session-start note tells the model to run `doc2md <path>` instead |
 | A document attached to the message | **Not catchable.** No hook event receives attachment content. The session-start note has the model ask for a path next time |
 
 That second row is measured, not assumed: a `.pdf` Read fires the hook, and a `.pptx` Read in the same session leaves no hook log entry at all.
 
 ```bash
-claude-token-saver doc2md install-converter   # markitdown into a dedicated venv
+claude-token-saver doc2md install-converter   # markitdown + editing libs + the .fig parser
 claude-token-saver doc2md on                  # register the Read hook
 claude-token-saver doc2md                     # check converter + hook registration
 claude-token-saver doc2md report.pptx         # convert by hand and see the result
@@ -412,6 +414,46 @@ Several things it deliberately does not do:
 - **Conversions never land in your project.** They go under the tool's own state directory with mode `0700`, so there is nothing to add to `.gitignore`. Filenames matching payroll/contract/secret patterns are skipped entirely.
 - **Zip bombs are refused.** pptx/xlsx/docx are zip containers: the declared sizes are checked first, and since those are written by whoever built the file, the real decompressed bytes are counted against a ceiling too.
 - **Spreadsheets are capped by rows, not bytes.** Conversion time tracks row count (measured: a 6.3MB PDF in 0.9s, a 5.8MB workbook in 47.75s). Past 50,000 rows only the head is converted, and **the truncation and the true row count are both stated** in what the model is told.
+
+### What a conversion saves
+
+Every conversion is stamped with a provenance header: which original, when, how many tokens. Savings show up on the statusline's own `📄 Doc2md saved` line.
+
+The baseline is what you would have done without a converter, and that differs by format. Both were measured on 2026-09-06.
+
+**PDF is priced against attaching it.** The same one-line prompt was sent through `claude --print --input-format stream-json` with and without the file as a document block. The control turn cost 42,204 tokens, twice, to the token.
+
+| Attached file | Size | Extra tokens | Per page |
+|---|---|---|---|
+| Résumé PDF | 7 pages | +20,537 | 2,934 |
+| Résumé PDF | 5 pages | +12,709 | 2,542 |
+
+An attached PDF is read whole, but every page costs 2,500–2,900 tokens against 5,531 for the conversion. The coefficient used is 2,500 per page — below both measurements, so the figure understates rather than flatters.
+
+**pptx/xlsx/docx are priced against unpacking the container.** These never reach the model as attachments at all: the same probe on a docx added 78 tokens and the model replied that it had no file, and `Read` refuses the format outright. What you actually do without a converter is unzip the archive and read its XML, where tags and style attributes outweigh the words.
+
+| Original | Body XML | Conversion | Ratio |
+|---|---|---|---|
+| Deck, pptx (31.8MB) | ~540,429 tokens | ~22,610 tokens | 23.8× |
+| Résumé, docx (189KB) | ~79,621 tokens | ~1,684 tokens | 47.3× |
+
+This baseline is measured per file from the real XML size, not applied as a per-format ratio. `.xls` is not a zip container and has no markup to measure, so it claims nothing.
+
+### Figma `.fig` converts too
+
+Planning documents are moving from PowerPoint to Figma, so the same hook catches `.fig`. A `.fig` is a zip, but the `canvas.fig` inside it is Figma's private binary (kiwi format), which markitdown cannot open — so this one format is converted in Node with [openfig-core](https://github.com/OpenFig-org/openfig-core) (MIT). `doc2md install-converter` places it beside markitdown in the tool's state directory; the package itself still ships zero dependencies.
+
+The result is an outline: pages and frames become headings, text nodes become body lines, and shapes are counted rather than listed — in a planning document the words are the content, and two hundred `Rectangle 173` lines would drown them. A file with no text at all is refused rather than dressed up as an empty document.
+
+Verified against real files: a community Bootstrap UI kit (8.1MB, 4,155 nodes, 1,312 of them text) and a 52MB Tailwind kit, each converting in under a second. Both `.fig` vintages parse — the current zip container and the older bare fig-kiwi stream. No savings are claimed: a `.fig` unzips to another binary, so there is no readable fallback to price against.
+
+### Editing a document: copy, then script
+
+Conversion is one-way — editing the cached `.md` changes nothing in the source. The hook refuses `Edit`/`Write` on both the cache and the original binary, and points at the right path instead: copy the original, edit the copy with a script, re-convert the copy to verify.
+
+`install-converter` puts the editing libraries (python-pptx, python-docx, openpyxl) in the same venv, so a structural request like "swap the chart on slide 23 for a line chart" is a short script the agent writes on the spot. `.fig` edits go through openfig-core, which encodes as well as parses.
+
+All four formats were exercised end to end on 2026-09-06: 10 docx run replacements plus three consecutive re-saves, a pptx bar-to-line chart swap with an added data point, xlsx value edits and a new row, and a fig text edit with re-encode and re-parse. In every case the original was byte-identical afterwards and the re-converted copy showed the change. One caveat: removing a chart shape from a pptx leaves the old chart XML part orphaned — PowerPoint ignores it, but delete the part and its rels for a clean file. Charts and images never appear in a conversion, so visual edits must be confirmed in the application itself.
 
 `claude-token-saver doc2md --clean` empties the conversion cache; `doc2md off` removes the hook. Removal filters for this tool's own entry, so anything else you registered under `PreToolUse` stays.
 
@@ -523,7 +565,7 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 - **An unknown subcommand under `--hook` prints nothing.** A 3.25.0 global install meeting a settings.json written by 3.26.0 did not recognise `doc2md`, fell through to the default report, and pushed a full statistics table into the hook stream on every `Read`.
 
 ### v3.26.0 (2026-09-04)
-- **Attached documents are converted to Markdown before the model reads them.** Reading a pptx/xlsx/pdf/docx put unreadable bytes into the context window. `doc2md on` registers a `Read` hook that converts the file once, caches it outside your project, and points the model at the Markdown. A missing converter is announced once and then gets out of the way, zip bombs are refused, and workbooks past 50,000 rows are converted head-first with the truncation stated. See [doc2md](#-doc2md--attached-documents-become-markdown-before-the-model-reads-them).
+- **Attached documents are converted to Markdown before the model reads them.** Reading a pptx/xlsx/pdf/docx put unreadable bytes into the context window. `doc2md on` registers a `Read` hook that converts the file once, caches it outside your project, and points the model at the Markdown. A missing converter is announced once and then gets out of the way, zip bombs are refused, and workbooks past 50,000 rows are converted head-first with the truncation stated. See [doc2md](#-doc2md--documents-become-markdown-before-the-model-reads-them).
 - **TTL display fixed for Bedrock/Vertex sessions.** Gateways never report the per-bucket split, and the fallback assumed an hour — twelvefold too long for a 5-minute-only backend. The gateway is now detected from the model ids, the fallback follows that evidence, and the label reads `5m?` to mark it as inferred. Pin it manually with `mode ttl=5m` if the detection is wrong.
 - **Delegated runs are no longer discarded in silence.** Runs excluded for an unpriceable model id surface as `🔀 N unresolved` on the statusline; previously that was indistinguishable from never having delegated, so an entire tier of rules could report zero with no way to find out why. Environment variables set to a `foundation-model` ARN now resolve as well.
 - **The Korean guidance stopped contradicting itself.** The injected scope claimed code comments while the vendored text disclaimed them twice, leaving the model nothing to decide on. The vendored wording is untouched; the block now states which side wins. The em dash in the attribution line — a mark that guidance itself forbids — became a colon.

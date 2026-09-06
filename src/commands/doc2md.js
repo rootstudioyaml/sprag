@@ -48,7 +48,7 @@ export async function run({ args, hasFlag }) {
     if (!payload) return;
     let out = null;
     try {
-      out = doc2md.formatHookOutput(doc2md.decideForRead(payload));
+      out = doc2md.formatHookOutput(doc2md.decideForRead(payload) || doc2md.decideForWrite(payload));
     } catch {
       // A converter that throws must not take the Read down with it. Printing
       // nothing leaves Claude Code to run the tool call exactly as before.
@@ -62,10 +62,21 @@ export async function run({ args, hasFlag }) {
     const res = doc2md.installConverter({ onProgress: (m) => console.log(`  ${m}`) });
     if (res.ok) {
       console.log(`✓ converter ready: ${res.python}`);
-      return;
+    } else {
+      console.error(`✗ ${res.reason}: ${res.detail}`);
+      process.exitCode = 1;
     }
-    console.error(`✗ ${res.reason}: ${res.detail}`);
-    process.exitCode = 1;
+    // The .fig parser is a separate, Node-side install. A markitdown failure
+    // above must not block it — the two formats fail independently.
+    const fig2md = require('../fig2md.cjs');
+    const { userDataDir } = await import('../paths.js');
+    const figRes = fig2md.installFigParser(userDataDir(), { onProgress: (m) => console.log(`  ${m}`) });
+    if (figRes.ok) {
+      console.log('✓ .fig parser ready (openfig-core)');
+    } else {
+      console.error(`✗ .fig parser: ${figRes.reason}: ${figRes.detail || ''}`);
+      process.exitCode = 1;
+    }
     return;
   }
 

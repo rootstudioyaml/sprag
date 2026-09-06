@@ -534,6 +534,16 @@ async function main() {
   } catch (e) {
     debug('savings-ledger:totals', e);
   }
+  // Document conversions, same shape as the delegation totals: a lifetime sum
+  // plus a document count. A lookup of a small JSON file, never a scan.
+  let doc2mdTotals = null;
+  try {
+    const { doc2mdSavedTotals } = await import('../src/doc2md-ledger.cjs');
+    const { userDataDir } = await import('../src/paths.js');
+    doc2mdTotals = doc2mdSavedTotals(userDataDir());
+  } catch (e) {
+    debug('doc2md-ledger:totals', e);
+  }
   // Delegated runs route-scan had to throw away because their model id could
   // not be priced. Also a lookup of the cached scan, never a scan. Without it
   // the statusline shows the same blank for "no delegation happened" and for
@@ -574,6 +584,7 @@ async function main() {
     model,
     delegationSaved,
     delegationTotals,
+    doc2mdTotals,
     unresolvedRuns,
     ttlBucket,
   };

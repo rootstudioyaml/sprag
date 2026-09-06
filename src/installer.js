@@ -394,6 +394,27 @@ export function installDoc2mdHook() {
     settings.hooks.PreToolUse = list;
   }
 
+  // The write guard rides the same command on its own matcher. A conversion
+  // is one-way: an Edit to the cached .md changes nothing the user cares
+  // about, and a Write to the original clobbers a binary with text. Both are
+  // denied with an explanation of where the work should go instead.
+  let addedWriteGuard = false;
+  {
+    const list2 = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
+    const hasWriteGuard = list2.some((m) =>
+      m?.matcher === 'Edit|Write'
+      && Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /doc2md --hook(?!-)/.test(h.command)),
+    );
+    if (!hasWriteGuard) {
+      list2.push({
+        matcher: 'Edit|Write',
+        hooks: [{ type: 'command', command: DOC2MD_HOOK_COMMAND }],
+      });
+      settings.hooks.PreToolUse = list2;
+      addedWriteGuard = true;
+    }
+  }
+
   // The Read hook alone covers only PDFs. Claude Code refuses pptx/xlsx/docx
   // as binary before any PreToolUse hook runs, so for exactly the formats this
   // feature exists for, the tool call is dead before doc2md is consulted.
@@ -412,7 +433,7 @@ export function installDoc2mdHook() {
     }
   }
 
-  if (!hasReadHook || addedPrompt) {
+  if (!hasReadHook || addedPrompt || addedWriteGuard) {
     writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
     return { path: file, action: hasReadHook ? 'updated' : 'created' };
   }

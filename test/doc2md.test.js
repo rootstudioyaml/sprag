@@ -16,7 +16,7 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, statSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 
@@ -222,8 +222,9 @@ test('the install/remove pair touches only its own PreToolUse entry', (t) => {
     steps.push(installDoc2mdHook().action);
     steps.push(installDoc2mdHook().action);
     const { readFileSync } = await import('node:fs');
-    const events = Object.keys(JSON.parse(readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8')).hooks).sort();
-    steps.push(events.join('+'));
+    const parsed = JSON.parse(readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8')).hooks;
+    steps.push(Object.keys(parsed).sort().join('+'));
+    steps.push(parsed.PreToolUse.map((m) => m.matcher).sort().join('+'));
     steps.push(removeDoc2mdHook().action);
     steps.push(removeDoc2mdHook().action);
     console.log(JSON.stringify(steps));
@@ -233,12 +234,15 @@ test('the install/remove pair touches only its own PreToolUse entry', (t) => {
     env: { ...process.env, HOME: home, USERPROFILE: home },
   });
   assert.equal(run.status, 0, run.stderr);
-  const [created, again, events, removed, absent] = JSON.parse(run.stdout.trim().split('\n').pop());
+  const [created, again, events, matchers, removed, absent] = JSON.parse(run.stdout.trim().split('\n').pop());
   assert.equal(created, 'created');
   assert.equal(again, 'exists', 'installing twice must not duplicate the entry');
   // Both halves, or the feature only half works: PreToolUse cannot see pptx,
   // and UserPromptSubmit is the only place that can.
   assert.equal(events, 'PreToolUse+UserPromptSubmit');
+  // Read for the conversion, Edit|Write for the one-way guard, plus the
+  // foreign Bash entry that was already there.
+  assert.equal(matchers, 'Bash+Edit|Write+Read');
   assert.equal(removed, 'removed');
   assert.equal(absent, 'absent');
 
@@ -340,4 +344,152 @@ test('the registered hook sets no timeout of its own', (t) => {
   // could only lower that ceiling — and a cold markitdown import measured at
   // twelve seconds before any conversion starts.
   assert.equal(mine.hooks[0].timeout, undefined);
+});
+
+test('a non-Latin file name survives into the cache path instead of becoming underscores', () => {
+  const d = require('../src/doc2md.cjs');
+  const korean = basename(d.cachePathFor('/tmp/사업계획서(초안).docx'));
+  assert.match(korean, /^사업계획서_초안_\.docx\.[0-9a-f]{12}\.md$/);
+
+  // Separators and other path-hostile characters are still replaced, and a run
+  // of them collapses so the name stays readable.
+  const messy = basename(d.cachePathFor('/tmp/a b:c/d  e**f.pptx'));
+  assert.match(messy, /^d_e_f\.pptx\.[0-9a-f]{12}\.md$/);
+
+  // Two files whose names sanitise identically still get distinct cache files.
+  assert.notEqual(d.cachePathFor('/tmp/한글.pdf'), d.cachePathFor('/other/한글.pdf'));
+});
+
+
+test('a conversion carries provenance and lands in the savings ledger', (t) => {
+  const dir = isolated(t);
+  const d = require('../src/doc2md.cjs');
+  const ledger = require('../src/doc2md-ledger.cjs');
+  const src = join(dir, 'deck.pptx');
+  writeFileSync(src, 'PK pretend deck');
+
+  const out = d.convert(src, { converter: stubConverter(dir, OK_STUB), python: 'python3' });
+  if (!out.ok) return; // no usable python3 here; the ledger tests below still cover the math
+
+  const text = readFileSync(out.cacheFile, 'utf8');
+  // Someone opening a stray .md must be able to tell what made it, and from what.
+  assert.match(text, /claude-token-saver doc2md/);
+  assert.ok(text.includes(src));
+  assert.match(text, /# 제목/); // the conversion itself still follows the banner
+
+  const totals = ledger.doc2mdSavedTotals(join(dir, 'claude-token-saver'));
+  assert.equal(totals.docs, 1);
+  assert.equal(totals.byExt[0].ext, 'pptx');
+});
+
+test('each format is priced against the fallback it actually has', () => {
+  const ledger = require('../src/doc2md-ledger.cjs');
+  const markdown = 'x'.repeat(4000); // ~1,000 tokens
+
+  // A PDF attached whole is billed per page, so reading it as text is worth
+  // real money.
+  const pdf = ledger.estimateSaving({ ext: '.pdf', pages: 10, markdown });
+  assert.equal(pdf.baseline, 10 * ledger.PDF_TOKENS_PER_PAGE);
+  assert.ok(pdf.usd > 0);
+
+  // A deck never reaches the model as an attachment at all; the fallback is
+  // unzipping it, so the body XML is what the conversion is measured against.
+  const pptx = ledger.estimateSaving({ ext: '.pptx', markupBytes: 400_000, markdown });
+  assert.equal(pptx.baseline, 100_000);
+  assert.ok(pptx.usd > pdf.usd);
+
+  // A container whose markup could not be measured claims nothing.
+  const blind = ledger.estimateSaving({ ext: '.pptx', markdown });
+  assert.equal(blind.usd, 0);
+  assert.equal(blind.baseline, blind.tokens);
+
+  // Neither baseline may fall below what the conversion actually produced —
+  // that would report a negative saving as zero and understate the document.
+  const wordy = ledger.estimateSaving({ ext: '.pdf', pages: 1, markdown: 'x'.repeat(40000) });
+  assert.equal(wordy.baseline, wordy.tokens);
+  assert.equal(wordy.usd, 0);
+});
+
+test('the ledger survives a corrupt file and counts a re-conversion once', (t) => {
+  const dir = isolated(t);
+  const ledger = require('../src/doc2md-ledger.cjs');
+  writeFileSync(join(dir, 'doc2md-ledger.json'), '{ not json');
+  assert.equal(ledger.doc2mdSavedTotals(dir).docs, 0);
+
+  ledger.recordConversion(dir, { key: '/a/b.pdf', ts: 1, usd: 0.5, ext: '.pdf', tokens: 10, baseline: 100 });
+  assert.equal(ledger.doc2mdSavedTotals(dir).total, 0.5);
+  // Converting the same source again updates its event instead of adding one.
+  ledger.recordConversion(dir, { key: '/a/b.pdf', ts: 2, usd: 0.7, ext: '.pdf', tokens: 10, baseline: 100 });
+  const after = ledger.doc2mdSavedTotals(dir);
+  assert.equal(after.docs, 1);
+  assert.equal(after.total, 0.7);
+});
+
+
+test('a .fig renders as an outline of its words, and an all-vector file refuses honestly', () => {
+  const fig = require('../src/fig2md.cjs');
+  const guid = (n) => ({ sessionID: 1, localID: n });
+  const doc = {
+    meta: { file_name: '온보딩 기획서' },
+    nodes: [
+      { type: 'DOCUMENT', guid: guid(0) },
+      { type: 'CANVAS', name: 'Page 1', guid: guid(1) },
+      { type: 'FRAME', name: '개요', guid: guid(2) },
+      { type: 'TEXT', name: '목표', guid: guid(3), textData: { characters: '완료율 78% 회복' } },
+      { type: 'TEXT', name: '숨김', guid: guid(4), visible: false, textData: { characters: '보이면 안 됨' } },
+      { type: 'RECTANGLE', guid: guid(5) },
+      { type: 'VECTOR', guid: guid(6) },
+    ],
+    childrenMap: new Map(),
+  };
+  const byId = (n) => doc.nodes.find((x) => x.guid.localID === n);
+  doc.childrenMap.set('1:0', [byId(1)]);
+  doc.childrenMap.set('1:1', [byId(2), byId(5)]);
+  doc.childrenMap.set('1:2', [byId(3), byId(4), byId(6)]);
+
+  const { markdown, textNodes } = fig.renderMarkdown(doc, 'fallback');
+  assert.match(markdown, /^# 온보딩 기획서/);
+  assert.match(markdown, /## Page 1/);
+  assert.match(markdown, /### 개요/);
+  assert.match(markdown, /\*\*목표\*\*: 완료율 78% 회복/);
+  // Hidden layers and shapes stay out of the text; shapes are counted instead.
+  assert.ok(!markdown.includes('보이면 안 됨'));
+  assert.match(markdown, /RECTANGLE 1개/);
+  assert.equal(textNodes, 1);
+
+  // No words at all is a refusal, not an empty document.
+  const bare = fig.renderMarkdown({ nodes: [{ type: 'DOCUMENT', guid: guid(0) }], childrenMap: new Map() }, 'x');
+  assert.equal(bare.textNodes, 0);
+});
+
+test('.fig is a target format and its cache path survives the extension', () => {
+  const d = require('../src/doc2md.cjs');
+  assert.equal(d.isTargetPath('/tmp/기획서.fig'), true);
+  assert.match(basename(d.cachePathFor('/tmp/기획서.fig')), /^기획서\.fig\.[0-9a-f]{12}\.md$/);
+});
+
+
+test('writes to a conversion or an original document are refused with directions', (t) => {
+  const dir = isolated(t);
+  const d = require('../src/doc2md.cjs');
+
+  // Build a real cache entry so the deny can name the source.
+  const src = join(dir, 'deck.pptx');
+  writeFileSync(src, 'PK pretend');
+  const out = d.convert(src, { converter: stubConverter(dir, OK_STUB), python: 'python3' });
+
+  if (out.ok) {
+    const deny = d.decideForWrite({ tool_name: 'Edit', tool_input: { file_path: out.cacheFile } });
+    assert.equal(deny.deny, true);
+    assert.ok(deny.reason.includes(src), 'the deny names the original document');
+  }
+
+  // The original binary is protected from both text-writing tools.
+  for (const tool of ['Edit', 'Write']) {
+    const deny = d.decideForWrite({ tool_name: tool, tool_input: { file_path: src } });
+    assert.equal(deny.deny, true);
+  }
+  // Everything else passes through untouched, including Reads.
+  assert.equal(d.decideForWrite({ tool_name: 'Write', tool_input: { file_path: join(dir, 'notes.md') } }), null);
+  assert.equal(d.decideForWrite({ tool_name: 'Read', tool_input: { file_path: src } }), null);
 });

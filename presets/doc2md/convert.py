@@ -5,7 +5,8 @@ Invoked as a child process by src/doc2md.cjs. Everything it needs to say
 travels in the JSON on stdout, so the Node side never has to interpret a
 traceback:
 
-    {"ok": true,  "markdown": "...", "note": null, "truncated": false, "rows": 0}
+    {"ok": true,  "markdown": "...", "note": null, "truncated": false,
+     "rows": 0, "pages": 0, "markup_bytes": 0}
     {"ok": false, "reason": "no-text", "detail": "..."}
 
 Exit status is 0 whenever the JSON was written, including for a refusal. A
@@ -79,6 +80,53 @@ def check_zip(path):
     return None
 
 
+# Which entries inside a zip container hold the document's own text. The rest
+# of the archive is media, themes and relationship tables — bytes a reader
+# would never wade through even without a converter.
+BODY_XML = {
+    ".pptx": ("ppt/slides/", "ppt/notesSlides/"),
+    ".docx": ("word/document.xml", "word/footnotes.xml", "word/endnotes.xml"),
+    ".xlsx": ("xl/worksheets/", "xl/sharedStrings.xml"),
+}
+
+
+def markup_bytes(path, ext):
+    """Uncompressed size of the body markup inside a zip document, or 0.
+
+    This prices the alternative to converting. A model cannot read the binary,
+    so the fallback a reader actually reaches for is unzipping the container
+    and wading through its XML — where tags and style attributes outweigh the
+    text several times over.
+    """
+    prefixes = BODY_XML.get(ext)
+    if not prefixes:
+        return 0
+    try:
+        import zipfile
+        with zipfile.ZipFile(path) as z:
+            return sum(i.file_size for i in z.infolist()
+                       if i.filename.endswith(".xml")
+                       and any(i.filename.startswith(p) for p in prefixes))
+    except Exception:
+        return 0
+
+
+def pdf_pages(path):
+    """Page count of a PDF, or 0 when it cannot be counted.
+
+    The count is what prices the alternative to converting: attaching a PDF
+    to a message bills every page as an image, while the conversion bills
+    only the extracted text. pdfminer ships with markitdown's pdf extra, so
+    this costs no extra dependency.
+    """
+    try:
+        from pdfminer.pdfpage import PDFPage
+        with open(path, "rb") as fh:
+            return sum(1 for _ in PDFPage.get_pages(fh))
+    except Exception:
+        return 0
+
+
 def sheet_rows(path):
     """Total rows across every sheet, or None when openpyxl cannot say."""
     try:
@@ -149,6 +197,8 @@ def main():
     note = None
     truncated = False
     rows = 0
+    pages = pdf_pages(path) if ext == ".pdf" else 0
+    markup = markup_bytes(path, ext)
 
     if ext in (".xlsx", ".xls"):
         counted = sheet_rows(path)
@@ -161,7 +211,8 @@ def main():
             note = ("전체 %d행 가운데 앞 %d행만 변환했습니다. "
                     "전수 분석이 필요하면 원본을 직접 다루십시오." % (counted, ROW_CAP))
             json.dump({"ok": True, "markdown": text, "note": note,
-                       "truncated": True, "rows": counted}, sys.stdout)
+                       "truncated": True, "rows": counted, "pages": 0,
+                       "markup_bytes": markup}, sys.stdout)
             return
 
     try:
@@ -181,7 +232,8 @@ def main():
         fail("no-text", "converter returned nothing")
 
     json.dump({"ok": True, "markdown": text, "note": note,
-               "truncated": truncated, "rows": rows}, sys.stdout)
+               "truncated": truncated, "rows": rows, "pages": pages,
+               "markup_bytes": markup}, sys.stdout)
 
 
 if __name__ == "__main__":
