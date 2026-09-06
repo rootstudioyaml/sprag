@@ -763,7 +763,11 @@ function decideForRead(context, opts = {}) {
 function documentPathsIn(text) {
   if (typeof text !== 'string' || !text) return [];
   const exts = TARGET_EXTENSIONS.map((e) => e.slice(1)).join('|');
-  const re = new RegExp(`[@'"\`]?((?:[A-Za-z]:)?[~./][^\\s'"\`]*\\.(?:${exts}))`, 'gi');
+  // Backslashes count as path characters, not just separators to tolerate:
+  // `C:\\Users\\me\\deck.pptx` and `\\\\server\\share\\deck.pptx` are how
+  // Windows users write a path, and without them the scanner silently sees no
+  // documents at all on that platform.
+  const re = new RegExp(`[@'"\`]?((?:[A-Za-z]:)?[~./\\\\][^\\s'"\`]*\\.(?:${exts}))`, 'gi');
   const found = [];
   for (const m of text.matchAll(re)) {
     const raw = m[1];

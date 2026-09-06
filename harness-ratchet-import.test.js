@@ -61,8 +61,16 @@ test('imports are detected across project + global CLAUDE.md', (t) => {
   const home = mkdtempSync(join(tmpdir(), 'cts-home-'));
   const root = mkdtempSync(join(tmpdir(), 'cts-proj-'));
   const prevHome = process.env.HOME;
+  const prevProfile = process.env.USERPROFILE;
   process.env.HOME = home;
-  t.after(() => { process.env.HOME = prevHome; });
+  // Windows resolves the home directory from USERPROFILE, so HOME alone would
+  // leave this reading the developer's own CLAUDE.md.
+  process.env.USERPROFILE = home;
+  t.after(() => {
+    process.env.HOME = prevHome;
+    if (prevProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = prevProfile;
+  });
 
   // Project file: harness block, no `@` import at all.
   writeFileSync(join(root, 'CLAUDE.md'), harnessClaudeMdBlock('project')

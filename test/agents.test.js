@@ -14,8 +14,16 @@ import { agentExists, agentPhrase, agentPhraseEn } from '../src/agents.js';
 function isolatedHome(t) {
   const home = mkdtempSync(join(tmpdir(), 'cts-home-'));
   const prev = process.env.HOME;
+  const prevProfile = process.env.USERPROFILE;
   process.env.HOME = home;
-  t.after(() => { process.env.HOME = prev; });
+  // os.homedir() reads USERPROFILE on Windows, so setting HOME alone leaves
+  // the test pointed at the real home directory there.
+  process.env.USERPROFILE = home;
+  t.after(() => {
+    process.env.HOME = prev;
+    if (prevProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = prevProfile;
+  });
   return home;
 }
 

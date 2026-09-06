@@ -16,6 +16,7 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, statSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { basename, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -93,7 +94,11 @@ test('a successful conversion blocks the Read and names the replacement', (t) =>
   // commit, and requiring a .gitignore entry is a step users would forget.
   assert.ok(!converted.cacheFile.startsWith(dir + '/deck'));
   assert.match(converted.cacheFile, /doc2md-cache/);
-  assert.equal(statSync(d.cacheDir()).mode & 0o777, 0o700);
+  // POSIX permission bits only: Windows reports 0o666 for everything, so the
+  // assertion would be testing the platform rather than the code.
+  if (process.platform !== 'win32') {
+    assert.equal(statSync(d.cacheDir()).mode & 0o777, 0o700);
+  }
 
   // Allowing the Read and merely mentioning the .md would put the binary in
   // the context window anyway, which is the whole cost being avoided.
@@ -257,10 +262,18 @@ test('document paths are picked out of prompt text in every form users write the
   const found = d.documentPathsIn(
     'compare @/tmp/a.pptx with "/tmp/b.xlsx" and /tmp/c.PDF, then ./rel/d.docx',
   );
-  assert.ok(found.some((p) => p.endsWith('/tmp/a.pptx')), 'an @ reference');
-  assert.ok(found.some((p) => p.endsWith('/tmp/b.xlsx')), 'a quoted path');
-  assert.ok(found.some((p) => p.endsWith('/tmp/c.PDF')), 'an uppercase extension');
-  assert.ok(found.some((p) => p.endsWith('/rel/d.docx')), 'a relative path, resolved');
+  // The scanner returns resolved absolute paths, which use the platform's own
+  // separator — compare on the shape, not on the slash.
+  const ends = (suffix) => found.some((p) => p.split(/[\\/]/).slice(-2).join('/') === suffix);
+  assert.ok(ends('tmp/a.pptx'), 'an @ reference');
+  assert.ok(ends('tmp/b.xlsx'), 'a quoted path');
+  assert.ok(ends('tmp/c.PDF'), 'an uppercase extension');
+  assert.ok(ends('rel/d.docx'), 'a relative path, resolved');
+
+  // A Windows path is a path. Before this, the scanner matched none of these
+  // and simply reported no documents on that platform.
+  const win = d.documentPathsIn('C:\\Users\\me\\기획서.pptx 와 \\\\nas\\team\\보고서.docx 확인');
+  assert.equal(win.length, 2, JSON.stringify(win));
   // Nothing to convert means nothing to say.
   assert.deepEqual(d.documentPathsIn('fix the README and run the tests'), []);
   assert.deepEqual(d.documentPathsIn(null), []);
@@ -318,7 +331,9 @@ test('a hook naming a subcommand this build lacks prints nothing at all', () => 
   const run = spawnSync(process.execPath, ['bin/cli.js', 'no-such-subcommand', '--hook'], {
     encoding: 'utf8',
     input: '{"tool_name":"Read","tool_input":{"file_path":"/tmp/x.pptx"}}',
-    cwd: new URL('..', import.meta.url).pathname,
+    // fileURLToPath, not `.pathname`: on Windows the latter yields
+    // `/D:/a/repo`, which is not a directory any process can start in.
+    cwd: fileURLToPath(new URL('..', import.meta.url)),
   });
   assert.equal(run.status, 0);
   assert.equal(run.stdout.trim(), '', 'an unknown subcommand under --hook must stay silent');
