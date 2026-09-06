@@ -425,9 +425,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const byExt = Array.isArray(doc2md.byExt) ? doc2md.byExt : [];
     // Formats that earned money show it; formats with no baseline to measure
     // against are counted instead. Printing "$0.00" next to real amounts reads
-    // as "this format saved nothing", when what it means is that there is no
-    // working alternative to price it against — for .fig there is no readable
-    // fallback at all, so the conversion is the only way to open the file.
+    // as "this format saved nothing", when what it means is that nobody has
+    // measured what the alternative costs. Only .xls sits there now — the
+    // pre-2007 binary, which has no container to price against.
     const paid = byExt.filter((r) => r.usd > 0);
     const unpriced = byExt.filter((r) => !(r.usd > 0));
     const parts = paid.map((r) => `${c(GRAY)}${r.ext} ${r.docs}× ${formatMoney(r.usd)}${c(RESET)}`);

@@ -452,7 +452,16 @@ Planning documents are moving from PowerPoint to Figma, so the same hook catches
 
 The result is an outline: pages and frames become headings, text nodes become body lines, and shapes are counted rather than listed — in a planning document the words are the content, and two hundred `Rectangle 173` lines would drown them. A file with no text at all is refused rather than dressed up as an empty document.
 
-Verified against real files: a community Bootstrap UI kit (8.1MB, 4,155 nodes, 1,312 of them text) and a 52MB Tailwind kit, each converting in under a second. Both `.fig` vintages parse — the current zip container and the older bare fig-kiwi stream. No savings are claimed: a `.fig` unzips to another binary, so there is no readable fallback to price against.
+Verified against real files: a community Bootstrap UI kit (8.1MB, 4,155 nodes, 1,312 of them text) and a 52MB Tailwind kit, each converting in under a second. Both `.fig` vintages parse — the current zip container and the older bare fig-kiwi stream.
+
+**`.fig` saves the most of any format.** Unlike the Office containers, `Read` does not refuse a `.fig`: the extension means nothing to it, so it pulls the binary in as text and the context window fills with tokenised noise. Measured against the same 42,760-token control:
+
+| File | Size | Extra tokens for a Read | Conversion |
+|---|---|---|---|
+| plan.fig | 26KB | +44,195 | 100 tokens |
+| bootstrap-kit.fig | 8.1MB | +43,994 | 18,397 tokens |
+
+Two files three hundred times apart in size cost the same, because Read truncates long before the file ends — you pay for a whole document and receive a fraction of one. The baseline is therefore a flat 44,000 tokens. For comparison, the same probe on a pptx cost +317 tokens and on a docx +185: a refusal message, and nothing else.
 
 ### Editing a document: copy, then script
 

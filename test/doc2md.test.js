@@ -418,6 +418,14 @@ test('each format is priced against the fallback it actually has', () => {
   assert.equal(blind.usd, 0);
   assert.equal(blind.baseline, blind.tokens);
 
+  // A .fig is the one format Read does not refuse: it pulls the binary in as
+  // text at a flat cost, whatever the file's size, so the baseline is flat too.
+  const smallFig = ledger.estimateSaving({ ext: '.fig', markdown: 'x'.repeat(400) });
+  const bigFig = ledger.estimateSaving({ ext: '.fig', markdown: 'x'.repeat(73_600) });
+  assert.equal(smallFig.baseline, 44_000);
+  assert.equal(bigFig.baseline, 44_000);
+  assert.ok(smallFig.usd > bigFig.usd, 'a smaller conversion saves more against a flat baseline');
+
   // Neither baseline may fall below what the conversion actually produced —
   // that would report a negative saving as zero and understate the document.
   const wordy = ledger.estimateSaving({ ext: '.pdf', pages: 1, markdown: 'x'.repeat(40000) });

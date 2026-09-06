@@ -165,10 +165,13 @@ function banner(sourcePath, saving) {
   if (saving.usd > 0) {
     const savedTokens = Math.max(0, saving.baseline - saving.tokens);
     // The alternative differs by format, so the sentence names it: a PDF
-    // would have been attached, a zip document would have been unpacked.
-    const alternative = path.extname(sourcePath).toLowerCase() === '.pdf'
-      ? '원본을 첨부하면'
-      : '압축을 풀어 본문 XML을 읽으면';
+    // would have been attached, a zip document unpacked, and a .fig read
+    // straight into the context window, which is the one Read does not
+    // refuse.
+    const ext = path.extname(sourcePath).toLowerCase();
+    const alternative = ext === '.pdf' ? '원본을 첨부하면'
+      : ext === '.fig' ? '원본을 그대로 Read 하면'
+        : '압축을 풀어 본문 XML을 읽으면';
     lines.push(
       `${alternative} 약 ${saving.baseline.toLocaleString('en-US')} 토큰이 드는데, `
       + `변환본은 ${saving.tokens.toLocaleString('en-US')} 토큰입니다. `

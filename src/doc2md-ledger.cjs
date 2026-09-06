@@ -31,9 +31,11 @@
  *
  * pptx/xlsx/docx: unpacking the container. These never reach the model as
  * attachments at all — the same probe on a docx added 78 tokens and the model
- * replied that it had no file, and Read refuses the format outright. What a
- * reader does instead is unzip the archive and wade through its XML, where
- * tags and style attributes outweigh the text many times over:
+ * replied that it had no file. Read refuses them too, measured the same way:
+ * a Read of the 31.8MB deck cost +317 tokens and of the 185KB docx +185, which
+ * is a refusal message and nothing more. What a reader does instead is unzip
+ * the archive and wade through its XML, where tags and style attributes
+ * outweigh the text many times over:
  *
  *   aws-summit-seoul.pptx   2.1MB of slide XML   ~540,429 tokens   23.8× the conversion
  *   사업계획서.docx      312KB of body XML    ~78,113 tokens    ~46× the conversion
@@ -42,6 +44,21 @@
  * measured per file rather than assumed from a ratio. It is a real number for
  * a real fallback — this very session unzipped a pptx to verify a conversion
  * before this ledger existed.
+ *
+ * .fig: the file itself. Unlike the Office formats, Read does not refuse a
+ * .fig — the extension means nothing to it, so it pulls the binary in as text
+ * and the context window fills with tokenised noise. Measured against the same
+ * 42,760-token control:
+ *
+ *   plan.fig            26KB    +44,195 tokens   conversion: 100
+ *   bootstrap-kit.fig   8.1MB   +43,994 tokens   conversion: 18,397
+ *
+ * Two files three hundred times apart in size cost the same, because Read
+ * truncates at a cap long before the file ends — which also means the reader
+ * gets a fraction of a document for the price of a whole one. The baseline is
+ * therefore a flat 44,000 tokens rather than anything per-byte. An earlier
+ * version of this file claimed .fig had no measurable baseline at all; that
+ * was an assumption about Read's behaviour that turned out to be wrong.
  *
  * Erring low is deliberate throughout. A savings figure that flatters the
  * tool is worth less than one the user can trust.
@@ -79,10 +96,10 @@ const ATTACHMENT_BASELINE = {
   '.docx': { markup: true },
   '.xlsx': { markup: true },
   '.xls': { ratio: 1 },
-  // A .fig unzips to another binary (Figma's kiwi format), so unlike the
-  // office containers there is no readable markup to price the fallback
-  // against. Converting is the only way to read it at all; no money claimed.
-  '.fig': { ratio: 1 },
+  // Read swallows a .fig instead of refusing it, at a flat ~44,000 tokens
+  // whatever the file's size (see the header). Rounded down from the two
+  // measurements, both of which landed just under 44,200.
+  '.fig': { fixed: 44_000 },
 };
 
 /**
@@ -106,7 +123,9 @@ function estimateSaving({ ext, pages = 0, markupBytes = 0, markdown = '' }) {
   const tokens = estimateTokens(markdown);
   const rule = ATTACHMENT_BASELINE[String(ext).toLowerCase()] || { ratio: 1 };
   let baseline;
-  if (rule.perPage && pages > 0) {
+  if (rule.fixed) {
+    baseline = rule.fixed;
+  } else if (rule.perPage && pages > 0) {
     baseline = pages * rule.perPage;
   } else if (rule.markup && markupBytes > 0) {
     baseline = Math.ceil(markupBytes / 4);
