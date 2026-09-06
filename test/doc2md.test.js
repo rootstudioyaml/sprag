@@ -521,3 +521,57 @@ test('the interpreter probe rejects a half-finished install and an outdated Pyth
   });
   assert.equal(d.ensureConverterInstalled({ waitMs: 10 }), false);
 });
+
+
+test('an encrypted document is reported as locked, never as corruption, and never blocks', (t) => {
+  const dir = isolated(t);
+  // Without this the isolated state directory looks like a fresh machine and
+  // the auto-install fires for real: a 15s test that races its own cleanup.
+  const prev = process.env.CTS_DOC2MD_NO_AUTOINSTALL;
+  process.env.CTS_DOC2MD_NO_AUTOINSTALL = '1';
+  t.after(() => {
+    if (prev === undefined) delete process.env.CTS_DOC2MD_NO_AUTOINSTALL;
+    else process.env.CTS_DOC2MD_NO_AUTOINSTALL = prev;
+  });
+  const d = require('../src/doc2md.cjs');
+
+  // A password-protected OOXML is an OLE compound file, not a zip. Opening it
+  // as a zip says "not a zip file", which reads as a broken download and
+  // sends the user hunting for the wrong problem.
+  const locked = join(dir, 'locked.docx');
+  writeFileSync(locked, Buffer.concat([
+    Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
+    Buffer.alloc(512),
+    Buffer.from('EncryptedPackage', 'utf16le'),
+  ]));
+
+  const decision = d.decideForRead({ tool_name: 'Read', tool_input: { file_path: locked } });
+  if (decision) {
+    // Whatever else happens, a document nobody can decrypt must not take the
+    // Read down with it.
+    assert.equal(decision.deny, false);
+  }
+});
+
+test('the interpreter search follows the platform it is running on', (t) => {
+  const d = require('../src/doc2md.cjs');
+  const names = d.interpreterCandidates().map((c) => `${c.bin} ${c.args.join(' ')}`.trim());
+  if (process.platform === 'win32') {
+    // `python3` is rarely on PATH on Windows, and a bare `python` may be the
+    // Store alias stub; the launcher is what actually finds an install.
+    assert.ok(names.some((n) => n === 'py -3'), names.join(' | '));
+    assert.ok(names.some((n) => n.endsWith('python.exe')), names.join(' | '));
+  } else {
+    assert.ok(names.includes('python3'), names.join(' | '));
+  }
+  // Both shapes survive the round trip into spawn arguments.
+  assert.deepEqual(d.interpreterParts('/usr/bin/python3'), { bin: '/usr/bin/python3', args: [] });
+  assert.deepEqual(d.interpreterParts({ bin: 'py', args: ['-3'] }), { bin: 'py', args: ['-3'] });
+});
+
+test('the .fig parser spec carries nothing cmd.exe would eat', () => {
+  const fig = require('../src/fig2md.cjs');
+  // `^` is the escape character in cmd.exe, where the Windows install runs.
+  assert.ok(!fig.FIG_PARSER_SPEC.includes('^'), fig.FIG_PARSER_SPEC);
+  assert.match(fig.FIG_PARSER_SPEC, /^openfig-core@[0-9x.]+$/);
+});

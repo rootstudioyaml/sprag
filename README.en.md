@@ -461,6 +461,23 @@ Conversion is one-way — editing the cached `.md` changes nothing in the source
 
 All four formats were exercised end to end on 2026-09-06: 10 docx run replacements plus three consecutive re-saves, a pptx bar-to-line chart swap with an added data point, xlsx value edits and a new row, and a fig text edit with re-encode and re-parse. In every case the original was byte-identical afterwards and the re-converted copy showed the change. One caveat: removing a chart shape from a pptx leaves the old chart XML part orphaned — PowerPoint ignores it, but delete the part and its rels for a clean file. Charts and images never appear in a conversion, so visual edits must be confirmed in the application itself.
 
+### Locked documents, and Windows
+
+**A password-protected document is a state, not an error.** Office encrypts by wrapping the package in an OLE compound file rather than a zip, so opening one as a zip used to report "not a zip file" — which reads as a broken download and sends the user after the wrong problem. It is now identified before conversion:
+
+```
+✗ encrypted: password-protected Office file (OLE-wrapped)
+✗ encrypted: password-protected PDF
+```
+
+The model is told to ask for an unlocked copy. This tool never asks for or stores a password, and never blocks the original `Read`, so work continues either way. A PDF that merely restricts printing still opens and still converts — checked against a false positive — and a legacy `.xls`, which is an OLE file by design, is not mistaken for an encrypted one.
+
+**Windows is supported.** For teams with Windows machines:
+
+- The Python search uses the `py -3` launcher. `python3` is rarely on PATH there, and a bare `python` may be the Store alias stub that opens a web page instead of running anything. Venv interpreters are looked for at `Scripts\python.exe`.
+- The `.fig` parser installs through `npm.cmd` via the shell, and the package spec dropped its caret (`openfig-core@0.4.x`): in cmd.exe `^` is the escape character and never reaches npm.
+- The background install and every child process set `windowsHide`, so no console window appears in the middle of someone's prompt.
+
 `claude-token-saver doc2md --clean` empties the conversion cache; `doc2md off` removes the hook. Removal filters for this tool's own entry, so anything else you registered under `PreToolUse` stays.
 
 ## 🌐 Behind a gateway (Bedrock / Vertex)

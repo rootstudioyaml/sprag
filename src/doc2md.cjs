@@ -233,33 +233,65 @@ function writeCache(filePath, markdown, extra) {
 // during the first-use auto-install, where the window is about a second wide.
 const PROBE = 'from markitdown import MarkItDown';
 
+const IS_WINDOWS = process.platform === 'win32';
+
+/**
+ * Interpreters to try, as `{ bin, args }` so the Windows launcher can carry
+ * its version flag. `py -3` is how a Windows box usually reaches Python at
+ * all: `python3` is rarely on PATH there, and a bare `python` may be the App
+ * Execution Alias stub that opens the Microsoft Store instead of running
+ * anything.
+ */
+function interpreterCandidates() {
+  const out = [];
+  if (process.env.CTS_DOC2MD_PYTHON) out.push({ bin: process.env.CTS_DOC2MD_PYTHON, args: [] });
+  // The tool's own venv, created by `doc2md install-converter`. First because
+  // it is the only one this tool controls: telling people to `pip install`
+  // into the system interpreter is how a token-saving CLI ends up owning a
+  // break in someone else's project.
+  out.push({ bin: managedPython(), args: [] });
+  if (IS_WINDOWS) {
+    out.push(
+      { bin: path.join(os.homedir(), '.local', 'share', 'uv', 'tools', 'markitdown', 'Scripts', 'python.exe'), args: [] },
+      { bin: 'py', args: ['-3'] },
+      { bin: 'python', args: [] },
+    );
+  } else {
+    out.push(
+      { bin: path.join(os.homedir(), '.local', 'share', 'uv', 'tools', 'markitdown', 'bin', 'python'), args: [] },
+      { bin: path.join(os.homedir(), '.local', 'bin', 'markitdown-python'), args: [] },
+      { bin: 'python3', args: [] },
+      { bin: 'python', args: [] },
+    );
+  }
+  return out;
+}
+
 let interpreterCache;
 function findInterpreter() {
   if (interpreterCache !== undefined) return interpreterCache;
-  const candidates = [];
-  if (process.env.CTS_DOC2MD_PYTHON) candidates.push(process.env.CTS_DOC2MD_PYTHON);
-  candidates.push(
-    // The tool's own venv, created by `doc2md install-converter`. First
-    // because it is the only one this tool controls: telling people to
-    // `pip install` into the system interpreter is how a token-saving CLI
-    // ends up owning a break in someone else's project.
-    managedPython(),
-    path.join(os.homedir(), '.local', 'share', 'uv', 'tools', 'markitdown', 'bin', 'python'),
-    path.join(os.homedir(), '.local', 'bin', 'markitdown-python'),
-    'python3',
-    'python',
-  );
-  for (const bin of candidates) {
+  for (const { bin, args } of interpreterCandidates()) {
     try {
-      const probe = spawnSync(bin, ['-c', PROBE], { timeout: 20_000, stdio: 'ignore' });
+      const probe = spawnSync(bin, [...args, '-c', PROBE], {
+        timeout: 20_000,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
       if (probe.status === 0) {
-        interpreterCache = bin;
-        return bin;
+        // Only a bare interpreter is cached as a string; the launcher form
+        // keeps its flag, since dropping it would run the wrong Python.
+        interpreterCache = args.length ? { bin, args } : bin;
+        return interpreterCache;
       }
     } catch { /* candidate unusable, try the next */ }
   }
   interpreterCache = null;
   return null;
+}
+
+/** Split a `findInterpreter()` result into the pair spawnSync wants. */
+function interpreterParts(found) {
+  return typeof found === 'string' ? { bin: found, args: [] } : found;
 }
 
 const CONVERTER = path.join(__dirname, '..', 'presets', 'doc2md', 'convert.py');
@@ -295,18 +327,33 @@ const EDIT_LIBS = ['python-pptx', 'python-docx', 'openpyxl'];
  * Homebrew interpreter wins over the system one regardless of PATH order.
  */
 function findVenvBase() {
-  const candidates = [
-    'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10',
-    'python3', 'python',
-  ];
-  for (const bin of candidates) {
-    const r = spawnSync(bin, ['-c', 'import sys; print("%d.%d" % sys.version_info[:2])'], {
+  const candidates = IS_WINDOWS
+    ? [
+      // The launcher first, asked for each version in turn: it knows about
+      // installs that never touched PATH, which is the normal case on
+      // Windows.
+      { bin: 'py', args: ['-3.14'] }, { bin: 'py', args: ['-3.13'] },
+      { bin: 'py', args: ['-3.12'] }, { bin: 'py', args: ['-3.11'] },
+      { bin: 'py', args: ['-3.10'] }, { bin: 'py', args: ['-3'] },
+      { bin: 'python', args: [] },
+    ]
+    : [
+      { bin: 'python3.14', args: [] }, { bin: 'python3.13', args: [] },
+      { bin: 'python3.12', args: [] }, { bin: 'python3.11', args: [] },
+      { bin: 'python3.10', args: [] },
+      { bin: 'python3', args: [] }, { bin: 'python', args: [] },
+    ];
+  for (const { bin, args } of candidates) {
+    const r = spawnSync(bin, [...args, '-c', 'import sys; print("%d.%d" % sys.version_info[:2])'], {
       encoding: 'utf8',
       timeout: 20_000,
+      windowsHide: true,
     });
     if (r.status !== 0) continue;
     const [major, minor] = String(r.stdout).trim().split('.').map(Number);
-    if (major > 3 || (major === 3 && minor >= 10)) return { bin, version: `python ${major}.${minor}` };
+    if (major > 3 || (major === 3 && minor >= 10)) {
+      return { bin, args, version: `python ${major}.${minor}` };
+    }
   }
   return null;
 }
@@ -332,7 +379,11 @@ function installConverter({ onProgress = () => {} } = {}) {
       };
     }
     onProgress(`creating ${venv} (${base.version})`);
-    const r = spawnSync(base.bin, ['-m', 'venv', venv], { encoding: 'utf8', timeout: 180_000 });
+    const r = spawnSync(base.bin, [...(base.args || []), '-m', 'venv', venv], {
+      encoding: 'utf8',
+      timeout: 180_000,
+      windowsHide: true,
+    });
     if (r.status !== 0) {
       return { ok: false, reason: 'no-python', detail: (r.stderr || 'venv creation failed').slice(0, 300) };
     }
@@ -342,6 +393,7 @@ function installConverter({ onProgress = () => {} } = {}) {
   const install = spawnSync(target, ['-m', 'pip', 'install', '--quiet', MARKITDOWN_SPEC, ...EDIT_LIBS], {
     encoding: 'utf8',
     timeout: 900_000,
+    windowsHide: true,
   });
   if (install.status !== 0) {
     return { ok: false, reason: 'pip-failed', detail: (install.stderr || '').slice(0, 400) };
@@ -349,7 +401,7 @@ function installConverter({ onProgress = () => {} } = {}) {
 
   // The probe is the actual acceptance test: pip can exit 0 and still leave an
   // interpreter that cannot import what was asked for.
-  const probe = spawnSync(target, ['-c', PROBE], { timeout: 60_000, stdio: 'ignore' });
+  const probe = spawnSync(target, ['-c', PROBE], { timeout: 60_000, stdio: 'ignore', windowsHide: true });
   if (probe.status !== 0) {
     return { ok: false, reason: 'import-failed', detail: 'installed, but markitdown does not import' };
   }
@@ -361,8 +413,8 @@ function installConverter({ onProgress = () => {} } = {}) {
 /**
  * Convert one file. Returns `{ ok: true, cacheFile, meta }`, or
  * `{ ok: false, reason, detail }` where reason is one of:
- *   no-markitdown | python-too-old | no-figparser | too-large | sensitive |
- *   unsafe-archive | no-text | convert-failed | timeout
+ *   no-markitdown | python-too-old | no-figparser | encrypted | too-large |
+ *   sensitive | unsafe-archive | no-text | convert-failed | timeout
  *
  * Every failure is a reason to leave the original Read alone, never to break
  * it. That is the whole contract with the hook.
@@ -446,10 +498,12 @@ function convert(filePath, { converter = CONVERTER, python: pythonOverride = nul
   }
   if (!python) return { ok: false, reason: 'no-markitdown' };
 
-  const run = spawnSync(python, [converter, filePath], {
+  const py = interpreterParts(python);
+  const run = spawnSync(py.bin, [...py.args, converter, filePath], {
     encoding: 'utf8',
     timeout: CONVERT_TIMEOUT_MS,
     maxBuffer: MAX_MARKDOWN_BYTES * 4,
+    windowsHide: true,
   });
   if (run.error && run.error.code === 'ETIMEDOUT') return { ok: false, reason: 'timeout' };
   if (run.status !== 0) {
@@ -522,6 +576,9 @@ function ensureConverterInstalled({ waitMs = 15_000 } = {}) {
       const child = spawn(process.execPath, [cli, 'doc2md', 'install-converter'], {
         detached: true,
         stdio: 'ignore',
+        // Without this Windows pops a console window for the install, in the
+        // middle of someone's prompt.
+        windowsHide: true,
       });
       child.unref();
     } catch {
@@ -621,6 +678,13 @@ function decideForRead(context, opts = {}) {
       reason: `[doc2md] ${name} 를 변환할 변환기를 지금 설치하고 있습니다(첫 실행에만 걸립니다).\n`
         + '  설치가 끝나면 다음 요청부터 자동으로 변환합니다. 이번 turn 은 원본을 그대로 읽습니다.\n'
         + `  진행 상황: ${INSTALL_HINT} 를 직접 실행하면 설치 로그를 볼 수 있습니다.`,
+    };
+  }
+  if (result.reason === 'encrypted') {
+    return {
+      deny: false,
+      reason: `[doc2md] ${name} 는 암호가 걸린 문서라 변환하지 못했습니다. `
+        + '사용자에게 암호를 푼 사본을 요청하십시오. 이 도구는 암호를 묻거나 저장하지 않습니다.',
     };
   }
   if (result.reason === 'python-too-old') {
@@ -753,6 +817,10 @@ function contextForPrompt(payload, opts = {}) {
       lines.push(lang === 'ko'
         ? `  ${name}: 변환기를 설치하는 중입니다(첫 실행에만 걸립니다). 설치가 끝나면 다음 요청부터 자동 변환됩니다.`
         : `  ${name}: the converter is installing now (first run only). It will convert automatically from the next request.`);
+    } else if (result.reason === 'encrypted') {
+      lines.push(lang === 'ko'
+        ? `  ${name}: 암호가 걸린 문서입니다. 암호를 푼 사본을 달라고 사용자에게 요청하십시오.`
+        : `  ${name}: the document is password-protected. Ask the user for an unlocked copy.`);
     } else if (result.reason === 'python-too-old') {
       lines.push(lang === 'ko'
         ? `  ${name}: 변환기가 Python 3.10 이상을 요구하는데 PATH 에 없습니다(macOS 기본은 3.9). \`brew install python\` 후 다시 시도하도록 사용자에게 안내하십시오.`
@@ -888,6 +956,8 @@ module.exports = {
   installConverter,
   ensureConverterInstalled,
   findVenvBase,
+  interpreterCandidates,
+  interpreterParts,
   clearNotice,
   cacheDir,
   cachePathFor,

@@ -43,6 +43,55 @@ def fail(reason, detail=""):
     sys.exit(0)
 
 
+# A password-protected OOXML file is not a zip at all: Office wraps the whole
+# package in an OLE compound file whose streams hold the ciphertext. Opening it
+# as a zip therefore reports "not a zip file", which reads as a broken download
+# and sends the user looking for the wrong problem.
+OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+
+def encryption_problem(path, ext):
+    """('encrypted', detail) when the file is password-protected, else None."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(8)
+    except OSError:
+        return None
+
+    # Legacy .xls is an OLE file by design, so the magic alone proves nothing
+    # there. For the modern formats it can only mean encryption.
+    if ext in ZIP_EXTS and head == OLE_MAGIC:
+        return ("encrypted", "password-protected Office file (OLE-wrapped)")
+
+    # Some producers keep the zip container and put the ciphertext inside it.
+    if ext in ZIP_EXTS:
+        try:
+            import zipfile
+            with zipfile.ZipFile(path) as z:
+                names = z.namelist()
+            if any(n.startswith("EncryptedPackage") for n in names):
+                return ("encrypted", "password-protected Office file")
+        except Exception:
+            return None
+
+    if ext == ".pdf":
+        try:
+            from pdfminer.pdfparser import PDFParser
+            from pdfminer.pdfdocument import PDFDocument
+            with open(path, "rb") as fh:
+                doc = PDFDocument(PDFParser(fh))
+            # An empty owner password is the ordinary "printing restricted"
+            # case, which extracts fine. Only a document that refuses to open
+            # counts as encrypted here.
+            if doc.encryption is not None and not doc.is_extractable:
+                return ("encrypted", "password-protected PDF")
+        except Exception as e:
+            if "password" in str(type(e).__name__).lower() or "password" in str(e).lower():
+                return ("encrypted", "password-protected PDF")
+            return None
+    return None
+
+
 def check_zip(path):
     """Classify an archive before opening it as a document.
 
@@ -189,6 +238,13 @@ def main():
         fail("missing", path)
 
     ext = os.path.splitext(path)[1].lower()
+
+    # Checked before anything else opens the file: an encrypted document is a
+    # normal thing to receive, not a failure to report as corruption.
+    locked = encryption_problem(path, ext)
+    if locked:
+        fail(locked[0], locked[1])
+
     if ext in ZIP_EXTS:
         problem = check_zip(path)
         if problem:
@@ -224,6 +280,11 @@ def main():
         result = MarkItDown().convert(path)
         text = (result.text_content or "").strip()
     except Exception as e:
+        # markitdown surfaces the password failure from whichever backend hit
+        # it, so the type name is the reliable part.
+        blob = (type(e).__name__ + " " + str(e)).lower()
+        if "password" in blob or "encrypted" in blob:
+            fail("encrypted", "the file is password-protected")
         fail("convert-failed", e)
 
     if not text:
