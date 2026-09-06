@@ -26,7 +26,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const ledger = require('./doc2md-ledger.cjs');
 
 // Formats where the original is of no use to the model. Images are absent
@@ -226,6 +226,13 @@ function writeCache(filePath, markdown, extra) {
  * memoized for the life of this process, and the caller memoizes across
  * processes through the notice file.
  */
+// The readiness test for an interpreter. Importing the *class* matters: a pip
+// install creates the package directory long before it finishes writing into
+// it, so a bare `import markitdown` reports success mid-install and the
+// conversion then fails with "cannot import name 'MarkItDown'". Measured
+// during the first-use auto-install, where the window is about a second wide.
+const PROBE = 'from markitdown import MarkItDown';
+
 let interpreterCache;
 function findInterpreter() {
   if (interpreterCache !== undefined) return interpreterCache;
@@ -244,7 +251,7 @@ function findInterpreter() {
   );
   for (const bin of candidates) {
     try {
-      const probe = spawnSync(bin, ['-c', 'import markitdown'], { timeout: 20_000, stdio: 'ignore' });
+      const probe = spawnSync(bin, ['-c', PROBE], { timeout: 20_000, stdio: 'ignore' });
       if (probe.status === 0) {
         interpreterCache = bin;
         return bin;
@@ -281,19 +288,53 @@ const EDIT_LIBS = ['python-pptx', 'python-docx', 'openpyxl'];
  * for, it goes somewhere this tool owns, so uninstalling the CLI takes the
  * whole thing with it and no system interpreter is touched.
  */
+/**
+ * A Python new enough to run markitdown (3.10+), or null.
+ *
+ * Explicit version names are tried before the bare `python3` so a modern
+ * Homebrew interpreter wins over the system one regardless of PATH order.
+ */
+function findVenvBase() {
+  const candidates = [
+    'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10',
+    'python3', 'python',
+  ];
+  for (const bin of candidates) {
+    const r = spawnSync(bin, ['-c', 'import sys; print("%d.%d" % sys.version_info[:2])'], {
+      encoding: 'utf8',
+      timeout: 20_000,
+    });
+    if (r.status !== 0) continue;
+    const [major, minor] = String(r.stdout).trim().split('.').map(Number);
+    if (major > 3 || (major === 3 && minor >= 10)) return { bin, version: `python ${major}.${minor}` };
+  }
+  return null;
+}
+
 function installConverter({ onProgress = () => {} } = {}) {
   const venv = path.join(userDataDir(), 'doc2md-venv');
   const target = managedPython();
 
   if (!fs.existsSync(target)) {
-    onProgress(`creating ${venv}`);
-    let created = false;
-    for (const base of ['python3', 'python']) {
-      const r = spawnSync(base, ['-m', 'venv', venv], { encoding: 'utf8', timeout: 180_000 });
-      if (r.status === 0) { created = true; break; }
+    // The base interpreter is chosen by version, not by whichever `python3`
+    // comes first on PATH. markitdown needs 3.10+, and macOS still ships 3.9
+    // as /usr/bin/python3: building the venv on that one installs a
+    // seven-year-old placeholder release (0.0.1a1) that has no MarkItDown
+    // class in it, and every conversion then fails at import time. Measured
+    // on this machine, where /usr/bin/python3 precedes Homebrew's 3.14.
+    const base = findVenvBase();
+    if (!base) {
+      return {
+        ok: false,
+        reason: 'no-python',
+        detail: 'markitdown needs Python 3.10 or newer; none was found on PATH '
+          + '(macOS /usr/bin/python3 is 3.9 — install a newer one, e.g. `brew install python`)',
+      };
     }
-    if (!created) {
-      return { ok: false, reason: 'no-python', detail: 'no python3 with the venv module on PATH' };
+    onProgress(`creating ${venv} (${base.version})`);
+    const r = spawnSync(base.bin, ['-m', 'venv', venv], { encoding: 'utf8', timeout: 180_000 });
+    if (r.status !== 0) {
+      return { ok: false, reason: 'no-python', detail: (r.stderr || 'venv creation failed').slice(0, 300) };
     }
   }
 
@@ -308,7 +349,7 @@ function installConverter({ onProgress = () => {} } = {}) {
 
   // The probe is the actual acceptance test: pip can exit 0 and still leave an
   // interpreter that cannot import what was asked for.
-  const probe = spawnSync(target, ['-c', 'import markitdown'], { timeout: 60_000, stdio: 'ignore' });
+  const probe = spawnSync(target, ['-c', PROBE], { timeout: 60_000, stdio: 'ignore' });
   if (probe.status !== 0) {
     return { ok: false, reason: 'import-failed', detail: 'installed, but markitdown does not import' };
   }
@@ -320,8 +361,8 @@ function installConverter({ onProgress = () => {} } = {}) {
 /**
  * Convert one file. Returns `{ ok: true, cacheFile, meta }`, or
  * `{ ok: false, reason, detail }` where reason is one of:
- *   no-markitdown | too-large | sensitive | unsafe-archive | no-text |
- *   convert-failed | timeout
+ *   no-markitdown | python-too-old | no-figparser | too-large | sensitive |
+ *   unsafe-archive | no-text | convert-failed | timeout
  *
  * Every failure is a reason to leave the original Read alone, never to break
  * it. That is the whole contract with the hook.
@@ -370,7 +411,14 @@ function convert(filePath, { converter = CONVERTER, python: pythonOverride = nul
   // Figma files take the Node converter; everything else goes to markitdown.
   if (path.extname(filePath).toLowerCase() === '.fig') {
     const fig2md = require('./fig2md.cjs');
-    const result = spawnFigConvert(fig2md, filePath);
+    let result = spawnFigConvert(fig2md, filePath);
+    // The .fig parser is an npm install of a few hundred KB, fast enough to
+    // wait for inline the first time a Figma file turns up.
+    if (!result.ok && result.reason === 'no-figparser'
+        && process.env.CTS_DOC2MD_NO_AUTOINSTALL !== '1') {
+      fig2md.installFigParser(userDataDir());
+      result = spawnFigConvert(fig2md, filePath);
+    }
     if (!result.ok) return result;
     const written = writeCache(filePath, result.markdown, {
       note: result.note, truncated: false, rows: 0, pages: 0, markupBytes: 0,
@@ -381,7 +429,21 @@ function convert(filePath, { converter = CONVERTER, python: pythonOverride = nul
   // The override exists so tests can drive a stub converter with any Python at
   // all: the normal search insists the interpreter can import markitdown,
   // which would make the whole path untestable without the real package.
-  const python = pythonOverride || findInterpreter();
+  let python = pythonOverride || findInterpreter();
+  if (!python && !pythonOverride) {
+    // Telling someone to run the install command is wrong when the install
+    // cannot succeed on this machine. A too-old interpreter is a different
+    // problem with a different fix, so it gets its own reason rather than
+    // hiding behind "no converter".
+    if (!findVenvBase()) {
+      return {
+        ok: false,
+        reason: 'python-too-old',
+        detail: 'markitdown needs Python 3.10 or newer; none was found on PATH',
+      };
+    }
+    if (ensureConverterInstalled()) python = findInterpreter();
+  }
   if (!python) return { ok: false, reason: 'no-markitdown' };
 
   const run = spawnSync(python, [converter, filePath], {
@@ -419,6 +481,72 @@ function convert(filePath, { converter = CONVERTER, python: pythonOverride = nul
     clipped,
   });
   return { ok: true, cached: false, cacheFile: written.cacheFile, meta: written.meta };
+}
+
+/**
+ * First-use install, so nobody has to be told to run a setup command.
+ *
+ * A team rollout dies on any step a person has to be told about, so the
+ * converter installs itself the first time a document actually shows up. It
+ * is still lazy rather than part of `install`: the venv is 47MB, and someone
+ * who never opens a document should never pay for it.
+ *
+ * The install runs detached and the caller waits only briefly. A cold install
+ * measured 6 seconds on a fast connection, but a corporate network can be far
+ * slower, and a hook that blocks a prompt for a minute is worse than a
+ * document that converts on the next turn. So: start it, wait up to
+ * `waitMs`, and if it is still going, say so and let this turn proceed
+ * without the conversion.
+ *
+ * Returns true when a converter is ready to use right now.
+ */
+function ensureConverterInstalled({ waitMs = 15_000 } = {}) {
+  if (process.env.CTS_DOC2MD_NO_AUTOINSTALL === '1') return false;
+  if (findInterpreter()) return true;
+
+  const lock = path.join(userDataDir(), 'doc2md-install.lock');
+  let running = false;
+  try {
+    const started = JSON.parse(fs.readFileSync(lock, 'utf8')).startedAt;
+    // A lock older than the pip timeout is a crashed run, not a live one.
+    running = Number.isFinite(started) && Date.now() - started < 900_000;
+  } catch { /* no lock, or an unreadable one: treat as not running */ }
+
+  if (!running) {
+    try {
+      fs.mkdirSync(userDataDir(), { recursive: true });
+      fs.writeFileSync(lock, JSON.stringify({ startedAt: Date.now() }));
+      const cli = path.join(__dirname, '..', 'bin', 'cli.js');
+      // Detached, so a session that ends mid-install does not take the
+      // install with it — the next session finds it finished.
+      const child = spawn(process.execPath, [cli, 'doc2md', 'install-converter'], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+    } catch {
+      try { fs.rmSync(lock, { force: true }); } catch { /* best effort */ }
+      return false;
+    }
+  }
+
+  // Poll cheaply: the interpreter file appearing is the first sign, and the
+  // import probe is the acceptance test. interpreterCache has to be cleared
+  // or the memoized null from the top of this function would stick.
+  const deadline = Date.now() + waitMs;
+  while (Date.now() < deadline) {
+    if (fs.existsSync(managedPython())) {
+      interpreterCache = undefined;
+      if (findInterpreter()) {
+        try { fs.rmSync(lock, { force: true }); } catch { /* best effort */ }
+        return true;
+      }
+    }
+    // A synchronous sleep, because every caller here is synchronous. 400ms
+    // keeps the poll count low over a 15s wait.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 400);
+  }
+  return false;
 }
 
 /** Where the "markitdown is not installed" notice records that it was shown. */
@@ -490,9 +618,19 @@ function decideForRead(context, opts = {}) {
     markNoticeShown();
     return {
       deny: false,
-      reason: `[doc2md] ${name} 를 변환하려 했으나 markitdown 이 설치되어 있지 않습니다.\n`
-        + `  설치: ${INSTALL_HINT}\n`
-        + '  설치 전까지는 원본을 그대로 읽습니다. 이 안내는 한 번만 표시됩니다.',
+      reason: `[doc2md] ${name} 를 변환할 변환기를 지금 설치하고 있습니다(첫 실행에만 걸립니다).\n`
+        + '  설치가 끝나면 다음 요청부터 자동으로 변환합니다. 이번 turn 은 원본을 그대로 읽습니다.\n'
+        + `  진행 상황: ${INSTALL_HINT} 를 직접 실행하면 설치 로그를 볼 수 있습니다.`,
+    };
+  }
+  if (result.reason === 'python-too-old') {
+    if (noticeAlreadyShown()) return null;
+    markNoticeShown();
+    return {
+      deny: false,
+      reason: `[doc2md] ${name} 를 변환하지 못했습니다. 변환기(markitdown)는 Python 3.10 이상이 필요한데 PATH 에서 찾지 못했습니다.\n`
+        + '  macOS 기본 /usr/bin/python3 는 3.9 입니다. `brew install python` 으로 새 버전을 설치한 뒤 다시 시도하십시오.\n'
+        + '  그때까지는 원본을 그대로 읽습니다. 이 안내는 한 번만 표시됩니다.',
     };
   }
   if (result.reason === 'no-text') {
@@ -613,8 +751,12 @@ function contextForPrompt(payload, opts = {}) {
       }
     } else if (result.reason === 'no-markitdown') {
       lines.push(lang === 'ko'
-        ? `  ${name}: 변환기가 없어 변환하지 못했습니다. 설치: ${INSTALL_HINT}`
-        : `  ${name}: no converter installed. Install it with: ${INSTALL_HINT}`);
+        ? `  ${name}: 변환기를 설치하는 중입니다(첫 실행에만 걸립니다). 설치가 끝나면 다음 요청부터 자동 변환됩니다.`
+        : `  ${name}: the converter is installing now (first run only). It will convert automatically from the next request.`);
+    } else if (result.reason === 'python-too-old') {
+      lines.push(lang === 'ko'
+        ? `  ${name}: 변환기가 Python 3.10 이상을 요구하는데 PATH 에 없습니다(macOS 기본은 3.9). \`brew install python\` 후 다시 시도하도록 사용자에게 안내하십시오.`
+        : `  ${name}: the converter needs Python 3.10+, and none is on PATH (macOS ships 3.9). Tell the user to install a newer Python, e.g. \`brew install python\`.`);
     } else if (result.reason === 'no-figparser') {
       lines.push(lang === 'ko'
         ? `  ${name}: .fig 파서가 없어 변환하지 못했습니다. 설치: claude-token-saver doc2md install-converter`
@@ -744,6 +886,8 @@ module.exports = {
   MARKITDOWN_SPEC,
   managedPython,
   installConverter,
+  ensureConverterInstalled,
+  findVenvBase,
   clearNotice,
   cacheDir,
   cachePathFor,

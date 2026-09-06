@@ -397,11 +397,17 @@ Three situations, three different interception points:
 That second row is measured, not assumed: a `.pdf` Read fires the hook, and a `.pptx` Read in the same session leaves no hook log entry at all.
 
 ```bash
-claude-token-saver doc2md install-converter   # markitdown + editing libs + the .fig parser
-claude-token-saver doc2md on                  # register the Read hook
+claude-token-saver doc2md on                  # register the hooks (the converter installs itself)
 claude-token-saver doc2md                     # check converter + hook registration
 claude-token-saver doc2md report.pptx         # convert by hand and see the result
+claude-token-saver doc2md install-converter   # only to get the install out of the way early
 ```
+
+**The converter installs itself.** Any rollout step a person has to be told about is a step some of them skip, so the converter installs in the background the moment a document first shows up, and converts as soon as it is ready. Measured: about 30s for the first document (15s install plus markitdown's first import), then 3.7s for a new document and 0.1s on a cache hit. The `.fig` parser installs in half a second on the first Figma file.
+
+It installs on first use rather than at `install` time: the venv is 47MB, and someone who never opens a document should not pay for it. Set `CTS_DOC2MD_NO_AUTOINSTALL=1` to turn the automatic install off.
+
+**Python 3.10+ is required** — markitdown's own floor, and macOS still ships 3.9 as `/usr/bin/python3`. The venv is built on an interpreter chosen by version rather than by PATH order. Built on 3.9, pip resolves markitdown to a 2019 placeholder release (0.0.1a1): the install looks like it worked and every conversion then dies at import. This was found by walking into it. When nothing on the machine is new enough, the message points at `brew install python` instead of at an install command that cannot succeed.
 
 The converter goes into a venv this tool owns (`<state dir>/doc2md-venv`): no system interpreter is touched, and uninstalling the CLI takes it along. An existing markitdown on `uv tool` or `PATH` is preferred over building a new one.
 

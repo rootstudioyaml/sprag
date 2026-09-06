@@ -389,11 +389,17 @@ doc2md 는 그 파일을 한 번 변환해 두고 원본 대신 변환본을 읽
 두 번째 줄의 제약은 실측으로 확인한 것입니다. `.pdf` 를 Read 하면 훅이 실행되고, 같은 세션에서 `.pptx` 를 Read 하면 훅 로그에 아무 기록도 남지 않습니다.
 
 ```bash
-claude-token-saver doc2md install-converter   # markitdown·편집 라이브러리·.fig 파서 설치
-claude-token-saver doc2md on                  # Read 훅 등록
+claude-token-saver doc2md on                  # 훅 등록 (변환기는 첫 문서에서 자동 설치)
 claude-token-saver doc2md                     # 변환기·훅 등록 상태 확인
 claude-token-saver doc2md 보고서.pptx          # 직접 변환해 결과 확인
+claude-token-saver doc2md install-converter   # 설치를 미리 끝내 두고 싶을 때만
 ```
+
+**변환기는 알아서 깔립니다.** 팀에 배포할 때 각자 설치 명령을 실행하게 만들면 그 단계에서 빠지는 사람이 생깁니다. 그래서 문서가 처음 등장하는 시점에 변환기가 백그라운드로 설치되고, 설치가 끝나는 대로 곧바로 변환합니다. 실측으로 첫 문서는 약 30초(설치 15초 + markitdown 최초 임포트), 이후로는 새 문서 3.7초, 캐시 적중 0.1초입니다. `.fig` 파서는 첫 Figma 파일에서 0.5초 만에 깔립니다.
+
+설치는 `install` 단계가 아니라 첫 사용 시점에 합니다. venv 가 47MB 라서, 문서를 다루지 않는 사람은 낼 이유가 없는 비용입니다. 자동 설치를 끄려면 `CTS_DOC2MD_NO_AUTOINSTALL=1` 을 설정하십시오.
+
+**파이썬 3.10 이상이 필요합니다.** markitdown 의 요구 사항이고, macOS 기본 `/usr/bin/python3` 는 3.9 입니다. 이 도구는 PATH 순서를 따르지 않고 3.10 이상인 인터프리터를 골라 venv 를 만듭니다. 3.9 로 만들면 pip 가 markitdown 을 2019 년 자리표시자 릴리스(0.0.1a1)로 해석해서, 설치는 성공한 것처럼 보이지만 모든 변환이 임포트 단계에서 죽습니다. 실제로 이 함정을 밟고 잡았습니다. 3.10 이상이 아예 없으면 설치 명령을 안내하는 대신 `brew install python` 을 안내합니다.
 
 변환기는 도구 전용 venv(`<상태 디렉터리>/doc2md-venv`)에 설치합니다. 시스템 파이썬을 건드리지 않고, CLI를 지우면 함께 사라집니다. 이미 `uv tool` 이나 다른 경로에 markitdown 이 있으면 그쪽을 먼저 씁니다.
 

@@ -493,3 +493,31 @@ test('writes to a conversion or an original document are refused with directions
   assert.equal(d.decideForWrite({ tool_name: 'Write', tool_input: { file_path: join(dir, 'notes.md') } }), null);
   assert.equal(d.decideForWrite({ tool_name: 'Read', tool_input: { file_path: src } }), null);
 });
+
+
+test('the interpreter probe rejects a half-finished install and an outdated Python', (t) => {
+  const dir = isolated(t);
+  const d = require('../src/doc2md.cjs');
+
+  // A base interpreter is only accepted at 3.10+, because pip resolves
+  // markitdown to a 2019 placeholder release on anything older and every
+  // conversion then dies at import time.
+  const base = d.findVenvBase();
+  if (base) assert.match(base.version, /python 3\.(1[0-9]|[2-9][0-9])/);
+
+  // The readiness probe imports the class, not the package: mid-install the
+  // package directory exists while the class does not.
+  const halfInstalled = join(dir, 'half.py');
+  writeFileSync(halfInstalled, 'import sys; sys.exit(0)');
+  assert.equal(typeof d.ensureConverterInstalled, 'function');
+
+  // With auto-install switched off, nothing is spawned and the answer is a
+  // plain false — the escape hatch a locked-down machine needs.
+  const prev = process.env.CTS_DOC2MD_NO_AUTOINSTALL;
+  process.env.CTS_DOC2MD_NO_AUTOINSTALL = '1';
+  t.after(() => {
+    if (prev === undefined) delete process.env.CTS_DOC2MD_NO_AUTOINSTALL;
+    else process.env.CTS_DOC2MD_NO_AUTOINSTALL = prev;
+  });
+  assert.equal(d.ensureConverterInstalled({ waitMs: 10 }), false);
+});
