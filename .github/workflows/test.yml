@@ -24,8 +24,11 @@ jobs:
       - run: npm test
       # No dependencies to install — the smoke check just proves the CLI still
       # boots and its subcommands parse on this platform.
-      - run: node bin/cli.js --statusline --no-color --days 1
-      - run: node bin/cli.js --demo table
+      # Exercises every subcommand against an isolated home. The Windows
+      # failures this project has shipped were all of this shape: a home
+      # resolved from the wrong variable, a file:// URL used as a path, a
+      # subcommand with no dispatch behind it.
+      - run: node scripts/verify-cli.mjs
 
   # The conversion path is the part that is only real per-OS: building the
   # venv, resolving an interpreter (`py -3` on Windows), installing the .fig

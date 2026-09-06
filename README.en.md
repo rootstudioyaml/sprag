@@ -173,6 +173,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
 | `claude-token-saver upgrade` | Install the latest release with the package manager that installed this copy (`--print` shows the command only) |
 | `claude-token-saver install` | Manually register Skill + statusline |
+| `claude-token-saver uninstall [--purge]` | Remove the hooks, statusline and skill it registered. Recorded savings are kept unless `--purge` is given |
 
 Switch output language with `mode ko` / `mode en` (English default; statusline chips stay symbolic).
 

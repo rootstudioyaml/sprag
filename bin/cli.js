@@ -141,6 +141,13 @@ async function main() {
     return (await import('../src/commands/install.js')).run({ hasFlag });
   }
 
+  // The counterpart to `install`. It was in the known-subcommand list from the
+  // start but had no dispatch, so it fell through to the usage report and
+  // exited non-zero — an unhelpful answer to "remove this".
+  if (args[0] === 'uninstall') {
+    return (await import('../src/commands/uninstall.js')).run({ hasFlag, args });
+  }
+
   // Subcommand: mode — persist statusline preferences so future runs pick
   // them up without flags or wrapper edits.
   //   claude-token-saver mode                    # show current config
@@ -394,6 +401,18 @@ async function main() {
         { color: colorOk, mode: isIcon ? 'icon' : 'text' },
       ));
       return;
+    }
+    // JSON mode stays JSON. A caller that asked for machine-readable output
+    // and got a paragraph of advice has to parse prose to find out nothing
+    // was found, which is exactly the failure this format exists to avoid.
+    if (getArg('--format') === 'json') {
+      console.log(JSON.stringify({
+        sessions: 0,
+        days,
+        error: 'no-session-data',
+        message: 'No Claude Code session logs found for the given period.',
+      }, null, 2));
+      process.exit(1);
     }
     console.log('No session data found for the given period.');
     console.log('');

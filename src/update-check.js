@@ -119,6 +119,9 @@ export function maybeSpawnUpdateCheck(currentVersion) {
     spawn(process.execPath, [cliEntryPath(), 'update-check', '--refresh', '--quiet'], {
       detached: true,
       stdio: 'ignore',
+      // Without this Windows flashes a console window, and this one
+      // re-spawns from the statusline — several times a minute.
+      windowsHide: true,
     }).unref();
     return true;
   } catch (e) {

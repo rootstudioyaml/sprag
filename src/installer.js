@@ -13,9 +13,9 @@
  * exist on every platform.
  */
 
-import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { claudeUserDir } from './paths.js';
+import { claudeUserDir, userDataDir } from './paths.js';
 
 const STATUSLINE_COMMAND = 'claude-token-saver --statusline --icon';
 const STATUSLINE_REFRESH_INTERVAL = 5;
@@ -467,6 +467,85 @@ export function removeDoc2mdHook() {
   if (!touched) return { path: file, action: 'absent' };
   writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
   return { path: file, action: 'removed' };
+}
+
+/**
+ * Undo what `install` did: every hook this tool registered, the statusline
+ * entry when it is still ours, and the skill file.
+ *
+ * Written because `uninstall` was a name in the subcommand list with no
+ * implementation behind it — running it fell through to the usage report and
+ * exited non-zero, which is a poor answer to "get this off my machine". A
+ * company rollout needs the way out to work as well as the way in.
+ *
+ * User data (ledgers, config, conversion cache) is deliberately left alone:
+ * removing an integration should not throw away months of recorded savings.
+ * `--purge` is the separate, explicit request for that.
+ */
+export function uninstallAll({ purge = false } = {}) {
+  const file = join(claudeUserDir(), 'settings.json');
+  const result = { removed: [], kept: [], path: file };
+
+  if (existsSync(file)) {
+    let settings;
+    try {
+      settings = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (e) {
+      return { ...result, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+    }
+
+    // Only our own statusline command goes. Someone else's stays exactly
+    // where they put it.
+    const cur = settings.statusLine;
+    if (cur && typeof cur.command === 'string' && cur.command.includes('claude-token-saver')) {
+      delete settings.statusLine;
+      result.removed.push('statusLine');
+    } else if (cur) {
+      result.kept.push(`statusLine (${cur.command || 'unrecognised'})`);
+    }
+
+    // Every event, every entry whose command is this CLI. Matching on the
+    // binary name rather than a list of exact commands means a hook added by
+    // an older version is still removed by a newer one.
+    for (const event of Object.keys(settings.hooks || {})) {
+      const list = settings.hooks[event];
+      if (!Array.isArray(list)) continue;
+      const kept = list.filter((m) => !(
+        Array.isArray(m?.hooks)
+        && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('claude-token-saver'))
+      ));
+      if (kept.length === list.length) continue;
+      result.removed.push(`hooks.${event}`);
+      if (kept.length === 0) delete settings.hooks[event];
+      else settings.hooks[event] = kept;
+    }
+    if (settings.hooks && Object.keys(settings.hooks).length === 0) delete settings.hooks;
+
+    writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  }
+
+  const skillDir = join(claudeUserDir(), 'skills', 'claude-token-saver');
+  if (existsSync(skillDir)) {
+    rmSync(skillDir, { recursive: true, force: true });
+    result.removed.push('skill');
+  }
+  const legacyCommand = join(claudeUserDir(), 'commands', 'token-monitor.md');
+  if (existsSync(legacyCommand)) {
+    rmSync(legacyCommand, { force: true });
+    result.removed.push('legacy command');
+  }
+
+  if (purge) {
+    const data = userDataDir();
+    if (existsSync(data)) {
+      rmSync(data, { recursive: true, force: true });
+      result.removed.push('state directory');
+    }
+  } else {
+    result.kept.push('state directory (savings ledgers, config, cache) — remove with --purge');
+  }
+
+  return { ...result, action: 'removed' };
 }
 
 export function installAll({ force = false } = {}) {

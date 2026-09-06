@@ -11,6 +11,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'no
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import {
   HARNESS_SECTIONS,
   HARNESS_BLOCK_BEGIN,
@@ -368,7 +369,10 @@ export function harnessPull({ root = findProjectRoot(), scope = 'global' } = {})
 /** Parse the bundled preset rules (markdown bullets under presets/). */
 export function presetRules() {
   try {
-    const path = join(dirname(new URL(import.meta.url).pathname), '..', 'presets', 'ratchet-rules.md');
+    // fileURLToPath, not `.pathname`: the latter yields `/D:/repo/src` on
+    // Windows, where the read fails and the catch below turns a missing
+    // file into an empty rule set without ever saying so.
+    const path = join(dirname(fileURLToPath(import.meta.url)), '..', 'presets', 'ratchet-rules.md');
     return readFileSync(path, 'utf8')
       .split('\n')
       .filter((l) => /^\s*-\s+/.test(l))

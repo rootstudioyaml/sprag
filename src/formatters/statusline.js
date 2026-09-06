@@ -423,9 +423,19 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   if (!singleLine && doc2mdUsd > 0) {
     const head = isIcon ? '📄 Doc2md saved' : 'Doc2md saved';
     const byExt = Array.isArray(doc2md.byExt) ? doc2md.byExt : [];
-    const extText = byExt
-      .map((r) => `${c(GRAY)}${r.ext} ${r.docs}× ${formatMoney(r.usd)}${c(RESET)}`)
-      .join(` ${c(GRAY)}·${c(RESET)} `);
+    // Formats that earned money show it; formats with no baseline to measure
+    // against are counted instead. Printing "$0.00" next to real amounts reads
+    // as "this format saved nothing", when what it means is that there is no
+    // working alternative to price it against — for .fig there is no readable
+    // fallback at all, so the conversion is the only way to open the file.
+    const paid = byExt.filter((r) => r.usd > 0);
+    const unpriced = byExt.filter((r) => !(r.usd > 0));
+    const parts = paid.map((r) => `${c(GRAY)}${r.ext} ${r.docs}× ${formatMoney(r.usd)}${c(RESET)}`);
+    if (unpriced.length) {
+      const counted = unpriced.map((r) => `${r.ext} ${r.docs}×`).join(' · ');
+      parts.push(`${c(GRAY)}${counted} ${verbose ? '(no baseline)' : '(n/a)'}${c(RESET)}`);
+    }
+    const extText = parts.join(` ${c(GRAY)}·${c(RESET)} `);
     doc2mdLine =
       `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
       `${c(GREEN)}${formatMoney(doc2mdUsd)}${c(RESET)}` +

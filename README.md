@@ -172,6 +172,7 @@ Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적
 | `claude-token-saver update-check` | 새 버전이 있는지 확인합니다 (`--refresh`로 즉시 조회, `--dismiss`로 그 버전 안내 끄기) |
 | `claude-token-saver upgrade` | 설치 경로에 맞는 명령으로 최신 버전을 설치합니다 (`--print`로 실행 없이 명령만 확인) |
 | `claude-token-saver install` | Skill·statusline 수동 등록 |
+| `claude-token-saver uninstall [--purge]` | 등록한 훅·statusline·Skill 제거. 기록된 절감액은 남기며, `--purge` 를 붙이면 상태 디렉터리까지 지웁니다 |
 
 출력 언어는 `mode ko`와 `mode en`으로 전환합니다. 기본값은 영어이며, statusline의 칩은 언제나 기호로 표시합니다. 전체 옵션은 [영문 README](./README.en.md#options)를 참고하십시오.
 

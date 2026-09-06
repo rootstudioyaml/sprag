@@ -205,7 +205,7 @@ export async function run({ args, hasFlag, numArg }) {
         try {
           const { spawn } = await import('node:child_process');
           spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
-            { detached: true, stdio: 'ignore' }).unref();
+            { detached: true, stdio: 'ignore', windowsHide: true }).unref();
         } catch (e) { debug('route-scan:spawn-refresh', e); /* stale cache is still usable below */ }
       }
       const open = rs.openCandidates(cache);
