@@ -463,6 +463,18 @@ Verified against real files: a community Bootstrap UI kit (8.1MB, 4,155 nodes, 1
 
 Two files three hundred times apart in size cost the same, because Read truncates long before the file ends — you pay for a whole document and receive a fraction of one. The baseline is therefore a flat 44,000 tokens. For comparison, the same probe on a pptx cost +317 tokens and on a docx +185: a refusal message, and nothing else.
 
+#### Why the baseline does not scale with file size
+
+A baseline has to be what would actually have been spent without the converter. Intuition says a bigger file burns more, but the `Read` tool has a cap (2,000 lines by default, plus a per-line character limit), and a binary file hits it almost immediately: even the 26KB file was already truncated, which is why two files 300× apart came out 201 tokens apart. Had the 8.1MB file gone in whole it would have been millions of tokens — money nobody could have spent, since it does not fit in a 200k context window. Claiming to have saved unspendable money is flattery, not measurement.
+
+The same principle runs through every baseline here:
+
+- **`.fig`, flat 44,000** — set below both measurements (44,195 and 43,994). A model could burn size-proportional tokens by re-Reading at successive offsets, but one Read is what a sane agent does once the bytes turn out to be binary noise, so one Read is the honest counterfactual.
+- **PDF, 2,500 per page** — below both measured values (2,542 and 2,934).
+- **Office formats, the file's actual XML size** — the one case where proportional is right, because a person really does end up reading that XML; it is measured per file rather than applied as a ratio.
+
+The common rule: wherever an estimate and a measurement diverge, the lower number wins. A figure the user can trust is worth more than one that flatters the tool.
+
 ### Editing a document: copy, then script
 
 Conversion is one-way — editing the cached `.md` changes nothing in the source. The hook refuses `Edit`/`Write` on both the cache and the original binary, and points at the right path instead: copy the original, edit the copy with a script, re-convert the copy to verify.
