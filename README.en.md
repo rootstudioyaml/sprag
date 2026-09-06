@@ -461,6 +461,20 @@ Conversion is one-way — editing the cached `.md` changes nothing in the source
 
 All four formats were exercised end to end on 2026-09-06: 10 docx run replacements plus three consecutive re-saves, a pptx bar-to-line chart swap with an added data point, xlsx value edits and a new row, and a fig text edit with re-encode and re-parse. In every case the original was byte-identical afterwards and the re-converted copy showed the change. One caveat: removing a chart shape from a pptx leaves the old chart XML part orphaned — PowerPoint ignores it, but delete the part and its rels for a clean file. Charts and images never appear in a conversion, so visual edits must be confirmed in the application itself.
 
+### DRM-wrapped documents
+
+Encryption and DRM are different problems with different answers. Enterprise DRM (Fasoo, MarkAny, SoftCamp and the like) does not password a document — it wraps the whole file, and only processes the vendor's agent has whitelisted ever see plaintext. Python is not one of them, so what sits on disk is ciphertext behind a vendor header, and **no password will open it.**
+
+The first bytes decide which story to tell: a zip header means a truncated download, an OLE container means a password, and neither means the file is not that format at all.
+
+```
+✗ bad-archive: File is not a zip file            → download it again
+✗ encrypted: password-protected Office file      → ask for an unlocked copy
+✗ drm-protected: DRM-wrapped file (FASOO)        → ask for a copy released from DRM
+```
+
+Vendor names are matched only to say which client to go to; the classification stands without recognising the vendor. PDFs are judged the same way through their public DRM security-handler names (FOPN_foweb, EBX_HANDLER, Adobe.APS).
+
 ### Locked documents, and Windows
 
 **A password-protected document is a state, not an error.** Office encrypts by wrapping the package in an OLE compound file rather than a zip, so opening one as a zip used to report "not a zip file" — which reads as a broken download and sends the user after the wrong problem. It is now identified before conversion:
