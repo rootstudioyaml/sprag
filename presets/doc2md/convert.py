@@ -92,6 +92,62 @@ def encryption_problem(path, ext):
     return None
 
 
+# Enterprise DRM (Fasoo, MarkAny, SoftCamp and the like) does not password a
+# document — it wraps the whole file, and only processes the vendor's agent
+# has whitelisted ever see plaintext. Python is not one of them, so the bytes
+# on disk are ciphertext with a vendor header. Names are matched only to say
+# *which* product to go to; the classification does not depend on them.
+DRM_MARKERS = [b"FASOO", b"MarkAny", b"MAWDRM", b"SoftCamp", b"Sherpa", b"TrustDRM",
+               b"DocuGate", b"WISEDRM", b"UNIDOCS", b"SecureDoc"]
+# PDF DRM announces itself as a security handler, and these names are public.
+PDF_DRM_FILTERS = [b"FOPN_foweb", b"EBX_HANDLER", b"Adobe.APS", b"FOPN_fLock"]
+
+
+def drm_hint(head):
+    """Vendor name found in the file header, or None."""
+    for marker in DRM_MARKERS:
+        if marker in head or marker.decode().encode("utf-16-le") in head:
+            return marker.decode()
+    return None
+
+
+def wrapper_problem(path, ext):
+    """('drm-protected', detail) when the container is not the format at all."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(8192)
+    except OSError:
+        return None
+    if not head:
+        return None
+
+    if ext in ZIP_EXTS:
+        # A truncated download still starts with a zip local-file header; a
+        # wrapped file does not start with anything of the format at all.
+        # Telling those two apart is the difference between "re-download it"
+        # and "get it released from DRM".
+        if head[:2] == b"PK" or head[:8] == OLE_MAGIC:
+            return None
+        vendor = drm_hint(head)
+        return ("drm-protected",
+                "DRM-wrapped file (%s)" % vendor if vendor else "the file is not an Office container at all")
+
+    if ext == ".pdf":
+        if not head.startswith(b"%PDF"):
+            vendor = drm_hint(head)
+            return ("drm-protected",
+                    "DRM-wrapped file (%s)" % vendor if vendor else "the file is not a PDF at all")
+        try:
+            with open(path, "rb") as fh:
+                blob = fh.read(2_000_000)
+        except OSError:
+            return None
+        for f in PDF_DRM_FILTERS:
+            if f in blob:
+                return ("drm-protected", "PDF with a DRM security handler (%s)" % f.decode())
+    return None
+
+
 def check_zip(path):
     """Classify an archive before opening it as a document.
 
@@ -244,6 +300,12 @@ def main():
     locked = encryption_problem(path, ext)
     if locked:
         fail(locked[0], locked[1])
+
+    # After the password check, because an OLE-wrapped Office file is an
+    # encrypted document rather than a DRM-wrapped one.
+    wrapped = wrapper_problem(path, ext)
+    if wrapped:
+        fail(wrapped[0], wrapped[1])
 
     if ext in ZIP_EXTS:
         problem = check_zip(path)

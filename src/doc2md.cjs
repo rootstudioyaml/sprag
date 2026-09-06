@@ -413,8 +413,9 @@ function installConverter({ onProgress = () => {} } = {}) {
 /**
  * Convert one file. Returns `{ ok: true, cacheFile, meta }`, or
  * `{ ok: false, reason, detail }` where reason is one of:
- *   no-markitdown | python-too-old | no-figparser | encrypted | too-large |
- *   sensitive | unsafe-archive | no-text | convert-failed | timeout
+ *   no-markitdown | python-too-old | no-figparser | encrypted |
+ *   drm-protected | too-large | sensitive | unsafe-archive | no-text |
+ *   convert-failed | timeout
  *
  * Every failure is a reason to leave the original Read alone, never to break
  * it. That is the whole contract with the hook.
@@ -680,6 +681,14 @@ function decideForRead(context, opts = {}) {
         + `  진행 상황: ${INSTALL_HINT} 를 직접 실행하면 설치 로그를 볼 수 있습니다.`,
     };
   }
+  if (result.reason === 'drm-protected') {
+    return {
+      deny: false,
+      reason: `[doc2md] ${name} 는 DRM 으로 보호된 파일이라 변환하지 못했습니다(${result.detail || ''}).\n`
+        + '  DRM 은 암호 입력으로 풀리지 않습니다. 벤더 에이전트가 허용한 프로그램에서만 평문이 보이므로, '
+        + '사용자에게 DRM 클라이언트에서 연 뒤 해제본으로 저장하거나 반출 승인을 받은 사본을 요청하십시오.',
+    };
+  }
   if (result.reason === 'encrypted') {
     return {
       deny: false,
@@ -817,6 +826,10 @@ function contextForPrompt(payload, opts = {}) {
       lines.push(lang === 'ko'
         ? `  ${name}: 변환기를 설치하는 중입니다(첫 실행에만 걸립니다). 설치가 끝나면 다음 요청부터 자동 변환됩니다.`
         : `  ${name}: the converter is installing now (first run only). It will convert automatically from the next request.`);
+    } else if (result.reason === 'drm-protected') {
+      lines.push(lang === 'ko'
+        ? `  ${name}: DRM 으로 보호된 파일입니다(${result.detail || ''}). 암호로는 풀 수 없으므로, DRM 클라이언트에서 저장한 해제본이나 반출 승인 사본을 달라고 사용자에게 요청하십시오.`
+        : `  ${name}: the file is DRM-wrapped (${result.detail || ''}). A password will not open it — ask the user for a copy released from DRM.`);
     } else if (result.reason === 'encrypted') {
       lines.push(lang === 'ko'
         ? `  ${name}: 암호가 걸린 문서입니다. 암호를 푼 사본을 달라고 사용자에게 요청하십시오.`

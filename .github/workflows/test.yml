@@ -26,3 +26,26 @@ jobs:
       # boots and its subcommands parse on this platform.
       - run: node bin/cli.js --statusline --no-color --days 1
       - run: node bin/cli.js --demo table
+
+  # The conversion path is the part that is only real per-OS: building the
+  # venv, resolving an interpreter (`py -3` on Windows), installing the .fig
+  # parser through npm (npm.cmd there), and converting an actual document.
+  # None of that is exercised by the unit suite, and all of it is what a
+  # company rollout hits first.
+  doc2md:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # markitdown needs 3.10+; the runner images ship several, and this
+      # pins the one the check runs against.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: node scripts/verify-doc2md.mjs
