@@ -31,7 +31,11 @@ jobs:
       - name: Stage assets
         run: cp docs/statusline.png site/statusline.png
 
+      # enablement turns Pages on from the workflow itself, so no manual
+      # repository-settings step is needed on a fresh clone.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
