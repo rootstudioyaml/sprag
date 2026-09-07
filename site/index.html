@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>claude-token-saver · Claude Code 토큰 비용을 줄이는 CLI (모델 라우팅 랫쳇 · statusline · doc2md)</title>
+<meta name="description" content="claude-token-saver는 Claude Code 세션 기록을 사후에 분석해, 비싼 모델이 반복하던 쉬운 작업을 haiku·sonnet 서브에이전트로 위임하는 룰을 만듭니다. 실시간 라우터가 아니므로 프롬프트 캐시를 깨지 않습니다. statusline으로 절감액과 rate-limit, 캐시 히트율을 보여 주고, pptx·xlsx·pdf·docx·fig를 Markdown으로 변환합니다. 의존성 0, npm i -g claude-token-saver.">
+<meta name="author" content="rootstudioyaml">
+<link rel="canonical" href="https://rootstudioyaml.github.io/claude-token-saver/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="claude-token-saver">
+<meta property="og:title" content="claude-token-saver · Claude Code 토큰 비용을 줄이는 CLI">
+<meta property="og:description" content="비싼 모델이 반복하던 쉬운 작업을 사후 분석으로 찾아내 haiku·sonnet에 위임합니다. 실시간 라우터가 아니라서 프롬프트 캐시를 깨지 않고, 절감액은 추정이 아니라 원장 기록입니다.">
+<meta property="og:url" content="https://rootstudioyaml.github.io/claude-token-saver/">
+<meta property="og:image" content="https://rootstudioyaml.github.io/claude-token-saver/statusline.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="claude-token-saver · Claude Code 토큰 비용을 줄이는 CLI">
+<meta name="twitter:description" content="비싼 모델이 반복하던 쉬운 작업을 사후 분석으로 찾아내 haiku·sonnet에 위임합니다. 절감액은 추정이 아니라 원장 기록입니다.">
+<meta name="twitter:image" content="https://rootstudioyaml.github.io/claude-token-saver/statusline.png">
+<link rel="alternate" hreflang="ko" href="https://rootstudioyaml.github.io/claude-token-saver/">
+<link rel="alternate" hreflang="x-default" href="https://rootstudioyaml.github.io/claude-token-saver/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "claude-token-saver",
+  "alternateName": "Claude Token Saver",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS, Linux, Windows",
+  "url": "https://rootstudioyaml.github.io/claude-token-saver/",
+  "downloadUrl": "https://www.npmjs.com/package/claude-token-saver",
+  "codeRepository": "https://github.com/rootstudioyaml/claude-token-saver",
+  "installUrl": "https://www.npmjs.com/package/claude-token-saver",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": { "@type": "Person", "name": "rootstudioyaml" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "Claude Code 세션 기록을 사후에 분석해 비싼 모델이 반복 처리하던 쉬운 작업을 haiku·sonnet 서브에이전트로 위임하는 룰을 만드는 CLI. statusline으로 절감액과 rate-limit, 프롬프트 캐시 상태를 보여 주고 pptx·xlsx·pdf·docx·fig를 Markdown으로 변환한다."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "claude-token-saver는 실시간 LLM 라우터입니까?",
+      "acceptedAnswer": { "@type": "Answer", "text": "아닙니다. 요청을 실시간으로 가로채지 않고, 세션이 끝난 뒤에 로컬 기록을 읽어 위임 후보를 찾습니다. 찾아낸 유형은 다음 세션부터 더 싼 모델이 맡도록 룰로 등록합니다." }
+    },
+    {
+      "@type": "Question",
+      "name": "세션 도중에 모델을 바꾸면 왜 비용이 오히려 늘어납니까?",
+      "acceptedAnswer": { "@type": "Answer", "text": "프롬프트 캐시는 모델별로 따로 유지되기 때문입니다. 중간에 더 싼 모델로 전환하면 새 모델은 빈 캐시에서 시작하고 그때까지 쌓인 대화 전체를 정가로 다시 읽습니다. 캐시 히트가 원래 입력가의 10분의 1 수준이므로 대화가 2만 토큰만 넘어가도 전환 한 번에 절감액이 상쇄됩니다." }
+    },
+    {
+      "@type": "Question",
+      "name": "절감액은 어떻게 계산합니까?",
+      "acceptedAnswer": { "@type": "Answer", "text": "위임된 실행마다 기준 모델과 실제 실행 모델의 가격표를 같은 토큰량에 각각 적용하고 그 차액을 원장에 기록합니다. route-scan savings 명령으로 룰 단위까지 역추적할 수 있습니다. 등록된 룰이 담당하지 않는 위임과 가격표가 인식하지 못하는 모델은 집계에서 제외합니다." }
+    },
+    {
+      "@type": "Question",
+      "name": "설치는 어떻게 합니까?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Node.js 18 이상에서 npm i -g claude-token-saver 한 줄이면 됩니다. 의존성은 없습니다. 설치하면 statusline과 Skill, SessionStart 훅, Harness 다섯 원칙, 최초 route-scan이 함께 준비됩니다." }
+    }
+  ]
+}
+</script>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --line: #30363d;
+    --fg: #e6edf3; --muted: #9198a1; --accent: #7ee787; --link: #79c0ff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #ffffff; --panel: #f6f8fa; --line: #d1d9e0; --fg: #1f2328; --muted: #59636e; --accent: #1a7f37; --link: #0969da; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", Roboto, sans-serif;
+  }
+  main { max-width: 780px; margin: 0 auto; padding: 48px 20px 80px; }
+  h1 { font-size: 2rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 { font-size: 1.3rem; margin: 48px 0 12px; letter-spacing: -0.01em; }
+  h3 { font-size: 1.05rem; margin: 28px 0 8px; }
+  p { margin: 12px 0; }
+  a { color: var(--link); }
+  .tagline { color: var(--muted); font-size: 1.05rem; margin-bottom: 24px; }
+  .badges a { margin-right: 8px; }
+  pre {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  p code, li code, td code { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 0.9em; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 0.95rem; }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--panel); }
+  img { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
+  .lang { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>claude-token-saver</h1>
+<p class="tagline">Claude Code에서 비싼 모델이 반복하던 쉬운 작업을 더 싼 모델로 내려보내고, 아낀 금액을 statusline에 보여 주는 CLI입니다. 의존성은 없고 설치는 한 줄입니다.</p>
+
+<p class="badges">
+  <a href="https://www.npmjs.com/package/claude-token-saver">npm 패키지</a> ·
+  <a href="https://github.com/rootstudioyaml/claude-token-saver">GitHub 저장소</a> ·
+  <a href="https://github.com/rootstudioyaml/claude-token-saver/blob/main/README.md">한국어 README</a> ·
+  <a href="https://github.com/rootstudioyaml/claude-token-saver/blob/main/README.en.md">English README</a>
+</p>
+
+<pre><code>npm i -g claude-token-saver</code></pre>
+
+<p><img src="statusline.png" alt="claude-token-saver의 statusline 예시입니다. 첫 줄은 라우팅으로 절감한 금액을, 둘째 줄은 진단 칩을 보여 줍니다."></p>
+
+<h2>네 가지 기능이 함께 동작합니다</h2>
+<table>
+  <thead><tr><th>기능</th><th>하는 일</th><th>효과</th></tr></thead>
+  <tbody>
+    <tr><td>🔀 라우팅</td><td>반복되는 쉬운 작업을 더 싼 모델에 위임합니다</td><td>절감액을 원장에 실측해 기록합니다</td></tr>
+    <tr><td>📄 문서 변환</td><td>pptx·xlsx·pdf·docx·fig를 읽기 전에 Markdown으로 변환합니다</td><td>발표자료 한 건에 51만 토큰을 절약합니다</td></tr>
+    <tr><td>🅷 Harness</td><td>증거 없는 완료 보고와 검증 생략을 차단합니다</td><td>실측 비용이 18.6% 감소했습니다</td></tr>
+    <tr><td>⚙️ Ratchet</td><td>한 번 겪은 에러를 룰로 고정합니다</td><td>같은 실수가 다시 일어나지 않습니다</td></tr>
+  </tbody>
+</table>
+
+<h2>실시간 라우터가 아닙니다</h2>
+<p>이 도구는 요청을 실시간으로 가로채지 않습니다. <strong>세션이 끝난 뒤에</strong> 로컬 기록을 읽어서 비싼 모델이 반복해서 처리해 온 쉬운 유형을 찾아내고, 그 유형은 <strong>다음 세션부터</strong> 더 싼 모델이 맡도록 룰로 등록합니다. 추가로 LLM을 호출하지 않으므로 분석 자체에 드는 비용도 없습니다.</p>
+
+<h3>실시간 모델 라우팅이 오히려 비용을 키우는 이유</h3>
+<p>프롬프트 캐시는 <strong>모델별로 따로 유지됩니다.</strong> 그래서 세션 중간에 더 싼 모델로 전환하면 새 모델은 빈 캐시에서 시작하고, 그때까지 쌓인 대화 전체를 정가로 다시 읽어야 합니다. 캐시 히트는 원래 입력가의 10분의 1 수준이므로, 대화가 2만 토큰만 넘어가도 전환 한 번에 그날 아낀 금액이 통째로 사라집니다. 싼 모델로 옮겼는데 청구서는 더 커지는, 실시간 라우팅의 대표적인 역설입니다.</p>
+<p>이 도구는 메인 세션의 모델을 건드리지 않습니다. <strong>서브에이전트 위임만 사용하므로</strong> 메인 세션의 캐시는 그대로 유지되고, 위임된 작업만 별도 컨텍스트에서 싼 모델이 처리합니다.</p>
+
+<h2>절감액은 추정이 아니라 원장 기록입니다</h2>
+<p>위임된 실행 하나하나에 대해, 룰이 승격되기 전에 그 유형을 처리하던 기준 모델과 실제로 처리한 모델의 가격표를 같은 토큰량에 각각 적용하고, 그 차액을 기록합니다.</p>
+<pre><code>$ claude-token-saver route-scan savings
+
+🔀 라우팅 절감 누적 $2.09  (최근 7일 $1.40 · 30일 $2.09)
+
+모델 이동별:
+  claude-fable-5 → claude-sonnet-5   —  1회, $0.72
+  claude-opus-5 → claude-haiku-4-5   —  1회, $0.57</code></pre>
+<p>등록된 룰이 담당하지 않는 위임과, 가격표가 인식하지 못하는 모델명은 집계에서 제외합니다. 정직한 숫자가 큰 숫자보다 낫기 때문입니다.</p>
+
+<h2>주요 명령</h2>
+<table>
+  <thead><tr><th>명령</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>claude-token-saver</code></td><td>최근 1일 진단 리포트를 출력합니다</td></tr>
+    <tr><td><code>route-scan</code></td><td>상위 모델이 반복 처리한 쉬운 작업을 감지해 위임 룰을 제안합니다</td></tr>
+    <tr><td><code>route-scan savings</code></td><td>라우팅 절감 원장을 실행 단위까지 보여 줍니다</td></tr>
+    <tr><td><code>harness init</code></td><td>다섯 원칙을 <code>CLAUDE.md</code>에 셋업합니다</td></tr>
+    <tr><td><code>doc2md &lt;파일&gt;</code></td><td>문서를 Markdown으로 변환합니다</td></tr>
+    <tr><td><code>handoff</code></td><td>한도가 임박했을 때 작업 상태를 파일로 백업합니다</td></tr>
+    <tr><td><code>uninstall [--purge]</code></td><td>등록한 훅과 statusline, Skill을 제거합니다</td></tr>
+  </tbody>
+</table>
+
+<h2>statusline이 잡아 주는 것</h2>
+<ul>
+  <li><strong>한도 초과 예방</strong>: 5시간과 7일 rate-limit 윈도가 90%에 닿으면 경고합니다.</li>
+  <li><strong>캐시 낭비 감지</strong>: 히트율과 TTL, 1M 컨텍스트를 감지해 토큰이 급증한 원인을 짚어 줍니다.</li>
+  <li><strong>한국어 문체 교정</strong>: 한국어 환경이면 자동으로 켜집니다.</li>
+</ul>
+
+<h2>English summary</h2>
+<p><strong>claude-token-saver</strong> routes the easy work your expensive Claude model keeps repeating down to haiku or sonnet. It is a post-hoc session analyzer, not a realtime router, and it makes no extra LLM calls.</p>
+<p>Because prompt caches are kept per model, switching models mid-session forces the new model to re-read the whole conversation at full price. This tool never changes the main session's model; it only delegates matched work to cheaper subagents, so the main cache stays warm. Savings are recorded in a ledger per delegated run, not estimated.</p>
+<p>It also ships a statusline (rate-limit windows, cache hit rate, TTL countdown, context usage), a five-principle harness that blocks unverified "it's done" reports, an error ratchet, and <code>doc2md</code>, which converts pptx, xlsx, pdf, docx and fig files to Markdown before the model reads them. Zero dependencies, one-line install:</p>
+<pre><code>npm i -g claude-token-saver</code></pre>
+<p>Requires Node.js 18 or newer. MIT licensed. Full documentation is in the <a href="https://github.com/rootstudioyaml/claude-token-saver/blob/main/README.en.md">English README</a>.</p>
+
+<footer>
+  MIT 라이선스 · <a href="https://github.com/rootstudioyaml/claude-token-saver">github.com/rootstudioyaml/claude-token-saver</a> · <a href="https://www.npmjs.com/package/claude-token-saver">npmjs.com/package/claude-token-saver</a>
+</footer>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://rootstudioyaml.github.io/claude-token-saver/sitemap.xml
