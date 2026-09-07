@@ -2,6 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
+🌐 **[Project page](https://rootstudioyaml.github.io/claude-token-saver/)**
+
 # claude-token-saver
 
 **Shows what it saved, on two lines.** It moves the easy work your expensive model keeps repeating onto cheaper ones, and turns documents the model cannot read into Markdown. Both figures are ledger entries rather than estimates, and whichever saved more takes the top line. Zero dependencies, one-line install.

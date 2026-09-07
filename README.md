@@ -2,6 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
+🌐 **[프로젝트 소개 페이지](https://rootstudioyaml.github.io/claude-token-saver/)**
+
 # claude-token-saver
 
 **아낀 돈을 두 줄로 보여 줍니다.** 비싼 모델이 반복하던 쉬운 작업을 싼 모델로 내려보내고, 모델이 읽지 못하는 문서를 Markdown 으로 바꿉니다. 두 절감액 모두 추정이 아니라 원장 기록이고, 더 많이 아낀 쪽이 첫 줄을 차지합니다. 의존성 0, 설치 한 줄.
