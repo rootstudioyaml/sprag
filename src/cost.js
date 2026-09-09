@@ -125,7 +125,12 @@ const TIER_RANK = {
  * from the ranking instead of guessed at.
  */
 export function isUnknownModel(model) {
-  return !model || String(model).toLowerCase() === 'unknown';
+  if (!model) return true;
+  const m = String(model).toLowerCase();
+  // "<synthetic>" is Claude Code's placeholder for locally-generated error
+  // stubs — no real API call happened, so pricing it as Sonnet would be a
+  // silent guess (session-records.js skips it for the same reason).
+  return m === 'unknown' || m === '<synthetic>';
 }
 
 /**

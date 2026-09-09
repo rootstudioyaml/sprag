@@ -1,21 +1,31 @@
 /**
- * Install/uninstall the SessionEnd hook in ~/.claude/settings.json
+ * Install/uninstall the cache-monitor PostToolUse hook in ~/.claude/settings.json
+ *
+ * Registered as a CLI subcommand (`claude-token-saver --hook-run`) like every
+ * other hook in this package — NOT as a copied file. The old copy-to-home
+ * approach pinned a stale hook.cjs in ~/.claude/ forever, never shipped
+ * harness-analyzer.cjs alongside it, and survived `uninstall` because its
+ * command line did not contain the CLI name. Registering the CLI itself
+ * removes the copy, the staleness, and the orphan in one move.
  */
 
-import { readFile, writeFile, copyFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { readFile, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 
 const SETTINGS_PATH = join(homedir(), '.claude', 'settings.json');
-const HOOK_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'hook.cjs');
-const HOOK_DEST = join(homedir(), '.claude', 'cache-monitor-hook.cjs');
+// Legacy copied-file location — removed on install/uninstall so machines that
+// installed an older version don't keep a dead hook script around.
+const LEGACY_HOOK_DEST = join(homedir(), '.claude', 'cache-monitor-hook.cjs');
 const HOOK_MARKER = 'cache-monitor-hook';
 
-export async function installHook({ threshold = 0.7 } = {}) {
-  // Copy hook script to ~/.claude/ for stable path
-  await copyFile(HOOK_SCRIPT, HOOK_DEST);
+function isCacheMonitorHook(nh) {
+  const cmd = nh?.command;
+  if (typeof cmd !== 'string') return false;
+  return cmd.includes(HOOK_MARKER) || cmd.includes('--hook-run');
+}
 
+export async function installHook({ threshold = 0.7 } = {}) {
   let settings;
   try {
     const raw = await readFile(SETTINGS_PATH, 'utf8');
@@ -27,24 +37,18 @@ export async function installHook({ threshold = 0.7 } = {}) {
   if (!settings.hooks) settings.hooks = {};
   if (!Array.isArray(settings.hooks.PostToolUse)) settings.hooks.PostToolUse = [];
 
-  // Remove existing cache-monitor hook if present
+  // Remove existing cache-monitor hook if present — matches both the current
+  // subcommand form and the legacy copied-file form.
   settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter(
-    (h) => {
-      // Check nested hooks structure
-      const nested = h.hooks || [];
-      return !nested.some((nh) => nh.command?.includes(HOOK_MARKER));
-    },
+    (h) => !(h.hooks || []).some(isCacheMonitorHook),
   );
 
-  // Add new hook (correct 3-level nested structure)
-  // Normalize path separators for Windows compatibility in shell commands
-  const hookPath = HOOK_DEST.replace(/\\/g, '/');
   settings.hooks.PostToolUse.push({
     matcher: 'Bash|Edit|Write',
     hooks: [
       {
         type: 'command',
-        command: `node "${hookPath}" --threshold ${threshold}`,
+        command: `claude-token-saver --hook-run --threshold ${threshold}`,
         timeout: 10,
       },
     ],
@@ -52,7 +56,10 @@ export async function installHook({ threshold = 0.7 } = {}) {
 
   await writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2) + '\n', 'utf8');
 
-  console.log(`✓ Hook installed at ${HOOK_DEST}`);
+  // Clean up the legacy copy left by older versions.
+  await rm(LEGACY_HOOK_DEST, { force: true }).catch(() => {});
+
+  console.log('✓ Hook installed (PostToolUse → claude-token-saver --hook-run)');
   console.log(`  Settings updated: ${SETTINGS_PATH}`);
   console.log(`  Threshold: ${(threshold * 100).toFixed(0)}%`);
   console.log(`  Stats file: ~/.claude/cache-stats.jsonl`);
@@ -71,10 +78,7 @@ export async function uninstallHook() {
   if (settings.hooks?.PostToolUse) {
     const before = settings.hooks.PostToolUse.length;
     settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter(
-      (h) => {
-        const nested = h.hooks || [];
-        return !nested.some((nh) => nh.command?.includes(HOOK_MARKER));
-      },
+      (h) => !(h.hooks || []).some(isCacheMonitorHook),
     );
     const removed = before - settings.hooks.PostToolUse.length;
 
@@ -86,4 +90,7 @@ export async function uninstallHook() {
   } else {
     console.log('No cache-monitor hook found in settings.');
   }
+
+  // The legacy copied hook file is dead weight either way.
+  await rm(LEGACY_HOOK_DEST, { force: true }).catch(() => {});
 }

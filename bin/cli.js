@@ -89,7 +89,40 @@ const KNOWN_SUBCOMMANDS = new Set([
   'doc2md', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
 ]);
 
+const USAGE = `claude-token-saver — Claude Code token usage, cache health, and model routing
+
+Usage:
+  claude-token-saver                    default report (last 30 days)
+  claude-token-saver --days 7           last 7 days
+  claude-token-saver --format json      JSON output
+  claude-token-saver --format csv       CSV output
+  claude-token-saver --project myproj   filter by project
+  claude-token-saver route-scan         detect recurring easy work → delegation candidates
+  claude-token-saver install            set up skill/hooks/statusline
+  claude-token-saver install --yes      take the defaults without asking
+  claude-token-saver uninstall          remove everything install added
+  claude-token-saver harness check      score the harness setup in CLAUDE.md
+  claude-token-saver harness analyze    run the harness transcript analysis manually
+  claude-token-saver last               most recent warning + how to handle it
+  claude-token-saver history            recent warning transitions
+  claude-token-saver handoff            write a session handoff file
+  claude-token-saver upgrade            install the latest release
+  claude-token-saver --install-hook     install cache-monitor PostToolUse hook
+  claude-token-saver --uninstall-hook   remove that hook
+  claude-token-saver --statusline       one-line output for Claude Code statusline
+      --verbose / --no-color / --icon / --no-timer / --single-line
+
+Run any subcommand with --help for its own options where available.
+`;
+
 async function main() {
+  // Help must never fall through to the default report — that runs a full
+  // 30-day scan, which is the opposite of what someone asking for help wants.
+  if (hasFlag('--help') || hasFlag('-h') || args[0] === 'help') {
+    process.stdout.write(USAGE);
+    return;
+  }
+
   // A hook invocation names a subcommand and expects either silence or that
   // subcommand's own protocol on stdout. If this build does not have the
   // subcommand — an older global install against a newer settings.json, which

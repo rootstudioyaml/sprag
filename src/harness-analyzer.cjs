@@ -39,15 +39,20 @@ const PEV_TOOLUSE_THRESHOLD = 5;
 // researching, which is exactly the behavior we don't want to punish.
 const MUTATING_TOOL_RE = /^(edit|write|multiedit|notebookedit|bash)$/i;
 
+// Mirrors src/paths.js userDataDir() exactly (same order as doc2md.cjs).
+// Duplicated because this file is CommonJS and paths.js is ESM; the
+// precedence must match or state lands where the rest of the tool won't look.
 function stateDir() {
-  if (process.platform === 'win32') {
-    return path.join(process.env.APPDATA || os.homedir(), 'claude-token-saver');
+  if (process.env.XDG_CONFIG_HOME) {
+    return path.join(process.env.XDG_CONFIG_HOME, 'claude-token-saver');
+  }
+  if (process.platform === 'win32' && process.env.APPDATA) {
+    return path.join(process.env.APPDATA, 'claude-token-saver');
   }
   if (process.platform === 'darwin') {
     return path.join(os.homedir(), 'Library', 'Application Support', 'claude-token-saver');
   }
-  const xdg = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
-  return path.join(xdg, 'claude-token-saver');
+  return path.join(os.homedir(), '.config', 'claude-token-saver');
 }
 
 function readJsonl(file) {

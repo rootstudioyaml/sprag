@@ -53,7 +53,18 @@ const REJECTION_RE = /doesn't want to proceed|tool use was rejected|doesn't want
 // yet" was 7/65 real errors in one project, edit-races + Task-lifecycle several
 // more). Kept NARROW on purpose: ambiguous shell failures ("Exit code N", "File
 // does not exist" on a Read) stay counted — those are genuine difficulty signal.
-const SELF_CORRECTED_RE = /File has not been read yet|has been modified since read|String to replace not found|is not running \(status:|<tool_use_error>Blocked:/i;
+// Tool-argument schema violations (InputValidationError, "does not match the
+// required schema/pattern") are the model mis-building a call, corrected on
+// the next attempt — same self-correction family, not task difficulty.
+// Measured 2026-09-09: they were the single largest numerator item (10/125).
+const SELF_CORRECTED_RE = /File has not been read yet|has been modified since read|String to replace not found|is not running \(status:|<tool_use_error>Blocked:|InputValidationError|does not match the required/i;
+
+// Failures with no diagnosable content — a bare exit code or "no output" —
+// carry no evidence about WHY they failed, so they cannot support a
+// rule-health verdict either way. Excluded from the numerator (16% of it was
+// this plus schema errors, against a 20% review threshold). Anchored: an
+// "Exit code 1" followed by a traceback still counts.
+const NO_SIGNAL_RE = /^\s*(Command failed with no output|Exit code \d+)\s*$/;
 
 // Environment constraints — a sandbox without `curl`/`wc`, a corporate proxy
 // timing a fetch out — are not task difficulty either. The agent routinely
@@ -72,7 +83,8 @@ function toolResultText(content) {
 function isRealToolError(block) {
   if (!block || block.type !== 'tool_result' || !block.is_error) return false;
   const txt = toolResultText(block.content);
-  return !REJECTION_RE.test(txt) && !SELF_CORRECTED_RE.test(txt) && !ENVIRONMENT_RE.test(txt);
+  return !REJECTION_RE.test(txt) && !SELF_CORRECTED_RE.test(txt)
+    && !ENVIRONMENT_RE.test(txt) && !NO_SIGNAL_RE.test(txt);
 }
 
 export async function collectSessionRecords(filePath, { includeContent = true } = {}) {

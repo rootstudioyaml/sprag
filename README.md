@@ -196,6 +196,7 @@ statusline은 대화 상자를 띄울 수 없고, 300밀리초마다 다시 그�
 claude-token-saver harness init                # 이 프로젝트에 셋업
 claude-token-saver harness init --global       # ~/.claude/CLAUDE.md, 모든 프로젝트에 적용
 claude-token-saver harness check               # 현재 점수 (글로벌 fallback 인정)
+claude-token-saver harness analyze             # 훅 없이도 수동으로 전사 분석을 실행해 harness-state.json 갱신
 claude-token-saver harness promote <N> --project|--global   # 경고 #N → ratchet 룰 (스코프 필수)
 claude-token-saver harness promote "<룰 텍스트>" --project|--global  # 내가 직접 정의한 룰도 같은 명령으로 등록
 claude-token-saver harness pull                # 패키지 동봉 큐레이션 룰 → 내 글로벌 랫쳇에 등록 (opt-in, 중복 스킵)

@@ -35,13 +35,29 @@ export function readStdinJson() {
   }
 }
 
+/**
+ * A percentage from the payload, or null when the field is absent, empty, or
+ * non-numeric. `Number(null|''|[])` is 0, so a plain Number() call renders
+ * missing data as "0% used" — the most dangerously wrong reading possible for
+ * a cap gauge. Out-of-range values are clamped to 0..100 at this entry point
+ * so every renderer (and caps-cache.js, which persists the value) agrees.
+ */
+function normalizePct(raw) {
+  if (typeof raw !== 'number') {
+    if (typeof raw !== 'string' || raw.trim() === '') return null;
+    raw = Number(raw);
+  }
+  if (!Number.isFinite(raw)) return null;
+  return Math.max(0, Math.min(100, raw));
+}
+
 export function extractCaps(stdinJson) {
   if (!stdinJson || !stdinJson.rate_limits || typeof stdinJson.rate_limits !== 'object') return null;
   const windows = [];
   for (const [key, value] of Object.entries(stdinJson.rate_limits)) {
     if (!value || typeof value !== 'object') continue;
-    const usedPct = Number(value.used_percentage);
-    if (!Number.isFinite(usedPct)) continue;
+    const usedPct = normalizePct(value.used_percentage);
+    if (usedPct === null) continue;
     const resetsAt = Number(value.resets_at);
     windows.push({
       key,
@@ -82,9 +98,9 @@ export function bedrockDisplayFromId(id) {
 export function extractContextUsage(stdinJson) {
   const cw = stdinJson && stdinJson.context_window;
   if (!cw || typeof cw !== 'object') return null;
-  const usedPct = Number(cw.used_percentage);
+  const usedPct = normalizePct(cw.used_percentage);
   const size = Number(cw.context_window_size);
-  if (!Number.isFinite(usedPct)) return null;
+  if (usedPct === null) return null;
   return {
     usedPct,
     size: Number.isFinite(size) && size > 0 ? size : null,

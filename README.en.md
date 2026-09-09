@@ -216,6 +216,7 @@ Bootstrap five engineering principles (Ratchet · Evidence · PEV · Structured 
 claude-token-saver harness init                # this project
 claude-token-saver harness init --global       # ~/.claude/CLAUDE.md — every project
 claude-token-saver harness check               # current score (global fallback honored)
+claude-token-saver harness analyze             # run the transcript analysis manually (no hook needed); refreshes harness-state.json
 claude-token-saver harness promote <N> --project|--global   # warning #N → ratchet rule (scope required)
 claude-token-saver harness promote "<rule text>" --project|--global  # register your own hand-written rules the same way
 claude-token-saver harness pull                # register the package's curated ratchet rules into your global ratchet (opt-in, dedupes)

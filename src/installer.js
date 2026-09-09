@@ -88,6 +88,11 @@ honor that for the rest of the turn without changing the saved setting.
    | \`⚠ Output heavy\`  | Output ratio dominates input — inspect long generations. |
    | \`⚠ Call surge\`    | Request count is well above baseline.                 |
 
+   Note: the \`🚨 5H/7D\` cap chips come from Claude Code's own
+   \`rate_limits\` payload, which gateway backends (Bedrock, Vertex,
+   LiteLLM) do not provide — on those setups the chips never appear, and
+   that is expected, not a failure of this tool.
+
 6. **Suggest the next action.** For \`🚨 5H/7D\` chips, recommend running
    \`claude-token-saver handoff\` to back up the current work to a
    \`HANDOFF-*.md\` file before the cap hits, then continue in a fresh
@@ -150,8 +155,8 @@ export function removeLegacyCommand() {
 }
 
 // Registers/repairs the Claude Code statusLine entry in ~/.claude/settings.json.
-// - No statusLine yet: insert ours with refreshInterval:1.
-// - statusLine already points at claude-token-saver: ensure refreshInterval:1
+// - No statusLine yet: insert ours with refreshInterval:STATUSLINE_REFRESH_INTERVAL.
+// - statusLine already points at claude-token-saver: ensure that refreshInterval
 //   (this is the bit that makes the TTL countdown tick every second while idle).
 // - statusLine points at a different command: leave it alone unless --force.
 export function installStatusline({ force = false } = {}) {
@@ -187,7 +192,7 @@ export function installStatusline({ force = false } = {}) {
     }
     cur.refreshInterval = STATUSLINE_REFRESH_INTERVAL;
     writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
-    return { path: file, action: 'updated', reason: 'set refreshInterval=1' };
+    return { path: file, action: 'updated', reason: `set refreshInterval=${STATUSLINE_REFRESH_INTERVAL}` };
   }
 
   if (!force) {
@@ -512,7 +517,8 @@ export function uninstallAll({ purge = false } = {}) {
       if (!Array.isArray(list)) continue;
       const kept = list.filter((m) => !(
         Array.isArray(m?.hooks)
-        && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('claude-token-saver'))
+        && m.hooks.some((h) => typeof h?.command === 'string'
+          && (h.command.includes('claude-token-saver') || h.command.includes('cache-monitor-hook')))
       ));
       if (kept.length === list.length) continue;
       result.removed.push(`hooks.${event}`);
@@ -548,12 +554,51 @@ export function uninstallAll({ purge = false } = {}) {
   return { ...result, action: 'removed' };
 }
 
+// Older versions registered the cache-monitor hook as a file copied to
+// ~/.claude/cache-monitor-hook.cjs. That copy never included
+// harness-analyzer.cjs, went stale across upgrades, and escaped uninstall.
+// Rewrite any such entry to the CLI subcommand form and delete the copy.
+// Runs on every install (postinstall included) so upgrades self-heal.
+export function migrateLegacyCacheMonitorHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  if (!existsSync(file)) return { path: file, action: 'none' };
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (e) {
+    return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+  }
+  const list = settings.hooks?.PostToolUse;
+  if (!Array.isArray(list)) return { path: file, action: 'none' };
+
+  let migrated = false;
+  for (const m of list) {
+    if (!Array.isArray(m?.hooks)) continue;
+    for (const h of m.hooks) {
+      if (typeof h?.command !== 'string' || !h.command.includes('cache-monitor-hook')) continue;
+      const th = h.command.match(/--threshold\s+([\d.]+)/);
+      h.command = `claude-token-saver --hook-run --threshold ${th ? th[1] : '0.7'}`;
+      migrated = true;
+    }
+  }
+  if (migrated) writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+
+  const legacyCopy = join(dir, 'cache-monitor-hook.cjs');
+  if (existsSync(legacyCopy)) {
+    rmSync(legacyCopy, { force: true });
+    migrated = true;
+  }
+  return { path: file, action: migrated ? 'migrated' : 'none' };
+}
+
 export function installAll({ force = false } = {}) {
   return {
     skill: installSkill({ force }),
     statusline: installStatusline({ force }),
     sessionStartHook: installSessionStartHook(),
     briefHook: installBriefHook(),
+    cacheMonitorMigration: migrateLegacyCacheMonitorHook(),
     legacy: removeLegacyCommand(),
   };
 }

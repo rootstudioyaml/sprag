@@ -12,6 +12,15 @@
 
 'use strict';
 
+// CJS twin of src/debug.js \u2014 hook failures must stay silent for the session
+// but be visible under CTS_DEBUG=1, otherwise a broken path is
+// indistinguishable from "nothing to do".
+var CTS_DEBUG = !!process.env.CTS_DEBUG;
+function dbg(scope, err) {
+  if (!CTS_DEBUG) return;
+  process.stderr.write('[cts:' + scope + '] ' + ((err && err.stack) || String(err)) + '\n');
+}
+
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -30,14 +39,15 @@ if (thIdx !== -1 && process.argv[thIdx + 1]) {
 let stdin = '';
 try {
   stdin = fs.readFileSync(0, 'utf8');
-} catch {
-  // no stdin
+} catch (e) {
+  dbg('hook:stdin', e);
 }
 
 let context;
 try {
   context = JSON.parse(stdin);
-} catch {
+} catch (e) {
+  dbg('hook:parse-stdin', e);
   process.exit(0);
 }
 
@@ -52,8 +62,8 @@ function resolveSessionFile() {
     try {
       fs.statSync(context.transcript_path);
       return context.transcript_path;
-    } catch {
-      // path provided but file not found, try fallback
+    } catch (e) {
+      dbg('hook:transcript-path', e);
     }
   }
 
@@ -69,8 +79,8 @@ function resolveSessionFile() {
         // not here
       }
     }
-  } catch {
-    // no projects dir
+  } catch (e) {
+    dbg('hook:projects-dir', e);
   }
 
   return null;
@@ -83,7 +93,8 @@ if (!sessionFile) process.exit(0);
 let content;
 try {
   content = fs.readFileSync(sessionFile, 'utf8');
-} catch {
+} catch (e) {
+  dbg('hook:read-session', e);
   process.exit(0);
 }
 
@@ -155,8 +166,8 @@ const record = {
 // Append to stats file
 try {
   fs.appendFileSync(STATS_FILE, JSON.stringify(record) + '\n', 'utf8');
-} catch {
-  // can't write, ignore
+} catch (e) {
+  dbg('hook:append-stats', e);
 }
 
 // Alert if hit rate below threshold
@@ -179,6 +190,7 @@ try {
     cwd: cwd,
   });
   if (state) harnessAnalyzer.writeState(state);
-} catch (_) {
+} catch (e) {
+  dbg('hook:harness-analyzer', e);
   // analyzer is purely advisory \u2014 never break the hook on failure
 }

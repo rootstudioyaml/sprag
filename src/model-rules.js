@@ -48,6 +48,23 @@ export const HEALTH_MIN_SAMPLE = 10;
 // that merely resemble the rule's shape.
 export const HEALTH_MIN_SAMPLE_DELEGATED = 5;
 
+/**
+ * Wilson 95% lower bound for an observed error proportion. A raw rate over a
+ * tiny sample flips healthy rules to review (2/8 = 25% has a 95% interval of
+ * [7%, 59%] — it does NOT establish the rate exceeds 20%). Only flag when the
+ * evidence actually clears the threshold.
+ */
+export function wilsonLowerBound(errs, n) {
+  if (!n) return 0;
+  const z = 1.96;
+  const p = errs / n;
+  const z2 = z * z;
+  const denom = 1 + z2 / n;
+  const center = p + z2 / (2 * n);
+  const margin = z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n);
+  return Math.max(0, (center - margin) / denom);
+}
+
 // Fallback budget for rules promoted before budgets were recorded — matches
 // route-scan's pre-calibration defaults. Kept as local constants rather than
 // imported: route-scan imports this module, and a static back-import would
@@ -402,10 +419,12 @@ export function refreshModelRules(episodeStats, delegatedStats = new Map(), { no
     // catch a rule that is mis-firing on requests it should never have taken.
     if (r.delegatedRuns >= HEALTH_MIN_SAMPLE_DELEGATED) {
       r.healthSource = 'delegated';
-      r.status = r.delegatedErrRate > HEALTH_ERR_RATE ? 'review' : 'active';
+      r.status = wilsonLowerBound(d ? d.errRuns : 0, r.delegatedRuns) > HEALTH_ERR_RATE
+        ? 'review' : 'active';
     } else {
       r.healthSource = 'proxy';
-      r.status = s && r.errRate > HEALTH_ERR_RATE && s.epCount >= HEALTH_MIN_SAMPLE
+      r.status = s && s.epCount >= HEALTH_MIN_SAMPLE
+        && wilsonLowerBound(s.errCount || Math.round((r.errRate || 0) * s.epCount), s.epCount) > HEALTH_ERR_RATE
         ? 'review' : 'active';
     }
     changed = true;

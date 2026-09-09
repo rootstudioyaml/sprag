@@ -51,7 +51,11 @@ const GRAY = fg(100, 116, 139, '\x1b[90m');
 const BOLD = '\x1b[1m';
 
 function formatMoney(usd) {
-  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}K`;
+  // Boundaries sit at 999.5/999500 so a value that would round up into the
+  // next band's width ($999.9 → "$1000") jumps to that band's unit instead —
+  // otherwise "$1000" renders visually larger than "$1.0K".
+  if (usd >= 999500) return `$${(usd / 1e6).toFixed(1)}M`;
+  if (usd >= 999.5) return `$${(usd / 1000).toFixed(1)}K`;
   if (usd >= 100) return `$${usd.toFixed(0)}`;
   if (usd >= 10) return `$${usd.toFixed(1)}`;
   return `$${usd.toFixed(2)}`;

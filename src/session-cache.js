@@ -29,7 +29,9 @@ const CACHE_PATH = join(userDataDir(), 'session-cache.json');
 // 2: sessions carry `gatewayObserved`. Entries written by version 1 lack it,
 // and a missing flag reads as "not a gateway" — the wrong default for exactly
 // the users the flag exists for.
-const CACHE_VERSION = 2;
+// 3: version 2's serialize() never actually wrote `gatewayObserved`, so every
+// v2 entry lacks the flag it was bumped for. Bumped again to discard them.
+const CACHE_VERSION = 3;
 // Entries for transcripts this old are pruned on write. Keeps the file
 // bounded without an existence check per entry (which would cost the syscalls
 // the cache exists to avoid).
@@ -58,6 +60,7 @@ function serialize(session) {
     totals: session.totals,
     maxContextPerRequest: session.maxContextPerRequest,
     model: session.model,
+    gatewayObserved: !!session.gatewayObserved,
   };
 }
 
@@ -72,6 +75,7 @@ function deserialize(stored, filePath, projectDir) {
     totals: stored.totals,
     maxContextPerRequest: stored.maxContextPerRequest || 0,
     model: stored.model || 'unknown',
+    gatewayObserved: !!stored.gatewayObserved,
   };
 }
 

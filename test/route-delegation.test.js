@@ -44,7 +44,7 @@ function assistant({ model, out = 0, ts, tools = [] }) {
   });
 }
 
-function toolError(text = 'Exit code 1') {
+function toolError(text = 'Exit code 1 Traceback (most recent call last): boom') {
   return JSON.stringify({
     type: 'user',
     message: { role: 'user', content: [{ type: 'tool_result', is_error: true, content: text }] },
