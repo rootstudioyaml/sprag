@@ -137,9 +137,17 @@ export async function run({ args, hasFlag, numArg }) {
         const health = r.status === 'review'
           ? (lang === 'ko' ? '  ⚠ 에러율 초과 — 재검토 필요' : '  ⚠ error rate over threshold — needs review')
           : '';
+        // A seeded rule has no recurrence of its own until a scan measures one,
+        // so "반복 0회 / seen ×0" would misreport a curated preset as work that
+        // never happens.
+        const evidence = r.origin === 'preset' && !r.count
+          ? (lang === 'ko' ? '동봉 프리셋 (로그 누적 전)' : 'bundled preset (no local history yet)')
+          : (lang === 'ko'
+            ? `반복 ${r.count || 0}회 · 에러율 ${Math.round((r.errRate || 0) * 100)}%`
+            : `seen ×${r.count || 0} · err ${Math.round((r.errRate || 0) * 100)}%`);
         const stat = lang === 'ko'
-          ? `${r.tier} (${rs.tierLabel(r.tier)}) · ${rs.scopeLabel(r.scope)} · 반복 ${r.count || 0}회 · 에러율 ${Math.round((r.errRate || 0) * 100)}%`
-          : `${r.tier} (${rs.tierLabel(r.tier, 'en')}) · ${rs.scopeLabel(r.scope, 'en')} · seen ×${r.count || 0} · err ${Math.round((r.errRate || 0) * 100)}%`;
+          ? `${r.tier} (${rs.tierLabel(r.tier)}) · ${rs.scopeLabel(r.scope)} · ${evidence}`
+          : `${r.tier} (${rs.tierLabel(r.tier, 'en')}) · ${rs.scopeLabel(r.scope, 'en')} · ${evidence}`;
         console.log(`  #${i + 1} ${stat}${health}`);
         // Measured outcome of the rule actually firing, plus what it saved.
         // A rule with no measured delegations shows "—", never "$0.00": the
@@ -254,6 +262,19 @@ export async function run({ args, hasFlag, numArg }) {
         if (doc2mdHookRegistered()) doc2mdBlock = require('../doc2md.cjs').sessionNote(lang);
       } catch (e) { debug('route-scan:doc2md-note', e); /* the note is optional */ }
 
+      // Starter rules that the user has not answered yet (bundled presets, both
+      // model-fitting and ratchet). A fresh install has an empty model ratchet
+      // and an empty ratchet.md, so without this the tool delegates nothing
+      // until the user's own history is long enough to propose a candidate.
+      // The asking happens here because a CLI prompt cannot reach a user whose
+      // only interface is the chat: the model gets the list and asks one rule
+      // at a time. Silent — and free — once everything has an answer.
+      let seedBlock = null;
+      try {
+        const { seedOfferBlock } = await import('../seed-rules.js');
+        seedBlock = seedOfferBlock({ lang });
+      } catch (e) { debug('route-scan:seed-offer', e); /* the offer is optional */ }
+
       // Upgrade offer. A statusline cannot open a dialog, so session start is
       // where the *asking* happens: the model gets one line telling it a newer
       // version exists and to ask before installing anything. Cached read only
@@ -288,11 +309,13 @@ export async function run({ args, hasFlag, numArg }) {
 
       if (open.length === 0 && reviewRules.length === 0) {
         if (updateBlock) console.log(updateBlock);
+        if (seedBlock) console.log(seedBlock);
         if (doc2mdBlock) console.log(doc2mdBlock);
         if (koreanBlock) console.log(koreanBlock);
         return; // nothing else to inject
       }
       if (updateBlock) console.log(updateBlock);
+      if (seedBlock) console.log(seedBlock);
       if (doc2mdBlock) console.log(doc2mdBlock);
       // This text is injected straight into the model's context, so it must
       // follow the user's configured language — a Korean-only briefing in an

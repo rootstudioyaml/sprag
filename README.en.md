@@ -248,7 +248,8 @@ claude-token-saver harness off | on            # toggle the 🅷 chip
 ```
 
 - `promote` **requires** `--project`/`--global` in non-TTY contexts (scripts, LLM calls) — a scope choice is never silently made for the caller.
-- `pull` registers the **author-curated ratchet rules** bundled with the package (`presets/ratchet-rules.md` — only general-purpose rules promoted from real recurring mistakes) into your global ratchet (`~/.claude/ratchet.md`). `install`/`init` never auto-inject anything; `pull` is always opt-in and idempotent. Drop any rule you dislike with `harness rm`.
+- `pull` registers the **author-curated ratchet rules** bundled with the package (`presets/ratchet-rules.json` — only general-purpose rules promoted from real recurring mistakes) into your global ratchet (`~/.claude/ratchet.md`). `install`/`init` never auto-inject anything; `pull` is always opt-in and idempotent. Drop any rule you dislike with `harness rm`.
+- `seed` offers the same presets **one at a time**. Where `pull` registers the whole ratchet set in one go, `seed` covers the model-fitting presets too and asks about each of them in the first session after an install or upgrade ([below](#-seed-delegation-that-works-from-the-first-session)).
 - 🅷⚠ runtime warnings (`ratchet?` `no-evidence` `PEV-skip`) expire after 30 minutes, subdirectory sessions match their project correctly, and PEV-skip counts only mutating tools (Edit/Write/Bash) so read-only research sessions don't trip it (v2.16.0+).
 
 <details>
@@ -329,6 +330,32 @@ For environments the learner cannot reach, write the mapping yourself in `<userD
 **Map house aliases that carry no family name** (`prod-large`, `team-fast`) here too. Shapes that keep the family name are recognized as-is — Bedrock (`anthropic.claude-opus-4-5-v1:0`), Vertex (`claude-opus-4-5@20251101`), and the 1M suffix (`claude-sonnet-4-5[1m]`) — but an alias without one cannot be priced. Rather than report a wrong figure, routing-savings **drops those runs from the aggregate** (both sides of the comparison must be recognizable); one line in the table above brings them back.
 
 That file holds internal identifiers in plain text — do not commit it. On a direct-API machine it is never created and behaviour is unchanged.
+
+## 🌱 seed: delegation that works from the first session
+
+The model-fitting ratchet (`ratchet-model.md`) **starts empty.** A rule exists only after route-scan has seen the same kind of work recur in your own logs and you have approved that candidate. So a fresh install delegates nothing, and keeps delegating nothing for days — precisely the stretch where the savings would matter most.
+
+`seed` fills that gap from presets bundled with the package.
+
+| Presets | What they cover | File |
+|---|---|---|
+| 9 model-fitting | running commands, lookup, status checks, questions about pasted logs, read-and-summarize — each with a T2 (haiku) and a T1 (sonnet) rule | `presets/model-rules.json` |
+| 6 ratchet | general-purpose rules promoted from mistakes that actually recurred | `presets/ratchet-rules.json` |
+
+**How they get registered:** in the first session after an install or upgrade, the SessionStart hook hands the pending presets to the model, which walks the user through them **one at a time**. Each answer runs one of these immediately:
+
+```bash
+claude-token-saver seed                                   # pending presets + recorded answers
+claude-token-saver seed accept <id> --global|--project     # register one (scope required)
+claude-token-saver seed accept all --global                # when the user says "register them all"
+claude-token-saver seed skip <id>                          # decline — never offered again
+claude-token-saver seed reset                              # clear the answers and offer everything again
+```
+
+- **Nothing is written without a yes to that specific rule.** A declined rule stays declined across upgrades; a later release only surfaces the presets it actually added.
+- A preset is withheld when you already approved a rule of the same shape (same tier and category).
+- A seeded rule **does not pass someone else's statistics off as yours.** It is recorded as `preset (curated)` until a scan measures real firings and delegations, and then those numbers replace it. If its delegated error rate crosses the threshold it gets the same review flag as any other rule.
+- The scope must be stated as `--global` or `--project`. The hook environment is non-TTY, so the CLI cannot ask — the model confirms with the user and passes the flag.
 
 ## 🇰🇷 Korean writing guidance
 
@@ -638,6 +665,13 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.33.0 (2026-09-10)
+- **`seed`: delegation works from the first session.** The model-fitting ratchet started empty, so a fresh install delegated nothing for days — until enough of the user's own history accumulated and a candidate was approved. The package now bundles **9 model-fitting presets** (`presets/model-rules.json`) and **6 ratchet presets** (`presets/ratchet-rules.json`), and the SessionStart hook hands the pending ones to the model in the first session after an install or upgrade so it can ask about them **one at a time**.
+- **Answers are recorded for good.** A declined preset is not re-offered after an upgrade; only presets a later release actually added show up. A preset is withheld entirely when a rule of the same tier and category is already registered. Commands: `seed`, `seed accept <id> --global|--project`, `seed skip <id>`, `seed reset`.
+- **A seeded rule does not report someone else's statistics as yours.** It reads `preset (curated)` until a scan measures real firings and delegations, then those numbers take over. Its delegated error rate gets the same review flag as any other rule.
+- **Ratchet presets are bilingual now.** `presets/ratchet-rules.md` became `presets/ratchet-rules.json` with both languages per rule: the text is injected into the model's context, so a Korean-only rule pulled an English session's answers into Korean. Ids come from the Korean text, so revising an English wording keeps the user's answer.
+- **One template for rule sentences.** route-scan and seed both compose through `modelRuleBaseText()`, so a reworded rule cannot mean two different things depending on which producer wrote it.
 
 ### v3.32.0 (2026-09-10)
 - **The context warning moved from 200k to 500k.** A brand-new session clears 200k from the system prompt plus a couple of file reads, so `⚠ Ctx 200k+` was on almost permanently and therefore said nothing. The chip is now `⚠ Ctx 500k+` and fires only when a single request really carried more than 500k input tokens. The `📦 Ctx` segment also waits for 500k before turning yellow — being on a 1M window is no longer a warning by itself.

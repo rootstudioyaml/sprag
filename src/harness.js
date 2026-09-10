@@ -25,6 +25,7 @@ import {
 import { routeWarningForStatusline } from './route-scan.js';
 import { ruleHealthWarningForStatusline, modelRatchetPathFor, renderModelRatchet } from './model-rules.js';
 import { compactWindowWarningForStatusline } from './compact-window.js';
+import { userLanguage } from './config.js';
 
 const require = createRequire(import.meta.url);
 function readHarnessState() {
@@ -366,21 +367,33 @@ export function harnessPull({ root = findProjectRoot(), scope = 'global' } = {})
   return result;
 }
 
-/** Parse the bundled preset rules (markdown bullets under presets/). */
-export function presetRules() {
+/**
+ * The bundled preset rules, both languages per rule.
+ *
+ * These strings are injected into the model's context (by `seed`) and written
+ * into the user's ratchet (by `pull`), so a Korean-only set would pull an
+ * English session's responses into Korean — hence the pair. The `ko` text is
+ * canonical: it is what identifies a rule, so revising an English wording never
+ * turns a rule the user already answered into a new one.
+ */
+export function presetRuleEntries() {
   try {
     // fileURLToPath, not `.pathname`: the latter yields `/D:/repo/src` on
     // Windows, where the read fails and the catch below turns a missing
     // file into an empty rule set without ever saying so.
-    const path = join(dirname(fileURLToPath(import.meta.url)), '..', 'presets', 'ratchet-rules.md');
-    return readFileSync(path, 'utf8')
-      .split('\n')
-      .filter((l) => /^\s*-\s+/.test(l))
-      .map((l) => l.replace(/^\s*-\s+/, '').trim())
-      .filter(Boolean);
+    const path = join(dirname(fileURLToPath(import.meta.url)), '..', 'presets', 'ratchet-rules.json');
+    const data = JSON.parse(readFileSync(path, 'utf8'));
+    return (Array.isArray(data.rules) ? data.rules : [])
+      .filter((r) => r && typeof r.ko === 'string' && r.ko.trim())
+      .map((r) => ({ ko: r.ko.trim(), en: (r.en || r.ko).trim() }));
   } catch {
     return [];
   }
+}
+
+/** Preset rule text in the user's configured language. */
+export function presetRules(lang = userLanguage()) {
+  return presetRuleEntries().map((r) => (lang === 'ko' ? r.ko : r.en));
 }
 
 /**

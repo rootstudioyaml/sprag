@@ -100,6 +100,27 @@ export function composeRuleText(baseText, rule, lang = userLanguage()) {
   return `${baseText.replace(/\s*$/, '')}. ${clause}`;
 }
 
+/**
+ * The base rule sentence for one tier-delegation rule, without the budget
+ * clause (composeRuleText adds that). Lives here rather than in route-scan so
+ * that the scan, the seed presets and any later producer all emit byte-identical
+ * wording — two copies of this template would drift the moment one is reworded,
+ * and the drift only shows up in a file the model reads as instructions.
+ *
+ * `g` carries { tier, label, labelEn, example, exampleEn, agent }.
+ */
+export function modelRuleBaseText(g, lang = userLanguage()) {
+  if (lang === 'ko') {
+    return g.tier === 'T2'
+      ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${agentPhrase(g.agent)} 서브에이전트로 위임한다 (설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이면 위임하지 않음)`
+      : `"${g.label}" 유형의 중간 난도 요청(예: "${g.example}")은 model: sonnet 서브에이전트로 위임한다 (설계 판단·비가역 작업·반복 에러 발생 시 메인 모델이 이어받음)`;
+  }
+  const example = g.exampleEn || g.example;
+  return g.tier === 'T2'
+    ? `Delegate simple "${g.labelEn}" requests (e.g. "${example}") to ${agentPhraseEn(g.agent)} — never when the request mixes in design judgement or irreversible work like deploy/release/submission`
+    : `Delegate moderate "${g.labelEn}" requests (e.g. "${example}") to a model: sonnet subagent — hand back to the main model on design judgement, irreversible work, or repeated errors`;
+}
+
 // See the note in route-scan.js — paths.js is the only place that resolves
 // this, so an XDG_CONFIG_HOME override moves every state file together.
 const stateDir = userDataDir;
@@ -234,7 +255,12 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
       : ` ⚠ rule-health: recent error rate ${rate}% for the delegated category — narrow the condition or remove`;
   };
   const statsOf = (r) => {
-    const base = `×${r.count || 0}, err ${pct(r.errRate)}%, seen ${r.lastSeen || r.promotedAt}`;
+    // A seeded rule carries no recurrence of its own until a scan measures one.
+    // Printing `×0` would read as "never happened"; printing the author's count
+    // would pass someone else's evidence off as the user's.
+    const base = r.origin === 'preset' && !r.count
+      ? `preset (curated), registered ${r.promotedAt}`
+      : `×${r.count || 0}, err ${pct(r.errRate)}%, seen ${r.lastSeen || r.promotedAt}`;
     if (!r.delegatedRuns) return base;
     const saved = r.savedUsd ? `, saved ~$${r.savedUsd.toFixed(2)}` : '';
     return `${base}, delegated ×${r.delegatedRuns} err ${pct(r.delegatedErrRate)}%${saved}`;
@@ -260,13 +286,16 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
     const t2 = group.find((r) => r.tier === 'T2');
     const t1 = group.find((r) => r.tier === 'T1');
     if (t2 && t1) {
+      // Seeded rules carry a localized example; scan-produced ones only have the
+      // user's own prompt, so exampleEn is a preference, not a requirement.
+      const ex = (r) => (ko ? r.example : (r.exampleEn || r.example));
       const rule = ko
-        ? `"${t2.label}" 유형 요청은 기본적으로 ${agentPhrase(t2.agent)} 서브에이전트로 위임한다(예: "${t2.example}"). ` +
-          `여러 단계·여러 파일 수정이 얽힌 중간 난도 요청(예: "${t1.example}")은 model: sonnet 서브에이전트로 위임한다. ` +
+        ? `"${t2.label}" 유형 요청은 기본적으로 ${agentPhrase(t2.agent)} 서브에이전트로 위임한다(예: "${ex(t2)}"). ` +
+          `여러 단계·여러 파일 수정이 얽힌 중간 난도 요청(예: "${ex(t1)}")은 model: sonnet 서브에이전트로 위임한다. ` +
           `설계 판단이나 배포·릴리스·스토어 제출 같은 비가역 작업이 섞여 있을 때만 위임하지 않는다. ` +
           mergedBudget(t2, t1)
-        : `Delegate "${t2.labelEn || t2.label}" requests to ${agentPhraseEn(t2.agent)} by default (e.g. "${t2.example}"). ` +
-          `Escalate moderate ones that span multiple steps or file edits (e.g. "${t1.example}") to a model: sonnet subagent. ` +
+        : `Delegate "${t2.labelEn || t2.label}" requests to ${agentPhraseEn(t2.agent)} by default (e.g. "${ex(t2)}"). ` +
+          `Escalate moderate ones that span multiple steps or file edits (e.g. "${ex(t1)}") to a model: sonnet subagent. ` +
           `Keep it on the main model only when the request mixes in design judgement or irreversible work (deploy, release, store submission). ` +
           mergedBudget(t2, t1);
       lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)} -->`);

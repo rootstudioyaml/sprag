@@ -87,6 +87,7 @@ function readUpdateChip() {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean',
   'doc2md', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
+  'seed',
 ]);
 
 const USAGE = `claude-token-saver — Claude Code token usage, cache health, and model routing
@@ -222,6 +223,13 @@ async function main() {
   //   claude-token-saver doc2md on | off | <file> | --clean
   if (args[0] === 'doc2md') {
     return (await import('../src/commands/doc2md.js')).run({ args, hasFlag });
+  }
+
+  // Subcommand: seed — register the bundled starter rules (model-fitting
+  // presets + curated ratchet rules), one answer at a time.
+  //   claude-token-saver seed | seed accept <id> --global|--project | seed skip <id>
+  if (args[0] === 'seed') {
+    return (await import('../src/commands/seed.js')).run({ args, hasFlag });
   }
 
   // Subcommand: harness — manage the project's CLAUDE.md harness rules.

@@ -261,6 +261,26 @@ export async function run({ hasFlag }) {
       debug('install:doc2md', e); // optional feature; never fail install
     }
 
+    // Starter rules. The asking itself belongs to the first session — a
+    // postinstall cannot hold a conversation, and a prompt here would be
+    // answered by whoever happens to be at the terminal for a set of rules
+    // they have not read. All the install does is say what is waiting.
+    try {
+      const { pendingSeeds } = await import('../seed-rules.js');
+      const pending = pendingSeeds();
+      if (pending.length > 0) {
+        console.log('');
+        console.log(lang === 'ko'
+          ? `  seed: 추천 룰 ${pending.length}건이 대기 중입니다 (모델 피팅 + 랫쳇 프리셋).`
+          : `  seed: ${pending.length} recommended rule(s) are waiting (model-fitting + ratchet presets).`);
+        console.log(lang === 'ko'
+          ? '        다음 Claude Code 세션에서 한 건씩 등록할지 물어봅니다. 지금 보려면: claude-token-saver seed'
+          : '        the next Claude Code session asks about them one at a time. See them now: claude-token-saver seed');
+      }
+    } catch (e) {
+      debug('install:seed-offer', e); // optional feature; never fail install
+    }
+
     console.log('');
     console.log('Open Claude Code in any directory and just mention:');
     console.log('  "cache hit rate" / "1M context" / "5H cap" — the skill auto-activates.');
