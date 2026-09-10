@@ -16,9 +16,8 @@ class SkipStep extends Error {}
 
 export async function run({ hasFlag }) {
     const { installAll } = await import('../installer.js');
-    const { userLanguage } = await import('../config.js');
+    const { userLanguage, languageDecided, setUserLanguage } = await import('../config.js');
     const { canPrompt, confirm } = await import('../prompt.js');
-    const lang = userLanguage();
     const force = hasFlag('--force');
     // Two features below write to ~/.claude and cost tokens in every session,
     // so the install shows what they contain and asks before turning them on.
@@ -26,6 +25,45 @@ export async function run({ hasFlag }) {
     // fall through to the previous automatic defaults so an unattended upgrade
     // behaves exactly as it did before.
     const interactive = canPrompt() && !hasFlag('--yes') && !hasFlag('--no-input');
+
+    // Output language, decided first because every line below it — and every
+    // briefing the hooks inject from here on — is written in it. Until now it
+    // fell back to English with no question asked, so a Korean user read English
+    // reports until they happened to find `mode ko`.
+    //
+    // The locale is the default, not the answer: a terminal user gets to
+    // overrule it either way. An unattended install records the detected locale
+    // rather than leaving the setting blank, because "blank" silently means
+    // English — the one outcome a Korean-locale machine should not get by
+    // default. Already decided means never asked again.
+    try {
+      if (!languageDecided() && !process.env.CTS_LANG) {
+        const { koreanLocaleDetected } = await import('../korean-style.js');
+        const detected = koreanLocaleDetected() ? 'ko' : 'en';
+        console.log('');
+        console.log('  language: reports, warnings and session briefings are written in this language.');
+        console.log(`            detected locale: ${detected === 'ko' ? 'Korean' : 'not Korean (English)'}`);
+        let chosen = detected;
+        if (interactive) {
+          const ko = await confirm('            Use Korean? (no = English)', { defaultValue: detected === 'ko' });
+          chosen = ko ? 'ko' : 'en';
+        }
+        setUserLanguage(chosen);
+        console.log(`  language: set to ${chosen === 'ko' ? '한국어' : 'English'} — change it any time with \`claude-token-saver mode lang=${chosen === 'ko' ? 'en' : 'ko'}\``);
+      } else if (process.env.CTS_LANG) {
+        // Escape hatch for scripted installs, which cannot answer a prompt but
+        // do know which language the machine's user reads.
+        const forced = setUserLanguage(process.env.CTS_LANG);
+        console.log('');
+        console.log(forced
+          ? `  language: set to ${forced} (CTS_LANG)`
+          : `  language: ignored CTS_LANG=${process.env.CTS_LANG} — use 'ko' or 'en'`);
+      }
+    } catch (e) {
+      debug('install:language', e); // the English fallback still works
+    }
+    const lang = userLanguage();
+
     const print = (kind, r) => {
       const verb = r.action === 'exists' ? 'already exists' : r.action;
       console.log(`  ${kind}: ${r.path} (${verb})`);

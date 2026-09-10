@@ -20,7 +20,10 @@ test('install completes on a machine with no prior state', () => {
   mkdirSync(home, { recursive: true });
   try {
     const out = execFileSync(process.execPath, [CLI, 'install'], {
-      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1' },
+      // CTS_LANG pins the output language: the install now picks one from the
+      // machine's locale when nothing is recorded, and the assertions below read
+      // English strings.
+      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -74,4 +77,50 @@ test('uninstall removes our entries and only ours', () => {
   assert.match(out, /--purge/);
 
   rmSync(dir, { recursive: true, force: true });
+});
+
+/**
+ * Language used to fall back to English with no question asked, so a Korean user
+ * read English reports until they happened to find `mode lang=ko`. The install
+ * records a choice: the locale decides it unattended, a prompt decides it at a
+ * terminal, and either way it is never asked twice.
+ */
+test('install records an output language from the locale and keeps it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cts-lang-'));
+  const home = join(dir, 'home');
+  const cfgHome = join(dir, 'cfg');
+  mkdirSync(home, { recursive: true });
+  const base = {
+    ...process.env, HOME: home, USERPROFILE: home,
+    XDG_CONFIG_HOME: cfgHome, APPDATA: cfgHome, NO_COLOR: '1',
+  };
+  delete base.CTS_LANG;
+  const cfgPath = join(cfgHome, 'claude-token-saver', 'config.json');
+  try {
+    const ko = execFileSync(process.execPath, [CLI, 'install'], {
+      env: { ...base, LANG: 'ko_KR.UTF-8' }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    assert.match(ko, /language: set to 한국어/);
+    assert.equal(JSON.parse(readFileSync(cfgPath, 'utf8')).language, 'ko');
+
+    // A second install must not re-decide: the recorded answer wins over a
+    // locale that now says something else.
+    const again = execFileSync(process.execPath, [CLI, 'install'], {
+      env: { ...base, LANG: 'en_US.UTF-8' }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    assert.doesNotMatch(again, /language: set to/);
+    assert.equal(JSON.parse(readFileSync(cfgPath, 'utf8')).language, 'ko');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an explicitly non-Korean locale variable wins over the macOS system locale', async () => {
+  const { koreanLocaleDetected } = await import('../src/korean-style.js');
+  // The `defaults` fallback exists for GUI shells where LANG is unset; a LANG
+  // that IS set and is not Korean is an answer, not a missing signal.
+  assert.equal(koreanLocaleDetected({ env: { LANG: 'en_US.UTF-8' }, platform: 'darwin' }), false);
+  assert.equal(koreanLocaleDetected({ env: { LANG: 'ko_KR.UTF-8' }, platform: 'darwin' }), true);
+  assert.equal(koreanLocaleDetected({ env: { LANGUAGE: 'ko:en' }, platform: 'linux' }), true);
+  assert.equal(koreanLocaleDetected({ env: { LANG: 'C' }, platform: 'linux' }), false);
 });

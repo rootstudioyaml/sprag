@@ -198,6 +198,31 @@ export function userLanguage() {
 }
 
 /**
+ * Whether the language is a recorded choice rather than the 'en' fallback.
+ *
+ * The install needs the distinction: a user who picked English must not be
+ * asked again on the next upgrade, and "nothing recorded" has to stay
+ * distinguishable from "chose en", which `userLanguage()` alone cannot say.
+ */
+export function languageDecided() {
+  const cfg = loadConfig();
+  const v = cfg.language || (cfg.statusline && cfg.statusline.language);
+  return v === 'ko' || v === 'en';
+}
+
+/** Record the output language ('ko' | 'en'). Anything else is ignored. */
+export function setUserLanguage(v) {
+  const lang = v === 'ko' ? 'ko' : v === 'en' ? 'en' : null;
+  if (!lang) return null;
+  const cfg = loadConfig();
+  cfg.language = lang;
+  // The legacy slot would win on a later read for configs written by 2.9.x.
+  if (cfg.statusline) delete cfg.statusline.language;
+  saveConfig(cfg);
+  return lang;
+}
+
+/**
  * Render hours as the most natural unit:
  *   24h → "1d", 168h → "7d", 6h → "6h", 36h → "36h" (not whole days).
  */

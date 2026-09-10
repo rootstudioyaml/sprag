@@ -67,13 +67,21 @@ export function koreanLocaleDetected({ env = process.env, platform = process.pla
   try {
     if (loadConfig().language === 'ko') return true;
   } catch { /* unreadable config falls through to the env checks */ }
-  for (const v of [env.LC_ALL, env.LC_MESSAGES, env.LANG, env.LANGUAGE]) {
+  const posix = [env.LC_ALL, env.LC_MESSAGES, env.LANG, env.LANGUAGE].filter(
+    (v) => typeof v === 'string' && v.trim() && v !== 'C' && v !== 'POSIX',
+  );
+  for (const v of posix) {
     // `ko` must be a whole subtag: `ko`, `ko_KR.UTF-8`, `ko-KR`, and the
     // colon-separated `LANGUAGE=ko:en` all count, while `kok` (Konkani) and
     // `tok` do not.
-    if (typeof v === 'string' && /(^|[:._-])ko([:._-]|$)/i.test(v)) return true;
+    if (/(^|[:._-])ko([:._-]|$)/i.test(v)) return true;
   }
-  if (platform === 'darwin') {
+  // A locale variable that is set and is NOT Korean is an answer, not a missing
+  // signal: `LANG=en_US.UTF-8` on a machine whose system locale is Korean means
+  // the user chose English for their shell. Only consult the system locale when
+  // the POSIX variables say nothing at all, which is the macOS GUI-shell case
+  // this fallback exists for.
+  if (platform === 'darwin' && posix.length === 0) {
     try {
       // `LANG` is commonly unset in macOS GUI-launched shells, so the system
       // locale is the only reliable signal there.

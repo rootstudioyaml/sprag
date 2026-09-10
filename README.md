@@ -199,7 +199,7 @@ Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적
 | `claude-token-saver install` | Skill·statusline 수동 등록 |
 | `claude-token-saver uninstall [--purge]` | 등록한 훅·statusline·Skill 제거. 기록된 절감액은 남기며, `--purge` 를 붙이면 상태 디렉터리까지 지웁니다 |
 
-출력 언어는 `mode ko`와 `mode en`으로 전환합니다. 기본값은 영어이며, statusline의 칩은 언제나 기호로 표시합니다. 전체 옵션은 [영문 README](./README.en.md#options)를 참고하십시오.
+출력 언어는 설치할 때 한 번 정합니다. 터미널에서 설치하면 시스템 로케일을 기본값으로 제시하고 한국어를 쓸지 물어보며, 비대화형 설치에서는 로케일 판정을 그대로 기록합니다. 한 번 기록되면 업그레이드해도 다시 묻지 않습니다. 나중에 바꿀 때는 `mode ko`나 `mode en`을 쓰고, 스크립트에서 설치할 때는 `CTS_LANG=ko` 또는 `CTS_LANG=en`으로 지정할 수 있습니다. statusline의 칩은 언제나 기호로 표시합니다. 전체 옵션은 [영문 README](./README.en.md#options)를 참고하십시오.
 
 ## ⬆ 업데이트 안내
 
@@ -637,6 +637,11 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.34.0 (2026-09-10)
+- **출력 언어를 설치할 때 정합니다.** 지금까지는 기록이 없으면 조용히 영어로 떨어져서, 한국어 사용자는 `mode ko`를 우연히 발견할 때까지 영어 리포트를 읽었습니다. 이제 터미널 설치에서는 시스템 로케일을 기본값으로 제시하고 한국어를 쓸지 물어보며, 비대화형 설치에서는 로케일 판정을 기록합니다. 한 번 기록되면 업그레이드해도 다시 묻지 않고, 스크립트 설치는 `CTS_LANG=ko|en`으로 고정할 수 있습니다.
+- **로케일 판정의 결함을 고쳤습니다.** `LANG=en_US.UTF-8`이 지정돼 있어도 macOS에서는 시스템 로케일(`AppleLocale`)까지 읽어 한국어로 판정했습니다. 이제 POSIX 로케일 변수가 값을 갖고 있으면 그 값을 답으로 받아들이고, 변수가 모두 비어 있을 때에만 시스템 로케일을 봅니다. 이 대비책은 `LANG`이 비어 있는 macOS GUI 셸을 위한 것이었습니다.
+- 언어는 설치 절차의 첫 단계입니다. 그 아래의 harness·doc2md·seed 안내가 모두 선택한 언어로 출력됩니다.
 
 ### v3.33.0 (2026-09-10)
 - **`seed`: 설치 직후부터 위임이 걸립니다.** 모델 피팅 랫쳇은 빈 파일로 시작해서, 사용자 로그에 같은 유형의 작업이 쌓이고 후보를 승인할 때까지 며칠간 위임이 한 건도 걸리지 않았습니다. 이제 패키지에 **모델 피팅 프리셋 9건**(`presets/model-rules.json`)과 **랫쳇 프리셋 6건**(`presets/ratchet-rules.json`)을 동봉하고, 설치·업그레이드 후 첫 세션에서 SessionStart 훅이 이를 모델에게 전달해 **한 건씩** 등록 여부를 묻습니다.

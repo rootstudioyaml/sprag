@@ -200,7 +200,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver install` | Manually register Skill + statusline |
 | `claude-token-saver uninstall [--purge]` | Remove the hooks, statusline and skill it registered. Recorded savings are kept unless `--purge` is given |
 
-Switch output language with `mode ko` / `mode en` (English default; statusline chips stay symbolic).
+The output language is decided once, at install time: a terminal install proposes the system locale and asks whether to use Korean, while an unattended install records what the locale says. Once recorded it is never asked again, not even on an upgrade. Change it later with `mode ko` / `mode en`, or pin it for a scripted install with `CTS_LANG=ko` / `CTS_LANG=en`. Statusline chips stay symbolic either way.
 
 <details>
 <summary>All CLI options</summary>
@@ -665,6 +665,11 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 </details>
 
 ## Release notes
+
+### v3.34.0 (2026-09-10)
+- **The output language is chosen at install time.** With nothing recorded it used to fall back to English in silence, so a Korean user read English reports until they happened to find `mode ko`. A terminal install now proposes the system locale and asks whether to use Korean; an unattended install records what the locale says. Once recorded it is never asked again, and a scripted install can pin it with `CTS_LANG=ko|en`.
+- **Fixed a locale-detection defect.** An explicit `LANG=en_US.UTF-8` was overruled on macOS, where detection went on to read the system locale (`AppleLocale`) and answered "Korean". A POSIX locale variable that is set now counts as the answer; the system locale is consulted only when all of them are empty, which is the macOS GUI-shell case the fallback was for.
+- Language is the first step of the install, so the harness, doc2md and seed notices below it all print in the chosen language.
 
 ### v3.33.0 (2026-09-10)
 - **`seed`: delegation works from the first session.** The model-fitting ratchet started empty, so a fresh install delegated nothing for days — until enough of the user's own history accumulated and a candidate was approved. The package now bundles **9 model-fitting presets** (`presets/model-rules.json`) and **6 ratchet presets** (`presets/ratchet-rules.json`), and the SessionStart hook hands the pending ones to the model in the first session after an install or upgrade so it can ask about them **one at a time**.
