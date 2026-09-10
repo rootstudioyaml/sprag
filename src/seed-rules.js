@@ -11,7 +11,7 @@
  *
  * This module closes that gap with presets bundled in the package:
  *   presets/model-rules.json   → tier-delegation rules (the model ratchet)
- *   presets/ratchet-rules.md   → field-tested mistake rules (the global ratchet)
+ *   presets/ratchet-rules.json → field-tested mistake rules (the global ratchet)
  *
  * Nothing is written without the user agreeing to that specific rule. The
  * SessionStart hook lists what is pending and tells the model to ask one rule at
