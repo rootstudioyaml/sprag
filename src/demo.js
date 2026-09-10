@@ -99,15 +99,16 @@ const SCENARIOS = [
   },
   {
     name: 'ctx-1m',
-    label: '⚠ Context past 200k',
+    label: '⚠ Context past 500k',
     data: {
       hitRate: 0.78,
       pct1h: 0.92,
       savings: 1340,
       elapsedSec: 30,
       contextSize: '1M',
-      ctxUsedPct: 28, // 28% of 1M ≈ 280k actually in context
-      spikeChip: '⚠ Ctx 200k+',
+      ctxOverWarn: true,
+      ctxUsedPct: 62, // 62% of 1M ≈ 620k actually in context
+      spikeChip: '⚠ Ctx 500k+',
       caps: HEALTHY_CAPS,
     },
   },
@@ -271,9 +272,9 @@ export function buildTableDemoData(options = {}) {
       version: options.version ?? '',
     },
     spikeReport: { spikes, baseline: { p95: 940_000 } },
-    contextWindow: { size: '1M', maxContext: 280_000 },
+    contextWindow: { size: '1M', maxContext: 620_000, overWarn: true },
     lastActivity: Date.now() - 60 * 1000,
-    spikeChip: '⚠ Ctx 200k+',
+    spikeChip: '⚠ Ctx 500k+',
   };
 }
 
@@ -303,7 +304,7 @@ export function buildScenarioData(scenarioName, options) {
     if (!scenario) return null;
   }
 
-  const { hitRate, pct1h, pct5m, savings, elapsedSec, contextSize, ctxUsedPct, spikeChip, caps } = scenario.data;
+  const { hitRate, pct1h, pct5m, savings, elapsedSec, contextSize, ctxOverWarn, ctxUsedPct, spikeChip, caps } = scenario.data;
   return {
     summary: { hitRate },
     ttl: { pct1h, pct5m: pct5m ?? (1 - pct1h) },
@@ -315,7 +316,7 @@ export function buildScenarioData(scenarioName, options) {
       version: options.version ?? '',
     },
     lastActivity: Date.now() - elapsedSec * 1000,
-    contextWindow: { size: contextSize },
+    contextWindow: { size: contextSize, overWarn: Boolean(ctxOverWarn) },
     // Live fill level (`📦 68%`) — scenarios that set ctxUsedPct exercise the
     // stdin-driven segment; the rest fall back to the size-based chip.
     ctxLive: ctxUsedPct != null

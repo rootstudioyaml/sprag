@@ -113,13 +113,36 @@ npm i -g claude-token-saver
 
 > ⚠️ sudo로 글로벌 설치를 하면 Skill이 사용자 계정이 아니라 root의 `~/.claude`에 등록되는 함정이 있습니다. nvm이나 fnm, Volta를 사용해 사용자 영역에 설치하기를 권장합니다.
 
+### 설치하면 켜지는 기능과 직접 켜야 하는 기능
+
+설치 시점에 비용이 들지 않는 기능은 전부 자동으로 켜집니다. 수동으로 남겨 둔 항목은 Claude Code 자체의 설정을 바꾸거나, 적용 범위를 사람이 정해 주어야 하는 것들뿐입니다.
+
+| 기능 | 설치 직후 상태 | 끄는 방법 |
+|---|---|---|
+| statusline (진단 칩·절감 원장) | 켜짐 | `claude-token-saver uninstall` |
+| `/claude-token-saver` Skill | 켜짐 | 위와 같습니다 |
+| SessionStart 훅 (route-scan 재분석) | 켜짐 | 위와 같습니다 |
+| UserPromptSubmit 훅 (brief 주입) | 켜짐 | 위와 같습니다 |
+| 최초 route-scan (최근 14일 로그 분석) | 설치 중 즉시 1회 실행 | 해당 없습니다 |
+| 🅷 Harness 5원칙 (`~/.claude/CLAUDE.md`) | 켜짐 (터미널에서는 내용을 보여 주고 한 번 묻습니다) | `harness uninit --global` · `CTS_NO_HARNESS=1` |
+| doc2md 훅 (Read·Edit·Write·프롬프트) | 켜짐 | `doc2md off` · `CTS_NO_DOC2MD=1` |
+| doc2md 변환기(markitdown venv) | 터미널에서 설치 여부를 묻고, 비대화형 설치에서는 명령만 안내합니다 | `doc2md install-converter` 로 나중에 설치 |
+| 한국어 문체 지침 | 시스템 로케일이 한국어면 켜짐 (터미널에서는 묻습니다) | `korean off` · `CTS_NO_KOREAN=1` |
+| compact-window 경고 칩 | 켜짐 | `compact-window off` |
+| 업데이트 안내 칩 | 켜짐 | `CTS_NO_UPDATE_CHECK=1` |
+| **compact-window 값 고정** (`autoCompactWindow` 500k) | **꺼짐 — 직접 실행해야 합니다** | `compact-window set --global` 또는 `--project` |
+| **모델 피팅 룰 승인** (`ratchet-model.md` 위임 룰) | **후보만 제안합니다** | `route-scan rules` 로 확인하고 승인·삭제 |
+| `handoff` (한도 임박 시 작업 백업) | 필요할 때 직접 실행하는 명령입니다 | 해당 없습니다 |
+
+`compact-window set` 은 Claude Code 의 `settings.json` 에 값을 적고, 전역과 프로젝트 중 어디에 적을지는 사람이 정해야 하므로 자동으로 실행하지 않습니다. 모델 피팅 룰도 같은 이유로 승인 단계를 남겨 두었습니다. 어떤 작업을 더 싼 티어에 맡길지는 사용자의 판단이 필요합니다.
+
 ## statusline 읽는 법
 
 절감 원장에 기록이 쌓이면 statusline이 **두 줄로** 출력됩니다. 첫째 줄에는 라우팅 절감액만 표시하고, 둘째 줄에는 진단 칩을 표시합니다.
 
 ```
 🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57
-⚠ Ctx 200k+ · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · ✦ current ███▓░░ 62% 🔄 21:33 · 📅 weekly ██▒░░░ 38% 🔄 Tue 19:33 · 📦 Ctx 47% of 1M · 💰 Cache saved $1.0K · last 1d
+⚠ Ctx 500k+ · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · ✦ current ███▓░░ 62% 🔄 21:33 · 📅 weekly ██▒░░░ 38% 🔄 Tue 19:33 · 📦 Ctx 47% of 1M · 💰 Cache saved $1.0K · last 1d
 ```
 
 원장이 비어 있으면, 다시 말해 아직 실측된 위임이 없으면 첫째 줄을 그리지 않고 종전처럼 한 줄로 출력합니다. 일부 환경(구버전 macOS Claude Code)에서 첫째 줄만 표시된다면 `--single-line` 옵션으로 한 줄 레이아웃을 유지하십시오.
@@ -143,7 +166,7 @@ npm i -g claude-token-saver
 🚨 5H █████▓ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 4.8 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📅 weekly ▓░░░░░ 12% 🔄 Sun 14:26 · 📦 Ctx 200k · last 1d
 ```
 
-칩의 종류는 다음과 같습니다. `🚨 5H/7D NN%`(한도 임박) · `⚠ Ctx 200k+`(단일 요청이 실제로 200k를 초과) · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. 두 윈도가 동시에 90%를 넘으면 리셋이 더 임박한 쪽을 🚨로 올리고, 나머지 하나는 빨간 세그먼트로 계속 표시합니다 (v2.16.0 이상).
+칩의 종류는 다음과 같습니다. `🚨 5H/7D NN%`(한도 임박) · `⚠ Ctx 500k+`(단일 요청이 실제로 500k를 초과) · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. 두 윈도가 동시에 90%를 넘으면 리셋이 더 임박한 쪽을 🚨로 올리고, 나머지 하나는 빨간 세그먼트로 계속 표시합니다 (v2.16.0 이상).
 
 ### 경고 칩이 떴을 때
 
@@ -587,6 +610,12 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 </details>
 
 ## 릴리스 노트
+
+### v3.32.0 (2026-09-10)
+- **컨텍스트 경고 기준을 200k 에서 500k 로 올렸습니다.** 설치 직후의 새 세션도 시스템 프롬프트와 파일 몇 개만 읽으면 200k 를 넘기므로, `⚠ Ctx 200k+` 는 거의 항상 떠 있는 칩이었고 그만큼 아무 정보도 주지 못했습니다. 칩은 `⚠ Ctx 500k+` 로 바뀌었고, 단일 요청이 실제로 500k 를 넘길 때만 뜹니다. `📦 Ctx` 세그먼트도 500k 를 넘겨야 노란색으로 바뀝니다. 1M 윈도를 쓰고 있다는 사실 자체는 더 이상 경고가 아닙니다.
+- **예전 히스토리는 그대로 읽힙니다.** `⚠ Ctx 200k+` 칩과 구 디테일 문구(`Single-request context exceeded 200k`)도 계속 해석합니다.
+- **doc2md 를 설치 때 자동으로 켭니다.** 훅 등록은 `settings.json` 항목 두 개일 뿐이고 문서를 읽지 않으면 비용이 발생하지 않는데, 그동안은 `doc2md on` 을 직접 찾아낸 사람만 썼습니다. 변환기(markitdown venv)는 설치에 몇 분이 걸리므로 터미널에서만 물어보고, 비대화형 설치에서는 명령만 안내합니다. 끄려면 `doc2md off` 또는 `CTS_NO_DOC2MD=1` 을 쓰십시오.
+- **설치 직후 켜지는 기능과 직접 켜야 하는 기능을 문서에 표로 정리했습니다.** 수동으로 남은 항목은 `compact-window set`(Claude Code 설정에 값을 적고 적용 범위를 사람이 정해야 함)과 모델 피팅 룰 승인뿐입니다.
 
 ### v3.27.0 (2026-09-04)
 - **문서 경로를 프롬프트에 적으면 이제 실제로 걸립니다.** 3.26.x 의 `PreToolUse(Read)` 훅은 정작 목표한 형식에 닿지 못했습니다. Claude Code 가 pptx·xlsx·docx 를 이진 파일이라며 훅보다 먼저 거부하기 때문입니다(실측: `.pdf` Read 는 훅이 실행되고 `.pptx` Read 는 훅 기록이 남지 않습니다). 개입 지점을 `UserPromptSubmit` 으로 넓혀, 프롬프트에 적힌 경로를 변환한 뒤 변환본 경로를 컨텍스트로 넣습니다. `@경로`·따옴표·상대 경로를 모두 인식합니다.

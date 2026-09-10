@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dailyTrend, ttlBreakdown, summary, detectContextWindow } from '../src/stats.js';
+import { dailyTrend, ttlBreakdown, summary, detectContextWindow, CONTEXT_WARN_TOKENS } from '../src/stats.js';
+import { chipForIssues, CHIP_TO_CODES } from '../src/advice.js';
 
 /** Minimal session shaped exactly like parseAllSessions returns. */
 function session({ start, end = start, requestCount = 1, maxContext = 0, ...t }) {
@@ -92,4 +93,26 @@ test('detectContextWindow reports unknown rather than guessing on no data', () =
   const r = detectContextWindow([]);
   assert.equal(r.size, 'unknown');
   assert.equal(r.source, 'no-data');
+});
+
+test('the context warning fires at 500k, not at the 1M window label', () => {
+  const recent = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  // A 1M window carrying 300k is the ordinary case for every current model —
+  // it must not raise a chip, which is what made the old 200k line useless.
+  const ordinary = detectContextWindow([session({ start: recent, maxContext: 300_000 })]);
+  assert.equal(ordinary.size, '1M');
+  assert.equal(ordinary.overWarn, false);
+  assert.equal(chipForIssues([], ordinary), null);
+
+  const heavy = detectContextWindow([session({ start: recent, maxContext: 620_000 })]);
+  assert.equal(heavy.overWarn, true);
+  assert.equal(chipForIssues([], heavy), '⚠ Ctx 500k+');
+
+  assert.equal(detectContextWindow([]).overWarn, false);
+  assert.equal(CONTEXT_WARN_TOKENS, 500_000);
+});
+
+test('the 500k chip and its legacy 200k spelling both resolve to advice', () => {
+  assert.deepEqual(CHIP_TO_CODES['⚠ Ctx 500k+'], ['LARGE_INPUT_PER_REQUEST']);
+  assert.deepEqual(CHIP_TO_CODES['⚠ Ctx 200k+'], ['LARGE_INPUT_PER_REQUEST']);
 });

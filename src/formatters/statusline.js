@@ -545,7 +545,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
   } else if (contextWindow && contextWindow.size && contextWindow.size !== 'unknown') {
     const label = contextWindow.size === '1M' ? '1M' : '200k';
-    const ctxColor = contextWindow.size === '1M' ? YELLOW : GREEN;
+    // Yellow is reserved for the 500k warn line. A 1M window by itself is the
+    // default on every current model, so colouring it yellow cried wolf.
+    const ctxColor = contextWindow.overWarn ? YELLOW : GREEN;
     if (isIcon && verbose) {
       ctxSeg = `${c(ctxColor)}📦 Ctx ${label}${c(RESET)}`;
     } else if (isIcon) {

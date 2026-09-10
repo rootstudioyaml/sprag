@@ -514,6 +514,8 @@ export const ISSUE_TIPS = {
  * need a fallback so history.js can still surface the right tip.
  */
 export const CHIP_TO_CODES = {
+  '⚠ Ctx 500k+': ['LARGE_INPUT_PER_REQUEST'],
+  // Legacy chip name (pre-v3.32, when the threshold was 200k).
   '⚠ Ctx 200k+': ['LARGE_INPUT_PER_REQUEST'],
   // Legacy chip name (pre-v2.18) — kept so `last`/`history` can still resolve
   // codes from history files written by older versions.
@@ -545,11 +547,12 @@ export const CAP_TIPS = {
  * shown to a global audience.
  */
 export function chipForIssues(issues, contextWindow) {
-  // Fires on *actual usage* (a real request carried >210k input tokens), not
-  // on the model merely supporting 1M — current models are all 1M by default
-  // with no price premium, so "1M ON" stopped being a meaningful alarm. The
-  // meaningful signal is "your context genuinely exceeded 200k".
-  if (contextWindow?.size === '1M') return '⚠ Ctx 200k+';
+  // Fires on *actual usage* (a real request carried more than
+  // CONTEXT_WARN_TOKENS), not on the model merely supporting 1M. The old 200k
+  // line fired on a brand-new session — system prompt plus a couple of file
+  // reads already clears it — so it warned constantly and told nobody
+  // anything. 500k is where the per-turn re-billing is worth interrupting for.
+  if (contextWindow?.overWarn) return '⚠ Ctx 500k+';
   const codes = issues.map((i) => i.code);
   if (codes.includes('LARGE_INPUT_PER_REQUEST')) return '⚠ Input spike';
   if (codes.includes('BUCKET_5M_DOMINANT') || codes.includes('BUCKET_5M_DOMINANT_GATEWAY')) return '⚠ 5m TTL';

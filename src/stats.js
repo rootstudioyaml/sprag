@@ -318,8 +318,12 @@ export function detectSpikes(sessions, { recentHours = 24, multiplier = 3 } = {}
  * and 1M (Opus 4.7+ auto-enabled on Max). If max single-request context passes
  * the 200k ceiling, the user has 1M turned on.
  *
- * Returns { size: '1M' | '200k' | 'unknown', maxContext, source }.
+ * Returns { size: '1M' | '200k' | 'unknown', maxContext, source, overWarn }.
+ * `size` stays informational (which window is in play); `overWarn` is the
+ * alarm condition and uses the much higher CONTEXT_WARN_TOKENS line.
  */
+export const CONTEXT_WARN_TOKENS = 500_000;
+
 export function detectContextWindow(sessions, { recentHours = 24 } = {}) {
   const cutoff = Date.now() - recentHours * 60 * 60 * 1000;
   const recent = sessions.filter(
@@ -330,12 +334,21 @@ export function detectContextWindow(sessions, { recentHours = 24 } = {}) {
     (m, s) => Math.max(m, s.maxContextPerRequest || 0),
     0,
   );
-  if (maxContext === 0) return { size: 'unknown', maxContext, source: 'no-data' };
+  if (maxContext === 0) return { size: 'unknown', maxContext, source: 'no-data', overWarn: false };
   // 200_000 is the hard ceiling for the standard window. Anything materially
   // over that means the 1M context is in play. Use 210k for a small safety
   // margin against rounding/metadata tokens.
-  if (maxContext > 210_000) return { size: '1M', maxContext, source: recent.length > 0 ? 'recent' : 'all' };
-  return { size: '200k', maxContext, source: recent.length > 0 ? 'recent' : 'all' };
+  const source = recent.length > 0 ? 'recent' : 'all';
+  // `overWarn` is what the statusline and the report actually alarm on. The
+  // 200k line stopped separating careless sessions from ordinary ones: every
+  // current model ships a 1M window, the Claude Code system prompt plus a few
+  // file reads already clears 200k, so a fresh session tripped the warning
+  // right after install and then never stopped tripping it. A warning that is
+  // always on carries no information. 500k is where a context genuinely costs
+  // real money per turn and where /compact is the right answer.
+  const overWarn = maxContext > CONTEXT_WARN_TOKENS;
+  if (maxContext > 210_000) return { size: '1M', maxContext, source, overWarn };
+  return { size: '200k', maxContext, source, overWarn };
 }
 
 /**

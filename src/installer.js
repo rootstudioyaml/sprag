@@ -22,7 +22,7 @@ const STATUSLINE_REFRESH_INTERVAL = 5;
 
 const SKILL_BODY = `---
 name: claude-token-saver
-description: Use when the user mentions Claude Code token usage, prompt cache hit rate, TTL/expiry, the 1M context window, cache misses, output spikes, rate-limit caps (5h/7d), or anything in the statusline produced by claude-token-saver (chips like "🚨 5H 94%", "🚨 7D 92%", "⚠ 1M ON", "⚠ Input spike", "⚠ Cache miss", "⚠ 5m TTL", "⚠ Rebuild churn", "⚠ Output heavy", "⚠ Call surge", "⏳ Cache expires", "💰 Cache saved", "🧠 Cache hit"). Also use when they ask to view token-usage history, want to understand a warning they just saw, or want to back up work before a session cap with \`claude-token-saver handoff\`.
+description: Use when the user mentions Claude Code token usage, prompt cache hit rate, TTL/expiry, the 1M context window, cache misses, output spikes, rate-limit caps (5h/7d), or anything in the statusline produced by claude-token-saver (chips like "🚨 5H 94%", "🚨 7D 92%", "⚠ Ctx 500k+", "⚠ Input spike", "⚠ Cache miss", "⚠ 5m TTL", "⚠ Rebuild churn", "⚠ Output heavy", "⚠ Call surge", "⏳ Cache expires", "💰 Cache saved", "🧠 Cache hit"). Also use when they ask to view token-usage history, want to understand a warning they just saw, or want to back up work before a session cap with \`claude-token-saver handoff\`.
 ---
 
 # claude-token-saver — Claude Code Token Monitor
@@ -46,7 +46,7 @@ honor that for the rest of the turn without changing the saved setting.
 ## When this skill should activate
 
 - The user references any chip wording: \`🚨 5H NN%\`, \`🚨 7D NN%\`,
-  \`⚠ 1M ON\`, \`⚠ Input spike\`, \`⚠ Cache miss\`, \`⚠ 5m TTL\`,
+  \`⚠ Ctx 500k+\`, \`⚠ Input spike\`, \`⚠ Cache miss\`, \`⚠ 5m TTL\`,
   \`⚠ Rebuild churn\`, \`⚠ Output heavy\`, \`⚠ Call surge\`.
 - The user asks "why is my cache hit rate low", "what does this warning mean",
   "when did this start happening", or similar.
@@ -80,7 +80,7 @@ honor that for the rest of the turn without changing the saved setting.
    | ------------------ | ----------------------------------------------------- |
    | \`🚨 5H NN%\`       | 5-hour rate-limit window at NN% (>=90%). Cap is imminent. |
    | \`🚨 7D NN%\`       | 7-day rate-limit window at NN% (>=90%). Pace yourself.   |
-   | \`⚠ 1M ON\`         | Auto-promoted to 1M context (Opus 4.7+ Max default).  |
+   | \`⚠ Ctx 500k+\`     | A single recent request carried more than 500k input tokens. |
    | \`⚠ Input spike\`   | One request consumed >250k or >3× the recent p95.     |
    | \`⚠ Cache miss\`    | Cache hit rate dropped below ~70%.                    |
    | \`⚠ 5m TTL\`        | Most cache writes are 5-min ephemeral (Pro plan default). |
@@ -96,7 +96,8 @@ honor that for the rest of the turn without changing the saved setting.
 6. **Suggest the next action.** For \`🚨 5H/7D\` chips, recommend running
    \`claude-token-saver handoff\` to back up the current work to a
    \`HANDOFF-*.md\` file before the cap hits, then continue in a fresh
-   session. For 1M ON, mention \`CLAUDE_CODE_DISABLE_1M_CONTEXT=1\`. For
+   session. For \`⚠ Ctx 500k+\`, recommend \`/compact\` or \`/clear\` and
+   checking what is pinned into context. For
    5m TTL, point at the Max plan's 1h bucket. For input spike, suggest
    splitting the conversation or compacting context.
 

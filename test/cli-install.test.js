@@ -27,6 +27,14 @@ test('install completes on a machine with no prior state', () => {
     assert.match(out, /route-scan: analyzing usage patterns/, 'the first-run seeding branch must execute');
     assert.match(out, /delegation candidate/);
     assert.ok(existsSync(join(home, '.claude', 'settings.json')), 'hooks + statusline are configured');
+    // Everything that costs nothing until it is needed is on after a plain
+    // install — doc2md used to wait for the user to discover `doc2md on`.
+    const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const commands = JSON.stringify(settings.hooks);
+    assert.match(commands, /doc2md --hook(?!-)/, 'the doc2md Read hook is registered by install');
+    assert.match(commands, /doc2md --hook-prompt/, 'the doc2md prompt hook is registered by install');
+    assert.match(commands, /route-scan --hook/);
+    assert.match(commands, /brief --hook/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

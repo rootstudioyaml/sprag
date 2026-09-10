@@ -499,14 +499,14 @@ async function main() {
   }
 
   // For statusline: attach a single-word chip only when there's something
-  // actionable right now. 1M context is always shown; otherwise only fire
-  // if the most recent session actually appears in the spike list.
+  // actionable right now. A context over the 500k warn line is always shown;
+  // otherwise only fire if the most recent session appears in the spike list.
   let spikeChip = null;
   let chipDetail = null;
   if (format === 'statusline') {
-    if (contextWindow.size === '1M') {
+    if (contextWindow.overWarn) {
       spikeChip = chipForIssues([], contextWindow);
-      chipDetail = `Single-request context exceeded 200k (max ${Math.round(contextWindow.maxContext / 1000)}k tokens)`;
+      chipDetail = `Single-request context exceeded 500k (max ${Math.round(contextWindow.maxContext / 1000)}k tokens)`;
     } else {
       const recentSession = sessions
         .slice()

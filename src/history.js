@@ -69,7 +69,8 @@ function saveState(state) {
 function chipKo(chip) {
   if (!chip) return chip;
   const map = {
-    '⚠ Ctx 200k+': '⚠ 컨텍스트 200k 초과',
+    '⚠ Ctx 500k+': '⚠ 컨텍스트 500k 초과',
+    '⚠ Ctx 200k+': '⚠ 컨텍스트 200k 초과', // legacy (pre-v3.32)
     '⚠ 1M ON': '⚠ 1M 컨텍스트 활성', // legacy (pre-v2.18)
     '⚠ Cache miss': '⚠ 캐시 미스',
     '⚠ Rebuild churn': '⚠ 캐시 재빌드 빈발',
@@ -93,8 +94,10 @@ function chipKo(chip) {
  */
 function detailKo(detail) {
   if (!detail) return detail;
-  const m0 = detail.match(/^Single-request context exceeded 200k \(max (\d+)k tokens\)$/);
-  if (m0) return `단일 요청 컨텍스트 200k 초과 (최대 ${m0[1]}k 토큰)`;
+  // The threshold moved from 200k to 500k in v3.32, so both spellings have to
+  // resolve: history files written by older versions still carry the old one.
+  const m0 = detail.match(/^Single-request context exceeded (200|500)k \(max (\d+)k tokens\)$/);
+  if (m0) return `단일 요청 컨텍스트 ${m0[1]}k 초과 (최대 ${m0[2]}k 토큰)`;
   // legacy detail shape (pre-v2.18)
   const m1 = detail.match(/^Context auto-promoted to 1M \(max single-request (\d+)k tokens\)$/);
   if (m1) return `1M 컨텍스트 자동 활성 (단일 요청 최대 ${m1[1]}k 토큰)`;

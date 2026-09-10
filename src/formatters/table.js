@@ -84,9 +84,9 @@ function renderSpikeSection(spikes, contextWindow) {
   const lines = [];
   lines.push(rbl('  ⚠ Token spike detected'));
   lines.push(r(`  ${'─'.repeat(50)}`));
-  if (contextWindow && contextWindow.size === '1M') {
+  if (contextWindow && contextWindow.overWarn) {
     lines.push(
-      r(`  Context usage exceeded 200k  (max recent single-request input ${formatContextSize(contextWindow.maxContext)} tokens)`),
+      r(`  Context usage exceeded 500k  (max recent single-request input ${formatContextSize(contextWindow.maxContext)} tokens)`),
     );
     lines.push('');
   }
@@ -196,9 +196,11 @@ export function formatReport({ summary: sum, trend, ttl, anomalies, cost, option
   // Context window chip for the normal case too
   if (contextWindow && contextWindow.size !== 'unknown') {
     const note =
-      contextWindow.size === '1M'
-        ? '⚠ Context exceeded 200k in recent requests — big contexts re-bill every turn and drain the 5H/7D caps. Use /compact or /clear.'
-        : '✓ 200k context (standard)';
+      contextWindow.overWarn
+        ? '⚠ Context exceeded 500k in recent requests — big contexts re-bill every turn and drain the 5H/7D caps. Use /compact or /clear.'
+        : contextWindow.size === '1M'
+          ? '✓ 1M window in use, under the 500k warn line'
+          : '✓ 200k context (standard)';
     lines.push(`  Context window: ${contextWindow.size}  ${note}`);
     lines.push(`  (max recent single-request input ${formatContextSize(contextWindow.maxContext)} tokens)`);
     lines.push('');

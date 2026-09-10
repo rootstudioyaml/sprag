@@ -214,6 +214,53 @@ export async function run({ hasFlag }) {
       debug('install:korean-style', e); // optional feature; never fail install
     }
 
+    // doc2md. The hook itself is two entries in settings.json and costs
+    // nothing until a document shows up, so it goes on with the rest of the
+    // install instead of waiting for the user to discover `doc2md on` — the
+    // people who would save the most tokens are the ones who never find it.
+    // The converter is the expensive half (a venv plus a pip install), so it
+    // is only built when a human is attached; an unattended postinstall just
+    // prints the command.
+    try {
+      const { createRequire } = await import('node:module');
+      const require = createRequire(import.meta.url);
+      const doc2md = require('../doc2md.cjs');
+      if (process.env.CTS_NO_DOC2MD === '1') {
+        console.log('');
+        console.log(lang === 'ko'
+          ? '  doc2md: CTS_NO_DOC2MD=1 이므로 건너뜁니다 (나중에 `doc2md on`).'
+          : '  doc2md: skipped (CTS_NO_DOC2MD=1) — run `doc2md on` later.');
+      } else {
+        const { installDoc2mdHook } = await import('../installer.js');
+        const res = installDoc2mdHook();
+        console.log('');
+        console.log(res.action === 'skipped'
+          ? `  doc2md: ${res.reason}`
+          : `  doc2md: Read/Write hook ${res.action} (${res.path})`);
+        console.log(lang === 'ko'
+          ? `           대상 형식: ${doc2md.TARGET_EXTENSIONS.join(' ')} — 모델이 읽기 전에 Markdown으로 변환합니다.`
+          : `           formats: ${doc2md.TARGET_EXTENSIONS.join(' ')} — converted to Markdown before the model reads them.`);
+        let python = doc2md.findInterpreter();
+        if (!python && interactive) {
+          const build = await confirm(lang === 'ko'
+            ? '           변환기(markitdown)를 지금 설치할까요? 몇 분 걸립니다.'
+            : '           Install the converter (markitdown) now? Takes a few minutes.', { defaultValue: true });
+          if (build) {
+            const cres = doc2md.installConverter({ onProgress: (m) => console.log(`           ${m}`) });
+            if (cres.ok) python = cres.python;
+            else console.log(`           ${cres.reason}: ${cres.detail || ''}`);
+          }
+        }
+        console.log(python
+          ? (lang === 'ko' ? `           변환기: ${python}` : `           converter: ${python}`)
+          : (lang === 'ko'
+            ? `           변환기가 없습니다 — \`${doc2md.INSTALL_HINT}\` 를 실행해야 훅이 동작합니다.`
+            : `           converter missing — run \`${doc2md.INSTALL_HINT}\` or the hook does nothing.`));
+      }
+    } catch (e) {
+      debug('install:doc2md', e); // optional feature; never fail install
+    }
+
     console.log('');
     console.log('Open Claude Code in any directory and just mention:');
     console.log('  "cache hit rate" / "1M context" / "5H cap" — the skill auto-activates.');
