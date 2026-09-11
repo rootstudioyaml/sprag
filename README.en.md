@@ -20,6 +20,8 @@ Three numbers are the whole pitch.
 - **510,000 tokens on one document**: a 30MB deck read as Markdown instead of raw XML ([evidence](#-doc2md--documents-become-markdown-before-the-model-reads-them))
 - **Routing savings are a per-run ledger**: the price difference of each delegated run, not an estimate ([evidence](#-the-savings-figure-is-a-ledger-entry-not-an-estimate))
 
+Since v3.35.0 spend is visible too: month-to-date spend shows as `💵 Sep $42`, and on LiteLLM gateways (Bedrock and friends) with no 5h/7d caps, your key budget renders as a `🔑 budget ▰▱ 34% $34/$100` gauge.
+
 ## Four parts, working together
 
 | | What it does | Effect |
@@ -33,75 +35,12 @@ One install sets up all four. The measured −18.6% comes from the harness and r
 
 The two savings figures are never added together, because they answer different questions. Routing says "the same work ran on a cheaper model". Conversion says "a file you could not read became readable, without pushing the original through the context window". The statusline gives each its own line and puts the larger one first.
 
-## 🔀 The savings figure is a ledger entry, not an estimate
+## Contents
 
-Every delegated run is recorded like this:
-
-```
-   before             after          gap
-  claude-opus-5  →  haiku-4-5   =   $0.57
-  (the model         (what          (same token counts,
-   handling this      actually       priced against
-   before the rule)   ran it)        both models)
-```
-
-```bash
-$ claude-token-saver route-scan savings      # trace every dollar back to its rule
-
-🔀 Routing saved, lifetime $2.09  (last 7d $1.40 · 30d $2.09)
-
-By model change:
-  claude-fable-5 → claude-sonnet-5   —  1 run, $0.72
-  claude-opus-5 → claude-haiku-4-5   —  1 run, $0.57
-
-By run (newest first):
-  2026-08-22    $0.51  claude-fable-5 → claude-haiku-4-5
-            rule: T2|paste|-Users-me-projects-my-app
-```
-
-**What is excluded** — an honest number beats a big one:
-
-- Delegations no registered rule covers (`Explore`, your own agents, plugin subagents): this tool did not route them.
-- Model ids the pricing table cannot recognize: the run is dropped rather than priced wrong.
-
----
-
-## ⚡ What else the statusline catches
-
-| | |
-|---|---|
-| 🚨 **No surprise rate limits** | Warns when the 5H/7D window hits 90%; `handoff` backs up your work |
-| 🧠 **Cache waste detection** | Hit rate, TTL, 1M-context detection — spikes diagnosed with issue codes |
-| 🇰🇷 **Korean writing guidance** | Offered at install time, defaulting to your locale ([below](#-korean-writing-guidance)) |
-
-## Not a router — 60 seconds
-
-It never intercepts a request in realtime.
-**After a session ends** it reads your local logs, finds the easy patterns your expensive model
-kept handling, and promotes them into rules so a cheaper model takes them **from the next session
-onward**. Rules are scoped global or per-project.
-
-### Why realtime model routing can cost more, not less
-
-Never switching models mid-session is the point of this design.
-
-Prompt caches are **kept per model.** Switch to a cheaper model mid-session and it starts from a cold cache, re-reading the whole conversation at full input price. A cache hit costs about a tenth of that, so past roughly 20k tokens of history **one switch can erase everything the cheaper model was going to save.** You moved the work down a tier and the bill went up: the central paradox of realtime routing.
-
-Teams shipping routing products have turned the feature off for exactly this reason: [LLM 라우터를 만든 사람들이 직접 껐습니다 #Shorts](https://www.youtube.com/shorts/SK-GoAABjbg) (Korean).
-
-So this tool never touches the main session's model. It delegates to **subagents only**, which leaves the main session's cache intact and runs the delegated work on a cheap model in its own context. That is why the savings are not cancelled out by cache loss.
-
-```bash
-npm i -g claude-token-saver@latest
-claude-token-saver route-scan         # find delegation candidates in your own history (0 LLM calls)
-claude-token-saver route-scan rules   # list promoted rules · rm <N> to remove
-claude-token-saver route-scan savings # audit every dollar the routing saved
-```
-
-Thresholds come from **your own last-14-day distribution (p25/p75)**, not someone else's benchmark.
-Measured rule-health — whether a delegated run actually succeeded — landed in [v3.9.0](#v390-2026-08-01).
-
----
+- **Start here**: [Getting started](#getting-started) · [Reading the statusline](#reading-the-statusline) · [Commands](#commands)
+- **Savings**: [The routing ledger](#-the-savings-figure-is-a-ledger-entry-not-an-estimate) · [route-scan](#-route-scan--this-recurring-task-could-run-on-a-cheaper-tier) · [doc2md](#-doc2md--documents-become-markdown-before-the-model-reads-them) · [seed](#-seed-delegation-that-works-from-the-first-session)
+- **Guardrails**: [Harness](#-harness-mode) · [compact-window](#-compact-window--pin-where-a-1m-session-compacts) · [Korean writing guidance](#-korean-writing-guidance)
+- **Spend & environments**: [Monthly spend · LiteLLM key budget](#litellm-your-key-budget-stands-in-for-the-missing-5h7d-caps-v3350) · [Gateways (Bedrock/Vertex)](#-behind-a-gateway-bedrock--vertex) · [Spike issue codes](#spike-issue-codes) · [Measured impact](#real-world-impact--beforeafter-report)
 
 ## Getting started
 
@@ -143,6 +82,78 @@ Everything that costs nothing until it is needed is on after a plain install. Th
 
 `compact-window set` writes into Claude Code's `settings.json` and a human has to choose global or project scope, so it is never run for you. Model-fitting rules keep an approval step for the same reason: which work belongs on a cheaper tier is your call.
 
+
+## 🔀 The savings figure is a ledger entry, not an estimate
+
+Every delegated run is recorded like this:
+
+```
+   before             after          gap
+  claude-opus-5  →  haiku-4-5   =   $0.57
+  (the model         (what          (same token counts,
+   handling this      actually       priced against
+   before the rule)   ran it)        both models)
+```
+
+```bash
+$ claude-token-saver route-scan savings      # trace every dollar back to its rule
+
+🔀 Routing saved, lifetime $2.09  (last 7d $1.40 · 30d $2.09)
+
+By model change:
+  claude-fable-5 → claude-sonnet-5   —  1 run, $0.72
+  claude-opus-5 → claude-haiku-4-5   —  1 run, $0.57
+
+By run (newest first):
+  2026-08-22    $0.51  claude-fable-5 → claude-haiku-4-5
+            rule: T2|paste|-Users-me-projects-my-app
+```
+
+**What is excluded** — an honest number beats a big one:
+
+- Delegations no registered rule covers (`Explore`, your own agents, plugin subagents): this tool did not route them.
+- Model ids the pricing table cannot recognize: the run is dropped rather than priced wrong.
+
+---
+
+## ⚡ What else the statusline catches
+
+| | |
+|---|---|
+| 🚨 **No surprise rate limits** | Warns when the 5H/7D window hits 90%; `handoff` backs up your work |
+| 🧠 **Cache waste detection** | Hit rate, TTL, 1M-context detection — spikes diagnosed with issue codes |
+| 💵 **Spend visibility** | Month-to-date spend (`💵 Sep $42`) always on; behind a LiteLLM gateway the key budget gauge (`🔑 budget 34% $34/$100`) stands in for the missing 5h/7d caps ([below](#litellm-your-key-budget-stands-in-for-the-missing-5h7d-caps-v3350)) |
+| 🇰🇷 **Korean writing guidance** | Offered at install time, defaulting to your locale ([below](#-korean-writing-guidance)) |
+
+## Not a router — 60 seconds
+
+It never intercepts a request in realtime.
+**After a session ends** it reads your local logs, finds the easy patterns your expensive model
+kept handling, and promotes them into rules so a cheaper model takes them **from the next session
+onward**. Rules are scoped global or per-project.
+
+### Why realtime model routing can cost more, not less
+
+Never switching models mid-session is the point of this design.
+
+Prompt caches are **kept per model.** Switch to a cheaper model mid-session and it starts from a cold cache, re-reading the whole conversation at full input price. A cache hit costs about a tenth of that, so past roughly 20k tokens of history **one switch can erase everything the cheaper model was going to save.** You moved the work down a tier and the bill went up: the central paradox of realtime routing.
+
+Teams shipping routing products have turned the feature off for exactly this reason: [LLM 라우터를 만든 사람들이 직접 껐습니다 #Shorts](https://www.youtube.com/shorts/SK-GoAABjbg) (Korean).
+
+So this tool never touches the main session's model. It delegates to **subagents only**, which leaves the main session's cache intact and runs the delegated work on a cheap model in its own context. That is why the savings are not cancelled out by cache loss.
+
+```bash
+npm i -g claude-token-saver@latest
+claude-token-saver route-scan         # find delegation candidates in your own history (0 LLM calls)
+claude-token-saver route-scan rules   # list promoted rules · rm <N> to remove
+claude-token-saver route-scan savings # audit every dollar the routing saved
+```
+
+Thresholds come from **your own last-14-day distribution (p25/p75)**, not someone else's benchmark.
+Measured rule-health — whether a delegated run actually succeeded — landed in [v3.9.0](#v390-2026-08-01).
+
+---
+
 ## Reading the statusline
 
 Once the savings ledger has entries it renders as **two rows** — routing savings on row 1, diagnostics on row 2.
@@ -156,7 +167,8 @@ With an empty ledger (no measured delegation yet) row 1 is not drawn and the lay
 
 | Segment | Meaning |
 |---|---|
-| `🔀` **row 1** | **Lifetime routing savings + the model changes behind them.** The total is green, the breakdown gray. The breakdown sums exactly to the total (all pairs, never truncated) and drops version digits, which churn (`claude-opus-4-5-…` → `opus`). Full audit: `route-scan savings` |
+| `🔀` **row 1** | Lifetime routing savings + the model moves behind them. The breakdown sums exactly to the total, model names keep only the family (`opus→haiku`). Full audit: `route-scan savings` |
+| `📄` **row 2** | Lifetime doc2md conversion savings with a per-format breakdown. Whichever of routing/conversion saved more takes row 1 |
 | `🤖` | Active model |
 | `🅷 5/5` | Harness principle score ([Harness mode](#-harness-mode)) |
 | `🧠` | Cache hit rate (green at 85%+) |
