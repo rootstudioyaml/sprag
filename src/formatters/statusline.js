@@ -380,6 +380,25 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     doc2mdSeg = `${c(GRAY)}${label} ${doc2mdDocs} docs${c(RESET)}`;
   }
 
+  // 이번 달 지출 세그먼트. 달력 월(1일 00시 기준) 지출 추정치라서 cap 이 없는
+  // 게이트웨이 사용자에게도 항상 의미가 있다. 정보성 지표이므로 회색으로,
+  // 게이지들 뒤에 조용히 놓는다.
+  //   icon:    "💵 Sep $42.1"
+  //   text:    "Sep spend $42.1"
+  //   verbose: "Sep spend $42.1 (since Sep 1)"
+  const month = data.monthSpend;
+  let monthSeg = null;
+  if (month && Number(month.usd) > 0) {
+    const amt = formatMoney(Number(month.usd));
+    if (isIcon) {
+      monthSeg = `${c(GRAY)}💵 ${month.label} ${amt}${c(RESET)}`;
+    } else if (verbose) {
+      monthSeg = `${c(GRAY)}${month.label} spend ${amt} (since ${month.label} 1)${c(RESET)}`;
+    } else {
+      monthSeg = `${c(GRAY)}${month.label} spend ${amt}${c(RESET)}`;
+    }
+  }
+
   // Routing-savings headline line (multi-line layout). The lifetime sum from
   // the delegation ledger — the number the whole tool exists to grow, so it
   // gets line 1 to itself while the diagnostics move to line 2.
@@ -615,15 +634,21 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // Icon mode renders an inline ▰▱ gauge instead of the literal "cap used" —
     // a glance at the bar conveys urgency faster than parsing a percent number,
     // and the gauge stays the same width as the percent climbs.
+    // LiteLLM 예산 윈도우는 퍼센트만으로는 감이 안 오므로(예산 크기를 모름)
+    // 금액을 함께 보여 준다: `🔑 budget ▰▱ 34% $34/$100`.
+    const money =
+      Number.isFinite(info.maxBudget) && info.maxBudget > 0
+        ? ` ${formatMoney(Number(info.spend) || 0)}/${formatMoney(info.maxBudget)}`
+        : '';
     if (isIcon) {
       const labelPart = labels.usageLabel ? `${labels.usageLabel} ` : '';
       const bar = gaugeBar(pct);
-      return `${c(tone)}${labels.icon} ${labelPart}${bar} ${pct}%${tail}${c(RESET)}`;
+      return `${c(tone)}${labels.icon} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
     }
     if (verbose) {
-      return `${c(tone)}${labels.short} cap ${pct}% used${tail}${c(RESET)}`;
+      return `${c(tone)}${labels.short} cap ${pct}% used${money}${tail}${c(RESET)}`;
     }
-    return `${c(tone)}${labels.short} cap ${pct}%${tail}${c(RESET)}`;
+    return `${c(tone)}${labels.short} cap ${pct}%${money}${tail}${c(RESET)}`;
   }
   // Color tone: green <70%, yellow 70-89%, red 90+% (a 90+% window only
   // renders here when a *different* window won the cap-warn chip slot).
@@ -695,6 +720,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   for (const { key, seg } of usageSegs) {
     if (usageWant(key)) segs.push(seg);
   }
+  if (monthSeg && want('month')) segs.push(monthSeg);
   if (ctxSeg && want('ctx')) segs.push(ctxSeg);
   // Cache saved is the "lifetime brag" stat — useful but not actionable, so
   // it sits near the tail. The period label closes the line as a quiet

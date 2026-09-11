@@ -23,6 +23,9 @@ const KNOWN = {
   // ever surfaces it on stdin we render with a sensible default already.
   seven_day_sonnet: { short: '7D-S', long: 'Current week (Sonnet)', icon: '🅂', usageLabel: 'weekly (Sonnet)' },
   seven_day_opus: { short: '7D-O', long: 'Current week (Opus)', icon: '🅾', usageLabel: 'weekly (Opus)' },
+  // LiteLLM 게이트웨이 키 예산. rate_limits 가 없는 환경에서 cap 게이지를
+  // 대신하는 합성 윈도우라서, 여기 라벨만 있으면 나머지 렌더는 공용 경로를 탄다.
+  litellm_budget: { short: 'BUDGET', long: 'LiteLLM key budget', icon: '🔑', usageLabel: 'budget' },
 };
 
 function deriveShort(key) {

@@ -87,7 +87,7 @@ function readUpdateChip() {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean',
   'doc2md', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed',
+  'seed', 'litellm-budget',
 ]);
 
 const USAGE = `claude-token-saver — Claude Code token usage, cache health, and model routing
@@ -272,6 +272,32 @@ async function main() {
       hasFlag,
       version: PKG_VERSION,
     });
+  }
+
+  // Subcommand: litellm-budget · LiteLLM 게이트웨이 키의 max_budget/spend 조회.
+  //   claude-token-saver litellm-budget            # 캐시된 예산 상태 출력
+  //   claude-token-saver litellm-budget --refresh  # 지금 프록시에 물어봄 (detached 자식이 사용)
+  if (args[0] === 'litellm-budget') {
+    const { gatewayEnv, readBudgetState, refreshBudgetState } = await import('../src/litellm-budget.js');
+    const quiet = hasFlag('--quiet');
+    if (hasFlag('--refresh')) {
+      try {
+        const next = await refreshBudgetState();
+        if (!quiet) console.log(JSON.stringify(next, null, 2));
+      } catch (e) {
+        debug('litellm-budget:refresh', e);
+        if (!quiet) console.error(`litellm-budget refresh failed: ${e.message}`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+    const gw = gatewayEnv();
+    if (!gw) {
+      console.log('게이트웨이가 감지되지 않았습니다 (ANTHROPIC_BASE_URL + 키 필요).');
+      return;
+    }
+    console.log(JSON.stringify(readBudgetState(), null, 2));
+    return;
   }
 
   // Subcommand: upgrade — run the install command that matches how this copy
@@ -493,6 +519,21 @@ async function main() {
       debug('caps-cache:persist', e);
     }
   }
+  // LiteLLM 게이트웨이(Bedrock 등): stdin에 rate_limits가 아예 오지 않으므로
+  // 키의 max_budget/spend 를 cap 게이지로 대신 보여 준다. 조회는 캐시만 읽고,
+  // 갱신은 detached 자식에게 맡겨 렌더가 네트워크를 기다리지 않게 한다.
+  if (isStatusline) {
+    try {
+      const { budgetWindow, maybeSpawnBudgetCheck } = await import('../src/litellm-budget.js');
+      maybeSpawnBudgetCheck();
+      if (!caps || !Array.isArray(caps.windows) || caps.windows.length === 0) {
+        const bw = budgetWindow();
+        if (bw) caps = { windows: [bw] };
+      }
+    } catch (e) {
+      debug('litellm-budget:window', e);
+    }
+  }
   if (!isStatusline && (!caps || !model)) {
     try {
       const { loadRecentSnapshot } = await import('../src/caps-cache.js');
@@ -575,6 +616,23 @@ async function main() {
   }
   const lastActivity = Math.max(otherLastActivity, currentSessionLastUser);
 
+  // 이번 달 1일 00시 이후 지출 추정치. 통계선 기본 창(30d)이 월초를 덮으면
+  // 이미 파싱한 세션을 재사용하고, 사용자가 창을 줄여 둔 경우(mode 1d 등)에만
+  // 월초까지 다시 파싱한다. 파싱 결과는 세션 캐시가 받아 주므로 싸다.
+  let monthSpendInfo = null;
+  if (isStatusline) {
+    try {
+      const { monthSpend, monthStartMs } = await import('../src/month-spend.js');
+      const daysNeeded = (Date.now() - monthStartMs()) / 86400000;
+      const monthSessions = days >= daysNeeded
+        ? sessions
+        : await parseAllSessions({ days: Math.max(1, Math.ceil(daysNeeded)), projectFilter });
+      monthSpendInfo = monthSpend(monthSessions);
+    } catch (e) {
+      debug('month-spend', e);
+    }
+  }
+
   // What delegation has measurably saved, read straight from the registry
   // route-scan maintains. A lookup, never a scan: the statusline re-renders
   // every few seconds and a scan parses tens of MB of transcripts.
@@ -636,6 +694,7 @@ async function main() {
     // Cached-only; the background refresh it may trigger lands on a later render.
     update: format === 'statusline' ? readUpdateChip() : null,
     lastActivity,
+    monthSpend: monthSpendInfo,
     spikeReport,
     contextWindow,
     ctxLive,
