@@ -114,6 +114,12 @@ honor that for the rest of the turn without changing the saved setting.
   capturing git status + cap snapshot, so a fresh session can resume cleanly.
 - \`claude-token-saver mode\` — show statusline preferences.
 - \`claude-token-saver mode icon verbose 1d\` — change preferences.
+- \`claude-token-saver feedback "<message>"\` — file a bug report or feature
+  request for this tool right from the session (tries the gh CLI, then an
+  anonymous no-login submission, then saves locally with a prefilled GitHub
+  issue URL; \`--anonymous\` skips the gh path).
+  Use it whenever the user says the tool itself misbehaves or wishes it did
+  something it does not — offer to submit the report for them.
 
 ## Storage layout (for reference)
 
@@ -197,7 +203,10 @@ export function installStatusline({ force = false } = {}) {
   }
 
   if (!force) {
-    return { path: file, action: 'skipped', reason: `existing statusLine command (${cur.command}) — re-run with --force to overwrite` };
+    // `conflict` lets the interactive install distinguish "someone else's
+    // statusline is here" (worth asking about) from other skip reasons
+    // (unreadable JSON), which a prompt cannot fix.
+    return { path: file, action: 'skipped', conflict: true, existingCommand: cur.command, reason: `existing statusLine command (${cur.command}) — re-run with --force to overwrite` };
   }
   settings.statusLine = {
     type: 'command',

@@ -73,7 +73,31 @@ export async function run({ hasFlag }) {
     print('SessionStart hook (route-scan)', r.sessionStartHook);
     print('UserPromptSubmit hook (brief)', r.briefHook);
     {
-      const s = r.statusline;
+      let s = r.statusline;
+      // A different statusline is already installed. Replacing it silently
+      // would be rude and leaving it silently loses the tool's main surface,
+      // so with a human attached the install asks. Default is "keep yours":
+      // an accidental Enter must not clobber someone's custom statusline.
+      if (s.action === 'skipped' && s.conflict && interactive) {
+        console.log('');
+        console.log(lang === 'ko'
+          ? `  statusline: 기존 statusline이 이미 설정되어 있습니다: ${s.existingCommand}`
+          : `  statusline: an existing statusline is already configured: ${s.existingCommand}`);
+        console.log(lang === 'ko'
+          ? '              교체하면 토큰·캐시·상한 경고가 statusline에 표시됩니다. 기존 설정은 사라집니다.'
+          : '              replacing it shows token/cache/cap warnings in the statusline; the current one is removed.');
+        const replace = await confirm(lang === 'ko'
+          ? '              claude-token-saver statusline으로 교체할까요?'
+          : '              Replace it with the claude-token-saver statusline?', { defaultValue: false });
+        if (replace) {
+          const { installStatusline } = await import('../installer.js');
+          s = installStatusline({ force: true });
+        } else {
+          s = { ...s, reason: lang === 'ko'
+            ? '기존 statusline을 유지했습니다. 교체하려면 `claude-token-saver install --force`'
+            : 'kept your statusline — replace later with `claude-token-saver install --force`' };
+        }
+      }
       const verb = s.action === 'exists' ? 'already configured (refreshInterval=5)'
         : s.action === 'skipped' ? `skipped — ${s.reason}`
         : s.reason ? `${s.action} — ${s.reason}`
@@ -326,5 +350,9 @@ export async function run({ hasFlag }) {
       console.log('');
       console.log('Tip: re-run with --force to overwrite the existing skill file.');
     }
+    console.log('');
+    console.log(lang === 'ko'
+      ? '버그 제보·기능 제안: https://github.com/rootstudioyaml/claude-token-saver/issues'
+      : 'Bug reports & feature requests: https://github.com/rootstudioyaml/claude-token-saver/issues');
     return;
 }

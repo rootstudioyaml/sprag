@@ -87,7 +87,7 @@ function readUpdateChip() {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget',
+  'seed', 'litellm-budget', 'feedback',
 ]);
 
 const USAGE = `claude-token-saver — Claude Code token usage, cache health, and model routing
@@ -107,6 +107,7 @@ Usage:
   claude-token-saver last               most recent warning + how to handle it
   claude-token-saver history            recent warning transitions
   claude-token-saver handoff            write a session handoff file
+  claude-token-saver feedback "<msg>"   file a bug report / feature request (no browser needed)
   claude-token-saver upgrade            install the latest release
   claude-token-saver --install-hook     install cache-monitor PostToolUse hook
   claude-token-saver --uninstall-hook   remove that hook
@@ -114,6 +115,7 @@ Usage:
       --verbose / --no-color / --icon / --no-timer / --single-line
 
 Run any subcommand with --help for its own options where available.
+Bug reports & feature requests: https://github.com/rootstudioyaml/claude-token-saver/issues
 `;
 
 async function main() {
@@ -161,6 +163,14 @@ async function main() {
   // hits.
   //   claude-token-saver handoff             # write to cwd
   //   claude-token-saver handoff --cwd PATH  # custom directory
+  // Subcommand: feedback — file a bug report / feature request without a
+  // browser. Tries gh CLI, then an anonymous form POST, then a local save
+  // with a prefilled GitHub issue URL. See src/commands/feedback.js.
+  if (args[0] === 'feedback') {
+    const { userDataDir } = await import('../src/paths.js');
+    return (await import('../src/commands/feedback.js')).run({ args, getArg, version: PKG_VERSION, dataDir: userDataDir() });
+  }
+
   if (args[0] === 'handoff') {
     return (await import('../src/commands/handoff.js')).run({ getArg });
   }

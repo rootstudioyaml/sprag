@@ -602,10 +602,25 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 전체 내역은 [CHANGELOG.md](./CHANGELOG.md)로 옮겼습니다. 최근 변경은 다음과 같습니다.
 
+- **v3.39.0**: `feedback` 서브커맨드가 터미널이나 Claude 세션에서 버그 제보·기능 제안을 바로 제출합니다. gh CLI가 있으면 이슈 직접 등록, 없으면 로그인 없는 익명 제출(릴레이가 이슈로 자동 등록), 오프라인이면 로컬 저장. `install`은 기존 statusline이 있으면 조용히 건너뛰지 않고 교체 여부를 묻습니다.
 - **v3.38.0**: `cohesion on`이 응집성 다섯 원칙을 영어 블록으로 주입합니다. 옵트인이고, korean 지침이 켜져 있으면 중복 주입을 막습니다.
 - **v3.37.0**: 한국어 지침에 보강 지침(supplement)이 붙습니다. 번역투·상투 패턴·응집성(문장 이어짐) 조항이며, 쓰기 시점 검사에도 번역투 5종이 추가됐습니다. 실파일 255개 실측에서 오탐 1건으로 검증했습니다.
 - **v3.35.0**: 이번 달 1일 00시 이후 지출 추정치를 `💵 Sep $42` 세그먼트로 상시 표시합니다. LiteLLM 게이트웨이 사용자는 키의 max_budget/spend 를 `🔑 budget` 게이지로 봅니다 (5h/7d cap 이 없는 Bedrock·LiteLLM 환경 대응).
 - **v3.34.0**: seed 프리셋 제안, 설치 시 출력 언어 선택, 컨텍스트 경고 500k 상향. 상세는 CHANGELOG 참고.
+
+## 피드백
+
+버그 제보와 기능 제안은 GitHub 이슈로 받습니다: https://github.com/rootstudioyaml/claude-token-saver/issues
+
+브라우저나 GitHub 로그인이 어려운 환경(사내망, 세션 도중)이라면 터미널에서 바로 제출할 수 있고, Claude에게 대신 제출해 달라고 요청해도 됩니다.
+
+```bash
+claude-token-saver feedback "Bedrock에서 5m TTL 칩이 사라지지 않아요"
+```
+
+`gh` CLI가 인증되어 있으면 GitHub 이슈로 바로 등록하고, 없으면 로그인이 필요 없는 익명 경로로 제출합니다(github.com이 막힌 사내망에서도 동작합니다). `gh` 경로를 건너뛰려면 `--anonymous`를 붙입니다. 도구 버전과 OS 정보는 자동으로 첨부됩니다.
+
+버그를 제보하실 때는 도구 버전(`claude-token-saver --version`)과 OS를 함께 적어 주시고, statusline이나 경고 관련 문제라면 statusline 출력이나 `claude-token-saver last` 결과를 덧붙여 주시면 원인을 빨리 찾을 수 있습니다.
 
 ## 라이선스
 

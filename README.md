@@ -723,10 +723,25 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headings and command names are language-neutral). Recent changes:
 
+- **v3.39.0**: `feedback` subcommand — file bug reports and feature requests straight from the terminal or a Claude session, via the gh CLI, an anonymous no-login form (auto-filed as a GitHub issue by an Apps Script relay), or a local fallback. `install` now asks before replacing an existing statusline instead of silently skipping.
 - **v3.38.0**: `cohesion on` — the language-neutral cohesion rules from the Korean supplement become a standalone English injection (given-before-new, one referent per pronoun, subject consistency, bridging, merging choppy sentences). Opt-in, ~0.5k tokens per session, suppressed while `korean on` already carries them.
 - **v3.37.0**: Korean guidance grows a conservative supplement (translationese, AI-writing tics, a research-backed cohesion section whose principles apply to English prose too) and the write-time lint gains 5 translationese patterns, validated at 1 false positive across 255 real files.
 - **v3.35.0**: A `💵 Sep $42` segment now shows estimated spend since 00:00 on the 1st of the current month, always on — including gateway setups with no 5h/7d caps. LiteLLM gateway users get a `🔑 budget ▰▱ 34% $34/$100` gauge built from the key's budget (`GET /key/info` + `GET /user/info`, team-membership budget first, then key, then internal user — verified against a Dockerized LiteLLM).
 - **v3.34.0**: seed presets offered one at a time, output-language choice at install, context warning raised to 500k.
+
+## Feedback
+
+Found a bug, or want a feature? Open an issue: https://github.com/rootstudioyaml/claude-token-saver/issues
+
+No browser or GitHub login handy (corporate network, mid-session)? Submit straight from the terminal — or ask Claude to do it for you:
+
+```bash
+claude-token-saver feedback "the 5m TTL chip never clears on Bedrock"
+```
+
+It files a GitHub issue via the `gh` CLI when one is authenticated; otherwise it submits anonymously (no login, works where github.com is blocked). Pass `--anonymous` to skip the `gh` path. Version and OS metadata are attached automatically.
+
+When reporting a bug, please include the tool version (`claude-token-saver --version`), your OS, and — if it is a statusline or warning issue — the statusline output or the `claude-token-saver last` result.
 
 ## License
 
