@@ -4,7 +4,7 @@
 
 - 브랜드: **Sprag**, 스프래그 클러치에서 따온 이름입니다. 축이 앞으로 도는 것은 그대로 통과시키고, 역회전하는 순간 잠급니다. 이 도구의 철학과 같습니다: 작업은 방해하지 않고, 퇴행만 막습니다.
 - 태그라인: `Sprag — a quality ratchet for AI agents. Mistakes never repeat.`
-- 포지셔닝 문장: "cleat guards the code; Sprag guards the agent." (cleat는 에이전트가 쓴 코드에 게이트를 걸고, Sprag는 에이전트의 행동과 운영에 랫쳇을 겁니다. 경쟁이 아니라 보완 관계입니다.)
+- 포지셔닝 문장: "cleat guards the code; Sprag guards the agent." (cleat는 에이전트가 쓴 코드에 게이트를 걸고, Sprag는 에이전트의 행동과 운영에 래칫을 겁니다. 경쟁이 아니라 보완 관계입니다.)
 - 발음: 스프래그 /spræɡ/. paw 계열 연상이 없어서 검색 고유성이 높습니다.
 
 ## 확보 현황 (2026-09-13 확인)

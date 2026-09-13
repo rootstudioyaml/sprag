@@ -252,7 +252,7 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
       }
     }
     if (fixes.length > 0) {
-      lines.push(`  · 랫쳇 룰 ${fixes.length}건 — 같은 실수를 반복하지 않도록 세션마다 읽히는 규칙입니다.`);
+      lines.push(`  · 래칫 룰 ${fixes.length}건 — 같은 실수를 반복하지 않도록 세션마다 읽히는 규칙입니다.`);
       for (const s of fixes) lines.push(`    [${s.id}] ${s.ruleText}`);
     }
     lines.push('  등록: claude-token-saver seed accept <id> --global|--project   # 적용 범위는 반드시 사용자에게 확인');

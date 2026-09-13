@@ -5,7 +5,7 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**AI 코딩 에이전트용 품질 래칫. 같은 실수는 두 번 없습니다.**
+**AI 코딩 에이전트용 품질 래칫**<br>**같은 실수는 두 번 없습니다**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
@@ -230,7 +230,7 @@ Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적
 | `sprag handoff` | 작업 상태를 `HANDOFF-*.md`로 백업 (캡 임박 시) |
 | `sprag mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
 | `sprag harness ...` | 🅷 Harness 관리 (아래 참고) |
-| `sprag route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 랫쳇 룰을 제안합니다 (아래 참고) |
+| `sprag route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 래칫 룰을 제안합니다 (아래 참고) |
 | `sprag route-scan savings` | 라우팅 절감 원장입니다. 모델 이동별 합계와 실행별 내역을 함께 보여 주며, 표시되는 금액의 근거가 됩니다 |
 | `sprag compact-window` | 1M 컨텍스트를 쓰면서 자동 압축 창이 설정되지 않았으면 경고하고, `set`으로 40만에 고정합니다 (아래 참고) |
 | `sprag korean on\|off\|status` | 한국어 문체 지침을 세션 시작 시 주입하고, 쓰기 시점 검사를 함께 설치합니다 (아래 참고) |
@@ -269,14 +269,14 @@ sprag harness check               # 현재 점수 (글로벌 fallback 인정)
 sprag harness analyze             # 훅 없이도 수동으로 전사 분석을 실행해 harness-state.json 갱신
 sprag harness promote <N> --project|--global   # 경고 #N → ratchet 룰 (스코프 필수)
 sprag harness promote "<룰 텍스트>" --project|--global  # 내가 직접 정의한 룰도 같은 명령으로 등록
-sprag harness pull                # 패키지 동봉 큐레이션 룰 → 내 글로벌 랫쳇에 등록 (opt-in, 중복 스킵)
+sprag harness pull                # 패키지 동봉 큐레이션 룰 → 내 글로벌 래칫에 등록 (opt-in, 중복 스킵)
 sprag harness list / rm <N>       # 룰 조회 / 삭제 (자동 .bak)
 sprag harness off | on            # 🅷 표시 토글
 ```
 
 - `promote`는 non-TTY 환경(스크립트나 LLM 호출)에서 `--project` 또는 `--global` 플래그가 **반드시 필요합니다.** 적용 범위가 사용자에게 묻지 않은 채 결정되는 사고를 막기 위한 설계입니다.
-- `pull`은 패키지에 동봉된 **제작자 큐레이션 랫쳇 룰**(`presets/ratchet-rules.json`, 실제 반복 사고에서 승격된 범용 룰만)을 내 글로벌 랫쳇(`~/.claude/ratchet.md`)에 등록합니다. 설치(`install`)나 `init`은 아무것도 자동 주입하지 않으며, `pull`은 항상 opt-in이고 재실행해도 중복이 없습니다(멱등). 마음에 안 드는 룰은 `harness rm`으로 제거하면 됩니다.
-- `seed`는 같은 프리셋을 **한 건씩** 물어보는 경로입니다. `pull`이 랫쳇 룰 전체를 한 번에 등록하는 명령인 데 반해, `seed`는 모델 피팅 프리셋까지 포함해 설치·업그레이드 후 첫 세션에서 한 건씩 제안합니다 ([아래](#-seed-설치-직후부터-위임이-걸리게-하는-시작-룰)).
+- `pull`은 패키지에 동봉된 **제작자 큐레이션 래칫 룰**(`presets/ratchet-rules.json`, 실제 반복 사고에서 승격된 범용 룰만)을 내 글로벌 래칫(`~/.claude/ratchet.md`)에 등록합니다. 설치(`install`)나 `init`은 아무것도 자동 주입하지 않으며, `pull`은 항상 opt-in이고 재실행해도 중복이 없습니다(멱등). 마음에 안 드는 룰은 `harness rm`으로 제거하면 됩니다.
+- `seed`는 같은 프리셋을 **한 건씩** 물어보는 경로입니다. `pull`이 래칫 룰 전체를 한 번에 등록하는 명령인 데 반해, `seed`는 모델 피팅 프리셋까지 포함해 설치·업그레이드 후 첫 세션에서 한 건씩 제안합니다 ([아래](#-seed-설치-직후부터-위임이-걸리게-하는-시작-룰)).
 - 🅷⚠ 런타임 경고(`ratchet?` `no-evidence` `PEV-skip`)는 30분 후 자동 만료되고, 하위 디렉터리 세션도 프로젝트에 올바르게 매칭됩니다. PEV-skip은 변경성 도구(Edit/Write/Bash)만 카운트해 읽기 위주 세션에서는 발동하지 않습니다 (v2.16.0+).
 
 <details>
@@ -370,14 +370,14 @@ v3.10.0부터는 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌�
 
 ## 🌱 seed: 설치 직후부터 위임이 걸리게 하는 시작 룰
 
-모델 피팅 랫쳇(`ratchet-model.md`)은 **빈 파일로 시작합니다.** route-scan이 사용자의 로그에서 같은 유형의 작업을 여러 번 관측하고, 사용자가 그 후보를 승인해야 룰이 생깁니다. 즉 갓 설치한 상태에서는 위임이 한 건도 걸리지 않고, 그 상태가 며칠 이어집니다. 정작 절감 효과가 가장 클 시기입니다.
+모델 피팅 래칫(`ratchet-model.md`)은 **빈 파일로 시작합니다.** route-scan이 사용자의 로그에서 같은 유형의 작업을 여러 번 관측하고, 사용자가 그 후보를 승인해야 룰이 생깁니다. 즉 갓 설치한 상태에서는 위임이 한 건도 걸리지 않고, 그 상태가 며칠 이어집니다. 정작 절감 효과가 가장 클 시기입니다.
 
 `seed`는 패키지에 동봉된 프리셋으로 그 공백을 메웁니다.
 
 | 프리셋 | 내용 | 파일 |
 |---|---|---|
 | 모델 피팅 9건 | 명령 실행·탐색·상태 확인·붙여넣은 로그 질문·읽기 요약, 각 유형의 T2(haiku)와 T1(sonnet) 룰 | `presets/model-rules.json` |
-| 랫쳇 6건 | 실제 반복 사고에서 승격된 범용 룰 | `presets/ratchet-rules.json` |
+| 래칫 6건 | 실제 반복 사고에서 승격된 범용 룰 | `presets/ratchet-rules.json` |
 
 **등록 절차:** 설치나 업그레이드 후 첫 세션에서 SessionStart 훅이 대기 중인 프리셋을 모델에게 전달하고, 모델이 **한 건씩 순서대로** 등록 여부를 묻습니다. 사용자가 답하면 곧바로 아래 명령을 실행합니다.
 

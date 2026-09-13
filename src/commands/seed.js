@@ -86,7 +86,7 @@ export async function run({ args, hasFlag }) {
   for (const s of pending) {
     const head = s.kind === 'model'
       ? `[${s.id}] ${s.tier} · "${s.label}" → ${s.agent}`
-      : `[${s.id}] ${ko ? '랫쳇 룰' : 'ratchet rule'}`;
+      : `[${s.id}] ${ko ? '래칫 룰' : 'ratchet rule'}`;
     console.log(`  ${head}`);
     console.log(`      ${s.ruleText}`);
   }

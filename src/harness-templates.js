@@ -67,7 +67,7 @@ ${HARNESS_SECTIONS[0].heading}
   플래그를 명시해야 함. 묻지 않고 기본값으로 등록하지 말 것.
 - 승인된 룰은 이 블록 맨 아래 \`@\` import로 매 세션 로드된다 — 그 import 라인을
   지우면 ratchet.md는 컨텍스트에 들어오지 않으니 지우지 말 것.
-- **모델 피팅 랫쳇**: \`.claude/ratchet-model.md\`(프로젝트)와
+- **모델 피팅 래칫**: \`.claude/ratchet-model.md\`(프로젝트)와
   \`~/.claude/ratchet-model.md\`(글로벌)에 있는 티어 위임 룰도 ratchet.md와
   동일하게 따를 것. 이 파일은 sprag가 로그 기반으로 자동
   생성·갱신하므로 직접 수정하지 말 것 (관리: \`route-scan rules\`).

@@ -333,7 +333,7 @@ export async function run({ hasFlag }) {
       if (pending.length > 0) {
         console.log('');
         console.log(lang === 'ko'
-          ? `  seed: 추천 룰 ${pending.length}건이 대기 중입니다 (모델 피팅 + 랫쳇 프리셋).`
+          ? `  seed: 추천 룰 ${pending.length}건이 대기 중입니다 (모델 피팅 + 래칫 프리셋).`
           : `  seed: ${pending.length} recommended rule(s) are waiting (model-fitting + ratchet presets).`);
         console.log(lang === 'ko'
           ? '        다음 Claude Code 세션에서 한 건씩 등록할지 물어봅니다. 지금 보려면: sprag seed'
