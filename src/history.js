@@ -306,7 +306,7 @@ export function recordCapTransition(window) {
 
 /**
  * Record a handoff write — invoked by the `handoff` subcommand so
- * `claude-token-saver history` shows when work was backed up to a HANDOFF file.
+ * `sprag history` shows when work was backed up to a HANDOFF file.
  *
  * @param {string} filePath
  * @returns {boolean}

@@ -22,19 +22,19 @@ const STATUSLINE_REFRESH_INTERVAL = 5;
 
 const SKILL_BODY = `---
 name: claude-token-saver
-description: Use when the user mentions Claude Code token usage, prompt cache hit rate, TTL/expiry, the 1M context window, cache misses, output spikes, rate-limit caps (5h/7d), or anything in the statusline produced by claude-token-saver (chips like "🚨 5H 94%", "🚨 7D 92%", "⚠ Ctx 500k+", "⚠ Input spike", "⚠ Cache miss", "⚠ 5m TTL", "⚠ Rebuild churn", "⚠ Output heavy", "⚠ Call surge", "⏳ Cache expires", "💰 Cache saved", "🧠 Cache hit"). Also use when they ask to view token-usage history, want to understand a warning they just saw, or want to back up work before a session cap with \`claude-token-saver handoff\`.
+description: Use when the user mentions Claude Code token usage, prompt cache hit rate, TTL/expiry, the 1M context window, cache misses, output spikes, rate-limit caps (5h/7d), or anything in the statusline produced by sprag (chips like "🚨 5H 94%", "🚨 7D 92%", "⚠ Ctx 500k+", "⚠ Input spike", "⚠ Cache miss", "⚠ 5m TTL", "⚠ Rebuild churn", "⚠ Output heavy", "⚠ Call surge", "⏳ Cache expires", "💰 Cache saved", "🧠 Cache hit"). Also use when they ask to view token-usage history, want to understand a warning they just saw, or want to back up work before a session cap with \`sprag handoff\`.
 ---
 
-# claude-token-saver — Claude Code Token Monitor
+# sprag — Claude Code Token Monitor
 
-This skill helps users interpret and act on the \`claude-token-saver\` statusline
+This skill helps users interpret and act on the \`sprag\` statusline
 in Claude Code. The statusline updates every ~1s and shows cache health, TTL
 countdown, savings, and (when relevant) a leading warning chip.
 
 ## Response language
 
 Respond in the user's configured output language. Run
-\`claude-token-saver mode\` once at the start of the session and read the
+\`sprag mode\` once at the start of the session and read the
 \`Output language\` field — if it shows \`language: ko\`, write **all of your
 prose to the user in Korean** (summary, "All clear" status lines, headings,
 recommendations). If it shows \`language: en\` (the default), write in
@@ -52,7 +52,7 @@ honor that for the rest of the turn without changing the saved setting.
   "when did this start happening", or similar.
 - The user is approaching a rate-limit cap and wants to back up the current
   work so a fresh session can continue (point them at
-  \`claude-token-saver handoff\`).
+  \`sprag handoff\`).
 - The user wants to see the token-usage history file or asks for a summary
   of recent warnings.
 - The user asks for a quick token report or "current state" check (the
@@ -62,16 +62,16 @@ honor that for the rest of the turn without changing the saved setting.
 ## What to do
 
 1. **Lead with the most recent warning + how to handle it.** Run
-   \`claude-token-saver last\` first. It returns the most recent warning event
+   \`sprag last\` first. It returns the most recent warning event
    (chip + detail + timestamp) plus the full advice block for it. Surface that
    to the user before anything else — this is what they came for.
 2. **Identify the chip.** If the user pasted a statusline (instead of relying
    on \`last\`), pull out the leading \`⚠ ...\` chip. That maps to a specific
    issue category.
-3. **Show recent history.** Run \`claude-token-saver history\` (default last 7
+3. **Show recent history.** Run \`sprag history\` (default last 7
    days) to see the chronology of warning transitions. Each entry is timestamped,
    bilingual (English line + 한국어), and includes a \`💡\` action tip inline.
-4. **Drill down on the live state.** Run \`claude-token-saver --days 1\` (or
+4. **Drill down on the live state.** Run \`sprag --days 1\` (or
    another window) to render the full table view, which lists per-session
    spikes and recommended actions.
 5. **Explain the warning** in plain language. Use the chip → cause table:
@@ -94,7 +94,7 @@ honor that for the rest of the turn without changing the saved setting.
    that is expected, not a failure of this tool.
 
 6. **Suggest the next action.** For \`🚨 5H/7D\` chips, recommend running
-   \`claude-token-saver handoff\` to back up the current work to a
+   \`sprag handoff\` to back up the current work to a
    \`HANDOFF-*.md\` file before the cap hits, then continue in a fresh
    session. For \`⚠ Ctx 500k+\`, recommend \`/compact\` or \`/clear\` and
    checking what is pinned into context. For
@@ -103,18 +103,18 @@ honor that for the rest of the turn without changing the saved setting.
 
 ## Useful commands
 
-- \`claude-token-saver last\` — most recent warning + full advice (start here).
-- \`claude-token-saver last --days 7\` — widen the lookback window.
-- \`claude-token-saver\` — full table report (default last 1 day).
-- \`claude-token-saver --days 7\` — wider window.
-- \`claude-token-saver history\` — recent warning transitions per day, with
+- \`sprag last\` — most recent warning + full advice (start here).
+- \`sprag last --days 7\` — widen the lookback window.
+- \`sprag\` — full table report (default last 1 day).
+- \`sprag --days 7\` — wider window.
+- \`sprag history\` — recent warning transitions per day, with
   inline \`💡\` action tips.
-- \`claude-token-saver history --days 30\` — longer history.
-- \`claude-token-saver handoff\` — write a HANDOFF-*.md template in cwd
+- \`sprag history --days 30\` — longer history.
+- \`sprag handoff\` — write a HANDOFF-*.md template in cwd
   capturing git status + cap snapshot, so a fresh session can resume cleanly.
-- \`claude-token-saver mode\` — show statusline preferences.
-- \`claude-token-saver mode icon verbose 1d\` — change preferences.
-- \`claude-token-saver feedback "<message>"\` — file a bug report or feature
+- \`sprag mode\` — show statusline preferences.
+- \`sprag mode icon verbose 1d\` — change preferences.
+- \`sprag feedback "<message>"\` — file a bug report or feature
   request for this tool right from the session (tries the gh CLI, then an
   anonymous no-login submission, then saves locally with a prefilled GitHub
   issue URL; \`--anonymous\` skips the gh path).
@@ -163,7 +163,7 @@ export function removeLegacyCommand() {
 
 // Registers/repairs the Claude Code statusLine entry in ~/.claude/settings.json.
 // - No statusLine yet: insert ours with refreshInterval:STATUSLINE_REFRESH_INTERVAL.
-// - statusLine already points at claude-token-saver: ensure that refreshInterval
+// - statusLine already points at sprag: ensure that refreshInterval
 //   (this is the bit that makes the TTL countdown tick every second while idle).
 // - statusLine points at a different command: leave it alone unless --force.
 export function installStatusline({ force = false } = {}) {
@@ -219,7 +219,7 @@ export function installStatusline({ force = false } = {}) {
 
 // Registers the SessionStart hook that surfaces route-scan delegation
 // candidates as session context (startup + /clear). Idempotent: skips when a
-// claude-token-saver route-scan hook is already present; never touches other
+// sprag route-scan hook is already present; never touches other
 // hooks the user configured.
 const ROUTE_SCAN_HOOK_COMMAND = 'claude-token-saver route-scan --hook';
 

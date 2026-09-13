@@ -67,9 +67,13 @@ export function koreanStyleDecided(cfg = loadConfig()) {
  * locale variables, then (macOS only, where those are routinely unset) the
  * system locale.
  */
-export function koreanLocaleDetected({ env = process.env, platform = process.platform } = {}) {
+export function koreanLocaleDetected({ env = process.env, platform = process.platform, cfg } = {}) {
   try {
-    if (loadConfig().language === 'ko') return true;
+    // The saved language answer only applies to the live process environment.
+    // A caller that injects a synthetic `env` (tests, simulations) is asking
+    // about that environment, not about this machine's recorded choice.
+    const c = cfg !== undefined ? cfg : (env === process.env ? loadConfig() : null);
+    if (c && c.language === 'ko') return true;
   } catch { /* unreadable config falls through to the env checks */ }
   const posix = [env.LC_ALL, env.LC_MESSAGES, env.LANG, env.LANGUAGE].filter(
     (v) => typeof v === 'string' && v.trim() && v !== 'C' && v !== 'POSIX',

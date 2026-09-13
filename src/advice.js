@@ -467,7 +467,7 @@ export const ISSUE_MESSAGES = {
  * and how do I fix it" without re-running the tool.
  *
  * The full multi-step advice still lives in `ISSUE_MESSAGES[code].actions()`;
- * `claude-token-saver last` prints that long form on demand.
+ * `sprag last` prints that long form on demand.
  */
 export const ISSUE_TIPS = {
   LARGE_INPUT_PER_REQUEST: {
@@ -536,8 +536,8 @@ export const CHIP_TO_CODES = {
  * because once the cap blocks you, you need a fresh session to continue.
  */
 export const CAP_TIPS = {
-  en: 'Run `claude-token-saver handoff` to back up state before the cap blocks you',
-  ko: '`claude-token-saver handoff` 실행해서 캡 도달 전에 상태 백업',
+  en: 'Run `sprag handoff` to back up state before the cap blocks you',
+  ko: '`sprag handoff` 실행해서 캡 도달 전에 상태 백업',
 };
 
 /**

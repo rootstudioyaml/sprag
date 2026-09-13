@@ -25,13 +25,13 @@ import { join } from 'node:path';
 import os from 'node:os';
 import { debug } from '../debug.js';
 
-const REPO = 'rootstudioyaml/claude-token-saver';
+const REPO = 'rootstudioyaml/sprag';
 const ISSUES_URL = `https://github.com/${REPO}/issues`;
 
 // Anonymous submission endpoint (Google Form). A Google Form's formResponse
 // URL accepts unauthenticated POSTs, which is exactly the property a
 // login-free, GitHub-blocked-network path needs. Responses land in the
-// maintainer's "claude-token-saver 피드백 (Feedback)" form (published
+// maintainer's "sprag 피드백 (Feedback)" form (published
 // 2026-09-13, responder access: anyone with the link).
 //   id      — the /d/e/<id>/ segment of the form URL
 //   message — entry.NNNN field id of the message question

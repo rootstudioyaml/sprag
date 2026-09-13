@@ -3,8 +3,8 @@
  * Designed for the auto-trigger skill so the user immediately sees
  * "what just fired and how to fix it" without having to read the whole
  * history file.
- *   claude-token-saver last           # search last 1 day
- *   claude-token-saver last --days 7  # widen the lookback
+ *   sprag last           # search last 1 day
+ *   sprag last --days 7  # widen the lookback
  */
 
 
@@ -113,7 +113,7 @@ export async function run({ numArg }) {
       console.log('💡 ' + (lang === 'ko' ? CAP_TIPS.ko : CAP_TIPS.en));
       console.log('');
       console.log(lang === 'ko' ? '실행:' : 'Run:');
-      console.log('  claude-token-saver handoff');
+      console.log('  sprag handoff');
       return;
     }
     // Chip warning path: render full ISSUE_MESSAGES advice for each code,
@@ -121,8 +121,8 @@ export async function run({ numArg }) {
     // the history.md format).
     if (latest.codes.length === 0) {
       console.log(lang === 'ko'
-        ? '(진단 코드 없음 — 표 뷰를 열어보세요: `claude-token-saver --days 1`)'
-        : '(No diagnostic code attached — open the table view: `claude-token-saver --days 1`)');
+        ? '(진단 코드 없음 — 표 뷰를 열어보세요: `sprag --days 1`)'
+        : '(No diagnostic code attached — open the table view: `sprag --days 1`)');
       return;
     }
     // Pick a single language per field; fall back to EN when KO is missing.

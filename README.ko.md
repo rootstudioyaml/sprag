@@ -17,7 +17,7 @@
 
 ---
 
-# Sprag (claude-token-saver)
+# Sprag (sprag)
 
 **아낀 돈을 두 줄로 보여 줍니다.** 비싼 모델이 반복하던 쉬운 작업을 싼 모델로 내려보내고, 모델이 읽지 못하는 문서를 Markdown 으로 바꿉니다. 두 절감액 모두 추정이 아니라 원장 기록입니다. 의존성 0, 설치 한 줄.
 
@@ -67,14 +67,14 @@ v3.35.0 부터는 지출도 보입니다. 이번 달 1일 이후 쓴 금액을 `
 
 ```bash
 npm uninstall -g claude-cache-monitor   # (구 패키지 사용자만)
-npm i -g claude-token-saver
+npm i -g sprag-cli
 ```
 
-설치하면 Claude Code 화면 하단에 statusline이 곧바로 나타납니다. `--ignore-scripts` 옵션이나 sudo 사용 등으로 자동 등록이 되지 않았다면 `claude-token-saver install`을 실행해 직접 등록하십시오.
+설치하면 Claude Code 화면 하단에 statusline이 곧바로 나타납니다. `--ignore-scripts` 옵션이나 sudo 사용 등으로 자동 등록이 되지 않았다면 `sprag install`을 실행해 직접 등록하십시오.
 
 설치 한 번으로 **statusline과 Skill, SessionStart 훅, 🅷 Harness(5원칙), 최초 route-scan이** 모두 준비됩니다. Harness와 한국어 문체 지침은 **무엇이 추가되는지 보여 준 뒤 켤지 물어봅니다.** Harness는 `~/.claude/CLAUDE.md`에 표시가 붙은 블록으로 **추가되며**, 기존에 작성해 둔 내용은 백업한 뒤 그대로 보존합니다. 이미 설정되어 있는 경우에는 아무것도 바꾸지 않습니다.
 
-터미널이 아닌 환경(npm의 `postinstall`, CI, 파이프 입력)에서는 질문을 건너뛰고 기존 기본값을 적용합니다. 질문 없이 진행하려면 `--yes`나 `--no-input`, 아예 건너뛰려면 `CTS_NO_HARNESS=1 npm i -g claude-token-saver`를 쓰십시오. 이미 적용한 설정을 되돌리려면 `claude-token-saver harness uninit --global`을 실행하십시오.
+터미널이 아닌 환경(npm의 `postinstall`, CI, 파이프 입력)에서는 질문을 건너뛰고 기존 기본값을 적용합니다. 질문 없이 진행하려면 `--yes`나 `--no-input`, 아예 건너뛰려면 `CTS_NO_HARNESS=1 npm i -g sprag-cli`를 쓰십시오. 이미 적용한 설정을 되돌리려면 `sprag harness uninit --global`을 실행하십시오.
 
 > ⚠️ sudo로 글로벌 설치를 하면 Skill이 사용자 계정이 아니라 root의 `~/.claude`에 등록되는 함정이 있습니다. nvm이나 fnm, Volta를 사용해 사용자 영역에 설치하기를 권장합니다.
 
@@ -84,7 +84,7 @@ npm i -g claude-token-saver
 
 | 기능 | 설치 직후 상태 | 끄는 방법 |
 |---|---|---|
-| statusline (진단 칩·절감 원장) | 켜짐 | `claude-token-saver uninstall` |
+| statusline (진단 칩·절감 원장) | 켜짐 | `sprag uninstall` |
 | `/claude-token-saver` Skill | 켜짐 | 위와 같습니다 |
 | SessionStart 훅 (route-scan 재분석) | 켜짐 | 위와 같습니다 |
 | UserPromptSubmit 훅 (brief 주입) | 켜짐 | 위와 같습니다 |
@@ -115,7 +115,7 @@ npm i -g claude-token-saver
 ```
 
 ```bash
-$ claude-token-saver route-scan savings      # 모든 금액을 룰 단위까지 역추적
+$ sprag route-scan savings      # 모든 금액을 룰 단위까지 역추적
 
 🔀 라우팅 절감 누적 $2.09  (최근 7일 $1.40 · 30일 $2.09)
 
@@ -161,10 +161,10 @@ $ claude-token-saver route-scan savings      # 모든 금액을 룰 단위까지
 이 도구는 그래서 메인 세션의 모델을 건드리지 않습니다. **서브에이전트 위임만 사용하므로** 메인 세션의 캐시는 그대로 유지되고, 위임된 작업만 별도 컨텍스트에서 싼 모델이 처리합니다. 절감액이 캐시 손실로 상쇄되지 않는 이유가 여기에 있습니다.
 
 ```bash
-npm i -g claude-token-saver@latest
-claude-token-saver route-scan         # 지난 세션에서 위임 후보 추출 (LLM 호출 없음)
-claude-token-saver route-scan rules   # 승격된 룰 확인 · rm <N> 으로 삭제
-claude-token-saver route-scan savings # 위임으로 절감한 금액의 근거를 전수 확인
+npm i -g sprag-cli@latest
+sprag route-scan         # 지난 세션에서 위임 후보 추출 (LLM 호출 없음)
+sprag route-scan rules   # 승격된 룰 확인 · rm <N> 으로 삭제
+sprag route-scan savings # 위임으로 절감한 금액의 근거를 전수 확인
 ```
 
 판정 기준선은 다른 사람의 벤치마크가 아니라 **사용자 본인의 최근 14일 분포(p25/p75)** 로 잡습니다.
@@ -196,7 +196,7 @@ claude-token-saver route-scan savings # 위임으로 절감한 금액의 근거�
 | `💵 Sep $42` | **이번 달 1일 00시(로컬) 이후 지출 추정치**입니다. 세션 로그에 세션별 모델 단가를 적용해 합산하며, 5h/7d cap 이 없는 게이트웨이 환경에서도 항상 표시됩니다 (v3.35.0) |
 | `🔑 budget` | **LiteLLM 게이트웨이 키의 예산 게이지**입니다. stdin 에 rate_limits 가 오지 않는 환경에서 키의 `max_budget` 대비 `spend` 를 `🔑 budget ▰▱ 34% $34/$100` 형태로 보여 줍니다 (v3.35.0, [아래](#-bedrockvertex-경유-환경)) |
 | `💰` | 프롬프트 캐시가 절약해 준 누적 금액입니다. 첫째 줄의 `🔀`(모델 라우팅 절감액)와는 **서로 다른 수치입니다** |
-| `v3.24.0` | 지금 실행 중인 claude-token-saver의 버전입니다. 최신이면 회색으로 줄 끝에 조용히 놓입니다 |
+| `v3.24.0` | 지금 실행 중인 sprag의 버전입니다. 최신이면 회색으로 줄 끝에 조용히 놓입니다 |
 | `⬆ v3.24.0 → 3.25.0` | 새 버전이 배포되어 있다는 표시입니다. 조치가 필요한 칩이므로 줄 앞쪽으로 올라옵니다 ([업데이트 안내](#-업데이트-안내)) |
 
 문제가 감지되면 **경고 칩을 줄 맨 앞에** 붙입니다.
@@ -209,7 +209,7 @@ claude-token-saver route-scan savings # 위임으로 절감한 금액의 근거�
 
 ### 경고 칩이 떴을 때
 
-Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적힌 문구를 그대로 말하기만 해도("5H cap 떴어", "cache miss") Skill이 자동으로 활성화되어 **원인 코드와 단계별 해결 명령을** 보여 줍니다. 한도가 임박한 상황에서는 `claude-token-saver handoff`로 진행 중인 작업을 마크다운 파일에 백업한 뒤 새 세션에서 이어가는 방식을 권장합니다.
+Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적힌 문구를 그대로 말하기만 해도("5H cap 떴어", "cache miss") Skill이 자동으로 활성화되어 **원인 코드와 단계별 해결 명령을** 보여 줍니다. 한도가 임박한 상황에서는 `sprag handoff`로 진행 중인 작업을 마크다운 파일에 백업한 뒤 새 세션에서 이어가는 방식을 권장합니다.
 
 ## 주요 명령
 
@@ -217,27 +217,27 @@ Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적
 
 | 명령 | 설명 |
 |---|---|
-| `claude-token-saver` | 최근 1일 진단 리포트 (`--days N` / `--hours N`) |
-| `claude-token-saver last` | 가장 최근 경고 1건 + 처방 |
-| `claude-token-saver history` | 최근 7일 경고 전이 로그 |
-| `claude-token-saver handoff` | 작업 상태를 `HANDOFF-*.md`로 백업 (캡 임박 시) |
-| `claude-token-saver mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
-| `claude-token-saver harness ...` | 🅷 Harness 관리 (아래 참고) |
-| `claude-token-saver route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 랫쳇 룰을 제안합니다 (아래 참고) |
-| `claude-token-saver route-scan savings` | 라우팅 절감 원장입니다. 모델 이동별 합계와 실행별 내역을 함께 보여 주며, 표시되는 금액의 근거가 됩니다 |
-| `claude-token-saver compact-window` | 1M 컨텍스트를 쓰면서 자동 압축 창이 설정되지 않았으면 경고하고, `set`으로 40만에 고정합니다 (아래 참고) |
-| `claude-token-saver korean on\|off\|status` | 한국어 문체 지침을 세션 시작 시 주입하고, 쓰기 시점 검사를 함께 설치합니다 (아래 참고) |
-| `claude-token-saver cohesion on\|off\|status\|show` | 영어 문장 연결(응집성) 지침을 세션 시작 시 주입합니다 |
-| `claude-token-saver korean lint block\|warn\|off` | 쓰기 시점 검사가 위반을 어떻게 처리할지 정합니다 |
-| `claude-token-saver korean lint scope all\|prose` | 검사 범위를 모든 텍스트 파일과 문서 전용 사이에서 고릅니다 |
-| `claude-token-saver doc2md on\|off` | 첨부 문서를 모델이 읽기 전에 Markdown 으로 변환합니다 (아래 참고) |
-| `claude-token-saver doc2md <파일>` | 파일 하나를 직접 변환합니다. 진단 용도이며 실패 이유를 그대로 출력합니다 |
-| `claude-token-saver mode ttl=5m\|1h\|auto` | 캐시 TTL 버킷을 직접 지정합니다. 기본값 `auto`는 실측값을 먼저 보고, 실측값이 없으면 게이트웨이 여부로 판정합니다 |
-| `claude-token-saver --version` | 설치된 버전을 출력합니다 |
-| `claude-token-saver update-check` | 새 버전이 있는지 확인합니다 (`--refresh`로 즉시 조회, `--dismiss`로 그 버전 안내 끄기) |
-| `claude-token-saver upgrade` | 설치 경로에 맞는 명령으로 최신 버전을 설치합니다 (`--print`로 실행 없이 명령만 확인) |
-| `claude-token-saver install` | Skill·statusline 수동 등록 |
-| `claude-token-saver uninstall [--purge]` | 등록한 훅·statusline·Skill 제거. 기록된 절감액은 남기며, `--purge` 를 붙이면 상태 디렉터리까지 지웁니다 |
+| `sprag` | 최근 1일 진단 리포트 (`--days N` / `--hours N`) |
+| `sprag last` | 가장 최근 경고 1건 + 처방 |
+| `sprag history` | 최근 7일 경고 전이 로그 |
+| `sprag handoff` | 작업 상태를 `HANDOFF-*.md`로 백업 (캡 임박 시) |
+| `sprag mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
+| `sprag harness ...` | 🅷 Harness 관리 (아래 참고) |
+| `sprag route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 랫쳇 룰을 제안합니다 (아래 참고) |
+| `sprag route-scan savings` | 라우팅 절감 원장입니다. 모델 이동별 합계와 실행별 내역을 함께 보여 주며, 표시되는 금액의 근거가 됩니다 |
+| `sprag compact-window` | 1M 컨텍스트를 쓰면서 자동 압축 창이 설정되지 않았으면 경고하고, `set`으로 40만에 고정합니다 (아래 참고) |
+| `sprag korean on\|off\|status` | 한국어 문체 지침을 세션 시작 시 주입하고, 쓰기 시점 검사를 함께 설치합니다 (아래 참고) |
+| `sprag cohesion on\|off\|status\|show` | 영어 문장 연결(응집성) 지침을 세션 시작 시 주입합니다 |
+| `sprag korean lint block\|warn\|off` | 쓰기 시점 검사가 위반을 어떻게 처리할지 정합니다 |
+| `sprag korean lint scope all\|prose` | 검사 범위를 모든 텍스트 파일과 문서 전용 사이에서 고릅니다 |
+| `sprag doc2md on\|off` | 첨부 문서를 모델이 읽기 전에 Markdown 으로 변환합니다 (아래 참고) |
+| `sprag doc2md <파일>` | 파일 하나를 직접 변환합니다. 진단 용도이며 실패 이유를 그대로 출력합니다 |
+| `sprag mode ttl=5m\|1h\|auto` | 캐시 TTL 버킷을 직접 지정합니다. 기본값 `auto`는 실측값을 먼저 보고, 실측값이 없으면 게이트웨이 여부로 판정합니다 |
+| `sprag --version` | 설치된 버전을 출력합니다 |
+| `sprag update-check` | 새 버전이 있는지 확인합니다 (`--refresh`로 즉시 조회, `--dismiss`로 그 버전 안내 끄기) |
+| `sprag upgrade` | 설치 경로에 맞는 명령으로 최신 버전을 설치합니다 (`--print`로 실행 없이 명령만 확인) |
+| `sprag install` | Skill·statusline 수동 등록 |
+| `sprag uninstall [--purge]` | 등록한 훅·statusline·Skill 제거. 기록된 절감액은 남기며, `--purge` 를 붙이면 상태 디렉터리까지 지웁니다 |
 
 출력 언어는 설치할 때 한 번 정합니다. 터미널에서 설치하면 시스템 로케일을 기본값으로 제시하고 한국어를 쓸지 물어보며, 비대화형 설치에서는 로케일 판정을 그대로 기록합니다. 한 번 기록되면 업그레이드해도 다시 묻지 않습니다. 나중에 바꿀 때는 `mode ko`나 `mode en`을 쓰고, 스크립트에서 설치할 때는 `CTS_LANG=ko` 또는 `CTS_LANG=en`으로 지정할 수 있습니다. statusline의 칩은 언제나 기호로 표시합니다. 전체 옵션은 [영문 README](./README.md#options)를 참고하십시오.
 
@@ -246,8 +246,8 @@ Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적
 statusline은 대화 상자를 띄울 수 없고, 300밀리초마다 다시 그려지기 때문에 그리는 시점에 네트워크를 쓸 수도 없습니다. 그래서 안내를 두 지점으로 나누었습니다.
 
 - **statusline은 알리기만 합니다.** 최신 버전이면 줄 끝에 `v3.24.0`을 회색으로 조용히 표시하고, 새 버전이 있으면 `⬆ v3.24.0 → 3.25.0`을 줄 앞쪽에 노란색으로 올립니다. 빨간색은 쓰지 않습니다. 무엇도 고장 난 상태가 아니기 때문입니다.
-- **묻는 일은 세션 시작에서 합니다.** 새 세션이나 `/clear` 시점에 SessionStart 훅이 "새 버전이 있으니 사용자에게 업그레이드할지 물어보라"는 한 줄을 모델에게 주입합니다. 모델은 사용자에게 확인한 뒤에만 `claude-token-saver upgrade`를 실행합니다. 묻지 않고 설치하지 않습니다.
-- **거절은 기억합니다.** 사용자가 원치 않으면 `claude-token-saver update-check --dismiss`로 그 버전을 묻지 않도록 설정합니다. 더 새로운 버전이 배포되면 다시 묻습니다. statusline 칩은 그대로 남습니다. 거절한 것은 질문이지, 새 버전이 있다는 사실이 아니기 때문입니다.
+- **묻는 일은 세션 시작에서 합니다.** 새 세션이나 `/clear` 시점에 SessionStart 훅이 "새 버전이 있으니 사용자에게 업그레이드할지 물어보라"는 한 줄을 모델에게 주입합니다. 모델은 사용자에게 확인한 뒤에만 `sprag upgrade`를 실행합니다. 묻지 않고 설치하지 않습니다.
+- **거절은 기억합니다.** 사용자가 원치 않으면 `sprag update-check --dismiss`로 그 버전을 묻지 않도록 설정합니다. 더 새로운 버전이 배포되면 다시 묻습니다. statusline 칩은 그대로 남습니다. 거절한 것은 질문이지, 새 버전이 있다는 사실이 아니기 때문입니다.
 
 버전 조회는 24시간에 한 번, 분리된 백그라운드 프로세스가 수행하고 결과만 파일에 남깁니다(`update-check.json`). 이 방식은 npm의 `update-notifier`가 쓰는 것과 같습니다. 네트워크가 끊겨 있어도 실패 시각을 기록해 두므로 매 렌더마다 재시도하지 않습니다. 확인 자체를 끄려면 환경 변수 `CTS_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER`를 설정하십시오.
 
@@ -256,15 +256,15 @@ statusline은 대화 상자를 띄울 수 없고, 300밀리초마다 다시 그�
 다섯 원칙(Ratchet · Evidence · PEV · Structured Task · Default Safe Path)을 한 줄 명령으로 `CLAUDE.md`에 셋업하고 statusline이 `🅷 5/5`로 점수화합니다. 같은 에러가 반복되면 `🅷⚠ ratchet?` 알림이 떠서 룰로 승격할 수 있습니다.
 
 ```bash
-claude-token-saver harness init                # 이 프로젝트에 셋업
-claude-token-saver harness init --global       # ~/.claude/CLAUDE.md, 모든 프로젝트에 적용
-claude-token-saver harness check               # 현재 점수 (글로벌 fallback 인정)
-claude-token-saver harness analyze             # 훅 없이도 수동으로 전사 분석을 실행해 harness-state.json 갱신
-claude-token-saver harness promote <N> --project|--global   # 경고 #N → ratchet 룰 (스코프 필수)
-claude-token-saver harness promote "<룰 텍스트>" --project|--global  # 내가 직접 정의한 룰도 같은 명령으로 등록
-claude-token-saver harness pull                # 패키지 동봉 큐레이션 룰 → 내 글로벌 랫쳇에 등록 (opt-in, 중복 스킵)
-claude-token-saver harness list / rm <N>       # 룰 조회 / 삭제 (자동 .bak)
-claude-token-saver harness off | on            # 🅷 표시 토글
+sprag harness init                # 이 프로젝트에 셋업
+sprag harness init --global       # ~/.claude/CLAUDE.md, 모든 프로젝트에 적용
+sprag harness check               # 현재 점수 (글로벌 fallback 인정)
+sprag harness analyze             # 훅 없이도 수동으로 전사 분석을 실행해 harness-state.json 갱신
+sprag harness promote <N> --project|--global   # 경고 #N → ratchet 룰 (스코프 필수)
+sprag harness promote "<룰 텍스트>" --project|--global  # 내가 직접 정의한 룰도 같은 명령으로 등록
+sprag harness pull                # 패키지 동봉 큐레이션 룰 → 내 글로벌 랫쳇에 등록 (opt-in, 중복 스킵)
+sprag harness list / rm <N>       # 룰 조회 / 삭제 (자동 .bak)
+sprag harness off | on            # 🅷 표시 토글
 ```
 
 - `promote`는 non-TTY 환경(스크립트나 LLM 호출)에서 `--project` 또는 `--global` 플래그가 **반드시 필요합니다.** 적용 범위가 사용자에게 묻지 않은 채 결정되는 사고를 막기 위한 설계입니다.
@@ -294,11 +294,11 @@ Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 �
 **200k 컨텍스트는 경고 대상이 아닙니다.** 창이 이미 200k 이하이므로 이 설정으로 달라지는 것이 없기 때문입니다.
 
 ```bash
-claude-token-saver compact-window                       # 현재 상태 (모델·창·설정값·출처)
-claude-token-saver compact-window set --global          # ~/.claude/settings.json 에 50만 고정 (범위 중간)
-claude-token-saver compact-window set --project         # <root>/.claude/settings.json 에 고정
-claude-token-saver compact-window set --global --value 600k    # 값 직접 지정 (10만~1M)
-claude-token-saver compact-window off | on              # 경고 표시 토글
+sprag compact-window                       # 현재 상태 (모델·창·설정값·출처)
+sprag compact-window set --global          # ~/.claude/settings.json 에 50만 고정 (범위 중간)
+sprag compact-window set --project         # <root>/.claude/settings.json 에 고정
+sprag compact-window set --global --value 600k    # 값 직접 지정 (10만~1M)
+sprag compact-window off | on              # 경고 표시 토글
 ```
 
 - 1M 모델인데 미설정이거나 40만을 넘으면 statusline에 `🅷⚠ compact-window?`가 뜨고, 세션 브리핑이 등록 명령까지 알려줍니다.
@@ -320,11 +320,11 @@ claude-token-saver compact-window off | on              # 경고 표시 토글
 3. 승격된 룰은 도구가 관리하는 별도 파일(`.claude/ratchet-model.md`)에서 **자동으로 갱신되며,** 위임한 뒤 에러율이 높아지면 `⚠ rule-health`로 경고합니다. 룰이 낡았다는 사실을 스스로 알리는 셈입니다.
 
 ```bash
-claude-token-saver route-scan                    # 스캔 (24h 캐시) + 티어별 후보 출력
-claude-token-saver harness promote R1 --project  # 후보 R1을 모델 피팅 룰로 등록
-claude-token-saver route-scan dismiss 1          # 관심 없으면 무시 (재스캔에도 안 뜸)
-claude-token-saver route-scan rules              # 등록된 모델 피팅 룰 목록 (rm <N>으로 제거)
-claude-token-saver route-scan savings            # 절감 원장: 어느 룰이 어떤 모델에서 어떤 모델로 옮겼는지
+sprag route-scan                    # 스캔 (24h 캐시) + 티어별 후보 출력
+sprag harness promote R1 --project  # 후보 R1을 모델 피팅 룰로 등록
+sprag route-scan dismiss 1          # 관심 없으면 무시 (재스캔에도 안 뜸)
+sprag route-scan rules              # 등록된 모델 피팅 룰 목록 (rm <N>으로 제거)
+sprag route-scan savings            # 절감 원장: 어느 룰이 어떤 모델에서 어떤 모델로 옮겼는지
 ```
 
 `route-scan savings`는 statusline의 `🔀 Routing saved` 한 줄 뒤에 있는 근거를 그대로 보여줍니다. 모델 이동별 합계와 실행별 내역이 함께 나오므로, 금액이 어디서 나왔는지 추적할 수 있습니다.
@@ -375,11 +375,11 @@ v3.10.0부터는 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌�
 **등록 절차:** 설치나 업그레이드 후 첫 세션에서 SessionStart 훅이 대기 중인 프리셋을 모델에게 전달하고, 모델이 **한 건씩 순서대로** 등록 여부를 묻습니다. 사용자가 답하면 곧바로 아래 명령을 실행합니다.
 
 ```bash
-claude-token-saver seed                                   # 대기 중인 프리셋과 응답 기록
-claude-token-saver seed accept <id> --global|--project     # 한 건 등록 (적용 범위 필수)
-claude-token-saver seed accept all --global                # 사용자가 "전부 등록"이라고 답한 경우
-claude-token-saver seed skip <id>                          # 거절 — 다시 묻지 않습니다
-claude-token-saver seed reset                              # 응답 기록을 지워 전체를 다시 제안 대상으로
+sprag seed                                   # 대기 중인 프리셋과 응답 기록
+sprag seed accept <id> --global|--project     # 한 건 등록 (적용 범위 필수)
+sprag seed accept all --global                # 사용자가 "전부 등록"이라고 답한 경우
+sprag seed skip <id>                          # 거절 — 다시 묻지 않습니다
+sprag seed reset                              # 응답 기록을 지워 전체를 다시 제안 대상으로
 ```
 
 - **승인 없이는 아무것도 기록되지 않습니다.** 거절한 룰은 업그레이드 후에도 다시 묻지 않고, 새 릴리스에서 추가된 프리셋만 다음 세션에 제안됩니다.
@@ -392,10 +392,10 @@ claude-token-saver seed reset                              # 응답 기록을 �
 Claude가 한국어로 쓸 때 나타나는 문체 결함(문장 성분 생략, 명사형 종결, 번역체, 엠대시 남용)을 교정하는 지침을 **세션 시작 시 한 번 주입합니다.**
 
 ```bash
-claude-token-saver korean on       # 켜기 (모든 프로젝트에 적용)
-claude-token-saver korean status   # 상태·비용·출처 확인
-claude-token-saver korean show     # 지침 원문 출력
-claude-token-saver korean off      # 끄기
+sprag korean on       # 켜기 (모든 프로젝트에 적용)
+sprag korean status   # 상태·비용·출처 확인
+sprag korean show     # 지침 원문 출력
+sprag korean off      # 끄기
 ```
 
 Claude Code의 output style로도 같은 일을 할 수 있지만, output style은 **전역 슬롯 하나**라서 켜는 순간 다른 스타일을 못 쓰게 되고 머신마다 따로 설정해야 합니다. 이 기능은 지침을 패키지에 담고 이미 설치된 SessionStart 훅으로 전달하므로, **CLI가 설치된 모든 프로젝트에 적용되며 output style 슬롯은 비워 둡니다.** `/clear` 이후에도 훅이 다시 실행되어 유지됩니다.
@@ -430,7 +430,7 @@ Claude Code의 output style로도 같은 일을 할 수 있지만, output style�
 - **상투 패턴**: 자동으로 붙는 수식어("다양한", "핵심적인"), 표지판 문장, 수사적 질문 뒤 즉답, 근거 없는 긍정 마무리.
 - **응집성**: 문장이 이어지는 방식이라 정규식으로는 검사하지 못합니다. 이 절의 방향을 정한 연구 결과가 있습니다. 접속어·지시어 같은 표층 연결 장치는 글의 품질과 상관이 없거나 오히려 부적 상관이고, 앞 문장이 내놓은 정보를 다음 문장이 받아 풀어 주는 상술형 연결만 정적 상관을 보였습니다. 그래서 지침은 연결이 어색할 때 접속어를 더하지 말고 정보의 배열(아는 것 먼저, 새 것 나중)을 고치라고 말합니다.
 
-응집성 층의 원칙 대부분은 한국어에만 해당하지 않습니다. 구정보 우선 배열, 대명사의 단일 지시, 문단 안 주어 유지, 비약을 잇는 다리 문장, 짧은 반복 문장 병합은 영어 산문에도 그대로 적용됩니다. 논문이 한국어 학습자를 다뤘을 뿐, 검증된 원칙은 텍스트언어학의 표준 응집성 모형입니다. 영어 산출물에는 `claude-token-saver cohesion on`이 같은 다섯 원칙을 영어 블록으로 주입합니다 (korean 지침이 켜져 있으면 중복이라 생략됩니다).
+응집성 층의 원칙 대부분은 한국어에만 해당하지 않습니다. 구정보 우선 배열, 대명사의 단일 지시, 문단 안 주어 유지, 비약을 잇는 다리 문장, 짧은 반복 문장 병합은 영어 산문에도 그대로 적용됩니다. 논문이 한국어 학습자를 다뤘을 뿐, 검증된 원칙은 텍스트언어학의 표준 응집성 모형입니다. 영어 산출물에는 `sprag cohesion on`이 같은 다섯 원칙을 영어 블록으로 주입합니다 (korean 지침이 켜져 있으면 중복이라 생략됩니다).
 
 마지막 절은 고치면 안 되는 것을 명시합니다. 정착된 전문 용어, 문어체, 원문 인용이 그것이고, 검사가 내는 지적은 판정이 아니라 확인 요청입니다.
 
@@ -441,14 +441,14 @@ Claude Code의 output style로도 같은 일을 할 수 있지만, output style�
 v3.24.0부터 `korean on`이 PostToolUse 훅을 함께 설치합니다. 모델이 방금 쓴 파일을 열어서 기계로 판정할 수 있는 조항을 검사하고, 위반이 있으면 모델에게 되돌려 보냅니다. 파일은 이미 저장된 뒤이므로 잃는 것은 없고, 모델이 즉시 고칩니다.
 
 ```bash
-claude-token-saver korean lint block   # 기본값. 위반을 되돌려 보내 고치게 합니다
-claude-token-saver korean lint warn    # 알리기만 하고 진행을 막지 않습니다
-claude-token-saver korean lint off     # 검사하지 않습니다
+sprag korean lint block   # 기본값. 위반을 되돌려 보내 고치게 합니다
+sprag korean lint warn    # 알리기만 하고 진행을 막지 않습니다
+sprag korean lint off     # 검사하지 않습니다
 
-claude-token-saver korean lint scope all     # 기본값. 세션이 쓴 모든 텍스트 파일
-claude-token-saver korean lint scope prose   # 마크다운·텍스트 문서만
+sprag korean lint scope all     # 기본값. 세션이 쓴 모든 텍스트 파일
+sprag korean lint scope prose   # 마크다운·텍스트 문서만
 
-claude-token-saver korean lint docs/*.md     # 이미 저장된 파일을 직접 검사
+sprag korean lint docs/*.md     # 이미 저장된 파일을 직접 검사
 ```
 
 검사 항목은 사람이 판정할 필요가 없는 것들입니다. 비유 어휘 15종(`~는 자리`, `~의 흐름`, `닿는다`, `걷어내다`, `발목을 잡다` 등), 번역체 표지(`~에 대한`, `~를 위한`, `~되어지`), 구분자(`—`·`ㅡ`·`|`), 한 구에 세 번 이상 이어지는 조사 `의`, 명사형 종결 뒤의 마침표입니다. 판단이 필요한 조항(성분 생략, 한자어 선택)은 그대로 지침이 담당합니다.
@@ -463,7 +463,7 @@ claude-token-saver korean lint docs/*.md     # 이미 저장된 파일을 직접
 
 모델이 Write나 Edit의 인자에 한국어를 이스케이프로 적으면, 그 이스케이프가 코드 포인트로 해석되지 않고 `한` 같은 문자열 그대로 파일에 기록되는 경우가 있습니다. 결과물에는 깨진 글자가 남고, 모델은 자기가 쓴 값과 파일 내용이 다르다는 사실을 알아차리지 못한 채 다음 편집을 이어 갑니다. 이스케이프를 쓰지 않으면 이 경로 자체가 생기지 않으므로, 사후에 복구하는 대신 입력 단계에서 막습니다.
 
-이 한 줄은 fluent-korean 원문이 아니라 claude-token-saver가 직접 쓰는 안내 문단에 들어갑니다. 문체가 아니라 표기 방식을 정하는 규칙이고, 벤더링한 원문은 수정하지 않는다는 원칙을 지켜야 하기 때문입니다. 같은 이유로 코드와 커밋 메시지에 적용하지 않는 문체 예외와 달리, 이 규칙에는 예외를 두지 않습니다. 세션당 약 60 토큰이 늘어납니다.
+이 한 줄은 fluent-korean 원문이 아니라 sprag가 직접 쓰는 안내 문단에 들어갑니다. 문체가 아니라 표기 방식을 정하는 규칙이고, 벤더링한 원문은 수정하지 않는다는 원칙을 지켜야 하기 때문입니다. 같은 이유로 코드와 커밋 메시지에 적용하지 않는 문체 예외와 달리, 이 규칙에는 예외를 두지 않습니다. 세션당 약 60 토큰이 늘어납니다.
 
 > **근거**
 > 같은 현상이 Claude Code 저장소에 보고되어 있습니다: [#12417 유니코드 처리 회귀](https://github.com/anthropics/claude-code/issues/12417), [#26141 Edit 도구가 유니코드를 조용히 손상시키는 문제](https://github.com/anthropics/claude-code/issues/26141).
@@ -497,10 +497,10 @@ doc2md 는 그 파일을 한 번 변환해 두고 원본 대신 변환본을 읽
 두 번째 줄의 제약은 실측으로 확인한 것입니다. `.pdf` 를 Read 하면 훅이 실행되고, 같은 세션에서 `.pptx` 를 Read 하면 훅 로그에 아무 기록도 남지 않습니다.
 
 ```bash
-claude-token-saver doc2md on                  # 훅 등록 (변환기는 첫 문서에서 자동 설치)
-claude-token-saver doc2md                     # 변환기·훅 등록 상태 확인
-claude-token-saver doc2md 보고서.pptx          # 직접 변환해 결과 확인
-claude-token-saver doc2md install-converter   # 설치를 미리 끝내 두고 싶을 때만
+sprag doc2md on                  # 훅 등록 (변환기는 첫 문서에서 자동 설치)
+sprag doc2md                     # 변환기·훅 등록 상태 확인
+sprag doc2md 보고서.pptx          # 직접 변환해 결과 확인
+sprag doc2md install-converter   # 설치를 미리 끝내 두고 싶을 때만
 ```
 
 **변환기는 알아서 깔립니다.** 팀에 배포할 때 각자 설치 명령을 실행하게 만들면 그 단계에서 빠지는 사람이 생깁니다. 그래서 문서가 처음 등장하는 시점에 변환기가 백그라운드로 설치되고, 설치가 끝나는 대로 곧바로 변환합니다. 실측으로 첫 문서는 약 30초(설치 15초 + markitdown 최초 임포트), 이후로는 새 문서 3.7초, 캐시 적중 0.1초입니다. `.fig` 파서는 첫 Figma 파일에서 0.5초 만에 깔립니다.
@@ -542,7 +542,7 @@ v3.26.0부터 트랜스크립트의 모델 ID로 게이트웨이를 감지해 �
 - 위임 건이 모델 ID 해석 실패로 버려졌으면 statusline 에 `🔀 N unresolved` 로 알립니다. 이전에는 "위임한 적 없음"과 화면상 구별되지 않았습니다.
 - 환경변수를 `foundation-model` ARN 으로 지정한 경우에도 모델을 해석합니다. 이름을 담고 있지 않은 `application-inference-profile` ID 는 그대로 거부합니다. 값을 추측해 넣으면 원장에 틀린 금액이 들어가기 때문입니다.
 
-감지가 틀리면 `claude-token-saver mode ttl=5m`(또는 `ttl=1h`)로 직접 지정할 수 있습니다. 지정값이 실측값보다 우선합니다.
+감지가 틀리면 `sprag mode ttl=5m`(또는 `ttl=1h`)로 직접 지정할 수 있습니다. 지정값이 실측값보다 우선합니다.
 
 ### LiteLLM: 5h/7d cap 대신 키 예산을 보여 줍니다 (v3.35.0)
 
@@ -551,7 +551,7 @@ LiteLLM 프록시로 Bedrock 등을 쓰면 Claude Code stdin 에 `rate_limits` �
 - 감지 조건: `ANTHROPIC_BASE_URL` 이 공식 엔드포인트가 아니고, `ANTHROPIC_AUTH_TOKEN`(또는 `ANTHROPIC_API_KEY`)이 설정된 환경.
 - 조회는 LiteLLM 의 `GET /key/info` 와 `GET /user/info` 로 하고, 호출 키 자신의 정보만 받습니다. 예산 출처는 실무에서 가장 많이 쓰는 **팀 멤버십 예산**(team_memberships 의 spend·max_budget)을 먼저 보고, 없으면 키 자체의 max_budget, 그다음 internal user 예산 순으로 고릅니다. 렌더는 캐시 파일만 읽으며, 갱신은 5분에 한 번 분리된 백그라운드 프로세스가 수행합니다 (update-check 와 같은 구조라 statusline 이 네트워크를 기다리지 않습니다).
 - `max_budget` 이 없는 무제한 키는 게이지를 만들지 않습니다. 이 경우에도 `💵` 월 지출 세그먼트는 세션 로그 기반이라 그대로 표시됩니다.
-- 상태 확인: `claude-token-saver litellm-budget` (캐시 출력) · `litellm-budget --refresh` (즉시 조회).
+- 상태 확인: `sprag litellm-budget` (캐시 출력) · `litellm-budget --refresh` (즉시 조회).
 
 세션 기본 모델이 sonnet 이면 sonnet 위임 규칙(T1)은 구조적으로 절감이 0입니다. 같은 급으로 내려보내 봐야 차액이 없기 때문이며 이는 정상 동작입니다. 다만 `route-scan rules` 가 이 경우를 "아직 위임 없음"과 같은 문구로 표시해 고장처럼 보였으므로, 이제 현재 기본 모델 기준으로 적용되지 않는다는 사실을 따로 적습니다.
 
@@ -570,7 +570,7 @@ LiteLLM 프록시로 Bedrock 등을 쓰면 Claude Code stdin 에 `rate_limits` �
 
 ## 실제 효과: 도입 전후 리포트
 
-![claude-token-saver: harness와 ratchet 도입 효과](./docs/harness-impact.png)
+![sprag: harness와 ratchet 도입 효과](./docs/harness-impact.png)
 
 harness 5/5 + ratchet을 실제 적용한 전후 비교입니다 (저자 Claude Code 로그, **사용자 메시지 1건당** 정규화, 2026-05-02 기준, Opus 4.7 가격):
 
@@ -587,7 +587,7 @@ harness 5/5 + ratchet을 실제 적용한 전후 비교입니다 (저자 Claude 
 <summary>측정 배경: 캐시 히트율을 제외한 이유와 표본에 관한 주의 사항</summary>
 
 - 저자는 Max 플랜(캐시 TTL 1시간)이라 히트율이 이미 ~98%에 수렴해 개선 여지가 작았습니다. **Pro 플랜(5분 TTL) 사용자는** 만료 직전 handoff 워크플로 조합으로 히트율 자체가 오를 가능성이 큽니다.
-- 만료 직전 handoff 워크플로: statusline TTL 카운트다운을 보다가 만료 직전 `claude-token-saver handoff`로 작업 상태를 백업하고 새 캐시 사이클을 시작. 1M 경고·cap 칩도 같은 흐름으로 처리.
+- 만료 직전 handoff 워크플로: statusline TTL 카운트다운을 보다가 만료 직전 `sprag handoff`로 작업 상태를 백업하고 새 캐시 사이클을 시작. 1M 경고·cap 칩도 같은 흐름으로 처리.
 - ⚠️ 도입 후 데이터는 2일치(157msg)로 통계적 의미가 약하고, 주별 작업 토픽 차이가 섞여 있어 도구 효과만 깨끗이 분리되진 않습니다.
 </details>
 
@@ -602,13 +602,13 @@ Node.js ≥ 18 · macOS / Linux / Windows / WSL · **의존성 0**.
 
 **IntelliJ Claude Code plugin:** statusline 위젯이 프레임을 잘못 합성해 `59:548` 같은 잔재가 보이는 버그가 있습니다(이모지 출력에서만). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm` 감지 시 자동으로 text 모드 폴백합니다.
 
-**TTL 카운트다운이 멈춰 보일 때:** 카운트다운이 입력 없이도 초 단위로 줄어들려면 Claude Code 가 statusline 명령을 주기적으로 다시 실행해야 하고, 그 주기는 `~/.claude/settings.json` 의 `statusLine.refreshInterval`(초 단위, v2.1.97 이상)이 정합니다. 이 값이 없으면 대화가 갱신될 때만 다시 그려져서 멈춘 것처럼 보입니다. 터미널마다 동작이 다르면 세 가지를 확인하십시오. ① 그 머신의 Claude Code 버전이 2.1.97 이상인지, ② 프로젝트 `.claude/settings.json` 이나 `settings.local.json` 이 `statusLine` 을 refreshInterval 없이 덮어쓰고 있지 않은지, ③ statusline 래퍼가 PATH 에서 `claude-token-saver` 를 찾지 못해 매 렌더마다 `npx` 폴백으로 수 초씩 걸리고 있지 않은지 (비로그인 셸에서 nvm 이 로드되지 않는 터미널이 여기에 해당합니다). `claude-token-saver install` 을 다시 실행하면 refreshInterval 을 5초로 복구합니다.
+**TTL 카운트다운이 멈춰 보일 때:** 카운트다운이 입력 없이도 초 단위로 줄어들려면 Claude Code 가 statusline 명령을 주기적으로 다시 실행해야 하고, 그 주기는 `~/.claude/settings.json` 의 `statusLine.refreshInterval`(초 단위, v2.1.97 이상)이 정합니다. 이 값이 없으면 대화가 갱신될 때만 다시 그려져서 멈춘 것처럼 보입니다. 터미널마다 동작이 다르면 세 가지를 확인하십시오. ① 그 머신의 Claude Code 버전이 2.1.97 이상인지, ② 프로젝트 `.claude/settings.json` 이나 `settings.local.json` 이 `statusLine` 을 refreshInterval 없이 덮어쓰고 있지 않은지, ③ statusline 래퍼가 PATH 에서 `sprag` 를 찾지 못해 매 렌더마다 `npx` 폴백으로 수 초씩 걸리고 있지 않은지 (비로그인 셸에서 nvm 이 로드되지 않는 터미널이 여기에 해당합니다). `sprag install` 을 다시 실행하면 refreshInterval 을 5초로 복구합니다.
 
 **claude-cache-monitor에서 마이그레이션:**
 ```bash
-npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
+npm uninstall -g claude-cache-monitor && npm i -g sprag-cli
 ```
-`~/.claude/settings.json`의 `statusLine.command`도 `claude-token-saver …`로 교체하세요.
+`~/.claude/settings.json`의 `statusLine.command`도 `sprag …`로 교체하세요.
 </details>
 
 ## 릴리스 노트
@@ -628,12 +628,12 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 브라우저나 GitHub 로그인이 어려운 환경(사내망, 세션 도중)이라면 터미널에서 바로 제출할 수 있고, Claude에게 대신 제출해 달라고 요청해도 됩니다.
 
 ```bash
-claude-token-saver feedback "Bedrock에서 5m TTL 칩이 사라지지 않아요"
+sprag feedback "Bedrock에서 5m TTL 칩이 사라지지 않아요"
 ```
 
 `gh` CLI가 인증되어 있으면 GitHub 이슈로 바로 등록하고, 없으면 로그인이 필요 없는 익명 경로로 제출합니다(github.com이 막힌 사내망에서도 동작합니다). `gh` 경로를 건너뛰려면 `--anonymous`를 붙입니다. 도구 버전과 OS 정보는 자동으로 첨부됩니다.
 
-버그를 제보하실 때는 도구 버전(`claude-token-saver --version`)과 OS를 함께 적어 주시고, statusline이나 경고 관련 문제라면 statusline 출력이나 `claude-token-saver last` 결과를 덧붙여 주시면 원인을 빨리 찾을 수 있습니다.
+버그를 제보하실 때는 도구 버전(`sprag --version`)과 OS를 함께 적어 주시고, statusline이나 경고 관련 문제라면 statusline 출력이나 `sprag last` 결과를 덧붙여 주시면 원인을 빨리 찾을 수 있습니다.
 
 ## 라이선스
 

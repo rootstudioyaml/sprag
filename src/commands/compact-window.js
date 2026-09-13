@@ -1,10 +1,10 @@
 /**
  * Subcommand: compact-window — audit / pin Claude Code's `autoCompactWindow`.
- *   claude-token-saver compact-window                      # status
- *   claude-token-saver compact-window set --global         # pin 500k in ~/.claude/settings.json
- *   claude-token-saver compact-window set --project        # pin 500k in <root>/.claude/settings.json
- *   claude-token-saver compact-window set --global --value 600k
- *   claude-token-saver compact-window off | on             # toggle the statusline warning
+ *   sprag compact-window                      # status
+ *   sprag compact-window set --global         # pin 500k in ~/.claude/settings.json
+ *   sprag compact-window set --project        # pin 500k in <root>/.claude/settings.json
+ *   sprag compact-window set --global --value 600k
+ *   sprag compact-window off | on             # toggle the statusline warning
  *
  * Scope is deliberately explicit for `set`: writing a global settings.json is
  * not something to guess at, and the non-TTY hook environment cannot prompt.
@@ -80,14 +80,14 @@ export async function run({ args, hasFlag }) {
     console.log(ko
       ? `  그 전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 1M은 너무 크니 ${fmt(s.recommendedMin)}~${fmt(s.recommendedMax)} 범위를 권장합니다 (기본값 ${fmt(s.recommended)}, --value로 조절). 1M 창 자체는 그대로 두고 압축 시점만 앞당깁니다.`
       : `  Until then every request re-bills the whole context. 1M is too large — pick something in ${fmt(s.recommendedMin)}–${fmt(s.recommendedMax)} (default ${fmt(s.recommended)}, override with --value). The 1M window itself stays.`);
-    console.log(`\n  claude-token-saver compact-window set --global     (~/.claude/settings.json, ${fmt(s.recommended)})`);
-    console.log(`  claude-token-saver compact-window set --project    (<root>/.claude/settings.json, ${fmt(s.recommended)})`);
-    console.log(`  claude-token-saver compact-window set --global --value ${fmt(s.recommendedMax)}`);
+    console.log(`\n  sprag compact-window set --global     (~/.claude/settings.json, ${fmt(s.recommended)})`);
+    console.log(`  sprag compact-window set --project    (<root>/.claude/settings.json, ${fmt(s.recommended)})`);
+    console.log(`  sprag compact-window set --global --value ${fmt(s.recommendedMax)}`);
     console.log(ko ? '  (적용 범위는 사용자에게 먼저 확인할 것)' : '  (confirm the scope with the user first)');
     return;
   }
 
   console.error(`Unknown compact-window subcommand: ${sub}`);
-  console.error('Usage: claude-token-saver compact-window [status|set --global|--project [--value 500k]|off|on]');
+  console.error('Usage: sprag compact-window [status|set --global|--project [--value 500k]|off|on]');
   process.exit(1);
 }

@@ -1,9 +1,9 @@
 /**
  * Subcommand: mode — persist statusline preferences so future runs pick
  * them up without flags or wrapper edits.
- *   claude-token-saver mode                    # show current config
- *   claude-token-saver mode icon verbose       # set icon + verbose
- *   claude-token-saver mode reset              # clear back to defaults
+ *   sprag mode                    # show current config
+ *   sprag mode icon verbose       # set icon + verbose
+ *   sprag mode reset              # clear back to defaults
  */
 
 
@@ -28,7 +28,7 @@ export async function run({ args }) {
       console.log(`Stored config file (${configPath()}):`);
       console.log(`  ${Object.keys(raw).length === 0 ? '(none — using defaults)' : JSON.stringify(raw)}`);
       console.log('');
-      console.log('Change with: claude-token-saver mode <keywords...>');
+      console.log('Change with: sprag mode <keywords...>');
       console.log(`Keywords: ${VALID_KEYWORDS.join(', ')}`);
       return;
     }

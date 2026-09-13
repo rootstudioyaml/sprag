@@ -1,12 +1,12 @@
 /**
  * Subcommand: seed — register the bundled starter rules, one answer at a time.
  *
- *   claude-token-saver seed                          # what is still pending
- *   claude-token-saver seed accept <id> --global     # register one rule
- *   claude-token-saver seed accept <id> --project    # ... into this project only
- *   claude-token-saver seed accept all --global      # when the user says "all of them"
- *   claude-token-saver seed skip <id> | skip all     # never offer it again
- *   claude-token-saver seed reset                    # make every preset pending again
+ *   sprag seed                          # what is still pending
+ *   sprag seed accept <id> --global     # register one rule
+ *   sprag seed accept <id> --project    # ... into this project only
+ *   sprag seed accept all --global      # when the user says "all of them"
+ *   sprag seed skip <id> | skip all     # never offer it again
+ *   sprag seed reset                    # make every preset pending again
  *
  * Scope is explicit on purpose, exactly as `harness promote` requires it: the
  * hook environment is non-TTY, so the model has to ask the user and pass the
@@ -36,8 +36,8 @@ export async function run({ args, hasFlag }) {
     const ids = args.slice(2).filter((a) => !a.startsWith('-'));
     if (ids.length === 0) {
       console.error(ko
-        ? 'id를 지정하십시오 (목록: claude-token-saver seed). 전체는 `all`.'
-        : 'Pass an id (list them with `claude-token-saver seed`), or `all`.');
+        ? 'id를 지정하십시오 (목록: sprag seed). 전체는 `all`.'
+        : 'Pass an id (list them with `sprag seed`), or `all`.');
       process.exit(1);
     }
     const pending = seed.pendingSeeds({ lang, root });
@@ -99,7 +99,7 @@ export async function run({ args, hasFlag }) {
   if (pending.length > 0) {
     console.log('');
     console.log(ko
-      ? '등록: claude-token-saver seed accept <id> --global|--project   ·   거절: seed skip <id>'
-      : 'register: claude-token-saver seed accept <id> --global|--project   ·   decline: seed skip <id>');
+      ? '등록: sprag seed accept <id> --global|--project   ·   거절: seed skip <id>'
+      : 'register: sprag seed accept <id> --global|--project   ·   decline: seed skip <id>');
   }
 }

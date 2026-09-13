@@ -303,13 +303,13 @@ export async function run({ args, hasFlag, numArg }) {
             ? [
                 `[sprag update] 새 버전이 나와 있습니다: v${u.current} → ${u.latest}.`,
                 '사용자에게 지금 업그레이드할지 물어보고, 승낙하면 아래 명령을 실행하십시오. 묻지 않고 설치하지는 마십시오.',
-                '  claude-token-saver upgrade            # 업그레이드 실행',
+                '  sprag upgrade            # 업그레이드 실행',
                 '  sprag update-check --dismiss   # 사용자가 원치 않으면 (다음 버전이 나올 때까지 다시 묻지 않습니다)',
               ].join('\n')
             : [
                 `[sprag update] A newer version is available: v${u.current} → ${u.latest}.`,
                 'Ask the user whether to upgrade now, and run the command below only if they agree. Do not install without asking.',
-                '  claude-token-saver upgrade                  # perform the upgrade',
+                '  sprag upgrade                  # perform the upgrade',
                 '  sprag update-check --dismiss   # if they decline (stays quiet until a newer release)',
               ].join('\n');
         }
@@ -366,8 +366,8 @@ export async function run({ args, hasFlag, numArg }) {
       }
       if (reviewRules.length > 0) {
         lines.push(lang === 'ko'
-          ? '[claude-token-saver rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 기준(20%)을 넘어 재검토가 필요한 룰이 있습니다 — 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:'
-          : '[claude-token-saver rule-health] Some user-approved delegation rules now exceed the 20% error-rate threshold for their delegated category — brief the user and discuss narrowing or removing them:');
+          ? '[sprag rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 기준(20%)을 넘어 재검토가 필요한 룰이 있습니다 — 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:'
+          : '[sprag rule-health] Some user-approved delegation rules now exceed the 20% error-rate threshold for their delegated category — brief the user and discuss narrowing or removing them:');
         for (const r of reviewRules) {
           // Say WHICH signal tripped: a measured delegation failure rate is a
           // much stronger claim than the shape-based proxy, and the user's

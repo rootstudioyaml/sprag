@@ -198,7 +198,7 @@ export function removeModelRule(index1) {
 export function renderModelRatchet(rules, lang = userLanguage()) {
   const ko = lang === 'ko';
   const lines = ko ? [
-    '# Model-Fitting Ratchet (claude-token-saver 자동 관리)',
+    '# Model-Fitting Ratchet (sprag 자동 관리)',
     '',
     '로그 기반 티어 위임 룰. 이 파일은 route-scan이 매 스캔마다 통째로 재생성하므로',
     '직접 수정하지 마세요 — 목록/제거: `sprag route-scan rules [rm <N>]`.',
@@ -245,7 +245,7 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
     '## Rules',
     '',
   ] : [
-    '# Model-Fitting Ratchet (managed by claude-token-saver)',
+    '# Model-Fitting Ratchet (managed by sprag)',
     '',
     'Log-derived tier delegation rules. route-scan regenerates this file in full',
     'on every scan — do not edit it by hand. List / remove with:',

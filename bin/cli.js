@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 
 /**
- * claude-token-saver CLI (formerly claude-cache-monitor)
+ * sprag CLI (formerly claude-token-saver / claude-cache-monitor)
  *
  * Usage:
- *   npx claude-token-saver                    # default report (last 30 days)
- *   npx claude-token-saver --days 7           # last 7 days
- *   npx claude-token-saver --format json      # JSON output
- *   npx claude-token-saver --format csv       # CSV output
- *   npx claude-token-saver --project myproj   # filter by project
+ *   npx sprag                    # default report (last 30 days)
+ *   npx sprag --days 7           # last 7 days
+ *   npx sprag --format json      # JSON output
+ *   npx sprag --format csv       # CSV output
+ *   npx sprag --project myproj   # filter by project
  *   npx sprag route-scan         # detect recurring easy work → haiku-delegation candidates
  *   npx sprag install            # set up skill/hooks/statusline; asks about harness + Korean guidance
  *   npx sprag install --yes      # take the defaults without asking (same as --no-input)
- *   npx claude-token-saver --install-hook     # install PostToolUse hook
- *   npx claude-token-saver --uninstall-hook   # remove hook
+ *   npx sprag --install-hook     # install PostToolUse hook
+ *   npx sprag --uninstall-hook   # remove hook
  *   npx claude-token-saver --hook-run         # internal: called by hook
- *   npx claude-token-saver --statusline       # one-line output for Claude Code statusline API
- *   npx claude-token-saver --statusline --verbose  # longer labels
- *   npx claude-token-saver --statusline --no-color # strip ANSI colors
- *   npx claude-token-saver --statusline --icon     # use 🧠 ⏳ 💰 icons
- *   npx claude-token-saver --statusline --no-timer # hide the TTL countdown
- *   npx claude-token-saver --statusline --single-line # legacy 1-line layout (no routing-totals headline)
- *   npx claude-token-saver --statusline --exclude-session <path>
+ *   npx sprag --statusline       # one-line output for Claude Code statusline API
+ *   npx sprag --statusline --verbose  # longer labels
+ *   npx sprag --statusline --no-color # strip ANSI colors
+ *   npx sprag --statusline --icon     # use 🧠 ⏳ 💰 icons
+ *   npx sprag --statusline --no-timer # hide the TTL countdown
+ *   npx sprag --statusline --single-line # legacy 1-line layout (no routing-totals headline)
+ *   npx sprag --statusline --exclude-session <path>
  *                                               # exclude a JSONL path from lastActivity
  *                                               # (or set CACHE_MONITOR_EXCLUDE_SESSION env var)
  */
@@ -90,32 +90,32 @@ const KNOWN_SUBCOMMANDS = new Set([
   'seed', 'litellm-budget', 'feedback',
 ]);
 
-const USAGE = `claude-token-saver — Claude Code token usage, cache health, and model routing
+const USAGE = `sprag — Claude Code token usage, cache health, and model routing
 
 Usage:
-  claude-token-saver                    default report (last 30 days)
-  claude-token-saver --days 7           last 7 days
-  claude-token-saver --format json      JSON output
-  claude-token-saver --format csv       CSV output
-  claude-token-saver --project myproj   filter by project
+  sprag                    default report (last 30 days)
+  sprag --days 7           last 7 days
+  sprag --format json      JSON output
+  sprag --format csv       CSV output
+  sprag --project myproj   filter by project
   sprag route-scan         detect recurring easy work → delegation candidates
   sprag install            set up skill/hooks/statusline
   sprag install --yes      take the defaults without asking
-  claude-token-saver uninstall          remove everything install added
+  sprag uninstall          remove everything install added
   sprag harness check      score the harness setup in CLAUDE.md
   sprag harness analyze    run the harness transcript analysis manually
-  claude-token-saver last               most recent warning + how to handle it
-  claude-token-saver history            recent warning transitions
-  claude-token-saver handoff            write a session handoff file
+  sprag last               most recent warning + how to handle it
+  sprag history            recent warning transitions
+  sprag handoff            write a session handoff file
   sprag feedback "<msg>"   file a bug report / feature request (no browser needed)
-  claude-token-saver upgrade            install the latest release
-  claude-token-saver --install-hook     install cache-monitor PostToolUse hook
-  claude-token-saver --uninstall-hook   remove that hook
-  claude-token-saver --statusline       one-line output for Claude Code statusline
+  sprag upgrade            install the latest release
+  sprag --install-hook     install cache-monitor PostToolUse hook
+  sprag --uninstall-hook   remove that hook
+  sprag --statusline       one-line output for Claude Code statusline
       --verbose / --no-color / --icon / --no-timer / --single-line
 
 Run any subcommand with --help for its own options where available.
-Bug reports & feature requests: https://github.com/rootstudioyaml/claude-token-saver/issues
+Bug reports & feature requests: https://github.com/rootstudioyaml/sprag/issues
 `;
 
 async function main() {
@@ -140,8 +140,8 @@ async function main() {
   // Designed for the auto-trigger skill so the user immediately sees
   // "what just fired and how to fix it" without having to read the whole
   // history file.
-  //   claude-token-saver last           # search last 1 day
-  //   claude-token-saver last --days 7  # widen the lookback
+  //   sprag last           # search last 1 day
+  //   sprag last --days 7  # widen the lookback
   if (args[0] === 'last') {
     return (await import('../src/commands/last.js')).run({ numArg });
   }
@@ -149,9 +149,9 @@ async function main() {
   // Subcommand: history — print recent warning transitions captured by the
   // statusline. One markdown file per day, persisted under the platform-
   // specific user-data dir.
-  //   claude-token-saver history              # last 7 days
-  //   claude-token-saver history --days 30    # custom window
-  //   claude-token-saver history --list       # just list available dates
+  //   sprag history              # last 7 days
+  //   sprag history --days 30    # custom window
+  //   sprag history --list       # just list available dates
   if (args[0] === 'history') {
     return (await import('../src/commands/history.js')).run({ hasFlag, numArg });
   }
@@ -161,8 +161,8 @@ async function main() {
   // session can pick up where this one stopped. Pairs with the cap-warn chip:
   // when statusline shows 🚨 5H 90%+, run this to back up state before the cap
   // hits.
-  //   claude-token-saver handoff             # write to cwd
-  //   claude-token-saver handoff --cwd PATH  # custom directory
+  //   sprag handoff             # write to cwd
+  //   sprag handoff --cwd PATH  # custom directory
   // Subcommand: feedback — file a bug report / feature request without a
   // browser. Tries gh CLI, then an anonymous form POST, then a local save
   // with a prefilled GitHub issue URL. See src/commands/feedback.js.
@@ -194,9 +194,9 @@ async function main() {
 
   // Subcommand: mode — persist statusline preferences so future runs pick
   // them up without flags or wrapper edits.
-  //   claude-token-saver mode                    # show current config
-  //   claude-token-saver mode icon verbose       # set icon + verbose
-  //   claude-token-saver mode reset              # clear back to defaults
+  //   sprag mode                    # show current config
+  //   sprag mode icon verbose       # set icon + verbose
+  //   sprag mode reset              # clear back to defaults
   if (args[0] === 'mode') {
     return (await import('../src/commands/mode.js')).run({ args });
   }
@@ -244,7 +244,7 @@ async function main() {
 
   // Subcommand: seed — register the bundled starter rules (model-fitting
   // presets + curated ratchet rules), one answer at a time.
-  //   claude-token-saver seed | seed accept <id> --global|--project | seed skip <id>
+  //   sprag seed | seed accept <id> --global|--project | seed skip <id>
   if (args[0] === 'seed') {
     return (await import('../src/commands/seed.js')).run({ args, hasFlag });
   }
@@ -263,10 +263,10 @@ async function main() {
   // Subcommand: compact-window — audit / pin Claude Code's autoCompactWindow.
   // On a 1M-context model, compaction only fires near 800k unless the window is
   // capped; 200k sessions are exempt.
-  //   claude-token-saver compact-window                  # status
-  //   claude-token-saver compact-window set --global     # pin 200k (~/.claude/settings.json)
-  //   claude-token-saver compact-window set --project    # pin 200k (<root>/.claude/settings.json)
-  //   claude-token-saver compact-window off | on         # toggle the statusline warning
+  //   sprag compact-window                  # status
+  //   sprag compact-window set --global     # pin 200k (~/.claude/settings.json)
+  //   sprag compact-window set --project    # pin 200k (<root>/.claude/settings.json)
+  //   sprag compact-window off | on         # toggle the statusline warning
   if (args[0] === 'compact-window') {
     return (await import('../src/commands/compact-window.js')).run({ args, hasFlag });
   }
@@ -292,8 +292,8 @@ async function main() {
   }
 
   // Subcommand: litellm-budget · LiteLLM 게이트웨이 키의 max_budget/spend 조회.
-  //   claude-token-saver litellm-budget            # 캐시된 예산 상태 출력
-  //   claude-token-saver litellm-budget --refresh  # 지금 프록시에 물어봄 (detached 자식이 사용)
+  //   sprag litellm-budget            # 캐시된 예산 상태 출력
+  //   sprag litellm-budget --refresh  # 지금 프록시에 물어봄 (detached 자식이 사용)
   if (args[0] === 'litellm-budget') {
     const { gatewayEnv, readBudgetState, refreshBudgetState } = await import('../src/litellm-budget.js');
     const quiet = hasFlag('--quiet');
@@ -319,8 +319,8 @@ async function main() {
 
   // Subcommand: upgrade — run the install command that matches how this copy
   // got here, then confirm the new version.
-  //   claude-token-saver upgrade          # install the latest release
-  //   claude-token-saver upgrade --print  # just show the command, run nothing
+  //   sprag upgrade          # install the latest release
+  //   sprag upgrade --print  # just show the command, run nothing
   if (args[0] === 'upgrade') {
     return (await import('../src/commands/upgrade.js')).run({
       hasFlag,
@@ -356,7 +356,7 @@ async function main() {
   // every scenario based on wall clock so a screen recorder picks them up.
   const demoArg = getArg('--demo');
 
-  // `claude-token-saver --demo table` (no --statusline) — full table view
+  // `sprag --demo table` (no --statusline) — full table view
   // with all six issue drill-downs at once, for marketing screencasts.
   if (!isStatusline && demoArg === 'table') {
     const { buildTableDemoData } = await import('../src/demo.js');
@@ -592,7 +592,7 @@ async function main() {
       }
     }
     // Persist transitions to ~/.config/claude-token-saver/history/YYYY-MM-DD.md
-    // so `claude-token-saver history` and the auto-skill can replay them.
+    // so `sprag history` and the auto-skill can replay them.
     try {
       const { recordChip, recordCapTransition } = await import('../src/history.js');
       recordChip(spikeChip, { detail: chipDetail });

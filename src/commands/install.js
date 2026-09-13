@@ -49,7 +49,7 @@ export async function run({ hasFlag }) {
           chosen = ko ? 'ko' : 'en';
         }
         setUserLanguage(chosen);
-        console.log(`  language: set to ${chosen === 'ko' ? '한국어' : 'English'} — change it any time with \`claude-token-saver mode lang=${chosen === 'ko' ? 'en' : 'ko'}\``);
+        console.log(`  language: set to ${chosen === 'ko' ? '한국어' : 'English'} — change it any time with \`sprag mode lang=${chosen === 'ko' ? 'en' : 'ko'}\``);
       } else if (process.env.CTS_LANG) {
         // Escape hatch for scripted installs, which cannot answer a prompt but
         // do know which language the machine's user reads.
@@ -87,8 +87,8 @@ export async function run({ hasFlag }) {
           ? '              교체하면 토큰·캐시·상한 경고가 statusline에 표시됩니다. 기존 설정은 사라집니다.'
           : '              replacing it shows token/cache/cap warnings in the statusline; the current one is removed.');
         const replace = await confirm(lang === 'ko'
-          ? '              claude-token-saver statusline으로 교체할까요?'
-          : '              Replace it with the claude-token-saver statusline?', { defaultValue: false });
+          ? '              sprag statusline으로 교체할까요?'
+          : '              Replace it with the sprag statusline?', { defaultValue: false });
         if (replace) {
           const { installStatusline } = await import('../installer.js');
           s = installStatusline({ force: true });
@@ -336,8 +336,8 @@ export async function run({ hasFlag }) {
           ? `  seed: 추천 룰 ${pending.length}건이 대기 중입니다 (모델 피팅 + 랫쳇 프리셋).`
           : `  seed: ${pending.length} recommended rule(s) are waiting (model-fitting + ratchet presets).`);
         console.log(lang === 'ko'
-          ? '        다음 Claude Code 세션에서 한 건씩 등록할지 물어봅니다. 지금 보려면: claude-token-saver seed'
-          : '        the next Claude Code session asks about them one at a time. See them now: claude-token-saver seed');
+          ? '        다음 Claude Code 세션에서 한 건씩 등록할지 물어봅니다. 지금 보려면: sprag seed'
+          : '        the next Claude Code session asks about them one at a time. See them now: sprag seed');
       }
     } catch (e) {
       debug('install:seed-offer', e); // optional feature; never fail install
@@ -352,7 +352,7 @@ export async function run({ hasFlag }) {
     }
     console.log('');
     console.log(lang === 'ko'
-      ? '버그 제보·기능 제안: https://github.com/rootstudioyaml/claude-token-saver/issues'
-      : 'Bug reports & feature requests: https://github.com/rootstudioyaml/claude-token-saver/issues');
+      ? '버그 제보·기능 제안: https://github.com/rootstudioyaml/sprag/issues'
+      : 'Bug reports & feature requests: https://github.com/rootstudioyaml/sprag/issues');
     return;
 }

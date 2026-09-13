@@ -17,7 +17,7 @@
 
 ---
 
-# Sprag (claude-token-saver)
+# Sprag (sprag)
 
 **Shows what it saved, on two lines.** It moves the easy work your expensive model keeps repeating onto cheaper ones, and turns documents the model cannot read into Markdown. Both figures are ledger entries rather than estimates, and whichever saved more takes the top line. Zero dependencies, one-line install.
 
@@ -69,14 +69,14 @@ The two savings figures are never added together, because they answer different 
 
 ```bash
 npm uninstall -g claude-cache-monitor   # (previous-package users only)
-npm i -g claude-token-saver
+npm i -g sprag-cli
 ```
 
-The statusline appears at the bottom of Claude Code right away. If auto-registration was skipped (`--ignore-scripts`, sudo, sandboxed installs), run `claude-token-saver install`.
+The statusline appears at the bottom of Claude Code right away. If auto-registration was skipped (`--ignore-scripts`, sudo, sandboxed installs), run `sprag install`.
 
 One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷 Harness (5 principles), and a first route-scan.** The harness and the Korean writing guidance **show what they add and ask before enabling it.** The harness is **appended** to `~/.claude/CLAUDE.md` as a marked block (your existing content is backed up and preserved) and is left alone if one is already there.
 
-Outside a terminal — npm `postinstall`, CI, piped stdin — the question is skipped and the old defaults apply. Use `--yes` or `--no-input` to skip it deliberately, `CTS_NO_HARNESS=1 npm i -g claude-token-saver` to skip the harness entirely, and `claude-token-saver harness uninit --global` to undo it.
+Outside a terminal — npm `postinstall`, CI, piped stdin — the question is skipped and the old defaults apply. Use `--yes` or `--no-input` to skip it deliberately, `CTS_NO_HARNESS=1 npm i -g sprag-cli` to skip the harness entirely, and `sprag harness uninit --global` to undo it.
 
 > ⚠️ Avoid `sudo` global installs — the Skill lands in root's `~/.claude` instead of yours. Use nvm/fnm/Volta or `npm config set prefix ~/.npm-global`.
 
@@ -86,7 +86,7 @@ Everything that costs nothing until it is needed is on after a plain install. Th
 
 | Feature | After install | How to turn it off |
 |---|---|---|
-| statusline (diagnostic chips, savings ledger) | on | `claude-token-saver uninstall` |
+| statusline (diagnostic chips, savings ledger) | on | `sprag uninstall` |
 | `/claude-token-saver` Skill | on | same |
 | SessionStart hook (route-scan refresh) | on | same |
 | UserPromptSubmit hook (brief injection) | on | same |
@@ -117,7 +117,7 @@ Every delegated run is recorded like this:
 ```
 
 ```bash
-$ claude-token-saver route-scan savings      # trace every dollar back to its rule
+$ sprag route-scan savings      # trace every dollar back to its rule
 
 🔀 Routing saved, lifetime $2.09  (last 7d $1.40 · 30d $2.09)
 
@@ -164,10 +164,10 @@ Teams shipping routing products have turned the feature off for exactly this rea
 So this tool never touches the main session's model. It delegates to **subagents only**, which leaves the main session's cache intact and runs the delegated work on a cheap model in its own context. That is why the savings are not cancelled out by cache loss.
 
 ```bash
-npm i -g claude-token-saver@latest
-claude-token-saver route-scan         # find delegation candidates in your own history (0 LLM calls)
-claude-token-saver route-scan rules   # list promoted rules · rm <N> to remove
-claude-token-saver route-scan savings # audit every dollar the routing saved
+npm i -g sprag-cli@latest
+sprag route-scan         # find delegation candidates in your own history (0 LLM calls)
+sprag route-scan rules   # list promoted rules · rm <N> to remove
+sprag route-scan savings # audit every dollar the routing saved
 ```
 
 Thresholds come from **your own last-14-day distribution (p25/p75)**, not someone else's benchmark.
@@ -212,7 +212,7 @@ Chips — `🚨 5H/7D NN%` (cap imminent) · `⚠ Ctx 500k+` (a single request a
 
 ### When a chip appears
 
-Run the `/claude-token-saver` Skill inside Claude — or just say the chip wording ("5H cap is up", "cache miss") and it auto-activates. The Skill surfaces the **root-cause code + step-by-step fix**. When a cap is imminent, run `claude-token-saver handoff` to back up your work state to markdown and continue in a fresh session.
+Run the `/claude-token-saver` Skill inside Claude — or just say the chip wording ("5H cap is up", "cache miss") and it auto-activates. The Skill surfaces the **root-cause code + step-by-step fix**. When a cap is imminent, run `sprag handoff` to back up your work state to markdown and continue in a fresh session.
 
 ## Commands
 
@@ -220,27 +220,27 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 
 | Command | What it does |
 |---|---|
-| `claude-token-saver` | Last-1-day diagnostic report (`--days N` / `--hours N`) |
-| `claude-token-saver last` | Most recent warning + remediation |
-| `claude-token-saver history` | Last 7 days of warning transitions |
-| `claude-token-saver handoff` | Back work up to `HANDOFF-*.md` before a cap blocks you |
-| `claude-token-saver mode [keywords...]` | Output config (`icon`/`text`, `en`/`ko`, `1h`–`30d` window, …) |
-| `claude-token-saver harness ...` | 🅷 Harness management (below) |
-| `claude-token-saver route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
-| `claude-token-saver route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
-| `claude-token-saver compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
-| `claude-token-saver korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
-| `claude-token-saver cohesion on\|off\|status\|show` | Inject English cohesion guidance (sentence-connection rules) at session start |
-| `claude-token-saver korean lint block\|warn\|off` | How the write-time check handles findings |
-| `claude-token-saver korean lint scope all\|prose` | Check every text file, or documents only |
-| `claude-token-saver doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
-| `claude-token-saver doc2md <file>` | Convert one file by hand. Diagnostic: it prints the refusal reason instead of swallowing it |
-| `claude-token-saver mode ttl=5m\|1h\|auto` | Pin the cache TTL bucket. The default `auto` trusts the measured split, then falls back to gateway detection |
-| `claude-token-saver --version` | Print the installed version |
-| `claude-token-saver update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
-| `claude-token-saver upgrade` | Install the latest release with the package manager that installed this copy (`--print` shows the command only) |
-| `claude-token-saver install` | Manually register Skill + statusline |
-| `claude-token-saver uninstall [--purge]` | Remove the hooks, statusline and skill it registered. Recorded savings are kept unless `--purge` is given |
+| `sprag` | Last-1-day diagnostic report (`--days N` / `--hours N`) |
+| `sprag last` | Most recent warning + remediation |
+| `sprag history` | Last 7 days of warning transitions |
+| `sprag handoff` | Back work up to `HANDOFF-*.md` before a cap blocks you |
+| `sprag mode [keywords...]` | Output config (`icon`/`text`, `en`/`ko`, `1h`–`30d` window, …) |
+| `sprag harness ...` | 🅷 Harness management (below) |
+| `sprag route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
+| `sprag route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
+| `sprag compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
+| `sprag korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
+| `sprag cohesion on\|off\|status\|show` | Inject English cohesion guidance (sentence-connection rules) at session start |
+| `sprag korean lint block\|warn\|off` | How the write-time check handles findings |
+| `sprag korean lint scope all\|prose` | Check every text file, or documents only |
+| `sprag doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
+| `sprag doc2md <file>` | Convert one file by hand. Diagnostic: it prints the refusal reason instead of swallowing it |
+| `sprag mode ttl=5m\|1h\|auto` | Pin the cache TTL bucket. The default `auto` trusts the measured split, then falls back to gateway detection |
+| `sprag --version` | Print the installed version |
+| `sprag update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
+| `sprag upgrade` | Install the latest release with the package manager that installed this copy (`--print` shows the command only) |
+| `sprag install` | Manually register Skill + statusline |
+| `sprag uninstall [--purge]` | Remove the hooks, statusline and skill it registered. Recorded savings are kept unless `--purge` is given |
 
 The output language is decided once, at install time: a terminal install proposes the system locale and asks whether to use Korean, while an unattended install records what the locale says. Once recorded it is never asked again, not even on an upgrade. Change it later with `mode ko` / `mode en`, or pin it for a scripted install with `CTS_LANG=ko` / `CTS_LANG=en`. Statusline chips stay symbolic either way.
 
@@ -268,8 +268,8 @@ The output language is decided once, at install time: a terminal install propose
 A statusline cannot open a dialog, and it re-renders every ~300ms, so it can never touch the network while drawing. The notification is therefore split in two:
 
 - **The statusline tells you.** Up to date: a quiet gray `v3.24.0` at the tail. Newer release out: `⬆ v3.24.0 → 3.25.0` in yellow, moved to the front. Never red — nothing is broken.
-- **Session start asks you.** On a new session or `/clear`, the SessionStart hook injects one line telling the model a newer version exists and to ask before installing anything. Only after you agree does it run `claude-token-saver upgrade`.
-- **Declining sticks.** `claude-token-saver update-check --dismiss` mutes the offer for that version; the next release asks again. The statusline chip stays — you declined the question, not the fact.
+- **Session start asks you.** On a new session or `/clear`, the SessionStart hook injects one line telling the model a newer version exists and to ask before installing anything. Only after you agree does it run `sprag upgrade`.
+- **Declining sticks.** `sprag update-check --dismiss` mutes the offer for that version; the next release asks again. The statusline chip stays — you declined the question, not the fact.
 
 The registry lookup runs at most once every 24h in a detached background process and only ever writes a cache file (`update-check.json`) — the same shape npm's `update-notifier` uses. A failed check still stamps its timestamp, so an offline machine backs off instead of retrying on every render. Turn checks off entirely with `CTS_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER`.
 
@@ -278,15 +278,15 @@ The registry lookup runs at most once every 24h in a detached background process
 Bootstrap five engineering principles (Ratchet · Evidence · PEV · Structured Task · Default Safe Path) into `CLAUDE.md` with one command; the statusline scores it as `🅷 5/5`. When the same error keeps recurring, a `🅷⚠ ratchet?` nudge appears so you can promote it to a rule.
 
 ```bash
-claude-token-saver harness init                # this project
-claude-token-saver harness init --global       # ~/.claude/CLAUDE.md — every project
-claude-token-saver harness check               # current score (global fallback honored)
-claude-token-saver harness analyze             # run the transcript analysis manually (no hook needed); refreshes harness-state.json
-claude-token-saver harness promote <N> --project|--global   # warning #N → ratchet rule (scope required)
-claude-token-saver harness promote "<rule text>" --project|--global  # register your own hand-written rules the same way
-claude-token-saver harness pull                # register the package's curated ratchet rules into your global ratchet (opt-in, dedupes)
-claude-token-saver harness list / rm <N>       # view / delete rules (auto .bak)
-claude-token-saver harness off | on            # toggle the 🅷 chip
+sprag harness init                # this project
+sprag harness init --global       # ~/.claude/CLAUDE.md — every project
+sprag harness check               # current score (global fallback honored)
+sprag harness analyze             # run the transcript analysis manually (no hook needed); refreshes harness-state.json
+sprag harness promote <N> --project|--global   # warning #N → ratchet rule (scope required)
+sprag harness promote "<rule text>" --project|--global  # register your own hand-written rules the same way
+sprag harness pull                # register the package's curated ratchet rules into your global ratchet (opt-in, dedupes)
+sprag harness list / rm <N>       # view / delete rules (auto .bak)
+sprag harness off | on            # toggle the 🅷 chip
 ```
 
 - `promote` **requires** `--project`/`--global` in non-TTY contexts (scripts, LLM calls) — a scope choice is never silently made for the caller.
@@ -316,11 +316,11 @@ Claude Code compacts when usage approaches `min(autoCompactWindow, model max con
 **200k sessions are never warned** — their window is already at or below 200k, so the setting cannot change anything.
 
 ```bash
-claude-token-saver compact-window                       # status (model, window, value, source)
-claude-token-saver compact-window set --global          # pin 500k (mid-band) in ~/.claude/settings.json
-claude-token-saver compact-window set --project         # pin it in <root>/.claude/settings.json
-claude-token-saver compact-window set --global --value 600k   # explicit value (100k–1M)
-claude-token-saver compact-window off | on              # toggle the warning
+sprag compact-window                       # status (model, window, value, source)
+sprag compact-window set --global          # pin 500k (mid-band) in ~/.claude/settings.json
+sprag compact-window set --project         # pin it in <root>/.claude/settings.json
+sprag compact-window set --global --value 600k   # explicit value (100k–1M)
+sprag compact-window off | on              # toggle the warning
 ```
 
 - On a 1M model with the value unset or above 700k, the statusline shows `🅷⚠ compact-window?` and the session briefing hands the model the exact registration command.
@@ -342,11 +342,11 @@ Three design pillars:
 3. Promoted rules live in a tool-owned file (`.claude/ratchet-model.md`) that **refreshes itself every scan**, and a `⚠ rule-health` flag fires when a delegated category's error rate climbs — rules report their own staleness
 
 ```bash
-claude-token-saver route-scan                    # scan (24h cache) + tiered candidates
-claude-token-saver harness promote R1 --project  # promote candidate R1 to a model-fitting rule
-claude-token-saver route-scan dismiss 1          # not interested — won't resurface
-claude-token-saver route-scan rules              # list model-fitting rules (rm <N> to remove)
-claude-token-saver route-scan savings            # the savings ledger — which rule moved work off which model, onto which
+sprag route-scan                    # scan (24h cache) + tiered candidates
+sprag harness promote R1 --project  # promote candidate R1 to a model-fitting rule
+sprag route-scan dismiss 1          # not interested — won't resurface
+sprag route-scan rules              # list model-fitting rules (rm <N> to remove)
+sprag route-scan savings            # the savings ledger — which rule moved work off which model, onto which
 ```
 
 Dig deeper: **tier criteria & research evidence** → [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) (Korean) · **rule-file mechanics, scan triggers, subagent setup** → [docs/ROUTE_SCAN.md](./docs/ROUTE_SCAN.md) (Korean + English)
@@ -387,11 +387,11 @@ The model-fitting ratchet (`ratchet-model.md`) **starts empty.** A rule exists o
 **How they get registered:** in the first session after an install or upgrade, the SessionStart hook hands the pending presets to the model, which walks the user through them **one at a time**. Each answer runs one of these immediately:
 
 ```bash
-claude-token-saver seed                                   # pending presets + recorded answers
-claude-token-saver seed accept <id> --global|--project     # register one (scope required)
-claude-token-saver seed accept all --global                # when the user says "register them all"
-claude-token-saver seed skip <id>                          # decline — never offered again
-claude-token-saver seed reset                              # clear the answers and offer everything again
+sprag seed                                   # pending presets + recorded answers
+sprag seed accept <id> --global|--project     # register one (scope required)
+sprag seed accept all --global                # when the user says "register them all"
+sprag seed skip <id>                          # decline — never offered again
+sprag seed reset                              # clear the answers and offer everything again
 ```
 
 - **Nothing is written without a yes to that specific rule.** A declined rule stays declined across upgrades; a later release only surfaces the presets it actually added.
@@ -404,10 +404,10 @@ claude-token-saver seed reset                              # clear the answers a
 Injects guidance that corrects how Claude writes Korean (dropped sentence parts, noun-stopped sentences, translationese, em-dash overuse) **once per session.**
 
 ```bash
-claude-token-saver korean on       # on, for every project
-claude-token-saver korean status   # state, cost, provenance
-claude-token-saver korean show     # print the guidance itself
-claude-token-saver korean off      # off
+sprag korean on       # on, for every project
+sprag korean status   # state, cost, provenance
+sprag korean show     # print the guidance itself
+sprag korean off      # off
 ```
 
 Claude Code's output styles can do the same thing, but an output style is **a single global slot**: turning it on takes that slot away from anything else and has to be configured per machine. This ships the guidance inside the package and delivers it through the SessionStart hook that is already installed, so it **applies wherever the CLI is installed and leaves the output-style slot free.** It survives `/clear`, because the hook fires again.
@@ -442,7 +442,7 @@ It adds three layers:
 - **AI-writing tics**: automatic intensifiers ("다양한", "핵심적인"), signpost sentences, rhetorical question-then-answer, unconditionally upbeat endings.
 - **Cohesion** — how sentences connect, which no regex can check. The research finding that shapes this section: surface connectives (conjunctions, demonstratives) correlate *negatively or not at all* with judged text quality, while elaboration — the next sentence picking up and unpacking what the previous one introduced — is the only connection type with a positive correlation. So the guidance says: when a transition feels rough, fix the information order (given before new), don't add a connective.
 
-**Most of the cohesion layer is not Korean-specific.** Given-before-new ordering (the "given-new contract"), one clear referent per pronoun, keeping one subject per paragraph, bridging sentences instead of leaping, and merging choppy repetitive sentences into a modifier-plus-core structure apply to English prose the same way — the studies happen to be about Korean learners, but the principles they validate are the standard cohesion model from text linguistics. If you write English deliverables with Claude, run `claude-token-saver cohesion on` — it injects exactly those five rules as a standalone English block (~0.5k tokens per session), no Korean feature required. While `korean on` is active the block is suppressed, because the Korean supplement already carries the same rules.
+**Most of the cohesion layer is not Korean-specific.** Given-before-new ordering (the "given-new contract"), one clear referent per pronoun, keeping one subject per paragraph, bridging sentences instead of leaping, and merging choppy repetitive sentences into a modifier-plus-core structure apply to English prose the same way — the studies happen to be about Korean learners, but the principles they validate are the standard cohesion model from text linguistics. If you write English deliverables with Claude, run `sprag cohesion on` — it injects exactly those five rules as a standalone English block (~0.5k tokens per session), no Korean feature required. While `korean on` is active the block is suppressed, because the Korean supplement already carries the same rules.
 
 A final subsection lists what must **not** be "corrected": settled domain terms, formal register, and verbatim quotations — every lint finding is a request to confirm, not a verdict.
 
@@ -453,14 +453,14 @@ Injecting the guidance once at session start turned out to be half the job. The 
 From v3.24.0 `korean on` also installs a PostToolUse hook. It opens the file the model just wrote, runs the clauses a machine can decide, and hands any findings back. The file is already saved, so nothing is lost — the model fixes it on the spot.
 
 ```bash
-claude-token-saver korean lint block   # default: findings are handed back as blocking feedback
-claude-token-saver korean lint warn    # print findings, do not block
-claude-token-saver korean lint off     # disable the check
+sprag korean lint block   # default: findings are handed back as blocking feedback
+sprag korean lint warn    # print findings, do not block
+sprag korean lint off     # disable the check
 
-claude-token-saver korean lint scope all     # default: every text file the session writes
-claude-token-saver korean lint scope prose   # documents only
+sprag korean lint scope all     # default: every text file the session writes
+sprag korean lint scope prose   # documents only
 
-claude-token-saver korean lint docs/*.md     # check files already on disk
+sprag korean lint docs/*.md     # check files already on disk
 ```
 
 Checked: 15 figurative phrases, translationese markers, separators (`—`·`ㅡ`·`|`), three or more `의` particles in one phrase, and a period after a nominal ending. Clauses that need judgement stay with the guidance text.
@@ -475,7 +475,7 @@ Alongside the writing guidance, one more line is injected: **non-ASCII strings i
 
 When the model puts Korean into a Write or Edit parameter as escapes, those escapes are sometimes not decoded into code points at all: the literal text `한` lands in the file. The artifact carries mojibake, and the model keeps editing on top of it without noticing that what it wrote and what the file holds have diverged. Not writing escapes in the first place removes the path entirely, so the rule blocks the input instead of repairing the output.
 
-This line lives in claude-token-saver's own framing paragraph, not in the vendored fluent-korean text. It governs encoding rather than style, and the vendored wording is kept unmodified. For the same reason it carries no exceptions, unlike the style rules that skip code and commit messages. It adds roughly 60 tokens per session.
+This line lives in sprag's own framing paragraph, not in the vendored fluent-korean text. It governs encoding rather than style, and the vendored wording is kept unmodified. For the same reason it carries no exceptions, unlike the style rules that skip code and commit messages. It adds roughly 60 tokens per session.
 
 > **Evidence**
 > The same failure is reported against Claude Code: [#12417, unicode handling regression](https://github.com/anthropics/claude-code/issues/12417) and [#26141, Edit silently corrupting unicode](https://github.com/anthropics/claude-code/issues/26141).
@@ -507,10 +507,10 @@ Three situations, three different interception points:
 That second row is measured, not assumed: a `.pdf` Read fires the hook, and a `.pptx` Read in the same session leaves no hook log entry at all.
 
 ```bash
-claude-token-saver doc2md on                  # register the hooks (the converter installs itself)
-claude-token-saver doc2md                     # check converter + hook registration
-claude-token-saver doc2md report.pptx         # convert by hand and see the result
-claude-token-saver doc2md install-converter   # only to get the install out of the way early
+sprag doc2md on                  # register the hooks (the converter installs itself)
+sprag doc2md                     # check converter + hook registration
+sprag doc2md report.pptx         # convert by hand and see the result
+sprag doc2md install-converter   # only to get the install out of the way early
 ```
 
 **The converter installs itself.** Any rollout step a person has to be told about is a step some of them skip, so the converter installs in the background the moment a document first shows up, and converts as soon as it is ready. Measured: about 30s for the first document (15s install plus markitdown's first import), then 3.7s for a new document and 0.1s on a cache hit. The `.fig` parser installs in half a second on the first Figma file.
@@ -623,7 +623,7 @@ The model is told to ask for an unlocked copy. This tool never asks for or store
 - The `.fig` parser installs through `npm.cmd` via the shell, and the package spec dropped its caret (`openfig-core@0.4.x`): in cmd.exe `^` is the escape character and never reaches npm.
 - The background install and every child process set `windowsHide`, so no console window appears in the middle of someone's prompt.
 
-`claude-token-saver doc2md --clean` empties the conversion cache; `doc2md off` removes the hook. Removal filters for this tool's own entry, so anything else you registered under `PreToolUse` stays.
+`sprag doc2md --clean` empties the conversion cache; `doc2md off` removes the hook. Removal filters for this tool's own entry, so anything else you registered under `PreToolUse` stays.
 
 ## 🌐 Behind a gateway (Bedrock / Vertex)
 
@@ -638,7 +638,7 @@ Since v3.26.0 the gateway is detected from the model ids in the transcript, whic
 - Delegated runs dropped for an unpriceable model id show as `🔀 N unresolved` instead of nothing, which used to be indistinguishable from never having delegated.
 - Environment variables set to a `foundation-model` ARN now resolve. An opaque `application-inference-profile` id still does not: guessing at it is how wrong prices enter the ledger.
 
-If the detection is wrong, pin it with `claude-token-saver mode ttl=5m` (or `ttl=1h`). An explicit value outranks the measurement.
+If the detection is wrong, pin it with `sprag mode ttl=5m` (or `ttl=1h`). An explicit value outranks the measurement.
 
 ### LiteLLM: your key budget stands in for the missing 5h/7d caps (v3.35.0)
 
@@ -648,7 +648,7 @@ Behind a LiteLLM proxy (Bedrock and friends), Claude Code's stdin never carries 
 - The proxy is asked via `GET /key/info` and `GET /user/info` — only the calling key's own data. Renders read a cache file; a detached background process refreshes it every 5 minutes (same shape as the update check), so the statusline never waits on the network.
 - Budget source priority follows real-world usage: the **team-membership budget** (`team_memberships[].spend` + its linked budget table row) first, then the key's own `max_budget`, then the internal-user budget. Verified against a Dockerized LiteLLM, including memberships whose budget diverges from the team max into a separate budget-table row.
 - Unlimited keys (no `max_budget`) get no gauge. The `💵` monthly-spend segment still shows, since it comes from session logs.
-- Inspect with `claude-token-saver litellm-budget` (cached) or `litellm-budget --refresh` (query now).
+- Inspect with `sprag litellm-budget` (cached) or `litellm-budget --refresh` (query now).
 
 One related non-bug: if your session model is already sonnet, a sonnet-delegation (T1) rule can never save anything, because there is no price gap to capture. That is correct, but `route-scan rules` displayed it identically to "no delegations yet", so it now says outright that the rule does not apply at the current default model.
 
@@ -667,7 +667,7 @@ Remediation commands are OS-aware (`~/.zshrc` for macOS/Linux/WSL, `setx` for Wi
 
 ## Real-world impact — before/after report
 
-![claude-token-saver — harness + ratchet adoption impact](./docs/harness-impact.png)
+![sprag — harness + ratchet adoption impact](./docs/harness-impact.png)
 
 harness 5/5 + ratchet applied to the author's own Claude Code work, normalized **per user message** (cutoff 2026-05-02, Opus 4.7 pricing):
 
@@ -684,7 +684,7 @@ Same request resolved in fewer round-trips → first-try success rate up — the
 <summary>Measurement notes — why cache hit rate isn't included · sample caveats</summary>
 
 - The author is on the Max plan (1-hour cache TTL) with hit rate already converged near ~98%, so little headroom there. **Pro-plan users (5-minute TTL)** likely see hit rate itself rise with the handoff-before-expiry workflow.
-- Handoff-before-expiry: watch the TTL countdown, run `claude-token-saver handoff` just before expiry to dump work state into a markdown brief, start a fresh cache cycle. Same flow handles the 1M warning and cap chips.
+- Handoff-before-expiry: watch the TTL countdown, run `sprag handoff` just before expiry to dump work state into a markdown brief, start a fresh cache cycle. Same flow handles the 1M warning and cap chips.
 - ⚠️ POST window is only 2 days (157 msgs); statistical confidence is low, and week-to-week topic mix differs, so the tool effect isn't cleanly isolated.
 </details>
 
@@ -721,13 +721,13 @@ Node.js ≥ 18 · macOS / Linux / Windows / WSL · **zero dependencies**.
 
 **IntelliJ Claude Code plugin** — the statusline widget fuses frames at the character level when emoji are present (`59:548` artifacts). v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically.
 
-**If the countdown looks frozen:** ticking while idle requires Claude Code to re-run the statusline command on a timer, controlled by `statusLine.refreshInterval` (seconds, Claude Code v2.1.97+) in `~/.claude/settings.json`. Without it the line only redraws when the conversation updates. If behavior differs per terminal, check three things: ① that machine's Claude Code is ≥ 2.1.97; ② no project `.claude/settings.json` / `settings.local.json` overrides `statusLine` without a refreshInterval; ③ the statusline wrapper actually finds `claude-token-saver` on PATH instead of falling back to a multi-second `npx` run on every render (typical when nvm is not loaded in non-login shells). Re-running `claude-token-saver install` restores refreshInterval=5.
+**If the countdown looks frozen:** ticking while idle requires Claude Code to re-run the statusline command on a timer, controlled by `statusLine.refreshInterval` (seconds, Claude Code v2.1.97+) in `~/.claude/settings.json`. Without it the line only redraws when the conversation updates. If behavior differs per terminal, check three things: ① that machine's Claude Code is ≥ 2.1.97; ② no project `.claude/settings.json` / `settings.local.json` overrides `statusLine` without a refreshInterval; ③ the statusline wrapper actually finds `sprag` on PATH instead of falling back to a multi-second `npx` run on every render (typical when nvm is not loaded in non-login shells). Re-running `sprag install` restores refreshInterval=5.
 
 **Migration from claude-cache-monitor:**
 ```bash
-npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
+npm uninstall -g claude-cache-monitor && npm i -g sprag-cli
 ```
-Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-saver …`.
+Also update `statusLine.command` in `~/.claude/settings.json` to `sprag …`.
 
 **Background:** [GitHub Issue #46829](https://github.com/anthropics/claude-code/issues/46829) (cache TTL regression) · [HN discussion](https://news.ycombinator.com/item?id=47736476)
 </details>
@@ -749,12 +749,12 @@ Found a bug, or want a feature? Open an issue: https://github.com/rootstudioyaml
 No browser or GitHub login handy (corporate network, mid-session)? Submit straight from the terminal — or ask Claude to do it for you:
 
 ```bash
-claude-token-saver feedback "the 5m TTL chip never clears on Bedrock"
+sprag feedback "the 5m TTL chip never clears on Bedrock"
 ```
 
 It files a GitHub issue via the `gh` CLI when one is authenticated; otherwise it submits anonymously (no login, works where github.com is blocked). Pass `--anonymous` to skip the `gh` path. Version and OS metadata are attached automatically.
 
-When reporting a bug, please include the tool version (`claude-token-saver --version`), your OS, and — if it is a statusline or warning issue — the statusline output or the `claude-token-saver last` result.
+When reporting a bug, please include the tool version (`sprag --version`), your OS, and — if it is a statusline or warning issue — the statusline output or the `sprag last` result.
 
 ## License
 
