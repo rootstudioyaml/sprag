@@ -33,6 +33,10 @@
     {
       "ko": "탐색·조회·상태 확인·명령 실행 같은 단순 요청은 `model: haiku` 서브에이전트로 위임해 상위 모델 토큰을 아낀다 (읽기 전용 preset 에이전트가 이미 있으면 그걸 쓰고, 없으면 티어만 내려서 위임)",
       "en": "Delegate simple requests — lookup, status checks, running commands — to a `model: haiku` subagent to keep the expensive model's tokens for real work (use an existing read-only preset agent when there is one; otherwise delegate with the tier lowered)"
+    },
+    {
+      "ko": "지침이나 룰이 지켜지지 않아 같은 품질 문제가 재발하면 문구를 다시 쓰지 말 것 → 그 조항이 기계로 판정 가능한지부터 따지고(문자열 비교나 정규식으로 결정되면 판정 가능), 가능하면 쓰기 시점 훅이나 테스트 같은 차단 지점을 추가한다. 판단이 필요한 잔여 부분만 지침에 남기고 그 경계를 지침에 적는다. 실제 코퍼스에 돌려 오탐 건수를 센 뒤 좁히고, 회귀 테스트를 같은 커밋에 넣는다",
+      "en": "When a guideline keeps being violated and the same quality defect recurs, do NOT reword the instruction → first ask whether the clause is machine-decidable (a string comparison or regex settles it), and if so add an enforcement point such as a write-time hook or a test. Leave only the judgement remainder in the prose and state that boundary there. Measure the false-positive count on a real corpus, narrow until it is acceptable, and land a regression test in the same commit"
     }
   ]
 }

@@ -306,6 +306,11 @@ export function installBriefHook() {
 // gap: it runs on the file the model just wrote, while it can still fix it.
 // Installed by `korean on`, removed by `korean off`. Idempotent.
 const KOREAN_LINT_HOOK_COMMAND = 'claude-token-saver korean --hook';
+// Bash belongs on this matcher because a heredoc, a `tee`, or a `sed -i` puts
+// Korean on disk exactly like Write does. A subagent without the Write tool
+// reaches for `cat > file` first, so leaving Bash off the list exempted every
+// file those agents produce (found 2026-09-14 by probing a haiku subagent).
+const KOREAN_LINT_MATCHER = 'Write|Edit|MultiEdit|Bash';
 
 export function installKoreanLintHook() {
   const dir = claudeUserDir();
@@ -326,13 +331,24 @@ export function installKoreanLintHook() {
     return { path: file, action: 'skipped', reason: 'hooks.PostToolUse is not an array — fix settings.json manually' };
   }
   const list = Array.isArray(settings.hooks.PostToolUse) ? settings.hooks.PostToolUse : [];
-  const already = list.some((m) =>
+  const existing = list.find((m) =>
     Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('korean --hook')),
   );
-  if (already) return { path: file, action: 'exists' };
+  if (existing) {
+    // An install from before Bash joined the matcher leaves the narrow entry in
+    // place forever, so upgrading a machine would not close the gap. Widen it
+    // here; anything the user hand-edited to something wider is left alone.
+    if (existing.matcher === 'Write|Edit|MultiEdit') {
+      existing.matcher = KOREAN_LINT_MATCHER;
+      settings.hooks.PostToolUse = list;
+      writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+      return { path: file, action: 'updated' };
+    }
+    return { path: file, action: 'exists' };
+  }
 
   list.push({
-    matcher: 'Write|Edit|MultiEdit',
+    matcher: KOREAN_LINT_MATCHER,
     hooks: [{ type: 'command', command: KOREAN_LINT_HOOK_COMMAND, timeout: 10 }],
   });
   settings.hooks.PostToolUse = list;

@@ -49,7 +49,15 @@ const HTML_EXTENSIONS = new Set(['.html', '.htm', '.xhtml', '.vue', '.svelte']);
 // documents the check exists for.
 const SKIP_PATH = /(^|[\\/])(node_modules|\.git|.*\.min\.[a-z]+|.*-lock\.json|.*\.lock)([\\/]|$)/i;
 // This module and the hook copy that embeds it quote every banned form.
-const SELF_PATH = /(^|[\\/])(korean-lint\.cjs|cache-monitor-hook\.cjs)$/i;
+const SELF_PATH = /(^|[\\/])(korean-lint\.cjs|cache-monitor-hook\.cjs|korean-lint\.test\.js)$/i;
+
+// Opt-out marker. A file that exists to exercise the checker has to contain the
+// forms the checker bans, and so does a document quoting a style report. Before
+// Bash joined the matcher those files slipped through by accident; now that
+// every write route is covered, the exemption has to be something the author
+// states on purpose rather than something the tool guesses. One line anywhere
+// in the file turns the check off for that file.
+const OPT_OUT_MARKER = /korean-lint:\s*(?:off|ignore-file)/i;
 const BINARY_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.pdf', '.zip', '.gz', '.tar',
   '.mp3', '.mp4', '.wav', '.mov', '.woff', '.woff2', '.ttf', '.otf', '.map', '.bin',
@@ -204,6 +212,7 @@ function hasKorean(s) {
  */
 function lintKoreanText(text, { maxFindings = 20, code = false } = {}) {
   const findings = [];
+  if (OPT_OUT_MARKER.test(text)) return findings;
   const lines = stripCode(text);
 
   for (let i = 0; i < lines.length; i++) {
@@ -341,6 +350,37 @@ function writtenTextOf(toolName, toolInput) {
 }
 
 /**
+ * Files a shell command just wrote.
+ *
+ * Write is not the only way Korean reaches disk. A heredoc, a `tee`, a `sed -i`
+ * or a generator script puts the same prose in the same file, and a subagent
+ * that was handed Bash but not Write reaches for `cat > file` as its first
+ * choice. Matching only the file-editing tools therefore exempted exactly the
+ * artifacts produced by delegated work.
+ *
+ * Only redirection targets are recognised, never the command body: the body is
+ * shell, and linting shell would flag every Korean string in an echo. The file
+ * is read back from disk afterwards, so whatever the command actually produced
+ * is what gets checked.
+ */
+function writtenPathsOfBash(command) {
+  if (typeof command !== 'string' || !command) return [];
+  const out = new Set();
+  const add = (p) => {
+    if (!p) return;
+    const clean = p.replace(/^["']|["']$/g, '');
+    if (clean && !clean.startsWith('/dev/') && !/[*?]/.test(clean)) out.add(clean);
+  };
+  // `> file`, `>> file` — the redirection that covers heredocs and echo alike.
+  for (const m of command.matchAll(/(?<![0-9&])>>?\s*("[^"]+"|'[^']+'|[^\s|&;<>()]+)/g)) add(m[1]);
+  // `tee file`, `tee -a file`
+  for (const m of command.matchAll(/\btee\b(?:\s+-\w+)*\s+("[^"]+"|'[^']+'|[^\s|&;<>()]+)/g)) add(m[1]);
+  // In-place edits name their target at the end of the argument list.
+  for (const m of command.matchAll(/\b(?:sed|perl)\b[^|;&]*?\s-\w*i\w*\b[^|;&]*?\s("[^"]+"|'[^']+'|[^\s|&;<>()]+)\s*(?:$|[|;&])/g)) add(m[1]);
+  return [...out];
+}
+
+/**
  * Full check for one PostToolUse payload. Returns null when there is nothing to
  * say, which is the common case and must stay cheap.
  */
@@ -348,6 +388,9 @@ function lintToolUse(context, { scope = 'all' } = {}) {
   if (!context) return null;
   const toolName = context.tool_name;
   const toolInput = context.tool_input;
+
+  if (toolName === 'Bash') return lintBashWrites(toolInput, scope);
+
   const filePath = toolInput && typeof toolInput.file_path === 'string' ? toolInput.file_path : '';
   if (!isLintTarget(filePath, scope)) return null;
 
@@ -362,6 +405,37 @@ function lintToolUse(context, { scope = 'all' } = {}) {
   return { filePath, findings };
 }
 
+/**
+ * Check the files a Bash call redirected into. Reads from disk rather than from
+ * the command text, because the command is a recipe and only the result is
+ * prose. A path that does not exist, is unreadable, or is too large to be
+ * authored prose is skipped in silence: this runs after every shell command, so
+ * it must cost nothing in the overwhelmingly common case.
+ */
+const BASH_LINT_MAX_BYTES = 512 * 1024;
+
+function lintBashWrites(toolInput, scope) {
+  const command = toolInput && typeof toolInput.command === 'string' ? toolInput.command : '';
+  const paths = writtenPathsOfBash(command).filter((p) => isLintTarget(p, scope));
+  if (paths.length === 0) return null;
+
+  const fs = require('node:fs');
+  for (const p of paths) {
+    let text;
+    try {
+      const st = fs.statSync(p);
+      if (!st.isFile() || st.size > BASH_LINT_MAX_BYTES) continue;
+      text = fs.readFileSync(p, 'utf8');
+    } catch {
+      continue;
+    }
+    if (!hasKorean(text)) continue;
+    const findings = lintKoreanText(isHtmlFile(p) ? stripHtml(text) : text, { code: !isProseFile(p) });
+    if (findings.length > 0) return { filePath: p, findings };
+  }
+  return null;
+}
+
 /** Render findings as the message handed back to the model. */
 function formatFindings(filePath, findings) {
   const head = `[korean-style] ${filePath} 에 문체 규약 위반 ${findings.length}건이 있습니다. 파일을 고친 뒤 계속하십시오.`;
@@ -373,11 +447,13 @@ function formatFindings(filePath, findings) {
 module.exports = {
   METAPHOR_LEXICON,
   isLintTarget,
+  OPT_OUT_MARKER,
   isProseFile,
   isHtmlFile,
   stripHtml,
   lintKoreanText,
   writtenTextOf,
   lintToolUse,
+  writtenPathsOfBash,
   formatFindings,
 };

@@ -228,6 +228,20 @@ export async function run({ hasFlag }) {
         console.log(lang === 'ko'
           ? `  korean: 기존 설정 유지 — 한국어 문체 지침 ${ks.koreanStyleEnabled() ? '켜짐' : '꺼짐'}`
           : `  korean: keeping your setting — Korean writing guidance is ${ks.koreanStyleEnabled() ? 'on' : 'off'}`);
+        // The answer is kept, but the hook registration behind it still has to
+        // reach the current shape. A machine that enabled the guidance before
+        // Bash joined the matcher would otherwise keep the narrow entry for
+        // good, and upgrading would silently leave shell-written files
+        // unchecked. installKoreanLintHook widens in place and is idempotent.
+        if (ks.koreanStyleEnabled()) {
+          const { installKoreanLintHook } = await import('../installer.js');
+          const migrated = installKoreanLintHook();
+          if (migrated.action === 'updated') {
+            console.log(lang === 'ko'
+              ? '          검사 범위 갱신: Bash 로 쓴 파일도 이제 확인합니다'
+              : '          matcher widened: files written through Bash are checked now');
+          }
+        }
       } else {
         // The locale only decides what the question defaults to. It is a good
         // guess, not an answer, so a user at a terminal gets to overrule it

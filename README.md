@@ -462,7 +462,11 @@ sprag korean lint scope prose   # 마크다운·텍스트 문서만
 sprag korean lint docs/*.md     # 이미 저장된 파일을 직접 검사
 ```
 
-검사 항목은 사람이 판정할 필요가 없는 것들입니다. 비유 어휘 15종(`~는 자리`, `~의 흐름`, `닿는다`, `걷어내다`, `발목을 잡다` 등), 번역체 표지(`~에 대한`, `~를 위한`, `~되어지`), 구분자(`—`·`ㅡ`·`|`), 한 구에 세 번 이상 이어지는 조사 `의`, 명사형 종결 뒤의 마침표입니다. 판단이 필요한 조항(성분 생략, 한자어 선택)은 그대로 지침이 담당합니다.
+검사 항목은 사람이 판정할 필요가 없는 것들입니다. 비유 어휘 15종(`~는 자리`, `~의 흐름`, `닿는다`, `걷어내다`, `발목을 잡다` 등), 번역체 표지(`~에 대한`, `~를 위한`, `~되어지`), 구분자(`—`·`ㅡ`·`|`), 한 구에 세 번 이상 이어지는 조사 `의`, 명사형 종결 뒤의 마침표, 그리고 v3.42.7부터는 이어지는 두 문장이 똑같은 서술어로 끝나는 종결 반복입니다. 판단이 필요한 조항(성분 생략, 한자어 선택, 비슷하지만 똑같지는 않은 반복)은 그대로 지침이 담당합니다.
+
+검사 대상에는 Bash로 쓴 파일도 들어갑니다(v3.42.7). heredoc과 `tee`, `sed -i`는 Write와 똑같이 한국어를 디스크에 남기고, Write 도구가 없는 하위 에이전트는 `cat > 파일`부터 집습니다. 그래서 Bash를 빼 두면 위임해서 만든 결과물 전체가 검사를 비켜 갔습니다. 리다이렉션 대상 경로만 인식하고 명령문 자체는 읽지 않으므로, `echo`에 담긴 한국어가 잘못 걸리는 일은 없습니다.
+
+검사기를 시험하는 파일이나 문체 보고서처럼 금지된 표현을 일부러 담아야 하는 파일에는 `korean-lint: off` 한 줄을 넣으면 그 파일을 건너뜁니다.
 
 기본 범위 `all`은 문서뿐 아니라 **코드 주석과 화면에 나가는 문자열, 자막·템플릿, 생성 결과물까지** 검사합니다. 벤더링한 지침 원문은 코드 주석을 예외로 두지만, 주석도 사람이 읽고 PDF·HTML 같은 산출물은 그 문자열들로 조립되기 때문에 예외로 두면 정확히 문제가 됐던 경로가 다시 열립니다. 검사에서 빠지는 것은 설치된 의존성(`node_modules`), VCS 내부, 락 파일, 그리고 이진·이미지 파일뿐입니다. `dist`나 `build` 같은 산출물 디렉터리는 검사합니다. 원문 규약대로 문서만 보고 싶으면 `korean lint scope prose`로 되돌립니다.
 
@@ -1123,7 +1127,11 @@ sprag korean lint scope prose   # documents only
 sprag korean lint docs/*.md     # check files already on disk
 ```
 
-Checked: 15 figurative phrases, translationese markers, separators (`—`·`ㅡ`·`|`), three or more `의` particles in one phrase, and a period after a nominal ending. Clauses that need judgement stay with the guidance text.
+Checked: 15 figurative phrases, translationese markers, separators (`—`·`ㅡ`·`|`), three or more `의` particles in one phrase, a period after a nominal ending, and since v3.42.7 two consecutive sentences closing on the identical predicate. Clauses that genuinely need judgement — dropped sentence elements, word choice, near-miss repetition — stay with the guidance text.
+
+Bash writes are checked too (v3.42.7). A heredoc, a `tee`, or a `sed -i` puts Korean on disk exactly like Write does, and a subagent handed Bash but not Write reaches for `cat > file` first — so leaving Bash off the matcher exempted every artifact produced by delegated work. Only redirection targets are recognised, never the command body, so Korean inside an `echo` is not mistaken for prose.
+
+A file that must quote the banned forms — a fixture for this checker, a style report — opts out with one `korean-lint: off` line anywhere in it.
 
 The default `all` scope covers code comments, UI strings, subtitles, templates, and build output, not just documents. The vendored guidance exempts comments, but comments are read by people and generated artifacts (PDF, HTML) are assembled from those strings, so exempting them reopens the exact gap that was reported. Only installed dependencies, VCS internals, lockfiles, and binary or image files are skipped; `dist/` and `build/` are checked. `korean lint scope prose` restores the narrow reading.
 

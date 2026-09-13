@@ -217,3 +217,49 @@ test('종결 반복: adjacent sentences closing on the same content predicate', 
   const yaml = 'name: "규칙을 만듭니다"\ntag: "규칙을 만듭니다"\n';
   assert.equal(lint.lintKoreanText(yaml).filter((f) => f.rule === '종결 반복').length, 0);
 });
+
+test('Bash writes are checked too — a heredoc is a write like any other', async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-bash-lint-'));
+  try {
+    const file = join(dir, 'note.md');
+    writeFileSync(file, '이 기능은 후보가 발견되면 자동으로 보여집니다.\n');
+
+    const hit = lint.lintToolUse({ tool_name: 'Bash', tool_input: { command: `cat > ${file} <<'EOF'\n...\nEOF` } });
+    assert.ok(hit, 'a redirect into a Korean document must be checked');
+    assert.equal(hit.filePath, file);
+    assert.equal(hit.findings[0].rule, '번역체');
+
+    // Commands that write nothing, write elsewhere, or name a missing file must
+    // stay silent: this runs after every shell command in the session.
+    for (const command of [
+      'git status --short',
+      'node build.js > /dev/null 2>&1',
+      `grep -n 보여집 ${file}`,
+      `echo hi > ${join(dir, 'absent.md')}`,
+    ]) {
+      assert.equal(lint.lintToolUse({ tool_name: 'Bash', tool_input: { command } }), null, command);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('writtenPathsOfBash: redirects and in-place edits, never the command body', () => {
+  const paths = (c) => lint.writtenPathsOfBash(c);
+  assert.deepEqual(paths("cat > a.md <<'EOF'"), ['a.md']);
+  assert.deepEqual(paths('echo x >> docs/b.md'), ['docs/b.md']);
+  assert.deepEqual(paths('foo | tee -a c.txt'), ['c.txt']);
+  assert.deepEqual(paths("perl -pi -e 's/a/b/' README.ko.md"), ['README.ko.md']);
+  assert.deepEqual(paths('node x.js 2>/dev/null'), []);
+  assert.deepEqual(paths('grep 한국어 b.md'), []);
+});
+
+test('opt-out marker exempts a file that must quote the banned forms', () => {
+  const banned = '이 값은 자동으로 ' + '보여집니다.';
+  assert.ok(lint.lintKoreanText(banned).length > 0, 'sanity: the form is caught');
+  assert.equal(lint.lintKoreanText('# korean-lint: off\n' + banned).length, 0);
+  assert.equal(lint.lintKoreanText('<!-- korean-lint: ignore-file -->\n' + banned).length, 0);
+});
