@@ -70,7 +70,6 @@ The two savings figures are never added together, because they answer different 
 **Prerequisite:** Node.js ≥ 18 (`node -v` · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL: [nvm](https://github.com/nvm-sh/nvm) recommended)
 
 ```bash
-npm uninstall -g claude-cache-monitor   # (previous-package users only)
 npm i -g sprag-cli
 ```
 

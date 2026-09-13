@@ -68,7 +68,6 @@ v3.35.0 부터는 지출도 보입니다. 이번 달 1일 이후 쓴 금액을 `
 **사전 준비:** Node.js ≥ 18 (`node -v`로 확인 · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL은 [nvm](https://github.com/nvm-sh/nvm) 권장)
 
 ```bash
-npm uninstall -g claude-cache-monitor   # (구 패키지 사용자만)
 npm i -g sprag-cli
 ```
 
