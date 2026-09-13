@@ -19,9 +19,9 @@
 
 # Sprag
 
-**Your agent stops making the same mistake twice.** Sprag is a command-line harness for Claude Code. It reads your sessions, turns every repeated failure into a rule that loads automatically, routes simple work to cheaper models, and warns you about cache and rate-limit trouble before it costs you a session.
+**A quality ratchet for AI coding agents — your agent keeps working, it just stops regressing.** Sprag is named after the sprag clutch: forward motion passes freely, backspin locks. It reads the sessions Claude Code already writes and turns them into gains that compound — every repeated failure becomes a rule loaded at session start, work a cheaper tier has proven it can do is delegated there with a per-run savings ledger as the receipt, and cache or rate-limit trouble reaches your statusline while you can still act on it.
 
-What it saved shows on two lines — routing and document conversion each get their own, ledger entries rather than estimates, and whichever saved more takes the top line. Zero dependencies, one-line install.
+What it saved shows on two lines — routing and document conversion each get their own, ledger entries rather than estimates. Zero dependencies, no API key, nothing leaves your machine.
 
 ![statusline example — routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](./docs/statusline.png)
 
