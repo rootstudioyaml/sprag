@@ -198,3 +198,22 @@ test('HTML: prose 스코프에서도 lint 대상이다', () => {
   assert.equal(lint.isLintTarget('site/index.html', 'prose'), true);
   assert.equal(lint.isHtmlFile('site/index.html'), true);
 });
+
+test('종결 반복: adjacent sentences closing on the same content predicate', () => {
+  const hit = lint.lintKoreanText('역회전하는 순간 잠급니다. 에이전트는 그대로 일하고, 퇴행만 잠급니다.');
+  assert.equal(hit.filter((f) => f.rule === '종결 반복').length, 1);
+
+  // Auxiliary and copular closers are ordinary Korean, not a repeat to fix.
+  for (const pair of [
+    '값이 없습니다. 경로도 없습니다.',
+    '이것은 캐시입니다. 저것은 로그입니다.',
+    '먼저 검사합니다. 그다음 기록합니다.',
+  ]) {
+    assert.equal(lint.lintKoreanText(pair).filter((f) => f.rule === '종결 반복').length, 0, pair);
+  }
+
+  // Structured data holds independent values; neighbouring keys are not
+  // neighbouring sentences.
+  const yaml = 'name: "규칙을 만듭니다"\ntag: "규칙을 만듭니다"\n';
+  assert.equal(lint.lintKoreanText(yaml).filter((f) => f.rule === '종결 반복').length, 0);
+});

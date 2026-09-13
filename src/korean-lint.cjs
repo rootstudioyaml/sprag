@@ -115,6 +115,15 @@ const TRANSLATIONESE = [
 // Guidance 3.7: a period belongs after a 종결어미, not after a nominal ending.
 const NOMINAL_ENDING = /(?:음|함|됨|임|점|론|양|성|화)\.$/;
 
+// Sentence closers with no lexical content of their own: existence, negation,
+// the copula, and the do-verb. Korean puts these at the end of most sentences,
+// so repeating one across two sentences is normal writing. Only content verbs
+// repeating is the style problem the cohesion clause means.
+const AUXILIARY_ENDING = /^(?:있|없|않|아니|아닙|같|이|뿐이|때문이|것이|거|합|한|했|됩|된|됐|입|였|이었)/;
+// The copula and the do-verb also attach to a preceding noun, so they have to
+// be matched at the tail as well: `수치입니다`, `설명합니다`, `반영됩니다`.
+const AUXILIARY_TAIL = /(?:입니다|입니다만|이다|합니다|한다|됩니다|된다|있습니다|없습니다|않습니다|않는다)$/;
+
 /**
  * Which files the checker opens.
  *
@@ -244,7 +253,78 @@ function lintKoreanText(text, { maxFindings = 20, code = false } = {}) {
     }
   }
 
+  findings.push(...repeatedEndings(lines, maxFindings - findings.length));
+
   return findings;
+}
+
+/**
+ * Adjacent sentences closing on the same predicate.
+ *
+ * This is a cohesion clause, and cohesion was written off as "needs judgement,
+ * so the guidance text has to carry it". That reading cost us the September
+ * 2026 report: two sentences in a row ended in `잠급니다`, the machine layer
+ * passed the file, and a human caught it on the published page. Identical
+ * final 어절 in consecutive sentences needs no judgement at all — it is a
+ * string comparison — so it belongs here, where it blocks, rather than in an
+ * instruction nobody re-reads.
+ *
+ * Deliberately narrow to keep the false-positive rate at zero on our own
+ * corpus: the two 어절 must match exactly, run at least three characters, and
+ * close a sentence. Near-misses (`막습니다` after `잠급니다`) are a judgement
+ * call and stay with the cohesion review.
+ */
+function repeatedEndings(lines, budget) {
+  if (budget <= 0) return [];
+  const out = [];
+  // Sentences are collected with the line they end on, so a finding still
+  // points the model at a line it can jump to.
+  const sentences = [];
+  let buf = '';
+  let startLine = 1;
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    // Headings, list markers and table rows are labels, not flowing prose.
+    if (/^\s*(?:#|\||[-*+]\s|\d+\.\s|>)/.test(raw)) { buf = ''; continue; }
+    // Structured data (YAML keys, JSON fields, front matter) holds independent
+    // values that happen to sit on neighbouring lines. Joining them invents
+    // sentence adjacency that no reader ever experiences.
+    if (/^\s*["'\w.-]+\s*:\s/.test(raw) || /^\s*---\s*$/.test(raw)) { buf = ''; continue; }
+    if (!buf) startLine = i + 1;
+    buf += (buf ? ' ' : '') + raw.trim();
+    const parts = buf.split(/(?<=[.!?])\s+/);
+    buf = /[.!?]\s*$/.test(raw.trim()) ? '' : parts.pop() || '';
+    for (const p of parts) sentences.push({ text: p, line: i + 1, startLine });
+    if (!buf) startLine = i + 2;
+  }
+
+  const tailOf = (s) => {
+    const m = String(s).trim().replace(/[.!?]+$/, '').match(/([가-힣]+)$/);
+    const t = m ? m[1] : '';
+    // Only verb/adjective endings count; a sentence closing on a noun is
+    // already covered by the nominal-ending rule.
+    if (!/다$/.test(t) || t.length < 3) return '';
+    // Existential, negative and copular closers carry no lexical content, so
+    // two of them in a row is ordinary Korean, not a repetition the writer
+    // should fix. Measured on 272 Korean files: without this stoplist the rule
+    // fires 74 times and nearly all of it is this class.
+    if (AUXILIARY_ENDING.test(t) || AUXILIARY_TAIL.test(t)) return '';
+    return t;
+  };
+
+  for (let i = 1; i < sentences.length && out.length < budget; i++) {
+    const a = tailOf(sentences[i - 1].text);
+    const b = tailOf(sentences[i].text);
+    if (a && a === b) {
+      out.push({
+        line: sentences[i].line,
+        rule: '종결 반복',
+        hit: a,
+        fix: '앞 문장과 같은 서술어로 끝납니다. 한쪽을 다른 서술어로 바꾸거나 두 문장을 합칩니다',
+      });
+    }
+  }
+  return out;
 }
 
 /** Pull the text a Write/Edit/MultiEdit call just put on disk. */
