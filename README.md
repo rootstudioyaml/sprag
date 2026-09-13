@@ -1,10 +1,23 @@
-**English** · [한국어](./README.ko.md)
+<div align="center">
 
-[![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup.svg">
+  <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
+</picture>
 
-🌐 **[sprag.io](https://sprag.io)** · project site (claude-token-saver is being renamed to **Sprag**)
+**A quality ratchet for AI coding agents. Mistakes never repeat.**
 
-# claude-token-saver
+[![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
+[![downloads](https://img.shields.io/npm/dm/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+[sprag.io](https://sprag.io) · [Benchmark](./docs/BENCHMARK.md) · [한국어](./README.ko.md)
+
+</div>
+
+---
+
+# Sprag (claude-token-saver)
 
 **Shows what it saved, on two lines.** It moves the easy work your expensive model keeps repeating onto cheaper ones, and turns documents the model cannot read into Markdown. Both figures are ledger entries rather than estimates, and whichever saved more takes the top line. Zero dependencies, one-line install.
 

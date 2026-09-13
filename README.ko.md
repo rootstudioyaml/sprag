@@ -1,10 +1,23 @@
-[English](./README.md) · **한국어**
+<div align="center">
 
-[![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup.svg">
+  <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
+</picture>
 
-🌐 **[sprag.io](https://sprag.io)** · 프로젝트 사이트 (claude-token-saver는 **Sprag**로 이름을 바꾸는 중입니다)
+**AI 코딩 에이전트용 품질 래칫. 같은 실수는 두 번 없습니다.**
 
-# claude-token-saver
+[![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
+[![downloads](https://img.shields.io/npm/dm/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+[sprag.io](https://sprag.io) · [벤치마크](./docs/BENCHMARK.md) · [English](./README.md)
+
+</div>
+
+---
+
+# Sprag (claude-token-saver)
 
 **아낀 돈을 두 줄로 보여 줍니다.** 비싼 모델이 반복하던 쉬운 작업을 싼 모델로 내려보내고, 모델이 읽지 못하는 문서를 Markdown 으로 바꿉니다. 두 절감액 모두 추정이 아니라 원장 기록입니다. 의존성 0, 설치 한 줄.
 
