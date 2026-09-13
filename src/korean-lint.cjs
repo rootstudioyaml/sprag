@@ -80,6 +80,15 @@ const TRANSLATIONESE = [
   { re: /되어지/, fix: '이중 피동을 없애고 능동이나 단일 피동으로 씁니다' },
   { re: /하는 것을 통해/, fix: "'~해서'·'~함으로써'로 줄입니다" },
   { re: /라고 할 수 있다/, fix: '단정하거나 근거를 붙여 서술합니다' },
+  // Conservative additions (2026-09-13), sourced from 국립국어원 공공언어
+  // 지침·한글문화연대 교정 사례·쿠버네티스 한글화 가이드. Bar for inclusion:
+  // the form is nearly always an improvement to change, so a confirm-request
+  // on it is rarely noise. See presets/korean-style/supplement.md.
+  { re: /(?:보여|쓰여|불려|잊혀)[지집진질져]/, fix: "이중 피동입니다. '보인다'·'쓰인'·'불린'·'잊힌'처럼 단일 피동으로 씁니다" },
+  { re: /에 다름 아니/, fix: "일본어 번역투입니다. '~일 뿐이다'·'바로 ~이다'로 바꿉니다" },
+  { re: /지 않으면 안 [되된됩돼]/, fix: "이중 부정 번역투입니다. '~해야 합니다'로 바꿉니다" },
+  { re: /(?<!여기|거기|저기|어디)에 있어서/, fix: "'~에서'·'~에는'으로 바꿉니다" },
+  { re: /(?:의미|특징|장점|단점|성격|가능성|중요성|효과)[을를] 가지고 있/, fix: "'~이다'·'~가 있다'로 바꿉니다 (have 직역)" },
 ];
 
 // Guidance 3.7: a period belongs after a 종결어미, not after a nominal ending.

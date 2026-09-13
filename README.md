@@ -418,6 +418,20 @@ Three things change. Clauses chained with em dashes become separate sentences, s
 
 The technical content is identical in both. The guidance touches sentence construction only, not judgement or accuracy: the answer does not change, it just stops needing a second read. In a channel people scroll through, that difference cuts follow-up questions — and the tokens those follow-ups would have cost.
 
+### The supplement: cohesion and conservative correctness rules
+
+The vendored fluent-korean text ships unmodified; everything collected since lives in a separate supplement (`presets/korean-style/supplement.md`) appended to the same injection. It was compiled conservatively — only clauses that are nearly always an improvement, sourced from the National Institute of Korean Language's public-language guidelines, the Kubernetes Korean localization guide, and three peer-reviewed studies on text cohesion in Korean writing.
+
+It adds three layers:
+
+- **Translationese**: double passives, Japanese-derived calques, `~에 있어서`, possession-verb renderings of English *have*. The machine-checkable ones also run in the write-time lint (below).
+- **AI-writing tics**: automatic intensifiers ("다양한", "핵심적인"), signpost sentences, rhetorical question-then-answer, unconditionally upbeat endings.
+- **Cohesion** — how sentences connect, which no regex can check. The research finding that shapes this section: surface connectives (conjunctions, demonstratives) correlate *negatively or not at all* with judged text quality, while elaboration — the next sentence picking up and unpacking what the previous one introduced — is the only connection type with a positive correlation. So the guidance says: when a transition feels rough, fix the information order (given before new), don't add a connective.
+
+**Most of the cohesion layer is not Korean-specific.** Given-before-new ordering (the "given-new contract"), one clear referent per pronoun, keeping one subject per paragraph, bridging sentences instead of leaping, and merging choppy repetitive sentences into a modifier-plus-core structure apply to English prose the same way — the studies happen to be about Korean learners, but the principles they validate are the standard cohesion model from text linguistics. If you write English deliverables with Claude, those five rules are worth pinning in your own CLAUDE.md even with this feature off.
+
+A final subsection lists what must **not** be "corrected": settled domain terms, formal register, and verbatim quotations — every lint finding is a request to confirm, not a verdict.
+
 ### The write-time check (v3.24.0)
 
 Injecting the guidance once at session start turned out to be half the job. The model reads it, then writes dozens of files over the next hours with nothing re-reading the output. Sessions with the guidance active still shipped violations into documents, and it surfaced only when a human read the finished artifact. An August 2026 fix reworded the scope sentence to address this; it recurred, because rewording an instruction does not add a checkpoint.
@@ -708,6 +722,7 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headings and command names are language-neutral). Recent changes:
 
+- **v3.37.0**: Korean guidance grows a conservative supplement (translationese, AI-writing tics, a research-backed cohesion section whose principles apply to English prose too) and the write-time lint gains 5 translationese patterns, validated at 1 false positive across 255 real files.
 - **v3.35.0**: A `💵 Sep $42` segment now shows estimated spend since 00:00 on the 1st of the current month, always on — including gateway setups with no 5h/7d caps. LiteLLM gateway users get a `🔑 budget ▰▱ 34% $34/$100` gauge built from the key's budget (`GET /key/info` + `GET /user/info`, team-membership budget first, then key, then internal user — verified against a Dockerized LiteLLM).
 - **v3.34.0**: seed presets offered one at a time, output-language choice at install, context warning raised to 500k.
 

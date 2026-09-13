@@ -116,3 +116,29 @@ test('lintToolUse fires on a Korean markdown write and skips code files', () => 
   };
   assert.equal(lint.lintToolUse(english), null);
 });
+
+test('catches the conservative translationese additions (2026-09-13)', () => {
+  const cases = [
+    '그 결과가 화면에 보여집니다',
+    '이것은 성공에 다름 아니다',
+    '지금 노력하지 않으면 안 된다고 했습니다',
+    '모든 분야에 있어서 기준이 필요합니다',
+    '이 함수는 세 가지 장점을 가지고 있습니다',
+  ];
+  for (const text of cases) {
+    const findings = lint.lintKoreanText(text);
+    assert.ok(findings.some((f) => f.rule === '번역체'), `should flag: ${text}`);
+  }
+});
+
+test('the additions stay quiet on nearby legitimate forms', () => {
+  const clean = [
+    '창이 잘 보입니다.',           // 단일 피동
+    '파일이 여기에 있어서 옮겼습니다.', // '있어서' 뒤 연결은 '~에 있어서' 관용구가 아니라 실제 존재 서술
+    '자료를 가지고 왔습니다.',       // 소유가 아니라 이동 동사
+  ];
+  for (const text of clean) {
+    const findings = lint.lintKoreanText(text).filter((f) => f.rule === '번역체');
+    assert.deepEqual(findings, [], `should not flag: ${text}`);
+  }
+});

@@ -121,3 +121,19 @@ test('locale decides the install-time default, not a coin flip', async () => {
   assert.equal(on({ LANG: 'kok_IN.UTF-8' }), false);
   assert.equal(on({ LANG: 'tok_XX.UTF-8' }), false);
 });
+
+test('the supplement is appended after the vendored text, comment stripped', async () => {
+  const ks = await import('../src/korean-style.js?supplement');
+  assert.ok(existsSync(ks.KOREAN_STYLE_SUPPLEMENT_PATH), 'supplement file is present');
+  const text = ks.koreanStyleText();
+  // The vendored body still comes first, unmodified.
+  assert.match(text, /조사와 어미를 생략하지 말아야 합니다/);
+  // The supplement follows, without its provenance comment.
+  assert.match(text, /보강 지침/);
+  assert.match(text, /과교정 금지 조항/);
+  assert.doesNotMatch(text, /claude-token-saver's own supplement/);
+  assert.ok(
+    text.indexOf('조사와 어미를 생략') < text.indexOf('보강 지침'),
+    'supplement comes after the vendored guidance',
+  );
+});

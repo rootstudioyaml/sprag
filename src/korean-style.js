@@ -34,6 +34,10 @@ const require = createRequire(import.meta.url);
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const KOREAN_STYLE_PATH = join(packageRoot, 'presets', 'korean-style', 'fluent-korean.md');
+// Our own conservative additions (국립국어원 공공언어 지침, 쿠버네티스 한글화
+// 가이드 등에서 수집). Appended after the vendored text so the vendored file
+// stays byte-identical to upstream.
+export const KOREAN_STYLE_SUPPLEMENT_PATH = join(packageRoot, 'presets', 'korean-style', 'supplement.md');
 export const KOREAN_STYLE_LICENSE_PATH = join(packageRoot, 'presets', 'korean-style', 'LICENSE-fluent-korean');
 // The separator here is a colon, not an em dash. The guidance this line cites
 // bans em dashes in Korean prose, and shipping one inside its own attribution
@@ -115,7 +119,18 @@ export function koreanStyleText() {
     if (!existsSync(KOREAN_STYLE_PATH)) return null;
     const raw = readFileSync(KOREAN_STYLE_PATH, 'utf8');
     const body = raw.replace(/^<!--[\s\S]*?-->\s*/, '').trim();
-    return body || null;
+    if (!body) return null;
+    // The supplement is optional: a missing or empty file degrades to the
+    // vendored guidance alone rather than failing the injection.
+    try {
+      if (existsSync(KOREAN_STYLE_SUPPLEMENT_PATH)) {
+        const sup = readFileSync(KOREAN_STYLE_SUPPLEMENT_PATH, 'utf8')
+          .replace(/^<!--[\s\S]*?-->\s*/, '')
+          .trim();
+        if (sup) return `${body}\n\n${sup}`;
+      }
+    } catch { /* supplement unreadable: fall back to the vendored text */ }
+    return body;
   } catch {
     return null;
   }
