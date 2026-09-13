@@ -11,7 +11,7 @@
 ![statusline example — routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](./docs/statusline.png)
 
 ```bash
-npm i -g claude-token-saver
+npm i -g sprag-cli   # or: npm i -g claude-token-saver (same package, old name)
 ```
 
 Four numbers are the whole pitch.

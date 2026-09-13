@@ -11,7 +11,7 @@
 
 | 자산 | 상태 |
 | --- | --- |
-| npm `sprag` | 비어 있음. placeholder 패키지 준비 완료(스크래치패드), publish는 사용자 직접 실행 필요 |
+| npm `sprag` | 확보 불가. sp-rag 유사성 가드로 영구 차단, @sprag 스코프는 sprag.dev(동종 도구)가 선점. 최신 AI CLI 관례(패키지명≠브랜드, bin이 브랜드)에 따라 **`sprag-cli`로 publish** (bin: `sprag`) |
 | sprag.io | 미등록, 일반가(연 5~7만 원대)로 구매 가능 |
 | sprag.ai / sprag.dev | 이미 등록됨 |
 | GitHub org/repo | 미확인 — 확보 시 `sprag` 또는 `sprag-dev` 확인 필요 |

@@ -11,7 +11,7 @@
 ![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](./docs/statusline.png)
 
 ```bash
-npm i -g claude-token-saver
+npm i -g sprag-cli   # or: npm i -g claude-token-saver (same package, old name)
 ```
 
 숫자 네 개가 이 도구의 전부입니다.
