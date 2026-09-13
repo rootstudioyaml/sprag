@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://rootstudioyaml.github.io/claude-token-saver/</loc>
-    <lastmod>2026-09-07</lastmod>
+    <loc>https://sprag.io/</loc>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/?lang=ko"/>
   </url>
 </urlset>
