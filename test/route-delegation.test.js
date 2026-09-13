@@ -268,6 +268,24 @@ test('composeRuleText is the single source both the file and the preview use', (
   assert.equal(budgetCapPhrase({ tier: 'T2' }, 'ko'), '도구 호출 8회·출력 1500 토큰');
 });
 
+test('renderModelRatchet carries the shared tier criteria block in both languages', () => {
+  // The criteria (tool orchestration, answer source, verifiability,
+  // implementation split, escalation ladder) apply to every rule, so they
+  // live once in the header rather than being repeated per rule sentence.
+  const ko = renderModelRatchet([{ ...baseRule, tier: 'T2', rule: 'r2' }], 'ko');
+  assert.match(ko, /## 티어 판별 기준/);
+  assert.match(ko, /도구 오케스트레이션/);
+  assert.match(ko, /답의 출처/);
+  assert.match(ko, /구현 분업/);
+  assert.match(ko, /① 재지시 후 재시도/);
+  const en = renderModelRatchet([{ ...baseRule, tier: 'T2', rule: 'r2' }], 'en');
+  assert.match(en, /## Tier criteria/);
+  assert.match(en, /Tool orchestration/);
+  assert.match(en, /Answer source/);
+  assert.match(en, /Implementation split/);
+  assert.match(en, /move up one tier/);
+});
+
 test('renderModelRatchet reports measured delegations and savings when present', () => {
   const md = renderModelRatchet([{
     ...baseRule, tier: 'T2', rule: 'r2', count: 12, errRate: 0.1,
