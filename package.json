@@ -1,7 +1,7 @@
 {
   "name": "claude-token-saver",
-  "version": "3.40.0",
-  "description": "Route the easy work your expensive Claude model keeps repeating down to haiku/sonnet \u2014 post-hoc session analysis, no realtime router, no extra LLM calls.",
+  "version": "3.40.1",
+  "description": "Route the easy work your expensive Claude model keeps repeating down to haiku/sonnet — post-hoc session analysis, no realtime router, no extra LLM calls.",
   "type": "module",
   "bin": {
     "sprag": "bin/cli.js",
