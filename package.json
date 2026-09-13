@@ -1,7 +1,7 @@
 {
-  "name": "claude-token-saver",
-  "version": "3.40.1",
-  "description": "Route the easy work your expensive Claude model keeps repeating down to haiku/sonnet — post-hoc session analysis, no realtime router, no extra LLM calls.",
+  "name": "sprag-cli",
+  "version": "3.41.0",
+  "description": "Sprag - a quality ratchet harness for AI coding agents: model-fitting delegation, ratchet rules, doc2md, Korean style gate. Same tool as claude-token-saver, under its new name.",
   "type": "module",
   "bin": {
     "sprag": "bin/cli.js",
@@ -10,7 +10,8 @@
   "scripts": {
     "test": "node --test",
     "docs:statusline": "node scripts/docs-statusline.mjs",
-    "postinstall": "node bin/cli.js install || true"
+    "postinstall": "node bin/cli.js install || true",
+    "publish:legacy": "node scripts/publish-legacy.mjs"
   },
   "files": [
     "bin/",
@@ -25,6 +26,10 @@
     "node": ">=18"
   },
   "keywords": [
+    "sprag",
+    "ratchet",
+    "harness",
+    "ai-agent",
     "claude",
     "claude-code",
     "anthropic",
@@ -43,7 +48,6 @@
     "claude-code-statusline",
     "claude-code-cost",
     "model-fitting",
-    "ratchet",
     "agent-harness"
   ],
   "license": "MIT",

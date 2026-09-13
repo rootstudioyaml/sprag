@@ -157,5 +157,7 @@ test('the no-session line still carries the version and the upgrade nudge', asyn
 test('the upgrade command matches how the copy was installed', () => {
   // Default install path (npm global) — the fallback every other manager
   // falls back to when the install root says nothing.
-  assert.match(upgradeCommand(), /^(npm install -g|pnpm add -g|bun add -g|yarn global add) claude-token-saver@latest$/);
+  // The repo's canonical name is sprag-cli; a copy installed under the
+  // legacy name would report claude-token-saver here instead.
+  assert.match(upgradeCommand(), /^(npm install -g|pnpm add -g|bun add -g|yarn global add) (sprag-cli|claude-token-saver)@latest$/);
 });

@@ -23,7 +23,10 @@ import { fileURLToPath } from 'node:url';
 import { userDataDir } from './paths.js';
 import { debug } from './debug.js';
 
-const PKG_NAME = 'claude-token-saver';
+// Whichever name this copy was installed under (sprag-cli or the legacy
+// claude-token-saver) is the one whose registry entry must be consulted.
+import { createRequire } from 'node:module';
+const PKG_NAME = createRequire(import.meta.url)('../package.json').name;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h — the registry is not a health endpoint
 const FETCH_TIMEOUT_MS = 5000;
 
