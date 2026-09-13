@@ -11,7 +11,7 @@
 [![downloads](https://img.shields.io/npm/dm/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-[sprag.io](https://sprag.io) · [Benchmark](./docs/BENCHMARK.md) · [한국어](./README.ko.md)
+[sprag.io](https://sprag.io) · [Benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) · [한국어](https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md)
 
 </div>
 
@@ -63,7 +63,7 @@ The measured −18.6% comes from the harness and ratchet; routing and conversion
 ## Contents
 
 - **Start here**: [Getting started](#getting-started) · [Reading the statusline](#reading-the-statusline) · [Commands](#commands)
-- **Savings**: [The routing ledger](#-the-savings-figure-is-a-ledger-entry-not-an-estimate) · [route-scan](#-route-scan--this-recurring-task-could-run-on-a-cheaper-tier) · [doc2md](#-doc2md--documents-become-markdown-before-the-model-reads-them) · [seed](#-seed-delegation-that-works-from-the-first-session) · [Benchmark](./docs/BENCHMARK.md)
+- **Savings**: [The routing ledger](#-the-savings-figure-is-a-ledger-entry-not-an-estimate) · [route-scan](#-route-scan--this-recurring-task-could-run-on-a-cheaper-tier) · [doc2md](#-doc2md--documents-become-markdown-before-the-model-reads-them) · [seed](#-seed-delegation-that-works-from-the-first-session) · [Benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
 - **Guardrails**: [Harness](#-harness-mode) · [compact-window](#-compact-window--pin-where-a-1m-session-compacts) · [Korean writing guidance](#-korean-writing-guidance)
 - **Spend & environments**: [Monthly spend · LiteLLM key budget](#litellm-your-key-budget-stands-in-for-the-missing-5h7d-caps-v3350) · [Gateways (Bedrock/Vertex)](#-behind-a-gateway-bedrock--vertex) · [Spike issue codes](#spike-issue-codes) · [Measured impact](#real-world-impact--beforeafter-report)
 

@@ -11,7 +11,7 @@
 [![downloads](https://img.shields.io/npm/dm/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-[sprag.io](https://sprag.io) · [벤치마크](./docs/BENCHMARK.md) · [English](./README.md)
+[sprag.io](https://sprag.io) · [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) · [English](https://github.com/rootstudioyaml/sprag/blob/main/README.md)
 
 </div>
 
@@ -33,7 +33,7 @@ npm i -g sprag-cli   # or: npm i -g claude-token-saver (same package, old name)
 
 숫자 네 개가 이 도구의 전부입니다.
 
-- **공개 벤치마크에서 단일 모델 전부를 이깁니다**: 이 도구가 배포하는 티어 판별 기준을 LLMRouterBench 11,696문항에 적용하면 59.1%로, 단일 최고 모델(57.9%)을 넘어서면서 비용은 gpt-5 대비 31%, gemini-2.5-pro 대비 64% 쌉니다 ([벤치마크](./docs/BENCHMARK.md))
+- **공개 벤치마크에서 단일 모델 전부를 이깁니다**: 이 도구가 배포하는 티어 판별 기준을 LLMRouterBench 11,696문항에 적용하면 59.1%로, 단일 최고 모델(57.9%)을 넘어서면서 비용은 gpt-5 대비 31%, gemini-2.5-pro 대비 64% 쌉니다 ([벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md))
 - **문서 토큰 95.8% 절감**: 30MB 발표자료를 Markdown 으로 읽으면 540,429 토큰이 22,610 토큰이 됩니다 ([근거](#-doc2md-문서를-읽기-전에-markdown-으로-바꿉니다))
 - **비용 18.6% 절감**: Harness 5원칙 도입 전후 실측입니다 ([근거](#실제-효과-도입-전후-리포트))
 - **라우팅 절감액은 실행 단위 원장**: 추정치가 아니라 위임 한 건 한 건의 차액 기록입니다 ([근거](#-절감액은-추정이-아니라-원장-기록입니다))
@@ -52,7 +52,7 @@ v3.35.0 부터는 지출도 보입니다. 이번 달 1일 이후 쓴 금액을 `
 | | 하는 일 |
 |---|---|
 | ⚙️ **래칫 규칙** | 되풀이된 실패가 한 줄짜리 규칙이 되어 매 세션에 올라옵니다. 후보는 기록에서 자동으로 찾아 주고, 프로젝트 범위와 전역 범위 중 어느 쪽에 넣을지는 사용자가 고릅니다. |
-| 🔀 **모델 피팅** | 기록에서 뽑은 위임 규칙에 측정한 오류율과 절감액을 붙여 `ratchet-model.md`에 적습니다. 판별 기준은 공개 데이터로 [벤치마크](./docs/BENCHMARK.md)했습니다. |
+| 🔀 **모델 피팅** | 기록에서 뽑은 위임 규칙에 측정한 오류율과 절감액을 붙여 `ratchet-model.md`에 적습니다. 판별 기준은 공개 데이터로 [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)했습니다. |
 | 🅷 **하네스 점수** | 다섯 가지 운영 원칙을 실시간으로 점검합니다 ([비용 −18.6% 실측](#실제-효과-도입-전후-리포트)). 검증 단계를 건너뛰면 완료를 보고하기 전에 `🅷 4/5`가 먼저 알려 줍니다. |
 | 📊 **토큰 텔레메트리** | 캐시 적중률과 TTL, 컨텍스트 크기, 출력 급증, 두 가지 사용량 한도를 매 턴 프롬프트에 표시합니다. |
 | 📄 **doc2md** | pptx와 xlsx, pdf, docx, fig를 필요할 때 변환합니다. 문서를 통째로 붙이는 대신 변환본만 읽으면 됩니다 ([발표자료 한 건에 51만 토큰 절약](#-doc2md-문서를-읽기-전에-markdown-으로-바꿉니다)). |
@@ -63,7 +63,7 @@ v3.35.0 부터는 지출도 보입니다. 이번 달 1일 이후 쓴 금액을 `
 ## 목차
 
 - **먼저 볼 것**: [시작하기](#시작하기) · [statusline 읽는 법](#statusline-읽는-법) · [주요 명령](#주요-명령)
-- **절감 기능**: [라우팅 절감 원장](#-절감액은-추정이-아니라-원장-기록입니다) · [route-scan](#-route-scan-이-반복-작업은-더-싼-티어로-내려도-됩니다) · [doc2md](#-doc2md-문서를-읽기-전에-markdown-으로-바꿉니다) · [seed](#-seed-설치-직후부터-위임이-걸리게-하는-시작-룰) · [벤치마크](./docs/BENCHMARK.md)
+- **절감 기능**: [라우팅 절감 원장](#-절감액은-추정이-아니라-원장-기록입니다) · [route-scan](#-route-scan-이-반복-작업은-더-싼-티어로-내려도-됩니다) · [doc2md](#-doc2md-문서를-읽기-전에-markdown-으로-바꿉니다) · [seed](#-seed-설치-직후부터-위임이-걸리게-하는-시작-룰) · [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
 - **가드레일**: [Harness](#-harness-모드) · [compact-window](#-compact-window-1m-컨텍스트의-자동-압축-지점-고정) · [한국어 문체](#-한국어-문체-지침)
 - **비용 가시화·환경**: [이번 달 지출·LiteLLM 키 예산](#litellm-5h7d-cap-대신-키-예산을-보여-줍니다-v3350) · [게이트웨이(Bedrock·Vertex)](#-bedrockvertex-경유-환경) · [토큰 급증 원인 코드](#토큰-급증-원인-코드) · [실측 효과](#실제-효과-도입-전후-리포트)
 
