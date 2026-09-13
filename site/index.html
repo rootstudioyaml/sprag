@@ -279,6 +279,15 @@
     border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:40px}
   @media(max-width:860px){.cards{grid-template-columns:1fr}}
   .card{background:var(--panel);padding:24px;position:relative}
+  .card .vis{margin:-24px -24px 18px;padding:16px 20px;background:#0a0b0e;border-bottom:1px solid var(--line);
+    border-radius:0}
+  .card .vis code{font-family:var(--mono);font-size:11.5px;line-height:1.9;display:block;white-space:pre}
+  .card .vis i{display:block;font-style:normal;color:var(--ink)}
+  .card .vis .d{color:var(--faint)}
+  .card .vis .a{color:var(--amber)}
+  .card .vis .t{color:var(--teal)}
+  .card .vis .ok{color:var(--teal)}
+  .card .vis .x{color:var(--red)}
   .card:hover{background:var(--panel2)}
   .card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;
     background:linear-gradient(90deg,transparent,rgba(255,176,32,.35),transparent);
@@ -781,26 +790,50 @@ saved over 30 days                                   <span class="hl">$147.33</s
     <h2 data-k="ft.h2">Everything ships in one install, working from day one</h2>
     <div class="cards">
       <div class="card">
+        <div class="vis"><code>
+<i class="d">$ sprag harness promote</i>
+<i><b class="a">+ rule</b> 2026-09-13: npm 401 <b class="d">→</b> check NPM_TOKEN first</i>
+<i class="ok">✓ loads at the start of every session</i></code></div>
         <h3><svg class="ic"><use href="#i-ratchet"/></svg> <span data-k="ft.c1h">Ratchet rules</span></h3>
         <p data-k="ft.c1p">Repeated failures become one-line rules loaded every session. Candidates are detected from your logs; you choose project or global scope.</p>
       </div>
       <div class="card">
+        <div class="vis"><code>
+<i class="d"># ratchet-model.md</i>
+<i>"run the tests" <b class="d">→</b> <b class="t">haiku</b></i>
+<i class="d">×41 runs · 0% err · saved <b class="a">$3.05</b></i></code></div>
         <h3><svg class="ic"><use href="#i-routing"/></svg> <span data-k="ft.c2h">Model fitting</span></h3>
         <p data-k="ft.c2p">Log-driven delegation rules with measured error rates and reported savings, written to <code>ratchet-model.md</code>.</p>
       </div>
       <div class="card">
+        <div class="vis"><code>
+<i><b class="a">🅷 5/5</b>  <b class="ok">▰▰▰▰▰</b></i>
+<i class="d">ratchet · evidence · plan-verify</i>
+<i class="d">structured · safe-path</i></code></div>
         <h3><svg class="ic"><use href="#i-harness"/></svg> <span data-k="ft.c3h">Harness score</span></h3>
         <p data-k="ft.c3p">Five operating principles checked live. Skip the verify step and <code>🅷 4/5</code> says so before you report done.</p>
       </div>
       <div class="card">
+        <div class="vis"><code>
+<i>🧠 91%  ⏳ 4m  🚨 5H <b class="a">94%</b></i>
+<i class="d">cache ▰▰▰▰▰▰▰▰▰▱ · ctx 118k</i>
+<i class="d">💵 Sep $42 · 🔑 34% $34/$100</i></code></div>
         <h3><svg class="ic"><use href="#i-telemetry"/></svg> <span data-k="ft.c4h">Token telemetry</span></h3>
         <p data-k="ft.c4p">Cache hit rate, TTL, context size, output spikes and both rate-limit windows, in the prompt every turn.</p>
       </div>
       <div class="card">
+        <div class="vis"><code>
+<i>q3-review.pptx <b class="d">30MB</b></i>
+<i class="d">540,429 tok <b class="a">→</b> 22,610 tok</i>
+<i class="ok">✓ −95.8% before the model reads it</i></code></div>
         <h3><svg class="ic"><use href="#i-doc2md"/></svg> <span data-k="ft.c5h">doc2md</span></h3>
         <p data-k="ft.c5p">pptx, xlsx, pdf, docx and fig converted on demand, so a document costs a read instead of a context bomb.</p>
       </div>
       <div class="card">
+        <div class="vis"><code>
+<i><b class="x">✗</b> 보여집니다 <b class="d">(이중 피동)</b></i>
+<i><b class="ok">✓</b> 보입니다</i>
+<i class="d">blocked at write time, by hook</i></code></div>
         <h3><svg class="ic"><use href="#i-style"/></svg> <span data-k="ft.c6h">Style gates</span></h3>
         <p data-k="ft.c6p">Write-time prose lint enforced by hook. Shipping today for Korean technical writing: double passives, translationese, cohesion.</p>
       </div>
