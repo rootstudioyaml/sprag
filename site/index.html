@@ -24,7 +24,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 <style>
   :root{
     --bg:#09090b; --panel:#0d0e12; --panel2:#101218;
@@ -33,12 +33,15 @@
     --amber:#ffb020;
     --teal:#35d6a8; --blue:#6a9bff; --red:#ff6b6b;
     --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:"Space Grotesk","Inter",-apple-system,BlinkMacSystemFont,sans-serif;
     --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     --r:8px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+       background-image:radial-gradient(rgba(255,255,255,.025) 1px, transparent 1.2px);
+       background-size:26px 26px;
        -webkit-font-smoothing:antialiased;line-height:1.55}
   a{color:inherit;text-decoration:none}
   button{font-family:inherit;cursor:pointer}
@@ -50,7 +53,7 @@
   header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);
          background:rgba(9,9,11,.82);backdrop-filter:blur(12px)}
   header .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
-  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15.5px;letter-spacing:.01em;font-family:var(--disp)}
   .brand svg{width:20px;height:20px;display:block}
   header nav{display:flex;align-items:center;gap:22px;font-size:13.5px;color:var(--dim)}
   header nav a:hover{color:var(--ink)}
@@ -76,20 +79,28 @@
 
   /* hero */
   .hero{padding:78px 0 44px;text-align:center;position:relative;overflow:hidden}
-  .hero::before{content:"";position:absolute;left:50%;top:-170px;width:760px;height:370px;
+  .hero::before{content:"";position:absolute;left:50%;top:-190px;width:900px;height:430px;
     transform:translateX(-50%);pointer-events:none;
-    background:radial-gradient(ellipse at center, rgba(255,176,32,.10), transparent 68%)}
+    background:
+      radial-gradient(ellipse 60% 55% at 50% 30%, rgba(255,176,32,.14), transparent 70%),
+      radial-gradient(ellipse 40% 45% at 32% 60%, rgba(106,155,255,.07), transparent 70%),
+      radial-gradient(ellipse 40% 45% at 68% 60%, rgba(53,214,168,.05), transparent 70%)}
+  .hero::after{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
+    width:min(760px,80vw);height:1px;pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(255,176,32,.55), transparent)}
   .badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);
     border-radius:999px;padding:4px 12px 4px 6px;font-size:12.5px;color:var(--dim);margin-bottom:24px}
   .badge b{background:rgba(255,176,32,.13);color:var(--amber);border-radius:999px;
     padding:2px 8px;font-family:var(--mono);font-size:11px;font-weight:500}
-  h1{font-size:clamp(34px,4.6vw,54px);line-height:1.08;letter-spacing:-.035em;font-weight:600;
+  h1{font-family:var(--disp);font-size:clamp(36px,5vw,60px);line-height:1.06;letter-spacing:-.03em;font-weight:600;
      max-width:16ch;margin:0 auto}
-  h1 em{font-style:normal;color:var(--amber)}
+  h1 em{font-style:normal;background:linear-gradient(92deg,#ffd47e 0%,var(--amber) 45%,#ff8a3d 100%);
+     -webkit-background-clip:text;background-clip:text;color:transparent}
   .sub{margin:20px auto 0;max-width:62ch;font-size:17px;color:var(--dim);line-height:1.62}
   .actions{margin-top:30px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center}
-  .install{display:inline-flex;align-items:stretch;border:1px solid var(--line2);border-radius:var(--r);
-    background:var(--panel);font-family:var(--mono);font-size:13.5px;overflow:hidden}
+  .install{display:inline-flex;align-items:stretch;border:1px solid rgba(255,176,32,.32);border-radius:var(--r);
+    background:linear-gradient(180deg,#12130f,#0d0e12);font-family:var(--mono);font-size:13.5px;overflow:hidden;
+    box-shadow:0 0 0 4px rgba(255,176,32,.05), 0 14px 34px -18px rgba(255,176,32,.28)}
   .install code{padding:11px 16px;color:var(--ink)}
   .install code .p{color:var(--amber)}
   .install button{border:0;border-left:1px solid var(--line2);background:transparent;color:var(--faint);
@@ -98,11 +109,13 @@
   .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);border-radius:var(--r);
     padding:11px 16px;font-size:13.5px;color:var(--dim)}
   .btn:hover{border-color:#3a3d47;color:var(--ink)}
+  .btn,.install,.gh,.card,.chip{transition:border-color .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease}
   .meta{margin-top:16px;font-size:12.5px;color:var(--faint);font-family:var(--mono)}
 
   /* terminal demo */
   /* terminal window */
-  .demo{margin-top:46px;box-shadow:0 24px 70px -30px rgba(0,0,0,.9), 0 0 0 1px rgba(255,176,32,.05)}
+  .demo{margin-top:46px;border-radius:var(--r);
+    box-shadow:0 40px 110px -40px rgba(0,0,0,.95), 0 0 0 1px rgba(255,176,32,.07), 0 -1px 0 0 rgba(255,255,255,.05) inset}
   .titlebar{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-bottom:0;
     border-radius:var(--r) var(--r) 0 0;background:#0b0c10;padding:9px 12px}
   .dots{display:flex;gap:6px}
@@ -161,7 +174,7 @@
   section{padding:86px 0;border-top:1px solid var(--line)}
   .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
     color:var(--amber);margin-bottom:14px}
-  h2{font-size:clamp(24px,3vw,32px);letter-spacing:-.025em;font-weight:600;line-height:1.2;max-width:24ch}
+  h2{font-family:var(--disp);font-size:clamp(24px,3vw,32px);letter-spacing:-.025em;font-weight:600;line-height:1.2;max-width:24ch}
   .lede{margin-top:14px;color:var(--dim);font-size:15.5px;max-width:66ch;line-height:1.7}
 
 
@@ -227,7 +240,12 @@
   .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
     border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:40px}
   @media(max-width:860px){.cards{grid-template-columns:1fr}}
-  .card{background:var(--panel);padding:24px}
+  .card{background:var(--panel);padding:24px;position:relative}
+  .card:hover{background:var(--panel2)}
+  .card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,176,32,.35),transparent);
+    opacity:0;transition:opacity .25s ease}
+  .card:hover::before{opacity:1}
   .card h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:9px;letter-spacing:-.01em}
   .cite{font-size:12.5px;color:var(--faint);margin-top:16px;max-width:70ch}
   .cite a{color:var(--dim);text-decoration:underline;text-underline-offset:3px}
@@ -303,12 +321,12 @@
 
 <div class="hero">
   <div class="wrap">
-    <span class="badge"><b>v3.36</b> <span data-k="hero.badge">shipping today as claude-token-saver</span></span>
+    <span class="badge"><b>v3.41</b> <span data-k="hero.badge">shipping today as claude-token-saver</span></span>
     <h1 data-k="hero.h1">Your agent stops making <em>the same mistake twice</em></h1>
     <p class="sub" data-k="hero.sub">Sprag is a command-line harness for Claude Code. It reads your sessions, turns every repeated failure into a rule that loads automatically, routes simple work to cheaper models, and warns you about cache and rate-limit trouble before it costs you a session.</p>
     <div class="actions">
       <span class="install">
-        <code><span class="p">$</span> npm i -g sprag</code>
+        <code><span class="p">$</span> npm i -g sprag-cli</code>
         <button id="copy" data-k="hero.copy">Copy</button>
       </span>
       <a class="btn" href="#how" data-k="hero.cta">How it works</a>
@@ -969,7 +987,7 @@ document.getElementById('copyblock').addEventListener('click', async (ev) => {
 
 const copyBtn = document.getElementById('copy');
 copyBtn.addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText('npm i -g sprag'); } catch (e) {}
+  try { await navigator.clipboard.writeText('npm i -g sprag-cli'); } catch (e) {}
   copyBtn.textContent = (lang === 'ko' ? KO : EN)['hero.copied'];
   setTimeout(() => copyBtn.textContent = (lang === 'ko' ? KO : EN)['hero.copy'], 1600);
 });
