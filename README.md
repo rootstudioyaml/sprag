@@ -1,597 +1,718 @@
-**한국어** · [English](./README.en.md)
+**English** · [한국어](./README.ko.md)
 
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
-🌐 **[프로젝트 소개 페이지](https://rootstudioyaml.github.io/claude-token-saver/)**
+🌐 **[Project page](https://rootstudioyaml.github.io/claude-token-saver/)**
 
 # claude-token-saver
 
-**아낀 돈을 두 줄로 보여 줍니다.** 비싼 모델이 반복하던 쉬운 작업을 싼 모델로 내려보내고, 모델이 읽지 못하는 문서를 Markdown 으로 바꿉니다. 두 절감액 모두 추정이 아니라 원장 기록입니다. 의존성 0, 설치 한 줄.
+**Shows what it saved, on two lines.** It moves the easy work your expensive model keeps repeating onto cheaper ones, and turns documents the model cannot read into Markdown. Both figures are ledger entries rather than estimates, and whichever saved more takes the top line. Zero dependencies, one-line install.
 
-![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](./docs/statusline.png)
+![statusline example — routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](./docs/statusline.png)
 
 ```bash
 npm i -g claude-token-saver
 ```
 
-숫자 세 개가 이 도구의 전부입니다.
+Three numbers are the whole pitch.
 
-- **비용 −18.6%**: Harness 5원칙 도입 전후 실측 ([근거](#실제-효과-도입-전후-리포트))
-- **문서 한 건에 51만 토큰**: 30MB 발표자료를 XML 대신 Markdown 으로 읽었을 때 ([근거](#-doc2md-문서를-읽기-전에-markdown-으로-바꿉니다))
-- **라우팅 절감액은 실행 단위 원장**: 추정치가 아니라 위임 한 건 한 건의 차액 기록 ([근거](#-절감액은-추정이-아니라-원장-기록입니다))
+- **−18.6% cost**: measured before/after adopting the Harness principles ([evidence](#real-world-impact--beforeafter-report))
+- **510,000 tokens on one document**: a 30MB deck read as Markdown instead of raw XML ([evidence](#-doc2md--documents-become-markdown-before-the-model-reads-them))
+- **Routing savings are a per-run ledger**: the price difference of each delegated run, not an estimate ([evidence](#-the-savings-figure-is-a-ledger-entry-not-an-estimate))
 
-v3.35.0 부터는 지출도 보입니다. 이번 달 1일 이후 쓴 금액을 `💵 Sep $42` 로 상시 표시하고, 5h/7d cap 이 아예 없는 LiteLLM 게이트웨이(Bedrock 등) 환경에서는 키 예산을 `🔑 budget ▰▱ 34% $34/$100` 게이지로 보여 줍니다.
+Since v3.35.0 spend is visible too: month-to-date spend shows as `💵 Sep $42`, and on LiteLLM gateways (Bedrock and friends) with no 5h/7d caps, your key budget renders as a `🔑 budget ▰▱ 34% $34/$100` gauge.
 
-## 네 가지가 함께 돌아갑니다
+## Four parts, working together
 
-| | 하는 일 | 효과 |
+| | What it does | Effect |
 |---|---|---|
-| 🔀 **라우팅** | 반복되는 쉬운 작업을 더 싼 모델에 위임 | 절감액을 원장에 실측 기록 |
-| 📄 **문서 변환** | pptx·xlsx·pdf·docx·fig 를 읽기 전에 Markdown 으로 변환 | 발표자료 한 건에 **51만 토큰** 절약 |
-| 🅷 **Harness** | 증거 없는 완료 보고·검증 생략 차단 (5원칙) | **비용 −18.6%** |
-| ⚙️ **Ratchet** | 한 번 겪은 에러를 룰로 고정 | 같은 실수 재발 차단 |
+| 🔀 **Routing** | Delegates recurring easy work to cheaper models | Savings recorded per run in a ledger |
+| 📄 **Document conversion** | Turns pptx/xlsx/pdf/docx/fig into Markdown before the model reads them | **510,000 tokens** saved on one deck ([below](#-doc2md--documents-become-markdown-before-the-model-reads-them)) |
+| 🅷 **Harness** | Blocks the token-burning habits: unevidenced "done", skipped verification (5 principles) | **−18.6% cost** ([measured](#real-world-impact--beforeafter-report)) |
+| ⚙️ **Ratchet** | Freezes each error you hit into a rule | Same mistake stops recurring |
 
-설치 한 번이면 넷 다 적용됩니다. 실측 −18.6%는 Harness와 ratchet의 몫이고, 라우팅과 문서 변환 절감액은 그 위에 얹힙니다. 두 절감액은 성격이 달라서 한 숫자로 합치지 않고, statusline 이 각각의 줄로 보여 주며 금액이 큰 쪽을 위에 놓습니다.
+One install sets up all four. The measured −18.6% comes from the harness and ratchet; routing and conversion savings sit on top of it.
 
-## 목차
+The two savings figures are never added together, because they answer different questions. Routing says "the same work ran on a cheaper model". Conversion says "a file you could not read became readable, without pushing the original through the context window". The statusline gives each its own line and puts the larger one first.
 
-- **먼저 볼 것**: [시작하기](#시작하기) · [statusline 읽는 법](#statusline-읽는-법) · [주요 명령](#주요-명령)
-- **절감 기능**: [라우팅 절감 원장](#-절감액은-추정이-아니라-원장-기록입니다) · [route-scan](#-route-scan-이-반복-작업은-더-싼-티어로-내려도-됩니다) · [doc2md](#-doc2md-문서를-읽기-전에-markdown-으로-바꿉니다) · [seed](#-seed-설치-직후부터-위임이-걸리게-하는-시작-룰)
-- **가드레일**: [Harness](#-harness-모드) · [compact-window](#-compact-window-1m-컨텍스트의-자동-압축-지점-고정) · [한국어 문체](#-한국어-문체-지침)
-- **비용 가시화·환경**: [이번 달 지출·LiteLLM 키 예산](#litellm-5h7d-cap-대신-키-예산을-보여-줍니다-v3350) · [게이트웨이(Bedrock·Vertex)](#-bedrockvertex-경유-환경) · [토큰 급증 원인 코드](#토큰-급증-원인-코드) · [실측 효과](#실제-효과-도입-전후-리포트)
+## Contents
 
-## 시작하기
+- **Start here**: [Getting started](#getting-started) · [Reading the statusline](#reading-the-statusline) · [Commands](#commands)
+- **Savings**: [The routing ledger](#-the-savings-figure-is-a-ledger-entry-not-an-estimate) · [route-scan](#-route-scan--this-recurring-task-could-run-on-a-cheaper-tier) · [doc2md](#-doc2md--documents-become-markdown-before-the-model-reads-them) · [seed](#-seed-delegation-that-works-from-the-first-session)
+- **Guardrails**: [Harness](#-harness-mode) · [compact-window](#-compact-window--pin-where-a-1m-session-compacts) · [Korean writing guidance](#-korean-writing-guidance)
+- **Spend & environments**: [Monthly spend · LiteLLM key budget](#litellm-your-key-budget-stands-in-for-the-missing-5h7d-caps-v3350) · [Gateways (Bedrock/Vertex)](#-behind-a-gateway-bedrock--vertex) · [Spike issue codes](#spike-issue-codes) · [Measured impact](#real-world-impact--beforeafter-report)
 
-**사전 준비:** Node.js ≥ 18 (`node -v`로 확인 · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL은 [nvm](https://github.com/nvm-sh/nvm) 권장)
+## Getting started
+
+**Prerequisite:** Node.js ≥ 18 (`node -v` · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL: [nvm](https://github.com/nvm-sh/nvm) recommended)
 
 ```bash
-npm uninstall -g claude-cache-monitor   # (구 패키지 사용자만)
+npm uninstall -g claude-cache-monitor   # (previous-package users only)
 npm i -g claude-token-saver
 ```
 
-설치하면 Claude Code 화면 하단에 statusline이 곧바로 나타납니다. `--ignore-scripts` 옵션이나 sudo 사용 등으로 자동 등록이 되지 않았다면 `claude-token-saver install`을 실행해 직접 등록하십시오.
+The statusline appears at the bottom of Claude Code right away. If auto-registration was skipped (`--ignore-scripts`, sudo, sandboxed installs), run `claude-token-saver install`.
 
-설치 한 번으로 **statusline과 Skill, SessionStart 훅, 🅷 Harness(5원칙), 최초 route-scan이** 모두 준비됩니다. Harness와 한국어 문체 지침은 **무엇이 추가되는지 보여 준 뒤 켤지 물어봅니다.** Harness는 `~/.claude/CLAUDE.md`에 표시가 붙은 블록으로 **추가되며**, 기존에 작성해 둔 내용은 백업한 뒤 그대로 보존합니다. 이미 설정되어 있는 경우에는 아무것도 바꾸지 않습니다.
+One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷 Harness (5 principles), and a first route-scan.** The harness and the Korean writing guidance **show what they add and ask before enabling it.** The harness is **appended** to `~/.claude/CLAUDE.md` as a marked block (your existing content is backed up and preserved) and is left alone if one is already there.
 
-터미널이 아닌 환경(npm의 `postinstall`, CI, 파이프 입력)에서는 질문을 건너뛰고 기존 기본값을 적용합니다. 질문 없이 진행하려면 `--yes`나 `--no-input`, 아예 건너뛰려면 `CTS_NO_HARNESS=1 npm i -g claude-token-saver`를 쓰십시오. 이미 적용한 설정을 되돌리려면 `claude-token-saver harness uninit --global`을 실행하십시오.
+Outside a terminal — npm `postinstall`, CI, piped stdin — the question is skipped and the old defaults apply. Use `--yes` or `--no-input` to skip it deliberately, `CTS_NO_HARNESS=1 npm i -g claude-token-saver` to skip the harness entirely, and `claude-token-saver harness uninit --global` to undo it.
 
-> ⚠️ sudo로 글로벌 설치를 하면 Skill이 사용자 계정이 아니라 root의 `~/.claude`에 등록되는 함정이 있습니다. nvm이나 fnm, Volta를 사용해 사용자 영역에 설치하기를 권장합니다.
+> ⚠️ Avoid `sudo` global installs — the Skill lands in root's `~/.claude` instead of yours. Use nvm/fnm/Volta or `npm config set prefix ~/.npm-global`.
 
-### 설치하면 켜지는 기능과 직접 켜야 하는 기능
+### What the install turns on, and what stays manual
 
-설치 시점에 비용이 들지 않는 기능은 전부 자동으로 켜집니다. 수동으로 남겨 둔 항목은 Claude Code 자체의 설정을 바꾸거나, 적용 범위를 사람이 정해 주어야 하는 것들뿐입니다.
+Everything that costs nothing until it is needed is on after a plain install. The only manual items are the ones that change Claude Code's own settings or need a human to pick a scope.
 
-| 기능 | 설치 직후 상태 | 끄는 방법 |
+| Feature | After install | How to turn it off |
 |---|---|---|
-| statusline (진단 칩·절감 원장) | 켜짐 | `claude-token-saver uninstall` |
-| `/claude-token-saver` Skill | 켜짐 | 위와 같습니다 |
-| SessionStart 훅 (route-scan 재분석) | 켜짐 | 위와 같습니다 |
-| UserPromptSubmit 훅 (brief 주입) | 켜짐 | 위와 같습니다 |
-| 최초 route-scan (최근 14일 로그 분석) | 설치 중 즉시 1회 실행 | 해당 없습니다 |
-| 🅷 Harness 5원칙 (`~/.claude/CLAUDE.md`) | 켜짐 (터미널에서는 내용을 보여 주고 한 번 묻습니다) | `harness uninit --global` · `CTS_NO_HARNESS=1` |
-| doc2md 훅 (Read·Edit·Write·프롬프트) | 켜짐 | `doc2md off` · `CTS_NO_DOC2MD=1` |
-| doc2md 변환기(markitdown venv) | 터미널에서 설치 여부를 묻고, 비대화형 설치에서는 명령만 안내합니다 | `doc2md install-converter` 로 나중에 설치 |
-| 한국어 문체 지침 | 시스템 로케일이 한국어면 켜짐 (터미널에서는 묻습니다) | `korean off` · `CTS_NO_KOREAN=1` |
-| compact-window 경고 칩 | 켜짐 | `compact-window off` |
-| 업데이트 안내 칩 | 켜짐 | `CTS_NO_UPDATE_CHECK=1` |
-| **compact-window 값 고정** (`autoCompactWindow` 500k) | **꺼짐 — 직접 실행해야 합니다** | `compact-window set --global` 또는 `--project` |
-| **모델 피팅 룰 승인** (`ratchet-model.md` 위임 룰) | **후보만 제안합니다** | `route-scan rules` 로 확인하고 승인·삭제 |
-| `handoff` (한도 임박 시 작업 백업) | 필요할 때 직접 실행하는 명령입니다 | 해당 없습니다 |
+| statusline (diagnostic chips, savings ledger) | on | `claude-token-saver uninstall` |
+| `/claude-token-saver` Skill | on | same |
+| SessionStart hook (route-scan refresh) | on | same |
+| UserPromptSubmit hook (brief injection) | on | same |
+| First route-scan (last 14 days of logs) | runs once during the install | n/a |
+| 🅷 Harness 5 principles (`~/.claude/CLAUDE.md`) | on (shown and confirmed once at a terminal) | `harness uninit --global`, `CTS_NO_HARNESS=1` |
+| doc2md hooks (Read, Edit/Write, prompt) | on | `doc2md off`, `CTS_NO_DOC2MD=1` |
+| doc2md converter (markitdown venv) | offered at a terminal; an unattended install prints the command | install later with `doc2md install-converter` |
+| Korean writing guidance | on when the locale is Korean (asked at a terminal) | `korean off`, `CTS_NO_KOREAN=1` |
+| compact-window warning chip | on | `compact-window off` |
+| Update-available chip | on | `CTS_NO_UPDATE_CHECK=1` |
+| **Pinning compact-window** (`autoCompactWindow` 500k) | **off — run it yourself** | `compact-window set --global` or `--project` |
+| **Model-fitting rules** (`ratchet-model.md` delegations) | **candidates are proposed only** | review and approve with `route-scan rules` |
+| `handoff` (back up work before a cap) | an on-demand command | n/a |
 
-`compact-window set` 은 Claude Code 의 `settings.json` 에 값을 적고, 전역과 프로젝트 중 어디에 적을지는 사람이 정해야 하므로 자동으로 실행하지 않습니다. 모델 피팅 룰도 같은 이유로 승인 단계를 남겨 두었습니다. 어떤 작업을 더 싼 티어에 맡길지는 사용자의 판단이 필요합니다.
+`compact-window set` writes into Claude Code's `settings.json` and a human has to choose global or project scope, so it is never run for you. Model-fitting rules keep an approval step for the same reason: which work belongs on a cheaper tier is your call.
 
 
-## 🔀 절감액은 추정이 아니라 원장 기록입니다
+## 🔀 The savings figure is a ledger entry, not an estimate
 
-위임된 실행 하나하나를 이렇게 기록합니다.
+Every delegated run is recorded like this:
 
 ```
-   기준 모델          실행 모델         차액
+   before             after          gap
   claude-opus-5  →  haiku-4-5   =   $0.57
-  (룰 승격 전         (실제로         (같은 토큰량에
-   이 유형을           처리한          두 모델 가격표를
-   처리하던 모델)      모델)           각각 적용)
+  (the model         (what          (same token counts,
+   handling this      actually       priced against
+   before the rule)   ran it)        both models)
 ```
 
 ```bash
-$ claude-token-saver route-scan savings      # 모든 금액을 룰 단위까지 역추적
+$ claude-token-saver route-scan savings      # trace every dollar back to its rule
 
-🔀 라우팅 절감 누적 $2.09  (최근 7일 $1.40 · 30일 $2.09)
+🔀 Routing saved, lifetime $2.09  (last 7d $1.40 · 30d $2.09)
 
-모델 이동별:
-  claude-fable-5 → claude-sonnet-5   —  1회, $0.72
-  claude-opus-5 → claude-haiku-4-5   —  1회, $0.57
+By model change:
+  claude-fable-5 → claude-sonnet-5   —  1 run, $0.72
+  claude-opus-5 → claude-haiku-4-5   —  1 run, $0.57
 
-실행별 (최근순):
+By run (newest first):
   2026-08-22    $0.51  claude-fable-5 → claude-haiku-4-5
-            룰: T2|paste|-Users-me-projects-my-app
+            rule: T2|paste|-Users-me-projects-my-app
 ```
 
-**집계에서 빼는 것들**: 정직한 숫자가 작은 숫자보다 낫기 때문입니다.
+**What is excluded** — an honest number beats a big one:
 
-- 등록된 룰이 담당하지 않는 위임(`Explore`, 직접 만든 에이전트, 플러그인 에이전트): 이 도구가 라우팅한 결과가 아닙니다.
-- 가격표가 인식하지 못하는 모델명: 틀린 금액을 쓰느니 그 실행을 뺍니다.
+- Delegations no registered rule covers (`Explore`, your own agents, plugin subagents): this tool did not route them.
+- Model ids the pricing table cannot recognize: the run is dropped rather than priced wrong.
 
 ---
 
-## ⚡ 그 밖에 statusline이 잡아 주는 것
+## ⚡ What else the statusline catches
 
 | | |
 |---|---|
-| 🚨 **한도 초과 예방** | 5시간·7일 rate-limit 윈도가 90%에 닿으면 경고하고, `handoff`로 작업을 백업합니다 |
-| 🧠 **캐시 낭비 감지** | 히트율·TTL·1M 컨텍스트를 감지해 토큰 급증 원인을 코드로 진단합니다 |
-| 💵 **비용 가시화** | 이번 달 지출(`💵 Sep $42`)을 상시 표시하고, LiteLLM 게이트웨이에서는 키 예산 게이지(`🔑 budget 34% $34/$100`)로 5h/7d cap 을 대신합니다 ([아래](#litellm-5h7d-cap-대신-키-예산을-보여-줍니다-v3350)) |
-| 🇰🇷 **한국어 문체 교정** | 한국어 환경이면 자동으로 켜집니다 ([아래](#-한국어-문체-지침)) |
+| 🚨 **No surprise rate limits** | Warns when the 5H/7D window hits 90%; `handoff` backs up your work |
+| 🧠 **Cache waste detection** | Hit rate, TTL, 1M-context detection — spikes diagnosed with issue codes |
+| 💵 **Spend visibility** | Month-to-date spend (`💵 Sep $42`) always on; behind a LiteLLM gateway the key budget gauge (`🔑 budget 34% $34/$100`) stands in for the missing 5h/7d caps ([below](#litellm-your-key-budget-stands-in-for-the-missing-5h7d-caps-v3350)) |
+| 🇰🇷 **Korean writing guidance** | Offered at install time, defaulting to your locale ([below](#-korean-writing-guidance)) |
 
-## 라우터가 아닙니다: 60초 설명
+## Not a router — 60 seconds
 
-이 도구는 요청을 실시간으로 가로채지 않습니다.
-**세션이 끝난 뒤에** 로컬 기록을 읽어서 비싼 모델이 반복해서 처리해 온 쉬운 유형을 찾아내고,
-그 유형은 **다음 세션부터** 더 싼 모델이 맡도록 룰로 등록합니다. 룰의 적용 범위는 글로벌과 프로젝트로 나뉩니다.
+It never intercepts a request in realtime.
+**After a session ends** it reads your local logs, finds the easy patterns your expensive model
+kept handling, and promotes them into rules so a cheaper model takes them **from the next session
+onward**. Rules are scoped global or per-project.
 
-### 실시간 모델 라우팅이 오히려 비용을 키우는 이유
+### Why realtime model routing can cost more, not less
 
-세션 도중에 모델을 바꾸지 않는다는 점이 이 도구의 핵심입니다.
+Never switching models mid-session is the point of this design.
 
-프롬프트 캐시는 **모델별로 따로 유지됩니다.** 그래서 세션 중간에 더 싼 모델로 전환하면 새 모델은 빈 캐시에서 시작하고, 그때까지 쌓인 대화 전체를 정가로 다시 읽어야 합니다. 캐시 히트는 원래 입력가의 10분의 1 수준이므로, 대화가 2만 토큰만 넘어가도 **전환 한 번에 그날 아낀 금액이 통째로 사라집니다.** 싼 모델로 옮겼는데 청구서는 더 커지는, 실시간 라우팅의 대표적인 역설입니다.
+Prompt caches are **kept per model.** Switch to a cheaper model mid-session and it starts from a cold cache, re-reading the whole conversation at full input price. A cache hit costs about a tenth of that, so past roughly 20k tokens of history **one switch can erase everything the cheaper model was going to save.** You moved the work down a tier and the bill went up: the central paradox of realtime routing.
 
-실제로 라우팅 제품을 만들던 팀들이 같은 이유로 기능을 껐습니다: [LLM 라우터를 만든 사람들이 직접 껐습니다 #Shorts](https://www.youtube.com/shorts/SK-GoAABjbg)
+Teams shipping routing products have turned the feature off for exactly this reason: [LLM 라우터를 만든 사람들이 직접 껐습니다 #Shorts](https://www.youtube.com/shorts/SK-GoAABjbg) (Korean).
 
-이 도구는 그래서 메인 세션의 모델을 건드리지 않습니다. **서브에이전트 위임만 사용하므로** 메인 세션의 캐시는 그대로 유지되고, 위임된 작업만 별도 컨텍스트에서 싼 모델이 처리합니다. 절감액이 캐시 손실로 상쇄되지 않는 이유가 여기에 있습니다.
+So this tool never touches the main session's model. It delegates to **subagents only**, which leaves the main session's cache intact and runs the delegated work on a cheap model in its own context. That is why the savings are not cancelled out by cache loss.
 
 ```bash
 npm i -g claude-token-saver@latest
-claude-token-saver route-scan         # 지난 세션에서 위임 후보 추출 (LLM 호출 없음)
-claude-token-saver route-scan rules   # 승격된 룰 확인 · rm <N> 으로 삭제
-claude-token-saver route-scan savings # 위임으로 절감한 금액의 근거를 전수 확인
+claude-token-saver route-scan         # find delegation candidates in your own history (0 LLM calls)
+claude-token-saver route-scan rules   # list promoted rules · rm <N> to remove
+claude-token-saver route-scan savings # audit every dollar the routing saved
 ```
 
-판정 기준선은 다른 사람의 벤치마크가 아니라 **사용자 본인의 최근 14일 분포(p25/p75)** 로 잡습니다.
-위임한 뒤에 실제로 성공했는지까지 측정하는 rule-health는 [v3.9.0](#v390-2026-08-01)에 들어갔습니다.
+Thresholds come from **your own last-14-day distribution (p25/p75)**, not someone else's benchmark.
+Measured rule-health — whether a delegated run actually succeeded — landed in [v3.9.0](#v390-2026-08-01).
 
 ---
 
-## statusline 읽는 법
+## Reading the statusline
 
-절감 원장에 기록이 쌓이면 statusline이 **두 줄로** 출력됩니다. 첫째 줄에는 라우팅 절감액만 표시하고, 둘째 줄에는 진단 칩을 표시합니다.
+Once the savings ledger has entries it renders as **two rows** — routing savings on row 1, diagnostics on row 2.
 
 ```
 🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57
 ⚠ Ctx 500k+ · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · ✦ current ███▓░░ 62% 🔄 21:33 · 📅 weekly ██▒░░░ 38% 🔄 Tue 19:33 · 📦 Ctx 47% of 1M · 💰 Cache saved $1.0K · last 1d
 ```
 
-원장이 비어 있으면, 다시 말해 아직 실측된 위임이 없으면 첫째 줄을 그리지 않고 종전처럼 한 줄로 출력합니다. 일부 환경(구버전 macOS Claude Code)에서 첫째 줄만 표시된다면 `--single-line` 옵션으로 한 줄 레이아웃을 유지하십시오.
+With an empty ledger (no measured delegation yet) row 1 is not drawn and the layout stays single-line. If your build renders only the first row (some macOS Claude Code versions), pass `--single-line`.
 
-| 세그먼트 | 의미 |
+| Segment | Meaning |
 |---|---|
-| `🔀` **첫째 줄** | 라우팅으로 절감한 누적 금액과 모델 이동 내역입니다. 내역 합계는 누적 금액과 정확히 일치하고, 모델명은 계열만 남깁니다(`opus→haiku`). 근거는 `route-scan savings` 로 전부 확인할 수 있습니다 |
-| `📄` **둘째 줄** | doc2md 문서 변환이 절감한 누적 금액과 형식별 내역입니다. 라우팅과 문서 변환 중 금액이 큰 쪽이 첫째 줄을 차지합니다 |
-| `🤖` | 현재 모델 |
-| `🅷 5/5` | harness 원칙 점수 ([Harness 모드](#-harness-모드)) |
-| `🧠` | 캐시 히트율 (85%+ 녹색) |
-| `⏳` | 캐시 TTL 카운트다운입니다. 만료되기 전에 메시지를 보내면 캐시가 유지됩니다. 입력이 없을 때도 초 단위로 줄어드는 표시는 Claude Code v2.1.97 이상에서 동작합니다 (아래 [카운트다운이 멈춰 보일 때](#동작-원리--환경) 참고) |
-| `✦ current` / `📅 weekly` | 5시간 / 7일 rate-limit 윈도 사용률 + 리셋 시각 |
-| `📦` | 컨텍스트 사용률입니다(예: `Ctx 68% of 1M`). 사용률에 따라 녹색·노란색·빨간색으로 표시합니다. 최신 모델은 1M 컨텍스트가 기본이고 별도 요금이 붙지 않지만, 토큰량 자체가 턴당 비용과 5시간·7일 한도를 빠르게 소모시킵니다 |
-| `💵 Sep $42` | **이번 달 1일 00시(로컬) 이후 지출 추정치**입니다. 세션 로그에 세션별 모델 단가를 적용해 합산하며, 5h/7d cap 이 없는 게이트웨이 환경에서도 항상 표시됩니다 (v3.35.0) |
-| `🔑 budget` | **LiteLLM 게이트웨이 키의 예산 게이지**입니다. stdin 에 rate_limits 가 오지 않는 환경에서 키의 `max_budget` 대비 `spend` 를 `🔑 budget ▰▱ 34% $34/$100` 형태로 보여 줍니다 (v3.35.0, [아래](#-bedrockvertex-경유-환경)) |
-| `💰` | 프롬프트 캐시가 절약해 준 누적 금액입니다. 첫째 줄의 `🔀`(모델 라우팅 절감액)와는 **서로 다른 수치입니다** |
-| `v3.24.0` | 지금 실행 중인 claude-token-saver의 버전입니다. 최신이면 회색으로 줄 끝에 조용히 놓입니다 |
-| `⬆ v3.24.0 → 3.25.0` | 새 버전이 배포되어 있다는 표시입니다. 조치가 필요한 칩이므로 줄 앞쪽으로 올라옵니다 ([업데이트 안내](#-업데이트-안내)) |
+| `🔀` **row 1** | Lifetime routing savings + the model moves behind them. The breakdown sums exactly to the total, model names keep only the family (`opus→haiku`). Full audit: `route-scan savings` |
+| `📄` **row 2** | Lifetime doc2md conversion savings with a per-format breakdown. Whichever of routing/conversion saved more takes row 1 |
+| `🤖` | Active model |
+| `🅷 5/5` | Harness principle score ([Harness mode](#-harness-mode)) |
+| `🧠` | Cache hit rate (green at 85%+) |
+| `⏳` | Cache TTL countdown — send a message before expiry to keep the cache warm. Ticking while idle requires Claude Code v2.1.97+ (see [If the countdown looks frozen](#how-it-works--environment)) |
+| `✦ current` / `📅 weekly` | 5-hour / 7-day rate-limit window usage + reset time |
+| `📦` | Context usage (e.g. `Ctx 68% of 1M`) — colored by fill. Current models default to 1M with no premium, but token volume itself drives per-turn cost and 5H/7D burn |
+| `💵 Sep $42` | **Estimated spend since 00:00 on the 1st of this month** (local time). Summed per session with that session's model pricing; always shown, even on gateways with no 5h/7d caps (v3.35.0) |
+| `🔑 budget` | **LiteLLM key budget gauge.** When stdin carries no rate_limits, shows the key's `spend` against `max_budget` as `🔑 budget ▰▱ 34% $34/$100` (v3.35.0, [below](#-behind-a-gateway-bedrock--vertex)) |
+| `💰` | Cumulative savings from prompt caching — a **different** number from row 1's `🔀` (model routing) |
+| `v3.24.0` | The version you are running. Gray, at the tail, when it is the latest one |
+| `⬆ v3.24.0 → 3.25.0` | A newer release exists. Actionable, so it moves to the front of the line ([Update notifications](#-update-notifications)) |
 
-문제가 감지되면 **경고 칩을 줄 맨 앞에** 붙입니다.
+When something is wrong, a **warning chip leads the line**:
 
 ```
 🚨 5H █████▓ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 4.8 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📅 weekly ▓░░░░░ 12% 🔄 Sun 14:26 · 📦 Ctx 200k · last 1d
 ```
 
-칩의 종류는 다음과 같습니다. `🚨 5H/7D NN%`(한도 임박) · `⚠ Ctx 500k+`(단일 요청이 실제로 500k를 초과) · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. 두 윈도가 동시에 90%를 넘으면 리셋이 더 임박한 쪽을 🚨로 올리고, 나머지 하나는 빨간 세그먼트로 계속 표시합니다 (v2.16.0 이상).
+Chips — `🚨 5H/7D NN%` (cap imminent) · `⚠ Ctx 500k+` (a single request actually exceeded 500k) · `⚠ Cache miss` · `⚠ Input spike` · `⚠ Output heavy` · `⚠ Call surge` · `⚠ Rebuild churn` · `⚠ 5m TTL`. When both windows cross 90% at once, the sooner-resetting one is promoted to 🚨 and the other stays visible as a red segment (v2.16.0+).
 
-### 경고 칩이 떴을 때
+### When a chip appears
 
-Claude Code 안에서 `/claude-token-saver` Skill을 실행하거나, 칩에 적힌 문구를 그대로 말하기만 해도("5H cap 떴어", "cache miss") Skill이 자동으로 활성화되어 **원인 코드와 단계별 해결 명령을** 보여 줍니다. 한도가 임박한 상황에서는 `claude-token-saver handoff`로 진행 중인 작업을 마크다운 파일에 백업한 뒤 새 세션에서 이어가는 방식을 권장합니다.
+Run the `/claude-token-saver` Skill inside Claude — or just say the chip wording ("5H cap is up", "cache miss") and it auto-activates. The Skill surfaces the **root-cause code + step-by-step fix**. When a cap is imminent, run `claude-token-saver handoff` to back up your work state to markdown and continue in a fresh session.
 
-## 주요 명령
+## Commands
 
-셸에서 직접 실행합니다 (Claude Code 안에서는 `/claude-token-saver` Skill 하나만 사용):
+Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is the only entry point):
 
-| 명령 | 설명 |
+| Command | What it does |
 |---|---|
-| `claude-token-saver` | 최근 1일 진단 리포트 (`--days N` / `--hours N`) |
-| `claude-token-saver last` | 가장 최근 경고 1건 + 처방 |
-| `claude-token-saver history` | 최근 7일 경고 전이 로그 |
-| `claude-token-saver handoff` | 작업 상태를 `HANDOFF-*.md`로 백업 (캡 임박 시) |
-| `claude-token-saver mode [keywords...]` | 출력 설정 (`icon`/`text`, `ko`/`en`, `1h`~`30d` 윈도 등) |
-| `claude-token-saver harness ...` | 🅷 Harness 관리 (아래 참고) |
-| `claude-token-saver route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 랫쳇 룰을 제안합니다 (아래 참고) |
-| `claude-token-saver route-scan savings` | 라우팅 절감 원장입니다. 모델 이동별 합계와 실행별 내역을 함께 보여 주며, 표시되는 금액의 근거가 됩니다 |
-| `claude-token-saver compact-window` | 1M 컨텍스트를 쓰면서 자동 압축 창이 설정되지 않았으면 경고하고, `set`으로 40만에 고정합니다 (아래 참고) |
-| `claude-token-saver korean on\|off\|status` | 한국어 문체 지침을 세션 시작 시 주입하고, 쓰기 시점 검사를 함께 설치합니다 (아래 참고) |
-| `claude-token-saver korean lint block\|warn\|off` | 쓰기 시점 검사가 위반을 어떻게 처리할지 정합니다 |
-| `claude-token-saver korean lint scope all\|prose` | 검사 범위를 모든 텍스트 파일과 문서 전용 사이에서 고릅니다 |
-| `claude-token-saver doc2md on\|off` | 첨부 문서를 모델이 읽기 전에 Markdown 으로 변환합니다 (아래 참고) |
-| `claude-token-saver doc2md <파일>` | 파일 하나를 직접 변환합니다. 진단 용도이며 실패 이유를 그대로 출력합니다 |
-| `claude-token-saver mode ttl=5m\|1h\|auto` | 캐시 TTL 버킷을 직접 지정합니다. 기본값 `auto`는 실측값을 먼저 보고, 실측값이 없으면 게이트웨이 여부로 판정합니다 |
-| `claude-token-saver --version` | 설치된 버전을 출력합니다 |
-| `claude-token-saver update-check` | 새 버전이 있는지 확인합니다 (`--refresh`로 즉시 조회, `--dismiss`로 그 버전 안내 끄기) |
-| `claude-token-saver upgrade` | 설치 경로에 맞는 명령으로 최신 버전을 설치합니다 (`--print`로 실행 없이 명령만 확인) |
-| `claude-token-saver install` | Skill·statusline 수동 등록 |
-| `claude-token-saver uninstall [--purge]` | 등록한 훅·statusline·Skill 제거. 기록된 절감액은 남기며, `--purge` 를 붙이면 상태 디렉터리까지 지웁니다 |
+| `claude-token-saver` | Last-1-day diagnostic report (`--days N` / `--hours N`) |
+| `claude-token-saver last` | Most recent warning + remediation |
+| `claude-token-saver history` | Last 7 days of warning transitions |
+| `claude-token-saver handoff` | Back work up to `HANDOFF-*.md` before a cap blocks you |
+| `claude-token-saver mode [keywords...]` | Output config (`icon`/`text`, `en`/`ko`, `1h`–`30d` window, …) |
+| `claude-token-saver harness ...` | 🅷 Harness management (below) |
+| `claude-token-saver route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
+| `claude-token-saver route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
+| `claude-token-saver compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
+| `claude-token-saver korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
+| `claude-token-saver korean lint block\|warn\|off` | How the write-time check handles findings |
+| `claude-token-saver korean lint scope all\|prose` | Check every text file, or documents only |
+| `claude-token-saver doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
+| `claude-token-saver doc2md <file>` | Convert one file by hand. Diagnostic: it prints the refusal reason instead of swallowing it |
+| `claude-token-saver mode ttl=5m\|1h\|auto` | Pin the cache TTL bucket. The default `auto` trusts the measured split, then falls back to gateway detection |
+| `claude-token-saver --version` | Print the installed version |
+| `claude-token-saver update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
+| `claude-token-saver upgrade` | Install the latest release with the package manager that installed this copy (`--print` shows the command only) |
+| `claude-token-saver install` | Manually register Skill + statusline |
+| `claude-token-saver uninstall [--purge]` | Remove the hooks, statusline and skill it registered. Recorded savings are kept unless `--purge` is given |
 
-출력 언어는 설치할 때 한 번 정합니다. 터미널에서 설치하면 시스템 로케일을 기본값으로 제시하고 한국어를 쓸지 물어보며, 비대화형 설치에서는 로케일 판정을 그대로 기록합니다. 한 번 기록되면 업그레이드해도 다시 묻지 않습니다. 나중에 바꿀 때는 `mode ko`나 `mode en`을 쓰고, 스크립트에서 설치할 때는 `CTS_LANG=ko` 또는 `CTS_LANG=en`으로 지정할 수 있습니다. statusline의 칩은 언제나 기호로 표시합니다. 전체 옵션은 [영문 README](./README.en.md#options)를 참고하십시오.
-
-## ⬆ 업데이트 안내
-
-statusline은 대화 상자를 띄울 수 없고, 300밀리초마다 다시 그려지기 때문에 그리는 시점에 네트워크를 쓸 수도 없습니다. 그래서 안내를 두 지점으로 나누었습니다.
-
-- **statusline은 알리기만 합니다.** 최신 버전이면 줄 끝에 `v3.24.0`을 회색으로 조용히 표시하고, 새 버전이 있으면 `⬆ v3.24.0 → 3.25.0`을 줄 앞쪽에 노란색으로 올립니다. 빨간색은 쓰지 않습니다. 무엇도 고장 난 상태가 아니기 때문입니다.
-- **묻는 일은 세션 시작에서 합니다.** 새 세션이나 `/clear` 시점에 SessionStart 훅이 "새 버전이 있으니 사용자에게 업그레이드할지 물어보라"는 한 줄을 모델에게 주입합니다. 모델은 사용자에게 확인한 뒤에만 `claude-token-saver upgrade`를 실행합니다. 묻지 않고 설치하지 않습니다.
-- **거절은 기억합니다.** 사용자가 원치 않으면 `claude-token-saver update-check --dismiss`로 그 버전을 묻지 않도록 설정합니다. 더 새로운 버전이 배포되면 다시 묻습니다. statusline 칩은 그대로 남습니다. 거절한 것은 질문이지, 새 버전이 있다는 사실이 아니기 때문입니다.
-
-버전 조회는 24시간에 한 번, 분리된 백그라운드 프로세스가 수행하고 결과만 파일에 남깁니다(`update-check.json`). 이 방식은 npm의 `update-notifier`가 쓰는 것과 같습니다. 네트워크가 끊겨 있어도 실패 시각을 기록해 두므로 매 렌더마다 재시도하지 않습니다. 확인 자체를 끄려면 환경 변수 `CTS_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER`를 설정하십시오.
-
-## 🅷 Harness 모드
-
-다섯 원칙(Ratchet · Evidence · PEV · Structured Task · Default Safe Path)을 한 줄 명령으로 `CLAUDE.md`에 셋업하고 statusline이 `🅷 5/5`로 점수화합니다. 같은 에러가 반복되면 `🅷⚠ ratchet?` 알림이 떠서 룰로 승격할 수 있습니다.
-
-```bash
-claude-token-saver harness init                # 이 프로젝트에 셋업
-claude-token-saver harness init --global       # ~/.claude/CLAUDE.md, 모든 프로젝트에 적용
-claude-token-saver harness check               # 현재 점수 (글로벌 fallback 인정)
-claude-token-saver harness analyze             # 훅 없이도 수동으로 전사 분석을 실행해 harness-state.json 갱신
-claude-token-saver harness promote <N> --project|--global   # 경고 #N → ratchet 룰 (스코프 필수)
-claude-token-saver harness promote "<룰 텍스트>" --project|--global  # 내가 직접 정의한 룰도 같은 명령으로 등록
-claude-token-saver harness pull                # 패키지 동봉 큐레이션 룰 → 내 글로벌 랫쳇에 등록 (opt-in, 중복 스킵)
-claude-token-saver harness list / rm <N>       # 룰 조회 / 삭제 (자동 .bak)
-claude-token-saver harness off | on            # 🅷 표시 토글
-```
-
-- `promote`는 non-TTY 환경(스크립트나 LLM 호출)에서 `--project` 또는 `--global` 플래그가 **반드시 필요합니다.** 적용 범위가 사용자에게 묻지 않은 채 결정되는 사고를 막기 위한 설계입니다.
-- `pull`은 패키지에 동봉된 **제작자 큐레이션 랫쳇 룰**(`presets/ratchet-rules.json`, 실제 반복 사고에서 승격된 범용 룰만)을 내 글로벌 랫쳇(`~/.claude/ratchet.md`)에 등록합니다. 설치(`install`)나 `init`은 아무것도 자동 주입하지 않으며, `pull`은 항상 opt-in이고 재실행해도 중복이 없습니다(멱등). 마음에 안 드는 룰은 `harness rm`으로 제거하면 됩니다.
-- `seed`는 같은 프리셋을 **한 건씩** 물어보는 경로입니다. `pull`이 랫쳇 룰 전체를 한 번에 등록하는 명령인 데 반해, `seed`는 모델 피팅 프리셋까지 포함해 설치·업그레이드 후 첫 세션에서 한 건씩 제안합니다 ([아래](#-seed-설치-직후부터-위임이-걸리게-하는-시작-룰)).
-- 🅷⚠ 런타임 경고(`ratchet?` `no-evidence` `PEV-skip`)는 30분 후 자동 만료되고, 하위 디렉터리 세션도 프로젝트에 올바르게 매칭됩니다. PEV-skip은 변경성 도구(Edit/Write/Bash)만 카운트해 읽기 위주 세션에서는 발동하지 않습니다 (v2.16.0+).
+The output language is decided once, at install time: a terminal install proposes the system locale and asks whether to use Korean, while an unattended install records what the locale says. Once recorded it is never asked again, not even on an upgrade. Change it later with `mode ko` / `mode en`, or pin it for a scripted install with `CTS_LANG=ko` / `CTS_LANG=en`. Statusline chips stay symbolic either way.
 
 <details>
-<summary>⚠️ <code>harness rm</code>은 신중하게 사용하십시오: 삭제 전 확인 사항</summary>
+<summary>All CLI options</summary>
 
-ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지우면 같은 실수가 다시 새기 시작합니다.
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--days, -d` | Analysis period in days | 30 |
+| `--hours` | Analysis window in hours (overrides `--days`) | – |
+| `--format, -f` | `table` / `json` / `csv` | table |
+| `--project, -p` | Filter by project directory | all |
+| `--threshold` | Hit-rate alert threshold (0.0–1.0) | 0.7 |
+| `--statusline` | One-line statusline output | – |
+| `--icon` | Use 🧠 / ⏳ / 💰 / 📦 icons | text |
+| `--verbose` | Longer labels | – |
+| `--no-timer` | Hide TTL countdown | show |
+| `--no-color` | Strip ANSI codes | – |
+| `--segments=…` | Limit statusline segments (e.g. `model,five_hour,seven_day,saved`) | all |
+| `--install-hook` / `--uninstall-hook` | Manage the PostToolUse hook | – |
+</details>
 
-- **룰이 너무 광범위해서 정상 케이스도 막나?** → ❌ 삭제 ✅ 조건을 좁혀 다듬기 (예: `"하드코딩 금지"` → `"테스트 외 코드에서 하드코딩 금지"`)
-- **룰이 너무 좁아 거의 발동 안 되나?** → ❌ 삭제 ✅ 그냥 두기 (비용 0)
-- **정말 잘못된 룰이라 확신?** → ✅ 그때만 삭제
+## ⬆ Update notifications
 
-삭제 시 `.bak`이 남지만 **그 룰이 박힌 세션 컨텍스트(왜)는 복원되지 않습니다.**
+A statusline cannot open a dialog, and it re-renders every ~300ms, so it can never touch the network while drawing. The notification is therefore split in two:
+
+- **The statusline tells you.** Up to date: a quiet gray `v3.24.0` at the tail. Newer release out: `⬆ v3.24.0 → 3.25.0` in yellow, moved to the front. Never red — nothing is broken.
+- **Session start asks you.** On a new session or `/clear`, the SessionStart hook injects one line telling the model a newer version exists and to ask before installing anything. Only after you agree does it run `claude-token-saver upgrade`.
+- **Declining sticks.** `claude-token-saver update-check --dismiss` mutes the offer for that version; the next release asks again. The statusline chip stays — you declined the question, not the fact.
+
+The registry lookup runs at most once every 24h in a detached background process and only ever writes a cache file (`update-check.json`) — the same shape npm's `update-notifier` uses. A failed check still stamps its timestamp, so an offline machine backs off instead of retrying on every render. Turn checks off entirely with `CTS_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER`.
+
+## 🅷 Harness mode
+
+Bootstrap five engineering principles (Ratchet · Evidence · PEV · Structured Task · Default Safe Path) into `CLAUDE.md` with one command; the statusline scores it as `🅷 5/5`. When the same error keeps recurring, a `🅷⚠ ratchet?` nudge appears so you can promote it to a rule.
+
+```bash
+claude-token-saver harness init                # this project
+claude-token-saver harness init --global       # ~/.claude/CLAUDE.md — every project
+claude-token-saver harness check               # current score (global fallback honored)
+claude-token-saver harness analyze             # run the transcript analysis manually (no hook needed); refreshes harness-state.json
+claude-token-saver harness promote <N> --project|--global   # warning #N → ratchet rule (scope required)
+claude-token-saver harness promote "<rule text>" --project|--global  # register your own hand-written rules the same way
+claude-token-saver harness pull                # register the package's curated ratchet rules into your global ratchet (opt-in, dedupes)
+claude-token-saver harness list / rm <N>       # view / delete rules (auto .bak)
+claude-token-saver harness off | on            # toggle the 🅷 chip
+```
+
+- `promote` **requires** `--project`/`--global` in non-TTY contexts (scripts, LLM calls) — a scope choice is never silently made for the caller.
+- `pull` registers the **author-curated ratchet rules** bundled with the package (`presets/ratchet-rules.json` — only general-purpose rules promoted from real recurring mistakes) into your global ratchet (`~/.claude/ratchet.md`). `install`/`init` never auto-inject anything; `pull` is always opt-in and idempotent. Drop any rule you dislike with `harness rm`.
+- `seed` offers the same presets **one at a time**. Where `pull` registers the whole ratchet set in one go, `seed` covers the model-fitting presets too and asks about each of them in the first session after an install or upgrade ([below](#-seed-delegation-that-works-from-the-first-session)).
+- 🅷⚠ runtime warnings (`ratchet?` `no-evidence` `PEV-skip`) expire after 30 minutes, subdirectory sessions match their project correctly, and PEV-skip counts only mutating tools (Edit/Write/Bash) so read-only research sessions don't trip it (v2.16.0+).
+
+<details>
+<summary>⚠️ <code>harness rm</code> — checklist before deleting</summary>
+
+The whole point of the ratchet is **one-direction accumulation**. Deleting rules casually means the same mistakes return.
+
+- **Rule too broad, blocking valid cases?** → ❌ delete ✅ narrow the condition (e.g. `"no hardcoded values"` → `"no hardcoded values outside tests"`)
+- **Rule too narrow, almost never fires?** → ❌ delete ✅ leave it (zero cost)
+- **Genuinely wrong?** → ✅ delete then
+
+An auto `.bak` is kept, but **the session context that earned the rule its place is not recoverable.**
 </details>
 
 
-## 📦 compact-window: 1M 컨텍스트의 자동 압축 지점 고정
+## 📦 compact-window — pin where a 1M session compacts
 
-Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 대화를 자동 압축합니다. 1M 창을 쓰면 이 값이 잡혀 있지 않은 한 80만 토큰 근처까지 가서야 압축이 걸리고, 그전까지 모든 요청이 전체 컨텍스트를 통째로 재과금합니다. **1M은 너무 크니 40만~70만 범위를 권장합니다.** 큰 붙여넣기용 여유는 200k 세션의 2~3.5배로 남기면서 꼬리만 잘라냅니다.
+Claude Code compacts when usage approaches `min(autoCompactWindow, model max context)`. On a 1M window, with that value unset, compaction only fires near 800k — and until then every request re-bills the whole context. **1M is too large; the recommendation is a 400k–700k band** — 2–3.5x a 200k session's headroom for the genuinely large pastes, with the runaway tail cut off.
 
-**권장 범위 안이면 경고하지 않습니다.** 40만은 절감이 압축 횟수를 이기는 하한이고, 긴 세션은 그보다 여유가 더 필요한 경우가 많습니다. 미설정이거나 70만을 넘을 때만 알립니다(그보다 낮게 잡은 건 더 공격적으로 아끼겠다는 선택이라 그냥 둡니다).
+**Anything inside the band is left alone.** 400k is the floor where the saving beats the extra compactions, and long sessions often want more room than that. Only an unset window, or one above 700k, is warned about (a smaller one is a deliberate, more aggressive choice).
 
-**200k 컨텍스트는 경고 대상이 아닙니다.** 창이 이미 200k 이하이므로 이 설정으로 달라지는 것이 없기 때문입니다.
-
-```bash
-claude-token-saver compact-window                       # 현재 상태 (모델·창·설정값·출처)
-claude-token-saver compact-window set --global          # ~/.claude/settings.json 에 50만 고정 (범위 중간)
-claude-token-saver compact-window set --project         # <root>/.claude/settings.json 에 고정
-claude-token-saver compact-window set --global --value 600k    # 값 직접 지정 (10만~1M)
-claude-token-saver compact-window off | on              # 경고 표시 토글
-```
-
-- 1M 모델인데 미설정이거나 40만을 넘으면 statusline에 `🅷⚠ compact-window?`가 뜨고, 세션 브리핑이 등록 명령까지 알려줍니다.
-- 적용 범위(`--global` 또는 `--project`)는 `set`에서 **반드시 지정해야 합니다.** 글로벌 설정 파일을 사용자에게 묻지 않고 수정하는 일을 막기 위한 설계입니다.
-- 기존 `settings.json`의 다른 키는 그대로 보존하고 `.bak`을 남깁니다. JSON이 깨져 있으면 아무것도 쓰지 않고 중단합니다.
-- 셸에 `CLAUDE_CODE_AUTO_COMPACT_WINDOW`가 export돼 있으면 그쪽이 settings.json보다 우선합니다 (`set`이 이 경우를 감지해 알려줍니다).
-
-## 🔀 route-scan: "이 반복 작업은 더 싼 티어로 내려도 됩니다"
-
-세션 로그에서 상위 모델(opus/fable)이 반복 처리해 온 쉬운 작업을 찾아 **haiku/sonnet 위임 룰로 승격**을 제안합니다. 전 과정 로컬, 토큰 비용 0.
-
-- **T2 → haiku:** 탐색과 조회, 단순 실행에 해당합니다. 에러가 없고 변경도 거의 없는 작업입니다.
-- **T1 → sonnet:** 빌드와 상태 점검에 해당합니다. 변경이 적고 에러가 1건 이하인 작업입니다.
-- **T0 유지:** 에러가 반복되거나 변경이 많거나 설계와 분석이 필요한 작업입니다. 세션 모델이 계속 담당합니다.
-
-핵심 설계는 세 가지입니다:
-1. 난이도를 텍스트로 추측하지 않고 **실제 결과로 판정합니다.** 도구 에러와 변경을 일으킨 도구의 수, 출력 토큰을 근거로 삼습니다.
-2. 임계값은 **사용자의 최근 14일 로그 분포에서 자동으로 보정합니다.** 고정된 상수는 워크로드가 바뀌면 곧 어긋나기 때문입니다.
-3. 승격된 룰은 도구가 관리하는 별도 파일(`.claude/ratchet-model.md`)에서 **자동으로 갱신되며,** 위임한 뒤 에러율이 높아지면 `⚠ rule-health`로 경고합니다. 룰이 낡았다는 사실을 스스로 알리는 셈입니다.
+**200k sessions are never warned** — their window is already at or below 200k, so the setting cannot change anything.
 
 ```bash
-claude-token-saver route-scan                    # 스캔 (24h 캐시) + 티어별 후보 출력
-claude-token-saver harness promote R1 --project  # 후보 R1을 모델 피팅 룰로 등록
-claude-token-saver route-scan dismiss 1          # 관심 없으면 무시 (재스캔에도 안 뜸)
-claude-token-saver route-scan rules              # 등록된 모델 피팅 룰 목록 (rm <N>으로 제거)
-claude-token-saver route-scan savings            # 절감 원장: 어느 룰이 어떤 모델에서 어떤 모델로 옮겼는지
+claude-token-saver compact-window                       # status (model, window, value, source)
+claude-token-saver compact-window set --global          # pin 500k (mid-band) in ~/.claude/settings.json
+claude-token-saver compact-window set --project         # pin it in <root>/.claude/settings.json
+claude-token-saver compact-window set --global --value 600k   # explicit value (100k–1M)
+claude-token-saver compact-window off | on              # toggle the warning
 ```
 
-`route-scan savings`는 statusline의 `🔀 Routing saved` 한 줄 뒤에 있는 근거를 그대로 보여줍니다. 모델 이동별 합계와 실행별 내역이 함께 나오므로, 금액이 어디서 나왔는지 추적할 수 있습니다.
+- On a 1M model with the value unset or above 700k, the statusline shows `🅷⚠ compact-window?` and the session briefing hands the model the exact registration command.
+- Scope (`--global`/`--project`) is **required** for `set` — a global settings file is never edited on a guess.
+- Every other key in `settings.json` is preserved and a `.bak` is written first. Malformed JSON aborts the write untouched.
+- An exported `CLAUDE_CODE_AUTO_COMPACT_WINDOW` beats settings.json; `set` detects that and says so.
 
+## 🔀 route-scan — "this recurring task could run on a cheaper tier"
+
+Finds the easy work your expensive model (opus/fable) keeps redoing in your session logs and proposes **haiku/sonnet delegation rules**. Fully local, zero token cost.
+
+- **T2 → haiku**: lookups, pasted-screen Q&A, simple runs — zero errors, near-zero mutation
+- **T1 → sonnet**: build pipelines, status checks — few mutations, ≤1 error
+- **T0 stays**: repeated errors, heavy mutation, design/analysis — the session model keeps it
+
+Three design pillars:
+1. Difficulty is judged by **outcome, not text guessing** — tool errors, mutating tool calls, output tokens
+2. Thresholds **auto-calibrate to your own 14-day distribution** — fixed constants drift with workload
+3. Promoted rules live in a tool-owned file (`.claude/ratchet-model.md`) that **refreshes itself every scan**, and a `⚠ rule-health` flag fires when a delegated category's error rate climbs — rules report their own staleness
+
+```bash
+claude-token-saver route-scan                    # scan (24h cache) + tiered candidates
+claude-token-saver harness promote R1 --project  # promote candidate R1 to a model-fitting rule
+claude-token-saver route-scan dismiss 1          # not interested — won't resurface
+claude-token-saver route-scan rules              # list model-fitting rules (rm <N> to remove)
+claude-token-saver route-scan savings            # the savings ledger — which rule moved work off which model, onto which
 ```
-🔀 라우팅 절감 누적 $2.09  (최근 7일 $1.40 · 30일 $2.09)
 
-모델 이동별:
-  claude-fable-5 → claude-sonnet-5  —  1회, $0.72
-  claude-opus-5 → claude-haiku-4-5  —  1회, $0.57
-```
+Dig deeper: **tier criteria & research evidence** → [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) (Korean) · **rule-file mechanics, scan triggers, subagent setup** → [docs/ROUTE_SCAN.md](./docs/ROUTE_SCAN.md) (Korean + English)
 
-더 알아보기: **티어 기준·리서치 근거** → [docs/TIER_CRITERIA.md](./docs/TIER_CRITERIA.md) · **룰 파일 구조·스캔 트리거·서브에이전트 준비** → [docs/ROUTE_SCAN.md](./docs/ROUTE_SCAN.md)
+### Behind a gateway (Bedrock / LiteLLM)
 
-### 게이트웨이(Bedrock·LiteLLM) 경유 환경
+Through a corporate gateway the transcript records an inference-profile ARN where the model id belongs. That string says nothing about `opus` or `haiku`, so older versions read every session as Sonnet — which made **T1 (→sonnet) rules unreachable and zeroed the savings figures**.
 
-사내 게이트웨이를 거치면 로그의 모델명 필드에 추론 프로파일 ARN이 기록됩니다. 그 문자열에는 `opus`·`haiku` 같은 단서가 없어서 예전 버전은 이것을 전부 Sonnet으로 읽었고, 그 결과 **T1(→sonnet) 위임 룰이 하나도 제안되지 않았으며 절감 집계가 0**이었습니다.
+Since v3.10.0 the profile id is mapped back to a role (main, opus, sonnet, haiku) and then to the alias your `ANTHROPIC_DEFAULT_*_MODEL` variables declare. The mapping is learned by joining each parent `Task` call to the subagent run it spawned via `toolUseId`. Below three observations, or when the role votes agree less than 80% of the time, the id stays `unknown` and drops out of the delegation aggregate rather than being guessed at.
 
-v3.10.0부터는 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌린 뒤 `ANTHROPIC_DEFAULT_*_MODEL` 환경변수가 선언한 별칭으로 치환합니다. 매핑은 부모 세션의 `Task` 호출과 서브에이전트 기록을 `toolUseId`로 조인해 스스로 학습하며, 관측이 3건 미만이거나 역할 판정이 80% 미만으로 갈리면 **추측하지 않고 `unknown`으로 두고 위임 집계에서 제외**합니다.
-
-자동 학습이 닿지 않는 환경에서 쓸 수 있는 수동 경로도 있습니다. `<userDataDir>/profile-map.json`에 아래처럼 적으면 되고, 계정 ID와 리전은 `*`로 가려도 매칭됩니다.
+For environments the learner cannot reach, write the mapping yourself in `<userDataDir>/profile-map.json`. Account id and region may be wildcarded:
 
 ```jsonc
 {
   "modelAliases": {
     "arn:aws:bedrock:*:*:application-inference-profile/<PROFILE_ID>": "claude-opus-5",
-    "prod-large": "claude-opus-5",   // 사내 별칭도 같은 방식으로 매핑됩니다
+    "prod-large": "claude-opus-5",   // house aliases map the same way
     "team-*": "claude-haiku-4-5"
   }
 }
 ```
 
-**모델명에 `opus`·`sonnet`·`haiku`·`fable` 이 들어 있지 않은 사내 별칭**(`prod-large`, `team-fast` 등)도 이 표로 매핑하십시오. Bedrock(`anthropic.claude-opus-4-5-v1:0`)·Vertex(`claude-opus-4-5@20251101`)·1M 접미사(`claude-sonnet-4-5[1m]`) 같이 계열명이 남아 있는 형태는 그대로 인식되지만, 계열명이 사라진 별칭은 가격표가 알아볼 수 없습니다. 이 경우 라우팅 절감 계산은 **틀린 금액을 내놓는 대신 그 실행을 집계에서 제외**하며(비교 양쪽 모두 인식 가능한 이름이어야 합니다), 위 표에 한 줄 추가하면 다시 집계에 들어옵니다.
+**Map house aliases that carry no family name** (`prod-large`, `team-fast`) here too. Shapes that keep the family name are recognized as-is — Bedrock (`anthropic.claude-opus-4-5-v1:0`), Vertex (`claude-opus-4-5@20251101`), and the 1M suffix (`claude-sonnet-4-5[1m]`) — but an alias without one cannot be priced. Rather than report a wrong figure, routing-savings **drops those runs from the aggregate** (both sides of the comparison must be recognizable); one line in the table above brings them back.
 
-이 파일에는 사내 식별자가 평문으로 남으므로 저장소에 커밋하지 마십시오. 게이트웨이를 쓰지 않는 환경에서는 파일이 아예 만들어지지 않고 기존 동작이 그대로 유지됩니다.
+That file holds internal identifiers in plain text — do not commit it. On a direct-API machine it is never created and behaviour is unchanged.
 
-## 🌱 seed: 설치 직후부터 위임이 걸리게 하는 시작 룰
+## 🌱 seed: delegation that works from the first session
 
-모델 피팅 랫쳇(`ratchet-model.md`)은 **빈 파일로 시작합니다.** route-scan이 사용자의 로그에서 같은 유형의 작업을 여러 번 관측하고, 사용자가 그 후보를 승인해야 룰이 생깁니다. 즉 갓 설치한 상태에서는 위임이 한 건도 걸리지 않고, 그 상태가 며칠 이어집니다. 정작 절감 효과가 가장 클 시기입니다.
+The model-fitting ratchet (`ratchet-model.md`) **starts empty.** A rule exists only after route-scan has seen the same kind of work recur in your own logs and you have approved that candidate. So a fresh install delegates nothing, and keeps delegating nothing for days — precisely the stretch where the savings would matter most.
 
-`seed`는 패키지에 동봉된 프리셋으로 그 공백을 메웁니다.
+`seed` fills that gap from presets bundled with the package.
 
-| 프리셋 | 내용 | 파일 |
+| Presets | What they cover | File |
 |---|---|---|
-| 모델 피팅 9건 | 명령 실행·탐색·상태 확인·붙여넣은 로그 질문·읽기 요약, 각 유형의 T2(haiku)와 T1(sonnet) 룰 | `presets/model-rules.json` |
-| 랫쳇 6건 | 실제 반복 사고에서 승격된 범용 룰 | `presets/ratchet-rules.json` |
+| 9 model-fitting | running commands, lookup, status checks, questions about pasted logs, read-and-summarize — each with a T2 (haiku) and a T1 (sonnet) rule | `presets/model-rules.json` |
+| 6 ratchet | general-purpose rules promoted from mistakes that actually recurred | `presets/ratchet-rules.json` |
 
-**등록 절차:** 설치나 업그레이드 후 첫 세션에서 SessionStart 훅이 대기 중인 프리셋을 모델에게 전달하고, 모델이 **한 건씩 순서대로** 등록 여부를 묻습니다. 사용자가 답하면 곧바로 아래 명령을 실행합니다.
-
-```bash
-claude-token-saver seed                                   # 대기 중인 프리셋과 응답 기록
-claude-token-saver seed accept <id> --global|--project     # 한 건 등록 (적용 범위 필수)
-claude-token-saver seed accept all --global                # 사용자가 "전부 등록"이라고 답한 경우
-claude-token-saver seed skip <id>                          # 거절 — 다시 묻지 않습니다
-claude-token-saver seed reset                              # 응답 기록을 지워 전체를 다시 제안 대상으로
-```
-
-- **승인 없이는 아무것도 기록되지 않습니다.** 거절한 룰은 업그레이드 후에도 다시 묻지 않고, 새 릴리스에서 추가된 프리셋만 다음 세션에 제안됩니다.
-- 사용자가 이미 같은 유형(같은 티어·카테고리)의 룰을 직접 승인해 두었다면 그 프리셋은 제안하지 않습니다.
-- 프리셋으로 등록한 룰은 **남의 통계를 내 것처럼 표시하지 않습니다.** 등록 직후에는 `preset (curated)`로 적히고, 이후 스캔에서 실제 발화와 위임 결과가 측정되면 그 수치로 대체됩니다. 위임 에러율이 기준을 넘으면 다른 룰과 똑같이 재검토 플래그가 붙습니다.
-- 적용 범위는 `--global`과 `--project` 중 반드시 명시해야 합니다. 훅 환경은 non-TTY라 CLI가 직접 물을 수 없으므로, 모델이 사용자에게 확인한 뒤 플래그를 붙여 실행합니다.
-
-## 🇰🇷 한국어 문체 지침
-
-Claude가 한국어로 쓸 때 나타나는 문체 결함(문장 성분 생략, 명사형 종결, 번역체, 엠대시 남용)을 교정하는 지침을 **세션 시작 시 한 번 주입합니다.**
+**How they get registered:** in the first session after an install or upgrade, the SessionStart hook hands the pending presets to the model, which walks the user through them **one at a time**. Each answer runs one of these immediately:
 
 ```bash
-claude-token-saver korean on       # 켜기 (모든 프로젝트에 적용)
-claude-token-saver korean status   # 상태·비용·출처 확인
-claude-token-saver korean show     # 지침 원문 출력
-claude-token-saver korean off      # 끄기
+claude-token-saver seed                                   # pending presets + recorded answers
+claude-token-saver seed accept <id> --global|--project     # register one (scope required)
+claude-token-saver seed accept all --global                # when the user says "register them all"
+claude-token-saver seed skip <id>                          # decline — never offered again
+claude-token-saver seed reset                              # clear the answers and offer everything again
 ```
 
-Claude Code의 output style로도 같은 일을 할 수 있지만, output style은 **전역 슬롯 하나**라서 켜는 순간 다른 스타일을 못 쓰게 되고 머신마다 따로 설정해야 합니다. 이 기능은 지침을 패키지에 담고 이미 설치된 SessionStart 훅으로 전달하므로, **CLI가 설치된 모든 프로젝트에 적용되며 output style 슬롯은 비워 둡니다.** `/clear` 이후에도 훅이 다시 실행되어 유지됩니다.
+- **Nothing is written without a yes to that specific rule.** A declined rule stays declined across upgrades; a later release only surfaces the presets it actually added.
+- A preset is withheld when you already approved a rule of the same shape (same tier and category).
+- A seeded rule **does not pass someone else's statistics off as yours.** It is recorded as `preset (curated)` until a scan measures real firings and delegations, and then those numbers replace it. If its delegated error rate crosses the threshold it gets the same review flag as any other rule.
+- The scope must be stated as `--global` or `--project`. The hook environment is non-TTY, so the CLI cannot ask — the model confirms with the user and passes the flag.
 
-비용은 **세션당 약 1,500 토큰이며 매 턴이 아니라 세션 시작에 한 번만** 주입됩니다. 두 번째 요청부터는 프롬프트 캐시에 올라가므로 추가 부담이 거의 없습니다. 켜져 있으면 statusline에 `✍️` 칩이 표시됩니다.
+## 🇰🇷 Korean writing guidance
 
-### 적용 전후 비교
+Injects guidance that corrects how Claude writes Korean (dropped sentence parts, noun-stopped sentences, translationese, em-dash overuse) **once per session.**
 
-슬랙 봇이 `claude -p`로 저장소를 조사하고 결과를 스레드에 답하는 실제 파이프라인(yaml-sns-agent)에서, 지침만 껐다 켜고 같은 질문을 던진 결과입니다. 질문은 "렌더가 실패했을 때 원인을 어떻게 좁히는지 한국어 3문장으로 설명해라"였습니다.
+```bash
+claude-token-saver korean on       # on, for every project
+claude-token-saver korean status   # state, cost, provenance
+claude-token-saver korean show     # print the guidance itself
+claude-token-saver korean off      # off
+```
 
-**이전** (지침 꺼짐)
+Claude Code's output styles can do the same thing, but an output style is **a single global slot**: turning it on takes that slot away from anything else and has to be configured per machine. This ships the guidance inside the package and delivers it through the SessionStart hook that is already installed, so it **applies wherever the CLI is installed and leaves the output-style slot free.** It survives `/clear`, because the hook fires again.
+
+Cost is **~1.5k tokens per session, injected once at session start rather than per turn**, and covered by the prompt cache from the second request on. When it is on, a `✍️` chip appears in the statusline.
+
+### Before and after
+
+From a real pipeline (yaml-sns-agent), where a Slack bot shells out to `claude -p` to investigate the repository and answers in a thread. The guidance was toggled off and then on, with the same question both times: "explain in three Korean sentences how to narrow down a render failure."
+
+**Before** (guidance off)
 
 > 렌더 실패 원인 좁히기 3단계: 먼저 `hn:still --check`로 스틸이 명세보다 최신인지(FRESH/STALE) 확인 — STALE이면 재생성 안 해서 옛 자산으로 렌더 시도한 게 원인. 다음 caption-blocks가 최신 나레이션과 단어열 일치하는지 직접 대조 — TTS 재생성 후 blocks 재생성 빠지면 자막·음성 어긋나 렌더 깨짐.
 
-**이후** (지침 켜짐)
+**After** (guidance on)
 
 > 먼저 `hn:still --check` 돌려 스틸이 명세보다 최신인지 확인한다. STALE이면 재생성 안 해서 생긴 문제.
 >
 > 다음 caption-blocks가 captions.json 단어열과 일치하는지 본다. 내레이션 재TTS 후 blocks 재생성 빠지면 옛 자막이 새 음성 위에 뜬다.
 
-바뀐 지점은 세 가지입니다. 첫째, 엠대시로 이어 붙이던 절이 마침표로 끊어져 한 문장이 한 가지 사실만 전달합니다. 둘째, "확인", "대조", "렌더 깨짐" 같은 명사형 종결이 "확인한다", "본다", "뜬다"처럼 서술어로 바뀌어 무엇을 하라는 것인지가 분명해집니다. 셋째, "자막·음성 어긋나"처럼 조사가 빠졌던 지점에 조사가 돌아와 어떤 성분이 주어이고 목적어인지 읽는 즉시 잡힙니다.
+Three things change. Clauses chained with em dashes become separate sentences, so one sentence carries one fact. Noun-stopped phrases (확인, 대조, 렌더 깨짐 — "check", "compare", "render breaks") become predicates (확인한다, 본다, 뜬다), which makes it explicit that these are steps to take. And the particles come back where they had been dropped, so subject and object are legible on the first read.
 
-기술적 내용은 양쪽이 동일합니다. 지침은 판단이나 정확도가 아니라 문장의 완성도에만 관여하므로, 답이 달라지는 것이 아니라 같은 답을 다시 읽지 않아도 되는 형태로 만들어 줍니다. 슬랙처럼 사람이 스크롤하며 읽는 채널에서는 이 차이가 되묻는 횟수를 줄이고, 되묻지 않는 만큼 토큰도 아낍니다.
+The technical content is identical in both. The guidance touches sentence construction only, not judgement or accuracy: the answer does not change, it just stops needing a second read. In a channel people scroll through, that difference cuts follow-up questions — and the tokens those follow-ups would have cost.
 
-### 쓰기 시점 검사 (v3.24.0)
+### The write-time check (v3.24.0)
 
-지침을 세션 시작에 한 번 넣는 것만으로는 부족했습니다. 모델은 지침을 한 번 읽고 그 뒤로 파일 수십 개를 쓰는데, 그동안 결과물을 다시 읽어 보는 단계가 없었습니다. 그래서 지침이 켜진 세션이 규약에 어긋나는 문장을 문서에 그대로 실어 보냈고, 사람이 완성본을 읽을 때에야 드러났습니다. 2026년 8월에 적용 범위 문장을 고쳐서 같은 문제를 잡으려 했지만, 문장을 고쳐도 검사 단계가 없다는 조건은 그대로였기 때문에 재발했습니다.
+Injecting the guidance once at session start turned out to be half the job. The model reads it, then writes dozens of files over the next hours with nothing re-reading the output. Sessions with the guidance active still shipped violations into documents, and it surfaced only when a human read the finished artifact. An August 2026 fix reworded the scope sentence to address this; it recurred, because rewording an instruction does not add a checkpoint.
 
-v3.24.0부터 `korean on`이 PostToolUse 훅을 함께 설치합니다. 모델이 방금 쓴 파일을 열어서 기계로 판정할 수 있는 조항을 검사하고, 위반이 있으면 모델에게 되돌려 보냅니다. 파일은 이미 저장된 뒤이므로 잃는 것은 없고, 모델이 즉시 고칩니다.
-
-```bash
-claude-token-saver korean lint block   # 기본값. 위반을 되돌려 보내 고치게 합니다
-claude-token-saver korean lint warn    # 알리기만 하고 진행을 막지 않습니다
-claude-token-saver korean lint off     # 검사하지 않습니다
-
-claude-token-saver korean lint scope all     # 기본값. 세션이 쓴 모든 텍스트 파일
-claude-token-saver korean lint scope prose   # 마크다운·텍스트 문서만
-
-claude-token-saver korean lint docs/*.md     # 이미 저장된 파일을 직접 검사
-```
-
-검사 항목은 사람이 판정할 필요가 없는 것들입니다. 비유 어휘 15종(`~는 자리`, `~의 흐름`, `닿는다`, `걷어내다`, `발목을 잡다` 등), 번역체 표지(`~에 대한`, `~를 위한`, `~되어지`), 구분자(`—`·`ㅡ`·`|`), 한 구에 세 번 이상 이어지는 조사 `의`, 명사형 종결 뒤의 마침표입니다. 판단이 필요한 조항(성분 생략, 한자어 선택)은 그대로 지침이 담당합니다.
-
-기본 범위 `all`은 문서뿐 아니라 **코드 주석과 화면에 나가는 문자열, 자막·템플릿, 생성 결과물까지** 검사합니다. 벤더링한 지침 원문은 코드 주석을 예외로 두지만, 주석도 사람이 읽고 PDF·HTML 같은 산출물은 그 문자열들로 조립되기 때문에 예외로 두면 정확히 문제가 됐던 경로가 다시 열립니다. 검사에서 빠지는 것은 설치된 의존성(`node_modules`), VCS 내부, 락 파일, 그리고 이진·이미지 파일뿐입니다. `dist`나 `build` 같은 산출물 디렉터리는 검사합니다. 원문 규약대로 문서만 보고 싶으면 `korean lint scope prose`로 되돌립니다.
-
-주입문의 적용 범위 안내도 이 설정에서 생성합니다. 모델에게 알리는 범위와 검사하는 범위가 갈라지면 8월과 같은 상태로 돌아가기 때문입니다.
-
-### 함께 주입되는 인코딩 규칙 (v3.23.2)
-
-문체 지침과 별도로, **도구 호출 인자에 담는 비ASCII 문자열은 리터럴 UTF-8로 쓰고 `\uXXXX` 유니코드 이스케이프로는 쓰지 말라**는 한 줄이 같이 주입됩니다.
-
-모델이 Write나 Edit의 인자에 한국어를 이스케이프로 적으면, 그 이스케이프가 코드 포인트로 해석되지 않고 `한` 같은 문자열 그대로 파일에 기록되는 경우가 있습니다. 결과물에는 깨진 글자가 남고, 모델은 자기가 쓴 값과 파일 내용이 다르다는 사실을 알아차리지 못한 채 다음 편집을 이어 갑니다. 이스케이프를 쓰지 않으면 이 경로 자체가 생기지 않으므로, 사후에 복구하는 대신 입력 단계에서 막습니다.
-
-이 한 줄은 fluent-korean 원문이 아니라 claude-token-saver가 직접 쓰는 안내 문단에 들어갑니다. 문체가 아니라 표기 방식을 정하는 규칙이고, 벤더링한 원문은 수정하지 않는다는 원칙을 지켜야 하기 때문입니다. 같은 이유로 코드와 커밋 메시지에 적용하지 않는 문체 예외와 달리, 이 규칙에는 예외를 두지 않습니다. 세션당 약 60 토큰이 늘어납니다.
-
-> **근거**
-> 같은 현상이 Claude Code 저장소에 보고되어 있습니다: [#12417 유니코드 처리 회귀](https://github.com/anthropics/claude-code/issues/12417), [#26141 Edit 도구가 유니코드를 조용히 손상시키는 문제](https://github.com/anthropics/claude-code/issues/26141).
-
-### 설치할 때 물어봅니다
-
-설치 과정에서 **지침의 내용과 세션당 비용, 출처를 먼저 보여 준 다음 켤지 물어봅니다.** 시스템 로캘이 한국어이면(`ko_KR` 등, macOS는 시스템 설정까지 확인) 질문의 기본값이 "켬"이 되고, 한국어 환경이 아니면 기본값이 "끔"입니다. 로캘은 답이 아니라 기본값일 뿐이므로 영어 로캘에서 한국어로 작업하는 경우에도 설치 중에 바로 켤 수 있습니다.
-
-npm의 `postinstall`이나 CI처럼 사람이 붙어 있지 않은 설치에서는 질문을 건너뛰고 로캘 기본값을 그대로 적용합니다. 프롬프트가 멈춰 서면 설치 자체가 걸리기 때문입니다. 이때 로캘이 한국어가 아니면 **설정을 저장하지 않고 미결정으로 남겨 두므로**, 나중에 터미널에서 다시 설치하면 그때 물어봅니다. 질문 없이 기본값으로 넘기려면 `--yes`나 `--no-input`을, 기능 자체를 건너뛰려면 `CTS_NO_KOREAN=1`을 쓰십시오. **한 번이라도 직접 켜거나 끈 뒤에는 그 선택을 유지하므로, 업데이트 설치가 사용자의 결정을 되돌리지 않습니다.**
-
-> **출처와 라이선스**
-> 지침 원문은 [fluent-korean](https://github.com/snflkd/fluent-korean)에서 가져왔습니다. Copyright (c) 2026 snflkd, MIT License.
-> 원문은 수정하지 않았고 output style 프런트매터만 제거했습니다. 라이선스 전문은 패키지의 `presets/korean-style/LICENSE-fluent-korean`에 함께 배포합니다.
-
-## 📄 doc2md: 문서를 읽기 전에 Markdown 으로 바꿉니다
-
-기획서와 보고서는 대부분 pptx·xlsx·pdf·docx·fig 로 옵니다. 이 형식들을 그대로 다루면 두 가지 중 하나가 일어납니다. Claude Code 가 이진 파일이라며 거부해서 아무것도 못 읽거나, 압축을 풀어 본문 XML 을 읽느라 토큰을 태우거나. 30MB 짜리 발표자료 하나가 XML 로는 **54만 토큰**이고, 200k 컨텍스트에는 들어가지도 않습니다.
-
-doc2md 는 그 파일을 한 번 변환해 두고 원본 대신 변환본을 읽게 합니다. 같은 발표자료가 22,610 토큰이 됩니다.
-
-**이 기능은 옵트인입니다.** 설치만으로는 켜지지 않고, 아래 두 명령을 모두 실행해야 동작합니다. 훅만 등록하고 변환기가 없으면 아무 일도 일어나지 않습니다.
-
-세 가지 경로를 덮습니다. 각각 걸리는 지점이 다릅니다.
-
-| 상황 | 개입 지점 |
-|---|---|
-| 프롬프트에 문서 경로를 적음 (`@경로`·따옴표·상대 경로 모두) | `UserPromptSubmit`. 변환한 뒤 변환본 경로를 컨텍스트로 넣습니다 |
-| 작업 도중 문서를 `Read` | pdf 는 `PreToolUse(Read)` 가 잡습니다. pptx·xlsx·docx 는 Claude Code 가 이진 파일이라며 훅보다 먼저 거부하므로, 세션 시작 안내문이 모델에게 `doc2md <경로>` 를 실행하도록 지시합니다 |
-| 문서를 메시지에 직접 첨부 | **훅으로 잡을 수 없습니다.** 어떤 훅 이벤트도 첨부 내용을 받지 못합니다. 세션 시작 안내문이 다음부터 경로로 달라고 사용자에게 안내하도록 모델에게 지시합니다 |
-
-두 번째 줄의 제약은 실측으로 확인한 것입니다. `.pdf` 를 Read 하면 훅이 실행되고, 같은 세션에서 `.pptx` 를 Read 하면 훅 로그에 아무 기록도 남지 않습니다.
+From v3.24.0 `korean on` also installs a PostToolUse hook. It opens the file the model just wrote, runs the clauses a machine can decide, and hands any findings back. The file is already saved, so nothing is lost — the model fixes it on the spot.
 
 ```bash
-claude-token-saver doc2md on                  # 훅 등록 (변환기는 첫 문서에서 자동 설치)
-claude-token-saver doc2md                     # 변환기·훅 등록 상태 확인
-claude-token-saver doc2md 보고서.pptx          # 직접 변환해 결과 확인
-claude-token-saver doc2md install-converter   # 설치를 미리 끝내 두고 싶을 때만
+claude-token-saver korean lint block   # default: findings are handed back as blocking feedback
+claude-token-saver korean lint warn    # print findings, do not block
+claude-token-saver korean lint off     # disable the check
+
+claude-token-saver korean lint scope all     # default: every text file the session writes
+claude-token-saver korean lint scope prose   # documents only
+
+claude-token-saver korean lint docs/*.md     # check files already on disk
 ```
 
-**변환기는 알아서 깔립니다.** 팀에 배포할 때 각자 설치 명령을 실행하게 만들면 그 단계에서 빠지는 사람이 생깁니다. 그래서 문서가 처음 등장하는 시점에 변환기가 백그라운드로 설치되고, 설치가 끝나는 대로 곧바로 변환합니다. 실측으로 첫 문서는 약 30초(설치 15초 + markitdown 최초 임포트), 이후로는 새 문서 3.7초, 캐시 적중 0.1초입니다. `.fig` 파서는 첫 Figma 파일에서 0.5초 만에 깔립니다.
+Checked: 15 figurative phrases, translationese markers, separators (`—`·`ㅡ`·`|`), three or more `의` particles in one phrase, and a period after a nominal ending. Clauses that need judgement stay with the guidance text.
 
-설치는 `install` 단계가 아니라 첫 사용 시점에 합니다. venv 가 47MB 라서, 문서를 다루지 않는 사람은 낼 이유가 없는 비용입니다. 자동 설치를 끄려면 `CTS_DOC2MD_NO_AUTOINSTALL=1` 을 설정하십시오.
+The default `all` scope covers code comments, UI strings, subtitles, templates, and build output, not just documents. The vendored guidance exempts comments, but comments are read by people and generated artifacts (PDF, HTML) are assembled from those strings, so exempting them reopens the exact gap that was reported. Only installed dependencies, VCS internals, lockfiles, and binary or image files are skipped; `dist/` and `build/` are checked. `korean lint scope prose` restores the narrow reading.
 
-**파이썬 3.10 이상이 필요합니다.** markitdown 의 요구 사항이고, macOS 기본 `/usr/bin/python3` 는 3.9 입니다. 이 도구는 PATH 순서를 따르지 않고 3.10 이상인 인터프리터를 골라 venv 를 만듭니다. 3.9 로 만들면 pip 가 markitdown 을 2019 년 자리표시자 릴리스(0.0.1a1)로 해석해서, 설치는 성공한 것처럼 보이지만 모든 변환이 임포트 단계에서 죽습니다. 실제로 이 함정을 밟고 잡았습니다. 3.10 이상이 아예 없으면 설치 명령을 안내하는 대신 `brew install python` 을 안내합니다.
+The scope sentence in the injected guidance is generated from the same setting, so the model is never told one rule while being corrected against another.
 
-변환기는 도구 전용 venv(`<상태 디렉터리>/doc2md-venv`)에 설치합니다. 시스템 파이썬을 건드리지 않고, CLI를 지우면 함께 사라집니다. 이미 `uv tool` 이나 다른 경로에 markitdown 이 있으면 그쪽을 먼저 씁니다.
+### The encoding rule that ships with it (v3.23.2)
 
-변환은 [markitdown](https://github.com/microsoft/markitdown)이 담당하며, 슬라이드 번호와 제목 계층, 표, 발표자 노트, 시트 구분이 모두 남습니다. 한글도 깨지지 않습니다.
+Alongside the writing guidance, one more line is injected: **non-ASCII strings in tool-call parameters must be written as literal UTF-8, never as `\uXXXX` unicode escapes.**
 
-몇 가지는 의도적으로 하지 않습니다.
+When the model puts Korean into a Write or Edit parameter as escapes, those escapes are sometimes not decoded into code points at all: the literal text `한` lands in the file. The artifact carries mojibake, and the model keeps editing on top of it without noticing that what it wrote and what the file holds have diverged. Not writing escapes in the first place removes the path entirely, so the rule blocks the input instead of repairing the output.
 
-- **이미지는 변환하지 않습니다.** markitdown 이 빈 결과를 돌려주고, OCR 은 실측에서 리소스 이름을 틀리게 읽었습니다(`c5.xlarge` 를 `c.xlarge` 로). 이름 자체가 내용인 문서에서는 텍스트가 없느니만 못합니다. 모델이 이미지는 직접 읽습니다.
-- **변환기가 없으면 조용히 실패하지 않습니다.** 설치 명령을 한 번 안내한 뒤 원본 `Read` 를 그대로 통과시킵니다. 매번 알리면 그것대로 방해가 되고, 아무 말도 하지 않으면 고장을 숨기게 됩니다. `doc2md` 를 인자 없이 실행하면 변환기와 훅 등록 상태를 한 번에 확인할 수 있습니다.
-- **변환본은 프로젝트 안에 남기지 않습니다.** 도구의 상태 디렉터리 아래 권한 `0700` 으로 저장하므로 `.gitignore` 에 무엇을 추가할 필요가 없습니다. 파일명이 급여·계약·개인정보 같은 패턴에 걸리면 아예 변환하지 않습니다.
-- **압축 폭탄은 막습니다.** pptx·xlsx·docx 는 zip 컨테이너입니다. 선언된 크기를 먼저 걸러 내고, 선언은 조작될 수 있으므로 실제 해제 바이트도 상한과 대조합니다.
-- **엑셀은 행 수로 자릅니다.** 변환 시간은 파일 크기가 아니라 행 수를 따릅니다(실측: PDF 6.3MB 0.9초, 엑셀 5.8MB 47.75초). 5만 행을 넘으면 앞부분만 변환하고, **잘랐다는 사실과 전체 행 수를 안내에 함께 적습니다.**
+This line lives in claude-token-saver's own framing paragraph, not in the vendored fluent-korean text. It governs encoding rather than style, and the vendored wording is kept unmodified. For the same reason it carries no exceptions, unlike the style rules that skip code and commit messages. It adds roughly 60 tokens per session.
 
-### 더 깊은 내용은 별도 문서에 있습니다
+> **Evidence**
+> The same failure is reported against Claude Code: [#12417, unicode handling regression](https://github.com/anthropics/claude-code/issues/12417) and [#26141, Edit silently corrupting unicode](https://github.com/anthropics/claude-code/issues/26141).
 
-절감액을 어떻게 실측해 산정하는지(PDF 첨부 대비, 오피스 XML 대비, `.fig` 고정 기준선), 피그마 `.fig` 변환, 문서를 수정할 때의 복사본·스크립트 절차, DRM·암호 문서 판별, Windows 지원 세부는 [docs/DOC2MD.md](./docs/DOC2MD.md)로 옮겼습니다. 요지는 세 가지입니다.
+### Asked at install time
 
-- 절감 기준선은 항상 실측치보다 **낮게** 잡습니다. 도구를 돋보이게 하는 숫자보다 신뢰할 수 있는 숫자가 가치 있습니다.
-- `.fig` 절감이 가장 큽니다. `Read` 가 이진 파일을 거부하지 않고 그대로 읽어 회당 약 44,000 토큰을 태우기 때문입니다.
-- 암호 문서와 DRM 문서는 오류가 아니라 상태로 판별해 안내합니다. 원본 `Read` 를 막지 않으므로 작업이 중단되지 않습니다.
+The install **prints what the guidance changes, its per-session cost and its source, then asks.** A Korean system locale (`ko_KR` and friends; on macOS the system setting is checked too) makes the question default to yes; anything else defaults to no, so users who never write Korean are not billed 1.5k tokens a session. The locale is only a default, so an English-locale machine used for Korean work can still turn it on right there.
 
-## 🌐 Bedrock·Vertex 경유 환경
+Installs with nobody attached — npm `postinstall`, CI, piped stdin — skip the question and apply the locale default, because a blocked prompt hangs the install. In that case, if the locale is not Korean the setting is **left undecided rather than recorded**, so a later run at a terminal still gets to ask. Use `--yes` or `--no-input` to force the non-interactive path, or `CTS_NO_KOREAN=1` to skip the feature entirely. **Once you have turned it on or off yourself, that choice sticks — an upgrade never overrides it.**
 
-게이트웨이를 거치면 응답이 캐시 쓰기 합계만 내려보내고 5분·1시간 버킷별 분해 값은 채우지 않습니다. 그래서 이 도구가 "캐시 쓰기가 아직 없다"와 "이 제공자는 알려 주지 않는다"를 구별하지 못했고, 판정 불가일 때 1시간을 기본값으로 잡았습니다. Bedrock 은 5분 버킷만 제공하므로 남은 시간이 최대 12배로 부풀어 보였습니다.
+> **Source and license**
+> The guidance text comes from [fluent-korean](https://github.com/snflkd/fluent-korean). Copyright (c) 2026 snflkd, MIT License.
+> The wording is unmodified; only the output-style frontmatter was removed. The full license ships with the package at `presets/korean-style/LICENSE-fluent-korean`.
 
-v3.26.0부터 트랜스크립트의 모델 ID로 게이트웨이를 감지해 다음을 바로잡습니다.
+## 📄 doc2md — documents become Markdown before the model reads them
 
-- 판정 불가일 때의 카운트다운 기본값이 5분이 되고, 버킷 라벨이 `5m?` 로 표시됩니다. 실측값은 `5m`, 추정은 `5m?`, 근거 없음은 `?` 로 세 단계를 구분합니다.
-- 5분 버킷에서는 카운트다운 색이 비율이 아니라 절대 시간을 따릅니다. 5분의 30%는 90초여서, 초록이 주는 여유가 실제와 어긋났습니다.
-- `⚠ 5m TTL` 경고가 이 환경에도 도달합니다. 다만 조언 문구는 다릅니다. 구독 플랜을 바꿔도 해소되지 않는 환경이므로 플랜 전환을 권하지 않습니다.
-- `Extra cost if 5m-only` 는 1시간 쓰기가 있는 경우에만 묻습니다. 이미 5분 전용인 환경에서는 질문 자체가 성립하지 않아 `+$0` 이 잘못 읽혔습니다.
-- 위임 건이 모델 ID 해석 실패로 버려졌으면 statusline 에 `🔀 N unresolved` 로 알립니다. 이전에는 "위임한 적 없음"과 화면상 구별되지 않았습니다.
-- 환경변수를 `foundation-model` ARN 으로 지정한 경우에도 모델을 해석합니다. 이름을 담고 있지 않은 `application-inference-profile` ID 는 그대로 거부합니다. 값을 추측해 넣으면 원장에 틀린 금액이 들어가기 때문입니다.
+`Read` a pptx, xlsx, pdf or docx and the raw bytes go into the context window, where the model cannot read them. This intercepts that `Read`, converts the file once, and hands over the Markdown instead.
 
-감지가 틀리면 `claude-token-saver mode ttl=5m`(또는 `ttl=1h`)로 직접 지정할 수 있습니다. 지정값이 실측값보다 우선합니다.
+**This is opt-in.** Installing the CLI does not turn it on: both commands below are required, and a registered hook with no converter behind it does nothing at all.
 
-### LiteLLM: 5h/7d cap 대신 키 예산을 보여 줍니다 (v3.35.0)
+Three situations, three different interception points:
 
-LiteLLM 프록시로 Bedrock 등을 쓰면 Claude Code stdin 에 `rate_limits` 가 오지 않아 `✦ current`·`📅 weekly` 게이지가 아예 없습니다. 대신 LiteLLM 은 키별 `max_budget` 과 `spend` 를 관리하므로, 그 값을 가져와 같은 지점에 예산 게이지를 그립니다.
-
-- 감지 조건: `ANTHROPIC_BASE_URL` 이 공식 엔드포인트가 아니고, `ANTHROPIC_AUTH_TOKEN`(또는 `ANTHROPIC_API_KEY`)이 설정된 환경.
-- 조회는 LiteLLM 의 `GET /key/info` 와 `GET /user/info` 로 하고, 호출 키 자신의 정보만 받습니다. 예산 출처는 실무에서 가장 많이 쓰는 **팀 멤버십 예산**(team_memberships 의 spend·max_budget)을 먼저 보고, 없으면 키 자체의 max_budget, 그다음 internal user 예산 순으로 고릅니다. 렌더는 캐시 파일만 읽으며, 갱신은 5분에 한 번 분리된 백그라운드 프로세스가 수행합니다 (update-check 와 같은 구조라 statusline 이 네트워크를 기다리지 않습니다).
-- `max_budget` 이 없는 무제한 키는 게이지를 만들지 않습니다. 이 경우에도 `💵` 월 지출 세그먼트는 세션 로그 기반이라 그대로 표시됩니다.
-- 상태 확인: `claude-token-saver litellm-budget` (캐시 출력) · `litellm-budget --refresh` (즉시 조회).
-
-세션 기본 모델이 sonnet 이면 sonnet 위임 규칙(T1)은 구조적으로 절감이 0입니다. 같은 급으로 내려보내 봐야 차액이 없기 때문이며 이는 정상 동작입니다. 다만 `route-scan rules` 가 이 경우를 "아직 위임 없음"과 같은 문구로 표시해 고장처럼 보였으므로, 이제 현재 기본 모델 기준으로 적용되지 않는다는 사실을 따로 적습니다.
-
-## 토큰 급증 원인 코드
-
-| 코드 | 의미 |
+| Situation | Where it is caught |
 |---|---|
-| `LARGE_INPUT_PER_REQUEST` | 단일 요청의 입력이 200k를 초과했습니다. 턴마다 다시 과금되고 한도 소모가 급격히 늘어납니다 |
-| `LOW_HIT_RATE` | 캐시 히트율 50% 미만 |
-| `BUCKET_5M_DOMINANT` | 캐시 쓰기의 70%+가 5분 버킷 (Pro 플랜/Max 다운그레이드) |
-| `HIGH_OUTPUT_RATIO` | 출력/입력 비율 0.15 초과 (출력 단가는 입력의 5배) |
-| `HIGH_REQUEST_COUNT` | 요청 수가 중앙값의 3배+ (도구 호출 루프 의심) |
-| `FREQUENT_CACHE_REBUILD` | 캐시 재작성이 읽기보다 많음 |
+| A document path typed in the prompt (`@path`, quoted, or relative) | `UserPromptSubmit`: converted, and the conversion's path is handed back as context |
+| A document opened with `Read` mid-task | PDFs are caught by `PreToolUse(Read)`. pptx/xlsx/docx/fig are not: Claude Code refuses them as binary *before* any hook runs, so the session-start note tells the model to run `doc2md <path>` instead |
+| A document attached to the message | **Not catchable.** No hook event receives attachment content. The session-start note has the model ask for a path next time |
 
-각 코드마다 OS별 해결 명령이 함께 출력됩니다.
+That second row is measured, not assumed: a `.pdf` Read fires the hook, and a `.pptx` Read in the same session leaves no hook log entry at all.
 
-## 실제 효과: 도입 전후 리포트
+```bash
+claude-token-saver doc2md on                  # register the hooks (the converter installs itself)
+claude-token-saver doc2md                     # check converter + hook registration
+claude-token-saver doc2md report.pptx         # convert by hand and see the result
+claude-token-saver doc2md install-converter   # only to get the install out of the way early
+```
 
-![claude-token-saver: harness와 ratchet 도입 효과](./docs/harness-impact.png)
+**The converter installs itself.** Any rollout step a person has to be told about is a step some of them skip, so the converter installs in the background the moment a document first shows up, and converts as soon as it is ready. Measured: about 30s for the first document (15s install plus markitdown's first import), then 3.7s for a new document and 0.1s on a cache hit. The `.fig` parser installs in half a second on the first Figma file.
 
-harness 5/5 + ratchet을 실제 적용한 전후 비교입니다 (저자 Claude Code 로그, **사용자 메시지 1건당** 정규화, 2026-05-02 기준, Opus 4.7 가격):
+It installs on first use rather than at `install` time: the venv is 47MB, and someone who never opens a document should not pay for it. Set `CTS_DOC2MD_NO_AUTOINSTALL=1` to turn the automatic install off.
 
-| 메트릭 | 도입 전 (7일/739msg) | 도입 후 (2일/157msg) | 변화 |
+**Python 3.10+ is required** — markitdown's own floor, and macOS still ships 3.9 as `/usr/bin/python3`. The venv is built on an interpreter chosen by version rather than by PATH order. Built on 3.9, pip resolves markitdown to a 2019 placeholder release (0.0.1a1): the install looks like it worked and every conversion then dies at import. This was found by walking into it. When nothing on the machine is new enough, the message points at `brew install python` instead of at an install command that cannot succeed.
+
+The converter goes into a venv this tool owns (`<state dir>/doc2md-venv`): no system interpreter is touched, and uninstalling the CLI takes it along. An existing markitdown on `uv tool` or `PATH` is preferred over building a new one.
+
+Conversion is [markitdown](https://github.com/microsoft/markitdown). Slide numbers, heading levels, tables, speaker notes and per-sheet headings all survive, and non-Latin text comes through intact.
+
+Several things it deliberately does not do:
+
+- **Images are not converted.** markitdown returns nothing for them, and OCR misread resource names in testing (`c5.xlarge` as `c.xlarge`). In a document where those names *are* the content, wrong text is worse than none. The model reads images natively anyway.
+- **A missing converter never fails silently.** The install command is shown once, then the original `Read` proceeds untouched. Repeating the notice on every read would be its own nuisance; saying nothing is how a broken converter hides. Run `doc2md` with no arguments to see the converter and hook registration together.
+- **Conversions never land in your project.** They go under the tool's own state directory with mode `0700`, so there is nothing to add to `.gitignore`. Filenames matching payroll/contract/secret patterns are skipped entirely.
+- **Zip bombs are refused.** pptx/xlsx/docx are zip containers: the declared sizes are checked first, and since those are written by whoever built the file, the real decompressed bytes are counted against a ceiling too.
+- **Spreadsheets are capped by rows, not bytes.** Conversion time tracks row count (measured: a 6.3MB PDF in 0.9s, a 5.8MB workbook in 47.75s). Past 50,000 rows only the head is converted, and **the truncation and the true row count are both stated** in what the model is told.
+
+### What a conversion saves
+
+Every conversion is stamped with a provenance header: which original, when, how many tokens. Savings show up on the statusline's own `📄 Doc2md saved` line.
+
+The baseline is what you would have done without a converter, and that differs by format. Both were measured on 2026-09-06.
+
+**PDF is priced against attaching it.** The same one-line prompt was sent through `claude --print --input-format stream-json` with and without the file as a document block. The control turn cost 42,204 tokens, twice, to the token.
+
+| Attached file | Size | Extra tokens | Per page |
+|---|---|---|---|
+| Résumé PDF | 7 pages | +20,537 | 2,934 |
+| Résumé PDF | 5 pages | +12,709 | 2,542 |
+
+An attached PDF is read whole, but every page costs 2,500–2,900 tokens against 5,531 for the conversion. The coefficient used is 2,500 per page — below both measurements, so the figure understates rather than flatters.
+
+**pptx/xlsx/docx are priced against unpacking the container.** These never reach the model as attachments at all: the same probe on a docx added 78 tokens and the model replied that it had no file, and `Read` refuses the format outright. What you actually do without a converter is unzip the archive and read its XML, where tags and style attributes outweigh the words.
+
+| Original | Body XML | Conversion | Ratio |
+|---|---|---|---|
+| Deck, pptx (31.8MB) | ~540,429 tokens | ~22,610 tokens | 23.8× |
+| Résumé, docx (189KB) | ~79,621 tokens | ~1,684 tokens | 47.3× |
+
+This baseline is measured per file from the real XML size, not applied as a per-format ratio. `.xls` is not a zip container and has no markup to measure, so it claims nothing.
+
+### Figma `.fig` converts too
+
+Planning documents are moving from PowerPoint to Figma, so the same hook catches `.fig`. A `.fig` is a zip, but the `canvas.fig` inside it is Figma's private binary (kiwi format), which markitdown cannot open — so this one format is converted in Node with [openfig-core](https://github.com/OpenFig-org/openfig-core) (MIT). `doc2md install-converter` places it beside markitdown in the tool's state directory; the package itself still ships zero dependencies.
+
+The result is an outline: pages and frames become headings, text nodes become body lines, and shapes are counted rather than listed — in a planning document the words are the content, and two hundred `Rectangle 173` lines would drown them. A file with no text at all is refused rather than dressed up as an empty document.
+
+Verified against real files: a community Bootstrap UI kit (8.1MB, 4,155 nodes, 1,312 of them text) and a 52MB Tailwind kit, each converting in under a second. Both `.fig` vintages parse — the current zip container and the older bare fig-kiwi stream.
+
+**`.fig` saves the most of any format.** Unlike the Office containers, `Read` does not refuse a `.fig`: the extension means nothing to it, so it pulls the binary in as text and the context window fills with tokenised noise. Measured against the same 42,760-token control:
+
+| File | Size | Extra tokens for a Read | Conversion |
+|---|---|---|---|
+| plan.fig | 26KB | +44,195 | 100 tokens |
+| bootstrap-kit.fig | 8.1MB | +43,994 | 18,397 tokens |
+
+Two files three hundred times apart in size cost the same, because Read truncates long before the file ends — you pay for a whole document and receive a fraction of one. The baseline is therefore a flat 44,000 tokens. For comparison, the same probe on a pptx cost +317 tokens and on a docx +185: a refusal message, and nothing else.
+
+#### Why the baseline does not scale with file size
+
+A baseline has to be what would actually have been spent without the converter. Intuition says a bigger file burns more, but the `Read` tool has a cap (2,000 lines by default, plus a per-line character limit), and a binary file hits it almost immediately: even the 26KB file was already truncated, which is why two files 300× apart came out 201 tokens apart. Had the 8.1MB file gone in whole it would have been millions of tokens — money nobody could have spent, since it does not fit in a 200k context window. Claiming to have saved unspendable money is flattery, not measurement.
+
+The same principle runs through every baseline here:
+
+- **`.fig`, flat 44,000** — set below both measurements (44,195 and 43,994). A model could burn size-proportional tokens by re-Reading at successive offsets, but one Read is what a sane agent does once the bytes turn out to be binary noise, so one Read is the honest counterfactual.
+- **PDF, 2,500 per page** — below both measured values (2,542 and 2,934).
+- **Office formats, the file's actual XML size** — the one case where proportional is right, because a person really does end up reading that XML; it is measured per file rather than applied as a ratio.
+
+The common rule: wherever an estimate and a measurement diverge, the lower number wins. A figure the user can trust is worth more than one that flatters the tool.
+
+### Editing a document: copy, then script
+
+Conversion is one-way — editing the cached `.md` changes nothing in the source. The hook refuses `Edit`/`Write` on both the cache and the original binary, and points at the right path instead: copy the original, edit the copy with a script, re-convert the copy to verify.
+
+`install-converter` puts the editing libraries (python-pptx, python-docx, openpyxl) in the same venv, so a structural request like "swap the chart on slide 23 for a line chart" is a short script the agent writes on the spot. `.fig` edits go through openfig-core, which encodes as well as parses.
+
+All four formats were exercised end to end on 2026-09-06: 10 docx run replacements plus three consecutive re-saves, a pptx bar-to-line chart swap with an added data point, xlsx value edits and a new row, and a fig text edit with re-encode and re-parse. In every case the original was byte-identical afterwards and the re-converted copy showed the change. One caveat: removing a chart shape from a pptx leaves the old chart XML part orphaned — PowerPoint ignores it, but delete the part and its rels for a clean file. Charts and images never appear in a conversion, so visual edits must be confirmed in the application itself.
+
+### DRM-wrapped documents
+
+Encryption and DRM are different problems with different answers. Enterprise DRM (Fasoo, MarkAny, SoftCamp and the like) does not password a document — it wraps the whole file, and only processes the vendor's agent has whitelisted ever see plaintext. Python is not one of them, so what sits on disk is ciphertext behind a vendor header, and **no password will open it.**
+
+The first bytes decide which story to tell: a zip header means a truncated download, an OLE container means a password, and neither means the file is not that format at all.
+
+```
+✗ bad-archive: File is not a zip file            → download it again
+✗ encrypted: password-protected Office file      → ask for an unlocked copy
+✗ drm-protected: DRM-wrapped file (FASOO)        → ask for a copy released from DRM
+```
+
+Vendor names are matched only to say which client to go to; the classification stands without recognising the vendor. PDFs are judged the same way through their public DRM security-handler names (FOPN_foweb, EBX_HANDLER, Adobe.APS).
+
+### Locked documents, and Windows
+
+**A password-protected document is a state, not an error.** Office encrypts by wrapping the package in an OLE compound file rather than a zip, so opening one as a zip used to report "not a zip file" — which reads as a broken download and sends the user after the wrong problem. It is now identified before conversion:
+
+```
+✗ encrypted: password-protected Office file (OLE-wrapped)
+✗ encrypted: password-protected PDF
+```
+
+The model is told to ask for an unlocked copy. This tool never asks for or stores a password, and never blocks the original `Read`, so work continues either way. A PDF that merely restricts printing still opens and still converts — checked against a false positive — and a legacy `.xls`, which is an OLE file by design, is not mistaken for an encrypted one.
+
+**Windows is supported.** For teams with Windows machines:
+
+- The Python search uses the `py -3` launcher. `python3` is rarely on PATH there, and a bare `python` may be the Store alias stub that opens a web page instead of running anything. Venv interpreters are looked for at `Scripts\python.exe`.
+- The `.fig` parser installs through `npm.cmd` via the shell, and the package spec dropped its caret (`openfig-core@0.4.x`): in cmd.exe `^` is the escape character and never reaches npm.
+- The background install and every child process set `windowsHide`, so no console window appears in the middle of someone's prompt.
+
+`claude-token-saver doc2md --clean` empties the conversion cache; `doc2md off` removes the hook. Removal filters for this tool's own entry, so anything else you registered under `PreToolUse` stays.
+
+## 🌐 Behind a gateway (Bedrock / Vertex)
+
+A gateway reports the cache-creation total but never the 5m/1h split. That left the tool unable to tell "nothing cached yet" from "this provider does not say", and the fallback assumed an hour — for a window that is really five minutes on Bedrock, overstating it twelvefold.
+
+Since v3.26.0 the gateway is detected from the model ids in the transcript, which fixes:
+
+- The countdown falls back to 5 minutes, labelled `5m?`. Three grades of certainty get three labels: measured (`5m`), inferred (`5m?`), unknown (`?`).
+- In a 5-minute bucket the countdown colour follows absolute time rather than a percentage. 30% of five minutes is 90 seconds, and green there promised comfort that was not there.
+- The `⚠ 5m TTL` warning finally reaches these users — with different advice, since no subscription plan changes a gateway's TTL.
+- `Extra cost if 5m-only` is only asked of sessions that have 1h writes to lose. Elsewhere the arithmetically honest `+$0` read as an endorsement of the bucket you are already stuck in.
+- Delegated runs dropped for an unpriceable model id show as `🔀 N unresolved` instead of nothing, which used to be indistinguishable from never having delegated.
+- Environment variables set to a `foundation-model` ARN now resolve. An opaque `application-inference-profile` id still does not: guessing at it is how wrong prices enter the ledger.
+
+If the detection is wrong, pin it with `claude-token-saver mode ttl=5m` (or `ttl=1h`). An explicit value outranks the measurement.
+
+### LiteLLM: your key budget stands in for the missing 5h/7d caps (v3.35.0)
+
+Behind a LiteLLM proxy (Bedrock and friends), Claude Code's stdin never carries `rate_limits`, so the `✦ current` / `📅 weekly` gauges simply do not exist. LiteLLM does track per-key budgets, so the statusline draws a budget gauge in their place.
+
+- Detection: `ANTHROPIC_BASE_URL` points somewhere other than the official endpoint, and `ANTHROPIC_AUTH_TOKEN` (or `ANTHROPIC_API_KEY`) is set.
+- The proxy is asked via `GET /key/info` and `GET /user/info` — only the calling key's own data. Renders read a cache file; a detached background process refreshes it every 5 minutes (same shape as the update check), so the statusline never waits on the network.
+- Budget source priority follows real-world usage: the **team-membership budget** (`team_memberships[].spend` + its linked budget table row) first, then the key's own `max_budget`, then the internal-user budget. Verified against a Dockerized LiteLLM, including memberships whose budget diverges from the team max into a separate budget-table row.
+- Unlimited keys (no `max_budget`) get no gauge. The `💵` monthly-spend segment still shows, since it comes from session logs.
+- Inspect with `claude-token-saver litellm-budget` (cached) or `litellm-budget --refresh` (query now).
+
+One related non-bug: if your session model is already sonnet, a sonnet-delegation (T1) rule can never save anything, because there is no price gap to capture. That is correct, but `route-scan rules` displayed it identically to "no delegations yet", so it now says outright that the rule does not apply at the current default model.
+
+## Spike issue codes
+
+| Code | Meaning |
+|---|---|
+| `LARGE_INPUT_PER_REQUEST` | single request > 200k input tokens — per-turn re-billing and cap burn spike |
+| `LOW_HIT_RATE` | cache hit rate < 50% |
+| `BUCKET_5M_DOMINANT` | > 70% of cache writes hit the 5m bucket |
+| `HIGH_OUTPUT_RATIO` | output/input > 0.15 (output is 5× input price) |
+| `HIGH_REQUEST_COUNT` | session made 3×+ your median (tool loop?) |
+| `FREQUENT_CACHE_REBUILD` | `cache_creation` > `cache_read` |
+
+Remediation commands are OS-aware (`~/.zshrc` for macOS/Linux/WSL, `setx` for Windows).
+
+## Real-world impact — before/after report
+
+![claude-token-saver — harness + ratchet adoption impact](./docs/harness-impact.png)
+
+harness 5/5 + ratchet applied to the author's own Claude Code work, normalized **per user message** (cutoff 2026-05-02, Opus 4.7 pricing):
+
+| metric | before (7d / 739 msgs) | after (2d / 157 msgs) | Δ |
 |---|---:|---:|---:|
-| 메시지당 비용 | $2.345 | $1.910 | **−18.6%** |
-| 메시지당 출력 토큰 | 7,391 | 6,052 | −18.1% |
-| 메시지당 assistant 왕복 | 9.73 | 8.83 | −9.2% |
-| 메시지당 도구 호출 | 5.72 | 5.25 | −8.2% |
+| cost / user message | $2.345 | $1.910 | **−18.6%** |
+| output tokens / message | 7,391 | 6,052 | −18.1% |
+| assistant turns / message | 9.73 | 8.83 | −9.2% |
+| tool calls / message | 5.72 | 5.25 | −8.2% |
 
-같은 요청을 더 적은 왕복으로 끝낸다 = 첫 시도 적중률 ↑. PEV·Structured Task가 한 번에 가게 만든 효과로 보입니다.
+Same request resolved in fewer round-trips → first-try success rate up — the effect of PEV + Structured Task forcing one-shot delivery.
 
 <details>
-<summary>측정 배경: 캐시 히트율을 제외한 이유와 표본에 관한 주의 사항</summary>
+<summary>Measurement notes — why cache hit rate isn't included · sample caveats</summary>
 
-- 저자는 Max 플랜(캐시 TTL 1시간)이라 히트율이 이미 ~98%에 수렴해 개선 여지가 작았습니다. **Pro 플랜(5분 TTL) 사용자는** 만료 직전 handoff 워크플로 조합으로 히트율 자체가 오를 가능성이 큽니다.
-- 만료 직전 handoff 워크플로: statusline TTL 카운트다운을 보다가 만료 직전 `claude-token-saver handoff`로 작업 상태를 백업하고 새 캐시 사이클을 시작. 1M 경고·cap 칩도 같은 흐름으로 처리.
-- ⚠️ 도입 후 데이터는 2일치(157msg)로 통계적 의미가 약하고, 주별 작업 토픽 차이가 섞여 있어 도구 효과만 깨끗이 분리되진 않습니다.
+- The author is on the Max plan (1-hour cache TTL) with hit rate already converged near ~98%, so little headroom there. **Pro-plan users (5-minute TTL)** likely see hit rate itself rise with the handoff-before-expiry workflow.
+- Handoff-before-expiry: watch the TTL countdown, run `claude-token-saver handoff` just before expiry to dump work state into a markdown brief, start a fresh cache cycle. Same flow handles the 1M warning and cap chips.
+- ⚠️ POST window is only 2 days (157 msgs); statistical confidence is low, and week-to-week topic mix differs, so the tool effect isn't cleanly isolated.
 </details>
 
-## 동작 원리 · 환경
+## Pricing (Jul 2026)
 
-Claude Code는 모든 API 응답을 `~/.claude/projects/<dir>/<session>.jsonl`에 기록합니다. 이 도구는 `cache_read_input_tokens`, `cache_creation.ephemeral_5m/1h_input_tokens` 등을 `requestId` 기준으로 중복 제거 후 집계합니다.
+Per million tokens (USD), as used by the cost estimator:
 
-Node.js ≥ 18 · macOS / Linux / Windows / WSL · **의존성 0**.
+| Tier | Models | Input | 5m Write | 1h Write | Read | Output |
+|---|---|---|---|---|---|---|
+| `claude-fable-5` | Fable 5 / Mythos 5 | $10 | $12.50 | $20 | $1 | $50 |
+| `claude-opus-new` | Opus 4.5 / 4.6 / 4.7 / 4.8 | $5 | $6.25 | $10 | $0.50 | $25 |
+| `claude-opus-legacy` | Opus 4 / 4.1 / 3 | $15 | $18.75 | $30 | $1.50 | $75 |
+| `claude-sonnet` | Sonnet 3.7 / 4 / 4.5 / 4.6 / 5 | $3 | $3.75 | $6 | $0.30 | $15 |
+| `claude-haiku-4-5` | Haiku 4.5 | $1 | $1.25 | $2 | $0.10 | $5 |
+
+Source: [Anthropic pricing docs](https://platform.claude.com/docs/en/about-claude/pricing). Sonnet 5 has an introductory $2/$10 rate through 2026-08-31; the estimator uses the standard sticker. Versions ≤ 2.16.x priced Fable 5 at the Sonnet tier (~3× under-estimate) — upgrade to 2.17.0+.
+
+### Cache TTL by plan
+
+| Plan | TTL | Controlled by |
+|---|---|---|
+| Max ($100–200/mo) | **1h auto** | `tengu_prompt_cache_1h_config` flag |
+| Pro ($20/mo) | **5m fixed** | not configurable |
+| API key | 5m default (1h via beta header) | `cache_control.ttl` |
+
+## How it works · Environment
+
+Claude Code logs every API call to `~/.claude/projects/<dir>/<session>.jsonl`. This tool dedupes streaming chunks by `requestId` and aggregates `cache_read_input_tokens` / `cache_creation.ephemeral_5m/1h_input_tokens` by day and session.
+
+Node.js ≥ 18 · macOS / Linux / Windows / WSL · **zero dependencies**.
 
 <details>
-<summary>알려진 환경 이슈 · 마이그레이션</summary>
+<summary>Known quirks · Migration · Background</summary>
 
-**IntelliJ Claude Code plugin:** statusline 위젯이 프레임을 잘못 합성해 `59:548` 같은 잔재가 보이는 버그가 있습니다(이모지 출력에서만). v2.8.5+는 `TERMINAL_EMULATOR=JetBrains-JediTerm` 감지 시 자동으로 text 모드 폴백합니다.
+**IntelliJ Claude Code plugin** — the statusline widget fuses frames at the character level when emoji are present (`59:548` artifacts). v2.8.5+ detects `TERMINAL_EMULATOR=JetBrains-JediTerm` and falls back to text mode automatically.
 
-**TTL 카운트다운이 멈춰 보일 때:** 카운트다운이 입력 없이도 초 단위로 줄어들려면 Claude Code 가 statusline 명령을 주기적으로 다시 실행해야 하고, 그 주기는 `~/.claude/settings.json` 의 `statusLine.refreshInterval`(초 단위, v2.1.97 이상)이 정합니다. 이 값이 없으면 대화가 갱신될 때만 다시 그려져서 멈춘 것처럼 보입니다. 터미널마다 동작이 다르면 세 가지를 확인하십시오. ① 그 머신의 Claude Code 버전이 2.1.97 이상인지, ② 프로젝트 `.claude/settings.json` 이나 `settings.local.json` 이 `statusLine` 을 refreshInterval 없이 덮어쓰고 있지 않은지, ③ statusline 래퍼가 PATH 에서 `claude-token-saver` 를 찾지 못해 매 렌더마다 `npx` 폴백으로 수 초씩 걸리고 있지 않은지 (비로그인 셸에서 nvm 이 로드되지 않는 터미널이 여기에 해당합니다). `claude-token-saver install` 을 다시 실행하면 refreshInterval 을 5초로 복구합니다.
+**If the countdown looks frozen:** ticking while idle requires Claude Code to re-run the statusline command on a timer, controlled by `statusLine.refreshInterval` (seconds, Claude Code v2.1.97+) in `~/.claude/settings.json`. Without it the line only redraws when the conversation updates. If behavior differs per terminal, check three things: ① that machine's Claude Code is ≥ 2.1.97; ② no project `.claude/settings.json` / `settings.local.json` overrides `statusLine` without a refreshInterval; ③ the statusline wrapper actually finds `claude-token-saver` on PATH instead of falling back to a multi-second `npx` run on every render (typical when nvm is not loaded in non-login shells). Re-running `claude-token-saver install` restores refreshInterval=5.
 
-**claude-cache-monitor에서 마이그레이션:**
+**Migration from claude-cache-monitor:**
 ```bash
 npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 ```
-`~/.claude/settings.json`의 `statusLine.command`도 `claude-token-saver …`로 교체하세요.
+Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-saver …`.
+
+**Background:** [GitHub Issue #46829](https://github.com/anthropics/claude-code/issues/46829) (cache TTL regression) · [HN discussion](https://news.ycombinator.com/item?id=47736476)
 </details>
 
-## 릴리스 노트
+## Release notes
 
-전체 내역은 [CHANGELOG.md](./CHANGELOG.md)로 옮겼습니다. 최근 변경은 다음과 같습니다.
+The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headings and command names are language-neutral). Recent changes:
 
-- **v3.35.0**: 이번 달 1일 00시 이후 지출 추정치를 `💵 Sep $42` 세그먼트로 상시 표시합니다. LiteLLM 게이트웨이 사용자는 키의 max_budget/spend 를 `🔑 budget` 게이지로 봅니다 (5h/7d cap 이 없는 Bedrock·LiteLLM 환경 대응).
-- **v3.34.0**: seed 프리셋 제안, 설치 시 출력 언어 선택, 컨텍스트 경고 500k 상향. 상세는 CHANGELOG 참고.
+- **v3.35.0**: A `💵 Sep $42` segment now shows estimated spend since 00:00 on the 1st of the current month, always on — including gateway setups with no 5h/7d caps. LiteLLM gateway users get a `🔑 budget ▰▱ 34% $34/$100` gauge built from the key's budget (`GET /key/info` + `GET /user/info`, team-membership budget first, then key, then internal user — verified against a Dockerized LiteLLM).
+- **v3.34.0**: seed presets offered one at a time, output-language choice at install, context warning raised to 500k.
 
-## 라이선스
+## License
 
 MIT
 
 ---
 
-## 만든 곳
+## Who makes this
 
 [![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
 [![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
 [![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
 
-AI 개발 도구를 다루는 채널 **DeepPulse**에서 만들고 씁니다. 이 도구의 배경과 사용법은 [출시 영상(60초)](https://www.youtube.com/shorts/RaD8qMsPTnA)에서 볼 수 있습니다.
+Built and used at **DeepPulse**, a channel about AI developer tooling. The [launch Short (60s)](https://www.youtube.com/shorts/RaD8qMsPTnA) covers where this came from and how it is used.

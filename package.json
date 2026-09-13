@@ -17,7 +17,7 @@
     "presets/",
     "examples/",
     "README.md",
-    "README.en.md",
+    "README.ko.md",
     "LICENSE"
   ],
   "engines": {

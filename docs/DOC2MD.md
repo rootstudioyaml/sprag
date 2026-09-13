@@ -1,6 +1,6 @@
 # doc2md 상세 문서
 
-doc2md 의 절감 산정 기준, `.fig` 변환, 문서 수정 절차, DRM·암호 문서 처리, Windows 지원을 다룹니다. 기능 개요는 [README 의 doc2md 절](../README.md#-doc2md-문서를-읽기-전에-markdown-으로-바꿉니다)에 있습니다.
+doc2md 의 절감 산정 기준, `.fig` 변환, 문서 수정 절차, DRM·암호 문서 처리, Windows 지원을 다룹니다. 기능 개요는 [README 의 doc2md 절](../README.ko.md#-doc2md-문서를-읽기-전에-markdown-으로-바꿉니다)에 있습니다.
 
 ### 변환이 얼마를 아끼는지
 
