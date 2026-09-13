@@ -610,7 +610,7 @@ npm uninstall -g claude-cache-monitor && npm i -g claude-token-saver
 
 ## 피드백
 
-버그 제보와 기능 제안은 GitHub 이슈로 받습니다: https://github.com/rootstudioyaml/claude-token-saver/issues
+버그 제보와 기능 제안은 GitHub 이슈로 받습니다: https://github.com/rootstudioyaml/sprag/issues
 
 브라우저나 GitHub 로그인이 어려운 환경(사내망, 세션 도중)이라면 터미널에서 바로 제출할 수 있고, Claude에게 대신 제출해 달라고 요청해도 됩니다.
 

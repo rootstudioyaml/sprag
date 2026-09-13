@@ -4,6 +4,7 @@
   "description": "Route the easy work your expensive Claude model keeps repeating down to haiku/sonnet — post-hoc session analysis, no realtime router, no extra LLM calls.",
   "type": "module",
   "bin": {
+    "sprag": "bin/cli.js",
     "claude-token-saver": "bin/cli.js"
   },
   "scripts": {
@@ -48,11 +49,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rootstudioyaml/claude-token-saver.git"
+    "url": "git+https://github.com/rootstudioyaml/sprag.git"
   },
   "homepage": "https://sprag.io",
   "bugs": {
-    "url": "https://github.com/rootstudioyaml/claude-token-saver/issues"
+    "url": "https://github.com/rootstudioyaml/sprag/issues"
   },
   "author": "DeepPulse (https://www.youtube.com/@DeepPulseKR)"
 }

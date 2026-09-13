@@ -731,7 +731,7 @@ The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headin
 
 ## Feedback
 
-Found a bug, or want a feature? Open an issue: https://github.com/rootstudioyaml/claude-token-saver/issues
+Found a bug, or want a feature? Open an issue: https://github.com/rootstudioyaml/sprag/issues
 
 No browser or GitHub login handy (corporate network, mid-session)? Submit straight from the terminal — or ask Claude to do it for you:
 
