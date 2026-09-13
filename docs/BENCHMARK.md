@@ -37,6 +37,18 @@ represent directly (it contains a single Claude model).
 
 ## Result
 
+```text
+                        accuracy          total cost (lower is better)
+tier-criteria router    59.1%  ← best     $268  ▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱
+gemini-2.5-pro          57.9%             $734  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+gpt-5                   57.8%             $388  ▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱
+qwen3-235b-a22b-2507    52.4%             $ 21  ▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱
+random                  45.9%             $172  ▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱
+oracle (upper bound)    81.2%             $ 77  ▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱
+```
+
+Cost bars are linear against the most expensive model ($734 = full bar).
+
 | Router / model | AvgAcc | Total cost |
 |---|---|---|
 | Oracle (upper bound) | 81.2% | $77 |

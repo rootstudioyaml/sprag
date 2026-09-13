@@ -21,6 +21,13 @@ Four numbers are the whole pitch.
 - **18.6% lower cost**: measured before/after adopting the Harness principles ([evidence](#real-world-impact--beforeafter-report))
 - **Routing savings are a per-run ledger**: the price difference of each delegated run, not an estimate ([evidence](#-the-savings-figure-is-a-ledger-entry-not-an-estimate))
 
+```text
+                      accuracy          total cost, 11,696 queries
+tier-criteria router  59.1%  ← best     $268  ▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱
+gpt-5                 57.8%             $388  ▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱
+gemini-2.5-pro        57.9%             $734  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+```
+
 Since v3.35.0 spend is visible too: month-to-date spend shows as `💵 Sep $42`, and on LiteLLM gateways (Bedrock and friends) with no 5h/7d caps, your key budget renders as a `🔑 budget ▰▱ 34% $34/$100` gauge.
 
 ## Four parts, working together
