@@ -49,6 +49,26 @@
   a:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:4px}
   .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
 
+  .numbers{border-block:1px solid var(--line);background:rgba(255,255,255,.012)}
+  .nwrap{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;padding:0}
+  .num{padding:26px 24px;border-left:1px solid var(--line)}
+  .num:first-child{border-left:0}
+  .num b{display:block;font-family:var(--disp);font-size:30px;letter-spacing:-.02em;color:var(--ink)}
+  .num span{display:block;margin-top:6px;font-size:12.5px;color:var(--faint);line-height:1.5}
+  @media(max-width:860px){.nwrap{grid-template-columns:1fr 1fr}.num{border-left:0}}
+  .faqs{margin-top:28px;border-top:1px solid var(--line)}
+  .faqs details{border-bottom:1px solid var(--line)}
+  .faqs summary{cursor:pointer;padding:18px 4px;font-size:15px;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  .faqs summary::after{content:"+";color:var(--faint);font-family:var(--mono);font-size:16px}
+  .faqs details[open] summary::after{content:"−"}
+  .faqs summary:hover{color:var(--amber)}
+  .faqs p{padding:0 4px 18px;color:var(--dim);font-size:14px;line-height:1.7;max-width:70ch}
+  .faqs a{color:var(--amber);text-decoration:underline;text-underline-offset:3px}
+  .cta{text-align:center;padding:72px 0 84px;border-top:1px solid var(--line);position:relative;overflow:hidden}
+  .cta::before{content:"";position:absolute;left:50%;bottom:-160px;width:760px;height:320px;transform:translateX(-50%);
+    background:radial-gradient(ellipse at center, rgba(255,176,32,.10), transparent 68%);pointer-events:none}
+  .cta h2{margin:0 auto;max-width:30ch}
+  .cta .actions{margin-top:28px}
   /* header */
   header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);
          background:rgba(9,9,11,.82);backdrop-filter:blur(12px)}
@@ -175,10 +195,14 @@
   @media(max-width:720px){.term pre{font-size:11px}}
 
   /* sections */
-  section{padding:86px 0;border-top:1px solid var(--line)}
+  section{padding:104px 0;border-top:1px solid var(--line)}
   .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    display:inline-flex;align-items:center;gap:8px}
+  .eyebrow::before{content:"";width:7px;height:7px;border-radius:2px;background:var(--amber);
+    box-shadow:0 0 10px rgba(255,176,32,.6)}
+  .eyebrow-x{
     color:var(--amber);margin-bottom:14px}
-  h2{font-family:var(--disp);font-size:clamp(24px,3vw,32px);letter-spacing:-.025em;font-weight:600;line-height:1.2;max-width:24ch}
+  h2{font-family:var(--disp);font-size:clamp(24px,3vw,32px);letter-spacing:-.025em;font-weight:600;line-height:1.2;max-width:30ch}
   .lede{margin-top:14px;color:var(--dim);font-size:15.5px;max-width:66ch;line-height:1.7}
 
 
@@ -419,10 +443,19 @@ saved over 30 days                                   <span class="hl">$147.33</s
   </div>
 </div>
 
+<section class="numbers reveal">
+  <div class="wrap nwrap">
+    <div class="num"><b>59.1%</b><span data-k="nb.1">benchmark accuracy · beats every single model in the pool</span></div>
+    <div class="num"><b>95.8%</b><span data-k="nb.2">fewer tokens per document read through doc2md</span></div>
+    <div class="num"><b>−18.6%</b><span data-k="nb.3">measured cost after adopting the harness principles</span></div>
+    <div class="num"><b>0</b><span data-k="nb.4">runtime dependencies · one npm install</span></div>
+  </div>
+</section>
+
 <section id="how" class="reveal">
   <div class="wrap">
     <div class="eyebrow" data-k="how.eyebrow">How it works</div>
-    <h2 data-k="how.h2">Three things happen while you work</h2>
+    <h2 data-k="how.h2">It learns from the sessions you already ran</h2>
 
     <div class="flow" role="img" aria-label="What Sprag does with a session: rules, sub-agent delegation, document conversion, Korean prose gates and telemetry">
       <svg viewBox="0 0 1160 744" preserveAspectRatio="xMidYMid meet">
@@ -674,7 +707,7 @@ saved over 30 days                                   <span class="hl">$147.33</s
 <section id="routing" class="reveal">
   <div class="wrap">
     <div class="eyebrow" data-k="rt.eyebrow">Routing</div>
-    <h2 data-k="rt.h2">Delegation, decided by what already happened</h2>
+    <h2 data-k="rt.h2">Stop paying flagship prices for work a cheaper tier already proved it can do</h2>
     <p class="lede" data-k="rt.lede">Sprag does not swap your model. It reads what you have already run, finds the kinds of task that never went wrong on a cheaper tier, and spawns a sub-agent for exactly those. The sub-agent returns its output to the main agent, which reviews it before anything counts as done. Every rule carries the error rate it was measured at, and the work comes straight back to the main agent the moment a rule stops holding.</p>
     <table class="split">
       <thead><tr><th data-k="rt.th1">Tier</th><th data-k="rt.th2">Share</th><th data-k="rt.th3">Goes there</th><th data-k="rt.th4">Why it is safe</th></tr></thead>
@@ -732,7 +765,7 @@ saved over 30 days                                   <span class="hl">$147.33</s
 <section id="features" class="reveal">
   <div class="wrap">
     <div class="eyebrow" data-k="ft.eyebrow">Features</div>
-    <h2 data-k="ft.h2">What ships today</h2>
+    <h2 data-k="ft.h2">Everything ships in one install, working from day one</h2>
     <div class="cards">
       <div class="card">
         <h3><svg class="ic"><use href="#i-ratchet"/></svg> <span data-k="ft.c1h">Ratchet rules</span></h3>
@@ -763,6 +796,33 @@ saved over 30 days                                   <span class="hl">$147.33</s
   </div>
 </section>
 
+<section id="faq" class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">FAQ</div>
+    <h2 data-k="fq.h2">Questions people ask first</h2>
+    <div class="faqs">
+      <details><summary data-k="fq.q1">Is this the same tool as claude-token-saver?</summary>
+        <p data-k="fq.a1">Yes. Sprag is the new name; the npm package is <code>sprag-cli</code>, and the <code>claude-token-saver</code> package keeps receiving the same releases so nothing breaks.</p></details>
+      <details><summary data-k="fq.q2">Does it call an LLM or need an API key?</summary>
+        <p data-k="fq.a2">No. Everything is post-hoc analysis of the session logs Claude Code already writes on your machine. No extra model calls, no key, no telemetry leaves your computer.</p></details>
+      <details><summary data-k="fq.q3">Will it change how I prompt?</summary>
+        <p data-k="fq.a3">No. It installs hooks and a statusline once, then works from what you already do. Rules, delegation, and warnings show up inside your normal sessions.</p></details>
+      <details><summary data-k="fq.q4">Where do the savings numbers come from?</summary>
+        <p data-k="fq.a4">Each delegated run writes a ledger entry with the actual price difference. The tier criteria behind the routing are benchmarked on public data; the method is in <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="cta reveal">
+  <div class="wrap">
+    <h2 data-k="cta.h2">Install it once. Every session after gets safer and cheaper.</h2>
+    <div class="actions">
+      <span class="install"><code><span class="p">$</span> npm i -g sprag-cli</code><button id="ctacopy" data-k="hero.copy">Copy</button></span>
+      <a class="btn" href="https://github.com/rootstudioyaml/sprag" data-k="cta.gh">Star on GitHub</a>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="wrap">
     <span>MIT © YAML Studio</span>
@@ -790,6 +850,21 @@ const KO = {
   'fl.k5':'비용을 프롬프트에 띄웁니다',
   'fl.b0':'위임 · 다른 에이전트가 일을 하고 결과를 돌려줍니다',
   'fl.b2':'모델 피팅 룰이 맞았습니다',
+  'nb.1':'벤치마크 정답률 · 풀 안의 모든 단일 모델보다 높습니다',
+  'nb.2':'doc2md를 거친 문서 읽기의 토큰 절감률',
+  'nb.3':'하네스 원칙 도입 후 실측한 비용 변화',
+  'nb.4':'런타임 의존성 · npm 설치 한 번',
+  'fq.h2':'가장 먼저 나오는 질문들',
+  'fq.q1':'claude-token-saver와 같은 도구인가요?',
+  'fq.a1':'네. Sprag가 새 이름이고 npm 패키지는 <code>sprag-cli</code>입니다. <code>claude-token-saver</code> 패키지도 같은 릴리스를 계속 받으므로 기존 설치는 그대로 동작합니다.',
+  'fq.q2':'LLM을 호출하거나 API 키가 필요한가요?',
+  'fq.a2':'아니요. Claude Code가 이미 내 컴퓨터에 남기는 세션 로그를 사후 분석할 뿐입니다. 추가 모델 호출도, 키도 없고, 데이터가 밖으로 나가지 않습니다.',
+  'fq.q3':'프롬프트 습관을 바꿔야 하나요?',
+  'fq.a3':'아니요. 설치 때 hook과 statusline을 한 번 등록하면, 지금 하던 방식 그대로 쓰는 동안 규칙·위임·경고가 세션 안에 나타납니다.',
+  'fq.q4':'절감액 수치는 어디서 나오나요?',
+  'fq.a4':'위임 실행마다 실제 가격 차이가 장부에 한 줄씩 기록됩니다. 라우팅 기준은 공개 데이터로 벤치마크했고, 방법은 <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>에 있습니다.',
+  'cta.h2':'설치는 한 번, 그다음 모든 세션이 더 안전하고 저렴해집니다',
+  'cta.gh':'GitHub에서 스타 누르기',
   'rt.crit.h':'티어는 어떻게 정해지나 · 모든 룰이 공유하는 기준',
   'rt.crit.lede':'이 기준은 생성되는 <code>ratchet-model.md</code>의 룰 목록 위에 함께 들어가서, 에이전트가 위임할 때마다 적용합니다. 수치는 가정이 아니라 실측입니다.',
   'rt.cite':'수치는 <a href="https://github.com/ynulihao/LLMRouterBench">LLMRouterBench</a>(Findings of ACL 2026) 공개 데이터 11,696건(9개 데이터셋)으로 오프라인 실측한 값입니다. 도구 체인 격차는 τ²-Bench, 지식 회상은 SimpleQA 계열에서 나왔고, 방법과 홀드아웃 검증은 <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>에 있습니다.',
@@ -827,7 +902,7 @@ const KO = {
   'hero.caption':'실제 출력입니다. 아직 없는 기능을 그럴듯하게 꾸며 넣지 않았습니다.',
 
   'how.eyebrow':'작동 방식',
-  'how.h2':'작업하는 동안 세 가지가 일어납니다',
+  'how.h2':'이미 돌린 세션에서 배웁니다',
   'how.lede':'설치는 한 번이면 됩니다. 이미 쓰고 있는 세션을 그대로 읽으므로, 프롬프트를 쓰는 방식을 바꾸라고 요구하지 않습니다.',
   'how.s1h':'되풀이된 실패가 규칙이 됩니다',
   'how.s1p':'처음 겪는 실패는 그냥 작업입니다. 같은 실패가 두 번째로 나타나면 Sprag가 규칙 후보로 알립니다. 적용 범위를 승인하면 그 뒤로는 세션이 시작될 때마다 규칙이 함께 올라옵니다.',
@@ -837,7 +912,7 @@ const KO = {
   'how.s3p':'캐시 적중률과 TTL 만료, 컨텍스트 증가, 두 가지 사용량 한도를 매 턴 읽어 statusline에 띄웁니다. 아직 손쓸 수 있을 때 보입니다.',
 
   'rt.eyebrow':'라우팅',
-  'rt.h2':'이미 일어난 일을 근거로 위임합니다',
+  'rt.h2':'싼 티어가 이미 해낸 일에 플래그십 가격을 내지 마세요',
   'rt.lede':'Sprag는 쓰던 모델을 바꿔치기하지 않습니다. 이미 실행한 기록을 읽어 저렴한 티어에서 한 번도 어긋나지 않은 작업 유형을 찾아내고, 바로 그런 작업에만 하위 에이전트를 띄웁니다. 하위 에이전트는 결과를 메인 에이전트에게 돌려주고, 메인이 확인해야 완료로 칩니다. 규칙마다 측정한 오류율이 함께 붙어 있고, 규칙이 더 이상 맞지 않으면 작업은 곧바로 메인 에이전트에게 돌아옵니다.',
   'rt.th1':'티어', 'rt.th2':'비중', 'rt.th3':'맡는 일', 'rt.th4':'안전한 이유',
   'rt.r1a':'조회 · 상태 확인 · 테스트와 린트 실행<span class="why">haiku-runner 하위 에이전트</span>',
@@ -847,7 +922,7 @@ const KO = {
   'rt.r3a':'진단 · 설계 · 보안 · 되돌릴 수 없는 작업<span class="why">위임하지 않습니다</span>',
   'rt.r3b':'여기서 잘못된 판단을 잡아 줄 장치는 사용자뿐입니다<span class="why">아무리 일상적으로 보여도 위임하지 않습니다</span>',
 
-  'ft.eyebrow':'기능', 'ft.h2':'지금 제공하는 기능',
+  'ft.eyebrow':'기능', 'ft.h2':'설치 한 번에 전부 들어 있고, 첫날부터 동작합니다',
   'ft.c1h':'래칫 규칙',
   'ft.c1p':'되풀이된 실패가 한 줄짜리 규칙이 되어 매 세션에 올라옵니다. 후보는 기록에서 자동으로 찾아 주고, 프로젝트 범위와 전역 범위 중 어느 쪽에 넣을지는 사용자가 고릅니다.',
   'ft.c2h':'모델 피팅',
@@ -1008,6 +1083,11 @@ if(!REDUCED){
 }
 
 /* machined tick ring around the part */
+(function ctacopy(){
+  const b=document.getElementById('ctacopy');
+  if(b) b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText('npm i -g sprag-cli');}catch(e){}
+    const t=b.textContent;b.textContent='✓';setTimeout(()=>b.textContent=t,1200);});
+})();
 (function rm(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)
     document.querySelectorAll('.flow animateTransform').forEach(n=>n.remove());
