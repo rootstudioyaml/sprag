@@ -277,12 +277,18 @@ test('renderModelRatchet carries the shared tier criteria block in both language
   assert.match(ko, /도구 오케스트레이션/);
   assert.match(ko, /답의 출처/);
   assert.match(ko, /구현 분업/);
+  assert.match(ko, /위임 배치/);
+  assert.match(ko, /loud\/silent 구분/);
+  assert.match(ko, /50줄 이하/);
   assert.match(ko, /① 재지시 후 재시도/);
   const en = renderModelRatchet([{ ...baseRule, tier: 'T2', rule: 'r2' }], 'en');
   assert.match(en, /## Tier criteria/);
   assert.match(en, /Tool orchestration/);
   assert.match(en, /Answer source/);
   assert.match(en, /Implementation split/);
+  assert.match(en, /Batching/);
+  assert.match(en, /loud vs silent failure/);
+  assert.match(en, /50 lines or less/);
   assert.match(en, /move up one tier/);
 });
 
