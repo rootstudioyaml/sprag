@@ -181,7 +181,7 @@ export function koreanStyleInjection({ cfg = loadConfig() } = {}) {
   if (!text) return null;
   return [
     '[sprag korean-style] 이 세션에서 한국어를 출력할 때는 아래 지침을 따르십시오.',
-    '이 지침은 사용자가 claude-token-saver에 설정한 것입니다.',
+    '이 지침은 사용자가 sprag에 설정한 것입니다.',
     ...koreanScopeLines(cfg),
     '표기 규칙(예외 없이 적용): 도구 호출 인자에 한국어를 비롯한 비ASCII 문자열을 담을 때에는 반드시 리터럴 UTF-8로 작성하고, \\uXXXX 유니코드 이스케이프로는 절대 작성하지 마십시오. 이스케이프로 작성하면 글자가 깨진 채 파일에 기록되는 사례가 자주 발생합니다.',
     `(출처: ${KOREAN_STYLE_SOURCE})`,

@@ -49,7 +49,7 @@ export const MODEL_RATCHET_IMPORT_RE = /^@(?:~\/\.claude|\.claude)\/ratchet-mode
 export function harnessClaudeMdBlock(scope = 'project') {
   const sections = HARNESS_SECTIONS.map((s) => s.heading).join('\n\n... (see full block below)');
   return `${HARNESS_BLOCK_BEGIN}
-## 🅷 Harness Rules (claude-token-saver)
+## 🅷 Harness Rules (sprag)
 
 이 섹션은 \`sprag harness init\`이 생성합니다. 5가지 원칙 모두를
 지키면 statusline에 \`🅷 5/5\`로 표시되고, 빠진 게 있으면 \`🅷 3/5\` 식으로
@@ -59,7 +59,7 @@ export function harnessClaudeMdBlock(scope = 'project') {
 ${HARNESS_SECTIONS[0].heading}
 - 같은 에러·오해·반복 작업이 한 번 더 발생하면 즉시 \`.claude/ratchet.md\`에
   "조건 → 행동" 한 줄로 룰 추가.
-- claude-token-saver가 후보를 감지하면 statusline에 \`🅷⚠ ratchet?\`로 알림.
+- sprag가 후보를 감지하면 statusline에 \`🅷⚠ ratchet?\`로 알림.
   \`sprag harness promote "<rule>" --project|--global\`로 승인.
 - **scope는 항상 사용자에게 먼저 물어볼 것** — 프로젝트 한정이면 \`--project\`,
   도구·환경 일반 룰이면 \`--global\`(\`~/.claude/ratchet.md\`). Bash 환경은
@@ -69,7 +69,7 @@ ${HARNESS_SECTIONS[0].heading}
   지우면 ratchet.md는 컨텍스트에 들어오지 않으니 지우지 말 것.
 - **모델 피팅 랫쳇**: \`.claude/ratchet-model.md\`(프로젝트)와
   \`~/.claude/ratchet-model.md\`(글로벌)에 있는 티어 위임 룰도 ratchet.md와
-  동일하게 따를 것. 이 파일은 claude-token-saver가 로그 기반으로 자동
+  동일하게 따를 것. 이 파일은 sprag가 로그 기반으로 자동
   생성·갱신하므로 직접 수정하지 말 것 (관리: \`route-scan rules\`).
 
 ${HARNESS_SECTIONS[1].heading}
@@ -123,7 +123,7 @@ ${HARNESS_BLOCK_END}
 }
 
 export function harnessRatchetMdInitial() {
-  return `# Ratchet Rules (auto-grown by claude-token-saver)
+  return `# Ratchet Rules (auto-grown by sprag)
 
 같은 실수가 두 번 발생하면 여기에 한 줄 추가됩니다. 형식: "YYYY-MM-DD: <조건> → <행동>".
 

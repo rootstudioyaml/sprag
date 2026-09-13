@@ -57,8 +57,8 @@ export async function run({ hasFlag, version }) {
       ? `새 버전이 있습니다: v${version} → ${s.latest}`
       : `Update available: v${version} → ${s.latest}`);
     console.log(lang === 'ko'
-      ? `업그레이드: ${upgradeCommand()}   (또는 claude-token-saver upgrade)`
-      : `Upgrade with: ${upgradeCommand()}   (or: claude-token-saver upgrade)`);
+      ? `업그레이드: ${upgradeCommand()}   (또는 sprag upgrade)`
+      : `Upgrade with: ${upgradeCommand()}   (or: sprag upgrade)`);
     if (s.dismissed) {
       console.log(lang === 'ko'
         ? '이 버전은 사용자가 한 번 넘긴 상태라, 세션 시작 시에는 다시 묻지 않습니다.'

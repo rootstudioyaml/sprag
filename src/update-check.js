@@ -1,5 +1,5 @@
 /**
- * update-check — "is there a newer claude-token-saver?", answered without ever
+ * update-check — "is there a newer sprag?", answered without ever
  * blocking a render.
  *
  * The statusline command runs every ~300ms, so a network call on that path is

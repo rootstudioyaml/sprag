@@ -63,7 +63,7 @@ export async function cohesionInjection({ cfg = loadConfig() } = {}) {
   if (!text) return null;
   return [
     '[sprag cohesion] Follow this guidance for English prose in this session.',
-    'The user enabled it in claude-token-saver.',
+    'The user enabled it in sprag.',
     '',
     text,
   ].join('\n');

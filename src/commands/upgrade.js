@@ -2,8 +2,8 @@
  * Subcommand: upgrade — install the latest release with the package manager
  * that put this copy on disk.
  *
- *   claude-token-saver upgrade          # refresh the check, then install
- *   claude-token-saver upgrade --print  # show the command, run nothing
+ *   sprag upgrade          # refresh the check, then install
+ *   sprag upgrade --print  # show the command, run nothing
  *
  * This is the command the model runs after the user says yes to the
  * session-start offer, so it prints the exact command it is about to execute
@@ -63,6 +63,6 @@ export async function run({ hasFlag, version }) {
   // the statusline chip clears on the next render instead of lingering.
   await refreshUpdateState(s.latest);
   console.log(lang === 'ko'
-    ? `설치가 끝났습니다. 새 셸에서 claude-token-saver --version 으로 ${s.latest} 인지 확인하십시오.`
-    : `Done. In a fresh shell, run claude-token-saver --version to confirm ${s.latest}.`);
+    ? `설치가 끝났습니다. 새 셸에서 sprag --version 으로 ${s.latest} 인지 확인하십시오.`
+    : `Done. In a fresh shell, run sprag --version to confirm ${s.latest}.`);
 }

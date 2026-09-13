@@ -4,8 +4,8 @@
  * session can pick up where this one stopped. Pairs with the cap-warn chip:
  * when statusline shows 🚨 5H 90%+, run this to back up state before the cap
  * hits.
- *   claude-token-saver handoff             # write to cwd
- *   claude-token-saver handoff --cwd PATH  # custom directory
+ *   sprag handoff             # write to cwd
+ *   sprag handoff --cwd PATH  # custom directory
  */
 
 import { readStdinJson, extractCaps } from '../stdin-payload.js';

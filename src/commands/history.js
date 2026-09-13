@@ -2,9 +2,9 @@
  * Subcommand: history — print recent warning transitions captured by the
  * statusline. One markdown file per day, persisted under the platform-
  * specific user-data dir.
- *   claude-token-saver history              # last 7 days
- *   claude-token-saver history --days 30    # custom window
- *   claude-token-saver history --list       # just list available dates
+ *   sprag history              # last 7 days
+ *   sprag history --days 30    # custom window
+ *   sprag history --list       # just list available dates
  */
 
 
