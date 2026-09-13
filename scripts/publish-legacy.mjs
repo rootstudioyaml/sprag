@@ -14,6 +14,11 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const dir = mkdtempSync(join(tmpdir(), 'cts-legacy-'));
 for (const f of [...pkg.files, 'package.json']) cpSync(join(root, f), join(dir, f), { recursive: true });
 pkg.name = 'claude-token-saver';
+// The staging tree carries only `files` — no scripts/ — so lifecycle hooks that
+// call into scripts/ would crash here. They already ran for the real package,
+// and the staged copy is byte-identical, so drop them.
+delete pkg.scripts?.prepublishOnly;
+delete pkg.scripts?.prepare;
 pkg.description = 'Legacy name of sprag-cli (Sprag) - same tool, kept publishing so existing installs stay current. Prefer: npm i -g sprag-cli';
 writeFileSync(join(dir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
 execSync('npm publish', { cwd: dir, stdio: 'inherit' });
