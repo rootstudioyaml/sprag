@@ -217,6 +217,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `claude-token-saver route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
 | `claude-token-saver compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
 | `claude-token-saver korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
+| `claude-token-saver cohesion on\|off\|status\|show` | Inject English cohesion guidance (sentence-connection rules) at session start |
 | `claude-token-saver korean lint block\|warn\|off` | How the write-time check handles findings |
 | `claude-token-saver korean lint scope all\|prose` | Check every text file, or documents only |
 | `claude-token-saver doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
@@ -428,7 +429,7 @@ It adds three layers:
 - **AI-writing tics**: automatic intensifiers ("다양한", "핵심적인"), signpost sentences, rhetorical question-then-answer, unconditionally upbeat endings.
 - **Cohesion** — how sentences connect, which no regex can check. The research finding that shapes this section: surface connectives (conjunctions, demonstratives) correlate *negatively or not at all* with judged text quality, while elaboration — the next sentence picking up and unpacking what the previous one introduced — is the only connection type with a positive correlation. So the guidance says: when a transition feels rough, fix the information order (given before new), don't add a connective.
 
-**Most of the cohesion layer is not Korean-specific.** Given-before-new ordering (the "given-new contract"), one clear referent per pronoun, keeping one subject per paragraph, bridging sentences instead of leaping, and merging choppy repetitive sentences into a modifier-plus-core structure apply to English prose the same way — the studies happen to be about Korean learners, but the principles they validate are the standard cohesion model from text linguistics. If you write English deliverables with Claude, those five rules are worth pinning in your own CLAUDE.md even with this feature off.
+**Most of the cohesion layer is not Korean-specific.** Given-before-new ordering (the "given-new contract"), one clear referent per pronoun, keeping one subject per paragraph, bridging sentences instead of leaping, and merging choppy repetitive sentences into a modifier-plus-core structure apply to English prose the same way — the studies happen to be about Korean learners, but the principles they validate are the standard cohesion model from text linguistics. If you write English deliverables with Claude, run `claude-token-saver cohesion on` — it injects exactly those five rules as a standalone English block (~0.5k tokens per session), no Korean feature required. While `korean on` is active the block is suppressed, because the Korean supplement already carries the same rules.
 
 A final subsection lists what must **not** be "corrected": settled domain terms, formal register, and verbatim quotations — every lint finding is a request to confirm, not a verdict.
 
@@ -722,6 +723,7 @@ Also update `statusLine.command` in `~/.claude/settings.json` to `claude-token-s
 
 The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headings and command names are language-neutral). Recent changes:
 
+- **v3.38.0**: `cohesion on` — the language-neutral cohesion rules from the Korean supplement become a standalone English injection (given-before-new, one referent per pronoun, subject consistency, bridging, merging choppy sentences). Opt-in, ~0.5k tokens per session, suppressed while `korean on` already carries them.
 - **v3.37.0**: Korean guidance grows a conservative supplement (translationese, AI-writing tics, a research-backed cohesion section whose principles apply to English prose too) and the write-time lint gains 5 translationese patterns, validated at 1 false positive across 255 real files.
 - **v3.35.0**: A `💵 Sep $42` segment now shows estimated spend since 00:00 on the 1st of the current month, always on — including gateway setups with no 5h/7d caps. LiteLLM gateway users get a `🔑 budget ▰▱ 34% $34/$100` gauge built from the key's budget (`GET /key/info` + `GET /user/info`, team-membership budget first, then key, then internal user — verified against a Dockerized LiteLLM).
 - **v3.34.0**: seed presets offered one at a time, output-language choice at install, context warning raised to 500k.

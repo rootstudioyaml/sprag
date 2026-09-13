@@ -85,7 +85,7 @@ function readUpdateChip() {
 
 // Subcommands this build knows how to run. Used only by the guard below.
 const KNOWN_SUBCOMMANDS = new Set([
-  'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean',
+  'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
   'seed', 'litellm-budget',
 ]);
@@ -216,6 +216,13 @@ async function main() {
   //   claude-token-saver korean on | off | status | show
   if (args[0] === 'korean') {
     return (await import('../src/commands/korean.js')).run({ args, hasFlag });
+  }
+
+  // Subcommand: cohesion — English sentence-connection guidance injected at
+  // session start; the language-neutral half of the Korean supplement.
+  //   claude-token-saver cohesion on | off | status | show
+  if (args[0] === 'cohesion') {
+    return (await import('../src/commands/cohesion.js')).run({ args, hasFlag });
   }
 
   // Subcommand: doc2md — convert pptx/xlsx/pdf/docx to Markdown before the

@@ -251,6 +251,14 @@ export async function run({ args, hasFlag, numArg }) {
         koreanBlock = koreanStyleInjection();
       } catch (e) { debug('route-scan:korean-style', e); /* style is optional */ }
 
+      // English cohesion guidance, when enabled. Same round-trip; skipped
+      // internally when the Korean guidance already carries the same rules.
+      let cohesionBlock = null;
+      try {
+        const { cohesionInjection } = await import('../cohesion.js');
+        cohesionBlock = await cohesionInjection();
+      } catch (e) { debug('route-scan:cohesion', e); /* the guidance is optional */ }
+
       // doc2md's standing note, only when the user turned the feature on.
       // Rides the same SessionStart round-trip as the style block for the same
       // reason: one injection, one cached prefix. It carries the two things the
@@ -312,6 +320,7 @@ export async function run({ args, hasFlag, numArg }) {
         if (seedBlock) console.log(seedBlock);
         if (doc2mdBlock) console.log(doc2mdBlock);
         if (koreanBlock) console.log(koreanBlock);
+        if (cohesionBlock) console.log(cohesionBlock);
         return; // nothing else to inject
       }
       if (updateBlock) console.log(updateBlock);
@@ -383,6 +392,7 @@ export async function run({ args, hasFlag, numArg }) {
       // Style first, briefing second: the briefing is Korean prose too, so the
       // guidance has to be in context before the model reads it.
       if (koreanBlock) console.log(koreanBlock + '\n');
+      if (cohesionBlock) console.log(cohesionBlock + '\n');
       console.log(lines.join('\n'));
       // Record what was actually briefed so the UserPromptSubmit brief hook
       // suppresses exactly these — a candidate landing after this read (e.g.
