@@ -17,9 +17,11 @@
 
 ---
 
-# Sprag (sprag)
+# Sprag
 
-**Shows what it saved, on two lines.** It moves the easy work your expensive model keeps repeating onto cheaper ones, and turns documents the model cannot read into Markdown. Both figures are ledger entries rather than estimates, and whichever saved more takes the top line. Zero dependencies, one-line install.
+**Your agent stops making the same mistake twice.** Sprag is a command-line harness for Claude Code. It reads your sessions, turns every repeated failure into a rule that loads automatically, routes simple work to cheaper models, and warns you about cache and rate-limit trouble before it costs you a session.
+
+What it saved shows on two lines — routing and document conversion each get their own, ledger entries rather than estimates, and whichever saved more takes the top line. Zero dependencies, one-line install.
 
 ![statusline example — routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](./docs/statusline.png)
 
@@ -45,18 +47,18 @@ gemini-2.5-pro        57.9%             $734  ▰▰▰▰▰▰▰▰▰▰▰�
 
 Since v3.35.0 spend is visible too: month-to-date spend shows as `💵 Sep $42`, and on LiteLLM gateways (Bedrock and friends) with no 5h/7d caps, your key budget renders as a `🔑 budget ▰▱ 34% $34/$100` gauge.
 
-## Four parts, working together
+## Everything ships in one install, working from day one
 
-| | What it does | Effect |
-|---|---|---|
-| 🔀 **Routing** | Delegates recurring easy work to cheaper models | Savings recorded per run in a ledger; criteria [benchmarked](./docs/BENCHMARK.md) on public data |
-| 📄 **Document conversion** | Turns pptx/xlsx/pdf/docx/fig into Markdown before the model reads them | **510,000 tokens** saved on one deck ([below](#-doc2md--documents-become-markdown-before-the-model-reads-them)) |
-| 🅷 **Harness** | Blocks the token-burning habits: unevidenced "done", skipped verification (5 principles) | **−18.6% cost** ([measured](#real-world-impact--beforeafter-report)) |
-| ⚙️ **Ratchet** | Freezes each error you hit into a rule | Same mistake stops recurring |
+| | What it does |
+|---|---|
+| ⚙️ **Ratchet rules** | Repeated failures become one-line rules loaded every session. Candidates are detected from your logs; you choose project or global scope. |
+| 🔀 **Model fitting** | Log-driven delegation rules with measured error rates and reported savings, written to `ratchet-model.md`. Criteria [benchmarked](./docs/BENCHMARK.md) on public data. |
+| 🅷 **Harness score** | Five operating principles checked live ([−18.6% cost, measured](#real-world-impact--beforeafter-report)). Skip the verify step and `🅷 4/5` says so before you report done. |
+| 📊 **Token telemetry** | Cache hit rate, TTL, context size, output spikes and both rate-limit windows, in the prompt every turn. |
+| 📄 **doc2md** | pptx, xlsx, pdf, docx and fig converted on demand, so a document costs a read instead of a context bomb ([510k tokens saved on one deck](#-doc2md--documents-become-markdown-before-the-model-reads-them)). |
+| 🇰🇷 **Style gates** | Write-time prose lint enforced by hook. Shipping today for Korean technical writing: double passives, translationese, cohesion. |
 
-One install sets up all four. The measured −18.6% comes from the harness and ratchet; routing and conversion savings sit on top of it.
-
-The two savings figures are never added together, because they answer different questions. Routing says "the same work ran on a cheaper model". Conversion says "a file you could not read became readable, without pushing the original through the context window". The statusline gives each its own line and puts the larger one first.
+The measured −18.6% comes from the harness and ratchet; routing and conversion savings sit on top of it. The two savings figures are never added together: routing says "the same work ran on a cheaper model", conversion says "a file became readable without pushing the original through the context window". The statusline gives each its own line and puts the larger one first.
 
 ## Contents
 
@@ -149,10 +151,11 @@ By run (newest first):
 
 ## Not a router — 60 seconds
 
-It never intercepts a request in realtime.
-**After a session ends** it reads your local logs, finds the easy patterns your expensive model
-kept handling, and promotes them into rules so a cheaper model takes them **from the next session
-onward**. Rules are scoped global or per-project.
+Sprag installs once, reads the sessions you already run, and does not ask you to change how you prompt. It never intercepts a request or swaps your model in realtime.
+
+1. **A repeat becomes a rule.** The first failure is just work. On the second, Sprag surfaces it as a candidate; you approve the scope, and the rule loads at the start of every session after that.
+2. **Safe work goes to a sub-agent.** When a task matches one your history shows is safe, Sprag spawns a sub-agent on a cheaper tier to do it and hands the result back for review. Anything that fails quietly stays with the main agent.
+3. **Cost trouble shows up early.** Cache hit rate, TTL expiry, context growth and both rate-limit windows are read every turn and printed in your statusline, while you can still act on them.
 
 ### Why realtime model routing can cost more, not less
 
@@ -710,6 +713,16 @@ Source: [Anthropic pricing docs](https://platform.claude.com/docs/en/about-claud
 | Max ($100–200/mo) | **1h auto** | `tengu_prompt_cache_1h_config` flag |
 | Pro ($20/mo) | **5m fixed** | not configurable |
 | API key | 5m default (1h via beta header) | `cache_control.ttl` |
+
+## FAQ
+
+**Is this the same tool as claude-token-saver?** Yes. Sprag is the new name; the npm package is `sprag-cli`, and the `claude-token-saver` package keeps receiving the same releases so nothing breaks.
+
+**Does it call an LLM or need an API key?** No. Everything is post-hoc analysis of the session logs Claude Code already writes on your machine. No extra model calls, no key, no telemetry leaves your computer.
+
+**Will it change how I prompt?** No. It installs hooks and a statusline once, then works from what you already do. Rules, delegation, and warnings show up inside your normal sessions.
+
+**Where do the savings numbers come from?** Each delegated run writes a ledger entry with the actual price difference. The tier criteria behind the routing are benchmarked on public data; the method is in [docs/BENCHMARK.md](./docs/BENCHMARK.md).
 
 ## How it works · Environment
 
