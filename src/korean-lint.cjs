@@ -35,12 +35,21 @@
 // Documents. Under the `prose` scope these are the only files checked.
 const PROSE_EXTENSIONS = new Set(['.md', '.mdx', '.markdown', '.txt', '.rst', '.adoc']);
 
+// HTML is a document a reader receives, so it is checked under BOTH scopes,
+// like prose — but through `stripHtml` first, so tags, comments, and CSS never
+// trip the rules. Script bodies are kept: on a static page the Korean UI copy
+// (i18n dictionaries, template strings) lives exactly there, and that gap is
+// how an em dash shipped to a real landing page unchecked (2026-09-13).
+const HTML_EXTENSIONS = new Set(['.html', '.htm', '.xhtml', '.vue', '.svelte']);
+
 // Only two kinds of path are skipped: installed dependencies and VCS
 // internals, neither of which anyone in this session wrote. Build output is
 // deliberately NOT on this list. Generated artifacts are the files a reader
 // actually receives, so exempting `dist/` or `build/` would exempt the very
 // documents the check exists for.
 const SKIP_PATH = /(^|[\\/])(node_modules|\.git|.*\.min\.[a-z]+|.*-lock\.json|.*\.lock)([\\/]|$)/i;
+// This module and the hook copy that embeds it quote every banned form.
+const SELF_PATH = /(^|[\\/])(korean-lint\.cjs|cache-monitor-hook\.cjs)$/i;
 const BINARY_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.pdf', '.zip', '.gz', '.tar',
   '.mp3', '.mp4', '.wav', '.mov', '.woff', '.woff2', '.ttf', '.otf', '.map', '.bin',
@@ -71,6 +80,18 @@ const METAPHOR_LEXICON = [
   { re: /벽에 부딪|길을 열|문을 열/, fix: '무엇이 막히고 무엇이 가능해지는지 그대로 적습니다' },
   { re: /갈림길|갈리는 지점/, fix: "'결정이 나뉘는 조건'으로 바꿉니다" },
   { re: /깨어나|잠들어 있/, fix: "'동작을 시작하다'·'실행되지 않고 있다'로 바꿉니다" },
+  // Added 2026-09-13. "fails loudly / fails silently" reads as idiom in English
+  // but lands as figurative vocabulary in Korean: a failure has no volume.
+  // 0 hits across 400 Korean files in yaml-sns-agent, so the confirm-request is
+  // not noise.
+  {
+    re: /(?:시끄럽게|시끄러운|조용히|조용한)\s*[가-힣]*(?:실패|틀리|드러나|어긋)|(?:실패|오류|버그)[가은는이]?\s*(?:시끄럽|시끄러운|조용하|조용한)/,
+    fix: "무엇으로 실패를 확인하는지 적습니다. '종료 코드로 바로 드러나는가'·'검증 없이 지나가는가'",
+  },
+  {
+    re: /안전망/,
+    fix: "'검증 수단'·'확인 장치'처럼 무엇이 실패를 잡아내는지 그대로 적습니다",
+  },
 ];
 
 // Guidance 3.2/3.3: literal renderings of English noun phrases.
@@ -111,9 +132,13 @@ const NOMINAL_ENDING = /(?:음|함|됨|임|점|론|양|성|화)\.$/;
 function isLintTarget(filePath, scope = 'all') {
   if (!filePath) return false;
   if (SKIP_PATH.test(filePath)) return false;
+  // The rule table has to spell every banned form out, so this file always
+  // matches its own lexicon. Checking it reports the rules, not a breach.
+  if (SELF_PATH.test(filePath)) return false;
   const dot = filePath.lastIndexOf('.');
   const ext = dot === -1 ? '' : filePath.slice(dot).toLowerCase();
   if (PROSE_EXTENSIONS.has(ext)) return true;
+  if (HTML_EXTENSIONS.has(ext)) return true;
   if (scope !== 'all') return false;
   if (!ext) return false;
   return !BINARY_EXTENSIONS.has(ext);
@@ -122,6 +147,26 @@ function isLintTarget(filePath, scope = 'all') {
 // Kept for callers that only ever meant documents.
 function isProseFile(filePath) {
   return isLintTarget(filePath, 'prose');
+}
+
+function isHtmlFile(filePath) {
+  const dot = String(filePath).lastIndexOf('.');
+  const ext = dot === -1 ? '' : String(filePath).slice(dot).toLowerCase();
+  return HTML_EXTENSIONS.has(ext);
+}
+
+/**
+ * Blank out the parts of an HTML document no reader sees — comments, CSS, and
+ * the tags themselves — while keeping every newline, so finding line numbers
+ * still point into the original file. Script bodies stay: that is where the
+ * page's Korean copy lives on a static site.
+ */
+function stripHtml(text) {
+  const blank = (m) => m.replace(/[^\n]/g, ' ');
+  return String(text)
+    .replace(/<!--[\s\S]*?-->/g, blank)
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, blank)
+    .replace(/<[^>]+>/g, blank);
 }
 
 /** Drop fenced code blocks and inline code so snippets never trip the rules. */
@@ -226,9 +271,12 @@ function lintToolUse(context, { scope = 'all' } = {}) {
   const filePath = toolInput && typeof toolInput.file_path === 'string' ? toolInput.file_path : '';
   if (!isLintTarget(filePath, scope)) return null;
 
-  const text = writtenTextOf(toolName, toolInput);
+  let text = writtenTextOf(toolName, toolInput);
   if (!text || !hasKorean(text)) return null;
 
+  // Edits arrive as fragments, so tag-stripping only applies when the payload
+  // is a whole document; a fragment is still linted, just without stripping.
+  if (isHtmlFile(filePath) && toolName === 'Write') text = stripHtml(text);
   const findings = lintKoreanText(text, { code: !isProseFile(filePath) });
   if (findings.length === 0) return null;
   return { filePath, findings };
@@ -246,6 +294,8 @@ module.exports = {
   METAPHOR_LEXICON,
   isLintTarget,
   isProseFile,
+  isHtmlFile,
+  stripHtml,
   lintKoreanText,
   writtenTextOf,
   lintToolUse,

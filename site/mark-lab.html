@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sprag mark lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#07080b;--ink:#f2f3f6;--muted:#7c8496;--faint:#3a4052;--amber:#ffb020;
+        --mono:"JetBrains Mono",monospace;--sans:"Archivo",sans-serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);padding:48px 34px}
+  h1{font-size:20px;letter-spacing:.02em;margin-bottom:6px}
+  .note{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:34px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1px;background:var(--faint);border:1px solid var(--faint)}
+  .cell{background:var(--bg);padding:26px;display:flex;flex-direction:column;gap:16px}
+  .cell h2{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber)}
+  .cell p{font-size:13px;color:var(--muted);line-height:1.7}
+  .stagebox{height:240px;display:grid;place-items:center}
+  .sizes{display:flex;align-items:center;gap:18px;border-top:1px solid var(--faint);padding-top:14px}
+  .sizes .s{display:grid;place-items:center}
+  .sizes span{font-family:var(--mono);font-size:9px;color:var(--faint);display:block;text-align:center;margin-top:6px}
+</style>
+</head>
+<body>
+<h1>Signature mark — simplification study</h1>
+<p class="note">Same idea at three complexity levels. A mark has to survive 16px; the 14-cam assembly does not.</p>
+
+<div class="grid">
+  <div class="cell">
+    <h2>A · Zdog · 3 cams</h2>
+    <div class="stagebox"><canvas id="zA" width="440" height="440" style="width:220px;height:220px"></canvas></div>
+    <p>Flat-shaded pseudo-3D, 30KB runtime. Reads as a machined part but has only four shapes: ring, three cams. Rotates and locks.</p>
+    <div class="sizes">
+      <div class="s"><canvas id="zA64" width="128" height="128" style="width:64px;height:64px"></canvas><span>64</span></div>
+      <div class="s"><canvas id="zA32" width="64" height="64" style="width:32px;height:32px"></canvas><span>32</span></div>
+      <div class="s"><canvas id="zA16" width="32" height="32" style="width:16px;height:16px"></canvas><span>16</span></div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h2>B · Flat SVG · 3 cams</h2>
+    <div class="stagebox">
+      <svg id="svgB" width="220" height="220" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="86" fill="none" stroke="#3a4052" stroke-width="14"/>
+        <g id="camsB" fill="#ffb020">
+          <g class="cam"><path d="M100 22 l17 10 a30 30 0 0 1 -34 0 z" transform="translate(0,0)"/></g>
+        </g>
+        <circle cx="100" cy="100" r="34" fill="none" stroke="#7c8496" stroke-width="10"/>
+        <circle cx="100" cy="100" r="6" fill="#7c8496"/>
+      </svg>
+    </div>
+    <p>Pure vector, zero runtime. Three wedge cams around a ring. Crispest at small sizes and the only option that works as a favicon or a printed sticker without redrawing.</p>
+    <div class="sizes">
+      <div class="s"><div id="svgB64"></div><span>64</span></div>
+      <div class="s"><div id="svgB32"></div><span>32</span></div>
+      <div class="s"><div id="svgB16"></div><span>16</span></div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h2>C · Zdog · 6 cams + cage</h2>
+    <div class="stagebox"><canvas id="zC" width="440" height="440" style="width:220px;height:220px"></canvas></div>
+    <p>One step more mechanical. Still far simpler than the render, but the cams start to merge below 32px.</p>
+    <div class="sizes">
+      <div class="s"><canvas id="zC64" width="128" height="128" style="width:64px;height:64px"></canvas><span>64</span></div>
+      <div class="s"><canvas id="zC32" width="64" height="64" style="width:32px;height:32px"></canvas><span>32</span></div>
+      <div class="s"><canvas id="zC16" width="32" height="32" style="width:32px;height:32px"></canvas><span>16</span></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/zdog@1/dist/zdog.dist.min.js"></script>
+<script>
+const AMBER='#ffb020', STEEL='#5d6778', DARK='#2b3040';
+
+function makeMark(el, camCount, withCage, zoom){
+  const ill = new Zdog.Illustration({element: el, zoom: zoom, dragRotate:false, resize:false});
+  const root = new Zdog.Anchor({addTo: ill});
+  root.rotate.x = -0.55;
+
+  // outer race
+  new Zdog.Ellipse({addTo: root, diameter: 78, stroke: 13, color: STEEL, fill:false});
+  // hub
+  new Zdog.Ellipse({addTo: root, diameter: 30, stroke: 9, color: DARK, fill:false});
+  new Zdog.Shape({addTo: root, stroke: 7, color: DARK});
+
+  const cams = [];
+  for(let i=0;i<camCount;i++){
+    const a = i/camCount * Zdog.TAU;
+    const holder = new Zdog.Anchor({addTo: root, translate:{x: Math.cos(a)*29, y: Math.sin(a)*29}});
+    holder.rotate.z = a;
+    const cam = new Zdog.Box({
+      addTo: holder, width: 9, height: 15, depth: 11,
+      stroke: 3, color: AMBER, topFace: '#ffc861', bottomFace:'#c77800',
+      leftFace:'#e09410', rightFace:'#e09410',
+    });
+    cam.rotate.z = -0.5;
+    cams.push(cam);
+  }
+  if(withCage){
+    new Zdog.Ellipse({addTo: root, diameter: 58, stroke: 2.4, color: DARK, fill:false, translate:{z: 6}});
+    new Zdog.Ellipse({addTo: root, diameter: 58, stroke: 2.4, color: DARK, fill:false, translate:{z:-6}});
+  }
+  return {ill, root, cams};
+}
+
+const marks = [
+  makeMark(document.querySelector('#zA'), 3, false, 4.4),
+  makeMark(document.querySelector('#zA64'), 3, false, 1.28),
+  makeMark(document.querySelector('#zA32'), 3, false, 0.64),
+  makeMark(document.querySelector('#zA16'), 3, false, 0.32),
+  makeMark(document.querySelector('#zC'), 6, true, 4.4),
+  makeMark(document.querySelector('#zC64'), 6, true, 1.28),
+  makeMark(document.querySelector('#zC32'), 6, true, 0.64),
+  makeMark(document.querySelector('#zC16'), 6, true, 0.32),
+];
+
+/* build the flat SVG cams programmatically so all three share one definition */
+function buildSvgCams(svg, n){
+  const g = svg.querySelector('#camsB') || svg.querySelector('g.cams');
+  g.innerHTML = '';
+  for(let i=0;i<n;i++){
+    const a = i/n*360;
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d','M100 30 l14 22 a26 26 0 0 1 -28 0 z');
+    p.setAttribute('transform', `rotate(${a} 100 100)`);
+    p.setAttribute('fill', AMBER);
+    g.appendChild(p);
+  }
+}
+buildSvgCams(document.querySelector('#svgB'), 3);
+const svgSrc = document.querySelector('#svgB').outerHTML;
+[['#svgB64',64],['#svgB32',32],['#svgB16',16]].forEach(([sel,px])=>{
+  const host = document.querySelector(sel);
+  host.innerHTML = svgSrc;
+  const s = host.querySelector('svg');
+  s.setAttribute('width', px); s.setAttribute('height', px); s.removeAttribute('id');
+});
+
+let t=0, locked=false;
+function frame(){
+  t += 1/60;
+  const cyc = t % 5.0;
+  locked = cyc > 3.2;
+  marks.forEach(m=>{
+    if(!locked) m.root.rotate.z += 0.012;
+    m.cams.forEach((c,i)=>{ c.rotate.z = locked ? 0.3 : -0.5 + Math.sin(t*4+i)*0.04; });
+    m.ill.updateRenderGraph();
+  });
+  const sv = document.querySelectorAll('#svgB, .s svg');
+  sv.forEach(s=>{
+    const g = s.querySelector('#camsB') || s.querySelector('g');
+    if(g) g.setAttribute('transform', `rotate(${locked?0:(t*24)%360} 100 100)`);
+  });
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>

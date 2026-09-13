@@ -142,3 +142,59 @@ test('the additions stay quiet on nearby legitimate forms', () => {
     assert.deepEqual(findings, [], `should not flag: ${text}`);
   }
 });
+
+test('catches "fails loudly / fails silently" in either word order (2026-09-13)', () => {
+  const cases = [
+    '틀리면 시끄럽게 드러나는가',
+    '실패가 시끄러운 작업은 위임해도 됩니다',
+    '조용히 틀리는 작업은 위임하지 않습니다',
+    '오류가 조용한 경우가 가장 위험합니다',
+    '실패 자체가 안전망이기 때문입니다',
+  ];
+  for (const line of cases) {
+    const found = lint.lintKoreanText(line, { scope: 'code' }) || [];
+    assert.ok(found.length > 0, `missed: ${line}`);
+    assert.equal(found[0].rule, '비유 어휘');
+  }
+});
+
+test('the loud/quiet rule stays quiet on literal sound and plain wording', () => {
+  const clean = [
+    '조용한 환경에서 녹음했습니다.',
+    '종료 코드로 바로 드러나는 작업입니다.',
+    '빌드와 테스트가 결과를 검증합니다.',
+  ];
+  for (const line of clean) {
+    assert.deepEqual(lint.lintKoreanText(line, { scope: 'code' }), [], `false positive: ${line}`);
+  }
+});
+
+test('the rule table is exempt from its own lexicon', () => {
+  assert.equal(lint.isLintTarget('src/korean-lint.cjs'), false);
+  assert.equal(lint.isLintTarget('/home/u/.claude/cache-monitor-hook.cjs'), false);
+  assert.equal(lint.isLintTarget('site/index.html'), true);
+});
+
+test('HTML: 마크업 텍스트의 구분자와 번역체가 걸린다', () => {
+  const html = '<p>설계와 스펙은 메인 모델이 확정합니다 — 워커가 씁니다</p>';
+  const out = lint.lintKoreanText(lint.stripHtml(html), { code: true });
+  assert.ok(out.some((f) => f.rule === '구분자'));
+});
+
+test('HTML: 태그·주석·CSS는 걸리지 않고 줄 번호는 보존된다', () => {
+  const html = '<!-- 시끄럽게 실패 -->\n<style>.a{}</style>\n<p>둘째 줄은 깨끗합니다</p>\n<p>보여지는 화면</p>';
+  const out = lint.lintKoreanText(lint.stripHtml(html), { code: true });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].line, 4);
+});
+
+test('HTML: script 안 한국어 문자열도 검사된다', () => {
+  const html = "<script>const KO={a:'토큰을 아낍니다 — 그리고 막습니다'}</script>";
+  const out = lint.lintKoreanText(lint.stripHtml(html), { code: true });
+  assert.ok(out.some((f) => f.rule === '구분자'));
+});
+
+test('HTML: prose 스코프에서도 lint 대상이다', () => {
+  assert.equal(lint.isLintTarget('site/index.html', 'prose'), true);
+  assert.equal(lint.isHtmlFile('site/index.html'), true);
+});

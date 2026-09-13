@@ -86,6 +86,7 @@ export async function run({ args, hasFlag }) {
         console.error(`${file}: ${e.message}`);
         continue;
       }
+      if (lint.isHtmlFile(file)) text = lint.stripHtml(text);
       const findings = lint.lintKoreanText(text, { code: !lint.isProseFile(file) });
       total += findings.length;
       if (findings.length) console.log(lint.formatFindings(file, findings));

@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
 
-🌐 **[Project page](https://rootstudioyaml.github.io/claude-token-saver/)**
+🌐 **[sprag.io](https://sprag.io)** · project site (claude-token-saver is being renamed to **Sprag**)
 
 # claude-token-saver
 
