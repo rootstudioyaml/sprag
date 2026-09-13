@@ -14,10 +14,11 @@
 npm i -g claude-token-saver
 ```
 
-Three numbers are the whole pitch.
+Four numbers are the whole pitch.
 
-- **−18.6% cost**: measured before/after adopting the Harness principles ([evidence](#real-world-impact--beforeafter-report))
-- **510,000 tokens on one document**: a 30MB deck read as Markdown instead of raw XML ([evidence](#-doc2md--documents-become-markdown-before-the-model-reads-them))
+- **Beats every single model on public benchmark data**: the shipped tier criteria score 59.1% on 11,696 LLMRouterBench instances against the best single model's 57.9% — at 31% less than gpt-5, 64% less than gemini-2.5-pro ([benchmark](./docs/BENCHMARK.md))
+- **95.8% fewer tokens per document**: a 30MB deck read as Markdown cost 22,610 tokens instead of 540,429 ([evidence](#-doc2md--documents-become-markdown-before-the-model-reads-them))
+- **18.6% lower cost**: measured before/after adopting the Harness principles ([evidence](#real-world-impact--beforeafter-report))
 - **Routing savings are a per-run ledger**: the price difference of each delegated run, not an estimate ([evidence](#-the-savings-figure-is-a-ledger-entry-not-an-estimate))
 
 Since v3.35.0 spend is visible too: month-to-date spend shows as `💵 Sep $42`, and on LiteLLM gateways (Bedrock and friends) with no 5h/7d caps, your key budget renders as a `🔑 budget ▰▱ 34% $34/$100` gauge.
@@ -26,7 +27,7 @@ Since v3.35.0 spend is visible too: month-to-date spend shows as `💵 Sep $42`,
 
 | | What it does | Effect |
 |---|---|---|
-| 🔀 **Routing** | Delegates recurring easy work to cheaper models | Savings recorded per run in a ledger |
+| 🔀 **Routing** | Delegates recurring easy work to cheaper models | Savings recorded per run in a ledger; criteria [benchmarked](./docs/BENCHMARK.md) on public data |
 | 📄 **Document conversion** | Turns pptx/xlsx/pdf/docx/fig into Markdown before the model reads them | **510,000 tokens** saved on one deck ([below](#-doc2md--documents-become-markdown-before-the-model-reads-them)) |
 | 🅷 **Harness** | Blocks the token-burning habits: unevidenced "done", skipped verification (5 principles) | **−18.6% cost** ([measured](#real-world-impact--beforeafter-report)) |
 | ⚙️ **Ratchet** | Freezes each error you hit into a rule | Same mistake stops recurring |
@@ -38,7 +39,7 @@ The two savings figures are never added together, because they answer different 
 ## Contents
 
 - **Start here**: [Getting started](#getting-started) · [Reading the statusline](#reading-the-statusline) · [Commands](#commands)
-- **Savings**: [The routing ledger](#-the-savings-figure-is-a-ledger-entry-not-an-estimate) · [route-scan](#-route-scan--this-recurring-task-could-run-on-a-cheaper-tier) · [doc2md](#-doc2md--documents-become-markdown-before-the-model-reads-them) · [seed](#-seed-delegation-that-works-from-the-first-session)
+- **Savings**: [The routing ledger](#-the-savings-figure-is-a-ledger-entry-not-an-estimate) · [route-scan](#-route-scan--this-recurring-task-could-run-on-a-cheaper-tier) · [doc2md](#-doc2md--documents-become-markdown-before-the-model-reads-them) · [seed](#-seed-delegation-that-works-from-the-first-session) · [Benchmark](./docs/BENCHMARK.md)
 - **Guardrails**: [Harness](#-harness-mode) · [compact-window](#-compact-window--pin-where-a-1m-session-compacts) · [Korean writing guidance](#-korean-writing-guidance)
 - **Spend & environments**: [Monthly spend · LiteLLM key budget](#litellm-your-key-budget-stands-in-for-the-missing-5h7d-caps-v3350) · [Gateways (Bedrock/Vertex)](#-behind-a-gateway-bedrock--vertex) · [Spike issue codes](#spike-issue-codes) · [Measured impact](#real-world-impact--beforeafter-report)
 
