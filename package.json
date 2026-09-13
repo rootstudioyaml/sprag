@@ -1,6 +1,6 @@
 {
   "name": "sprag-cli",
-  "version": "3.42.4",
+  "version": "3.42.5",
   "description": "Sprag - a quality ratchet harness for AI coding agents: model-fitting delegation, ratchet rules, doc2md, Korean style gate. Same tool as claude-token-saver, under its new name.",
   "type": "module",
   "bin": {
