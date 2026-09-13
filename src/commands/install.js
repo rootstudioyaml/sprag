@@ -3,10 +3,10 @@
  * user can just mention chip wording and Claude responds. v2.6.0 dropped
  * the redundant /token-monitor slash command in favor of the skill alone;
  * a legacy command file is removed automatically. Cross-platform.
- *   claude-token-saver install              # install/update the skill
- *   claude-token-saver install --force      # overwrite existing skill file
- *   claude-token-saver install --yes        # take the defaults instead of asking
- *   claude-token-saver install --no-input   # same as --yes; also implied by CTS_NO_INPUT=1
+ *   sprag install              # install/update the skill
+ *   sprag install --force      # overwrite existing skill file
+ *   sprag install --yes        # take the defaults instead of asking
+ *   sprag install --no-input   # same as --yes; also implied by CTS_NO_INPUT=1
  */
 
 import { debug } from '../debug.js';
@@ -94,8 +94,8 @@ export async function run({ hasFlag }) {
           s = installStatusline({ force: true });
         } else {
           s = { ...s, reason: lang === 'ko'
-            ? '기존 statusline을 유지했습니다. 교체하려면 `claude-token-saver install --force`'
-            : 'kept your statusline — replace later with `claude-token-saver install --force`' };
+            ? '기존 statusline을 유지했습니다. 교체하려면 `sprag install --force`'
+            : 'kept your statusline — replace later with `sprag install --force`' };
         }
       }
       const verb = s.action === 'exists' ? 'already configured (refreshInterval=5)'
@@ -178,8 +178,8 @@ export async function run({ hasFlag }) {
         }
         if (!proceed) {
           console.log(lang === 'ko'
-            ? '  harness: 건너뛰었습니다 — 나중에 `claude-token-saver harness init --global` 로 설정할 수 있습니다.'
-            : '  harness: skipped — set it up later with `claude-token-saver harness init --global`.');
+            ? '  harness: 건너뛰었습니다 — 나중에 `sprag harness init --global` 로 설정할 수 있습니다.'
+            : '  harness: skipped — set it up later with `sprag harness init --global`.');
           throw new SkipStep();
         }
         const h = harnessInit({ scope: 'global' });
@@ -194,8 +194,8 @@ export async function run({ hasFlag }) {
           ? '  harness: 5원칙을 ~/.claude/CLAUDE.md 에 설정했습니다 — statusline에 🅷 5/5 가 표시됩니다.'
           : '  harness: 5 principles installed in ~/.claude/CLAUDE.md — the statusline now shows 🅷 5/5.');
         console.log(lang === 'ko'
-          ? '           되돌리려면: claude-token-saver harness uninit --global'
-          : '           to undo: claude-token-saver harness uninit --global');
+          ? '           되돌리려면: sprag harness uninit --global'
+          : '           to undo: sprag harness uninit --global');
       }
     } catch (e) {
       // A declined prompt already printed its own line; only real failures fall
@@ -206,8 +206,8 @@ export async function run({ hasFlag }) {
       // in place, and `harness init` remains available as a manual step.
       debug('install:harness-init', e);
       console.log(lang === 'ko'
-        ? '  harness: 자동 설정을 건너뛰었습니다 — `claude-token-saver harness init --global` 로 직접 설정하세요.'
-        : '  harness: auto-setup skipped — run `claude-token-saver harness init --global` yourself.');
+        ? '  harness: 자동 설정을 건너뛰었습니다 — `sprag harness init --global` 로 직접 설정하세요.'
+        : '  harness: auto-setup skipped — run `sprag harness init --global` yourself.');
       }
     }
 
@@ -264,12 +264,12 @@ export async function run({ hasFlag }) {
         if (interactive || enable) ks.setKoreanStyleEnabled(enable);
         if (enable) {
           console.log(lang === 'ko'
-            ? '  korean: 켰습니다 — 모든 프로젝트의 세션 시작 시 주입됩니다. 끄려면 `claude-token-saver korean off`.'
-            : '  korean: enabled — injected at session start in every project. Turn off with `claude-token-saver korean off`.');
+            ? '  korean: 켰습니다 — 모든 프로젝트의 세션 시작 시 주입됩니다. 끄려면 `sprag korean off`.'
+            : '  korean: enabled — injected at session start in every project. Turn off with `sprag korean off`.');
         } else {
           console.log(lang === 'ko'
-            ? '  korean: 꺼 두었습니다 — 나중에 `claude-token-saver korean on` 으로 켤 수 있습니다.'
-            : '  korean: left off — enable later with `claude-token-saver korean on`.');
+            ? '  korean: 꺼 두었습니다 — 나중에 `sprag korean on` 으로 켤 수 있습니다.'
+            : '  korean: left off — enable later with `sprag korean on`.');
         }
       }
     } catch (e) {

@@ -1,11 +1,11 @@
 /**
  * Subcommand: harness — manage the project's CLAUDE.md harness rules.
- *   claude-token-saver harness init       # write CLAUDE.md (5 sections) + ratchet.md
- *   claude-token-saver harness uninit     # remove harness block from CLAUDE.md (backup kept)
- *   claude-token-saver harness check      # show 🅷 N/5 + which sections are missing
- *   claude-token-saver harness promote "<rule>"  # append a rule to ratchet.md
- *   claude-token-saver harness pull [--global|--project]  # register the package's curated preset rules (default global)
- *   claude-token-saver harness off | on   # toggle the statusline 🅷 segment
+ *   sprag harness init       # write CLAUDE.md (5 sections) + ratchet.md
+ *   sprag harness uninit     # remove harness block from CLAUDE.md (backup kept)
+ *   sprag harness check      # show 🅷 N/5 + which sections are missing
+ *   sprag harness promote "<rule>"  # append a rule to ratchet.md
+ *   sprag harness pull [--global|--project]  # register the package's curated preset rules (default global)
+ *   sprag harness off | on   # toggle the statusline 🅷 segment
  */
 
 import { debug } from '../debug.js';
@@ -49,8 +49,8 @@ export async function run({ args, hasFlag }) {
           const sec = HARNESS_SECTIONS.find((x) => x.id === id);
           console.log(`  - ${id}: ${sec ? sec.heading.replace(/^#+\s*/, '') : ''}`);
         }
-        console.log('\nRun: claude-token-saver harness init        (this project)');
-        console.log('  or: claude-token-saver harness init --global  (all projects, ~/.claude/CLAUDE.md)');
+        console.log('\nRun: sprag harness init        (this project)');
+        console.log('  or: sprag harness init --global  (all projects, ~/.claude/CLAUDE.md)');
       } else {
         console.log('All 5 harness sections present. ✅');
       }
@@ -60,7 +60,7 @@ export async function run({ args, hasFlag }) {
         const dead = [!s.hasRatchetImport && 'ratchet.md', !s.hasModelRatchetImport && 'ratchet-model.md'].filter(Boolean).join(' + ');
         console.log(`\n⚠ ${dead} is NOT loaded into sessions — the harness block has no \`@\` import line for it.`);
         console.log('  Those rules are being written to a file nothing reads.');
-        console.log(`  Fix: claude-token-saver harness init${s.source === 'global' ? ' --global' : ''}   (updates the block in place)`);
+        console.log(`  Fix: sprag harness init${s.source === 'global' ? ' --global' : ''}   (updates the block in place)`);
       }
       // Imported ratchets are charged on every request, so their size matters.
       // Static `@` imports cannot be filtered at load time — the only lever is
@@ -71,7 +71,7 @@ export async function run({ args, hasFlag }) {
         const line = `ratchet.md [${sc}]: ${size.count} rules, ~${size.tokens} tok/request`;
         if (size.overBudget) {
           console.log(`\n⚠ ${line} — over the ~${RATCHET_TOKEN_BUDGET} token budget.`);
-          console.log(`  Trim: claude-token-saver harness prune${sc === 'global' ? ' --global' : ''} --older-than 6 --dry-run`);
+          console.log(`  Trim: sprag harness prune${sc === 'global' ? ' --global' : ''} --older-than 6 --dry-run`);
           console.log('  (project-specific rules belong in --project scope, not global.)');
         } else {
           console.log(`${line}`);
@@ -138,8 +138,8 @@ export async function run({ args, hasFlag }) {
       }
       const raw = promoteArgs.filter((_, i) => !scopeFlags.has(i)).join(' ').trim();
       if (!raw) {
-        console.error('Usage: claude-token-saver harness promote [--global|--project] <N>  # from statusline 🅷⚠ ratchet? #N');
-        console.error('   or: claude-token-saver harness promote [--global|--project] "<rule text>"');
+        console.error('Usage: sprag harness promote [--global|--project] <N>  # from statusline 🅷⚠ ratchet? #N');
+        console.error('   or: sprag harness promote [--global|--project] "<rule text>"');
         process.exit(1);
       }
       let rule = raw;
@@ -173,7 +173,7 @@ export async function run({ args, hasFlag }) {
         const rs = await import('../route-scan.js');
         const cand = (rs.openCandidates(rs.readRouteScan()) || []).find((c) => c.id === n);
         if (!cand) {
-          console.error(`No open route candidate R${n}. Run: claude-token-saver route-scan`);
+          console.error(`No open route candidate R${n}. Run: sprag route-scan`);
           process.exit(1);
         }
         rule = lang === 'ko' ? cand.rule : (cand.ruleEn || cand.rule);
@@ -229,7 +229,7 @@ export async function run({ args, hasFlag }) {
             console.error(`Route candidate R${routeCandidateId} was detected in another project (${routeCandidate.project}),`);
             console.error('but this cached scan predates project-path tracking.');
             console.error('Re-scan to capture it, then promote again:');
-            console.error('  claude-token-saver route-scan --refresh');
+            console.error('  sprag route-scan --refresh');
             process.exit(1);
           }
         }
@@ -261,8 +261,8 @@ export async function run({ args, hasFlag }) {
           ? `(route candidate R${routeCandidateId} resolved — 다음 세션부터 자동 위임, 이후 스캔마다 로그 기반 갱신됩니다)`
           : `(route candidate R${routeCandidateId} resolved — delegation applies from the next session, refreshed from logs on every rescan)`);
         console.log(lang === 'ko'
-          ? '룰 목록/제거: claude-token-saver route-scan rules [rm <N>]'
-          : 'List / remove: claude-token-saver route-scan rules [rm <N>]');
+          ? '룰 목록/제거: sprag route-scan rules [rm <N>]'
+          : 'List / remove: sprag route-scan rules [rm <N>]');
         // Event-triggered refresh: establish the new rule's stat baseline
         // right away instead of waiting for the next data-gated rescan.
         try {
@@ -345,8 +345,8 @@ export async function run({ args, hasFlag }) {
       }
       if (r.skippedRules && r.added.length) console.log(`   (${r.skippedRules} already present — skipped)`);
       console.log(lang === 'ko'
-        ? '\n필요 없는 룰은 언제든: claude-token-saver harness list / rm <N>'
-        : '\nDrop any rule you do not want: claude-token-saver harness list / rm <N>');
+        ? '\n필요 없는 룰은 언제든: sprag harness list / rm <N>'
+        : '\nDrop any rule you do not want: sprag harness list / rm <N>');
       return;
     }
 
@@ -365,8 +365,8 @@ export async function run({ args, hasFlag }) {
       };
       if (wantProject) print('project');
       if (wantGlobal) print('global');
-      console.log('Remove with: claude-token-saver harness rm [--global|--project] <N>');
-      console.log('Archive in bulk:  claude-token-saver harness prune [--global] [--tag <t>] [--older-than <months>] [--dry-run]');
+      console.log('Remove with: sprag harness rm [--global|--project] <N>');
+      console.log('Archive in bulk:  sprag harness prune [--global] [--tag <t>] [--older-than <months>] [--dry-run]');
       return;
     }
 
@@ -406,7 +406,7 @@ export async function run({ args, hasFlag }) {
       const rmArgs = args.slice(2).filter((a) => a !== '--global' && a !== '--project');
       const raw = (rmArgs[0] || '').trim();
       if (!/^\d+$/.test(raw)) {
-        console.error('Usage: claude-token-saver harness rm [--global|--project] <N>   # N from `harness list`');
+        console.error('Usage: sprag harness rm [--global|--project] <N>   # N from `harness list`');
         process.exit(1);
       }
       const n = parseInt(raw, 10);
@@ -454,6 +454,6 @@ export async function run({ args, hasFlag }) {
     }
 
     console.error(`Unknown harness subcommand: ${sub}`);
-    console.error('Usage: claude-token-saver harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|pull [--global|--project]|list|rm <N>|prune [--tag <t>] [--older-than <months>] [--dry-run]|off|on]');
+    console.error('Usage: sprag harness [check|init|uninit [--purge-ratchet]|promote "<rule>"|pull [--global|--project]|list|rm <N>|prune [--tag <t>] [--older-than <months>] [--dry-run]|off|on]');
     process.exit(1);
 }

@@ -1,13 +1,13 @@
 /**
  * Subcommand: route-scan — detect recurring easy work on expensive models
  * and propose model-delegation ratchet rules. Zero token cost, fully local.
- *   claude-token-saver route-scan                 # scan (24h cache) + print candidates
- *   claude-token-saver route-scan --refresh       # force rescan
- *   claude-token-saver route-scan --days 30       # wider lookback
- *   claude-token-saver route-scan --hook          # SessionStart hook mode (context injection)
- *   claude-token-saver route-scan dismiss <N>     # mute candidate R<N>
+ *   sprag route-scan                 # scan (24h cache) + print candidates
+ *   sprag route-scan --refresh       # force rescan
+ *   sprag route-scan --days 30       # wider lookback
+ *   sprag route-scan --hook          # SessionStart hook mode (context injection)
+ *   sprag route-scan dismiss <N>     # mute candidate R<N>
  * Promote a candidate to a ratchet rule (scope is always explicit):
- *   claude-token-saver harness promote R<N> --project|--global
+ *   sprag harness promote R<N> --project|--global
  * brief --hook — UserPromptSubmit hook mode: per-session, change-triggered
  * briefing of state the statusline can only chip (ctx tier crossings,
  * mid-session route/rule-health changes). Silent when nothing changed.
@@ -18,7 +18,7 @@ import { debug } from '../debug.js';
 
 export async function run({ hasFlag }) {
     if (!hasFlag('--hook')) {
-      console.error('Usage: claude-token-saver brief --hook   (UserPromptSubmit hook mode)');
+      console.error('Usage: sprag brief --hook   (UserPromptSubmit hook mode)');
       process.exit(1);
     }
     const ctx = readStdinJson() || {};

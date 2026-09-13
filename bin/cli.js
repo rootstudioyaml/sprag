@@ -9,9 +9,9 @@
  *   npx claude-token-saver --format json      # JSON output
  *   npx claude-token-saver --format csv       # CSV output
  *   npx claude-token-saver --project myproj   # filter by project
- *   npx claude-token-saver route-scan         # detect recurring easy work → haiku-delegation candidates
- *   npx claude-token-saver install            # set up skill/hooks/statusline; asks about harness + Korean guidance
- *   npx claude-token-saver install --yes      # take the defaults without asking (same as --no-input)
+ *   npx sprag route-scan         # detect recurring easy work → haiku-delegation candidates
+ *   npx sprag install            # set up skill/hooks/statusline; asks about harness + Korean guidance
+ *   npx sprag install --yes      # take the defaults without asking (same as --no-input)
  *   npx claude-token-saver --install-hook     # install PostToolUse hook
  *   npx claude-token-saver --uninstall-hook   # remove hook
  *   npx claude-token-saver --hook-run         # internal: called by hook
@@ -98,16 +98,16 @@ Usage:
   claude-token-saver --format json      JSON output
   claude-token-saver --format csv       CSV output
   claude-token-saver --project myproj   filter by project
-  claude-token-saver route-scan         detect recurring easy work → delegation candidates
-  claude-token-saver install            set up skill/hooks/statusline
-  claude-token-saver install --yes      take the defaults without asking
+  sprag route-scan         detect recurring easy work → delegation candidates
+  sprag install            set up skill/hooks/statusline
+  sprag install --yes      take the defaults without asking
   claude-token-saver uninstall          remove everything install added
-  claude-token-saver harness check      score the harness setup in CLAUDE.md
-  claude-token-saver harness analyze    run the harness transcript analysis manually
+  sprag harness check      score the harness setup in CLAUDE.md
+  sprag harness analyze    run the harness transcript analysis manually
   claude-token-saver last               most recent warning + how to handle it
   claude-token-saver history            recent warning transitions
   claude-token-saver handoff            write a session handoff file
-  claude-token-saver feedback "<msg>"   file a bug report / feature request (no browser needed)
+  sprag feedback "<msg>"   file a bug report / feature request (no browser needed)
   claude-token-saver upgrade            install the latest release
   claude-token-saver --install-hook     install cache-monitor PostToolUse hook
   claude-token-saver --uninstall-hook   remove that hook
@@ -179,8 +179,8 @@ async function main() {
   // user can just mention chip wording and Claude responds. v2.6.0 dropped
   // the redundant /token-monitor slash command in favor of the skill alone;
   // a legacy command file is removed automatically. Cross-platform.
-  //   claude-token-saver install              # install/update the skill
-  //   claude-token-saver install --force      # overwrite existing skill file
+  //   sprag install              # install/update the skill
+  //   sprag install --force      # overwrite existing skill file
   if (args[0] === 'install') {
     return (await import('../src/commands/install.js')).run({ hasFlag });
   }
@@ -203,13 +203,13 @@ async function main() {
 
   // Subcommand: route-scan — detect recurring easy work on expensive models
   // and propose model-delegation ratchet rules. Zero token cost, fully local.
-  //   claude-token-saver route-scan                 # scan (24h cache) + print candidates
-  //   claude-token-saver route-scan --refresh       # force rescan
-  //   claude-token-saver route-scan --days 30       # wider lookback
-  //   claude-token-saver route-scan --hook          # SessionStart hook mode (context injection)
-  //   claude-token-saver route-scan dismiss <N>     # mute candidate R<N>
+  //   sprag route-scan                 # scan (24h cache) + print candidates
+  //   sprag route-scan --refresh       # force rescan
+  //   sprag route-scan --days 30       # wider lookback
+  //   sprag route-scan --hook          # SessionStart hook mode (context injection)
+  //   sprag route-scan dismiss <N>     # mute candidate R<N>
   // Promote a candidate to a ratchet rule (scope is always explicit):
-  //   claude-token-saver harness promote R<N> --project|--global
+  //   sprag harness promote R<N> --project|--global
   // brief --hook — UserPromptSubmit hook mode: per-session, change-triggered
   // briefing of state the statusline can only chip (ctx tier crossings,
   // mid-session route/rule-health changes). Silent when nothing changed.
@@ -223,21 +223,21 @@ async function main() {
 
   // Subcommand: korean — Korean writing guidance injected at session start,
   // so the rules apply in every project without an output-style switch.
-  //   claude-token-saver korean on | off | status | show
+  //   sprag korean on | off | status | show
   if (args[0] === 'korean') {
     return (await import('../src/commands/korean.js')).run({ args, hasFlag });
   }
 
   // Subcommand: cohesion — English sentence-connection guidance injected at
   // session start; the language-neutral half of the Korean supplement.
-  //   claude-token-saver cohesion on | off | status | show
+  //   sprag cohesion on | off | status | show
   if (args[0] === 'cohesion') {
     return (await import('../src/commands/cohesion.js')).run({ args, hasFlag });
   }
 
   // Subcommand: doc2md — convert pptx/xlsx/pdf/docx to Markdown before the
   // model reads them, so an unreadable binary never enters the context window.
-  //   claude-token-saver doc2md on | off | <file> | --clean
+  //   sprag doc2md on | off | <file> | --clean
   if (args[0] === 'doc2md') {
     return (await import('../src/commands/doc2md.js')).run({ args, hasFlag });
   }
@@ -250,12 +250,12 @@ async function main() {
   }
 
   // Subcommand: harness — manage the project's CLAUDE.md harness rules.
-  //   claude-token-saver harness init       # write CLAUDE.md (5 sections) + ratchet.md
-  //   claude-token-saver harness uninit     # remove harness block from CLAUDE.md (backup kept)
-  //   claude-token-saver harness check      # show 🅷 N/5 + which sections are missing
-  //   claude-token-saver harness promote "<rule>"  # append a rule to ratchet.md
-  //   claude-token-saver harness pull [--global|--project]  # register the package's curated preset rules (default global)
-  //   claude-token-saver harness off | on   # toggle the statusline 🅷 segment
+  //   sprag harness init       # write CLAUDE.md (5 sections) + ratchet.md
+  //   sprag harness uninit     # remove harness block from CLAUDE.md (backup kept)
+  //   sprag harness check      # show 🅷 N/5 + which sections are missing
+  //   sprag harness promote "<rule>"  # append a rule to ratchet.md
+  //   sprag harness pull [--global|--project]  # register the package's curated preset rules (default global)
+  //   sprag harness off | on   # toggle the statusline 🅷 segment
   if (args[0] === 'harness') {
     return (await import('../src/commands/harness.js')).run({ args, hasFlag });
   }
@@ -281,9 +281,9 @@ async function main() {
 
   // Subcommand: update-check — the registry lookup behind the ⬆ statusline
   // chip and the session-start upgrade offer.
-  //   claude-token-saver update-check              # print cached status
-  //   claude-token-saver update-check --refresh    # hit the registry now (detached child uses this)
-  //   claude-token-saver update-check --dismiss    # stop offering THIS version at session start
+  //   sprag update-check              # print cached status
+  //   sprag update-check --refresh    # hit the registry now (detached child uses this)
+  //   sprag update-check --dismiss    # stop offering THIS version at session start
   if (args[0] === 'update-check') {
     return (await import('../src/commands/update-check.js')).run({
       hasFlag,

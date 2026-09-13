@@ -28,7 +28,7 @@ test('injection is opt-in and suppressed while the Korean guidance is on', async
   assert.equal(await co.cohesionInjection({ cfg: { cohesion: { enabled: false } } }), null);
   // Enabled, Korean off: the block goes out with its framing line.
   const block = await co.cohesionInjection({ cfg: { cohesion: { enabled: true } } });
-  assert.match(block, /\[claude-token-saver cohesion\]/);
+  assert.match(block, /\[sprag cohesion\]/);
   assert.match(block, /No leaps/);
   // Enabled, Korean on: the Korean supplement already carries these rules.
   const suppressed = await co.cohesionInjection({

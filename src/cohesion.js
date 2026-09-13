@@ -9,7 +9,7 @@
  *
  * Off by default for the same reason the Korean guidance is opt-in: a
  * token-saving tool has no business silently billing ~0.5k tokens a session.
- * Enable with `claude-token-saver cohesion on`.
+ * Enable with `sprag cohesion on`.
  *
  * When the Korean guidance is enabled, this block is NOT injected even if
  * enabled: the Korean supplement already carries the cohesion rules, and
@@ -62,7 +62,7 @@ export async function cohesionInjection({ cfg = loadConfig() } = {}) {
   const text = cohesionText();
   if (!text) return null;
   return [
-    '[claude-token-saver cohesion] Follow this guidance for English prose in this session.',
+    '[sprag cohesion] Follow this guidance for English prose in this session.',
     'The user enabled it in claude-token-saver.',
     '',
     text,

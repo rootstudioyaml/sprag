@@ -1,9 +1,9 @@
 /**
  * Subcommand: cohesion — English sentence-connection guidance for every session.
- *   claude-token-saver cohesion on       # inject at session start, all projects
- *   claude-token-saver cohesion off      # stop injecting
- *   claude-token-saver cohesion status   # current state and cost
- *   claude-token-saver cohesion show     # print the guidance itself
+ *   sprag cohesion on       # inject at session start, all projects
+ *   sprag cohesion off      # stop injecting
+ *   sprag cohesion status   # current state and cost
+ *   sprag cohesion show     # print the guidance itself
  *
  * The English sibling of `korean on`, carrying only the language-neutral
  * cohesion rules (given-before-new, one referent per pronoun, subject
@@ -51,9 +51,9 @@ export async function run({ args }) {
   const suppressed = enabled && koreanStyleEnabled();
   if (lang === 'ko') {
     console.log(`cohesion: ${enabled ? 'on' : 'off'}${suppressed ? ' (korean 지침이 켜져 있어 주입은 생략됨)' : ''}`);
-    console.log('영어 산문의 문장 연결 지침을 세션 시작에 주입합니다. 켜기: claude-token-saver cohesion on');
+    console.log('영어 산문의 문장 연결 지침을 세션 시작에 주입합니다. 켜기: sprag cohesion on');
   } else {
     console.log(`cohesion: ${enabled ? 'on' : 'off'}${suppressed ? ' (suppressed while the Korean guidance is on — it already carries these rules)' : ''}`);
-    console.log('Injects English cohesion guidance at session start. Enable with: claude-token-saver cohesion on');
+    console.log('Injects English cohesion guidance at session start. Enable with: sprag cohesion on');
   }
 }

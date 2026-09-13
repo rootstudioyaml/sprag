@@ -2,8 +2,8 @@
  * Subcommand: feedback — submit a bug report or feature request from the
  * terminal (or from a Claude Code session) without opening a browser.
  *
- *   claude-token-saver feedback "statusline이 IntelliJ에서 깨져요"
- *   claude-token-saver feedback --title "cache chip" "5m TTL 칩이 안 사라짐"
+ *   sprag feedback "statusline이 IntelliJ에서 깨져요"
+ *   sprag feedback --title "cache chip" "5m TTL 칩이 안 사라짐"
  *
  * Why this exists: GitHub issues require a logged-in browser session, and
  * corporate networks often block github.com entirely. This command tries
@@ -102,7 +102,7 @@ export async function run({ args, getArg, version, dataDir }) {
   const explicitTitle = getArg('--title');
 
   if (!message) {
-    console.log('usage: claude-token-saver feedback [--title "<제목>"] "<내용>"');
+    console.log('usage: sprag feedback [--title "<제목>"] "<내용>"');
     console.log(`       (GitHub에서 직접 제보: ${ISSUES_URL})`);
     process.exitCode = 1;
     return;

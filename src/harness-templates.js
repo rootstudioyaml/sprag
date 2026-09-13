@@ -51,7 +51,7 @@ export function harnessClaudeMdBlock(scope = 'project') {
   return `${HARNESS_BLOCK_BEGIN}
 ## 🅷 Harness Rules (claude-token-saver)
 
-이 섹션은 \`claude-token-saver harness init\`이 생성합니다. 5가지 원칙 모두를
+이 섹션은 \`sprag harness init\`이 생성합니다. 5가지 원칙 모두를
 지키면 statusline에 \`🅷 5/5\`로 표시되고, 빠진 게 있으면 \`🅷 3/5\` 식으로
 경고합니다. 수정해도 무방하지만, 섹션 헤더(### 1. ~ ### 5.)는 검출용이므로
 지우지 마세요.
@@ -60,7 +60,7 @@ ${HARNESS_SECTIONS[0].heading}
 - 같은 에러·오해·반복 작업이 한 번 더 발생하면 즉시 \`.claude/ratchet.md\`에
   "조건 → 행동" 한 줄로 룰 추가.
 - claude-token-saver가 후보를 감지하면 statusline에 \`🅷⚠ ratchet?\`로 알림.
-  \`claude-token-saver harness promote "<rule>" --project|--global\`로 승인.
+  \`sprag harness promote "<rule>" --project|--global\`로 승인.
 - **scope는 항상 사용자에게 먼저 물어볼 것** — 프로젝트 한정이면 \`--project\`,
   도구·환경 일반 룰이면 \`--global\`(\`~/.claude/ratchet.md\`). Bash 환경은
   non-TTY라 CLI의 readline 프롬프트가 안 뜨므로, 호출자(LLM)가 직접 묻고
@@ -108,9 +108,9 @@ ${HARNESS_SECTIONS[4].heading}
 ---
 
 📌 운영:
-- \`claude-token-saver harness check\` — 현재 셋업 점수
-- \`claude-token-saver harness promote "<룰>" --project|--global\` — ratchet에 룰 추가 (scope는 사용자에게 먼저 물어볼 것)
-- \`claude-token-saver harness off\` — statusline 표시 끄기
+- \`sprag harness check\` — 현재 셋업 점수
+- \`sprag harness promote "<룰>" --project|--global\` — ratchet에 룰 추가 (scope는 사용자에게 먼저 물어볼 것)
+- \`sprag harness off\` — statusline 표시 끄기
 
 ---
 
@@ -127,13 +127,13 @@ export function harnessRatchetMdInitial() {
 
 같은 실수가 두 번 발생하면 여기에 한 줄 추가됩니다. 형식: "YYYY-MM-DD: <조건> → <행동>".
 
-\`claude-token-saver harness promote "<rule>"\`로 룰을 추가하면 자동으로
+\`sprag harness promote "<rule>"\`로 룰을 추가하면 자동으로
 이 파일에 append 됩니다.
 
 이 파일은 CLAUDE.md의 \`@\` import로 매 세션 로드됩니다 — 즉 여기 있는 모든 줄이
 매 요청마다 토큰을 씁니다. 날짜 뒤에 \`[태그]\`를 붙여두면 나중에 묶어서 정리할 수
 있습니다: \`- 2026-05-08: [video,tts] ...\` →
-\`claude-token-saver harness prune --tag video\` (삭제 아니라 ratchet-archive.md로 이동).
+\`sprag harness prune --tag video\` (삭제 아니라 ratchet-archive.md로 이동).
 
 ## Rules
 

@@ -317,7 +317,7 @@ test('the session note tells the model both things it cannot work out alone', ()
     const note = d.sessionNote(lang);
     assert.match(note, /doc2md/);
     // The recovery for the binary-file refusal it will otherwise be stuck on.
-    assert.match(note, /claude-token-saver doc2md/);
+    assert.match(note, /sprag doc2md/);
   }
   // An English session must not be steered into Korean by an injected block.
   assert.doesNotMatch(d.sessionNote('en'), /[가-힣]/);
@@ -388,7 +388,7 @@ test('a conversion carries provenance and lands in the savings ledger', (t) => {
 
   const text = readFileSync(out.cacheFile, 'utf8');
   // Someone opening a stray .md must be able to tell what made it, and from what.
-  assert.match(text, /claude-token-saver doc2md/);
+  assert.match(text, /sprag doc2md/);
   assert.ok(text.includes(src));
   assert.match(text, /# 제목/); // the conversion itself still follows the banner
 

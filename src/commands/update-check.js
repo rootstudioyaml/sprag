@@ -1,11 +1,11 @@
 /**
  * Subcommand: update-check — everything around "is a newer version out".
  *
- *   claude-token-saver update-check              # print the cached answer
- *   claude-token-saver update-check --refresh    # ask the registry now
- *   claude-token-saver update-check --refresh --quiet
+ *   sprag update-check              # print the cached answer
+ *   sprag update-check --refresh    # ask the registry now
+ *   sprag update-check --refresh --quiet
  *                                                # what the detached background child runs
- *   claude-token-saver update-check --dismiss    # stop offering this version at session start
+ *   sprag update-check --dismiss    # stop offering this version at session start
  *
  * The statusline never calls the --refresh path directly; it spawns this
  * command detached so the render itself stays offline and instant.
@@ -71,7 +71,7 @@ export async function run({ hasFlag, version }) {
     : `Up to date (v${version}).`);
   if (!s.latest) {
     console.log(lang === 'ko'
-      ? `아직 확인된 기록이 없습니다. 지금 확인하려면: claude-token-saver update-check --refresh (기록 파일: ${updateStatePath()})`
-      : `No check has completed yet. Run: claude-token-saver update-check --refresh (state: ${updateStatePath()})`);
+      ? `아직 확인된 기록이 없습니다. 지금 확인하려면: sprag update-check --refresh (기록 파일: ${updateStatePath()})`
+      : `No check has completed yet. Run: sprag update-check --refresh (state: ${updateStatePath()})`);
   }
 }

@@ -38,7 +38,7 @@ test('turning it on produces an injection block that frames the rules', async (t
   assert.ok(block, 'an injection block is produced');
   // Framing: without it the model can read the text as a topic to discuss
   // rather than as rules governing its own writing.
-  assert.match(block, /claude-token-saver korean-style/);
+  assert.match(block, /sprag korean-style/);
   assert.match(block, /지침을 따르십시오/);
   // Provenance travels with the text.
   assert.match(block, /snflkd/);

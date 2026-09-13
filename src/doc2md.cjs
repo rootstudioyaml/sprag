@@ -158,7 +158,7 @@ function banner(sourcePath, saving) {
   const src = fs.statSync(sourcePath);
   const lines = [
     '<!--',
-    'claude-token-saver doc2md 가 변환한 파일입니다. 직접 편집하지 마십시오.',
+    'sprag doc2md 가 변환한 파일입니다. 직접 편집하지 마십시오.',
     `원본: ${path.resolve(sourcePath)} (${humanBytes(src.size)})`,
     `변환: ${new Date().toISOString()} · Markdown ${humanBytes(Buffer.byteLength(saving.markdown, 'utf8'))} · 약 ${saving.tokens.toLocaleString('en-US')} 토큰`,
   ];
@@ -642,7 +642,7 @@ function markNoticeShown() {
   } catch { /* an unwritable state dir just means the notice repeats */ }
 }
 
-const INSTALL_HINT = 'claude-token-saver doc2md install-converter';
+const INSTALL_HINT = 'sprag doc2md install-converter';
 
 /**
  * Decide what to tell Claude Code about one PreToolUse(Read) payload.
@@ -847,8 +847,8 @@ function contextForPrompt(payload, opts = {}) {
         : `  ${name}: the converter needs Python 3.10+, and none is on PATH (macOS ships 3.9). Tell the user to install a newer Python, e.g. \`brew install python\`.`);
     } else if (result.reason === 'no-figparser') {
       lines.push(lang === 'ko'
-        ? `  ${name}: .fig 파서가 없어 변환하지 못했습니다. 설치: claude-token-saver doc2md install-converter`
-        : `  ${name}: no .fig parser installed. Install it with: claude-token-saver doc2md install-converter`);
+        ? `  ${name}: .fig 파서가 없어 변환하지 못했습니다. 설치: sprag doc2md install-converter`
+        : `  ${name}: no .fig parser installed. Install it with: sprag doc2md install-converter`);
     } else if (result.reason === 'sensitive') {
       lines.push(lang === 'ko'
         ? `  ${name}: 파일명이 민감 문서 패턴에 걸려 변환하지 않았습니다.`
@@ -861,8 +861,8 @@ function contextForPrompt(payload, opts = {}) {
   }
   if (paths.length > targets.length) {
     lines.push(lang === 'ko'
-      ? `  (문서 ${paths.length}개 가운데 앞 ${targets.length}개만 변환했습니다. 나머지는 \`claude-token-saver doc2md <경로>\` 로 변환하십시오.)`
-      : `  (converted the first ${targets.length} of ${paths.length} documents; run \`claude-token-saver doc2md <path>\` for the rest.)`);
+      ? `  (문서 ${paths.length}개 가운데 앞 ${targets.length}개만 변환했습니다. 나머지는 \`sprag doc2md <경로>\` 로 변환하십시오.)`
+      : `  (converted the first ${targets.length} of ${paths.length} documents; run \`sprag doc2md <path>\` for the rest.)`);
   }
 
   return lang === 'ko'
@@ -870,15 +870,15 @@ function contextForPrompt(payload, opts = {}) {
       '[doc2md] 이 프롬프트에 문서 경로가 있어 Markdown 으로 변환해 두었습니다.',
       ...lines,
       '원본 대신 위 변환본을 Read 하십시오. pptx·xlsx·docx 는 Read 도구가 이진 파일이라며 거부하므로 원본을 직접 열 수 없습니다.',
-    '변환이 일어났다는 사실은 사용자에게도 보여야 하므로, 답변 첫 줄에 변환한 문서마다 다음 형식으로 한 줄씩 출력하십시오: `📄 [claude-token-saver] doc2md: <파일명> (<원본 크기> → <Markdown 크기>, 약 <토큰> 토큰)`. 절감액이 함께 안내됐다면 그 금액도 같은 줄 끝에 덧붙이십시오.',
-      '경로가 주어지지 않은 문서를 열어야 할 때는 `claude-token-saver doc2md <경로>` 를 실행해 변환본 경로를 얻으십시오.',
+    '변환이 일어났다는 사실은 사용자에게도 보여야 하므로, 답변 첫 줄에 변환한 문서마다 다음 형식으로 한 줄씩 출력하십시오: `📄 [sprag] doc2md: <파일명> (<원본 크기> → <Markdown 크기>, 약 <토큰> 토큰)`. 절감액이 함께 안내됐다면 그 금액도 같은 줄 끝에 덧붙이십시오.',
+      '경로가 주어지지 않은 문서를 열어야 할 때는 `sprag doc2md <경로>` 를 실행해 변환본 경로를 얻으십시오.',
     ].join('\n')
     : [
       '[doc2md] This prompt names document paths, which have been converted to Markdown:',
       ...lines,
       'Read the conversions above rather than the originals: Read refuses pptx/xlsx/docx as binary files, so the originals cannot be opened directly.',
-    'The user cannot see that any of this happened, so open your reply with one line per converted document: `📄 [claude-token-saver] doc2md: <name> (<source size> → <markdown size>, ~<tokens> tokens)`, adding the saving above if one was reported.',
-      'For a document whose path was not given here, run `claude-token-saver doc2md <path>` to get its conversion.',
+    'The user cannot see that any of this happened, so open your reply with one line per converted document: `📄 [sprag] doc2md: <name> (<source size> → <markdown size>, ~<tokens> tokens)`, adding the saving above if one was reported.',
+      'For a document whose path was not given here, run `sprag doc2md <path>` to get its conversion.',
     ].join('\n');
 }
 
@@ -893,14 +893,14 @@ function sessionNote(lang = 'en') {
   if (lang === 'ko') {
     return [
       '[doc2md] 문서(pptx·xlsx·pdf·docx)를 다룰 때의 규칙입니다.',
-      '  문서를 열어야 하는데 Read 가 이진 파일이라며 거부하면, `claude-token-saver doc2md <경로>` 를 실행하고 그 결과로 나온 .md 를 Read 하십시오.',
+      '  문서를 열어야 하는데 Read 가 이진 파일이라며 거부하면, `sprag doc2md <경로>` 를 실행하고 그 결과로 나온 .md 를 Read 하십시오.',
       '  사용자가 문서를 메시지에 직접 첨부했다면, 첨부는 내용 전체가 컨텍스트에 실려 토큰을 크게 씁니다. 다음부터는 첨부 대신 파일 경로를 적어 달라고 안내하십시오. 경로로 주면 변환본만 읽습니다.',
-      '  변환은 단방향입니다. 변환본 .md 를 고쳐도 원본에는 반영되지 않습니다. 문서 수정 요청을 받으면: ① 원본을 복사하고 ② 복사본을 스크립트로 수정하십시오. pptx·docx·xlsx 는 도구 venv 파이썬에 python-pptx·python-docx·openpyxl 이 준비되어 있고(`claude-token-saver doc2md` 상태 출력에 경로가 나옵니다), .fig 는 openfig-core 로 편집·재인코드합니다. ③ 수정한 복사본을 doc2md 로 재변환해 변경이 들어갔는지 검증하십시오. 차트·이미지 같은 시각 요소는 변환본에 안 잡히므로 텍스트 검증만으로 완료를 단정하지 마십시오.',
+      '  변환은 단방향입니다. 변환본 .md 를 고쳐도 원본에는 반영되지 않습니다. 문서 수정 요청을 받으면: ① 원본을 복사하고 ② 복사본을 스크립트로 수정하십시오. pptx·docx·xlsx 는 도구 venv 파이썬에 python-pptx·python-docx·openpyxl 이 준비되어 있고(`sprag doc2md` 상태 출력에 경로가 나옵니다), .fig 는 openfig-core 로 편집·재인코드합니다. ③ 수정한 복사본을 doc2md 로 재변환해 변경이 들어갔는지 검증하십시오. 차트·이미지 같은 시각 요소는 변환본에 안 잡히므로 텍스트 검증만으로 완료를 단정하지 마십시오.',
     ].join('\n');
   }
   return [
     '[doc2md] Handling documents (pptx/xlsx/pdf/docx):',
-    '  If Read refuses a document as a binary file, run `claude-token-saver doc2md <path>` and Read the .md it prints.',
+    '  If Read refuses a document as a binary file, run `sprag doc2md <path>` and Read the .md it prints.',
     '  If the user attached a document to their message, its full contents were billed into the context. Tell them that naming the file path instead is far cheaper, since only the converted Markdown gets read.',
     '  Conversions are one-way: editing the cached .md changes nothing in the source. When asked to modify a document: ① copy the original, ② edit the COPY with a script — the managed venv python has python-pptx/python-docx/openpyxl, and .fig edits go through openfig-core — then ③ re-convert the copy with doc2md to verify the change landed. Charts and images do not appear in conversions, so text verification alone does not prove visual edits.',
   ].join('\n');
@@ -939,7 +939,7 @@ function decideForWrite(context) {
         + '  문서 수정이 목적이라면: 원본을 복사한 뒤(cp) 복사본을 스크립트로 수정하십시오. '
         + `pptx·docx·xlsx 는 ${managedPython()} 에 python-pptx·python-docx·openpyxl 이 설치되어 있고, `
         + '.fig 는 doc2md-fig 의 openfig-core 로 편집·재인코드할 수 있습니다. '
-        + '수정 후 복사본을 `claude-token-saver doc2md <복사본>` 으로 재변환해 의도한 변경이 들어갔는지 확인하십시오. 원본은 절대 직접 수정하지 마십시오.',
+        + '수정 후 복사본을 `sprag doc2md <복사본>` 으로 재변환해 의도한 변경이 들어갔는지 확인하십시오. 원본은 절대 직접 수정하지 마십시오.',
     };
   }
 
@@ -949,7 +949,7 @@ function decideForWrite(context) {
       reason: `[doc2md] ${path.basename(abs)} 는 이진 문서입니다. Edit/Write 는 텍스트를 쓰므로 이 파일을 파괴합니다. `
         + '수정하려면 원본을 복사한 뒤(cp) 복사본을 스크립트로 고치십시오. '
         + `pptx·docx·xlsx 는 ${managedPython()} 의 python-pptx·python-docx·openpyxl, .fig 는 openfig-core 를 쓰고, `
-        + '수정 후 `claude-token-saver doc2md <복사본>` 재변환으로 결과를 검증하십시오.',
+        + '수정 후 `sprag doc2md <복사본>` 재변환으로 결과를 검증하십시오.',
     };
   }
   return null;

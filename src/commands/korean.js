@@ -1,9 +1,9 @@
 /**
  * Subcommand: korean — Korean writing guidance for every session.
- *   claude-token-saver korean on       # inject at session start, all projects
- *   claude-token-saver korean off      # stop injecting
- *   claude-token-saver korean status   # current state, cost, and provenance
- *   claude-token-saver korean show     # print the guidance itself
+ *   sprag korean on       # inject at session start, all projects
+ *   sprag korean off      # stop injecting
+ *   sprag korean status   # current state, cost, and provenance
+ *   sprag korean show     # print the guidance itself
  *
  * Why this exists rather than pointing users at Claude Code's output styles:
  * an output style is one global slot, so turning it on takes the slot away
@@ -18,8 +18,8 @@
  * reads the finished file. `korean on` therefore also installs a PostToolUse
  * hook that runs the machine-checkable clauses over the prose the model just
  * wrote:
- *   claude-token-saver korean lint block|warn|off   # how findings are handled
- *   claude-token-saver korean lint <file...>        # check files on disk
+ *   sprag korean lint block|warn|off   # how findings are handled
+ *   sprag korean lint <file...>        # check files on disk
  */
 
 // Enforcement is only useful if it is on by default — a check the user has to
@@ -108,7 +108,7 @@ export async function run({ args, hasFlag }) {
       return;
     }
     if (!['all', 'prose'].includes(next)) {
-      console.error('Usage: claude-token-saver korean lint scope [all|prose]');
+      console.error('Usage: sprag korean lint scope [all|prose]');
       process.exit(1);
     }
     cfg.koreanStyle = cfg.koreanStyle || {};
@@ -135,7 +135,7 @@ export async function run({ args, hasFlag }) {
       return;
     }
     if (!['block', 'warn', 'off'].includes(mode)) {
-      console.error('Usage: claude-token-saver korean lint [block|warn|off] | korean lint <file...>');
+      console.error('Usage: sprag korean lint [block|warn|off] | korean lint <file...>');
       process.exit(1);
     }
     cfg.koreanStyle = cfg.koreanStyle || {};
@@ -201,20 +201,20 @@ export async function run({ args, hasFlag }) {
   if (lang === 'ko') {
     console.log(`한국어 문체 지침: ${on ? '켜짐' : '꺼짐'}`);
     console.log(`  비용: 세션당 약 ${tokens} 토큰 (세션 시작 1회 주입)`);
-    console.log(`  쓰기 시점 검사: ${koreanLintMode(loadConfig())}, 범위 ${koreanLintScope(loadConfig())} (바꾸려면 claude-token-saver korean lint block|warn|off, korean lint scope all|prose)`);
+    console.log(`  쓰기 시점 검사: ${koreanLintMode(loadConfig())}, 범위 ${koreanLintScope(loadConfig())} (바꾸려면 sprag korean lint block|warn|off, korean lint scope all|prose)`);
     console.log(`  출처: ${ks.KOREAN_STYLE_SOURCE}`);
     console.log(`  라이선스 전문: ${ks.KOREAN_STYLE_LICENSE_PATH}`);
     console.log(on
-      ? '  끄려면: claude-token-saver korean off'
-      : '  켜려면: claude-token-saver korean on');
+      ? '  끄려면: sprag korean off'
+      : '  켜려면: sprag korean on');
   } else {
     console.log(`Korean writing guidance: ${on ? 'on' : 'off'}`);
     console.log(`  Cost: ~${tokens} tokens per session (injected once at session start)`);
-    console.log(`  Write-time check: ${koreanLintMode(loadConfig())}, scope ${koreanLintScope(loadConfig())} (change with: claude-token-saver korean lint block|warn|off, korean lint scope all|prose)`);
+    console.log(`  Write-time check: ${koreanLintMode(loadConfig())}, scope ${koreanLintScope(loadConfig())} (change with: sprag korean lint block|warn|off, korean lint scope all|prose)`);
     console.log(`  Source: ${ks.KOREAN_STYLE_SOURCE}`);
     console.log(`  License text: ${ks.KOREAN_STYLE_LICENSE_PATH}`);
     console.log(on
-      ? '  Turn off with: claude-token-saver korean off'
-      : '  Turn on with: claude-token-saver korean on');
+      ? '  Turn off with: sprag korean off'
+      : '  Turn on with: sprag korean on');
   }
 }

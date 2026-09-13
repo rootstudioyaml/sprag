@@ -2,11 +2,11 @@
  * Subcommand: doc2md — convert attached documents to Markdown before the
  * model reads them.
  *
- *   claude-token-saver doc2md              # status
- *   claude-token-saver doc2md on|off       # register / remove the Read hook
- *   claude-token-saver doc2md <file>       # convert one file by hand
- *   claude-token-saver doc2md --clean      # drop every cached conversion
- *   claude-token-saver doc2md --hook       # PreToolUse entry point
+ *   sprag doc2md              # status
+ *   sprag doc2md on|off       # register / remove the Read hook
+ *   sprag doc2md <file>       # convert one file by hand
+ *   sprag doc2md --clean      # drop every cached conversion
+ *   sprag doc2md --hook       # PreToolUse entry point
  */
 
 import { createRequire } from 'node:module';
@@ -162,5 +162,5 @@ export async function run({ args, hasFlag }) {
   console.log(`  hook:      ${hookRegistered() ? 'registered on Read' : 'not registered'}`);
   console.log('');
   if (!python) console.log(`Install the converter: ${doc2md.INSTALL_HINT}`);
-  console.log('Enable with: claude-token-saver doc2md on');
+  console.log('Enable with: sprag doc2md on');
 }

@@ -111,7 +111,7 @@ export async function run({ args, hasFlag, numArg }) {
         const n = parseInt(args[3], 10);
         const removed = Number.isFinite(n) ? mr.removeModelRule(n) : null;
         if (!removed) {
-          console.error('Usage: claude-token-saver route-scan rules rm <N>   # N from `route-scan rules`');
+          console.error('Usage: sprag route-scan rules rm <N>   # N from `route-scan rules`');
           process.exit(1);
         }
         // A target whose last rule was removed gets its (tool-owned) file deleted.
@@ -181,20 +181,20 @@ export async function run({ args, hasFlag, numArg }) {
             + '\n  Map it under modelAliases in profile-map.json, then run route-scan --refresh.');
       }
       console.log(lang === 'ko'
-        ? '\n제거: claude-token-saver route-scan rules rm <N>'
-        : '\nRemove with: claude-token-saver route-scan rules rm <N>');
+        ? '\n제거: sprag route-scan rules rm <N>'
+        : '\nRemove with: sprag route-scan rules rm <N>');
       return;
     }
 
     if (args[1] === 'dismiss') {
       const n = parseInt(args[2], 10);
       if (!Number.isFinite(n)) {
-        console.error('Usage: claude-token-saver route-scan dismiss <N>   # N from `route? R<N>`');
+        console.error('Usage: sprag route-scan dismiss <N>   # N from `route? R<N>`');
         process.exit(1);
       }
       const cand = rs.resolveCandidate(n);
       if (!cand) {
-        console.error(`No route candidate R${n}. Run: claude-token-saver route-scan`);
+        console.error(`No route candidate R${n}. Run: sprag route-scan`);
         process.exit(1);
       }
       console.log(lang === 'ko'
@@ -301,16 +301,16 @@ export async function run({ args, hasFlag, numArg }) {
         if (u && u.available && !u.dismissed) {
           updateBlock = lang === 'ko'
             ? [
-                `[claude-token-saver update] 새 버전이 나와 있습니다: v${u.current} → ${u.latest}.`,
+                `[sprag update] 새 버전이 나와 있습니다: v${u.current} → ${u.latest}.`,
                 '사용자에게 지금 업그레이드할지 물어보고, 승낙하면 아래 명령을 실행하십시오. 묻지 않고 설치하지는 마십시오.',
                 '  claude-token-saver upgrade            # 업그레이드 실행',
-                '  claude-token-saver update-check --dismiss   # 사용자가 원치 않으면 (다음 버전이 나올 때까지 다시 묻지 않습니다)',
+                '  sprag update-check --dismiss   # 사용자가 원치 않으면 (다음 버전이 나올 때까지 다시 묻지 않습니다)',
               ].join('\n')
             : [
-                `[claude-token-saver update] A newer version is available: v${u.current} → ${u.latest}.`,
+                `[sprag update] A newer version is available: v${u.current} → ${u.latest}.`,
                 'Ask the user whether to upgrade now, and run the command below only if they agree. Do not install without asking.',
                 '  claude-token-saver upgrade                  # perform the upgrade',
-                '  claude-token-saver update-check --dismiss   # if they decline (stays quiet until a newer release)',
+                '  sprag update-check --dismiss   # if they decline (stays quiet until a newer release)',
               ].join('\n');
         }
       } catch (e) { debug('route-scan:update-check', e); /* the offer is optional */ }
@@ -332,10 +332,10 @@ export async function run({ args, hasFlag, numArg }) {
       const lines = [];
       if (open.length > 0) {
         if (lang === 'ko') {
-          lines.push(`[claude-token-saver route-scan] 최근 ${cache.days}일 세션에서 비싼 모델(opus/fable)이 반복 처리해 온, 더 싼 모델로 넘겨도 되는 작업이 감지되었습니다.`);
+          lines.push(`[sprag route-scan] 최근 ${cache.days}일 세션에서 비싼 모델(opus/fable)이 반복 처리해 온, 더 싼 모델로 넘겨도 되는 작업이 감지되었습니다.`);
           lines.push('(R<N>은 후보 번호, T2/T1은 난이도 등급입니다 — 사용자에게 전달할 때는 코드가 아니라 아래 풀어쓴 설명으로 브리핑하세요)');
         } else {
-          lines.push(`[claude-token-saver route-scan] Over the last ${cache.days} days, expensive models (opus/fable) repeatedly handled work that a cheaper model could take.`);
+          lines.push(`[sprag route-scan] Over the last ${cache.days} days, expensive models (opus/fable) repeatedly handled work that a cheaper model could take.`);
           lines.push('(R<N> is the candidate id, T2/T1 the difficulty tier — brief the user with the spelled-out wording below, not the codes.)');
         }
         for (const c of open) {
@@ -356,12 +356,12 @@ export async function run({ args, hasFlag, numArg }) {
         }
         if (lang === 'ko') {
           lines.push('등록하면 다음 세션부터 자동 위임됩니다. 사용자에게 등록 여부를 물을 때 위 룰 원문을 그대로 보여주고, 적용 범위까지 확인한 뒤 실행하세요:');
-          lines.push('  claude-token-saver harness promote R<N> --project|--global   # 적용 범위는 반드시 사용자에게 확인');
-          lines.push('  claude-token-saver route-scan dismiss <N>                    # 사용자가 원치 않으면');
+          lines.push('  sprag harness promote R<N> --project|--global   # 적용 범위는 반드시 사용자에게 확인');
+          lines.push('  sprag route-scan dismiss <N>                    # 사용자가 원치 않으면');
         } else {
           lines.push('Once registered, delegation happens automatically from the next session. Show the user the rule text verbatim, confirm the scope with them, then run:');
-          lines.push('  claude-token-saver harness promote R<N> --project|--global   # ALWAYS confirm the scope with the user first');
-          lines.push('  claude-token-saver route-scan dismiss <N>                    # if they do not want it');
+          lines.push('  sprag harness promote R<N> --project|--global   # ALWAYS confirm the scope with the user first');
+          lines.push('  sprag route-scan dismiss <N>                    # if they do not want it');
         }
       }
       if (reviewRules.length > 0) {
@@ -383,12 +383,12 @@ export async function run({ args, hasFlag, numArg }) {
           lines.push(`      "${r.rule}"`);
         }
         lines.push(lang === 'ko'
-          ? '  제거: claude-token-saver route-scan rules rm <N>'
-          : '  remove with: claude-token-saver route-scan rules rm <N>');
+          ? '  제거: sprag route-scan rules rm <N>'
+          : '  remove with: sprag route-scan rules rm <N>');
       }
       lines.push(lang === 'ko'
-        ? '위 내용은 사용자의 첫 메시지 주제와 무관하더라도(단순 인사여도) 첫 응답 말미에 `※ [claude-token-saver]` 라벨을 달아 요약 브리핑하세요 — 사용자가 물어볼 때까지 기다리지 말 것.'
-        : 'Summarize the above at the end of your first response under a `※ [claude-token-saver]` label, even if the user\'s first message is unrelated (a bare greeting counts) — do not wait to be asked.');
+        ? '위 내용은 사용자의 첫 메시지 주제와 무관하더라도(단순 인사여도) 첫 응답 말미에 `※ [sprag]` 라벨을 달아 요약 브리핑하세요 — 사용자가 물어볼 때까지 기다리지 말 것.'
+        : 'Summarize the above at the end of your first response under a `※ [sprag]` label, even if the user\'s first message is unrelated (a bare greeting counts) — do not wait to be asked.');
       // Style first, briefing second: the briefing is Korean prose too, so the
       // guidance has to be in context before the model reads it.
       if (koreanBlock) console.log(koreanBlock + '\n');
@@ -446,8 +446,8 @@ export async function run({ args, hasFlag, numArg }) {
     }
     console.log('');
     console.log(lang === 'ko' ? '등록 / 무시:' : 'Promote / dismiss:');
-    console.log('  claude-token-saver harness promote R<N> --project|--global');
-    console.log('  claude-token-saver route-scan dismiss <N>');
+    console.log('  sprag harness promote R<N> --project|--global');
+    console.log('  sprag route-scan dismiss <N>');
     // 최초 1회만 — 매번 찍으면 도구가 광고판이 된다 (CTS_NO_NOTE=1 로 끔)
     (await import('../first-run-note.js')).printOnce('route-scan', lang);
     return;
