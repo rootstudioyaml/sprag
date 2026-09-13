@@ -75,7 +75,10 @@ test('wilsonLowerBound gates small-sample review flips', async () => {
 
 test('--help prints usage without running a scan', async () => {
   const { execFileSync } = await import('node:child_process');
-  const out = execFileSync('node', [new URL('../bin/cli.js', import.meta.url).pathname, '--help'], { encoding: 'utf8' });
+  const { fileURLToPath } = await import('node:url');
+  // URL#pathname on Windows is "/D:/..." and resolves to "D:\D:\..." — use
+  // fileURLToPath, which handles the drive letter correctly on every platform.
+  const out = execFileSync('node', [fileURLToPath(new URL('../bin/cli.js', import.meta.url)), '--help'], { encoding: 'utf8' });
   assert.match(out, /Usage:/);
   assert.ok(!out.includes('Scanning session files'));
 });
