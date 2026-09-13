@@ -11,7 +11,9 @@
     "test": "node --test",
     "docs:statusline": "node scripts/docs-statusline.mjs",
     "postinstall": "node bin/cli.js install || true",
-    "publish:legacy": "node scripts/publish-legacy.mjs"
+    "publish:legacy": "node scripts/publish-legacy.mjs",
+    "sync:ko": "node scripts/sync-readme-ko.mjs",
+    "prepublishOnly": "node scripts/sync-readme-ko.mjs"
   },
   "files": [
     "bin/",
