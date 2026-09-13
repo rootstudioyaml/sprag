@@ -25,6 +25,8 @@
 
 ```bash
 npm i -g sprag-cli   # or: npm i -g claude-token-saver (same package, old name)
+# already have claude-token-saver? switching names needs a swap (same bins):
+#   npm uninstall -g claude-token-saver && npm i -g sprag-cli
 ```
 
 Four numbers are the whole pitch.
