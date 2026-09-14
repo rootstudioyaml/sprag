@@ -4,6 +4,13 @@ README 에 있던 릴리스 노트 전체를 이 파일로 옮겼습니다. 최�
 
 ## 전체 릴리스 노트
 
+### v3.43.0 (2026-09-14)
+- **apiKeyHelper 환경에서도 LiteLLM 예산 게이지가 나옵니다** — 키를 환경변수에 두지 않고 `settings.json` 의 `apiKeyHelper` 로 매번 발급받는 구성에서는 statusline 자식 프로세스에 토큰이 없어서 게이지가 통째로 사라졌습니다. 주소 판정(`gatewayBase`)과 키 확보(`resolveKey`)를 분리해, 캐시만 읽는 렌더 경로는 키를 요구하지 않고 갱신 경로만 헬퍼를 실행합니다. 헬퍼는 5분에 한 번 뜨는 분리 프로세스 안에서만 돌므로 렌더 속도에 영향이 없습니다.
+- **`/key/info` 404 가 갱신을 중단시키지 않습니다** — Okta JWT 같은 커스텀 인증을 쓰는 배포에서는 발급 토큰이 `LiteLLM_VerificationToken` 에 없어 404 가 상수입니다. 기존 코드는 이 응답에서 `throw` 해 정작 예산이 들어 있는 `/user/info` 를 호출하지 못했습니다. 이제 두 엔드포인트가 모두 실패할 때만 실패로 봅니다.
+- **남의 예산 표시 방지** — `/key/info` 가 비면 `user_id` 필터가 무력해져 순회 중 처음 만난 팀 멤버십을 집었습니다. `/user/info` 가 함께 주는 `user_info.user_id` 를 폴백 식별자로 씁니다.
+- **internal user 한도는 출처를 밝힙니다** — LiteLLM 이 차단 판정에 쓰는 값은 팀 멤버십 한도인데, 사용자 한도가 그와 수백 배 어긋나는 배포가 있습니다. 사용자 한도로 그린 게이지는 `budget (user)` 로 표시합니다.
+- **`sprag litellm-budget` 출력 개편** — 캐시 JSON 대신 cap 게이지와 같은 모양으로 사용액과 잔여액을 함께 보여 줍니다 (`🔑 budget ██░░░░ 34% $34.0/$100` + `사용 · 잔여 · 리셋 · 출처 · 조회 시각`). 원본 JSON 은 `--json` 입니다.
+
 ### v3.39.0 (2026-09-13)
 - **feedback 서브커맨드** — `claude-token-saver feedback "<내용>"`이 버그 제보와 기능 제안을 터미널이나 Claude 세션에서 바로 제출합니다. 전송 경로는 3단입니다. ① gh CLI가 인증되어 있으면 GitHub 이슈로 직접 등록, ② 아니면 로그인이 필요 없는 익명 경로(구글폼)로 제출하며 Apps Script 릴레이(`tools/feedback-form-relay.gs`)가 이를 `feedback` 라벨의 GitHub 이슈로 자동 등록, ③ 둘 다 막히면 로컬에 저장하고 내용이 채워진 이슈 작성 URL을 알려 줍니다. 도구 버전·OS·Node 버전이 자동 첨부되고, `--anonymous`로 gh 경로를 건너뛸 수 있습니다. SKILL.md에도 실려 세션의 Claude가 도구 문제를 감지하면 제출을 제안합니다.
 - **statusline 교체 확인** — 다른 statusline이 이미 설정된 채 `install`을 실행하면, 조용히 건너뛰는 대신 대화형 세션에서 교체 여부를 묻습니다. 기본값은 "기존 유지"라 Enter 실수로 기존 설정이 사라지지 않습니다. 비대화형(postinstall·CI)은 이전과 동일하게 건너뜁니다.

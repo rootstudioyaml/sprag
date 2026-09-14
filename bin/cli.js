@@ -296,7 +296,7 @@ async function main() {
   //   sprag litellm-budget --json     # 캐시 원본 JSON 출력
   //   sprag litellm-budget --refresh  # 지금 프록시에 물어봄 (detached 자식이 사용)
   if (args[0] === 'litellm-budget') {
-    const { gatewayEnv, readBudgetState, refreshBudgetState, formatBudgetReport } =
+    const { gatewayBase, readBudgetState, refreshBudgetState, formatBudgetReport } =
       await import('../src/litellm-budget.js');
     const quiet = hasFlag('--quiet');
     if (hasFlag('--refresh')) {
@@ -310,9 +310,10 @@ async function main() {
       }
       return;
     }
-    const gw = gatewayEnv();
-    if (!gw) {
-      console.log('게이트웨이가 감지되지 않았습니다 (ANTHROPIC_BASE_URL + 키 필요).');
+    // 읽기 경로는 캐시만 보므로 키를 요구하지 않습니다 (apiKeyHelper 환경 배려).
+    const base = gatewayBase();
+    if (!base) {
+      console.log('게이트웨이가 감지되지 않았습니다 (ANTHROPIC_BASE_URL 필요).');
       return;
     }
     const state = readBudgetState();
@@ -320,7 +321,7 @@ async function main() {
       console.log(JSON.stringify(state, null, 2));
       return;
     }
-    if (state.base !== gw.base || state.maxBudget === undefined) {
+    if (state.base !== base || state.maxBudget === undefined) {
       console.log('예산 캐시가 비어 있습니다. `sprag litellm-budget --refresh` 로 먼저 조회하십시오.');
       return;
     }

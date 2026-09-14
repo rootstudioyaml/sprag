@@ -640,15 +640,19 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       Number.isFinite(info.maxBudget) && info.maxBudget > 0
         ? ` ${formatMoney(Number(info.spend) || 0)}/${formatMoney(info.maxBudget)}`
         : '';
+    // LiteLLM 의 internal user 한도는 차단 판정에 쓰이는 값이 아니라서, 팀
+    // 멤버십 한도와 수백 배 어긋나는 배포가 있습니다. 그 한도로 그린 게이지는
+    // 출처를 밝혀 두어야 사용자가 정확한 값으로 오해하지 않습니다.
+    const src = info.source === 'user' ? ' (user)' : '';
     if (isIcon) {
-      const labelPart = labels.usageLabel ? `${labels.usageLabel} ` : '';
+      const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
       const bar = gaugeBar(pct);
       return `${c(tone)}${labels.icon} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
     }
     if (verbose) {
-      return `${c(tone)}${labels.short} cap ${pct}% used${money}${tail}${c(RESET)}`;
+      return `${c(tone)}${labels.short}${src} cap ${pct}% used${money}${tail}${c(RESET)}`;
     }
-    return `${c(tone)}${labels.short} cap ${pct}%${money}${tail}${c(RESET)}`;
+    return `${c(tone)}${labels.short}${src} cap ${pct}%${money}${tail}${c(RESET)}`;
   }
   // Color tone: green <70%, yellow 70-89%, red 90+% (a 90+% window only
   // renders here when a *different* window won the cap-warn chip slot).

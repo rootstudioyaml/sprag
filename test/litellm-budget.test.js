@@ -168,3 +168,61 @@ test('formatBudgetReport: 한도가 없으면 무제한으로 알린다', async 
   assert.equal(lines.length, 1);
   assert.match(lines[0], /무제한.*\$12\.5/);
 });
+
+test('refreshBudgetState: /key/info 404 여도 /user/info 로 팀 예산을 채운다', async () => {
+  const { refreshBudgetState } = await import('../src/litellm-budget.js');
+  const userInfo = {
+    user_info: { user_id: 'me@example.com', max_budget: 20, spend: 81.42 },
+    teams: [
+      {
+        team_id: 'ab0752f5',
+        team_memberships: [
+          {
+            user_id: 'me@example.com',
+            spend: 961.33,
+            litellm_budget_table: { max_budget: 4000, budget_reset_at: '2026-10-01T00:00:00Z' },
+          },
+        ],
+      },
+    ],
+  };
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (url.endsWith('/key/info')) return { ok: false, status: 404, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => userInfo };
+  };
+  const next = await refreshBudgetState(ENV, fetchImpl);
+  assert.deepEqual(calls, [
+    'https://litellm.example.com/key/info',
+    'https://litellm.example.com/user/info',
+  ]);
+  assert.equal(next.source, 'team');
+  assert.equal(next.maxBudget, 4000);
+  assert.equal(next.spend, 961.33);
+});
+
+test('refreshBudgetState: 두 엔드포인트가 모두 실패할 때만 던진다', async () => {
+  const { refreshBudgetState } = await import('../src/litellm-budget.js');
+  const dead = async () => ({ ok: false, status: 500, json: async () => ({}) });
+  await assert.rejects(() => refreshBudgetState(ENV, dead), /neither key\/info nor user\/info/);
+});
+
+test('budgetWindow: 환경변수 토큰이 없어도 캐시로 게이지를 만든다', async () => {
+  const { budgetWindow } = await import('../src/litellm-budget.js');
+  writeState({ base: 'https://litellm.example.com', checkedAt: Date.now(), source: 'team', spend: 50, maxBudget: 200 });
+  const w = budgetWindow({ ANTHROPIC_BASE_URL: 'https://litellm.example.com' }); // 키 없음
+  assert.equal(Math.round(w.usedPct), 25);
+  assert.equal(w.source, 'team');
+});
+
+test('pickBudgetSource: keyInfo 가 없으면 user_info 의 user_id 로 남의 멤버십을 거른다', async () => {
+  const { pickBudgetSource } = await import('../src/litellm-budget.js');
+  const userInfo = {
+    user_info: { user_id: 'a' },
+    teams: [{ team_memberships: [{ user_id: 'b', spend: 1, litellm_budget_table: { max_budget: 9 } }] }],
+  };
+  assert.equal(pickBudgetSource(null, userInfo), null);
+  userInfo.teams[0].team_memberships[0].user_id = 'a';
+  assert.equal(pickBudgetSource(null, userInfo).maxBudget, 9);
+});
