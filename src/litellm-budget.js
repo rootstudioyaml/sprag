@@ -21,6 +21,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
+import { gaugeBar, formatMoney } from './formatters/statusline.js';
+import { formatResetClock } from './format-time.js';
 import { cliEntryPath } from './update-check.js';
 import { debug } from './debug.js';
 
@@ -85,6 +87,44 @@ export function budgetWindow(env = process.env) {
     spend,
     maxBudget: max,
   };
+}
+
+/**
+ * `sprag litellm-budget` 이 출력하는 사람용 보고서입니다. 통계선의 cap 게이지와
+ * 같은 모양(비주얼 바 + 백분율 + 금액)을 쓰되, 통계선에서는 폭이 부족해 생략하는
+ * 잔여 금액과 예산 출처, 캐시 신선도를 함께 적습니다.
+ *
+ * @param {object} state - readBudgetState() 가 돌려준 캐시 상태
+ * @param {Date} [now]
+ * @returns {string[]} 출력할 줄들
+ */
+export function formatBudgetReport(state, now = new Date()) {
+  const max = Number(state?.maxBudget);
+  const spend = Number(state?.spend);
+  if (!Number.isFinite(max) || max <= 0) {
+    const spent = Number.isFinite(spend) ? formatMoney(spend) : '알 수 없음';
+    return [`예산 한도가 설정되지 않은 키입니다 (무제한). 누적 지출: ${spent}`];
+  }
+  const used = Number.isFinite(spend) ? Math.max(0, spend) : 0;
+  const left = Math.max(0, max - used);
+  const pct = Math.min(100, (used / max) * 100);
+  const lines = [
+    `🔑 budget ${gaugeBar(pct)} ${Math.round(pct)}% ${formatMoney(used)}/${formatMoney(max)}`,
+    `   사용 ${formatMoney(used)} · 잔여 ${formatMoney(left)} (${(100 - pct).toFixed(1)}%)`,
+  ];
+  const resetMs = Number(state?.budgetResetAt);
+  if (Number.isFinite(resetMs) && resetMs > 0) {
+    const clock = formatResetClock(Math.round(resetMs / 1000), now);
+    if (clock) lines.push(`   리셋 ${clock}`);
+  }
+  const labels = { team: '팀 멤버십 예산', key: '키 예산', user: '사용자 예산' };
+  if (state?.source) lines.push(`   출처 ${labels[state.source] || state.source}`);
+  const checkedAt = Number(state?.checkedAt);
+  if (Number.isFinite(checkedAt) && checkedAt > 0) {
+    const ageMin = Math.max(0, Math.round((now.getTime() - checkedAt) / 60000));
+    lines.push(`   조회 ${ageMin}분 전`);
+  }
+  return lines;
 }
 
 /** 캐시가 오래됐으면 detached 자식으로 갱신을 예약합니다. 즉시 반환. */

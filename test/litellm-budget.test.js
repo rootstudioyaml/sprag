@@ -140,3 +140,31 @@ test('monthSpend: 월초 이전 세션은 빠지고 세션별 단가로 합산�
   assert.equal(r.label, 'Sep');
   assert.equal(monthLabel(new Date(2026, 0, 5)), 'Jan');
 });
+
+test('formatBudgetReport: 게이지와 사용·잔여 금액을 함께 낸다', async () => {
+  const { formatBudgetReport } = await import('../src/litellm-budget.js');
+  const now = new Date(2026, 8, 14, 12, 0, 0);
+  const lines = formatBudgetReport(
+    {
+      base: 'https://litellm.example.com',
+      checkedAt: now.getTime() - 3 * 60 * 1000,
+      source: 'team',
+      spend: 34,
+      maxBudget: 100,
+      budgetResetAt: new Date(2026, 9, 1, 0, 0, 0).getTime(),
+    },
+    now,
+  );
+  const text = lines.join('\n');
+  assert.match(lines[0], /^🔑 budget [█▓▒░]{6} 34% \$34\.0\/\$100$/);
+  assert.match(text, /사용 \$34\.0 · 잔여 \$66\.0 \(66\.0%\)/);
+  assert.match(text, /출처 팀 멤버십 예산/);
+  assert.match(text, /조회 3분 전/);
+});
+
+test('formatBudgetReport: 한도가 없으면 무제한으로 알린다', async () => {
+  const { formatBudgetReport } = await import('../src/litellm-budget.js');
+  const lines = formatBudgetReport({ maxBudget: null, spend: 12.5 });
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /무제한.*\$12\.5/);
+});

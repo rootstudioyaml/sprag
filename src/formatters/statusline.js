@@ -50,7 +50,7 @@ const MAGENTA = fg(167, 139, 250, '\x1b[35m');
 const GRAY = fg(100, 116, 139, '\x1b[90m');
 const BOLD = '\x1b[1m';
 
-function formatMoney(usd) {
+export function formatMoney(usd) {
   // Boundaries sit at 999.5/999500 so a value that would round up into the
   // next band's width ($999.9 → "$1000") jumps to that band's unit instead —
   // otherwise "$1000" renders visually larger than "$1.0K".
@@ -81,7 +81,7 @@ function formatPct(v) {
  * for ~4% effective precision around the fill edge. Stable monospace width
  * across all terminal fonts that ship Block Elements (U+2580–U+259F).
  */
-function gaugeBar(pct) {
+export function gaugeBar(pct) {
   const cells = 6;
   const clamped = Math.max(0, Math.min(100, pct));
   const filled = (clamped / 100) * cells; // e.g. 4.32 cells filled

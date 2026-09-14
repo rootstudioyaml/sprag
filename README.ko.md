@@ -562,7 +562,7 @@ LiteLLM 프록시로 Bedrock 등을 쓰면 Claude Code stdin 에 `rate_limits` �
 - 감지 조건: `ANTHROPIC_BASE_URL` 이 공식 엔드포인트가 아니고, `ANTHROPIC_AUTH_TOKEN`(또는 `ANTHROPIC_API_KEY`)이 설정된 환경.
 - 조회는 LiteLLM 의 `GET /key/info` 와 `GET /user/info` 로 하고, 호출 키 자신의 정보만 받습니다. 예산 출처는 실무에서 가장 많이 쓰는 **팀 멤버십 예산**(team_memberships 의 spend·max_budget)을 먼저 보고, 없으면 키 자체의 max_budget, 그다음 internal user 예산 순으로 고릅니다. 렌더는 캐시 파일만 읽으며, 갱신은 5분에 한 번 분리된 백그라운드 프로세스가 수행합니다 (update-check 와 같은 구조라 statusline 이 네트워크를 기다리지 않습니다).
 - `max_budget` 이 없는 무제한 키는 게이지를 만들지 않습니다. 이 경우에도 `💵` 월 지출 세그먼트는 세션 로그 기반이라 그대로 표시됩니다.
-- 상태 확인: `sprag litellm-budget` (캐시 출력) · `litellm-budget --refresh` (즉시 조회).
+- 상태 확인: `sprag litellm-budget` (게이지·사용·잔여 금액 출력) · `--json` (캐시 원본) · `--refresh` (즉시 조회).
 
 세션 기본 모델이 sonnet 이면 sonnet 위임 규칙(T1)은 구조적으로 절감이 0입니다. 같은 급으로 내려보내 봐야 차액이 없기 때문이며 이는 정상 동작입니다. 다만 `route-scan rules` 가 이 경우를 "아직 위임 없음"과 같은 문구로 표시해 고장처럼 보였으므로, 이제 현재 기본 모델 기준으로 적용되지 않는다는 사실을 따로 적습니다.
 
