@@ -21,5 +21,18 @@ delete pkg.scripts?.prepublishOnly;
 delete pkg.scripts?.prepare;
 pkg.description = 'Legacy name of sprag-cli (Sprag) - same tool, kept publishing so existing installs stay current. Prefer: npm i -g sprag-cli';
 writeFileSync(join(dir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
+// npm's package page prints `npm i claude-token-saver` from the manifest name,
+// which no banner can change; the README banner is what tells readers of the
+// legacy page to install `sprag-cli` instead.
+const legacyBanner = [
+  '> **`claude-token-saver` is the old package name.**',
+  '> Install `sprag-cli` instead — same tool, same binaries, same releases:',
+  '> `npm i -g sprag-cli`',
+  '> (switching needs a swap: `npm uninstall -g claude-token-saver && npm i -g sprag-cli`)',
+  '',
+  '',
+].join('\n');
+const legacyReadme = join(dir, 'README.md');
+writeFileSync(legacyReadme, legacyBanner + readFileSync(legacyReadme, 'utf8'));
 execSync('npm publish', { cwd: dir, stdio: 'inherit' });
 rmSync(dir, { recursive: true, force: true });

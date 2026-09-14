@@ -18,6 +18,8 @@
 ---
 
 <!-- ko:begin (generated from README.ko.md — edit that file, then run npm run sync:ko) -->
+**🇰🇷 한국어 문서: [README.ko.md](https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md)** (아래 토글로도 펼칠 수 있습니다.)
+
 <details>
 <summary><strong>🇰🇷 한국어로 보기 (클릭하면 한국어 전문이 펼쳐집니다)</strong></summary>
 

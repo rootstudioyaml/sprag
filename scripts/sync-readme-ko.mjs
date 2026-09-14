@@ -26,7 +26,12 @@ let ko = readFileSync(join(root, 'README.ko.md'), 'utf8');
 const headerEnd = ko.indexOf('\n---\n');
 if (headerEnd !== -1) ko = ko.slice(headerEnd + 5);
 
+// npm's README renderer strips <details>/<summary>, so on the package page the
+// toggle shows as plain text that does not respond to a click. The link above
+// the block always works, wherever the README is rendered.
 const block = `${BEGIN}
+**🇰🇷 한국어 문서: [README.ko.md](https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md)** (아래 토글로도 펼칠 수 있습니다.)
+
 <details>
 <summary><strong>🇰🇷 한국어로 보기 (클릭하면 한국어 전문이 펼쳐집니다)</strong></summary>
 
