@@ -13,6 +13,7 @@
     "postinstall": "node bin/cli.js install || true",
     "publish:legacy": "node scripts/publish-legacy.mjs",
     "sync:ko": "node scripts/sync-readme-ko.mjs",
+    "release:notes": "node scripts/release-notes.mjs",
     "prepublishOnly": "node scripts/sync-readme-ko.mjs"
   },
   "files": [
