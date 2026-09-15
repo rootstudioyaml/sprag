@@ -48,9 +48,10 @@ A statusline cannot open a dialog, and it re-renders every ~300ms, so it can nev
 
 - **The statusline tells you.** Up to date: a quiet gray `v3.24.0` at the tail. Newer release out: `⬆ v3.24.0 → 3.25.0` in yellow, moved to the front. Never red — nothing is broken.
 - **Session start asks you.** On a new session or `/clear`, the SessionStart hook injects one line telling the model a newer version exists and to ask before installing anything. Only after you agree does it run `sprag upgrade`.
+- **It says what the release adds.** Up to three lines, read from that version's release notes, so the question is "these things, worth an upgrade?" rather than "a number changed, upgrade?". Notes are optional: a release written as prose yields none, and the version alone is still offered.
 - **Declining sticks.** `sprag update-check --dismiss` mutes the offer for that version; the next release asks again. The statusline chip stays — you declined the question, not the fact.
 
-The registry lookup runs at most once every 24h in a detached background process and only ever writes a cache file (`update-check.json`) — the same shape npm's `update-notifier` uses. A failed check still stamps its timestamp, so an offline machine backs off instead of retrying on every render. Turn checks off entirely with `CTS_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER`.
+The registry lookup runs at most once every 24h in a detached background process and only ever writes a cache file (`update-check.json`) — the same shape npm's `update-notifier` uses. When that lookup finds a newer version it also reads the release notes for it, since the registry carries no changelog of its own; that request is unauthenticated (60/hour, against once a day here) and its failure costs the notes, never the notice. A failed check still stamps its timestamp, so an offline machine backs off instead of retrying on every render. Turn checks off entirely with `CTS_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER`.
 
 ## Spike issue codes
 
@@ -185,9 +186,10 @@ statusline은 대화 상자를 띄울 수 없고, 300밀리초마다 다시 그�
 
 - **statusline은 알리기만 합니다.** 최신 버전이면 줄 끝에 `v3.24.0`을 회색으로 조용히 표시하고, 새 버전이 있으면 `⬆ v3.24.0 → 3.25.0`을 줄 앞쪽에 노란색으로 올립니다. 빨간색은 쓰지 않습니다. 무엇도 고장 난 상태가 아니기 때문입니다.
 - **묻는 일은 세션 시작에서 합니다.** 새 세션이나 `/clear` 시점에 SessionStart 훅이 "새 버전이 있으니 사용자에게 업그레이드할지 물어보라"는 한 줄을 모델에게 주입합니다. 모델은 사용자에게 확인한 뒤에만 `sprag upgrade`를 실행합니다. 묻지 않고 설치하지 않습니다.
+- **무엇이 새로 생겼는지 함께 알립니다.** 해당 버전의 릴리스 노트에서 최대 세 줄을 읽어 붙입니다. 그래야 질문이 "숫자가 바뀌었으니 올리겠습니까"가 아니라 "이런 것들이 생겼는데 올리겠습니까"가 됩니다. 노트는 필수가 아니며, 산문으로만 쓰인 릴리스는 항목이 잡히지 않습니다. 그때도 버전 안내는 그대로 나갑니다.
 - **거절은 기억합니다.** 사용자가 원치 않으면 `sprag update-check --dismiss`로 그 버전을 묻지 않도록 설정합니다. 더 새로운 버전이 배포되면 다시 묻습니다. statusline 칩은 그대로 남습니다. 거절한 것은 질문이지, 새 버전이 있다는 사실이 아니기 때문입니다.
 
-버전 조회는 24시간에 한 번, 분리된 백그라운드 프로세스가 수행하고 결과만 파일에 남깁니다(`update-check.json`). 이 방식은 npm의 `update-notifier`가 쓰는 것과 같습니다. 네트워크가 끊겨 있어도 실패 시각을 기록해 두므로 매 렌더마다 재시도하지 않습니다. 확인 자체를 끄려면 환경 변수 `CTS_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER`를 설정하십시오.
+버전 조회는 24시간에 한 번, 분리된 백그라운드 프로세스가 수행하고 결과만 파일에 남깁니다(`update-check.json`). 이 방식은 npm의 `update-notifier`가 쓰는 것과 같습니다. 그 조회에서 새 버전을 발견하면 릴리스 노트도 함께 읽습니다. npm 레지스트리는 변경 내역을 제공하지 않기 때문입니다. 이 요청은 인증이 필요 없고(시간당 60회 한도이며 여기서는 하루 한 번 씁니다), 실패하면 노트만 빠지고 안내 자체는 나갑니다. 네트워크가 끊겨 있어도 실패 시각을 기록해 두므로 매 렌더마다 재시도하지 않습니다. 확인 자체를 끄려면 환경 변수 `CTS_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER`를 설정하십시오.
 
 ## 토큰 급증 원인 코드
 

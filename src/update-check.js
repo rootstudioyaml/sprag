@@ -10,7 +10,16 @@
  *
  * State lives next to the other user-data files:
  *   { checkedAt: <ms>, latest: "3.25.0", current: "3.24.0",
- *     dismissedVersion: "3.25.0"|undefined }
+ *     dismissedVersion: "3.25.0"|undefined,
+ *     highlights: ["…", "…"]|undefined, highlightsFor: "3.25.0"|undefined }
+ *
+ * `highlights` is what the new version actually adds, read from the GitHub
+ * release for that tag. A bare "v3.24 → v3.25 is available" gives the user
+ * nothing to weigh: the answer to "should I upgrade" is in what changed, and
+ * asking them to go find that themselves is how an upgrade notice becomes
+ * something to dismiss. The release body is fetched on the same detached,
+ * once-a-day pass as the version check, and its absence never blocks the
+ * notice — a version number alone is still worth saying.
  *
  * Opt out with CTS_NO_UPDATE_CHECK=1 or NO_UPDATE_NOTIFIER (the de-facto
  * standard env var — anyone who set it for other CLIs meant us too).
@@ -102,6 +111,9 @@ export function updateStatus(currentVersion) {
     // means "ask me again in five minutes", forever.
     dismissed: available && s.dismissedVersion === latest,
     stale: age >= CHECK_INTERVAL_MS,
+    // Only when they describe THIS version. A cache written for an earlier
+    // release would otherwise sell the wrong upgrade.
+    highlights: Array.isArray(s.highlights) && s.highlightsFor === latest ? s.highlights : [],
   };
 }
 
@@ -143,6 +155,88 @@ export function cliEntryPath() {
   return join(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'cli.js');
 }
 
+// Release notes come from the repository's own releases, because the registry
+// does not carry them: `/latest` answers with package metadata and no changelog
+// of any kind. Unauthenticated reads are allowed at 60/hour, and this runs once
+// a day behind the same interval as the version check, so the budget is ample.
+const RELEASES_API = 'https://api.github.com/repos/rootstudioyaml/sprag/releases/tags';
+const MAX_HIGHLIGHTS = 3;
+const MAX_HIGHLIGHT_LEN = 110;
+
+/**
+ * The headline items of a release body, as short single lines.
+ *
+ * Release notes are written for people reading a web page: headings, prose
+ * paragraphs, links, and bold runs. A session-start notice has one line per
+ * item and no room for any of that, so this keeps only what reads as an item
+ * of a list and strips it to plain text. Anything that survives is a sentence
+ * the user can judge an upgrade by; anything that does not is left behind
+ * rather than truncated into nonsense.
+ *
+ * @param {string} body - the release body as published
+ * @returns {string[]} at most MAX_HIGHLIGHTS lines, or [] when nothing fits
+ */
+export function releaseHighlights(body) {
+  const text = String(body || '');
+  if (!text.trim()) return [];
+  const out = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    // Bullets only. A heading names a section, and a prose paragraph in a
+    // release body is usually the rationale rather than the change itself.
+    const m = /^[-*+]\s+(.*)$/.exec(line);
+    if (!m) continue;
+    let item = m[1]
+      .replace(/`([^`]*)`/g, '$1')            // code spans read fine as plain text
+      .replace(/\*\*([^*]*)\*\*/g, '$1')      // bold
+      .replace(/\*([^*]*)\*/g, '$1')          // italics
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // links keep their label
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!item) continue;
+    // Release notes lead with the change and follow with the reasoning, often
+    // for several sentences. The first sentence is the change, so that is what
+    // a one-line notice keeps — cutting at a character count instead lands
+    // mid-clause and reads as a broken string rather than a short one.
+    const firstSentence = item.split(/(?<=[.。])\s+/)[0] || item;
+    item = firstSentence;
+    // Some first sentences are themselves a paragraph. Those get cut, but at a
+    // word boundary and with the ellipsis that says so.
+    if (item.length > MAX_HIGHLIGHT_LEN) {
+      const cut = item.slice(0, MAX_HIGHLIGHT_LEN);
+      const space = cut.lastIndexOf(' ');
+      item = (space > 40 ? cut.slice(0, space) : cut).replace(/[,;:—\-]$/, '').trim() + '…';
+    }
+    out.push(item);
+    if (out.length >= MAX_HIGHLIGHTS) break;
+  }
+  return out;
+}
+
+/**
+ * Fetch the highlights for one version. Returns [] on any failure: the notice
+ * is worth showing with a bare version number, so a missing release, a rate
+ * limit, or an offline machine must not cost the user the notice itself.
+ */
+export async function fetchHighlights(version, { timeoutMs = FETCH_TIMEOUT_MS } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${RELEASES_API}/v${version}`, {
+      signal: controller.signal,
+      headers: { accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) throw new Error(`releases responded ${res.status}`);
+    const body = await res.json();
+    return releaseHighlights(body && body.body);
+  } catch (e) {
+    debug('update-check:highlights', e);
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Actually hit the registry and persist the answer. Only the detached child
  * and the explicit `update-check --refresh` command call this.
@@ -167,6 +261,21 @@ export async function refreshUpdateState(currentVersion) {
     // 3.25.0, not "all future upgrades".
     if (prev.dismissedVersion && isNewer(latest, prev.dismissedVersion)) {
       delete next.dismissedVersion;
+    }
+    // What the new version adds, so the notice can answer "why would I".
+    // Only worth a second request when there is actually an upgrade to describe,
+    // and only when we do not already hold the notes for that exact version.
+    if (isNewer(latest, currentVersion) && prev.highlightsFor !== latest) {
+      const highlights = await fetchHighlights(latest);
+      if (highlights.length) {
+        next.highlights = highlights;
+        next.highlightsFor = latest;
+      } else {
+        // Drop notes belonging to an older version rather than showing them
+        // against this one.
+        delete next.highlights;
+        delete next.highlightsFor;
+      }
     }
     writeUpdateState(next);
     return { ok: true, latest };
