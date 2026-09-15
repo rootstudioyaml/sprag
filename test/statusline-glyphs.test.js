@@ -144,11 +144,13 @@ test('the gauge fills monotonically and always spans six cells', () => {
     const bar = gaugeBar(pct);
     assert.equal([...bar].length, 6, `${pct}% must draw six cells`);
     assert.deepEqual(unvetted(bar), [], `${pct}% used an unverified character`);
-    const filled = [...bar].filter((ch) => ch !== '░').length;
+    const filled = [...bar].filter((ch) => ch !== '▒').length;
     assert.ok(filled >= prev, `${pct}% drew fewer cells than the percentage below it`);
     prev = filled;
   }
-  assert.equal(gaugeBar(0), '░░░░░░');
+  // Empty cells are ▒, not ░: ░ sits inset from the cell box in JetBrains Mono,
+  // so a bar mixing it with the filled blocks looks misaligned.
+  assert.equal(gaugeBar(0), '▒▒▒▒▒▒');
   assert.equal(gaugeBar(100), '██████');
 });
 

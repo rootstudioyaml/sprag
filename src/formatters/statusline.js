@@ -17,7 +17,7 @@
  *   }
  */
 
-import { formatResetClock } from '../format-time.js';
+import { formatResetClock, formatResetIn } from '../format-time.js';
 import { glyphsFor } from '../glyphs.js';
 import { labelForKey } from '../window-labels.js';
 import { harnessStatusForStatusline } from '../harness.js';
@@ -82,7 +82,7 @@ function formatPct(v) {
  * for ~4% effective precision around the fill edge. Stable monospace width
  * across all terminal fonts that ship Block Elements (U+2580–U+259F).
  */
-export function gaugeBar(pct) {
+export function gaugeParts(pct) {
   const cells = 6;
   const clamped = Math.max(0, Math.min(100, pct));
   const filled = (clamped / 100) * cells; // e.g. 4.32 cells filled
@@ -94,14 +94,49 @@ export function gaugeBar(pct) {
   // here is present in JetBrains Mono, which is why the gauge was the one part
   // of the line that never garbled under IntelliJ (see src/glyphs.js).
   const EIGHTHS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+  // Empty cells use ▒ rather than ░. In JetBrains Mono the eighth blocks all sit
+  // at yMin -300 / xMin 0, while ░ sits at yMin -240 / xMin 60 — about 4% of the
+  // cell height and 10% of its width inset — so a bar mixing them looks visibly
+  // misaligned, the empty half riding high and shifted inward. ▒ shares the box
+  // with the filled glyphs and still reads clearly lighter than █.
   const step = Math.round(remainder * 8);
   // A boundary cell rounded up to 8/8 is a full cell, not a ninth glyph.
   const extra = step === 8 ? 1 : 0;
   const totalFull = Math.min(cells, fullCells + extra);
   const partial = totalFull < cells && extra === 0 ? EIGHTHS[step] : '';
   const usedCells = totalFull + (partial ? 1 : 0);
-  const empty = '░'.repeat(Math.max(0, cells - usedCells));
-  return '█'.repeat(totalFull) + partial + empty;
+  const empty = '▒'.repeat(Math.max(0, cells - usedCells));
+  return { filled: '█'.repeat(totalFull) + partial, empty };
+}
+
+/**
+ * The bar as one string, for callers that render it in a single color.
+ * @param {number} pct
+ * @returns {string}
+ */
+export function gaugeBar(pct) {
+  const { filled, empty } = gaugeParts(pct);
+  return filled + empty;
+}
+
+/**
+ * The bar with the unused cells dimmed.
+ *
+ * ▒ shares its glyph box with the filled blocks, which is why it replaced ░, but
+ * it is also denser than ░ was — in one color the used and unused halves stop
+ * reading as different. Graying the remainder restores the contrast that the
+ * shading alone used to carry. The segment tone is reinstated at the end so the
+ * text after the bar keeps the color it started in.
+ *
+ * @param {number} pct
+ * @param {(code: string) => string} c - color emitter (returns '' when color is off)
+ * @param {string} tone - the segment's own color code
+ * @returns {string}
+ */
+function gaugeColored(pct, c, tone) {
+  const { filled, empty } = gaugeParts(pct);
+  if (!empty) return filled;
+  return `${filled}${c(RESET)}${c(GRAY)}${empty}${c(RESET)}${c(tone)}`;
 }
 
 /**
@@ -230,7 +265,7 @@ function buildCapWarnSeg(capWarn, c, isIcon, g) {
     // Gauge keeps shape parity with the always-on usage segment — the
     // cap-warn is just the same gauge "filled to alarm". Visual continuity
     // helps the eye understand "this is the 5H bar I was watching, just red now."
-    const bar = gaugeBar(pct);
+    const bar = gaugeColored(pct, c, RED);
     return `${c(BOLD)}${c(RED)}${g.capWarn} ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
   }
   return `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
@@ -661,7 +696,13 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // Show only the wall-clock reset time (e.g. `🔄 21:10`). Absolute time
     // doesn't tick second-by-second so the statusline reads stable, and the
     // 🔄 icon itself separates the percent from the clock — no extra `·` needed.
-    const clock = formatResetClock(info.resetsAt);
+    // A gateway budget can reset weeks out, where a wall-clock time says almost
+    // nothing ("Thu 00:00" — which Thursday?). Those windows report how long is
+    // left instead. Short windows keep the clock, which is the more useful form
+    // when the reset is later today.
+    const clock = labels.resetStyle === 'countdown'
+      ? formatResetIn(info.resetsAt)
+      : formatResetClock(info.resetsAt);
     const tail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
     // `cap` reads as a rate-limit ceiling rather than a duration. Icon mode
     // leans on the icon to identify the window (✦ = session/now, 📅 = week),
@@ -682,7 +723,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const src = info.source === 'user' ? ' (user)' : '';
     if (isIcon) {
       const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
-      const bar = gaugeBar(pct);
+      const bar = gaugeColored(pct, c, tone);
       const winGlyph = mode === 'narrow' ? (labels.narrowIcon || labels.icon) : labels.icon;
       return `${c(tone)}${winGlyph} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
     }

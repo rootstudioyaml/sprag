@@ -31,7 +31,11 @@ const KNOWN = {
   // 이 칩이 새로 보는 사람에게 키 자신의 상태로 읽힐 여지가 있었다.
   // LiteLLM 게이트웨이 키 예산. rate_limits 가 없는 환경에서 cap 게이지를
   // 대신하는 합성 윈도우라서, 여기 라벨만 있으면 나머지 렌더는 공용 경로를 탄다.
-  litellm_budget: { short: 'BUDGET', long: 'LiteLLM key budget', icon: '💳', narrowIcon: '◫', usageLabel: 'budget' },
+  litellm_budget: {
+    short: 'BUDGET', long: 'LiteLLM key budget', icon: '💳', narrowIcon: '◫', usageLabel: 'budget',
+    // Budgets reset on a billing cycle, so "in 3d 4h" beats a bare weekday.
+    resetStyle: 'countdown',
+  },
 };
 
 function deriveShort(key) {
