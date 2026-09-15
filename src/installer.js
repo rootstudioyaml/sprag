@@ -244,8 +244,11 @@ export function installSessionStartHook() {
     return { path: file, action: 'skipped', reason: 'hooks.SessionStart is not an array — fix settings.json manually' };
   }
   const list = Array.isArray(settings.hooks.SessionStart) ? settings.hooks.SessionStart : [];
+  // Match the flag exactly. `route-scan --hook-delegated` contains
+  // `route-scan --hook` as a prefix, so a substring test would see that hook and
+  // conclude this one is already installed.
   const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('route-scan --hook')),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /route-scan --hook(?![\w-])/.test(h.command)),
   );
   if (already) return { path: file, action: 'exists' };
 
@@ -263,6 +266,48 @@ export function installSessionStartHook() {
 // conversation — the model cannot see statusline chips, so without this a
 // change that happens mid-session goes unexplained until the user asks.
 // Silent (no output, zero context cost) when nothing changed. Idempotent.
+/**
+ * PostToolUse hook for Task/Agent. The statusline's `Routing saved` figure comes
+ * from a cached scan, and the gate in front of that scan holds a fresh
+ * delegation back an hour at best. That gate is there to skip scans that would
+ * produce identical output; a delegation is precisely the event that changes it,
+ * so this hook rescans on the spot. Detached, so the tool call does not wait.
+ */
+const ROUTE_SCAN_DELEGATED_HOOK_COMMAND = 'claude-token-saver route-scan --hook-delegated';
+
+export function installDelegationHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  let settings = {};
+  if (existsSync(file)) {
+    try {
+      settings = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (e) {
+      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+    }
+  }
+
+  settings.hooks = settings.hooks || {};
+  if (settings.hooks.PostToolUse !== undefined && !Array.isArray(settings.hooks.PostToolUse)) {
+    return { path: file, action: 'skipped', reason: 'hooks.PostToolUse is not an array — fix settings.json manually' };
+  }
+  const list = Array.isArray(settings.hooks.PostToolUse) ? settings.hooks.PostToolUse : [];
+  const already = list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('route-scan --hook-delegated')),
+  );
+  if (already) return { path: file, action: 'exists' };
+
+  list.push({
+    matcher: 'Task|Agent',
+    hooks: [{ type: 'command', command: ROUTE_SCAN_DELEGATED_HOOK_COMMAND, timeout: 10 }],
+  });
+  settings.hooks.PostToolUse = list;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'created' };
+}
+
 const BRIEF_HOOK_COMMAND = 'claude-token-saver brief --hook';
 
 export function installBriefHook() {
@@ -623,6 +668,7 @@ export function installAll({ force = false } = {}) {
     skill: installSkill({ force }),
     statusline: installStatusline({ force }),
     sessionStartHook: installSessionStartHook(),
+    delegationHook: installDelegationHook(),
     briefHook: installBriefHook(),
     cacheMonitorMigration: migrateLegacyCacheMonitorHook(),
     legacy: removeLegacyCommand(),

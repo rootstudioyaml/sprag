@@ -139,6 +139,21 @@ ok('doc2md off removes them', ['doc2md', 'off'], /hook|훅/i);
   const r = cts(['doc2md', '--hook-prompt'], { input: JSON.stringify({ prompt: 'nothing to convert here' }) });
   check('prompt hook stays quiet on an ordinary prompt', r.code === 0 && r.out.trim() === '', `exit=${r.code} out=${r.out.slice(0, 200)}`);
 }
+// The delegation rescan hook runs after every Task/Agent call, so anything it
+// prints lands in the middle of a tool result and anything it throws fails the
+// tool call. It must do neither, on a good payload or a broken one.
+{
+  const r = cts(['route-scan', '--hook-delegated'], { input: JSON.stringify({ tool_name: 'Task', tool_input: {} }) });
+  check('delegation hook says nothing after a delegation', r.code === 0 && r.out.trim() === '', `exit=${r.code} out=${r.out.slice(0, 200)}`);
+}
+{
+  const r = cts(['route-scan', '--hook-delegated'], { input: JSON.stringify({ tool_name: 'Read', tool_input: {} }) });
+  check('delegation hook ignores a tool that is not a delegation', r.code === 0 && r.out.trim() === '', `exit=${r.code} out=${r.out.slice(0, 200)}`);
+}
+{
+  const r = cts(['route-scan', '--hook-delegated'], { input: 'not json at all' });
+  check('delegation hook survives a payload it cannot parse', r.code === 0, `exit=${r.code} out=${r.out.slice(0, 200)}`);
+}
 
 // --- install / uninstall ----------------------------------------------------
 ok('install wires the statusline', ['install'], /settings|statusline|설치/i);

@@ -67,6 +67,18 @@ export const RESCAN_MIN_INTERVAL_MS = 60 * 60 * 1000;      // never more than ho
 export const RESCAN_BIG_DELTA_BYTES = 5 * 1024 * 1024;     // this much new data → rescan now
 export const RESCAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;      // any new data + a day old → rescan
 
+// One event is exempt from all three: a delegation that just finished. The
+// clauses above exist to skip scans that would produce identical output, and a
+// delegation is the one thing guaranteed to change it — savings and the rule's
+// own error rate both move. Its transcript is nowhere near 5MB, so the gate
+// would otherwise hold the figure back an hour at best and a day at worst,
+// which is exactly the window in which the user is asking whether delegating
+// paid off. Measured on this machine: a scan is ~0.5s over 14 days / 67MB, and
+// delegations run ~1.6×/day, so the exemption costs well under a second a day.
+// A short floor still applies, so a fan-out of parallel agents finishing
+// together triggers one scan rather than one per agent.
+export const RESCAN_AFTER_DELEGATION_MS = 30 * 1000;
+
 // Categories → recommended subagent. Classification is behavior-first with
 // weighted keyword scoring as fallback — see categorize().
 const PASTE_MIN_LEN = 400;
@@ -740,12 +752,23 @@ export function readRouteScan() {
 /**
  * Data-driven rescan gate (see constants above). Cheap: one stat() per
  * transcript file (~32 files on measured data) — a few milliseconds.
+ *
+ * @param {object|null} cache - readRouteScan() result
+ * @param {object} [opts]
+ * @param {number} [opts.days] - analysis window
+ * @param {boolean} [opts.afterDelegation] - a delegation just finished, so this
+ *   scan is known to produce different numbers. Skips the byte and age clauses
+ *   and applies only the anti-thrash floor.
+ * @returns {Promise<boolean>}
  */
-export async function shouldRescan(cache, { days = 14 } = {}) {
+export async function shouldRescan(cache, { days = 14, afterDelegation = false } = {}) {
   if (!cache?.scannedAt) return true;
   const ts = Date.parse(cache.scannedAt);
   if (!Number.isFinite(ts)) return true;
   const age = Date.now() - ts;
+  // A delegation just finished, so the numbers this scan produces are known to
+  // differ. Only the anti-thrash floor applies — see RESCAN_AFTER_DELEGATION_MS.
+  if (afterDelegation) return age >= RESCAN_AFTER_DELEGATION_MS;
   if (age < RESCAN_MIN_INTERVAL_MS) return false;
 
   let total = 0;

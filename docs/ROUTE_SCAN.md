@@ -37,6 +37,14 @@
    마지막 스캔 이후 새 transcript가 ~5MB 이상 쌓이면 즉시, 소량이면 하루 1회, 아무
    변화가 없으면 아예 돌지 않습니다 (변화 없는 재스캔은 결과가 동일하므로). 최소 간격
    1시간 가드 포함, 룰 등록(promote) 직후에는 통계 기준선 확보를 위해 즉시 1회.
+
+   **위임이 실제로 실행되면 이 게이트를 건너뛰고 바로 재스캔합니다.** PostToolUse 훅이
+   `Task`·`Agent` 호출을 받아 백그라운드로 스캔을 띄우므로, `🔀 Routing saved` 금액이
+   다음 렌더에 반영됩니다. 게이트는 "결과가 같을 스캔을 건너뛴다"는 취지인데 위임은
+   결과가 반드시 달라지는 사건이고, 위임 한 건의 로그는 5MB에 한참 못 미쳐서 그냥 두면
+   최소 1시간에서 최대 하루를 기다려야 했습니다. 스캔은 실측 0.5초(14일·67MB 기준),
+   위임은 하루 평균 1.6회라서 추가 비용이 하루 1초 미만입니다. 병렬 위임이 한꺼번에
+   끝나도 30초 하한 때문에 스캔은 한 번만 돕니다.
 2. 반복(≥3회) 패턴이 있으면 statusline에 `🅷⚠ route? R1` 칩이 뜨고, Claude가 등록
    여부와 scope(`--project`/`--global`)를 물어봅니다.
 3. 등록된 룰은 **다음 세션부터 메인 모델이 해당 유형을 haiku/sonnet 서브에이전트로
@@ -80,6 +88,15 @@ and they stay alive afterward:
    ~5MB of new transcripts rescans immediately, a small trickle rescans daily, no
    change means no rescan. A 1-hour minimum-interval guard applies; promoting a rule
    triggers one immediate refresh to establish its stat baseline.
+
+   **A delegation that actually ran skips that gate and rescans on the spot.** A
+   PostToolUse hook on `Task`/`Agent` kicks a detached scan, so the `🔀 Routing saved`
+   figure is current on the next render. The gate is there to skip scans that would
+   reproduce the same numbers, and a delegation is the one event guaranteed to change
+   them — while its own transcript is nowhere near 5MB, so leaving it to the gate meant
+   waiting an hour at best and a day at worst. Measured: a scan is ~0.5s over 14 days
+   and 67MB, and delegations run ~1.6×/day, so this costs well under a second a day. A
+   30-second floor keeps a fan-out of parallel agents to a single scan.
 2. When a recurring (≥3×) pattern exists, the statusline shows a `🅷⚠ route? R1` chip
    and Claude asks whether to register it, and at which scope (`--project`/`--global`).
 3. Promoted rules make **the main model delegate that work type to a haiku/sonnet

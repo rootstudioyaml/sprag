@@ -71,6 +71,7 @@ export async function run({ hasFlag }) {
     const r = installAll({ force });
     print('skill', r.skill);
     print('SessionStart hook (route-scan)', r.sessionStartHook);
+    print('PostToolUse hook (delegation rescan)', r.delegationHook);
     print('UserPromptSubmit hook (brief)', r.briefHook);
     {
       let s = r.statusline;

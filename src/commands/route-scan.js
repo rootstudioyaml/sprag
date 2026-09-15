@@ -203,6 +203,33 @@ export async function run({ args, hasFlag, numArg }) {
       return;
     }
 
+    // --hook-delegated: PostToolUse hook for Task/Agent. A delegation just
+    // finished, which is the one event guaranteed to change what a scan
+    // produces — its savings and its error rate both move. Kicks a detached
+    // refresh so the statusline shows the new figure on its next render
+    // instead of waiting out the hourly gate, and prints nothing: a tool
+    // result is not a place for our commentary.
+    if (hasFlag('--hook-delegated')) {
+      const payload = readStdinJson() || {};
+      // Claude Code matches the hook by tool name already, but the payload is
+      // the only thing that proves it: a mis-registered matcher would otherwise
+      // have us rescanning after every Read.
+      const tool = payload.tool_name;
+      if (tool !== 'Task' && tool !== 'Agent') return;
+      try {
+        const cache = rs.readRouteScan();
+        if (!(await rs.shouldRescan(cache, { afterDelegation: true }))) return;
+        const { spawn } = await import('node:child_process');
+        spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
+          { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+      } catch (e) {
+        // A missed refresh only means the figure lags, which is what happened
+        // before this hook existed. Never fail the tool call over it.
+        debug('route-scan:delegated-refresh', e);
+      }
+      return;
+    }
+
     // --hook: SessionStart hook mode. Never scans inline (session start must
     // stay fast) — reads the cache, kicks a detached refresh when stale, and
     // prints delegation-candidate context for the new session.

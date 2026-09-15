@@ -36,8 +36,17 @@ test('install completes on a machine with no prior state', () => {
     const commands = JSON.stringify(settings.hooks);
     assert.match(commands, /doc2md --hook(?!-)/, 'the doc2md Read hook is registered by install');
     assert.match(commands, /doc2md --hook-prompt/, 'the doc2md prompt hook is registered by install');
-    assert.match(commands, /route-scan --hook/);
+    // Both route-scan hooks, distinguished: `--hook-delegated` contains `--hook`
+    // as a prefix, so a bare substring test would pass with either one missing.
+    assert.match(commands, /route-scan --hook(?![\w-])/, 'the SessionStart hook is registered');
+    assert.match(commands, /route-scan --hook-delegated/, 'the delegation rescan hook is registered');
     assert.match(commands, /brief --hook/);
+    // The delegation hook must fire on the delegation tools and nothing else: a
+    // wider matcher would rescan after every Read.
+    const post = (settings.hooks.PostToolUse || []).find((m) =>
+      (m.hooks || []).some((h) => (h.command || '').includes('route-scan --hook-delegated')));
+    assert.ok(post, 'the delegation hook lives under PostToolUse');
+    assert.equal(post.matcher, 'Task|Agent');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
