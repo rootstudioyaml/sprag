@@ -1,9 +1,9 @@
 #!/bin/sh
 # Claude Code statusline (POSIX sh — works on macOS, Linux, and WSL)
-# Prints "user@host:cwd" then appends claude-token-saver as a second segment.
+# Prints "user@host:cwd" then appends sprag as a second segment.
 #
 # Install:
-#   1) npm install -g claude-token-saver
+#   1) npm install -g sprag-cli
 #   2) Save this file as: ~/.claude/statusline-command.sh
 #      chmod +x ~/.claude/statusline-command.sh  (optional)
 #   3) In ~/.claude/settings.json:
@@ -29,8 +29,13 @@ printf '\033[01;32m%s@%s\033[00m:\033[01;34m%s\033[00m' "$(whoami)" "$(hostname 
 
 # 2) cache monitor (appended). Separator " | ". Falls back silently.
 printf ' \033[90m|\033[00m '
-if command -v claude-token-saver >/dev/null 2>&1; then
+# `claude-token-saver` is the older binary name, still installed by the current
+# package; the npx fallback names `sprag-cli`, since the old package name is
+# deprecated on npm and would fetch a version that stopped receiving releases.
+if command -v sprag >/dev/null 2>&1; then
+  sprag --statusline --icon 2>/dev/null || true
+elif command -v claude-token-saver >/dev/null 2>&1; then
   claude-token-saver --statusline --icon 2>/dev/null || true
 else
-  npx --yes claude-token-saver@latest --statusline --icon 2>/dev/null || true
+  npx --yes sprag-cli@latest --statusline --icon 2>/dev/null || true
 fi

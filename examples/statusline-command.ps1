@@ -1,9 +1,9 @@
 # Claude Code statusline (Windows PowerShell version)
 # Mirrors the POSIX sh script — prints "user@host:cwd" then appends
-# claude-token-saver output as a second segment.
+# sprag output as a second segment.
 #
 # Install:
-#   1) npm install -g claude-token-saver
+#   1) npm install -g sprag-cli
 #   2) Save this file as: %USERPROFILE%\.claude\statusline-command.ps1
 #   3) In %USERPROFILE%\.claude\settings.json add:
 #      {
@@ -30,14 +30,20 @@ Write-Host -NoNewline "$esc[01;32m$env:USERNAME@$env:COMPUTERNAME$esc[00m`:$esc[
 # 2) cache monitor (appended). Separator " | ". Falls back silently.
 Write-Host -NoNewline " $esc[90m|$esc[00m "
 
-$cacheMonitor = Get-Command claude-token-saver -ErrorAction SilentlyContinue
+# `claude-token-saver` is the older binary name, still installed by the current
+# package; the npx fallback names `sprag-cli`, since the old package name is
+# deprecated on npm and would fetch a version that stopped receiving releases.
+$cacheMonitor = Get-Command sprag -ErrorAction SilentlyContinue
+if (-not $cacheMonitor) {
+  $cacheMonitor = Get-Command claude-token-saver -ErrorAction SilentlyContinue
+}
 if ($cacheMonitor) {
   try {
-    & claude-token-saver --statusline --icon 2>$null
+    & $cacheMonitor.Name --statusline --icon 2>$null
   } catch { }
 } else {
   # fallback: npx (first run downloads the package; subsequent runs are warm)
   try {
-    & npx --yes claude-token-saver@latest --statusline --icon 2>$null
+    & npx --yes sprag-cli@latest --statusline --icon 2>$null
   } catch { }
 }
