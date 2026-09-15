@@ -72,7 +72,7 @@ gemini-2.5-pro        57.9%             $734  ▰▰▰▰▰▰▰▰▰▰▰�
 
 ```
 🔀 라우팅 절감 $2.09  |  fable→sonnet 1회 $0.72 · opus→haiku 1회 $0.57
-🚨 5H █████▓ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ██▒░░░ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
+🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
 문제가 생기면 경고 칩이 줄 맨 앞으로 옵니다. `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL` 여덟 가지이며, 칩 문구를 그대로 말하면 Skill이 원인 코드와 조치 순서를 꺼내 줍니다. 세그먼트별 의미와 색 기준은 [statusline 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md)에 정리했습니다.
@@ -211,7 +211,7 @@ The measured −18.6% comes from the harness and ratchet; routing and conversion
 
 ```
 🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57
-🚨 5H █████▓ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ██▒░░░ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
+🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
 When something is wrong the warning chip leads the line: `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL`. Say the chip wording inside Claude and the Skill surfaces the root-cause code and the fix. Segment-by-segment meanings live in [the statusline reference](./docs/STATUSLINE.md).

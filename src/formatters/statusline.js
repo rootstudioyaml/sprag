@@ -67,88 +67,86 @@ function formatPct(v) {
 }
 
 /**
- * Render a 6-cell density-gradient gauge for `pct` (0..100). All cells share
- * the same Unicode "Block Elements" density family — `█` (100%) → `▓` (75%)
- * → `▒` (50%) → `░` (25%) — so the fill→empty boundary reads as one smooth
- * gradient instead of an awkward step.
+ * Render the gauge for `pct` (0..100) as a row of separate ticks.
  *
- * Earlier we used partial-fill glyphs (`▏▎▍▌▋▊▉`) for sub-cell precision, but
- * those have transparent halves that clash visually with the `░` track next
- * to them (the eye sees "solid edge | gap | dotted track" — three zones).
- * Density chars are the same shape, just darker/lighter, so the boundary
- * cell reads as a single smooth fade.
+ * The bar used to be six cells of one continuous block, with the boundary cell
+ * subdivided into eighths for sub-cell precision. That precision had no reader:
+ * every chip that draws a gauge prints the exact percentage immediately after it
+ * (`▰▰▰▱▱▱ 26%`), so the bar's job is the glance, not the number. What the solid
+ * run cost instead was legibility — adjacent full cells fuse into one shape, and
+ * a shape has no quantity you can read off it. Separate ticks do: twelve of them
+ * are countable at a glance and land on a familiar 1/12 grid.
  *
- * Each cell is ~17% wide; the boundary cell uses 3 intermediate density steps
- * for ~4% effective precision around the fill edge. Stable monospace width
- * across all terminal fonts that ship Block Elements (U+2580–U+259F).
+ * Two ends get special treatment, because they are the two readings that change
+ * a decision. A full row means the limit is reached, so nothing below 100% may
+ * draw one; conversely anything above zero draws at least one tick, so "barely
+ * started" never looks like "untouched". Rounding alone gets both wrong: it fills
+ * the last cell from 96% and leaves the first empty until 5%.
+ *
+ * Glyphs come from the mode's set (src/glyphs.js) rather than being fixed here.
+ * ▰▱ is the shape we want, but JetBrains Mono ships neither character, and a
+ * missing glyph is drawn by a fallback font whose advance width does not match
+ * the cell grid — which is the whole reason narrow mode exists. So narrow draws
+ * the same segmented bar with ■□, which that font does have.
+ *
+ * @param {number} pct
+ * @param {string} [mode] label mode; selects the tick glyphs
+ * @returns {{ filled: string, empty: string }} the two halves, so a caller can
+ *   color them separately
  */
-export function gaugeParts(pct) {
-  const cells = 6;
+export function gaugeParts(pct, mode = 'icon') {
+  const CELLS = 12;
+  const g = glyphsFor(mode);
   const clamped = Math.max(0, Math.min(100, pct));
-  const filled = (clamped / 100) * cells; // e.g. 4.32 cells filled
-  const fullCells = Math.floor(filled);
-  const remainder = filled - fullCells; // 0..1 — fill fraction of the boundary cell
-  // Boundary cell in eighths. The earlier version had three steps (░ ▒ ▓), which
-  // meant 25% and 31% drew the same bar; eighths keep the resolution the width
-  // of the bar can carry, so the gauge moves as the number does. Every character
-  // here is present in JetBrains Mono, which is why the gauge was the one part
-  // of the line that never garbled under IntelliJ (see src/glyphs.js).
-  const EIGHTHS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
-  // Empty cells use ▒ rather than ░. In JetBrains Mono the eighth blocks all sit
-  // at yMin -300 / xMin 0, while ░ sits at yMin -240 / xMin 60 — about 4% of the
-  // cell height and 10% of its width inset — so a bar mixing them looks visibly
-  // misaligned, the empty half riding high and shifted inward. ▒ shares the box
-  // with the filled glyphs and still reads clearly lighter than █.
-  const step = Math.round(remainder * 8);
-  // A boundary cell rounded up to 8/8 is a full cell, not a ninth glyph.
-  const extra = step === 8 ? 1 : 0;
-  const totalFull = Math.min(cells, fullCells + extra);
-  const partial = totalFull < cells && extra === 0 ? EIGHTHS[step] : '';
-  const usedCells = totalFull + (partial ? 1 : 0);
-  const empty = '▒'.repeat(Math.max(0, cells - usedCells));
-  return { filled: '█'.repeat(totalFull) + partial, empty };
+  let ticks = Math.round((clamped / 100) * CELLS);
+  // A full row is reserved for an actual 100%: at the cap the gauge alone has to
+  // say so, and 96% rounding up to twelve would spend that signal on a window
+  // that still has room.
+  if (ticks >= CELLS && clamped < 100) ticks = CELLS - 1;
+  // And any nonzero usage earns a tick, so an empty row means untouched.
+  if (ticks === 0 && clamped > 0) ticks = 1;
+  return {
+    filled: g.gaugeFull.repeat(ticks),
+    empty: g.gaugeEmpty.repeat(CELLS - ticks),
+  };
 }
 
 /**
  * The bar as one string, for callers that render it in a single color.
  * @param {number} pct
+ * @param {string} [mode] label mode; selects the tick glyphs
  * @returns {string}
  */
-export function gaugeBar(pct) {
-  const { filled, empty } = gaugeParts(pct);
+export function gaugeBar(pct, mode = 'icon') {
+  const { filled, empty } = gaugeParts(pct, mode);
   return filled + empty;
 }
 
 /**
- * The bar with the unused cells dimmed.
+ * The bar with the unused ticks dimmed.
  *
- * ▒ shares its glyph box with the filled blocks, which is why it replaced ░, but
- * it is also denser than ░ was — in one color the used and unused halves stop
- * reading as different. Graying the remainder restores the contrast that the
- * shading alone used to carry. The segment tone is reinstated at the end so the
- * text after the bar keeps the color it started in.
+ * The hollow tick already distinguishes the two halves by shape, so color is not
+ * carrying that distinction the way it had to when both halves were the same
+ * solid block. It still helps: graying the remainder keeps the filled run as the
+ * only thing at full brightness, which is what the eye should land on. The
+ * segment tone is reinstated at the end so the text after the bar keeps the color
+ * it started in.
  *
  * @param {number} pct
  * @param {(code: string) => string} c - color emitter (returns '' when color is off)
  * @param {string} tone - the segment's own color code
  * @param {boolean} color - whether ANSI is allowed. Passed explicitly rather
  *   than inferred from `c` emitting nothing: that inference reads the emitter's
- *   current implementation, and a caller that wraps or replaces `c` would flip
- *   the track glyph as a side effect nobody asked for.
+ *   current implementation, and a caller that wraps or replaces `c` would change
+ *   behaviour here as a side effect nobody asked for.
+ * @param {string} [mode] label mode; selects the tick glyphs
  * @returns {string}
  */
-function gaugeColored(pct, c, tone, color) {
-  const { filled, empty } = gaugeParts(pct);
+function gaugeColored(pct, c, tone, color, mode = 'icon') {
+  const { filled, empty } = gaugeParts(pct, mode);
   if (!empty) return filled;
-  // With color available, the unused cells are the same solid block as the used
-  // ones, just gray. Shading characters (░ ▒) carry a dither pattern that reads
-  // as noise beside a solid fill — the two halves look like different materials
-  // rather than two states of one bar. One glyph in two colors reads as a track
-  // filling up, and it sidesteps the glyph-box mismatch between the shades and
-  // the blocks entirely. Without color there is nothing but texture to tell them
-  // apart, so the shading stays.
-  const track = color ? '█'.repeat(empty.length) : empty;
-  return `${filled}${c(RESET)}${c(GRAY)}${track}${c(RESET)}${c(tone)}`;
+  if (!color) return filled + empty;
+  return `${filled}${c(RESET)}${c(GRAY)}${empty}${c(RESET)}${c(tone)}`;
 }
 
 /**
@@ -266,11 +264,9 @@ function buildHarnessSeg(c, isIcon, g) {
  * the wall-clock reset time rides along in the same `🔄 HH:MM` shape as the
  * always-on usage segments.
  */
-function buildCapWarnSeg(capWarn, c, isIcon, g, color) {
-  // `color` is only for the gauge. At 90%+ the bar has no unused cells left, so
-  // gaugeColored returns early and never reads it today — it is threaded through
-  // anyway, because a change to the cap-warn threshold or the bar width would
-  // otherwise start drawing the wrong track with nothing to catch it.
+function buildCapWarnSeg(capWarn, c, isIcon, g, color, mode) {
+  // `color` and `mode` are both for the gauge: the first decides whether the
+  // unused ticks are dimmed, the second which pair of tick glyphs to draw.
   if (!capWarn) return null;
   const pct = Math.round(capWarn.usedPct);
   const clock = formatResetClock(capWarn.resetsAt);
@@ -281,7 +277,7 @@ function buildCapWarnSeg(capWarn, c, isIcon, g, color) {
     // Gauge keeps shape parity with the always-on usage segment — the
     // cap-warn is just the same gauge "filled to alarm". Visual continuity
     // helps the eye understand "this is the 5H bar I was watching, just red now."
-    const bar = gaugeColored(pct, c, RED, color);
+    const bar = gaugeColored(pct, c, RED, color, mode);
     return `${c(BOLD)}${c(RED)}${g.capWarn} ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
   }
   return `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
@@ -301,7 +297,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
   const isIcon = mode === 'icon' || mode === 'narrow';
   const g = glyphsFor(mode);
   const segs = [];
-  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon, g, color);
+  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon, g, color, mode);
   if (capSeg) segs.push(capSeg);
   const versionSeg = buildVersionSeg(version, update, c, isIcon, false, g);
   if (versionSeg && update && update.available) segs.push(versionSeg);
@@ -750,7 +746,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const src = info.source === 'user' ? ' (user)' : '';
     if (isIcon) {
       const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
-      const bar = gaugeColored(pct, c, tone, color);
+      const bar = gaugeColored(pct, c, tone, color, mode);
       const winGlyph = mode === 'narrow' ? (labels.narrowIcon || labels.icon) : labels.icon;
       return `${c(tone)}${winGlyph} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
     }
@@ -787,7 +783,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
   }
 
-  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon, g, color);
+  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon, g, color, mode);
 
   // Warning chip leads — a glance at the statusline catches "something's wrong"
   // before parsing any numbers. Healthy states have no chip and look unchanged.

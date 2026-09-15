@@ -23,6 +23,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { userDataDir } from './paths.js';
 import { gaugeBar, formatMoney } from './formatters/statusline.js';
+import { labelForKey } from './window-labels.js';
 import { formatResetClock } from './format-time.js';
 import { cliEntryPath } from './update-check.js';
 import { debug } from './debug.js';
@@ -155,11 +156,16 @@ export function budgetWindow(env = process.env) {
  * 같은 모양(비주얼 바 + 백분율 + 금액)을 쓰되, 통계선에서는 폭이 부족해 생략하는
  * 잔여 금액과 예산 출처, 캐시 신선도를 함께 적습니다.
  *
+ * `mode` 는 통계선과 같은 판정 결과를 받습니다. 이 보고서도 결국 터미널에
+ * 출력되므로, IntelliJ 에서 실행하면 폰트에 없는 글리프가 대체 폰트로 그려져
+ * 통계선과 똑같이 어긋납니다. 게이지 눈금과 예산 아이콘을 함께 모드에 맞춥니다.
+ *
  * @param {object} state - readBudgetState() 가 돌려준 캐시 상태
  * @param {Date} [now]
+ * @param {string} [mode] - 라벨 모드 ('icon' | 'narrow' | 'text')
  * @returns {string[]} 출력할 줄들
  */
-export function formatBudgetReport(state, now = new Date()) {
+export function formatBudgetReport(state, now = new Date(), mode = 'icon') {
   const max = Number(state?.maxBudget);
   const spend = Number(state?.spend);
   if (!Number.isFinite(max) || max <= 0) {
@@ -169,8 +175,16 @@ export function formatBudgetReport(state, now = new Date()) {
   const used = Number.isFinite(spend) ? Math.max(0, spend) : 0;
   const left = Math.max(0, max - used);
   const pct = Math.min(100, (used / max) * 100);
+  const win = labelForKey('litellm_budget');
+  // 통계선의 text 모드는 게이지를 아예 그리지 않지만 이 보고서는 그립니다. text 는
+  // 이모지를 피하려고 고른 모드이므로, 그 선택을 존중해 눈금도 폰트 커버리지가
+  // 확인된 narrow 쪽 글리프를 씁니다. 라벨은 아이콘 없이 이름만 적습니다.
+  const bare = mode === 'text';
+  const tickMode = mode === 'icon' ? 'icon' : 'narrow';
+  const icon = bare ? '' : (mode === 'narrow' ? (win.narrowIcon || win.icon) : win.icon);
+  const head = bare ? 'budget' : `${icon} budget`;
   const lines = [
-    `💳 budget ${gaugeBar(pct)} ${Math.round(pct)}% ${formatMoney(used)}/${formatMoney(max)}`,
+    `${head} ${gaugeBar(pct, tickMode)} ${Math.round(pct)}% ${formatMoney(used)}/${formatMoney(max)}`,
     `   사용 ${formatMoney(used)} · 잔여 ${formatMoney(left)} (${(100 - pct).toFixed(1)}%)`,
   ];
   const resetMs = Number(state?.budgetResetAt);

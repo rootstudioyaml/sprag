@@ -19,6 +19,13 @@
  * Per-window glyphs (the 5h star, the weekly grid, the budget box) live in
  * src/window-labels.js instead, next to the labels they belong to.
  *
+ * The gauge cells live here too, for the same reason the chip glyphs do. The
+ * shapes differ by mode rather than only the vocabulary: ▰▱ read as a row of
+ * separate ticks, which is what a gauge is, but JetBrains Mono ships neither
+ * (verified via its cmap: U+25B0 and U+25B1 are absent, U+25A0 and U+25A1 are
+ * present). So the narrow set draws the same segmented shape with ■□ instead of
+ * falling back to a font whose advance width would garble the line.
+ *
  * Width still matters as a second filter — a fullwidth glyph would occupy two
  * cells — so every narrow glyph is also East Asian Width N/Na. The test suite
  * enforces both properties.
@@ -40,6 +47,12 @@ const ICON = {
   ctx: '📦',
   saved: '💰',
   reset: '🔄',
+  // Gauge cells. Separate ticks rather than one continuous block: the bar is a
+  // count of how much of a budget is gone, and ticks are countable where a solid
+  // run is not. Precision is not this bar's job — an exact percentage is printed
+  // immediately after it in every chip that draws one.
+  gaugeFull: '▰',
+  gaugeEmpty: '▱',
 };
 
 /**
@@ -62,6 +75,10 @@ const NARROW = {
   ctx: '◧',       // a box filling up
   saved: '✓',
   reset: '↩',     // the window turning over
+  // Same segmented shape as the icon set, in the two glyphs this font has.
+  // ▰▱ (U+25B0/25B1) are absent from JetBrains Mono; ■□ (U+25A0/25A1) are there.
+  gaugeFull: '■',
+  gaugeEmpty: '□',
 };
 
 const SETS = { icon: ICON, narrow: NARROW };

@@ -24,12 +24,21 @@ import { ICON_GLYPHS, NARROW_GLYPHS, glyphsFor } from '../src/glyphs.js';
 import { formatReport, gaugeBar } from '../src/formatters/statusline.js';
 import { labelForKey } from '../src/window-labels.js';
 
-/** Chip glyphs, gauge cells, window icons. Verified present in JetBrains Mono. */
+/** Chip glyphs, gauge ticks, window icons. Verified present in JetBrains Mono. */
 const FONT_VERIFIED = new Set([
   ...'‼⚠↑⍟⌨◈⇉≣◉◔∑◧✓↩',      // narrow chip glyphs
   ...'✶⌸◫◕◇◆',               // narrow window icons
-  ...'█▉▊▋▌▍▎▏░▒',            // gauge cells
+  ...'■□',                    // narrow gauge ticks (U+25A0 / U+25A1)
 ]);
+
+/**
+ * The icon set's gauge ticks. ▰▱ (U+25B0 / U+25B1) are the shape we want, and
+ * JetBrains Mono ships neither — which is exactly why narrow draws ■□ instead.
+ * Listed separately so the narrow assertions keep rejecting these two: putting
+ * them in FONT_VERIFIED would make the font check pass on a character the font
+ * does not have.
+ */
+const ICON_ONLY_GAUGE = new Set([...'▰▱']);
 
 /** Punctuation and arrows the labels themselves carry, likewise verified. */
 const FONT_VERIFIED_TEXT = new Set([...'·→×']);
@@ -138,46 +147,88 @@ test('icon mode still uses the emoji, so other terminals are unaffected', () => 
   }
 });
 
-test('the gauge fills monotonically and always spans six cells', () => {
-  let prev = -1;
+test('the gauge fills monotonically and always spans twelve ticks', () => {
+  for (const mode of ['icon', 'narrow']) {
+    const g = glyphsFor(mode);
+    let prev = -1;
+    for (let pct = 0; pct <= 100; pct += 1) {
+      const bar = gaugeBar(pct, mode);
+      assert.equal([...bar].length, 12, `${mode} ${pct}% must draw twelve ticks`);
+      const filled = [...bar].filter((ch) => ch === g.gaugeFull).length;
+      assert.ok(filled >= prev, `${mode} ${pct}% drew fewer ticks than the percentage below it`);
+      prev = filled;
+    }
+  }
+});
+
+test('only 100% draws a full row, and only 0% draws an empty one', () => {
+  // These are the two readings that change a decision: a full row has to mean
+  // the limit is reached, and an empty one has to mean untouched. Plain rounding
+  // gets both wrong — it fills the last tick from 96% and leaves the first empty
+  // until 5%.
+  const g = glyphsFor('icon');
+  assert.equal(gaugeBar(100, 'icon'), g.gaugeFull.repeat(12), '100% fills every tick');
+  assert.equal(gaugeBar(0, 'icon'), g.gaugeEmpty.repeat(12), '0% fills none');
+  for (const pct of [95, 96, 98, 99, 99.9]) {
+    assert.notEqual(gaugeBar(pct, 'icon'), g.gaugeFull.repeat(12), `${pct}% must not look full`);
+  }
+  for (const pct of [0.1, 1, 4, 8]) {
+    assert.notEqual(gaugeBar(pct, 'icon'), g.gaugeEmpty.repeat(12), `${pct}% must not look untouched`);
+  }
+});
+
+test('the bar moves on a 1/12 grid, and the exact figure is printed beside it', () => {
+  // Twelve ticks resolve 13 states, so values inside one 1/12 band draw the same
+  // bar (46% and 54% both fill six). That is the trade the segmented shape makes:
+  // ticks are countable where a solid run is not, and precision was never this
+  // bar's job — every chip that draws a gauge prints the percentage right after
+  // it. What the bar must not do is look stuck across a band boundary.
+  assert.notEqual(gaugeBar(20), gaugeBar(21), 'a band boundary must move the bar');
+  assert.notEqual(gaugeBar(29), gaugeBar(30));
+  assert.notEqual(gaugeBar(45), gaugeBar(46));
+  assert.equal(gaugeBar(46), gaugeBar(54), 'and within a band it deliberately does not');
+
+  // The bands are roughly even, so no single tick swallows a wide range of the
+  // scale. 1/12 and 11/12 are the two wide ones by design: they absorb the
+  // reserved 0% and 100% readings.
+  const width = new Map();
   for (let pct = 0; pct <= 100; pct += 1) {
     const bar = gaugeBar(pct);
-    assert.equal([...bar].length, 6, `${pct}% must draw six cells`);
-    assert.deepEqual(unvetted(bar), [], `${pct}% used an unverified character`);
-    const filled = [...bar].filter((ch) => ch !== '▒').length;
-    assert.ok(filled >= prev, `${pct}% drew fewer cells than the percentage below it`);
-    prev = filled;
+    width.set(bar, (width.get(bar) || 0) + 1);
   }
-  // Empty cells are ▒, not ░: ░ sits inset from the cell box in JetBrains Mono,
-  // so a bar mixing it with the filled blocks looks misaligned.
-  assert.equal(gaugeBar(0), '▒▒▒▒▒▒');
-  assert.equal(gaugeBar(100), '██████');
+  assert.equal(width.size, 13, 'twelve ticks plus empty is thirteen states');
+  const interior = [...width.values()].filter((n) => n > 1);
+  assert.ok(Math.max(...interior) <= 12, 'no band covers more than 12 points');
 });
 
-test('eighth steps give the bar resolution the three-step version lacked', () => {
-  // 25% and 31% used to draw the same bar, which made the gauge look stuck.
-  assert.notEqual(gaugeBar(25), gaugeBar(31));
-  assert.notEqual(gaugeBar(47), gaugeBar(50));
+test('each mode draws the ticks its terminal font can render', () => {
+  // ▰▱ is the shape; JetBrains Mono ships neither, so narrow draws ■□ instead.
+  // Getting this backwards is what garbled the line in the first place.
+  assert.deepEqual([...new Set(gaugeBar(50, 'icon'))].sort(), [...'▰▱'].sort());
+  assert.deepEqual([...new Set(gaugeBar(50, 'narrow'))].sort(), [...'■□'].sort());
+  for (const ch of ICON_ONLY_GAUGE) {
+    assert.ok(!FONT_VERIFIED.has(ch), `${ch} is icon-only and must not be font-verified`);
+    assert.ok(!gaugeBar(50, 'narrow').includes(ch), `narrow must not emit ${ch}`);
+  }
 });
 
-test('the gauge track is a solid block in color, and shading without it', () => {
+test('the unused ticks are dimmed when color is available', () => {
   const now = Math.floor(Date.now() / 1000);
   const withBudget = {
     ...data(),
     caps: { windows: [{ key: 'litellm_budget', usedPct: 26, spend: 1000, maxBudget: 4000, resetsAt: now + 100000 }] },
   };
   const colored = formatReport(withBudget, { color: true, mode: 'icon', verbose: true, segments: ['usage'] });
-  // Shading beside a solid fill reads as noise, so with color the unused cells
-  // are the same block dimmed to gray.
-  assert.match(colored, /\x1b\[90m█+/, 'unused cells should be gray solid blocks');
-  assert.doesNotMatch(colored, /▒/, 'no shading character when color can carry the distinction');
+  // The hollow tick already separates the halves by shape; graying the remainder
+  // leaves the filled run as the only thing at full brightness.
+  assert.match(colored, /\x1b\[90m▱+/, 'unused ticks should be gray');
 
   const plain = formatReport(withBudget, { color: false, mode: 'icon', verbose: true, segments: ['usage'] });
-  // With no color, texture is the only thing left to tell the halves apart.
-  assert.match(plain, /▒/, 'shading returns when color is off');
+  assert.match(plain, /▰+▱+/, 'without color the shapes alone carry it');
+  assert.doesNotMatch(plain, /\x1b\[/, 'and no escapes are emitted');
 });
 
-test('a full gauge has no track to draw', () => {
+test('a full gauge has no unused ticks to dim', () => {
   const now = Math.floor(Date.now() / 1000);
   const full = {
     ...data(),
@@ -186,6 +237,6 @@ test('a full gauge has no track to draw', () => {
   // At 100% the window is promoted to the cap-warn chip and suppressed in the
   // always-on segment, so that is where its gauge renders.
   const out = formatReport(full, { color: true, mode: 'icon', verbose: true, segments: ['cap-warn'] });
-  assert.match(out, /█{6}/);
-  assert.doesNotMatch(out, /\x1b\[90m█/, 'no gray track cells at 100%');
+  assert.match(out, /▰{12}/);
+  assert.doesNotMatch(out, /▱/, 'no hollow ticks at 100%');
 });

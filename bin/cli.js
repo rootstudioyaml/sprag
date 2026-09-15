@@ -325,7 +325,12 @@ async function main() {
       console.log('예산 캐시가 비어 있습니다. `sprag litellm-budget --refresh` 로 먼저 조회하십시오.');
       return;
     }
-    for (const line of formatBudgetReport(state)) console.log(line);
+    // Same resolver the statusline uses: this report draws a gauge too, and a
+    // glyph the terminal's font lacks garbles here exactly as it does there.
+    const { resolveLabelMode } = await import('../src/statusline-mode.js');
+    const { statuslineDefaults } = await import('../src/config.js');
+    const { mode: labelMode } = resolveLabelMode({ hasFlag, cfg: statuslineDefaults() });
+    for (const line of formatBudgetReport(state, new Date(), labelMode)) console.log(line);
     return;
   }
 

@@ -171,11 +171,30 @@ test('formatBudgetReport: 게이지와 사용·잔여 금액을 함께 낸다', 
     now,
   );
   const text = lines.join('\n');
-  // Eighth blocks can appear in the boundary cell, so the class covers them.
-  assert.match(lines[0], /^💳 budget [█▉▊▋▌▍▎▏▒]{6} 34% \$34\.0\/\$100$/);
+  // Twelve ticks, filled to the 1/12 band that holds 34%.
+  assert.match(lines[0], /^💳 budget [▰▱]{12} 34% \$34\.0\/\$100$/);
   assert.match(text, /사용 \$34\.0 · 잔여 \$66\.0 \(66\.0%\)/);
   assert.match(text, /출처 팀 멤버십 예산/);
   assert.match(text, /조회 3분 전/);
+});
+
+test('formatBudgetReport: 모드마다 그 터미널 폰트가 가진 눈금을 쓴다', async () => {
+  const { formatBudgetReport } = await import('../src/litellm-budget.js');
+  const now = new Date(2026, 8, 14, 12, 0, 0);
+  const state = { base: 'https://litellm.example.com', checkedAt: now.getTime(), source: 'team', spend: 34, maxBudget: 100 };
+  const head = (mode) => formatBudgetReport(state, now, mode)[0];
+
+  // 통계선의 text 모드는 게이지를 아예 그리지 않지만 이 보고서는 그립니다. 그래서
+  // 여기서만 드러나는 계약입니다: ▰▱ 는 JetBrains Mono 에 없으므로 IntelliJ 로
+  // 내려가는 두 모드(narrow·text)는 ■□ 를 써야 합니다.
+  assert.match(head('icon'), /^💳 budget [▰▱]{12} /, 'icon 은 ▰▱');
+  assert.match(head('narrow'), /^◫ budget [■□]{12} /, 'narrow 는 아이콘도 눈금도 폰트 안에서');
+  assert.match(head('text'), /^budget [■□]{12} /, 'text 는 아이콘을 빼고 눈금은 폰트 안에서');
+  for (const mode of ['narrow', 'text']) {
+    assert.doesNotMatch(head(mode), /[▰▱]/, `${mode} 가 폰트에 없는 눈금을 내면 안 됩니다`);
+  }
+  // 기본값은 icon 이라 인자를 넘기지 않는 호출부가 있어도 모양이 유지됩니다.
+  assert.equal(formatBudgetReport(state, now)[0], head('icon'));
 });
 
 test('formatBudgetReport: 한도가 없으면 무제한으로 알린다', async () => {
