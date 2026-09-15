@@ -23,10 +23,15 @@ import { fileURLToPath } from 'node:url';
 import { userDataDir } from './paths.js';
 import { debug } from './debug.js';
 
-// Whichever name this copy was installed under (sprag-cli or the legacy
-// claude-token-saver) is the one whose registry entry must be consulted.
+// This copy may be installed under the canonical name or under the legacy one.
+// Releases go out under the canonical name, so that is the entry the registry
+// check consults either way — a legacy copy must keep hearing about new
+// versions even after the legacy name stops receiving publishes.
 import { createRequire } from 'node:module';
 const PKG_NAME = createRequire(import.meta.url)('../package.json').name;
+const CANONICAL_NAME = 'sprag-cli';
+const LEGACY_NAME = 'claude-token-saver';
+const IS_LEGACY = PKG_NAME === LEGACY_NAME;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h — the registry is not a health endpoint
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -148,7 +153,7 @@ export async function refreshUpdateState(currentVersion) {
   try {
     // The `latest` dist-tag endpoint returns a few hundred bytes, unlike the
     // full packument which is megabytes for a package with this many releases.
-    const res = await fetch(`https://registry.npmjs.org/${PKG_NAME}/latest`, {
+    const res = await fetch(`https://registry.npmjs.org/${CANONICAL_NAME}/latest`, {
       signal: controller.signal,
       headers: { accept: 'application/json' },
     });
@@ -194,6 +199,15 @@ export function dismissUpdate(version) {
  */
 export function upgradeCommand() {
   const here = dirname(fileURLToPath(import.meta.url));
+  // A legacy copy upgrades by moving to the canonical name. Installing the new
+  // name alone would leave two copies fighting over the same `sprag` binary,
+  // so the old one comes off first.
+  if (IS_LEGACY) {
+    if (here.includes('/pnpm/')) return `pnpm remove -g ${LEGACY_NAME} && pnpm add -g ${CANONICAL_NAME}@latest`;
+    if (here.includes('/.bun/')) return `bun remove -g ${LEGACY_NAME} && bun add -g ${CANONICAL_NAME}@latest`;
+    if (here.includes('/.yarn/')) return `yarn global remove ${LEGACY_NAME} && yarn global add ${CANONICAL_NAME}@latest`;
+    return `npm uninstall -g ${LEGACY_NAME} && npm install -g ${CANONICAL_NAME}@latest`;
+  }
   if (here.includes('/pnpm/')) return `pnpm add -g ${PKG_NAME}@latest`;
   if (here.includes('/.bun/')) return `bun add -g ${PKG_NAME}@latest`;
   if (here.includes('/.yarn/')) return `yarn global add ${PKG_NAME}@latest`;
@@ -202,3 +216,6 @@ export function upgradeCommand() {
 
 export const UPDATE_CHECK_INTERVAL_MS = CHECK_INTERVAL_MS;
 export const PACKAGE_NAME = PKG_NAME;
+export const CANONICAL_PACKAGE_NAME = CANONICAL_NAME;
+/** True when this copy was installed under the legacy package name. */
+export const INSTALLED_UNDER_LEGACY_NAME = IS_LEGACY;

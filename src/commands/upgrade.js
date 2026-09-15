@@ -25,7 +25,8 @@ function runCommand(cmd) {
 }
 
 export async function run({ hasFlag, version }) {
-  const { updateStatus, refreshUpdateState, upgradeCommand } = await import('../update-check.js');
+  const { updateStatus, refreshUpdateState, upgradeCommand, INSTALLED_UNDER_LEGACY_NAME } =
+    await import('../update-check.js');
   const { userLanguage } = await import('../config.js');
   const lang = userLanguage();
   const cmd = upgradeCommand();
@@ -40,6 +41,25 @@ export async function run({ hasFlag, version }) {
   // network round trip is fine here.
   await refreshUpdateState(version);
   const s = updateStatus(version);
+  // A legacy-name copy has somewhere to go even on the newest version: the
+  // package was renamed, and only the new name keeps receiving releases.
+  if (!s.available && INSTALLED_UNDER_LEGACY_NAME) {
+    console.log(lang === 'ko'
+      ? `패키지 이름이 claude-token-saver 에서 sprag-cli 로 바뀌었습니다. 버전은 최신(v${version})이지만, 앞으로의 릴리스를 계속 받으려면 새 이름으로 옮겨야 합니다.`
+      : `The package was renamed from claude-token-saver to sprag-cli. You are on the latest version (v${version}), but future releases only ship under the new name.`);
+    console.log(`$ ${cmd}`);
+    const migrateCode = await runCommand(cmd);
+    if (migrateCode !== 0) {
+      console.error(lang === 'ko'
+        ? `이전 명령이 종료 코드 ${migrateCode}로 실패했습니다. 위 출력을 확인하십시오.`
+        : `Migration command failed with exit code ${migrateCode}. Check the output above.`);
+      process.exit(migrateCode);
+    }
+    console.log(lang === 'ko'
+      ? '이전이 끝났습니다. 새 셸에서 sprag --version 으로 확인하십시오.'
+      : 'Migration done. Confirm with sprag --version in a fresh shell.');
+    return;
+  }
   if (!s.available) {
     console.log(lang === 'ko'
       ? `이미 최신 버전입니다 (v${version}). 설치할 것이 없습니다.`
@@ -48,8 +68,12 @@ export async function run({ hasFlag, version }) {
   }
 
   console.log(lang === 'ko'
-    ? `v${version} → ${s.latest} 로 업그레이드합니다.`
-    : `Upgrading v${version} → ${s.latest}.`);
+    ? (INSTALLED_UNDER_LEGACY_NAME
+      ? `v${version} → ${s.latest} 로 업그레이드하면서 새 패키지 이름(sprag-cli)으로 함께 옮깁니다.`
+      : `v${version} → ${s.latest} 로 업그레이드합니다.`)
+    : (INSTALLED_UNDER_LEGACY_NAME
+      ? `Upgrading v${version} → ${s.latest} and moving to the new package name (sprag-cli).`
+      : `Upgrading v${version} → ${s.latest}.`));
   console.log(`$ ${cmd}`);
   const code = await runCommand(cmd);
   if (code !== 0) {

@@ -4,6 +4,11 @@ README 에 있던 릴리스 노트 전체를 이 파일로 옮겼습니다. 최�
 
 ## 전체 릴리스 노트
 
+### v3.44.0 (2026-09-14)
+- **레거시 이름 사용자가 새 이름으로 자동 이전됩니다** — `claude-token-saver` 로 설치한 copy 에서 `upgrade` 를 실행하면 `npm uninstall -g claude-token-saver && npm install -g sprag-cli@latest` 를 수행합니다 (pnpm·bun·yarn 도 각 관리자 명령으로). 버전이 이미 최신이어도 이름 이전은 진행합니다. 새 이름으로만 릴리스가 나가기 때문입니다.
+- **업데이트 확인이 항상 `sprag-cli` 를 봅니다** — 설치된 이름이 무엇이든 정식 패키지의 `latest` 를 조회합니다. 레거시 이름으로 더는 퍼블리시하지 않아도 기존 설치가 새 릴리스 소식을 계속 받습니다.
+- npm 레지스트리에서 `claude-token-saver` 전 버전을 deprecated 로 표시했습니다. 설치할 때마다 새 이름 안내가 뜹니다.
+
 ### v3.43.0 (2026-09-14)
 - **apiKeyHelper 환경에서도 LiteLLM 예산 게이지가 나옵니다** — 키를 환경변수에 두지 않고 `settings.json` 의 `apiKeyHelper` 로 매번 발급받는 구성에서는 statusline 자식 프로세스에 토큰이 없어서 게이지가 통째로 사라졌습니다. 주소 판정(`gatewayBase`)과 키 확보(`resolveKey`)를 분리해, 캐시만 읽는 렌더 경로는 키를 요구하지 않고 갱신 경로만 헬퍼를 실행합니다. 헬퍼는 5분에 한 번 뜨는 분리 프로세스 안에서만 돌므로 렌더 속도에 영향이 없습니다.
 - **`/key/info` 404 가 갱신을 중단시키지 않습니다** — Okta JWT 같은 커스텀 인증을 쓰는 배포에서는 발급 토큰이 `LiteLLM_VerificationToken` 에 없어 404 가 상수입니다. 기존 코드는 이 응답에서 `throw` 해 정작 예산이 들어 있는 `/user/info` 를 호출하지 못했습니다. 이제 두 엔드포인트가 모두 실패할 때만 실패로 봅니다.

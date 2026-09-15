@@ -161,3 +161,31 @@ test('the upgrade command matches how the copy was installed', () => {
   // legacy name would report claude-token-saver here instead.
   assert.match(upgradeCommand(), /^(npm install -g|pnpm add -g|bun add -g|yarn global add) (sprag-cli|claude-token-saver)@latest$/);
 });
+
+test('the registry check always asks about the canonical package name', async (t) => {
+  isolated(t);
+  const { refreshUpdateState, CANONICAL_PACKAGE_NAME, INSTALLED_UNDER_LEGACY_NAME } =
+    await import('../src/update-check.js');
+  const prevFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    return { ok: true, status: 200, json: async () => ({ version: '9.9.9' }) };
+  };
+  t.after(() => { globalThis.fetch = prevFetch; });
+  const r = await refreshUpdateState('3.43.0');
+  assert.equal(r.ok, true);
+  assert.equal(r.latest, '9.9.9');
+  assert.equal(CANONICAL_PACKAGE_NAME, 'sprag-cli');
+  // A legacy copy must keep hearing about releases that only ship under the new
+  // name, so the URL is the canonical one no matter which name is installed.
+  assert.deepEqual(urls, ['https://registry.npmjs.org/sprag-cli/latest']);
+  // This repo is the canonical package, so the legacy flag is off here.
+  assert.equal(INSTALLED_UNDER_LEGACY_NAME, false);
+});
+
+test('the upgrade command targets the installed package name', () => {
+  const cmd = upgradeCommand();
+  assert.match(cmd, /sprag-cli@latest$/);
+  assert.doesNotMatch(cmd, /uninstall/); // canonical copy: plain upgrade
+});
