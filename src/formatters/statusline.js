@@ -265,7 +265,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, saved, delegated, doc2md, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, month, saved, delegated, doc2md, ctx, period, `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
@@ -689,49 +689,89 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Cap-warn outranks spike: an imminent rate-limit block is more urgent than
   // a single spiking session.
   const allow = segments && segments.length
-    ? new Set(segments.map((s) => s.toLowerCase()))
+    ? new Set(segments.map((s) => String(s).toLowerCase()))
     : null;
+  // Still needed by the headline lines below, which are not part of the
+  // ordered segment list.
   const want = (name) => !allow || allow.has(name);
-  // Legacy whitelist aliases: `5h` ↔ `five_hour`, `7d` ↔ `seven_day`. So
-  // existing `--segments` configs keep working after the generic refactor.
-  const usageWant = (key) => {
-    if (!allow) return true;
-    if (allow.has(key.toLowerCase())) return true;
-    if (key === 'five_hour' && allow.has('5h')) return true;
-    if (key === 'seven_day' && allow.has('7d')) return true;
-    return false;
-  };
-  const segs = [];
-  if (capWarnSeg && want('cap-warn')) segs.push(capWarnSeg);
-  if (spikeSeg && want('spike')) segs.push(spikeSeg);
-  // An available upgrade rides up front with the other "act on this" chips.
-  // When there is nothing to upgrade to, the same segment is pure identity and
-  // sits at the tail instead (pushed after `saved`, below).
-  if (versionSeg && updateAvailable && want('version')) segs.push(versionSeg);
-  if (harnessSeg && want('harness')) segs.push(harnessSeg);
-  if (koreanSeg && want('korean')) segs.push(koreanSeg);
-  if (modelSeg && want('model')) segs.push(modelSeg);
-  // Delegation savings ride up front, next to the model that would otherwise
-  // have done the work. "Cache saved" stays at the tail: it is a lifetime brag
-  // stat, while this one is the point of the tool.
-  // When the totals headline owns line 1, the inline session chip would
-  // repeat the same story on line 2 — drop it there.
-  if (delegateSeg && want('delegated') && !totalsLine) segs.push(delegateSeg);
-  // Only when it did not already earn a headline line above.
-  if (doc2mdSeg && want('doc2md') && !doc2mdLine) segs.push(doc2mdSeg);
-  if (want('hit')) segs.push(hitSeg);
-  if (want('ttl')) segs.push(ttlSeg);
-  for (const { key, seg } of usageSegs) {
-    if (usageWant(key)) segs.push(seg);
+
+  // Segment registry — a name maps to the segments it contributes, so the
+  // sequence is data instead of the order of push calls. That is what lets a
+  // caller reorder: `--segments` used to filter only, and its order was
+  // silently discarded, so a user who wanted Ctx first had no way to ask.
+  const usageByKey = new Map(usageSegs.map(({ key, seg }) => [key, seg]));
+  // Legacy `--segments` aliases: `5h` ↔ `five_hour`, `7d` ↔ `seven_day`.
+  const USAGE_ALIASES = { '5h': 'five_hour', '7d': 'seven_day' };
+  function segmentsNamed(name) {
+    switch (name) {
+      case 'cap-warn':  return [capWarnSeg];
+      case 'spike':     return [spikeSeg];
+      case 'version':   return [versionSeg];
+      case 'harness':   return [harnessSeg];
+      case 'korean':    return [koreanSeg];
+      case 'model':     return [modelSeg];
+      // Dropped when the same story already owns a headline line above, which
+      // would otherwise repeat it on line 2.
+      case 'delegated': return totalsLine ? [] : [delegateSeg];
+      case 'doc2md':    return doc2mdLine ? [] : [doc2mdSeg];
+      case 'hit':       return [hitSeg];
+      case 'ttl':       return [ttlSeg];
+      case 'month':     return [monthSeg];
+      case 'ctx':       return [ctxSeg];
+      case 'saved':     return [saveSeg];
+      case 'period':    return [periodSeg];
+      // Every rate-limit window, in payload order.
+      case 'usage':     return usageSegs.map(({ seg }) => seg);
+      default: {
+        const seg = usageByKey.get(USAGE_ALIASES[name] || name);
+        return seg ? [seg] : [];
+      }
+    }
   }
-  if (monthSeg && want('month')) segs.push(monthSeg);
-  if (ctxSeg && want('ctx')) segs.push(ctxSeg);
-  // Cache saved is the "lifetime brag" stat — useful but not actionable, so
-  // it sits near the tail. The period label closes the line as a quiet
-  // timeframe footer.
-  if (want('saved')) segs.push(saveSeg);
-  if (versionSeg && !updateAvailable && want('version')) segs.push(versionSeg);
-  if (want('period')) segs.push(periodSeg);
+
+  // Default order, most actionable first. A rate-limit block or a full context
+  // window stops the work outright, so those lead. Cache and cost numbers shape
+  // habits rather than the next keystroke, and harness / Korean-style are
+  // near-constant identity — they sit at the tail, where a narrow terminal
+  // clips the least useful end of the line instead of the most useful one.
+  const defaultOrder = [
+    'cap-warn', 'spike',
+    // An available upgrade is an "act on this" chip. With nothing to upgrade
+    // to, the same segment is pure identity and moves to the tail.
+    ...(updateAvailable ? ['version'] : []),
+    'usage', 'ctx',
+    'ttl', 'hit',
+    // Delegation savings stay next to the model that would otherwise have done
+    // the work. "Cache saved" is a lifetime brag stat, so it closes the group.
+    'model', 'delegated', 'doc2md', 'month', 'saved',
+    'harness', 'korean',
+    ...(updateAvailable ? [] : ['version']),
+    // The period label closes the line as a quiet timeframe footer.
+    'period',
+  ];
+
+  // A caller-supplied list sets the filter AND the order. Warning chips keep
+  // the lead wherever they were written: being seen first is their whole job,
+  // and someone reordering segments is not asking to bury an alarm.
+  const LEAD = ['cap-warn', 'spike'];
+  let order = defaultOrder;
+  if (allow) {
+    const names = segments.map((s) => String(s).toLowerCase());
+    const lead = LEAD.filter((n) => names.includes(n));
+    order = lead.concat(names.filter((n) => !LEAD.includes(n)));
+  }
+
+  const segs = [];
+  // Dedupe so overlapping names (e.g. `usage,five_hour`) cannot print the same
+  // chip twice.
+  const seen = new Set();
+  for (const name of order) {
+    for (const seg of segmentsNamed(name)) {
+      if (!seg || seen.has(seg)) continue;
+      seen.add(seg);
+      segs.push(seg);
+    }
+  }
   // Trailing erase-to-end-of-line so any leftover characters from a previous
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard
   // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
