@@ -19,15 +19,28 @@ npm publish
 git push upstream main --follow-tags
 
 # 3. Draft the release notes from that changelog section.
-npm run release:notes X.Y.Z    # extracts to a draft, prints what users will see
-$EDITOR <the draft path it printed>
+npm run release:notes X.Y.Z     # writes docs/releases/vX.Y.Z.md, prints what users will see
+$EDITOR docs/releases/vX.Y.Z.md # translate; delete the TRANSLATE line when done
 
-# 4. Publish the release.
+# 4. Publish the release, and commit the draft with it.
 GITHUB_TOKEN=… npm run release:notes X.Y.Z -- --publish
+git add docs/releases/vX.Y.Z.md && git commit -m "docs(release): notes for X.Y.Z"
 ```
 
 Re-running step 4 updates the existing release rather than adding a second one,
 so a correction is just another run.
+
+## Why the draft is a committed file
+
+It started in a temp directory, which was wrong three ways. A reboot takes the
+translation with it. Nobody can review it: what a release tells every user is
+worth a second pair of eyes, and a file outside the repository never reaches a
+diff. And `os.tmpdir()` is not `/tmp` on macOS, so "edit the draft" and "publish
+the draft" referred to two different files with the same name — which is how a
+publish ran against untranslated text.
+
+`docs/releases/` is not in `package.json`'s `files`, so the drafts stay out of the
+npm tarball.
 
 ## What the draft has to look like
 

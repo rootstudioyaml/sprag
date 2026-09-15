@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -61,6 +61,23 @@ test('the real changelog yields a body the upgrade offer can use', () => {
   const shown = releaseHighlights(body);
   assert.ok(shown.length > 0, 'the section must yield at least one bullet');
   assert.ok(shown.length <= 3, 'and at most three are shown');
+  for (const line of shown) {
+    assert.ok(line.length <= 115, `a shown line must fit one row: ${line}`);
+  }
+});
+
+test('the shipped version has a committed release-notes draft, and it is translated', () => {
+  // The upgrade offer reads the published release, and the draft is what gets
+  // published. Keeping it in the repo is what makes it reviewable — and what
+  // lets this test check, before the tag goes out, that it is not still the
+  // untranslated extraction.
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  const draft = join(ROOT, 'docs', 'releases', `v${pkg.version}.md`);
+  assert.ok(existsSync(draft), `docs/releases/v${pkg.version}.md must exist for the shipped version`);
+  const body = readFileSync(draft, 'utf8');
+  assert.doesNotMatch(body, /TRANSLATE/, 'the draft must be translated before release');
+  const shown = releaseHighlights(body);
+  assert.ok(shown.length > 0, 'the draft must yield at least one bullet for the upgrade offer');
   for (const line of shown) {
     assert.ok(line.length <= 115, `a shown line must fit one row: ${line}`);
   }

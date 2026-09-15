@@ -17,14 +17,21 @@
  *   node scripts/release-notes.mjs 3.46.0            # extract to a draft file
  *   node scripts/release-notes.mjs 3.46.0 --publish  # create/update the release
  *
+ * Drafts live in docs/releases/ and are committed, for three reasons. A draft in
+ * a temp directory is gone after a reboot, taking the translation with it. It
+ * also cannot be reviewed: what a release will tell every user is worth a second
+ * pair of eyes before it goes out, and a file outside the repository never
+ * reaches a diff. And os.tmpdir() is not /tmp on macOS, so "edit the draft" and
+ * "publish the draft" quietly referred to two different files — which is exactly
+ * the mistake that produced a release attempt against untranslated text.
+ *
  * The GitHub token comes from GITHUB_TOKEN or GH_TOKEN. Creating a release is a
  * write, which corporate networks may block; the script says so plainly rather
  * than looking like a token problem.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { tmpdir } from 'node:os';
 import { sectionFor } from '../src/changelog.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -43,7 +50,10 @@ if (!version) usage('a version is required');
 if (!/^\d+\.\d+\.\d+/.test(version)) usage(`"${version}" does not look like a version`);
 const publish = args.includes('--publish');
 const fileArg = args.includes('--file') ? args[args.indexOf('--file') + 1] : null;
-const draftPath = fileArg || join(tmpdir(), `release-notes-${version}.md`);
+const DRAFT_DIR = join(ROOT, 'docs', 'releases');
+const draftPath = fileArg || join(DRAFT_DIR, `v${version}.md`);
+/** Path as the user would type it, so messages match what they see in git. */
+const shown = (p) => (p.startsWith(ROOT) ? relative(ROOT, p) : p);
 
 if (!publish) {
   const body = sectionFor(readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8'), version);
@@ -52,10 +62,11 @@ if (!publish) {
     console.error('  Add the section first — the release notes are the changelog, not a separate text.');
     process.exit(1);
   }
+  mkdirSync(DRAFT_DIR, { recursive: true });
   writeFileSync(draftPath, `${TODO}\n\n${body}\n`);
   const korean = (body.match(/[가-힣]/g) || []).length;
   const bullets = body.split('\n').filter((l) => /^\s*[-*+]\s/.test(l));
-  console.log(`draft: ${draftPath}`);
+  console.log(`draft: ${shown(draftPath)}`);
   console.log(`  ${bullets.length} bullet(s), ${korean} Korean character(s)`);
   if (korean > 0) {
     console.log('  Korean text is present. Past releases on this repo are English, so');
@@ -90,12 +101,12 @@ if (!publish) {
 
 // --- publish ---------------------------------------------------------------
 if (!existsSync(draftPath)) {
-  usage(`no draft at ${draftPath} — run without --publish first`);
+  usage(`no draft at ${shown(draftPath)} — run without --publish first`);
 }
 const draft = readFileSync(draftPath, 'utf8');
 if (draft.includes(TODO)) {
   console.error('release-notes: the draft still carries the TRANSLATE marker.');
-  console.error(`  Edit ${draftPath}, remove that line, then publish.`);
+  console.error(`  Edit ${shown(draftPath)}, remove that line, then publish.`);
   process.exit(1);
 }
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
@@ -123,7 +134,7 @@ function fail(status, detail) {
     console.error('  some corporate networks allow reads to api.github.com and block writes.');
     console.error('  Publish from a network that allows them, or paste the draft into the form:');
     console.error(`    https://github.com/${REPO_SLUG}/releases/new?tag=${tag}`);
-    console.error(`  The draft is at ${draftPath}.`);
+    console.error(`  The draft is at ${shown(draftPath)}.`);
   } else if (String(detail || '').trim()) {
     console.error(`  ${String(detail).slice(0, 300)}`);
   }
