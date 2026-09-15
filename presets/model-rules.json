@@ -21,7 +21,10 @@
       "agent": "haiku-runner",
       "example": "npm test 돌려봐",
       "exampleEn": "run npm test",
-      "budget": { "calls": 8, "out": 1500 }
+      "budget": {
+        "calls": 8,
+        "out": 1500
+      }
     },
     {
       "id": "run-t1",
@@ -32,7 +35,10 @@
       "agent": "sonnet",
       "example": "빌드하고 실패한 테스트만 보여줘",
       "exampleEn": "build it and show only the failing tests",
-      "budget": { "calls": null, "out": 6000 }
+      "budget": {
+        "calls": null,
+        "out": 6000
+      }
     },
     {
       "id": "explore-t2",
@@ -43,7 +49,10 @@
       "agent": "haiku-explore",
       "example": "이 설정값 어느 파일에 있어?",
       "exampleEn": "which file holds this config value?",
-      "budget": { "calls": 8, "out": 1500 }
+      "budget": {
+        "calls": 8,
+        "out": 1500
+      }
     },
     {
       "id": "explore-t1",
@@ -54,7 +63,10 @@
       "agent": "sonnet",
       "example": "이 함수를 호출하는 곳 전부 찾아줘",
       "exampleEn": "find every caller of this function",
-      "budget": { "calls": null, "out": 6000 }
+      "budget": {
+        "calls": null,
+        "out": 6000
+      }
     },
     {
       "id": "check-t2",
@@ -65,7 +77,10 @@
       "agent": "haiku-explore",
       "example": "지금 배포된 버전이 뭔지 확인해줘",
       "exampleEn": "check which version is deployed right now",
-      "budget": { "calls": 8, "out": 1500 }
+      "budget": {
+        "calls": 8,
+        "out": 1500
+      }
     },
     {
       "id": "check-t1",
@@ -76,7 +91,10 @@
       "agent": "sonnet",
       "example": "마이그레이션이 실제로 적용됐는지 확인해줘",
       "exampleEn": "verify the migration actually applied",
-      "budget": { "calls": null, "out": 6000 }
+      "budget": {
+        "calls": null,
+        "out": 6000
+      }
     },
     {
       "id": "paste-t2",
@@ -87,7 +105,10 @@
       "agent": "haiku-explore",
       "example": "이 에러 로그는 무슨 뜻이야?",
       "exampleEn": "what does this error log mean?",
-      "budget": { "calls": 8, "out": 1500 }
+      "budget": {
+        "calls": 8,
+        "out": 1500
+      }
     },
     {
       "id": "paste-t1",
@@ -98,7 +119,10 @@
       "agent": "sonnet",
       "example": "이 스택트레이스에서 어느 모듈이 죽은 건지 짚어줘",
       "exampleEn": "point out which module failed in this stack trace",
-      "budget": { "calls": null, "out": 8000 }
+      "budget": {
+        "calls": null,
+        "out": 8000
+      }
     },
     {
       "id": "read-t2",
@@ -109,7 +133,24 @@
       "agent": "haiku-explore",
       "example": "이 README 요약해줘",
       "exampleEn": "summarize this README",
-      "budget": { "calls": 8, "out": 1900 }
+      "budget": {
+        "calls": 8,
+        "out": 1900
+      }
+    },
+    {
+      "id": "read-t1",
+      "tier": "T1",
+      "category": "read",
+      "label": "읽기·요약·설명",
+      "labelEn": "reading / summarizing / explaining",
+      "agent": "sonnet",
+      "example": "이 함수가 하는 일을 단계별로 정리해줘",
+      "exampleEn": "walk through what this function does, step by step",
+      "budget": {
+        "calls": null,
+        "out": 8000
+      }
     }
   ]
 }
