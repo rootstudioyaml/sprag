@@ -186,7 +186,14 @@ export function releaseHighlights(body) {
     // release body is usually the rationale rather than the change itself.
     const m = /^[-*+]\s+(.*)$/.exec(line);
     if (!m) continue;
+    // Markup goes first, so the sentence split below sees the text a reader
+    // would: `**Bash writes are checked.**` is one sentence, not a bold run.
+    // One exception has to be caught before that: a stop followed straight by a
+    // code span (`…checked.\`install\` migrates…`) is a sentence boundary, and
+    // stripping the backtick first leaves a lowercase letter the split ignores.
+    // A space there is what the author meant, and it costs nothing if not.
     let item = m[1]
+      .replace(/([.。])(`)/g, '$1 $2')
       .replace(/`([^`]*)`/g, '$1')            // code spans read fine as plain text
       .replace(/\*\*([^*]*)\*\*/g, '$1')      // bold
       .replace(/\*([^*]*)\*/g, '$1')          // italics
@@ -198,8 +205,29 @@ export function releaseHighlights(body) {
     // for several sentences. The first sentence is the change, so that is what
     // a one-line notice keeps — cutting at a character count instead lands
     // mid-clause and reads as a broken string rather than a short one.
-    const firstSentence = item.split(/(?<=[.。])\s+/)[0] || item;
-    item = firstSentence;
+    //
+    // The break does not require a space after the stop: "…checked.The matcher…"
+    // is a typo a release body can carry, and requiring one there merged the two
+    // sentences into a single over-long line. A capital letter or a Hangul
+    // syllable directly after the stop is enough to say a new sentence started;
+    // a digit is not, so "0.5s" and "v3.45.0" stay intact.
+    //
+    // Abbreviations are excluded by name. "Fixed e.g. the matcher" would
+    // otherwise end after two words, which is worse than a long line: it reads
+    // as a complete thought and is not one. This list covers what actually turns
+    // up in release prose rather than trying to be exhaustive.
+    // `etc.` is deliberately absent: it ends a sentence as often as it continues
+    // one, so either choice is wrong half the time and the wrong one here merges
+    // two sentences rather than truncating one. Merging is the milder failure,
+    // and the length cap below bounds it.
+    const ABBREV = /\b(?:e\.g|i\.e|vs|cf|Dr|Mr|Ms|St|approx|no)\.$/i;
+    const parts = item.split(/(?<=[.。])(?:\s+|(?=[A-Z가-힣]))/);
+    let first = parts[0];
+    for (let k = 1; k < parts.length && ABBREV.test(first); k += 1) {
+      // The stop belonged to an abbreviation, so the sentence continues.
+      first = `${first} ${parts[k]}`;
+    }
+    item = first || item;
     // Some first sentences are themselves a paragraph. Those get cut, but at a
     // word boundary and with the ellipsis that says so.
     if (item.length > MAX_HIGHLIGHT_LEN) {

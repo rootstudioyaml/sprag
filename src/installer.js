@@ -294,8 +294,11 @@ export function installDelegationHook() {
     return { path: file, action: 'skipped', reason: 'hooks.PostToolUse is not an array — fix settings.json manually' };
   }
   const list = Array.isArray(settings.hooks.PostToolUse) ? settings.hooks.PostToolUse : [];
+  // Same exact-flag match as the SessionStart hook above, for the same reason:
+  // a substring test is what confused `--hook` with `--hook-delegated`, and a
+  // future `--hook-delegated-batch` would confuse this one in turn.
   const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('route-scan --hook-delegated')),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /route-scan --hook-delegated(?![\w-])/.test(h.command)),
   );
   if (already) return { path: file, action: 'exists' };
 

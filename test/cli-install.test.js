@@ -47,6 +47,11 @@ test('install completes on a machine with no prior state', () => {
       (m.hooks || []).some((h) => (h.command || '').includes('route-scan --hook-delegated')));
     assert.ok(post, 'the delegation hook lives under PostToolUse');
     assert.equal(post.matcher, 'Task|Agent');
+    // Both already-installed checks match the flag exactly rather than as a
+    // substring, so a future `--hook-delegated-batch` cannot be mistaken for
+    // either of these two.
+    assert.match(commands, /route-scan --hook(?![\w-])/);
+    assert.match(commands, /route-scan --hook-delegated(?![\w-])/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

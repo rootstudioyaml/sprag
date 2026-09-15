@@ -37,7 +37,11 @@ npm publish                             # sprag-cli
 git push upstream main --follow-tags
 
 # ── 5. Publish the GitHub release from the draft. ──────────────────────
-GITHUB_TOKEN=… node scripts/release-notes.mjs X.Y.Z --publish
+# The token is read from the environment. Export it in the shell rather than
+# writing it on the command line: an inline secret lands in shell history, and
+# from there into a paste or a screenshot.
+export GITHUB_TOKEN=…            # or GH_TOKEN
+node scripts/release-notes.mjs X.Y.Z --publish
 
 # ── 6. Confirm what users will be shown. ──────────────────────────────
 node -e "import('./src/update-check.js').then(async m => \

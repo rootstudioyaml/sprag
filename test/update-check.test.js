@@ -297,3 +297,55 @@ test('cached highlights are shown only for the version they describe', async (t)
   writeState({ checkedAt: Date.now(), latest: '3.25.0', current: '3.24.0' });
   assert.deepEqual(updateStatus('3.24.0').highlights, [], 'no notes is an empty list, not undefined');
 });
+
+test('a sentence ends at its stop even with no space after it', () => {
+  // Release bodies are prose typed by a person, so "…checked.The matcher…" turns
+  // up. Requiring a space after the stop merged the two sentences into one
+  // over-long line, which is the shape the first-sentence rule exists to avoid.
+  assert.deepEqual(releaseHighlights('- First sentence.Second sentence.'), ['First sentence.']);
+  assert.deepEqual(releaseHighlights('- 첫 문장입니다.두 번째 문장입니다.'), ['첫 문장입니다.']);
+  // A code span straight after the stop is a boundary too, even though stripping
+  // the backtick would otherwise leave a lowercase letter the split ignores.
+  assert.deepEqual(
+    releaseHighlights('- Bash writes are checked.`install` migrates old machines.'),
+    ['Bash writes are checked.'],
+  );
+});
+
+test('a decimal point is not a sentence boundary', () => {
+  // The measurements are the part of a release note worth reading, and every one
+  // of them carries a dot: "0.5s", "v3.45.0", "3.6%".
+  assert.deepEqual(
+    releaseHighlights('- A scan is 0.5s over 14 days. The rest follows.'),
+    ['A scan is 0.5s over 14 days.'],
+  );
+  assert.deepEqual(
+    releaseHighlights('- Bumped to v3.45.0. Nothing else changed.'),
+    ['Bumped to v3.45.0.'],
+  );
+  assert.deepEqual(
+    releaseHighlights('- Reads `a.b.c` from the payload. Nothing else.'),
+    ['Reads a.b.c from the payload.'],
+  );
+});
+
+test('an abbreviation does not end the sentence', () => {
+  // "Fixed e.g. the matcher" ending after two words is worse than a long line:
+  // it reads as a complete thought and is not one.
+  assert.deepEqual(
+    releaseHighlights('- Fixed e.g. the matcher. And more.'),
+    ['Fixed e.g. the matcher.'],
+  );
+  assert.deepEqual(
+    releaseHighlights('- The gate, i.e. shouldRescan, now takes a flag. Details below.'),
+    ['The gate, i.e. shouldRescan, now takes a flag.'],
+  );
+});
+
+test('markup is resolved before the sentence split, not after', () => {
+  // A stop inside a bold run is still a stop: `**Checked.**` ends the sentence.
+  assert.deepEqual(
+    releaseHighlights('- **Bash writes are checked.** The matcher was too narrow.'),
+    ['Bash writes are checked.'],
+  );
+});
