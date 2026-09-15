@@ -106,6 +106,13 @@ test('the live context reading is what renders, not the fallback', () => {
   assert.doesNotMatch(line, /200k/, 'the fallback size must not be what we see');
 });
 
+// Two chips read machine state rather than the report data: `korean` renders
+// only where `sprag korean on` was run, and `harness` only where a harness
+// section exists in CLAUDE.md. No payload can make them appear, so they are
+// checked by their own suites instead of by the coverage assertion below —
+// including them made the test pass on a configured machine and fail in CI.
+const ENV_DEPENDENT = new Set(['korean', 'harness']);
+
 test('every name in the default order is one the renderer knows', () => {
   // The order list and the segment registry are separate structures. A name
   // added to only one of them would be dropped without a word, so assert that
@@ -121,6 +128,7 @@ test('every name in the default order is one the renderer knows', () => {
   };
   const missing = [];
   for (const name of DEFAULT_SEGMENT_ORDER) {
+    if (ENV_DEPENDENT.has(name)) continue;
     const line = formatReport(rich, { ...opts, segments: [name] });
     // A rendered line always carries the erase-to-EOL suffix, so compare on the
     // visible text only.
@@ -128,6 +136,12 @@ test('every name in the default order is one the renderer knows', () => {
     if (visible === '') missing.push(name);
   }
   assert.deepEqual(missing, [], `default order names that render nothing: ${missing.join(', ')}`);
+  // The exemption is for "cannot be forced to render", not "may be misspelled".
+  // A name dropped from the registry must still fail here, so require that each
+  // exempt name is one the order list actually carries.
+  for (const name of ENV_DEPENDENT) {
+    assert.ok(DEFAULT_SEGMENT_ORDER.includes(name), `${name} is exempt but not in the default order`);
+  }
 });
 
 test('the month estimate steps aside when a gateway reports its own spend', () => {
