@@ -64,6 +64,70 @@ The registry lookup runs at most once every 24h in a detached background process
 
 Remediation commands are OS-aware (`~/.zshrc` for macOS/Linux/WSL, `setx` for Windows).
 
+## Label modes
+
+The chips come in three styles. Emoji is the default; the other two exist because
+some terminals cannot draw emoji without breaking the line.
+
+| Mode | Looks like | Select with |
+|---|---|---|
+| `icon` | `🧠 Cache hit 98.8% · 📦 Ctx 47% of 1M` | default, or `sprag mode icon` |
+| `narrow` | `◉ Cache hit 98.8% · ◧ Ctx 47% of 1M` | automatic in JetBrains IDEs, or `sprag mode narrow` / `--narrow` |
+| `text` | `Cache hit 98.8% · Ctx 47% of 1M` | `sprag mode text` / `--text` |
+
+### Why JetBrains IDEs get narrow glyphs
+
+Inside a JetBrains IDE terminal (IntelliJ, PyCharm, WebStorm, DataGrip — anything
+that sets `TERMINAL_EMULATOR=JetBrains-JediTerm`) the emoji set garbles. The
+symptoms look like the statusline is computing wrong numbers:
+
+```
+⏳ Cache expires 4:545      (should read 4:54)
+📦 Ctx 330% of 1M           (should read 33%)
+💳 budget $1.0K/$4.:0K      (should read $4.0K)
+```
+
+Nothing is miscomputed. The countdown formatter cannot emit a value without a
+colon, and percentages are clamped to 0–100, so those strings are impossible to
+produce. What you are seeing is leftover characters from the previous frame.
+
+The cause is font coverage. JetBrains Mono, the IDE default, has no glyphs for
+the emoji, so the terminal draws them through a fallback font whose advance width
+does not match the cell grid. Static text survives that, but a chip whose value
+changes every second repaints partially, and the mismatch stays on screen as
+debris. Dragging a selection across the line forces a full repaint and it reads
+correctly again — the buffer was always right, only the painting was off.
+
+Every glyph in the narrow set is a character JetBrains Mono actually ships, which
+is why the gauge (`█ ▉ ▊ … ▒`) was the one part of the line that never garbled:
+those characters were already in the font.
+
+### If your terminal garbles the line too
+
+Any terminal whose font lacks emoji glyphs can show the same debris. Only
+JetBrains IDEs are detected automatically, because a program cannot ask a
+terminal which font it is using. Switch manually:
+
+```bash
+sprag mode narrow    # keep a glyph on every chip, without the emoji
+sprag mode text      # drop the glyphs entirely
+```
+
+To keep emoji inside a JetBrains IDE anyway, accepting the garbling:
+
+```bash
+sprag mode icon-force      # persisted
+SPRAG_ICON=force           # one-off, e.g. while capturing a screenshot
+```
+
+`sprag mode` reports what actually renders and which rule decided:
+
+```
+labels:  icon
+renders: narrow (IntelliJ: emoji garble in the IDE font. `sprag mode icon-force` keeps them anyway)
+```
+
+
 ---
 
 <a id="한국어"></a>
@@ -131,3 +195,69 @@ statusline은 대화 상자를 띄울 수 없고, 300밀리초마다 다시 그�
 | `FREQUENT_CACHE_REBUILD` | 캐시 재작성이 읽기보다 많음 |
 
 각 코드마다 OS별 해결 명령이 함께 출력됩니다.
+
+## 라벨 모드
+
+칩은 세 가지 스타일로 나옵니다. 기본값은 이모지이며, 나머지 두 가지는 이모지를
+제대로 그리지 못하는 터미널을 위해 존재합니다.
+
+| 모드 | 표시 형태 | 선택 방법 |
+|---|---|---|
+| `icon` | `🧠 Cache hit 98.8% · 📦 Ctx 47% of 1M` | 기본값, 또는 `sprag mode icon` |
+| `narrow` | `◉ Cache hit 98.8% · ◧ Ctx 47% of 1M` | JetBrains IDE 에서 자동 적용, 또는 `sprag mode narrow` / `--narrow` |
+| `text` | `Cache hit 98.8% · Ctx 47% of 1M` | `sprag mode text` / `--text` |
+
+### JetBrains IDE 에서 좁은 글리프를 쓰는 이유
+
+JetBrains IDE 내장 터미널(IntelliJ, PyCharm, WebStorm, DataGrip 처럼
+`TERMINAL_EMULATOR=JetBrains-JediTerm` 을 설정하는 환경)에서는 이모지 세트가
+깨집니다. 증상은 statusline 이 숫자를 잘못 계산한 것처럼 보입니다.
+
+```
+⏳ Cache expires 4:545      (4:54 로 나와야 합니다)
+📦 Ctx 330% of 1M           (33% 로 나와야 합니다)
+💳 budget $1.0K/$4.:0K      (＄4.0K 로 나와야 합니다)
+```
+
+계산이 틀린 것은 아닙니다. 카운트다운 포매터는 콜론이 없는 값을 만들지 못하고
+퍼센트는 0에서 100 사이로 잘리므로, 위와 같은 문자열은 애초에 생성될 수
+없습니다. 화면에 보이는 것은 이전 프레임에서 남은 문자입니다.
+
+원인은 폰트가 해당 문자를 가지고 있지 않다는 점입니다. IDE 기본 폰트인
+JetBrains Mono 에는 이모지 글리프가 없어서 터미널이 대체 폰트로 그리는데, 그
+폰트의 글자 폭이 셀 격자와 맞지 않습니다. 고정된 텍스트는 그래도 버티지만, 매초
+값이 바뀌는 칩은 일부만 다시 그려지기 때문에 어긋난 만큼이 화면에 잔여물로
+남습니다. 마우스로 그 줄을 드래그하면 전체가 다시 그려져 정상으로 보이는데,
+버퍼는 처음부터 옳았고 화면에 그리는 단계만 어긋났다는 증거입니다.
+
+narrow 세트의 모든 글리프는 JetBrains Mono 가 실제로 가지고 있는 문자입니다.
+게이지(`█ ▉ ▊ … ▒`)가 statusline 에서 한 번도 깨지지 않았던 이유도 같습니다. 그
+문자들은 이미 폰트에 들어 있었습니다.
+
+### 다른 터미널에서도 줄이 깨진다면
+
+이모지 글리프가 없는 폰트를 쓰는 터미널이라면 어디서든 같은 잔여물이 보일 수
+있습니다. 자동으로 감지하는 것은 JetBrains IDE 뿐인데, 프로그램이 터미널에게
+어떤 폰트를 쓰는지 물어볼 방법이 없기 때문입니다. 그런 경우에는 직접
+전환하십시오.
+
+```bash
+sprag mode narrow    # 이모지 없이 칩마다 글리프를 남깁니다
+sprag mode text      # 글리프를 모두 뺍니다
+```
+
+JetBrains IDE 에서 깨짐을 감수하고 이모지를 그대로 쓰려면 다음과 같이 합니다.
+
+```bash
+sprag mode icon-force      # 설정에 저장합니다
+SPRAG_ICON=force           # 한 번만 적용합니다(예: 스크린샷을 찍는 동안)
+```
+
+`sprag mode` 는 실제로 무엇이 렌더되는지와 어느 규칙이 그렇게 정했는지 알려
+줍니다.
+
+```
+labels:  icon
+renders: narrow (IntelliJ: emoji garble in the IDE font. `sprag mode icon-force` keeps them anyway)
+```
+
