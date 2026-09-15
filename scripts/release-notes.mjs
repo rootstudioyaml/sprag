@@ -40,7 +40,7 @@ const TODO = '<!-- TRANSLATE: review this draft before publishing -->';
 
 function usage(msg) {
   if (msg) console.error(`release-notes: ${msg}`);
-  console.error('usage: node scripts/release-notes.mjs <version> [--publish] [--file <path>]');
+  console.error('usage: node scripts/release-notes.mjs <version> [--publish] [--force] [--file <path>]');
   process.exit(1);
 }
 
@@ -49,6 +49,7 @@ const version = args.find((a) => !a.startsWith('-'));
 if (!version) usage('a version is required');
 if (!/^\d+\.\d+\.\d+/.test(version)) usage(`"${version}" does not look like a version`);
 const publish = args.includes('--publish');
+const force = args.includes('--force');
 const fileArg = args.includes('--file') ? args[args.indexOf('--file') + 1] : null;
 const DRAFT_DIR = join(ROOT, 'docs', 'releases');
 const draftPath = fileArg || join(DRAFT_DIR, `v${version}.md`);
@@ -60,6 +61,17 @@ if (!publish) {
   if (!body) {
     console.error(`release-notes: CHANGELOG.md has no "### v${version}" section.`);
     console.error('  Add the section first — the release notes are the changelog, not a separate text.');
+    process.exit(1);
+  }
+  // A draft that has already been translated must not be silently replaced with
+  // the raw extraction. Re-running this after translating is an easy mistake —
+  // it is the same command — and the work it discards is the work that matters.
+  if (!force && existsSync(draftPath) && !readFileSync(draftPath, 'utf8').includes(TODO)) {
+    console.error(`release-notes: ${shown(draftPath)} exists and carries no TRANSLATE marker,`);
+    console.error('  so it has been translated already. Re-extracting would discard that.');
+    console.error('  Publish it as it stands:');
+    console.error(`    node scripts/release-notes.mjs ${version} --publish`);
+    console.error('  Or start over deliberately: delete the file first, or pass --force.');
     process.exit(1);
   }
   mkdirSync(DRAFT_DIR, { recursive: true });
