@@ -243,42 +243,54 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
   const lines = [];
   if (lang === 'ko') {
     lines.push(`[claude-token-saver seed] 아직 등록되지 않은 추천 룰이 ${pending.length}건 있습니다 (패키지 동봉 프리셋).`);
-    lines.push('**이 세션의 첫 응답에서 다른 작업보다 먼저 1번 룰의 등록 여부를 물어보십시오.** 사용자가 먼저 꺼낸 용건이 있으면 그 답변을 마친 직후에 이어서 묻고, 용건이 끝나기를 기다리지 마십시오. 사용자가 이 안내 문구에 대해 질문할 때까지 미루면 안 됩니다.');
-    lines.push('사용자에게 **한 건씩 순서대로** 보여 주고 등록할지 물어보십시오. 한 번에 전체 등록을 권하지 말고, 답을 받은 뒤 바로 아래 명령을 실행하십시오.');
-    lines.push('적용 범위를 물을 때는 선택지를 **글로벌(모든 프로젝트)을 먼저, 이 프로젝트만을 그다음**으로 제시하십시오.');
+    lines.push('**이 세션의 첫 응답에서 다른 작업보다 먼저 물어보십시오.** 사용자가 먼저 꺼낸 용건이 있으면 그 답변을 마친 직후에 이어서 묻고, 용건이 끝나기를 기다리지 마십시오. 사용자가 이 안내 문구에 대해 질문할 때까지 미루면 안 됩니다.');
+    lines.push(`첫 질문에서 다음 네 선택지를 **이 순서대로** 제시하십시오. ${pending.length}건을 한 건씩 답하는 것은 대부분의 사용자에게 과한 부담이므로, 일괄 등록이 맨 앞에 옵니다.`);
+    lines.push('  1. 전부 글로벌로 등록 — `seed accept all --global`');
+    lines.push('  2. 전부 이 프로젝트만 등록 — `seed accept all --project`');
+    lines.push('  3. 한 건씩 보면서 결정 — 아래 목록을 순서대로 하나씩 묻고, 답을 받는 즉시 해당 명령을 실행합니다');
+    lines.push('  4. 전부 등록하지 않음 — `seed skip all` (다시 묻지 않습니다)');
+    lines.push('3번을 고른 경우에만 한 건씩 진행하고, 그때도 적용 범위는 **글로벌(모든 프로젝트)을 먼저, 이 프로젝트만을 그다음**으로 제시하십시오.');
     if (models.length > 0) {
       lines.push(`  · 모델 피팅 룰 ${models.length}건 — 등록하면 해당 유형 작업이 더 싼 서브에이전트로 위임됩니다.`);
       for (const s of models) {
         lines.push(`    [${s.id}] ${s.tier} · "${s.label}" → ${s.agent}`);
-        lines.push(`        "${s.ruleText}"`);
+        // No wrapping quotes: the composed rule text already opens with the
+        // quoted work-type name, so adding a pair produced `""명령 실행 …`.
+        lines.push(`        ${s.ruleText}`);
       }
     }
     if (fixes.length > 0) {
       lines.push(`  · 래칫 룰 ${fixes.length}건 — 같은 실수를 반복하지 않도록 세션마다 읽히는 규칙입니다.`);
       for (const s of fixes) lines.push(`    [${s.id}] ${s.ruleText}`);
     }
-    lines.push('  등록: claude-token-saver seed accept <id> --global|--project   # 적용 범위는 반드시 사용자에게 확인');
-    lines.push('  거절: claude-token-saver seed skip <id>                        # 다시 묻지 않습니다');
-    lines.push('  (사용자가 "전부 등록"이라고 답하면 `seed accept all --global` 을 쓸 수 있습니다)');
+    lines.push('  일괄: claude-token-saver seed accept all --global|--project   # 적용 범위는 반드시 사용자에게 확인');
+    lines.push('  개별: claude-token-saver seed accept <id> --global|--project');
+    lines.push('  거절: claude-token-saver seed skip <id>|all                    # 다시 묻지 않습니다');
   } else {
     lines.push(`[claude-token-saver seed] ${pending.length} recommended rule(s) from the bundled presets are not registered yet.`);
-    lines.push('**Ask about rule 1 in your very first reply of this session, before anything else.** If the user opened with their own request, answer it and then ask right away; do not wait for their task to finish, and never wait until they ask about this notice.');
-    lines.push('Walk the user through them **one at a time** and ask about each. Do not push the whole set at once; run the matching command as soon as they answer.');
-    lines.push('When you ask about the scope, offer **global (all projects) first, this project only second**.');
+    lines.push('**Ask in your very first reply of this session, before anything else.** If the user opened with their own request, answer it and then ask right away; do not wait for their task to finish, and never wait until they ask about this notice.');
+    lines.push(`Offer these four choices, **in this order**. Answering ${pending.length} rules one by one is more than most users want to do, so registering them all comes first.`);
+    lines.push('  1. Register all, globally — `seed accept all --global`');
+    lines.push('  2. Register all, this project only — `seed accept all --project`');
+    lines.push('  3. Decide one at a time — walk the list below in order, running each command as soon as they answer');
+    lines.push('  4. Register none — `seed skip all` (never offered again)');
+    lines.push('Only go rule-by-rule if they pick 3, and even then offer **global (all projects) first, this project only second**.');
     if (models.length > 0) {
       lines.push(`  · ${models.length} model-fitting rule(s) — once registered, that kind of work goes to a cheaper subagent.`);
       for (const s of models) {
         lines.push(`    [${s.id}] ${s.tier} · "${s.label}" → ${s.agent}`);
-        lines.push(`        "${s.ruleText}"`);
+        // No wrapping quotes: the composed rule text already opens with the
+        // quoted work-type name, so adding a pair produced `""명령 실행 …`.
+        lines.push(`        ${s.ruleText}`);
       }
     }
     if (fixes.length > 0) {
       lines.push(`  · ${fixes.length} ratchet rule(s) — read at the start of every session so the same mistake is not repeated.`);
       for (const s of fixes) lines.push(`    [${s.id}] ${s.ruleText}`);
     }
-    lines.push('  register: claude-token-saver seed accept <id> --global|--project   # ALWAYS confirm the scope with the user');
-    lines.push('  decline:  claude-token-saver seed skip <id>                        # never offered again');
-    lines.push('  (if the user says "register them all", `seed accept all --global` does that)');
+    lines.push('  all:      claude-token-saver seed accept all --global|--project   # ALWAYS confirm the scope with the user');
+    lines.push('  one:      claude-token-saver seed accept <id> --global|--project');
+    lines.push('  decline:  claude-token-saver seed skip <id>|all                    # never offered again');
   }
   return lines.join('\n');
 }

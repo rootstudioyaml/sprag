@@ -131,6 +131,66 @@ test('the SessionStart offer carries no Korean for an English user, and Korean f
   }
 });
 
+test('the offer leads with registering everything, in both languages', () => {
+  // Ten-plus presets asked one at a time is a dozen prompts before the user gets
+  // to their actual work, and the offer used to mention the bulk command only in
+  // a trailing parenthesis — so the model dutifully walked them one by one and
+  // never presented "all" as an option at all. Bulk goes first now; per-rule
+  // stays available for whoever wants to read each one.
+  //
+  // Rendered through the CLI rather than by importing seedOfferBlock: the offer
+  // reads real state, so an in-process call would see this machine's own answered
+  // presets and find nothing to offer.
+  for (const lang of ['ko', 'en']) {
+    const s = sandbox(lang);
+    try {
+      const out = execFileSync(process.execPath, [CLI, 'route-scan', '--hook'], {
+        env: s.env, encoding: 'utf8', input: '{"hook_event_name":"SessionStart"}', timeout: 120_000,
+      });
+      const lines = out.split('\n');
+      const idx = (needle) => lines.findIndex((l) => l.includes(needle));
+
+      const all = idx('seed accept all --global');
+      const project = idx('seed accept all --project');
+      const one = idx('  3. ');
+      const none = idx('seed skip all');
+      for (const [name, i] of [['all --global', all], ['all --project', project], ['one at a time', one], ['skip all', none]]) {
+        assert.ok(i >= 0, `${lang}: the offer must present "${name}"`);
+      }
+      assert.ok(all < project && project < one && one < none,
+        `${lang}: choices must be ordered global, project, one-at-a-time, none`);
+
+      // The count is interpolated, not spelled out: a stale literal would tell the
+      // user a different number from the list printed right below it.
+      const header = lines.find((l) => l.includes('[claude-token-saver seed]'));
+      assert.ok(header, `${lang}: the offer has a header`);
+      const n = Number((header.match(/(\d+)/) || [])[1]);
+      assert.ok(n > 1, `${lang}: the header states how many are pending`);
+      const ordering = lines.find((l) => l.includes('seed accept all --global'));
+      assert.ok(lines.some((l) => l !== header && l.includes(String(n))),
+        `${lang}: the count appears again in the guidance rather than a hardcoded figure`);
+      assert.ok(ordering, `${lang}: the bulk command is spelled out`);
+    } finally {
+      rmSync(s.dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('a rule line carries exactly one pair of quotes around the work type', () => {
+  // The composed rule text already opens with its quoted work-type name, and the
+  // offer wrapped it in another pair — `""명령 실행 …`.
+  const s = sandbox('ko');
+  try {
+    const out = execFileSync(process.execPath, [CLI, 'route-scan', '--hook'], {
+      env: s.env, encoding: 'utf8', input: '{"hook_event_name":"SessionStart"}', timeout: 120_000,
+    });
+    const offer = out.slice(out.indexOf('[claude-token-saver seed]'));
+    assert.doesNotMatch(offer, /""/, 'no doubled quotes in the rendered offer');
+  } finally {
+    rmSync(s.dir, { recursive: true, force: true });
+  }
+});
+
 test('every bundled preset is complete and both rule sets share one template', async () => {
   const { modelPresets, ratchetPresets } = await import('../src/seed-rules.js');
   const { modelRuleBaseText } = await import('../src/model-rules.js');
