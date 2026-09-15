@@ -10,7 +10,8 @@
  *
  * What it will not do is decide anything. The version comes from the newest
  * CHANGELOG heading, the body comes from the committed draft, and a draft that
- * is missing or still untranslated stops the run before anything is published.
+ * is missing or still carries its REVIEW line stops the run before anything is
+ * published.
  * Steps 1 and 2 of the procedure stay a person's work.
  *
  *   npm run deploy            # release whatever the changelog's newest entry is

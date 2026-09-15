@@ -36,7 +36,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sectionFor } from '../src/changelog.js';
+import { sectionFor, DRAFT_MARKER, KO_HEADING, needsReview } from '../src/changelog.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_SLUG = 'rootstudioyaml/sprag';

@@ -197,3 +197,80 @@ test('an existing legacy entry is recognised, not duplicated beside a new one', 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('uninstall leaves entries that merely mention our name in a path', () => {
+  // `uninstall` deletes whatever the recognition check claims, so the check has
+  // to read the executable rather than search the whole string. `sprag` is five
+  // characters: a substring test claims a probe script under a path containing
+  // it, and anyone's wrapper named after it, then removes them as ours. The probe
+  // entry below is a real one — it was in the author's settings when this was
+  // written, which is how the oversight surfaced.
+  const dir = mkdtempSync(join(tmpdir(), 'cts-foreign-'));
+  const home = join(dir, 'home');
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  const entry = (cmd) => ({ type: 'command', command: cmd, timeout: 10 });
+  const foreign = [
+    'node /Users/someone/.claude/probe/sprag-probe.mjs',
+    'my-sprag-wrapper --run',
+    'bash ~/.claude/statusline-command.sh',
+  ];
+  writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({
+    hooks: {
+      SessionStart: [
+        { matcher: 'startup|clear', hooks: [entry('sprag route-scan --hook'), entry(foreign[0])] },
+        { matcher: '*', hooks: [entry(foreign[1])] },
+      ],
+      UserPromptSubmit: [{ matcher: '*', hooks: [entry(foreign[2])] }],
+    },
+  }, null, 2));
+  const env = {
+    ...process.env, HOME: home, USERPROFILE: home,
+    XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en',
+  };
+  try {
+    execFileSync(process.execPath, [CLI, 'uninstall'], {
+      env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const left = Object.values(settings.hooks || {})
+      .flatMap((entries) => entries.flatMap((e) => e.hooks || []))
+      .map((h) => h.command || '');
+    for (const cmd of foreign) {
+      assert.ok(left.includes(cmd), `uninstall must not remove someone else's entry: ${cmd}`);
+    }
+    // And it still removes ours, or the check above would pass by doing nothing.
+    assert.ok(!left.some((c) => /^sprag /.test(c)), `our own entries should be gone: ${left.join(' | ')}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('install recognises an entry invoked through a wrapper, and adds no second one', () => {
+  // The same check that must not over-claim must not under-claim either: an entry
+  // run through `npx` or an absolute path is legitimately ours, and failing to
+  // see it puts a duplicate hook beside it.
+  const dir = mkdtempSync(join(tmpdir(), 'cts-wrapped-'));
+  const home = join(dir, 'home');
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  const entry = (cmd) => ({ type: 'command', command: cmd, timeout: 10 });
+  writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({
+    hooks: {
+      SessionStart: [{ matcher: 'startup|clear', hooks: [entry('npx sprag-cli route-scan --hook')] }],
+      UserPromptSubmit: [{ matcher: '*', hooks: [entry('/usr/local/bin/sprag brief --hook')] }],
+    },
+  }, null, 2));
+  try {
+    execFileSync(process.execPath, [CLI, 'install'], {
+      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const count = (event, needle) => (settings.hooks[event] || [])
+      .flatMap((e) => e.hooks || [])
+      .filter((h) => (h.command || '').includes(needle)).length;
+    assert.equal(count('SessionStart', 'route-scan --hook'), 1, 'the wrapped session-start hook stays single');
+    assert.equal(count('UserPromptSubmit', 'brief --hook'), 1, 'the wrapped brief hook stays single');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

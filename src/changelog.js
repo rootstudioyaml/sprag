@@ -51,6 +51,13 @@ export const DRAFT_MARKER =
 export const KO_HEADING = '## 한국어';
 
 /**
+ * The opening of the marker, which is what the gate actually matches. Spelled out
+ * rather than sliced off `DRAFT_MARKER`, so that editing the marker's front does
+ * not silently change what is being tested for.
+ */
+const REVIEW_OPENING = '<!-- REVIEW:';
+
+/**
  * Whether a draft still needs review. Matches on the `<!-- REVIEW:` opening
  * rather than the whole line, so editing the wording of the instruction does not
  * quietly disarm the gate.
@@ -59,5 +66,5 @@ export const KO_HEADING = '## 한국어';
  * @returns {boolean} true while the draft is unreviewed
  */
 export function needsReview(draft) {
-  return String(draft || '').includes(DRAFT_MARKER.slice(0, '<!-- REVIEW:'.length));
+  return String(draft || '').includes(REVIEW_OPENING);
 }

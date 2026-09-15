@@ -8,11 +8,13 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { sectionFor, DRAFT_MARKER, needsReview } from '../src/changelog.js';
+import { sectionFor, DRAFT_MARKER, KO_HEADING, needsReview } from '../src/changelog.js';
 import { releaseHighlights } from '../src/update-check.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -101,6 +103,16 @@ test('needsReview blocks a fresh draft and clears a reviewed one', () => {
   assert.equal(needsReview(undefined), false);
 });
 
+test('the marker itself is gated by the opening the gate looks for', () => {
+  // DRAFT_MARKER and the opening needsReview matches are two literals now, on
+  // purpose: slicing one off the other made editing the marker's front change
+  // what was being tested for. Two literals can drift apart instead, and the
+  // drift is silent — the marker written into fresh drafts would stop being the
+  // one the gate refuses on. This is the check that makes the pair safe.
+  assert.equal(needsReview(DRAFT_MARKER), true,
+    'the marker written into a draft must be one needsReview refuses');
+});
+
 test('needsReview keys on the marker opening, not its wording', () => {
   // The instruction after `<!-- REVIEW:` is prose for a human. Editing it must
   // not disarm the gate, which is what matching the whole line would do.
@@ -113,11 +125,40 @@ test('both publish paths gate through the shared marker', () => {
   // the next time one of the two files is edited.
   for (const rel of ['scripts/release-notes.mjs', 'scripts/deploy.mjs']) {
     const src = readFileSync(join(ROOT, rel), 'utf8');
-    assert.match(src, /from '\.\.\/src\/changelog\.js'/,
-      `${rel} must import the marker rather than spell it out`);
+    const line = (src.match(/^import \{([^}]*)\} from '\.\.\/src\/changelog\.js';$/m) || [])[1];
+    assert.ok(line, `${rel} must import from src/changelog.js rather than spell the marker out`);
+    // Every shared name the file uses has to be in that import. Checking only
+    // that the import exists is not enough: this file imported `sectionFor`
+    // alone while using three more names, and the module threw ReferenceError on
+    // the one path the suite never executed.
+    const imported = line.split(',').map((n) => n.trim()).filter(Boolean);
+    for (const name of ['DRAFT_MARKER', 'KO_HEADING', 'needsReview']) {
+      if (!new RegExp(`\\b${name}\\b`).test(src.replace(line, ''))) continue;
+      assert.ok(imported.includes(name), `${rel} uses ${name} without importing it`);
+    }
     assert.match(src, /needsReview\(/, `${rel} must gate through needsReview`);
     assert.doesNotMatch(src, /'<!-- (REVIEW|TRANSLATE)/,
       `${rel} must not carry its own copy of the marker`);
+  }
+});
+
+test('drafting a release actually runs, and the draft it writes is gated', () => {
+  // The source checks above pass on a file that throws the moment it runs. This
+  // one executes the drafting path, which is where the missing import surfaced —
+  // reachable only by writing a draft, so the suite never touched it.
+  const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-draft-'));
+  try {
+    const draft = join(dir, 'draft.md');
+    const out = execFileSync(process.execPath,
+      [join(ROOT, 'scripts', 'release-notes.mjs'), version, '--file', draft],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    assert.match(out, /bullet\(s\)/, 'the run should report what it extracted');
+    const body = readFileSync(draft, 'utf8');
+    assert.equal(needsReview(body), true, 'a fresh draft must still be gated');
+    assert.ok(body.includes(KO_HEADING), 'the scaffold must carry the Korean heading');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -127,4 +168,7 @@ test('the marker names REVIEW, which is what the docs tell the reader to delete'
   assert.match(DRAFT_MARKER, /^<!-- REVIEW:/);
   const doc = readFileSync(join(ROOT, 'docs', 'RELEASING.md'), 'utf8');
   assert.doesNotMatch(doc, /TRANSLATE/, 'RELEASING.md still names the old marker');
+  // And the new name has to be there: a rename that removes the old mention
+  // without adding the new one leaves the reader with no line to delete.
+  assert.match(doc, /REVIEW/, 'RELEASING.md must name the marker it tells the reader to delete');
 });

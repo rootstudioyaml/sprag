@@ -1,8 +1,8 @@
 /**
  * Subcommand: uninstall — take the integration back out of ~/.claude.
  *
- *   claude-token-saver uninstall           # hooks, statusline, skill
- *   claude-token-saver uninstall --purge   # the above plus recorded state
+ *   sprag uninstall           # hooks, statusline, skill
+ *   sprag uninstall --purge   # the above plus recorded state
  *
  * Recorded savings are kept by default. Someone removing an integration is
  * usually not asking to throw away the ledger that says what it saved, and
@@ -12,6 +12,7 @@
 export async function run({ hasFlag, args = [] }) {
   const { uninstallAll } = await import('../installer.js');
   const { userLanguage } = await import('../config.js');
+  const { CLI_NAME } = await import('../cli-name.js');
   const lang = userLanguage();
   const purge = hasFlag('--purge') || args.includes('--purge');
 
@@ -36,7 +37,7 @@ export async function run({ hasFlag, args = [] }) {
   }
   if (!purge) {
     console.log(lang === 'ko'
-      ? '  기록된 절감액과 설정까지 지우려면 `claude-token-saver uninstall --purge` 를 실행하십시오.'
-      : '  To remove recorded savings and settings too: `claude-token-saver uninstall --purge`.');
+      ? `  기록된 절감액과 설정까지 지우려면 \`${CLI_NAME} uninstall --purge\` 를 실행하십시오.`
+      : `  To remove recorded savings and settings too: \`${CLI_NAME} uninstall --purge\`.`);
   }
 }

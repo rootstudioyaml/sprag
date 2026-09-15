@@ -14,6 +14,7 @@
  */
 
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync } from 'node:fs';
+import { CLI_NAME, LEGACY_CLI_NAME } from './cli-name.js';
 import { join } from 'node:path';
 import { claudeUserDir, userDataDir } from './paths.js';
 
@@ -29,13 +30,37 @@ import { claudeUserDir, userDataDir } from './paths.js';
  * what `isOurCommand` is for — narrowing it to the new name would make install
  * miss an existing hook and add a second one beside it.
  */
-const CLI = 'sprag';
-const LEGACY_CLI = 'claude-token-saver';
+const CLI = CLI_NAME;
+const LEGACY_CLI = LEGACY_CLI_NAME;
 
-/** Whether a settings command belongs to this tool, under either name. */
+/**
+ * Whether a settings command belongs to this tool, under either name.
+ *
+ * The name has to sit where the executable goes, not just appear somewhere in the
+ * string. `sprag` is five characters, and `uninstall` deletes what this returns
+ * true for: a substring test claims `node ~/.claude/probe/sprag-probe.mjs` and
+ * anyone's `my-sprag-wrapper`, then removes them as ours. That is not
+ * hypothetical — the probe entry is on this machine.
+ *
+ * A wrapper is allowed in front, because the entry may legitimately be run
+ * through one: `npx sprag-cli brief --hook` and `/usr/local/bin/sprag doc2md`
+ * are both ours. So the executable is taken as the last path segment of the
+ * first token — or of the token after `npx`/`bunx`/`pnpm dlx` — and matched
+ * whole, with `sprag-cli` accepted there since that is what npx resolves.
+ */
 function isOurCommand(command) {
-  return typeof command === 'string'
-    && (command.includes(CLI) || command.includes(LEGACY_CLI));
+  if (typeof command !== 'string') return false;
+  const tokens = command.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return false;
+  // `pnpm dlx <pkg>` and `npx <pkg>` put the package one or two tokens in.
+  let i = 0;
+  if (/^(npx|bunx)$/.test(tokens[0])) i = 1;
+  else if (tokens[0] === 'pnpm' && tokens[1] === 'dlx') i = 2;
+  const token = tokens[i];
+  if (!token) return false;
+  // A path invokes the binary by its last segment; strip a Windows .cmd/.exe too.
+  const exe = token.split(/[/\\]/).pop().replace(/\.(cmd|exe|ps1)$/i, '');
+  return exe === CLI || exe === LEGACY_CLI || exe === `${CLI}-cli`;
 }
 
 const STATUSLINE_COMMAND = `${CLI} --statusline --icon`;
@@ -607,15 +632,28 @@ export function uninstallAll({ purge = false } = {}) {
     // Every event, every entry whose command is this CLI. Matching on the
     // binary name rather than a list of exact commands means a hook added by
     // an older version is still removed by a newer one.
+    //
+    // Removal is per hook, not per matcher group. Dropping whole groups was
+    // taking other tools' hooks with them whenever Claude Code had merged them
+    // into one group — which it does for entries sharing a matcher, so a user who
+    // installed us second lost the first tool's hook on uninstall. A group is
+    // deleted only once nothing of anyone else's is left in it.
+    const isOurs = (h) => isOurCommand(h?.command)
+      || (typeof h?.command === 'string' && h.command.includes('cache-monitor-hook'));
     for (const event of Object.keys(settings.hooks || {})) {
       const list = settings.hooks[event];
       if (!Array.isArray(list)) continue;
-      const kept = list.filter((m) => !(
-        Array.isArray(m?.hooks)
-        && m.hooks.some((h) => isOurCommand(h?.command)
-          || (typeof h?.command === 'string' && h.command.includes('cache-monitor-hook')))
-      ));
-      if (kept.length === list.length) continue;
+      let touched = false;
+      const kept = [];
+      for (const m of list) {
+        if (!Array.isArray(m?.hooks)) { kept.push(m); continue; }
+        const hooks = m.hooks.filter((h) => !isOurs(h));
+        if (hooks.length === m.hooks.length) { kept.push(m); continue; }
+        touched = true;
+        // The group survives if it still carries someone else's hook.
+        if (hooks.length) kept.push({ ...m, hooks });
+      }
+      if (!touched) continue;
       result.removed.push(`hooks.${event}`);
       if (kept.length === 0) delete settings.hooks[event];
       else settings.hooks[event] = kept;
