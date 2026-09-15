@@ -156,7 +156,7 @@ test('formatBudgetReport: 게이지와 사용·잔여 금액을 함께 낸다', 
     now,
   );
   const text = lines.join('\n');
-  assert.match(lines[0], /^🔑 budget [█▓▒░]{6} 34% \$34\.0\/\$100$/);
+  assert.match(lines[0], /^💳 budget [█▓▒░]{6} 34% \$34\.0\/\$100$/);
   assert.match(text, /사용 \$34\.0 · 잔여 \$66\.0 \(66\.0%\)/);
   assert.match(text, /출처 팀 멤버십 예산/);
   assert.match(text, /조회 3분 전/);

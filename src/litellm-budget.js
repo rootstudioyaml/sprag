@@ -170,7 +170,7 @@ export function formatBudgetReport(state, now = new Date()) {
   const left = Math.max(0, max - used);
   const pct = Math.min(100, (used / max) * 100);
   const lines = [
-    `🔑 budget ${gaugeBar(pct)} ${Math.round(pct)}% ${formatMoney(used)}/${formatMoney(max)}`,
+    `💳 budget ${gaugeBar(pct)} ${Math.round(pct)}% ${formatMoney(used)}/${formatMoney(max)}`,
     `   사용 ${formatMoney(used)} · 잔여 ${formatMoney(left)} (${(100 - pct).toFixed(1)}%)`,
   ];
   const resetMs = Number(state?.budgetResetAt);
