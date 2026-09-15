@@ -36,9 +36,12 @@ const MIN_LEN = 8;
  * @param {object} [opts]
  * @param {Array} [opts.rules] registered rules (defaults to the stored registry)
  * @param {string} [opts.lang] 'ko' | 'en'
+ * @param {string} [opts.root] project root used to look for a subagent's .md.
+ *   The hint names the agent when that file exists and only its model tier when
+ *   it does not, so a caller that needs a predictable phrase pins this.
  * @returns {string|null} the line to inject, or null to stay quiet
  */
-export function routeHint(text, { rules, lang = userLanguage() } = {}) {
+export function routeHint(text, { rules, lang = userLanguage(), root } = {}) {
   const t = String(text || '').trim();
   if (t.length < MIN_LEN) return null;
   // Judgement and irreversible work stay on the top tier. This check comes
@@ -57,7 +60,12 @@ export function routeHint(text, { rules, lang = userLanguage() } = {}) {
   const t1 = matched.find((r) => r.tier === 'T1');
   const ko = lang === 'ko';
   const label = ko ? (cat.label || cat.id) : (cat.labelEn || cat.label || cat.id);
-  const phrase = ko ? agentPhrase : agentPhraseEn;
+  // `root` is threaded through to agentPhrase, which names the subagent only
+  // when its .md actually exists on this machine. A caller that pins it can
+  // therefore get a deterministic phrase; a test that does not pin it reads
+  // whatever the developer happens to have installed.
+  const raw = ko ? agentPhrase : agentPhraseEn;
+  const phrase = (name) => raw(name, root === undefined ? undefined : { root });
 
   let target;
   if (t2 && t1) {

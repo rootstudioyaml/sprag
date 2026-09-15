@@ -10,6 +10,9 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { routeHint } from '../src/route-inject.js';
 
 const rules = [
@@ -17,16 +20,53 @@ const rules = [
   { category: 'check', tier: 'T1', agent: 'sonnet', budget: { calls: null, out: 8000 } },
   { category: 'explore', tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } },
 ];
-const hint = (text, opts = {}) => routeHint(text, { rules, lang: 'ko', ...opts });
+// The hint names a subagent only when that agent's .md exists, and it looks in
+// two places: the project root and the user's ~/.claude. Which of the two
+// phrasings comes out is therefore a property of the developer's setup, not of
+// the code — an assertion naming one of them passes locally and fails in CI, or
+// the reverse, which is exactly what happened to this file. So the cases below
+// pin BOTH lookups at empty directories. Pinning only `root` is not enough: an
+// agent installed in the real home still leaks in.
+const EMPTY = mkdtempSync(join(tmpdir(), 'cts-noagents-'));
+
+/** Run `fn` with the user agent directory pointed at an empty dir. */
+function withoutUserAgents(fn) {
+  const prev = process.env.HOME;
+  const prevProfile = process.env.USERPROFILE;
+  process.env.HOME = EMPTY;
+  process.env.USERPROFILE = EMPTY;
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env.HOME; else process.env.HOME = prev;
+    if (prevProfile === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = prevProfile;
+  }
+}
+
+const hint = (text, opts = {}) =>
+  withoutUserAgents(() => routeHint(text, { rules, lang: 'ko', root: EMPTY, ...opts }));
 
 test('a classified request names its rule, its target and its cap', () => {
   const out = hint('지금 실행 중인 버전이 뭔지 확인해줘');
   assert.ok(out, 'a check request should match');
   assert.match(out, /상태 확인·검증/, 'names the category');
-  assert.match(out, /기본 haiku-explore\(model: haiku\)/, 'names the cheap default');
+  assert.match(out, /기본 model: haiku/, 'names the cheap default');
   assert.match(out, /model: sonnet/, 'and the escalation target');
   assert.match(out, /상한 haiku 도구 호출 8회·출력 1500 토큰 \/ sonnet 출력 8000 토큰/);
   assert.match(out, /🔀 \[sprag\] 모델 피팅/, 'carries the same marker line as ratchet-model.md');
+});
+
+test('an installed subagent is named, not just its model tier', (t) => {
+  // The other half of the same contract: where the agent exists, saying
+  // "haiku-explore(model: haiku)" tells the model which agent to spawn, and
+  // "model: haiku" leaves it to guess.
+  const root = mkdtempSync(join(tmpdir(), 'cts-agents-'));
+  mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
+  writeFileSync(join(root, '.claude', 'agents', 'haiku-explore.md'), '# haiku-explore\n');
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+
+  const out = withoutUserAgents(() => routeHint('지금 실행 중인 버전이 뭔지 확인해줘', { rules, lang: 'ko', root }));
+  assert.match(out, /기본 haiku-explore\(model: haiku\)/, 'the agent is named when it is installed');
 });
 
 test('one registered tier means one target, not an invented pair', () => {
