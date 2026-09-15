@@ -94,10 +94,14 @@ export function budgetCapPhrase(rule, lang = userLanguage()) {
  */
 export function composeRuleText(baseText, rule, lang = userLanguage()) {
   const cap = budgetCapPhrase(rule, lang);
-  const clause = lang === 'ko'
-    ? `위임 상한은 ${cap}이며, 넘길 것 같거나 에러가 나면 거기서 멈춰 진행분만 보고하고 메인 모델이 이어받는다. 세션 모델이 이미 위임 목표와 같은 급 이하면 위임하지 않는다`
-    : `Cap the run at ${cap}; if it looks likely to exceed that or hits an error, it stops there and reports partial progress while the main model takes over. Skip delegation entirely when the session model is already at or below the target tier`;
-  return `${baseText.replace(/\s*$/, '')}. ${clause}`;
+  // Only the cap. The stop condition and the same-tier skip used to repeat in
+  // every rule; they are identical across all of them, so they now live once in
+  // the file header's shared-clause section. A rule the model re-reads on every
+  // request should be one line it can match against, not four clauses it has to
+  // re-derive — three sentences per rule made delegating cost more thought than
+  // doing the work, and measured delegation ran at 3.6% of eligible episodes.
+  const clause = lang === 'ko' ? `상한 ${cap}` : `cap ${cap}`;
+  return `${baseText.replace(/\s*$/, '')} (${clause})`;
 }
 
 /**
@@ -109,16 +113,27 @@ export function composeRuleText(baseText, rule, lang = userLanguage()) {
  *
  * `g` carries { tier, label, labelEn, example, exampleEn, agent }.
  */
+/**
+ * Trim an example to something a reader takes in at a glance. Scan-derived
+ * examples are raw user messages, and some ran long enough to bury the rule that
+ * followed them.
+ */
+const EXAMPLE_MAX = 30;
+function shortExample(text) {
+  const one = String(text || '').replace(/\s+/g, ' ').trim();
+  return one.length <= EXAMPLE_MAX ? one : `${one.slice(0, EXAMPLE_MAX - 1)}…`;
+}
+
 export function modelRuleBaseText(g, lang = userLanguage()) {
   if (lang === 'ko') {
     return g.tier === 'T2'
-      ? `"${g.label}" 유형의 단순 요청(예: "${g.example}")은 ${agentPhrase(g.agent)} 서브에이전트로 위임한다 (설계 판단·배포·스토어 제출 같은 비가역 작업이 섞이면 위임하지 않음)`
-      : `"${g.label}" 유형의 중간 난도 요청(예: "${g.example}")은 model: sonnet 서브에이전트로 위임한다 (설계 판단·비가역 작업·반복 에러 발생 시 메인 모델이 이어받음)`;
+      ? `"${g.label}" 단순 요청(예: "${shortExample(g.example)}")은 ${agentPhrase(g.agent)}에 위임`
+      : `"${g.label}" 중간 난도 요청(예: "${shortExample(g.example)}")은 model: sonnet에 위임`;
   }
   const example = g.exampleEn || g.example;
   return g.tier === 'T2'
-    ? `Delegate simple "${g.labelEn}" requests (e.g. "${example}") to ${agentPhraseEn(g.agent)} — never when the request mixes in design judgement or irreversible work like deploy/release/submission`
-    : `Delegate moderate "${g.labelEn}" requests (e.g. "${example}") to a model: sonnet subagent — hand back to the main model on design judgement, irreversible work, or repeated errors`;
+    ? `Simple "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${agentPhraseEn(g.agent)}`
+    : `Moderate "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to a model: sonnet subagent`;
 }
 
 // See the note in route-scan.js — paths.js is the only place that resolves
@@ -214,6 +229,15 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
     '(어떤 도구가 토큰을 아끼고 있는지 가시화):',
     '`🔀 [sprag] 모델 피팅: "<유형>" → <agent> 위임`',
     '',
+    '## 공통 조항 (룰마다 반복하지 않으므로 여기서 한 번만 읽으십시오)',
+    '',
+    '- 상한을 넘길 것 같거나 에러가 나면 그 자리에서 멈추고 진행분만 보고합니다.',
+    '  메인 모델이 이어받습니다.',
+    '- 세션 모델이 위임 목표와 같은 급이거나 그보다 낮으면 위임하지 않습니다.',
+    '  절감이 발생하지 않기 때문입니다.',
+    '- 설계 판단이나 되돌릴 수 없는 작업(배포·릴리스·머지·제출)이 섞여 있으면',
+    '  위임하지 않습니다.',
+    '',
     '## 티어 판별 기준 (모든 룰에 공통 적용)',
     '',
     '- **도구 오케스트레이션**: 한 도구의 결과를 다음 호출의 입력으로 잇는 다단계',
@@ -261,6 +285,15 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
     'When delegating under a rule below, show the user this line first so it is',
     'visible which tool is saving tokens:',
     '`🔀 [sprag] model fitting: "<category>" → delegated to <agent>`',
+    '',
+    '## Shared clauses (stated once here, not repeated per rule)',
+    '',
+    '- A run likely to exceed its cap, or hitting an error, stops there and reports',
+    '  partial progress. The main model takes over.',
+    '- Skip delegation when the session model is already at or below the target',
+    '  tier: there is nothing to save.',
+    '- Skip it when the request mixes in design judgement or irreversible work',
+    '  (deploy, release, merge, submission).',
     '',
     '## Tier criteria (apply to every rule below)',
     '',
@@ -329,8 +362,8 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
   // Merged T2+T1 rules carry two caps, so they state both once rather than
   // repeating the whole stop-condition per tier.
   const mergedBudget = (t2, t1) => ko
-    ? `위임 상한은 haiku ${budgetCapPhrase(t2, 'ko')}, sonnet ${budgetCapPhrase(t1, 'ko')}이며, 넘길 것 같거나 에러가 나면 거기서 멈춰 진행분만 보고하고 메인 모델이 이어받는다. 세션 모델이 이미 위임 목표와 같은 급 이하면 위임하지 않는다`
-    : `Cap haiku runs at ${budgetCapPhrase(t2, 'en')} and sonnet runs at ${budgetCapPhrase(t1, 'en')}; a run likely to exceed its cap, or hitting an error, stops there and reports partial progress while the main model takes over. Skip delegation entirely when the session model is already at or below the target tier`;
+    ? `상한 haiku ${budgetCapPhrase(t2, 'ko')} / sonnet ${budgetCapPhrase(t1, 'ko')}`
+    : `cap haiku ${budgetCapPhrase(t2, 'en')} / sonnet ${budgetCapPhrase(t1, 'en')}`;
 
   // A category can carry both a T2 (haiku) and a T1 (sonnet) rule. Tier is
   // only known after an episode finishes, so two separate bullets give the
@@ -349,15 +382,18 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
     if (t2 && t1) {
       // Seeded rules carry a localized example; scan-produced ones only have the
       // user's own prompt, so exampleEn is a preference, not a requirement.
-      const ex = (r) => (ko ? r.example : (r.exampleEn || r.example));
+      const ex = (r) => shortExample(ko ? r.example : (r.exampleEn || r.example));
+      // One line per category, stating only what differs between the two tiers.
+      // The exceptions this used to spell out (design judgement, irreversible
+      // work) are identical in every rule and now sit in the header's shared
+      // clauses, so a rule the model re-reads on every request is short enough to
+      // match at a glance.
       const rule = ko
-        ? `"${t2.label}" 유형 요청은 기본적으로 ${agentPhrase(t2.agent)} 서브에이전트로 위임한다(예: "${ex(t2)}"). ` +
-          `여러 단계·여러 파일 수정이 얽힌 중간 난도 요청(예: "${ex(t1)}")은 model: sonnet 서브에이전트로 위임한다. ` +
-          `설계 판단이나 배포·릴리스·스토어 제출 같은 비가역 작업이 섞여 있을 때만 위임하지 않는다. ` +
+        ? `"${t2.label}": 기본 ${agentPhrase(t2.agent)}(예: "${ex(t2)}"), ` +
+          `여러 단계·여러 파일이 얽히면 model: sonnet(예: "${ex(t1)}"). ` +
           mergedBudget(t2, t1)
-        : `Delegate "${t2.labelEn || t2.label}" requests to ${agentPhraseEn(t2.agent)} by default (e.g. "${ex(t2)}"). ` +
-          `Escalate moderate ones that span multiple steps or file edits (e.g. "${ex(t1)}") to a model: sonnet subagent. ` +
-          `Keep it on the main model only when the request mixes in design judgement or irreversible work (deploy, release, store submission). ` +
+        : `"${t2.labelEn || t2.label}": ${agentPhraseEn(t2.agent)} by default (e.g. "${ex(t2)}"), ` +
+          `model: sonnet when it spans multiple steps or file edits (e.g. "${ex(t1)}"). ` +
           mergedBudget(t2, t1);
       lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)} -->`);
       for (const r of group) {

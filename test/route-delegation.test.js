@@ -238,10 +238,14 @@ test('renderModelRatchet states both calibrated budgets once in the merged rule'
     { ...baseRule, tier: 'T2', rule: 'r2', budget: { calls: 8, out: 1800 } },
     { ...baseRule, tier: 'T1', rule: 'r1', budget: { calls: null, out: 9000 } },
   ], 'ko');
-  assert.match(md, /위임 상한은 haiku 도구 호출 8회·출력 1800 토큰, sonnet 출력 9000 토큰이며/);
-  assert.match(md, /메인 모델이 이어받는다/);
-  assert.match(md, /세션 모델이 이미 위임 목표와 같은 급 이하면 위임하지 않는다/);
-  assert.equal(md.match(/진행분만 보고하고/g).length, 1, 'the stop condition is stated once, not per tier');
+  // The stop condition and same-tier skip moved to the file header, so a rule
+  // states only its caps now.
+  assert.match(md, /상한 haiku 도구 호출 8회·출력 1800 토큰 \/ sonnet 출력 9000 토큰/);
+  // Both conditions still reach the reader, now from the shared-clause section
+  // rather than from inside each rule.
+  assert.match(md, /메인 모델이 이어받습니다/);
+  assert.match(md, /세션 모델이 위임 목표와 같은 급이거나 그보다 낮으면 위임하지 않습니다/);
+  assert.equal(md.match(/진행분만 보고합니다/g).length, 1, 'stated once for the whole file, not per rule');
 });
 
 test('renderModelRatchet falls back to default budgets for pre-budget rules', () => {
@@ -249,21 +253,22 @@ test('renderModelRatchet falls back to default budgets for pre-budget rules', ()
     { ...baseRule, tier: 'T2', rule: 'r2' },
     { ...baseRule, tier: 'T1', rule: 'r1' },
   ], 'en');
-  assert.match(md, /Cap haiku runs at 8 tool calls \/ 1500 output tokens and sonnet runs at 8000 output tokens/);
-  assert.match(md, /Skip delegation entirely when the session model is already at or below the target tier/);
+  assert.match(md, /cap haiku 8 tool calls \/ 1500 output tokens \/ sonnet 8000 output tokens/);
+  assert.match(md, /Skip delegation when the session model is already at or below the target/);
+  assert.equal(md.match(/The main model takes over/g).length, 1, 'stated once for the whole file');
 });
 
 test('a standalone rule gets the budget composed on too, not just merged pairs', () => {
   // Rules promoted before budgets existed are the common case in a live
   // registry — they must still carry the clause.
   const md = renderModelRatchet([{ ...baseRule, tier: 'T2', rule: '기본 룰' }], 'ko');
-  assert.match(md, /기본 룰\. 위임 상한은 도구 호출 8회·출력 1500 토큰이며/);
+  assert.match(md, /기본 룰 \(상한 도구 호출 8회·출력 1500 토큰\)/);
 });
 
 test('composeRuleText is the single source both the file and the preview use', () => {
   const rule = { tier: 'T1', budget: { calls: null, out: 9000 } };
   const composed = composeRuleText('base', rule, 'en');
-  assert.match(composed, /^base\. Cap the run at 9000 output tokens;/);
+  assert.match(composed, /^base \(cap 9000 output tokens\)$/);
   assert.equal(budgetCapPhrase(rule, 'en'), '9000 output tokens');
   assert.equal(budgetCapPhrase({ tier: 'T2' }, 'ko'), '도구 호출 8회·출력 1500 토큰');
 });

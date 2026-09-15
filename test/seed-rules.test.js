@@ -55,7 +55,7 @@ test('accept registers a model preset and renders it into ratchet-model.md', () 
     const out = s.run('seed', 'accept', 'run-t2', '--global');
     assert.match(out, /registered: run-t2 \[global\]/);
     const md = readFileSync(join(s.home, '.claude', 'ratchet-model.md'), 'utf8');
-    assert.match(md, /Delegate simple "running commands \(build\/test\/git\)"/);
+    assert.match(md, /Simple "running commands \(build\/test\/git\)" requests/);
     // A seeded rule must not claim recurrence it has never measured.
     assert.match(md, /preset \(curated\), registered \d{4}-\d{2}-\d{2}/);
     assert.doesNotMatch(md, /×0, err 0%/);
