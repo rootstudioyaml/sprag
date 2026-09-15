@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { sectionFor } from '../src/changelog.js';
+import { sectionFor, DRAFT_MARKER, needsReview } from '../src/changelog.js';
 import { releaseHighlights } from '../src/update-check.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -75,10 +75,56 @@ test('the shipped version has a committed release-notes draft, and it is transla
   const draft = join(ROOT, 'docs', 'releases', `v${pkg.version}.md`);
   assert.ok(existsSync(draft), `docs/releases/v${pkg.version}.md must exist for the shipped version`);
   const body = readFileSync(draft, 'utf8');
-  assert.doesNotMatch(body, /TRANSLATE/, 'the draft must be translated before release');
-  const shown = releaseHighlights(body);
-  assert.ok(shown.length > 0, 'the draft must yield at least one bullet for the upgrade offer');
-  for (const line of shown) {
-    assert.ok(line.length <= 115, `a shown line must fit one row: ${line}`);
+  assert.doesNotMatch(body, /REVIEW:/, 'the draft must be reviewed before release');
+  // Both halves have to yield something, because the notice reads whichever one
+  // matches the reader. A draft with an empty English half would show Korean
+  // users their lines and English users nothing.
+  for (const lang of ['en', 'ko']) {
+    const shown = releaseHighlights(body, lang);
+    assert.ok(shown.length > 0, `${lang}: the draft must yield at least one bullet`);
+    for (const line of shown) {
+      assert.ok(line.length <= 115, `${lang}: a shown line must fit one row: ${line}`);
+    }
   }
+});
+
+// --- the review gate --------------------------------------------------------
+// Two scripts refuse to publish an unreviewed draft, and they used to carry the
+// marker string separately. Renaming it in one left the other grepping for text
+// that no longer existed, and that failure is silent in the dangerous direction:
+// a gate looking for an absent string does not error, it passes.
+
+test('needsReview blocks a fresh draft and clears a reviewed one', () => {
+  assert.equal(needsReview(`${DRAFT_MARKER}\n\n- a thing.\n`), true);
+  assert.equal(needsReview('- a thing.\n'), false);
+  assert.equal(needsReview(''), false);
+  assert.equal(needsReview(undefined), false);
+});
+
+test('needsReview keys on the marker opening, not its wording', () => {
+  // The instruction after `<!-- REVIEW:` is prose for a human. Editing it must
+  // not disarm the gate, which is what matching the whole line would do.
+  assert.equal(needsReview('<!-- REVIEW: anything at all -->\n'), true);
+  assert.equal(needsReview('<!-- REVIEW: 한국어로 적어도 -->\n'), true);
+});
+
+test('both publish paths gate through the shared marker', () => {
+  // Source-level, because the alternative is a gate that agrees today and drifts
+  // the next time one of the two files is edited.
+  for (const rel of ['scripts/release-notes.mjs', 'scripts/deploy.mjs']) {
+    const src = readFileSync(join(ROOT, rel), 'utf8');
+    assert.match(src, /from '\.\.\/src\/changelog\.js'/,
+      `${rel} must import the marker rather than spell it out`);
+    assert.match(src, /needsReview\(/, `${rel} must gate through needsReview`);
+    assert.doesNotMatch(src, /'<!-- (REVIEW|TRANSLATE)/,
+      `${rel} must not carry its own copy of the marker`);
+  }
+});
+
+test('the marker names REVIEW, which is what the docs tell the reader to delete', () => {
+  // The docs say "delete the REVIEW line". If the marker were renamed without
+  // the docs, the instruction would name a line that is not in the file.
+  assert.match(DRAFT_MARKER, /^<!-- REVIEW:/);
+  const doc = readFileSync(join(ROOT, 'docs', 'RELEASING.md'), 'utf8');
+  assert.doesNotMatch(doc, /TRANSLATE/, 'RELEASING.md still names the old marker');
 });

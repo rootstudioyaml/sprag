@@ -112,7 +112,9 @@ export function updateStatus(currentVersion) {
     dismissed: available && s.dismissedVersion === latest,
     stale: age >= CHECK_INTERVAL_MS,
     // Only when they describe THIS version. A cache written for an earlier
-    // release would otherwise sell the wrong upgrade.
+    // release would otherwise sell the wrong upgrade. Language is not checked
+    // here: a mismatch is corrected by the next refresh, and showing the other
+    // language in the meantime beats showing nothing.
     highlights: Array.isArray(s.highlights) && s.highlightsFor === latest ? s.highlights : [],
   };
 }
@@ -164,6 +166,28 @@ const MAX_HIGHLIGHTS = 3;
 const MAX_HIGHLIGHT_LEN = 110;
 
 /**
+ * A release body may carry both languages, English first and Korean under a
+ * heading of its own. Read only the half that matches the reader: mixing them
+ * would put the same change on two of the three lines the notice has room for,
+ * and showing English to someone who set `lang=ko` wastes the notice entirely.
+ *
+ * The Korean half starts at a heading whose text is Korean; everything before
+ * that first Korean heading is the English half. A body in one language only has
+ * no such heading, so English readers get all of it and Korean readers fall back
+ * to the same text rather than to nothing.
+ *
+ * @param {string} body
+ * @param {string} lang - 'ko' | 'en'
+ * @returns {string} the half to read
+ */
+function sectionForLang(body, lang) {
+  const lines = body.split(/\r?\n/);
+  const at = lines.findIndex((l) => /^#{1,6}\s/.test(l) && /[가-힣]/.test(l));
+  if (at < 0) return body;
+  return lang === 'ko' ? lines.slice(at + 1).join('\n') : lines.slice(0, at).join('\n');
+}
+
+/**
  * The headline items of a release body, as short single lines.
  *
  * Release notes are written for people reading a web page: headings, prose
@@ -174,10 +198,11 @@ const MAX_HIGHLIGHT_LEN = 110;
  * rather than truncated into nonsense.
  *
  * @param {string} body - the release body as published
+ * @param {string} [lang] - 'ko' | 'en'; picks the half of a bilingual body
  * @returns {string[]} at most MAX_HIGHLIGHTS lines, or [] when nothing fits
  */
-export function releaseHighlights(body) {
-  const text = String(body || '');
+export function releaseHighlights(body, lang = 'en') {
+  const text = sectionForLang(String(body || ''), lang);
   if (!text.trim()) return [];
   const out = [];
   for (const raw of text.split(/\r?\n/)) {
@@ -246,7 +271,7 @@ export function releaseHighlights(body) {
  * is worth showing with a bare version number, so a missing release, a rate
  * limit, or an offline machine must not cost the user the notice itself.
  */
-export async function fetchHighlights(version, { timeoutMs = FETCH_TIMEOUT_MS } = {}) {
+export async function fetchHighlights(version, { timeoutMs = FETCH_TIMEOUT_MS, lang = 'en' } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -256,7 +281,7 @@ export async function fetchHighlights(version, { timeoutMs = FETCH_TIMEOUT_MS } 
     });
     if (!res.ok) throw new Error(`releases responded ${res.status}`);
     const body = await res.json();
-    return releaseHighlights(body && body.body);
+    return releaseHighlights(body && body.body, lang);
   } catch (e) {
     debug('update-check:highlights', e);
     return [];
@@ -293,16 +318,31 @@ export async function refreshUpdateState(currentVersion) {
     // What the new version adds, so the notice can answer "why would I".
     // Only worth a second request when there is actually an upgrade to describe,
     // and only when we do not already hold the notes for that exact version.
-    if (isNewer(latest, currentVersion) && prev.highlightsFor !== latest) {
-      const highlights = await fetchHighlights(latest);
+    // The reader's own language: a release body carries both halves, and the
+    // notice has room for three lines in one of them.
+    let lang = 'en';
+    try {
+      const { userLanguage } = await import('./config.js');
+      lang = userLanguage();
+    } catch (e) { debug('update-check:lang', e); }
+    // Fetch when the version is new, and also when the reader switched language
+    // since these notes were cached — otherwise they keep reading the half they
+    // left behind.
+    const staleLang = prev.highlightsFor === latest && prev.highlightsLang !== lang;
+    if (isNewer(latest, currentVersion) && (prev.highlightsFor !== latest || staleLang)) {
+      const highlights = await fetchHighlights(latest, { lang });
       if (highlights.length) {
         next.highlights = highlights;
         next.highlightsFor = latest;
+        // Which language these are in. Someone who switches `lang` afterwards
+        // would otherwise keep reading the notes in the language they left.
+        next.highlightsLang = lang;
       } else {
         // Drop notes belonging to an older version rather than showing them
         // against this one.
         delete next.highlights;
         delete next.highlightsFor;
+        delete next.highlightsLang;
       }
     }
     writeUpdateState(next);

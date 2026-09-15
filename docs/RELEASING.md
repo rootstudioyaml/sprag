@@ -27,9 +27,10 @@ keyword means this command, with no exchange in between.
 
 What it will not do is decide anything. The version comes from the newest
 `### vX.Y.Z` heading, the body comes from the committed draft, and it refuses
-before publishing anything if the draft is missing or still untranslated, if the
-branch is not `main`, or if the working tree is dirty. Steps 1 and 2 — writing
-the changelog entry and translating the draft — stay a person's work.
+before publishing anything if the draft is missing or still carries its REVIEW
+line, if the branch is not `main`, or if the working tree is dirty. Steps 1 and 2
+— writing the changelog entry and filling both halves of the draft — stay a
+person's work.
 
 A version already on npm is treated as the "released without notes" case: the
 tag and the package are correct, so it publishes the notes and stops. That makes
@@ -40,9 +41,9 @@ each step.
 
 ## The order matters
 
-Notes are written and translated **before** the version is bumped, because the
+Notes are written and reviewed **before** the version is bumped, because the
 suite checks them: `test/release-notes.test.js` asserts that the shipped version
-has a translated draft. Bump first and `npm test` fails at a point where the tag
+has a reviewed draft. Bump first and `npm test` fails at a point where the tag
 already exists.
 
 ```bash
@@ -52,10 +53,10 @@ $EDITOR CHANGELOG.md                    # add "### vX.Y.Z (YYYY-MM-DD)"
 # ── 2. Draft the notes from that entry, and translate them. ─────────────
 node scripts/release-notes.mjs X.Y.Z    # writes docs/releases/vX.Y.Z.md
                                         # and prints the three lines users will see
-$EDITOR docs/releases/vX.Y.Z.md         # translate; delete the TRANSLATE line
+$EDITOR docs/releases/vX.Y.Z.md         # fill the English half; delete the REVIEW line
 
 # ── 3. Verify. This is the gate for everything above. ──────────────────
-npm test                                # fails if the draft is missing or untranslated
+npm test                                # fails if the draft is missing or unreviewed
 node scripts/verify-cli.mjs
 
 # ── 4. Bump, tag, publish to npm. ─────────────────────────────────────
@@ -78,9 +79,9 @@ node -e "import('./src/update-check.js').then(async m => \
 Step 5 updates an existing release rather than adding a second one, so a
 correction to the notes is just another run of it.
 
-Step 2 refuses to overwrite a draft that has already been translated — it is the
-same command you ran before translating, so re-running it by reflex would discard
-the translation. Pass `--force` to start the draft over deliberately.
+Step 2 refuses to overwrite a draft that has already been edited — it is the same
+command you ran before editing, so re-running it by reflex would discard that
+work. Pass `--force` to start the draft over deliberately.
 
 Step 6 reads the *published* release, not the local file. Empty output means the
 body carried no bullets or the release does not exist — either way the upgrade
@@ -89,8 +90,9 @@ upgrades.
 
 ## What the draft has to look like
 
-The upgrade offer shows **the first sentence of the first three bullets**, and
-nothing else. Those three lines are what most users will ever read of a release.
+The upgrade offer shows **the first sentence of the first three bullets of the
+reader's half**, and nothing else. Those three lines are what most users will ever
+read of a release.
 
 So the body opens with one bullet per area of the release, each a complete
 sentence that stands alone, and puts the detail in sections below them:
@@ -120,14 +122,22 @@ A body written entirely as prose yields no bullets. That is handled (the offer
 names the version and stops), but it wastes the one chance to answer "why would
 I upgrade".
 
-## Language
+## Both languages, in one body
 
-The changelog is Korean and English mixed; releases on this public repo are
-English. So what `release-notes.mjs` extracts is a *draft*: it writes a
-`TRANSLATE` marker at the top, and `--publish` refuses while that line is there.
+A release body carries English first and Korean under a `## 한국어` heading. The
+upgrade offer reads whichever half matches the reader's `lang`, so a Korean user
+sees Korean and everyone else sees English — the same release, told once in each.
 
-Translate the bullets and keep the measurements — "1296 episodes, 337 eligible,
-12 delegated" is the part that makes a release note worth reading.
+`release-notes.mjs` scaffolds both halves: the extracted changelog text below the
+Korean heading, and an empty English half above it for you to fill. It marks the
+draft with a `REVIEW` comment and `--publish` refuses while that line is there.
+
+Publishing one language only still works. A body with no Korean heading is read
+by everyone, which is how the older releases behave. But then Korean readers get
+English, so fill both halves when the changelog gives you the Korean for free.
+
+Keep the measurements in either language: "1296 episodes, 337 eligible, 12
+delegated" is the part that makes a release note worth reading.
 
 ## Why the draft is a committed file
 
@@ -138,7 +148,7 @@ It started in a temp directory, which was wrong three ways:
   eyes, and a file outside the repository never reaches a diff.
 - `os.tmpdir()` is not `/tmp` on macOS, so "edit the draft" and "publish the
   draft" referred to two different files with the same name. A publish ran
-  against untranslated text because of exactly that.
+  against an unreviewed draft because of exactly that.
 
 `docs/releases/` is not in `package.json`'s `files`, so the drafts stay out of
 the npm tarball. Verify with `npm pack --dry-run` if you change that list.
@@ -199,17 +209,19 @@ Do not look for another endpoint or a proxy. The policy is the policy.
 
 ## If a release already went out without notes
 
-Add the changelog section if it is missing, draft and translate as in steps 1 and
-2, then run step 5 alone. The tag and the npm package are already correct; only
+Add the changelog section if it is missing, draft and review as in steps 1 and 2,
+then run step 5 alone. The tag and the npm package are already correct; only
 the release body is missing, and `--publish` creates it against the existing tag.
 
-## Pending as of 91c693d
+## Pending as of the bilingual-notes change
 
 Two releases had their steps 1 and 2 done — changelog written, notes drafted and
-translated — and were waiting for a network that can perform the writes:
+reviewed — and were waiting for a network that can perform the writes:
 
-- **v3.45.0** is published: <https://github.com/rootstudioyaml/sprag/releases/tag/v3.45.0>.
-- **v3.46.0** is not tagged yet. Run steps 3 through 6.
+- **v3.45.0** and **v3.46.0** are tagged, on npm, and their releases posted. Both
+  bodies are English only; the drafts gained a Korean half after they went up, so
+  re-run step 5 for each and `--publish` will PATCH the posted body.
+- **v3.46.1** is not tagged yet. Run steps 3 through 6, or `npm run deploy`.
 
 Both drafts are in `docs/releases/`. Nothing has to be carried across by hand;
 `git pull` is enough.

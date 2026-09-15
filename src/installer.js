@@ -17,7 +17,28 @@ import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync 
 import { join } from 'node:path';
 import { claudeUserDir, userDataDir } from './paths.js';
 
-const STATUSLINE_COMMAND = 'claude-token-saver --statusline --icon';
+/**
+ * The command every entry we write invokes.
+ *
+ * Both binaries ship in `package.json`'s `bin`, so either name works — but the
+ * package is `sprag-cli`, and a fresh install writing `claude-token-saver` into
+ * the user's settings puts a name they never typed in a file they read.
+ *
+ * The reverse direction is not symmetrical: entries ALREADY on disk carry the
+ * old name, so anything that recognises our own work has to accept both. That is
+ * what `isOurCommand` is for — narrowing it to the new name would make install
+ * miss an existing hook and add a second one beside it.
+ */
+const CLI = 'sprag';
+const LEGACY_CLI = 'claude-token-saver';
+
+/** Whether a settings command belongs to this tool, under either name. */
+function isOurCommand(command) {
+  return typeof command === 'string'
+    && (command.includes(CLI) || command.includes(LEGACY_CLI));
+}
+
+const STATUSLINE_COMMAND = `${CLI} --statusline --icon`;
 const STATUSLINE_REFRESH_INTERVAL = 5;
 
 const SKILL_BODY = `---
@@ -181,7 +202,7 @@ export function installStatusline({ force = false } = {}) {
   }
 
   const cur = settings.statusLine;
-  const targetsUs = cur && typeof cur.command === 'string' && cur.command.includes('claude-token-saver');
+  const targetsUs = !!cur && isOurCommand(cur.command);
 
   if (!cur) {
     settings.statusLine = {
@@ -221,7 +242,7 @@ export function installStatusline({ force = false } = {}) {
 // candidates as session context (startup + /clear). Idempotent: skips when a
 // sprag route-scan hook is already present; never touches other
 // hooks the user configured.
-const ROUTE_SCAN_HOOK_COMMAND = 'claude-token-saver route-scan --hook';
+const ROUTE_SCAN_HOOK_COMMAND = `${CLI} route-scan --hook`;
 
 export function installSessionStartHook() {
   const dir = claudeUserDir();
@@ -273,7 +294,7 @@ export function installSessionStartHook() {
  * produce identical output; a delegation is precisely the event that changes it,
  * so this hook rescans on the spot. Detached, so the tool call does not wait.
  */
-const ROUTE_SCAN_DELEGATED_HOOK_COMMAND = 'claude-token-saver route-scan --hook-delegated';
+const ROUTE_SCAN_DELEGATED_HOOK_COMMAND = `${CLI} route-scan --hook-delegated`;
 
 export function installDelegationHook() {
   const dir = claudeUserDir();
@@ -311,7 +332,7 @@ export function installDelegationHook() {
   return { path: file, action: 'created' };
 }
 
-const BRIEF_HOOK_COMMAND = 'claude-token-saver brief --hook';
+const BRIEF_HOOK_COMMAND = `${CLI} brief --hook`;
 
 export function installBriefHook() {
   const dir = claudeUserDir();
@@ -353,7 +374,7 @@ export function installBriefHook() {
 // drift surfaces only when a human reads the artifact. This hook closes that
 // gap: it runs on the file the model just wrote, while it can still fix it.
 // Installed by `korean on`, removed by `korean off`. Idempotent.
-const KOREAN_LINT_HOOK_COMMAND = 'claude-token-saver korean --hook';
+const KOREAN_LINT_HOOK_COMMAND = `${CLI} korean --hook`;
 // Bash belongs on this matcher because a heredoc, a `tee`, or a `sed -i` puts
 // Korean on disk exactly like Write does. A subagent without the Write tool
 // reaches for `cat > file` first, so leaving Bash off the list exempted every
@@ -436,8 +457,8 @@ export function removeKoreanLintHook() {
 // workbook adding a minute on top. The row cap inside the converter is what
 // actually bounds the work; the timeout is only a backstop.
 // Installed by `doc2md on`, removed by `doc2md off`. Idempotent.
-const DOC2MD_HOOK_COMMAND = 'claude-token-saver doc2md --hook';
-const DOC2MD_PROMPT_HOOK_COMMAND = 'claude-token-saver doc2md --hook-prompt';
+const DOC2MD_HOOK_COMMAND = `${CLI} doc2md --hook`;
+const DOC2MD_PROMPT_HOOK_COMMAND = `${CLI} doc2md --hook-prompt`;
 
 export function installDoc2mdHook() {
   const dir = claudeUserDir();
@@ -576,7 +597,7 @@ export function uninstallAll({ purge = false } = {}) {
     // Only our own statusline command goes. Someone else's stays exactly
     // where they put it.
     const cur = settings.statusLine;
-    if (cur && typeof cur.command === 'string' && cur.command.includes('claude-token-saver')) {
+    if (cur && isOurCommand(cur.command)) {
       delete settings.statusLine;
       result.removed.push('statusLine');
     } else if (cur) {
@@ -591,8 +612,8 @@ export function uninstallAll({ purge = false } = {}) {
       if (!Array.isArray(list)) continue;
       const kept = list.filter((m) => !(
         Array.isArray(m?.hooks)
-        && m.hooks.some((h) => typeof h?.command === 'string'
-          && (h.command.includes('claude-token-saver') || h.command.includes('cache-monitor-hook')))
+        && m.hooks.some((h) => isOurCommand(h?.command)
+          || (typeof h?.command === 'string' && h.command.includes('cache-monitor-hook')))
       ));
       if (kept.length === list.length) continue;
       result.removed.push(`hooks.${event}`);
@@ -652,7 +673,7 @@ export function migrateLegacyCacheMonitorHook() {
     for (const h of m.hooks) {
       if (typeof h?.command !== 'string' || !h.command.includes('cache-monitor-hook')) continue;
       const th = h.command.match(/--threshold\s+([\d.]+)/);
-      h.command = `claude-token-saver --hook-run --threshold ${th ? th[1] : '0.7'}`;
+      h.command = `${CLI} --hook-run --threshold ${th ? th[1] : '0.7'}`;
       migrated = true;
     }
   }

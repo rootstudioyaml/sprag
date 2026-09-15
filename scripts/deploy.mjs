@@ -21,6 +21,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DRAFT_MARKER, needsReview } from '../src/changelog.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -77,9 +78,13 @@ if (!existsSync(draftPath)) {
   stop(`no notes draft at docs/releases/${tag}.md.`,
     `Write the changelog entry, then: node scripts/release-notes.mjs ${version}`);
 }
-if (readFileSync(draftPath, 'utf8').includes('<!-- TRANSLATE')) {
-  stop(`the draft docs/releases/${tag}.md is still untranslated.`,
-    'Translate it and delete the TRANSLATE line; releases on this repo are English.');
+// The marker is imported rather than spelled out here. Both gates carried the
+// string separately once, and renaming it in one place left this one grepping for
+// text that no longer existed — which does not fail loudly, it passes and ships
+// an unreviewed draft as the release.
+if (needsReview(readFileSync(draftPath, 'utf8'))) {
+  stop(`the draft docs/releases/${tag}.md has not been reviewed.`,
+    `Fill both halves and delete the REVIEW line: ${DRAFT_MARKER}`);
 }
 
 // --- preflight --------------------------------------------------------------

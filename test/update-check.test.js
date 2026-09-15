@@ -349,3 +349,40 @@ test('markup is resolved before the sentence split, not after', () => {
     ['Bash writes are checked.'],
   );
 });
+
+test('a bilingual body is read one half at a time', () => {
+  // A release carries both languages now, English first and Korean under a
+  // heading of its own. Reading the whole thing would put the same change on two
+  // of the three lines the notice has room for.
+  const body = [
+    '- **English one.** Detail that follows.',
+    '- **English two.** More detail.',
+    '',
+    '---',
+    '',
+    '## 한국어',
+    '',
+    '- **한국어 하나.** 상세가 이어집니다.',
+    '- **한국어 둘.** 더 상세.',
+  ].join('\n');
+  assert.deepEqual(releaseHighlights(body, 'en'), ['English one.', 'English two.']);
+  assert.deepEqual(releaseHighlights(body, 'ko'), ['한국어 하나.', '한국어 둘.']);
+  // Default is English, for callers that predate the parameter.
+  assert.deepEqual(releaseHighlights(body), ['English one.', 'English two.']);
+});
+
+test('a single-language body is read by everyone', () => {
+  // Older releases carry English only, and a body may reasonably ship in one
+  // language. Falling back to it beats showing a Korean reader nothing.
+  const body = '- **Only English here.** With detail.';
+  assert.deepEqual(releaseHighlights(body, 'ko'), ['Only English here.']);
+  assert.deepEqual(releaseHighlights(body, 'en'), ['Only English here.']);
+});
+
+test('an English heading does not split the body', () => {
+  // The split looks for a heading written in Korean, not for any heading: a
+  // release with "## Fixes" sections is still one language.
+  const body = ['## Fixes', '', '- **One.** Detail.', '', '## Notes', '', '- **Two.** Detail.'].join('\n');
+  assert.deepEqual(releaseHighlights(body, 'en'), ['One.', 'Two.']);
+  assert.deepEqual(releaseHighlights(body, 'ko'), ['One.', 'Two.']);
+});
