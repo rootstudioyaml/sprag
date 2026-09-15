@@ -11,6 +11,33 @@ Everything here runs from a network that permits writes to `api.github.com` and
 possible from a network that intercepts those writes (see
 [the last section](#from-a-network-that-blocks-github-writes)).
 
+## The keyword
+
+Steps 3 to 6 are wired together, so a release can be one instruction:
+
+```bash
+npm run deploy              # release the changelog's newest entry
+npm run deploy -- 3.46.0    # or name the version
+npm run deploy -- --dry-run # say what it would do, publish nothing
+```
+
+It asks nothing. The approval is the keyword — a release that stops halfway to
+confirm a step is the thing this replaces — so the bot can be told that a deploy
+keyword means this command, with no exchange in between.
+
+What it will not do is decide anything. The version comes from the newest
+`### vX.Y.Z` heading, the body comes from the committed draft, and it refuses
+before publishing anything if the draft is missing or still untranslated, if the
+branch is not `main`, or if the working tree is dirty. Steps 1 and 2 — writing
+the changelog entry and translating the draft — stay a person's work.
+
+A version already on npm is treated as the "released without notes" case: the
+tag and the package are correct, so it publishes the notes and stops. That makes
+re-running it after a correction safe rather than duplicating a release.
+
+The rest of this file is the same procedure by hand, and the reasoning behind
+each step.
+
 ## The order matters
 
 Notes are written and translated **before** the version is bumped, because the

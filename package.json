@@ -8,13 +8,14 @@
     "claude-token-saver": "bin/cli.js"
   },
   "scripts": {
-    "test": "node --test",
+    "deploy": "node scripts/deploy.mjs",
     "docs:statusline": "node scripts/docs-statusline.mjs",
     "postinstall": "node bin/cli.js install || true",
+    "prepublishOnly": "node scripts/sync-readme-ko.mjs",
     "publish:legacy": "node scripts/publish-legacy.mjs",
-    "sync:ko": "node scripts/sync-readme-ko.mjs",
     "release:notes": "node scripts/release-notes.mjs",
-    "prepublishOnly": "node scripts/sync-readme-ko.mjs"
+    "sync:ko": "node scripts/sync-readme-ko.mjs",
+    "test": "node --test"
   },
   "files": [
     "bin/",
