@@ -174,11 +174,27 @@ export async function run({ args, hasFlag, numArg }) {
       const scan = rs.readRouteScan();
       if (scan?.unresolvedRuns > 0) {
         const ids = (scan.unresolvedModels || []).join(', ');
+        // Unlike the statusline chip, this listing reports even a single one: the
+        // user ran this command to find out why a rule reads as never fired, and
+        // there is room here to answer properly. But a gateway's opaque profile
+        // ARN is normally resolved by learning from observed runs, which needs
+        // MIN_VOTES of them — so below that, the honest advice is to wait rather
+        // than to go edit a config file.
+        const { MIN_VOTES } = await import('../model-alias.js');
+        const learning = scan.unresolvedRuns < MIN_VOTES;
+        const remedyKo = learning
+          ? `\n  위임이 ${MIN_VOTES}건 이상 쌓이면 자동으로 해석될 수 있습니다. 그때까지 기다렸다가 다시 확인하고,`
+            + '\n  게이트웨이가 모델 이름을 아예 알려 주지 않는 환경이라면 profile-map.json 의 modelAliases 에'
+            + '\n  해당 ID 를 매핑한 뒤 route-scan --refresh 를 실행하십시오.'
+          : '\n  profile-map.json 의 modelAliases 에 해당 ID 를 매핑한 뒤 route-scan --refresh 를 실행하십시오.';
+        const remedyEn = learning
+          ? `\n  These may resolve on their own once ${MIN_VOTES} or more delegated runs accumulate — check again then.`
+            + '\n  If the gateway never reports a model name at all, map the id under modelAliases in'
+            + '\n  profile-map.json and run route-scan --refresh.'
+          : '\n  Map it under modelAliases in profile-map.json, then run route-scan --refresh.';
         console.log(lang === 'ko'
-          ? `\n⚠ 해석되지 않은 모델 ID 때문에 위임 ${scan.unresolvedRuns}건이 집계에서 제외됐습니다${ids ? ` (${ids})` : ''}.`
-            + '\n  profile-map.json 의 modelAliases 에 해당 ID 를 매핑한 뒤 route-scan --refresh 를 실행하십시오.'
-          : `\n⚠ ${scan.unresolvedRuns} delegated run(s) were excluded — unpriceable model id${ids ? ` (${ids})` : ''}.`
-            + '\n  Map it under modelAliases in profile-map.json, then run route-scan --refresh.');
+          ? `\n⚠ 해석되지 않은 모델 ID 때문에 위임 ${scan.unresolvedRuns}건이 집계에서 제외됐습니다${ids ? ` (${ids})` : ''}.` + remedyKo
+          : `\n⚠ ${scan.unresolvedRuns} delegated run(s) were excluded — unpriceable model id${ids ? ` (${ids})` : ''}.` + remedyEn);
       }
       console.log(lang === 'ko'
         ? '\n제거: sprag route-scan rules rm <N>'

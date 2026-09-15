@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ttlBreakdown, sessionMetrics, diagnoseSession } from '../src/stats.js';
 import { estimateCost } from '../src/cost.js';
-import { aliasForRole } from '../src/model-alias.js';
+import { aliasForRole, MIN_VOTES } from '../src/model-alias.js';
 import { formatReport } from '../src/formatters/statusline.js';
 
 const BEDROCK_ARN =
@@ -101,6 +101,24 @@ test('unresolved delegated runs get a chip instead of silence', () => {
   // Rendering nothing made this identical to never having delegated.
   const chipped = statusline({ total: 0, pct1h: 0, pct5m: 0 }, { delegationSaved: 0, unresolvedRuns: 7 });
   assert.match(chipped, /7 unresolved/);
+});
+
+test('a handful of unresolved runs is learning in progress, not a warning', () => {
+  // A gateway reports an opaque profile ARN, and the mapping for it is learned
+  // from observed runs — which takes MIN_VOTES of them. Below that the count is
+  // the first day of a working mechanism, so warning about it told every new
+  // gateway user their fresh install was broken.
+  for (const n of [1, MIN_VOTES - 1]) {
+    const out = statusline({ total: 0, pct1h: 0, pct5m: 0 }, { delegationSaved: 0, unresolvedRuns: n });
+    assert.doesNotMatch(out, /unresolved/, `${n} unresolved run(s) must stay quiet`);
+  }
+  // At the threshold learning has had its chance and still came up short.
+  const at = statusline({ total: 0, pct1h: 0, pct5m: 0 }, { delegationSaved: 0, unresolvedRuns: MIN_VOTES });
+  assert.match(at, new RegExp(`${MIN_VOTES} unresolved`), 'at the threshold the chip appears');
+
+  // A real saving always outranks the count: the chip is the zero-savings case.
+  const saved = statusline({ total: 0, pct1h: 0, pct5m: 0 }, { delegationSaved: 12.5, unresolvedRuns: 99 });
+  assert.doesNotMatch(saved, /unresolved/);
 });
 
 test('the 5m-dominant warning reaches gateway users, with advice they can act on', () => {

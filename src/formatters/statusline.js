@@ -23,6 +23,7 @@ import { labelForKey } from '../window-labels.js';
 import { harnessStatusForStatusline } from '../harness.js';
 import { loadConfig } from '../config.js';
 import { koreanStyleEnabled } from '../korean-style.js';
+import { MIN_VOTES } from '../model-alias.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
 // next to each other — terminal palettes set them with unbalanced perceptual
@@ -439,10 +440,18 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // identical, so users in the second case had no reason to suspect anything
   // was wrong. The count gets a chip; the explanation stays in `route-scan
   // rules`, where there is room for it.
+  //
+  // But only once there are enough of them to mean anything. A gateway reports
+  // an opaque profile ARN, and the fix for that is learned from observed runs —
+  // which needs MIN_VOTES of them before it can conclude anything. Below that
+  // threshold an unresolved run is not a problem, it is the first day of a
+  // working mechanism, and warning about it makes a fresh install look broken.
+  // Tied to MIN_VOTES rather than a literal so the two cannot drift: the chip
+  // appears exactly when learning has had its chance and still came up short.
   const unresolvedRuns = Number(data.unresolvedRuns) || 0;
   const delegateSeg = delegationSaved > 0
     ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
-    : (unresolvedRuns > 0
+    : (unresolvedRuns >= MIN_VOTES
       ? `${c(YELLOW)}${g.routing} ${unresolvedRuns} unresolved${c(RESET)}`
       : null);
 
