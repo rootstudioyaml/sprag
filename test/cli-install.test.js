@@ -274,3 +274,21 @@ test('install recognises an entry invoked through a wrapper, and adds no second 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('every package manager upgradeCommand names can also invoke a hook', () => {
+  // The two lists drifted once: `upgradeCommand` printed yarn instructions while
+  // the recognition check knew npx, bunx and pnpm dlx only, so a yarn user's
+  // entry read as someone else's and install added a second hook beside it. Both
+  // hooks then run on every prompt. This pins the pair rather than the wording.
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'update-check.js'), 'utf8');
+  const fn = (src.match(/export function upgradeCommand\(\)[\s\S]*?\n\}/) || [])[0] || '';
+  const managers = new Set();
+  for (const m of fn.matchAll(/`(pnpm|bun|yarn|npm) /g)) managers.add(m[1]);
+  assert.ok(managers.size >= 4, `upgradeCommand should cover several managers, saw ${[...managers]}`);
+  const installer = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'installer.js'), 'utf8');
+  const known = (installer.match(/const RUNNER_SUBCOMMANDS = \{[^}]*\}/) || [''])[0];
+  for (const mgr of managers) {
+    assert.ok(known.includes(`${mgr}:`),
+      `isOurCommand must know how ${mgr} invokes a binary — upgradeCommand tells users to install with it`);
+  }
+});

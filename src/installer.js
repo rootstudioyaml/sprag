@@ -45,17 +45,25 @@ const LEGACY_CLI = LEGACY_CLI_NAME;
  * A wrapper is allowed in front, because the entry may legitimately be run
  * through one: `npx sprag-cli brief --hook` and `/usr/local/bin/sprag doc2md`
  * are both ours. So the executable is taken as the last path segment of the
- * first token — or of the token after `npx`/`bunx`/`pnpm dlx` — and matched
- * whole, with `sprag-cli` accepted there since that is what npx resolves.
+ * first token — or of the token after a runner like `npx` or `yarn dlx` — and
+ * matched whole, with `sprag-cli` accepted there since that is what npx resolves.
+ *
+ * The runner list follows `upgradeCommand`, which already prints npm, pnpm, bun
+ * and yarn instructions. Missing one is the duplicate-hook failure rather than
+ * the deletion one: an entry we do not recognise gets a second hook added beside
+ * it, and both then run on every prompt.
  */
+const RUNNERS = /^(npx|bunx|pnpx)$/;
+const RUNNER_SUBCOMMANDS = { pnpm: ['dlx', 'exec'], yarn: ['dlx', 'run'], bun: ['x', 'run'], npm: ['exec'] };
+
 function isOurCommand(command) {
   if (typeof command !== 'string') return false;
   const tokens = command.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) return false;
-  // `pnpm dlx <pkg>` and `npx <pkg>` put the package one or two tokens in.
+  // `npx <pkg>` puts the package one token in, `yarn dlx <pkg>` two.
   let i = 0;
-  if (/^(npx|bunx)$/.test(tokens[0])) i = 1;
-  else if (tokens[0] === 'pnpm' && tokens[1] === 'dlx') i = 2;
+  if (RUNNERS.test(tokens[0])) i = 1;
+  else if (RUNNER_SUBCOMMANDS[tokens[0]]?.includes(tokens[1])) i = 2;
   const token = tokens[i];
   if (!token) return false;
   // A path invokes the binary by its last segment; strip a Windows .cmd/.exe too.
