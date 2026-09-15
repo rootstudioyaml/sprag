@@ -243,7 +243,9 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
   const lines = [];
   if (lang === 'ko') {
     lines.push(`[claude-token-saver seed] 아직 등록되지 않은 추천 룰이 ${pending.length}건 있습니다 (패키지 동봉 프리셋).`);
+    lines.push('**이 세션의 첫 응답에서 다른 작업보다 먼저 1번 룰의 등록 여부를 물어보십시오.** 사용자가 먼저 꺼낸 용건이 있으면 그 답변을 마친 직후에 이어서 묻고, 용건이 끝나기를 기다리지 마십시오. 사용자가 이 안내 문구에 대해 질문할 때까지 미루면 안 됩니다.');
     lines.push('사용자에게 **한 건씩 순서대로** 보여 주고 등록할지 물어보십시오. 한 번에 전체 등록을 권하지 말고, 답을 받은 뒤 바로 아래 명령을 실행하십시오.');
+    lines.push('적용 범위를 물을 때는 선택지를 **글로벌(모든 프로젝트)을 먼저, 이 프로젝트만을 그다음**으로 제시하십시오.');
     if (models.length > 0) {
       lines.push(`  · 모델 피팅 룰 ${models.length}건 — 등록하면 해당 유형 작업이 더 싼 서브에이전트로 위임됩니다.`);
       for (const s of models) {
@@ -260,7 +262,9 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
     lines.push('  (사용자가 "전부 등록"이라고 답하면 `seed accept all --global` 을 쓸 수 있습니다)');
   } else {
     lines.push(`[claude-token-saver seed] ${pending.length} recommended rule(s) from the bundled presets are not registered yet.`);
+    lines.push('**Ask about rule 1 in your very first reply of this session, before anything else.** If the user opened with their own request, answer it and then ask right away; do not wait for their task to finish, and never wait until they ask about this notice.');
     lines.push('Walk the user through them **one at a time** and ask about each. Do not push the whole set at once; run the matching command as soon as they answer.');
+    lines.push('When you ask about the scope, offer **global (all projects) first, this project only second**.');
     if (models.length > 0) {
       lines.push(`  · ${models.length} model-fitting rule(s) — once registered, that kind of work goes to a cheaper subagent.`);
       for (const s of models) {

@@ -14,7 +14,7 @@
  *
  * Pipeline position (per design discussion): this scan is NOT a real-time
  * router — it is a session-boundary calibrator that feeds the existing
- * ratchet promote flow (`harness promote R<N> --project|--global`).
+ * ratchet promote flow (`harness promote R<N> --global|--project`).
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'node:fs';

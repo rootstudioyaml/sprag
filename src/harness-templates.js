@@ -60,9 +60,10 @@ ${HARNESS_SECTIONS[0].heading}
 - 같은 에러·오해·반복 작업이 한 번 더 발생하면 즉시 \`.claude/ratchet.md\`에
   "조건 → 행동" 한 줄로 룰 추가.
 - sprag가 후보를 감지하면 statusline에 \`🅷⚠ ratchet?\`로 알림.
-  \`sprag harness promote "<rule>" --project|--global\`로 승인.
-- **scope는 항상 사용자에게 먼저 물어볼 것** — 프로젝트 한정이면 \`--project\`,
-  도구·환경 일반 룰이면 \`--global\`(\`~/.claude/ratchet.md\`). Bash 환경은
+  \`sprag harness promote "<rule>" --global|--project\`로 승인.
+- **scope는 항상 사용자에게 먼저 물어볼 것.** 선택지는 글로벌을 먼저 제시한다.
+  도구·환경 일반 룰이면 \`--global\`(\`~/.claude/ratchet.md\`), 프로젝트 한정이면
+  \`--project\`. Bash 환경은
   non-TTY라 CLI의 readline 프롬프트가 안 뜨므로, 호출자(LLM)가 직접 묻고
   플래그를 명시해야 함. 묻지 않고 기본값으로 등록하지 말 것.
 - 승인된 룰은 이 블록 맨 아래 \`@\` import로 매 세션 로드된다 — 그 import 라인을
@@ -109,7 +110,7 @@ ${HARNESS_SECTIONS[4].heading}
 
 📌 운영:
 - \`sprag harness check\` — 현재 셋업 점수
-- \`sprag harness promote "<룰>" --project|--global\` — ratchet에 룰 추가 (scope는 사용자에게 먼저 물어볼 것)
+- \`sprag harness promote "<룰>" --global|--project\` — ratchet에 룰 추가 (scope는 사용자에게 먼저 물어볼 것)
 - \`sprag harness off\` — statusline 표시 끄기
 
 ---

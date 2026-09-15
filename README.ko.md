@@ -267,8 +267,8 @@ sprag harness init                # 이 프로젝트에 셋업
 sprag harness init --global       # ~/.claude/CLAUDE.md, 모든 프로젝트에 적용
 sprag harness check               # 현재 점수 (글로벌 fallback 인정)
 sprag harness analyze             # 훅 없이도 수동으로 전사 분석을 실행해 harness-state.json 갱신
-sprag harness promote <N> --project|--global   # 경고 #N → ratchet 룰 (스코프 필수)
-sprag harness promote "<룰 텍스트>" --project|--global  # 내가 직접 정의한 룰도 같은 명령으로 등록
+sprag harness promote <N> --global|--project   # 경고 #N → ratchet 룰 (스코프 필수)
+sprag harness promote "<룰 텍스트>" --global|--project  # 내가 직접 정의한 룰도 같은 명령으로 등록
 sprag harness pull                # 패키지 동봉 큐레이션 룰 → 내 글로벌 래칫에 등록 (opt-in, 중복 스킵)
 sprag harness list / rm <N>       # 룰 조회 / 삭제 (자동 .bak)
 sprag harness off | on            # 🅷 표시 토글

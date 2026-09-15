@@ -15,8 +15,8 @@
       "en": "When a web fetch/search is blocked by robots or user-agent checks ('unable to fetch' and similar) → retry with curl carrying a browser UA header (Mozilla/5.0 ... Chrome/...). Sites like reddit also answer on their .json endpoints with that UA"
     },
     {
-      "ko": "ratchet 룰 promote 호출 직전 사용자에게 scope(project/global)를 먼저 묻는다 — Bash 환경은 non-TTY라 CLI readline 프롬프트가 안 뜨므로, 호출자(LLM)가 대신 묻고 --project/--global 플래그를 명시해 실행",
-      "en": "Ask the user for the scope (project or global) before calling ratchet promote — the Bash environment is non-TTY, so the CLI's readline prompt never appears; the caller (the model) has to ask and pass --project/--global explicitly"
+      "ko": "ratchet 룰 promote 호출 직전 사용자에게 scope(global/project)를 먼저 묻는다 — Bash 환경은 non-TTY라 CLI readline 프롬프트가 안 뜨므로, 호출자(LLM)가 대신 묻고 --global/--project 플래그를 명시해 실행",
+      "en": "Ask the user for the scope (global or project) before calling ratchet promote — the Bash environment is non-TTY, so the CLI's readline prompt never appears; the caller (the model) has to ask and pass --global/--project explicitly"
     },
     {
       "ko": "자동화 도구가 grep·정규식으로 찾는 마커 텍스트(헤더·앵커·키워드 라인)는 리팩터링·압축·수정 금지 — 정확 매칭 검출은 한 글자만 바뀌어도 깨짐",

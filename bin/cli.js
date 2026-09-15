@@ -209,7 +209,7 @@ async function main() {
   //   sprag route-scan --hook          # SessionStart hook mode (context injection)
   //   sprag route-scan dismiss <N>     # mute candidate R<N>
   // Promote a candidate to a ratchet rule (scope is always explicit):
-  //   sprag harness promote R<N> --project|--global
+  //   sprag harness promote R<N> --global|--project
   // brief --hook — UserPromptSubmit hook mode: per-session, change-triggered
   // briefing of state the statusline can only chip (ctx tier crossings,
   // mid-session route/rule-health changes). Silent when nothing changed.

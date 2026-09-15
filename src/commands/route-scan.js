@@ -356,11 +356,11 @@ export async function run({ args, hasFlag, numArg }) {
         }
         if (lang === 'ko') {
           lines.push('등록하면 다음 세션부터 자동 위임됩니다. 사용자에게 등록 여부를 물을 때 위 룰 원문을 그대로 보여주고, 적용 범위까지 확인한 뒤 실행하세요:');
-          lines.push('  sprag harness promote R<N> --project|--global   # 적용 범위는 반드시 사용자에게 확인');
+          lines.push('  sprag harness promote R<N> --global|--project   # 적용 범위는 반드시 사용자에게 확인');
           lines.push('  sprag route-scan dismiss <N>                    # 사용자가 원치 않으면');
         } else {
           lines.push('Once registered, delegation happens automatically from the next session. Show the user the rule text verbatim, confirm the scope with them, then run:');
-          lines.push('  sprag harness promote R<N> --project|--global   # ALWAYS confirm the scope with the user first');
+          lines.push('  sprag harness promote R<N> --global|--project   # ALWAYS confirm the scope with the user first');
           lines.push('  sprag route-scan dismiss <N>                    # if they do not want it');
         }
       }
@@ -446,7 +446,7 @@ export async function run({ args, hasFlag, numArg }) {
     }
     console.log('');
     console.log(lang === 'ko' ? '등록 / 무시:' : 'Promote / dismiss:');
-    console.log('  sprag harness promote R<N> --project|--global');
+    console.log('  sprag harness promote R<N> --global|--project');
     console.log('  sprag route-scan dismiss <N>');
     // 최초 1회만 — 매번 찍으면 도구가 광고판이 된다 (CTS_NO_NOTE=1 로 끔)
     (await import('../first-run-note.js')).printOnce('route-scan', lang);

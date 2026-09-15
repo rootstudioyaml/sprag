@@ -226,7 +226,7 @@ export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) 
     }
     for (const [kind, x] of fresh) {
       items.push(kind === 'route'
-        ? `새 위임 후보가 감지되었습니다 — "${x.label}" 유형 ${x.count}회 반복(statusline의 route? R${x.id} 칩). 등록: sprag harness promote R${x.id} --project|--global (적용 범위는 사용자에게 확인) / 무시: route-scan dismiss ${x.id}`
+        ? `새 위임 후보가 감지되었습니다 — "${x.label}" 유형 ${x.count}회 반복(statusline의 route? R${x.id} 칩). 등록: sprag harness promote R${x.id} --global|--project (적용 범위는 사용자에게 확인) / 무시: route-scan dismiss ${x.id}`
         : `승인된 위임 룰의 최근 에러율이 기준(20%)을 넘었습니다 — "${x.label}" (${x.healthSource === 'delegated' ? `위임 실행 ${x.delegatedRuns}건 중 에러율 ${Math.round((x.delegatedErrRate || 0) * 100)}%` : `유사 에피소드 기준 에러율 ${Math.round((x.errRate || 0) * 100)}%`}, statusline의 rule-health 칩). 조건 좁히기/제거를 사용자와 상의하세요: sprag route-scan rules`);
     }
     s.briefed = [...briefed];
