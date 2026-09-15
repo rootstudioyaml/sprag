@@ -148,8 +148,15 @@ the write, rather than looking like a bad token.
 A 403 is not enough on its own to tell the two apart, and reading every 403 as a
 blocked write sent a reader to the wrong network once. So the body decides: a 403
 carrying GitHub's own JSON (`Resource not accessible by personal access token`)
-is GitHub refusing, and the fix is on the token — a fine-grained token needs
-`Contents: write` on `rootstudioyaml/sprag` before it can create a release.
+is GitHub refusing, and the fix is on the token rather than on the network.
+
+That is the state of the token in `.env` here. It is fine-grained, it reads this
+repository, and it cannot create a release, which is why step 5 now falls back on
+its own: a GitHub 403 makes it retry with the login `gh` already holds (an OAuth
+token with the `repo` scope), and it prints which token it moved to. So step 5
+works with `gh auth status` showing a logged-in account, and the export in the
+block above is optional. Granting the `.env` token `Contents: write` on
+`rootstudioyaml/sprag` would remove the retry, but nothing depends on it.
 
 Steps 4 and 5 both need writes, so a release cannot be completed there. Two ways
 through:
@@ -171,10 +178,10 @@ the release body is missing, and `--publish` creates it against the existing tag
 
 ## Pending as of 91c693d
 
-Two releases have their steps 1 and 2 done — changelog written, notes drafted and
-translated — and are waiting for a network that can perform the writes:
+Two releases had their steps 1 and 2 done — changelog written, notes drafted and
+translated — and were waiting for a network that can perform the writes:
 
-- **v3.45.0** is tagged and on npm with no release body. Run step 5 alone.
+- **v3.45.0** is published: <https://github.com/rootstudioyaml/sprag/releases/tag/v3.45.0>.
 - **v3.46.0** is not tagged yet. Run steps 3 through 6.
 
 Both drafts are in `docs/releases/`. Nothing has to be carried across by hand;

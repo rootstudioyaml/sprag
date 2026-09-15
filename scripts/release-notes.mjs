@@ -25,10 +25,14 @@
  * "publish the draft" quietly referred to two different files — which is exactly
  * the mistake that produced a release attempt against untranslated text.
  *
- * The GitHub token comes from GITHUB_TOKEN or GH_TOKEN. Creating a release is a
- * write, which corporate networks may block; the script says so plainly rather
- * than looking like a token problem.
+ * The GitHub token comes from GITHUB_TOKEN or GH_TOKEN, and falls back to the
+ * login `gh` holds when that one turns out to be read-only here: a fine-grained
+ * token can read this repository and still lack `Contents: write`, which only
+ * the release call needs. Creating a release is a write, which corporate
+ * networks may block; the script tells that apart from a refused token rather
+ * than reporting one as the other.
  */
+import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -121,15 +125,39 @@ if (draft.includes(TODO)) {
   console.error(`  Edit ${shown(draftPath)}, remove that line, then publish.`);
   process.exit(1);
 }
-const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-if (!token) usage('GITHUB_TOKEN or GH_TOKEN is required to publish');
+/**
+ * The token `gh` holds, read with the environment ones removed so that `gh`
+ * answers with its stored login rather than echoing back the variable that just
+ * failed. A machine without `gh`, or without a login, simply has no second
+ * candidate.
+ */
+function ghCliToken() {
+  const env = { ...process.env };
+  delete env.GH_TOKEN;
+  delete env.GITHUB_TOKEN;
+  const r = spawnSync('gh', ['auth', 'token'], { env, encoding: 'utf8' });
+  const out = r.status === 0 ? String(r.stdout || '').trim() : '';
+  return out || null;
+}
+
+// Two candidates, because a fine-grained token that reads this repository fine
+// can still lack `Contents: write`, and the release is the one call that needs
+// it. The environment token is tried first (it is what the procedure exports),
+// and a 403 from GitHub itself moves on to the login `gh` already has.
+const envToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+const candidates = [
+  { token: envToken, source: process.env.GITHUB_TOKEN ? 'GITHUB_TOKEN' : 'GH_TOKEN' },
+  { token: ghCliToken(), source: 'gh auth token' },
+].filter((c, i, all) => c.token && all.findIndex((o) => o.token === c.token) === i);
+if (!candidates.length) usage('GITHUB_TOKEN or GH_TOKEN is required to publish (or a logged-in `gh`)');
+let active = 0;
 
 const api = `https://api.github.com/repos/${REPO_SLUG}/releases`;
-const headers = {
-  authorization: `Bearer ${token}`,
+const headers = () => ({
+  authorization: `Bearer ${candidates[active].token}`,
   accept: 'application/vnd.github+json',
   'content-type': 'application/json',
-};
+});
 const tag = `v${version}`;
 
 /** Explain the failure and stop. Blocked writes are the common case here. */
@@ -167,15 +195,26 @@ function fail(status, detail) {
   process.exit(1);
 }
 
+/** True for GitHub's own 403, which is a permission answer the next token may pass. */
+function refusedByGitHub(status, text) {
+  if (Number(status) !== 403) return false;
+  try { return Boolean(JSON.parse(text).message); } catch { return false; }
+}
+
 /** fetch + parse, with the block page and a dead network turned into `fail`. */
 async function call(url, init) {
   let res;
   try {
-    res = await fetch(url, init);
+    res = await fetch(url, { ...init, headers: headers() });
   } catch (e) {
     fail('request failed', e && e.message);
   }
   const text = await res.text().catch(() => '');
+  if (!res.ok && refusedByGitHub(res.status, text) && active + 1 < candidates.length) {
+    active += 1;
+    console.error(`release-notes: ${candidates[active - 1].source} may not write releases; trying ${candidates[active].source}.`);
+    return call(url, init);
+  }
   if (!res.ok) fail(res.status, text);
   try {
     return JSON.parse(text);
@@ -191,7 +230,7 @@ async function call(url, init) {
 // case (no release yet), so it is not routed through `fail`.
 let existing = null;
 try {
-  const probe = await fetch(`${api}/tags/${tag}`, { headers });
+  const probe = await fetch(`${api}/tags/${tag}`, { headers: headers() });
   if (probe.ok) {
     const body = await probe.text();
     try { existing = JSON.parse(body); } catch { fail(`${probe.status}, non-JSON response`, body); }
@@ -202,7 +241,6 @@ try {
 
 const out = await call(existing ? `${api}/${existing.id}` : api, {
   method: existing ? 'PATCH' : 'POST',
-  headers,
   body: JSON.stringify({ tag_name: tag, name: tag, body: draft.trim() }),
 });
 console.log(`${existing ? 'updated' : 'created'}: ${out.html_url}`);
