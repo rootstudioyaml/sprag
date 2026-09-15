@@ -22,10 +22,22 @@ export async function run({ hasFlag }) {
       process.exit(1);
     }
     const ctx = readStdinJson() || {};
+    const parts = [];
     try {
       const { runBrief } = await import('../brief.js');
       const out = await runBrief({ sessionId: ctx.session_id, transcriptPath: ctx.transcript_path });
-      if (out) console.log(out);
+      if (out) parts.push(out);
     } catch (e) { debug('brief:hook', e); /* briefing is best-effort — never block a prompt */ }
+    // State the matching delegation rule as a fact about this request. Registered
+    // rules were going unused because applying one meant scanning a list and
+    // resolving it against a general "don't spawn subagents" instruction; naming
+    // the match here removes both steps. Silent unless it is sure — see
+    // src/route-inject.js.
+    try {
+      const { routeHint } = await import('../route-inject.js');
+      const hint = routeHint(ctx.prompt);
+      if (hint) parts.push(hint);
+    } catch (e) { debug('brief:route-hint', e); }
+    if (parts.length) console.log(parts.join('\n'));
     return;
 }
