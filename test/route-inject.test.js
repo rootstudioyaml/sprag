@@ -23,7 +23,7 @@ test('a classified request names its rule, its target and its cap', () => {
   const out = hint('지금 실행 중인 버전이 뭔지 확인해줘');
   assert.ok(out, 'a check request should match');
   assert.match(out, /상태 확인·검증/, 'names the category');
-  assert.match(out, /기본 model: haiku/, 'names the cheap default');
+  assert.match(out, /기본 haiku-explore\(model: haiku\)/, 'names the cheap default');
   assert.match(out, /model: sonnet/, 'and the escalation target');
   assert.match(out, /상한 haiku 도구 호출 8회·출력 1500 토큰 \/ sonnet 출력 8000 토큰/);
   assert.match(out, /🔀 \[sprag\] 모델 피팅/, 'carries the same marker line as ratchet-model.md');
