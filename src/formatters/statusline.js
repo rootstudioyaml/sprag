@@ -136,7 +136,15 @@ export function gaugeBar(pct) {
 function gaugeColored(pct, c, tone) {
   const { filled, empty } = gaugeParts(pct);
   if (!empty) return filled;
-  return `${filled}${c(RESET)}${c(GRAY)}${empty}${c(RESET)}${c(tone)}`;
+  // With color available, the unused cells are the same solid block as the used
+  // ones, just gray. Shading characters (░ ▒) carry a dither pattern that reads
+  // as noise beside a solid fill — the two halves look like different materials
+  // rather than two states of one bar. One glyph in two colors reads as a track
+  // filling up, and it sidesteps the glyph-box mismatch between the shades and
+  // the blocks entirely. Without color there is nothing but texture to tell them
+  // apart, so the shading stays.
+  const track = c(GRAY) === '' ? empty : '█'.repeat(empty.length);
+  return `${filled}${c(RESET)}${c(GRAY)}${track}${c(RESET)}${c(tone)}`;
 }
 
 /**

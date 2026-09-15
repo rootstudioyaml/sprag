@@ -159,3 +159,33 @@ test('eighth steps give the bar resolution the three-step version lacked', () =>
   assert.notEqual(gaugeBar(25), gaugeBar(31));
   assert.notEqual(gaugeBar(47), gaugeBar(50));
 });
+
+test('the gauge track is a solid block in color, and shading without it', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const withBudget = {
+    ...data(),
+    caps: { windows: [{ key: 'litellm_budget', usedPct: 26, spend: 1000, maxBudget: 4000, resetsAt: now + 100000 }] },
+  };
+  const colored = formatReport(withBudget, { color: true, mode: 'icon', verbose: true, segments: ['usage'] });
+  // Shading beside a solid fill reads as noise, so with color the unused cells
+  // are the same block dimmed to gray.
+  assert.match(colored, /\x1b\[90m█+/, 'unused cells should be gray solid blocks');
+  assert.doesNotMatch(colored, /▒/, 'no shading character when color can carry the distinction');
+
+  const plain = formatReport(withBudget, { color: false, mode: 'icon', verbose: true, segments: ['usage'] });
+  // With no color, texture is the only thing left to tell the halves apart.
+  assert.match(plain, /▒/, 'shading returns when color is off');
+});
+
+test('a full gauge has no track to draw', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const full = {
+    ...data(),
+    caps: { windows: [{ key: 'litellm_budget', usedPct: 100, spend: 4000, maxBudget: 4000, resetsAt: now + 100000 }] },
+  };
+  // At 100% the window is promoted to the cap-warn chip and suppressed in the
+  // always-on segment, so that is where its gauge renders.
+  const out = formatReport(full, { color: true, mode: 'icon', verbose: true, segments: ['cap-warn'] });
+  assert.match(out, /█{6}/);
+  assert.doesNotMatch(out, /\x1b\[90m█/, 'no gray track cells at 100%');
+});
