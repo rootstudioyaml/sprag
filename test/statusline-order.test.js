@@ -33,6 +33,7 @@ function data({ fiveHourPct = 31, sevenDayPct = 10 } = {}) {
 const opts = { color: false, timer: false, mode: 'icon' };
 // Index of a chip in the rendered line; -1 when absent.
 const at = (line, needle) => line.indexOf(needle);
+const strip = (line) => line.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
 
 test('the default order leads with what stops the work', () => {
   const line = formatReport(data(), opts);
@@ -127,4 +128,55 @@ test('every name in the default order is one the renderer knows', () => {
     if (visible === '') missing.push(name);
   }
   assert.deepEqual(missing, [], `default order names that render nothing: ${missing.join(', ')}`);
+});
+
+test('the month estimate steps aside when a gateway reports its own spend', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const withMonth = { ...data(), monthSpend: { label: 'Sep', usd: 986 } };
+  const budget = { key: 'litellm_budget', usedPct: 26, spend: 1000, maxBudget: 4000, resetsAt: now + 100000 };
+
+  // Two dollar figures for what reads as one question is worse than one: the
+  // budget counts every call the key served, the month chip estimates from this
+  // machine's logs, and they never agree.
+  const gateway = formatReport({ ...withMonth, caps: { windows: [budget] } }, opts);
+  assert.doesNotMatch(gateway, /Sep/, 'the estimate is dropped beside a measured spend');
+  assert.match(gateway, /budget/, 'the measured one stays');
+
+  // Without a gateway budget there is no second figure, so the estimate is the
+  // only answer available and still renders.
+  const direct = formatReport(withMonth, opts);
+  assert.match(direct, /Sep/);
+
+  // An explicit request is an explicit request.
+  const asked = formatReport(
+    { ...withMonth, caps: { windows: [budget] } },
+    { ...opts, segments: ['month'] },
+  );
+  assert.match(asked, /Sep/, '--segments month must still work');
+});
+
+test('the window label groups with the two chips it measures', () => {
+  const rich = { ...data(), monthSpend: { label: 'Sep', usd: 842 }, delegationSaved: 21.8 };
+  const line = strip(formatReport(rich, { ...opts, verbose: true }));
+  // Fused with spaces, not `·`: separated, the label read as one more chip and
+  // looked like it qualified only Cache saved.
+  assert.match(line, /Cache hit [\d.]+% \S+ Cache saved \S+ \(last 1d\)/, 'the three render as one group');
+  assert.doesNotMatch(line, /Cache hit [\d.]+% · /, 'no separator inside the group');
+  // The group is still bounded by separators on the outside.
+  assert.match(line, /\(last 1d\) · /, 'and the next chip is separated normally');
+});
+
+test('figures are grouped by the timeframe they cover', () => {
+  const rich = { ...data(), monthSpend: { label: 'Sep', usd: 842 }, delegationSaved: 21.8 };
+  const line = strip(formatReport(rich, { ...opts, verbose: true }));
+  const lifetime = line.indexOf('Routing saved');   // from the ledger, all time
+  const windowed = line.indexOf('Cache hit');       // the analysis window
+  const month = line.indexOf('Sep');                // calendar month
+  for (const [name, i] of [['lifetime', lifetime], ['windowed', windowed], ['month', month]]) {
+    assert.ok(i >= 0, `${name} figure must render`);
+  }
+  // Mixing the three was what made one trailing label look like it covered the
+  // whole line.
+  assert.ok(lifetime < windowed, 'lifetime totals precede the windowed pair');
+  assert.ok(windowed < month, 'the windowed pair precedes the month estimate');
 });

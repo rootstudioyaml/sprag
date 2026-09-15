@@ -19,13 +19,14 @@ With an empty ledger (no measured delegation yet) row 1 is not drawn and the lay
 | `📄` **row 2** | Lifetime doc2md conversion savings with a per-format breakdown. Whichever of routing/conversion saved more takes row 1 |
 | `🤖` | Active model |
 | `🅷 5/5` | Harness principle score ([Harness mode](./HARNESS.md)) |
-| `🧠` | Cache hit rate (green at 85%+) |
+| `🧠` | Cache hit rate over the analysis window (green at 85%+) |
 | `⏳` | Cache TTL countdown — send a message before expiry to keep the cache warm. Ticking while idle requires Claude Code v2.1.97+ (see [If the countdown looks frozen](./GATEWAYS.md)) |
 | `✦ current` / `📅 weekly` | 5-hour / 7-day rate-limit window usage + reset time |
 | `📦` | Context usage (e.g. `Ctx 68% of 1M`) — colored by fill. Current models default to 1M with no premium, but token volume itself drives per-turn cost and 5H/7D burn |
-| `💵 Sep $42` | **Estimated spend since 00:00 on the 1st of this month** (local time). Summed per session with that session's model pricing; always shown, even on gateways with no 5h/7d caps (v3.35.0) |
-| `🔑 budget` | **LiteLLM key budget gauge.** When stdin carries no rate_limits, shows the key's `spend` against `max_budget` as `🔑 budget ▰▱ 34% $34/$100` (v3.35.0, [below](./GATEWAYS.md)) |
-| `💰` | Cumulative savings from prompt caching — a **different** number from row 1's `🔀` (model routing) |
+| `💵 Sep $42` | **Estimated spend since 00:00 on the 1st of this month** (local time). Summed per session with that session's model pricing, from this machine's session logs only. Hidden when a gateway budget chip is present, since that reports measured spend for every call the key served and two disagreeing dollar figures are worse than one (v3.35.0) |
+| `💳 budget` | **LiteLLM key budget gauge.** When stdin carries no rate_limits, shows the key's `spend` against `max_budget` as `💳 budget █▌████ 26% $1.0K/$4.0K`, with the time left on the billing cycle (v3.35.0, [below](./GATEWAYS.md)) |
+| `💰` | Prompt-cache savings **over the analysis window** — a **different** number from row 1's `🔀`, which is a lifetime total from the ledger |
+| `(last 1d)` | The analysis window, fused to the two chips it measures (`🧠`, `💰`) with no separator so it cannot read as the timeframe for the rest of the line. Change it with `sprag mode 7d` |
 | `v3.24.0` | The version you are running. Gray, at the tail, when it is the latest one |
 | `⬆ v3.24.0 → 3.25.0` | A newer release exists. Actionable, so it moves to the front of the line ([Update notifications](#-update-notifications)) |
 
@@ -151,13 +152,14 @@ renders: narrow (IntelliJ: emoji garble in the IDE font. `sprag mode icon-force`
 | `📄` **둘째 줄** | doc2md 문서 변환이 절감한 누적 금액과 형식별 내역입니다. 라우팅과 문서 변환 중 금액이 큰 쪽이 첫째 줄을 차지합니다 |
 | `🤖` | 현재 모델 |
 | `🅷 5/5` | harness 원칙 점수 ([Harness 모드](./HARNESS.md#한국어)) |
-| `🧠` | 캐시 히트율 (85%+ 녹색) |
+| `🧠` | 분석 구간 동안의 캐시 히트율입니다 (85%+ 녹색) |
 | `⏳` | 캐시 TTL 카운트다운입니다. 만료되기 전에 메시지를 보내면 캐시가 유지됩니다. 입력이 없을 때도 초 단위로 줄어드는 표시는 Claude Code v2.1.97 이상에서 동작합니다 (아래 [카운트다운이 멈춰 보일 때](./GATEWAYS.md#한국어) 참고) |
 | `✦ current` / `📅 weekly` | 5시간 / 7일 rate-limit 윈도 사용률 + 리셋 시각 |
 | `📦` | 컨텍스트 사용률입니다(예: `Ctx 68% of 1M`). 사용률에 따라 녹색·노란색·빨간색으로 표시합니다. 최신 모델은 1M 컨텍스트가 기본이고 별도 요금이 붙지 않지만, 토큰량 자체가 턴당 비용과 5시간·7일 한도를 빠르게 소모시킵니다 |
-| `💵 Sep $42` | **이번 달 1일 00시(로컬) 이후 지출 추정치**입니다. 세션 로그에 세션별 모델 단가를 적용해 합산하며, 5h/7d cap 이 없는 게이트웨이 환경에서도 항상 표시됩니다 (v3.35.0) |
-| `🔑 budget` | **LiteLLM 게이트웨이 키의 예산 게이지**입니다. stdin 에 rate_limits 가 오지 않는 환경에서 키의 `max_budget` 대비 `spend` 를 `🔑 budget ▰▱ 34% $34/$100` 형태로 보여 줍니다 (v3.35.0, [아래](./GATEWAYS.md#한국어)) |
-| `💰` | 프롬프트 캐시가 절약해 준 누적 금액입니다. 첫째 줄의 `🔀`(모델 라우팅 절감액)와는 **서로 다른 수치입니다** |
+| `💵 Sep $42` | **이번 달 1일 00시(로컬) 이후 지출 추정치**입니다. 이 머신의 세션 로그에만 세션별 모델 단가를 적용해 합산합니다. 게이트웨이 예산 칩이 함께 뜨는 환경에서는 표시하지 않습니다. 그 칩은 해당 키로 들어온 모든 호출의 실측 지출을 보여 주므로, 서로 어긋나는 금액이 두 개 나오면 오히려 판단을 방해합니다 (v3.35.0) |
+| `💳 budget` | **LiteLLM 게이트웨이 키의 예산 게이지**입니다. stdin 에 rate_limits 가 오지 않는 환경에서 키의 `max_budget` 대비 `spend` 를 `💳 budget █▌████ 26% $1.0K/$4.0K` 형태로 보여 주며, 결제 주기가 얼마나 남았는지 함께 표시합니다 (v3.35.0, [아래](./GATEWAYS.md#한국어)) |
+| `💰` | **분석 구간 동안** 프롬프트 캐시가 절약해 준 금액입니다. 첫째 줄의 `🔀` 는 원장에 쌓인 전체 기간 누적액이라 **기준이 다른 수치입니다** |
+| `(last 1d)` | 분석 구간입니다. 이 구간을 기준으로 삼는 두 칩(`🧠`, `💰`)에 구분자 없이 붙여서, 줄 전체의 기준으로 잘못 읽히지 않게 했습니다. `sprag mode 7d` 로 바꿉니다 |
 | `v3.24.0` | 지금 실행 중인 sprag의 버전입니다. 최신이면 회색으로 줄 끝에 조용히 놓입니다 |
 | `⬆ v3.24.0 → 3.25.0` | 새 버전이 배포되어 있다는 표시입니다. 조치가 필요한 칩이므로 줄 앞쪽으로 올라옵니다 ([업데이트 안내](#-업데이트-안내)) |
 

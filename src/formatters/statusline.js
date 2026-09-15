@@ -335,13 +335,22 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
 export const DEFAULT_SEGMENT_ORDER = [
   'cap-warn', 'spike',
   'usage', 'ctx',
-  'ttl', 'hit',
-  // Delegation savings stay next to the model that would otherwise have done
-  // the work. "Cache saved" is a lifetime brag stat, so it closes the group.
-  'model', 'delegated', 'doc2md', 'month', 'saved',
+  'ttl',
+  'model',
+  // Grouped by the timeframe each figure covers, because mixing them was the
+  // problem: a lifetime total, a windowed rate and a calendar-month estimate sat
+  // interleaved, with one window label at the end of the line that appeared to
+  // qualify all of them.
+  //
+  // Lifetime, from the savings ledgers. Delegation stays ahead of the cache
+  // figure: routing is what the tool is for, the cache number is a brag stat.
+  'delegated', 'doc2md',
+  // Analysis window. These two are the only chips measured over it, so the label
+  // sits with them and the three render as one group.
+  'hit', 'saved', 'period',
+  // Calendar month.
+  'month',
   'harness', 'korean', 'version',
-  // The period label closes the line as a quiet timeframe footer.
-  'period',
 ];
 
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
@@ -547,9 +556,11 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").
   // Fall back to legacy `${days}d` when callers haven't supplied a label.
   const periodLabel = options.windowLabel || `${options.days}d`;
+  // Parenthesized so it reads as a qualifier on the two chips before it rather
+  // than as one more independent chip.
   const periodSeg = verbose
-    ? `${c(GRAY)}last ${periodLabel}${c(RESET)}`
-    : `${c(GRAY)}${periodLabel}${c(RESET)}`;
+    ? `${c(GRAY)}(last ${periodLabel})${c(RESET)}`
+    : `${c(GRAY)}(${periodLabel})${c(RESET)}`;
 
   // TTL countdown — how much time is left on the last API call's cache entry.
   // Matches Anthropic's actual prompt-cache behaviour: each call starts a fresh
@@ -824,6 +835,15 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const usageAt = rest.indexOf('usage');
     defaultOrder = [...rest.slice(0, usageAt), 'version', ...rest.slice(usageAt)];
   }
+  // A gateway that reports its own spend makes the month chip the second dollar
+  // figure on the line, and the two never agree: the budget counts every call
+  // that key served, while the month chip estimates from this machine's session
+  // logs alone. Two numbers for what looks like one question is worse than one
+  // number, so the estimate steps aside when the measured value is present.
+  // `--segments month` still asks for it explicitly and still gets it.
+  const hasGatewayBudget = !!(caps && Array.isArray(caps.windows)
+    && caps.windows.some((w) => w && w.key === 'litellm_budget'));
+  if (hasGatewayBudget) defaultOrder = defaultOrder.filter((n) => n !== 'month');
 
   // A caller-supplied list sets the filter AND the order. Warning chips keep
   // the lead wherever they were written: being seen first is their whole job,
@@ -851,6 +871,17 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard
   // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
   // allowed — --no-color/NO_COLOR consumers expect escape-free output.
+  // Fuse the analysis-window group with spaces instead of `·`. Separated, each
+  // piece reads as an independent chip and the label appears to qualify only the
+  // one immediately before it; joined, the three read as a single group and the
+  // label covers all of it. Only fused when they actually ended up adjacent, so
+  // a caller-supplied order is left alone.
+  const windowGroup = [hitSeg, saveSeg, periodSeg].filter((seg) => seg && segs.includes(seg));
+  if (windowGroup.length > 1) {
+    const at = segs.indexOf(windowGroup[0]);
+    const adjacent = windowGroup.every((seg, i) => segs[at + i] === seg);
+    if (adjacent) segs.splice(at, windowGroup.length, windowGroup.join(' '));
+  }
   const eol = color ? '\x1b[K' : '';
   const rest = segs.join(' · ') + eol;
   // Each savings source that earned real money gets a headline line, ordered
