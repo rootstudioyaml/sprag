@@ -17,7 +17,8 @@
  *   }
  */
 
-import { formatResetClock } from '../format-time.js';
+import { formatResetClock, formatResetIn } from '../format-time.js';
+import { glyphsFor } from '../glyphs.js';
 import { labelForKey } from '../window-labels.js';
 import { harnessStatusForStatusline } from '../harness.js';
 import { loadConfig } from '../config.js';
@@ -81,26 +82,73 @@ function formatPct(v) {
  * for ~4% effective precision around the fill edge. Stable monospace width
  * across all terminal fonts that ship Block Elements (U+2580–U+259F).
  */
-export function gaugeBar(pct) {
+export function gaugeParts(pct) {
   const cells = 6;
   const clamped = Math.max(0, Math.min(100, pct));
   const filled = (clamped / 100) * cells; // e.g. 4.32 cells filled
   const fullCells = Math.floor(filled);
   const remainder = filled - fullCells; // 0..1 — fill fraction of the boundary cell
-  // Boundary cell: ░ (empty), ▒ (1/3), ▓ (2/3), or roll over to a full █.
-  let partial = '';
-  let extra = 0;
-  if (remainder >= 0.83) {
-    extra = 1; // round up — fill the boundary cell completely
-  } else if (remainder >= 0.5) {
-    partial = '▓';
-  } else if (remainder >= 0.16) {
-    partial = '▒';
-  } // else: remainder is too small to show — leave the cell empty
+  // Boundary cell in eighths. The earlier version had three steps (░ ▒ ▓), which
+  // meant 25% and 31% drew the same bar; eighths keep the resolution the width
+  // of the bar can carry, so the gauge moves as the number does. Every character
+  // here is present in JetBrains Mono, which is why the gauge was the one part
+  // of the line that never garbled under IntelliJ (see src/glyphs.js).
+  const EIGHTHS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+  // Empty cells use ▒ rather than ░. In JetBrains Mono the eighth blocks all sit
+  // at yMin -300 / xMin 0, while ░ sits at yMin -240 / xMin 60 — about 4% of the
+  // cell height and 10% of its width inset — so a bar mixing them looks visibly
+  // misaligned, the empty half riding high and shifted inward. ▒ shares the box
+  // with the filled glyphs and still reads clearly lighter than █.
+  const step = Math.round(remainder * 8);
+  // A boundary cell rounded up to 8/8 is a full cell, not a ninth glyph.
+  const extra = step === 8 ? 1 : 0;
   const totalFull = Math.min(cells, fullCells + extra);
+  const partial = totalFull < cells && extra === 0 ? EIGHTHS[step] : '';
   const usedCells = totalFull + (partial ? 1 : 0);
-  const empty = '░'.repeat(Math.max(0, cells - usedCells));
-  return '█'.repeat(totalFull) + partial + empty;
+  const empty = '▒'.repeat(Math.max(0, cells - usedCells));
+  return { filled: '█'.repeat(totalFull) + partial, empty };
+}
+
+/**
+ * The bar as one string, for callers that render it in a single color.
+ * @param {number} pct
+ * @returns {string}
+ */
+export function gaugeBar(pct) {
+  const { filled, empty } = gaugeParts(pct);
+  return filled + empty;
+}
+
+/**
+ * The bar with the unused cells dimmed.
+ *
+ * ▒ shares its glyph box with the filled blocks, which is why it replaced ░, but
+ * it is also denser than ░ was — in one color the used and unused halves stop
+ * reading as different. Graying the remainder restores the contrast that the
+ * shading alone used to carry. The segment tone is reinstated at the end so the
+ * text after the bar keeps the color it started in.
+ *
+ * @param {number} pct
+ * @param {(code: string) => string} c - color emitter (returns '' when color is off)
+ * @param {string} tone - the segment's own color code
+ * @param {boolean} color - whether ANSI is allowed. Passed explicitly rather
+ *   than inferred from `c` emitting nothing: that inference reads the emitter's
+ *   current implementation, and a caller that wraps or replaces `c` would flip
+ *   the track glyph as a side effect nobody asked for.
+ * @returns {string}
+ */
+function gaugeColored(pct, c, tone, color) {
+  const { filled, empty } = gaugeParts(pct);
+  if (!empty) return filled;
+  // With color available, the unused cells are the same solid block as the used
+  // ones, just gray. Shading characters (░ ▒) carry a dither pattern that reads
+  // as noise beside a solid fill — the two halves look like different materials
+  // rather than two states of one bar. One glyph in two colors reads as a track
+  // filling up, and it sidesteps the glyph-box mismatch between the shades and
+  // the blocks entirely. Without color there is nothing but texture to tell them
+  // apart, so the shading stays.
+  const track = color ? '█'.repeat(empty.length) : empty;
+  return `${filled}${c(RESET)}${c(GRAY)}${track}${c(RESET)}${c(tone)}`;
 }
 
 /**
@@ -146,7 +194,7 @@ export function pickCapWarn(caps) {
  * Korean-style chip builder. Renders only when the session-start injection is
  * enabled, so nothing changes for anyone who never asked for it.
  */
-function buildKoreanSeg(c, isIcon, verbose) {
+function buildKoreanSeg(c, isIcon, verbose, g) {
   try {
     if (!koreanStyleEnabled()) return null;
     // Deliberately quiet (gray, one glyph): this is a "yes, it is on"
@@ -154,7 +202,7 @@ function buildKoreanSeg(c, isIcon, verbose) {
     // exactly like a working one, because the style only shows up when the
     // model happens to write Korean. The icon says "writing guidance", not
     // "Korean" — the verbose label already carries the language.
-    if (isIcon) return `${c(GRAY)}${verbose ? '✍️ Korean style' : '✍️'}${c(RESET)}`;
+    if (isIcon) return `${c(GRAY)}${verbose ? `${g.korean} Korean style` : g.korean}${c(RESET)}`;
     return `${c(GRAY)}Korean style${c(RESET)}`;
   } catch {
     return null;
@@ -177,13 +225,13 @@ function buildKoreanSeg(c, isIcon, verbose) {
  * rendering after the user declines — declining hides the session-start
  * question, not the fact that a new version exists.
  */
-function buildVersionSeg(version, update, c, isIcon, verbose) {
+function buildVersionSeg(version, update, c, isIcon, verbose, g) {
   if (!version) return null;
   if (update && update.available && update.latest) {
     const body = verbose
       ? `Update v${version} → ${update.latest}`
       : `v${version} → ${update.latest}`;
-    return `${c(YELLOW)}${isIcon ? '⬆ ' : ''}${body}${c(RESET)}`;
+    return `${c(YELLOW)}${isIcon ? `${g.upgrade} ` : ''}${body}${c(RESET)}`;
   }
   return `${c(GRAY)}v${version}${c(RESET)}`;
 }
@@ -193,16 +241,16 @@ function buildVersionSeg(version, update, c, isIcon, verbose) {
  * fallback line. Best-effort: never throws into the statusline (corrupted
  * CLAUDE.md, permission issue, etc. → null).
  */
-function buildHarnessSeg(c, isIcon) {
+function buildHarnessSeg(c, isIcon, g) {
   try {
     const harnessInfo = harnessStatusForStatusline(loadConfig());
     if (!harnessInfo) return null;
-    const icon = isIcon ? '🅷' : 'H';
+    const icon = isIcon ? g.harness : 'H';
     if (harnessInfo.warning) {
       // Warning state outranks the N/5 count — a runtime issue (repeated
       // error / no-evidence / racing edits) is more actionable than a
       // missing ratchet section. Always red so it stands out.
-      return `${c(RED)}${icon}⚠ ${harnessInfo.warning}${c(RESET)}`;
+      return `${c(RED)}${icon}${g.spike} ${harnessInfo.warning}${c(RESET)}`;
     }
     if (harnessInfo.custom) return `${c(CYAN)}${icon} custom${c(RESET)}`;
     const tone = harnessInfo.configured >= harnessInfo.total ? GREEN : YELLOW;
@@ -218,17 +266,23 @@ function buildHarnessSeg(c, isIcon) {
  * the wall-clock reset time rides along in the same `🔄 HH:MM` shape as the
  * always-on usage segments.
  */
-function buildCapWarnSeg(capWarn, c, isIcon) {
+function buildCapWarnSeg(capWarn, c, isIcon, g, color) {
+  // `color` is only for the gauge. At 90%+ the bar has no unused cells left, so
+  // gaugeColored returns early and never reads it today — it is threaded through
+  // anyway, because a change to the cap-warn threshold or the bar width would
+  // otherwise start drawing the wrong track with nothing to catch it.
   if (!capWarn) return null;
   const pct = Math.round(capWarn.usedPct);
   const clock = formatResetClock(capWarn.resetsAt);
-  const clockTail = clock ? ` 🔄 ${clock}` : '';
+  // Text mode has no glyph vocabulary, so it names the thing instead of
+  // borrowing an emoji it otherwise avoids.
+  const clockTail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
   if (isIcon) {
     // Gauge keeps shape parity with the always-on usage segment — the
     // cap-warn is just the same gauge "filled to alarm". Visual continuity
     // helps the eye understand "this is the 5H bar I was watching, just red now."
-    const bar = gaugeBar(pct);
-    return `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
+    const bar = gaugeColored(pct, c, RED, color);
+    return `${c(BOLD)}${c(RED)}${g.capWarn} ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
   }
   return `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
 }
@@ -242,18 +296,21 @@ function buildCapWarnSeg(capWarn, c, isIcon) {
  */
 export function formatNoSession({ caps = null, model = null, windowLabel = '', version = '', update = null } = {}, { color = true, mode = 'icon' } = {}) {
   const c = (v) => (color ? v : '');
-  const isIcon = mode === 'icon';
+  // narrow shares the icon layout and swaps only the glyphs, so both modes take
+  // the same branches from here on.
+  const isIcon = mode === 'icon' || mode === 'narrow';
+  const g = glyphsFor(mode);
   const segs = [];
-  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon);
+  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon, g, color);
   if (capSeg) segs.push(capSeg);
-  const versionSeg = buildVersionSeg(version, update, c, isIcon, false);
+  const versionSeg = buildVersionSeg(version, update, c, isIcon, false, g);
   if (versionSeg && update && update.available) segs.push(versionSeg);
-  const harnessSeg = buildHarnessSeg(c, isIcon);
+  const harnessSeg = buildHarnessSeg(c, isIcon, g);
   if (harnessSeg) segs.push(harnessSeg);
   if (typeof model === 'string' && model.length > 0) {
-    segs.push(isIcon ? `${c(MAGENTA)}🤖 ${model}${c(RESET)}` : `${c(MAGENTA)}${model}${c(RESET)}`);
+    segs.push(isIcon ? `${c(MAGENTA)}${g.model} ${model}${c(RESET)}` : `${c(MAGENTA)}${model}${c(RESET)}`);
   }
-  segs.push(`${c(GRAY)}🧠 no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
+  segs.push(`${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
   if (versionSeg && !(update && update.available)) segs.push(versionSeg);
   return segs.join(' · ') + (color ? '\x1b[K' : '');
 }
@@ -265,9 +322,45 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - whitelist of segments to render. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, saved, delegated, doc2md, ctx, period, plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. Null/undefined = all.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, month, saved, delegated, doc2md, ctx, period, `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
+/**
+ * Default segment order, most actionable first. A rate-limit block or a full
+ * context window stops the work outright, so those lead. Cache and cost numbers
+ * shape habits rather than the next keystroke, and harness / Korean-style are
+ * near-constant identity: they sit at the tail, where a narrow terminal clips
+ * the least useful end of the line instead of the most useful one.
+ *
+ * `version` is listed once, at its identity position. formatReport() moves it
+ * forward when an upgrade is actually available, since it becomes an
+ * "act on this" chip then.
+ *
+ * Exported so a test can assert every name here is one the renderer knows:
+ * the order list and the segment registry are separate structures, and a name
+ * added to only one of them would be dropped in silence.
+ */
+export const DEFAULT_SEGMENT_ORDER = [
+  'cap-warn', 'spike',
+  'usage', 'ctx',
+  'ttl',
+  'model',
+  // Grouped by the timeframe each figure covers, because mixing them was the
+  // problem: a lifetime total, a windowed rate and a calendar-month estimate sat
+  // interleaved, with one window label at the end of the line that appeared to
+  // qualify all of them.
+  //
+  // Lifetime, from the savings ledgers. Delegation stays ahead of the cache
+  // figure: routing is what the tool is for, the cache number is a brag stat.
+  'delegated', 'doc2md',
+  // Analysis window. These two are the only chips measured over it, so the label
+  // sits with them and the three render as one group.
+  'hit', 'saved', 'period',
+  // Calendar month.
+  'month',
+  'harness', 'korean', 'version',
+];
+
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
   const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model } = data;
   const { hitRate } = summary;
@@ -310,20 +403,23 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const savings = cost?.savings ?? 0;
 
   const c = (v) => (color ? v : '');
-  const isIcon = mode === 'icon';
+  // narrow shares the icon layout and swaps only the glyphs, so both modes take
+  // the same branches from here on.
+  const isIcon = mode === 'icon' || mode === 'narrow';
+  const g = glyphsFor(mode);
 
   // Labels per mode.
   //   text:       "Cache hit 98.3%"                 |  verbose: "Cache hit 98.3%"
   //   icon:       "🧠 98.3%"                          |  verbose: "🧠 Cache hit 98.3%"
   const hitLabel = isIcon
-    ? (verbose ? '🧠 Cache hit' : '🧠')
+    ? (verbose ? `${g.hit} Cache hit` : g.hit)
     : 'Cache hit';
   const hitSeg = `${c(BOLD)}${hitLabel}${c(RESET)} ${c(hitColor)}${formatPct(hitRate)}${c(RESET)}`;
 
   //   text:       "Cache saved $1.5K"                |  same in verbose
   //   icon:       "💰 $1.5K"                          |  verbose: "💰 Cache saved $1.5K"
   const saveLabel = isIcon
-    ? (verbose ? '💰 Cache saved' : '💰')
+    ? (verbose ? `${g.saved} Cache saved` : g.saved)
     : 'Cache saved';
   const saveSeg = `${c(CYAN)}${saveLabel}${c(RESET)} ${formatMoney(savings)}`;
 
@@ -339,7 +435,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Routing saved $3.2"
   const delegationSaved = Number(data.delegationSaved) || 0;
   const delegateLabel = isIcon
-    ? (verbose ? '🔀 Routing saved' : '🔀')
+    ? (verbose ? `${g.routing} Routing saved` : g.routing)
     : 'Routing saved';
   // Zero savings has two very different causes and, until now, one appearance:
   // nothing at all. "Never delegated" and "delegated plenty, but every run was
@@ -351,7 +447,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const delegateSeg = delegationSaved > 0
     ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
     : (unresolvedRuns > 0
-      ? `${c(YELLOW)}🔀 ${unresolvedRuns} unresolved${c(RESET)}`
+      ? `${c(YELLOW)}${g.routing} ${unresolvedRuns} unresolved${c(RESET)}`
       : null);
 
   // Document conversions — the same kind of number as "Routing saved", earned
@@ -369,14 +465,14 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const doc2mdUsd = Number(doc2md && doc2md.total) || 0;
   const doc2mdDocs = Number(doc2md && doc2md.docs) || 0;
   const doc2mdLabel = isIcon
-    ? (verbose ? '📄 Doc2md saved' : '📄')
+    ? (verbose ? `${g.doc} Doc2md saved` : g.doc)
     : 'Doc2md saved';
   let doc2mdSeg = null;
   if (doc2mdUsd > 0) {
     doc2mdSeg = `${c(GREEN)}${doc2mdLabel}${c(RESET)} ${formatMoney(doc2mdUsd)}`
       + (verbose ? ` ${c(GRAY)}· ${doc2mdDocs} docs${c(RESET)}` : '');
   } else if (doc2mdDocs > 0) {
-    const label = isIcon ? '📄' : 'Doc2md';
+    const label = isIcon ? g.doc : 'Doc2md';
     doc2mdSeg = `${c(GRAY)}${label} ${doc2mdDocs} docs${c(RESET)}`;
   }
 
@@ -391,7 +487,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   if (month && Number(month.usd) > 0) {
     const amt = formatMoney(Number(month.usd));
     if (isIcon) {
-      monthSeg = `${c(GRAY)}💵 ${month.label} ${amt}${c(RESET)}`;
+      monthSeg = `${c(GRAY)}${g.month} ${month.label} ${amt}${c(RESET)}`;
     } else if (verbose) {
       monthSeg = `${c(GRAY)}${month.label} spend ${amt} (since ${month.label} 1)${c(RESET)}`;
     } else {
@@ -413,7 +509,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const totals = data.delegationTotals;
   let totalsLine = null;
   if (!singleLine && totals && Number(totals.total) > 0) {
-    const head = isIcon ? '🔀 Routing saved' : 'Routing saved';
+    const head = isIcon ? `${g.routing} Routing saved` : 'Routing saved';
     // Model changes behind the total, family-level and version-free: `opus →
     // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
     // shape of the trade is the point.
@@ -444,7 +540,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   //   icon:  "📄 Doc2md saved $1.8 | pptx 1× $1.55 · pdf 2× $0.27"
   let doc2mdLine = null;
   if (!singleLine && doc2mdUsd > 0) {
-    const head = isIcon ? '📄 Doc2md saved' : 'Doc2md saved';
+    const head = isIcon ? `${g.doc} Doc2md saved` : 'Doc2md saved';
     const byExt = Array.isArray(doc2md.byExt) ? doc2md.byExt : [];
     // Formats that earned money show it; formats with no baseline to measure
     // against are counted instead. Printing "$0.00" next to real amounts reads
@@ -468,9 +564,11 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").
   // Fall back to legacy `${days}d` when callers haven't supplied a label.
   const periodLabel = options.windowLabel || `${options.days}d`;
+  // Parenthesized so it reads as a qualifier on the two chips before it rather
+  // than as one more independent chip.
   const periodSeg = verbose
-    ? `${c(GRAY)}last ${periodLabel}${c(RESET)}`
-    : `${c(GRAY)}${periodLabel}${c(RESET)}`;
+    ? `${c(GRAY)}(last ${periodLabel})${c(RESET)}`
+    : `${c(GRAY)}(${periodLabel})${c(RESET)}`;
 
   // TTL countdown — how much time is left on the last API call's cache entry.
   // Matches Anthropic's actual prompt-cache behaviour: each call starts a fresh
@@ -515,9 +613,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       // for the same reason the compact form did. The bucket lives in the
       // text-verbose layout where the "bucket" word + `·` separator make it
       // unambiguous.
-      ttlSeg = `${c(timerColor)}⏳ Cache expires ${text}${c(RESET)}`;
+      ttlSeg = `${c(timerColor)}${g.ttl} Cache expires ${text}${c(RESET)}`;
     } else if (isIcon) {
-      ttlSeg = `${c(timerColor)}⏳ ${text}${c(RESET)}`;
+      ttlSeg = `${c(timerColor)}${g.ttl} ${text}${c(RESET)}`;
     } else if (verbose) {
       ttlSeg = `${c(bucketColor)}Cache ${bucketLabel} bucket${c(RESET)} · ${c(timerColor)}expires in ${text}${c(RESET)}`;
     } else {
@@ -526,7 +624,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   } else {
     // No-timer fallback: only the bucket is available, so we show just that.
     if (isIcon) {
-      const prefix = verbose ? '⏳ Cache bucket ' : '⏳ ';
+      const prefix = verbose ? `${g.ttl} Cache bucket ` : `${g.ttl} `;
       ttlSeg = `${c(bucketColor)}${prefix}${bucketLabel}${c(RESET)}`;
     } else if (verbose) {
       ttlSeg = `${c(bucketColor)}Cache ${bucketLabel} bucket${c(RESET)}`;
@@ -556,9 +654,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       : null;
     const longLabel = sizeLabel ? `${pct}% of ${sizeLabel}` : `${pct}%`;
     if (isIcon && verbose) {
-      ctxSeg = `${c(tone)}📦 Ctx ${longLabel}${c(RESET)}`;
+      ctxSeg = `${c(tone)}${g.ctx} Ctx ${longLabel}${c(RESET)}`;
     } else if (isIcon) {
-      ctxSeg = `${c(tone)}📦 ${pct}%${c(RESET)}`;
+      ctxSeg = `${c(tone)}${g.ctx} ${pct}%${c(RESET)}`;
     } else {
       ctxSeg = `${c(tone)}Ctx ${longLabel}${c(RESET)}`;
     }
@@ -568,9 +666,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // default on every current model, so colouring it yellow cried wolf.
     const ctxColor = contextWindow.overWarn ? YELLOW : GREEN;
     if (isIcon && verbose) {
-      ctxSeg = `${c(ctxColor)}📦 Ctx ${label}${c(RESET)}`;
+      ctxSeg = `${c(ctxColor)}${g.ctx} Ctx ${label}${c(RESET)}`;
     } else if (isIcon) {
-      ctxSeg = `${c(ctxColor)}📦 ${label}${c(RESET)}`;
+      ctxSeg = `${c(ctxColor)}${g.ctx} ${label}${c(RESET)}`;
     } else {
       ctxSeg = `${c(ctxColor)}Ctx ${label}${c(RESET)}`;
     }
@@ -583,15 +681,15 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Silent when the project hasn't opted in (no CLAUDE.md and no .claude/);
   // otherwise renders 🅷 5/5 (green) / 🅷 N/5 (yellow) so the user can spot
   // a missing section at a glance and know to run `harness init`.
-  const harnessSeg = buildHarnessSeg(c, isIcon);
+  const harnessSeg = buildHarnessSeg(c, isIcon, g);
 
   // Version / upgrade chip. Read from a cache written by a detached background
   // check — this render path never touches the network.
-  const versionSeg = buildVersionSeg(options.version, data.update, c, isIcon, verbose);
+  const versionSeg = buildVersionSeg(options.version, data.update, c, isIcon, verbose, g);
   const updateAvailable = !!(data.update && data.update.available);
 
   // Korean-style chip — rendered only when the session-start injection is on.
-  const koreanSeg = buildKoreanSeg(c, isIcon, verbose);
+  const koreanSeg = buildKoreanSeg(c, isIcon, verbose, g);
 
   // Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
   // Cheap identity context: useful when the user toggles between Sonnet/Opus
@@ -602,7 +700,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // is dead weight in icon mode. Text modes keep the bare name; the magenta
     // tone marks it as identity context.
     if (isIcon) {
-      modelSeg = `${c(MAGENTA)}🤖 ${model}${c(RESET)}`;
+      modelSeg = `${c(MAGENTA)}${g.model} ${model}${c(RESET)}`;
     } else {
       modelSeg = `${c(MAGENTA)}${model}${c(RESET)}`;
     }
@@ -625,8 +723,14 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // Show only the wall-clock reset time (e.g. `🔄 21:10`). Absolute time
     // doesn't tick second-by-second so the statusline reads stable, and the
     // 🔄 icon itself separates the percent from the clock — no extra `·` needed.
-    const clock = formatResetClock(info.resetsAt);
-    const tail = clock ? ` 🔄 ${clock}` : '';
+    // A gateway budget can reset weeks out, where a wall-clock time says almost
+    // nothing ("Thu 00:00" — which Thursday?). Those windows report how long is
+    // left instead. Short windows keep the clock, which is the more useful form
+    // when the reset is later today.
+    const clock = labels.resetStyle === 'countdown'
+      ? formatResetIn(info.resetsAt)
+      : formatResetClock(info.resetsAt);
+    const tail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
     // `cap` reads as a rate-limit ceiling rather than a duration. Icon mode
     // leans on the icon to identify the window (✦ = session/now, 📅 = week),
     // so the 5H label is empty while the 7D label spells out "weekly". Text and
@@ -635,7 +739,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // a glance at the bar conveys urgency faster than parsing a percent number,
     // and the gauge stays the same width as the percent climbs.
     // LiteLLM 예산 윈도우는 퍼센트만으로는 감이 안 오므로(예산 크기를 모름)
-    // 금액을 함께 보여 준다: `🔑 budget ▰▱ 34% $34/$100`.
+    // 금액을 함께 보여 준다: `💳 budget ▰▱ 34% $34/$100`.
     const money =
       Number.isFinite(info.maxBudget) && info.maxBudget > 0
         ? ` ${formatMoney(Number(info.spend) || 0)}/${formatMoney(info.maxBudget)}`
@@ -646,8 +750,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const src = info.source === 'user' ? ' (user)' : '';
     if (isIcon) {
       const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
-      const bar = gaugeBar(pct);
-      return `${c(tone)}${labels.icon} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
+      const bar = gaugeColored(pct, c, tone, color);
+      const winGlyph = mode === 'narrow' ? (labels.narrowIcon || labels.icon) : labels.icon;
+      return `${c(tone)}${winGlyph} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
     }
     if (verbose) {
       return `${c(tone)}${labels.short}${src} cap ${pct}% used${money}${tail}${c(RESET)}`;
@@ -682,56 +787,106 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
   }
 
-  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon);
+  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon, g, color);
 
   // Warning chip leads — a glance at the statusline catches "something's wrong"
   // before parsing any numbers. Healthy states have no chip and look unchanged.
   // Cap-warn outranks spike: an imminent rate-limit block is more urgent than
   // a single spiking session.
   const allow = segments && segments.length
-    ? new Set(segments.map((s) => s.toLowerCase()))
+    ? new Set(segments.map((s) => String(s).toLowerCase()))
     : null;
+  // Still needed by the headline lines below, which are not part of the
+  // ordered segment list.
   const want = (name) => !allow || allow.has(name);
-  // Legacy whitelist aliases: `5h` ↔ `five_hour`, `7d` ↔ `seven_day`. So
-  // existing `--segments` configs keep working after the generic refactor.
-  const usageWant = (key) => {
-    if (!allow) return true;
-    if (allow.has(key.toLowerCase())) return true;
-    if (key === 'five_hour' && allow.has('5h')) return true;
-    if (key === 'seven_day' && allow.has('7d')) return true;
-    return false;
-  };
-  const segs = [];
-  if (capWarnSeg && want('cap-warn')) segs.push(capWarnSeg);
-  if (spikeSeg && want('spike')) segs.push(spikeSeg);
-  // An available upgrade rides up front with the other "act on this" chips.
-  // When there is nothing to upgrade to, the same segment is pure identity and
-  // sits at the tail instead (pushed after `saved`, below).
-  if (versionSeg && updateAvailable && want('version')) segs.push(versionSeg);
-  if (harnessSeg && want('harness')) segs.push(harnessSeg);
-  if (koreanSeg && want('korean')) segs.push(koreanSeg);
-  if (modelSeg && want('model')) segs.push(modelSeg);
-  // Delegation savings ride up front, next to the model that would otherwise
-  // have done the work. "Cache saved" stays at the tail: it is a lifetime brag
-  // stat, while this one is the point of the tool.
-  // When the totals headline owns line 1, the inline session chip would
-  // repeat the same story on line 2 — drop it there.
-  if (delegateSeg && want('delegated') && !totalsLine) segs.push(delegateSeg);
-  // Only when it did not already earn a headline line above.
-  if (doc2mdSeg && want('doc2md') && !doc2mdLine) segs.push(doc2mdSeg);
-  if (want('hit')) segs.push(hitSeg);
-  if (want('ttl')) segs.push(ttlSeg);
-  for (const { key, seg } of usageSegs) {
-    if (usageWant(key)) segs.push(seg);
+
+  // Segment registry — a name maps to the segments it contributes, so the
+  // sequence is data instead of the order of push calls. That is what lets a
+  // caller reorder: `--segments` used to filter only, and its order was
+  // silently discarded, so a user who wanted Ctx first had no way to ask.
+  const usageByKey = new Map(usageSegs.map(({ key, seg }) => [key, seg]));
+  // Legacy `--segments` aliases: `5h` ↔ `five_hour`, `7d` ↔ `seven_day`.
+  const USAGE_ALIASES = { '5h': 'five_hour', '7d': 'seven_day' };
+  function segmentsNamed(name) {
+    switch (name) {
+      case 'cap-warn':  return [capWarnSeg];
+      case 'spike':     return [spikeSeg];
+      case 'version':   return [versionSeg];
+      case 'harness':   return [harnessSeg];
+      case 'korean':    return [koreanSeg];
+      case 'model':     return [modelSeg];
+      // Dropped when the same story already owns a headline line above, which
+      // would otherwise repeat it on line 2.
+      case 'delegated': return totalsLine ? [] : [delegateSeg];
+      case 'doc2md':    return doc2mdLine ? [] : [doc2mdSeg];
+      case 'hit':       return [hitSeg];
+      case 'ttl':       return [ttlSeg];
+      case 'month':     return [monthSeg];
+      case 'ctx':       return [ctxSeg];
+      case 'saved':     return [saveSeg];
+      case 'period':    return [periodSeg];
+      // Every rate-limit window, in payload order.
+      case 'usage':     return usageSegs.map(({ seg }) => seg);
+      default: {
+        const seg = usageByKey.get(USAGE_ALIASES[name] || name);
+        return seg ? [seg] : [];
+      }
+    }
   }
-  if (monthSeg && want('month')) segs.push(monthSeg);
-  if (ctxSeg && want('ctx')) segs.push(ctxSeg);
-  // Cache saved is the "lifetime brag" stat — useful but not actionable, so
-  // it sits near the tail. The period label closes the line as a quiet
-  // timeframe footer.
-  if (want('saved')) segs.push(saveSeg);
-  if (versionSeg && !updateAvailable && want('version')) segs.push(versionSeg);
-  if (want('period')) segs.push(periodSeg);
+
+  // An available upgrade is an "act on this" chip, so it moves up behind the
+  // warning chips. With nothing to upgrade to it stays pure identity, at the
+  // tail position DEFAULT_SEGMENT_ORDER gives it.
+  let defaultOrder = DEFAULT_SEGMENT_ORDER;
+  if (updateAvailable) {
+    const rest = DEFAULT_SEGMENT_ORDER.filter((n) => n !== 'version');
+    const usageAt = rest.indexOf('usage');
+    defaultOrder = [...rest.slice(0, usageAt), 'version', ...rest.slice(usageAt)];
+  }
+  // A gateway that reports its own spend makes the month chip the second dollar
+  // figure on the line, and the two never agree: the budget counts every call
+  // that key served, while the month chip estimates from this machine's session
+  // logs alone. Two numbers for what looks like one question is worse than one
+  // number, so the estimate steps aside when the measured value is present.
+  // `--segments month` still asks for it explicitly and still gets it.
+  const hasGatewayBudget = !!(caps && Array.isArray(caps.windows)
+    && caps.windows.some((w) => w && w.key === 'litellm_budget'));
+  if (hasGatewayBudget) defaultOrder = defaultOrder.filter((n) => n !== 'month');
+
+  // A caller-supplied list sets the filter AND the order. Warning chips keep
+  // the lead wherever they were written: being seen first is their whole job,
+  // and someone reordering segments is not asking to bury an alarm.
+  const LEAD = ['cap-warn', 'spike'];
+  let order = defaultOrder;
+  if (allow) {
+    const names = segments.map((s) => String(s).toLowerCase());
+    const lead = LEAD.filter((n) => names.includes(n));
+    order = lead.concat(names.filter((n) => !LEAD.includes(n)));
+  }
+
+  const segs = [];
+  // Dedupe so overlapping names (e.g. `usage,five_hour`) cannot print the same
+  // chip twice.
+  const seen = new Set();
+  for (const name of order) {
+    for (const seg of segmentsNamed(name)) {
+      if (!seg || seen.has(seg)) continue;
+      seen.add(seg);
+      segs.push(seg);
+    }
+  }
+  // Fuse the analysis-window group with spaces instead of `·`. Separated, each
+  // piece reads as an independent chip and the label appears to qualify only the
+  // one immediately before it; joined, the three read as a single group and the
+  // label covers all of it. Only fused when they actually ended up adjacent, so
+  // a caller-supplied order is left alone. Identity comparison is safe here
+  // because these are the very strings pushed into `segs`, not rebuilt copies.
+  const windowGroup = [hitSeg, saveSeg, periodSeg].filter((seg) => seg && segs.includes(seg));
+  if (windowGroup.length > 1) {
+    const at = segs.indexOf(windowGroup[0]);
+    const adjacent = windowGroup.every((seg, i) => segs[at + i] === seg);
+    if (adjacent) segs.splice(at, windowGroup.length, windowGroup.join(' '));
+  }
   // Trailing erase-to-end-of-line so any leftover characters from a previous
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard
   // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is

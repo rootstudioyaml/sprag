@@ -36,7 +36,22 @@ test('gatewayEnv: 공식 엔드포인트는 게이트웨이로 보지 않는다'
   const { gatewayEnv } = await import('../src/litellm-budget.js');
   assert.equal(gatewayEnv({ ANTHROPIC_BASE_URL: 'https://api.anthropic.com', ANTHROPIC_API_KEY: 'k' }), null);
   assert.equal(gatewayEnv({}), null);
-  assert.equal(gatewayEnv({ ANTHROPIC_BASE_URL: 'https://gw.example.com' }), null); // 키 없음
+  // 키가 없으면 resolveKey 가 apiKeyHelper 폴백을 타고, 그 헬퍼는 cwd 와 홈의
+  // .claude/settings.json 을 읽습니다. 즉 이 단정은 실행 머신의 설정에 좌우되고,
+  // 헬퍼가 있는 머신에서는 실제 자격 증명이 잡혀 실패 메시지에 토큰이 찍힙니다.
+  // 여기서 확인할 계약은 "base 만으로는 게이트웨이로 보지 않는다" 이므로, 폴백이
+  // 읽을 파일이 없는 빈 디렉터리로 cwd 와 홈을 함께 돌려 놓고 확인합니다.
+  const prevCwd = process.cwd();
+  const prevHome = process.env.HOME;
+  process.chdir(tmp);
+  process.env.HOME = tmp;
+  try {
+    assert.equal(gatewayEnv({ ANTHROPIC_BASE_URL: 'https://gw.example.com' }), null, '키가 없으면 게이트웨이로 보지 않는다');
+  } finally {
+    process.chdir(prevCwd);
+    if (prevHome === undefined) delete process.env.HOME;
+    else process.env.HOME = prevHome;
+  }
   const gw = gatewayEnv(ENV);
   assert.equal(gw.base, 'https://litellm.example.com'); // 끝 슬래시 제거
   assert.equal(gw.key, 'sk-test');
@@ -156,7 +171,8 @@ test('formatBudgetReport: 게이지와 사용·잔여 금액을 함께 낸다', 
     now,
   );
   const text = lines.join('\n');
-  assert.match(lines[0], /^🔑 budget [█▓▒░]{6} 34% \$34\.0\/\$100$/);
+  // Eighth blocks can appear in the boundary cell, so the class covers them.
+  assert.match(lines[0], /^💳 budget [█▉▊▋▌▍▎▏▒]{6} 34% \$34\.0\/\$100$/);
   assert.match(text, /사용 \$34\.0 · 잔여 \$66\.0 \(66\.0%\)/);
   assert.match(text, /출처 팀 멤버십 예산/);
   assert.match(text, /조회 3분 전/);

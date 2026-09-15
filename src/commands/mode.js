@@ -10,12 +10,28 @@
 export async function run({ args }) {
     const { applyMode, loadConfig, configPath, statuslineDefaults, userLanguage, VALID_KEYWORDS } =
       await import('../config.js');
+    const { resolveLabelMode, isJetBrainsTerminal } = await import('../statusline-mode.js');
     const words = args.slice(1);
     if (words.length === 0) {
       const eff = statuslineDefaults();
       const raw = loadConfig();
       console.log('Statusline (effective):');
-      console.log(`  icon:    ${eff.icon}`);
+      console.log(`  labels:  ${eff.labels}`);
+      // What renders can differ from the stored preference: inside IntelliJ the
+      // emoji set steps down to narrow glyphs, because the IDE font lacks the
+      // emoji and the fallback breaks the cell grid. Saying so here is the
+      // difference between a two-second answer and a hunt through the source for
+      // why `--icon` appeared to do nothing.
+      const { mode: labelMode, reason } = resolveLabelMode({ cfg: eff });
+      if (labelMode !== eff.labels) {
+        const why = reason === 'intellij-narrow'
+          ? ' (IntelliJ: emoji garble in the IDE font. `sprag mode icon-force` keeps them anyway)'
+          : reason === 'intellij-forced'
+            ? ' (icon-force)'
+            : '';
+        console.log(`  renders: ${labelMode}${why}`);
+      }
+      console.log(`  icon-force: ${eff.iconForce}`);
       console.log(`  verbose: ${eff.verbose}`);
       console.log(`  timer:   ${eff.timer}`);
       console.log(`  color:   ${eff.color}`);
@@ -40,7 +56,11 @@ export async function run({ args }) {
     }
     const eff = statuslineDefaults();
     console.log(`Updated: ${applied.join(', ')}`);
-    console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
+    console.log(`Now: labels=${eff.labels} icon-force=${eff.iconForce} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
+    const { mode: renders } = resolveLabelMode({ cfg: eff });
+    if (renders !== eff.labels) {
+      console.log(`Renders as: ${renders}${isJetBrainsTerminal() ? ' (IntelliJ detected)' : ''}`);
+    }
     console.log('Statusline picks up the change on the next refresh (~1s).');
     return;
 }

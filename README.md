@@ -77,6 +77,8 @@ gemini-2.5-pro        57.9%             $734  ▰▰▰▰▰▰▰▰▰▰▰�
 
 문제가 생기면 경고 칩이 줄 맨 앞으로 옵니다. `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL` 여덟 가지이며, 칩 문구를 그대로 말하면 Skill이 원인 코드와 조치 순서를 꺼내 줍니다. 세그먼트별 의미와 색 기준은 [statusline 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md)에 정리했습니다.
 
+JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 표시합니다(`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). IDE 기본 폰트에 이모지 글리프가 없어서 그대로 두면 `Cache expires 4:545` 처럼 이전 프레임 문자가 남기 때문입니다. 자세한 사정과 `sprag mode narrow` · `mode icon-force` 사용법은 [statusline 문서의 라벨 모드](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md#라벨-모드)에 있습니다.
+
 ## 실제 효과: 도입 전후 리포트
 
 ![sprag: harness와 ratchet 도입 효과](./docs/harness-impact.png)
@@ -213,6 +215,8 @@ The measured −18.6% comes from the harness and ratchet; routing and conversion
 ```
 
 When something is wrong the warning chip leads the line: `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL`. Say the chip wording inside Claude and the Skill surfaces the root-cause code and the fix. Segment-by-segment meanings live in [the statusline reference](./docs/STATUSLINE.md).
+
+Inside a JetBrains IDE terminal the chips render as single-cell glyphs instead of emoji (`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). The IDE's default font has no emoji glyphs, so leaving them in leaves debris from the previous frame behind — `Cache expires 4:545` and the like. [Label modes](./docs/STATUSLINE.md#label-modes) covers the detail, plus `sprag mode narrow` and `mode icon-force`.
 
 ## Real-world impact — before/after report
 
