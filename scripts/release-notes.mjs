@@ -139,9 +139,23 @@ function fail(status, detail) {
   // rather than an API error, so the response is HTML where JSON belongs. That
   // is a policy answer, not a bad token, and saying so is the difference
   // between a two-minute fix and an hour spent on credentials.
-  const blocked = /^<|doctype|site-block/i.test(String(detail || '')) ||
-    [302, 307, 403].includes(Number(status));
-  if (blocked) {
+  // A 403 carrying a GitHub JSON error is GitHub itself refusing: a fine-grained
+  // token without `Contents: write` on this repository answers exactly that way.
+  // Reading it as a blocked write sends the reader to the wrong network.
+  const text = String(detail || '');
+  let apiMessage = '';
+  try { apiMessage = JSON.parse(text).message || ''; } catch { apiMessage = ''; }
+  const blocked = !apiMessage && (/^<|doctype|site-block/i.test(text) ||
+    [302, 307, 403].includes(Number(status)));
+  if (apiMessage) {
+    console.error(`  GitHub answered: ${apiMessage}`);
+    if (Number(status) === 403) {
+      console.error('  A token is present and readable, so this is permission rather than network:');
+      console.error(`  grant the token \`Contents: write\` on ${REPO_SLUG}, or paste the draft into the form:`);
+      console.error(`    https://github.com/${REPO_SLUG}/releases/new?tag=${tag}`);
+      console.error(`  The draft is at ${shown(draftPath)}.`);
+    }
+  } else if (blocked) {
     console.error('  This looks like the network refusing the write rather than GitHub refusing it:');
     console.error('  some corporate networks allow reads to api.github.com and block writes.');
     console.error('  Publish from a network that allows them, or paste the draft into the form:');

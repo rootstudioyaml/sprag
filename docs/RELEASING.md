@@ -145,6 +145,12 @@ are intercepted: the response is a block page, HTML where JSON belongs.
 `release-notes.mjs --publish` recognises that shape and says the network refused
 the write, rather than looking like a bad token.
 
+A 403 is not enough on its own to tell the two apart, and reading every 403 as a
+blocked write sent a reader to the wrong network once. So the body decides: a 403
+carrying GitHub's own JSON (`Resource not accessible by personal access token`)
+is GitHub refusing, and the fix is on the token — a fine-grained token needs
+`Contents: write` on `rootstudioyaml/sprag` before it can create a release.
+
 Steps 4 and 5 both need writes, so a release cannot be completed there. Two ways
 through:
 
