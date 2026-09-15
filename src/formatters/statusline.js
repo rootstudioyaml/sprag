@@ -131,9 +131,13 @@ export function gaugeBar(pct) {
  * @param {number} pct
  * @param {(code: string) => string} c - color emitter (returns '' when color is off)
  * @param {string} tone - the segment's own color code
+ * @param {boolean} color - whether ANSI is allowed. Passed explicitly rather
+ *   than inferred from `c` emitting nothing: that inference reads the emitter's
+ *   current implementation, and a caller that wraps or replaces `c` would flip
+ *   the track glyph as a side effect nobody asked for.
  * @returns {string}
  */
-function gaugeColored(pct, c, tone) {
+function gaugeColored(pct, c, tone, color) {
   const { filled, empty } = gaugeParts(pct);
   if (!empty) return filled;
   // With color available, the unused cells are the same solid block as the used
@@ -143,7 +147,7 @@ function gaugeColored(pct, c, tone) {
   // filling up, and it sidesteps the glyph-box mismatch between the shades and
   // the blocks entirely. Without color there is nothing but texture to tell them
   // apart, so the shading stays.
-  const track = c(GRAY) === '' ? empty : '█'.repeat(empty.length);
+  const track = color ? '█'.repeat(empty.length) : empty;
   return `${filled}${c(RESET)}${c(GRAY)}${track}${c(RESET)}${c(tone)}`;
 }
 
@@ -262,7 +266,11 @@ function buildHarnessSeg(c, isIcon, g) {
  * the wall-clock reset time rides along in the same `🔄 HH:MM` shape as the
  * always-on usage segments.
  */
-function buildCapWarnSeg(capWarn, c, isIcon, g) {
+function buildCapWarnSeg(capWarn, c, isIcon, g, color) {
+  // `color` is only for the gauge. At 90%+ the bar has no unused cells left, so
+  // gaugeColored returns early and never reads it today — it is threaded through
+  // anyway, because a change to the cap-warn threshold or the bar width would
+  // otherwise start drawing the wrong track with nothing to catch it.
   if (!capWarn) return null;
   const pct = Math.round(capWarn.usedPct);
   const clock = formatResetClock(capWarn.resetsAt);
@@ -273,7 +281,7 @@ function buildCapWarnSeg(capWarn, c, isIcon, g) {
     // Gauge keeps shape parity with the always-on usage segment — the
     // cap-warn is just the same gauge "filled to alarm". Visual continuity
     // helps the eye understand "this is the 5H bar I was watching, just red now."
-    const bar = gaugeColored(pct, c, RED);
+    const bar = gaugeColored(pct, c, RED, color);
     return `${c(BOLD)}${c(RED)}${g.capWarn} ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
   }
   return `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
@@ -293,7 +301,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
   const isIcon = mode === 'icon' || mode === 'narrow';
   const g = glyphsFor(mode);
   const segs = [];
-  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon, g);
+  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon, g, color);
   if (capSeg) segs.push(capSeg);
   const versionSeg = buildVersionSeg(version, update, c, isIcon, false, g);
   if (versionSeg && update && update.available) segs.push(versionSeg);
@@ -742,7 +750,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const src = info.source === 'user' ? ' (user)' : '';
     if (isIcon) {
       const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
-      const bar = gaugeColored(pct, c, tone);
+      const bar = gaugeColored(pct, c, tone, color);
       const winGlyph = mode === 'narrow' ? (labels.narrowIcon || labels.icon) : labels.icon;
       return `${c(tone)}${winGlyph} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
     }
@@ -779,7 +787,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
   }
 
-  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon, g);
+  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon, g, color);
 
   // Warning chip leads — a glance at the statusline catches "something's wrong"
   // before parsing any numbers. Healthy states have no chip and look unchanged.
@@ -867,21 +875,22 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       segs.push(seg);
     }
   }
-  // Trailing erase-to-end-of-line so any leftover characters from a previous
-  // (longer) statusline render don't bleed into ours. \x1b[K is the standard
-  // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
-  // allowed — --no-color/NO_COLOR consumers expect escape-free output.
   // Fuse the analysis-window group with spaces instead of `·`. Separated, each
   // piece reads as an independent chip and the label appears to qualify only the
   // one immediately before it; joined, the three read as a single group and the
   // label covers all of it. Only fused when they actually ended up adjacent, so
-  // a caller-supplied order is left alone.
+  // a caller-supplied order is left alone. Identity comparison is safe here
+  // because these are the very strings pushed into `segs`, not rebuilt copies.
   const windowGroup = [hitSeg, saveSeg, periodSeg].filter((seg) => seg && segs.includes(seg));
   if (windowGroup.length > 1) {
     const at = segs.indexOf(windowGroup[0]);
     const adjacent = windowGroup.every((seg, i) => segs[at + i] === seg);
     if (adjacent) segs.splice(at, windowGroup.length, windowGroup.join(' '));
   }
+  // Trailing erase-to-end-of-line so any leftover characters from a previous
+  // (longer) statusline render don't bleed into ours. \x1b[K is the standard
+  // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
+  // allowed — --no-color/NO_COLOR consumers expect escape-free output.
   const eol = color ? '\x1b[K' : '';
   const rest = segs.join(' · ') + eol;
   // Each savings source that earned real money gets a headline line, ordered

@@ -180,3 +180,22 @@ test('figures are grouped by the timeframe they cover', () => {
   assert.ok(lifetime < windowed, 'lifetime totals precede the windowed pair');
   assert.ok(windowed < month, 'the windowed pair precedes the month estimate');
 });
+
+test('the window label stays put when the caller breaks the group apart', () => {
+  // The fuse is what makes `(last 1d)` read as covering both cache chips. That
+  // only holds while the three sit together: with another chip wedged between
+  // them, joining would make the label span something it does not measure. So
+  // an explicit --segments order is left alone, separators and all.
+  const rich = { ...data(), monthSpend: { label: 'Sep', usd: 842 }, delegationSaved: 21.8 };
+  const split = strip(formatReport(rich, { ...opts, verbose: true, segments: ['hit', 'ctx', 'saved', 'period'] }));
+  assert.match(split, /Cache hit [\d.]+% · /, 'the group is not fused across an intervening chip');
+  assert.match(split, /Cache saved \S+ · \(last 1d\)/, 'and the label stays a separate chip');
+
+  // Same three, left adjacent: fused, because now the label does cover them.
+  const together = strip(formatReport(rich, { ...opts, verbose: true, segments: ['hit', 'saved', 'period'] }));
+  assert.match(together, /Cache hit [\d.]+% \S+ Cache saved \S+ \(last 1d\)/, 'adjacent chips still fuse');
+
+  // A group of one is not a group: the label alone keeps its own separators.
+  const alone = strip(formatReport(rich, { ...opts, verbose: true, segments: ['ctx', 'period'] }));
+  assert.match(alone, /Ctx \S+ of \S+ · \(last 1d\)/, 'a lone label is not fused to whatever precedes it');
+});
