@@ -18,6 +18,7 @@
  */
 
 import { formatResetClock } from '../format-time.js';
+import { glyphsFor } from '../glyphs.js';
 import { labelForKey } from '../window-labels.js';
 import { harnessStatusForStatusline } from '../harness.js';
 import { loadConfig } from '../config.js';
@@ -87,17 +88,17 @@ export function gaugeBar(pct) {
   const filled = (clamped / 100) * cells; // e.g. 4.32 cells filled
   const fullCells = Math.floor(filled);
   const remainder = filled - fullCells; // 0..1 — fill fraction of the boundary cell
-  // Boundary cell: ░ (empty), ▒ (1/3), ▓ (2/3), or roll over to a full █.
-  let partial = '';
-  let extra = 0;
-  if (remainder >= 0.83) {
-    extra = 1; // round up — fill the boundary cell completely
-  } else if (remainder >= 0.5) {
-    partial = '▓';
-  } else if (remainder >= 0.16) {
-    partial = '▒';
-  } // else: remainder is too small to show — leave the cell empty
+  // Boundary cell in eighths. The earlier version had three steps (░ ▒ ▓), which
+  // meant 25% and 31% drew the same bar; eighths keep the resolution the width
+  // of the bar can carry, so the gauge moves as the number does. Every character
+  // here is present in JetBrains Mono, which is why the gauge was the one part
+  // of the line that never garbled under IntelliJ (see src/glyphs.js).
+  const EIGHTHS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+  const step = Math.round(remainder * 8);
+  // A boundary cell rounded up to 8/8 is a full cell, not a ninth glyph.
+  const extra = step === 8 ? 1 : 0;
   const totalFull = Math.min(cells, fullCells + extra);
+  const partial = totalFull < cells && extra === 0 ? EIGHTHS[step] : '';
   const usedCells = totalFull + (partial ? 1 : 0);
   const empty = '░'.repeat(Math.max(0, cells - usedCells));
   return '█'.repeat(totalFull) + partial + empty;
@@ -146,7 +147,7 @@ export function pickCapWarn(caps) {
  * Korean-style chip builder. Renders only when the session-start injection is
  * enabled, so nothing changes for anyone who never asked for it.
  */
-function buildKoreanSeg(c, isIcon, verbose) {
+function buildKoreanSeg(c, isIcon, verbose, g) {
   try {
     if (!koreanStyleEnabled()) return null;
     // Deliberately quiet (gray, one glyph): this is a "yes, it is on"
@@ -154,7 +155,7 @@ function buildKoreanSeg(c, isIcon, verbose) {
     // exactly like a working one, because the style only shows up when the
     // model happens to write Korean. The icon says "writing guidance", not
     // "Korean" — the verbose label already carries the language.
-    if (isIcon) return `${c(GRAY)}${verbose ? '✍️ Korean style' : '✍️'}${c(RESET)}`;
+    if (isIcon) return `${c(GRAY)}${verbose ? `${g.korean} Korean style` : g.korean}${c(RESET)}`;
     return `${c(GRAY)}Korean style${c(RESET)}`;
   } catch {
     return null;
@@ -177,13 +178,13 @@ function buildKoreanSeg(c, isIcon, verbose) {
  * rendering after the user declines — declining hides the session-start
  * question, not the fact that a new version exists.
  */
-function buildVersionSeg(version, update, c, isIcon, verbose) {
+function buildVersionSeg(version, update, c, isIcon, verbose, g) {
   if (!version) return null;
   if (update && update.available && update.latest) {
     const body = verbose
       ? `Update v${version} → ${update.latest}`
       : `v${version} → ${update.latest}`;
-    return `${c(YELLOW)}${isIcon ? '⬆ ' : ''}${body}${c(RESET)}`;
+    return `${c(YELLOW)}${isIcon ? `${g.upgrade} ` : ''}${body}${c(RESET)}`;
   }
   return `${c(GRAY)}v${version}${c(RESET)}`;
 }
@@ -193,16 +194,16 @@ function buildVersionSeg(version, update, c, isIcon, verbose) {
  * fallback line. Best-effort: never throws into the statusline (corrupted
  * CLAUDE.md, permission issue, etc. → null).
  */
-function buildHarnessSeg(c, isIcon) {
+function buildHarnessSeg(c, isIcon, g) {
   try {
     const harnessInfo = harnessStatusForStatusline(loadConfig());
     if (!harnessInfo) return null;
-    const icon = isIcon ? '🅷' : 'H';
+    const icon = isIcon ? g.harness : 'H';
     if (harnessInfo.warning) {
       // Warning state outranks the N/5 count — a runtime issue (repeated
       // error / no-evidence / racing edits) is more actionable than a
       // missing ratchet section. Always red so it stands out.
-      return `${c(RED)}${icon}⚠ ${harnessInfo.warning}${c(RESET)}`;
+      return `${c(RED)}${icon}${g.spike} ${harnessInfo.warning}${c(RESET)}`;
     }
     if (harnessInfo.custom) return `${c(CYAN)}${icon} custom${c(RESET)}`;
     const tone = harnessInfo.configured >= harnessInfo.total ? GREEN : YELLOW;
@@ -218,17 +219,19 @@ function buildHarnessSeg(c, isIcon) {
  * the wall-clock reset time rides along in the same `🔄 HH:MM` shape as the
  * always-on usage segments.
  */
-function buildCapWarnSeg(capWarn, c, isIcon) {
+function buildCapWarnSeg(capWarn, c, isIcon, g) {
   if (!capWarn) return null;
   const pct = Math.round(capWarn.usedPct);
   const clock = formatResetClock(capWarn.resetsAt);
-  const clockTail = clock ? ` 🔄 ${clock}` : '';
+  // Text mode has no glyph vocabulary, so it names the thing instead of
+  // borrowing an emoji it otherwise avoids.
+  const clockTail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
   if (isIcon) {
     // Gauge keeps shape parity with the always-on usage segment — the
     // cap-warn is just the same gauge "filled to alarm". Visual continuity
     // helps the eye understand "this is the 5H bar I was watching, just red now."
     const bar = gaugeBar(pct);
-    return `${c(BOLD)}${c(RED)}🚨 ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
+    return `${c(BOLD)}${c(RED)}${g.capWarn} ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
   }
   return `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
 }
@@ -242,18 +245,21 @@ function buildCapWarnSeg(capWarn, c, isIcon) {
  */
 export function formatNoSession({ caps = null, model = null, windowLabel = '', version = '', update = null } = {}, { color = true, mode = 'icon' } = {}) {
   const c = (v) => (color ? v : '');
-  const isIcon = mode === 'icon';
+  // narrow shares the icon layout and swaps only the glyphs, so both modes take
+  // the same branches from here on.
+  const isIcon = mode === 'icon' || mode === 'narrow';
+  const g = glyphsFor(mode);
   const segs = [];
-  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon);
+  const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon, g);
   if (capSeg) segs.push(capSeg);
-  const versionSeg = buildVersionSeg(version, update, c, isIcon, false);
+  const versionSeg = buildVersionSeg(version, update, c, isIcon, false, g);
   if (versionSeg && update && update.available) segs.push(versionSeg);
-  const harnessSeg = buildHarnessSeg(c, isIcon);
+  const harnessSeg = buildHarnessSeg(c, isIcon, g);
   if (harnessSeg) segs.push(harnessSeg);
   if (typeof model === 'string' && model.length > 0) {
-    segs.push(isIcon ? `${c(MAGENTA)}🤖 ${model}${c(RESET)}` : `${c(MAGENTA)}${model}${c(RESET)}`);
+    segs.push(isIcon ? `${c(MAGENTA)}${g.model} ${model}${c(RESET)}` : `${c(MAGENTA)}${model}${c(RESET)}`);
   }
-  segs.push(`${c(GRAY)}🧠 no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
+  segs.push(`${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
   if (versionSeg && !(update && update.available)) segs.push(versionSeg);
   return segs.join(' · ') + (color ? '\x1b[K' : '');
 }
@@ -337,20 +343,23 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const savings = cost?.savings ?? 0;
 
   const c = (v) => (color ? v : '');
-  const isIcon = mode === 'icon';
+  // narrow shares the icon layout and swaps only the glyphs, so both modes take
+  // the same branches from here on.
+  const isIcon = mode === 'icon' || mode === 'narrow';
+  const g = glyphsFor(mode);
 
   // Labels per mode.
   //   text:       "Cache hit 98.3%"                 |  verbose: "Cache hit 98.3%"
   //   icon:       "🧠 98.3%"                          |  verbose: "🧠 Cache hit 98.3%"
   const hitLabel = isIcon
-    ? (verbose ? '🧠 Cache hit' : '🧠')
+    ? (verbose ? `${g.hit} Cache hit` : g.hit)
     : 'Cache hit';
   const hitSeg = `${c(BOLD)}${hitLabel}${c(RESET)} ${c(hitColor)}${formatPct(hitRate)}${c(RESET)}`;
 
   //   text:       "Cache saved $1.5K"                |  same in verbose
   //   icon:       "💰 $1.5K"                          |  verbose: "💰 Cache saved $1.5K"
   const saveLabel = isIcon
-    ? (verbose ? '💰 Cache saved' : '💰')
+    ? (verbose ? `${g.saved} Cache saved` : g.saved)
     : 'Cache saved';
   const saveSeg = `${c(CYAN)}${saveLabel}${c(RESET)} ${formatMoney(savings)}`;
 
@@ -366,7 +375,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Routing saved $3.2"
   const delegationSaved = Number(data.delegationSaved) || 0;
   const delegateLabel = isIcon
-    ? (verbose ? '🔀 Routing saved' : '🔀')
+    ? (verbose ? `${g.routing} Routing saved` : g.routing)
     : 'Routing saved';
   // Zero savings has two very different causes and, until now, one appearance:
   // nothing at all. "Never delegated" and "delegated plenty, but every run was
@@ -378,7 +387,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const delegateSeg = delegationSaved > 0
     ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
     : (unresolvedRuns > 0
-      ? `${c(YELLOW)}🔀 ${unresolvedRuns} unresolved${c(RESET)}`
+      ? `${c(YELLOW)}${g.routing} ${unresolvedRuns} unresolved${c(RESET)}`
       : null);
 
   // Document conversions — the same kind of number as "Routing saved", earned
@@ -396,14 +405,14 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const doc2mdUsd = Number(doc2md && doc2md.total) || 0;
   const doc2mdDocs = Number(doc2md && doc2md.docs) || 0;
   const doc2mdLabel = isIcon
-    ? (verbose ? '📄 Doc2md saved' : '📄')
+    ? (verbose ? `${g.doc} Doc2md saved` : g.doc)
     : 'Doc2md saved';
   let doc2mdSeg = null;
   if (doc2mdUsd > 0) {
     doc2mdSeg = `${c(GREEN)}${doc2mdLabel}${c(RESET)} ${formatMoney(doc2mdUsd)}`
       + (verbose ? ` ${c(GRAY)}· ${doc2mdDocs} docs${c(RESET)}` : '');
   } else if (doc2mdDocs > 0) {
-    const label = isIcon ? '📄' : 'Doc2md';
+    const label = isIcon ? g.doc : 'Doc2md';
     doc2mdSeg = `${c(GRAY)}${label} ${doc2mdDocs} docs${c(RESET)}`;
   }
 
@@ -418,7 +427,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   if (month && Number(month.usd) > 0) {
     const amt = formatMoney(Number(month.usd));
     if (isIcon) {
-      monthSeg = `${c(GRAY)}💵 ${month.label} ${amt}${c(RESET)}`;
+      monthSeg = `${c(GRAY)}${g.month} ${month.label} ${amt}${c(RESET)}`;
     } else if (verbose) {
       monthSeg = `${c(GRAY)}${month.label} spend ${amt} (since ${month.label} 1)${c(RESET)}`;
     } else {
@@ -440,7 +449,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const totals = data.delegationTotals;
   let totalsLine = null;
   if (!singleLine && totals && Number(totals.total) > 0) {
-    const head = isIcon ? '🔀 Routing saved' : 'Routing saved';
+    const head = isIcon ? `${g.routing} Routing saved` : 'Routing saved';
     // Model changes behind the total, family-level and version-free: `opus →
     // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
     // shape of the trade is the point.
@@ -471,7 +480,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   //   icon:  "📄 Doc2md saved $1.8 | pptx 1× $1.55 · pdf 2× $0.27"
   let doc2mdLine = null;
   if (!singleLine && doc2mdUsd > 0) {
-    const head = isIcon ? '📄 Doc2md saved' : 'Doc2md saved';
+    const head = isIcon ? `${g.doc} Doc2md saved` : 'Doc2md saved';
     const byExt = Array.isArray(doc2md.byExt) ? doc2md.byExt : [];
     // Formats that earned money show it; formats with no baseline to measure
     // against are counted instead. Printing "$0.00" next to real amounts reads
@@ -542,9 +551,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       // for the same reason the compact form did. The bucket lives in the
       // text-verbose layout where the "bucket" word + `·` separator make it
       // unambiguous.
-      ttlSeg = `${c(timerColor)}⏳ Cache expires ${text}${c(RESET)}`;
+      ttlSeg = `${c(timerColor)}${g.ttl} Cache expires ${text}${c(RESET)}`;
     } else if (isIcon) {
-      ttlSeg = `${c(timerColor)}⏳ ${text}${c(RESET)}`;
+      ttlSeg = `${c(timerColor)}${g.ttl} ${text}${c(RESET)}`;
     } else if (verbose) {
       ttlSeg = `${c(bucketColor)}Cache ${bucketLabel} bucket${c(RESET)} · ${c(timerColor)}expires in ${text}${c(RESET)}`;
     } else {
@@ -553,7 +562,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   } else {
     // No-timer fallback: only the bucket is available, so we show just that.
     if (isIcon) {
-      const prefix = verbose ? '⏳ Cache bucket ' : '⏳ ';
+      const prefix = verbose ? `${g.ttl} Cache bucket ` : `${g.ttl} `;
       ttlSeg = `${c(bucketColor)}${prefix}${bucketLabel}${c(RESET)}`;
     } else if (verbose) {
       ttlSeg = `${c(bucketColor)}Cache ${bucketLabel} bucket${c(RESET)}`;
@@ -583,9 +592,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       : null;
     const longLabel = sizeLabel ? `${pct}% of ${sizeLabel}` : `${pct}%`;
     if (isIcon && verbose) {
-      ctxSeg = `${c(tone)}📦 Ctx ${longLabel}${c(RESET)}`;
+      ctxSeg = `${c(tone)}${g.ctx} Ctx ${longLabel}${c(RESET)}`;
     } else if (isIcon) {
-      ctxSeg = `${c(tone)}📦 ${pct}%${c(RESET)}`;
+      ctxSeg = `${c(tone)}${g.ctx} ${pct}%${c(RESET)}`;
     } else {
       ctxSeg = `${c(tone)}Ctx ${longLabel}${c(RESET)}`;
     }
@@ -595,9 +604,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // default on every current model, so colouring it yellow cried wolf.
     const ctxColor = contextWindow.overWarn ? YELLOW : GREEN;
     if (isIcon && verbose) {
-      ctxSeg = `${c(ctxColor)}📦 Ctx ${label}${c(RESET)}`;
+      ctxSeg = `${c(ctxColor)}${g.ctx} Ctx ${label}${c(RESET)}`;
     } else if (isIcon) {
-      ctxSeg = `${c(ctxColor)}📦 ${label}${c(RESET)}`;
+      ctxSeg = `${c(ctxColor)}${g.ctx} ${label}${c(RESET)}`;
     } else {
       ctxSeg = `${c(ctxColor)}Ctx ${label}${c(RESET)}`;
     }
@@ -610,15 +619,15 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Silent when the project hasn't opted in (no CLAUDE.md and no .claude/);
   // otherwise renders 🅷 5/5 (green) / 🅷 N/5 (yellow) so the user can spot
   // a missing section at a glance and know to run `harness init`.
-  const harnessSeg = buildHarnessSeg(c, isIcon);
+  const harnessSeg = buildHarnessSeg(c, isIcon, g);
 
   // Version / upgrade chip. Read from a cache written by a detached background
   // check — this render path never touches the network.
-  const versionSeg = buildVersionSeg(options.version, data.update, c, isIcon, verbose);
+  const versionSeg = buildVersionSeg(options.version, data.update, c, isIcon, verbose, g);
   const updateAvailable = !!(data.update && data.update.available);
 
   // Korean-style chip — rendered only when the session-start injection is on.
-  const koreanSeg = buildKoreanSeg(c, isIcon, verbose);
+  const koreanSeg = buildKoreanSeg(c, isIcon, verbose, g);
 
   // Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
   // Cheap identity context: useful when the user toggles between Sonnet/Opus
@@ -629,7 +638,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // is dead weight in icon mode. Text modes keep the bare name; the magenta
     // tone marks it as identity context.
     if (isIcon) {
-      modelSeg = `${c(MAGENTA)}🤖 ${model}${c(RESET)}`;
+      modelSeg = `${c(MAGENTA)}${g.model} ${model}${c(RESET)}`;
     } else {
       modelSeg = `${c(MAGENTA)}${model}${c(RESET)}`;
     }
@@ -653,7 +662,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // doesn't tick second-by-second so the statusline reads stable, and the
     // 🔄 icon itself separates the percent from the clock — no extra `·` needed.
     const clock = formatResetClock(info.resetsAt);
-    const tail = clock ? ` 🔄 ${clock}` : '';
+    const tail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
     // `cap` reads as a rate-limit ceiling rather than a duration. Icon mode
     // leans on the icon to identify the window (✦ = session/now, 📅 = week),
     // so the 5H label is empty while the 7D label spells out "weekly". Text and
@@ -674,7 +683,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     if (isIcon) {
       const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
       const bar = gaugeBar(pct);
-      return `${c(tone)}${labels.icon} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
+      const winGlyph = mode === 'narrow' ? (labels.narrowIcon || labels.icon) : labels.icon;
+      return `${c(tone)}${winGlyph} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
     }
     if (verbose) {
       return `${c(tone)}${labels.short}${src} cap ${pct}% used${money}${tail}${c(RESET)}`;
@@ -709,7 +719,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
   }
 
-  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon);
+  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon, g);
 
   // Warning chip leads — a glance at the statusline catches "something's wrong"
   // before parsing any numbers. Healthy states have no chip and look unchanged.

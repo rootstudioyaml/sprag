@@ -46,16 +46,29 @@ export function iconForceRequested({ cfg = {}, env = process.env } = {}) {
 }
 
 /**
+ * The user's stored label preference, as one of the three modes.
+ *
+ * `labels` is the current key. Configs written before it existed carry a boolean
+ * `icon` instead, so that is read as a fallback: absent means icons, since icons
+ * are the default for a fresh install.
+ */
+export function labelPreference(cfg = {}) {
+  if (cfg.labels === 'icon' || cfg.labels === 'narrow' || cfg.labels === 'text') return cfg.labels;
+  return cfg.icon === false ? 'text' : 'icon';
+}
+
+/**
  * Resolve the label mode.
  *
  * @param {object} opts
  * @param {(name: string) => boolean} [opts.hasFlag] argv accessor
  * @param {object} [opts.cfg] statuslineDefaults() result
  * @param {object} [opts.env] environment to read
- * @returns {{ mode: 'icon'|'text', reason: string }} `reason` names the rule
+ * @returns {{ mode: 'icon'|'narrow'|'text', reason: string }} `reason` names the rule
  *   that decided, so `sprag mode` can explain a downgrade instead of leaving
  *   the user to guess why `--icon` did nothing. One of `flag:--no-icon`,
- *   `flag:--text`, `intellij-guard`, `intellij-forced`, `flag:--icon`, `config`.
+ *   `flag:--text`, `flag:--narrow`, `intellij-narrow`, `intellij-forced`,
+ *   `flag:--icon`, `config`.
  *
  * Precedence: explicit opt-out, then the IntelliJ guard (and the escape hatch
  * out of it, which applies only there), then `--icon`, then persisted config.
@@ -66,16 +79,17 @@ export function resolveLabelMode({ hasFlag = () => false, cfg = {}, env = proces
   // the diagnostic line names the flag the user actually typed.
   if (hasFlag('--no-icon')) return { mode: 'text', reason: 'flag:--no-icon' };
   if (hasFlag('--text')) return { mode: 'text', reason: 'flag:--text' };
+  if (hasFlag('--narrow')) return { mode: 'narrow', reason: 'flag:--narrow' };
+  const pref = labelPreference(cfg);
   if (isJetBrainsTerminal(env)) {
-    if (!iconForceRequested({ cfg, env })) {
-      return { mode: 'text', reason: 'intellij-guard' };
-    }
-    return { mode: 'icon', reason: 'intellij-forced' };
+    // Emoji on request, accepting that they garble here.
+    if (iconForceRequested({ cfg, env })) return { mode: 'icon', reason: 'intellij-forced' };
+    // Someone who asked for plain text gets plain text.
+    if (pref === 'text') return { mode: 'text', reason: 'config' };
+    // Otherwise narrow: the glyphs still mark each chip, and every one of them
+    // is a character the IDE font actually has, so the line does not garble.
+    return { mode: 'narrow', reason: 'intellij-narrow' };
   }
   if (hasFlag('--icon')) return { mode: 'icon', reason: 'flag:--icon' };
-  // `!== false` rather than truthiness, to match statuslineDefaults(): icons are
-  // the default and only an explicit `mode text` turns them off. A truthy test
-  // would read a config object that simply has no `icon` key as "text", which is
-  // the opposite of what a fresh install renders.
-  return { mode: cfg.icon !== false ? 'icon' : 'text', reason: 'config' };
+  return { mode: pref, reason: 'config' };
 }

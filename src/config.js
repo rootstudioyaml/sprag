@@ -12,6 +12,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
+import { labelPreference } from './statusline-mode.js';
 
 const CONFIG_DIR = userDataDir();
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
@@ -38,8 +39,11 @@ export function saveConfig(cfg) {
 // Orthogonal — `mode icon verbose` flips both without resetting the rest.
 // Statusline-only toggles. Stored under `cfg.statusline`.
 const KEYWORDS = {
-  icon:       { key: 'icon',    value: true  },
-  text:       { key: 'icon',    value: false },
+  // Label style is one setting with three values, so the keywords write one key
+  // rather than a pair of booleans that could contradict each other.
+  icon:       { key: 'labels',  value: 'icon'   },
+  narrow:     { key: 'labels',  value: 'narrow' },
+  text:       { key: 'labels',  value: 'text'   },
   // Opt back into icons inside IntelliJ, where they are downgraded by default
   // for the plugin's statusline widget. Scoped to that guard only: outside
   // IntelliJ it changes nothing, because `icon` / `text` already decide there.
@@ -177,10 +181,16 @@ export function statuslineDefaults() {
   } else {
     windowHours = 24; // default: last 1 day
   }
+  // Three-valued label style, with the legacy boolean honored for configs
+  // written before it existed. labelPreference() owns that fallback so the
+  // resolver and this function cannot disagree about what an old config means.
+  const labels = labelPreference(s);
   return {
-    icon:        s.icon    !== false,
-    // Off unless asked for: the IntelliJ downgrade protects plugin users, and
-    // only the user knows whether the plugin widget is in their render path.
+    labels,
+    // Kept for callers that only ask "emoji or not".
+    icon:        labels === 'icon',
+    // Off unless asked for: narrow labels are the IntelliJ default now, and only
+    // the user knows whether they would rather have garbled emoji than glyphs.
     iconForce:   s.iconForce === true,
     verbose:     s.verbose !== false,
     timer:       s.timer   !== false,
