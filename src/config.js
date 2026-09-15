@@ -40,6 +40,10 @@ export function saveConfig(cfg) {
 const KEYWORDS = {
   icon:       { key: 'icon',    value: true  },
   text:       { key: 'icon',    value: false },
+  // Opt back into icons inside IntelliJ, where they are downgraded by default
+  // for the plugin's statusline widget. See src/statusline-mode.js.
+  'icon-force':    { key: 'iconForce', value: true  },
+  'no-icon-force': { key: 'iconForce', value: false },
   verbose:    { key: 'verbose', value: true  },
   compact:    { key: 'verbose', value: false },
   timer:      { key: 'timer',   value: true  },
@@ -173,6 +177,9 @@ export function statuslineDefaults() {
   }
   return {
     icon:        s.icon    !== false,
+    // Off unless asked for: the IntelliJ downgrade protects plugin users, and
+    // only the user knows whether the plugin widget is in their render path.
+    iconForce:   s.iconForce === true,
     verbose:     s.verbose !== false,
     timer:       s.timer   !== false,
     color:       s.color   !== false,

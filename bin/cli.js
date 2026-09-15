@@ -397,9 +397,10 @@ async function main() {
       process.exit(1);
     }
     const { formatReport } = await import('../src/formatters/statusline.js');
-    const isIcon = hasFlag('--icon')
-      ? true
-      : (hasFlag('--no-icon') || hasFlag('--text') ? false : cfg.icon);
+    // Same resolver as the real statusline path: a demo that renders emoji
+    // where the real line would not is worse than no demo at all.
+    const { resolveLabelMode } = await import('../src/statusline-mode.js');
+    const { mode: labelMode } = resolveLabelMode({ hasFlag, cfg });
     const isVerbose = hasFlag('--verbose')
       ? true
       : (hasFlag('--no-verbose') || hasFlag('--compact') ? false : cfg.verbose);
@@ -413,7 +414,7 @@ async function main() {
       color: colorOk,
       verbose: isVerbose,
       timer: showTimer,
-      mode: isIcon ? 'icon' : 'text',
+      mode: labelMode,
       segments,
       singleLine: hasFlag('--single-line'),
     });
@@ -480,9 +481,11 @@ async function main() {
       const { statuslineDefaults } = await import('../src/config.js');
       const cfg = statuslineDefaults();
       const colorOk = !hasFlag('--no-color') && !process.env.NO_COLOR && cfg.color;
-      const isIcon = hasFlag('--icon')
-        ? true
-        : (hasFlag('--no-icon') || hasFlag('--text') ? false : cfg.icon);
+      // Third caller of the same decision — the no-session line has to agree
+      // with the populated one, or IntelliJ users watch icons appear and
+      // disappear as the analysis window empties and fills.
+      const { resolveLabelMode } = await import('../src/statusline-mode.js');
+      const { mode: labelMode } = resolveLabelMode({ hasFlag, cfg });
       const stdinJson = readStdinJson();
       const caps = extractCaps(stdinJson);
       const model = extractModel(stdinJson);
@@ -494,7 +497,7 @@ async function main() {
       }
       console.log(formatNoSession(
         { caps, model, windowLabel, version: PKG_VERSION, update: readUpdateChip() },
-        { color: colorOk, mode: isIcon ? 'icon' : 'text' },
+        { color: colorOk, mode: labelMode },
       ));
       return;
     }
@@ -749,21 +752,11 @@ async function main() {
     const { statuslineDefaults } = await import('../src/config.js');
     const cfg = statuslineDefaults();
 
-    // IntelliJ's Claude Code plugin renders the statusline through a custom
-    // widget that fuses prior frames with the new one when emoji are present,
-    // producing garbage like "59:548" that no ANSI escape can clean up
-    // (verified: emitting the same output directly into JediTerm renders
-    // cleanly, so the bug is in the plugin's render path, not the terminal).
-    // Force text mode unconditionally inside IntelliJ — even past an explicit
-    // `--icon` flag, since wrappers commonly hardcode `--icon` and the user
-    // can't easily edit them; icon mode is just broken there.
-    const isIntelliJ = process.env.TERMINAL_EMULATOR === 'JetBrains-JediTerm';
-    // CLI flags take precedence; otherwise fall back to persisted config.
-    const isIcon = isIntelliJ
-      ? false
-      : (hasFlag('--icon')
-          ? true
-          : (hasFlag('--no-icon') || hasFlag('--text') ? false : cfg.icon));
+    // Icon vs text is decided in one module shared with the `--demo` path, so
+    // the two cannot drift apart again. It also owns the IntelliJ downgrade and
+    // the escape hatch out of it (SPRAG_ICON=force / `sprag mode icon-force`).
+    const { resolveLabelMode } = await import('../src/statusline-mode.js');
+    const { mode: labelMode } = resolveLabelMode({ hasFlag, cfg });
     const isVerbose = hasFlag('--verbose')
       ? true
       : (hasFlag('--no-verbose') || hasFlag('--compact') ? false : cfg.verbose);
@@ -779,7 +772,7 @@ async function main() {
       color: colorOk,
       verbose: isVerbose,
       timer: showTimer,
-      mode: isIcon ? 'icon' : 'text',
+      mode: labelMode,
       segments,
       // macOS builds of Claude Code have rendered only the first line of a
       // multi-line statusline in some versions (anthropics/claude-code#35176)

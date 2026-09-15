@@ -10,12 +10,25 @@
 export async function run({ args }) {
     const { applyMode, loadConfig, configPath, statuslineDefaults, userLanguage, VALID_KEYWORDS } =
       await import('../config.js');
+    const { resolveLabelMode, isJetBrainsTerminal } = await import('../statusline-mode.js');
     const words = args.slice(1);
     if (words.length === 0) {
       const eff = statuslineDefaults();
       const raw = loadConfig();
       console.log('Statusline (effective):');
       console.log(`  icon:    ${eff.icon}`);
+      // What actually renders can differ from `icon` above: inside IntelliJ the
+      // labels are downgraded to text for the Claude Code plugin's statusline
+      // widget. Saying so here is the difference between a two-second answer
+      // and a hunt through the source for why `--icon` did nothing.
+      const { mode: labelMode, reason } = resolveLabelMode({ cfg: eff });
+      if (isJetBrainsTerminal()) {
+        const hint = reason === 'intellij-guard'
+          ? ' — IntelliJ guard; enable with `sprag mode icon-force`'
+          : ' — IntelliJ guard lifted by icon-force';
+        console.log(`  renders: ${labelMode}${hint}`);
+      }
+      console.log(`  icon-force: ${eff.iconForce}`);
       console.log(`  verbose: ${eff.verbose}`);
       console.log(`  timer:   ${eff.timer}`);
       console.log(`  color:   ${eff.color}`);
@@ -40,7 +53,11 @@ export async function run({ args }) {
     }
     const eff = statuslineDefaults();
     console.log(`Updated: ${applied.join(', ')}`);
-    console.log(`Now: icon=${eff.icon} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
+    console.log(`Now: icon=${eff.icon} icon-force=${eff.iconForce} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
+    if (isJetBrainsTerminal()) {
+      const { mode: labelMode } = resolveLabelMode({ cfg: eff });
+      console.log(`Renders as: ${labelMode} (IntelliJ detected)`);
+    }
     console.log('Statusline picks up the change on the next refresh (~1s).');
     return;
 }
