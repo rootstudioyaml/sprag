@@ -268,6 +268,33 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
  * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, month, saved, delegated, doc2md, ctx, period, `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
+/**
+ * Default segment order, most actionable first. A rate-limit block or a full
+ * context window stops the work outright, so those lead. Cache and cost numbers
+ * shape habits rather than the next keystroke, and harness / Korean-style are
+ * near-constant identity: they sit at the tail, where a narrow terminal clips
+ * the least useful end of the line instead of the most useful one.
+ *
+ * `version` is listed once, at its identity position. formatReport() moves it
+ * forward when an upgrade is actually available, since it becomes an
+ * "act on this" chip then.
+ *
+ * Exported so a test can assert every name here is one the renderer knows:
+ * the order list and the segment registry are separate structures, and a name
+ * added to only one of them would be dropped in silence.
+ */
+export const DEFAULT_SEGMENT_ORDER = [
+  'cap-warn', 'spike',
+  'usage', 'ctx',
+  'ttl', 'hit',
+  // Delegation savings stay next to the model that would otherwise have done
+  // the work. "Cache saved" is a lifetime brag stat, so it closes the group.
+  'model', 'delegated', 'doc2md', 'month', 'saved',
+  'harness', 'korean', 'version',
+  // The period label closes the line as a quiet timeframe footer.
+  'period',
+];
+
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
   const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model } = data;
   const { hitRate } = summary;
@@ -635,7 +662,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // a glance at the bar conveys urgency faster than parsing a percent number,
     // and the gauge stays the same width as the percent climbs.
     // LiteLLM 예산 윈도우는 퍼센트만으로는 감이 안 오므로(예산 크기를 모름)
-    // 금액을 함께 보여 준다: `🔑 budget ▰▱ 34% $34/$100`.
+    // 금액을 함께 보여 준다: `💳 budget ▰▱ 34% $34/$100`.
     const money =
       Number.isFinite(info.maxBudget) && info.maxBudget > 0
         ? ` ${formatMoney(Number(info.spend) || 0)}/${formatMoney(info.maxBudget)}`
@@ -729,26 +756,15 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
   }
 
-  // Default order, most actionable first. A rate-limit block or a full context
-  // window stops the work outright, so those lead. Cache and cost numbers shape
-  // habits rather than the next keystroke, and harness / Korean-style are
-  // near-constant identity — they sit at the tail, where a narrow terminal
-  // clips the least useful end of the line instead of the most useful one.
-  const defaultOrder = [
-    'cap-warn', 'spike',
-    // An available upgrade is an "act on this" chip. With nothing to upgrade
-    // to, the same segment is pure identity and moves to the tail.
-    ...(updateAvailable ? ['version'] : []),
-    'usage', 'ctx',
-    'ttl', 'hit',
-    // Delegation savings stay next to the model that would otherwise have done
-    // the work. "Cache saved" is a lifetime brag stat, so it closes the group.
-    'model', 'delegated', 'doc2md', 'month', 'saved',
-    'harness', 'korean',
-    ...(updateAvailable ? [] : ['version']),
-    // The period label closes the line as a quiet timeframe footer.
-    'period',
-  ];
+  // An available upgrade is an "act on this" chip, so it moves up behind the
+  // warning chips. With nothing to upgrade to it stays pure identity, at the
+  // tail position DEFAULT_SEGMENT_ORDER gives it.
+  let defaultOrder = DEFAULT_SEGMENT_ORDER;
+  if (updateAvailable) {
+    const rest = DEFAULT_SEGMENT_ORDER.filter((n) => n !== 'version');
+    const usageAt = rest.indexOf('usage');
+    defaultOrder = [...rest.slice(0, usageAt), 'version', ...rest.slice(usageAt)];
+  }
 
   // A caller-supplied list sets the filter AND the order. Warning chips keep
   // the lead wherever they were written: being seen first is their whole job,

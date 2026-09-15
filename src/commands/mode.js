@@ -24,8 +24,8 @@ export async function run({ args }) {
       const { mode: labelMode, reason } = resolveLabelMode({ cfg: eff });
       if (isJetBrainsTerminal()) {
         const hint = reason === 'intellij-guard'
-          ? ' — IntelliJ guard; enable with `sprag mode icon-force`'
-          : ' — IntelliJ guard lifted by icon-force';
+          ? ' (IntelliJ guard; enable with `sprag mode icon-force`)'
+          : ' (IntelliJ guard lifted by icon-force)';
         console.log(`  renders: ${labelMode}${hint}`);
       }
       console.log(`  icon-force: ${eff.iconForce}`);

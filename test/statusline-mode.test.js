@@ -41,13 +41,37 @@ test('the persisted icon-force flag lifts it too, so wrappers need no edit', () 
   assert.equal(r.mode, 'icon');
 });
 
-test('an explicit opt-out beats the escape hatch in both forms', () => {
+test('an explicit opt-out beats the escape hatch, and names itself', () => {
   const env = { ...JB, SPRAG_ICON: 'force' };
   for (const flag of ['--text', '--no-icon']) {
     const r = resolveLabelMode({ hasFlag: flags(flag), cfg: { icon: true, iconForce: true }, env });
     assert.equal(r.mode, 'text', `${flag} must win`);
-    assert.equal(r.reason, 'flag:--text');
+    // Reported separately so the diagnostic line can name the flag the user
+    // actually typed rather than a stand-in for both.
+    assert.equal(r.reason, `flag:${flag}`);
   }
+});
+
+test('the escape hatch is scoped to the IntelliJ guard and nothing else', () => {
+  // Outside IntelliJ there is no guard to lift, and `icon` / `text` already own
+  // the choice. Forcing there would mean `sprag mode text` could not turn icons
+  // off while icon-force was set.
+  const forced = { icon: false, iconForce: true };
+  assert.equal(resolveLabelMode({ cfg: forced, env: PLAIN }).mode, 'text');
+  assert.equal(
+    resolveLabelMode({ cfg: { icon: false }, env: { ...PLAIN, SPRAG_ICON: 'force' } }).mode,
+    'text',
+  );
+  // The same config does lift it inside IntelliJ, which is the whole point.
+  assert.equal(resolveLabelMode({ cfg: { icon: true, iconForce: true }, env: JB }).mode, 'icon');
+});
+
+test('an empty config falls back to icons, matching statuslineDefaults', () => {
+  // statuslineDefaults() reports icon=true for a fresh install, so the resolver
+  // must agree when handed a config object that has no `icon` key at all.
+  const r = resolveLabelMode({ cfg: {}, env: PLAIN });
+  assert.equal(r.mode, 'icon');
+  assert.equal(r.reason, 'config');
 });
 
 test('SPRAG_ICON only forces on the exact value, case and padding aside', () => {

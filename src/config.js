@@ -41,7 +41,9 @@ const KEYWORDS = {
   icon:       { key: 'icon',    value: true  },
   text:       { key: 'icon',    value: false },
   // Opt back into icons inside IntelliJ, where they are downgraded by default
-  // for the plugin's statusline widget. See src/statusline-mode.js.
+  // for the plugin's statusline widget. Scoped to that guard only: outside
+  // IntelliJ it changes nothing, because `icon` / `text` already decide there.
+  // See src/statusline-mode.js.
   'icon-force':    { key: 'iconForce', value: true  },
   'no-icon-force': { key: 'iconForce', value: false },
   verbose:    { key: 'verbose', value: true  },

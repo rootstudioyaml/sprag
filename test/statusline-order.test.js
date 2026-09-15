@@ -7,7 +7,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatReport } from '../src/formatters/statusline.js';
+import { formatReport, DEFAULT_SEGMENT_ORDER } from '../src/formatters/statusline.js';
 
 function data({ fiveHourPct = 31, sevenDayPct = 10 } = {}) {
   return {
@@ -17,7 +17,7 @@ function data({ fiveHourPct = 31, sevenDayPct = 10 } = {}) {
     options: { days: 1, windowLabel: '1d' },
     lastActivity: Date.now(),
     contextWindow: { size: '200k', maxContext: 100000 },
-    ctxLive: { pct: 47, size: '1M' },
+    ctxLive: { usedPct: 47, size: 1_000_000 },
     spikeChip: null,
     caps: {
       windows: [
@@ -94,4 +94,37 @@ test('`usage` selects every rate-limit window at once', () => {
   assert.match(line, /✦/);
   assert.match(line, /📅/);
   assert.equal(at(line, '📦'), -1, 'and nothing else');
+});
+
+test('the live context reading is what renders, not the fallback', () => {
+  // Guards the test data itself: an earlier version passed `pct` where the
+  // renderer reads `usedPct`, so every ordering assertion here was silently
+  // exercising the contextWindow fallback instead of the live path.
+  const line = formatReport(data(), { ...opts, verbose: true, segments: ['ctx'] });
+  assert.match(line, /47%/, 'the live percentage renders');
+  assert.doesNotMatch(line, /200k/, 'the fallback size must not be what we see');
+});
+
+test('every name in the default order is one the renderer knows', () => {
+  // The order list and the segment registry are separate structures. A name
+  // added to only one of them would be dropped without a word, so assert that
+  // each default name actually produces a chip when data for it exists.
+  const rich = {
+    ...data({ fiveHourPct: 95 }),           // 90%+ so the cap-warn chip exists
+    options: { days: 1, windowLabel: '1d', version: '3.0.0' },
+    spikeChip: '⚠ Input spike',
+    delegationSaved: 3.2,
+    doc2mdTotals: { total: 1.8, docs: 3 },
+    monthSpend: { label: 'Sep', usd: 804 },
+    update: { available: true, latest: '9.9.9' },
+  };
+  const missing = [];
+  for (const name of DEFAULT_SEGMENT_ORDER) {
+    const line = formatReport(rich, { ...opts, segments: [name] });
+    // A rendered line always carries the erase-to-EOL suffix, so compare on the
+    // visible text only.
+    const visible = line.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').trim();
+    if (visible === '') missing.push(name);
+  }
+  assert.deepEqual(missing, [], `default order names that render nothing: ${missing.join(', ')}`);
 });

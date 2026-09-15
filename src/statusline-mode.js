@@ -22,6 +22,12 @@ export function isJetBrainsTerminal(env = process.env) {
 /**
  * Whether the user has explicitly asked for icons inside IntelliJ regardless.
  *
+ * Scope: this lifts the IntelliJ guard and nothing else. It is not a general
+ * "always icons" switch, and outside IntelliJ it is never consulted — there is
+ * no guard there to lift, and `icon` / `text` already own that choice. Letting
+ * it win everywhere would mean `sprag mode text` could no longer turn icons off
+ * while it was set, which is a worse trade than the narrow name.
+ *
  * The guard below exists for the IntelliJ Claude Code *plugin*, whose
  * statusline widget fuses consecutive frames at the character level when emoji
  * are present ("59:548"). JediTerm itself renders our output cleanly, so a user
@@ -48,14 +54,18 @@ export function iconForceRequested({ cfg = {}, env = process.env } = {}) {
  * @param {object} [opts.env] environment to read
  * @returns {{ mode: 'icon'|'text', reason: string }} `reason` names the rule
  *   that decided, so `sprag mode` can explain a downgrade instead of leaving
- *   the user to guess why `--icon` did nothing.
+ *   the user to guess why `--icon` did nothing. One of `flag:--no-icon`,
+ *   `flag:--text`, `intellij-guard`, `intellij-forced`, `flag:--icon`, `config`.
+ *
+ * Precedence: explicit opt-out, then the IntelliJ guard (and the escape hatch
+ * out of it, which applies only there), then `--icon`, then persisted config.
  */
 export function resolveLabelMode({ hasFlag = () => false, cfg = {}, env = process.env } = {}) {
   // An explicit opt-out wins everywhere. Nothing below should talk a user out
-  // of the mode they just asked for.
-  if (hasFlag('--no-icon') || hasFlag('--text')) {
-    return { mode: 'text', reason: 'flag:--text' };
-  }
+  // of the mode they just asked for. The two flags are reported separately so
+  // the diagnostic line names the flag the user actually typed.
+  if (hasFlag('--no-icon')) return { mode: 'text', reason: 'flag:--no-icon' };
+  if (hasFlag('--text')) return { mode: 'text', reason: 'flag:--text' };
   if (isJetBrainsTerminal(env)) {
     if (!iconForceRequested({ cfg, env })) {
       return { mode: 'text', reason: 'intellij-guard' };
@@ -63,5 +73,9 @@ export function resolveLabelMode({ hasFlag = () => false, cfg = {}, env = proces
     return { mode: 'icon', reason: 'intellij-forced' };
   }
   if (hasFlag('--icon')) return { mode: 'icon', reason: 'flag:--icon' };
-  return { mode: cfg.icon ? 'icon' : 'text', reason: 'config' };
+  // `!== false` rather than truthiness, to match statuslineDefaults(): icons are
+  // the default and only an explicit `mode text` turns them off. A truthy test
+  // would read a config object that simply has no `icon` key as "text", which is
+  // the opposite of what a fresh install renders.
+  return { mode: cfg.icon !== false ? 'icon' : 'text', reason: 'config' };
 }
