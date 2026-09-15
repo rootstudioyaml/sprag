@@ -163,5 +163,13 @@ Add the changelog section if it is missing, draft and translate as in steps 1 an
 2, then run step 5 alone. The tag and the npm package are already correct; only
 the release body is missing, and `--publish` creates it against the existing tag.
 
-That is how v3.45.0 is being fixed: its notes are at `docs/releases/v3.45.0.md`,
-translated and committed, waiting for a network that can post them.
+## Pending as of 91c693d
+
+Two releases have their steps 1 and 2 done — changelog written, notes drafted and
+translated — and are waiting for a network that can perform the writes:
+
+- **v3.45.0** is tagged and on npm with no release body. Run step 5 alone.
+- **v3.46.0** is not tagged yet. Run steps 3 through 6.
+
+Both drafts are in `docs/releases/`. Nothing has to be carried across by hand;
+`git pull` is enough.
