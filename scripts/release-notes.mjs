@@ -36,11 +36,14 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sectionFor } from '../src/changelog.js';
+import { sectionFor, DRAFT_MARKER, KO_HEADING, needsReview } from '../src/changelog.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_SLUG = 'rootstudioyaml/sprag';
-const TODO = '<!-- TRANSLATE: review this draft before publishing -->';
+// The draft still needs a pass before it goes out — the changelog entry is
+// written for a reader who has the repository open, and the release is read by
+// someone deciding whether to upgrade. The marker is what `--publish` refuses on,
+// and it is defined in src/changelog.js so that deploy.mjs gates on the same one.
 
 function usage(msg) {
   if (msg) console.error(`release-notes: ${msg}`);
@@ -70,8 +73,8 @@ if (!publish) {
   // A draft that has already been translated must not be silently replaced with
   // the raw extraction. Re-running this after translating is an easy mistake —
   // it is the same command — and the work it discards is the work that matters.
-  if (!force && existsSync(draftPath) && !readFileSync(draftPath, 'utf8').includes(TODO)) {
-    console.error(`release-notes: ${shown(draftPath)} exists and carries no TRANSLATE marker,`);
+  if (!force && existsSync(draftPath) && !needsReview(readFileSync(draftPath, 'utf8'))) {
+    console.error(`release-notes: ${shown(draftPath)} exists and carries no REVIEW marker,`);
     console.error('  so it has been translated already. Re-extracting would discard that.');
     console.error('  Publish it as it stands:');
     console.error(`    node scripts/release-notes.mjs ${version} --publish`);
@@ -79,7 +82,24 @@ if (!publish) {
     process.exit(1);
   }
   mkdirSync(DRAFT_DIR, { recursive: true });
-  writeFileSync(draftPath, `${TODO}\n\n${body}\n`);
+  // The changelog is written in Korean, and the notice reads whichever half
+  // matches the reader's `lang`. So the draft is scaffolded as both halves: the
+  // extracted Korean below its heading, and an empty English half above it for
+  // the editor to fill. Publishing one language only still works — a body with
+  // no Korean heading is read by everyone — but then Korean readers get English.
+  const scaffold = [
+    DRAFT_MARKER,
+    '',
+    '<!-- English half: one bullet per area, each a complete sentence. -->',
+    '',
+    '---',
+    '',
+    KO_HEADING,
+    '',
+    body,
+    '',
+  ].join('\n');
+  writeFileSync(draftPath, scaffold);
   const korean = (body.match(/[가-힣]/g) || []).length;
   const bullets = body.split('\n').filter((l) => /^\s*[-*+]\s/.test(l));
   console.log(`draft: ${shown(draftPath)}`);
@@ -95,11 +115,13 @@ if (!publish) {
   console.log('');
   console.log('  The session-start upgrade offer shows the FIRST SENTENCE of the FIRST THREE');
   console.log('  bullets, so those three lines are what most users will ever read of this');
-  console.log('  release. Open the body with one bullet per area of the release, each a');
-  console.log('  complete sentence, and put the per-area detail in sections below them.');
+  console.log('  release. Open each half with one bullet per area, each a complete sentence,');
+  console.log('  and put the per-area detail in sections below them.');
+  console.log(`  The half above "${KO_HEADING}" is read by English users, the half below it by`);
+  console.log('  Korean ones. Fill in the English half before publishing.');
   if (bullets.length) {
     console.log('');
-    console.log('  As written, the offer would show:');
+    console.log('  As written, a Korean reader would be shown:');
     for (const b of bullets.slice(0, 3)) {
       const plain = b.replace(/^\s*[-*+]\s+/, '')
         .replace(/`([^`]*)`/g, '$1')
@@ -120,8 +142,8 @@ if (!existsSync(draftPath)) {
   usage(`no draft at ${shown(draftPath)} — run without --publish first`);
 }
 const draft = readFileSync(draftPath, 'utf8');
-if (draft.includes(TODO)) {
-  console.error('release-notes: the draft still carries the TRANSLATE marker.');
+if (needsReview(draft)) {
+  console.error('release-notes: the draft still carries the REVIEW marker.');
   console.error(`  Edit ${shown(draftPath)}, remove that line, then publish.`);
   process.exit(1);
 }

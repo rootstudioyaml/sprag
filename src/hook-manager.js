@@ -12,6 +12,7 @@
 import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { CLI_NAME } from './cli-name.js';
 
 const SETTINGS_PATH = join(homedir(), '.claude', 'settings.json');
 // Legacy copied-file location — removed on install/uninstall so machines that
@@ -48,7 +49,7 @@ export async function installHook({ threshold = 0.7 } = {}) {
     hooks: [
       {
         type: 'command',
-        command: `claude-token-saver --hook-run --threshold ${threshold}`,
+        command: `${CLI_NAME} --hook-run --threshold ${threshold}`,
         timeout: 10,
       },
     ],
@@ -59,7 +60,7 @@ export async function installHook({ threshold = 0.7 } = {}) {
   // Clean up the legacy copy left by older versions.
   await rm(LEGACY_HOOK_DEST, { force: true }).catch(() => {});
 
-  console.log('✓ Hook installed (PostToolUse → claude-token-saver --hook-run)');
+  console.log(`✓ Hook installed (PostToolUse → ${CLI_NAME} --hook-run)`);
   console.log(`  Settings updated: ${SETTINGS_PATH}`);
   console.log(`  Threshold: ${(threshold * 100).toFixed(0)}%`);
   console.log(`  Stats file: ~/.claude/cache-stats.jsonl`);

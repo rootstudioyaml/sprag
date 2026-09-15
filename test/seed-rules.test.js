@@ -12,6 +12,7 @@ import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { CLI_NAME } from '../src/cli-name.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = join(ROOT, 'bin', 'cli.js');
@@ -118,7 +119,8 @@ test('the SessionStart offer carries no Korean for an English user, and Korean f
     const enOut = execFileSync(process.execPath, [CLI, 'route-scan', '--hook'], {
       env: en.env, encoding: 'utf8', input: '{"hook_event_name":"SessionStart"}', timeout: 120_000,
     });
-    assert.match(enOut, /\[claude-token-saver seed\]/);
+    assert.ok(enOut.includes(`[${CLI_NAME} seed]`),
+      'the offer is tagged with the command name the user would type');
     assert.doesNotMatch(enOut, /[가-힣]/, 'no Korean may leak into an English session context');
 
     const koOut = execFileSync(process.execPath, [CLI, 'route-scan', '--hook'], {
@@ -162,11 +164,11 @@ test('the offer leads with registering everything, in both languages', () => {
 
       // The count is interpolated, not spelled out: a stale literal would tell the
       // user a different number from the list printed right below it.
-      const header = lines.find((l) => l.includes('[claude-token-saver seed]'));
+      const header = lines.find((l) => l.includes(`[${CLI_NAME} seed]`));
       assert.ok(header, `${lang}: the offer has a header`);
       const n = Number((header.match(/(\d+)/) || [])[1]);
       assert.ok(n > 1, `${lang}: the header states how many are pending`);
-      const ordering = lines.find((l) => l.includes('seed accept all --global'));
+      const ordering = lines.find((l) => l.includes(`${CLI_NAME} seed accept all --global`));
       assert.ok(lines.some((l) => l !== header && l.includes(String(n))),
         `${lang}: the count appears again in the guidance rather than a hardcoded figure`);
       assert.ok(ordering, `${lang}: the bulk command is spelled out`);
@@ -184,7 +186,7 @@ test('a rule line carries exactly one pair of quotes around the work type', () =
     const out = execFileSync(process.execPath, [CLI, 'route-scan', '--hook'], {
       env: s.env, encoding: 'utf8', input: '{"hook_event_name":"SessionStart"}', timeout: 120_000,
     });
-    const offer = out.slice(out.indexOf('[claude-token-saver seed]'));
+    const offer = out.slice(out.indexOf(`[${CLI_NAME} seed]`));
     assert.doesNotMatch(offer, /""/, 'no doubled quotes in the rendered offer');
   } finally {
     rmSync(s.dir, { recursive: true, force: true });

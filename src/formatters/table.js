@@ -2,6 +2,7 @@
  * Terminal table formatter — zero dependencies.
  */
 import { ISSUE_MESSAGES } from '../advice.js';
+import { CLI_NAME } from '../cli-name.js';
 import { formatResetIn, formatResetClock } from '../format-time.js';
 import { labelForKey } from '../window-labels.js';
 
@@ -139,7 +140,7 @@ function renderSpikeSection(spikes, contextWindow) {
       lines.push('');
     }
   }
-  lines.push(rbl('  ▶ 상세 처치법: ') + rb('claude-token-saver last'));
+  lines.push(rbl('  ▶ 상세 처치법: ') + rb(`${CLI_NAME} last`));
   lines.push('');
   return lines;
 }
@@ -165,10 +166,10 @@ function renderCapWarnSection(caps) {
   }
   lines.push('');
   lines.push(r('  Back up work before the cap hits:'));
-  lines.push(rb('    claude-token-saver handoff'));
+  lines.push(rb(`    ${CLI_NAME} handoff`));
   lines.push(r('  (writes a HANDOFF-*.md so a fresh session can pick up.)'));
   lines.push('');
-  lines.push(rbl('  ▶ 상세 처치법: ') + rb('claude-token-saver last'));
+  lines.push(rbl('  ▶ 상세 처치법: ') + rb(`${CLI_NAME} last`));
   lines.push('');
   return lines;
 }
@@ -179,7 +180,7 @@ export function formatReport({ summary: sum, trend, ttl, anomalies, cost, option
   // Header
   lines.push('');
   lines.push(`  Claude Token Saver — Last ${options.days} day${options.days === 1 ? '' : 's'}`);
-  lines.push(`  (claude-token-saver v${options.version || ''})`.trimEnd());
+  lines.push(`  (${CLI_NAME} v${options.version || ''})`.trimEnd());
   lines.push(`  ${'═'.repeat(50)}`);
   lines.push('');
 

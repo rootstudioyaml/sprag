@@ -24,6 +24,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { CLI_NAME } from './cli-name.js';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -242,7 +243,7 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
   const fixes = pending.filter((s) => s.kind === 'ratchet');
   const lines = [];
   if (lang === 'ko') {
-    lines.push(`[claude-token-saver seed] 아직 등록되지 않은 추천 룰이 ${pending.length}건 있습니다 (패키지 동봉 프리셋).`);
+    lines.push(`[${CLI_NAME} seed] 아직 등록되지 않은 추천 룰이 ${pending.length}건 있습니다 (패키지 동봉 프리셋).`);
     lines.push('**이 세션의 첫 응답에서 다른 작업보다 먼저 물어보십시오.** 사용자가 먼저 꺼낸 용건이 있으면 그 답변을 마친 직후에 이어서 묻고, 용건이 끝나기를 기다리지 마십시오. 사용자가 이 안내 문구에 대해 질문할 때까지 미루면 안 됩니다.');
     lines.push(`첫 질문에서 다음 네 선택지를 **이 순서대로** 제시하십시오. ${pending.length}건을 한 건씩 답하는 것은 대부분의 사용자에게 과한 부담이므로, 일괄 등록이 맨 앞에 옵니다.`);
     lines.push('  1. 전부 글로벌로 등록 — `seed accept all --global`');
@@ -263,11 +264,11 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
       lines.push(`  · 래칫 룰 ${fixes.length}건 — 같은 실수를 반복하지 않도록 세션마다 읽히는 규칙입니다.`);
       for (const s of fixes) lines.push(`    [${s.id}] ${s.ruleText}`);
     }
-    lines.push('  일괄: claude-token-saver seed accept all --global|--project   # 적용 범위는 반드시 사용자에게 확인');
-    lines.push('  개별: claude-token-saver seed accept <id> --global|--project');
-    lines.push('  거절: claude-token-saver seed skip <id>|all                    # 다시 묻지 않습니다');
+    lines.push(`  일괄: ${CLI_NAME} seed accept all --global|--project   # 적용 범위는 반드시 사용자에게 확인`);
+    lines.push(`  개별: ${CLI_NAME} seed accept <id> --global|--project`);
+    lines.push(`  거절: ${CLI_NAME} seed skip <id>|all                    # 다시 묻지 않습니다`);
   } else {
-    lines.push(`[claude-token-saver seed] ${pending.length} recommended rule(s) from the bundled presets are not registered yet.`);
+    lines.push(`[${CLI_NAME} seed] ${pending.length} recommended rule(s) from the bundled presets are not registered yet.`);
     lines.push('**Ask in your very first reply of this session, before anything else.** If the user opened with their own request, answer it and then ask right away; do not wait for their task to finish, and never wait until they ask about this notice.');
     lines.push(`Offer these four choices, **in this order**. Answering ${pending.length} rules one by one is more than most users want to do, so registering them all comes first.`);
     lines.push('  1. Register all, globally — `seed accept all --global`');
@@ -288,9 +289,9 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
       lines.push(`  · ${fixes.length} ratchet rule(s) — read at the start of every session so the same mistake is not repeated.`);
       for (const s of fixes) lines.push(`    [${s.id}] ${s.ruleText}`);
     }
-    lines.push('  all:      claude-token-saver seed accept all --global|--project   # ALWAYS confirm the scope with the user');
-    lines.push('  one:      claude-token-saver seed accept <id> --global|--project');
-    lines.push('  decline:  claude-token-saver seed skip <id>|all                    # never offered again');
+    lines.push(`  all:      ${CLI_NAME} seed accept all --global|--project   # ALWAYS confirm the scope with the user`);
+    lines.push(`  one:      ${CLI_NAME} seed accept <id> --global|--project`);
+    lines.push(`  decline:  ${CLI_NAME} seed skip <id>|all                    # never offered again`);
   }
   return lines.join('\n');
 }

@@ -138,3 +138,157 @@ test('an explicitly non-Korean locale variable wins over the macOS system locale
   assert.equal(koreanLocaleDetected({ env: { LANGUAGE: 'ko:en' }, platform: 'linux' }), true);
   assert.equal(koreanLocaleDetected({ env: { LANG: 'C' }, platform: 'linux' }), false);
 });
+
+test('a fresh install writes the canonical command name, not the legacy one', () => {
+  // Both binaries ship, so either works — but the package is `sprag-cli`, and a
+  // user reading their own settings.json should not find a name they never typed.
+  const dir = mkdtempSync(join(tmpdir(), 'cts-name-'));
+  const home = join(dir, 'home');
+  mkdirSync(home, { recursive: true });
+  try {
+    execFileSync(process.execPath, [CLI, 'install'], {
+      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const written = [settings.statusLine?.command || ''];
+    for (const entries of Object.values(settings.hooks || {})) {
+      for (const e of entries) for (const h of (e.hooks || [])) written.push(h.command || '');
+    }
+    assert.ok(written.length > 5, 'install writes a statusline and several hooks');
+    for (const cmd of written) {
+      assert.doesNotMatch(cmd, /claude-token-saver/, `a fresh install must not write the legacy name: ${cmd}`);
+      assert.match(cmd, /^sprag /, `every entry invokes the canonical binary: ${cmd}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an existing legacy entry is recognised, not duplicated beside a new one', () => {
+  // The asymmetry that matters: entries already on disk carry the old name, so
+  // anything recognising our own work has to accept both. Narrowing that check to
+  // the new name would make install add a second hook next to the first.
+  const dir = mkdtempSync(join(tmpdir(), 'cts-legacy-'));
+  const home = join(dir, 'home');
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  const legacy = (cmd) => ({ type: 'command', command: cmd, timeout: 10 });
+  writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({
+    statusLine: { type: 'command', command: 'claude-token-saver --statusline --icon' },
+    hooks: {
+      SessionStart: [{ matcher: 'startup|clear', hooks: [legacy('claude-token-saver route-scan --hook')] }],
+      UserPromptSubmit: [{ matcher: '*', hooks: [legacy('claude-token-saver brief --hook')] }],
+    },
+  }, null, 2));
+  try {
+    execFileSync(process.execPath, [CLI, 'install'], {
+      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const count = (event, needle) => (settings.hooks[event] || [])
+      .flatMap((e) => e.hooks || [])
+      .filter((h) => (h.command || '').includes(needle)).length;
+    assert.equal(count('SessionStart', 'route-scan --hook'), 1, 'the session-start hook stays single');
+    assert.equal(count('UserPromptSubmit', 'brief --hook'), 1, 'the brief hook stays single');
+    // The user's own statusline entry is left as they have it, legacy name and all.
+    assert.match(settings.statusLine.command, /claude-token-saver/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('uninstall leaves entries that merely mention our name in a path', () => {
+  // `uninstall` deletes whatever the recognition check claims, so the check has
+  // to read the executable rather than search the whole string. `sprag` is five
+  // characters: a substring test claims a probe script under a path containing
+  // it, and anyone's wrapper named after it, then removes them as ours. The probe
+  // entry below is a real one — it was in the author's settings when this was
+  // written, which is how the oversight surfaced.
+  const dir = mkdtempSync(join(tmpdir(), 'cts-foreign-'));
+  const home = join(dir, 'home');
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  const entry = (cmd) => ({ type: 'command', command: cmd, timeout: 10 });
+  const foreign = [
+    'node /Users/someone/.claude/probe/sprag-probe.mjs',
+    'my-sprag-wrapper --run',
+    'bash ~/.claude/statusline-command.sh',
+  ];
+  writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({
+    hooks: {
+      SessionStart: [
+        { matcher: 'startup|clear', hooks: [entry('sprag route-scan --hook'), entry(foreign[0])] },
+        { matcher: '*', hooks: [entry(foreign[1])] },
+      ],
+      UserPromptSubmit: [{ matcher: '*', hooks: [entry(foreign[2])] }],
+    },
+  }, null, 2));
+  const env = {
+    ...process.env, HOME: home, USERPROFILE: home,
+    XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en',
+  };
+  try {
+    execFileSync(process.execPath, [CLI, 'uninstall'], {
+      env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const left = Object.values(settings.hooks || {})
+      .flatMap((entries) => entries.flatMap((e) => e.hooks || []))
+      .map((h) => h.command || '');
+    for (const cmd of foreign) {
+      assert.ok(left.includes(cmd), `uninstall must not remove someone else's entry: ${cmd}`);
+    }
+    // And it still removes ours, or the check above would pass by doing nothing.
+    assert.ok(!left.some((c) => /^sprag /.test(c)), `our own entries should be gone: ${left.join(' | ')}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('install recognises an entry invoked through a wrapper, and adds no second one', () => {
+  // The same check that must not over-claim must not under-claim either: an entry
+  // run through `npx` or an absolute path is legitimately ours, and failing to
+  // see it puts a duplicate hook beside it.
+  const dir = mkdtempSync(join(tmpdir(), 'cts-wrapped-'));
+  const home = join(dir, 'home');
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  const entry = (cmd) => ({ type: 'command', command: cmd, timeout: 10 });
+  writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({
+    hooks: {
+      SessionStart: [{ matcher: 'startup|clear', hooks: [entry('npx sprag-cli route-scan --hook')] }],
+      UserPromptSubmit: [{ matcher: '*', hooks: [entry('/usr/local/bin/sprag brief --hook')] }],
+    },
+  }, null, 2));
+  try {
+    execFileSync(process.execPath, [CLI, 'install'], {
+      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    const count = (event, needle) => (settings.hooks[event] || [])
+      .flatMap((e) => e.hooks || [])
+      .filter((h) => (h.command || '').includes(needle)).length;
+    assert.equal(count('SessionStart', 'route-scan --hook'), 1, 'the wrapped session-start hook stays single');
+    assert.equal(count('UserPromptSubmit', 'brief --hook'), 1, 'the wrapped brief hook stays single');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('every package manager upgradeCommand names can also invoke a hook', () => {
+  // The two lists drifted once: `upgradeCommand` printed yarn instructions while
+  // the recognition check knew npx, bunx and pnpm dlx only, so a yarn user's
+  // entry read as someone else's and install added a second hook beside it. Both
+  // hooks then run on every prompt. This pins the pair rather than the wording.
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'update-check.js'), 'utf8');
+  const fn = (src.match(/export function upgradeCommand\(\)[\s\S]*?\n\}/) || [])[0] || '';
+  const managers = new Set();
+  for (const m of fn.matchAll(/`(pnpm|bun|yarn|npm) /g)) managers.add(m[1]);
+  assert.ok(managers.size >= 4, `upgradeCommand should cover several managers, saw ${[...managers]}`);
+  const installer = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'installer.js'), 'utf8');
+  const known = (installer.match(/const RUNNER_SUBCOMMANDS = \{[^}]*\}/) || [''])[0];
+  for (const mgr of managers) {
+    assert.ok(known.includes(`${mgr}:`),
+      `isOurCommand must know how ${mgr} invokes a binary — upgradeCommand tells users to install with it`);
+  }
+});
