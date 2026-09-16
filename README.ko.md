@@ -8,20 +8,18 @@
 **AI 코딩 에이전트용 품질 래칫**<br>**같은 실수는 두 번 없습니다**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
-[![downloads](https://img.shields.io/npm/dm/claude-token-saver.svg)](https://www.npmjs.com/package/claude-token-saver)
+[![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-[sprag.io](https://sprag.io) · [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) · [English](https://github.com/rootstudioyaml/sprag/blob/main/README.md)
+[English](https://github.com/rootstudioyaml/sprag/blob/main/README.md) · [한국어](https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md)
+
+[sprag.io](https://sprag.io) · [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
 
 </div>
 
 ---
 
----
-
-# Sprag
-
-**AI 코딩 에이전트에 거는 품질 래칫입니다. 에이전트는 그대로 일하고, 퇴행만 막습니다.** 이름은 스프래그 클러치에서 왔습니다. 앞으로 도는 힘은 그대로 통과시키고, 역회전하는 순간 잠기는 부품입니다. Sprag는 Claude Code가 이미 남기는 세션 기록을 읽어 누적되는 이득으로 바꿉니다. 되풀이된 실패는 세션마다 올라오는 규칙이 되고, 저렴한 티어가 감당한다고 증명된 작업은 절감액 원장을 영수증 삼아 그쪽으로 위임되며, 캐시와 사용량 한도 문제는 아직 손쓸 수 있을 때 statusline에 나타납니다.
+**에이전트는 그대로 일하고, 퇴행만 막습니다.** 이름은 스프래그 클러치에서 왔습니다. 앞으로 도는 힘은 그대로 통과시키고, 역회전하는 순간 잠기는 부품입니다. Sprag는 Claude Code가 이미 남기는 세션 기록을 읽어 누적되는 이득으로 바꿉니다. 되풀이된 실패는 세션마다 올라오는 규칙이 되고, 저렴한 티어가 감당한다고 증명된 작업은 절감액 원장을 영수증 삼아 그쪽으로 위임되며, 캐시와 사용량 한도 문제는 아직 손쓸 수 있을 때 statusline에 나타납니다.
 
 의존성 0, API 키 불요, 데이터는 컴퓨터 밖으로 나가지 않습니다.
 
@@ -29,9 +27,9 @@
 npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입니다
 ```
 
-![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](./docs/statusline.png)
+![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
-## 숫자 네 개
+## 측정 결과
 
 | 지표 | 결과 | | 근거 |
 |---|---|---|---|
@@ -40,25 +38,19 @@ npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입�
 | 문서 토큰 | **−95.8%** · 540,429 → 22,610 | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
 | 메시지당 비용 | **−18.6%** · $2.345 → $1.910 | `▰▰▰▰▰▰▰▰▰▰▱▱` | [실측 리포트](#실제-효과-도입-전후-리포트) |
 
-```text
-                      정확도            총비용 (11,696문항)
-티어 기준 라우터      59.1%  ← 최고     $268  ▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱
-gpt-5                 57.8%             $388  ▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱
-gemini-2.5-pro        57.9%             $734  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-```
 
-라우팅 절감액은 추정치가 아니라 위임 한 건 한 건의 차액을 적은 원장입니다. `sprag route-scan savings` 가 모든 금액을 룰 단위까지 역추적해 보여 줍니다. 집계에서 무엇을 빼는지까지 [원장 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md)에 적어 두었습니다.
+라우팅 절감액은 추정치가 아니라 위임 한 건 한 건의 차액을 적은 원장입니다. `sprag route-scan savings` 가 모든 금액을 룰 단위까지 역추적해 보여 줍니다. 집계에서 무엇을 빼는지까지 [원장 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md)에 적어 두었습니다.
 
 ## 설치 한 번에 전부 들어 있고, 첫날부터 동작합니다
 
 | | 하는 일 | 더 보기 |
 |---|---|---|
-| ⚙️ **래칫 규칙** | 되풀이된 실패가 한 줄짜리 규칙이 되어 매 세션에 올라옵니다. 후보는 기록에서 자동으로 찾아 줍니다. | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.md) |
+| ⚙️ **래칫 규칙** | 되풀이된 실패가 한 줄짜리 규칙이 되어 매 세션에 올라옵니다. 후보는 기록에서 자동으로 찾아 줍니다. | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.ko.md) |
 | 🔀 **모델 피팅** | 기록에서 뽑은 위임 규칙에 측정한 오류율과 절감액을 붙여 `ratchet-model.md`에 적습니다. | [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) |
-| 🅷 **하네스 점수** | 다섯 가지 운영 원칙을 실시간으로 점검합니다. 검증 단계를 건너뛰면 `🅷 4/5`가 먼저 알려 줍니다. | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.md) |
-| 📊 **토큰 텔레메트리** | 캐시 적중률과 TTL, 컨텍스트 크기, 출력 급증, 두 가지 사용량 한도를 매 턴 표시합니다. | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md) |
+| 🅷 **하네스 점수** | 다섯 가지 운영 원칙을 실시간으로 점검합니다. 검증 단계를 건너뛰면 `🅷 4/5`가 먼저 알려 줍니다. | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.ko.md) |
+| 📊 **토큰 텔레메트리** | 캐시 적중률과 TTL, 컨텍스트 크기, 출력 급증, 두 가지 사용량 한도를 매 턴 표시합니다. | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md) |
 | 📄 **doc2md** | pptx와 xlsx, pdf, docx, fig를 필요할 때 Markdown 으로 바꿔 읽습니다. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
-| 🇰🇷 **문체 게이트** | 쓰는 시점에 hook으로 검사합니다. 이중 피동과 번역투, 문장 연결을 살핍니다. | [문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) |
+| 🇰🇷 **문체 게이트** | 쓰는 시점에 hook으로 검사합니다. 이중 피동과 번역투, 문장 연결을 살핍니다. | [문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) |
 
 실측 −18.6%는 하네스와 래칫의 몫이고, 라우팅과 문서 변환 절감액은 그 위에 얹힙니다. 두 절감액은 성격이 달라서 한 숫자로 합치지 않습니다.
 
@@ -69,13 +61,13 @@ gemini-2.5-pro        57.9%             $734  ▰▰▰▰▰▰▰▰▰▰▰�
 🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
-문제가 생기면 경고 칩이 줄 맨 앞으로 옵니다. `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL` 여덟 가지이며, 칩 문구를 그대로 말하면 Skill이 원인 코드와 조치 순서를 꺼내 줍니다. 세그먼트별 의미와 색 기준은 [statusline 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md)에 정리했습니다.
+문제가 생기면 경고 칩이 줄 맨 앞으로 옵니다. `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL` 여덟 가지이며, 칩 문구를 그대로 말하면 Skill이 원인 코드와 조치 순서를 꺼내 줍니다. 세그먼트별 의미와 색 기준은 [statusline 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md)에 정리했습니다.
 
-JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 표시합니다(`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). IDE 기본 폰트에 이모지 글리프가 없어서 그대로 두면 `Cache expires 4:545` 처럼 이전 프레임 문자가 남기 때문입니다. 자세한 사정과 `sprag mode narrow` · `mode icon-force` 사용법은 [statusline 문서의 라벨 모드](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md#라벨-모드)에 있습니다.
+JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 표시합니다(`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). IDE 기본 폰트에 이모지 글리프가 없어서 그대로 두면 `Cache expires 4:545` 처럼 이전 프레임 문자가 남기 때문입니다. 자세한 사정과 `sprag mode narrow` · `mode icon-force` 사용법은 [statusline 문서의 라벨 모드](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md#라벨-모드)에 있습니다.
 
 ## 실제 효과: 도입 전후 리포트
 
-![sprag: harness와 ratchet 도입 효과](./docs/harness-impact.png)
+![sprag: harness와 ratchet 도입 효과](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/harness-impact.png)
 
 harness 5/5 + ratchet을 실제 적용한 전후 비교입니다 (저자 Claude Code 로그, **사용자 메시지 1건당** 정규화, 2026-05-02 기준, Opus 4.7 가격).
 
@@ -99,23 +91,23 @@ harness 5/5 + ratchet을 실제 적용한 전후 비교입니다 (저자 Claude 
 | `sprag harness check` | 🅷 하네스 점수 확인 |
 | `sprag doc2md <파일>` | 문서 한 건을 Markdown 으로 변환 |
 
-전체 명령과 옵션, 출력 언어 설정은 [명령 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md)에 있습니다.
+전체 명령과 옵션, 출력 언어 설정은 [명령 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md)에 있습니다.
 
 ## 더 깊은 내용
 
 | 문서 | 다루는 내용 |
 |---|---|
-| [설치와 기본 설정](https://github.com/rootstudioyaml/sprag/blob/main/docs/INSTALL.md) | 설치 직후 켜지는 기능, 직접 켜야 하는 기능, 끄는 방법 |
-| [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md) | 세그먼트 의미, 경고 칩, 토큰 급증 원인 코드, 업데이트 안내 |
-| [명령](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md) | 전체 서브커맨드와 CLI 옵션 |
-| [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.md) | 5원칙, 래칫 승격, compact-window 고정, seed 프리셋 |
+| [설치와 기본 설정](https://github.com/rootstudioyaml/sprag/blob/main/docs/INSTALL.ko.md) | 설치 직후 켜지는 기능, 직접 켜야 하는 기능, 끄는 방법 |
+| [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md) | 세그먼트 의미, 경고 칩, 토큰 급증 원인 코드, 업데이트 안내 |
+| [명령](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md) | 전체 서브커맨드와 CLI 옵션 |
+| [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.ko.md) | 5원칙, 래칫 승격, compact-window 고정, seed 프리셋 |
 | [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) | 티어 판정, 룰 파일 구조, 스캔 시점, 서브에이전트 설정 |
 | [티어 판별 기준](https://github.com/rootstudioyaml/sprag/blob/main/docs/TIER_CRITERIA.md) | T0·T1·T2 를 가르는 근거와 연구 출처 |
 | [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) | LLMRouterBench 11,696문항 재현 결과 |
 | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) | 변환 대상 포맷, 절감 근거, 문서 수정 절차, DRM 문서 |
-| [한국어 문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) | 주입 내용, 쓰기 시점 검사, 적용 전후 비교 |
-| [라우터가 아닌 이유](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.md) | 실시간 라우팅이 캐시를 깨서 비용을 키우는 구조 |
-| [게이트웨이와 환경](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.md) | Bedrock·Vertex·LiteLLM, 가격표, FAQ, 동작 원리 |
+| [한국어 문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) | 주입 내용, 쓰기 시점 검사, 적용 전후 비교 |
+| [라우터가 아닌 이유](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.ko.md) | 실시간 라우팅이 캐시를 깨서 비용을 키우는 구조 |
+| [게이트웨이와 환경](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.ko.md) | Bedrock·Vertex·LiteLLM, 가격표, FAQ, 동작 원리 |
 
 ## 릴리스 노트
 
