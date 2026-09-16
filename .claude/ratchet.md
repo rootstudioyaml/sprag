@@ -7,3 +7,4 @@
 
 ## Rules
 
+- 2026-09-16: sprag 변경을 원격에 올릴 때 → 리뷰는 origin(미러)에 작업 브랜치만 push 하고 Draft MR 을 만들며, 반영은 upstream(GitHub)에 main 만 push 한다. origin/main 에는 절대 push 하지 않는다: 미러가 upstream 에서 당겨오므로 직접 push 하면 갈라져 갱신이 멈춘다
