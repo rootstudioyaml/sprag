@@ -3,49 +3,51 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag — your agent stops making the same mistake twice</title>
+<title>Sprag: your agent stops making the same mistake twice</title>
 <meta name="description" content="Sprag is a command-line harness for Claude Code. Repeated failures become rules that load automatically, simple work routes to cheaper models, and token trouble shows up in your statusline before it costs you a session." />
 <link rel="canonical" href="https://sprag.io/" />
 <link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en" />
 <link rel="alternate" hreflang="ko" href="https://sprag.io/?lang=ko" />
 <link rel="alternate" hreflang="x-default" href="https://sprag.io/" />
 <meta name="robots" content="index, follow" />
-<meta name="theme-color" content="#09090b" />
+<meta name="theme-color" content="#010102" />
 <link rel="icon" href="assets/logo/favicon.svg" type="image/svg+xml" />
 <link rel="icon" href="assets/logo/favicon-32.png" sizes="32x32" type="image/png" />
 <link rel="icon" href="assets/logo/favicon-16.png" sizes="16x16" type="image/png" />
 <link rel="apple-touch-icon" href="assets/logo/apple-touch-icon.png" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Sprag" />
-<meta property="og:title" content="Sprag — your agent stops making the same mistake twice" />
+<meta property="og:title" content="Sprag: your agent stops making the same mistake twice" />
 <meta property="og:description" content="A command-line harness for Claude Code: rules that accumulate, routing that gets cheaper, warnings before the cap." />
 <meta property="og:url" content="https://sprag.io/" />
 <meta property="og:image" content="https://sprag.io/assets/logo/sprag-lockup.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --bg:#09090b; --panel:#0d0e12; --panel2:#101218;
-    --line:#1e2027; --line2:#2a2d36;
-    --ink:#ededf0; --dim:#a1a1aa; --faint:#71717a;
-    --amber:#ffb020;
+    --bg:#010102; --panel:#0f1011; --panel2:#141516;
+    --line:#23252a; --line2:#34343a;
+    --ink:#f7f8f8; --dim:#8a8f98; --faint:#62666d;
+    --amber:#5e6ad2; --amber2:#828fff;
     --teal:#35d6a8; --blue:#6a9bff; --red:#ff6b6b;
     --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-    --disp:"Space Grotesk","Inter",-apple-system,BlinkMacSystemFont,sans-serif;
+    --disp:"Inter",-apple-system,BlinkMacSystemFont,sans-serif;
     --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    --r:8px;
+    --r:8px; --rc:12px; --rp:16px;
+    --ease:cubic-bezier(.23,1,.32,1);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
+  h1,h2,h3{text-wrap:balance}
+  .sub,.lede,.faqs p{text-wrap:balance}
+  .step p,.card p{text-wrap:pretty}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);
-       background-image:radial-gradient(rgba(255,255,255,.025) 1px, transparent 1.2px);
-       background-size:26px 26px;
        -webkit-font-smoothing:antialiased;line-height:1.55}
   a{color:inherit;text-decoration:none}
   button{font-family:inherit;cursor:pointer}
-  ::selection{background:rgba(255,176,32,.25)}
+  ::selection{background:rgba(94,106,210,.25)}
   a:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:4px}
   .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
 
@@ -62,11 +64,10 @@
   .faqs summary::after{content:"+";color:var(--faint);font-family:var(--mono);font-size:16px}
   .faqs details[open] summary::after{content:"−"}
   .faqs summary:hover{color:var(--amber)}
+  .faqs p code{white-space:nowrap}
   .faqs p{padding:0 4px 18px;color:var(--dim);font-size:14px;line-height:1.7;max-width:70ch}
   .faqs a{color:var(--amber);text-decoration:underline;text-underline-offset:3px}
   .cta{text-align:center;padding:72px 0 84px;border-top:1px solid var(--line);position:relative;overflow:hidden}
-  .cta::before{content:"";position:absolute;left:50%;bottom:-160px;width:760px;height:320px;transform:translateX(-50%);
-    background:radial-gradient(ellipse at center, rgba(255,176,32,.10), transparent 68%);pointer-events:none}
   .cta h2{margin:0 auto;max-width:30ch}
   .cta .actions{margin-top:28px}
   .rails{position:fixed;inset:0;pointer-events:none;z-index:1}
@@ -76,7 +77,7 @@
   @media(max-width:1140px){.rails{display:none}}
   /* header */
   header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);
-         background:rgba(9,9,11,.82);backdrop-filter:blur(12px)}
+         background:rgba(1,1,2,.8);backdrop-filter:blur(12px)}
   header .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15.5px;letter-spacing:.01em;font-family:var(--disp)}
   .brand svg{width:20px;height:20px;display:block}
@@ -94,10 +95,15 @@
     font-family:var(--mono);font-size:11.5px;letter-spacing:.04em}
   .lang button+button{border-left:1px solid var(--line2)}
   .lang button:hover{color:var(--dim)}
-  .lang button[aria-pressed=true]{background:rgba(255,176,32,.12);color:var(--amber)}
+  .lang button[aria-pressed=true]{background:rgba(94,106,210,.12);color:var(--amber)}
   html[lang=ko] body{word-break:keep-all;line-height:1.65}
   html[lang=ko] h1{letter-spacing:-.02em;max-width:20ch}
-  html[lang=ko] h2{letter-spacing:-.015em}
+  html[lang=ko] h2{letter-spacing:-.015em;max-width:34ch}
+  html[lang=ko] .lede{max-width:50em}
+  html[lang=ko] .lede.sm{max-width:70em}
+  html[lang=ko] .cite{max-width:64em}
+  html[lang=ko] .faqs p{max-width:56em}
+  html[lang=ko] .sub{max-width:44em}
   /* mono + wide tracking is for latin labels; Korean needs its own face */
   html[lang=ko] .meta,
   html[lang=ko] table.split th,
@@ -105,35 +111,32 @@
   html[lang=ko] .lang button,
   html[lang=ko] .install code{font-family:var(--mono);letter-spacing:.04em}
   @media(max-width:720px){header nav .hide-sm{display:none}}
+  /* touch targets: 40px+ on touch devices */
+  @media(hover:none) and (pointer:coarse){
+    .gh{min-height:40px;padding:8px 12px}
+    .gh.ic{width:40px;height:40px}
+    .gh.npmic{width:50px}
+    .lang button{padding:10px 12px}
+    .install button,.copyblock{min-height:40px}
+  }
 
   /* hero */
   .hero{padding:78px 0 44px;text-align:center;position:relative;overflow:hidden}
-  .hero::before{content:"";position:absolute;left:50%;top:-190px;width:900px;height:430px;
-    transform:translateX(-50%);pointer-events:none;
-    background:
-      radial-gradient(ellipse 60% 55% at 50% 30%, rgba(255,176,32,.14), transparent 70%),
-      radial-gradient(ellipse 40% 45% at 32% 60%, rgba(106,155,255,.07), transparent 70%),
-      radial-gradient(ellipse 40% 45% at 68% 60%, rgba(53,214,168,.05), transparent 70%)}
   .hero::after{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
     width:min(760px,80vw);height:1px;pointer-events:none;
-    background:linear-gradient(90deg, transparent, rgba(255,176,32,.55), transparent)}
-  .aurora{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-  .aurora i{position:absolute;top:-40px;bottom:-40px;width:120px;filter:blur(38px);opacity:.5}
-  .aurora i:first-child{left:-30px;background:linear-gradient(180deg,rgba(255,140,40,.34),rgba(255,176,32,.10),transparent 80%)}
-  .aurora i:last-child{right:-30px;background:linear-gradient(180deg,rgba(53,214,168,.20),rgba(106,155,255,.12),transparent 80%)}
+    background:linear-gradient(90deg, transparent, rgba(94,106,210,.4), transparent)}
   .badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);
     border-radius:999px;padding:4px 12px 4px 6px;font-size:12.5px;color:var(--dim);margin-bottom:24px}
-  .badge b{background:rgba(255,176,32,.13);color:var(--amber);border-radius:999px;
+  .badge b{background:rgba(94,106,210,.13);color:var(--amber);border-radius:999px;
     padding:2px 8px;font-family:var(--mono);font-size:11px;font-weight:500}
-  h1{font-family:var(--disp);font-size:clamp(36px,5vw,60px);line-height:1.06;letter-spacing:-.03em;font-weight:600;
+  h1{font-family:var(--disp);font-size:clamp(36px,5vw,60px);line-height:1.06;letter-spacing:-.035em;font-weight:600;
      max-width:16ch;margin:0 auto}
-  h1 em{font-style:normal;background:linear-gradient(92deg,#ffd47e 0%,var(--amber) 45%,#ff8a3d 100%);
-     -webkit-background-clip:text;background-clip:text;color:transparent}
+  h1 em{font-style:normal;color:var(--amber2)}
   .sub{margin:20px auto 0;max-width:62ch;font-size:17px;color:var(--dim);line-height:1.62}
   .actions{margin-top:30px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center}
-  .install{display:inline-flex;align-items:stretch;border:1px solid rgba(255,176,32,.32);border-radius:var(--r);
-    background:linear-gradient(180deg,#12130f,#0d0e12);font-family:var(--mono);font-size:13.5px;overflow:hidden;
-    box-shadow:0 0 0 4px rgba(255,176,32,.05), 0 14px 34px -18px rgba(255,176,32,.28)}
+  .install{display:inline-flex;align-items:stretch;border:1px solid rgba(94,106,210,.32);border-radius:var(--r);
+    background:linear-gradient(180deg,#141516,#0f1011);font-family:var(--mono);font-size:13.5px;overflow:hidden;
+    box-shadow:0 0 0 4px rgba(94,106,210,.05), 0 14px 34px -18px rgba(94,106,210,.28)}
   .install code{padding:11px 16px;color:var(--ink)}
   .install code .p{color:var(--amber)}
   .install button{border:0;border-left:1px solid var(--line2);background:transparent;color:var(--faint);
@@ -142,15 +145,16 @@
   .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);border-radius:var(--r);
     padding:11px 16px;font-size:13.5px;color:var(--dim)}
   .btn:hover{border-color:#3a3d47;color:var(--ink)}
-  .btn,.install,.gh,.card,.chip{transition:border-color .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease}
+  .btn,.install,.gh,.card,.chip{transition:border-color .18s var(--ease), color .18s var(--ease), transform .16s var(--ease), box-shadow .18s var(--ease)}
+  .btn:active,.gh:active,.install button:active,.copyblock:active,.tabs button:active,.lang button:active{transform:scale(.97)}
   .meta{margin-top:16px;font-size:12.5px;color:var(--faint);font-family:var(--mono)}
 
   /* terminal demo */
   /* terminal window */
-  .demo{margin-top:46px;border-radius:var(--r);
-    box-shadow:0 40px 110px -40px rgba(0,0,0,.95), 0 0 0 1px rgba(255,176,32,.07), 0 -1px 0 0 rgba(255,255,255,.05) inset}
+  .demo{margin-top:46px;border-radius:var(--rp);
+    box-shadow:0 40px 110px -40px rgba(0,0,0,.95), 0 0 0 1px rgba(94,106,210,.07), 0 -1px 0 0 rgba(255,255,255,.05) inset}
   .titlebar{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-bottom:0;
-    border-radius:var(--r) var(--r) 0 0;background:#0b0c10;padding:9px 12px}
+    border-radius:var(--rp) var(--rp) 0 0;background:#0f1011;padding:9px 12px}
   .dots{display:flex;gap:6px}
   .dots i{width:10px;height:10px;border-radius:50%;background:#2a2d36;display:block}
   .dots i:nth-child(1){background:#3a3039}.dots i:nth-child(2){background:#3a3529}.dots i:nth-child(3){background:#26362e}
@@ -170,7 +174,7 @@
   /* line-by-line reveal */
   .ln{display:block;min-height:1.85em;white-space:pre}
   .anim .ln{opacity:0;transform:translateY(2px)}
-  .anim .ln.in{opacity:1;transform:none;transition:opacity .22s ease, transform .22s ease}
+  .anim .ln.in{opacity:1;transform:none;transition:opacity .22s var(--ease), transform .22s var(--ease)}
   .caret{display:inline-block;width:8px;height:1.05em;vertical-align:-2px;background:var(--amber);
     margin-left:2px;animation:blink 1s steps(2,start) infinite}
   @keyframes blink{50%{opacity:0}}
@@ -184,19 +188,19 @@
   }
 
   .tabs{display:flex;gap:2px;border:1px solid var(--line);border-bottom:0;
-    border-radius:var(--r) var(--r) 0 0;background:var(--panel);padding:6px 6px 0;overflow-x:auto}
+    border-radius:0;background:var(--panel);padding:6px 6px 0;overflow-x:auto}
   .tabs button{border:0;background:transparent;color:var(--faint);padding:9px 14px;border-radius:6px;
     font-size:13px;white-space:nowrap;font-weight:500}
   .tabs button:hover{color:var(--dim);background:rgba(255,255,255,.03)}
   .tabs button[aria-selected=true]{color:var(--ink);background:var(--panel2)}
-  .term{border:1px solid var(--line);border-radius:0 0 var(--r) var(--r);background:var(--panel2);
+  .term{border:1px solid var(--line);border-radius:0 0 var(--rp) var(--rp);background:var(--panel2);
     padding:20px 22px;text-align:left;overflow-x:auto;min-height:330px}
   .term pre{font-family:var(--mono);font-size:13px;line-height:1.85;color:var(--dim);white-space:pre}
   .term .cmd{color:var(--ink)}
   .term .p{color:var(--amber)}
   .term .ok{color:var(--teal)}
   .term .b{color:var(--blue)}
-  .term .w{color:var(--amber)}
+  .term .w{color:#d2a45e}
   .term .r{color:var(--red)}
   .term .d{color:var(--faint)}
   .term .hl{color:var(--ink);font-weight:500}
@@ -209,7 +213,7 @@
     display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);
     border-radius:999px;padding:5px 12px;background:rgba(255,255,255,.02)}
   .eyebrow::before{content:"";width:7px;height:7px;border-radius:2px;background:var(--amber);
-    box-shadow:0 0 10px rgba(255,176,32,.6)}
+    box-shadow:0 0 10px rgba(94,106,210,.6)}
   .eyebrow-x{
     color:var(--amber);margin-bottom:14px}
   h2{font-family:var(--disp);font-size:clamp(24px,3vw,32px);letter-spacing:-.025em;font-weight:600;line-height:1.2;max-width:30ch}
@@ -234,7 +238,7 @@
   .flow .card rect:first-of-type{fill:url(#gCard);stroke:#2a2f3a;filter:url(#fSoft)}
   .flow .card .sheen{fill:url(#gTop)}
   .flow .card .cic{color:var(--dim)}
-  .flow .card.amber rect:first-of-type{stroke:#6b5216}   .flow .card.amber .cic{color:var(--amber)}
+  .flow .card.amber rect:first-of-type{stroke:#3d4276}   .flow .card.amber .cic{color:var(--amber)}
   .flow .card.teal  rect:first-of-type{stroke:#2c6b5b}   .flow .card.teal  .cic{color:var(--teal)}
   .flow .card.violet rect:first-of-type{stroke:#4a3a6b}  .flow .card.violet .cic{color:#a78bfa}
   .flow .card.red   rect:first-of-type{stroke:#6b2f2f}   .flow .card.red   .cic{color:var(--red)}
@@ -267,7 +271,7 @@
   }
   .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:40px}
   @media(max-width:860px){.steps{grid-template-columns:1fr}}
-  .step{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:22px}
+  .step{border:1px solid var(--line);border-radius:var(--rc);background:var(--panel);padding:22px}
   .step .n{font-family:var(--mono);font-size:11.5px;color:var(--amber);letter-spacing:.1em}
   .step h3{margin-top:10px;font-size:15.5px;font-weight:600;letter-spacing:-.01em}
   .step p{margin-top:8px;color:var(--dim);font-size:14px;line-height:1.65}
@@ -276,7 +280,7 @@
   .step pre b{color:var(--ink);font-weight:500}
 
   .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
-    border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:40px}
+    border:1px solid var(--line);border-radius:var(--rc);overflow:hidden;margin-top:40px}
   @media(max-width:860px){.cards{grid-template-columns:1fr}}
   .card{background:var(--panel);padding:24px;position:relative}
   .card .vis{margin:-24px -24px 18px;padding:16px 20px;background:#0a0b0e;border-bottom:1px solid var(--line);
@@ -290,8 +294,8 @@
   .card .vis .x{color:var(--red)}
   .card:hover{background:var(--panel2)}
   .card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;
-    background:linear-gradient(90deg,transparent,rgba(255,176,32,.35),transparent);
-    opacity:0;transition:opacity .25s ease}
+    background:linear-gradient(90deg,transparent,rgba(94,106,210,.35),transparent);
+    opacity:0;transition:opacity .25s var(--ease)}
   .card:hover::before{opacity:1}
   .card h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:9px;letter-spacing:-.01em}
   .cite{font-size:12.5px;color:var(--faint);margin-top:16px;max-width:70ch}
@@ -315,14 +319,13 @@
   table.split td .why{display:block;color:var(--faint);font-size:12.5px;margin-top:3px}
   @media(max-width:760px){table.split th:nth-child(2),table.split td:nth-child(2){display:none}}
 
-    padding:24px;display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
 
   footer{border-top:1px solid var(--line);padding:36px 0 56px;color:var(--faint);font-size:13px}
   footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
   footer a:hover{color:var(--ink)}
 
   @media(prefers-reduced-motion:no-preference){
-    .reveal{opacity:0;transform:translateY(10px);transition:opacity .5s ease,transform .5s ease}
+    .reveal{opacity:0;transform:translateY(8px);transition:opacity .3s var(--ease),transform .3s var(--ease)}
     .reveal.in{opacity:1;transform:none}
   }
 </style>
@@ -343,7 +346,7 @@
     <a class="brand" href="index.html">
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
-        <g fill="#FFB020">
+        <g fill="#5e6ad2">
           <rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/>
           <g transform="rotate(120 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
           <g transform="rotate(240 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
@@ -373,11 +376,9 @@
 <div class="rails" aria-hidden="true"></div>
 
 <div class="hero">
-  <div class="aurora" aria-hidden="true"><i></i><i></i></div>
   <div class="wrap">
-    <span class="badge"><b>v3.42</b> <span data-k="hero.badge">on npm as sprag-cli · claude-token-saver still updates</span></span>
     <h1 data-k="hero.h1">A <em>quality ratchet</em> for your coding agent</h1>
-    <p class="sub" data-k="hero.sub">Sprag is named after the sprag clutch: forward motion passes, backspin locks. Your agent keeps working — it just stops regressing. It reads the sessions you already ran and turns them into compounding gains — every repeated failure becomes a rule loaded at session start, work a cheaper tier has proven it can do is delegated there with a per-run savings ledger as the receipt, and cache or rate-limit trouble reaches your statusline while you can still act.</p>
+    <p class="sub" data-k="hero.sub">Repeated failures become rules loaded at session start, proven-safe work goes to cheaper tiers, and token trouble reaches your statusline while you can still act.</p>
     <div class="actions">
       <span class="install">
         <code><span class="p">$</span> npm i -g sprag-cli</code>
@@ -385,7 +386,6 @@
       </span>
       <a class="btn" href="#how" data-k="hero.cta">How it works</a>
     </div>
-    <p class="meta" data-k="hero.meta">MIT · one install · works with your existing Claude Code setup</p>
 
     <div class="demo">
       <div class="titlebar">
@@ -410,7 +410,7 @@
   <span class="ok">✓</span> structured    4-line task frame in use
   <span class="ok">✓</span> safe-path     3 destructive commands confirmed
 
-<span class="w">⚠ ratchet candidate</span> <span class="d">— second occurrence detected</span>
+<span class="w">⚠ ratchet candidate</span> <span class="d">- second occurrence detected</span>
   session 203 · npm publish failed with <span class="r">E401</span>
   session 211 · npm publish failed with <span class="r">E401</span>
 
@@ -448,7 +448,7 @@ saved over 30 days                                   <span class="hl">$147.33</s
   <span class="hl">💰 Saved $12.40</span>   what caching and routing kept off the bill
 
 <span class="p">$</span> <span class="cmd">sprag handoff</span>
-<span class="ok">✓</span> wrote .sprag/handoff-2026-09-13.md <span class="d">— open a fresh session with it</span></pre>
+<span class="ok">✓</span> wrote .sprag/handoff-2026-09-13.md <span class="d">- open a fresh session with it</span></pre>
 
 <pre data-panel="doc2md" hidden><span class="p">$</span> <span class="cmd">sprag doc2md ~/decks/q3-review.pptx</span>
 
@@ -494,14 +494,14 @@ saved over 30 days                                   <span class="hl">$147.33</s
             <stop offset="1" stop-color="#fff" stop-opacity="0"/>
           </linearGradient>
           <radialGradient id="gHalo" cx="50%" cy="50%" r="50%">
-            <stop offset=".4" stop-color="#ffb020" stop-opacity=".1"/>
-            <stop offset="1" stop-color="#ffb020" stop-opacity="0"/>
+            <stop offset=".4" stop-color="#5e6ad2" stop-opacity=".1"/>
+            <stop offset="1" stop-color="#5e6ad2" stop-opacity="0"/>
           </radialGradient>
           <linearGradient id="gRing" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#8e9ab2"/><stop offset=".5" stop-color="#4b5468"/><stop offset="1" stop-color="#2d3440"/>
           </linearGradient>
           <linearGradient id="gCam" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#ffd27a"/><stop offset=".45" stop-color="#ffb020"/><stop offset="1" stop-color="#b87706"/>
+            <stop offset="0" stop-color="#828fff"/><stop offset=".45" stop-color="#5e6ad2"/><stop offset="1" stop-color="#3a4090"/>
           </linearGradient>
           <linearGradient id="gHub" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#5c6678"/><stop offset="1" stop-color="#232a35"/>
@@ -564,7 +564,7 @@ saved over 30 days                                   <span class="hl">$147.33</s
           <path d="M314 359 C392 359 408 300 452 272"/>
           <path d="M314 426 C392 426 404 314 452 280"/>
         </g>
-        <g class="pulse" fill="none" stroke="#ffb020" stroke-width="1.6" stroke-dasharray="5 190" opacity=".9">
+        <g class="pulse" fill="none" stroke="#5e6ad2" stroke-width="1.6" stroke-dasharray="5 190" opacity=".9">
           <path d="M314 289 C392 289 408 274 452 262"/>
         </g>
 
@@ -575,8 +575,8 @@ saved over 30 days                                   <span class="hl">$147.33</s
           <circle r="113" fill="none" stroke="#0a0c10" stroke-width="1"/>
           <circle r="87"  fill="none" stroke="#0a0c10" stroke-width="1"/>
           <g class="sector" data-cap="ratchet">
-            <path d="M30.9 -95.1 A100 100 0 0 1 78.8 -61.6" stroke="#FFB020"/>
-            <svg x="46.4" y="-92.9" width="22" height="22" style="color:#FFB020"><use href="#i-ratchet"/></svg>
+            <path d="M30.9 -95.1 A100 100 0 0 1 78.8 -61.6" stroke="#5e6ad2"/>
+            <svg x="46.4" y="-92.9" width="22" height="22" style="color:#5e6ad2"><use href="#i-ratchet"/></svg>
           </g>
           <g class="sector" data-cap="doc2md">
             <path d="M81.9 -57.4 A100 100 0 0 1 100.0 -1.7" stroke="#c3cad6"/>
@@ -671,7 +671,7 @@ saved over 30 days                                   <span class="hl">$147.33</s
         <g class="dnode match"><rect x="286" y="546" width="234" height="72" rx="9"/>
           <text class="s" x="304" y="566" data-k="fl.b2">a model-fitting rule matched</text>
           <text class="t mono" x="304" y="586">"run the tests" → haiku</text>
-          <text class="s mono" x="304" y="604">ratchet-model.md · from your logs</text></g>
+          <text class="s mono" x="304" y="604" data-k="fl.b2s">ratchet-model.md · from your logs</text></g>
         <g class="dnode teal"><rect x="576" y="528" width="236" height="56" rx="9"/>
           <text class="t mono" x="594" y="552">haiku-runner</text>
           <text class="s" x="594" y="570" data-k="fl.b3">runs it, returns the output</text></g>
@@ -693,7 +693,7 @@ saved over 30 days                                   <span class="hl">$147.33</s
             <text class="s" x="420" y="697" data-k="fl.tc2s">tests · exit codes catch it → cheap tier · silent → up</text></g>
           <g><rect x="748" y="664" width="336" height="40" rx="8"/>
             <text class="t" x="764" y="681" data-k="fl.tc3">per-rule track record</text>
-            <text class="s mono" x="764" y="697">×147 runs · 14% err · caps · escalate on repeat</text></g>
+            <text class="s mono" x="764" y="697" data-k="fl.tc3s">×147 runs · 14% err · caps · escalate on repeat</text></g>
         </g>
       </svg>
     </div>
@@ -728,7 +728,6 @@ saved over 30 days                                   <span class="hl">$147.33</s
 
 <section id="routing" class="reveal">
   <div class="wrap">
-    <div class="eyebrow" data-k="rt.eyebrow">Routing</div>
     <h2 data-k="rt.h2">Stop paying flagship prices for work a cheaper tier already proved it can do</h2>
     <p class="lede" data-k="rt.lede">Sprag does not swap your model. It reads what you have already run, finds the kinds of task that never went wrong on a cheaper tier, and spawns a sub-agent for exactly those. The sub-agent returns its output to the main agent, which reviews it before anything counts as done. Every rule carries the error rate it was measured at, and the work comes straight back to the main agent the moment a rule stops holding.</p>
     <table class="split">
@@ -752,20 +751,20 @@ saved over 30 days                                   <span class="hl">$147.33</s
       </tbody>
     </table>
 
-    <h3 class="subh" data-k="rt.crit.h">How a tier gets picked — the criteria every rule shares</h3>
+    <h3 class="subh" data-k="rt.crit.h">How a tier gets picked: the criteria every rule shares</h3>
     <p class="lede sm" data-k="rt.crit.lede">These ship inside the generated <code>ratchet-model.md</code>, above the rules, so the agent applies them to every delegation. The percentages are measured, not assumed.</p>
     <div class="cards crit6">
       <div class="card">
         <h3><span class="cn">01</span> <span data-k="rt.cr1h">Where the answer lives</span></h3>
-        <p data-k="rt.cr1p">A lookup answered by the repo, a file, or command output is safe on haiku. A question answered from model knowledge is not — measured recall: 28% on the cheap tier vs 54% one tier up.</p>
+        <p data-k="rt.cr1p">A lookup answered by the repo, a file, or command output is safe on haiku. A question answered from model knowledge is not. Measured recall: 28% on the cheap tier vs 54% one tier up.</p>
       </div>
       <div class="card">
         <h3><span class="cn">02</span> <span data-k="rt.cr2h">Whether a mistake surfaces</span></h3>
-        <p data-k="rt.cr2p">If the build, the tests, or an exit code will catch a wrong answer, the gate sets the quality floor and a cheap tier is safe. Work that fails silently — diagnosis, root-cause calls, security, design — never goes down a tier.</p>
+        <p data-k="rt.cr2p">If the build, the tests, or an exit code will catch a wrong answer, the gate sets the quality floor and a cheap tier is safe. Work that fails silently (diagnosis, root-cause calls, security, design) never goes down a tier.</p>
       </div>
       <div class="card">
         <h3><span class="cn">03</span> <span data-k="rt.cr3h">Tool orchestration</span></h3>
-        <p data-k="rt.cr3p">A flow that feeds one tool's output into the next call never goes to haiku, whatever the call count — the accuracy gap on chained tool work measured +63pp, the largest of any task type.</p>
+        <p data-k="rt.cr3p">A flow that feeds one tool's output into the next call never goes to haiku, whatever the call count. The accuracy gap on chained tool work measured +63pp, the largest of any task type.</p>
       </div>
       <div class="card">
         <h3><span class="cn">04</span> <span data-k="rt.cr4h">Batching</span></h3>
@@ -777,7 +776,7 @@ saved over 30 days                                   <span class="hl">$147.33</s
       </div>
       <div class="card">
         <h3><span class="cn">06</span> <span data-k="rt.cr6h">Escalation</span></h3>
-        <p data-k="rt.cr6p">The same error twice, an answer splitting into candidates, or a sub-agent circling — each hands the work back: re-brief and retry, then one tier up, then the main model takes over.</p>
+        <p data-k="rt.cr6p">The same error twice, an answer splitting into candidates, or a sub-agent circling: each hands the work back. re-brief and retry, then one tier up, then the main model takes over.</p>
       </div>
     </div>
     <p class="cite" data-k="rt.cite">Measured offline on <a href="https://github.com/ynulihao/LLMRouterBench">LLMRouterBench</a> (Findings of ACL 2026): 11,696 instances across 9 datasets. The tool-chain gap is from τ²-Bench, knowledge recall from SimpleQA-class sets. Method and holdout in <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>.</p>
@@ -786,7 +785,6 @@ saved over 30 days                                   <span class="hl">$147.33</s
 
 <section id="features" class="reveal">
   <div class="wrap">
-    <div class="eyebrow" data-k="ft.eyebrow">Features</div>
     <h2 data-k="ft.h2">Everything ships in one install, working from day one</h2>
     <div class="cards">
       <div class="card">
@@ -844,7 +842,6 @@ saved over 30 days                                   <span class="hl">$147.33</s
 
 <section id="faq" class="reveal">
   <div class="wrap">
-    <div class="eyebrow">FAQ</div>
     <h2 data-k="fq.h2">Questions people ask first</h2>
     <div class="faqs">
       <details><summary data-k="fq.q1">Is this the same tool as claude-token-saver?</summary>
@@ -888,31 +885,31 @@ const KO = {
   'fl.h3':'붙이려던 문서',
   'fl.h4':'지금 쓰고 있는 한국어', 'fl.h4s':'문서 · 화면 문구 · 주석',
   'fl.h5':'이번 턴에 쓰는 토큰', 'fl.h5s':'캐시 · 컨텍스트 · 한도',
-  'fl.m1':'지난 세션이 겪은 일과 맞춰 봅니다',
-  'fl.k1':'래칫 규칙을 씁니다', 'fl.k1s':'다음 세션이 시작될 때마다 함께 올라옵니다',
-  'fl.k2':'하위 에이전트를 띄웁니다',
-  'fl.k3':'문서를 변환합니다',
-  'fl.k4':'쓰는 동안 한국어를 검사합니다', 'fl.k4s':'번역투 · 이중 피동 · 문장 연결',
-  'fl.k5':'비용을 프롬프트에 띄웁니다',
-  'fl.b0':'위임 · 다른 에이전트가 일을 하고 결과를 돌려줍니다',
-  'fl.b2':'모델 피팅 룰이 맞았습니다',
-  'nb.1':'벤치마크 정답률 · 풀 안의 모든 단일 모델보다 높습니다',
+  'fl.m1':'지난 세션 기록과 대조',
+  'fl.k1':'래칫 규칙 기록', 'fl.k1s':'다음 세션 시작마다 함께 로드',
+  'fl.k3':'문서 변환',
+  'fl.k4':'쓰는 시점의 한국어 검사', 'fl.k4s':'번역투 · 이중 피동 · 문장 연결',
+  'fl.k5':'statusline 비용 경고',
+  'fl.b0':'위임 · 맡기고 돌려받는 흐름',
+  'fl.b2':'모델 피팅 룰과 일치',
+  'fl.b2s':'ratchet-model.md · 내 로그에서 생성',
+  'nb.1':'벤치마크 정답률 · 어떤 단일 모델보다 높음',
   'nb.2':'doc2md를 거친 문서 읽기의 토큰 절감률',
   'nb.3':'하네스 도입 전후로 실측한 메시지당 비용 절감률',
   'nb.4':'런타임 의존성 · npm 설치 한 번',
-  'fq.h2':'가장 먼저 나오는 질문들',
+  'fq.h2':'자주 묻는 질문',
   'fq.q1':'claude-token-saver와 같은 도구인가요?',
-  'fq.a1':'네. Sprag가 새 이름이고 npm 패키지는 <code>sprag-cli</code>입니다. <code>claude-token-saver</code> 패키지도 같은 릴리스를 계속 받으므로 기존 설치는 그대로 동작합니다.',
+  'fq.a1':'네, Sprag가 새 이름이고 npm 패키지는 <code>sprag-cli</code>입니다. <code>claude-token-saver</code> 패키지도 같은 릴리스를 계속 받으므로 기존 설치는 그대로 동작합니다.',
   'fq.q2':'LLM을 호출하거나 API 키가 필요한가요?',
-  'fq.a2':'아니요. Claude Code가 이미 내 컴퓨터에 남기는 세션 로그를 사후 분석할 뿐입니다. 추가 모델 호출도, 키도 없고, 데이터가 밖으로 나가지 않습니다.',
+  'fq.a2':'아니요, Claude Code가 컴퓨터에 남겨 둔 세션 로그를 분석할 뿐이라 추가 호출도 키도 없고, 데이터가 밖으로 나가지도 않습니다.',
   'fq.q3':'프롬프트 습관을 바꿔야 하나요?',
-  'fq.a3':'아니요. 설치 때 hook과 statusline을 한 번 등록하면, 지금 하던 방식 그대로 쓰는 동안 규칙·위임·경고가 세션 안에 나타납니다.',
+  'fq.a3':'아니요, 설치 때 hook과 statusline을 한 번 등록하면, 지금 하던 방식 그대로 쓰는 동안 규칙·위임·경고가 세션 안에 나타납니다.',
   'fq.q4':'절감액 수치는 어디서 나오나요?',
-  'fq.a4':'위임 실행마다 실제 가격 차이가 장부에 한 줄씩 기록됩니다. 라우팅 기준은 공개 데이터로 벤치마크했고, 방법은 <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>에 있습니다.',
-  'cta.h2':'설치는 한 번, 그다음 모든 세션이 더 안전하고 저렴해집니다',
+  'fq.a4':'위임을 실행할 때마다 실제 가격 차이를 장부에 한 줄씩 기록합니다. 라우팅 기준은 공개 데이터로 벤치마크했고, 방법은 <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>에 있습니다.',
+  'cta.h2':'다음 세션부터, 더 안전하고 저렴하게',
   'cta.gh':'GitHub에서 스타 누르기',
-  'rt.crit.h':'티어는 어떻게 정해지나 · 모든 룰이 공유하는 기준',
-  'rt.crit.lede':'이 기준은 생성되는 <code>ratchet-model.md</code>의 룰 목록 위에 함께 들어가서, 에이전트가 위임할 때마다 적용합니다. 수치는 가정이 아니라 실측입니다.',
+  'rt.crit.h':'티어를 정하는 여섯 가지 기준',
+  'rt.crit.lede':'이 기준은 생성되는 <code>ratchet-model.md</code>의 룰 목록 위에 함께 들어가 에이전트가 위임할 때마다 적용되며, 수치는 가정이 아니라 실측입니다.',
   'rt.cite':'수치는 <a href="https://github.com/ynulihao/LLMRouterBench">LLMRouterBench</a>(Findings of ACL 2026) 공개 데이터 11,696건(9개 데이터셋)으로 오프라인 실측한 값입니다. 도구 체인 격차는 τ²-Bench, 지식 회상은 SimpleQA 계열에서 나왔고, 방법과 홀드아웃 검증은 <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>에 있습니다.',
   'rt.cr1h':'답이 어디에 있나',
   'rt.cr1p':'레포·파일·명령 출력에서 답이 나오는 조회는 haiku로 충분합니다. 모델 지식에서 답이 나오는 질문은 아닙니다. 지식 회상 실측은 28% 대 한 티어 위 54%였습니다.',
@@ -925,41 +922,37 @@ const KO = {
   'rt.cr5h':'쓰는 쪽과 정하는 쪽',
   'rt.cr5p':'설계와 스펙은 메인 모델이 확정하고, 출력 토큰이 많은 코드 작성은 sonnet 워커가 맡습니다. 돌아온 diff와 테스트 결과를 메인 모델이 검증한 뒤에야 완료로 보고합니다.',
   'rt.cr6h':'에스컬레이션',
-  'rt.cr6p':'같은 에러 2회, 답이 복수 후보로 갈림, 서브에이전트가 헛도는 징후가 보이면 즉시 인계합니다. 순서는 재지시 후 재시도, 한 티어 상향, 메인 모델 직접 수습.',
-  'fl.tc0':'티어를 고르는 기준 · 내 로그에서 실측한 값입니다',
+  'rt.cr6p':'같은 에러가 두 번 반복되거나 답이 여러 후보로 갈리거나 서브에이전트가 헛도는 징후가 보이면, 재지시 후 재시도, 한 티어 상향, 메인 모델 직접 수습 순서로 인계합니다.',
+  'fl.tc0':'티어를 고르는 기준 · 내 로그에서 실측한 값',
   'fl.tc1':'답이 어디에 있나',
-  'fl.tc1s':'레포·명령 출력에 있으면 싼 티어, 모델 지식이면 올립니다',
+  'fl.tc1s':'레포·명령 출력에 있으면 싼 티어, 모델 지식이면 상향',
   'fl.tc2':'실패가 바로 드러나나',
-  'fl.tc2s':'테스트·종료 코드가 잡아 주면 싼 티어, 못 잡으면 올립니다',
+  'fl.tc2s':'테스트·종료 코드가 잡으면 싼 티어, 못 잡으면 상향',
   'fl.tc3':'룰별 실적',
-  'fl.b3':'실행하고 출력을 돌려줍니다',
-  'fl.b4':'코드를 쓰고 diff로 남깁니다',
-  'fl.b5':'메인 에이전트가 검수합니다',
-  'fl.b5s':'그래야 완료로 봅니다',
-  'fl.foot':'추측으로 정한 항목은 없습니다. 규칙마다 측정한 오류율이 함께 붙어 있습니다.',
+  'fl.tc3s':'실행 147회 · 오류 14%, 반복되면 상향',
+  'fl.b3':'실행 후 출력 반환',
+  'fl.b4':'코드 작성 후 diff 제출',
+  'fl.b5':'메인 에이전트가 검수',
+  'fl.b5s':'통과해야 완료',
+  'fl.foot':'추측으로 정한 항목 없이, 규칙마다 측정한 오류율이 함께 붙어 있습니다.',
  'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능',
-
-  'hero.badge':'npm 패키지는 sprag-cli · claude-token-saver도 계속 갱신됩니다',
   'hero.h1':'AI 코딩 에이전트에 거는<br><em>품질 래칫</em>',
-  'hero.sub':'이름은 스프래그 클러치에서 왔습니다. 앞으로 도는 힘은 그대로 통과시키고, 역회전하는 순간 잠기는 부품입니다. 에이전트도 같습니다. 하던 일은 그대로 진행되고, 퇴행만 막힙니다. 이미 실행한 세션 기록을 누적되는 이득으로 바꿉니다. 되풀이된 실패는 세션 시작마다 올라오는 규칙이 되고, 저렴한 티어가 감당한다고 증명된 작업은 실행 건마다 절감액 원장을 영수증 삼아 그쪽에 위임되며, 캐시와 사용량 한도 문제는 아직 손쓸 수 있을 때 statusline에 나타납니다.',
-  'hero.copy':'복사', 'hero.copied':'복사했습니다',
+  'hero.sub':'되풀이된 실패는 세션 시작마다 올라오는 규칙이 되고, 증명된 작업은 저렴한 티어로 위임되며, 캐시와 사용량 한도 문제는 아직 손쓸 수 있을 때 statusline에 나타납니다.',
+  'hero.copy':'복사', 'hero.copied':'복사됨',
   'hero.cta':'작동 방식 보기',
-  'hero.meta':'MIT · 설치 한 번 · 지금 쓰는 Claude Code 설정 그대로',
-  'hero.caption':'실제 출력입니다. 아직 없는 기능을 그럴듯하게 꾸며 넣지 않았습니다.',
+  'hero.caption':'화면용으로 꾸민 데모가 아니라 실제 CLI 출력입니다.',
 
   'how.eyebrow':'작동 방식',
-  'how.h2':'이미 돌린 세션에서 배웁니다',
-  'how.lede':'설치는 한 번이면 됩니다. 이미 쓰고 있는 세션을 그대로 읽으므로, 프롬프트를 쓰는 방식을 바꾸라고 요구하지 않습니다.',
-  'how.s1h':'되풀이된 실패가 규칙이 됩니다',
-  'how.s1p':'처음 겪는 실패는 그냥 작업입니다. 같은 실패가 두 번째로 나타나면 Sprag가 규칙 후보로 알립니다. 적용 범위를 승인하면 그 뒤로는 세션이 시작될 때마다 규칙이 함께 올라옵니다.',
-  'how.s2h':'안전한 작업은 하위 에이전트가 맡습니다',
+  'how.h2':'지난 세션 기록에서 다음 세션 규칙으로',
+  'how.lede':'한 번 설치하면 Claude Code가 남기는 세션 로그를 그대로 읽으므로, 프롬프트를 쓰는 방식은 바꾸지 않아도 됩니다.',
+  'how.s1h':'되풀이된 실패는 규칙으로',
+  'how.s1p':'처음 겪는 실패는 그냥 지나가지만, 같은 실패가 두 번째로 나타나면 Sprag가 규칙 후보로 알려 줍니다. 적용 범위를 승인하고 나면 세션을 시작할 때마다 그 규칙이 함께 올라옵니다.',
+  'how.s2h':'안전한 작업은 하위 에이전트로',
   'how.s2p':'이력상 안전하다고 확인된 작업과 맞아떨어지면, Sprag가 더 저렴한 티어로 하위 에이전트를 띄워 처리하고 결과를 메인에게 돌려 검수하게 합니다. 틀려도 겉으로 드러나지 않는 작업은 메인 에이전트가 계속 맡습니다.',
-  'how.s3h':'비용 문제를 미리 알려 줍니다',
-  'how.s3p':'캐시 적중률과 TTL 만료, 컨텍스트 증가, 두 가지 사용량 한도를 매 턴 읽어 statusline에 띄웁니다. 아직 손쓸 수 있을 때 보입니다.',
-
-  'rt.eyebrow':'라우팅',
-  'rt.h2':'싼 티어가 이미 해낸 일에 플래그십 가격을 내지 마세요',
-  'rt.lede':'Sprag는 쓰던 모델을 바꿔치기하지 않습니다. 이미 실행한 기록을 읽어 저렴한 티어에서 한 번도 어긋나지 않은 작업 유형을 찾아내고, 바로 그런 작업에만 하위 에이전트를 띄웁니다. 하위 에이전트는 결과를 메인 에이전트에게 돌려주고, 메인이 확인해야 완료로 칩니다. 규칙마다 측정한 오류율이 함께 붙어 있고, 규칙이 더 이상 맞지 않으면 작업은 곧바로 메인 에이전트에게 돌아옵니다.',
+  'how.s3h':'비용 경고는 손쓸 수 있을 때',
+  'how.s3p':'캐시 적중률과 TTL 만료, 컨텍스트 증가, 두 가지 사용량 한도를 매 턴 읽어서, 아직 손쓸 수 있을 때 statusline에 띄워 줍니다.',
+  'rt.h2':'검증된 작업은 저렴한 티어로',
+  'rt.lede':'쓰던 모델은 그대로 두고, 지난 기록에서 저렴한 티어가 한 번도 어긋나지 않은 작업만 골라 하위 에이전트에 맡깁니다. 결과는 메인 에이전트가 검증하고, 오류율이 올라간 규칙은 바로 회수합니다.',
   'rt.th1':'티어', 'rt.th2':'비중', 'rt.th3':'맡는 일', 'rt.th4':'안전한 이유',
   'rt.r1a':'조회 · 상태 확인 · 테스트와 린트 실행<span class="why">haiku-runner 하위 에이전트</span>',
   'rt.r1b':'종료 코드와 diff가 틀린 답을 바로 드러냅니다<span class="why">위임 41회에서 오류 0%</span>',
@@ -968,19 +961,19 @@ const KO = {
   'rt.r3a':'진단 · 설계 · 보안 · 되돌릴 수 없는 작업<span class="why">위임하지 않습니다</span>',
   'rt.r3b':'여기서 잘못된 판단을 잡아 줄 장치는 사용자뿐입니다<span class="why">일상적으로 보여도 예외를 두지 않습니다</span>',
 
-  'ft.eyebrow':'기능', 'ft.h2':'설치 한 번에 전부 들어 있고, 첫날부터 동작합니다',
+  'ft.h2':'설치 한 번에 전부',
   'ft.c1h':'래칫 규칙',
-  'ft.c1p':'되풀이된 실패는 규칙 후보로 자동 발견됩니다. 프로젝트 범위와 전역 범위 중 어느 쪽에 넣을지 사용자가 고르면, 그 뒤로 한 줄짜리 규칙이 매 세션에 올라옵니다.',
+  'ft.c1p':'되풀이된 실패를 규칙 후보로 찾아내고, 프로젝트와 전역 중 어느 범위에 넣을지 고르면 그 뒤로 한 줄짜리 규칙이 매 세션에 올라옵니다.',
   'ft.c2h':'모델 피팅',
   'ft.c2p':'기록에서 뽑은 위임 규칙에 측정한 오류율과 절감액을 붙여 <code>ratchet-model.md</code>에 적습니다.',
   'ft.c3h':'하네스 점수',
-  'ft.c3p':'다섯 가지 운영 원칙을 실시간으로 점검합니다. 검증 단계를 건너뛰면 완료를 보고하기 전에 <code>🅷 4/5</code>가 먼저 알려 줍니다.',
+  'ft.c3p':'다섯 가지 운영 원칙을 실시간으로 점검해서, 검증 단계를 건너뛰면 완료를 보고하기 전에 <code>🅷 4/5</code>로 먼저 알려 줍니다.',
   'ft.c4h':'토큰 텔레메트리',
   'ft.c4p':'캐시 적중률과 TTL, 컨텍스트 크기, 출력 급증, 두 가지 사용량 한도를 매 턴 프롬프트에 표시합니다.',
   'ft.c5h':'doc2md',
-  'ft.c5p':'pptx와 xlsx, pdf, docx, fig를 필요할 때 변환합니다. 문서를 통째로 붙이는 대신 변환본만 읽으면 됩니다.',
+  'ft.c5p':'pptx와 xlsx, pdf, docx, fig를 필요할 때 변환해 주므로, 문서를 통째로 붙이는 대신 변환본만 읽으면 됩니다.',
   'ft.c6h':'문체 게이트',
-  'ft.c6p':'쓰는 시점에 hook으로 검사합니다. 지금은 한국어 기술 문서를 지원하며 이중 피동과 번역투, 문장 연결을 살핍니다.',
+  'ft.c6p':'파일을 쓰는 시점에 hook이 검사하는데, 지금은 한국어 기술 문서를 대상으로 이중 피동과 번역투, 문장 연결을 살핍니다.',
 
 };
 const EN = {};
@@ -988,7 +981,7 @@ document.querySelectorAll('[data-k]').forEach(el => EN[el.dataset.k] = el.innerH
 EN['hero.copied'] = 'Copied';
 
 const META = {
-  en: {title: 'Sprag — your agent stops making the same mistake twice',
+  en: {title: 'Sprag: your agent stops making the same mistake twice',
        desc: document.querySelector('meta[name=description]').content},
   ko: {title: 'Sprag · 에이전트의 같은 실수, 두 번은 없습니다',
        desc: 'Sprag는 Claude Code에서 쓰는 명령줄 하네스입니다. 되풀이된 실패를 규칙으로 만들어 매 세션에 불러오고, 단순한 작업은 저렴한 모델에 맡기며, 캐시와 사용량 한도 문제를 미리 알려 줍니다.'},
@@ -1007,7 +1000,38 @@ function setLang(next, remember){
   document.querySelector('meta[name=description]').content = META[lang].desc;
   document.querySelectorAll('.lang button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  bindKoreanPhrases();
   if(remember){ try{ localStorage.setItem('sprag.lang', lang); }catch(e){} }
+}
+
+/* 한국어 조판: 조사로 끝나는 어절을 다음 어절과 묶어, 줄바꿈이 구 경계에서만 일어나게 한다 */
+function bindKoreanPhrases(){
+  const RE = /([^\s\u00a0]{1,12}(?:\uc740|\ub294|\uc774|\uac00|\uc744|\ub97c|\uc758|\uc640|\uacfc|\ub85c|\uc5d0|\ub3c4|\uc11c))\u0020(?=\S)/g;
+  /* code·링크 요소 바로 뒤에 붙은 조사는 요소와 한 덩어리로 묶는다 */
+  if(lang === 'ko') document.querySelectorAll('.card p, .step p, .lede, .faqs p, .cite').forEach(p => {
+    p.querySelectorAll('code, a').forEach(el => {
+      const nxt = el.nextSibling;
+      if(!nxt || nxt.nodeType !== 3) return;
+      const m = nxt.textContent.match(/^([\uac00-\ud7a3]{1,4})([\s\S]*)$/);
+      if(!m) return;
+      const span = document.createElement('span');
+      span.style.whiteSpace = 'nowrap';
+      el.before(span);
+      span.append(el, document.createTextNode(m[1]));
+      nxt.textContent = m[2];
+    });
+  });
+  document.querySelectorAll('.sub,.lede,.faqs p,.step p,.card p,.caption,.cite').forEach(el => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let n;
+    while(n = walker.nextNode()){
+      if(lang === 'ko') n.textContent = n.textContent
+        .replace(RE, '$1\u00a0')
+        .replace(/([^\s\u00a0]+\u00a0[^\s\u00a0]+)\u00a0/g, '$1 ')
+        .replace(/\)(?=[\uac00-\ud7a3])/g, ')\u2060');
+      else n.textContent = n.textContent.replace(/[\u00a0\u2060]/g, ' ');
+    }
+  });
 }
 
 /* order of preference: explicit ?lang= , remembered choice, browser locale */
