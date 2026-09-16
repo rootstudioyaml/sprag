@@ -11,10 +11,8 @@
     "deploy": "node scripts/deploy.mjs",
     "docs:statusline": "node scripts/docs-statusline.mjs",
     "postinstall": "node bin/cli.js install || true",
-    "prepublishOnly": "node scripts/sync-readme-ko.mjs",
     "publish:legacy": "node scripts/publish-legacy.mjs",
     "release:notes": "node scripts/release-notes.mjs",
-    "sync:ko": "node scripts/sync-readme-ko.mjs",
     "test": "node --test"
   },
   "files": [
