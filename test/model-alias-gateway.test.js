@@ -34,7 +34,7 @@ const OPUS_ALIAS = 'ap-northeast-2.anthropic.claude-opus-5[1m]';
 const SONNET_ALIAS = 'ap-northeast-2.anthropic.claude-sonnet-5[1m]';
 const HAIKU_ALIAS = 'global.anthropic.claude-haiku-4-5[1m]';
 
-/** model-alias.test.js 의 isolated() 와 같되, ANTHROPIC_BASE_URL 도 함께 돌립니다. */
+/** 임시 XDG_CONFIG_HOME 과 게이트웨이 주소를 세운 뒤 테스트가 끝나면 원복한다. */
 function isolated(t, { base = GATEWAY_BASE } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-alias-gw-'));
   const prev = {
