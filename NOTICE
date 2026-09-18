@@ -1,0 +1,35 @@
+sprag (npm: sprag-cli)
+Copyright 2026 rootstudioyaml
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Releases up to and including v3.47.0 were published under the MIT License.
+Anyone who received a copy under those terms keeps them for that copy; this
+change applies to later releases.
+
+--------------------------------------------------------------------------------
+Third-party content redistributed with this project
+
+presets/korean-style/fluent-korean.md
+    fluent-korean, Copyright (c) 2026 snflkd, MIT License.
+    Vendored with only the output-style frontmatter removed; the guidance text
+    is unmodified. It stays under its own terms, which are reproduced in
+    presets/korean-style/LICENSE-fluent-korean.
+    Upstream: https://github.com/snflkd/fluent-korean
+
+--------------------------------------------------------------------------------
+Trademarks
+
+Section 6 of the License grants no rights in the project's names or marks.
+"sprag" and the sprag logo are not licensed for use in a way that states or
+implies endorsement of a fork or a derived distribution.
