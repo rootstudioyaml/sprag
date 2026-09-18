@@ -26,7 +26,7 @@ import { labelForKey } from '../src/window-labels.js';
 
 /** Chip glyphs, gauge ticks, window icons. Verified present in JetBrains Mono. */
 const FONT_VERIFIED = new Set([
-  ...'‼⚠↑⍟⌨◈⇉≣◉◔∑◧✓↩',      // narrow chip glyphs
+  ...'‼⚠↑⍟⌨◈▲⇉≣◉◔∑◧✓↩',     // narrow chip glyphs
   ...'✶⌸◫◕◇◆',               // narrow window icons
   ...'■□',                    // narrow gauge ticks (U+25A0 / U+25A1)
 ]);
@@ -111,6 +111,7 @@ function data() {
       ],
     },
     model: 'Opus 5',
+    effort: 'xhigh',
     delegationSaved: 21.8,
     doc2mdTotals: { total: 1.8, docs: 3 },
     monthSpend: { label: 'Sep', usd: 830 },
@@ -142,7 +143,7 @@ test('text mode carries no emoji either', () => {
 
 test('icon mode still uses the emoji, so other terminals are unaffected', () => {
   const out = strip(formatReport(data(), { color: false, mode: 'icon', verbose: true }));
-  for (const emoji of ['🧠', '⏳', '📦', '💰', '🤖']) {
+  for (const emoji of ['🧠', '⏳', '📦', '💰', '🤖', '🔬']) {
     assert.ok(out.includes(emoji), `icon mode should still render ${emoji}`);
   }
 });

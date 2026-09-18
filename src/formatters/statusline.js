@@ -209,6 +209,40 @@ function buildKoreanSeg(c, isIcon, verbose, g) {
 }
 
 /**
+ * Effort tones. Claude Code resolves an unset effort to `high`, so `high` is the
+ * level a session runs at when nobody has touched it — it gets the magenta
+ * identity tone the model chip uses, and the two chips read as one group about
+ * which model is answering and how hard. The levels below default recede to
+ * gray; the two above it take the warning tone, since raising effort buys
+ * quality with tokens per turn and this tool exists to keep that visible.
+ * An unlisted level (a new one Anthropic ships) renders in the identity tone
+ * rather than not at all.
+ */
+const EFFORT_TONES = {
+  none: GRAY,
+  low: GRAY,
+  medium: GRAY,
+  high: MAGENTA,
+  xhigh: YELLOW,
+  max: YELLOW,
+};
+
+/**
+ * Effort chip builder — the level from Claude Code's stdin payload
+ * (`effort.level`, see extractEffort).
+ *
+ * The level is a word ("high"), so icon modes need no label beside the glyph:
+ * `🔬 high` already reads. Text mode names the field, because a bare "high"
+ * next to a model name would be anyone's guess.
+ */
+function buildEffortSeg(effort, c, isIcon, g) {
+  if (typeof effort !== 'string' || effort.length === 0) return null;
+  const tone = EFFORT_TONES[effort] || MAGENTA;
+  if (isIcon) return `${c(tone)}${g.effort} ${effort}${c(RESET)}`;
+  return `${c(tone)}Effort ${effort}${c(RESET)}`;
+}
+
+/**
  * Version segment builder — "which copy of this tool am I looking at", plus
  * the upgrade nudge when a newer one has been published.
  *
@@ -289,9 +323,10 @@ function buildCapWarnSeg(capWarn, c, isIcon, g, color, mode) {
  * The stdin payload (rate limits, model) is still live in that case, and a
  * 90%+ cap warning is exactly the kind of signal that must not disappear
  * just because the user has been idle past the window — so cap-warn,
- * harness, and model chips still render around the "no session data" note.
+ * harness, model, and effort chips still render around the "no session data"
+ * note.
  */
-export function formatNoSession({ caps = null, model = null, windowLabel = '', version = '', update = null } = {}, { color = true, mode = 'icon' } = {}) {
+export function formatNoSession({ caps = null, model = null, effort = null, windowLabel = '', version = '', update = null } = {}, { color = true, mode = 'icon' } = {}) {
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take
   // the same branches from here on.
@@ -307,6 +342,8 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
   if (typeof model === 'string' && model.length > 0) {
     segs.push(isIcon ? `${c(MAGENTA)}${g.model} ${model}${c(RESET)}` : `${c(MAGENTA)}${model}${c(RESET)}`);
   }
+  const effortSeg = buildEffortSeg(effort, c, isIcon, g);
+  if (effortSeg) segs.push(effortSeg);
   segs.push(`${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
   if (versionSeg && !(update && update.available)) segs.push(versionSeg);
   return segs.join(' · ') + (color ? '\x1b[K' : '');
@@ -319,7 +356,7 @@ export function formatNoSession({ caps = null, model = null, windowLabel = '', v
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness, korean, model, hit, ttl, month, saved, delegated, doc2md, ctx, period, `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness, korean, model, effort, hit, ttl, month, saved, delegated, doc2md, ctx, period, `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
 /**
@@ -341,7 +378,7 @@ export const DEFAULT_SEGMENT_ORDER = [
   'cap-warn', 'spike',
   'usage', 'ctx',
   'ttl',
-  'model',
+  'model', 'effort',
   // Grouped by the timeframe each figure covers, because mixing them was the
   // problem: a lifetime total, a windowed rate and a calendar-month estimate sat
   // interleaved, with one window label at the end of the line that appeared to
@@ -359,7 +396,7 @@ export const DEFAULT_SEGMENT_ORDER = [
 ];
 
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
-  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model } = data;
+  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort } = data;
   const { hitRate } = summary;
 
   // Hit rate → color signal
@@ -711,6 +748,11 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     }
   }
 
+  // Effort chip — how hard the session is being worked (`/effort`). It follows
+  // the model chip because it qualifies it: the same model answers differently
+  // at `low` and at `max`, and the pair is one glance.
+  const effortSeg = buildEffortSeg(effort, c, isIcon, g);
+
   // Always-on usage segments — what /usage shows in Claude Code, mirrored
   // to the statusline so the user doesn't have to slash-command for it.
   // Today the stdin payload exposes the 5h ("Current session") and 7-day
@@ -820,6 +862,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       case 'harness':   return [harnessSeg];
       case 'korean':    return [koreanSeg];
       case 'model':     return [modelSeg];
+      case 'effort':    return [effortSeg];
       // Dropped when the same story already owns a headline line above, which
       // would otherwise repeat it on line 2.
       case 'delegated': return totalsLine ? [] : [delegateSeg];

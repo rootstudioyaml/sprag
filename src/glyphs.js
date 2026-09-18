@@ -39,6 +39,13 @@ const ICON = {
   harness: '🅷',
   korean: '✍️',
   model: '🤖',
+  // Effort: a closer look at the same thing, which is what raising it buys.
+  // Width decided this as much as meaning. The obvious picks for "a level" are
+  // 🎚 and 🎛 (U+1F39A/1F39B), and both are East Asian Width N while every other
+  // glyph in this set is W — drawn from the color-emoji font they occupy two
+  // cells while being counted as one, and the line shifts on every repaint. 🔬
+  // is W, so it measures the same as its neighbours.
+  effort: '🔬',
   routing: '🔀',
   doc: '📄',
   hit: '🧠',
@@ -67,6 +74,7 @@ const NARROW = {
   harness: '⍟',   // circled star: a score out of five
   korean: '⌨',    // an input/typing convention rather than a hand
   model: '◈',
+  effort: '▲',    // a magnitude: how hard the turn is being worked
   routing: '⇉',   // sent down a different path
   doc: '≣',       // stacked lines: a page of text
   hit: '◉',       // bullseye: a cache hit

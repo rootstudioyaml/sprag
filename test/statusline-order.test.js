@@ -26,6 +26,7 @@ function data({ fiveHourPct = 31, sevenDayPct = 10 } = {}) {
       ],
     },
     model: 'Opus 5',
+    effort: 'high',
     delegationSaved: 0,
   };
 }
