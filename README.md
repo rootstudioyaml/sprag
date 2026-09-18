@@ -19,11 +19,17 @@
 
 ---
 
-Sprag is named after the sprag clutch: forward motion passes, backspin locks. Your agent keeps working, it just stops regressing.
+Sprag is named after the sprag clutch: forward motion passes, backspin locks.
+Your agent keeps working, it just stops regressing.
 
-It works from the sessions you already ran, and what it learns there holds for every session after. Every repeated failure becomes a rule loaded at session start. Work a cheaper tier has proven it can do goes to a sub-agent on that tier, with a per-run savings ledger as the receipt. Cache and rate-limit trouble reaches your statusline while you can still act on it.
+It reads the sessions you already ran, and what it finds there holds for every
+session after. Repeated failures become rules loaded at session start. Work that
+a cheaper tier has never got wrong goes to a sub-agent on that tier, and every
+delegated run writes its own price difference to a ledger. Cache and rate-limit
+trouble reaches your statusline while you can still act on it.
 
-Nothing leaves your machine, because it reads only the logs Claude Code already writes there. No API key, no extra model calls, no runtime dependencies.
+Nothing leaves your machine, because it reads only the logs Claude Code already
+writes there. No API key, no extra model calls, no runtime dependencies.
 
 ```bash
 npm i -g sprag-cli   # the old claude-token-saver package still gets the same releases
@@ -40,8 +46,14 @@ npm i -g sprag-cli   # the old claude-token-saver package still gets the same re
 
 Everything on the left is something your session already produces. Nothing is
 sent anywhere to read it. The tier decision at the bottom is the whole routing
-argument in three tests: where the answer lives, whether failure makes noise,
-and what that rule's own track record says.
+argument in three tests: where the answer lives, whether a mistake surfaces, and
+what error rate the rule was measured at.
+
+Sprag does not swap the model you asked for. It reads what you have already run,
+finds the kinds of task that never went wrong on a cheaper tier, and spawns a
+sub-agent for exactly those. The main agent reviews what comes back before
+anything counts as done, and the work returns to it the moment a rule stops
+holding.
 
 ## Measured results
 
@@ -87,9 +99,7 @@ read on 2026-09-18.
 Real output, from `sprag route-scan savings`, `sprag --days 30`, and the doc2md
 ledger. Nothing here is a projection.
 
-Sprag does not swap the model you asked for. It reads what you have already run, finds the kinds of task that never went wrong on a cheaper tier, and spawns a sub-agent for exactly those. The main agent reviews what comes back before anything counts as done, and the work returns to it the moment a rule stops holding.
-
-Routing savings are a ledger, not an estimate: each delegated run records the actual price difference, traceable back to the rule that caused it with `sprag route-scan savings`. What the ledger deliberately leaves out is written down in [the command reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md).
+Every delegated run records its own price difference, so `sprag route-scan savings` traces any amount back to the rule that caused it. What the ledger deliberately leaves out is written down in [the command reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md).
 
 ## Everything ships in one install, working from day one
 
@@ -102,11 +112,12 @@ Routing savings are a ledger, not an estimate: each delegated run records the ac
 | 📄 **doc2md** | pptx, xlsx, pdf, docx and fig converted on demand, so a document costs one read instead of your whole context. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
 | 🇰🇷 **Style gates** | Write-time prose lint enforced by hook. Shipping today for Korean technical writing: double passives, translationese, cohesion. | [style](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) |
 
-The two savings figures are never added together, because they measure different
-things: the routing ledger records the price difference on runs that were
-delegated, and the conversion ledger records tokens a document did not cost. What
-the harness and the ratchet rules do shows up in neither, because it arrives as
-fewer round-trips rather than as a cheaper one.
+The two savings figures are never added together. They measure different things:
+the routing ledger records the price difference on delegated runs, and the
+conversion ledger records tokens a document did not cost.
+
+Neither one counts what the harness and the ratchet rules save. That saving
+arrives as fewer round-trips rather than as cheaper ones.
 
 ## The statusline in one line
 
@@ -115,9 +126,9 @@ fewer round-trips rather than as a cheaper one.
 🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
-When something is wrong the warning chip leads the line: `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL`. Paste the chip text into Claude and the Skill names the root-cause code and the fix. Segment-by-segment meanings live in [the statusline reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md).
+When something is wrong the warning chip leads the line: `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL`. Paste the chip text into Claude and the Skill names the root-cause code and the fix. Every segment is explained in [the statusline reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md).
 
-Inside a JetBrains IDE terminal the chips render as single-cell glyphs instead of emoji (`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). The IDE's default font has no emoji glyphs, so leaving them in leaves debris from the previous frame behind, like `Cache expires 4:545`. [Label modes](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md#label-modes) covers the detail, plus `sprag mode narrow` and `mode icon-force`.
+Inside a JetBrains IDE terminal the chips render as single-cell glyphs instead of emoji (`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). The IDE's default font has no emoji glyphs, so emoji leave characters from the previous frame on screen, like `Cache expires 4:545`. [Label modes](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md#label-modes) covers the detail, plus `sprag mode narrow` and `mode icon-force`.
 
 ## The cheap tier on the same prompts
 
@@ -186,7 +197,7 @@ Every subcommand, flag and the output-language setting: [command reference](http
 | [Not a router](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.md) | Why realtime routing breaks the cache and costs more |
 | [Gateways & environment](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.md) | Bedrock, Vertex, LiteLLM budgets, pricing table, FAQ, how it works |
 
-Behind a LiteLLM gateway, `sprag profile-map --refresh` now reads model aliases straight from the gateway's own `GET /model/info`, so route-scan no longer needs to wait on learned votes or a hand-edited `profile-map.json`. The refresh rides the same 5-minute check and 24-hour cache as the LiteLLM budget gauge. It never stores your auth token: each refresh reads it from `apiKeyHelper` at call time and lets it expire on the helper's own schedule. Details: [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md).
+Behind a LiteLLM gateway, `sprag profile-map --refresh` now reads model aliases straight from the gateway's own `GET /model/info`, so route-scan no longer needs to wait on learned votes or a hand-edited `profile-map.json`. The refresh uses the same 5-minute check and 24-hour cache as the LiteLLM budget gauge. It never stores your auth token: each refresh reads it from `apiKeyHelper` at call time and lets it expire on the helper's own schedule. Details: [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md).
 
 ## Release notes
 
@@ -218,7 +229,8 @@ Apache License 2.0. The full text is in [LICENSE](./LICENSE), and the attributio
 it requires are in [NOTICE](./NOTICE).
 
 Releases up to and including v3.47.0 went out under the MIT License. A copy
-received under those terms stays under them; this applies to later releases.
+received under those terms stays under them; the new license applies to
+releases after that.
 
 **Running sprag inside a product or a paid service?** The license already permits
 that, so this is not a request for permission. We would like to hear about it
