@@ -2,16 +2,19 @@
  * The effort chip — which effort level `/effort` left the session on.
  *
  * Claude Code puts the resolved level in the statusline payload itself
- * (`effort.level`, added by 2.1.276), so nothing here reads the transcript.
+ * (`effort.level`, added by 2.1.276), so nothing here reads the transcript. The
+ * one level that is not in the payload, `ultracode`, is covered next door in
+ * statusline-ultracode.test.js.
  *
  * Three properties are worth pinning because getting any of them wrong is
  * silent. An absent key must render no chip rather than a default one (models
  * without an effort setting, and older Claude Code builds, both omit it, and
- * showing "high" there would be an invention). The tone must separate a level
- * the user raised from the one they were given, without borrowing the tone this
- * line reserves for things to act on. And the level is a string off a JSON
- * payload, so it must not be able to reach through Object.prototype into the
- * tone table.
+ * showing "high" there would be an invention). The tones must be Claude Code's
+ * own, so the level reads the same color here and in the picker that set it —
+ * the values themselves are pinned in effort-palette.test.js; what is checked
+ * here is that the chip actually wears them. And the level is a string off a
+ * JSON payload, so it must not be able to reach through Object.prototype into
+ * the tone table.
  *
  * The chip only renders when the entry point passes a level through, and both
  * formatters skip it silently when nobody does — so the last tests here drive
@@ -27,6 +30,12 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { extractEffort } from '../src/stdin-payload.js';
 import { formatReport, formatNoSession } from '../src/formatters/statusline.js';
+import { effortTones } from '../src/effort-palette.js';
+
+/** The same resolution the formatter does at import time. */
+const PALETTE = effortTones({
+  truecolor: process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit',
+});
 
 function data(effort) {
   return {
@@ -95,23 +104,44 @@ test('the chip sits with the model it qualifies', () => {
   assert.match(strip(line('max')), /🤖 [^·]+ · 🔬 max/, 'effort follows the model chip with nothing between them');
 });
 
-test('a raised level is bolder, not louder', () => {
-  // `high` is what Claude Code resolves an unset effort to, so it reads as
-  // identity beside the model chip. Above it the level is bold in the SAME tone,
-  // never the yellow this line saves for "act on this eventually" — a setting
-  // the user pinned is not a state to fix (see the EFFORT_TONES comment).
-  const dflt = effortTone('high');
-  assert.equal(effortTone('xhigh'), effortTone('max'), 'both raised levels share one tone');
-  assert.ok(effortTone('max').includes(BOLD), 'a raised level is bold');
-  assert.equal(effortTone('max').replace(BOLD, ''), dflt, 'and bold is the only difference from the default');
-  assert.ok(!dflt.includes(BOLD), 'the default level is not bold');
-  // Below default recedes rather than warns: it spends less, not more.
-  assert.equal(effortTone('low'), effortTone('medium'), 'the cheaper levels share one tone');
-  assert.notEqual(effortTone('low'), dflt);
-  assert.notEqual(effortTone('low'), effortTone('max'), 'cheaper must not look like a raised level');
-  // A level this build has never heard of still renders, in the identity tone.
-  assert.equal(effortTone('ultra'), dflt, 'an unknown level falls back to identity');
+test("the chip wears Claude Code's own level colors", () => {
+  // Every level is a distinct hue up to xhigh, because that is what the app's
+  // slider does: low=warning, medium=success, high=permission, xhigh=autoAccept.
+  const tones = ['low', 'medium', 'high', 'xhigh'].map(effortTone);
+  assert.equal(new Set(tones).size, 4, 'the four settable levels are four colors');
+  for (const [level, expected] of Object.entries(PALETTE)) {
+    if (Array.isArray(expected)) continue; // max and ultracode are painted per character
+    assert.equal(effortTone(level), expected, `${level} must take its palette tone`);
+  }
+  // ultracode opens on the same purple as xhigh — the app gives both the same
+  // hue — but it is a glow ramp rather than a flat tone, so the two levels do
+  // not look alike on a 24-bit terminal.
+  assert.equal(effortTone('ultracode'), effortTone('xhigh'), 'the ramp opens on xhigh purple');
+  assert.match(strip(line('ultracode')), /🔬 ultracode/);
+  assert.match(strip(line('xhigh')), /🔬 xhigh/);
+  // No level is bold any more: the color carries the magnitude, and the app
+  // does not bold its own rows either.
+  for (const level of ['low', 'medium', 'high', 'xhigh', 'max', 'ultracode']) {
+    assert.ok(!effortTone(level).includes(BOLD), `${level} must not be bold`);
+  }
+  // A level this build has never heard of reads as high — what Claude Code
+  // resolves an unset effort to.
+  assert.equal(effortTone('ultra'), effortTone('high'), 'an unknown level falls back to the default level');
   assert.match(strip(line('ultra')), /🔬 ultra/);
+});
+
+test('max is painted across the rainbow, one stop per character', () => {
+  // `max` is "rainbow-animated" in the app. A statusline cannot animate (each
+  // render is a new process, seconds apart), so the arc is spread over the word
+  // instead of cycled over time — and spread, not cycled, so a three-letter
+  // word still reaches violet.
+  const rendered = formatReport(data('max'), { color: true, timer: false, mode: 'icon', segments: ['effort'] });
+  const stops = rendered.match(/\x1b\[[0-9;]*m/g) || [];
+  const rainbow = PALETTE.max;
+  assert.equal(stops[0], rainbow[0], 'the glyph opens on the first stop');
+  assert.ok(stops.includes(rainbow.at(-1)), 'and the last character reaches the last stop');
+  assert.equal(new Set(stops.filter((e) => rainbow.includes(e))).size, 3, '"max" is three characters, so three stops');
+  assert.match(strip(rendered), /🔬 max/, 'and it still reads as a word');
 });
 
 test('a level that names an Object.prototype member cannot reach the tone table', () => {
