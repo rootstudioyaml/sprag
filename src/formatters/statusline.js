@@ -23,6 +23,7 @@ import { labelForKey } from '../window-labels.js';
 import { harnessStatusForStatusline } from '../harness.js';
 import { loadConfig } from '../config.js';
 import { koreanStyleEnabled } from '../korean-style.js';
+import { effortTones } from '../effort-palette.js';
 import { MIN_VOTES } from '../model-alias.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
@@ -209,35 +210,30 @@ function buildKoreanSeg(c, isIcon, verbose, g) {
 }
 
 /**
- * Effort tones. Claude Code resolves an unset effort to `high`, so `high` is the
- * level a session runs at when nobody has touched it — it gets the magenta
- * identity tone the model chip uses, and the two chips read as one group about
- * which model is answering and how hard. Levels below default recede to gray:
- * they spend less, and this tool has no business nagging about that.
+ * Effort tones are not this palette's to choose: they are Claude Code's own, so
+ * the chip shows a level in the color its `/effort` picker showed when the level
+ * was set. src/effort-palette.js holds the values and the evidence for them,
+ * including why `xhigh` and `ultracode` share a color once the shimmer that
+ * separates them in the app is dropped.
  *
- * The levels above default are the same magenta, bold. Not yellow, although
- * raising effort does buy quality with tokens per turn: yellow in this line is
- * the "you should do something eventually" tone (see buildVersionSeg), and an
- * effort level is a setting the user chose, not a state to fix. Someone who
- * pins `max` would read a permanently yellow chip as a standing complaint, and
- * a chip that is always warning-colored is how a line teaches the eye to skip
- * its warning color. Bold says "turned up" in the identity tone instead.
+ * This replaced a scheme of this tool's own devising (gray below default, the
+ * model chip's violet at default, bold above it). That scheme was internally
+ * tidy and still wrong in the only way that matters: the user picks a level in
+ * one UI and reads it back in another, and the two disagreed about what the
+ * level looks like. Matching the app also means the chip now uses yellow at
+ * `low`, which this line otherwise reserves for "act on this eventually" — a
+ * deliberate exception, since the color is quoting Claude Code rather than
+ * making a claim about the level.
  *
- * An unlisted level (a new one Anthropic ships) renders in the identity tone
- * rather than not at all.
+ * An unlisted level (a new one Anthropic ships) reads as `high`, which is what
+ * Claude Code resolves an unset effort to.
  */
-const EFFORT_TONES = {
-  none: GRAY,
-  low: GRAY,
-  medium: GRAY,
-  high: MAGENTA,
-  xhigh: BOLD + MAGENTA,
-  max: BOLD + MAGENTA,
-};
+const EFFORT_TONES = effortTones({ truecolor: TRUECOLOR });
 
 /**
  * Effort chip builder — the level from Claude Code's stdin payload
- * (`effort.level`, see extractEffort).
+ * (`effort.level`, see extractEffort), or `ultracode` when the entry point
+ * resolved that from the transcript (see effortChipLevel).
  *
  * The level is a word ("high"), so icon modes need no label beside the glyph:
  * `🔬 high` already reads. Text mode names the field, because a bare "high"
@@ -248,12 +244,26 @@ function buildEffortSeg(effort, c, isIcon, g) {
   // `hasOwn` rather than a bare index, for the reason model-alias.js gives at
   // its own lookup: the level is a string off a JSON payload, and a level of
   // 'constructor' or '__proto__' would resolve through Object.prototype to a
-  // function or an object. The `|| MAGENTA` fallback cannot catch that, since
-  // both are truthy — the tone would be interpolated as
+  // function or an object. A `||` fallback cannot catch that, since both are
+  // truthy — the tone would be interpolated as
   // `function Object() { [native code] }` and take the whole line with it.
-  const tone = Object.hasOwn(EFFORT_TONES, effort) ? EFFORT_TONES[effort] : MAGENTA;
-  if (isIcon) return `${c(tone)}${g.effort} ${effort}${c(RESET)}`;
-  return `${c(tone)}Effort ${effort}${c(RESET)}`;
+  const tone = Object.hasOwn(EFFORT_TONES, effort) ? EFFORT_TONES[effort] : EFFORT_TONES.high;
+  const head = isIcon ? `${g.effort} ` : 'Effort ';
+  // `max` arrives as the rainbow's seven stops (Claude Code cycles them; see
+  // effort-palette.js for why a statusline cannot). The stops are spread across
+  // the word rather than cycled through it: "max" is three characters, so
+  // cycling would show only the first three stops — red, orange, yellow, which
+  // reads as a warm gradient and not as a rainbow. Spreading walks the whole
+  // arc whatever the word's length.
+  if (Array.isArray(tone)) {
+    const chars = [...effort];
+    const last = Math.max(1, chars.length - 1);
+    const word = chars
+      .map((ch, i) => `${c(tone[Math.round((i * (tone.length - 1)) / last)])}${ch}`)
+      .join('');
+    return `${c(tone[0])}${head}${word}${c(RESET)}`;
+  }
+  return `${c(tone)}${head}${effort}${c(RESET)}`;
 }
 
 /**

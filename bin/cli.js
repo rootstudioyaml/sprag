@@ -36,7 +36,10 @@ import {
   extractContextUsage,
   extractEffort,
   extractModel,
+  extractTranscriptPath,
 } from '../src/stdin-payload.js';
+
+import { effortChipLevel } from '../src/ultracode.js';
 
 import { parseAllSessions, getLastUserMessageTime } from '../src/parser.js';
 import {
@@ -515,7 +518,9 @@ async function main() {
       const stdinJson = readStdinJson();
       const caps = extractCaps(stdinJson);
       const model = extractModel(stdinJson);
-      const effort = extractEffort(stdinJson);
+      // Resolved the same way as on the populated line below, so the chip does
+      // not change its mind about the level when the analysis window empties.
+      const effort = effortChipLevel(extractEffort(stdinJson), extractTranscriptPath(stdinJson));
       if (caps || model) {
         try {
           const { persistSnapshot } = await import('../src/caps-cache.js');
@@ -573,7 +578,14 @@ async function main() {
   // the table view (which pipes no stdin) can still show them, and a level the
   // user has since changed would be worse there than no chip at all. The effort
   // chip is a live-statusline reading only.
-  const effort = extractEffort(stdinJson);
+  //
+  // `ultracode` is the one level the payload cannot name — Claude Code raises it
+  // to xhigh and reports that — so the transcript settles which of the two this
+  // session is on. Only an xhigh payload can resolve to ultracode, so a session
+  // on any other level pays nothing for the check (see src/ultracode.js).
+  const effort = isStatusline
+    ? effortChipLevel(extractEffort(stdinJson), extractTranscriptPath(stdinJson))
+    : extractEffort(stdinJson);
   const ctxLive = extractContextUsage(stdinJson);
   if (isStatusline && (caps || model)) {
     try {
