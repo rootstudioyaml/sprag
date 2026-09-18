@@ -58,9 +58,9 @@ no registered rule owns, or a model name the price table doesn't recognize — a
 excluded rather than guessed at. An honest number beats a big one.
 
 Two other things ride along, because they were the other places I was burning tokens:
-a harness that blocks "all done!" reports with no evidence attached (measured -18.6%
-on my own usage), and a converter that turns pptx/xlsx/pdf/docx/fig into Markdown
-before the model reads them — one deck was 510k tokens as an attachment.
+a harness that blocks "all done!" reports with no evidence attached, and a converter
+that turns pptx/xlsx/pdf/docx/fig into Markdown before the model reads them — one deck
+was 510k tokens as an attachment.
 
 Zero dependencies, `npm i -g claude-token-saver`, Node 18+, MIT.
 

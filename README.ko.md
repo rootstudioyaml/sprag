@@ -19,9 +19,11 @@
 
 ---
 
-**에이전트는 그대로 일하고, 퇴행만 막습니다.** 이름은 스프래그 클러치에서 왔습니다. 앞으로 도는 힘은 그대로 통과시키고, 역회전하는 순간 잠기는 부품입니다. Sprag는 Claude Code가 이미 남기는 세션 기록을 읽어 누적되는 이득으로 바꿉니다. 되풀이된 실패는 세션마다 올라오는 규칙이 되고, 저렴한 티어가 감당한다고 증명된 작업은 절감액 원장을 영수증 삼아 그쪽으로 위임되며, 캐시와 사용량 한도 문제는 아직 손쓸 수 있을 때 statusline에 나타납니다.
+**에이전트는 그대로 일하고, 퇴행만 막습니다.** 이름은 스프래그 클러치에서 왔습니다. 앞으로 도는 힘은 그대로 통과시키고, 역회전하는 순간 잠기는 부품입니다.
 
-의존성 0, API 키 불요, 데이터는 컴퓨터 밖으로 나가지 않습니다.
+Sprag 는 Claude Code 가 이미 남기는 세션 기록을 읽습니다. 거기서 찾아낸 것은 이후 모든 세션에 남습니다. 되풀이된 실패는 세션마다 올라오는 규칙이 되고, 저렴한 등급에서 한 번도 틀리지 않은 작업은 그 등급의 서브에이전트로 갑니다. 위임된 실행은 한 건마다 단가 차액을 원장에 적습니다. 캐시와 사용량 한도 문제는 아직 손쓸 수 있을 때 statusline 에 나타납니다.
+
+데이터는 컴퓨터 밖으로 나가지 않습니다. Claude Code 가 이 컴퓨터에 이미 남긴 기록만 읽기 때문입니다. API 키도, 추가 모델 호출도, 런타임 의존성도 없습니다.
 
 ```bash
 npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입니다
@@ -36,7 +38,9 @@ npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입�
   <img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/how-it-works.png" alt="왼쪽에 들어가는 것은 지난 세션 기록, 방금 시킨 작업, 첨부하려는 문서, 지금 쓰고 있는 한국어 문장, 이번 턴이 소비하는 토큰입니다. 오른쪽에서 나오는 것은 매 세션 시작에 주입되는 래칫 룰, 변환된 문서, 쓰는 도중의 한국어 검사, 프롬프트에 붙는 비용 표시, 그리고 조건에 맞는 작업을 haiku 또는 sonnet 서브에이전트로 보내고 그 결과를 메인 에이전트가 검토하는 흐름입니다.">
 </picture>
 
-왼쪽 항목은 모두 세션이 이미 만들어 내고 있는 것입니다. 그것을 읽으려고 어디에도 전송하지 않습니다. 아래쪽 티어 판정이 위임 논리의 전부이며 기준은 세 가지입니다. 답이 어디에 있는지, 실패가 테스트나 종료 코드로 바로 드러나는지, 그 룰의 실측 성적이 어떤지입니다.
+왼쪽 항목은 모두 세션이 이미 만들어 내고 있는 것입니다. 그것을 읽으려고 어디에도 전송하지 않습니다. 아래쪽 등급 판정이 위임 논리의 전부이며 기준은 세 가지입니다. 답이 어디에 있는지, 틀렸을 때 테스트나 종료 코드로 바로 드러나는지, 그 규칙을 측정했을 때 오류율이 얼마였는지입니다.
+
+Sprag 는 사용자가 지정한 모델을 바꾸지 않습니다. 이미 실행한 기록을 읽어 저렴한 등급에서 한 번도 틀리지 않은 작업 유형을 찾고, 그 유형에만 서브에이전트를 띄웁니다. 돌아온 결과는 메인 에이전트가 검토한 뒤에 완료로 인정되며, 규칙이 맞지 않게 되는 순간 작업은 메인 에이전트로 되돌아옵니다.
 
 ## 측정 결과
 
@@ -73,8 +77,7 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 
 실제 출력입니다. `sprag route-scan savings` 와 `sprag --days 30`, 그리고 doc2md 원장에서 그대로 가져왔습니다. 추정한 값은 없습니다.
 
-
-라우팅 절감액은 추정치가 아니라 위임 한 건 한 건의 차액을 적은 원장입니다. `sprag route-scan savings` 가 모든 금액을 룰 단위까지 역추적해 보여 줍니다. 집계에서 무엇을 빼는지까지 [원장 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md)에 적어 두었습니다.
+위임된 실행은 한 건마다 단가 차액을 기록하므로, `sprag route-scan savings` 가 어떤 금액이든 그 원인이 된 규칙까지 역추적해 보여 줍니다. 집계에서 무엇을 빼는지는 [명령 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md)에 적어 두었습니다.
 
 ## 설치 한 번에 전부 들어 있고, 첫날부터 동작합니다
 
@@ -87,7 +90,9 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 | 📄 **doc2md** | pptx와 xlsx, pdf, docx, fig를 필요할 때 Markdown 으로 바꿔 읽습니다. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
 | 🇰🇷 **문체 게이트** | 쓰는 시점에 hook으로 검사합니다. 이중 피동과 번역투, 문장 연결을 살핍니다. | [문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) |
 
-두 절감액은 성격이 달라서 한 숫자로 합치지 않습니다. 라우팅 원장은 위임된 실행의 단가 차액을 적고, 변환 원장은 문서가 쓰지 않게 된 토큰을 적습니다. 하네스와 래칫 규칙의 효과는 두 원장 어디에도 잡히지 않습니다. 한 번을 더 싸게 만드는 방식이 아니라 왕복 횟수를 줄이는 방식으로 나타나기 때문입니다.
+두 절감액은 한 숫자로 합치지 않습니다. 재는 대상이 다르기 때문입니다. 라우팅 원장은 위임된 실행의 단가 차액을 적고, 변환 원장은 문서가 쓰지 않게 된 토큰을 적습니다.
+
+하네스와 래칫 규칙이 줄여 준 몫은 두 원장 어디에도 잡히지 않습니다. 그 절감은 한 번을 더 싸게 만드는 방식이 아니라 왕복 횟수를 줄이는 방식으로 나타납니다.
 
 ## statusline 한 줄로 보는 상태
 
@@ -96,9 +101,9 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
-문제가 생기면 경고 칩이 줄 맨 앞으로 옵니다. `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL` 여덟 가지이며, 칩 문구를 그대로 말하면 Skill이 원인 코드와 조치 순서를 꺼내 줍니다. 세그먼트별 의미와 색 기준은 [statusline 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md)에 정리했습니다.
+문제가 생기면 경고 칩이 줄 맨 앞으로 옵니다. `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL` 여덟 가지입니다. 칩 문구를 Claude 에게 그대로 붙여 넣으면 Skill 이 원인 코드와 조치 순서를 꺼내 줍니다. 세그먼트마다 무엇을 뜻하는지는 [statusline 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md)에 정리했습니다.
 
-JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 표시합니다(`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). IDE 기본 폰트에 이모지 글리프가 없어서 그대로 두면 `Cache expires 4:545` 처럼 이전 프레임 문자가 남기 때문입니다. 자세한 사정과 `sprag mode narrow` · `mode icon-force` 사용법은 [statusline 문서의 라벨 모드](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md#라벨-모드)에 있습니다.
+JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 표시합니다(`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). IDE 기본 폰트에 이모지 글리프가 없어서, 이모지를 그대로 두면 `Cache expires 4:545` 처럼 이전 프레임 문자가 화면에 남습니다. 모드 종류와 `sprag mode narrow` · `mode icon-force` 사용법은 [statusline 문서의 라벨 모드](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md#라벨-모드)에 있습니다.
 
 ## 같은 프롬프트를 저가 등급에 돌리면
 
@@ -110,7 +115,9 @@ JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 �
 | 정답 판정 | 7 / 8 | 6 / 8 |
 | 답이 같았던 건수 | | 6 / 8 |
 
-눈여겨볼 문항은 두 등급이 함께 틀린 첫 번째입니다. `process.env` 를 참조하는 파일을 물으면서 하위 디렉터리를 포함할지 적지 않았고, 두 등급이 서로 다르게 해석했습니다. 그 조건을 넣어 다시 물으니 두 답이 똑같아졌습니다. 모델이 약해서 틀린 것이 아니라 질문이 모호했던 것입니다. 남은 한 건은 저가 등급이 파일 목록에서 몇 개를 빠뜨린 경우입니다. 틀린 목록은 틀린 것이 바로 보입니다. 두 번째 기준이 하는 일이 이것입니다.
+눈여겨볼 문항은 두 등급이 함께 틀린 첫 번째입니다. `process.env` 를 참조하는 파일을 물으면서 하위 디렉터리를 포함할지 적지 않았고, 두 등급이 서로 다르게 해석했습니다. 그 조건 하나를 넣어 다시 물으니 두 답이 똑같아졌습니다. 모델이 약해서 틀린 것이 아니라 질문이 모호했습니다.
+
+남은 한 건은 저가 등급이 파일 목록에서 몇 개를 빠뜨린 경우입니다. 틀린 목록은 틀렸다는 사실이 바로 보입니다. 두 번째 기준이 하는 일이 이것입니다.
 
 정리하면 저가 등급은 공짜가 아닙니다. 이 표본에서는 조회 작업 여덟 건 가운데 한 건을 더 틀리는 대신 비용을 4분의 1로 줄였습니다. 그래서 규칙은 틀렸을 때 바로 드러나는 작업만 내려보내고, 설계와 원인 진단은 상위 등급에 남깁니다.
 
@@ -122,7 +129,7 @@ JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 �
 | 위임 실행 | $44.67 절감 · 건당 $0.65 | 69건 | 2026-09-18 까지 누적 |
 | 래칫 규칙 누적 | 37건 (글로벌 30 · 프로젝트 7) | 저장소 4곳 | 2026-05-08 ~ 09-16 |
 
-두 수는 늘어나는 방식이 다릅니다. 래칫 규칙은 사람이 저지른 실수에서 나오므로 계속 늘어납니다. 위임 규칙은 멈춥니다. 기준이 알아보는 작업 유형이 정해져 있어서, 유형마다 규칙이 하나 생기면 더 승격할 것이 없습니다.
+래칫 규칙과 위임 규칙은 늘어나는 방식이 다릅니다. 래칫 규칙은 사람이 저지른 실수에서 나오므로 계속 늘어납니다. 위임 규칙은 멈춥니다. 기준이 알아보는 작업 유형이 정해져 있어서, 유형마다 규칙이 하나 생기면 더 승격할 것이 없습니다.
 
 ## 자주 쓰는 명령
 
@@ -153,11 +160,11 @@ JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 �
 | [라우터가 아닌 이유](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.ko.md) | 실시간 라우팅이 캐시를 깨서 비용을 키우는 구조 |
 | [게이트웨이와 환경](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.ko.md) | Bedrock·Vertex·LiteLLM, 가격표, FAQ, 동작 원리 |
 
-LiteLLM 게이트웨이 환경에서는 `sprag profile-map --refresh` 가 게이트웨이의 `GET /model/info` 에서 모델 별칭을 바로 읽어 오므로, route-scan 이 위임 투표가 쌓이길 기다리거나 `profile-map.json` 을 손으로 편집할 필요가 없어졌습니다. 이 갱신은 LiteLLM 예산 게이지와 같은 5분 점검·24시간 캐시 주기에 얹혀 돌아갑니다. 인증 토큰은 저장하지 않으며, 호출 시점마다 `apiKeyHelper` 에서 읽어 그 헬퍼의 수명 그대로 만료되게 둡니다. 자세한 내용은 [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) 문서에 있습니다.
+LiteLLM 게이트웨이 환경에서는 `sprag profile-map --refresh` 가 게이트웨이의 `GET /model/info` 에서 모델 별칭을 바로 읽어 오므로, route-scan 이 위임 투표가 쌓이길 기다리거나 `profile-map.json` 을 손으로 편집할 필요가 없어졌습니다. 이 갱신은 LiteLLM 예산 게이지와 같은 5분 점검·24시간 캐시 주기를 씁니다. 인증 토큰은 저장하지 않으며, 호출 시점마다 `apiKeyHelper` 에서 읽어 그 헬퍼의 수명 그대로 만료되게 둡니다. 자세한 내용은 [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) 문서에 있습니다.
 
 ## 릴리스 노트
 
-전체 내역은 [CHANGELOG.md](./CHANGELOG.md)로 옮겼습니다. 최근 변경은 다음과 같습니다.
+전체 내역은 [CHANGELOG.md](./CHANGELOG.md) 로 옮겼습니다. 최근 변경은 다음과 같습니다.
 
 - **v3.39.0**: `feedback` 서브커맨드가 터미널이나 Claude 세션에서 버그 제보·기능 제안을 바로 제출합니다. gh CLI가 있으면 이슈 직접 등록, 없으면 로그인 없는 익명 제출(릴레이가 이슈로 자동 등록), 오프라인이면 로컬 저장. `install`은 기존 statusline이 있으면 조용히 건너뛰지 않고 교체 여부를 묻습니다.
 - **v3.38.0**: `cohesion on`이 응집성 다섯 원칙을 영어 블록으로 주입합니다. 옵트인이고, korean 지침이 켜져 있으면 중복 주입을 막습니다.
@@ -177,13 +184,13 @@ sprag feedback "Bedrock에서 5m TTL 칩이 사라지지 않아요"
 
 `gh` CLI가 인증되어 있으면 GitHub 이슈로 바로 등록하고, 없으면 로그인이 필요 없는 익명 경로로 제출합니다(github.com이 막힌 사내망에서도 동작합니다). `gh` 경로를 건너뛰려면 `--anonymous`를 붙입니다. 도구 버전과 OS 정보는 자동으로 첨부됩니다.
 
-버그를 제보하실 때는 도구 버전(`sprag --version`)과 OS를 함께 적어 주시고, statusline이나 경고 관련 문제라면 statusline 출력이나 `sprag last` 결과를 덧붙여 주시면 원인을 빨리 찾을 수 있습니다.
+버그를 제보하실 때는 도구 버전(`sprag --version`)과 OS 를 함께 적어 주십시오. statusline 이나 경고 관련 문제라면 statusline 출력이나 `sprag last` 결과를 덧붙여 주시면 원인을 빨리 찾을 수 있습니다.
 
 ## 라이선스
 
 Apache License 2.0 입니다. 원문은 [LICENSE](./LICENSE) 에 있고, 그 라이선스가 요구하는 출처 표기는 [NOTICE](./NOTICE) 에 정리했습니다.
 
-v3.47.0 까지는 MIT 로 배포했습니다. 그 조건으로 받은 사본은 계속 그 조건을 따르며, 이번 변경은 이후 릴리스에 적용됩니다.
+v3.47.0 까지는 MIT 로 배포했습니다. 그 조건으로 받은 사본은 계속 MIT 를 따르고, Apache-2.0 은 그 이후 릴리스부터 적용됩니다.
 
 **제품이나 유료 서비스에 붙여 쓰시는 경우.** 라이선스가 이미 허용하므로 허락을 받으실 일은 아닙니다. 다만 알려 주시면 좋겠습니다. 규모가 커질 때 불편해지는 지점은 우회하시는 것보다 저희가 고치는 편이 낫기 때문입니다. 팀 단위로 래칫 규칙을 공유하는 경우, 게이트웨이가 모델 ID 를 불투명한 프로파일로 기록하는 환경, 좌석별 예산 집계가 그런 지점입니다. [이슈](https://github.com/rootstudioyaml/sprag/issues)를 열거나 아래 채널로 연락해 주십시오.
 
