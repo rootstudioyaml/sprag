@@ -22,7 +22,8 @@
     "examples/",
     "README.md",
     "README.ko.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "engines": {
     "node": ">=18"
@@ -52,7 +53,7 @@
     "model-fitting",
     "agent-harness"
   ],
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rootstudioyaml/sprag.git"

@@ -5,11 +5,11 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**A quality ratchet for AI coding agents. Mistakes never repeat.**
+**A quality ratchet for your coding agent. Forward motion passes, backspin locks.**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![license](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](./LICENSE)
 
 [English](https://github.com/rootstudioyaml/sprag/blob/main/README.md) · [한국어](https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md)
 
@@ -19,15 +19,17 @@
 
 ---
 
-**Your agent keeps working, it just stops regressing.** Sprag is named after the sprag clutch: forward motion passes freely, backspin locks. It reads the sessions Claude Code already writes and turns them into gains that compound. Every repeated failure becomes a rule loaded at session start, work a cheaper tier has proven it can do is delegated there with a per-run savings ledger as the receipt, and cache or rate-limit trouble reaches your statusline while you can still act on it.
+Sprag is named after the sprag clutch: forward motion passes, backspin locks. Your agent keeps working, it just stops regressing.
 
-Zero dependencies, no API key, nothing leaves your machine.
+It works from the sessions you already ran, and what it learns there holds for every session after. Every repeated failure becomes a rule loaded at session start. Work a cheaper tier has proven it can do goes to a sub-agent on that tier, with a per-run savings ledger as the receipt. Cache and rate-limit trouble reaches your statusline while you can still act on it.
+
+Nothing leaves your machine, because it reads only the logs Claude Code already writes there. No API key, no extra model calls, no runtime dependencies.
 
 ```bash
-npm i -g sprag-cli   # same package as the old claude-token-saver name
+npm i -g sprag-cli   # the old claude-token-saver package still gets the same releases
 ```
 
-![statusline example — routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
+![statusline example: routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
 ## How it works
 
@@ -49,71 +51,116 @@ and what that rule's own track record says.
 | Cost for the same queries | **$268** vs gpt-5 $388, gemini-2.5-pro $734 | `▰▰▰▰▰▱▱▱▱▱▱▱` | [benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
 | Tokens for the same documents | **−95.9%**, 2,011,178 → 82,209 over 12 files | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
 | Delegation savings, from the ledger | **$44.67** over 69 delegated runs | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
-| Cost per user message | **−18.6%**, $2.345 → $1.910 | `▰▰▰▰▰▰▰▰▰▰▱▱` | [report](#real-world-impact--beforeafter-report) |
+| Cheap tier on the same prompts | **24% of the cost**, one answer worse out of eight | `▰▰▰▱▱▱▱▱▱▱▱▱` | [A/B run](#the-cheap-tier-on-the-same-prompts) |
 
-The first two rows come from a fixed public dataset and do not move. The next
-two are ledgers on this machine and grow as it runs, so they are dated: figures
-below are as of 2026-09-18. The last row is a one-off measurement taken on
-2026-05-02 under Opus 4.7 pricing, and it cannot be recomputed, because the
-transcripts behind its "before" window have since aged out of local retention.
+**What the first two rows are for.** The delegation rules rest on three criteria,
+and the obvious objection is that moving work to a cheaper model must cost you
+accuracy. On public data it does not. Applying the same criteria as a router over
+11,696 instances scored slightly *higher* than always using the best single
+model, at a third of the cost. Accuracy went up rather than down for the reason
+the whole idea depends on: no single model is best at every kind of task.
+
+That evaluation is **offline**, so those two rows never move. The benchmark ships
+precollected responses of 13 models with each instance's score, token count and
+cost, so the router really ran and picked a model for every instance, and the
+accuracy and cost are then looked up rather than generated. No API call was made
+and nothing was spent. It tests the criteria, not sprag's own model list: the
+dataset's pool has no Claude tiers, so deepseek-v3, qwen3-235b and gpt-5 stand in
+for cheap, mid and flagship.
+
+The next two rows are ledgers on this machine and grow as it runs, so they are
+dated: figures below are as of 2026-09-18.
 
 ### Current, on one machine, last 30 days
 
-| | |
-|---|---|
-| Delegation savings | **$42.73** in 30 days (\$23.21 in the last 7), 69 runs total |
-| Where the work moved | opus-5 → sonnet-5 59 runs \$39.75 · opus-5 → haiku-4.5 10 runs \$4.92 |
-| Document conversion | 12 files (xlsx, pptx, pdf), 2,011,178 → 82,209 tokens |
-| Volume behind it | 175 sessions, 14,682 API calls, 3.81B input tokens |
-| Cache hit rate | 92.2% |
+```
+🔀 Routing saved $44.67 total        (last 7d $23.21 · last 30d $42.73)
+
+   opus-5 → sonnet-5     59 runs    $39.75   ▰▰▰▰▰▰▰▰▰▰▱▱
+   opus-5 → haiku-4.5    10 runs     $4.92   ▰▱▱▱▱▱▱▱▱▱▱▱
+```
+
+| Also measured | Over 30 days | |
+|---|---|---|
+| Documents converted | 12 files, 2,011,178 → 82,209 tokens | `▰▱▱▱▱▱▱▱▱▱▱▱` |
+| Cache hit rate | 92.2% | `▰▰▰▰▰▰▰▰▰▰▰▱` |
+| Volume behind both | 175 sessions · 14,682 API calls · 3.81B input tokens | |
 
 Every figure here is what the tool reports about itself: `sprag route-scan
-savings` for the delegation rows, `sprag --days 30` for the volume, and the
-doc2md ledger for the conversions. None of it is a projection.
+savings` for the block above, `sprag --days 30` for the volume, and the doc2md
+ledger for the conversions. None of it is a projection.
 
+Sprag does not swap the model you asked for. It reads what you have already run, finds the kinds of task that never went wrong on a cheaper tier, and spawns a sub-agent for exactly those. The main agent reviews what comes back before anything counts as done, and the work returns to it the moment a rule stops holding.
 
-Routing savings are a ledger, not an estimate: the price difference of each delegated run, traceable back to the rule that caused it with `sprag route-scan savings`. What the ledger deliberately excludes is documented in [the command reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md).
+Routing savings are a ledger, not an estimate: each delegated run records the actual price difference, traceable back to the rule that caused it with `sprag route-scan savings`. What the ledger deliberately leaves out is written down in [the command reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md).
 
 ## Everything ships in one install, working from day one
 
 | | What it does | More |
 |---|---|---|
-| ⚙️ **Ratchet rules** | Repeated failures become one-line rules loaded every session; candidates are detected from your logs. | [harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.md) |
-| 🔀 **Model fitting** | Log-driven delegation rules with measured error rates and savings, written to `ratchet-model.md`. | [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) |
+| ⚙️ **Ratchet rules** | Repeated failures become one-line rules loaded every session. Candidates are detected from your logs, and you choose project or global scope. | [harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.md) |
+| 🔀 **Model fitting** | Log-driven delegation rules carrying the error rate they were measured at and the savings they reported, written to `ratchet-model.md`. | [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) |
 | 🅷 **Harness score** | Five operating principles checked live. Skip the verify step and `🅷 4/5` says so before you report done. | [harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.md) |
-| 📊 **Token telemetry** | Cache hit rate, TTL, context size, output spikes and both rate-limit windows, every turn. | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md) |
-| 📄 **doc2md** | pptx, xlsx, pdf, docx and fig converted on demand instead of pasted into context. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
-| 🇰🇷 **Style gates** | Write-time prose lint enforced by hook: double passives, translationese, cohesion. | [style](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) |
+| 📊 **Token telemetry** | Cache hit rate, TTL, context size, output spikes and both rate-limit windows, in the prompt every turn. | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md) |
+| 📄 **doc2md** | pptx, xlsx, pdf, docx and fig converted on demand, so a document costs one read instead of your whole context. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
+| 🇰🇷 **Style gates** | Write-time prose lint enforced by hook. Shipping today for Korean technical writing: double passives, translationese, cohesion. | [style](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) |
 
-The measured −18.6% comes from the harness and ratchet; routing and conversion savings sit on top of it. The two savings figures are never added together, because they measure different things.
+The two savings figures are never added together, because they measure different
+things: the routing ledger records the price difference on runs that were
+delegated, and the conversion ledger records tokens a document did not cost. What
+the harness and the ratchet rules do shows up in neither, because it arrives as
+fewer round-trips rather than as a cheaper one.
 
 ## The statusline in one line
 
 ```
-🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57
+🔀 Routing saved $44.67  |  opus→sonnet 59× $39.75 · opus→haiku 10× $4.92
 🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
-When something is wrong the warning chip leads the line: `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL`. Say the chip wording inside Claude and the Skill surfaces the root-cause code and the fix. Segment-by-segment meanings live in [the statusline reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md).
+When something is wrong the warning chip leads the line: `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL`. Paste the chip text into Claude and the Skill names the root-cause code and the fix. Segment-by-segment meanings live in [the statusline reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md).
 
-Inside a JetBrains IDE terminal the chips render as single-cell glyphs instead of emoji (`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). The IDE's default font has no emoji glyphs, so leaving them in leaves debris from the previous frame behind — `Cache expires 4:545` and the like. [Label modes](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md#label-modes) covers the detail, plus `sprag mode narrow` and `mode icon-force`.
+Inside a JetBrains IDE terminal the chips render as single-cell glyphs instead of emoji (`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). The IDE's default font has no emoji glyphs, so leaving them in leaves debris from the previous frame behind, like `Cache expires 4:545`. [Label modes](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md#label-modes) covers the detail, plus `sprag mode narrow` and `mode icon-force`.
 
-## Real-world impact — before/after report
+## The cheap tier on the same prompts
 
-![sprag — harness + ratchet adoption impact](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/harness-impact.png)
+The benchmark argues the criteria on public data. This is the same question asked
+directly: eight prompts from real work in this repository, each sent to the
+flagship and to the cheap tier, graded against a hand-written answer
+(2026-09-17, raw data in `video/out/measure2.json`).
 
-Harness 5/5 + ratchet applied to the author's own Claude Code work, normalized **per user message** (cutoff 2026-05-02, Opus 4.7 pricing):
+| | flagship (opus-5) | cheap tier (haiku-4.5) |
+|---|---:|---:|
+| Cost for all eight | $2.5652 | **$0.6132** (23.9%) |
+| Graded correct | 7 / 8 | 6 / 8 |
+| Gave the same answer | | 6 / 8 |
 
-| metric | before (7d / 739 msgs) | after (2d / 157 msgs) | Δ |
-|---|---:|---:|---:|
-| cost / user message | $2.345 | $1.910 | **−18.6%** |
-| output tokens / message | 7,391 | 6,052 | −18.1% |
-| assistant turns / message | 9.73 | 8.83 | −9.2% |
-| tool calls / message | 5.72 | 5.25 | −8.2% |
+The interesting part is which one both got wrong. The first prompt asked for
+files referencing `process.env` without saying whether subdirectories counted,
+and both tiers answered a defensible reading of it. Rewriting the prompt to say
+so and rerunning it made the two agree exactly, which is the ordinary lesson that
+an ambiguous request is not a model problem. The remaining miss is the cheap tier
+dropping entries from a file listing, and a listing that is wrong is a listing you
+can check, which is the whole point of the "does failure make noise" test.
 
-The same request resolves in fewer round-trips, so first-try success goes up: the effect of PEV and Structured Task forcing one-shot delivery. The post window is only 2 days (157 msgs), so statistical confidence is low and week-to-week topic mix differs.
+So the cheap tier is not free. On this sample it costs you roughly one answer in
+eight on lookups, for a quarter of the price, which is why the rules only send
+work whose failure is loud and never send design or diagnosis.
 
-## Commands you will actually use
+## What the method has produced here
+
+| Measured | Value | Sample | Window |
+|---|---|---|---|
+| Documents converted | 2,011,178 → 82,209 tokens | 12 files (xlsx, pptx, pdf) | to 2026-09-18 |
+| Delegated runs | $44.67 saved, $0.65 per run | 69 runs | to 2026-09-18 |
+| Ratchet rules accumulated | 37 (30 global, 7 per-project) | 4 repositories | 2026-05-08 to 09-16 |
+
+Rule growth and routing growth behave differently. Ratchet rules come from
+mistakes a person actually made, so the list has no natural ceiling. Delegation
+rules saturate instead: the tiering recognizes a fixed set of work types, and
+once each has a rule there is nothing left to promote.
+
+## Day-to-day commands
 
 | Command | What it does |
 |---|---|
@@ -126,7 +173,7 @@ The same request resolves in fewer round-trips, so first-try success goes up: th
 
 Every subcommand, flag and the output-language setting: [command reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md).
 
-## Deeper reading
+## Documentation
 
 | Doc | Covers |
 |---|---|
@@ -148,29 +195,41 @@ Behind a LiteLLM gateway, `sprag profile-map --refresh` now reads model aliases 
 
 The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headings and command names are language-neutral). Recent changes:
 
-- **v3.39.0**: `feedback` subcommand — file bug reports and feature requests straight from the terminal or a Claude session, via the gh CLI, an anonymous no-login form (auto-filed as a GitHub issue by an Apps Script relay), or a local fallback. `install` now asks before replacing an existing statusline instead of silently skipping.
-- **v3.38.0**: `cohesion on` — the language-neutral cohesion rules from the Korean supplement become a standalone English injection (given-before-new, one referent per pronoun, subject consistency, bridging, merging choppy sentences). Opt-in, ~0.5k tokens per session, suppressed while `korean on` already carries them.
+- **v3.39.0**: `feedback` subcommand for filing bug reports and feature requests straight from the terminal or a Claude session, via the gh CLI, an anonymous no-login form (auto-filed as a GitHub issue by an Apps Script relay), or a local fallback. `install` now asks before replacing an existing statusline instead of silently skipping.
+- **v3.38.0**: `cohesion on` turns the language-neutral cohesion rules from the Korean supplement into a standalone English injection (given-before-new, one referent per pronoun, subject consistency, bridging, merging choppy sentences). Opt-in, ~0.5k tokens per session, suppressed while `korean on` already carries them.
 - **v3.37.0**: Korean guidance grows a conservative supplement (translationese, AI-writing tics, a research-backed cohesion section whose principles apply to English prose too) and the write-time lint gains 5 translationese patterns, validated at 1 false positive across 255 real files.
-- **v3.35.0**: A `💵 Sep $42` segment now shows estimated spend since 00:00 on the 1st of the current month, always on — including gateway setups with no 5h/7d caps. LiteLLM gateway users get a `🔑 budget ▰▱ 34% $34/$100` gauge built from the key's budget (`GET /key/info` + `GET /user/info`, team-membership budget first, then key, then internal user — verified against a Dockerized LiteLLM).
+- **v3.35.0**: A `💵 Sep $42` segment now shows estimated spend since 00:00 on the 1st of the current month, always on, including gateway setups with no 5h/7d caps. LiteLLM gateway users get a `🔑 budget ▰▱ 34% $34/$100` gauge built from the key's budget (`GET /key/info` + `GET /user/info`, team-membership budget first, then key, then internal user, verified against a Dockerized LiteLLM).
 - **v3.34.0**: seed presets offered one at a time, output-language choice at install, context warning raised to 500k.
 
 ## Feedback
 
-Found a bug, or want a feature? Open an issue: https://github.com/rootstudioyaml/sprag/issues
+Bugs and feature requests go in the issue tracker: https://github.com/rootstudioyaml/sprag/issues
 
-No browser or GitHub login handy (corporate network, mid-session)? Submit straight from the terminal — or ask Claude to do it for you:
+With no browser or GitHub login at hand (corporate network, mid-session), submit straight from the terminal instead, or ask Claude to do it for you:
 
 ```bash
 sprag feedback "the 5m TTL chip never clears on Bedrock"
 ```
 
-It files a GitHub issue via the `gh` CLI when one is authenticated; otherwise it submits anonymously (no login, works where github.com is blocked). Pass `--anonymous` to skip the `gh` path. Version and OS metadata are attached automatically.
+It files a GitHub issue through the `gh` CLI when one is authenticated. Otherwise it submits anonymously, with no login, which works where github.com is blocked. Pass `--anonymous` to skip the `gh` path. Version and OS metadata are attached automatically.
 
-When reporting a bug, please include the tool version (`sprag --version`), your OS, and — if it is a statusline or warning issue — the statusline output or the `sprag last` result.
+For a bug, please include the tool version (`sprag --version`) and your OS. For a statusline or warning issue, add the statusline output or the `sprag last` result.
 
 ## License
 
-MIT
+Apache License 2.0. The full text is in [LICENSE](./LICENSE), and the attributions
+it requires are in [NOTICE](./NOTICE).
+
+Releases up to and including v3.47.0 went out under the MIT License. A copy
+received under those terms stays under them; this applies to later releases.
+
+**Running sprag inside a product or a paid service?** The license already permits
+that, so this is not a request for permission. We would like to hear about it
+anyway, because the parts that get awkward at scale are the parts we would rather
+fix than have you work around: shared ratchet rules across a team, gateway setups
+where the model id is an opaque profile, and per-seat budget reporting. [Open an
+issue](https://github.com/rootstudioyaml/sprag/issues) or reach us through the
+channels below.
 
 ---
 
@@ -180,4 +239,4 @@ MIT
 [![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
 [![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
 
-Built and used at **DeepPulse**, a channel about AI developer tooling. The [launch Short (60s)](https://www.youtube.com/shorts/RaD8qMsPTnA) covers where this came from and how it is used.
+Built at **DeepPulse**, a channel about AI developer tooling, and used there every day. The [launch Short (60s)](https://www.youtube.com/shorts/RaD8qMsPTnA) covers where it came from and how it gets used.
