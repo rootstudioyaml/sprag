@@ -183,15 +183,19 @@ export async function run({ args, hasFlag, numArg }) {
         const { MIN_VOTES } = await import('../model-alias.js');
         const learning = scan.unresolvedRuns < MIN_VOTES;
         const remedyKo = learning
-          ? `\n  위임이 ${MIN_VOTES}건 이상 쌓이면 자동으로 해석될 수 있습니다. 그때까지 기다렸다가 다시 확인하고,`
-            + '\n  게이트웨이가 모델 이름을 아예 알려 주지 않는 환경이라면 profile-map.json 의 modelAliases 에'
-            + '\n  해당 ID 를 매핑한 뒤 route-scan --refresh 를 실행하십시오.'
-          : '\n  profile-map.json 의 modelAliases 에 해당 ID 를 매핑한 뒤 route-scan --refresh 를 실행하십시오.';
+          ? `\n  위임이 ${MIN_VOTES}건 이상 쌓이면 자동으로 해석될 수 있습니다. 그때까지 기다리는 동안`
+            + '\n  sprag profile-map --refresh 를 먼저 실행해 보십시오. LiteLLM 게이트웨이라면 배포 목록에서'
+            + '\n  매핑을 곧바로 가져옵니다. 그래도 남는 ID 는 profile-map.json 의 modelAliases 에 직접'
+            + '\n  매핑한 뒤 route-scan --refresh 를 실행하십시오.'
+          : '\n  sprag profile-map --refresh 를 먼저 실행해 보십시오. LiteLLM 게이트웨이라면 배포 목록에서 매핑을 곧바로 가져옵니다.'
+            + '\n  그래도 남는 ID 는 profile-map.json 의 modelAliases 에 직접 매핑한 뒤 route-scan --refresh 를 실행하십시오.';
         const remedyEn = learning
-          ? `\n  These may resolve on their own once ${MIN_VOTES} or more delegated runs accumulate — check again then.`
-            + '\n  If the gateway never reports a model name at all, map the id under modelAliases in'
+          ? `\n  These may resolve on their own once ${MIN_VOTES} or more delegated runs accumulate; check again then.`
+            + '\n  Meanwhile, try sprag profile-map --refresh first: on a LiteLLM gateway it pulls the mapping'
+            + '\n  straight from the deployment list. Anything still left over, map it under modelAliases in'
             + '\n  profile-map.json and run route-scan --refresh.'
-          : '\n  Map it under modelAliases in profile-map.json, then run route-scan --refresh.';
+          : '\n  Try sprag profile-map --refresh first: on a LiteLLM gateway it pulls the mapping straight from the deployment list.'
+            + '\n  Anything still left over, map it under modelAliases in profile-map.json and run route-scan --refresh.';
         console.log(lang === 'ko'
           ? `\n⚠ 해석되지 않은 모델 ID 때문에 위임 ${scan.unresolvedRuns}건이 집계에서 제외됐습니다${ids ? ` (${ids})` : ''}.` + remedyKo
           : `\n⚠ ${scan.unresolvedRuns} delegated run(s) were excluded — unpriceable model id${ids ? ` (${ids})` : ''}.` + remedyEn);

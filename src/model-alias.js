@@ -18,22 +18,30 @@
  * all that is missing is ARN → alias.
  *
  * Resolution order, cheapest first:
- *   1. not an ARN            → return the input unchanged (direct-API users
+ *   1. user override         → `modelAliases` in profile-map.json
+ *   2. gateway declaration   → `gateway.aliases` in profile-map.json, fetched
+ *                              from the LiteLLM gateway's own /model/info;
+ *                              consulted ahead of learned votes because it is
+ *                              the gateway's own declared mapping, not an
+ *                              inference drawn from transcripts
+ *   3. not an ARN            → return the input unchanged (direct-API users
  *                              must keep their existing behaviour)
- *   2. user override         → `modelAliases` in profile-map.json
- *   3. learned mapping       → profile id → role, learned from transcripts
- *   4. otherwise             → 'unknown' (never a silent Sonnet guess)
+ *   4. self-describing id    → a profile id that already spells out a family
+ *                              (`foundation-model` ARNs, cross-region ids)
+ *   5. learned mapping       → profile id → role, learned from transcripts
+ *   6. otherwise             → 'unknown' (never a silent Sonnet guess)
  *
  * A profile id is never hardcoded here. Ids differ per account and change
  * with gateway config, and the ARN embeds a 12-digit AWS account id — this
  * package is published to npm, so neither may live in the source.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, createReadStream } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, createReadStream, statSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { join, dirname, basename } from 'node:path';
 import { userDataDir, claudeUserDir } from './paths.js';
+import { gatewayBase } from './gateway-auth.js';
 
 /** Marker returned when a gateway id could not be resolved to a model. */
 export const UNKNOWN_MODEL = 'unknown';
@@ -109,9 +117,19 @@ export function loadProfileMap() {
   try {
     data = JSON.parse(readFileSync(profileMapPath(), 'utf8'));
   } catch { /* absent on first run, and unreadable is not fatal */ }
+  // `gateway` is written by `sprag profile-map --refresh` (src/litellm-models.js),
+  // never by this module. Shape it defensively: a half-written or
+  // hand-edited file must fall back to "no gateway data" rather than throw
+  // or feed garbage into gatewayAlias() below.
+  const gw = data.gateway;
+  const gateway = (gw && typeof gw === 'object'
+    && typeof gw.base === 'string' && gw.aliases && typeof gw.aliases === 'object')
+    ? { ...gw, skipped: Array.isArray(gw.skipped) ? gw.skipped : [] }
+    : null;
   cached = {
     version: 1,
     modelAliases: data.modelAliases && typeof data.modelAliases === 'object' ? data.modelAliases : {},
+    gateway,
     learned: data.learned && typeof data.learned === 'object' ? data.learned : {},
     learnedAt: data.learnedAt || null,
     scannedSessions: data.scannedSessions || 0,
@@ -154,6 +172,34 @@ function overrideAlias(model, map) {
   return null;
 }
 
+/**
+ * Alias declared by the gateway itself (LiteLLM's `/model/info`, cached
+ * under `gateway` in profile-map.json) rather than inferred from transcript
+ * votes. Consulted ahead of the learned-vote path for exactly that reason:
+ * this is the gateway telling us its own configuration, not a guess built
+ * from run counts.
+ *
+ * Isolated per gateway address the same way the budget cache is (see
+ * litellm-budget.js) — a table fetched from one `ANTHROPIC_BASE_URL` must
+ * never answer for a different one, so a base mismatch is treated the same
+ * as no gateway data at all.
+ *
+ * Looked up three ways, because the string this function receives is not
+ * always the string `/model/info` reported: transcripts append a `[1m]`
+ * context-window suffix that the gateway's response never carries, and the
+ * input here is sometimes a full ARN where `/model/info` only ever named
+ * the bare profile id. Fails quiet throughout — any shape mismatch (no
+ * gateway section, a different base, no matching key) returns null and the
+ * caller falls through to the resolution steps that existed before this one.
+ */
+function gatewayAlias(model, map, env) {
+  const gw = map.gateway;
+  if (!gw || !gw.aliases || gw.base !== gatewayBase(env)) return null;
+  const bare = model.replace(/\[[^\]]*\]$/, '');
+  const pid = profileIdFrom(model);
+  return gw.aliases[model] || gw.aliases[bare] || (pid ? gw.aliases[pid] : null) || null;
+}
+
 // ── resolution ───────────────────────────────────────────────────────────
 
 /**
@@ -175,6 +221,13 @@ export function resolveModelAlias(rawModel, { env = process.env } = {}) {
   // pattern has to match before anything changes.
   const override = overrideAlias(model, map);
   if (override) return override;
+
+  // The gateway's own declared mapping runs next, and — like the override
+  // above — for every id, not just ARNs. A house alias with no family name
+  // (`prod-large`) is never an ARN, so it would otherwise fall straight
+  // through the isGatewayModelId check below to a silent Sonnet default.
+  const gatewayHit = gatewayAlias(model, map, env);
+  if (gatewayHit) return gatewayHit;
 
   if (!isGatewayModelId(model)) return model;
 
@@ -424,6 +477,37 @@ export function tallyVotes(votes, { minVotes = MIN_VOTES, minAgreement = MIN_AGR
 }
 
 /**
+ * Sort transcript paths newest-first, so the `maxSessions` truncation in
+ * learnProfileMapping keeps the most RECENT sessions.
+ *
+ * This used to be a caller contract ("newest first" in the JSDoc), and the
+ * only caller broke it: `runRouteScan` hands over `discoverSessionFiles()`
+ * output, which parser.js sorts OLDEST first because chronological order is
+ * what parsing wants. Learning then read the oldest `maxSessions` files and
+ * never saw recent delegations, so a profile that only appears in the last few
+ * days stayed unresolved and every run on it dropped out of the aggregate.
+ * Measured on one 14-day window: 95 transcripts, of which learning read
+ * 09-04 through 09-15 and discarded the three most recent days — including the
+ * sessions holding the haiku evidence it needed.
+ *
+ * Sorting here rather than at the call site puts the invariant in the same
+ * function as the truncation that depends on it, so a future caller cannot
+ * reintroduce the bug. Cost is one stat() per candidate path, against a scan
+ * that already stats every file to build the window.
+ */
+function newestFirst(paths) {
+  return paths
+    .map((p) => {
+      let mtime = 0;
+      // An unreadable path sorts last and then fails harmlessly in the loop.
+      try { mtime = statSync(p).mtimeMs; } catch { /* keep 0 */ }
+      return { p, mtime };
+    })
+    .sort((a, b) => b.mtime - a.mtime)
+    .map((e) => e.p);
+}
+
+/**
  * Learn profile id → role from transcripts and persist the result.
  *
  * The join is exact rather than time-windowed: `.meta.json` carries the
@@ -432,7 +516,8 @@ export function tallyVotes(votes, { minVotes = MIN_VOTES, minAgreement = MIN_AGR
  * id and the requested role identify each other.
  *
  * @param {object}   opts
- * @param {string[]} opts.sessionPaths transcripts to read, newest first
+ * @param {string[]} opts.sessionPaths transcripts to read, in any order — they
+ *                                     are sorted newest-first here, see below
  * @param {number}   opts.maxSessions  cap on files read (learning is a scan)
  * @returns {Promise<{learned: object, scannedSessions: number, gateway: boolean}>}
  */
@@ -442,7 +527,7 @@ export async function learnProfileMapping({ sessionPaths = [], maxSessions = 40 
   let scanned = 0;
   let gateway = false;
 
-  for (const sessionPath of sessionPaths.slice(0, maxSessions)) {
+  for (const sessionPath of newestFirst(sessionPaths).slice(0, maxSessions)) {
     const requestedByToolUse = new Map();
     let sawGateway = false;
     try {

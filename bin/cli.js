@@ -87,7 +87,7 @@ function readUpdateChip() {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget', 'feedback',
+  'seed', 'litellm-budget', 'profile-map', 'feedback',
 ]);
 
 const USAGE = `sprag — Claude Code token usage, cache health, and model routing
@@ -99,6 +99,7 @@ Usage:
   sprag --format csv       CSV output
   sprag --project myproj   filter by project
   sprag route-scan         detect recurring easy work → delegation candidates
+  sprag profile-map        show/refresh the gateway model map (LiteLLM /model/info)
   sprag install            set up skill/hooks/statusline
   sprag install --yes      take the defaults without asking
   sprag uninstall          remove everything install added
@@ -296,12 +297,22 @@ async function main() {
   //   sprag litellm-budget --json     # 캐시 원본 JSON 출력
   //   sprag litellm-budget --refresh  # 지금 프록시에 물어봄 (detached 자식이 사용)
   if (args[0] === 'litellm-budget') {
-    const { gatewayBase, readBudgetState, refreshBudgetState, formatBudgetReport } =
+    const { gatewayBase, readBudgetState, refreshBudgetState, formatBudgetReport, resolveKey } =
       await import('../src/litellm-budget.js');
     const quiet = hasFlag('--quiet');
     if (hasFlag('--refresh')) {
       try {
-        const next = await refreshBudgetState();
+        // apiKeyHelper 가 토큰 수명(TTL)을 소유합니다. 헬퍼를 한 번만 불러 그
+        // 키를 예산 갱신과 게이트웨이 모델맵 갱신 양쪽에 재사용합니다. 갱신
+        // 경로마다 resolveKey() 를 다시 부르면 사본을 만드는 셈이 되고, 헬퍼
+        // 호출 횟수도 그만큼 늘어납니다.
+        const key = resolveKey();
+        let next = null;
+        if (key) {
+          next = await refreshBudgetState(process.env, fetch, key);
+          const { maybeRefreshGatewayModelMap } = await import('../src/litellm-models.js');
+          await maybeRefreshGatewayModelMap({ base: gatewayBase(), key });
+        }
         if (!quiet) console.log(JSON.stringify(next, null, 2));
       } catch (e) {
         debug('litellm-budget:refresh', e);
@@ -332,6 +343,15 @@ async function main() {
     const { mode: labelMode } = resolveLabelMode({ hasFlag, cfg: statuslineDefaults() });
     for (const line of formatBudgetReport(state, new Date(), labelMode)) console.log(line);
     return;
+  }
+
+  // Subcommand: profile-map · LiteLLM 게이트웨이의 프로파일 ID → 모델 별칭
+  // 매핑을 보여 주거나(GET /model/info) 갱신합니다.
+  //   sprag profile-map            # 캐시된 게이트웨이 모델맵 출력
+  //   sprag profile-map --json     # 캐시 원본 JSON 출력
+  //   sprag profile-map --refresh  # 지금 프록시에 물어봄 (사람이 직접 실행)
+  if (args[0] === 'profile-map') {
+    return (await import('../src/commands/profile-map.js')).run({ args, hasFlag });
   }
 
   // Subcommand: upgrade — run the install command that matches how this copy

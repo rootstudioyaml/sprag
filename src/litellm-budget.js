@@ -15,40 +15,37 @@
  * 엔드포인트는 LiteLLM의 `GET {base}/key/info` 이며, 호출한 키 자신의 정보를
  * 돌려줍니다. 응답의 info.max_budget / info.spend / info.budget_reset_at 을
  * 사용합니다. max_budget 이 null 이면(무제한 키) 게이지를 만들지 않습니다.
+ *
+ * 이 파일은 resolveKey() 가 돌려준 토큰을 캐시 파일에 쓰지 않습니다. 그 키는
+ * apiKeyHelper 가 소유한 TTL 을 그대로 따라야 하므로, 여기서 사본을 만들면
+ * 헬퍼의 만료·재발급 주기와 어긋납니다(사용자 지시).
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { spawn, execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
 import { userDataDir } from './paths.js';
 import { gaugeBar, formatMoney } from './formatters/statusline.js';
 import { labelForKey } from './window-labels.js';
 import { formatResetClock } from './format-time.js';
 import { cliEntryPath } from './update-check.js';
 import { debug } from './debug.js';
+// 게이트웨이 주소 판정과 키 확보는 leaf 모듈로 옮겼습니다: model-alias.js 가
+// 게이트웨이 별칭을 조회하려면 이 함수들이 필요한데, model-alias.js 가 이
+// 파일을 직접 import 하면 model-alias.js → litellm-budget.js →
+// formatters/statusline.js → model-alias.js 순환이 생깁니다. 이 파일은 기존
+// 호출부(예: bin/cli.js) 와의 호환을 위해 같은 이름으로 재수출만 합니다.
+import { HELPER_TIMEOUT_MS, gatewayBase, keyFromApiKeyHelper, resolveKey } from './gateway-auth.js';
+
+export { HELPER_TIMEOUT_MS, gatewayBase, keyFromApiKeyHelper, resolveKey };
 
 // 예산은 분 단위로 변하지 않습니다. 5분이면 게이지 용도로 충분히 신선하고,
 // 통계선 렌더(수 초 간격)가 프록시를 두들기지 않습니다.
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
-const HELPER_TIMEOUT_MS = 10000;
 
 export function budgetStatePath() {
   return join(userDataDir(), 'litellm-budget.json');
-}
-
-/**
- * 게이트웨이 주소만 판정합니다. 캐시만 읽는 경로는 키가 필요하지 않으므로,
- * 키 확보와 주소 판정을 분리해 둡니다. apiKeyHelper 로만 인증하는 환경에는
- * 환경변수에 토큰이 없어서, 키를 함께 요구하면 렌더 경로가 통째로 탈락합니다.
- */
-export function gatewayBase(env = process.env) {
-  const base = (env.ANTHROPIC_BASE_URL || '').trim().replace(/\/+$/, '');
-  if (!base) return null;
-  // 공식 엔드포인트를 그대로 가리키면 게이트웨이가 아닙니다.
-  if (/^https?:\/\/api\.anthropic\.com/i.test(base)) return null;
-  return base;
 }
 
 /** 게이트웨이 주소와 키를 함께 돌려줍니다. 둘 중 하나라도 없으면 null. */
@@ -58,51 +55,6 @@ export function gatewayEnv(env = process.env) {
   const key = resolveKey(env);
   if (!key) return null;
   return { base, key };
-}
-
-/**
- * Claude Code 와 같은 방식으로 apiKeyHelper 를 실행해 토큰을 얻습니다.
- * 환경변수에 토큰을 두지 않고 헬퍼 스크립트로 매번 발급받는 구성이 공식 인증
- * 방식 가운데 하나이며, 그 구성에서는 statusline 자식 프로세스의 process.env
- * 안에 토큰이 존재하지 않습니다.
- *
- * 헬퍼 실행은 비용이 있으므로 갱신 경로(5분에 한 번 뜨는 detached 자식)에서만
- * 부릅니다. 수 초 간격으로 도는 렌더 경로에서 부르면 통계선이 그만큼 느려집니다.
- */
-export function keyFromApiKeyHelper(cwd = process.cwd()) {
-  const candidates = [
-    join(cwd, '.claude', 'settings.local.json'),
-    join(cwd, '.claude', 'settings.json'),
-    join(homedir(), '.claude', 'settings.json'),
-  ];
-  for (const p of candidates) {
-    let helper;
-    try {
-      helper = JSON.parse(readFileSync(p, 'utf8'))?.apiKeyHelper;
-    } catch {
-      continue;
-    }
-    if (typeof helper !== 'string' || !helper.trim()) continue;
-    try {
-      const out = execSync(helper, {
-        encoding: 'utf8',
-        timeout: HELPER_TIMEOUT_MS,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-      // 진행 로그를 함께 출력하는 헬퍼가 있으므로 마지막 비어 있지 않은 줄을 취합니다.
-      const token = out.trim().split(/\r?\n/).filter(Boolean).pop();
-      if (token) return token.trim();
-    } catch (e) {
-      debug('litellm-budget:helper', e);
-    }
-  }
-  return null;
-}
-
-/** 환경변수 토큰을 먼저 보고, 없으면 apiKeyHelper 로 내려갑니다. */
-export function resolveKey(env = process.env) {
-  const direct = (env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY || '').trim();
-  return direct || keyFromApiKeyHelper();
 }
 
 export function readBudgetState() {
@@ -306,17 +258,22 @@ export function pickBudgetSource(keyInfo, userInfo) {
  * 실제로 LiteLLM에 물어보고 캐시를 갱신합니다. detached 자식과
  * `litellm-budget --refresh` 명령만 호출합니다.
  * /key/info(키·소속 식별)와 /user/info(팀 멤버십 예산)를 함께 조회합니다.
+ *
+ * `key` 를 넘기면 resolveKey() 를 다시 부르지 않고 그 값을 그대로 씁니다.
+ * 호출자(bin/cli.js 의 --refresh 분기)가 apiKeyHelper 를 한 번만 불러 이
+ * 함수와 게이트웨이 모델맵 갱신 양쪽에 같은 키를 재사용할 수 있도록 하는
+ * 목적입니다. 어느 경로든 키는 이 함수의 상태 파일에 기록되지 않습니다.
  */
-export async function refreshBudgetState(env = process.env, fetchImpl = fetch) {
+export async function refreshBudgetState(env = process.env, fetchImpl = fetch, key = null) {
   const base = gatewayBase(env);
   if (!base) return null;
-  const key = resolveKey(env);
-  if (!key) return null;
+  const resolvedKey = key || resolveKey(env);
+  if (!resolvedKey) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   const headers = {
     accept: 'application/json',
-    authorization: `Bearer ${key}`,
+    authorization: `Bearer ${resolvedKey}`,
   };
   try {
     // /key/info 는 커스텀 인증(JWT)을 쓰는 배포에서 404 가 정상입니다. 발급된

@@ -109,6 +109,8 @@ harness 5/5 + ratchet을 실제 적용한 전후 비교입니다 (저자 Claude 
 | [라우터가 아닌 이유](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.ko.md) | 실시간 라우팅이 캐시를 깨서 비용을 키우는 구조 |
 | [게이트웨이와 환경](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.ko.md) | Bedrock·Vertex·LiteLLM, 가격표, FAQ, 동작 원리 |
 
+LiteLLM 게이트웨이 환경에서는 `sprag profile-map --refresh` 가 게이트웨이의 `GET /model/info` 에서 모델 별칭을 바로 읽어 오므로, route-scan 이 위임 투표가 쌓이길 기다리거나 `profile-map.json` 을 손으로 편집할 필요가 없어졌습니다. 이 갱신은 LiteLLM 예산 게이지와 같은 5분 점검·24시간 캐시 주기에 얹혀 돌아갑니다. 인증 토큰은 저장하지 않으며, 호출 시점마다 `apiKeyHelper` 에서 읽어 그 헬퍼의 수명 그대로 만료되게 둡니다. 자세한 내용은 [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) 문서에 있습니다.
+
 ## 릴리스 노트
 
 전체 내역은 [CHANGELOG.md](./CHANGELOG.md)로 옮겼습니다. 최근 변경은 다음과 같습니다.
