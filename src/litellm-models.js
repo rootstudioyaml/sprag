@@ -25,7 +25,7 @@
  */
 
 import { gatewayBase } from './gateway-auth.js';
-import { loadProfileMap, saveProfileMap, profileIdFrom, isGatewayModelId } from './model-alias.js';
+import { loadProfileMap, updateProfileMap, resetModelAliasCache, profileIdFrom, isGatewayModelId } from './model-alias.js';
 import { isRecognizedModelId } from './cost.js';
 import { debug } from './debug.js';
 
@@ -221,6 +221,8 @@ export async function refreshGatewayModelMap({ base, key, fetchImpl = fetch } = 
       debug('litellm-models:shape', new Error('response has no data array'));
       return null;
     }
+    // 이 판정은 디스크의 현재 상태를 봐야 하므로 메모이즈된 값을 쓰지 않습니다.
+    resetModelAliasCache();
     const map = loadProfileMap();
     // 별칭을 하나도 못 뽑았는데 기존 맵에는 있었다면 덮어쓰지 않습니다. 키가
     // 사라지는 쪽이 오래된 키를 남겨 두는 쪽보다 나쁘고(해석이 통째로 unknown이
@@ -230,11 +232,10 @@ export async function refreshGatewayModelMap({ base, key, fetchImpl = fetch } = 
       debug('litellm-models:empty', new Error(`derived 0 aliases, keeping ${had} cached`));
       return null;
     }
-    // 기존 gateway 객체를 통째로 갈아치우고, modelAliases/learned는 수정하지
-    // 않습니다. saveProfileMap이 호출 즉시 모듈 캐시(cached)를 next로 갱신하므로
-    // resetModelAliasCache를 따로 부를 필요가 없습니다.
-    const next = {
-      ...map,
+    // gateway 절만 갱신합니다. updateProfileMap이 쓰기 직전에 파일을 다시 읽어
+    // 병합하므로, 이 네트워크 호출이 오가는 동안 route-scan의 학습 경로가
+    // learned를 기록했더라도 그 결과를 지우지 않습니다. 반대 방향도 같습니다.
+    updateProfileMap({
       gateway: {
         base,
         fetchedAt: new Date().toISOString(),
@@ -242,8 +243,7 @@ export async function refreshGatewayModelMap({ base, key, fetchImpl = fetch } = 
         skipped: result.skipped,
         count: result.count,
       },
-    };
-    saveProfileMap(next);
+    });
     return result;
   } finally {
     clearTimeout(timer);

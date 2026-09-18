@@ -73,7 +73,7 @@ export function keyFromApiKeyHelper(cwd = process.cwd()) {
       const token = out.trim().split(/\r?\n/).filter(Boolean).pop();
       if (token) return token.trim();
     } catch (e) {
-      debug('litellm-budget:helper', e);
+      debug('gateway-auth:helper', e);
     }
   }
   return null;
