@@ -29,14 +29,47 @@ npm i -g sprag-cli   # same package as the old claude-token-saver name
 
 ![statusline example — routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
+## How it works
+
+<picture>
+  <source srcset="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/how-it-works.svg" type="image/svg+xml">
+  <img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/how-it-works.png" alt="What goes in: your past sessions, the task you just asked for, a document you would attach, Korean prose being written, and the tokens this turn is spending. What sprag does with it: writes a ratchet rule loaded every session, converts the document, checks the Korean as you write, prints the cost in your prompt, and routes a matched task to a haiku or sonnet sub-agent whose output the main agent reviews.">
+</picture>
+
+Everything on the left is something your session already produces. Nothing is
+sent anywhere to read it. The tier decision at the bottom is the whole routing
+argument in three tests: where the answer lives, whether failure makes noise,
+and what that rule's own track record says.
+
 ## Measured results
 
 | Metric | Result | | Evidence |
 |---|---|---|---|
 | Public benchmark accuracy | **59.1%** vs 57.9% best single model | `▰▰▰▰▰▰▰▰▰▰▰▰` | [benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
 | Cost for the same queries | **$268** vs gpt-5 $388, gemini-2.5-pro $734 | `▰▰▰▰▰▱▱▱▱▱▱▱` | [benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
-| Tokens per document | **−95.8%**, 540,429 → 22,610 | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
+| Tokens for the same documents | **−95.9%**, 2,011,178 → 82,209 over 12 files | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
+| Delegation savings, from the ledger | **$44.67** over 69 delegated runs | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
 | Cost per user message | **−18.6%**, $2.345 → $1.910 | `▰▰▰▰▰▰▰▰▰▰▱▱` | [report](#real-world-impact--beforeafter-report) |
+
+The first two rows come from a fixed public dataset and do not move. The next
+two are ledgers on this machine and grow as it runs, so they are dated: figures
+below are as of 2026-09-18. The last row is a one-off measurement taken on
+2026-05-02 under Opus 4.7 pricing, and it cannot be recomputed, because the
+transcripts behind its "before" window have since aged out of local retention.
+
+### Current, on one machine, last 30 days
+
+| | |
+|---|---|
+| Delegation savings | **$42.73** in 30 days (\$23.21 in the last 7), 69 runs total |
+| Where the work moved | opus-5 → sonnet-5 59 runs \$39.75 · opus-5 → haiku-4.5 10 runs \$4.92 |
+| Document conversion | 12 files (xlsx, pptx, pdf), 2,011,178 → 82,209 tokens |
+| Volume behind it | 175 sessions, 14,682 API calls, 3.81B input tokens |
+| Cache hit rate | 92.2% |
+
+Every figure here is what the tool reports about itself: `sprag route-scan
+savings` for the delegation rows, `sprag --days 30` for the volume, and the
+doc2md ledger for the conversions. None of it is a projection.
 
 
 Routing savings are a ledger, not an estimate: the price difference of each delegated run, traceable back to the rule that caused it with `sprag route-scan savings`. What the ledger deliberately excludes is documented in [the command reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md).

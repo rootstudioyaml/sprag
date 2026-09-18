@@ -1,0 +1,268 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 744" width="1160" height="744" role="img" aria-label="What sprag does with a session: ratchet rules, sub-agent delegation, document conversion, prose gates and telemetry">
+<title>How sprag works</title>
+<style>
+  text{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .flow text{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+  .flow .col{font-size:11px;letter-spacing:.18em;fill:#62666d}
+  .flow .panelhead{font-size:11px;letter-spacing:.18em;fill:#8a8f98}
+  .flow .t{font-size:13.5px;fill:#f7f8f8}
+  .flow .s{font-size:11.5px;fill:#62666d}
+  .flow .s.mono,.flow .t.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+  .flow .s.midline{font-size:12px;fill:#8a8f98;text-anchor:middle}
+  .flow .partname{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:19px;font-weight:700;fill:#f7f8f8;
+  .flow .chip{fill:#0e1116;stroke:#23283180;stroke-width:1}
+  .flow .card rect:first-of-type{fill:url(#gCard);stroke:#2a2f3a;filter:url(#fSoft)}
+  .flow .card .sheen{fill:url(#gTop)}
+  .flow .card .cic{color:#8a8f98}
+  .flow .card.amber rect:first-of-type{stroke:#3d4276}   .flow .card.amber .cic{color:#5e6ad2}
+  .flow .card.teal  rect:first-of-type{stroke:#2c6b5b}   .flow .card.teal  .cic{color:#35d6a8}
+  .flow .card.violet rect:first-of-type{stroke:#4a3a6b}  .flow .card.violet .cic{color:#a78bfa}
+  .flow .card.red   rect:first-of-type{stroke:#6b2f2f}   .flow .card.red   .cic{color:#ff6b6b}
+  .flow .capring .sector path{fill:none;stroke-width:26;stroke-opacity:.14}
+  .flow .capring .sector path{transition:stroke-opacity .5s}
+  .flow .capring .sector:hover path,.flow .capring .sector.on path{stroke-opacity:.45}
+  .flow .capring .sector.wide path{stroke-dasharray:none}
+  .flow .crit rect{fill:#0e1116;stroke:#252b38}
+  .flow .crit .t{font-size:11px;font-weight:600}
+  .flow .crit .s{font-size:10px}
+  .flow .band rect{fill:#0b0e13;stroke:#2b3550;stroke-dasharray:7 6}
+  .flow .bandhead{font-size:10.5px;font-weight:700;fill:#7f8daa;letter-spacing:.14em;
+  .flow .dnode rect{fill:url(#gCard);stroke:#2a2f3a;filter:url(#fSoft)}
+  .flow .dnode.match rect{stroke:#3b4763;stroke-dasharray:5 4;filter:none;fill:#0e1116}
+  .flow .dnode.teal rect{stroke:#2c6b5b}
+  .flow .dnode.blue rect{stroke:#37507e}
+  .flow .dnode.out rect{stroke:#4a5262}
+  .flow .badge rect{fill:#0e1116;stroke:#3b4763}
+  .flow .bt{font-size:11.5px;fill:#8a8f98;text-anchor:middle}
+  .flow .pulse path{animation:march 2.4s linear infinite}
+  .flow .pulse path{animation:none}
+  @keyframes march{to{stroke-dashoffset:-195}}
+</style>
+<defs>
+  <symbol id="i-ratchet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M12 18v3"/><circle cx="12" cy="12" r="6"/><path d="M12 6l2.6 1.5"/><path d="M17.2 15l-2.6-1.5"/><path d="M6.8 15l2.6-1.5"/></symbol>
+  <symbol id="i-routing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 12h3"/><path d="M10 12c4 0 3-6 7-6"/><path d="M10 12h7"/><path d="M10 12c4 0 3 6 7 6"/></symbol>
+  <symbol id="i-harness" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4-3 7.2-7 9-4-1.8-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-telemetry" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16l4-6 3 4 3-7 3 9 5-4"/><path d="M3 20h18"/></symbol>
+  <symbol id="i-doc2md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h7l5 5v13H6z"/><path d="M13 3v5h5"/><path d="M9 14h6"/><path d="M9 17h4"/></symbol>
+  <symbol id="i-style" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 11h10"/><path d="M4 16h13"/><path d="M17.5 9.5l3 3-5 5-3 .5.5-3z"/></symbol>
+</defs>
+<rect width="1160" height="744" fill="#010102"/>
+<g class="flow">
+
+        <defs>
+          <linearGradient id="gCard" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#171a21"/><stop offset="1" stop-color="#0c0e13"/>
+          </linearGradient>
+          <linearGradient id="gPanel" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#13161c"/><stop offset="1" stop-color="#0a0c10"/>
+          </linearGradient>
+          <linearGradient id="gTop" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+            <stop offset=".5" stop-color="#fff" stop-opacity=".10"/>
+            <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+          </linearGradient>
+          <radialGradient id="gHalo" cx="50%" cy="50%" r="50%">
+            <stop offset=".4" stop-color="#5e6ad2" stop-opacity=".1"/>
+            <stop offset="1" stop-color="#5e6ad2" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="gRing" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#8e9ab2"/><stop offset=".5" stop-color="#4b5468"/><stop offset="1" stop-color="#2d3440"/>
+          </linearGradient>
+          <linearGradient id="gCam" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#828fff"/><stop offset=".45" stop-color="#5e6ad2"/><stop offset="1" stop-color="#3a4090"/>
+          </linearGradient>
+          <linearGradient id="gHub" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#5c6678"/><stop offset="1" stop-color="#232a35"/>
+          </linearGradient>
+          <filter id="fSoft" x="-25%" y="-40%" width="150%" height="180%">
+            <feDropShadow dx="0" dy="6" stdDeviation="9" flood-color="#000" flood-opacity=".55"/>
+          </filter>
+          <filter id="fGlow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="6" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <marker id="ah" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+            <path d="M1 1 L10 6 L1 11 z" fill="#4a5262"/>
+          </marker>
+          <marker id="ahb" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+            <path d="M1 1 L10 6 L1 11 z" fill="#5f7bb8"/>
+          </marker>
+          <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
+            <path d="M26 0H0V26" fill="none" stroke="#ffffff" stroke-opacity=".022" stroke-width="1"/>
+          </pattern>
+        </defs>
+
+        <rect x="0" y="0" width="1160" height="744" fill="url(#grid)"/>
+
+        <!-- ── column labels ── -->
+        <text class="col" x="36"  y="40" data-k="fl.c1">WHAT GOES IN</text>
+        <text class="col" x="470" y="40" data-k="fl.c2">SPRAG</text>
+        <text class="col" x="742" y="40" data-k="fl.c3">WHAT IT DOES WITH IT</text>
+
+        <!-- ── left: one session panel with five rows ── -->
+        <g filter="url(#fSoft)">
+          <rect x="36" y="62" width="300" height="404" rx="12" fill="url(#gPanel)" stroke="#262a33"/>
+        </g>
+        <rect x="52" y="62" width="268" height="1" fill="url(#gTop)"/>
+        <text class="panelhead" x="58" y="92" data-k="fl.p1">YOUR SESSION</text>
+        <line x1="58" y1="106" x2="314" y2="106" stroke="#22262f"/>
+        <g class="rows">
+          <g><rect class="chip" x="58" y="120" width="256" height="58" rx="8"/>
+             <text class="t" x="76" y="144" data-k="fl.h1">214 past sessions</text>
+             <text class="s" x="76" y="163" data-k="fl.h1s">every command, every failure</text></g>
+          <g><rect class="chip" x="58" y="190" width="256" height="58" rx="8"/>
+             <text class="t" x="76" y="214" data-k="fl.h2">the task you just asked for</text>
+             <text class="s" x="76" y="233" data-k="fl.h2s">"run the tests"</text></g>
+          <g><rect class="chip" x="58" y="260" width="256" height="58" rx="8"/>
+             <text class="t" x="76" y="284" data-k="fl.h3">a document you would attach</text>
+             <text class="s mono" x="76" y="303">q3-review.pptx</text></g>
+          <g><rect class="chip" x="58" y="330" width="256" height="58" rx="8"/>
+             <text class="t" x="76" y="354" data-k="fl.h4">Korean prose being written</text>
+             <text class="s" x="76" y="373" data-k="fl.h4s">docs · UI strings · comments</text></g>
+          <g><rect class="chip" x="58" y="400" width="256" height="52" rx="8"/>
+             <text class="t" x="76" y="424" data-k="fl.h5">tokens this turn is spending</text>
+             <text class="s" x="76" y="442" data-k="fl.h5s">cache · context · caps</text></g>
+        </g>
+
+        <!-- ── wires in ── -->
+        <g class="wire" fill="none" stroke="#343a46" stroke-width="1.6" marker-end="url(#ah)">
+          <path d="M314 149 C392 149 404 210 452 224" stroke-dasharray="4 5"/>
+          <path d="M314 219 C392 219 408 226 452 236"/>
+          <path d="M314 289 C392 289 408 274 452 262"/>
+          <path d="M314 359 C392 359 408 300 452 272"/>
+          <path d="M314 426 C392 426 404 314 452 280"/>
+        </g>
+        <g class="pulse" fill="none" stroke="#5e6ad2" stroke-width="1.6" stroke-dasharray="5 190" opacity=".9">
+          <path d="M314 289 C392 289 408 274 452 262"/>
+        </g>
+
+        <!-- ── centre: the part. each capability is one tooth of it ── -->
+        <circle cx="560" cy="250" r="112" fill="url(#gHalo)"/>
+        <g class="capring" transform="translate(560 250)">
+          <circle r="100" fill="none" stroke="#151920" stroke-width="26"/>
+          <circle r="113" fill="none" stroke="#0a0c10" stroke-width="1"/>
+          <circle r="87"  fill="none" stroke="#0a0c10" stroke-width="1"/>
+          <g class="sector" data-cap="ratchet">
+            <path d="M30.9 -95.1 A100 100 0 0 1 78.8 -61.6" stroke="#5e6ad2"/>
+            <svg x="46.4" y="-92.9" width="22" height="22" style="color:#5e6ad2"><use href="#i-ratchet"/></svg>
+          </g>
+          <g class="sector" data-cap="doc2md">
+            <path d="M81.9 -57.4 A100 100 0 0 1 100.0 -1.7" stroke="#c3cad6"/>
+            <svg x="84.1" y="-41.9" width="22" height="22" style="color:#c3cad6"><use href="#i-doc2md"/></svg>
+          </g>
+          <g class="sector" data-cap="style">
+            <path d="M100.0 1.7 A100 100 0 0 1 81.9 57.4" stroke="#a78bfa"/>
+            <svg x="84.1" y="19.9" width="22" height="22" style="color:#a78bfa"><use href="#i-style"/></svg>
+          </g>
+          <g class="sector" data-cap="telemetry">
+            <path d="M78.8 61.6 A100 100 0 0 1 30.9 95.1" stroke="#f87171"/>
+            <svg x="46.4" y="70.9" width="22" height="22" style="color:#f87171"><use href="#i-telemetry"/></svg>
+          </g>
+          <g class="sector wide" data-cap="delegation">
+            <path d="M34.2 94.0 A100 100 0 0 1 -64.3 76.6" stroke="#7aa2f7"/>
+            <svg x="-28.4" y="87.5" width="22" height="22" style="color:#7aa2f7"><use href="#i-routing"/></svg>
+          </g>
+        </g>
+        <g class="dial" transform="translate(560 250)">
+          <g class="ticks" stroke="#39414f" stroke-width="1.2">
+            <circle r="74" fill="none" stroke="#20262f"/>
+            <g class="tickmarks"></g>
+          </g>
+        </g>
+        <g class="part" transform="translate(560 250)">
+          <animateTransform attributeName="transform" type="rotate" additive="sum"
+                            from="0 0 0" to="360 0 0" dur="34s" repeatCount="indefinite"/>
+          <g transform="scale(.76)">
+            <circle r="76" fill="none" stroke="url(#gRing)" stroke-width="17"/>
+            <circle r="84.5" fill="none" stroke="#0a0c10" stroke-width="1.3"/>
+            <circle r="67.5" fill="none" stroke="#0a0c10" stroke-width="1.3"/>
+            <circle r="80" fill="none" stroke="#aab4c6" stroke-opacity=".18" stroke-width="1.8"/>
+            <g class="cams" filter="url(#fGlow)">
+              <g><rect x="-15" y="-63" width="30" height="42" rx="10" fill="url(#gCam)" transform="rotate(-30 0 -42)"/></g>
+              <g transform="rotate(120)"><rect x="-15" y="-63" width="30" height="42" rx="10" fill="url(#gCam)" transform="rotate(-30 0 -42)"/></g>
+              <g transform="rotate(240)"><rect x="-15" y="-63" width="30" height="42" rx="10" fill="url(#gCam)" transform="rotate(-30 0 -42)"/></g>
+            </g>
+            <circle r="24" fill="none" stroke="url(#gHub)" stroke-width="12"/>
+            <circle r="18" fill="#0b0d12"/>
+            <circle r="5" fill="#39414f"/>
+          </g>
+        </g>
+        <text class="partname" x="560" y="400">sprag</text>
+        <text class="s midline" x="560" y="422" data-k="fl.m1">matched against your own past sessions</text>
+
+        <!-- ── wires out ── -->
+        <g class="wire" fill="none" stroke="#343a46" stroke-width="1.6" marker-end="url(#ah)">
+          <path d="M628 153 C690 128 690 96 742 96"/>
+          <path d="M672 214 C706 208 710 192 742 192"/>
+          <path d="M672 287 C706 288 710 288 742 288"/>
+          <path d="M628 347 C690 372 690 384 742 384"/>
+        </g>
+
+        <!-- ── right: capabilities ── -->
+        <g class="card amber"><rect x="742" y="62" width="382" height="68" rx="10"/>
+          <rect class="sheen" x="758" y="62" width="350" height="1"/>
+          <svg class="cic" x="762" y="80" width="22" height="22"><use href="#i-ratchet"/></svg>
+          <text class="t" x="798" y="90" data-k="fl.k1">writes a ratchet rule</text>
+          <text class="s" x="798" y="110" data-k="fl.k1s">loaded at the start of every session</text></g>
+        <g class="card"><rect x="742" y="158" width="382" height="68" rx="10"/>
+          <rect class="sheen" x="758" y="158" width="350" height="1"/>
+          <svg class="cic" x="762" y="176" width="22" height="22"><use href="#i-doc2md"/></svg>
+          <text class="t" x="798" y="186" data-k="fl.k3">converts the document</text>
+          <text class="s mono" x="798" y="206">doc2md · 96k tokens → 4.9k</text></g>
+        <g class="card violet"><rect x="742" y="254" width="382" height="68" rx="10"/>
+          <rect class="sheen" x="758" y="254" width="350" height="1"/>
+          <svg class="cic" x="762" y="272" width="22" height="22"><use href="#i-style"/></svg>
+          <text class="t" x="798" y="282" data-k="fl.k4">checks the Korean as you write</text>
+          <text class="s" x="798" y="302" data-k="fl.k4s">translationese · double passives · cohesion</text></g>
+        <g class="card red"><rect x="742" y="350" width="382" height="68" rx="10"/>
+          <rect class="sheen" x="758" y="350" width="350" height="1"/>
+          <svg class="cic" x="762" y="368" width="22" height="22"><use href="#i-telemetry"/></svg>
+          <text class="t" x="798" y="378" data-k="fl.k5">prints the cost in your prompt</text>
+          <text class="s mono" x="798" y="398">🧠 91%  ⏳ 4m  🚨 5H 94%</text></g>
+
+        <!-- ── delegation runs on its own tier: another agent does the work ── -->
+        <g class="band">
+          <rect x="36" y="488" width="1088" height="232" rx="12"/>
+          <text class="bandhead" x="60" y="516" data-k="fl.b0">DELEGATION · A SECOND AGENT DOES THE WORK AND HANDS IT BACK</text>
+        </g>
+        <g class="wire" fill="none" stroke="#343a46" stroke-width="1.6" marker-end="url(#ah)">
+          <path d="M540 366 C500 430 420 462 403 548"/>
+          <path d="M520 582 C546 582 544 556 570 556"/>
+          <path d="M520 582 C546 582 544 628 570 628"/>
+        </g>
+        <g class="wire ret" fill="none" stroke="#3b4763" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#ahb)">
+          <path d="M978 546 C978 468 520 486 340 470"/>
+          <path d="M812 556 C842 556 842 582 866 582"/>
+          <path d="M812 628 C842 628 842 584 866 582"/>
+        </g>
+
+        <g class="dnode match"><rect x="286" y="546" width="234" height="72" rx="9"/>
+          <text class="s" x="304" y="566" data-k="fl.b2">a model-fitting rule matched</text>
+          <text class="t mono" x="304" y="586">"run the tests" → haiku</text>
+          <text class="s mono" x="304" y="604" data-k="fl.b2s">ratchet-model.md · from your logs</text></g>
+        <g class="dnode teal"><rect x="576" y="528" width="236" height="56" rx="9"/>
+          <text class="t mono" x="594" y="552">haiku-runner</text>
+          <text class="s" x="594" y="570" data-k="fl.b3">runs it, returns the output</text></g>
+        <g class="dnode blue"><rect x="576" y="600" width="236" height="56" rx="9"/>
+          <text class="t mono" x="594" y="624">sonnet-worker</text>
+          <text class="s" x="594" y="642" data-k="fl.b4">writes it, returns a diff</text></g>
+        <g class="dnode out"><rect x="872" y="554" width="212" height="56" rx="9"/>
+          <text class="t" x="890" y="578" data-k="fl.b5">the main agent reviews</text>
+          <text class="s" x="890" y="596" data-k="fl.b5s">then it counts as done</text></g>
+
+        <!-- what the tier call is based on -->
+        <text class="s" x="60" y="654" data-k="fl.tc0">how the tier is picked · measured from your own logs</text>
+        <g class="crit">
+          <g><rect x="60" y="664" width="330" height="40" rx="8"/>
+            <text class="t" x="76" y="681" data-k="fl.tc1">where the answer lives</text>
+            <text class="s" x="76" y="697" data-k="fl.tc1s">in the repo → cheap tier · model knowledge → up</text></g>
+          <g><rect x="404" y="664" width="330" height="40" rx="8"/>
+            <text class="t" x="420" y="681" data-k="fl.tc2">does failure make noise</text>
+            <text class="s" x="420" y="697" data-k="fl.tc2s">exit codes catch it → cheap tier · silent → up</text></g>
+          <g><rect x="748" y="664" width="336" height="40" rx="8"/>
+            <text class="t" x="764" y="681" data-k="fl.tc3">per-rule track record</text>
+            <text class="s mono" x="764" y="697" data-k="fl.tc3s">×147 runs · 14% err · caps · escalate on repeat</text></g>
+        </g>
+      
+</g>
+</svg>

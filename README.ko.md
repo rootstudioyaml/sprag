@@ -29,14 +29,38 @@ npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입�
 
 ![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
+## 작동 방식
+
+<picture>
+  <source srcset="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/how-it-works.svg" type="image/svg+xml">
+  <img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/how-it-works.png" alt="왼쪽에 들어가는 것은 지난 세션 기록, 방금 시킨 작업, 첨부하려는 문서, 지금 쓰고 있는 한국어 문장, 이번 턴이 소비하는 토큰입니다. 오른쪽에서 나오는 것은 매 세션 시작에 주입되는 래칫 룰, 변환된 문서, 쓰는 도중의 한국어 검사, 프롬프트에 붙는 비용 표시, 그리고 조건에 맞는 작업을 haiku 또는 sonnet 서브에이전트로 보내고 그 결과를 메인 에이전트가 검토하는 흐름입니다.">
+</picture>
+
+왼쪽 항목은 모두 세션이 이미 만들어 내고 있는 것입니다. 그것을 읽으려고 어디에도 전송하지 않습니다. 아래쪽 티어 판정이 위임 논리의 전부이며 기준은 세 가지입니다. 답이 어디에 있는지, 실패가 테스트나 종료 코드로 바로 드러나는지, 그 룰의 실측 성적이 어떤지입니다.
+
 ## 측정 결과
 
 | 지표 | 결과 | | 근거 |
 |---|---|---|---|
 | 공개 벤치마크 정확도 | **59.1%** · 단일 최고 모델 57.9% | `▰▰▰▰▰▰▰▰▰▰▰▰` | [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
 | 같은 문항 총비용 | **$268** · gpt-5 $388 · gemini-2.5-pro $734 | `▰▰▰▰▰▱▱▱▱▱▱▱` | [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
-| 문서 토큰 | **−95.8%** · 540,429 → 22,610 | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
+| 같은 문서들의 토큰 | **−95.9%** · 2,011,178 → 82,209 (12건) | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
+| 위임 절감액 (원장) | **$44.67** · 위임 69건 | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
 | 메시지당 비용 | **−18.6%** · $2.345 → $1.910 | `▰▰▰▰▰▰▰▰▰▰▱▱` | [실측 리포트](#실제-효과-도입-전후-리포트) |
+
+앞의 두 줄은 고정된 공개 데이터셋에서 나온 값이라 움직이지 않습니다. 다음 두 줄은 이 머신의 원장이고 계속 늘어나므로 기준 시점을 밝힙니다. 아래 수치는 2026-09-18 기준입니다. 마지막 줄은 2026-05-02 에 Opus 4.7 가격표로 한 번 측정한 값이고 다시 계산할 수 없습니다. 그 측정의 도입 전 구간에 해당하는 트랜스크립트가 로컬 보관 기간을 지나 사라졌기 때문입니다.
+
+### 지금 이 머신의 최근 30일
+
+| | |
+|---|---|
+| 위임 절감액 | 30일 **$42.73** (최근 7일 $23.21) · 누적 69건 |
+| 어디로 옮겼는지 | opus-5 → sonnet-5 59건 $39.75 · opus-5 → haiku-4.5 10건 $4.92 |
+| 문서 변환 | 12건 (xlsx·pptx·pdf) 2,011,178 → 82,209 토큰 |
+| 그 뒤의 사용량 | 175 세션 · API 호출 14,682회 · 입력 38.1억 토큰 |
+| 캐시 적중률 | 92.2% |
+
+여기 적힌 값은 모두 도구가 스스로 보고하는 수치입니다. 위임 관련 두 줄은 `sprag route-scan savings`, 사용량은 `sprag --days 30`, 문서 변환은 doc2md 원장에서 가져왔습니다. 추정치는 하나도 없습니다.
 
 
 라우팅 절감액은 추정치가 아니라 위임 한 건 한 건의 차액을 적은 원장입니다. `sprag route-scan savings` 가 모든 금액을 룰 단위까지 역추적해 보여 줍니다. 집계에서 무엇을 빼는지까지 [원장 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md)에 적어 두었습니다.
