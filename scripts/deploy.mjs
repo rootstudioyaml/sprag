@@ -129,6 +129,26 @@ if (!dryRun) {
 
 // The local copy is what the next session runs, so it follows the release
 // rather than lagging a version behind it.
-run('npm', ['install', '-g', 'sprag-cli@latest'], { env: npmEnv() });
+//
+// Pinned to the version just published, not `@latest`. `npm publish` returns
+// before the registry serves the new version everywhere, and in that window
+// `@latest` still resolves to the previous release — on v3.49.0 this reinstalled
+// 3.48.0 and reported success, leaving the local copy a version behind the tag
+// that had just been pushed. The wait below covers the same window: the install
+// would fail outright against a registry that has not caught up yet.
+if (!dryRun) {
+  const DELAY_MS = 15_000;
+  const ATTEMPTS = 8;
+  for (let i = 1; ; i++) {
+    if (capture('npm', ['view', `sprag-cli@${version}`, 'version'], npmEnv()).out === version) break;
+    if (i === ATTEMPTS) {
+      stop(`the registry still does not serve ${version} after ${(ATTEMPTS * DELAY_MS) / 1000}s.`,
+        `The publish itself succeeded. Install the local copy once it propagates:\n  npm install -g sprag-cli@${version}`);
+    }
+    console.log(`deploy: waiting for the registry to serve ${version} (${i}/${ATTEMPTS})...`);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, DELAY_MS);
+  }
+}
+run('npm', ['install', '-g', `sprag-cli@${version}`], { env: npmEnv() });
 
 console.log(`\ndeploy: ${tag} is out — npm, tag, and release notes.`);
