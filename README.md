@@ -53,23 +53,21 @@ and what that rule's own track record says.
 | Delegation savings, from the ledger | **$44.67** over 69 delegated runs | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
 | Cheap tier on the same prompts | **24% of the cost**, one answer worse out of eight | `▰▰▰▱▱▱▱▱▱▱▱▱` | [A/B run](#the-cheap-tier-on-the-same-prompts) |
 
-**What the first two rows are for.** The delegation rules rest on three criteria,
-and the obvious objection is that moving work to a cheaper model must cost you
-accuracy. On public data it does not. Applying the same criteria as a router over
-11,696 instances scored slightly *higher* than always using the best single
-model, at a third of the cost. Accuracy went up rather than down for the reason
-the whole idea depends on: no single model is best at every kind of task.
+The first two rows answer the objection that comes up first: that moving work to
+a cheaper model has to cost you accuracy. It did not. The same criteria, wired up
+as a router, scored 1.2 points above the best single model at a third of the
+cost. Nothing is best at everything, which is why choosing per task beats
+choosing once.
 
-That evaluation is **offline**, so those two rows never move. The benchmark ships
-precollected responses of 13 models with each instance's score, token count and
-cost, so the router really ran and picked a model for every instance, and the
-accuracy and cost are then looked up rather than generated. No API call was made
-and nothing was spent. It tests the criteria, not sprag's own model list: the
-dataset's pool has no Claude tiers, so deepseek-v3, qwen3-235b and gpt-5 stand in
-for cheap, mid and flagship.
+Measured offline on LLMRouterBench (Findings of ACL 2026): 11,696 instances, 13
+models whose answers, scores and costs ship with the dataset. No model was
+called and nothing was spent. The router chose; the numbers were looked up. Run
+it again and you get the same figures. It validates the criteria, not sprag's own
+routing: the dataset has no Claude models, so deepseek-v3, qwen3-235b and gpt-5
+stood in for cheap, mid and flagship.
 
-The next two rows are ledgers on this machine and grow as it runs, so they are
-dated: figures below are as of 2026-09-18.
+The last three rows are ledgers on this machine. They grow as it runs. These were
+read on 2026-09-18.
 
 ### Current, on one machine, last 30 days
 
@@ -86,9 +84,8 @@ dated: figures below are as of 2026-09-18.
 | Cache hit rate | 92.2% | `▰▰▰▰▰▰▰▰▰▰▰▱` |
 | Volume behind both | 175 sessions · 14,682 API calls · 3.81B input tokens | |
 
-Every figure here is what the tool reports about itself: `sprag route-scan
-savings` for the block above, `sprag --days 30` for the volume, and the doc2md
-ledger for the conversions. None of it is a projection.
+Real output, from `sprag route-scan savings`, `sprag --days 30`, and the doc2md
+ledger. Nothing here is a projection.
 
 Sprag does not swap the model you asked for. It reads what you have already run, finds the kinds of task that never went wrong on a cheaper tier, and spawns a sub-agent for exactly those. The main agent reviews what comes back before anything counts as done, and the work returns to it the moment a rule stops holding.
 
@@ -124,10 +121,10 @@ Inside a JetBrains IDE terminal the chips render as single-cell glyphs instead o
 
 ## The cheap tier on the same prompts
 
-The benchmark argues the criteria on public data. This is the same question asked
-directly: eight prompts from real work in this repository, each sent to the
-flagship and to the cheap tier, graded against a hand-written answer
-(2026-09-17, raw data in `video/out/measure2.json`).
+The benchmark uses public data. This asks the same question of my own work: eight
+prompts from real sessions in this repository, sent to both tiers, graded against
+an answer written before the run (2026-09-17, raw data in
+`video/out/measure2.json`).
 
 | | flagship (opus-5) | cheap tier (haiku-4.5) |
 |---|---:|---:|
@@ -135,17 +132,18 @@ flagship and to the cheap tier, graded against a hand-written answer
 | Graded correct | 7 / 8 | 6 / 8 |
 | Gave the same answer | | 6 / 8 |
 
-The interesting part is which one both got wrong. The first prompt asked for
-files referencing `process.env` without saying whether subdirectories counted,
-and both tiers answered a defensible reading of it. Rewriting the prompt to say
-so and rerunning it made the two agree exactly, which is the ordinary lesson that
-an ambiguous request is not a model problem. The remaining miss is the cheap tier
-dropping entries from a file listing, and a listing that is wrong is a listing you
-can check, which is the whole point of the "does failure make noise" test.
+The prompt both tiers missed is the useful one. It asked which files reference
+`process.env` without saying whether subdirectories counted, and the two read it
+differently. Adding that one condition made their answers identical. The question
+was ambiguous, not hard.
 
-So the cheap tier is not free. On this sample it costs you roughly one answer in
-eight on lookups, for a quarter of the price, which is why the rules only send
-work whose failure is loud and never send design or diagnosis.
+The remaining miss is the cheap tier leaving entries out of a file listing. A
+wrong listing is one you can see is wrong, which is the second criterion doing
+its job.
+
+So the cheap tier is not free. On this sample one lookup in eight comes back
+worse, for a quarter of the price. That is why rules only send work whose failure
+surfaces, and never send design or diagnosis.
 
 ## What the method has produced here
 
@@ -155,10 +153,9 @@ work whose failure is loud and never send design or diagnosis.
 | Delegated runs | $44.67 saved, $0.65 per run | 69 runs | to 2026-09-18 |
 | Ratchet rules accumulated | 37 (30 global, 7 per-project) | 4 repositories | 2026-05-08 to 09-16 |
 
-Rule growth and routing growth behave differently. Ratchet rules come from
-mistakes a person actually made, so the list has no natural ceiling. Delegation
-rules saturate instead: the tiering recognizes a fixed set of work types, and
-once each has a rule there is nothing left to promote.
+The two counts grow differently. Ratchet rules come from mistakes a person made,
+so they keep coming. Delegation rules stop: the criteria recognize a fixed set of
+work types, and once each has a rule there is nothing left to promote.
 
 ## Day-to-day commands
 
