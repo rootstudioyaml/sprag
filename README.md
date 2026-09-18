@@ -109,6 +109,8 @@ Every subcommand, flag and the output-language setting: [command reference](http
 | [Not a router](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.md) | Why realtime routing breaks the cache and costs more |
 | [Gateways & environment](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.md) | Bedrock, Vertex, LiteLLM budgets, pricing table, FAQ, how it works |
 
+Behind a LiteLLM gateway, `sprag profile-map --refresh` now reads model aliases straight from the gateway's own `GET /model/info`, so route-scan no longer needs to wait on learned votes or a hand-edited `profile-map.json`. The refresh rides the same 5-minute check and 24-hour cache as the LiteLLM budget gauge. It never stores your auth token: each refresh reads it from `apiKeyHelper` at call time and lets it expire on the helper's own schedule. Details: [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md).
+
 ## Release notes
 
 The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headings and command names are language-neutral). Recent changes:

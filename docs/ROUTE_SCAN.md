@@ -140,9 +140,11 @@ Dig deeper: **tier criteria & research evidence** → [docs/TIER_CRITERIA.md](./
 
 Through a corporate gateway the transcript records an inference-profile ARN where the model id belongs. That string says nothing about `opus` or `haiku`, so older versions read every session as Sonnet — which made **T1 (→sonnet) rules unreachable and zeroed the savings figures**.
 
-Since v3.10.0 the profile id is mapped back to a role (main, opus, sonnet, haiku) and then to the alias your `ANTHROPIC_DEFAULT_*_MODEL` variables declare. The mapping is learned by joining each parent `Task` call to the subagent run it spawned via `toolUseId`. Below three observations, or when the role votes agree less than 80% of the time, the id stays `unknown` and drops out of the delegation aggregate rather than being guessed at.
+The mapping now resolves in three steps, cheapest first:
 
-For environments the learner cannot reach, write the mapping yourself in `<userDataDir>/profile-map.json`. Account id and region may be wildcarded:
+1. **LiteLLM gateway, `/model/info` reachable.** The gateway already knows which profile id or ARN backs which model name, so nothing needs to be learned. `sprag profile-map` prints the cached mapping (gateway address, deployment count, one `<key> → <alias>` line per entry); `sprag profile-map --refresh` pulls a fresh copy from `GET /model/info` and writes only the `gateway` section of `profile-map.json`. The refresh rides the same child process and cadence as the LiteLLM budget gauge — a 5-minute check, a 24-hour TTL on the cached map — so keeping it current costs nothing extra.
+2. **Gateway without that route, or `/model/info` blocked.** This is the mapping v3.10.0 introduced and nothing about it changed: the profile id is mapped back to a role (main, opus, sonnet, haiku) and then to the alias your `ANTHROPIC_DEFAULT_*_MODEL` variables declare, learned by joining each parent `Task` call to the subagent run it spawned via `toolUseId`. Below three observations, or when the role votes agree less than 80% of the time, the id stays `unknown` and drops out of the delegation aggregate rather than being guessed at.
+3. **Neither resolves it.** Write the mapping yourself in `<userDataDir>/profile-map.json`. Account id and region may be wildcarded:
 
 ```jsonc
 {
@@ -154,9 +156,9 @@ For environments the learner cannot reach, write the mapping yourself in `<userD
 }
 ```
 
-**Map house aliases that carry no family name** (`prod-large`, `team-fast`) here too. Shapes that keep the family name are recognized as-is — Bedrock (`anthropic.claude-opus-4-5-v1:0`), Vertex (`claude-opus-4-5@20251101`), and the 1M suffix (`claude-sonnet-4-5[1m]`) — but an alias without one cannot be priced. Rather than report a wrong figure, routing-savings **drops those runs from the aggregate** (both sides of the comparison must be recognizable); one line in the table above brings them back.
+**Map house aliases that carry no family name** (`prod-large`, `team-fast`) here too — `sprag profile-map` lists any key it could not resolve from the gateway, so you know which ones still need a manual line. Shapes that keep the family name are recognized as-is — Bedrock (`anthropic.claude-opus-4-5-v1:0`), Vertex (`claude-opus-4-5@20251101`), and the 1M suffix (`claude-sonnet-4-5[1m]`) — but an alias without one cannot be priced. Rather than report a wrong figure, routing-savings **drops those runs from the aggregate** (both sides of the comparison must be recognizable); one line in the table above brings them back.
 
-That file holds internal identifiers in plain text — do not commit it. On a direct-API machine it is never created and behaviour is unchanged.
+Sprag never stores your auth token. Step 1's refresh reads it from `apiKeyHelper` at call time and spends it on that one `/model/info` request only; the token's TTL already belongs to the helper, and a cached copy inside sprag would drift out of sync with it. `profile-map.json` holds only profile ids and model aliases — no AWS account id — but it still holds internal identifiers in plain text, so do not commit it. On a direct-API machine none of this ever runs and behaviour is unchanged.
 
 ## README 발췌 (한국어)
 
@@ -197,9 +199,11 @@ sprag route-scan savings            # 절감 원장: 어느 룰이 어떤 모델
 
 사내 게이트웨이를 거치면 로그의 모델명 필드에 추론 프로파일 ARN이 기록됩니다. 그 문자열에는 `opus`·`haiku` 같은 단서가 없어서 예전 버전은 이것을 전부 Sonnet으로 읽었고, 그 결과 **T1(→sonnet) 위임 룰이 하나도 제안되지 않았으며 절감 집계가 0**이었습니다.
 
-v3.10.0부터는 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌린 뒤 `ANTHROPIC_DEFAULT_*_MODEL` 환경변수가 선언한 별칭으로 치환합니다. 매핑은 부모 세션의 `Task` 호출과 서브에이전트 기록을 `toolUseId`로 조인해 스스로 학습하며, 관측이 3건 미만이거나 역할 판정이 80% 미만으로 갈리면 **추측하지 않고 `unknown`으로 두고 위임 집계에서 제외**합니다.
+매핑은 이제 세 단계로 해결합니다. 비용이 적게 드는 순서입니다.
 
-자동 학습이 닿지 않는 환경에서 쓸 수 있는 수동 경로도 있습니다. `<userDataDir>/profile-map.json`에 아래처럼 적으면 되고, 계정 ID와 리전은 `*`로 가려도 매칭됩니다.
+1. **LiteLLM 게이트웨이이고 `/model/info` 가 열려 있는 경우.** 게이트웨이가 프로파일 ID(또는 ARN)와 모델명의 대응을 이미 알고 있으므로 학습이 필요 없습니다. `sprag profile-map` 은 캐시된 매핑을 보여 줍니다. 게이트웨이 주소, 배포 수, 그리고 `<키> → <별칭>` 형식의 항목별 한 줄입니다. `sprag profile-map --refresh` 는 `GET /model/info` 를 다시 호출해 `profile-map.json` 의 `gateway` 절만 갱신합니다. 이 갱신은 LiteLLM 예산 게이지를 갱신하는 자식 프로세스와 같은 주기에 얹혀 돌아갑니다. 5분마다 상태를 점검하고, 캐시된 매핑에는 24시간 TTL이 붙습니다. 그래서 최신 상태를 유지하는 데 별도 비용이 들지 않습니다.
+2. **이 경로가 없거나 `/model/info` 가 막힌 게이트웨이인 경우.** 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌린 뒤 `ANTHROPIC_DEFAULT_*_MODEL` 환경변수가 선언한 별칭으로 치환하는 기존 방식이 그대로 남습니다. 매핑은 부모 세션의 `Task` 호출과 서브에이전트 기록을 `toolUseId`로 조인해 스스로 학습합니다. 관측이 3건 미만이거나 역할 판정이 80% 미만으로 갈리면 추측하지 않고 `unknown`으로 두고 위임 집계에서 제외합니다.
+3. **둘 다 해결하지 못하는 경우.** `<userDataDir>/profile-map.json`에 매핑을 직접 적습니다. 계정 ID와 리전은 `*`로 가려도 매칭됩니다.
 
 ```jsonc
 {
@@ -211,6 +215,6 @@ v3.10.0부터는 프로파일 ID를 역할(main·opus·sonnet·haiku)로 되돌�
 }
 ```
 
-**모델명에 `opus`·`sonnet`·`haiku`·`fable` 이 들어 있지 않은 사내 별칭**(`prod-large`, `team-fast` 등)도 이 표로 매핑하십시오. Bedrock(`anthropic.claude-opus-4-5-v1:0`)·Vertex(`claude-opus-4-5@20251101`)·1M 접미사(`claude-sonnet-4-5[1m]`) 같이 계열명이 남아 있는 형태는 그대로 인식되지만, 계열명이 사라진 별칭은 가격표가 알아볼 수 없습니다. 이 경우 라우팅 절감 계산은 **틀린 금액을 내놓는 대신 그 실행을 집계에서 제외**하며(비교 양쪽 모두 인식 가능한 이름이어야 합니다), 위 표에 한 줄 추가하면 다시 집계에 들어옵니다.
+**모델명에 `opus`·`sonnet`·`haiku`·`fable` 이 들어 있지 않은 사내 별칭**(`prod-large`, `team-fast` 등)도 이 표로 매핑하십시오. `sprag profile-map` 은 게이트웨이에서 해석하지 못한 키를 함께 알려 주므로, 손으로 채울 항목을 그 목록에서 바로 확인할 수 있습니다. Bedrock(`anthropic.claude-opus-4-5-v1:0`)·Vertex(`claude-opus-4-5@20251101`)·1M 접미사(`claude-sonnet-4-5[1m]`) 같이 계열명이 남아 있는 형태는 그대로 인식되지만, 계열명이 사라진 별칭은 가격표가 알아볼 수 없습니다. 이 경우 라우팅 절감 계산은 **틀린 금액을 내놓는 대신 그 실행을 집계에서 제외**하며(비교 양쪽 모두 인식 가능한 이름이어야 합니다), 위 표에 한 줄 추가하면 다시 집계에 들어옵니다.
 
-이 파일에는 사내 식별자가 평문으로 남으므로 저장소에 커밋하지 마십시오. 게이트웨이를 쓰지 않는 환경에서는 파일이 아예 만들어지지 않고 기존 동작이 그대로 유지됩니다.
+sprag는 인증 토큰을 저장하지 않습니다. 1번 단계의 갱신은 호출 시점에 `apiKeyHelper` 로 토큰을 받아 그 `/model/info` 요청 한 번에만 쓰고 사본을 남기지 않습니다. 토큰의 수명은 헬퍼가 소유하므로, sprag가 사본을 캐시에 두면 그 수명과 어긋나기 때문입니다. `profile-map.json` 에는 프로파일 ID와 모델 별칭만 들어가고 AWS 계정 ID는 들어가지 않습니다. 다만 사내 식별자가 평문으로 남으므로 저장소에 커밋하지 마십시오. 게이트웨이를 쓰지 않는 환경에서는 1번 단계 자체가 동작하지 않고 기존 동작이 그대로 유지됩니다.
