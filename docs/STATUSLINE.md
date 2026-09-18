@@ -18,6 +18,7 @@ With an empty ledger (no measured delegation yet) row 1 is not drawn and the lay
 | `🔀` **row 1** | Lifetime routing savings + the model moves behind them. The breakdown sums exactly to the total, model names keep only the family (`opus→haiku`). Full audit: `route-scan savings` |
 | `📄` **row 2** | Lifetime doc2md conversion savings with a per-format breakdown. Whichever of routing/conversion saved more takes row 1 |
 | `🤖` | Active model |
+| `🔬 high` | Effort level the session is running at (`/effort`). Magenta at `high`, which is what Claude Code resolves an unset effort to; gray below it; amber at `xhigh` and `max`, where each turn buys quality with tokens. Absent on models that carry no effort setting, and on Claude Code older than 2.1.276 |
 | `🅷 5/5` | Harness principle score ([Harness mode](./HARNESS.md)) |
 | `🧠` | Cache hit rate over the analysis window (green at 85%+) |
 | `⏳` | Cache TTL countdown — send a message before expiry to keep the cache warm. Ticking while idle requires Claude Code v2.1.97+ (see [If the countdown looks frozen](./GATEWAYS.md)) |

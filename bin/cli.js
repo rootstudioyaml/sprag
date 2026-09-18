@@ -34,6 +34,7 @@ import {
   readStdinJson,
   extractCaps,
   extractContextUsage,
+  extractEffort,
   extractModel,
 } from '../src/stdin-payload.js';
 
@@ -514,6 +515,7 @@ async function main() {
       const stdinJson = readStdinJson();
       const caps = extractCaps(stdinJson);
       const model = extractModel(stdinJson);
+      const effort = extractEffort(stdinJson);
       if (caps || model) {
         try {
           const { persistSnapshot } = await import('../src/caps-cache.js');
@@ -521,7 +523,7 @@ async function main() {
         } catch (e) { debug('caps-cache:persist', e); }
       }
       console.log(formatNoSession(
-        { caps, model, windowLabel, version: PKG_VERSION, update: readUpdateChip() },
+        { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip() },
         { color: colorOk, mode: labelMode },
       ));
       return;
@@ -567,6 +569,11 @@ async function main() {
   const stdinJson = readStdinJson();
   let caps = extractCaps(stdinJson);
   let model = extractModel(stdinJson);
+  // Not persisted to the caps cache the way caps/model are: the cache exists so
+  // the table view (which pipes no stdin) can still show them, and a level the
+  // user has since changed would be worse there than no chip at all. The effort
+  // chip is a live-statusline reading only.
+  const effort = extractEffort(stdinJson);
   const ctxLive = extractContextUsage(stdinJson);
   if (isStatusline && (caps || model)) {
     try {
@@ -758,6 +765,7 @@ async function main() {
     spikeChip,
     caps,
     model,
+    effort,
     delegationSaved,
     delegationTotals,
     doc2mdTotals,

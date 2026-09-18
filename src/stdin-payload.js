@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs';
  * The blob shape (subset we consume):
  *   {
  *     "transcript_path": "...",
+ *     "effort": { "level": "high" },
  *     "rate_limits": {
  *       "five_hour":  { "used_percentage": 94, "resets_at": 1777099200 },
  *       "seven_day":  { "used_percentage": 7,  "resets_at": 1777521600 }
@@ -119,4 +120,30 @@ export function extractModel(stdinJson) {
   if (typeof m.display_name === 'string' && m.display_name) return m.display_name;
   if (typeof m.id === 'string' && m.id) return m.id;
   return null;
+}
+
+/**
+ * The effort level the session is running at — what `/effort` sets.
+ *
+ * Claude Code 2.1.276 assembles the statusline payload with
+ * `...modelHasEffort(model) && { effort: { level: resolved } }`, so two facts
+ * follow. The level arrives already resolved against the session setting (the
+ * builder defaults it to `high` when nothing is set), which is why no default
+ * is applied here. And the key is dropped entirely for models that carry no
+ * effort setting at all (the claude-3 era, opus-4.0, opus-4.1), as it is on
+ * Claude Code builds older than the field itself — so a null means "nothing to
+ * show", never "something went wrong", and the chip simply does not render.
+ *
+ * A per-turn override (the transcript's `perTurnEffort`) is not visible here:
+ * the builder resolves the level without passing the per-turn argument, so what
+ * this returns is the session level even on a turn that ran at another one.
+ *
+ * Lowercased so the renderer can look a tone up by level; an unrecognised level
+ * still renders, just in the default tone.
+ */
+export function extractEffort(stdinJson) {
+  const level = stdinJson?.effort?.level;
+  if (typeof level !== 'string') return null;
+  const trimmed = level.trim();
+  return trimmed === '' ? null : trimmed.toLowerCase();
 }
