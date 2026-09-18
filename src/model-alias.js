@@ -36,7 +36,7 @@
  * package is published to npm, so neither may live in the source.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, createReadStream, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, createReadStream, statSync, renameSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { join, dirname, basename } from 'node:path';
@@ -138,10 +138,53 @@ export function loadProfileMap() {
 }
 
 export function saveProfileMap(map) {
+  writeProfileMapFile(map);
+  cached = map;
+}
+
+/**
+ * Write the file so a reader never sees a half-written one: serialize to a
+ * sibling temp path, then rename, which is atomic within a directory. The old
+ * in-place `writeFileSync` could be interrupted mid-write, and `loadProfileMap`
+ * treats a corrupt file as an empty map — so a crash at the wrong moment
+ * silently discarded the user's hand-written `modelAliases`.
+ */
+function writeProfileMapFile(map) {
   const dir = userDataDir();
   mkdirSync(dir, { recursive: true });
-  writeFileSync(profileMapPath(), JSON.stringify(map, null, 2));
-  cached = map;
+  const target = profileMapPath();
+  const tmp = `${target}.tmp-${process.pid}`;
+  writeFileSync(tmp, JSON.stringify(map, null, 2));
+  renameSync(tmp, target);
+}
+
+/**
+ * Merge `patch`'s top-level keys into whatever is on disk RIGHT NOW, then
+ * write.
+ *
+ * Two producers update this file from separate detached processes, and each
+ * owns different keys: route-scan's learner writes `learned`/`learnedAt`/
+ * `scannedSessions`, and the gateway refresh writes `gateway`. Both used to
+ * spread a snapshot taken when their process started (`{...loadProfileMap()}`)
+ * and write the whole document back, so whichever finished last erased the
+ * other's section. A scan takes about half a second and the gateway refresh
+ * makes a network call inside the same window, so the overlap was not
+ * theoretical — and the damage is silent: resolution simply falls back to
+ * 'unknown' with nothing in any log to say why.
+ *
+ * Re-reading immediately before the rename narrows the window from the length
+ * of the whole operation to the few microseconds between read and rename. That
+ * is not a lock, and a true one would need an O_EXCL lockfile plus stale-lock
+ * recovery; the remaining race can only lose a section that was written inside
+ * those microseconds, and the next refresh restores it.
+ */
+export function updateProfileMap(patch) {
+  cached = null;
+  const fresh = loadProfileMap();
+  const next = { ...fresh, ...patch };
+  writeProfileMapFile(next);
+  cached = next;
+  return next;
 }
 
 /** Drop the memoized map. Tests use this after pointing paths elsewhere. */
@@ -191,13 +234,37 @@ function overrideAlias(model, map) {
  * the bare profile id. Fails quiet throughout — any shape mismatch (no
  * gateway section, a different base, no matching key) returns null and the
  * caller falls through to the resolution steps that existed before this one.
+ *
+ * Freshness matters as much as the base. This step outranks learned votes
+ * because the gateway DECLARES the mapping rather than inferring it, and that
+ * argument only holds while the declaration is current. A machine whose
+ * refresh has been failing for weeks (permissions revoked, `/model/info` now
+ * 403, the proxy moved) would otherwise let a months-old table outrank
+ * thousands of accumulating votes forever, which is the opposite of what the
+ * ordering was chosen for. Past the grace window the table steps aside and
+ * learning answers again; it is not deleted, because the next successful
+ * refresh should be able to reuse the file, and `sprag profile-map` still
+ * shows it with its age.
  */
-function gatewayAlias(model, map, env) {
+const MODEL_MAP_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
+
+function gatewayAlias(model, map, env, now = Date.now()) {
   const gw = map.gateway;
   if (!gw || !gw.aliases || gw.base !== gatewayBase(env)) return null;
+  const fetchedAt = Date.parse(gw.fetchedAt);
+  if (!Number.isFinite(fetchedAt) || now - fetchedAt > MODEL_MAP_GRACE_MS) return null;
   const bare = model.replace(/\[[^\]]*\]$/, '');
   const pid = profileIdFrom(model);
-  return gw.aliases[model] || gw.aliases[bare] || (pid ? gw.aliases[pid] : null) || null;
+  // `hasOwn` rather than a bare index: this object comes from JSON.parse, so
+  // it carries Object.prototype, and a transcript model id of 'constructor'
+  // or 'toString' would otherwise resolve to a function.
+  for (const key of [model, bare, pid]) {
+    if (key && Object.hasOwn(gw.aliases, key)) {
+      const alias = gw.aliases[key];
+      if (typeof alias === 'string' && alias) return alias;
+    }
+  }
+  return null;
 }
 
 // ── resolution ───────────────────────────────────────────────────────────
@@ -557,13 +624,15 @@ export async function learnProfileMapping({ sessionPaths = [], maxSessions = 40 
 
   const learned = tallyVotes(votes);
   const map = loadProfileMap();
-  const next = {
-    ...map,
-    learned,
-    learnedAt: new Date().toISOString(),
-    scannedSessions: scanned,
-  };
   // Nothing to record on a non-gateway machine — do not create the file there.
-  if (gateway || Object.keys(map.learned || {}).length) saveProfileMap(next);
+  // Writes only this learner's own keys, so a gateway refresh that landed while
+  // this scan was running keeps its section (see updateProfileMap).
+  if (gateway || Object.keys(map.learned || {}).length) {
+    updateProfileMap({
+      learned,
+      learnedAt: new Date().toISOString(),
+      scannedSessions: scanned,
+    });
+  }
   return { learned, scannedSessions: scanned, gateway };
 }

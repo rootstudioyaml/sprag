@@ -83,7 +83,7 @@ test('data 배열이 없는 200 응답은 실패로 취급하고 기존 캐시�
   saveProfileMap({
     version: 1,
     modelAliases: { 'keep-me': 'claude-opus-5' },
-    gateway: { base: BASE, fetchedAt: '2026-09-18T00:00:00.000Z', aliases: { abc: 'anthropic.claude-haiku-4-5' }, skipped: [], count: 1 },
+    gateway: { base: BASE, fetchedAt: new Date().toISOString(), aliases: { abc: 'anthropic.claude-haiku-4-5' }, skipped: [], count: 1 },
     learned: {},
   });
 
@@ -104,7 +104,7 @@ test('별칭을 하나도 못 뽑으면 기존 캐시를 덮어쓰지 않는다'
   saveProfileMap({
     version: 1,
     modelAliases: {},
-    gateway: { base: BASE, fetchedAt: '2026-09-18T00:00:00.000Z', aliases: { abc: 'anthropic.claude-haiku-4-5' }, skipped: [], count: 1 },
+    gateway: { base: BASE, fetchedAt: new Date().toISOString(), aliases: { abc: 'anthropic.claude-haiku-4-5' }, skipped: [], count: 1 },
     learned: {},
   });
 
