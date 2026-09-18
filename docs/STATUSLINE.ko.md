@@ -18,6 +18,7 @@
 | `🔀` **첫째 줄** | 라우팅으로 절감한 누적 금액과 모델 이동 내역입니다. 내역 합계는 누적 금액과 정확히 일치하고, 모델명은 계열만 남깁니다(`opus→haiku`). 근거는 `route-scan savings` 로 전부 확인할 수 있습니다 |
 | `📄` **둘째 줄** | doc2md 문서 변환이 절감한 누적 금액과 형식별 내역입니다. 라우팅과 문서 변환 중 금액이 큰 쪽이 첫째 줄을 차지합니다 |
 | `🤖` | 현재 모델 |
+| `🔬 high` | 세션이 돌아가는 effort 레벨입니다(`/effort`). Claude Code 가 미설정 effort 를 `high` 로 해석하므로 `high` 는 모델 칩과 같은 마젠타이고, 그보다 낮은 레벨은 회색으로 물러나며, `xhigh` 와 `max` 는 같은 마젠타에 굵게 표시합니다. 노란색을 쓰지 않은 이유는 이 줄에서 노란색이 "언젠가 손을 써야 한다"는 뜻으로 쓰이는데 effort 는 사용자가 고른 설정이지 고쳐야 할 상태가 아니기 때문입니다. effort 설정이 없는 모델과 2.1.276 이전 버전에서는 칩이 나오지 않습니다 |
 | `🅷 5/5` | harness 원칙 점수 ([Harness 모드](./HARNESS.ko.md)) |
 | `🧠` | 분석 구간 동안의 캐시 히트율입니다 (85%+ 녹색) |
 | `⏳` | 캐시 TTL 카운트다운입니다. 만료되기 전에 메시지를 보내면 캐시가 유지됩니다. 입력이 없을 때도 초 단위로 줄어드는 표시는 Claude Code v2.1.97 이상에서 동작합니다 (아래 [카운트다운이 멈춰 보일 때](./GATEWAYS.ko.md) 참고) |
@@ -73,9 +74,9 @@ statusline은 대화 상자를 띄울 수 없고, 300밀리초마다 다시 그�
 
 | 모드 | 표시 형태 | 선택 방법 |
 |---|---|---|
-| `icon` | `🧠 Cache hit 98.8% · 📦 Ctx 47% of 1M` | 기본값, 또는 `sprag mode icon` |
-| `narrow` | `◉ Cache hit 98.8% · ◧ Ctx 47% of 1M` | JetBrains IDE 에서 자동 적용, 또는 `sprag mode narrow` / `--narrow` |
-| `text` | `Cache hit 98.8% · Ctx 47% of 1M` | `sprag mode text` / `--text` |
+| `icon` | `🧠 Cache hit 98.8% · 📦 Ctx 47% of 1M · 🔬 high` | 기본값, 또는 `sprag mode icon` |
+| `narrow` | `◉ Cache hit 98.8% · ◧ Ctx 47% of 1M · ▲ high` | JetBrains IDE 에서 자동 적용, 또는 `sprag mode narrow` / `--narrow` |
+| `text` | `Cache hit 98.8% · Ctx 47% of 1M · Effort high` | `sprag mode text` / `--text` |
 
 ### JetBrains IDE 에서 좁은 글리프를 쓰는 이유
 

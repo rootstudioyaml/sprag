@@ -212,9 +212,17 @@ function buildKoreanSeg(c, isIcon, verbose, g) {
  * Effort tones. Claude Code resolves an unset effort to `high`, so `high` is the
  * level a session runs at when nobody has touched it — it gets the magenta
  * identity tone the model chip uses, and the two chips read as one group about
- * which model is answering and how hard. The levels below default recede to
- * gray; the two above it take the warning tone, since raising effort buys
- * quality with tokens per turn and this tool exists to keep that visible.
+ * which model is answering and how hard. Levels below default recede to gray:
+ * they spend less, and this tool has no business nagging about that.
+ *
+ * The levels above default are the same magenta, bold. Not yellow, although
+ * raising effort does buy quality with tokens per turn: yellow in this line is
+ * the "you should do something eventually" tone (see buildVersionSeg), and an
+ * effort level is a setting the user chose, not a state to fix. Someone who
+ * pins `max` would read a permanently yellow chip as a standing complaint, and
+ * a chip that is always warning-colored is how a line teaches the eye to skip
+ * its warning color. Bold says "turned up" in the identity tone instead.
+ *
  * An unlisted level (a new one Anthropic ships) renders in the identity tone
  * rather than not at all.
  */
@@ -223,8 +231,8 @@ const EFFORT_TONES = {
   low: GRAY,
   medium: GRAY,
   high: MAGENTA,
-  xhigh: YELLOW,
-  max: YELLOW,
+  xhigh: BOLD + MAGENTA,
+  max: BOLD + MAGENTA,
 };
 
 /**
@@ -237,7 +245,13 @@ const EFFORT_TONES = {
  */
 function buildEffortSeg(effort, c, isIcon, g) {
   if (typeof effort !== 'string' || effort.length === 0) return null;
-  const tone = EFFORT_TONES[effort] || MAGENTA;
+  // `hasOwn` rather than a bare index, for the reason model-alias.js gives at
+  // its own lookup: the level is a string off a JSON payload, and a level of
+  // 'constructor' or '__proto__' would resolve through Object.prototype to a
+  // function or an object. The `|| MAGENTA` fallback cannot catch that, since
+  // both are truthy — the tone would be interpolated as
+  // `function Object() { [native code] }` and take the whole line with it.
+  const tone = Object.hasOwn(EFFORT_TONES, effort) ? EFFORT_TONES[effort] : MAGENTA;
   if (isIcon) return `${c(tone)}${g.effort} ${effort}${c(RESET)}`;
   return `${c(tone)}Effort ${effort}${c(RESET)}`;
 }
