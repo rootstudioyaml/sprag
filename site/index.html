@@ -288,6 +288,7 @@
   .flow .badge rect{fill:#0e1116;stroke:#3b4763}
   .flow .bt{font-size:11.5px;fill:var(--dim);text-anchor:middle}
   .flow .pulse path{animation:march 2.4s linear infinite}
+  .flow .wire path.is-live{stroke:#5e6ad2;stroke-dasharray:5 190;opacity:.9;animation:march 2.4s linear infinite}
   @keyframes march{to{stroke-dashoffset:-195}}
   html[lang=ko] .flow .t{font-family:var(--sans);font-size:14px}
   html[lang=ko] .flow .s{font-family:var(--sans);font-size:12px}
@@ -296,6 +297,7 @@
   html[lang=ko] .flow .s.midline{font-family:var(--sans);letter-spacing:.03em}
   @media(prefers-reduced-motion:reduce){
     .flow .pulse path{animation:none}
+    .flow .wire path.is-live{animation:none}
     .popover{transition:none}
   }
   @media(max-width:760px){
@@ -713,7 +715,7 @@ saved over 30 days                                   <span class="hl">$147.33</s
         <text class="s midline" x="560" y="422" data-k="fl.m1">matched against your own past sessions</text>
 
         <!-- ── wires out ── -->
-        <g class="wire" fill="none" stroke="#343a46" stroke-width="1.6" marker-end="url(#ah)">
+        <g class="wire" id="wiresOut" fill="none" stroke="#343a46" stroke-width="1.6" marker-end="url(#ah)">
           <path d="M628 153 C690 128 690 96 742 96"/>
           <path d="M672 214 C706 208 710 192 742 192"/>
           <path d="M672 287 C706 288 710 288 742 288"/>
@@ -1441,6 +1443,106 @@ if(!REDUCED){
     close(current.card, current.pop);
   });
   window.addEventListener('resize', () => { if(current) place(current.card, current.pop); });
+
+  /* ── autoplay: walk the four cards in order while the diagram is on
+     screen and nobody has touched it yet. Reuses open()/close()/current
+     above — this is not a second opening path. ── */
+  const wires = [...document.querySelectorAll('#wiresOut path')];
+  if(wires.length === cards.length){
+    let idx = 0, timer = null, liveWire = null, running = false, stopped = false, visible = false;
+    const mqReduced = matchMedia('(prefers-reduced-motion: reduce)');
+    const mqNarrow = matchMedia('(max-width: 760px)');
+
+    function setLiveWire(path){
+      if(liveWire === path) return;
+      if(liveWire) liveWire.classList.remove('is-live');
+      liveWire = path || null;
+      if(liveWire) liveWire.classList.add('is-live');
+    }
+
+    function shouldRun(){
+      return visible && !stopped && !document.hidden && !reduced() && !narrow();
+    }
+
+    function clearTimer(){ if(timer){ clearTimeout(timer); timer = null; } }
+
+    function stepOpen(){
+      const card = cards[idx];
+      open(card);
+      setLiveWire(wires[idx]);
+      clearTimer();
+      timer = setTimeout(stepClose, 3400);
+    }
+
+    function stepClose(){
+      const card = cards[idx];
+      const pop = document.getElementById('pop-' + card.dataset.pop);
+      close(card, pop);
+      setLiveWire(null);
+      clearTimer();
+      timer = setTimeout(stepAdvance, 400);
+    }
+
+    function stepAdvance(){
+      idx = (idx + 1) % cards.length;
+      stepOpen();
+    }
+
+    function start(){
+      if(running) return;
+      running = true;
+      stepOpen();
+    }
+
+    function pause(){
+      if(!running) return;
+      running = false;
+      clearTimer();
+      setLiveWire(null);
+      const card = cards[idx];
+      const pop = document.getElementById('pop-' + card.dataset.pop);
+      if(current && current.pop === pop) close(card, pop);
+    }
+
+    function sync(){ if(shouldRun()) start(); else pause(); }
+
+    function takeOver(e){
+      if(stopped) return;
+      stopped = true;
+      const openCard = cards[idx];
+      const openPop = document.getElementById('pop-' + openCard.dataset.pop);
+      running = false;
+      clearTimer();
+      setLiveWire(null);
+      // Leave it showing if the reader is hovering/focusing the very card
+      // autoplay had open — the normal hover/focus handlers now own it.
+      // Anything else (a different card, or a bare pointerdown in .flow)
+      // closes the stale autoplay popover.
+      const target = e && e.currentTarget instanceof Element && e.currentTarget.classList.contains('card')
+        ? e.currentTarget : null;
+      if(current && current.pop === openPop && target !== openCard){
+        close(openCard, openPop);
+      }
+    }
+
+    cards.forEach(card => {
+      card.addEventListener('mouseenter', takeOver);
+      card.addEventListener('focus', takeOver);
+      card.addEventListener('click', takeOver);
+      card.addEventListener('keydown', takeOver);
+    });
+    flow.addEventListener('pointerdown', takeOver);
+
+    document.addEventListener('visibilitychange', sync);
+    mqReduced.addEventListener('change', sync);
+    mqNarrow.addEventListener('change', sync);
+
+    const ioAuto = new IntersectionObserver((entries) => {
+      entries.forEach(e => { visible = e.isIntersecting; });
+      sync();
+    }, {threshold: .35});
+    ioAuto.observe(flow);
+  }
 })();
 </script>
 </body>
