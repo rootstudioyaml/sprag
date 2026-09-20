@@ -223,7 +223,7 @@
   /* concept flow */
   .flow{margin:34px 0 6px;border:1px solid var(--line);border-radius:12px;
     background:radial-gradient(1200px 400px at 50% -10%, #11141a, var(--panel) 60%);
-    padding:18px 14px;overflow-x:auto}
+    padding:18px 14px;overflow-x:auto;position:relative}
   .flow svg{width:100%;min-width:1000px;height:auto;display:block}
   .flow text{font-family:var(--mono)}
   .flow .col{font-size:11px;letter-spacing:.18em;fill:var(--faint)}
@@ -242,6 +242,34 @@
   .flow .card.teal  rect:first-of-type{stroke:#2c6b5b}   .flow .card.teal  .cic{color:var(--teal)}
   .flow .card.violet rect:first-of-type{stroke:#4a3a6b}  .flow .card.violet .cic{color:#a78bfa}
   .flow .card.red   rect:first-of-type{stroke:#6b2f2f}   .flow .card.red   .cic{color:var(--red)}
+  .flow .card[data-pop]{cursor:pointer}
+  .flow .card[data-pop]:hover rect:first-of-type{filter:url(#fSoft) brightness(1.18)}
+  .flow .card[data-pop]:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:10px}
+  .flow .card .pop-i circle{fill:#0e1116;stroke:currentColor;stroke-width:1.2;opacity:.55}
+  .flow .card .pop-i text{fill:currentColor;font-family:var(--mono);font-size:9.5px;font-weight:700;
+    text-anchor:middle;opacity:.85}
+  .flow .card .pop-i{color:var(--dim)}
+  .flow .card.amber .pop-i{color:var(--amber)}
+  .flow .card.violet .pop-i{color:#a78bfa}
+  .flow .card.red .pop-i{color:var(--red)}
+  /* capability popovers */
+  .popover{position:absolute;z-index:30;width:320px;max-width:calc(100% - 16px);
+    background:var(--panel2);border:1px solid var(--line2);border-radius:var(--rc);
+    padding:14px 16px 12px;box-shadow:0 24px 60px -24px rgba(0,0,0,.75);
+    opacity:0;transform:translateY(-4px);pointer-events:none;
+    transition:opacity .16s var(--ease), transform .16s var(--ease)}
+  .popover.is-open{opacity:1;transform:none;pointer-events:auto}
+  .popover .pop-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+  .popover .pop-text{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--dim)}
+  .popover .pop-sample{margin-top:10px;font-family:var(--mono);font-size:11.5px;line-height:1.7;
+    color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;
+    padding:8px 10px;overflow-x:auto;white-space:pre}
+  .popover .pop-sample + .pop-sample{margin-top:6px}
+  .popover .pop-sample.warn{color:var(--red)}
+  #pop-ratchet .pop-eyebrow{color:var(--amber)}
+  #pop-style .pop-eyebrow{color:#a78bfa}
+  #pop-cost .pop-eyebrow{color:var(--red)}
   .flow .capring .sector path{fill:none;stroke-width:26;stroke-opacity:.14}
   .flow .capring .sector path{transition:stroke-opacity .5s}
   .flow .capring .sector:hover path,.flow .capring .sector.on path{stroke-opacity:.45}
@@ -268,6 +296,12 @@
   html[lang=ko] .flow .s.midline{font-family:var(--sans);letter-spacing:.03em}
   @media(prefers-reduced-motion:reduce){
     .flow .pulse path{animation:none}
+    .popover{transition:none}
+  }
+  @media(max-width:760px){
+    .popover{position:fixed;left:16px;right:16px;bottom:16px;top:auto;width:auto;max-width:none;
+      max-height:70vh;overflow-y:auto;transform:translateY(8px)}
+    .popover.is-open{transform:none}
   }
   .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:40px}
   @media(max-width:860px){.steps{grid-template-columns:1fr}}
@@ -319,6 +353,13 @@
   table.split td .why{display:block;color:var(--faint);font-size:12.5px;margin-top:3px}
   @media(max-width:760px){table.split th:nth-child(2),table.split td:nth-child(2){display:none}}
 
+
+  .docs-strip{border-top:1px solid var(--line);padding:64px 0}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:28px}
+  .dcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--rc);padding:16px;display:block}
+  .dcard:hover{border-color:var(--line2)}
+  .dcard b{display:block;font-family:var(--disp);font-size:14.5px}
+  .dcard span{display:block;margin-top:6px;font-size:13px;color:var(--dim);line-height:1.5}
 
   footer{border-top:1px solid var(--line);padding:36px 0 56px;color:var(--faint);font-size:13px}
   footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
@@ -406,6 +447,7 @@
       <a class="hide-sm" href="#how" data-k="nav.how">How it works</a>
       <a class="hide-sm" href="#routing" data-k="nav.routing">Routing</a>
       <a class="hide-sm" href="#features" data-k="nav.features">Features</a>
+      <a class="hide-sm" href="docs/" data-k="nav.docs">Docs</a>
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
         <button data-lang="ko" aria-pressed="false">KO</button>
@@ -526,8 +568,9 @@ saved over 30 days                                   <span class="hl">$147.33</s
     <div class="eyebrow" data-k="how.eyebrow">How it works</div>
     <h2 data-k="how.h2">It learns from the sessions you already ran</h2>
 
-    <div class="flow" role="img" aria-label="What Sprag does with a session: rules, sub-agent delegation, document conversion, Korean prose gates and telemetry">
+    <div class="flow">
       <svg viewBox="0 0 1160 744" preserveAspectRatio="xMidYMid meet">
+        <title>What Sprag does with a session: rules, sub-agent delegation, document conversion, Korean prose gates and telemetry</title>
         <defs>
           <linearGradient id="gCard" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#171a21"/><stop offset="1" stop-color="#0c0e13"/>
@@ -678,26 +721,30 @@ saved over 30 days                                   <span class="hl">$147.33</s
         </g>
 
         <!-- ── right: capabilities ── -->
-        <g class="card amber"><rect x="742" y="62" width="382" height="68" rx="10"/>
+        <g class="card amber" data-pop="ratchet" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-ratchet"><rect x="742" y="62" width="382" height="68" rx="10"/>
           <rect class="sheen" x="758" y="62" width="350" height="1"/>
           <svg class="cic" x="762" y="80" width="22" height="22"><use href="#i-ratchet"/></svg>
           <text class="t" x="798" y="90" data-k="fl.k1">writes a ratchet rule</text>
-          <text class="s" x="798" y="110" data-k="fl.k1s">loaded at the start of every session</text></g>
-        <g class="card"><rect x="742" y="158" width="382" height="68" rx="10"/>
+          <text class="s" x="798" y="110" data-k="fl.k1s">loaded at the start of every session</text>
+          <g class="pop-i" aria-hidden="true"><circle cx="1108" cy="78" r="7"/><text x="1108" y="81.3">i</text></g></g>
+        <g class="card" data-pop="doc2md" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-doc2md"><rect x="742" y="158" width="382" height="68" rx="10"/>
           <rect class="sheen" x="758" y="158" width="350" height="1"/>
           <svg class="cic" x="762" y="176" width="22" height="22"><use href="#i-doc2md"/></svg>
           <text class="t" x="798" y="186" data-k="fl.k3">converts the document</text>
-          <text class="s mono" x="798" y="206">doc2md · 96k tokens → 4.9k</text></g>
-        <g class="card violet"><rect x="742" y="254" width="382" height="68" rx="10"/>
+          <text class="s mono" x="798" y="206">doc2md · 96k tokens → 4.9k</text>
+          <g class="pop-i" aria-hidden="true"><circle cx="1108" cy="174" r="7"/><text x="1108" y="177.3">i</text></g></g>
+        <g class="card violet" data-pop="style" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-style"><rect x="742" y="254" width="382" height="68" rx="10"/>
           <rect class="sheen" x="758" y="254" width="350" height="1"/>
           <svg class="cic" x="762" y="272" width="22" height="22"><use href="#i-style"/></svg>
           <text class="t" x="798" y="282" data-k="fl.k4">checks the Korean as you write</text>
-          <text class="s" x="798" y="302" data-k="fl.k4s">translationese · double passives · cohesion</text></g>
-        <g class="card red"><rect x="742" y="350" width="382" height="68" rx="10"/>
+          <text class="s" x="798" y="302" data-k="fl.k4s">translationese · double passives · cohesion</text>
+          <g class="pop-i" aria-hidden="true"><circle cx="1108" cy="270" r="7"/><text x="1108" y="273.3">i</text></g></g>
+        <g class="card red" data-pop="cost" tabindex="0" role="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-cost"><rect x="742" y="350" width="382" height="68" rx="10"/>
           <rect class="sheen" x="758" y="350" width="350" height="1"/>
           <svg class="cic" x="762" y="368" width="22" height="22"><use href="#i-telemetry"/></svg>
           <text class="t" x="798" y="378" data-k="fl.k5">prints the cost in your prompt</text>
-          <text class="s mono" x="798" y="398">🧠 91%  ⏳ 4m  🚨 5H 94%</text></g>
+          <text class="s mono" x="798" y="398">🧠 91%  ⏳ 4m  🚨 5H 94%</text>
+          <g class="pop-i" aria-hidden="true"><circle cx="1108" cy="366" r="7"/><text x="1108" y="369.3">i</text></g></g>
 
         <!-- ── delegation runs on its own tier: another agent does the work ── -->
         <g class="band">
@@ -743,6 +790,26 @@ saved over 30 days                                   <span class="hl">$147.33</s
             <text class="s mono" x="764" y="697" data-k="fl.tc3s">×147 runs · 14% err · caps · escalate on repeat</text></g>
         </g>
       </svg>
+      <div class="popover" id="pop-ratchet" role="dialog" hidden>
+        <div class="pop-eyebrow" data-k="pop.1e">RATCHET</div>
+        <p class="pop-text" data-k="pop.1p">The harness score rides in the line: one point for each of the five principles the session is holding to.</p>
+        <div class="pop-sample">🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8%</div>
+      </div>
+      <div class="popover" id="pop-doc2md" role="dialog" hidden>
+        <div class="pop-eyebrow" data-k="pop.2e">DOC2MD</div>
+        <p class="pop-text" data-k="pop.2p">Conversion savings are a lifetime total with a per-format breakdown, and it takes the top row whenever it has saved more than routing has.</p>
+        <div class="pop-sample">📄 Doc2md saved $1.8 | pptx 1× $1.55 · pdf 2× $0.27</div>
+      </div>
+      <div class="popover" id="pop-style" role="dialog" hidden>
+        <div class="pop-eyebrow" data-k="pop.3e">KOREAN STYLE</div>
+        <p class="pop-text" data-k="pop.3p">This one has no chip. The check runs as the text is written, and a violation stops the session on that file instead of waiting to be read off a status line.</p>
+      </div>
+      <div class="popover" id="pop-cost" role="dialog" hidden>
+        <div class="pop-eyebrow" data-k="pop.4e">COST</div>
+        <p class="pop-text" data-k="pop.4p">Cache hit rate, the expiry countdown, context use and both rate-limit windows are read every turn, and a warning chip moves to the front of the line when one of them needs you.</p>
+        <div class="pop-sample">⚠ Ctx 500k+ · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · ✦ current ▰▰▰▰▰▰▰▱▱▱▱▱ 62% 🔄 21:33 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% 🔄 Tue 19:33 · 📦 Ctx 47% of 1M · 💰 Cache saved $1.0K · last 1d</div>
+        <div class="pop-sample warn">🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 4.8 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📅 weekly ▰▱▱▱▱▱▱▱▱▱▱▱ 12% 🔄 Sun 14:26 · 📦 Ctx 200k · last 1d</div>
+      </div>
     </div>
     <p class="lede" data-k="how.lede">Sprag installs once, reads the sessions you already run, and does not ask you to change how you prompt.</p>
     <div class="steps">
@@ -903,6 +970,19 @@ saved over 30 days                                   <span class="hl">$147.33</s
   </div>
 </section>
 
+<section class="docs-strip" id="docs">
+  <div class="wrap">
+    <h2 data-k="ds.h2">Read the docs</h2>
+    <div class="dgrid">
+      <a class="dcard" href="docs/statusline/"><b data-k="ds.1t">Reading the statusline</b><span data-k="ds.1d">Cache hit rate, TTL countdown, and the 5-hour and 7-day caps in one line.</span></a>
+      <a class="dcard" href="docs/not-a-router/"><b data-k="ds.2t">Why it isn't a router</b><span data-k="ds.2d">Prompt caches are kept per model, so switching mid-session costs more than it saves.</span></a>
+      <a class="dcard" href="docs/route-scan/"><b data-k="ds.3t">Delegate repeat work</b><span data-k="ds.3d">route-scan finds work an expensive model keeps redoing and proposes cheaper subagent rules.</span></a>
+      <a class="dcard" href="docs/doc2md/"><b data-k="ds.4t">Documents become Markdown</b><span data-k="ds.4d">pptx, xlsx, pdf, docx and fig convert to Markdown before Claude Code reads them.</span></a>
+      <a class="dcard" href="docs/harness/"><b data-k="ds.5t">The 5-principle harness</b><span data-k="ds.5d">Ratchet rules, evidence-gated completion, and a Plan, Execute, Verify cycle.</span></a>
+    </div>
+  </div>
+</section>
+
 <section class="cta reveal">
   <div class="wrap">
     <h2 data-k="cta.h2">Install it once. Every session after gets safer and cheaper.</h2>
@@ -915,8 +995,8 @@ saved over 30 days                                   <span class="hl">$147.33</s
 
 <footer>
   <div class="wrap">
-    <span>MIT © YAML Studio</span>
-    <span><a href="https://github.com/rootstudioyaml/sprag">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
+    <span>Apache-2.0 © YAML Studio</span>
+    <span><a href="docs/">Docs</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
   </div>
 </footer>
 
@@ -955,6 +1035,12 @@ const KO = {
   'fq.a4':'위임을 실행할 때마다 실제 가격 차이를 장부에 한 줄씩 기록합니다. 라우팅 기준은 공개 데이터로 벤치마크했고, 방법은 <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>에 있습니다.',
   'cta.h2':'다음 세션부터, 더 안전하고 저렴하게',
   'cta.gh':'GitHub에서 스타 누르기',
+  'ds.h2':'문서 읽기',
+  'ds.1t':'statusline 읽는 법', 'ds.1d':'캐시 적중률, TTL 카운트다운, 5시간과 7일 한도를 한 줄에서 봅니다',
+  'ds.2t':'라우터가 아닌 이유', 'ds.2d':'프롬프트 캐시는 모델별로 유지되어 세션 중간에 모델을 바꾸면 절감보다 손해가 큽니다',
+  'ds.3t':'반복 작업 위임하기', 'ds.3d':'비싼 모델이 반복 처리하는 작업을 찾아 저렴한 서브에이전트 규칙으로 제안합니다',
+  'ds.4t':'문서를 Markdown으로', 'ds.4d':'pptx·xlsx·pdf·docx·fig 파일을 Markdown으로 바꾼 뒤 Claude Code가 읽습니다',
+  'ds.5t':'harness 다섯 원칙', 'ds.5d':'래칫 규칙과 증거 기반 완료, Plan·Execute·Verify 순환을 갖춘 하네스입니다',
   'rt.crit.h':'티어를 정하는 여섯 가지 기준',
   'rt.crit.lede':'이 기준은 생성되는 <code>ratchet-model.md</code>의 룰 목록 위에 함께 들어가 에이전트가 위임할 때마다 적용되며, 수치는 가정이 아니라 실측입니다.',
   'rt.cite':'수치는 <a href="https://github.com/ynulihao/LLMRouterBench">LLMRouterBench</a>(Findings of ACL 2026) 공개 데이터 11,696건(9개 데이터셋)으로 오프라인 실측한 값입니다. 도구 체인 격차는 τ²-Bench, 지식 회상은 SimpleQA 계열에서 나왔고, 방법과 홀드아웃 검증은 <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>에 있습니다.',
@@ -982,7 +1068,15 @@ const KO = {
   'fl.b5':'메인 에이전트가 검수',
   'fl.b5s':'통과해야 완료',
   'fl.foot':'추측으로 정한 항목 없이, 규칙마다 측정한 오류율이 함께 붙어 있습니다.',
- 'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능',
+  'pop.1e':'래칫',
+  'pop.1p':'하네스 점수는 세션이 지키고 있는 다섯 원칙마다 1점씩 더해 한 줄에 그대로 나타납니다.',
+  'pop.2e':'doc2md',
+  'pop.2p':'doc2md 변환 절감액은 형식별 내역과 함께 누적 총액으로 표시되고, 라우팅보다 더 많이 절감했을 때는 첫째 줄을 차지합니다.',
+  'pop.3e':'한국어 문체',
+  'pop.3p':'이 기능은 statusline에 별도 칩으로 나타나지 않습니다. 검사는 글을 쓰는 바로 그 순간에 실행되고, 규칙을 어기면 statusline에서 확인하기도 전에 해당 파일에서 세션이 멈춥니다.',
+  'pop.4e':'비용',
+  'pop.4p':'캐시 적중률과 만료까지 남은 시간, 컨텍스트 사용량, 5시간·7일 사용량 한도를 매 턴 읽어서, 그중 하나라도 바로 확인해야 하면 경고 칩이 줄 맨 앞으로 올라옵니다.',
+ 'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능', 'nav.docs':'문서',
   'hero.h1':'AI 코딩 에이전트에 거는<br><em>품질 래칫</em>',
   'hero.sub':'되풀이된 실패는 세션 시작마다 올라오는 규칙이 되고, 증명된 작업은 저렴한 티어로 위임되며, 캐시와 사용량 한도 문제는 아직 손쓸 수 있을 때 statusline에 나타납니다.',
   'hero.copy':'복사', 'hero.copied':'복사됨',
@@ -1055,7 +1149,7 @@ function setLang(next, remember){
 function bindKoreanPhrases(){
   const RE = /([^\s\u00a0]{1,12}(?:\uc740|\ub294|\uc774|\uac00|\uc744|\ub97c|\uc758|\uc640|\uacfc|\ub85c|\uc5d0|\ub3c4|\uc11c))\u0020(?=\S)/g;
   /* code·링크 요소 바로 뒤에 붙은 조사는 요소와 한 덩어리로 묶는다 */
-  if(lang === 'ko') document.querySelectorAll('.card p, .step p, .lede, .faqs p, .cite').forEach(p => {
+  if(lang === 'ko') document.querySelectorAll('.card p, .step p, .lede, .faqs p, .cite, .pop-text').forEach(p => {
     p.querySelectorAll('code, a').forEach(el => {
       const nxt = el.nextSibling;
       if(!nxt || nxt.nodeType !== 3) return;
@@ -1068,7 +1162,7 @@ function bindKoreanPhrases(){
       nxt.textContent = m[2];
     });
   });
-  document.querySelectorAll('.sub,.lede,.faqs p,.step p,.card p,.caption,.cite').forEach(el => {
+  document.querySelectorAll('.sub,.lede,.faqs p,.step p,.card p,.caption,.cite,.pop-text').forEach(el => {
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     let n;
     while(n = walker.nextNode()){
@@ -1231,6 +1325,122 @@ if(!REDUCED){
     l.setAttribute('stroke-opacity', long ? '.55' : '.25');
     g.appendChild(l);
   }
+})();
+
+/* ── capability cards: layer popovers showing the real statusline chip ── */
+(function flowPopovers(){
+  const flow = document.querySelector('.flow');
+  if(!flow) return;
+  const cards = [...flow.querySelectorAll('.card[data-pop]')];
+  if(!cards.length) return;
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  let current = null; // {card, pop}
+  let gen = 0; // invalidates a pending open-animation frame once anything closes/reopens
+
+  function reduced(){ return matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  function narrow(){ return matchMedia('(max-width: 760px)').matches; }
+
+  function place(card, pop){
+    if(narrow()){
+      pop.style.left = '';
+      pop.style.top = '';
+      return;
+    }
+    const cr = card.getBoundingClientRect();
+    const fr = flow.getBoundingClientRect();
+    let left = cr.left - fr.left + flow.scrollLeft;
+    const top = cr.bottom - fr.top + flow.scrollTop + 10;
+    const maxLeft = Math.max(8, flow.scrollWidth - pop.offsetWidth - 10);
+    left = Math.min(Math.max(8, left), maxLeft);
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+  }
+
+  function open(card){
+    const pop = document.getElementById('pop-' + card.dataset.pop);
+    if(!pop) return;
+    if(current && current.pop === pop){ place(card, pop); return; }
+    if(current) hideNow(current.card, current.pop);
+    const myGen = ++gen;
+    pop.hidden = false;
+    place(card, pop);
+    card.setAttribute('aria-expanded', 'true');
+    current = {card, pop};
+    if(reduced()){
+      pop.classList.add('is-open');
+    } else {
+      pop.classList.remove('is-open');
+      // Double rAF so the browser paints the pre-transition state first, then
+      // animates to open. Guarded by `gen`: if anything closes or reopens a
+      // popover before these frames run, this stale callback must not revive
+      // the class it left behind (that raced two popovers open at once).
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if(gen === myGen) pop.classList.add('is-open');
+      }));
+    }
+  }
+
+  function hideNow(card, pop){
+    gen++;
+    card.setAttribute('aria-expanded', 'false');
+    pop.classList.remove('is-open');
+    pop.hidden = true;
+    if(current && current.pop === pop) current = null;
+  }
+
+  function close(card, pop){
+    if(!card || !pop) return;
+    gen++;
+    card.setAttribute('aria-expanded', 'false');
+    pop.classList.remove('is-open');
+    if(reduced()){
+      pop.hidden = true;
+    } else {
+      setTimeout(() => { if(!pop.classList.contains('is-open')) pop.hidden = true; }, 170);
+    }
+    if(current && current.pop === pop) current = null;
+  }
+
+  function closeIfOpen(card){
+    if(current && current.card === card) close(card, current.pop);
+  }
+
+  function toggle(card){
+    const pop = document.getElementById('pop-' + card.dataset.pop);
+    if(current && current.pop === pop) close(card, pop);
+    else open(card);
+  }
+
+  cards.forEach(card => {
+    // Fine pointer: hover/focus already open and close it, so a click just
+    // makes sure it is showing. Coarse pointer has no hover, so the tap
+    // itself has to toggle: first tap opens, second tap on the same card closes.
+    card.addEventListener('click', () => { coarse ? toggle(card) : open(card); });
+    card.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        toggle(card);
+      } else if(e.key === 'Escape'){
+        closeIfOpen(card);
+      }
+    });
+    if(!coarse){
+      card.addEventListener('mouseenter', () => open(card));
+      card.addEventListener('mouseleave', () => closeIfOpen(card));
+      card.addEventListener('focus', () => open(card));
+      card.addEventListener('blur', () => closeIfOpen(card));
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && current) close(current.card, current.pop);
+  });
+  document.addEventListener('click', (e) => {
+    if(!current) return;
+    if(current.card.contains(e.target) || current.pop.contains(e.target)) return;
+    close(current.card, current.pop);
+  });
+  window.addEventListener('resize', () => { if(current) place(current.card, current.pop); });
 })();
 </script>
 </body>
