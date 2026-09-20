@@ -30,6 +30,13 @@ import { loadModelRules, budgetCapPhrase } from './model-rules.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 import { userLanguage } from './config.js';
 
+const PASTE_MIN_LINES = 8;
+const LOG_SHAPE_RE = /^\s+at\s|\b(error|exception|traceback|warn(ing)?|fatal)\b|^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/im;
+export function looksPasted(text) {
+  const lines = (String(text).match(/\n/g) || []).length;
+  return lines >= PASTE_MIN_LINES || LOG_SHAPE_RE.test(text);
+}
+
 /** Shortest text worth classifying; below this a prompt is an ack, not a task. */
 const MIN_LEN = 8;
 
@@ -56,6 +63,12 @@ export function routeHint(text, { rules, lang = userLanguage(), root } = {}) {
 
   const cat = categorize(t, null);
   if (!cat) return null;
+  // Length alone makes a paste offline, where the tool mix confirms it. At
+  // prompt time a long text is as often a written spec as a pasted log, and a
+  // spec is not haiku work — so it must also look pasted: many lines, or the
+  // shape of a log or stack trace. Otherwise stay quiet rather than fall
+  // through to keyword scoring, which a long request trips by accident.
+  if (cat.id === 'paste' && !looksPasted(t)) return null;
 
   const all = rules || loadModelRules().rules || [];
   const matched = all.filter((r) => r && r.category === cat.id);

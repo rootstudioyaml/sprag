@@ -53,8 +53,8 @@ export const MIN_DELEGABLE_OUT = 100;
 // delegating them defeats the harness's default-safe-path rule.
 // Measured 2026-09-20 on 1,276 local prompts: '퍼블리시' (npm publish, 15 hits)
 // and '이유' (root-cause asks) were slipping through as run/translate, and a
-// bare '머지' matched inside '나머지' ("나머지 진행하자" ×7) — hence the lookbehind.
-export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개선할|검토해보|비교|왜 |이유|제출|배포|출시|퍼블리시|릴리스|릴리즈|(?<!나)머지|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge/i;
+// bare '머지' matched inside '나머지' ("나머지 진행하자" ×7), hence the lookbehind.
+export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개선할|검토해보|비교|왜(?=[\s?]|$)|이유|제출|배포|출시|퍼블리시|릴리[스즈](?!\s*노트)|(?<!나)머지|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge/i;
 
 // Implementation asks phrased around a run/check verb ("설치와 동시에 설정되도록
 // 하자", "피드백 확인해주고 아이콘도 만들자"). Editing is not delegable, and at
@@ -62,7 +62,9 @@ export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개�
 // classification does not use this: a write-dominant tool mix already excludes
 // such episodes in behaviorPool(). Same corpus: 21 of 1,276 prompts gated, all
 // but two of them implementation requests that had been read as run/check.
-export const EDIT_RE = /구현|추가하자|만들자|넣자|넣어줘|수정해|고쳐|바꿔|되도록|되게|리팩/;
+// `되게` alone is also the colloquial intensifier ("되게 느린데") and `되도록`
+// the adverb ("되도록 빨리"); only the causative shape means "make it so".
+export const EDIT_RE = /구현|추가하자|만들자|넣자|넣어줘|수정해|고쳐|바꿔|(?:되도록|되게)\s*(?:하|해|만들)|리팩/;
 // A pattern must recur this often before we nag about it.
 export const MIN_RECURRENCE = 3;
 
@@ -185,7 +187,11 @@ function keywordScore(cat, text) {
 
 // Episodes that are not user-delegable requests: bare continuations, injected
 // notifications, image pastes. These are easy but there is nothing to route.
-const SKIP_RE = /^(계속|이어서|continue|다음|proceed|진행|응|네|넵|ok|okay|yes|ㄱ+|고고)\b/i;
+// `\b` is ASCII-only in JS, so after a Hangul syllable it never matches and
+// every Korean ack in this list was silently ignored (measured 2026-09-21:
+// "계속 진행", "응 다 정리해도돼" both entered tiering as episodes). The
+// lookahead does what `\b` was meant to: the ack ends the word.
+const SKIP_RE = /^(계속|이어서|continue|다음|proceed|진행|응|네|넵|ok|okay|yes|ㄱ+|고고)(?=\s|$|[.!?,~])/i;
 const SKIP_PREFIX = ['<task-notification', '<system', '[Image:', '<local-command'];
 
 // Single source of truth for the state dir (paths.js). A local copy used to
@@ -226,7 +232,7 @@ export function categorize(text, toolCounts) {
   return null;
 }
 
-function isSkippable(text) {
+export function isSkippable(text) {
   if (!text) return true;
   if (SKIP_RE.test(text.trim())) return true;
   return SKIP_PREFIX.some((p) => text.startsWith(p));
@@ -384,6 +390,20 @@ export function tierOf(ep, category, th) {
  * Scan transcripts and build delegation candidates.
  * Returns the cache object (also written to disk).
  */
+/**
+ * Whether a rule was already registered when a subagent run started. The
+ * ledger credits a rule with every matching run in the scan window, and a rule
+ * promoted today would otherwise claim two weeks of runs that happened before
+ * it existed — and keep claiming them, since the ledger is keyed by run path.
+ * A rule with no promotion date (older registries) is trusted as before.
+ */
+export function ruleCouldHaveRouted(rule, run) {
+  if (!rule?.promotedAt || !Number.isFinite(run?.startedAt)) return true;
+  const promoted = Date.parse(rule.promotedAt);
+  if (!Number.isFinite(promoted)) return true;
+  return run.startedAt >= promoted;
+}
+
 export async function runRouteScan({ days = 14 } = {}) {
   const files = await discoverSessionFiles({ days });
 
@@ -502,8 +522,13 @@ export async function runRouteScan({ days = 14 } = {}) {
     g.count += 1;
     for (const m of ep.models) g.models.add(m);
     if (!g.projectPath && ep.cwd) g.projectPath = ep.cwd;
-    if (!g.example || (ep.text.length < g.example.length && ep.text.length > 10)) {
+    // Shortest text longer than 10 chars wins; a 3-char first episode used to
+    // be accepted unconditionally and then never replaced.
+    const usable = ep.text.length > 10;
+    if ((!g.example && (usable || !g.exampleUsable))
+      || (usable && (!g.exampleUsable || ep.text.length < g.example.length))) {
       g.example = ep.text.slice(0, 80).replace(/\s+/g, ' ');
+      g.exampleUsable = usable;
     }
     groups.set(key, g);
   }
@@ -600,6 +625,7 @@ export async function runRouteScan({ days = 14 } = {}) {
         // not against whatever the session's priciest model happened to be.
         const rule = ruleForRun(runTier, cat.id, projectDir);
         if (!rule) continue; // no rule routed this run — not our saving to claim
+        if (!ruleCouldHaveRouted(rule, run)) continue; // it did not exist yet
         // Priced below, after this scan's baselines have been written back to
         // the registry — see the note at the ledger write.
         if (!isRecognizedModelId(run.model)) continue;
@@ -808,9 +834,9 @@ export async function shouldRescan(cache, { days = 14, afterDelegation = false }
  */
 export function tierLabel(tier, lang = 'ko') {
   const ko = {
-    T2: '단순 작업 — haiku급이면 충분',
-    T1: '중간 난도 — sonnet급이면 충분',
-    T0: '고난도 — 지금 모델 유지',
+    T2: '단순 작업, haiku급이면 충분',
+    T1: '중간 난도, sonnet급이면 충분',
+    T0: '고난도, 지금 모델 유지',
   };
   const en = {
     T2: 'simple — haiku-class is enough',
