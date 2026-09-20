@@ -26,6 +26,31 @@ function isCacheMonitorHook(nh) {
   return cmd.includes(HOOK_MARKER) || cmd.includes('--hook-run');
 }
 
+/**
+ * Drop our hook entries and keep everything else. Removal is per hook, not per
+ * matcher group: Claude Code merges hooks that share a matcher into one group,
+ * so filtering whole groups took another tool's hook with ours whenever that
+ * tool had been installed into the same `Bash|Edit|Write` group. A group goes
+ * only once nothing of anyone else's is left in it. Same rule as
+ * installer.js uninstallAll, which fixed this for the other hooks earlier.
+ */
+export function withoutCacheMonitorHooks(groups) {
+  const kept = [];
+  for (const m of groups) {
+    if (!Array.isArray(m?.hooks)) { kept.push(m); continue; }
+    const hooks = m.hooks.filter((h) => !isCacheMonitorHook(h));
+    if (hooks.length === m.hooks.length) { kept.push(m); continue; }
+    if (hooks.length) kept.push({ ...m, hooks });
+  }
+  return kept;
+}
+
+function countCacheMonitorHooks(groups) {
+  let n = 0;
+  for (const m of groups) for (const h of (Array.isArray(m?.hooks) ? m.hooks : [])) if (isCacheMonitorHook(h)) n += 1;
+  return n;
+}
+
 export async function installHook({ threshold = 0.7 } = {}) {
   let settings;
   try {
@@ -36,13 +61,17 @@ export async function installHook({ threshold = 0.7 } = {}) {
   }
 
   if (!settings.hooks) settings.hooks = {};
-  if (!Array.isArray(settings.hooks.PostToolUse)) settings.hooks.PostToolUse = [];
+  if (settings.hooks.PostToolUse !== undefined && !Array.isArray(settings.hooks.PostToolUse)) {
+    // Someone else's data in a shape we do not understand; overwriting it with
+    // [] would discard it. Leave the file alone and say so.
+    console.log(`⚠ hooks.PostToolUse in ${SETTINGS_PATH} is not an array — hook not installed.`);
+    return;
+  }
+  if (!settings.hooks.PostToolUse) settings.hooks.PostToolUse = [];
 
-  // Remove existing cache-monitor hook if present — matches both the current
-  // subcommand form and the legacy copied-file form.
-  settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter(
-    (h) => !(h.hooks || []).some(isCacheMonitorHook),
-  );
+  // Remove an existing cache-monitor hook — matches both the current subcommand
+  // form and the legacy copied-file form.
+  settings.hooks.PostToolUse = withoutCacheMonitorHooks(settings.hooks.PostToolUse);
 
   settings.hooks.PostToolUse.push({
     matcher: 'Bash|Edit|Write',
@@ -76,12 +105,10 @@ export async function uninstallHook() {
     return;
   }
 
-  if (settings.hooks?.PostToolUse) {
-    const before = settings.hooks.PostToolUse.length;
-    settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter(
-      (h) => !(h.hooks || []).some(isCacheMonitorHook),
-    );
-    const removed = before - settings.hooks.PostToolUse.length;
+  if (Array.isArray(settings.hooks?.PostToolUse)) {
+    const before = countCacheMonitorHooks(settings.hooks.PostToolUse);
+    settings.hooks.PostToolUse = withoutCacheMonitorHooks(settings.hooks.PostToolUse);
+    const removed = before;
 
     if (settings.hooks.PostToolUse.length === 0) delete settings.hooks.PostToolUse;
     if (Object.keys(settings.hooks).length === 0) delete settings.hooks;

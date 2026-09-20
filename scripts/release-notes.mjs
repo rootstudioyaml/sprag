@@ -157,7 +157,7 @@ function ghCliToken() {
   const env = { ...process.env };
   delete env.GH_TOKEN;
   delete env.GITHUB_TOKEN;
-  const r = spawnSync('gh', ['auth', 'token'], { env, encoding: 'utf8' });
+  const r = spawnSync('gh', ['auth', 'token'], { env, encoding: 'utf8', timeout: 15_000 });
   const out = r.status === 0 ? String(r.stdout || '').trim() : '';
   return out || null;
 }
@@ -252,7 +252,7 @@ async function call(url, init) {
 // case (no release yet), so it is not routed through `fail`.
 let existing = null;
 try {
-  const probe = await fetch(`${api}/tags/${tag}`, { headers: headers() });
+  const probe = await fetch(`${api}/tags/${tag}`, { headers: headers(), signal: AbortSignal.timeout(30_000) });
   if (probe.ok) {
     const body = await probe.text();
     try { existing = JSON.parse(body); } catch { fail(`${probe.status}, non-JSON response`, body); }
