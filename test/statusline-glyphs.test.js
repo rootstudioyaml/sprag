@@ -222,7 +222,21 @@ test('the unused ticks are dimmed when color is available', () => {
   const colored = formatReport(withBudget, { color: true, mode: 'icon', verbose: true, segments: ['usage'] });
   // The hollow tick already separates the halves by shape; graying the remainder
   // leaves the filled run as the only thing at full brightness.
-  assert.match(colored, /\x1b\[90m▱+/, 'unused ticks should be gray');
+  //
+  // Which escape carries that gray depends on the terminal the suite runs in:
+  // the palette emits 24-bit slate-500 where COLORTERM advertises truecolor and
+  // falls back to the legacy bright-black elsewhere. Pinning one of the two made
+  // this test pass in CI, where the variable is unset, and fail on every
+  // developer machine that sets it — which also failed `npm run deploy`, since
+  // the release runs the suite before it publishes. Take the same branch the
+  // formatter takes, as the other statusline tests do.
+  const truecolor =
+    process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
+  const GRAY = truecolor ? '\x1b[38;2;100;116;139m' : '\x1b[90m';
+  assert.ok(
+    new RegExp(`${GRAY.replace(/[[\]\\]/g, '\\$&')}▱+`).test(colored),
+    'unused ticks should be gray',
+  );
 
   const plain = formatReport(withBudget, { color: false, mode: 'icon', verbose: true, segments: ['usage'] });
   assert.match(plain, /▰+▱+/, 'without color the shapes alone carry it');
