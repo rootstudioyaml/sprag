@@ -6,6 +6,9 @@ on:
     paths:
       - 'site/**'
       - 'docs/statusline.png'
+      - 'docs/**'
+      - 'scripts/build-site-docs.mjs'
+      - 'scripts/lib/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -26,10 +29,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # The landing page links the statusline screenshot that lives in docs/.
       - name: Stage assets
         run: cp docs/statusline.png site/statusline.png
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build doc pages
+        run: node scripts/build-site-docs.mjs
 
       # enablement turns Pages on from the workflow itself, so no manual
       # repository-settings step is needed on a fresh clone.

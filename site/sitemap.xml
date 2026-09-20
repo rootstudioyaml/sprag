@@ -2,10 +2,156 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://sprag.io/</loc>
-    <lastmod>2026-09-13</lastmod>
+    <lastmod>2026-09-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en"/>
     <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/?lang=ko"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/statusline/</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/statusline/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/statusline/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/statusline/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/statusline/</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/statusline/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/statusline/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/statusline/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/not-a-router/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/not-a-router/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/not-a-router/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/not-a-router/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/not-a-router/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/not-a-router/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/not-a-router/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/not-a-router/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/route-scan/</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/harness/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/harness/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/harness/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/harness/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/harness/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/harness/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/harness/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/harness/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/doc2md/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/gateways/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/gateways/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/gateways/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/gateways/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/gateways/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/gateways/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/gateways/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/gateways/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/install/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/install/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/install/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/install/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/install/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/install/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/install/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/install/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/commands/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/commands/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/commands/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/commands/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/commands/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/commands/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/korean-style/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/korean-style/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/korean-style/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/korean-style/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/korean-style/</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/korean-style/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/korean-style/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/korean-style/"/>
   </url>
 </urlset>
