@@ -66,7 +66,25 @@ function npmEnv() {
   return { ...process.env, NPM_TOKEN: line.slice('NPM_TOKEN='.length).trim() };
 }
 
+// --- preflight --------------------------------------------------------------
+// The pull comes first, and that ordering is the whole point of this block.
+// Everything below decides what to release by reading CHANGELOG.md off the disk,
+// so reading it before the pull decides against a stale checkout. That is not a
+// loud failure: the release this clone has already shipped is what it finds, its
+// tag is present and npm already serves it, so the run skips the publish and
+// reports the old version as though there had been nothing new to do. The bot
+// hits this every time someone pushes a release from somewhere else — the answer
+// is always "already released", and the release sits on origin untouched.
+const branch = capture('git', ['rev-parse', '--abbrev-ref', 'HEAD']).out;
+if (branch !== 'main') stop(`on branch ${branch}; releases go out from main.`);
+const dirty = capture('git', ['status', '--porcelain']).out;
+if (dirty) stop('the working tree has uncommitted changes.', dirty);
+// Tags carry the release history this run compares against, and a clone that
+// fetched none of them reads every version as unreleased.
+run('git', ['pull', '--ff-only', '--tags', 'origin', 'main'], { evenInDryRun: true });
+
 // --- what is being released -------------------------------------------------
+// Read after the pull, never before: these two files are what the pull updates.
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const changelog = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
 const newest = (changelog.match(/^###\s+v(\d+\.\d+\.\d+)/m) || [])[1];
@@ -88,16 +106,16 @@ if (needsReview(readFileSync(draftPath, 'utf8'))) {
     `Fill both halves and delete the REVIEW line: ${DRAFT_MARKER}`);
 }
 
-// --- preflight --------------------------------------------------------------
-const branch = capture('git', ['rev-parse', '--abbrev-ref', 'HEAD']).out;
-if (branch !== 'main') stop(`on branch ${branch}; releases go out from main.`);
-const dirty = capture('git', ['status', '--porcelain']).out;
-if (dirty) stop('the working tree has uncommitted changes.', dirty);
-run('git', ['pull', '--ff-only', 'origin', 'main'], { evenInDryRun: true });
-
 const alreadyTagged = capture('git', ['rev-parse', '-q', '--verify', `refs/tags/${tag}`]).ok;
 const onNpm = capture('npm', ['view', `sprag-cli@${version}`, 'version']).out === version;
 console.log(`deploy: ${tag} — tag ${alreadyTagged ? 'exists' : 'missing'}, npm ${onNpm ? 'has it' : 'does not have it'}.`);
+if (onNpm) {
+  // Say which of the two this is, because they look identical from the outside
+  // and only one of them is a no-op worth reporting as such.
+  console.log(alreadyTagged
+    ? `deploy: ${tag} is already published; re-publishing its release notes and nothing else.`
+    : `deploy: npm already serves ${version}; only the tag and release notes are left.`);
+}
 if (dryRun) console.log('deploy: dry run; nothing below is executed.');
 
 // --- steps 3 and 4 ----------------------------------------------------------
@@ -151,4 +169,6 @@ if (!dryRun) {
 }
 run('npm', ['install', '-g', `sprag-cli@${version}`], { env: npmEnv() });
 
-console.log(`\ndeploy: ${tag} is out — npm, tag, and release notes.`);
+console.log(onNpm
+  ? `\ndeploy: ${tag} was already on npm — release notes republished, nothing else changed.`
+  : `\ndeploy: ${tag} is out — npm, tag, and release notes.`);
