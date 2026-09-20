@@ -248,6 +248,40 @@ export function estimateCost(totals, model) {
   };
 }
 
+/**
+ * Price a set of sessions each at its own model and sum. One estimateCost over
+ * the summed totals priced every token at whichever session came first in the
+ * list — sorted by mtime, so a haiku scratch session touched earliest set the
+ * rate for a day of Fable work and understated the saving about tenfold.
+ * Sessions whose model has no known rate are skipped, as month-spend does.
+ */
+export function estimateCostAcross(sessions) {
+  const acc = { actual: 0, noCacheCost: 0, scenario5mCost: 0, extraCostIf5mApplicable: false };
+  const tiers = new Map();
+  for (const s of sessions || []) {
+    if (!s?.totals) continue;
+    let c;
+    try { c = estimateCost(s.totals, s.model); } catch { continue; }
+    acc.actual += c.actual;
+    acc.noCacheCost += c.noCacheCost;
+    acc.scenario5mCost += c.scenario5mCost;
+    acc.extraCostIf5mApplicable = acc.extraCostIf5mApplicable || c.extraCostIf5mApplicable;
+    tiers.set(c.tier, (tiers.get(c.tier) || 0) + c.actual);
+  }
+  let tier = null;
+  for (const [t, usd] of tiers) if (tier === null || usd > tiers.get(tier)) tier = t;
+  return {
+    tier,
+    actual: round(acc.actual),
+    noCacheCost: round(acc.noCacheCost),
+    savings: round(acc.noCacheCost - acc.actual),
+    savingsRate: acc.noCacheCost > 0 ? (acc.noCacheCost - acc.actual) / acc.noCacheCost : 0,
+    scenario5mCost: round(acc.scenario5mCost),
+    extraCostIf5m: round(acc.scenario5mCost - acc.actual),
+    extraCostIf5mApplicable: acc.extraCostIf5mApplicable,
+  };
+}
+
 function round(n) {
   return Math.round(n * 100) / 100;
 }

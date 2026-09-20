@@ -52,7 +52,7 @@ import {
   sessionMetrics,
   diagnoseSession,
 } from '../src/stats.js';
-import { estimateCost } from '../src/cost.js';
+import { estimateCostAcross } from '../src/cost.js';
 import { chipForIssues } from '../src/advice.js';
 import { debug } from '../src/debug.js';
 import { createArgs } from '../src/cli-args.js';
@@ -561,7 +561,7 @@ async function main() {
   const ttl = ttlBreakdown(sessions);
   const sum = summary(sessions);
   const anomalies = detectAnomalies(trend);
-  const cost = estimateCost(sum, sessions[0]?.model);
+  const cost = estimateCostAcross(sessions);
   const spikeReport = detectSpikes(sessions, { recentHours: 24, multiplier: 3 });
   const contextWindow = detectContextWindow(sessions, { recentHours: 24 });
 
