@@ -52,6 +52,12 @@ export function iconForceRequested({ cfg = {}, env = process.env } = {}) {
  * `icon` instead, so that is read as a fallback: absent means icons, since icons
  * are the default for a fresh install.
  */
+/** Whether the config carries an explicit label choice (new or legacy key). */
+export function hasStoredPreference(cfg = {}) {
+  if (cfg.labels === 'icon' || cfg.labels === 'narrow' || cfg.labels === 'text') return true;
+  return typeof cfg.icon === 'boolean';
+}
+
 export function labelPreference(cfg = {}) {
   if (cfg.labels === 'icon' || cfg.labels === 'narrow' || cfg.labels === 'text') return cfg.labels;
   return cfg.icon === false ? 'text' : 'icon';
@@ -71,7 +77,8 @@ export function labelPreference(cfg = {}) {
  *   `flag:--icon`, `config`.
  *
  * Precedence: explicit opt-out, then the IntelliJ guard (and the escape hatch
- * out of it, which applies only there), then `--icon`, then persisted config.
+ * out of it, which applies only there), then persisted config, then `--icon`
+ * (the installed command's default when nothing is stored).
  */
 export function resolveLabelMode({ hasFlag = () => false, cfg = {}, env = process.env } = {}) {
   // An explicit opt-out wins everywhere. Nothing below should talk a user out
@@ -90,6 +97,10 @@ export function resolveLabelMode({ hasFlag = () => false, cfg = {}, env = proces
     // is a character the IDE font actually has, so the line does not garble.
     return { mode: 'narrow', reason: 'intellij-narrow' };
   }
-  if (hasFlag('--icon')) return { mode: 'icon', reason: 'flag:--icon' };
+  // The installed statusline command carries `--icon`, so the flag is present
+  // on every refresh. If it beat the config, `sprag mode text` and `narrow`
+  // could never take effect there — the mode command promises they apply on
+  // the next refresh. So the flag decides only when nothing is stored.
+  if (hasFlag('--icon') && !hasStoredPreference(cfg)) return { mode: 'icon', reason: 'flag:--icon' };
   return { mode: pref, reason: 'config' };
 }

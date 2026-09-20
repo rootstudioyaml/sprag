@@ -181,8 +181,8 @@ export async function run({ args, hasFlag }) {
           : `  ⚠ Could not register the write-time hook: ${hook.reason}`);
       } else {
         console.log(lang === 'ko'
-          ? `  쓰기 시점 검사: ${koreanLintMode(loadConfig())}, 범위 ${koreanLintScope(loadConfig())} (Write·Edit 로 쓴 한국어를 검사합니다)`
-          : `  Write-time check: ${koreanLintMode(loadConfig())}, scope ${koreanLintScope(loadConfig())} (runs on Korean written via Write/Edit)`);
+          ? `  쓰기 시점 검사: ${koreanLintMode(loadConfig())}, 범위 ${koreanLintScope(loadConfig())} (Write·Edit·Bash 로 쓴 한국어를 검사합니다)`
+          : `  Write-time check: ${koreanLintMode(loadConfig())}, scope ${koreanLintScope(loadConfig())} (runs on Korean written via Write, Edit or Bash)`);
       }
     } else {
       console.log(lang === 'ko'

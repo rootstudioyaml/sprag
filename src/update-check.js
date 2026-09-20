@@ -27,7 +27,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-import { join, dirname } from 'node:path';
+import { join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { userDataDir } from './paths.js';
 import { debug } from './debug.js';
@@ -375,7 +375,9 @@ export function dismissUpdate(version) {
  * overwhelming majority of copies got here.
  */
 export function upgradeCommand() {
-  const here = dirname(fileURLToPath(import.meta.url));
+  // Forward slashes on every platform, so the manager checks below hold on
+  // Windows too instead of reporting every install as npm.
+  const here = dirname(fileURLToPath(import.meta.url)).split(sep).join('/');
   // A legacy copy upgrades by moving to the canonical name. Installing the new
   // name alone would leave two copies fighting over the same `sprag` binary,
   // so the old one comes off first.

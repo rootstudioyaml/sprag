@@ -50,7 +50,8 @@ function run(cmd, cmdArgs, opts = {}) {
 }
 
 function capture(cmd, cmdArgs, env) {
-  const r = spawnSync(cmd, cmdArgs, { cwd: ROOT, encoding: 'utf8', env: env || process.env });
+  // Network reads (npm view) hang silently on a stalled registry; bound them.
+  const r = spawnSync(cmd, cmdArgs, { cwd: ROOT, encoding: 'utf8', env: env || process.env, timeout: 60_000 });
   return { ok: r.status === 0, out: String(r.stdout || '').trim(), err: String(r.stderr || '').trim() };
 }
 
