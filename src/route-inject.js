@@ -19,11 +19,13 @@
  *     there are no tool calls yet)
  *   - the text trips ESCALATE_RE (design, analysis, deploy, merge …), where the
  *     top tier is the right answer and a nudge downward would be wrong
+ *   - the text trips EDIT_RE (implement, add, fix …): editing is not delegable
+ *     however much the sentence also says "install" or "check"
  *   - no registered rule covers that category
  * A hint that fires on the wrong request costs more than one that stays quiet.
  */
 
-import { categorize, ESCALATE_RE } from './route-scan.js';
+import { categorize, ESCALATE_RE, EDIT_RE } from './route-scan.js';
 import { loadModelRules, budgetCapPhrase } from './model-rules.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 import { userLanguage } from './config.js';
@@ -48,6 +50,9 @@ export function routeHint(text, { rules, lang = userLanguage(), root } = {}) {
   // before classification because such a request often looks like a light
   // "run" or "check" in its wording.
   if (ESCALATE_RE.test(t)) return null;
+  // Same for implementation work dressed as a run or a check: an edit is not
+  // delegable, and with no tool calls yet only the wording can say so.
+  if (EDIT_RE.test(t)) return null;
 
   const cat = categorize(t, null);
   if (!cat) return null;

@@ -14,6 +14,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { routeHint } from '../src/route-inject.js';
+import { ESCALATE_RE } from '../src/route-scan.js';
 
 const rules = [
   { category: 'check', tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } },
@@ -86,9 +87,34 @@ test('judgement and irreversible work stay on the top tier', () => {
     '이 코드를 리팩토링하는 게 맞는지 검토해보자',
     '스테이징에 배포해줘',
     'compare these two approaches and pick one',
+    // Added 2026-09-20 after a corpus check: these read as run/translate to
+    // the keyword tables but publish or ask for a root cause.
+    '깃헙 푸시, npm 퍼블리시 진행하자',
+    '번역봇이 초대된 이후 채팅이 번역이 안되고 있는데 이유를 확인해보자',
+    '마스터로 머지도 진행해둬줘',
   ]) {
     assert.equal(hint(text), null, `should stay quiet: ${text}`);
   }
+});
+
+test("'머지' must not match inside '나머지'", () => {
+  // "나머지 dismiss" is literally the example on a registered run rule; a bare
+  // 머지 in ESCALATE_RE silenced it (7 such prompts in the corpus).
+  assert.equal(ESCALATE_RE.test('나머지 진행하자'), false);
+  assert.equal(ESCALATE_RE.test('나머지 dismiss'), false);
+  assert.equal(ESCALATE_RE.test('머지 진행하자'), true);
+});
+
+test('implementation work phrased as a run or a check gets no hint', () => {
+  // '설치' and '확인' score for run/check, but the request is to build something.
+  for (const text of [
+    'korean도 설치와 동시에 설정되도록하자',
+    '피드백들 확인해주고 앱 아이콘도 만들자',
+    '전부 수정해주고 테스트플라이트에 최종본으로 올려주면 결제 테스트해볼게',
+  ]) {
+    assert.equal(hint(text), null, `should stay quiet: ${text}`);
+  }
+  assert.ok(hint('지금 실행 중인 버전이 뭔지 확인해줘'), 'a plain check still hints');
 });
 
 test('an unclassifiable request gets no hint', () => {

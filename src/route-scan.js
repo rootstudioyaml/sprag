@@ -51,7 +51,18 @@ export const MIN_DELEGABLE_OUT = 100;
 // Irreversible/external actions (store submission, deploy, release, merge)
 // are included — they may look like light "run" episodes in the logs, but
 // delegating them defeats the harness's default-safe-path rule.
-export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개선할|검토해보|비교|왜 |제출|배포|출시|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge/i;
+// Measured 2026-09-20 on 1,276 local prompts: '퍼블리시' (npm publish, 15 hits)
+// and '이유' (root-cause asks) were slipping through as run/translate, and a
+// bare '머지' matched inside '나머지' ("나머지 진행하자" ×7) — hence the lookbehind.
+export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개선할|검토해보|비교|왜 |이유|제출|배포|출시|퍼블리시|릴리스|릴리즈|(?<!나)머지|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge/i;
+
+// Implementation asks phrased around a run/check verb ("설치와 동시에 설정되도록
+// 하자", "피드백 확인해주고 아이콘도 만들자"). Editing is not delegable, and at
+// prompt time there is no tool mix to reveal it, so the wording has to. Offline
+// classification does not use this: a write-dominant tool mix already excludes
+// such episodes in behaviorPool(). Same corpus: 21 of 1,276 prompts gated, all
+// but two of them implementation requests that had been read as run/check.
+export const EDIT_RE = /구현|추가하자|만들자|넣자|넣어줘|수정해|고쳐|바꿔|되도록|되게|리팩/;
 // A pattern must recur this often before we nag about it.
 export const MIN_RECURRENCE = 3;
 
