@@ -73,7 +73,13 @@ function readJson(path) {
  * its /config parser documents. Returns null when unparseable.
  */
 export function parseWindow(raw) {
-  if (typeof raw === 'number') return Number.isFinite(raw) ? Math.round(raw) : null;
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) return null;
+    // Same bare-hundreds rule as the string form: `200` and `"200"` are one
+    // intent and must audit the same way.
+    const n = Math.round(raw);
+    return n < MIN_WINDOW ? n * 1_000 : n;
+  }
   if (typeof raw !== 'string') return null;
   const s = raw.trim().toLowerCase();
   const m = s.match(/^(\d+(?:\.\d+)?)\s*([km]?)$/);

@@ -100,6 +100,9 @@ try {
 
 const lines = content.trim().split('\n');
 const requests = new Map();
+// Every parsed entry, handed to the harness analyzer below so it does not read
+// and parse the same transcript a second time per tool call.
+const entries = [];
 
 for (const line of lines) {
   let entry;
@@ -108,6 +111,7 @@ for (const line of lines) {
   } catch {
     continue;
   }
+  entries.push(entry);
 
   const msg = entry.message;
   if (!msg || !msg.usage || !msg.id) continue;
@@ -128,6 +132,22 @@ for (const line of lines) {
 }
 
 if (requests.size === 0) process.exit(0);
+
+// The model most requests ran on, skipping the `<synthetic>` placeholder Claude
+// Code writes for local turns. Same rule as parser.js modelCounts; taking
+// reqs[0] here was the CJS twin drifting from it.
+function dominantModel(list) {
+  var counts = new Map();
+  for (var i = 0; i < list.length; i++) {
+    var m = list[i].model;
+    if (!m || m === 'unknown' || m.indexOf('<synthetic>') !== -1) continue;
+    counts.set(m, (counts.get(m) || 0) + 1);
+  }
+  var best = 'unknown';
+  var bestN = 0;
+  counts.forEach(function (n, m) { if (n > bestN) { best = m; bestN = n; } });
+  return best;
+}
 
 const reqs = Array.from(requests.values());
 const totals = reqs.reduce(
@@ -160,11 +180,22 @@ const record = {
     ephemeral1h: totals.ephemeral1h,
     output: totals.output,
   },
-  model: reqs[0] ? reqs[0].model : 'unknown',
+  model: dominantModel(reqs),
 };
 
-// Append to stats file
+// Append to stats file. One record per tool call and nothing reads it back
+// yet, so keep it from growing without bound: past the cap, keep the tail.
+var STATS_MAX_BYTES = 5 * 1024 * 1024;
+var STATS_KEEP_LINES = 2000;
 try {
+  try {
+    if (fs.statSync(STATS_FILE).size > STATS_MAX_BYTES) {
+      var tail = fs.readFileSync(STATS_FILE, 'utf8').trim().split('\n').slice(-STATS_KEEP_LINES);
+      fs.writeFileSync(STATS_FILE, tail.join('\n') + '\n', 'utf8');
+    }
+  } catch (e) {
+    // no file yet, or unreadable — the append below creates or reports it
+  }
   fs.appendFileSync(STATS_FILE, JSON.stringify(record) + '\n', 'utf8');
 } catch (e) {
   dbg('hook:append-stats', e);
@@ -188,6 +219,7 @@ try {
   var state = harnessAnalyzer.analyzeTranscript(sessionFile, {
     sessionId: sessionId,
     cwd: cwd,
+    entries: entries,
   });
   if (state) harnessAnalyzer.writeState(state);
 } catch (e) {

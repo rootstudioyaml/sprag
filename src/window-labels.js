@@ -39,7 +39,8 @@ const KNOWN = {
 };
 
 function deriveShort(key) {
-  // "five_hour" → "5H"; "seven_day_sonnet" → "7DS"; arbitrary key → uppercase initials
+  // "5_hour" → "5H"; "7_day_sonnet" → "7DS"; a key with no leading digit
+  // ("five_hour") falls through to uppercase initials ("FH")
   const m = key.match(/^(\d+)_?([a-z]+)/);
   if (m) {
     const num = m[1];

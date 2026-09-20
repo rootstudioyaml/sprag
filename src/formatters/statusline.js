@@ -458,7 +458,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     : (ttl.gatewayObserved ? YELLOW : GRAY);
   const ttlSeconds = is1h ? 3600 : 300;
 
-  const savings = cost?.savings ?? 0;
+  // noCache − actual goes negative in write-heavy sessions (cache writes bill
+  // 1.25×/2× with few reads yet); "$-0.42" is not a saving, so floor at zero.
+  const savings = Math.max(0, cost?.savings ?? 0);
 
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take

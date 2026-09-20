@@ -1,4 +1,4 @@
-import { createReadStream } from 'node:fs';
+import { createReadStream, openSync, readSync, closeSync, fstatSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { join, isAbsolute } from 'node:path';
@@ -141,8 +141,55 @@ export async function parseSessionFile(filePath) {
  * @param {string} filePath absolute path to the session JSONL
  * @returns {Promise<Date|null>}
  */
+// The statusline calls this every refresh for the live session, whose file
+// only grows. Streaming the whole transcript to find its last user entry made
+// a 65MB session cost a full re-read per tick, so the tail is read first in
+// bounded chunks; the full scan below is the fallback when the last user entry
+// sits further back than the cap (a long run of tool turns, or a corrupt tail).
+const TAIL_CHUNK = 64 * 1024;
+const TAIL_CAP = 4 * 1024 * 1024;
+
+function lastUserTsFromTail(filePath) {
+  let fd = null;
+  try {
+    fd = openSync(filePath, 'r');
+    const size = fstatSync(fd).size;
+    if (size === 0) return { found: true, ts: null };
+    let end = size;
+    let carry = '';
+    while (end > 0 && size - end < TAIL_CAP) {
+      const start = Math.max(0, end - TAIL_CHUNK);
+      const buf = Buffer.alloc(end - start);
+      readSync(fd, buf, 0, buf.length, start);
+      const text = buf.toString('utf8') + carry;
+      const lines = text.split('\n');
+      // The first piece may be a partial line; keep it for the next chunk
+      // unless this chunk reached the start of the file.
+      carry = start > 0 ? lines.shift() : '';
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        if (!line || !line.includes('"type":"user"')) continue;
+        try {
+          const entry = JSON.parse(line);
+          if (entry.type === 'user' && entry.timestamp) return { found: true, ts: entry.timestamp };
+        } catch { /* partial or malformed line — keep walking back */ }
+      }
+      end = start;
+    }
+    // Reached the start of the file without a user entry: there is none.
+    if (end === 0) return { found: true, ts: null };
+    return { found: false, ts: null };
+  } catch {
+    return { found: false, ts: null };
+  } finally {
+    if (fd !== null) try { closeSync(fd); } catch { /* already closed */ }
+  }
+}
+
 export async function getLastUserMessageTime(filePath) {
   let lastUserTs = null;
+  const tail = lastUserTsFromTail(filePath);
+  if (tail.found) return tail.ts ? new Date(tail.ts) : null;
   try {
     const rl = createInterface({
       input: createReadStream(filePath, { encoding: 'utf8' }),

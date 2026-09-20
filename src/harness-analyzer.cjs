@@ -218,7 +218,9 @@ function computePevSkip(entries) {
 
 function analyzeTranscript(transcriptPath, opts) {
   opts = opts || {};
-  const entries = readJsonl(transcriptPath);
+  // The hook has already parsed the transcript for its own totals; reading a
+  // 65MB session a second time per tool call is the one avoidable cost here.
+  const entries = Array.isArray(opts.entries) ? opts.entries : readJsonl(transcriptPath);
   if (entries.length === 0) return null;
   const evidenceRate = computeEvidenceRate(entries);
   const pevSkip = computePevSkip(entries);
@@ -240,7 +242,10 @@ function writeState(state) {
   if (!state) return;
   try {
     if (!fs.existsSync(STATE_DIR)) fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + '\n');
+    // tmp + rename so the statusline never reads a half-written state file.
+    const tmp = STATE_PATH + '.' + process.pid + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
+    fs.renameSync(tmp, STATE_PATH);
   } catch {
     // best-effort
   }
