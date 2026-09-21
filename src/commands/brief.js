@@ -39,7 +39,14 @@ export async function run({ hasFlag }) {
       // the transcript: without it a Sonnet session is told to delegate to
       // Sonnet, which saves nothing.
       const sessionRank = sessionModelRank({ transcriptPath: ctx.transcript_path });
-      const hint = routeHint(ctx.prompt, { sessionRank });
+      // `root` is the session's own cwd, not this process's. agentPhrase names the
+      // subagent only where `<root>/.claude/agents/<name>.md` exists, and with no
+      // root that lookup falls back to process.cwd() — whatever directory the hook
+      // was spawned in, which stops being the project root as soon as the two
+      // differ. Claude Code sends `cwd` for that reason and the PreToolUse hook
+      // already reads it (src/delegation-guard.js). A payload without the field
+      // leaves root undefined, which is the behaviour this had before.
+      const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd });
       if (hint) parts.push(hint);
     } catch (e) { debug('brief:route-hint', e); }
     if (parts.length) console.log(parts.join('\n'));
