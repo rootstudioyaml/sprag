@@ -43,16 +43,27 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
     let bytesRead = 0;
     try {
       fd = openSync(transcriptPath, 'r');
-      bytesRead = readSync(fd, buf, 0, buf.length, start);
+      // One readSync is not promised to fill the whole request — a short read
+      // is common on some filesystems even mid-file — and the part it leaves
+      // unread here is the tail end of the buffer, which is the most recent
+      // slice of the transcript and exactly what this feature is trying to
+      // recover. Looping until the buffer is full (or the file runs out)
+      // keeps that slice from being silently dropped.
+      while (bytesRead < buf.length) {
+        const n = readSync(fd, buf, bytesRead, buf.length - bytesRead, start + bytesRead);
+        if (n === 0) break;
+        bytesRead += n;
+      }
     } finally {
       if (fd !== undefined) closeSync(fd);
     }
 
     // Only what was actually read. A transcript is still being written while
-    // this runs, so between statSync and readSync the file may have been
-    // truncated or rotated, and one readSync is not promised to fill the
-    // whole request either. Decoding the untouched remainder would turn the
-    // last record into NUL bytes and lose the newest path to a parse error.
+    // this runs, so between statSync and openSync the file may have been
+    // truncated or rotated, which ends the loop above early (n === 0) with
+    // bytesRead short of the buffer. Decoding the untouched remainder would
+    // turn the last record into NUL bytes and lose the newest path to a
+    // parse error.
     const lines = buf.subarray(0, bytesRead).toString('utf8').split('\n');
     // A tail that began mid-file leaves the first line a truncated record,
     // so drop it. When the read started at byte 0 the file was smaller than

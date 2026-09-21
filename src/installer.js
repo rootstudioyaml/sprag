@@ -615,14 +615,20 @@ export function removeDoc2mdHook() {
 // of `installAll()` — this feature rewrites tool input on every delegation,
 // which is exactly the kind of silent-by-default behavior install.js's other
 // opt-in features (doc2md, korean, cohesion) avoid shipping without being asked.
-const DELEGATE_HOOK_COMMAND = `${CLI} delegate --hook`;
+const DELEGATION_GUARD_HOOK_COMMAND = `${CLI} delegate --hook`;
 // One pattern, shared by install, remove and the status readout. Three
 // hand-written variants drifted apart once already in this file: a substring
 // test confused `--hook` with `--hook-delegated`. `(?![\\w-])` rejects both a
 // hyphen and a word character, so `--hookfoo` is not mistaken for this hook.
-export const DELEGATE_HOOK_PATTERN = /delegate --hook(?![\w-])/;
+export const DELEGATION_GUARD_HOOK_PATTERN = /delegate --hook(?![\w-])/;
 
-export function installDelegateHook() {
+// Named for the feature, not the flag: `installDelegationHook()` above is
+// already taken by the route-scan PostToolUse hook, and it rewrites its own
+// matcher as the same 'Task|Agent' string. A one-word difference between the
+// two names (Delegate vs Delegation) once caused a call to the wrong hook to
+// go unnoticed, so this pair spells out which concern it belongs to
+// (delegation-guard.js's prompt rewrite) rather than staying terse.
+export function installDelegationGuardHook() {
   const dir = claudeUserDir();
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
@@ -646,20 +652,20 @@ export function installDelegateHook() {
   }
   const list = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
   const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && DELEGATE_HOOK_PATTERN.test(h.command)),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && DELEGATION_GUARD_HOOK_PATTERN.test(h.command)),
   );
   if (already) return { path: file, action: 'exists' };
 
   list.push({
     matcher: 'Task|Agent',
-    hooks: [{ type: 'command', command: DELEGATE_HOOK_COMMAND, timeout: 10 }],
+    hooks: [{ type: 'command', command: DELEGATION_GUARD_HOOK_COMMAND, timeout: 10 }],
   });
   settings.hooks.PreToolUse = list;
   writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
   return { path: file, action: existed ? 'updated' : 'created' };
 }
 
-export function removeDelegateHook() {
+export function removeDelegationGuardHook() {
   const file = join(claudeUserDir(), 'settings.json');
   if (!existsSync(file)) return { path: file, action: 'absent' };
   let settings;
@@ -671,7 +677,7 @@ export function removeDelegateHook() {
   const list = settings?.hooks?.PreToolUse;
   if (!Array.isArray(list)) return { path: file, action: 'absent' };
   const kept = list.filter((m) =>
-    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && DELEGATE_HOOK_PATTERN.test(h.command))),
+    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && DELEGATION_GUARD_HOOK_PATTERN.test(h.command))),
   );
   if (kept.length === list.length) return { path: file, action: 'absent' };
   if (kept.length === 0) delete settings.hooks.PreToolUse;

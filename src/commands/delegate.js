@@ -22,16 +22,21 @@ const require = createRequire(import.meta.url);
  */
 async function hookRegistered() {
   try {
-    const { homedir } = require('node:os');
+    // claudeUserDir() is the single source for this path, the same one
+    // install and remove use. Recombining homedir() + '.claude' here would
+    // put that knowledge in two places, and a change to one without the
+    // other would make status read a different settings.json than the hook
+    // actually lives in and report "not registered" while it is.
+    const { claudeUserDir } = await import('../paths.js');
     // The same pattern install and remove use. A substring test would call a
     // future `delegate --hook-batch` this hook and report a feature as
     // registered that nothing will call.
-    const { DELEGATE_HOOK_PATTERN } = await import('../installer.js');
+    const { DELEGATION_GUARD_HOOK_PATTERN } = await import('../installer.js');
     const settings = JSON.parse(
-      require('node:fs').readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'),
+      require('node:fs').readFileSync(join(claudeUserDir(), 'settings.json'), 'utf8'),
     );
     return (settings?.hooks?.PreToolUse || []).some((m) =>
-      (m.hooks || []).some((h) => typeof h.command === 'string' && DELEGATE_HOOK_PATTERN.test(h.command)),
+      (m.hooks || []).some((h) => typeof h.command === 'string' && DELEGATION_GUARD_HOOK_PATTERN.test(h.command)),
     );
   } catch {
     return false;
@@ -66,8 +71,8 @@ export async function run({ args, hasFlag }) {
   if (sub === 'on') {
     const { setDelegateEnabled } = await import('../delegation-guard.js');
     setDelegateEnabled(true);
-    const { installDelegateHook } = await import('../installer.js');
-    const res = installDelegateHook();
+    const { installDelegationGuardHook } = await import('../installer.js');
+    const res = installDelegationGuardHook();
     console.log(res.action === 'skipped'
       ? `✗ ${res.reason}`
       : `✓ PreToolUse hook ${res.action} (${res.path})`);
@@ -80,8 +85,8 @@ export async function run({ args, hasFlag }) {
   if (sub === 'off') {
     const { setDelegateEnabled } = await import('../delegation-guard.js');
     setDelegateEnabled(false);
-    const { removeDelegateHook } = await import('../installer.js');
-    const res = removeDelegateHook();
+    const { removeDelegationGuardHook } = await import('../installer.js');
+    const res = removeDelegationGuardHook();
     console.log(res.action === 'skipped' ? `✗ ${res.reason}` : `✓ PreToolUse hook ${res.action}`);
     console.log(lang === 'ko'
       ? 'delegate off: 더 이상 위임 프롬프트를 고치지 않습니다.'

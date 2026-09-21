@@ -129,9 +129,18 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
     && (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(prompt) || /\.ko\.[a-z]+\b/i.test(prompt));
   if (wantsKorean) {
     try {
-      const { koreanStyleInjection } = await import('./korean-style.js');
-      const koreanBlock = await koreanStyleInjection({ cfg });
-      if (koreanBlock) sections.push(['## Korean style guidance', koreanBlock].join('\n\n'));
+      const { koreanStyleInjection, koreanStyleEnabled } = await import('./korean-style.js');
+      // koreanStyleInjection() already returns null when the feature is off,
+      // so skipping the check here would still produce the right output —
+      // but this section is the most expensive one (~8k characters), and
+      // relying on that as the only gate means a future refactor of
+      // korean-style.js that changes what an empty return means would turn
+      // this into a silent cost regression. Checking directly costs nothing
+      // and keeps that assumption out of the picture.
+      if (koreanStyleEnabled(cfg)) {
+        const koreanBlock = await koreanStyleInjection({ cfg });
+        if (koreanBlock) sections.push(['## Korean style guidance', koreanBlock].join('\n\n'));
+      }
     } catch {
       // korean-style.js unavailable for some reason — skip only this section.
     }
@@ -142,7 +151,14 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
       '## Ratchet rules',
       'This machine keeps a growing list of "condition -> action" rules learned',
       'from past mistakes, and your prompt was not written to include it.',
-      `Read ${ratchetPath(home)} before repeating one of them.`,
+      // Existence was already checked against ratchetPath(home) above; only
+      // the string written into the prompt is home-relative from here on.
+      // The prompt this appends to can end up quoted back into a transcript,
+      // a shared log, or a bug report, and writing the real
+      // /Users/<name>/... path there would leak the local username into
+      // whatever the caller does with the delegation, for no benefit — the
+      // subagent resolves ~ on its own.
+      'Read ~/.claude/ratchet.md before repeating one of them.',
     ].join('\n'));
   }
 

@@ -23,7 +23,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag korean lint scope all\|prose` | Check every text file, or documents only |
 | `sprag doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
 | `sprag doc2md <file>` | Convert one file by hand. Diagnostic: it prints the refusal reason instead of swallowing it |
-| `sprag delegate on\|off` | Append bounds, Korean guidance when it applies, and already-read paths to every Task/Agent delegation prompt |
+| `sprag delegate on\|off\|status` | Append bounds, Korean guidance when it applies, and already-read paths to every Task/Agent delegation prompt (below) |
 | `sprag mode ttl=5m\|1h\|auto` | Pin the cache TTL bucket. The default `auto` trusts the measured split, then falls back to gateway detection |
 | `sprag --version` | Print the installed version |
 | `sprag update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
@@ -32,6 +32,24 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag uninstall [--purge]` | Remove the hooks, statusline and skill it registered. Recorded savings are kept unless `--purge` is given |
 
 The output language is decided once, at install time: a terminal install proposes the system locale and asks whether to use Korean, while an unattended install records what the locale says. Once recorded it is never asked again, not even on an upgrade. Change it later with `mode ko` / `mode en`, or pin it for a scripted install with `CTS_LANG=ko` / `CTS_LANG=en`. Statusline chips stay symbolic either way.
+
+## `sprag delegate` — rewrite Task/Agent prompts before they spawn
+
+Opt-in, default off. `sprag delegate on` registers a PreToolUse hook on `Task`/`Agent` that appends up to four sections to the delegation prompt, each conditional on its own:
+
+| Section | Condition |
+|---|---|
+| Bounds and output shape | Always, whenever `presets/delegation/bounds.md` is present (it ships with the package) |
+| Korean style guidance | The prompt contains Hangul or names a `.ko.*` target, **and** `korean` is on — off skips this section even for a Korean prompt |
+| Ratchet rules | `~/.claude/ratchet.md` exists **and** `~/.claude/CLAUDE.md` does not already `@`-import it |
+| Already-touched paths | The calling session's transcript tail has at least one `Read`/`Edit`/`Write`/`NotebookEdit`/`Grep`/`Glob` path inside the current working directory |
+
+The bounds section's tool-call cap depends on the target: 8 tool calls / 1,500 output tokens when `model` (or, absent that, `subagent_type`) matches `haiku`, otherwise 20 tool calls / 8,000 output tokens.
+
+Two limits worth knowing before relying on this:
+
+- The caps are a prompt-level request, not an enforced ceiling — a subagent that ignores them is not stopped from running longer or writing more.
+- When a delegation gives only `subagent_type` (no `model`) and that agent is itself configured to run on haiku, the guard has no way to see that from the call alone, so the looser 20/8,000 cap applies even though the work actually runs cheap.
 
 <details>
 <summary>All CLI options</summary>
