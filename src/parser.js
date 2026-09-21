@@ -149,12 +149,20 @@ export async function parseSessionFile(filePath) {
 const TAIL_CHUNK = 64 * 1024;
 const TAIL_CAP = 4 * 1024 * 1024;
 
-function lastUserTsFromTail(filePath) {
+/**
+ * Walk a session JSONL backwards in bounded chunks, newest line first, and
+ * return the first non-null value `visit` produces. `hint` is a cheap substring
+ * test that skips parsing lines that cannot match.
+ *
+ * `found: false` means the cap was reached before the answer or the start of
+ * the file: the caller decides whether to fall back to a full scan or give up.
+ */
+function scanTail(filePath, hint, visit) {
   let fd = null;
   try {
     fd = openSync(filePath, 'r');
     const size = fstatSync(fd).size;
-    if (size === 0) return { found: true, ts: null };
+    if (size === 0) return { found: true, value: null };
     let end = size;
     let carry = '';
     while (end > 0 && size - end < TAIL_CAP) {
@@ -168,22 +176,55 @@ function lastUserTsFromTail(filePath) {
       carry = start > 0 ? lines.shift() : '';
       for (let i = lines.length - 1; i >= 0; i--) {
         const line = lines[i];
-        if (!line || !line.includes('"type":"user"')) continue;
+        if (!line || !line.includes(hint)) continue;
         try {
-          const entry = JSON.parse(line);
-          if (entry.type === 'user' && entry.timestamp) return { found: true, ts: entry.timestamp };
+          const value = visit(JSON.parse(line));
+          if (value != null) return { found: true, value };
         } catch { /* partial or malformed line — keep walking back */ }
       }
       end = start;
     }
-    // Reached the start of the file without a user entry: there is none.
-    if (end === 0) return { found: true, ts: null };
-    return { found: false, ts: null };
+    // Reached the start of the file without a match: there is none.
+    if (end === 0) return { found: true, value: null };
+    return { found: false, value: null };
   } catch {
-    return { found: false, ts: null };
+    return { found: false, value: null };
   } finally {
     if (fd !== null) try { closeSync(fd); } catch { /* already closed */ }
   }
+}
+
+function lastUserTsFromTail(filePath) {
+  const { found, value } = scanTail(filePath, '"type":"user"', (entry) =>
+    (entry.type === 'user' && entry.timestamp) || null);
+  return { found, ts: value };
+}
+
+/**
+ * Model id of the most recent assistant turn in a session JSONL.
+ *
+ * The UserPromptSubmit payload names the session but not its model, and the
+ * statusline snapshot is a single file shared by every session on the machine —
+ * with two sessions open, the last one to tick decides what it says. The
+ * transcript is the only per-session answer, so a caller that must not confuse
+ * two concurrent sessions reads it here first.
+ *
+ * Tail-only by design: this runs inside a prompt hook, so a session whose last
+ * 4MB carries no assistant turn returns null rather than re-reading the file.
+ * `<synthetic>` is skipped for the same reason session-records.js skips it —
+ * it marks a locally generated stub, not a model that answered.
+ *
+ * @param {string} filePath absolute path to the session JSONL
+ * @returns {string|null}
+ */
+export function getSessionModel(filePath) {
+  if (!filePath) return null;
+  const { value } = scanTail(filePath, '"model"', (entry) => {
+    if (entry.type !== 'assistant') return null;
+    const model = entry.message && entry.message.model;
+    return typeof model === 'string' && model && model !== '<synthetic>' ? model : null;
+  });
+  return value;
 }
 
 export async function getLastUserMessageTime(filePath) {

@@ -34,8 +34,12 @@ export async function run({ hasFlag }) {
     // the match here removes both steps. Silent unless it is sure — see
     // src/route-inject.js.
     try {
-      const { routeHint } = await import('../route-inject.js');
-      const hint = routeHint(ctx.prompt);
+      const { routeHint, sessionModelRank } = await import('../route-inject.js');
+      // The payload names the session but not its model, so the rank comes from
+      // the transcript: without it a Sonnet session is told to delegate to
+      // Sonnet, which saves nothing.
+      const sessionRank = sessionModelRank({ transcriptPath: ctx.transcript_path });
+      const hint = routeHint(ctx.prompt, { sessionRank });
       if (hint) parts.push(hint);
     } catch (e) { debug('brief:route-hint', e); }
     if (parts.length) console.log(parts.join('\n'));

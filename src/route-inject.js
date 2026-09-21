@@ -25,10 +25,14 @@
  * A hint that fires on the wrong request costs more than one that stays quiet.
  */
 
-import { categorize, ESCALATE_RE, EDIT_RE } from './route-scan.js';
+import { categorize, ESCALATE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
 import { loadModelRules, budgetCapPhrase } from './model-rules.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 import { userLanguage } from './config.js';
+import { aliasForRole, resolveModelAlias } from './model-alias.js';
+import { isRecognizedModelId, modelRank } from './cost.js';
+import { loadRecentSnapshot } from './caps-cache.js';
+import { getSessionModel } from './parser.js';
 
 const PASTE_MIN_LINES = 8;
 const LOG_SHAPE_RE = /^\s+at\s|\b(error|exception|traceback|warn(ing)?|fatal)\b|^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/im;
@@ -41,6 +45,38 @@ export function looksPasted(text) {
 const MIN_LEN = 8;
 
 /**
+ * Price rank of whatever model is answering this session, or null when it
+ * cannot be established.
+ *
+ * Only a recognized id counts. `modelRank()` prices an unknown string as Sonnet
+ * so a cost estimate always has an answer, but here that guess would silence
+ * every T1 hint behind a gateway whose house alias (`prod-large`) names no
+ * Claude family — so an unrecognized id returns null and the hint keeps its
+ * previous behaviour instead.
+ *
+ * Sources, most trustworthy first: the session's own transcript, the gateway
+ * model environment, and finally the statusline snapshot, which is shared by
+ * every session on the machine and therefore only consulted last.
+ *
+ * @returns {number|null}
+ */
+export function sessionModelRank({ env = process.env, transcriptPath = null, snapshot } = {}) {
+  const rankOf = (raw) => {
+    if (!raw) return null;
+    if (isRecognizedModelId(raw)) return modelRank(raw);
+    // An opaque gateway id can still be priced through profile-map.json.
+    const mapped = resolveModelAlias(raw, { env });
+    return isRecognizedModelId(mapped) ? modelRank(mapped) : null;
+  };
+  const fromTranscript = rankOf(getSessionModel(transcriptPath));
+  if (fromTranscript !== null) return fromTranscript;
+  const fromEnv = rankOf(aliasForRole('main', env));
+  if (fromEnv !== null) return fromEnv;
+  const snap = snapshot === undefined ? loadRecentSnapshot() : snapshot;
+  return rankOf(snap && snap.model);
+}
+
+/**
  * @param {string} text the prompt just submitted
  * @param {object} [opts]
  * @param {Array} [opts.rules] registered rules (defaults to the stored registry)
@@ -48,9 +84,12 @@ const MIN_LEN = 8;
  * @param {string} [opts.root] project root used to look for a subagent's .md.
  *   The hint names the agent when that file exists and only its model tier when
  *   it does not, so a caller that needs a predictable phrase pins this.
+ * @param {number|null} [opts.sessionRank] price rank of the model reading the
+ *   hint (see sessionModelRank). null means unknown, and an unknown session
+ *   model filters nothing.
  * @returns {string|null} the line to inject, or null to stay quiet
  */
-export function routeHint(text, { rules, lang = userLanguage(), root } = {}) {
+export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null } = {}) {
   const t = String(text || '').trim();
   if (t.length < MIN_LEN) return null;
   // Judgement and irreversible work stay on the top tier. This check comes
@@ -73,9 +112,19 @@ export function routeHint(text, { rules, lang = userLanguage(), root } = {}) {
   const all = rules || loadModelRules().rules || [];
   const matched = all.filter((r) => r && r.category === cat.id);
   if (!matched.length) return null;
+  // A rule only saves anything when its target tier is cheaper than the model
+  // reading the hint. A T1 rule states "delegate to model: sonnet", which in a
+  // Sonnet session instructs a delegation worth nothing — and contradicts the
+  // registry's own clause that a session already at the target tier does not
+  // delegate. So drop the tiers this session cannot profit from; if that leaves
+  // nothing (a haiku session), stay quiet.
+  const usable = sessionRank === null
+    ? matched
+    : matched.filter((r) => worthDelegating(r.tier, sessionRank));
+  if (!usable.length) return null;
 
-  const t2 = matched.find((r) => r.tier === 'T2');
-  const t1 = matched.find((r) => r.tier === 'T1');
+  const t2 = usable.find((r) => r.tier === 'T2');
+  const t1 = usable.find((r) => r.tier === 'T1');
   const ko = lang === 'ko';
   const label = ko ? (cat.label || cat.id) : (cat.labelEn || cat.label || cat.id);
   // `root` is threaded through to agentPhrase, which names the subagent only
