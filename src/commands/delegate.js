@@ -20,14 +20,18 @@ const require = createRequire(import.meta.url);
  * while the hook itself is missing from settings.json would tell the user
  * the feature is live when nothing will ever call it.
  */
-function hookRegistered() {
+async function hookRegistered() {
   try {
     const { homedir } = require('node:os');
+    // The same pattern install and remove use. A substring test would call a
+    // future `delegate --hook-batch` this hook and report a feature as
+    // registered that nothing will call.
+    const { DELEGATE_HOOK_PATTERN } = await import('../installer.js');
     const settings = JSON.parse(
       require('node:fs').readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'),
     );
     return (settings?.hooks?.PreToolUse || []).some((m) =>
-      (m.hooks || []).some((h) => typeof h.command === 'string' && h.command.includes('delegate --hook')),
+      (m.hooks || []).some((h) => typeof h.command === 'string' && DELEGATE_HOOK_PATTERN.test(h.command)),
     );
   } catch {
     return false;
@@ -89,7 +93,7 @@ export async function run({ args, hasFlag }) {
   const { delegateEnabled, BOUNDS_PATH } = await import('../delegation-guard.js');
   const { koreanStyleEnabled } = await import('../korean-style.js');
   const enabled = delegateEnabled();
-  const hookOn = hookRegistered();
+  const hookOn = await hookRegistered();
   if (lang === 'ko') {
     console.log(`delegate: ${enabled ? 'on' : 'off'}, hook ${hookOn ? '등록됨' : '미등록'}`);
     console.log(`bounds 파일: ${BOUNDS_PATH}`);
