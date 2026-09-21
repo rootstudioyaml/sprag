@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -34,6 +34,12 @@ test('recentToolPaths: catches per-tool argument keys, drops outside-root paths,
     const aPath = join(root, 'src', 'a.js');
     const bPath = join(root, 'src', 'b.js');
     const outsidePath = join(outsideRoot, 'c.js');
+    // Only b.js has to exist. It arrives through Grep, whose `path` may name a
+    // directory, so it is stat'ed before being offered as something to read;
+    // a.js arrives through Read, which names a file by contract and is taken
+    // as given.
+    mkdirSync(join(root, 'src'), { recursive: true });
+    writeFileSync(bPath, '// grep target\n');
 
     const lines = [
       // Kept, not dropped: this transcript is far smaller than the window, so
@@ -47,6 +53,7 @@ test('recentToolPaths: catches per-tool argument keys, drops outside-root paths,
       // Read uses `file_path`.
       assistantToolUse('Read', { file_path: aPath }),
       // Grep uses `path` — a different argument key for the same purpose.
+      // Aimed at a real file here; the directory case has its own test below.
       assistantToolUse('Grep', { path: bPath }),
       // Outside the repo root entirely: must be filtered out.
       assistantToolUse('Read', { file_path: outsidePath }),
@@ -142,6 +149,48 @@ test('recentToolPaths: the default window survives a transcript padded out with 
     // And the same transcript with the old window, to show the assertion above
     // is testing the window rather than restating that parsing works.
     assert.deepEqual(recentToolPaths(transcriptPath, { root, tailBytes: 256 * 1024 }), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("recentToolPaths: a Grep or Glob aimed at a directory does not reach the list", () => {
+  /* Grep and Glob take a directory as often as a file, and `Grep({ path:
+     'src' })` has no trailing separator to give that away. The section this
+     feeds tells a subagent the session "already read these", so a directory in
+     it invites a Read that fails and spends one of the delegation's capped tool
+     calls — the opposite of what the feature is for. */
+  const root = mkdtempSync(join(tmpdir(), 'sprag-sp-'));
+  try {
+    mkdirSync(join(root, 'src'), { recursive: true });
+    writeFileSync(join(root, 'src', 'real.js'), '// a file\n');
+    const lines = [
+      assistantToolUse('Grep', { path: join(root, 'src') }),
+      assistantToolUse('Glob', { path: join(root, 'src', 'gone.js') }),
+      assistantToolUse('Grep', { path: join(root, 'src', 'real.js') }),
+    ];
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, lines.join('\n') + '\n');
+
+    // The directory and the path that no longer exists both drop; only the
+    // file a subagent can actually open survives.
+    assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'real.js')]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('recentToolPaths: Read/Edit/Write paths are taken on contract, with no stat', () => {
+  /* The counterpart to the test above: these tools name a file by contract, so
+     they are not stat'ed. A transcript can outlive the file it mentions — a
+     scratch file since deleted, a branch since switched — and paying a syscall
+     per record to re-confirm history would trade the cost this feature saves
+     for a cost it does not need. */
+  const root = mkdtempSync(join(tmpdir(), 'sprag-sp-'));
+  try {
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, assistantToolUse('Read', { file_path: join(root, 'src', 'deleted.js') }) + '\n');
+    assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'deleted.js')]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -8,10 +8,8 @@
  *   sprag delegate --hook     # PreToolUse entry point
  */
 
-import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-const require = createRequire(import.meta.url);
 
 /**
  * Whether the PreToolUse hook is actually in settings.json.
@@ -28,15 +26,14 @@ async function hookRegistered() {
     // other would make status read a different settings.json than the hook
     // actually lives in and report "not registered" while it is.
     const { claudeUserDir } = await import('../paths.js');
-    // The same pattern install and remove use. A substring test would call a
-    // future `delegate --hook-batch` this hook and report a feature as
-    // registered that nothing will call.
-    const { DELEGATION_GUARD_HOOK_PATTERN } = await import('../installer.js');
-    const settings = JSON.parse(
-      require('node:fs').readFileSync(join(claudeUserDir(), 'settings.json'), 'utf8'),
-    );
+    // The same predicate install and remove use, so all three agree on what
+    // counts as this hook: our executable in the command position and our
+    // flag. Testing the flag alone would report someone else's
+    // `other-tool delegate --hook` as this feature being registered.
+    const { isDelegationGuardHookCommand } = await import('../installer.js');
+    const settings = JSON.parse(readFileSync(join(claudeUserDir(), 'settings.json'), 'utf8'));
     return (settings?.hooks?.PreToolUse || []).some((m) =>
-      (m.hooks || []).some((h) => typeof h.command === 'string' && DELEGATION_GUARD_HOOK_PATTERN.test(h.command)),
+      (m.hooks || []).some((h) => isDelegationGuardHookCommand(h?.command)),
     );
   } catch {
     return false;

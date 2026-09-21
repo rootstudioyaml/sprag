@@ -10,7 +10,7 @@
  * worth mocking.
  */
 
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
@@ -23,6 +23,15 @@ import { buildAppendix, decideForDelegation, formatHookOutput } from '../src/del
 const DELEGATION_MARKER = '<!-- sprag:delegation -->';
 const ON = { delegate: { enabled: true } };
 
+/* An empty home for every test that does not set one up itself. Without it
+   `home` defaults to homedir() and the ratchet section reads whatever the
+   machine running the tests keeps in ~/.claude, so the appendix these tests
+   assert against differs between a developer's laptop and CI. The buildAppendix
+   tests below already inject a throwaway home for that reason; this extends the
+   same guarantee to the decideForDelegation ones. */
+const EMPTY_HOME = mkdtempSync(join(tmpdir(), 'sprag-home-'));
+after(() => rmSync(EMPTY_HOME, { recursive: true, force: true }));
+
 test('decideForDelegation: disabled config returns null', async () => {
   const payload = { tool_name: 'Task', tool_input: { prompt: 'do the thing' } };
   assert.equal(await decideForDelegation(payload, { cfg: {} }), null);
@@ -31,13 +40,13 @@ test('decideForDelegation: disabled config returns null', async () => {
 
 test('decideForDelegation: a tool_name other than Task/Agent returns null', async () => {
   const payload = { tool_name: 'Bash', tool_input: { prompt: 'do the thing' } };
-  assert.equal(await decideForDelegation(payload, { cfg: ON }), null);
+  assert.equal(await decideForDelegation(payload, { cfg: ON, home: EMPTY_HOME }), null);
 });
 
 test('decideForDelegation: no usable prompt returns null', async () => {
-  assert.equal(await decideForDelegation({ tool_name: 'Task', tool_input: {} }, { cfg: ON }), null);
-  assert.equal(await decideForDelegation({ tool_name: 'Task', tool_input: { prompt: '' } }, { cfg: ON }), null);
-  assert.equal(await decideForDelegation({ tool_name: 'Agent' }, { cfg: ON }), null);
+  assert.equal(await decideForDelegation({ tool_name: 'Task', tool_input: {} }, { cfg: ON, home: EMPTY_HOME }), null);
+  assert.equal(await decideForDelegation({ tool_name: 'Task', tool_input: { prompt: '' } }, { cfg: ON, home: EMPTY_HOME }), null);
+  assert.equal(await decideForDelegation({ tool_name: 'Agent' }, { cfg: ON, home: EMPTY_HOME }), null);
 });
 
 test('decideForDelegation: a prompt that already carries the marker is left alone (idempotent)', async () => {
@@ -45,7 +54,7 @@ test('decideForDelegation: a prompt that already carries the marker is left alon
     tool_name: 'Task',
     tool_input: { prompt: `already rewritten\n\n${DELEGATION_MARKER}\nsome appendix` },
   };
-  assert.equal(await decideForDelegation(payload, { cfg: ON }), null);
+  assert.equal(await decideForDelegation(payload, { cfg: ON, home: EMPTY_HOME }), null);
 });
 
 test('decideForDelegation: updatedInput keeps every other tool_input key untouched', async () => {
@@ -58,7 +67,7 @@ test('decideForDelegation: updatedInput keeps every other tool_input key untouch
       description: 'build triage',
     },
   };
-  const decision = await decideForDelegation(payload, { cfg: ON });
+  const decision = await decideForDelegation(payload, { cfg: ON, home: EMPTY_HOME });
   assert.ok(decision, 'bounds.md ships with the package, so a decision is always produced when enabled');
   assert.equal(decision.updatedInput.subagent_type, 'general-purpose');
   assert.equal(decision.updatedInput.model, 'sonnet');
@@ -70,7 +79,7 @@ test('decideForDelegation: updatedInput keeps every other tool_input key untouch
 test('decideForDelegation: an English-only prompt never gets the Korean guidance block, even with it turned on', async () => {
   const payload = { tool_name: 'Task', tool_input: { prompt: 'Investigate the failing build, no Korean here' } };
   const cfg = { delegate: { enabled: true }, koreanStyle: { enabled: true } };
-  const decision = await decideForDelegation(payload, { cfg });
+  const decision = await decideForDelegation(payload, { cfg, home: EMPTY_HOME });
   assert.ok(decision);
   assert.doesNotMatch(decision.updatedInput.prompt, /\[sprag korean-style\]/);
 });
@@ -83,7 +92,7 @@ test('decideForDelegation: a Hangul prompt still skips the Korean guidance secti
   // exercised.
   const payload = { tool_name: 'Task', tool_input: { prompt: '한국어로 보고서를 작성하십시오.' } };
   const cfg = { delegate: { enabled: true }, koreanStyle: { enabled: false } };
-  const decision = await decideForDelegation(payload, { cfg });
+  const decision = await decideForDelegation(payload, { cfg, home: EMPTY_HOME });
   assert.ok(decision, 'bounds.md still fires, so a decision is produced regardless of koreanStyle');
   assert.doesNotMatch(decision.updatedInput.prompt, /## Korean style guidance/);
 });
@@ -91,19 +100,19 @@ test('decideForDelegation: a Hangul prompt still skips the Korean guidance secti
 test('decideForDelegation: the tool-call cap depends on whether haiku is the target', async () => {
   const haikuByModel = await decideForDelegation(
     { tool_name: 'Task', tool_input: { prompt: 'summarize this file', model: 'claude-haiku-4-5' } },
-    { cfg: ON },
+    { cfg: ON, home: EMPTY_HOME },
   );
   assert.match(haikuByModel.updatedInput.prompt, /Cap for this delegation: 8 tool calls, 1,500 output tokens\./);
 
   const haikuBySubagentType = await decideForDelegation(
     { tool_name: 'Task', tool_input: { prompt: 'summarize this file', subagent_type: 'haiku' } },
-    { cfg: ON },
+    { cfg: ON, home: EMPTY_HOME },
   );
   assert.match(haikuBySubagentType.updatedInput.prompt, /Cap for this delegation: 8 tool calls, 1,500 output tokens\./);
 
   const nonHaiku = await decideForDelegation(
     { tool_name: 'Task', tool_input: { prompt: 'summarize this file', model: 'sonnet' } },
-    { cfg: ON },
+    { cfg: ON, home: EMPTY_HOME },
   );
   assert.match(nonHaiku.updatedInput.prompt, /Cap for this delegation: 20 tool calls, 8,000 output tokens\./);
 });
@@ -294,3 +303,44 @@ test('removeDelegationGuardHook: a foreign PreToolUse hook survives install and 
   }
 });
 
+
+test('removeDelegationGuardHook: a hook that carries our flag but not our executable is left alone', () => {
+  /* `delegate --hook` says nothing about which program runs. A user who
+     registers their own `other-tool delegate --hook`, or a script of their own
+     named delegate, matched the flag-only test and `delegate off` deleted their
+     entry. v3.46.1 records this repository shipping that same bug through
+     `uninstall`; isDelegationGuardHookCommand() now requires our executable in
+     the command position as well, and this pins it. */
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-dg-'));
+  try {
+    const home = join(dir, 'home');
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    const settingsPath = join(home, '.claude', 'settings.json');
+    const lookalike = { matcher: 'Task', hooks: [{ type: 'command', command: 'other-tool delegate --hook' }] };
+    writeFileSync(settingsPath, JSON.stringify({ hooks: { PreToolUse: [lookalike] } }, null, 2) + '\n');
+
+    const script = `
+      import { installDelegationGuardHook, removeDelegationGuardHook } from ${JSON.stringify(new URL('../src/installer.js', import.meta.url).href)};
+      const { readFileSync } = await import('node:fs');
+      const settingsPath = process.env.HOME + '/.claude/settings.json';
+      const steps = [];
+      // The lookalike must not read as "already installed" either, or ours
+      // never gets registered and the feature silently does nothing.
+      steps.push(installDelegationGuardHook().action);
+      steps.push(removeDelegationGuardHook().action);
+      steps.push(JSON.parse(readFileSync(settingsPath, 'utf8')).hooks.PreToolUse);
+      console.log(JSON.stringify(steps));
+    `;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+    });
+    assert.equal(run.status, 0, run.stderr);
+    const [installed, removed, remaining] = JSON.parse(run.stdout.trim());
+    assert.equal(installed, 'updated', 'a lookalike must not be mistaken for ours already being there');
+    assert.equal(removed, 'removed');
+    assert.deepEqual(remaining, [lookalike], "the user's own hook survives `delegate off`");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
