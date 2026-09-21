@@ -14,6 +14,7 @@
  */
 
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync } from 'node:fs';
+import { loadConfig, saveConfig } from './config.js';
 import { CLI_NAME, LEGACY_CLI_NAME } from './cli-name.js';
 import { join } from 'node:path';
 import { claudeUserDir, userDataDir } from './paths.js';
@@ -649,6 +650,34 @@ export function isDelegationGuardHookCommand(command) {
 // two names (Delegate vs Delegation) once caused a call to the wrong hook to
 // go unnoticed, so this pair spells out which concern it belongs to
 // (delegation-guard.js's prompt rewrite) rather than staying terse.
+/**
+ * Whether this hook is registered, and when it is not, why — for the status
+ * readout, which otherwise reported "not registered" identically for a
+ * settings.json that has no hook and one this tool refused to touch. Only the
+ * second of those is something the user has to fix, and only this carries the
+ * reason out to them. Install and remove read and write the same file, so they
+ * keep their own traversal; what is shared is the predicate.
+ */
+export function delegationGuardHookState() {
+  const file = join(claudeUserDir(), 'settings.json');
+  if (!existsSync(file)) return { registered: false, path: file };
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (e) {
+    return { registered: false, path: file, reason: `unreadable JSON (${e.message})` };
+  }
+  const list = settings?.hooks?.PreToolUse;
+  if (list === undefined) return { registered: false, path: file };
+  if (!Array.isArray(list)) {
+    return { registered: false, path: file, reason: 'hooks.PreToolUse is not an array — fix settings.json manually' };
+  }
+  return {
+    registered: list.some((m) => Array.isArray(m?.hooks) && m.hooks.some((h) => isDelegationGuardHookCommand(h?.command))),
+    path: file,
+  };
+}
+
 export function installDelegationGuardHook() {
   const dir = claudeUserDir();
   const file = join(dir, 'settings.json');
@@ -806,7 +835,26 @@ export function uninstallAll({ purge = false } = {}) {
       result.removed.push('state directory');
     }
   } else {
+    // The state directory stays so a reinstall keeps ledgers and preferences,
+    // with one exception carved out just below.
     result.kept.push('state directory (savings ledgers, config, cache) — remove with --purge');
+    // delegate.enabled is not a preference, it is an assertion that a hook is
+    // registered — and the hooks were just removed above. `delegate on` goes
+    // out of its way to hold the invariant "flag on implies hook registered",
+    // installing first and leaving the flag alone when that fails; leaving the
+    // flag set here breaks the same invariant from the other side and makes
+    // status report `delegate: on, hook not registered` after a clean
+    // uninstall. Config it does not own is left untouched.
+    try {
+      const cfg = loadConfig();
+      if (cfg?.delegate?.enabled) {
+        cfg.delegate = { ...cfg.delegate, enabled: false };
+        saveConfig(cfg);
+        result.removed.push('delegate flag');
+      }
+    } catch {
+      // A config this cannot read is not worth failing an uninstall over.
+    }
   }
 
   return { ...result, action: 'removed' };

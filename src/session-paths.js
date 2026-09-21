@@ -90,6 +90,13 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
 
     const size = statSync(transcriptPath).size;
     const start = Math.max(0, size - tailBytes);
+    // One byte of lookbehind, so the shift() below is right in both cases. When
+    // `start` happens to land just past a newline, the first line in the window
+    // is a whole record and dropping it lost one for nothing. Reading from the
+    // byte before means that case decodes with a leading '\n', whose split
+    // produces an empty first element — so the same unconditional shift()
+    // removes an empty string there and a genuine fragment otherwise.
+    const readFrom = start > 0 ? start - 1 : 0;
     // allocUnsafe, not alloc: the read loop below overwrites what it uses and
     // only buf.subarray(0, bytesRead) is ever decoded, so the untouched
     // remainder never leaves this function. This saves zeroing 4MB per
@@ -98,7 +105,7 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
     // several times more. Cutting that means walking the buffer backwards by
     // newline and decoding only the lines needed to reach `limit`, which is
     // the change to make if the window is ever widened again.
-    const buf = Buffer.allocUnsafe(size - start);
+    const buf = Buffer.allocUnsafe(size - readFrom);
     let fd;
     let bytesRead = 0;
     try {
@@ -110,7 +117,7 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
       // recover. Looping until the buffer is full (or the file runs out)
       // keeps that slice from being silently dropped.
       while (bytesRead < buf.length) {
-        const n = readSync(fd, buf, bytesRead, buf.length - bytesRead, start + bytesRead);
+        const n = readSync(fd, buf, bytesRead, buf.length - bytesRead, readFrom + bytesRead);
         if (n === 0) break;
         bytesRead += n;
       }
@@ -125,8 +132,9 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
     // turn the last record into NUL bytes and lose the newest path to a
     // parse error.
     const lines = buf.subarray(0, bytesRead).toString('utf8').split('\n');
-    // A tail that began mid-file leaves the first line a truncated record,
-    // so drop it. When the read started at byte 0 the file was smaller than
+    // A tail that began mid-file leaves the first line either a truncated
+    // record or, thanks to the lookbehind byte above, an empty string. Either
+    // way it goes. When the read started at byte 0 the file was smaller than
     // the window and that line is whole, so keeping it costs nothing and
     // dropping it would lose the only record a short transcript has.
     if (start > 0) lines.shift();
