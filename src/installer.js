@@ -623,7 +623,10 @@ const DELEGATION_GUARD_HOOK_COMMAND = `${CLI} delegate --hook`;
 // hand-written variants drifted apart once already in this file: a substring
 // test confused `--hook` with `--hook-delegated`. `(?![\\w-])` rejects both a
 // hyphen and a word character, so `--hookfoo` is not mistaken for this hook.
-export const DELEGATION_GUARD_HOOK_PATTERN = /delegate --hook(?![\w-])/;
+// Not exported. Every consumer in this file goes through the wrapper below, and
+// handing the bare pattern out would let a caller outside repeat the judgement
+// this file just narrowed: the flag alone, with isOurCommand() skipped.
+const DELEGATION_GUARD_HOOK_PATTERN = /delegate --hook(?![\w-])/;
 
 /**
  * Whether a settings.json hook command is THIS hook: both our executable in

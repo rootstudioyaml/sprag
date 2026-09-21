@@ -284,3 +284,23 @@ test('recentToolPaths: a symlink pointing out of root does not slip through the 
     rmSync(outside, { recursive: true, force: true });
   }
 });
+
+test('recentToolPaths: a name that could break the rendered line is dropped, backtick included', () => {
+  /* The control-character test covers the plain newline. These are the rest of
+     the ways one line becomes two, or becomes prose again: Unicode's own line
+     and paragraph separators, NEL, and the backtick that closes the code span
+     delegation-guard.js wraps each path in. */
+  const root = mkdtempSync(join(tmpdir(), 'sprag-sp-'));
+  try {
+    const bad = ['sep\u2028.js', 'para\u2029.js', 'nel\u0085.js', 'tick`.js'];
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, [
+      ...bad.map((n) => assistantToolUse('Read', { file_path: join(root, 'src', n) })),
+      assistantToolUse('Read', { file_path: join(root, 'src', 'fine.js') }),
+    ].join('\n') + '\n');
+
+    assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'fine.js')]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

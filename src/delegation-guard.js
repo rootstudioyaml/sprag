@@ -89,11 +89,17 @@ function ratchetImportMissing(home = homedir()) {
     // same. Both failures are silent, and they fail toward omitting guidance
     // the subagent then never sees, which is the worse direction.
     //
-    // HTML comments are stripped first, since a commented-out import loads
-    // nothing. Markdown `#` lines are NOT treated as comments: `#` opens a
-    // heading, and Claude Code resolves an `@` import inside one like anywhere
-    // else, so skipping those lines would have invented the opposite error.
-    const active = text.replace(/<!--[\s\S]*?-->/g, '');
+    // What is tested is the text that actually loads. An HTML comment, a fenced
+    // block and an inline code span all hold an `@` that Claude Code does not
+    // resolve, so a CLAUDE.md documenting its own setup would otherwise read as
+    // having imported the file and lose the section. Markdown `#` lines are NOT
+    // stripped: `#` opens a heading, and an `@` import inside a heading loads
+    // like any other, so removing those lines would have invented the opposite
+    // error.
+    const active = text
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`\n]*`/g, '');
     return !/@(?:\S*[/\\])?ratchet\.md(?![\w.])/.test(active);
   } catch {
     return false;
