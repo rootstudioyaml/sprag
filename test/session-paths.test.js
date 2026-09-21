@@ -113,3 +113,36 @@ test('recentToolPaths: a whole-file read keeps the opening record, a cut tail dr
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('recentToolPaths: the default window survives a transcript padded out with tool results', () => {
+  /* The regression this pins was found by measuring a live session, not by
+     reading the code: a transcript's bytes are almost all tool RESULTS, so a
+     window sized for "a few recent turns" in lines is far smaller than that in
+     bytes. At the original 256KiB default, a real 4.65MB session held 28 lines
+     and gave back 0 of the 8 path-bearing calls it had made — the feature was
+     silently dead in exactly the sessions long enough to need it. Padding here
+     stands in for those results; the assertion is that the path still comes
+     back with no tailBytes argument, which is how the hook calls it. */
+  const root = mkdtempSync(join(tmpdir(), 'sprag-sp-'));
+  try {
+    const wanted = join(root, 'src', 'wanted.js');
+    const padding = JSON.stringify({
+      type: 'user',
+      message: { content: [{ type: 'tool_result', content: 'x'.repeat(60 * 1024) }] },
+    });
+    const lines = [assistantToolUse('Read', { file_path: wanted })];
+    // Comfortably past the old 256KiB window, and past it in result bytes
+    // rather than in record count, which is the shape that caused the miss.
+    for (let i = 0; i < 8; i++) lines.push(padding);
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, lines.join('\n') + '\n');
+    assert.ok(Buffer.byteLength(lines.join('\n'), 'utf8') > 256 * 1024, 'the padding must clear the old default');
+
+    assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'wanted.js')]);
+    // And the same transcript with the old window, to show the assertion above
+    // is testing the window rather than restating that parsing works.
+    assert.deepEqual(recentToolPaths(transcriptPath, { root, tailBytes: 256 * 1024 }), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

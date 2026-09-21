@@ -3,11 +3,19 @@
  * of its transcript, so a fresh subagent can be pointed at them instead of
  * re-discovering them by exploring from scratch.
  *
- * Only the transcript TAIL is read (brief.js's TAIL_BYTES convention: this
- * runs from a PreToolUse hook on every Task/Agent call, so a multi-MB
- * transcript must not become a multi-MB read on every delegation). That means
- * older tool calls fall out of the window — acceptable here, since the whole
- * point is "recently touched", not "ever touched".
+ * Only the transcript TAIL is read: this runs from a PreToolUse hook on every
+ * Task/Agent call, so the whole file must not be parsed each time. Older tool
+ * calls fall out of the window, which is acceptable — the point is "recently
+ * touched", not "ever touched".
+ *
+ * The window is sized by measurement, not by brief.js's 256KiB convention. A
+ * transcript's bytes are dominated by tool RESULTS (file contents, command
+ * output, base64 images) while the tool_use records this reads are a few
+ * hundred bytes each, so a byte window is far shallower than it looks: on a
+ * real 4.65MB session it held 28 lines, 1.9% of the session, and recovered 0
+ * of the 8 path-bearing calls that session had made. At 1MB the same
+ * transcript gave back 4; the read cost 3.3ms against this hook's 10s
+ * timeout. See TAIL_BYTES below for why the default sits higher still.
  */
 
 import { existsSync, statSync, openSync, readSync, closeSync } from 'node:fs';
@@ -20,6 +28,15 @@ const FILE_PATH_TOOLS = new Set(['Read', 'Edit', 'Write', 'NotebookEdit']);
 const PATH_ARG_TOOLS = new Set(['Grep', 'Glob']);
 
 /**
+ * How far back to read. 4MB costs 11.5ms on the measured session — nothing
+ * against the hook's 10s timeout — and buys margin that 1MB does not: a single
+ * transcript line can be 240KB when a session reads an image, so four such
+ * reads would exhaust a 1MB window inside one turn and empty this section
+ * again. The ceiling also bounds the buffer this allocates per delegation.
+ */
+const TAIL_BYTES = 4 * 1024 * 1024;
+
+/**
  * Recently-touched file paths for this session, most-recent-first, restricted
  * to `root` and returned relative to it.
  *
@@ -28,7 +45,7 @@ const PATH_ARG_TOOLS = new Set(['Grep', 'Glob']);
  * PreToolUse hook: one bad transcript line must not block the delegation it
  * was only trying to make cheaper.
  */
-export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 256 * 1024 } = {}) {
+export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = TAIL_BYTES } = {}) {
   try {
     if (!transcriptPath || !existsSync(transcriptPath)) return [];
     // Paths are reported relative to root, so without one there is nothing
