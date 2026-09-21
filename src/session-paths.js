@@ -36,6 +36,16 @@ const PATH_ARG_TOOLS = new Set(['Grep', 'Glob']);
  */
 const TAIL_BYTES = 4 * 1024 * 1024;
 
+/** A path that exists and is a file. Anything else — missing, directory,
+ *  unreadable — is not something to point a subagent at. */
+function isRegularFile(abs) {
+  try {
+    return statSync(abs).isFile();
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Recently-touched file paths for this session, most-recent-first, restricted
  * to `root` and returned relative to it.
@@ -55,7 +65,11 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
 
     const size = statSync(transcriptPath).size;
     const start = Math.max(0, size - tailBytes);
-    const buf = Buffer.alloc(size - start);
+    // allocUnsafe, not alloc: the read loop below overwrites what it uses and
+    // only buf.subarray(0, bytesRead) is ever decoded, so the untouched
+    // remainder never leaves this function. Zeroing 4MB on every Task/Agent
+    // call would be work with nothing depending on it.
+    const buf = Buffer.allocUnsafe(size - start);
     let fd;
     let bytesRead = 0;
     try {
@@ -110,12 +124,18 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
         if (!input || typeof input !== 'object') continue;
 
         let rawPath = null;
+        // Grep and Glob are the two whose argument is a directory as often as
+        // a file, so what they contribute has to be confirmed before it is
+        // offered as something to read. Read/Edit/Write name a file by
+        // contract.
+        let mayBeDirectory = false;
         if (FILE_PATH_TOOLS.has(block.name)) rawPath = input.file_path;
-        else if (PATH_ARG_TOOLS.has(block.name)) rawPath = input.path;
+        else if (PATH_ARG_TOOLS.has(block.name)) {
+          rawPath = input.path;
+          mayBeDirectory = true;
+        }
         if (typeof rawPath !== 'string' || rawPath === '') continue;
-        // No existsSync check here — that would add a syscall per path found,
-        // and the goal is fewer filesystem hits, not more. A trailing
-        // separator is the only directory signal available for free.
+        // The free half of the directory test; the stat below covers the rest.
         if (rawPath.endsWith('/') || rawPath.endsWith(sep)) continue;
 
         const abs = isAbsolute(rawPath) ? rawPath : resolve(root, rawPath);
@@ -124,16 +144,26 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
         // different Windows drive) returns an already-absolute path.
         if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) continue;
 
-        touched.push(rel);
+        touched.push({ rel, mayBeDirectory });
       }
     }
 
     const deduped = [];
     const seen = new Set();
     for (let i = touched.length - 1; i >= 0 && deduped.length < limit; i--) {
-      const p = touched[i];
+      const { rel: p, mayBeDirectory } = touched[i];
       if (seen.has(p)) continue;
       seen.add(p);
+      // `Grep({ path: 'src' })` names a directory without a trailing
+      // separator, and the section this feeds says the session "already read
+      // these" — so a directory listed there invites a subagent to Read it and
+      // spend one of its capped tool calls on the failure. The same reasoning
+      // already guards the ratchet pointer in delegation-guard.js.
+      //
+      // This is the one place a syscall is worth it. It runs after dedupe and
+      // stops at `limit`, so at most 15 stats happen per delegation against an
+      // 11.5ms read, and only for the two tools that can name a directory.
+      if (mayBeDirectory && !isRegularFile(resolve(root, p))) continue;
       deduped.push(p);
     }
     return deduped;

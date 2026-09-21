@@ -100,15 +100,17 @@ function ratchetImportMissing(home = homedir()) {
 export async function buildAppendix(payload, { cfg = loadConfig(), home = homedir() } = {}) {
   const sections = [];
 
+  // Read from `model` first — it is the more specific field when both are set
+  // — falling back to `subagent_type`. Hoisted out of the bounds section
+  // because the Korean section below weighs the same answer.
+  const modelHint = String(payload?.tool_input?.model || payload?.tool_input?.subagent_type || '');
+  const isHaiku = /haiku/i.test(modelHint);
+
   const bounds = boundsText();
   if (bounds) {
     // Hardcoded per the user's model-fitting ratchet rule
     // (~/.claude/ratchet-model.md): haiku delegations get a tighter leash
     // (8 tool calls / 1,500 output tokens) than everything else (20 / 8,000).
-    // Read from `model` first — it is the more specific field when both are
-    // set — falling back to `subagent_type`.
-    const modelHint = String(payload?.tool_input?.model || payload?.tool_input?.subagent_type || '');
-    const isHaiku = /haiku/i.test(modelHint);
     const capLine = isHaiku
       ? 'Cap for this delegation: 8 tool calls, 1,500 output tokens.'
       : 'Cap for this delegation: 20 tool calls, 8,000 output tokens.';
@@ -128,6 +130,18 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
   const wantsKorean = typeof prompt === 'string'
     && (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(prompt) || /\.ko\.[a-z]+\b/i.test(prompt));
   if (wantsKorean) {
+    // Deliberately attached to haiku delegations too, though the ratio is
+    // poor: measured on this repository, this section is 6,390 of the
+    // appendix's 8,444 characters (76%), about 7,000 tokens, against the
+    // 1,500-token output cap the section above asks a haiku target for.
+    //
+    // Left in anyway. The cap governs output length while this is input, so
+    // the two do not actually contradict each other, and the drift this
+    // guidance exists to stop is worst on the cheapest model — dropping it
+    // here would remove the benefit exactly where it is largest. What the
+    // numbers do argue for is a shortened variant for haiku rather than an
+    // all-or-nothing choice, which is a preset change, not a change to this
+    // gate. `isHaiku` is in scope so that work has somewhere to land.
     try {
       const { koreanStyleInjection, koreanStyleEnabled } = await import('./korean-style.js');
       // koreanStyleInjection() already returns null when the feature is off,

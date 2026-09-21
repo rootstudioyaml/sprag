@@ -607,9 +607,11 @@ export function removeDoc2mdHook() {
 // names because Claude Code's own docs and its runtime disagree on which one
 // fires — cheaper to catch both than to find out which build is running.
 //
-// timeout: 10 — this hook only reads a transcript TAIL (256 KiB, brief.js's
-// convention) and two small preset files, nowhere near doc2md's markitdown
-// cold-import cost, so a short timeout is safe and catches a hung read fast.
+// timeout: 10 — this hook reads a transcript TAIL (4 MiB; see TAIL_BYTES in
+// session-paths.js, measured at 11.5ms on a real 4.65MB session) and two small
+// preset files, nowhere near doc2md's markitdown cold-import cost, so a short
+// timeout is safe and catches a hung read fast. The size lives in that one
+// constant; quoting a number here is only ever a stale copy of it.
 //
 // Installed by `delegate on`, removed by `delegate off`. Idempotent. Not part
 // of `installAll()` — this feature rewrites tool input on every delegation,
@@ -621,6 +623,25 @@ const DELEGATION_GUARD_HOOK_COMMAND = `${CLI} delegate --hook`;
 // test confused `--hook` with `--hook-delegated`. `(?![\\w-])` rejects both a
 // hyphen and a word character, so `--hookfoo` is not mistaken for this hook.
 export const DELEGATION_GUARD_HOOK_PATTERN = /delegate --hook(?![\w-])/;
+
+/**
+ * Whether a settings.json hook command is THIS hook: both our executable in
+ * the command position and our flag.
+ *
+ * The flag alone is not enough. It says nothing about which program runs, so
+ * a hook the user registered themselves — `other-tool delegate --hook`, or a
+ * script of their own named `delegate` — matched, and `delegate off` deleted
+ * it. This repository has already shipped that bug once: CHANGELOG v3.46.1
+ * records `uninstall` removing `node ~/.claude/probe/sprag-probe.mjs` and
+ * `my-sprag-wrapper` because the check looked at the wrong part of the
+ * command. isOurCommand() is the fix that landed then, and it belongs here
+ * too. Install, remove and the status readout all go through this.
+ */
+export function isDelegationGuardHookCommand(command) {
+  return typeof command === 'string'
+    && isOurCommand(command)
+    && DELEGATION_GUARD_HOOK_PATTERN.test(command);
+}
 
 // Named for the feature, not the flag: `installDelegationHook()` above is
 // already taken by the route-scan PostToolUse hook, and it rewrites its own
@@ -652,7 +673,7 @@ export function installDelegationGuardHook() {
   }
   const list = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
   const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && DELEGATION_GUARD_HOOK_PATTERN.test(h.command)),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isDelegationGuardHookCommand(h?.command)),
   );
   if (already) return { path: file, action: 'exists' };
 
@@ -677,7 +698,7 @@ export function removeDelegationGuardHook() {
   const list = settings?.hooks?.PreToolUse;
   if (!Array.isArray(list)) return { path: file, action: 'absent' };
   const kept = list.filter((m) =>
-    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && DELEGATION_GUARD_HOOK_PATTERN.test(h.command))),
+    !(Array.isArray(m?.hooks) && m.hooks.some((h) => isDelegationGuardHookCommand(h?.command))),
   );
   if (kept.length === list.length) return { path: file, action: 'absent' };
   if (kept.length === 0) delete settings.hooks.PreToolUse;
