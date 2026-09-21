@@ -172,10 +172,12 @@ export async function decideForDelegation(payload, { cfg = loadConfig() } = {}) 
 /**
  * The decision rendered as the JSON Claude Code expects on stdout.
  *
- * `updatedInput` sits directly under `hookSpecificOutput` per Claude Code's
- * PreToolUse contract for rewriting tool arguments. That shape is documented
- * but not exercised against a live session in this change, so it is written
- * in exactly one place: moving it later means editing this function only.
+ * `updatedInput` sits directly under `hookSpecificOutput`, which is the shape a
+ * live session actually honours: with the hook registered on Task|Agent, a
+ * delegated subagent quoted back the last line of the appended block verbatim,
+ * so the rewritten prompt is what reached it. The shape is still written in
+ * exactly one place, so a future contract change means editing this function
+ * only.
  *
  * No `permissionDecision` is sent. Rewriting a prompt is not a judgement
  * about whether the call should be allowed, and answering `allow` here would
