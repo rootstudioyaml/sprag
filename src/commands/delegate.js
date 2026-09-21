@@ -8,35 +8,24 @@
  *   sprag delegate --hook     # PreToolUse entry point
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 /**
- * Whether the PreToolUse hook is actually in settings.json.
+ * Whether the PreToolUse hook is actually in settings.json, and why not when
+ * it is not.
  *
- * Mirrors doc2md.js's hookRegistered(): reporting "on" from config alone
- * while the hook itself is missing from settings.json would tell the user
- * the feature is live when nothing will ever call it.
+ * Reporting "on" from config alone while the hook itself is missing would tell
+ * the user the feature is live when nothing will ever call it — the reason
+ * doc2md.js grew the same check. The traversal lives in installer.js beside
+ * install and remove rather than being written a third time here, which also
+ * lets status say `hooks.PreToolUse is not an array` instead of reporting a
+ * file it refused to touch the same way as a file with no hook in it.
  */
-async function hookRegistered() {
+async function hookState() {
   try {
-    // claudeUserDir() is the single source for this path, the same one
-    // install and remove use. Recombining homedir() + '.claude' here would
-    // put that knowledge in two places, and a change to one without the
-    // other would make status read a different settings.json than the hook
-    // actually lives in and report "not registered" while it is.
-    const { claudeUserDir } = await import('../paths.js');
-    // The same predicate install and remove use, so all three agree on what
-    // counts as this hook: our executable in the command position and our
-    // flag. Testing the flag alone would report someone else's
-    // `other-tool delegate --hook` as this feature being registered.
-    const { isDelegationGuardHookCommand } = await import('../installer.js');
-    const settings = JSON.parse(readFileSync(join(claudeUserDir(), 'settings.json'), 'utf8'));
-    return (settings?.hooks?.PreToolUse || []).some((m) =>
-      (m.hooks || []).some((h) => isDelegationGuardHookCommand(h?.command)),
-    );
+    const { delegationGuardHookState } = await import('../installer.js');
+    return delegationGuardHookState();
   } catch {
-    return false;
+    return { registered: false };
   }
 }
 
@@ -111,9 +100,10 @@ export async function run({ args, hasFlag }) {
   const { delegateEnabled, BOUNDS_PATH } = await import('../delegation-guard.js');
   const { koreanStyleEnabled } = await import('../korean-style.js');
   const enabled = delegateEnabled();
-  const hookOn = await hookRegistered();
+  const { registered: hookOn, reason } = await hookState();
   if (lang === 'ko') {
     console.log(`delegate: ${enabled ? 'on' : 'off'}, hook ${hookOn ? '등록됨' : '미등록'}`);
+    if (reason) console.log(`  settings.json: ${reason}`);
     console.log(`bounds 파일: ${BOUNDS_PATH}`);
     console.log(koreanStyleEnabled()
       ? 'korean 지침이 켜져 있어, 한글이 들어간 위임 프롬프트에는 같은 지침이 함께 붙습니다.'
@@ -121,6 +111,7 @@ export async function run({ args, hasFlag }) {
     console.log('켜기: sprag delegate on');
   } else {
     console.log(`delegate: ${enabled ? 'on' : 'off'}, hook ${hookOn ? 'registered' : 'not registered'}`);
+    if (reason) console.log(`  settings.json: ${reason}`);
     console.log(`bounds file: ${BOUNDS_PATH}`);
     console.log(koreanStyleEnabled()
       ? 'Korean guidance is on, so a delegation prompt containing Hangul also gets that guidance appended.'
