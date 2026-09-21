@@ -23,8 +23,8 @@
  * `claude --print --input-format stream-json` with and without the file as a
  * document block. The control turn cost 42,204 tokens, twice, to the token.
  *
- *   kohjuho_resume_kr.pdf   7 pages   +20,537 tokens   2,934 per page
- *   xeoyoung_resume.pdf     5 pages   +12,709 tokens   2,542 per page
+ *   report-a.pdf   7 pages   +20,537 tokens   2,934 per page
+ *   report-b.pdf   5 pages   +12,709 tokens   2,542 per page
  *
  * A PDF is read whole: the model answered from its contents. Converting one
  * to text is worth three to four times its own size.
@@ -38,7 +38,7 @@
  * outweigh the text many times over:
  *
  *   aws-summit-seoul.pptx   2.1MB of slide XML   ~540,429 tokens   23.8× the conversion
- *   사업계획서.docx        312KB of body XML    ~78,113 tokens    ~46× the conversion
+ *   사업계획서.docx         312KB of body XML    ~78,113 tokens    ~46× the conversion
  *
  * So the baseline for these formats is the body markup the converter read,
  * measured per file rather than assumed from a ratio. It is a real number for

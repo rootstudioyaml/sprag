@@ -92,7 +92,7 @@ PDF 는 첨부하면 모델이 내용을 그대로 읽습니다. 대신 페이�
 
 모델에게는 암호를 푼 사본을 사용자에게 요청하라고 안내합니다. 이 도구는 암호를 묻지도 저장하지도 않습니다. 어느 경우에도 원본 `Read` 를 막지 않으므로 작업이 중단되지 않습니다. 열람은 자유롭고 인쇄만 제한된 PDF 는 암호 문서가 아니므로 그대로 변환합니다(오탐 확인 완료). 구형 `.xls` 도 원래 OLE 형식이라 암호로 오인하지 않습니다.
 
-**Windows 를 지원하며, 실제 Windows 러너에서 검증합니다.** Windows 사용자가 있어 다음을 맞췄습니다.
+**Windows 를 지원하며, 실제 Windows 러너에서 검증합니다.** Windows 를 쓰는 팀이 있어 다음을 맞췄습니다.
 
 - 파이썬 탐색이 `py -3` 런처를 씁니다. Windows 에서는 `python3` 가 PATH 에 없는 경우가 많고, 맨 `python` 은 실행 대신 마이크로소프트 스토어를 여는 별칭 스텁일 수 있습니다. venv 기반 인터프리터도 `Scripts\python.exe` 경로로 찾습니다.
 - `.fig` 파서 설치가 `npm.cmd` 를 셸로 호출합니다. 그리고 패키지 지정자에서 캐럿을 뺐습니다(`openfig-core@0.4.x`). cmd.exe 에서 `^` 는 이스케이프 문자라 npm 에 닿기 전에 먹힙니다.
@@ -157,8 +157,8 @@ The baseline is what you would have done without a converter, and that differs b
 
 | Attached file | Size | Extra tokens | Per page |
 |---|---|---|---|
-| Résumé PDF | 7 pages | +20,537 | 2,934 |
-| Résumé PDF | 5 pages | +12,709 | 2,542 |
+| Report PDF | 7 pages | +20,537 | 2,934 |
+| Report PDF | 5 pages | +12,709 | 2,542 |
 
 An attached PDF is read whole, but every page costs 2,500–2,900 tokens against 5,531 for the conversion. The coefficient used is 2,500 per page — below both measurements, so the figure understates rather than flatters.
 
@@ -167,7 +167,7 @@ An attached PDF is read whole, but every page costs 2,500–2,900 tokens against
 | Original | Body XML | Conversion | Ratio |
 |---|---|---|---|
 | Deck, pptx (31.8MB) | ~540,429 tokens | ~22,610 tokens | 23.8× |
-| Résumé, docx (189KB) | ~79,621 tokens | ~1,684 tokens | 47.3× |
+| Business plan, docx (189KB) | ~79,621 tokens | ~1,684 tokens | 47.3× |
 
 This baseline is measured per file from the real XML size, not applied as a per-format ratio. `.xls` is not a zip container and has no markup to measure, so it claims nothing.
 
