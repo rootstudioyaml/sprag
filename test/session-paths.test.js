@@ -36,9 +36,11 @@ test('recentToolPaths: catches per-tool argument keys, drops outside-root paths,
     const outsidePath = join(outsideRoot, 'c.js');
 
     const lines = [
-      // Discarded unconditionally: reading only the tail means this line may
-      // have started mid-record, so recentToolPaths() drops it regardless.
-      'DISCARDED-LEADING-LINE',
+      // Kept, not dropped: this transcript is far smaller than the window, so
+      // the read starts at byte 0 and nothing was cut. It stays out of the
+      // result only because the "tool_use" prefilter passes over it. The
+      // truncation branch is covered by its own test below.
+      'NOT-A-TOOL-USE-LINE',
       // A line that looks like a tool_use record but fails to parse — must be
       // skipped rather than throwing the whole read away.
       '{"type":"assistant","message":{"content":[{"type":"tool_use"',
@@ -73,11 +75,40 @@ test('recentToolPaths: limit truncates the result', () => {
     const transcriptPath = join(root, 'session.jsonl');
     // Leading throwaway line so the shift() in recentToolPaths does not eat
     // a real record.
-    writeFileSync(transcriptPath, ['THROWAWAY', ...lines].join('\n') + '\n');
+    // Same as above: a line the prefilter ignores rather than one the tail cut.
+    writeFileSync(transcriptPath, ['NOT-A-TOOL-USE-LINE', ...lines].join('\n') + '\n');
 
     const result = recentToolPaths(transcriptPath, { root, limit: 2 });
     assert.equal(result.length, 2);
     assert.deepEqual(result, ['f4.js', 'f3.js']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('recentToolPaths: a whole-file read keeps the opening record, a cut tail drops it', () => {
+  const root = mkdtempSync(join(tmpdir(), 'sprag-sp-'));
+  try {
+    const first = join(root, 'src', 'first.js');
+    const later = join(root, 'src', 'later.js');
+    const lines = [
+      assistantToolUse('Read', { file_path: first }),
+      assistantToolUse('Read', { file_path: later }),
+    ];
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, lines.join('\n') + '\n');
+
+    // The file fits inside the window, so the read starts at byte 0 and the
+    // first line is a whole record. Dropping it here would lose the only
+    // history a short transcript has.
+    assert.deepEqual(recentToolPaths(transcriptPath, { root }),
+      [join('src', 'later.js'), join('src', 'first.js')]);
+
+    // A window that holds the last record and only part of the first makes the
+    // read start mid-record, so that fragment goes and the rest survives.
+    const tailBytes = Buffer.byteLength(lines[1], 'utf8') + 12;
+    assert.deepEqual(recentToolPaths(transcriptPath, { root, tailBytes }),
+      [join('src', 'later.js')]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -13,7 +13,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { decideForDelegation, formatHookOutput } from '../src/delegation-guard.js';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { buildAppendix, decideForDelegation, formatHookOutput } from '../src/delegation-guard.js';
 
 const DELEGATION_MARKER = '<!-- sprag:delegation -->';
 const ON = { delegate: { enabled: true } };
@@ -90,13 +94,58 @@ test('decideForDelegation: the tool-call cap depends on whether haiku is the tar
   assert.match(nonHaiku.updatedInput.prompt, /Cap for this delegation: 20 tool calls, 8,000 output tokens\./);
 });
 
-test('formatHookOutput: null in, null out; otherwise fixes hookEventName and permissionDecision', () => {
+test('formatHookOutput: null in, null out; otherwise fixes hookEventName and sends no permissionDecision', () => {
   assert.equal(formatHookOutput(null), null);
   assert.equal(formatHookOutput(undefined), null);
 
   const rendered = formatHookOutput({ updatedInput: { prompt: 'x', model: 'sonnet' } });
   const parsed = JSON.parse(rendered);
   assert.equal(parsed.hookSpecificOutput.hookEventName, 'PreToolUse');
-  assert.equal(parsed.hookSpecificOutput.permissionDecision, 'allow');
+  // Pinned as absent on purpose: rewriting a prompt is not a judgement about
+  // whether the call is allowed, and a live session honours updatedInput
+  // without it. Answering 'allow' would settle a permission question the
+  // user may have wanted to see.
+  assert.equal(parsed.hookSpecificOutput.permissionDecision, undefined);
   assert.deepEqual(parsed.hookSpecificOutput.updatedInput, { prompt: 'x', model: 'sonnet' });
+});
+
+/* The two sections that read the home directory. `home` is injected so the
+   result does not depend on whatever the machine running the tests happens to
+   keep in ~/.claude — without it half of buildAppendix's branches can only be
+   observed by not asserting on them. */
+test('buildAppendix: the ratchet section needs a rules file and a CLAUDE.md that does not import it', async () => {
+  const payload = { tool_name: 'Task', tool_input: { prompt: 'summarize this file', model: 'sonnet' } };
+  const home = mkdtempSync(join(tmpdir(), 'sprag-home-'));
+  try {
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    const appendix = () => buildAppendix(payload, { cfg: ON, home });
+
+    assert.doesNotMatch(await appendix(), /Ratchet rules/, 'neither file: nothing to point at');
+
+    writeFileSync(join(home, '.claude', 'ratchet.md'), '- a rule\n');
+    assert.doesNotMatch(await appendix(), /Ratchet rules/, 'rules but no harness around them');
+
+    writeFileSync(join(home, '.claude', 'CLAUDE.md'), '# notes\n');
+    assert.match(await appendix(), /## Ratchet rules/, 'both, and the import is absent');
+
+    writeFileSync(join(home, '.claude', 'CLAUDE.md'), '# notes\n@~/.claude/ratchet.md\n');
+    assert.doesNotMatch(await appendix(), /Ratchet rules/, 'imported already, so saying it again is noise');
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('buildAppendix: Korean guidance rides along for Hangul, and for an English ask at a .ko target', async () => {
+  const cfg = { delegate: { enabled: true }, koreanStyle: { enabled: true } };
+  const home = mkdtempSync(join(tmpdir(), 'sprag-home-'));
+  const ask = (prompt) => buildAppendix({ tool_name: 'Task', tool_input: { prompt } }, { cfg, home });
+  try {
+    assert.match(await ask('한국어로 보고하십시오.'), /## Korean style guidance/);
+    // English prose, Korean deliverable: the target path is the only signal
+    // that the output will be read as Korean.
+    assert.match(await ask('Rewrite docs/COMMANDS.ko.md from the English original'), /## Korean style guidance/);
+    assert.doesNotMatch(await ask('Rewrite docs/COMMANDS.md and keep it terse'), /Korean style guidance/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });

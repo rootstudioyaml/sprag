@@ -40,14 +40,20 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
     const start = Math.max(0, size - tailBytes);
     const buf = Buffer.alloc(size - start);
     let fd;
+    let bytesRead = 0;
     try {
       fd = openSync(transcriptPath, 'r');
-      readSync(fd, buf, 0, buf.length, start);
+      bytesRead = readSync(fd, buf, 0, buf.length, start);
     } finally {
       if (fd !== undefined) closeSync(fd);
     }
 
-    const lines = buf.toString('utf8').split('\n');
+    // Only what was actually read. A transcript is still being written while
+    // this runs, so between statSync and readSync the file may have been
+    // truncated or rotated, and one readSync is not promised to fill the
+    // whole request either. Decoding the untouched remainder would turn the
+    // last record into NUL bytes and lose the newest path to a parse error.
+    const lines = buf.subarray(0, bytesRead).toString('utf8').split('\n');
     // A tail that began mid-file leaves the first line a truncated record,
     // so drop it. When the read started at byte 0 the file was smaller than
     // the window and that line is whole, so keeping it costs nothing and

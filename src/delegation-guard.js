@@ -36,6 +36,9 @@ export const BOUNDS_PATH = join(packageRoot, 'presets', 'delegation', 'bounds.md
 // twice. Doubles as the first line of the appendix itself.
 const DELEGATION_MARKER = '<!-- sprag:delegation -->';
 
+/** The rules file the ratchet section points at. One place, two readers. */
+const ratchetPath = (home = homedir()) => join(home, '.claude', 'ratchet.md');
+
 /** Whether the delegation guard is on. Off unless the user asked. */
 export function delegateEnabled(cfg = loadConfig()) {
   return cfg?.delegate?.enabled === true;
@@ -69,8 +72,14 @@ export function boundsText() {
  * does not exist at all, there is no harness to point at either, so this
  * stays false rather than inventing a path that leads nowhere.
  */
-function ratchetImportMissing() {
-  const claudeMdPath = join(homedir(), '.claude', 'CLAUDE.md');
+function ratchetImportMissing(home = homedir()) {
+  // Check the file the section would point at, not just the harness around
+  // it. Without this a machine that keeps CLAUDE.md but no rules file gets a
+  // section telling the subagent to read a path that is not there, and the
+  // failed Read spends one of its capped tool calls — the opposite of what
+  // this feature is for.
+  if (!existsSync(ratchetPath(home))) return false;
+  const claudeMdPath = join(home, '.claude', 'CLAUDE.md');
   if (!existsSync(claudeMdPath)) return false;
   try {
     const text = readFileSync(claudeMdPath, 'utf8');
@@ -88,7 +97,7 @@ function ratchetImportMissing() {
  * English-only prompt, an already-imported ratchet.md, or a session with
  * nothing read yet each drop their own section without blocking the others.
  */
-export async function buildAppendix(payload, { cfg = loadConfig() } = {}) {
+export async function buildAppendix(payload, { cfg = loadConfig(), home = homedir() } = {}) {
   const sections = [];
 
   const bounds = boundsText();
@@ -112,7 +121,13 @@ export async function buildAppendix(payload, { cfg = loadConfig() } = {}) {
   // of delegations in a session; gating it on the prompt actually containing
   // Hangul means an English-only delegation — the common case — never pays
   // for guidance it has no use for.
-  if (typeof prompt === 'string' && /[가-힣]/.test(prompt)) {
+  // Two cases the plain syllable range misses. A prompt written in English can
+  // still ask for Korean output, and this repository keeps `.ko.md` documents
+  // beside their English originals, so that ask is routine rather than rare.
+  // Compatibility jamo (ㄱ-ㅎ, ㅏ-ㅣ) are Korean too and live outside 가-힣.
+  const wantsKorean = typeof prompt === 'string'
+    && (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(prompt) || /\.ko\.[a-z]+\b/i.test(prompt));
+  if (wantsKorean) {
     try {
       const { koreanStyleInjection } = await import('./korean-style.js');
       const koreanBlock = await koreanStyleInjection({ cfg });
@@ -122,12 +137,12 @@ export async function buildAppendix(payload, { cfg = loadConfig() } = {}) {
     }
   }
 
-  if (ratchetImportMissing()) {
+  if (ratchetImportMissing(home)) {
     sections.push([
       '## Ratchet rules',
       'This machine keeps a growing list of "condition -> action" rules learned',
       'from past mistakes, and your prompt was not written to include it.',
-      `Read ${join(homedir(), '.claude', 'ratchet.md')} before repeating one of them.`,
+      `Read ${ratchetPath(home)} before repeating one of them.`,
     ].join('\n'));
   }
 
@@ -151,7 +166,7 @@ export async function buildAppendix(payload, { cfg = loadConfig() } = {}) {
  * call, so the caller's contract stays "print nothing, let the tool run
  * exactly as given" for every one of them.
  */
-export async function decideForDelegation(payload, { cfg = loadConfig() } = {}) {
+export async function decideForDelegation(payload, { cfg = loadConfig(), home = homedir() } = {}) {
   if (!delegateEnabled(cfg)) return null;
   if (payload?.tool_name !== 'Task' && payload?.tool_name !== 'Agent') return null;
 
@@ -163,7 +178,7 @@ export async function decideForDelegation(payload, { cfg = loadConfig() } = {}) 
   // same tool_name, must not stack the appendix onto itself.
   if (prompt.includes(DELEGATION_MARKER)) return null;
 
-  const appendix = await buildAppendix(payload, { cfg });
+  const appendix = await buildAppendix(payload, { cfg, home });
   if (!appendix) return null;
 
   return { updatedInput: { ...toolInput, prompt: `${prompt}\n\n${appendix}` } };

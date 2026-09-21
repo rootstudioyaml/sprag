@@ -616,14 +616,23 @@ export function removeDoc2mdHook() {
 // which is exactly the kind of silent-by-default behavior install.js's other
 // opt-in features (doc2md, korean, cohesion) avoid shipping without being asked.
 const DELEGATE_HOOK_COMMAND = `${CLI} delegate --hook`;
+// One pattern, shared by install, remove and the status readout. Three
+// hand-written variants drifted apart once already in this file: a substring
+// test confused `--hook` with `--hook-delegated`. `(?![\\w-])` rejects both a
+// hyphen and a word character, so `--hookfoo` is not mistaken for this hook.
+export const DELEGATE_HOOK_PATTERN = /delegate --hook(?![\w-])/;
 
 export function installDelegateHook() {
   const dir = claudeUserDir();
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
+  // Remembered before the write: appending an entry to a settings file that
+  // was already there is an update, and reporting 'created' would tell the
+  // user their file is new when it is not.
+  const existed = existsSync(file);
 
   let settings = {};
-  if (existsSync(file)) {
+  if (existed) {
     try {
       settings = JSON.parse(readFileSync(file, 'utf8'));
     } catch (e) {
@@ -637,7 +646,7 @@ export function installDelegateHook() {
   }
   const list = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
   const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /delegate --hook(?!-)/.test(h.command)),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && DELEGATE_HOOK_PATTERN.test(h.command)),
   );
   if (already) return { path: file, action: 'exists' };
 
@@ -647,7 +656,7 @@ export function installDelegateHook() {
   });
   settings.hooks.PreToolUse = list;
   writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
-  return { path: file, action: 'created' };
+  return { path: file, action: existed ? 'updated' : 'created' };
 }
 
 export function removeDelegateHook() {
@@ -662,7 +671,7 @@ export function removeDelegateHook() {
   const list = settings?.hooks?.PreToolUse;
   if (!Array.isArray(list)) return { path: file, action: 'absent' };
   const kept = list.filter((m) =>
-    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /delegate --hook(?!-)/.test(h.command))),
+    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && DELEGATE_HOOK_PATTERN.test(h.command))),
   );
   if (kept.length === list.length) return { path: file, action: 'absent' };
   if (kept.length === 0) delete settings.hooks.PreToolUse;
