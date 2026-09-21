@@ -344,3 +344,60 @@ test('removeDelegationGuardHook: a hook that carries our flag but not our execut
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+/* The three below drive bin/cli.js as a child process, because what they pin is
+   the process-level contract the hook lives under: what reaches stdout, and
+   what is left in config when installation fails. */
+const CLI = new URL('../bin/cli.js', import.meta.url).pathname;
+
+test('delegate --hook: an empty or malformed payload prints nothing at all', () => {
+  /* Claude Code reads this hook's stdout as its instruction, so anything
+     printed on a path that has no rewrite to offer is acted on. v3.26.2 records
+     this failing once already: an unknown subcommand called with --hook fell
+     through to the default report and pushed a whole statistics table into the
+     hook stream on every Read. Nothing here asserts on behaviour inside the
+     module; the contract is the empty stdout. */
+  for (const stdin of ['', 'not json at all', '{"tool_name":"Task"', '{}']) {
+    const run = spawnSync(process.execPath, [CLI, 'delegate', '--hook'], { encoding: 'utf8', input: stdin });
+    assert.equal(run.status, 0, `exit code for ${JSON.stringify(stdin)}: ${run.stderr}`);
+    assert.equal(run.stdout, '', `stdout for ${JSON.stringify(stdin)} must be empty`);
+  }
+});
+
+test('delegate on: a settings.json it cannot use leaves the feature off, not half on', () => {
+  /* The flag used to be saved before the install was attempted, so a settings
+     file this cannot edit left `delegate: on, hook not registered` behind — a
+     feature the user believes is on with nothing registered to call it. The
+     opposite order is safe, since delegateEnabled() turns a stray hook into a
+     no-op. */
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-dg-'));
+  try {
+    const home = join(dir, 'home');
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ hooks: { PreToolUse: 'not-an-array' } }) + '\n');
+    const env = { ...process.env, HOME: home, USERPROFILE: home };
+
+    const on = spawnSync(process.execPath, [CLI, 'delegate', 'on'], { encoding: 'utf8', env });
+    assert.equal(on.status, 0, on.stderr);
+    assert.match(on.stdout, /✗/, 'the refusal has to be visible');
+    assert.doesNotMatch(on.stdout, /✓/);
+
+    const status = spawnSync(process.execPath, [CLI, 'delegate'], { encoding: 'utf8', env });
+    assert.equal(status.status, 0, status.stderr);
+    assert.match(status.stdout, /^delegate: off/m, 'a failed install must not leave the flag on');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the bounds preset is covered by package.json files, so it ships', () => {
+  /* boundsText() returns null when the file is missing and the bounds section
+     simply disappears — the one section that is supposed to be unconditional
+     would be absent for anyone who installed from npm while every git checkout
+     looked fine. `npm pack --dry-run` confirms it ships today; this keeps a
+     future narrowing of `files` from undoing that silently. */
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const needed = 'presets/delegation/bounds.md';
+  const covered = (pkg.files || []).some((entry) => entry === needed || (entry.endsWith('/') && needed.startsWith(entry)));
+  assert.ok(covered, `package.json files must cover ${needed}; it has ${JSON.stringify(pkg.files)}`);
+});

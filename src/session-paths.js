@@ -67,8 +67,12 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
     const start = Math.max(0, size - tailBytes);
     // allocUnsafe, not alloc: the read loop below overwrites what it uses and
     // only buf.subarray(0, bytesRead) is ever decoded, so the untouched
-    // remainder never leaves this function. Zeroing 4MB on every Task/Agent
-    // call would be work with nothing depending on it.
+    // remainder never leaves this function. This saves zeroing 4MB per
+    // delegation, which is worth taking but is not where the cost of this
+    // function is — decoding the window to a string and splitting it allocates
+    // several times more. Cutting that means walking the buffer backwards by
+    // newline and decoding only the lines needed to reach `limit`, which is
+    // the change to make if the window is ever widened again.
     const buf = Buffer.allocUnsafe(size - start);
     let fd;
     let bytesRead = 0;
@@ -135,6 +139,14 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
           mayBeDirectory = true;
         }
         if (typeof rawPath !== 'string' || rawPath === '') continue;
+        // A POSIX filename may hold any byte but `/` and NUL, and this list is
+        // rendered one path per line straight into the prompt of a subagent
+        // that has tool permissions. So a filename carrying a newline plus a
+        // sentence would leave the "already read these" section and arrive as
+        // its own instruction. Filenames are outside input whenever the
+        // session is working in a repository it did not write, which makes
+        // this a boundary rather than a curiosity.
+        if (/[\u0000-\u001f\u007f]/.test(rawPath)) continue;
         // The free half of the directory test; the stat below covers the rest.
         if (rawPath.endsWith('/') || rawPath.endsWith(sep)) continue;
 

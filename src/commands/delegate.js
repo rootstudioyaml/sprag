@@ -46,15 +46,20 @@ export async function run({ args, hasFlag }) {
   // Hook path first and cheap: this runs on every Task/Agent call, so
   // nothing above it may cost a syscall.
   if (hasFlag?.('--hook') || sub === '--hook') {
-    const { readStdinJson } = await import('../stdin-payload.js');
-    const payload = readStdinJson();
-    if (!payload) return;
     let out = null;
     try {
+      // Reading stdin is inside the try for the same reason the rewrite is: a
+      // synchronous read can throw on the pipe state it is handed, and a
+      // malformed payload is exactly the case this path has to survive. An
+      // escape here would end the hook process on a stack trace, which Claude
+      // Code surfaces on every delegation — the loudest possible failure in
+      // the one place that has to stay quiet.
+      const { readStdinJson } = await import('../stdin-payload.js');
+      const payload = readStdinJson();
+      if (!payload) return;
       const { decideForDelegation, formatHookOutput } = await import('../delegation-guard.js');
       out = formatHookOutput(await decideForDelegation(payload));
     } catch {
-      // A rewrite that throws must not take the delegation down with it.
       // Printing nothing leaves Claude Code to run the call exactly as given.
       return;
     }
@@ -66,13 +71,24 @@ export async function run({ args, hasFlag }) {
   const lang = userLanguage();
 
   if (sub === 'on') {
-    const { setDelegateEnabled } = await import('../delegation-guard.js');
-    setDelegateEnabled(true);
+    // Install first, and only record the feature as on once that worked.
+    // Saving the flag first left `delegate: on, hook not registered` behind
+    // whenever settings.json could not be written — a feature the user
+    // believes they turned on, with nothing registered to ever call it. The
+    // risk only runs this way: with the flag off, a hook that is still
+    // registered returns early in delegateEnabled() and changes nothing.
     const { installDelegationGuardHook } = await import('../installer.js');
     const res = installDelegationGuardHook();
-    console.log(res.action === 'skipped'
-      ? `✗ ${res.reason}`
-      : `✓ PreToolUse hook ${res.action} (${res.path})`);
+    if (res.action === 'skipped') {
+      console.log(`✗ ${res.reason}`);
+      console.log(lang === 'ko'
+        ? 'settings.json 을 고친 뒤 다시 실행하십시오. 기능은 꺼진 상태로 둡니다.'
+        : 'Fix settings.json and run this again. The feature is left off.');
+      return;
+    }
+    const { setDelegateEnabled } = await import('../delegation-guard.js');
+    setDelegateEnabled(true);
+    console.log(`✓ PreToolUse hook ${res.action} (${res.path})`);
     console.log(lang === 'ko'
       ? '다음 서브에이전트 위임부터 프롬프트에 상한과 필요한 경우 한국어 지침, 최근에 읽은 경로가 덧붙습니다.'
       : 'From the next delegation, prompts get bounds, Korean guidance when it applies, and already-touched paths appended.');
