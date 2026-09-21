@@ -13,7 +13,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -72,6 +73,19 @@ test('decideForDelegation: an English-only prompt never gets the Korean guidance
   const decision = await decideForDelegation(payload, { cfg });
   assert.ok(decision);
   assert.doesNotMatch(decision.updatedInput.prompt, /\[sprag korean-style\]/);
+});
+
+test('decideForDelegation: a Hangul prompt still skips the Korean guidance section when koreanStyle itself is off', async () => {
+  // The existing test above covers an English prompt with koreanStyle on;
+  // this covers the other axis, a Hangul prompt with koreanStyle off. Without
+  // this case the section's own gate — koreanStyleEnabled(cfg) — has no test
+  // pinning it, and only koreanStyleInjection()'s internal check would be
+  // exercised.
+  const payload = { tool_name: 'Task', tool_input: { prompt: '한국어로 보고서를 작성하십시오.' } };
+  const cfg = { delegate: { enabled: true }, koreanStyle: { enabled: false } };
+  const decision = await decideForDelegation(payload, { cfg });
+  assert.ok(decision, 'bounds.md still fires, so a decision is produced regardless of koreanStyle');
+  assert.doesNotMatch(decision.updatedInput.prompt, /## Korean style guidance/);
 });
 
 test('decideForDelegation: the tool-call cap depends on whether haiku is the target', async () => {
@@ -149,3 +163,134 @@ test('buildAppendix: Korean guidance rides along for Hangul, and for an English 
     rmSync(home, { recursive: true, force: true });
   }
 });
+
+test('buildAppendix: transcript_path and cwd combine into the touched-paths section via { root: payload?.cwd }', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'sprag-cwd-'));
+  const home = mkdtempSync(join(tmpdir(), 'sprag-home-'));
+  try {
+    const filePath = join(root, 'src', 'thing.js');
+    const line = JSON.stringify({
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', name: 'Read', input: { file_path: filePath } }] },
+    });
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, line + '\n');
+
+    const payload = {
+      tool_name: 'Task',
+      tool_input: { prompt: 'continue the investigation' },
+      transcript_path: transcriptPath,
+      cwd: root,
+    };
+    // recentToolPaths() only learns a root through `payload?.cwd`. If that
+    // wiring is ever dropped — a future refactor passing `payload` itself, or
+    // some other key — recentToolPaths() falls back to returning [] and the
+    // whole section disappears with no error anywhere else to catch it. This
+    // is the one test standing in front of that.
+    const appendix = await buildAppendix(payload, { cfg: ON, home });
+    assert.match(appendix, /## Already-touched paths/);
+    assert.ok(appendix.includes(join('src', 'thing.js')), 'the relative path must be in the rendered section');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+/* installDelegationGuardHook() / removeDelegationGuardHook() resolve ~/.claude
+   through os.homedir(), which cannot be redirected inside a running process,
+   so each of these runs the installer in a child process with HOME pointed at
+   a throwaway directory — the same technique doc2md.test.js uses for its own
+   hook install/remove pair. */
+test('installDelegationGuardHook: hooks.PreToolUse present but not an array is left alone', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-dg-'));
+  try {
+    const home = join(dir, 'home');
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    const settingsPath = join(home, '.claude', 'settings.json');
+    const original = { hooks: { PreToolUse: 'not-an-array' } };
+    writeFileSync(settingsPath, JSON.stringify(original, null, 2) + '\n');
+
+    const script = `
+      import { installDelegationGuardHook } from ${JSON.stringify(new URL('../src/installer.js', import.meta.url).href)};
+      console.log(JSON.stringify(installDelegationGuardHook()));
+    `;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+    });
+    assert.equal(run.status, 0, run.stderr);
+    const result = JSON.parse(run.stdout.trim());
+    assert.equal(result.action, 'skipped');
+    assert.match(result.reason, /hooks\.PreToolUse is not an array/);
+    // Schema-invalid data belongs to the user, not this tool — the file on
+    // disk has to come back exactly as it started.
+    assert.equal(readFileSync(settingsPath, 'utf8'), JSON.stringify(original, null, 2) + '\n');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('installDelegationGuardHook: installing twice does not duplicate the entry, and removing the only one drops the PreToolUse key', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-dg-'));
+  try {
+    const home = join(dir, 'home');
+    mkdirSync(join(home, '.claude'), { recursive: true });
+
+    const script = `
+      import { installDelegationGuardHook, removeDelegationGuardHook } from ${JSON.stringify(new URL('../src/installer.js', import.meta.url).href)};
+      const { readFileSync } = await import('node:fs');
+      const settingsPath = process.env.HOME + '/.claude/settings.json';
+      const steps = [];
+      steps.push(installDelegationGuardHook().action);
+      steps.push(installDelegationGuardHook().action);
+      steps.push(JSON.parse(readFileSync(settingsPath, 'utf8')).hooks.PreToolUse.length);
+      steps.push(removeDelegationGuardHook().action);
+      steps.push('PreToolUse' in JSON.parse(readFileSync(settingsPath, 'utf8')).hooks);
+      steps.push(removeDelegationGuardHook().action);
+      console.log(JSON.stringify(steps));
+    `;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+    });
+    assert.equal(run.status, 0, run.stderr);
+    const [created, again, countAfterInstall, removed, hasKeyAfterRemove, absent] = JSON.parse(run.stdout.trim());
+    assert.equal(created, 'created');
+    assert.equal(again, 'exists', 'installing twice must not duplicate the entry');
+    assert.equal(countAfterInstall, 1);
+    assert.equal(removed, 'removed');
+    assert.equal(hasKeyAfterRemove, false, 'the only entry removed must drop hooks.PreToolUse entirely, not leave []');
+    assert.equal(absent, 'absent');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('removeDelegationGuardHook: a foreign PreToolUse hook survives install and remove', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-dg-'));
+  try {
+    const home = join(dir, 'home');
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    const settingsPath = join(home, '.claude', 'settings.json');
+    const foreign = { matcher: 'Bash', hooks: [{ type: 'command', command: 'somebody-elses-hook' }] };
+    writeFileSync(settingsPath, JSON.stringify({ hooks: { PreToolUse: [foreign] } }, null, 2) + '\n');
+
+    const script = `
+      import { installDelegationGuardHook, removeDelegationGuardHook } from ${JSON.stringify(new URL('../src/installer.js', import.meta.url).href)};
+      installDelegationGuardHook();
+      console.log(JSON.stringify(removeDelegationGuardHook()));
+    `;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+    });
+    assert.equal(run.status, 0, run.stderr);
+    const result = JSON.parse(run.stdout.trim());
+    assert.equal(result.action, 'removed');
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
+    assert.deepEqual(settings.hooks.PreToolUse, [foreign], "someone else's hook survives, and the key stays for it");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
