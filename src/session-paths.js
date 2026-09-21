@@ -191,7 +191,15 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
         // its own instruction. Filenames are outside input whenever the
         // session is working in a repository it did not write, which makes
         // this a boundary rather than a curiosity.
-        if (/[\u0000-\u001f\u007f]/.test(rawPath)) continue;
+        //
+        // The class covers more than C0 and DEL, because more than those end a
+        // line: U+2028 and U+2029 are Unicode's own line and paragraph
+        // separators and U+0085 is NEL, and a renderer may break on any of
+        // them. The backtick is here for a different reason — the section wraps
+        // each path in one, so a name containing a backtick closes that span
+        // early and returns the rest of the line to prose. Both are cheaper to
+        // reject while collecting than to escape while rendering.
+        if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029`]/.test(rawPath)) continue;
         // The free half of the directory test; the stat below covers the rest.
         if (rawPath.endsWith('/') || rawPath.endsWith(sep)) continue;
 

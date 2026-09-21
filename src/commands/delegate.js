@@ -67,7 +67,19 @@ export async function run({ args, hasFlag }) {
     // risk only runs this way: with the flag off, a hook that is still
     // registered returns early in delegateEnabled() and changes nothing.
     const { installDelegationGuardHook } = await import('../installer.js');
-    const res = installDelegationGuardHook();
+    // A settings.json that cannot be parsed or is the wrong shape comes back as
+    // 'skipped', but those are not the only ways writing it fails: mkdirSync and
+    // writeFileSync throw on an unwritable home or a read-only filesystem. Every
+    // other failure of this command ends in one line of guidance, so this one
+    // should too rather than printing a stack trace at a user who typed
+    // `delegate on`. The invariant holds either way — the flag below is never
+    // reached.
+    let res;
+    try {
+      res = installDelegationGuardHook();
+    } catch (e) {
+      res = { action: 'skipped', reason: `could not write settings.json (${e.message})` };
+    }
     if (res.action === 'skipped') {
       console.log(`✗ ${res.reason}`);
       console.log(lang === 'ko'

@@ -226,7 +226,7 @@ test('installDelegationGuardHook: hooks.PreToolUse present but not an array is l
     `;
     const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
       encoding: 'utf8',
-      env: { ...process.env, HOME: home, USERPROFILE: home },
+      env: tempEnv(home),
     });
     assert.equal(run.status, 0, run.stderr);
     const result = JSON.parse(run.stdout.trim());
@@ -266,7 +266,7 @@ test('installDelegationGuardHook: installing twice does not duplicate the entry,
     `;
     const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
       encoding: 'utf8',
-      env: { ...process.env, HOME: home, USERPROFILE: home },
+      env: tempEnv(home),
     });
     assert.equal(run.status, 0, run.stderr);
     const [created, again, countAfterInstall, removed, hasKeyAfterRemove, absent] = JSON.parse(run.stdout.trim());
@@ -297,7 +297,7 @@ test('removeDelegationGuardHook: a foreign PreToolUse hook survives install and 
     `;
     const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
       encoding: 'utf8',
-      env: { ...process.env, HOME: home, USERPROFILE: home },
+      env: tempEnv(home),
     });
     assert.equal(run.status, 0, run.stderr);
     const result = JSON.parse(run.stdout.trim());
@@ -344,7 +344,7 @@ test('removeDelegationGuardHook: a hook that carries our flag but not our execut
     `;
     const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
       encoding: 'utf8',
-      env: { ...process.env, HOME: home, USERPROFILE: home },
+      env: tempEnv(home),
     });
     assert.equal(run.status, 0, run.stderr);
     const [installed, removed, remaining] = JSON.parse(run.stdout.trim());
@@ -364,6 +364,21 @@ test('removeDelegationGuardHook: a hook that carries our flag but not our execut
    fixed exactly this in the --help test, and this repository runs a 3-OS
    matrix, so the same expression would have failed on windows-latest again. */
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
+/* Every child process below writes config.json, so the state directory has to be
+   redirected as well as the home. userDataDir() (src/paths.js) reads
+   XDG_CONFIG_HOME first on every platform and APPDATA second on Windows, and
+   either one set means homedir() is never consulted — so overriding HOME alone
+   left these tests writing the real config of whoever ran them. On the Windows
+   runner that is certain, and a developer with XDG_CONFIG_HOME set would have
+   had the uninstall test switch their own delegate flag off. */
+const tempEnv = (home) => ({
+  ...process.env,
+  HOME: home,
+  USERPROFILE: home,
+  APPDATA: join(home, 'AppData', 'Roaming'),
+  XDG_CONFIG_HOME: join(home, '.config'),
+});
+
 
 test('delegate --hook: an empty or malformed payload prints nothing at all', () => {
   /* Claude Code reads this hook's stdout as its instruction, so anything
@@ -390,7 +405,7 @@ test('delegate on: a settings.json it cannot use leaves the feature off, not hal
     const home = join(dir, 'home');
     mkdirSync(join(home, '.claude'), { recursive: true });
     writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ hooks: { PreToolUse: 'not-an-array' } }) + '\n');
-    const env = { ...process.env, HOME: home, USERPROFILE: home };
+    const env = tempEnv(home);
 
     const on = spawnSync(process.execPath, [CLI, 'delegate', 'on'], { encoding: 'utf8', env });
     assert.equal(on.status, 0, on.stderr);
@@ -455,7 +470,7 @@ test("removeDelegationGuardHook: another tool's hook inside OUR matcher group su
     `;
     const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
       encoding: 'utf8',
-      env: { ...process.env, HOME: home, USERPROFILE: home },
+      env: tempEnv(home),
     });
     assert.equal(run.status, 0, run.stderr);
     const [action, remaining] = JSON.parse(run.stdout.trim());
@@ -552,7 +567,7 @@ test('delegate status: reports the hook as registered after a successful install
   try {
     const home = join(dir, 'home');
     mkdirSync(join(home, '.claude'), { recursive: true });
-    const env = { ...process.env, HOME: home, USERPROFILE: home };
+    const env = tempEnv(home);
 
     assert.equal(spawnSync(process.execPath, [CLI, 'delegate', 'on'], { encoding: 'utf8', env }).status, 0);
     const ok = spawnSync(process.execPath, [CLI, 'delegate'], { encoding: 'utf8', env });
@@ -580,7 +595,7 @@ test('uninstallAll: clearing our hooks also clears the delegate flag that assert
   try {
     const home = join(dir, 'home');
     mkdirSync(join(home, '.claude'), { recursive: true });
-    const env = { ...process.env, HOME: home, USERPROFILE: home };
+    const env = tempEnv(home);
 
     assert.equal(spawnSync(process.execPath, [CLI, 'delegate', 'on'], { encoding: 'utf8', env }).status, 0);
 
@@ -598,5 +613,31 @@ test('uninstallAll: clearing our hooks also clears the delegate flag that assert
     assert.equal(after, false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('buildAppendix: an @ import shown inside a code fence or a code span does not count', async () => {
+  /* Claude Code does not resolve an `@` import inside fenced or inline code, so
+     a CLAUDE.md that documents its own setup has not imported anything — but the
+     text matched and the section disappeared, the same direction the HTML
+     comment case failed in. What is tested is the text that actually loads. */
+  const payload = { tool_name: 'Task', tool_input: { prompt: 'summarize this file', model: 'sonnet' } };
+  const home = mkdtempSync(join(tmpdir(), 'sprag-home-'));
+  try {
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    writeFileSync(join(home, '.claude', 'ratchet.md'), '- a rule\n');
+    const claudeMd = join(home, '.claude', 'CLAUDE.md');
+    const appendix = () => buildAppendix(payload, { cfg: ON, home });
+
+    writeFileSync(claudeMd, '# setup\n\n```\n@~/.claude/ratchet.md\n```\n');
+    assert.match(await appendix(), /## Ratchet rules/, 'a fenced example imports nothing');
+
+    writeFileSync(claudeMd, '# setup\n\nAdd `@~/.claude/ratchet.md` to your file.\n');
+    assert.match(await appendix(), /## Ratchet rules/, 'a code span imports nothing either');
+
+    writeFileSync(claudeMd, '# setup\n\n@~/.claude/ratchet.md\n');
+    assert.doesNotMatch(await appendix(), /Ratchet rules/, 'plain text still imports');
+  } finally {
+    rmSync(home, { recursive: true, force: true });
   }
 });
