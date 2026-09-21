@@ -18,6 +18,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { childEnv } from './helpers/child-env.js';
 
 import { buildAppendix, decideForDelegation, formatHookOutput } from '../src/delegation-guard.js';
 
@@ -371,10 +372,8 @@ const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
    left these tests writing the real config of whoever ran them. On the Windows
    runner that is certain, and a developer with XDG_CONFIG_HOME set would have
    had the uninstall test switch their own delegate flag off. */
-const tempEnv = (home) => ({
-  ...process.env,
+const tempEnv = (home) => childEnv({
   HOME: home,
-  USERPROFILE: home,
   APPDATA: join(home, 'AppData', 'Roaming'),
   XDG_CONFIG_HOME: join(home, '.config'),
 });

@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, rmSync, existsSync, writeFileSync, readFileSync
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { childEnv } from './helpers/child-env.js';
 
 const CLI = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'cli.js');
 
@@ -23,7 +24,7 @@ test('install completes on a machine with no prior state', () => {
       // CTS_LANG pins the output language: the install now picks one from the
       // machine's locale when nothing is recorded, and the assertions below read
       // English strings.
-      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
+      env: childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' }),
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -77,7 +78,7 @@ test('uninstall removes our entries and only ours', () => {
     },
   }, null, 2));
 
-  const env = { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'state'), APPDATA: join(dir, 'state') };
+  const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'state'), APPDATA: join(dir, 'state') });
   const out = execFileSync(process.execPath, [CLI, 'uninstall'], { encoding: 'utf8', env, timeout: 120_000 });
   assert.match(out, /removed|제거/i);
 
@@ -104,11 +105,11 @@ test('install records an output language from the locale and keeps it', () => {
   const home = join(dir, 'home');
   const cfgHome = join(dir, 'cfg');
   mkdirSync(home, { recursive: true });
-  const base = {
-    ...process.env, HOME: home, USERPROFILE: home,
-    XDG_CONFIG_HOME: cfgHome, APPDATA: cfgHome, NO_COLOR: '1',
-  };
-  delete base.CTS_LANG;
+  /* childEnv scrubs CTS_LANG along with every other variable this tool reads,
+     so the locale each case names below is what decides the language. */
+  const base = childEnv({
+    HOME: home, XDG_CONFIG_HOME: cfgHome, APPDATA: cfgHome, NO_COLOR: '1',
+  });
   const cfgPath = join(cfgHome, 'claude-token-saver', 'config.json');
   try {
     const ko = execFileSync(process.execPath, [CLI, 'install'], {
@@ -147,7 +148,7 @@ test('a fresh install writes the canonical command name, not the legacy one', ()
   mkdirSync(home, { recursive: true });
   try {
     execFileSync(process.execPath, [CLI, 'install'], {
-      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
+      env: childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' }),
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
@@ -182,7 +183,7 @@ test('an existing legacy entry is recognised, not duplicated beside a new one', 
   }, null, 2));
   try {
     execFileSync(process.execPath, [CLI, 'install'], {
-      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
+      env: childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' }),
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
@@ -223,10 +224,9 @@ test('uninstall leaves entries that merely mention our name in a path', () => {
       UserPromptSubmit: [{ matcher: '*', hooks: [entry(foreign[2])] }],
     },
   }, null, 2));
-  const env = {
-    ...process.env, HOME: home, USERPROFILE: home,
-    XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en',
-  };
+  const env = childEnv({
+    HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en',
+  });
   try {
     execFileSync(process.execPath, [CLI, 'uninstall'], {
       env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
@@ -261,7 +261,7 @@ test('install recognises an entry invoked through a wrapper, and adds no second 
   }, null, 2));
   try {
     execFileSync(process.execPath, [CLI, 'install'], {
-      env: { ...process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' },
+      env: childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' }),
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
