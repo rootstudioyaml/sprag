@@ -172,3 +172,27 @@ test('the marker names REVIEW, which is what the docs tell the reader to delete'
   // without adding the new one leaves the reader with no line to delete.
   assert.match(doc, /REVIEW/, 'RELEASING.md must name the marker it tells the reader to delete');
 });
+
+test('every release API call in the publish script is checked against the constant', () => {
+  // Source-level, because the URLs are assembled from a tag and from an id that
+  // came back in a GitHub response: the check is what keeps a crafted value from
+  // moving a request to another endpoint of the same API. A call site added
+  // later without it would stay invisible, since the script works either way
+  // until the day it does not.
+  const src = readFileSync(join(ROOT, 'scripts', 'release-notes.mjs'), 'utf8');
+  const calls = src.match(/await fetch\([^\n]*/g) || [];
+  assert.equal(calls.length, 2, 'the script still makes its two release API calls');
+  for (const call of calls) {
+    assert.match(call, /fetch\((?:endpoint\(|target[,)])/, `this fetch skips the check: ${call.trim()}`);
+  }
+  // The check itself has to admit one host and one path prefix, and it has to
+  // read the parsed URL: `new URL` collapses `../` segments, so the same test
+  // against the raw string would pass a value that walks out of that prefix.
+  assert.match(src, /function endpoint\(url\) \{\s*const parsed = new URL\(String\(url\)\);/,
+    'endpoint() must check the parsed URL');
+  assert.match(src, /parsed\.href !== api && !parsed\.href\.startsWith\(`\$\{api\}\/`\)/,
+    'endpoint() must require the URL to be api itself or sit under it');
+  // An unanchored version test accepts "1.2.3/../../elsewhere", which is then
+  // interpolated into the release URL.
+  assert.match(src, /\$\/\.test\(version\)\) usage\(/, 'the version argument test must be anchored');
+});

@@ -54,7 +54,9 @@ function usage(msg) {
 const args = process.argv.slice(2);
 const version = args.find((a) => !a.startsWith('-'));
 if (!version) usage('a version is required');
-if (!/^\d+\.\d+\.\d+/.test(version)) usage(`"${version}" does not look like a version`);
+// Anchored deliberately: an unanchored test accepts "1.2.3/../../elsewhere",
+// and this value is interpolated into the release URL further down.
+if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) usage(`"${version}" does not look like a version`);
 const publish = args.includes('--publish');
 const force = args.includes('--force');
 const fileArg = args.includes('--file') ? args[args.indexOf('--file') + 1] : null;
@@ -175,6 +177,23 @@ if (!candidates.length) usage('GITHUB_TOKEN or GH_TOKEN is required to publish (
 let active = 0;
 
 const api = `https://api.github.com/repos/${REPO_SLUG}/releases`;
+
+/**
+ * The URL to request, or an exit. Every call this script makes has to land
+ * under `api`, which is a constant, while the tag and the release id that get
+ * interpolated into it come from a GitHub response rather than from here. The
+ * test runs against the parsed URL because `new URL` has collapsed `../`
+ * segments by that point; the same test on the raw string would pass a value
+ * that walks back out of the path and onto another endpoint of this API.
+ */
+function endpoint(url) {
+  const parsed = new URL(String(url));
+  if (parsed.href !== api && !parsed.href.startsWith(`${api}/`)) {
+    fail('refused', `${parsed.href} is not under ${api}`);
+  }
+  return parsed;
+}
+
 const headers = () => ({
   authorization: `Bearer ${candidates[active].token}`,
   accept: 'application/vnd.github+json',
@@ -225,9 +244,15 @@ function refusedByGitHub(status, text) {
 
 /** fetch + parse, with the block page and a dead network turned into `fail`. */
 async function call(url, init) {
+  const target = endpoint(url);
   let res;
   try {
-    res = await fetch(url, { ...init, headers: headers() });
+    // `target` passed the check above, which admits one host and one path
+    // prefix. The scanner's node_ssrf heuristic reads any two-argument function
+    // as an HTTP handler and its first argument as request input, which is what
+    // it matched on here; this script serves nothing and has no request to read.
+    // nosemgrep: rules.lgpl.nodejs_scan.javascript-ssrf-rule-node_ssrf
+    res = await fetch(target, { ...init, headers: headers() });
   } catch (e) {
     fail('request failed', e && e.message);
   }
@@ -252,7 +277,7 @@ async function call(url, init) {
 // case (no release yet), so it is not routed through `fail`.
 let existing = null;
 try {
-  const probe = await fetch(`${api}/tags/${tag}`, { headers: headers(), signal: AbortSignal.timeout(30_000) });
+  const probe = await fetch(endpoint(`${api}/tags/${tag}`), { headers: headers(), signal: AbortSignal.timeout(30_000) });
   if (probe.ok) {
     const body = await probe.text();
     try { existing = JSON.parse(body); } catch { fail(`${probe.status}, non-JSON response`, body); }
