@@ -18,13 +18,25 @@
  * timeout. See TAIL_BYTES below for why the default sits higher still.
  */
 
-import { existsSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { existsSync, statSync, realpathSync, openSync, readSync, closeSync } from 'node:fs';
 import { isAbsolute, resolve, relative, sep } from 'node:path';
 
-// Tools whose path argument names a file directly. Bash is left out on
-// purpose: its `command` string is free text, not a path field, and scraping
-// it for paths would be a much noisier feature than this one.
-const FILE_PATH_TOOLS = new Set(['Read', 'Edit', 'Write', 'NotebookEdit']);
+// Tools whose argument names a file directly, each with the key it uses. The
+// key is spelled out per tool rather than assumed: NotebookEdit takes
+// `notebook_path`, so reading `file_path` from every one of these silently
+// collected nothing from notebook edits while the docs listed the tool as
+// supported. MultiEdit belongs here for the same reason korean-lint's matcher
+// (`Write|Edit|MultiEdit|Bash`) counts it as a writing tool.
+//
+// Bash is left out on purpose: its `command` string is free text, not a path
+// field, and scraping it for paths would be a much noisier feature than this.
+const FILE_PATH_ARG = {
+  Read: 'file_path',
+  Edit: 'file_path',
+  MultiEdit: 'file_path',
+  Write: 'file_path',
+  NotebookEdit: 'notebook_path',
+};
 const PATH_ARG_TOOLS = new Set(['Grep', 'Glob']);
 
 /**
@@ -36,11 +48,24 @@ const PATH_ARG_TOOLS = new Set(['Grep', 'Glob']);
  */
 const TAIL_BYTES = 4 * 1024 * 1024;
 
-/** A path that exists and is a file. Anything else — missing, directory,
- *  unreadable — is not something to point a subagent at. */
-function isRegularFile(abs) {
+/**
+ * A path that exists, is a file, and still resolves inside `root`.
+ *
+ * The containment test in the loop compares strings, and statSync follows
+ * symlinks, so a link that sits inside root while pointing outside it passed
+ * both. No new access is opened — every path here is one the parent session
+ * already read — but a function that goes as far as rejecting control
+ * characters in a filename should not be the loose one about links.
+ */
+function isRegularFileInside(abs, realRoot) {
   try {
-    return statSync(abs).isFile();
+    if (!statSync(abs).isFile()) return false;
+    // Both sides resolved: comparing a resolved path against an unresolved root
+    // rejects everything whenever the root itself sits behind a link, which is
+    // the normal case for a macOS temp directory (/tmp -> /private/tmp) and so
+    // for this project's own tests.
+    const real = relative(realRoot, realpathSync(abs));
+    return real !== '' && real !== '..' && !real.startsWith('..' + sep) && !isAbsolute(real);
   } catch {
     return false;
   }
@@ -106,6 +131,17 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
     // dropping it would lose the only record a short transcript has.
     if (start > 0) lines.shift();
 
+    // Resolved once, not per path: only the stat'ed candidates need it, and the
+    // root does not change between them. Falls back to the given root when it
+    // cannot be resolved, which keeps a missing directory from emptying the
+    // whole list.
+    let realRoot = root;
+    try {
+      realRoot = realpathSync(root);
+    } catch {
+      // keep root as given
+    }
+
     // Chronological order first (oldest touched path to newest); reversed
     // and deduped below so the most recent occurrence of each path wins.
     const touched = [];
@@ -133,7 +169,8 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
         // offered as something to read. Read/Edit/Write name a file by
         // contract.
         let mayBeDirectory = false;
-        if (FILE_PATH_TOOLS.has(block.name)) rawPath = input.file_path;
+        const argKey = FILE_PATH_ARG[block.name];
+        if (argKey) rawPath = input[argKey];
         else if (PATH_ARG_TOOLS.has(block.name)) {
           rawPath = input.path;
           mayBeDirectory = true;
@@ -152,9 +189,13 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
 
         const abs = isAbsolute(rawPath) ? rawPath : resolve(root, rawPath);
         const rel = relative(root, abs);
-        // Outside root: relative() climbs out with a leading "..", or (on a
-        // different Windows drive) returns an already-absolute path.
-        if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) continue;
+        // Outside root: relative() climbs out as ".." alone or ".." followed by
+        // a separator, or (on a different Windows drive) returns an
+        // already-absolute path. The separator has to be part of the test —
+        // without it a directory legitimately named `..fixtures` or `..cache`
+        // read as an escape and everything under it vanished from the list with
+        // no signal anywhere.
+        if (rel === '' || rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel)) continue;
 
         touched.push({ rel, mayBeDirectory });
       }
@@ -175,7 +216,7 @@ export function recentToolPaths(transcriptPath, { root, limit = 15, tailBytes = 
       // This is the one place a syscall is worth it. It runs after dedupe and
       // stops at `limit`, so at most 15 stats happen per delegation against an
       // 11.5ms read, and only for the two tools that can name a directory.
-      if (mayBeDirectory && !isRegularFile(resolve(root, p))) continue;
+      if (mayBeDirectory && !isRegularFileInside(resolve(root, p), realRoot)) continue;
       deduped.push(p);
     }
     return deduped;

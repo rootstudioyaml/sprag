@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -215,5 +215,72 @@ test('recentToolPaths: a filename carrying a control character is dropped', () =
     assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'plain.js')]);
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('recentToolPaths: each tool is read with its own argument key', () => {
+  /* Reading `file_path` from every file-naming tool meant NotebookEdit — whose
+     argument is `notebook_path` — contributed nothing, while both language
+     docs listed it as collected. MultiEdit was absent from the set entirely
+     although it does use `file_path`, the same tool korean-lint's matcher
+     already treats as a writing tool. Spelling the key out per tool is what
+     makes those two failures impossible rather than unnoticed. */
+  const root = mkdtempSync(join(tmpdir(), 'sprag-sp-'));
+  try {
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, [
+      assistantToolUse('NotebookEdit', { notebook_path: join(root, 'nb', 'run.ipynb') }),
+      assistantToolUse('MultiEdit', { file_path: join(root, 'src', 'many.js') }),
+      // The wrong key on a tool that has another one must yield nothing rather
+      // than being read as a path.
+      assistantToolUse('NotebookEdit', { file_path: join(root, 'nb', 'ignored.ipynb') }),
+    ].join('\n') + '\n');
+
+    assert.deepEqual(recentToolPaths(transcriptPath, { root }),
+      [join('src', 'many.js'), join('nb', 'run.ipynb')]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('recentToolPaths: a directory whose name starts with .. is still inside root', () => {
+  /* relative() signals an escape as '..' alone or '..' plus a separator, so a
+     test that only looked at the prefix threw away everything under a directory
+     named `..fixtures` or `..cache`. Nothing failed when it did. */
+  const root = mkdtempSync(join(tmpdir(), 'sprag-sp-'));
+  try {
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, assistantToolUse('Read', { file_path: join(root, '..fixtures', 'a.js') }) + '\n');
+    assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('..fixtures', 'a.js')]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('recentToolPaths: a symlink pointing out of root does not slip through the string test', () => {
+  /* The containment test compares strings and statSync follows links, so a link
+     sitting inside root while resolving outside it satisfied both. Checked only
+     for Grep/Glob, which are the paths already being stat'ed, so the syscall
+     count is unchanged. */
+  const root = mkdtempSync(join(tmpdir(), 'sprag-sp-'));
+  const outside = mkdtempSync(join(tmpdir(), 'sprag-sp-outside-'));
+  try {
+    writeFileSync(join(outside, 'secret.txt'), 'not ours\n');
+    mkdirSync(join(root, 'src'), { recursive: true });
+    const link = join(root, 'src', 'link.txt');
+    symlinkSync(join(outside, 'secret.txt'), link);
+    const inside = join(root, 'src', 'own.txt');
+    writeFileSync(inside, 'ours\n');
+
+    const transcriptPath = join(root, 'session.jsonl');
+    writeFileSync(transcriptPath, [
+      assistantToolUse('Grep', { path: link }),
+      assistantToolUse('Grep', { path: inside }),
+    ].join('\n') + '\n');
+
+    assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'own.txt')]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
   }
 });

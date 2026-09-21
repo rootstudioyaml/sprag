@@ -697,10 +697,22 @@ export function removeDelegationGuardHook() {
   }
   const list = settings?.hooks?.PreToolUse;
   if (!Array.isArray(list)) return { path: file, action: 'absent' };
-  const kept = list.filter((m) =>
-    !(Array.isArray(m?.hooks) && m.hooks.some((h) => isDelegationGuardHookCommand(h?.command))),
-  );
-  if (kept.length === list.length) return { path: file, action: 'absent' };
+  // Per hook, not per matcher group — the same correction uninstallAll() above
+  // carries, for the same reason. Claude Code merges entries that share a
+  // matcher into one group, so filtering whole groups took the other tool's
+  // hook with ours whenever we were installed second. v3.46.1 and v3.51.0 both
+  // record that failure; a group survives here as long as something of
+  // somebody else's is left in it.
+  let touched = false;
+  const kept = [];
+  for (const m of list) {
+    if (!Array.isArray(m?.hooks)) { kept.push(m); continue; }
+    const hooks = m.hooks.filter((h) => !isDelegationGuardHookCommand(h?.command));
+    if (hooks.length === m.hooks.length) { kept.push(m); continue; }
+    touched = true;
+    if (hooks.length) kept.push({ ...m, hooks });
+  }
+  if (!touched) return { path: file, action: 'absent' };
   if (kept.length === 0) delete settings.hooks.PreToolUse;
   else settings.hooks.PreToolUse = kept;
   writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
