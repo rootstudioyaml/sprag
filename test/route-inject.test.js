@@ -10,11 +10,16 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { routeHint, sessionModelRank } from '../src/route-inject.js';
 import { ESCALATE_RE } from '../src/route-scan.js';
+import { childEnv } from './helpers/child-env.js';
+
+const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 
 const rules = [
   { category: 'check', tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } },
@@ -204,4 +209,49 @@ test('the session model comes from the transcript before the shared snapshot', (
   const env = { ANTHROPIC_MODEL: 'claude-sonnet-4-5' };
   assert.equal(sessionModelRank({ env, transcriptPath: null, snapshot }), 1);
   assert.equal(sessionModelRank({ env, transcriptPath: file, snapshot }), 2);
+});
+
+/**
+ * The caller has to hand this module the project root, and every case above pins
+ * `root` itself — so none of them could notice a caller that drops it. One did:
+ * src/commands/brief.js passed `{ sessionRank }` alone, and the agent lookup fell
+ * back to process.cwd(), the directory the hook process happened to start in.
+ * Where that is not the project root, an installed agent goes unnamed and the
+ * model is told `model: haiku` with nothing to spawn.
+ *
+ * So this case drives the real hook and takes the fallback away: the child runs
+ * in a directory with no agents and the sandbox home has none either, which
+ * leaves the payload's own cwd as the only thing that can name one.
+ */
+test('the brief hook hands the session cwd to the hint, so a project agent is named', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'cts-brief-root-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = join(dir, 'home');
+  const state = join(dir, 'state');
+  const project = join(dir, 'project');
+  const elsewhere = join(dir, 'elsewhere');
+  for (const d of [join(home, '.claude'), join(state, 'claude-token-saver'), join(project, '.claude', 'agents'), elsewhere]) {
+    mkdirSync(d, { recursive: true });
+  }
+  writeFileSync(join(project, '.claude', 'agents', 'haiku-explore.md'), '# haiku-explore\n');
+  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko' }) + '\n');
+  writeFileSync(join(state, 'claude-token-saver', 'model-rules.json'), JSON.stringify({ rules }) + '\n');
+
+  const run = (payload) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {
+    cwd: elsewhere,
+    env: childEnv({ HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, NO_COLOR: '1', CTS_NO_UPDATE_CHECK: '1' }),
+    input: JSON.stringify(payload),
+    encoding: 'utf8',
+  });
+
+  const prompt = '지금 실행 중인 버전이 뭔지 확인해줘';
+  const named = run({ session_id: 'brief-root', prompt, cwd: project });
+  assert.match(named, /기본 haiku-explore\(model: haiku\)/, 'the payload cwd is what the lookup uses');
+
+  /* A payload without the field keeps the old behaviour rather than throwing or
+     going quiet: root stays undefined, the lookup finds nothing in either
+     directory, and the hint still states the tier. */
+  const bare = run({ session_id: 'brief-root', prompt });
+  assert.match(bare, /기본 model: haiku/, 'the hint is still injected');
+  assert.doesNotMatch(bare, /haiku-explore/, 'and nothing in the hook process cwd may name an agent');
 });
