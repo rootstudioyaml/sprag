@@ -17,6 +17,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { buildAppendix, decideForDelegation, formatHookOutput } from '../src/delegation-guard.js';
 
@@ -248,7 +249,12 @@ test('installDelegationGuardHook: installing twice does not duplicate the entry,
     const script = `
       import { installDelegationGuardHook, removeDelegationGuardHook } from ${JSON.stringify(new URL('../src/installer.js', import.meta.url).href)};
       const { readFileSync } = await import('node:fs');
-      const settingsPath = process.env.HOME + '/.claude/settings.json';
+      const { homedir } = await import('node:os');
+      const { join } = await import('node:path');
+      // homedir(), not process.env.HOME: the installer resolves ~/.claude that
+      // way, and on Windows it reads USERPROFILE. Assembling the path from one
+      // variable would let this test check a different file than the code wrote.
+      const settingsPath = join(homedir(), '.claude', 'settings.json');
       const steps = [];
       steps.push(installDelegationGuardHook().action);
       steps.push(installDelegationGuardHook().action);
@@ -322,7 +328,12 @@ test('removeDelegationGuardHook: a hook that carries our flag but not our execut
     const script = `
       import { installDelegationGuardHook, removeDelegationGuardHook } from ${JSON.stringify(new URL('../src/installer.js', import.meta.url).href)};
       const { readFileSync } = await import('node:fs');
-      const settingsPath = process.env.HOME + '/.claude/settings.json';
+      const { homedir } = await import('node:os');
+      const { join } = await import('node:path');
+      // homedir(), not process.env.HOME: the installer resolves ~/.claude that
+      // way, and on Windows it reads USERPROFILE. Assembling the path from one
+      // variable would let this test check a different file than the code wrote.
+      const settingsPath = join(homedir(), '.claude', 'settings.json');
       const steps = [];
       // The lookalike must not read as "already installed" either, or ours
       // never gets registered and the feature silently does nothing.
@@ -348,7 +359,11 @@ test('removeDelegationGuardHook: a hook that carries our flag but not our execut
 /* The three below drive bin/cli.js as a child process, because what they pin is
    the process-level contract the hook lives under: what reaches stdout, and
    what is left in config when installation fails. */
-const CLI = new URL('../bin/cli.js', import.meta.url).pathname;
+/* fileURLToPath, not URL#pathname: on Windows the latter yields
+   `/D:/repo/bin/cli.js`, and the leading slash makes the spawn miss. v3.38.0
+   fixed exactly this in the --help test, and this repository runs a 3-OS
+   matrix, so the same expression would have failed on windows-latest again. */
+const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 
 test('delegate --hook: an empty or malformed payload prints nothing at all', () => {
   /* Claude Code reads this hook's stdout as its instruction, so anything
@@ -398,6 +413,69 @@ test('the bounds preset is covered by package.json files, so it ships', () => {
      future narrowing of `files` from undoing that silently. */
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   const needed = 'presets/delegation/bounds.md';
-  const covered = (pkg.files || []).some((entry) => entry === needed || (entry.endsWith('/') && needed.startsWith(entry)));
+  // Segment comparison, not a suffix test: npm treats "presets" and "presets/"
+  // alike, so requiring the separator would fail a package that still ships the
+  // file. The check reads the declaration only — an .npmignore could still drop
+  // the file — which is what `npm pack --dry-run` was run to confirm separately.
+  const covered = (pkg.files || []).some((entry) => {
+    const e = String(entry).replace(/\/+$/, '');
+    return e === needed || needed.startsWith(e + '/');
+  });
   assert.ok(covered, `package.json files must cover ${needed}; it has ${JSON.stringify(pkg.files)}`);
+});
+
+test("removeDelegationGuardHook: another tool's hook inside OUR matcher group survives", () => {
+  /* Claude Code merges entries that share a matcher into one group, so a hook
+     someone else registered on `Task|Agent` ends up beside ours. Filtering by
+     group took theirs with ours; v3.46.1 and v3.51.0 both record that failure,
+     and the existing foreign-hook test does not reach it because its hook sits
+     in a separate `Bash` group. */
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-dg-'));
+  try {
+    const home = join(dir, 'home');
+    mkdirSync(join(home, '.claude'), { recursive: true });
+    const settingsPath = join(home, '.claude', 'settings.json');
+    const neighbour = { type: 'command', command: 'some-other-tool watch --pre' };
+    writeFileSync(settingsPath, JSON.stringify({ hooks: { PreToolUse: [] } }, null, 2) + '\n');
+
+    const script = `
+      import { installDelegationGuardHook, removeDelegationGuardHook } from ${JSON.stringify(new URL('../src/installer.js', import.meta.url).href)};
+      const { readFileSync, writeFileSync } = await import('node:fs');
+      const { homedir } = await import('node:os');
+      const { join } = await import('node:path');
+      const settingsPath = join(homedir(), '.claude', 'settings.json');
+      installDelegationGuardHook();
+      // Put the neighbour into the group Claude Code would have merged it into:
+      // the same matcher, alongside ours.
+      const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
+      settings.hooks.PreToolUse[0].hooks.push(${JSON.stringify(neighbour)});
+      writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\\n');
+      const res = removeDelegationGuardHook();
+      console.log(JSON.stringify([res.action, JSON.parse(readFileSync(settingsPath, 'utf8')).hooks.PreToolUse]));
+    `;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+    });
+    assert.equal(run.status, 0, run.stderr);
+    const [action, remaining] = JSON.parse(run.stdout.trim());
+    assert.equal(action, 'removed');
+    assert.equal(remaining.length, 1, 'the group stays, because it still carries their hook');
+    assert.deepEqual(remaining[0].hooks, [neighbour], "only our entry goes, not the whole group");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('buildAppendix: an English prompt naming the language gets the Korean guidance', async () => {
+  /* The two original signals were Hangul in the prompt and a `.ko.` target, so
+     "write the release note in Korean" — English prose, Korean deliverable, no
+     marked filename — fell through. koreanStyleEnabled still gates the section,
+     which is what keeps this widening cheap. */
+  const cfg = { delegate: { enabled: true }, koreanStyle: { enabled: true } };
+  const appendix = await buildAppendix(
+    { tool_name: 'Task', tool_input: { prompt: 'Write the release note in Korean, three lines' } },
+    { cfg, home: EMPTY_HOME },
+  );
+  assert.match(appendix, /## Korean style guidance/);
 });

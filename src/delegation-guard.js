@@ -127,8 +127,21 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
   // still ask for Korean output, and this repository keeps `.ko.md` documents
   // beside their English originals, so that ask is routine rather than rare.
   // Compatibility jamo (ㄱ-ㅎ, ㅏ-ㅣ) are Korean too and live outside 가-힣.
+  // A third signal for an English instruction that names the language, and it
+  // has to be `in Korean` rather than the bare word. The bare word was tried
+  // first and an existing test caught it immediately: "Investigate the failing
+  // build, no Korean here" matched, and at ~7,000 tokens a false positive here
+  // is expensive. `in Korean` asks for Korean output, while `from Korean` or
+  // `no Korean here` does not.
+  //
+  // This does not close the gap entirely. An English prompt naming a file that
+  // merely happens to hold Korean, as this repository's CHANGELOG.md does, says
+  // nothing a prompt-level test can see, and guessing from paths would be
+  // repository-specific.
   const wantsKorean = typeof prompt === 'string'
-    && (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(prompt) || /\.ko\.[a-z]+\b/i.test(prompt));
+    && (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(prompt)
+      || /\.ko\.[a-z]+\b/i.test(prompt)
+      || /\bin korean\b/i.test(prompt));
   if (wantsKorean) {
     // Deliberately attached to haiku delegations too, though the ratio is
     // poor: measured on this repository, this section is 6,390 of the

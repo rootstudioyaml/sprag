@@ -40,9 +40,9 @@ Opt-in, default off. `sprag delegate on` registers a PreToolUse hook on `Task`/`
 | Section | Condition |
 |---|---|
 | Bounds and output shape | Always, whenever `presets/delegation/bounds.md` is present (it ships with the package) |
-| Korean style guidance | The prompt contains Hangul or names a `.ko.*` target, **and** `korean` is on — off skips this section even for a Korean prompt |
+| Korean style guidance | The prompt contains Hangul, names a `.ko.*` target, or says `in Korean`, **and** `korean` is on — off skips this section even for a Korean prompt |
 | Ratchet rules | `~/.claude/ratchet.md` exists **and** `~/.claude/CLAUDE.md` does not already `@`-import it |
-| Already-touched paths | The calling session's transcript tail has at least one `Read`/`Edit`/`Write`/`NotebookEdit`/`Grep`/`Glob` path inside the current working directory. Files only: a `Grep`/`Glob` argument that turns out to be a directory is dropped, since a directory offered as something to read costs the subagent one capped tool call. Paths holding control characters are dropped too — the list is one path per line inside a prompt |
+| Already-touched paths | The calling session's transcript tail has at least one `Read`/`Edit`/`MultiEdit`/`Write`/`NotebookEdit`/`Grep`/`Glob` path inside the current working directory. Files only: a `Grep`/`Glob` argument that turns out to be a directory is dropped, since a directory offered as something to read costs the subagent one capped tool call. Paths holding control characters are dropped too — the list is one path per line inside a prompt |
 
 The bounds section's tool-call cap depends on the target: 8 tool calls / 1,500 output tokens when `model` (or, absent that, `subagent_type`) matches `haiku`, otherwise 20 tool calls / 8,000 output tokens.
 
