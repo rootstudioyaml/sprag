@@ -38,7 +38,7 @@
  * outweigh the text many times over:
  *
  *   aws-summit-seoul.pptx   2.1MB of slide XML   ~540,429 tokens   23.8× the conversion
- *   우리은행이력서.docx      312KB of body XML    ~78,113 tokens    ~46× the conversion
+ *   사업계획서.docx        312KB of body XML    ~78,113 tokens    ~46× the conversion
  *
  * So the baseline for these formats is the body markup the converter read,
  * measured per file rather than assumed from a ratio. It is a real number for

@@ -363,8 +363,8 @@ test('the registered hook sets no timeout of its own', (t) => {
 
 test('a non-Latin file name survives into the cache path instead of becoming underscores', () => {
   const d = require('../src/doc2md.cjs');
-  const korean = basename(d.cachePathFor('/tmp/우리은행이력서(고주호).docx'));
-  assert.match(korean, /^우리은행이력서_고주호_\.docx\.[0-9a-f]{12}\.md$/);
+  const korean = basename(d.cachePathFor('/tmp/사업계획서(초안).docx'));
+  assert.match(korean, /^사업계획서_초안_\.docx\.[0-9a-f]{12}\.md$/);
 
   // Separators and other path-hostile characters are still replaced, and a run
   // of them collapses so the name stays readable.
