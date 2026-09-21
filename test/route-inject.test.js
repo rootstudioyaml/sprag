@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { routeHint } from '../src/route-inject.js';
+import { routeHint, sessionModelRank } from '../src/route-inject.js';
 import { ESCALATE_RE } from '../src/route-scan.js';
 
 const rules = [
@@ -145,4 +145,63 @@ test('English renders the same shape', () => {
   assert.match(out, /already approved/);
   assert.match(out, /cap haiku 8 tool calls \/ 1500 output tokens/);
   assert.match(out, /model fit/);
+});
+
+test('a tier the session cannot profit from is dropped from the hint', () => {
+  // The hint used to name both targets whatever the session ran on, so a Sonnet
+  // session read "delegate to model: sonnet when it spans multiple steps" — a
+  // delegation that saves nothing, stated as an approved rule.
+  const CHECK = '지금 실행 중인 버전이 뭔지 확인해줘';
+
+  const opus = hint(CHECK, { sessionRank: 2 });
+  assert.match(opus, /model: haiku/, 'an opus session keeps the cheap target');
+  assert.match(opus, /model: sonnet/, 'and the escalation target');
+
+  const sonnet = hint(CHECK, { sessionRank: 1 });
+  assert.ok(sonnet, 'a sonnet session still delegates downward');
+  assert.match(sonnet, /model: haiku/);
+  assert.doesNotMatch(sonnet, /sonnet/, 'but is never told to delegate to its own tier');
+  assert.doesNotMatch(sonnet, /상한 haiku/, 'and the cap drops with the tier it belonged to');
+
+  // Nothing is cheaper than the cheapest tier.
+  assert.equal(hint(CHECK, { sessionRank: 0 }), null);
+  // A category registered only at T1 has nothing left to say to a sonnet session.
+  const t1Only = rules.filter((r) => r.category === 'check' && r.tier === 'T1');
+  assert.equal(hint(CHECK, { rules: t1Only, sessionRank: 1 }), null);
+  assert.ok(hint(CHECK, { rules: t1Only, sessionRank: 2 }), 'an opus session still gets it');
+});
+
+test('an unknown session model filters nothing', () => {
+  // A gateway house alias names no Claude family, and modelRank() prices such a
+  // string as Sonnet. Letting that guess through would silence every T1 hint on
+  // a gateway, so it is reported as unknown and the hint stays as it was.
+  const env = { ANTHROPIC_MODEL: 'prod-large' };
+  assert.equal(sessionModelRank({ env, snapshot: null }), null);
+  assert.ok(hint('지금 실행 중인 버전이 뭔지 확인해줘', { sessionRank: null }));
+});
+
+test('the session model comes from the transcript before the shared snapshot', (t) => {
+  // last-caps.json is one file for the whole machine: with two sessions open,
+  // whichever ticked last decides what it says. The transcript is per-session.
+  const dir = mkdtempSync(join(tmpdir(), 'cts-transcript-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'session.jsonl');
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', timestamp: '2026-09-21T00:00:00Z' }),
+    JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5' } }),
+    JSON.stringify({ type: 'assistant', message: { model: '<synthetic>' } }),
+  ].join('\n') + '\n');
+
+  const snapshot = { model: 'Haiku 4.5', caps: null };
+  assert.equal(
+    sessionModelRank({ env: {}, transcriptPath: file, snapshot }), 2,
+    'the synthetic stub is skipped and the other session\'s snapshot ignored',
+  );
+  // With no transcript the snapshot is still better than nothing.
+  assert.equal(sessionModelRank({ env: {}, transcriptPath: null, snapshot }), 0);
+  assert.equal(sessionModelRank({ env: {}, transcriptPath: null, snapshot: null }), null);
+  // The gateway environment outranks the snapshot but not the transcript.
+  const env = { ANTHROPIC_MODEL: 'claude-sonnet-4-5' };
+  assert.equal(sessionModelRank({ env, transcriptPath: null, snapshot }), 1);
+  assert.equal(sessionModelRank({ env, transcriptPath: file, snapshot }), 2);
 });
