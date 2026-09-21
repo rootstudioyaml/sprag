@@ -90,7 +90,7 @@ function readUpdateChip() {
 // Subcommands this build knows how to run. Used only by the guard below.
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
-  'doc2md', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
+  'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
   'seed', 'litellm-budget', 'profile-map', 'feedback',
 ]);
 
@@ -245,6 +245,14 @@ async function main() {
   //   sprag doc2md on | off | <file> | --clean
   if (args[0] === 'doc2md') {
     return (await import('../src/commands/doc2md.js')).run({ args, hasFlag });
+  }
+
+  // Subcommand: delegate — rewrite Task/Agent delegation prompts so a
+  // subagent gets bounds, Korean guidance when the prompt needs it, and paths
+  // this session already read, instead of starting from nothing.
+  //   sprag delegate on | off | --hook
+  if (args[0] === 'delegate') {
+    return (await import('../src/commands/delegate.js')).run({ args, hasFlag });
   }
 
   // Subcommand: seed — register the bundled starter rules (model-fitting

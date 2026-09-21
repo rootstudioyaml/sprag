@@ -23,6 +23,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag korean lint scope all\|prose` | Check every text file, or documents only |
 | `sprag doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
 | `sprag doc2md <file>` | Convert one file by hand. Diagnostic: it prints the refusal reason instead of swallowing it |
+| `sprag delegate on\|off` | Append bounds, Korean guidance when it applies, and already-read paths to every Task/Agent delegation prompt |
 | `sprag mode ttl=5m\|1h\|auto` | Pin the cache TTL bucket. The default `auto` trusts the measured split, then falls back to gateway detection |
 | `sprag --version` | Print the installed version |
 | `sprag update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |

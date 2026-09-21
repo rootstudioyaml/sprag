@@ -602,6 +602,75 @@ export function removeDoc2mdHook() {
   return { path: file, action: 'removed' };
 }
 
+// Registers the PreToolUse hook that rewrites Task/Agent delegation prompts
+// (see delegation-guard.js for what it appends and why). Matches on both tool
+// names because Claude Code's own docs and its runtime disagree on which one
+// fires — cheaper to catch both than to find out which build is running.
+//
+// timeout: 10 — this hook only reads a transcript TAIL (256 KiB, brief.js's
+// convention) and two small preset files, nowhere near doc2md's markitdown
+// cold-import cost, so a short timeout is safe and catches a hung read fast.
+//
+// Installed by `delegate on`, removed by `delegate off`. Idempotent. Not part
+// of `installAll()` — this feature rewrites tool input on every delegation,
+// which is exactly the kind of silent-by-default behavior install.js's other
+// opt-in features (doc2md, korean, cohesion) avoid shipping without being asked.
+const DELEGATE_HOOK_COMMAND = `${CLI} delegate --hook`;
+
+export function installDelegateHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  let settings = {};
+  if (existsSync(file)) {
+    try {
+      settings = JSON.parse(readFileSync(file, 'utf8'));
+    } catch (e) {
+      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+    }
+  }
+
+  settings.hooks = settings.hooks || {};
+  if (settings.hooks.PreToolUse !== undefined && !Array.isArray(settings.hooks.PreToolUse)) {
+    return { path: file, action: 'skipped', reason: 'hooks.PreToolUse is not an array — fix settings.json manually' };
+  }
+  const list = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
+  const already = list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /delegate --hook(?!-)/.test(h.command)),
+  );
+  if (already) return { path: file, action: 'exists' };
+
+  list.push({
+    matcher: 'Task|Agent',
+    hooks: [{ type: 'command', command: DELEGATE_HOOK_COMMAND, timeout: 10 }],
+  });
+  settings.hooks.PreToolUse = list;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'created' };
+}
+
+export function removeDelegateHook() {
+  const file = join(claudeUserDir(), 'settings.json');
+  if (!existsSync(file)) return { path: file, action: 'absent' };
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (e) {
+    return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
+  }
+  const list = settings?.hooks?.PreToolUse;
+  if (!Array.isArray(list)) return { path: file, action: 'absent' };
+  const kept = list.filter((m) =>
+    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /delegate --hook(?!-)/.test(h.command))),
+  );
+  if (kept.length === list.length) return { path: file, action: 'absent' };
+  if (kept.length === 0) delete settings.hooks.PreToolUse;
+  else settings.hooks.PreToolUse = kept;
+  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  return { path: file, action: 'removed' };
+}
+
 /**
  * Undo what `install` did: every hook this tool registered, the statusline
  * entry when it is still ours, and the skill file.
