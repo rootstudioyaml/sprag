@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { childEnv } from './helpers/child-env.js';
 
 const CLI = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'cli.js');
 
@@ -17,7 +18,9 @@ const CLI = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'cli.js')
 function sandbox({ language, candidates }) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-i18n-'));
   const cfgDir = join(dir, 'claude-token-saver');
+  const home = join(dir, 'home');
   mkdirSync(cfgDir, { recursive: true });
+  mkdirSync(join(home, '.claude'), { recursive: true });
   if (language) writeFileSync(join(cfgDir, 'config.json'), JSON.stringify({ language }));
   writeFileSync(join(cfgDir, 'route-scan.json'), JSON.stringify({
     scannedAt: new Date().toISOString(),
@@ -30,7 +33,7 @@ function sandbox({ language, candidates }) {
     // the cache instead of kicking a rescan mid-test.
     scannedBytes: Number.MAX_SAFE_INTEGER,
   }));
-  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return { dir, home, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
 const MODERN = {
@@ -56,9 +59,9 @@ const LEGACY = { ...MODERN, id: 2, signature: 'T2|read|proj', category: 'read', 
 delete LEGACY.labelEn;
 delete LEGACY.ruleEn;
 
-function run(args, dir) {
+function run(args, dir, home) {
   return execFileSync(process.execPath, [CLI, ...args], {
-    env: { ...process.env, XDG_CONFIG_HOME: dir, NO_COLOR: '1' },
+    env: childEnv({ HOME: home, XDG_CONFIG_HOME: dir, NO_COLOR: '1' }),
     input: JSON.stringify({ session_id: 'test-session' }),
     encoding: 'utf8',
   });
@@ -67,9 +70,9 @@ function run(args, dir) {
 const HANGUL = /[가-힣]/;
 
 test('the SessionStart hook briefing is English for an English user', () => {
-  const { dir, cleanup } = sandbox({ language: 'en', candidates: [MODERN] });
+  const { dir, home, cleanup } = sandbox({ language: 'en', candidates: [MODERN] });
   try {
-    const out = run(['route-scan', '--hook'], dir);
+    const out = run(['route-scan', '--hook'], dir, home);
     assert.match(out, /Candidate R1/);
     assert.match(out, /status checks \/ verification/);
     assert.match(out, /haiku-explore/);
@@ -80,9 +83,9 @@ test('the SessionStart hook briefing is English for an English user', () => {
 });
 
 test('the SessionStart hook briefing stays Korean for a Korean user', () => {
-  const { dir, cleanup } = sandbox({ language: 'ko', candidates: [MODERN] });
+  const { dir, home, cleanup } = sandbox({ language: 'ko', candidates: [MODERN] });
   try {
-    const out = run(['route-scan', '--hook'], dir);
+    const out = run(['route-scan', '--hook'], dir, home);
     assert.match(out, /후보 R1/);
     assert.match(out, /상태 확인·검증/);
   } finally {
@@ -91,10 +94,10 @@ test('the SessionStart hook briefing stays Korean for a Korean user', () => {
 });
 
 test('English default falls back to the Korean label for pre-i18n cache entries', () => {
-  const { dir, cleanup } = sandbox({ language: null, candidates: [LEGACY] });
+  const { dir, home, cleanup } = sandbox({ language: null, candidates: [LEGACY] });
   try {
     // No `language` key at all — userLanguage() defaults to English.
-    const out = run(['route-scan', '--hook'], dir);
+    const out = run(['route-scan', '--hook'], dir, home);
     assert.match(out, /Candidate R2/, 'English scaffolding still applies');
     assert.match(out, /읽기·요약·설명/, 'the stale label is shown rather than dropped');
   } finally {
@@ -106,12 +109,12 @@ test('route-scan listing renders candidates in the configured language', () => {
   const en = sandbox({ language: 'en', candidates: [MODERN] });
   const ko = sandbox({ language: 'ko', candidates: [MODERN] });
   try {
-    const outEn = run(['route-scan'], en.dir);
+    const outEn = run(['route-scan'], en.dir, en.home);
     assert.match(outEn, /Delegation candidates/);
     assert.match(outEn, /status checks \/ verification/);
     assert.doesNotMatch(outEn, HANGUL);
 
-    const outKo = run(['route-scan'], ko.dir);
+    const outKo = run(['route-scan'], ko.dir, ko.home);
     assert.match(outKo, /위임 후보/);
     assert.match(outKo, /상태 확인·검증/);
   } finally {

@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { extractEffort } from '../src/stdin-payload.js';
 import { formatReport, formatNoSession } from '../src/formatters/statusline.js';
 import { effortTones } from '../src/effort-palette.js';
+import { childEnv } from './helpers/child-env.js';
 
 /** The same resolution the formatter does at import time. */
 const PALETTE = effortTones({
@@ -211,14 +212,12 @@ function homeWithSession() {
 
 function renderStatusline(home, payload) {
   return execFileSync(process.execPath, [CLI, '--statusline', '--no-color'], {
-    env: {
-      ...process.env,
+    env: childEnv({
       HOME: home,
-      USERPROFILE: home,
       XDG_CONFIG_HOME: join(home, 'cfg'),
       APPDATA: join(home, 'cfg'),
       NO_COLOR: '1',
-    },
+    }),
     input: JSON.stringify(payload),
     encoding: 'utf8',
   });

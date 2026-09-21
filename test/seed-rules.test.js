@@ -11,6 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { childEnv } from './helpers/child-env.js';
 import { fileURLToPath } from 'node:url';
 import { CLI_NAME } from '../src/cli-name.js';
 
@@ -24,14 +25,12 @@ function sandbox(lang = 'en') {
   mkdirSync(join(home, '.claude'), { recursive: true });
   mkdirSync(join(state, 'claude-token-saver'), { recursive: true });
   writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: lang }) + '\n');
-  const env = {
-    ...process.env,
+  const env = childEnv({
     HOME: home,
-    USERPROFILE: home,
     XDG_CONFIG_HOME: state,
     APPDATA: state,
     NO_COLOR: '1',
-  };
+  });
   const run = (...args) => execFileSync(process.execPath, [CLI, ...args], { env, encoding: 'utf8', timeout: 120_000 });
   return { dir, home, env, run };
 }

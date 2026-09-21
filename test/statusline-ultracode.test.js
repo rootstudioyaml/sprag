@@ -22,6 +22,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { childEnv } from './helpers/child-env.js';
 import { ultracodeFromTranscript, effortChipLevel } from '../src/ultracode.js';
 import { extractTranscriptPath } from '../src/stdin-payload.js';
 import { formatReport } from '../src/formatters/statusline.js';
@@ -287,14 +288,12 @@ function home({ withSession }) {
 
 function render(dir, payload) {
   return strip(execFileSync(process.execPath, [CLI, '--statusline', '--no-color'], {
-    env: {
-      ...process.env,
+    env: childEnv({
       HOME: dir,
-      USERPROFILE: dir,
       XDG_CONFIG_HOME: join(dir, 'cfg'),
       APPDATA: join(dir, 'cfg'),
       NO_COLOR: '1',
-    },
+    }),
     input: JSON.stringify(payload),
     encoding: 'utf8',
   }));

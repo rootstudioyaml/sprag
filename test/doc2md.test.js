@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, statSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { childEnv } from './helpers/child-env.js';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { basename, join } from 'node:path';
@@ -236,7 +237,7 @@ test('the install/remove pair touches only its own PreToolUse entry', (t) => {
   `;
   const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
     encoding: 'utf8',
-    env: { ...process.env, HOME: home, USERPROFILE: home },
+    env: childEnv({ HOME: home }),
   });
   assert.equal(run.status, 0, run.stderr);
   const [created, again, events, matchers, removed, absent] = JSON.parse(run.stdout.trim().split('\n').pop());
@@ -349,7 +350,7 @@ test('the registered hook sets no timeout of its own', (t) => {
   `;
   const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
     encoding: 'utf8',
-    env: { ...process.env, HOME: home, USERPROFILE: home },
+    env: childEnv({ HOME: home }),
   });
   assert.equal(run.status, 0, run.stderr);
   const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
