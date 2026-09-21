@@ -386,3 +386,26 @@ test('an English heading does not split the body', () => {
   assert.deepEqual(releaseHighlights(body, 'en'), ['One.', 'Two.']);
   assert.deepEqual(releaseHighlights(body, 'ko'), ['One.', 'Two.']);
 });
+
+test('the notes request goes to this repository only, and only for a version', async (t) => {
+  const { fetchHighlights } = await import('../src/update-check.js');
+  const prevFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    return { ok: true, status: 200, json: async () => ({ body: '- Something new.' }) };
+  };
+  t.after(() => { globalThis.fetch = prevFetch; });
+
+  assert.equal((await fetchHighlights('9.9.9')).length, 1, 'a real version is fetched and read');
+  assert.deepEqual(urls, ['https://api.github.com/repos/rootstudioyaml/sprag/releases/tags/v9.9.9']);
+
+  // The version arrives inside a registry response rather than from this
+  // process, so a value that tries to steer the URL has to lose the request
+  // instead of moving it. The notice itself survives: no highlights is an
+  // answer this function already gives for a missing release or a rate limit.
+  for (const bogus of ['../../../../evil', 'https://evil.example/x', '9.9.9/../../users', '9.9.9?x=y']) {
+    assert.deepEqual(await fetchHighlights(bogus), [], `${bogus} must not be requested`);
+  }
+  assert.equal(urls.length, 1, 'and no second request was made');
+});

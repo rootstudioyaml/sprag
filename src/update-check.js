@@ -267,15 +267,50 @@ export function releaseHighlights(body, lang = 'en') {
 }
 
 /**
+ * The releases endpoint for one version, or a throw.
+ *
+ * The version that arrives here came out of a registry response rather than out
+ * of this process, so it is checked rather than trusted: a value carrying a
+ * slash or a scheme would otherwise have a say in which URL this function
+ * requests. Two checks are needed, because either one alone leaves a gap. The
+ * shape test rejects anything that is not a version, and the prefix test runs
+ * against the parsed URL rather than against the string it was built from,
+ * because `new URL` has collapsed `../` segments by that point and the same
+ * test on the raw string would pass a value that walks back out of the path.
+ * The origin is a constant either way, so no input can move the request to
+ * another host; this states that guarantee in code instead of leaving it
+ * implied.
+ */
+function releaseTagUrl(version) {
+  const tag = String(version);
+  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(tag)) {
+    throw new Error(`refusing to request notes for ${JSON.stringify(tag)}: not a version`);
+  }
+  const url = new URL(`${RELEASES_API}/v${tag}`);
+  if (!url.href.startsWith(`${RELEASES_API}/`)) {
+    throw new Error(`refusing to request ${url.href}: outside ${RELEASES_API}`);
+  }
+  return url;
+}
+
+/**
  * Fetch the highlights for one version. Returns [] on any failure: the notice
  * is worth showing with a bare version number, so a missing release, a rate
- * limit, or an offline machine must not cost the user the notice itself.
+ * limit, or an offline machine must not cost the user the notice itself. A
+ * version that fails the endpoint check above lands in that same place: no
+ * highlights, and the notice still goes out.
  */
 export async function fetchHighlights(version, { timeoutMs = FETCH_TIMEOUT_MS, lang = 'en' } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${RELEASES_API}/v${version}`, {
+    const endpoint = releaseTagUrl(version);
+    // The URL is this module's own constant plus a checked version. The
+    // scanner's node_ssrf heuristic reads any two-argument function as an HTTP
+    // handler and its first argument as request input, which is what it matched
+    // on here; this module serves nothing and has no request to read.
+    // nosemgrep: rules.lgpl.nodejs_scan.javascript-ssrf-rule-node_ssrf
+    const res = await fetch(endpoint, {
       signal: controller.signal,
       headers: { accept: 'application/vnd.github+json' },
     });
