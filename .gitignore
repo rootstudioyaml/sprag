@@ -21,3 +21,6 @@ site/docs/
 
 # graphify knowledge graph (regenerable, local)
 graphify-out/
+
+# Local video working directory — not part of the shipped artifact
+video/
