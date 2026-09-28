@@ -275,6 +275,20 @@ test('document paths are picked out of prompt text in every form users write the
   // and simply reported no documents on that platform.
   const win = d.documentPathsIn('C:\\Users\\me\\기획서.pptx 와 \\\\nas\\team\\보고서.docx 확인');
   assert.equal(win.length, 2, JSON.stringify(win));
+  // Korean attaches a particle straight to the path, and a path in brackets
+  // ends at the bracket. A whitelist of what may follow the extension once
+  // dropped both, so every Korean prompt like this one converted nothing.
+  const ko = d.documentPathsIn('~/docs/deck.pptx를 요약하고 (./rel/e.pdf) 와 경로:./rel/f.xlsx 도 봐줘');
+  const koEnds = (suffix) => ko.some((p) => p.split(/[\\/]/).slice(-2).join('/') === suffix);
+  assert.ok(koEnds('docs/deck.pptx'), 'a particle after the extension');
+  assert.ok(koEnds('rel/e.pdf'), 'a path inside brackets');
+  assert.ok(koEnds('rel/f.xlsx'), 'a path glued to the word before it');
+  assert.ok(!ko.some((p) => /[()를]/.test(p)), `no bracket or particle in a path: ${JSON.stringify(ko)}`);
+  // A bare name needs no leading `./`, but a longer extension is not ours and a
+  // URL is not a local file.
+  const bare = d.documentPathsIn('read book.pdf first', tmpdir());
+  assert.ok(bare.some((p) => basename(p) === 'book.pdf'), JSON.stringify(bare));
+  assert.deepEqual(d.documentPathsIn('open notes.pdfx and https://example.com/a.pdf'), []);
   // Nothing to convert means nothing to say.
   assert.deepEqual(d.documentPathsIn('fix the README and run the tests'), []);
   assert.deepEqual(d.documentPathsIn(null), []);
