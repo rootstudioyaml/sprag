@@ -26,8 +26,10 @@ function sandbox(t, { codex = false } = {}) {
   if (codex) mkdirSync(join(home, '.codex'), { recursive: true });
   const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'ko',
     ...(codex ? { CODEX_HOME: join(home, '.codex') } : {}) });
+  // stdin is closed unless a payload is passed: an open pipe with no writer
+  // would leave any child that reads stdin waiting forever.
   const run = (args, input) => execFileSync(process.execPath, [CLI, ...args], {
-    env, encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'pipe'], timeout: 120_000 });
+    env, encoding: 'utf8', input, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'], timeout: 120_000 });
   return { dir, home, run };
 }
 

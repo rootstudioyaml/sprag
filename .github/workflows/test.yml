@@ -5,12 +5,21 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push supersedes the run before it. Cancelling a stuck run needs a
+# write to api.github.com, which some networks block; this way a push is enough.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     # The tool reads Claude Code transcripts and writes user-level config, so
     # the cross-platform path handling (XDG / APPDATA / Application Support)
     # is exactly what a single-OS run would fail to catch.
     runs-on: ${{ matrix.os }}
+    # The suite takes a few minutes. Without a limit a hung child process holds
+    # a runner for the six-hour default, and its log stays unreadable until then.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -37,6 +46,7 @@ jobs:
   # company rollout hits first.
   doc2md:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
