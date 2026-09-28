@@ -1,7 +1,7 @@
 {
   "name": "sprag-cli",
   "version": "3.53.0",
-  "description": "Sprag - a quality ratchet harness for AI coding agents: model-fitting delegation, ratchet rules, doc2md, Korean style gate. Same tool as claude-token-saver, under its new name.",
+  "description": "Sprag - a local harness for Claude Code and Codex: ratchet rules, model delegation, token telemetry, companion panels, document conversion, and Korean writing checks.",
   "type": "module",
   "bin": {
     "sprag": "bin/cli.js",
@@ -23,6 +23,8 @@
     "examples/",
     "README.md",
     "README.ko.md",
+    "docs/CODEX.md",
+    "docs/CODEX.ko.md",
     "LICENSE",
     "NOTICE"
   ],
@@ -36,6 +38,9 @@
     "ai-agent",
     "claude",
     "claude-code",
+    "codex",
+    "openai-codex",
+    "agents-md",
     "anthropic",
     "model-routing",
     "llm-router",
@@ -63,5 +68,8 @@
   "bugs": {
     "url": "https://github.com/rootstudioyaml/sprag/issues"
   },
-  "author": "DeepPulse (https://www.youtube.com/@DeepPulseKR)"
+  "author": "DeepPulse (https://www.youtube.com/@DeepPulseKR)",
+  "dependencies": {
+    "smol-toml": "^1.9.0"
+  }
 }

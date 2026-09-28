@@ -13,19 +13,20 @@
  * flag rather than let a default decide where a rule lands.
  */
 
-export async function run({ args, hasFlag }) {
+export async function run({ args, hasFlag, agent = 'claude', root: rootArg }) {
   const sub = args[1];
   const seed = await import('../seed-rules.js');
   const { userLanguage } = await import('../config.js');
   const { findProjectRoot } = await import('../harness.js');
   const lang = userLanguage();
   const ko = lang === 'ko';
-  const root = findProjectRoot();
+  const root = rootArg || findProjectRoot(process.cwd(), { agent });
+  const suffix = agent === 'codex' ? ' --agent codex' : '';
 
   const scopeFlag = () => (hasFlag('--global') ? 'global' : hasFlag('--project') ? 'project' : null);
 
   if (sub === 'reset') {
-    const n = seed.resetSeeds();
+    const n = seed.resetSeeds({ agent });
     console.log(ko
       ? `기록된 응답 ${n}건을 지웠습니다 — 프리셋 전체가 다시 제안 대상이 됩니다.`
       : `Cleared ${n} recorded answer(s) — every preset is pending again.`);
@@ -40,12 +41,12 @@ export async function run({ args, hasFlag }) {
         : 'Pass an id (list them with `sprag seed`), or `all`.');
       process.exit(1);
     }
-    const pending = seed.pendingSeeds({ lang, root });
+    const pending = seed.pendingSeeds({ lang, root, agent });
     const targets = ids.includes('all') ? pending.map((s) => s.id) : ids;
 
     if (sub === 'skip') {
       for (const id of targets) {
-        const r = seed.skipSeed(id, { lang, root });
+        const r = seed.skipSeed(id, { lang, root, agent });
         console.log(r
           ? (ko ? `건너뜀: ${id}` : `skipped: ${id}`)
           : (ko ? `대기 중인 프리셋이 아닙니다: ${id}` : `not a pending preset: ${id}`));
@@ -61,7 +62,7 @@ export async function run({ args, hasFlag }) {
       process.exit(1);
     }
     for (const id of targets) {
-      const r = await seed.acceptSeed(id, { scope, root, lang });
+      const r = await seed.acceptSeed(id, { scope, root, lang, agent });
       if (!r) {
         console.log(ko ? `대기 중인 프리셋이 아닙니다: ${id}` : `not a pending preset: ${id}`);
         continue;
@@ -77,8 +78,8 @@ export async function run({ args, hasFlag }) {
 
   // Default: status. Lists what is pending and what was already answered, so a
   // user who said no can see that they did and reverse it with `reset`.
-  const pending = seed.pendingSeeds({ lang, root });
-  const { decided } = seed.loadSeedState();
+  const pending = seed.pendingSeeds({ lang, root, agent });
+  const { decided } = seed.loadSeedState({ agent });
   const answered = Object.entries(decided);
   console.log(ko
     ? `seed — 동봉 프리셋 중 대기 ${pending.length}건, 응답 완료 ${answered.length}건`
@@ -99,7 +100,7 @@ export async function run({ args, hasFlag }) {
   if (pending.length > 0) {
     console.log('');
     console.log(ko
-      ? '등록: sprag seed accept <id> --global|--project   ·   거절: seed skip <id>'
-      : 'register: sprag seed accept <id> --global|--project   ·   decline: seed skip <id>');
+      ? `등록: sprag seed accept <id> --global|--project${suffix}   ·   거절: seed skip <id>${suffix}`
+      : `register: sprag seed accept <id> --global|--project${suffix}   ·   decline: seed skip <id>${suffix}`);
   }
 }

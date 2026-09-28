@@ -57,8 +57,13 @@ import { chipForIssues } from '../src/advice.js';
 import { debug } from '../src/debug.js';
 import { createArgs } from '../src/cli-args.js';
 import { updateStatus, maybeSpawnUpdateCheck } from '../src/update-check.js';
+import { selectAgent } from '../src/agent.js';
 
-const args = process.argv.slice(2);
+const selection = (() => {
+  try { return selectAgent(process.argv.slice(2)); }
+  catch (e) { console.error(`Error: ${e.message}`); process.exit(1); }
+})();
+const { args, agent } = selection;
 
 const PKG_VERSION = (() => {
   try {
@@ -94,7 +99,7 @@ const KNOWN_SUBCOMMANDS = new Set([
   'seed', 'litellm-budget', 'profile-map', 'feedback',
 ]);
 
-const USAGE = `sprag — Claude Code token usage, cache health, and model routing
+const USAGE = `sprag — Claude Code and Codex agent harness
 
 Usage:
   sprag                    default report (last 30 days)
@@ -102,6 +107,20 @@ Usage:
   sprag --format json      JSON output
   sprag --format csv       CSV output
   sprag --project myproj   filter by project
+  sprag --agent codex      Codex token report (table/json/csv)
+  sprag --statusline --agent codex   one-shot compact terminal status
+  sprag doctor --agent codex   diagnose hooks, config, harness, and session logs
+  sprag capabilities --agent codex   full support matrix and limitations
+  sprag panel --agent codex   live companion panel in a separate terminal
+  sprag panel auto on --agent codex   open panel on Codex startup/resume (macOS)
+  sprag panel --open --agent codex   open/reuse a macOS Terminal panel now
+  sprag panel run --agent codex --  run Codex above a compact panel (tmux)
+  sprag panel doctor --agent codex   check registration, hook execution, and rendering
+      --project <path> / --session <id> / --interval 2 / --once / --no-color
+  sprag install --agent codex   install Codex hooks + AGENTS.md harness
+  sprag harness init --agent codex   initialize this project's Codex harness
+  sprag uninstall --agent codex   remove the global Codex integration
+      --agent claude|codex (default: claude; accepted before or after subcommands)
   sprag route-scan         detect recurring easy work → delegation candidates
   sprag profile-map        show/refresh the gateway model map (LiteLLM /model/info)
   sprag install            set up skill/hooks/statusline
@@ -124,6 +143,10 @@ Bug reports & feature requests: https://github.com/rootstudioyaml/sprag/issues
 `;
 
 async function main() {
+  if (agent === 'codex') {
+    if (hasFlag('--version') || hasFlag('-v')) { console.log(PKG_VERSION); return; }
+    return (await import('../src/commands/codex.js')).run({ args, version: PKG_VERSION });
+  }
   // Help must never fall through to the default report — that runs a full
   // 30-day scan, which is the opposite of what someone asking for help wants.
   if (hasFlag('--help') || hasFlag('-h') || args[0] === 'help') {
@@ -842,7 +865,7 @@ async function main() {
 
 main().catch((err) => {
   // Statusline mode must never spam multi-line errors (called every ~300ms)
-  const isStatusline = process.argv.includes('--statusline') || process.argv.includes('statusline');
+  const isStatusline = agent === 'claude' && (process.argv.includes('--statusline') || process.argv.includes('statusline'));
   if (isStatusline) {
     const colorOk = !process.argv.includes('--no-color') && !process.env.NO_COLOR;
     const red = colorOk ? '\x1b[31m' : '';

@@ -182,7 +182,7 @@ function banner(sourcePath, saving) {
   return lines.join('\n');
 }
 
-function writeCache(filePath, markdown, extra) {
+function writeCache(filePath, markdown, extra, { agent } = {}) {
   ensureCacheDir();
   const cacheFile = cachePathFor(filePath);
   const src = fs.statSync(filePath);
@@ -197,7 +197,7 @@ function writeCache(filePath, markdown, extra) {
     { markdown },
   );
   fs.writeFileSync(cacheFile, banner(filePath, saving) + markdown, { encoding: 'utf8', mode: 0o600 });
-  ledger.recordConversion(userDataDir(), {
+  if (agent !== 'codex') ledger.recordConversion(userDataDir(), {
     key: path.resolve(filePath),
     ts: Date.now(),
     usd: saving.usd,
@@ -447,7 +447,7 @@ function spawnFigConvert(fig2md, filePath) {
   }
 }
 
-function convert(filePath, { converter = CONVERTER, python: pythonOverride = null } = {}) {
+function convert(filePath, { converter = CONVERTER, python: pythonOverride = null, agent } = {}) {
   if (!isTargetPath(filePath)) return { ok: false, reason: 'not-target' };
   if (isSensitivePath(filePath)) return { ok: false, reason: 'sensitive' };
 
@@ -478,7 +478,7 @@ function convert(filePath, { converter = CONVERTER, python: pythonOverride = nul
     if (!result.ok) return result;
     const written = writeCache(filePath, result.markdown, {
       note: result.note, truncated: false, rows: 0, pages: 0, markupBytes: 0,
-    });
+    }, { agent });
     return { ok: true, cached: false, cacheFile: written.cacheFile, meta: written.meta };
   }
 
@@ -537,7 +537,7 @@ function convert(filePath, { converter = CONVERTER, python: pythonOverride = nul
     pages: payload.pages || 0,
     markupBytes: payload.markup_bytes || 0,
     clipped,
-  });
+  }, { agent });
   return { ok: true, cached: false, cacheFile: written.cacheFile, meta: written.meta };
 }
 
@@ -763,18 +763,19 @@ function decideForRead(context, opts = {}) {
  * Quoted, `@`-prefixed and bare paths all count. Windows drive letters are
  * matched too, since the rest of the module is path-agnostic.
  */
-function documentPathsIn(text) {
+function documentPathsIn(text, cwd = process.cwd()) {
   if (typeof text !== 'string' || !text) return [];
   const exts = TARGET_EXTENSIONS.map((e) => e.slice(1)).join('|');
   // Backslashes count as path characters, not just separators to tolerate:
   // `C:\\Users\\me\\deck.pptx` and `\\\\server\\share\\deck.pptx` are how
   // Windows users write a path, and without them the scanner silently sees no
   // documents at all on that platform.
-  const re = new RegExp(`[@'"\`]?((?:[A-Za-z]:)?[~./\\\\][^\\s'"\`]*\\.(?:${exts}))`, 'gi');
+  const re = new RegExp(`(?:["\'\x60]([^"\'\x60]+\\.(?:${exts}))["\'\x60]|(?:^|[\\s@])((?:[A-Za-z]:)?[^\\s'"\x60]+\\.(?:${exts})))(?=$|[\\s,.;:!?])`, 'gi');
   const found = [];
   for (const m of text.matchAll(re)) {
-    const raw = m[1];
-    const abs = raw.startsWith('~') ? path.join(os.homedir(), raw.slice(1)) : path.resolve(raw);
+    const raw = m[1] || m[2];
+    if (/^[a-z]+:\/\//i.test(raw)) continue;
+    const abs = raw.startsWith('~') ? path.join(os.homedir(), raw.slice(1)) : path.resolve(cwd, raw);
     if (!found.includes(abs)) found.push(abs);
   }
   return found;
@@ -812,25 +813,30 @@ function conversionSummary(sourcePath, meta = {}) {
 function contextForPrompt(payload, opts = {}) {
   const lang = opts.lang === 'ko' ? 'ko' : 'en';
   if (!payload || typeof payload.prompt !== 'string') return null;
-  const paths = documentPathsIn(payload.prompt).filter((p) => {
+  const paths = documentPathsIn(payload.prompt, payload.cwd || process.cwd()).filter((p) => {
     try { return fs.statSync(p).isFile(); } catch { return false; }
   });
   if (paths.length === 0) return null;
 
   const lines = [];
   const targets = paths.slice(0, MAX_PROMPT_CONVERSIONS);
+  const { convert: convertFn = convert, ...convertOptions } = opts;
   for (const p of targets) {
     const name = path.basename(p);
-    const result = convert(p, opts);
+    const result = convertFn(p, convertOptions);
     if (result.ok) {
       lines.push(`  ${name} → ${result.cacheFile}`);
-      lines.push(`      ${conversionSummary(p, result.meta)}`);
+      lines.push(`      ${conversionSummary(p, opts.agent === 'codex' ? { ...result.meta, savedUsd: 0 } : result.meta)}`);
       if (result.meta && result.meta.note) lines.push(`      ${result.meta.note}`);
-      if (result.meta && result.meta.clipped) {
+      if (opts.agent === 'codex' && (result.meta?.clipped || result.meta?.truncated)) {
+        lines.push('      Text extraction is incomplete; inspect the source for omitted content.');
+      } else if (result.meta && result.meta.clipped) {
         lines.push('      변환 결과가 너무 커서 뒷부분을 잘랐습니다. 전체가 필요하면 원본을 직접 다루십시오.');
       }
     } else if (result.reason === 'no-markitdown') {
-      lines.push(lang === 'ko'
+      lines.push(opts.agent === 'codex'
+        ? `  ${name}: converter unavailable. Run sprag doc2md install-converter --agent codex, then retry.`
+        : lang === 'ko'
         ? `  ${name}: 변환기를 설치하는 중입니다(첫 실행에만 걸립니다). 설치가 끝나면 다음 요청부터 자동 변환됩니다.`
         : `  ${name}: the converter is installing now (first run only). It will convert automatically from the next request.`);
     } else if (result.reason === 'drm-protected') {
@@ -865,6 +871,12 @@ function contextForPrompt(payload, opts = {}) {
       : `  (converted the first ${targets.length} of ${paths.length} documents; run \`sprag doc2md <path>\` for the rest.)`);
   }
 
+  if (opts.agent === 'codex') return [
+    '[doc2md] Document conversion results:', ...lines,
+    'Read each successfully converted Markdown file instead of extracting the original document again.',
+    'Report conversion failures accurately. For successful conversions, mention the source and Markdown sizes.',
+    'For other documents, run sprag doc2md <path> --agent codex. Text extraction does not verify images or layout.',
+  ].join('\n');
   return lang === 'ko'
     ? [
       '[doc2md] 이 프롬프트에 문서 경로가 있어 Markdown 으로 변환해 두었습니다.',
@@ -919,12 +931,13 @@ function sessionNote(lang = 'en') {
  * .fig overwritten with text is destroyed, not edited. Nothing this tool
  * ships can write those formats back.
  */
-function decideForWrite(context) {
+function decideForWrite(context, opts = {}) {
   if (!context || (context.tool_name !== 'Edit' && context.tool_name !== 'Write')) return null;
   const toolInput = context.tool_input;
   const filePath = toolInput && typeof toolInput.file_path === 'string' ? toolInput.file_path : '';
   if (!filePath) return null;
   const abs = path.resolve(filePath);
+  const codex = opts.agent === 'codex';
 
   if (abs.startsWith(cacheDir() + path.sep)) {
     let source = null;
@@ -933,23 +946,36 @@ function decideForWrite(context) {
     } catch { /* the deny stands on its own */ }
     return {
       deny: true,
-      reason: '[doc2md] 이 파일은 변환 캐시입니다. 여기를 고쳐도 원본 문서에는 아무것도 반영되지 않고, '
-        + '캐시만 오염된 채 다음 읽기부터 계속 서빙됩니다.\n'
-        + (source ? `  원본: ${source}\n` : '')
-        + '  문서 수정이 목적이라면: 원본을 복사한 뒤(cp) 복사본을 스크립트로 수정하십시오. '
-        + `pptx·docx·xlsx 는 ${managedPython()} 에 python-pptx·python-docx·openpyxl 이 설치되어 있고, `
-        + '.fig 는 doc2md-fig 의 openfig-core 로 편집·재인코드할 수 있습니다. '
-        + '수정 후 복사본을 `sprag doc2md <복사본>` 으로 재변환해 의도한 변경이 들어갔는지 확인하십시오. 원본은 절대 직접 수정하지 마십시오.',
+      reason: codex
+        ? '[doc2md] This file is a conversion cache. Editing it changes nothing in the source document; '
+          + 'it only corrupts the cache, which keeps being served on every later read.\n'
+          + (source ? `  Source: ${source}\n` : '')
+          + '  To modify the document instead: copy the original, then edit the copy with a script. '
+          + `pptx/docx/xlsx have python-pptx/python-docx/openpyxl installed under ${managedPython()}, `
+          + "and .fig edits go through doc2md-fig's openfig-core. "
+          + 'After editing, reconvert the copy with `sprag doc2md <copy> --agent codex` to verify the change landed. Never edit the original directly.'
+        : '[doc2md] 이 파일은 변환 캐시입니다. 여기를 고쳐도 원본 문서에는 아무것도 반영되지 않고, '
+          + '캐시만 오염된 채 다음 읽기부터 계속 서빙됩니다.\n'
+          + (source ? `  원본: ${source}\n` : '')
+          + '  문서 수정이 목적이라면: 원본을 복사한 뒤(cp) 복사본을 스크립트로 수정하십시오. '
+          + `pptx·docx·xlsx 는 ${managedPython()} 에 python-pptx·python-docx·openpyxl 이 설치되어 있고, `
+          + '.fig 는 doc2md-fig 의 openfig-core 로 편집·재인코드할 수 있습니다. '
+          + '수정 후 복사본을 `sprag doc2md <복사본>` 으로 재변환해 의도한 변경이 들어갔는지 확인하십시오. 원본은 절대 직접 수정하지 마십시오.',
     };
   }
 
   if (isTargetPath(abs)) {
     return {
       deny: true,
-      reason: `[doc2md] ${path.basename(abs)} 는 이진 문서입니다. Edit/Write 는 텍스트를 쓰므로 이 파일을 파괴합니다. `
-        + '수정하려면 원본을 복사한 뒤(cp) 복사본을 스크립트로 고치십시오. '
-        + `pptx·docx·xlsx 는 ${managedPython()} 의 python-pptx·python-docx·openpyxl, .fig 는 openfig-core 를 쓰고, `
-        + '수정 후 `sprag doc2md <복사본>` 재변환으로 결과를 검증하십시오.',
+      reason: codex
+        ? `[doc2md] ${path.basename(abs)} is a binary document. Edit/Write emit text, so this call would destroy it. `
+          + 'To modify it, copy the original, then edit the copy with a script. '
+          + `pptx/docx/xlsx use python-pptx/python-docx/openpyxl under ${managedPython()}, and .fig uses openfig-core. `
+          + 'After editing, reconvert with `sprag doc2md <copy> --agent codex` to verify the change landed.'
+        : `[doc2md] ${path.basename(abs)} 는 이진 문서입니다. Edit/Write 는 텍스트를 쓰므로 이 파일을 파괴합니다. `
+          + '수정하려면 원본을 복사한 뒤(cp) 복사본을 스크립트로 고치십시오. '
+          + `pptx·docx·xlsx 는 ${managedPython()} 의 python-pptx·python-docx·openpyxl, .fig 는 openfig-core 를 쓰고, `
+          + '수정 후 `sprag doc2md <복사본>` 재변환으로 결과를 검증하십시오.',
     };
   }
   return null;

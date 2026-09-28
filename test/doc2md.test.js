@@ -512,7 +512,12 @@ test('writes to a conversion or an original document are refused with directions
   for (const tool of ['Edit', 'Write']) {
     const deny = d.decideForWrite({ tool_name: tool, tool_input: { file_path: src } });
     assert.equal(deny.deny, true);
+    assert.match(deny.reason, /[가-힣]/, 'Claude callers get Korean by default when no agent is passed');
   }
+  // An explicit Codex caller gets the same denial in English instead.
+  const codexDeny = d.decideForWrite({ tool_name: 'Write', tool_input: { file_path: src } }, { agent: 'codex' });
+  assert.equal(codexDeny.deny, true);
+  assert.doesNotMatch(codexDeny.reason, /[가-힣]/, 'a Codex caller must not receive Korean text');
   // Everything else passes through untouched, including Reads.
   assert.equal(d.decideForWrite({ tool_name: 'Write', tool_input: { file_path: join(dir, 'notes.md') } }), null);
   assert.equal(d.decideForWrite({ tool_name: 'Read', tool_input: { file_path: src } }), null);
