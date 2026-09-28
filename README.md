@@ -248,7 +248,7 @@ Behind a LiteLLM gateway, `sprag profile-map --refresh` now reads model aliases 
 
 The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headings and command names are language-neutral). Recent changes:
 
-- **Unreleased**: Codex integration adds native hooks, `AGENTS.md` harness rules, a session-bound companion panel, document conversion, diagnostics, and opt-in delegation. Codex usage accounting stays separate from Claude Code. See the [Codex guide](./docs/CODEX.md); this support is not yet published to npm.
+- **v3.54.0**: Codex integration adds native hooks, `AGENTS.md` harness rules, a session-bound companion panel, document conversion, diagnostics, and opt-in delegation. Codex usage accounting stays separate from Claude Code. See the [Codex guide](./docs/CODEX.md).
 - **v3.39.0**: `feedback` subcommand for filing bug reports and feature requests straight from the terminal or a Claude session, via the gh CLI, an anonymous no-login form (auto-filed as a GitHub issue by an Apps Script relay), or a local fallback. `install` now asks before replacing an existing statusline instead of silently skipping.
 - **v3.38.0**: `cohesion on` turns the language-neutral cohesion rules from the Korean supplement into a standalone English injection (given-before-new, one referent per pronoun, subject consistency, bridging, merging choppy sentences). Opt-in, ~0.5k tokens per session, suppressed while `korean on` already carries them.
 - **v3.37.0**: Korean guidance grows a conservative supplement (translationese, AI-writing tics, a research-backed cohesion section whose principles apply to English prose too) and the write-time lint gains 5 translationese patterns, validated at 1 false positive across 255 real files.
