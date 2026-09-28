@@ -40,6 +40,7 @@ export const SCRUBBED = [
   'CACHE_MONITOR_EXCLUDE_SESSION',
   'CI',
   'CLAUDE_CODE_AUTO_COMPACT_WINDOW',
+  'CODEX_HOME',
   'COLORTERM',
   'CTS_DEBUG',
   'CTS_DOC2MD_NO_AUTOINSTALL',
@@ -50,6 +51,7 @@ export const SCRUBBED = [
   'CTS_NO_INPUT',
   'CTS_NO_KOREAN',
   'CTS_NO_NOTE',
+  'CTS_NO_ROUTE_SCAN',
   'CTS_NO_UPDATE_CHECK',
   'GH_TOKEN',
   'GITHUB_TOKEN',
@@ -60,12 +62,17 @@ export const SCRUBBED = [
   'NO_COLOR',
   'NO_UPDATE_NOTIFIER',
   'NPM_TOKEN',
+  'SPRAG_CODEX_PANEL',
+  'SPRAG_CODEX_PANEL_BINDING',
   'SPRAG_ICON',
   'TERMINAL_EMULATOR',
+  'TMUX',
+  'TMUX_PANE',
   'UPLOAD_DEST',
   'UPLOAD_PORT',
   'UPLOAD_TOKEN',
   'XDG_CONFIG_HOME',
+  'ZDOTDIR',
 ];
 
 /**
@@ -98,6 +105,10 @@ export function childEnv(overrides = {}) {
      this, but stating it means a test that does hand the child a TTY cannot
      hang the suite. A caller that is testing the prompt itself overrides it. */
   env.CTS_NO_INPUT = '1';
+  /* Codex SessionStart kicks a detached route-scan when the scan cache is
+     stale, which in a test means a process outliving its temp directory.
+     A case testing that spawn overrides it. */
+  env.CTS_NO_ROUTE_SCAN = '1';
   /* Windows resolves the home through USERPROFILE, so a case that names only
      HOME means the same directory on both platforms. */
   env.USERPROFILE = overrides.HOME;

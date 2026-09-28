@@ -46,23 +46,25 @@ import {
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-export function seedStatePath() {
-  return join(userDataDir(), 'seed-state.json');
+// Codex answers are kept apart: saying no in one agent must not consume the
+// other agent's offer, and the two agents write to different ratchet files.
+export function seedStatePath({ agent = 'claude' } = {}) {
+  return join(userDataDir(), agent === 'codex' ? 'codex-seed-state.json' : 'seed-state.json');
 }
 
-export function loadSeedState() {
+export function loadSeedState(opts = {}) {
   try {
-    const data = JSON.parse(readFileSync(seedStatePath(), 'utf8'));
+    const data = JSON.parse(readFileSync(seedStatePath(opts), 'utf8'));
     return data && typeof data.decided === 'object' && data.decided ? data : { decided: {} };
   } catch {
     return { decided: {} };
   }
 }
 
-export function saveSeedState(state) {
+export function saveSeedState(state, opts = {}) {
   const dir = userDataDir();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(seedStatePath(), JSON.stringify(state, null, 2) + '\n');
+  writeFileSync(seedStatePath(opts), JSON.stringify(state, null, 2) + '\n');
 }
 
 /** Bundled tier-delegation presets (empty array when the file is unreadable). */
@@ -80,15 +82,19 @@ export function modelPresets() {
  * ids would renumber the moment a rule is inserted above them, silently moving
  * a user's "no" onto a different rule.
  */
-export function ratchetPresets(lang = userLanguage()) {
-  return presetRuleEntries().map((r) => ({
-    // Hashed from the Korean text in both languages: the id has to survive a
-    // reworded translation, or a user who declined a rule would be asked again
-    // the next time its English copy changes.
-    id: `fix-${createHash('sha1').update(r.ko).digest('hex').slice(0, 6)}`,
-    text: lang === 'ko' ? r.ko : r.en,
-    ko: r.ko,
-  }));
+export function ratchetPresets(lang = userLanguage(), { agent = 'claude' } = {}) {
+  return presetRuleEntries()
+    // A preset without `agents` applies everywhere; one naming Claude model
+    // tiers would only mislead a Codex session.
+    .filter((r) => !r.agents || r.agents.includes(agent))
+    .map((r) => ({
+      // Hashed from the Korean text in both languages: the id has to survive a
+      // reworded translation, or a user who declined a rule would be asked again
+      // the next time its English copy changes.
+      id: `fix-${createHash('sha1').update(r.ko).digest('hex').slice(0, 6)}`,
+      text: lang === 'ko' ? r.ko : r.en,
+      ko: r.ko,
+    }));
 }
 
 const stripDate = (t) => t.replace(/^\d{4}-\d{2}-\d{2}(\s*\([^)]*\))?:\s*/, '').trim();
@@ -102,9 +108,11 @@ const stripDate = (t) => t.replace(/^\d{4}-\d{2}-\d{2}(\s*\([^)]*\))?:\s*/, '').
  * whose own route-scan already promoted that shape does not need ours, and
  * offering it anyway would read as the tool failing to notice its own state.
  */
-export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot() } = {}) {
-  const { decided } = loadSeedState();
-  const registered = (() => {
+export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), agent = 'claude' } = {}) {
+  const { decided } = loadSeedState({ agent });
+  // Codex model routing comes from its own measured route-scan candidates;
+  // Claude tier presets name models Codex does not run.
+  const registered = agent === 'codex' ? [] : (() => {
     try {
       return loadModelRules().rules;
     } catch {
@@ -116,12 +124,12 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot() }
   const haveText = new Set();
   for (const scope of ['global', 'project']) {
     try {
-      for (const r of harnessListRules({ root, scope }).rules) haveText.add(stripDate(r.text));
+      for (const r of harnessListRules({ root, scope, agent }).rules) haveText.add(stripDate(r.text));
     } catch { /* a missing ratchet file just means nothing is registered yet */ }
   }
 
   const out = [];
-  for (const p of modelPresets()) {
+  for (const p of agent === 'codex' ? [] : modelPresets()) {
     if (decided[p.id]) continue;
     if (haveModel.has(`${p.tier}|${p.category}`)) continue;
     out.push({
@@ -134,7 +142,7 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot() }
       preset: p,
     });
   }
-  for (const p of ratchetPresets(lang)) {
+  for (const p of ratchetPresets(lang, { agent })) {
     if (decided[p.id]) continue;
     // Either language counts as already registered: `harness pull` may have
     // written the other one.
@@ -149,10 +157,10 @@ export function findSeed(id, opts = {}) {
   return pendingSeeds(opts).find((s) => s.id === id) || null;
 }
 
-function recordDecision(id, action, extra = {}) {
-  const state = loadSeedState();
+function recordDecision(id, action, extra = {}, { agent = 'claude' } = {}) {
+  const state = loadSeedState({ agent });
   state.decided[id] = { action, at: new Date().toISOString().slice(0, 10), ...extra };
-  saveSeedState(state);
+  saveSeedState(state, { agent });
 }
 
 /**
@@ -162,13 +170,15 @@ function recordDecision(id, action, extra = {}) {
  *
  * Returns { id, kind, scope, path?, rule } or null when the id is not pending.
  */
-export async function acceptSeed(id, { scope = 'global', root = findProjectRoot(), lang = userLanguage() } = {}) {
-  const seed = findSeed(id, { lang, root });
+export async function acceptSeed(id, { scope, root = findProjectRoot(), lang = userLanguage(), agent = 'claude' } = {}) {
+  // No default: a rule in the wrong scope is noise everywhere or missing where it mattered.
+  if (scope !== 'global' && scope !== 'project') throw new Error('acceptSeed needs an explicit scope: global or project');
+  const seed = findSeed(id, { lang, root, agent });
   if (!seed) return null;
 
   if (seed.kind === 'ratchet') {
-    const res = harnessPromote(seed.ruleText, { root, scope });
-    recordDecision(id, 'accepted', { scope });
+    const res = harnessPromote(seed.ruleText, { root, scope, agent });
+    recordDecision(id, 'accepted', { scope }, { agent });
     return { id, kind: 'ratchet', scope, path: res.path, rule: seed.ruleText };
   }
 
@@ -216,15 +226,15 @@ export async function acceptSeed(id, { scope = 'global', root = findProjectRoot(
 export function skipSeed(id, opts = {}) {
   const seed = findSeed(id, opts);
   if (!seed) return null;
-  recordDecision(id, 'skipped');
+  recordDecision(id, 'skipped', {}, { agent: opts.agent });
   return { id, kind: seed.kind, rule: seed.ruleText };
 }
 
 /** Forget every recorded answer — the full set becomes pending again. */
-export function resetSeeds() {
-  const state = loadSeedState();
+export function resetSeeds({ agent = 'claude' } = {}) {
+  const state = loadSeedState({ agent });
   const count = Object.keys(state.decided).length;
-  saveSeedState({ decided: {} });
+  saveSeedState({ decided: {} }, { agent });
   return count;
 }
 
@@ -236,9 +246,23 @@ export function resetSeeds() {
  * asked for, and because a single "register all of these?" question invites a
  * yes to rules the user never read.
  */
-export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot() } = {}) {
-  const pending = pendingSeeds({ lang, root });
+export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot(), agent = 'claude' } = {}) {
+  const pending = pendingSeeds({ lang, root, agent });
   if (pending.length === 0) return null;
+  if (agent === 'codex') {
+    // Codex hook text stays English; the rule text itself follows the user's language.
+    const cmd = (s) => `${CLI_NAME} seed ${s} --agent codex`;
+    return [
+      `[Sprag seed] ${pending.length} recommended Codex ratchet rule(s) from the bundled presets are not registered yet.`,
+      'Ask in your first reply, after answering any request the user opened with. Offer these choices in this order:',
+      `  1. Register all, globally: ${cmd('accept all --global')}`,
+      `  2. Register all, this project only: ${cmd('accept all --project')}`,
+      '  3. Decide one at a time: ask about each rule below and run its command as soon as they answer',
+      `  4. Register none: ${cmd('skip all')} (never offered again)`,
+      'Always confirm the scope with the user before running an accept command.',
+      ...pending.map((s) => `  [${s.id}] ${s.ruleText}`),
+    ].join('\n');
+  }
   const models = pending.filter((s) => s.kind === 'model');
   const fixes = pending.filter((s) => s.kind === 'ratchet');
   const lines = [];

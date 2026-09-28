@@ -21,9 +21,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - run: npm ci --ignore-scripts
       - run: npm test
-      # No dependencies to install — the smoke check just proves the CLI still
-      # boots and its subcommands parse on this platform.
+      # The smoke check proves the CLI boots and its subcommands parse.
       # Exercises every subcommand against an isolated home. The Windows
       # failures this project has shipped were all of this shape: a home
       # resolved from the wrong variable, a file:// URL used as a path, a
@@ -51,4 +51,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: npm ci --ignore-scripts
       - run: node scripts/verify-doc2md.mjs

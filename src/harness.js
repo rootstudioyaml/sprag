@@ -26,6 +26,7 @@ import { routeWarningForStatusline } from './route-scan.js';
 import { ruleHealthWarningForStatusline, modelRatchetPathFor, renderModelRatchet } from './model-rules.js';
 import { compactWindowWarningForStatusline } from './compact-window.js';
 import { userLanguage } from './config.js';
+import { codexUserDir } from './agent.js';
 
 const require = createRequire(import.meta.url);
 function readHarnessState() {
@@ -42,11 +43,13 @@ function readHarnessState() {
  * or package.json). Falls back to `start` itself so harness commands always
  * have *some* directory to write into, even outside a repo.
  */
-export function findProjectRoot(start = process.cwd()) {
+export function findProjectRoot(start = process.cwd(), { agent = 'claude' } = {}) {
   let dir = resolve(start);
   for (;;) {
     if (
-      existsSync(join(dir, 'CLAUDE.md')) ||
+      (agent === 'codex'
+        ? existsSync(join(dir, 'AGENTS.md')) || existsSync(join(dir, 'AGENTS.override.md'))
+        : existsSync(join(dir, 'CLAUDE.md'))) ||
       existsSync(join(dir, '.git')) ||
       existsSync(join(dir, 'package.json'))
     ) {
@@ -70,8 +73,13 @@ function globalRatchetMdPath() {
   return join(homedir(), '.claude', 'ratchet.md');
 }
 
-function resolveRatchetPath(scope, root) {
+function resolveRatchetPath(scope, root, agent = 'claude') {
+  if (agent === 'codex') return scope === 'global' ? join(codexUserDir(), 'ratchet.md') : join(root, '.codex', 'ratchet.md');
   return scope === 'global' ? globalRatchetMdPath() : ratchetMdPath(root);
+}
+
+function initialRatchet(agent) {
+  return agent === 'codex' ? '# Codex Ratchet Rules\n\n## Rules\n\n' : harnessRatchetMdInitial();
 }
 
 // Global harness lives in ~/.claude/CLAUDE.md — Claude Code loads this for every
@@ -312,14 +320,14 @@ export function harnessUninit({ root = findProjectRoot(), purgeRatchet = false, 
  * harness promote — append a one-line rule to .claude/ratchet.md.
  * Creates the file from the initial template if missing.
  */
-export function harnessPromote(ruleText, { root = findProjectRoot(), scope = 'project' } = {}) {
-  const rmPath = resolveRatchetPath(scope, root);
+export function harnessPromote(ruleText, { root = findProjectRoot(), scope = 'project', agent = 'claude' } = {}) {
+  const rmPath = resolveRatchetPath(scope, root, agent);
   let existing = '';
   if (existsSync(rmPath)) {
     existing = readFileSync(rmPath, 'utf8');
   } else {
     mkdirSync(dirname(rmPath), { recursive: true });
-    existing = harnessRatchetMdInitial();
+    existing = initialRatchet(agent);
   }
   const next = appendRatchetRule(existing, ruleText);
   writeFileSync(rmPath, next);
@@ -339,17 +347,17 @@ export function harnessPromote(ruleText, { root = findProjectRoot(), scope = 'pr
  * Deduped by rule text (ignoring the YYYY-MM-DD stamp) — idempotent.
  * Returns { path, scope, added, skippedRules, presets }.
  */
-export function harnessPull({ root = findProjectRoot(), scope = 'global' } = {}) {
+export function harnessPull({ root = findProjectRoot(), scope = 'global', agent = 'claude' } = {}) {
   const presets = presetRules();
-  const rmPath = resolveRatchetPath(scope, root);
+  const rmPath = resolveRatchetPath(scope, root, agent);
   const result = { path: rmPath, scope, added: [], skippedRules: 0, presets: presets.length };
   const stripDate = (t) => t.replace(/^\d{4}-\d{2}-\d{2}:\s*/, '').trim();
 
   let content = existsSync(rmPath)
     ? readFileSync(rmPath, 'utf8')
-    : harnessRatchetMdInitial();
+    : initialRatchet(agent);
   const have = new Set(
-    harnessListRules({ root, scope }).rules.map((r) => stripDate(r.text)),
+    harnessListRules({ root, scope, agent }).rules.map((r) => stripDate(r.text)),
   );
   for (const rule of presets) {
     if (have.has(rule)) {
@@ -385,7 +393,8 @@ export function presetRuleEntries() {
     const data = JSON.parse(readFileSync(path, 'utf8'));
     return (Array.isArray(data.rules) ? data.rules : [])
       .filter((r) => r && typeof r.ko === 'string' && r.ko.trim())
-      .map((r) => ({ ko: r.ko.trim(), en: (r.en || r.ko).trim() }));
+      .map((r) => ({ ko: r.ko.trim(), en: (r.en || r.ko).trim(),
+        ...(Array.isArray(r.agents) ? { agents: r.agents.filter((a) => typeof a === 'string') } : {}) }));
   } catch {
     return [];
   }
@@ -400,8 +409,8 @@ export function presetRules(lang = userLanguage()) {
  * harness list — return numbered ratchet rules from .claude/ratchet.md.
  * Numbering is 1-based and matches `harness rm <N>`.
  */
-export function harnessListRules({ root = findProjectRoot(), scope = 'project' } = {}) {
-  const rmPath = resolveRatchetPath(scope, root);
+export function harnessListRules({ root = findProjectRoot(), scope = 'project', agent = 'claude' } = {}) {
+  const rmPath = resolveRatchetPath(scope, root, agent);
   if (!existsSync(rmPath)) return { path: rmPath, rules: [] };
   const lines = readFileSync(rmPath, 'utf8').split('\n');
   const rules = [];
@@ -482,8 +491,8 @@ export function contextWeightStatus({ root = findProjectRoot() } = {}) {
  * it. Selection is by tag and/or age; nothing is deleted, so a pruned rule can
  * be pasted back. Returns the pruned rules for the CLI to echo.
  */
-export function harnessPrune({ root = findProjectRoot(), scope = 'project', tag = null, olderThanMonths = null, dryRun = false } = {}) {
-  const { path: rmPath, rules } = harnessListRules({ root, scope });
+export function harnessPrune({ root = findProjectRoot(), scope = 'project', agent = 'claude', tag = null, olderThanMonths = null, dryRun = false } = {}) {
+  const { path: rmPath, rules } = harnessListRules({ root, scope, agent });
   if (!existsSync(rmPath)) return { ok: false, error: `ratchet.md not found at ${rmPath}` };
   if (!tag && !olderThanMonths) return { ok: false, error: 'Nothing selected — pass --tag <t> and/or --older-than <months>' };
   const cutoff = olderThanMonths ? Date.now() - olderThanMonths * 30 * 24 * 60 * 60 * 1000 : null;
@@ -519,8 +528,8 @@ export function harnessPrune({ root = findProjectRoot(), scope = 'project', tag 
  * value is one-way accumulation; deleting should feel deliberate. The CLI
  * surfaces a "narrow the condition instead" reminder around this call.
  */
-export function harnessRmRule(n, { root = findProjectRoot(), scope = 'project' } = {}) {
-  const { path: rmPath, rules } = harnessListRules({ root, scope });
+export function harnessRmRule(n, { root = findProjectRoot(), scope = 'project', agent = 'claude' } = {}) {
+  const { path: rmPath, rules } = harnessListRules({ root, scope, agent });
   if (!existsSync(rmPath)) {
     return { ok: false, error: `ratchet.md not found at ${rmPath}` };
   }
