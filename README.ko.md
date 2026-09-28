@@ -5,7 +5,7 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**Claude Code와 Codex용 품질 래칫**
+**Claude Code와 Codex가 쓰는 토큰을 첫 세션부터 줄입니다**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
@@ -15,9 +15,16 @@
 
 [sprag.io](https://sprag.io) · [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
 
+<a href="https://sprag.io/assets/video/sprag-compare-ko.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-compare-ko.gif" width="760" alt="두 터미널에 같은 요청 12건을 넣습니다. sprag 를 적용한 쪽은 조회와 테스트 실행을 저렴한 모델에 넘기고 문서를 Markdown 으로 바꿔 넣어, 하루를 $6.68 대신 $1.83 로 마칩니다."></a>
+
+같은 요청 12건, 두 터미널: sprag 적용 시 **$6.68 → $1.83 (72.6% 절감)**<br>
+<sub>예시 요청을 공개 단가로 계산했습니다. <a href="https://sprag.io/assets/video/sprag-compare-ko.mp4">전체 영상 (41초)</a></sub>
+
 </div>
 
 ---
+
+**일하는 방식은 그대로 두고 토큰만 줄입니다.** 조회와 확인, 테스트 실행은 저렴한 모델에 넘기고, 문서는 가벼운 Markdown으로 바꿔 넣습니다(54만 토큰짜리 발표 자료가 2.3만 토큰이 됩니다). 세션마다 쓴 금액과 아낀 금액은 상태줄에 바로 나타납니다. `npm i -g sprag-cli` 하나로 설정이 끝나며, 프로젝트마다 따로 설정할 것은 없습니다.
 
 **에이전트는 그대로 일하고, 퇴행만 막습니다.** 이름은 스프래그 클러치에서 왔습니다. 앞으로 도는 힘은 그대로 통과시키고, 역회전하는 순간 잠기는 부품입니다.
 

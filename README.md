@@ -5,7 +5,7 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**A quality ratchet for Claude Code and Codex.**
+**Cut the tokens Claude Code and Codex spend, from the first session.**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
@@ -15,9 +15,20 @@
 
 [sprag.io](https://sprag.io) · [Benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
 
+<a href="https://sprag.io/assets/video/sprag-compare-en.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-compare-en.gif" width="760" alt="Two terminals receive the same twelve requests. With Sprag, lookups and test runs go to cheaper models and documents go in as Markdown; the day ends at $1.83 against $6.68 without Sprag."></a>
+
+Same 12 requests, two terminals: **$6.68 → $1.83 (−72.6%)** with Sprag.<br>
+<sub>Example requests priced at public list rates. <a href="https://sprag.io/assets/video/sprag-compare-en.mp4">Full video (41s)</a></sub>
+
 </div>
 
 ---
+
+**Sprag saves tokens without changing how you work.** Lookups, checks and test
+runs go to a cheaper model, documents reach the context as compact Markdown (a
+540k-token deck becomes 23k tokens), and the statusline shows what each session
+spent and saved while it runs. `npm i -g sprag-cli` sets it all up; nothing to
+configure per project.
 
 Sprag is named after the sprag clutch: forward motion passes, backspin locks.
 Your agent keeps working, it just stops regressing.
