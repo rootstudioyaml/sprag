@@ -34,9 +34,11 @@ const env = {
   ...process.env,
   HOME: home,
   USERPROFILE: home,
+  CODEX_HOME: join(home, '.codex'),
   XDG_CONFIG_HOME: join(work, 'state'),
   APPDATA: join(work, 'state'),
   CTS_DOC2MD_NO_AUTOINSTALL: '1',
+  CTS_NO_ROUTE_SCAN: '1',
   NO_COLOR: '1',
 };
 
@@ -156,6 +158,15 @@ ok('doc2md off removes them', ['doc2md', 'off'], /hook|훅/i);
 }
 
 // --- install / uninstall ----------------------------------------------------
+ok('Codex help lists route discovery', ['--help', '--agent', 'codex'], /route-scan/);
+ok('Codex install registers native hooks', ['install', '--no-panel', '--agent', 'codex'], /Codex hooks/);
+ok('Codex diagnostics report capabilities', ['doctor', '--agent', 'codex'], /routing-saved: partial/);
+ok('Codex one-shot panel works without sessions', ['panel', '--once', '--agent', 'codex'], /SPRAG/);
+ok('Codex scan works without history', ['route-scan', '--agent', 'codex'], /Codex route-scan/);
+ok('Codex seed lists compatible presets', ['seed', '--agent', 'codex'], /fix-[0-9a-f]{6}/);
+ok('Codex ledger keeps missing usage unknown', ['route-scan', 'savings', '--agent', 'codex'], /n\/a/);
+ok('Codex uninstall preserves the other agent', ['uninstall', '--agent', 'codex'], /Codex hooks/);
+
 ok('install wires the statusline', ['install'], /settings|statusline|설치/i);
 ok('uninstall reports what it removed', ['uninstall'], /removed|제거|Nothing/i);
 {

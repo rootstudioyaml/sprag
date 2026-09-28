@@ -5,7 +5,7 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**A quality ratchet for your coding agent. Forward motion passes, backspin locks.**
+**A quality ratchet for Claude Code and Codex.**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
@@ -28,12 +28,56 @@ a cheaper tier has never got wrong goes to a sub-agent on that tier, and every
 delegated run writes its own price difference to a ledger. Cache and rate-limit
 trouble reaches your statusline while you can still act on it.
 
-Nothing leaves your machine, because it reads only the logs Claude Code already
-writes there. No API key, no extra model calls, no runtime dependencies.
+Session analysis runs locally on the logs Claude Code and Codex already write.
+No extra model calls or API key are needed for analysis. Optional Codex gateway
+budget and price lookups contact your configured LiteLLM endpoint using its
+existing credentials. The CLI requires Node.js 18+ and one TOML parser dependency.
 
 ```bash
-npm i -g sprag-cli   # the old claude-token-saver package still gets the same releases
+npm i -g sprag-cli   # default: Claude Code integration
 ```
+
+## Codex
+
+Native hooks, an `AGENTS.md` harness, scoped ratchet rules, Korean lint,
+document conversion, token reports, and a session-bound companion panel.
+For a Codex-only install:
+
+```bash
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+sprag --agent codex --days 7
+sprag panel --agent codex  # live companion in a separate terminal
+sprag --statusline --agent codex --text
+sprag doctor --agent codex
+sprag route-scan --agent codex
+sprag seed --agent codex
+```
+
+Review and trust the new hooks in Codex's `/hooks` menu. The default remains
+Claude Code; existing users can add Codex with the second command alone.
+Codex also supports session briefings, warning history, handoffs, and opt-in
+model routing and subagent guidance (`sprag delegate on --agent codex`). The native Codex footer
+does not accept shell commands; Sprag provides a terminal statusline and panel.
+Recurring simple turns become route candidates; repeated tool failures become
+ratchet candidates. Both require your approval before a rule is registered.
+`seed` offers compatible starter rules with separate Codex decisions.
+`sprag route-scan savings --agent codex` records only Sprag-routed child runs
+and estimates their price difference when matching LiteLLM prices are available.
+It is not a billing measurement. Unknown prices remain `n/a`, and Codex document
+counts stay separate from Claude estimates. The historical dollar figures below
+are from Claude Code, not a Codex benchmark. See [Codex support and limits](https://sprag.io/docs/codex/), or run
+`sprag capabilities --agent codex` for the support matrix.
+
+| Workflow | Claude Code | Codex |
+|---|---|---|
+| Session instructions | `CLAUDE.md` and hooks | `AGENTS.md` and native hooks |
+| Live telemetry | Native statusline command | Companion panel or tmux layout |
+| Rule candidates | Claude transcripts and tier presets | Codex rollouts and compatible ratchet presets |
+| Model routing | Haiku/Sonnet tier rules | Explicit provider model IDs and scoped rules |
+| Routing ledger | Claude run estimates | Attributed child estimates with LiteLLM prices |
+
+Both integrations coexist. Commands without `--agent codex` retain Claude behavior.
 
 ![statusline example: routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
@@ -185,6 +229,7 @@ Every subcommand, flag and the output-language setting: [command reference](http
 
 | Doc | Covers |
 |---|---|
+| [Codex](https://sprag.io/docs/codex/) | Installation, panel, native hooks, automatic candidates, presets, and accounting limits |
 | [Install](https://github.com/rootstudioyaml/sprag/blob/main/docs/INSTALL.md) | What the install turns on, what stays manual, how to turn each part off |
 | [Statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md) | Segments, warning chips, spike issue codes, update notifications |
 | [Commands](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md) | Full CLI surface |
@@ -203,6 +248,7 @@ Behind a LiteLLM gateway, `sprag profile-map --refresh` now reads model aliases 
 
 The full history moved to [CHANGELOG.md](./CHANGELOG.md) (Korean; version headings and command names are language-neutral). Recent changes:
 
+- **Unreleased**: Codex integration adds native hooks, `AGENTS.md` harness rules, a session-bound companion panel, document conversion, diagnostics, and opt-in delegation. Codex usage accounting stays separate from Claude Code. See the [Codex guide](./docs/CODEX.md); this support is not yet published to npm.
 - **v3.39.0**: `feedback` subcommand for filing bug reports and feature requests straight from the terminal or a Claude session, via the gh CLI, an anonymous no-login form (auto-filed as a GitHub issue by an Apps Script relay), or a local fallback. `install` now asks before replacing an existing statusline instead of silently skipping.
 - **v3.38.0**: `cohesion on` turns the language-neutral cohesion rules from the Korean supplement into a standalone English injection (given-before-new, one referent per pronoun, subject consistency, bridging, merging choppy sentences). Opt-in, ~0.5k tokens per session, suppressed while `korean on` already carries them.
 - **v3.37.0**: Korean guidance grows a conservative supplement (translationese, AI-writing tics, a research-backed cohesion section whose principles apply to English prose too) and the write-time lint gains 5 translationese patterns, validated at 1 false positive across 255 real files.

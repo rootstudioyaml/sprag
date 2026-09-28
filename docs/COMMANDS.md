@@ -4,6 +4,28 @@
 
 ## Commands
 
+For Codex, pass `--agent codex`. Run `sprag --help --agent codex` for its command
+reference, `sprag doctor --agent codex` for diagnostics, or
+`sprag capabilities --agent codex` for the support matrix. Codex provides
+`--statusline`, `panel`, `brief`, `last`, `history`, `handoff`, harness management,
+writing guidance, document conversion/write guards, and opt-in native model routing.
+See [Codex integration](./CODEX.md) for platform differences and limitations.
+Codex model targets and scoped rules use `delegate model` and `delegate rules`;
+Claude tier presets and savings accounting are not imported.
+
+| Codex command | What it does |
+|---|---|
+| `sprag install --agent codex` | Register native hooks and the global AGENTS.md harness |
+| `sprag panel run --agent codex --` | Run Codex above its session-bound tmux panel |
+| `sprag route-scan --refresh --agent codex` | Discover recurring simple turns by project, provider, and model |
+| `sprag delegate rules add R1 --project --agent codex` | Approve a candidate for its observed project; add `--model ID` if needed |
+| `sprag route-scan savings --refresh --agent codex` | Join routed child usage to available provider prices |
+| `sprag seed --agent codex` | List compatible ratchet presets |
+| `sprag seed accept all --project --agent codex` | Register pending presets after the user chooses scope |
+| `sprag harness promote 1 --session ID --project --agent codex` | Append a recent repeated-failure candidate for refinement |
+
+The remaining reference describes the default Claude Code commands.
+
 Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is the only entry point):
 
 | Command | What it does |

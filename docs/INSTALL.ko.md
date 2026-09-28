@@ -2,7 +2,24 @@
 
 [← README](../README.ko.md) · [English](./INSTALL.md)
 
-## 시작하기
+Sprag는 Claude Code와 Codex를 지원합니다. 기본 대상은 Claude Code이며,
+`--agent codex`를 붙이면 다른 연동은 그대로 두고 Codex 명령을 실행합니다.
+
+## Codex 설치
+
+```bash
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+sprag doctor --agent codex
+```
+
+Codex의 `/hooks`에서 등록된 명령을 검토하고 신뢰하십시오. 별도 터미널에서는
+`sprag panel --agent codex`, tmux에서는 `sprag panel run --agent codex --`를 사용합니다.
+모델 위임은 직접 켜야 하며 규칙을 등록하려면 적용 범위를 지정해야 합니다.
+[Codex 연동 안내](./CODEX.ko.md)에서 기능과 제한을 확인할 수 있습니다.
+이미 Claude Code용 Sprag를 설치했다면 두 번째 명령만 실행하면 됩니다.
+
+## Claude Code 설치
 
 **사전 준비:** Node.js ≥ 18 (`node -v`로 확인 · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL은 [nvm](https://github.com/nvm-sh/nvm) 권장)
 

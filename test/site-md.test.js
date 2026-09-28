@@ -12,6 +12,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { renderMarkdown } from '../scripts/lib/markdown.mjs';
 import { build } from '../scripts/build-site-docs.mjs';
+import { captureCodexPanel } from '../scripts/docs-codex-panel.mjs';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 function render(md, opts) {
   return renderMarkdown(md, opts);
@@ -83,6 +87,7 @@ test('build({ outDir }) generates the full site/docs tree', () => {
   try {
     const { entries } = build({ outDir });
     assert.ok(entries.length > 0);
+    assert.ok(entries.some((e) => e.slug === 'codex' && e.hasKo), 'Codex has English and Korean pages');
 
     for (const e of entries) {
       const enPath = join(outDir, 'docs', e.slug, 'index.html');
@@ -119,4 +124,53 @@ test('build({ outDir }) generates the full site/docs tree', () => {
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }
+});
+
+test('Codex site capture comes from an isolated CLI example', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-site-capture-test-'));
+  try {
+    const output = join(dir, 'capture.html');
+    const raw = captureCodexPanel(output);
+    assert.match(raw, /Cache hit 90\.0%/);
+    assert.match(raw, /Harness 5\/5/);
+    assert.match(raw, /example-model/);
+    assert.match(raw, /Routing saved n\/a \(prices unavailable\)/);
+    assert.doesNotMatch(raw, /\x1b/);
+    const html = readFileSync(output, 'utf8');
+    assert.match(html, /sprag --statusline --text --agent codex/);
+    for (const line of raw.trimEnd().split('\n')) {
+      assert.ok(html.includes(line), `missing CLI line: ${line}`);
+    }
+    assert.ok(!html.includes(tmpdir()), 'no temporary or user paths in the public capture');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('landing page assets exist and copy icon references a real SVG id', () => {
+  const html = readFileSync(join(ROOT, 'site', 'index.html'), 'utf8');
+  for (const [, src] of html.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)) {
+    const file = src === 'statusline.png' ? join(ROOT, 'docs', src) : join(ROOT, 'site', src);
+    assert.ok(existsSync(file), `missing image: ${src}`);
+  }
+  const icon = readFileSync(join(ROOT, 'site', 'assets', 'icons', 'copy.svg'), 'utf8');
+  assert.match(icon, /\bid="copy"/);
+  const metadata = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  assert.equal(metadata['@graph'].find((entry) => entry['@type'] === 'SoftwareApplication').softwareVersion, pkg.version);
+});
+
+test('localized route links target existing English and Korean headings', () => {
+  const html = readFileSync(join(ROOT, 'site', 'index.html'), 'utf8');
+  for (const lang of ['en', 'ko']) {
+    const anchor = html.match(new RegExp(`data-anchor-${lang}="([^"]+)"`))[1];
+    const doc = readFileSync(join(ROOT, 'docs', lang === 'ko' ? 'CODEX.ko.md' : 'CODEX.md'), 'utf8');
+    assert.ok(render(doc).headings.some((heading) => heading.id === anchor), `missing ${lang} heading: ${anchor}`);
+  }
+});
+
+test('documents without a Korean translation keep their source link', () => {
+  const html = readFileSync(join(ROOT, 'site', 'index.html'), 'utf8');
+  for (const slug of ['route-scan', 'doc2md']) {
+    assert.match(html, new RegExp(`href="docs/${slug}/" data-doc-lang="en"`));
+  }
+  assert.match(html, /a\.dataset\.docLang !== 'en'/);
 });

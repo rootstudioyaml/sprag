@@ -17,6 +17,13 @@ const SITE_ORIGIN = 'https://sprag.io';
 
 const MANIFEST = [
   {
+    slug: 'codex',
+    src: 'CODEX.md',
+    title: 'Codex: hooks, ratchet rules, model delegation, and a companion panel',
+    description: 'Install Sprag for Codex, connect native hooks and AGENTS.md, inspect local token usage, discover recurring work, and track attributed routing estimates with provider prices.',
+    keywords: ['codex harness', 'codex hooks', 'codex statusline', 'codex companion panel', 'codex agents.md', 'codex model delegation'],
+  },
+  {
     slug: 'statusline',
     src: 'STATUSLINE.md',
     title: 'Claude Code statusline: cache hit rate, cache TTL countdown, 5-hour and 7-day rate limits',
@@ -98,9 +105,9 @@ const MANIFEST = [
   {
     slug: 'install',
     src: 'INSTALL.md',
-    title: 'Install Sprag, the Claude Code token saver',
+    title: 'Install Sprag for Claude Code and Codex',
     description:
-      'Install the Sprag command-line harness for Claude Code with one npm command, register the statusline and hooks, and verify the setup.',
+      'Choose the Claude Code or Codex integration, register the appropriate harness and hooks, and verify the setup.',
     keywords: ['install claude code token saver', 'sprag install', 'claude code statusline setup', 'npm sprag-cli'],
   },
   {
@@ -291,7 +298,7 @@ function styleBlock() {
     --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
     --disp:"Inter",-apple-system,BlinkMacSystemFont,sans-serif;
     --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    --r:8px; --rc:12px; --rp:16px;
+    --r:8px; --rc:8px; --rp:8px;
     --ease:cubic-bezier(.23,1,.32,1);
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -342,8 +349,8 @@ function styleBlock() {
   main.doc h1,main.doc h2,main.doc h3,main.doc h4{scroll-margin-top:72px}
   .crumbs{font-size:13px;color:var(--faint);margin-bottom:22px}
   .crumbs a:hover{color:var(--ink)}
-  main.doc h1{font-family:var(--disp);font-size:clamp(28px,4vw,38px);letter-spacing:-.02em;line-height:1.15}
-  main.doc h2{font-family:var(--disp);font-size:24px;letter-spacing:-.01em;margin:40px 0 12px;line-height:1.3}
+  main.doc h1{font-family:var(--disp);font-size:34px;line-height:1.2;overflow-wrap:anywhere}
+  main.doc h2{font-family:var(--disp);font-size:24px;margin:40px 0 12px;line-height:1.3}
   main.doc h3{font-family:var(--disp);font-size:18px;margin:28px 0 10px;line-height:1.35}
   main.doc h4{font-size:15px;margin:20px 0 8px}
   main.doc p{color:var(--dim);line-height:1.7;margin:14px 0}
@@ -374,6 +381,10 @@ function styleBlock() {
   .more ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px}
   .more a{color:var(--amber2);text-decoration:underline;text-underline-offset:3px;font-size:14px}
   html[lang=ko] main.doc{word-break:keep-all;line-height:1.7}
+  main.doc{min-width:0;overflow-wrap:anywhere}
+  main.doc pre{max-width:100%}
+  *{letter-spacing:0!important}
+  @media(max-width:480px){main.doc{padding:28px 18px 64px}main.doc h1{font-size:28px}.wrap{padding:0 18px}header nav{gap:12px}}
 </style>`;
 }
 
@@ -523,13 +534,13 @@ function indexPageHtml({ lang, entries }) {
   const docsHref = lang === 'ko' ? '/docs/ko/' : '/docs/';
   const title = lang === 'ko' ? '문서' : 'Docs';
   const description =
-    lang === 'ko' ? 'Sprag 문서를 한국어로 읽을 수 있습니다.' : 'Reference pages for Sprag, the command-line harness for Claude Code.';
+    lang === 'ko' ? 'Claude Code와 Codex용 Sprag 설치와 기능을 설명합니다.' : 'Reference pages for Sprag, the command-line harness for Claude Code and Codex.';
   const head = pageHead({
     lang,
     slug: 'index',
     title,
     description,
-    keywordsStr: 'sprag docs, claude code documentation',
+    keywordsStr: 'sprag docs, claude code documentation, codex harness documentation',
     canonical,
     hasKo: true,
     koUrl: `${SITE_ORIGIN}/docs/ko/`,
