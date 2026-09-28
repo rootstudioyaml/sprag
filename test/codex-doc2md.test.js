@@ -162,7 +162,8 @@ test('Codex CLI status, prompt, pre-read and off use shared cached conversions w
   const out = JSON.parse(run(['codex-hook', '--event', 'pre-tool'], p).stdout).hookSpecificOutput;
   assert.equal(out.permissionDecision, 'deny');
   const codexFile = cached.cacheFile.replace(/\.md$/, '.codex.md');
-  assert.ok(out.permissionDecisionReason.includes(codexFile));
+  // The reason quotes the path as JSON, which doubles every backslash on Windows.
+  assert.ok(out.permissionDecisionReason.includes(JSON.stringify(codexFile)), out.permissionDecisionReason);
   const prompt = JSON.parse(run(['codex-hook', '--event', 'prompt'], { cwd: home, prompt: 'Summarize book.pdf' }).stdout).hookSpecificOutput.additionalContext;
   assert.ok(prompt.includes(codexFile)); assert.doesNotMatch(prompt, /\$/);
   assert.doesNotMatch(readFileSync(codexFile, 'utf8'), /\$|아꼈습니다/);
