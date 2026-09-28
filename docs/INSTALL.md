@@ -4,6 +4,25 @@
 
 ## Getting started
 
+Sprag supports Claude Code and Codex. Commands default to Claude Code; use
+`--agent codex` to select Codex without changing the other integration.
+
+### Codex
+
+```bash
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+sprag doctor --agent codex
+```
+
+Review and trust the registered commands in Codex `/hooks`. Use
+`sprag panel --agent codex` in a companion terminal, or
+`sprag panel run --agent codex --` for a tmux layout. Model routing is opt-in;
+rule registration requires an explicit scope. See [Codex workflows and limits](./CODEX.md).
+If Sprag is already installed for Claude Code, only the second command is needed.
+
+### Claude Code
+
 **Prerequisite:** Node.js ≥ 18 (`node -v` · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL: [nvm](https://github.com/nvm-sh/nvm) recommended)
 
 ```bash

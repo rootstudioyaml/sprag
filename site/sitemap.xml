@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://sprag.io/</loc>
-    <lastmod>2026-09-20</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en"/>
@@ -15,6 +15,24 @@
   <url>
     <loc>https://sprag.io/docs/ko/</loc>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/codex/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/codex/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/codex/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/codex/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/codex/</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/codex/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/codex/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/codex/"/>
   </url>
   <url>
     <loc>https://sprag.io/docs/statusline/</loc>
@@ -78,7 +96,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/doc2md/</loc>
-    <lastmod>2026-09-15</lastmod>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -120,7 +138,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/commands/</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>
@@ -129,7 +147,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/ko/commands/</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>

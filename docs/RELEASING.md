@@ -58,6 +58,7 @@ $EDITOR docs/releases/vX.Y.Z.md         # fill the English half; delete the REVI
 # ── 3. Verify. This is the gate for everything above. ──────────────────
 npm test                                # fails if the draft is missing or unreviewed
 node scripts/verify-cli.mjs
+node scripts/verify-package.mjs          # installs a tarball under an isolated home and prefix
 
 # ── 4. Bump, tag, publish to npm. ─────────────────────────────────────
 npm version X.Y.Z                       # writes package.json, commits, tags
@@ -78,6 +79,12 @@ node -e "import('./src/update-check.js').then(async m => \
 
 Step 5 updates an existing release rather than adding a second one, so a
 correction to the notes is just another run of it.
+
+The package check downloads declared dependencies unless they are cached. Pass
+`--cache <path>` to reuse a cache and `--offline` to prohibit network access.
+It skips the Claude postinstall, exercises the explicit Codex installation and
+removal, and deletes only the temporary environment it created. It does not
+change the real user's global package installation or agent settings.
 
 Step 2 refuses to overwrite a draft that has already been edited — it is the same
 command you ran before editing, so re-running it by reflex would discard that

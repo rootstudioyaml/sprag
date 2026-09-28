@@ -4,6 +4,21 @@
 
 ## 주요 명령
 
+Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을 확인하고,
+[Codex 연동 안내](./CODEX.ko.md)에서 플랫폼별 차이와 제한을 살펴보십시오.
+
+| Codex 명령 | 설명 |
+|---|---|
+| `sprag install --agent codex` | 기본 훅과 전역 AGENTS.md 하네스를 등록합니다 |
+| `sprag panel run --agent codex --` | Codex와 세션별 패널을 tmux에서 함께 실행합니다 |
+| `sprag route-scan --refresh --agent codex` | 프로젝트·공급자·모델별 반복 작업을 찾습니다 |
+| `sprag delegate rules add R1 --project --agent codex` | 관찰한 프로젝트에 후보 규칙을 등록합니다. 필요하면 `--model ID`를 붙이십시오 |
+| `sprag route-scan savings --refresh --agent codex` | 위임된 하위 실행과 확인 가능한 단가로 예상 차액을 계산합니다 |
+| `sprag seed --agent codex` | 호환되는 래칫 프리셋을 나열합니다 |
+| `sprag seed accept all --project --agent codex` | 사용자가 범위를 선택한 뒤 대기 중인 프리셋을 등록합니다 |
+
+이하의 명령은 기본 대상인 Claude Code를 설명합니다.
+
 셸에서 직접 실행합니다 (Claude Code 안에서는 `/claude-token-saver` Skill 하나만 사용):
 
 | 명령 | 설명 |
@@ -50,4 +65,3 @@
 
 - 상한은 프롬프트에 남기는 요청일 뿐이고 강제력을 갖지 않습니다. 서브에이전트가 상한을 넘겨도 그 실행을 막지 못합니다.
 - 위임 호출에 `model` 없이 `subagent_type` 만 있고, 그 에이전트 자체가 haiku 로 설정된 경우에는 호출값만으로 이를 구분할 수 없어 느슨한 20회·8,000 토큰 상한이 그대로 적용됩니다.
-

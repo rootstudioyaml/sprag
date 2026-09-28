@@ -5,7 +5,7 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**AI 코딩 에이전트용 품질 래칫**<br>**같은 실수는 두 번 없습니다**
+**Claude Code와 Codex용 품질 래칫**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
@@ -21,13 +21,55 @@
 
 **에이전트는 그대로 일하고, 퇴행만 막습니다.** 이름은 스프래그 클러치에서 왔습니다. 앞으로 도는 힘은 그대로 통과시키고, 역회전하는 순간 잠기는 부품입니다.
 
-Sprag 는 Claude Code 가 이미 남기는 세션 기록을 읽습니다. 거기서 찾아낸 것은 이후 모든 세션에 남습니다. 되풀이된 실패는 세션마다 올라오는 규칙이 되고, 저렴한 등급에서 한 번도 틀리지 않은 작업은 그 등급의 서브에이전트로 갑니다. 위임된 실행은 한 건마다 단가 차액을 원장에 적습니다. 캐시와 사용량 한도 문제는 아직 손쓸 수 있을 때 statusline 에 나타납니다.
+Sprag는 Claude Code와 Codex가 남기는 세션 기록을 읽어 반복 실패와 위임 후보를 찾습니다. 사용자가 승인한 규칙은 다음 세션에도 적용하며, 위임 기록과 모델 단가를 확인할 수 있으면 예상 차액을 원장에 적습니다. 캐시와 사용량 한도 문제는 상태줄이나 패널에서 확인할 수 있습니다.
 
-데이터는 컴퓨터 밖으로 나가지 않습니다. Claude Code 가 이 컴퓨터에 이미 남긴 기록만 읽기 때문입니다. API 키도, 추가 모델 호출도, 런타임 의존성도 없습니다.
+세션 분석은 로컬에서 실행하므로 추가 모델 호출이나 API 키가 필요하지 않습니다. Codex의 선택 기능인 예산·단가 조회는 기존 인증 정보로 사용자가 설정한 LiteLLM에 접속합니다. CLI는 Node.js 18 이상과 TOML 파서 하나를 사용합니다.
 
 ```bash
 npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입니다
 ```
+
+## Codex
+
+Codex 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙,
+한국어 검사, 프롬프트의 문서 경로 자동 변환, 로컬 토큰 보고서를 사용할 수 있습니다.
+Codex만 쓴다면 다음과 같이 설치하십시오.
+
+```bash
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+sprag --agent codex --days 7
+sprag panel --agent codex  # 별도 터미널에서 실시간 패널 실행
+sprag --statusline --agent codex --text
+sprag doctor --agent codex
+sprag route-scan --agent codex
+sprag seed --agent codex
+```
+
+설치 후 Codex의 `/hooks`에서 새 훅을 검토하고 신뢰해야 실행됩니다. 기본 대상은
+여전히 Claude Code입니다. 이미 Sprag를 설치했다면 두 번째 명령만 실행하여
+Codex 연동을 추가할 수 있습니다. Codex에서도 세션 브리핑, 경고 이력, 인수인계
+파일을 지원합니다. `sprag delegate on --agent codex`로 모델 위임과 하위 에이전트
+지침 전달을 켤 수 있습니다. 상태 표시는 Sprag 터미널 상태줄과 패널을 사용하십시오.
+Codex 기본 상태줄은 셸 명령을 실행하지 않습니다. 반복된 단순 작업은 위임 후보로,
+반복된 도구 실패는 래칫 후보로 제안합니다. 규칙을 등록하려면 사용자의 승인이 필요하며,
+`seed`로 호환되는 기본 규칙을 선택할 수도 있습니다.
+`sprag route-scan savings --agent codex`는 Sprag가 위임한 실행만 집계하고,
+일치하는 LiteLLM 단가가 있을 때 예상 차액을 계산합니다. 청구 금액을 측정한 값은 아니며,
+단가를 확인하지 못하면 `n/a`로 표시합니다. Codex 문서 누계는 Claude 추정치와 분리합니다.
+아래의 기존 절감 수치는 Claude Code 기록이며 Codex 벤치마크가 아닙니다.
+[Codex 지원 범위와 제한](https://sprag.io/docs/ko/codex/)이나
+`sprag capabilities --agent codex`에서 기능별 지원 여부를 확인하십시오.
+
+| 기능 | Claude Code | Codex |
+|---|---|---|
+| 세션 지침 | `CLAUDE.md`와 훅 | `AGENTS.md`와 기본 훅 |
+| 실시간 상태 | 기본 상태줄에 명령 등록 | 별도 패널 또는 tmux 구성 |
+| 규칙 후보 | Claude 기록과 모델 등급 프리셋 | Codex 기록과 호환 래칫 프리셋 |
+| 모델 위임 | Haiku·Sonnet 등급 규칙 | 공급자 모델 ID와 범위별 규칙 |
+| 위임 원장 | Claude 실행별 예상 차액 | LiteLLM 단가와 하위 실행별 예상 차액 |
+
+두 연동을 함께 설치할 수 있습니다. `--agent codex`를 붙이지 않으면 기존 Claude 동작을 유지합니다.
 
 ![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
@@ -166,6 +208,7 @@ LiteLLM 게이트웨이 환경에서는 `sprag profile-map --refresh` 가 게이
 
 전체 내역은 [CHANGELOG.md](./CHANGELOG.md) 로 옮겼습니다. 최근 변경은 다음과 같습니다.
 
+- **미출시**: Codex용 네이티브 훅, `AGENTS.md` 하네스, 세션에 연결된 동반 패널, 문서 변환, 진단과 선택적 위임 기능을 추가했습니다. Codex 사용량은 Claude Code와 분리해 집계합니다. 자세한 내용은 [Codex 가이드](./docs/CODEX.ko.md)에 있으며, 아직 npm에는 배포하지 않았습니다.
 - **v3.39.0**: `feedback` 서브커맨드가 터미널이나 Claude 세션에서 버그 제보·기능 제안을 바로 제출합니다. gh CLI가 있으면 이슈 직접 등록, 없으면 로그인 없는 익명 제출(릴레이가 이슈로 자동 등록), 오프라인이면 로컬 저장. `install`은 기존 statusline이 있으면 조용히 건너뛰지 않고 교체 여부를 묻습니다.
 - **v3.38.0**: `cohesion on`이 응집성 다섯 원칙을 영어 블록으로 주입합니다. 옵트인이고, korean 지침이 켜져 있으면 중복 주입을 막습니다.
 - **v3.37.0**: 한국어 지침에 보강 지침(supplement)이 붙습니다. 번역투·상투 패턴·응집성(문장 이어짐) 조항이며, 쓰기 시점 검사에도 번역투 5종이 추가됐습니다. 실파일 255개 실측에서 오탐 1건으로 검증했습니다.
