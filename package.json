@@ -14,7 +14,8 @@
     "publish:legacy": "node scripts/publish-legacy.mjs",
     "release:notes": "node scripts/release-notes.mjs",
     "site:docs": "node scripts/build-site-docs.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "version": "node scripts/sync-site-version.mjs"
   },
   "files": [
     "bin/",

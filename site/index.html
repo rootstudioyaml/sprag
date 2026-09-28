@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag | A harness for Claude Code and Codex</title>
-<meta name="description" content="Sprag supports Claude Code and Codex with ratchet rules, model delegation, local token telemetry, document conversion, and a session-bound companion panel." />
+<title>Sprag | Cut Claude Code and Codex token spend</title>
+<meta name="description" content="Sprag cuts the tokens Claude Code and Codex spend: it routes simple work to cheaper models, feeds documents in as compact Markdown, and shows cache and spend as you work." />
 <link rel="canonical" href="https://sprag.io/" />
 <link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en" />
 <link rel="alternate" hreflang="ko" href="https://sprag.io/?lang=ko" />
@@ -17,8 +17,8 @@
 <link rel="apple-touch-icon" href="assets/logo/apple-touch-icon.png" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Sprag" />
-<meta property="og:title" content="Sprag | A harness for Claude Code and Codex" />
-<meta property="og:description" content="Ratchet rules, local token telemetry, document conversion, and model delegation for Claude Code and Codex." />
+<meta property="og:title" content="Sprag | Cut Claude Code and Codex token spend" />
+<meta property="og:description" content="Route simple work to cheaper models, convert documents before they reach the context, and watch spend live in Claude Code and Codex." />
 <meta property="og:url" content="https://sprag.io/" />
 <meta property="og:image" content="https://sprag.io/assets/logo/sprag-lockup.png" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -430,6 +430,9 @@
   .card .vis{overflow-x:auto}
   .faqs p code{white-space:normal;overflow-wrap:anywhere}
   .hero .caption{font-size:12px}
+  .hero .compare{margin:28px auto 0;max-width:900px}
+  .hero .compare video{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:10px;background:#141516}
+  .hero .compare figcaption{margin-top:8px}
   @media(max-width:600px){
     .wrap{padding:0 18px}header nav{gap:10px}
     .hero{padding-top:28px}h1{font-size:42px}h2{font-size:26px}
@@ -457,11 +460,11 @@
       "name": "Sprag",
       "alternateName": ["claude-token-saver", "sprag-cli"],
       "url": "https://sprag.io/",
-      "description": "A command-line harness for Claude Code and Codex with scoped ratchet rules, local token telemetry, document conversion, model delegation, and companion panels.",
+      "description": "A command-line token saver for Claude Code and Codex: model delegation, document conversion, cache and spend telemetry, and scoped ratchet rules.",
       "applicationCategory": "DeveloperApplication",
       "applicationSubCategory": "Command-line tool",
       "operatingSystem": "macOS, Linux, Windows",
-      "softwareVersion": "3.53.0",
+      "softwareVersion": "3.54.0",
       "softwareRequirements": "Node.js 18 or later; Claude Code or Codex",
       "installUrl": "https://www.npmjs.com/package/sprag-cli",
       "downloadUrl": "https://www.npmjs.com/package/sprag-cli",
@@ -545,11 +548,19 @@
   <div class="wrap">
     <h1 data-k="hero.h1">Sprag</h1>
     <p class="support-line" data-k="hero.support">Claude Code + Codex</p>
-    <p class="sub" data-k="hero.sub">A local harness for repeatable work: scoped rules, model delegation, document conversion, and token telemetry.</p>
+    <p class="sub" data-k="hero.sub">Save tokens from the first session. Simple requests go to cheaper models, documents go in as compact Markdown, and the statusline shows what you spent and saved.</p>
     <div class="actions">
       <a class="btn" href="#install" data-k="hero.cta">Install Sprag</a>
       <a class="btn" href="docs/codex/" data-k="hero.codex">Codex guide</a>
     </div>
+
+    <figure class="compare">
+      <video id="compare-video" autoplay muted loop playsinline preload="metadata"
+             poster="assets/video/sprag-compare-en.jpg" aria-describedby="compare-caption">
+        <source src="assets/video/sprag-compare-en.mp4" type="video/mp4" />
+      </video>
+      <figcaption id="compare-caption" class="caption" data-k="hero.video">Same requests in two terminals. Example requests priced at public list rates.</figcaption>
+    </figure>
 
     <div class="demo">
       <div class="titlebar">
@@ -586,16 +597,14 @@
       <button id="setup-claude-tab" role="tab" aria-selected="false" aria-controls="setup-claude" tabindex="-1" data-agent="claude">Claude Code</button>
     </div>
     <div class="setup-panel" id="setup-codex" role="tabpanel" aria-labelledby="setup-codex-tab">
-      <div class="command-block"><pre id="codex-install-command">npm i -g sprag-cli --ignore-scripts
-sprag install --agent codex
-sprag doctor --agent codex</pre><button class="icon-button" data-copy="codex-install-command" aria-label="Copy Codex install commands" title="Copy Codex install commands"><svg><use href="assets/icons/copy.svg#copy" /></svg></button></div>
-      <p class="setup-note" data-k="setup.codex">Review the registered hooks in Codex <code>/hooks</code>. Already using Sprag? Run the second command to add Codex.</p>
+      <div class="command-block"><pre id="codex-install-command">npm i -g sprag-cli</pre><button class="icon-button" data-copy="codex-install-command" aria-label="Copy Codex install commands" title="Copy Codex install commands"><svg><use href="assets/icons/copy.svg#copy" /></svg></button></div>
+      <p class="setup-note" data-k="setup.codex">One command sets up Codex too when it is installed, with the rule presets registered globally. Then trust the Sprag hooks in Codex <code>/hooks</code>; Codex requires that step. Codex only: <code>npm i -g sprag-cli --ignore-scripts</code> then <code>sprag install --agent codex</code>.</p>
       <div class="setup-links"><a href="docs/codex/" data-k="setup.guide">Codex setup and limits</a><a href="docs/codex/#route-discovery-and-presets" data-k="setup.rules" data-anchor-en="route-discovery-and-presets" data-anchor-ko="위임-후보와-프리셋">Routing and presets</a></div>
     </div>
     <div class="setup-panel" id="setup-claude" role="tabpanel" aria-labelledby="setup-claude-tab" hidden>
       <div class="command-block"><pre id="claude-install-command">npm i -g sprag-cli
 sprag harness check</pre><button class="icon-button" data-copy="claude-install-command" aria-label="Copy Claude install commands" title="Copy Claude install commands"><svg><use href="assets/icons/copy.svg#copy" /></svg></button></div>
-      <p class="setup-note" data-k="setup.claude">The default install registers Claude Code hooks and its statusline. Both integrations can coexist.</p>
+      <p class="setup-note" data-k="setup.claude">The default install registers Claude Code hooks, its statusline and the rule presets without asking. Add <code>--manual</code> to <code>sprag install</code> to confirm each step.</p>
       <div class="setup-links"><a href="docs/install/" data-k="setup.claudeguide">Claude Code setup</a><a href="docs/statusline/" data-k="setup.statusline">Statusline reference</a></div>
     </div>
     <p class="copy-status" role="status" aria-live="polite"></p>
@@ -1121,15 +1130,16 @@ const KO = {
  'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능', 'nav.docs':'문서',
   'hero.h1':'Sprag',
   'hero.support':'Claude Code + Codex',
-  'hero.sub':'반복 작업을 관리하는 로컬 하네스입니다. 범위별 규칙과 모델 위임, 문서 변환, 토큰 사용량을 함께 확인합니다.',
+  'hero.sub':'첫 세션부터 토큰을 아낍니다. 단순한 요청은 저렴한 모델로 넘기고 문서는 가벼운 Markdown으로 바꿔 넣으며, 쓴 금액과 아낀 금액을 상태줄에서 바로 보여 줍니다.',
   'hero.copy':'복사', 'hero.copied':'복사됨',
   'hero.cta':'Sprag 설치',
   'hero.codex':'Codex 안내',
   'hero.capture':'CLI 캡처 · 예제 세션',
+  'hero.video':'같은 요청을 두 터미널에 넣었습니다. 예시 요청을 공개 단가로 계산했습니다.',
   'hero.caption':'에이전트 기록은 분리하고 문체·문서 도구는 공유합니다. 확인할 수 없는 단가는 미상으로 남깁니다.',
   'setup.h2':'Sprag 설치',
-  'setup.codex':'Codex의 <code>/hooks</code>에서 등록된 훅을 검토하십시오. Sprag를 이미 사용한다면 두 번째 명령으로 Codex를 추가할 수 있습니다.',
-  'setup.claude':'기본 설치는 Claude Code 훅과 상태줄을 등록합니다. 두 연동을 함께 사용할 수 있습니다.',
+  'setup.codex':'Codex가 설치되어 있으면 이 명령 하나로 Codex도 설정하고 추천 룰을 전역으로 등록합니다. 설치 후 Codex의 <code>/hooks</code>에서 Sprag 훅을 신뢰하십시오. Codex가 요구하는 절차입니다. Codex만 쓰려면 <code>npm i -g sprag-cli --ignore-scripts</code> 다음에 <code>sprag install --agent codex</code>를 실행합니다.',
+  'setup.claude':'기본 설치는 묻지 않고 Claude Code 훅과 상태줄, 추천 룰을 등록합니다. 단계마다 확인하려면 <code>sprag install --manual</code>을 쓰십시오.',
   'setup.guide':'Codex 설치와 제한', 'setup.rules':'위임과 프리셋',
   'setup.claudeguide':'Claude Code 설치', 'setup.statusline':'상태줄 안내',
   'fq.q5':'Codex도 같은 상태줄을 쓰나요?',
@@ -1174,10 +1184,10 @@ document.querySelectorAll('[data-k]').forEach(el => EN[el.dataset.k] = el.innerH
 EN['hero.copied'] = 'Copied';
 
 const META = {
-  en: {title: 'Sprag | A harness for Claude Code and Codex',
+  en: {title: 'Sprag | Cut Claude Code and Codex token spend',
        desc: document.querySelector('meta[name=description]').content},
-  ko: {title: 'Sprag · Claude Code와 Codex용 하네스',
-       desc: 'Sprag는 Claude Code와 Codex용 하네스입니다. 래칫 규칙, 모델 위임, 로컬 토큰 사용량, 문서 변환과 세션별 패널을 지원합니다.'},
+  ko: {title: 'Sprag · Claude Code와 Codex 토큰 절감 도구',
+       desc: 'Sprag는 Claude Code와 Codex가 쓰는 토큰을 줄입니다. 단순한 작업은 저렴한 모델로 넘기고, 문서는 Markdown으로 바꿔 넣으며, 캐시와 지출을 작업 중에 보여 줍니다.'},
 };
 
 let lang = 'en';
@@ -1189,6 +1199,13 @@ function setLang(next, remember){
     if(v !== undefined) el.innerHTML = v;
   });
   document.documentElement.lang = lang;
+  // The comparison video carries burned-in captions, so each language has its own file.
+  const video = document.getElementById('compare-video');
+  if(video && !video.currentSrc.endsWith(`sprag-compare-${lang}.mp4`)){
+    video.poster = `assets/video/sprag-compare-${lang}.jpg`;
+    video.querySelector('source').src = `assets/video/sprag-compare-${lang}.mp4`;
+    video.load();
+  }
   document.title = META[lang].title;
   document.querySelector('meta[name=description]').content = META[lang].desc;
   document.querySelector('meta[property="og:title"]').content = META[lang].title;

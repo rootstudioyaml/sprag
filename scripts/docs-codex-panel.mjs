@@ -37,14 +37,17 @@ export function captureCodexPanel(output) {
     const run = (args) => execFileSync(process.execPath, [join(root, 'bin/cli.js'), ...args, '--agent', 'codex'],
       { cwd: project, env, encoding: 'utf8', timeout: 10000 });
     run(['harness', 'init', '--project']);
-    const raw = run(['--statusline', '--text', '--no-color', '--columns', '108']);
+    // Register the hooks inside the sandbox too, so the example shows an installed
+    // panel rather than `Hooks 0/5`, which reads as a broken setup.
+    run(['install', '--no-panel']);
+    const raw = run(['--statusline', '--no-color', '--columns', '108']);
     const escape = (s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
     const body = raw.trimEnd().split('\n').map((line) => `<div class="line">${escape(line)}</div>`).join('\n');
     writeFileSync(output, `<!doctype html><html lang="en"><meta charset="utf-8"><title>Sprag Codex example</title><style>
     *{box-sizing:border-box}body{margin:0;background:#141516;color:#d4d7dd}
     main{padding:24px 28px;width:1200px;min-height:330px;font:16px/2 Menlo,monospace;letter-spacing:0}
     .command{color:#f7f8f8;margin-bottom:16px}.line{white-space:pre}.line:nth-child(2){color:#74d7ae}
-    </style><main><div class="command">$ sprag --statusline --text --agent codex</div>${body}</main></html>`);
+    </style><main><div class="command">$ sprag --statusline --agent codex</div>${body}</main></html>`);
     return raw;
   } finally { rmSync(work, { recursive: true, force: true }); }
 }
