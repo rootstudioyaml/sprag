@@ -182,7 +182,7 @@ test('Codex seed accepts and skips independently of Claude with the chosen scope
   assert.equal(run(['seed', 'accept', ids[0], '--project', '--agent', 'codex']).status, 0);
   assert.ok(existsSync(join(f.root, '.codex', 'ratchet.md')));
   assert.equal(run(['seed', 'accept', ids[1], '--global', '--agent', 'codex']).status, 0);
-  assert.ok(existsSync(join(f.home, 'ratchet.md')));
+  assert.match(readFileSync(join(f.home, 'ratchet-preset.md'), 'utf8'), new RegExp(`\\[${ids[1]}\\]`));
   assert.equal(run(['seed', 'skip', ids[2], '--agent', 'codex']).status, 0);
   assert.doesNotMatch(run(['seed', '--agent', 'codex']).stdout, new RegExp(`\\[${ids[2]}\\]`));
   assert.match(run(['seed']).stdout, new RegExp(`\\[${ids[2]}\\]`));

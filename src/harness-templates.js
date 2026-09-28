@@ -40,6 +40,38 @@ export function modelRatchetImportLine(scope = 'project') {
   return scope === 'global' ? '@~/.claude/ratchet-model.md' : '@.claude/ratchet-model.md';
 }
 
+/**
+ * The preset ratchet: the bundled rules the user accepted globally. It is a
+ * tool-owned file like ratchet-model.md, regenerated whole from the recorded
+ * answers, so an upgrade can reword, add or drop presets without touching the
+ * rules the user wrote into ratchet.md. Presets are global-only, so only the
+ * global block imports it.
+ */
+export function presetRatchetImportLine() {
+  return '@~/.claude/ratchet-preset.md';
+}
+export const PRESET_RATCHET_IMPORT_RE = /^@~\/\.claude\/ratchet-preset\.md\s*$/m;
+
+/**
+ * Render ratchet-preset.md. `rules` is [{ id, text }] in display order. The
+ * file is loaded into every session, so the header stays short.
+ */
+export function renderPresetRatchet(rules, { lang = 'en', agent = 'claude' } = {}) {
+  const ko = lang === 'ko' && agent !== 'codex';
+  const suffix = agent === 'codex' ? ' --agent codex' : '';
+  const head = ko
+    ? `# Preset Ratchet Rules (sprag 관리)
+
+sprag 에 동봉된 추천 룰 가운데 전역으로 등록한 것입니다. sprag 가 이 파일을 통째로 다시 쓰므로
+직접 고치지 마십시오. 하나를 빼려면 \`sprag seed skip <id>${suffix}\`, 직접 쓰는 룰은 ratchet.md 에 둡니다.`
+    : `# Preset Ratchet Rules (managed by sprag)
+
+Bundled rules you registered globally. Sprag rewrites this file whole, so do not
+edit it. Drop one with \`sprag seed skip <id>${suffix}\`; your own rules belong in ratchet.md.`;
+  const body = rules.map((r) => `- [${r.id}] ${r.text}`).join('\n');
+  return `${head}\n\n## Rules\n\n${body}${body ? '\n' : ''}`;
+}
+
 // Matches either scope's import line, so completeness checks don't need to know
 // which scope wrote the block. `(?!-)` keeps the ratchet-model import from
 // counting as the ratchet.md one.
@@ -118,7 +150,7 @@ ${HARNESS_SECTIONS[4].heading}
 📥 ratchet 룰 로드 (이 줄들을 지우면 룰이 적용되지 않습니다):
 
 ${ratchetImportLine(scope)}
-${modelRatchetImportLine(scope)}
+${modelRatchetImportLine(scope)}${scope === 'global' ? `\n${presetRatchetImportLine()}` : ''}
 ${HARNESS_BLOCK_END}
 `;
 }

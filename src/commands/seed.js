@@ -5,7 +5,8 @@
  *   sprag seed accept <id> --global     # register one rule
  *   sprag seed accept <id> --project    # ... into this project only
  *   sprag seed accept all --global      # when the user says "all of them"
- *   sprag seed skip <id> | skip all     # never offer it again
+ *   sprag seed skip <id> | skip all     # never offer it again; for an
+ *                                       # accepted preset, drop it from ratchet-preset.md
  *   sprag seed reset                    # make every preset pending again
  *
  * Scope is explicit on purpose, exactly as `harness promote` requires it: the
@@ -26,7 +27,7 @@ export async function run({ args, hasFlag, agent = 'claude', root: rootArg }) {
   const scopeFlag = () => (hasFlag('--global') ? 'global' : hasFlag('--project') ? 'project' : null);
 
   if (sub === 'reset') {
-    const n = seed.resetSeeds({ agent });
+    const n = await seed.resetSeeds({ agent });
     console.log(ko
       ? `기록된 응답 ${n}건을 지웠습니다 — 프리셋 전체가 다시 제안 대상이 됩니다.`
       : `Cleared ${n} recorded answer(s) — every preset is pending again.`);
@@ -46,9 +47,11 @@ export async function run({ args, hasFlag, agent = 'claude', root: rootArg }) {
 
     if (sub === 'skip') {
       for (const id of targets) {
-        const r = seed.skipSeed(id, { lang, root, agent });
+        const r = await seed.skipSeed(id, { lang, root, agent });
         console.log(r
-          ? (ko ? `건너뜀: ${id}` : `skipped: ${id}`)
+          ? (r.removed
+            ? (ko ? `프리셋 파일에서 뺐습니다: ${id}` : `removed from the preset file: ${id}`)
+            : (ko ? `건너뜀: ${id}` : `skipped: ${id}`))
           : (ko ? `대기 중인 프리셋이 아닙니다: ${id}` : `not a pending preset: ${id}`));
       }
       return;

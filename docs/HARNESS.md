@@ -68,17 +68,18 @@ The model-fitting ratchet (`ratchet-model.md`) **starts empty.** A rule exists o
 | 9 model-fitting | running commands, lookup, status checks, questions about pasted logs, read-and-summarize — each with a T2 (haiku) and a T1 (sonnet) rule | `presets/model-rules.json` |
 | 6 ratchet | general-purpose rules promoted from mistakes that actually recurred | `presets/ratchet-rules.json` |
 
-**How they get registered:** in the first session after an install or upgrade, the SessionStart hook hands the pending presets to the model, which walks the user through them **one at a time**. Each answer runs one of these immediately:
+**How they get registered:** `sprag install` (and so `npm i -g sprag-cli`) registers every preset globally without asking. With `sprag install --manual`, or for presets a later release adds, the SessionStart hook hands the pending ones to the model, which walks the user through them **one at a time**. Each answer runs one of these immediately:
 
 ```bash
 sprag seed                                   # pending presets + recorded answers
 sprag seed accept <id> --global|--project     # register one (scope required)
 sprag seed accept all --global                # when the user says "register them all"
-sprag seed skip <id>                          # decline — never offered again
+sprag seed skip <id>                          # decline, or drop an accepted global preset
 sprag seed reset                              # clear the answers and offer everything again
 ```
 
-- **Nothing is written without a yes to that specific rule.** A declined rule stays declined across upgrades; a later release only surfaces the presets it actually added.
+- **Where they live:** a global ratchet preset goes to `~/.claude/ratchet-preset.md` (Codex: `$CODEX_HOME/ratchet-preset.md`), not into your `ratchet.md`. Sprag regenerates that file from your recorded answers at every session start, so an upgrade that rewords or drops a preset updates it without touching the rules you wrote. The global harness block imports it with `@~/.claude/ratchet-preset.md`. Presets that older versions appended to `ratchet.md` are moved there once, and the original is kept as `ratchet.md.bak-preset-migration`. A preset accepted with `--project` still goes to that project's `ratchet.md`.
+- A declined rule stays declined across upgrades; a later release only surfaces the presets it actually added.
 - A preset is withheld when you already approved a rule of the same shape (same tier and category).
 - A seeded rule **does not pass someone else's statistics off as yours.** It is recorded as `preset (curated)` until a scan measures real firings and delegations, and then those numbers replace it. If its delegated error rate crosses the threshold it gets the same review flag as any other rule.
 - The scope must be stated as `--global` or `--project`. The hook environment is non-TTY, so the CLI cannot ask — the model confirms with the user and passes the flag.

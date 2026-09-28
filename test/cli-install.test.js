@@ -73,8 +73,8 @@ test('the automatic install registers presets globally and sets up Codex when it
     const env = childEnv({ HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' });
     const out = execFileSync(process.execPath, [CLI, 'install'], { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     assert.match(out, /seed: registered [1-9]\d* recommended rule/, out);
-    assert.match(readFileSync(join(home, '.claude', 'ratchet.md'), 'utf8'), /^- \d{4}-\d{2}-\d{2}/m,
-      'a preset lands in the global ratchet');
+    assert.match(readFileSync(join(home, '.claude', 'ratchet-preset.md'), 'utf8'), /^- \[fix-[0-9a-f]{6}\]/m,
+      'presets land in the tool-owned preset file, not in ratchet.md');
     const hooks = JSON.parse(readFileSync(join(codex, 'hooks.json'), 'utf8'));
     assert.match(JSON.stringify(hooks), /codex-hook --agent codex/, 'Codex hooks are registered');
     assert.match(readFileSync(join(codex, 'AGENTS.md'), 'utf8'), /Sprag Harness/);

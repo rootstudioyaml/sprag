@@ -76,12 +76,13 @@ test('accept without a scope refuses instead of guessing', () => {
   }
 });
 
-test('a ratchet preset lands in the global ratchet and a skip is permanent', () => {
+test('a global ratchet preset lands in the preset file and a skip is permanent', () => {
   const s = sandbox();
   try {
     const id = s.run('seed').match(/\[(fix-[0-9a-f]{6})\]/)[1];
     s.run('seed', 'accept', id, '--global');
-    assert.match(readFileSync(join(s.home, '.claude', 'ratchet.md'), 'utf8'), /## Rules/);
+    // Global presets go to the tool-owned preset file, never into ratchet.md.
+    assert.match(readFileSync(join(s.home, '.claude', 'ratchet-preset.md'), 'utf8'), new RegExp(`^- \\[${id}\\] `, 'm'));
 
     const other = s.run('seed').match(/\[(fix-[0-9a-f]{6})\]/)[1];
     s.run('seed', 'skip', other);
