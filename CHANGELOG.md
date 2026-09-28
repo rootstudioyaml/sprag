@@ -10,6 +10,12 @@ v3.47.0 까지 받으신 사본은 계속 MIT 조건을 따릅니다. 이미 받
 
 ## 전체 릴리스 노트
 
+### Unreleased
+- **`npm i -g sprag-cli` 한 번으로 설치가 끝납니다.** 설치는 이제 아무것도 묻지 않고, 동봉된 추천 룰을 전체 프로젝트에 등록합니다. Codex가 설치되어 있으면(`~/.codex` 또는 `$CODEX_HOME`) Codex 훅과 `AGENTS.md` 하네스, Codex용 추천 룰까지 함께 등록하므로 `sprag install --agent codex`를 따로 칠 필요가 없습니다. Codex의 `/hooks`에서 훅을 신뢰하는 절차는 Codex가 요구하므로 남아 있습니다. 단계마다 확인하던 예전 방식은 `sprag install --manual`로 쓸 수 있습니다. `sprag uninstall`은 설치가 스스로 등록한 Codex 항목도 함께 지웁니다.
+- **홈페이지가 Sprag를 토큰 절감 도구로 소개합니다.** 상단에 같은 요청을 두 터미널에 넣어 비교하는 41초 영상을 영어와 한국어로 올렸습니다. 요청은 일반적인 개발 작업 예시이고 금액은 공개 단가로 계산했으며, 위임 쪽 비용에는 부모 세션이 대화를 다시 읽는 몫을 포함했습니다. Codex 패널 캡처는 아이콘이 보이는 기본 표시로 바꾸었습니다.
+- `npm version`이 `site/index.html`의 `softwareVersion`을 함께 올립니다. v3.54.0 에서 이 값이 3.53.0 에 머물러 모든 CI 러너에서 `test/site-md.test.js`가 실패했습니다.
+- Windows에서만 실패하던 테스트를 고쳤습니다. 8.3 짧은 경로와 긴 경로의 불일치, ESM import 에 쓴 절대 경로, 경로 구분자, `CODEX_HOME` 해석에 붙는 드라이브 문자, `Path` 대소문자, 임시 디렉터리 정리 시 `ENOTEMPTY`가 원인이었습니다.
+
 ### v3.54.0 (2026-09-28)
 - **Codex에서 하네스와 문서 변환, 한국어 쓰기 검사를 사용할 수 있습니다.** `--agent codex`가 Codex 전용 명령을 선택하며, 기본 에이전트는 Claude Code로 유지합니다. 설치는 `AGENTS.md` 또는 활성 `AGENTS.override.md`와 `hooks.json`에 필요한 항목을 추가합니다. 기존 지침과 다른 도구의 훅을 보존하고, `config.toml`과 Claude Code 설정은 바꾸지 않습니다. 등록한 훅은 Codex의 `/hooks`에서 검토하고 신뢰해야 실행됩니다.
 - **Codex 동반 패널이 현재 세션의 토큰과 컨텍스트, 사용 한도를 표시합니다.** 별도 터미널과 tmux 안에서 실행할 수 있고, macOS에서는 자동 창 열기와 선택적 zsh 연동을 지원합니다. tmux 패널은 실행별 세션 바인딩으로 다른 세션의 수치가 섞이지 않게 하며, `--statusline`은 한 번 출력한 뒤 종료합니다. `doctor`, `brief`, `history`, `handoff`가 진단과 작업 인계를 돕습니다.
