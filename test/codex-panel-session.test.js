@@ -18,7 +18,7 @@ const usage = (input) => ({ timestamp: new Date().toISOString(), type: 'event_ms
 
 function fixture(t) {
   const home = mkdtempSync(join(tmpdir(), 'sprag-session-'));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   mkdirSync(join(home, 'sessions'));
   const root = join(home, 'project');
   mkdirSync(root);

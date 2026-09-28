@@ -15,7 +15,7 @@ import { findProjectRoot } from '../src/harness.js';
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-codex-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(dir, 'home');
   const codex = join(dir, 'custom-codex');
   const root = join(dir, 'project');

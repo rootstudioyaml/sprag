@@ -5,7 +5,6 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
 import { recordPanelState, panelHealth } from '../src/codex-panel-state.js';
 
@@ -44,12 +43,13 @@ test('panel health separates hook execution from rendering and expires stale fra
     recordPanelState('/project', 'frame', { status: 'closed' }, dir);
     assert.equal(panelHealth('/project', { dir }).live, false);
     assert.equal(panelHealth('/other', { dir }).hook, null);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
 });
 
 test('auto panel registration survives reinstall and can be removed independently', () => {
   const home = mkdtempSync(join(tmpdir(), 'sprag-auto-'));
-  const module = fileURLToPath(new URL('../src/codex-installer.js', import.meta.url));
+  // A URL, not a path: on Windows the ESM loader reads `D:\\...` as the scheme `d:`.
+  const module = new URL('../src/codex-installer.js', import.meta.url).href;
   try {
     execFileSync(process.execPath, ['--input-type=module', '-e', `
       import assert from 'node:assert/strict';
@@ -65,7 +65,7 @@ test('auto panel registration survives reinstall and can be removed independentl
       configureCodexHooks({remove:true});
       assert.equal(codexPanelAutoEnabled(),false);
     `], { env: childEnv({ HOME: home, CODEX_HOME: home }), encoding: 'utf8' });
-  } finally { rmSync(home, { recursive: true, force: true }); }
+  } finally { rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
 });
 
 test('automatic windows and health records are session-specific within one project', () => {
@@ -87,5 +87,5 @@ test('automatic windows and health records are session-specific within one proje
     assert.equal(panelHealth('/project', { dir, sessionId: 'one' }).live, true);
     assert.equal(panelHealth('/project', { dir, sessionId: 'two' }).live, false);
     assert.equal(panelHealth('/project', { dir, sessionId: 'missing' }).frame, null);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
 });

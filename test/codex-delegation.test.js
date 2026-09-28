@@ -11,7 +11,7 @@ import { addCodexModelRule, loadCodexModelRules, matchCodexModelRule, removeCode
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-route-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(dir, 'codex'), root = join(dir, 'project');
   mkdirSync(home); mkdirSync(root); mkdirSync(join(root, '.git'));
   const env = childEnv({ HOME: dir, CODEX_HOME: home, XDG_CONFIG_HOME: join(dir, 'state'), CTS_NO_DOC2MD: '1', CTS_NO_KOREAN: '1' });

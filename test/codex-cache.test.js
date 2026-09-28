@@ -20,7 +20,7 @@ const usage = (at, input, cached = 0, written = 0) => ({ timestamp: new Date(at)
 } });
 function fixture(t) {
   const home = mkdtempSync(join(tmpdir(), 'sprag-cache-'));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   mkdirSync(join(home, 'sessions'));
   const file = join(home, 'sessions', 'one.jsonl');
   writeFileSync(file, jsonl([

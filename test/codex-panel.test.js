@@ -25,7 +25,7 @@ function sample() {
 }
 function fixture(t) {
   const home = mkdtempSync(join(tmpdir(), 'sprag-panel-'));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   mkdirSync(join(home, 'sessions'));
   return home;
 }

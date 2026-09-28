@@ -36,7 +36,10 @@ test('a leaking variable is dropped even when the ambient environment has it', (
       assert.equal(env[name], undefined, `${name} must not reach the child`);
     }
     // And the variables a child needs to run at all are still there.
-    assert.equal(env.PATH, process.env.PATH, 'PATH is not an input to this tool, so it stays');
+    // Windows spells it `Path`, and process.env answers either spelling while a
+    // plain copy keeps only the original one, so look the name up the same way.
+    const pathKey = Object.keys(env).find((k) => k.toUpperCase() === 'PATH');
+    assert.equal(pathKey && env[pathKey], process.env.PATH, 'PATH is not an input to this tool, so it stays');
   } finally {
     process.env = restore;
   }
