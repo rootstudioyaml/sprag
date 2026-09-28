@@ -384,6 +384,11 @@ export async function run({ args, version }) {
       const h = initCodexHarness({ root, scope: 'global' });
       console.log(`Codex harness: ${h.file}`);
     }
+    try {
+      const { preparePresetRatchet } = await import('../preset-ratchet.js');
+      const p = preparePresetRatchet({ agent: 'codex' });
+      console.log(`Codex preset rules: ${p.file} (${p.rules} registered${p.moved ? `, ${p.moved} moved from ratchet.md` : ''})`);
+    } catch { /* Presets are optional; `seed` still registers them. */ }
     console.log('Open /hooks in Codex and review/trust the Sprag hooks before they can run.');
     console.log(`Panel auto-start: ${panelAuto ? 'registered with the other hooks' : 'off'}. Hook registration is complete; runtime activation is not verified.`);
     console.log('After approval, start or resume Codex and run: sprag panel doctor --agent codex');
@@ -444,6 +449,15 @@ export async function run({ args, version }) {
       const r = harnessListRules(opts);
       console.log(`Codex ratchet [${scope}]: ${r.path}`);
       for (const rule of r.rules) console.log(`#${rule.index} ${rule.text}`);
+      if (scope === 'global') {
+        const { acceptedGlobalPresets, presetRatchetPath } = await import('../preset-ratchet.js');
+        const presets = acceptedGlobalPresets({ agent: 'codex' });
+        if (presets.length) {
+          console.log(`Codex preset rules [global]: ${presetRatchetPath({ agent: 'codex' })}`);
+          for (const p of presets) console.log(`${p.id} ${p.text}`);
+          console.log('Remove a preset with: sprag seed skip <id> --agent codex');
+        }
+      }
     } else if (sub === 'rm') {
       const raw = args[2];
       // Locate the index even when scope flags precede it.

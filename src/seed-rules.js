@@ -177,6 +177,15 @@ export async function acceptSeed(id, { scope, root = findProjectRoot(), lang = u
   if (!seed) return null;
 
   if (seed.kind === 'ratchet') {
+    // A global preset goes to the tool-owned preset file, which is rendered
+    // from the recorded answer; a project one is the user's placement and is
+    // appended to that project's ratchet.md as before.
+    if (scope === 'global') {
+      recordDecision(id, 'accepted', { scope }, { agent });
+      const { syncPresetRatchet } = await import('./preset-ratchet.js');
+      const res = syncPresetRatchet({ agent, lang });
+      return { id, kind: 'ratchet', scope, path: res.file, rule: seed.ruleText };
+    }
     const res = harnessPromote(seed.ruleText, { root, scope, agent });
     recordDecision(id, 'accepted', { scope }, { agent });
     return { id, kind: 'ratchet', scope, path: res.path, rule: seed.ruleText };
@@ -218,23 +227,39 @@ export async function acceptSeed(id, { scope, root = findProjectRoot(), lang = u
     lastSeen: today,
   });
   const written = syncAllFiles();
-  recordDecision(id, 'accepted', { scope });
+  recordDecision(id, 'accepted', { scope }, { agent });
   return { id, kind: 'model', scope, paths: written, rule: composeRuleText(entry.rule, entry, lang) };
 }
 
-/** Record a "no" so the rule is never offered again (until `seed reset`). */
-export function skipSeed(id, opts = {}) {
+/**
+ * Record a "no" so the rule is never offered again (until `seed reset`).
+ *
+ * A preset already accepted globally can be skipped too: that is how one comes
+ * out of the preset file, which is rendered from these answers.
+ */
+export async function skipSeed(id, opts = {}) {
   const seed = findSeed(id, opts);
-  if (!seed) return null;
-  recordDecision(id, 'skipped', {}, { agent: opts.agent });
-  return { id, kind: seed.kind, rule: seed.ruleText };
+  if (seed) {
+    recordDecision(id, 'skipped', {}, { agent: opts.agent });
+    return { id, kind: seed.kind, rule: seed.ruleText };
+  }
+  const { decided } = loadSeedState({ agent: opts.agent });
+  const preset = ratchetPresets(opts.lang, { agent: opts.agent }).find((p) => p.id === id);
+  if (!preset || decided[id]?.action !== 'accepted' || decided[id]?.scope !== 'global') return null;
+  recordDecision(id, 'skipped', { was: 'accepted' }, { agent: opts.agent });
+  const { syncPresetRatchet } = await import('./preset-ratchet.js');
+  syncPresetRatchet({ agent: opts.agent, lang: opts.lang });
+  return { id, kind: 'ratchet', rule: preset.text, removed: true };
 }
 
 /** Forget every recorded answer — the full set becomes pending again. */
-export function resetSeeds({ agent = 'claude' } = {}) {
+export async function resetSeeds({ agent = 'claude' } = {}) {
   const state = loadSeedState({ agent });
   const count = Object.keys(state.decided).length;
   saveSeedState({ decided: {} }, { agent });
+  // The preset file mirrors the answers, so forgetting them empties it.
+  const { syncPresetRatchet } = await import('./preset-ratchet.js');
+  syncPresetRatchet({ agent });
   return count;
 }
 

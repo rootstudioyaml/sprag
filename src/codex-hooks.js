@@ -76,14 +76,21 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig() } = {
     if (event === 'subagent-start' && cfg?.codex?.delegate !== true) return null;
     const root = findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' });
     const parts = [];
-    for (const scope of ['global', 'project']) {
-      const { ratchet } = codexHarnessPaths(root, scope);
+    // Keep the preset file current with this version's wording before it is read.
+    if (event === 'session-start') {
+      try { (await import('./preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch { /* Presets are optional. */ }
+    }
+    const { presetRatchetPath } = await import('./preset-ratchet.js');
+    for (const [scope, ratchet] of [['global', codexHarnessPaths(root, 'global').ratchet],
+      ['preset', presetRatchetPath({ agent: 'codex' })], ['project', codexHarnessPaths(root, 'project').ratchet]]) {
       try {
         if (statSync(ratchet).size > 32 * 1024) {
           parts.push(`Read the ${scope} Sprag ratchet rules at ${JSON.stringify(ratchet)} before working; they exceed the automatic injection limit.`);
         } else {
           const text = readFileSync(ratchet, 'utf8').trim();
-          if (text) parts.push(`[Sprag Codex ratchet: ${scope}]\n${text}`);
+          // An empty preset file is only its header; injecting it would spend
+          // tokens every session on no rules.
+          if (text && (scope !== 'preset' || /^- /m.test(text))) parts.push(`[Sprag Codex ratchet: ${scope}]\n${text}`);
         }
       } catch { /* No rules registered in this scope. */ }
     }

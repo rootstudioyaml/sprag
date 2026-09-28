@@ -21,6 +21,7 @@ import {
   appendRatchetRule,
   RATCHET_IMPORT_RE,
   MODEL_RATCHET_IMPORT_RE,
+  renderPresetRatchet,
 } from './harness-templates.js';
 import { routeWarningForStatusline } from './route-scan.js';
 import { ruleHealthWarningForStatusline, modelRatchetPathFor, renderModelRatchet } from './model-rules.js';
@@ -265,6 +266,18 @@ export function harnessInit({ root = findProjectRoot(), force = false, scope = '
     result.skipped.push(mrPath + ' (already exists)');
   }
 
+  // ratchet-preset.md — tool-owned and imported by the global block only, so
+  // it is seeded here for the same reason as ratchet-model.md above.
+  if (scope === 'global') {
+    const prPath = join(homedir(), '.claude', 'ratchet-preset.md');
+    if (!existsSync(prPath)) {
+      try {
+        writeFileSync(prPath, renderPresetRatchet([], { lang: userLanguage() }));
+        result.wrote.push(prPath);
+      } catch { /* unwritable — the next session start renders it */ }
+    }
+  }
+
   return result;
 }
 
@@ -347,7 +360,19 @@ export function harnessPromote(ruleText, { root = findProjectRoot(), scope = 'pr
  * Deduped by rule text (ignoring the YYYY-MM-DD stamp) — idempotent.
  * Returns { path, scope, added, skippedRules, presets }.
  */
-export function harnessPull({ root = findProjectRoot(), scope = 'global', agent = 'claude' } = {}) {
+export async function harnessPull({ root = findProjectRoot(), scope = 'global', agent = 'claude' } = {}) {
+  // Global presets live in ratchet-preset.md now, rendered from recorded
+  // answers, so pulling them globally is accepting every one of them.
+  if (scope === 'global') {
+    const { acceptedGlobalPresets, presetRatchetPath } = await import('./preset-ratchet.js');
+    const { pendingSeeds, acceptSeed } = await import('./seed-rules.js');
+    const added = [];
+    for (const s of pendingSeeds({ root, agent }).filter((x) => x.kind === 'ratchet')) {
+      if (await acceptSeed(s.id, { scope: 'global', root, agent })) added.push(s.ruleText);
+    }
+    const all = acceptedGlobalPresets({ agent }).length;
+    return { path: presetRatchetPath({ agent }), scope, added, skippedRules: all - added.length, presets: presetRuleEntries().length };
+  }
   const presets = presetRules();
   const rmPath = resolveRatchetPath(scope, root, agent);
   const result = { path: rmPath, scope, added: [], skippedRules: 0, presets: presets.length };

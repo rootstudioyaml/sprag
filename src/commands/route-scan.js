@@ -277,6 +277,10 @@ export async function run({ args, hasFlag, numArg }) {
       // when the rendering differs, so the common case is a read and a string
       // compare.
       try { mrHook.syncAllFiles(); } catch (e) { debug('route-scan:sync-ratchet', e); }
+      // Same reason for the preset ratchet: an upgrade that rewords or drops a
+      // bundled rule reaches ratchet-preset.md here, without a reinstall. It
+      // also moves presets older versions appended to ratchet.md.
+      try { (await import('../preset-ratchet.js')).preparePresetRatchet(); } catch (e) { debug('route-scan:sync-preset', e); }
       // Registered rules whose delegated-category error rate crossed the
       // health threshold since promotion — the user approved these, so a
       // status change must be briefed, not just written into the md file.

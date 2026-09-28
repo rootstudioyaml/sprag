@@ -347,6 +347,21 @@ export async function run({ hasFlag }) {
     // postinstall cannot hold a conversation, and a prompt here would be
     // answered by whoever happens to be at the terminal for a set of rules
     // they have not read. All the install does is say what is waiting.
+    // Presets now live in ratchet-preset.md. Moving the ones older versions
+    // appended to ratchet.md comes first, so they are not offered again below.
+    try {
+      const { preparePresetRatchet } = await import('../preset-ratchet.js');
+      const p = preparePresetRatchet();
+      if (p.moved) {
+        console.log('');
+        console.log(lang === 'ko'
+          ? `  preset: ratchet.md 에 있던 추천 룰 ${p.moved}건을 ${p.file} 로 옮겼습니다 (원본은 ratchet.md.bak-preset-migration).`
+          : `  preset: moved ${p.moved} bundled rule(s) from ratchet.md to ${p.file} (original kept as ratchet.md.bak-preset-migration).`);
+      }
+    } catch (e) {
+      debug('install:preset-ratchet', e); // the next session start retries
+    }
+
     try {
       const { pendingSeeds, acceptSeed } = await import('../seed-rules.js');
       const pending = pendingSeeds();
@@ -402,6 +417,7 @@ export async function run({ hasFlag }) {
             const h = initCodexHarness({ scope: 'global' });
             console.log(`  codex: harness ${h.file}`);
           }
+          try { (await import('../preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch (e) { debug('install:codex-preset', e); }
           if (!manual) {
             const { pendingSeeds, acceptSeed } = await import('../seed-rules.js');
             let n = 0;

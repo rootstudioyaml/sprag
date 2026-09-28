@@ -337,7 +337,7 @@ export async function run({ args, hasFlag }) {
       // rules, and a project ratchet inherits global anyway). Strictly opt-in:
       // install/init never auto-injects rules.
       const scope = parseHarnessScope(args.slice(2), 'global');
-      const r = harnessPull({ scope });
+      const r = await harnessPull({ scope });
       console.log(`Curated preset rules → ${r.path} [${r.scope}]`);
       if (r.added.length) {
         console.log(`✅ ${r.added.length}/${r.presets} rule(s) registered:`);
@@ -366,7 +366,18 @@ export async function run({ args, hasFlag }) {
         console.log('');
       };
       if (wantProject) print('project');
-      if (wantGlobal) print('global');
+      if (wantGlobal) {
+        print('global');
+        // Presets live in their own tool-owned file and are removed by id,
+        // so they are listed apart from the numbered rules `rm <N>` acts on.
+        const { acceptedGlobalPresets, presetRatchetPath } = await import('../preset-ratchet.js');
+        const presets = acceptedGlobalPresets();
+        if (presets.length) {
+          console.log(`📦 Preset rules [global] — ${presetRatchetPath()}\n`);
+          for (const p of presets) console.log(`  ${p.id}  ${p.text}`);
+          console.log('\nRemove a preset with: sprag seed skip <id>\n');
+        }
+      }
       console.log('Remove with: sprag harness rm [--global|--project] <N>');
       console.log('Archive in bulk:  sprag harness prune [--global] [--tag <t>] [--older-than <months>] [--dry-run]');
       return;
