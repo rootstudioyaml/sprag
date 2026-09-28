@@ -770,13 +770,31 @@ function documentPathsIn(text, cwd = process.cwd()) {
   // `C:\\Users\\me\\deck.pptx` and `\\\\server\\share\\deck.pptx` are how
   // Windows users write a path, and without them the scanner silently sees no
   // documents at all on that platform.
-  const re = new RegExp(`(?:["\'\x60]([^"\'\x60]+\\.(?:${exts}))["\'\x60]|(?:^|[\\s@])((?:[A-Za-z]:)?[^\\s'"\x60]+\\.(?:${exts})))(?=$|[\\s,.;:!?])`, 'gi');
+  //
+  // The extension may be followed by anything except more of a filename, so
+  // `deck.pptx를` and `(./a.pdf)` still count while `a.pdfx` does not. Korean
+  // attaches a particle straight to the path, and a whitelist of punctuation
+  // after the extension silently dropped every such prompt.
+  const tail = '(?![A-Za-z0-9_])';
+  const forms = [
+    // A path that starts like one (`~`, `.`, `/`, `\`, a drive letter), found
+    // anywhere in the text. This is the original scanner, kept whole so that a
+    // new form can only add paths, never lose one it used to find.
+    new RegExp(`((?:[A-Za-z]:)?[~./\\\\][^\\s'"\x60]*\\.(?:${exts}))${tail}`, 'gi'),
+    // A quoted path, which may contain spaces and needs no leading `./`.
+    new RegExp(`["'\x60]([^"'\x60]+\\.(?:${exts}))["'\x60]`, 'gi'),
+    // A bare name such as `book.pdf` or `docs/a.pdf`, starting a word. An
+    // opening bracket or an `@` is a word boundary, not part of the name.
+    new RegExp(`(?:^|[\\s@(\\[{<])([^\\s'"\x60()\\[\\]{}<>@][^\\s'"\x60]*\\.(?:${exts}))${tail}`, 'gi'),
+  ];
   const found = [];
-  for (const m of text.matchAll(re)) {
-    const raw = m[1] || m[2];
-    if (/^[a-z]+:\/\//i.test(raw)) continue;
-    const abs = raw.startsWith('~') ? path.join(os.homedir(), raw.slice(1)) : path.resolve(cwd, raw);
-    if (!found.includes(abs)) found.push(abs);
+  for (const re of forms) {
+    for (const m of text.matchAll(re)) {
+      const raw = m[1];
+      if (raw.includes('://')) continue;
+      const abs = raw.startsWith('~') ? path.join(os.homedir(), raw.slice(1)) : path.resolve(cwd, raw);
+      if (!found.includes(abs)) found.push(abs);
+    }
   }
   return found;
 }
