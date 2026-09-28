@@ -8,14 +8,21 @@ subcommand to select Codex explicitly; this does not change a global default.
 
 ## Install
 
-For a Codex-only installation, skip npm's existing Claude Code postinstall:
+```sh
+npm i -g sprag-cli
+```
+
+The package install sets up Codex on its own when Codex is present, together
+with the Claude Code integration and the bundled presets; nothing is asked
+(`sprag install --manual` asks at each step). For a Codex-only installation that
+leaves Claude Code settings alone, skip the postinstall and run the Codex
+install directly:
 
 ```sh
 npm i -g sprag-cli --ignore-scripts
 sprag install --agent codex
 ```
 
-If Sprag is already installed for Claude Code, just run the second command.
 Both integrations can coexist. Codex installation uses `$CODEX_HOME` when set,
 otherwise `~/.codex`. It adds the integration hooks to `hooks.json` and a marked harness
 block to the global `AGENTS.md`. A non-empty `AGENTS.override.md` takes precedence,

@@ -10,8 +10,8 @@
  *   npx sprag --format csv       # CSV output
  *   npx sprag --project myproj   # filter by project
  *   npx sprag route-scan         # detect recurring easy work → haiku-delegation candidates
- *   npx sprag install            # set up skill/hooks/statusline; asks about harness + Korean guidance
- *   npx sprag install --yes      # take the defaults without asking (same as --no-input)
+ *   npx sprag install            # set up everything, presets and Codex included, without asking
+ *   npx sprag install --manual   # confirm each optional step
  *   npx sprag --install-hook     # install PostToolUse hook
  *   npx sprag --uninstall-hook   # remove hook
  *   npx claude-token-saver --hook-run         # internal: called by hook
@@ -123,8 +123,8 @@ Usage:
       --agent claude|codex (default: claude; accepted before or after subcommands)
   sprag route-scan         detect recurring easy work → delegation candidates
   sprag profile-map        show/refresh the gateway model map (LiteLLM /model/info)
-  sprag install            set up skill/hooks/statusline
-  sprag install --yes      take the defaults without asking
+  sprag install            set up everything (presets, and Codex when present) without asking
+  sprag install --manual   confirm each optional step
   sprag uninstall          remove everything install added
   sprag harness check      score the harness setup in CLAUDE.md
   sprag harness analyze    run the harness transcript analysis manually

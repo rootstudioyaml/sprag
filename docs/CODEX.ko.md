@@ -8,12 +8,19 @@ Sprag는 Codex의 기본 훅과 `AGENTS.md`를 사용합니다. Claude Code와 �
 ## 설치
 
 ```sh
-npm i -g sprag-cli --ignore-scripts
-sprag install --agent codex
-sprag doctor --agent codex
+npm i -g sprag-cli
 ```
 
-이미 Sprag를 설치했다면 두 번째 명령부터 실행하십시오. Codex의 `/hooks`에서 등록된 명령을
+Codex가 설치되어 있으면 패키지 설치가 Claude Code 연동, 추천 룰과 함께 Codex도 설정합니다.
+설치 중에 묻는 것은 없으며, 단계마다 확인하려면 `sprag install --manual`을 쓰십시오.
+Claude Code 설정을 건드리지 않고 Codex만 쓰려면 postinstall을 건너뛰고 Codex 설치를 직접 실행합니다.
+
+```sh
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+```
+
+`sprag doctor --agent codex`는 문제가 생겼을 때 쓰는 진단 명령입니다. Codex의 `/hooks`에서 등록된 명령을
 검토하고 신뢰해야 훅이 동작합니다. 설치는 훅을 등록할 뿐 신뢰 설정을 바꾸지 않습니다.
 관리자 정책이나 `features.hooks = false` 설정이 훅을 막을 수도 있습니다.
 

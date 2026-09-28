@@ -43,7 +43,8 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag --version` | 설치된 버전을 출력합니다 |
 | `sprag update-check` | 새 버전이 있는지 확인합니다 (`--refresh`로 즉시 조회, `--dismiss`로 그 버전 안내 끄기) |
 | `sprag upgrade` | 설치 경로에 맞는 명령으로 최신 버전을 설치합니다 (`--print`로 실행 없이 명령만 확인) |
-| `sprag install` | Skill·statusline 수동 등록 |
+| `sprag install` | 묻지 않고 전부 등록합니다: Skill, statusline, 훅, 하네스, 추천 룰, 그리고 설치된 경우 Codex |
+| `sprag install --manual` | 같은 설치를 단계마다 확인하며 진행합니다 |
 | `sprag uninstall [--purge]` | 등록한 훅·statusline·Skill 제거. 기록된 절감액은 남기며, `--purge` 를 붙이면 상태 디렉터리까지 지웁니다 |
 
 출력 언어는 설치할 때 한 번 정합니다. 터미널에서 설치하면 시스템 로케일을 기본값으로 제시하고 한국어를 쓸지 물어보며, 비대화형 설치에서는 로케일 판정을 그대로 기록합니다. 한 번 기록되면 업그레이드해도 다시 묻지 않습니다. 나중에 바꿀 때는 `mode ko`나 `mode en`을 쓰고, 스크립트에서 설치할 때는 `CTS_LANG=ko` 또는 `CTS_LANG=en`으로 지정할 수 있습니다. statusline의 칩은 언제나 기호로 표시합니다. 전체 옵션은 [전체 명령 문서](./COMMANDS.md)를 참고하십시오.

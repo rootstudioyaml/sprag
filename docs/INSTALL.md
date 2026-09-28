@@ -10,16 +10,29 @@ Sprag supports Claude Code and Codex. Commands default to Claude Code; use
 ### Codex
 
 ```bash
-npm i -g sprag-cli --ignore-scripts
-sprag install --agent codex
-sprag doctor --agent codex
+npm i -g sprag-cli
 ```
 
-Review and trust the registered commands in Codex `/hooks`. Use
-`sprag panel --agent codex` in a companion terminal, or
+One command sets up both agents. The install registers the Claude Code
+integration and the bundled rule presets for every project, and when Codex is
+installed (`~/.codex` or `$CODEX_HOME` exists) it also registers the Codex hooks
+and the `AGENTS.md` harness. Nothing is asked; pass `sprag install --manual` to
+confirm each step instead.
+
+The one step left is Codex's own: open **`/hooks` in Codex** and trust the Sprag
+hooks. Codex requires that approval, so no installer can do it for you.
+`sprag doctor --agent codex` is for troubleshooting only.
+
+To use Codex without touching Claude Code settings:
+
+```bash
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+```
+
+Use `sprag panel --agent codex` in a companion terminal, or
 `sprag panel run --agent codex --` for a tmux layout. Model routing is opt-in;
-rule registration requires an explicit scope. See [Codex workflows and limits](./CODEX.md).
-If Sprag is already installed for Claude Code, only the second command is needed.
+rules you add later require an explicit scope. See [Codex workflows and limits](./CODEX.md).
 
 ### Claude Code
 
@@ -31,7 +44,7 @@ npm i -g sprag-cli
 
 The statusline appears at the bottom of Claude Code right away. If auto-registration was skipped (`--ignore-scripts`, sudo, sandboxed installs), run `sprag install`.
 
-One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷 Harness (5 principles), and a first route-scan.** The harness and the Korean writing guidance **show what they add and ask before enabling it.** The harness is **appended** to `~/.claude/CLAUDE.md` as a marked block (your existing content is backed up and preserved) and is left alone if one is already there.
+One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷 Harness (5 principles), the bundled rule presets, and a first route-scan.** Nothing is asked by default; `sprag install --manual` shows what the harness, the presets and the Korean writing guidance add and asks before enabling each. The harness is **appended** to `~/.claude/CLAUDE.md` as a marked block (your existing content is backed up and preserved) and is left alone if one is already there.
 
 Outside a terminal — npm `postinstall`, CI, piped stdin — the question is skipped and the old defaults apply. Use `--yes` or `--no-input` to skip it deliberately, `CTS_NO_HARNESS=1 npm i -g sprag-cli` to skip the harness entirely, and `sprag harness uninit --global` to undo it.
 

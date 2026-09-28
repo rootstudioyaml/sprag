@@ -34,14 +34,16 @@ budget and price lookups contact your configured LiteLLM endpoint using its
 existing credentials. The CLI requires Node.js 18+ and one TOML parser dependency.
 
 ```bash
-npm i -g sprag-cli   # default: Claude Code integration
+npm i -g sprag-cli   # Claude Code, plus Codex when it is installed
 ```
 
 ## Codex
 
 Native hooks, an `AGENTS.md` harness, scoped ratchet rules, Korean lint,
 document conversion, token reports, and a session-bound companion panel.
-For a Codex-only install:
+`npm i -g sprag-cli` sets Codex up too when it is installed, with the rule
+presets registered globally and nothing asked (`sprag install --manual` asks at
+each step). For a Codex-only install that leaves Claude Code alone:
 
 ```bash
 npm i -g sprag-cli --ignore-scripts
@@ -49,13 +51,13 @@ sprag install --agent codex
 sprag --agent codex --days 7
 sprag panel --agent codex  # live companion in a separate terminal
 sprag --statusline --agent codex --text
-sprag doctor --agent codex
+sprag doctor --agent codex  # troubleshooting only
 sprag route-scan --agent codex
 sprag seed --agent codex
 ```
 
-Review and trust the new hooks in Codex's `/hooks` menu. The default remains
-Claude Code; existing users can add Codex with the second command alone.
+Review and trust the new hooks in Codex's `/hooks` menu; Codex requires that
+step. Commands still default to Claude Code; add `--agent codex` to pick Codex.
 Codex also supports session briefings, warning history, handoffs, and opt-in
 model routing and subagent guidance (`sprag delegate on --agent codex`). The native Codex footer
 does not accept shell commands; Sprag provides a terminal statusline and panel.
