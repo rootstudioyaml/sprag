@@ -35,6 +35,23 @@ export async function run({ hasFlag, args = [] }) {
   for (const item of r.kept) {
     console.log(lang === 'ko' ? `  유지: ${item}` : `  kept: ${item}`);
   }
+  // The install now registers Codex too when it finds it, so removal has to
+  // undo that as well; otherwise Codex keeps calling a command that may no
+  // longer exist. Only our own entries go, exactly as `uninstall --agent codex`.
+  try {
+    const { codexHookStatus, configureCodexHooks } = await import('../codex-installer.js');
+    const { codexHarnessStatus, uninitCodexHarness } = await import('../codex-harness.js');
+    const hooked = codexHookStatus().some((h) => h.registered);
+    let harness = false;
+    try { harness = codexHarnessStatus({ scope: 'global' }).configured > 0; } catch { /* no AGENTS.md */ }
+    if (hooked || harness) {
+      const hook = configureCodexHooks({ remove: true });
+      const h = uninitCodexHarness({ scope: 'global' });
+      console.log(lang === 'ko'
+        ? `  Codex: 훅 ${hook.action} (${hook.file}), 하네스 ${h.removed ? '제거' : '없음'}`
+        : `  Codex: hooks ${hook.action} (${hook.file}), harness ${h.removed ? 'removed' : 'absent'}`);
+    }
+  } catch { /* Codex state is optional; the Claude removal above already succeeded */ }
   if (!purge) {
     console.log(lang === 'ko'
       ? `  기록된 절감액과 설정까지 지우려면 \`${CLI_NAME} uninstall --purge\` 를 실행하십시오.`

@@ -50,7 +50,8 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag --version` | Print the installed version |
 | `sprag update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
 | `sprag upgrade` | Install the latest release with the package manager that installed this copy (`--print` shows the command only) |
-| `sprag install` | Manually register Skill + statusline |
+| `sprag install` | Register everything without asking: Skill, statusline, hooks, harness, presets, and Codex when present |
+| `sprag install --manual` | Same, confirming each optional step |
 | `sprag uninstall [--purge]` | Remove the hooks, statusline and skill it registered. Recorded savings are kept unless `--purge` is given |
 
 The output language is decided once, at install time: a terminal install proposes the system locale and asks whether to use Korean, while an unattended install records what the locale says. Once recorded it is never asked again, not even on an upgrade. Change it later with `mode ko` / `mode en`, or pin it for a scripted install with `CTS_LANG=ko` / `CTS_LANG=en`. Statusline chips stay symbolic either way.

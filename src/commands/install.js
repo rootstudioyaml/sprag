@@ -5,8 +5,12 @@
  * a legacy command file is removed automatically. Cross-platform.
  *   sprag install              # install/update the skill
  *   sprag install --force      # overwrite existing skill file
- *   sprag install --yes        # take the defaults instead of asking
- *   sprag install --no-input   # same as --yes; also implied by CTS_NO_INPUT=1
+ *   sprag install --manual     # ask before each optional step instead
+ *
+ * The default is automatic: nothing is asked, the bundled presets are
+ * registered globally, and Codex is set up too when ~/.codex exists. `--manual`
+ * restores the step-by-step questions (they still need a terminal attached).
+ * `--yes` and `--no-input` are accepted as the explicit spelling of the default.
  */
 
 import { debug } from '../debug.js';
@@ -19,12 +23,13 @@ export async function run({ hasFlag }) {
     const { userLanguage, languageDecided, setUserLanguage } = await import('../config.js');
     const { canPrompt, confirm } = await import('../prompt.js');
     const force = hasFlag('--force');
-    // Two features below write to ~/.claude and cost tokens in every session,
-    // so the install shows what they contain and asks before turning them on.
-    // Asking is only possible with a human attached: postinstall, CI and pipes
-    // fall through to the previous automatic defaults so an unattended upgrade
-    // behaves exactly as it did before.
-    const interactive = canPrompt() && !hasFlag('--yes') && !hasFlag('--no-input');
+    // Automatic unless asked otherwise. A question per step turned the install
+    // into a dozen answers before any work, and every answer has a sensible
+    // default: the harness and presets are what make the first session save
+    // tokens. `--manual` brings the questions back, and only with a terminal
+    // attached, so postinstall, CI and pipes never wait on input.
+    const manual = hasFlag('--manual') && !hasFlag('--yes') && !hasFlag('--no-input');
+    const interactive = manual && canPrompt();
 
     // Output language, decided first because every line below it — and every
     // briefing the hooks inject from here on — is written in it. Until now it
@@ -343,9 +348,21 @@ export async function run({ hasFlag }) {
     // answered by whoever happens to be at the terminal for a set of rules
     // they have not read. All the install does is say what is waiting.
     try {
-      const { pendingSeeds } = await import('../seed-rules.js');
+      const { pendingSeeds, acceptSeed } = await import('../seed-rules.js');
       const pending = pendingSeeds();
-      if (pending.length > 0) {
+      if (pending.length > 0 && !manual) {
+        // Automatic install registers every preset globally. Global because a
+        // preset is a tool-wide rule, not a project's; `sprag seed` lists them
+        // and `sprag harness rm` removes any one afterwards.
+        let n = 0;
+        for (const p of pending) {
+          try { if (await acceptSeed(p.id, { scope: 'global' })) n += 1; } catch (e) { debug('install:seed-accept', e); }
+        }
+        console.log('');
+        console.log(lang === 'ko'
+          ? `  seed: 추천 룰 ${n}건을 전체 프로젝트에 등록했습니다 (모델 피팅 + 래칫 프리셋). 목록: sprag seed`
+          : `  seed: registered ${n} recommended rule(s) for all projects (model-fitting + ratchet presets). List: sprag seed`);
+      } else if (pending.length > 0) {
         console.log('');
         console.log(lang === 'ko'
           ? `  seed: 추천 룰 ${pending.length}건이 대기 중입니다 (모델 피팅 + 래칫 프리셋).`
@@ -356,6 +373,50 @@ export async function run({ hasFlag }) {
       }
     } catch (e) {
       debug('install:seed-offer', e); // optional feature; never fail install
+    }
+
+    // Codex, when it is installed on this machine. Without this a Codex user
+    // had to know to run `sprag install --agent codex` after the package
+    // install. Registration is all we can do: Codex still asks the user to
+    // trust the hooks in /hooks before they run, and that step stays theirs.
+    try {
+      const { codexUserDir } = await import('../agent.js');
+      const { existsSync } = await import('node:fs');
+      if (process.env.CTS_NO_CODEX !== '1' && existsSync(codexUserDir())) {
+        let proceed = true;
+        if (interactive) {
+          console.log('');
+          proceed = await confirm(lang === 'ko'
+            ? '  codex: Codex 가 설치되어 있습니다. Codex 훅과 하네스도 함께 설정할까요?'
+            : '  codex: Codex is installed here. Set up its hooks and harness too?', { defaultValue: true });
+        }
+        if (proceed) {
+          const { configureCodexHooks } = await import('../codex-installer.js');
+          const { initCodexHarness } = await import('../codex-harness.js');
+          const { loadConfig } = await import('../config.js');
+          const panelAuto = process.platform === 'darwin' && loadConfig()?.codex?.panelAuto !== false;
+          const hook = configureCodexHooks({ panelAuto });
+          console.log('');
+          console.log(`  codex: hooks ${hook.action} (${hook.file})`);
+          if (process.env.CTS_NO_HARNESS !== '1') {
+            const h = initCodexHarness({ scope: 'global' });
+            console.log(`  codex: harness ${h.file}`);
+          }
+          if (!manual) {
+            const { pendingSeeds, acceptSeed } = await import('../seed-rules.js');
+            let n = 0;
+            for (const p of pendingSeeds({ agent: 'codex' })) {
+              try { if (await acceptSeed(p.id, { scope: 'global', agent: 'codex' })) n += 1; } catch (e) { debug('install:codex-seed', e); }
+            }
+            if (n) console.log(lang === 'ko' ? `  codex: 추천 룰 ${n}건 등록` : `  codex: registered ${n} recommended rule(s)`);
+          }
+          console.log(lang === 'ko'
+            ? '  codex: Codex 에서 /hooks 를 열어 Sprag 훅을 신뢰해야 실행됩니다 (Codex 보안 정책이라 자동화할 수 없습니다).'
+            : "  codex: open /hooks in Codex and trust the Sprag hooks; Codex requires that step and it cannot be automated.");
+        }
+      }
+    } catch (e) {
+      debug('install:codex', e); // optional; `sprag install --agent codex` still works
     }
 
     console.log('');

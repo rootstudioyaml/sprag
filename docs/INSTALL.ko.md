@@ -8,16 +8,28 @@ Sprag는 Claude Code와 Codex를 지원합니다. 기본 대상은 Claude Code�
 ## Codex 설치
 
 ```bash
-npm i -g sprag-cli --ignore-scripts
-sprag install --agent codex
-sprag doctor --agent codex
+npm i -g sprag-cli
 ```
 
-Codex의 `/hooks`에서 등록된 명령을 검토하고 신뢰하십시오. 별도 터미널에서는
-`sprag panel --agent codex`, tmux에서는 `sprag panel run --agent codex --`를 사용합니다.
-모델 위임은 직접 켜야 하며 규칙을 등록하려면 적용 범위를 지정해야 합니다.
+명령 하나로 두 에이전트를 함께 설정합니다. 설치는 Claude Code 연동과 동봉된 추천 룰을
+전체 프로젝트에 등록하고, Codex가 설치되어 있으면(`~/.codex` 또는 `$CODEX_HOME`)
+Codex 훅과 `AGENTS.md` 하네스도 등록합니다. 설치 중에 묻는 것은 없으며, 단계마다
+확인하려면 `sprag install --manual`을 쓰십시오.
+
+남는 절차는 Codex 쪽 한 가지입니다. **Codex에서 `/hooks`를 열어** Sprag 훅을
+신뢰하십시오. Codex가 이 승인을 요구하므로 설치 프로그램이 대신할 수 없습니다.
+`sprag doctor --agent codex`는 문제가 생겼을 때만 쓰는 진단 명령입니다.
+
+Claude Code 설정을 건드리지 않고 Codex만 쓰려면 다음과 같이 설치하십시오.
+
+```bash
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+```
+
+별도 터미널에서는 `sprag panel --agent codex`, tmux에서는 `sprag panel run --agent codex --`를 사용합니다.
+모델 위임은 직접 켜야 하며, 나중에 규칙을 추가할 때는 적용 범위를 지정해야 합니다.
 [Codex 연동 안내](./CODEX.ko.md)에서 기능과 제한을 확인할 수 있습니다.
-이미 Claude Code용 Sprag를 설치했다면 두 번째 명령만 실행하면 됩니다.
 
 ## Claude Code 설치
 

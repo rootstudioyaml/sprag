@@ -59,6 +59,48 @@ test('install completes on a machine with no prior state', () => {
 });
 
 /**
+ * The default install asks nothing and leaves the first session ready to save
+ * tokens: presets registered for every project, and Codex wired up when it is
+ * present. A user used to need `seed accept all --global` and
+ * `install --agent codex` on top of the package install to get here.
+ */
+test('the automatic install registers presets globally and sets up Codex when it exists', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cts-install-auto-'));
+  const home = join(dir, 'home');
+  const codex = join(home, '.codex');
+  mkdirSync(codex, { recursive: true });
+  try {
+    const env = childEnv({ HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' });
+    const out = execFileSync(process.execPath, [CLI, 'install'], { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    assert.match(out, /seed: registered [1-9]\d* recommended rule/, out);
+    assert.match(readFileSync(join(home, '.claude', 'ratchet.md'), 'utf8'), /^- \d{4}-\d{2}-\d{2}/m,
+      'a preset lands in the global ratchet');
+    const hooks = JSON.parse(readFileSync(join(codex, 'hooks.json'), 'utf8'));
+    assert.match(JSON.stringify(hooks), /codex-hook --agent codex/, 'Codex hooks are registered');
+    assert.match(readFileSync(join(codex, 'AGENTS.md'), 'utf8'), /Sprag Harness/);
+    assert.match(out, /trust the Sprag hooks/);
+    // What the install added on its own, a plain uninstall takes away again;
+    // otherwise Codex keeps calling a command the user removed.
+    execFileSync(process.execPath, [CLI, 'uninstall'], { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    assert.doesNotMatch(readFileSync(join(codex, 'hooks.json'), 'utf8'), /codex-hook/);
+    assert.doesNotMatch(readFileSync(join(codex, 'AGENTS.md'), 'utf8'), /Sprag Harness/);
+
+    // --manual without a terminal asks nothing, so it registers nothing either:
+    // the presets stay pending for the session to offer one at a time.
+    const manualHome = join(dir, 'manual');
+    mkdirSync(manualHome, { recursive: true });
+    const manualOut = execFileSync(process.execPath, [CLI, 'install', '--manual'], {
+      env: childEnv({ HOME: manualHome, XDG_CONFIG_HOME: join(dir, 'cfg2'), NO_COLOR: '1', CTS_LANG: 'en' }),
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    assert.match(manualOut, /recommended rule\(s\) are waiting/);
+    assert.equal(existsSync(join(manualHome, '.codex')), false, 'no Codex setup where Codex is absent');
+  } finally {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+});
+
+/**
  * `uninstall` shipped as a name in the subcommand list with nothing behind it:
  * it fell through to the usage report and exited non-zero. Removal has to work
  * as reliably as installation, and it has to leave other people's settings

@@ -33,6 +33,8 @@ npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입�
 
 Codex 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙,
 한국어 검사, 프롬프트의 문서 경로 자동 변환, 로컬 토큰 보고서를 사용할 수 있습니다.
+Codex가 설치되어 있으면 `npm i -g sprag-cli` 하나로 Codex도 설정하고, 추천 룰을 묻지 않고
+전역으로 등록합니다(단계마다 확인하려면 `sprag install --manual`). Claude Code를 건드리지 않고
 Codex만 쓴다면 다음과 같이 설치하십시오.
 
 ```bash
@@ -41,14 +43,13 @@ sprag install --agent codex
 sprag --agent codex --days 7
 sprag panel --agent codex  # 별도 터미널에서 실시간 패널 실행
 sprag --statusline --agent codex --text
-sprag doctor --agent codex
+sprag doctor --agent codex  # 문제가 생겼을 때만
 sprag route-scan --agent codex
 sprag seed --agent codex
 ```
 
-설치 후 Codex의 `/hooks`에서 새 훅을 검토하고 신뢰해야 실행됩니다. 기본 대상은
-여전히 Claude Code입니다. 이미 Sprag를 설치했다면 두 번째 명령만 실행하여
-Codex 연동을 추가할 수 있습니다. Codex에서도 세션 브리핑, 경고 이력, 인수인계
+설치 후 Codex의 `/hooks`에서 새 훅을 검토하고 신뢰해야 실행됩니다. Codex가 요구하는
+절차입니다. 명령의 기본 대상은 여전히 Claude Code이며, `--agent codex`를 붙이면 Codex를 고릅니다. Codex에서도 세션 브리핑, 경고 이력, 인수인계
 파일을 지원합니다. `sprag delegate on --agent codex`로 모델 위임과 하위 에이전트
 지침 전달을 켤 수 있습니다. 상태 표시는 Sprag 터미널 상태줄과 패널을 사용하십시오.
 Codex 기본 상태줄은 셸 명령을 실행하지 않습니다. 반복된 단순 작업은 위임 후보로,
