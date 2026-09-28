@@ -1,6 +1,6 @@
 {
   "name": "sprag-cli",
-  "version": "3.53.0",
+  "version": "3.54.0",
   "description": "Sprag - a local harness for Claude Code and Codex: ratchet rules, model delegation, token telemetry, companion panels, document conversion, and Korean writing checks.",
   "type": "module",
   "bin": {
