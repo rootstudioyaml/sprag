@@ -12,7 +12,7 @@ const row = (overrides = {}) => ({ model_name: 'alias', litellm_params: { model:
   model_info: { base_model: 'bedrock/openai.gpt-6-astra' }, ...overrides });
 function fixture(t) {
   const home = mkdtempSync(join(tmpdir(), 'sprag-policy-'));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   writeFileSync(join(home, 'config.toml'), 'model_provider="litellm"\n[model_providers.litellm]\nname="LiteLLM"\nbase_url="https://example.test/v1"\nenv_key="TEST_KEY"\n');
   return { home, dir: home, env: { TEST_KEY: 'secret-key' }, now };
 }

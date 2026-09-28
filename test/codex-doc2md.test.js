@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, symlinkSync, existsSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -12,8 +12,10 @@ import { codexDocumentTotals } from '../src/codex-doc2md-ledger.js';
 const doc2md = createRequire(import.meta.url)('../src/doc2md.cjs');
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 function fixture(t) {
-  const home = mkdtempSync(join(tmpdir(), 'sprag-codex-doc-'));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  // realpath: Windows hands out the 8.3 form (RUNNER~1) here while the hooks
+  // resolve the long one, and the two spellings name different cache files.
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'sprag-codex-doc-')));
+  t.after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   return home;
 }
 
@@ -137,7 +139,7 @@ test('document writes, moves, and cache paths behind symlinks are protected befo
   assert.equal(codexDocumentTool({ cwd, tool_name: 'Bash', tool_input: { command: 'cp book.pptx copy.pptx' } }), null);
   const cache = join(cwd, 'cache'); mkdirSync(cache); symlinkSync(cache, join(cwd, 'alias'));
   const out = codexDocumentTool({ cwd, tool_name: 'apply_patch', tool_input: { command: '*** Begin Patch\n*** Add File: alias/new.md\n+x\n*** End Patch' } },
-    { guard: ({ tool_input }) => tool_input.file_path.startsWith(realpathSync(cache) + '/') ? { deny: true, reason: 'cache' } : null });
+    { guard: ({ tool_input }) => tool_input.file_path.startsWith(realpathSync(cache) + sep) ? { deny: true, reason: 'cache' } : null });
   assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
 });
 

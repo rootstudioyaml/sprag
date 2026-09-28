@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { runCodexWithPanel, resizeInlinePanel, createInlinePanelResizer } from '../src/codex-panel-runner.js';
 import { selectAgent } from '../src/agent.js';
@@ -81,7 +82,8 @@ test('inline launches get private pending bindings, pass them to the panel, and 
         }
         if (args.includes('split-window')) {
           assert.ok(args.at(-1).includes(`'--session-file' '${file}'`));
-          assert.ok(args.at(-1).includes("'CODEX_HOME=/test-home'"));
+          // The runner resolves CODEX_HOME, which gains a drive letter on Windows.
+          assert.ok(args.at(-1).includes(`'CODEX_HOME=${resolve('/test-home')}'`));
         }
         return '';
       }, spawn: () => ({ status: 0 }),

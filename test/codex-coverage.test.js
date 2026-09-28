@@ -25,7 +25,7 @@ const usage = (input, at = now, used = 91, resets = at / 1000 + 600) => ({ times
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-codex-coverage-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(dir, 'home');
   const codex = join(dir, 'codex');
   const root = join(dir, 'project');

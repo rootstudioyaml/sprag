@@ -23,7 +23,7 @@ const prices = {
 
 function fixture(t) {
   const base = mkdtempSync(join(tmpdir(), 'sprag-discovery-'));
-  t.after(() => rmSync(base, { recursive: true, force: true }));
+  t.after(() => rmSync(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(base, 'codex');
   const dir = join(base, 'state', 'claude-token-saver');
   const root = join(base, 'project');

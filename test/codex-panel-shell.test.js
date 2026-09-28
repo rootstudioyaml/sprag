@@ -27,5 +27,5 @@ test('shell setup is idempotent, reversible, and does not replace existing codex
     }
     assert.doesNotMatch(PANEL_SHELL_BLOCK, /[\x00-\x08]/);
     assert.match(PANEL_SHELL_BLOCK, /command codex "\$@"/);
-  } finally { rmSync(home, { recursive: true, force: true }); }
+  } finally { rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
 });
