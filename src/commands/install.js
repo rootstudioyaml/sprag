@@ -409,10 +409,29 @@ export async function run({ hasFlag }) {
           const { configureCodexHooks } = await import('../codex-installer.js');
           const { initCodexHarness } = await import('../codex-harness.js');
           const { loadConfig } = await import('../config.js');
-          const panelAuto = process.platform === 'darwin' && loadConfig()?.codex?.panelAuto !== false;
-          const hook = configureCodexHooks({ panelAuto });
+          const { setupCodexPanel, describePanelSetup } = await import('../codex-panel-setup.js');
+          const config = loadConfig() || {};
+          // A manual install asks before touching the system package manager.
+          let env = process.env;
+          if (interactive && process.platform === 'darwin') {
+            const { tmuxAvailable } = await import('../codex-panel-setup.js');
+            if (!tmuxAvailable() && !await confirm(lang === 'ko'
+              ? '  codex: tmux 가 없습니다. Homebrew 로 설치해 같은 창에 패널을 붙일까요?'
+              : '  codex: tmux is missing. Install it with Homebrew so the panel shares the Codex window?', { defaultValue: true })) {
+              env = { ...process.env, CTS_NO_TMUX: '1' };
+            }
+          }
+          let panel;
+          try { panel = setupCodexPanel({ config, env }); }
+          catch (e) {
+            debug('install:codex-panel', e);
+            const auto = process.platform === 'darwin' && config.codex?.panelAuto !== false;
+            panel = { panelAuto: auto, mode: auto ? 'window' : 'off' };
+          }
+          const hook = configureCodexHooks({ panelAuto: panel.panelAuto });
           console.log('');
           console.log(`  codex: hooks ${hook.action} (${hook.file})`);
+          for (const line of describePanelSetup(panel, lang)) console.log(`  codex: ${line}`);
           if (process.env.CTS_NO_HARNESS !== '1') {
             const h = initCodexHarness({ scope: 'global' });
             console.log(`  codex: harness ${h.file}`);

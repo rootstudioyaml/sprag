@@ -29,7 +29,12 @@ sprag install --agent codex
 `AGENTS.override.md`가 있으면 그 파일을 사용하며, 변경 전 사본을 남깁니다.
 Claude 설정이나 `config.toml`은 고치지 않습니다.
 
-macOS에서는 별도 패널을 여는 훅도 기본 등록합니다. `--no-panel`로 제외할 수 있고,
+macOS zsh 환경에서는 설치가 tmux 설치 여부를 먼저 확인합니다. tmux가 없으면 Homebrew로 설치하고,
+`CTS_NO_TMUX=1`을 지정하면 이 단계를 건너뜁니다. 이어서 zsh 연동을 추가해 `codex`를 입력하면 같은
+터미널 안에 패널이 인라인으로 붙으며, 이때는 별도 창을 여는 훅을 등록하지 않습니다. tmux를 설치할 수
+없거나 로그인 셸이 zsh가 아니거나 이미 사용자의 `codex` 별칭·함수가 있으면 별도 Terminal 창 방식으로
+대신 동작합니다. `sprag panel shell remove --agent codex`로 끈 설정은 재설치와 업그레이드에도 그대로
+유지되며, `--no-panel`은 tmux 설정과 zsh 연동을 모두 건너뜁니다.
 `sprag panel auto off --agent codex`로 끈 설정은 재설치해도 유지합니다.
 패널 실행 여부는 `sprag panel doctor --agent codex`로 확인하십시오.
 
@@ -69,8 +74,8 @@ tmux 실행은 `--no-daemon`과 호출별 상태줄 설정을 사용합니다. C
 설정 파일은 바꾸지 않으며, `--keep-native-statusline`으로 기존 상태줄을 유지할 수 있습니다.
 패널은 Codex 기본 상태줄에 셸 명령을 넣는 방식이 아닙니다.
 
-macOS zsh에서 `codex`를 입력할 때 tmux 패널을 함께 열려면 다음 명령을 사용하십시오.
-기존 별칭이나 함수는 덮어쓰지 않습니다.
+설치는 이제 이 연동을 기본으로 추가합니다. macOS zsh에서 `codex`를 입력할 때 tmux 패널을 함께 열려면
+다음 명령을 사용하십시오. 기존 별칭이나 함수는 덮어쓰지 않습니다.
 
 ```sh
 sprag panel shell install --agent codex

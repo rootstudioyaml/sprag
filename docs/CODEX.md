@@ -35,10 +35,15 @@ changed hooks do not run until trusted. Use a Codex release that supports the
 events documented below. Admin policies or `features.hooks = false` may disable
 hooks. The `sprag` executable and Node.js must be on Codex's PATH.
 
-On macOS, installation also registers the panel-start hook in the same step,
-so all six hooks can be reviewed together (five without the optional panel).
-`install --no-panel --agent codex`
-skips it; an explicit `panel auto off` preference survives reinstall. Installation
+On macOS with zsh, installation also makes sure tmux is present: it installs
+tmux with Homebrew when missing (skip this with `CTS_NO_TMUX=1`) and adds the
+zsh integration so typing `codex` shows the panel inline in the same terminal.
+The separate-window hook is then not registered. When tmux cannot be
+installed, the login shell is not zsh, or an existing `codex` alias or
+function is already present, installation falls back to the separate window
+instead. `sprag panel shell remove --agent codex` is remembered across
+reinstalls and upgrades, and `--no-panel` skips both.
+An explicit `panel auto off` preference survives reinstall. Installation
 reports registration, not successful activation. After approval and restarting
 Codex, run `sprag panel doctor --agent codex` to check the last hook execution,
 any launch failure, and recent rendered frames. These diagnostics are local;
@@ -315,8 +320,8 @@ counts rather than a Codex dollar saving or billing measurement.
 ### Live Companion Panel
 
 Codex 0.157.1 was observed to defer SessionStart until the first submitted prompt,
-even after hook trust is granted. For immediate opening when typing `codex` in
-macOS zsh, install the optional shell integration:
+even after hook trust is granted. Installation now adds this shell integration by
+default on macOS zsh; to install or remove it manually:
 
 ```sh
 sprag panel shell install --agent codex

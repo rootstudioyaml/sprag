@@ -70,7 +70,7 @@ test('the automatic install registers presets globally and sets up Codex when it
   const codex = join(home, '.codex');
   mkdirSync(codex, { recursive: true });
   try {
-    const env = childEnv({ HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' });
+    const env = childEnv({ HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en', CTS_NO_TMUX: '1' });
     const out = execFileSync(process.execPath, [CLI, 'install'], { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     assert.match(out, /seed: registered [1-9]\d* recommended rule/, out);
     assert.match(readFileSync(join(home, '.claude', 'ratchet-preset.md'), 'utf8'), /^- \[fix-[0-9a-f]{6}\]/m,

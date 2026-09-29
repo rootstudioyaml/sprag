@@ -50,6 +50,12 @@ export async function run({ hasFlag, args = [] }) {
       console.log(lang === 'ko'
         ? `  Codex: 훅 ${hook.action} (${hook.file}), 하네스 ${h.removed ? '제거' : '없음'}`
         : `  Codex: hooks ${hook.action} (${hook.file}), harness ${h.removed ? 'removed' : 'absent'}`);
+      if (process.platform === 'darwin') {
+        try {
+          const { installPanelShell } = await import('../codex-panel-shell.js');
+          installPanelShell({ remove: true });
+        } catch (e) { /* a malformed or foreign block stays for the user to repair */ }
+      }
     }
   } catch { /* Codex state is optional; the Claude removal above already succeeded */ }
   if (!purge) {

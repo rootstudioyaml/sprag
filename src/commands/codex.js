@@ -272,6 +272,11 @@ export async function run({ args, version }) {
       if (!['install', 'remove'].includes(args[2])) throw new Error('Usage: sprag panel shell install|remove --agent codex');
       const { installPanelShell } = await import('../codex-panel-shell.js');
       const file = installPanelShell({ remove: args[2] === 'remove' });
+      // install adds the integration by default, so a removal must be
+      // remembered or the next upgrade puts it back.
+      const cfg = loadConfig();
+      cfg.codex = { ...cfg.codex, panelShell: args[2] === 'install' };
+      saveConfig(cfg);
       console.log(`Shell integration ${args[2]}: ${file}. Open a new terminal to apply it.`);
       return;
     }
@@ -377,9 +382,12 @@ export async function run({ args, version }) {
   }
   if (cmd === 'install') {
     const cfg = loadConfig();
-    const panelAuto = process.platform === 'darwin' && !hasFlag('--no-panel') && cfg?.codex?.panelAuto !== false;
+    const { setupCodexPanel, describePanelSetup } = await import('../codex-panel-setup.js');
+    const panel = setupCodexPanel({ config: cfg || {}, noPanel: hasFlag('--no-panel') });
+    const panelAuto = panel.panelAuto;
     const hook = configureCodexHooks({ panelAuto });
     console.log(`Codex hooks: ${hook.file} (${hook.action})`);
+    for (const line of describePanelSetup(panel)) console.log(`Codex ${line}`);
     if (process.env.CTS_NO_HARNESS !== '1') {
       const h = initCodexHarness({ root, scope: 'global' });
       console.log(`Codex harness: ${h.file}`);
@@ -392,7 +400,7 @@ export async function run({ args, version }) {
     console.log('Open /hooks in Codex and review/trust the Sprag hooks before they can run.');
     console.log(`Panel auto-start: ${panelAuto ? 'registered with the other hooks' : 'off'}. Hook registration is complete; runtime activation is not verified.`);
     console.log('After approval, start or resume Codex and run: sprag panel doctor --agent codex');
-    if (panelAuto) console.log('Some Codex versions defer SessionStart until the first prompt. For immediate opening on typing codex: sprag panel shell install --agent codex (optional zsh integration).');
+    if (panel.mode === 'window') console.log('Some Codex versions defer SessionStart until the first prompt. For immediate opening on typing codex: sprag panel shell install --agent codex (optional zsh integration).');
     console.log('Existing config.toml, Claude Code settings, and ratchet rules are preserved.');
     console.log('Korean guidance is opt-in: sprag korean on --agent codex');
     return;
