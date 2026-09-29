@@ -10,7 +10,7 @@ v3.47.0 까지 받으신 사본은 계속 MIT 조건을 따릅니다. 이미 받
 
 ## 전체 릴리스 노트
 
-### Unreleased
+### v3.55.0 (2026-09-29)
 - **전역 프리셋은 이제 `ratchet-preset.md`에 따로 둡니다.** 사용자가 쓴 룰과 섞이지 않도록 `~/.claude/ratchet-preset.md`(Codex는 `$CODEX_HOME/ratchet-preset.md`)를 새로 두고, sprag가 세션을 시작할 때마다 응답 기록으로 이 파일을 통째로 다시 씁니다. 그래서 업그레이드에서 프리셋 문구가 바뀌거나 빠지면 `ratchet.md`는 건드리지 않고 이 파일만 갱신됩니다. 전역 하네스 블록에 `@~/.claude/ratchet-preset.md` import 가 추가되고, 기존 설치의 블록에도 한 번 덧붙습니다. 예전 버전이 `ratchet.md`에 덧붙인 프리셋은 문구가 번들과 정확히 같은 줄만 골라 옮기며, 원본은 `ratchet.md.bak-preset-migration`으로 남깁니다. 등록한 프리셋은 `sprag seed skip <id>`로 뺄 수 있고, `sprag harness list --global`이 따로 보여 줍니다. `--project`로 등록한 프리셋은 지금처럼 그 프로젝트의 `ratchet.md`에 들어갑니다.
 - GitHub와 npm README 상단에 좌우 비교 영상의 GIF 미리보기와 절감액을 넣고, 소개 문구와 npm 설명을 토큰 절감 중심으로 바꾸었습니다.
 - **`npm i -g sprag-cli` 한 번으로 설치가 끝납니다.** 설치는 이제 아무것도 묻지 않고, 동봉된 추천 룰을 전체 프로젝트에 등록합니다. Codex가 설치되어 있으면(`~/.codex` 또는 `$CODEX_HOME`) Codex 훅과 `AGENTS.md` 하네스, Codex용 추천 룰까지 함께 등록하므로 `sprag install --agent codex`를 따로 칠 필요가 없습니다. Codex의 `/hooks`에서 훅을 신뢰하는 절차는 Codex가 요구하므로 남아 있습니다. 단계마다 확인하던 예전 방식은 `sprag install --manual`로 쓸 수 있습니다. `sprag uninstall`은 설치가 스스로 등록한 Codex 항목도 함께 지웁니다.
