@@ -31,6 +31,17 @@ export async function run({ hasFlag, version }) {
   const lang = userLanguage();
   const cmd = upgradeCommand();
 
+  // pnpm and bun skip lifecycle scripts by default, and npm skips them under
+  // ignore-scripts, so the new copy's setup (Codex hooks, tmux panel) runs here.
+  // The install is idempotent, so npm running it twice changes nothing.
+  async function runSetup() {
+    console.log('$ sprag install');
+    const installCode = await runCommand('sprag install');
+    if (installCode !== 0) console.error(lang === 'ko'
+      ? '설치 후 설정(sprag install)이 실패했습니다. 새 셸에서 sprag install 을 직접 실행하십시오.'
+      : 'Post-upgrade setup (sprag install) failed. Run sprag install in a fresh shell.');
+  }
+
   if (hasFlag('--print')) {
     console.log(cmd);
     return;
@@ -55,6 +66,7 @@ export async function run({ hasFlag, version }) {
         : `Migration command failed with exit code ${migrateCode}. Check the output above.`);
       process.exit(migrateCode);
     }
+    await runSetup();
     console.log(lang === 'ko'
       ? '이전이 끝났습니다. 새 셸에서 sprag --version 으로 확인하십시오.'
       : 'Migration done. Confirm with sprag --version in a fresh shell.');
@@ -86,6 +98,7 @@ export async function run({ hasFlag, version }) {
   // still reports the old version. Refresh the cache against the new latest so
   // the statusline chip clears on the next render instead of lingering.
   await refreshUpdateState(s.latest);
+  await runSetup();
   console.log(lang === 'ko'
     ? `설치가 끝났습니다. 새 셸에서 sprag --version 으로 ${s.latest} 인지 확인하십시오.`
     : `Done. In a fresh shell, run sprag --version to confirm ${s.latest}.`);
