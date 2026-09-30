@@ -124,6 +124,58 @@ const MANIFEST = [
     description: 'Sprag lints Korean text at write time: double passives, translationese, cohesion between sentences.',
     keywords: ['claude code korean', 'korean style lint', '한국어 번역투 검사'],
   },
+  {
+    slug: 'reduce-claude-code-tokens',
+    src: 'GUIDE-REDUCE-TOKENS.md',
+    title: 'How to reduce Claude Code token usage',
+    description:
+      'Compact and clear at the right time, push exploration into a subagent, convert large documents to Markdown first, and stay inside the prompt cache TTL. Then see how Sprag automates each step.',
+    keywords: [
+      'reduce claude code token usage',
+      'claude code tokens too expensive',
+      'claude code haiku subagent',
+      'claude code save tokens',
+    ],
+  },
+  {
+    slug: 'claude-code-usage-limits',
+    src: 'GUIDE-USAGE-LIMITS.md',
+    title: 'Claude Code 5-hour and weekly usage limits, explained',
+    description:
+      'Claude Code enforces two independent rolling windows, roughly 5 hours and 7 days, each with its own reset. How to watch both before you hit them and reduce per-turn cost so a window lasts longer.',
+    keywords: [
+      'claude code 5 hour limit',
+      'claude code weekly limit',
+      'claude code rate limit reached',
+      'claude code usage limit',
+    ],
+  },
+  {
+    slug: 'codex-token-usage',
+    src: 'GUIDE-CODEX-TOKENS.md',
+    title: 'How to reduce Codex CLI token usage',
+    description:
+      'Scope sessions, delegate bounded work to a cheaper model through native spawn_agent calls, and convert large documents before they enter context. What Sprag adds for Codex on top of that.',
+    keywords: [
+      'codex cli token usage',
+      'reduce codex tokens',
+      'codex subagent cheaper model',
+      'codex cli cost',
+    ],
+  },
+  {
+    slug: 'compare',
+    src: 'COMPARE.md',
+    title: 'Sprag vs ccusage, claude-usage, and statusline tools',
+    description:
+      'ccusage, claude-usage and CCometixLine report what Claude Code already spent. Sprag reports it too, and also writes delegation rules that route repeat work to a cheaper subagent. Where each tool fits, and where they can run together.',
+    keywords: [
+      'ccusage alternative',
+      'claude code cost tracker',
+      'claude usage dashboard alternative',
+      'claude code statusline comparison',
+    ],
+  },
 ];
 
 const srcBasenameToSlug = new Map(MANIFEST.map((e) => [e.src, e.slug]));

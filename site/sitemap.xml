@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://sprag.io/</loc>
-    <lastmod>2026-09-28</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en"/>
@@ -18,7 +18,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/codex/</loc>
-    <lastmod>2026-09-28</lastmod>
+    <lastmod>2026-09-29</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/codex/"/>
@@ -27,7 +27,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/ko/codex/</loc>
-    <lastmod>2026-09-28</lastmod>
+    <lastmod>2026-09-29</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/codex/"/>
@@ -78,7 +78,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/harness/</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/harness/"/>
@@ -87,7 +87,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/ko/harness/</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/harness/"/>
@@ -120,7 +120,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/install/</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/install/"/>
@@ -129,7 +129,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/ko/install/</loc>
-    <lastmod>2026-09-16</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/install/"/>
@@ -138,7 +138,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/commands/</loc>
-    <lastmod>2026-09-21</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>
@@ -147,7 +147,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/ko/commands/</loc>
-    <lastmod>2026-09-21</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>
@@ -171,5 +171,77 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/korean-style/"/>
     <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/korean-style/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/korean-style/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/reduce-claude-code-tokens/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/reduce-claude-code-tokens/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/reduce-claude-code-tokens/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/reduce-claude-code-tokens/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/reduce-claude-code-tokens/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/reduce-claude-code-tokens/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/reduce-claude-code-tokens/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/reduce-claude-code-tokens/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/claude-code-usage-limits/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/claude-code-usage-limits/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/claude-code-usage-limits/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/claude-code-usage-limits/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/claude-code-usage-limits/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/claude-code-usage-limits/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/claude-code-usage-limits/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/claude-code-usage-limits/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/codex-token-usage/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/codex-token-usage/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/codex-token-usage/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/codex-token-usage/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/codex-token-usage/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/codex-token-usage/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/codex-token-usage/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/codex-token-usage/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/compare/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/compare/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/compare/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/compare/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/compare/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/compare/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/compare/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/compare/"/>
   </url>
 </urlset>
