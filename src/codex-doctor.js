@@ -12,7 +12,7 @@ export const CODEX_CAPABILITIES = [
   { feature: 'reports', support: 'supported', command: 'sprag --agent codex --format json', note: 'Token usage, cached input, reasoning, session and project filters.' },
   { feature: 'harness', support: 'supported', command: 'sprag harness check --agent codex', note: 'AGENTS.md, overrides, explicit-scope ratchet rule management.' },
   { feature: 'brief', support: 'supported', command: 'sprag brief --agent codex', note: 'Fresh context and limit warnings; change-triggered prompt hook.' },
-  { feature: 'history', support: 'supported', command: 'sprag history --agent codex', note: 'Codex-only session warning records; last shows the latest warning.' },
+  { feature: 'history', support: 'supported', command: 'sprag history --agent codex', note: 'Codex-only records of context (80%/95%) and 5h/weekly rate-limit (90%) warnings, plus handoffs. Cache and TTL chips are not recorded; last shows the latest event.' },
   { feature: 'handoff', support: 'supported', command: 'sprag handoff --agent codex', note: 'Git state and recorded Codex session usage; never reads Claude caps.' },
   { feature: 'korean', support: 'supported', command: 'sprag korean status --agent codex', note: 'Session guidance and recognized write-target lint; shared preference.' },
   { feature: 'cohesion', support: 'supported', command: 'sprag cohesion status --agent codex', note: 'Shared English guidance preference.' },

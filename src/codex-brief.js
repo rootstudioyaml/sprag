@@ -77,6 +77,26 @@ export function runCodexBrief({ sessionId, transcriptPath, cwd, now = Date.now()
   return next.length ? ['[Sprag Codex briefing]', ...next.map((issue) => `${issue.message} ${issue.advice}`)].join('\n') : null;
 }
 
+/**
+ * Append one event outside the warning dedup, such as a handoff the user
+ * wrote. Claude's history records handoffs too, so both agents' timelines
+ * show when work was preserved.
+ */
+export function recordCodexHistoryEvent({ sessionId, project = '', key, level = 'info', message, advice = '', now = Date.now(), dir = userDataDir() } = {}) {
+  if (typeof message !== 'string' || !message) return false;
+  const owner = typeof sessionId === 'string' && sessionId ? sessionId : 'no-session';
+  const directory = stateDir(dir);
+  const file = join(directory, `${hash(owner)}.json`);
+  const state = readState(file);
+  const events = [...state.events, { key, tier: 0, signature: key, level, message, advice,
+    at: new Date(now).toISOString(), sessionId: owner, project }].slice(-200);
+  mkdirSync(directory, { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify({ ...state, events }) + '\n', { mode: 0o600 });
+  renameSync(tmp, file);
+  return true;
+}
+
 export function readCodexHistory({ days = 7, sessionId, project, dir = userDataDir(), now = Date.now() } = {}) {
   const directory = stateDir(dir);
   let files;
