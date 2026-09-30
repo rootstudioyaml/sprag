@@ -15,6 +15,8 @@ Since v3.26.0 the gateway is detected from the model ids in the transcript, whic
 - Delegated runs dropped for an unpriceable model id show as `🔀 N unresolved` instead of nothing, which used to be indistinguishable from never having delegated.
 - Environment variables set to a `foundation-model` ARN now resolve. An opaque `application-inference-profile` id still does not: guessing at it is how wrong prices enter the ledger.
 
+**Cost and routing savings on a gateway use the gateway's prices.** A Claude session with a gateway `ANTHROPIC_BASE_URL` is billed by the gateway, so `Actual cost`, `Sep spend` and `Routing saved` are computed from its `/model/info` prices (refreshed with the model map, valid for seven days). A model the gateway does not price stays unpriced: the session is left out and counted (`+N unpriced`) instead of being filled in from the Anthropic list prices. Sessions that do not go through a gateway keep using the list prices below. A delegation to a pricier model is recorded as a loss (`-$0.12`), not clamped to zero.
+
 If the detection is wrong, pin it with `sprag mode ttl=5m` (or `ttl=1h`). An explicit value outranks the measurement.
 
 ### LiteLLM: your key budget stands in for the missing 5h/7d caps (v3.35.0)

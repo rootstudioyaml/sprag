@@ -83,7 +83,7 @@ shared hooks needed by other features.
 | Route discovery | Repeated simple turns grouped by project, provider, and parent model; no automatic registration |
 | Ratchet detection | Recent repeated command/patch failures produce `ratchet?` candidates |
 | Seed presets | Compatible ratchet rules, separate decisions, explicit registration scope |
-| Routing saved | Sprag-attributed child tokens priced with matching LiteLLM rates; an estimate, not billed savings |
+| Routing saved | Sprag-attributed child tokens priced by the path the call took (OpenAI list prices for direct calls, the gateway's `/model/info` prices for a LiteLLM provider); signed, so a pricier child is a loss; an estimate, not billed savings |
 | Diagnostics | `doctor` checks user config, hook registration, harness, logs, panel activity, and preferences |
 | Capability matrix | `capabilities` lists supported, partial, native, and unsupported areas without invoking a model |
 
@@ -340,10 +340,20 @@ subagent earns no credit. The estimate holds the child's measured tokens
 constant and prices them at the parent and child rates. Negative differences
 remain negative; this is not a comparison of actual billed totals.
 
-Rates come from the configured LiteLLM `/model/info` endpoint, with agreement
-required across deployments behind an alias. Price snapshots last seven days.
-Providers are kept separate; direct OpenAI/subscription pricing is not inferred.
-Missing rates or usage produce unpriced entries, never invented zeroes. A priced
+Prices follow the path each call took, and the two sources never fall back to
+each other:
+
+- ChatGPT/OpenAI login or an API key straight to `api.openai.com` uses the
+  built-in OpenAI list prices (Standard tier, short-context rates, checked
+  2026-10-01). Long-context surcharges are not modeled, so requests past the
+  long-context threshold are under-priced.
+- A LiteLLM provider uses that gateway's `/model/info` prices, with agreement
+  required across deployments behind an alias. Price snapshots last seven days.
+  A model the gateway does not price stays unpriced; it is not filled in from
+  the list prices.
+
+Providers are kept separate. Negative values are losses: the child ran on a
+pricier model than the parent, and the loss reduces the totals. Missing rates or usage produce unpriced entries, never invented zeroes. A priced
 entry keeps its rate snapshot across later outages. Pending route records are
 matched for seven days; saved ledger entries remain afterward. Run `--refresh`
 after delegation to update the ledger without waiting for the next route scan.
