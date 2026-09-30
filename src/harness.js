@@ -214,16 +214,38 @@ export function harnessInit({ root = findProjectRoot(), force = false, scope = '
   const block = harnessClaudeMdBlock(scope);
   if (existsSync(cmPath)) {
     const existing = readFileSync(cmPath, 'utf8');
-    if (existing.includes(HARNESS_BLOCK_BEGIN) && !force) {
+    const hasBegin = existing.includes(HARNESS_BLOCK_BEGIN);
+    const blockRe = new RegExp(
+      `${escapeRe(HARNESS_BLOCK_BEGIN)}[\\s\\S]*?${escapeRe(HARNESS_BLOCK_END)}\\n?`,
+      'm',
+    );
+    const hasCompleteBlock = blockRe.test(existing);
+    if (hasBegin && !hasCompleteBlock) {
+      // A begin marker with no end marker after it: the extent of our block is
+      // unknowable, so replacing or appending would either eat the user's text
+      // or leave a second block beside the broken one. Touch nothing.
+      result.skipped.push(`${cmPath} (harness block has a begin marker but no end marker — fix it manually)`);
+      result.brokenBlock = true;
+    } else if (hasCompleteBlock) {
       // Already has a harness block — replace it in-place, preserving the
-      // user's other content above/below.
-      const re = new RegExp(
-        `${escapeRe(HARNESS_BLOCK_BEGIN)}[\\s\\S]*?${escapeRe(HARNESS_BLOCK_END)}\\n?`,
-        'm',
-      );
-      const next = existing.replace(re, block);
-      writeFileSync(cmPath, next);
-      result.wrote.push(cmPath + ' (block updated in place)');
+      // user's other content above/below. This holds with or without --force:
+      // --force used to fall through to the append branch, which added a second
+      // block on every run.
+      // A replacer function, not the string: `$&` or `$1` in a block would be
+      // read as a replacement pattern.
+      const next = existing.replace(blockRe, () => block);
+      if (next === existing) {
+        result.skipped.push(`${cmPath} (harness block already up to date)`);
+      } else {
+        if (force) {
+          const stamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+          const bak = `${cmPath}.bak-${stamp}`;
+          writeFileSync(bak, existing);
+          result.backedUp.push(bak);
+        }
+        writeFileSync(cmPath, next);
+        result.wrote.push(cmPath + ' (block updated in place)');
+      }
     } else {
       // Backup as safety net, then APPEND the harness block to existing
       // content (do not clobber). Users keep all their prior CLAUDE.md content;
@@ -295,7 +317,16 @@ export function harnessUninit({ root = findProjectRoot(), purgeRatchet = false, 
 
   if (existsSync(cmPath)) {
     const existing = readFileSync(cmPath, 'utf8');
-    if (existing.includes(HARNESS_BLOCK_BEGIN)) {
+    const beginIdx = existing.indexOf(HARNESS_BLOCK_BEGIN);
+    const uninitRe = new RegExp(
+      `\\n*${escapeRe(HARNESS_BLOCK_BEGIN)}[\\s\\S]*?${escapeRe(HARNESS_BLOCK_END)}\\n?`,
+      'm',
+    );
+    if (beginIdx !== -1 && !uninitRe.test(existing)) {
+      // Begin marker without an end marker: nothing to cut safely, and writing
+      // the file back unchanged would still report a removal.
+      result.skipped.push(`${cmPath} (harness block has a begin marker but no end marker — fix it manually)`);
+    } else if (beginIdx !== -1) {
       const stamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
       const bak = `${cmPath}.bak-${stamp}`;
       writeFileSync(bak, existing);

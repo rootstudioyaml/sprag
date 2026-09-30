@@ -13,7 +13,7 @@
  * exist on every platform.
  */
 
-import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync, copyFileSync, renameSync, realpathSync, statSync } from 'node:fs';
 import { loadConfig, saveConfig } from './config.js';
 import { CLI_NAME, LEGACY_CLI_NAME } from './cli-name.js';
 import { join } from 'node:path';
@@ -57,19 +57,156 @@ const LEGACY_CLI = LEGACY_CLI_NAME;
 const RUNNERS = /^(npx|bunx|pnpx)$/;
 const RUNNER_SUBCOMMANDS = { pnpm: ['dlx', 'exec'], yarn: ['dlx', 'run'], bun: ['x', 'run'], npm: ['exec'] };
 
-function isOurCommand(command) {
-  if (typeof command !== 'string') return false;
+/**
+ * The tokens that follow our executable, or null when the command does not
+ * start with it. The one place the "is this our binary" judgement lives, so
+ * `isOurCommand` and the subcommand matcher below cannot disagree.
+ */
+function argsAfterOurExecutable(command) {
+  if (typeof command !== 'string') return null;
   const tokens = command.trim().split(/\s+/).filter(Boolean);
-  if (!tokens.length) return false;
+  if (!tokens.length) return null;
   // `npx <pkg>` puts the package one token in, `yarn dlx <pkg>` two.
   let i = 0;
   if (RUNNERS.test(tokens[0])) i = 1;
   else if (RUNNER_SUBCOMMANDS[tokens[0]]?.includes(tokens[1])) i = 2;
   const token = tokens[i];
-  if (!token) return false;
+  if (!token) return null;
   // A path invokes the binary by its last segment; strip a Windows .cmd/.exe too.
   const exe = token.split(/[/\\]/).pop().replace(/\.(cmd|exe|ps1)$/i, '');
-  return exe === CLI || exe === LEGACY_CLI || exe === `${CLI}-cli`;
+  if (exe !== CLI && exe !== LEGACY_CLI && exe !== `${CLI}-cli`) return null;
+  return tokens.slice(i + 1);
+}
+
+export function isOurCommand(command) {
+  return argsAfterOurExecutable(command) !== null;
+}
+
+/**
+ * Whether a command is our executable followed by exactly these leading
+ * arguments, e.g. `isOurSubcommand(cmd, 'korean', '--hook')`. Tokens are
+ * compared whole: `--hook` does not match `--hook-prompt`, and a command that
+ * merely carries the text as an argument (`echo "sprag korean --hook"`) never
+ * starts with our executable, so it is not ours. Trailing arguments are fine.
+ */
+export function isOurSubcommand(command, ...leading) {
+  const rest = argsAfterOurExecutable(command);
+  if (!rest || rest.length < leading.length) return false;
+  return leading.every((t, k) => rest[k] === t);
+}
+
+/**
+ * The copied-file form that versions before 3.x registered for the cache
+ * monitor: `node "<dir>/cache-monitor-hook.cjs" --threshold N`. Only that shape
+ * counts; any other command that happens to mention the file name is not ours.
+ */
+export function isLegacyCacheMonitorCommand(command) {
+  if (typeof command !== 'string') return false;
+  return /^\s*node(?:\.exe)?\s+(?:"[^"]*|'[^']*|\S*)cache-monitor-hook\.cjs["']?(?:\s|$)/.test(command);
+}
+
+/**
+ * Whether a value is a plain JSON object (not null, an array or a scalar).
+ */
+export function isPlainObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+/**
+ * Read settings.json as one of three outcomes, so no caller has to re-derive
+ * them from a try/catch:
+ *   { state: 'absent', settings: {} }        the file does not exist
+ *   { state: 'ok', settings }                a plain object
+ *   { state: 'unusable', reason }            exists but cannot be used safely
+ * Only a missing file is treated as empty. A file that is present but broken
+ * (bad JSON, `null`, an array, a read error) belongs to the user and must not
+ * be replaced by a fresh object, so callers back off on 'unusable'.
+ */
+export function readSettings(file) {
+  let raw;
+  try {
+    raw = readFileSync(file, 'utf8');
+  } catch (e) {
+    if (e?.code === 'ENOENT') return { state: 'absent', settings: {} };
+    return { state: 'unusable', reason: `unreadable (${e.message})` };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    return { state: 'unusable', reason: `unreadable JSON (${e.message})` };
+  }
+  if (!isPlainObject(parsed)) {
+    const kind = parsed === null ? 'null' : Array.isArray(parsed) ? 'an array' : `a ${typeof parsed}`;
+    return { state: 'unusable', reason: `top-level value is ${kind}, not an object — fix settings.json manually` };
+  }
+  return { state: 'ok', settings: parsed };
+}
+
+/**
+ * Write settings.json safely: keep one backup of the existing file next to it
+ * (`settings.json.sprag-bak`, overwritten each time), write a temp file in the
+ * same directory, then rename it over the target so a crash mid-write cannot
+ * leave a half-written settings file. Returns null on success or a failure
+ * reason; callers must not report success when this returns a string.
+ */
+export function writeSettings(file, settings) {
+  const tmp = `${file}.sprag-tmp-${process.pid}`;
+  try {
+    // Follow a symlinked settings.json so the rename replaces its target and
+    // not the link itself.
+    let target = file;
+    let mode;
+    if (existsSync(file)) {
+      target = realpathSync(file);
+      mode = statSync(target).mode & 0o777;
+      copyFileSync(target, `${target}.sprag-bak`);
+    }
+    const tmpPath = target === file ? tmp : `${target}.sprag-tmp-${process.pid}`;
+    try {
+      writeFileSync(tmpPath, JSON.stringify(settings, null, 2) + '\n', mode === undefined ? undefined : { mode });
+      renameSync(tmpPath, target);
+    } catch (e) {
+      try { rmSync(tmpPath, { force: true }); } catch { /* best effort */ }
+      throw e;
+    }
+    return null;
+  } catch (e) {
+    return `write failed (${e.message})`;
+  }
+}
+
+/**
+ * `settings.hooks` must be an object before we add events to it. Missing is
+ * fine; anything else is the user's data in a shape we do not understand.
+ * Returns a reason string when it cannot be used.
+ */
+function ensureHooksObject(settings) {
+  if (settings.hooks === undefined || settings.hooks === null) {
+    settings.hooks = {};
+    return null;
+  }
+  if (!isPlainObject(settings.hooks)) return 'hooks is not an object — fix settings.json manually';
+  return null;
+}
+
+/**
+ * Drop the hooks `isOurs` matches, per hook and not per matcher group. Claude
+ * Code merges hooks that share a matcher into one group, so deleting a whole
+ * group because one entry in it is ours takes the user's other hooks with it.
+ * A group goes only once its `hooks` array is empty.
+ */
+function removeHooksWhere(list, isOurs) {
+  let touched = false;
+  const kept = [];
+  for (const m of list) {
+    if (!Array.isArray(m?.hooks)) { kept.push(m); continue; }
+    const hooks = m.hooks.filter((h) => !isOurs(h));
+    if (hooks.length === m.hooks.length) { kept.push(m); continue; }
+    touched = true;
+    if (hooks.length) kept.push({ ...m, hooks });
+  }
+  return { kept, touched };
 }
 
 const STATUSLINE_COMMAND = `${CLI} --statusline --icon`;
@@ -226,14 +363,9 @@ export function installStatusline({ force = false } = {}) {
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
 
-  let settings = {};
-  if (existsSync(file)) {
-    try {
-      settings = JSON.parse(readFileSync(file, 'utf8'));
-    } catch (e) {
-      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-    }
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
 
   const cur = settings.statusLine;
   const targetsUs = !!cur && isOurCommand(cur.command);
@@ -244,7 +376,10 @@ export function installStatusline({ force = false } = {}) {
       command: STATUSLINE_COMMAND,
       refreshInterval: STATUSLINE_REFRESH_INTERVAL,
     };
-    writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+    {
+      const writeProblem = writeSettings(file, settings);
+      if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+    }
     return { path: file, action: 'created' };
   }
 
@@ -253,7 +388,10 @@ export function installStatusline({ force = false } = {}) {
       return { path: file, action: 'exists' };
     }
     cur.refreshInterval = STATUSLINE_REFRESH_INTERVAL;
-    writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+    {
+      const writeProblem = writeSettings(file, settings);
+      if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+    }
     return { path: file, action: 'updated', reason: `set refreshInterval=${STATUSLINE_REFRESH_INTERVAL}` };
   }
 
@@ -268,7 +406,10 @@ export function installStatusline({ force = false } = {}) {
     command: STATUSLINE_COMMAND,
     refreshInterval: STATUSLINE_REFRESH_INTERVAL,
   };
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: 'updated', reason: 'replaced previous statusLine' };
 }
 
@@ -283,16 +424,12 @@ export function installSessionStartHook() {
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
 
-  let settings = {};
-  if (existsSync(file)) {
-    try {
-      settings = JSON.parse(readFileSync(file, 'utf8'));
-    } catch (e) {
-      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-    }
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
 
-  settings.hooks = settings.hooks || {};
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
   // A present-but-non-array value is schema-invalid, but it's the user's
   // data — back off instead of silently replacing it.
   if (settings.hooks.SessionStart !== undefined && !Array.isArray(settings.hooks.SessionStart)) {
@@ -303,7 +440,7 @@ export function installSessionStartHook() {
   // `route-scan --hook` as a prefix, so a substring test would see that hook and
   // conclude this one is already installed.
   const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /route-scan --hook(?![\w-])/.test(h.command)),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'route-scan', '--hook')),
   );
   if (already) return { path: file, action: 'exists' };
 
@@ -312,7 +449,10 @@ export function installSessionStartHook() {
     hooks: [{ type: 'command', command: ROUTE_SCAN_HOOK_COMMAND, timeout: 10 }],
   });
   settings.hooks.SessionStart = list;
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: 'created' };
 }
 
@@ -335,16 +475,12 @@ export function installDelegationHook() {
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
 
-  let settings = {};
-  if (existsSync(file)) {
-    try {
-      settings = JSON.parse(readFileSync(file, 'utf8'));
-    } catch (e) {
-      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-    }
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
 
-  settings.hooks = settings.hooks || {};
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
   if (settings.hooks.PostToolUse !== undefined && !Array.isArray(settings.hooks.PostToolUse)) {
     return { path: file, action: 'skipped', reason: 'hooks.PostToolUse is not an array — fix settings.json manually' };
   }
@@ -353,7 +489,7 @@ export function installDelegationHook() {
   // a substring test is what confused `--hook` with `--hook-delegated`, and a
   // future `--hook-delegated-batch` would confuse this one in turn.
   const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /route-scan --hook-delegated(?![\w-])/.test(h.command)),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'route-scan', '--hook-delegated')),
   );
   if (already) return { path: file, action: 'exists' };
 
@@ -362,7 +498,10 @@ export function installDelegationHook() {
     hooks: [{ type: 'command', command: ROUTE_SCAN_DELEGATED_HOOK_COMMAND, timeout: 10 }],
   });
   settings.hooks.PostToolUse = list;
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: 'created' };
 }
 
@@ -373,16 +512,12 @@ export function installBriefHook() {
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
 
-  let settings = {};
-  if (existsSync(file)) {
-    try {
-      settings = JSON.parse(readFileSync(file, 'utf8'));
-    } catch (e) {
-      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-    }
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
 
-  settings.hooks = settings.hooks || {};
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
   // A present-but-non-array value is schema-invalid, but it's the user's
   // data — back off instead of silently replacing it.
   if (settings.hooks.UserPromptSubmit !== undefined && !Array.isArray(settings.hooks.UserPromptSubmit)) {
@@ -390,7 +525,7 @@ export function installBriefHook() {
   }
   const list = Array.isArray(settings.hooks.UserPromptSubmit) ? settings.hooks.UserPromptSubmit : [];
   const already = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('brief --hook')),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'brief', '--hook')),
   );
   if (already) return { path: file, action: 'exists' };
 
@@ -398,7 +533,10 @@ export function installBriefHook() {
     hooks: [{ type: 'command', command: BRIEF_HOOK_COMMAND, timeout: 10 }],
   });
   settings.hooks.UserPromptSubmit = list;
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: 'created' };
 }
 
@@ -420,31 +558,38 @@ export function installKoreanLintHook() {
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
 
-  let settings = {};
-  if (existsSync(file)) {
-    try {
-      settings = JSON.parse(readFileSync(file, 'utf8'));
-    } catch (e) {
-      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-    }
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
 
-  settings.hooks = settings.hooks || {};
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
   if (settings.hooks.PostToolUse !== undefined && !Array.isArray(settings.hooks.PostToolUse)) {
     return { path: file, action: 'skipped', reason: 'hooks.PostToolUse is not an array — fix settings.json manually' };
   }
   const list = Array.isArray(settings.hooks.PostToolUse) ? settings.hooks.PostToolUse : [];
   const existing = list.find((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('korean --hook')),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'korean', '--hook')),
   );
   if (existing) {
     // An install from before Bash joined the matcher leaves the narrow entry in
     // place forever, so upgrading a machine would not close the gap. Widen it
     // here; anything the user hand-edited to something wider is left alone.
     if (existing.matcher === 'Write|Edit|MultiEdit') {
-      existing.matcher = KOREAN_LINT_MATCHER;
+      const ours = existing.hooks.filter((h) => isOurSubcommand(h?.command, 'korean', '--hook'));
+      if (ours.length === existing.hooks.length) {
+        existing.matcher = KOREAN_LINT_MATCHER;
+      } else {
+        // The group is shared with someone else's hook, and its matcher is
+        // theirs to keep. Move ours into a group of its own instead.
+        existing.hooks = existing.hooks.filter((h) => !isOurSubcommand(h?.command, 'korean', '--hook'));
+        list.push({ matcher: KOREAN_LINT_MATCHER, hooks: ours });
+      }
       settings.hooks.PostToolUse = list;
-      writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+      {
+        const writeProblem = writeSettings(file, settings);
+        if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+      }
       return { path: file, action: 'updated' };
     }
     return { path: file, action: 'exists' };
@@ -455,28 +600,29 @@ export function installKoreanLintHook() {
     hooks: [{ type: 'command', command: KOREAN_LINT_HOOK_COMMAND, timeout: 10 }],
   });
   settings.hooks.PostToolUse = list;
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: 'created' };
 }
 
 export function removeKoreanLintHook() {
   const file = join(claudeUserDir(), 'settings.json');
   if (!existsSync(file)) return { path: file, action: 'absent' };
-  let settings;
-  try {
-    settings = JSON.parse(readFileSync(file, 'utf8'));
-  } catch (e) {
-    return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
   const list = settings?.hooks?.PostToolUse;
   if (!Array.isArray(list)) return { path: file, action: 'absent' };
-  const kept = list.filter((m) =>
-    !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('korean --hook'))),
-  );
-  if (kept.length === list.length) return { path: file, action: 'absent' };
+  const { kept, touched } = removeHooksWhere(list, (h) => isOurSubcommand(h?.command, 'korean', '--hook'));
+  if (!touched) return { path: file, action: 'absent' };
   if (kept.length === 0) delete settings.hooks.PostToolUse;
   else settings.hooks.PostToolUse = kept;
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: 'removed' };
 }
 
@@ -499,16 +645,12 @@ export function installDoc2mdHook() {
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
 
-  let settings = {};
-  if (existsSync(file)) {
-    try {
-      settings = JSON.parse(readFileSync(file, 'utf8'));
-    } catch (e) {
-      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-    }
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
 
-  settings.hooks = settings.hooks || {};
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
   if (settings.hooks.PreToolUse !== undefined && !Array.isArray(settings.hooks.PreToolUse)) {
     return { path: file, action: 'skipped', reason: 'hooks.PreToolUse is not an array — fix settings.json manually' };
   }
@@ -518,7 +660,7 @@ export function installDoc2mdHook() {
   // happened on the first machine to try it.
   const list = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
   const hasReadHook = list.some((m) =>
-    Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /doc2md --hook(?!-)/.test(h.command)),
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'doc2md', '--hook')),
   );
   if (!hasReadHook) {
     list.push({
@@ -537,7 +679,7 @@ export function installDoc2mdHook() {
     const list2 = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
     const hasWriteGuard = list2.some((m) =>
       m?.matcher === 'Edit|Write'
-      && Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && /doc2md --hook(?!-)/.test(h.command)),
+      && Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'doc2md', '--hook')),
     );
     if (!hasWriteGuard) {
       list2.push({
@@ -558,7 +700,7 @@ export function installDoc2mdHook() {
   if (settings.hooks.UserPromptSubmit === undefined || Array.isArray(settings.hooks.UserPromptSubmit)) {
     const prompts = Array.isArray(settings.hooks.UserPromptSubmit) ? settings.hooks.UserPromptSubmit : [];
     const hasPromptHook = prompts.some((m) =>
-      Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('doc2md --hook-prompt')),
+      Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'doc2md', '--hook-prompt')),
     );
     if (!hasPromptHook) {
       prompts.push({ hooks: [{ type: 'command', command: DOC2MD_PROMPT_HOOK_COMMAND }] });
@@ -568,7 +710,10 @@ export function installDoc2mdHook() {
   }
 
   if (!hasReadHook || addedPrompt || addedWriteGuard) {
-    writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+    {
+      const writeProblem = writeSettings(file, settings);
+      if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+    }
     return { path: file, action: hasReadHook ? 'updated' : 'created' };
   }
   return { path: file, action: 'exists' };
@@ -577,29 +722,28 @@ export function installDoc2mdHook() {
 export function removeDoc2mdHook() {
   const file = join(claudeUserDir(), 'settings.json');
   if (!existsSync(file)) return { path: file, action: 'absent' };
-  let settings;
-  try {
-    settings = JSON.parse(readFileSync(file, 'utf8'));
-  } catch (e) {
-    return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
   // Both entries go, and only this tool's own: anything else registered under
-  // either event stays exactly where the user put it. The substring covers
-  // `--hook` and `--hook-prompt` alike.
+  // either event stays exactly where the user put it. Both `--hook` and
+  // `--hook-prompt` are matched as whole tokens.
   let touched = false;
   for (const event of ['PreToolUse', 'UserPromptSubmit']) {
     const list = settings?.hooks?.[event];
     if (!Array.isArray(list)) continue;
-    const kept = list.filter((m) =>
-      !(Array.isArray(m?.hooks) && m.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('doc2md --hook'))),
-    );
-    if (kept.length === list.length) continue;
+    const res = removeHooksWhere(list, (h) => isOurSubcommand(h?.command, 'doc2md', '--hook') || isOurSubcommand(h?.command, 'doc2md', '--hook-prompt'));
+    const kept = res.kept;
+    if (!res.touched) continue;
     touched = true;
     if (kept.length === 0) delete settings.hooks[event];
     else settings.hooks[event] = kept;
   }
   if (!touched) return { path: file, action: 'absent' };
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: 'removed' };
 }
 
@@ -619,14 +763,8 @@ export function removeDoc2mdHook() {
 // which is exactly the kind of silent-by-default behavior install.js's other
 // opt-in features (doc2md, korean, cohesion) avoid shipping without being asked.
 const DELEGATION_GUARD_HOOK_COMMAND = `${CLI} delegate --hook`;
-// One pattern, shared by install, remove and the status readout. Three
-// hand-written variants drifted apart once already in this file: a substring
-// test confused `--hook` with `--hook-delegated`. `(?![\\w-])` rejects both a
-// hyphen and a word character, so `--hookfoo` is not mistaken for this hook.
-// Not exported. Every consumer in this file goes through the wrapper below, and
-// handing the bare pattern out would let a caller outside repeat the judgement
-// this file just narrowed: the flag alone, with isOurCommand() skipped.
-const DELEGATION_GUARD_HOOK_PATTERN = /delegate --hook(?![\w-])/;
+// Install, remove and the status readout all judge a command through
+// isDelegationGuardHookCommand() below, which compares whole tokens.
 
 /**
  * Whether a settings.json hook command is THIS hook: both our executable in
@@ -643,8 +781,7 @@ const DELEGATION_GUARD_HOOK_PATTERN = /delegate --hook(?![\w-])/;
  */
 export function isDelegationGuardHookCommand(command) {
   return typeof command === 'string'
-    && isOurCommand(command)
-    && DELEGATION_GUARD_HOOK_PATTERN.test(command);
+    && isOurSubcommand(command, 'delegate', '--hook');
 }
 
 // Named for the feature, not the flag: `installDelegationHook()` above is
@@ -664,12 +801,9 @@ export function isDelegationGuardHookCommand(command) {
 export function delegationGuardHookState() {
   const file = join(claudeUserDir(), 'settings.json');
   if (!existsSync(file)) return { registered: false, path: file };
-  let settings;
-  try {
-    settings = JSON.parse(readFileSync(file, 'utf8'));
-  } catch (e) {
-    return { registered: false, path: file, reason: `unreadable JSON (${e.message})` };
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { registered: false, path: file, reason: read.reason };
+  const settings = read.settings;
   const list = settings?.hooks?.PreToolUse;
   if (list === undefined) return { registered: false, path: file };
   if (!Array.isArray(list)) {
@@ -690,16 +824,12 @@ export function installDelegationGuardHook() {
   // user their file is new when it is not.
   const existed = existsSync(file);
 
-  let settings = {};
-  if (existed) {
-    try {
-      settings = JSON.parse(readFileSync(file, 'utf8'));
-    } catch (e) {
-      return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-    }
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
 
-  settings.hooks = settings.hooks || {};
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
   if (settings.hooks.PreToolUse !== undefined && !Array.isArray(settings.hooks.PreToolUse)) {
     return { path: file, action: 'skipped', reason: 'hooks.PreToolUse is not an array — fix settings.json manually' };
   }
@@ -714,19 +844,19 @@ export function installDelegationGuardHook() {
     hooks: [{ type: 'command', command: DELEGATION_GUARD_HOOK_COMMAND, timeout: 10 }],
   });
   settings.hooks.PreToolUse = list;
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: existed ? 'updated' : 'created' };
 }
 
 export function removeDelegationGuardHook() {
   const file = join(claudeUserDir(), 'settings.json');
   if (!existsSync(file)) return { path: file, action: 'absent' };
-  let settings;
-  try {
-    settings = JSON.parse(readFileSync(file, 'utf8'));
-  } catch (e) {
-    return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
   const list = settings?.hooks?.PreToolUse;
   if (!Array.isArray(list)) return { path: file, action: 'absent' };
   // Per hook, not per matcher group — the same correction uninstallAll() above
@@ -747,7 +877,10 @@ export function removeDelegationGuardHook() {
   if (!touched) return { path: file, action: 'absent' };
   if (kept.length === 0) delete settings.hooks.PreToolUse;
   else settings.hooks.PreToolUse = kept;
-  writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
   return { path: file, action: 'removed' };
 }
 
@@ -769,12 +902,9 @@ export function uninstallAll({ purge = false } = {}) {
   const result = { removed: [], kept: [], path: file };
 
   if (existsSync(file)) {
-    let settings;
-    try {
-      settings = JSON.parse(readFileSync(file, 'utf8'));
-    } catch (e) {
-      return { ...result, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-    }
+    const read = readSettings(file);
+    if (read.state === 'unusable') return { ...result, action: 'skipped', reason: read.reason };
+    const settings = read.settings;
 
     // Only our own statusline command goes. Someone else's stays exactly
     // where they put it.
@@ -795,9 +925,8 @@ export function uninstallAll({ purge = false } = {}) {
     // into one group — which it does for entries sharing a matcher, so a user who
     // installed us second lost the first tool's hook on uninstall. A group is
     // deleted only once nothing of anyone else's is left in it.
-    const isOurs = (h) => isOurCommand(h?.command)
-      || (typeof h?.command === 'string' && h.command.includes('cache-monitor-hook'));
-    for (const event of Object.keys(settings.hooks || {})) {
+    const isOurs = (h) => isOurCommand(h?.command) || isLegacyCacheMonitorCommand(h?.command);
+    for (const event of Object.keys(isPlainObject(settings.hooks) ? settings.hooks : {})) {
       const list = settings.hooks[event];
       if (!Array.isArray(list)) continue;
       let touched = false;
@@ -815,9 +944,13 @@ export function uninstallAll({ purge = false } = {}) {
       if (kept.length === 0) delete settings.hooks[event];
       else settings.hooks[event] = kept;
     }
-    if (settings.hooks && Object.keys(settings.hooks).length === 0) delete settings.hooks;
+    if (isPlainObject(settings.hooks) && Object.keys(settings.hooks).length === 0) delete settings.hooks;
 
-    writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+    // Nothing of ours in the file means nothing to rewrite (and no backup to churn).
+    if (result.removed.length > 0) {
+      const writeProblem = writeSettings(file, settings);
+      if (writeProblem) return { ...result, action: 'skipped', reason: writeProblem };
+    }
   }
 
   const skillDir = join(claudeUserDir(), 'skills', 'claude-token-saver');
@@ -872,12 +1005,9 @@ export function migrateLegacyCacheMonitorHook() {
   const dir = claudeUserDir();
   const file = join(dir, 'settings.json');
   if (!existsSync(file)) return { path: file, action: 'none' };
-  let settings;
-  try {
-    settings = JSON.parse(readFileSync(file, 'utf8'));
-  } catch (e) {
-    return { path: file, action: 'skipped', reason: `unreadable JSON (${e.message})` };
-  }
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
   const list = settings.hooks?.PostToolUse;
   if (!Array.isArray(list)) return { path: file, action: 'none' };
 
@@ -885,13 +1015,16 @@ export function migrateLegacyCacheMonitorHook() {
   for (const m of list) {
     if (!Array.isArray(m?.hooks)) continue;
     for (const h of m.hooks) {
-      if (typeof h?.command !== 'string' || !h.command.includes('cache-monitor-hook')) continue;
+      if (!isLegacyCacheMonitorCommand(h?.command)) continue;
       const th = h.command.match(/--threshold\s+([\d.]+)/);
       h.command = `${CLI} --hook-run --threshold ${th ? th[1] : '0.7'}`;
       migrated = true;
     }
   }
-  if (migrated) writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
+  if (migrated) {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
 
   const legacyCopy = join(dir, 'cache-monitor-hook.cjs');
   if (existsSync(legacyCopy)) {

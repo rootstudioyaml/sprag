@@ -106,6 +106,12 @@ export async function run({ args, hasFlag }) {
       for (const p of r.backedUp) console.log(`Backed up: ${p}`);
       for (const p of r.wrote) console.log(`Wrote:     ${p}`);
       for (const p of r.skipped) console.log(`Skipped:   ${p}`);
+      if (r.brokenBlock) {
+        // Nothing was written to CLAUDE.md, so claiming success would hide it.
+        console.log('\n🅷 Harness not initialized: repair the block markers in CLAUDE.md, then run this again.');
+        process.exitCode = 1;
+        return;
+      }
       console.log('\n🅷 Harness initialized. Statusline will show 🅷 5/5 on next refresh.');
       return;
     }
