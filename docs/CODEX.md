@@ -76,7 +76,7 @@ shared hooks needed by other features.
 | Token report | Table, JSON, or CSV from local Codex rollout logs, with time and project filters |
 | Statusline | `--statusline` or `--format statusline` renders the compact panel once, with wrapping and label/color preferences |
 | Briefing | UserPromptSubmit reports fresh context/limit threshold crossings once per session and threshold cycle |
-| Warning history | `last` and `history` read Codex-only, per-session warning records |
+| Warning history | `last` and `history` read Codex-only, per-session records of context (80%/95%) and rate-limit (90%) warnings and handoffs; cache and TTL chips are not recorded |
 | Handoff | Git state, session/model, recorded context/tokens/limits, and fillable remaining-work sections |
 | Subagents | Opt-in native spawn model routing, scoped category rules, and SubagentStart guidance |
 | Cache timer | Resolved provider retention policy after recorded cache usage; exact expiry is unknown |
@@ -265,6 +265,15 @@ SessionStart reads cached candidates and schedules an eligible refresh outside
 the hook. Small log changes refresh at most daily; a 5 MiB increase can refresh
 after an hour. `--refresh` bypasses that schedule.
 
+Codex 0.159.2 keeps about 2,450 tokens of one hook's context and cuts the
+middle of anything longer. SessionStart therefore fits its parts whole within a
+2,000-token estimate, in priority order: ratchet rules, Korean guidance,
+cohesion guidance, the document note, then offers. Rules and guidance that do
+not fit are written to a per-project file under the Sprag data directory, and
+the context opens with an instruction to read it. `codex exec` runs, recognized
+from the rollout's `originator`, get no seed offer or route notice, since no one
+can answer them.
+
 `seed` offers only compatible ratchet presets, not Claude model-tier presets.
 Accept and skip decisions are separate from Claude. Both seed acceptance and
 route approval require the user's choice of global or project scope. A project
@@ -351,6 +360,10 @@ each other:
   required across deployments behind an alias. Price snapshots last seven days.
   A model the gateway does not price stays unpriced; it is not filled in from
   the list prices.
+
+`sprag delegate rules --agent codex` shows each rule's measured runs, failure
+rate and signed saving. A rule is flagged for review when the 95% lower bound
+of its failure rate exceeds 20% over at least five runs, as on the Claude side.
 
 Providers are kept separate. Negative values are losses: the child ran on a
 pricier model than the parent, and the loss reduces the totals. Missing rates or usage produce unpriced entries, never invented zeroes. A priced
