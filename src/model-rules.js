@@ -155,24 +155,26 @@ export function loadModelRules() {
 }
 
 /**
- * USD that measured delegations have saved, summed across registered rules.
- * Reads the file route-scan already wrote — the statusline refreshes every few
- * seconds and must never start a scan of its own (a scan parses tens of MB of
- * transcripts).
- *
- * Rules with no measured delegation contribute nothing, and an unreadable
- * registry returns 0 rather than throwing: the statusline reads 0 as "draw no
- * chip", which is the right outcome for anyone who never delegates.
+ * The one rule a delegated run in `projectDir` is credited to. A project rule
+ * for that project comes first, then a global rule promoted from it, then the
+ * first other global rule. Rule health (refreshModelRules) and the savings
+ * ledger (route-scan) both ask here, so a run is never credited to two rules
+ * and the two never disagree about whose it was.
  */
-export function delegationSavedUsd() {
-  try {
-    return loadModelRules().rules.reduce(
-      (sum, r) => sum + (r.delegatedRuns ? (Number(r.savedUsd) || 0) : 0),
-      0,
-    );
-  } catch {
-    return 0;
+export function ruleForProject(rules, tier, category, projectDir) {
+  let promotedHere = null;
+  let firstGlobal = null;
+  for (const r of rules || []) {
+    if (!r || r.status === 'off' || r.tier !== tier || r.category !== category) continue;
+    if (r.scope !== 'global') {
+      if (r.project === projectDir) return r;
+    } else if (r.project === projectDir) {
+      promotedHere = promotedHere || r;
+    } else {
+      firstGlobal = firstGlobal || r;
+    }
   }
+  return promotedHere || firstGlobal;
 }
 
 export function saveModelRules(data) {
@@ -497,10 +499,27 @@ export function refreshModelRules(episodeStats, delegatedStats = new Map(), { no
   let changed = false;
   const pick = (stats, r) => stats.get(`${r.tier}|${r.category}|${r.project}`)
     || (r.scope === 'global' ? stats.get(`${r.tier}|${r.category}|*`) : null);
+  // Delegated outcomes are money, so each project's runs go to exactly one
+  // rule. Handing every global rule the `*` aggregate counted the same runs
+  // once per global rule of that tier and category.
+  const owned = new Map();
+  for (const [key, d] of delegatedStats) {
+    const [tier, category, ...rest] = key.split('|');
+    const project = rest.join('|');
+    if (project === '*') continue;
+    const rule = ruleForProject(data.rules, tier, category, project);
+    if (!rule) continue;
+    const o = owned.get(rule) || { runs: 0, errRuns: 0, outTokens: 0, savedUsd: 0 };
+    o.runs += d.runs || 0;
+    o.errRuns += d.errRuns || 0;
+    o.outTokens += d.outTokens || 0;
+    o.savedUsd += d.savedUsd || 0;
+    owned.set(rule, o);
+  }
 
   for (const r of data.rules) {
     const s = pick(episodeStats, r);
-    const d = pick(delegatedStats, r);
+    const d = owned.get(r);
     if (!s && !d) {
       // A rule whose category didn't appear at all this window keeps its last
       // known recurrence, but its measured-delegation fields must still read

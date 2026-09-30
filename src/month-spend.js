@@ -23,9 +23,9 @@ export function monthLabel(now = new Date()) {
 
 /**
  * 월초 이후 세션들의 지출 추정치 합계(USD).
- * endTime 이 월초 이후인 세션만 집계합니다. 세션이 월 경계에 걸치는
- * 경우는 세션 전체를 포함하는데, 경계 세션은 드물고 통계선 지표는
- * 추정치이므로 이 정도 오차는 허용합니다.
+ * endTime 이 월초 이후인 세션만 집계합니다. 월 경계에 걸친 세션은
+ * 호출하는 쪽이 parser.js 의 sessionsSince 로 월초 이후 요청만 남겨서
+ * 넘겨야 합니다. 그대로 넘기면 세션 전체가 이번 달 지출로 계산됩니다.
  *
  * @param {Array} sessions parseAllSessions 결과
  * @param {Date} [now]

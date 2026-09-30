@@ -491,7 +491,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
 
   // Delegation savings — a DIFFERENT number from "Cache saved" above, which
   // covers the prompt cache only. This one is what running work on a cheaper
-  // tier saved, summed from the rule registry route-scan maintains. Hidden
+  // tier saved, the lifetime total of the delegation ledger. Hidden
   // when zero or absent: a permanent "$0" is noise for direct-API users and
   // for anyone who has not delegated yet.
   // "Routing saved" says what earned the money — work that ran on a cheaper
