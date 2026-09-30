@@ -133,11 +133,13 @@ async function childRun(path, cutoffMs, binds) {
   if (!s.isSubagent) return null;
   let id = null;
   const tokens = { input: 0, cached: 0, cacheWrite: 0, output: 0 };
+  let calls = 0, toolErrors = 0;
   let model = null, startedAt = null, endedAt = null, complete = false, aborted = false, usageKnown = false, mixedModels = false;
   for (const t of s.turns) {
     // Only the child's own first message may carry the id; copied history does not count.
     if (!id && t.text) { const m = ROUTE_ID_RE.exec(t.text); if (m) id = m[1]; }
     tokens.input += t.input; tokens.cached += t.cached; tokens.cacheWrite += t.cacheWrite; tokens.output += t.out;
+    calls += t.calls; toolErrors += t.errors;
     if (model && t.model && model !== t.model) mixedModels = true;
     model ??= t.model;
     usageKnown ||= t.usageKnown;
@@ -146,7 +148,7 @@ async function childRun(path, cutoffMs, binds) {
   }
   if (!id && binds) id = binds.get(s.sessionId) ?? null;
   return id ? { id, sessionId: s.sessionId, parentThreadId: s.parentThreadId, provider: s.provider,
-    model, tokens, startedAt, endedAt, complete, aborted, usageKnown: usageKnown && !mixedModels } : null;
+    model, tokens, calls, toolErrors, startedAt, endedAt, complete, aborted, usageKnown: usageKnown && !mixedModels } : null;
 }
 
 /**
@@ -193,7 +195,7 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     const usd = actual === null || counterfactual === null ? null : roundUsd(run.aborted ? -actual : counterfactual - actual);
     const event = { ts: run.endedAt ?? route.at, parentSessionId: route.parentSessionId || run.parentThreadId || null,
       childSessionId: run.sessionId, source: route.source, category: route.category ?? null, scope: route.scope ?? null,
-      from: route.from, to, provider, tokens: run.tokens, usd, rates: usd === null ? null : rates,
+      from: route.from, to, provider, tokens: run.tokens, calls: run.calls, toolErrors: run.toolErrors, usd, rates: usd === null ? null : rates,
       priceCheckedAt: rates?.checkedAt ?? null, priceSource, complete: run.complete, ...(run.aborted ? { aborted: true } : {}) };
     // A transient price outage must not erase a completed, unchanged priced run.
     if (usd === null && sameRun && previous.complete && Number.isFinite(previous.usd) &&
