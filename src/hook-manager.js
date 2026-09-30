@@ -9,21 +9,26 @@
  * removes the copy, the staleness, and the orphan in one move.
  */
 
-import { readFile, writeFile, rm } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
 import { CLI_NAME } from './cli-name.js';
+import { claudeUserDir } from './paths.js';
+import { isOurSubcommand, isLegacyCacheMonitorCommand, readSettings, writeSettings } from './installer.js';
 
-const SETTINGS_PATH = join(homedir(), '.claude', 'settings.json');
+// Resolved per call, not at import: the paths follow the current home directory.
+const settingsPath = () => join(claudeUserDir(), 'settings.json');
 // Legacy copied-file location — removed on install/uninstall so machines that
 // installed an older version don't keep a dead hook script around.
-const LEGACY_HOOK_DEST = join(homedir(), '.claude', 'cache-monitor-hook.cjs');
-const HOOK_MARKER = 'cache-monitor-hook';
+const legacyHookDest = () => join(claudeUserDir(), 'cache-monitor-hook.cjs');
 
+// Ours means the current subcommand form (`<cli> --hook-run ...`) or the exact
+// legacy copied-file form. A command that only mentions either string, such as
+// `echo "sprag --hook-run"`, belongs to somebody else.
 function isCacheMonitorHook(nh) {
   const cmd = nh?.command;
   if (typeof cmd !== 'string') return false;
-  return cmd.includes(HOOK_MARKER) || cmd.includes('--hook-run');
+  return isOurSubcommand(cmd, '--hook-run') || isLegacyCacheMonitorCommand(cmd);
 }
 
 /**
@@ -51,21 +56,31 @@ function countCacheMonitorHooks(groups) {
   return n;
 }
 
-export async function installHook({ threshold = 0.7 } = {}) {
-  let settings;
-  try {
-    const raw = await readFile(SETTINGS_PATH, 'utf8');
-    settings = JSON.parse(raw);
-  } catch {
-    settings = {};
-  }
+function fail(message) {
+  console.log(message);
+  process.exitCode = 1;
+  return false;
+}
 
-  if (!settings.hooks) settings.hooks = {};
+export async function installHook({ threshold = 0.7 } = {}) {
+  const SETTINGS_PATH = settingsPath();
+  // Only a missing file starts from an empty object. A file that exists but
+  // cannot be parsed (or is not an object) is the user's configuration;
+  // replacing it with a fresh object would wipe everything in it.
+  const read = readSettings(SETTINGS_PATH);
+  if (read.state === 'unusable') {
+    return fail(`✗ ${SETTINGS_PATH} is ${read.reason} — hook not installed, file left untouched.`);
+  }
+  const settings = read.settings;
+
+  if (settings.hooks === undefined || settings.hooks === null) settings.hooks = {};
+  if (typeof settings.hooks !== 'object' || Array.isArray(settings.hooks)) {
+    return fail(`✗ hooks in ${SETTINGS_PATH} is not an object — hook not installed, file left untouched.`);
+  }
   if (settings.hooks.PostToolUse !== undefined && !Array.isArray(settings.hooks.PostToolUse)) {
     // Someone else's data in a shape we do not understand; overwriting it with
     // [] would discard it. Leave the file alone and say so.
-    console.log(`⚠ hooks.PostToolUse in ${SETTINGS_PATH} is not an array — hook not installed.`);
-    return;
+    return fail(`✗ hooks.PostToolUse in ${SETTINGS_PATH} is not an array — hook not installed, file left untouched.`);
   }
   if (!settings.hooks.PostToolUse) settings.hooks.PostToolUse = [];
 
@@ -84,10 +99,12 @@ export async function installHook({ threshold = 0.7 } = {}) {
     ],
   });
 
-  await writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+  mkdirSync(claudeUserDir(), { recursive: true });
+  const writeProblem = writeSettings(SETTINGS_PATH, settings);
+  if (writeProblem) return fail(`✗ Hook not installed: ${writeProblem}`);
 
   // Clean up the legacy copy left by older versions.
-  await rm(LEGACY_HOOK_DEST, { force: true }).catch(() => {});
+  await rm(legacyHookDest(), { force: true }).catch(() => {});
 
   console.log(`✓ Hook installed (PostToolUse → ${CLI_NAME} --hook-run)`);
   console.log(`  Settings updated: ${SETTINGS_PATH}`);
@@ -96,29 +113,34 @@ export async function installHook({ threshold = 0.7 } = {}) {
 }
 
 export async function uninstallHook() {
-  let settings;
-  try {
-    const raw = await readFile(SETTINGS_PATH, 'utf8');
-    settings = JSON.parse(raw);
-  } catch {
+  const SETTINGS_PATH = settingsPath();
+  const read = readSettings(SETTINGS_PATH);
+  if (read.state === 'absent') {
     console.log('No settings.json found, nothing to uninstall.');
     return;
   }
+  if (read.state === 'unusable') {
+    return fail(`✗ ${SETTINGS_PATH} is ${read.reason} — nothing removed, file left untouched.`);
+  }
+  const settings = read.settings;
 
   if (Array.isArray(settings.hooks?.PostToolUse)) {
-    const before = countCacheMonitorHooks(settings.hooks.PostToolUse);
-    settings.hooks.PostToolUse = withoutCacheMonitorHooks(settings.hooks.PostToolUse);
-    const removed = before;
+    const removed = countCacheMonitorHooks(settings.hooks.PostToolUse);
+    if (removed > 0) {
+      settings.hooks.PostToolUse = withoutCacheMonitorHooks(settings.hooks.PostToolUse);
+      if (settings.hooks.PostToolUse.length === 0) delete settings.hooks.PostToolUse;
+      if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
 
-    if (settings.hooks.PostToolUse.length === 0) delete settings.hooks.PostToolUse;
-    if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
-
-    await writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-    console.log(`✓ Removed ${removed} hook(s) from settings.json`);
+      const writeProblem = writeSettings(SETTINGS_PATH, settings);
+      if (writeProblem) return fail(`✗ Hook not removed: ${writeProblem}`);
+      console.log(`✓ Removed ${removed} hook(s) from settings.json`);
+    } else {
+      console.log('No cache-monitor hook found in settings.');
+    }
   } else {
     console.log('No cache-monitor hook found in settings.');
   }
 
   // The legacy copied hook file is dead weight either way.
-  await rm(LEGACY_HOOK_DEST, { force: true }).catch(() => {});
+  await rm(legacyHookDest(), { force: true }).catch(() => {});
 }
