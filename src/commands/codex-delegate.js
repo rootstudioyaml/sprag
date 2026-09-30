@@ -2,7 +2,9 @@ import { loadConfig, saveConfig } from '../config.js';
 import { configureCodexHooks } from '../codex-installer.js';
 import { validateCodexTarget, loadCodexModelRules, addCodexModelRule, removeCodexModelRule } from '../codex-delegation.js';
 import { findCodexCandidate, resolveCodexCandidate } from '../codex-route-scan.js';
-import { codexRoutingSavedTotals } from '../codex-ledger.js';
+import { codexRoutingSavedTotals, loadCodexLedger } from '../codex-ledger.js';
+import { codexRuleHealth } from '../codex-rule-health.js';
+import { signedUsd } from '../money.js';
 import { codexProviderName } from '../agent.js';
 
 export function run({ args, getArg, hasFlag, root }) {
@@ -31,7 +33,14 @@ export function run({ args, getArg, hasFlag, root }) {
     else if (args[2]) throw new Error('Usage: delegate rules [add <category|R<N>> --from <model> --model <model> --global|--project | rm <N>]');
     const rules = loadCodexModelRules();
     if (!rules.length) console.log('No Codex model rules. Claude rules are not imported.');
-    rules.forEach((r, i) => console.log(`#${i + 1} ${r.category} | ${r.from} -> ${r.model} | ${r.scope}${r.targetRoot ? ` ${r.targetRoot}` : ''}`));
+    let events = [];
+    try { events = Object.values(loadCodexLedger().events); } catch { /* No ledger yet: rules list without outcomes. */ }
+    rules.forEach((r, i) => {
+      const h = codexRuleHealth(r, { events });
+      const outcome = h.runs ? ` | measured x${h.runs}, err ${Math.round(h.rate * 100)}%, saved ${signedUsd(h.saved, 4)}` : '';
+      const warn = h.status === 'review' ? ` | rule-health: ${h.errs}/${h.runs} runs failed, narrow the condition or remove (delegate rules rm ${i + 1} --agent codex)` : '';
+      console.log(`#${i + 1} ${r.category} | ${r.from} -> ${r.model} | ${r.scope}${r.targetRoot ? ` ${r.targetRoot}` : ''}${outcome}${warn}`);
+    });
     return;
   }
   if (!['on', 'off', 'status', 'model'].includes(sub)) throw new Error('Usage: delegate on|off|status|model <model>|rules --agent codex');
