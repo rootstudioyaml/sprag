@@ -15,6 +15,8 @@
 두 번째로 **실시간 라우터가 아니라는 점**을 말합니다. 앞의 것은 관심을 끌고, 뒤의 것은
 이 분야에서 가장 흔한 오해를 먼저 막아 줍니다.
 
+Codex 위임은 2026-09-30 실측에서 절감이 확인되지 않았으므로(spawn_agent 가 PreToolUse 를 거치지 않음), 게시글에서 Codex 위임을 내세우지 않습니다.
+
 게시는 사람이 직접 합니다. 커뮤니티 대부분이 자동 게시나 대리 게시를 금지합니다.
 
 ---
@@ -110,8 +112,9 @@ So instead it reads the local session logs after the fact, finds request types t
 expensive model handled repeatedly and a smaller model could have handled, and
 proposes a delegation rule. From the next session, matching work goes to a
 subagent on a cheaper tier in its own context. The main session's cache is never
-touched. The analysis makes no LLM calls, so the scan is free. It works on Claude
-Code and on Codex CLI (native spawn_agent hooks).
+touched. The analysis makes no LLM calls, so the scan is free. Delegation is
+measured on Claude Code; Codex CLI support covers the statusline panel, rules and
+document conversion.
 
 Savings are a ledger, not an estimate. For every delegated run it applies both
 price tables to the same token counts and records the difference, and
