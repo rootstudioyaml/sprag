@@ -7,16 +7,45 @@ import { codexUserDir } from './agent.js';
 const count = (n) => Number.isSafeInteger(n) && n >= 0 ? n : 0;
 const emptyTotals = () => ({ input: 0, cacheRead: 0, cacheCreation: 0, ephemeral5m: 0, ephemeral1h: 0, output: 0 });
 
+/**
+ * A child spawned with fork_turns "all" writes its own session_meta first,
+ * then a copy of the parent's session_meta and history, then its own work.
+ * The copy belongs to the parent: identity comes from the first session_meta,
+ * and the copied lines are skipped so the parent's request is not counted a
+ * second time. The copy ends at the child's own thread_settings_applied, or
+ * at the first line written after the batch copy, whichever comes first.
+ */
+export function forkedCopyFilter() {
+  let ownId = null, copyStamp = null;
+  return (e) => {
+    const p = e?.payload;
+    if (e?.type === 'session_meta') {
+      const id = p?.id || p?.session_id || null;
+      if (ownId === null) { ownId = id; return false; }
+      // A resumed rollout can repeat its own meta; only another thread's is a copy.
+      if (id && id !== ownId) { copyStamp = e.timestamp ?? null; return true; }
+      return true;
+    }
+    if (copyStamp === null) return false;
+    const own = e?.type === 'event_msg' && p?.type === 'thread_settings_applied' && p.thread_id === ownId;
+    if (own || e?.timestamp !== copyStamp) { copyStamp = null; return false; }
+    return true;
+  };
+}
+
 function updateSnapshot(session, e) {
   const p = e?.payload;
   if (!p || typeof p !== 'object') return;
   const activity = Date.parse(e.timestamp);
   if (Number.isFinite(activity)) session.lastActivity = new Date(activity);
   if (e.type === 'session_meta') {
+    // Callers drop forked copies, so a later meta can only be this thread's own repeat.
+    if (session.sessionId) return;
     session.sessionId = p.id || p.session_id || null;
     session.projectDir = typeof p.cwd === 'string' ? p.cwd : '';
     session.source = p.source ?? null;
     session.isSubagent = typeof p.source === 'object' && p.source !== null && 'subagent' in p.source;
+    session.forkedFrom = typeof p.forked_from_id === 'string' ? p.forked_from_id : null;
     session.branch = typeof p.git?.branch === 'string' ? p.git.branch : null;
     session.provider = typeof p.model_provider === 'string' ? p.model_provider : null;
   }
@@ -63,8 +92,12 @@ export function readCodexSnapshot(filePath, { tailBytes = 256 * 1024 } = {}) {
   const lines = readCodexTailLines(filePath, tailBytes);
   if (!lines) return null;
   const snapshot = {};
+  const copied = forkedCopyFilter();
   for (const line of lines) {
-    try { updateSnapshot(snapshot, JSON.parse(line)); } catch { /* Partial or malformed record. */ }
+    try {
+      const e = JSON.parse(line);
+      if (!copied(e)) updateSnapshot(snapshot, e);
+    } catch { /* Partial or malformed record. */ }
   }
   return snapshot;
 }
@@ -164,7 +197,8 @@ const emptyTurn = (turnId) => ({ turnId, startedAt: null, endedAt: null, aborted
  * structured event described, so a call is never counted twice.
  */
 export async function parseCodexTurns(filePath, { cutoffMs = -Infinity } = {}) {
-  const session = { filePath, sessionId: null, projectDir: '', isSubagent: false, parentThreadId: null, provider: null, turns: [] };
+  const session = { filePath, sessionId: null, projectDir: '', isSubagent: false, parentThreadId: null, forkedFrom: null, provider: null, turns: [] };
+  const copied = forkedCopyFilter();
   const turns = new Map();
   const turnOf = (id) => {
     if (!id) return null;
@@ -184,12 +218,14 @@ export async function parseCodexTurns(filePath, { cutoffMs = -Infinity } = {}) {
     let e;
     try { e = JSON.parse(line); } catch { continue; }
     const p = e?.payload;
-    if (!p || typeof p !== 'object') continue;
+    if (!p || typeof p !== 'object' || copied(e)) continue;
     if (e.type === 'session_meta') {
+      if (session.sessionId) continue;
       session.sessionId = p.id || p.session_id || null;
       session.projectDir = typeof p.cwd === 'string' ? p.cwd : '';
       session.isSubagent = typeof p.source === 'object' && p.source !== null && 'subagent' in p.source;
       session.parentThreadId = p.source?.subagent?.thread_spawn?.parent_thread_id || null;
+      session.forkedFrom = typeof p.forked_from_id === 'string' ? p.forked_from_id : null;
       session.provider = typeof p.model_provider === 'string' ? p.model_provider : null;
       continue;
     }
@@ -303,6 +339,7 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } =
     lastContextTokens: null, rateLimits: null, lastActivity: null, effort: null,
     cacheActivity: null,
   };
+  const copied = forkedCopyFilter();
   let previous = null;
   const stream = createReadStream(filePath, { encoding: 'utf8' });
   const lines = createInterface({ input: stream, crlfDelay: Infinity });
@@ -310,7 +347,7 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } =
     let e;
     try { e = JSON.parse(line); } catch { continue; }
     const p = e?.payload;
-    if (!p) continue;
+    if (!p || copied(e)) continue;
     updateSnapshot(session, e);
     if (e.type !== 'event_msg' || p.type !== 'token_count') continue;
     if (!p.info) continue;
