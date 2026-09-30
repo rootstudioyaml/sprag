@@ -1,7 +1,8 @@
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
-import { readFileSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { mkdirSync, openSync, readFileSync, readSync, closeSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { loadConfig, userLanguage } from './config.js';
 import { koreanStyleInjection, koreanStyleEnabled } from './korean-style.js';
 import { cohesionInjection } from './cohesion.js';
@@ -13,6 +14,8 @@ import { codexDelegationTool, codexRouteHint } from './codex-delegation.js';
 import { bindCodexSubagent } from './codex-ledger.js';
 import { seedOfferBlock } from './seed-rules.js';
 import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './codex-route-scan.js';
+import { userDataDir } from './paths.js';
+import { debug } from './debug.js';
 
 const require = createRequire(import.meta.url);
 const lint = require('./korean-lint.cjs');
@@ -20,6 +23,80 @@ const doc2md = require('./doc2md.cjs');
 
 function context(event, text) {
   return text ? { hookSpecificOutput: { hookEventName: event, additionalContext: text } } : null;
+}
+
+/**
+ * Codex 0.159.2 keeps about 2,450 tokens of one hook's context and cuts the
+ * middle: a 4,500-token SessionStart kept its head and tail and dropped 2,042
+ * tokens, which was most of the Korean style guide, while the low-priority
+ * offers at the end survived. The budget leaves room for estimate error.
+ */
+export const CODEX_CONTEXT_TOKEN_BUDGET = 2000;
+
+/** Overestimates on purpose: ASCII at 3.5 chars a token, anything else at 1.3. */
+export function estimateCodexTokens(text) {
+  let ascii = 0, other = 0;
+  for (const ch of String(text ?? '')) { if (ch.codePointAt(0) < 128) ascii++; else other++; }
+  return Math.ceil(ascii / 3.5 + other / 1.3);
+}
+
+/**
+ * Fit context parts into the budget whole, never cut. Parts are tried by
+ * priority (lower first); a part that does not fit moves to `overflowFile`
+ * when `spill` is set and is dropped otherwise. A pointer to the file goes
+ * first, since the head of a context is what Codex always keeps.
+ */
+export function fitCodexContext(parts, { budget = CODEX_CONTEXT_TOKEN_BUDGET, overflowFile, write = writeOverflow } = {}) {
+  const items = parts.map((p, i) => ({ ...p, i, tokens: estimateCodexTokens(p.text) })).filter((p) => p.text);
+  const pointer = (file) => `[Sprag] Some Sprag instructions exceed Codex's hook context limit. Read ${JSON.stringify(file)} before starting work and follow it like the instructions below.`;
+  const reserve = overflowFile && items.some((p) => p.spill) ? estimateCodexTokens(pointer(overflowFile)) : 0;
+  let used = reserve;
+  const kept = new Set(), spilled = [];
+  for (const p of [...items].sort((a, b) => a.priority - b.priority || a.i - b.i)) {
+    if (used + p.tokens <= budget) { kept.add(p.i); used += p.tokens; }
+    else if (p.spill && overflowFile) spilled.push(p);
+  }
+  const out = items.filter((p) => kept.has(p.i)).map((p) => p.text);
+  if (spilled.length) {
+    try {
+      write(overflowFile, spilled.sort((a, b) => a.i - b.i).map((p) => p.text).join('\n\n') + '\n');
+      out.unshift(pointer(overflowFile));
+    } catch (e) { debug('codex:overflow', e); }
+  }
+  return out.join('\n\n');
+}
+
+function writeOverflow(file, text) {
+  mkdirSync(join(file, '..'), { recursive: true, mode: 0o700 });
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, text, { mode: 0o600 });
+  renameSync(tmp, file);
+}
+
+function overflowFileFor(root) {
+  const key = createHash('sha256').update(resolve(root || '.')).digest('hex').slice(0, 16);
+  return join(userDataDir(), 'codex-context', `${key}.md`);
+}
+
+/**
+ * `codex exec` runs have no one to answer a question, yet their SessionStart
+ * payload says `source: "startup"` like an interactive one. The rollout's
+ * first record says who started it (`originator: "codex_exec"`).
+ */
+export function isCodexExecSession(transcriptPath) {
+  if (typeof transcriptPath !== 'string' || !transcriptPath) return false;
+  let fd;
+  try {
+    fd = openSync(transcriptPath, 'r');
+    const buffer = Buffer.alloc(64 * 1024);
+    const length = readSync(fd, buffer, 0, buffer.length, 0);
+    const first = JSON.parse(buffer.subarray(0, length).toString('utf8').split('\n')[0]);
+    const meta = first?.type === 'session_meta' ? first.payload : null;
+    return meta?.originator === 'codex_exec' || meta?.source === 'exec';
+  } catch (e) {
+    if (e?.code !== 'ENOENT') debug('codex:exec-detect', e);
+    return false;
+  } finally { if (fd !== undefined) closeSync(fd); }
 }
 
 /**
@@ -66,7 +143,7 @@ export function lintCodexTool(payload, { scope = 'all' } = {}) {
       if (lint.isHtmlFile(file)) text = lint.stripHtml(text);
       const findings = lint.lintKoreanText(text, { code: !lint.isProseFile(file) });
       if (findings.length) messages.push(lint.formatFindings(file, findings));
-    } catch { /* Deleted, moved, or unreadable files need no feedback. */ }
+    } catch (e) { if (e?.code !== 'ENOENT') debug('codex:lint', e); }
   }
   return messages.length ? messages.join('\n\n') : null;
 }
@@ -76,37 +153,42 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig() } = {
   if (event === 'session-start' || event === 'subagent-start') {
     if (event === 'subagent-start' && cfg?.codex?.delegate !== true) return null;
     if (event === 'subagent-start') {
-      try { bindCodexSubagent(payload); } catch { /* Binding is best-effort; a missed one just leaves a run unpriced. */ }
+      try { bindCodexSubagent(payload); } catch (e) { debug('codex:bind', e); }
     }
     const root = findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' });
     const parts = [];
     // Keep the preset file current with this version's wording before it is read.
     if (event === 'session-start') {
-      try { (await import('./preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch { /* Presets are optional. */ }
+      try { (await import('./preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch (e) { debug('codex:preset', e); }
     }
     const { presetRatchetPath } = await import('./preset-ratchet.js');
+    // Lower priority survives the budget first. Rules and style move to a file
+    // when they do not fit; offers and notices are simply left out.
     for (const [scope, ratchet] of [['global', codexHarnessPaths(root, 'global').ratchet],
       ['preset', presetRatchetPath({ agent: 'codex' })], ['project', codexHarnessPaths(root, 'project').ratchet]]) {
       try {
         if (statSync(ratchet).size > 32 * 1024) {
-          parts.push(`Read the ${scope} Sprag ratchet rules at ${JSON.stringify(ratchet)} before working; they exceed the automatic injection limit.`);
+          parts.push({ priority: 1, text: `Read the ${scope} Sprag ratchet rules at ${JSON.stringify(ratchet)} before working; they exceed the automatic injection limit.` });
         } else {
           const text = readFileSync(ratchet, 'utf8').trim();
           // An empty preset file is only its header; injecting it would spend
           // tokens every session on no rules.
-          if (text && (scope !== 'preset' || /^- /m.test(text))) parts.push(`[Sprag Codex ratchet: ${scope}]\n${text}`);
+          if (text && (scope !== 'preset' || /^- /m.test(text))) parts.push({ priority: 1, spill: true, text: `[Sprag Codex ratchet: ${scope}]\n${text}` });
         }
-      } catch { /* No rules registered in this scope. */ }
+      } catch (e) { if (e?.code !== 'ENOENT') debug('codex:ratchet', e); }
     }
-    parts.push(koreanStyleInjection({ cfg }), await cohesionInjection({ cfg }));
-    if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) parts.push(codexDocumentNote());
-    if (event === 'session-start' && payload.source !== 'compact') {
-      try { parts.push(seedOfferBlock({ root, agent: 'codex' })); } catch { /* Offers are optional. */ }
-      try { parts.push(await routeNotice(root)); } catch { /* A missing scan only delays candidates. */ }
+    if (event === 'subagent-start') parts.push({ priority: 0, text:
+      '[Sprag Codex delegation]\nStay within the assigned task and any caller-provided budget. Return findings with file references and actual verification results; state unfinished work. Use only available Codex tools and configured roles. Do not infer a model tier or invent a tool-call budget.' });
+    parts.push({ priority: 2, spill: true, text: koreanStyleInjection({ cfg }) },
+      { priority: 3, spill: true, text: await cohesionInjection({ cfg }) });
+    if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) parts.push({ priority: 4, spill: true, text: codexDocumentNote() });
+    // Offers ask the user a question; a `codex exec` run has no one to answer it.
+    if (event === 'session-start' && payload.source !== 'compact' && !isCodexExecSession(payload.transcript_path)) {
+      try { parts.push({ priority: 5, text: await routeNotice(root) }); } catch (e) { debug('codex:route-notice', e); }
+      try { parts.push({ priority: 6, text: seedOfferBlock({ root, agent: 'codex' }) }); } catch (e) { debug('codex:seed-offer', e); }
     }
-    if (event === 'subagent-start') parts.push(
-      '[Sprag Codex delegation]\nStay within the assigned task and any caller-provided budget. Return findings with file references and actual verification results; state unfinished work. Use only available Codex tools and configured roles. Do not infer a model tier or invent a tool-call budget.');
-    return context(event === 'subagent-start' ? 'SubagentStart' : 'SessionStart', parts.filter(Boolean).join('\n\n'));
+    return context(event === 'subagent-start' ? 'SubagentStart' : 'SessionStart',
+      fitCodexContext(parts, { overflowFile: overflowFileFor(root) }));
   }
   if (event === 'prompt') {
     const parts = [];
@@ -114,11 +196,11 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig() } = {
       try {
         parts.push(codexRouteHint(payload, { root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }),
           minContext: Number.isFinite(cfg?.codex?.delegateMinContext) ? cfg.codex.delegateMinContext : undefined }));
-      } catch { /* Invalid routing state must not suppress briefing or conversion. */ }
+      } catch (e) { debug('codex:route-hint', e); }
     }
     if (cfg?.codex?.brief !== false) {
       try { parts.push(runCodexBrief({ sessionId: payload.session_id, transcriptPath: payload.transcript_path, cwd: payload.cwd })); }
-      catch { /* Local telemetry must not prevent document conversion. */ }
+      catch (e) { debug('codex:brief', e); }
     }
     if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) {
       parts.push(doc2md.contextForPrompt(payload, { lang: userLanguage(), agent: 'codex', convert: convertCodexDocument }));

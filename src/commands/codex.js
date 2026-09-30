@@ -4,6 +4,7 @@ import { initCodexHarness, uninitCodexHarness, codexHarnessStatus } from '../cod
 import { findProjectRoot, harnessPromote, harnessListRules, harnessRmRule, harnessPrune } from '../harness.js';
 import { loadConfig, saveConfig } from '../config.js';
 import { resolve } from 'node:path';
+import { debug } from '../debug.js';
 
 const HELP = `Sprag / Codex
 
@@ -19,7 +20,7 @@ Usage: sprag <command> --agent codex [options]
   doctor [--format json]         Config, hooks, harness, logs, and capabilities
   capabilities [--format json]   Support matrix, including native/unsupported areas
   brief [on|off|status]          Current warnings or prompt-briefing preference
-  last / history                Codex warning history; --days, --session, --project
+  last / history                Context/rate-limit warnings and handoffs; --days, --session, --project
   handoff [--cwd path]           Write Git state and Codex usage to HANDOFF-*.md
   delegate on|off|status         Native model routing and SubagentStart guidance
   delegate model <model>         Default target for spawns without an explicit model
@@ -172,7 +173,7 @@ export async function run({ args, version }) {
     if (hasFlag('--refresh') || !cache) {
       // Prices live in the gateway snapshot; refresh it when stale so candidates can name a target.
       const { readCodexPrices, refreshCodexPrices } = await import('../codex-cache-policy.js');
-      if (!readCodexPrices()) { try { await refreshCodexPrices(); } catch { /* Candidates still list; targets need --model. */ } }
+      if (!readCodexPrices()) { try { await refreshCodexPrices(); } catch (e) { debug('codex:prices', e); } }
       cache = await rs.runCodexRouteScan({ days });
     }
     if (hasFlag('--quiet')) return;
@@ -225,7 +226,7 @@ export async function run({ args, version }) {
       sessionId: getArg('--session'), project: getArg('--project') || getArg('-p') });
     if (cmd === 'last') events = events.slice(-1);
     if (format === 'json') { console.log(JSON.stringify({ agent: 'codex', events }, null, 2)); return; }
-    if (!events.length) console.log('No Codex warning history in this window. Records are written by the trusted prompt hook.');
+    if (!events.length) console.log('No Codex warning history in this window. The trusted prompt hook records context and rate-limit warnings; handoffs are recorded when written.');
     else if (hasFlag('--list')) console.log([...new Set(events.map((event) => event.at.slice(0, 10)))].reverse().join('\n'));
     else for (const event of events) {
       console.log(terminalText(`${event.at} [${event.sessionId}] ${event.message}`));
@@ -239,6 +240,11 @@ export async function run({ args, version }) {
     const cwd = getArg('--cwd') || process.cwd();
     const data = await createPanelReader({ root: findProjectRoot(resolve(cwd), { agent: 'codex' }), sessionId: getArg('--session'), days: numArg('--days', { dflt: 7, min: 0 }) })();
     const result = writeHandoff({ cwd, agent: 'codex', session: data.session });
+    try {
+      const { recordCodexHistoryEvent } = await import('../codex-brief.js');
+      recordCodexHistoryEvent({ sessionId: data.session?.sessionId, project: cwd, key: 'handoff',
+        message: `Handoff written: ${result.path}` });
+    } catch (e) { debug('codex:handoff-record', e); }
     console.log(`Handoff written: ${result.path}`);
     console.log('Fill in the remaining-work sections, then ask the next Codex session to read this file.');
     return;
@@ -324,7 +330,7 @@ export async function run({ args, version }) {
     })() : { read: createCodexBudgetReader() };
     if (hasFlag('--once')) {
       const provider = codexBudgetProvider();
-      if (provider) { try { readBudget.set(await fetchCodexBudget(provider)); } catch { /* No verified budget. */ } }
+      if (provider) { try { readBudget.set(await fetchCodexBudget(provider)); } catch (e) { debug('codex:budget', e); } }
     }
     const { createInlinePanelResizer } = await import('../codex-panel-runner.js');
     const rawInterval = getArg('--interval');
@@ -340,7 +346,7 @@ export async function run({ args, version }) {
         readCachePolicy: hasFlag('--once') ? async (session) => {
           const { readCodexCachePolicy } = await import('../codex-cache-policy.js');
           try { return readCodexCachePolicy(session) || await refreshCodexCachePolicy(session); }
-          catch { return null; }
+          catch (e) { debug('codex:cache-policy', e); return null; }
         } : createCodexCachePolicyReader(), hasFlag }),
       interval: interval * 1000, once: hasFlag('--once'),
       color: !hasFlag('--no-color') && !process.env.NO_COLOR && !!process.stdout.isTTY, version, compact: hasFlag('--compact'),
@@ -377,7 +383,7 @@ export async function run({ args, version }) {
       }
       const out = await codexHookOutput(getArg('--event'), payload);
       if (out) console.log(JSON.stringify(out));
-    } catch { /* Hook failures must not break the agent loop. */ }
+    } catch (e) { debug('codex:hook', e); /* Hook failures must not break the agent loop. */ }
     return;
   }
   if (cmd === 'install') {
@@ -396,7 +402,7 @@ export async function run({ args, version }) {
       const { preparePresetRatchet } = await import('../preset-ratchet.js');
       const p = preparePresetRatchet({ agent: 'codex' });
       console.log(`Codex preset rules: ${p.file} (${p.rules} registered${p.moved ? `, ${p.moved} moved from ratchet.md` : ''})`);
-    } catch { /* Presets are optional; `seed` still registers them. */ }
+    } catch (e) { debug('codex:preset', e); /* Presets are optional; `seed` still registers them. */ }
     console.log('Open /hooks in Codex and review/trust the Sprag hooks before they can run.');
     console.log(`Panel auto-start: ${panelAuto ? 'registered with the other hooks' : 'off'}. Hook registration is complete; runtime activation is not verified.`);
     console.log('After approval, start or resume Codex and run: sprag panel doctor --agent codex');
@@ -508,7 +514,8 @@ export async function run({ args, version }) {
     console.log(`Cache: ${doc2md.cacheDir()}`);
     try {
       for (const hook of codexHookStatus().filter((h) => ['PreToolUse', 'UserPromptSubmit'].includes(h.event))) console.log(`${hook.event}: ${hook.registered ? 'registered' : 'missing/outdated'}`);
-    } catch {
+    } catch (e) {
+      debug('codex:hook-status', e);
       console.log('Hooks: cannot read Codex hooks.json; file left unchanged. Run sprag doctor --agent codex for diagnostics.');
     }
     console.log('Prompt conversion, supported reads, and document/cache write guards require trusted hooks. Review in Codex /hooks.');
