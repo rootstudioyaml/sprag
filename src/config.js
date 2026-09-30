@@ -9,10 +9,11 @@
  *   Linux:   $XDG_CONFIG_HOME/claude-token-saver/config.json or ~/.config/...
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { labelPreference } from './statusline-mode.js';
+import { writeStateFile } from './state-file.js';
 
 const CONFIG_DIR = userDataDir();
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
@@ -31,8 +32,7 @@ export function loadConfig() {
 }
 
 export function saveConfig(cfg) {
-  if (!existsSync(CONFIG_DIR)) mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2) + '\n');
+  writeStateFile(CONFIG_PATH, JSON.stringify(cfg, null, 2) + '\n');
 }
 
 // Each keyword maps to a single statusline option toggle.

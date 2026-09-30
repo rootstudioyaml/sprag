@@ -34,6 +34,7 @@ import { homedir } from 'node:os';
 import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
+import { writeStateFile } from './state-file.js';
 import { signedUsd } from './money.js';
 
 // Post-promotion delegated-category error rate above this flags the rule
@@ -178,9 +179,7 @@ export function ruleForProject(rules, tier, category, projectDir) {
 }
 
 export function saveModelRules(data) {
-  const dir = stateDir();
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(modelRulesPath(), JSON.stringify(data, null, 2) + '\n');
+  writeStateFile(modelRulesPath(), JSON.stringify(data, null, 2) + '\n');
 }
 
 /** Add (or re-activate) a promoted rule; returns the stored entry. */

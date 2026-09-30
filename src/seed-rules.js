@@ -23,13 +23,14 @@
  *   { decided: { "<id>": { action: 'accepted' | 'skipped', at, scope? } } }
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { CLI_NAME } from './cli-name.js';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
+import { writeStateFile } from './state-file.js';
 import {
   addModelRule,
   composeRuleText,
@@ -62,9 +63,7 @@ export function loadSeedState(opts = {}) {
 }
 
 export function saveSeedState(state, opts = {}) {
-  const dir = userDataDir();
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(seedStatePath(opts), JSON.stringify(state, null, 2) + '\n');
+  writeStateFile(seedStatePath(opts), JSON.stringify(state, null, 2) + '\n');
 }
 
 /** Bundled tier-delegation presets (empty array when the file is unreadable). */
