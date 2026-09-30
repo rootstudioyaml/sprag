@@ -87,3 +87,19 @@ test('a repeated own session_meta does not hide the lines after it', async (t) =
   assert.equal(turns.isSubagent, false);
   assert.deepEqual(turns.turns.map((x) => [x.turnId, x.model]), [['turn-solo', 'gpt-5.5']]);
 });
+
+test('a failure repeated across separate exec rollouts is a candidate', (t) => {
+  const run = (id, at) => write([
+    { timestamp: at, type: 'session_meta', payload: { id, cwd: '/p', source: 'exec', originator: 'codex_exec' } },
+    { timestamp: at, type: 'event_msg', payload: { type: 'task_started', turn_id: `${id}-turn` } },
+    { timestamp: at, type: 'event_msg', payload: { type: 'exec_command_end', turn_id: `${id}-turn`, call_id: `${id}-call`,
+      command: ['npm', 'test'], exit_code: 2, aggregated_output: 'Error: missing fixture' } },
+  ]);
+  const a = run('run-a', '2026-10-01T00:00:00.000Z'), b = run('run-b', '2026-10-01T00:05:00.000Z');
+  t.after(() => { rmSync(a.dir, { recursive: true, force: true }); rmSync(b.dir, { recursive: true, force: true }); });
+  const now = Date.parse('2026-10-01T00:06:00Z');
+  assert.deepEqual(codexRatchetCandidates(b.file, { now }), []);
+  const across = codexRatchetCandidates(b.file, { now, siblings: [a.file] });
+  assert.equal(across.length, 1);
+  assert.equal(across[0].count, 2);
+});

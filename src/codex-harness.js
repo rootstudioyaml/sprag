@@ -133,11 +133,8 @@ function countable(ev) {
   return true;
 }
 
-/**
- * Repeated failures in a rollout's recent turns, newest-first by count. Reads
- * only the file tail, which is where the current session's recent work is.
- */
-export function codexRatchetCandidates(filePath, { now = Date.now(), turns: window = 30, ttlMs = 30 * 60000, tailBytes = 2 * 1024 * 1024, home } = {}) {
+/** Countable failures in one rollout's last `window` turns. Reads only the file tail. */
+function rolloutFailures(filePath, { window, tailBytes }) {
   const lines = readCodexTailLines(filePath, tailBytes);
   if (!lines) return [];
   const order = [];
@@ -181,9 +178,20 @@ export function codexRatchetCandidates(filePath, { now = Date.now(), turns: wind
     if (countable(ev)) failures.push(ev);
   }
   const recent = new Set(order.slice(-window));
+  return failures.filter((ev) => recent.has(ev.turn));
+}
+
+/**
+ * Repeated failures in recent turns, newest-first by count. `siblings` are
+ * other rollouts of the same project: every `codex exec` run writes its own
+ * file, so a mistake repeated across runs only shows up when they are read
+ * together. The TTL applies to all of them.
+ */
+export function codexRatchetCandidates(filePath, { now = Date.now(), turns: window = 30, ttlMs = 30 * 60000, tailBytes = 2 * 1024 * 1024, home, siblings = [] } = {}) {
+  const failures = [filePath, ...siblings].filter(Boolean).flatMap((file) => rolloutFailures(file, { window, tailBytes }));
   const groups = new Map();
   for (const ev of failures) {
-    if (!recent.has(ev.turn) || !Number.isFinite(ev.at) || now - ev.at > ttlMs) continue;
+    if (!Number.isFinite(ev.at) || now - ev.at > ttlMs) continue;
     const pattern = codexErrorSignature(ev, { cwd: ev.cwd, home });
     const g = groups.get(pattern) || { pattern, count: 0, lastAt: 0 };
     g.count++;
