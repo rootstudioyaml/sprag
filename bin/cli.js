@@ -41,7 +41,7 @@ import {
 
 import { effortChipLevel } from '../src/ultracode.js';
 
-import { parseAllSessions, getLastUserMessageTime } from '../src/parser.js';
+import { parseAllSessions, sessionsSince, getLastUserMessageTime } from '../src/parser.js';
 import {
   dailyTrend,
   ttlBreakdown,
@@ -529,7 +529,10 @@ async function main() {
   const excludeSessionPath =
     getArg('--exclude-session') || process.env.CACHE_MONITOR_EXCLUDE_SESSION || undefined;
 
-  const sessions = await parseAllSessions({ days, projectFilter });
+  // The statusline also reports this month's spend. Naming the month start here
+  // lets the one pass over the transcripts trim boundary sessions to it too.
+  const monthSince = isStatusline ? (await import('../src/month-spend.js')).monthStartMs() : undefined;
+  const sessions = await parseAllSessions({ days, projectFilter, sinceMs: monthSince });
 
   if (sessions.length === 0) {
     // Statusline must always emit a single line (no multi-line help spam every
@@ -730,28 +733,23 @@ async function main() {
   if (isStatusline) {
     try {
       const { monthSpend, monthStartMs } = await import('../src/month-spend.js');
-      const daysNeeded = (Date.now() - monthStartMs()) / 86400000;
+      const since = monthStartMs();
+      const daysNeeded = (Date.now() - since) / 86400000;
       const monthSessions = days >= daysNeeded
         ? sessions
-        : await parseAllSessions({ days: Math.max(1, Math.ceil(daysNeeded)), projectFilter });
-      monthSpendInfo = monthSpend(monthSessions);
+        : await parseAllSessions({ days: Math.max(1, Math.ceil(daysNeeded)), projectFilter, sinceMs: since });
+      // 월 경계에 걸친 세션은 월초 이후 요청만 남긴다. 그러지 않으면 1일 자정을
+      // 넘긴 세션의 전월분이 이번 달 지출에 그대로 들어온다.
+      monthSpendInfo = monthSpend(await sessionsSince(monthSessions, since));
     } catch (e) {
       debug('month-spend', e);
     }
   }
 
-  // What delegation has measurably saved, read straight from the registry
-  // route-scan maintains. A lookup, never a scan: the statusline re-renders
-  // every few seconds and a scan parses tens of MB of transcripts.
-  let delegationSaved = 0;
-  try {
-    const { delegationSavedUsd } = await import('../src/model-rules.js');
-    delegationSaved = delegationSavedUsd();
-  } catch (e) {
-    debug('model-rules:saved', e); // an unreadable registry just hides the chip
-  }
   // Rolling week/month/lifetime totals from the delegation ledger — the
   // statusline's headline line. Falls back to null (chip hidden) on any error.
+  // A lookup, never a scan: the statusline re-renders every few seconds and a
+  // scan parses tens of MB of transcripts.
   let delegationTotals = null;
   try {
     const { delegationSavedTotals } = await import('../src/savings-ledger.js');
@@ -759,6 +757,10 @@ async function main() {
   } catch (e) {
     debug('savings-ledger:totals', e);
   }
+  // The single-line layout shows the same lifetime figure as the headline
+  // line. It used to sum the rule registry instead, a scan-window snapshot
+  // priced against another baseline, so one label carried two amounts.
+  const delegationSaved = Number(delegationTotals?.total) || 0;
   // Document conversions, same shape as the delegation totals: a lifetime sum
   // plus a document count. A lookup of a small JSON file, never a scan.
   let doc2mdTotals = null;

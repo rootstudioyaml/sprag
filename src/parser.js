@@ -1,9 +1,9 @@
 import { createReadStream, openSync, readSync, closeSync, fstatSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
-import { join, isAbsolute } from 'node:path';
+import { join, isAbsolute, basename } from 'node:path';
 import { homedir } from 'node:os';
-import { loadCache, getCached, putCached, saveCache } from './session-cache.js';
+import { loadCache, getCached, putCached, saveCache, getCachedSince, putCachedSince } from './session-cache.js';
 import { resolveModelAlias, isGatewayModelId } from './model-alias.js';
 
 const CLAUDE_DIR = join(homedir(), '.claude', 'projects');
@@ -301,7 +301,24 @@ export async function discoverSessionFiles(options = {}) {
     }
   }
 
-  return files.sort((a, b) => a.mtime - b.mtime);
+  return dedupeSessionFiles(files).sort((a, b) => a.mtime - b.mtime);
+}
+
+/**
+ * One file per transcript name. A project folder that was renamed or copied
+ * leaves the same `<session id>.jsonl` under two project directories, and
+ * every aggregate then counted that session twice. Transcripts are
+ * append-only, so the larger copy is the superset; the newer one breaks a tie
+ * and the first one found wins an exact tie.
+ */
+export function dedupeSessionFiles(files) {
+  const byName = new Map();
+  for (const f of files) {
+    const name = basename(f.path);
+    const kept = byName.get(name);
+    if (!kept || f.size > kept.size || (f.size === kept.size && f.mtime > kept.mtime)) byName.set(name, f);
+  }
+  return [...byName.values()];
 }
 
 /**
@@ -363,6 +380,14 @@ function trimToCutoff(session, cutoffMs) {
   };
 }
 
+/** Attach the summary trimmed to `sinceMs` when the fully parsed session spans it. */
+function withSinceTrim(summary, full, sinceMs) {
+  if (sinceMs !== null && spansCutoff(full, sinceMs)) {
+    summary.sinceTrim = { since: sinceMs, session: trimToCutoff(full, sinceMs) };
+  }
+  return summary;
+}
+
 export async function parseAllSessions(options = {}) {
   const files = await discoverSessionFiles(options);
   const concurrency = 10;
@@ -378,6 +403,9 @@ export async function parseAllSessions(options = {}) {
   // stores the window-independent full parse.
   const days = options.days ?? 30;
   const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
+  // A second, fixed cutoff the caller will ask about next (sessionsSince). A
+  // file that has to be read here anyway is trimmed to it in the same pass.
+  const sinceMs = Number.isFinite(options.sinceMs) ? options.sinceMs : null;
 
   for (let i = 0; i < files.length; i += concurrency) {
     const batch = files.slice(i, i + concurrency);
@@ -387,12 +415,16 @@ export async function parseAllSessions(options = {}) {
           if (useCache) {
             const hit = getCached(cache, f);
             if (hit) {
-              if (!spansCutoff(hit, cutoffMs)) return hit;
+              if (!spansCutoff(hit, cutoffMs)) {
+                const since = sinceMs !== null && spansCutoff(hit, sinceMs) ? getCachedSince(cache, f, sinceMs) : null;
+                if (since) hit.sinceTrim = { since: sinceMs, session: since };
+                return hit;
+              }
               // Boundary session from cache: the cached summary has no
               // per-request data, so re-read the file to trim it.
               const full = await parseSessionFile(f.path);
               full.projectDir = f.projectDir;
-              return trimToCutoff(full, cutoffMs);
+              return withSinceTrim(trimToCutoff(full, cutoffMs), full, sinceMs);
             }
           }
           const session = await parseSessionFile(f.path);
@@ -401,8 +433,10 @@ export async function parseAllSessions(options = {}) {
             putCached(cache, f, session);
             misses++;
           }
-          if (spansCutoff(session, cutoffMs)) return trimToCutoff(session, cutoffMs);
-          const { requests, ...summary } = session;
+          const { requests, ...whole } = session;
+          const summary = spansCutoff(session, cutoffMs) ? trimToCutoff(session, cutoffMs) : whole;
+          withSinceTrim(summary, session, sinceMs);
+          if (useCache && summary.sinceTrim) putCachedSince(cache, f, sinceMs, summary.sinceTrim.session);
           return summary;
         } catch {
           return null;
@@ -415,4 +449,50 @@ export async function parseAllSessions(options = {}) {
   if (useCache && misses > 0) saveCache(cache);
 
   return results.filter((s) => s.requestCount > 0);
+}
+
+/**
+ * The same sessions counted from `sinceMs` on: a session that started before
+ * it is re-aggregated from its per-request timestamps, and one that ended
+ * before it is dropped. A calendar-month total needs this, because a session
+ * left open across midnight on the 1st otherwise brings last month's requests
+ * with it.
+ *
+ * `sinceMs` is fixed for as long as the caller's period lasts, so the trimmed
+ * summary is cached next to the full one and the statusline re-reads a
+ * boundary transcript once, not on every refresh.
+ *
+ * @param {Array} sessions parseAllSessions result
+ * @param {number} sinceMs epoch ms
+ */
+export async function sessionsSince(sessions, sinceMs, { noCache = false } = {}) {
+  const out = [];
+  let cache = null;
+  let stored = 0;
+  for (const s of sessions || []) {
+    if (!s || !s.endTime || s.endTime.getTime() < sinceMs) continue;
+    if (!spansCutoff(s, sinceMs)) { out.push(s); continue; }
+    if (s.sinceTrim && s.sinceTrim.since === sinceMs) {
+      if (s.sinceTrim.session.requestCount > 0) out.push(s.sinceTrim.session);
+      continue;
+    }
+    try {
+      const st = await stat(s.filePath);
+      const file = { path: s.filePath, projectDir: s.projectDir, mtime: st.mtimeMs, size: st.size };
+      if (!noCache) cache = cache || loadCache();
+      let trimmed = noCache ? null : getCachedSince(cache, file, sinceMs);
+      if (!trimmed) {
+        const full = await parseSessionFile(s.filePath);
+        full.projectDir = s.projectDir;
+        trimmed = trimToCutoff(full, sinceMs);
+        if (!noCache && putCachedSince(cache, file, sinceMs, trimmed)) stored++;
+      }
+      if (trimmed.requestCount > 0) out.push(trimmed);
+    } catch {
+      // Unreadable now (deleted or rotated since the scan): leave it out rather
+      // than count its whole history into this period.
+    }
+  }
+  if (stored > 0) saveCache(cache);
+  return out;
 }

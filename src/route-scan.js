@@ -573,9 +573,11 @@ export async function runRouteScan({ days = 14 } = {}) {
   // savings here would credit the tool for work it did not route.
   const ledgerEvents = [];
   let ledgerRules = [];
+  let ruleForProject = () => undefined;
   try {
-    const { loadModelRules } = await import('./model-rules.js');
-    ledgerRules = loadModelRules().rules.filter((r) => r.status !== 'off');
+    const rules = await import('./model-rules.js');
+    ledgerRules = rules.loadModelRules().rules.filter((r) => r.status !== 'off');
+    ruleForProject = rules.ruleForProject;
   } catch { /* no registry → no attributable savings, which is the honest zero */ }
   // A rule's baseline: what it stored at promotion, else what this scan still
   // observes handling the category directly (a rule promoted before baselines
@@ -586,9 +588,9 @@ export async function runRouteScan({ days = 14 } = {}) {
       || (rule.scope === 'global' ? episodeStats.get(`${tier}|${catId}|*`) : null);
     return s?.baselineModel || null;
   };
-  const ruleForRun = (tier, catId, projectDir) => ledgerRules.find((r) =>
-    r.tier === tier && r.category === catId &&
-    (r.scope === 'global' || r.project === projectDir));
+  // The same choice rule health makes (model-rules.js), so the ledger and the
+  // registry credit a run to the same rule.
+  const ruleForRun = (tier, catId, projectDir) => ruleForProject(ledgerRules, tier, catId, projectDir);
   for (const [sessionPath, index] of runIndexBySession) {
     const used = new Set();
     const eps = all.filter((x) => x.sessionPath === sessionPath);

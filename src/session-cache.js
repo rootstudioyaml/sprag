@@ -133,6 +133,33 @@ export function putCached(cache, file, session) {
 }
 
 /**
+ * A session re-aggregated from a fixed point in time (the start of the month),
+ * stored beside the full summary of the same file. One slot per entry: the
+ * point moves once a month, and an entry whose file changed is replaced whole
+ * by putCached, which drops the slot with it.
+ *
+ * @returns {SessionSummary|null} null when the file changed or the slot is for another point
+ */
+export function getCachedSince(cache, file, sinceMs) {
+  const e = cache.entries[file.path];
+  if (!e || e.mtimeMs !== file.mtime || e.size !== file.size || !e.t || e.t.since !== sinceMs || !e.t.s) return null;
+  try {
+    return deserialize(e.t.s, file.path, file.projectDir);
+  } catch (err) {
+    debug('session-cache:deserialize-since', err);
+    return null;
+  }
+}
+
+/** Returns false when there is no current entry for the file to attach the slot to. */
+export function putCachedSince(cache, file, sinceMs, session) {
+  const e = cache.entries[file.path];
+  if (!e || e.mtimeMs !== file.mtime || e.size !== file.size) return false;
+  e.t = { since: sinceMs, s: serialize(session) };
+  return true;
+}
+
+/**
  * Atomically persist the cache (tmp + rename), pruning long-dead transcripts.
  * Concurrent statusline refreshes are expected — rename is atomic on POSIX and
  * on Windows for same-volume replaces, so a reader never sees a partial file.

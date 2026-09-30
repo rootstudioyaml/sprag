@@ -38,6 +38,19 @@ export function ledgerPath() {
 
 export const LEDGER_VERSION = 2;
 
+/**
+ * Which run a ledger key names, wherever its transcript sits:
+ * `<session id>/subagents/<agent file>`. A project folder that was renamed or
+ * copied holds the same run under two paths, and keyed by full path alone the
+ * ledger counted its saving twice. Keys that are not subagent transcript paths
+ * identify themselves.
+ */
+export function runIdentity(key) {
+  const parts = String(key).split(/[\\/]/);
+  const i = parts.lastIndexOf('subagents');
+  return i > 0 ? parts.slice(i - 1).join('/') : String(key);
+}
+
 export function loadLedger() {
   try {
     const data = JSON.parse(readFileSync(ledgerPath(), 'utf8'));
@@ -48,6 +61,15 @@ export function loadLedger() {
     // instead of mixing two meanings into one total. The next scan rebuilds
     // whatever is still attributable.
     if (data.version !== LEDGER_VERSION) return { version: LEDGER_VERSION, events: {} };
+    // One event per run: duplicates recorded from a second copy of the same
+    // transcript are dropped here, so every reader sums each run once and the
+    // next write persists the cleanup.
+    const seen = new Set();
+    for (const key of Object.keys(data.events)) {
+      const id = runIdentity(key);
+      if (seen.has(id)) delete data.events[key];
+      else seen.add(id);
+    }
     return data;
   } catch {
     return { version: LEDGER_VERSION, events: {} };
@@ -67,11 +89,18 @@ export function recordDelegationEvents(events) {
   const data = loadLedger();
   data.version = LEDGER_VERSION;
   let changed = false;
+  const keyOf = new Map(Object.keys(data.events).map((k) => [runIdentity(k), k]));
   for (const e of events) {
     if (!e || !e.key || typeof e.usd !== 'number' || !Number.isFinite(e.usd) || !Number.isFinite(e.ts)) continue;
-    const prev = data.events[e.key];
+    // The run may already be recorded under the path of another copy of its
+    // transcript; that entry is the one to compare with and to replace.
+    const id = runIdentity(e.key);
+    const prevKey = keyOf.get(id) ?? e.key;
+    const prev = data.events[prevKey];
     const usd = roundUsd(e.usd);
     if (prev && prev.ts === e.ts && prev.usd === usd) continue;
+    if (prevKey !== e.key) delete data.events[prevKey];
+    keyOf.set(id, e.key);
     data.events[e.key] = {
       ts: e.ts,
       usd,
