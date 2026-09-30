@@ -22,9 +22,10 @@
  * empty, and the statusline renders totals of 0 as "no chip".
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
+import { writeStateFile } from './state-file.js';
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 const MONTH_MS = 30 * 24 * 3600 * 1000;
@@ -112,9 +113,7 @@ export function recordDelegationEvents(events) {
   }
   if (!changed) return;
   try {
-    const dir = userDataDir();
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    writeFileSync(ledgerPath(), JSON.stringify(data) + '\n');
+    writeStateFile(ledgerPath(), JSON.stringify(data) + '\n');
   } catch {
     // statusline totals just stay stale until the next successful scan
   }
