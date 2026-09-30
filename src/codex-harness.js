@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { codexUserDir } from './agent.js';
-import { codexToolEvents, codexLegacyToolEvent, readCodexTailLines } from './codex-parser.js';
+import { codexToolEvents, codexLegacyToolEvent, readCodexTailLines, forkedCopyFilter } from './codex-parser.js';
 
 export const CODEX_BEGIN = '<!-- sprag:codex:harness:begin -->';
 export const CODEX_END = '<!-- sprag:codex:harness:end -->';
@@ -147,11 +147,14 @@ export function codexRatchetCandidates(filePath, { now = Date.now(), turns: wind
   const outputs = [];
   let cwd = null;
   let current = null;
+  const copied = forkedCopyFilter();
   for (const line of lines) {
     // Cheap prefilter: these candidate lines are a small share of a rollout.
-    if (!/"(?:item_completed|exec_command_end|patch_apply_end|task_started|turn_context|session_meta|function_call|function_call_output|custom_tool_call|custom_tool_call_output)"/.test(line)) continue;
+    if (!/"(?:item_completed|exec_command_end|patch_apply_end|task_started|turn_context|session_meta|thread_settings_applied|function_call|function_call_output|custom_tool_call|custom_tool_call_output)"/.test(line)) continue;
     let e;
     try { e = JSON.parse(line); } catch { continue; }
+    // A forked child's copy of the parent history holds the parent's failures, not its own.
+    if (copied(e)) continue;
     const p = e?.payload;
     if (e?.type === 'session_meta' && typeof p?.cwd === 'string') cwd ??= p.cwd;
     if (e?.type === 'turn_context' && typeof p?.cwd === 'string') cwd = p.cwd;
