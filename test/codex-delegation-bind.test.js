@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { codexContextTokens, codexRouteHint, codexPromptCategory } from '../src/codex-delegation.js';
-import { recordCodexDelegation, readCodexDelegations, bindCodexSubagent, readCodexBindings, refreshCodexLedger } from '../src/codex-ledger.js';
+import { pruneCodexDelegations, recordCodexDelegation, readCodexDelegations, bindCodexSubagent, readCodexBindings, refreshCodexLedger } from '../src/codex-ledger.js';
 import { codexHarnessBlock } from '../src/codex-harness.js';
 
 function fixture(t) {
@@ -135,7 +135,7 @@ test('refreshCodexLedger books an interrupted child as a loss of its whole cost,
   const actual = 800 * 2e-6 + 200 * 2e-7 + 500 * 8e-6;
   assert.equal(e.aborted, true);
   assert.equal(e.complete, false);
-  assert.ok(Math.abs(e.usd + actual) < 1e-12, `expected ${-actual}, got ${e.usd}`);
+  assert.equal(e.usd, Math.round(-actual * 10000) / 10000); // stored to 4 decimals
 });
 
 test('the Codex routing hint tells the parent to wait for the child instead of redoing the task', () => {
@@ -159,4 +159,31 @@ test('codexPromptCategory recognizes "where is X defined" phrasing in English an
   assert.equal(codexPromptCategory('Where is chipForIssues defined?')?.id, 'explore');
   assert.equal(codexPromptCategory('chipForIssues 함수는 어느 파일에 정의돼 있어?')?.id, 'explore');
   assert.notEqual(codexPromptCategory('잘 정의된 목표를 세워줘')?.id, 'explore');
+});
+
+test('bindCodexSubagent consumes pending routes oldest first', (t) => {
+  const f = fixture(t);
+  const now = Date.now();
+  // Recorded newest-first on disk on purpose: order comes from the timestamp, not the line position.
+  recordCodexDelegation({ id: 'bbbbbbbbbbbbbbbb', at: now - 1000, parentSessionId: 'p', to: 'child-model' }, { dir: f.dir });
+  recordCodexDelegation({ id: 'aaaaaaaaaaaaaaaa', at: now - 5000, parentSessionId: 'p', to: 'child-model' }, { dir: f.dir });
+  recordCodexDelegation({ id: 'cccccccccccccccc', at: now - 3000, parentSessionId: 'p', to: 'child-model' }, { dir: f.dir });
+  const bind = (agent) => bindCodexSubagent({ session_id: 'p', agent_id: agent, model: 'child-model' }, { dir: f.dir, now });
+  assert.equal(bind('kid-1'), 'aaaaaaaaaaaaaaaa');
+  assert.equal(bind('kid-2'), 'cccccccccccccccc');
+  assert.equal(bind('kid-3'), 'bbbbbbbbbbbbbbbb');
+  assert.equal(bind('kid-4'), null);
+});
+
+test('refreshCodexLedger prunes pending records older than the pending TTL', async (t) => {
+  const f = fixture(t);
+  const now = Date.now();
+  const day = 86400000;
+  recordCodexDelegation({ id: 'aaaaaaaaaaaaaaaa', at: now - 8 * day, parentSessionId: 'p', to: 'm' }, { dir: f.dir });
+  recordCodexDelegation({ id: 'bbbbbbbbbbbbbbbb', at: now - 1 * day, parentSessionId: 'p', to: 'm' }, { dir: f.dir });
+  await refreshCodexLedger({ dir: f.dir, home: f.home, now, prices: null });
+  assert.deepEqual(readCodexDelegations({ dir: f.dir }).map((r) => r.id), ['bbbbbbbbbbbbbbbb']);
+  // Nothing stale: the file is left as it is.
+  pruneCodexDelegations({ dir: f.dir, now });
+  assert.equal(readCodexDelegations({ dir: f.dir }).length, 1);
 });

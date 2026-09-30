@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } fr
 import { join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { userDataDir } from './paths.js';
+import { roundUsd } from './savings-ledger.js';
 import { discoverCodexSessionFiles, parseCodexTurns } from './codex-parser.js';
 import { codexRunCost, codexPriceBook, readCodexPrices } from './codex-cache-policy.js';
 
@@ -37,6 +38,21 @@ export function recordCodexDelegation(entry, { dir = userDataDir() } = {}) {
   const line = JSON.stringify({ ...entry, at: entry.at ?? Date.now() });
   if (line.length > 3500) throw new Error('Codex delegation record too large');
   appendFileSync(pendingFile(dir), line + '\n', { mode: 0o600 });
+}
+
+/**
+ * The pending file is append-only, so it only shrinks here: records past the
+ * pending TTL can never bind or join a child again. Rewritten in place through
+ * a rename, and only when something is actually stale.
+ */
+export function pruneCodexDelegations({ dir = userDataDir(), now = Date.now() } = {}) {
+  const keep = readCodexDelegations({ dir }).filter((r) => now - r.at < PENDING_TTL_MS);
+  let all;
+  try { all = readFileSync(pendingFile(dir), 'utf8').split('\n').filter(Boolean).length; } catch { return; }
+  if (keep.length === all) return;
+  const file = pendingFile(dir), tmp = `${file}.${randomUUID()}.tmp`;
+  writeFileSync(tmp, keep.map((r) => JSON.stringify(r) + '\n').join(''), { mode: 0o600 });
+  renameSync(tmp, file);
 }
 
 export function readCodexDelegations({ dir = userDataDir() } = {}) {
@@ -85,7 +101,8 @@ export function bindCodexSubagent(payload, { dir = userDataDir(), now = Date.now
   const pending = readCodexDelegations({ dir }).filter((r) =>
     r.parentSessionId === payload.session_id && r.to === payload.model && now - r.at < BIND_TTL_MS && !boundIds.has(r.id));
   if (!pending.length) return null;
-  const chosen = pending.reduce((a, b) => (b.at > a.at ? b : a));
+  // Oldest first: spawns are recorded in order, so the earliest unbound record belongs to the earliest child.
+  const chosen = pending.reduce((a, b) => (b.at < a.at ? b : a));
   recordCodexBinding({ id: chosen.id, childSessionId: payload.agent_id, at: now }, { dir });
   return chosen.id;
 }
@@ -141,6 +158,7 @@ async function childRun(path, cutoffMs, binds) {
  * whole cost is booked as a loss.
  */
 export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date.now(), prices = readCodexPrices({ now, home, dir }) } = {}) {
+  try { pruneCodexDelegations({ dir, now }); } catch { /* Pruning is housekeeping; the TTL filter below still holds. */ }
   const pending = readCodexDelegations({ dir }).filter((r) => now - r.at < PENDING_TTL_MS);
   const ledger = loadCodexLedger({ dir });
   if (!pending.length) return ledger;
@@ -172,7 +190,7 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     const priceSource = !rates ? null : sameRun && previous.rates ? previous.priceSource ?? null : book?.source ?? null;
     const actual = rates && run.usageKnown ? codexRunCost(run.tokens, rates.to) : null;
     const counterfactual = rates && run.usageKnown ? codexRunCost(run.tokens, rates.from) : null;
-    const usd = actual === null || counterfactual === null ? null : run.aborted ? -actual : counterfactual - actual;
+    const usd = actual === null || counterfactual === null ? null : roundUsd(run.aborted ? -actual : counterfactual - actual);
     const event = { ts: run.endedAt ?? route.at, parentSessionId: route.parentSessionId || run.parentThreadId || null,
       childSessionId: run.sessionId, source: route.source, category: route.category ?? null, scope: route.scope ?? null,
       from: route.from, to, provider, tokens: run.tokens, usd, rates: usd === null ? null : rates,
