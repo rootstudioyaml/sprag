@@ -10,6 +10,7 @@ import { findProjectRoot } from './harness.js';
 import { runCodexBrief } from './codex-brief.js';
 import { codexDocumentTool, codexDocumentNote, convertCodexDocument } from './codex-doc2md.js';
 import { codexDelegationTool, codexRouteHint } from './codex-delegation.js';
+import { bindCodexSubagent } from './codex-ledger.js';
 import { seedOfferBlock } from './seed-rules.js';
 import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './codex-route-scan.js';
 
@@ -74,6 +75,9 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig() } = {
   if (!payload || typeof payload !== 'object') return null;
   if (event === 'session-start' || event === 'subagent-start') {
     if (event === 'subagent-start' && cfg?.codex?.delegate !== true) return null;
+    if (event === 'subagent-start') {
+      try { bindCodexSubagent(payload); } catch { /* Binding is best-effort; a missed one just leaves a run unpriced. */ }
+    }
     const root = findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' });
     const parts = [];
     // Keep the preset file current with this version's wording before it is read.
@@ -107,8 +111,10 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig() } = {
   if (event === 'prompt') {
     const parts = [];
     if (cfg?.codex?.delegate === true) {
-      try { parts.push(codexRouteHint(payload, { root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }) })); }
-      catch { /* Invalid routing state must not suppress briefing or conversion. */ }
+      try {
+        parts.push(codexRouteHint(payload, { root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }),
+          minContext: Number.isFinite(cfg?.codex?.delegateMinContext) ? cfg.codex.delegateMinContext : undefined }));
+      } catch { /* Invalid routing state must not suppress briefing or conversion. */ }
     }
     if (cfg?.codex?.brief !== false) {
       try { parts.push(runCodexBrief({ sessionId: payload.session_id, transcriptPath: payload.transcript_path, cwd: payload.cwd })); }

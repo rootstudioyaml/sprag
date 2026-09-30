@@ -108,6 +108,24 @@ sprag seed reset --agent codex
 등록할 때 `--model ID`를 요구합니다. 모델 사용 가능 여부는 실제 공급자 설정에 달려 있습니다.
 명시한 모델과 사용자 정의 역할은 유지하며, 사용할 수 없는 하위 에이전트 도구를 만들어 내지 않습니다.
 
+Codex 0.159.2에서는 `spawn_agent`가 `PreToolUse`를 거치지 않습니다(기록용 훅을 붙여 직접
+확인한 결과입니다). 그래서 실제로 동작하는 경로는 프롬프트 시점입니다. 규칙에 맞는 프롬프트가
+오면 `[Sprag model routing]` 안내가 붙고, `harness init`이 넣는 AGENTS.md 블록이 이 안내를
+"사용자가 위임을 요청했다"는 뜻으로 읽게 합니다. 자식은 `fork_turns "none"`으로 뜨고, 부모는
+같은 일을 직접 하지 않고 `wait_agent`(제한 시간 120초 이상)로 자식이 끝나기를 기다립니다. 귀속은
+자식이 route id를 되받아 적는 것에 기대지 않습니다. 대신 `SubagentStart`가 대기 중인 기록(같은
+부모 세션, 같은 목표 모델, 30분 이내)에 새로 뜬 자식을 매칭해 묶습니다.
+
+이 안내는 부모 세션의 컨텍스트가 `codex.delegateMinContext`(기본 60000 토큰) 아래면 붙지
+않습니다. 2026-09-30 실측에서 작은 세션은 스폰·대기·검증이라는 조율 비용이 자식이 아끼는
+비용보다 커서, 문턱 아래에서는 안내를 붙이는 쪽이 오히려 손해였습니다. 아직 전용 CLI 명령은
+없고, `sprag mode` 실행 시 "Stored config file"로 나오는 설정 파일(맥은
+`~/Library/Application Support/claude-token-saver/config.json`)에서 `codex.delegateMinContext`
+값을 직접 고치면 됩니다. `PreToolUse` 재작성은 spawn을 훅으로 보내는 Codex 버전을 위해 남아
+있을 뿐, 0.159.2에서는 호출되지 않습니다. 위임 원장은 자식이 쓴 토큰을 부모 모델 단가로 환산한
+추정치이며, 부모가 조율에 쓴 턴은 빼지 않습니다. 끝나기 전에 중단된 자식은 부모의 일을 대신하지
+못했으므로, 그 비용 전액을 손실로 기록하고 항목에 `aborted`를 표시합니다.
+
 SessionStart는 캐시된 후보를 읽고 필요할 때 별도 프로세스에서 갱신합니다. 명시적인 `--refresh`는
 대기 주기를 건너뜁니다. `seed`는 Claude의 Haiku·Sonnet 프리셋을 가져오지 않으며,
 Codex의 수락·거절 기록도 Claude 기록과 분리합니다.

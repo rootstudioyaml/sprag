@@ -31,7 +31,7 @@ sprag install --agent codex
 
 - **`AGENTS.md`에 심어지는 하네스 룰.** 클로드 코드와 같은 래칫 메커니즘입니다. 반복된 실수가 매 세션 로드되는 한 줄 룰이 되는데, 대상 파일만 `CLAUDE.md`가 아니라 코덱스의 자체 지침 파일입니다.
 - **세션에 붙는 컴패니언 패널.** macOS zsh 환경에서는 설치 과정이 tmux를 준비해서 `codex`를 입력할 때 같은 터미널 안에 패널이 인라인으로 뜨게 합니다. tmux가 없거나 로그인 셸이 zsh가 아니거나 기존 `codex` 별칭이 있으면 별도 창으로 대체됩니다.
-- **선택적으로 켜는 위임 기능.** `sprag delegate on --agent codex`로 따로 켭니다. 켜고 나면 `sprag delegate model <모델ID> --effort <강도> --agent codex`로 모델 지정 없는 기본 스폰의 대상을 정할 수 있고, `sprag delegate rules add explore --from <모델> --model <싼 모델> --project --agent codex` 같은 카테고리 룰로 특정 요청 유형만 싼 모델로 보내고 나머지는 부모 모델에 그대로 둘 수 있습니다. 매칭은 카테고리·프로바이더·정확한 부모 모델 기준으로 좁혀지고, 프로젝트 룰이 글로벌 룰보다 우선합니다.
+- **선택적으로 켜는 위임 기능.** `sprag delegate on --agent codex`로 따로 켭니다. 켜고 나면 `sprag delegate model <모델ID> --effort <강도> --agent codex`로 모델 지정 없는 기본 스폰의 대상을 정할 수 있고, `sprag delegate rules add explore --from <모델> --model <싼 모델> --project --agent codex` 같은 카테고리 룰로 특정 요청 유형만 싼 모델로 보내고 나머지는 부모 모델에 그대로 둘 수 있습니다. 매칭은 카테고리·프로바이더·정확한 부모 모델 기준으로 좁혀지고, 프로젝트 룰이 글로벌 룰보다 우선합니다. Codex 0.159.2에서는 `spawn_agent`가 재작성 훅을 거치지 않아서, 규칙에 맞는 프롬프트에는 대신 `[Sprag model routing]` 안내가 붙고 설치된 AGENTS.md 하네스가 이 안내를 사용자 본인의 위임 요청으로 처리합니다. 이 안내는 `codex.delegateMinContext`(기본 60000 입력 토큰) 아래에서는 붙지 않는데, 작은 세션은 조율 비용이 위임으로 아끼는 비용보다 클 수 있기 때문입니다. 전체 동작 방식은 [코덱스 통합](./CODEX.ko.md) 문서를 참고하십시오.
 - **문서 변환과 진단.** 클로드 코드와 같은 doc2md 파이프라인을 쓰고, 설치 후에는 `sprag panel doctor --agent codex`로 훅 실행 여부, 실행 실패, 최근 렌더된 프레임을 확인할 수 있습니다.
 
 코덱스 사용량 집계는 두 통합 사이에 공유되는 지출 합계나 캐시 타이머 없이 끝까지 클로드 코드와 분리됩니다. 전체 레퍼런스는 [코덱스 통합](./CODEX.ko.md) 문서에 있습니다.

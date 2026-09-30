@@ -151,12 +151,39 @@ warning records. A handoff file is never overwritten and identifies quota
 values as recorded snapshots, not live responses. Fill in its remaining-work
 sections before using it to continue in another session.
 
-Delegation is independently opt-in via `delegate on`. PreToolUse rewrites native
-`spawn_agent` arguments using Codex's `message`, `model`, and `reasoning_effort`
-fields. It preserves explicit model choices and custom roles, including custom
-overrides of built-in roles. SubagentStart injects scoped ratchets and enabled
-writing guidance. Bounds are instructions, not an enforced tool-call budget.
-Normal Codex sandbox and approval rules still apply. Review new hooks in `/hooks`.
+Delegation is independently opt-in via `delegate on`. As of Codex 0.159.2,
+`spawn_agent` never reaches `PreToolUse` (measured directly: a recording hook
+saw only `Bash` calls while a spawn happened), so the rewrite below cannot see
+or steer it. The live path instead runs at prompt time: `UserPromptSubmit`
+checks the prompt against your category rules and, on a match, appends a
+`[Sprag model routing]` note naming the target model, effort, and a route id.
+That note by itself changes nothing, because Codex's own instructions tell it not to
+spawn subagents unless something explicitly asked for it. So `harness init`'s
+AGENTS.md block adds the missing half: a `[Sprag model routing]` note *is* the
+user's delegation request, and the agent should spawn exactly what it describes
+with `fork_turns "none"`, then wait for it (`wait_agent` with a timeout of at least
+120 seconds) instead of doing the same task itself. Attribution does not depend on the child echoing the
+route id back: `SubagentStart` binds the id to whichever spawned child matches
+the pending route (same parent thread, same target model, within 30 minutes),
+so a route is credited even when the child's own first message never repeats it.
+
+The hint is withheld below `codex.delegateMinContext` (default 60000 input
+tokens, read from the parent's own rollout). Measured 2026-09-30: a small
+parent session spends more on the coordinating turn (spawning, waiting,
+verifying) than a delegated child saves, so under the floor Sprag leaves the
+request on the main agent instead of proposing a loss. There is no CLI flag for
+it yet; set it by editing `codex.delegateMinContext` (an integer) in the config
+file `sprag mode` prints under "Stored config file" (`~/Library/Application
+Support/claude-token-saver/config.json` on macOS, `$XDG_CONFIG_HOME/claude-token-saver/config.json`
+or `~/.config/claude-token-saver/config.json` on Linux).
+
+The `PreToolUse` rewrite (native `spawn_agent` arguments using Codex's
+`message`, `model`, and `reasoning_effort` fields, preserving explicit model
+choices and custom roles) is kept for Codex versions that do route spawns
+through hooks; on 0.159.2 it simply never fires. `SubagentStart` injects scoped
+ratchets and enabled writing guidance regardless of which path routed the
+child. Bounds are instructions, not an enforced tool-call budget. Normal Codex
+sandbox and approval rules still apply. Review new hooks in `/hooks`.
 
 ```sh
 sprag delegate on --agent codex
@@ -173,6 +200,13 @@ spawns without an explicit model. Category rules (`paste`, `translate`, `explore
 exact parent model, and prefer project rules over global rules. Matching prompts
 request native delegation; unavailable subagent tools leave work on the main
 agent. Claude tier presets and history are not imported.
+
+The routing ledger (`Routing Saved` below) prices a child's own tokens at the
+parent model's rate as the counterfactual; it does not charge or subtract the
+parent's coordination turn, so a delegation that barely clears the context
+floor can still show a positive but overstated saving. A child that was
+interrupted before it finished replaced no parent work, so its whole cost is
+booked as a loss and the entry is marked `aborted`.
 
 ## Harness Commands
 

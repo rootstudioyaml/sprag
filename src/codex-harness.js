@@ -23,7 +23,7 @@ export function codexHarnessPaths(root, scope = 'project') {
 }
 
 export function codexHarnessBlock() {
-  return `${CODEX_BEGIN}\n## Sprag Harness\n\n${sections.map(([name, text], i) => `### ${i + 1}. ${name}\n${text}`).join('\n\n')}\n\nRead the global and project Codex ratchet files before working when present. Run \`sprag harness list --agent codex --global\` and \`sprag harness list --agent codex --project\` to retrieve them. These are instructions, not Claude-style @ imports.\nUse \`sprag doc2md <file> --agent codex\` before reading PDF, Office, or Figma documents. Delegate only through available Codex tools and configured roles; do not assume Claude model names or Task/Agent arguments.\n${CODEX_END}\n`;
+  return `${CODEX_BEGIN}\n## Sprag Harness\n\n${sections.map(([name, text], i) => `### ${i + 1}. ${name}\n${text}`).join('\n\n')}\n\nRead the global and project Codex ratchet files before working when present. Run \`sprag harness list --agent codex --global\` and \`sprag harness list --agent codex --project\` to retrieve them. These are instructions, not Claude-style @ imports.\nUse \`sprag doc2md <file> --agent codex\` before reading PDF, Office, or Figma documents. Delegate only through available Codex tools and configured roles; do not assume Claude model names or Task/Agent arguments. A [Sprag model routing] note on a request means the user has asked for that request to be delegated: spawn the sub-agent it describes (its model, reasoning_effort, fork_turns "none", and a self-contained message ending with the route line it gives), wait for it to finish instead of doing the same task yourself, then verify the result before replying.\n${CODEX_END}\n`;
 }
 
 function range(content) {

@@ -115,7 +115,8 @@ const CATEGORIES = [
     label: '탐색·조회 (파일/값 찾기)',
     labelEn: 'lookup (finding files/values)',
     agent: 'haiku-explore',
-    kw: [[/grep|검색|search|find/i, 2], [/찾아|어디|위치|목록|살펴/i, 1]],
+    kw: [[/grep|검색|search|find/i, 2], [/찾아|어디|위치|목록|살펴/i, 1],
+      [/정의(?:돼|되어)\s*있|어느\s*파일|어떤\s*파일에|\bwhich\s+file\b|\bwhere\s+(?:is|are)\b[^?\n]*\bdefined\b/i, 1]],
   },
   {
     id: 'read',

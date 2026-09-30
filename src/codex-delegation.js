@@ -7,6 +7,7 @@ import { codexUserDir, codexProviderName } from './agent.js';
 import { categorize, ESCALATE_RE, EDIT_RE } from './route-scan.js';
 import { looksPasted } from './route-inject.js';
 import { newRouteId, recordCodexDelegation } from './codex-ledger.js';
+import { readCodexTailLines } from './codex-parser.js';
 
 export const CODEX_ROUTE_CATEGORIES = ['paste', 'translate', 'explore', 'read', 'check', 'run'];
 const MARKER = '<!-- sprag:codex:delegation -->';
@@ -88,13 +89,50 @@ export function matchCodexModelRule(text, { model, root, provider = codexProvide
   return usable.find((r) => r.scope === 'project') || usable[0] || null;
 }
 
+/**
+ * Input tokens from the rollout's last token_count record, or 0 when the
+ * transcript is missing or unreadable. Only the tail is read: the newest
+ * measurement is always near the end of the file.
+ */
+export function codexContextTokens(transcriptPath) {
+  const lines = readCodexTailLines(transcriptPath, 512 * 1024);
+  if (!lines) return 0;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line || !line.includes('token_count')) continue;
+    let e;
+    try { e = JSON.parse(line); } catch { continue; }
+    const n = e?.payload?.type === 'token_count' ? e.payload?.info?.last_token_usage?.input_tokens : undefined;
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  return 0;
+}
+
+/**
+ * A prompt-time routing suggestion for Codex 0.159.2, where `spawn_agent`
+ * never reaches PreToolUse (see codexDelegationTool below). Gated on parent
+ * context size: a small parent's own coordination overhead outweighs the
+ * savings from a delegated child (measured 2026-09-30, see docs/CODEX.md).
+ */
 export function codexRouteHint(payload, opts = {}) {
-  const rule = matchCodexModelRule(payload?.prompt, { provider: payload?.model_provider || codexProviderName(), ...opts, model: payload?.model, root: opts.root || payload?.cwd });
+  const provider = payload?.model_provider || codexProviderName();
+  const rule = matchCodexModelRule(payload?.prompt, { provider, ...opts, model: payload?.model, root: opts.root || payload?.cwd });
   if (!rule) return null;
-  return `[Sprag model routing] This request matches the approved ${rule.category} rule: delegate the bounded task to model ${rule.model}`
-    + (rule.effort ? ` with reasoning_effort ${rule.effort}` : '')
-    + '. Use the available native Codex subagent tool and a built-in role. Wait for its result, verify it, and report unfinished work. '
-    + 'Do not spawn another CLI process. If subagent tools or the target model are unavailable, keep the task on the main agent and state that delegation was unavailable.';
+  const minContext = opts.minContext ?? 60000;
+  const ctx = opts.contextTokens ?? codexContextTokens(payload?.transcript_path);
+  if (ctx < minContext) return null;
+  const id = newRouteId();
+  const record = opts.record ?? recordCodexDelegation;
+  try {
+    record({ id, parentSessionId: payload?.session_id ?? null, turnId: payload?.turn_id ?? null, via: 'prompt',
+      source: 'rule', category: rule.category, scope: rule.scope, from: payload?.model, to: rule.model,
+      provider, effort: rule.effort ?? null, contextTokens: ctx }, { dir: opts.dir });
+  } catch { /* Accounting is optional; the hint still applies. */ }
+  return `[Sprag model routing] This request matches the approved ${rule.category} rule (route ${id}). `
+    + `Spawn one sub-agent with model ${rule.model}${rule.effort ? `, reasoning_effort ${rule.effort}` : ''} and fork_turns "none". `
+    + `Give it a self-contained task message that ends with the line <!-- sprag:codex:route id=${id} -->. `
+    + 'Wait for it to finish (call wait_agent with timeout_ms of at least 120000, and again if it times out) and do not do the delegated task yourself while it runs; then verify its result and report unfinished work. Do not spawn another CLI process. '
+    + 'If sub-agent tools or the target model are unavailable, keep the task on the main agent and state that delegation was unavailable.';
 }
 
 function customRole(role, root, home) {
@@ -120,6 +158,8 @@ function customRole(role, root, home) {
   return false;
 }
 
+// Kept for Codex versions that do send spawn_agent through PreToolUse; on
+// 0.159.2 the hook never fires for it, so codexRouteHint above is the live path.
 export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || process.cwd(), home = codexUserDir(), rules, dir = userDataDir(), record = recordCodexDelegation } = {}) {
   if (cfg.codex?.delegate !== true) return null;
   const tool = payload?.tool_name?.replace(/^(?:functions|tools)\./, '');
