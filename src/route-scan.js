@@ -25,7 +25,8 @@ import { collectSessionRecords } from './session-records.js';
 import {
   collectSubagentRuns, indexRuns, exactRunsForEpisode, fallbackRunsForEpisode,
 } from './subagent-records.js';
-import { estimateCost, modelRank, isRecognizedModelId, TIER_TARGET_RANK, tierForRank } from './cost.js';
+import { modelRank, isRecognizedModelId, TIER_TARGET_RANK, tierForRank } from './cost.js';
+import { sessionCost } from './claude-price.js';
 import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { modelRuleBaseText } from './model-rules.js';
 
@@ -334,9 +335,13 @@ export function worthDelegating(tier, rank) {
  * Approximation, deliberately stated as one: it holds token counts constant,
  * which a cheaper model would not reproduce exactly. Directionally right and
  * enough to rank rules by value, so it is rendered as "~$X".
+ *
+ * Signed: a run that moved to a pricier model is a loss and comes back
+ * negative. null means a side has no price (a gateway session whose /model/info
+ * table lacks the model), which is unpriced, not zero.
  */
 export function runSaving(run, mainModel) {
-  if (!run.model || !mainModel) return 0;
+  if (!run.model || !mainModel) return null;
   const totals = {
     input: run.input,
     cacheCreation: run.cacheCreation,
@@ -345,9 +350,10 @@ export function runSaving(run, mainModel) {
     ephemeral1h: run.ephemeral1h,
     output: run.out,
   };
-  const actual = estimateCost(totals, run.model).actual;
-  const counterfactual = estimateCost(totals, mainModel).actual;
-  return Math.max(0, counterfactual - actual);
+  const actual = sessionCost(totals, run.model);
+  const counterfactual = sessionCost(totals, mainModel);
+  if (!actual || !counterfactual) return null;
+  return counterfactual.actual - actual.actual;
 }
 
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
@@ -550,7 +556,7 @@ export async function runRouteScan({ days = 14 } = {}) {
     d.runs += 1;
     if (isFailedRun(run)) d.errRuns += 1;
     d.outTokens += run.out || 0;
-    d.savedUsd += saved;
+    if (Number.isFinite(saved)) d.savedUsd += saved; // unpriced runs add nothing
     delegatedStats.set(key, d);
   };
   // Ledger events feed the statusline's weekly/monthly "Routing saved"
@@ -760,7 +766,8 @@ export async function runRouteScan({ days = 14 } = {}) {
       // profile-map.json's `modelAliases` to bring these runs back in.
       if (!baseline || !isRecognizedModelId(baseline)) continue;
       const usd = runSaving(e.run, baseline);
-      if (usd <= 0) continue;
+      // A loss is recorded too; only an unpriced run (null) has nothing to record.
+      if (!Number.isFinite(usd)) continue;
       priced.push({
         key: e.run.path,
         ts: e.run.endedAt ?? e.run.startedAt ?? Date.now(),

@@ -197,7 +197,8 @@ function tokensToMillions(n) {
  *   ephemeral1h      — portion of cacheCreation billed at 1h rate (2x input)
  *   output           — output tokens
  */
-export function estimateCost(totals, model) {
+export function estimateCost(totals, model, { price } = {}) {
+  if (price) return estimateCostAtPrice(totals, price);
   const tier = detectPricingTier(model);
   const p = PRICING[tier];
 
@@ -249,19 +250,72 @@ export function estimateCost(totals, model) {
 }
 
 /**
+ * Same shape as the list-price estimate, but priced at a gateway's per-token
+ * rates (LiteLLM /model/info). A token class the gateway does not price makes
+ * the whole estimate unknown (null) rather than free or list-priced.
+ */
+function estimateCostAtPrice(totals, price) {
+  const write5m = totals.ephemeral5m ?? 0;
+  const write1h = totals.ephemeral1h ?? 0;
+  const untracked = Math.max(0, (totals.cacheCreation ?? 0) - write5m - write1h);
+  const read = totals.cacheRead ?? 0;
+  if (read > 0 && price.cacheRead == null) return null;
+  if (write5m + untracked > 0 && price.cacheWrite == null) return null;
+  if (write1h > 0 && price.cacheWrite1h == null) return null;
+  if (price.input == null || price.output == null) return null;
+  const perM = (rate) => (rate ?? 0) * 1e6;
+  const input = perM(price.input), output = perM(price.output), cacheRead = perM(price.cacheRead);
+  const cacheWrite5m = perM(price.cacheWrite), cacheWrite1h = perM(price.cacheWrite1h);
+
+  const actual =
+    tokensToMillions(totals.input) * input +
+    tokensToMillions(write5m + untracked) * cacheWrite5m +
+    tokensToMillions(write1h) * cacheWrite1h +
+    tokensToMillions(read) * cacheRead +
+    tokensToMillions(totals.output) * output;
+  const totalInput = totals.input + (totals.cacheCreation ?? 0) + read;
+  const noCacheCost = tokensToMillions(totalInput) * input + tokensToMillions(totals.output) * output;
+
+  // The 5m scenario needs a 5m write rate; without one it is not computable, so
+  // it collapses to the actual cost and the "extra cost" row stays hidden.
+  let scenario5mCost = actual;
+  if (price.cacheWrite != null) {
+    const extra5mCreation = write1h * 2;
+    scenario5mCost =
+      tokensToMillions(totals.input) * input +
+      tokensToMillions(write5m + write1h + untracked + extra5mCreation) * cacheWrite5m +
+      tokensToMillions(Math.max(0, read - extra5mCreation)) * cacheRead +
+      tokensToMillions(totals.output) * output;
+  }
+
+  return {
+    tier: 'gateway',
+    actual: round(actual),
+    noCacheCost: round(noCacheCost),
+    savings: round(noCacheCost - actual),
+    savingsRate: noCacheCost > 0 ? (noCacheCost - actual) / noCacheCost : 0,
+    scenario5mCost: round(scenario5mCost),
+    extraCostIf5m: round(scenario5mCost - actual),
+    extraCostIf5mApplicable: price.cacheWrite != null && write1h > 0,
+  };
+}
+
+/**
  * Price a set of sessions each at its own model and sum. One estimateCost over
  * the summed totals priced every token at whichever session came first in the
  * list — sorted by mtime, so a haiku scratch session touched earliest set the
  * rate for a day of Fable work and understated the saving about tenfold.
  * Sessions whose model has no known rate are skipped, as month-spend does.
+ * `estimate` lets a caller price by path (see claude-price.js); null skips a session.
  */
-export function estimateCostAcross(sessions) {
+export function estimateCostAcross(sessions, estimate = estimateCost) {
   const acc = { actual: 0, noCacheCost: 0, scenario5mCost: 0, extraCostIf5mApplicable: false };
   const tiers = new Map();
   for (const s of sessions || []) {
     if (!s?.totals) continue;
     let c;
-    try { c = estimateCost(s.totals, s.model); } catch { continue; }
+    try { c = estimate(s.totals, s.model); } catch { continue; }
+    if (!c) continue;
     acc.actual += c.actual;
     acc.noCacheCost += c.noCacheCost;
     acc.scenario5mCost += c.scenario5mCost;

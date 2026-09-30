@@ -4,10 +4,12 @@
  * LiteLLM·Bedrock처럼 5h/7d cap 이 아예 없는 게이트웨이 사용자도
  * "이번 달에 얼마나 썼는지"는 늘 궁금하므로, 세션 로그를 기반으로
  * 달력 월 단위 지출을 통계선에 상시 노출합니다. 모델 단가는 세션마다
- * 다르므로 세션별로 estimateCost 를 적용해 합산합니다.
+ * 다르므로 세션별로 호출 경로에 맞는 가격(sessionCost)을 적용해 합산합니다.
+ * LiteLLM 게이트웨이 세션은 게이트웨이 가격표로만 계산하고, 표에 없는 모델은
+ * 합계에서 빼고 unpriced 로 셉니다. 정가표로 대신 채우지 않습니다.
  */
 
-import { estimateCost } from './cost.js';
+import { sessionCost } from './claude-price.js';
 
 /** 이번 달 1일 00:00(로컬)의 epoch ms. */
 export function monthStartMs(now = new Date()) {
@@ -27,21 +29,24 @@ export function monthLabel(now = new Date()) {
  *
  * @param {Array} sessions parseAllSessions 결과
  * @param {Date} [now]
- * @returns {{usd:number, sessions:number, sinceMs:number, label:string}}
+ * @returns {{usd:number, sessions:number, unpriced:number, sinceMs:number, label:string}}
  */
 export function monthSpend(sessions, now = new Date()) {
   const since = monthStartMs(now);
   let usd = 0;
   let count = 0;
+  let unpriced = 0;
   for (const s of sessions || []) {
     if (!s || !s.endTime || s.endTime.getTime() < since) continue;
     if (!s.totals) continue;
     try {
-      usd += estimateCost(s.totals, s.model).actual;
+      const c = sessionCost(s.totals, s.model);
+      if (!c) { unpriced += 1; continue; }
+      usd += c.actual;
       count += 1;
     } catch {
       // 단가를 모르는 모델은 합계에서 빠집니다. 통계선에서는 침묵이 낫습니다.
     }
   }
-  return { usd, sessions: count, sinceMs: since, label: monthLabel(now) };
+  return { usd, sessions: count, unpriced, sinceMs: since, label: monthLabel(now) };
 }

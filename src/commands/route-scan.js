@@ -65,7 +65,7 @@ export async function run({ args, hasFlag, numArg }) {
         return;
       }
       const t = delegationSavedTotals();
-      const money = (v) => `$${v.toFixed(2)}`;
+      const money = (v) => (v < 0 ? `-$${(-v).toFixed(2)}` : `$${v.toFixed(2)}`); // sign before the symbol
       // Lifetime leads (it is what the breakdown below adds up to); the
       // rolling windows follow as context rather than as competing headlines.
       console.log(lang === 'ko'

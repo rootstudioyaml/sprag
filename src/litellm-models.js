@@ -27,6 +27,7 @@
 import { gatewayBase } from './gateway-auth.js';
 import { loadProfileMap, updateProfileMap, resetModelAliasCache, profileIdFrom, isGatewayModelId } from './model-alias.js';
 import { isRecognizedModelId } from './cost.js';
+import { deploymentPrice, PRICE_MAX_AGE_MS } from './gateway-prices.js';
 import { debug } from './debug.js';
 
 /** 게이트웨이 모델 맵의 신선도 기준. 배포 구성은 하루에 여러 번 바뀌지 않습니다. */
@@ -71,6 +72,23 @@ function normalizeCandidate(id) {
 }
 
 /**
+ * 배포 항목 하나의 별칭을 고릅니다. model_name → model_info.base_model →
+ * litellm_params.model 순으로 정규화해 isRecognizedModelId()를 통과하는 첫
+ * 후보이며, 없으면 null입니다. 별칭 추출과 가격 키 등록이 같은 판정을 쓰도록
+ * 한 곳에 둡니다.
+ */
+function pickAlias(item) {
+  const modelName = typeof item.model_name === 'string' ? item.model_name : '';
+  const baseModel = typeof item.model_info?.base_model === 'string' ? item.model_info.base_model : '';
+  const rawModel = typeof item.litellm_params?.model === 'string' ? item.litellm_params.model : '';
+  for (const candidate of [modelName, baseModel, rawModel]) {
+    const normalized = normalizeCandidate(candidate);
+    if (normalized && isRecognizedModelId(normalized)) return normalized;
+  }
+  return null;
+}
+
+/**
  * `/model/info` 응답에서 프로파일 ID(또는 계열명 없는 사내 별칭) → 모델 계열
  * 매핑을 뽑아냅니다. 순수 함수입니다: 네트워크·파일 I/O가 없고, 잘못된 입력에도
  * 던지지 않습니다.
@@ -99,17 +117,8 @@ export function deriveAliasesFromModelInfo(payload) {
   for (const item of data) {
     if (!item || typeof item !== 'object') continue;
     const modelName = typeof item.model_name === 'string' ? item.model_name : '';
-    const baseModel = typeof item.model_info?.base_model === 'string' ? item.model_info.base_model : '';
     const rawModel = typeof item.litellm_params?.model === 'string' ? item.litellm_params.model : '';
-
-    let alias = null;
-    for (const candidate of [modelName, baseModel, rawModel]) {
-      const normalized = normalizeCandidate(candidate);
-      if (normalized && isRecognizedModelId(normalized)) {
-        alias = normalized;
-        break;
-      }
-    }
+    const alias = pickAlias(item);
 
     if (!alias) {
       if (modelName) skipped.push(modelName);
@@ -132,6 +141,58 @@ export function deriveAliasesFromModelInfo(payload) {
   }
 
   return { aliases, skipped, count: data.length };
+}
+
+/**
+ * `/model/info` 응답에서 모델 키 → 토큰당 가격 표를 만듭니다. 순수 함수입니다.
+ *
+ * 한 배포 항목의 가격을 model_name, 정규화한 model_name·base_model·
+ * litellm_params.model, 그리고 별칭 추출이 고른 별칭 아래에 모두 등록합니다.
+ * 트랜스크립트의 모델 문자열이 어느 모양으로 오든 찾을 수 있게 하려는 것입니다.
+ * 같은 키에 서로 다른 가격이 들어오면 어느 쪽이 맞는지 알 수 없으므로 null로
+ * 둡니다. 값은 숫자뿐이고, 키는 normalizeCandidate를 거쳐 ARN이 리소스 부분으로
+ * 줄어 있으므로 AWS 계정 ID가 파일에 남지 않습니다.
+ *
+ * @returns {Record<string, object|null>}
+ */
+export function deriveGatewayPrices(payload) {
+  const data = Array.isArray(payload?.data) ? payload.data : [];
+  const prices = new Map();
+  for (const item of data) {
+    if (!item || typeof item !== 'object') continue;
+    const price = deploymentPrice(item);
+    const keys = new Set([
+      // 원문 model_name이 ARN이면 계정 ID가 있으므로 원문 키는 쓰지 않습니다.
+      typeof item.model_name === 'string' && !isGatewayModelId(item.model_name) ? item.model_name : '',
+      normalizeCandidate(item.model_name),
+      normalizeCandidate(item.model_info?.base_model),
+      normalizeCandidate(item.litellm_params?.model),
+      pickAlias(item) || '',
+    ]);
+    for (const key of keys) {
+      if (!key) continue;
+      if (!prices.has(key)) prices.set(key, price);
+      else if (JSON.stringify(prices.get(key)) !== JSON.stringify(price)) prices.set(key, null);
+    }
+  }
+  return Object.fromEntries(prices);
+}
+
+/**
+ * LiteLLM 경로로 나간 호출의 모델 가격(토큰당 USD). 게이트웨이 표에 없거나,
+ * 표가 PRICE_MAX_AGE_MS보다 오래됐거나, 키가 모호하면 null입니다. 정가표로
+ * 대신 채우지 않습니다. 호출이 실제로 지난 경로의 가격만 씁니다.
+ */
+export function gatewayPriceFor(model, env = process.env, now = Date.now()) {
+  const gateway = readGatewayModelMap(env);
+  if (!gateway?.prices || typeof gateway.prices !== 'object') return null;
+  const fetchedAt = Date.parse(gateway.fetchedAt);
+  if (!Number.isFinite(fetchedAt) || fetchedAt > now || now - fetchedAt > PRICE_MAX_AGE_MS) return null;
+  if (typeof model !== 'string' || !model) return null;
+  for (const key of [model, normalizeCandidate(model)]) {
+    if (key && Object.hasOwn(gateway.prices, key)) return gateway.prices[key] || null;
+  }
+  return null;
 }
 
 /**
@@ -240,6 +301,7 @@ export async function refreshGatewayModelMap({ base, key, fetchImpl = fetch } = 
         base,
         fetchedAt: new Date().toISOString(),
         aliases: result.aliases,
+        prices: deriveGatewayPrices(payload),
         skipped: result.skipped,
         count: result.count,
       },
