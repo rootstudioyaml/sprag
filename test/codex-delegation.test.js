@@ -34,7 +34,8 @@ test('Codex category rules use the shared classifier and project precedence with
     assert.equal(matchCodexModelRule(prompt, { model: 'gpt-6-astra', root: f.root, rules }), null);
   }
   assert.equal(matchCodexModelRule('Find parser files', { model: 'other', root: f.root, rules }), null);
-  assert.match(codexRouteHint({ prompt: 'Find parser files', model: 'gpt-6-astra', cwd: f.root }, { rules }), /gpt-6-sol/);
+  assert.match(codexRouteHint({ prompt: 'Find parser files', model: 'gpt-6-astra', cwd: f.root },
+    { rules, contextTokens: 60000, record: () => {} }), /gpt-6-sol/);
   removeCodexModelRule(1, f);
   assert.equal(loadCodexModelRules(f).length, 1);
 });

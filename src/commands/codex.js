@@ -155,7 +155,7 @@ export async function run({ args, version }) {
       const money = (usd) => Number.isFinite(usd) ? `${usd < 0 ? '-' : ''}$${Math.abs(usd).toFixed(4)}` : 'n/a (unpriced)';
       console.log(`Codex routing saved: ${totals.priced ? `${money(totals.week)} (7d) / ${money(totals.total)} total` : 'n/a'} | ${totals.runs} attributed run(s), ${totals.runs - totals.priced} unpriced`);
       for (const e of events.slice(0, 20)) {
-        console.log(`${new Date(e.ts).toISOString().slice(0, 16)} ${e.source}${e.category ? `/${e.category}` : ''} ${e.from} -> ${e.to} ${money(e.usd)}${e.complete ? '' : ' (incomplete)'}`);
+        console.log(`${new Date(e.ts).toISOString().slice(0, 16)} ${e.source}${e.category ? `/${e.category}` : ''} ${e.from} -> ${e.to} ${money(e.usd)}${e.aborted ? ' (interrupted: whole cost counted as a loss)' : e.complete ? '' : ' (incomplete)'}`);
       }
       console.log('Counterfactual: the child run\'s own tokens priced at the parent model. Only Sprag-routed spawns with a recorded route id count.');
       return;
