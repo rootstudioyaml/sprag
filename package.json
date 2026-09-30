@@ -1,6 +1,6 @@
 {
   "name": "sprag-cli",
-  "version": "3.55.0",
+  "version": "3.56.0",
   "description": "Cut the tokens Claude Code and Codex spend: routes simple work to cheaper models, converts documents to compact Markdown, and shows spend and savings live. Ratchet rules and Korean writing checks included.",
   "type": "module",
   "bin": {
