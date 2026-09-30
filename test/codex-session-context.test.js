@@ -46,10 +46,23 @@ test('parts fit whole by priority; the overflow moves to a file named first', (t
   ], { budget: 200, overflowFile: file });
   const lines = text.split('\n\n');
   assert.match(lines[0], /exceed Codex's hook context limit/);
-  assert.ok(lines[0].includes(file));
+  assert.ok(lines[0].includes(JSON.stringify(file)), lines[0]);
   assert.deepEqual(lines.slice(1), ['RULES', 'NOTICE']);
   assert.equal(readFileSync(file, 'utf8'), `STYLE ${big}\n`);
   assert.ok(estimateCodexTokens(text) <= 200);
+});
+
+test('the pointer quotes the overflow path as JSON, so a Windows path round-trips', () => {
+  // The same quoting as the doc2md deny reason. Backslashes are escaped, so a
+  // reader must parse the quoted string rather than compare it to the raw path.
+  const file = 'D:\\a\\sprag\\data\\codex-context\\overflow.md';
+  let written;
+  const text = fitCodexContext([{ priority: 1, spill: true, text: `STYLE ${'가'.repeat(2000)}` }],
+    { budget: 200, overflowFile: file, write: (target) => { written = target; } });
+  assert.equal(written, file);
+  assert.equal(text.includes(file), false);
+  const quoted = /Read ("(?:[^"\\]|\\.)+") before starting work/.exec(text);
+  assert.equal(JSON.parse(quoted[1]), file);
 });
 
 test('everything under budget is kept in order without a pointer', () => {
@@ -74,9 +87,9 @@ test('session start with the Korean guide stays within budget and skips offers u
     { cwd, source: 'startup', transcript_path: rollout(dir, { id: 's1', originator: 'codex_cli_rs', source: 'cli' }) }, { cfg });
   const context = interactive.hookSpecificOutput.additionalContext;
   assert.ok(estimateCodexTokens(context) <= CODEX_CONTEXT_TOKEN_BUDGET);
-  const pointer = /Read "([^"]+)" before starting work/.exec(context);
+  const pointer = /Read ("(?:[^"\\]|\\.)+") before starting work/.exec(context);
   assert.ok(pointer, 'the Korean guide exceeds the budget, so it must be pointed to');
-  assert.match(readFileSync(pointer[1], 'utf8'), /\[sprag korean-style\]/);
+  assert.match(readFileSync(JSON.parse(pointer[1]), 'utf8'), /\[sprag korean-style\]/);
   assert.match(context, /\[Sprag seed\]/);
 
   const exec = await codexHookOutput('session-start',
