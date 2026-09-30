@@ -254,6 +254,10 @@ Every subcommand, flag and the output-language setting: [command reference](http
 | [Korean style](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) | What gets injected, the write-time check, before/after |
 | [Not a router](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.md) | Why realtime routing breaks the cache and costs more |
 | [Gateways & environment](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.md) | Bedrock, Vertex, LiteLLM budgets, pricing table, FAQ, how it works |
+| [Reduce Claude Code tokens](https://sprag.io/docs/reduce-claude-code-tokens/) | Compact/clear timing, subagent exploration, document conversion, cache TTL |
+| [Claude Code usage limits](https://sprag.io/docs/claude-code-usage-limits/) | The 5-hour and 7-day windows, watching both, cutting per-turn cost |
+| [Codex token usage](https://sprag.io/docs/codex-token-usage/) | Session scoping, native subagent delegation, document conversion for Codex |
+| [Compare](https://sprag.io/docs/compare/) | Sprag vs ccusage, claude-usage, and statusline tools like CCometixLine |
 
 Behind a LiteLLM gateway, `sprag profile-map --refresh` now reads model aliases straight from the gateway's own `GET /model/info`, so route-scan no longer needs to wait on learned votes or a hand-edited `profile-map.json`. The refresh uses the same 5-minute check and 24-hour cache as the LiteLLM budget gauge. It never stores your auth token: each refresh reads it from `apiKeyHelper` at call time and lets it expire on the helper's own schedule. Details: [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md).
 
