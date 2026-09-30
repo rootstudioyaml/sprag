@@ -28,20 +28,22 @@ export const CODEX_SEGMENT_ORDER = [
 
 // Only cache full-session parses. A moving time cutoff would make an unchanged
 // file's cached totals stale. The panel reports session totals, not window totals.
+// Matches the candidate TTL: older runs could not contribute a candidate anyway.
+const RATCHET_SIBLING_MS = 30 * 60000;
+
 export function createPanelReader({ root = process.cwd(), home, sessionId: pinnedId, sessionFile, days = 7, readBudget = () => null,
   readCachePolicy = (session) => readCodexCachePolicy(session, { home }), hasFlag = () => false } = {}) {
   if (pinnedId && sessionFile) throw new Error('Choose --session or --session-file, not both.');
   const cache = new Map();
   const ratchetCache = new Map();
-  const ratchetFor = (session) => {
+  const ratchetFor = (session, siblings = []) => {
     if (!session?.filePath) return [];
     try {
-      const s = statSync(session.filePath);
-      const key = `${s.mtimeMs}:${s.size}`;
+      const key = [session.filePath, ...siblings].map((file) => { const s = statSync(file); return `${file}:${s.mtimeMs}:${s.size}`; }).join('|');
       // Candidates expire by age, so a quiet file still needs a periodic re-read.
       const hit = ratchetCache.get(session.filePath);
       if (hit?.key === key && Date.now() - hit.at < 60000) return hit.value;
-      const value = codexRatchetCandidates(session.filePath);
+      const value = codexRatchetCandidates(session.filePath, { siblings });
       ratchetCache.clear();
       ratchetCache.set(session.filePath, { key, at: Date.now(), value });
       return value;
@@ -65,6 +67,8 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
     let selected = null;
     let matches = 0;
     const seen = new Set();
+    // Recent rollouts of the same project, for repeats across `codex exec` runs.
+    const recent = [];
     for (const f of files.slice().reverse()) {
       let entry = cache.get(f.path);
       if (!entry || entry.mtime !== f.mtime || entry.size !== f.size) {
@@ -80,6 +84,7 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
       if (seen.has(key)) continue;
       seen.add(key);
       matches++;
+      if (!sessionId && Date.now() - f.mtime < RATCHET_SIBLING_MS) recent.push(s.filePath);
       // Activity timestamps survive archive moves that update filesystem mtime.
       if (!selected || (s.lastActivity?.getTime() || 0) > (selected.lastActivity?.getTime() || 0)) selected = s;
     }
@@ -101,7 +106,7 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
     try { routingSaved = { ...codexRoutingSavedTotals(), pricesAvailable: isDirectOpenAI(selected?.provider, home ? { home } : {}) || !!readCodexPrices({ provider: codexBudgetProvider(home ? { home } : {}), ...(home ? { home } : {}) }) }; }
     catch { /* Unreadable ledger reads as n/a. */ }
     return { session: selected, matches, root, sessionId, selection, bindingPending: !!sessionFile && !sessionId, days, harness, rules,
-      ratchet: ratchetFor(selected), route, routingSaved,
+      ratchet: ratchetFor(selected, recent.filter((file) => file !== selected?.filePath)), route, routingSaved,
       labelMode: resolveLabelMode({ cfg: statuslineDefaults(), hasFlag }).mode,
       color: statuslineDefaults().color,
       timer: !hasFlag('--no-timer') && (hasFlag('--timer') || statuslineDefaults().timer),
