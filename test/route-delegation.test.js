@@ -207,9 +207,10 @@ test('runSaving prices the run against what the session model would have cost', 
   };
   // 1M output: haiku $5 vs fable $50 → $45 saved.
   assert.equal(runSaving(run, 'claude-fable-5'), 45);
-  // Same tier on both sides → nothing saved, never negative.
+  // Same tier on both sides → nothing saved.
   assert.equal(runSaving(run, 'claude-haiku-4-5'), 0);
-  assert.equal(runSaving({ ...run, model: 'claude-opus-5' }, 'claude-haiku-4-5'), 0);
+  // A pricier target is a loss and stays negative: opus $25 vs haiku $5 per 1M output.
+  assert.equal(runSaving({ ...run, model: 'claude-opus-5' }, 'claude-haiku-4-5'), -20);
 });
 
 test('runSaving matches estimateCost on the per-bucket split', () => {
@@ -223,7 +224,7 @@ test('runSaving matches estimateCost on the per-bucket split', () => {
     ephemeral5m: 2000, ephemeral1h: 0, output: 3000,
   };
   const expected = estimateCost(totals, 'claude-opus-5').actual - estimateCost(totals, 'claude-haiku-4-5').actual;
-  assert.equal(runSaving(run, 'claude-opus-5'), Math.max(0, expected));
+  assert.equal(runSaving(run, 'claude-opus-5'), expected);
 });
 
 // ── Workstream D + render ────────────────────────────────────────────────

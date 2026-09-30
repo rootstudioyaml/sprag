@@ -54,6 +54,12 @@ const GRAY = fg(100, 116, 139, '\x1b[90m');
 const BOLD = '\x1b[1m';
 
 export function formatMoney(usd) {
+  // The sign leads the currency symbol ("-$0.12"); a loss that rounds to zero
+  // prints as plain "$0.00" rather than "-$0.00".
+  if (usd < 0) {
+    const abs = formatMoney(-usd);
+    return abs === '$0.00' ? abs : `-${abs}`;
+  }
   // Boundaries sit at 999.5/999500 so a value that would round up into the
   // next band's width ($999.9 → "$1000") jumps to that band's unit instead —
   // otherwise "$1000" renders visually larger than "$1.0K".
@@ -512,8 +518,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Tied to MIN_VOTES rather than a literal so the two cannot drift: the chip
   // appears exactly when learning has had its chance and still came up short.
   const unresolvedRuns = Number(data.unresolvedRuns) || 0;
-  const delegateSeg = delegationSaved > 0
-    ? `${c(GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
+  const delegateSeg = delegationSaved !== 0
+    ? `${c(delegationSaved < 0 ? RED : GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
     : (unresolvedRuns >= MIN_VOTES
       ? `${c(YELLOW)}${g.routing} ${unresolvedRuns} unresolved${c(RESET)}`
       : null);
@@ -552,8 +558,12 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   //   verbose: "Sep spend $42.1 (since Sep 1)"
   const month = data.monthSpend;
   let monthSeg = null;
-  if (month && Number(month.usd) > 0) {
-    const amt = formatMoney(Number(month.usd));
+  // Gateway sessions whose model the gateway does not price are left out of the
+  // sum and counted, so a partial total says so and an all-unpriced month is n/a.
+  const monthUnpriced = Number(month?.unpriced) || 0;
+  if (month && (Number(month.usd) > 0 || monthUnpriced > 0)) {
+    const amt = (Number(month.usd) > 0 ? formatMoney(Number(month.usd)) : 'n/a') +
+      (monthUnpriced > 0 ? ` +${monthUnpriced} unpriced` : '');
     if (isIcon) {
       monthSeg = `${c(GRAY)}${g.month} ${month.label} ${amt}${c(RESET)}`;
     } else if (verbose) {
@@ -576,7 +586,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   //   text:  "Routing saved $9.8 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
   const totals = data.delegationTotals;
   let totalsLine = null;
-  if (!singleLine && totals && Number(totals.total) > 0) {
+  if (!singleLine && totals && Number(totals.total) !== 0 && Number.isFinite(Number(totals.total))) {
     const head = isIcon ? `${g.routing} Routing saved` : 'Routing saved';
     // Model changes behind the total, family-level and version-free: `opus →
     // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
@@ -595,9 +605,10 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const pairText = pairs
       .map((p) => `${c(GRAY)}${p.from}→${p.to} ${p.runs}× ${formatMoney(p.usd)}${c(RESET)}`)
       .join(` ${c(GRAY)}·${c(RESET)} `);
+    const tone = Number(totals.total) < 0 ? RED : GREEN; // a net loss must not read as a win
     totalsLine =
-      `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
-      `${c(GREEN)}${formatMoney(Number(totals.total) || 0)}${c(RESET)}` +
+      `${c(tone)}${c(BOLD)}${head}${c(RESET)} ` +
+      `${c(tone)}${formatMoney(Number(totals.total) || 0)}${c(RESET)}` +
       (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 

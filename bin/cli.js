@@ -52,7 +52,7 @@ import {
   sessionMetrics,
   diagnoseSession,
 } from '../src/stats.js';
-import { estimateCostAcross } from '../src/cost.js';
+import { sessionCostAcross } from '../src/claude-price.js';
 import { chipForIssues } from '../src/advice.js';
 import { debug } from '../src/debug.js';
 import { createArgs } from '../src/cli-args.js';
@@ -592,7 +592,7 @@ async function main() {
   const ttl = ttlBreakdown(sessions);
   const sum = summary(sessions);
   const anomalies = detectAnomalies(trend);
-  const cost = estimateCostAcross(sessions);
+  const cost = sessionCostAcross(sessions);
   const spikeReport = detectSpikes(sessions, { recentHours: 24, multiplier: 3 });
   const contextWindow = detectContextWindow(sessions, { recentHours: 24 });
 

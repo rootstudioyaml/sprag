@@ -55,8 +55,9 @@ export function loadLedger() {
  * Upsert saving events. `events` is an array of
  * { key, ts, usd, rule, from, to } where `key` is the run's transcript path
  * (unique per subagent run) and `from`/`to` name the models the routing
- * decision moved between. Zero-saving runs are skipped — they carry no
- * information the totals care about.
+ * decision moved between. `usd` is signed: a run on a pricier model is a loss
+ * and is recorded as a negative amount so it reduces the totals. Only
+ * non-finite amounts (unpriced runs) are skipped.
  */
 export function recordDelegationEvents(events) {
   if (!Array.isArray(events) || events.length === 0) return;
@@ -64,7 +65,7 @@ export function recordDelegationEvents(events) {
   data.version = LEDGER_VERSION;
   let changed = false;
   for (const e of events) {
-    if (!e || !e.key || !(Number(e.usd) > 0) || !Number.isFinite(e.ts)) continue;
+    if (!e || !e.key || typeof e.usd !== 'number' || !Number.isFinite(e.usd) || !Number.isFinite(e.ts)) continue;
     const prev = data.events[e.key];
     const usd = Math.round(Number(e.usd) * 10000) / 10000;
     if (prev && prev.ts === e.ts && prev.usd === usd) continue;
@@ -115,8 +116,8 @@ export function delegationSavedTotals(now = Date.now()) {
   const byPair = new Map();
   try {
     for (const e of Object.values(loadLedger().events)) {
-      const usd = Number(e.usd) || 0;
-      if (usd <= 0) continue;
+      const usd = Number(e.usd);
+      if (!Number.isFinite(usd)) continue;
       totals.total += usd;
       if (Number.isFinite(e.ts)) {
         if (now - e.ts <= WEEK_MS) totals.week += usd;

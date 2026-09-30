@@ -253,6 +253,7 @@ export function formatReport({ summary: sum, trend, ttl, anomalies, cost, option
     lines.push('  ' + tableRow(['Extra cost if 5m-only', `+$${cost.extraCostIf5m}`], costW, costA));
   }
   lines.push('  ' + tableBot(costW));
+  if (cost.unpriced > 0) lines.push(`  ${cost.unpriced} session(s) not priced by the gateway are left out.`);
   lines.push('');
 
   // Daily trend

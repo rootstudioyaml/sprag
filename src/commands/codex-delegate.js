@@ -54,6 +54,6 @@ export function run({ args, getArg, hasFlag, root }) {
   console.log('Explicit spawn models and custom roles are preserved. Targets must be available from your Codex provider.');
   const saved = codexRoutingSavedTotals();
   console.log(saved.priced
-    ? `Routing saved: $${saved.total.toFixed(4)} over ${saved.priced} priced run(s). Details: sprag route-scan savings --agent codex`
+    ? `Routing saved: ${saved.total < 0 ? '-' : ''}$${Math.abs(saved.total).toFixed(4)} over ${saved.priced} priced run(s). Details: sprag route-scan savings --agent codex`
     : `Routing saved: n/a (${saved.runs ? `${saved.runs} attributed run(s), none priced` : 'no attributed runs yet'}). Review/trust the Sprag hooks in Codex /hooks.`);
 }
