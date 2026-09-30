@@ -34,6 +34,7 @@ import { homedir } from 'node:os';
 import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
+import { signedUsd } from './money.js';
 
 // Post-promotion delegated-category error rate above this flags the rule
 // for review (rule-health). Calibrated against local T0 avg error incidence.
@@ -356,7 +357,7 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
       ? `preset (curated), registered ${r.promotedAt}`
       : `×${r.count || 0}, err ${pct(r.errRate)}%, seen ${r.lastSeen || r.promotedAt}`;
     if (!r.delegatedRuns) return base;
-    const saved = r.savedUsd ? `, saved ~$${r.savedUsd.toFixed(2)}` : '';
+    const saved = r.savedUsd ? `, saved ~${signedUsd(r.savedUsd)}` : '';
     return `${base}, delegated ×${r.delegatedRuns} err ${pct(r.delegatedErrRate)}%${saved}`;
   };
   // Merged T2+T1 rules carry two caps, so they state both once rather than

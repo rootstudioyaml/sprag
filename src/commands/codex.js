@@ -5,6 +5,7 @@ import { findProjectRoot, harnessPromote, harnessListRules, harnessRmRule, harne
 import { loadConfig, saveConfig } from '../config.js';
 import { resolve } from 'node:path';
 import { debug } from '../debug.js';
+import { signedUsd } from '../money.js';
 
 const HELP = `Sprag / Codex
 
@@ -182,7 +183,7 @@ export async function run({ args, version }) {
     console.log(`Codex route-scan: ${cache.totalEpisodes} turns in ${cache.days} days, scanned ${cache.scannedAt}${cache.priceCheckedAt ? '' : ' | prices unavailable'}`);
     if (!open.length) console.log('No recurring delegable pattern. Needs 3+ similar simple turns per project and parent model.');
     for (const c of open) {
-      const target = c.suggestedModel ? `-> ${c.suggestedModel}${Number.isFinite(c.estSavedUsd) ? ` (~$${c.estSavedUsd.toFixed(4)} over ${c.count} turns)` : ''}`
+      const target = c.suggestedModel ? `-> ${c.suggestedModel}${Number.isFinite(c.estSavedUsd) ? ` (~${signedUsd(c.estSavedUsd, 4)} over ${c.count} turns)` : ''}`
         : `-> choose --model${c.alternatives.length ? ` (priced cheaper: ${c.alternatives.join(', ')})` : ''}`;
       console.log(`R${c.id} ${c.category} x${c.count} [T2 ${c.tiers.T2} / T1 ${c.tiers.T1}] ${c.provider || 'unknown provider'} / ${c.from} ${target}`);
       console.log(`   ${c.projectRoot}`);

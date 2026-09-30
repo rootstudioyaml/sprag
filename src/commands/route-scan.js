@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
+import { signedUsd } from '../money.js';
 
 /**
  * Whether the user turned doc2md on.
@@ -154,8 +155,8 @@ export async function run({ args, hasFlag, numArg }) {
         // two mean opposite things (no data vs. data showing no value).
         const measured = r.delegatedRuns
           ? (lang === 'ko'
-            ? `실제 위임 ${r.delegatedRuns}건 · 에러율 ${Math.round((r.delegatedErrRate || 0) * 100)}% · 절감 ~$${(r.savedUsd || 0).toFixed(2)}`
-            : `measured ×${r.delegatedRuns} · err ${Math.round((r.delegatedErrRate || 0) * 100)}% · saved ~$${(r.savedUsd || 0).toFixed(2)}`)
+            ? `실제 위임 ${r.delegatedRuns}건 · 에러율 ${Math.round((r.delegatedErrRate || 0) * 100)}% · 절감 ~${signedUsd(r.savedUsd || 0)}`
+            : `measured ×${r.delegatedRuns} · err ${Math.round((r.delegatedErrRate || 0) * 100)}% · saved ~${signedUsd(r.savedUsd || 0)}`)
           : (sessionRank !== null && !rs.worthDelegating(r.tier, sessionRank)
             ? (lang === 'ko'
               ? `이 규칙은 현재 기본 모델(${sessionModel}) 기준으로는 적용되지 않습니다. 세션 모델이 이미 위임 목표와 같은 급이어서 절감이 발생하지 않습니다.`
