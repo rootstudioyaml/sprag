@@ -176,7 +176,7 @@ test('Codex diagnostics distinguish guidance from Routing saved and ignore Claud
   assert.match(enabled.stdout, /Routing saved: n\/a \(no attributed runs yet\)/);
   const text = f.run(['--statusline', '--text', '--single-line']).stdout;
   assert.match(text, /Delegate on \(model routing\)/);
-  assert.match(text, /Routing saved n\/a \(prices unavailable\)/);
+  assert.match(text, /Routing saved n\/a \(no attributed runs\)/);
   assert.doesNotMatch(text, /999|opus|haiku/);
   assert.match(f.run(['capabilities']).stdout, /routing-saved: partial/);
   const report = JSON.parse(f.run(['doctor', '--format', 'json']).stdout);

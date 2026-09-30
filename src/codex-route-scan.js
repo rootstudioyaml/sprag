@@ -8,7 +8,8 @@ import { discoverCodexSessionFiles, parseCodexTurns } from './codex-parser.js';
 import { categorize, isSkippable, tierOf, calibrateThresholds, MIN_RECURRENCE,
   RESCAN_MIN_INTERVAL_MS, RESCAN_BIG_DELTA_BYTES, RESCAN_MAX_AGE_MS } from './route-scan.js';
 import { codexPromptCategory, loadCodexModelRules } from './codex-delegation.js';
-import { codexRunCost, readCodexPrices } from './codex-cache-policy.js';
+import { codexRunCost, codexPriceBook, isDirectOpenAI, readCodexPrices } from './codex-cache-policy.js';
+import { OPENAI_PRICES_CHECKED_AT } from './openai-prices.js';
 import { refreshCodexLedger } from './codex-ledger.js';
 
 /*
@@ -81,11 +82,12 @@ export async function shouldRescanCodex(cache, { home, days = 14, now = Date.now
  * a rule target, so a gateway that also serves unrelated models (embeddings,
  * other vendors) never has one suggested blind.
  */
-function pickTarget(group, { prices, known }) {
-  const cost = (model) => prices?.provider === group.provider ? codexRunCost(group.tokens, prices.prices[model]) : null;
+function pickTarget(group, { prices, known, home }) {
+  const book = codexPriceBook(group.provider, prices, { home });
+  const cost = (model) => book ? codexRunCost(group.tokens, book.prices[model]) : null;
   const parent = cost(group.from);
   if (parent === null) return { suggestedModel: null, alternatives: [], estSavedUsd: null };
-  const cheaper = Object.keys(prices.prices).filter((m) => m !== group.from && prices.prices[m])
+  const cheaper = Object.keys(book.prices).filter((m) => m !== group.from && book.prices[m])
     .map((m) => ({ model: m, usd: cost(m) })).filter((x) => x.usd !== null && x.usd < parent)
     .sort((a, b) => a.usd - b.usd);
   const eligible = cheaper.filter((x) => known.has(`${group.provider}|${x.model}`));
@@ -151,7 +153,11 @@ export async function runCodexRouteScan({ days = 14, now = Date.now(), home, dir
     (!r.provider || r.provider === g.provider) &&
     (r.scope === 'global' || r.targetRoot === g.projectRoot));
   const known = new Set([...observed, ...rules.filter((r) => r.provider).map((r) => `${r.provider}|${r.model}`)]);
-  if (prices?.provider && cfg?.codex?.delegateTarget?.model) known.add(`${prices.provider}|${cfg.codex.delegateTarget.model}`);
+  const target = cfg?.codex?.delegateTarget?.model;
+  if (target) {
+    if (prices?.provider) known.add(`${prices.provider}|${target}`);
+    if (isDirectOpenAI('openai', { home })) known.add(`openai|${target}`);
+  }
   const prev = readCodexRouteScan({ dir });
   const resolved = new Set(prev?.resolved || []);
   const candidates = [...groups.values()]
@@ -160,9 +166,10 @@ export async function runCodexRouteScan({ days = 14, now = Date.now(), home, dir
     .slice(0, MAX_CANDIDATES)
     .map((g, i) => ({ id: i + 1, signature: g.signature, category: g.category, label: g.label, labelEn: g.labelEn,
       from: g.from, provider: g.provider, projectRoot: g.projectRoot, count: g.count, tiers: g.tiers, example: g.example.slice(0, 160),
-      lastSeen: g.lastSeen || null, suggestedScope: 'project', ...pickTarget(g, { prices, known }) }));
+      lastSeen: g.lastSeen || null, suggestedScope: 'project', ...pickTarget(g, { prices, known, home }) }));
+  const priceCheckedAt = prices?.checkedAt ?? ([...groups.values()].some((g) => isDirectOpenAI(g.provider, { home })) ? OPENAI_PRICES_CHECKED_AT : null);
   const data = { version: 1, scannedAt: new Date(now).toISOString(), days, dataBytes, totalEpisodes: episodes.length,
-    thresholds, observedModels: [...observed], priceCheckedAt: prices?.checkedAt ?? null, candidates, resolved: [...resolved] };
+    thresholds, observedModels: [...observed], priceCheckedAt, candidates, resolved: [...resolved] };
   writeCache(data, dir);
   if (refreshLedger) {
     try { await refreshCodexLedger({ dir, home, now, prices }); } catch { /* The ledger catches up on the next scan. */ }

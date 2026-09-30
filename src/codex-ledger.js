@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { userDataDir } from './paths.js';
 import { discoverCodexSessionFiles, parseCodexTurns } from './codex-parser.js';
-import { codexRunCost, readCodexPrices } from './codex-cache-policy.js';
+import { codexRunCost, codexPriceBook, readCodexPrices } from './codex-cache-policy.js';
 
 /*
  * Codex routing savings, kept apart from Claude's delegation ledger.
@@ -165,15 +165,18 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     const previous = ledger.events[route.id];
     const provider = route.provider || run.provider;
     const sameRun = previous?.childSessionId === run.sessionId && previous.to === to && previous.from === route.from;
+    // Priced by the path the child took: OpenAI list for direct calls, the gateway's prices for LiteLLM.
+    const book = codexPriceBook(provider, prices, { home });
     const rates = sameRun && previous.rates ? previous.rates
-      : prices?.provider === provider ? { from: prices.prices[route.from], to: prices.prices[to], checkedAt: prices.checkedAt } : null;
+      : book ? { from: book.prices[route.from], to: book.prices[to], checkedAt: book.checkedAt } : null;
+    const priceSource = !rates ? null : sameRun && previous.rates ? previous.priceSource ?? null : book?.source ?? null;
     const actual = rates && run.usageKnown ? codexRunCost(run.tokens, rates.to) : null;
     const counterfactual = rates && run.usageKnown ? codexRunCost(run.tokens, rates.from) : null;
     const usd = actual === null || counterfactual === null ? null : run.aborted ? -actual : counterfactual - actual;
     const event = { ts: run.endedAt ?? route.at, parentSessionId: route.parentSessionId || run.parentThreadId || null,
       childSessionId: run.sessionId, source: route.source, category: route.category ?? null, scope: route.scope ?? null,
       from: route.from, to, provider, tokens: run.tokens, usd, rates: usd === null ? null : rates,
-      priceCheckedAt: rates?.checkedAt ?? null, complete: run.complete, ...(run.aborted ? { aborted: true } : {}) };
+      priceCheckedAt: rates?.checkedAt ?? null, priceSource, complete: run.complete, ...(run.aborted ? { aborted: true } : {}) };
     // A transient price outage must not erase a completed, unchanged priced run.
     if (usd === null && sameRun && previous.complete && Number.isFinite(previous.usd) &&
         JSON.stringify(previous.tokens) === JSON.stringify(run.tokens)) continue;
