@@ -29,6 +29,9 @@ import { userDataDir } from './paths.js';
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 const MONTH_MS = 30 * 24 * 3600 * 1000;
 
+/** Stored USD is kept to 4 decimals so re-scans compare equal and files stay small. */
+export const roundUsd = (usd) => Math.round(Number(usd) * 10000) / 10000;
+
 export function ledgerPath() {
   return join(userDataDir(), 'delegation-ledger.json');
 }
@@ -67,7 +70,7 @@ export function recordDelegationEvents(events) {
   for (const e of events) {
     if (!e || !e.key || typeof e.usd !== 'number' || !Number.isFinite(e.usd) || !Number.isFinite(e.ts)) continue;
     const prev = data.events[e.key];
-    const usd = Math.round(Number(e.usd) * 10000) / 10000;
+    const usd = roundUsd(e.usd);
     if (prev && prev.ts === e.ts && prev.usd === usd) continue;
     data.events[e.key] = {
       ts: e.ts,
