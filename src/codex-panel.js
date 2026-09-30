@@ -9,7 +9,7 @@ import { loadConfig, statuslineDefaults } from './config.js';
 import { glyphsFor } from './glyphs.js';
 import { gaugeBar, formatMoney } from './formatters/statusline.js';
 import { codexCacheTimer } from './codex-cache.js';
-import { readCodexCachePolicy, readCodexPrices } from './codex-cache-policy.js';
+import { readCodexCachePolicy, readCodexPrices, isDirectOpenAI } from './codex-cache-policy.js';
 import { codexIssues } from './codex-brief.js';
 import { labelForKey } from './window-labels.js';
 import { resolveLabelMode } from './statusline-mode.js';
@@ -98,7 +98,7 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
     let route = [];
     try { route = openCodexCandidates(readCodexRouteScan(), { root: project }); } catch { /* No scan yet. */ }
     let routingSaved = null;
-    try { routingSaved = { ...codexRoutingSavedTotals(), pricesAvailable: !!readCodexPrices({ provider: codexBudgetProvider(home ? { home } : {}), ...(home ? { home } : {}) }) }; }
+    try { routingSaved = { ...codexRoutingSavedTotals(), pricesAvailable: isDirectOpenAI(selected?.provider, home ? { home } : {}) || !!readCodexPrices({ provider: codexBudgetProvider(home ? { home } : {}), ...(home ? { home } : {}) }) }; }
     catch { /* Unreadable ledger reads as n/a. */ }
     return { session: selected, matches, root, sessionId, selection, bindingPending: !!sessionFile && !sessionId, days, harness, rules,
       ratchet: ratchetFor(selected), route, routingSaved,
