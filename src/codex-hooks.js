@@ -199,7 +199,10 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig() } = {
       } catch (e) { debug('codex:route-hint', e); }
     }
     if (cfg?.codex?.brief !== false) {
-      try { parts.push(runCodexBrief({ sessionId: payload.session_id, transcriptPath: payload.transcript_path, cwd: payload.cwd })); }
+      try {
+        parts.push(runCodexBrief({ sessionId: payload.session_id, transcriptPath: payload.transcript_path, cwd: payload.cwd,
+          root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }) }));
+      }
       catch (e) { debug('codex:brief', e); }
     }
     if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) {

@@ -3,7 +3,7 @@ import { configureCodexHooks } from '../codex-installer.js';
 import { validateCodexTarget, loadCodexModelRules, addCodexModelRule, removeCodexModelRule } from '../codex-delegation.js';
 import { findCodexCandidate, resolveCodexCandidate } from '../codex-route-scan.js';
 import { codexRoutingSavedTotals, loadCodexLedger } from '../codex-ledger.js';
-import { codexRuleHealth } from '../codex-rule-health.js';
+import { codexRuleHealth, codexRulesInReview } from '../codex-rule-health.js';
 import { signedUsd } from '../money.js';
 import { codexProviderName } from '../agent.js';
 
@@ -15,7 +15,6 @@ export function run({ args, getArg, hasFlag, root }) {
       throw new Error(`${flag} requires a value.`);
     }
   }
-  const rules = loadCodexModelRules();
   if (sub === 'rules') {
     if (args[2] === 'add') {
       if (hasFlag('--global') === hasFlag('--project')) throw new Error('Choose --global or --project for the rule.');
@@ -35,10 +34,11 @@ export function run({ args, getArg, hasFlag, root }) {
     if (!rules.length) console.log('No Codex model rules. Claude rules are not imported.');
     let events = [];
     try { events = Object.values(loadCodexLedger().events); } catch { /* No ledger yet: rules list without outcomes. */ }
+    const inReview = new Set(codexRulesInReview({ rules, events, root: null }).map((x) => x.index));
     rules.forEach((r, i) => {
       const h = codexRuleHealth(r, { events });
       const outcome = h.runs ? ` | measured x${h.runs}, err ${Math.round(h.rate * 100)}%, saved ${signedUsd(h.saved, 4)}` : '';
-      const warn = h.status === 'review' ? ` | rule-health: ${h.errs}/${h.runs} runs failed, narrow the condition or remove (delegate rules rm ${i + 1} --agent codex)` : '';
+      const warn = inReview.has(i + 1) ? ` | rule-health: ${h.errs}/${h.runs} runs failed, narrow the condition or remove (delegate rules rm ${i + 1} --agent codex)` : '';
       console.log(`#${i + 1} ${r.category} | ${r.from} -> ${r.model} | ${r.scope}${r.targetRoot ? ` ${r.targetRoot}` : ''}${outcome}${warn}`);
     });
     return;
@@ -59,7 +59,10 @@ export function run({ args, getArg, hasFlag, root }) {
   }
   console.log(`Codex delegate: ${cfg.codex?.delegate === true ? 'on' : 'off'} (model routing and guidance)`);
   console.log(`Default target: ${cfg.codex?.delegateTarget?.model || 'inherit (no override)'}`);
-  console.log(`Codex rules: ${rules.length}`);
+  // Turning delegation off must work even when the rule file is damaged.
+  let ruleCount;
+  try { ruleCount = String(loadCodexModelRules().length); } catch (e) { ruleCount = `unreadable (${e.message})`; }
+  console.log(`Codex rules: ${ruleCount}`);
   console.log('Explicit spawn models and custom roles are preserved. Targets must be available from your Codex provider.');
   const saved = codexRoutingSavedTotals();
   console.log(saved.priced

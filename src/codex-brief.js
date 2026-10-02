@@ -1,10 +1,14 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { codexUserDir } from './agent.js';
 import { userDataDir } from './paths.js';
 import { readCodexSnapshot } from './codex-parser.js';
+import { loadCodexModelRules } from './codex-delegation.js';
+import { loadCodexLedger } from './codex-ledger.js';
+import { codexRulesInReview } from './codex-rule-health.js';
 
+const RESET_TOLERANCE_S = 300;
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const stateDir = (dir) => join(dir, 'codex', hash(codexUserDir()), 'sessions');
 const fresh = (value, now) => {
@@ -45,7 +49,7 @@ function readState(file) {
 }
 
 /** One file per home/session keeps unrelated sessions out of the same dedup state. */
-export function runCodexBrief({ sessionId, transcriptPath, cwd, now = Date.now(), dir = userDataDir() } = {}) {
+export function runCodexBrief({ sessionId, transcriptPath, cwd, root: projectRoot, now = Date.now(), dir = userDataDir() } = {}) {
   if (typeof sessionId !== 'string' || !sessionId) return null;
   const snapshot = readCodexSnapshot(transcriptPath);
   if (!snapshot || (snapshot.sessionId && snapshot.sessionId !== sessionId)) return null;
@@ -54,6 +58,35 @@ export function runCodexBrief({ sessionId, transcriptPath, cwd, now = Date.now()
   const file = join(directory, `${hash(sessionId)}.json`);
   const state = readState(file);
   const active = Array.isArray(state.active) ? state.active.filter((sig) => typeof sig === 'string') : [];
+  // Codex rewrites resets_at by about a second between records, so a limit
+  // already announced for the same window keeps its first signature.
+  for (const issue of issues) {
+    const m = /^limit:(primary|secondary):(\d+(?:\.\d+)?)$/.exec(issue.signature);
+    if (!m) continue;
+    const resetsAt = Number(m[2]);
+    const known = active.find((sig) => {
+      const k = /^limit:(primary|secondary):(\d+(?:\.\d+)?)$/.exec(sig);
+      return k && k[1] === m[1] && Math.abs(Number(k[2]) - resetsAt) <= RESET_TOLERANCE_S;
+    });
+    if (known) issue.signature = known;
+  }
+  // A failing model rule is announced once per session; the lines never block the other warnings.
+  try {
+    // The hook passes the project root its rule matching uses; a prompt sent from
+    // a subdirectory must still see the project's rules.
+    const root = resolve(projectRoot || cwd || snapshot.projectDir || '.');
+    const rules = loadCodexModelRules({ dir });
+    if (rules.length) {
+      const events = Object.values(loadCodexLedger({ dir }).events);
+      for (const { index, rule, health } of codexRulesInReview({ root, rules, events })) {
+        issues.push({ key: 'rule-health', tier: 1,
+          signature: `rule-health:${rule.scope}:${rule.targetRoot ?? ''}:${rule.category}:${rule.from}:${rule.model}:${rule.createdAt ?? ''}`,
+          level: 'warning',
+          message: `Codex model rule #${index} (${rule.category}, ${rule.from} -> ${rule.model}) failed ${health.errs} of ${health.runs} measured runs.`,
+          advice: `Narrow or remove it: sprag delegate rules rm ${index} --agent codex` });
+      }
+    }
+  } catch { /* An unreadable rule file or ledger only skips this line. */ }
   const next = issues.filter((issue) => !active.includes(issue.signature) &&
     !(issue.key === 'context' && issue.tier === 1 && active.includes('context:2')));
   // Missing or stale measurements do not resolve an earlier warning. A fresh
