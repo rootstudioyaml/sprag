@@ -2,8 +2,12 @@
  * Aggregate session data into daily trends, TTL breakdown, and anomalies.
  */
 
+// The local calendar day. toISOString() gives the UTC day, which put a session
+// started at 08:00 in Seoul under the previous date, while the month total and
+// the history files next to this trend count in local time.
 function dateKey(date) {
-  return date.toISOString().slice(0, 10);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function hitRate(read, creation, input) {
@@ -167,9 +171,17 @@ function percentile(values, p) {
  * we're diagnosing — if we let them into the baseline they'd drag the baseline
  * toward themselves and never register as anomalies.
  */
+// A session this short is a one-shot call, not a conversation: `claude -p`
+// from a script, a hook, a batch job. They are tiny and can outnumber real
+// sessions a hundred to one (measured: 1,924 of 1,941 sessions in 7 days were
+// single-request), which put the "normal" p95 at 51k tokens and reported an
+// ordinary 13M session as 252x p95. The baseline describes conversations, so
+// only conversations go into it.
+export const BASELINE_MIN_REQUESTS = 3;
+
 export function computeBaseline(sessions, recentWindowMs = 24 * 60 * 60 * 1000) {
   const cutoff = Date.now() - recentWindowMs;
-  const older = sessions.filter((s) => s.startTime && s.startTime.getTime() < cutoff && s.requestCount > 0);
+  const older = sessions.filter((s) => s.startTime && s.startTime.getTime() < cutoff && s.requestCount >= BASELINE_MIN_REQUESTS);
   if (older.length < 3) {
     return { enough: false, sampleSize: older.length };
   }
@@ -295,15 +307,18 @@ export function detectSpikes(sessions, { recentHours = 24, multiplier = 3 } = {}
       ? m.totalInput / baseline.p95TotalInput
       : null;
 
-    const isSpike =
-      (ratio !== null && ratio >= multiplier) ||
-      m.maxContextPerRequest > 250_000;
+    const byRatio = ratio !== null && ratio >= multiplier;
+    const isSpike = byRatio || m.maxContextPerRequest > 250_000;
 
     if (!isSpike) continue;
 
     spikes.push({
       metrics: m,
       ratio,
+      // Which of the two tests it met. A session listed for one large request
+      // alone has a ratio too, and printing that ratio ("0.1x p95") as the
+      // reason would name the test it did not meet.
+      byRatio,
       issues: diagnoseSession(m, baseline),
     });
   }

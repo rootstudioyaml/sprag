@@ -100,7 +100,7 @@ function renderSpikeSection(spikes, contextWindow) {
   }
   for (const spike of spikes) {
     const m = spike.metrics;
-    const ratioLabel = spike.ratio ? `${spike.ratio.toFixed(1)}× p95` : 'single-request > 250k';
+    const ratioLabel = spike.ratio && spike.byRatio !== false ? `${spike.ratio.toFixed(1)}× p95` : 'single-request > 250k';
     lines.push(
       r(`  • ${shortSessionId(m.sessionId)} [${m.projectDir || 'unknown'}]  `) +
         rb(`total input ${formatContextSize(m.totalInput)}`) +

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dailyTrend, ttlBreakdown, summary, detectContextWindow, CONTEXT_WARN_TOKENS } from '../src/stats.js';
+import { dailyTrend, ttlBreakdown, summary, detectContextWindow, detectSpikes, computeBaseline, BASELINE_MIN_REQUESTS, CONTEXT_WARN_TOKENS } from '../src/stats.js';
 import { chipForIssues, CHIP_TO_CODES } from '../src/advice.js';
 
 /** Minimal session shaped exactly like parseAllSessions returns. */
@@ -27,9 +27,10 @@ function session({ start, end = start, requestCount = 1, maxContext = 0, ...t })
 
 test('dailyTrend groups by start date and computes hit rate per day', () => {
   const trend = dailyTrend([
-    session({ start: '2026-07-01T01:00:00Z', input: 10, cacheCreation: 10, cacheRead: 80 }),
-    session({ start: '2026-07-01T23:00:00Z', input: 10, cacheCreation: 10, cacheRead: 80 }),
-    session({ start: '2026-07-02T01:00:00Z', input: 50, cacheCreation: 50, cacheRead: 0 }),
+    // No zone suffix: these are local times, and the trend is keyed by local day.
+    session({ start: '2026-07-01T01:00:00', input: 10, cacheCreation: 10, cacheRead: 80 }),
+    session({ start: '2026-07-01T23:00:00', input: 10, cacheCreation: 10, cacheRead: 80 }),
+    session({ start: '2026-07-02T01:00:00', input: 50, cacheCreation: 50, cacheRead: 0 }),
   ]);
   assert.equal(trend.length, 2);
   assert.deepEqual(trend.map((d) => d.date), ['2026-07-01', '2026-07-02'], 'sorted ascending');
@@ -115,4 +116,55 @@ test('the context warning fires at 500k, not at the 1M window label', () => {
 test('the 500k chip and its legacy 200k spelling both resolve to advice', () => {
   assert.deepEqual(CHIP_TO_CODES['⚠ Ctx 500k+'], ['LARGE_INPUT_PER_REQUEST']);
   assert.deepEqual(CHIP_TO_CODES['⚠ Ctx 200k+'], ['LARGE_INPUT_PER_REQUEST']);
+});
+
+test('the trend is keyed by the local day, like the month total beside it', () => {
+  // Half past midnight local time is "today" for the reader in every zone.
+  // Keyed by the UTC day, the same session fell on the previous date anywhere
+  // east of Greenwich.
+  const start = new Date(2026, 6, 15, 0, 30);
+  const [day] = dailyTrend([session({ start, input: 10 })]);
+  assert.equal(day.date, '2026-07-15');
+  const late = new Date(2026, 6, 15, 23, 30);
+  assert.equal(dailyTrend([session({ start: late, input: 10 })])[0].date, '2026-07-15');
+});
+
+test('one-shot calls stay out of the spike baseline', () => {
+  const day = 24 * 3600 * 1000;
+  const now = Date.now();
+  // What a week looks like with scripted `claude -p` calls in it: hundreds of
+  // single-request sessions of ~45k tokens beside a few real conversations.
+  const oneShots = Array.from({ length: 300 }, (_, i) =>
+    session({ start: now - 3 * day - i * 1000, requestCount: 1, cacheRead: 45_000 }));
+  const conversations = [8_000_000, 12_000_000, 20_000_000, 30_000_000].map((cacheRead, i) =>
+    session({ start: now - (2 + i) * day, requestCount: 60, cacheRead }));
+  const today = session({ start: now - 3600 * 1000, requestCount: 62, cacheRead: 13_000_000 });
+
+  const baseline = computeBaseline([...oneShots, ...conversations, today]);
+  assert.equal(baseline.sampleSize, conversations.length);
+  assert.equal(baseline.p95TotalInput, 30_000_000);
+  assert.equal(baseline.medianRequestCount, 60);
+  // An ordinary 13M session is not a spike against conversations. Against the
+  // one-shot calls it was hundreds of times the "p95".
+  assert.deepEqual(detectSpikes([...oneShots, ...conversations, today]).spikes, []);
+
+  // With only one-shot calls behind it there is no baseline to compare with.
+  assert.equal(computeBaseline([...oneShots, today]).enough, false);
+  assert.equal(BASELINE_MIN_REQUESTS, 3);
+});
+
+test('a session listed for one large request is not labelled with a p95 ratio', async () => {
+  const { formatReport } = await import('../src/formatters/table.js');
+  const { buildTableDemoData } = await import('../src/demo.js');
+  const day = 24 * 3600 * 1000;
+  const now = Date.now();
+  const conversations = [80_000_000, 90_000_000, 100_000_000, 110_000_000].map((cacheRead, i) =>
+    session({ start: now - (2 + i) * day, requestCount: 60, cacheRead }));
+  const today = session({ start: now - 3600 * 1000, requestCount: 62, cacheRead: 15_000_000, maxContext: 300_000 });
+  const report = detectSpikes([...conversations, today]);
+  assert.equal(report.spikes.length, 1);
+  assert.equal(report.spikes[0].byRatio, false);
+  const out = formatReport({ ...buildTableDemoData({ version: '0.0.0' }), spikeReport: report }, { color: false });
+  assert.match(out, /single-request > 250k, 62 requests/);
+  assert.doesNotMatch(out, /0\.\d× p95/);
 });
