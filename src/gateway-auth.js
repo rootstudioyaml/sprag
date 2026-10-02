@@ -21,7 +21,7 @@
 
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { debug } from './debug.js';
 
@@ -41,6 +41,29 @@ export function gatewayBase(env = process.env) {
 }
 
 /**
+ * Claude Code 가 신뢰 확인을 받아 둔 폴더인지 판정합니다. 기록은
+ * ~/.claude.json 의 projects[<절대 경로>].hasTrustDialogAccepted 에 있고, 상위
+ * 폴더를 신뢰했으면 하위 폴더에도 적용됩니다. 기록을 읽지 못하면 신뢰하지 않은
+ * 것으로 봅니다.
+ */
+export function isTrustedProject(cwd = process.cwd(), { home = homedir() } = {}) {
+  let projects;
+  try {
+    projects = JSON.parse(readFileSync(join(home, '.claude.json'), 'utf8'))?.projects;
+  } catch {
+    return false;
+  }
+  if (!projects || typeof projects !== 'object') return false;
+  let dir = resolve(cwd);
+  for (;;) {
+    if (projects[dir]?.hasTrustDialogAccepted === true) return true;
+    const parent = dirname(dir);
+    if (parent === dir) return false;
+    dir = parent;
+  }
+}
+
+/**
  * Claude Code 와 같은 방식으로 apiKeyHelper 를 실행해 토큰을 얻습니다.
  * 환경변수에 토큰을 두지 않고 헬퍼 스크립트로 매번 발급받는 구성이 공식 인증
  * 방식 가운데 하나이며, 그 구성에서는 statusline 자식 프로세스의 process.env
@@ -50,9 +73,14 @@ export function gatewayBase(env = process.env) {
  * 부릅니다. 수 초 간격으로 도는 렌더 경로에서 부르면 통계선이 그만큼 느려집니다.
  */
 export function keyFromApiKeyHelper(cwd = process.cwd()) {
+  // 프로젝트 설정의 헬퍼는 그 저장소가 넣어 둔 셸 명령입니다. Claude Code 는 신뢰
+  // 확인을 거친 폴더에서만 그것을 실행하므로, 같은 기록을 보고 같은 조건으로만
+  // 실행합니다. 그러지 않으면 내려받은 저장소 안에서 이 CLI 를 돌리는 것만으로
+  // 그 저장소의 명령이 실행됩니다.
   const candidates = [
-    join(cwd, '.claude', 'settings.local.json'),
-    join(cwd, '.claude', 'settings.json'),
+    ...(isTrustedProject(cwd)
+      ? [join(cwd, '.claude', 'settings.local.json'), join(cwd, '.claude', 'settings.json')]
+      : []),
     join(homedir(), '.claude', 'settings.json'),
   ];
   for (const p of candidates) {

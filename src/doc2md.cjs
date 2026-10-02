@@ -999,15 +999,22 @@ function decideForWrite(context, opts = {}) {
   return null;
 }
 
-/** The decision rendered as the JSON Claude Code expects on stdout. */
+/**
+ * The decision rendered as the JSON Claude Code expects on stdout.
+ *
+ * Only a refusal answers the permission question. A note about a document
+ * that could not be converted says nothing about whether the read should be
+ * allowed, and answering `allow` for it approved the call without the prompt
+ * the user would otherwise have seen, sensitive-pattern files included. The
+ * note goes out as context instead, which is also the only form that reaches
+ * the model: an `allow` reason is shown to the user alone.
+ */
 function formatHookOutput(decision) {
   if (!decision) return null;
   return JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'PreToolUse',
-      permissionDecision: decision.deny ? 'deny' : 'allow',
-      permissionDecisionReason: decision.reason,
-    },
+    hookSpecificOutput: decision.deny
+      ? { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: decision.reason }
+      : { hookEventName: 'PreToolUse', additionalContext: decision.reason },
   });
 }
 
