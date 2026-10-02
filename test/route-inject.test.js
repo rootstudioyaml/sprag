@@ -255,3 +255,51 @@ test('the brief hook hands the session cwd to the hint, so a project agent is na
   assert.match(bare, /기본 model: haiku/, 'the hint is still injected');
   assert.doesNotMatch(bare, /haiku-explore/, 'and nothing in the hook process cwd may name an agent');
 });
+
+// ── 2026-10-01 review: hints on requests that were not light work ────────
+
+test('reviews, security checks and root-cause asks stay on the top tier even when phrased as a check', () => {
+  for (const text of [
+    '보안 취약점 있는지 확인해줘',
+    '결제 로직 버그 원인 확인해줘',
+    '전체 코드 리뷰해서 개선점 확인해줘',
+    'yaml-sns-agent 프로젝트 개선점 있을지 확인해보자',
+    '네이버는 검색이 안 되는데 원인파악해보자',
+    'readme 내용 전체 검수 해보고 정리해줘',
+    'do a security review of the auth module and check it',
+    'find the root cause of the failing check',
+  ]) {
+    assert.equal(hint(text), null, `should stay quiet: ${text}`);
+  }
+  // The bare nouns are product words in ordinary status checks and still route.
+  assert.match(hint('리뷰 허브 데일리 배치 잘 돌고 있는지 확인'), /상태 확인/);
+  assert.match(hint('보안 인증서 만료일이 언제인지 확인해줘'), /상태 확인/);
+  assert.equal(ESCALATE_RE.test('리뷰 허브 배치 확인'), false);
+});
+
+test('an English keyword matches as a word, not inside a longer one', () => {
+  const all = ['check', 'run', 'read', 'explore'].map((category) => ({ category, tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } }));
+  const category = (text) => (hint(text, { rules: all }) || '').match(/위임 룰 "([^"]+)"/)?.[1] ?? null;
+  // Each of these used to be filed under run, explore or check by a substring.
+  assert.equal(category('pipeline 구조를 설명해줘'), '읽기·요약·설명');
+  assert.equal(category('pushover 알림 설정을 알려줘'), '읽기·요약·설명');
+  assert.equal(category('commitment 문구를 요약해줘'), '읽기·요약·설명');
+  assert.equal(category('findings 문서를 요약해줘'), '읽기·요약·설명');
+  assert.equal(category('statusline 이 뭐야? 알려줘'), '읽기·요약·설명');
+  // The words themselves still classify, also right before a Hangul particle.
+  assert.equal(category('npm test 돌려서 결과 보여줘'), '명령 실행 (빌드·테스트·git)');
+  assert.equal(category('git log 로 최근 커밋 보여줘'), '명령 실행 (빌드·테스트·git)');
+  assert.equal(category('status가 어떤지 check해줘'), '상태 확인·검증');
+  // Mentioning a tool is not asking to run it.
+  assert.equal(category('npm, github 쪽 문구도 같이 알려줘'), '읽기·요약·설명');
+});
+
+test('a rule registered for T1 alone points at sonnet, not at the haiku default', () => {
+  const t1Only = [{ category: 'check', tier: 'T1', agent: 'sonnet', budget: { calls: null, out: 8000 } }];
+  const ko = hint('배치가 잘 돌고 있는지 확인해줘', { rules: t1Only });
+  assert.match(ko, /model: sonnet 로 위임/);
+  assert.doesNotMatch(ko, /haiku/);
+  const en = hint('배치가 잘 돌고 있는지 확인해줘', { rules: t1Only, lang: 'en' });
+  assert.match(en, /a model: sonnet subagent/);
+  assert.doesNotMatch(en, /haiku/);
+});
