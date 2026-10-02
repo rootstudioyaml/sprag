@@ -159,6 +159,12 @@ export function formatBudgetReport(state, now = new Date(), mode = 'icon') {
   return lines;
 }
 
+/** 갱신을 시도했다는 기록입니다. 같은 게이트웨이의 금액만 이어받습니다. */
+export function stampAttempt(state, base, now) {
+  const kept = state && state.base === base ? state : {};
+  return { ...kept, base, checkedAt: now };
+}
+
 /** 캐시가 오래됐으면 detached 자식으로 갱신을 예약합니다. 즉시 반환. */
 export function maybeSpawnBudgetCheck(env = process.env) {
   // 키 확보는 자식이 담당합니다. 렌더 경로에서 헬퍼를 돌리면 통계선이 느려집니다.
@@ -168,8 +174,11 @@ export function maybeSpawnBudgetCheck(env = process.env) {
   const age = Date.now() - (Number(s.checkedAt) || 0);
   if (s.base === base && age < CHECK_INTERVAL_MS) return false;
   // 오프라인/오류 시 렌더마다 자식을 다시 띄우지 않도록 시도 시각을 먼저 기록합니다.
+  // 게이트웨이가 바뀌었으면 이전 게이트웨이의 금액은 버립니다. 금액을 남긴 채
+  // base 만 새 주소로 바꾸면, budgetWindow 의 base 격리를 통과해 갱신이 끝날
+  // 때까지(오프라인이면 계속) 다른 프록시의 지출이 새 프록시의 게이지로 나옵니다.
   try {
-    writeBudgetState({ ...s, base, checkedAt: Date.now() });
+    writeBudgetState(stampAttempt(s, base, Date.now()));
   } catch (e) {
     debug('litellm-budget:stamp', e);
     return false;
