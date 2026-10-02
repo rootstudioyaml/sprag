@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { childEnv } from './helpers/child-env.js';
 
 // parser.js and session-cache.js resolve their directories when they load, so
 // the sandbox has to be in the environment before the imports below.
@@ -21,8 +22,6 @@ const rules = await import('../src/model-rules.js');
 const { monthSpend } = await import('../src/month-spend.js');
 const { estimateCost } = await import('../src/cost.js');
 
-// A statusline child spawned below can still be writing its cache when the
-// suite ends, and a plain recursive remove then fails with ENOTEMPTY.
 after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const HOUR = 3600 * 1000;
@@ -165,7 +164,12 @@ test('the single-line statusline shows the ledger total, not the registry sum', 
   }));
   const cli = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
   for (const layout of [['--single-line'], []]) {
-    const run = spawnSync(process.execPath, [cli, '--statusline', '--no-color', ...layout], { input: '{}', encoding: 'utf8', env: process.env });
+    // CTS_NO_UPDATE_CHECK: the statusline otherwise leaves a detached child
+    // asking the registry for the latest version, and that child wrote its
+    // answer into the sandbox while the suite was removing it (ENOTEMPTY on a
+    // macOS CI job).
+    const env = childEnv({ HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(home, 'config'), CTS_NO_UPDATE_CHECK: '1' });
+    const run = spawnSync(process.execPath, [cli, '--statusline', '--no-color', ...layout], { input: '{}', encoding: 'utf8', env });
     assert.equal(run.status, 0, run.stderr);
     assert.match(run.stdout, /Routing saved \$12\.3/, run.stdout);
     assert.doesNotMatch(run.stdout, /987|988/, run.stdout);
