@@ -169,3 +169,41 @@ test('the single-line statusline shows the ledger total, not the registry sum', 
     assert.doesNotMatch(run.stdout, /987|988/, run.stdout);
   }
 });
+
+test('subagent runs are priced at their own model and added to cost, without becoming sessions', async () => {
+  const { sessionCostAcross } = await import('../src/claude-price.js');
+  const now = Date.now();
+  const since = now - 3 * HOUR;
+  const agentLine = (n, ts, model) => JSON.stringify({
+    requestId: `agent-r${n}`, timestamp: new Date(ts).toISOString(), sessionId: 'parent',
+    message: { id: `agent-m${n}`, model, usage: { input_tokens: 50000, output_tokens: 4000 } },
+  });
+  // The same session under two project folders, subagents and all.
+  for (const projectDir of ['-agents', '-agents-copy']) {
+    transcript(projectDir, 'parent', [usageLine('parent', 1, since - HOUR), usageLine('parent', 2, since + HOUR)]);
+    const dir = join(projects, projectDir, 'parent', 'subagents');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'agent-old.jsonl'), agentLine(1, since - HOUR, 'claude-haiku-4-5') + '\n');
+    writeFileSync(join(dir, 'agent-new.jsonl'), agentLine(2, since + HOUR, 'claude-sonnet-5') + '\n');
+    writeFileSync(join(dir, 'agent-new.meta.json'), '{}');
+  }
+  const cost = (totals, model) => estimateCost({ cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, ...totals }, model).actual;
+  const agentTotals = { input: 50000, output: 4000 };
+  const main = cost({ input: 2000, output: 200 }, 'claude-opus-5');
+  const haiku = cost(agentTotals, 'claude-haiku-4-5');
+  const sonnet = cost(agentTotals, 'claude-sonnet-5');
+  assert.ok(haiku > 0 && sonnet > haiku);
+
+  for (const noCache of [true, false, false]) {
+    const all = (await parser.parseAllSessions({ days: 1, sinceMs: since, noCache })).filter((s) => s.sessionId === 'parent');
+    assert.equal(all.length, 1, 'the subagent transcripts are not sessions of their own');
+    assert.equal(all[0].requestCount, 2, 'and their requests stay out of the session totals');
+    assert.deepEqual(all[0].subagentRuns.map((r) => r.model).sort(), ['claude-haiku-4-5', 'claude-sonnet-5']);
+    assert.ok(Math.abs(sessionCostAcross(all).actual - (main + haiku + sonnet)) < 0.011);
+
+    // This month: the request and the run that happened after the month began.
+    const month = monthSpend(await parser.sessionsSince(all, since, { noCache }), new Date(since));
+    assert.ok(Math.abs(month.usd - (cost({ input: 1000, output: 100 }, 'claude-opus-5') + sonnet)) < 1e-9);
+    assert.equal(month.sessions, 1);
+  }
+});

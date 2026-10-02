@@ -284,6 +284,7 @@ export async function discoverSessionFiles(options = {}) {
       continue;
     }
 
+    const names = new Set(entries);
     for (const entry of entries) {
       if (!entry.endsWith('.jsonl')) continue;
       const fp = join(projPath, entry);
@@ -293,7 +294,15 @@ export async function discoverSessionFiles(options = {}) {
         if (s.mtimeMs >= cutoff) {
           // `size` pairs with `mtime` as the session-cache key — transcripts
           // are append-only, so the pair identifies a parse result exactly.
-          files.push({ path: fp, projectDir: projDir, mtime: s.mtimeMs, size: s.size });
+          const file = { path: fp, projectDir: projDir, mtime: s.mtimeMs, size: s.size };
+          // The listing already says whether the session has a folder of its
+          // own, so sessions without subagents cost no extra syscall.
+          const sessionDir = entry.slice(0, -'.jsonl'.length);
+          if (names.has(sessionDir)) {
+            const subagentFiles = await listSubagentFiles(join(projPath, sessionDir), projDir, cutoff);
+            if (subagentFiles.length) file.subagentFiles = subagentFiles;
+          }
+          files.push(file);
         }
       } catch {
         continue;
@@ -302,6 +311,33 @@ export async function discoverSessionFiles(options = {}) {
   }
 
   return dedupeSessionFiles(files).sort((a, b) => a.mtime - b.mtime);
+}
+
+/**
+ * Transcripts of the subagents a session spawned:
+ * `<session id>/subagents/agent-*.jsonl`. Their requests are billed like any
+ * other and appear nowhere in the session's own transcript.
+ */
+async function listSubagentFiles(sessionDir, projectDir, cutoff) {
+  const dir = join(sessionDir, 'subagents');
+  let entries;
+  try {
+    entries = await readdir(dir);
+  } catch {
+    return [];
+  }
+  const files = [];
+  for (const entry of entries) {
+    if (!entry.startsWith('agent-') || !entry.endsWith('.jsonl')) continue;
+    try {
+      const fp = join(dir, entry);
+      const s = await stat(fp);
+      if (s.mtimeMs >= cutoff) files.push({ path: fp, projectDir, mtime: s.mtimeMs, size: s.size });
+    } catch {
+      continue;
+    }
+  }
+  return files;
 }
 
 /**
@@ -412,31 +448,13 @@ export async function parseAllSessions(options = {}) {
     const parsed = await Promise.all(
       batch.map(async (f) => {
         try {
-          if (useCache) {
-            const hit = getCached(cache, f);
-            if (hit) {
-              if (!spansCutoff(hit, cutoffMs)) {
-                const since = sinceMs !== null && spansCutoff(hit, sinceMs) ? getCachedSince(cache, f, sinceMs) : null;
-                if (since) hit.sinceTrim = { since: sinceMs, session: since };
-                return hit;
-              }
-              // Boundary session from cache: the cached summary has no
-              // per-request data, so re-read the file to trim it.
-              const full = await parseSessionFile(f.path);
-              full.projectDir = f.projectDir;
-              return withSinceTrim(trimToCutoff(full, cutoffMs), full, sinceMs);
-            }
+          const summary = await parseOne(f);
+          const runs = await subagentRuns(f);
+          if (runs.length) summary.subagentRuns = runs;
+          if (summary.sinceTrim) {
+            const since = runs.filter((r) => r.endTime.getTime() >= sinceMs);
+            if (since.length) summary.sinceTrim.session.subagentRuns = since;
           }
-          const session = await parseSessionFile(f.path);
-          session.projectDir = f.projectDir;
-          if (useCache) {
-            putCached(cache, f, session);
-            misses++;
-          }
-          const { requests, ...whole } = session;
-          const summary = spansCutoff(session, cutoffMs) ? trimToCutoff(session, cutoffMs) : whole;
-          withSinceTrim(summary, session, sinceMs);
-          if (useCache && summary.sinceTrim) putCachedSince(cache, f, sinceMs, summary.sinceTrim.session);
           return summary;
         } catch {
           return null;
@@ -449,6 +467,63 @@ export async function parseAllSessions(options = {}) {
   if (useCache && misses > 0) saveCache(cache);
 
   return results.filter((s) => s.requestCount > 0);
+
+  /**
+   * What a session's subagents spent, one entry per run with its own model so
+   * each is priced at its own rate. They ride on the session instead of being
+   * sessions themselves: the money counts, while the session count, context
+   * peaks and spike baselines keep describing conversations. A run is counted
+   * whole in the period it ended in; it lasts minutes, so it is not trimmed.
+   */
+  async function subagentRuns(f) {
+    const runs = [];
+    for (const a of f.subagentFiles || []) {
+      try {
+        let run = useCache ? getCached(cache, a) : null;
+        if (!run) {
+          run = await parseSessionFile(a.path);
+          if (useCache) {
+            putCached(cache, a, run);
+            misses++;
+          }
+        }
+        if (!run.requestCount || !run.endTime || run.endTime.getTime() < cutoffMs) continue;
+        runs.push({ model: run.model, totals: run.totals, requestCount: run.requestCount, endTime: run.endTime });
+      } catch {
+        continue;
+      }
+    }
+    return runs;
+  }
+
+  async function parseOne(f) {
+    if (useCache) {
+      const hit = getCached(cache, f);
+      if (hit) {
+        if (!spansCutoff(hit, cutoffMs)) {
+          const since = sinceMs !== null && spansCutoff(hit, sinceMs) ? getCachedSince(cache, f, sinceMs) : null;
+          if (since) hit.sinceTrim = { since: sinceMs, session: since };
+          return hit;
+        }
+        // Boundary session from cache: the cached summary has no
+        // per-request data, so re-read the file to trim it.
+        const full = await parseSessionFile(f.path);
+        full.projectDir = f.projectDir;
+        return withSinceTrim(trimToCutoff(full, cutoffMs), full, sinceMs);
+      }
+    }
+    const session = await parseSessionFile(f.path);
+    session.projectDir = f.projectDir;
+    if (useCache) {
+      putCached(cache, f, session);
+      misses++;
+    }
+    const { requests, ...whole } = session;
+    const summary = spansCutoff(session, cutoffMs) ? trimToCutoff(session, cutoffMs) : whole;
+    withSinceTrim(summary, session, sinceMs);
+    if (useCache && summary.sinceTrim) putCachedSince(cache, f, sinceMs, summary.sinceTrim.session);
+    return summary;
+  }
 }
 
 /**
@@ -487,6 +562,8 @@ export async function sessionsSince(sessions, sinceMs, { noCache = false } = {})
         trimmed = trimToCutoff(full, sinceMs);
         if (!noCache && putCachedSince(cache, file, sinceMs, trimmed)) stored++;
       }
+      const runs = (s.subagentRuns || []).filter((r) => r.endTime.getTime() >= sinceMs);
+      if (runs.length) trimmed.subagentRuns = runs;
       if (trimmed.requestCount > 0) out.push(trimmed);
     } catch {
       // Unreadable now (deleted or rotated since the scan): leave it out rather

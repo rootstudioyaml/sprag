@@ -16,10 +16,19 @@ export function sessionCost(totals, model, { env = process.env, now } = {}) {
   return price ? estimateCost(totals, model, { price }) : null;
 }
 
-/** Like estimateCostAcross, plus how many sessions had no price and were left out. */
+/**
+ * What a session's cost is made of: the session itself and each subagent run
+ * it spawned (parser.js attaches them as `subagentRuns`). A run has its own
+ * model, so it is priced on its own instead of at the session's rate.
+ */
+export function pricedParts(session) {
+  return session ? [session, ...(session.subagentRuns || [])] : [];
+}
+
+/** Like estimateCostAcross, plus how many sessions or subagent runs had no price and were left out. */
 export function sessionCostAcross(sessions, opts = {}) {
   let unpriced = 0;
-  const total = estimateCostAcross(sessions, (totals, model) => {
+  const total = estimateCostAcross((sessions || []).flatMap(pricedParts), (totals, model) => {
     const c = sessionCost(totals, model, opts);
     if (!c) unpriced++;
     return c;
