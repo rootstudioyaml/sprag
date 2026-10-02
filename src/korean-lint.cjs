@@ -73,8 +73,21 @@ const METAPHOR_LEXICON = [
   // `자리` is the single most common substitution for a plain noun. Physical
   // seating is the rare literal use, so those modifiers are excluded and
   // everything else is raised for confirmation.
-  { re: /(?<!빈 |좌석 |앞 |뒤 |옆 )(?:^|(?<=\s))자리(?:에서|에서는|에|로|가|는|다|입니다|였습니다)?(?=\s|$|[.,·)])/, fix: "'지점'·'상황'·'부분'처럼 뜻을 그대로 담은 명사로 바꿉니다" },
-  { re: /[가-힣]+의\s*흐름/, fix: "'방향'·'순서'·'경과'로 바꿉니다" },
+  //
+  // `except` (2026-10-02): counting digits is the other literal use. `한 자리
+  // 밀리초`, `세 자리 수`, `소수점 둘째 자리`, `일의 자리` name a digit
+  // position, and no plainer noun exists for it. A count followed by a particle
+  // (`한 자리에서 돈다`) is still raised: that one means a place. Corpus check:
+  // 149 lines before, 147 after, and the two dropped were both `한 자리 밀리초`.
+  {
+    re: /(?<!빈 |좌석 |앞 |뒤 |옆 )(?:^|(?<=\s))자리(?:에서|에서는|에|로|가|는|다|입니다|였습니다)?(?=\s|$|[.,·)])/,
+    except: /(?:^|\s)(?:\d+|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|몇) 자리(?=\s|$)|(?:첫째|둘째|셋째|넷째|다섯째|[일십백천만]의) 자리|자리 ?(?:수|숫자)(?![가-힣]{2})/,
+    fix: "'지점'·'상황'·'부분'처럼 뜻을 그대로 담은 명사로 바꿉니다",
+  },
+  // The lookbehind pins the match to the start of a Hangul run. Without it the
+  // engine retried `[가-힣]+` from every character of a long run that has no
+  // `의 흐름` in it, which is quadratic: a 200k-character run took 20 seconds.
+  { re: /(?<![가-힣])[가-힣]+의\s*흐름/, fix: "'방향'·'순서'·'경과'로 바꿉니다" },
   { re: /닿(?:는다|습니다|아|는 지점)/, fix: "'겨냥하다'·'해당하다'처럼 동작을 그대로 서술합니다" },
   { re: /박(?:아 두|혀 있|아 넣)/, fix: "'명시하다'·'기록하다'로 바꿉니다" },
   { re: /걷어내/, fix: "'없애다'·'제거하다'로 바꿉니다" },
@@ -106,17 +119,24 @@ const METAPHOR_LEXICON = [
 const TRANSLATIONESE = [
   { re: /에 대한/, fix: '서술어로 풀어 씁니다' },
   { re: /[을를] 위한/, fix: '서술어로 풀어 씁니다' },
-  { re: /되어지/, fix: '이중 피동을 없애고 능동이나 단일 피동으로 씁니다' },
+  // Every conjugation, not the stem alone: `되어졌다`, `되어진`, `되어질`.
+  { re: /되어[지진질져졌집]/, fix: '이중 피동을 없애고 능동이나 단일 피동으로 씁니다' },
   { re: /하는 것을 통해/, fix: "'~해서'·'~함으로써'로 줄입니다" },
   { re: /라고 할 수 있다/, fix: '단정하거나 근거를 붙여 서술합니다' },
   // Conservative additions (2026-09-13), sourced from 국립국어원 공공언어
   // 지침·한글문화연대 교정 사례·쿠버네티스 한글화 가이드. Bar for inclusion:
   // the form is nearly always an improvement to change, so a confirm-request
   // on it is rarely noise. See presets/korean-style/supplement.md.
-  { re: /(?:보여|쓰여|불려|잊혀)[지집진질져]/, fix: "이중 피동입니다. '보인다'·'쓰인'·'불린'·'잊힌'처럼 단일 피동으로 씁니다" },
+  // `졌` is the past tense (`보여졌다`, `쓰여졌습니다`), which the first list missed.
+  { re: /(?:보여|쓰여|불려|잊혀)[지집진질져졌]/, fix: "이중 피동입니다. '보인다'·'쓰인'·'불린'·'잊힌'처럼 단일 피동으로 씁니다" },
   { re: /에 다름 아니/, fix: "일본어 번역투입니다. '~일 뿐이다'·'바로 ~이다'로 바꿉니다" },
   { re: /지 않으면 안 [되된됩돼]/, fix: "이중 부정 번역투입니다. '~해야 합니다'로 바꿉니다" },
-  { re: /(?<!여기|거기|저기|어디)에 있어서/, fix: "'~에서'·'~에는'으로 바꿉니다" },
+  // `X에 있어서` also means "because it is at X", which is plain Korean. Two
+  // signs separate that reading without touching the calque: a noun that names
+  // a location or a container before it, or the clause ending right after it
+  // (the calque is never clause-final). Corpus check: 4 hits before, 3 after,
+  // the dropped one a quotation ending in `베드락에 있어서`.
+  { re: /(?<!여기|거기|저기|어디|(?:^|\s)(?:안|밖|위|아래|옆|앞|뒤|속)|서버|폴더|디렉터리|디렉토리|경로|파일|목록|메모리|디스크|저장소|캐시|변수|로컬|원격)에 있어서(?!요|["'”’)\]]|[.!?]|$)/, fix: "'~에서'·'~에는'으로 바꿉니다" },
   { re: /(?:의미|특징|장점|단점|성격|가능성|중요성|효과)[을를] 가지고 있/, fix: "'~이다'·'~가 있다'로 바꿉니다 (have 직역)" },
 ];
 
@@ -201,6 +221,19 @@ function stripCode(text) {
   return out;
 }
 
+/**
+ * First match of `re` whose surroundings are not one of the literal uses in
+ * `except`. Every match is tried, so a literal use early in the line does not
+ * hide a figurative one after it.
+ */
+function firstUnexcepted(line, re, except) {
+  for (const m of line.matchAll(new RegExp(re.source, 'g'))) {
+    const around = line.slice(Math.max(0, m.index - 8), m.index + m[0].length + 4);
+    if (!except.test(around)) return m;
+  }
+  return null;
+}
+
 function hasKorean(s) {
   return /[가-힣]/.test(s);
 }
@@ -243,8 +276,8 @@ function lintKoreanText(text, { maxFindings = 20, code = false } = {}) {
       if (m) push('번역체', m[0], fix);
     }
 
-    for (const { re, fix } of METAPHOR_LEXICON) {
-      const m = line.match(re);
+    for (const { re, except, fix } of METAPHOR_LEXICON) {
+      const m = except ? firstUnexcepted(line, re, except) : line.match(re);
       if (m) push('비유 어휘', m[0], fix);
     }
 

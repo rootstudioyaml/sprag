@@ -263,3 +263,46 @@ test('opt-out marker exempts a file that must quote the banned forms', () => {
   assert.equal(lint.lintKoreanText('# korean-lint: off\n' + banned).length, 0);
   assert.equal(lint.lintKoreanText('<!-- korean-lint: ignore-file -->\n' + banned).length, 0);
 });
+
+/**
+ * 2026-10-01 review (E5): misses in the past tense, two literal readings the
+ * rules raised anyway, and a rule that went quadratic on a long Hangul run.
+ */
+const rules = (text, rule) => lint.lintKoreanText(text).filter((f) => f.rule === rule);
+
+test('past-tense double passives are caught', () => {
+  for (const text of ['값이 화면에 보여졌다', '그렇게 쓰여졌습니다', '결정이 되어졌다', '이미 되어진 결과입니다', '오래 잊혀졌던 이름입니다']) {
+    assert.equal(rules(text, '번역체').length, 1, `should flag: ${text}`);
+  }
+  for (const text of ['값을 보여 줬다', '준비가 되어 있습니다', '벽에 쓰여 있다']) {
+    assert.deepEqual(rules(text, '번역체'), [], `should not flag: ${text}`);
+  }
+});
+
+test('a digit position is not a figurative 자리', () => {
+  for (const text of ['콜드스타트는 한 자리 밀리초입니다', '세 자리 수로 늘었습니다', '소수점 둘째 자리에서 반올림합니다', '일의 자리가 0입니다']) {
+    assert.deepEqual(rules(text, '비유 어휘'), [], `should not flag: ${text}`);
+  }
+  // A count with a particle means a place, and a literal use earlier in the
+  // line must not hide a figurative one after it.
+  for (const text of ['작업이 전부 한 자리에서 돌아갑니다', '이 결정은 정책이 갈리는 자리입니다', '세 자리 수를 정하는 자리입니다']) {
+    assert.equal(rules(text, '비유 어휘').length >= 1, true, `should flag: ${text}`);
+  }
+});
+
+test('"located at" is not the 에 있어서 calque', () => {
+  for (const text of ['설정 파일이 서버에 있어서 접근할 수 없습니다', '키가 환경 변수에 있어서 따로 읽습니다', '기업이 고른 이유는 베드락에 있어서.', '창이 위에 있어서 가려집니다']) {
+    assert.deepEqual(rules(text, '번역체'), [], `should not flag: ${text}`);
+  }
+  for (const text of ['모든 분야에 있어서 기준이 필요합니다', '그 지위에 있어서 책임이 따릅니다']) {
+    assert.equal(rules(text, '번역체').length, 1, `should flag: ${text}`);
+  }
+});
+
+test('the 흐름 rule is linear on a long Hangul run', () => {
+  const long = '가'.repeat(200_000);
+  const t = Date.now();
+  assert.deepEqual(rules(long, '비유 어휘'), []);
+  assert.ok(Date.now() - t < 2_000, 'a 200k-character run must not take seconds');
+  assert.equal(rules('분석의 흐름을 정리합니다', '비유 어휘')[0].hit, '분석의 흐름');
+});
