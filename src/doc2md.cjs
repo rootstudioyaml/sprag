@@ -307,13 +307,19 @@ function managedPython() {
     : path.join(dir, 'bin', 'python');
 }
 
-const MARKITDOWN_SPEC = 'markitdown[pptx,pdf,xlsx,docx]';
+// Each spec carries an upper bound at the next major line. An open spec takes
+// whatever is newest on the day someone first opens a document, so a breaking
+// release (or a bad one) would reach every new machine with nothing in this
+// repository having changed. The bounds are the lines verified here:
+// markitdown 0.1.7, python-pptx 1.0.2, python-docx 1.2.0, openpyxl 3.1.5.
+// pip gets them as plain argv, with no shell in between, so `<` is safe.
+const MARKITDOWN_SPEC = 'markitdown[pptx,pdf,xlsx,docx]>=0.1,<0.2';
 
 // Editing libraries, installed alongside the converter. Reading is doc2md's
 // own job; editing is the agent's, done per-request with a short script
 // against a COPY of the document. These are the libraries those scripts need,
 // pre-installed so "swap the chart on slide 23" does not stall on pip.
-const EDIT_LIBS = ['python-pptx', 'python-docx', 'openpyxl'];
+const EDIT_LIBS = ['python-pptx>=1.0,<2', 'python-docx>=1.1,<2', 'openpyxl>=3.1,<4'];
 
 /**
  * Build the managed venv and install markitdown into it.
@@ -1023,6 +1029,7 @@ module.exports = {
   MAX_SOURCE_BYTES,
   INSTALL_HINT,
   MARKITDOWN_SPEC,
+  EDIT_LIBS,
   managedPython,
   installConverter,
   ensureConverterInstalled,

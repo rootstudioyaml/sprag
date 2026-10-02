@@ -10,7 +10,7 @@
   "scripts": {
     "deploy": "node scripts/deploy.mjs",
     "docs:statusline": "node scripts/docs-statusline.mjs",
-    "postinstall": "node bin/cli.js install || true",
+    "postinstall": "node bin/postinstall.js || true",
     "publish:legacy": "node scripts/publish-legacy.mjs",
     "release:notes": "node scripts/release-notes.mjs",
     "site:docs": "node scripts/build-site-docs.mjs",

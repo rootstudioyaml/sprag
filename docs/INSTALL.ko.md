@@ -43,6 +43,8 @@ npm i -g sprag-cli
 
 설치 한 번으로 **statusline과 Skill, SessionStart 훅, 🅷 Harness(5원칙), 최초 route-scan이** 모두 준비됩니다. Harness와 한국어 문체 지침은 **무엇이 추가되는지 보여 준 뒤 켤지 물어봅니다.** Harness는 `~/.claude/CLAUDE.md`에 표시가 붙은 블록으로 **추가되며**, 기존에 작성해 둔 내용은 백업한 뒤 그대로 보존합니다. 이미 설정되어 있는 경우에는 아무것도 바꾸지 않습니다.
 
+npm의 `postinstall`은 전역 npm 설치일 때만 설정을 실행합니다. 프로젝트 의존성으로 설치한 경우와 `npx` 캐시, `CI`가 설정된 환경에서는 건너뛰고 그 사실을 한 줄로 알립니다. 훅이 `sprag` 명령을 이름으로 호출하는데, 이런 설치는 `sprag`를 PATH에 올리지 않기 때문입니다. `SPRAG_POSTINSTALL=1`은 설정을 강제로 실행하고 `SPRAG_POSTINSTALL=0`은 건너뜁니다. 어느 경우든 `sprag install`을 직접 실행하면 같은 설정이 적용됩니다.
+
 터미널이 아닌 환경(npm의 `postinstall`, CI, 파이프 입력)에서는 질문을 건너뛰고 기존 기본값을 적용합니다. 질문 없이 진행하려면 `--yes`나 `--no-input`, 아예 건너뛰려면 `CTS_NO_HARNESS=1 npm i -g sprag-cli`를 쓰십시오. 이미 적용한 설정을 되돌리려면 `sprag harness uninit --global`을 실행하십시오.
 
 > ⚠️ sudo로 글로벌 설치를 하면 Skill이 사용자 계정이 아니라 root의 `~/.claude`에 등록되는 함정이 있습니다. nvm이나 fnm, Volta를 사용해 사용자 영역에 설치하기를 권장합니다.

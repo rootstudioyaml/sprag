@@ -32,6 +32,11 @@ const { spawnSync } = require('node:child_process');
 // cmd.exe, where `^` is the escape character and would be eaten before npm
 // ever saw it. The range is the same one caret means for a 0.x package.
 const FIG_PARSER_SPEC = 'openfig-core@0.4.x';
+// `--ignore-scripts`: the parser and its three dependencies are plain
+// JavaScript and ship no install script, so nothing is lost, and a release of
+// any of them that adds one cannot run code on the machine of someone who only
+// opened a .fig file.
+const FIG_INSTALL_ARGS = ['install', '--no-audit', '--no-fund', '--silent', '--ignore-scripts', FIG_PARSER_SPEC];
 
 /** Where the on-demand parser install lives, under the tool's state dir. */
 function managedFigDir(userDataDir) {
@@ -63,7 +68,7 @@ function installFigParser(userDataDir, { onProgress = () => {} } = {}) {
   // needs the shell. Elsewhere the shell is avoided, since the package spec
   // would then go through shell quoting for no benefit.
   const isWindows = process.platform === 'win32';
-  const r = spawnSync(isWindows ? 'npm.cmd' : 'npm', ['install', '--no-audit', '--no-fund', '--silent', FIG_PARSER_SPEC], {
+  const r = spawnSync(isWindows ? 'npm.cmd' : 'npm', FIG_INSTALL_ARGS, {
     cwd: dir,
     encoding: 'utf8',
     timeout: 300_000,
@@ -184,6 +189,7 @@ async function convertFig(filePath, userDataDir) {
 
 module.exports = {
   FIG_PARSER_SPEC,
+  FIG_INSTALL_ARGS,
   managedFigDir,
   installFigParser,
   convertFig,
