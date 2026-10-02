@@ -238,3 +238,162 @@ test('F5: the spawn hook keeps the default target when the rule file is unreadab
     { cfg: { codex: { delegate: true, delegateTarget: { model: 'child-model' } } }, root: f.base, home: f.codex, dir: f.dir, record: () => {} });
   assert.equal(out.hookSpecificOutput.updatedInput.model, 'child-model');
 });
+
+// ── F4, F9: the harness block in AGENTS.md ─────────────────────────────────
+
+test('F4: uninit removes the block from AGENTS.md after an override file took over', async (t) => {
+  const f = sandbox(t);
+  const { initCodexHarness, uninitCodexHarness, CODEX_BEGIN } = await import('../src/codex-harness.js');
+  const root = join(f.base, 'project');
+  mkdirSync(root, { recursive: true });
+  const agents = join(root, 'AGENTS.md');
+  writeFileSync(agents, '# Mine\n');
+  assert.equal(initCodexHarness({ root, scope: 'project' }).file, agents);
+  // The override becomes the file Codex reads; the block is still in AGENTS.md.
+  writeFileSync(join(root, 'AGENTS.override.md'), '# Override\n');
+  const out = uninitCodexHarness({ root, scope: 'project' });
+  assert.equal(out.removed, true);
+  assert.equal(out.file, agents);
+  assert.ok(!readFileSync(agents, 'utf8').includes(CODEX_BEGIN));
+  assert.equal(readFileSync(agents, 'utf8'), '# Mine\n');
+  assert.equal(readFileSync(join(root, 'AGENTS.override.md'), 'utf8'), '# Override\n', 'a file with no block is left alone');
+  assert.equal(uninitCodexHarness({ root, scope: 'project' }).removed, false);
+});
+
+test('F9: repeated init and uninit leave AGENTS.md byte-identical', async (t) => {
+  const f = sandbox(t);
+  const { initCodexHarness, uninitCodexHarness, codexHarnessBlock } = await import('../src/codex-harness.js');
+  const root = join(f.base, 'project');
+  mkdirSync(root, { recursive: true });
+  const agents = join(root, 'AGENTS.md');
+  for (const original of ['# Mine\n', '# Mine\n\n\n', '']) {
+    writeFileSync(agents, original);
+    for (let i = 0; i < 3; i++) {
+      initCodexHarness({ root, scope: 'project' });
+      const body = original.replace(/\n+$/, '');
+      assert.equal(readFileSync(agents, 'utf8'), (body ? `${body}\n\n` : '') + codexHarnessBlock(), `init #${i + 1} on ${JSON.stringify(original)}`);
+      uninitCodexHarness({ root, scope: 'project' });
+      assert.equal(readFileSync(agents, 'utf8'), body ? `${body}\n` : '', `uninit #${i + 1} on ${JSON.stringify(original)}`);
+    }
+  }
+  // Text after the block keeps one blank line between it and what came before.
+  writeFileSync(agents, `# Before\n\n${codexHarnessBlock()}\n# After\n`);
+  uninitCodexHarness({ root, scope: 'project' });
+  assert.equal(readFileSync(agents, 'utf8'), '# Before\n\n# After\n');
+});
+
+// ── F6 ─────────────────────────────────────────────────────────────────────
+
+test('F6: re-adding a rule with no provider replaces it instead of stacking a copy', async (t) => {
+  const f = sandbox(t);
+  const { addCodexModelRule, loadCodexModelRules } = await import('../src/codex-delegation.js');
+  const base = { category: 'explore', from: 'parent-model', model: 'child-model', scope: 'global' };
+  addCodexModelRule({ ...base, provider: null }, { dir: f.dir });
+  addCodexModelRule({ ...base, provider: null, effort: 'low' }, { dir: f.dir });
+  addCodexModelRule({ ...base }, { dir: f.dir });
+  assert.equal(loadCodexModelRules({ dir: f.dir }).length, 1);
+  addCodexModelRule({ ...base, provider: 'gateway-a' }, { dir: f.dir });
+  addCodexModelRule({ ...base, provider: 'gateway-a' }, { dir: f.dir });
+  assert.equal(loadCodexModelRules({ dir: f.dir }).length, 2, 'a provider-scoped rule is a different rule');
+});
+
+// ── F7 ─────────────────────────────────────────────────────────────────────
+
+const hinted = (dir, id, turnId, at = Date.now()) => recordCodexDelegation({ id, parentSessionId: 'parent', turnId, via: 'prompt',
+  source: 'rule', category: 'explore', scope: 'global', from: 'parent-model', to: 'child-model', at }, { dir });
+
+test('F7: a hint no child claimed is closed by the next prompt, so a later spawn is not credited to it', async (t) => {
+  const f = sandbox(t);
+  const { closeStaleCodexRoutes } = await import('../src/codex-ledger.js');
+  hinted(f.dir, 'a'.repeat(16), 'turn-1');
+  assert.equal(closeStaleCodexRoutes({ session_id: 'parent', turn_id: 'turn-1' }, { dir: f.dir }), 0, 'the hinted turn itself keeps its route');
+  assert.equal(closeStaleCodexRoutes({ session_id: 'someone-else', turn_id: 'turn-2' }, { dir: f.dir }), 0);
+  assert.equal(closeStaleCodexRoutes({ session_id: 'parent', turn_id: 'turn-2' }, { dir: f.dir }), 1);
+  assert.equal(closeStaleCodexRoutes({ session_id: 'parent', turn_id: 'turn-3' }, { dir: f.dir }), 0, 'closed once');
+  assert.equal(bindCodexSubagent({ session_id: 'parent', agent_id: 'unrelated-child', model: 'child-model' }, { dir: f.dir }), null);
+});
+
+test('F7: a claimed route is not closed, and a child in the hinted turn still binds', async (t) => {
+  const f = sandbox(t);
+  const { closeStaleCodexRoutes, readCodexBindings } = await import('../src/codex-ledger.js');
+  const id = 'b'.repeat(16);
+  hinted(f.dir, id, 'turn-1');
+  assert.equal(bindCodexSubagent({ session_id: 'parent', agent_id: 'child-1', model: 'child-model' }, { dir: f.dir }), id);
+  assert.equal(closeStaleCodexRoutes({ session_id: 'parent', turn_id: 'turn-2' }, { dir: f.dir }), 0);
+  assert.deepEqual(readCodexBindings({ dir: f.dir }).map((b) => b.childSessionId), ['child-1']);
+});
+
+test('F7: when both sides name a turn, a child from another turn does not bind', (t) => {
+  const f = sandbox(t);
+  const id = 'c'.repeat(16);
+  hinted(f.dir, id, 'turn-1');
+  assert.equal(bindCodexSubagent({ session_id: 'parent', agent_id: 'late-child', model: 'child-model', turn_id: 'turn-9' }, { dir: f.dir }), null);
+  assert.equal(bindCodexSubagent({ session_id: 'parent', agent_id: 'own-child', model: 'child-model', turn_id: 'turn-1' }, { dir: f.dir }), id);
+});
+
+// ── F8 ─────────────────────────────────────────────────────────────────────
+
+test('F8: a bound route counts as unsettled until the ledger holds its finished run', async (t) => {
+  const f = sandbox(t);
+  const { unsettledCodexRoutes } = await import('../src/codex-ledger.js');
+  const id = 'd'.repeat(16);
+  assert.equal(unsettledCodexRoutes({ dir: f.dir }), 0);
+  hinted(f.dir, id, 'turn-1');
+  assert.equal(unsettledCodexRoutes({ dir: f.dir }), 0, 'a hint alone spawned nothing');
+  bindCodexSubagent({ session_id: 'parent', agent_id: 'child-1', model: 'child-model' }, { dir: f.dir });
+  assert.equal(unsettledCodexRoutes({ dir: f.dir }), 1);
+  assert.equal(unsettledCodexRoutes({ dir: f.dir, now: Date.now() + 31 * 60000 }), 0, 'past the bind window it waits for the regular scan');
+  writeFileSync(join(f.dir, 'codex-delegation-ledger.json'), JSON.stringify({ version: 1, events: { [id]: { complete: false } } }));
+  assert.equal(unsettledCodexRoutes({ dir: f.dir }), 1, 'a child still running is not settled');
+  writeFileSync(join(f.dir, 'codex-delegation-ledger.json'), JSON.stringify({ version: 1, events: { [id]: { complete: true } } }));
+  assert.equal(unsettledCodexRoutes({ dir: f.dir }), 0);
+});
+
+test('F8: the prompt hook asks for a ledger refresh only while a delegated run is unpriced', async (t) => {
+  const f = sandbox(t);
+  const { codexHookOutput } = await import('../src/codex-hooks.js');
+  let refreshes = 0;
+  const prompt = (turn_id) => codexHookOutput('prompt', { prompt: 'hello there', session_id: 'parent', turn_id, model: 'parent-model', cwd: f.base },
+    { cfg: { codex: { delegate: true, doc2md: false, brief: false } }, refreshLedger: () => { refreshes++; } });
+  await prompt('turn-1');
+  assert.equal(refreshes, 0);
+  hinted(f.dir, 'e'.repeat(16), 'turn-1');
+  bindCodexSubagent({ session_id: 'parent', agent_id: 'child-1', model: 'child-model' }, { dir: f.dir });
+  await prompt('turn-2');
+  assert.equal(refreshes, 1);
+  writeFileSync(join(f.dir, 'codex-delegation-ledger.json'), JSON.stringify({ version: 1, events: { ['e'.repeat(16)]: { complete: true } } }));
+  await prompt('turn-3');
+  assert.equal(refreshes, 1);
+  // With delegation off the hook neither closes routes nor refreshes.
+  await codexHookOutput('prompt', { prompt: 'hello there', session_id: 'parent' }, { cfg: { codex: { doc2md: false, brief: false } }, refreshLedger: () => { refreshes++; } });
+  assert.equal(refreshes, 1);
+});
+
+test('F8: the detached refresh command prints nothing', (t) => {
+  const f = sandbox(t);
+  const env = childEnv({ HOME: join(f.base, 'home'), CODEX_HOME: f.codex, XDG_CONFIG_HOME: join(f.base, 'config') });
+  const run = spawnSync(process.execPath, [CLI, 'route-scan', 'savings', '--refresh', '--quiet', '--agent', 'codex'], { env, cwd: f.base, encoding: 'utf8', timeout: 15000 });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.stdout, '');
+});
+
+// ── F9: pinned panel ───────────────────────────────────────────────────────
+
+test('F9: a pinned panel finds its session by rollout name, and by content when the name does not help', async (t) => {
+  const f = sandbox(t);
+  const { createPanelReader } = await import('../src/codex-panel.js');
+  const sessions = join(f.codex, 'sessions');
+  const rollout = (name, id) => writeFileSync(join(sessions, name), jsonl([
+    { timestamp: new Date().toISOString(), type: 'session_meta', payload: { id, cwd: join(f.base, 'project') } },
+    { timestamp: new Date().toISOString(), type: 'event_msg', payload: { type: 'token_count', info: {
+      total_token_usage: { input_tokens: 100, cached_input_tokens: 0, output_tokens: 10 }, last_token_usage: { input_tokens: 100 }, model_context_window: 200000 } } },
+  ]));
+  rollout('rollout-2026-10-01T00-00-00-sess-named.jsonl', 'sess-named');
+  rollout('renamed.jsonl', 'sess-moved');
+  // Carries the pinned id in its name but holds another session.
+  rollout('rollout-sess-moved-decoy.jsonl', 'sess-decoy');
+  const pinned = async (sessionId) => (await createPanelReader({ home: f.codex, root: f.base, sessionId })()).session?.sessionId ?? null;
+  assert.equal(await pinned('sess-named'), 'sess-named');
+  assert.equal(await pinned('sess-moved'), 'sess-moved');
+  assert.equal(await pinned('sess-absent'), null);
+});

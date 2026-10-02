@@ -151,6 +151,8 @@ export async function run({ args, version }) {
     if (args[1] === 'savings') {
       const { refreshCodexLedger, loadCodexLedger, codexRoutingSavedTotals } = await import('../codex-ledger.js');
       if (hasFlag('--refresh')) await refreshCodexLedger();
+      // The prompt hook runs this detached to price finished delegations.
+      if (hasFlag('--quiet')) return;
       const events = Object.entries(loadCodexLedger().events).map(([id, e]) => ({ id, ...e })).sort((a, b) => b.ts - a.ts);
       const totals = codexRoutingSavedTotals();
       if (format === 'json') { console.log(JSON.stringify({ agent: 'codex', totals, events }, null, 2)); return; }

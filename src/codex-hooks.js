@@ -11,7 +11,7 @@ import { findProjectRoot } from './harness.js';
 import { runCodexBrief } from './codex-brief.js';
 import { codexDocumentTool, codexDocumentNote, convertCodexDocument } from './codex-doc2md.js';
 import { codexDelegationTool, codexRouteHint } from './codex-delegation.js';
-import { bindCodexSubagent } from './codex-ledger.js';
+import { bindCodexSubagent, closeStaleCodexRoutes, unsettledCodexRoutes } from './codex-ledger.js';
 import { seedOfferBlock } from './seed-rules.js';
 import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './codex-route-scan.js';
 import { userDataDir } from './paths.js';
@@ -120,6 +120,20 @@ function defaultRescan() {
     { detached: true, stdio: 'ignore', windowsHide: true }).unref();
 }
 
+/**
+ * Prices the delegated runs the ledger has not joined yet, in a detached
+ * process. The ledger was refreshed only by the route scan, which the rescan
+ * gate holds back for up to a day, so "Routing saved" showed a delegation that
+ * long after it happened. Claude's side has the same shortcut on its
+ * PostToolUse hook; Codex has no hook for a finished child, so the next prompt
+ * of the parent is the earliest point that knows one was spawned.
+ */
+function defaultLedgerRefresh() {
+  if (process.env.CTS_NO_ROUTE_SCAN === '1') return;
+  spawn(process.execPath, [process.argv[1], 'route-scan', 'savings', '--refresh', '--quiet', '--agent', 'codex'],
+    { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+}
+
 export function lintCodexTool(payload, { scope = 'all' } = {}) {
   if (!payload || typeof payload !== 'object') return null;
   const input = payload.tool_input;
@@ -148,7 +162,7 @@ export function lintCodexTool(payload, { scope = 'all' } = {}) {
   return messages.length ? messages.join('\n\n') : null;
 }
 
-export async function codexHookOutput(event, payload, { cfg = loadConfig() } = {}) {
+export async function codexHookOutput(event, payload, { cfg = loadConfig(), refreshLedger = defaultLedgerRefresh } = {}) {
   if (!payload || typeof payload !== 'object') return null;
   if (event === 'session-start' || event === 'subagent-start') {
     if (event === 'subagent-start' && cfg?.codex?.delegate !== true) return null;
@@ -193,6 +207,10 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig() } = {
   if (event === 'prompt') {
     const parts = [];
     if (cfg?.codex?.delegate === true) {
+      // Before the hint for this prompt is recorded: a hint from an earlier turn
+      // that no child claimed is closed, and children that did run get priced.
+      try { closeStaleCodexRoutes(payload); } catch (e) { debug('codex:close-routes', e); }
+      try { if (unsettledCodexRoutes() > 0) refreshLedger(); } catch (e) { debug('codex:ledger-refresh', e); }
       try {
         parts.push(codexRouteHint(payload, { root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }),
           minContext: Number.isFinite(cfg?.codex?.delegateMinContext) ? cfg.codex.delegateMinContext : undefined }));

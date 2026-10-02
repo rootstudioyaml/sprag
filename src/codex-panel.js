@@ -1,4 +1,4 @@
-import { resolve, relative, isAbsolute } from 'node:path';
+import { resolve, relative, isAbsolute, basename } from 'node:path';
 import { realpathSync, statSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { readPanelBinding } from './codex-panel-session.js';
@@ -66,29 +66,41 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
     files ??= sessionFile && !sessionId ? [] : await discoverCodexSessionFiles({ home, days: sessionId ? Infinity : days });
     const existing = new Set(files.map((f) => f.path));
     for (const path of cache.keys()) if (!existing.has(path)) cache.delete(path);
+    // A rollout is named after its session id. With an id to look for, the
+    // files carrying it are parsed first; without this the first frame of a
+    // pinned panel parsed every rollout Codex has ever written to find one
+    // session. The full search still runs when no file by that name holds the
+    // session (a renamed rollout).
+    const named = sessionId ? files.filter((f) => basename(f.path).includes(sessionId)) : [];
+    const passes = named.length && named.length < files.length ? [named, files] : [files];
     let selected = null;
     let matches = 0;
-    const seen = new Set();
     // Recent rollouts of the same project, for repeats across `codex exec` runs.
-    const recent = [];
-    for (const f of files.slice().reverse()) {
-      let entry = cache.get(f.path);
-      if (!entry || entry.mtime !== f.mtime || entry.size !== f.size) {
-        try {
-          entry = { ...f, session: await parseCodexSessionFile(f.path) };
-          cache.set(f.path, entry);
-        } catch { continue; }
+    let recent = [];
+    for (const pass of passes) {
+      if (selected) break;
+      matches = 0;
+      recent = [];
+      const seen = new Set();
+      for (const f of pass.slice().reverse()) {
+        let entry = cache.get(f.path);
+        if (!entry || entry.mtime !== f.mtime || entry.size !== f.size) {
+          try {
+            entry = { ...f, session: await parseCodexSessionFile(f.path) };
+            cache.set(f.path, entry);
+          } catch { continue; }
+        }
+        const s = entry.session;
+        if ((!sessionId || sessionFile) && s.isSubagent) continue;
+        if (sessionId ? s.sessionId !== sessionId : !insideProject(root, s.projectDir)) continue;
+        const key = s.sessionId || s.filePath;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        matches++;
+        if (!sessionId && Date.now() - f.mtime < RATCHET_SIBLING_MS) recent.push(s.filePath);
+        // Activity timestamps survive archive moves that update filesystem mtime.
+        if (!selected || (s.lastActivity?.getTime() || 0) > (selected.lastActivity?.getTime() || 0)) selected = s;
       }
-      const s = entry.session;
-      if ((!sessionId || sessionFile) && s.isSubagent) continue;
-      if (sessionId ? s.sessionId !== sessionId : !insideProject(root, s.projectDir)) continue;
-      const key = s.sessionId || s.filePath;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      matches++;
-      if (!sessionId && Date.now() - f.mtime < RATCHET_SIBLING_MS) recent.push(s.filePath);
-      // Activity timestamps survive archive moves that update filesystem mtime.
-      if (!selected || (s.lastActivity?.getTime() || 0) > (selected.lastActivity?.getTime() || 0)) selected = s;
     }
     const project = selected?.projectDir ? findProjectRoot(selected.projectDir, { agent: 'codex' }) : root;
     const cfg = loadConfig();

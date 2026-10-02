@@ -14,12 +14,20 @@ const sections = [
   ['Default Safe Path', 'Ask before destructive or external actions unless already authorized. Proceed with reads, local edits, and tests within the granted permissions.'],
 ];
 
+const scopeDir = (root, scope) => (scope === 'global' ? codexUserDir() : root);
+
 export function codexHarnessPaths(root, scope = 'project') {
-  const dir = scope === 'global' ? codexUserDir() : root;
+  const dir = scopeDir(root, scope);
   // Codex reads the override instead of AGENTS.md when it is non-empty.
   const override = join(dir, 'AGENTS.override.md');
   const file = existsSync(override) && readFileSync(override, 'utf8').trim() ? override : join(dir, 'AGENTS.md');
   return { file, ratchet: scope === 'global' ? join(dir, 'ratchet.md') : join(dir, '.codex', 'ratchet.md') };
+}
+
+/** Every instruction file of a scope that init may have written to, active or not. */
+function harnessFiles(root, scope) {
+  const dir = scopeDir(root, scope);
+  return [join(dir, 'AGENTS.override.md'), join(dir, 'AGENTS.md')];
 }
 
 export function codexHarnessBlock() {
@@ -40,8 +48,11 @@ export function initCodexHarness({ root, scope = 'project' }) {
   const existing = existsSync(paths.file) ? readFileSync(paths.file, 'utf8') : '';
   const span = range(existing);
   const block = codexHarnessBlock();
+  // Trailing newlines are dropped before the separator is added, so the gap
+  // above the block is always one blank line however the file ended.
+  const body = existing.replace(/\n+$/, '');
   const next = span ? existing.slice(0, span[0]) + block.trimEnd() + existing.slice(span[1])
-    : existing + (existing ? '\n\n' : '') + block;
+    : body + (body ? '\n\n' : '') + block;
   mkdirSync(dirname(paths.file), { recursive: true });
   if (next !== existing) {
     if (existing) writeFileSync(`${paths.file}.bak-${Date.now()}`, existing);
@@ -54,15 +65,38 @@ export function initCodexHarness({ root, scope = 'project' }) {
   return paths;
 }
 
+/**
+ * The file without the block, and without the blank lines init put around it.
+ * Cutting the block alone left those behind, so each install and uninstall
+ * added three more.
+ */
+function withoutBlock(text, [begin, end]) {
+  const before = text.slice(0, begin).replace(/\n+$/, '');
+  const after = text.slice(end).replace(/^\n+/, '');
+  if (!before) return after;
+  return after ? `${before}\n\n${after}` : `${before}\n`;
+}
+
+/**
+ * Removes the block from every file of the scope that holds one. The active
+ * file alone is not enough: init writes AGENTS.md, and an AGENTS.override.md
+ * created afterwards becomes the active file while the block stays in the
+ * other one, where a later uninit never looked.
+ */
 export function uninitCodexHarness({ root, scope = 'project' }) {
   const { file } = codexHarnessPaths(root, scope);
-  if (!existsSync(file)) return { file, removed: false };
-  const existing = readFileSync(file, 'utf8');
-  const span = range(existing);
-  if (!span) return { file, removed: false };
-  writeFileSync(`${file}.bak-${Date.now()}`, existing);
-  writeFileSync(file, existing.slice(0, span[0]) + existing.slice(span[1]));
-  return { file, removed: true };
+  const cleaned = [];
+  for (const candidate of harnessFiles(root, scope)) {
+    if (!existsSync(candidate)) continue;
+    const existing = readFileSync(candidate, 'utf8');
+    const span = range(existing);
+    if (!span) continue;
+    writeFileSync(`${candidate}.bak-${Date.now()}`, existing);
+    writeFileSync(candidate, withoutBlock(existing, span));
+    cleaned.push(candidate);
+  }
+  if (!cleaned.length) return { file, removed: false };
+  return { file: cleaned.includes(file) ? file : cleaned[0], removed: true, ...(cleaned.length > 1 ? { files: cleaned } : {}) };
 }
 
 export function codexHarnessStatus({ root, scope = 'project' }) {
