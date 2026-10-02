@@ -36,6 +36,7 @@ import {
   extractContextUsage,
   extractEffort,
   extractModel,
+  extractSessionId,
   extractTranscriptPath,
 } from '../src/stdin-payload.js';
 
@@ -555,6 +556,15 @@ async function main() {
       // Resolved the same way as on the populated line below, so the chip does
       // not change its mind about the level when the analysis window empties.
       const effort = effortChipLevel(extractEffort(stdinJson), extractTranscriptPath(stdinJson));
+      // Recorded here too: a fresh session can render before it has any request
+      // in the analysis window, and its first prompt is briefed from this.
+      const ctxLive = extractContextUsage(stdinJson);
+      if (ctxLive?.size) {
+        try {
+          const { recordLiveWindow } = await import('../src/ctx-window-cache.js');
+          recordLiveWindow(extractSessionId(stdinJson), ctxLive.size);
+        } catch (e) { debug('ctx-window-cache:record', e); }
+      }
       if (caps || model) {
         try {
           const { persistSnapshot } = await import('../src/caps-cache.js');
@@ -621,6 +631,16 @@ async function main() {
     ? effortChipLevel(extractEffort(stdinJson), extractTranscriptPath(stdinJson))
     : extractEffort(stdinJson);
   const ctxLive = extractContextUsage(stdinJson);
+  // The prompt-submit briefing has no payload field for the window, so it reads
+  // back what this render was told (see src/ctx-window-cache.js).
+  if (isStatusline && ctxLive?.size) {
+    try {
+      const { recordLiveWindow } = await import('../src/ctx-window-cache.js');
+      recordLiveWindow(extractSessionId(stdinJson), ctxLive.size);
+    } catch (e) {
+      debug('ctx-window-cache:record', e);
+    }
+  }
   if (isStatusline && (caps || model)) {
     try {
       const { persistSnapshot } = await import('../src/caps-cache.js');

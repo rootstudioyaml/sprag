@@ -304,9 +304,9 @@ function buildVersionSeg(version, update, c, isIcon, verbose, g) {
  * fallback line. Best-effort: never throws into the statusline (corrupted
  * CLAUDE.md, permission issue, etc. → null).
  */
-function buildHarnessSeg(c, isIcon, g) {
+function buildHarnessSeg(c, isIcon, g, liveWindow = null) {
   try {
-    const harnessInfo = harnessStatusForStatusline(loadConfig());
+    const harnessInfo = harnessStatusForStatusline(loadConfig(), { liveWindow });
     if (!harnessInfo) return null;
     const icon = isIcon ? g.harness : 'H';
     if (harnessInfo.warning) {
@@ -760,7 +760,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Silent when the project hasn't opted in (no CLAUDE.md and no .claude/);
   // otherwise renders 🅷 5/5 (green) / 🅷 N/5 (yellow) so the user can spot
   // a missing section at a glance and know to run `harness init`.
-  const harnessSeg = buildHarnessSeg(c, isIcon, g);
+  const harnessSeg = buildHarnessSeg(c, isIcon, g, ctxLive?.size ?? null);
 
   // Version / upgrade chip. Read from a cache written by a detached background
   // check — this render path never touches the network.

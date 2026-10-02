@@ -29,6 +29,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, openSync,
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { resolveModelId, isOneMillionModel, effectiveWindow } from './compact-window.js';
+import { liveWindowFor } from './ctx-window-cache.js';
 
 // Context tiers as a fraction of the session's context window. Tier 1 warns
 // (compaction/cost territory ahead), tier 2 urges wrapping up. A session only
@@ -83,14 +84,21 @@ function saveState(state, now) {
  *
  * `observedMax` stays as a floor: it proves a 1M window even when the model id
  * is unreadable (env override, settings we do not resolve).
+ *
+ * `liveWindow` outranks both. It is the size Claude Code reported to the
+ * statusline for this session, so the briefing and the statusline count against
+ * the same window. The model id cannot stand in for it: a model that is 1M
+ * without a `[1m]` suffix reads as 200k there.
  */
-export function ctxWindowFor(observedMax = 0, root = process.cwd()) {
+export function ctxWindowFor(observedMax = 0, root = process.cwd(), { liveWindow = null } = {}) {
   let modelWindow = observedMax > WINDOW_1M_MIN_INPUT ? 1_000_000 : 200_000;
+  const reported = Number.isFinite(liveWindow) && liveWindow > 0;
+  if (reported) modelWindow = liveWindow;
   let window = modelWindow;
   let compactCapped = false;
   try {
     const { model } = resolveModelId(root);
-    if (isOneMillionModel(model)) modelWindow = window = 1_000_000;
+    if (!reported && isOneMillionModel(model)) modelWindow = window = 1_000_000;
     const cap = effectiveWindow(root).value;
     if (cap !== null && cap < window) {
       window = cap;
@@ -104,7 +112,7 @@ export function ctxWindowFor(observedMax = 0, root = process.cwd()) {
  * Last request's input size for THIS session, from the transcript tail.
  * Reads at most TAIL_BYTES — prompt-submit hooks must stay fast.
  */
-export function sessionCtx(transcriptPath, { root = process.cwd() } = {}) {
+export function sessionCtx(transcriptPath, { root = process.cwd(), liveWindow = null } = {}) {
   let size;
   try { size = statSync(transcriptPath).size; } catch { return null; }
   const start = Math.max(0, size - TAIL_BYTES);
@@ -130,7 +138,7 @@ export function sessionCtx(transcriptPath, { root = process.cwd() } = {}) {
     if (total > 0) { input = total; maxInput = Math.max(maxInput, total); }
   }
   if (input == null) return null;
-  const { window, modelWindow, compactCapped } = ctxWindowFor(maxInput, root);
+  const { window, modelWindow, compactCapped } = ctxWindowFor(maxInput, root, { liveWindow });
   return { input, window, modelWindow, compactCapped, pct: input / window };
 }
 
@@ -166,14 +174,15 @@ export function seedSessionBriefed(sessionId, signatures, now = Date.now()) {
  * (recorded via seedSessionBriefed) are skipped; every other fresh signature
  * is emitted, including on the session's first event.
  */
-export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) {
+export async function runBrief({ sessionId, transcriptPath, root = process.cwd(), now = Date.now() }) {
   if (!sessionId) return null;
+  const liveWindow = liveWindowFor(sessionId);
   const state = loadState();
   const s = state.sessions[sessionId] || { ctxTier: 0, briefed: [] };
   const items = [];
 
   // ── context tier crossing (per-session) ──
-  const ctx = transcriptPath ? sessionCtx(transcriptPath) : null;
+  const ctx = transcriptPath ? sessionCtx(transcriptPath, { root, liveWindow }) : null;
   if (ctx) {
     const tier = ctxTierOf(ctx.pct);
     // The tier is not monotonic: auto-compaction drops the live context back to
@@ -238,7 +247,7 @@ export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) 
   // never needed. 200k sessions are exempt (their window is already <= 200k).
   try {
     const cw = await import('./compact-window.js');
-    const st = cw.compactWindowStatus({ root: process.cwd() });
+    const st = cw.compactWindowStatus({ root, liveWindow });
     if (!st.ok) {
       const sig = `compact-window|${st.reason}`;
       const briefed = new Set(s.briefed || []);
@@ -246,7 +255,7 @@ export async function runBrief({ sessionId, transcriptPath, now = Date.now() }) 
         briefed.add(sig);
         s.briefed = [...briefed];
         const now = st.window ? `현재 ${fmtK(st.window)}` : '현재 미설정';
-        items.push(`1M 컨텍스트 모델(${st.model})인데 autoCompactWindow가 ${now}입니다 — 자동 압축이 80만 토큰 근처에서야 걸려 그전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 1M은 너무 크니 ${fmtK(st.recommendedMin)}~${fmtK(st.recommendedMax)} 범위를 권장합니다(그 범위 안이면 경고하지 않습니다). 1M 창 자체는 그대로 두고 압축 시점만 앞당깁니다. 등록: sprag compact-window set --global|--project [--value ${fmtK(st.recommendedMax)}] (기본 ${fmtK(st.recommended)}, 적용 범위는 사용자에게 확인) / 끄기: compact-window off`);
+        items.push(`1M 컨텍스트 모델(${st.model || 'Claude Code 기본 모델'})인데 autoCompactWindow가 ${now}입니다 — 자동 압축이 80만 토큰 근처에서야 걸려 그전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 1M은 너무 크니 ${fmtK(st.recommendedMin)}~${fmtK(st.recommendedMax)} 범위를 권장합니다(그 범위 안이면 경고하지 않습니다). 1M 창 자체는 그대로 두고 압축 시점만 앞당깁니다. 등록: sprag compact-window set --global|--project [--value ${fmtK(st.recommendedMax)}] (기본 ${fmtK(st.recommended)}, 적용 범위는 사용자에게 확인) / 끄기: compact-window off`);
       }
     }
   } catch { /* settings unreadable — other briefings above still apply */ }

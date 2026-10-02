@@ -259,3 +259,19 @@ test('and renders no chip when the payload carries no level', () => {
     cleanup();
   }
 });
+
+/**
+ * The prompt-submit briefing cannot see the payload, so the statusline leaves
+ * the window size it was given where the briefing can read it by session id.
+ */
+test('the CLI records the reported context window for the session', async () => {
+  const { dir, cleanup } = homeWithSession();
+  try {
+    renderStatusline(dir, { ...PAYLOAD('high'), session_id: 'sess-window' });
+    const { readFileSync } = await import('node:fs');
+    const saved = JSON.parse(readFileSync(join(dir, 'cfg', 'claude-token-saver', 'ctx-window.json'), 'utf8'));
+    assert.equal(saved.sessions['sess-window'].size, 1000000);
+  } finally {
+    cleanup();
+  }
+});

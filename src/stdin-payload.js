@@ -108,6 +108,12 @@ export function extractContextUsage(stdinJson) {
   };
 }
 
+/** The session the payload belongs to, or null when the field is absent. */
+export function extractSessionId(stdinJson) {
+  const id = stdinJson?.session_id;
+  return typeof id === 'string' && id !== '' ? id : null;
+}
+
 export function extractModel(stdinJson) {
   if (!stdinJson || !stdinJson.model) return null;
   const m = stdinJson.model;
