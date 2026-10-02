@@ -195,7 +195,9 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     const usd = actual === null || counterfactual === null ? null : roundUsd(run.aborted ? -actual : counterfactual - actual);
     const event = { ts: run.endedAt ?? route.at, parentSessionId: route.parentSessionId || run.parentThreadId || null,
       childSessionId: run.sessionId, source: route.source, category: route.category ?? null, scope: route.scope ?? null,
-      from: route.from, to, provider, tokens: run.tokens, calls: run.calls, toolErrors: run.toolErrors, usd, rates: usd === null ? null : rates,
+      from: route.from, to, provider,
+      ...(route.targetRoot !== undefined ? { targetRoot: route.targetRoot } : {}),
+      ...(route.ruleCreatedAt !== undefined ? { ruleCreatedAt: route.ruleCreatedAt } : {}), tokens: run.tokens, calls: run.calls, toolErrors: run.toolErrors, usd, rates: usd === null ? null : rates,
       priceCheckedAt: rates?.checkedAt ?? null, priceSource, complete: run.complete, ...(run.aborted ? { aborted: true } : {}) };
     // A transient price outage must not erase a completed, unchanged priced run.
     if (usd === null && sameRun && previous.complete && Number.isFinite(previous.usd) &&

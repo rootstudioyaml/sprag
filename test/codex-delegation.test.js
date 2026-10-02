@@ -84,8 +84,12 @@ test('CLI validates before writes, registers routing hooks, and keeps Claude set
   assert.equal(existsSync(join(f.dir, '.claude')), false);
   assert.equal(f.run(['delegate', 'off']).status, 0);
   assert.equal(f.run(['codex-hook', '--event', 'pre-tool'], payload(f.root)).stdout, '');
-  const before = readFileSync(config, 'utf8');
-  writeFileSync(join(f.dir, 'state', 'claude-token-saver', 'codex-model-rules.json'), '{broken');
-  assert.notEqual(f.run(['delegate', 'on']).status, 0);
-  assert.equal(readFileSync(config, 'utf8'), before);
+  const rulesFile = join(f.dir, 'state', 'claude-token-saver', 'codex-model-rules.json');
+  writeFileSync(rulesFile, '{broken');
+  // A damaged rule file blocks only the rules subcommand; on/off/status still work and leave it untouched.
+  const reenabled = f.run(['delegate', 'on']);
+  assert.equal(reenabled.status, 0, reenabled.stderr);
+  assert.match(reenabled.stdout, /Codex rules: unreadable/);
+  assert.notEqual(f.run(['delegate', 'rules']).status, 0);
+  assert.equal(readFileSync(rulesFile, 'utf8'), '{broken');
 });

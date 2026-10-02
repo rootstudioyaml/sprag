@@ -17,7 +17,9 @@ import { formatResetIn } from './format-time.js';
 import { codexDocumentTotals } from './codex-doc2md-ledger.js';
 import { codexHookStatus } from './codex-installer.js';
 import { koreanStyleEnabled } from './korean-style.js';
-import { codexRoutingSavedTotals } from './codex-ledger.js';
+import { codexRoutingSavedTotals, loadCodexLedger } from './codex-ledger.js';
+import { loadCodexModelRules } from './codex-delegation.js';
+import { codexRulesInReview } from './codex-rule-health.js';
 import { readCodexRouteScan, openCodexCandidates } from './codex-route-scan.js';
 import { codexBudgetProvider } from './codex-budget.js';
 
@@ -102,11 +104,16 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
     }
     let route = [];
     try { route = openCodexCandidates(readCodexRouteScan(), { root: project }); } catch { /* No scan yet. */ }
+    let ruleReview = [];
+    try {
+      const modelRules = loadCodexModelRules();
+      if (modelRules.length) ruleReview = codexRulesInReview({ root: project, rules: modelRules, events: Object.values(loadCodexLedger().events) }).map((r) => r.index);
+    } catch { /* Unreadable rules or ledger show no chip. */ }
     let routingSaved = null;
     try { routingSaved = { ...codexRoutingSavedTotals(), pricesAvailable: isDirectOpenAI(selected?.provider, home ? { home } : {}) || !!readCodexPrices({ provider: codexBudgetProvider(home ? { home } : {}), ...(home ? { home } : {}) }) }; }
     catch { /* Unreadable ledger reads as n/a. */ }
     return { session: selected, matches, root, sessionId, selection, bindingPending: !!sessionFile && !sessionId, days, harness, rules,
-      ratchet: ratchetFor(selected, recent.filter((file) => file !== selected?.filePath)), route, routingSaved,
+      ratchet: ratchetFor(selected, recent.filter((file) => file !== selected?.filePath)), route, ruleReview, routingSaved,
       labelMode: resolveLabelMode({ cfg: statuslineDefaults(), hasFlag }).mode,
       color: statuslineDefaults().color,
       timer: !hasFlag('--no-timer') && (hasFlag('--timer') || statuslineDefaults().timer),
@@ -266,6 +273,7 @@ function panelGroups(data, { now, version = '', full = false, mode = full ? 'tex
     chip(`Ratchet ${data.rules?.global ?? '?'}/${data.rules?.project ?? '?'}`),
     // A repeated failure outranks a delegation candidate, as in the Claude statusline.
     data.ratchet?.length ? chip(`ratchet? #${data.ratchet[0].id} x${data.ratchet[0].count}`, 33) : null,
+    data.ruleReview?.length ? chip(`rule-health #${data.ruleReview[0]}${data.ruleReview.length > 1 ? ` +${data.ruleReview.length - 1}` : ''}`, 33) : null,
     data.route?.length ? chip(`route? R${data.route[0].id} ${terminalText(data.route[0].category)}${data.route.length > 1 ? ` +${data.route.length - 1}` : ''}`, 33) : null,
   ]);
   register('korean', 'preferences', [

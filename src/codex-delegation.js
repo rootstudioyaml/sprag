@@ -126,7 +126,8 @@ export function codexRouteHint(payload, opts = {}) {
   try {
     record({ id, parentSessionId: payload?.session_id ?? null, turnId: payload?.turn_id ?? null, via: 'prompt',
       source: 'rule', category: rule.category, scope: rule.scope, from: payload?.model, to: rule.model,
-      provider, effort: rule.effort ?? null, contextTokens: ctx }, { dir: opts.dir });
+      provider, effort: rule.effort ?? null, contextTokens: ctx,
+      targetRoot: rule.targetRoot ?? null, ruleCreatedAt: rule.createdAt ?? null }, { dir: opts.dir });
   } catch { /* Accounting is optional; the hint still applies. */ }
   return `[Sprag model routing] This request matches the approved ${rule.category} rule (route ${id}). `
     + `Spawn one sub-agent with model ${rule.model}${rule.effort ? `, reasoning_effort ${rule.effort}` : ''} and fork_turns "none". `
@@ -160,7 +161,7 @@ function customRole(role, root, home) {
 
 // Kept for Codex versions that do send spawn_agent through PreToolUse; on
 // 0.159.2 the hook never fires for it, so codexRouteHint above is the live path.
-export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || process.cwd(), home = codexUserDir(), rules, dir = userDataDir(), record = recordCodexDelegation } = {}) {
+export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || process.cwd(), home = codexUserDir(), rules: given, dir = userDataDir(), record = recordCodexDelegation } = {}) {
   if (cfg.codex?.delegate !== true) return null;
   const tool = payload?.tool_name?.replace(/^(?:functions|tools)\./, '');
   if (!['spawn_agent', 'Agent'].includes(tool)) return null;
@@ -169,6 +170,9 @@ export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || 
   const role = input.agent_type || 'default';
   if (!['default', 'worker', 'explorer'].includes(role) || customRole(role, payload.cwd || root, home)) return null;
   const explicit = Object.hasOwn(input, 'model');
+  // An unreadable rule file must not stop the default target or the spawn itself.
+  let rules = given;
+  if (!rules) { try { rules = loadCodexModelRules({ dir }); } catch { rules = []; } }
   const provider = payload.model_provider || codexProviderName({ home });
   const rule = explicit ? null : matchCodexModelRule(input.message, { model: payload.model, provider, root, rules });
   const target = rule || (!explicit && cfg.codex?.delegateTarget);
@@ -184,7 +188,8 @@ export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || 
       try {
         record({ id, parentSessionId: typeof payload.session_id === 'string' ? payload.session_id : null,
           source: rule ? 'rule' : 'default', category: rule?.category ?? null, scope: rule?.scope ?? null,
-          from: payload.model, to: target.model, provider, effort: updatedInput.reasoning_effort ?? null }, { dir });
+          from: payload.model, to: target.model, provider, effort: updatedInput.reasoning_effort ?? null,
+          ...(rule ? { targetRoot: rule.targetRoot ?? null, ruleCreatedAt: rule.createdAt ?? null } : {}) }, { dir });
         routeLine = `\n<!-- sprag:codex:route id=${id} -->`;
       } catch { /* Accounting is optional; the route itself still applies. */ }
     }
