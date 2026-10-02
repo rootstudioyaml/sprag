@@ -87,24 +87,78 @@ export function readCodexBindings({ dir = userDataDir() } = {}) {
   return out;
 }
 
+/** Route ids a later prompt closed before any child claimed them. Kept in the binds file as `{ id, closed: true }` lines. */
+function closedCodexRouteIds({ dir = userDataDir() } = {}) {
+  let text;
+  try { text = readFileSync(bindsFile(dir), 'utf8'); } catch { return new Set(); }
+  const out = new Set();
+  for (const line of text.split('\n')) {
+    try {
+      const b = JSON.parse(line);
+      if (b?.closed === true && /^[0-9a-f]{16}$/.test(b.id)) out.add(b.id);
+    } catch { /* Partial trailing line. */ }
+  }
+  return out;
+}
+
+/**
+ * Close the routes this parent was hinted in an earlier turn and never spawned.
+ *
+ * A hint asks for a spawn in the turn that carries it. Left open, its pending
+ * record kept matching for the whole bind window, so a child the parent spawned
+ * for an unrelated reason twenty minutes later, on the same model, was bound to
+ * it and its cost was booked as a routing saving. A new prompt from the user is
+ * what ends the hinted turn, so that is where the record is closed. Returns how
+ * many were closed; writes nothing when there are none.
+ */
+export function closeStaleCodexRoutes(payload, { dir = userDataDir(), now = Date.now() } = {}) {
+  if (typeof payload?.session_id !== 'string') return 0;
+  const sameTurn = (r) => typeof payload.turn_id === 'string' && r.turnId === payload.turn_id;
+  const open = readCodexDelegations({ dir }).filter((r) =>
+    r.via === 'prompt' && r.parentSessionId === payload.session_id && now - r.at < BIND_TTL_MS && !sameTurn(r));
+  if (!open.length) return 0;
+  const taken = new Set([...readCodexBindings({ dir }).map((b) => b.id), ...closedCodexRouteIds({ dir })]);
+  const stale = open.filter((r) => !taken.has(r.id));
+  for (const r of stale) appendFileSync(bindsFile(dir), JSON.stringify({ id: r.id, closed: true, at: now }) + '\n', { mode: 0o600 });
+  return stale.length;
+}
+
 /**
  * Bind a just-spawned SubagentStart child to the pending route it most likely
  * fulfills: same parent thread, same target model, recent enough, and not
- * already claimed by another child. Returns the bound route id, or null when
- * nothing matches or this child is already bound.
+ * already claimed by another child or closed by a later prompt. When both the
+ * record and the payload name a turn, the turns must agree. Returns the bound
+ * route id, or null when nothing matches or this child is already bound.
  */
 export function bindCodexSubagent(payload, { dir = userDataDir(), now = Date.now() } = {}) {
   if (typeof payload?.agent_id !== 'string' || typeof payload?.session_id !== 'string' || typeof payload?.model !== 'string') return null;
   const binds = readCodexBindings({ dir });
   if (binds.some((b) => b.childSessionId === payload.agent_id)) return null;
-  const boundIds = new Set(binds.map((b) => b.id));
+  const boundIds = new Set([...binds.map((b) => b.id), ...closedCodexRouteIds({ dir })]);
+  const otherTurn = (r) => typeof payload.turn_id === 'string' && typeof r.turnId === 'string' && r.turnId !== payload.turn_id;
   const pending = readCodexDelegations({ dir }).filter((r) =>
-    r.parentSessionId === payload.session_id && r.to === payload.model && now - r.at < BIND_TTL_MS && !boundIds.has(r.id));
+    r.parentSessionId === payload.session_id && r.to === payload.model && now - r.at < BIND_TTL_MS && !boundIds.has(r.id) && !otherTurn(r));
   if (!pending.length) return null;
   // Oldest first: spawns are recorded in order, so the earliest unbound record belongs to the earliest child.
   const chosen = pending.reduce((a, b) => (b.at < a.at ? b : a));
   recordCodexBinding({ id: chosen.id, childSessionId: payload.agent_id, at: now }, { dir });
   return chosen.id;
+}
+
+/**
+ * How many bound routes the ledger has not finished pricing. A child was
+ * spawned for each, so its saving exists but is not in the ledger until the
+ * next refresh, and the route scan that refreshes it runs at most daily when
+ * little new data arrives. Callers use a non-zero count to refresh now. Bound
+ * within the bind window only: a child still running after that settles at the
+ * regular scan.
+ */
+export function unsettledCodexRoutes({ dir = userDataDir(), now = Date.now() } = {}) {
+  const recent = readCodexBindings({ dir }).filter((b) => now - b.at < BIND_TTL_MS);
+  if (!recent.length) return 0;
+  const pending = new Set(readCodexDelegations({ dir }).filter((r) => now - r.at < PENDING_TTL_MS).map((r) => r.id));
+  const events = loadCodexLedger({ dir }).events;
+  return recent.filter((b) => pending.has(b.id) && !(events[b.id]?.complete || events[b.id]?.aborted)).length;
 }
 
 export function loadCodexLedger({ dir = userDataDir() } = {}) {

@@ -166,6 +166,11 @@ with `fork_turns "none"`, then wait for it (`wait_agent` with a timeout of at le
 route id back: `SubagentStart` binds the id to whichever spawned child matches
 the pending route (same parent thread, same target model, within 30 minutes),
 so a route is credited even when the child's own first message never repeats it.
+A hint that no child claimed is closed when the parent's next prompt arrives, so
+a child spawned later for some other reason is not credited to it. That same
+prompt also prices any delegated run the ledger has not joined yet, in a
+detached process, so `Routing saved` follows a delegation by one prompt instead
+of waiting for the next route scan.
 
 The hint is withheld below `codex.delegateMinContext` (default 60000 input
 tokens, read from the parent's own rollout). Measured 2026-09-30: a small

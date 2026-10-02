@@ -54,7 +54,10 @@ export function addCodexModelRule({ category, model, effort, from, scope, root, 
   const rules = loadCodexModelRules({ dir });
   const targetRoot = scope === 'project' ? resolve(root) : null;
   const rule = { category, model, effort, from, scope, targetRoot, ...(provider ? { provider } : {}), status: 'active', createdAt: new Date().toISOString() };
-  const old = rules.findIndex((r) => r.category === category && r.from === from && r.scope === scope && r.targetRoot === targetRoot && r.provider === provider);
+  // A rule saved without a provider has no `provider` key, and a caller with
+  // none passes null. Compared as they are, undefined !== null, so re-adding
+  // the same rule stacked a duplicate instead of replacing it.
+  const old = rules.findIndex((r) => r.category === category && r.from === from && r.scope === scope && r.targetRoot === targetRoot && (r.provider ?? null) === (provider ?? null));
   if (old < 0) rules.push(rule); else rules[old] = rule;
   saveRules(rules, dir);
   return rule;
