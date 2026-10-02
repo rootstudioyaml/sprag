@@ -21,7 +21,9 @@ const rules = await import('../src/model-rules.js');
 const { monthSpend } = await import('../src/month-spend.js');
 const { estimateCost } = await import('../src/cost.js');
 
-after(() => rmSync(home, { recursive: true, force: true }));
+// A statusline child spawned below can still be writing its cache when the
+// suite ends, and a plain recursive remove then fails with ENOTEMPTY.
+after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const HOUR = 3600 * 1000;
 const projects = join(home, '.claude', 'projects');
@@ -205,5 +207,79 @@ test('subagent runs are priced at their own model and added to cost, without bec
     const month = monthSpend(await parser.sessionsSince(all, since, { noCache }), new Date(since));
     assert.ok(Math.abs(month.usd - (cost({ input: 1000, output: 100 }, 'claude-opus-5') + sonnet)) < 1e-9);
     assert.equal(month.sessions, 1);
+  }
+});
+
+test('a session that switched model is priced model by model, through the cache too', async () => {
+  const { sessionCostAcross } = await import('../src/claude-price.js');
+  const now = Date.now();
+  const line = (n, ts, model, usage) => JSON.stringify({
+    requestId: `mixed-r${n}`, timestamp: new Date(ts).toISOString(), sessionId: 'mixed',
+    message: { id: `mixed-m${n}`, model, usage },
+  });
+  const big = { input_tokens: 400000, output_tokens: 20000 };
+  const small = { input_tokens: 100000, output_tokens: 5000 };
+  // Three Haiku requests and one Fable request: Haiku is the representative
+  // model by count, and Fable is where the money went.
+  transcript('-mixed', 'mixed', [
+    line(1, now - 4 * HOUR, 'claude-haiku-4-5', small),
+    line(2, now - 3 * HOUR, 'claude-haiku-4-5', small),
+    line(3, now - 2 * HOUR, 'claude-haiku-4-5', small),
+    line(4, now - HOUR, 'claude-fable-5', big),
+  ]);
+  const cost = (totals, model) => estimateCost({ cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, ...totals }, model).actual;
+  const haiku = cost({ input: 300000, output: 15000 }, 'claude-haiku-4-5');
+  const fable = cost({ input: 400000, output: 20000 }, 'claude-fable-5');
+  const atOneRate = cost({ input: 700000, output: 35000 }, 'claude-haiku-4-5');
+  assert.ok(fable > haiku * 5, 'the fixture has to make the two readings differ');
+
+  for (const noCache of [true, false, false]) {
+    const all = (await parser.parseAllSessions({ days: 1, noCache })).filter((s) => s.sessionId === 'mixed');
+    assert.equal(all.length, 1);
+    assert.equal(all[0].model, 'claude-haiku-4-5');
+    assert.deepEqual(Object.keys(all[0].modelTotals).sort(), ['claude-fable-5', 'claude-haiku-4-5']);
+    const total = sessionCostAcross(all).actual;
+    assert.ok(Math.abs(total - (haiku + fable)) < 0.011, `priced ${total}, expected ${haiku + fable}`);
+    assert.ok(Math.abs(total - atOneRate) > 1, 'not the whole session at the representative rate');
+    const month = monthSpend(all, new Date(now));
+    assert.ok(Math.abs(month.usd - (haiku + fable)) < 1e-9);
+    assert.equal(month.sessions, 1, 'two priced parts are still one session');
+  }
+
+  // Cut to the last two hours: only the Fable request is left, and the split
+  // goes with it.
+  const recent = await parser.sessionsSince(
+    await parser.parseAllSessions({ days: 1, noCache: true }).then((ss) => ss.filter((s) => s.sessionId === 'mixed')),
+    now - 90 * 60 * 1000, { noCache: true });
+  assert.equal(recent.length, 1);
+  assert.equal(recent[0].modelTotals, undefined);
+  assert.equal(recent[0].totals.input, 400000);
+});
+
+test('a single-model session carries no per-model split', async () => {
+  const now = Date.now();
+  transcript('-single', 'single', [usageLine('single', 1, now - 2 * HOUR), usageLine('single', 2, now - HOUR)]);
+  const [s] = (await parser.parseAllSessions({ days: 1, noCache: true })).filter((x) => x.sessionId === 'single');
+  assert.equal(s.modelTotals, undefined);
+});
+
+test('zero-token <synthetic> stubs are neither API calls nor sessions', async () => {
+  const now = Date.now();
+  const stub = (sessionId, n, ts) => JSON.stringify({
+    requestId: `${sessionId}-stub${n}`, timestamp: new Date(ts).toISOString(), sessionId,
+    message: { id: `${sessionId}-stub-m${n}`, model: '<synthetic>', usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } },
+  });
+  transcript('-stubs', 'with-stubs', [
+    usageLine('with-stubs', 1, now - 3 * HOUR), stub('with-stubs', 1, now - 2 * HOUR),
+    usageLine('with-stubs', 2, now - HOUR), stub('with-stubs', 2, now - HOUR / 2),
+  ]);
+  transcript('-stubs', 'only-stubs', [stub('only-stubs', 1, now - 2 * HOUR), stub('only-stubs', 2, now - HOUR)]);
+  for (const noCache of [true, false, false]) {
+    const all = await parser.parseAllSessions({ days: 1, noCache });
+    const real = all.find((s) => s.sessionId === 'with-stubs');
+    assert.equal(real.requestCount, 2, 'the two stubs are not requests');
+    assert.equal(real.model, 'claude-opus-5');
+    assert.equal(real.modelTotals, undefined, 'a stub is not a second model');
+    assert.equal(all.some((s) => s.sessionId === 'only-stubs'), false, 'a transcript of stubs alone is not a session');
   }
 });

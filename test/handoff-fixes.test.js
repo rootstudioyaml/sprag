@@ -25,7 +25,11 @@ test('session cache round-trips gatewayObserved', async () => {
   // serialize and deserialize must both carry the flag, and the version must
   // have moved past 2 (whose entries all lack it).
   assert.equal((src.match(/gatewayObserved/g) || []).length >= 4, true);
-  assert.match(src, /const CACHE_VERSION = 3/);
+  // Same pairing for the per-model split added in version 4: written by
+  // serialize, read back by deserialize, and old entries discarded.
+  assert.match(src, /session\.modelTotals \? \{ modelTotals: session\.modelTotals \}/);
+  assert.match(src, /stored\.modelTotals && typeof stored\.modelTotals === 'object' \? \{ modelTotals: stored\.modelTotals \}/);
+  assert.match(src, /const CACHE_VERSION = 4/);
 });
 
 test('parseSessionFile picks the majority model and skips <synthetic>', async () => {

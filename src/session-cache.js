@@ -31,7 +31,11 @@ const CACHE_PATH = join(userDataDir(), 'session-cache.json');
 // the users the flag exists for.
 // 3: version 2's serialize() never actually wrote `gatewayObserved`, so every
 // v2 entry lacks the flag it was bumped for. Bumped again to discard them.
-const CACHE_VERSION = 3;
+// 4: sessions that used more than one model carry `modelTotals`, and
+// zero-token `<synthetic>` stubs no longer count as requests. A v3 entry has
+// neither, so a mixed-model session cached before the bump would go on being
+// priced at one rate until its transcript changed.
+const CACHE_VERSION = 4;
 // Entries for transcripts this old are pruned on write. Keeps the file
 // bounded without an existence check per entry (which would cost the syscalls
 // the cache exists to avoid).
@@ -47,6 +51,7 @@ const PRUNE_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
  * @property {object} totals
  * @property {number} maxContextPerRequest
  * @property {string} model
+ * @property {Record<string, object>} [modelTotals] totals per model, present only when more than one model spent tokens
  * @property {string} [projectDir]
  */
 
@@ -60,6 +65,7 @@ function serialize(session) {
     totals: session.totals,
     maxContextPerRequest: session.maxContextPerRequest,
     model: session.model,
+    ...(session.modelTotals ? { modelTotals: session.modelTotals } : {}),
     gatewayObserved: !!session.gatewayObserved,
   };
 }
@@ -75,6 +81,7 @@ function deserialize(stored, filePath, projectDir) {
     totals: stored.totals,
     maxContextPerRequest: stored.maxContextPerRequest || 0,
     model: stored.model || 'unknown',
+    ...(stored.modelTotals && typeof stored.modelTotals === 'object' ? { modelTotals: stored.modelTotals } : {}),
     gatewayObserved: !!stored.gatewayObserved,
   };
 }

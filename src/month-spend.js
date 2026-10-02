@@ -47,7 +47,7 @@ export function monthSpend(sessions, now = new Date()) {
         const c = sessionCost(part.totals, part.model);
         if (!c) { unpriced += 1; continue; }
         usd += c.actual;
-        if (part === s) priced = true;
+        if (part.own) priced = true;
       } catch {
         // 단가를 모르는 모델은 합계에서 빠집니다. 통계선에서는 침묵이 낫습니다.
       }
