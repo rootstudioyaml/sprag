@@ -111,6 +111,10 @@ export function isOneMillionModel(model) {
   return typeof model === 'string' && ONE_M_RE.test(model);
 }
 
+// A window Claude Code itself reported for the session (statusline payload).
+// Anything this large can only be the 1M window.
+export const LIVE_1M_MIN = 900_000;
+
 /** Effective autoCompactWindow, with the source that won. */
 export function effectiveWindow(root) {
   const env = process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
@@ -137,10 +141,14 @@ export function effectiveWindow(root) {
  *
  * `reason` names why it is not ok: 'unset' (no autoCompactWindow anywhere) or
  * 'too-large' (set, but above 700k — still lets context run away).
+ *
+ * `liveWindow` is the window Claude Code reported for the running session. The
+ * model id alone misses every model that is 1M without a `[1m]` suffix, so a
+ * reported size settles it whenever the caller has one.
  */
-export function compactWindowStatus({ root = process.cwd() } = {}) {
+export function compactWindowStatus({ root = process.cwd(), liveWindow = null } = {}) {
   const { model, source: modelSource } = resolveModelId(root);
-  const is1m = isOneMillionModel(model);
+  const is1m = isOneMillionModel(model) || (Number.isFinite(liveWindow) && liveWindow >= LIVE_1M_MIN);
   const win = effectiveWindow(root);
   const base = {
     model,
@@ -163,10 +171,10 @@ export function compactWindowStatus({ root = process.cwd() } = {}) {
  * Statusline chip text, or null when there is nothing to say. Kept to the same
  * short shape as the other 🅷⚠ warnings so the line stays single-width.
  */
-export function compactWindowWarningForStatusline(root = process.cwd(), cfg = null) {
+export function compactWindowWarningForStatusline(root = process.cwd(), cfg = null, { liveWindow = null } = {}) {
   if (cfg && cfg.compactWindow && cfg.compactWindow.enabled === false) return null;
   try {
-    const s = compactWindowStatus({ root });
+    const s = compactWindowStatus({ root, liveWindow });
     return s.ok ? null : 'compact-window?';
   } catch (e) {
     debug('compact-window:statusline', e);

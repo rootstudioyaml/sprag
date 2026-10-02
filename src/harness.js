@@ -606,7 +606,7 @@ export function harnessRmRule(n, { root = findProjectRoot(), scope = 'project', 
  * has explicitly disabled harness display, or when there's no CLAUDE.md and
  * no .claude/ at all (silent in non-init'd projects so we don't nag).
  */
-export function harnessStatusForStatusline(cfg, { root } = {}) {
+export function harnessStatusForStatusline(cfg, { root, liveWindow = null } = {}) {
   if (cfg && cfg.harness && cfg.harness.enabled === false) return null;
   const projectRoot = root || findProjectRoot();
   const status = harnessStatus(projectRoot);
@@ -651,7 +651,7 @@ export function harnessStatusForStatusline(cfg, { root } = {}) {
   // exempt — the setting cannot change anything for them.
   if (!warning) {
     try {
-      warning = compactWindowWarningForStatusline(projectRoot, cfg);
+      warning = compactWindowWarningForStatusline(projectRoot, cfg, { liveWindow });
     } catch { /* settings unreadable — stay silent */ }
   }
   // Below session-quality warnings: a promoted delegation rule whose

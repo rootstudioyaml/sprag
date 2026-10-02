@@ -25,7 +25,10 @@ export async function run({ hasFlag }) {
     const parts = [];
     try {
       const { runBrief } = await import('../brief.js');
-      const out = await runBrief({ sessionId: ctx.session_id, transcriptPath: ctx.transcript_path });
+      // `root` is the session's cwd for the same reason routeHint takes it below:
+      // the settings that name the model and the compaction window are the
+      // project's, not those of whatever directory the hook was spawned in.
+      const out = await runBrief({ sessionId: ctx.session_id, transcriptPath: ctx.transcript_path, root: ctx.cwd || process.cwd() });
       if (out) parts.push(out);
     } catch (e) { debug('brief:hook', e); /* briefing is best-effort — never block a prompt */ }
     // State the matching delegation rule as a fact about this request. Registered

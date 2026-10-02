@@ -242,3 +242,82 @@ test('a capped window reports the model-window percentage too', async () => {
     }
   });
 });
+
+/**
+ * The model id is not where the window size lives. A model that is 1M without
+ * a `[1m]` suffix read as 200k, so the briefing announced "200k 창의 80%" at
+ * 160k while the statusline of the same session said "Ctx 1M". The statusline
+ * payload carries the real size, and the briefing now reads it back by session.
+ */
+test('a window the statusline reported outranks the model id', async () => {
+  const { ctxWindowFor } = await import('../src/brief.js');
+  const root = sandbox({ model: 'claude-fable-5-1' });
+  withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: root, USERPROFILE: root }, () => {
+    assert.equal(ctxWindowFor(160_000, root).window, 200_000, 'the id alone still reads as 200k');
+    const w = ctxWindowFor(160_000, root, { liveWindow: 1_000_000 });
+    assert.equal(w.window, 1_000_000);
+    assert.equal(w.modelWindow, 1_000_000);
+    assert.equal(w.compactCapped, false);
+  });
+  const capped = sandbox({ model: 'claude-fable-5-1', autoCompactWindow: 600_000 });
+  withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: capped, USERPROFILE: capped }, () => {
+    const w = ctxWindowFor(160_000, capped, { liveWindow: 1_000_000 });
+    assert.equal(w.window, 600_000);
+    assert.equal(w.modelWindow, 1_000_000);
+    assert.equal(w.compactCapped, true);
+  });
+});
+
+test('the live window cache writes on change only and answers by session', async () => {
+  const { recordLiveWindow, liveWindowFor, ctxWindowCachePath } = await import('../src/ctx-window-cache.js');
+  const dir = mkdtempSync(join(tmpdir(), 'cts-ctxwin-'));
+  withEnv({ XDG_CONFIG_HOME: dir }, () => {
+    const t0 = 1_800_000_000_000;
+    assert.equal(liveWindowFor('sess-a'), null);
+    assert.equal(recordLiveWindow('sess-a', 1_000_000, t0), true);
+    assert.equal(recordLiveWindow('sess-a', 1_000_000, t0 + 5_000), false, 'an unchanged size is not rewritten every render');
+    assert.equal(recordLiveWindow('sess-a', 200_000, t0 + 6_000), true, 'a changed size is');
+    assert.equal(liveWindowFor('sess-a'), 200_000);
+    assert.equal(recordLiveWindow(null, 1_000_000, t0), false);
+    assert.equal(recordLiveWindow('sess-b', 0, t0), false);
+    // Eight days on, another session's write prunes the stale entry.
+    recordLiveWindow('sess-c', 1_000_000, t0 + 8 * 86_400_000);
+    assert.equal(liveWindowFor('sess-a'), null);
+    assert.deepEqual(Object.keys(JSON.parse(readFileSync(ctxWindowCachePath(), 'utf8')).sessions), ['sess-c']);
+  });
+});
+
+test('the briefing stays quiet at 170k once the session is known to be 1M', async () => {
+  const { runBrief } = await import('../src/brief.js');
+  const { recordLiveWindow } = await import('../src/ctx-window-cache.js');
+  const dir = mkdtempSync(join(tmpdir(), 'cts-brief3-'));
+  const root = sandbox({ model: 'claude-fable-5-1', autoCompactWindow: 600_000 });
+  const tx = join(dir, 't.jsonl');
+  writeFileSync(tx, JSON.stringify({ message: { usage: { input_tokens: 170_000 } } }) + '\n');
+  await withEnv({ XDG_CONFIG_HOME: dir, ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: root, USERPROFILE: root }, async () => {
+    const before = await runBrief({ sessionId: 'sess-unknown', transcriptPath: tx, root });
+    assert.match(before || '', /200k 창의 80%/, 'with no reported size the id-based guess is all there is');
+
+    recordLiveWindow('sess-live', 1_000_000);
+    const after = await runBrief({ sessionId: 'sess-live', transcriptPath: tx, root });
+    assert.doesNotMatch(after || '', /창의 80%|창\(\d+k\)의 80%/);
+
+    // 80% of the 600k compaction window, counted against the reported 1M.
+    writeFileSync(tx, JSON.stringify({ message: { usage: { input_tokens: 490_000 } } }) + '\n');
+    const crossed = await runBrief({ sessionId: 'sess-live', transcriptPath: tx, root });
+    assert.match(crossed || '', /자동 압축 창\(600k\)의 80%/);
+    assert.match(crossed || '', /1M 창 기준으로는 49%/);
+  });
+});
+
+test('an unset compaction window is flagged once the session reports 1M', () => {
+  const root = sandbox({ model: 'claude-fable-5-1' });
+  withEnv({ ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: root, USERPROFILE: root }, () => {
+    assert.equal(compactWindowStatus({ root }).reason, 'not-1m');
+    const s = compactWindowStatus({ root, liveWindow: 1_000_000 });
+    assert.equal(s.ok, false);
+    assert.equal(s.reason, 'unset');
+    assert.equal(compactWindowWarningForStatusline(root, null, { liveWindow: 1_000_000 }), 'compact-window?');
+    assert.equal(compactWindowWarningForStatusline(root, null, { liveWindow: 200_000 }), null);
+  });
+});
