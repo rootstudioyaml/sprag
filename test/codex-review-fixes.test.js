@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { runCodexBrief } from '../src/codex-brief.js';
@@ -115,7 +115,8 @@ test('F2: the rule identity recorded by codexRouteHint reaches the ledger event'
   const at = Date.now() + 1000;
   const row = (type, payload, d = 0) => ({ timestamp: new Date(at + d).toISOString(), type, payload });
   const usage = { input_tokens: 1000, cached_input_tokens: 200, output_tokens: 500 };
-  writeFileSync(join(f.codex, 'sessions', 'rollout.jsonl'), jsonl([
+  const child = join(f.codex, 'sessions', 'rollout.jsonl');
+  writeFileSync(child, jsonl([
     { timestamp: new Date(at - 500).toISOString(), type: 'session_meta', payload: { id: 'child-session', cwd: root,
       model_provider: 'current-gateway', source: { subagent: { thread_spawn: { parent_thread_id: 'parent-session' } } } } },
     row('event_msg', { type: 'task_started', turn_id: 't' }), row('turn_context', { turn_id: 't', model: 'child-model', cwd: root }),
@@ -124,6 +125,10 @@ test('F2: the rule identity recorded by codexRouteHint reaches the ledger event'
     row('event_msg', { type: 'token_count', info: { last_token_usage: usage, total_token_usage: usage } }, 100),
     row('event_msg', { type: 'task_complete', turn_id: 't' }, 200),
   ]));
+  // The ledger skips rollouts last written before the route was recorded. A
+  // filesystem clock a few milliseconds behind Date.now() put this file there
+  // on some CI runs, so its mtime is set to when the child actually finished.
+  utimesSync(child, new Date(at + 200), new Date(at + 200));
   const ledger = await refreshCodexLedger({ dir: f.dir, home: f.codex, now: Date.now() + 5000, prices: null });
   const event = ledger.events[pending.id];
   assert.equal(event.targetRoot, root);
