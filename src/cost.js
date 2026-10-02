@@ -91,8 +91,11 @@ function detectPricingTier(model) {
 
   if (m.includes('haiku')) {
     if (/haiku[-_.]?4[-_.]?5/.test(m)) return 'claude-haiku-4-5';
-    if (/haiku[-_.]?3[-_.]?5/.test(m)) return 'claude-haiku-3-5';
-    if (/haiku[-_.]?3\b/.test(m)) return 'claude-haiku-3';
+    // The 3.x ids put the version first (`claude-3-5-haiku-20241022`,
+    // `claude-3-haiku-20240307`), so both orders are matched. With only the
+    // family-first order, 3.5 Haiku fell through to the 4.5 rate.
+    if (/haiku[-_.]?3[-_.]?5|3[-_.]?5[-_.]?haiku/.test(m)) return 'claude-haiku-3-5';
+    if (/haiku[-_.]?3\b|\b3[-_.]?haiku/.test(m)) return 'claude-haiku-3';
     return 'claude-haiku-4-5';
   }
 

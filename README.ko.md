@@ -185,7 +185,7 @@ JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 �
 
 | 명령 | 하는 일 |
 |---|---|
-| `sprag` | 최근 1일 진단 리포트 |
+| `sprag` | 최근 30일 진단 리포트 |
 | `sprag handoff` | 한도에 막히기 전에 작업 상태를 백업 |
 | `sprag route-scan` | 내 기록에서 위임 후보 찾기 (LLM 호출 0회) |
 | `sprag route-scan savings` | 라우팅 절감 원장 조회 |

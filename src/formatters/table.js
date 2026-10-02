@@ -14,8 +14,10 @@ const C = {
   yellow: '\x1b[33m',
   cyan:   '\x1b[36m',
 };
-// Wrap text with ANSI codes — gracefully strips to plain when NO_COLOR set.
-const colorOk = !process.env.NO_COLOR;
+// Wrap text with ANSI codes. Set per report by formatReport: the caller knows
+// about `--no-color` and whether stdout is a terminal, which this module cannot
+// see. NO_COLOR alone is the answer for a caller that passes nothing.
+let colorOk = !process.env.NO_COLOR;
 const r  = (s) => colorOk ? `${C.red}${s}${C.reset}` : s;
 const rb = (s) => colorOk ? `${C.bold}${C.red}${s}${C.reset}` : s;
 const rbl = (s) => colorOk ? `${C.blink}${C.bold}${C.red}${s}${C.reset}` : s;
@@ -26,6 +28,11 @@ function pad(str, len, align = 'left') {
   const s = String(str);
   if (align === 'right') return s.padStart(len);
   return s.padEnd(len);
+}
+
+// A loss reads as "-$3", not "$-3". The digits are left as cost.js rounded them.
+function usd(n) {
+  return n < 0 ? `-$${Math.abs(n)}` : `$${n}`;
 }
 
 function pct(n) {
@@ -140,7 +147,7 @@ function renderSpikeSection(spikes, contextWindow) {
       lines.push('');
     }
   }
-  lines.push(rbl('  ▶ 상세 처치법: ') + rb(`${CLI_NAME} last`));
+  lines.push(rbl('  ▶ How to handle it: ') + rb(`${CLI_NAME} last`));
   lines.push('');
   return lines;
 }
@@ -169,12 +176,13 @@ function renderCapWarnSection(caps) {
   lines.push(rb(`    ${CLI_NAME} handoff`));
   lines.push(r('  (writes a HANDOFF-*.md so a fresh session can pick up.)'));
   lines.push('');
-  lines.push(rbl('  ▶ 상세 처치법: ') + rb(`${CLI_NAME} last`));
+  lines.push(rbl('  ▶ How to handle it: ') + rb(`${CLI_NAME} last`));
   lines.push('');
   return lines;
 }
 
-export function formatReport({ summary: sum, trend, ttl, anomalies, cost, options, spikeReport, contextWindow, caps }) {
+export function formatReport({ summary: sum, trend, ttl, anomalies, cost, options, spikeReport, contextWindow, caps }, { color } = {}) {
+  colorOk = color ?? !process.env.NO_COLOR;
   const lines = [];
 
   // Header
@@ -240,17 +248,17 @@ export function formatReport({ summary: sum, trend, ttl, anomalies, cost, option
   const costW = [24, 12];
   const costA = ['left', 'right'];
   lines.push('  ' + tableTop(costW));
-  lines.push('  ' + tableRow(['Actual cost', `$${cost.actual}`], costW, costA));
-  lines.push('  ' + tableRow(['Without cache', `$${cost.noCacheCost}`], costW, costA));
+  lines.push('  ' + tableRow(['Actual cost', usd(cost.actual)], costW, costA));
+  lines.push('  ' + tableRow(['Without cache', usd(cost.noCacheCost)], costW, costA));
   lines.push('  ' + tableSep(costW));
-  lines.push('  ' + tableRow(['Savings', `$${cost.savings} (${pct(cost.savingsRate)})`], costW, costA));
+  lines.push('  ' + tableRow(['Savings', `${usd(cost.savings)} (${pct(cost.savingsRate)})`], costW, costA));
   // Only worth asking of someone who has 1h writes to lose. Everyone else got
   // a `+$0` that read as an endorsement of the 5m bucket they were already
   // stuck in.
   if (cost.extraCostIf5mApplicable === false) {
     lines.push('  ' + tableRow(['Already 5m-only', ttl.gatewayObserved ? 'gateway' : 'yes'], costW, costA));
   } else {
-    lines.push('  ' + tableRow(['Extra cost if 5m-only', `+$${cost.extraCostIf5m}`], costW, costA));
+    lines.push('  ' + tableRow(['Extra cost if 5m-only', cost.extraCostIf5m < 0 ? usd(cost.extraCostIf5m) : `+${usd(cost.extraCostIf5m)}`], costW, costA));
   }
   lines.push('  ' + tableBot(costW));
   if (cost.unpriced > 0) lines.push(`  ${cost.unpriced} session(s) not priced by the gateway are left out.`);
