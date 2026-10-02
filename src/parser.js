@@ -59,6 +59,12 @@ export async function parseSessionFile(filePath) {
     if (!msg?.usage || !msg.id) continue;
 
     const usage = msg.usage;
+    // "<synthetic>" marks a stub Claude Code wrote locally, such as an error or
+    // an interrupt notice. No API call was made and no token was billed, so it
+    // is not a request, and a transcript holding nothing else is not a session.
+    // Counted, they put hundreds of calls that never happened into the report.
+    if (msg.model === '<synthetic>' && !(usage.input_tokens || usage.output_tokens ||
+        usage.cache_creation_input_tokens || usage.cache_read_input_tokens)) continue;
     const cc = usage.cache_creation || {};
     const reqId = entry.requestId || msg.id;
 
@@ -87,7 +93,6 @@ export async function parseSessionFile(filePath) {
   }
 
   const reqs = [...requests.values()];
-  let maxContextPerRequest = 0;
   // Representative model: the one that handled the most requests, skipping
   // "<synthetic>" (Claude Code's local error-stub placeholder — no real API
   // call). Taking reqs[0] blindly let an error stub at session start
@@ -104,20 +109,7 @@ export async function parseSessionFile(filePath) {
     if (n > best) { best = n; model = m; }
   }
   if (best === 0 && reqs.length > 0) model = reqs[0].model || 'unknown';
-  const totals = reqs.reduce(
-    (acc, r) => {
-      acc.input += r.inputTokens;
-      acc.cacheCreation += r.cacheCreationTokens;
-      acc.cacheRead += r.cacheReadTokens;
-      acc.ephemeral5m += r.ephemeral5mTokens;
-      acc.ephemeral1h += r.ephemeral1hTokens;
-      acc.output += r.outputTokens;
-      const ctx = r.inputTokens + r.cacheCreationTokens + r.cacheReadTokens;
-      if (ctx > maxContextPerRequest) maxContextPerRequest = ctx;
-      return acc;
-    },
-    { input: 0, cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, output: 0 },
-  );
+  const { totals, maxContextPerRequest, modelTotals } = sumRequests(reqs);
 
   return {
     sessionId,
@@ -129,8 +121,46 @@ export async function parseSessionFile(filePath) {
     totals,
     maxContextPerRequest,
     model,
+    ...(modelTotals ? { modelTotals } : {}),
     gatewayObserved,
   };
+}
+
+const emptyTotals = () => ({ input: 0, cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, output: 0 });
+
+function addRequest(acc, r) {
+  acc.input += r.inputTokens;
+  acc.cacheCreation += r.cacheCreationTokens;
+  acc.cacheRead += r.cacheReadTokens;
+  acc.ephemeral5m += r.ephemeral5mTokens;
+  acc.ephemeral1h += r.ephemeral1hTokens;
+  acc.output += r.outputTokens;
+}
+
+/**
+ * Totals of a set of requests, plus the same totals split by model when more
+ * than one model spent tokens.
+ *
+ * `/model` switches model mid-session, and the session's one `model` field is
+ * only the model that answered most often. Pricing the whole session at that
+ * model's rate billed a Haiku stretch at the Fable rate, or the reverse. The
+ * split lets the cost side price each model's tokens at its own rate. It is
+ * left out for the usual single-model session, so those keep their old shape.
+ */
+function sumRequests(reqs) {
+  const totals = emptyTotals();
+  const byModel = new Map();
+  let maxContextPerRequest = 0;
+  for (const r of reqs) {
+    addRequest(totals, r);
+    const ctx = r.inputTokens + r.cacheCreationTokens + r.cacheReadTokens;
+    if (ctx > maxContextPerRequest) maxContextPerRequest = ctx;
+    if (ctx + r.outputTokens === 0) continue;
+    const key = r.model || 'unknown';
+    if (!byModel.has(key)) byModel.set(key, emptyTotals());
+    addRequest(byModel.get(key), r);
+  }
+  return { totals, maxContextPerRequest, modelTotals: byModel.size > 1 ? Object.fromEntries(byModel) : null };
 }
 
 /**
@@ -381,27 +411,14 @@ function spansCutoff(session, cutoffMs) {
  */
 function trimToCutoff(session, cutoffMs) {
   const reqs = (session.requests || []).filter((r) => r.ts == null || r.ts >= cutoffMs);
-  let maxContextPerRequest = 0;
   let firstTs = null;
   let lastTs = null;
-  const totals = reqs.reduce(
-    (acc, r) => {
-      acc.input += r.inputTokens;
-      acc.cacheCreation += r.cacheCreationTokens;
-      acc.cacheRead += r.cacheReadTokens;
-      acc.ephemeral5m += r.ephemeral5mTokens;
-      acc.ephemeral1h += r.ephemeral1hTokens;
-      acc.output += r.outputTokens;
-      const ctx = r.inputTokens + r.cacheCreationTokens + r.cacheReadTokens;
-      if (ctx > maxContextPerRequest) maxContextPerRequest = ctx;
-      if (r.ts != null) {
-        if (firstTs === null || r.ts < firstTs) firstTs = r.ts;
-        if (lastTs === null || r.ts > lastTs) lastTs = r.ts;
-      }
-      return acc;
-    },
-    { input: 0, cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, output: 0 },
-  );
+  for (const r of reqs) {
+    if (r.ts == null) continue;
+    if (firstTs === null || r.ts < firstTs) firstTs = r.ts;
+    if (lastTs === null || r.ts > lastTs) lastTs = r.ts;
+  }
+  const { totals, maxContextPerRequest, modelTotals } = sumRequests(reqs);
   return {
     sessionId: session.sessionId,
     filePath: session.filePath,
@@ -412,6 +429,7 @@ function trimToCutoff(session, cutoffMs) {
     totals,
     maxContextPerRequest,
     model: session.model,
+    ...(modelTotals ? { modelTotals } : {}),
     gatewayObserved: session.gatewayObserved,
   };
 }
@@ -488,7 +506,8 @@ export async function parseAllSessions(options = {}) {
           }
         }
         if (!run.requestCount || !run.endTime || run.endTime.getTime() < cutoffMs) continue;
-        runs.push({ model: run.model, totals: run.totals, requestCount: run.requestCount, endTime: run.endTime });
+        runs.push({ model: run.model, totals: run.totals, requestCount: run.requestCount, endTime: run.endTime,
+          ...(run.modelTotals ? { modelTotals: run.modelTotals } : {}) });
       } catch {
         continue;
       }
