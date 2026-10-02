@@ -46,6 +46,8 @@ The statusline appears at the bottom of Claude Code right away. If auto-registra
 
 One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷 Harness (5 principles), the bundled rule presets, and a first route-scan.** Nothing is asked by default; `sprag install --manual` shows what the harness, the presets and the Korean writing guidance add and asks before enabling each. The harness is **appended** to `~/.claude/CLAUDE.md` as a marked block (your existing content is backed up and preserved) and is left alone if one is already there.
 
+Setup runs from npm's `postinstall` only for a global npm install. A project dependency install, the `npx` cache and anything with `CI` set skip it and print one line saying so, because the hooks call `sprag` by name and those installs do not put it on PATH. `SPRAG_POSTINSTALL=1` forces the setup and `SPRAG_POSTINSTALL=0` skips it; either way `sprag install` does the same thing by hand.
+
 Outside a terminal — npm `postinstall`, CI, piped stdin — the question is skipped and the old defaults apply. Use `--yes` or `--no-input` to skip it deliberately, `CTS_NO_HARNESS=1 npm i -g sprag-cli` to skip the harness entirely, and `sprag harness uninit --global` to undo it.
 
 > ⚠️ Avoid `sudo` global installs — the Skill lands in root's `~/.claude` instead of yours. Use nvm/fnm/Volta or `npm config set prefix ~/.npm-global`.
