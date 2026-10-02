@@ -261,3 +261,15 @@ test('pickBudgetSource: keyInfo 가 없으면 user_info 의 user_id 로 남의 �
   userInfo.teams[0].team_memberships[0].user_id = 'a';
   assert.equal(pickBudgetSource(null, userInfo).maxBudget, 9);
 });
+
+test('stampAttempt: 게이트웨이가 바뀌면 이전 게이트웨이의 금액을 넘기지 않는다', async () => {
+  const { stampAttempt, budgetWindow } = await import('../src/litellm-budget.js');
+  const old = { base: 'http://old.example', checkedAt: 1, source: 'key', spend: 80, maxBudget: 100, budgetResetAt: null };
+  assert.deepEqual(stampAttempt(old, 'http://old.example', 5), { ...old, checkedAt: 5 }, '같은 게이트웨이는 금액을 유지합니다');
+  assert.deepEqual(stampAttempt(old, 'http://new.example', 5), { base: 'http://new.example', checkedAt: 5 });
+  assert.deepEqual(stampAttempt({}, 'http://new.example', 5), { base: 'http://new.example', checkedAt: 5 });
+  // 기록된 상태로 게이지를 만들면 새 게이트웨이에는 아무것도 나오지 않아야 합니다.
+  mkdirSync(join(tmp, 'claude-token-saver'), { recursive: true });
+  writeFileSync(join(tmp, 'claude-token-saver', 'litellm-budget.json'), JSON.stringify(stampAttempt(old, 'http://new.example', 5)));
+  assert.equal(budgetWindow({ ANTHROPIC_BASE_URL: 'http://new.example' }), null);
+});

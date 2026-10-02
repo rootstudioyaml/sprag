@@ -50,7 +50,8 @@ function hms(d = new Date()) {
 
 function loadState() {
   try {
-    return JSON.parse(readFileSync(STATE_PATH, 'utf8'));
+    const s = JSON.parse(readFileSync(STATE_PATH, 'utf8'));
+    return s && typeof s === 'object' && !Array.isArray(s) ? s : { chip: null, ts: null };
   } catch {
     return { chip: null, ts: null };
   }
@@ -218,7 +219,10 @@ export function recordChip(chip, contextHints = {}) {
     ko = `✓ 해소됨 (이전: ${chipKo(last)})`;
   }
   appendDayLine(en, ko, now, tips);
-  saveState({ chip: current, ts: now.toISOString() });
+  // The state file also holds one `cap_<window>` slot per rate-limit window
+  // (recordCapTransition). Saving the chip alone wiped them, so the next render
+  // saw a window at 90% as newly crossed and logged the cap warning again.
+  saveState({ ...state, chip: current, ts: now.toISOString() });
   return true;
 }
 
