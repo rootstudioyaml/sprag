@@ -17,7 +17,7 @@
  * ratchet promote flow (`harness promote R<N> --global|--project`).
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { discoverSessionFiles } from './parser.js';
@@ -428,6 +428,42 @@ export function ruleCouldHaveRouted(rule, run) {
   return run.startedAt >= promoted;
 }
 
+/**
+ * Number the candidates of a scan, in place, and return the highest number in
+ * use. A candidate keeps its number for as long as it stays listed. Numbering
+ * by rank let a rescan between "R2 is a candidate" and `promote R2` hand the
+ * number to another pattern, and the wrong rule was registered. A new candidate
+ * takes a number no listed candidate has held; numbering starts over only once
+ * the list has been empty.
+ *
+ * @param {Array} candidates this scan's candidates
+ * @param {object|null} prev the previous scan's cache
+ */
+export function assignCandidateIds(candidates, prev) {
+  const prevIds = new Map((prev?.candidates || [])
+    .filter((c) => Number.isInteger(c?.id) && c.id > 0).map((c) => [c.signature, c.id]));
+  let last = prevIds.size ? Math.max(Number(prev?.lastCandidateId) || 0, ...prevIds.values()) : 0;
+  for (const c of candidates) c.id = prevIds.get(c.signature) ?? ++last;
+  return last;
+}
+
+/**
+ * Bytes in the scan window: each transcript and the subagent transcripts under
+ * it. The scan records this figure and the rescan gate diffs a fresh one
+ * against it, so both take it from here. Counted separately, the scan included
+ * subagent bytes and the gate did not: the gate's total came out smaller than
+ * the recorded one by that amount, and the "enough new data" clause could not
+ * fire for a workload made mostly of delegations.
+ */
+export function windowBytes(files) {
+  let total = 0;
+  for (const f of files || []) {
+    total += f.size || 0;
+    for (const a of f.subagentFiles || []) total += a.size || 0;
+  }
+  return total;
+}
+
 export async function runRouteScan({ days = 14 } = {}) {
   const files = await discoverSessionFiles({ days });
 
@@ -444,12 +480,11 @@ export async function runRouteScan({ days = 14 } = {}) {
   // Pass 1 — collect episodes (needed up front: thresholds are calibrated
   // from the full window's output distribution before any tiering).
   const all = []; // { ep, projectDir, sessionPath }
-  let dataBytes = 0; // window size snapshot — the rescan gate diffs against it
+  const dataBytes = windowBytes(files); // window size snapshot — the rescan gate diffs against it
   const runIndexBySession = new Map(); // sessionPath → indexRuns() result
   for (const f of files) {
     let records;
     try {
-      dataBytes += statSync(f.path).size;
       records = await collectSessionRecords(f.path, { includeContent: true });
     } catch {
       continue;
@@ -462,12 +497,7 @@ export async function runRouteScan({ days = 14 } = {}) {
     // delegation it made. Best-effort: sessions that never delegated have no
     // directory and cost one failed readdir.
     const runs = await collectSubagentRuns(f.path);
-    if (runs.length > 0) {
-      runIndexBySession.set(f.path, indexRuns(runs));
-      // Subagent bytes count toward the window size so the rescan gate stays
-      // accurate for delegation-heavy workloads.
-      for (const r of runs) dataBytes += r.bytes || 0;
-    }
+    if (runs.length > 0) runIndexBySession.set(f.path, indexRuns(runs));
   }
   const totalEpisodes = all.length;
   const thresholds = calibrateThresholds(all.map((x) => x.ep.out));
@@ -700,8 +730,8 @@ export async function runRouteScan({ days = 14 } = {}) {
     .filter((g) => g.count >= MIN_RECURRENCE && !hasRule(g))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8)
-    .map((g, i) => ({
-      id: i + 1,
+    .map((g) => ({
+      id: null, // assigned below, from the previous scan where there was one
       signature: `${g.tier}|${g.category}|${g.project}`,
       tier: g.tier,
       category: g.category,
@@ -728,6 +758,8 @@ export async function runRouteScan({ days = 14 } = {}) {
       ruleEn: ruleTextEn(g),
     }));
 
+  const lastCandidateId = assignCandidateIds(candidates, prev);
+
   // Same category appearing in 2+ projects → suggest global for each.
   const catProjects = new Map();
   for (const c of candidates) {
@@ -746,6 +778,7 @@ export async function runRouteScan({ days = 14 } = {}) {
     easyEpisodes: tieredEpisodes,
     thresholds,
     candidates,
+    lastCandidateId,
     resolved: [...resolved],
     unresolvedRuns,
     unresolvedModels: [...unresolvedModels].slice(0, 5),
@@ -838,11 +871,11 @@ export async function shouldRescan(cache, { days = 14, afterDelegation = false }
   let total = 0;
   let anyNew = false;
   try {
-    for (const f of await discoverSessionFiles({ days })) {
-      const s = statSync(f.path);
-      total += s.size;
-      if (s.mtimeMs > ts) anyNew = true;
-    }
+    const files = await discoverSessionFiles({ days });
+    total = windowBytes(files);
+    // A subagent transcript is new data too: a delegation writes there and may
+    // leave the parent transcript untouched until the run returns.
+    anyNew = files.some((f) => f.mtime > ts || (f.subagentFiles || []).some((a) => a.mtime > ts));
   } catch {
     return age >= RESCAN_MAX_AGE_MS; // can't stat — degrade to daily
   }

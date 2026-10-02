@@ -37,7 +37,7 @@ export async function run({ hasFlag }) {
     // the match here removes both steps. Silent unless it is sure — see
     // src/route-inject.js.
     try {
-      const { routeHint, sessionModelRank } = await import('../route-inject.js');
+      const { routeHint, routeMatch, matchCaps, sessionModelRank } = await import('../route-inject.js');
       // The payload names the session but not its model, so the rank comes from
       // the transcript: without it a Sonnet session is told to delegate to
       // Sonnet, which saves nothing.
@@ -49,8 +49,16 @@ export async function run({ hasFlag }) {
       // differ. Claude Code sends `cwd` for that reason and the PreToolUse hook
       // already reads it (src/delegation-guard.js). A payload without the field
       // leaves root undefined, which is the behaviour this had before.
-      const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd });
+      const match = routeMatch(ctx.prompt, { sessionRank });
+      const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd, match });
       if (hint) parts.push(hint);
+      // The delegation guard repeats these caps to the subagent, so the limit it
+      // works under is the one this hint states. A prompt with no match clears
+      // the record of the turn before it.
+      try {
+        const { recordRouteCaps } = await import('../route-caps.js');
+        recordRouteCaps(ctx.session_id, matchCaps(match));
+      } catch (e) { debug('brief:route-caps', e); }
     } catch (e) { debug('brief:route-hint', e); }
     if (parts.length) console.log(parts.join('\n'));
     return;

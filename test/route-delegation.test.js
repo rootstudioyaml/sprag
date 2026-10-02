@@ -262,8 +262,12 @@ test('renderModelRatchet falls back to default budgets for pre-budget rules', ()
 test('a standalone rule gets the budget composed on too, not just merged pairs', () => {
   // Rules promoted before budgets existed are the common case in a live
   // registry — they must still carry the clause.
+  // The sentence itself now comes from the template, so the stored text is
+  // only what a rule without a label falls back to.
   const md = renderModelRatchet([{ ...baseRule, tier: 'T2', rule: '기본 룰' }], 'ko');
-  assert.match(md, /기본 룰 \(상한 도구 호출 8회·출력 1500 토큰\)/);
+  assert.match(md, /"탐색" 단순 요청\(예: "어디 있지"\)은 .+에 위임 \(상한 도구 호출 8회·출력 1500 토큰\)/);
+  const bare = renderModelRatchet([{ category: 'explore', scope: 'global', tier: 'T2', rule: '기본 룰' }], 'ko');
+  assert.match(bare, /- 기본 룰 \(상한 도구 호출 8회·출력 1500 토큰\)/);
 });
 
 test('composeRuleText is the single source both the file and the preview use', () => {

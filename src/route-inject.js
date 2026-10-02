@@ -26,7 +26,7 @@
  */
 
 import { categorize, ESCALATE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
-import { loadModelRules, budgetCapPhrase } from './model-rules.js';
+import { loadModelRules, budgetCapPhrase, ruleBudget } from './model-rules.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 import { userLanguage } from './config.js';
 import { aliasForRole, resolveModelAlias } from './model-alias.js';
@@ -77,19 +77,17 @@ export function sessionModelRank({ env = process.env, transcriptPath = null, sna
 }
 
 /**
+ * The rules a prompt matches, or null when the hint should stay quiet.
+ *
  * @param {string} text the prompt just submitted
  * @param {object} [opts]
  * @param {Array} [opts.rules] registered rules (defaults to the stored registry)
- * @param {string} [opts.lang] 'ko' | 'en'
- * @param {string} [opts.root] project root used to look for a subagent's .md.
- *   The hint names the agent when that file exists and only its model tier when
- *   it does not, so a caller that needs a predictable phrase pins this.
  * @param {number|null} [opts.sessionRank] price rank of the model reading the
  *   hint (see sessionModelRank). null means unknown, and an unknown session
  *   model filters nothing.
- * @returns {string|null} the line to inject, or null to stay quiet
+ * @returns {{cat: object, t2: object|undefined, t1: object|undefined}|null}
  */
-export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null } = {}) {
+export function routeMatch(text, { rules, sessionRank = null } = {}) {
   const t = String(text || '').trim();
   if (t.length < MIN_LEN) return null;
   // Judgement and irreversible work stay on the top tier. This check comes
@@ -125,6 +123,32 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
 
   const t2 = usable.find((r) => r.tier === 'T2');
   const t1 = usable.find((r) => r.tier === 'T1');
+  return t2 || t1 ? { cat, t2, t1 } : null;
+}
+
+/** The budgets a match states, by tier: what the delegation guard repeats to the subagent. */
+export function matchCaps(match) {
+  if (!match) return null;
+  const caps = {};
+  if (match.t2) caps.T2 = ruleBudget(match.t2);
+  if (match.t1) caps.T1 = ruleBudget(match.t1);
+  return caps;
+}
+
+/**
+ * @param {string} text the prompt just submitted
+ * @param {object} [opts] as routeMatch, plus:
+ * @param {string} [opts.lang] 'ko' | 'en'
+ * @param {string} [opts.root] project root used to look for a subagent's .md.
+ *   The hint names the agent when that file exists and only its model tier when
+ *   it does not, so a caller that needs a predictable phrase pins this.
+ * @param {object|null} [opts.match] a routeMatch result the caller already has
+ * @returns {string|null} the line to inject, or null to stay quiet
+ */
+export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match } = {}) {
+  const found = match === undefined ? routeMatch(text, { rules, sessionRank }) : match;
+  if (!found) return null;
+  const { cat, t2, t1 } = found;
   const ko = lang === 'ko';
   const label = ko ? (cat.label || cat.id) : (cat.labelEn || cat.label || cat.id);
   // `root` is threaded through to agentPhrase, which names the subagent only

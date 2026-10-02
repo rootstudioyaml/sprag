@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { loadConfig, saveConfig } from './config.js';
 import { recentToolPaths } from './session-paths.js';
+import { routeCapsFor } from './route-caps.js';
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -114,7 +115,7 @@ function ratchetImportMissing(home = homedir()) {
  * English-only prompt, an already-imported ratchet.md, or a session with
  * nothing read yet each drop their own section without blocking the others.
  */
-export async function buildAppendix(payload, { cfg = loadConfig(), home = homedir() } = {}) {
+export async function buildAppendix(payload, { cfg = loadConfig(), home = homedir(), routeCaps = routeCapsFor(payload?.session_id) } = {}) {
   const sections = [];
 
   // Read from `model` first — it is the more specific field when both are set
@@ -125,12 +126,17 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
 
   const bounds = boundsText();
   if (bounds) {
-    // Hardcoded per the user's model-fitting ratchet rule
-    // (~/.claude/ratchet-model.md): haiku delegations get a tighter leash
-    // (8 tool calls / 1,500 output tokens) than everything else (20 / 8,000).
-    const capLine = isHaiku
-      ? 'Cap for this delegation: 8 tool calls, 1,500 output tokens.'
-      : 'Cap for this delegation: 20 tool calls, 8,000 output tokens.';
+    // Haiku delegations get a tighter leash (8 tool calls / 1,500 output
+    // tokens) than everything else (20 / 8,000). Those are the defaults of the
+    // model-fitting rules. When this turn's prompt matched a rule, the rule's
+    // own calibrated budget for the tier replaces them, so the subagent is told
+    // the same limit the main model was (see route-caps.js). A T1 rule sets no
+    // call count, and the default one stays in that case.
+    const fallback = isHaiku ? { calls: 8, out: 1500 } : { calls: 20, out: 8000 };
+    const matched = routeCaps?.[isHaiku ? 'T2' : 'T1'];
+    const calls = Number.isFinite(matched?.calls) && matched.calls > 0 ? matched.calls : fallback.calls;
+    const out = Number.isFinite(matched?.out) && matched.out > 0 ? matched.out : fallback.out;
+    const capLine = `Cap for this delegation: ${calls} tool calls, ${out.toLocaleString('en-US')} output tokens.`;
     sections.push(['## Bounds and output shape', bounds, capLine].join('\n\n'));
   }
 
@@ -234,7 +240,7 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
  * call, so the caller's contract stays "print nothing, let the tool run
  * exactly as given" for every one of them.
  */
-export async function decideForDelegation(payload, { cfg = loadConfig(), home = homedir() } = {}) {
+export async function decideForDelegation(payload, { cfg = loadConfig(), home = homedir(), routeCaps = routeCapsFor(payload?.session_id) } = {}) {
   if (!delegateEnabled(cfg)) return null;
   if (payload?.tool_name !== 'Task' && payload?.tool_name !== 'Agent') return null;
 
@@ -246,7 +252,7 @@ export async function decideForDelegation(payload, { cfg = loadConfig(), home = 
   // same tool_name, must not stack the appendix onto itself.
   if (prompt.includes(DELEGATION_MARKER)) return null;
 
-  const appendix = await buildAppendix(payload, { cfg, home });
+  const appendix = await buildAppendix(payload, { cfg, home, routeCaps });
   if (!appendix) return null;
 
   return { updatedInput: { ...toolInput, prompt: `${prompt}\n\n${appendix}` } };

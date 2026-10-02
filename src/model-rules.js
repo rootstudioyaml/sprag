@@ -73,9 +73,14 @@ export function wilsonLowerBound(errs, n) {
 // close the cycle.
 const DEFAULT_BUDGET = { T2: { calls: 8, out: 1500 }, T1: { calls: null, out: 8000 } };
 
+/** The budget a rule is held to: its calibrated one, or the default of its tier. */
+export function ruleBudget(rule) {
+  return rule.budget || DEFAULT_BUDGET[rule.tier] || DEFAULT_BUDGET.T2;
+}
+
 /** The cap half of a budget clause, e.g. "도구 호출 8회·출력 1500 토큰". */
 export function budgetCapPhrase(rule, lang = userLanguage()) {
-  const b = rule.budget || DEFAULT_BUDGET[rule.tier] || DEFAULT_BUDGET.T2;
+  const b = ruleBudget(rule);
   if (lang === 'ko') {
     return b.calls ? `도구 호출 ${b.calls}회·출력 ${b.out} 토큰` : `출력 ${b.out} 토큰`;
   }
@@ -126,15 +131,15 @@ function shortExample(text) {
   return one.length <= EXAMPLE_MAX ? one : `${one.slice(0, EXAMPLE_MAX - 1)}…`;
 }
 
-export function modelRuleBaseText(g, lang = userLanguage()) {
+export function modelRuleBaseText(g, lang = userLanguage(), { root } = {}) {
   if (lang === 'ko') {
     return g.tier === 'T2'
-      ? `"${g.label}" 단순 요청(예: "${shortExample(g.example)}")은 ${agentPhrase(g.agent)}에 위임`
+      ? `"${g.label}" 단순 요청(예: "${shortExample(g.example)}")은 ${agentPhrase(g.agent, { root })}에 위임`
       : `"${g.label}" 중간 난도 요청(예: "${shortExample(g.example)}")은 model: sonnet에 위임`;
   }
   const example = g.exampleEn || g.example;
   return g.tier === 'T2'
-    ? `Simple "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${agentPhraseEn(g.agent)}`
+    ? `Simple "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${agentPhraseEn(g.agent, { root })}`
     : `Moderate "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to a model: sonnet subagent`;
 }
 
@@ -211,8 +216,12 @@ export function removeModelRule(index1) {
  * The LLM reads this file as instructions, so it is written in the user's
  * configured language — a Korean-only file would pull an English session's
  * responses into Korean.
+ *
+ * `root` is where a named subagent is looked up: the project the file belongs
+ * to, or null for the global file, which may only name agents the user
+ * directory holds (see agentExists). Left out, it is the current directory.
  */
-export function renderModelRatchet(rules, lang = userLanguage()) {
+export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) {
   const ko = lang === 'ko';
   const lines = ko ? [
     '# Model-Fitting Ratchet (sprag 자동 관리)',
@@ -378,9 +387,23 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
     if (!byCategory.has(r.category)) byCategory.set(r.category, []);
     byCategory.get(r.category).push(r);
   }
+  // The sentence comes from this version's template in the file's language. The
+  // text stored on the rule is whatever wording and language were current when
+  // it was promoted, which is how an English line sat in a Korean file. A rule
+  // missing what the template needs still falls back to its stored text.
+  const baseTextOf = (r) => ((r.tier === 'T2' || r.tier === 'T1') && r.label && (ko || r.labelEn)
+    ? modelRuleBaseText(r, lang, { root }) : r.rule);
   for (const group of byCategory.values()) {
     const t2 = group.find((r) => r.tier === 'T2');
     const t1 = group.find((r) => r.tier === 'T1');
+    // A second rule of a tier the line already covers (two global rules of one
+    // category, promoted from different projects) says nothing the line does
+    // not, so it adds no line of its own. Its review flag and its numbers stay
+    // visible on the line that speaks for it.
+    const extras = t2 || t1 ? group.filter((r) => r !== t2 && r !== t1 && (r.tier === 'T2' || r.tier === 'T1')) : [];
+    const unknown = group.filter((r) => r !== t2 && r !== t1 && !extras.includes(r));
+    const extraHealth = extras.map(healthOf).join('');
+    const extraStats = extras.map((r) => ` / +${r.tier} ${statsOf(r)}`).join('');
     if (t2 && t1) {
       // Seeded rules carry a localized example; scan-produced ones only have the
       // user's own prompt, so exampleEn is a preference, not a requirement.
@@ -391,19 +414,18 @@ export function renderModelRatchet(rules, lang = userLanguage()) {
       // clauses, so a rule the model re-reads on every request is short enough to
       // match at a glance.
       const rule = ko
-        ? `"${t2.label}": 기본 ${agentPhrase(t2.agent)}(예: "${ex(t2)}"), ` +
+        ? `"${t2.label}": 기본 ${agentPhrase(t2.agent, { root })}(예: "${ex(t2)}"), ` +
           `여러 단계·여러 파일이 얽히면 model: sonnet(예: "${ex(t1)}"). ` +
           mergedBudget(t2, t1)
-        : `"${t2.labelEn || t2.label}": ${agentPhraseEn(t2.agent)} by default (e.g. "${ex(t2)}"), ` +
+        : `"${t2.labelEn || t2.label}": ${agentPhraseEn(t2.agent, { root })} by default (e.g. "${ex(t2)}"), ` +
           `model: sonnet when it spans multiple steps or file edits (e.g. "${ex(t1)}"). ` +
           mergedBudget(t2, t1);
-      lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)} -->`);
-      for (const r of group) {
-        if (r !== t2 && r !== t1) lines.push(`- ${composeRuleText(r.rule, r, lang)}${healthOf(r)} <!-- ${statsOf(r)} -->`);
-      }
-    } else {
-      for (const r of group) lines.push(`- ${composeRuleText(r.rule, r, lang)}${healthOf(r)} <!-- ${statsOf(r)} -->`);
+      lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)}${extraHealth} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)}${extraStats} -->`);
+    } else if (t2 || t1) {
+      const r = t2 || t1;
+      lines.push(`- ${composeRuleText(baseTextOf(r), r, lang)}${healthOf(r)}${extraHealth} <!-- ${statsOf(r)}${extraStats} -->`);
     }
+    for (const r of unknown) lines.push(`- ${composeRuleText(r.rule, r, lang)}${healthOf(r)} <!-- ${statsOf(r)} -->`);
   }
   return lines.join('\n') + '\n';
 }
@@ -468,7 +490,10 @@ export function syncAllFiles({ previousPaths = [] } = {}) {
   };
   const written = [];
   for (const [p, rules] of byPath) {
-    if (writeIfChanged(p, renderModelRatchet(rules))) written.push(p);
+    // Agents are looked up where the file's readers are: the project for a
+    // project file, the user directory alone for the global one.
+    const root = rules[0].scope === 'global' ? null : rules[0].targetRoot;
+    if (writeIfChanged(p, renderModelRatchet(rules, undefined, { root }))) written.push(p);
   }
   // A target that lost its last rule is emptied, NOT deleted: CLAUDE.md
   // imports this path, and a dangling `@` import is worse than an empty file.
@@ -521,13 +546,17 @@ export function refreshModelRules(episodeStats, delegatedStats = new Map(), { no
     const d = owned.get(r);
     if (!s && !d) {
       // A rule whose category didn't appear at all this window keeps its last
-      // known recurrence, but its measured-delegation fields must still read
-      // as "nothing measured" rather than stay undefined — the CLI and the
-      // rendered md both branch on them.
-      r.delegatedRuns = r.delegatedRuns ?? 0;
-      r.delegatedErrRate = r.delegatedErrRate ?? 0;
-      r.savedUsd = r.savedUsd ?? 0;
-      r.healthSource = r.healthSource ?? 'proxy';
+      // known recurrence. Everything else here describes the window, and this
+      // window holds nothing: the delegation figures go to zero and a review
+      // flag is lifted, as they are below when only one of the two is missing.
+      // Leaving them untouched froze the last window that had data, so a rule
+      // flagged once stayed flagged, with its old saving, after it stopped
+      // firing altogether.
+      const cleared = { delegatedRuns: 0, delegatedErrRate: 0, savedUsd: 0, healthSource: 'proxy' };
+      for (const [k, v] of Object.entries(cleared)) {
+        if (r[k] !== v) { r[k] = v; changed = true; }
+      }
+      if (r.status === 'review') { r.status = 'active'; changed = true; }
       continue;
     }
 

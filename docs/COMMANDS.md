@@ -67,7 +67,7 @@ Opt-in, default off. `sprag delegate on` registers a PreToolUse hook on `Task`/`
 | Ratchet rules | `~/.claude/ratchet.md` exists **and** `~/.claude/CLAUDE.md` does not already `@`-import it |
 | Already-touched paths | The calling session's transcript tail has at least one `Read`/`Edit`/`MultiEdit`/`Write`/`NotebookEdit`/`Grep`/`Glob` path inside the current working directory. Files only: a `Grep`/`Glob` argument that turns out to be a directory is dropped, since a directory offered as something to read costs the subagent one capped tool call. Paths are dropped when they hold anything that could break the rendered line (control characters, Unicode line separators, a backtick), since the list is one path per line inside a prompt. At most 15, most recent first |
 
-The bounds section's tool-call cap depends on the target: 8 tool calls / 1,500 output tokens when `model` (or, absent that, `subagent_type`) matches `haiku`, otherwise 20 tool calls / 8,000 output tokens.
+The bounds section's tool-call cap depends on the target: 8 tool calls / 1,500 output tokens when `model` (or, absent that, `subagent_type`) matches `haiku`, otherwise 20 tool calls / 8,000 output tokens. When the prompt of the current turn matched a delegation rule, that rule's own calibrated cap for the tier replaces the default, so the subagent is given the same limit the routing hint stated to the main model.
 
 Two limits worth knowing before relying on this:
 
