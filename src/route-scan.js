@@ -55,7 +55,16 @@ export const MIN_DELEGABLE_OUT = 100;
 // Measured 2026-09-20 on 1,276 local prompts: '퍼블리시' (npm publish, 15 hits)
 // and '이유' (root-cause asks) were slipping through as run/translate, and a
 // bare '머지' matched inside '나머지' ("나머지 진행하자" ×7), hence the lookbehind.
-export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인 분석|개선할|검토해보|비교|왜(?=[\s?]|$)|이유|제출|배포|출시|퍼블리시|릴리[스즈](?!\s*노트)|(?<!나)머지|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge/i;
+//
+// Measured 2026-10-01 on 10,958 local prompts: reviews, security checks and
+// root-cause asks were hinted to haiku because they are phrased as a check
+// ("보안 취약점 있는지 확인해줘", "개선점 확인해보자", "버그 원인 확인"). Of the
+// 300 short prompts that got a hint, the added terms and the whole-word
+// keywords further down take it away from 18: judgement requests, and
+// questions that merely contained "statusline". None gained a hint. Bare
+// '리뷰' and '보안' are left out on purpose: they are product nouns in ordinary
+// status checks ("리뷰 허브 배치 확인"), so only the request-shaped forms count.
+export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인\s*(?:분석|파악|확인|규명|조사)|원인을?\s*찾|버그|개선할|개선점|개선\s*(?:사항|방안)|검토해보|검수|코드\s*리뷰|리뷰\s*해|취약|보안\s*(?:점검|검토|감사|리뷰|이슈)|비교|왜(?=[\s?]|$)|이유|제출|배포|출시|퍼블리시|릴리[스즈](?!\s*노트)|(?<!나)머지|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge|root cause|code review|security (?:review|audit)|vulnerabilit/i;
 
 // Implementation asks phrased around a run/check verb ("설치와 동시에 설정되도록
 // 하자", "피드백 확인해주고 아이콘도 만들자"). Editing is not delegable, and at
@@ -116,7 +125,7 @@ const CATEGORIES = [
     label: '탐색·조회 (파일/값 찾기)',
     labelEn: 'lookup (finding files/values)',
     agent: 'haiku-explore',
-    kw: [[/grep|검색|search|find/i, 2], [/찾아|어디|위치|목록|살펴/i, 1],
+    kw: [[/\bgrep\b|검색|\bsearch|\bfind\b/i, 2], [/찾아|어디|위치|목록|살펴/i, 1],
       [/정의(?:돼|되어)\s*있|어느\s*파일|어떤\s*파일에|\bwhich\s+file\b|\bwhere\s+(?:is|are)\b[^?\n]*\bdefined\b/i, 1]],
   },
   {
@@ -124,23 +133,31 @@ const CATEGORIES = [
     label: '읽기·요약·설명',
     labelEn: 'reading / summarizing / explaining',
     agent: 'haiku-explore',
-    kw: [[/요약|summar|explain/i, 2], [/읽어|설명|정리해|보여줘|알려줘|뭐야|what/i, 1]],
+    kw: [[/요약|summar|explain/i, 2], [/읽어|설명|정리해|보여줘|알려줘|뭐야|\bwhat\b/i, 1]],
   },
   {
     id: 'check',
     label: '상태 확인·검증',
     labelEn: 'status checks / verification',
     agent: 'haiku-explore',
-    kw: [[/확인|검증|verify|점검/i, 2], [/맞아\?|되나|됐나|됐어|되는지|괜찮|체크|check|status/i, 1]],
+    kw: [[/확인|검증|\bverif|점검/i, 2], [/맞아\?|되나|됐나|됐어|되는지|괜찮|체크|\bcheck\b|\bstatus\b/i, 1]],
   },
   {
     id: 'run',
     label: '명령 실행 (빌드·테스트·git)',
     labelEn: 'running commands (build/test/git)',
     agent: 'haiku-runner',
-    kw: [[/git |commit|push|npm |pip|빌드해|빌드 돌/i, 2], [/실행|돌려|run |build|빌드|테스트|설치/i, 1]],
+    kw: [[/\bgit |\bcommit(?:s|ted)?\b|\bpush(?:ed|es)?\b|\bnpm |\bpip3? |빌드해|빌드 돌/i, 2], [/실행|돌려|\brun\b|\bbuild\b|빌드|테스트|설치/i, 1]],
   },
 ];
+// English keywords are matched as whole words. As bare substrings, `pip`
+// claimed "pipeline", `commit` "commitment", `find` "findings" and `status`
+// "statusline", which filed questions about those under run, explore or check.
+// `\b` works next to Hangul here because the keyword itself is ASCII: the
+// boundary falls between its last letter and the syllable that follows.
+// `git`, `npm` and `pip` keep the trailing space they always had: followed by
+// a subcommand they are a command to run, while "npm, github 쪽에도" and
+// "git은 나중에" only mention the tool.
 
 // ── Behavior signal (1st) — what the episode actually DID ────────────────
 // The tool-call histogram is ground truth the prompt's wording is not:

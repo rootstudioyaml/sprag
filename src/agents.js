@@ -20,6 +20,11 @@ const AGENT_MODEL = {
   'haiku-runner': 'haiku',
   'haiku-translate': 'haiku',
   'sonnet-worker': 'sonnet',
+  // A T1 rule names its target by tier alone (`agent: 'sonnet'`), with no
+  // preset agent behind it. Without these the phrase fell through to the
+  // haiku default, and a sonnet rule told the session to delegate to haiku.
+  sonnet: 'sonnet',
+  haiku: 'haiku',
 };
 
 /** True when `<name>.md` exists in the project or user agents directory. */
