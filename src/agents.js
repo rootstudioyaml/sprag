@@ -27,10 +27,19 @@ const AGENT_MODEL = {
   haiku: 'haiku',
 };
 
-/** True when `<name>.md` exists in the project or user agents directory. */
+/**
+ * True when `<name>.md` exists in the project or user agents directory.
+ *
+ * `root: null` asks about the user directory alone. Text that every project
+ * reads (the global ratchet-model.md) has to be worded from what every project
+ * can see: checked against the current directory, the same rule read
+ * `haiku-explore(model: haiku)` when the scan ran in a project that defines
+ * the agent and `model: haiku` when it ran anywhere else, and each flip
+ * rewrote a file sitting in the prompt-cache prefix of every session.
+ */
 export function agentExists(name, root = process.cwd()) {
   if (!name) return false;
-  return existsSync(join(root, '.claude', 'agents', `${name}.md`)) ||
+  return (root !== null && existsSync(join(root, '.claude', 'agents', `${name}.md`))) ||
     existsSync(join(claudeUserDir(), 'agents', `${name}.md`));
 }
 
