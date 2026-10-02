@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { runCodexBrief } from '../src/codex-brief.js';
 import { codexRuleHealth, codexRulesInReview } from '../src/codex-rule-health.js';
 import { codexRouteHint, codexDelegationTool } from '../src/codex-delegation.js';
@@ -35,6 +35,9 @@ function sandbox(t) {
 // ── F1 ─────────────────────────────────────────────────────────────────────
 
 const now = Date.now();
+// Rules store their project root resolved, which on Windows adds the drive
+// letter, so the fixtures resolve theirs the same way.
+const [WORK_A, WORK_B, WORK_C] = ['/work/a', '/work/b', '/work/c'].map((p) => resolve(p));
 function limitRollout(f, resets, at = now) {
   const file = join(f.base, 'rollout.jsonl');
   writeFileSync(file, jsonl([
@@ -70,18 +73,18 @@ test('F1: the first announced signature stays the anchor, so slow drift cannot c
 // ── F2 ─────────────────────────────────────────────────────────────────────
 
 const rule = { category: 'explore', from: 'gpt-6-luna', model: 'gpt-5.6-luna', provider: 'openai', scope: 'project',
-  targetRoot: '/work/a', status: 'active', createdAt: '2026-09-01T00:00:00.000Z' };
+  targetRoot: WORK_A, status: 'active', createdAt: '2026-09-01T00:00:00.000Z' };
 const ts = Date.parse('2026-09-10T00:00:00.000Z');
 const ev = (over = {}) => ({ category: 'explore', from: 'gpt-6-luna', to: 'gpt-5.6-luna', provider: 'openai', scope: 'project',
-  targetRoot: '/work/a', complete: true, calls: 10, toolErrors: 5, usd: 0.01, ts, ...over });
+  targetRoot: WORK_A, complete: true, calls: 10, toolErrors: 5, usd: 0.01, ts, ...over });
 
 test('F2: a project rule counts only its own project, and old events without targetRoot never count', () => {
-  const events = [ev(), ev({ targetRoot: '/work/b' }), ev({ targetRoot: undefined })];
+  const events = [ev(), ev({ targetRoot: WORK_B }), ev({ targetRoot: undefined })];
   assert.equal(codexRuleHealth(rule, { events }).runs, 1);
-  assert.equal(codexRuleHealth({ ...rule, targetRoot: '/work/b' }, { events }).runs, 1);
-  const bad = Array.from({ length: 8 }, () => ev({ targetRoot: '/work/b' }));
+  assert.equal(codexRuleHealth({ ...rule, targetRoot: WORK_B }, { events }).runs, 1);
+  const bad = Array.from({ length: 8 }, () => ev({ targetRoot: WORK_B }));
   assert.equal(codexRuleHealth(rule, { events: bad }).status, 'active');
-  assert.equal(codexRuleHealth({ ...rule, targetRoot: '/work/b' }, { events: bad }).status, 'review');
+  assert.equal(codexRuleHealth({ ...rule, targetRoot: WORK_B }, { events: bad }).status, 'review');
 });
 
 test('F2: events from before the rule was created are excluded', () => {
@@ -141,13 +144,13 @@ const failing = (over) => Array.from({ length: 8 }, () => ev(over));
 
 test('F3: rules in review are limited to the current project and numbered like the rules list', () => {
   const rules = [
-    { ...rule, targetRoot: '/work/b' },
-    { ...rule, targetRoot: '/work/a' },
+    { ...rule, targetRoot: WORK_B },
+    { ...rule, targetRoot: WORK_A },
     { ...rule, scope: 'global', targetRoot: null, category: 'read' },
   ];
-  const events = [...failing({ targetRoot: '/work/a' }), ...failing({ targetRoot: '/work/b' }), ...failing({ scope: 'global', targetRoot: null, category: 'read' })];
-  assert.deepEqual(codexRulesInReview({ root: '/work/a', rules, events }).map((r) => r.index), [2, 3]);
-  assert.deepEqual(codexRulesInReview({ root: '/work/c', rules, events }).map((r) => r.index), [3]);
+  const events = [...failing({ targetRoot: WORK_A }), ...failing({ targetRoot: WORK_B }), ...failing({ scope: 'global', targetRoot: null, category: 'read' })];
+  assert.deepEqual(codexRulesInReview({ root: WORK_A, rules, events }).map((r) => r.index), [2, 3]);
+  assert.deepEqual(codexRulesInReview({ root: WORK_C, rules, events }).map((r) => r.index), [3]);
   assert.deepEqual(codexRulesInReview({ root: null, rules, events }).map((r) => r.index), [1, 2, 3]);
 });
 
