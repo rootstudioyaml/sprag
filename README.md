@@ -229,7 +229,7 @@ work types, and once each has a rule there is nothing left to promote.
 
 | Command | What it does |
 |---|---|
-| `sprag` | Last-1-day diagnostic report |
+| `sprag` | Last-30-day diagnostic report |
 | `sprag handoff` | Back work up to markdown before a cap blocks you |
 | `sprag route-scan` | Find delegation candidates in your own history (0 LLM calls) |
 | `sprag route-scan savings` | The routing-savings ledger |

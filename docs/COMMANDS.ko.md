@@ -23,7 +23,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 
 | 명령 | 설명 |
 |---|---|
-| `sprag` | 최근 1일 진단 리포트 (`--days N` / `--hours N`) |
+| `sprag` | 최근 30일 진단 리포트 (`--days N` / `--hours N`) |
 | `sprag last` | 가장 최근 경고 1건 + 처방 |
 | `sprag history` | 최근 7일 경고 전이 로그 |
 | `sprag handoff` | 작업 상태를 `HANDOFF-*.md`로 백업 (캡 임박 시) |

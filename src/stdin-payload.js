@@ -59,11 +59,16 @@ export function extractCaps(stdinJson) {
     if (!value || typeof value !== 'object') continue;
     const usedPct = normalizePct(value.used_percentage);
     if (usedPct === null) continue;
-    const resetsAt = Number(value.resets_at);
+    // Same trap as the percentage: Number(null) is 0, and a reset "at 0" is
+    // 1970, which renders as a window that reset long ago. Only a positive
+    // number is a time.
+    const rawReset = typeof value.resets_at === 'string' && value.resets_at.trim() !== ''
+      ? Number(value.resets_at)
+      : value.resets_at;
     windows.push({
       key,
       usedPct,
-      resetsAt: Number.isFinite(resetsAt) ? resetsAt : null,
+      resetsAt: typeof rawReset === 'number' && Number.isFinite(rawReset) && rawReset > 0 ? rawReset : null,
     });
   }
   return windows.length ? { windows } : null;
@@ -84,10 +89,13 @@ export function extractCaps(stdinJson) {
 // model in use (Opus 4.7 vs 4.6 matters a lot for token budgeting).
 export function bedrockDisplayFromId(id) {
   if (typeof id !== 'string') return null;
-  const m = id.match(/claude[-_](opus|sonnet|haiku)[-_](\d+)[-_](\d+)/i);
+  // The minor version is one or two digits. An id with no minor goes straight
+  // to its date stamp (`claude-opus-4-20250514`), and reading that stamp as the
+  // minor printed "Opus 4.20250514".
+  const m = id.match(/claude[-_](opus|sonnet|haiku)[-_](\d+)(?:[-_](\d{1,2})(?!\d))?/i);
   if (!m) return null;
   const family = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
-  return `${family} ${m[2]}.${m[3]}`;
+  return m[3] === undefined ? `${family} ${m[2]}` : `${family} ${m[2]}.${m[3]}`;
 }
 
 /**

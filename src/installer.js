@@ -297,7 +297,7 @@ honor that for the rest of the turn without changing the saved setting.
 
 - \`sprag last\` — most recent warning + full advice (start here).
 - \`sprag last --days 7\` — widen the lookback window.
-- \`sprag\` — full table report (default last 1 day).
+- \`sprag\` — full table report (default last 30 days).
 - \`sprag --days 7\` — wider window.
 - \`sprag history\` — recent warning transitions per day, with
   inline \`💡\` action tips.

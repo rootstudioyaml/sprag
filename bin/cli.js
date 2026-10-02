@@ -93,6 +93,15 @@ function readUpdateChip() {
   }
 }
 
+/**
+ * Whether the table report may use ANSI codes. The formatter looked at NO_COLOR
+ * alone, so `--no-color` did nothing there and a piped report (`sprag | less`,
+ * a redirect to a file) carried escape codes into its output.
+ */
+function tableColor() {
+  return !hasFlag('--no-color') && !process.env.NO_COLOR && !!process.stdout.isTTY;
+}
+
 // Subcommands this build knows how to run. Used only by the guard below.
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
@@ -132,6 +141,16 @@ Usage:
   sprag last               most recent warning + how to handle it
   sprag history            recent warning transitions
   sprag handoff            write a session handoff file
+  sprag mode [keywords]    statusline preferences (icon/text, en/ko, window, ttl)
+  sprag seed               register the bundled starter rules, one answer at a time
+  sprag korean on|off|status     Korean writing guidance + write-time check
+  sprag cohesion on|off|status   English sentence-connection guidance
+  sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
+  sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
+  sprag compact-window     audit or pin autoCompactWindow for 1M sessions
+  sprag litellm-budget     LiteLLM gateway key budget and spend
+  sprag update-check       is a newer version out?
+  sprag brief --hook       internal: the UserPromptSubmit hook entry point
   sprag feedback "<msg>"   file a bug report / feature request (no browser needed)
   sprag upgrade            install the latest release
   sprag --install-hook     install cache-monitor PostToolUse hook
@@ -435,7 +454,7 @@ async function main() {
     const { buildTableDemoData } = await import('../src/demo.js');
     const { formatReport } = await import('../src/formatters/table.js');
     const data = buildTableDemoData({ version: PKG_VERSION });
-    console.log(formatReport(data));
+    console.log(formatReport(data, { color: tableColor() }));
     return;
   }
 
@@ -879,7 +898,7 @@ async function main() {
     });
   } else {
     const { formatReport } = await import('../src/formatters/table.js');
-    output = formatReport(data);
+    output = formatReport(data, { color: tableColor() });
   }
 
   console.log(output);

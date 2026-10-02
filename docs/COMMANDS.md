@@ -30,7 +30,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 
 | Command | What it does |
 |---|---|
-| `sprag` | Last-1-day diagnostic report (`--days N` / `--hours N`) |
+| `sprag` | Last-30-day diagnostic report (`--days N` / `--hours N`) |
 | `sprag last` | Most recent warning + remediation |
 | `sprag history` | Last 7 days of warning transitions |
 | `sprag handoff` | Back work up to `HANDOFF-*.md` before a cap blocks you |
