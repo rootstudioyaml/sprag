@@ -9,7 +9,7 @@
  * 합계에서 빼고 unpriced 로 셉니다. 정가표로 대신 채우지 않습니다.
  */
 
-import { sessionCost } from './claude-price.js';
+import { sessionCost, pricedParts } from './claude-price.js';
 
 /** 이번 달 1일 00:00(로컬)의 epoch ms. */
 export function monthStartMs(now = new Date()) {
@@ -39,14 +39,20 @@ export function monthSpend(sessions, now = new Date()) {
   for (const s of sessions || []) {
     if (!s || !s.endTime || s.endTime.getTime() < since) continue;
     if (!s.totals) continue;
-    try {
-      const c = sessionCost(s.totals, s.model);
-      if (!c) { unpriced += 1; continue; }
-      usd += c.actual;
-      count += 1;
-    } catch {
-      // 단가를 모르는 모델은 합계에서 빠집니다. 통계선에서는 침묵이 낫습니다.
+    // 세션이 띄운 서브에이전트 실행도 같은 청구서에 들어가므로, 실행마다 그 모델의
+    // 단가로 계산해 더합니다. 세션 수에는 넣지 않습니다.
+    let priced = false;
+    for (const part of pricedParts(s)) {
+      try {
+        const c = sessionCost(part.totals, part.model);
+        if (!c) { unpriced += 1; continue; }
+        usd += c.actual;
+        if (part === s) priced = true;
+      } catch {
+        // 단가를 모르는 모델은 합계에서 빠집니다. 통계선에서는 침묵이 낫습니다.
+      }
     }
+    if (priced) count += 1;
   }
   return { usd, sessions: count, unpriced, sinceMs: since, label: monthLabel(now) };
 }
