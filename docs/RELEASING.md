@@ -182,6 +182,14 @@ about new versions because `update-check` always queries the canonical name.
 `scripts/publish-legacy.mjs` exists for the one-off case of needing to publish
 under the old name again — it is not part of a normal release.
 
+npm deprecates versions, not names, so a version published under the old name
+arrives without the deprecation the earlier ones carry. The script therefore
+deprecates the version it has just published. If that step fails it prints the
+`npm deprecate` command to rerun and exits non-zero; the version is live and
+unmarked until the command succeeds. Check with
+`npm view claude-token-saver deprecated`, which prints the message when the
+latest version is marked and nothing when it is not.
+
 ## From a network that blocks GitHub writes
 
 On the corporate network here, reads to `api.github.com` are allowed and writes
