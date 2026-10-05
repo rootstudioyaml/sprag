@@ -36,20 +36,21 @@ P 1
 
 # 2) Seed history with realistic transitions for the demo (no-op if it already
 # has events; the dedupe state lives in last-chip.json)
+CHECKOUT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 node -e "
 import('claude-token-saver/src/history.js').then(({ recordChip }) => {
   recordChip('⚠ 1M ON', { detail: 'Context auto-promoted to 1M (max single-request 280k tokens)' });
   recordChip('⚠ Cache miss', { detail: 'session abc12345: LOW_HIT_RATE, FREQUENT_CACHE_REBUILD' });
   recordChip(null);
 }).catch(() => {
-  // Fallback: try the local checkout path if the global package isn't found
-  import('./src/history.js').then(({ recordChip }) => {
+  // Fallback: the checkout this script lives in, if the global package isn't found
+  import(process.argv[1]).then(({ recordChip }) => {
     recordChip('⚠ 1M ON', { detail: 'Context auto-promoted to 1M (max single-request 280k tokens)' });
     recordChip('⚠ Cache miss', { detail: 'session abc12345: LOW_HIT_RATE, FREQUENT_CACHE_REBUILD' });
     recordChip(null);
   });
 });
-" 2>/dev/null || true
+" "$CHECKOUT/src/history.js" 2>/dev/null || true
 
 # 3) History — show the auto-captured chip transitions
 printf '\033[33m$ claude-token-saver history --days 1\033[0m\n'
