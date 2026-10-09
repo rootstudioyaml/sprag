@@ -60,7 +60,7 @@ npm i -g sprag-cli   # Claude Code, plus Codex when it is installed
    needs attention:
 
 ```
-🔀 Routing saved $143  |  fable→sonnet 26× $73.3 · opus→sonnet 66× $59.3 · opus→haiku 25× $7.41 · fable→haiku 5× $3.22
+🔀 Routing saved $188  |  opus→sonnet 67× $93.4 · fable→sonnet 26× $83.7 · opus→haiku 25× $7.41 · fable→haiku 6× $3.73
 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 🅷 5/5 · 📦 Ctx 47% of 1M
 ```
 
@@ -95,7 +95,7 @@ holding.
 | Public benchmark accuracy | **59.1%** vs 57.9% best single model | `▰▰▰▰▰▰▰▰▰▰▰▰` | [benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
 | Cost for the same queries | **$268** vs gpt-5 $388, gemini-2.5-pro $734 | `▰▰▰▰▰▱▱▱▱▱▱▱` | [benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
 | Tokens for the same documents | **−95.9%**, 2,011,178 → 82,209 over 12 files | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
-| Delegation savings, from the ledger | **$143.22** over 122 delegated runs | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
+| Delegation savings, from the ledger | **$188.27** over 124 delegated runs | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
 | Cheap tier on the same prompts | **24% of the cost**, one answer worse out of eight | `▰▰▰▱▱▱▱▱▱▱▱▱` | [A/B run](#the-cheap-tier-on-the-same-prompts) |
 
 The first two rows answer the objection that comes up first: that moving work to
@@ -118,14 +118,15 @@ Model names are the ones each run actually used.
 ### Current, on one machine, last 30 days
 
 ```
-🔀 Routing saved $143.22 total        (last 7d $7.54 · last 30d $109.21)
+🔀 Routing saved $188.27 total        (last 7d $13.31 · last 30d $150.64)
 
-   fable-5 → sonnet-5      24 runs    $71.18   ▰▰▰▰▰▰▰▰▰▰▰▰
-   opus-5  → sonnet-5      54 runs    $46.58   ▰▰▰▰▰▰▰▰▱▱▱▱
-   opus-5  → sonnet-5.5    12 runs    $12.70   ▰▰▱▱▱▱▱▱▱▱▱▱
+   fable-5 → sonnet-5      24 runs    $81.19   ▰▰▰▰▰▰▰▰▰▰▰▰
+   opus-5  → sonnet-5      54 runs    $68.85   ▰▰▰▰▰▰▰▰▰▰▱▱
+   opus-5  → sonnet-5.5    13 runs    $24.58   ▰▰▰▰▱▱▱▱▱▱▱▱
    opus-5  → haiku-4.5     25 runs     $7.41   ▰▱▱▱▱▱▱▱▱▱▱▱
    fable-5 → haiku-4.5      5 runs     $3.22   ▰▱▱▱▱▱▱▱▱▱▱▱
-   fable-5 → sonnet-5.5     2 runs     $2.13   ▰▱▱▱▱▱▱▱▱▱▱▱
+   fable-5 → sonnet-5.5     2 runs     $2.51   ▰▱▱▱▱▱▱▱▱▱▱▱
+   fable-5 → haiku-5.5      1 run      $0.51   ▰▱▱▱▱▱▱▱▱▱▱▱
 ```
 
 | Also measured | Over 30 days | |
@@ -160,7 +161,7 @@ arrives as fewer round-trips rather than as cheaper ones.
 ## The statusline in one line
 
 ```
-🔀 Routing saved $143  |  fable→sonnet 26× $73.3 · opus→sonnet 66× $59.3 · opus→haiku 25× $7.41 · fable→haiku 5× $3.22
+🔀 Routing saved $188  |  opus→sonnet 67× $93.4 · fable→sonnet 26× $83.7 · opus→haiku 25× $7.41 · fable→haiku 6× $3.73
 🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5.5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
@@ -199,7 +200,7 @@ surfaces, and never send design or diagnosis.
 | Measured | Value | Sample | Window |
 |---|---|---|---|
 | Documents converted | 2,011,178 → 82,209 tokens | 12 files (xlsx, pptx, pdf) | to 2026-09-18 |
-| Delegated runs | $143.22 saved, $1.17 per run | 122 runs | to 2026-10-09 |
+| Delegated runs | $188.27 saved, $1.52 per run | 124 runs | to 2026-10-09 |
 | Ratchet rules accumulated | 37 (30 global, 7 per-project) | 4 repositories | 2026-05-08 to 09-16 |
 
 The two counts grow differently. Ratchet rules come from mistakes a person made,

@@ -26,7 +26,7 @@ const outHtml = join(repoRoot, 'docs', wrapAt ? 'statusline-wrap.html' : 'status
 
 const now = Math.floor(Date.now() / 1000);
 const payload = JSON.stringify({
-  model: { display_name: 'Opus 5' },
+  model: { display_name: 'Opus 5.5' },
   context_window: { context_window_size: 1000000, used_percentage: 47 },
   rate_limits: {
     five_hour: { used_percentage: 62, resets_at: now + 7200 },
@@ -34,7 +34,13 @@ const payload = JSON.stringify({
   },
 });
 
-const raw = execSync('node bin/cli.js --statusline', {
+// The input-spike chip reflects whatever this machine ran in the last day, so a
+// capture taken after one heavy session would publish a red warning as if it
+// were part of the product's normal look. Every other segment keeps the
+// default order.
+const { DEFAULT_SEGMENT_ORDER } = await import('../src/formatters/statusline.js');
+const segments = DEFAULT_SEGMENT_ORDER.filter((name) => name !== 'spike').join(',');
+const raw = execSync(`node bin/cli.js --statusline --segments ${segments}`, {
   cwd: repoRoot,
   input: payload,
   env: { ...process.env, COLORTERM: 'truecolor' },
