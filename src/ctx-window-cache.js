@@ -59,3 +59,17 @@ export function liveWindowFor(sessionId) {
   const s = load().sessions[sessionId];
   return s && validSize(s.size) ? s.size : null;
 }
+
+/**
+ * The window most recently reported by any session's statusline, or null.
+ * `sprag compact-window` runs outside a session and has no payload of its own;
+ * judged by the settings model id alone, a bare `opus` (1M by default on Opus
+ * 5.5, with no `[1m]` suffix) read as 200k while the statusline said 1M.
+ */
+export function latestLiveWindow() {
+  let best = null;
+  for (const s of Object.values(load().sessions)) {
+    if (s && validSize(s.size) && Number.isFinite(s.ts) && (!best || s.ts > best.ts)) best = s;
+  }
+  return best ? best.size : null;
+}

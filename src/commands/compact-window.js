@@ -58,9 +58,13 @@ export async function run({ args, hasFlag }) {
   }
 
   if (!sub || sub === 'status' || sub === 'check') {
-    const s = cw.compactWindowStatus({ root });
+    // The statusline knows the real window; the settings model id often does
+    // not (a bare `opus` carries no `[1m]`), so the last reported size decides.
+    let liveWindow = null;
+    try { liveWindow = (await import('../ctx-window-cache.js')).latestLiveWindow(); } catch { /* id-only fallback */ }
+    const s = cw.compactWindowStatus({ root, liveWindow });
     console.log(`model:  ${s.model || '(not set — Claude Code default)'}${s.modelSource ? ` [${s.modelSource}]` : ''}`);
-    console.log(`window: ${s.is1m ? '1M context' : '200k context'}`);
+    console.log(`window: ${s.is1m ? '1M context' : '200k context'}${liveWindow ? ` [statusline: ${liveWindow >= 1e6 ? `${liveWindow / 1e6}M` : fmt(liveWindow)}]` : ''}`);
     console.log(`autoCompactWindow: ${s.window === null ? '(unset)' : `${s.window} (${fmt(s.window)})`}${s.windowSource ? ` [${s.windowSource}${s.windowPath ? ` → ${s.windowPath}` : ''}]` : ''}`);
     if (s.ok && s.reason === 'not-1m') {
       console.log(ko
