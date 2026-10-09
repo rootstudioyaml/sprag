@@ -43,7 +43,9 @@ const segments = DEFAULT_SEGMENT_ORDER.filter((name) => name !== 'spike').join('
 const raw = execSync(`node bin/cli.js --statusline --segments ${segments}`, {
   cwd: repoRoot,
   input: payload,
-  env: { ...process.env, COLORTERM: 'truecolor' },
+  // The compact-window chip warns about this machine's autoCompactWindow, not
+  // about the product, so the capture runs with the recommended value.
+  env: { ...process.env, COLORTERM: 'truecolor', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '500000' },
   encoding: 'utf8',
 });
 

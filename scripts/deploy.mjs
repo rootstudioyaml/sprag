@@ -156,10 +156,14 @@ if (!dryRun) {
 // that had just been pushed. The wait below covers the same window: the install
 // would fail outright against a registry that has not caught up yet.
 if (!dryRun) {
+  // 120s was not enough: v3.58.0, v3.58.1 and v3.59.0 each took longer to
+  // appear, so the run stopped before the reinstall every time.
   const DELAY_MS = 15_000;
-  const ATTEMPTS = 8;
+  const ATTEMPTS = 24;
   for (let i = 1; ; i++) {
-    if (capture('npm', ['view', `sprag-cli@${version}`, 'version'], npmEnv()).out === version) break;
+    // --prefer-online skips npm's cached packument, which can keep answering
+    // with the previous version after the registry already has the new one.
+    if (capture('npm', ['view', `sprag-cli@${version}`, 'version', '--prefer-online'], npmEnv()).out === version) break;
     if (i === ATTEMPTS) {
       stop(`the registry still does not serve ${version} after ${(ATTEMPTS * DELAY_MS) / 1000}s.`,
         `The publish itself succeeded. Install the local copy once it propagates:\n  npm install -g sprag-cli@${version}`);
@@ -169,6 +173,11 @@ if (!dryRun) {
   }
 }
 run('npm', ['install', '-g', `sprag-cli@${version}`], { env: npmEnv() });
+// npm 11 holds back install scripts not listed in allow-scripts, so the
+// package's postinstall (`sprag install`) does not run and the hooks keep the
+// previous version's settings. Running it here does the same work; CTS_NO_INPUT
+// keeps it from stopping to ask anything.
+run('sprag', ['install'], { env: { ...npmEnv(), CTS_NO_INPUT: '1' } });
 
 console.log(onNpm
   ? `\ndeploy: ${tag} was already on npm — release notes republished, nothing else changed.`
