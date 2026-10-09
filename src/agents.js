@@ -45,22 +45,29 @@ export function agentExists(name, root = process.cwd()) {
 
 /**
  * Korean phrase for a delegation target, e.g.
- *   agent present → `haiku-explore(model: haiku)`
+ *   agent present → `haiku-explore(model 인자 생략)`
  *   agent absent  → `model: haiku`
+ *
+ * A named agent carries its model in its own definition, and the Agent tool's
+ * `model` argument overrides that definition. The old phrase
+ * `haiku-explore(model: haiku)` read as "pass model: haiku", and Claude Code
+ * resolves the bare `haiku` alias to an older Haiku than a definition pinned to
+ * a full id (claude-haiku-5-5), so following the rule undid the pin. The phrase
+ * now says to leave the argument out.
  */
 export function agentPhrase(name, { model, root } = {}) {
   const tier = model || AGENT_MODEL[name] || 'haiku';
-  return agentExists(name, root) ? `${name}(model: ${tier})` : `model: ${tier}`;
+  return agentExists(name, root) ? `${name}(model 인자 생략)` : `model: ${tier}`;
 }
 
 /**
  * English phrase, including the article, e.g.
- *   agent present → `the haiku-explore (model: haiku) subagent`
+ *   agent present → `the haiku-explore subagent (omit the model argument)`
  *   agent absent  → `a model: haiku subagent`
  */
 export function agentPhraseEn(name, { model, root } = {}) {
   const tier = model || AGENT_MODEL[name] || 'haiku';
   return agentExists(name, root)
-    ? `the ${name} (model: ${tier}) subagent`
+    ? `the ${name} subagent (omit the model argument)`
     : `a model: ${tier} subagent`;
 }

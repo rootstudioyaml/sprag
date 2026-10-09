@@ -109,7 +109,7 @@ test('B6: the global rules file reads the same from every directory', () => {
     // names the model tier alone; the project file may name the agent.
     assert.doesNotMatch(fromProject, /haiku-runner/);
     assert.match(fromProject, /model: haiku subagent \(cap/);
-    assert.match(readFileSync(join(project, '.claude', 'ratchet-model.md'), 'utf8'), /the haiku-runner \(model: haiku\) subagent/);
+    assert.match(readFileSync(join(project, '.claude', 'ratchet-model.md'), 'utf8'), /the haiku-runner subagent \(omit the model argument\)/);
   } finally {
     process.chdir(cwd);
   }

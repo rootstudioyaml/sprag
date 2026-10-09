@@ -35,13 +35,15 @@ test('missing agent falls back to the model tier', (t) => {
   assert.strictEqual(agentPhraseEn('haiku-explore', { root }), 'a model: haiku subagent');
 });
 
-test('user-level agent file is named alongside its tier', (t) => {
+test('user-level agent file is named, and the model argument left to its definition', (t) => {
   const home = isolatedHome(t);
   const root = mkdtempSync(join(tmpdir(), 'cts-proj-'));
   mkdirSync(join(home, '.claude', 'agents'), { recursive: true });
   writeFileSync(join(home, '.claude', 'agents', 'haiku-runner.md'), '---\nmodel: haiku\n---\n');
-  assert.strictEqual(agentPhrase('haiku-runner', { root }), 'haiku-runner(model: haiku)');
-  assert.strictEqual(agentPhraseEn('haiku-runner', { root }), 'the haiku-runner (model: haiku) subagent');
+  // The agent's definition holds its model; passing a `model` argument would
+  // override a definition pinned to a full id with the bare alias.
+  assert.strictEqual(agentPhrase('haiku-runner', { root }), 'haiku-runner(model 인자 생략)');
+  assert.strictEqual(agentPhraseEn('haiku-runner', { root }), 'the haiku-runner subagent (omit the model argument)');
 });
 
 test('project-level agent counts too', (t) => {
@@ -49,7 +51,7 @@ test('project-level agent counts too', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'cts-proj-'));
   mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
   writeFileSync(join(root, '.claude', 'agents', 'sonnet-worker.md'), '---\nmodel: sonnet\n---\n');
-  assert.strictEqual(agentPhrase('sonnet-worker', { root }), 'sonnet-worker(model: sonnet)');
+  assert.strictEqual(agentPhrase('sonnet-worker', { root }), 'sonnet-worker(model 인자 생략)');
   // Unknown agent name defaults to the haiku tier unless told otherwise.
   assert.strictEqual(agentPhrase('mystery', { root }), 'model: haiku');
   assert.strictEqual(agentPhrase('mystery', { root, model: 'sonnet' }), 'model: sonnet');
