@@ -581,7 +581,9 @@ export function refreshModelRules(episodeStats, delegatedStats = new Map(), { no
     }
     // Window snapshot, not a running total: these describe the current scan
     // window so a rule that stopped firing decays to zero instead of coasting
-    // on old credit.
+    // on old credit. savedUsd is the one figure `sprag saved reset` narrows: the
+    // scan only adds runs that started after the routing mark (see
+    // tallyDelegatedRun), while runs and the error rate keep the whole window.
     r.delegatedRuns = d ? d.runs : 0;
     r.delegatedErrRate = d && d.runs > 0 ? d.errRuns / d.runs : 0;
     r.savedUsd = d ? Math.round(d.savedUsd * 100) / 100 : 0;

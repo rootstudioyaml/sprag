@@ -29,6 +29,7 @@ import { modelRank, isRecognizedModelId, TIER_TARGET_RANK, tierForRank } from '.
 import { sessionCost } from './claude-price.js';
 import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { modelRuleBaseText } from './model-rules.js';
+import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 
 // ── Tier bands (docs/TIER_CRITERIA.md §3) ────────────────────────────────
 // T2 (haiku): finished in few calls, tiny output, near-zero mutation, no
@@ -235,7 +236,21 @@ export function mungeProjectPath(p) {
  * id); no behavior AND no keyword hit → null (nothing delegable to name).
  */
 export function categorize(text, toolCounts) {
-  if (text.length >= PASTE_MIN_LEN) return CATEGORIES.find((c) => c.id === 'paste');
+  const scored = categorizeScored(text, toolCounts);
+  return scored ? scored.cat : null;
+}
+
+/**
+ * categorize() plus the winning category's keyword score, for a caller that
+ * must tell a request the keywords claim firmly from one that a single
+ * weight-1 word dragged into a category. `score` is 0 when the category came
+ * from the paste gate or from the tool-mix fallback, where no keyword won.
+ * categorize() delegates here, so the two can never disagree on the category.
+ *
+ * @returns {{cat: object, score: number}|null}
+ */
+export function categorizeScored(text, toolCounts) {
+  if (text.length >= PASTE_MIN_LEN) return { cat: CATEGORIES.find((c) => c.id === 'paste'), score: 0 };
   const pool = behaviorPool(toolCounts);
   const eligible = pool
     ? pool.ids.map((id) => CATEGORIES.find((c) => c.id === id))
@@ -246,8 +261,8 @@ export function categorize(text, toolCounts) {
     const s = keywordScore(c, text);
     if (s > bestScore) { best = c; bestScore = s; }
   }
-  if (best) return best;
-  if (pool?.fallback) return CATEGORIES.find((c) => c.id === pool.fallback);
+  if (best) return { cat: best, score: bestScore };
+  if (pool?.fallback) return { cat: CATEGORIES.find((c) => c.id === pool.fallback), score: 0 };
   return null;
 }
 
@@ -465,6 +480,35 @@ export function windowBytes(files) {
   return total;
 }
 
+/**
+ * Fold one measured delegation into its aggregate (`stats`: key → { runs,
+ * errRuns, outTokens, savedUsd }).
+ *
+ * The two kinds of figure answer different questions. runs / errRuns / outTokens
+ * feed rule-health, which judges whether a rule keeps failing, so they cover the
+ * whole scan window whatever `sprag saved reset` did. savedUsd is money the user
+ * zeroed on purpose: it counts only runs dated at or after `resetMark` (the
+ * routing mark), by the same isBeforeReset the ledger totals use. The date is
+ * the one the ledger stamps on its event (end, else start), so a run that was
+ * still going when the user reset lands on the same side in both totals. A run
+ * with no usable time cannot be shown to postdate the reset, so it is left out
+ * too. An unpriced run (non-finite `saved`) adds nothing either way.
+ *
+ * @param {Map<string, object>} stats
+ * @param {string} key "tier|category|project"
+ * @param {{startedAt: number|null, endedAt?: number|null, out?: number}} run
+ * @param {number|null} saved price difference for this run
+ * @param {number|null} [resetMark] ms timestamp of the routing reset, or null
+ */
+export function tallyDelegatedRun(stats, key, run, saved, resetMark = null) {
+  const d = stats.get(key) || { runs: 0, errRuns: 0, outTokens: 0, savedUsd: 0 };
+  d.runs += 1;
+  if (isFailedRun(run)) d.errRuns += 1;
+  d.outTokens += run.out || 0;
+  if (Number.isFinite(saved) && !isBeforeReset(run.endedAt ?? run.startedAt, resetMark)) d.savedUsd += saved;
+  stats.set(key, d);
+}
+
 export async function runRouteScan({ days = 14 } = {}) {
   const files = await discoverSessionFiles({ days });
 
@@ -599,14 +643,10 @@ export async function runRouteScan({ days = 14 } = {}) {
   const delegatedStats = new Map(); // "tier|category|project" → outcome aggregate
   let unresolvedRuns = 0;           // delegated runs dropped for an unpriceable model id
   const unresolvedModels = new Set();
-  const bumpDelegated = (key, run, saved) => {
-    const d = delegatedStats.get(key) || { runs: 0, errRuns: 0, outTokens: 0, savedUsd: 0 };
-    d.runs += 1;
-    if (isFailedRun(run)) d.errRuns += 1;
-    d.outTokens += run.out || 0;
-    if (Number.isFinite(saved)) d.savedUsd += saved; // unpriced runs add nothing
-    delegatedStats.set(key, d);
-  };
+  // `sprag saved reset routing` zeroes the money, not the rule-health sample:
+  // see tallyDelegatedRun. readResetMarks never throws (no file = no reset).
+  const routingMark = readResetMarks(userDataDir()).routing;
+  const bumpDelegated = (key, run, saved) => tallyDelegatedRun(delegatedStats, key, run, saved, routingMark);
   // Ledger events feed the statusline's weekly/monthly "Routing saved"
   // totals. Keyed by run transcript path so overlapping re-scans upsert the
   // same event instead of double-counting it.

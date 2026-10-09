@@ -8,7 +8,14 @@
  *
  * Nothing is deleted. A reset only records a timestamp, and the totals count
  * events from that moment on; see src/saved-reset.cjs.
+ *
+ * The routing mark also bounds the per-rule `saved ~$` figures in
+ * model-rules.json and ratchet-model.md, which are rebuilt by a scan rather than
+ * summed from the ledger. So a reset or undo that touches `routing` finishes by
+ * running that scan; see refreshRuleSavings.
  */
+
+import { debug } from '../debug.js';
 
 const SCOPE_SETS = {
   claude: ['routing', 'doc2md'],
@@ -33,7 +40,32 @@ async function currentTotals(scope, dir) {
   return { docs: codexDocumentTotals({ dir }).docs };
 }
 
-export async function run({ args, hasFlag, agent = 'claude', dir: dirArg }) {
+/**
+ * Rebuild each rule's savedUsd and re-render ratchet-model.md after the routing
+ * mark moved. The 14-day scan does both (it reads the mark, refreshes the
+ * registry, writes the managed files) in about half a second, so it is reused
+ * rather than duplicated here.
+ *
+ * Best-effort by design: the mark is already saved, and a failed rescan must not
+ * turn a successful reset into an error. It says so in one line instead, since
+ * the figures then stay stale until the next scan.
+ *
+ * @param {boolean} ko
+ * @param {Function} [rescan] injected by tests; defaults to runRouteScan
+ */
+async function refreshRuleSavings(ko, rescan) {
+  try {
+    const scan = rescan || (await import('../route-scan.js')).runRouteScan;
+    await scan({ days: 14 });
+  } catch (e) {
+    debug('saved:rule-savings', e);
+    console.log(ko
+      ? '룰별 절감액은 다음 route-scan 때 다시 계산됩니다.'
+      : 'Per-rule savings will be recalculated at the next route-scan.');
+  }
+}
+
+export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan }) {
   const { userLanguage } = await import('../config.js');
   const { userDataDir } = await import('../paths.js');
   const { readResetMarks, resetSaved, undoReset } = await import('../saved-reset.cjs');
@@ -90,6 +122,9 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg }) {
     console.log(ko
       ? `원장 기록은 지우지 않았습니다. \`sprag saved undo${suffix}\`로 되돌릴 수 있습니다.`
       : `No ledger data was deleted. Run \`sprag saved undo${suffix}\` to restore the previous counters.`);
+    // Codex keeps no per-rule figure (its rules are a separate store with no
+    // savedUsd), so only the Claude `routing` scope has anything to recompute.
+    if (targets.includes('routing')) await refreshRuleSavings(ko, rescan);
     return;
   }
 
@@ -105,6 +140,10 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg }) {
         ? `${label(s)} 카운터를 되돌렸습니다. 현재 합계는 ${fmtTotal(t)}입니다.`
         : `Restored the ${label(s)} counter. The total is now ${fmtTotal(t)}.`);
     }
+    // Keyed on what was undone, not on --agent: undo pops the latest reset
+    // whichever agent made it, so a bare `undo --agent codex` can restore
+    // the Claude routing mark and the rule figures must follow it.
+    if (undone.scopes.includes('routing')) await refreshRuleSavings(ko, rescan);
     return;
   }
 

@@ -22,10 +22,16 @@
  *   - the text trips EDIT_RE (implement, add, fix …): editing is not delegable
  *     however much the sentence also says "install" or "check"
  *   - no registered rule covers that category
+ *   - the request is an explanation question ("어떻게 동작해", "뭐야", "how does
+ *     …") whose only category evidence is one weight-1 keyword. "sprag 설치만으로
+ *     … 도구에서 어떻게 쓰이는거지?" scored run on the bare word 설치 and was told
+ *     to hand a question about how the tool behaves to a command-running haiku.
+ *     Answering it takes the main model's knowledge, not a command. The read
+ *     category is exempt: explaining is what it is for.
  * A hint that fires on the wrong request costs more than one that stays quiet.
  */
 
-import { categorize, ESCALATE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
+import { categorizeScored, ESCALATE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
 import { loadModelRules, budgetCapPhrase, ruleBudget } from './model-rules.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 import { userLanguage } from './config.js';
@@ -43,6 +49,34 @@ export function looksPasted(text) {
 
 /** Shortest text worth classifying; below this a prompt is an ack, not a task. */
 const MIN_LEN = 8;
+
+/**
+ * A question that asks for an explanation ("어떻게 쓰이는거지?", "뭐야", "how
+ * does it work"). "왜" is not here: ESCALATE_RE already routes it to the top
+ * tier. Kept to the shapes that ask HOW or WHAT something is — a bare "?" or a
+ * sentence-final "-지?" is too common in ordinary commands to count.
+ */
+const EXPLAIN_Q_RE = /어떻게\s*(?:쓰|사용|동작|작동|해야|하면|하는|하지|하죠|되는\s*(?:거|건|걸|것))|어떤\s*식으로|어떨\s*때|뭐야|뭐지|무엇|무슨\s*(?:의미|뜻)|\bhow\s+(?:does|do)\b|\bwhat\s+(?:is|does)\b/i;
+/**
+ * "어떻게 돼 / 됐 / 되고 있" asks for the current state of something, which is
+ * a check request however it is phrased. EXPLAIN_Q_RE does not list these, and
+ * this guard keeps it that way if "어떻게 되는 거" is ever matched next to one.
+ */
+const STATE_Q_RE = /어떻게\s*(?:돼|됐|됬|되어\s*있|되고\s*있)/;
+/** The category rests on exactly one weight-1 keyword. */
+const WEAK_SCORE = 1;
+/**
+ * The category whose job is to explain. Its weight-1 keywords (설명, 알려줘,
+ * 뭐야 …) share one pattern, so a question shape adds no evidence against it,
+ * and the registered rule names "4번 보정이 뭐야" as its own example.
+ */
+const EXPLAINING_CATEGORY = 'read';
+
+/** True for a question that asks how something works or what it is. */
+export function isExplainQuestion(text) {
+  const t = String(text || '');
+  return EXPLAIN_Q_RE.test(t) && !STATE_Q_RE.test(t);
+}
 
 /**
  * Price rank of whatever model is answering this session, or null when it
@@ -98,8 +132,14 @@ export function routeMatch(text, { rules, sessionRank = null } = {}) {
   // delegable, and with no tool calls yet only the wording can say so.
   if (EDIT_RE.test(t)) return null;
 
-  const cat = categorize(t, null);
-  if (!cat) return null;
+  const scored = categorizeScored(t, null);
+  if (!scored) return null;
+  const cat = scored.cat;
+  // A category carried by one weak keyword is a guess, and an explanation
+  // question is the case where the guess is most often wrong: "설치" inside a
+  // question about how a tool works is not a request to install anything.
+  // Two or more points (a command, or several keywords) keep the old verdict.
+  if (scored.score === WEAK_SCORE && cat.id !== EXPLAINING_CATEGORY && isExplainQuestion(t)) return null;
   // Length alone makes a paste offline, where the tool mix confirms it. At
   // prompt time a long text is as often a written spec as a pasted log, and a
   // spec is not haiku work — so it must also look pasted: many lines, or the

@@ -1,8 +1,9 @@
 /**
  * savings-ledger — per-run delegation saving events with timestamps.
  *
- * model-rules.json stores `savedUsd` as a scan-window snapshot per rule, which
- * is right for rule-health but cannot answer "how much did routing save this
+ * model-rules.json stores `savedUsd` as a scan-window snapshot per rule (only
+ * the runs dated after the last `sprag saved reset routing`), which is right
+ * for rule-health but cannot answer "how much did routing save this
  * week / this month / ever". This ledger keeps one event per subagent run,
  * keyed by the run's transcript path so re-scans over overlapping windows
  * upsert instead of double-counting.
