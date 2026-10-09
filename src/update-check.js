@@ -8,6 +8,14 @@
  * answer is older than the check interval it spawns a detached, unref'd child
  * that refreshes the cache for the *next* render. Nothing awaits the network.
  *
+ * The cached answer is also treated as stale when the running version moved
+ * past the `latest` it holds: installing 3.59 proves a cache that says 3.57 is
+ * behind the registry, and waiting out the interval left a fresh install
+ * unaware of releases that shipped in the meantime. Only that case counts. A
+ * downgrade, or a dev checkout rendering next to the global install, changes
+ * the running version without telling us anything about the registry, and
+ * reading it as stale made two copies re-check on every alternation.
+ *
  * State lives next to the other user-data files:
  *   { checkedAt: <ms>, latest: "3.25.0", current: "3.24.0",
  *     dismissedVersion: "3.25.0"|undefined,
@@ -42,6 +50,12 @@ const CANONICAL_NAME = 'sprag-cli';
 const LEGACY_NAME = 'claude-token-saver';
 const IS_LEGACY = PKG_NAME === LEGACY_NAME;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h — the registry is not a health endpoint
+/**
+ * Interval for the SessionStart caller. Session start happens a few times a day
+ * rather than several times a second, so it can afford to look more often than
+ * the statusline's 24h default and notice a release the same afternoon.
+ */
+export const SESSION_START_CHECK_INTERVAL_MS = 3 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
 
 export function updateStatePath() {
@@ -89,12 +103,25 @@ export function isNewer(a, b) {
   return false;
 }
 
+/** `opts.intervalMs` when it is a usable duration, else the 24h default. */
+function checkInterval(opts) {
+  const ms = opts && opts.intervalMs;
+  return typeof ms === 'number' && Number.isFinite(ms) && ms >= 0 ? ms : CHECK_INTERVAL_MS;
+}
+
 /**
  * The read-only accessor every render path uses.
  *
+ * `stale` means "worth asking the registry again": the cached answer is older
+ * than the interval, or this copy was installed after the answer was recorded
+ * and is already newer than the `latest` it names. A cache that never recorded
+ * a version (written by an older release) is judged by age alone.
+ *
+ * @param {string} currentVersion
+ * @param {{intervalMs?: number}} [opts] - how old a cached answer may get; defaults to 24h
  * @returns {{current: string, latest: string|null, available: boolean, dismissed: boolean, stale: boolean}}
  */
-export function updateStatus(currentVersion) {
+export function updateStatus(currentVersion, opts) {
   if (updateCheckDisabled()) {
     return { current: currentVersion, latest: null, available: false, dismissed: false, stale: false };
   }
@@ -102,6 +129,12 @@ export function updateStatus(currentVersion) {
   const latest = typeof s.latest === 'string' ? s.latest : null;
   const available = !!latest && isNewer(latest, currentVersion);
   const age = Date.now() - (Number(s.checkedAt) || 0);
+  // Both halves are needed. The version test alone would stay true while the
+  // registry is unreachable, since the stamp below refreshes `current` but not
+  // `latest`; requiring a change since the stamp stops that from re-spawning
+  // on every render.
+  const versionChanged = typeof s.current === 'string' && s.current !== currentVersion;
+  const outrunCache = versionChanged && (!latest || isNewer(currentVersion, latest));
   return {
     current: currentVersion,
     latest,
@@ -110,7 +143,7 @@ export function updateStatus(currentVersion) {
     // of the session briefing until a newer one ships — otherwise "no thanks"
     // means "ask me again in five minutes", forever.
     dismissed: available && s.dismissedVersion === latest,
-    stale: age >= CHECK_INTERVAL_MS,
+    stale: outrunCache || age >= checkInterval(opts),
     // Only when they describe THIS version. A cache written for an earlier
     // release would otherwise sell the wrong upgrade. Language is not checked
     // here: a mismatch is corrected by the next refresh, and showing the other
@@ -123,14 +156,21 @@ export function updateStatus(currentVersion) {
  * Fire the background refresh when the cached answer has aged out. Returns
  * immediately in every case; the child is detached and unref'd so it cannot
  * hold the statusline process open.
+ *
+ * @param {string} currentVersion
+ * @param {{intervalMs?: number, spawnImpl?: Function}} [opts] - `intervalMs` as for
+ *   updateStatus; `spawnImpl` replaces child_process.spawn (tests only)
  */
-export function maybeSpawnUpdateCheck(currentVersion) {
+export function maybeSpawnUpdateCheck(currentVersion, opts) {
   if (updateCheckDisabled()) return false;
-  const { stale } = updateStatus(currentVersion);
+  const { stale } = updateStatus(currentVersion, opts);
   if (!stale) return false;
+  const spawnChild = (opts && opts.spawnImpl) || spawn;
   // Stamp the attempt before spawning. Without this, an offline machine
   // re-spawns a doomed child on every single statusline render — several per
-  // second — because the cache never gets a fresh timestamp.
+  // second — because the cache never gets a fresh timestamp. The stamp carries
+  // `current` too, which is what stops an upgrade from reading as stale again
+  // on the very next render.
   try {
     writeUpdateState({ ...readUpdateState(), checkedAt: Date.now(), current: currentVersion });
   } catch (e) {
@@ -138,7 +178,7 @@ export function maybeSpawnUpdateCheck(currentVersion) {
     return false;
   }
   try {
-    spawn(process.execPath, [cliEntryPath(), 'update-check', '--refresh', '--quiet'], {
+    spawnChild(process.execPath, [cliEntryPath(), 'update-check', '--refresh', '--quiet'], {
       detached: true,
       stdio: 'ignore',
       // Without this Windows flashes a console window, and this one

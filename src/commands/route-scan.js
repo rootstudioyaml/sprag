@@ -360,12 +360,14 @@ export async function run({ args, hasFlag, numArg }) {
       // — the refresh runs detached off the statusline path, never here.
       let updateBlock = null;
       try {
-        const { updateStatus, maybeSpawnUpdateCheck } = await import('../update-check.js');
+        const { updateStatus, maybeSpawnUpdateCheck, SESSION_START_CHECK_INTERVAL_MS } = await import('../update-check.js');
         const pkgVersion = readPackageVersion();
         // Session start is the one moment where a stale cache matters most, so
-        // kick the detached refresh here too. It lands in time for the
-        // statusline and for the next session, not for this line.
-        if (pkgVersion) maybeSpawnUpdateCheck(pkgVersion);
+        // kick the detached refresh here too, on a shorter interval than the
+        // statusline's 24h: releases can land several times a day, and a
+        // session opened that afternoon should hear about them. It lands in
+        // time for the statusline and for the next session, not for this line.
+        if (pkgVersion) maybeSpawnUpdateCheck(pkgVersion, { intervalMs: SESSION_START_CHECK_INTERVAL_MS });
         const u = pkgVersion ? updateStatus(pkgVersion) : null;
         // `dismissed` is the whole point of asking once: a user who said no to
         // this version must not be asked again every `/clear`.

@@ -112,7 +112,9 @@ test('a stale cache is stamped before the child spawns, so an offline machine ba
   isolated(t);
   writeState({ checkedAt: 1, latest: '3.24.0' }); // ancient
   assert.equal(updateStatus('3.24.0').stale, true);
-  maybeSpawnUpdateCheck('3.24.0');
+  // A stand-in for spawn: the stamp is what is under test, and a real child
+  // would go to the registry from inside the test run.
+  maybeSpawnUpdateCheck('3.24.0', { spawnImpl: () => ({ unref() {} }) });
   assert.equal(updateStatus('3.24.0').stale, false, 'the attempt itself refreshes the timestamp');
 });
 
