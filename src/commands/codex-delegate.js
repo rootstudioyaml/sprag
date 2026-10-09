@@ -1,7 +1,8 @@
 import { loadConfig, saveConfig } from '../config.js';
 import { configureCodexHooks } from '../codex-installer.js';
 import { validateCodexTarget, loadCodexModelRules, addCodexModelRule, removeCodexModelRule,
-  validateCodexSharedTarget, codexSharedTargets, codexDelegateMinContext, DEFAULT_DELEGATE_MIN_CONTEXT } from '../codex-delegation.js';
+  validateCodexSharedTarget, codexSharedTargets, codexDelegateMinContext, DEFAULT_DELEGATE_MIN_CONTEXT,
+  autoCodexSharedTargets } from '../codex-delegation.js';
 import { findCodexCandidate, resolveCodexCandidate } from '../codex-route-scan.js';
 import { codexRoutingSavedTotals, loadCodexLedger } from '../codex-ledger.js';
 import { codexRuleHealth, codexRulesInReview } from '../codex-rule-health.js';
@@ -23,13 +24,23 @@ function printShared(cfg, { details = false } = {}) {
     for (const t of targets) console.log(`${t.provider} | ${t.from} | ${t.tier} -> ${t.model}${t.effort ? ` (${t.effort})` : ''}`);
   }
   // A mapping routes only sessions on the parent model it names, so a tier
-  // mapped for another model still leaves the configured model unrouted.
-  const mapped = (tier) => targets.some((t) => t.provider === provider && t.tier === tier && (!parent || t.from === parent));
-  const missing = [...new Set(policies.map((r) => r.tier))].filter((tier) => !mapped(tier));
+  // mapped for another model still leaves the configured model unrouted. A tier
+  // without one resolves automatically, the way Claude Code resolves haiku/sonnet.
+  const own = (tier) => targets.find((t) => t.provider === provider && t.tier === tier && (!parent || t.from === parent));
+  const autoOn = cfg.codex?.sharedRules?.auto !== false;
+  const auto = autoOn && parent ? autoCodexSharedTargets({ model: parent, provider }) : { targets: [], reason: autoOn ? 'Codex config names no default model' : 'off' };
+  const tiers = [...new Set(policies.map((r) => r.tier))];
+  for (const tier of tiers) {
+    const t = own(tier) || auto.targets.find((a) => a.tier === tier);
+    if (t) console.log(`${tier} -> ${t.model}${t.effort ? ` (${t.effort})` : ''}${t.auto ? ' (auto: cheaper priced model already run in Codex)' : ''}`);
+  }
+  const missing = tiers.filter((tier) => !own(tier) && !auto.targets.some((a) => a.tier === tier));
   if (missing.length) {
-    console.log(`Unmapped tiers for ${parent || 'any parent model'} on ${provider || 'unknown provider'}: ${missing.join(', ')}. `
+    console.log(`Unmapped tiers for ${parent || 'any parent model'} on ${provider || 'unknown provider'}: ${missing.join(', ')}`
+      + `${autoOn && auto.reason ? ` (auto: ${auto.reason})` : ''}. `
       + `Set: sprag delegate shared map <T1|T2> --from ${parent || '<parent-model>'} --model <target-model> --agent codex`);
   }
+  console.log(`Automatic tier models: ${autoOn ? 'on' : 'off'} (turn ${autoOn ? 'off' : 'on'}: sprag delegate shared auto ${autoOn ? 'off' : 'on'} --agent codex)`);
   if (!parent && targets.length) console.log('Codex config names no default model; each mapping routes only sessions on its --from model.');
   const minimum = codexDelegateMinContext(cfg);
   console.log(`Shared prompt guidance starts at ${minimum} parent input tokens${cfg.codex?.delegateMinContext === minimum ? '' : ' (default)'}. `
@@ -48,8 +59,8 @@ export function run({ args, getArg, hasFlag, root }) {
   const cfg = loadConfig();
   if (sub === 'shared') {
     const action = args[2] || 'status';
-    if (!['status', 'on', 'off', 'map', 'unmap', 'min-context'].includes(action)) {
-      throw new Error('Usage: delegate shared status|on|off|map <T1|T2>|unmap <T1|T2>|min-context <tokens|default> --agent codex');
+    if (!['status', 'on', 'off', 'map', 'unmap', 'min-context', 'auto'].includes(action)) {
+      throw new Error('Usage: delegate shared status|on|off|map <T1|T2>|unmap <T1|T2>|min-context <tokens|default>|auto on|off --agent codex');
     }
     if (hasFlag('--global') || hasFlag('--project')) throw new Error('Shared policies retain their approved scope; mappings do not change it.');
     const provided = (flag) => args.some((arg) => arg === flag || arg.startsWith(`${flag}=`));
@@ -71,6 +82,9 @@ export function run({ args, getArg, hasFlag, root }) {
         if (!targets.some(same)) throw new Error('No matching shared tier mapping; specify --from and the correct provider.');
         cfg.codex = { ...cfg.codex, sharedRules: { ...cfg.codex?.sharedRules, targets: targets.filter((t) => !same(t)) } };
       }
+    } else if (action === 'auto') {
+      if (!['on', 'off'].includes(args[3])) throw new Error('Usage: delegate shared auto on|off --agent codex');
+      cfg.codex = { ...cfg.codex, sharedRules: { ...cfg.codex?.sharedRules, auto: args[3] === 'on' } };
     } else if (action === 'min-context') {
       const value = args[3];
       if (value === 'default') {

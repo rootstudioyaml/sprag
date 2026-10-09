@@ -32,6 +32,7 @@ Usage: sprag <command> --agent codex [options]
                                 Optional --provider <id> and --effort <level>
   delegate shared unmap T1|T2   Remove a mapping: --from <parent> [--provider <id>]
   delegate shared min-context N Parent input tokens before shared guidance; default resets
+  delegate shared auto on|off   Resolve unmapped tiers from priced models already run in Codex
   route-scan [--refresh]         Discover recurring simple turns in local logs
   route-scan dismiss R<N>       Dismiss a candidate without registering a rule
   route-scan savings            Attributed routing estimates; --refresh or --format json
@@ -418,7 +419,16 @@ export async function run({ args, version }) {
     console.log('After approval, start or resume Codex and run: sprag panel doctor --agent codex');
     if (panel.mode === 'window') console.log('Some Codex versions defer SessionStart until the first prompt. For immediate opening on typing codex: sprag panel shell install --agent codex (optional zsh integration).');
     console.log('Existing config.toml, Claude Code settings, and ratchet rules are preserved.');
-    console.log('First-use delegation: sprag seed --agent codex, then sprag delegate shared status --agent codex. Approve a scope and map the tiers before enabling delegation. No Claude installation is required.');
+    try {
+      const { codexModelName, codexProviderName } = await import('../agent.js');
+      const { autoCodexSharedTargets } = await import('../codex-delegation.js');
+      const parent = codexModelName(), provider = codexProviderName();
+      const auto = parent ? autoCodexSharedTargets({ model: parent, provider }) : { targets: [], reason: 'Codex config names no default model' };
+      console.log(auto.targets.length
+        ? `Delegation tiers for ${parent} on ${provider} (auto): ${auto.targets.map((t) => `${t.tier} -> ${t.model}`).join(', ')}. Change: sprag delegate shared status --agent codex`
+        : `Delegation tiers: not resolved yet (${auto.reason}). They resolve once a cheaper priced model has run in Codex, or map one: sprag delegate shared map T2 --from <parent> --model <target> --agent codex`);
+    } catch (e) { debug('codex:auto-tiers', e); }
+    console.log('First-use delegation: sprag seed --agent codex to approve policies, then sprag delegate on --agent codex. No Claude installation is required.');
     console.log('Korean guidance is opt-in: sprag korean on --agent codex');
     return;
   }

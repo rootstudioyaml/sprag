@@ -150,8 +150,8 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), 
 
 function codexSeedText(p, lang) {
   const text = lang === 'ko'
-    ? `"${p.label}" 유형의 ${p.tier === 'T2' ? '단순' : '중간 난도'} 작업은 ${p.tier}에 위임합니다. 실행 모델은 Codex 매핑에서 정합니다.`
-    : `${p.tier === 'T2' ? 'Simple' : 'Moderate'} "${p.labelEn}" tasks use ${p.tier}. The execution model comes from the Codex mapping.`;
+    ? `"${p.label}" 유형의 ${p.tier === 'T2' ? '단순' : '중간 난도'} 작업은 ${p.tier}에 위임합니다. 실행 모델은 Codex가 자동으로 정하거나 매핑으로 지정합니다.`
+    : `${p.tier === 'T2' ? 'Simple' : 'Moderate'} "${p.labelEn}" tasks use ${p.tier}. Codex resolves the execution model automatically or from a mapping.`;
   return composeRuleText(text, p, lang);
 }
 
@@ -292,7 +292,7 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
       '  3. Decide one at a time: ask about each rule below and run its command as soon as they answer',
       `  4. Register none: ${cmd('skip all')} (never offered again)`,
       'Always confirm the scope with the user before running an accept command.',
-      'Delegation policies are shared across Claude and Codex; approval retains the chosen scope. Codex execution also requires delegate on and explicit tier mappings: sprag delegate shared status --agent codex. Never assume Claude model names are Codex models.',
+      'Delegation policies are shared across Claude and Codex; approval retains the chosen scope. Codex execution also requires delegate on; tier models resolve from cheaper priced models already run in Codex, or from mappings: sprag delegate shared status --agent codex. Never assume Claude model names are Codex models.',
       ...pending.map((s) => `  [${s.id}] ${s.ruleText}`),
     ].join('\n');
   }

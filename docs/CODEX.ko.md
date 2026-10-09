@@ -158,19 +158,29 @@ Claude를 설치하지 않은 Codex 첫 사용자도 기록을 쌓기 전에 프
 sprag seed --agent codex
 sprag seed accept all --global --agent codex
 sprag delegate shared status --agent codex
+sprag delegate on --agent codex
+# 자동으로 정해진 난도별 모델을 바꾸고 싶을 때만:
 sprag delegate shared map T2 --from PARENT_MODEL --model SMALL_MODEL --effort high --agent codex
 sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort medium --agent codex
-sprag delegate on --agent codex
 ```
 
 등록 전에 전역과 프로젝트 범위를 선택합니다. 프로젝트에만 적용하려면 `--global` 대신
-`--project`를 지정하십시오. 위 모델명은 예시 자리표시자이므로, 공급자에서 사용할 수 있고
-부모보다 저렴한 실제 모델 ID로 바꿔야 합니다. 매핑을 저장했다는 사실만으로 사용 가능 여부나
-절감 효과를 확인한 것은 아닙니다. 공급자는 Codex 설정에서 읽으며 `--provider ID`로 지정할 수도 있습니다.
+`--project`를 지정하십시오.
 
-매핑은 출발 모델·공급자·난도가 일치할 때만 적용하고, 한 번 지정하면 승인된 모든 작업 유형에서
-사용합니다. 매핑하지 않은 난도는 메인 모델이 처리합니다. Codex에서 승인할 때 `.claude` 파일은
-만들지 않으며, 나중에 Claude를 시작하면 같은 정책을 Claude용 모델 표기로 생성합니다.
+`map` 줄은 선택 사항입니다. 매핑하지 않은 난도는 Claude Code가 `haiku`와 `sonnet`을 실제 모델로
+풀듯이 자동으로 정해집니다. 부모 모델의 공급자에서 가격이 매겨져 있고(게이트웨이 `/model/info` 가격,
+OpenAI 직접 호출이면 공개 가격), 부모보다 싸며, 이 사용자의 Codex 세션에서 이미 실행된 모델 가운데
+가장 싼 모델이 T2, 그다음 모델이 T1이 됩니다. 그런 모델이 하나뿐이면 T1은 메인 모델이 처리하고, 하나도
+없으면 두 난도 모두 메인 모델이 처리합니다. 자동 결정은 `delegate on` 상태에서만 동작하고, route-scan이
+기록한 실행 모델을 쓰며, 아무것도 저장하지 않으므로 가격이나 실행 이력이 바뀌면 그대로 따라갑니다.
+`delegate shared status`와 설치 출력에 정해진 모델이 표시되고, 정해지지 않으면 그 이유가 표시됩니다.
+끄려면 `sprag delegate shared auto off --agent codex`를 실행하십시오.
+
+명시한 매핑은 해당 난도에서 자동 결정보다 우선합니다. 매핑은 출발 모델·공급자·난도가 일치할 때만
+적용하고, 한 번 지정하면 승인된 모든 작업 유형에서 사용합니다. 공급자는 Codex 설정에서 읽으며
+`--provider ID`로 지정할 수도 있습니다. 매핑이나 자동 결정만으로 절감 효과를 확인한 것은 아닙니다.
+Codex에서 승인할 때 `.claude` 파일은 만들지 않으며, 나중에 Claude를 시작하면 같은 정책을 Claude용
+모델 표기로 생성합니다.
 
 프롬프트 훅은 단순 작업에 T2, 여러 단계가 필요한 작업에 T1을 제시하고, 매핑된 난도마다 route 줄을
 따로 줍니다. 부모는 작업에 맞는 모델 하나를 선택하고 독립적인 작업 명세, 상한, `fork_turns "none"`과

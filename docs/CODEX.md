@@ -223,16 +223,27 @@ A Codex-first user needs no Claude installation or transcript history:
 sprag seed --agent codex
 sprag seed accept all --global --agent codex  # or --project, after choosing scope
 sprag delegate shared status --agent codex
+sprag delegate on --agent codex
+# optional, to override the automatic tier models:
 sprag delegate shared map T2 --from PARENT_MODEL --model SMALL_MODEL --effort high --agent codex
 sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort medium --agent codex
-sprag delegate on --agent codex
 ```
 
-Replace the model placeholders with available, lower-cost models from your
-provider; mappings do not prove availability or savings. Each mapping applies
-to one exact parent model, provider, and tier, across every approved category.
-`--provider ID` overrides the provider read from Codex config. Without a mapping,
-that tier stays on the main agent. No Haiku/Sonnet-to-GPT equivalence is assumed.
+The map lines are optional. A tier without a mapping resolves automatically,
+the way Claude Code resolves `haiku` and `sonnet`: the cheapest model that is
+priced on the parent's provider (gateway `/model/info` prices, or OpenAI list
+prices for direct calls), costs less than the parent, and has already run in
+your Codex sessions becomes T2, and the next one up becomes T1. With a single
+such model T1 stays on the main agent; with none, both do. Resolution needs
+`delegate on`, uses the route scan's observed models, and follows price or
+history changes without storing anything. `delegate shared status` and the
+install output show the resolved models and, when nothing resolves, why.
+`sprag delegate shared auto off --agent codex` turns it off.
+
+An explicit mapping wins for its tier. Each one applies to one exact parent
+model, provider, and tier, across every approved category; `--provider ID`
+overrides the provider read from Codex config. Mappings and automatic choices
+do not prove savings, and no Haiku/Sonnet-to-GPT equivalence is assumed.
 Codex seed acceptance writes the common registry without creating `.claude`;
 Claude renders its own view when it is installed or starts later.
 

@@ -11,6 +11,8 @@ import { newRouteId, recordCodexDelegation } from './codex-ledger.js';
 import { readCodexTailLines } from './codex-parser.js';
 import { loadConfig } from './config.js';
 import { loadSharedModelRules, sharedModelRulesForProject, sharedRuleBounds, SHARED_RULE_TIERS } from './shared-model-rules.js';
+import { codexPriceBook, readCodexPrices } from './codex-cache-policy.js';
+import { codexRunCost } from './gateway-prices.js';
 
 export const CODEX_ROUTE_CATEGORIES = ['paste', 'translate', 'explore', 'read', 'check', 'run'];
 const MARKER = '<!-- sprag:codex:delegation -->';
@@ -41,10 +43,59 @@ export function codexSharedTargets(cfg) {
   });
 }
 
-export function sharedCodexModelRules({ cfg = loadConfig(), dir = userDataDir(), root, start = root,
+// A request of this shape (input to output about 5:1) ranks models by price.
+const RANKING_USAGE = { input: 10000, output: 2000 };
+const routeScanFile = (dir) => join(dir, 'codex-route-scan.json');
+
+function observedCodexModels(dir, provider) {
+  try {
+    const data = JSON.parse(readFileSync(routeScanFile(dir), 'utf8'));
+    const prefix = `${provider}|`;
+    return (Array.isArray(data?.observedModels) ? data.observedModels : [])
+      .filter((key) => typeof key === 'string' && key.startsWith(prefix)).map((key) => key.slice(prefix.length));
+  } catch { return []; }
+}
+
+/**
+ * The models Codex resolves T2 and T1 to when the user mapped none, the way
+ * Claude Code resolves `haiku` and `sonnet`. Only a model that is priced on the
+ * parent's provider, costs less than the parent, and has already run in this
+ * user's Codex sessions qualifies, so the hint never names a model the gateway
+ * cannot serve. The cheapest is T2 and the next one up is T1; with a single
+ * candidate T1 stays on the main agent. Returns { targets, reason }.
+ */
+export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDir(), model, provider, now = Date.now() } = {}) {
+  if (!safeId(model) || !safeId(provider)) return { targets: [], reason: 'unknown parent model or provider' };
+  const book = codexPriceBook(provider, readCodexPrices({ now, home, dir }), { home });
+  if (!book) return { targets: [], reason: `no price table for ${provider}` };
+  const cost = (m) => codexRunCost(RANKING_USAGE, book.prices[m]);
+  const parent = cost(model);
+  if (parent === null) return { targets: [], reason: `${model} is not priced on ${provider}` };
+  const cheaper = [...new Set(observedCodexModels(dir, provider))]
+    .filter((m) => m !== model && safeId(m)).map((m) => ({ model: m, usd: cost(m) }))
+    .filter((x) => x.usd !== null && x.usd < parent).sort((a, b) => a.usd - b.usd || a.model.localeCompare(b.model));
+  if (!cheaper.length) return { targets: [], reason: `no cheaper priced model has run in your Codex sessions on ${provider}` };
+  const targets = cheaper.slice(0, 2).map((x, i) => ({ tier: i === 0 ? 'T2' : 'T1', from: model, model: x.model, provider, auto: true }));
+  return { targets, reason: null };
+}
+
+/**
+ * Explicit mappings win per tier. Without one, a tier resolves automatically
+ * unless the user turned that off; resolution runs only for an enabled Codex
+ * delegation, so a caller without the hook's config never routes by accident.
+ */
+export function codexTierTargets({ cfg = loadConfig(), dir = userDataDir(), home = codexUserDir(), model, provider = codexProviderName() } = {}) {
+  const explicit = codexSharedTargets(cfg).filter((t) => t.from === model && t.provider === provider);
+  if (cfg.codex?.delegate !== true || cfg.codex?.sharedRules?.auto === false) return explicit;
+  const auto = autoCodexSharedTargets({ dir, home, model, provider }).targets
+    .filter((t) => !explicit.some((e) => e.tier === t.tier));
+  return [...explicit, ...auto];
+}
+
+export function sharedCodexModelRules({ cfg = loadConfig(), dir = userDataDir(), home = codexUserDir(), root, start = root,
   model, provider = codexProviderName() } = {}) {
   if (cfg.codex?.sharedRules?.enabled === false) return [];
-  const targets = codexSharedTargets(cfg).filter((t) => t.from === model && t.provider === provider);
+  const targets = codexTierTargets({ cfg, dir, home, model, provider });
   return sharedModelRulesForProject(loadSharedModelRules({ dir }), start).flatMap((rule) => {
     const target = targets.find((t) => t.tier === rule.tier);
     return target ? [{ ...rule, ...target, source: 'shared', status: 'active' }] : [];
@@ -210,7 +261,7 @@ export function codexRouteHint(payload, opts = {}) {
       record({ id, parentSessionId: payload?.session_id ?? null, turnId: payload?.turn_id ?? null, via: 'prompt',
         source: shared ? 'shared' : 'rule', category: route.category, scope: route.scope, from: payload?.model, to: route.model,
         provider: route.provider || provider, effort: route.effort ?? null, contextTokens: ctx, targetRoot: route.targetRoot ?? null,
-        ...(shared ? { tier: route.tier, sharedSignature: route.sharedSignature, ...(offerId ? { offerId } : {}) }
+        ...(shared ? { tier: route.tier, sharedSignature: route.sharedSignature, ...(offerId ? { offerId } : {}), ...(route.auto ? { mapping: 'auto' } : {}) }
           : { ruleCreatedAt: route.createdAt ?? null }) }, { dir: opts.dir });
     } catch { /* Accounting is optional; the hint still applies. */ }
     return id;
@@ -268,7 +319,7 @@ export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || 
   let rules = given;
   if (!rules) { try { rules = loadCodexModelRules({ dir }); } catch { rules = []; } }
   const provider = payload.model_provider || codexProviderName({ home });
-  const routes = explicit ? [] : matchingRoutes(input.message, { model: payload.model, provider, root, start: payload.cwd, rules, cfg, dir });
+  const routes = explicit ? [] : matchingRoutes(input.message, { model: payload.model, provider, root, start: payload.cwd, rules, cfg, dir, home });
   // Only the caller can choose a shared policy's tier. A shared match without a
   // model goes back to the caller with the mapped choices instead of a guessed
   // downgrade, or a default target that ignores the tier.

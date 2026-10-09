@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadSharedModelRules, sharedModelRulesForProject } from '../src/shared-model-rules.js';
-import { codexRouteHint, codexDelegationTool, sharedCodexModelRules, codexSharedTargets } from '../src/codex-delegation.js';
+import { codexRouteHint, codexDelegationTool, sharedCodexModelRules, codexSharedTargets, autoCodexSharedTargets } from '../src/codex-delegation.js';
 import { routeMatch } from '../src/route-inject.js';
 import { childEnv } from './helpers/child-env.js';
 
@@ -327,11 +327,11 @@ test('status checks mappings for the configured parent model, and the context ga
   const config = join(f.dir, 'config.json');
   assert.equal(f.run(['delegate', 'shared', 'map', 'T2', '--from', 'other-parent', '--model', 'small-model']).status, 0);
   let out = f.run(['delegate', 'shared', 'status']).stdout;
-  assert.match(out, /Unmapped tiers for parent-model on gateway: T1, T2\./);
+  assert.match(out, /Unmapped tiers for parent-model on gateway: T1, T2 \(auto: no price table for gateway\)\./);
   assert.match(out, /--from parent-model --model/);
   assert.match(out, /starts at 60000 parent input tokens \(default\)/);
   assert.equal(f.run(['delegate', 'shared', 'map', 'T2', '--from', 'parent-model', '--model', 'small-model']).status, 0);
-  assert.match(f.run(['delegate', 'shared', 'status']).stdout, /Unmapped tiers for parent-model on gateway: T1\./);
+  assert.match(f.run(['delegate', 'shared', 'status']).stdout, /Unmapped tiers for parent-model on gateway: T1 \(auto:/);
 
   assert.equal(f.run(['delegate', 'shared', 'min-context', '30000']).status, 0);
   assert.equal(JSON.parse(readFileSync(config, 'utf8')).codex.delegateMinContext, 30000);
@@ -375,4 +375,43 @@ test('in a nested project the inner root states the cap, whatever order the regi
     const match = routeMatch('Find the parser files', { rules: order, root: pkg });
     assert.deepEqual(match.t2.budget, { calls: 1, out: 100 });
   }
+});
+
+test('unmapped tiers resolve to cheaper priced models already run in Codex, the way Claude resolves haiku and sonnet', (t) => {
+  const f = fixture(t);
+  // Direct OpenAI: list prices apply, no gateway snapshot needed.
+  writeFileSync(join(f.home, 'config.toml'), 'model_provider="openai"\nmodel="gpt-6-astra"\n');
+  writeFileSync(join(f.dir, 'codex-route-scan.json'), JSON.stringify({ version: 1, candidates: [], observedModels: [
+    'openai|gpt-6-astra', 'openai|gpt-6-sol', 'openai|gpt-6-luna', 'openai|gpt-5.6-terra', 'openai|unpriced-model', 'other|gpt-5.4-nano'] }));
+  const opts = { ...f.opts, cfg: { codex: { delegate: true } } };
+  const payload = { ...f.payload, model: 'gpt-6-astra', model_provider: 'openai' };
+  const hint = codexRouteHint(payload, opts);
+  assert.match(hint, /T2: model gpt-6-luna/);
+  assert.match(hint, /T1: model gpt-6-sol/);
+  assert.deepEqual(f.recorded.map((r) => [r.tier, r.to, r.mapping]), [['T2', 'gpt-6-luna', 'auto'], ['T1', 'gpt-6-sol', 'auto']]);
+  const denied = codexDelegationTool({ ...payload, tool_name: 'spawn_agent',
+    tool_input: { message: payload.prompt, agent_type: 'explorer' } }, opts).hookSpecificOutput;
+  assert.equal(denied.permissionDecision, 'deny');
+  assert.match(denied.permissionDecisionReason, /T2: model gpt-6-luna/);
+
+  // An explicit mapping wins for its tier; the other tier still resolves.
+  const query = { ...opts, model: 'gpt-6-astra', provider: 'openai' };
+  const mixed = { codex: { delegate: true, sharedRules: { targets: [{ tier: 'T1', from: 'gpt-6-astra', model: 'gpt-5.6-terra', provider: 'openai' }] } } };
+  assert.deepEqual(sharedCodexModelRules({ ...query, cfg: mixed }).map((r) => [r.tier, r.model, r.auto === true]).sort(),
+    [['T1', 'gpt-5.6-terra', false], ['T2', 'gpt-6-luna', true]]);
+  for (const cfg of [{ codex: { delegate: true, sharedRules: { auto: false } } }, { codex: {} }, {}]) {
+    assert.deepEqual(sharedCodexModelRules({ ...query, cfg }), [], JSON.stringify(cfg));
+  }
+  assert.equal(autoCodexSharedTargets({ ...query, model: 'gpt-6-luna' }).targets.length, 0, 'nothing cheaper than the cheapest');
+  assert.match(autoCodexSharedTargets({ ...query, model: 'unpriced-model' }).reason, /not priced/);
+  assert.match(autoCodexSharedTargets({ ...query, provider: 'other' }).reason, /no price table/);
+
+  const status = f.run(['delegate', 'shared', 'status']);
+  assert.equal(status.status, 0, status.stderr);
+  assert.match(status.stdout, /T2 -> gpt-6-luna \(auto/);
+  assert.match(status.stdout, /T1 -> gpt-6-sol \(auto/);
+  assert.doesNotMatch(status.stdout, /Unmapped tiers/);
+  assert.equal(f.run(['delegate', 'shared', 'auto', 'off']).status, 0);
+  assert.match(f.run(['delegate', 'shared', 'status']).stdout, /Automatic tier models: off/);
+  assert.notEqual(f.run(['delegate', 'shared', 'auto', 'maybe']).status, 0);
 });
