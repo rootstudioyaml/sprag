@@ -60,7 +60,7 @@ npm i -g sprag-cli   # Claude Code, plus Codex when it is installed
    needs attention:
 
 ```
-🔀 Routing saved $44.67  |  opus→sonnet 59× $39.75 · opus→haiku 10× $4.92
+🔀 Routing saved $143  |  fable→sonnet 26× $73.3 · opus→sonnet 66× $59.3 · opus→haiku 25× $7.41 · fable→haiku 5× $3.22
 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 🅷 5/5 · 📦 Ctx 47% of 1M
 ```
 
@@ -95,7 +95,7 @@ holding.
 | Public benchmark accuracy | **59.1%** vs 57.9% best single model | `▰▰▰▰▰▰▰▰▰▰▰▰` | [benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
 | Cost for the same queries | **$268** vs gpt-5 $388, gemini-2.5-pro $734 | `▰▰▰▰▰▱▱▱▱▱▱▱` | [benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
 | Tokens for the same documents | **−95.9%**, 2,011,178 → 82,209 over 12 files | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
-| Delegation savings, from the ledger | **$44.67** over 69 delegated runs | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
+| Delegation savings, from the ledger | **$143.22** over 122 delegated runs | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
 | Cheap tier on the same prompts | **24% of the cost**, one answer worse out of eight | `▰▰▰▱▱▱▱▱▱▱▱▱` | [A/B run](#the-cheap-tier-on-the-same-prompts) |
 
 The first two rows answer the objection that comes up first: that moving work to
@@ -111,16 +111,21 @@ it again and you get the same figures. It validates the criteria, not sprag's ow
 routing: the dataset has no Claude models, so deepseek-v3, qwen3-235b and gpt-5
 stood in for cheap, mid and flagship.
 
-The last three rows are ledgers on this machine. They grow as it runs. These were
-read on 2026-09-18.
+The last three rows are ledgers on this machine. They grow as it runs. The
+routing figures were read on 2026-10-09, the document figures on 2026-09-18.
+Model names are the ones each run actually used.
 
 ### Current, on one machine, last 30 days
 
 ```
-🔀 Routing saved $44.67 total        (last 7d $23.21 · last 30d $42.73)
+🔀 Routing saved $143.22 total        (last 7d $7.54 · last 30d $109.21)
 
-   opus-5 → sonnet-5     59 runs    $39.75   ▰▰▰▰▰▰▰▰▰▰▱▱
-   opus-5 → haiku-4.5    10 runs     $4.92   ▰▱▱▱▱▱▱▱▱▱▱▱
+   fable-5 → sonnet-5      24 runs    $71.18   ▰▰▰▰▰▰▰▰▰▰▰▰
+   opus-5  → sonnet-5      54 runs    $46.58   ▰▰▰▰▰▰▰▰▱▱▱▱
+   opus-5  → sonnet-5.5    12 runs    $12.70   ▰▰▱▱▱▱▱▱▱▱▱▱
+   opus-5  → haiku-4.5     25 runs     $7.41   ▰▱▱▱▱▱▱▱▱▱▱▱
+   fable-5 → haiku-4.5      5 runs     $3.22   ▰▱▱▱▱▱▱▱▱▱▱▱
+   fable-5 → sonnet-5.5     2 runs     $2.13   ▰▱▱▱▱▱▱▱▱▱▱▱
 ```
 
 | Also measured | Over 30 days | |
@@ -155,8 +160,8 @@ arrives as fewer round-trips rather than as cheaper ones.
 ## The statusline in one line
 
 ```
-🔀 Routing saved $44.67  |  opus→sonnet 59× $39.75 · opus→haiku 10× $4.92
-🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
+🔀 Routing saved $143  |  fable→sonnet 26× $73.3 · opus→sonnet 66× $59.3 · opus→haiku 25× $7.41 · fable→haiku 5× $3.22
+🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5.5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
 When something is wrong the warning chip leads the line: `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL`. Paste the chip text into Claude and the Skill names the root-cause code and the fix. Every segment is explained in [the statusline reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md).
@@ -194,7 +199,7 @@ surfaces, and never send design or diagnosis.
 | Measured | Value | Sample | Window |
 |---|---|---|---|
 | Documents converted | 2,011,178 → 82,209 tokens | 12 files (xlsx, pptx, pdf) | to 2026-09-18 |
-| Delegated runs | $44.67 saved, $0.65 per run | 69 runs | to 2026-09-18 |
+| Delegated runs | $143.22 saved, $1.17 per run | 122 runs | to 2026-10-09 |
 | Ratchet rules accumulated | 37 (30 global, 7 per-project) | 4 repositories | 2026-05-08 to 09-16 |
 
 The two counts grow differently. Ratchet rules come from mistakes a person made,
