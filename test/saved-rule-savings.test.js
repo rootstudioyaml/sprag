@@ -16,7 +16,7 @@
  * resolves a path is loaded (parser.js fixes its transcript directory at import),
  * so the real user data is never read or written.
  */
-import { test, after } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -41,7 +41,10 @@ process.env.XDG_CONFIG_HOME = CFG;
   const clean = childEnv({ HOME, USERPROFILE: HOME, XDG_CONFIG_HOME: CFG });
   for (const key of Object.keys(process.env)) if (!(key in clean)) delete process.env[key];
 }
-after(() => rmSync(SANDBOX, { recursive: true, force: true }));
+/* Not a root after(): the runner fires it once the tests registered so far have
+   finished, and the fixture below is built behind a top-level await, so the
+   sandbox would be gone before the later tests read it. */
+process.once('exit', () => rmSync(SANDBOX, { recursive: true, force: true }));
 
 const DIR = join(CFG, 'claude-token-saver');
 mkdirSync(DIR, { recursive: true });

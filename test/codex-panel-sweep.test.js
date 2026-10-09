@@ -117,7 +117,9 @@ test('recording panel state sweeps old files once, and keeps this session\'s fil
   // That first write ran the day's clean-up; start the day over for the case below.
   rmSync(join(dir, 'housekeeping.json'), { force: true });
 
-  for (const f of ownHooks) aged(f, 10 * DAY, now);
+  // Backdate in place: aged() rewrites the file as {}, which would drop the
+  // status the panelHealth check below reads back.
+  for (const f of ownHooks) utimesSync(f, (now - 10 * DAY) / 1000, (now - 10 * DAY) / 1000);
   const oldOther = [
     aged(panelFile(dir, 'a', 'frame'), 10 * DAY, now),
     aged(panelFile(dir, 'b', 'hook'), 10 * DAY, now),

@@ -83,7 +83,9 @@ test('the read category keeps its hint: explaining is what it is for', () => {
 
 test('English explanation questions are held back the same way', () => {
   assert.equal(hint('how does the build work in this repo'), null);
-  assert.equal(hint('what is the status of the rollout', { lang: 'en' }), null);
+  // Not a "what is …" question: \bwhat\b is itself a read keyword, so it files
+  // under read, the category that keeps its hint.
+  assert.equal(hint('how do I check the rollout', { lang: 'en' }), null);
   // A weak word in a plain request is untouched.
   assert.ok(hint('please run the build for me'));
 });
