@@ -140,6 +140,29 @@ ledger. Nothing here is a projection.
 
 Every delegated run records its own price difference, so `sprag route-scan savings` traces any amount back to the rule that caused it. What the ledger deliberately leaves out is written down in [the command reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md).
 
+## Research behind the tier rules
+
+The tier criteria are not a hunch. Each one traces back to published routing
+research, and the percentages quoted in the rules (28% vs 54% recall, a +63pp
+gap on chained tool work) are sprag's own offline measurement on the datasets
+below.
+
+| Criterion | What the paper found | Paper |
+|---|---|---|
+| Delegate down, conservatively | As budgets grow, learned routers default to the most expensive model even when a cheaper one already suffices. | Lai & Ye, [When Routing Collapses: On the Degenerate Convergence of LLM Routers](https://arxiv.org/abs/2602.03478) (2026) |
+| Judge difficulty by outcome | Every router on the board falls short of the oracle, mainly because it cannot tell when a smaller model is enough. Query difficulty is defined by how many of 42 models actually answered it. | Lu et al., [RouterArena: An Open Platform for Comprehensive Comparison of LLM Routers](https://arxiv.org/abs/2510.00202) (2025) |
+| Thresholds from your own logs | Routing compares a predicted win rate against a cost threshold, and results are read by the share of calls sent to the strong model. sprag sets that threshold from your last 14 days at every scan. | Ong et al., [RouteLLM: Learning to Route LLMs with Preference Data](https://arxiv.org/abs/2406.18665) (2024) |
+| Escalate on failure | A cascade tries the cheap model first and lets a check on the answer decide whether to go up. It matched GPT-4 with up to 98% lower cost. | Chen, Zaharia & Zou, [FrugalGPT](https://arxiv.org/abs/2305.05176) (2023) |
+| Where the answer lives | Short-form factual recall measured on its own. The 28% vs 54% recall gap comes from this class of set. | Wei et al., [Measuring short-form factuality in large language models (SimpleQA)](https://arxiv.org/abs/2411.04368) (2024) |
+| Tool orchestration stays up | Agents must coordinate tool calls with a user in a shared environment. The +63pp gap was measured here. | Barres et al., [τ²-Bench](https://arxiv.org/abs/2506.07982) (2025) |
+| The public benchmark run | 400K instances, 21 datasets, 33 models. Several routers, commercial ones included, fail to beat a simple baseline. | Li et al., [LLMRouterBench](https://arxiv.org/abs/2601.07206) (Findings of ACL 2026) |
+| Routing vs cascading | A taxonomy of when a routing decision is made, what it reads, and how it is computed. | Moslem & Kelleher, [Dynamic Model Routing and Cascading for Efficient LLM Inference: A Survey](https://arxiv.org/abs/2603.04445) (2026) |
+
+Two criteria have no paper behind them. Batching tasks that read the same files
+and splitting design from code writing come from sprag's own cost accounting:
+on a sub-agent, loading context costs more than generating. The full reasoning,
+in Korean, is in [Tier criteria](https://github.com/rootstudioyaml/sprag/blob/main/docs/TIER_CRITERIA.md).
+
 ## Everything ships in one install, working from day one
 
 | | What it does | More |

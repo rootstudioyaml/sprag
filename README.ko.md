@@ -109,6 +109,23 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 
 위임된 실행은 한 건마다 단가 차액을 기록하므로, `sprag route-scan savings` 가 어떤 금액이든 그 원인이 된 규칙까지 역추적해 보여 줍니다. 집계에서 무엇을 빼는지는 [명령 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md)에 적어 두었습니다.
 
+## 티어 기준의 근거가 된 연구
+
+티어 기준은 감으로 정한 값이 아닙니다. 기준마다 공개된 라우팅 연구를 근거로 삼았고, 룰 문구에 나오는 수치(지식 회상 28% 대 54%, 도구 체인 작업의 +63%p 격차)는 아래 데이터셋으로 sprag가 직접 오프라인 실측한 값입니다.
+
+| 기준 | 논문이 밝힌 내용 | 논문 |
+|---|---|---|
+| 보수적으로 내려보낸다 | 학습형 라우터는 예산이 커질수록 더 싼 모델로 충분한 경우에도 가장 비싼 모델을 고르는 쪽으로 수렴합니다. | Lai & Ye, [When Routing Collapses: On the Degenerate Convergence of LLM Routers](https://arxiv.org/abs/2602.03478) (2026) |
+| 난이도는 결과로 판정한다 | 기존 라우터는 모두 오라클에 못 미치며, 주된 원인은 작은 모델로 충분한 경우를 알아보지 못하는 데 있습니다. 문항 난이도는 42개 모델 중 실제로 맞힌 모델 수로 정의합니다. | Lu et al., [RouterArena: An Open Platform for Comprehensive Comparison of LLM Routers](https://arxiv.org/abs/2510.00202) (2025) |
+| 임계값은 내 로그에서 정한다 | 예측한 승률을 비용 임계값과 비교해 라우팅하고, 결과는 강한 모델로 보낸 호출 비율로 읽습니다. sprag는 스캔할 때마다 최근 14일 분포에서 이 임계값을 다시 계산합니다. | Ong et al., [RouteLLM: Learning to Route LLMs with Preference Data](https://arxiv.org/abs/2406.18665) (2024) |
+| 실패하면 위로 올린다 | 캐스케이드는 싼 모델부터 시도하고, 답을 검사한 결과로 상위 모델로 올릴지 정합니다. GPT-4와 같은 성능을 최대 98% 낮은 비용으로 냈습니다. | Chen, Zaharia & Zou, [FrugalGPT](https://arxiv.org/abs/2305.05176) (2023) |
+| 답이 어디에 있나 | 짧은 사실 회상 능력만 따로 측정합니다. 지식 회상 28% 대 54% 격차는 이 계열의 데이터셋에서 나왔습니다. | Wei et al., [Measuring short-form factuality in large language models (SimpleQA)](https://arxiv.org/abs/2411.04368) (2024) |
+| 도구 오케스트레이션은 내리지 않는다 | 에이전트가 공유 환경에서 사용자와 함께 도구 호출을 조율해야 하는 벤치마크입니다. +63%p 격차를 여기서 측정했습니다. | Barres et al., [τ²-Bench](https://arxiv.org/abs/2506.07982) (2025) |
+| 공개 벤치마크 실측 | 40만 문항, 21개 데이터셋, 33개 모델 규모이며, 상용 제품을 포함한 여러 라우터가 단순한 기준선을 안정적으로 넘지 못했습니다. | Li et al., [LLMRouterBench](https://arxiv.org/abs/2601.07206) (Findings of ACL 2026) |
+| 라우팅과 캐스케이드 | 라우팅 결정을 언제 내리는지, 무엇을 읽는지, 어떻게 계산하는지로 기존 방식을 분류합니다. | Moslem & Kelleher, [Dynamic Model Routing and Cascading for Efficient LLM Inference: A Survey](https://arxiv.org/abs/2603.04445) (2026) |
+
+논문 근거가 없는 기준도 두 개 있습니다. 같은 파일을 읽는 작업을 한 에이전트에 묶는 기준과, 설계와 코드 작성을 나누는 기준은 sprag의 비용 집계에서 나왔습니다. 서브에이전트에서는 생성보다 컨텍스트 적재 비용이 더 크기 때문입니다. 자세한 근거는 [티어 기준 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/TIER_CRITERIA.md)에 있습니다.
+
 ## 설치 한 번에 전부 들어 있고, 첫날부터 동작합니다
 
 | | 하는 일 | 더 보기 |

@@ -387,6 +387,19 @@
   .t-haiku{color:var(--teal)} .t-sonnet{color:var(--blue)} .t-top{color:var(--amber)}
   table.split td .why{display:block;color:var(--faint);font-size:12.5px;margin-top:3px}
   @media(max-width:760px){table.split th:nth-child(2),table.split td:nth-child(2){display:none}}
+  table.refs{width:100%;border-collapse:collapse;margin-top:18px;font-size:13.5px}
+  table.refs th,table.refs td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.refs th{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);font-weight:500}
+  table.refs td:first-child{width:36%}
+  table.refs td a{color:var(--text);text-decoration:underline;text-underline-offset:3px}
+  table.refs td .why{display:block;color:var(--faint);font-size:12.5px;margin-top:3px}
+  @media(max-width:760px){table.refs thead{display:none}
+    table.refs,table.refs tbody{display:block;width:100%}
+    table.refs td{display:block;width:auto;padding:4px 0}
+    table.refs td:first-child{width:auto;padding-top:14px}
+    table.refs tr{display:block;border-bottom:1px solid var(--line);padding-bottom:12px}
+    table.refs td{border-bottom:0}}
 
 
   .docs-strip{border-top:1px solid var(--line);padding:64px 0}
@@ -942,6 +955,22 @@ sprag harness check</pre><button class="icon-button" data-copy="claude-install-c
       </div>
     </div>
     <p class="cite" data-k="rt.cite">Measured offline on <a href="https://github.com/ynulihao/LLMRouterBench">LLMRouterBench</a> (Findings of ACL 2026): 11,696 instances across 9 datasets. The tool-chain gap is from τ²-Bench, knowledge recall from SimpleQA-class sets. Method and holdout in <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>.</p>
+
+    <h3 class="subh" data-k="rt.refs.h">The research behind the criteria</h3>
+    <p class="lede sm" data-k="rt.refs.lede">Each criterion traces back to published routing research. Criteria 04 and 05 have no paper behind them: they come from sprag's own cost accounting.</p>
+    <table class="refs">
+      <thead><tr><th data-k="rt.refs.th1">Paper</th><th data-k="rt.refs.th2">What it found, and how sprag uses it</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://arxiv.org/abs/2602.03478">When Routing Collapses</a><span class="why">Lai &amp; Ye · 2026</span></td><td data-k="rt.ref1">As budgets grow, learned routers default to the most expensive model even when a cheaper one suffices. Sprag only ever moves clearly easy work down.</td></tr>
+        <tr><td><a href="https://arxiv.org/abs/2510.00202">RouterArena</a><span class="why">Lu et al. · 2025</span></td><td data-k="rt.ref2">Routers fall short of the oracle mainly because they miss when a smaller model is enough, and difficulty is defined by how many of 42 models answered. Sprag judges difficulty by outcome too: tool errors and retries in your logs.</td></tr>
+        <tr><td><a href="https://arxiv.org/abs/2406.18665">RouteLLM</a><span class="why">Ong et al. · 2024</span></td><td data-k="rt.ref3">Routes by comparing a predicted win rate against a cost threshold. Sprag recomputes its thresholds from your own last 14 days at every scan.</td></tr>
+        <tr><td><a href="https://arxiv.org/abs/2305.05176">FrugalGPT</a><span class="why">Chen, Zaharia &amp; Zou · 2023</span></td><td data-k="rt.ref4">A cascade tries the cheap model first and a check on the answer decides whether to escalate, matching GPT-4 at up to 98% lower cost. This is criterion 06.</td></tr>
+        <tr><td><a href="https://arxiv.org/abs/2411.04368">SimpleQA</a><span class="why">Wei et al. · 2024</span></td><td data-k="rt.ref5">Measures short-form factual recall on its own. The 28% vs 54% gap in criterion 01 comes from this class of set.</td></tr>
+        <tr><td><a href="https://arxiv.org/abs/2506.07982">τ²-Bench</a><span class="why">Barres et al. · 2025</span></td><td data-k="rt.ref6">Agents coordinate tool calls with a user in a shared environment. The +63pp gap in criterion 03 was measured here.</td></tr>
+        <tr><td><a href="https://arxiv.org/abs/2601.07206">LLMRouterBench</a><span class="why">Li et al. · Findings of ACL 2026</span></td><td data-k="rt.ref7">400K instances, 21 datasets, 33 models, and several routers that fail to beat a simple baseline. Sprag's offline run uses its data.</td></tr>
+        <tr><td><a href="https://arxiv.org/abs/2603.04445">Routing and Cascading: A Survey</a><span class="why">Moslem &amp; Kelleher · 2026</span></td><td data-k="rt.ref8">Sorts routing systems by when the decision is made, what it reads, and how it is computed.</td></tr>
+      </tbody>
+    </table>
   </div>
 </section>
 
@@ -1095,6 +1124,17 @@ const KO = {
   'rt.crit.h':'티어를 정하는 여섯 가지 기준',
   'rt.crit.lede':'이 기준은 생성되는 <code>ratchet-model.md</code>의 룰 목록 위에 함께 들어가 에이전트가 위임할 때마다 적용되며, 수치는 가정이 아니라 실측입니다.',
   'rt.cite':'수치는 <a href="https://github.com/ynulihao/LLMRouterBench">LLMRouterBench</a>(Findings of ACL 2026) 공개 데이터 11,696건(9개 데이터셋)으로 오프라인 실측한 값입니다. 도구 체인 격차는 τ²-Bench, 지식 회상은 SimpleQA 계열에서 나왔고, 방법과 홀드아웃 검증은 <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">docs/BENCHMARK.md</a>에 있습니다.',
+  'rt.refs.h':'기준의 근거가 된 연구',
+  'rt.refs.lede':'기준마다 공개된 라우팅 연구를 근거로 삼았습니다. 04번과 05번 기준은 논문 근거가 없고, sprag의 비용 집계에서 나왔습니다.',
+  'rt.refs.th1':'논문', 'rt.refs.th2':'밝힌 내용과 sprag가 쓰는 방식',
+  'rt.ref1':'학습형 라우터는 예산이 커질수록 더 싼 모델로 충분한 경우에도 가장 비싼 모델을 고르는 쪽으로 수렴합니다. sprag는 확실히 쉬운 작업만 내려보냅니다.',
+  'rt.ref2':'라우터가 오라클에 못 미치는 주된 원인은 작은 모델로 충분한 경우를 알아보지 못하는 데 있으며, 난이도는 42개 모델 중 실제로 맞힌 모델 수로 정의합니다. sprag도 난이도를 결과로 판정하며, 그 결과는 로그에 남은 도구 에러와 재시도입니다.',
+  'rt.ref3':'예측한 승률을 비용 임계값과 비교해 라우팅합니다. sprag는 스캔할 때마다 최근 14일 분포에서 임계값을 다시 계산합니다.',
+  'rt.ref4':'캐스케이드는 싼 모델부터 시도하고 답을 검사한 결과로 상위 모델로 올릴지 정하며, GPT-4와 같은 성능을 최대 98% 낮은 비용으로 냈습니다. 06번 기준이 이 구조입니다.',
+  'rt.ref5':'짧은 사실 회상 능력만 따로 측정합니다. 01번 기준의 28% 대 54% 격차가 이 계열의 데이터셋에서 나왔습니다.',
+  'rt.ref6':'에이전트가 공유 환경에서 사용자와 함께 도구 호출을 조율해야 하는 벤치마크입니다. 03번 기준의 +63%p 격차를 여기서 측정했습니다.',
+  'rt.ref7':'40만 문항, 21개 데이터셋, 33개 모델 규모이며, 여러 라우터가 단순한 기준선을 안정적으로 넘지 못했습니다. sprag의 오프라인 실측이 이 데이터를 씁니다.',
+  'rt.ref8':'라우팅 결정을 언제 내리는지, 무엇을 읽는지, 어떻게 계산하는지로 기존 방식을 분류합니다.',
   'rt.cr1h':'답이 어디에 있나',
   'rt.cr1p':'레포·파일·명령 출력에서 답이 나오는 조회는 haiku로 충분합니다. 모델 지식에서 답이 나오는 질문은 아닙니다. 지식 회상 실측은 28% 대 한 티어 위 54%였습니다.',
   'rt.cr2h':'실수가 드러나는가',

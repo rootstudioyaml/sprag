@@ -199,10 +199,12 @@ LLM 호출이 발생해 "전 과정 로컬·LLM 0회" 원칙과 충돌하므로 
 3. README의 "실제 효과" 섹션 방법론과 동일하게 사용자 메시지당 비용 전후 비교.
 
 출처:
-- RouteLLM: arxiv.org/abs/2406.18665 · github.com/lm-sys/routellm · lmsys.org/blog/2024-07-01-routellm
-- FrugalGPT: arxiv.org/abs/2305.05176
-- RouterArena: arxiv.org/pdf/2510.00202 · Routing collapse: arxiv.org/html/2602.03478v1
-- 라우팅 서베이: arxiv.org/html/2603.04445v1
+- RouteLLM: Ong et al., [RouteLLM: Learning to Route LLMs with Preference Data](https://arxiv.org/abs/2406.18665) (2024) · github.com/lm-sys/routellm · lmsys.org/blog/2024-07-01-routellm
+- FrugalGPT: Chen, Zaharia & Zou, [FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance](https://arxiv.org/abs/2305.05176) (2023)
+- RouterArena: Lu et al., [RouterArena: An Open Platform for Comprehensive Comparison of LLM Routers](https://arxiv.org/abs/2510.00202) (2025)
+- Routing collapse: Lai & Ye, [When Routing Collapses: On the Degenerate Convergence of LLM Routers](https://arxiv.org/abs/2602.03478) (2026)
+- 라우팅 서베이: Moslem & Kelleher, [Dynamic Model Routing and Cascading for Efficient LLM Inference: A Survey](https://arxiv.org/abs/2603.04445) (2026)
+- 벤치마크 실측(3.x 보강): Li et al., [LLMRouterBench: A Massive Benchmark and Unified Framework for LLM Routing](https://arxiv.org/abs/2601.07206) (Findings of ACL 2026). 도구 체인 +63%p 격차는 Barres et al., [τ²-Bench](https://arxiv.org/abs/2506.07982) (2025)에서, 지식 회상 28% 대 54% 격차는 Wei et al., [SimpleQA](https://arxiv.org/abs/2411.04368) (2024) 계열 데이터셋에서 측정했습니다. 방법은 [BENCHMARK.md](BENCHMARK.md)에 있습니다.
 - Claude Code 서브에이전트 문서: code.claude.com/docs/en/sub-agents
 - 실무 사례: github.com/anthropics/claude-code/issues/67898 · github.com/lucemia/claude-session-analyzer · mindstudio.ai 블로그
 </details>
