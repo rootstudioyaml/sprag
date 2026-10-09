@@ -38,6 +38,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag harness ...` | 🅷 Harness management (below) |
 | `sprag route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
 | `sprag route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
+| `sprag saved [reset\|undo]` | Show the saved-money counters, or reset them to zero like a stopwatch (`routing`, `doc2md`, or `all`). Ledger data is kept; `undo` restores the previous counters. `--agent codex` targets the Codex counters |
 | `sprag compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
 | `sprag korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
 | `sprag cohesion on\|off\|status\|show` | Inject English cohesion guidance (sentence-connection rules) at session start |

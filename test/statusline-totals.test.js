@@ -123,7 +123,7 @@ test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
     JSON.stringify({ events: { '/old.jsonl': { ts: Date.now(), usd: 99 } } }),
   );
   const m = await import('../src/savings-ledger.js?v1');
-  assert.deepEqual(m.delegationSavedTotals(), { week: 0, month: 0, total: 0, pairs: [] });
+  assert.deepEqual(m.delegationSavedTotals(), { week: 0, month: 0, total: 0, pairs: [], since: null });
 
   // A v2 write starts the file over and stamps the version.
   m.recordDelegationEvents([

@@ -69,6 +69,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { readResetMarks, isBeforeReset } = require('./saved-reset.cjs');
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 const MONTH_MS = 30 * 24 * 3600 * 1000;
@@ -185,13 +186,18 @@ function recordConversion(userDataDir, event) {
  * the lifetime rollup per format, priciest first, then most-converted. Never
  * throws; an unreadable ledger yields zeros, and the statusline hides the
  * chip on a zero.
+ *
+ * Events before the `doc2md` reset mark (`sprag saved reset`) are skipped in
+ * every figure, and `since` reports the mark (null when never reset).
  */
 function doc2mdSavedTotals(userDataDir, now = Date.now()) {
-  const empty = () => ({ week: 0, month: 0, total: 0, docs: 0, tokens: 0, byExt: [] });
+  const since = readResetMarks(userDataDir).doc2md;
+  const empty = () => ({ week: 0, month: 0, total: 0, docs: 0, tokens: 0, byExt: [], since });
   const totals = empty();
   const byExt = new Map();
   try {
     for (const e of Object.values(loadLedger(userDataDir).events)) {
+      if (isBeforeReset(e.ts, since)) continue;
       const usd = Number(e.usd) || 0;
       totals.total += usd;
       totals.docs += 1;

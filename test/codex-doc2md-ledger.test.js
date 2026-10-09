@@ -18,7 +18,7 @@ test('Codex document totals deduplicate sources, isolate homes, and never import
     recordCodexDocument(source, result, opts);
     recordCodexDocument(source, result, opts);
   }
-  assert.deepEqual(codexDocumentTotals(opts), { docs: 3, scope: 'codex-total', byExt: [{ ext: 'xlsx', docs: 2 }, { ext: 'pdf', docs: 1 }] });
+  assert.deepEqual(codexDocumentTotals(opts), { docs: 3, scope: 'codex-total', since: null, byExt: [{ ext: 'xlsx', docs: 2 }, { ext: 'pdf', docs: 1 }] });
   assert.equal(codexDocumentTotals({ ...opts, home: join(dir, 'other') }).docs, 0);
   const records = join(dir, 'codex-doc2md', readdirSync(join(dir, 'codex-doc2md'))[0]);
   for (const name of readdirSync(records)) assert.doesNotMatch(readFileSync(join(records, name), 'utf8'), /999|usd|source"|a.pdf|b.xlsx/);

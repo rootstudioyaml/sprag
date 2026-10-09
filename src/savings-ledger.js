@@ -26,6 +26,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { writeStateFile } from './state-file.js';
+import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 const MONTH_MS = 30 * 24 * 3600 * 1000;
@@ -140,13 +141,19 @@ export function modelFamily(model) {
  * Rolling totals: last 7 days, last 30 days, and lifetime, plus `pairs` — the
  * lifetime rollup by family-level model change, priciest first. `now` is
  * injectable for tests. Never throws — an unreadable ledger yields zeros.
+ *
+ * Events before the `routing` reset mark (`sprag saved reset`) are skipped
+ * everywhere, and `since` reports the mark (null when never reset). `dir` is
+ * the user data directory the mark is read from.
  */
-export function delegationSavedTotals(now = Date.now()) {
-  const empty = () => ({ week: 0, month: 0, total: 0, pairs: [] });
+export function delegationSavedTotals(now = Date.now(), dir = userDataDir()) {
+  const since = readResetMarks(dir).routing;
+  const empty = () => ({ week: 0, month: 0, total: 0, pairs: [], since });
   const totals = empty();
   const byPair = new Map();
   try {
     for (const e of Object.values(loadLedger().events)) {
+      if (isBeforeReset(e.ts, since)) continue;
       const usd = Number(e.usd);
       if (!Number.isFinite(usd)) continue;
       totals.total += usd;

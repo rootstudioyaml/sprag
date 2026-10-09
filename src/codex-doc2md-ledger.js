@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync, renameSync, realpathSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, renameSync, realpathSync, statSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { codexUserDir } from './agent.js';
 import { userDataDir } from './paths.js';
+import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const ledgerDir = ({ home = codexUserDir(), dir = userDataDir() } = {}) => join(dir, 'codex-doc2md', hash(resolve(home)));
@@ -26,13 +27,17 @@ export function recordCodexDocument(source, result, opts) {
   } catch { /* Accounting must not prevent document conversion. */ }
 }
 
+// Records carry no timestamp field, so the reset mark is compared with the
+// file's mtime. A source converted again rewrites its record and counts as new.
 export function codexDocumentTotals(opts) {
-  const total = { docs: 0, byExt: [], scope: 'codex-total' };
+  const since = readResetMarks(opts?.dir ?? userDataDir())['codex-docs'];
+  const total = { docs: 0, byExt: [], scope: 'codex-total', since };
   const byExt = new Map();
   try {
     const dir = ledgerDir(opts);
     for (const file of readdirSync(dir).filter((name) => /^[a-f0-9]{64}\.json$/.test(name))) {
       try {
+        if (since !== null && isBeforeReset(statSync(join(dir, file)).mtimeMs, since)) continue;
         const event = JSON.parse(readFileSync(join(dir, file), 'utf8'));
         if (event?.version !== 1 || !['pdf', 'pptx', 'xlsx', 'xls', 'docx', 'fig'].includes(event.ext)) continue;
         total.docs++;

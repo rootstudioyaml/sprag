@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { userDataDir } from './paths.js';
 import { roundUsd } from './savings-ledger.js';
+import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 import { discoverCodexSessionFiles, parseCodexTurns } from './codex-parser.js';
 import { codexRunCost, codexPriceBook, readCodexPrices } from './codex-cache-policy.js';
 
@@ -262,10 +263,15 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
   return ledger;
 }
 
-/** Signed totals over priced runs; unpriced runs are counted, never summed as zero. */
+/**
+ * Signed totals over priced runs; unpriced runs are counted, never summed as zero.
+ * Runs before the `codex-routing` reset mark are left out of every figure,
+ * `runs` and `priced` included; `since` reports the mark.
+ */
 export function codexRoutingSavedTotals({ dir = userDataDir(), now = Date.now() } = {}) {
-  const events = Object.values(loadCodexLedger({ dir }).events);
-  const totals = { week: 0, month: 0, total: 0, runs: events.length, priced: 0 };
+  const since = readResetMarks(dir)['codex-routing'];
+  const events = Object.values(loadCodexLedger({ dir }).events).filter((e) => !isBeforeReset(e.ts, since));
+  const totals = { week: 0, month: 0, total: 0, runs: events.length, priced: 0, since };
   for (const e of events) {
     if (!Number.isFinite(e.usd)) continue;
     totals.priced++;

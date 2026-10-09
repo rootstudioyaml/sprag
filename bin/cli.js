@@ -106,7 +106,7 @@ function tableColor() {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget', 'profile-map', 'feedback',
+  'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved',
 ]);
 
 const USAGE = `sprag — Claude Code and Codex agent harness
@@ -148,6 +148,7 @@ Usage:
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
   sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
   sprag compact-window     audit or pin autoCompactWindow for 1M sessions
+  sprag saved [reset|undo] show, reset or restore the saved-money counters (--agent codex for Codex)
   sprag litellm-budget     LiteLLM gateway key budget and spend
   sprag update-check       is a newer version out?
   sprag brief --hook       internal: the UserPromptSubmit hook entry point
@@ -303,6 +304,12 @@ async function main() {
   //   sprag seed | seed accept <id> --global|--project | seed skip <id>
   if (args[0] === 'seed') {
     return (await import('../src/commands/seed.js')).run({ args, hasFlag });
+  }
+
+  // Subcommand: saved — stopwatch reset for the lifetime "saved" counters.
+  //   sprag saved | saved reset [routing|doc2md|all] | saved undo
+  if (args[0] === 'saved') {
+    return (await import('../src/commands/saved.js')).run({ args, hasFlag });
   }
 
   // Subcommand: harness — manage the project's CLAUDE.md harness rules.

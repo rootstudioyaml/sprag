@@ -23,6 +23,7 @@ Usage: sprag <command> --agent codex [options]
   brief [on|off|status]          Current warnings or prompt-briefing preference
   last / history                Context/rate-limit warnings and handoffs; --days, --session, --project
   handoff [--cwd path]           Write Git state and Codex usage to HANDOFF-*.md
+  saved [reset|undo]             Show, reset or restore the saved-money counters
   delegate on|off|status         Native model routing and SubagentStart guidance
   delegate model <model>         Default target for spawns without an explicit model
   delegate rules                Codex-only category rules; add/rm with explicit scope
@@ -144,6 +145,7 @@ export async function run({ args, version }) {
     return;
   }
   if (cmd === 'delegate') return (await import('./codex-delegate.js')).run({ args, getArg, hasFlag, root });
+  if (cmd === 'saved') return (await import('./saved.js')).run({ args, hasFlag, agent: 'codex' });
   if (cmd === 'seed') return (await import('./seed.js')).run({ args, hasFlag, agent: 'codex', root });
   if (cmd === 'route-scan') {
     const rs = await import('../codex-route-scan.js');

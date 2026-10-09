@@ -31,6 +31,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag harness ...` | 🅷 Harness 관리 (아래 참고) |
 | `sprag route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 래칫 룰을 제안합니다 (아래 참고) |
 | `sprag route-scan savings` | 라우팅 절감 원장입니다. 모델 이동별 합계와 실행별 내역을 함께 보여 주며, 표시되는 금액의 근거가 됩니다 |
+| `sprag saved [reset\|undo]` | 절감 금액 카운터를 보여 주거나 스톱워치처럼 0으로 초기화합니다 (`routing`, `doc2md`, `all`). 원장 기록은 지우지 않고, `undo`로 이전 카운터를 되돌립니다. `--agent codex`는 Codex 카운터를 다룹니다 |
 | `sprag compact-window` | 1M 컨텍스트를 쓰면서 자동 압축 창이 설정되지 않았으면 경고하고, `set`으로 40만에 고정합니다 (아래 참고) |
 | `sprag korean on\|off\|status` | 한국어 문체 지침을 세션 시작 시 주입하고, 쓰기 시점 검사를 함께 설치합니다 (아래 참고) |
 | `sprag cohesion on\|off\|status\|show` | 영어 문장 연결(응집성) 지침을 세션 시작 시 주입합니다 |

@@ -56,9 +56,22 @@ export async function run({ args, hasFlag, numArg }) {
     // which model actually ran it.
     if (args[1] === 'savings') {
       const { loadLedger, delegationSavedTotals } = await import('../savings-ledger.js');
+      // Runs from before `sprag saved reset` are kept in the ledger but not listed.
+      const { readResetMarks, isBeforeReset } = await import('../saved-reset.cjs');
+      const { userDataDir } = await import('../paths.js');
+      const since = readResetMarks(userDataDir()).routing;
       const events = Object.entries(loadLedger().events)
         .map(([key, e]) => ({ key, ...e }))
+        .filter((e) => !isBeforeReset(e.ts, since))
         .sort((a, b) => b.ts - a.ts);
+      if (events.length === 0 && since !== null) {
+        // After a reset an empty list is the expected state, not a setup gap.
+        const at = new Date(since).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US');
+        console.log(lang === 'ko'
+          ? `${at}에 카운터를 초기화한 뒤로 기록된 라우팅 절감이 아직 없습니다. 되돌리려면 \`sprag saved undo\` 를 실행하십시오.`
+          : `No routing savings recorded since the counter was reset at ${at}. Run \`sprag saved undo\` to restore it.`);
+        return;
+      }
       if (events.length === 0) {
         console.log(lang === 'ko'
           ? '기록된 라우팅 절감 없음. 승격된 룰이 실제로 위임을 일으킨 뒤 `route-scan --refresh` 를 돌리면 채워집니다.'
@@ -72,6 +85,12 @@ export async function run({ args, hasFlag, numArg }) {
       console.log(lang === 'ko'
         ? `🔀 라우팅 절감 누적 ${money(t.total)}  (최근 7일 ${money(t.week)} · 30일 ${money(t.month)})`
         : `🔀 Routing saved, lifetime ${money(t.total)}  (last 7d ${money(t.week)} · 30d ${money(t.month)})`);
+      if (since !== null) {
+        const at = new Date(since).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US');
+        console.log(lang === 'ko'
+          ? `  ${at}에 카운터를 초기화했습니다. 이후 기록만 집계합니다.`
+          : `  Counter reset at ${at}; only later runs are counted.`);
+      }
 
       // Per model-pair rollup first: the "what moved where" question is what
       // this view exists to answer, and it is easier to read than the log.
