@@ -1,6 +1,6 @@
 {
   "name": "sprag-cli",
-  "version": "3.59.0",
+  "version": "3.60.0",
   "description": "Lower your Claude Code bill without changing how you work: simple tasks go to cheaper models, documents go in as compact Markdown, and the statusline shows spend and savings live. Works with Codex too.",
   "type": "module",
   "bin": {
