@@ -44,6 +44,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag cohesion on\|off\|status\|show` | Inject English cohesion guidance (sentence-connection rules) at session start |
 | `sprag korean lint block\|warn\|off` | How the write-time check handles findings |
 | `sprag korean lint scope all\|prose` | Check every text file, or documents only |
+| `sprag korean reply on\|off` | Toggle the Stop hook that sends back an English reply to a Korean prompt (default on; `korean off` removes it) |
 | `sprag doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
 | `sprag doc2md <file>` | Convert one file by hand. Diagnostic: it prints the refusal reason instead of swallowing it |
 | `sprag delegate on\|off\|status` | Append bounds, Korean guidance when it applies, and already-read paths to every Task/Agent delegation prompt (below) |

@@ -251,8 +251,11 @@ export async function run({ hasFlag }) {
         // good, and upgrading would silently leave shell-written files
         // unchecked. installKoreanLintHook widens in place and is idempotent.
         if (ks.koreanStyleEnabled()) {
-          const { installKoreanLintHook } = await import('../installer.js');
+          const { installKoreanLintHook, installReplyLanguageHook } = await import('../installer.js');
           const migrated = installKoreanLintHook();
+          // Older installs have the lint hook but no Stop hook; add it here so
+          // an upgrade closes the English-reply gap without a manual `korean on`.
+          installReplyLanguageHook();
           if (migrated.action === 'updated') {
             console.log(lang === 'ko'
               ? '          검사 범위 갱신: Bash 로 쓴 파일도 이제 확인합니다'

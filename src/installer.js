@@ -640,6 +640,58 @@ export function removeKoreanLintHook() {
   return { path: file, action: 'removed' };
 }
 
+// Registers the Stop hook that catches an English reply to a Korean prompt.
+// The lint hook above watches files the model writes; this slip writes no
+// file, so it needs its own checkpoint at the end of the turn. Installed and
+// removed together with the lint hook by `korean on|off`. Idempotent.
+const REPLY_LANGUAGE_HOOK_COMMAND = `${CLI} korean --reply-hook`;
+
+export function installReplyLanguageHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
+
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
+  if (settings.hooks.Stop !== undefined && !Array.isArray(settings.hooks.Stop)) {
+    return { path: file, action: 'skipped', reason: 'hooks.Stop is not an array — fix settings.json manually' };
+  }
+  const list = Array.isArray(settings.hooks.Stop) ? settings.hooks.Stop : [];
+  const existing = list.find((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'korean', '--reply-hook')),
+  );
+  if (existing) return { path: file, action: 'exists' };
+
+  list.push({
+    hooks: [{ type: 'command', command: REPLY_LANGUAGE_HOOK_COMMAND, timeout: 10 }],
+  });
+  settings.hooks.Stop = list;
+  const writeProblem = writeSettings(file, settings);
+  if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  return { path: file, action: 'created' };
+}
+
+export function removeReplyLanguageHook() {
+  const file = join(claudeUserDir(), 'settings.json');
+  if (!existsSync(file)) return { path: file, action: 'absent' };
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
+  const list = settings?.hooks?.Stop;
+  if (!Array.isArray(list)) return { path: file, action: 'absent' };
+  const { kept, touched } = removeHooksWhere(list, (h) => isOurSubcommand(h?.command, 'korean', '--reply-hook'));
+  if (!touched) return { path: file, action: 'absent' };
+  if (kept.length === 0) delete settings.hooks.Stop;
+  else settings.hooks.Stop = kept;
+  const writeProblem = writeSettings(file, settings);
+  if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  return { path: file, action: 'removed' };
+}
+
 // Registers the PreToolUse hook that converts attached documents to Markdown
 // before the model reads them. PreToolUse rather than PostToolUse because the
 // point is to intervene before a pptx lands in the context window; afterwards

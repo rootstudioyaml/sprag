@@ -76,6 +76,19 @@ The default `all` scope covers code comments, UI strings, subtitles, templates, 
 
 The scope sentence in the injected guidance is generated from the same setting, so the model is never told one rule while being corrected against another.
 
+### The reply-language check
+
+The lint hook only sees files the model writes. A different slip writes no file: after a long stretch of English work (commit messages, release notes) the model sometimes answers a Korean prompt in English. That is decidable by counting letters, so `korean on` also installs a Stop hook, `sprag korean --reply-hook`, that reads the tail of the transcript when a turn ends.
+
+It blocks the stop and asks for the same answer in Korean when the last real prompt is Korean (at least 4 Hangul syllables, Hangul at least 30% of letters) and the final reply is English (at least 80 Latin letters, Hangul under 15%). Code blocks, inline code, URLs, paths and system reminders are ignored. A prompt that asks for English (`영어로`, `영문으로`, `in English`) is skipped. Measured on 2,204 Korean-prompt turns from 14 days of real transcripts: 8 flagged, all true positives. It never fires twice in a row, because Claude Code sets `stop_hook_active` while the model is already continuing from a Stop hook.
+
+```bash
+sprag korean reply off   # keep the hook installed but make it a no-op
+sprag korean reply on    # default
+```
+
+`sprag korean off` removes the hook entirely, and `sprag korean` shows the current state.
+
 ### The encoding rule that ships with it (v3.23.2)
 
 Alongside the writing guidance, one more line is injected: **non-ASCII strings in tool-call parameters must be written as literal UTF-8, never as `\uXXXX` unicode escapes.**

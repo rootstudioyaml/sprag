@@ -20,6 +20,10 @@
  * wrote:
  *   sprag korean lint block|warn|off   # how findings are handled
  *   sprag korean lint <file...>        # check files on disk
+ *
+ * The third half is a Stop hook for the one slip a write-time check cannot
+ * see: an English reply to a Korean prompt, which writes no file at all.
+ *   sprag korean reply on|off          # toggle it (default on)
  */
 
 // Enforcement is only useful if it is on by default — a check the user has to
@@ -37,6 +41,12 @@ function koreanLintMode(cfg) {
 // about. `prose` restores the narrow reading.
 function koreanLintScope(cfg) {
   return cfg?.koreanStyle?.lintScope === 'prose' ? 'prose' : 'all';
+}
+
+// Default on, like the lint: a check the user has to discover is the same
+// hole in a different shape. Only an explicit false turns it off.
+function koreanReplyCheckOn(cfg) {
+  return cfg?.koreanReplyCheck !== false;
 }
 
 export async function run({ args, hasFlag }) {
@@ -69,6 +79,55 @@ export async function run({ args, hasFlag }) {
       process.exit(2);
     }
     console.log(message);
+    return;
+  }
+
+  // Stop hook. Fires when the model finishes a turn; if the reply is English
+  // to a Korean prompt, block the stop so the model answers again in Korean.
+  // Imports stay minimal on purpose: this runs after every turn.
+  if (hasFlag?.('--reply-hook') || sub === '--reply-hook') {
+    const { readStdinJson } = await import('../stdin-payload.js');
+    const payload = readStdinJson();
+    if (!payload) return;
+    // Claude Code sets stop_hook_active while the model is already continuing
+    // because of a Stop hook. Blocking again would loop forever.
+    if (payload.stop_hook_active) return;
+    if (!ks.koreanStyleEnabled()) return;
+    if (!koreanReplyCheckOn(loadConfig())) return;
+    const { createRequire } = await import('node:module');
+    const found = createRequire(import.meta.url)('../reply-language.cjs').checkReplyLanguage(payload.transcript_path);
+    if (!found) return;
+    console.log(JSON.stringify({
+      decision: 'block',
+      reason: '사용자는 한국어로 질문했는데 마지막 답변이 영어로 작성됐습니다. 같은 내용을 한국어로 다시 답하십시오. 코드, 명령어, 오류 원문, 커밋 메시지처럼 원문을 유지해야 하는 부분은 그대로 둡니다.',
+    }));
+    return;
+  }
+
+  // Toggle: `korean reply on|off`. Off keeps the hook installed and makes it
+  // a no-op, the same way lint mode `off` works; `korean off` removes it.
+  if (sub === 'reply') {
+    const cfg = loadConfig();
+    const next = args[2];
+    if (!next) {
+      console.log(lang === 'ko'
+        ? `답변 언어 검사: ${koreanReplyCheckOn(cfg) ? '켜짐' : '꺼짐'}`
+        : `Reply-language check: ${koreanReplyCheckOn(cfg) ? 'on' : 'off'}`);
+      return;
+    }
+    if (!['on', 'off'].includes(next)) {
+      console.error('Usage: sprag korean reply [on|off]');
+      process.exit(1);
+    }
+    cfg.koreanReplyCheck = next === 'on';
+    saveConfig(cfg);
+    console.log(next === 'on'
+      ? (lang === 'ko'
+        ? '답변 언어 검사를 켰습니다. 한국어 질문에 영어로 답하면 모델에게 되돌려 보내 다시 답하게 합니다.'
+        : 'Reply-language check is on. An English reply to a Korean prompt is sent back for a Korean answer.')
+      : (lang === 'ko'
+        ? '답변 언어 검사를 껐습니다. 훅은 남아 있지만 아무 일도 하지 않습니다.'
+        : 'Reply-language check is off. The hook stays installed and does nothing.'));
     return;
   }
 
@@ -116,8 +175,8 @@ export async function run({ args, hasFlag }) {
     saveConfig(cfg);
     console.log(lang === 'ko'
       ? (next === 'all'
-        ? '검사 범위: all — 문서와 코드 주석, UI 문자열까지 세션이 쓴 모든 텍스트 파일을 검사합니다.'
-        : '검사 범위: prose — 마크다운과 텍스트 문서만 검사합니다.')
+        ? '검사 범위를 all 로 바꿨습니다. 문서와 코드 주석, UI 문자열까지 세션이 쓴 모든 텍스트 파일을 검사합니다.'
+        : '검사 범위를 prose 로 좁혔습니다. 마크다운과 텍스트 문서만 검사합니다.')
       : (next === 'all'
         ? 'Check scope: all — every text file the session writes, comments and UI strings included.'
         : 'Check scope: prose — documents only.'));
@@ -163,8 +222,13 @@ export async function run({ args, hasFlag }) {
   if (sub === 'on' || sub === 'off') {
     const enabled = sub === 'on';
     ks.setKoreanStyleEnabled(enabled);
-    const { installKoreanLintHook, removeKoreanLintHook } = await import('../installer.js');
+    const {
+      installKoreanLintHook, removeKoreanLintHook,
+      installReplyLanguageHook, removeReplyLanguageHook,
+    } = await import('../installer.js');
     const hook = enabled ? installKoreanLintHook() : removeKoreanLintHook();
+    if (enabled) installReplyLanguageHook();
+    else removeReplyLanguageHook();
     if (enabled) {
       console.log(lang === 'ko'
         ? '한국어 문체 지침을 켰습니다. 다음 세션부터 모든 프로젝트에 적용됩니다.'
@@ -202,6 +266,7 @@ export async function run({ args, hasFlag }) {
     console.log(`한국어 문체 지침: ${on ? '켜짐' : '꺼짐'}`);
     console.log(`  비용: 세션당 약 ${tokens} 토큰 (세션 시작 1회 주입)`);
     console.log(`  쓰기 시점 검사: ${koreanLintMode(loadConfig())}, 범위 ${koreanLintScope(loadConfig())} (바꾸려면 sprag korean lint block|warn|off, korean lint scope all|prose)`);
+    console.log(`  답변 언어 검사: ${koreanReplyCheckOn(loadConfig()) ? '켜짐' : '꺼짐'} (바꾸려면 sprag korean reply on|off)`);
     console.log(`  출처: ${ks.KOREAN_STYLE_SOURCE}`);
     console.log(`  라이선스 전문: ${ks.KOREAN_STYLE_LICENSE_PATH}`);
     console.log(on
@@ -211,6 +276,7 @@ export async function run({ args, hasFlag }) {
     console.log(`Korean writing guidance: ${on ? 'on' : 'off'}`);
     console.log(`  Cost: ~${tokens} tokens per session (injected once at session start)`);
     console.log(`  Write-time check: ${koreanLintMode(loadConfig())}, scope ${koreanLintScope(loadConfig())} (change with: sprag korean lint block|warn|off, korean lint scope all|prose)`);
+    console.log(`  Reply-language check: ${koreanReplyCheckOn(loadConfig()) ? 'on' : 'off'} (change with: sprag korean reply on|off)`);
     console.log(`  Source: ${ks.KOREAN_STYLE_SOURCE}`);
     console.log(`  License text: ${ks.KOREAN_STYLE_LICENSE_PATH}`);
     console.log(on

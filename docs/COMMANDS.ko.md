@@ -37,6 +37,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag cohesion on\|off\|status\|show` | 영어 문장 연결(응집성) 지침을 세션 시작 시 주입합니다 |
 | `sprag korean lint block\|warn\|off` | 쓰기 시점 검사가 위반을 어떻게 처리할지 정합니다 |
 | `sprag korean lint scope all\|prose` | 검사 범위를 모든 텍스트 파일과 문서 전용 사이에서 고릅니다 |
+| `sprag korean reply on\|off` | 한국어 질문에 영어로 답했을 때 되돌려 보내는 Stop 훅을 켜고 끕니다 (기본값 켜짐, `korean off` 는 훅을 제거합니다) |
 | `sprag doc2md on\|off` | 첨부 문서를 모델이 읽기 전에 Markdown 으로 변환합니다 (아래 참고) |
 | `sprag doc2md <파일>` | 파일 하나를 직접 변환합니다. 진단 용도이며 실패 이유를 그대로 출력합니다 |
 | `sprag delegate on\|off\|status` | Task/Agent 위임 프롬프트마다 상한과 필요한 경우 한국어 지침, 세션이 이미 읽은 경로를 덧붙입니다 (아래 참고) |
