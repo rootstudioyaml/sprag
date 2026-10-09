@@ -551,7 +551,7 @@
     <p class="sub" data-k="hero.sub">Save tokens from the first session. Simple requests go to cheaper models, documents go in as compact Markdown, and the statusline shows what you spent and saved.</p>
     <div class="actions">
       <a class="btn" href="#install" data-k="hero.cta">Install Sprag</a>
-      <a class="btn" href="docs/codex/" data-k="hero.codex">Codex guide</a>
+      <a class="btn" href="#how" data-k="hero.how">How it works</a>
     </div>
 
     <figure class="compare">
@@ -564,16 +564,16 @@
 
     <div class="demo">
       <div class="titlebar">
-        <span class="path">sprag --statusline --agent codex</span>
+        <span class="path">sprag --statusline</span>
         <span class="snapshot-label" data-k="hero.capture">CLI capture · example session</span>
       </div>
       <div class="tabs" role="tablist">
-        <button id="demo-codex" role="tab" aria-selected="true" aria-controls="capture-codex" data-tab="codex">Codex</button>
-        <button id="demo-claude" role="tab" aria-selected="false" aria-controls="capture-claude" tabindex="-1" data-tab="claude">Claude Code</button>
+        <button id="demo-claude" role="tab" aria-selected="true" aria-controls="capture-claude" data-tab="claude">Claude Code</button>
+        <button id="demo-codex" role="tab" aria-selected="false" aria-controls="capture-codex" tabindex="-1" data-tab="codex">Codex</button>
       </div>
       <div class="term">
-        <img id="capture-codex" class="terminal-shot" role="tabpanel" aria-labelledby="demo-codex" src="assets/codex-panel.png" width="1200" height="330" alt="Codex panel showing context, cached input, model, and rules in an example session" />
-        <img id="capture-claude" class="terminal-shot" role="tabpanel" aria-labelledby="demo-claude" src="statusline.png" width="1200" height="330" alt="Claude Code statusline with routing and document accounting" hidden />
+        <img id="capture-codex" class="terminal-shot" role="tabpanel" aria-labelledby="demo-codex" src="assets/codex-panel.png" width="1200" height="330" alt="Codex panel showing context, cached input, model, and rules in an example session" hidden />
+        <img id="capture-claude" class="terminal-shot" role="tabpanel" aria-labelledby="demo-claude" src="statusline.png" width="1200" height="330" alt="Claude Code statusline with routing and document accounting" />
       </div>
       <p class="caption" data-k="hero.caption">Separate agent records. Shared writing and document tools. Unknown prices stay unknown.</p>
     </div>
@@ -593,18 +593,18 @@
   <div class="wrap">
     <h2 data-k="setup.h2">Install Sprag</h2>
     <div class="agent-switch" role="tablist" aria-label="Agent installation">
-      <button id="setup-codex-tab" role="tab" aria-selected="true" aria-controls="setup-codex" data-agent="codex">Codex</button>
-      <button id="setup-claude-tab" role="tab" aria-selected="false" aria-controls="setup-claude" tabindex="-1" data-agent="claude">Claude Code</button>
+      <button id="setup-claude-tab" role="tab" aria-selected="true" aria-controls="setup-claude" data-agent="claude">Claude Code</button>
+      <button id="setup-codex-tab" role="tab" aria-selected="false" aria-controls="setup-codex" tabindex="-1" data-agent="codex">Codex</button>
     </div>
-    <div class="setup-panel" id="setup-codex" role="tabpanel" aria-labelledby="setup-codex-tab">
+    <div class="setup-panel" id="setup-codex" role="tabpanel" aria-labelledby="setup-codex-tab" hidden>
       <div class="command-block"><pre id="codex-install-command">npm i -g sprag-cli</pre><button class="icon-button" data-copy="codex-install-command" aria-label="Copy Codex install commands" title="Copy Codex install commands"><svg><use href="assets/icons/copy.svg#copy" /></svg></button></div>
       <p class="setup-note" data-k="setup.codex">One command sets up Codex too when it is installed, with the rule presets registered globally. Then trust the Sprag hooks in Codex <code>/hooks</code>; Codex requires that step. Codex only: <code>npm i -g sprag-cli --ignore-scripts</code> then <code>sprag install --agent codex</code>.</p>
       <div class="setup-links"><a href="docs/codex/" data-k="setup.guide">Codex setup and limits</a><a href="docs/codex/#route-discovery-and-presets" data-k="setup.rules" data-anchor-en="route-discovery-and-presets" data-anchor-ko="위임-후보와-프리셋">Routing and presets</a></div>
     </div>
-    <div class="setup-panel" id="setup-claude" role="tabpanel" aria-labelledby="setup-claude-tab" hidden>
+    <div class="setup-panel" id="setup-claude" role="tabpanel" aria-labelledby="setup-claude-tab">
       <div class="command-block"><pre id="claude-install-command">npm i -g sprag-cli
 sprag harness check</pre><button class="icon-button" data-copy="claude-install-command" aria-label="Copy Claude install commands" title="Copy Claude install commands"><svg><use href="assets/icons/copy.svg#copy" /></svg></button></div>
-      <p class="setup-note" data-k="setup.claude">The default install registers Claude Code hooks, its statusline and the rule presets without asking. Add <code>--manual</code> to <code>sprag install</code> to confirm each step.</p>
+      <p class="setup-note" data-k="setup.claude">The default install registers Claude Code hooks, its statusline and the rule presets. The only question comes when you already have a statusline: show both, replace yours, or keep yours. Add <code>--manual</code> to <code>sprag install</code> to confirm each step.</p>
       <div class="setup-links"><a href="docs/install/" data-k="setup.claudeguide">Claude Code setup</a><a href="docs/statusline/" data-k="setup.statusline">Statusline reference</a></div>
     </div>
     <p class="copy-status" role="status" aria-live="polite"></p>
@@ -1133,13 +1133,13 @@ const KO = {
   'hero.sub':'첫 세션부터 토큰을 아낍니다. 단순한 요청은 저렴한 모델로 넘기고 문서는 가벼운 Markdown으로 바꿔 넣으며, 쓴 금액과 아낀 금액을 상태줄에서 바로 보여 줍니다.',
   'hero.copy':'복사', 'hero.copied':'복사됨',
   'hero.cta':'Sprag 설치',
-  'hero.codex':'Codex 안내',
+  'hero.how':'작동 방식',
   'hero.capture':'CLI 캡처 · 예제 세션',
   'hero.video':'같은 요청을 두 터미널에 넣었습니다. 예시 요청을 공개 단가로 계산했습니다.',
   'hero.caption':'에이전트 기록은 분리하고 문체·문서 도구는 공유합니다. 확인할 수 없는 단가는 미상으로 남깁니다.',
   'setup.h2':'Sprag 설치',
   'setup.codex':'Codex가 설치되어 있으면 이 명령 하나로 Codex도 설정하고 추천 룰을 전역으로 등록합니다. 설치 후 Codex의 <code>/hooks</code>에서 Sprag 훅을 신뢰하십시오. Codex가 요구하는 절차입니다. Codex만 쓰려면 <code>npm i -g sprag-cli --ignore-scripts</code> 다음에 <code>sprag install --agent codex</code>를 실행합니다.',
-  'setup.claude':'기본 설치는 묻지 않고 Claude Code 훅과 상태줄, 추천 룰을 등록합니다. 단계마다 확인하려면 <code>sprag install --manual</code>을 쓰십시오.',
+  'setup.claude':'기본 설치는 Claude Code 훅과 상태줄, 추천 룰을 등록합니다. 이미 쓰던 상태줄이 있을 때만 둘 다 표시할지, 교체할지, 그대로 둘지 묻습니다. 단계마다 확인하려면 <code>sprag install --manual</code>을 쓰십시오.',
   'setup.guide':'Codex 설치와 제한', 'setup.rules':'위임과 프리셋',
   'setup.claudeguide':'Claude Code 설치', 'setup.statusline':'상태줄 안내',
   'fq.q5':'Codex도 같은 상태줄을 쓰나요?',

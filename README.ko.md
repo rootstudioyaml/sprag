@@ -36,50 +36,25 @@ Sprag는 Claude Code와 Codex가 남기는 세션 기록을 읽어 반복 실패
 npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입니다
 ```
 
-## Codex
+## 설치하면 바로 달라지는 것
 
-Codex 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙,
-한국어 검사, 프롬프트의 문서 경로 자동 변환, 로컬 토큰 보고서를 사용할 수 있습니다.
-Codex가 설치되어 있으면 `npm i -g sprag-cli` 하나로 Codex도 설정하고, 추천 룰을 묻지 않고
-전역으로 등록합니다(단계마다 확인하려면 `sprag install --manual`). Claude Code를 건드리지 않고
-Codex만 쓴다면 다음과 같이 설치하십시오.
+1. `npm i -g sprag-cli` 를 실행합니다. 훅과 상태줄, 추천 룰이 모든 프로젝트에
+   설정되므로 프로젝트마다 따로 설정할 것은 없습니다. 이미 쓰던 상태줄이 있으면
+   둘 다 표시할지, 교체할지, 그대로 둘지 설치 중에 묻습니다.
+2. 아무 프로젝트에서나 Claude Code를 열고 평소처럼 일합니다.
+3. 상태줄을 봅니다. 세션에서 쓴 금액과 아낀 금액이 나오고, 캐시나 컨텍스트,
+   사용량 한도에 문제가 생기면 경고 칩이 줄 맨 앞에 나타납니다.
 
-```bash
-npm i -g sprag-cli --ignore-scripts
-sprag install --agent codex
-sprag --agent codex --days 7
-sprag panel --agent codex  # 별도 터미널에서 실시간 패널 실행
-sprag --statusline --agent codex --text
-sprag doctor --agent codex  # 문제가 생겼을 때만
-sprag route-scan --agent codex
-sprag seed --agent codex
+```
+🔀 Routing saved $44.67  |  opus→sonnet 59× $39.75 · opus→haiku 10× $4.92
+🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 🅷 5/5 · 📦 Ctx 47% of 1M
 ```
 
-설치 후 Codex의 `/hooks`에서 새 훅을 검토하고 신뢰해야 실행됩니다. Codex가 요구하는
-절차입니다. 명령의 기본 대상은 여전히 Claude Code이며, `--agent codex`를 붙이면 Codex를 고릅니다. Codex에서도 세션 브리핑, 경고 이력, 인수인계
-파일을 지원합니다. `sprag delegate on --agent codex`로 모델 위임과 하위 에이전트
-지침 전달을 켤 수 있습니다. 상태 표시는 Sprag 터미널 상태줄과 패널을 사용하십시오.
-Codex 기본 상태줄은 셸 명령을 실행하지 않습니다. 반복된 단순 작업은 위임 후보로,
-반복된 도구 실패는 래칫 후보로 제안합니다. 규칙을 등록하려면 사용자의 승인이 필요하며,
-`seed`로 호환되는 기본 규칙을 선택할 수도 있습니다.
-`sprag route-scan savings --agent codex`는 Sprag가 위임한 실행만 집계하고,
-일치하는 LiteLLM 단가가 있을 때 예상 차액을 계산합니다. 청구 금액을 측정한 값은 아니며,
-단가를 확인하지 못하면 `n/a`로 표시합니다. Codex 문서 누계는 Claude 추정치와 분리합니다.
-아래의 기존 절감 수치는 Claude Code 기록이며 Codex 벤치마크가 아닙니다.
-[Codex 지원 범위와 제한](https://sprag.io/docs/ko/codex/)이나
-`sprag capabilities --agent codex`에서 기능별 지원 여부를 확인하십시오.
+Sprag는 사용자가 고른 모델을 바꾸지 않습니다. 분석은 로컬 세션 기록만 읽으며,
+추가 모델 호출이나 API 키가 필요하지 않습니다. `sprag uninstall` 은 설치 때
+추가한 것을 모두 지우고, 함께 표시하던 기존 상태줄을 되돌려 놓습니다.
 
-| 기능 | Claude Code | Codex |
-|---|---|---|
-| 세션 지침 | `CLAUDE.md`와 훅 | `AGENTS.md`와 기본 훅 |
-| 실시간 상태 | 기본 상태줄에 명령 등록 | 별도 패널 또는 tmux 구성 |
-| 규칙 후보 | Claude 기록과 모델 등급 프리셋 | Codex 기록과 호환 래칫 프리셋 |
-| 모델 위임 | Haiku·Sonnet 등급 규칙 | 공급자 모델 ID와 범위별 규칙 |
-| 위임 원장 | Claude 실행별 예상 차액 | LiteLLM 단가와 하위 실행별 예상 차액 |
-
-두 연동을 함께 설치할 수 있습니다. `--agent codex`를 붙이지 않으면 기존 Claude 동작을 유지합니다.
-
-![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
+Codex를 쓴다면 아래 [Codex](#codex) 절을 보십시오.
 
 ## 작동 방식
 
@@ -180,6 +155,51 @@ JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 �
 | 래칫 규칙 누적 | 37건 (글로벌 30 · 프로젝트 7) | 저장소 4곳 | 2026-05-08 ~ 09-16 |
 
 래칫 규칙과 위임 규칙은 늘어나는 방식이 다릅니다. 래칫 규칙은 사람이 저지른 실수에서 나오므로 계속 늘어납니다. 위임 규칙은 멈춥니다. 기준이 알아보는 작업 유형이 정해져 있어서, 유형마다 규칙이 하나 생기면 더 승격할 것이 없습니다.
+
+## Codex
+
+Codex 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙,
+한국어 검사, 프롬프트의 문서 경로 자동 변환, 로컬 토큰 보고서를 사용할 수 있습니다.
+Codex가 설치되어 있으면 `npm i -g sprag-cli` 하나로 Codex도 설정하고, 추천 룰을 묻지 않고
+전역으로 등록합니다(단계마다 확인하려면 `sprag install --manual`). Claude Code를 건드리지 않고
+Codex만 쓴다면 다음과 같이 설치하십시오.
+
+```bash
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+sprag --agent codex --days 7
+sprag panel --agent codex  # 별도 터미널에서 실시간 패널 실행
+sprag --statusline --agent codex --text
+sprag doctor --agent codex  # 문제가 생겼을 때만
+sprag route-scan --agent codex
+sprag seed --agent codex
+```
+
+설치 후 Codex의 `/hooks`에서 새 훅을 검토하고 신뢰해야 실행됩니다. Codex가 요구하는
+절차입니다. 명령의 기본 대상은 여전히 Claude Code이며, `--agent codex`를 붙이면 Codex를 고릅니다. Codex에서도 세션 브리핑, 경고 이력, 인수인계
+파일을 지원합니다. `sprag delegate on --agent codex`로 모델 위임과 하위 에이전트
+지침 전달을 켤 수 있습니다. 상태 표시는 Sprag 터미널 상태줄과 패널을 사용하십시오.
+Codex 기본 상태줄은 셸 명령을 실행하지 않습니다. 반복된 단순 작업은 위임 후보로,
+반복된 도구 실패는 래칫 후보로 제안합니다. 규칙을 등록하려면 사용자의 승인이 필요하며,
+`seed`로 호환되는 기본 규칙을 선택할 수도 있습니다.
+`sprag route-scan savings --agent codex`는 Sprag가 위임한 실행만 집계하고,
+일치하는 LiteLLM 단가가 있을 때 예상 차액을 계산합니다. 청구 금액을 측정한 값은 아니며,
+단가를 확인하지 못하면 `n/a`로 표시합니다. Codex 문서 누계는 Claude 추정치와 분리합니다.
+아래의 기존 절감 수치는 Claude Code 기록이며 Codex 벤치마크가 아닙니다.
+[Codex 지원 범위와 제한](https://sprag.io/docs/ko/codex/)이나
+`sprag capabilities --agent codex`에서 기능별 지원 여부를 확인하십시오.
+
+| 기능 | Claude Code | Codex |
+|---|---|---|
+| 세션 지침 | `CLAUDE.md`와 훅 | `AGENTS.md`와 기본 훅 |
+| 실시간 상태 | 기본 상태줄에 명령 등록 | 별도 패널 또는 tmux 구성 |
+| 규칙 후보 | Claude 기록과 모델 등급 프리셋 | Codex 기록과 호환 래칫 프리셋 |
+| 모델 위임 | Haiku·Sonnet 등급 규칙 | 공급자 모델 ID와 범위별 규칙 |
+| 위임 원장 | Claude 실행별 예상 차액 | LiteLLM 단가와 하위 실행별 예상 차액 |
+
+두 연동을 함께 설치할 수 있습니다. `--agent codex`를 붙이지 않으면 기존 Claude 동작을 유지합니다.
+
+![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
 ## 자주 쓰는 명령
 

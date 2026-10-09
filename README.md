@@ -48,51 +48,27 @@ existing credentials. The CLI requires Node.js 18+ and one TOML parser dependenc
 npm i -g sprag-cli   # Claude Code, plus Codex when it is installed
 ```
 
-## Codex
+## After you install
 
-Native hooks, an `AGENTS.md` harness, scoped ratchet rules, Korean lint,
-document conversion, token reports, and a session-bound companion panel.
-`npm i -g sprag-cli` sets Codex up too when it is installed, with the rule
-presets registered globally and nothing asked (`sprag install --manual` asks at
-each step). For a Codex-only install that leaves Claude Code alone:
+1. Run `npm i -g sprag-cli`. Hooks, the statusline and the starter rules are set
+   up for every project; there is nothing to configure per project. If you
+   already have a statusline, the install asks whether to show both, replace
+   yours, or keep yours.
+2. Open Claude Code in any project and work as usual.
+3. Watch the statusline. It shows what the session spent and saved, and a
+   warning chip leads the line when the cache, the context or a rate limit
+   needs attention:
 
-```bash
-npm i -g sprag-cli --ignore-scripts
-sprag install --agent codex
-sprag --agent codex --days 7
-sprag panel --agent codex  # live companion in a separate terminal
-sprag --statusline --agent codex --text
-sprag doctor --agent codex  # troubleshooting only
-sprag route-scan --agent codex
-sprag seed --agent codex
+```
+🔀 Routing saved $44.67  |  opus→sonnet 59× $39.75 · opus→haiku 10× $4.92
+🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 🅷 5/5 · 📦 Ctx 47% of 1M
 ```
 
-Review and trust the new hooks in Codex's `/hooks` menu; Codex requires that
-step. Commands still default to Claude Code; add `--agent codex` to pick Codex.
-Codex also supports session briefings, warning history, handoffs, and opt-in
-model routing and subagent guidance (`sprag delegate on --agent codex`). The native Codex footer
-does not accept shell commands; Sprag provides a terminal statusline and panel.
-Recurring simple turns become route candidates; repeated tool failures become
-ratchet candidates. Both require your approval before a rule is registered.
-`seed` offers compatible starter rules with separate Codex decisions.
-`sprag route-scan savings --agent codex` records only Sprag-routed child runs
-and estimates their price difference when matching LiteLLM prices are available.
-It is not a billing measurement. Unknown prices remain `n/a`, and Codex document
-counts stay separate from Claude estimates. The historical dollar figures below
-are from Claude Code, not a Codex benchmark. See [Codex support and limits](https://sprag.io/docs/codex/), or run
-`sprag capabilities --agent codex` for the support matrix.
+Sprag never swaps the model you picked. Analysis reads your local session
+logs only, with no extra model calls and no API key. `sprag uninstall` removes
+everything it added and restores a statusline it merged with.
 
-| Workflow | Claude Code | Codex |
-|---|---|---|
-| Session instructions | `CLAUDE.md` and hooks | `AGENTS.md` and native hooks |
-| Live telemetry | Native statusline command | Companion panel or tmux layout |
-| Rule candidates | Claude transcripts and tier presets | Codex rollouts and compatible ratchet presets |
-| Model routing | Haiku/Sonnet tier rules | Explicit provider model IDs and scoped rules |
-| Routing ledger | Claude run estimates | Attributed child estimates with LiteLLM prices |
-
-Both integrations coexist. Commands without `--agent codex` retain Claude behavior.
-
-![statusline example: routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
+Using Codex? See [Codex](#codex) below.
 
 ## How it works
 
@@ -224,6 +200,52 @@ surfaces, and never send design or diagnosis.
 The two counts grow differently. Ratchet rules come from mistakes a person made,
 so they keep coming. Delegation rules stop: the criteria recognize a fixed set of
 work types, and once each has a rule there is nothing left to promote.
+
+## Codex
+
+Native hooks, an `AGENTS.md` harness, scoped ratchet rules, Korean lint,
+document conversion, token reports, and a session-bound companion panel.
+`npm i -g sprag-cli` sets Codex up too when it is installed, with the rule
+presets registered globally and nothing asked (`sprag install --manual` asks at
+each step). For a Codex-only install that leaves Claude Code alone:
+
+```bash
+npm i -g sprag-cli --ignore-scripts
+sprag install --agent codex
+sprag --agent codex --days 7
+sprag panel --agent codex  # live companion in a separate terminal
+sprag --statusline --agent codex --text
+sprag doctor --agent codex  # troubleshooting only
+sprag route-scan --agent codex
+sprag seed --agent codex
+```
+
+Review and trust the new hooks in Codex's `/hooks` menu; Codex requires that
+step. Commands still default to Claude Code; add `--agent codex` to pick Codex.
+Codex also supports session briefings, warning history, handoffs, and opt-in
+model routing and subagent guidance (`sprag delegate on --agent codex`). The native Codex footer
+does not accept shell commands; Sprag provides a terminal statusline and panel.
+Recurring simple turns become route candidates; repeated tool failures become
+ratchet candidates. Both require your approval before a rule is registered.
+`seed` offers compatible starter rules with separate Codex decisions.
+`sprag route-scan savings --agent codex` records only Sprag-routed child runs
+and estimates their price difference when matching LiteLLM prices are available.
+It is not a billing measurement. Unknown prices remain `n/a`, and Codex document
+counts stay separate from Claude estimates. The historical dollar figures below
+are from Claude Code, not a Codex benchmark. See [Codex support and limits](https://sprag.io/docs/codex/), or run
+`sprag capabilities --agent codex` for the support matrix.
+
+| Workflow | Claude Code | Codex |
+|---|---|---|
+| Session instructions | `CLAUDE.md` and hooks | `AGENTS.md` and native hooks |
+| Live telemetry | Native statusline command | Companion panel or tmux layout |
+| Rule candidates | Claude transcripts and tier presets | Codex rollouts and compatible ratchet presets |
+| Model routing | Haiku/Sonnet tier rules | Explicit provider model IDs and scoped rules |
+| Routing ledger | Claude run estimates | Attributed child estimates with LiteLLM prices |
+
+Both integrations coexist. Commands without `--agent codex` retain Claude behavior.
+
+![statusline example: routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
 ## Day-to-day commands
 
