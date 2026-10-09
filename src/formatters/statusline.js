@@ -75,6 +75,50 @@ function formatPct(v) {
 }
 
 /**
+ * Elapsed time as one short unit: `<1m`, `45m`, `6h`, `3d`. Floors rather than
+ * rounds, so a figure never claims more age than it has. Null for an input that
+ * is not a usable duration (a future timestamp reads as clock skew, not as
+ * "negative age").
+ */
+function formatAge(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return '<1m';
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+/**
+ * The reset mark a savings counter counts from, as a short local date: `10/9`,
+ * with the year prepended only when it is not the current one. Null when the
+ * counter was never reset (or the mark is unusable), which is also how the
+ * callers decide whether a zero total is worth showing.
+ */
+function formatSince(ms, now = Date.now()) {
+  const t = Number(ms);
+  if (ms == null || !Number.isFinite(t) || t <= 0) return null;
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return null;
+  const md = `${d.getMonth() + 1}/${d.getDate()}`;
+  return d.getFullYear() === new Date(now).getFullYear() ? md : `${d.getFullYear()}/${md}`;
+}
+
+/** A route-scan older than this makes the savings figures worth a caveat. */
+const SCAN_STALE_MS = 3 * 24 * 3600 * 1000;
+
+/** Epoch ms from a number or an ISO string; null for anything else. */
+function toEpochMs(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string') {
+    const t = Date.parse(v);
+    return Number.isFinite(t) ? t : null;
+  }
+  return null;
+}
+
+/**
  * Render the gauge for `pct` (0..100) as a row of separate ticks.
  *
  * The bar used to be six cells of one continuous block, with the boundary cell
@@ -296,7 +340,14 @@ function buildVersionSeg(version, update, c, isIcon, verbose, g) {
       : `v${version} → ${update.latest}`;
     return `${c(YELLOW)}${isIcon ? `${g.upgrade} ` : ''}${body}${c(RESET)}`;
   }
-  return `${c(GRAY)}v${version}${c(RESET)}`;
+  // Verbose mode only: how long ago the registry was last asked. A bare version
+  // cannot tell "up to date as of this morning" from "never checked since the
+  // network went away", and the second is the one worth noticing. Needs a
+  // `latest` on record, since a check that never answered confirmed nothing.
+  const age = verbose && update && update.latest && !update.available
+    ? formatAge(Date.now() - (toEpochMs(update.checkedAt) ?? NaN))
+    : null;
+  return `${c(GRAY)}v${version}${age ? ` ✓${age}` : ''}${c(RESET)}`;
 }
 
 /**
@@ -313,7 +364,11 @@ function buildHarnessSeg(c, isIcon, g, liveWindow = null) {
       // Warning state outranks the N/5 count — a runtime issue (repeated
       // error / no-evidence / racing edits) is more actionable than a
       // missing ratchet section. Always red so it stands out.
-      return `${c(RED)}${icon}${g.spike} ${harnessInfo.warning}${c(RESET)}`;
+      // Only the first warning in precedence order is named; the count of the
+      // rest rides along so a lower-priority problem is not invisible for as
+      // long as a higher one is showing.
+      const more = Number(harnessInfo.moreWarnings) || 0;
+      return `${c(RED)}${icon}${g.spike} ${harnessInfo.warning}${more > 0 ? ` +${more}` : ''}${c(RESET)}`;
     }
     if (harnessInfo.custom) return `${c(CYAN)}${icon} custom${c(RESET)}`;
     const tone = harnessInfo.configured >= harnessInfo.total ? GREEN : YELLOW;
@@ -321,6 +376,42 @@ function buildHarnessSeg(c, isIcon, g, liveWindow = null) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Delegation-rule registry chip: `rules 10 · ⚠1`. Rendered only when
+ * `--segments` names `rules`, since it describes configuration rather than
+ * anything the user can act on in the next minute; the 🅷 chip already raises
+ * `rule-health` when one needs attention.
+ * `⚠N` is the number of rules flagged for review, and is left off at zero so a
+ * healthy registry reads as a plain count.
+ */
+function buildRulesSeg(stats, c, g) {
+  if (!stats) return null;
+  const total = Number(stats.total) || 0;
+  if (total <= 0) return null;
+  const review = Number(stats.review) || 0;
+  const flagged = review > 0 ? ` ${c(GRAY)}·${c(RESET)} ${c(YELLOW)}${g.spike}${review}${c(RESET)}` : '';
+  return `${c(GRAY)}rules ${total}${c(RESET)}${flagged}`;
+}
+
+/**
+ * This session's subagent runs: `3 (haiku 2 · sonnet 1)`. Counts every
+ * subagent the session started, not only the ones a routing rule sent, so it
+ * answers "how much did this session fan out" rather than "how many rules
+ * fired". Null when the session ran none, which is the common case.
+ */
+function buildSessionDelegationSeg(sd, c, isIcon, verbose, g) {
+  const total = Number(sd && sd.total) || 0;
+  if (total <= 0) return null;
+  const families = Array.isArray(sd.families)
+    ? sd.families.filter((f) => f && Number(f.runs) > 0).map((f) => `${f.family} ${f.runs}`)
+    : [];
+  const label = isIcon
+    ? `${g.routing} ${verbose ? 'Subagents this session' : 'this session'}`
+    : 'Subagents this session';
+  const split = families.length ? ` ${c(GRAY)}(${families.join(' · ')})${c(RESET)}` : '';
+  return `${c(CYAN)}${label} ${total}${c(RESET)}${split}`;
 }
 
 /**
@@ -386,7 +477,7 @@ export function formatNoSession({ caps = null, model = null, effort = null, wind
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness, korean, model, effort, hit, ttl, month, saved, delegated, doc2md, ctx, period, `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness, korean, model, effort, hit, ttl, month, saved, delegated, doc2md, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
 /**
@@ -491,9 +582,10 @@ export function formatReport(data, { color = true, verbose = false, timer = true
 
   // Delegation savings — a DIFFERENT number from "Cache saved" above, which
   // covers the prompt cache only. This one is what running work on a cheaper
-  // tier saved, the lifetime total of the delegation ledger. Hidden
-  // when zero or absent: a permanent "$0" is noise for direct-API users and
-  // for anyone who has not delegated yet.
+  // tier saved, the lifetime total of the delegation ledger (counted from the
+  // last `sprag saved reset`, when there was one). Hidden when zero or absent
+  // and never reset: a permanent "$0" is noise for direct-API users and for
+  // anyone who has not delegated yet.
   // "Routing saved" says what earned the money — work that ran on a cheaper
   // model instead of this one. It leads the line rather than trailing it
   // because it is the headline number of the whole tool, not a footnote.
@@ -518,11 +610,38 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Tied to MIN_VOTES rather than a literal so the two cannot drift: the chip
   // appears exactly when learning has had its chance and still came up short.
   const unresolvedRuns = Number(data.unresolvedRuns) || 0;
-  const delegateSeg = delegationSaved !== 0
-    ? `${c(delegationSaved < 0 ? RED : GREEN)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}`
-    : (unresolvedRuns >= MIN_VOTES
-      ? `${c(YELLOW)}${g.routing} ${unresolvedRuns} unresolved${c(RESET)}`
-      : null);
+  const unresolvedSeg = unresolvedRuns >= MIN_VOTES
+    ? `${c(YELLOW)}${g.routing} ${unresolvedRuns} unresolved${c(RESET)}`
+    : null;
+
+  // The counter's reset mark ("since 10/9"), when `sprag saved reset` was run.
+  // After a reset the total is legitimately zero, and a chip that vanished at
+  // zero made "just reset" look the same as "feature off". With a mark on
+  // record a zero is shown, dated; with none it stays hidden as before.
+  // Compact icon mode has no room for a sentence, so it gets `(10/9~)`.
+  const totals = data.delegationTotals;
+  const routingSince = formatSince(totals && totals.since);
+  const sinceWord = (since) => (since ? ` ${c(GRAY)}since ${since}${c(RESET)}` : '');
+  const sinceCompact = (since) => (since ? ` ${c(GRAY)}(${since}~)${c(RESET)}` : '');
+  const sinceInline = isIcon && !verbose ? sinceCompact : sinceWord;
+
+  // Savings come from the ledger route-scan fills, so they are only as fresh as
+  // the last scan. Said only once that has gone stale: a recent scan is the
+  // normal case and needs no caveat.
+  const scanAt = toEpochMs(data.routeScanAt);
+  const scanAge = scanAt !== null && Date.now() - scanAt > SCAN_STALE_MS ? formatAge(Date.now() - scanAt) : null;
+  const scanTag = scanAge
+    ? ` ${c(GRAY)}${verbose ? `last scan ${scanAge} ago` : `scan ${scanAge}`}${c(RESET)}`
+    : '';
+
+  const savedTone = delegationSaved < 0 ? RED : delegationSaved > 0 ? GREEN : GRAY;
+  const savingsChip = delegationSaved !== 0 || routingSince
+    ? `${c(savedTone)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}${sinceInline(routingSince)}${scanTag}`
+    : null;
+  // The unresolved count stands in only while there are no savings to show, so
+  // a dated zero keeps both: the reset and the dropped runs are separate facts.
+  const delegateSeg = savingsChip || (delegationSaved === 0 ? unresolvedSeg : null);
+  const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
 
   // Document conversions — the same kind of number as "Routing saved", earned
   // a different way: a document read as Markdown instead of attached whole.
@@ -538,16 +657,22 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const doc2md = data.doc2mdTotals;
   const doc2mdUsd = Number(doc2md && doc2md.total) || 0;
   const doc2mdDocs = Number(doc2md && doc2md.docs) || 0;
+  // Same reset mark as the routing counter, and the same reason to show a dated
+  // zero: after `sprag saved reset` an empty counter and a disabled feature
+  // would otherwise look alike.
+  const doc2mdSince = formatSince(doc2md && doc2md.since);
   const doc2mdLabel = isIcon
     ? (verbose ? `${g.doc} Doc2md saved` : g.doc)
     : 'Doc2md saved';
   let doc2mdSeg = null;
   if (doc2mdUsd > 0) {
-    doc2mdSeg = `${c(GREEN)}${doc2mdLabel}${c(RESET)} ${formatMoney(doc2mdUsd)}`
+    doc2mdSeg = `${c(GREEN)}${doc2mdLabel}${c(RESET)} ${formatMoney(doc2mdUsd)}${sinceInline(doc2mdSince)}`
       + (verbose ? ` ${c(GRAY)}· ${doc2mdDocs} docs${c(RESET)}` : '');
   } else if (doc2mdDocs > 0) {
     const label = isIcon ? g.doc : 'Doc2md';
-    doc2mdSeg = `${c(GRAY)}${label} ${doc2mdDocs} docs${c(RESET)}`;
+    doc2mdSeg = `${c(GRAY)}${label} ${doc2mdDocs} docs${doc2mdSince ? ` ${isIcon && !verbose ? `(${doc2mdSince}~)` : `since ${doc2mdSince}`}` : ''}${c(RESET)}`;
+  } else if (doc2mdSince) {
+    doc2mdSeg = `${c(GRAY)}${doc2mdLabel} ${formatMoney(0)}${isIcon && !verbose ? ` (${doc2mdSince}~)` : ` since ${doc2mdSince}`}${c(RESET)}`;
   }
 
   // 이번 달 지출 세그먼트. 달력 월(1일 00시 기준) 지출 추정치라서 cap 이 없는
@@ -584,9 +709,11 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // nothing to mismatch.
   //   icon:  "🔀 Routing saved $9.8 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
   //   text:  "Routing saved $9.8 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
-  const totals = data.delegationTotals;
   let totalsLine = null;
-  if (!singleLine && totals && Number(totals.total) !== 0 && Number.isFinite(Number(totals.total))) {
+  const totalsNum = Number(totals && totals.total);
+  // A zero total gets its line only when a reset mark explains it; see the
+  // note above `routingSince`.
+  if (!singleLine && totals && Number.isFinite(totalsNum) && (totalsNum !== 0 || routingSince)) {
     const head = isIcon ? `${g.routing} Routing saved` : 'Routing saved';
     // Model changes behind the total, family-level and version-free: `opus →
     // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
@@ -605,10 +732,12 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     const pairText = pairs
       .map((p) => `${c(GRAY)}${p.from}→${p.to} ${p.runs}× ${formatMoney(p.usd)}${c(RESET)}`)
       .join(` ${c(GRAY)}·${c(RESET)} `);
-    const tone = Number(totals.total) < 0 ? RED : GREEN; // a net loss must not read as a win
+    // A net loss must not read as a win, and a zero is neither.
+    const tone = totalsNum < 0 ? RED : totalsNum > 0 ? GREEN : GRAY;
     totalsLine =
       `${c(tone)}${c(BOLD)}${head}${c(RESET)} ` +
-      `${c(tone)}${formatMoney(Number(totals.total) || 0)}${c(RESET)}` +
+      `${c(tone)}${formatMoney(totalsNum)}${c(RESET)}` +
+      sinceWord(routingSince) + scanTag +
       (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 
@@ -637,6 +766,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     doc2mdLine =
       `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
       `${c(GREEN)}${formatMoney(doc2mdUsd)}${c(RESET)}` +
+      sinceWord(doc2mdSince) +
       (extText ? `  ${c(GRAY)}|${c(RESET)}  ${extText}` : '');
   }
 
@@ -770,6 +900,13 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Korean-style chip — rendered only when the session-start injection is on.
   const koreanSeg = buildKoreanSeg(c, isIcon, verbose, g);
 
+  // Delegation-rule registry (`rules 10 · ⚠1`), opt-in through `--segments`.
+  const rulesSeg = buildRulesSeg(data.ruleStats, c, g);
+
+  // This session's subagent runs by model family. It is a session figure, so it
+  // sits with the routing chips rather than with the lifetime totals above it.
+  const sessionDelegationSeg = buildSessionDelegationSeg(data.sessionDelegation, c, isIcon, verbose, g);
+
   // Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
   // Cheap identity context: useful when the user toggles between Sonnet/Opus
   // mid-session and wants to confirm at a glance which one is answering.
@@ -896,13 +1033,25 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       case 'cap-warn':  return [capWarnSeg];
       case 'spike':     return [spikeSeg];
       case 'version':   return [versionSeg];
+      // `rules` renders only when asked for by name. Verbose is the shipped
+      // default, so riding with the harness chip would put it on everyone's
+      // line, and its ⚠ count repeats what `rule-health` already raises there.
       case 'harness':   return [harnessSeg];
+      case 'rules':     return [rulesSeg];
+      case 'subagents': return [sessionDelegationSeg];
       case 'korean':    return [koreanSeg];
       case 'model':     return [modelSeg];
       case 'effort':    return [effortSeg];
       // Dropped when the same story already owns a headline line above, which
       // would otherwise repeat it on line 2.
-      case 'delegated': return totalsLine ? [] : [delegateSeg];
+      // The unresolved-runs chip survives the headline when that headline is a
+      // dated zero, since a zero is exactly when the dropped runs matter.
+      case 'delegated': {
+        const base = totalsLine
+          ? (totalsNum === 0 ? [unresolvedSeg] : [])
+          : [delegateSeg, delegateExtra];
+        return [...base, sessionDelegationSeg];
+      }
       case 'doc2md':    return doc2mdLine ? [] : [doc2mdSeg];
       case 'hit':       return [hitSeg];
       case 'ttl':       return [ttlSeg];

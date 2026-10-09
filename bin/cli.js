@@ -57,7 +57,7 @@ import { sessionCostAcross } from '../src/claude-price.js';
 import { chipForIssues } from '../src/advice.js';
 import { debug } from '../src/debug.js';
 import { createArgs } from '../src/cli-args.js';
-import { updateStatus, maybeSpawnUpdateCheck } from '../src/update-check.js';
+import { updateStatus, maybeSpawnUpdateCheck, readUpdateState, updateCheckDisabled } from '../src/update-check.js';
 import { selectAgent } from '../src/agent.js';
 
 const selection = (() => {
@@ -86,7 +86,13 @@ const { getArg, hasFlag, numArg } = createArgs(args);
 function readUpdateChip() {
   try {
     maybeSpawnUpdateCheck(PKG_VERSION);
-    return updateStatus(PKG_VERSION);
+    const status = updateStatus(PKG_VERSION);
+    // When the registry was last asked, for the verbose "✓6h" on an up-to-date
+    // version. updateStatus() does not carry it, and a second read of the
+    // 200-byte state file is cheaper than a second status computation. With
+    // checks switched off the file is a leftover, so it says nothing.
+    const checkedAt = updateCheckDisabled() ? null : (Number(readUpdateState().checkedAt) || null);
+    return { ...status, checkedAt };
   } catch (e) {
     debug('update-check:chip', e);
     return null;
@@ -823,9 +829,15 @@ async function main() {
   // the statusline shows the same blank for "no delegation happened" and for
   // "delegation happened and was silently discarded".
   let unresolvedRuns = 0;
+  // The same cached scan says how old the savings figures are: the ledger is
+  // filled by route-scan, so a stale scan means a stale total.
+  let routeScanAt = null;
   try {
     const { readRouteScan } = await import('../src/route-scan.js');
-    unresolvedRuns = Number(readRouteScan()?.unresolvedRuns) || 0;
+    const scan = readRouteScan();
+    unresolvedRuns = Number(scan?.unresolvedRuns) || 0;
+    const scannedAt = Date.parse(scan?.scannedAt);
+    routeScanAt = Number.isFinite(scannedAt) ? scannedAt : null;
   } catch (e) {
     debug('route-scan:unresolved', e);
   }
@@ -838,6 +850,38 @@ async function main() {
     ttlBucket = statuslineDefaults().ttlBucket;
   } catch (e) {
     debug('config:ttlBucket', e);
+  }
+
+  // Statusline-only additions. Each reuses data already in hand: the sessions
+  // parsed above (subagent runs ride on them) and the small model-rules.json
+  // the harness chip reads anyway.
+  //
+  // This session's subagent runs, matched to the session Claude Code is
+  // drawing for by the transcript path / session id in its payload.
+  let sessionDelegation;
+  // Delegation-rule counts, read only when `--segments` names `rules`: the
+  // chip is opt-in, so nothing else would look at them.
+  let ruleStats;
+  const rulesRequested = String(getArg('--segments') || '').split(',').some((s) => s.trim() === 'rules');
+  if (isStatusline) {
+    try {
+      const { sessionSubagentSummary } = await import('../src/statusline-data.js');
+      sessionDelegation = sessionSubagentSummary(sessions, {
+        transcriptPath: extractTranscriptPath(stdinJson),
+        sessionId: extractSessionId(stdinJson),
+      });
+    } catch (e) {
+      debug('statusline-data:session-delegation', e);
+    }
+    if (rulesRequested) {
+      try {
+        const { delegationRuleStats } = await import('../src/statusline-data.js');
+        const { findProjectRoot } = await import('../src/harness.js');
+        ruleStats = delegationRuleStats(findProjectRoot());
+      } catch (e) {
+        debug('statusline-data:rule-stats', e);
+      }
+    }
   }
 
   const data = {
@@ -862,6 +906,10 @@ async function main() {
     delegationTotals,
     doc2mdTotals,
     unresolvedRuns,
+    // Statusline-only; left undefined elsewhere so --format json keeps its shape.
+    routeScanAt: isStatusline ? routeScanAt : undefined,
+    sessionDelegation,
+    ruleStats,
     ttlBucket,
   };
 

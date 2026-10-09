@@ -614,8 +614,14 @@ export function harnessStatusForStatusline(cfg, { root, liveWindow = null } = {}
   // user hasn't opted in, no point nagging.
   if (!status.hasFile && !existsSync(join(projectRoot, '.claude'))) return null;
   if (status.optOut) return null;
-  // Attach a warning derived from the analyzer state file (if any). Precedence:
-  //   ratchet? > no-evidence > PEV-skip. Guards, in order:
+  // Warnings derived from the analyzer state file (if any), then the config
+  // and registry checks below. Every check runs and collects, in precedence
+  // order, so the chip can name the first and count the rest: stopping at the
+  // first hid everything behind it (a `PEV-skip` on screen meant a failing
+  // `rule-health` was invisible until the PEV one cleared).
+  //
+  // Precedence: ratchet? > no-evidence > PEV-skip > ratchet-unloaded >
+  // compact-window? > rule-health > route?. Guards on the state file, in order:
   //   - freshness: the hook rewrites the state on every tool use, so anything
   //     older than WARNING_TTL_MS is a dead session's leftovers — a red 🅷⚠
   //     must never linger for days after the triggering session ended.
@@ -627,7 +633,7 @@ export function harnessStatusForStatusline(cfg, { root, liveWindow = null } = {}
   //     every project.
   const WARNING_TTL_MS = 30 * 60 * 1000;
   const state = readHarnessState();
-  let warning = null;
+  const warnings = [];
   if (state) {
     const ts = state.timestamp ? Date.parse(state.timestamp) : NaN;
     const fresh = Number.isFinite(ts) && Date.now() - ts <= WARNING_TTL_MS;
@@ -635,42 +641,45 @@ export function harnessStatusForStatusline(cfg, { root, liveWindow = null } = {}
     if (fresh && matches) {
       if (state.ratchetCandidate && state.ratchetCandidate.count >= 2) {
         const id = state.ratchetCandidate.id || 1;
-        warning = `ratchet? #${id}`;
+        warnings.push(`ratchet? #${id}`);
       }
-      else if (state.evidenceLow) warning = 'no-evidence';
-      else if (state.pevSkip) warning = 'PEV-skip';
+      if (state.evidenceLow) warnings.push('no-evidence');
+      if (state.pevSkip) warnings.push('PEV-skip');
     }
   }
   // Config defect, above the optimization nudges: the harness block is there
   // but carries no `@` import, so every promoted ratchet rule is dead weight.
   // One `harness init` re-run fixes it and the warning goes away for good.
-  if (!warning && status.hasBlock && !(status.hasRatchetImport && status.hasModelRatchetImport)) warning = 'ratchet-unloaded';
+  if (status.hasBlock && !(status.hasRatchetImport && status.hasModelRatchetImport)) warnings.push('ratchet-unloaded');
   // Same class of defect, one notch lower: the session runs on a 1M-context
   // model with no `autoCompactWindow` cap, so compaction only fires past 800k
   // and every request until then re-bills the whole context. 200k sessions are
   // exempt — the setting cannot change anything for them.
-  if (!warning) {
-    try {
-      warning = compactWindowWarningForStatusline(projectRoot, cfg, { liveWindow });
-    } catch { /* settings unreadable — stay silent */ }
-  }
+  try {
+    const w = compactWindowWarningForStatusline(projectRoot, cfg, { liveWindow });
+    if (w) warnings.push(w);
+  } catch { /* settings unreadable — stay silent */ }
   // Below session-quality warnings: a promoted delegation rule whose
   // category started failing (`rule-health R<N>`) — the user approved that
   // rule, so its degradation outranks a mere new-candidate nudge.
-  if (!warning) {
-    try {
-      warning = ruleHealthWarningForStatusline(projectRoot);
-    } catch { /* registry unreadable — stay silent */ }
-  }
+  try {
+    const w = ruleHealthWarningForStatusline(projectRoot);
+    if (w) warnings.push(w);
+  } catch { /* registry unreadable — stay silent */ }
   // Lowest precedence: route-scan delegation candidate (`route? R<N>`).
   // Session-quality warnings above always win — routing is an optimization
   // nudge, not a correctness signal. Cheap: one small cached-JSON read.
-  if (!warning) {
-    try {
-      warning = routeWarningForStatusline(projectRoot);
-    } catch { /* scan cache unreadable — stay silent */ }
-  }
-  return { ...status, warning };
+  try {
+    const w = routeWarningForStatusline(projectRoot);
+    if (w) warnings.push(w);
+  } catch { /* scan cache unreadable — stay silent */ }
+  // `warning` is the one shown; `moreWarnings` counts the ones it outranks.
+  // The checks after the state file are a few small JSON reads (settings,
+  // model-rules.json ~11KB, route-scan.json ~1KB). A render with no warning
+  // already ran all of them; the change is that they now also run while an
+  // earlier warning is up, so no render does more than the clean one did.
+  return { ...status, warning: warnings[0] || null, moreWarnings: Math.max(0, warnings.length - 1), warnings };
+
 }
 
 function escapeRe(s) {
