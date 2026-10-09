@@ -12,6 +12,7 @@ HANDOFF-*.md
 .npmrc
 .gitignore.bak
 docs/statusline.html
+docs/statusline-wrap.html
 
 handoff/
 logs/

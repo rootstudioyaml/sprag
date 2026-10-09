@@ -9,6 +9,10 @@
  * Usage:  node scripts/docs-statusline.mjs        # writes /tmp html + prints size
  *         (then follow the printed chrome command, or run `npm run docs:statusline`)
  *
+ * `--wrap <px>` writes docs/statusline-wrap.html instead: the same output at a
+ * fixed width with long lines wrapped, for the site's hero box, where the
+ * full-width capture shrinks to unreadable text.
+ *
  * Requires Google Chrome; nothing is added to the package's dependencies.
  */
 import { execSync } from 'node:child_process';
@@ -17,7 +21,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const outHtml = join(repoRoot, 'docs', 'statusline.html');
+const wrapAt = Number(process.argv[process.argv.indexOf('--wrap') + 1]) || 0;
+const outHtml = join(repoRoot, 'docs', wrapAt ? 'statusline-wrap.html' : 'statusline.html');
 
 const now = Math.floor(Date.now() / 1000);
 const payload = JSON.stringify({
@@ -78,8 +83,8 @@ const html = `<!doctype html>
     font-size: 15px;
     line-height: 1.85;
     color: #c9d1d9;
-    white-space: pre;
-    width: max-content;
+    white-space: ${wrapAt ? 'pre-wrap' : 'pre'};
+    width: ${wrapAt ? `${wrapAt}px` : 'max-content'};
   }
 </style>
 <script>
