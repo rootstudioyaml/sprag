@@ -36,12 +36,13 @@
  * package is published to npm, so neither may live in the source.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, createReadStream, statSync, renameSync } from 'node:fs';
+import { readFileSync, mkdirSync, existsSync, createReadStream, statSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { join, dirname, basename } from 'node:path';
 import { userDataDir, claudeUserDir } from './paths.js';
 import { gatewayBase } from './gateway-auth.js';
+import { writeViaTmp } from './state-file.js';
 
 /** Marker returned when a gateway id could not be resolved to a model. */
 export const UNKNOWN_MODEL = 'unknown';
@@ -154,8 +155,7 @@ function writeProfileMapFile(map) {
   mkdirSync(dir, { recursive: true });
   const target = profileMapPath();
   const tmp = `${target}.tmp-${process.pid}`;
-  writeFileSync(tmp, JSON.stringify(map, null, 2));
-  renameSync(tmp, target);
+  writeViaTmp(tmp, target, JSON.stringify(map, null, 2));
 }
 
 /**

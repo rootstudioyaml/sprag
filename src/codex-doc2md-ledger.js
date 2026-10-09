@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync, renameSync, realpathSync, statSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { codexUserDir } from './agent.js';
 import { userDataDir } from './paths.js';
+import { writeViaTmp } from './state-file.js';
 import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -22,8 +23,7 @@ export function recordCodexDocument(source, result, opts) {
       clipped: !!(meta.clipped || meta.truncated) };
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     const tmp = `${file}.${randomUUID()}.tmp`;
-    writeFileSync(tmp, JSON.stringify(event) + '\n', { mode: 0o600 });
-    renameSync(tmp, file);
+    writeViaTmp(tmp, file, JSON.stringify(event) + '\n', { mode: 0o600 });
   } catch { /* Accounting must not prevent document conversion. */ }
 }
 

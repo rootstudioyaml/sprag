@@ -18,9 +18,10 @@
  * and misses return identically shaped objects).
  */
 
-import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
+import { writeViaTmp, runHousekeeping, sweepStaleTmp } from './state-file.js';
 import { debug } from './debug.js';
 
 const CACHE_PATH = join(userDataDir(), 'session-cache.json');
@@ -185,11 +186,18 @@ export function saveCache(cache) {
     for (const [path, e] of Object.entries(cache.entries)) {
       if (e && typeof e.mtimeMs === 'number' && e.mtimeMs >= cutoff) entries[path] = e;
     }
-    const tmp = `${CACHE_PATH}.${process.pid}.tmp`;
-    writeFileSync(tmp, JSON.stringify({ version: CACHE_VERSION, entries }) + '\n');
-    renameSync(tmp, CACHE_PATH);
+    writeViaTmp(`${CACHE_PATH}.${process.pid}.tmp`, CACHE_PATH, JSON.stringify({ version: CACHE_VERSION, entries }) + '\n');
   } catch (e) {
     debug('session-cache:save', e); // best-effort — never block a report
+  }
+  // This runs on nearly every statusline render, so it is the natural place to
+  // notice temp files that killed processes left in the data directory. The
+  // sweep itself runs at most once a day (see runHousekeeping).
+  try {
+    const dir = userDataDir();
+    runHousekeeping(dir, { 'stale-tmp': () => sweepStaleTmp(dir) });
+  } catch (e) {
+    debug('session-cache:housekeeping', e);
   }
 }
 

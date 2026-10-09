@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, renameSync, readdirSync } from 'node:fs';
+import { readFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { codexUserDir } from './agent.js';
 import { userDataDir } from './paths.js';
+import { writeViaTmp } from './state-file.js';
 import { readCodexSnapshot } from './codex-parser.js';
 import { loadCodexModelRules } from './codex-delegation.js';
 import { loadCodexLedger } from './codex-ledger.js';
@@ -105,8 +106,7 @@ export function runCodexBrief({ sessionId, transcriptPath, cwd, root: projectRoo
   const events = [...state.events, ...next.map((issue) => ({ ...issue, at, sessionId, project: cwd || snapshot.projectDir || '' }))].slice(-200);
   mkdirSync(directory, { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify({ active: nextActive, events }) + '\n', { mode: 0o600 });
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, JSON.stringify({ active: nextActive, events }) + '\n', { mode: 0o600 });
   return next.length ? ['[Sprag Codex briefing]', ...next.map((issue) => `${issue.message} ${issue.advice}`)].join('\n') : null;
 }
 
@@ -125,8 +125,7 @@ export function recordCodexHistoryEvent({ sessionId, project = '', key, level = 
     at: new Date(now).toISOString(), sessionId: owner, project }].slice(-200);
   mkdirSync(directory, { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify({ ...state, events }) + '\n', { mode: 0o600 });
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, JSON.stringify({ ...state, events }) + '\n', { mode: 0o600 });
   return true;
 }
 

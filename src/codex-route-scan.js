@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { userDataDir } from './paths.js';
+import { writeViaTmp } from './state-file.js';
 import { loadConfig } from './config.js';
 import { findProjectRoot } from './harness.js';
 import { discoverCodexSessionFiles, parseCodexTurns } from './codex-parser.js';
@@ -32,8 +33,7 @@ export function readCodexRouteScan({ dir = userDataDir() } = {}) {
 function writeCache(data, dir) {
   mkdirSync(dir, { recursive: true });
   const file = cacheFile(dir), tmp = `${file}.${randomUUID()}.tmp`;
-  writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
 }
 
 /** Candidates not yet approved or dismissed; with `root`, only that project's. */

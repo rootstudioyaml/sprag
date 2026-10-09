@@ -17,7 +17,7 @@
  * a project rule is the user's placement decision, not a tool-wide default.
  */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { codexUserDir } from './agent.js';
@@ -30,6 +30,7 @@ import {
   renderPresetRatchet,
 } from './harness-templates.js';
 import { loadSeedState, ratchetPresets, saveSeedState } from './seed-rules.js';
+import { writeViaTmp } from './state-file.js';
 
 export function presetRatchetPath({ agent = 'claude' } = {}) {
   return agent === 'codex'
@@ -47,8 +48,7 @@ function writeIfChanged(file, text) {
   if (before === text) return false;
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.tmp-${process.pid}`;
-  writeFileSync(tmp, text);
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, text);
   return true;
 }
 

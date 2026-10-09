@@ -1,12 +1,13 @@
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, openSync, readFileSync, readSync, closeSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, openSync, readFileSync, readSync, closeSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { loadConfig, userLanguage } from './config.js';
 import { koreanStyleInjection, koreanStyleEnabled } from './korean-style.js';
 import { cohesionInjection } from './cohesion.js';
 import { codexHarnessPaths } from './codex-harness.js';
+import { writeViaTmp } from './state-file.js';
 import { findProjectRoot } from './harness.js';
 import { runCodexBrief } from './codex-brief.js';
 import { codexDocumentTool, codexDocumentNote, convertCodexDocument } from './codex-doc2md.js';
@@ -69,8 +70,7 @@ export function fitCodexContext(parts, { budget = CODEX_CONTEXT_TOKEN_BUDGET, ov
 function writeOverflow(file, text) {
   mkdirSync(join(file, '..'), { recursive: true, mode: 0o700 });
   const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, text, { mode: 0o600 });
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, text, { mode: 0o600 });
 }
 
 function overflowFileFor(root) {

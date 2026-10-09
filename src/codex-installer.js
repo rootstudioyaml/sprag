@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { codexUserDir } from './agent.js';
+import { writeViaTmp } from './state-file.js';
 
 export const CODEX_HANDLERS = {
   SessionStart: { matcher: 'startup|resume|clear|compact', command: 'sprag codex-hook --agent codex --event session-start', timeout: 15 },
@@ -72,8 +73,7 @@ export function configureCodexHooks({ remove = false, panelAuto } = {}) {
     mkdirSync(dirname(file), { recursive: true });
     if (existsSync(file)) writeFileSync(`${file}.bak-${Date.now()}`, readFileSync(file));
     const tmp = `${file}.${process.pid}.tmp`;
-    writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
-    renameSync(tmp, file);
+    writeViaTmp(tmp, file, JSON.stringify(data, null, 2) + '\n');
   }
   return { file, action: remove ? 'removed' : 'configured' };
 }

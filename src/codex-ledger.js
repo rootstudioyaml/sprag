@@ -1,7 +1,8 @@
-import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { userDataDir } from './paths.js';
+import { writeViaTmp } from './state-file.js';
 import { roundUsd } from './savings-ledger.js';
 import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 import { discoverCodexSessionFiles, parseCodexTurns } from './codex-parser.js';
@@ -52,8 +53,7 @@ export function pruneCodexDelegations({ dir = userDataDir(), now = Date.now() } 
   try { all = readFileSync(pendingFile(dir), 'utf8').split('\n').filter(Boolean).length; } catch { return; }
   if (keep.length === all) return;
   const file = pendingFile(dir), tmp = `${file}.${randomUUID()}.tmp`;
-  writeFileSync(tmp, keep.map((r) => JSON.stringify(r) + '\n').join(''), { mode: 0o600 });
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, keep.map((r) => JSON.stringify(r) + '\n').join(''), { mode: 0o600 });
 }
 
 export function readCodexDelegations({ dir = userDataDir() } = {}) {
@@ -173,8 +173,7 @@ export function loadCodexLedger({ dir = userDataDir() } = {}) {
 function saveLedger(data, dir) {
   mkdirSync(dir, { recursive: true });
   const file = ledgerFile(dir), tmp = `${file}.${randomUUID()}.tmp`;
-  writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
 }
 
 /**

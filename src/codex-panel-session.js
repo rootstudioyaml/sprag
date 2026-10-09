@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
+import { writeViaTmp } from './state-file.js';
 
 export function createPanelBinding(file) {
   writeFileSync(file, JSON.stringify({ version: 1, sessionId: null, transcriptPath: null }), { mode: 0o600 });
@@ -27,9 +28,8 @@ export function bindPanelSession(event, payload, { file = process.env.SPRAG_CODE
     if (current.version !== 1) return false;
     if (payload.source === 'compact' && current.sessionId && current.sessionId !== payload.session_id) return false;
     const tmp = `${file}.${process.pid}.tmp`;
-    writeFileSync(tmp, JSON.stringify({ version: 1, sessionId: payload.session_id,
+    writeViaTmp(tmp, file, JSON.stringify({ version: 1, sessionId: payload.session_id,
       transcriptPath: typeof payload.transcript_path === 'string' && isAbsolute(payload.transcript_path) ? payload.transcript_path : null }), { mode: 0o600 });
-    renameSync(tmp, file);
     return true;
   } catch { return false; }
 }

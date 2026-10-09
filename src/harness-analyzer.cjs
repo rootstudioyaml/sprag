@@ -244,8 +244,14 @@ function writeState(state) {
     if (!fs.existsSync(STATE_DIR)) fs.mkdirSync(STATE_DIR, { recursive: true });
     // tmp + rename so the statusline never reads a half-written state file.
     const tmp = STATE_PATH + '.' + process.pid + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
-    fs.renameSync(tmp, STATE_PATH);
+    try {
+      fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
+      fs.renameSync(tmp, STATE_PATH);
+    } catch (e) {
+      // A failed write or rename must not leave the temp file behind.
+      try { fs.rmSync(tmp, { force: true }); } catch { /* nothing to clean */ }
+      throw e;
+    }
   } catch {
     // best-effort
   }

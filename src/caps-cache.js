@@ -9,9 +9,10 @@
  * than `maxAgeMs` the loader returns null and the table view stays quiet.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
+import { writeViaTmp } from './state-file.js';
 
 const CACHE_PATH = join(userDataDir(), 'last-caps.json');
 
@@ -41,8 +42,7 @@ export function persistSnapshot(snapshot) {
     // tmp + rename: the statusline reads this every tick and must never see a
     // half-written file.
     const tmp = `${CACHE_PATH}.${process.pid}.tmp`;
-    writeFileSync(tmp, JSON.stringify(payload) + '\n');
-    renameSync(tmp, CACHE_PATH);
+    writeViaTmp(tmp, CACHE_PATH, JSON.stringify(payload) + '\n');
   } catch {
     // best-effort cache, never blocks the statusline
   }

@@ -1,9 +1,10 @@
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { parse } from 'smol-toml';
 import { codexUserDir } from './agent.js';
 import { userDataDir } from './paths.js';
+import { writeViaTmp } from './state-file.js';
 import { codexBudgetProvider, codexProviderKey } from './codex-budget.js';
 import { codexCachePolicy } from './codex-cache.js';
 import { PRICE_MAX_AGE_MS, gatewayPrices } from './gateway-prices.js';
@@ -153,8 +154,7 @@ async function writeGatewaySnapshot(provider, { fetchImpl = fetch, execute, ...o
   // Persist only policy and price fields, never raw model/info (which can contain secrets).
   mkdirSync(join(opts.dir || userDataDir(), 'codex-cache-policy'), { recursive: true, mode: 0o700 });
   const tmp = `${file}.${randomUUID()}.tmp`;
-  writeFileSync(tmp, JSON.stringify(snapshot) + '\n', { mode: 0o600 });
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, JSON.stringify(snapshot) + '\n', { mode: 0o600 });
   return snapshot;
 }
 

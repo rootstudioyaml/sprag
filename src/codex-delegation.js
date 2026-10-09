@@ -1,8 +1,9 @@
-import { readFileSync, readdirSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { parse } from 'smol-toml';
 import { userDataDir } from './paths.js';
+import { writeViaTmp } from './state-file.js';
 import { codexUserDir, codexProviderName } from './agent.js';
 import { categorize, ESCALATE_RE, EDIT_RE } from './route-scan.js';
 import { looksPasted } from './route-inject.js';
@@ -41,8 +42,7 @@ export function loadCodexModelRules({ dir = userDataDir() } = {}) {
 function saveRules(rules, dir) {
   mkdirSync(dir, { recursive: true });
   const file = rulesFile(dir), tmp = `${file}.${randomUUID()}.tmp`;
-  writeFileSync(tmp, JSON.stringify({ version: 1, rules }, null, 2) + '\n', { mode: 0o600 });
-  renameSync(tmp, file);
+  writeViaTmp(tmp, file, JSON.stringify({ version: 1, rules }, null, 2) + '\n', { mode: 0o600 });
 }
 
 export function addCodexModelRule({ category, model, effort, from, scope, root, provider }, { dir = userDataDir() } = {}) {
