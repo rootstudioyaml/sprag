@@ -212,8 +212,7 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
       try { closeStaleCodexRoutes(payload); } catch (e) { debug('codex:close-routes', e); }
       try { if (unsettledCodexRoutes() > 0) refreshLedger(); } catch (e) { debug('codex:ledger-refresh', e); }
       try {
-        parts.push(codexRouteHint(payload, { root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }),
-          minContext: Number.isFinite(cfg?.codex?.delegateMinContext) ? cfg.codex.delegateMinContext : undefined }));
+        parts.push(codexRouteHint(payload, { cfg, root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }) }));
       } catch (e) { debug('codex:route-hint', e); }
     }
     if (cfg?.codex?.brief !== false) {

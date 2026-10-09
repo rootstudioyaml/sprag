@@ -9,6 +9,8 @@ import { categorize, ESCALATE_RE, EDIT_RE } from './route-scan.js';
 import { looksPasted } from './route-inject.js';
 import { newRouteId, recordCodexDelegation } from './codex-ledger.js';
 import { readCodexTailLines } from './codex-parser.js';
+import { loadConfig } from './config.js';
+import { loadSharedModelRules, sharedModelRulesForProject, sharedRuleBounds, SHARED_RULE_TIERS } from './shared-model-rules.js';
 
 export const CODEX_ROUTE_CATEGORIES = ['paste', 'translate', 'explore', 'read', 'check', 'run'];
 const MARKER = '<!-- sprag:codex:delegation -->';
@@ -21,6 +23,32 @@ export function validateCodexTarget(model, effort) {
     throw new Error('Invalid reasoning effort; choose a value supported by the target model.');
   }
   return { model, ...(effort === undefined ? {} : { effort }) };
+}
+
+export function validateCodexSharedTarget({ tier, from, model, effort, provider }) {
+  validateCodexTarget(model, effort);
+  if (!SHARED_RULE_TIERS.includes(tier)) throw new Error('Shared rule tier must be T1 or T2.');
+  if (!safeId(from) || from === model) throw new Error('--from must name a different parent model.');
+  if (!safeId(provider)) throw new Error('A shared model mapping requires a Codex provider ID.');
+  return { tier, from, model, ...(effort === undefined ? {} : { effort }), provider };
+}
+
+export function codexSharedTargets(cfg) {
+  const targets = cfg?.codex?.sharedRules?.targets;
+  if (!Array.isArray(targets)) return [];
+  return targets.flatMap((target) => {
+    try { return [validateCodexSharedTarget(target)]; } catch { return []; }
+  });
+}
+
+export function sharedCodexModelRules({ cfg = loadConfig(), dir = userDataDir(), root, start = root,
+  model, provider = codexProviderName() } = {}) {
+  if (cfg.codex?.sharedRules?.enabled === false) return [];
+  const targets = codexSharedTargets(cfg).filter((t) => t.from === model && t.provider === provider);
+  return sharedModelRulesForProject(loadSharedModelRules({ dir }), start).flatMap((rule) => {
+    const target = targets.find((t) => t.tier === rule.tier);
+    return target ? [{ ...rule, ...target, source: 'shared', status: 'active' }] : [];
+  });
 }
 
 const rulesFile = (dir) => join(dir, 'codex-model-rules.json');
@@ -92,6 +120,16 @@ export function matchCodexModelRule(text, { model, root, provider = codexProvide
   return usable.find((r) => r.scope === 'project') || usable[0] || null;
 }
 
+/** A Codex-only rule wins; otherwise the shared policies mapped for this parent, T2 first. */
+function matchingRoutes(text, opts) {
+  const own = matchCodexModelRule(text, { ...opts, rules: opts.rules ?? loadCodexModelRules({ dir: opts.dir }) });
+  if (own) return [own];
+  const category = codexPromptCategory(text);
+  if (!category) return [];
+  return sharedCodexModelRules(opts).filter((r) => r.category === category.id)
+    .sort((a, b) => SHARED_RULE_TIERS.indexOf(a.tier) - SHARED_RULE_TIERS.indexOf(b.tier));
+}
+
 /**
  * Input tokens from the rollout's last token_count record, or 0 when the
  * transcript is missing or unreadable. Only the tail is read: the newest
@@ -111,32 +149,85 @@ export function codexContextTokens(transcriptPath) {
   return 0;
 }
 
+export const DEFAULT_DELEGATE_MIN_CONTEXT = 60000;
+
+/** Parent input tokens below which the prompt hint stays silent. */
+export function codexDelegateMinContext(cfg) {
+  const value = cfg?.codex?.delegateMinContext;
+  return Number.isSafeInteger(value) && value >= 0 ? value : DEFAULT_DELEGATE_MIN_CONTEXT;
+}
+
+// Codex tells the model to set spawn_agent's model only on the user's request,
+// so the shared hint says where this request came from.
+const SHARED_APPROVAL = 'The user approved this policy and its model mapping, so setting model here follows the user\'s request.';
+const SHARED_TIER_GUIDANCE = 'Choose T2 only for a simple bounded lookup or command. Use T1 for multi-step tool chains or work spanning multiple files. If the required tier is not mapped, keep the task on the main agent. Do not delegate design judgement, diagnosis, or irreversible actions.';
+const WAIT_TEXT = 'Wait for it to finish (call wait_agent with timeout_ms of at least 120000, and again if it times out) and do not do the delegated task yourself while it runs; then verify its result and report unfinished work. Do not spawn another CLI process. '
+  + 'If sub-agent tools or the target model are unavailable, keep the task on the main agent and state that delegation was unavailable.';
+
+function sharedTargetText(rule) {
+  return `${rule.tier}: model ${rule.model}${rule.effort ? `, reasoning_effort ${rule.effort}` : ''}. ${sharedRuleBounds(rule)}`.trim();
+}
+
+function sharedDenyReason(routes) {
+  return `[Sprag model routing] This spawn matches the approved shared ${routes[0].category} policy but names no model. ${SHARED_APPROVAL} `
+    // A full-history fork inherits the parent model and refuses overrides.
+    + 'Spawn again with fork_turns "none" and the model and reasoning_effort of the tier you choose, keeping the route line the routing hint gave for that tier:\n'
+    + routes.map(sharedTargetText).join('\n')
+    + `\n${SHARED_TIER_GUIDANCE} To keep the task on your own model, pass that model explicitly. If a model cannot be set, do the task on the main agent instead of spawning again.`;
+}
+
 /**
  * A prompt-time routing suggestion for Codex 0.159.2, where `spawn_agent`
  * never reaches PreToolUse (see codexDelegationTool below). Gated on parent
  * context size: a small parent's own coordination overhead outweighs the
  * savings from a delegated child (measured 2026-09-30, see docs/CODEX.md).
+ *
+ * A shared policy offers both mapped tiers and records one route per tier;
+ * SubagentStart binds the child to the route whose model it runs, and the
+ * next prompt closes the tier that was not chosen.
  */
 export function codexRouteHint(payload, opts = {}) {
+  // The hook passes its loaded config. Without one there are no shared
+  // mappings and the default gate applies, so a caller never routes from the
+  // user's real config by accident.
+  const cfg = opts.cfg ?? {};
   const provider = payload?.model_provider || codexProviderName();
-  const rule = matchCodexModelRule(payload?.prompt, { provider, ...opts, model: payload?.model, root: opts.root || payload?.cwd });
+  const routes = matchingRoutes(payload?.prompt, { cfg, provider, ...opts, model: payload?.model,
+    root: opts.root || payload?.cwd, start: payload?.cwd });
+  const rule = routes[0];
   if (!rule) return null;
-  const minContext = opts.minContext ?? 60000;
+  const minContext = opts.minContext ?? codexDelegateMinContext(cfg);
   const ctx = opts.contextTokens ?? codexContextTokens(payload?.transcript_path);
   if (ctx < minContext) return null;
-  const id = newRouteId();
   const record = opts.record ?? recordCodexDelegation;
-  try {
-    record({ id, parentSessionId: payload?.session_id ?? null, turnId: payload?.turn_id ?? null, via: 'prompt',
-      source: 'rule', category: rule.category, scope: rule.scope, from: payload?.model, to: rule.model,
-      provider, effort: rule.effort ?? null, contextTokens: ctx,
-      targetRoot: rule.targetRoot ?? null, ruleCreatedAt: rule.createdAt ?? null }, { dir: opts.dir });
-  } catch { /* Accounting is optional; the hint still applies. */ }
+  // Tiers offered by one hint are alternatives. SubagentStart binds by model
+  // alone, so it must know which records compete for the same child.
+  const offerId = routes.length > 1 ? newRouteId() : null;
+  const recordRoute = (route) => {
+    const id = newRouteId();
+    const shared = route.source === 'shared';
+    try {
+      record({ id, parentSessionId: payload?.session_id ?? null, turnId: payload?.turn_id ?? null, via: 'prompt',
+        source: shared ? 'shared' : 'rule', category: route.category, scope: route.scope, from: payload?.model, to: route.model,
+        provider: route.provider || provider, effort: route.effort ?? null, contextTokens: ctx, targetRoot: route.targetRoot ?? null,
+        ...(shared ? { tier: route.tier, sharedSignature: route.sharedSignature, ...(offerId ? { offerId } : {}) }
+          : { ruleCreatedAt: route.createdAt ?? null }) }, { dir: opts.dir });
+    } catch { /* Accounting is optional; the hint still applies. */ }
+    return id;
+  };
+  if (rule.source === 'shared') {
+    const targets = routes.map((route) => `${sharedTargetText(route)} Route line: <!-- sprag:codex:route id=${recordRoute(route)} -->`);
+    return `[Sprag model routing] This request matches the approved shared ${rule.category} policy. ${SHARED_APPROVAL} ${SHARED_TIER_GUIDANCE}\n`
+      + `${targets.join('\n')}\n`
+      + 'Spawn at most one sub-agent with the selected model, reasoning_effort when specified, and fork_turns "none"; a full-history fork ignores the model. '
+      + 'Give it a self-contained task message with the selected cap that ends with that tier\'s route line only. '
+      + WAIT_TEXT;
+  }
+  const id = recordRoute(rule);
   return `[Sprag model routing] This request matches the approved ${rule.category} rule (route ${id}). `
     + `Spawn one sub-agent with model ${rule.model}${rule.effort ? `, reasoning_effort ${rule.effort}` : ''} and fork_turns "none". `
     + `Give it a self-contained task message that ends with the line <!-- sprag:codex:route id=${id} -->. `
-    + 'Wait for it to finish (call wait_agent with timeout_ms of at least 120000, and again if it times out) and do not do the delegated task yourself while it runs; then verify its result and report unfinished work. Do not spawn another CLI process. '
-    + 'If sub-agent tools or the target model are unavailable, keep the task on the main agent and state that delegation was unavailable.';
+    + WAIT_TEXT;
 }
 
 function customRole(role, root, home) {
@@ -177,7 +268,15 @@ export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || 
   let rules = given;
   if (!rules) { try { rules = loadCodexModelRules({ dir }); } catch { rules = []; } }
   const provider = payload.model_provider || codexProviderName({ home });
-  const rule = explicit ? null : matchCodexModelRule(input.message, { model: payload.model, provider, root, rules });
+  const routes = explicit ? [] : matchingRoutes(input.message, { model: payload.model, provider, root, start: payload.cwd, rules, cfg, dir });
+  // Only the caller can choose a shared policy's tier. A shared match without a
+  // model goes back to the caller with the mapped choices instead of a guessed
+  // downgrade, or a default target that ignores the tier.
+  if (routes[0]?.source === 'shared') {
+    return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny',
+      permissionDecisionReason: sharedDenyReason(routes) } };
+  }
+  const rule = routes[0] ?? null;
   const target = rule || (!explicit && cfg.codex?.delegateTarget);
   const updatedInput = { ...input };
   let routeLine = '';

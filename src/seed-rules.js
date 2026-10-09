@@ -25,16 +25,16 @@
 
 import { readFileSync } from 'node:fs';
 import { CLI_NAME } from './cli-name.js';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { sharedModelRulesForProject, loadSharedModelRules, sharedProjectRoots, realProjectRoot } from './shared-model-rules.js';
 import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
 import { writeStateFile } from './state-file.js';
 import {
   addModelRule,
   composeRuleText,
-  loadModelRules,
   modelRuleBaseText,
   syncAllFiles,
 } from './model-rules.js';
@@ -102,22 +102,12 @@ const stripDate = (t) => t.replace(/^\d{4}-\d{2}-\d{2}(\s*\([^)]*\))?:\s*/, '').
  * Everything still worth asking about: presets the user has not answered and
  * that are not already covered by a rule they have.
  *
- * "Already covered" is deliberately loose for model presets — any registered
- * rule for the same tier and category wins, whatever its scope or agent. A user
- * whose own route-scan already promoted that shape does not need ours, and
- * offering it anyway would read as the tool failing to notice its own state.
+ * A shared policy covers its tier and category only within its approved scope.
+ * A decision in another project must not suppress this project's offer.
  */
 export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), agent = 'claude' } = {}) {
   const { decided } = loadSeedState({ agent });
-  // Codex model routing comes from its own measured route-scan candidates;
-  // Claude tier presets name models Codex does not run.
-  const registered = agent === 'codex' ? [] : (() => {
-    try {
-      return loadModelRules().rules;
-    } catch {
-      return [];
-    }
-  })();
+  const registered = sharedModelRulesForProject(loadSharedModelRules({ includeInactive: true }), root);
   const haveModel = new Set(registered.map((r) => `${r.tier}|${r.category}`));
 
   const haveText = new Set();
@@ -128,16 +118,23 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), 
   }
 
   const out = [];
-  for (const p of agent === 'codex' ? [] : modelPresets()) {
-    if (decided[p.id]) continue;
+  const roots = sharedProjectRoots(root);
+  for (const p of modelPresets()) {
+    const decision = decided[p.id];
+    if (decision?.action === 'skipped') continue;
+    // An answer recorded before decisions kept targetRoot cannot name its
+    // project, so it stays decided everywhere, as it was when it was given.
+    if (decision?.action === 'accepted' && (decision.scope !== 'project' || !decision.targetRoot ||
+        roots.includes(realProjectRoot(decision.targetRoot)))) continue;
     if (haveModel.has(`${p.tier}|${p.category}`)) continue;
     out.push({
       kind: 'model',
       id: p.id,
       tier: p.tier,
       label: lang === 'ko' ? p.label : p.labelEn,
-      agent: p.agent,
-      ruleText: composeRuleText(modelRuleBaseText(p, lang), { budget: p.budget }, lang),
+      agent: agent === 'codex' ? `Codex ${p.tier} mapping` : p.agent,
+      ruleText: agent === 'codex' ? codexSeedText(p, lang)
+        : composeRuleText(modelRuleBaseText(p, lang), { budget: p.budget }, lang),
       preset: p,
     });
   }
@@ -149,6 +146,13 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), 
     out.push({ kind: 'ratchet', id: p.id, ruleText: p.text, preset: p });
   }
   return out;
+}
+
+function codexSeedText(p, lang) {
+  const text = lang === 'ko'
+    ? `"${p.label}" 유형의 ${p.tier === 'T2' ? '단순' : '중간 난도'} 작업은 ${p.tier}에 위임합니다. 실행 모델은 Codex 매핑에서 정합니다.`
+    : `${p.tier === 'T2' ? 'Simple' : 'Moderate'} "${p.labelEn}" tasks use ${p.tier}. The execution model comes from the Codex mapping.`;
+  return composeRuleText(text, p, lang);
 }
 
 /** One pending seed by id, or null. Ids are matched exactly. */
@@ -222,12 +226,16 @@ export async function acceptSeed(id, { scope, root = findProjectRoot(), lang = u
     // Marks the rule as seeded rather than measured, so the rendered file does
     // not report someone else's recurrence count as this user's evidence.
     origin: 'preset',
+    approvedBy: agent,
     promotedAt: today,
     lastSeen: today,
   });
-  const written = syncAllFiles();
-  recordDecision(id, 'accepted', { scope }, { agent });
-  return { id, kind: 'model', scope, paths: written, rule: composeRuleText(entry.rule, entry, lang) };
+  // Codex-first installs need only the registry. Claude renders its view when
+  // it is installed or starts a session, without creating .claude here.
+  const written = agent === 'codex' ? [] : syncAllFiles();
+  recordDecision(id, 'accepted', { scope, targetRoot: scope === 'project' ? resolve(root) : null }, { agent });
+  return { id, kind: 'model', scope, paths: written,
+    rule: agent === 'codex' ? codexSeedText(p, lang) : composeRuleText(entry.rule, entry, lang) };
 }
 
 /**
@@ -277,13 +285,14 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
     // Codex hook text stays English; the rule text itself follows the user's language.
     const cmd = (s) => `${CLI_NAME} seed ${s} --agent codex`;
     return [
-      `[Sprag seed] ${pending.length} recommended Codex ratchet rule(s) from the bundled presets are not registered yet.`,
+      `[Sprag seed] ${pending.length} recommended shared delegation and Codex ratchet rule(s) from the bundled presets are not registered yet.`,
       'Ask in your first reply, after answering any request the user opened with. Offer these choices in this order:',
       `  1. Register all, globally: ${cmd('accept all --global')}`,
       `  2. Register all, this project only: ${cmd('accept all --project')}`,
       '  3. Decide one at a time: ask about each rule below and run its command as soon as they answer',
       `  4. Register none: ${cmd('skip all')} (never offered again)`,
       'Always confirm the scope with the user before running an accept command.',
+      'Delegation policies are shared across Claude and Codex; approval retains the chosen scope. Codex execution also requires delegate on and explicit tier mappings: sprag delegate shared status --agent codex. Never assume Claude model names are Codex models.',
       ...pending.map((s) => `  [${s.id}] ${s.ruleText}`),
     ].join('\n');
   }

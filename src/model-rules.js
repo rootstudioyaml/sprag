@@ -147,15 +147,17 @@ export function modelRuleBaseText(g, lang = userLanguage(), { root } = {}) {
 // this, so an XDG_CONFIG_HOME override moves every state file together.
 const stateDir = userDataDir;
 
-export function modelRulesPath() {
-  return join(stateDir(), 'model-rules.json');
+export function modelRulesPath({ dir = stateDir() } = {}) {
+  return join(dir, 'model-rules.json');
 }
 
-export function loadModelRules() {
+export function loadModelRules({ dir = stateDir(), strict = false } = {}) {
   try {
-    const data = JSON.parse(readFileSync(modelRulesPath(), 'utf8'));
-    return Array.isArray(data.rules) ? data : { rules: [] };
-  } catch {
+    const data = JSON.parse(readFileSync(modelRulesPath({ dir }), 'utf8'));
+    if (!Array.isArray(data?.rules)) throw new Error('Invalid registry');
+    return data;
+  } catch (error) {
+    if (strict && error.code !== 'ENOENT') throw new Error('Cannot parse model rules; file left unchanged.');
     return { rules: [] };
   }
 }
@@ -189,8 +191,9 @@ export function saveModelRules(data) {
 
 /** Add (or re-activate) a promoted rule; returns the stored entry. */
 export function addModelRule(entry) {
-  const data = loadModelRules();
-  const existing = data.rules.find((r) => r.signature === entry.signature && r.scope === entry.scope);
+  const data = loadModelRules({ strict: true });
+  const existing = data.rules.find((r) => r.signature === entry.signature && r.scope === entry.scope &&
+    (r.scope === 'global' || r.targetRoot === entry.targetRoot));
   if (existing) {
     Object.assign(existing, entry, { status: 'active' });
     saveModelRules(data);

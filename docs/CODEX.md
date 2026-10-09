@@ -176,11 +176,11 @@ The hint is withheld below `codex.delegateMinContext` (default 60000 input
 tokens, read from the parent's own rollout). Measured 2026-09-30: a small
 parent session spends more on the coordinating turn (spawning, waiting,
 verifying) than a delegated child saves, so under the floor Sprag leaves the
-request on the main agent instead of proposing a loss. There is no CLI flag for
-it yet; set it by editing `codex.delegateMinContext` (an integer) in the config
-file `sprag mode` prints under "Stored config file" (`~/Library/Application
-Support/claude-token-saver/config.json` on macOS, `$XDG_CONFIG_HOME/claude-token-saver/config.json`
-or `~/.config/claude-token-saver/config.json` on Linux).
+request on the main agent instead of proposing a loss. Change it with
+`sprag delegate shared min-context <tokens|default> --agent codex`;
+`delegate shared status` shows the current value. It is stored as
+`codex.delegateMinContext` in the config file `sprag mode` prints under
+"Stored config file".
 
 The `PreToolUse` rewrite (native `spawn_agent` arguments using Codex's
 `message`, `model`, and `reasoning_effort` fields, preserving explicit model
@@ -204,7 +204,76 @@ spawns without an explicit model. Category rules (`paste`, `translate`, `explore
 `read`, `check`, `run`) reuse Sprag's classifier and escalation gates, require an
 exact parent model, and prefer project rules over global rules. Matching prompts
 request native delegation; unavailable subagent tools leave work on the main
-agent. Claude tier presets and history are not imported.
+agent. Codex-only rules take precedence over shared policies.
+
+### Shared Delegation Policies
+
+Work categories, T1/T2 difficulty, scope, and caps use the same
+`model-rules.json` registry in Claude Code and Codex. Existing active Claude
+policies are visible immediately; there is no copy or migration. Deleted,
+disabled, and review-state policies are not routed by Codex. Project policies
+remain project-scoped. A project policy applies when its root is the root either
+agent assigns to the working directory (Claude stops at `CLAUDE.md`, Codex at
+`AGENTS.md`), compared as real paths. Model IDs, roles, usage, and savings are
+not shared.
+
+A Codex-first user needs no Claude installation or transcript history:
+
+```sh
+sprag seed --agent codex
+sprag seed accept all --global --agent codex  # or --project, after choosing scope
+sprag delegate shared status --agent codex
+sprag delegate shared map T2 --from PARENT_MODEL --model SMALL_MODEL --effort high --agent codex
+sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort medium --agent codex
+sprag delegate on --agent codex
+```
+
+Replace the model placeholders with available, lower-cost models from your
+provider; mappings do not prove availability or savings. Each mapping applies
+to one exact parent model, provider, and tier, across every approved category.
+`--provider ID` overrides the provider read from Codex config. Without a mapping,
+that tier stays on the main agent. No Haiku/Sonnet-to-GPT equivalence is assumed.
+Codex seed acceptance writes the common registry without creating `.claude`;
+Claude renders its own view when it is installed or starts later.
+
+The prompt hook offers T2 for a simple bounded task and T1 for multi-step work,
+and gives each mapped tier its own route line. The caller chooses at most one
+model and passes a self-contained task, the cap, `fork_turns "none"`, and only
+the chosen tier's route line. `fork_turns "none"` is required: a full-history
+fork inherits the parent model and ignores a model override. The hint states
+that the user approved the policy and mapping, because Codex sets a spawn model
+only on the user's request. The parent waits for and verifies the result.
+
+Each offered tier is recorded as a prompt route, the same path Codex-only rules
+use on Codex 0.159.2, where `spawn_agent` bypasses `PreToolUse`. SubagentStart
+binds the child to the route whose model it runs, and the parent's next prompt
+closes the tier it did not choose, so an offered tier never counts as a run
+without a matching child. Where `PreToolUse` does run, a spawn that matches a
+shared policy without naming a model is denied with the mapped choices so the
+caller picks the tier. The spawn hook does not guess difficulty or override an
+explicit model or custom role, and naming the parent's own model keeps the task
+on that model.
+
+Shared hints use the same context gate as Codex-only rules, described above;
+it does not change any model's context window, and missing context stays below
+the gate. `status` checks mappings against the default model in Codex config, because a
+mapping routes only sessions on the parent model it names.
+
+```sh
+sprag delegate rules --agent codex
+sprag delegate shared off --agent codex
+sprag delegate shared on --agent codex
+sprag delegate shared unmap T2 --from PARENT_MODEL --agent codex
+sprag delegate shared min-context 30000 --agent codex
+```
+
+`shared off` retains policies and mappings and leaves Codex-only rules intact.
+`unmap` removes only that Codex mapping. Edit/remove common policies through
+`sprag route-scan rules [rm N]`; removal affects both consumers. Codex routing
+records retain the source policy signature and tier, but their token and savings
+totals never enter Claude's statistics. A hint is not proof that a child ran:
+accounting requires the route marker or a SubagentStart binding to a matching
+child rollout that ran the mapped model.
 
 The routing ledger (`Routing Saved` below) prices a child's own tokens at the
 parent model's rate as the counterfactual; it does not charge or subtract the
@@ -279,8 +348,10 @@ the context opens with an instruction to read it. `codex exec` runs, recognized
 from the rollout's `originator`, get no seed offer or route notice, since no one
 can answer them.
 
-`seed` offers only compatible ratchet presets, not Claude model-tier presets.
-Accept and skip decisions are separate from Claude. Both seed acceptance and
+`seed` offers common delegation policies without Claude model names, plus
+compatible Codex ratchet presets. Ratchet and skip decisions remain agent-specific;
+an approved common policy suppresses duplicate offers within its scope in either
+agent. Both seed acceptance and
 route approval require the user's choice of global or project scope. A project
 route is saved for the project where it was observed. Enable delegation with
 `sprag delegate on --agent codex` and trust the hooks before expecting rules to run.
@@ -348,9 +419,10 @@ sprag route-scan savings --refresh --agent codex
 sprag route-scan savings --format json --agent codex
 ```
 
-The separate Codex ledger joins a route ID recorded by Sprag at spawn time to
-the child's own rollout. An explicit model choice or an unrelated cheaper
-subagent earns no credit. The estimate holds the child's measured tokens
+The separate Codex ledger joins a spawn-time route ID, or a validated shared
+prompt-hint marker on clients that skip the spawn hook, to the child's own
+rollout. An unrelated explicit model choice or cheaper subagent earns no credit.
+The estimate holds the child's measured tokens
 constant and prices them at the parent and child rates. Negative differences
 remain negative; this is not a comparison of actual billed totals.
 
@@ -525,7 +597,7 @@ Document counts are not a measurement of Codex billing or avoided tokens.
 
 ## Limits And Removal
 
-Claude's cap/TTL heuristics, Haiku/Sonnet tier presets, and the Claude
+Claude's cap/TTL heuristics, Haiku/Sonnet model identifiers, and the Claude
 `compact-window` command do not apply to Codex. Codex provides its own
 `model_auto_compact_token_limit` setting; Sprag does not apply Claude's 1M
 heuristic or change that setting. Codex's native `tui.status_line` accepts

@@ -1,6 +1,6 @@
 # claude-token-saver 프로젝트 지침
 
-Codex는 이 파일 대신 AGENTS.md를 읽습니다. 첫 `##` 절부터 끝까지는 AGENTS.md와 같아야 하며, `test/agents-md.test.js`가 두 파일을 비교합니다. 지침을 고칠 때는 두 파일을 함께 고치십시오.
+Codex가 읽는 지침 파일입니다. 첫 `##` 절부터 끝까지는 CLAUDE.md와 같아야 하며, `test/agents-md.test.js`가 두 파일을 비교합니다. 지침을 고칠 때는 두 파일을 함께 고치십시오.
 
 ## 배포 키워드 (2026-09-16)
 

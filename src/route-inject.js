@@ -33,6 +33,7 @@
 
 import { categorizeScored, ESCALATE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
 import { loadModelRules, budgetCapPhrase, ruleBudget } from './model-rules.js';
+import { sharedProjectRoots, realProjectRoot, scopeRank } from './shared-model-rules.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 import { userLanguage } from './config.js';
 import { aliasForRole, resolveModelAlias } from './model-alias.js';
@@ -121,7 +122,7 @@ export function sessionModelRank({ env = process.env, transcriptPath = null, sna
  *   model filters nothing.
  * @returns {{cat: object, t2: object|undefined, t1: object|undefined}|null}
  */
-export function routeMatch(text, { rules, sessionRank = null } = {}) {
+export function routeMatch(text, { rules, sessionRank = null, root } = {}) {
   const t = String(text || '').trim();
   if (t.length < MIN_LEN) return null;
   // Judgement and irreversible work stay on the top tier. This check comes
@@ -148,7 +149,13 @@ export function routeMatch(text, { rules, sessionRank = null } = {}) {
   if (cat.id === 'paste' && !looksPasted(t)) return null;
 
   const all = rules || loadModelRules().rules || [];
-  const matched = all.filter((r) => r && r.category === cat.id);
+  // The registry is shared with Codex, so a project rule approved in one
+  // project must not route another. A session whose directory is unknown gets
+  // global rules only.
+  const roots = root ? sharedProjectRoots(root) : [];
+  const inScope = (r) => r.scope !== 'project' ||
+    (typeof r.targetRoot === 'string' && roots.includes(realProjectRoot(r.targetRoot)));
+  const matched = all.filter((r) => r && r.category === cat.id && inScope(r));
   if (!matched.length) return null;
   // A rule only saves anything when its target tier is cheaper than the model
   // reading the hint. A T1 rule states "delegate to model: sonnet", which in a
@@ -161,8 +168,10 @@ export function routeMatch(text, { rules, sessionRank = null } = {}) {
     : matched.filter((r) => worthDelegating(r.tier, sessionRank));
   if (!usable.length) return null;
 
-  const t2 = usable.find((r) => r.tier === 'T2');
-  const t1 = usable.find((r) => r.tier === 'T1');
+  // The closest scope states the cap, whatever order the registry holds.
+  const nearest = [...usable].sort((a, b) => scopeRank(b) - scopeRank(a));
+  const t2 = nearest.find((r) => r.tier === 'T2');
+  const t1 = nearest.find((r) => r.tier === 'T1');
   return t2 || t1 ? { cat, t2, t1 } : null;
 }
 
@@ -186,7 +195,7 @@ export function matchCaps(match) {
  * @returns {string|null} the line to inject, or null to stay quiet
  */
 export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match } = {}) {
-  const found = match === undefined ? routeMatch(text, { rules, sessionRank }) : match;
+  const found = match === undefined ? routeMatch(text, { rules, sessionRank, root }) : match;
   if (!found) return null;
   const { cat, t2, t1 } = found;
   const ko = lang === 'ko';

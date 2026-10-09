@@ -26,11 +26,16 @@ Usage: sprag <command> --agent codex [options]
   saved [reset|undo]             Show, reset or restore the saved-money counters
   delegate on|off|status         Native model routing and SubagentStart guidance
   delegate model <model>         Default target for spawns without an explicit model
-  delegate rules                Codex-only category rules; add/rm with explicit scope
+  delegate rules                Codex rules and shared delegation policies
+  delegate shared on|off|status  Reuse approved policies; keep original scopes
+  delegate shared map T1|T2     Map a tier: --from <parent> --model <target>
+                                Optional --provider <id> and --effort <level>
+  delegate shared unmap T1|T2   Remove a mapping: --from <parent> [--provider <id>]
+  delegate shared min-context N Parent input tokens before shared guidance; default resets
   route-scan [--refresh]         Discover recurring simple turns in local logs
   route-scan dismiss R<N>       Dismiss a candidate without registering a rule
   route-scan savings            Attributed routing estimates; --refresh or --format json
-  seed [accept|skip|reset]       Bundled Codex ratchet presets; acceptance needs a scope
+  seed [accept|skip|reset]       Shared delegation and Codex ratchet presets; explicit scope
   cache [auto|off|<duration>]    Display timer policy (e.g. 30m); never changes retention
   cache status --refresh        Resolve the session's gateway deployment and cache policy
   harness init|uninit|check|promote|list|rm|prune
@@ -413,6 +418,7 @@ export async function run({ args, version }) {
     console.log('After approval, start or resume Codex and run: sprag panel doctor --agent codex');
     if (panel.mode === 'window') console.log('Some Codex versions defer SessionStart until the first prompt. For immediate opening on typing codex: sprag panel shell install --agent codex (optional zsh integration).');
     console.log('Existing config.toml, Claude Code settings, and ratchet rules are preserved.');
+    console.log('First-use delegation: sprag seed --agent codex, then sprag delegate shared status --agent codex. Approve a scope and map the tiers before enabling delegation. No Claude installation is required.');
     console.log('Korean guidance is opt-in: sprag korean on --agent codex');
     return;
   }

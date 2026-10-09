@@ -26,3 +26,7 @@ graphify-out/
 
 # Local video working directory (not part of the shipped artifact)
 /video/
+
+# A tool outside sprag writes `:memory:.ses` (timestamp + session id) into the
+# working directory of some Codex sessions; it is not a project file.
+:memory:.ses

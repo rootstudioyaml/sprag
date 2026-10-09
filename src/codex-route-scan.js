@@ -8,7 +8,7 @@ import { findProjectRoot } from './harness.js';
 import { discoverCodexSessionFiles, parseCodexTurns } from './codex-parser.js';
 import { categorize, isSkippable, tierOf, calibrateThresholds, MIN_RECURRENCE,
   RESCAN_MIN_INTERVAL_MS, RESCAN_BIG_DELTA_BYTES, RESCAN_MAX_AGE_MS } from './route-scan.js';
-import { codexPromptCategory, loadCodexModelRules } from './codex-delegation.js';
+import { codexPromptCategory, loadCodexModelRules, sharedCodexModelRules, codexSharedTargets } from './codex-delegation.js';
 import { codexRunCost, codexPriceBook, isDirectOpenAI, readCodexPrices } from './codex-cache-policy.js';
 import { OPENAI_PRICES_CHECKED_AT } from './openai-prices.js';
 import { refreshCodexLedger } from './codex-ledger.js';
@@ -149,15 +149,20 @@ export async function runCodexRouteScan({ days = 14, now = Date.now(), home, dir
   }
   let rules = [];
   try { rules = loadCodexModelRules({ dir }); } catch { /* An unreadable rule file only means candidates may repeat. */ }
-  const covered = (g) => rules.some((r) => r.category === g.category && r.from === g.from &&
-    (!r.provider || r.provider === g.provider) &&
-    (r.scope === 'global' || r.targetRoot === g.projectRoot));
+  const covered = (g) => {
+    if (rules.some((r) => r.category === g.category && r.from === g.from &&
+        (!r.provider || r.provider === g.provider) &&
+        (r.scope === 'global' || r.targetRoot === g.projectRoot))) return true;
+    const shared = sharedCodexModelRules({ cfg, dir, root: g.projectRoot, model: g.from, provider: g.provider });
+    return ['T1', 'T2'].every((tier) => !g.tiers[tier] || shared.some((r) => r.category === g.category && r.tier === tier));
+  };
   const known = new Set([...observed, ...rules.filter((r) => r.provider).map((r) => `${r.provider}|${r.model}`)]);
   const target = cfg?.codex?.delegateTarget?.model;
   if (target) {
     if (prices?.provider) known.add(`${prices.provider}|${target}`);
     if (isDirectOpenAI('openai', { home })) known.add(`openai|${target}`);
   }
+  for (const target of codexSharedTargets(cfg)) known.add(`${target.provider}|${target.model}`);
   const prev = readCodexRouteScan({ dir });
   const resolved = new Set(prev?.resolved || []);
   const candidates = [...groups.values()]

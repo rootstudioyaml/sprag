@@ -8,7 +8,8 @@ import { spawnSync } from 'node:child_process';
 import { parseCodexTurns } from '../src/codex-parser.js';
 import { runCodexRouteScan } from '../src/codex-route-scan.js';
 import { codexRatchetCandidates } from '../src/codex-harness.js';
-import { recordCodexDelegation, refreshCodexLedger } from '../src/codex-ledger.js';
+import { recordCodexDelegation, refreshCodexLedger, codexRoutingSavedTotals } from '../src/codex-ledger.js';
+import { codexRouteHint, codexDelegationTool } from '../src/codex-delegation.js';
 import { childEnv } from './helpers/child-env.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
@@ -105,6 +106,20 @@ test('identical model aliases from different providers are not one priced route 
   assert.ok(scan.candidates.every((candidate) => candidate.count <= 3), JSON.stringify(scan.candidates));
 });
 
+test('mapped shared policies suppress duplicate candidates only for covered tiers and providers', async (t) => {
+  const f = fixture(t);
+  save(f, records(f));
+  writeFileSync(join(f.dir, 'model-rules.json'), JSON.stringify({ rules: [{ status: 'active', category: 'explore',
+    tier: 'T2', scope: 'global', targetRoot: null }] }));
+  f.cfg.codex.sharedRules = { targets: [{ tier: 'T2', from: 'parent-model', model: 'child-model', provider: 'current-gateway' }] };
+  assert.equal((await runCodexRouteScan(f)).candidates.length, 0);
+  f.cfg.codex.sharedRules.targets[0].provider = 'other';
+  assert.equal((await runCodexRouteScan(f)).candidates.length, 1);
+  f.cfg.codex.sharedRules.targets[0].provider = 'current-gateway';
+  f.cfg.codex.sharedRules.enabled = false;
+  assert.equal((await runCodexRouteScan(f)).candidates.length, 1);
+});
+
 function routeFixture(f, modern = true) {
   const id = '0123456789abcdef';
   recordCodexDelegation({ id, at: f.now - 15000, parentSessionId: 'parent-session',
@@ -122,6 +137,46 @@ test('a recorded route joins a modern child and yields signed savings', async (t
   assert.equal(ledger.events[id].tokens.output, 500);
   assert.ok(ledger.events[id].usd > 0);
   assert.equal(ledger.events[id].complete, true);
+});
+
+test('shared route accounting keeps source identity and never writes Claude totals', async (t) => {
+  const f = fixture(t);
+  const id = 'abcdef0123456789';
+  const original = JSON.stringify({ rules: [{ category: 'explore', tier: 'T2', savedUsd: 123 }] });
+  writeFileSync(join(f.dir, 'model-rules.json'), original);
+  recordCodexDelegation({ id, at: f.now - 15000, parentSessionId: 'parent-session', source: 'shared', category: 'explore',
+    tier: 'T2', sharedSignature: 'T2|explore|preset', targetRoot: null, scope: 'global', from: 'parent-model', to: 'child-model' }, f);
+  save(f, records(f, { id: 'child-session', model: 'child-model', child: true, turns: 1,
+    message: `Find parser files\n<!-- sprag:codex:route id=${id} -->` }));
+  const event = (await refreshCodexLedger(f)).events[id];
+  assert.equal(event.source, 'shared');
+  assert.equal(event.tier, 'T2');
+  assert.equal(event.sharedSignature, 'T2|explore|preset');
+  assert.equal(event.complete, true);
+  assert.ok(event.usd > 0);
+  assert.equal(readFileSync(join(f.dir, 'model-rules.json'), 'utf8'), original);
+  assert.equal(existsSync(join(f.dir, 'delegation-ledger.json')), false);
+});
+
+test('shared route alternatives count only the selected child and reject wrong models or parents', async (t) => {
+  const f = fixture(t);
+  const selected = 'aabbccddeeff0011', unselected = 'aabbccddeeff0022';
+  const route = { at: f.now - 15000, parentSessionId: 'parent-session', source: 'shared', category: 'explore',
+    tier: 'T2', sharedSignature: 'T2|explore|preset', targetRoot: null, scope: 'global', from: 'parent-model', to: 'child-model' };
+  recordCodexDelegation({ ...route, id: selected }, f);
+  recordCodexDelegation({ ...route, id: unselected, tier: 'T1', to: 'medium-model' }, f);
+  save(f, records(f, { id: 'child-session', model: 'child-model', child: true, turns: 1,
+    message: `Find parser files\n<!-- sprag:codex:route id=${selected} -->` }));
+  assert.deepEqual(Object.keys((await refreshCodexLedger(f)).events), [selected]);
+
+  const wrongModel = 'aabbccddeeff0033', wrongParent = 'aabbccddeeff0044';
+  recordCodexDelegation({ ...route, id: wrongModel, to: 'other-model' }, f);
+  recordCodexDelegation({ ...route, id: wrongParent, parentSessionId: null }, f);
+  for (const id of [wrongModel, wrongParent]) {
+    save(f, records(f, { id: `child-${id}`, model: 'child-model', child: true, turns: 1,
+      message: `Find parser files\n<!-- sprag:codex:route id=${id} -->` }), `${id}.jsonl`);
+  }
+  assert.deepEqual(Object.keys((await refreshCodexLedger(f)).events), [selected]);
 });
 
 test('refresh with unavailable prices preserves a completed priced ledger event', async (t) => {
@@ -175,7 +230,8 @@ test('Codex seed accepts and skips independently of Claude with the chosen scope
   });
   const listing = run(['seed', '--agent', 'codex']);
   assert.equal(listing.status, 0, listing.stderr);
-  assert.doesNotMatch(listing.stdout, /model: haiku|\[run-t2\]/);
+  assert.doesNotMatch(listing.stdout, /model: haiku|model: sonnet/);
+  assert.match(listing.stdout, /\[run-t2\]/);
   const ids = [...listing.stdout.matchAll(/\[(fix-[0-9a-f]{6})\]/g)].map((m) => m[1]);
   assert.ok(ids.length >= 3);
   assert.notEqual(run(['seed', 'accept', ids[0], '--agent', 'codex']).status, 0);

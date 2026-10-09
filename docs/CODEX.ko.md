@@ -122,10 +122,10 @@ Codex 0.159.2에서는 `spawn_agent`가 `PreToolUse`를 거치지 않습니다(�
 
 이 안내는 부모 세션의 컨텍스트가 `codex.delegateMinContext`(기본 60000 토큰) 아래면 붙지
 않습니다. 2026-09-30 실측에서 작은 세션은 스폰·대기·검증이라는 조율 비용이 자식이 아끼는
-비용보다 커서, 문턱 아래에서는 안내를 붙이는 쪽이 오히려 손해였습니다. 아직 전용 CLI 명령은
-없고, `sprag mode` 실행 시 "Stored config file"로 나오는 설정 파일(맥은
-`~/Library/Application Support/claude-token-saver/config.json`)에서 `codex.delegateMinContext`
-값을 직접 고치면 됩니다. `PreToolUse` 재작성은 spawn을 훅으로 보내는 Codex 버전을 위해 남아
+비용보다 커서, 문턱 아래에서는 안내를 붙이는 쪽이 오히려 손해였습니다. 기준은
+`sprag delegate shared min-context <토큰 수|default> --agent codex`로 바꾸고, 현재 값은
+`delegate shared status`에서 확인합니다. 이 값은 `sprag mode`가 "Stored config file"로 알려 주는
+설정 파일에 `codex.delegateMinContext`로 저장됩니다. `PreToolUse` 재작성은 spawn을 훅으로 보내는 Codex 버전을 위해 남아
 있을 뿐, 0.159.2에서는 호출되지 않습니다. 위임 원장은 자식이 쓴 토큰을 부모 모델 단가로 환산한
 추정치이며, 부모가 조율에 쓴 턴은 빼지 않습니다. 끝나기 전에 중단된 자식은 부모의 일을 대신하지
 못했으므로, 그 비용 전액을 손실로 기록하고 항목에 `aborted`를 표시합니다.
@@ -139,8 +139,71 @@ Codex 0.159.2는 훅 하나가 넘긴 컨텍스트를 약 2,450토큰까지만 �
 못한 룰과 지침은 Sprag 데이터 디렉터리의 프로젝트별 파일에 쓰고, 컨텍스트 첫머리에서 그 파일을
 먼저 읽으라고 안내합니다. rollout의 `originator`로 `codex exec` 실행을 알아보며, 답할 사람이
 없으므로 seed 제안과 route 안내를 넣지 않습니다.
- `seed`는 Claude의 Haiku·Sonnet 프리셋을 가져오지 않으며,
-Codex의 수락·거절 기록도 Claude 기록과 분리합니다.
+
+`seed`는 공통 위임 정책과 Codex용 래칫 프리셋을 제안합니다.
+래칫과 거절 기록은 도구별로 분리하지만, 승인된 공통 정책은 원래 범위 안에서 중복 제안하지 않습니다.
+
+### 공통 위임 정책
+
+작업 유형, T1·T2 난도, 적용 범위와 상한은 Claude와 Codex가 같은 `model-rules.json`에서
+읽습니다. 기존 Claude 활성 규칙도 복사 없이 표시하며, 삭제되거나 비활성·검토 상태인 규칙은
+Codex에서 위임에 사용하지 않습니다. 프로젝트 정책은 작업 디렉터리에 대해 두 도구가 각각 정하는
+프로젝트 루트 가운데 하나와 일치하면 적용합니다. Claude는 `CLAUDE.md`에서, Codex는 `AGENTS.md`에서
+루트를 정하며, 정책의 루트와 작업 디렉터리의 루트는 심볼릭 링크를 푼 실제 경로로 비교합니다. 모델 ID, 역할, 사용량과 절감액은
+도구별로 유지합니다.
+
+Claude를 설치하지 않은 Codex 첫 사용자도 기록을 쌓기 전에 프리셋을 승인할 수 있습니다.
+
+```sh
+sprag seed --agent codex
+sprag seed accept all --global --agent codex
+sprag delegate shared status --agent codex
+sprag delegate shared map T2 --from PARENT_MODEL --model SMALL_MODEL --effort high --agent codex
+sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort medium --agent codex
+sprag delegate on --agent codex
+```
+
+등록 전에 전역과 프로젝트 범위를 선택합니다. 프로젝트에만 적용하려면 `--global` 대신
+`--project`를 지정하십시오. 위 모델명은 예시 자리표시자이므로, 공급자에서 사용할 수 있고
+부모보다 저렴한 실제 모델 ID로 바꿔야 합니다. 매핑을 저장했다는 사실만으로 사용 가능 여부나
+절감 효과를 확인한 것은 아닙니다. 공급자는 Codex 설정에서 읽으며 `--provider ID`로 지정할 수도 있습니다.
+
+매핑은 출발 모델·공급자·난도가 일치할 때만 적용하고, 한 번 지정하면 승인된 모든 작업 유형에서
+사용합니다. 매핑하지 않은 난도는 메인 모델이 처리합니다. Codex에서 승인할 때 `.claude` 파일은
+만들지 않으며, 나중에 Claude를 시작하면 같은 정책을 Claude용 모델 표기로 생성합니다.
+
+프롬프트 훅은 단순 작업에 T2, 여러 단계가 필요한 작업에 T1을 제시하고, 매핑된 난도마다 route 줄을
+따로 줍니다. 부모는 작업에 맞는 모델 하나를 선택하고 독립적인 작업 명세, 상한, `fork_turns "none"`과
+선택한 난도의 route 줄만 전달한 뒤 결과를 기다려 검증합니다. `fork_turns "none"`은 반드시 지정해야
+합니다. 전체 기록을 넘기는 포크는 부모 모델을 그대로 물려받아 모델 지정을 무시하기 때문입니다.
+Codex는 사용자가 요청할 때만 스폰 모델을 지정하므로, 안내 문구는 사용자가 정책과 매핑을 승인했다는
+사실을 함께 밝힙니다.
+
+제시한 난도는 각각 프롬프트 route로 기록합니다. 이 경로는 `spawn_agent`가 `PreToolUse`를 거치지 않는
+Codex 0.159.2에서 Codex 전용 규칙이 쓰는 경로와 같습니다. SubagentStart는 자식이 실행하는 모델과 같은
+route에 자식을 연결하고, 부모에게 다음 프롬프트가 들어오면 고르지 않은 난도의 route를 닫습니다. 그래서
+제시만 하고 연결된 자식이 없는 난도는 실행으로 집계하지 않습니다. `PreToolUse`가 실행되는 버전에서는
+공통 정책에 해당하는 스폰이 모델을 지정하지 않으면 스폰 훅이 매핑된 선택지를 알려 주며 그 스폰을
+거부하고, 난도는 부모가 고릅니다. 스폰 훅은 난도를 임의로 정하거나 명시된 모델·사용자 정의 역할을
+덮어쓰지 않으며, 부모가 자기 모델을 명시하면 작업은 그 모델에 남습니다.
+
+공통 정책 안내도 앞에서 설명한 Codex 전용 규칙과 같은 컨텍스트 기준을 따릅니다. 이 기준은 모델의
+컨텍스트 창 크기를 바꾸지 않으며, 컨텍스트 기록이 없으면 안내하지 않습니다. 매핑은 지정한 출발 모델의 세션에만 적용되므로,
+`status`는 Codex 설정의 기본 모델을 기준으로 빠진 매핑을 알려 줍니다.
+
+```sh
+sprag delegate rules --agent codex
+sprag delegate shared off --agent codex
+sprag delegate shared on --agent codex
+sprag delegate shared unmap T2 --from PARENT_MODEL --agent codex
+sprag delegate shared min-context 30000 --agent codex
+```
+
+`shared off`는 공통 정책과 매핑을 보존하며 Codex 전용 규칙에는 영향을 주지 않습니다.
+`unmap`은 해당 Codex 매핑만 제거합니다. 공통 정책은 `sprag route-scan rules [rm N]`에서
+관리하며, 원본 삭제는 두 도구에 반영됩니다. Codex 실행 기록에는 원본 규칙 식별자와 난도를
+남기지만 사용량·절감액을 Claude 통계에 더하지 않습니다. 안내 생성만으로 실행을 집계하지 않으며,
+route 표지 또는 SubagentStart 연결이 매핑된 모델로 실행한 실제 자식 세션과 일치해야 기록을 연결합니다.
 
 ## 래칫 규칙
 

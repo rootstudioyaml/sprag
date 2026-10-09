@@ -22,7 +22,7 @@ const cfg = { codex: { delegate: true, delegateTarget: { model: 'gpt-6-luna', ef
 const payload = (root, input = {}) => ({ cwd: root, model: 'gpt-6-astra', tool_name: 'spawn_agent',
   tool_input: { message: 'Find the parser files', agent_type: 'explorer', ...input } });
 
-test('Codex category rules use the shared classifier and project precedence without importing Claude rules', (t) => {
+test('Codex-only rules use the shared classifier and retain their project precedence', (t) => {
   const f = fixture(t);
   const add = (scope, model) => addCodexModelRule({ category: 'explore', from: 'gpt-6-astra', model, scope, root: f.root }, f);
   add('global', 'gpt-6-luna');

@@ -88,18 +88,22 @@ export function readCodexBindings({ dir = userDataDir() } = {}) {
   return out;
 }
 
-/** Route ids a later prompt closed before any child claimed them. Kept in the binds file as `{ id, closed: true }` lines. */
-function closedCodexRouteIds({ dir = userDataDir() } = {}) {
+/** When a later prompt closed each route no child had claimed. Kept in the binds file as `{ id, closed: true, at }` lines. */
+function closedCodexRouteTimes({ dir = userDataDir() } = {}) {
   let text;
-  try { text = readFileSync(bindsFile(dir), 'utf8'); } catch { return new Set(); }
-  const out = new Set();
+  try { text = readFileSync(bindsFile(dir), 'utf8'); } catch { return new Map(); }
+  const out = new Map();
   for (const line of text.split('\n')) {
     try {
       const b = JSON.parse(line);
-      if (b?.closed === true && /^[0-9a-f]{16}$/.test(b.id)) out.add(b.id);
+      if (b?.closed === true && /^[0-9a-f]{16}$/.test(b.id) && !out.has(b.id)) out.set(b.id, Number.isFinite(b.at) ? b.at : -Infinity);
     } catch { /* Partial trailing line. */ }
   }
   return out;
+}
+
+function closedCodexRouteIds(opts) {
+  return new Set(closedCodexRouteTimes(opts).keys());
 }
 
 /**
@@ -142,6 +146,9 @@ export function bindCodexSubagent(payload, { dir = userDataDir(), now = Date.now
   if (!pending.length) return null;
   // Oldest first: spawns are recorded in order, so the earliest unbound record belongs to the earliest child.
   const chosen = pending.reduce((a, b) => (b.at < a.at ? b : a));
+  // Tiers one hint offered together can map to the same model; the model then
+  // cannot say which tier this child is. Leave it to the child's route marker.
+  if (chosen.offerId && pending.some((r) => r !== chosen && r.offerId === chosen.offerId)) return null;
   recordCodexBinding({ id: chosen.id, childSessionId: payload.agent_id, at: now }, { dir });
   return chosen.id;
 }
@@ -220,6 +227,7 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
   if (!pending.length) return ledger;
   const byId = new Map(pending.map((r) => [r.id, r]));
   const bindMap = new Map(readCodexBindings({ dir }).filter((b) => byId.has(b.id)).map((b) => [b.childSessionId, b.id]));
+  const closedAt = closedCodexRouteTimes({ dir });
   const oldest = Math.min(...pending.map((r) => r.at));
   const files = await discoverCodexSessionFiles({ home, days: Math.max(1, (now - oldest) / 86400000 + 1) });
   let changed = false;
@@ -232,7 +240,14 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     // The id must come from a spawn this parent made, after the record was written.
     if (!route || (route.parentSessionId && run.parentThreadId && route.parentSessionId !== run.parentThreadId)) continue;
     if (route.provider && route.provider !== run.provider) continue;
+    // A shared policy names its model only through the caller's choice, so
+    // credit it only for a child of that parent that ran the mapped model.
+    if (route.source === 'shared' && (run.model !== route.to || !route.parentSessionId ||
+        run.parentThreadId !== route.parentSessionId)) continue;
     if (Number.isFinite(run.startedAt) && run.startedAt < route.at - 5000) continue;
+    // A closed route ended with its hinted turn. Only a child that started
+    // before the close can be its run; a later marker is a copy, not a spawn.
+    if (closedAt.has(route.id) && !(Number.isFinite(run.startedAt) && run.startedAt < closedAt.get(route.id))) continue;
     if (seen.has(route.id)) continue;
     seen.add(route.id);
     const to = run.model || route.to;
@@ -249,6 +264,7 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     const usd = actual === null || counterfactual === null ? null : roundUsd(run.aborted ? -actual : counterfactual - actual);
     const event = { ts: run.endedAt ?? route.at, parentSessionId: route.parentSessionId || run.parentThreadId || null,
       childSessionId: run.sessionId, source: route.source, category: route.category ?? null, scope: route.scope ?? null,
+      ...(route.source === 'shared' ? { tier: route.tier, sharedSignature: route.sharedSignature } : {}),
       from: route.from, to, provider,
       ...(route.targetRoot !== undefined ? { targetRoot: route.targetRoot } : {}),
       ...(route.ruleCreatedAt !== undefined ? { ruleCreatedAt: route.ruleCreatedAt } : {}), tokens: run.tokens, calls: run.calls, toolErrors: run.toolErrors, usd, rates: usd === null ? null : rates,

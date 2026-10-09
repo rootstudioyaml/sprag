@@ -4,7 +4,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { codexContextTokens, codexRouteHint, codexPromptCategory } from '../src/codex-delegation.js';
-import { pruneCodexDelegations, recordCodexDelegation, readCodexDelegations, bindCodexSubagent, readCodexBindings, refreshCodexLedger } from '../src/codex-ledger.js';
+import { pruneCodexDelegations, recordCodexDelegation, readCodexDelegations, bindCodexSubagent, readCodexBindings, refreshCodexLedger,
+  closeStaleCodexRoutes } from '../src/codex-ledger.js';
 import { codexHarnessBlock } from '../src/codex-harness.js';
 
 function fixture(t) {
@@ -83,7 +84,7 @@ test('bindCodexSubagent binds only a matching, recent, unclaimed pending route',
 
 // ── refreshCodexLedger falls back to a binding when no marker is present ───
 
-function records({ id, model, provider = 'current-gateway', root, parentThreadId, aborted = false }) {
+function records({ id, model, provider = 'current-gateway', root, parentThreadId, aborted = false, text = 'Find the parser files' }) {
   const now = Date.now();
   const rows = [{ timestamp: new Date(now - 20000).toISOString(), type: 'session_meta', payload: {
     id, cwd: root, model_provider: provider, source: { subagent: { thread_spawn: { parent_thread_id: parentThreadId } } },
@@ -94,7 +95,7 @@ function records({ id, model, provider = 'current-gateway', root, parentThreadId
   push('event_msg', { type: 'task_started', turn_id });
   push('turn_context', { turn_id, model, cwd: root });
   push('event_msg', { type: 'item_completed', turn_id, item: {
-    type: 'UserMessage', id: 'message-0', content: [{ type: 'text', text: 'Find the parser files' }],
+    type: 'UserMessage', id: 'message-0', content: [{ type: 'text', text }],
   } });
   const usage = { input_tokens: 1000, cached_input_tokens: 200, output_tokens: 500 };
   push('token_usage_record', { turn_id, usage, turn_token_usage: usage }, 100);
@@ -186,4 +187,84 @@ test('refreshCodexLedger prunes pending records older than the pending TTL', asy
   // Nothing stale: the file is left as it is.
   pruneCodexDelegations({ dir: f.dir, now });
   assert.equal(readCodexDelegations({ dir: f.dir }).length, 1);
+});
+
+test('a shared policy records each offered tier; SubagentStart binds the chosen one and the next prompt closes the other', async (t) => {
+  const f = fixture(t);
+  const now = Date.now();
+  writeFileSync(join(f.dir, 'model-rules.json'), JSON.stringify({ rules: ['T2', 'T1'].map((tier) => ({ status: 'active',
+    category: 'explore', tier, scope: 'global', targetRoot: null, signature: `${tier}|explore|preset` })) }));
+  const cfg = { codex: { sharedRules: { targets: [
+    { tier: 'T2', from: 'gpt-6-astra', model: 'child-model', provider: 'current-gateway' },
+    { tier: 'T1', from: 'gpt-6-astra', model: 'medium-model', provider: 'current-gateway' }] } } };
+  const payload = { prompt: 'Find the parser files', model: 'gpt-6-astra', model_provider: 'current-gateway',
+    session_id: 'parent-session', turn_id: 't1', cwd: f.base };
+  const hint = codexRouteHint(payload, { cfg, rules: [], dir: f.dir, contextTokens: 60000,
+    record: (entry, opts) => recordCodexDelegation({ ...entry, at: now - 15000 }, opts) });
+  assert.match(hint, /approved shared explore policy/);
+  const pending = readCodexDelegations({ dir: f.dir });
+  assert.deepEqual(pending.map((r) => [r.tier, r.to, r.via, r.source]),
+    [['T2', 'child-model', 'prompt', 'shared'], ['T1', 'medium-model', 'prompt', 'shared']]);
+  for (const r of pending) assert.ok(hint.includes(`<!-- sprag:codex:route id=${r.id} -->`));
+
+  const chosen = pending.find((r) => r.tier === 'T2');
+  assert.equal(bindCodexSubagent({ session_id: 'parent-session', agent_id: 'child-session', model: 'child-model', turn_id: 't1' },
+    { dir: f.dir, now }), chosen.id);
+  assert.equal(closeStaleCodexRoutes({ session_id: 'parent-session', turn_id: 't2' }, { dir: f.dir, now }), 1);
+  const rows = records({ id: 'child-session', model: 'child-model', root: f.base, parentThreadId: 'parent-session' });
+  writeFileSync(join(f.home, 'sessions', 'rollout.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  const events = (await refreshCodexLedger({ dir: f.dir, home: f.home, now, prices: null })).events;
+  assert.deepEqual(Object.keys(events), [chosen.id]);
+  assert.deepEqual([events[chosen.id].source, events[chosen.id].tier, events[chosen.id].sharedSignature],
+    ['shared', 'T2', 'T2|explore|preset']);
+});
+
+test('tiers mapped to one model are not bound by model alone; the child route marker decides', async (t) => {
+  const f = fixture(t);
+  const now = Date.now();
+  writeFileSync(join(f.dir, 'model-rules.json'), JSON.stringify({ rules: ['T2', 'T1'].map((tier) => ({ status: 'active',
+    category: 'explore', tier, scope: 'global', targetRoot: null, signature: `${tier}|explore|preset` })) }));
+  const cfg = { codex: { sharedRules: { targets: [
+    { tier: 'T2', from: 'gpt-6-astra', model: 'child-model', effort: 'low', provider: 'current-gateway' },
+    { tier: 'T1', from: 'gpt-6-astra', model: 'child-model', effort: 'high', provider: 'current-gateway' }] } } };
+  const payload = { prompt: 'Find the parser files', model: 'gpt-6-astra', model_provider: 'current-gateway',
+    session_id: 'parent-session', turn_id: 't1', cwd: f.base };
+  codexRouteHint(payload, { cfg, rules: [], dir: f.dir, contextTokens: 60000,
+    record: (entry, opts) => recordCodexDelegation({ ...entry, at: now - 15000 }, opts) });
+  const pending = readCodexDelegations({ dir: f.dir });
+  assert.equal(new Set(pending.map((r) => r.offerId)).size, 1);
+  assert.equal(bindCodexSubagent({ session_id: 'parent-session', agent_id: 'child-session', model: 'child-model', turn_id: 't1' },
+    { dir: f.dir, now }), null);
+  const t1 = pending.find((r) => r.tier === 'T1');
+  const rows = records({ id: 'child-session', model: 'child-model', root: f.base, parentThreadId: 'parent-session',
+    text: `Find the parser files\n<!-- sprag:codex:route id=${t1.id} -->` });
+  writeFileSync(join(f.home, 'sessions', 'rollout.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  const events = (await refreshCodexLedger({ dir: f.dir, home: f.home, now, prices: null })).events;
+  assert.deepEqual(Object.keys(events), [t1.id]);
+  assert.equal(events[t1.id].tier, 'T1');
+});
+
+test('a closed route counts only a child that started before the close, marker or not', async (t) => {
+  const f = fixture(t);
+  const now = Date.now();
+  const id = 'cccccccccccccccc';
+  recordCodexDelegation({ id, at: now - 60000, via: 'prompt', turnId: 't1', parentSessionId: 'parent-session',
+    source: 'rule', category: 'explore', from: 'parent-model', to: 'child-model', provider: 'current-gateway' }, { dir: f.dir });
+  const child = () => {
+    const rows = records({ id: 'child-session', model: 'child-model', root: f.base, parentThreadId: 'parent-session',
+      text: `Find the parser files\n<!-- sprag:codex:route id=${id} -->` });
+    writeFileSync(join(f.home, 'sessions', 'rollout.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  };
+  // The child starts about 10s before now; a close 30s ago predates it.
+  assert.equal(closeStaleCodexRoutes({ session_id: 'parent-session', turn_id: 't2' }, { dir: f.dir, now: now - 30000 }), 1);
+  child();
+  assert.deepEqual((await refreshCodexLedger({ dir: f.dir, home: f.home, now, prices: null })).events, {});
+
+  const g = fixture(t);
+  f.dir = g.dir; f.home = g.home;
+  recordCodexDelegation({ id, at: now - 60000, via: 'prompt', turnId: 't1', parentSessionId: 'parent-session',
+    source: 'rule', category: 'explore', from: 'parent-model', to: 'child-model', provider: 'current-gateway' }, { dir: f.dir });
+  assert.equal(closeStaleCodexRoutes({ session_id: 'parent-session', turn_id: 't2' }, { dir: f.dir, now: now - 1000 }), 1);
+  child();
+  assert.deepEqual(Object.keys((await refreshCodexLedger({ dir: f.dir, home: f.home, now, prices: null })).events), [id]);
 });

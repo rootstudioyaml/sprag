@@ -14,6 +14,15 @@ export function codexProviderName({ home = codexUserDir() } = {}) {
   } catch (e) { return e.code === 'ENOENT' ? 'openai' : null; }
 }
 
+/** The default model from Codex config, or null when it names none or cannot be read. */
+export function codexModelName({ home = codexUserDir() } = {}) {
+  try {
+    const cfg = parse(readFileSync(join(home, 'config.toml'), 'utf8'));
+    const model = cfg.profiles?.[cfg.profile]?.model || cfg.model;
+    return typeof model === 'string' && model ? model : null;
+  } catch { return null; }
+}
+
 /** Remove the global selector before positional subcommand parsers see it. */
 export function selectAgent(argv) {
   const args = [];

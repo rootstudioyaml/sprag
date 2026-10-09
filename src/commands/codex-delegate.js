@@ -1,19 +1,93 @@
 import { loadConfig, saveConfig } from '../config.js';
 import { configureCodexHooks } from '../codex-installer.js';
-import { validateCodexTarget, loadCodexModelRules, addCodexModelRule, removeCodexModelRule } from '../codex-delegation.js';
+import { validateCodexTarget, loadCodexModelRules, addCodexModelRule, removeCodexModelRule,
+  validateCodexSharedTarget, codexSharedTargets, codexDelegateMinContext, DEFAULT_DELEGATE_MIN_CONTEXT } from '../codex-delegation.js';
 import { findCodexCandidate, resolveCodexCandidate } from '../codex-route-scan.js';
 import { codexRoutingSavedTotals, loadCodexLedger } from '../codex-ledger.js';
 import { codexRuleHealth, codexRulesInReview } from '../codex-rule-health.js';
 import { signedUsd } from '../money.js';
-import { codexProviderName } from '../agent.js';
+import { codexProviderName, codexModelName } from '../agent.js';
+import { loadSharedModelRules, sharedModelRulesForProject, SHARED_RULE_TIERS } from '../shared-model-rules.js';
+
+// Starts from the working directory, as the hooks do, so a project policy
+// stored under either agent's project root is counted.
+function printShared(cfg, { details = false } = {}) {
+  const policies = sharedModelRulesForProject(loadSharedModelRules(), process.cwd());
+  const targets = codexSharedTargets(cfg);
+  const provider = codexProviderName();
+  const parent = codexModelName();
+  console.log(`Shared delegation policies: ${policies.length} in this project (${cfg.codex?.sharedRules?.enabled === false ? 'off' : 'on'}); Codex tier mappings: ${targets.length}`);
+  if (!policies.length) console.log('First use: sprag seed --agent codex. Approve policies with seed accept <id>|all --global|--project; no Claude installation or history is required.');
+  if (details) {
+    for (const r of policies) console.log(`shared ${r.tier} ${r.category} | ${r.scope}${r.targetRoot ? ` ${r.targetRoot}` : ''}`);
+    for (const t of targets) console.log(`${t.provider} | ${t.from} | ${t.tier} -> ${t.model}${t.effort ? ` (${t.effort})` : ''}`);
+  }
+  // A mapping routes only sessions on the parent model it names, so a tier
+  // mapped for another model still leaves the configured model unrouted.
+  const mapped = (tier) => targets.some((t) => t.provider === provider && t.tier === tier && (!parent || t.from === parent));
+  const missing = [...new Set(policies.map((r) => r.tier))].filter((tier) => !mapped(tier));
+  if (missing.length) {
+    console.log(`Unmapped tiers for ${parent || 'any parent model'} on ${provider || 'unknown provider'}: ${missing.join(', ')}. `
+      + `Set: sprag delegate shared map <T1|T2> --from ${parent || '<parent-model>'} --model <target-model> --agent codex`);
+  }
+  if (!parent && targets.length) console.log('Codex config names no default model; each mapping routes only sessions on its --from model.');
+  const minimum = codexDelegateMinContext(cfg);
+  console.log(`Shared prompt guidance starts at ${minimum} parent input tokens${cfg.codex?.delegateMinContext === minimum ? '' : ' (default)'}. `
+    + 'Change: sprag delegate shared min-context <tokens|default> --agent codex');
+  console.log('Shared policies keep their original scope and bounds. Models require an exact parent/provider mapping; agent-specific roles and usage totals are not imported.');
+}
 
 export function run({ args, getArg, hasFlag, root }) {
   const sub = args[1] || 'status';
   if (args.some((arg) => arg.startsWith('--hook'))) throw new Error('Use codex-hook for Codex hook payloads.');
-  for (const flag of ['--model', '--effort', '--from']) {
+  for (const flag of ['--model', '--effort', '--from', '--provider']) {
     if (args.some((arg) => arg === flag || arg.startsWith(`${flag}=`)) && (!getArg(flag) || getArg(flag).startsWith('-'))) {
       throw new Error(`${flag} requires a value.`);
     }
+  }
+  const cfg = loadConfig();
+  if (sub === 'shared') {
+    const action = args[2] || 'status';
+    if (!['status', 'on', 'off', 'map', 'unmap', 'min-context'].includes(action)) {
+      throw new Error('Usage: delegate shared status|on|off|map <T1|T2>|unmap <T1|T2>|min-context <tokens|default> --agent codex');
+    }
+    if (hasFlag('--global') || hasFlag('--project')) throw new Error('Shared policies retain their approved scope; mappings do not change it.');
+    const provided = (flag) => args.some((arg) => arg === flag || arg.startsWith(`${flag}=`));
+    if (!['map', 'unmap'].includes(action) && ['--model', '--effort', '--from', '--provider'].some(provided)) {
+      throw new Error('Model options require delegate shared map or unmap.');
+    }
+    const targets = codexSharedTargets(cfg);
+    if (action === 'map' || action === 'unmap') {
+      const tier = args[3];
+      const from = getArg('--from');
+      const provider = getArg('--provider') ?? codexProviderName();
+      if (!SHARED_RULE_TIERS.includes(tier)) throw new Error('Shared rule tier must be T1 or T2.');
+      const same = (t) => t.tier === tier && t.from === from && t.provider === provider;
+      if (action === 'map') {
+        const target = validateCodexSharedTarget({ tier, from, provider, model: getArg('--model'), effort: getArg('--effort') });
+        cfg.codex = { ...cfg.codex, sharedRules: { ...cfg.codex?.sharedRules, targets: [...targets.filter((t) => !same(t)), target] } };
+      } else {
+        if (provided('--model') || provided('--effort')) throw new Error('unmap accepts only tier, --from and --provider.');
+        if (!targets.some(same)) throw new Error('No matching shared tier mapping; specify --from and the correct provider.');
+        cfg.codex = { ...cfg.codex, sharedRules: { ...cfg.codex?.sharedRules, targets: targets.filter((t) => !same(t)) } };
+      }
+    } else if (action === 'min-context') {
+      const value = args[3];
+      if (value === 'default') {
+        cfg.codex = { ...cfg.codex };
+        delete cfg.codex.delegateMinContext;
+      } else if (/^\d+$/.test(value ?? '') && Number.isSafeInteger(Number(value))) {
+        cfg.codex = { ...cfg.codex, delegateMinContext: Number(value) };
+      } else {
+        throw new Error(`min-context takes a whole number of parent input tokens, or default (${DEFAULT_DELEGATE_MIN_CONTEXT}).`);
+      }
+    } else if (action !== 'status') {
+      cfg.codex = { ...cfg.codex, sharedRules: { ...cfg.codex?.sharedRules, enabled: action === 'on' } };
+    }
+    if (action !== 'status') saveConfig(cfg);
+    printShared(cfg, { details: true });
+    console.log(`Codex delegation is ${cfg.codex?.delegate === true ? 'on' : 'off; enable with sprag delegate on --agent codex'}. Target availability and lower cost must be verified with your provider.`);
+    return;
   }
   if (sub === 'rules') {
     if (args[2] === 'add') {
@@ -31,7 +105,7 @@ export function run({ args, getArg, hasFlag, root }) {
     } else if (args[2] === 'rm') removeCodexModelRule(Number(args[3]));
     else if (args[2]) throw new Error('Usage: delegate rules [add <category|R<N>> --from <model> --model <model> --global|--project | rm <N>]');
     const rules = loadCodexModelRules();
-    if (!rules.length) console.log('No Codex model rules. Claude rules are not imported.');
+    if (!rules.length) console.log('No Codex-only model rules.');
     let events = [];
     try { events = Object.values(loadCodexLedger().events); } catch { /* No ledger yet: rules list without outcomes. */ }
     const inReview = new Set(codexRulesInReview({ rules, events, root: null }).map((x) => x.index));
@@ -41,10 +115,10 @@ export function run({ args, getArg, hasFlag, root }) {
       const warn = inReview.has(i + 1) ? ` | rule-health: ${h.errs}/${h.runs} runs failed, narrow the condition or remove (delegate rules rm ${i + 1} --agent codex)` : '';
       console.log(`#${i + 1} ${r.category} | ${r.from} -> ${r.model} | ${r.scope}${r.targetRoot ? ` ${r.targetRoot}` : ''}${outcome}${warn}`);
     });
+    printShared(cfg, { details: true });
     return;
   }
-  if (!['on', 'off', 'status', 'model'].includes(sub)) throw new Error('Usage: delegate on|off|status|model <model>|rules --agent codex');
-  const cfg = loadConfig();
+  if (!['on', 'off', 'status', 'model'].includes(sub)) throw new Error('Usage: delegate on|off|status|model <model>|rules|shared --agent codex');
   let target;
   if (sub === 'model') target = args[2] === 'off' ? null : validateCodexTarget(args[2], getArg('--effort'));
   else if (getArg('--model') !== undefined) target = validateCodexTarget(getArg('--model'), getArg('--effort'));
@@ -63,6 +137,7 @@ export function run({ args, getArg, hasFlag, root }) {
   let ruleCount;
   try { ruleCount = String(loadCodexModelRules().length); } catch (e) { ruleCount = `unreadable (${e.message})`; }
   console.log(`Codex rules: ${ruleCount}`);
+  printShared(cfg);
   console.log('Explicit spawn models and custom roles are preserved. Targets must be available from your Codex provider.');
   const saved = codexRoutingSavedTotals();
   console.log(saved.priced

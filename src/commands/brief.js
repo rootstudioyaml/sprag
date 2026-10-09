@@ -49,7 +49,7 @@ export async function run({ hasFlag }) {
       // differ. Claude Code sends `cwd` for that reason and the PreToolUse hook
       // already reads it (src/delegation-guard.js). A payload without the field
       // leaves root undefined, which is the behaviour this had before.
-      const match = routeMatch(ctx.prompt, { sessionRank });
+      const match = routeMatch(ctx.prompt, { sessionRank, root: ctx.cwd });
       const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd, match });
       if (hint) parts.push(hint);
       // The delegation guard repeats these caps to the subagent, so the limit it
