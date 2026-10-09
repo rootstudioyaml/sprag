@@ -30,6 +30,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, dirname, basename } from 'node:path';
 import { collectSessionRecords, normalizeModelId } from './session-records.js';
+import { LONG_PROMPT_THRESHOLD } from './cost.js';
 
 /** Directory holding a session's subagent transcripts (may not exist). */
 export function subagentDirFor(sessionPath) {
@@ -98,6 +99,17 @@ export async function collectSubagentRun(jsonlPath) {
     run.cacheRead += r.cache_read_tokens || 0;
     run.ephemeral5m += r.ephemeral5m || 0;
     run.ephemeral1h += r.ephemeral1h || 0;
+    // Haiku 5.5 long-prompt split (see cost.js LONG_PROMPT_THRESHOLD); only
+    // present once a request this large exists.
+    if ((r.prompt_tokens || 0) > LONG_PROMPT_THRESHOLD) {
+      const l = (run.long ||= { input: 0, cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, output: 0 });
+      l.input += r.input_tokens || 0;
+      l.cacheCreation += r.cache_creation_tokens || 0;
+      l.cacheRead += r.cache_read_tokens || 0;
+      l.ephemeral5m += r.ephemeral5m || 0;
+      l.ephemeral1h += r.ephemeral1h || 0;
+      l.output += r.completion_tokens || 0;
+    }
     run.toolErrors += r.toolErrors || 0;
     const model = normalizeModelId(r.model);
     byModelOut.set(model, (byModelOut.get(model) || 0) + (r.completion_tokens || 0));

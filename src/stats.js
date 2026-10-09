@@ -10,6 +10,15 @@ function dateKey(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+// Sum a session's optional `long` sub-totals (requests whose prompt exceeds
+// 100k tokens; see parser.js) into an aggregate, creating it on first use.
+function addLong(acc, totals) {
+  const l = totals.long;
+  if (!l) return;
+  const a = (acc.long ||= { input: 0, cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, output: 0 });
+  for (const k of Object.keys(a)) a[k] += l[k] || 0;
+}
+
 function hitRate(read, creation, input) {
   const total = read + creation + input;
   return total > 0 ? read / total : 0;
@@ -43,6 +52,7 @@ export function dailyTrend(sessions) {
     d.cacheRead += s.totals.cacheRead;
     d.ephemeral5m += s.totals.ephemeral5m;
     d.ephemeral1h += s.totals.ephemeral1h;
+    addLong(d, s.totals);
     d.output += s.totals.output;
     d.apiCalls += s.requestCount;
     d.sessions += 1;
@@ -377,6 +387,7 @@ export function summary(sessions) {
       acc.cacheRead += s.totals.cacheRead;
       acc.ephemeral5m += s.totals.ephemeral5m;
       acc.ephemeral1h += s.totals.ephemeral1h;
+      addLong(acc, s.totals);
       acc.output += s.totals.output;
       acc.apiCalls += s.requestCount;
       acc.sessions += 1;

@@ -1,13 +1,29 @@
 /**
  * Cost impact estimation based on Anthropic pricing.
- * Source: https://docs.claude.com/en/docs/about-claude/pricing
- * Prices per million tokens (USD). Updated 2026-04 for Opus 4.7 release.
+ * Source: https://platform.claude.com/docs/en/about-claude/pricing
+ * Prices per million tokens (USD). Updated 2026-10 for Fable 5.1, Opus 5.5,
+ * Sonnet 5 / 5.5 and Haiku 5.5 (checked against the pricing page 2026-10-09).
  *
  * Note: Opus 4.5/4.6/4.7 use reduced pricing ($5/$25) vs. older Opus 4/4.1 ($15/$75).
  * Cache writes are now tracked separately for 5m and 1h TTLs, each with their own rate.
  */
 
+// Haiku 5.5 charges a request whose prompt (input + cache writes + cache
+// reads) exceeds this many tokens at the higher 'claude-haiku-5-5-long' rates.
+// Each request is priced on its own, so callers accumulate such requests into
+// `totals.long` (see parser.js) rather than relying on session-wide sums.
+export const LONG_PROMPT_THRESHOLD = 100_000;
+
 const PRICING = {
+  // Fable 5.1 / Mythos 5.1 — same prices as Fable 5 except cache reads, which
+  // drop to $0.25.
+  'claude-fable-5-1': {
+    input: 10.0,
+    cacheWrite5m: 12.5,
+    cacheWrite1h: 20.0,
+    cacheRead: 0.25,
+    output: 50.0,
+  },
   // Fable 5 / Mythos 5 — premium tier above Opus ($10/$50). Cache write
   // rates follow the standard multipliers (1.25x input for 5m, 2x for 1h),
   // cache read is 0.1x input.
@@ -17,6 +33,14 @@ const PRICING = {
     cacheWrite1h: 20.0,
     cacheRead: 1.0,
     output: 50.0,
+  },
+  // Opus 5.5 — cheaper than the Opus 4.5-5 tier below.
+  'claude-opus-5-5': {
+    input: 4.0,
+    cacheWrite5m: 5.0,
+    cacheWrite1h: 8.0,
+    cacheRead: 0.2,
+    output: 20.0,
   },
   // Opus 4.5+ (new pricing tier — includes 4.5, 4.6, 4.7, 4.8, and future)
   'claude-opus-new': {
@@ -34,6 +58,23 @@ const PRICING = {
     cacheRead: 1.5,
     output: 75.0,
   },
+  // Sonnet 5 — standard price is $2/$10. The rise to $3/$15 planned for
+  // 2026-09-01 was cancelled, so this is not an introductory rate.
+  'claude-sonnet-5': {
+    input: 2.0,
+    cacheWrite5m: 2.5,
+    cacheWrite1h: 4.0,
+    cacheRead: 0.2,
+    output: 10.0,
+  },
+  // Sonnet 5.5 — same as Sonnet 5 except cache reads at $0.10.
+  'claude-sonnet-5-5': {
+    input: 2.0,
+    cacheWrite5m: 2.5,
+    cacheWrite1h: 4.0,
+    cacheRead: 0.1,
+    output: 10.0,
+  },
   // Sonnet 4 / 4.5 / 4.6 / 3.7
   'claude-sonnet': {
     input: 3.0,
@@ -41,6 +82,23 @@ const PRICING = {
     cacheWrite1h: 6.0,
     cacheRead: 0.3,
     output: 15.0,
+  },
+  // Haiku 5.5, prompt <= LONG_PROMPT_THRESHOLD tokens.
+  'claude-haiku-5-5': {
+    input: 0.1,
+    cacheWrite5m: 0.125,
+    cacheWrite1h: 0.2,
+    cacheRead: 0.01,
+    output: 0.5,
+  },
+  // Haiku 5.5, prompt > LONG_PROMPT_THRESHOLD tokens. Not returned by
+  // detectPricingTier: estimateCost applies it to `totals.long` only.
+  'claude-haiku-5-5-long': {
+    input: 0.5,
+    cacheWrite5m: 0.625,
+    cacheWrite1h: 1.0,
+    cacheRead: 0.05,
+    output: 2.5,
   },
   // Haiku 4.5
   'claude-haiku-4-5': {
@@ -72,16 +130,23 @@ const PRICING = {
  * Detect pricing tier from Claude model identifier.
  * Examples: 'claude-opus-4-7', 'claude-sonnet-4-5', 'claude-haiku-4-5'.
  */
-function detectPricingTier(model) {
+export function detectPricingTier(model) {
   if (!model) return 'claude-sonnet';
   const m = model.toLowerCase();
 
   // Fable 5 / Mythos 5 — must be checked before the generic fallback:
   // without this, 'claude-fable-5' fell through to the Sonnet tier and
   // under-estimated costs ~3x ($3/$15 vs the real $10/$50).
-  if (m.includes('fable') || m.includes('mythos')) return 'claude-fable-5';
+  if (m.includes('fable') || m.includes('mythos')) {
+    // `(?!\d)` keeps a date suffix (`fable-5-20261001`) from reading as 5.1.
+    if (/(fable|mythos)[-_.]?5[-_.]1(?!\d)/.test(m)) return 'claude-fable-5-1';
+    return 'claude-fable-5';
+  }
 
   if (m.includes('opus')) {
+    // 5.5 first: `opus-5-5` would otherwise match the generic 5+ pattern, and
+    // `(?!\d)` keeps `opus-5-20260101` (Opus 5 with a date) out of 5.5.
+    if (/opus[-_.]?5[-_.]5(?!\d)/.test(m)) return 'claude-opus-5-5';
     // Opus 4.5, 4.6, 4.7, and future 5+ use the new reduced pricing.
     if (/opus[-_.]?4[-_.]?[5-9]\b/.test(m)) return 'claude-opus-new';
     if (/opus[-_.]?[5-9]/.test(m)) return 'claude-opus-new';
@@ -90,6 +155,7 @@ function detectPricingTier(model) {
   }
 
   if (m.includes('haiku')) {
+    if (/haiku[-_.]?5[-_.]5(?!\d)/.test(m)) return 'claude-haiku-5-5';
     if (/haiku[-_.]?4[-_.]?5/.test(m)) return 'claude-haiku-4-5';
     // The 3.x ids put the version first (`claude-3-5-haiku-20241022`,
     // `claude-3-haiku-20240307`), so both orders are matched. With only the
@@ -97,6 +163,13 @@ function detectPricingTier(model) {
     if (/haiku[-_.]?3[-_.]?5|3[-_.]?5[-_.]?haiku/.test(m)) return 'claude-haiku-3-5';
     if (/haiku[-_.]?3\b|\b3[-_.]?haiku/.test(m)) return 'claude-haiku-3';
     return 'claude-haiku-4-5';
+  }
+
+  if (m.includes('sonnet')) {
+    if (/sonnet[-_.]?5[-_.]5(?!\d)/.test(m)) return 'claude-sonnet-5-5';
+    // Sonnet 5 incl. date-suffixed ids; the 3.x/4.x ids never put a 5 right
+    // after the family name (`claude-3-5-sonnet-2024…` has it before).
+    if (/sonnet[-_.]?5(?!\d)/.test(m)) return 'claude-sonnet-5';
   }
 
   // Sonnet (default fallback): 3.7, 4, 4.5, 4.6 all share the same pricing.
@@ -112,9 +185,14 @@ function detectPricingTier(model) {
  */
 const TIER_RANK = {
   'claude-fable-5': 3,
+  'claude-fable-5-1': 3,
+  'claude-opus-5-5': 2,
   'claude-opus-legacy': 2,
   'claude-opus-new': 2,
   'claude-sonnet': 1,
+  'claude-sonnet-5': 1,
+  'claude-sonnet-5-5': 1,
+  'claude-haiku-5-5': 0,
   'claude-haiku-4-5': 0,
   'claude-haiku-3-5': 0,
   'claude-haiku-3': 0,
@@ -203,8 +281,54 @@ function tokensToMillions(n) {
 export function estimateCost(totals, model, { price } = {}) {
   if (price) return estimateCostAtPrice(totals, price);
   const tier = detectPricingTier(model);
-  const p = PRICING[tier];
 
+  // Haiku 5.5 prices each request by its own prompt length, so the long-prompt
+  // part (`totals.long`, same shape) is priced at the long rates and the rest
+  // at the short rates. Every other tier ignores `long`.
+  let c;
+  if (tier === 'claude-haiku-5-5' && totals.long) {
+    const short = subtractTotals(totals, totals.long);
+    const a = priceTotals(short, PRICING[tier]);
+    const b = priceTotals(totals.long, PRICING['claude-haiku-5-5-long']);
+    c = {
+      actual: a.actual + b.actual,
+      noCacheCost: a.noCacheCost + b.noCacheCost,
+      scenario5mCost: a.scenario5mCost + b.scenario5mCost,
+      write1h: a.write1h + b.write1h,
+    };
+  } else {
+    c = priceTotals(totals, PRICING[tier]);
+  }
+  const { actual, noCacheCost, scenario5mCost, write1h } = c;
+
+  return {
+    tier,
+    actual: round(actual),
+    noCacheCost: round(noCacheCost),
+    savings: round(noCacheCost - actual),
+    savingsRate: noCacheCost > 0 ? (noCacheCost - actual) / noCacheCost : 0,
+    scenario5mCost: round(scenario5mCost),
+    extraCostIf5m: round(scenario5mCost - actual),
+    // The row asks a counterfactual: what would dropping to 5m-only cost you?
+    // With no 1h writes there is nothing to lose, and the arithmetically
+    // honest `+$0` it printed read as "5m-only is free" — the opposite of the
+    // truth for a gateway user already confined to 5m. The display layer has
+    // to change the question rather than the number.
+    extraCostIf5mApplicable: write1h > 0,
+  };
+}
+
+const TOTAL_FIELDS = ['input', 'cacheCreation', 'cacheRead', 'ephemeral5m', 'ephemeral1h', 'output'];
+
+/** totals - part, field by field (clamped at 0), dropping the `long` key. */
+function subtractTotals(totals, part) {
+  const out = {};
+  for (const f of TOTAL_FIELDS) out[f] = Math.max(0, (totals[f] ?? 0) - (part[f] ?? 0));
+  return out;
+}
+
+/** Unrounded cost figures for one set of totals at one rate card. */
+function priceTotals(totals, p) {
   // Prefer explicit 5m/1h split when available; fall back to cacheCreation at 5m rate
   // (conservative — 5m is cheaper than 1h).
   const write5m = totals.ephemeral5m ?? 0;
@@ -235,21 +359,7 @@ export function estimateCost(totals, model, { price } = {}) {
     tokensToMillions(Math.max(0, totals.cacheRead - extra5mCreation)) * p.cacheRead +
     tokensToMillions(totals.output) * p.output;
 
-  return {
-    tier,
-    actual: round(actual),
-    noCacheCost: round(noCacheCost),
-    savings: round(noCacheCost - actual),
-    savingsRate: noCacheCost > 0 ? (noCacheCost - actual) / noCacheCost : 0,
-    scenario5mCost: round(scenario5mCost),
-    extraCostIf5m: round(scenario5mCost - actual),
-    // The row asks a counterfactual: what would dropping to 5m-only cost you?
-    // With no 1h writes there is nothing to lose, and the arithmetically
-    // honest `+$0` it printed read as "5m-only is free" — the opposite of the
-    // truth for a gateway user already confined to 5m. The display layer has
-    // to change the question rather than the number.
-    extraCostIf5mApplicable: write1h > 0,
-  };
+  return { actual, noCacheCost, scenario5mCost, write1h };
 }
 
 /**

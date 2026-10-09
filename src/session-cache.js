@@ -35,7 +35,11 @@ const CACHE_PATH = join(userDataDir(), 'session-cache.json');
 // zero-token `<synthetic>` stubs no longer count as requests. A v3 entry has
 // neither, so a mixed-model session cached before the bump would go on being
 // priced at one rate until its transcript changed.
-const CACHE_VERSION = 4;
+// 5: totals (and each modelTotals entry) may carry `long`, the part of the
+// tokens from requests whose prompt exceeds 100k, which Haiku 5.5 prices at a
+// higher rate. A v4 entry lacks it, so a Haiku 5.5 session cached before the
+// bump would keep being priced at the short rate until its transcript changed.
+const CACHE_VERSION = 5;
 // Entries for transcripts this old are pruned on write. Keeps the file
 // bounded without an existence check per entry (which would cost the syscalls
 // the cache exists to avoid).

@@ -39,13 +39,19 @@ Per million tokens (USD), as used by the cost estimator:
 
 | Tier | Models | Input | 5m Write | 1h Write | Read | Output |
 |---|---|---|---|---|---|---|
+| `claude-fable-5-1` | Fable 5.1 / Mythos 5.1 | $10 | $12.50 | $20 | $0.25 | $50 |
 | `claude-fable-5` | Fable 5 / Mythos 5 | $10 | $12.50 | $20 | $1 | $50 |
-| `claude-opus-new` | Opus 4.5 / 4.6 / 4.7 / 4.8 | $5 | $6.25 | $10 | $0.50 | $25 |
+| `claude-opus-5-5` | Opus 5.5 | $4 | $5 | $8 | $0.20 | $20 |
+| `claude-opus-new` | Opus 4.5 / 4.6 / 4.7 / 4.8 / 5 | $5 | $6.25 | $10 | $0.50 | $25 |
 | `claude-opus-legacy` | Opus 4 / 4.1 / 3 | $15 | $18.75 | $30 | $1.50 | $75 |
-| `claude-sonnet` | Sonnet 3.7 / 4 / 4.5 / 4.6 / 5 | $3 | $3.75 | $6 | $0.30 | $15 |
+| `claude-sonnet-5-5` | Sonnet 5.5 | $2 | $2.50 | $4 | $0.10 | $10 |
+| `claude-sonnet-5` | Sonnet 5 | $2 | $2.50 | $4 | $0.20 | $10 |
+| `claude-sonnet` | Sonnet 3.7 / 4 / 4.5 / 4.6 | $3 | $3.75 | $6 | $0.30 | $15 |
+| `claude-haiku-5-5` | Haiku 5.5 (prompt ≤ 100k tokens) | $0.10 | $0.125 | $0.20 | $0.01 | $0.50 |
+| `claude-haiku-5-5` (long) | Haiku 5.5 (prompt > 100k tokens) | $0.50 | $0.625 | $1 | $0.05 | $2.50 |
 | `claude-haiku-4-5` | Haiku 4.5 | $1 | $1.25 | $2 | $0.10 | $5 |
 
-Source: [Anthropic pricing docs](https://platform.claude.com/docs/en/about-claude/pricing). Sonnet 5 has an introductory $2/$10 rate through 2026-08-31; the estimator uses the standard sticker. Versions ≤ 2.16.x priced Fable 5 at the Sonnet tier (~3× under-estimate) — upgrade to 2.17.0+.
+Source: [Anthropic pricing docs](https://platform.claude.com/docs/en/about-claude/pricing). Sonnet 5 stays at $2/$10; the planned rise to $3/$15 was cancelled. Haiku 5.5 prices each request by its own prompt length (input + cache writes + cache reads), so a request over 100k tokens pays the long rates. Versions ≤ 2.16.x priced Fable 5 at the Sonnet tier (~3× under-estimate) — upgrade to 2.17.0+.
 
 ### Cache TTL by plan
 

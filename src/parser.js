@@ -5,6 +5,7 @@ import { join, isAbsolute, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { loadCache, getCached, putCached, saveCache, getCachedSince, putCachedSince } from './session-cache.js';
 import { resolveModelAlias, isGatewayModelId } from './model-alias.js';
+import { LONG_PROMPT_THRESHOLD } from './cost.js';
 
 const CLAUDE_DIR = join(homedir(), '.claude', 'projects');
 
@@ -135,6 +136,20 @@ function addRequest(acc, r) {
   acc.ephemeral5m += r.ephemeral5mTokens;
   acc.ephemeral1h += r.ephemeral1hTokens;
   acc.output += r.outputTokens;
+  // Haiku 5.5 bills a request whose prompt exceeds LONG_PROMPT_THRESHOLD at
+  // higher rates, per request. The sums above lose that, so such requests are
+  // also accumulated into `long` (same shape). The key only appears once a long
+  // request exists, which keeps the usual totals shape unchanged.
+  if (r.inputTokens + r.cacheCreationTokens + r.cacheReadTokens > LONG_PROMPT_THRESHOLD) {
+    if (!acc.long) acc.long = emptyTotals();
+    const l = acc.long;
+    l.input += r.inputTokens;
+    l.cacheCreation += r.cacheCreationTokens;
+    l.cacheRead += r.cacheReadTokens;
+    l.ephemeral5m += r.ephemeral5mTokens;
+    l.ephemeral1h += r.ephemeral1hTokens;
+    l.output += r.outputTokens;
+  }
 }
 
 /**

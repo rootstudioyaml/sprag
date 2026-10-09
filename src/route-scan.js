@@ -366,6 +366,7 @@ export function runSaving(run, mainModel) {
     ephemeral5m: run.ephemeral5m,
     ephemeral1h: run.ephemeral1h,
     output: run.out,
+    ...(run.long ? { long: run.long } : {}),
   };
   const actual = sessionCost(totals, run.model);
   const counterfactual = sessionCost(totals, mainModel);

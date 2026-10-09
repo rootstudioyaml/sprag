@@ -29,7 +29,7 @@ test('session cache round-trips gatewayObserved', async () => {
   // serialize, read back by deserialize, and old entries discarded.
   assert.match(src, /session\.modelTotals \? \{ modelTotals: session\.modelTotals \}/);
   assert.match(src, /stored\.modelTotals && typeof stored\.modelTotals === 'object' \? \{ modelTotals: stored\.modelTotals \}/);
-  assert.match(src, /const CACHE_VERSION = 4/);
+  assert.match(src, /const CACHE_VERSION = 5/);
 });
 
 test('parseSessionFile picks the majority model and skips <synthetic>', async () => {

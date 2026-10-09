@@ -34,7 +34,7 @@ test('a house alias is not recognized, so no comparison is built on it', () => {
   // It still prices (the Sonnet default) — which is exactly why comparisons
   // must gate on isRecognizedModelId instead of trusting the number.
   const totals = { input: 0, cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, output: 1_000_000 };
-  assert.equal(estimateCost(totals, 'prod-large').actual, estimateCost(totals, 'claude-sonnet-5').actual);
+  assert.equal(estimateCost(totals, 'prod-large').actual, estimateCost(totals, 'claude-sonnet-4-6').actual);
 });
 
 test('modelAliases maps a house alias back to a real model', (t) => {
