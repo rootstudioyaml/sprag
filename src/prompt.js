@@ -50,3 +50,31 @@ export function confirm(question, { defaultValue = true, input = process.stdin, 
     rl.on('close', () => { if (!answered) resolve(defaultValue); });
   });
 }
+
+/**
+ * Ask a multiple-choice question and resolve to the chosen `key`.
+ *
+ * Choices are printed as a numbered list; the answer may be the 1-based number
+ * or the key itself. Like confirm(), anything unrecognized (empty line, typo,
+ * closed stream) resolves to the default, so an unattended prompt ends with
+ * the same choice the non-interactive path would have made.
+ */
+export function choose(question, choices, { defaultIndex = 0, defaultHint = '(default)', input = process.stdin, output = process.stdout } = {}) {
+  const fallback = choices[defaultIndex]?.key ?? choices[0].key;
+  const lines = choices.map((c, i) => `    ${i + 1}) ${c.label}${i === defaultIndex ? ` ${defaultHint}` : ''}`);
+  return new Promise((resolve) => {
+    const rl = createInterface({ input, output });
+    let answered = false;
+    output.write(`${question}\n${lines.join('\n')}\n`);
+    rl.question(`  [1-${choices.length}] `, (answer) => {
+      answered = true;
+      rl.close();
+      const a = String(answer).trim().toLowerCase();
+      const n = Number(a);
+      if (Number.isInteger(n) && n >= 1 && n <= choices.length) return resolve(choices[n - 1].key);
+      const byKey = choices.find((c) => String(c.key).toLowerCase() === a);
+      resolve(byKey ? byKey.key : fallback);
+    });
+    rl.on('close', () => { if (!answered) resolve(fallback); });
+  });
+}

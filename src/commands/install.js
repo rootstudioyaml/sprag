@@ -11,6 +11,11 @@
  * registered globally, and Codex is set up too when ~/.codex exists. `--manual`
  * restores the step-by-step questions (they still need a terminal attached).
  * `--yes` and `--no-input` are accepted as the explicit spelling of the default.
+ *
+ * One question survives the automatic mode: when a statusline that is not ours
+ * is already configured and a terminal is attached, the install asks whether to
+ * merge (theirs first, sprag below; default), replace, or keep. Without a
+ * terminal (postinstall, CI, pipes) it keeps theirs, as before.
  */
 
 import { debug } from '../debug.js';
@@ -21,7 +26,7 @@ class SkipStep extends Error {}
 export async function run({ hasFlag }) {
     const { installAll } = await import('../installer.js');
     const { userLanguage, languageDecided, setUserLanguage } = await import('../config.js');
-    const { canPrompt, confirm } = await import('../prompt.js');
+    const { canPrompt, confirm, choose } = await import('../prompt.js');
     const force = hasFlag('--force');
     // Automatic unless asked otherwise. A question per step turned the install
     // into a dozen answers before any work, and every answer has a sensible
@@ -30,6 +35,9 @@ export async function run({ hasFlag }) {
     // attached, so postinstall, CI and pipes never wait on input.
     const manual = hasFlag('--manual') && !hasFlag('--yes') && !hasFlag('--no-input');
     const interactive = manual && canPrompt();
+    // The foreign-statusline question is asked in the automatic install too: it
+    // is the one decision with no safe default that preserves both parties.
+    const tty = canPrompt();
 
     // Output language, decided first because every line below it — and every
     // briefing the hooks inject from here on — is written in it. Until now it
@@ -82,25 +90,28 @@ export async function run({ hasFlag }) {
       let s = r.statusline;
       // A different statusline is already installed. Replacing it silently
       // would be rude and leaving it silently loses the tool's main surface,
-      // so with a human attached the install asks. Default is "keep yours":
-      // an accidental Enter must not clobber someone's custom statusline.
-      if (s.action === 'skipped' && s.conflict && interactive) {
+      // so with a human attached the install asks. Default is "merge": their
+      // output stays and ours goes below it, so nobody loses anything.
+      if (s.action === 'skipped' && s.conflict && tty) {
+        const { installStatusline } = await import('../installer.js');
         console.log('');
         console.log(lang === 'ko'
           ? `  statusline: 기존 statusline이 이미 설정되어 있습니다: ${s.existingCommand}`
           : `  statusline: an existing statusline is already configured: ${s.existingCommand}`);
-        console.log(lang === 'ko'
-          ? '              교체하면 토큰·캐시·상한 경고가 statusline에 표시됩니다. 기존 설정은 사라집니다.'
-          : '              replacing it shows token/cache/cap warnings in the statusline; the current one is removed.');
-        const replace = await confirm(lang === 'ko'
-          ? '              sprag statusline으로 교체할까요?'
-          : '              Replace it with the sprag statusline?', { defaultValue: false });
-        if (replace) {
-          const { installStatusline } = await import('../installer.js');
+        const pick = await choose(lang === 'ko'
+          ? '              statusline을 어떻게 표시할까요?'
+          : '              How should the statusline be shown?', [
+          { key: 'merge', label: lang === 'ko' ? '함께 표시: 기존 출력 아래에 sprag 줄을 붙입니다' : 'merge: your output first, sprag lines below' },
+          { key: 'replace', label: lang === 'ko' ? '교체: sprag statusline만 표시하고 기존 설정은 지웁니다' : 'replace: sprag statusline only, the old one is removed' },
+          { key: 'keep', label: lang === 'ko' ? '유지: 기존 statusline만 두고 sprag은 표시하지 않습니다' : 'keep: leave yours, no sprag statusline' },
+        ], { defaultIndex: 0, defaultHint: lang === 'ko' ? '(기본값)' : '(default)' });
+        if (pick === 'merge') {
+          s = installStatusline({ merge: true });
+        } else if (pick === 'replace') {
           s = installStatusline({ force: true });
         } else {
           s = { ...s, reason: lang === 'ko'
-            ? '기존 statusline을 유지했습니다. 교체하려면 `sprag install --force`'
+            ? '기존 statusline을 유지했습니다. 바꾸려면 `sprag install --force`'
             : 'kept your statusline — replace later with `sprag install --force`' };
         }
       }

@@ -25,10 +25,27 @@ import { readFileSync } from 'node:fs';
  * Anthropic adds (e.g. a Sonnet-only weekly bucket) flows through without code
  * changes — known keys get curated labels, unknowns get derived ones.
  */
+// fd 0 can only be drained once. The statusline needs the payload twice: once
+// to parse it, and once to forward it verbatim to a wrapped base statusline
+// command, so the raw text is read on first use and cached for the process.
+let rawCache = null;
+
+/** The raw stdin text, read once. '' when stdin is a TTY or empty. */
+export function readStdinRaw() {
+  if (rawCache !== null) return rawCache;
+  if (process.stdin.isTTY) return (rawCache = '');
+  try {
+    rawCache = readFileSync(0, 'utf8') || '';
+  } catch {
+    rawCache = '';
+  }
+  return rawCache;
+}
+
 export function readStdinJson() {
   if (process.stdin.isTTY) return null;
   try {
-    const raw = readFileSync(0, 'utf8');
+    const raw = readStdinRaw();
     if (!raw || !raw.trim()) return null;
     return JSON.parse(raw);
   } catch {

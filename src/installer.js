@@ -357,8 +357,10 @@ export function removeLegacyCommand() {
 // - No statusLine yet: insert ours with refreshInterval:STATUSLINE_REFRESH_INTERVAL.
 // - statusLine already points at sprag: ensure that refreshInterval
 //   (this is the bit that makes the TTL countdown tick every second while idle).
-// - statusLine points at a different command: leave it alone unless --force.
-export function installStatusline({ force = false } = {}) {
+// - statusLine points at a different command: leave it alone unless --force,
+//   or `merge`, which keeps their command running underneath ours (the original
+//   object is saved as config `statuslineBase` so uninstall can restore it).
+export function installStatusline({ force = false, merge = false } = {}) {
   const dir = claudeUserDir();
   const file = join(dir, 'settings.json');
   mkdirSync(dir, { recursive: true });
@@ -395,12 +397,13 @@ export function installStatusline({ force = false } = {}) {
     return { path: file, action: 'updated', reason: `set refreshInterval=${STATUSLINE_REFRESH_INTERVAL}` };
   }
 
-  if (!force) {
+  if (!force && !merge) {
     // `conflict` lets the interactive install distinguish "someone else's
     // statusline is here" (worth asking about) from other skip reasons
     // (unreadable JSON), which a prompt cannot fix.
     return { path: file, action: 'skipped', conflict: true, existingCommand: cur.command, reason: `existing statusLine command (${cur.command}) — re-run with --force to overwrite` };
   }
+  const base = cur;
   settings.statusLine = {
     type: 'command',
     command: STATUSLINE_COMMAND,
@@ -410,6 +413,17 @@ export function installStatusline({ force = false } = {}) {
     const writeProblem = writeSettings(file, settings);
     if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
   }
+  // Config is touched only after settings were written, so a failed write
+  // never leaves a saved base for a statusline we did not take over.
+  const cfg = loadConfig();
+  if (merge) {
+    cfg.statuslineBase = base;
+    saveConfig(cfg);
+    return { path: file, action: 'updated', reason: 'merged with previous statusLine', merged: true };
+  }
+  // Replace means the old one is gone for good; a stale base would resurrect it
+  // (or keep running it) later.
+  if (cfg.statuslineBase) { delete cfg.statuslineBase; saveConfig(cfg); }
   return { path: file, action: 'updated', reason: 'replaced previous statusLine' };
 }
 
@@ -910,8 +924,18 @@ export function uninstallAll({ purge = false } = {}) {
     // where they put it.
     const cur = settings.statusLine;
     if (cur && isOurCommand(cur.command)) {
-      delete settings.statusLine;
-      result.removed.push('statusLine');
+      // A merged install saved the user's original statusline; give it back
+      // instead of leaving them with none.
+      const cfg = loadConfig();
+      if (cfg.statuslineBase) {
+        settings.statusLine = cfg.statuslineBase;
+        delete cfg.statuslineBase;
+        saveConfig(cfg);
+        result.removed.push('statusLine (restored previous)');
+      } else {
+        delete settings.statusLine;
+        result.removed.push('statusLine');
+      }
     } else if (cur) {
       result.kept.push(`statusLine (${cur.command || 'unrecognised'})`);
     }

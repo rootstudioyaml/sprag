@@ -590,10 +590,11 @@ async function main() {
           persistSnapshot({ caps, model });
         } catch (e) { debug('caps-cache:persist', e); }
       }
-      console.log(formatNoSession(
+      const { withBaseStatusline } = await import('../src/statusline-base.js');
+      console.log(withBaseStatusline(formatNoSession(
         { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip() },
         { color: colorOk, mode: labelMode },
-      ));
+      )));
       return;
     }
     // JSON mode stays JSON. A caller that asked for machine-readable output
@@ -901,6 +902,10 @@ async function main() {
     output = formatReport(data, { color: tableColor() });
   }
 
+  if (format === 'statusline') {
+    const { withBaseStatusline } = await import('../src/statusline-base.js');
+    output = withBaseStatusline(output);
+  }
   console.log(output);
 }
 

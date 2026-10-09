@@ -57,3 +57,39 @@ test('a closed stream resolves to the default instead of hanging', async () => {
   assert.equal(await answer('', { defaultValue: true }), true);
   assert.equal(await answer('', { defaultValue: false }), false);
 });
+
+import { choose } from '../src/prompt.js';
+
+const CHOICES = [
+  { key: 'merge', label: 'm' },
+  { key: 'replace', label: 'r' },
+  { key: 'keep', label: 'k' },
+];
+
+/** Drive choose() with a scripted answer; `null` closes the stream without a line. */
+async function pick(text) {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  output.resume();
+  const p = choose('how?', CHOICES, { input, output });
+  if (text !== null) input.write(text);
+  input.end();
+  return p;
+}
+
+test('choose accepts a 1-based number', async () => {
+  assert.equal(await pick('2\n'), 'replace');
+  assert.equal(await pick('3\n'), 'keep');
+});
+
+test('choose accepts a key, case-insensitively', async () => {
+  assert.equal(await pick('keep\n'), 'keep');
+  assert.equal(await pick('Replace\n'), 'replace');
+});
+
+test('choose falls back to the default on empty, unknown or closed input', async () => {
+  assert.equal(await pick('\n'), 'merge');
+  assert.equal(await pick('9\n'), 'merge');
+  assert.equal(await pick('banana\n'), 'merge');
+  assert.equal(await pick(null), 'merge');
+});
