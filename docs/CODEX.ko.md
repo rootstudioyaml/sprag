@@ -133,6 +133,12 @@ Codex 0.159.2에서는 `spawn_agent`가 `PreToolUse`를 거치지 않습니다(�
 SessionStart는 캐시된 후보를 읽고 필요할 때 별도 프로세스에서 갱신합니다. 명시적인 `--refresh`는
 대기 주기를 건너뜁니다.
 
+한국어 지침이 켜져 있는 동안 Sprag는 지침 전문을 전역 Codex `AGENTS.md`(`AGENTS.override.md`가
+비어 있지 않으면 그 파일)의 `<!-- sprag:codex:korean-style:begin -->`과 `end` 표지 사이에 둡니다.
+Codex는 이 파일을 세션마다 전부 읽지만 아래 훅 예산에는 지침이 들어가지 않기 때문입니다. 설치,
+`korean on|off`, 세션 시작 때마다 이 블록을 맞추고, `sprag uninstall --agent codex`가 지웁니다. 훅은
+블록을 방금 쓴 세션에서만 지침을 자기 컨텍스트에 함께 넣습니다.
+
 Codex 0.159.2는 훅 하나가 넘긴 컨텍스트를 약 2,450토큰까지만 보존하고, 그보다 길면 가운데를
 잘라 냅니다. 그래서 SessionStart는 추정치 2,000토큰 안에 들어가는 항목만 잘리지 않은 상태로
 넣습니다. 우선순위는 ratchet 룰, 한국어 지침, 응집성 지침, 문서 변환 안내, 제안 순입니다. 들어가지
@@ -158,7 +164,6 @@ Claude를 설치하지 않은 Codex 첫 사용자도 기록을 쌓기 전에 프
 sprag seed --agent codex
 sprag seed accept all --global --agent codex
 sprag delegate shared status --agent codex
-sprag delegate on --agent codex
 # 자동으로 정해진 난도별 모델을 바꾸고 싶을 때만:
 sprag delegate shared map T2 --from PARENT_MODEL --model SMALL_MODEL --effort high --agent codex
 sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort medium --agent codex
@@ -169,10 +174,10 @@ sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort m
 
 `map` 줄은 선택 사항입니다. 매핑하지 않은 난도는 Claude Code가 `haiku`와 `sonnet`을 실제 모델로
 풀듯이 자동으로 정해집니다. 부모 모델의 공급자에서 가격이 매겨져 있고(게이트웨이 `/model/info` 가격,
-OpenAI 직접 호출이면 공개 가격), 부모보다 싸며, 이 사용자의 Codex 세션에서 이미 실행된 모델 가운데
-가장 싼 모델이 T2, 그다음 모델이 T1이 됩니다. 그런 모델이 하나뿐이면 T1은 메인 모델이 처리하고, 하나도
-없으면 두 난도 모두 메인 모델이 처리합니다. 자동 결정은 `delegate on` 상태에서만 동작하고, route-scan이
-기록한 실행 모델을 쓰며, 아무것도 저장하지 않으므로 가격이나 실행 이력이 바뀌면 그대로 따라갑니다.
+OpenAI 직접 호출이면 공개 가격), 부모보다 싸며, 이 사용자의 Codex 세션에서 이미 실행됐거나(OpenAI 기본 공급자라면 Codex가 이 계정에 보여 주는
+`models_cache.json` 모델 목록에 있는) 모델 가운데 가장 싼 모델이 T2, 그다음 모델이 T1이 됩니다. 그런 모델이 하나뿐이면 T1은 메인 모델이 처리하고, 하나도
+없으면 두 난도 모두 메인 모델이 처리합니다. 위임은 기본으로 켜져 있고(`sprag delegate off --agent codex`로 끕니다), 자동 결정은 위임이 켜진 동안
+동작합니다. 아무것도 저장하지 않으므로 가격이나 실행 이력, 모델 목록이 바뀌면 그대로 따라갑니다.
 `delegate shared status`와 설치 출력에 정해진 모델이 표시되고, 정해지지 않으면 그 이유가 표시됩니다.
 끄려면 `sprag delegate shared auto off --agent codex`를 실행하십시오.
 

@@ -365,7 +365,7 @@ test('F8: the prompt hook asks for a ledger refresh only while a delegated run i
   await prompt('turn-3');
   assert.equal(refreshes, 1);
   // With delegation off the hook neither closes routes nor refreshes.
-  await codexHookOutput('prompt', { prompt: 'hello there', session_id: 'parent' }, { cfg: { codex: { doc2md: false, brief: false } }, refreshLedger: () => { refreshes++; } });
+  await codexHookOutput('prompt', { prompt: 'hello there', session_id: 'parent' }, { cfg: { codex: { delegate: false, doc2md: false, brief: false } }, refreshLedger: () => { refreshes++; } });
   assert.equal(refreshes, 1);
 });
 

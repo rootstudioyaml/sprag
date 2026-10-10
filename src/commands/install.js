@@ -449,6 +449,11 @@ export async function run({ hasFlag }) {
           if (process.env.CTS_NO_HARNESS !== '1') {
             const h = initCodexHarness({ scope: 'global' });
             console.log(`  codex: harness ${h.file}`);
+            try {
+              const { syncCodexKoreanBlock } = await import('../codex-harness.js');
+              const k = syncCodexKoreanBlock({ cfg: config });
+              console.log(`  codex: korean-style ${k.action} (${k.file})`);
+            } catch (e) { debug('install:codex-korean', e); }
           }
           try { (await import('../preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch (e) { debug('install:codex-preset', e); }
           if (!manual) {

@@ -52,7 +52,7 @@ test('spawn rewrite uses native arguments, preserves explicit targets and other 
   assert.equal(codexDelegationTool({ ...p, tool_input: out.updatedInput }, opts), null);
   const explicit = codexDelegationTool(payload(f.root, { model: 'gpt-6-sol', reasoning_effort: 'low' }), opts).hookSpecificOutput.updatedInput;
   assert.equal(explicit.model, 'gpt-6-sol'); assert.equal(explicit.reasoning_effort, 'low');
-  assert.equal(codexDelegationTool(p, { ...opts, cfg: {} }), null);
+  assert.equal(codexDelegationTool(p, { ...opts, cfg: { codex: { delegate: false } } }), null);
   assert.equal(codexDelegationTool({ ...p, tool_name: 'Task' }, opts), null);
   assert.equal(codexDelegationTool(payload(f.root, { agent_type: 'my-reviewer' }), opts), null);
 });

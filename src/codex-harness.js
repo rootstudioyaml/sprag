@@ -1,11 +1,15 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { codexUserDir } from './agent.js';
+import { loadConfig } from './config.js';
+import { koreanStyleEnabled, koreanStyleInjection } from './korean-style.js';
 import { codexToolEvents, codexLegacyToolEvent, readCodexTailLines, forkedCopyFilter } from './codex-parser.js';
 
 export const CODEX_BEGIN = '<!-- sprag:codex:harness:begin -->';
 export const CODEX_END = '<!-- sprag:codex:harness:end -->';
+export const CODEX_KOREAN_BEGIN = '<!-- sprag:codex:korean-style:begin -->';
+export const CODEX_KOREAN_END = '<!-- sprag:codex:korean-style:end -->';
 const sections = [
   ['Ratchet', 'When a mistake recurs, propose a concise condition/action rule. Ask the user for global or project scope before registering it with `sprag harness promote --agent codex --global|--project "rule"`.'],
   ['Evidence', 'Support completion claims with actual test results, command output, a file diff, or a screenshot. State any verification you could not run.'],
@@ -16,11 +20,15 @@ const sections = [
 
 const scopeDir = (root, scope) => (scope === 'global' ? codexUserDir() : root);
 
+/** Codex reads the override instead of AGENTS.md when it is non-empty. */
+function activeInstructionFile(dir) {
+  const override = join(dir, 'AGENTS.override.md');
+  return existsSync(override) && readFileSync(override, 'utf8').trim() ? override : join(dir, 'AGENTS.md');
+}
+
 export function codexHarnessPaths(root, scope = 'project') {
   const dir = scopeDir(root, scope);
-  // Codex reads the override instead of AGENTS.md when it is non-empty.
-  const override = join(dir, 'AGENTS.override.md');
-  const file = existsSync(override) && readFileSync(override, 'utf8').trim() ? override : join(dir, 'AGENTS.md');
+  const file = activeInstructionFile(dir);
   return { file, ratchet: scope === 'global' ? join(dir, 'ratchet.md') : join(dir, '.codex', 'ratchet.md') };
 }
 
@@ -34,14 +42,17 @@ export function codexHarnessBlock() {
   return `${CODEX_BEGIN}\n## Sprag Harness\n\n${sections.map(([name, text], i) => `### ${i + 1}. ${name}\n${text}`).join('\n\n')}\n\nRead the global and project Codex ratchet files before working when present. Run \`sprag harness list --agent codex --global\` and \`sprag harness list --agent codex --project\` to retrieve them. These are instructions, not Claude-style @ imports.\nUse \`sprag doc2md <file> --agent codex\` before reading PDF, Office, or Figma documents. Delegate only through available Codex tools and configured roles; do not assume Claude model names or Task/Agent arguments. A [Sprag model routing] note on a request means the user has asked for that request to be delegated: spawn the sub-agent it describes (its model, reasoning_effort, fork_turns "none", and a self-contained message ending with the route line it gives), wait for it to finish instead of doing the same task yourself, then verify the result before replying.\n${CODEX_END}\n`;
 }
 
-function range(content) {
-  const begin = content.indexOf(CODEX_BEGIN);
-  const end = content.indexOf(CODEX_END);
-  if ((begin < 0) !== (end < 0) || (begin >= 0 && end < begin) || content.indexOf(CODEX_BEGIN, begin + CODEX_BEGIN.length) >= 0) {
-    throw new Error('Malformed Sprag Codex harness markers; repair them before updating this file.');
+/** The [start, end) span of a marker block, null when absent; malformed markers throw. */
+function range(content, beginMarker = CODEX_BEGIN, endMarker = CODEX_END, label = 'harness') {
+  const begin = content.indexOf(beginMarker);
+  const end = content.indexOf(endMarker);
+  if ((begin < 0) !== (end < 0) || (begin >= 0 && end < begin) || content.indexOf(beginMarker, begin + beginMarker.length) >= 0) {
+    throw new Error(`Malformed Sprag Codex ${label} markers; repair them before updating this file.`);
   }
-  return begin < 0 ? null : [begin, end + CODEX_END.length];
+  return begin < 0 ? null : [begin, end + endMarker.length];
 }
+
+const koreanRange = (content) => range(content, CODEX_KOREAN_BEGIN, CODEX_KOREAN_END, 'korean-style');
 
 export function initCodexHarness({ root, scope = 'project' }) {
   const paths = codexHarnessPaths(root, scope);
@@ -95,8 +106,72 @@ export function uninitCodexHarness({ root, scope = 'project' }) {
     writeFileSync(candidate, withoutBlock(existing, span));
     cleaned.push(candidate);
   }
+  // The Korean style block lives only in the global file; project scope never has one.
+  if (scope === 'global') {
+    for (const candidate of removeKoreanBlocks(scopeDir(root, scope))) if (!cleaned.includes(candidate)) cleaned.push(candidate);
+  }
   if (!cleaned.length) return { file, removed: false };
   return { file: cleaned.includes(file) ? file : cleaned[0], removed: true, ...(cleaned.length > 1 ? { files: cleaned } : {}) };
+}
+
+/**
+ * Backup next to the file. A fresh install writes two backups in one
+ * millisecond (harness block, then Korean block); `wx` and a counter keep the
+ * second from overwriting the first, which holds the user's original text.
+ */
+function backupFile(file, text) {
+  const base = `${file}.bak-${Date.now()}`;
+  for (let i = 0; ; i++) {
+    try { writeFileSync(i ? `${base}-${i}` : base, text, { flag: 'wx' }); return; }
+    catch (e) { if (e?.code !== 'EEXIST') throw e; }
+  }
+}
+
+/** Removes the Korean block from every instruction file of `dir` that holds one; returns those files. */
+function removeKoreanBlocks(dir) {
+  const cleaned = [];
+  for (const candidate of [join(dir, 'AGENTS.override.md'), join(dir, 'AGENTS.md')]) {
+    if (!existsSync(candidate)) continue;
+    const existing = readFileSync(candidate, 'utf8');
+    const span = koreanRange(existing);
+    if (!span) continue;
+    const next = withoutBlock(existing, span);
+    if (next.trim()) backupFile(candidate, existing);
+    writeFileSync(candidate, next);
+    cleaned.push(candidate);
+  }
+  return cleaned;
+}
+
+/**
+ * Keeps the Korean style guide in the global Codex instruction file. Codex
+ * keeps only about 2,000 tokens of one hook's context, which the guide never
+ * fits, but it loads the global AGENTS.md in full every session. The block is
+ * written while the style is enabled and removed when it is not.
+ * Returns { action: 'written' | 'unchanged' | 'removed' | 'absent' | 'skipped', file }.
+ * `skipped` means the Codex directory does not exist, so nothing was touched.
+ */
+export function syncCodexKoreanBlock({ cfg = loadConfig(), home } = {}) {
+  const dir = home ? resolve(home) : codexUserDir();
+  const file = activeInstructionFile(dir);
+  if (!existsSync(dir)) return { action: 'skipped', file };
+  const text = koreanStyleEnabled(cfg) ? koreanStyleInjection({ cfg }) : null;
+  if (!text) {
+    const cleaned = removeKoreanBlocks(dir);
+    return cleaned.length ? { action: 'removed', file: cleaned.includes(file) ? file : cleaned[0] } : { action: 'absent', file };
+  }
+  const block = `${CODEX_KOREAN_BEGIN}\n${text}\n${CODEX_KOREAN_END}`;
+  const existing = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const span = koreanRange(existing);
+  if (span && existing.slice(...span) === block) return { action: 'unchanged', file };
+  const body = existing.replace(/\n+$/, '');
+  const next = span ? existing.slice(0, span[0]) + block + existing.slice(span[1])
+    : body + (body ? '\n\n' : '') + block + '\n';
+  // Replacing our own block loses nothing; the first addition to a user file gets a copy.
+  if (!span && existing.trim()) backupFile(file, existing);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, next);
+  return { action: 'written', file };
 }
 
 export function codexHarnessStatus({ root, scope = 'project' }) {

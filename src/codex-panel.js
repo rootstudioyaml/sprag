@@ -18,7 +18,7 @@ import { codexDocumentTotals } from './codex-doc2md-ledger.js';
 import { codexHookStatus } from './codex-installer.js';
 import { koreanStyleEnabled } from './korean-style.js';
 import { codexRoutingSavedTotals, loadCodexLedger } from './codex-ledger.js';
-import { loadCodexModelRules } from './codex-delegation.js';
+import { loadCodexModelRules, codexDelegateEnabled } from './codex-delegation.js';
 import { codexRulesInReview } from './codex-rule-health.js';
 import { readCodexRouteScan, openCodexCandidates } from './codex-route-scan.js';
 import { codexBudgetProvider } from './codex-budget.js';
@@ -138,7 +138,7 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
       lint: cfg?.koreanStyle?.lint || 'block',
       cohesion: cfg?.cohesion?.enabled === true,
       brief: cfg?.codex?.brief !== false,
-      delegate: cfg?.codex?.delegate === true,
+      delegate: codexDelegateEnabled(cfg),
       doc2md: cfg?.codex?.doc2md !== false && process.env.CTS_NO_DOC2MD !== '1',
       updatedAt: new Date() };
   };

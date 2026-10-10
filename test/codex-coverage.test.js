@@ -54,7 +54,7 @@ test('Codex statusline supports formats, bounded wrapping, labels, and one-line 
     assert.match(text, /working/);
     assert.match(text, /Hooks 0\/5 registered/);
     assert.match(text, /Brief on/);
-    assert.match(text, /Delegate off/);
+    assert.match(text, /Delegate on/);
     assert.ok(text.trimEnd().split('\n').every((line) => panelCellWidth(line) <= 40));
     assert.doesNotMatch(text, /\x1b|Cost|Cache expires|haiku/);
   }
@@ -146,13 +146,14 @@ test('prompt hook still briefs with doc2md off; last/history are Codex-only and 
   assert.equal(existsSync(join(f.home, '.claude')), false);
 });
 
-test('SubagentStart is opt-in, delivers Codex ratchets and cohesion, and never changes tool permissions', (t) => {
+test('SubagentStart is on by default, can be turned off, delivers Codex ratchets and cohesion, and never changes tool permissions', (t) => {
   const f = fixture(t);
   f.ok(['install', '--no-panel']);
   f.ok(['harness', 'promote', 'Validate changed modules.', '--project']);
   f.ok(['cohesion', 'on']);
   const args = ['codex-hook', '--event', 'subagent-start'];
   const payload = { cwd: f.root, agent_id: 'child', agent_type: 'worker' };
+  f.ok(['delegate', 'off']);
   assert.equal(f.ok(args, payload), '');
   f.ok(['delegate', 'on']);
   const output = JSON.parse(f.ok(args, payload));

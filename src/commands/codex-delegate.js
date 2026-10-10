@@ -2,7 +2,7 @@ import { loadConfig, saveConfig } from '../config.js';
 import { configureCodexHooks } from '../codex-installer.js';
 import { validateCodexTarget, loadCodexModelRules, addCodexModelRule, removeCodexModelRule,
   validateCodexSharedTarget, codexSharedTargets, codexDelegateMinContext, DEFAULT_DELEGATE_MIN_CONTEXT,
-  autoCodexSharedTargets } from '../codex-delegation.js';
+  autoCodexSharedTargets, codexDelegateEnabled } from '../codex-delegation.js';
 import { findCodexCandidate, resolveCodexCandidate } from '../codex-route-scan.js';
 import { codexRoutingSavedTotals, loadCodexLedger } from '../codex-ledger.js';
 import { codexRuleHealth, codexRulesInReview } from '../codex-rule-health.js';
@@ -32,7 +32,7 @@ function printShared(cfg, { details = false } = {}) {
   const tiers = [...new Set(policies.map((r) => r.tier))];
   for (const tier of tiers) {
     const t = own(tier) || auto.targets.find((a) => a.tier === tier);
-    if (t) console.log(`${tier} -> ${t.model}${t.effort ? ` (${t.effort})` : ''}${t.auto ? ' (auto: cheaper priced model already run in Codex)' : ''}`);
+    if (t) console.log(`${tier} -> ${t.model}${t.effort ? ` (${t.effort})` : ''}${t.auto ? ' (auto: cheaper priced model Codex runs or lists)' : ''}`);
   }
   const missing = tiers.filter((tier) => !own(tier) && !auto.targets.some((a) => a.tier === tier));
   if (missing.length) {
@@ -100,7 +100,7 @@ export function run({ args, getArg, hasFlag, root }) {
     }
     if (action !== 'status') saveConfig(cfg);
     printShared(cfg, { details: true });
-    console.log(`Codex delegation is ${cfg.codex?.delegate === true ? 'on' : 'off; enable with sprag delegate on --agent codex'}. Target availability and lower cost must be verified with your provider.`);
+    console.log(`Codex delegation is ${codexDelegateEnabled(cfg) ? 'on' : 'off; enable with sprag delegate on --agent codex'}. Target availability and lower cost must be verified with your provider.`);
     return;
   }
   if (sub === 'rules') {
@@ -145,7 +145,7 @@ export function run({ args, getArg, hasFlag, root }) {
     if (target !== undefined) cfg.codex.delegateTarget = target;
     saveConfig(cfg);
   }
-  console.log(`Codex delegate: ${cfg.codex?.delegate === true ? 'on' : 'off'} (model routing and guidance)`);
+  console.log(`Codex delegate: ${codexDelegateEnabled(cfg) ? 'on' : 'off'} (model routing and guidance)`);
   console.log(`Default target: ${cfg.codex?.delegateTarget?.model || 'inherit (no override)'}`);
   // Turning delegation off must work even when the rule file is damaged.
   let ruleCount;

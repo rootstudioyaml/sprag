@@ -6,12 +6,12 @@ import { join, resolve } from 'node:path';
 import { loadConfig, userLanguage } from './config.js';
 import { koreanStyleInjection, koreanStyleEnabled } from './korean-style.js';
 import { cohesionInjection } from './cohesion.js';
-import { codexHarnessPaths } from './codex-harness.js';
+import { codexHarnessPaths, syncCodexKoreanBlock } from './codex-harness.js';
 import { writeViaTmp } from './state-file.js';
 import { findProjectRoot } from './harness.js';
 import { runCodexBrief } from './codex-brief.js';
 import { codexDocumentTool, codexDocumentNote, convertCodexDocument } from './codex-doc2md.js';
-import { codexDelegationTool, codexRouteHint } from './codex-delegation.js';
+import { codexDelegationTool, codexRouteHint, codexDelegateEnabled } from './codex-delegation.js';
 import { bindCodexSubagent, closeStaleCodexRoutes, unsettledCodexRoutes } from './codex-ledger.js';
 import { seedOfferBlock } from './seed-rules.js';
 import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './codex-route-scan.js';
@@ -165,7 +165,7 @@ export function lintCodexTool(payload, { scope = 'all' } = {}) {
 export async function codexHookOutput(event, payload, { cfg = loadConfig(), refreshLedger = defaultLedgerRefresh } = {}) {
   if (!payload || typeof payload !== 'object') return null;
   if (event === 'session-start' || event === 'subagent-start') {
-    if (event === 'subagent-start' && cfg?.codex?.delegate !== true) return null;
+    if (event === 'subagent-start' && !codexDelegateEnabled(cfg)) return null;
     if (event === 'subagent-start') {
       try { bindCodexSubagent(payload); } catch (e) { debug('codex:bind', e); }
     }
@@ -193,8 +193,13 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
     }
     if (event === 'subagent-start') parts.push({ priority: 0, text:
       '[Sprag Codex delegation]\nStay within the assigned task and any caller-provided budget. Return findings with file references and actual verification results; state unfinished work. Use only available Codex tools and configured roles. Do not infer a model tier or invent a tool-call budget.' });
-    parts.push({ priority: 2, spill: true, text: koreanStyleInjection({ cfg }) },
-      { priority: 3, spill: true, text: await cohesionInjection({ cfg }) });
+    // Codex reads the Korean guide from the global AGENTS.md, so the hook adds it
+    // only when that block was just written (this session may have loaded the old
+    // file) or could not be synced. Children read the same file.
+    let korean = null;
+    try { korean = syncCodexKoreanBlock({ cfg }); } catch (e) { debug('codex:korean-sync', e); }
+    if (korean?.action !== 'unchanged') parts.push({ priority: 2, spill: true, text: koreanStyleInjection({ cfg }) });
+    parts.push({ priority: 3, spill: true, text: await cohesionInjection({ cfg }) });
     if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) parts.push({ priority: 4, spill: true, text: codexDocumentNote() });
     // Offers ask the user a question; a `codex exec` run has no one to answer it.
     if (event === 'session-start' && payload.source !== 'compact' && !isCodexExecSession(payload.transcript_path)) {
@@ -206,7 +211,7 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
   }
   if (event === 'prompt') {
     const parts = [];
-    if (cfg?.codex?.delegate === true) {
+    if (codexDelegateEnabled(cfg)) {
       // Before the hint for this prompt is recorded: a hint from an earlier turn
       // that no child claimed is closed, and children that did run get priced.
       try { closeStaleCodexRoutes(payload); } catch (e) { debug('codex:close-routes', e); }

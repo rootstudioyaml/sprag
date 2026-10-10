@@ -53,6 +53,7 @@ export async function run({ args, hasFlag }) {
   const sub = args[1] || 'status';
   const ks = await import('../korean-style.js');
   const { userLanguage, loadConfig, saveConfig } = await import('../config.js');
+  const { debug } = await import('../debug.js');
   const lang = userLanguage();
 
   // PostToolUse hook. Claude Code feeds the tool-call payload on stdin; we
@@ -222,6 +223,8 @@ export async function run({ args, hasFlag }) {
   if (sub === 'on' || sub === 'off') {
     const enabled = sub === 'on';
     ks.setKoreanStyleEnabled(enabled);
+    // Codex reads the guide from its global AGENTS.md; keep that block in step.
+    try { (await import('../codex-harness.js')).syncCodexKoreanBlock({ cfg: loadConfig() }); } catch (e) { debug('korean:codex-sync', e); }
     const {
       installKoreanLintHook, removeKoreanLintHook,
       installReplyLanguageHook, removeReplyLanguageHook,

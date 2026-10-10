@@ -399,7 +399,7 @@ test('unmapped tiers resolve to cheaper priced models already run in Codex, the 
   const mixed = { codex: { delegate: true, sharedRules: { targets: [{ tier: 'T1', from: 'gpt-6-astra', model: 'gpt-5.6-terra', provider: 'openai' }] } } };
   assert.deepEqual(sharedCodexModelRules({ ...query, cfg: mixed }).map((r) => [r.tier, r.model, r.auto === true]).sort(),
     [['T1', 'gpt-5.6-terra', false], ['T2', 'gpt-6-luna', true]]);
-  for (const cfg of [{ codex: { delegate: true, sharedRules: { auto: false } } }, { codex: {} }, {}]) {
+  for (const cfg of [{ codex: { delegate: true, sharedRules: { auto: false } } }, { codex: { delegate: false } }]) {
     assert.deepEqual(sharedCodexModelRules({ ...query, cfg }), [], JSON.stringify(cfg));
   }
   assert.equal(autoCodexSharedTargets({ ...query, model: 'gpt-6-luna' }).targets.length, 0, 'nothing cheaper than the cheapest');

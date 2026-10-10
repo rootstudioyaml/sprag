@@ -1,6 +1,6 @@
 import { createArgs } from '../cli-args.js';
 import { configureCodexHooks } from '../codex-installer.js';
-import { initCodexHarness, uninitCodexHarness, codexHarnessStatus } from '../codex-harness.js';
+import { initCodexHarness, uninitCodexHarness, codexHarnessStatus, syncCodexKoreanBlock } from '../codex-harness.js';
 import { findProjectRoot, harnessPromote, harnessListRules, harnessRmRule, harnessPrune } from '../harness.js';
 import { loadConfig, saveConfig } from '../config.js';
 import { resolve } from 'node:path';
@@ -408,6 +408,10 @@ export async function run({ args, version }) {
     if (process.env.CTS_NO_HARNESS !== '1') {
       const h = initCodexHarness({ root, scope: 'global' });
       console.log(`Codex harness: ${h.file}`);
+      try {
+        const k = syncCodexKoreanBlock({ cfg });
+        console.log(`Codex korean-style: ${k.file} (${k.action})`);
+      } catch (e) { debug('codex:korean-sync', e); }
     }
     try {
       const { preparePresetRatchet } = await import('../preset-ratchet.js');
@@ -426,9 +430,9 @@ export async function run({ args, version }) {
       const auto = parent ? autoCodexSharedTargets({ model: parent, provider }) : { targets: [], reason: 'Codex config names no default model' };
       console.log(auto.targets.length
         ? `Delegation tiers for ${parent} on ${provider} (auto): ${auto.targets.map((t) => `${t.tier} -> ${t.model}`).join(', ')}. Change: sprag delegate shared status --agent codex`
-        : `Delegation tiers: not resolved yet (${auto.reason}). They resolve once a cheaper priced model has run in Codex, or map one: sprag delegate shared map T2 --from <parent> --model <target> --agent codex`);
+        : `Delegation tiers: not resolved yet (${auto.reason}). They resolve once Codex lists or has run a cheaper priced model, or map one: sprag delegate shared map T2 --from <parent> --model <target> --agent codex`);
     } catch (e) { debug('codex:auto-tiers', e); }
-    console.log('First-use delegation: sprag seed --agent codex to approve policies, then sprag delegate on --agent codex. No Claude installation is required.');
+    console.log('First-use delegation: sprag seed --agent codex to approve policies; delegation is on by default (turn off: sprag delegate off --agent codex). No Claude installation is required.');
     console.log('Korean guidance is opt-in: sprag korean on --agent codex');
     return;
   }
@@ -513,6 +517,7 @@ export async function run({ args, version }) {
     const { setKoreanStyleEnabled } = await import('../korean-style.js');
     if (args[1] === 'on') configureCodexHooks();
     setKoreanStyleEnabled(args[1] === 'on');
+    try { syncCodexKoreanBlock({ cfg: loadConfig() }); } catch (e) { debug('codex:korean-sync', e); }
     console.log(`Korean guidance: ${args[1]} (shared Sprag preference). Review/trust the Sprag hooks in Codex /hooks.`);
     return;
   }

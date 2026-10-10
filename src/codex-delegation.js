@@ -19,6 +19,13 @@ const MARKER = '<!-- sprag:codex:delegation -->';
 const safeId = (value) => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,255}$/.test(value);
 const validEffort = (value) => value === undefined || ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'].includes(value);
 
+/**
+ * Delegation is on unless the user turned it off. A fresh install writes no
+ * setting, so requiring `delegate === true` meant nothing ever delegated; only
+ * `sprag delegate off --agent codex` stores `false`.
+ */
+export function codexDelegateEnabled(cfg) { return cfg?.codex?.delegate !== false; }
+
 export function validateCodexTarget(model, effort) {
   if (!safeId(model)) throw new Error('Provide a literal Codex model ID.');
   if (!validEffort(effort)) {
@@ -57,12 +64,29 @@ function observedCodexModels(dir, provider) {
 }
 
 /**
+ * Model slugs Codex's own catalog lists for this account
+ * (`<codex home>/models_cache.json`, entries with visibility "list"). A new
+ * user has no session history, so the catalog is the only evidence of what
+ * Codex can run. Unreadable or malformed files give [].
+ */
+function catalogCodexModels(home) {
+  try {
+    const data = JSON.parse(readFileSync(join(home, 'models_cache.json'), 'utf8'));
+    return (Array.isArray(data?.models) ? data.models : [])
+      .filter((m) => m && m.visibility === 'list' && typeof m.slug === 'string').map((m) => m.slug);
+  } catch { return []; }
+}
+
+/**
  * The models Codex resolves T2 and T1 to when the user mapped none, the way
- * Claude Code resolves `haiku` and `sonnet`. Only a model that is priced on the
- * parent's provider, costs less than the parent, and has already run in this
- * user's Codex sessions qualifies, so the hint never names a model the gateway
- * cannot serve. The cheapest is T2 and the next one up is T1; with a single
- * candidate T1 stays on the main agent. Returns { targets, reason }.
+ * Claude Code resolves `haiku` and `sonnet`. Candidates are the models that
+ * already ran in this user's Codex sessions plus, for the built-in OpenAI
+ * provider only, the models Codex's catalog lists for the account (a gateway
+ * serves its own set, which the catalog does not describe). A candidate
+ * qualifies only if it is priced on the parent's provider and costs less than
+ * the parent, so the hint never names a model the gateway cannot serve. The
+ * cheapest is T2 and the next one up is T1; with a single candidate T1 stays
+ * on the main agent. Returns { targets, reason }.
  */
 export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDir(), model, provider, now = Date.now() } = {}) {
   if (!safeId(model) || !safeId(provider)) return { targets: [], reason: 'unknown parent model or provider' };
@@ -71,10 +95,15 @@ export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDi
   const cost = (m) => codexRunCost(RANKING_USAGE, book.prices[m]);
   const parent = cost(model);
   if (parent === null) return { targets: [], reason: `${model} is not priced on ${provider}` };
-  const cheaper = [...new Set(observedCodexModels(dir, provider))]
+  const available = [...new Set([...observedCodexModels(dir, provider), ...(provider === 'openai' ? catalogCodexModels(home) : [])])];
+  const cheaper = available
     .filter((m) => m !== model && safeId(m)).map((m) => ({ model: m, usd: cost(m) }))
     .filter((x) => x.usd !== null && x.usd < parent).sort((a, b) => a.usd - b.usd || a.model.localeCompare(b.model));
-  if (!cheaper.length) return { targets: [], reason: `no cheaper priced model has run in your Codex sessions on ${provider}` };
+  if (!cheaper.length) {
+    return { targets: [], reason: available.length
+      ? `${model} is already the cheapest available model on ${provider}`
+      : `no cheaper priced model has run in your Codex sessions on ${provider}` };
+  }
   const targets = cheaper.slice(0, 2).map((x, i) => ({ tier: i === 0 ? 'T2' : 'T1', from: model, model: x.model, provider, auto: true }));
   return { targets, reason: null };
 }
@@ -86,7 +115,7 @@ export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDi
  */
 export function codexTierTargets({ cfg = loadConfig(), dir = userDataDir(), home = codexUserDir(), model, provider = codexProviderName() } = {}) {
   const explicit = codexSharedTargets(cfg).filter((t) => t.from === model && t.provider === provider);
-  if (cfg.codex?.delegate !== true || cfg.codex?.sharedRules?.auto === false) return explicit;
+  if (!codexDelegateEnabled(cfg) || cfg.codex?.sharedRules?.auto === false) return explicit;
   const auto = autoCodexSharedTargets({ dir, home, model, provider }).targets
     .filter((t) => !explicit.some((e) => e.tier === t.tier));
   return [...explicit, ...auto];
@@ -307,7 +336,7 @@ function customRole(role, root, home) {
 // Kept for Codex versions that do send spawn_agent through PreToolUse; on
 // 0.159.2 the hook never fires for it, so codexRouteHint above is the live path.
 export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || process.cwd(), home = codexUserDir(), rules: given, dir = userDataDir(), record = recordCodexDelegation } = {}) {
-  if (cfg.codex?.delegate !== true) return null;
+  if (!codexDelegateEnabled(cfg)) return null;
   const tool = payload?.tool_name?.replace(/^(?:functions|tools)\./, '');
   if (!['spawn_agent', 'Agent'].includes(tool)) return null;
   const input = payload.tool_input;

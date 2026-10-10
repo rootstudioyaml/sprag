@@ -58,6 +58,14 @@ sprag korean lint warn --agent codex
 sprag doc2md install-converter --agent codex
 ```
 
+While Korean guidance is on, Sprag keeps it in the global Codex `AGENTS.md`
+(or `AGENTS.override.md` when that is non-empty), between
+`<!-- sprag:codex:korean-style:begin -->` and `...:end -->` markers, because
+Codex loads that file in full every session and the hook budget below is too
+small for the guide. `install`, `korean on|off`, and each session start keep the
+block in step; `sprag uninstall --agent codex` removes it. The hook adds the
+guide to its own context only in the session that just wrote the block.
+
 `korean on`, `cohesion on`, `brief on`, `doc2md on`, and `delegate on`
 register Codex hooks before saving the enabled preference. If hook registration
 fails, the preference stays unchanged. Review new or changed definitions in
@@ -151,7 +159,7 @@ warning records. A handoff file is never overwritten and identifies quota
 values as recorded snapshots, not live responses. Fill in its remaining-work
 sections before using it to continue in another session.
 
-Delegation is independently opt-in via `delegate on`. As of Codex 0.159.2,
+Delegation is on by default; `sprag delegate off --agent codex` turns it off. As of Codex 0.159.2,
 `spawn_agent` never reaches `PreToolUse` (measured directly: a recording hook
 saw only `Bash` calls while a spawn happened), so the rewrite below cannot see
 or steer it. The live path instead runs at prompt time: `UserPromptSubmit`
@@ -223,7 +231,6 @@ A Codex-first user needs no Claude installation or transcript history:
 sprag seed --agent codex
 sprag seed accept all --global --agent codex  # or --project, after choosing scope
 sprag delegate shared status --agent codex
-sprag delegate on --agent codex
 # optional, to override the automatic tier models:
 sprag delegate shared map T2 --from PARENT_MODEL --model SMALL_MODEL --effort high --agent codex
 sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort medium --agent codex
@@ -232,11 +239,13 @@ sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort m
 The map lines are optional. A tier without a mapping resolves automatically,
 the way Claude Code resolves `haiku` and `sonnet`: the cheapest model that is
 priced on the parent's provider (gateway `/model/info` prices, or OpenAI list
-prices for direct calls), costs less than the parent, and has already run in
-your Codex sessions becomes T2, and the next one up becomes T1. With a single
-such model T1 stays on the main agent; with none, both do. Resolution needs
-`delegate on`, uses the route scan's observed models, and follows price or
-history changes without storing anything. `delegate shared status` and the
+prices for direct calls), costs less than the parent, and is available becomes
+T2, and the next one up becomes T1. A model is available when it has already
+run in your Codex sessions, or, on the built-in OpenAI provider only, when
+Codex lists it for your account in its `models_cache.json`. With a single
+such model T1 stays on the main agent; with none, both do. Resolution runs
+while delegation is on (the default) and follows price, history, and catalog
+changes without storing anything. `delegate shared status` and the
 install output show the resolved models and, when nothing resolves, why.
 `sprag delegate shared auto off --agent codex` turns it off.
 
@@ -352,7 +361,8 @@ after an hour. `--refresh` bypasses that schedule.
 
 Codex 0.159.2 keeps about 2,450 tokens of one hook's context and cuts the
 middle of anything longer. SessionStart therefore fits its parts whole within a
-2,000-token estimate, in priority order: ratchet rules, Korean guidance,
+2,000-token estimate, in priority order: ratchet rules, Korean guidance
+(only while it is not yet in the global `AGENTS.md`; see below),
 cohesion guidance, the document note, then offers. Rules and guidance that do
 not fit are written to a per-project file under the Sprag data directory, and
 the context opens with an instruction to read it. `codex exec` runs, recognized
@@ -364,8 +374,8 @@ compatible Codex ratchet presets. Ratchet and skip decisions remain agent-specif
 an approved common policy suppresses duplicate offers within its scope in either
 agent. Both seed acceptance and
 route approval require the user's choice of global or project scope. A project
-route is saved for the project where it was observed. Enable delegation with
-`sprag delegate on --agent codex` and trust the hooks before expecting rules to run.
+route is saved for the project where it was observed. Delegation is on by default
+(`sprag delegate off --agent codex` turns it off); trust the hooks before expecting rules to run.
 
 ## Reports
 
