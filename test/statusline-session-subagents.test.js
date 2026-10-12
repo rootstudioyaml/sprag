@@ -57,13 +57,15 @@ test('each run is priced at its own model and the session sums them', () => {
     filePath: '/p/a.jsonl',
     subagentRuns: [
       { ...run('claude-haiku-4-5'), totals: tokens(200000) },
-      { ...run('claude-opus-5'), totals: tokens(40000) },
+      // 40k Opus output costs exactly what 200k Haiku output does ($1 each),
+      // which would hide a single shared rate; 80k keeps the two apart.
+      { ...run('claude-opus-5'), totals: tokens(80000) },
     ],
   }];
   // env {} takes the list-price path whatever shell runs the suite.
   const sd = sessionSubagentSummary(sessions, { sessionId: 'a', env: {} });
   const haiku = estimateCost(tokens(200000), 'claude-haiku-4-5').actual;
-  const opus = estimateCost(tokens(40000), 'claude-opus-5').actual;
+  const opus = estimateCost(tokens(80000), 'claude-opus-5').actual;
   assert.ok(haiku > 0 && opus > 0 && haiku !== opus);
   assert.equal(sd.usd, Math.round((haiku + opus) * 100) / 100, 'not one rate for both runs');
   assert.equal(sd.unpriced, 0);

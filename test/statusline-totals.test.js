@@ -277,5 +277,5 @@ test('the cost follows the saving into the single-line chip, before its date', (
   const since = new Date(new Date().getFullYear(), 9, 9, 12).getTime();
   const totals = { week: 0, month: 0, total: 3.2, spent: 1.1, spentMissing: 0, pairs: [], since };
   const out = formatReport(data({ delegationTotals: totals }), { ...opts, singleLine: true });
-  assert.match(out, /Routing saved \$3\.2 · spent \$1\.10 since 10\/9/);
+  assert.match(out, /Routing saved \$3\.20 · spent \$1\.10 since 10\/9/);
 });
