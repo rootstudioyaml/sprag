@@ -1,0 +1,6 @@
+{
+  "name": "sprag-doc2md",
+  "version": "0.1.0",
+  "description": "Reads the Markdown that sprag doc2md converted instead of the binary document, with no denied Read in between",
+  "author": { "name": "DeepPulse", "url": "https://www.youtube.com/@DeepPulseKR" }
+}

@@ -85,6 +85,8 @@ export async function run({ hasFlag }) {
     print('skill', r.skill);
     print('SessionStart hook (route-scan)', r.sessionStartHook);
     print('PostToolUse hook (delegation rescan)', r.delegationHook);
+    print('mod (delegation meter, Claude Code 2.1.287+)', r.delegationMeterMod);
+    if (r.delegationMeterMod.reason) console.log(`    ${r.delegationMeterMod.reason}`);
     print('UserPromptSubmit hook (brief)', r.briefHook);
     {
       let s = r.statusline;
@@ -333,6 +335,7 @@ export async function run({ hasFlag }) {
         console.log(res.action === 'skipped'
           ? `  doc2md: ${res.reason}`
           : `  doc2md: Read/Write hook ${res.action} (${res.path})`);
+        if (res.modReason) console.log(`  doc2md: mod not registered — ${res.modReason}`);
         console.log(lang === 'ko'
           ? `           대상 형식: ${doc2md.TARGET_EXTENSIONS.join(' ')} — 모델이 읽기 전에 Markdown으로 변환합니다.`
           : `           formats: ${doc2md.TARGET_EXTENSIONS.join(' ')} — converted to Markdown before the model reads them.`);

@@ -30,3 +30,9 @@ graphify-out/
 # A tool outside sprag writes `:memory:.ses` (timestamp + session id) into the
 # working directory of some Codex sessions; it is not a project file.
 :memory:.ses
+
+# Claude Code writes the mod API types beside a mod it loads from this folder
+# (a dev session with --plugin-dir, or an `npm link` install). Regenerated on
+# every load, so never committed; package.json `files` leaves them out too.
+mod/*/.claude-plugin/types/
+mod/*/tsconfig.json

@@ -1,0 +1,6 @@
+{
+  "name": "sprag-delegation-meter",
+  "version": "0.1.0",
+  "description": "Measures what each delegated subagent actually spent, from the API's own usage, and keeps one record per run",
+  "author": { "name": "DeepPulse", "url": "https://www.youtube.com/@DeepPulseKR" }
+}

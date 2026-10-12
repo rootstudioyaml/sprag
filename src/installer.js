@@ -16,7 +16,8 @@
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync, copyFileSync, renameSync, realpathSync, statSync } from 'node:fs';
 import { loadConfig, saveConfig } from './config.js';
 import { CLI_NAME, LEGACY_CLI_NAME } from './cli-name.js';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { claudeUserDir, userDataDir } from './paths.js';
 
 /**
@@ -692,6 +693,122 @@ export function removeReplyLanguageHook() {
   return { path: file, action: 'removed' };
 }
 
+// Mods: plugin folders shipped in this package's mod/ directory, which Claude
+// Code (2.1.287 and later) runs inside its own process. They are loaded through
+// CLAUDE_CODE_PLUGIN_DIRS in the env block of ~/.claude/settings.json, the one
+// way to load a plugin folder that needs neither a marketplace nor the `claude`
+// CLI at install time, so `npm i -g` stays the whole setup. An older Claude
+// Code ignores the variable, and the settings hooks keep doing the work alone.
+//
+// The variable holds absolute paths, so an entry goes stale when the package
+// moves (a Node version switch under nvm puts it in another global root). An
+// entry counts as ours by its last two segments, `mod/<a name below>`, and
+// adding a mod first drops every older path to it, so a reinstall repairs the
+// list instead of growing it. Other folders in the variable are left alone.
+const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const PLUGIN_DIRS_ENV = 'CLAUDE_CODE_PLUGIN_DIRS';
+export const DOC2MD_MOD = 'sprag-doc2md';
+export const DELEGATION_METER_MOD = 'sprag-delegation-meter';
+export const MOD_NAMES = [DOC2MD_MOD, DELEGATION_METER_MOD];
+
+export function modDir(name) {
+  return join(PACKAGE_ROOT, 'mod', name);
+}
+
+const pluginDirsSeparator = () => (process.platform === 'win32' ? ';' : ':');
+
+function isOurModEntry(entry, names) {
+  const parts = String(entry).split(/[\\/]/).filter(Boolean);
+  return parts.length >= 2 && parts[parts.length - 2] === 'mod' && names.includes(parts[parts.length - 1]);
+}
+
+function pluginDirEntries(settings) {
+  const value = isPlainObject(settings.env) ? settings.env[PLUGIN_DIRS_ENV] : undefined;
+  return typeof value === 'string' ? value.split(pluginDirsSeparator()).filter(Boolean) : [];
+}
+
+/**
+ * Point CLAUDE_CODE_PLUGIN_DIRS at this package's copy of one mod, in place on
+ * a settings object read by the caller. Returns true when the object changed,
+ * false when it already held exactly that, or a reason string when the mod is
+ * better left out: `env` is not something this can safely extend, or the user
+ * already loads mods in a way a write here would break or duplicate.
+ *
+ * `inherited` is the variable as this process received it. When settings.json
+ * has no value of its own, that is the user's shell value. Claude Code's docs
+ * say a settings `env` entry replaces the inherited value in most sessions, so
+ * a value written here would stop the user's own mods from loading; were this
+ * variable one of the exceptions, ours would be ignored instead. Either way
+ * the write is wrong, so the case is refused with the path to add by hand.
+ */
+function addModDir(settings, name, inherited = process.env[PLUGIN_DIRS_ENV]) {
+  if (settings.env !== undefined && !isPlainObject(settings.env)) return 'env is not an object — fix settings.json manually';
+  const current = settings.env?.[PLUGIN_DIRS_ENV];
+  if (current !== undefined && typeof current !== 'string') return `env.${PLUGIN_DIRS_ENV} is not a string — fix settings.json manually`;
+  // A copy installed through /plugin would run beside this one, every hook twice.
+  const installed = isPlainObject(settings.enabledPlugins)
+    ? Object.keys(settings.enabledPlugins).find((id) => id.split('@')[0] === name && settings.enabledPlugins[id])
+    : undefined;
+  if (installed) return `${name} is already installed as the plugin ${installed} — that copy stays the one that runs`;
+  const target = modDir(name);
+  const sep = pluginDirsSeparator();
+  if (current === undefined && typeof inherited === 'string') {
+    const theirs = inherited.split(sep).filter((e) => e && !isOurModEntry(e, MOD_NAMES));
+    if (theirs.length) {
+      return `${PLUGIN_DIRS_ENV} is set in your shell (${theirs.join(sep)}), and a value in settings.json would replace it — add ${target} to that variable yourself`;
+    }
+  }
+  const before = pluginDirEntries(settings);
+  const stale = before.filter((e) => e !== target && isOurModEntry(e, [name]));
+  if (before.includes(target) && stale.length === 0) return false;
+  const entries = [...before.filter((e) => !isOurModEntry(e, [name])), target];
+  settings.env = { ...(settings.env || {}), [PLUGIN_DIRS_ENV]: entries.join(sep) };
+  return true;
+}
+
+/**
+ * Drop every entry of the named mods, wherever it points. The variable goes
+ * when nothing is left in it, and `env` when this emptied it. Returns whether
+ * the object changed.
+ */
+function dropModDirs(settings, names) {
+  const before = pluginDirEntries(settings);
+  const kept = before.filter((e) => !isOurModEntry(e, names));
+  if (kept.length === before.length) return false;
+  if (kept.length) settings.env[PLUGIN_DIRS_ENV] = kept.join(pluginDirsSeparator());
+  else delete settings.env[PLUGIN_DIRS_ENV];
+  if (Object.keys(settings.env).length === 0) delete settings.env;
+  return true;
+}
+
+/** Which mods settings.json currently loads from this package's own copy. */
+export function modDirsState() {
+  const read = readSettings(join(claudeUserDir(), 'settings.json'));
+  const entries = read.state === 'ok' ? pluginDirEntries(read.settings) : [];
+  return Object.fromEntries(MOD_NAMES.map((name) => [name, entries.includes(modDir(name))]));
+}
+
+// The delegation meter only observes (see mod/sprag-delegation-meter), so it
+// ships on with the rest of installAll(), beside the PostToolUse hook that
+// feeds the transcript-based ledger it is measured against. uninstallAll()
+// takes it out with every other mod.
+export function installDelegationMeterMod() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
+  const changed = addModDir(settings, DELEGATION_METER_MOD);
+  if (typeof changed === 'string') return { path: file, action: 'skipped', reason: changed };
+  if (!changed) return { path: file, action: 'exists' };
+  const writeProblem = writeSettings(file, settings);
+  if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  // The action names what happened to the file, as installDelegationGuardHook's
+  // does: one entry added to a settings.json already there is an update.
+  return { path: file, action: read.state === 'absent' ? 'created' : 'updated' };
+}
+
 // Registers the PreToolUse hook that converts attached documents to Markdown
 // before the model reads them. PreToolUse rather than PostToolUse because the
 // point is to intervene before a pptx lands in the context window; afterwards
@@ -775,14 +892,22 @@ export function installDoc2mdHook() {
     }
   }
 
-  if (!hasReadHook || addedPrompt || addedWriteGuard) {
+  // The mod answers a document Read with the converted Markdown in the same
+  // call, where the hook above can only refuse it (mod/sprag-doc2md). It rides
+  // this hook's on and off so the two never disagree about doc2md being on. An
+  // `env` this cannot extend costs only the mod: the hooks still go in.
+  const modChange = addModDir(settings, DOC2MD_MOD);
+  const addedMod = modChange === true;
+  const modNote = typeof modChange === 'string' ? { modReason: modChange } : {};
+
+  if (!hasReadHook || addedPrompt || addedWriteGuard || addedMod) {
     {
       const writeProblem = writeSettings(file, settings);
       if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
     }
-    return { path: file, action: hasReadHook ? 'updated' : 'created' };
+    return { path: file, action: hasReadHook ? 'updated' : 'created', ...modNote };
   }
-  return { path: file, action: 'exists' };
+  return { path: file, action: 'exists', ...modNote };
 }
 
 export function removeDoc2mdHook() {
@@ -805,6 +930,7 @@ export function removeDoc2mdHook() {
     if (kept.length === 0) delete settings.hooks[event];
     else settings.hooks[event] = kept;
   }
+  if (dropModDirs(settings, [DOC2MD_MOD])) touched = true;
   if (!touched) return { path: file, action: 'absent' };
   {
     const writeProblem = writeSettings(file, settings);
@@ -1022,6 +1148,10 @@ export function uninstallAll({ purge = false } = {}) {
     }
     if (isPlainObject(settings.hooks) && Object.keys(settings.hooks).length === 0) delete settings.hooks;
 
+    // Mods are found by their folder name, so a path left by an older install
+    // location goes with the current one.
+    if (dropModDirs(settings, MOD_NAMES)) result.removed.push(`env.${PLUGIN_DIRS_ENV} (mods)`);
+
     // Nothing of ours in the file means nothing to rewrite (and no backup to churn).
     if (result.removed.length > 0) {
       const writeProblem = writeSettings(file, settings);
@@ -1116,6 +1246,7 @@ export function installAll({ force = false } = {}) {
     statusline: installStatusline({ force }),
     sessionStartHook: installSessionStartHook(),
     delegationHook: installDelegationHook(),
+    delegationMeterMod: installDelegationMeterMod(),
     briefHook: installBriefHook(),
     cacheMonitorMigration: migrateLegacyCacheMonitorHook(),
     legacy: removeLegacyCommand(),

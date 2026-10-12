@@ -104,6 +104,7 @@ export async function run({ args, hasFlag }) {
     console.log(res.action === 'skipped'
       ? `✗ ${res.reason}`
       : `✓ Read hook ${res.action} (${res.path})`);
+    if (res.modReason) console.log(`  mod: not registered — ${res.modReason}`);
     // A registered hook with no converter behind it does nothing at all, and
     // says nothing about it either, which reads as a broken feature. Offer the
     // one command that closes the gap right where the gap is visible.
@@ -160,6 +161,17 @@ export async function run({ args, hasFlag }) {
   console.log(`  converter: ${python ? `markitdown via ${python}` : `not installed — ${doc2md.INSTALL_HINT}`}`);
   console.log(`  cache:     ${dir} (${cached} file(s))`);
   console.log(`  hook:      ${hookRegistered() ? 'registered on Read' : 'not registered'}`);
+  // The mod has the same two halves as the hook: `doc2md on` can leave it out
+  // (a shell value of the variable, a /plugin copy) while the hook goes in.
+  // A path the user added to their own shell variable counts as registered.
+  {
+    const { modDirsState, modDir, DOC2MD_MOD } = await import('../installer.js');
+    const sep = process.platform === 'win32' ? ';' : ':';
+    const inShell = (process.env.CLAUDE_CODE_PLUGIN_DIRS || '').split(sep).includes(modDir(DOC2MD_MOD));
+    console.log(`  mod:       ${modDirsState()[DOC2MD_MOD] || inShell
+      ? 'registered (Claude Code 2.1.287+ reads the Markdown in the same Read)'
+      : 'not registered — `doc2md on` registers it or says why not'}`);
+  }
   console.log('');
   if (!python) console.log(`Install the converter: ${doc2md.INSTALL_HINT}`);
   console.log('Enable with: sprag doc2md on');
