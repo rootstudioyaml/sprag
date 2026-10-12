@@ -10,6 +10,13 @@ v3.47.0 까지 받으신 사본은 계속 MIT 조건을 따릅니다. 이미 받
 
 ## 전체 릴리스 노트
 
+### v3.64.0 (2026-10-12)
+- **v3.63.0에서 아무 일도 하지 않던 두 mod가 이제 실제로 동작합니다.** npm 11은 디렉터리로 끝나는 `mod/*/hooks/` 패턴을 펼치지 않아서, v3.63.0 패키지에는 mod마다 `plugin.json` 만 들어가고 훅 파일이 빠졌습니다. 그래서 `sprag-doc2md` 와 `sprag-delegation-meter` 가 로드는 됐지만 훅이 없어 아무것도 하지 않았고, 설정 훅만 예전처럼 돌았습니다. 이번 패키지에는 `hooks.json` 과 훅 모듈이 함께 들어가며, 릴리스 검사가 실제 tarball에서 mod마다 이 파일들이 있는지 확인합니다.
+- **Codex도 한국어로 물으면 한국어로 답하는지 확인합니다.** 여섯 번째 Codex 훅인 Stop 훅이 현재 한국어 프롬프트와 최종 답변을 비교해, 답이 한국어가 아니면 한국어로 다시 답하게 합니다. 붙여 넣은 대화 기록, Stop 후속 턴, 영어로 답해 달라는 명시적 요청은 건너뛰며 `sprag korean reply off` 로 끌 수 있습니다.
+- **Codex 위임을 추정하지 않고 점검할 수 있습니다.** `sprag delegate doctor --agent codex` 가 로컬 Codex 버전과 기능 플래그, 내장 모델 목록을 읽고, 위임 제안이 완료·연결·대기·미수령 중 어디에 있는지 셉니다. 설정이 켜져 있어도 에이전트 도구가 실제로 있다는 뜻은 아니라는 점도 함께 알려 줍니다. 설계가 정해진 뒤 구현을 넘길 때는 `sprag delegate implementation --agent codex` 가 현재 부모 모델에 맞는 T1을 정하고, 장부는 그 경로와 맞는 자식 세션에만 절감을 기록합니다.
+- **Codex에서 문서 변환으로 아낀 양을 볼 수 있습니다.** 장부(v2)가 Office XML과 변환된 Markdown의 차이를 바이트/4로 추정하고, 기록된 Codex 입력 단가로 금액을 매깁니다. `sprag doc2md savings --agent codex` 와 `sprag saved` 가 이 값을 보여 주며, PDF·Figma·잘린 출력·단가가 없는 모델은 알 수 없음으로 둡니다.
+- **Codex에도 업데이트 알림이 나옵니다.** Codex 패널에 업데이트 칩이 뜨고, SessionStart가 업그레이드 전에 먼저 묻습니다. 공유 정책의 성과는 Codex에서 공급자와 부모·자식 모델 쌍별로 따로 판정해 룰 목록과 패널, 브리프에 보여 주며 Claude 통계에는 섞지 않습니다. `sprag uninstall --agent codex` 는 이제 Codex 패널 셸 래퍼도 지웁니다.
+
 ### v3.63.0 (2026-10-12)
 - **Claude Code 2.1.287 이상에서는 문서 변환과 위임 비용 기록이 Claude Code 안에서 직접 동작합니다.** 새 플러그인 mod `sprag-doc2md` 는 문서를 Read 하거나 @-멘션할 때 같은 호출 안에서 변환된 Markdown으로 바꿔 줍니다. 그래서 설정 훅이 Read를 거부하고 캐시 파일을 알려 주던 때보다 문서 하나에 도구 호출이 한 번 줄어듭니다. `sprag-delegation-meter` 는 서브에이전트가 실제로 쓴 토큰을 매 턴의 API 사용량에서 기록하며, 기존 대화 기록 기반 장부도 그대로 함께 돌아갑니다. 설치 프로그램이 `~/.claude/settings.json` 의 `CLAUDE_CODE_PLUGIN_DIRS` 로 두 mod를 불러오므로 `npm i -g` 만으로 설정이 끝납니다. 셸에서 이 변수를 이미 지정했거나 `/plugin` 으로 같은 mod를 켜 두었다면 아무것도 쓰지 않습니다.
 - **Codex에서 한국어 지침이 설치 직후부터 적용됩니다.** 지금까지는 지침을 SessionStart 훅으로 넣었는데, Codex가 훅 하나에 허용하는 약 2,000토큰 예산에 지침 전문이 들어가지 않아 파일로 밀려났고 모델이 그 파일을 읽지 않는 경우가 많았습니다. 이제 Codex가 세션마다 전부 읽는 전역 `AGENTS.md` 의 관리 블록에 지침 전문을 둡니다. 설치와 `sprag korean on|off`, 세션 시작 때마다 블록을 맞추고, `sprag uninstall --agent codex` 가 블록을 지웁니다.
