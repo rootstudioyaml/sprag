@@ -112,6 +112,29 @@ export function sessionModelRank({ env = process.env, transcriptPath = null, sna
 }
 
 /**
+ * Tiers a delegation cannot reach in this session, because the alias the hint
+ * names resolves to no model here.
+ *
+ * A host that manages the provider writes the ANTHROPIC_DEFAULT_*_MODEL
+ * variables itself, from the models registered in its own settings, and
+ * leaves the unregistered ones empty; settings.json `env` does not override
+ * them. The Claude Desktop app does this in its third-party mode
+ * (CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1), and a Task(model: "haiku") there
+ * runs on the session model. Measured 2026-10-12: with no haiku registered the
+ * run answered on the parent's Opus profile, and after registering one, on the
+ * Haiku profile. Hinting a delegation in that state costs a subagent's context
+ * and saves nothing. Outside such a host an unset variable selects Claude
+ * Code's built-in default for the tier, so nothing is reported unreachable.
+ */
+const TIER_ALIAS_ENV = { T2: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', T1: 'ANTHROPIC_DEFAULT_SONNET_MODEL' };
+const TIER_ALIAS = { T2: 'haiku', T1: 'sonnet' };
+
+export function unreachableTiers(env = process.env) {
+  if (env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST !== '1') return [];
+  return Object.keys(TIER_ALIAS_ENV).filter((tier) => !env[TIER_ALIAS_ENV[tier]]);
+}
+
+/**
  * The rules a prompt matches, or null when the hint should stay quiet.
  *
  * @param {string} text the prompt just submitted
@@ -120,9 +143,13 @@ export function sessionModelRank({ env = process.env, transcriptPath = null, sna
  * @param {number|null} [opts.sessionRank] price rank of the model reading the
  *   hint (see sessionModelRank). null means unknown, and an unknown session
  *   model filters nothing.
- * @returns {{cat: object, t2: object|undefined, t1: object|undefined}|null}
+ * @param {object} [opts.env] environment to read tier aliases from (see
+ *   unreachableTiers)
+ * @returns {{cat: object, t2: object|undefined, t1: object|undefined, unreachable?: string[]}|null}
+ *   `unreachable` is set, with neither t2 nor t1, when every matching tier is
+ *   one this session cannot reach
  */
-export function routeMatch(text, { rules, sessionRank = null, root } = {}) {
+export function routeMatch(text, { rules, sessionRank = null, root, env = process.env } = {}) {
   const t = String(text || '').trim();
   if (t.length < MIN_LEN) return null;
   // Judgement and irreversible work stay on the top tier. This check comes
@@ -167,9 +194,15 @@ export function routeMatch(text, { rules, sessionRank = null, root } = {}) {
     ? matched
     : matched.filter((r) => worthDelegating(r.tier, sessionRank));
   if (!usable.length) return null;
+  // A tier whose alias resolves to nothing would run on the session model, so
+  // it is dropped like a tier that saves nothing. When that empties the list
+  // the match is still reported, so the hint can say why it does not delegate.
+  const unreachable = unreachableTiers(env);
+  const reachable = usable.filter((r) => !unreachable.includes(r.tier));
+  if (!reachable.length) return { cat, unreachable: [...new Set(usable.map((r) => r.tier))] };
 
   // The closest scope states the cap, whatever order the registry holds.
-  const nearest = [...usable].sort((a, b) => scopeRank(b) - scopeRank(a));
+  const nearest = [...reachable].sort((a, b) => scopeRank(b) - scopeRank(a));
   const t2 = nearest.find((r) => r.tier === 'T2');
   const t1 = nearest.find((r) => r.tier === 'T1');
   return t2 || t1 ? { cat, t2, t1 } : null;
@@ -185,6 +218,24 @@ export function matchCaps(match) {
 }
 
 /**
+ * What the hint says instead of a delegation when every matching tier is
+ * unreachable (see unreachableTiers). The model is told to work directly, and
+ * to pass the fix on once: the registration lives in the app's settings,
+ * which only the user can change.
+ */
+function unreachableNotice(label, tiers, ko) {
+  const models = tiers.map((t) => TIER_ALIAS[t]).join(', ');
+  return ko
+    ? `[sprag] 이 요청은 위임 룰 "${label}" 에 해당하지만, 이 세션에는 ${models} 모델이 등록되어 있지 않습니다. `
+      + `위임해도 세션 모델이 그대로 처리하므로 비용이 줄지 않으니, 위임하지 말고 직접 처리하십시오. `
+      + `이 안내를 이번 세션에서 처음 받았다면 답변 끝에 "Claude 앱 설정에 ${models} 모델을 등록하면 이런 요청을 더 싼 모델에 맡길 수 있습니다."라고 사용자에게 한 줄로 알리십시오.`
+    : `[sprag] This request matches the delegation rule "${label}", but no ${models} model is registered for this session, `
+      + `so a delegated run would stay on the session model and save nothing. Handle it directly instead of delegating. `
+      + `If this is the first such notice in this session, end your reply with one line for the user: `
+      + `"Register a ${models} model in the Claude app settings to hand requests like this to a cheaper model."`;
+}
+
+/**
  * @param {string} text the prompt just submitted
  * @param {object} [opts] as routeMatch, plus:
  * @param {string} [opts.lang] 'ko' | 'en'
@@ -194,12 +245,13 @@ export function matchCaps(match) {
  * @param {object|null} [opts.match] a routeMatch result the caller already has
  * @returns {string|null} the line to inject, or null to stay quiet
  */
-export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match } = {}) {
-  const found = match === undefined ? routeMatch(text, { rules, sessionRank, root }) : match;
+export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match, env } = {}) {
+  const found = match === undefined ? routeMatch(text, { rules, sessionRank, root, env }) : match;
   if (!found) return null;
   const { cat, t2, t1 } = found;
   const ko = lang === 'ko';
   const label = ko ? (cat.label || cat.id) : (cat.labelEn || cat.label || cat.id);
+  if (!t2 && !t1 && found.unreachable?.length) return unreachableNotice(label, found.unreachable, ko);
   // `root` is threaded through to agentPhrase, which names the subagent only
   // when its .md actually exists on this machine. A caller that pins it can
   // therefore get a deterministic phrase; a test that does not pin it reads
