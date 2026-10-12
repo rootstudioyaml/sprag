@@ -61,6 +61,14 @@ try {
       'docs/CODEX.md', 'docs/CODEX.ko.md', 'package.json', 'LICENSE', 'NOTICE']) assert.ok(shipped.has(file), file);
     assert.ok(![...shipped].some((file) => /^(?:test\/|site\/|docs\/releases\/|HANDOFF|\.env|\.codex\/|:memory:)/.test(file)));
   });
+  check('tarball includes each mod with its hooks module, not only its manifest', () => {
+    for (const name of readdirSync(join(root, 'mod'))) {
+      const { modules } = JSON.parse(readFileSync(join(root, 'mod', name, 'hooks', 'hooks.json'), 'utf8'));
+      for (const file of ['.claude-plugin/plugin.json', 'hooks/hooks.json', ...modules.map((m) => `hooks/${m.replace(/^\.\//, '')}`)]) {
+        assert.ok(shipped.has(`mod/${name}/${file}`), `mod/${name}/${file}`);
+      }
+    }
+  });
   run(npm, ['install', '--global', join(work, packed.filename), '--prefix', prefix,
     '--ignore-scripts', '--no-audit', '--no-fund', ...offline]);
   const installed = join(prefix, ...(process.platform === 'win32' ? [] : ['lib']), 'node_modules', 'sprag-cli');

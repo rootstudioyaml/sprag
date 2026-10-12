@@ -14,8 +14,11 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { childEnv } from './helpers/child-env.js';
 
 const SANDBOX = mkdtempSync(join(tmpdir(), 'sprag-mod-install-'));
 const HOME = join(SANDBOX, 'home');
@@ -41,18 +44,41 @@ const put = (obj) => (obj === null ? rmSync(SETTINGS, { force: true }) : writeFi
 const json = () => JSON.parse(readFileSync(SETTINGS, 'utf8'));
 const dirs = () => (json().env?.[KEY] ?? '').split(SEP).filter(Boolean);
 
+// The paths `npm pack` would put in the tarball, as npm itself lists them.
+//
+// Asked of npm rather than read from package.json `files`, because the two can
+// disagree: npm 11 does not expand `mod/*/hooks/`, a glob that ends in a
+// directory, so v3.63.0 shipped each mod with its manifest alone while a test
+// that only looked for that string in `files` passed. Both mods then loaded
+// with no hooks and did nothing.
+function packedFiles() {
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const out = execFileSync(npm, ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+    cwd: fileURLToPath(new URL('../', import.meta.url)),
+    env: childEnv({ HOME }),
+    encoding: 'utf8', timeout: 120_000,
+    shell: process.platform === 'win32',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return new Set(JSON.parse(out)[0].files.map((f) => f.path));
+}
+
 test('every mod the installer names ships as a loadable plugin folder', () => {
-  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const shipped = packedFiles();
   for (const name of MOD_NAMES) {
-    assert.ok(existsSync(join(modDir(name), '.claude-plugin', 'plugin.json')), `${name}: manifest`);
-    const hooks = JSON.parse(readFileSync(join(modDir(name), 'hooks', 'hooks.json'), 'utf8'));
-    for (const mod of hooks.modules) assert.ok(existsSync(join(modDir(name), 'hooks', mod)), `${name}: ${mod}`);
+    assert.ok(shipped.has(`mod/${name}/.claude-plugin/plugin.json`), `${name}: manifest in the package`);
     assert.equal(JSON.parse(readFileSync(join(modDir(name), '.claude-plugin', 'plugin.json'), 'utf8')).name, name);
+    assert.ok(shipped.has(`mod/${name}/hooks/hooks.json`), `${name}: hooks.json in the package`);
+    const hooks = JSON.parse(readFileSync(join(modDir(name), 'hooks', 'hooks.json'), 'utf8'));
+    for (const mod of hooks.modules) {
+      assert.ok(shipped.has(posix.join(`mod/${name}/hooks`, mod)), `${name}: ${mod} in the package`);
+    }
   }
-  // The package must carry the manifest and the hooks module, and nothing a
-  // Claude Code load wrote beside them (types, tsconfig).
-  assert.ok(pkg.files.includes('mod/*/.claude-plugin/plugin.json'), JSON.stringify(pkg.files));
-  assert.ok(pkg.files.includes('mod/*/hooks/'), JSON.stringify(pkg.files));
+  // Nothing beside them: the mods' own tests, and what a Claude Code load
+  // writes into the folder (types, tsconfig), stay out of the package.
+  const extra = [...shipped].filter((p) => p.startsWith('mod/')
+    && !/^mod\/[^/]+\/(?:\.claude-plugin\/plugin\.json|hooks\/.+)$/.test(p));
+  assert.deepEqual(extra, []);
 });
 
 test('the doc2md mod targets exactly the formats the converter handles', () => {
