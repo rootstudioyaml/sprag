@@ -1,0 +1,7 @@
+{
+  "name": "sprag-statusline",
+  "version": "0.1.0",
+  "description": "Draws sprag's statusline above the prompt in the Claude desktop app, which never runs the statusLine command, and keeps the snapshots the statusline leaves behind",
+  "author": { "name": "DeepPulse", "url": "https://www.youtube.com/@DeepPulseKR" },
+  "types": "./types/index.d.ts"
+}

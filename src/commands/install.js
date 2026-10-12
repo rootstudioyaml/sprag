@@ -87,6 +87,8 @@ export async function run({ hasFlag }) {
     print('PostToolUse hook (delegation rescan)', r.delegationHook);
     print('mod (delegation meter, Claude Code 2.1.287+)', r.delegationMeterMod);
     if (r.delegationMeterMod.reason) console.log(`    ${r.delegationMeterMod.reason}`);
+    print('mod (desktop statusline, Claude Code 2.1.287+)', r.statuslineMod);
+    if (r.statuslineMod.reason) console.log(`    ${r.statuslineMod.reason}`);
     print('UserPromptSubmit hook (brief)', r.briefHook);
     {
       let s = r.statusline;

@@ -709,7 +709,8 @@ const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGIN_DIRS_ENV = 'CLAUDE_CODE_PLUGIN_DIRS';
 export const DOC2MD_MOD = 'sprag-doc2md';
 export const DELEGATION_METER_MOD = 'sprag-delegation-meter';
-export const MOD_NAMES = [DOC2MD_MOD, DELEGATION_METER_MOD];
+export const STATUSLINE_MOD = 'sprag-statusline';
+export const MOD_NAMES = [DOC2MD_MOD, DELEGATION_METER_MOD, STATUSLINE_MOD];
 
 export function modDir(name) {
   return join(PACKAGE_ROOT, 'mod', name);
@@ -806,6 +807,26 @@ export function installDelegationMeterMod() {
   if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
   // The action names what happened to the file, as installDelegationGuardHook's
   // does: one entry added to a settings.json already there is an update.
+  return { path: file, action: read.state === 'absent' ? 'created' : 'updated' };
+}
+
+// The statusline mod draws sprag's statusline in the Claude desktop app, whose
+// Code tab never runs settings.json's statusLine.command (see
+// mod/sprag-statusline). The terminal keeps its own statusline; the mod draws
+// on the desktop surface only. Ships on with installAll() and is taken out
+// with every other mod by uninstallAll().
+export function installStatuslineMod() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
+  const changed = addModDir(settings, STATUSLINE_MOD);
+  if (typeof changed === 'string') return { path: file, action: 'skipped', reason: changed };
+  if (!changed) return { path: file, action: 'exists' };
+  const writeProblem = writeSettings(file, settings);
+  if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
   return { path: file, action: read.state === 'absent' ? 'created' : 'updated' };
 }
 
@@ -1247,6 +1268,7 @@ export function installAll({ force = false } = {}) {
     sessionStartHook: installSessionStartHook(),
     delegationHook: installDelegationHook(),
     delegationMeterMod: installDelegationMeterMod(),
+    statuslineMod: installStatuslineMod(),
     briefHook: installBriefHook(),
     cacheMonitorMigration: migrateLegacyCacheMonitorHook(),
     legacy: removeLegacyCommand(),

@@ -32,8 +32,8 @@ delete process.env.CLAUDE_CODE_PLUGIN_DIRS;
 after(() => rmSync(SANDBOX, { recursive: true, force: true }));
 
 const {
-  modDir, MOD_NAMES, DOC2MD_MOD, DELEGATION_METER_MOD,
-  installDelegationMeterMod, installDoc2mdHook, removeDoc2mdHook, uninstallAll, modDirsState,
+  modDir, MOD_NAMES, DOC2MD_MOD, DELEGATION_METER_MOD, STATUSLINE_MOD,
+  installDelegationMeterMod, installStatuslineMod, installDoc2mdHook, removeDoc2mdHook, uninstallAll, modDirsState,
 } = await import('../src/installer.js');
 
 const SETTINGS = join(HOME, '.claude', 'settings.json');
@@ -74,10 +74,11 @@ test('every mod the installer names ships as a loadable plugin folder', () => {
       assert.ok(shipped.has(posix.join(`mod/${name}/hooks`, mod)), `${name}: ${mod} in the package`);
     }
   }
-  // Nothing beside them: the mods' own tests, and what a Claude Code load
-  // writes into the folder (types, tsconfig), stay out of the package.
+  // Nothing beside them but a mod's own state contract (types/, which its
+  // plugin.json names): the mods' own tests, and what a Claude Code load
+  // writes into the folder (.claude-plugin/types, tsconfig), stay out.
   const extra = [...shipped].filter((p) => p.startsWith('mod/')
-    && !/^mod\/[^/]+\/(?:\.claude-plugin\/plugin\.json|hooks\/.+)$/.test(p));
+    && !/^mod\/[^/]+\/(?:\.claude-plugin\/plugin\.json|hooks\/.+|types\/.+)$/.test(p));
   assert.deepEqual(extra, []);
 });
 
@@ -129,6 +130,20 @@ test('the meter is added once and leaves other plugin folders alone', () => {
   assert.deepEqual(dirs(), ['/opt/other-plugin', modDir(DELEGATION_METER_MOD)]);
 });
 
+test('the statusline mod is added once, beside the meter, and uninstall takes it out', () => {
+  put({ env: { [KEY]: `/opt/other-plugin${SEP}/old/lib/node_modules/sprag-cli/mod/${STATUSLINE_MOD}` } });
+
+  assert.equal(installDelegationMeterMod().action, 'updated');
+  assert.equal(installStatuslineMod().action, 'updated');
+  // The stale path to the old install location is replaced, the meter kept
+  assert.deepEqual(dirs(), ['/opt/other-plugin', modDir(DELEGATION_METER_MOD), modDir(STATUSLINE_MOD)]);
+  assert.equal(installStatuslineMod().action, 'exists');
+  assert.equal(modDirsState()[STATUSLINE_MOD], true);
+
+  assert.equal(uninstallAll().action, 'removed');
+  assert.deepEqual(dirs(), ['/opt/other-plugin']);
+});
+
 test('doc2md on and off carry the doc2md mod with the hooks', () => {
   put(null);
   assert.equal(installDelegationMeterMod().action, 'created');
@@ -136,7 +151,7 @@ test('doc2md on and off carry the doc2md mod with the hooks', () => {
   const on = installDoc2mdHook();
   assert.equal(on.action, 'created');
   assert.equal(on.modReason, undefined);
-  assert.deepEqual(modDirsState(), { [DOC2MD_MOD]: true, [DELEGATION_METER_MOD]: true });
+  assert.deepEqual(modDirsState(), { [DOC2MD_MOD]: true, [DELEGATION_METER_MOD]: true, [STATUSLINE_MOD]: false });
   assert.equal(installDoc2mdHook().action, 'exists', 'a second install changes nothing');
 
   assert.equal(removeDoc2mdHook().action, 'removed');
