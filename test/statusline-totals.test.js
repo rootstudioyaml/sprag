@@ -123,7 +123,7 @@ test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
     JSON.stringify({ events: { '/old.jsonl': { ts: Date.now(), usd: 99 } } }),
   );
   const m = await import('../src/savings-ledger.js?v1');
-  assert.deepEqual(m.delegationSavedTotals(), { week: 0, month: 0, total: 0, pairs: [], since: null });
+  assert.deepEqual(m.delegationSavedTotals(), { week: 0, month: 0, total: 0, spent: 0, spentMissing: 0, pairs: [], since: null });
 
   // A v2 write starts the file over and stamps the version.
   m.recordDelegationEvents([
@@ -209,4 +209,73 @@ test('only the total is green; the model breakdown is all gray', () => {
   assert.ok(head.includes(`${GREEN}$2.00`), 'the lifetime total stays green');
   assert.ok(!breakdown.includes(GREEN), 'no green survives into the breakdown');
   assert.match(breakdown, /opus→haiku 2× \$0\.57/);
+});
+
+test("ledger: each run's cost is kept beside its saving and summed as spent", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'cts-ledger-cost-'));
+  process.env.XDG_CONFIG_HOME = dir;
+  t.after(() => {
+    delete process.env.XDG_CONFIG_HOME;
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const m = await import('../src/savings-ledger.js?cost');
+  const ts = Date.now();
+  m.recordDelegationEvents([
+    { key: '/a.jsonl', ts, usd: 2, cost: 0.75 },
+    { key: '/b.jsonl', ts, usd: 1, cost: 0.25 },
+    // Recorded before costs were kept: the saving counts, the cost is missing.
+    { key: '/c.jsonl', ts, usd: 0.5 },
+    // Unpriced cost: same as missing, and never stored as a number.
+    { key: '/d.jsonl', ts, usd: 0.25, cost: null },
+  ]);
+  let totals = m.delegationSavedTotals(ts);
+  assert.equal(totals.total, 3.75);
+  assert.equal(totals.spent, 1);
+  assert.equal(totals.spentMissing, 2);
+  assert.equal('cost' in m.loadLedger().events['/d.jsonl'], false);
+
+  // A later scan of the same run, same saving, now with a cost: the upsert
+  // must not skip it as unchanged, or old events would never get their cost.
+  m.recordDelegationEvents([{ key: '/c.jsonl', ts, usd: 0.5, cost: 0.125 }]);
+  totals = m.delegationSavedTotals(ts);
+  assert.equal(totals.spent, 1.125);
+  assert.equal(totals.spentMissing, 1);
+  assert.equal(totals.total, 3.75, 'filling a cost in never moves the saving');
+});
+
+test('the headline shows what the saving was bought with, in gray', () => {
+  const totals = { week: 0, month: 0, total: 14.7, spent: 5.2, spentMissing: 0, pairs: [] };
+  const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
+  assert.equal(line, 'Routing saved $14.7 · spent $5.20');
+
+  const colored = formatReport(data({ delegationTotals: totals }), { timer: false }).split('\n')[0];
+  const truecolor =
+    process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
+  const GREEN = truecolor ? '\x1b[38;2;52;211;153m' : '\x1b[32m';
+  const tail = colored.slice(colored.indexOf('spent'));
+  assert.ok(!tail.includes(GREEN), 'only the saving is green; the cost is context');
+});
+
+test('runs without a recorded cost are counted, not read as free', () => {
+  const totals = { week: 0, month: 0, total: 14.7, spent: 5.2, spentMissing: 3, pairs: [] };
+  const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
+  assert.match(line, /· spent \$5\.20 \+3 unpriced$/);
+});
+
+test('no recorded cost at all leaves the headline as it was', () => {
+  // Right after an upgrade every event predates the field; showing
+  // "spent $0.00 +173 unpriced" until the next scan would only alarm.
+  for (const extra of [{}, { spent: 0, spentMissing: 173 }]) {
+    const totals = { week: 0, month: 0, total: 14.7, pairs: [], ...extra };
+    const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
+    assert.equal(line, 'Routing saved $14.7');
+  }
+});
+
+test('the cost follows the saving into the single-line chip, before its date', () => {
+  // Local noon on Oct 9 of the current year, so the date prints as `10/9`.
+  const since = new Date(new Date().getFullYear(), 9, 9, 12).getTime();
+  const totals = { week: 0, month: 0, total: 3.2, spent: 1.1, spentMissing: 0, pairs: [], since };
+  const out = formatReport(data({ delegationTotals: totals }), { ...opts, singleLine: true });
+  assert.match(out, /Routing saved \$3\.2 · spent \$1\.10 since 10\/9/);
 });

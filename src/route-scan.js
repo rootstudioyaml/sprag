@@ -374,7 +374,26 @@ export function worthDelegating(tier, rank) {
  */
 export function runSaving(run, mainModel) {
   if (!run.model || !mainModel) return null;
-  const totals = {
+  const totals = runTotals(run);
+  const actual = sessionCost(totals, run.model);
+  const counterfactual = sessionCost(totals, mainModel);
+  if (!actual || !counterfactual) return null;
+  return counterfactual.actual - actual.actual;
+}
+
+/**
+ * USD a delegated run cost on the model it ran on: the price side of
+ * runSaving, recorded beside the saving so the statusline can show what the
+ * saving was bought with. null when the model has no price.
+ */
+export function runCost(run) {
+  if (!run.model) return null;
+  const actual = sessionCost(runTotals(run), run.model);
+  return actual ? actual.actual : null;
+}
+
+function runTotals(run) {
+  return {
     input: run.input,
     cacheCreation: run.cacheCreation,
     cacheRead: run.cacheRead,
@@ -383,10 +402,6 @@ export function runSaving(run, mainModel) {
     output: run.out,
     ...(run.long ? { long: run.long } : {}),
   };
-  const actual = sessionCost(totals, run.model);
-  const counterfactual = sessionCost(totals, mainModel);
-  if (!actual || !counterfactual) return null;
-  return counterfactual.actual - actual.actual;
 }
 
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
@@ -865,6 +880,7 @@ export async function runRouteScan({ days = 14 } = {}) {
         key: e.run.path,
         ts: e.run.endedAt ?? e.run.startedAt ?? Date.now(),
         usd,
+        cost: runCost(e.run),
         rule: rule.signature,
         from: baseline,
         to: e.run.model,

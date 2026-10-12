@@ -50,7 +50,8 @@ const DIR = join(CFG, 'claude-token-saver');
 mkdirSync(DIR, { recursive: true });
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 
-const { tallyDelegatedRun, runRouteScan, runSaving } = await import('../src/route-scan.js');
+const { tallyDelegatedRun, runRouteScan, runSaving, runCost } = await import('../src/route-scan.js');
+const { loadLedger, delegationSavedTotals, roundUsd } = await import('../src/savings-ledger.js');
 const { refreshModelRules } = await import('../src/model-rules.js');
 const { collectSubagentRun } = await import('../src/subagent-records.js');
 const { resetSaved, undoReset, readResetMarks, resetPath } = await import('../src/saved-reset.cjs');
@@ -229,6 +230,26 @@ test('runRouteScan credits a rule with every run until a reset, then only the la
   await runRouteScan({ days: 14 });
   assert.equal(readRule().savedUsd, round2(savedOld + savedNew), 'undone marks bring the money back');
   clearMarks();
+});
+
+test("runRouteScan records each delegated run's cost beside its saving", async () => {
+  clearMarks();
+  writeRegistry();
+  await runRouteScan({ days: 14 });
+  const costOld = runCost(await collectSubagentRun(join(sub, 'agent-old.jsonl')));
+  const costNew = runCost(await collectSubagentRun(join(sub, 'agent-new.jsonl')));
+  assert.ok(costOld > 0 && costNew > 0, `both runs are priced (${costOld}, ${costNew})`);
+  assert.notEqual(roundUsd(costOld), roundUsd(costNew));
+
+  const byRun = Object.fromEntries(Object.entries(loadLedger().events)
+    .map(([key, e]) => [key.split(/[\\/]/).pop(), e]));
+  assert.equal(byRun['agent-old.jsonl'].cost, roundUsd(costOld));
+  assert.equal(byRun['agent-new.jsonl'].cost, roundUsd(costNew));
+  assert.equal(byRun['agent-new.jsonl'].usd, roundUsd(savedNew), 'the saving beside it is unchanged');
+
+  const totals = delegationSavedTotals(Date.now(), DIR);
+  assert.equal(roundUsd(totals.spent), roundUsd(costOld + costNew));
+  assert.equal(totals.spentMissing, 0);
 });
 
 // ── (b) the saved command rebuilds the figures ───────────────────────────

@@ -39,7 +39,7 @@ export function makeHome(prefix = 'sprag-sl-') {
 }
 
 let seq = 0;
-function usageEntry({ sessionId, model, ts = Date.now() }) {
+function usageEntry({ sessionId, model, ts = Date.now(), output = 5 }) {
   seq += 1;
   return JSON.stringify({
     requestId: `req-${seq}`,
@@ -52,7 +52,7 @@ function usageEntry({ sessionId, model, ts = Date.now() }) {
         input_tokens: 10,
         cache_creation_input_tokens: 100,
         cache_read_input_tokens: 1000,
-        output_tokens: 5,
+        output_tokens: output,
         cache_creation: { ephemeral_5m_input_tokens: 100, ephemeral_1h_input_tokens: 0 },
       },
     },
@@ -63,10 +63,12 @@ function usageEntry({ sessionId, model, ts = Date.now() }) {
  * Write one session transcript plus a subagent transcript per entry of
  * `subagents` (each a model id), the way Claude Code lays them out:
  * `<project>/<sessionId>.jsonl` and `<project>/<sessionId>/subagents/agent-N.jsonl`.
+ * `subagentOutput` sets each subagent's output tokens, for a case that needs
+ * its runs to cost more than a cent.
  *
  * @returns {string} the path of the main transcript
  */
-export function writeSession(home, { project = '-tmp-proj', sessionId, model = 'claude-opus-5', subagents = [] }) {
+export function writeSession(home, { project = '-tmp-proj', sessionId, model = 'claude-opus-5', subagents = [], subagentOutput = 5 }) {
   const projDir = join(home.dir, '.claude', 'projects', project);
   mkdirSync(projDir, { recursive: true });
   const main = join(projDir, `${sessionId}.jsonl`);
@@ -75,7 +77,7 @@ export function writeSession(home, { project = '-tmp-proj', sessionId, model = '
     const subDir = join(projDir, sessionId, 'subagents');
     mkdirSync(subDir, { recursive: true });
     subagents.forEach((m, i) => {
-      writeFileSync(join(subDir, `agent-${i}.jsonl`), usageEntry({ sessionId: `${sessionId}-sub${i}`, model: m }));
+      writeFileSync(join(subDir, `agent-${i}.jsonl`), usageEntry({ sessionId: `${sessionId}-sub${i}`, model: m, output: subagentOutput }));
     });
   }
   return main;

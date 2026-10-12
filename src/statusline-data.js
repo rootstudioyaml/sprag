@@ -10,6 +10,7 @@
 import { resolve } from 'node:path';
 import { modelFamily } from './savings-ledger.js';
 import { loadModelRules } from './model-rules.js';
+import { sessionCostAcross } from './claude-price.js';
 
 /** Longest family name shown before it is cut. Keeps an opaque gateway id from taking the line. */
 const FAMILY_MAX = 14;
@@ -32,12 +33,17 @@ const shortFamily = (name) => (name.length > FAMILY_MAX ? `${name.slice(0, FAMIL
  * is rather than folding it into a neighbour; the name is shortened here so an
  * ARN cannot flood the line.
  *
+ * `usd` is what the runs cost, each priced at its own model by the same path
+ * the session's own cost takes (a gateway session from the gateway's table),
+ * and `unpriced` counts the priced parts that had no rate and were left out.
+ *
  * @param {Array} sessions parseAllSessions result
- * @param {{ transcriptPath?: string|null, sessionId?: string|null }} [ids]
- * @returns {{ total: number, families: Array<{ family: string, runs: number }> }|null}
+ * @param {{ transcriptPath?: string|null, sessionId?: string|null, env?: object }} [ids]
+ *   `env` decides the pricing path, as in sessionCost
+ * @returns {{ total: number, families: Array<{ family: string, runs: number }>, usd: number, unpriced: number }|null}
  *   null when the session cannot be found or ran no subagents
  */
-export function sessionSubagentSummary(sessions, { transcriptPath = null, sessionId = null } = {}) {
+export function sessionSubagentSummary(sessions, { transcriptPath = null, sessionId = null, env = process.env } = {}) {
   if (!Array.isArray(sessions) || (!transcriptPath && !sessionId)) return null;
   let hit = null;
   if (transcriptPath) {
@@ -62,7 +68,10 @@ export function sessionSubagentSummary(sessions, { transcriptPath = null, sessio
   const families = [...byFamily.entries()]
     .map(([family, n]) => ({ family, runs: n }))
     .sort((a, b) => b.runs - a.runs || a.family.localeCompare(b.family));
-  return { total: runs.length, families };
+  // A run is a session-shaped record (totals, model, modelTotals when it
+  // switched model), so it is priced the way a session is.
+  const cost = sessionCostAcross(runs, { env });
+  return { total: runs.length, families, usd: cost.actual, unpriced: cost.unpriced };
 }
 
 /**

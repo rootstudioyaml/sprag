@@ -396,10 +396,16 @@ function buildRulesSeg(stats, c, g) {
 }
 
 /**
- * This session's subagent runs: `3 (haiku 2 · sonnet 1)`. Counts every
- * subagent the session started, not only the ones a routing rule sent, so it
- * answers "how much did this session fan out" rather than "how many rules
- * fired". Null when the session ran none, which is the common case.
+ * This session's subagent runs: `3 (haiku 2 · sonnet 1) spent $0.42`. Counts
+ * every subagent the session started, not only the ones a routing rule sent,
+ * so it answers "how much did this session fan out" rather than "how many
+ * rules fired", and what that fan-out cost. Null when the session ran none,
+ * which is the common case.
+ *
+ * The cost uses the routing headline's word, `spent`, and its shape: runs a
+ * gateway could not price are counted (`+1 unpriced`) rather than read as
+ * free, and a session whose every run went unpriced reads `n/a`. A summary
+ * without `usd` (an older caller) draws no cost at all.
  */
 function buildSessionDelegationSeg(sd, c, isIcon, verbose, g) {
   const total = Number(sd && sd.total) || 0;
@@ -411,7 +417,14 @@ function buildSessionDelegationSeg(sd, c, isIcon, verbose, g) {
     ? `${g.routing} ${verbose ? 'Subagents this session' : 'this session'}`
     : 'Subagents this session';
   const split = families.length ? ` ${c(GRAY)}(${families.join(' · ')})${c(RESET)}` : '';
-  return `${c(CYAN)}${label} ${total}${c(RESET)}${split}`;
+  const usd = Number(sd.usd);
+  const unpriced = Number(sd.unpriced) || 0;
+  let spent = '';
+  if (sd.usd != null && Number.isFinite(usd)) {
+    const amt = usd > 0 || unpriced === 0 ? formatMoney(usd) : 'n/a';
+    spent = ` ${c(GRAY)}spent ${amt}${unpriced > 0 ? ` +${unpriced} unpriced` : ''}${c(RESET)}`;
+  }
+  return `${c(CYAN)}${label} ${total}${c(RESET)}${split}${spent}`;
 }
 
 /**
@@ -634,9 +647,23 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     ? ` ${c(GRAY)}${verbose ? `last scan ${scanAge} ago` : `scan ${scanAge}`}${c(RESET)}`
     : '';
 
+  // What the same delegated runs cost on the models they ran on, read beside
+  // the saving so the reader sees what it was bought with: "saved $14.7 ·
+  // spent $5.2". Gray, since it is context for the saving rather than a result.
+  // Shown once any run carries a cost; runs whose event has none (recorded
+  // before costs were kept and not rescanned since, or unpriced) are counted
+  // instead of being read as free.
+  //   text:  "Routing saved $14.7 · spent $5.2 since 10/9"
+  //   icon:  "🔀 $14.7 · spent $5.2 (10/9~)"
+  const spentUsd = Number(totals && totals.spent) || 0;
+  const spentMissing = Number(totals && totals.spentMissing) || 0;
+  const spentTag = spentUsd > 0
+    ? ` ${c(GRAY)}· spent ${formatMoney(spentUsd)}${spentMissing > 0 ? ` +${spentMissing} unpriced` : ''}${c(RESET)}`
+    : '';
+
   const savedTone = delegationSaved < 0 ? RED : delegationSaved > 0 ? GREEN : GRAY;
   const savingsChip = delegationSaved !== 0 || routingSince
-    ? `${c(savedTone)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}${sinceInline(routingSince)}${scanTag}`
+    ? `${c(savedTone)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}${spentTag}${sinceInline(routingSince)}${scanTag}`
     : null;
   // The unresolved count stands in only while there are no savings to show, so
   // a dated zero keeps both: the reset and the dropped runs are separate facts.
@@ -707,8 +734,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // a row of rolling windows it read as a breakdown of whichever one it
   // touched. A single lifetime total makes the whole line one timeframe with
   // nothing to mismatch.
-  //   icon:  "🔀 Routing saved $9.8 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
-  //   text:  "Routing saved $9.8 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
+  //   icon:  "🔀 Routing saved $9.8 · spent $3.1 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
+  //   text:  "Routing saved $9.8 · spent $3.1 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
   let totalsLine = null;
   const totalsNum = Number(totals && totals.total);
   // A zero total gets its line only when a reset mark explains it; see the
@@ -737,7 +764,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     totalsLine =
       `${c(tone)}${c(BOLD)}${head}${c(RESET)} ` +
       `${c(tone)}${formatMoney(totalsNum)}${c(RESET)}` +
-      sinceWord(routingSince) + scanTag +
+      spentTag + sinceWord(routingSince) + scanTag +
       (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 

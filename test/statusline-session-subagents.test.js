@@ -13,8 +13,13 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { formatReport } from '../src/formatters/statusline.js';
 import { sessionSubagentSummary } from '../src/statusline-data.js';
+import { estimateCost } from '../src/cost.js';
+import { resetModelAliasCache } from '../src/model-alias.js';
 import { makeHome, writeSession, renderStatusline } from './helpers/statusline-home.js';
 
 const run = (model) => ({ model, requestCount: 1, endTime: new Date() });
@@ -38,7 +43,50 @@ test('runs are tallied by model family, biggest first, and versions are dropped'
       { family: 'opus', runs: 1 },
       { family: 'sonnet', runs: 1 },
     ],
+    // These runs carry no token totals, so there is nothing to price.
+    usd: 0,
+    unpriced: 0,
   });
+});
+
+const tokens = (output) => ({ input: 0, cacheCreation: 0, cacheRead: 0, ephemeral5m: 0, ephemeral1h: 0, output });
+
+test('each run is priced at its own model and the session sums them', () => {
+  const sessions = [{
+    sessionId: 'a',
+    filePath: '/p/a.jsonl',
+    subagentRuns: [
+      { ...run('claude-haiku-4-5'), totals: tokens(200000) },
+      { ...run('claude-opus-5'), totals: tokens(40000) },
+    ],
+  }];
+  // env {} takes the list-price path whatever shell runs the suite.
+  const sd = sessionSubagentSummary(sessions, { sessionId: 'a', env: {} });
+  const haiku = estimateCost(tokens(200000), 'claude-haiku-4-5').actual;
+  const opus = estimateCost(tokens(40000), 'claude-opus-5').actual;
+  assert.ok(haiku > 0 && opus > 0 && haiku !== opus);
+  assert.equal(sd.usd, Math.round((haiku + opus) * 100) / 100, 'not one rate for both runs');
+  assert.equal(sd.unpriced, 0);
+});
+
+test('a gateway with no price table counts the runs as unpriced, not free', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'cts-session-cost-'));
+  const prev = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = dir;
+  resetModelAliasCache();
+  t.after(() => {
+    if (prev === undefined) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = prev;
+    resetModelAliasCache();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const sessions = [{
+    sessionId: 'a',
+    filePath: '/p/a.jsonl',
+    subagentRuns: [{ ...run('claude-haiku-4-5'), totals: tokens(200000) }, { ...run('claude-haiku-4-5'), totals: tokens(1) }],
+  }];
+  const sd = sessionSubagentSummary(sessions, { sessionId: 'a', env: { ANTHROPIC_BASE_URL: 'https://litellm.example.com' } });
+  assert.equal(sd.usd, 0);
+  assert.equal(sd.unpriced, 2);
 });
 
 test('the session is found by transcript path first, then by session id', () => {
@@ -122,6 +170,15 @@ test('the chip reads in every label mode', () => {
   );
 });
 
+test("the chip says what the runs cost, in the routing line's words", () => {
+  const cost = (usd, unpriced = 0) => formatReport(data({ ...SD, usd, unpriced }), opts);
+  assert.match(cost(0.42), /Subagents this session 3 \(haiku 2 · sonnet 1\) spent \$0\.42/);
+  assert.match(cost(0.42, 1), /spent \$0\.42 \+1 unpriced/, 'a partial sum says so');
+  assert.match(cost(0, 3), /spent n\/a \+3 unpriced/, 'nothing priced is not $0.00');
+  assert.match(cost(0), /spent \$0\.00/, 'priced runs under a cent still read as priced');
+  assert.doesNotMatch(formatReport(data(SD), opts), /spent/, 'a summary without usd draws no cost');
+});
+
 test('a session with no subagents shows nothing', () => {
   for (const sd of [null, undefined, { total: 0, families: [] }, { total: 'x' }]) {
     const out = formatReport(data(sd), { ...opts, mode: 'icon' });
@@ -182,6 +239,19 @@ test('the CLI matches the payload to its own session, not a neighbour', () => {
     // And the verbose label.
     const verbose = renderStatusline(home, { session_id: 'sess-mine' }, { args: ['--verbose'] });
     assert.match(verbose, /🔀 Subagents this session 3 \(haiku 2 · sonnet 1\)/);
+  } finally {
+    home.cleanup();
+  }
+});
+
+test("the CLI prices the session's runs and hands the cost to the chip", () => {
+  const home = makeHome();
+  try {
+    // 200k output tokens on Haiku 4.5 at $5/M is $1.00; the cache tokens the
+    // helper adds come to well under a cent.
+    const main = writeSession(home, { sessionId: 'sess-cost', subagents: ['claude-haiku-4-5'], subagentOutput: 200000 });
+    const out = renderStatusline(home, { session_id: 'sess-cost', transcript_path: main }, { args: ['--no-verbose'] });
+    assert.match(out, /🔀 this session 1 \(haiku 1\) spent \$1\.00/);
   } finally {
     home.cleanup();
   }

@@ -10,10 +10,13 @@
  *
  * File: <userDataDir>/delegation-ledger.json
  *   { "version": 2,
- *     "events": { "<run path>": { "ts", "usd", "rule", "from", "to" } } }
+ *     "events": { "<run path>": { "ts", "usd", "cost", "rule", "from", "to" } } }
  *
  * `from`/`to` are the models the routing decision moved between, and `usd` is
- * the price difference between them for this run's tokens. Version 1 priced
+ * the price difference between them for this run's tokens. `cost` is what the
+ * run itself cost on the model it ran on, so the statusline can show what the
+ * saving was bought with. Events written before `cost` existed lack it until a
+ * scan that still covers the run fills it in. Version 1 priced
  * every downgraded subagent run against the session's priciest model, which
  * credited the tool for runs no rule of its own had routed; those events are
  * discarded rather than migrated, since the number they carry cannot be
@@ -81,11 +84,12 @@ export function loadLedger() {
 
 /**
  * Upsert saving events. `events` is an array of
- * { key, ts, usd, rule, from, to } where `key` is the run's transcript path
- * (unique per subagent run) and `from`/`to` name the models the routing
+ * { key, ts, usd, cost, rule, from, to } where `key` is the run's transcript
+ * path (unique per subagent run) and `from`/`to` name the models the routing
  * decision moved between. `usd` is signed: a run on a pricier model is a loss
  * and is recorded as a negative amount so it reduces the totals. Only
- * non-finite amounts (unpriced runs) are skipped.
+ * non-finite amounts (unpriced runs) are skipped. A non-finite `cost` is left
+ * out of the event while its saving is still recorded.
  */
 export function recordDelegationEvents(events) {
   if (!Array.isArray(events) || events.length === 0) return;
@@ -101,12 +105,16 @@ export function recordDelegationEvents(events) {
     const prevKey = keyOf.get(id) ?? e.key;
     const prev = data.events[prevKey];
     const usd = roundUsd(e.usd);
-    if (prev && prev.ts === e.ts && prev.usd === usd) continue;
+    const cost = Number.isFinite(e.cost) ? roundUsd(e.cost) : undefined;
+    // An event recorded before `cost` existed compares unequal here, so the
+    // first scan that still covers the run fills its cost in.
+    if (prev && prev.ts === e.ts && prev.usd === usd && prev.cost === cost) continue;
     if (prevKey !== e.key) delete data.events[prevKey];
     keyOf.set(id, e.key);
     data.events[e.key] = {
       ts: e.ts,
       usd,
+      ...(cost !== undefined ? { cost } : {}),
       ...(e.rule ? { rule: e.rule } : {}),
       ...(e.from ? { from: e.from } : {}),
       ...(e.to ? { to: e.to } : {}),
@@ -143,13 +151,17 @@ export function modelFamily(model) {
  * lifetime rollup by family-level model change, priciest first. `now` is
  * injectable for tests. Never throws — an unreadable ledger yields zeros.
  *
+ * `spent` is the lifetime sum of what the same runs cost on the models they
+ * ran on, and `spentMissing` counts the runs whose event carries no `cost`
+ * (written before the field existed, or unpriced), which `spent` leaves out.
+ *
  * Events before the `routing` reset mark (`sprag saved reset`) are skipped
  * everywhere, and `since` reports the mark (null when never reset). `dir` is
  * the user data directory the mark is read from.
  */
 export function delegationSavedTotals(now = Date.now(), dir = userDataDir()) {
   const since = readResetMarks(dir).routing;
-  const empty = () => ({ week: 0, month: 0, total: 0, pairs: [], since });
+  const empty = () => ({ week: 0, month: 0, total: 0, spent: 0, spentMissing: 0, pairs: [], since });
   const totals = empty();
   const byPair = new Map();
   try {
@@ -158,6 +170,8 @@ export function delegationSavedTotals(now = Date.now(), dir = userDataDir()) {
       const usd = Number(e.usd);
       if (!Number.isFinite(usd)) continue;
       totals.total += usd;
+      if (Number.isFinite(e.cost)) totals.spent += e.cost;
+      else totals.spentMissing += 1;
       if (Number.isFinite(e.ts)) {
         if (now - e.ts <= WEEK_MS) totals.week += usd;
         if (now - e.ts <= MONTH_MS) totals.month += usd;
