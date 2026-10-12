@@ -10,14 +10,19 @@ import { tmpdir } from 'node:os';
 
 let tmp;
 let prevXdg;
+let prevBase;
 before(() => {
   tmp = mkdtempSync(join(tmpdir(), 'cts-budget-'));
   prevXdg = process.env.XDG_CONFIG_HOME;
   process.env.XDG_CONFIG_HOME = tmp;
+  prevBase = process.env.ANTHROPIC_BASE_URL;
+  delete process.env.ANTHROPIC_BASE_URL;
 });
 after(() => {
   if (prevXdg === undefined) delete process.env.XDG_CONFIG_HOME;
   else process.env.XDG_CONFIG_HOME = prevXdg;
+  if (prevBase === undefined) delete process.env.ANTHROPIC_BASE_URL;
+  else process.env.ANTHROPIC_BASE_URL = prevBase;
   rmSync(tmp, { recursive: true, force: true });
 });
 

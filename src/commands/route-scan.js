@@ -360,48 +360,14 @@ export async function run({ args, hasFlag, numArg }) {
       // — the refresh runs detached off the statusline path, never here.
       let updateBlock = null;
       try {
-        const { updateStatus, maybeSpawnUpdateCheck, SESSION_START_CHECK_INTERVAL_MS } = await import('../update-check.js');
+        const { updateOffer } = await import('../update-notice.js');
         const pkgVersion = readPackageVersion();
         // Session start is the one moment where a stale cache matters most, so
         // kick the detached refresh here too, on a shorter interval than the
         // statusline's 24h: releases can land several times a day, and a
         // session opened that afternoon should hear about them. It lands in
         // time for the statusline and for the next session, not for this line.
-        if (pkgVersion) maybeSpawnUpdateCheck(pkgVersion, { intervalMs: SESSION_START_CHECK_INTERVAL_MS });
-        const u = pkgVersion ? updateStatus(pkgVersion) : null;
-        // `dismissed` is the whole point of asking once: a user who said no to
-        // this version must not be asked again every `/clear`.
-        if (u && u.available && !u.dismissed) {
-          // What the release adds, when we managed to read it. "A newer version
-          // exists" is not a reason to upgrade; the reason is in this list, and
-          // without it the user is being asked to decide on no information.
-          const notes = Array.isArray(u.highlights) ? u.highlights : [];
-          const koNotes = notes.length
-            ? ['  이 버전에서 새로 생긴 것:', ...notes.map((n) => `    · ${n}`)]
-            : [];
-          const enNotes = notes.length
-            ? ['  What this release adds:', ...notes.map((n) => `    · ${n}`)]
-            : [];
-          updateBlock = lang === 'ko'
-            ? [
-                `[sprag update] 새 버전이 나와 있습니다: v${u.current} → ${u.latest}.`,
-                ...koNotes,
-                notes.length
-                  ? '  위 내용을 사용자에게 보여 주고 업그레이드할지 물어보십시오. 승낙하면 아래 명령을 실행하고, 묻지 않고 설치하지는 마십시오.'
-                  : '  사용자에게 지금 업그레이드할지 물어보고, 승낙하면 아래 명령을 실행하십시오. 묻지 않고 설치하지는 마십시오.',
-                '  sprag upgrade                  # 업그레이드 실행',
-                '  sprag update-check --dismiss   # 사용자가 원치 않으면 (다음 버전이 나올 때까지 다시 묻지 않습니다)',
-              ].join('\n')
-            : [
-                `[sprag update] A newer version is available: v${u.current} → ${u.latest}.`,
-                ...enNotes,
-                notes.length
-                  ? '  Show that list to the user and ask whether to upgrade. Run the command below only if they agree; do not install without asking.'
-                  : 'Ask the user whether to upgrade now, and run the command below only if they agree. Do not install without asking.',
-                '  sprag upgrade                  # perform the upgrade',
-                '  sprag update-check --dismiss   # if they decline (stays quiet until a newer release)',
-              ].join('\n');
-        }
+        if (pkgVersion) updateBlock = updateOffer(pkgVersion, { lang });
       } catch (e) { debug('route-scan:update-check', e); /* the offer is optional */ }
 
       if (open.length === 0 && reviewRules.length === 0) {

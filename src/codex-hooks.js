@@ -10,13 +10,14 @@ import { codexHarnessPaths, syncCodexKoreanBlock } from './codex-harness.js';
 import { writeViaTmp } from './state-file.js';
 import { findProjectRoot } from './harness.js';
 import { runCodexBrief } from './codex-brief.js';
-import { codexDocumentTool, codexDocumentNote, convertCodexDocument } from './codex-doc2md.js';
+import { codexDocumentTool, codexDocumentNote, convertCodexDocument, codexDocumentContext } from './codex-doc2md.js';
 import { codexDelegationTool, codexRouteHint, codexDelegateEnabled } from './codex-delegation.js';
 import { bindCodexSubagent, closeStaleCodexRoutes, unsettledCodexRoutes } from './codex-ledger.js';
 import { seedOfferBlock } from './seed-rules.js';
 import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './codex-route-scan.js';
 import { userDataDir } from './paths.js';
 import { debug } from './debug.js';
+import { updateOffer } from './update-notice.js';
 
 const require = createRequire(import.meta.url);
 const lint = require('./korean-lint.cjs');
@@ -162,8 +163,14 @@ export function lintCodexTool(payload, { scope = 'all' } = {}) {
   return messages.length ? messages.join('\n\n') : null;
 }
 
-export async function codexHookOutput(event, payload, { cfg = loadConfig(), refreshLedger = defaultLedgerRefresh } = {}) {
+export async function codexHookOutput(event, payload, { cfg = loadConfig(), refreshLedger = defaultLedgerRefresh, version } = {}) {
   if (!payload || typeof payload !== 'object') return null;
+  if (event === 'stop') {
+    if (payload.stop_hook_active || !koreanStyleEnabled(cfg) || cfg?.koreanReplyCheck === false) return null;
+    const { checkCodexReplyLanguage } = await import('./codex-reply-language.js');
+    if (!checkCodexReplyLanguage(payload)) return null;
+    return { decision: 'block', reason: '사용자는 한국어로 질문했는데 마지막 답변이 영어로 작성됐습니다. 같은 내용을 한국어로 다시 답하십시오. 코드, 명령어, 오류 원문, 커밋 메시지는 그대로 유지하십시오.' };
+  }
   if (event === 'session-start' || event === 'subagent-start') {
     if (event === 'subagent-start' && !codexDelegateEnabled(cfg)) return null;
     if (event === 'subagent-start') {
@@ -203,6 +210,7 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
     if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) parts.push({ priority: 4, spill: true, text: codexDocumentNote() });
     // Offers ask the user a question; a `codex exec` run has no one to answer it.
     if (event === 'session-start' && payload.source !== 'compact' && !isCodexExecSession(payload.transcript_path)) {
+      if (version) parts.push({ priority: 5, text: updateOffer(version, { agent: 'codex', lang: userLanguage() }) });
       try { parts.push({ priority: 5, text: await routeNotice(root) }); } catch (e) { debug('codex:route-notice', e); }
       try { parts.push({ priority: 6, text: seedOfferBlock({ root, agent: 'codex' }) }); } catch (e) { debug('codex:seed-offer', e); }
     }
@@ -228,7 +236,8 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
       catch (e) { debug('codex:brief', e); }
     }
     if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) {
-      parts.push(doc2md.contextForPrompt(payload, { lang: userLanguage(), agent: 'codex', convert: convertCodexDocument }));
+      const identity = codexDocumentContext(payload);
+      parts.push(doc2md.contextForPrompt(payload, { lang: userLanguage(), agent: 'codex', convert: (source) => convertCodexDocument(source, identity) }));
     }
     return context('UserPromptSubmit', parts.filter(Boolean).join('\n\n'));
   }

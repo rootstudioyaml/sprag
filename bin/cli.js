@@ -57,7 +57,7 @@ import { sessionCostAcross } from '../src/claude-price.js';
 import { chipForIssues } from '../src/advice.js';
 import { debug } from '../src/debug.js';
 import { createArgs } from '../src/cli-args.js';
-import { updateStatus, maybeSpawnUpdateCheck, readUpdateState, updateCheckDisabled } from '../src/update-check.js';
+import { readUpdateChip } from '../src/update-notice.js';
 import { selectAgent } from '../src/agent.js';
 
 const selection = (() => {
@@ -76,28 +76,6 @@ const PKG_VERSION = (() => {
 })();
 
 const { getArg, hasFlag, numArg } = createArgs(args);
-
-/**
- * Version/update state for the statusline chip. Reads a cache file and, when
- * that cache has aged past the check interval, kicks a detached child to
- * refresh it for a later render. Never awaits the network, never throws into
- * the render: a registry outage must not cost the statusline its other chips.
- */
-function readUpdateChip() {
-  try {
-    maybeSpawnUpdateCheck(PKG_VERSION);
-    const status = updateStatus(PKG_VERSION);
-    // When the registry was last asked, for the verbose "✓6h" on an up-to-date
-    // version. updateStatus() does not carry it, and a second read of the
-    // 200-byte state file is cheaper than a second status computation. With
-    // checks switched off the file is a leftover, so it says nothing.
-    const checkedAt = updateCheckDisabled() ? null : (Number(readUpdateState().checkedAt) || null);
-    return { ...status, checkedAt };
-  } catch (e) {
-    debug('update-check:chip', e);
-    return null;
-  }
-}
 
 /**
  * Whether the table report may use ANSI codes. The formatter looked at NO_COLOR
@@ -605,7 +583,7 @@ async function main() {
       }
       const { withBaseStatusline } = await import('../src/statusline-base.js');
       console.log(withBaseStatusline(formatNoSession(
-        { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip() },
+        { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION) },
         { color: colorOk, mode: labelMode },
       )));
       return;
@@ -892,7 +870,7 @@ async function main() {
     cost,
     options: { days, windowHours, windowLabel, version: PKG_VERSION },
     // Cached-only; the background refresh it may trigger lands on a later render.
-    update: format === 'statusline' ? readUpdateChip() : null,
+    update: format === 'statusline' ? readUpdateChip(PKG_VERSION) : null,
     lastActivity,
     monthSpend: monthSpendInfo,
     spikeReport,

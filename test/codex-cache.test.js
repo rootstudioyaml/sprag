@@ -113,7 +113,7 @@ test('full and compact output keep session metrics ahead of Codex lifetime docum
   assert.ok(CODEX_SEGMENT_ORDER.indexOf('usage') < CODEX_SEGMENT_ORDER.indexOf('ctx'));
   for (const compact of [true, false]) {
     const text = formatCodexPanel(data, { compact, columns: 500, rows: 100, now: now + 1000, color: false });
-    const names = ['ERROR:', 'WARNING:', '95%', '5H', 'Ctx ', 'Cache 29:59', 'gpt-6-astra', 'xhigh', 'Cache hit', 'Cache reused', 'Doc2md 4', 'Harness', 'Korean', 'Routing saved n/a', 'SPRAG v'];
+    const names = ['ERROR:', 'WARNING:', '95%', '5H', 'Ctx ', 'Cache 29:59', 'gpt-6-astra', 'xhigh', 'Cache hit', 'Cache reused', 'Doc2md saved', 'Doc2md 4', 'Routing saved n/a', 'Harness', 'Korean', 'SPRAG v'];
     const output = formatCodexPanel(data, { compact, columns: 500, rows: 100, now: now + 1000, color: false, version: 'test' });
     const indices = names.map((name) => output.indexOf(name));
     assert.ok(indices.every((index) => index >= 0), output);
@@ -175,7 +175,7 @@ test('Codex diagnostics distinguish guidance from Routing saved and ignore Claud
   assert.match(enabled.stdout, /model routing and guidance/);
   assert.match(enabled.stdout, /Routing saved: n\/a \(no attributed runs yet\)/);
   const text = f.run(['--statusline', '--text', '--single-line']).stdout;
-  assert.match(text, /Delegate on \(model routing\)/);
+  assert.match(text, /Delegate on \(preference; tools unverified\)/);
   assert.match(text, /Routing saved n\/a \(no attributed runs\)/);
   assert.doesNotMatch(text, /999|opus|haiku/);
   assert.match(f.run(['capabilities']).stdout, /routing-saved: partial/);

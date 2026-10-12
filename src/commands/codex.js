@@ -25,7 +25,9 @@ Usage: sprag <command> --agent codex [options]
   handoff [--cwd path]           Write Git state and Codex usage to HANDOFF-*.md
   saved [reset|undo]             Show, reset or restore the saved-money counters
   delegate on|off|status         Native model routing and SubagentStart guidance
+  delegate doctor               Local CLI features, model catalog and matched child activity
   delegate model <model>         Default target for spawns without an explicit model
+  delegate implementation       After design: resolve T1 with --from, --provider, --session
   delegate rules                Codex rules and shared delegation policies
   delegate shared on|off|status  Reuse approved policies; keep original scopes
   delegate shared map T1|T2     Map a tier: --from <parent> --model <target>
@@ -42,6 +44,7 @@ Usage: sprag <command> --agent codex [options]
   harness init|uninit|check|promote|list|rm|prune
                                 Rules in Codex AGENTS.md and ratchet files
   korean / cohesion / doc2md     Writing guidance and document conversion
+  doc2md savings                Codex document estimates; --format json for reasons and totals
   mode                          Shared label/color preferences
   install [--no-panel]           Register hooks and global harness; trust via /hooks
   uninstall                     Remove global integration; keep rules and shared state
@@ -141,6 +144,10 @@ export async function run({ args, version }) {
       console.log(`Hooks: ${report.hooks.error || `${report.hooks.events.filter((hook) => hook.registered).length}/${report.hooks.events.length} registered; trust unknown`}`);
       for (const hook of report.hooks.events) console.log(`  ${hook.event}: ${hook.registered ? 'registered' : 'missing/outdated; run sprag install --agent codex'}`);
       if (report.config.hooksDisabled) console.log('WARNING: user config disables hooks. Review features.hooks in Codex config.');
+      if (report.config.agentsDisabled) console.log('WARNING: user config disables agent tools. Review agents.enabled and features.multi_agent in Codex config.');
+      console.log(`Delegation: ${report.delegation.settled} completed, ${report.delegation.bound} bound, ${report.delegation.pending} pending, ${report.delegation.unclaimed} unclaimed offers (session)`);
+      console.log(`Agent tools: ${report.delegation.tools}`);
+      if (report.delegation.offers && !report.delegation.settled && !report.delegation.bound) console.log('Routing hints have no matched child. Check native subagent tool availability in the active session; preference and hook registration do not prove execution.');
       for (const [scope, harness] of Object.entries(report.harness)) console.log(`Harness ${scope}: ${harness.error ? terminalText(harness.error) : `${harness.configured}/${harness.total}`}`);
       console.log(`Session: ${report.session ? `${terminalText(report.session.id)} (${terminalText(report.session.model)})` : 'no matching rollout log'}`);
       console.log(`Panel: ${report.panel.live ? 'recent rendered frame observed' : 'no recent rendered frame'}`);
@@ -263,7 +270,7 @@ export async function run({ args, version }) {
   const statusline = hasFlag('--statusline') || format === 'statusline';
   if (statusline && (!cmd || cmd.startsWith('-'))) {
     const { createPanelReader, formatCodexPanel } = await import('../codex-panel.js');
-    const data = await createPanelReader({ root: selectedRoot, sessionId: getArg('--session'), days: numArg('--days', { dflt: 7, min: 0 }), hasFlag })();
+    const data = await createPanelReader({ root: selectedRoot, sessionId: getArg('--session'), days: numArg('--days', { dflt: 7, min: 0 }), hasFlag, version })();
     const columns = numArg('--columns', { dflt: process.stdout.columns || 100, min: 1, max: 10000 });
     const text = formatCodexPanel(data, { compact: true, columns: hasFlag('--single-line') ? 100000 : columns,
       rows: 10000, version, color: !hasFlag('--no-color') && !process.env.NO_COLOR && !!process.stdout.isTTY && data.color });
@@ -354,7 +361,7 @@ export async function run({ args, version }) {
     return runCodexPanel({
       read: createPanelReader({ root: getArg('--project') ? resolve(getArg('--project')) : root,
         sessionId: getArg('--session'), sessionFile: getArg('--session-file'), days: numArg('--days', { dflt: 7, min: 0 }), readBudget: readBudget.read,
-        readCachePolicy: hasFlag('--once') ? async (session) => {
+        version, refreshUpdate: !hasFlag('--once'), readCachePolicy: hasFlag('--once') ? async (session) => {
           const { readCodexCachePolicy } = await import('../codex-cache-policy.js');
           try { return readCodexCachePolicy(session) || await refreshCodexCachePolicy(session); }
           catch (e) { debug('codex:cache-policy', e); return null; }
@@ -364,7 +371,7 @@ export async function run({ args, version }) {
       fitRows: createInlinePanelResizer(),
       onFrame: (data) => {
         renderedSessionId = data.sessionId || data.session?.sessionId;
-        recordPanelState(panelRoot, 'frame', { status: 'rendered', pid: process.pid, sessionId: renderedSessionId });
+        recordPanelState(panelRoot, 'frame', { status: 'rendered', pid: process.pid, version, sessionId: renderedSessionId });
       },
       onClose: () => recordPanelState(panelRoot, 'frame', { status: 'closed', pid: process.pid, sessionId: renderedSessionId }),
     });
@@ -392,7 +399,7 @@ export async function run({ args, version }) {
         }
         return;
       }
-      const out = await codexHookOutput(getArg('--event'), payload);
+      const out = await codexHookOutput(getArg('--event'), payload, { version });
       if (out) console.log(JSON.stringify(out));
     } catch (e) { debug('codex:hook', e); /* Hook failures must not break the agent loop. */ }
     return;
@@ -440,8 +447,11 @@ export async function run({ args, version }) {
     if (hasFlag('--purge')) throw new Error('Codex uninstall keeps shared Sprag state; --purge is not supported.');
     const hook = configureCodexHooks({ remove: true });
     const h = uninitCodexHarness({ root, scope: 'global' });
+    const { installPanelShell } = await import('../codex-panel-shell.js');
+    const shellFile = installPanelShell({ remove: true });
     console.log(`Codex hooks: ${hook.file} (${hook.action})`);
     console.log(`Codex harness: ${h.file} (${h.removed ? 'removed' : 'absent'})`);
+    console.log(`Codex shell wrapper removed: ${shellFile}. Open a new shell to use the standalone codex command.`);
     console.log('Ratchet rules, project harnesses, backups, and shared Sprag state kept.');
     return;
   }
@@ -547,9 +557,27 @@ export async function run({ args, version }) {
     console.log('Prompt conversion, supported reads, and document/cache write guards require trusted hooks. Review in Codex /hooks.');
     return;
   }
+  if (cmd === 'doc2md' && args[1] === 'savings') {
+    const { codexDocumentTotals } = await import('../codex-doc2md-ledger.js');
+    const totals = codexDocumentTotals();
+    if (format === 'json') console.log(JSON.stringify({ agent: 'codex', ...totals }, null, 2));
+    else {
+      console.log(`Doc2md saved ${totals.savings.priced ? `${signedUsd(totals.savings.total, 4)} estimated` : 'n/a'} | ${totals.docs} docs, ${totals.savings.unpriced} unpriced`);
+      console.log('Estimate: Office XML versus prepared Markdown at UTF-8 bytes/4, priced at the recorded Codex model input rate. Not billed savings.');
+      for (const [reason, count] of Object.entries(totals.savings.reasons)) console.log(`${reason}: ${count}`);
+    }
+    return;
+  }
   if (cmd === 'doc2md' && args[1] && !args[1].startsWith('-') && args[1] !== 'install-converter') {
     const { convertCodexDocument } = await import('../codex-doc2md.js');
-    const result = convertCodexDocument(resolve(args[1]));
+    const sessionId = getArg('--session') || process.env.CODEX_THREAD_ID;
+    let identity = {};
+    if (sessionId) {
+      const { createPanelReader } = await import('../codex-panel.js');
+      const { session } = await createPanelReader({ root, sessionId })();
+      if (session) identity = { model: session.model, provider: session.provider };
+    }
+    const result = convertCodexDocument(resolve(args[1]), identity);
     if (!result.ok) {
       console.error(`Doc2md failed: ${result.reason}`);
       if (result.reason === 'no-markitdown') console.error('Run sprag doc2md install-converter --agent codex, then retry.');
@@ -560,21 +588,25 @@ export async function run({ args, version }) {
     console.log(`Source ${result.meta.size} bytes; Markdown ${result.meta.markdownBytes} bytes.`);
     if (result.meta.clipped || result.meta.truncated) console.log('Text extraction is incomplete; inspect the source for omitted content.');
     if (result.meta.note) console.log(result.meta.note);
+    const saving = result.meta.codexSaving;
+    console.log(`Doc2md saved ${Number.isFinite(saving?.usd) ? `${signedUsd(saving.usd, 4)} estimated (Office XML vs Markdown, bytes/4)` : `n/a (${saving?.reason || 'unknown'})`}`);
     return;
   }
   if (cmd === 'upgrade') {
-    const command = 'npm i -g sprag-cli --ignore-scripts';
+    const { upgradeInstructions } = await import('../update-notice.js');
+    const [command, setup] = upgradeInstructions('codex');
     if (!hasFlag('--print')) throw new Error(`For a Codex-only upgrade, run ${command}, then sprag install --agent codex.`);
     console.log(command);
-    console.log('sprag install --agent codex');
+    console.log(setup);
     return;
   }
   const shared = new Set(['korean', 'cohesion', 'doc2md', 'mode', 'feedback', 'update-check']);
   if (shared.has(cmd)) {
     if (args.some((a) => a.startsWith('--hook'))) throw new Error('Use codex-hook for Codex hook payloads.');
     if (cmd === 'cohesion' && args[1] === 'on') configureCodexHooks();
+    if (cmd === 'korean' && args[1] === 'reply' && args[2] === 'on') configureCodexHooks();
     const { userDataDir } = await import('../paths.js');
-    const result = await (await import(`./${cmd}.js`)).run({ args, getArg, hasFlag, numArg, version, dataDir: userDataDir() });
+    const result = await (await import(`./${cmd}.js`)).run({ args, getArg, hasFlag, numArg, version, agent: 'codex', dataDir: userDataDir() });
     if (cmd === 'cohesion' && args[1] === 'on') console.log('Review/trust the Sprag hooks in Codex /hooks.');
     return result;
   }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { codexContextTokens, codexRouteHint, codexPromptCategory } from '../src/codex-delegation.js';
+import { codexContextTokens, codexRouteHint, codexPromptCategory, codexImplementationHint } from '../src/codex-delegation.js';
 import { pruneCodexDelegations, recordCodexDelegation, readCodexDelegations, bindCodexSubagent, readCodexBindings, refreshCodexLedger,
   closeStaleCodexRoutes } from '../src/codex-ledger.js';
 import { codexHarnessBlock } from '../src/codex-harness.js';
@@ -267,4 +267,75 @@ test('a closed route counts only a child that started before the close, marker o
   assert.equal(closeStaleCodexRoutes({ session_id: 'parent-session', turn_id: 't2' }, { dir: f.dir, now: now - 1000 }), 1);
   child();
   assert.deepEqual(Object.keys((await refreshCodexLedger({ dir: f.dir, home: f.home, now, prices: null })).events), [id]);
+});
+
+test('implementation uses T1 only and attributes the matching child through binding and pricing', async (t) => {
+  const f = fixture(t);
+  const now = Date.now();
+  const cfg = { codex: { sharedRules: { auto: false, targets: [
+    { tier: 'T2', from: 'parent-model', model: 'cheap-model', provider: 'current-gateway' },
+    { tier: 'T1', from: 'parent-model', model: 'child-model', provider: 'current-gateway', effort: 'high' },
+  ] } } };
+  const opts = { ...f, cfg, model: 'parent-model', provider: 'current-gateway', sessionId: 'parent-session',
+    record: (entry, options) => recordCodexDelegation({ ...entry, at: now - 15000 }, options) };
+  const hint = codexImplementationHint(opts);
+  assert.match(hint, /model child-model, reasoning_effort high/);
+  assert.match(hint, /fork_turns "none"/);
+  assert.match(hint, /8000 output tokens/);
+  assert.match(hint, /120000/);
+  assert.doesNotMatch(hint, /cheap-model/);
+  const [route] = readCodexDelegations(f);
+  assert.equal(route.source, 'implementation');
+  assert.equal(route.tier, 'T1');
+  assert.equal(bindCodexSubagent({ session_id: 'parent-session', agent_id: 'child-session', model: 'wrong-model' }, f), null);
+  assert.equal(bindCodexSubagent({ session_id: 'parent-session', agent_id: 'child-session', model: 'child-model' }, f), route.id);
+  const rows = records({ id: 'child-session', model: 'child-model', root: f.base, parentThreadId: 'parent-session', text: 'Implement the approved specification.' });
+  writeFileSync(join(f.home, 'sessions', 'implementation.jsonl'), rows.map(JSON.stringify).join('\n') + '\n');
+  const rate = (n) => ({ input: n, cacheRead: n / 10, output: n * 4 });
+  const prices = { provider: 'current-gateway', checkedAt: now, prices: { 'parent-model': rate(1e-5), 'child-model': rate(2e-6) } };
+  const ledger = await refreshCodexLedger({ ...f, now, prices });
+  assert.equal(ledger.events[route.id].source, 'implementation');
+  assert.equal(ledger.events[route.id].tier, 'T1');
+  assert.equal(ledger.events[route.id].childSessionId, 'child-session');
+  assert.ok(ledger.events[route.id].usd > 0);
+  assert.equal(ledger.events[route.id].tokens.output, 500);
+
+  for (const patch of [{ provider: 'other-provider' }, { model: 'other-parent' },
+    { cfg: { codex: { sharedRules: { auto: false, targets: cfg.codex.sharedRules.targets.slice(0, 1) } } } }]) {
+    assert.match(codexImplementationHint({ ...opts, ...patch }), /T1 is unresolved/);
+  }
+  assert.match(codexImplementationHint({ ...opts, cfg: { codex: { ...cfg.codex, delegate: false } } }), /is off/);
+  assert.match(codexImplementationHint({ ...opts, cfg: { codex: { sharedRules: { ...cfg.codex.sharedRules, enabled: false } } } }), /is off/);
+  assert.equal(readCodexDelegations(f).length, 1, 'fallbacks never record a run');
+  assert.throws(() => codexImplementationHint({ ...opts, sessionId: undefined }), /requires/);
+});
+
+test('implementation instruction is delivered by the installed Codex harness', () => {
+  const block = codexHarnessBlock();
+  assert.match(block, /main model fixes the design and specification/);
+  assert.match(block, /explicit mapping first, automatic resolution otherwise/);
+  assert.match(block, /sprag delegate implementation --agent codex --from/);
+  assert.match(block, /user's delegation request/);
+  assert.match(block, /do not run the resolver or launch another CLI/);
+});
+
+test('implementation resolves automatic T1, and explicit mapping takes precedence', (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.home, 'models_cache.json'), JSON.stringify({ models: ['gpt-6-luna', 'gpt-6-sol'].map((slug) => ({ slug, visibility: 'list' })) }));
+  const opts = { ...f, model: 'gpt-6-astra', provider: 'openai', sessionId: 'p', cfg: {}, record: () => {} };
+  assert.match(codexImplementationHint(opts), /model gpt-6-sol/);
+  assert.match(codexImplementationHint({ ...opts, cfg: { codex: { sharedRules: { targets: [
+    { tier: 'T1', from: 'gpt-6-astra', provider: 'openai', model: 'explicit-medium' },
+  ] } } } }), /model explicit-medium/);
+});
+
+test('implementation accounting rejects the wrong child model even when its marker matches', async (t) => {
+  const f = fixture(t), now = Date.now();
+  const id = 'dddddddddddddddd';
+  recordCodexDelegation({ id, at: now - 15000, source: 'implementation', tier: 'T1', from: 'parent-model', to: 'medium-model',
+    parentSessionId: 'parent-session', provider: 'current-gateway' }, f);
+  const rows = records({ id: 'child', model: 'cheap-model', root: f.base, parentThreadId: 'parent-session',
+    text: `Implement the specification.\n<!-- sprag:codex:route id=${id} -->` });
+  writeFileSync(join(f.home, 'sessions', 'wrong.jsonl'), rows.map(JSON.stringify).join('\n') + '\n');
+  assert.deepEqual((await refreshCodexLedger({ ...f, now, prices: null })).events, {});
 });

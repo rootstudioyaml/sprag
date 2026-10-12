@@ -22,7 +22,7 @@ const SCOPE_SETS = {
   codex: ['codex-routing', 'codex-docs'],
 };
 
-/** Totals since each scope's mark: { usd } for money counters, { docs } for the Codex document counter. */
+/** Totals since each scope's mark; Codex keeps unavailable estimates explicit. */
 async function currentTotals(scope, dir) {
   if (scope === 'routing') {
     const { delegationSavedTotals } = await import('../savings-ledger.js');
@@ -34,10 +34,12 @@ async function currentTotals(scope, dir) {
   }
   if (scope === 'codex-routing') {
     const { codexRoutingSavedTotals } = await import('../codex-ledger.js');
-    return { usd: codexRoutingSavedTotals({ dir }).total };
+    const totals = codexRoutingSavedTotals({ dir });
+    return { usd: totals.priced ? totals.total : null, unpriced: totals.runs - totals.priced };
   }
   const { codexDocumentTotals } = await import('../codex-doc2md-ledger.js');
-  return { docs: codexDocumentTotals({ dir }).docs };
+  const totals = codexDocumentTotals({ dir });
+  return { docs: totals.docs, usd: totals.savings.priced ? totals.savings.total : null, unpriced: totals.savings.unpriced };
 }
 
 /**
@@ -75,7 +77,11 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
   const suffix = agent === 'codex' ? ' --agent codex' : '';
 
   const money = (v) => (v < 0 ? `-$${(-v).toFixed(2)}` : `$${v.toFixed(2)}`);
-  const fmtTotal = (t) => (t.docs !== undefined ? (ko ? `${t.docs}건` : `${t.docs} doc(s)`) : money(t.usd));
+  const fmtTotal = (t) => {
+    const value = Number.isFinite(t.usd) ? money(t.usd) : 'n/a';
+    return t.docs !== undefined ? `${ko ? `${t.docs}건` : `${t.docs} doc(s)`}, ${value} (${ko ? 'XML 대비 추정' : 'XML estimate'}; ${t.unpriced} unpriced)`
+      : `${value}${t.unpriced ? ` +${t.unpriced} unpriced` : ''}`;
+  };
   const fmtTime = (ms) => new Date(ms).toLocaleString(ko ? 'ko-KR' : 'en-US');
   const label = (scope) => ({
     routing: ko ? '라우팅 절감' : 'Routing saved',

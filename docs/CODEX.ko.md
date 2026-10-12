@@ -49,6 +49,7 @@ macOS zsh 환경에서는 설치가 tmux 설치 여부를 먼저 확인합니다
 | seed | 호환되는 래칫 프리셋을 제안하고 응답을 별도 저장합니다 |
 | 문서 변환 | PDF·Office·Figma 문서를 Markdown으로 변환하고 캐시 덮어쓰기를 막습니다 |
 | 한국어 검사 | 파일 쓰기 후 문체 위반을 검사하며 block·warn·off를 지원합니다 |
+| 답변 언어 검사 | Stop 훅이 현재 한국어 질문과 최종 답변을 대조합니다. 영어 답변 요청, Stop 재개, `korean reply off`는 제외합니다 |
 | 상태 표시 | 별도 패널, tmux 패널, 일회성 상태줄을 제공합니다 |
 | 브리핑·이력 | 최신 컨텍스트와 사용량 경고를 알리고 세션별로 저장합니다 |
 | 위임 원장 | Sprag가 위임한 하위 실행의 토큰에 호출 경로의 단가를 적용해 예상 차액을 계산합니다. 직접 호출은 OpenAI 정가를, LiteLLM 공급자는 그 게이트웨이의 단가를 씁니다 |
@@ -240,6 +241,8 @@ sprag harness prune --global --older-than 6 --dry-run --agent codex
 ```sh
 sprag doc2md install-converter --agent codex
 sprag doc2md report.pdf --agent codex
+sprag doc2md deck.pptx --agent codex --session SESSION_ID
+sprag doc2md savings --agent codex --format json
 sprag korean on --agent codex
 sprag korean lint warn --agent codex
 sprag cohesion on --agent codex
@@ -249,6 +252,25 @@ sprag cohesion on --agent codex
 변환 캐시를 고쳐도 원본에는 반영되지 않습니다. 문서를 수정하려면 원본을 복사하고 형식을
 지원하는 라이브러리로 복사본을 편집한 뒤 다시 변환하십시오. 텍스트 추출만으로 차트·이미지·배치를
 검증했다고 말할 수 없습니다. 실패와 잘린 결과는 그대로 보고해야 합니다.
+
+`Doc2md saved`는 PPTX·DOCX·XLSX의 원본 XML과 준비된 Markdown을 비교한 추정치입니다.
+각각 UTF-8 바이트 수를 4로 나눠 토큰 수를 추정하고, 그 차이에 해당 Codex 모델의 입력 단가를
+적용합니다. 네이티브 첨부 비용이나 실제 청구액을 측정한 값은 아닙니다. 변환본이 더 크면
+음수를 그대로 표시합니다. Claude 단가를 가져오지 않으며 모델, 프로바이더와 단가 출처를 기록합니다.
+
+같은 문서를 다시 사용해도 절감액을 더하거나 단가를 바꾸지 않습니다. 원본이 바뀌면 해당 문서의
+기존 기록을 교체합니다. PDF·Figma·구형 XLS, 잘린 변환본, 단가나 모델 정보가 없는 기록은
+미산정으로 남깁니다. 과거 기록에 현재 기본 모델의 단가를 임의로 적용하지 않습니다.
+수동 변환은 `--session` 또는 `CODEX_THREAD_ID`로 세션을 식별하며, 정보가 없으면 변환만 수행합니다.
+
+패널은 `Doc2md saved`와 `Routing saved`를 설정 항목 앞에 함께 표시합니다. 위임 안내만
+생성되고 자식이 실행되지 않으면 절감액은 `n/a`이며, 세션별 pending·bound·completed·unclaimed
+건수로 진행 상태를 구분합니다. 한 요청의 T1/T2 선택지는 안내 한 건으로 계산합니다.
+
+`sprag delegate doctor --agent codex --session SESSION_ID`는 모델 호출 없이 로컬 버전,
+기능 플래그, 모델 카탈로그와 연결 기록을 확인합니다. v2 카탈로그와 기능 플래그가 다르면
+진단 단서로만 알리고 설정은 바꾸지 않습니다. 실제 세션에 `spawn_agent`와 `wait_agent`가
+있는지는 별도로 확인해야 하며, 도구가 없으면 메인 모델이 처리합니다.
 
 훅은 지원되는 파일 읽기와 단순한 `cat`·`head`·`tail`, 인식 가능한 쓰기 대상을 처리합니다.
 임의의 추출 스크립트나 복합 셸 명령을 모두 가로채지는 않습니다. `doc2md off`는 Codex의 자동
@@ -286,15 +308,47 @@ sprag capabilities --agent codex
 
 ## 제거와 업그레이드
 
+패널은 새 버전이 있으면 사용량 앞에 알림을 표시하고, 백그라운드에서 버전 캐시를 갱신합니다.
+일회성 상태줄은 캐시만 읽습니다. 대화형 SessionStart는 변경 내용을 알리고 설치 동의를 구합니다.
+`sprag update-check --dismiss --agent codex`로 해당 버전의 알림을 끌 수 있습니다.
+`CTS_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER`는 확인 자체를 끕니다.
+compaction, 하위 세션 시작, `codex exec`에는 업그레이드 질문을 넣지 않습니다.
+
 ```sh
 sprag uninstall --agent codex
 npm i -g sprag-cli --ignore-scripts
 sprag install --agent codex
 ```
 
-제거는 Codex 훅과 전역 하네스 블록만 대상으로 합니다. 프로젝트 하네스, 래칫 규칙, 백업과
+제거는 Codex 훅, 전역 하네스 블록, 관리 중인 zsh 함수를 대상으로 합니다. 새 셸을 열어야
+이미 로드된 함수도 사라집니다. 프로젝트 하네스, 래칫 규칙, 백업과
 공유 상태는 남습니다. 일반 npm 설치는 Claude postinstall을 실행하므로 Codex만 사용한다면
 업그레이드에도 `--ignore-scripts`를 유지하십시오.
+
+## 구현 분업
+
+설계, 원인 진단, 스펙 확정과 최종 검증은 메인 모델이 맡습니다. 여러 파일을 고치는 구현은
+설계를 확정한 뒤 T1 모델에 위임합니다. Claude는 기존처럼 `model: sonnet`을 쓰고,
+Codex는 현재 부모 모델과 프로바이더의 명시적 T1 매핑을 우선합니다. 매핑이 없으면
+자동 해석한 T1을 씁니다. 이는 역할 구분이며 두 모델의 성능이 같다는 뜻은 아닙니다.
+
+```sh
+sprag delegate implementation --agent codex --from PARENT_MODEL --provider PROVIDER --session PARENT_SESSION_ID
+```
+
+기본 설정 대신 실제 부모 세션의 정보를 넘깁니다. 자식에게 설계, 수정할 파일, 제약,
+테스트 명령, 완료 기준과 모델 선택 이유를 전달하고, 반환된 route 줄을 메시지 끝에 붙입니다.
+`fork_turns "none"`으로 생성하며 출력 상한은 8,000토큰입니다. 메인은 `wait_agent`로
+완료를 기다린 뒤 diff와 실제 테스트 결과를 검증합니다. 상한은 지침이며 강제 제한은 아닙니다.
+
+T1이 없거나 위임이 꺼져 있으면 메인이 처리합니다. haiku나 T2로 대체하지 않습니다.
+이미 읽은 파일의 약 50줄 이하 수정도 메인에서 처리합니다. 위임 도구가 없으면 위 명령을
+실행하지 않고 제약을 알립니다. 별도 Codex CLI로 우회하지 않습니다. 원장에는 부모, 모델,
+프로바이더가 맞는 자식 실행만 집계하며, 실행되지 않은 안내는 절감으로 계산하지 않습니다.
+
+공유 정책의 Codex 실패율도 규칙 목록, 패널, 브리핑에 표시합니다. 정책, 등급, 범위,
+프로바이더와 부모·자식 모델별로 집계하며 Claude 통계에는 합치지 않습니다. 매핑을 검토할
+동안 `sprag delegate shared off --agent codex`로 공유 위임을 끌 수 있습니다.
 
 공식 인터페이스는 [Codex 훅](https://developers.openai.com/codex/hooks/)과
 [AGENTS.md 안내](https://developers.openai.com/codex/guides/agents-md/),

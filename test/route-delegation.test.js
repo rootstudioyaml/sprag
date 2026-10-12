@@ -287,6 +287,8 @@ test('renderModelRatchet carries the shared tier criteria block in both language
   assert.match(ko, /도구 오케스트레이션/);
   assert.match(ko, /답의 출처/);
   assert.match(ko, /구현 분업/);
+  assert.match(ko, /Claude는 sonnet.*Codex는 명시적 T1 매핑/);
+  assert.match(ko, /haiku나 T2에 구현을 맡기지/);
   assert.match(ko, /위임 배치/);
   assert.match(ko, /loud\/silent 구분/);
   assert.match(ko, /50줄 이하/);
@@ -296,6 +298,8 @@ test('renderModelRatchet carries the shared tier criteria block in both language
   assert.match(en, /Tool orchestration/);
   assert.match(en, /Answer source/);
   assert.match(en, /Implementation split/);
+  assert.match(en, /Claude uses sonnet; Codex uses its resolved T1/);
+  assert.match(en, /subagent tools are unavailable/);
   assert.match(en, /Batching/);
   assert.match(en, /loud vs silent failure/);
   assert.match(en, /50 lines or less/);

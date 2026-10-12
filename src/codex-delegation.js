@@ -244,6 +244,23 @@ const SHARED_TIER_GUIDANCE = 'Choose T2 only for a simple bounded lookup or comm
 const WAIT_TEXT = 'Wait for it to finish (call wait_agent with timeout_ms of at least 120000, and again if it times out) and do not do the delegated task yourself while it runs; then verify its result and report unfinished work. Do not spawn another CLI process. '
   + 'If sub-agent tools or the target model are unavailable, keep the task on the main agent and state that delegation was unavailable.';
 
+/** Called explicitly by the parent after design, never by prompt classification. */
+export function codexImplementationHint({ model, provider, sessionId, cfg = loadConfig(), dir = userDataDir(),
+  home = codexUserDir(), record = recordCodexDelegation } = {}) {
+  if (!safeId(model) || !safeId(provider) || !safeId(sessionId)) throw new Error('Implementation delegation requires --from, --provider and --session for the active parent.');
+  if (!codexDelegateEnabled(cfg) || cfg.codex?.sharedRules?.enabled === false) return 'Implementation delegation is off. Keep the implementation on the main agent.';
+  const target = codexTierTargets({ cfg, dir, home, model, provider }).find((t) => t.tier === 'T1');
+  if (!target) return 'T1 is unresolved for this parent/provider. Keep the implementation on the main agent; do not fall back to T2.';
+  const id = newRouteId();
+  record({ id, parentSessionId: sessionId, via: 'prompt', source: 'implementation', tier: 'T1',
+    from: model, to: target.model, provider, effort: target.effort ?? null }, { dir });
+  return `[Sprag implementation delegation] The user-approved implementation-split policy keeps design and specification on the main agent. `
+    + `Delegate only the implementation of that completed design to model ${target.model}${target.effort ? `, reasoning_effort ${target.effort}` : ''}, with fork_turns "none". `
+    + 'Never delegate design judgement or irreversible actions. Give one child a self-contained specification, owned files, constraints, test commands, completion criteria and the reason for this model choice. '
+    + 'Cap: 8000 output tokens. Stop and report partial work before exceeding it. Do not recursively delegate. '
+    + WAIT_TEXT + `\nEnd the child task message with this route line only:\n<!-- sprag:codex:route id=${id} -->`;
+}
+
 function sharedTargetText(rule) {
   return `${rule.tier}: model ${rule.model}${rule.effort ? `, reasoning_effort ${rule.effort}` : ''}. ${sharedRuleBounds(rule)}`.trim();
 }

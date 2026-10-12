@@ -1,13 +1,30 @@
 import { createRequire } from 'node:module';
-import { realpathSync, readFileSync, writeFileSync, renameSync, rmSync } from 'node:fs';
+import { realpathSync, readFileSync, writeFileSync, renameSync, rmSync, openSync, readSync, closeSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { recordCodexDocument } from './codex-doc2md-ledger.js';
+import { readCodexSnapshot } from './codex-parser.js';
 
 const require = createRequire(import.meta.url);
 const doc2md = require('./doc2md.cjs');
 const lint = require('./korean-lint.cjs');
 const shellTools = new Set(['Bash', 'exec_command', 'shell_command', 'shell']);
+
+/** Hook identity, never the user's default model or another project's session. */
+export function codexDocumentContext(payload = {}) {
+  const snapshot = readCodexSnapshot(payload.transcript_path);
+  let provider, id, fd;
+  try {
+    fd = openSync(payload.transcript_path, 'r');
+    const buf = Buffer.alloc(65536);
+    const n = readSync(fd, buf, 0, buf.length, 0);
+    const first = JSON.parse(buf.subarray(0, n).toString('utf8').split('\n')[0]);
+    if (first.type === 'session_meta') { provider = first.payload?.model_provider; id = first.payload?.id || first.payload?.session_id; }
+  } catch { /* Payload identity may still be complete. */ }
+  finally { if (fd !== undefined) closeSync(fd); }
+  if (id && payload.session_id && id !== payload.session_id) return {};
+  return { model: payload.model || snapshot?.model, provider: payload.model_provider || provider || snapshot?.provider };
+}
 
 function canonicalPath(file) {
   const missing = [];
@@ -47,8 +64,8 @@ export function convertCodexDocument(source, { convert = doc2md.convert, ...opts
       tmp = null;
     }
     const { savedUsd, baselineTokens, ...meta } = result.meta || {};
-    const prepared = { ...result, cacheFile, meta };
-    recordCodexDocument(source, prepared, opts);
+    const prepared = { ...result, cacheFile, meta: { ...meta, markdownBytes: Buffer.byteLength(text, 'utf8') } };
+    prepared.meta.codexSaving = recordCodexDocument(source, prepared, opts);
     return prepared;
   } catch {
     return { ok: false, reason: 'cache-unavailable' };
@@ -87,7 +104,7 @@ export function codexDocumentTool(payload, { convert = convertCodexDocument, gua
     if (match) file = match[1] || match[2] || match[3];
   }
   if (typeof file !== 'string' || !doc2md.isTargetPath(file)) return null;
-  const result = convert(resolve(cwd, file));
+  const result = convert(resolve(cwd, file), codexDocumentContext(payload));
   if (!result.ok) return { hookSpecificOutput: { hookEventName: 'PreToolUse',
     ...(result.reason === 'unsafe-archive' ? { permissionDecision: 'deny', permissionDecisionReason: '[doc2md] Unsafe archive; do not extract it.' }
       : { additionalContext: `[doc2md] Conversion failed (${result.reason}). Do not claim this document was converted. ${codexDocumentNote()}` }) } };

@@ -7,7 +7,7 @@ import { writeViaTmp } from './state-file.js';
 import { readCodexSnapshot } from './codex-parser.js';
 import { loadCodexModelRules } from './codex-delegation.js';
 import { loadCodexLedger } from './codex-ledger.js';
-import { codexRulesInReview } from './codex-rule-health.js';
+import { codexRulesInReview, codexSharedRuleHealth } from './codex-rule-health.js';
 
 const RESET_TOLERANCE_S = 300;
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -88,6 +88,15 @@ export function runCodexBrief({ sessionId, transcriptPath, cwd, root: projectRoo
       }
     }
   } catch { /* An unreadable rule file or ledger only skips this line. */ }
+  try {
+    for (const { rule, health, from, model, provider } of codexSharedRuleHealth({ root: cwd || projectRoot || snapshot.projectDir, dir })) {
+      if (health.status !== 'review') continue;
+      issues.push({ key: 'rule-health', tier: 1,
+        signature: `shared-rule-health:${JSON.stringify([rule.sharedSignature, rule.scope, rule.targetRoot, provider, from, model])}`,
+        level: 'warning', message: `Codex shared policy ${rule.tier} ${rule.category} (${provider}: ${from} -> ${model}) failed ${health.errs} of ${health.runs} measured runs.`,
+        advice: 'Review: sprag delegate rules --agent codex. Pause shared routing: sprag delegate shared off --agent codex. Common policy removal affects both agents.' });
+    }
+  } catch { /* Shared health is independent of Codex-only rule parsing. */ }
   const next = issues.filter((issue) => !active.includes(issue.signature) &&
     !(issue.key === 'context' && issue.tier === 1 && active.includes('context:2')));
   // Missing or stale measurements do not resolve an earlier warning. A fresh

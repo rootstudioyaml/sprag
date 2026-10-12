@@ -80,6 +80,7 @@ shared hooks needed by other features.
 | Ratchet rules | Separate Codex files; global and project rules injected at SessionStart, including resume and compaction |
 | Korean guidance / English cohesion | SessionStart injection using shared Sprag preferences |
 | Korean write-time lint | PostToolUse feedback for `apply_patch` and recognized shell write targets; block, warn, and off modes |
+| Reply language | Stop checks the current Korean prompt and final answer; `korean reply off` disables it, and explicit English requests and Stop continuations are excluded |
 | Documents | Shared converter, prompt paths, supported file reads, and recognized document/cache write guards; `sprag doc2md <file> --agent codex` also works manually |
 | Token report | Table, JSON, or CSV from local Codex rollout logs, with time and project filters |
 | Statusline | `--statusline` or `--format statusline` renders the compact panel once, with wrapping and label/color preferences |
@@ -94,6 +95,7 @@ shared hooks needed by other features.
 | Routing saved | Sprag-attributed child tokens priced by the path the call took (OpenAI list prices for direct calls, the gateway's `/model/info` prices for a LiteLLM provider); signed, so a pricier child is a loss; an estimate, not billed savings |
 | Diagnostics | `doctor` checks user config, hook registration, harness, logs, panel activity, and preferences |
 | Capability matrix | `capabilities` lists supported, partial, native, and unsupported areas without invoking a model |
+| Updates | Live panels refresh the shared version cache in the background; one-shot statuslines read it offline; interactive SessionStart offers a consent-based Codex-only upgrade |
 
 The document converter is shared with Claude Code and requires its optional
 converter dependencies. Disable automatic Codex conversion and write guards with
@@ -120,11 +122,34 @@ history is not imported. Counts are sorted by frequency, then extension, with no
 Claude pricing involved. Codex reads a neutral Markdown view without the shared
 cache's Claude-based savings banner; the shared cache remains unchanged.
 
+`Doc2md saved` is a separate Codex estimate for `.pptx`, `.docx`, and `.xlsx`:
+Office body XML bytes divided by four, minus the prepared Markdown bytes divided
+by four, multiplied by the recorded model's input-token price. This compares
+XML extraction with Markdown, not native attachment billing or measured tokens.
+Negative differences remain negative. The price comes from the active Codex
+provider, never Claude's price table, and its source is recorded with the result.
+Repeated use of the same source does not add another saving or reprice a saved
+estimate. Changed sources replace their previous entry, just like document counts.
+Clipped conversions, PDF/Figma/legacy XLS, missing prices, and old records without
+model identity remain unpriced. Nothing is backfilled from default config.
+
+```sh
+sprag doc2md deck.pptx --agent codex --session SESSION_ID
+sprag doc2md savings --agent codex --format json
+sprag saved --agent codex
+```
+
+Hooks use the current payload/rollout model and provider. Manual conversion can
+use `--session` or the CLI's `CODEX_THREAD_ID`; without session identity, the
+document is converted but the monetary estimate stays unavailable. No network
+request is needed for conversion accounting; it uses a cached provider price.
+
 ## Diagnostics And Continuity
 
 ```sh
 sprag doctor --agent codex
 sprag doctor --agent codex --format json
+sprag delegate doctor --agent codex --session SESSION_ID
 sprag capabilities --agent codex
 sprag brief --agent codex
 sprag brief on --agent codex
@@ -141,6 +166,15 @@ hooks in user config, and unavailable logs without treating registration as
 proof of trust. Its config report excludes provider credentials and is not an
 effective-config resolver: active profiles, project config, managed policy,
 and invocation overrides can differ. Check Codex `/hooks` for approval.
+
+`delegate doctor` reads local Codex version, feature flags, bundled model catalog
+and Sprag offer/binding records without calling a model. A v2 catalog/feature
+mismatch is reported only as a compatibility clue, not a diagnosis. Enabled
+settings and registered hooks cannot prove the running model has `spawn_agent`
+and `wait_agent`. Confirm those tools in the active session. The panel reports
+pending, bound, completed and unclaimed offers separately, scoped to its session;
+T1/T2 alternatives from one prompt count as one offer. Unclaimed offers are not
+charged or credited as savings. Missing tools leave work on the main agent.
 
 Briefing is enabled by default after installing and trusting the prompt hook.
 It reads at most the latest 256 KiB of the current transcript and warns when
@@ -304,6 +338,35 @@ booked as a loss and the entry is marked `aborted`.
 
 ## Harness Commands
 
+### Implementation Split
+
+The main agent retains design, diagnosis, specification and final verification.
+After design is complete, multi-file implementation can use the resolved T1:
+
+```sh
+sprag delegate implementation --agent codex --from PARENT_MODEL --provider PROVIDER --session PARENT_SESSION_ID
+```
+
+Use the active parent's identity, not the defaults in config. The installed
+harness treats this policy as the user's delegation request. The resolver uses
+an explicit T1 mapping first, otherwise automatic T1 resolution; Claude's
+corresponding policy still uses `model: sonnet`. These are roles, not a claim of
+equal model capability. It never falls back to T2. Disabled delegation or an
+unresolved T1 leaves the work on the main agent. Small edits of roughly 50 lines
+in already-read files also stay on the main agent.
+
+The child receives a self-contained specification, owned files, constraints,
+tests, completion criteria, the model-selection reason and an 8,000-output-token
+cap. Use `fork_turns "none"` and end the child message with the returned route
+line. Wait with `wait_agent` (at least 120 seconds per wait), then inspect its
+diff and actual test results. Without native subagent tools, skip the resolver
+and report the limitation; do not launch a second Codex CLI as a substitute.
+The cap is guidance, not runtime enforcement. Accounting requires a child of
+the recorded parent on the selected model/provider; an unused hint earns no
+savings. Implementation requests are not automatically classified as cheap work.
+
+### Ratchet Management
+
 ```sh
 sprag harness init --agent codex                 # current project
 sprag harness check --agent codex                # project, or global fallback
@@ -463,6 +526,12 @@ each other:
 rate and signed saving. A rule is flagged for review when the 95% lower bound
 of its failure rate exceeds 20% over at least five runs, as on the Claude side.
 
+Shared policies also report their Codex outcomes in the rule list, panel and
+prompt briefing. Outcomes are grouped by policy, tier, scope, provider and
+parent/child model pair; they are never imported into Claude's rule statistics.
+Use `sprag delegate shared off --agent codex` to pause shared routing while
+reviewing the mapping. Removing a common policy affects both agents.
+
 Providers are kept separate. Negative values are losses: the child ran on a
 pricier model than the parent, and the loss reduces the totals. Missing rates or usage produce unpriced entries, never invented zeroes. A priced
 entry keeps its rate snapshot across later outages. Pending route records are
@@ -470,7 +539,8 @@ matched for seven days; saved ledger entries remain afterward. Run `--refresh`
 after delegation to update the ledger without waiting for the next route scan.
 
 Claude's ledger is never imported. Document conversion shows distinct document
-counts rather than a Codex dollar saving or billing measurement.
+counts and the explicitly labelled Office XML-versus-Markdown estimate above,
+not a billing measurement.
 
 ### Live Companion Panel
 
@@ -574,7 +644,9 @@ The inline compact panel reuses Claude's icon/narrow/text preferences and
 segmented gauges. Chips wrap as units instead of losing their trailing values;
 the pane grows with the content while keeping at least ten rows for Codex.
 If the terminal is too small, a remaining-row count marks hidden content.
-Cache reuse is shown in tokens, not an inferred dollar saving. Document counts
+Cache reuse is shown in tokens, not an inferred dollar saving. `Doc2md saved` and
+`Routing saved` stay together before preferences, even when unavailable; missing
+prices or execution evidence are labelled instead of being reported as $0. Document counts
 and format breakdowns come from Codex's own document records and are labelled
 `Codex total`; Claude-based dollar estimates are not attributed to Codex.
 Unavailable cost and limit placeholders are hidden in compact mode. Cache timer
@@ -615,6 +687,7 @@ are skipped, and incomplete/copied/reset logs can only give best-effort totals.
 Reports show **cost and exact cache TTL as unavailable** (`null` in JSON). They do not
 apply Anthropic prices, infer subscription charges, or claim Claude's cache TTL.
 Document counts are not a measurement of Codex billing or avoided tokens.
+The separate Doc2md estimate is a bytes-based comparison, not tokenizer output.
 
 ## Limits And Removal
 
@@ -634,7 +707,9 @@ Rate-limit gauges use Codex's recorded values only. Run
 sprag uninstall --agent codex
 ```
 
-Removal takes out Sprag's Codex hooks and global harness block. It keeps project
+Removal takes out Sprag's Codex hooks, global harness block and managed zsh
+wrapper. Open a fresh shell afterward; an already-loaded shell function remains
+in the old shell. It keeps project
 harnesses, ratchet rules, backups, other hooks, and shared Sprag state.
 `--purge` is intentionally unsupported for Codex. Remove a project block with
 `sprag harness uninit --agent codex --project` in that project.
@@ -642,6 +717,13 @@ harnesses, ratchet rules, backups, other hooks, and shared Sprag state.
 Normal npm upgrades still run the package's Claude postinstall. Codex-only users
 should keep using `npm i -g sprag-cli --ignore-scripts` followed by
 `sprag install --agent codex` when upgrading.
+
+The panel places an available update before usage metrics. Dismissing a version
+with `sprag update-check --dismiss --agent codex` hides its chip and session
+offer until a newer version appears. `CTS_NO_UPDATE_CHECK=1` or
+`NO_UPDATE_NOTIFIER` disables checks. Compaction, subagent starts and `codex exec`
+do not ask to upgrade. SessionStart checks at most every three hours; the live
+panel uses the shared 24-hour interval and never waits for a network response.
 
 ## Official References
 

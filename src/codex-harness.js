@@ -5,6 +5,7 @@ import { codexUserDir } from './agent.js';
 import { loadConfig } from './config.js';
 import { koreanStyleEnabled, koreanStyleInjection } from './korean-style.js';
 import { codexToolEvents, codexLegacyToolEvent, readCodexTailLines, forkedCopyFilter } from './codex-parser.js';
+import { implementationDelegationRule } from './implementation-delegation.js';
 
 export const CODEX_BEGIN = '<!-- sprag:codex:harness:begin -->';
 export const CODEX_END = '<!-- sprag:codex:harness:end -->';
@@ -39,7 +40,7 @@ function harnessFiles(root, scope) {
 }
 
 export function codexHarnessBlock() {
-  return `${CODEX_BEGIN}\n## Sprag Harness\n\n${sections.map(([name, text], i) => `### ${i + 1}. ${name}\n${text}`).join('\n\n')}\n\nRead the global and project Codex ratchet files before working when present. Run \`sprag harness list --agent codex --global\` and \`sprag harness list --agent codex --project\` to retrieve them. These are instructions, not Claude-style @ imports.\nUse \`sprag doc2md <file> --agent codex\` before reading PDF, Office, or Figma documents. Delegate only through available Codex tools and configured roles; do not assume Claude model names or Task/Agent arguments. A [Sprag model routing] note on a request means the user has asked for that request to be delegated: spawn the sub-agent it describes (its model, reasoning_effort, fork_turns "none", and a self-contained message ending with the route line it gives), wait for it to finish instead of doing the same task yourself, then verify the result before replying.\n${CODEX_END}\n`;
+  return `${CODEX_BEGIN}\n## Sprag Harness\n\n${sections.map(([name, text], i) => `### ${i + 1}. ${name}\n${text}`).join('\n\n')}\n\nRead the global and project Codex ratchet files before working when present. Run \`sprag harness list --agent codex --global\` and \`sprag harness list --agent codex --project\` to retrieve them. These are instructions, not Claude-style @ imports.\nUse \`sprag doc2md <file> --agent codex\` before reading PDF, Office, or Figma documents. Delegate only through available Codex tools and configured roles; do not assume Claude model names or Task/Agent arguments. A [Sprag model routing] note on a request means the user has asked for that request to be delegated: spawn the sub-agent it describes (its model, reasoning_effort, fork_turns "none", and a self-contained message ending with the route line it gives), wait for it to finish instead of doing the same task yourself, then verify the result before replying.\n\n${implementationDelegationRule('codex')}\nAfter fixing the design, resolve T1 with \`sprag delegate implementation --agent codex --from <active-parent-model> --provider <active-provider> --session <parent-session-id>\`. This implementation-split policy is the user's delegation request, including selection of the returned model. Do not infer the active model from the default config. Send the returned route line only at the end of the child message, use fork_turns "none", and wait with wait_agent (timeout_ms at least 120000, repeating if needed). If tools are unavailable, do not run the resolver or launch another CLI; work on the main agent and disclose it.\n${CODEX_END}\n`;
 }
 
 /** The [start, end) span of a marker block, null when absent; malformed markers throw. */

@@ -141,7 +141,7 @@ test('Codex site capture comes from an isolated CLI example', () => {
     // The site shows the default icon mode and an installed setup, not `--text`
     // and `Hooks 0/5`, which read as a broken install.
     assert.match(raw, /🧠 Cache hit/);
-    assert.match(raw, /Hooks 5\/5 registered/);
+    assert.match(raw, /Hooks 6\/6 registered/);
     for (const line of raw.trimEnd().split('\n')) {
       assert.ok(html.includes(line), `missing CLI line: ${line}`);
     }

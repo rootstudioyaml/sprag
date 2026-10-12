@@ -17,15 +17,16 @@ import { formatResetIn } from './format-time.js';
 import { codexDocumentTotals } from './codex-doc2md-ledger.js';
 import { codexHookStatus } from './codex-installer.js';
 import { koreanStyleEnabled } from './korean-style.js';
-import { codexRoutingSavedTotals, loadCodexLedger } from './codex-ledger.js';
+import { codexRoutingSavedTotals, loadCodexLedger, codexDelegationStatus } from './codex-ledger.js';
 import { loadCodexModelRules, codexDelegateEnabled } from './codex-delegation.js';
-import { codexRulesInReview } from './codex-rule-health.js';
+import { codexRulesInReview, codexSharedRuleHealth } from './codex-rule-health.js';
 import { readCodexRouteScan, openCodexCandidates } from './codex-route-scan.js';
 import { codexBudgetProvider } from './codex-budget.js';
+import { readUpdateChip } from './update-notice.js';
 
 export const CODEX_SEGMENT_ORDER = [
-  'cap-warn', 'usage', 'ctx', 'ttl', 'model', 'effort',
-  'hit', 'saved', 'doc2md', 'harness', 'korean', 'version',
+  'cap-warn', 'update', 'usage', 'ctx', 'ttl', 'model', 'effort',
+  'hit', 'saved', 'doc2md', 'routing', 'harness', 'korean', 'version',
 ];
 
 // Only cache full-session parses. A moving time cutoff would make an unchanged
@@ -34,7 +35,8 @@ export const CODEX_SEGMENT_ORDER = [
 const RATCHET_SIBLING_MS = 30 * 60000;
 
 export function createPanelReader({ root = process.cwd(), home, sessionId: pinnedId, sessionFile, days = 7, readBudget = () => null,
-  readCachePolicy = (session) => readCodexCachePolicy(session, { home }), hasFlag = () => false } = {}) {
+  readCachePolicy = (session) => readCodexCachePolicy(session, { home }), hasFlag = () => false,
+  version, refreshUpdate = false } = {}) {
   if (pinnedId && sessionFile) throw new Error('Choose --session or --session-file, not both.');
   const cache = new Map();
   const ratchetCache = new Map();
@@ -121,11 +123,15 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
       const modelRules = loadCodexModelRules();
       if (modelRules.length) ruleReview = codexRulesInReview({ root: project, rules: modelRules, events: Object.values(loadCodexLedger().events) }).map((r) => r.index);
     } catch { /* Unreadable rules or ledger show no chip. */ }
+    let sharedRuleReview = [];
+    try { sharedRuleReview = codexSharedRuleHealth({ root: project }).filter((r) => r.health.status === 'review'); }
+    catch { /* Shared policy health must not hide the rest of the panel. */ }
     let routingSaved = null;
     try { routingSaved = { ...codexRoutingSavedTotals(), pricesAvailable: isDirectOpenAI(selected?.provider, home ? { home } : {}) || !!readCodexPrices({ provider: codexBudgetProvider(home ? { home } : {}), ...(home ? { home } : {}) }) }; }
     catch { /* Unreadable ledger reads as n/a. */ }
     return { session: selected, matches, root, sessionId, selection, bindingPending: !!sessionFile && !sessionId, days, harness, rules,
-      ratchet: ratchetFor(selected, recent.filter((file) => file !== selected?.filePath)), route, ruleReview, routingSaved,
+      ratchet: ratchetFor(selected, recent.filter((file) => file !== selected?.filePath)), route, ruleReview, sharedRuleReview, routingSaved,
+      delegation: codexDelegationStatus({ sessionId: sessionId || selected?.sessionId }),
       labelMode: resolveLabelMode({ cfg: statuslineDefaults(), hasFlag }).mode,
       color: statuslineDefaults().color,
       timer: !hasFlag('--no-timer') && (hasFlag('--timer') || statuslineDefaults().timer),
@@ -140,6 +146,7 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
       brief: cfg?.codex?.brief !== false,
       delegate: codexDelegateEnabled(cfg),
       doc2md: cfg?.codex?.doc2md !== false && process.env.CTS_NO_DOC2MD !== '1',
+      update: version ? readUpdateChip(version, { refresh: refreshUpdate }) : null,
       updatedAt: new Date() };
   };
 }
@@ -276,16 +283,27 @@ function panelGroups(data, { now, version = '', full = false, mode = full ? 'tex
     chip(`Reasoning ${short(s.reasoningOutputTokens)} (in output)`),
   ] : []);
   const docs = data.documents;
-  register('doc2md', 'documents', docs?.scope === 'codex-total' && docs.docs > 0 ? [
-    chip(`${icon('doc')}Doc2md ${number(docs.docs)} docs (Codex total)`, 32),
+  const docSavings = docs?.scope === 'codex-total' ? docs.savings : null;
+  register('doc2md', 'savings', [
+    chip(`Doc2md saved ${docSavings?.priced ? `${signedMoney(docSavings.total)} est. (XML vs MD)`
+      : `n/a (${docs?.docs ? `${docs.docs} unpriced docs` : 'no documents'})`}`, docSavings?.priced ? (docSavings.total < 0 ? 33 : 32) : 90),
+    ...(docSavings?.priced && docSavings.unpriced ? [chip(`${docSavings.unpriced} docs unpriced`)] : []),
+    ...(docs?.scope === 'codex-total' && docs.docs > 0 ? [chip(`${icon('doc')}Doc2md ${number(docs.docs)} docs (Codex total)`, 32),
     ...(docs.byExt || []).map((row) => chip(`${terminalText(row.ext)} ${number(row.docs)}x`)),
-  ] : []);
+    ] : []),
+  ]);
+  const delegation = data.delegation;
+  register('routing', 'savings', [routingChip(data.routingSaved, chip),
+    delegation?.offers ? chip(`Delegation ${delegation.settled} completed / ${delegation.bound} bound / ${delegation.pending} pending / ${delegation.unclaimed} unclaimed (session)`,
+      delegation.unclaimed && !delegation.settled && !delegation.bound ? 33 : 90) : null,
+  ]);
   register('harness', 'preferences', [
     chip(`${icon('harness')}Harness ${h?.error ? 'ERROR' : h ? `${h.configured}/${h.total}` : 'n/a'}`, h?.configured === 5 ? 32 : 33),
     chip(`Ratchet ${data.rules?.global ?? '?'}/${data.rules?.project ?? '?'}`),
     // A repeated failure outranks a delegation candidate, as in the Claude statusline.
     data.ratchet?.length ? chip(`ratchet? #${data.ratchet[0].id} x${data.ratchet[0].count}`, 33) : null,
     data.ruleReview?.length ? chip(`rule-health #${data.ruleReview[0]}${data.ruleReview.length > 1 ? ` +${data.ruleReview.length - 1}` : ''}`, 33) : null,
+    data.sharedRuleReview?.length ? chip(`rule-health shared ${terminalText(data.sharedRuleReview[0].rule.tier)} ${terminalText(data.sharedRuleReview[0].rule.category)}${data.sharedRuleReview.length > 1 ? ` +${data.sharedRuleReview.length - 1}` : ''}`, 33) : null,
     data.route?.length ? chip(`route? R${data.route[0].id} ${terminalText(data.route[0].category)}${data.route.length > 1 ? ` +${data.route.length - 1}` : ''}`, 33) : null,
   ]);
   register('korean', 'preferences', [
@@ -294,8 +312,11 @@ function panelGroups(data, { now, version = '', full = false, mode = full ? 'tex
     chip(`${icon('doc')}Doc2md ${data.doc2md ? 'on' : 'off'} (prefs)`),
     ...(data.hooks ? [chip(`Hooks ${data.hooks.filter((hook) => hook.registered).length}/${data.hooks.length} registered`)] : []),
     ...(data.brief !== undefined ? [chip(`Brief ${data.brief ? 'on' : 'off'}`)] : []),
-    ...(data.delegate !== undefined ? [chip(`Delegate ${data.delegate ? 'on' : 'off'} (model routing)`)] : []),
-    routingChip(data.routingSaved, chip),
+    ...(data.delegate !== undefined ? [chip(`Delegate ${data.delegate ? 'on' : 'off'} (preference; tools unverified)`)] : []),
+  ]);
+  register('update', 'priority', [
+    data.update?.available && !data.update.dismissed
+      ? chip(`${icon('upgrade')}v${terminalText(version)} -> ${terminalText(data.update.latest)}`, 33) : null,
   ]);
   register('version', 'preferences', [
     chip(`SPRAG${version ? ` v${terminalText(version)}` : ''} / ${s ? age(s.lastActivity, now) : 'waiting'}`,
@@ -453,7 +474,7 @@ export async function runCodexPanel({ read, interval = 2000, once = false, color
       try { lastData = await read(); }
       catch (e) { lastData = { ...lastData, error: e.message }; }
       if (stopped) break;
-      if (compact && !once) fitRows(formatCodexPanel(lastData, { columns: (output.columns || 100) - 1, rows: 10000, color: false, compact: true }).split('\n').length);
+      if (compact && !once) fitRows(formatCodexPanel(lastData, { columns: (output.columns || 100) - 1, rows: 10000, color: false, compact: true, version }).split('\n').length);
       draw();
       if (once) break;
       await wait();

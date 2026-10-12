@@ -9,6 +9,7 @@ export const CODEX_HANDLERS = {
   PreToolUse: { matcher: '^(Bash|Read|read_file|Edit|Write|Agent|spawn_agent|mcp__filesystem__read_(?:text_)?file|(?:functions\\.|tools\\.)?(?:exec_command|shell_command|shell|apply_patch|spawn_agent))$', command: 'sprag codex-hook --agent codex --event pre-tool', timeout: 600 },
   PostToolUse: { matcher: '^(Bash|apply_patch|Edit|Write|(?:functions\\.|tools\\.)?(?:exec_command|shell_command|shell|apply_patch))$', command: 'sprag codex-hook --agent codex --event post-tool', timeout: 15 },
   SubagentStart: { command: 'sprag codex-hook --agent codex --event subagent-start', timeout: 15 },
+  Stop: { command: 'sprag codex-hook --agent codex --event stop', timeout: 15 },
 };
 const ownCommands = new Set(Object.values(CODEX_HANDLERS).map((h) => h.command));
 const PANEL_COMMAND = 'sprag codex-hook --agent codex --event panel-start';

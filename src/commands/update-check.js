@@ -11,7 +11,7 @@
  * command detached so the render itself stays offline and instant.
  */
 
-export async function run({ hasFlag, version }) {
+export async function run({ hasFlag, version, agent = 'claude' }) {
   const {
     updateStatus,
     refreshUpdateState,
@@ -56,7 +56,10 @@ export async function run({ hasFlag, version }) {
     console.log(lang === 'ko'
       ? `새 버전이 있습니다: v${version} → ${s.latest}`
       : `Update available: v${version} → ${s.latest}`);
-    console.log(lang === 'ko'
+    if (agent === 'codex') {
+      const { upgradeInstructions } = await import('../update-notice.js');
+      for (const command of upgradeInstructions(agent)) console.log(command);
+    } else console.log(lang === 'ko'
       ? `업그레이드: ${upgradeCommand()}   (또는 sprag upgrade)`
       : `Upgrade with: ${upgradeCommand()}   (or: sprag upgrade)`);
     if (s.dismissed) {
@@ -71,7 +74,7 @@ export async function run({ hasFlag, version }) {
     : `Up to date (v${version}).`);
   if (!s.latest) {
     console.log(lang === 'ko'
-      ? `아직 확인된 기록이 없습니다. 지금 확인하려면: sprag update-check --refresh (기록 파일: ${updateStatePath()})`
-      : `No check has completed yet. Run: sprag update-check --refresh (state: ${updateStatePath()})`);
+      ? `아직 확인된 기록이 없습니다. 지금 확인하려면: sprag update-check --refresh${agent === 'codex' ? ' --agent codex' : ''} (기록 파일: ${updateStatePath()})`
+      : `No check has completed yet. Run: sprag update-check --refresh${agent === 'codex' ? ' --agent codex' : ''} (state: ${updateStatePath()})`);
   }
 }

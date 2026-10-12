@@ -52,7 +52,7 @@ test('Codex statusline supports formats, bounded wrapping, labels, and one-line 
     assert.match(text, /test-model/);
     assert.match(text, /85.0%/);
     assert.match(text, /working/);
-    assert.match(text, /Hooks 0\/5 registered/);
+    assert.match(text, /Hooks 0\/6 registered/);
     assert.match(text, /Brief on/);
     assert.match(text, /Delegate on/);
     assert.ok(text.trimEnd().split('\n').every((line) => panelCellWidth(line) <= 40));
@@ -196,7 +196,7 @@ test('doctor reports missing/outdated hooks and disabled features without dumpin
   assert.doesNotMatch(JSON.stringify(before), /never-print-this|experimental_bearer_token/);
   f.ok(['install', '--no-panel']);
   const after = JSON.parse(f.ok(['doctor', '--format', 'json']));
-  assert.equal(after.hooks.events.filter((hook) => hook.registered).length, 5);
+  assert.equal(after.hooks.events.filter((hook) => hook.registered).length, 6);
   assert.match(after.hooks.trust, /unknown/);
   assert.equal(after.session.id, 'main');
   assert.equal(readFileSync(file, 'utf8'), config);

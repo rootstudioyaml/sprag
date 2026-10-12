@@ -177,6 +177,29 @@ export function loadCodexLedger({ dir = userDataDir() } = {}) {
   return { version: 1, events: {} };
 }
 
+/** Offers are not executions. Count tier alternatives as one offer per prompt. */
+export function codexDelegationStatus({ dir = userDataDir(), sessionId, now = Date.now() } = {}) {
+  const routes = readCodexDelegations({ dir }).filter((r) => now - r.at < PENDING_TTL_MS && r.at <= now &&
+    (!sessionId || r.parentSessionId === sessionId));
+  const bound = new Set(readCodexBindings({ dir }).map((b) => b.id));
+  const events = loadCodexLedger({ dir }).events;
+  const closed = closedCodexRouteIds({ dir });
+  const offers = new Map();
+  for (const r of routes) {
+    const key = r.offerId || r.id;
+    if (!offers.has(key)) offers.set(key, []);
+    offers.get(key).push(r);
+  }
+  const result = { offers: offers.size, bound: 0, settled: 0, pending: 0, unclaimed: 0 };
+  for (const group of offers.values()) {
+    if (group.some((r) => events[r.id]?.complete || events[r.id]?.aborted)) result.settled++;
+    else if (group.some((r) => bound.has(r.id) || events[r.id])) result.bound++;
+    else if (group.every((r) => closed.has(r.id) || now - r.at >= BIND_TTL_MS)) result.unclaimed++;
+    else result.pending++;
+  }
+  return result;
+}
+
 function saveLedger(data, dir) {
   mkdirSync(dir, { recursive: true });
   const file = ledgerFile(dir), tmp = `${file}.${randomUUID()}.tmp`;
@@ -242,7 +265,7 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     if (route.provider && route.provider !== run.provider) continue;
     // A shared policy names its model only through the caller's choice, so
     // credit it only for a child of that parent that ran the mapped model.
-    if (route.source === 'shared' && (run.model !== route.to || !route.parentSessionId ||
+    if (['shared', 'implementation'].includes(route.source) && (run.model !== route.to || !route.parentSessionId ||
         run.parentThreadId !== route.parentSessionId)) continue;
     if (Number.isFinite(run.startedAt) && run.startedAt < route.at - 5000) continue;
     // A closed route ended with its hinted turn. Only a child that started
@@ -265,6 +288,7 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     const event = { ts: run.endedAt ?? route.at, parentSessionId: route.parentSessionId || run.parentThreadId || null,
       childSessionId: run.sessionId, source: route.source, category: route.category ?? null, scope: route.scope ?? null,
       ...(route.source === 'shared' ? { tier: route.tier, sharedSignature: route.sharedSignature } : {}),
+      ...(route.source === 'implementation' ? { tier: route.tier } : {}),
       from: route.from, to, provider,
       ...(route.targetRoot !== undefined ? { targetRoot: route.targetRoot } : {}),
       ...(route.ruleCreatedAt !== undefined ? { ruleCreatedAt: route.ruleCreatedAt } : {}), tokens: run.tokens, calls: run.calls, toolErrors: run.toolErrors, usd, rates: usd === null ? null : rates,

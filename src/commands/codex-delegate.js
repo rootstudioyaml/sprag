@@ -2,13 +2,14 @@ import { loadConfig, saveConfig } from '../config.js';
 import { configureCodexHooks } from '../codex-installer.js';
 import { validateCodexTarget, loadCodexModelRules, addCodexModelRule, removeCodexModelRule,
   validateCodexSharedTarget, codexSharedTargets, codexDelegateMinContext, DEFAULT_DELEGATE_MIN_CONTEXT,
-  autoCodexSharedTargets, codexDelegateEnabled } from '../codex-delegation.js';
+  autoCodexSharedTargets, codexDelegateEnabled, codexImplementationHint } from '../codex-delegation.js';
 import { findCodexCandidate, resolveCodexCandidate } from '../codex-route-scan.js';
 import { codexRoutingSavedTotals, loadCodexLedger } from '../codex-ledger.js';
-import { codexRuleHealth, codexRulesInReview } from '../codex-rule-health.js';
+import { codexRuleHealth, codexRulesInReview, codexSharedRuleHealth } from '../codex-rule-health.js';
 import { signedUsd } from '../money.js';
 import { codexProviderName, codexModelName } from '../agent.js';
 import { loadSharedModelRules, sharedModelRulesForProject, SHARED_RULE_TIERS } from '../shared-model-rules.js';
+import { codexDelegationDiagnostics } from '../codex-delegation-diagnostics.js';
 
 // Starts from the working directory, as the hooks do, so a project policy
 // stored under either agent's project root is counted.
@@ -22,6 +23,10 @@ function printShared(cfg, { details = false } = {}) {
   if (details) {
     for (const r of policies) console.log(`shared ${r.tier} ${r.category} | ${r.scope}${r.targetRoot ? ` ${r.targetRoot}` : ''}`);
     for (const t of targets) console.log(`${t.provider} | ${t.from} | ${t.tier} -> ${t.model}${t.effort ? ` (${t.effort})` : ''}`);
+    for (const { rule, health, provider: source, from, model } of codexSharedRuleHealth({ root: process.cwd() })) {
+      console.log(`shared ${rule.tier} ${rule.category} | ${source} | ${from} -> ${model} | measured x${health.runs}, err ${Math.round(health.rate * 100)}%, saved ${signedUsd(health.saved, 4)}`
+        + (health.status === 'review' ? ` | rule-health: ${health.errs}/${health.runs} runs failed; review the mapping or pause with sprag delegate shared off --agent codex` : ''));
+    }
   }
   // A mapping routes only sessions on the parent model it names, so a tier
   // mapped for another model still leaves the configured model unrouted. A tier
@@ -57,6 +62,15 @@ export function run({ args, getArg, hasFlag, root }) {
     }
   }
   const cfg = loadConfig();
+  if (sub === 'doctor') {
+    const report = codexDelegationDiagnostics({ sessionId: getArg('--session'), model: getArg('--from') || undefined });
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  if (sub === 'implementation') {
+    console.log(codexImplementationHint({ model: getArg('--from'), provider: getArg('--provider'), sessionId: getArg('--session'), cfg }));
+    return;
+  }
   if (sub === 'shared') {
     const action = args[2] || 'status';
     if (!['status', 'on', 'off', 'map', 'unmap', 'min-context', 'auto'].includes(action)) {

@@ -149,11 +149,12 @@ function readTailLines(path) {
  * null when the reply is fine (or cannot be judged), otherwise the measured
  * ratios so a caller can report them. Never throws.
  */
-function checkReplyLanguage(transcriptPath) {
+function checkReplyLanguage(transcriptPath, { parseTurn = lastTurn, reply } = {}) {
   try {
     if (!transcriptPath) return null;
-    const turn = lastTurn(readTailLines(transcriptPath));
+    const turn = parseTurn(readTailLines(transcriptPath));
     if (!turn) return null;
+    if (typeof reply === 'string') turn.reply = reply;
     if (ENGLISH_REQUESTED.test(turn.prompt)) return null;
     if (!isKoreanPrompt(turn.prompt) || !isEnglishReply(turn.reply)) return null;
     const u = letterCounts(turn.prompt);

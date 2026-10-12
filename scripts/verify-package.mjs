@@ -83,10 +83,10 @@ try {
   sprag('install', '--no-panel', '--agent', 'codex');
   const hooks = readFileSync(join(codex, 'hooks.json'), 'utf8');
   const agents = readFileSync(join(codex, 'AGENTS.md'), 'utf8');
-  check('Codex installation resolves the packaged TOML dependency and registers five hooks', () => {
+  check('Codex installation resolves the packaged TOML dependency and registers six hooks', () => {
     const doctor = JSON.parse(sprag('doctor', '--format', 'json', '--agent', 'codex'));
     assert.equal(doctor.config.error, undefined);
-    assert.equal(doctor.hooks.events.length, 5);
+    assert.equal(doctor.hooks.events.length, 6);
     assert.ok(doctor.hooks.events.every((event) => event.registered));
     assert.match(doctor.hooks.trust, /unknown/);
     assert.deepEqual(JSON.parse(hooks).hooks.PostToolUse[0], foreign.hooks.PostToolUse[0]);

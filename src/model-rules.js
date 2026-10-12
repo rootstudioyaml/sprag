@@ -36,6 +36,7 @@ import { userLanguage } from './config.js';
 import { agentPhrase, agentPhraseEn } from './agents.js';
 import { writeStateFile } from './state-file.js';
 import { signedUsd } from './money.js';
+import { implementationDelegationRule } from './implementation-delegation.js';
 
 // Post-promotion delegated-category error rate above this flags the rule
 // for review (rule-health). Calibrated against local T0 avg error incidence.
@@ -267,15 +268,7 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
     '- **위임 배치**: 서브에이전트 비용의 지배 항은 생성이 아니라 컨텍스트',
     '  적재다. 같은 파일들을 읽어야 하는 작업 여러 개는 에이전트 하나에 묶어',
     '  보내고, 읽는 영역이 다른 작업만 나눈다.',
-    '- **구현 분업**: 여러 파일에 걸친 구현은 설계·스펙 확정은 메인 모델이 하고,',
-    '  출력 토큰이 많은 실제 코드 작성은 스펙을 자기완결적으로(참조 없이 실행',
-    '  가능하게) 적어 model: sonnet 서브에이전트에 위임한다. haiku에는 맡기지',
-    '  않는다. 위임 프롬프트에는 작업별 권장 모델과 그 이유를 한 줄로 적는다.',
-    '  스펙을 쓴 쪽이 난도를 제일 잘 알기 때문이다. 단, 이미 컨텍스트에 있는',
-    '  파일의 약 50줄 이하 변경이나 의존 단계가 하나뿐인 짧은 구현은 분해',
-    '  오버헤드가 더 크므로 메인 모델이 직접 한다. 위임한 구현이 돌아오면 메인',
-    '  모델이 diff와 테스트 결과를 검증하고 나서 완료로 보고한다. 이 검증',
-    '  비용까지가 위임 비용이다.',
+    implementationDelegationRule('claude', lang),
     '- **에스컬레이션**: 같은 에러 2회 반복, 답이 복수 후보로 갈림, 서브에이전트가',
     '  질문을 멈추고 헛도는 징후가 보이면 즉시 인계한다. 대응 순서는',
     '  ① 재지시 후 재시도 → ② 한 티어 상향 → ③ 메인 모델이 직접 수습.',
@@ -326,17 +319,7 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
     '- **Batching**: a subagent\'s dominant cost is context ingestion, not',
     '  generation. Bundle tasks that read the same files into one agent; split',
     '  only when the areas they read differ.',
-    '- **Implementation split**: for multi-file implementation, the main model',
-    '  fixes the design and writes a self-contained spec (executable without',
-    '  back-references), then delegates the output-heavy code writing to a',
-    '  model: sonnet subagent — never haiku. The delegation prompt names the',
-    '  recommended model per task with a one-line why: whoever wrote the spec',
-    '  knows the difficulty best. A change of roughly 50 lines or less in files',
-    '  already in context, or a short implementation with a single dependency',
-    '  chain, stays on the main model: decomposition overhead outweighs the',
-    '  saving. When a delegated implementation comes back, the',
-    '  main model verifies the diff and test results before reporting done —',
-    '  that verification is part of the delegation cost.',
+    implementationDelegationRule('claude', lang),
     '- **Escalation**: hand off immediately on the same error twice, an answer',
     '  splitting into multiple candidates, or a subagent spinning without asking',
     '  questions. Order: ① re-instruct and retry → ② move up one tier → ③ the',
