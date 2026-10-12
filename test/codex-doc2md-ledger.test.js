@@ -25,7 +25,14 @@ test('Codex document totals deduplicate sources, isolate homes, and never import
   assert.equal(savings.unpriced, 3);
   assert.equal(codexDocumentTotals({ ...opts, home: join(dir, 'other') }).docs, 0);
   const records = join(dir, 'codex-doc2md', readdirSync(join(dir, 'codex-doc2md'))[0]);
-  for (const name of readdirSync(records)) assert.doesNotMatch(readFileSync(join(records, name), 'utf8'), /999|source"|a.pdf|b.xlsx/);
+  for (const name of readdirSync(records)) {
+    // The fingerprint (hex) and timestamp can hold any run of digits, 999 included,
+    // so they are checked by shape and the text check runs on the other fields.
+    const { fingerprint, at, ...rest } = JSON.parse(readFileSync(join(records, name), 'utf8'));
+    assert.match(fingerprint, /^[a-f0-9]{64}$/);
+    assert.ok(Number.isFinite(at));
+    assert.doesNotMatch(JSON.stringify(rest), /999|source"|a\.pdf|b\.xlsx/);
+  }
   writeFileSync(join(records, '0'.repeat(64) + '.json'), 'broken');
   assert.equal(codexDocumentTotals(opts).docs, 3);
 });
