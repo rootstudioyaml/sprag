@@ -15,11 +15,14 @@
     "release:notes": "node scripts/release-notes.mjs",
     "site:docs": "node scripts/build-site-docs.mjs",
     "test": "node --test",
+    "test:mods": "claude plugin test mod/sprag-doc2md && claude plugin test mod/sprag-delegation-meter",
     "version": "node scripts/sync-site-version.mjs"
   },
   "files": [
     "bin/",
     "src/",
+    "mod/*/.claude-plugin/plugin.json",
+    "mod/*/hooks/",
     "presets/",
     "examples/",
     "README.md",

@@ -104,6 +104,7 @@ export async function run({ args, hasFlag }) {
     console.log(res.action === 'skipped'
       ? `✗ ${res.reason}`
       : `✓ Read hook ${res.action} (${res.path})`);
+    if (res.modReason) console.log(`  mod: not registered — ${res.modReason}`);
     // A registered hook with no converter behind it does nothing at all, and
     // says nothing about it either, which reads as a broken feature. Offer the
     // one command that closes the gap right where the gap is visible.
