@@ -20,8 +20,14 @@ import type { EngineInterface, Register } from 'claude-code'
 // it cannot load that file; test/mod-install.test.js holds the two in step.
 const TARGET = /\.(pptx|xlsx|xls|pdf|docx|fig)$/i
 
+// The CLI's name, as CLI_NAME in src/cli-name.js spells it. The mod cannot
+// import that file either; test/mod-install.test.js holds the two in step.
+const CLI = 'sprag'
+
 // The converter gives up at 120 s on its own; the margin covers CLI start-up.
-// Time spent in $.process.run does not count against the hook's 10 s budget.
+// Time spent in $.process.run does not count against the hook's 10 s budget,
+// so the Read waits as long as the conversion does, as it does under the
+// settings hook today. The status line says so while it lasts.
 const CONVERT_TIMEOUT_MS = 150_000
 
 // What `sprag doc2md <path>` prints on success. Parsing human output is a
@@ -35,16 +41,25 @@ const baseName = (path: string) => path.split(/[\\/]/).pop() ?? path
 /**
  * Runs the conversion the settings hook would run, ledger entry included.
  * Answers null on any failure so the caller passes the event on unchanged.
+ *
+ * A first conversion can take a minute, and nothing else on screen says the
+ * Read is waiting on it, so the status line under the prompt names the file
+ * until the CLI returns. A status line rather than a transcript line: whether
+ * the file is cached is unknown until the CLI answers, and a log line on every
+ * Read would double the lines for the cached ones too.
  */
 async function convert($: EngineInterface, path: string): Promise<Converted | null> {
+  $.ui.status(`doc2md: ${baseName(path)} 변환 중…`)
   try {
-    const run = await $.process.run(['sprag', 'doc2md', path], { timeoutMs: CONVERT_TIMEOUT_MS })
+    const run = await $.process.run([CLI, 'doc2md', path], { timeoutMs: CONVERT_TIMEOUT_MS })
     if (run.exitCode !== 0) return null
     const match = CONVERTED.exec(run.stdout)
     if (!match) return null
     return { cacheFile: match[2].trim(), isCached: match[1] === 'cached' }
   } catch {
     return null
+  } finally {
+    $.ui.status(undefined)
   }
 }
 
@@ -74,6 +89,8 @@ export const register: Register = on => {
     const doc = await convert($, e.path)
     if (!doc) return next(e)
     logRedirect($, e.path, doc)
+    // A mention carries no `pages` (PromptMentionInput has mention, path,
+    // offset, limit and agentId), so only the line range is dropped here.
     const { offset: _offset, limit: _limit, ...mention } = e
     return next({ ...mention, path: doc.cacheFile })
   }).catch(($, e, next) => next(e))

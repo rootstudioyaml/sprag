@@ -63,3 +63,18 @@ jobs:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
       - run: node scripts/verify-doc2md.mjs
+
+  # The mods' own tests (mod/*/tests/*.test.tsx) run inside Claude Code's
+  # plugin kit, which `node --test` cannot load, so they need the claude CLI.
+  # `claude plugin test` raises the events itself: no login, model or network.
+  # One OS is enough, since the mods reach the machine only through the engine.
+  mods:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g @anthropic-ai/claude-code
+      - run: npm run test:mods

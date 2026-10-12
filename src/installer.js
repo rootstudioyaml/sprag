@@ -804,7 +804,9 @@ export function installDelegationMeterMod() {
   if (!changed) return { path: file, action: 'exists' };
   const writeProblem = writeSettings(file, settings);
   if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
-  return { path: file, action: 'created' };
+  // The action names what happened to the file, as installDelegationGuardHook's
+  // does: one entry added to a settings.json already there is an update.
+  return { path: file, action: read.state === 'absent' ? 'created' : 'updated' };
 }
 
 // Registers the PreToolUse hook that converts attached documents to Markdown

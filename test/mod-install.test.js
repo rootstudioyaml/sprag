@@ -66,6 +66,18 @@ test('the doc2md mod targets exactly the formats the converter handles', () => {
   assert.deepEqual(match[1].split('|').sort(), TARGET_EXTENSIONS.map((e) => e.slice(1)).sort());
 });
 
+test('the doc2md mod runs the CLI by the name cli-name.js gives it', async () => {
+  // Like the format list above: the mod cannot import CLI_NAME, so a rename
+  // that missed its copy would leave every redirect silently failing over to
+  // the settings hook. This is where the copy is held to the source.
+  const { CLI_NAME } = await import('../src/cli-name.js');
+  const source = readFileSync(join(modDir(DOC2MD_MOD), 'hooks', 'register.ts'), 'utf8');
+  const match = source.match(/^const CLI = '([^']+)'$/m);
+  assert.ok(match, 'the CLI constant is where this test expects it');
+  assert.equal(match[1], CLI_NAME);
+  assert.match(source, /\$\.process\.run\(\[CLI, 'doc2md', path\]/, 'the conversion runs through that constant');
+});
+
 test('mod tests are .test.tsx, which node --test does not collect', () => {
   // Node 23+ strips types and its test runner then also collects *.test.ts,
   // which would import claude-code/testing and fail `npm test`. The plugin kit
@@ -81,7 +93,8 @@ test('mod tests are .test.tsx, which node --test does not collect', () => {
 test('the meter is added once and leaves other plugin folders alone', () => {
   put({ env: { [KEY]: `/opt/other-plugin${SEP}/old/lib/node_modules/sprag-cli/mod/${DELEGATION_METER_MOD}`, FOO: 'bar' } });
 
-  assert.equal(installDelegationMeterMod().action, 'created');
+  // An entry added to a settings.json that was already there is an update
+  assert.equal(installDelegationMeterMod().action, 'updated');
   // The stale path from the old install location is replaced, not kept beside it
   assert.deepEqual(dirs(), ['/opt/other-plugin', modDir(DELEGATION_METER_MOD)]);
   assert.equal(json().env.FOO, 'bar');
@@ -132,7 +145,7 @@ test('a shell value of the variable is never overridden', () => {
     // Once settings.json carries a value of its own it already overrides the
     // shell's, so extending it changes nothing the user had working
     put({ env: { [KEY]: '/home/me/my-mods/tally' } });
-    assert.equal(installDelegationMeterMod().action, 'created');
+    assert.equal(installDelegationMeterMod().action, 'updated');
     assert.deepEqual(dirs(), ['/home/me/my-mods/tally', modDir(DELEGATION_METER_MOD)]);
   } finally {
     delete process.env[KEY];
