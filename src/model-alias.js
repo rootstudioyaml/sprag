@@ -371,18 +371,59 @@ function addVote(votes, pid, role, kind) {
 }
 
 /**
- * Read one main transcript: which profile id the session itself ran on, and
- * which role each Task/Agent tool_use asked for (joined later by tool_use id).
+ * The model id Claude Code told a transcript's agent it runs on: the
+ * `attachment.type === 'model'` record (`identity.modelId`) written at the
+ * start of a session and of every subagent run. On a gateway `message.model`
+ * is an opaque profile ARN, while this names what the alias resolved to.
+ */
+function declaredModelOf(entry) {
+  const a = entry?.type === 'attachment' ? entry.attachment : null;
+  if (!a || a.type !== 'model') return null;
+  const id = a.identity?.modelId;
+  return typeof id === 'string' && id ? id : null;
+}
+
+/**
+ * The role one delegated run votes for its profile id, or null for no vote.
+ *
+ * What the run was told it is outranks what its caller asked for. A Task that
+ * asks for haiku in a session whose haiku alias resolves to nothing runs on
+ * the session model instead: the Claude Desktop app does this when its
+ * provider settings register no haiku model, and the transcript keeps the
+ * `model: "haiku"` request while the run answers on the parent's profile.
+ * Counting the request stamped that profile 'haiku' through the explicit-veto
+ * path in tallyVotes (1 explicit vote against 4,153 inferred 'main' ones,
+ * measured 2026-10-12), and once the gateway table aged out every record of
+ * the session model would have priced as Haiku.
+ *
+ * A declared id that names a family decides. One that is opaque too (an alias
+ * pointed at a profile ARN) and equals the parent's own declared model means
+ * the run fell back, so it says nothing about the tier it was asked for.
+ * Transcripts written before the declaration existed keep voting the request.
+ */
+export function voteRole(requested, declared, parentDeclared) {
+  const stated = roleFromModelParam(declared);
+  if (stated) return stated;
+  if (declared && declared === parentDeclared && requested && !rolesAgree(requested, 'main')) return null;
+  return requested || null;
+}
+
+/**
+ * Read one main transcript: which profile id the session itself ran on, the
+ * model it was declared to run on, and which role each Task/Agent tool_use
+ * asked for (joined later by tool_use id).
  */
 async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCache) {
   let sawGateway = false;
+  let declared = null;
   const rl = createInterface({
     input: createReadStream(path, { encoding: 'utf8' }),
     crlfDelay: Infinity,
   });
   try {
     for await (const line of rl) {
-      if (!line.includes('arn:aws:bedrock:') && !line.includes('"Task"') && !line.includes('"Agent"')) {
+      if (!line.includes('arn:aws:bedrock:') && !line.includes('"Task"') && !line.includes('"Agent"')
+        && !line.includes('"identity"')) {
         continue;
       }
       let entry;
@@ -391,6 +432,7 @@ async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCach
       } catch {
         continue;
       }
+      if (!declared && entry.isSidechain !== true) declared = declaredModelOf(entry);
       const msg = entry.message;
       if (!msg) continue;
 
@@ -418,31 +460,36 @@ async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCach
   } finally {
     rl.close();
   }
-  return sawGateway;
+  return { sawGateway, declared };
 }
 
-/** First profile id used by a subagent transcript (a run uses exactly one). */
-async function subagentProfileId(path) {
+/**
+ * First profile id used by a subagent transcript (a run uses exactly one),
+ * and the model the run was declared to run on, which comes before it.
+ */
+async function subagentModelInfo(path) {
+  let declared = null;
   const rl = createInterface({
     input: createReadStream(path, { encoding: 'utf8' }),
     crlfDelay: Infinity,
   });
   try {
     for await (const line of rl) {
-      if (!line.includes('arn:aws:bedrock:')) continue;
+      if (!line.includes('arn:aws:bedrock:') && !line.includes('"identity"')) continue;
       let entry;
       try {
         entry = JSON.parse(line);
       } catch {
         continue;
       }
+      declared ??= declaredModelOf(entry);
       const pid = profileIdFrom(entry.message?.model);
-      if (pid) return pid;
+      if (pid) return { pid, declared };
     }
   } finally {
     rl.close();
   }
-  return null;
+  return { pid: null, declared };
 }
 
 /** Subagent transcripts a session spawned (mirrors subagent-records layout). */
@@ -580,7 +627,8 @@ function newestFirst(paths) {
  * The join is exact rather than time-windowed: `.meta.json` carries the
  * `toolUseId` of the Task block that spawned the run, and that block names the
  * model tier. A subagent transcript uses exactly one profile id, so the run's
- * id and the requested role identify each other.
+ * id and the requested role identify each other, unless the run declares that
+ * it ran on another model (see voteRole).
  *
  * @param {object}   opts
  * @param {string[]} opts.sessionPaths transcripts to read, in any order — they
@@ -597,8 +645,9 @@ export async function learnProfileMapping({ sessionPaths = [], maxSessions = 40 
   for (const sessionPath of newestFirst(sessionPaths).slice(0, maxSessions)) {
     const requestedByToolUse = new Map();
     let sawGateway = false;
+    let parentDeclared = null;
     try {
-      sawGateway = await scanMainTranscript(sessionPath, votes, requestedByToolUse, agentTypeCache);
+      ({ sawGateway, declared: parentDeclared } = await scanMainTranscript(sessionPath, votes, requestedByToolUse, agentTypeCache));
     } catch {
       continue;
     }
@@ -609,14 +658,16 @@ export async function learnProfileMapping({ sessionPaths = [], maxSessions = 40 
       try {
         meta = JSON.parse(await readFile(jsonl.replace(/\.jsonl$/, '.meta.json'), 'utf8'));
       } catch { /* pre-toolUseId runs simply cast no vote */ }
-      const role = (meta?.toolUseId && requestedByToolUse.get(meta.toolUseId))
+      const requested = (meta?.toolUseId && requestedByToolUse.get(meta.toolUseId))
         || roleFromAgentType(meta?.agentType, agentTypeCache);
-      if (!role) continue;
-      const pid = await subagentProfileId(jsonl);
+      if (!requested) continue;
+      const { pid, declared } = await subagentModelInfo(jsonl);
       if (!pid) continue;
+      const role = voteRole(requested, declared, parentDeclared);
+      if (!role) continue;
       sawGateway = true;
       // Stated evidence: the Task call named this tier, or the agent
-      // definition it used did.
+      // definition it used did, or the run itself declared what it ran on.
       addVote(votes, pid, role, 'explicit');
     }
     if (sawGateway) gateway = true;
