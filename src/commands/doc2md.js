@@ -11,7 +11,7 @@
 
 import { createRequire } from 'node:module';
 import { readdirSync, rmSync, existsSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 
@@ -149,6 +149,15 @@ export async function run({ args, hasFlag }) {
     }
     console.error(`✗ ${result.reason}${result.detail ? `: ${result.detail}` : ''}`);
     if (result.reason === 'no-markitdown') console.error(`  ${doc2md.INSTALL_HINT}`);
+    // The line after the reason is the same sentence the hooks give the model;
+    // the mod reads it back from here, so keep the first line's format as is.
+    let lang = 'en';
+    try {
+      const { userLanguage } = await import('../config.js');
+      lang = userLanguage();
+    } catch { /* the diagnostic must not depend on the config module */ }
+    const notice = doc2md.lockedNotice(basename(sub), result, lang);
+    if (notice) console.error(`  ${notice}`);
     process.exitCode = 1;
     return;
   }

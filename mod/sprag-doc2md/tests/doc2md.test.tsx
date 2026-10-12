@@ -118,3 +118,49 @@ test('an @-mentioned document attaches the converted Markdown', async ($, on) =>
   expect(attached).toEqual([CACHE])
   expect(status.at(-1)).toBeUndefined()
 })
+
+const LOCKED_NOTICE = 'deck.pptx 는 암호화된 문서라 내용을 확인할 수 없습니다(DRM-wrapped file (FASOO)). 사용자에게 그대로 알리고, 암호 해제나 다른 변환 방법은 시도하지 마십시오.'
+
+test('a Read of an encrypted document is refused with the CLI notice', async ($, on) => {
+  statusLine(on)
+  on('process.run', () => cli(1, '', `✗ drm-protected: DRM-wrapped file (FASOO)\n  ${LOCKED_NOTICE}\n`))
+  const reads: Array<{ file_path?: string }> = []
+  on('tool.call', ($, e) => {
+    reads.push(e as { file_path?: string })
+    return { result: 'read' }
+  })
+
+  // A refusal comes back as a { deny } value, as ToolCallResult spells it
+  const out = await $.tool.call({ tool: 'Read', file_path: DECK })
+
+  expect(reads).toEqual([])
+  expect((out as { deny?: string }).deny).toBe(`[doc2md] ${LOCKED_NOTICE}`)
+})
+
+test('an encrypted document from a CLI without the notice line is passed on', async ($, on) => {
+  statusLine(on)
+  on('process.run', () => cli(1, '', '✗ encrypted: password-protected Office file\n'))
+  const reads: Array<{ file_path?: string }> = []
+  on('tool.call', ($, e) => {
+    reads.push(e as { file_path?: string })
+    return { result: 'read' }
+  })
+
+  await $.tool.call({ tool: 'Read', file_path: DECK })
+
+  expect(reads[0].file_path).toBe(DECK)
+})
+
+test('an @-mentioned encrypted document is left to the prompt hook', async ($, on) => {
+  statusLine(on)
+  on('process.run', () => cli(1, '', `✗ drm-protected: DRM-wrapped file (FASOO)\n  ${LOCKED_NOTICE}\n`))
+  const attached: string[] = []
+  on('prompt.mention', ($, e) => {
+    attached.push(e.path)
+    return { type: null }
+  })
+
+  await $.prompt.mention({ mention: 'deck.pptx', path: DECK })
+
+  expect(attached).toEqual([DECK])
+})

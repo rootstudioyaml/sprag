@@ -678,8 +678,9 @@ function decideForRead(context, opts = {}) {
     return { deny: true, reason: bits.join('\n') };
   }
 
-  // From here down the Read is allowed through untouched. The only question is
-  // whether the model is told why nothing was converted.
+  // From here down the Read is allowed through untouched, except for the
+  // locked and unsafe-archive cases below. The only question is whether the
+  // model is told why nothing was converted.
   if (result.reason === 'no-markitdown') {
     if (noticeAlreadyShown()) return null;
     markNoticeShown();
@@ -690,21 +691,10 @@ function decideForRead(context, opts = {}) {
         + `  진행 상황: ${INSTALL_HINT} 를 직접 실행하면 설치 로그를 볼 수 있습니다.`,
     };
   }
-  if (result.reason === 'drm-protected') {
-    return {
-      deny: false,
-      reason: `[doc2md] ${name} 는 DRM 으로 보호된 파일이라 변환하지 못했습니다(${result.detail || ''}).\n`
-        + '  DRM 은 암호 입력으로 풀리지 않습니다. 벤더 에이전트가 허용한 프로그램에서만 평문이 보이므로, '
-        + '사용자에게 DRM 클라이언트에서 연 뒤 해제본으로 저장하거나 반출 승인을 받은 사본을 요청하십시오.',
-    };
-  }
-  if (result.reason === 'encrypted') {
-    return {
-      deny: false,
-      reason: `[doc2md] ${name} 는 암호가 걸린 문서라 변환하지 못했습니다. `
-        + '사용자에게 암호를 푼 사본을 요청하십시오. 이 도구는 암호를 묻거나 저장하지 않습니다.',
-    };
-  }
+  // An encrypted document blocks the Read. It cannot be opened anyway, and
+  // handing the original on only invites the model to try to get around it.
+  const locked = lockedNotice(name, result, 'ko');
+  if (locked) return { deny: true, reason: '[doc2md] ' + locked };
   if (result.reason === 'python-too-old') {
     if (noticeAlreadyShown()) return null;
     markNoticeShown();
@@ -828,6 +818,23 @@ function conversionSummary(sourcePath, meta = {}) {
 }
 
 /**
+ * The one sentence for a document that cannot be opened because it is
+ * encrypted, or null for any other result.
+ *
+ * Password protection and DRM are deliberately not told apart here. To the
+ * user both are a document that cannot be opened, and releasing either one
+ * goes through the company's own export procedure, so asking for an unlocked
+ * copy is never something the model should do. The Read hook, the prompt hook,
+ * the CLI diagnostic and the mod all share this wording.
+ */
+function lockedNotice(name, result, lang = 'en') {
+  if (!result || (result.reason !== 'encrypted' && result.reason !== 'drm-protected')) return null;
+  return lang === 'ko'
+    ? `${name} 는 암호화된 문서라 내용을 확인할 수 없습니다${result.detail ? `(${result.detail})` : ''}. 사용자에게 그대로 알리고, 암호 해제나 다른 변환 방법은 시도하지 마십시오.`
+    : `${name} is encrypted, so its contents cannot be read${result.detail ? ` (${result.detail})` : ''}. Tell the user so, and do not try to unlock it or convert it another way.`;
+}
+
+/**
  * Context to inject for a UserPromptSubmit payload, or null.
  *
  * Returns plain text because that is what this hook can give the model:
@@ -863,14 +870,8 @@ function contextForPrompt(payload, opts = {}) {
         : lang === 'ko'
         ? `  ${name}: 변환기를 설치하는 중입니다(첫 실행에만 걸립니다). 설치가 끝나면 다음 요청부터 자동 변환됩니다.`
         : `  ${name}: the converter is installing now (first run only). It will convert automatically from the next request.`);
-    } else if (result.reason === 'drm-protected') {
-      lines.push(lang === 'ko'
-        ? `  ${name}: DRM 으로 보호된 파일입니다(${result.detail || ''}). 암호로는 풀 수 없으므로, DRM 클라이언트에서 저장한 해제본이나 반출 승인 사본을 달라고 사용자에게 요청하십시오.`
-        : `  ${name}: the file is DRM-wrapped (${result.detail || ''}). A password will not open it — ask the user for a copy released from DRM.`);
-    } else if (result.reason === 'encrypted') {
-      lines.push(lang === 'ko'
-        ? `  ${name}: 암호가 걸린 문서입니다. 암호를 푼 사본을 달라고 사용자에게 요청하십시오.`
-        : `  ${name}: the document is password-protected. Ask the user for an unlocked copy.`);
+    } else if (result.reason === 'drm-protected' || result.reason === 'encrypted') {
+      lines.push(`  ${lockedNotice(name, result, lang)}`);
     } else if (result.reason === 'python-too-old') {
       lines.push(lang === 'ko'
         ? `  ${name}: 변환기가 Python 3.10 이상을 요구하는데 PATH 에 없습니다(macOS 기본은 3.9). \`brew install python\` 후 다시 시도하도록 사용자에게 안내하십시오.`
@@ -921,15 +922,17 @@ function contextForPrompt(payload, opts = {}) {
 /**
  * The standing note injected at session start.
  *
- * Two things the model cannot work out on its own: that attaching a document
- * costs far more than naming its path, and that the binary-file refusal it
- * will meet on a pptx has a one-command answer.
+ * Three things the model cannot work out on its own: that attaching a document
+ * costs far more than naming its path, that the binary-file refusal it
+ * will meet on a pptx has a one-command answer, and that an encrypted document
+ * is to be reported, not worked around.
  */
 function sessionNote(lang = 'en') {
   if (lang === 'ko') {
     return [
       '[doc2md] 문서(pptx·xlsx·pdf·docx)를 다룰 때의 규칙입니다.',
       '  문서를 열어야 하는데 Read 가 이진 파일이라며 거부하면, `sprag doc2md <경로>` 를 실행하고 그 결과로 나온 .md 를 Read 하십시오.',
+      '  변환이 암호화 문서(encrypted·drm-protected)라는 이유로 실패하면, 내용을 확인할 수 없다고 사용자에게 알리고 암호 해제나 다른 변환 방법은 시도하지 마십시오.',
       '  사용자가 문서를 메시지에 직접 첨부했다면, 첨부는 내용 전체가 컨텍스트에 실려 토큰을 크게 씁니다. 다음부터는 첨부 대신 파일 경로를 적어 달라고 안내하십시오. 경로로 주면 변환본만 읽습니다.',
       '  변환은 단방향입니다. 변환본 .md 를 고쳐도 원본에는 반영되지 않습니다. 문서 수정 요청을 받으면: ① 원본을 복사하고 ② 복사본을 스크립트로 수정하십시오. pptx·docx·xlsx 는 도구 venv 파이썬에 python-pptx·python-docx·openpyxl 이 준비되어 있고(`sprag doc2md` 상태 출력에 경로가 나옵니다), .fig 는 openfig-core 로 편집·재인코드합니다. ③ 수정한 복사본을 doc2md 로 재변환해 변경이 들어갔는지 검증하십시오. 차트·이미지 같은 시각 요소는 변환본에 안 잡히므로 텍스트 검증만으로 완료를 단정하지 마십시오.',
     ].join('\n');
@@ -937,6 +940,7 @@ function sessionNote(lang = 'en') {
   return [
     '[doc2md] Handling documents (pptx/xlsx/pdf/docx):',
     '  If Read refuses a document as a binary file, run `sprag doc2md <path>` and Read the .md it prints.',
+    '  If conversion fails because the document is encrypted (encrypted or drm-protected), tell the user its contents cannot be read, and do not try to unlock it or convert it another way.',
     '  If the user attached a document to their message, its full contents were billed into the context. Tell them that naming the file path instead is far cheaper, since only the converted Markdown gets read.',
     '  Conversions are one-way: editing the cached .md changes nothing in the source. When asked to modify a document: ① copy the original, ② edit the COPY with a script — the managed venv python has python-pptx/python-docx/openpyxl, and .fig edits go through openfig-core — then ③ re-convert the copy with doc2md to verify the change landed. Charts and images do not appear in conversions, so text verification alone does not prove visual edits.',
   ].join('\n');
@@ -1043,6 +1047,7 @@ module.exports = {
   isTargetPath,
   isSensitivePath,
   documentPathsIn,
+  lockedNotice,
   contextForPrompt,
   sessionNote,
   findInterpreter,

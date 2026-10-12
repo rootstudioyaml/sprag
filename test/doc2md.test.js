@@ -6,7 +6,7 @@
  *
  *   - files it has no business touching are left completely alone
  *   - a conversion that cannot happen never blocks the original Read
- *   - a hostile archive is the one thing that does block
+ *   - an encrypted document and a hostile archive are the two that do block
  *   - conversions are cached by source mtime and size, and never land in the
  *     user's project directory
  */
@@ -326,13 +326,15 @@ test('a prompt naming a document gets its conversion as context', (t) => {
   assert.equal(d.contextForPrompt({ prompt: `see ${join(dir, 'ghost.pptx')}` }), null);
 });
 
-test('the session note tells the model both things it cannot work out alone', () => {
+test('the session note tells the model what it cannot work out alone', () => {
   const d = require('../src/doc2md.cjs');
   for (const lang of ['ko', 'en']) {
     const note = d.sessionNote(lang);
     assert.match(note, /doc2md/);
     // The recovery for the binary-file refusal it will otherwise be stuck on.
     assert.match(note, /sprag doc2md/);
+    // The standing rule for a document that cannot be opened at all.
+    assert.match(note, /encrypted|암호화 문서/);
   }
   // An English session must not be steered into Korean by an injected block.
   assert.doesNotMatch(d.sessionNote('en'), /[가-힣]/);
@@ -566,7 +568,7 @@ test('the interpreter probe rejects a half-finished install and an outdated Pyth
 });
 
 
-test('an encrypted document is reported as locked, never as corruption, and never blocks', (t) => {
+test('an encrypted document is reported as locked, never as corruption, and the Read is refused', (t) => {
   const dir = isolated(t);
   // Without this the isolated state directory looks like a fresh machine and
   // the auto-install fires for real: a 15s test that races its own cleanup.
@@ -589,11 +591,53 @@ test('an encrypted document is reported as locked, never as corruption, and neve
   ]));
 
   const decision = d.decideForRead({ tool_name: 'Read', tool_input: { file_path: locked } });
-  if (decision) {
-    // Whatever else happens, a document nobody can decrypt must not take the
-    // Read down with it.
+  if (decision && /암호화된 문서라/.test(decision.reason)) {
+    // The original cannot be opened, and handing it on only invites the model
+    // to try to get around the lock.
+    assert.equal(decision.deny, true);
+    assert.match(decision.reason, /암호화된 문서라 내용을 확인할 수 없습니다/);
+  } else if (decision) {
+    // No converter here: the notice about that must not block the Read.
     assert.equal(decision.deny, false);
   }
+});
+
+test('lockedNotice words encrypted and DRM documents alike and ignores the rest', () => {
+  const d = require('../src/doc2md.cjs');
+  for (const reason of ['encrypted', 'drm-protected']) {
+    const withDetail = { ok: false, reason, detail: 'DRM-wrapped file (FASOO)' };
+    assert.equal(
+      d.lockedNotice('deck.pptx', withDetail, 'ko'),
+      'deck.pptx 는 암호화된 문서라 내용을 확인할 수 없습니다(DRM-wrapped file (FASOO)). 사용자에게 그대로 알리고, 암호 해제나 다른 변환 방법은 시도하지 마십시오.',
+    );
+    assert.equal(
+      d.lockedNotice('deck.pptx', withDetail, 'en'),
+      'deck.pptx is encrypted, so its contents cannot be read (DRM-wrapped file (FASOO)). Tell the user so, and do not try to unlock it or convert it another way.',
+    );
+    const bare = { ok: false, reason };
+    assert.equal(
+      d.lockedNotice('deck.pptx', bare, 'ko'),
+      'deck.pptx 는 암호화된 문서라 내용을 확인할 수 없습니다. 사용자에게 그대로 알리고, 암호 해제나 다른 변환 방법은 시도하지 마십시오.',
+    );
+    assert.doesNotMatch(d.lockedNotice('deck.pptx', bare, 'en'), /[가-힣]/);
+    assert.doesNotMatch(d.lockedNotice('deck.pptx', withDetail, 'en'), /[가-힣]/);
+  }
+  assert.equal(d.lockedNotice('deck.pptx', { ok: false, reason: 'too-large' }, 'ko'), null);
+  assert.equal(d.lockedNotice('deck.pptx', { ok: true, cacheFile: '/x.md' }, 'ko'), null);
+});
+
+test('a prompt naming a DRM-protected document gets the shared notice and no workaround', (t) => {
+  const dir = isolated(t);
+  const d = require('../src/doc2md.cjs');
+  const src = join(dir, 'deck.pptx');
+  writeFileSync(src, 'x');
+  const convert = () => ({ ok: false, reason: 'drm-protected', detail: 'DRM-wrapped file (FASOO)' });
+  const ctx = d.contextForPrompt(
+    { hook_event_name: 'UserPromptSubmit', prompt: `요약해줘 ${src}` },
+    { convert, lang: 'ko' },
+  );
+  assert.match(ctx, /deck\.pptx 는 암호화된 문서라 내용을 확인할 수 없습니다\(DRM-wrapped file \(FASOO\)\)/);
+  assert.doesNotMatch(ctx, /반출 승인|암호를 푼 사본/);
 });
 
 test('the interpreter search follows the platform it is running on', (t) => {

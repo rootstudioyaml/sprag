@@ -69,17 +69,17 @@ PDF 는 첨부하면 모델이 내용을 그대로 읽습니다. 대신 페이�
 
 ### DRM 으로 보호된 문서
 
-암호와 DRM 은 다른 문제이고 해법도 다릅니다. 사내 DRM(파수·마크애니·소프트캠프 등)은 문서에 암호를 거는 것이 아니라 파일 전체를 감싸며, 벤더 에이전트가 허용한 프로그램만 평문을 봅니다. 파이썬은 거기 없으므로 디스크에 있는 것은 벤더 헤더가 붙은 암호문입니다. **암호를 입력해서 풀 수 있는 문제가 아닙니다.**
+암호와 DRM 은 판별 원리가 다르지만 처리는 같습니다. 사내 DRM(파수·마크애니·소프트캠프 등)은 문서에 암호를 거는 것이 아니라 파일 전체를 감싸며, 벤더 에이전트가 허용한 프로그램만 평문을 봅니다. 파이썬은 거기 없으므로 디스크에 있는 것은 벤더 헤더가 붙은 암호문입니다. **암호를 입력해서 풀 수 있는 문제가 아닙니다.**
 
 판별은 첫 바이트가 무엇을 말하는지로 갈립니다. zip 헤더면 내려받다 끊긴 파일, OLE 컨테이너면 암호 걸린 문서, 둘 다 아니면 애초에 그 형식이 아닙니다.
 
 ```
 ✗ bad-archive: File is not a zip file            ← 다시 받으십시오
-✗ encrypted: password-protected Office file      ← 암호를 푼 사본을 요청하십시오
-✗ drm-protected: DRM-wrapped file (FASOO)        ← DRM 해제본이나 반출 승인 사본을 요청하십시오
+✗ encrypted: password-protected Office file      ← 확인할 수 없다고 알리고 멈춤
+✗ drm-protected: DRM-wrapped file (FASOO)        ← 확인할 수 없다고 알리고 멈춤
 ```
 
-벤더 이름은 어느 클라이언트로 가야 하는지 알려 주려고 맞춰 볼 뿐이고, 판별 자체는 벤더를 몰라도 성립합니다. PDF 는 공개된 DRM 보안 핸들러 이름(FOPN_foweb·EBX_HANDLER·Adobe.APS)으로 같은 판정을 합니다.
+벤더 이름은 진단 출력에 참고로 붙일 뿐이고, 판별 자체는 벤더를 몰라도 성립합니다. PDF 는 공개된 DRM 보안 핸들러 이름(FOPN_foweb·EBX_HANDLER·Adobe.APS)으로 같은 판정을 합니다.
 
 ### 암호가 걸린 문서와 Windows
 
@@ -90,7 +90,7 @@ PDF 는 첨부하면 모델이 내용을 그대로 읽습니다. 대신 페이�
 ✗ encrypted: password-protected PDF
 ```
 
-모델에게는 암호를 푼 사본을 사용자에게 요청하라고 안내합니다. 이 도구는 암호를 묻지도 저장하지도 않습니다. 어느 경우에도 원본 `Read` 를 막지 않으므로 작업이 중단되지 않습니다. 열람은 자유롭고 인쇄만 제한된 PDF 는 암호 문서가 아니므로 그대로 변환합니다(오탐 확인 완료). 구형 `.xls` 도 원래 OLE 형식이라 암호로 오인하지 않습니다.
+암호와 DRM 모두 모델에게 "내용을 확인할 수 없다고 사용자에게 알리고 우회하지 말라"고 안내하며, 원본 `Read` 는 거절합니다. 사내 문서의 암호화는 정책이므로 열리지 않는 것이 맞고, 이 도구는 암호를 묻지도 저장하지도 않습니다. pptx·xlsx·docx 는 Claude Code 가 settings 훅보다 먼저 이진 파일로 거절하므로 훅의 안내가 모델에 닿지 않습니다. 그래서 이 안내는 mod 가 대신 전합니다. 열람은 자유롭고 인쇄만 제한된 PDF 는 암호 문서가 아니므로 그대로 변환합니다(오탐 확인 완료). 구형 `.xls` 도 원래 OLE 형식이라 암호로 오인하지 않습니다.
 
 **Windows 를 지원하며, 실제 Windows 러너에서 검증합니다.** Windows 를 쓰는 팀이 있어 다음을 맞췄습니다.
 
@@ -210,17 +210,17 @@ All four formats were exercised end to end on 2026-09-06: 10 docx run replacemen
 
 ### DRM-wrapped documents
 
-Encryption and DRM are different problems with different answers. Enterprise DRM (Fasoo, MarkAny, SoftCamp and the like) does not password a document — it wraps the whole file, and only processes the vendor's agent has whitelisted ever see plaintext. Python is not one of them, so what sits on disk is ciphertext behind a vendor header, and **no password will open it.**
+Encryption and DRM are detected differently but handled the same way. Enterprise DRM (Fasoo, MarkAny, SoftCamp and the like) does not password a document — it wraps the whole file, and only processes the vendor's agent has whitelisted ever see plaintext. Python is not one of them, so what sits on disk is ciphertext behind a vendor header, and **no password will open it.**
 
 The first bytes decide which story to tell: a zip header means a truncated download, an OLE container means a password, and neither means the file is not that format at all.
 
 ```
 ✗ bad-archive: File is not a zip file            → download it again
-✗ encrypted: password-protected Office file      → ask for an unlocked copy
-✗ drm-protected: DRM-wrapped file (FASOO)        → ask for a copy released from DRM
+✗ encrypted: password-protected Office file      → tell the user it cannot be read, and stop
+✗ drm-protected: DRM-wrapped file (FASOO)        → tell the user it cannot be read, and stop
 ```
 
-Vendor names are matched only to say which client to go to; the classification stands without recognising the vendor. PDFs are judged the same way through their public DRM security-handler names (FOPN_foweb, EBX_HANDLER, Adobe.APS).
+Vendor names are matched only as a hint in the diagnostic output; the classification stands without recognising the vendor. PDFs are judged the same way through their public DRM security-handler names (FOPN_foweb, EBX_HANDLER, Adobe.APS).
 
 ### Locked documents, and Windows
 
@@ -231,7 +231,7 @@ Vendor names are matched only to say which client to go to; the classification s
 ✗ encrypted: password-protected PDF
 ```
 
-The model is told to ask for an unlocked copy. This tool never asks for or stores a password, and never blocks the original `Read`, so work continues either way. A PDF that merely restricts printing still opens and still converts — checked against a false positive — and a legacy `.xls`, which is an OLE file by design, is not mistaken for an encrypted one.
+The model is told to report that the contents cannot be read and not to work around it, and the original `Read` is refused. Company encryption is policy, so a document that will not open is the right outcome. This tool never asks for or stores a password. Claude Code refuses pptx, xlsx and docx as binary files before any settings hook runs, so the hook's notice cannot reach the model for those; the mod delivers it instead. A PDF that merely restricts printing still opens and still converts — checked against a false positive — and a legacy `.xls`, which is an OLE file by design, is not mistaken for an encrypted one.
 
 **Windows is supported.** For teams with Windows machines:
 
@@ -292,4 +292,4 @@ sprag doc2md install-converter   # 설치를 미리 끝내 두고 싶을 때만
 
 - 절감 기준선은 항상 실측치보다 **낮게** 잡습니다. 도구를 돋보이게 하는 숫자보다 신뢰할 수 있는 숫자가 가치 있습니다.
 - `.fig` 절감이 가장 큽니다. `Read` 가 이진 파일을 거부하지 않고 그대로 읽어 회당 약 44,000 토큰을 태우기 때문입니다.
-- 암호 문서와 DRM 문서는 오류가 아니라 상태로 판별해 안내합니다. 원본 `Read` 를 막지 않으므로 작업이 중단되지 않습니다.
+- 암호 문서와 DRM 문서는 오류가 아니라 상태로 판별해 안내합니다. 원본 `Read` 는 거절하고, 확인할 수 없다고 사용자에게 알립니다.
