@@ -10,6 +10,11 @@ v3.47.0 까지 받으신 사본은 계속 MIT 조건을 따릅니다. 이미 받
 
 ## 전체 릴리스 노트
 
+### v3.67.0 (2026-10-13)
+- **위임 전용 서브에이전트를 설치해 게이트웨이 뒤에서도 위임 요청이 가벼워집니다.** 게이트웨이(퍼스트파티가 아닌 `ANTHROPIC_BASE_URL`)를 쓰면 Claude Code 가 MCP 도구 검색을 끄므로, 서브에이전트 요청마다 모든 MCP 스키마와 내장 도구 전체가 실려 갑니다. 정의에 도구 목록을 적은 서브에이전트는 그 도구만 싣습니다. 이제 sprag 가 설치할 때와 세션을 시작할 때 `~/.claude/agents` 에 MCP 도구가 없는 haiku-explore·haiku-runner·haiku-translate·sonnet-worker 를 설치합니다. LiteLLM 프록시로 측정하면 첫 요청이 general-purpose 의 46,618 토큰에서 약 20,000 토큰으로 줄었습니다. MCP 가 필요한 작업에는 같은 모델의 general-purpose 를 쓰라는 안내가 룰에 함께 붙습니다. 같은 이름의 사용자 에이전트는 덮어쓰지 않으며, `sprag delegate agents on|off` 로 켜고 끕니다.
+- **Claude 앱의 Cowork 탭에도 ratchet 룰이 적용됩니다.** Cowork 탭은 `~/.claude/settings.json` 도, `~/.claude/CLAUDE.md` 의 `@` import 도 읽지 않아서 그동안 룰이 하나도 들어가지 않았고 위임도 일어나지 않았습니다. 대신 사용자가 연결한 폴더의 `.claude/rules/*.md` 는 읽으므로, sprag 가 앱의 세션 정보에서 연결된 폴더를 찾아 전역 ratchet 파일 세 개를 `.claude/rules/sprag-cowork-ratchet.md` 로 복사합니다. 홈 디렉터리와 `~/.claude`, `~/Library` 는 건너뛰고, git 폴더에는 `.gitignore` 를 고치지 않고 `.git/info/exclude` 에 한 줄을 넣습니다. Claude Code 가 같은 내용을 두 번 읽지 않도록 settings.json 에 `claudeMdExcludes` 항목도 추가합니다. 상태 확인과 동기화, 켜고 끄기, 폴더 제외는 `sprag cowork` 로 합니다.
+- **설계와 구현을 나누는 룰을 추천 프리셋으로 제공합니다.** 이 룰은 지금까지 route-scan 이 기록을 충분히 모은 뒤에야 만드는 ratchet-model.md 머리말에만 있어서, 새로 설치한 환경에는 적용되지 않았습니다. 이제 프리셋(fix-777a15)으로 첫 세션부터 제안합니다. 메인 모델이 설계와 스펙을 확정하고, 코드 작성은 sonnet 서브에이전트에 맡기며, 짧은 수정은 메인 모델이 직접 처리합니다. Claude 티어 이름을 담고 있으므로 Codex 세션에는 제안하지 않습니다.
+
 ### v3.66.0 (2026-10-12)
 - **Claude 데스크톱 앱에도 sprag 상태 줄이 나옵니다.** 데스크톱 앱의 Code 탭은 claude 를 stream-json 모드로 실행하므로 settings.json 의 `statusLine.command` 를 한 번도 실행하지 않았고, 그래서 데스크톱 세션에는 상태 줄도, 위임 브리핑이 참고하는 사용량 한도와 컨텍스트 창 기록도 남지 않았습니다. 새 mod `sprag-statusline` 이 같은 `sprag statusline` 명령을 실행해 그 결과를 프롬프트 위 영역에 그립니다. 데스크톱에서만 동작하므로 터미널은 기존 상태 줄을 그대로 씁니다. 실행이 3초를 넘기면 끊고, 실패하면 직전 내용을 유지합니다.
 - **암호가 걸린 문서와 DRM 문서는 읽지 않고, 읽을 수 없다고 알립니다.** 지금까지는 이런 문서도 Read 를 통과시키고 잠금을 푼 사본을 달라고 사용자에게 요청하게 했습니다. 회사 문서 암호화는 보안 정책이므로, 이제 문서 변환 훅과 CLI 가 같은 안내 문장으로 내용을 읽을 수 없다고 알리고 잠금 해제나 다른 변환 경로를 시도하지 말라고 지시합니다. Claude Code 가 설정 훅보다 먼저 pptx·xlsx·docx 를 이진 파일로 거부하는 경로에서도 `sprag-doc2md` mod 가 같은 안내를 전달합니다.
