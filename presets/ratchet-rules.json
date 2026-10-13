@@ -43,7 +43,10 @@
     },
     {
       "ko": "여러 파일에 걸친 구현을 맡으면 → 설계와 스펙 확정은 메인 모델이 하고 코드 작성은 서브에이전트에 위임한다(Claude는 `model: sonnet`, Codex는 명시적 매핑을 우선해 해석한 T1을 쓰며 haiku나 T2에는 구현을 맡기지 않는다). 위임 프롬프트에는 설계, 수정할 파일, 제약, 완료 기준, 테스트 명령, 예산, 권장 모델과 그 이유를 적어 다른 문맥 없이 실행할 수 있게 한다. 이미 읽은 파일의 약 50줄 이하 변경이나 의존 단계가 하나뿐인 짧은 구현, 그리고 위임 도구나 하위 모델을 쓸 수 없는 경우는 메인 모델이 직접 처리한다. 위임한 구현은 끝날 때까지 기다리고 같은 구현을 중복 실행하지 않으며, 돌아온 diff와 테스트 결과를 메인 모델이 직접 검증한 뒤에 완료로 보고한다",
-      "en": "When an implementation spans several files → the main model settles the design and specification, then delegates the code writing to a subagent (Claude: `model: sonnet`; Codex: its resolved T1, explicit mapping first; never haiku or T2 for implementation). Write the delegation prompt so it runs without other context: design, files to change, constraints, completion criteria, test commands, budget, and the recommended model with a one-line reason. Keep changes of roughly 50 lines or less in files already read, a single short dependency chain, or cases where the subagent tools or the lower model are unavailable on the main model. Wait for the delegated work instead of duplicating it, and verify the returned diff and the actual test results before reporting completion"
+      "en": "When an implementation spans several files → the main model settles the design and specification, then delegates the code writing to a subagent (Claude: `model: sonnet`; Codex: its resolved T1, explicit mapping first; never haiku or T2 for implementation). Write the delegation prompt so it runs without other context: design, files to change, constraints, completion criteria, test commands, budget, and the recommended model with a one-line reason. Keep changes of roughly 50 lines or less in files already read, a single short dependency chain, or cases where the subagent tools or the lower model are unavailable on the main model. Wait for the delegated work instead of duplicating it, and verify the returned diff and the actual test results before reporting completion",
+      "agents": [
+        "claude"
+      ]
     }
   ]
 }
