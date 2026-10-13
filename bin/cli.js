@@ -116,6 +116,7 @@ Usage:
   sprag uninstall --agent codex   remove the global Codex integration
       --agent claude|codex (default: claude; accepted before or after subcommands)
   sprag route-scan         detect recurring easy work → delegation candidates
+  sprag delegate agents [on|off]   tool-restricted delegation agents (no MCP tools)
   sprag profile-map        show/refresh the gateway model map (LiteLLM /model/info)
   sprag install            set up everything (presets, and Codex when present) without asking
   sprag install --manual   confirm each optional step

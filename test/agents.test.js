@@ -42,8 +42,8 @@ test('user-level agent file is named, and the model argument left to its definit
   writeFileSync(join(home, '.claude', 'agents', 'haiku-runner.md'), '---\nmodel: haiku\n---\n');
   // The agent's definition holds its model; passing a `model` argument would
   // override a definition pinned to a full id with the bare alias.
-  assert.strictEqual(agentPhrase('haiku-runner', { root }), 'haiku-runner(model 인자 생략)');
-  assert.strictEqual(agentPhraseEn('haiku-runner', { root }), 'the haiku-runner subagent (omit the model argument)');
+  assert.strictEqual(agentPhrase('haiku-runner', { root }), 'haiku-runner(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: haiku)');
+  assert.strictEqual(agentPhraseEn('haiku-runner', { root }), 'the haiku-runner subagent (omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: haiku)');
 });
 
 test('project-level agent counts too', (t) => {
@@ -51,7 +51,7 @@ test('project-level agent counts too', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'cts-proj-'));
   mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
   writeFileSync(join(root, '.claude', 'agents', 'sonnet-worker.md'), '---\nmodel: sonnet\n---\n');
-  assert.strictEqual(agentPhrase('sonnet-worker', { root }), 'sonnet-worker(model 인자 생략)');
+  assert.strictEqual(agentPhrase('sonnet-worker', { root }), 'sonnet-worker(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: sonnet)');
   // Unknown agent name defaults to the haiku tier unless told otherwise.
   assert.strictEqual(agentPhrase('mystery', { root }), 'model: haiku');
   assert.strictEqual(agentPhrase('mystery', { root, model: 'sonnet' }), 'model: sonnet');

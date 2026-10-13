@@ -1,11 +1,14 @@
+import { agentPhrase, agentPhraseEn, resolveAgentName } from './agents.js';
+
 /** Shared policy, rendered with each client's native model selector. */
 export function implementationDelegationRule(agent = 'claude', lang = 'en') {
   const target = agent === 'codex'
     ? 'the resolved T1 model for the current parent model and provider (explicit mapping first, automatic resolution otherwise)'
-    : 'a model: sonnet subagent';
+    : (resolveAgentName('sonnet', null) ? agentPhraseEn('sonnet', { root: null }) : 'a model: sonnet subagent');
+  const targetKo = resolveAgentName('sonnet', null) ? agentPhrase('sonnet', { root: null }) : 'model: sonnet 서브에이전트';
   if (lang === 'ko') return [
     '- **구현 분업**: 여러 파일을 고칠 때 설계와 스펙 확정은 메인 모델이 맡습니다.',
-    `  구현은 ${agent === 'codex' ? '현재 부모 모델과 프로바이더의 T1 모델' : 'model: sonnet 서브에이전트'}에 위임합니다.`,
+    `  구현은 ${agent === 'codex' ? '현재 부모 모델과 프로바이더의 T1 모델' : targetKo}에 위임합니다.`,
     '  Claude는 sonnet을 쓰고, Codex는 명시적 T1 매핑을 우선하며 없으면 자동 해석한 T1을 씁니다.',
     '  두 모델의 성능이 같다고 가정하지 않으며 haiku나 T2에 구현을 맡기지 않습니다.',
     '  위임 프롬프트에는 설계, 수정할 파일, 제약, 완료 기준, 테스트 명령, 예산과',

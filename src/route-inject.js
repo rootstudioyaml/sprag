@@ -34,7 +34,7 @@
 import { categorizeScored, ESCALATE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
 import { loadModelRules, budgetCapPhrase, ruleBudget } from './model-rules.js';
 import { sharedProjectRoots, realProjectRoot, scopeRank } from './shared-model-rules.js';
-import { agentPhrase, agentPhraseEn } from './agents.js';
+import { agentPhrase, agentPhraseEn, resolveAgentName } from './agents.js';
 import { userLanguage } from './config.js';
 import { aliasForRole, resolveModelAlias } from './model-alias.js';
 import { isRecognizedModelId, modelRank } from './cost.js';
@@ -259,11 +259,16 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
   const raw = ko ? agentPhrase : agentPhraseEn;
   const phrase = (name) => raw(name, root === undefined ? undefined : { root });
 
+  // T1 is named through its delegation agent only when that file exists here;
+  // otherwise the literal tier string stays, so output without agents is unchanged.
+  const t1Root = root === undefined ? undefined : root;
+  const t1Named = resolveAgentName('sonnet', t1Root) !== null;
+  const t1Phrase = t1Named ? phrase('sonnet') : 'model: sonnet';
   let target;
   if (t2 && t1) {
     target = ko
-      ? `기본 ${phrase(t2.agent)}, 여러 단계·여러 파일이 얽히면 model: sonnet`
-      : `${phrase(t2.agent)} by default, model: sonnet when it spans multiple steps or file edits`;
+      ? `기본 ${phrase(t2.agent)}, 여러 단계·여러 파일이 얽히면 ${t1Phrase}`
+      : `${phrase(t2.agent)} by default, ${t1Phrase} when it spans multiple steps or file edits`;
   } else {
     const only = t2 || t1;
     target = ko ? phrase(only.agent) : phrase(only.agent);

@@ -38,6 +38,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag harness ...` | 🅷 Harness management (below) |
 | `sprag route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
 | `sprag route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
+| `sprag delegate agents [on\|off]` | Install, show, or remove the four delegation-only subagents (`haiku-explore`, `haiku-runner`, `haiku-translate`, `sonnet-worker`) in `~/.claude/agents`. Their `tools` allowlist excludes MCP tools, which roughly halves the first request of a subagent behind a gateway. Only files sprag wrote are ever replaced or removed |
 | `sprag cowork [sync\|on\|off\|exclude <dir>\|include <dir>]` | Finds the folders connected to the Claude app's Cowork tab and keeps a copy of the three ratchet files in each folder's `.claude/rules/sprag-cowork-ratchet.md`, because Cowork does not follow the `~/.claude` imports. The copy is refreshed at every session start, and the Code tab skips it through the `claudeMdExcludes` setting |
 | `sprag saved [reset\|undo]` | Show the saved-money counters, or reset them to zero like a stopwatch (`routing`, `doc2md`, or `all`). Ledger data is kept; `undo` restores the previous counters. `--agent codex` targets the Codex counters |
 | `sprag compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |

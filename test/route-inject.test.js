@@ -73,7 +73,7 @@ test('an installed subagent is named, not just its model tier', (t) => {
   t.after(() => rmSync(root, { recursive: true, force: true }));
 
   const out = withoutUserAgents(() => routeHint('지금 실행 중인 버전이 뭔지 확인해줘', { rules, lang: 'ko', root }));
-  assert.match(out, /기본 haiku-explore\(model 인자 생략\)/, 'the agent is named when it is installed');
+  assert.match(out, /기본 haiku-explore\(model 인자 생략\./, 'the agent is named when it is installed');
 });
 
 test('one registered tier means one target, not an invented pair', () => {
@@ -247,7 +247,7 @@ test('the brief hook hands the session cwd to the hint, so a project agent is na
 
   const prompt = '지금 실행 중인 버전이 뭔지 확인해줘';
   const named = run({ session_id: 'brief-root', prompt, cwd: project });
-  assert.match(named, /기본 haiku-explore\(model 인자 생략\)/, 'the payload cwd is what the lookup uses');
+  assert.match(named, /기본 haiku-explore\(model 인자 생략\./, 'the payload cwd is what the lookup uses');
 
   /* A payload without the field keeps the old behaviour rather than throwing or
      going quiet: root stays undefined, the lookup finds nothing in either

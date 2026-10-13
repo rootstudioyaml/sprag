@@ -33,7 +33,7 @@ import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
-import { agentPhrase, agentPhraseEn } from './agents.js';
+import { agentPhrase, agentPhraseEn, resolveAgentName } from './agents.js';
 import { writeStateFile } from './state-file.js';
 import { signedUsd } from './money.js';
 import { implementationDelegationRule } from './implementation-delegation.js';
@@ -132,16 +132,23 @@ function shortExample(text) {
   return one.length <= EXAMPLE_MAX ? one : `${one.slice(0, EXAMPLE_MAX - 1)}…`;
 }
 
+// T1 is named through its delegation agent only when that file exists; without
+// it the literal `model: sonnet` stays so output on such machines is unchanged.
+function t1Target(root, ko) {
+  if (resolveAgentName('sonnet', root) === null) return null;
+  return (ko ? agentPhrase : agentPhraseEn)('sonnet', { root });
+}
+
 export function modelRuleBaseText(g, lang = userLanguage(), { root } = {}) {
   if (lang === 'ko') {
     return g.tier === 'T2'
       ? `"${g.label}" 단순 요청(예: "${shortExample(g.example)}")은 ${agentPhrase(g.agent, { root })}에 위임`
-      : `"${g.label}" 중간 난도 요청(예: "${shortExample(g.example)}")은 model: sonnet에 위임`;
+      : `"${g.label}" 중간 난도 요청(예: "${shortExample(g.example)}")은 ${t1Target(root, true) ?? 'model: sonnet'}에 위임`;
   }
   const example = g.exampleEn || g.example;
   return g.tier === 'T2'
     ? `Simple "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${agentPhraseEn(g.agent, { root })}`
-    : `Moderate "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to a model: sonnet subagent`;
+    : `Moderate "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false) ?? 'a model: sonnet subagent'}`;
 }
 
 // See the note in route-scan.js — paths.js is the only place that resolves
@@ -401,10 +408,10 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
       // match at a glance.
       const rule = ko
         ? `"${t2.label}": 기본 ${agentPhrase(t2.agent, { root })}(예: "${ex(t2)}"), ` +
-          `여러 단계·여러 파일이 얽히면 model: sonnet(예: "${ex(t1)}"). ` +
+          `여러 단계·여러 파일이 얽히면 ${t1Target(root, true) ?? 'model: sonnet'}(예: "${ex(t1)}"). ` +
           mergedBudget(t2, t1)
         : `"${t2.labelEn || t2.label}": ${agentPhraseEn(t2.agent, { root })} by default (e.g. "${ex(t2)}"), ` +
-          `model: sonnet when it spans multiple steps or file edits (e.g. "${ex(t1)}"). ` +
+          `${t1Target(root, false) ?? 'model: sonnet'} when it spans multiple steps or file edits (e.g. "${ex(t1)}"). ` +
           mergedBudget(t2, t1);
       lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)}${extraHealth} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)}${extraStats} -->`);
     } else if (t2 || t1) {

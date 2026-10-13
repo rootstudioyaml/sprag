@@ -59,6 +59,13 @@ export async function run({ args, hasFlag }) {
   const { userLanguage } = await import('../config.js');
   const lang = userLanguage();
 
+  // `delegate agents` manages the tool-restricted subagent files. It is split
+  // off by the second word so it never mixes with the on/off PreToolUse guard.
+  if (sub === 'agents') {
+    await agentsCommand(args[2], lang);
+    return;
+  }
+
   if (sub === 'on') {
     // Install first, and only record the feature as on once that worked.
     // Saving the flag first left `delegate: on, hook not registered` behind
@@ -130,4 +137,40 @@ export async function run({ args, hasFlag }) {
       : 'Korean guidance is off, so delegation prompts only get bounds and touched-path notes appended.');
     console.log('Enable with: sprag delegate on');
   }
+}
+
+async function agentsCommand(action, lang) {
+  const ko = lang === 'ko';
+  const da = await import('../delegation-agents.js');
+  const report = (r) => {
+    for (const n of r.written) console.log(ko ? `✓ ${n} 에이전트를 설치했습니다.` : `✓ installed agent ${n}`);
+    for (const n of r.unchanged) console.log(ko ? `  ${n} 에이전트는 이미 최신입니다.` : `  agent ${n} is already current`);
+    for (const k of r.skipped) {
+      console.log(ko
+        ? `✗ ${k.name} 에이전트는 건너뛰었습니다 (${k.reason === 'not-owned' ? '직접 만든 같은 이름의 파일이 있습니다' : k.reason}).`
+        : `✗ skipped agent ${k.name} (${k.reason})`);
+    }
+    for (const n of r.removed) console.log(ko ? `✓ ${n} 에이전트를 제거했습니다.` : `✓ removed agent ${n}`);
+  };
+  const rerender = async () => {
+    try { (await import('../model-rules.js')).syncAllFiles(); } catch { /* the next session start re-renders */ }
+  };
+
+  if (action === 'on' || action === 'off') {
+    const { loadConfig, saveConfig } = await import('../config.js');
+    saveConfig({ ...loadConfig(), delegationAgents: action === 'on' });
+    const r = action === 'on' ? da.syncDelegationAgents() : da.removeDelegationAgents();
+    await rerender();
+    report(r);
+    console.log(action === 'on'
+      ? (ko ? '위임 전용 에이전트를 켰습니다. 래칫 문구가 에이전트 이름으로 다시 만들어졌습니다.' : 'Delegation agents are on. The ratchet wording was re-rendered with the agent names.')
+      : (ko ? '위임 전용 에이전트를 껐습니다. 래칫 문구가 model 지정 방식으로 다시 만들어졌습니다.' : 'Delegation agents are off. The ratchet wording was re-rendered with plain model tiers.'));
+    return;
+  }
+
+  const st = da.delegationAgentStatus();
+  console.log(ko ? `delegate agents: ${st.enabled ? 'on' : 'off'}` : `delegate agents: ${st.enabled ? 'on' : 'off'}`);
+  const label = { 'installed-by-sprag': ko ? 'sprag 가 설치함' : 'installed by sprag', 'user-file': ko ? '직접 만든 파일' : 'user file', absent: ko ? '없음' : 'absent' };
+  for (const a of st.agents) console.log(`  ${a.name}: ${a.state} (${label[a.state]})`);
+  console.log(ko ? '켜기 또는 끄기: sprag delegate agents on|off' : 'Toggle with: sprag delegate agents on|off');
 }

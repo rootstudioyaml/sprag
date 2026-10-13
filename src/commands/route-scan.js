@@ -296,6 +296,8 @@ export async function run({ args, hasFlag, numArg }) {
       // would keep reading the old wording indefinitely. The call writes only
       // when the rendering differs, so the common case is a read and a string
       // compare.
+      // Agent files come first so the ratchet-model.md rendered next names them.
+      try { (await import('../delegation-agents.js')).syncDelegationAgents(); } catch (e) { debug('route-scan:delegation-agents', e); }
       try { mrHook.syncAllFiles(); } catch (e) { debug('route-scan:sync-ratchet', e); }
       // Same reason for the preset ratchet: an upgrade that rewords or drops a
       // bundled rule reaches ratchet-preset.md here, without a reinstall. It
