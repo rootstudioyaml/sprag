@@ -7,7 +7,7 @@
 절감 원장에 기록이 쌓이면 statusline이 **두 줄로** 출력됩니다. 첫째 줄에는 라우팅 절감액만 표시하고, 둘째 줄에는 진단 칩을 표시합니다.
 
 ```
-🔀 Routing saved $2.09  |  fable→sonnet 1× $0.72 · opus→haiku 1× $0.57
+🔀 Routing saved $2.09  |  fable→sonnet ×1 $0.72 · opus→haiku ×1 $0.57
 ⚠ Ctx 500k+ · 🅷 5/5 · 🤖 Opus 5.5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · ✦ current ▰▰▰▰▰▰▰▱▱▱▱▱ 62% 🔄 21:33 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% 🔄 Tue 19:33 · 📦 Ctx 47% of 1M · 💰 Cache saved $1.0K · last 1d
 ```
 

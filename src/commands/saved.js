@@ -26,7 +26,8 @@ const SCOPE_SETS = {
 async function currentTotals(scope, dir) {
   if (scope === 'routing') {
     const { delegationSavedTotals } = await import('../savings-ledger.js');
-    return { usd: delegationSavedTotals(Date.now(), dir).total };
+    const t = delegationSavedTotals(Date.now(), dir);
+    return { usd: t.total, spent: t.spent, spentMissing: t.spentMissing };
   }
   if (scope === 'doc2md') {
     const { doc2mdSavedTotals } = await import('../doc2md-ledger.cjs');
@@ -67,6 +68,54 @@ async function refreshRuleSavings(ko, rescan) {
   }
 }
 
+const FAMILY_NAMES = { opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku', fable: 'Fable', mythos: 'Mythos' };
+
+/**
+ * The model-share table for the routing counter's period. Best-effort like the
+ * statusline: a failure to read transcripts must not break the totals above it.
+ */
+async function printModelShare({ ko, dir, money }) {
+  const { loadModelShare, roundShares } = await import('../model-share.js');
+  let share;
+  try {
+    share = await loadModelShare({ dir, env: process.env });
+  } catch (e) {
+    debug('saved:model-share', e);
+    return;
+  }
+  let title = ko ? '모델별 사용 비중 (같은 기간, 비용 기준)' : 'Model share (same period, by cost)';
+  if (share.sinceKind === 'month') title += ko ? ' · 초기화 기록이 없어 이번 달 기준' : ' · no reset on record, this month';
+  else if (share.sinceKind === 'capped') title += ko ? ' · 최근 90일' : ' · last 90 days';
+  console.log('');
+  console.log(title);
+  if (!(share.totalUsd > 0)) {
+    console.log(ko ? '이 기간에 집계할 사용 기록이 없습니다.' : 'No usage to count in this period.');
+  } else {
+    const names = share.families.map((f) => FAMILY_NAMES[f.family] || f.family);
+    const nameW = Math.max(...names.map((n) => n.length));
+    const pcts = share.families.map((f) => f.pct.toFixed(1));
+    const pctW = Math.max(...pcts.map((p) => p.length));
+    share.families.forEach((f, i) => {
+      const filled = roundShares([f.usd, share.totalUsd - f.usd], 20)[0];
+      const bar = '█'.repeat(filled) + '░'.repeat(20 - filled);
+      console.log(`  ${names[i].padEnd(nameW)}  ${bar}  ${pcts[i].padStart(pctW)}%  ${money(f.usd)}`);
+    });
+    if (share.subagent.usd > 0) {
+      const subs = share.subagent.families;
+      const subPct = Math.round(share.subagent.pct);
+      // A share that rounds to 0 still spent money; "0%" would read as unused.
+      const pctText = (p) => (p > 0 && Math.round(p) === 0 ? '<1' : String(Math.round(p)));
+      const detail = subs
+        .map((f) => `${f.family} ${pctText(f.pct)}%`)
+        .join(', ');
+      console.log(`  ${ko ? '서브에이전트 몫' : 'Subagents'}: ${subPct}% (${detail})`);
+    }
+  }
+  if (share.unpriced > 0) {
+    console.log(ko ? `단가가 없어 제외한 부분 ${share.unpriced}건` : `${share.unpriced} part(s) left out: no price`);
+  }
+}
+
 export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan }) {
   const { userLanguage } = await import('../config.js');
   const { userDataDir } = await import('../paths.js');
@@ -79,8 +128,13 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
   const money = (v) => (v < 0 ? `-$${(-v).toFixed(2)}` : `$${v.toFixed(2)}`);
   const fmtTotal = (t) => {
     const value = Number.isFinite(t.usd) ? money(t.usd) : 'n/a';
-    return t.docs !== undefined ? `${ko ? `${t.docs}건` : `${t.docs} doc(s)`}, ${value} (${ko ? 'XML 대비 추정' : 'XML estimate'}; ${t.unpriced} unpriced)`
-      : `${value}${t.unpriced ? ` +${t.unpriced} unpriced` : ''}`;
+    if (t.docs !== undefined) return `${ko ? `${t.docs}건` : `${t.docs} doc(s)`}, ${value} (${ko ? 'XML 대비 추정' : 'XML estimate'}; ${t.unpriced} unpriced)`;
+    // What the delegated runs cost on the models they ran on. The statusline
+    // no longer draws it beside the saving, so this is where it is read.
+    const spent = Number(t.spent) > 0
+      ? ` · ${ko ? '위임 실행 비용' : 'spent on delegated runs'} ${money(t.spent)}${t.spentMissing > 0 ? ` +${t.spentMissing} unpriced` : ''}`
+      : '';
+    return `${value}${t.unpriced ? ` +${t.unpriced} unpriced` : ''}${spent}`;
   };
   const fmtTime = (ms) => new Date(ms).toLocaleString(ko ? 'ko-KR' : 'en-US');
   const label = (scope) => ({
@@ -101,6 +155,7 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
         : (ko ? `${fmtTime(marks[s])} 이후` : `since ${fmtTime(marks[s])}`);
       console.log(`${label(s)}: ${fmtTotal(t)} (${since})`);
     }
+    if (agent !== 'codex') await printModelShare({ ko, dir, money });
     return;
   }
 

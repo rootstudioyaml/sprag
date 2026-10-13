@@ -25,6 +25,7 @@ import { loadConfig } from '../config.js';
 import { koreanStyleEnabled } from '../korean-style.js';
 import { effortTones } from '../effort-palette.js';
 import { MIN_VOTES } from '../model-alias.js';
+import { shareLegend } from '../model-share.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
 // next to each other — terminal palettes set them with unbalanced perceptual
@@ -52,6 +53,9 @@ const CYAN = fg(34, 211, 238, '\x1b[36m');
 const MAGENTA = fg(167, 139, 250, '\x1b[35m');
 const GRAY = fg(100, 116, 139, '\x1b[90m');
 const BOLD = '\x1b[1m';
+
+// Shared with model-share.js so its bar uses the same palette as the chips.
+export { RESET, RED, GREEN, YELLOW, CYAN, MAGENTA, GRAY };
 
 export function formatMoney(usd) {
   // The sign leads the currency symbol ("-$0.12"); a loss that rounds to zero
@@ -647,27 +651,28 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     ? ` ${c(GRAY)}${verbose ? `last scan ${scanAge} ago` : `scan ${scanAge}`}${c(RESET)}`
     : '';
 
-  // What the same delegated runs cost on the models they ran on, read beside
-  // the saving so the reader sees what it was bought with: "saved $14.7 ·
-  // spent $5.2". Gray, since it is context for the saving rather than a result.
-  // Shown once any run carries a cost; runs whose event has none (recorded
-  // before costs were kept and not rescanned since, or unpriced) are counted
-  // instead of being read as free.
-  //   text:  "Routing saved $14.7 · spent $5.2 since 10/9"
-  //   icon:  "🔀 $14.7 · spent $5.2 (10/9~)"
-  const spentUsd = Number(totals && totals.spent) || 0;
-  const spentMissing = Number(totals && totals.spentMissing) || 0;
-  const spentTag = spentUsd > 0
-    ? ` ${c(GRAY)}· spent ${formatMoney(spentUsd)}${spentMissing > 0 ? ` +${spentMissing} unpriced` : ''}${c(RESET)}`
-    : '';
+  // What the delegated runs cost on their own models is no longer drawn here.
+  // Wedged between the saving and its date it read as one more saving, so it
+  // moved to `sprag saved`, which has room to say what it is.
 
   const savedTone = delegationSaved < 0 ? RED : delegationSaved > 0 ? GREEN : GRAY;
   const savingsChip = delegationSaved !== 0 || routingSince
-    ? `${c(savedTone)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}${spentTag}${sinceInline(routingSince)}${scanTag}`
+    ? `${c(savedTone)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}${sinceInline(routingSince)}${scanTag}`
     : null;
   // The unresolved count stands in only while there are no savings to show, so
   // a dated zero keeps both: the reset and the dropped runs are separate facts.
-  const delegateSeg = savingsChip || (delegationSaved === 0 ? unresolvedSeg : null);
+  // What the spend was made of, for the same period as the routing counter:
+  // "◩ Model used ● Opus 90%  ● Sonnet 10%". A segment of its own, after the
+  // savings and their breakdown, so a share is never read as another saving.
+  // Only with a savings figure beside it, and absent when switched off
+  // (`mode no-share`) or empty.
+  const ms = data.modelShare;
+  const usedLabel = isIcon ? `${g.used} Model used` : 'Model used';
+  const usedSeg = ms && Number(ms.totalUsd) > 0 && Array.isArray(ms.families) && ms.families.length
+    ? `${c(GREEN)}${usedLabel}${c(RESET)} ${shareLegend(ms.families, { color })}`
+    : '';
+  const withShare = (chip) => (chip && usedSeg ? `${chip}  ${c(GRAY)}|${c(RESET)}  ${usedSeg}` : chip);
+  const delegateSeg = withShare(savingsChip) || (delegationSaved === 0 ? unresolvedSeg : null);
   const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
 
   // Document conversions — the same kind of number as "Routing saved", earned
@@ -734,8 +739,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // a row of rolling windows it read as a breakdown of whichever one it
   // touched. A single lifetime total makes the whole line one timeframe with
   // nothing to mismatch.
-  //   icon:  "🔀 Routing saved $9.8 · spent $3.1 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
-  //   text:  "Routing saved $9.8 · spent $3.1 | opus→haiku 2× $6.4 · fable→sonnet 1× $3.4"
+  //   icon:  "🔀 Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4 | 📊 Model used ● Opus 90%"
+  //   text:  "Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4 | Model used ● Opus 90%"
   let totalsLine = null;
   const totalsNum = Number(totals && totals.total);
   // A zero total gets its line only when a reset mark explains it; see the
@@ -757,22 +762,23 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // component would flatten the line into one loud block with nothing to
     // land on first.
     const pairText = pairs
-      .map((p) => `${c(GRAY)}${p.from}→${p.to} ${p.runs}× ${formatMoney(p.usd)}${c(RESET)}`)
+      .map((p) => `${c(GRAY)}${p.from}→${p.to} ×${p.runs} ${formatMoney(p.usd)}${c(RESET)}`)
       .join(` ${c(GRAY)}·${c(RESET)} `);
     // A net loss must not read as a win, and a zero is neither.
     const tone = totalsNum < 0 ? RED : totalsNum > 0 ? GREEN : GRAY;
     totalsLine =
       `${c(tone)}${c(BOLD)}${head}${c(RESET)} ` +
       `${c(tone)}${formatMoney(totalsNum)}${c(RESET)}` +
-      spentTag + sinceWord(routingSince) + scanTag +
-      (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
+      sinceWord(routingSince) + scanTag +
+      (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '') +
+      (usedSeg ? `  ${c(GRAY)}|${c(RESET)}  ${usedSeg}` : '');
   }
 
   // Doc2md's own headline line, same anatomy as the routing one: a green
   // lifetime total, then a gray per-format breakdown. Only built when there
   // is money to report — a bare document count stays an inline chip, since a
   // whole line for "3 docs" would be all frame and no figure.
-  //   icon:  "📄 Doc2md saved $1.8 | pptx 1× $1.55 · pdf 2× $0.27"
+  //   icon:  "📄 Doc2md saved $1.8 | pptx ×1 $1.55 · pdf ×2 $0.27"
   let doc2mdLine = null;
   if (!singleLine && doc2mdUsd > 0) {
     const head = isIcon ? `${g.doc} Doc2md saved` : 'Doc2md saved';
@@ -784,9 +790,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // pre-2007 binary, which has no container to price against.
     const paid = byExt.filter((r) => r.usd > 0);
     const unpriced = byExt.filter((r) => !(r.usd > 0));
-    const parts = paid.map((r) => `${c(GRAY)}${r.ext} ${r.docs}× ${formatMoney(r.usd)}${c(RESET)}`);
+    const parts = paid.map((r) => `${c(GRAY)}${r.ext} ×${r.docs} ${formatMoney(r.usd)}${c(RESET)}`);
     if (unpriced.length) {
-      const counted = unpriced.map((r) => `${r.ext} ${r.docs}×`).join(' · ');
+      const counted = unpriced.map((r) => `${r.ext} ×${r.docs}`).join(' · ');
       parts.push(`${c(GRAY)}${counted} ${verbose ? '(no baseline)' : '(n/a)'}${c(RESET)}`);
     }
     const extText = parts.join(` ${c(GRAY)}·${c(RESET)} `);

@@ -60,7 +60,7 @@ npm i -g sprag-cli   # Claude Code, plus Codex when it is installed
    needs attention:
 
 ```
-🔀 Routing saved $188  |  opus→sonnet 67× $93.4 · fable→sonnet 26× $83.7 · opus→haiku 25× $7.41 · fable→haiku 6× $3.73
+🔀 Routing saved $188  |  opus→sonnet ×67 $93.4 · fable→sonnet ×26 $83.7 · opus→haiku ×25 $7.41 · fable→haiku ×6 $3.73
 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 🅷 5/5 · 📦 Ctx 47% of 1M
 ```
 
@@ -184,7 +184,7 @@ arrives as fewer round-trips rather than as cheaper ones.
 ## The statusline in one line
 
 ```
-🔀 Routing saved $188  |  opus→sonnet 67× $93.4 · fable→sonnet 26× $83.7 · opus→haiku 25× $7.41 · fable→haiku 6× $3.73
+🔀 Routing saved $188  |  opus→sonnet ×67 $93.4 · fable→sonnet ×26 $83.7 · opus→haiku ×25 $7.41 · fable→haiku ×6 $3.73
 🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5.5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 

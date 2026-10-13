@@ -149,7 +149,7 @@ test('doc2md carries the mark too, and shows a dated zero as a chip', () => {
   assert.match(formatReport(data(counted), opts), /Doc2md 3 docs since 10\/9/);
   // Real money gets its headline line, dated.
   const paid = { doc2mdTotals: { total: 1.8, docs: 2, byExt: [{ ext: 'pdf', docs: 2, usd: 1.8 }], since: SINCE } };
-  assert.match(formatReport(data(paid), opts), /^Doc2md saved \$1\.80 since 10\/9  \|  pdf 2× \$1\.80/);
+  assert.match(formatReport(data(paid), opts), /^Doc2md saved \$1\.80 since 10\/9  \|  pdf ×2 \$1\.80/);
   assert.match(formatReport(data(paid), { ...opts, singleLine: true }), /Doc2md saved \$1\.80 since 10\/9/);
 });
 
@@ -176,7 +176,7 @@ test('a scan older than three days is named beside the savings', () => {
     ...routing(3.2, SINCE, [{ from: 'opus', to: 'haiku', runs: 2, usd: 3.2 }]),
     ...scanned(4 * DAY),
   }), opts);
-  assert.match(lines(withPairs)[0], /\$3\.20 since 10\/9 scan 4d {2}\| {2}opus→haiku 2× \$3\.20$/);
+  assert.match(lines(withPairs)[0], /\$3\.20 since 10\/9 scan 4d {2}\| {2}opus→haiku ×2 \$3\.20$/);
 });
 
 test('the same caveat rides on the single-line chip, and verbose spells it out', () => {

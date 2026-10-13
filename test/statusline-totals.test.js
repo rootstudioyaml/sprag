@@ -181,11 +181,11 @@ test('the headline names every model change, version-free', async () => {
     ],
   };
   const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
-  assert.match(line, /fable→sonnet 1× \$0\.72/);
-  assert.match(line, /opus→haiku 2× \$0\.57/);
+  assert.match(line, /fable→sonnet ×1 \$0\.72/);
+  assert.match(line, /opus→haiku ×2 \$0\.57/);
   // Every pair is listed: the amounts sit next to a total, so a truncated
   // list would misstate what the total is made of.
-  assert.match(line, /opus→sonnet 5× \$0\.11/);
+  assert.match(line, /opus→sonnet ×5 \$0\.11/);
   assert.doesNotMatch(line, /[45]-5|20251101/, 'no version digits reach the line');
 });
 
@@ -208,7 +208,7 @@ test('only the total is green; the model breakdown is all gray', () => {
   const [head, breakdown] = line.split('|');
   assert.ok(head.includes(`${GREEN}$2.00`), 'the lifetime total stays green');
   assert.ok(!breakdown.includes(GREEN), 'no green survives into the breakdown');
-  assert.match(breakdown, /opus→haiku 2× \$0\.57/);
+  assert.match(breakdown, /opus→haiku ×2 \$0\.57/);
 });
 
 test("ledger: each run's cost is kept beside its saving and summed as spent", async (t) => {
@@ -243,39 +243,21 @@ test("ledger: each run's cost is kept beside its saving and summed as spent", as
   assert.equal(totals.total, 3.75, 'filling a cost in never moves the saving');
 });
 
-test('the headline shows what the saving was bought with, in gray', () => {
-  const totals = { week: 0, month: 0, total: 14.7, spent: 5.2, spentMissing: 0, pairs: [] };
-  const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
-  assert.equal(line, 'Routing saved $14.7 · spent $5.20');
-
-  const colored = formatReport(data({ delegationTotals: totals }), { timer: false }).split('\n')[0];
-  const truecolor =
-    process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
-  const GREEN = truecolor ? '\x1b[38;2;52;211;153m' : '\x1b[32m';
-  const tail = colored.slice(colored.indexOf('spent'));
-  assert.ok(!tail.includes(GREEN), 'only the saving is green; the cost is context');
-});
-
-test('runs without a recorded cost are counted, not read as free', () => {
-  const totals = { week: 0, month: 0, total: 14.7, spent: 5.2, spentMissing: 3, pairs: [] };
-  const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
-  assert.match(line, /· spent \$5\.20 \+3 unpriced$/);
-});
-
-test('no recorded cost at all leaves the headline as it was', () => {
-  // Right after an upgrade every event predates the field; showing
-  // "spent $0.00 +173 unpriced" until the next scan would only alarm.
-  for (const extra of [{}, { spent: 0, spentMissing: 173 }]) {
+test('the headline does not draw what the delegated runs cost', () => {
+  // Wedged between the saving and its date, "spent" read as one more saving;
+  // `sprag saved` reports it instead. Unpriced runs do not bring it back either.
+  for (const extra of [{}, { spent: 5.2, spentMissing: 0 }, { spent: 5.2, spentMissing: 3 }, { spent: 0, spentMissing: 173 }]) {
     const totals = { week: 0, month: 0, total: 14.7, pairs: [], ...extra };
     const line = formatReport(data({ delegationTotals: totals }), opts).split('\n')[0];
     assert.equal(line, 'Routing saved $14.7');
   }
 });
 
-test('the cost follows the saving into the single-line chip, before its date', () => {
+test('the single-line chip keeps the date right after the saving, with no cost between', () => {
   // Local noon on Oct 9 of the current year, so the date prints as `10/9`.
   const since = new Date(new Date().getFullYear(), 9, 9, 12).getTime();
   const totals = { week: 0, month: 0, total: 3.2, spent: 1.1, spentMissing: 0, pairs: [], since };
   const out = formatReport(data({ delegationTotals: totals }), { ...opts, singleLine: true });
-  assert.match(out, /Routing saved \$3\.20 · spent \$1\.10 since 10\/9/);
+  assert.match(out, /Routing saved \$3\.20 since 10\/9/);
+  assert.doesNotMatch(out, /spent/);
 });

@@ -768,12 +768,13 @@ async function main() {
   // 이미 파싱한 세션을 재사용하고, 사용자가 창을 줄여 둔 경우(mode 1d 등)에만
   // 월초까지 다시 파싱한다. 파싱 결과는 세션 캐시가 받아 주므로 싸다.
   let monthSpendInfo = null;
+  let monthSessions = null;
   if (isStatusline) {
     try {
       const { monthSpend, monthStartMs } = await import('../src/month-spend.js');
       const since = monthStartMs();
       const daysNeeded = (Date.now() - since) / 86400000;
-      const monthSessions = days >= daysNeeded
+      monthSessions = days >= daysNeeded
         ? sessions
         : await parseAllSessions({ days: Math.max(1, Math.ceil(daysNeeded)), projectFilter, sinceMs: since });
       // 월 경계에 걸친 세션은 월초 이후 요청만 남긴다. 그러지 않으면 1일 자정을
@@ -781,6 +782,22 @@ async function main() {
       monthSpendInfo = monthSpend(await sessionsSince(monthSessions, since));
     } catch (e) {
       debug('month-spend', e);
+    }
+  }
+
+  // 모델별 사용 비중: `sprag saved` 와 같은 기간(라우팅 초기화 기록, 없으면 월초)의
+  // 비용 기준 분포. 이미 파싱한 월간 세션을 재사용한다. 실패하면 칩만 빠진다.
+  let modelShare = null;
+  if (isStatusline) {
+    try {
+      const { statuslineDefaults } = await import('../src/config.js');
+      if (statuslineDefaults().modelShare) {
+        const { loadModelShare } = await import('../src/model-share.js');
+        const { userDataDir } = await import('../src/paths.js');
+        modelShare = await loadModelShare({ dir: userDataDir(), env: process.env, projectFilter, monthSessions: monthSessions || undefined });
+      }
+    } catch (e) {
+      debug('model-share', e);
     }
   }
 
@@ -880,6 +897,7 @@ async function main() {
     update: format === 'statusline' ? readUpdateChip(PKG_VERSION) : null,
     lastActivity,
     monthSpend: monthSpendInfo,
+    modelShare,
     spikeReport,
     contextWindow,
     ctxLive,

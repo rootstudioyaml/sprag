@@ -64,15 +64,15 @@ function usageEntry({ sessionId, model, ts = Date.now(), output = 5 }) {
  * `subagents` (each a model id), the way Claude Code lays them out:
  * `<project>/<sessionId>.jsonl` and `<project>/<sessionId>/subagents/agent-N.jsonl`.
  * `subagentOutput` sets each subagent's output tokens, for a case that needs
- * its runs to cost more than a cent.
+ * its runs to cost more than a cent; `output` does the same for the main session.
  *
  * @returns {string} the path of the main transcript
  */
-export function writeSession(home, { project = '-tmp-proj', sessionId, model = 'claude-opus-5', subagents = [], subagentOutput = 5 }) {
+export function writeSession(home, { project = '-tmp-proj', sessionId, model = 'claude-opus-5', subagents = [], subagentOutput = 5, output = 5 }) {
   const projDir = join(home.dir, '.claude', 'projects', project);
   mkdirSync(projDir, { recursive: true });
   const main = join(projDir, `${sessionId}.jsonl`);
-  writeFileSync(main, usageEntry({ sessionId, model }));
+  writeFileSync(main, usageEntry({ sessionId, model, output }));
   if (subagents.length) {
     const subDir = join(projDir, sessionId, 'subagents');
     mkdirSync(subDir, { recursive: true });

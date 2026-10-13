@@ -56,6 +56,9 @@ const KEYWORDS = {
   'no-timer': { key: 'timer',   value: false },
   color:      { key: 'color',   value: true  },
   'no-color': { key: 'color',   value: false },
+  // Model-share bar and letters beside the routing chip; on unless switched off.
+  share:      { key: 'modelShare', value: true  },
+  'no-share': { key: 'modelShare', value: false },
 };
 
 // Output language for `last`/`history`/advice. Stored at top level
@@ -195,6 +198,7 @@ export function statuslineDefaults() {
     verbose:     s.verbose !== false,
     timer:       s.timer   !== false,
     color:       s.color   !== false,
+    modelShare:  s.modelShare !== false,
     windowHours,
     windowLabel: formatWindow(windowHours),
     // 'auto' | '5m' | '1h'. Auto lets the measured split decide and falls back

@@ -53,6 +53,7 @@ const ICON = {
   month: '💵',
   ctx: '📦',
   saved: '💰',
+  used: '📊',
   reset: '🔄',
   // Gauge cells. Separate ticks rather than one continuous block: the bar is a
   // count of how much of a budget is gone, and ticks are countable where a solid
@@ -82,6 +83,7 @@ const NARROW = {
   month: '∑',     // a running total
   ctx: '◧',       // a box filling up
   saved: '✓',
+  used: '◩',      // a split square: what the spend is made of
   reset: '↩',     // the window turning over
   // Same segmented shape as the icon set, in the two glyphs this font has.
   // ▰▱ (U+25B0/25B1) are absent from JetBrains Mono; ■□ (U+25A0/25A1) are there.
