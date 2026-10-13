@@ -70,7 +70,7 @@ function ratchetMdPath(root) {
   return join(root, '.claude', 'ratchet.md');
 }
 
-function globalRatchetMdPath() {
+export function globalRatchetMdPath() {
   return join(homedir(), '.claude', 'ratchet.md');
 }
 

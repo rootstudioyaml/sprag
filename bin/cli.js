@@ -90,7 +90,7 @@ function tableColor() {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved',
+  'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved', 'cowork',
 ]);
 
 const USAGE = `sprag — Claude Code and Codex agent harness
@@ -127,6 +127,7 @@ Usage:
   sprag handoff            write a session handoff file
   sprag mode [keywords]    statusline preferences (icon/text, en/ko, window, ttl)
   sprag seed               register the bundled starter rules, one answer at a time
+  sprag cowork [sync|on|off|exclude <dir>|include <dir>]   copy the ratchet rules into Cowork tab folders
   sprag korean on|off|status     Korean writing guidance + write-time check
   sprag cohesion on|off|status   English sentence-connection guidance
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
@@ -288,6 +289,11 @@ async function main() {
   //   sprag seed | seed accept <id> --global|--project | seed skip <id>
   if (args[0] === 'seed') {
     return (await import('../src/commands/seed.js')).run({ args, hasFlag });
+  }
+
+  // Subcommand: cowork — ratchet copies for the Claude app's Cowork tab.
+  if (args[0] === 'cowork') {
+    return (await import('../src/commands/cowork.js')).run({ args, hasFlag });
   }
 
   // Subcommand: saved — stopwatch reset for the lifetime "saved" counters.

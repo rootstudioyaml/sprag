@@ -301,6 +301,8 @@ export async function run({ args, hasFlag, numArg }) {
       // bundled rule reaches ratchet-preset.md here, without a reinstall. It
       // also moves presets older versions appended to ratchet.md.
       try { (await import('../preset-ratchet.js')).preparePresetRatchet(); } catch (e) { debug('route-scan:sync-preset', e); }
+      // Cowork cannot follow the ~/.claude imports, so it gets a pasted copy.
+      try { (await import('../cowork-sync.js')).syncCoworkRatchets({ discover: true }); } catch (e) { debug('route-scan:cowork-sync', e); }
       // Registered rules whose delegated-category error rate crossed the
       // health threshold since promotion — the user approved these, so a
       // status change must be briefed, not just written into the md file.
@@ -466,6 +468,8 @@ export async function run({ args, hasFlag, numArg }) {
     let cache = rs.readRouteScan();
     if (hasFlag('--refresh') || (cache && cache.days !== days) || await rs.shouldRescan(cache, { days })) {
       cache = await rs.runRouteScan({ days });
+      // model-rules were rewritten by the scan; carry them to the Cowork copies.
+      try { (await import('../cowork-sync.js')).syncCoworkRatchets({ discover: true }); } catch (e) { debug('route-scan:cowork-sync', e); }
     }
     if (hasFlag('--quiet')) return;
     if (hasFlag('--json')) {

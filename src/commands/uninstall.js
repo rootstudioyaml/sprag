@@ -26,6 +26,9 @@ export async function run({ hasFlag, args = [] }) {
     return;
   }
 
+  // The Cowork copies and the settings.json exclude entry are ours too.
+  try { (await import('../cowork-sync.js')).removeCoworkRatchets(); } catch { /* uninstall goes on */ }
+
   if (r.removed.length === 0) {
     console.log(lang === 'ko' ? '설치된 항목이 없습니다.' : 'Nothing was installed.');
   } else {
