@@ -25,6 +25,8 @@ const rules = [
 ];
 const PROMPT = '지금 실행 중인 버전이 뭔지 확인해줘';
 const EMPTY = mkdtempSync(join(tmpdir(), 'cts-host-models-'));
+// 개발자 홈의 ~/.claude/agents 에 위임 에이전트가 깔려 있으면 안내 문구가 에이전트 이름으로 바뀌므로, 홈을 빈 디렉터리로 고정합니다.
+process.env.HOME = EMPTY;
 
 const HOST = { CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST: '1' };
 const hint = (env) => routeHint(PROMPT, { rules, lang: 'ko', root: EMPTY, env });
