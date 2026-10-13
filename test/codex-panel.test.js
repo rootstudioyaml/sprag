@@ -51,7 +51,7 @@ test('compact footer wraps chips within cell bounds and exposes hidden rows', ()
     assert.ok(text.split('\n').length <= 5);
     assert.ok(text.split('\n').every((line) => panelCellWidth(line) <= columns));
   }
-  const text = formatCodexPanel(sample(), { compact: true, columns: 180, rows: 5, color: false, now });
+  const text = formatCodexPanel(sample(), { compact: true, columns: 180, rows: 20, color: false, now });
   assert.match(text, /Cache hit 90.0%/);
   assert.match(text, /5H .*95.0% used/);
   assert.match(text, /Harness 5\/5/);

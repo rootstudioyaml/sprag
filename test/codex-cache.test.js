@@ -102,10 +102,11 @@ test('different sessions keep independent cache clocks', async (t) => {
   assert.equal(codexCacheTimer(b.session, { now: now + 61000 }).remaining, 1799);
 });
 
-test('full and compact output keep session metrics ahead of Codex lifetime documents and preferences', async (t) => {
+test('full and compact output put lifetime metrics before session metrics and preferences', async (t) => {
   const f = fixture(t);
   const data = await createPanelReader({ home: f.home, sessionId: 'one' })();
   data.error = 'test error';
+  data.routingSaved = { runs: 0, priced: 0, pricesAvailable: false };
   data.documents = { scope: 'codex-total', docs: 4, byExt: [{ ext: 'pdf', docs: 4 }] };
   data.budget = { spend: 95, maxBudget: 100, checkedAt: now };
   data.session.rateLimits = { primary: { used_percent: 40, window_minutes: 300 } };
@@ -113,7 +114,7 @@ test('full and compact output keep session metrics ahead of Codex lifetime docum
   assert.ok(CODEX_SEGMENT_ORDER.indexOf('usage') < CODEX_SEGMENT_ORDER.indexOf('ctx'));
   for (const compact of [true, false]) {
     const text = formatCodexPanel(data, { compact, columns: 500, rows: 100, now: now + 1000, color: false });
-    const names = ['ERROR:', 'WARNING:', '95%', '5H', 'Ctx ', 'Cache 29:59', 'gpt-6-astra', 'xhigh', 'Cache hit', 'Cache reused', 'Doc2md saved', 'Doc2md 4', 'Routing saved n/a', 'Harness', 'Korean', 'SPRAG v'];
+    const names = ['ERROR:', 'WARNING: Budget 95%', '5H', 'Ctx ', 'Cache 29:59', 'gpt-6-astra', 'xhigh', 'Routing saved n/a', 'Doc2md saved', 'Doc2md 4', 'Cache hit', 'Cache reused', 'Harness', 'Korean', 'SPRAG v'];
     const output = formatCodexPanel(data, { compact, columns: 500, rows: 100, now: now + 1000, color: false, version: 'test' });
     const indices = names.map((name) => output.indexOf(name));
     assert.ok(indices.every((index) => index >= 0), output);

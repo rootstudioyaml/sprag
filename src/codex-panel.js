@@ -7,7 +7,7 @@ import { codexHarnessStatus, codexRatchetCandidates } from './codex-harness.js';
 import { harnessListRules, findProjectRoot } from './harness.js';
 import { loadConfig, statuslineDefaults } from './config.js';
 import { glyphsFor } from './glyphs.js';
-import { gaugeBar, formatMoney } from './formatters/statusline.js';
+import { gaugeBar, formatMoney, DEFAULT_SEGMENT_ORDER } from './formatters/statusline.js';
 import { codexCacheTimer } from './codex-cache.js';
 import { readCodexCachePolicy, readCodexPrices, isDirectOpenAI } from './codex-cache-policy.js';
 import { codexIssues } from './codex-brief.js';
@@ -24,10 +24,16 @@ import { readCodexRouteScan, openCodexCandidates } from './codex-route-scan.js';
 import { codexBudgetProvider } from './codex-budget.js';
 import { readUpdateChip } from './update-notice.js';
 
-export const CODEX_SEGMENT_ORDER = [
-  'cap-warn', 'update', 'usage', 'ctx', 'ttl', 'model', 'effort',
-  'hit', 'saved', 'doc2md', 'routing', 'harness', 'korean', 'version',
-];
+const CODEX_SUPPORTED_SEGMENTS = new Set([
+  'cap-warn', 'spike', 'usage', 'ctx', 'ttl', 'model', 'effort',
+  'delegated', 'doc2md', 'hit', 'saved', 'harness', 'korean', 'version',
+]);
+// The Claude statusline order, restricted to what Codex draws. Codex keeps its
+// own upgrade chip right after the cap warning; the Claude line has no such
+// segment and moves `version` forward instead.
+export const CODEX_SEGMENT_ORDER = DEFAULT_SEGMENT_ORDER
+  .filter((name) => CODEX_SUPPORTED_SEGMENTS.has(name))
+  .flatMap((name) => (name === 'cap-warn' ? [name, 'update'] : [name]));
 
 // Only cache full-session parses. A moving time cutoff would make an unchanged
 // file's cached totals stale. The panel reports session totals, not window totals.
@@ -233,12 +239,13 @@ function panelGroups(data, { now, version = '', full = false, mode = full ? 'tex
   const level = (n) => n >= 90 ? 31 : n >= 70 ? 33 : 32;
   const bar = (n) => full ? gauge(n) : gaugeBar(n, mode === 'text' ? 'narrow' : mode);
   const warnings = [];
+  const contextWarnings = [];
   if (data.error) warnings.push(chip(`ERROR: ${terminalText(data.error)}`, 31));
   for (const issue of codexIssues(s, { now })) {
     const key = issue.key.slice(6), win = s.rateLimits?.[key];
     const text = issue.key === 'context' ? `WARNING: Ctx ${pct(context)}`
       : `WARNING: ${windowLabel(win.window_minutes, key)} limit ${pct(win.used_percent)}`;
-    warnings.push(chip(text, issue.level === 'critical' ? 31 : 33));
+    (issue.key === 'context' ? contextWarnings : warnings).push(chip(text, issue.level === 'critical' ? 31 : 33));
   }
   register('ctx', 'priority', context !== null ? [chip(full
     ? `Ctx ${bar(context)} ${pct(context)}  ${short(s.lastContextTokens)} / ${short(s.contextWindow)}`
@@ -274,6 +281,7 @@ function panelGroups(data, { now, version = '', full = false, mode = full ? 'tex
   }
   if (limits.length && s?.rateLimitsAt) limits.push(chip(`snapshot ${age(s.rateLimitsAt, now)}`));
   register('cap-warn', 'priority', warnings);
+  register('spike', 'priority', contextWarnings);
   register('usage', 'priority', limits);
   register('hit', 'totals', input > 0 ? [chip(`${icon('hit')}Cache hit ${pct(s.totals.cacheRead / input * 100)} (session)`,
     s.totals.cacheRead / input >= 0.85 ? 32 : s.totals.cacheRead / input >= 0.7 ? 33 : 31)] : []);
@@ -283,19 +291,20 @@ function panelGroups(data, { now, version = '', full = false, mode = full ? 'tex
     chip(`Reasoning ${short(s.reasoningOutputTokens)} (in output)`),
   ] : []);
   const docs = data.documents;
+  // Lifetime figures, in the Claude statusline's order: routing, then documents.
+  const delegation = data.delegation;
+  register('delegated', 'lifetime', [routingChip(data.routingSaved, chip),
+    delegation?.offers ? chip(`Delegation ${delegation.settled} completed / ${delegation.bound} bound / ${delegation.pending} pending / ${delegation.unclaimed} unclaimed (session)`,
+      delegation.unclaimed && !delegation.settled && !delegation.bound ? 33 : 90) : null,
+  ]);
   const docSavings = docs?.scope === 'codex-total' ? docs.savings : null;
-  register('doc2md', 'savings', [
+  register('doc2md', 'lifetime', [
     chip(`Doc2md saved ${docSavings?.priced ? `${signedMoney(docSavings.total)} est. (XML vs MD)`
       : `n/a (${docs?.docs ? `${docs.docs} unpriced docs` : 'no documents'})`}`, docSavings?.priced ? (docSavings.total < 0 ? 33 : 32) : 90),
     ...(docSavings?.priced && docSavings.unpriced ? [chip(`${docSavings.unpriced} docs unpriced`)] : []),
     ...(docs?.scope === 'codex-total' && docs.docs > 0 ? [chip(`${icon('doc')}Doc2md ${number(docs.docs)} docs (Codex total)`, 32),
     ...(docs.byExt || []).map((row) => chip(`${terminalText(row.ext)} ${number(row.docs)}x`)),
     ] : []),
-  ]);
-  const delegation = data.delegation;
-  register('routing', 'savings', [routingChip(data.routingSaved, chip),
-    delegation?.offers ? chip(`Delegation ${delegation.settled} completed / ${delegation.bound} bound / ${delegation.pending} pending / ${delegation.unclaimed} unclaimed (session)`,
-      delegation.unclaimed && !delegation.settled && !delegation.bound ? 33 : 90) : null,
   ]);
   register('harness', 'preferences', [
     chip(`${icon('harness')}Harness ${h?.error ? 'ERROR' : h ? `${h.configured}/${h.total}` : 'n/a'}`, h?.configured === 5 ? 32 : 33),
@@ -322,7 +331,7 @@ function panelGroups(data, { now, version = '', full = false, mode = full ? 'tex
     chip(`SPRAG${version ? ` v${terminalText(version)}` : ''} / ${s ? age(s.lastActivity, now) : 'waiting'}`,
       s && (!s.lastActivity || now - new Date(s.lastActivity) > 300000) ? 33 : 90),
   ]);
-  // Keep session measurements together, before lifetime document counts.
+  // Adjacent entries with the same timeframe share a wrapping group.
   const groups = [];
   let lastGroup;
   for (const name of CODEX_SEGMENT_ORDER) {
