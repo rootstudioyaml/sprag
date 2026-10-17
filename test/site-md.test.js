@@ -171,10 +171,14 @@ test('localized route links target existing English and Korean headings', () => 
   }
 });
 
-test('documents without a Korean translation keep their source link', () => {
+test('every doc card follows the language toggle now that each doc has a Korean page', () => {
   const html = readFileSync(join(ROOT, 'site', 'index.html'), 'utf8');
+  // route-scan and doc2md were the last two without a translation; a card
+  // pinned to "en" would send Korean readers to the English page.
   for (const slug of ['route-scan', 'doc2md']) {
-    assert.match(html, new RegExp(`href="docs/${slug}/" data-doc-lang="en"`));
+    assert.match(html, new RegExp(`href="docs/${slug}/" data-doc-lang="ko"`));
+    assert.ok(existsSync(join(ROOT, 'docs', `${slug === 'route-scan' ? 'ROUTE_SCAN' : 'DOC2MD'}.ko.md`)), `${slug} has no Korean source`);
   }
+  assert.doesNotMatch(html, /data-doc-lang="en"/);
   assert.match(html, /a\.dataset\.docLang !== 'en'/);
 });
