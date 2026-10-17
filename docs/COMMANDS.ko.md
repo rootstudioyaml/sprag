@@ -31,7 +31,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag harness ...` | 🅷 Harness 관리 (아래 참고) |
 | `sprag route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 래칫 룰을 제안합니다 (아래 참고) |
 | `sprag route-scan savings` | 라우팅 절감 원장입니다. 모델 이동별 합계와 실행별 내역을 함께 보여 주며, 표시되는 금액의 근거가 됩니다 |
-| `sprag delegate agents [on\|off]` | 위임 전용 서브에이전트 네 개(`haiku-explore`, `haiku-runner`, `haiku-translate`, `sonnet-worker`)를 `~/.claude/agents` 에 설치하거나 상태를 보여 주고 제거합니다. `tools` 허용 목록에 MCP 도구가 없어서, 게이트웨이 뒤에서 서브에이전트의 첫 요청이 절반 가까이 줄어듭니다. sprag 가 쓴 파일만 덮어쓰거나 지웁니다 |
+| `sprag delegate agents [on\|off]` | 위임 전용 서브에이전트 네 개(`haiku-explore`, `haiku-runner`, `haiku-translate`, `sonnet-worker`)를 `~/.claude/agents` 에 설치하거나 상태를 보여 주고 제거합니다. `tools` 허용 목록에 MCP 도구가 없어서, 게이트웨이 뒤에서 서브에이전트의 첫 요청이 절반 가까이 줄어듭니다. 파일마다 `effort` 도 검증 방식에 맞춰 고정합니다. 결과를 명령 출력이나 파일 대조로 확인하는 haiku 에이전트 셋은 `low`, 확정된 설계를 테스트에 맞춰 구현하는 `sonnet-worker` 는 `medium` 입니다. sprag 가 쓴 파일만 덮어쓰거나 지웁니다 |
 | `sprag cowork [sync\|on\|off\|exclude <폴더>\|include <폴더>]` | Claude 앱 Cowork 탭에 연결했던 폴더를 찾아, 각 폴더의 `.claude/rules/sprag-cowork-ratchet.md` 에 래칫 세 파일의 사본을 둡니다. Cowork는 `~/.claude` 의 import를 읽지 않기 때문입니다. 세션을 시작할 때마다 자동으로 갱신되며, Code 탭은 `claudeMdExcludes` 설정으로 이 사본을 읽지 않습니다 |
 | `sprag saved [reset\|undo]` | 절감 금액 카운터를 보여 주거나 스톱워치처럼 0으로 초기화합니다 (`routing`, `doc2md`, `all`). 원장 기록은 지우지 않고, `undo`로 이전 카운터를 되돌립니다. `--agent codex`는 Codex 카운터를 다룹니다 |
 | `sprag compact-window` | 1M 컨텍스트를 쓰면서 자동 압축 창이 설정되지 않았으면 경고하고, `set`으로 40만에 고정합니다 (아래 참고) |

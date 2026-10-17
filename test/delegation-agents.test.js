@@ -56,6 +56,10 @@ test('sync writes four agent files with exact tools, model, marker and a no-MCP 
     assert.ok(fm.includes(`name: ${n}\n`), n);
     assert.ok(fm.includes(`\ntools: ${TOOLS[n]}\n`), `${n} tools`);
     assert.ok(fm.includes(`\nmodel: ${n.startsWith('sonnet') ? 'sonnet' : 'haiku'}\n`), `${n} model`);
+    // Effort follows the verification shape, not the tier: command output and
+    // file comparison verify the haiku agents, so they run at low; the worker
+    // implements a fixed design against tests, so it takes medium.
+    assert.ok(fm.includes(`\neffort: ${n.startsWith('sonnet') ? 'medium' : 'low'}\n`), `${n} effort`);
     assert.ok(fm.includes('# managed by sprag (sprag:delegation-agent); edits are overwritten'), `${n} marker`);
     assert.match(fm, /description: .*It has no MCP tools\./, `${n} description`);
     assert.ok(!text.slice(fm.length).includes('sprag:delegation-agent'), 'marker stays out of the body');

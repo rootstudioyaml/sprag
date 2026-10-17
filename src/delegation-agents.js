@@ -22,10 +22,19 @@ const MARK_LINE = `# managed by sprag (${OWNER_MARK}); edits are overwritten`;
 
 // Models are aliases on purpose: behind a gateway they resolve through
 // ANTHROPIC_DEFAULT_*_MODEL, and a full model id would bypass that mapping.
+//
+// Effort is a separate axis from the tier and is set by how the work gets
+// verified, not by how hard it is. Where the check is command output or a file
+// comparison (lookups, test runs, mechanical conversion) extra thinking buys
+// nothing, so those agents run at low. The worker implements a design the
+// caller already fixed, against tests, so it takes the default for well-specified
+// work, medium. The main session's effort is never touched here, and
+// CLAUDE_CODE_EFFORT_LEVEL must stay unset: it overrides every agent's own value.
 export const DEFINITIONS = [
   {
     name: 'haiku-explore',
     model: 'haiku',
+    effort: 'low',
     tools: 'Read, Grep, Glob, Bash',
     role: 'Your role: read-only exploration, lookups, status checks, and questions about pasted logs or text.',
     description: 'Cheap read-only exploration, lookup, status checks and summaries for delegated tasks. It has no MCP tools.',
@@ -33,6 +42,7 @@ export const DEFINITIONS = [
   {
     name: 'haiku-runner',
     model: 'haiku',
+    effort: 'low',
     tools: 'Bash, Read, Grep, Glob',
     role: 'Your role: run the build, test, or git commands you are given and report the result.',
     description: 'Cheap runner for build, test and git commands in delegated tasks. It has no MCP tools.',
@@ -40,6 +50,7 @@ export const DEFINITIONS = [
   {
     name: 'haiku-translate',
     model: 'haiku',
+    effort: 'low',
     tools: 'Read, Grep, Glob, Edit, Write',
     role: 'Your role: batch translation and mechanical text conversion of the files or text you are given.',
     description: 'Cheap batch translation and structured text conversion for delegated tasks. It has no MCP tools.',
@@ -47,6 +58,7 @@ export const DEFINITIONS = [
   {
     name: 'sonnet-worker',
     model: 'sonnet',
+    effort: 'medium',
     tools: 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
     role: 'Your role: multi-step work and the implementation half of a design the caller already fixed.',
     description: 'Mid-tier worker for multi-step tasks and implementation handed over with a fixed design. It has no MCP tools.',
@@ -60,6 +72,7 @@ function render(def) {
     `description: ${def.description}`,
     `tools: ${def.tools}`,
     `model: ${def.model}`,
+    `effort: ${def.effort}`,
     MARK_LINE,
     '---',
     def.role,
