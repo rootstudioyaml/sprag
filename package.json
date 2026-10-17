@@ -1,6 +1,6 @@
 {
   "name": "sprag-cli",
-  "version": "3.67.0",
+  "version": "3.68.0",
   "description": "Cut Claude Code and Codex token costs: cheaper-model routing, compact Markdown for documents, and a live statusline of spend and savings.",
   "type": "module",
   "bin": {
