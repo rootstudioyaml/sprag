@@ -39,6 +39,12 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag route-scan` | Detect recurring easy work on expensive models → propose haiku-delegation ratchet rules (below) |
 | `sprag route-scan savings` | The routing-savings ledger — per-model-change rollup + per-run log (the evidence behind the figure) |
 | `sprag delegate agents [on\|off]` | Install, show, or remove the four delegation-only subagents (`haiku-explore`, `haiku-runner`, `haiku-translate`, `sonnet-worker`) in `~/.claude/agents`. Their `tools` allowlist excludes MCP tools, which roughly halves the first request of a subagent behind a gateway. Each file also pins `effort` by how the work is verified: `low` for the three haiku agents, whose results are checked by command output or file comparison, and `medium` for `sonnet-worker`, which implements a fixed design against tests. Only files sprag wrote are ever replaced or removed |
+| `sprag team join [token] [--name <n>] [--yes]` | Opt in to the team layer: shows what will be uploaded (daily aggregates only), then enrolls. Without a token it reads `SPRAG_TEAM_TOKEN` ([Team layer](./TEAM.md)) |
+| `sprag team leave` | Leave the team, stop uploading, and remove the member key, the rules cache and the ratchet import |
+| `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name and last sync; `--show-payload` prints the exact rows that would be uploaded |
+| `sprag team sync [--force]` | Upload the daily aggregates and pull approved team rules now (`--force` ignores the 6-hour interval) |
+| `sprag team rules` | Show the cached team rules |
+| `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team owner |
 | `sprag cowork [sync\|on\|off\|exclude <dir>\|include <dir>]` | Finds the folders connected to the Claude app's Cowork tab and keeps a copy of the three ratchet files in each folder's `.claude/rules/sprag-cowork-ratchet.md`, because Cowork does not follow the `~/.claude` imports. The copy is refreshed at every session start, and the Code tab skips it through the `claudeMdExcludes` setting |
 | `sprag saved [reset\|undo]` | Show the saved-money counters, or reset them to zero like a stopwatch (`routing`, `doc2md`, or `all`). Ledger data is kept; `undo` restores the previous counters. `--agent codex` targets the Codex counters |
 | `sprag compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |

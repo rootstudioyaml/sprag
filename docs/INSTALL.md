@@ -78,7 +78,7 @@ Everything that costs nothing until it is needed is on after a plain install. Th
 
 ### Network access
 
-Everything Sprag measures comes from files on your machine. The list below is every place it talks to over the network, taken from a static scan of the published package (3.68.0). Nothing here runs while the statusline renders: fetches happen in a detached child and the render path reads the cached answer.
+Everything Sprag measures comes from files on your machine. The list below is every place it talks to over the network, taken from a static scan of the published package (3.68.0) plus the opt-in team layer added in 3.70.0. Nothing here runs while the statusline renders: fetches happen in a detached child and the render path reads the cached answer.
 
 | Destination | When | What is sent | How to turn it off |
 |---|---|---|---|
@@ -89,7 +89,8 @@ Everything Sprag measures comes from files on your machine. The list below is ev
 | `docs.google.com/forms/…/formResponse` | `sprag feedback` only, when `gh` is not available | the same message and metadata, to an anonymous form the maintainer reads | do not run `feedback`; `sprag feedback` also saves a local copy with a prefilled issue URL |
 | `npm install -g sprag-cli@<version>` | `sprag upgrade`, after you accept the offer | an ordinary npm install | decline the offer |
 | `pip install markitdown` into Sprag's own venv; `npm install openfig-core` into Sprag's data directory | the doc2md converter, when you accept the install at a terminal or a document first needs it | ordinary package installs; `openfig-core` installs with `--ignore-scripts` | `CTS_DOC2MD_NO_AUTOINSTALL=1` stops the automatic case |
+| `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase) | only after `sprag team join` or with `SPRAG_TEAM_TOKEN` set; then every 6 hours from the SessionStart hook's detached child | daily aggregates per local day: spend (USD), savings (USD), delegated-run count, model-family share, Sprag version, agent, and your display name. No prompts, transcripts, file paths, project names or API keys. A rule goes up only with `sprag team propose`. See [Team layer](./TEAM.md) | `sprag team leave` or `CTS_NO_TEAM_SYNC=1` |
 
-No usage data, transcript content or project paths leave the machine. The savings ledger, the route-scan rules and the history files stay under the user-data directory listed in the Skill's storage section.
+No usage data, transcript content or project paths leave the machine, unless you join a team. A team receives only the daily aggregates listed in the last row of the table above, nothing else. The savings ledger, the route-scan rules and the history files stay under the user-data directory listed in the Skill's storage section.
 
 ---

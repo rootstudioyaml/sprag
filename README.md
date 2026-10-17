@@ -304,6 +304,16 @@ It files a GitHub issue through the `gh` CLI when one is authenticated. Otherwis
 
 For a bug, please include the tool version (`sprag --version`) and your OS. For a statusline or warning issue, add the statusline output or the `sprag last` result.
 
+## Teams
+
+Sprag stays local unless you opt in. With `sprag team join <token>` (or `SPRAG_TEAM_TOKEN` for a whole organization), each machine uploads one row per day: spend, savings, delegated-run count and model-family share. Prompts, transcripts, file paths and project names are never sent, and `sprag team status --show-payload` prints exactly what would go up. In return the team owner sees per-member totals in a dashboard and can approve ratchet rules that every member picks up automatically.
+
+`CTS_NO_TEAM_SYNC=1` turns all team traffic off, and `sprag team leave` removes the membership.
+
+- [Team layer guide](docs/TEAM.md)
+- Dashboard: https://sprag.io/team/
+- Plans and pricing: https://sprag.io/pricing/
+
 ## License
 
 Apache License 2.0. The full text is in [LICENSE](https://github.com/rootstudioyaml/sprag/blob/main/LICENSE), and the attributions
