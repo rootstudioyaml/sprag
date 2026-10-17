@@ -88,7 +88,9 @@ test('withBaseStatusline falls back to our output on failure, empty output or no
 test('a base that calls back into sprag does not start the base again', () => {
   // The child sees the marker, so a wrapper script around `sprag --statusline`
   // gets our lines once instead of spawning itself without end.
-  saveConfig({ statuslineBase: { type: 'command', command: 'printf "$SPRAG_STATUSLINE_BASE"' } });
+  // Spelled with node rather than `printf "$VAR"`: on Windows the base runs
+  // under cmd.exe, which hands `$SPRAG_STATUSLINE_BASE` through unexpanded.
+  saveConfig({ statuslineBase: { type: 'command', command: `node -e "process.stdout.write(process.env.SPRAG_STATUSLINE_BASE ?? '')"` } });
   assert.equal(withBaseStatusline('OURS'), '1\nOURS');
   process.env.SPRAG_STATUSLINE_BASE = '1';
   try {
