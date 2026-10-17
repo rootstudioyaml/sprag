@@ -19,8 +19,9 @@
  *   npm run deploy -- --dry-run
  */
 import { spawnSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync, existsSync, mkdtempSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DRAFT_MARKER, needsReview } from '../src/changelog.js';
 
@@ -65,6 +66,66 @@ function npmEnv() {
   const line = readFileSync(envFile, 'utf8').split('\n').find((l) => l.startsWith('NPM_TOKEN='));
   if (!line) return process.env;
   return { ...process.env, NPM_TOKEN: line.slice('NPM_TOKEN='.length).trim() };
+}
+
+/** Every regular file under `dir`, as paths relative to it. */
+function filesUnder(dir, base = dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...filesUnder(full, base));
+    else out.push(relative(base, full));
+  }
+  return out.sort();
+}
+
+/**
+ * Compare the tarball the registry serves with the tagged commit, byte for byte.
+ *
+ * From the outside a publish from a stale checkout, a dirty tree, or a tampered
+ * upload looks like a good one: `npm view` answers with the version and the
+ * install succeeds. Only the bytes tell them apart, so the published tarball is
+ * fetched back and every file in it is compared with `git archive <tag>` before
+ * anything installs it. 3.68.0 was checked this way by hand (157 of 157 files
+ * identical); this makes the check part of every release.
+ */
+function verifyPublishedTarball(version, tag) {
+  if (!capture('git', ['rev-parse', '-q', '--verify', `refs/tags/${tag}`]).ok) {
+    console.log(`deploy: no local tag ${tag}; skipping the tarball comparison.`);
+    return;
+  }
+  const work = mkdtempSync(join(tmpdir(), 'sprag-deploy-'));
+  try {
+    const packed = capture('npm', ['pack', `sprag-cli@${version}`, '--pack-destination', work], npmEnv());
+    if (!packed.ok) stop(`could not fetch the published tarball for ${version}.`, packed.err);
+    const tgz = join(work, packed.out.split('\n').pop().trim());
+    const published = join(work, 'published');
+    const tagged = join(work, 'tagged');
+    mkdirSync(published);
+    mkdirSync(tagged);
+    const untar = capture('tar', ['-xzf', tgz, '-C', published]);
+    if (!untar.ok) stop(`could not extract ${tgz}.`, untar.err);
+    const archived = capture('git', ['archive', '--format=tar', '-o', join(work, 'tagged.tar'), tag]);
+    if (!archived.ok) stop(`could not archive ${tag}.`, archived.err);
+    const unarchive = capture('tar', ['-xf', join(work, 'tagged.tar'), '-C', tagged]);
+    if (!unarchive.ok) stop(`could not extract the ${tag} archive.`, unarchive.err);
+
+    // npm puts the package under a `package/` directory inside the tarball.
+    const root = join(published, 'package');
+    const files = filesUnder(root);
+    const mismatched = files.filter((rel) => {
+      const source = join(tagged, rel);
+      if (!existsSync(source)) return true;
+      return !readFileSync(join(root, rel)).equals(readFileSync(source));
+    });
+    if (mismatched.length) {
+      stop(`the published ${version} tarball differs from ${tag} in ${mismatched.length} file(s).`,
+        `${mismatched.join('\n')}\n\nThe registry copy is not the tagged source. Do not install it; find out what was packed.`);
+    }
+    console.log(`deploy: ${files.length} files in the published tarball match ${tag}.`);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
 }
 
 // --- preflight --------------------------------------------------------------
@@ -171,6 +232,9 @@ if (!dryRun) {
     console.log(`deploy: waiting for the registry to serve ${version} (${i}/${ATTEMPTS})...`);
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, DELAY_MS);
   }
+  // Once the registry serves it, compare what it serves with the tag before the
+  // local install picks it up. A mismatch stops here, with the install not done.
+  verifyPublishedTarball(version, tag);
 }
 run('npm', ['install', '-g', `sprag-cli@${version}`], { env: npmEnv() });
 // npm 11 holds back install scripts not listed in allow-scripts, so the

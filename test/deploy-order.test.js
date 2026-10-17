@@ -69,6 +69,22 @@ test('the pull brings tags with it', () => {
   );
 });
 
+test('the published tarball is compared with the tag before the local install', () => {
+  const served = lineOf(/'--prefer-online'/);
+  const verify = lineOf(/^\s*verifyPublishedTarball\(version, tag\)/);
+  const install = lineOf(/run\('npm', \['install', '-g'/);
+  assert.ok(verify > 0, 'deploy.mjs no longer compares the published tarball with the tag');
+  assert.ok(
+    served < verify,
+    'the comparison runs before the registry is known to serve the version, so `npm pack` fetches the previous release.',
+  );
+  assert.ok(
+    verify < install,
+    `the local install at line ${install + 1} runs before the comparison at line ${verify + 1}; `
+    + 'a tarball that differs from the tag would be installed before anyone looked at it.',
+  );
+});
+
 test('the dirty check still guards the pull', () => {
   const dirty = lineOf(/git', \['status', '--porcelain'\]/);
   const pull = lineOf(/run\(\s*'git'.*'pull'/);
