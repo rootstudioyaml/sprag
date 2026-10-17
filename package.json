@@ -14,7 +14,7 @@
     "publish:legacy": "node scripts/publish-legacy.mjs",
     "release:notes": "node scripts/release-notes.mjs",
     "site:docs": "node scripts/build-site-docs.mjs",
-    "test": "node --test --test-force-exit",
+    "test": "node --test",
     "test:mods": "claude plugin test mod/sprag-doc2md && claude plugin test mod/sprag-delegation-meter && claude plugin test mod/sprag-statusline",
     "version": "node scripts/sync-site-version.mjs"
   },
