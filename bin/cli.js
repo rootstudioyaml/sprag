@@ -1004,8 +1004,29 @@ async function main() {
       singleLine: hasFlag('--single-line'),
     });
   } else {
+    // The first screen is the pitch: what share of recent work a cheaper model
+    // could take. The scan is local and writes only sprag's own cache file;
+    // --project skips it because the scan covers all projects, not one.
+    let routing = null;
+    if (!projectFilter && process.env.CTS_NO_ROUTE_SCAN !== '1') {
+      try {
+        const rs = await import('../src/route-scan.js');
+        let cache = rs.readRouteScan();
+        if (!cache) {
+          process.stderr.write('Scanning for delegation candidates (first run)...\n');
+          cache = await rs.runRouteScan({ days: 14 });
+        }
+        routing = {
+          days: cache.days,
+          total: cache.totalEpisodes,
+          easy: cache.easyEpisodes,
+          scannedAt: cache.scannedAt,
+          candidates: rs.openCandidates(cache).slice(0, 3),
+        };
+      } catch (e) { debug('report:routing', e); }
+    }
     const { formatReport } = await import('../src/formatters/table.js');
-    output = formatReport(data, { color: tableColor() });
+    output = formatReport({ ...data, routing }, { color: tableColor() });
   }
 
   if (format === 'statusline') {

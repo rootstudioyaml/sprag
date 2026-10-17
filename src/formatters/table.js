@@ -181,16 +181,47 @@ function renderCapWarnSection(caps) {
   return lines;
 }
 
-export function formatReport({ summary: sum, trend, ttl, anomalies, cost, options, spikeReport, contextWindow, caps }, { color } = {}) {
+// Opens the report with what the tool is for, before any warning. A first run
+// (`npx sprag-cli`) has nothing installed yet, so the pitch has to be on screen.
+function renderRoutingSection(routing) {
+  if (!routing || typeof routing !== 'object') return [];
+  const lines = [];
+  lines.push(b(`  🔀 Routing — last ${routing.days}d`));
+  lines.push(`  ${'─'.repeat(50)}`);
+  const total = Number(routing.total) || 0;
+  if (total === 0) {
+    lines.push(`  No Claude Code sessions in the last ${routing.days} days to scan.`);
+    lines.push('');
+    return lines;
+  }
+  const easy = Number(routing.easy) || 0;
+  const pct = Math.round(easy / total * 100);
+  lines.push(`  ${easy} of ${total} requests (${pct}%) were lookups, checks or test runs a cheaper model handles.`);
+  const cands = Array.isArray(routing.candidates) ? routing.candidates : [];
+  if (cands.length === 0) {
+    lines.push('  No recurring delegable work yet (a pattern needs 3 repeats). Approved rules apply from the next session.');
+  } else {
+    for (const c of cands) {
+      lines.push(`  R${c.id}  "${c.labelEn || c.label}" ×${c.count}  →  delegate to ${c.agent}`);
+    }
+    lines.push(`  Approve one:  ${b(`${CLI_NAME} harness promote R${cands[0].id} --global`)}      All candidates:  ${b(`${CLI_NAME} route-scan`)}`);
+  }
+  lines.push('');
+  return lines;
+}
+
+export function formatReport({ summary: sum, trend, ttl, anomalies, cost, options, spikeReport, contextWindow, caps, routing }, { color } = {}) {
   colorOk = color ?? !process.env.NO_COLOR;
   const lines = [];
 
   // Header
   lines.push('');
-  lines.push(`  Claude Token Saver — Last ${options.days} day${options.days === 1 ? '' : 's'}`);
+  lines.push(`  Sprag — Last ${options.days} day${options.days === 1 ? '' : 's'}`);
   lines.push(`  (${CLI_NAME} v${options.version || ''})`.trimEnd());
   lines.push(`  ${'═'.repeat(50)}`);
   lines.push('');
+
+  lines.push(...renderRoutingSection(routing));
 
   // Cap warning leads — it's the most time-sensitive signal we can show.
   if (caps) {
