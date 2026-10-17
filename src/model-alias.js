@@ -416,10 +416,8 @@ export function voteRole(requested, declared, parentDeclared) {
 async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCache) {
   let sawGateway = false;
   let declared = null;
-  const rl = createInterface({
-    input: createReadStream(path, { encoding: 'utf8' }),
-    crlfDelay: Infinity,
-  });
+  const input = createReadStream(path, { encoding: 'utf8' });
+  const rl = createInterface({ input, crlfDelay: Infinity });
   try {
     for await (const line of rl) {
       if (!line.includes('arn:aws:bedrock:') && !line.includes('"Task"') && !line.includes('"Agent"')
@@ -459,6 +457,7 @@ async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCach
     }
   } finally {
     rl.close();
+    input.destroy();
   }
   return { sawGateway, declared };
 }
@@ -469,10 +468,8 @@ async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCach
  */
 async function subagentModelInfo(path) {
   let declared = null;
-  const rl = createInterface({
-    input: createReadStream(path, { encoding: 'utf8' }),
-    crlfDelay: Infinity,
-  });
+  const input = createReadStream(path, { encoding: 'utf8' });
+  const rl = createInterface({ input, crlfDelay: Infinity });
   try {
     for await (const line of rl) {
       if (!line.includes('arn:aws:bedrock:') && !line.includes('"identity"')) continue;
@@ -487,7 +484,12 @@ async function subagentModelInfo(path) {
       if (pid) return { pid, declared };
     }
   } finally {
+    // rl.close() leaves the file open when the loop returned early: on Node 20
+    // the ReadStream's descriptor stays until garbage collection, and Windows
+    // then refuses to remove the subagents directory (ENOTEMPTY). Destroying
+    // the stream releases it at once.
     rl.close();
+    input.destroy();
   }
   return { pid: null, declared };
 }
