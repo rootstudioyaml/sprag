@@ -60,7 +60,7 @@ jobs:
           node-version: 22
       # markitdown needs 3.10+; the runner images ship several, and this
       # pins the one the check runs against.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
