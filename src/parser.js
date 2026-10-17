@@ -1,6 +1,6 @@
-import { createReadStream, openSync, readSync, closeSync, fstatSync } from 'node:fs';
+import { openSync, readSync, closeSync, fstatSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
-import { createInterface } from 'node:readline';
+import { transcriptLines } from './transcript-lines.js';
 import { join, isAbsolute, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { loadCache, getCached, putCached, saveCache, getCachedSince, putCachedSince } from './session-cache.js';
@@ -33,12 +33,7 @@ export async function parseSessionFile(filePath) {
   let lastTimestamp = null;
   let gatewayObserved = false;
 
-  const rl = createInterface({
-    input: createReadStream(filePath, { encoding: 'utf8' }),
-    crlfDelay: Infinity,
-  });
-
-  for await (const line of rl) {
+  for await (const line of transcriptLines(filePath)) {
     let entry;
     try {
       entry = JSON.parse(line);
@@ -277,11 +272,7 @@ export async function getLastUserMessageTime(filePath) {
   const tail = lastUserTsFromTail(filePath);
   if (tail.found) return tail.ts ? new Date(tail.ts) : null;
   try {
-    const rl = createInterface({
-      input: createReadStream(filePath, { encoding: 'utf8' }),
-      crlfDelay: Infinity,
-    });
-    for await (const line of rl) {
+    for await (const line of transcriptLines(filePath)) {
       if (!line) continue;
       try {
         const entry = JSON.parse(line);

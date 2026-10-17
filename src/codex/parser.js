@@ -1,6 +1,6 @@
-import { createReadStream, openSync, readSync, closeSync, fstatSync } from 'node:fs';
+import { openSync, readSync, closeSync, fstatSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
-import { createInterface } from 'node:readline';
+import { transcriptLines } from '../transcript-lines.js';
 import { join, resolve } from 'node:path';
 import { codexUserDir } from '../agent.js';
 
@@ -212,9 +212,7 @@ export async function parseCodexTurns(filePath, { cutoffMs = -Infinity } = {}) {
   let previousUsage = null;
   let current = null;
   let context = { model: null, effort: null, cwd: null };
-  const stream = createReadStream(filePath, { encoding: 'utf8' });
-  const lines = createInterface({ input: stream, crlfDelay: Infinity });
-  for await (const line of lines) {
+  for await (const line of transcriptLines(filePath)) {
     let e;
     try { e = JSON.parse(line); } catch { continue; }
     const p = e?.payload;
@@ -341,9 +339,7 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } =
   };
   const copied = forkedCopyFilter();
   let previous = null;
-  const stream = createReadStream(filePath, { encoding: 'utf8' });
-  const lines = createInterface({ input: stream, crlfDelay: Infinity });
-  for await (const line of lines) {
+  for await (const line of transcriptLines(filePath)) {
     let e;
     try { e = JSON.parse(line); } catch { continue; }
     const p = e?.payload;

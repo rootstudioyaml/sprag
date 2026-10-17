@@ -7,8 +7,7 @@
  * requestId (last-write-wins, matching parser.js).
  */
 
-import { createReadStream } from 'node:fs';
-import { createInterface } from 'node:readline';
+import { transcriptLines } from './transcript-lines.js';
 import { resolveModelAlias } from './model-alias.js';
 
 /**
@@ -94,12 +93,7 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
   let lastCwd = '';
   let lastRecord = null;
 
-  const rl = createInterface({
-    input: createReadStream(filePath, { encoding: 'utf8' }),
-    crlfDelay: Infinity,
-  });
-
-  for await (const line of rl) {
+  for await (const line of transcriptLines(filePath)) {
     let entry;
     try {
       entry = JSON.parse(line);

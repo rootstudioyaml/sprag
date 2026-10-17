@@ -36,9 +36,9 @@
  * package is published to npm, so neither may live in the source.
  */
 
-import { readFileSync, mkdirSync, existsSync, createReadStream, statSync } from 'node:fs';
+import { readFileSync, mkdirSync, existsSync, statSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
-import { createInterface } from 'node:readline';
+import { transcriptLines } from './transcript-lines.js';
 import { join, dirname, basename } from 'node:path';
 import { userDataDir, claudeUserDir } from './paths.js';
 import { gatewayBase } from './gateway-auth.js';
@@ -416,48 +416,41 @@ export function voteRole(requested, declared, parentDeclared) {
 async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCache) {
   let sawGateway = false;
   let declared = null;
-  const input = createReadStream(path, { encoding: 'utf8' });
-  const rl = createInterface({ input, crlfDelay: Infinity });
-  try {
-    for await (const line of rl) {
-      if (!line.includes('arn:aws:bedrock:') && !line.includes('"Task"') && !line.includes('"Agent"')
-        && !line.includes('"identity"')) {
-        continue;
-      }
-      let entry;
-      try {
-        entry = JSON.parse(line);
-      } catch {
-        continue;
-      }
-      if (!declared && entry.isSidechain !== true) declared = declaredModelOf(entry);
-      const msg = entry.message;
-      if (!msg) continue;
+  for await (const line of transcriptLines(path)) {
+    if (!line.includes('arn:aws:bedrock:') && !line.includes('"Task"') && !line.includes('"Agent"')
+      && !line.includes('"identity"')) {
+      continue;
+    }
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (!declared && entry.isSidechain !== true) declared = declaredModelOf(entry);
+    const msg = entry.message;
+    if (!msg) continue;
 
-      // The session's own model: the parent side of the transcript.
-      if (msg.model && entry.isSidechain !== true) {
-        const pid = profileIdFrom(msg.model);
-        if (pid) {
-          sawGateway = true;
-          // Circumstantial: a subagent's records also land in the parent file
-          // without the flag often enough to outvote real evidence.
-          addVote(votes, pid, 'main', 'inferred');
-        }
-      }
-
-      if (!Array.isArray(msg.content)) continue;
-      for (const block of msg.content) {
-        if (!block || block.type !== 'tool_use') continue;
-        if (block.name !== 'Task' && block.name !== 'Agent') continue;
-        const input = block.input || {};
-        const role = roleFromModelParam(input.model)
-          || roleFromAgentType(input.subagent_type, agentTypeCache);
-        if (block.id && role) requestedByToolUse.set(block.id, role);
+    // The session's own model: the parent side of the transcript.
+    if (msg.model && entry.isSidechain !== true) {
+      const pid = profileIdFrom(msg.model);
+      if (pid) {
+        sawGateway = true;
+        // Circumstantial: a subagent's records also land in the parent file
+        // without the flag often enough to outvote real evidence.
+        addVote(votes, pid, 'main', 'inferred');
       }
     }
-  } finally {
-    rl.close();
-    input.destroy();
+
+    if (!Array.isArray(msg.content)) continue;
+    for (const block of msg.content) {
+      if (!block || block.type !== 'tool_use') continue;
+      if (block.name !== 'Task' && block.name !== 'Agent') continue;
+      const input = block.input || {};
+      const role = roleFromModelParam(input.model)
+        || roleFromAgentType(input.subagent_type, agentTypeCache);
+      if (block.id && role) requestedByToolUse.set(block.id, role);
+    }
   }
   return { sawGateway, declared };
 }
@@ -468,28 +461,18 @@ async function scanMainTranscript(path, votes, requestedByToolUse, agentTypeCach
  */
 async function subagentModelInfo(path) {
   let declared = null;
-  const input = createReadStream(path, { encoding: 'utf8' });
-  const rl = createInterface({ input, crlfDelay: Infinity });
-  try {
-    for await (const line of rl) {
-      if (!line.includes('arn:aws:bedrock:') && !line.includes('"identity"')) continue;
-      let entry;
-      try {
-        entry = JSON.parse(line);
-      } catch {
-        continue;
-      }
-      declared ??= declaredModelOf(entry);
-      const pid = profileIdFrom(entry.message?.model);
-      if (pid) return { pid, declared };
+  // transcriptLines() closes the file on the early return below; see its header.
+  for await (const line of transcriptLines(path)) {
+    if (!line.includes('arn:aws:bedrock:') && !line.includes('"identity"')) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
     }
-  } finally {
-    // rl.close() leaves the file open when the loop returned early: on Node 20
-    // the ReadStream's descriptor stays until garbage collection, and Windows
-    // then refuses to remove the subagents directory (ENOTEMPTY). Destroying
-    // the stream releases it at once.
-    rl.close();
-    input.destroy();
+    declared ??= declaredModelOf(entry);
+    const pid = profileIdFrom(entry.message?.model);
+    if (pid) return { pid, declared };
   }
   return { pid: null, declared };
 }
