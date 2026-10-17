@@ -16,6 +16,12 @@
  *
  *   node scripts/release-notes.mjs 3.46.0            # extract to a draft file
  *   node scripts/release-notes.mjs 3.46.0 --publish  # create/update the release
+ *   node scripts/release-notes.mjs 3.46.0 --publish --dry-run  # print the body, send nothing
+ *
+ * The published body is the reviewed draft plus a short tail: the upgrade command
+ * and a link comparing this tag with the previous release. The tail is added at
+ * publish time, after the draft's bullets, and holds no bullet of its own, so the
+ * "first three bullets" the upgrade offer shows are still the draft's.
  *
  * Drafts live in docs/releases/ and are committed, for three reasons. A draft in
  * a temp directory is gone after a reboot, taking the translation with it. It
@@ -33,7 +39,7 @@
  * than reporting one as the other.
  */
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sectionFor, DRAFT_MARKER, KO_HEADING, needsReview } from '../src/changelog.js';
@@ -47,7 +53,7 @@ const REPO_SLUG = 'rootstudioyaml/sprag';
 
 function usage(msg) {
   if (msg) console.error(`release-notes: ${msg}`);
-  console.error('usage: node scripts/release-notes.mjs <version> [--publish] [--force] [--file <path>]');
+  console.error('usage: node scripts/release-notes.mjs <version> [--publish] [--dry-run] [--force] [--file <path>] [--previous <version>]');
   process.exit(1);
 }
 
@@ -59,11 +65,71 @@ if (!version) usage('a version is required');
 if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) usage(`"${version}" does not look like a version`);
 const publish = args.includes('--publish');
 const force = args.includes('--force');
+const dryRun = args.includes('--dry-run');
 const fileArg = args.includes('--file') ? args[args.indexOf('--file') + 1] : null;
+const previousArg = args.includes('--previous') ? args[args.indexOf('--previous') + 1] : null;
 const DRAFT_DIR = join(ROOT, 'docs', 'releases');
 const draftPath = fileArg || join(DRAFT_DIR, `v${version}.md`);
 /** Path as the user would type it, so messages match what they see in git. */
 const shown = (p) => (p.startsWith(ROOT) ? relative(ROOT, p) : p);
+
+if (previousArg !== null && !/^\d+\.\d+\.\d+$/.test(previousArg)) usage(`"${previousArg}" does not look like a version`);
+
+/** The numeric core of a version, [major, minor, patch]. */
+const core = (v) => (/^(\d+)\.(\d+)\.(\d+)/.exec(v) || []).slice(1, 4).map(Number);
+const compareCore = (a, b) => {
+  const [x, y] = [core(a), core(b)];
+  for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] - y[i];
+  return 0;
+};
+
+/**
+ * The release before `current`: the highest version below it among the committed
+ * drafts in docs/releases/ and the `vX.Y.Z` git tags. Both sources are read
+ * because either can be short: a shallow CI checkout carries no tags, and an
+ * early release may have a tag and no draft. Null when neither names one, in
+ * which case the body gets no comparison link rather than a broken one.
+ */
+function previousVersion(current) {
+  const found = new Set();
+  try {
+    for (const f of readdirSync(DRAFT_DIR)) {
+      const m = /^v(\d+\.\d+\.\d+)\.md$/.exec(f);
+      if (m) found.add(m[1]);
+    }
+  } catch { /* no drafts directory yet */ }
+  const tags = spawnSync('git', ['tag', '--list', 'v*'], { cwd: ROOT, encoding: 'utf8', timeout: 15_000 });
+  if (tags.status === 0) {
+    for (const t of String(tags.stdout || '').split('\n')) {
+      const m = /^v(\d+\.\d+\.\d+)$/.exec(t.trim());
+      if (m) found.add(m[1]);
+    }
+  }
+  const lower = [...found].filter((v) => compareCore(v, current) < 0).sort(compareCore);
+  return lower.length ? lower[lower.length - 1] : null;
+}
+
+/**
+ * What goes under the reviewed draft: how to upgrade, and the diff since the
+ * last release. Plain paragraphs, no bullets: the upgrade offer reads the first
+ * three bullets of a half, and a draft with fewer than three would otherwise
+ * pull these into the notice. No heading either, because the half-splitter keys
+ * on a heading that contains Hangul and this tail must never move that boundary.
+ */
+function releaseTail(current, previous) {
+  const lines = ['---', '', 'Upgrade: `npm i -g sprag-cli@latest`'];
+  if (previous) {
+    lines.push('', `Full changelog: https://github.com/${REPO_SLUG}/compare/v${previous}...v${current}`);
+  }
+  return lines.join('\n');
+}
+
+/** The draft with its tail. A draft that already ends in this exact tail is left as it is. */
+function withReleaseTail(text, current, previous) {
+  const body = String(text).trim();
+  const tail = releaseTail(current, previous);
+  return body.endsWith(tail) ? body : `${body}\n\n${tail}`;
+}
 
 if (!publish) {
   const body = sectionFor(readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8'), version);
@@ -121,6 +187,8 @@ if (!publish) {
   console.log('  and put the per-area detail in sections below them.');
   console.log(`  The half above "${KO_HEADING}" is read by English users, the half below it by`);
   console.log('  Korean ones. Fill in the English half before publishing.');
+  console.log('  Do not write the upgrade command or the compare link into the draft: --publish');
+  console.log('  appends both after the last half.');
   if (bullets.length) {
     console.log('');
     console.log('  As written, a Korean reader would be shown:');
@@ -148,6 +216,13 @@ if (needsReview(draft)) {
   console.error('release-notes: the draft still carries the REVIEW marker.');
   console.error(`  Edit ${shown(draftPath)}, remove that line, then publish.`);
   process.exit(1);
+}
+const releaseBody = withReleaseTail(draft, version, previousArg || previousVersion(version));
+if (dryRun) {
+  // Everything above this line is local: the review gate has passed and the body
+  // is final. Printing it here lets the tail be checked without a token or a network.
+  console.log(releaseBody);
+  process.exit(0);
 }
 /**
  * The token `gh` holds, read with the environment ones removed so that `gh`
@@ -288,6 +363,6 @@ try {
 
 const out = await call(existing ? `${api}/${existing.id}` : api, {
   method: existing ? 'PATCH' : 'POST',
-  body: JSON.stringify({ tag_name: tag, name: tag, body: draft.trim() }),
+  body: JSON.stringify({ tag_name: tag, name: tag, body: releaseBody }),
 });
 console.log(`${existing ? 'updated' : 'created'}: ${out.html_url}`);

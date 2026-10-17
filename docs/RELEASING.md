@@ -80,6 +80,18 @@ node -e "import('./src/update-check.js').then(async m => \
 Step 5 updates an existing release rather than adding a second one, so a
 correction to the notes is just another run of it.
 
+`release-notes.mjs --publish` also appends a tail to the body, after the last
+half of the draft: the upgrade command (`npm i -g sprag-cli@latest`) and a link
+comparing the previous release with this one
+(`https://github.com/rootstudioyaml/sprag/compare/v<previous>...v<this>`). Do not
+write either into the draft. The tail holds no bullet and no heading, so the three
+lines the upgrade offer shows are still the draft's own, and a draft that already
+ends with the tail is not given a second one. The previous release is the highest
+version below this one among `docs/releases/` and the `vX.Y.Z` git tags; with
+neither, the link is left out. `--previous X.Y.Z` names it by hand, and
+`--dry-run` (with `--publish`) prints the final body and exits before any token or
+network is used, which is the way to look at the tail before publishing.
+
 The package check downloads declared dependencies unless they are cached. Pass
 `--cache <path>` to reuse a cache and `--offline` to prohibit network access.
 It skips the Claude postinstall, exercises the explicit Codex installation and

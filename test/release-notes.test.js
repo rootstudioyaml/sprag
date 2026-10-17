@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -195,4 +195,86 @@ test('every release API call in the publish script is checked against the consta
   // An unanchored version test accepts "1.2.3/../../elsewhere", which is then
   // interpolated into the release URL.
   assert.match(src, /\$\/\.test\(version\)\) usage\(/, 'the version argument test must be anchored');
+});
+
+// --- the tail ---------------------------------------------------------------
+// The published body is the reviewed draft plus an upgrade command and a compare
+// link. `--publish --dry-run` stops after the body is final and before any token
+// or network, so these run the real path. The tail is appended after the draft,
+// and the upgrade offer shows the first three bullets of a half, so the one way
+// to break it is for the tail to contribute a bullet or move the language split.
+
+const REPO = 'https://github.com/rootstudioyaml/sprag';
+const DRAFT = [
+  '- **The first thing changed.** Detail that the offer cuts off.',
+  '- **The second thing changed.** More detail.',
+  '',
+  '---',
+  '',
+  KO_HEADING,
+  '',
+  '- **첫 번째가 바뀌었습니다.** 자세한 내용입니다.',
+  '',
+].join('\n');
+
+/** Body that `--publish --dry-run` would send for `draft`, as a string. */
+function dryRunBody(draft, extra = []) {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-tail-'));
+  try {
+    const file = join(dir, 'draft.md');
+    writeFileSync(file, draft);
+    return execFileSync(process.execPath,
+      [join(ROOT, 'scripts', 'release-notes.mjs'), '99.0.0', '--publish', '--dry-run', '--file', file, ...extra],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('the published body ends with the upgrade command and a compare link', () => {
+  const body = dryRunBody(DRAFT, ['--previous', '3.66.0']).trimEnd();
+  const tail = body.split('\n').slice(-3);
+  assert.equal(tail[0], 'Upgrade: `npm i -g sprag-cli@latest`');
+  assert.equal(tail[1], '');
+  assert.equal(tail[2], `Full changelog: ${REPO}/compare/v3.66.0...v99.0.0`);
+  assert.ok(body.startsWith('- **The first thing changed.**'), 'the draft itself must come through unchanged');
+});
+
+test('without --previous the link starts from the newest earlier release', () => {
+  // Earlier means a committed draft in docs/releases or a git tag, whichever is
+  // newer; a checkout without tags still has the drafts.
+  const newestDraft = readdirSync(join(ROOT, 'docs', 'releases'))
+    .map((f) => (/^v(\d+\.\d+\.\d+)\.md$/.exec(f) || [])[1])
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .pop();
+  const link = dryRunBody(DRAFT).match(new RegExp(`compare/v(\\d+\\.\\d+\\.\\d+)\\.\\.\\.v99\\.0\\.0`));
+  assert.ok(link, 'a previous release must be found from docs/releases or the tags');
+  assert.ok(link[1].localeCompare(newestDraft, undefined, { numeric: true }) >= 0,
+    `the link starts at ${link[1]}, older than the newest draft ${newestDraft}`);
+});
+
+test('the tail does not change what the upgrade offer shows', () => {
+  // One bullet per half is the worst case: with fewer than three, any bullet in
+  // the tail would be pulled into the notice.
+  const body = dryRunBody(DRAFT, ['--previous', '3.66.0']);
+  for (const lang of ['en', 'ko']) {
+    assert.deepEqual(releaseHighlights(body, lang), releaseHighlights(DRAFT, lang),
+      `${lang}: appending the tail changed the highlights`);
+    assert.equal(releaseHighlights(body, lang).length, lang === 'en' ? 2 : 1, `${lang}: unexpected highlight count`);
+  }
+  assert.doesNotMatch(body.split('\n').slice(-5).join('\n'), /^\s*[-*+]\s/m, 'the tail must hold no bullet');
+});
+
+test('a draft that already ends with the tail does not get a second one', () => {
+  const once = dryRunBody(DRAFT, ['--previous', '3.66.0']);
+  const twice = dryRunBody(once, ['--previous', '3.66.0']);
+  assert.equal(twice.trim(), once.trim());
+  assert.equal(twice.split('Full changelog:').length, 2, 'the compare link must appear once');
+});
+
+test('--previous must be a version, and the draft is still gated before the tail', () => {
+  assert.throws(() => dryRunBody(DRAFT, ['--previous', '3.66']), /does not look like a version|Command failed/);
+  assert.throws(() => dryRunBody(`${DRAFT}\n${DRAFT_MARKER}\n`), /Command failed/,
+    'an unreviewed draft must still be refused when dry-running');
 });

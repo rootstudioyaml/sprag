@@ -1,19 +1,22 @@
 #!/usr/bin/env node
-// Publishes the SAME tree under the legacy name `claude-token-saver`, so
-// installs of the old name keep receiving updates. The canonical package is
-// `sprag-cli` (this repo's package.json); run `npm publish` for that first,
-// then `npm run publish:legacy`. The version published here is deprecated in the
-// same run, so the old name keeps pointing at `sprag-cli`.
+// Publishes the SAME tree under the legacy name `claude-token-saver`. The
+// canonical package is `sprag-cli` (this repo's package.json), and the old name
+// stopped receiving updates at 3.55.0, so this is a one-off for the rare case
+// of needing a version under the old name again, not part of a release. Run
+// `npm publish` for sprag-cli first, then `npm run publish:legacy`. The version
+// published here is deprecated in the same run, so the old name keeps pointing
+// at `sprag-cli`.
 import { cpSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync, execFileSync } from 'node:child_process';
 
-// The wording 3.44.0 and later carry on npm; it names `claude-token-saver
-// upgrade`, which moves an install to sprag-cli since 3.45.0. Versions up to
-// 3.43.0 carry a shorter one with the uninstall step only.
-const LEGACY_DEPRECATION = 'renamed to sprag-cli - same tool, same releases. Run: claude-token-saver upgrade (moves you to sprag-cli), or: npm uninstall -g claude-token-saver && npm i -g sprag-cli';
+// The wording every version of the old name carries on npm. It says the name
+// stopped receiving updates at 3.55.0 and how to move to sprag-cli; the uninstall
+// step is part of the move because both names ship the same binaries. Keep it
+// free of single quotes: the test reads this literal back out of the source.
+const LEGACY_DEPRECATION = 'Renamed to sprag-cli. This name stopped receiving updates at 3.55.0; install sprag-cli for current releases: npm uninstall -g claude-token-saver && npm i -g sprag-cli';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -25,7 +28,7 @@ pkg.name = 'claude-token-saver';
 // and the staged copy is byte-identical, so drop them.
 delete pkg.scripts?.prepublishOnly;
 delete pkg.scripts?.prepare;
-pkg.description = 'Legacy name of sprag-cli (Sprag) - same tool, kept publishing so existing installs stay current. Prefer: npm i -g sprag-cli';
+pkg.description = 'This name stopped receiving updates at 3.55.0. Install sprag-cli for current releases: npm uninstall -g claude-token-saver && npm i -g sprag-cli';
 writeFileSync(join(dir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
 // npm's package page prints `npm i claude-token-saver` from the manifest name,
 // which no banner can change; the README banner is what tells readers of the

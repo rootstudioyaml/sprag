@@ -84,6 +84,31 @@ test('the message tells a legacy install how to move', () => {
   );
 });
 
+test('the message and the description say the name stopped receiving updates at 3.55.0', () => {
+  // The old name is frozen: telling a reader it is "kept current" or "same
+  // releases" sends them to a package that is several versions behind.
+  const message = SRC.match(/const LEGACY_DEPRECATION = '([^']+)';/)[1];
+  assert.ok(
+    message.includes('This name stopped receiving updates at 3.55.0'),
+    'the deprecation no longer says when the old name stopped receiving updates',
+  );
+  const description = SRC.match(/pkg\.description = '([^']+)';/);
+  assert.ok(description, 'the staged description is no longer a single-quoted literal this test can read');
+  assert.ok(
+    description[1].includes('stopped receiving updates at 3.55.0'),
+    'the staged description no longer says the name stopped receiving updates at 3.55.0',
+  );
+  assert.ok(
+    description[1].includes('npm uninstall -g claude-token-saver && npm i -g sprag-cli'),
+    'the staged description no longer gives the move command',
+  );
+  assert.doesNotMatch(
+    `${message} ${description[1]}`,
+    /same releases|stay current|kept publishing/,
+    'the wording still claims the old name is kept up to date',
+  );
+});
+
 test('a failed deprecation fails the run and prints the command to rerun', () => {
   const deprecate = lineOf(DEPRECATE);
   const exit = lineOf(/process\.exitCode = 1/);
