@@ -52,7 +52,8 @@ function sandbox(updateState) {
 
 function runHook(box) {
   return execFileSync(process.execPath, [CLI, 'route-scan', '--hook'], {
-    env: childEnv({ HOME: box.home, XDG_CONFIG_HOME: box.dir, NO_COLOR: '1' }),
+    // This case is about the check itself, so the helper's default guard is lifted.
+    env: childEnv({ HOME: box.home, XDG_CONFIG_HOME: box.dir, NO_COLOR: '1', CTS_NO_UPDATE_CHECK: undefined }),
     input: JSON.stringify({ session_id: 'test-session' }),
     encoding: 'utf8',
   });

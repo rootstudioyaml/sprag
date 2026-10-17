@@ -17,14 +17,16 @@ jobs:
     # the cross-platform path handling (XDG / APPDATA / Application Support)
     # is exactly what a single-OS run would fail to catch.
     runs-on: ${{ matrix.os }}
-    # The suite takes a few minutes. Without a limit a hung child process holds
-    # a runner for the six-hour default, and its log stays unreadable until then.
-    timeout-minutes: 20
+    # The suite takes about a minute per OS. Without a limit a hung child
+    # process holds a runner for the six-hour default, and its log stays
+    # unreadable until then; 20 minutes let the 2026-10 Windows hang burn
+    # nineteen of them on every push before anyone saw a log.
+    timeout-minutes: 8
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [18, 22]
+        node: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

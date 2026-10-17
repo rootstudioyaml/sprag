@@ -116,6 +116,12 @@ export function childEnv(overrides = {}) {
      stale, which in a test means a process outliving its temp directory.
      A case testing that spawn overrides it. */
   env.CTS_NO_ROUTE_SCAN = '1';
+  /* The statusline and the hooks spawn a detached update check when the
+     registry answer is stale. Its working directory is the case's temp
+     directory, and Windows refuses to remove a directory a live process sits
+     in: the 2026-10 CI runs failed every cleanup with EBUSY and then hung. A
+     case about the update chip passes `undefined` to let the check run. */
+  env.CTS_NO_UPDATE_CHECK = '1';
   /* Windows resolves the home through USERPROFILE, so a case that names only
      HOME means the same directory on both platforms. */
   env.USERPROFILE = overrides.HOME;
