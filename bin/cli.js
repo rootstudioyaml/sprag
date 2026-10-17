@@ -93,6 +93,62 @@ const KNOWN_SUBCOMMANDS = new Set([
   'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved', 'cowork',
 ]);
 
+// Flags each entry path reads, collected from the hasFlag/getArg/numArg calls in
+// this file, src/statusline-mode.js, src/hook.cjs and the install/uninstall
+// commands. `value` flags take an argument (`--days 3` or `--days=3`); `bool`
+// flags do not. --agent is not listed: selectAgent() removes it before `args`
+// exists. Only the default path (report, statusline, hook management) and
+// install/uninstall are checked; every other subcommand parses its own arguments.
+// Keep these in step with the code that reads the flag: a flag read but not
+// listed is rejected, and a flag listed but never read is silently ignored again.
+const FLAG_SPECS = {
+  report: {
+    value: ['--format', '-f', '--project', '-p', '--days', '-d', '--hours', '--demo',
+      '--demo-cycle-sec', '--segments', '--exclude-session', '--threshold'],
+    bool: ['--statusline', '--verbose', '--no-verbose', '--compact', '--no-color', '--icon',
+      '--no-icon', '--text', '--narrow', '--no-timer', '--single-line', '--demo-label',
+      '--version', '-v', '--help', '-h', '--hook', '--hook-run', '--install-hook', '--uninstall-hook'],
+  },
+  install: { value: [], bool: ['--force', '--manual', '--yes', '--no-input', '--help', '-h'] },
+  // --yes and --no-input are the explicit spelling of "do not ask", and
+  // uninstall never asks, so they are accepted as no-ops.
+  uninstall: { value: [], bool: ['--purge', '--yes', '--no-input', '--help', '-h'] },
+};
+
+/** Which spec applies to this invocation, or null for a subcommand that parses its own arguments. */
+function flagSpecFor(first) {
+  if (!first || first.startsWith('-')) return FLAG_SPECS.report;
+  return FLAG_SPECS[first] || null;
+}
+
+/**
+ * The flags in `argv` that `spec` does not list. A value flag swallows the next
+ * token the way getArg() does, so `--exclude-session --x` reads `--x` as a path,
+ * not as a flag, and both `--days 3` and `--days=3` are understood. A bool flag
+ * written `--no-color=1` is reported too: hasFlag() compares whole tokens, so
+ * that form was never honoured. Everything after a bare `--` is not a flag.
+ *
+ * @returns {string[]} the offending tokens as typed
+ */
+function findUnknownFlags(argv, spec) {
+  const value = new Set(spec.value);
+  const bool = new Set(spec.bool);
+  const unknown = [];
+  for (let i = 0; i < argv.length; i++) {
+    const tok = argv[i];
+    if (tok === '--') break;
+    if (tok.length < 2 || !tok.startsWith('-')) continue;
+    const eq = tok.indexOf('=');
+    const name = eq === -1 ? tok : tok.slice(0, eq);
+    if (value.has(name)) {
+      if (eq === -1) i++;
+    } else if (!bool.has(name) || eq !== -1) {
+      unknown.push(tok);
+    }
+  }
+  return unknown;
+}
+
 const USAGE = `sprag — Claude Code and Codex agent harness
 
 Usage:
@@ -169,6 +225,34 @@ async function main() {
   // matching tool call. Say nothing instead.
   if (hasFlag('--hook') && args[0] && !KNOWN_SUBCOMMANDS.has(args[0])) {
     return;
+  }
+
+  // Refuse what this build cannot honour, before anything is scanned or written.
+  // An unknown first word used to fall into the 30-day report, and an unknown
+  // flag was dropped without a word: `sprag install --dry-run` ran the real
+  // install and rewrote settings.json. Exit 2 is the usage-error code.
+  if (args[0] && !args[0].startsWith('-') && !KNOWN_SUBCOMMANDS.has(args[0])) {
+    console.error(`Unknown command: ${args[0]}`);
+    console.error('Run `sprag --help` for the list of commands.');
+    process.exitCode = 2;
+    return;
+  }
+  const flagSpec = flagSpecFor(args[0]);
+  const unknownFlags = flagSpec ? findUnknownFlags(args, flagSpec) : [];
+  if (unknownFlags.length > 0) {
+    // The statusline and the PostToolUse hook run from a fixed command in
+    // settings.json, and a typo or a flag from a newer release there must not
+    // blank the line or fail the hook. Warn and carry on; every other caller is
+    // a person at a prompt who is better told.
+    const lenient = hasFlag('--statusline') || getArg('--format') === 'statusline' || hasFlag('--hook-run');
+    if (lenient) {
+      for (const f of unknownFlags) console.error(`Warning: Unknown option: ${f} (ignored)`);
+    } else {
+      for (const f of unknownFlags) console.error(`Unknown option: ${f}`);
+      console.error('Run `sprag --help` for usage.');
+      process.exitCode = 2;
+      return;
+    }
   }
 
   // Subcommand: last — print the most recent warning + how to handle it.
@@ -346,56 +430,9 @@ async function main() {
   }
 
   // Subcommand: litellm-budget · LiteLLM 게이트웨이 키의 max_budget/spend 조회.
-  //   sprag litellm-budget            # 캐시된 예산을 게이지·금액으로 출력
-  //   sprag litellm-budget --json     # 캐시 원본 JSON 출력
-  //   sprag litellm-budget --refresh  # 지금 프록시에 물어봄 (detached 자식이 사용)
+  //   sprag litellm-budget [--json | --refresh]
   if (args[0] === 'litellm-budget') {
-    const { gatewayBase, readBudgetState, refreshBudgetState, formatBudgetReport, resolveKey } =
-      await import('../src/litellm-budget.js');
-    const quiet = hasFlag('--quiet');
-    if (hasFlag('--refresh')) {
-      try {
-        // apiKeyHelper 가 토큰 수명(TTL)을 소유합니다. 헬퍼를 한 번만 불러 그
-        // 키를 예산 갱신과 게이트웨이 모델맵 갱신 양쪽에 재사용합니다. 갱신
-        // 경로마다 resolveKey() 를 다시 부르면 사본을 만드는 셈이 되고, 헬퍼
-        // 호출 횟수도 그만큼 늘어납니다.
-        const key = resolveKey();
-        let next = null;
-        if (key) {
-          next = await refreshBudgetState(process.env, fetch, key);
-          const { maybeRefreshGatewayModelMap } = await import('../src/litellm-models.js');
-          await maybeRefreshGatewayModelMap({ base: gatewayBase(), key });
-        }
-        if (!quiet) console.log(JSON.stringify(next, null, 2));
-      } catch (e) {
-        debug('litellm-budget:refresh', e);
-        if (!quiet) console.error(`litellm-budget refresh failed: ${e.message}`);
-        process.exitCode = 1;
-      }
-      return;
-    }
-    // 읽기 경로는 캐시만 보므로 키를 요구하지 않습니다 (apiKeyHelper 환경 배려).
-    const base = gatewayBase();
-    if (!base) {
-      console.log('게이트웨이가 감지되지 않았습니다 (ANTHROPIC_BASE_URL 필요).');
-      return;
-    }
-    const state = readBudgetState();
-    if (hasFlag('--json')) {
-      console.log(JSON.stringify(state, null, 2));
-      return;
-    }
-    if (state.base !== base || state.maxBudget === undefined) {
-      console.log('예산 캐시가 비어 있습니다. `sprag litellm-budget --refresh` 로 먼저 조회하십시오.');
-      return;
-    }
-    // Same resolver the statusline uses: this report draws a gauge too, and a
-    // glyph the terminal's font lacks garbles here exactly as it does there.
-    const { resolveLabelMode } = await import('../src/statusline-mode.js');
-    const { statuslineDefaults } = await import('../src/config.js');
-    const { mode: labelMode } = resolveLabelMode({ hasFlag, cfg: statuslineDefaults() });
-    for (const line of formatBudgetReport(state, new Date(), labelMode)) console.log(line);
-    return;
+    return (await import('../src/commands/litellm-budget.js')).run({ hasFlag });
   }
 
   // Subcommand: profile-map · LiteLLM 게이트웨이의 프로파일 ID → 모델 별칭
