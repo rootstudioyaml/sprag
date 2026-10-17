@@ -15,7 +15,7 @@ mkdirSync(join(HOME, '.claude'), { recursive: true });
 process.env.HOME = HOME;
 process.env.USERPROFILE = HOME;
 process.env.XDG_CONFIG_HOME = join(SANDBOX, 'cfg');
-after(() => rmSync(SANDBOX, { recursive: true, force: true }));
+after(() => rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const { installStatusline, uninstallAll, isOurCommand } = await import('../src/installer.js');
 const { loadConfig, saveConfig } = await import('../src/config.js');

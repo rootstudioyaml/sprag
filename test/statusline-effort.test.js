@@ -182,7 +182,7 @@ const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 function emptyHome() {
   const dir = mkdtempSync(join(tmpdir(), 'cts-effort-'));
   mkdirSync(join(dir, '.claude', 'projects'), { recursive: true });
-  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) };
 }
 
 /** The same, plus one in-window usage record so the populated report renders. */

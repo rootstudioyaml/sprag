@@ -158,7 +158,7 @@ test('drafting a release actually runs, and the draft it writes is gated', () =>
     assert.equal(needsReview(body), true, 'a fresh draft must still be gated');
     assert.ok(body.includes(KO_HEADING), 'the scaffold must carry the Korean heading');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -227,7 +227,7 @@ function dryRunBody(draft, extra = []) {
       [join(ROOT, 'scripts', 'release-notes.mjs'), '99.0.0', '--publish', '--dry-run', '--file', file, ...extra],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
 

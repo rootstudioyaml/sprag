@@ -19,7 +19,7 @@ mkdirSync(HOME, { recursive: true });
 process.env.HOME = HOME;
 process.env.USERPROFILE = HOME;
 process.env.XDG_CONFIG_HOME = CFG;
-after(() => rmSync(SANDBOX, { recursive: true, force: true }));
+after(() => rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const DIR = join(CFG, 'claude-token-saver');
 mkdirSync(DIR, { recursive: true });

@@ -16,7 +16,7 @@ function sandbox(t) {
   mkdirSync(join(dir, 'project', '.git'), { recursive: true });
   t.after(() => {
     for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   return dir;
 }

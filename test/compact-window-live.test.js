@@ -22,7 +22,7 @@ mkdirSync(join(CFG, 'claude-token-saver'), { recursive: true });
 process.env.HOME = HOME;
 process.env.USERPROFILE = HOME;
 process.env.XDG_CONFIG_HOME = CFG;
-after(() => rmSync(SANDBOX, { recursive: true, force: true }));
+after(() => rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const { recordLiveWindow, latestLiveWindow } = await import('../src/ctx-window-cache.js');

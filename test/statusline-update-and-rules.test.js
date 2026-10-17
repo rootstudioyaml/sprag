@@ -101,7 +101,7 @@ test('delegationRuleStats counts what applies here and skips what does not', asy
   t.after(() => {
     if (saved === undefined) delete process.env.XDG_CONFIG_HOME;
     else process.env.XDG_CONFIG_HOME = saved;
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   mkdirSync(join(dir, 'claude-token-saver'), { recursive: true });
   const rule = (extra) => ({ tier: 'T2', category: 'check', signature: 's', status: 'active', ...extra });

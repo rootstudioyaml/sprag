@@ -8,7 +8,7 @@ import { childEnv } from './helpers/child-env.js';
 
 test('instruction comparison fails instead of skipping missing, empty, or divergent files', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'sprag-instructions-'));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   mkdirSync(join(root, 'test'));
   writeFileSync(join(root, 'package.json'), '{"type":"module"}\n');
   const script = join(root, 'test', 'agents-md.test.js');

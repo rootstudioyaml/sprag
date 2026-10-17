@@ -21,7 +21,7 @@ function tmpRoot() {
   return d;
 }
 process.on('exit', () => {
-  for (const d of tmpRoots) { try { rmSync(d, { recursive: true, force: true }); } catch { /* temp dir */ } }
+  for (const d of tmpRoots) { try { rmSync(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch { /* temp dir */ } }
 });
 
 function assistant({ model, out = 0, ts, tools = [] }) {

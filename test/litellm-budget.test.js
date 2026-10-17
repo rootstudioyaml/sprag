@@ -23,7 +23,7 @@ after(() => {
   else process.env.XDG_CONFIG_HOME = prevXdg;
   if (prevBase === undefined) delete process.env.ANTHROPIC_BASE_URL;
   else process.env.ANTHROPIC_BASE_URL = prevBase;
-  rmSync(tmp, { recursive: true, force: true });
+  rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 
 const ENV = {

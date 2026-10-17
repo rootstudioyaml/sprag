@@ -19,7 +19,7 @@ mkdirSync(join(HOME, '.claude'), { recursive: true });
 process.env.HOME = HOME;
 process.env.USERPROFILE = HOME;
 process.env.XDG_CONFIG_HOME = join(SANDBOX, 'cfg');
-after(() => rmSync(SANDBOX, { recursive: true, force: true }));
+after(() => rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const {
   readSettings, isOurSubcommand, isLegacyCacheMonitorCommand,
@@ -125,7 +125,7 @@ test('C4: readSettings tells absent, ok and unusable apart', () => {
   rmSync(SETTINGS, { force: true });
   mkdirSync(SETTINGS);
   assert.equal(readSettings(SETTINGS).state, 'unusable');
-  rmSync(SETTINGS, { recursive: true });
+  rmSync(SETTINGS, { recursive: true, maxRetries: 5, retryDelay: 100 });
 });
 
 test('C4: every installer entry point skips null / array settings without writing or throwing', () => {
@@ -177,7 +177,7 @@ test('C4: a failed write is not reported as success and the file is unchanged', 
   assert.equal(r.action, 'skipped');
   assert.match(r.reason, /write failed/);
   assert.equal(readFileSync(SETTINGS, 'utf8'), original);
-  rmSync(BAK, { recursive: true });
+  rmSync(BAK, { recursive: true, maxRetries: 5, retryDelay: 100 });
 });
 
 // --- C3 ---------------------------------------------------------------------

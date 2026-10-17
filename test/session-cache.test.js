@@ -15,7 +15,7 @@ before(async () => {
   cache = await import('../src/session-cache.js');
 });
 
-after(() => rmSync(dir, { recursive: true, force: true }));
+after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 // mtime must be a realistic recent epoch — saveCache prunes entries whose
 // transcript is older than 90 days, so a placeholder like `1000` (1970) would

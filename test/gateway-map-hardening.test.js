@@ -31,7 +31,7 @@ before(() => {
 after(() => {
   if (prevXdg === undefined) delete process.env.XDG_CONFIG_HOME;
   else process.env.XDG_CONFIG_HOME = prevXdg;
-  rmSync(tmp, { recursive: true, force: true });
+  rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   resetModelAliasCache();
 });
 

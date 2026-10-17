@@ -22,7 +22,7 @@ mkdirSync(HOME, { recursive: true });
 process.env.HOME = HOME;
 process.env.USERPROFILE = HOME;
 process.env.XDG_CONFIG_HOME = CFG;
-after(() => rmSync(SANDBOX, { recursive: true, force: true }));
+after(() => rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const rl = createRequire(import.meta.url)('../src/reply-language.cjs');
@@ -173,7 +173,7 @@ function stopEntries() {
 }
 
 test('installer: install is idempotent and remove touches only its own hook', () => {
-  rmSync(join(HOME, '.claude'), { recursive: true, force: true });
+  rmSync(join(HOME, '.claude'), { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   assert.equal(installer.installReplyLanguageHook().action, 'created');
   assert.equal(installer.installReplyLanguageHook().action, 'exists');
   assert.equal(stopEntries().length, 1);

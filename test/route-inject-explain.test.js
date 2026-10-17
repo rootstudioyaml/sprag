@@ -159,7 +159,7 @@ test('categorize() and categorizeScored() always agree on the category', () => {
  */
 test('the prompt hook stays quiet for the reproduced question and still hints a command', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'cts-explain-hook-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(dir, 'home');
   const state = join(dir, 'state');
   const project = join(dir, 'project');

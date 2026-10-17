@@ -29,7 +29,7 @@ process.env.XDG_CONFIG_HOME = join(SANDBOX, 'cfg');
 // The installer reads the inherited value to avoid overriding a user's own;
 // a developer shell that sets it must not change what these tests see.
 delete process.env.CLAUDE_CODE_PLUGIN_DIRS;
-after(() => rmSync(SANDBOX, { recursive: true, force: true }));
+after(() => rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const {
   modDir, MOD_NAMES, DOC2MD_MOD, DELEGATION_METER_MOD, STATUSLINE_MOD,

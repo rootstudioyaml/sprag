@@ -11,7 +11,7 @@ function fixture(lines) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-parser-'));
   const path = join(dir, 'session.jsonl');
   writeFileSync(path, lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n') + '\n');
-  return { path, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return { path, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) };
 }
 
 function usageEntry({ requestId, id, ts, input = 0, create = 0, read = 0, out = 0, e5m = 0, e1h = 0, model = 'claude-opus-5' }) {

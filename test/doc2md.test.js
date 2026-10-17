@@ -32,7 +32,7 @@ function isolated(t) {
     else process.env.XDG_CONFIG_HOME = prevData;
     if (prevPy === undefined) delete process.env.CTS_DOC2MD_PYTHON;
     else process.env.CTS_DOC2MD_PYTHON = prevPy;
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   return dir;
 }
@@ -148,7 +148,7 @@ json.dump({"ok": False, "reason": "bad-archive", "detail": "File is not a zip fi
 `,
   };
   for (const [reason, body] of Object.entries(cases)) {
-    rmSync(d.cacheDir(), { recursive: true, force: true });
+    rmSync(d.cacheDir(), { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     const decision = d.decideForRead(
       { tool_name: 'Read', tool_input: { file_path: src } },
       { converter: stubConverter(dir, body), python: 'python3' },

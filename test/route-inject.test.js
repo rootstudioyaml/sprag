@@ -70,7 +70,7 @@ test('an installed subagent is named, not just its model tier', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'cts-agents-'));
   mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
   writeFileSync(join(root, '.claude', 'agents', 'haiku-explore.md'), '# haiku-explore\n');
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
   const out = withoutUserAgents(() => routeHint('지금 실행 중인 버전이 뭔지 확인해줘', { rules, lang: 'ko', root }));
   assert.match(out, /기본 haiku-explore\(model 인자 생략\./, 'the agent is named when it is installed');
@@ -190,7 +190,7 @@ test('the session model comes from the transcript before the shared snapshot', (
   // last-caps.json is one file for the whole machine: with two sessions open,
   // whichever ticked last decides what it says. The transcript is per-session.
   const dir = mkdtempSync(join(tmpdir(), 'cts-transcript-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const file = join(dir, 'session.jsonl');
   writeFileSync(file, [
     JSON.stringify({ type: 'user', timestamp: '2026-09-21T00:00:00Z' }),
@@ -226,7 +226,7 @@ test('the session model comes from the transcript before the shared snapshot', (
  */
 test('the brief hook hands the session cwd to the hint, so a project agent is named', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'cts-brief-root-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(dir, 'home');
   const state = join(dir, 'state');
   const project = join(dir, 'project');

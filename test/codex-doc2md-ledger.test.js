@@ -58,7 +58,7 @@ test('Office savings use Codex provider input prices with an explicit XML baseli
 
 test('priced documents deduplicate, preserve price snapshots, and respect reset/undo without importing legacy money', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-doc-money-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const source = join(dir, 'deck.pptx');
   writeFileSync(source, 'source');
   const opts = { dir, home: join(dir, 'codex'), model: 'parent', provider: 'gateway', now: 10000,

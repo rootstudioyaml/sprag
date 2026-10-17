@@ -12,7 +12,7 @@ import { formatCodexPanel, panelCellWidth } from '../src/codex/panel.js';
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-saving-status-'));
   const home = join(dir, 'home'); mkdirSync(home);
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   return { dir, home };
 }
 

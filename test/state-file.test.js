@@ -15,7 +15,7 @@ const ledger = await import('../src/savings-ledger.js');
 const seed = await import('../src/seed-rules.js');
 const config = await import('../src/config.js');
 
-after(() => rmSync(home, { recursive: true, force: true }));
+after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 test('a state file is replaced whole, and no temp file is left beside it', () => {
   const dir = join(home, 'plain', 'nested');

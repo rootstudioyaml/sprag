@@ -243,7 +243,7 @@ test('Bash writes are checked too — a heredoc is a write like any other', asyn
       assert.equal(lint.lintToolUse({ tool_name: 'Bash', tool_input: { command } }), null, command);
     }
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 

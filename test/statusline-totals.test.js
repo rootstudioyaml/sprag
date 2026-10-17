@@ -77,7 +77,7 @@ test('ledger: upserts dedupe by run path and totals honor rolling windows', asyn
   process.env.XDG_CONFIG_HOME = dir;
   t.after(() => {
     delete process.env.XDG_CONFIG_HOME;
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   const { recordDelegationEvents, delegationSavedTotals } = await import('../src/savings-ledger.js');
   const now = Date.now();
@@ -112,7 +112,7 @@ test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
   process.env.XDG_CONFIG_HOME = dir;
   t.after(() => {
     delete process.env.XDG_CONFIG_HOME;
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   const { mkdirSync, writeFileSync } = await import('node:fs');
   const stateDir = join(dir, 'claude-token-saver');
@@ -146,7 +146,7 @@ test('ledger events keep the model change and the rule that caused it', async (t
   process.env.XDG_CONFIG_HOME = dir;
   t.after(() => {
     delete process.env.XDG_CONFIG_HOME;
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   const m = await import('../src/savings-ledger.js?pair');
   m.recordDelegationEvents([
@@ -216,7 +216,7 @@ test("ledger: each run's cost is kept beside its saving and summed as spent", as
   process.env.XDG_CONFIG_HOME = dir;
   t.after(() => {
     delete process.env.XDG_CONFIG_HOME;
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   const m = await import('../src/savings-ledger.js?cost');
   const ts = Date.now();

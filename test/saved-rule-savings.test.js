@@ -44,7 +44,7 @@ process.env.XDG_CONFIG_HOME = CFG;
 /* Not a root after(): the runner fires it once the tests registered so far have
    finished, and the fixture below is built behind a top-level await, so the
    sandbox would be gone before the later tests read it. */
-process.once('exit', () => rmSync(SANDBOX, { recursive: true, force: true }));
+process.once('exit', () => rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const DIR = join(CFG, 'claude-token-saver');
 mkdirSync(DIR, { recursive: true });

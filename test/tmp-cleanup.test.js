@@ -27,7 +27,7 @@ const capsCache = await import('../src/caps-cache.js');
 const panelState = await import('../src/codex/panel-state.js');
 const harnessAnalyzer = createRequire(import.meta.url)('../src/harness-analyzer.cjs');
 
-after(() => rmSync(home, { recursive: true, force: true }));
+after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -81,7 +81,7 @@ test('session-cache: a failed save leaves no temp file', () => {
     sessionCache.saveCache({ entries: {} }); // best-effort: must not throw
     assert.deepEqual(tmpsIn(dataDir), []);
   } finally {
-    rmSync(target, { recursive: true, force: true });
+    rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -92,7 +92,7 @@ test('caps-cache: a failed snapshot write leaves no temp file', () => {
     capsCache.persistSnapshot({ model: 'claude-opus-5' });
     assert.deepEqual(tmpsIn(dataDir), []);
   } finally {
-    rmSync(target, { recursive: true, force: true });
+    rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -111,7 +111,7 @@ test('harness-analyzer: a failed state write leaves no temp file', () => {
     harnessAnalyzer.writeState({ pevSkip: null }); // best-effort: must not throw
     assert.deepEqual(tmpsIn(dataDir), []);
   } finally {
-    rmSync(target, { recursive: true, force: true });
+    rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 

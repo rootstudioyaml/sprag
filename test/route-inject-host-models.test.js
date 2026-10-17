@@ -70,7 +70,7 @@ test('두 등급이 모두 등록되면 지금처럼 haiku 와 sonnet 을 함께
  */
 test('brief 훅은 자기 프로세스 환경으로 등록되지 않은 등급을 판정한다', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'cts-brief-host-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(dir, 'home');
   const state = join(dir, 'state');
   const project = join(dir, 'project');

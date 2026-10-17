@@ -43,7 +43,7 @@ function write(records) {
 
 test('forked child keeps its own identity and drops the copied parent history', async (t) => {
   const f = write(forkedChild());
-  t.after(() => rmSync(f.dir, { recursive: true, force: true }));
+  t.after(() => rmSync(f.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
   const turns = await parseCodexTurns(f.file);
   assert.equal(turns.sessionId, CHILD);
@@ -69,7 +69,7 @@ test('forked child keeps its own identity and drops the copied parent history', 
 test('copy ends at the first later line even without thread_settings_applied', async (t) => {
   const records = forkedChild().filter((r) => r.payload.type !== 'thread_settings_applied');
   const f = write(records);
-  t.after(() => rmSync(f.dir, { recursive: true, force: true }));
+  t.after(() => rmSync(f.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const turns = await parseCodexTurns(f.file);
   assert.deepEqual(turns.turns.map((x) => x.turnId), ['turn-child']);
 });
@@ -81,7 +81,7 @@ test('a repeated own session_meta does not hide the lines after it', async (t) =
     { timestamp: '2026-09-30T10:00:01.000Z', type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-solo' } },
     { timestamp: '2026-09-30T10:00:01.000Z', type: 'turn_context', payload: { turn_id: 'turn-solo', model: 'gpt-5.5' } },
   ]);
-  t.after(() => rmSync(f.dir, { recursive: true, force: true }));
+  t.after(() => rmSync(f.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const turns = await parseCodexTurns(f.file);
   assert.equal(turns.sessionId, 'solo');
   assert.equal(turns.isSubagent, false);
@@ -96,7 +96,7 @@ test('a failure repeated across separate exec rollouts is a candidate', (t) => {
       command: ['npm', 'test'], exit_code: 2, aggregated_output: 'Error: missing fixture' } },
   ]);
   const a = run('run-a', '2026-10-01T00:00:00.000Z'), b = run('run-b', '2026-10-01T00:05:00.000Z');
-  t.after(() => { rmSync(a.dir, { recursive: true, force: true }); rmSync(b.dir, { recursive: true, force: true }); });
+  t.after(() => { rmSync(a.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); rmSync(b.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); });
   const now = Date.parse('2026-10-01T00:06:00Z');
   assert.deepEqual(codexRatchetCandidates(b.file, { now }), []);
   const across = codexRatchetCandidates(b.file, { now, siblings: [a.file] });

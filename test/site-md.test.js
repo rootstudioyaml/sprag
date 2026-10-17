@@ -122,7 +122,7 @@ test('build({ outDir }) generates the full site/docs tree', () => {
     }
     assert.match(sitemap, /<loc>https:\/\/sprag\.io\/<\/loc>/);
   } finally {
-    rmSync(outDir, { recursive: true, force: true });
+    rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -146,7 +146,7 @@ test('Codex site capture comes from an isolated CLI example', () => {
       assert.ok(html.includes(line), `missing CLI line: ${line}`);
     }
     assert.ok(!html.includes(tmpdir()), 'no temporary or user paths in the public capture');
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
 });
 
 test('landing page assets exist and copy icon references a real SVG id', () => {

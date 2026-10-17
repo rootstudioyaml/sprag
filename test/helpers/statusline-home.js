@@ -35,7 +35,7 @@ export function makeHome(prefix = 'sprag-sl-') {
   mkdirSync(project, { recursive: true });
   const dataDir = join(dir, 'cfg', 'claude-token-saver');
   mkdirSync(dataDir, { recursive: true });
-  return { dir, project, dataDir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return { dir, project, dataDir, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) };
 }
 
 let seq = 0;

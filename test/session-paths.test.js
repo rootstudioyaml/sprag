@@ -23,7 +23,7 @@ test('recentToolPaths: missing transcript, or no path at all, returns []', () =>
     assert.deepEqual(recentToolPaths(null, { root }), []);
     assert.deepEqual(recentToolPaths(undefined, { root }), []);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -67,8 +67,8 @@ test('recentToolPaths: catches per-tool argument keys, drops outside-root paths,
     const result = recentToolPaths(transcriptPath, { root });
     assert.deepEqual(result, [join('src', 'a.js'), join('src', 'b.js')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(outsideRoot, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(outsideRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -89,7 +89,7 @@ test('recentToolPaths: limit truncates the result', () => {
     assert.equal(result.length, 2);
     assert.deepEqual(result, ['f4.js', 'f3.js']);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -117,7 +117,7 @@ test('recentToolPaths: a whole-file read keeps the opening record, a cut tail dr
     assert.deepEqual(recentToolPaths(transcriptPath, { root, tailBytes }),
       [join('src', 'later.js')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -150,7 +150,7 @@ test('recentToolPaths: the default window survives a transcript padded out with 
     // is testing the window rather than restating that parsing works.
     assert.deepEqual(recentToolPaths(transcriptPath, { root, tailBytes: 256 * 1024 }), []);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -176,7 +176,7 @@ test("recentToolPaths: a Grep or Glob aimed at a directory does not reach the li
     // file a subagent can actually open survives.
     assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'real.js')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -192,7 +192,7 @@ test('recentToolPaths: Read/Edit/Write paths are taken on contract, with no stat
     writeFileSync(transcriptPath, assistantToolUse('Read', { file_path: join(root, 'src', 'deleted.js') }) + '\n');
     assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'deleted.js')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -214,7 +214,7 @@ test('recentToolPaths: a filename carrying a control character is dropped', () =
 
     assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'plain.js')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -239,7 +239,7 @@ test('recentToolPaths: each tool is read with its own argument key', () => {
     assert.deepEqual(recentToolPaths(transcriptPath, { root }),
       [join('src', 'many.js'), join('nb', 'run.ipynb')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -253,7 +253,7 @@ test('recentToolPaths: a directory whose name starts with .. is still inside roo
     writeFileSync(transcriptPath, assistantToolUse('Read', { file_path: join(root, '..fixtures', 'a.js') }) + '\n');
     assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('..fixtures', 'a.js')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -280,8 +280,8 @@ test('recentToolPaths: a symlink pointing out of root does not slip through the 
 
     assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'own.txt')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(outside, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(outside, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -301,6 +301,6 @@ test('recentToolPaths: a name that could break the rendered line is dropped, bac
 
     assert.deepEqual(recentToolPaths(transcriptPath, { root }), [join('src', 'fine.js')]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });

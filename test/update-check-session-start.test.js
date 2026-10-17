@@ -46,7 +46,7 @@ function sandbox(updateState) {
     dir,
     home,
     readState: () => JSON.parse(readFileSync(statePath, 'utf8')),
-    cleanup: () => rmSync(dir, { recursive: true, force: true }),
+    cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }),
   };
 }
 

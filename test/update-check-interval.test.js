@@ -35,7 +35,7 @@ function isolated(t) {
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   return dir;
 }

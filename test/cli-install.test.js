@@ -54,7 +54,7 @@ test('install completes on a machine with no prior state', () => {
     assert.match(commands, /route-scan --hook(?![\w-])/);
     assert.match(commands, /route-scan --hook-delegated(?![\w-])/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -133,7 +133,7 @@ test('uninstall removes our entries and only ours', () => {
   // Recorded savings survive a plain uninstall; only --purge takes them.
   assert.match(out, /--purge/);
 
-  rmSync(dir, { recursive: true, force: true });
+  rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 
 /**
@@ -168,7 +168,7 @@ test('install records an output language from the locale and keeps it', () => {
     assert.doesNotMatch(again, /language: set to/);
     assert.equal(JSON.parse(readFileSync(cfgPath, 'utf8')).language, 'ko');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -204,7 +204,7 @@ test('a fresh install writes the canonical command name, not the legacy one', ()
       assert.match(cmd, /^sprag /, `every entry invokes the canonical binary: ${cmd}`);
     }
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -237,7 +237,7 @@ test('an existing legacy entry is recognised, not duplicated beside a new one', 
     // The user's own statusline entry is left as they have it, legacy name and all.
     assert.match(settings.statusLine.command, /claude-token-saver/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -283,7 +283,7 @@ test('uninstall leaves entries that merely mention our name in a path', () => {
     // And it still removes ours, or the check above would pass by doing nothing.
     assert.ok(!left.some((c) => /^sprag /.test(c)), `our own entries should be gone: ${left.join(' | ')}`);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -313,7 +313,7 @@ test('install recognises an entry invoked through a wrapper, and adds no second 
     assert.equal(count('SessionStart', 'route-scan --hook'), 1, 'the wrapped session-start hook stays single');
     assert.equal(count('UserPromptSubmit', 'brief --hook'), 1, 'the wrapped brief hook stays single');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 

@@ -13,7 +13,7 @@ process.env.XDG_CONFIG_HOME = join(home, 'config');
 const { isTrustedProject, keyFromApiKeyHelper } = await import('../src/gateway-auth.js');
 const doc2md = createRequire(import.meta.url)('../src/doc2md.cjs');
 
-after(() => rmSync(home, { recursive: true, force: true }));
+after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 /** A project whose settings carry a helper that leaves a marker when it runs. */
 function project(name, file = 'settings.json') {
@@ -83,7 +83,7 @@ test('the doc2md hook answers the permission question only when it refuses', () 
 
 test('a sensitive-pattern document is noted, not approved', (t) => {
   const dir = mkdtempSync(join(home, 'docs-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const file = join(dir, 'passwords.xlsx');
   writeFileSync(file, 'PK');
   const decision = doc2md.decideForRead({ tool_name: 'Read', tool_input: { file_path: file } });

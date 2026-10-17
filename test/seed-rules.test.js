@@ -45,7 +45,7 @@ test('seed lists every bundled preset on a fresh machine', () => {
     const pending = Number(out.match(/seed — (\d+) preset/)[1]);
     assert.ok(pending >= 10, `expected the full preset set, got ${pending}`);
   } finally {
-    rmSync(s.dir, { recursive: true, force: true });
+    rmSync(s.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -62,7 +62,7 @@ test('accept registers a model preset and renders it into ratchet-model.md', () 
     // Answered once, never offered again.
     assert.doesNotMatch(s.run('seed'), /\[run-t2\]/);
   } finally {
-    rmSync(s.dir, { recursive: true, force: true });
+    rmSync(s.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -72,7 +72,7 @@ test('accept without a scope refuses instead of guessing', () => {
     assert.throws(() => s.run('seed', 'accept', 'run-t2'), /Scope required|적용 범위/);
     assert.ok(!existsSync(join(s.home, '.claude', 'ratchet-model.md')), 'nothing may be written');
   } finally {
-    rmSync(s.dir, { recursive: true, force: true });
+    rmSync(s.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -93,7 +93,7 @@ test('a global ratchet preset lands in the preset file and a skip is permanent',
     s.run('seed', 'reset');
     assert.match(s.run('seed'), new RegExp(`\\[${other}\\]`));
   } finally {
-    rmSync(s.dir, { recursive: true, force: true });
+    rmSync(s.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -108,7 +108,7 @@ test('a preset is withheld when the user already has a rule of that shape', asyn
     assert.equal(registry.rules[0].origin, 'preset');
     assert.equal(registry.rules[0].signature, 'T2|run|preset');
   } finally {
-    rmSync(s.dir, { recursive: true, force: true });
+    rmSync(s.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -128,8 +128,8 @@ test('the SessionStart offer carries no Korean for an English user, and Korean f
     });
     assert.match(koOut, /추천 룰/);
   } finally {
-    rmSync(en.dir, { recursive: true, force: true });
-    rmSync(ko.dir, { recursive: true, force: true });
+    rmSync(en.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(ko.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -173,7 +173,7 @@ test('the offer leads with registering everything, in both languages', () => {
         `${lang}: the count appears again in the guidance rather than a hardcoded figure`);
       assert.ok(ordering, `${lang}: the bulk command is spelled out`);
     } finally {
-      rmSync(s.dir, { recursive: true, force: true });
+      rmSync(s.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   }
 });
@@ -189,7 +189,7 @@ test('a rule line carries exactly one pair of quotes around the work type', () =
     const offer = out.slice(out.indexOf(`[${CLI_NAME} seed]`));
     assert.doesNotMatch(offer, /""/, 'no doubled quotes in the rendered offer');
   } finally {
-    rmSync(s.dir, { recursive: true, force: true });
+    rmSync(s.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 

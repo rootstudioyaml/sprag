@@ -79,7 +79,7 @@ test('a gateway with no price table counts the runs as unpriced, not free', (t) 
   t.after(() => {
     if (prev === undefined) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = prev;
     resetModelAliasCache();
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   const sessions = [{
     sessionId: 'a',

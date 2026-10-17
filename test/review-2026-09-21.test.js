@@ -134,6 +134,6 @@ test('last user timestamp is found from the tail of a large transcript', async (
     writeFileSync(path, lines.filter((l) => !l.includes('"user"')).join('\n') + '\n');
     assert.equal(await getLastUserMessageTime(path), null, 'no user entry anywhere');
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });

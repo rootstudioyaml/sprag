@@ -36,7 +36,7 @@ function transcript(lines) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-ultra-'));
   const path = join(dir, 'session.jsonl');
   writeFileSync(path, lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n') + '\n');
-  return { path, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return { path, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) };
 }
 
 const enter = (reminderType = 'full') => ({
@@ -283,7 +283,7 @@ function home({ withSession }) {
   }
   const tpath = join(proj, 'session.jsonl');
   writeFileSync(tpath, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
-  return { dir, tpath, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return { dir, tpath, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) };
 }
 
 function render(dir, payload) {

@@ -18,7 +18,7 @@ delete process.env.CODEX_HOME;
 const { sweepPanelState, recordPanelState, panelStatePath, panelHealth, readPanelState, PANEL_STATE_MAX_AGE_MS } =
   await import('../src/codex/panel-state.js');
 
-after(() => rmSync(home, { recursive: true, force: true }));
+after(() => rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;

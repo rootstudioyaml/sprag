@@ -33,7 +33,7 @@ function sandbox({ language, candidates }) {
     // the cache instead of kicking a rescan mid-test.
     scannedBytes: Number.MAX_SAFE_INTEGER,
   }));
-  return { dir, home, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return { dir, home, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) };
 }
 
 const MODERN = {
