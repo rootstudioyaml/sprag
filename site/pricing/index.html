@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sprag Pricing | Free for you, per seat for teams</title>
+<meta name="description" content="Sprag is free. Teams pay per seat for a shared dashboard, team-approved rules and optional prompt capture." />
+<link rel="canonical" href="https://sprag.io/pricing/" />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#010102" />
+<link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="../assets/logo/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Sprag" />
+<meta property="og:title" content="Sprag Pricing" />
+<meta property="og:description" content="Sprag is free. Teams pay per seat." />
+<meta property="og:url" content="https://sprag.io/pricing/" />
+<meta property="og:image" content="https://sprag.io/assets/og-card.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#010102; --panel:#0f1011; --panel2:#141516;
+    --line:#23252a; --line2:#34343a;
+    --ink:#f7f8f8; --dim:#8a8f98; --faint:#62666d;
+    --amber:#5e6ad2; --amber2:#828fff;
+    --teal:#35d6a8; --blue:#6a9bff; --red:#ff6b6b;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --r:8px; --ease:cubic-bezier(.23,1,.32,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  h1,h2,h3{text-wrap:balance}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.55}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer}
+  code{font-family:var(--mono);font-size:.92em}
+  a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:4px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(1,1,2,.8);backdrop-filter:blur(12px)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15.5px;letter-spacing:.01em}
+  .brand svg{width:20px;height:20px;display:block}
+  header nav{display:flex;align-items:center;gap:20px;font-size:13.5px;color:var(--dim)}
+  header nav a:hover,header nav a[aria-current]{color:var(--ink)}
+  .lang{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+  .lang button{border:0;background:transparent;color:var(--faint);padding:5px 9px;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em}
+  .lang button+button{border-left:1px solid var(--line2)}
+  .lang button:hover{color:var(--dim)}
+  .lang button[aria-pressed=true]{background:rgba(94,106,210,.12);color:var(--amber)}
+  html[lang=ko] body{word-break:keep-all;line-height:1.65}
+  .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);border-radius:var(--r);padding:11px 16px;font-size:13.5px;color:var(--dim);background:transparent;transition:border-color .18s var(--ease),color .18s var(--ease),transform .16s var(--ease)}
+  .btn:hover{border-color:#3a3d47;color:var(--ink)}
+  .btn:active{transform:scale(.97)}
+  .btn.pri{background:var(--amber);border-color:var(--amber);color:#fff}
+  .btn.pri:hover{background:var(--amber2);border-color:var(--amber2)}
+  @media(max-width:720px){header nav .hide-sm{display:none}}
+  @media(hover:none) and (pointer:coarse){.lang button{padding:10px 12px}.btn{min-height:44px}}
+
+  .hero{padding:72px 0 40px;text-align:center}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber2)}
+  html[lang=ko] .eyebrow{font-family:var(--sans);letter-spacing:.02em;text-transform:none}
+  h1{font-size:clamp(32px,6vw,54px);letter-spacing:-.025em;line-height:1.1;margin:14px auto 0;max-width:20ch}
+  .lede{color:var(--dim);font-size:16.5px;max-width:52ch;margin:18px auto 0;text-wrap:balance}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}
+  .plan{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:28px 24px;display:flex;flex-direction:column}
+  .plan.feat{border-color:var(--amber);background:linear-gradient(180deg,rgba(94,106,210,.1),var(--panel) 55%)}
+  .plan h2{font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--amber);color:var(--amber2);border-radius:99px;padding:2px 8px;font-weight:500}
+  html[lang=ko] .tag{font-family:var(--sans);letter-spacing:0;text-transform:none}
+  .price{margin-top:16px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .price b{font-size:44px;letter-spacing:-.03em;line-height:1}
+  .price span{color:var(--faint);font-size:13px}
+  .plan .for{margin-top:10px;color:var(--dim);font-size:14px;min-height:3.1em}
+  .plan ul{list-style:none;margin:20px 0 24px;display:grid;gap:10px;align-content:start;font-size:14px;color:var(--ink);flex:1}
+  .plan li{padding-left:22px;position:relative;line-height:1.5}
+  .plan li::before{content:"";position:absolute;left:2px;top:.5em;width:10px;height:5px;border-left:2px solid var(--teal);border-bottom:2px solid var(--teal);transform:rotate(-45deg) translateY(-2px)}
+  .plan .note{color:var(--faint);font-size:12.5px;border-top:1px solid var(--line);padding-top:14px}
+  @media(max-width:860px){.plans{grid-template-columns:1fr}.plan .for{min-height:0}}
+
+  section.blk{padding:56px 0 8px}
+  section.blk h2{font-size:24px;letter-spacing:-.02em}
+  section.blk p{color:var(--dim);margin-top:12px;max-width:68ch;font-size:15px;line-height:1.7}
+  .quote{margin-top:14px;border:1px solid var(--line2);border-left:3px solid var(--teal);border-radius:var(--r);background:var(--panel);padding:16px 18px;color:var(--ink);font-size:15px;max-width:68ch}
+  .faqs{margin-top:20px;border-top:1px solid var(--line)}
+  .faqs details{border-bottom:1px solid var(--line)}
+  .faqs summary{cursor:pointer;padding:16px 4px;font-size:15px;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .faqs summary::-webkit-details-marker{display:none}
+  .faqs summary::after{content:"+";color:var(--faint);font-family:var(--mono);font-size:16px}
+  .faqs details[open] summary::after{content:"\2212"}
+  .faqs summary:hover{color:var(--amber2)}
+  .faqs p{padding:0 4px 16px;margin:0;max-width:70ch}
+  .cta{text-align:center;padding:64px 0 80px;margin-top:56px;border-top:1px solid var(--line)}
+  .cta h2{font-size:26px;letter-spacing:-.02em;max-width:26ch;margin:0 auto}
+  .cta .actions{margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  footer{border-top:1px solid var(--line);padding:32px 0 52px;color:var(--faint);font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  footer a:hover{color:var(--ink)}
+  @media(max-width:520px){.wrap{padding:0 16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
+        <g fill="#5e6ad2">
+          <rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/>
+          <g transform="rotate(120 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+          <g transform="rotate(240 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+        </g>
+        <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4"/>
+      </svg>
+      Sprag
+    </a>
+    <nav>
+      <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a class="hide-sm" href="/team/" data-k="nav.teams">Teams</a>
+      <a href="/pricing/" aria-current="page" data-k="nav.pricing">Pricing</a>
+      <span class="lang" role="group" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="ko" aria-pressed="false">KO</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="hero">
+  <div class="wrap">
+    <p class="eyebrow" data-k="p.eyebrow">Pricing</p>
+    <h1 data-k="p.h1">Sprag is free. Teams pay per seat.</h1>
+    <p class="lede" data-k="p.lede">The CLI on your machine costs nothing and stays on your machine. A team plan adds a shared view of spend and savings for whoever owns the bill.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="plans">
+    <article class="plan">
+      <h2 data-k="p.free">Free</h2>
+      <div class="price"><b data-price="free">$0</b><span data-k="p.forever">forever</span></div>
+      <p class="for" data-k="p.free.for">For anyone running Claude Code or Codex alone.</p>
+      <ul>
+        <li data-k="p.free.1">The open-source CLI</li>
+        <li data-k="p.free.2">Local routing rules</li>
+        <li data-k="p.free.3">Savings ledger</li>
+        <li data-k="p.free.4">doc2md and the statusline</li>
+      </ul>
+      <p class="note" data-k="p.free.note">Nothing leaves your machine.</p>
+    </article>
+
+    <article class="plan feat">
+      <h2><span data-k="p.team">Team</span></h2>
+      <div class="price"><b data-price="team">$5</b><span data-k="p.per">per seat per month</span></div>
+      <p class="for" data-k="p.team.for">For a group that wants one shared view of spend and savings.</p>
+      <ul>
+        <li data-k="p.team.1">Shared dashboard</li>
+        <li data-k="p.team.2">Daily spend and savings per member</li>
+        <li data-k="p.team.3">Team-approved rules pushed to every member at session start</li>
+        <li data-k="p.team.4">Org enrollment with one env var</li>
+        <li data-k="p.team.5">Remove members any time</li>
+      </ul>
+      <a class="btn pri" href="/team/" data-k="p.open">Open the dashboard</a>
+    </article>
+
+    <article class="plan">
+      <h2><span data-k="p.plus">Team Plus</span></h2>
+      <div class="price"><b data-price="teamPlus">$10</b><span data-k="p.per">per seat per month</span></div>
+      <p class="for" data-k="p.plus.for">For teams that also want to see how prompts are written.</p>
+      <ul>
+        <li data-k="p.plus.1">Everything in Team</li>
+        <li data-k="p.plus.2">Prompt capture: user prompts only, in compressed daily batches</li>
+        <li data-k="p.plus.3">Search by member and day</li>
+        <li data-k="p.plus.4">A policy switch that members can see</li>
+      </ul>
+      <p class="note" data-k="p.plus.note">Off by default. The owner turns it on per team.</p>
+    </article>
+  </div>
+
+  <section class="blk">
+    <h2 data-k="p.seats.h">How seats are counted</h2>
+    <p data-k="p.seats.p">A seat is a member who was active in the last 30 days. Members who left are not billed.</p>
+  </section>
+
+  <section class="blk">
+    <h2 data-k="p.sent.h">What is sent</h2>
+    <div class="quote" data-k="p.sent.p">Members send one row per day: spend, savings, delegation count, model-family share, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.</div>
+  </section>
+
+  <section class="blk">
+    <h2 data-k="p.bill.h">How billing starts</h2>
+    <p data-k="p.bill.p">Create your team today. Billing is invoiced monthly per active seat and starts when we enable it for your team from the dashboard. You will see the switch there first.</p>
+  </section>
+
+  <section class="blk">
+    <h2 data-k="p.faq.h">Questions</h2>
+    <div class="faqs">
+      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. Team features are opt-in. Nothing is uploaded until a member joins a team, and the free CLI never needs an account.</p></details>
+      <details><summary data-k="p.q2">Who consents when a company rolls this out?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members still see what is sent with <code>sprag team status</code>.</p></details>
+      <details><summary data-k="p.q3">Can a member leave?</summary><p data-k="p.a3">Yes. A member can leave at any time, and the owner can remove a member from the dashboard. A member who left is no longer billed.</p></details>
+      <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">It is a per-team policy that only the owner can change, and every member can see it in <code>sprag team status</code>. It needs the Team Plus plan.</p></details>
+      <details><summary data-k="p.q5">Where is the data stored?</summary><p data-k="p.a5">In Supabase, in the ap-northeast-2 (Seoul) region.</p></details>
+    </div>
+  </section>
+</div>
+
+<section class="cta">
+  <div class="wrap">
+    <h2 data-k="p.cta">Start with a team of one and add people later.</h2>
+    <div class="actions">
+      <a class="btn pri" href="/team/" data-k="p.open">Open the dashboard</a>
+      <a class="btn" href="/docs/" data-k="p.docs">Read the docs</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Apache-2.0 © YAML Studio</span>
+    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+/* Prices live here. Change them in this block only. */
+const PRICES = { free: 0, team: 5, teamPlus: 10 };
+const money = n => '$' + n;
+document.querySelectorAll('[data-price]').forEach(el => { el.textContent = money(PRICES[el.dataset.price]); });
+
+const KO = {
+  'nav.docs':'문서', 'nav.teams':'팀', 'nav.pricing':'요금',
+  'p.eyebrow':'요금',
+  'p.h1':'Sprag는 무료입니다. 팀만 좌석당 냅니다.',
+  'p.lede':'내 컴퓨터에서 쓰는 CLI는 비용이 없고, 데이터도 내 컴퓨터에 남습니다. 팀 요금제는 비용을 책임지는 사람이 지출과 절감액을 한곳에서 보게 해 줍니다.',
+  'p.free':'무료', 'p.forever':'영구 무료',
+  'p.free.for':'Claude Code나 Codex를 혼자 쓰는 분께 맞습니다.',
+  'p.free.1':'오픈소스 CLI', 'p.free.2':'로컬 라우팅 규칙', 'p.free.3':'절감액 기록', 'p.free.4':'doc2md와 statusline',
+  'p.free.note':'어떤 데이터도 내 컴퓨터 밖으로 나가지 않습니다.',
+  'p.team':'팀', 'p.per':'좌석당 월',
+  'p.team.for':'지출과 절감액을 한곳에서 보고 싶은 그룹에 맞습니다.',
+  'p.team.1':'공유 대시보드', 'p.team.2':'멤버별 일일 지출과 절감액',
+  'p.team.3':'팀이 승인한 규칙을 모든 멤버의 세션 시작 때 적용',
+  'p.team.4':'환경 변수 하나로 조직 등록', 'p.team.5':'언제든 멤버 제거',
+  'p.open':'대시보드 열기', 'p.docs':'문서 읽기',
+  'p.plus':'팀 플러스',
+  'p.plus.for':'프롬프트를 어떻게 쓰는지도 보고 싶은 팀에 맞습니다.',
+  'p.plus.1':'팀 요금제의 모든 기능',
+  'p.plus.2':'프롬프트 수집: 사용자 프롬프트만, 하루 단위로 압축해 전송',
+  'p.plus.3':'멤버와 날짜로 검색', 'p.plus.4':'멤버에게도 보이는 정책 스위치',
+  'p.plus.note':'기본값은 꺼짐입니다. 소유자가 팀 단위로 켭니다.',
+  'p.seats.h':'좌석 계산 방식',
+  'p.seats.p':'최근 30일 안에 활동한 멤버가 한 좌석입니다. 팀을 떠난 멤버에게는 청구하지 않습니다.',
+  'p.sent.h':'전송하는 데이터',
+  'p.sent.p':'멤버는 하루에 한 줄씩 보냅니다. 지출, 절감액, 위임 횟수, 모델 계열 비중, sprag 버전입니다. 프롬프트 수집을 켜지 않는 한 프롬프트, 대화 기록, 경로, 프로젝트 이름은 보내지 않습니다.',
+  'p.bill.h':'청구는 언제 시작되나요',
+  'p.bill.p':'팀은 오늘 바로 만들 수 있습니다. 청구는 활성 좌석 기준으로 매달 인보이스를 보내는 방식이고, 우리가 해당 팀의 청구를 켜는 시점에 시작됩니다. 그 스위치는 대시보드에서 먼저 보게 됩니다.',
+  'p.faq.h':'자주 묻는 질문',
+  'p.q1':'기본으로 올라가는 데이터가 있나요?',
+  'p.a1':'없습니다. 팀 기능은 직접 켜야 합니다. 멤버가 팀에 가입하기 전에는 아무것도 올라가지 않고, 무료 CLI는 계정이 필요 없습니다.',
+  'p.q2':'회사가 도입하면 동의는 누가 하나요?',
+  'p.a2':'조직 단위로 배포할 때는 조직의 결정이 동의입니다. 멤버는 <code>sprag team status</code>로 무엇이 전송되는지 직접 볼 수 있습니다.',
+  'p.q3':'멤버가 팀을 나갈 수 있나요?',
+  'p.a3':'네, 언제든 나갈 수 있고 소유자도 대시보드에서 멤버를 제거할 수 있습니다. 나간 멤버에게는 더 이상 청구하지 않습니다.',
+  'p.q4':'프롬프트 수집은 누가 정하나요?',
+  'p.a4':'팀 단위 정책이며 소유자만 바꿀 수 있습니다. 모든 멤버가 <code>sprag team status</code>에서 확인할 수 있고, 팀 플러스 요금제가 필요합니다.',
+  'p.q5':'데이터는 어디에 저장되나요?',
+  'p.a5':'Supabase의 ap-northeast-2(서울) 리전에 저장됩니다.',
+  'p.cta':'한 명으로 시작해서 나중에 사람을 더하세요.'
+};
+const EN = {};
+document.querySelectorAll('[data-k]').forEach(el => EN[el.dataset.k] = el.innerHTML);
+const META = {
+  en: { title:'Sprag Pricing | Free for you, per seat for teams', desc: document.querySelector('meta[name=description]').content },
+  ko: { title:'Sprag 요금 · 개인은 무료, 팀은 좌석당', desc:'Sprag는 무료입니다. 팀은 공유 대시보드, 팀 승인 규칙, 선택형 프롬프트 수집을 좌석당 요금으로 씁니다.' }
+};
+let lang = 'en';
+function setLang(next, remember){
+  lang = next === 'ko' ? 'ko' : 'en';
+  const dict = lang === 'ko' ? KO : EN;
+  document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.innerHTML = v; });
+  document.documentElement.lang = lang;
+  document.title = META[lang].title;
+  document.querySelector('meta[name=description]').content = META[lang].desc;
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  if(remember){ try{ localStorage.setItem('sprag.lang', lang); }catch(e){} }
+}
+(function(){
+  const q = new URLSearchParams(location.search).get('lang');
+  let stored = null; try{ stored = localStorage.getItem('sprag.lang'); }catch(e){}
+  const nav = (navigator.languages || [navigator.language || 'en']).join(',');
+  setLang(q || stored || (/\bko\b|ko-/i.test(nav) ? 'ko' : 'en'), false);
+})();
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+</script>
+</body>
+</html>

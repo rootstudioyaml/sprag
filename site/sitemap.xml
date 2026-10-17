@@ -9,6 +9,14 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/?lang=ko"/>
   </url>
   <url>
+    <loc>https://sprag.io/team/</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://sprag.io/pricing/</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://sprag.io/docs/</loc>
     <priority>0.7</priority>
   </url>
