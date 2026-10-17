@@ -33,6 +33,7 @@ import { writeStateFile } from './state-file.js';
 import { readSettings, writeSettings } from './installer.js';
 import { modelRatchetPathFor } from './model-rules.js';
 import { presetRatchetPath } from './preset-ratchet.js';
+import { teamRatchetPath } from './team-ratchet.js';
 import { globalRatchetMdPath } from './harness.js';
 import { debug } from './debug.js';
 
@@ -183,11 +184,11 @@ export const coworkCopyPath = (dir) => join(dir, COPY_REL);
 
 // ---------- content ----------
 
-/** @returns {string|null} null when none of the three source files exists */
+/** @returns {string|null} null when none of the source files exists */
 export function renderCoworkRatchet(lang = userLanguage()) {
   const ko = lang === 'ko';
   const parts = [];
-  for (const file of [modelRatchetPathFor('global'), presetRatchetPath(), globalRatchetMdPath()]) {
+  for (const file of [modelRatchetPathFor('global'), presetRatchetPath(), teamRatchetPath(), globalRatchetMdPath()]) {
     let body;
     try { body = readFileSync(file, 'utf8'); } catch { continue; }
     const name = file.split(/[\\/]/).pop();
@@ -195,8 +196,8 @@ export function renderCoworkRatchet(lang = userLanguage()) {
   }
   if (parts.length === 0) return null;
   const intro = ko
-    ? '이 파일은 sprag가 Claude 앱 Cowork 탭용으로 생성한 래칫 사본입니다. Cowork는 ~/.claude 의 설정과 import를 읽지 않으므로, 원본 래칫 세 파일의 본문을 여기에 옮겨 둡니다. sprag가 원본이 바뀔 때마다 이 파일을 통째로 다시 쓰므로 직접 고치지 마십시오. Claude Code(Code 탭)는 settings.json 의 claudeMdExcludes 로 이 파일을 읽지 않습니다.'
-    : 'This file is a copy of the ratchet rules that sprag generates for the Cowork tab of the Claude app. Cowork does not read the settings or imports under ~/.claude, so the bodies of the three source ratchet files are copied here. sprag rewrites this whole file whenever a source changes, so do not edit it by hand. Claude Code (the Code tab) skips this file through claudeMdExcludes in settings.json.';
+    ? '이 파일은 sprag가 Claude 앱 Cowork 탭용으로 생성한 래칫 사본입니다. Cowork는 ~/.claude 의 설정과 import를 읽지 않으므로, 원본 래칫 파일들의 본문을 여기에 옮겨 둡니다. sprag가 원본이 바뀔 때마다 이 파일을 통째로 다시 쓰므로 직접 고치지 마십시오. Claude Code(Code 탭)는 settings.json 의 claudeMdExcludes 로 이 파일을 읽지 않습니다.'
+    : 'This file is a copy of the ratchet rules that sprag generates for the Cowork tab of the Claude app. Cowork does not read the settings or imports under ~/.claude, so the bodies of the source ratchet files are copied here. sprag rewrites this whole file whenever a source changes, so do not edit it by hand. Claude Code (the Code tab) skips this file through claudeMdExcludes in settings.json.';
   return `${COWORK_MARKER}\n${intro}\n\n${parts.join('\n')}`;
 }
 

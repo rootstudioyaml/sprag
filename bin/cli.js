@@ -102,7 +102,7 @@ function segmentsFromArgs() {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved', 'cowork',
+  'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team',
 ]);
 
 // Flags each entry path reads, collected from the hasFlag/getArg/numArg calls in
@@ -207,6 +207,7 @@ Usage:
   sprag update-check       is a newer version out?
   sprag brief --hook       internal: the UserPromptSubmit hook entry point
   sprag feedback "<msg>"   file a bug report / feature request (no browser needed)
+  sprag team join|status|sync|leave   opt-in team layer: daily aggregates only (CTS_NO_TEAM_SYNC=1 turns it off)
   sprag upgrade            install the latest release
   sprag --install-hook     install cache-monitor PostToolUse hook
   sprag --uninstall-hook   remove that hook
@@ -300,6 +301,12 @@ async function main() {
   if (args[0] === 'feedback') {
     const { userDataDir } = await import('../src/paths.js');
     return (await import('../src/commands/feedback.js')).run({ args, getArg, version: PKG_VERSION, dataDir: userDataDir() });
+  }
+
+  // Subcommand: team — opt-in team layer (join with an invite token, daily
+  // aggregates only, team rules). See src/commands/team.js and src/team-sync.js.
+  if (args[0] === 'team') {
+    return (await import('../src/commands/team.js')).run({ args, hasFlag, getArg, version: PKG_VERSION });
   }
 
   if (args[0] === 'handoff') {

@@ -183,10 +183,21 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
       try { (await import('../preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch (e) { debug('codex:preset', e); }
     }
     const { presetRatchetPath } = await import('../preset-ratchet.js');
+    let teamRatchetPath = () => '';
+    let teamNotice = null;
+    try {
+      const tr = await import('../team-ratchet.js');
+      teamRatchetPath = tr.teamRatchetPath;
+      if (event === 'session-start') {
+        tr.syncTeamRatchet({ agent: 'codex' });
+        tr.spawnTeamSyncIfDue();
+        teamNotice = tr.autoJoinNoticeBlock(undefined, 'en');
+      }
+    } catch (e) { debug('codex:team-ratchet', e); }
     // Lower priority survives the budget first. Rules and style move to a file
     // when they do not fit; offers and notices are simply left out.
     for (const [scope, ratchet] of [['global', codexHarnessPaths(root, 'global').ratchet],
-      ['preset', presetRatchetPath({ agent: 'codex' })], ['project', codexHarnessPaths(root, 'project').ratchet]]) {
+      ['preset', presetRatchetPath({ agent: 'codex' })], ['team', teamRatchetPath({ agent: 'codex' })], ['project', codexHarnessPaths(root, 'project').ratchet]]) {
       try {
         if (statSync(ratchet).size > 32 * 1024) {
           parts.push({ priority: 1, text: `Read the ${scope} Sprag ratchet rules at ${JSON.stringify(ratchet)} before working; they exceed the automatic injection limit.` });
@@ -194,10 +205,11 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
           const text = readFileSync(ratchet, 'utf8').trim();
           // An empty preset file is only its header; injecting it would spend
           // tokens every session on no rules.
-          if (text && (scope !== 'preset' || /^- /m.test(text))) parts.push({ priority: 1, spill: true, text: `[Sprag Codex ratchet: ${scope}]\n${text}` });
+          if (text && ((scope !== 'preset' && scope !== 'team') || /^- /m.test(text))) parts.push({ priority: 1, spill: true, text: `[Sprag Codex ratchet: ${scope}]\n${text}` });
         }
       } catch (e) { if (e?.code !== 'ENOENT') debug('codex:ratchet', e); }
     }
+    if (teamNotice) parts.push({ priority: 5, text: teamNotice });
     if (event === 'subagent-start') parts.push({ priority: 0, text:
       '[Sprag Codex delegation]\nStay within the assigned task and any caller-provided budget. Return findings with file references and actual verification results; state unfinished work. Use only available Codex tools and configured roles. Do not infer a model tier or invent a tool-call budget.' });
     // Codex reads the Korean guide from the global AGENTS.md, so the hook adds it

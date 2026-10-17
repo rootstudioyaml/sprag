@@ -303,6 +303,17 @@ export async function run({ args, hasFlag, numArg }) {
       // bundled rule reaches ratchet-preset.md here, without a reinstall. It
       // also moves presets older versions appended to ratchet.md.
       try { (await import('../preset-ratchet.js')).preparePresetRatchet(); } catch (e) { debug('route-scan:sync-preset', e); }
+      // Team layer (opt-in): re-render the team ratchet file from the cached rules,
+      // keep the CLAUDE.md import in step with the file, and kick the detached sync
+      // when it is due. Nothing here touches the network.
+      let teamBlock = null;
+      try {
+        const tr = await import('../team-ratchet.js');
+        tr.syncTeamRatchet({ lang });
+        tr.ensureTeamImport();
+        tr.spawnTeamSyncIfDue();
+        teamBlock = tr.autoJoinNoticeBlock(undefined, lang);
+      } catch (e) { debug('route-scan:team', e); }
       // Cowork cannot follow the ~/.claude imports, so it gets a pasted copy.
       try { (await import('../cowork-sync.js')).syncCoworkRatchets({ discover: true }); } catch (e) { debug('route-scan:cowork-sync', e); }
       // Registered rules whose delegated-category error rate crossed the
@@ -375,6 +386,7 @@ export async function run({ args, hasFlag, numArg }) {
       } catch (e) { debug('route-scan:update-check', e); /* the offer is optional */ }
 
       if (open.length === 0 && reviewRules.length === 0) {
+        if (teamBlock) console.log(teamBlock);
         if (updateBlock) console.log(updateBlock);
         if (seedBlock) console.log(seedBlock);
         if (doc2mdBlock) console.log(doc2mdBlock);
@@ -382,6 +394,7 @@ export async function run({ args, hasFlag, numArg }) {
         if (cohesionBlock) console.log(cohesionBlock);
         return; // nothing else to inject
       }
+      if (teamBlock) console.log(teamBlock);
       if (updateBlock) console.log(updateBlock);
       if (seedBlock) console.log(seedBlock);
       if (doc2mdBlock) console.log(doc2mdBlock);

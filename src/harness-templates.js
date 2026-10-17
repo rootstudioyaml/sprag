@@ -53,6 +53,16 @@ export function presetRatchetImportLine() {
 export const PRESET_RATCHET_IMPORT_RE = /^@~\/\.claude\/ratchet-preset\.md\s*$/m;
 
 /**
+ * The team ratchet: rules the user's team approved, cached by `sprag team sync`
+ * and rendered into a tool-owned file. Unlike the others its import is not in
+ * the rendered block; it is added only for members, when the file exists.
+ */
+export function teamRatchetImportLine() {
+  return '@~/.claude/ratchet-team.md';
+}
+export const TEAM_RATCHET_IMPORT_RE = /^@~\/\.claude\/ratchet-team\.md\s*$/m;
+
+/**
  * Render ratchet-preset.md. `rules` is [{ id, text }] in display order. The
  * file is loaded into every session, so the header stays short.
  */
