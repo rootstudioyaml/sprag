@@ -5,7 +5,7 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**Cut the tokens Claude Code and Codex spend, from the first session.**
+**A model-delegation router for Claude Code and Codex: lookups, checks and test runs go to cheaper models, and the savings show up in your statusline.**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
@@ -26,20 +26,22 @@ Same 12 requests, two terminals: **$6.68 → $1.83 (−72.6%)** with Sprag.<br>
 
 ---
 
-**Sprag saves tokens without changing how you work.** Lookups, checks and test
-runs go to a cheaper model, documents reach the context as compact Markdown (a
+**Sprag routes each piece of work to the cheapest model that has never got it
+wrong.** Claude Code and Codex cannot switch models per prompt, so Sprag does it
+the one way that works: rules in the main session hand lookups, status checks,
+build and test runs and batch edits to sub-agents pinned to a cheaper model. The
+rules come from your own session logs, you approve each one, and every delegated
+run writes its price difference to a ledger. `npm i -g sprag-cli` sets it all
+up; nothing to configure per project.
+
+Two more things ride along. Documents reach the context as compact Markdown (a
 540k-token deck becomes 23k tokens), and the statusline shows what each session
-spent and saved while it runs. `npm i -g sprag-cli` sets it all up; nothing to
-configure per project.
+spent and saved, with a warning chip in front when the cache, the context or a
+rate limit needs attention.
 
-Sprag is named after the sprag clutch: forward motion passes, backspin locks.
-Your agent keeps working, it just stops regressing.
-
-It reads the sessions you already ran, and what it finds there holds for every
-session after. Repeated failures become rules loaded at session start. Work that
-a cheaper tier has never got wrong goes to a sub-agent on that tier, and every
-delegated run writes its own price difference to a ledger. Cache and rate-limit
-trouble reaches your statusline while you can still act on it.
+The name is the sprag clutch: forward motion passes, backspin locks. Repeated
+failures in your logs become rules loaded at session start, so the agent keeps
+working and only the regressions get caught.
 
 Session analysis runs locally on the logs Claude Code and Codex already write.
 No extra model calls or API key are needed for analysis. Optional Codex gateway

@@ -1,7 +1,7 @@
 {
   "name": "sprag-cli",
   "version": "3.68.0",
-  "description": "Cut Claude Code and Codex token costs: cheaper-model routing, compact Markdown for documents, and a live statusline of spend and savings.",
+  "description": "Model-delegation router for Claude Code and Codex: lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and a live statusline shows spend and savings.",
   "type": "module",
   "bin": {
     "sprag": "bin/cli.js",

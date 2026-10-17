@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag | Cut Claude Code and Codex token spend</title>
-<meta name="description" content="Sprag cuts the tokens Claude Code and Codex spend: it routes simple work to cheaper models, feeds documents in as compact Markdown, and shows cache and spend as you work." />
+<title>Sprag | A model-delegation router for Claude Code and Codex</title>
+<meta name="description" content="Sprag is a model-delegation router for Claude Code and Codex: lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and the statusline shows spend and savings as you work." />
 <link rel="canonical" href="https://sprag.io/" />
 <link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en" />
 <link rel="alternate" hreflang="ko" href="https://sprag.io/?lang=ko" />
@@ -17,8 +17,8 @@
 <link rel="apple-touch-icon" href="assets/logo/apple-touch-icon.png" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Sprag" />
-<meta property="og:title" content="Sprag | Cut Claude Code and Codex token spend" />
-<meta property="og:description" content="Route simple work to cheaper models, convert documents before they reach the context, and watch spend live in Claude Code and Codex." />
+<meta property="og:title" content="Sprag | A model-delegation router for Claude Code and Codex" />
+<meta property="og:description" content="Lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and the statusline shows spend and savings live in Claude Code and Codex." />
 <meta property="og:url" content="https://sprag.io/" />
 <meta property="og:image" content="https://sprag.io/assets/og-card.png" />
 <meta property="og:image:type" content="image/png" />
@@ -588,9 +588,9 @@
 
 <div class="hero">
   <div class="wrap">
-    <h1 data-k="hero.h1">Cut Claude Code and Codex token spend</h1>
+    <h1 data-k="hero.h1">A model-delegation router for Claude Code and Codex</h1>
     <p class="support-line" data-k="hero.support">Sprag for Claude Code + Codex</p>
-    <p class="sub" data-k="hero.sub">Save tokens from the first session. Simple requests go to cheaper models, documents go in as compact Markdown, and the statusline shows what you spent and saved.</p>
+    <p class="sub" data-k="hero.sub">Lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and the statusline shows what you spent and saved.</p>
     <div class="actions">
       <div class="install"><code><span class="p">$</span> <span id="hero-install-command">npm i -g sprag-cli</span></code><button type="button" data-copy="hero-install-command"><span data-k="hero.copy">Copy</span></button></div>
       <a class="btn" href="#install" data-k="hero.cta">Install Sprag</a>
@@ -1205,9 +1205,9 @@ const KO = {
   'pop.4e':'비용',
   'pop.4p':'캐시 적중률과 만료까지 남은 시간, 컨텍스트 사용량, 5시간·7일 사용량 한도를 매 턴 읽어서, 그중 하나라도 바로 확인해야 하면 경고 칩이 줄 맨 앞으로 올라옵니다.',
  'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능', 'nav.docs':'문서',
-  'hero.h1':'Claude Code와 Codex가 쓰는 토큰을 줄입니다',
+  'hero.h1':'Claude Code와 Codex에 붙이는 모델 위임 라우터',
   'hero.support':'Claude Code와 Codex용 Sprag',
-  'hero.sub':'첫 세션부터 토큰을 아낍니다. 단순한 요청은 저렴한 모델로 넘기고 문서는 가벼운 Markdown으로 바꿔 넣으며, 쓴 금액과 아낀 금액을 상태줄에서 바로 보여 줍니다.',
+  'hero.sub':'조회·확인·테스트 실행은 더 싼 모델에 보내고, 문서는 가벼운 Markdown으로 바꿔 넣으며, 쓴 금액과 아낀 금액은 상태줄에서 바로 보여 줍니다.',
   'hero.copy':'복사', 'hero.copied':'복사됨', 'hero.enlarge':'탭하면 크게 봅니다',
   'hero.cta':'Sprag 설치',
   'hero.how':'작동 방식',
@@ -1261,10 +1261,10 @@ document.querySelectorAll('[data-k]').forEach(el => EN[el.dataset.k] = el.innerH
 EN['hero.copied'] = 'Copied';
 
 const META = {
-  en: {title: 'Sprag | Cut Claude Code and Codex token spend',
+  en: {title: 'Sprag | A model-delegation router for Claude Code and Codex',
        desc: document.querySelector('meta[name=description]').content},
-  ko: {title: 'Sprag · Claude Code와 Codex 토큰 절감 도구',
-       desc: 'Sprag는 Claude Code와 Codex가 쓰는 토큰을 줄입니다. 단순한 작업은 저렴한 모델로 넘기고, 문서는 Markdown으로 바꿔 넣으며, 캐시와 지출을 작업 중에 보여 줍니다.'},
+  ko: {title: 'Sprag · Claude Code와 Codex에 붙이는 모델 위임 라우터',
+       desc: 'Sprag는 Claude Code와 Codex에 붙이는 모델 위임 라우터입니다. 조회·확인·테스트 실행은 더 싼 모델에 보내고, 문서는 Markdown으로 바꿔 넣으며, 쓴 금액과 아낀 금액을 작업 중에 보여 줍니다.'},
 };
 
 let lang = 'en';
