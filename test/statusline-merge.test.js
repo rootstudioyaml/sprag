@@ -65,6 +65,15 @@ test('withBaseStatusline puts the base output first', () => {
   assert.equal(withBaseStatusline('OURS'), 'BASE\nOURS');
 });
 
+test('the base receives the payload the caller passes, and nothing is read from fd 0', () => {
+  // Reading stdin here would block for good under `node --test` on Windows,
+  // whose runner keeps each test file's stdin pipe open; the function takes
+  // the text from its caller instead. `cat` echoes what it was given.
+  saveConfig({ statuslineBase: { type: 'command', command: 'cat' } });
+  assert.equal(withBaseStatusline('OURS', { input: '{"ok":1}' }), '{"ok":1}\nOURS');
+  assert.equal(withBaseStatusline('OURS'), 'OURS', 'no input means an empty base, not a blocked read');
+});
+
 test('withBaseStatusline falls back to our output on failure, empty output or no config', () => {
   saveConfig({ statuslineBase: { type: 'command', command: 'exit 3' } });
   assert.equal(withBaseStatusline('OURS'), 'OURS');

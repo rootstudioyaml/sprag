@@ -32,6 +32,7 @@ import { dirname, isAbsolute, join } from 'node:path';
 
 import {
   readStdinJson,
+  readStdinRaw,
   extractCaps,
   extractContextUsage,
   extractEffort,
@@ -636,7 +637,7 @@ async function main() {
       console.log(withBaseStatusline(formatNoSession(
         { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION) },
         { color: colorOk, mode: labelMode, segments: segmentsFromArgs() },
-      )));
+      ), { input: readStdinRaw() }));
       return;
     }
     // JSON mode stays JSON. A caller that asked for machine-readable output
@@ -1003,7 +1004,8 @@ async function main() {
 
   if (format === 'statusline') {
     const { withBaseStatusline } = await import('../src/statusline-base.js');
-    output = withBaseStatusline(output);
+    // The payload was read above; the base gets the same text, not a second read.
+    output = withBaseStatusline(output, { input: readStdinRaw() });
   }
   console.log(output);
 }
