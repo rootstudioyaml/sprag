@@ -662,6 +662,20 @@ function buildSitemap(entries) {
     <loc>${SITE_ORIGIN}/docs/ko/</loc>
     <priority>0.7</priority>
   </url>`);
+  // Hand-written pages outside docs/: the team dashboard and the pricing page.
+  // They live in site/ directly, so the docs walk above never sees them.
+  urls.push(`  <url>
+    <loc>${SITE_ORIGIN}/pricing/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>`);
+  urls.push(`  <url>
+    <loc>${SITE_ORIGIN}/team/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>`);
   for (const e of entries) {
     const enUrl = `${SITE_ORIGIN}/docs/${e.slug}/`;
     const koUrl = e.hasKo ? `${SITE_ORIGIN}/docs/ko/${e.slug}/` : null;
