@@ -32,9 +32,13 @@ LiteLLM 프록시로 Bedrock 등을 쓰면 Claude Code stdin 에 `rate_limits` �
 
 세션 기본 모델이 sonnet 이면 sonnet 위임 규칙(T1)은 구조적으로 절감이 0입니다. 같은 급으로 내려보내 봐야 차액이 없기 때문이며 이는 정상 동작입니다. 다만 `route-scan rules` 가 이 경우를 "아직 위임 없음"과 같은 문구로 표시해 고장처럼 보였으므로, 이제 현재 기본 모델 기준으로 적용되지 않는다는 사실을 따로 적습니다.
 
+### LiteLLM: 모델 별칭을 게이트웨이에서 가져옵니다 (`sprag profile-map --refresh`)
+
+LiteLLM 게이트웨이 환경에서는 `sprag profile-map --refresh` 가 게이트웨이의 `GET /model/info` 에서 모델 별칭을 바로 읽어 오므로, route-scan 이 위임 투표가 쌓이길 기다리거나 `profile-map.json` 을 손으로 편집할 필요가 없습니다. 이 갱신은 LiteLLM 예산 게이지와 같은 5분 점검·24시간 캐시 주기를 씁니다. 인증 토큰은 저장하지 않으며, 호출 시점마다 `apiKeyHelper` 에서 읽어 그 헬퍼의 수명 그대로 만료되게 둡니다. 해석 순서 세 단계와 `profile-map.json` 을 직접 쓰는 형식은 [route-scan](./ROUTE_SCAN.ko.md) 문서에 있습니다.
+
 ## FAQ
 
-**claude-token-saver와 같은 도구인가요?** 네. Sprag가 새 이름이고 npm 패키지는 `sprag-cli`입니다. `claude-token-saver` 패키지도 같은 릴리스를 계속 받으므로 기존 설치는 그대로 동작합니다.
+**claude-token-saver와 같은 도구인가요?** 네. Sprag가 새 이름이고 npm 패키지는 `sprag-cli`입니다. 예전 `claude-token-saver` 패키지는 3.55.0 에서 갱신이 멈췄으니, 새 릴리스를 받으려면 `sprag-cli` 로 옮기십시오.
 
 **LLM을 호출하거나 API 키가 필요한가요?** 아니요. Claude Code가 이미 내 컴퓨터에 남기는 세션 로그를 사후 분석할 뿐입니다. 추가 모델 호출도, 키도 없고, 데이터가 밖으로 나가지 않습니다.
 
@@ -46,7 +50,7 @@ LiteLLM 프록시로 Bedrock 등을 쓰면 Claude Code stdin 에 `rate_limits` �
 
 Claude Code는 모든 API 응답을 `~/.claude/projects/<dir>/<session>.jsonl`에 기록합니다. 이 도구는 `cache_read_input_tokens`, `cache_creation.ephemeral_5m/1h_input_tokens` 등을 `requestId` 기준으로 중복 제거 후 집계합니다.
 
-Node.js ≥ 18 · macOS / Linux / Windows / WSL · **의존성 0**.
+Node.js ≥ 20 · macOS / Linux / Windows / WSL · **의존성 0**.
 
 <details>
 <summary>알려진 환경 이슈 · 마이그레이션</summary>

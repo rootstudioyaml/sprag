@@ -38,6 +38,38 @@ macOS zsh 환경에서는 설치가 tmux 설치 여부를 먼저 확인합니다
 `sprag panel auto off --agent codex`로 끈 설정은 재설치해도 유지합니다.
 패널 실행 여부는 `sprag panel doctor --agent codex`로 확인하십시오.
 
+## 명령 한눈에 보기
+
+명령의 기본 대상은 Claude Code입니다. `--agent codex`를 붙이면 Codex를 고릅니다.
+
+```sh
+npm i -g sprag-cli --ignore-scripts  # Claude Code를 건드리지 않는 Codex 전용 설치
+sprag install --agent codex
+sprag --agent codex --days 7
+sprag panel --agent codex  # 별도 터미널에서 실시간 패널 실행
+sprag --statusline --agent codex --text
+sprag doctor --agent codex  # 문제가 생겼을 때만
+sprag route-scan --agent codex
+sprag seed --agent codex
+```
+
+설치 후 Codex의 `/hooks`에서 새 훅을 검토하고 신뢰해야 실행됩니다. Codex가 요구하는
+절차입니다. Codex 기본 상태줄은 셸 명령을 실행하지 않으므로, Sprag는 터미널 상태줄과 패널을
+따로 제공합니다. 기능별 지원 여부는 `sprag capabilities --agent codex`로 확인하십시오.
+
+## Claude Code와 Codex 비교
+
+| 기능 | Claude Code | Codex |
+|---|---|---|
+| 세션 지침 | `CLAUDE.md`와 훅 | `AGENTS.md`와 기본 훅 |
+| 실시간 상태 | 기본 상태줄에 명령 등록 | 별도 패널 또는 tmux 구성 |
+| 규칙 후보 | Claude 기록과 모델 등급 프리셋 | Codex 기록과 호환 래칫 프리셋 |
+| 모델 위임 | Haiku·Sonnet 등급 규칙 | 공급자 모델 ID와 범위별 규칙 |
+| 위임 원장 | Claude 실행별 예상 차액 | LiteLLM 단가와 하위 실행별 예상 차액 |
+
+두 연동을 함께 설치할 수 있습니다. `--agent codex`를 붙이지 않으면 기존 Claude 동작을 유지합니다.
+README의 금액 수치는 Claude Code 세션 기록에서 나온 값이며 Codex 벤치마크가 아닙니다.
+
 ## 지원 기능
 
 | 기능 | Codex 동작 |

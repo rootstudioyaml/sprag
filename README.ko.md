@@ -9,7 +9,9 @@
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
-[![license](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](./LICENSE)
+[![test](https://github.com/rootstudioyaml/sprag/actions/workflows/test.yml/badge.svg)](https://github.com/rootstudioyaml/sprag/actions/workflows/test.yml)
+![node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
+[![license](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](https://github.com/rootstudioyaml/sprag/blob/main/LICENSE)
 
 [English](https://github.com/rootstudioyaml/sprag/blob/main/README.md) · [한국어](https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md)
 
@@ -30,11 +32,13 @@
 
 Sprag는 Claude Code와 Codex가 남기는 세션 기록을 읽어 반복 실패와 위임 후보를 찾습니다. 사용자가 승인한 규칙은 다음 세션에도 적용하며, 위임 기록과 모델 단가를 확인할 수 있으면 예상 차액을 원장에 적습니다. 캐시와 사용량 한도 문제는 상태줄이나 패널에서 확인할 수 있습니다.
 
-세션 분석은 로컬에서 실행하므로 추가 모델 호출이나 API 키가 필요하지 않습니다. Codex의 선택 기능인 예산·단가 조회는 기존 인증 정보로 사용자가 설정한 LiteLLM에 접속합니다. CLI는 Node.js 18 이상과 TOML 파서 하나를 사용합니다.
+세션 분석은 로컬에서 실행하므로 추가 모델 호출이나 API 키가 필요하지 않습니다. Codex의 선택 기능인 예산·단가 조회는 기존 인증 정보로 사용자가 설정한 LiteLLM에 접속합니다. CLI는 Node.js 20 이상과 TOML 파서 하나를 사용합니다.
 
 ```bash
-npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입니다
+npm i -g sprag-cli   # Claude Code용이며, Codex가 설치되어 있으면 Codex도 함께 설정합니다
 ```
+
+pnpm이나 bun처럼 패키지 관리자가 설치 스크립트를 건너뛰면, 설치한 뒤 `sprag install` 을 한 번 실행하십시오. 예전 패키지 `claude-token-saver` 는 3.55.0 에서 갱신이 멈췄으니 `sprag-cli` 로 옮기십시오.
 
 ## 설치하면 바로 달라지는 것
 
@@ -47,8 +51,10 @@ npm i -g sprag-cli   # 예전 이름 claude-token-saver 와 같은 패키지입�
 
 ```
 🔀 Routing saved $188  |  opus→sonnet ×67 $93.4 · fable→sonnet ×26 $83.7 · opus→haiku ×25 $7.41 · fable→haiku ×6 $3.73
-🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 🅷 5/5 · 📦 Ctx 47% of 1M
+🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📦 Ctx 47% of 1M
 ```
+
+![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
 Sprag는 사용자가 고른 모델을 바꾸지 않습니다. 분석은 로컬 세션 기록만 읽으며,
 추가 모델 호출이나 API 키가 필요하지 않습니다. `sprag uninstall` 은 설치 때
@@ -73,7 +79,7 @@ Sprag 는 사용자가 지정한 모델을 바꾸지 않습니다. 이미 실행
 |---|---|---|---|
 | 공개 벤치마크 정확도 | **59.1%** · 단일 최고 모델 57.9% | `▰▰▰▰▰▰▰▰▰▰▰▰` | [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
 | 같은 문항 총비용 | **$268** · gpt-5 $388 · gemini-2.5-pro $734 | `▰▰▰▰▰▱▱▱▱▱▱▱` | [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) |
-| 같은 문서들의 토큰 | **−95.9%** · 2,011,178 → 82,209 (12건) | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
+| 같은 문서들의 토큰 | **−95.9%** · 2,011,178 → 82,209 (12건) | `▰▱▱▱▱▱▱▱▱▱▱▱` | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.ko.md) |
 | 위임 절감액 (원장) | **$188.27** · 위임 124건 | `▰▰▰▰▰▰▰▰▰▰▰▱` | `sprag route-scan savings` |
 | 같은 프롬프트를 저가 등급에 | **비용 24%** · 여덟 건 중 한 건이 더 틀림 | `▰▰▰▱▱▱▱▱▱▱▱▱` | [A/B 실측](#같은-프롬프트를-저가-등급에-돌리면) |
 
@@ -131,10 +137,10 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 | | 하는 일 | 더 보기 |
 |---|---|---|
 | ⚙️ **래칫 규칙** | 되풀이된 실패가 한 줄짜리 규칙이 되어 매 세션에 올라옵니다. 후보는 기록에서 자동으로 찾아 줍니다. | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.ko.md) |
-| 🔀 **모델 피팅** | 기록에서 뽑은 위임 규칙에 측정한 오류율과 절감액을 붙여 `ratchet-model.md`에 적습니다. | [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) |
+| 🔀 **모델 피팅** | 기록에서 뽑은 위임 규칙에 측정한 오류율과 절감액을 붙여 `ratchet-model.md`에 적습니다. | [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.ko.md) |
 | 🅷 **하네스 점수** | 다섯 가지 운영 원칙을 실시간으로 점검합니다. 검증 단계를 건너뛰면 `🅷 4/5`가 먼저 알려 줍니다. | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.ko.md) |
 | 📊 **토큰 텔레메트리** | 캐시 적중률과 TTL, 컨텍스트 크기, 출력 급증, 두 가지 사용량 한도를 매 턴 표시합니다. | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md) |
-| 📄 **doc2md** | pptx와 xlsx, pdf, docx, fig를 필요할 때 Markdown 으로 바꿔 읽습니다. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
+| 📄 **doc2md** | pptx와 xlsx, pdf, docx, fig를 필요할 때 Markdown 으로 바꿔 읽습니다. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.ko.md) |
 | 🇰🇷 **문체 게이트** | 쓰는 시점에 hook으로 검사합니다. 이중 피동과 번역투, 문장 연결을 살핍니다. | [문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) |
 
 두 절감액은 한 숫자로 합치지 않습니다. 재는 대상이 다르기 때문입니다. 라우팅 원장은 위임된 실행의 단가 차액을 적고, 변환 원장은 문서가 쓰지 않게 된 토큰을 적습니다.
@@ -145,7 +151,7 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 
 ```
 🔀 라우팅 절감 $188  |  opus→sonnet 67회 $93.4 · fable→sonnet 26회 $83.7 · opus→haiku 25회 $7.41 · fable→haiku 6회 $3.73
-🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🅷 5/5 · 🤖 Opus 5.5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
+🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🤖 Opus 5.5 · 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38% · 💵 Sep $42 · 📦 Ctx 47% of 1M
 ```
 
 문제가 생기면 경고 칩이 줄 맨 앞으로 옵니다. `🚨 5H/7D NN%`, `⚠ Ctx 500k+`, `⚠ Cache miss`, `⚠ Input spike`, `⚠ Output heavy`, `⚠ Call surge`, `⚠ Rebuild churn`, `⚠ 5m TTL` 여덟 가지입니다. 칩 문구를 Claude 에게 그대로 붙여 넣으면 Skill 이 원인 코드와 조치 순서를 꺼내 줍니다. 세그먼트마다 무엇을 뜻하는지는 [statusline 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md)에 정리했습니다.
@@ -180,48 +186,11 @@ JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 �
 
 ## Codex
 
-Codex 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙,
-한국어 검사, 프롬프트의 문서 경로 자동 변환, 로컬 토큰 보고서를 사용할 수 있습니다.
-Codex가 설치되어 있으면 `npm i -g sprag-cli` 하나로 Codex도 설정하고, 추천 룰을 묻지 않고
-전역으로 등록합니다(단계마다 확인하려면 `sprag install --manual`). Claude Code를 건드리지 않고
-Codex만 쓴다면 다음과 같이 설치하십시오.
+Codex에는 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙, 한국어 검사, 문서 변환, 토큰 보고서, 세션에 연결된 동반 패널이 들어갑니다. Codex가 설치되어 있으면 `npm i -g sprag-cli` 하나로 Codex도 설정하고, 추천 룰을 묻지 않고 전역으로 등록합니다(단계마다 확인하려면 `sprag install --manual`). Claude Code를 건드리지 않고 Codex만 쓰려면 `npm i -g sprag-cli --ignore-scripts` 를 실행한 뒤 `sprag install --agent codex` 를 실행하십시오.
 
-```bash
-npm i -g sprag-cli --ignore-scripts
-sprag install --agent codex
-sprag --agent codex --days 7
-sprag panel --agent codex  # 별도 터미널에서 실시간 패널 실행
-sprag --statusline --agent codex --text
-sprag doctor --agent codex  # 문제가 생겼을 때만
-sprag route-scan --agent codex
-sprag seed --agent codex
-```
+명령의 기본 대상은 Claude Code이며, `--agent codex`를 붙이면 Codex를 고릅니다. 예를 들면 `sprag --agent codex --days 7` 이나 `sprag panel --agent codex` 입니다. 설치 후에는 Codex의 `/hooks`에서 새 훅을 검토하고 신뢰해야 하며, Codex가 요구하는 절차입니다. 이 README의 금액 수치는 Claude Code 세션 기록에서 나온 값이고 Codex 벤치마크가 아닙니다.
 
-설치 후 Codex의 `/hooks`에서 새 훅을 검토하고 신뢰해야 실행됩니다. Codex가 요구하는
-절차입니다. 명령의 기본 대상은 여전히 Claude Code이며, `--agent codex`를 붙이면 Codex를 고릅니다. Codex에서도 세션 브리핑, 경고 이력, 인수인계
-파일을 지원합니다. `sprag delegate on --agent codex`로 모델 위임과 하위 에이전트
-지침 전달을 켤 수 있습니다. 상태 표시는 Sprag 터미널 상태줄과 패널을 사용하십시오.
-Codex 기본 상태줄은 셸 명령을 실행하지 않습니다. 반복된 단순 작업은 위임 후보로,
-반복된 도구 실패는 래칫 후보로 제안합니다. 규칙을 등록하려면 사용자의 승인이 필요하며,
-`seed`로 호환되는 기본 규칙을 선택할 수도 있습니다.
-`sprag route-scan savings --agent codex`는 Sprag가 위임한 실행만 집계하고,
-일치하는 LiteLLM 단가가 있을 때 예상 차액을 계산합니다. 청구 금액을 측정한 값은 아니며,
-단가를 확인하지 못하면 `n/a`로 표시합니다. Codex 문서 누계는 Claude 추정치와 분리합니다.
-아래의 기존 절감 수치는 Claude Code 기록이며 Codex 벤치마크가 아닙니다.
-[Codex 지원 범위와 제한](https://sprag.io/docs/ko/codex/)이나
-`sprag capabilities --agent codex`에서 기능별 지원 여부를 확인하십시오.
-
-| 기능 | Claude Code | Codex |
-|---|---|---|
-| 세션 지침 | `CLAUDE.md`와 훅 | `AGENTS.md`와 기본 훅 |
-| 실시간 상태 | 기본 상태줄에 명령 등록 | 별도 패널 또는 tmux 구성 |
-| 규칙 후보 | Claude 기록과 모델 등급 프리셋 | Codex 기록과 호환 래칫 프리셋 |
-| 모델 위임 | Haiku·Sonnet 등급 규칙 | 공급자 모델 ID와 범위별 규칙 |
-| 위임 원장 | Claude 실행별 예상 차액 | LiteLLM 단가와 하위 실행별 예상 차액 |
-
-두 연동을 함께 설치할 수 있습니다. `--agent codex`를 붙이지 않으면 기존 Claude 동작을 유지합니다.
-
-![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
+전체 명령 목록과 Claude Code·Codex 비교, 집계 한계, 제거 방법은 [Codex 지원 범위와 제한](https://sprag.io/docs/ko/codex/)([원문](https://github.com/rootstudioyaml/sprag/blob/main/docs/CODEX.ko.md))에 있습니다. `sprag capabilities --agent codex`로 기능별 지원 여부를 확인할 수도 있습니다.
 
 ## 자주 쓰는 명령
 
@@ -240,14 +209,15 @@ Codex 기본 상태줄은 셸 명령을 실행하지 않습니다. 반복된 단
 
 | 문서 | 다루는 내용 |
 |---|---|
+| [Codex](https://sprag.io/docs/ko/codex/) | 설치, 패널, 기본 훅, 자동 후보, 프리셋, 집계 한계 |
 | [설치와 기본 설정](https://github.com/rootstudioyaml/sprag/blob/main/docs/INSTALL.ko.md) | 설치 직후 켜지는 기능, 직접 켜야 하는 기능, 끄는 방법 |
 | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md) | 세그먼트 의미, 경고 칩, 토큰 급증 원인 코드, 업데이트 안내 |
 | [명령](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md) | 전체 서브커맨드와 CLI 옵션 |
 | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.ko.md) | 5원칙, 래칫 승격, compact-window 고정, seed 프리셋 |
-| [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) | 티어 판정, 룰 파일 구조, 스캔 시점, 서브에이전트 설정 |
+| [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.ko.md) | 티어 판정, 룰 파일 구조, 스캔 시점, 서브에이전트 설정 |
 | [티어 판별 기준](https://github.com/rootstudioyaml/sprag/blob/main/docs/TIER_CRITERIA.md) | T0·T1·T2 를 가르는 근거와 연구 출처 |
 | [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) | LLMRouterBench 11,696문항 재현 결과 |
-| [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) | 변환 대상 포맷, 절감 근거, 문서 수정 절차, DRM 문서 |
+| [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.ko.md) | 변환 대상 포맷, 절감 근거, 문서 수정 절차, DRM 문서 |
 | [한국어 문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) | 주입 내용, 쓰기 시점 검사, 적용 전후 비교 |
 | [라우터가 아닌 이유](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.ko.md) | 실시간 라우팅이 캐시를 깨서 비용을 키우는 구조 |
 | [게이트웨이와 환경](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.ko.md) | Bedrock·Vertex·LiteLLM, 가격표, FAQ, 동작 원리 |
@@ -256,18 +226,15 @@ Codex 기본 상태줄은 셸 명령을 실행하지 않습니다. 반복된 단
 | [코덱스 토큰 사용량](https://sprag.io/docs/ko/codex-token-usage/) | 세션 범위 나누기, 네이티브 서브에이전트 위임, 코덱스 문서 변환 |
 | [도구 비교](https://sprag.io/docs/ko/compare/) | ccusage·claude-usage·CCometixLine 같은 스테이터스라인 도구와 Sprag의 차이 |
 
-LiteLLM 게이트웨이 환경에서는 `sprag profile-map --refresh` 가 게이트웨이의 `GET /model/info` 에서 모델 별칭을 바로 읽어 오므로, route-scan 이 위임 투표가 쌓이길 기다리거나 `profile-map.json` 을 손으로 편집할 필요가 없어졌습니다. 이 갱신은 LiteLLM 예산 게이지와 같은 5분 점검·24시간 캐시 주기를 씁니다. 인증 토큰은 저장하지 않으며, 호출 시점마다 `apiKeyHelper` 에서 읽어 그 헬퍼의 수명 그대로 만료되게 둡니다. 자세한 내용은 [route-scan](https://github.com/rootstudioyaml/sprag/blob/main/docs/ROUTE_SCAN.md) 문서에 있습니다.
-
 ## 릴리스 노트
 
-전체 내역은 [CHANGELOG.md](./CHANGELOG.md) 로 옮겼습니다. 최근 변경은 다음과 같습니다.
+최근 릴리스는 다음과 같습니다.
 
-- **v3.54.0**: Codex용 네이티브 훅, `AGENTS.md` 하네스, 세션에 연결된 동반 패널, 문서 변환, 진단과 선택적 위임 기능을 추가했습니다. Codex 사용량은 Claude Code와 분리해 집계합니다. 자세한 내용은 [Codex 가이드](./docs/CODEX.ko.md)에 있습니다.
-- **v3.39.0**: `feedback` 서브커맨드가 터미널이나 Claude 세션에서 버그 제보·기능 제안을 바로 제출합니다. gh CLI가 있으면 이슈 직접 등록, 없으면 로그인 없는 익명 제출(릴레이가 이슈로 자동 등록), 오프라인이면 로컬 저장. `install`은 기존 statusline이 있으면 조용히 건너뛰지 않고 교체 여부를 묻습니다.
-- **v3.38.0**: `cohesion on`이 응집성 다섯 원칙을 영어 블록으로 주입합니다. 옵트인이고, korean 지침이 켜져 있으면 중복 주입을 막습니다.
-- **v3.37.0**: 한국어 지침에 보강 지침(supplement)이 붙습니다. 번역투·상투 패턴·응집성(문장 이어짐) 조항이며, 쓰기 시점 검사에도 번역투 5종이 추가됐습니다. 실파일 255개 실측에서 오탐 1건으로 검증했습니다.
-- **v3.35.0**: 이번 달 1일 00시 이후 지출 추정치를 `💵 Sep $42` 세그먼트로 상시 표시합니다. LiteLLM 게이트웨이 사용자는 키의 max_budget/spend 를 `🔑 budget` 게이지로 봅니다 (5h/7d cap 이 없는 Bedrock·LiteLLM 환경 대응).
-- **v3.34.0**: seed 프리셋 제안, 설치 시 출력 언어 선택, 컨텍스트 경고 500k 상향. 상세는 CHANGELOG 참고.
+- **v3.67.0**: 도구를 제한한 위임 전용 서브에이전트를 설치해 게이트웨이 뒤에서도 서브에이전트 요청이 가벼워지고(LiteLLM 프록시에서 첫 요청이 46,618 토큰에서 약 20,000 토큰으로 줄었습니다), Claude 앱의 Cowork 탭에도 ratchet 룰이 적용되며, 설계와 구현을 나누는 룰을 추천 프리셋으로 제공합니다.
+- **v3.66.0**: Claude 데스크톱 앱에도 sprag 상태 줄이 나오고, 암호가 걸린 문서와 DRM 문서는 읽지 않고 읽을 수 없다고 알리며, 서브에이전트가 실제로 실행된 모델을 기준으로 모델 프로필을 학습합니다.
+- **v3.65.0**: 라우팅 절감액 옆에 그 위임에 든 비용이 함께 나오고(`Routing saved $15.1 · spent $9.78 since 10/9`), 이번 세션의 서브에이전트 칩에도 쓴 비용이 붙습니다.
+
+모든 릴리스는 [GitHub Releases](https://github.com/rootstudioyaml/sprag/releases)에 올라와 있고, 전체 내역은 [CHANGELOG.md](https://github.com/rootstudioyaml/sprag/blob/main/CHANGELOG.md)에 있습니다.
 
 ## 피드백
 
@@ -285,7 +252,7 @@ sprag feedback "Bedrock에서 5m TTL 칩이 사라지지 않아요"
 
 ## 라이선스
 
-Apache License 2.0 입니다. 원문은 [LICENSE](./LICENSE) 에 있고, 그 라이선스가 요구하는 출처 표기는 [NOTICE](./NOTICE) 에 정리했습니다.
+Apache License 2.0 입니다. 원문은 [LICENSE](https://github.com/rootstudioyaml/sprag/blob/main/LICENSE) 에 있고, 그 라이선스가 요구하는 출처 표기는 [NOTICE](https://github.com/rootstudioyaml/sprag/blob/main/NOTICE) 에 정리했습니다.
 
 v3.47.0 까지는 MIT 로 배포했습니다. 그 조건으로 받은 사본은 계속 MIT 를 따르고, Apache-2.0 은 그 이후 릴리스부터 적용됩니다.
 
@@ -297,6 +264,6 @@ v3.47.0 까지는 MIT 로 배포했습니다. 그 조건으로 받은 사본은 
 
 [![DeepPulse YouTube](https://img.shields.io/badge/YouTube-@DeepPulseKR-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseKR)
 [![DeepPulseEN YouTube](https://img.shields.io/badge/YouTube-@DeepPulseEN-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@DeepPulseEN)
-[![Homepage](https://img.shields.io/badge/Homepage-rootstudioyaml.github.io-2ea44f)](https://rootstudioyaml.github.io/)
+[![Homepage](https://img.shields.io/badge/Homepage-sprag.io-2ea44f)](https://sprag.io)
 
 AI 개발 도구를 다루는 채널 **DeepPulse**에서 만들고 씁니다. 이 도구의 배경과 사용법은 [출시 영상(60초)](https://www.youtube.com/shorts/RaD8qMsPTnA)에서 볼 수 있습니다.

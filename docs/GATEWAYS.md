@@ -33,6 +33,10 @@ Behind a LiteLLM proxy (Bedrock and friends), Claude Code's stdin never carries 
 
 One related non-bug: if your session model is already sonnet, a sonnet-delegation (T1) rule can never save anything, because there is no price gap to capture. That is correct, but `route-scan rules` displayed it identically to "no delegations yet", so it now says outright that the rule does not apply at the current default model.
 
+### LiteLLM: model aliases come from the gateway (`sprag profile-map --refresh`)
+
+Behind a LiteLLM gateway, `sprag profile-map --refresh` reads model aliases straight from the gateway's own `GET /model/info`, so route-scan no longer needs to wait on learned votes or a hand-edited `profile-map.json`. The refresh uses the same 5-minute check and 24-hour cache as the LiteLLM budget gauge. It never stores your auth token: each refresh reads it from `apiKeyHelper` at call time and lets it expire on the helper's own schedule. The three-step resolution order and the manual `profile-map.json` format are in [route-scan](./ROUTE_SCAN.md).
+
 ## Pricing (Jul 2026)
 
 Per million tokens (USD), as used by the cost estimator:
@@ -63,7 +67,7 @@ Source: [Anthropic pricing docs](https://platform.claude.com/docs/en/about-claud
 
 ## FAQ
 
-**Is this the same tool as claude-token-saver?** Yes. Sprag is the new name; the npm package is `sprag-cli`, and the `claude-token-saver` package keeps receiving the same releases so nothing breaks.
+**Is this the same tool as claude-token-saver?** Yes. Sprag is the new name and the npm package is `sprag-cli`. The old `claude-token-saver` package stopped updating at 3.55.0, so move to `sprag-cli` to keep receiving releases.
 
 **Does it call an LLM or need an API key?** No. Everything is post-hoc analysis of the session logs Claude Code already writes on your machine. No extra model calls, no key, no telemetry leaves your computer.
 
@@ -75,7 +79,7 @@ Source: [Anthropic pricing docs](https://platform.claude.com/docs/en/about-claud
 
 Claude Code logs every API call to `~/.claude/projects/<dir>/<session>.jsonl`. This tool dedupes streaming chunks by `requestId` and aggregates `cache_read_input_tokens` / `cache_creation.ephemeral_5m/1h_input_tokens` by day and session.
 
-Node.js ≥ 18 · macOS / Linux / Windows / WSL · **zero dependencies**.
+Node.js ≥ 20 · macOS / Linux / Windows / WSL · **zero dependencies**.
 
 <details>
 <summary>Known quirks · Migration · Background</summary>

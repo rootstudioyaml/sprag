@@ -72,6 +72,40 @@ fails, the preference stays unchanged. Review new or changed definitions in
 `/hooks`; registration does not grant trust. Turning a feature off keeps the
 shared hooks needed by other features.
 
+## Command Quick Reference
+
+Commands default to Claude Code. Add `--agent codex` to select Codex.
+
+```sh
+npm i -g sprag-cli --ignore-scripts  # Codex-only install, leaves Claude Code alone
+sprag install --agent codex
+sprag --agent codex --days 7
+sprag panel --agent codex  # live companion in a separate terminal
+sprag --statusline --agent codex --text
+sprag doctor --agent codex  # troubleshooting only
+sprag route-scan --agent codex
+sprag seed --agent codex
+```
+
+Review and trust the new hooks in Codex's `/hooks` menu; Codex requires that
+step. The native Codex footer does not accept shell commands, so Sprag provides
+a terminal statusline and a panel instead. Run `sprag capabilities --agent codex`
+for the support matrix.
+
+## Claude Code And Codex Compared
+
+| Workflow | Claude Code | Codex |
+|---|---|---|
+| Session instructions | `CLAUDE.md` and hooks | `AGENTS.md` and native hooks |
+| Live telemetry | Native statusline command | Companion panel or tmux layout |
+| Rule candidates | Claude transcripts and tier presets | Codex rollouts and compatible ratchet presets |
+| Model routing | Haiku/Sonnet tier rules | Explicit provider model IDs and scoped rules |
+| Routing ledger | Claude run estimates | Attributed child estimates with LiteLLM prices |
+
+Both integrations coexist. Commands without `--agent codex` retain Claude behavior.
+The dollar figures in the README come from Claude Code sessions, not from a Codex
+benchmark.
+
 ## Supported Workflows
 
 | Feature | Codex behavior |
