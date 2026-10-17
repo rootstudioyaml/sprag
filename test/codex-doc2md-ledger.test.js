@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { recordCodexDocument, codexDocumentTotals, estimateCodexDocument } from '../src/codex-doc2md-ledger.js';
-import { convertCodexDocument } from '../src/codex-doc2md.js';
+import { recordCodexDocument, codexDocumentTotals, estimateCodexDocument } from '../src/codex/doc2md-ledger.js';
+import { convertCodexDocument } from '../src/codex/doc2md.js';
 import { resetSaved, undoReset } from '../src/saved-reset.cjs';
 
 test('Codex document totals deduplicate sources, isolate homes, and never import shared money or paths', (t) => {

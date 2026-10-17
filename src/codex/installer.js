@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { codexUserDir } from './agent.js';
-import { writeViaTmp } from './state-file.js';
+import { codexUserDir } from '../agent.js';
+import { writeViaTmp } from '../state-file.js';
 
 export const CODEX_HANDLERS = {
   SessionStart: { matcher: 'startup|resume|clear|compact', command: 'sprag codex-hook --agent codex --event session-start', timeout: 15 },

@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createPanelReader, formatCodexPanel, runCodexPanel, terminalText, panelCellWidth } from '../src/codex-panel.js';
-import { parseCodexSessionFile } from '../src/codex-parser.js';
+import { createPanelReader, formatCodexPanel, runCodexPanel, terminalText, panelCellWidth } from '../src/codex/panel.js';
+import { parseCodexSessionFile } from '../src/codex/parser.js';
 import { childEnv } from './helpers/child-env.js';
 
 const now = Date.parse('2026-09-26T05:00:00Z');

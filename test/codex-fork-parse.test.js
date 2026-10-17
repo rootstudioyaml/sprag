@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { parseCodexTurns, parseCodexSessionFile, readCodexSnapshot } from '../src/codex-parser.js';
-import { codexRatchetCandidates } from '../src/codex-harness.js';
+import { parseCodexTurns, parseCodexSessionFile, readCodexSnapshot } from '../src/codex/parser.js';
+import { codexRatchetCandidates } from '../src/codex/harness.js';
 
 // Shape of a child spawned with fork_turns "all" (Codex 0.159.2): its own
 // session_meta, then the parent's session_meta and history copied in one

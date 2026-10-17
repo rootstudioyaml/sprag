@@ -2,11 +2,11 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { codexUserDir } from './agent.js';
+import { codexUserDir } from '../agent.js';
 
 const quote = (value) => `'${String(value).replace(/'/g, `'"'"'`)}'`;
 
-export function panelLaunchCommand(root, { node = process.execPath, cli = fileURLToPath(new URL('../bin/cli.js', import.meta.url)), home = codexUserDir(), sessionId, sessionFile } = {}) {
+export function panelLaunchCommand(root, { node = process.execPath, cli = fileURLToPath(new URL('../../bin/cli.js', import.meta.url)), home = codexUserDir(), sessionId, sessionFile } = {}) {
   return ['env', `CODEX_HOME=${home}`, node, cli, 'panel', '--agent', 'codex', '--project', resolve(root),
     ...(sessionId ? ['--session', sessionId] : []), ...(sessionFile ? ['--session-file', sessionFile] : [])]
     .map(quote).join(' ');

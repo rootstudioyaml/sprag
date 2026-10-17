@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { parseCodexSessionFile } from '../src/codex-parser.js';
-import { codexCacheTimer, codexCachePolicy, parseCodexCacheTtl } from '../src/codex-cache.js';
-import { createPanelReader, formatCodexPanel, panelCellWidth } from '../src/codex-panel.js';
-import { CODEX_SEGMENT_ORDER } from '../src/codex-panel.js';
+import { parseCodexSessionFile } from '../src/codex/parser.js';
+import { codexCacheTimer, codexCachePolicy, parseCodexCacheTtl } from '../src/codex/cache.js';
+import { createPanelReader, formatCodexPanel, panelCellWidth } from '../src/codex/panel.js';
+import { CODEX_SEGMENT_ORDER } from '../src/codex/panel.js';
 import { childEnv } from './helpers/child-env.js';
 
 const now = Date.now();

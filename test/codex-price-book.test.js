@@ -4,9 +4,9 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { OPENAI_LIST_PRICES, OPENAI_PRICES_CHECKED_AT } from '../src/openai-prices.js';
-import { codexPriceBook, isDirectOpenAI, codexRunCost } from '../src/codex-cache-policy.js';
+import { codexPriceBook, isDirectOpenAI, codexRunCost } from '../src/codex/cache-policy.js';
 import { deploymentPrice } from '../src/gateway-prices.js';
-import { recordCodexDelegation, refreshCodexLedger } from '../src/codex-ledger.js';
+import { recordCodexDelegation, refreshCodexLedger } from '../src/codex/ledger.js';
 
 function home(t, toml) {
   const base = mkdtempSync(join(tmpdir(), 'sprag-book-'));

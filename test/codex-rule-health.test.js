@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { codexRuleHealth } from '../src/codex-rule-health.js';
+import { codexRuleHealth } from '../src/codex/rule-health.js';
 
 const rule = { category: 'explore', from: 'gpt-6-luna', model: 'gpt-5.6-luna', provider: 'openai' };
 const run = (over = {}) => ({ category: 'explore', from: 'gpt-6-luna', to: 'gpt-5.6-luna', provider: 'openai',

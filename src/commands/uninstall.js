@@ -43,8 +43,8 @@ export async function run({ hasFlag, args = [] }) {
   // undo that as well; otherwise Codex keeps calling a command that may no
   // longer exist. Only our own entries go, exactly as `uninstall --agent codex`.
   try {
-    const { codexHookStatus, configureCodexHooks } = await import('../codex-installer.js');
-    const { codexHarnessStatus, uninitCodexHarness } = await import('../codex-harness.js');
+    const { codexHookStatus, configureCodexHooks } = await import('../codex/installer.js');
+    const { codexHarnessStatus, uninitCodexHarness } = await import('../codex/harness.js');
     const hooked = codexHookStatus().some((h) => h.registered);
     let harness = false;
     try { harness = codexHarnessStatus({ scope: 'global' }).configured > 0; } catch { /* no AGENTS.md */ }
@@ -56,7 +56,7 @@ export async function run({ hasFlag, args = [] }) {
         : `  Codex: hooks ${hook.action} (${hook.file}), harness ${h.removed ? 'removed' : 'absent'}`);
       if (process.platform === 'darwin') {
         try {
-          const { installPanelShell } = await import('../codex-panel-shell.js');
+          const { installPanelShell } = await import('../codex/panel-shell.js');
           installPanelShell({ remove: true });
         } catch (e) { /* a malformed or foreign block stays for the user to repair */ }
       }

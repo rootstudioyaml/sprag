@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
-import { addCodexModelRule, loadCodexModelRules, matchCodexModelRule, removeCodexModelRule, codexDelegationTool, codexRouteHint } from '../src/codex-delegation.js';
+import { addCodexModelRule, loadCodexModelRules, matchCodexModelRule, removeCodexModelRule, codexDelegationTool, codexRouteHint } from '../src/codex/delegation.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 function fixture(t) {

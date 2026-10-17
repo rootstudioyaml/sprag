@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { codexDelegationStatus, recordCodexDelegation, bindCodexSubagent, closeStaleCodexRoutes } from '../src/codex-ledger.js';
-import { codexDelegationDiagnostics } from '../src/codex-delegation-diagnostics.js';
-import { codexDocumentContext, convertCodexDocument } from '../src/codex-doc2md.js';
-import { codexDocumentTotals } from '../src/codex-doc2md-ledger.js';
-import { formatCodexPanel, panelCellWidth } from '../src/codex-panel.js';
+import { codexDelegationStatus, recordCodexDelegation, bindCodexSubagent, closeStaleCodexRoutes } from '../src/codex/ledger.js';
+import { codexDelegationDiagnostics } from '../src/codex/delegation-diagnostics.js';
+import { codexDocumentContext, convertCodexDocument } from '../src/codex/doc2md.js';
+import { codexDocumentTotals } from '../src/codex/doc2md-ledger.js';
+import { formatCodexPanel, panelCellWidth } from '../src/codex/panel.js';
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-saving-status-'));

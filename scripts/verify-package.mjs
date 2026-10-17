@@ -54,8 +54,8 @@ try {
   const [packed] = JSON.parse(run(npm, ['pack', '--ignore-scripts', '--json', '--pack-destination', work, ...offline], root));
   const shipped = new Set(packed.files.map((file) => file.path));
   check('tarball includes Codex modules, dependency declaration, and both guides', () => {
-    for (const file of readdirSync(join(root, 'src')).filter((name) => name.startsWith('codex-'))) {
-      assert.ok(shipped.has(`src/${file}`), file);
+    for (const file of readdirSync(join(root, 'src', 'codex'))) {
+      assert.ok(shipped.has(`src/codex/${file}`), file);
     }
     for (const file of ['src/agent.js', 'src/commands/codex.js', 'src/commands/codex-delegate.js',
       'docs/CODEX.md', 'docs/CODEX.ko.md', 'package.json', 'LICENSE', 'NOTICE']) assert.ok(shipped.has(file), file);

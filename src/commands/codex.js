@@ -1,6 +1,6 @@
 import { createArgs } from '../cli-args.js';
-import { configureCodexHooks } from '../codex-installer.js';
-import { initCodexHarness, uninitCodexHarness, codexHarnessStatus, syncCodexKoreanBlock } from '../codex-harness.js';
+import { configureCodexHooks } from '../codex/installer.js';
+import { initCodexHarness, uninitCodexHarness, codexHarnessStatus, syncCodexKoreanBlock } from '../codex/harness.js';
 import { findProjectRoot, harnessPromote, harnessListRules, harnessRmRule, harnessPrune } from '../harness.js';
 import { loadConfig, saveConfig } from '../config.js';
 import { resolve } from 'node:path';
@@ -103,7 +103,7 @@ export async function run({ args, version }) {
   const selectedRoot = !['harness', 'delegate', 'seed'].includes(cmd) && getArg('--project') ? resolve(getArg('--project')) : root;
   const format = getArg('--format') || getArg('-f') || 'table';
   if (cmd === 'cache') {
-    const { parseCodexCacheTtl } = await import('../codex-cache.js');
+    const { parseCodexCacheTtl } = await import('../codex/cache.js');
     const mode = args[1] || 'status';
     const cfg = loadConfig();
     if (mode !== 'status') {
@@ -113,13 +113,13 @@ export async function run({ args, version }) {
     }
     const ttl = cfg.codex?.cacheTtl ?? 'auto';
     console.log(`Codex cache timer: ${typeof ttl === 'number' ? `${ttl / 60}m (configured estimate)` : ttl}`);
-    const { createPanelReader } = await import('../codex-panel.js');
-    const { refreshCodexCachePolicy } = await import('../codex-cache-policy.js');
-    const { codexCacheTimer } = await import('../codex-cache.js');
+    const { createPanelReader } = await import('../codex/panel.js');
+    const { refreshCodexCachePolicy } = await import('../codex/cache-policy.js');
+    const { codexCacheTimer } = await import('../codex/cache.js');
     const data = await createPanelReader({ root: selectedRoot, sessionId: getArg('--session'),
       ...(hasFlag('--refresh') ? { readCachePolicy: refreshCodexCachePolicy } : {}) })();
     if (data.session) {
-      const { terminalText } = await import('../codex-panel.js');
+      const { terminalText } = await import('../codex/panel.js');
       console.log(`Session: ${terminalText(data.session.sessionId)} | ${terminalText(data.session.provider)} / ${terminalText(data.session.model)}`);
       if (data.cachePolicy) {
         const p = data.cachePolicy;
@@ -133,11 +133,11 @@ export async function run({ args, version }) {
   }
   if (cmd === 'capabilities' || cmd === 'doctor') {
     if (!['table', 'json'].includes(format)) throw new Error('Diagnostics format must be table or json.');
-    const { codexDoctor, CODEX_CAPABILITIES } = await import('../codex-doctor.js');
+    const { codexDoctor, CODEX_CAPABILITIES } = await import('../codex/doctor.js');
     const report = cmd === 'capabilities' ? { agent: 'codex', capabilities: CODEX_CAPABILITIES }
       : await codexDoctor({ root: selectedRoot, sessionId: getArg('--session'), days: numArg('--days', { dflt: 7, min: 0 }) });
     if (format === 'json') { console.log(JSON.stringify(report, null, 2)); return; }
-    const { terminalText } = await import('../codex-panel.js');
+    const { terminalText } = await import('../codex/panel.js');
     if (cmd === 'doctor') {
       console.log(`Codex home: ${terminalText(report.home)}`);
       console.log(`Config: ${report.config.error || (report.config.present ? 'readable' : 'absent (defaults)')}`);
@@ -161,10 +161,10 @@ export async function run({ args, version }) {
   if (cmd === 'saved') return (await import('./saved.js')).run({ args, hasFlag, agent: 'codex' });
   if (cmd === 'seed') return (await import('./seed.js')).run({ args, hasFlag, agent: 'codex', root });
   if (cmd === 'route-scan') {
-    const rs = await import('../codex-route-scan.js');
+    const rs = await import('../codex/route-scan.js');
     const days = numArg('--days', { dflt: 14, min: 1 });
     if (args[1] === 'savings') {
-      const { refreshCodexLedger, loadCodexLedger, codexRoutingSavedTotals } = await import('../codex-ledger.js');
+      const { refreshCodexLedger, loadCodexLedger, codexRoutingSavedTotals } = await import('../codex/ledger.js');
       if (hasFlag('--refresh')) await refreshCodexLedger();
       // The prompt hook runs this detached to price finished delegations.
       if (hasFlag('--quiet')) return;
@@ -190,7 +190,7 @@ export async function run({ args, version }) {
     let cache = rs.readCodexRouteScan();
     if (hasFlag('--refresh') || !cache) {
       // Prices live in the gateway snapshot; refresh it when stale so candidates can name a target.
-      const { readCodexPrices, refreshCodexPrices } = await import('../codex-cache-policy.js');
+      const { readCodexPrices, refreshCodexPrices } = await import('../codex/cache-policy.js');
       if (!readCodexPrices()) { try { await refreshCodexPrices(); } catch (e) { debug('codex:prices', e); } }
       cache = await rs.runCodexRouteScan({ days });
     }
@@ -225,8 +225,8 @@ export async function run({ args, version }) {
       console.log('Run sprag install --agent codex and review/trust hooks in Codex /hooks.');
       return;
     }
-    const { createPanelReader, terminalText } = await import('../codex-panel.js');
-    const { codexIssues } = await import('../codex-brief.js');
+    const { createPanelReader, terminalText } = await import('../codex/panel.js');
+    const { codexIssues } = await import('../codex/brief.js');
     const data = await createPanelReader({ root: selectedRoot, sessionId: getArg('--session'), days: numArg('--days', { dflt: 7, min: 0 }) })();
     const issues = codexIssues(data.session);
     if (!issues.length) console.log('No fresh Codex context or rate-limit warnings. Missing/stale logs do not prove healthy usage.');
@@ -238,8 +238,8 @@ export async function run({ args, version }) {
   }
   if (cmd === 'history' || cmd === 'last') {
     if (!['table', 'json'].includes(format)) throw new Error('History format must be table or json.');
-    const { readCodexHistory } = await import('../codex-brief.js');
-    const { terminalText } = await import('../codex-panel.js');
+    const { readCodexHistory } = await import('../codex/brief.js');
+    const { terminalText } = await import('../codex/panel.js');
     let events = readCodexHistory({ days: numArg('--days', { dflt: cmd === 'last' ? 1 : 7, min: 0 }),
       sessionId: getArg('--session'), project: getArg('--project') || getArg('-p') });
     if (cmd === 'last') events = events.slice(-1);
@@ -253,13 +253,13 @@ export async function run({ args, version }) {
     return;
   }
   if (cmd === 'handoff') {
-    const { createPanelReader } = await import('../codex-panel.js');
+    const { createPanelReader } = await import('../codex/panel.js');
     const { writeHandoff } = await import('../handoff.js');
     const cwd = getArg('--cwd') || process.cwd();
     const data = await createPanelReader({ root: findProjectRoot(resolve(cwd), { agent: 'codex' }), sessionId: getArg('--session'), days: numArg('--days', { dflt: 7, min: 0 }) })();
     const result = writeHandoff({ cwd, agent: 'codex', session: data.session });
     try {
-      const { recordCodexHistoryEvent } = await import('../codex-brief.js');
+      const { recordCodexHistoryEvent } = await import('../codex/brief.js');
       recordCodexHistoryEvent({ sessionId: data.session?.sessionId, project: cwd, key: 'handoff',
         message: `Handoff written: ${result.path}` });
     } catch (e) { debug('codex:handoff-record', e); }
@@ -269,7 +269,7 @@ export async function run({ args, version }) {
   }
   const statusline = hasFlag('--statusline') || format === 'statusline';
   if (statusline && (!cmd || cmd.startsWith('-'))) {
-    const { createPanelReader, formatCodexPanel } = await import('../codex-panel.js');
+    const { createPanelReader, formatCodexPanel } = await import('../codex/panel.js');
     const data = await createPanelReader({ root: selectedRoot, sessionId: getArg('--session'), days: numArg('--days', { dflt: 7, min: 0 }), hasFlag, version })();
     const columns = numArg('--columns', { dflt: process.stdout.columns || 100, min: 1, max: 10000 });
     const text = formatCodexPanel(data, { compact: true, columns: hasFlag('--single-line') ? 100000 : columns,
@@ -281,7 +281,7 @@ export async function run({ args, version }) {
     if (args[1] === 'run') {
       const separator = args.indexOf('--');
       const forwarded = separator < 0 ? [] : args.slice(separator + 1);
-      const { runCodexWithPanel } = await import('../codex-panel-runner.js');
+      const { runCodexWithPanel } = await import('../codex/panel-runner.js');
       let project = process.cwd();
       for (let i = 0; i < forwarded.length; i++) {
         if (forwarded[i] === '--') break;
@@ -294,7 +294,7 @@ export async function run({ args, version }) {
     if (args[1] === 'shell') {
       if (process.platform !== 'darwin') throw new Error('Immediate panel launch currently supports macOS zsh.');
       if (!['install', 'remove'].includes(args[2])) throw new Error('Usage: sprag panel shell install|remove --agent codex');
-      const { installPanelShell } = await import('../codex-panel-shell.js');
+      const { installPanelShell } = await import('../codex/panel-shell.js');
       const file = installPanelShell({ remove: args[2] === 'remove' });
       // install adds the integration by default, so a removal must be
       // remembered or the next upgrade puts it back.
@@ -304,10 +304,10 @@ export async function run({ args, version }) {
       console.log(`Shell integration ${args[2]}: ${file}. Open a new terminal to apply it.`);
       return;
     }
-    const { recordPanelState, panelHealth } = await import('../codex-panel-state.js');
+    const { recordPanelState, panelHealth } = await import('../codex/panel-state.js');
     const panelRoot = getArg('--project') ? resolve(getArg('--project')) : root;
     if (args[1] === 'doctor') {
-      const { codexPanelAutoEnabled } = await import('../codex-installer.js');
+      const { codexPanelAutoEnabled } = await import('../codex/installer.js');
       const health = panelHealth(panelRoot, { sessionId: getArg('--session') });
       console.log(`Panel hook registered: ${codexPanelAutoEnabled() ? 'yes' : 'no'}`);
       console.log(`Project: ${panelRoot}`);
@@ -320,7 +320,7 @@ export async function run({ args, version }) {
       return;
     }
     if (args[1] === 'auto') {
-      const { codexPanelAutoEnabled } = await import('../codex-installer.js');
+      const { codexPanelAutoEnabled } = await import('../codex/installer.js');
       const mode = args[2] || 'status';
       if (!['on', 'off', 'status'].includes(mode)) throw new Error('Usage: sprag panel auto on|off|status --agent codex');
       if (mode === 'on' && process.platform !== 'darwin') throw new Error('Automatic panel windows currently require macOS Terminal.');
@@ -335,13 +335,13 @@ export async function run({ args, version }) {
       return;
     }
     if (hasFlag('--open')) {
-      const { openCodexPanel } = await import('../codex-panel-launcher.js');
+      const { openCodexPanel } = await import('../codex/panel-launcher.js');
       console.log(`Codex panel: ${openCodexPanel(getArg('--project') || root, { sessionId: getArg('--session') })}`);
       return;
     }
-    const { createPanelReader, runCodexPanel } = await import('../codex-panel.js');
-    const { createCodexCachePolicyReader, refreshCodexCachePolicy } = await import('../codex-cache-policy.js');
-    const { createCodexBudgetReader, codexBudgetProvider, fetchCodexBudget } = await import('../codex-budget.js');
+    const { createPanelReader, runCodexPanel } = await import('../codex/panel.js');
+    const { createCodexCachePolicyReader, refreshCodexCachePolicy } = await import('../codex/cache-policy.js');
+    const { createCodexBudgetReader, codexBudgetProvider, fetchCodexBudget } = await import('../codex/budget.js');
     const readBudget = hasFlag('--once') ? (() => {
       let snapshot = null;
       return { read: () => snapshot, set: (value) => { snapshot = value; } };
@@ -350,7 +350,7 @@ export async function run({ args, version }) {
       const provider = codexBudgetProvider();
       if (provider) { try { readBudget.set(await fetchCodexBudget(provider)); } catch (e) { debug('codex:budget', e); } }
     }
-    const { createInlinePanelResizer } = await import('../codex-panel-runner.js');
+    const { createInlinePanelResizer } = await import('../codex/panel-runner.js');
     const rawInterval = getArg('--interval');
     const interval = rawInterval === undefined ? 2 : Number(rawInterval);
     if (!Number.isFinite(interval) || interval < 0.5 || interval > 60) throw new Error('--interval must be between 0.5 and 60 seconds');
@@ -362,7 +362,7 @@ export async function run({ args, version }) {
       read: createPanelReader({ root: getArg('--project') ? resolve(getArg('--project')) : root,
         sessionId: getArg('--session'), sessionFile: getArg('--session-file'), days: numArg('--days', { dflt: 7, min: 0 }), readBudget: readBudget.read,
         version, refreshUpdate: !hasFlag('--once'), readCachePolicy: hasFlag('--once') ? async (session) => {
-          const { readCodexCachePolicy } = await import('../codex-cache-policy.js');
+          const { readCodexCachePolicy } = await import('../codex/cache-policy.js');
           try { return readCodexCachePolicy(session) || await refreshCodexCachePolicy(session); }
           catch (e) { debug('codex:cache-policy', e); return null; }
         } : createCodexCachePolicyReader(), hasFlag }),
@@ -378,16 +378,16 @@ export async function run({ args, version }) {
   }
   if (cmd === 'codex-hook') {
     const { readStdinJson } = await import('../stdin-payload.js');
-    const { codexHookOutput } = await import('../codex-hooks.js');
+    const { codexHookOutput } = await import('../codex/hooks.js');
     try {
       const payload = readStdinJson();
-      const { bindPanelSession } = await import('../codex-panel-session.js');
+      const { bindPanelSession } = await import('../codex/panel-session.js');
       bindPanelSession(getArg('--event'), payload);
       if (getArg('--event') === 'panel-start') {
         if (process.env.SPRAG_CODEX_PANEL === '1') return;
         if (!payload?.cwd || typeof payload.session_id !== 'string' || !payload.session_id.trim() || !['startup', 'resume'].includes(payload.source)) return;
-        const { openCodexPanel } = await import('../codex-panel-launcher.js');
-        const { recordPanelState } = await import('../codex-panel-state.js');
+        const { openCodexPanel } = await import('../codex/panel-launcher.js');
+        const { recordPanelState } = await import('../codex/panel-state.js');
         const panelRoot = findProjectRoot(payload.cwd, { agent: 'codex' });
         recordPanelState(panelRoot, 'hook', { status: 'started', sessionId: payload.session_id });
         try {
@@ -406,7 +406,7 @@ export async function run({ args, version }) {
   }
   if (cmd === 'install') {
     const cfg = loadConfig();
-    const { setupCodexPanel, describePanelSetup } = await import('../codex-panel-setup.js');
+    const { setupCodexPanel, describePanelSetup } = await import('../codex/panel-setup.js');
     const panel = setupCodexPanel({ config: cfg || {}, noPanel: hasFlag('--no-panel') });
     const panelAuto = panel.panelAuto;
     const hook = configureCodexHooks({ panelAuto });
@@ -432,7 +432,7 @@ export async function run({ args, version }) {
     console.log('Existing config.toml, Claude Code settings, and ratchet rules are preserved.');
     try {
       const { codexModelName, codexProviderName } = await import('../agent.js');
-      const { autoCodexSharedTargets } = await import('../codex-delegation.js');
+      const { autoCodexSharedTargets } = await import('../codex/delegation.js');
       const parent = codexModelName(), provider = codexProviderName();
       const auto = parent ? autoCodexSharedTargets({ model: parent, provider }) : { targets: [], reason: 'Codex config names no default model' };
       console.log(auto.targets.length
@@ -447,7 +447,7 @@ export async function run({ args, version }) {
     if (hasFlag('--purge')) throw new Error('Codex uninstall keeps shared Sprag state; --purge is not supported.');
     const hook = configureCodexHooks({ remove: true });
     const h = uninitCodexHarness({ root, scope: 'global' });
-    const { installPanelShell } = await import('../codex-panel-shell.js');
+    const { installPanelShell } = await import('../codex/panel-shell.js');
     const shellFile = installPanelShell({ remove: true });
     console.log(`Codex hooks: ${hook.file} (${hook.action})`);
     console.log(`Codex harness: ${h.file} (${h.removed ? 'removed' : 'absent'})`);
@@ -481,8 +481,8 @@ export async function run({ args, version }) {
       if (!rule) throw new Error('Provide rule text or a ratchet candidate number (see ratchet? in sprag --statusline --agent codex).');
       if (/^R\d+$/i.test(rule)) throw new Error(`Approve route candidates with: sprag delegate rules add ${rule.toUpperCase()} --global|--project --agent codex`);
       if (/^\d+$/.test(rule)) {
-        const { createPanelReader } = await import('../codex-panel.js');
-        const { codexCandidateRule } = await import('../codex-harness.js');
+        const { createPanelReader } = await import('../codex/panel.js');
+        const { codexCandidateRule } = await import('../codex/harness.js');
         const { userLanguage } = await import('../config.js');
         const data = await createPanelReader({ root, sessionId: getArg('--session') })();
         const cand = (data.ratchet || []).find((c) => c.id === Number(rule));
@@ -543,7 +543,7 @@ export async function run({ args, version }) {
   if (cmd === 'doc2md' && (!args[1] || args[1] === 'status')) {
     const { createRequire } = await import('node:module');
     const doc2md = createRequire(import.meta.url)('../doc2md.cjs');
-    const { codexHookStatus } = await import('../codex-installer.js');
+    const { codexHookStatus } = await import('../codex/installer.js');
     console.log(`Codex document conversion: ${loadConfig()?.codex?.doc2md === false || process.env.CTS_NO_DOC2MD === '1' ? 'off' : 'on'}`);
     console.log(`Formats: ${doc2md.TARGET_EXTENSIONS.join(' ')}`);
     console.log(`Converter: ${doc2md.findInterpreter() || 'missing; run sprag doc2md install-converter --agent codex'}`);
@@ -558,7 +558,7 @@ export async function run({ args, version }) {
     return;
   }
   if (cmd === 'doc2md' && args[1] === 'savings') {
-    const { codexDocumentTotals } = await import('../codex-doc2md-ledger.js');
+    const { codexDocumentTotals } = await import('../codex/doc2md-ledger.js');
     const totals = codexDocumentTotals();
     if (format === 'json') console.log(JSON.stringify({ agent: 'codex', ...totals }, null, 2));
     else {
@@ -569,11 +569,11 @@ export async function run({ args, version }) {
     return;
   }
   if (cmd === 'doc2md' && args[1] && !args[1].startsWith('-') && args[1] !== 'install-converter') {
-    const { convertCodexDocument } = await import('../codex-doc2md.js');
+    const { convertCodexDocument } = await import('../codex/doc2md.js');
     const sessionId = getArg('--session') || process.env.CODEX_THREAD_ID;
     let identity = {};
     if (sessionId) {
-      const { createPanelReader } = await import('../codex-panel.js');
+      const { createPanelReader } = await import('../codex/panel.js');
       const { session } = await createPanelReader({ root, sessionId })();
       if (session) identity = { model: session.model, provider: session.provider };
     }
@@ -617,7 +617,7 @@ export async function run({ args, version }) {
   const days = numArg('--hours', { min: 0 }) !== undefined ? numArg('--hours', { min: 0 }) / 24
     : (numArg('--days', { min: 0 }) ?? numArg('-d', { min: 0 }) ?? 30);
   if (!['table', 'json', 'csv'].includes(format)) throw new Error('Codex report format must be table, json, or csv.');
-  const { parseAllCodexSessions } = await import('../codex-parser.js');
+  const { parseAllCodexSessions } = await import('../codex/parser.js');
   const { summary, dailyTrend } = await import('../stats.js');
   const sessions = (await parseAllCodexSessions({ days, projectFilter: getArg('--project') || getArg('-p') }))
     .filter((session) => !getArg('--session') || session.sessionId === getArg('--session'));

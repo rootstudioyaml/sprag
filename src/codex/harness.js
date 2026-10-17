@@ -1,11 +1,11 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
-import { codexUserDir } from './agent.js';
-import { loadConfig } from './config.js';
-import { koreanStyleEnabled, koreanStyleInjection } from './korean-style.js';
-import { codexToolEvents, codexLegacyToolEvent, readCodexTailLines, forkedCopyFilter } from './codex-parser.js';
-import { implementationDelegationRule } from './implementation-delegation.js';
+import { codexUserDir } from '../agent.js';
+import { loadConfig } from '../config.js';
+import { koreanStyleEnabled, koreanStyleInjection } from '../korean-style.js';
+import { codexToolEvents, codexLegacyToolEvent, readCodexTailLines, forkedCopyFilter } from './parser.js';
+import { implementationDelegationRule } from '../implementation-delegation.js';
 
 export const CODEX_BEGIN = '<!-- sprag:codex:harness:begin -->';
 export const CODEX_END = '<!-- sprag:codex:harness:end -->';

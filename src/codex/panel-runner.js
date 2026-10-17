@@ -3,8 +3,8 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { panelLaunchCommand } from './codex-panel-launcher.js';
-import { createPanelBinding } from './codex-panel-session.js';
+import { panelLaunchCommand } from './panel-launcher.js';
+import { createPanelBinding } from './panel-session.js';
 
 const quote = (s) => `'${String(s).replace(/'/g, `'"'"'`)}'`;
 

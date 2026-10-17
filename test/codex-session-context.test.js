@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { codexHookOutput, fitCodexContext, estimateCodexTokens, isCodexExecSession, CODEX_CONTEXT_TOKEN_BUDGET } from '../src/codex-hooks.js';
-import { recordCodexHistoryEvent, readCodexHistory } from '../src/codex-brief.js';
+import { codexHookOutput, fitCodexContext, estimateCodexTokens, isCodexExecSession, CODEX_CONTEXT_TOKEN_BUDGET } from '../src/codex/hooks.js';
+import { recordCodexHistoryEvent, readCodexHistory } from '../src/codex/brief.js';
 
 function sandbox(t) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-codex-context-'));

@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, readdirSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { syncCodexKoreanBlock, initCodexHarness, uninitCodexHarness, CODEX_BEGIN, CODEX_KOREAN_BEGIN, CODEX_KOREAN_END } from '../src/codex-harness.js';
-import { codexDelegateEnabled, autoCodexSharedTargets } from '../src/codex-delegation.js';
-import { codexHookOutput } from '../src/codex-hooks.js';
+import { syncCodexKoreanBlock, initCodexHarness, uninitCodexHarness, CODEX_BEGIN, CODEX_KOREAN_BEGIN, CODEX_KOREAN_END } from '../src/codex/harness.js';
+import { codexDelegateEnabled, autoCodexSharedTargets } from '../src/codex/delegation.js';
+import { codexHookOutput } from '../src/codex/hooks.js';
 
 const ON = { koreanStyle: { enabled: true } };
 const OFF = { koreanStyle: { enabled: false } };

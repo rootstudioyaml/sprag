@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { installPanelShell, PANEL_SHELL_BLOCK } from '../src/codex-panel-shell.js';
+import { installPanelShell, PANEL_SHELL_BLOCK } from '../src/codex/panel-shell.js';
 import { childEnv } from './helpers/child-env.js';
 
 test('shell setup is idempotent, reversible, and does not replace existing codex customization', () => {

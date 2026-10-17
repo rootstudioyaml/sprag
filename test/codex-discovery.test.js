@@ -5,11 +5,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { parseCodexTurns } from '../src/codex-parser.js';
-import { runCodexRouteScan } from '../src/codex-route-scan.js';
-import { codexRatchetCandidates } from '../src/codex-harness.js';
-import { recordCodexDelegation, refreshCodexLedger, codexRoutingSavedTotals } from '../src/codex-ledger.js';
-import { codexRouteHint, codexDelegationTool } from '../src/codex-delegation.js';
+import { parseCodexTurns } from '../src/codex/parser.js';
+import { runCodexRouteScan } from '../src/codex/route-scan.js';
+import { codexRatchetCandidates } from '../src/codex/harness.js';
+import { recordCodexDelegation, refreshCodexLedger, codexRoutingSavedTotals } from '../src/codex/ledger.js';
+import { codexRouteHint, codexDelegationTool } from '../src/codex/delegation.js';
 import { childEnv } from './helpers/child-env.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));

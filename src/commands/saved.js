@@ -34,11 +34,11 @@ async function currentTotals(scope, dir) {
     return { usd: doc2mdSavedTotals(dir).total };
   }
   if (scope === 'codex-routing') {
-    const { codexRoutingSavedTotals } = await import('../codex-ledger.js');
+    const { codexRoutingSavedTotals } = await import('../codex/ledger.js');
     const totals = codexRoutingSavedTotals({ dir });
     return { usd: totals.priced ? totals.total : null, unpriced: totals.runs - totals.priced };
   }
-  const { codexDocumentTotals } = await import('../codex-doc2md-ledger.js');
+  const { codexDocumentTotals } = await import('../codex/doc2md-ledger.js');
   const totals = codexDocumentTotals({ dir });
   return { docs: totals.docs, usd: totals.savings.priced ? totals.savings.total : null, unpriced: totals.savings.unpriced };
 }

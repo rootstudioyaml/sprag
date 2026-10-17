@@ -28,7 +28,7 @@ const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const { readResetMarks, resetSaved, undoReset, isBeforeReset, resetPath } = await import('../src/saved-reset.cjs');
 const { delegationSavedTotals } = await import('../src/savings-ledger.js');
 const { doc2mdSavedTotals } = await import('../src/doc2md-ledger.cjs');
-const { codexRoutingSavedTotals } = await import('../src/codex-ledger.js');
+const { codexRoutingSavedTotals } = await import('../src/codex/ledger.js');
 
 const DAY = 86400000;
 // An hour in the past, so the CLI (which marks the real "now") sees every fixture event as older.

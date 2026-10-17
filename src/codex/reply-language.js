@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
-import { forkedCopyFilter, codexToolEvents } from './codex-parser.js';
+import { forkedCopyFilter, codexToolEvents } from './parser.js';
 
-const { checkReplyLanguage } = createRequire(import.meta.url)('./reply-language.cjs');
+const { checkReplyLanguage } = createRequire(import.meta.url)('../reply-language.cjs');
 
 /** Ignore copied history and commentary; only the current turn's final reply counts. */
 export function lastCodexTurn(lines, { turnId, sessionId } = {}) {

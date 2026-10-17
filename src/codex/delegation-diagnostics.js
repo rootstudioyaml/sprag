@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'smol-toml';
-import { codexUserDir, codexModelName } from './agent.js';
-import { codexDelegationStatus } from './codex-ledger.js';
+import { codexUserDir, codexModelName } from '../agent.js';
+import { codexDelegationStatus } from './ledger.js';
 
 /** Local introspection only. A CLI feature flag cannot prove a model received a tool. */
 export function codexDelegationDiagnostics({ home = codexUserDir(), model = codexModelName({ home }), sessionId, dir,

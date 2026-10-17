@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { gatewayCachePolicies, readCodexCachePolicy, refreshCodexCachePolicy, createCodexCachePolicyReader } from '../src/codex-cache-policy.js';
-import { codexCacheTimer } from '../src/codex-cache.js';
+import { gatewayCachePolicies, readCodexCachePolicy, refreshCodexCachePolicy, createCodexCachePolicyReader } from '../src/codex/cache-policy.js';
+import { codexCacheTimer } from '../src/codex/cache.js';
 
 const now = 1800000000000;
 const session = { model: 'alias', provider: 'litellm', cacheActivity: { model: 'alias', provider: 'litellm', at: new Date(now - 1000) } };

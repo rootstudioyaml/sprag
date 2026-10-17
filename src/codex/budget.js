@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { parse } from 'smol-toml';
-import { codexUserDir } from './agent.js';
-import { pickBudgetSource } from './litellm-budget.js';
+import { codexUserDir } from '../agent.js';
+import { pickBudgetSource } from '../litellm-budget.js';
 
 const run = promisify(execFile);
 

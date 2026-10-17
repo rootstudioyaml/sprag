@@ -2,7 +2,7 @@ import { createReadStream, openSync, readSync, closeSync, fstatSync } from 'node
 import { readdir, stat } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { join, resolve } from 'node:path';
-import { codexUserDir } from './agent.js';
+import { codexUserDir } from '../agent.js';
 
 const count = (n) => Number.isSafeInteger(n) && n >= 0 ? n : 0;
 const emptyTotals = () => ({ input: 0, cacheRead: 0, cacheCreation: 0, ephemeral5m: 0, ephemeral1h: 0, output: 0 });

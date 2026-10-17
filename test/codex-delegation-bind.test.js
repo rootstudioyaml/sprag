@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { codexContextTokens, codexRouteHint, codexPromptCategory, codexImplementationHint } from '../src/codex-delegation.js';
+import { codexContextTokens, codexRouteHint, codexPromptCategory, codexImplementationHint } from '../src/codex/delegation.js';
 import { pruneCodexDelegations, recordCodexDelegation, readCodexDelegations, bindCodexSubagent, readCodexBindings, refreshCodexLedger,
-  closeStaleCodexRoutes } from '../src/codex-ledger.js';
-import { codexHarnessBlock } from '../src/codex-harness.js';
+  closeStaleCodexRoutes } from '../src/codex/ledger.js';
+import { codexHarnessBlock } from '../src/codex/harness.js';
 
 function fixture(t) {
   const base = mkdtempSync(join(tmpdir(), 'sprag-bind-'));

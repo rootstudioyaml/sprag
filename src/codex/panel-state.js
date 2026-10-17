@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, mkdirSync, readdirSync, lstatSync, unlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { userDataDir } from './paths.js';
-import { codexUserDir } from './agent.js';
-import { writeViaTmp, runHousekeeping, sweepStaleTmp } from './state-file.js';
+import { userDataDir } from '../paths.js';
+import { codexUserDir } from '../agent.js';
+import { writeViaTmp, runHousekeeping, sweepStaleTmp } from '../state-file.js';
 
 // Every panel session leaves a `-frame` and a `-hook` file behind, keyed by a
 // hash that is not reused once the session is gone. They are diagnostics for a

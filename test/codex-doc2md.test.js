@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { childEnv } from './helpers/child-env.js';
-import { codexDocumentTool, convertCodexDocument } from '../src/codex-doc2md.js';
-import { codexDocumentTotals } from '../src/codex-doc2md-ledger.js';
+import { codexDocumentTool, convertCodexDocument } from '../src/codex/doc2md.js';
+import { codexDocumentTotals } from '../src/codex/doc2md-ledger.js';
 const doc2md = createRequire(import.meta.url)('../src/doc2md.cjs');
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 function fixture(t) {

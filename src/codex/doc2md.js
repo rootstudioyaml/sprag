@@ -2,12 +2,12 @@ import { createRequire } from 'node:module';
 import { realpathSync, readFileSync, writeFileSync, renameSync, rmSync, openSync, readSync, closeSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { recordCodexDocument } from './codex-doc2md-ledger.js';
-import { readCodexSnapshot } from './codex-parser.js';
+import { recordCodexDocument } from './doc2md-ledger.js';
+import { readCodexSnapshot } from './parser.js';
 
 const require = createRequire(import.meta.url);
-const doc2md = require('./doc2md.cjs');
-const lint = require('./korean-lint.cjs');
+const doc2md = require('../doc2md.cjs');
+const lint = require('../korean-lint.cjs');
 const shellTools = new Set(['Bash', 'exec_command', 'shell_command', 'shell']);
 
 /** Hook identity, never the user's default model or another project's session. */

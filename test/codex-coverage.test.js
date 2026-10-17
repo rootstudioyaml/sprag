@@ -6,11 +6,11 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { childEnv } from './helpers/child-env.js';
-import { readCodexSnapshot } from '../src/codex-parser.js';
-import { codexIssues, runCodexBrief, readCodexHistory } from '../src/codex-brief.js';
-import { createPanelReader, formatCodexPanel, panelCellWidth } from '../src/codex-panel.js';
-import { lintCodexTool } from '../src/codex-hooks.js';
-import { CODEX_HANDLERS } from '../src/codex-installer.js';
+import { readCodexSnapshot } from '../src/codex/parser.js';
+import { codexIssues, runCodexBrief, readCodexHistory } from '../src/codex/brief.js';
+import { createPanelReader, formatCodexPanel, panelCellWidth } from '../src/codex/panel.js';
+import { lintCodexTool } from '../src/codex/hooks.js';
+import { CODEX_HANDLERS } from '../src/codex/installer.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const now = Date.now();

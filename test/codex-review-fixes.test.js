@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { runCodexBrief } from '../src/codex-brief.js';
-import { codexRuleHealth, codexRulesInReview } from '../src/codex-rule-health.js';
-import { codexRouteHint, codexDelegationTool } from '../src/codex-delegation.js';
-import { bindCodexSubagent, readCodexDelegations, refreshCodexLedger, recordCodexDelegation } from '../src/codex-ledger.js';
-import { formatCodexPanel } from '../src/codex-panel.js';
+import { runCodexBrief } from '../src/codex/brief.js';
+import { codexRuleHealth, codexRulesInReview } from '../src/codex/rule-health.js';
+import { codexRouteHint, codexDelegationTool } from '../src/codex/delegation.js';
+import { bindCodexSubagent, readCodexDelegations, refreshCodexLedger, recordCodexDelegation } from '../src/codex/ledger.js';
+import { formatCodexPanel } from '../src/codex/panel.js';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
@@ -243,7 +243,7 @@ test('F5: the spawn hook keeps the default target when the rule file is unreadab
 
 test('F4: uninit removes the block from AGENTS.md after an override file took over', async (t) => {
   const f = sandbox(t);
-  const { initCodexHarness, uninitCodexHarness, CODEX_BEGIN } = await import('../src/codex-harness.js');
+  const { initCodexHarness, uninitCodexHarness, CODEX_BEGIN } = await import('../src/codex/harness.js');
   const root = join(f.base, 'project');
   mkdirSync(root, { recursive: true });
   const agents = join(root, 'AGENTS.md');
@@ -262,7 +262,7 @@ test('F4: uninit removes the block from AGENTS.md after an override file took ov
 
 test('F9: repeated init and uninit leave AGENTS.md byte-identical', async (t) => {
   const f = sandbox(t);
-  const { initCodexHarness, uninitCodexHarness, codexHarnessBlock } = await import('../src/codex-harness.js');
+  const { initCodexHarness, uninitCodexHarness, codexHarnessBlock } = await import('../src/codex/harness.js');
   const root = join(f.base, 'project');
   mkdirSync(root, { recursive: true });
   const agents = join(root, 'AGENTS.md');
@@ -286,7 +286,7 @@ test('F9: repeated init and uninit leave AGENTS.md byte-identical', async (t) =>
 
 test('F6: re-adding a rule with no provider replaces it instead of stacking a copy', async (t) => {
   const f = sandbox(t);
-  const { addCodexModelRule, loadCodexModelRules } = await import('../src/codex-delegation.js');
+  const { addCodexModelRule, loadCodexModelRules } = await import('../src/codex/delegation.js');
   const base = { category: 'explore', from: 'parent-model', model: 'child-model', scope: 'global' };
   addCodexModelRule({ ...base, provider: null }, { dir: f.dir });
   addCodexModelRule({ ...base, provider: null, effort: 'low' }, { dir: f.dir });
@@ -304,7 +304,7 @@ const hinted = (dir, id, turnId, at = Date.now()) => recordCodexDelegation({ id,
 
 test('F7: a hint no child claimed is closed by the next prompt, so a later spawn is not credited to it', async (t) => {
   const f = sandbox(t);
-  const { closeStaleCodexRoutes } = await import('../src/codex-ledger.js');
+  const { closeStaleCodexRoutes } = await import('../src/codex/ledger.js');
   hinted(f.dir, 'a'.repeat(16), 'turn-1');
   assert.equal(closeStaleCodexRoutes({ session_id: 'parent', turn_id: 'turn-1' }, { dir: f.dir }), 0, 'the hinted turn itself keeps its route');
   assert.equal(closeStaleCodexRoutes({ session_id: 'someone-else', turn_id: 'turn-2' }, { dir: f.dir }), 0);
@@ -315,7 +315,7 @@ test('F7: a hint no child claimed is closed by the next prompt, so a later spawn
 
 test('F7: a claimed route is not closed, and a child in the hinted turn still binds', async (t) => {
   const f = sandbox(t);
-  const { closeStaleCodexRoutes, readCodexBindings } = await import('../src/codex-ledger.js');
+  const { closeStaleCodexRoutes, readCodexBindings } = await import('../src/codex/ledger.js');
   const id = 'b'.repeat(16);
   hinted(f.dir, id, 'turn-1');
   assert.equal(bindCodexSubagent({ session_id: 'parent', agent_id: 'child-1', model: 'child-model' }, { dir: f.dir }), id);
@@ -335,7 +335,7 @@ test('F7: when both sides name a turn, a child from another turn does not bind',
 
 test('F8: a bound route counts as unsettled until the ledger holds its finished run', async (t) => {
   const f = sandbox(t);
-  const { unsettledCodexRoutes } = await import('../src/codex-ledger.js');
+  const { unsettledCodexRoutes } = await import('../src/codex/ledger.js');
   const id = 'd'.repeat(16);
   assert.equal(unsettledCodexRoutes({ dir: f.dir }), 0);
   hinted(f.dir, id, 'turn-1');
@@ -351,7 +351,7 @@ test('F8: a bound route counts as unsettled until the ledger holds its finished 
 
 test('F8: the prompt hook asks for a ledger refresh only while a delegated run is unpriced', async (t) => {
   const f = sandbox(t);
-  const { codexHookOutput } = await import('../src/codex-hooks.js');
+  const { codexHookOutput } = await import('../src/codex/hooks.js');
   let refreshes = 0;
   const prompt = (turn_id) => codexHookOutput('prompt', { prompt: 'hello there', session_id: 'parent', turn_id, model: 'parent-model', cwd: f.base },
     { cfg: { codex: { delegate: true, doc2md: false, brief: false } }, refreshLedger: () => { refreshes++; } });
@@ -381,7 +381,7 @@ test('F8: the detached refresh command prints nothing', (t) => {
 
 test('F9: a pinned panel finds its session by rollout name, and by content when the name does not help', async (t) => {
   const f = sandbox(t);
-  const { createPanelReader } = await import('../src/codex-panel.js');
+  const { createPanelReader } = await import('../src/codex/panel.js');
   const sessions = join(f.codex, 'sessions');
   const rollout = (name, id) => writeFileSync(join(sessions, name), jsonl([
     { timestamp: new Date().toISOString(), type: 'session_meta', payload: { id, cwd: join(f.base, 'project') } },

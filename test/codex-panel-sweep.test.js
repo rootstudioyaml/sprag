@@ -16,7 +16,7 @@ process.env.XDG_CONFIG_HOME = join(home, 'config');
 delete process.env.CODEX_HOME;
 
 const { sweepPanelState, recordPanelState, panelStatePath, panelHealth, readPanelState, PANEL_STATE_MAX_AGE_MS } =
-  await import('../src/codex-panel-state.js');
+  await import('../src/codex/panel-state.js');
 
 after(() => rmSync(home, { recursive: true, force: true }));
 

@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
-import { writeViaTmp } from './state-file.js';
+import { writeViaTmp } from '../state-file.js';
 
 export function createPanelBinding(file) {
   writeFileSync(file, JSON.stringify({ version: 1, sessionId: null, transcriptPath: null }), { mode: 0o600 });

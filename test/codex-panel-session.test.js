@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createPanelBinding, bindPanelSession, readPanelBinding } from '../src/codex-panel-session.js';
-import { createPanelReader, formatCodexPanel } from '../src/codex-panel.js';
+import { createPanelBinding, bindPanelSession, readPanelBinding } from '../src/codex/panel-session.js';
+import { createPanelReader, formatCodexPanel } from '../src/codex/panel.js';
 import { childEnv } from './helpers/child-env.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));

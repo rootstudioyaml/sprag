@@ -24,7 +24,7 @@ const stateFile = await import('../src/state-file.js');
 const { writeViaTmp, sweepStaleTmp, runHousekeeping, STALE_TMP_AGE_MS, HOUSEKEEPING_INTERVAL_MS } = stateFile;
 const sessionCache = await import('../src/session-cache.js');
 const capsCache = await import('../src/caps-cache.js');
-const panelState = await import('../src/codex-panel-state.js');
+const panelState = await import('../src/codex/panel-state.js');
 const harnessAnalyzer = createRequire(import.meta.url)('../src/harness-analyzer.cjs');
 
 after(() => rmSync(home, { recursive: true, force: true }));

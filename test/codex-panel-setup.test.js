@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ensureTmux, setupCodexPanel, describePanelSetup } from '../src/codex-panel-setup.js';
+import { ensureTmux, setupCodexPanel, describePanelSetup } from '../src/codex/panel-setup.js';
 
 test('ensureTmux skips without probing when opted out or in CI', () => {
   let calls = 0;

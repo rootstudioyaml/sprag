@@ -1,15 +1,15 @@
 import { loadConfig, saveConfig } from '../config.js';
-import { configureCodexHooks } from '../codex-installer.js';
+import { configureCodexHooks } from '../codex/installer.js';
 import { validateCodexTarget, loadCodexModelRules, addCodexModelRule, removeCodexModelRule,
   validateCodexSharedTarget, codexSharedTargets, codexDelegateMinContext, DEFAULT_DELEGATE_MIN_CONTEXT,
-  autoCodexSharedTargets, codexDelegateEnabled, codexImplementationHint } from '../codex-delegation.js';
-import { findCodexCandidate, resolveCodexCandidate } from '../codex-route-scan.js';
-import { codexRoutingSavedTotals, loadCodexLedger } from '../codex-ledger.js';
-import { codexRuleHealth, codexRulesInReview, codexSharedRuleHealth } from '../codex-rule-health.js';
+  autoCodexSharedTargets, codexDelegateEnabled, codexImplementationHint } from '../codex/delegation.js';
+import { findCodexCandidate, resolveCodexCandidate } from '../codex/route-scan.js';
+import { codexRoutingSavedTotals, loadCodexLedger } from '../codex/ledger.js';
+import { codexRuleHealth, codexRulesInReview, codexSharedRuleHealth } from '../codex/rule-health.js';
 import { signedUsd } from '../money.js';
 import { codexProviderName, codexModelName } from '../agent.js';
 import { loadSharedModelRules, sharedModelRulesForProject, SHARED_RULE_TIERS } from '../shared-model-rules.js';
-import { codexDelegationDiagnostics } from '../codex-delegation-diagnostics.js';
+import { codexDelegationDiagnostics } from '../codex/delegation-diagnostics.js';
 
 // Starts from the working directory, as the hooks do, so a project policy
 // stored under either agent's project root is counted.

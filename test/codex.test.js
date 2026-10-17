@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { childEnv } from './helpers/child-env.js';
 import { selectAgent } from '../src/agent.js';
-import { parseCodexSessionFile, parseAllCodexSessions } from '../src/codex-parser.js';
-import { lintCodexTool, codexHookOutput } from '../src/codex-hooks.js';
-import { CODEX_BEGIN, codexHarnessPaths, initCodexHarness } from '../src/codex-harness.js';
+import { parseCodexSessionFile, parseAllCodexSessions } from '../src/codex/parser.js';
+import { lintCodexTool, codexHookOutput } from '../src/codex/hooks.js';
+import { CODEX_BEGIN, codexHarnessPaths, initCodexHarness } from '../src/codex/harness.js';
 import { findProjectRoot } from '../src/harness.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));

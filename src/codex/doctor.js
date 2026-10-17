@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'smol-toml';
-import { codexUserDir } from './agent.js';
-import { codexHookStatus } from './codex-installer.js';
-import { createPanelReader } from './codex-panel.js';
-import { panelHealth } from './codex-panel-state.js';
+import { codexUserDir } from '../agent.js';
+import { codexHookStatus } from './installer.js';
+import { createPanelReader } from './panel.js';
+import { panelHealth } from './panel-state.js';
 
 export const CODEX_CAPABILITIES = [
   { feature: 'statusline', support: 'supported', command: 'sprag --statusline --agent codex', note: 'Local terminal output; native footer accepts only Codex item identifiers.' },

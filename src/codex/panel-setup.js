@@ -11,7 +11,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { installPanelShell } from './codex-panel-shell.js';
+import { installPanelShell } from './panel-shell.js';
 
 /** Whether a tmux binary answers `-V`. */
 export function tmuxAvailable({ exec = execFileSync } = {}) {

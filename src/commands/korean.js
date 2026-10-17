@@ -224,7 +224,7 @@ export async function run({ args, hasFlag }) {
     const enabled = sub === 'on';
     ks.setKoreanStyleEnabled(enabled);
     // Codex reads the guide from its global AGENTS.md; keep that block in step.
-    try { (await import('../codex-harness.js')).syncCodexKoreanBlock({ cfg: loadConfig() }); } catch (e) { debug('korean:codex-sync', e); }
+    try { (await import('../codex/harness.js')).syncCodexKoreanBlock({ cfg: loadConfig() }); } catch (e) { debug('korean:codex-sync', e); }
     const {
       installKoreanLintHook, removeKoreanLintHook,
       installReplyLanguageHook, removeReplyLanguageHook,

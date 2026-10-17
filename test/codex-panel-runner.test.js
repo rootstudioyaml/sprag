@@ -1,10 +1,10 @@
 import test from 'node:test';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
-import { runCodexWithPanel, resizeInlinePanel, createInlinePanelResizer } from '../src/codex-panel-runner.js';
+import { runCodexWithPanel, resizeInlinePanel, createInlinePanelResizer } from '../src/codex/panel-runner.js';
 import { selectAgent } from '../src/agent.js';
 import { existsSync } from 'node:fs';
-import { readPanelBinding } from '../src/codex-panel-session.js';
+import { readPanelBinding } from '../src/codex/panel-session.js';
 
 test('inline runner uses isolated tmux, preserves args and cleans up after detach', () => {
   const calls = [];

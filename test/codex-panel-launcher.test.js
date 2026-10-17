@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openCodexPanel, panelLaunchCommand } from '../src/codex-panel-launcher.js';
+import { openCodexPanel, panelLaunchCommand } from '../src/codex/panel-launcher.js';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { childEnv } from './helpers/child-env.js';
-import { recordPanelState, panelHealth } from '../src/codex-panel-state.js';
+import { recordPanelState, panelHealth } from '../src/codex/panel-state.js';
 
 test('panel launcher quotes shell arguments and keeps them out of AppleScript source', () => {
   const root = '/tmp/a "quote"\' $(danger); project';
@@ -49,7 +49,7 @@ test('panel health separates hook execution from rendering and expires stale fra
 test('auto panel registration survives reinstall and can be removed independently', () => {
   const home = mkdtempSync(join(tmpdir(), 'sprag-auto-'));
   // A URL, not a path: on Windows the ESM loader reads `D:\\...` as the scheme `d:`.
-  const module = new URL('../src/codex-installer.js', import.meta.url).href;
+  const module = new URL('../src/codex/installer.js', import.meta.url).href;
   try {
     execFileSync(process.execPath, ['--input-type=module', '-e', `
       import assert from 'node:assert/strict';

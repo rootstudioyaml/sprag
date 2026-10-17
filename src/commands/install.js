@@ -439,15 +439,15 @@ export async function run({ hasFlag }) {
             : '  codex: Codex is installed here. Set up its hooks and harness too?', { defaultValue: true });
         }
         if (proceed) {
-          const { configureCodexHooks } = await import('../codex-installer.js');
-          const { initCodexHarness } = await import('../codex-harness.js');
+          const { configureCodexHooks } = await import('../codex/installer.js');
+          const { initCodexHarness } = await import('../codex/harness.js');
           const { loadConfig } = await import('../config.js');
-          const { setupCodexPanel, describePanelSetup } = await import('../codex-panel-setup.js');
+          const { setupCodexPanel, describePanelSetup } = await import('../codex/panel-setup.js');
           const config = loadConfig() || {};
           // A manual install asks before touching the system package manager.
           let env = process.env;
           if (interactive && process.platform === 'darwin') {
-            const { tmuxAvailable } = await import('../codex-panel-setup.js');
+            const { tmuxAvailable } = await import('../codex/panel-setup.js');
             if (!tmuxAvailable() && !await confirm(lang === 'ko'
               ? '  codex: tmux 가 없습니다. Homebrew 로 설치해 같은 창에 패널을 붙일까요?'
               : '  codex: tmux is missing. Install it with Homebrew so the panel shares the Codex window?', { defaultValue: true })) {
@@ -469,7 +469,7 @@ export async function run({ hasFlag }) {
             const h = initCodexHarness({ scope: 'global' });
             console.log(`  codex: harness ${h.file}`);
             try {
-              const { syncCodexKoreanBlock } = await import('../codex-harness.js');
+              const { syncCodexKoreanBlock } = await import('../codex/harness.js');
               const k = syncCodexKoreanBlock({ cfg: config });
               console.log(`  codex: korean-style ${k.action} (${k.file})`);
             } catch (e) { debug('install:codex-korean', e); }

@@ -3,25 +3,25 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, openSync, readFileSync, readSync, closeSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { loadConfig, userLanguage } from './config.js';
-import { koreanStyleInjection, koreanStyleEnabled } from './korean-style.js';
-import { cohesionInjection } from './cohesion.js';
-import { codexHarnessPaths, syncCodexKoreanBlock } from './codex-harness.js';
-import { writeViaTmp } from './state-file.js';
-import { findProjectRoot } from './harness.js';
-import { runCodexBrief } from './codex-brief.js';
-import { codexDocumentTool, codexDocumentNote, convertCodexDocument, codexDocumentContext } from './codex-doc2md.js';
-import { codexDelegationTool, codexRouteHint, codexDelegateEnabled } from './codex-delegation.js';
-import { bindCodexSubagent, closeStaleCodexRoutes, unsettledCodexRoutes } from './codex-ledger.js';
-import { seedOfferBlock } from './seed-rules.js';
-import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './codex-route-scan.js';
-import { userDataDir } from './paths.js';
-import { debug } from './debug.js';
-import { updateOffer } from './update-notice.js';
+import { loadConfig, userLanguage } from '../config.js';
+import { koreanStyleInjection, koreanStyleEnabled } from '../korean-style.js';
+import { cohesionInjection } from '../cohesion.js';
+import { codexHarnessPaths, syncCodexKoreanBlock } from './harness.js';
+import { writeViaTmp } from '../state-file.js';
+import { findProjectRoot } from '../harness.js';
+import { runCodexBrief } from './brief.js';
+import { codexDocumentTool, codexDocumentNote, convertCodexDocument, codexDocumentContext } from './doc2md.js';
+import { codexDelegationTool, codexRouteHint, codexDelegateEnabled } from './delegation.js';
+import { bindCodexSubagent, closeStaleCodexRoutes, unsettledCodexRoutes } from './ledger.js';
+import { seedOfferBlock } from '../seed-rules.js';
+import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './route-scan.js';
+import { userDataDir } from '../paths.js';
+import { debug } from '../debug.js';
+import { updateOffer } from '../update-notice.js';
 
 const require = createRequire(import.meta.url);
-const lint = require('./korean-lint.cjs');
-const doc2md = require('./doc2md.cjs');
+const lint = require('../korean-lint.cjs');
+const doc2md = require('../doc2md.cjs');
 
 function context(event, text) {
   return text ? { hookSpecificOutput: { hookEventName: event, additionalContext: text } } : null;
@@ -167,7 +167,7 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
   if (!payload || typeof payload !== 'object') return null;
   if (event === 'stop') {
     if (payload.stop_hook_active || !koreanStyleEnabled(cfg) || cfg?.koreanReplyCheck === false) return null;
-    const { checkCodexReplyLanguage } = await import('./codex-reply-language.js');
+    const { checkCodexReplyLanguage } = await import('./reply-language.js');
     if (!checkCodexReplyLanguage(payload)) return null;
     return { decision: 'block', reason: '사용자는 한국어로 질문했는데 마지막 답변이 영어로 작성됐습니다. 같은 내용을 한국어로 다시 답하십시오. 코드, 명령어, 오류 원문, 커밋 메시지는 그대로 유지하십시오.' };
   }
@@ -180,9 +180,9 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
     const parts = [];
     // Keep the preset file current with this version's wording before it is read.
     if (event === 'session-start') {
-      try { (await import('./preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch (e) { debug('codex:preset', e); }
+      try { (await import('../preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch (e) { debug('codex:preset', e); }
     }
-    const { presetRatchetPath } = await import('./preset-ratchet.js');
+    const { presetRatchetPath } = await import('../preset-ratchet.js');
     // Lower priority survives the budget first. Rules and style move to a file
     // when they do not fit; offers and notices are simply left out.
     for (const [scope, ratchet] of [['global', codexHarnessPaths(root, 'global').ratchet],

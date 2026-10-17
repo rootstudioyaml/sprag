@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadSharedModelRules, sharedModelRulesForProject } from '../src/shared-model-rules.js';
-import { codexRouteHint, codexDelegationTool, sharedCodexModelRules, codexSharedTargets, autoCodexSharedTargets } from '../src/codex-delegation.js';
+import { codexRouteHint, codexDelegationTool, sharedCodexModelRules, codexSharedTargets, autoCodexSharedTargets } from '../src/codex/delegation.js';
 import { routeMatch } from '../src/route-inject.js';
 import { childEnv } from './helpers/child-env.js';
 

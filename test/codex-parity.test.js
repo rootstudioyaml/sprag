@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { childEnv } from './helpers/child-env.js';
-import { PANEL_SHELL_BLOCK } from '../src/codex-panel-shell.js';
-import { formatCodexPanel } from '../src/codex-panel.js';
-import { codexSharedRuleHealth, codexRuleHealth } from '../src/codex-rule-health.js';
+import { PANEL_SHELL_BLOCK } from '../src/codex/panel-shell.js';
+import { formatCodexPanel } from '../src/codex/panel.js';
+import { codexSharedRuleHealth, codexRuleHealth } from '../src/codex/rule-health.js';
 import { updateOffer, readUpdateChip } from '../src/update-notice.js';
-import { lastCodexTurn } from '../src/codex-reply-language.js';
-import { readCodexDelegations } from '../src/codex-ledger.js';
+import { lastCodexTurn } from '../src/codex/reply-language.js';
+import { readCodexDelegations } from '../src/codex/ledger.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
