@@ -1,7 +1,7 @@
 {
   "name": "sprag-cli",
   "version": "3.67.0",
-  "description": "Lower your Claude Code bill without changing how you work: simple tasks go to cheaper models, documents go in as compact Markdown, and the statusline shows spend and savings live. Works with Codex too.",
+  "description": "Cut Claude Code and Codex token costs: cheaper-model routing, compact Markdown for documents, and a live statusline of spend and savings.",
   "type": "module",
   "bin": {
     "sprag": "bin/cli.js",
@@ -14,7 +14,7 @@
     "publish:legacy": "node scripts/publish-legacy.mjs",
     "release:notes": "node scripts/release-notes.mjs",
     "site:docs": "node scripts/build-site-docs.mjs",
-    "test": "node --test",
+    "test": "node --test --test-force-exit",
     "test:mods": "claude plugin test mod/sprag-doc2md && claude plugin test mod/sprag-delegation-meter && claude plugin test mod/sprag-statusline",
     "version": "node scripts/sync-site-version.mjs"
   },
@@ -34,7 +34,7 @@
     "NOTICE"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "keywords": [
     "claude-code",
@@ -52,7 +52,14 @@
     "subagent",
     "prompt-caching",
     "haiku",
-    "cli"
+    "cli",
+    "token",
+    "tokens",
+    "cost",
+    "llm-cost",
+    "cost-optimization",
+    "openai-codex",
+    "pptx-to-markdown"
   ],
   "license": "Apache-2.0",
   "repository": {

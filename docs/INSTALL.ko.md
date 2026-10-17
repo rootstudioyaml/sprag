@@ -33,7 +33,7 @@ sprag install --agent codex
 
 ## Claude Code 설치
 
-**사전 준비:** Node.js ≥ 18 (`node -v`로 확인 · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL은 [nvm](https://github.com/nvm-sh/nvm) 권장)
+**사전 준비:** Node.js ≥ 20 (`node -v`로 확인 · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL은 [nvm](https://github.com/nvm-sh/nvm) 권장)
 
 ```bash
 npm i -g sprag-cli

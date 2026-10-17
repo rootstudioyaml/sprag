@@ -36,7 +36,7 @@ rules you add later require an explicit scope. See [Codex workflows and limits](
 
 ### Claude Code
 
-**Prerequisite:** Node.js ≥ 18 (`node -v` · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL: [nvm](https://github.com/nvm-sh/nvm) recommended)
+**Prerequisite:** Node.js ≥ 20 (`node -v` · macOS `brew install node` · Windows `winget install OpenJS.NodeJS.LTS` · Linux/WSL: [nvm](https://github.com/nvm-sh/nvm) recommended)
 
 ```bash
 npm i -g sprag-cli
