@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an improvement or a new capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the situation and what gets in the way today. The problem matters more than the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like Sprag to do?
+      description: Your idea, if you have one. Rough is fine.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you tried
+      description: Workarounds, settings or other tools you tried, and why they were not enough.
+    validations:
+      required: false
+  - type: input
+    id: sprag-version
+    attributes:
+      label: Sprag version
+      description: Output of `sprag --version`.
+    validations:
+      required: false

@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in Sprag does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. For a security problem, do not file it here. Use
+        [private vulnerability reporting](https://github.com/rootstudioyaml/sprag/security/advisories/new).
+  - type: input
+    id: sprag-version
+    attributes:
+      label: Sprag version
+      description: Output of `sprag --version`.
+      placeholder: "3.67.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Name and version, for example macOS 15.2, Ubuntu 24.04 or Windows 11.
+    validations:
+      required: true
+  - type: input
+    id: agent-version
+    attributes:
+      label: Claude Code or Codex version
+      description: Output of `claude --version` or `codex --version`. Say which one you use.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What you ran, in order, and what you expected to happen.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Error text, unexpected output or a description of the wrong behaviour.
+    validations:
+      required: false
+  - type: textarea
+    id: statusline
+    attributes:
+      label: Statusline output
+      description: If the statusline is involved, paste what it shows. Remove anything private first.
+      render: text
+    validations:
+      required: false
