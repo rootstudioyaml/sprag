@@ -4,7 +4,7 @@
 
 ## 🅷 Harness mode
 
-Bootstrap five engineering principles (Ratchet · Evidence · PEV · Structured Task · Default Safe Path) into `CLAUDE.md` with one command; the statusline scores it as `🅷 5/5`. When the same error keeps recurring, a `🅷⚠ ratchet?` nudge appears so you can promote it to a rule.
+Bootstrap five engineering principles (Ratchet · Evidence · PEV · Structured Task · Default Safe Path) into `CLAUDE.md` with one command; the statusline scores it as `🅷`, and the chip stays out of the line while the score is full and nothing is due (`🅷 4/5` and the warnings below are what you will actually see). When the same error keeps recurring, a `🅷⚠ ratchet?` nudge appears so you can promote it to a rule.
 
 ```bash
 sprag harness init                # this project

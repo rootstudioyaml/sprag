@@ -41,13 +41,15 @@ test('the default order leads with what stops the work', () => {
   const cap = at(line, '✦');       // 5h gauge
   const ctx = at(line, '📦');      // context
   const model = at(line, '🤖');
-  const harness = at(line, '🅷');
-  for (const [name, i] of [['cap', cap], ['ctx', ctx], ['model', model], ['harness', harness]]) {
+  for (const [name, i] of [['cap', cap], ['ctx', ctx], ['model', model]]) {
     assert.ok(i >= 0, `${name} segment must render`);
   }
   assert.ok(cap < ctx, 'rate-limit gauge precedes context');
   assert.ok(ctx < model, 'context precedes the model chip');
-  assert.ok(model < harness, 'near-constant harness identity goes last');
+  // The harness chip is not asserted here any more: a healthy one is hidden by
+  // default, so whether it shows depends on the machine running the test. Its
+  // tail position is pinned in statusline-quiet-chips.test.js, which arranges a
+  // warning to make it appear.
 });
 
 test('cache chips sit between context and the cost group', () => {

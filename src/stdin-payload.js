@@ -109,7 +109,7 @@ export function bedrockDisplayFromId(id) {
   // The minor version is one or two digits. An id with no minor goes straight
   // to its date stamp (`claude-opus-4-20250514`), and reading that stamp as the
   // minor printed "Opus 4.20250514".
-  const m = id.match(/claude[-_](opus|sonnet|haiku)[-_](\d+)(?:[-_](\d{1,2})(?!\d))?/i);
+  const m = id.match(/claude[-_](opus|sonnet|haiku|fable|mythos)[-_](\d+)(?:[-_](\d{1,2})(?!\d))?/i);
   if (!m) return null;
   const family = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
   return m[3] === undefined ? `${family} ${m[2]}` : `${family} ${m[2]}.${m[3]}`;

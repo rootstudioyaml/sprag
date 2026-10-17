@@ -102,6 +102,9 @@ export async function run({ hasFlag }) {
         console.log(lang === 'ko'
           ? `  statusline: 기존 statusline이 이미 설정되어 있습니다: ${s.existingCommand}`
           : `  statusline: an existing statusline is already configured: ${s.existingCommand}`);
+        // A wrapper around our own CLI is worth naming here too: the non-tty line
+        // below prints the same sentence, so both paths say what the entry is.
+        if (s.wrapper) console.log(`              ${s.reason}`);
         const pick = await choose(lang === 'ko'
           ? '              statusline을 어떻게 표시할까요?'
           : '              How should the statusline be shown?', [
@@ -212,8 +215,8 @@ export async function run({ hasFlag }) {
           console.log(lang === 'ko' ? `  harness: 작성 ${p}` : `  harness: wrote ${p}`);
         }
         console.log(lang === 'ko'
-          ? '  harness: 5원칙을 ~/.claude/CLAUDE.md 에 설정했습니다 — statusline에 🅷 5/5 가 표시됩니다.'
-          : '  harness: 5 principles installed in ~/.claude/CLAUDE.md — the statusline now shows 🅷 5/5.');
+          ? '  harness: 5원칙을 ~/.claude/CLAUDE.md 에 설정했습니다. 점수가 5/5에 못 미치거나 경고가 있을 때 statusline에 🅷 가 표시됩니다.'
+          : '  harness: 5 principles installed in ~/.claude/CLAUDE.md. The statusline shows 🅷 when the score drops below 5/5 or a warning is due.');
         console.log(lang === 'ko'
           ? '           되돌리려면: sprag harness uninit --global'
           : '           to undo: sprag harness uninit --global');

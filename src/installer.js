@@ -16,7 +16,8 @@
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync, copyFileSync, renameSync, realpathSync, statSync } from 'node:fs';
 import { loadConfig, saveConfig } from './config.js';
 import { CLI_NAME, LEGACY_CLI_NAME } from './cli-name.js';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { claudeUserDir, userDataDir } from './paths.js';
 
@@ -354,6 +355,65 @@ export function removeLegacyCommand() {
   return { path: file, action: 'removed' };
 }
 
+/**
+ * Whether a foreign statusLine command is a script that calls this tool, as
+ * opposed to someone else's statusline.
+ *
+ * Both look the same to isOurCommand(): the command is `bash ~/.claude/x.sh`,
+ * not `sprag ...`. The difference matters to the person reading the install
+ * output. "Existing statusLine command (bash ~/.claude/x.sh)" reads as another
+ * tool's slot, when the script is their own wrapper around `sprag --statusline`
+ * and replacing it with the direct command loses nothing. The usual reason such a
+ * wrapper exists is an `npx` fallback written before the package was renamed, and
+ * `npx claude-token-saver@latest` now resolves to the deprecated package, which
+ * stopped at 3.55.0: the line it draws is frozen there, quietly, while the
+ * statusline appears to work.
+ *
+ * Recognised commands are `bash <path>`, `sh <path>` and a bare path ending in
+ * `.sh`. The script must exist and its text must name this tool next to
+ * `--statusline`; a script that only mentions the tool (a comment, an unrelated
+ * `sprag` directory) is not a wrapper. Best-effort throughout: an unreadable or
+ * oversized file is simply "not a wrapper", and the caller falls back to the
+ * generic conflict message.
+ *
+ * @returns {{ script: string, name: string, deprecatedFallback: boolean } | null}
+ *   `script` is the path as written in the command, for display.
+ */
+function detectStatuslineWrapper(command) {
+  if (typeof command !== 'string') return null;
+  const m = command.trim().match(/^(?:(?:bash|sh)\s+)?("[^"]+"|'[^']+'|\S+)(?:\s.*)?$/);
+  if (!m) return null;
+  const hasShell = /^(?:bash|sh)\s/.test(command.trim());
+  const script = m[1].replace(/^["']|["']$/g, '');
+  if (!hasShell && !script.endsWith('.sh')) return null;
+  // Settings commands spell the home directory three ways; the shell Claude Code
+  // runs them in would expand all of them.
+  const home = homedir();
+  const onDisk = resolve(script
+    .replace(/^~(?=$|[/\\])/, home)
+    .replace(/^\$\{?HOME\}?(?=$|[/\\])/, home));
+  let body;
+  try {
+    const st = statSync(onDisk);
+    // A statusline wrapper is a few lines; anything this large is not one.
+    if (!st.isFile() || st.size > 256 * 1024) return null;
+    body = readFileSync(onDisk, 'utf8');
+  } catch {
+    return null;
+  }
+  if (!body.includes('--statusline')) return null;
+  const nameAt = (text) => {
+    const k = text.match(new RegExp(`${LEGACY_CLI}|${CLI}`));
+    return k ? k[0] : null;
+  };
+  // The name on the `--statusline` line is the one being called; failing that,
+  // whichever comes first (the command may sit in a variable set elsewhere).
+  const callLine = body.split('\n').find((l) => l.includes('--statusline') && nameAt(l));
+  const name = nameAt(callLine ?? body);
+  if (!name) return null;
+  return { script, name, deprecatedFallback: body.includes(`${LEGACY_CLI}@latest`) };
+}
+
 // Registers/repairs the Claude Code statusLine entry in ~/.claude/settings.json.
 // - No statusLine yet: insert ours with refreshInterval:STATUSLINE_REFRESH_INTERVAL.
 // - statusLine already points at sprag: ensure that refreshInterval
@@ -402,6 +462,22 @@ export function installStatusline({ force = false, merge = false } = {}) {
     // `conflict` lets the interactive install distinguish "someone else's
     // statusline is here" (worth asking about) from other skip reasons
     // (unreadable JSON), which a prompt cannot fix.
+    const wrapper = detectStatuslineWrapper(cur.command);
+    if (wrapper) {
+      // Still a conflict, for the same reason: the entry is not ours to rewrite
+      // unasked. Only the wording changes, to say what the entry is.
+      const fallback = wrapper.deprecatedFallback
+        ? ` (its npx fallback resolves to the deprecated ${LEGACY_CLI} package, last published as 3.55.0)`
+        : '';
+      return {
+        path: file,
+        action: 'skipped',
+        conflict: true,
+        wrapper: true,
+        existingCommand: cur.command,
+        reason: `existing statusLine wrapper script (${wrapper.script}) calls ${wrapper.name}; re-run with --force to replace it with \`${STATUSLINE_COMMAND}\`${fallback}`,
+      };
+    }
     return { path: file, action: 'skipped', conflict: true, existingCommand: cur.command, reason: `existing statusLine command (${cur.command}) — re-run with --force to overwrite` };
   }
   const base = cur;

@@ -25,6 +25,8 @@ import { loadConfig } from '../config.js';
 import { koreanStyleEnabled } from '../korean-style.js';
 import { effortTones } from '../effort-palette.js';
 import { MIN_VOTES } from '../model-alias.js';
+import { bedrockDisplayFromId } from '../stdin-payload.js';
+import { modelFamily } from '../savings-ledger.js';
 import { shareLegend } from '../model-share.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
@@ -246,11 +248,17 @@ export function pickCapWarn(caps) {
 
 /**
  * Korean-style chip builder. Renders only when the session-start injection is
- * enabled, so nothing changes for anyone who never asked for it.
+ * enabled AND `--segments` names `korean`.
+ *
+ * It used to sit in the default order as a gray "yes, it is on" confirmation, and
+ * that is the reason it left: a chip that is on every line of every Korean-style
+ * user's statusline carries no information after the first day, and it spent
+ * the tail position where a narrow terminal clips. The confirmation is still one
+ * flag away for anyone debugging a hook that might have failed silently.
  */
-function buildKoreanSeg(c, isIcon, verbose, g) {
+function buildKoreanSeg(c, isIcon, verbose, g, explicit = false) {
   try {
-    if (!koreanStyleEnabled()) return null;
+    if (!explicit || !koreanStyleEnabled()) return null;
     // Deliberately quiet (gray, one glyph): this is a "yes, it is on"
     // confirmation, not a warning. Without it a silently-failed hook looks
     // exactly like a working one, because the style only shows up when the
@@ -348,18 +356,25 @@ function buildVersionSeg(version, update, c, isIcon, verbose, g) {
   // cannot tell "up to date as of this morning" from "never checked since the
   // network went away", and the second is the one worth noticing. Needs a
   // `latest` on record, since a check that never answered confirmed nothing.
+  // Written `✓5m ago`, not `✓5m`: the bare form reads as "5 minutes left", the
+  // way every other duration on this line (the cache countdown) does.
   const age = verbose && update && update.latest && !update.available
     ? formatAge(Date.now() - (toEpochMs(update.checkedAt) ?? NaN))
     : null;
-  return `${c(GRAY)}v${version}${age ? ` ✓${age}` : ''}${c(RESET)}`;
+  return `${c(GRAY)}v${version}${age ? ` ✓${age} ago` : ''}${c(RESET)}`;
 }
 
 /**
  * Harness 🅷 segment builder — shared by the full report and the no-session
  * fallback line. Best-effort: never throws into the statusline (corrupted
  * CLAUDE.md, permission issue, etc. → null).
+ *
+ * A full score with nothing to warn about draws nothing, unless `explicit` says
+ * `--segments` named the chip. `🅷 5/5` on every line says "nothing to do", which
+ * is the absence of news; the chip earns its place when it is short of 5/5, red,
+ * or asked for.
  */
-function buildHarnessSeg(c, isIcon, g, liveWindow = null) {
+function buildHarnessSeg(c, isIcon, g, liveWindow = null, explicit = false) {
   try {
     const harnessInfo = harnessStatusForStatusline(loadConfig(), { liveWindow });
     if (!harnessInfo) return null;
@@ -375,11 +390,63 @@ function buildHarnessSeg(c, isIcon, g, liveWindow = null) {
       return `${c(RED)}${icon}${g.spike} ${harnessInfo.warning}${more > 0 ? ` +${more}` : ''}${c(RESET)}`;
     }
     if (harnessInfo.custom) return `${c(CYAN)}${icon} custom${c(RESET)}`;
-    const tone = harnessInfo.configured >= harnessInfo.total ? GREEN : YELLOW;
+    const complete = harnessInfo.configured >= harnessInfo.total;
+    if (complete && !explicit) return null;
+    const tone = complete ? GREEN : YELLOW;
     return `${c(tone)}${icon} ${harnessInfo.configured}/${harnessInfo.total}${c(RESET)}`;
   } catch {
     return null;
   }
+}
+
+/**
+ * A short model name for the chip: `Fable 5.1`, `Opus 5.5`, `Sonnet 3.5`.
+ *
+ * Claude Code sends `model.display_name`, and extractModel() already turns a
+ * Bedrock-style id into the same shape for the three families it knows. What
+ * reaches this point as a raw id is therefore what that function did not
+ * recognise: a family it has no entry for (`claude-fable-5-1`) and the legacy
+ * order, where the version comes before the family (`claude-3-5-sonnet-20241022`).
+ * Left alone, those print as the full id, date stamp and gateway prefix included.
+ *
+ * The opus/sonnet/haiku case goes through bedrockDisplayFromId so the two cannot
+ * disagree about it; only the remainder is handled here. Anything that does not
+ * parse (an unknown family, a display name that already reads well, a gateway
+ * alias with no `claude-` in it) comes back unchanged, so an unmapped name stays
+ * visible rather than being guessed at.
+ */
+export function shortModelName(model) {
+  if (typeof model !== 'string' || model === '') return model;
+  const viaId = bedrockDisplayFromId(model);
+  if (viaId) return viaId;
+  const family = modelFamily(model);
+  // modelFamily() hands the input back for a name it does not know.
+  if (family === model) return model;
+  // Minor version is one or two digits; a longer run is the date stamp, which
+  // must not be read as one (see bedrockDisplayFromId).
+  const ver = '(\\d+)(?:[-_](\\d{1,2})(?!\\d))?';
+  const m = model.match(new RegExp(`claude[-_]${family}[-_]${ver}`, 'i'))
+    || model.match(new RegExp(`claude[-_]${ver}[-_]${family}`, 'i'));
+  if (!m) return model;
+  const name = family.charAt(0).toUpperCase() + family.slice(1);
+  return m[2] === undefined ? `${name} ${m[1]}` : `${name} ${m[1]}.${m[2]}`;
+}
+
+/**
+ * Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
+ * Cheap identity context: useful when the user toggles between Sonnet/Opus
+ * mid-session and wants to confirm at a glance which one is answering.
+ *
+ * Shared by the full report and the no-session line, which used to draw it
+ * twice and could disagree about the name.
+ */
+function buildModelSeg(model, c, isIcon, g) {
+  if (typeof model !== 'string' || model.length === 0) return null;
+  const name = shortModelName(model);
+  // 🤖 + name is enough — the emoji disambiguates so the literal word "Model"
+  // is dead weight in icon mode. Text modes keep the bare name; the magenta
+  // tone marks it as identity context.
+  return isIcon ? `${c(MAGENTA)}${g.model} ${name}${c(RESET)}` : `${c(MAGENTA)}${name}${c(RESET)}`;
 }
 
 /**
@@ -464,7 +531,7 @@ function buildCapWarnSeg(capWarn, c, isIcon, g, color, mode) {
  * harness, model, and effort chips still render around the "no session data"
  * note.
  */
-export function formatNoSession({ caps = null, model = null, effort = null, windowLabel = '', version = '', update = null } = {}, { color = true, mode = 'icon' } = {}) {
+export function formatNoSession({ caps = null, model = null, effort = null, windowLabel = '', version = '', update = null } = {}, { color = true, mode = 'icon', segments = null } = {}) {
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take
   // the same branches from here on.
@@ -475,11 +542,14 @@ export function formatNoSession({ caps = null, model = null, effort = null, wind
   if (capSeg) segs.push(capSeg);
   const versionSeg = buildVersionSeg(version, update, c, isIcon, false, g);
   if (versionSeg && update && update.available) segs.push(versionSeg);
-  const harnessSeg = buildHarnessSeg(c, isIcon, g);
+  // Same rule as the full report: a healthy 🅷 stays off the line unless
+  // `--segments` named it. This line has no other opt-in, so `segments` is only
+  // read for that one name.
+  const named = (name) => !!(segments && segments.some((s) => String(s).toLowerCase() === name));
+  const harnessSeg = buildHarnessSeg(c, isIcon, g, null, named('harness'));
   if (harnessSeg) segs.push(harnessSeg);
-  if (typeof model === 'string' && model.length > 0) {
-    segs.push(isIcon ? `${c(MAGENTA)}${g.model} ${model}${c(RESET)}` : `${c(MAGENTA)}${model}${c(RESET)}`);
-  }
+  const modelSeg = buildModelSeg(model, c, isIcon, g);
+  if (modelSeg) segs.push(modelSeg);
   const effortSeg = buildEffortSeg(effort, c, isIcon, g);
   if (effortSeg) segs.push(effortSeg);
   segs.push(`${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
@@ -488,61 +558,62 @@ export function formatNoSession({ caps = null, model = null, effort = null, wind
 }
 
 /**
- * @param {object} data - output of main report pipeline (summary, ttl, cost, options, lastActivity)
- * @param {object} [opts]
- * @param {boolean} [opts.color=true] - emit ANSI escape codes
- * @param {boolean} [opts.verbose=false] - longer layout with labels
- * @param {boolean} [opts.timer=true] - show TTL countdown segment
- * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness, korean, model, effort, hit, ttl, month, saved, delegated, doc2md, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
- * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
+ * Cache hit-rate chip. The color is the signal: green at 85%+, yellow from 70%,
+ * red below.
  */
-/**
- * Default segment order, most actionable first. A rate-limit block or a full
- * context window stops the work outright, so those lead. Cache and cost numbers
- * shape habits rather than the next keystroke, and harness / Korean-style are
- * near-constant identity: they sit at the tail, where a narrow terminal clips
- * the least useful end of the line instead of the most useful one.
- *
- * `version` is listed once, at its identity position. formatReport() moves it
- * forward when an upgrade is actually available, since it becomes an
- * "act on this" chip then.
- *
- * Exported so a test can assert every name here is one the renderer knows:
- * the order list and the segment registry are separate structures, and a name
- * added to only one of them would be dropped in silence.
- */
-export const DEFAULT_SEGMENT_ORDER = [
-  'cap-warn', 'spike',
-  'usage', 'ctx',
-  'ttl',
-  'model', 'effort',
-  // Grouped by the timeframe each figure covers, because mixing them was the
-  // problem: a lifetime total, a windowed rate and a calendar-month estimate sat
-  // interleaved, with one window label at the end of the line that appeared to
-  // qualify all of them.
-  //
-  // Lifetime, from the savings ledgers. Delegation stays ahead of the cache
-  // figure: routing is what the tool is for, the cache number is a brag stat.
-  'delegated', 'doc2md',
-  // Analysis window. These two are the only chips measured over it, so the label
-  // sits with them and the three render as one group.
-  'hit', 'saved', 'period',
-  // Calendar month.
-  'month',
-  'harness', 'korean', 'version',
-];
-
-export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
-  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort } = data;
-  const { hitRate } = summary;
-
+function buildHitSeg(hitRate, c, isIcon, verbose, g) {
   // Hit rate → color signal
   const hitColor =
     hitRate >= 0.85 ? GREEN :
     hitRate >= 0.70 ? YELLOW :
     RED;
 
+  // Labels per mode.
+  //   text:       "Cache hit 98.3%"                 |  verbose: "Cache hit 98.3%"
+  //   icon:       "🧠 98.3%"                          |  verbose: "🧠 Cache hit 98.3%"
+  const hitLabel = isIcon
+    ? (verbose ? `${g.hit} Cache hit` : g.hit)
+    : 'Cache hit';
+  return `${c(BOLD)}${hitLabel}${c(RESET)} ${c(hitColor)}${formatPct(hitRate)}${c(RESET)}`;
+}
+
+/**
+ * Prompt-cache savings chip, over the analysis window. A different number from
+ * the routing and doc2md totals, which are lifetime figures from their ledgers.
+ */
+function buildSavedSeg(cost, c, isIcon, verbose, g) {
+  // noCache − actual goes negative in write-heavy sessions (cache writes bill
+  // 1.25×/2× with few reads yet); "$-0.42" is not a saving, so floor at zero.
+  const savings = Math.max(0, cost?.savings ?? 0);
+
+  //   text:       "Cache saved $1.5K"                |  same in verbose
+  //   icon:       "💰 $1.5K"                          |  verbose: "💰 Cache saved $1.5K"
+  const saveLabel = isIcon
+    ? (verbose ? `${g.saved} Cache saved` : g.saved)
+    : 'Cache saved';
+  return `${c(CYAN)}${saveLabel}${c(RESET)} ${formatMoney(savings)}`;
+}
+
+/**
+ * The analysis-window label, as a qualifier on the hit-rate and savings chips
+ * before it.
+ */
+function buildPeriodSeg(options, c, verbose) {
+  // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").
+  // Fall back to legacy `${days}d` when callers haven't supplied a label.
+  const periodLabel = options.windowLabel || `${options.days}d`;
+  // Parenthesized so it reads as a qualifier on the two chips before it rather
+  // than as one more independent chip.
+  return verbose
+    ? `${c(GRAY)}(last ${periodLabel})${c(RESET)}`
+    : `${c(GRAY)}(${periodLabel})${c(RESET)}`;
+}
+
+/**
+ * Which cache bucket the session is in, and the countdown length that follows
+ * from it: `{ is1h, bucketLabel, bucketColor, ttlSeconds }`.
+ */
+function resolveTtlBucket(ttl, ttlBucket) {
   // TTL dominance → color signal (1h = good, 5m = warning).
   // The subscription plan fixes this, so the bucket rarely changes — it's the countdown that matters.
   // When ttl.total === 0 (no cache writes observed in the window), we cannot
@@ -558,7 +629,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // explicit `ttlBucket` setting outranks both, so a gateway that starts
   // reporting the split correctly does not need a release to be believed.
   const hasTtlData = ttl.total > 0;
-  const override = data.ttlBucket === '5m' || data.ttlBucket === '1h' ? data.ttlBucket : null;
+  const override = ttlBucket === '5m' || ttlBucket === '1h' ? ttlBucket : null;
   const is1h = override ? override === '1h' : (hasTtlData ? ttl.pct1h >= 0.5 : !ttl.gatewayObserved);
   // Three grades of certainty, three labels: measured (`1h`/`5m`), inferred
   // from a gateway model id (`5m?`), and unknown (`?`). Folding the middle
@@ -571,246 +642,15 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     ? (is1h ? GREEN : YELLOW)
     : (ttl.gatewayObserved ? YELLOW : GRAY);
   const ttlSeconds = is1h ? 3600 : 300;
+  return { is1h, bucketLabel, bucketColor, ttlSeconds };
+}
 
-  // noCache − actual goes negative in write-heavy sessions (cache writes bill
-  // 1.25×/2× with few reads yet); "$-0.42" is not a saving, so floor at zero.
-  const savings = Math.max(0, cost?.savings ?? 0);
-
-  const c = (v) => (color ? v : '');
-  // narrow shares the icon layout and swaps only the glyphs, so both modes take
-  // the same branches from here on.
-  const isIcon = mode === 'icon' || mode === 'narrow';
-  const g = glyphsFor(mode);
-
-  // Labels per mode.
-  //   text:       "Cache hit 98.3%"                 |  verbose: "Cache hit 98.3%"
-  //   icon:       "🧠 98.3%"                          |  verbose: "🧠 Cache hit 98.3%"
-  const hitLabel = isIcon
-    ? (verbose ? `${g.hit} Cache hit` : g.hit)
-    : 'Cache hit';
-  const hitSeg = `${c(BOLD)}${hitLabel}${c(RESET)} ${c(hitColor)}${formatPct(hitRate)}${c(RESET)}`;
-
-  //   text:       "Cache saved $1.5K"                |  same in verbose
-  //   icon:       "💰 $1.5K"                          |  verbose: "💰 Cache saved $1.5K"
-  const saveLabel = isIcon
-    ? (verbose ? `${g.saved} Cache saved` : g.saved)
-    : 'Cache saved';
-  const saveSeg = `${c(CYAN)}${saveLabel}${c(RESET)} ${formatMoney(savings)}`;
-
-  // Delegation savings — a DIFFERENT number from "Cache saved" above, which
-  // covers the prompt cache only. This one is what running work on a cheaper
-  // tier saved, the lifetime total of the delegation ledger (counted from the
-  // last `sprag saved reset`, when there was one). Hidden when zero or absent
-  // and never reset: a permanent "$0" is noise for direct-API users and for
-  // anyone who has not delegated yet.
-  // "Routing saved" says what earned the money — work that ran on a cheaper
-  // model instead of this one. It leads the line rather than trailing it
-  // because it is the headline number of the whole tool, not a footnote.
-  //   text:       "Routing saved $3.2"                |  same in verbose
-  //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Routing saved $3.2"
-  const delegationSaved = Number(data.delegationSaved) || 0;
-  const delegateLabel = isIcon
-    ? (verbose ? `${g.routing} Routing saved` : g.routing)
-    : 'Routing saved';
-  // Zero savings has two very different causes and, until now, one appearance:
-  // nothing at all. "Never delegated" and "delegated plenty, but every run was
-  // dropped because the gateway model id could not be resolved" looked
-  // identical, so users in the second case had no reason to suspect anything
-  // was wrong. The count gets a chip; the explanation stays in `route-scan
-  // rules`, where there is room for it.
-  //
-  // But only once there are enough of them to mean anything. A gateway reports
-  // an opaque profile ARN, and the fix for that is learned from observed runs —
-  // which needs MIN_VOTES of them before it can conclude anything. Below that
-  // threshold an unresolved run is not a problem, it is the first day of a
-  // working mechanism, and warning about it makes a fresh install look broken.
-  // Tied to MIN_VOTES rather than a literal so the two cannot drift: the chip
-  // appears exactly when learning has had its chance and still came up short.
-  const unresolvedRuns = Number(data.unresolvedRuns) || 0;
-  const unresolvedSeg = unresolvedRuns >= MIN_VOTES
-    ? `${c(YELLOW)}${g.routing} ${unresolvedRuns} unresolved${c(RESET)}`
-    : null;
-
-  // The counter's reset mark ("since 10/9"), when `sprag saved reset` was run.
-  // After a reset the total is legitimately zero, and a chip that vanished at
-  // zero made "just reset" look the same as "feature off". With a mark on
-  // record a zero is shown, dated; with none it stays hidden as before.
-  // Compact icon mode has no room for a sentence, so it gets `(10/9~)`.
-  const totals = data.delegationTotals;
-  const routingSince = formatSince(totals && totals.since);
-  const sinceWord = (since) => (since ? ` ${c(GRAY)}since ${since}${c(RESET)}` : '');
-  const sinceCompact = (since) => (since ? ` ${c(GRAY)}(${since}~)${c(RESET)}` : '');
-  const sinceInline = isIcon && !verbose ? sinceCompact : sinceWord;
-
-  // Savings come from the ledger route-scan fills, so they are only as fresh as
-  // the last scan. Said only once that has gone stale: a recent scan is the
-  // normal case and needs no caveat.
-  const scanAt = toEpochMs(data.routeScanAt);
-  const scanAge = scanAt !== null && Date.now() - scanAt > SCAN_STALE_MS ? formatAge(Date.now() - scanAt) : null;
-  const scanTag = scanAge
-    ? ` ${c(GRAY)}${verbose ? `last scan ${scanAge} ago` : `scan ${scanAge}`}${c(RESET)}`
-    : '';
-
-  // What the delegated runs cost on their own models is no longer drawn here.
-  // Wedged between the saving and its date it read as one more saving, so it
-  // moved to `sprag saved`, which has room to say what it is.
-
-  const savedTone = delegationSaved < 0 ? RED : delegationSaved > 0 ? GREEN : GRAY;
-  const savingsChip = delegationSaved !== 0 || routingSince
-    ? `${c(savedTone)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}${sinceInline(routingSince)}${scanTag}`
-    : null;
-  // The unresolved count stands in only while there are no savings to show, so
-  // a dated zero keeps both: the reset and the dropped runs are separate facts.
-  // What the spend was made of, for the same period as the routing counter:
-  // "◩ Model used ● Opus 90%  ● Sonnet 10%". A segment of its own, after the
-  // savings and their breakdown, so a share is never read as another saving.
-  // Only with a savings figure beside it, and absent when switched off
-  // (`mode no-share`) or empty.
-  const ms = data.modelShare;
-  const usedLabel = isIcon ? `${g.used} Model used` : 'Model used';
-  const usedSeg = ms && Number(ms.totalUsd) > 0 && Array.isArray(ms.families) && ms.families.length
-    ? `${c(GREEN)}${usedLabel}${c(RESET)} ${shareLegend(ms.families, { color })}`
-    : '';
-  const withShare = (chip) => (chip && usedSeg ? `${chip}  ${c(GRAY)}|${c(RESET)}  ${usedSeg}` : chip);
-  const delegateSeg = withShare(savingsChip) || (delegationSaved === 0 ? unresolvedSeg : null);
-  const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
-
-  // Document conversions — the same kind of number as "Routing saved", earned
-  // a different way: a document read as Markdown instead of attached whole.
-  // Kept as its own chip rather than folded into the routing total, because a
-  // single figure could not tell the reader which habit earned it.
-  //
-  // Conversions that saved nothing measurable still show as a count. For
-  // pptx/xlsx/docx the honest saving is zero — the client extracts much the
-  // same text — and a chip that disappeared on those would read as "doc2md
-  // did nothing" on the very formats it is the only way to open.
-  //   icon:  "📄 $0.42"   verbose: "📄 Doc2md saved $0.42 · 12 docs"
-  //   text:  "Doc2md saved $0.42"
-  const doc2md = data.doc2mdTotals;
-  const doc2mdUsd = Number(doc2md && doc2md.total) || 0;
-  const doc2mdDocs = Number(doc2md && doc2md.docs) || 0;
-  // Same reset mark as the routing counter, and the same reason to show a dated
-  // zero: after `sprag saved reset` an empty counter and a disabled feature
-  // would otherwise look alike.
-  const doc2mdSince = formatSince(doc2md && doc2md.since);
-  const doc2mdLabel = isIcon
-    ? (verbose ? `${g.doc} Doc2md saved` : g.doc)
-    : 'Doc2md saved';
-  let doc2mdSeg = null;
-  if (doc2mdUsd > 0) {
-    doc2mdSeg = `${c(GREEN)}${doc2mdLabel}${c(RESET)} ${formatMoney(doc2mdUsd)}${sinceInline(doc2mdSince)}`
-      + (verbose ? ` ${c(GRAY)}· ${doc2mdDocs} docs${c(RESET)}` : '');
-  } else if (doc2mdDocs > 0) {
-    const label = isIcon ? g.doc : 'Doc2md';
-    doc2mdSeg = `${c(GRAY)}${label} ${doc2mdDocs} docs${doc2mdSince ? ` ${isIcon && !verbose ? `(${doc2mdSince}~)` : `since ${doc2mdSince}`}` : ''}${c(RESET)}`;
-  } else if (doc2mdSince) {
-    doc2mdSeg = `${c(GRAY)}${doc2mdLabel} ${formatMoney(0)}${isIcon && !verbose ? ` (${doc2mdSince}~)` : ` since ${doc2mdSince}`}${c(RESET)}`;
-  }
-
-  // 이번 달 지출 세그먼트. 달력 월(1일 00시 기준) 지출 추정치라서 cap 이 없는
-  // 게이트웨이 사용자에게도 항상 의미가 있다. 정보성 지표이므로 회색으로,
-  // 게이지들 뒤에 조용히 놓는다.
-  //   icon:    "💵 Sep $42.1"
-  //   text:    "Sep spend $42.1"
-  //   verbose: "Sep spend $42.1 (since Sep 1)"
-  const month = data.monthSpend;
-  let monthSeg = null;
-  // Gateway sessions whose model the gateway does not price are left out of the
-  // sum and counted, so a partial total says so and an all-unpriced month is n/a.
-  const monthUnpriced = Number(month?.unpriced) || 0;
-  if (month && (Number(month.usd) > 0 || monthUnpriced > 0)) {
-    const amt = (Number(month.usd) > 0 ? formatMoney(Number(month.usd)) : 'n/a') +
-      (monthUnpriced > 0 ? ` +${monthUnpriced} unpriced` : '');
-    if (isIcon) {
-      monthSeg = `${c(GRAY)}${g.month} ${month.label} ${amt}${c(RESET)}`;
-    } else if (verbose) {
-      monthSeg = `${c(GRAY)}${month.label} spend ${amt} (since ${month.label} 1)${c(RESET)}`;
-    } else {
-      monthSeg = `${c(GRAY)}${month.label} spend ${amt}${c(RESET)}`;
-    }
-  }
-
-  // Routing-savings headline line (multi-line layout). The lifetime sum from
-  // the delegation ledger — the number the whole tool exists to grow, so it
-  // gets line 1 to itself while the diagnostics move to line 2.
-  //
-  // One figure, not three. The weekly and monthly sums used to sit here too,
-  // but the per-model breakdown that follows is a lifetime split, and next to
-  // a row of rolling windows it read as a breakdown of whichever one it
-  // touched. A single lifetime total makes the whole line one timeframe with
-  // nothing to mismatch.
-  //   icon:  "🔀 Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4 | 📊 Model used ● Opus 90%"
-  //   text:  "Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4 | Model used ● Opus 90%"
-  let totalsLine = null;
-  const totalsNum = Number(totals && totals.total);
-  // A zero total gets its line only when a reset mark explains it; see the
-  // note above `routingSince`.
-  if (!singleLine && totals && Number.isFinite(totalsNum) && (totalsNum !== 0 || routingSince)) {
-    const head = isIcon ? `${g.routing} Routing saved` : 'Routing saved';
-    // Model changes behind the total, family-level and version-free: `opus →
-    // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
-    // shape of the trade is the point.
-    //
-    // Every pair is listed, not a top-N: the amounts are shown next to a
-    // total, so a truncated list reads as "this is what the total is made of"
-    // and quietly misstates it. Families collapse the list on their own —
-    // there are only so many tier-to-tier moves — so it stays short without
-    // being cut.
-    const pairs = Array.isArray(totals.pairs) ? totals.pairs : [];
-    // The breakdown stays entirely gray, amounts included. Only the total is
-    // green: it is the headline figure, and repeating that green on every
-    // component would flatten the line into one loud block with nothing to
-    // land on first.
-    const pairText = pairs
-      .map((p) => `${c(GRAY)}${p.from}→${p.to} ×${p.runs} ${formatMoney(p.usd)}${c(RESET)}`)
-      .join(` ${c(GRAY)}·${c(RESET)} `);
-    // A net loss must not read as a win, and a zero is neither.
-    const tone = totalsNum < 0 ? RED : totalsNum > 0 ? GREEN : GRAY;
-    totalsLine =
-      `${c(tone)}${c(BOLD)}${head}${c(RESET)} ` +
-      `${c(tone)}${formatMoney(totalsNum)}${c(RESET)}` +
-      sinceWord(routingSince) + scanTag +
-      (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '') +
-      (usedSeg ? `  ${c(GRAY)}|${c(RESET)}  ${usedSeg}` : '');
-  }
-
-  // Doc2md's own headline line, same anatomy as the routing one: a green
-  // lifetime total, then a gray per-format breakdown. Only built when there
-  // is money to report — a bare document count stays an inline chip, since a
-  // whole line for "3 docs" would be all frame and no figure.
-  //   icon:  "📄 Doc2md saved $1.8 | pptx ×1 $1.55 · pdf ×2 $0.27"
-  let doc2mdLine = null;
-  if (!singleLine && doc2mdUsd > 0) {
-    const head = isIcon ? `${g.doc} Doc2md saved` : 'Doc2md saved';
-    const byExt = Array.isArray(doc2md.byExt) ? doc2md.byExt : [];
-    // Formats that earned money show it; formats with no baseline to measure
-    // against are counted instead. Printing "$0.00" next to real amounts reads
-    // as "this format saved nothing", when what it means is that nobody has
-    // measured what the alternative costs. Only .xls sits there now — the
-    // pre-2007 binary, which has no container to price against.
-    const paid = byExt.filter((r) => r.usd > 0);
-    const unpriced = byExt.filter((r) => !(r.usd > 0));
-    const parts = paid.map((r) => `${c(GRAY)}${r.ext} ×${r.docs} ${formatMoney(r.usd)}${c(RESET)}`);
-    if (unpriced.length) {
-      const counted = unpriced.map((r) => `${r.ext} ×${r.docs}`).join(' · ');
-      parts.push(`${c(GRAY)}${counted} ${verbose ? '(no baseline)' : '(n/a)'}${c(RESET)}`);
-    }
-    const extText = parts.join(` ${c(GRAY)}·${c(RESET)} `);
-    doc2mdLine =
-      `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
-      `${c(GREEN)}${formatMoney(doc2mdUsd)}${c(RESET)}` +
-      sinceWord(doc2mdSince) +
-      (extText ? `  ${c(GRAY)}|${c(RESET)}  ${extText}` : '');
-  }
-
-  // Period label honors hour-precision configs (`mode 6h` → "6h", `mode 1d` → "1d").
-  // Fall back to legacy `${days}d` when callers haven't supplied a label.
-  const periodLabel = options.windowLabel || `${options.days}d`;
-  // Parenthesized so it reads as a qualifier on the two chips before it rather
-  // than as one more independent chip.
-  const periodSeg = verbose
-    ? `${c(GRAY)}(last ${periodLabel})${c(RESET)}`
-    : `${c(GRAY)}(${periodLabel})${c(RESET)}`;
+/**
+ * Cache TTL chip: the countdown on the last call's cache entry, or just the
+ * bucket when the timer is off or there is no last call.
+ */
+function buildTtlSeg({ ttl, ttlBucket, lastActivity }, timer, c, isIcon, verbose, g) {
+  const { is1h, bucketLabel, bucketColor, ttlSeconds } = resolveTtlBucket(ttl, ttlBucket);
 
   // TTL countdown — how much time is left on the last API call's cache entry.
   // Matches Anthropic's actual prompt-cache behaviour: each call starts a fresh
@@ -874,7 +714,14 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       ttlSeg = `${c(bucketColor)}Cache bucket ${bucketLabel}${c(RESET)}`;
     }
   }
+  return ttlSeg;
+}
 
+/**
+ * Context chip, from the live fill level when Claude Code sent one and from the
+ * transcript-inferred window otherwise.
+ */
+function buildCtxSeg(ctxLive, contextWindow, c, isIcon, verbose, g) {
   // Context chip. Two data sources, best first:
   //
   //  1. Live fill level from Claude Code's stdin (`context_window.used_percentage`)
@@ -915,192 +762,445 @@ export function formatReport(data, { color = true, verbose = false, timer = true
       ctxSeg = `${c(ctxColor)}Ctx ${label}${c(RESET)}`;
     }
   }
+  return ctxSeg;
+}
 
+/** The warning chip the analyzer raised for this window, if any. */
+function buildSpikeSeg(spikeChip, c) {
   // Spike chip — one word only, keeps the statusline single-line.
-  const spikeSeg = spikeChip ? `${c(RED)}${spikeChip}${c(RESET)}` : null;
+  return spikeChip ? `${c(RED)}${spikeChip}${c(RESET)}` : null;
+}
 
-  // Harness 🅷 N/5 — project-scoped completeness of CLAUDE.md harness rules.
-  // Silent when the project hasn't opted in (no CLAUDE.md and no .claude/);
-  // otherwise renders 🅷 5/5 (green) / 🅷 N/5 (yellow) so the user can spot
-  // a missing section at a glance and know to run `harness init`.
-  const harnessSeg = buildHarnessSeg(c, isIcon, g, ctxLive?.size ?? null);
-
-  // Version / upgrade chip. Read from a cache written by a detached background
-  // check — this render path never touches the network.
-  const versionSeg = buildVersionSeg(options.version, data.update, c, isIcon, verbose, g);
-  const updateAvailable = !!(data.update && data.update.available);
-
-  // Korean-style chip — rendered only when the session-start injection is on.
-  const koreanSeg = buildKoreanSeg(c, isIcon, verbose, g);
-
-  // Delegation-rule registry (`rules 10 · ⚠1`), opt-in through `--segments`.
-  const rulesSeg = buildRulesSeg(data.ruleStats, c, g);
-
-  // This session's subagent runs by model family. It is a session figure, so it
-  // sits with the routing chips rather than with the lifetime totals above it.
-  const sessionDelegationSeg = buildSessionDelegationSeg(data.sessionDelegation, c, isIcon, verbose, g);
-
-  // Model chip — pulled from Claude Code's stdin payload (`model.display_name`).
-  // Cheap identity context: useful when the user toggles between Sonnet/Opus
-  // mid-session and wants to confirm at a glance which one is answering.
-  let modelSeg = null;
-  if (typeof model === 'string' && model.length > 0) {
-    // 🤖 + name is enough — the emoji disambiguates so the literal word "Model"
-    // is dead weight in icon mode. Text modes keep the bare name; the magenta
-    // tone marks it as identity context.
+/** Calendar-month spend chip. */
+function buildMonthSeg(month, c, isIcon, verbose, g) {
+  // 이번 달 지출 세그먼트. 달력 월(1일 00시 기준) 지출 추정치라서 cap 이 없는
+  // 게이트웨이 사용자에게도 항상 의미가 있다. 정보성 지표이므로 회색으로,
+  // 게이지들 뒤에 조용히 놓는다.
+  //   icon:    "💵 Sep $42.1"
+  //   text:    "Sep spend $42.1"
+  //   verbose: "Sep spend $42.1 (since Sep 1)"
+  let monthSeg = null;
+  // Gateway sessions whose model the gateway does not price are left out of the
+  // sum and counted, so a partial total says so and an all-unpriced month is n/a.
+  const monthUnpriced = Number(month?.unpriced) || 0;
+  if (month && (Number(month.usd) > 0 || monthUnpriced > 0)) {
+    const amt = (Number(month.usd) > 0 ? formatMoney(Number(month.usd)) : 'n/a') +
+      (monthUnpriced > 0 ? ` +${monthUnpriced} unpriced` : '');
     if (isIcon) {
-      modelSeg = `${c(MAGENTA)}${g.model} ${model}${c(RESET)}`;
+      monthSeg = `${c(GRAY)}${g.month} ${month.label} ${amt}${c(RESET)}`;
+    } else if (verbose) {
+      monthSeg = `${c(GRAY)}${month.label} spend ${amt} (since ${month.label} 1)${c(RESET)}`;
     } else {
-      modelSeg = `${c(MAGENTA)}${model}${c(RESET)}`;
+      monthSeg = `${c(GRAY)}${month.label} spend ${amt}${c(RESET)}`;
     }
   }
+  return monthSeg;
+}
 
-  // Effort chip — how hard the session is being worked (`/effort`). It follows
-  // the model chip because it qualifies it: the same model answers differently
-  // at `low` and at `max`, and the pair is one glance.
-  const effortSeg = buildEffortSeg(effort, c, isIcon, g);
+// Always-on usage segments — what /usage shows in Claude Code, mirrored
+// to the statusline so the user doesn't have to slash-command for it.
+// Today the stdin payload exposes the 5h ("Current session") and 7-day
+// rolling ("Current week") windows; if Anthropic ships more (e.g. a
+// Sonnet-only weekly), they render automatically with derived labels.
+// Each renders as `{label} {pct}% · {countdown}`. The window promoted to the
+// cap-warn chip is suppressed here to avoid duplicate noise — but ONLY that
+// one. When several windows are at 90%+ the chip shows just the most
+// imminent, so the others must keep their always-on segment (red) or they'd
+// vanish from the statusline entirely at the worst possible moment.
+function buildUsageSeg({ labels, info, tone, suppressed }, c, isIcon, verbose, g, color, mode) {
+  if (!info || !Number.isFinite(info.usedPct)) return null;
+  if (suppressed) return null; // cap-warn chip handles this window
+  const pct = Math.round(info.usedPct);
+  // Show only the wall-clock reset time (e.g. `🔄 21:10`). Absolute time
+  // doesn't tick second-by-second so the statusline reads stable, and the
+  // 🔄 icon itself separates the percent from the clock — no extra `·` needed.
+  // A gateway budget can reset weeks out, where a wall-clock time says almost
+  // nothing ("Thu 00:00" — which Thursday?). Those windows report how long is
+  // left instead. Short windows keep the clock, which is the more useful form
+  // when the reset is later today.
+  const clock = labels.resetStyle === 'countdown'
+    ? formatResetIn(info.resetsAt)
+    : formatResetClock(info.resetsAt);
+  const tail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
+  // `cap` reads as a rate-limit ceiling rather than a duration. Icon mode
+  // leans on the icon to identify the window (✦ = session/now, 📅 = week),
+  // so the 5H label is empty while the 7D label spells out "weekly". Text and
+  // verbose modes keep the `5H`/`7D` short label since they have no icon.
+  // Icon mode renders an inline ▰▱ gauge instead of the literal "cap used" —
+  // a glance at the bar conveys urgency faster than parsing a percent number,
+  // and the gauge stays the same width as the percent climbs.
+  // LiteLLM 예산 윈도우는 퍼센트만으로는 감이 안 오므로(예산 크기를 모름)
+  // 금액을 함께 보여 준다: `💳 budget ▰▱ 34% $34/$100`.
+  const money =
+    Number.isFinite(info.maxBudget) && info.maxBudget > 0
+      ? ` ${formatMoney(Number(info.spend) || 0)}/${formatMoney(info.maxBudget)}`
+      : '';
+  // LiteLLM 의 internal user 한도는 차단 판정에 쓰이는 값이 아니라서, 팀
+  // 멤버십 한도와 수백 배 어긋나는 배포가 있습니다. 그 한도로 그린 게이지는
+  // 출처를 밝혀 두어야 사용자가 정확한 값으로 오해하지 않습니다.
+  const src = info.source === 'user' ? ' (user)' : '';
+  if (isIcon) {
+    const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
+    const bar = gaugeColored(pct, c, tone, color, mode);
+    const winGlyph = mode === 'narrow' ? (labels.narrowIcon || labels.icon) : labels.icon;
+    return `${c(tone)}${winGlyph} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
+  }
+  if (verbose) {
+    return `${c(tone)}${labels.short}${src} cap ${pct}% used${money}${tail}${c(RESET)}`;
+  }
+  return `${c(tone)}${labels.short}${src} cap ${pct}%${money}${tail}${c(RESET)}`;
+}
 
-  // Always-on usage segments — what /usage shows in Claude Code, mirrored
-  // to the statusline so the user doesn't have to slash-command for it.
-  // Today the stdin payload exposes the 5h ("Current session") and 7-day
-  // rolling ("Current week") windows; if Anthropic ships more (e.g. a
-  // Sonnet-only weekly), they render automatically with derived labels.
-  // Each renders as `{label} {pct}% · {countdown}`. The window promoted to the
-  // cap-warn chip is suppressed here to avoid duplicate noise — but ONLY that
-  // one. When several windows are at 90%+ the chip shows just the most
-  // imminent, so the others must keep their always-on segment (red) or they'd
-  // vanish from the statusline entirely at the worst possible moment.
-  function buildUsageSeg({ labels, info, color: tone, suppressed }) {
-    if (!info || !Number.isFinite(info.usedPct)) return null;
-    if (suppressed) return null; // cap-warn chip handles this window
-    const pct = Math.round(info.usedPct);
-    // Show only the wall-clock reset time (e.g. `🔄 21:10`). Absolute time
-    // doesn't tick second-by-second so the statusline reads stable, and the
-    // 🔄 icon itself separates the percent from the clock — no extra `·` needed.
-    // A gateway budget can reset weeks out, where a wall-clock time says almost
-    // nothing ("Thu 00:00" — which Thursday?). Those windows report how long is
-    // left instead. Short windows keep the clock, which is the more useful form
-    // when the reset is later today.
-    const clock = labels.resetStyle === 'countdown'
-      ? formatResetIn(info.resetsAt)
-      : formatResetClock(info.resetsAt);
-    const tail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
-    // `cap` reads as a rate-limit ceiling rather than a duration. Icon mode
-    // leans on the icon to identify the window (✦ = session/now, 📅 = week),
-    // so the 5H label is empty while the 7D label spells out "weekly". Text and
-    // verbose modes keep the `5H`/`7D` short label since they have no icon.
-    // Icon mode renders an inline ▰▱ gauge instead of the literal "cap used" —
-    // a glance at the bar conveys urgency faster than parsing a percent number,
-    // and the gauge stays the same width as the percent climbs.
-    // LiteLLM 예산 윈도우는 퍼센트만으로는 감이 안 오므로(예산 크기를 모름)
-    // 금액을 함께 보여 준다: `💳 budget ▰▱ 34% $34/$100`.
-    const money =
-      Number.isFinite(info.maxBudget) && info.maxBudget > 0
-        ? ` ${formatMoney(Number(info.spend) || 0)}/${formatMoney(info.maxBudget)}`
-        : '';
-    // LiteLLM 의 internal user 한도는 차단 판정에 쓰이는 값이 아니라서, 팀
-    // 멤버십 한도와 수백 배 어긋나는 배포가 있습니다. 그 한도로 그린 게이지는
-    // 출처를 밝혀 두어야 사용자가 정확한 값으로 오해하지 않습니다.
-    const src = info.source === 'user' ? ' (user)' : '';
-    if (isIcon) {
-      const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
-      const bar = gaugeColored(pct, c, tone, color, mode);
-      const winGlyph = mode === 'narrow' ? (labels.narrowIcon || labels.icon) : labels.icon;
-      return `${c(tone)}${winGlyph} ${labelPart}${bar} ${pct}%${money}${tail}${c(RESET)}`;
-    }
-    if (verbose) {
-      return `${c(tone)}${labels.short}${src} cap ${pct}% used${money}${tail}${c(RESET)}`;
-    }
-    return `${c(tone)}${labels.short}${src} cap ${pct}%${money}${tail}${c(RESET)}`;
-  }
-  // Color tone: green <70%, yellow 70-89%, red 90+% (a 90+% window only
-  // renders here when a *different* window won the cap-warn chip slot).
-  function usageTone(info) {
-    if (!info || !Number.isFinite(info.usedPct)) return GRAY;
-    if (info.usedPct >= 90) return RED;
-    if (info.usedPct >= 70) return YELLOW;
-    return GREEN;
-  }
-  // Cap-warn chip — leads everything when ANY rate-limit window is at 90%+.
-  // It's the most actionable signal we can show: no point optimizing cache
-  // hits if you're about to be rate-limited anyway. The chip body matches the
-  // English shape `🚨 5H 94%` / `🚨 7D 92%` so history parsers can dedupe on it.
-  // Computed before the usage segments so they know which window it claimed.
-  const capWarn = pickCapWarn(caps);
+// Color tone: green <70%, yellow 70-89%, red 90+% (a 90+% window only
+// renders here when a *different* window won the cap-warn chip slot).
+function usageTone(info) {
+  if (!info || !Number.isFinite(info.usedPct)) return GRAY;
+  if (info.usedPct >= 90) return RED;
+  if (info.usedPct >= 70) return YELLOW;
+  return GREEN;
+}
+
+/**
+ * One always-on segment per rate-limit window, in payload order. The window
+ * promoted to the cap-warn chip is suppressed, and only that one.
+ * @returns {{ key: string, seg: string }[]}
+ */
+function buildUsageSegs(caps, capWarn, c, isIcon, verbose, g, color, mode) {
   const usageSegs = [];
   if (caps && Array.isArray(caps.windows)) {
     for (const win of caps.windows) {
       const labels = labelForKey(win.key);
-      const seg = buildUsageSeg({
-        labels,
-        info: win,
-        color: usageTone(win),
-        suppressed: !!capWarn && capWarn.key === win.key,
-      });
+      const seg = buildUsageSeg(
+        { labels, info: win, tone: usageTone(win), suppressed: !!capWarn && capWarn.key === win.key },
+        c, isIcon, verbose, g, color, mode,
+      );
       if (seg) usageSegs.push({ key: win.key, seg });
     }
   }
+  return usageSegs;
+}
 
-  const capWarnSeg = buildCapWarnSeg(capWarn, c, isIcon, g, color, mode);
+/**
+ * The reset mark a savings counter counts from, in the two shapes the chips use.
+ * `word` is the sentence form (` since 10/9`). `inline` is what rides on a chip:
+ * the same, except compact icon mode, which has no room for a sentence and gets
+ * `(10/9~)`. Both are empty for a counter that was never reset.
+ */
+function sinceFormatters(c, isIcon, verbose) {
+  const word = (since) => (since ? ` ${c(GRAY)}since ${since}${c(RESET)}` : '');
+  const compact = (since) => (since ? ` ${c(GRAY)}(${since}~)${c(RESET)}` : '');
+  return { word, inline: isIcon && !verbose ? compact : word };
+}
 
-  // Warning chip leads — a glance at the statusline catches "something's wrong"
-  // before parsing any numbers. Healthy states have no chip and look unchanged.
-  // Cap-warn outranks spike: an imminent rate-limit block is more urgent than
-  // a single spiking session.
-  const allow = segments && segments.length
-    ? new Set(segments.map((s) => String(s).toLowerCase()))
+/**
+ * Routing-savings chips and headline line.
+ *
+ * Returns the chips for the `delegated` slot and, in the multi-line layout, the
+ * headline line that takes row 1. The two are alternatives: when the headline
+ * owns the story the chip steps aside, so line 2 does not repeat it.
+ *
+ * @returns {{ chips: (string|null)[], headline: { usd: number, line: string } | null }}
+ */
+function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color) {
+  // Delegation savings — a DIFFERENT number from the "Cache saved" chip, which
+  // covers the prompt cache only. This one is what running work on a cheaper
+  // tier saved, the lifetime total of the delegation ledger (counted from the
+  // last `sprag saved reset`, when there was one). Hidden when zero or absent
+  // and never reset: a permanent "$0" is noise for direct-API users and for
+  // anyone who has not delegated yet.
+  // "Routing saved" says what earned the money — work that ran on a cheaper
+  // model instead of this one. It leads the line rather than trailing it
+  // because it is the headline number of the whole tool, not a footnote.
+  //   text:       "Routing saved $3.2"                |  same in verbose
+  //   icon:       "🔀 $3.2"                           |  verbose: "🔀 Routing saved $3.2"
+  const delegationSaved = Number(data.delegationSaved) || 0;
+  const delegateLabel = isIcon
+    ? (verbose ? `${g.routing} Routing saved` : g.routing)
+    : 'Routing saved';
+  // Zero savings has two very different causes and, until now, one appearance:
+  // nothing at all. "Never delegated" and "delegated plenty, but every run was
+  // dropped because the gateway model id could not be resolved" looked
+  // identical, so users in the second case had no reason to suspect anything
+  // was wrong. The count gets a chip; the explanation stays in `route-scan
+  // rules`, where there is room for it.
+  //
+  // But only once there are enough of them to mean anything. A gateway reports
+  // an opaque profile ARN, and the fix for that is learned from observed runs —
+  // which needs MIN_VOTES of them before it can conclude anything. Below that
+  // threshold an unresolved run is not a problem, it is the first day of a
+  // working mechanism, and warning about it makes a fresh install look broken.
+  // Tied to MIN_VOTES rather than a literal so the two cannot drift: the chip
+  // appears exactly when learning has had its chance and still came up short.
+  const unresolvedRuns = Number(data.unresolvedRuns) || 0;
+  const unresolvedSeg = unresolvedRuns >= MIN_VOTES
+    ? `${c(YELLOW)}${g.routing} ${unresolvedRuns} unresolved${c(RESET)}`
     : null;
-  // Still needed by the headline lines below, which are not part of the
-  // ordered segment list.
-  const want = (name) => !allow || allow.has(name);
 
-  // Segment registry — a name maps to the segments it contributes, so the
-  // sequence is data instead of the order of push calls. That is what lets a
-  // caller reorder: `--segments` used to filter only, and its order was
-  // silently discarded, so a user who wanted Ctx first had no way to ask.
-  const usageByKey = new Map(usageSegs.map(({ key, seg }) => [key, seg]));
-  // Legacy `--segments` aliases: `5h` ↔ `five_hour`, `7d` ↔ `seven_day`.
-  const USAGE_ALIASES = { '5h': 'five_hour', '7d': 'seven_day' };
-  function segmentsNamed(name) {
-    switch (name) {
-      case 'cap-warn':  return [capWarnSeg];
-      case 'spike':     return [spikeSeg];
-      case 'version':   return [versionSeg];
-      // `rules` renders only when asked for by name. Verbose is the shipped
-      // default, so riding with the harness chip would put it on everyone's
-      // line, and its ⚠ count repeats what `rule-health` already raises there.
-      case 'harness':   return [harnessSeg];
-      case 'rules':     return [rulesSeg];
-      case 'subagents': return [sessionDelegationSeg];
-      case 'korean':    return [koreanSeg];
-      case 'model':     return [modelSeg];
-      case 'effort':    return [effortSeg];
-      // Dropped when the same story already owns a headline line above, which
-      // would otherwise repeat it on line 2.
-      // The unresolved-runs chip survives the headline when that headline is a
-      // dated zero, since a zero is exactly when the dropped runs matter.
-      case 'delegated': {
-        const base = totalsLine
-          ? (totalsNum === 0 ? [unresolvedSeg] : [])
-          : [delegateSeg, delegateExtra];
-        return [...base, sessionDelegationSeg];
-      }
-      case 'doc2md':    return doc2mdLine ? [] : [doc2mdSeg];
-      case 'hit':       return [hitSeg];
-      case 'ttl':       return [ttlSeg];
-      case 'month':     return [monthSeg];
-      case 'ctx':       return [ctxSeg];
-      case 'saved':     return [saveSeg];
-      case 'period':    return [periodSeg];
-      // Every rate-limit window, in payload order.
-      case 'usage':     return usageSegs.map(({ seg }) => seg);
-      default: {
-        const seg = usageByKey.get(USAGE_ALIASES[name] || name);
-        return seg ? [seg] : [];
-      }
-    }
+  // The counter's reset mark ("since 10/9"), when `sprag saved reset` was run.
+  // After a reset the total is legitimately zero, and a chip that vanished at
+  // zero made "just reset" look the same as "feature off". With a mark on
+  // record a zero is shown, dated; with none it stays hidden as before.
+  // Compact icon mode has no room for a sentence, so it gets `(10/9~)`.
+  const totals = data.delegationTotals;
+  const routingSince = formatSince(totals && totals.since);
+  const { word: sinceWord, inline: sinceInline } = sinceFormatters(c, isIcon, verbose);
+
+  // Savings come from the ledger route-scan fills, so they are only as fresh as
+  // the last scan. Said only once that has gone stale: a recent scan is the
+  // normal case and needs no caveat.
+  const scanAt = toEpochMs(data.routeScanAt);
+  const scanAge = scanAt !== null && Date.now() - scanAt > SCAN_STALE_MS ? formatAge(Date.now() - scanAt) : null;
+  const scanTag = scanAge
+    ? ` ${c(GRAY)}${verbose ? `last scan ${scanAge} ago` : `scan ${scanAge}`}${c(RESET)}`
+    : '';
+
+  // What the delegated runs cost on their own models is no longer drawn here.
+  // Wedged between the saving and its date it read as one more saving, so it
+  // moved to `sprag saved`, which has room to say what it is.
+
+  const savedTone = delegationSaved < 0 ? RED : delegationSaved > 0 ? GREEN : GRAY;
+  const savingsChip = delegationSaved !== 0 || routingSince
+    ? `${c(savedTone)}${delegateLabel}${c(RESET)} ${formatMoney(delegationSaved)}${sinceInline(routingSince)}${scanTag}`
+    : null;
+  // The unresolved count stands in only while there are no savings to show, so
+  // a dated zero keeps both: the reset and the dropped runs are separate facts.
+  // What the spend was made of, for the same period as the routing counter:
+  // "◩ Model used ● Opus 90%  ● Sonnet 10%". A segment of its own, after the
+  // savings and their breakdown, so a share is never read as another saving.
+  // Only with a savings figure beside it, and absent when switched off
+  // (`mode no-share`) or empty.
+  const ms = data.modelShare;
+  const usedLabel = isIcon ? `${g.used} Model used` : 'Model used';
+  const usedSeg = ms && Number(ms.totalUsd) > 0 && Array.isArray(ms.families) && ms.families.length
+    ? `${c(GREEN)}${usedLabel}${c(RESET)} ${shareLegend(ms.families, { color })}`
+    : '';
+  const withShare = (chip) => (chip && usedSeg ? `${chip}  ${c(GRAY)}|${c(RESET)}  ${usedSeg}` : chip);
+  const delegateSeg = withShare(savingsChip) || (delegationSaved === 0 ? unresolvedSeg : null);
+  const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
+
+  // Routing-savings headline line (multi-line layout). The lifetime sum from
+  // the delegation ledger — the number the whole tool exists to grow, so it
+  // gets line 1 to itself while the diagnostics move to line 2.
+  //
+  // One figure, not three. The weekly and monthly sums used to sit here too,
+  // but the per-model breakdown that follows is a lifetime split, and next to
+  // a row of rolling windows it read as a breakdown of whichever one it
+  // touched. A single lifetime total makes the whole line one timeframe with
+  // nothing to mismatch.
+  //   icon:  "🔀 Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4 | 📊 Model used ● Opus 90%"
+  //   text:  "Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4 | Model used ● Opus 90%"
+  let totalsLine = null;
+  const totalsNum = Number(totals && totals.total);
+  // A zero total gets its line only when a reset mark explains it; see the
+  // note above `routingSince`.
+  if (!singleLine && totals && Number.isFinite(totalsNum) && (totalsNum !== 0 || routingSince)) {
+    const head = isIcon ? `${g.routing} Routing saved` : 'Routing saved';
+    // Model changes behind the total, family-level and version-free: `opus →
+    // haiku 2× $0.6`. Versions bump constantly and add nothing here — the
+    // shape of the trade is the point.
+    //
+    // Every pair is listed, not a top-N: the amounts are shown next to a
+    // total, so a truncated list reads as "this is what the total is made of"
+    // and quietly misstates it. Families collapse the list on their own —
+    // there are only so many tier-to-tier moves — so it stays short without
+    // being cut.
+    const pairs = Array.isArray(totals.pairs) ? totals.pairs : [];
+    // The breakdown stays entirely gray, amounts included. Only the total is
+    // green: it is the headline figure, and repeating that green on every
+    // component would flatten the line into one loud block with nothing to
+    // land on first.
+    const pairText = pairs
+      .map((p) => `${c(GRAY)}${p.from}→${p.to} ×${p.runs} ${formatMoney(p.usd)}${c(RESET)}`)
+      .join(` ${c(GRAY)}·${c(RESET)} `);
+    // A net loss must not read as a win, and a zero is neither.
+    const tone = totalsNum < 0 ? RED : totalsNum > 0 ? GREEN : GRAY;
+    totalsLine =
+      `${c(tone)}${c(BOLD)}${head}${c(RESET)} ` +
+      `${c(tone)}${formatMoney(totalsNum)}${c(RESET)}` +
+      sinceWord(routingSince) + scanTag +
+      (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '') +
+      (usedSeg ? `  ${c(GRAY)}|${c(RESET)}  ${usedSeg}` : '');
   }
 
+  return {
+    // Dropped when the same story already owns a headline line above, which
+    // would otherwise repeat it on line 2. The unresolved-runs chip survives the
+    // headline when that headline is a dated zero, since a zero is exactly when
+    // the dropped runs matter.
+    chips: totalsLine ? (totalsNum === 0 ? [unresolvedSeg] : []) : [delegateSeg, delegateExtra],
+    headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine } : null,
+  };
+}
+
+/**
+ * Doc2md chip and headline line. As with routing, they are alternatives: money
+ * earns the headline line, and the chip is for what a line would be all frame
+ * for (a document count, a dated zero).
+ *
+ * @returns {{ chip: string|null, headline: { usd: number, line: string } | null }}
+ */
+function buildDoc2mdSeg(doc2md, singleLine, c, isIcon, verbose, g) {
+  const { word: sinceWord, inline: sinceInline } = sinceFormatters(c, isIcon, verbose);
+  // Document conversions — the same kind of number as "Routing saved", earned
+  // a different way: a document read as Markdown instead of attached whole.
+  // Kept as its own chip rather than folded into the routing total, because a
+  // single figure could not tell the reader which habit earned it.
+  //
+  // Conversions that saved nothing measurable still show as a count. For
+  // pptx/xlsx/docx the honest saving is zero — the client extracts much the
+  // same text — and a chip that disappeared on those would read as "doc2md
+  // did nothing" on the very formats it is the only way to open.
+  //   icon:  "📄 $0.42"   verbose: "📄 Doc2md saved $0.42 · 12 docs"
+  //   text:  "Doc2md saved $0.42"
+  const doc2mdUsd = Number(doc2md && doc2md.total) || 0;
+  const doc2mdDocs = Number(doc2md && doc2md.docs) || 0;
+  // Same reset mark as the routing counter, and the same reason to show a dated
+  // zero: after `sprag saved reset` an empty counter and a disabled feature
+  // would otherwise look alike.
+  const doc2mdSince = formatSince(doc2md && doc2md.since);
+  const doc2mdLabel = isIcon
+    ? (verbose ? `${g.doc} Doc2md saved` : g.doc)
+    : 'Doc2md saved';
+  let doc2mdSeg = null;
+  if (doc2mdUsd > 0) {
+    doc2mdSeg = `${c(GREEN)}${doc2mdLabel}${c(RESET)} ${formatMoney(doc2mdUsd)}${sinceInline(doc2mdSince)}`
+      + (verbose ? ` ${c(GRAY)}· ${doc2mdDocs} docs${c(RESET)}` : '');
+  } else if (doc2mdDocs > 0) {
+    const label = isIcon ? g.doc : 'Doc2md';
+    doc2mdSeg = `${c(GRAY)}${label} ${doc2mdDocs} docs${doc2mdSince ? ` ${isIcon && !verbose ? `(${doc2mdSince}~)` : `since ${doc2mdSince}`}` : ''}${c(RESET)}`;
+  } else if (doc2mdSince) {
+    // "$0", not formatMoney's "$0.00": a counter that was just reset has nothing
+    // to resolve to the cent, and the extra zeros read as a measured amount.
+    doc2mdSeg = `${c(GRAY)}${doc2mdLabel} $0${isIcon && !verbose ? ` (${doc2mdSince}~)` : ` since ${doc2mdSince}`}${c(RESET)}`;
+  }
+
+  // Doc2md's own headline line, same anatomy as the routing one: a green
+  // lifetime total, then a gray per-format breakdown. Only built when there
+  // is money to report — a bare document count stays an inline chip, since a
+  // whole line for "3 docs" would be all frame and no figure.
+  //   icon:  "📄 Doc2md saved $1.8 | pptx ×1 $1.55 · pdf ×2 $0.27"
+  let doc2mdLine = null;
+  if (!singleLine && doc2mdUsd > 0) {
+    const head = isIcon ? `${g.doc} Doc2md saved` : 'Doc2md saved';
+    const byExt = Array.isArray(doc2md.byExt) ? doc2md.byExt : [];
+    // Formats that earned money show it; formats with no baseline to measure
+    // against are counted instead. Printing "$0.00" next to real amounts reads
+    // as "this format saved nothing", when what it means is that nobody has
+    // measured what the alternative costs. Only .xls sits there now — the
+    // pre-2007 binary, which has no container to price against.
+    const paid = byExt.filter((r) => r.usd > 0);
+    const unpriced = byExt.filter((r) => !(r.usd > 0));
+    const parts = paid.map((r) => `${c(GRAY)}${r.ext} ×${r.docs} ${formatMoney(r.usd)}${c(RESET)}`);
+    if (unpriced.length) {
+      const counted = unpriced.map((r) => `${r.ext} ×${r.docs}`).join(' · ');
+      parts.push(`${c(GRAY)}${counted} ${verbose ? '(no baseline)' : '(n/a)'}${c(RESET)}`);
+    }
+    const extText = parts.join(` ${c(GRAY)}·${c(RESET)} `);
+    doc2mdLine =
+      `${c(GREEN)}${c(BOLD)}${head}${c(RESET)} ` +
+      `${c(GREEN)}${formatMoney(doc2mdUsd)}${c(RESET)}` +
+      sinceWord(doc2mdSince) +
+      (extText ? `  ${c(GRAY)}|${c(RESET)}  ${extText}` : '');
+  }
+
+  return {
+    chip: doc2mdSeg,
+    headline: doc2mdLine ? { usd: doc2mdUsd, line: doc2mdLine } : null,
+  };
+}
+
+/**
+ * Default segment order, most actionable first. A rate-limit block or a full
+ * context window stops the work outright, so those lead. Cache and cost numbers
+ * shape habits rather than the next keystroke, and harness / Korean-style are
+ * near-constant identity: they sit at the tail, where a narrow terminal clips
+ * the least useful end of the line instead of the most useful one.
+ *
+ * Both stay listed even though their builders return null in the healthy case
+ * (see buildHarnessSeg / buildKoreanSeg). The order is where a chip goes when it
+ * has something to say, so a harness warning still lands at the tail, and
+ * keeping the names here is what lets the "every name is known" test cover them.
+ *
+ * `version` is listed once, at its identity position. formatReport() moves it
+ * forward when an upgrade is actually available, since it becomes an
+ * "act on this" chip then.
+ *
+ * Exported so a test can assert every name here is one the renderer knows:
+ * the order list and the segment registry are separate structures, and a name
+ * added to only one of them would be dropped in silence.
+ */
+export const DEFAULT_SEGMENT_ORDER = [
+  'cap-warn', 'spike',
+  'usage', 'ctx',
+  'ttl',
+  'model', 'effort',
+  // Grouped by the timeframe each figure covers, because mixing them was the
+  // problem: a lifetime total, a windowed rate and a calendar-month estimate sat
+  // interleaved, with one window label at the end of the line that appeared to
+  // qualify all of them.
+  //
+  // Lifetime, from the savings ledgers. Delegation stays ahead of the cache
+  // figure: routing is what the tool is for, the cache number is a brag stat.
+  'delegated', 'doc2md',
+  // Analysis window. These two are the only chips measured over it, so the label
+  // sits with them and the three render as one group.
+  'hit', 'saved', 'period',
+  // Calendar month.
+  'month',
+  'harness', 'korean', 'version',
+];
+
+// Legacy `--segments` aliases: `5h` ↔ `five_hour`, `7d` ↔ `seven_day`.
+const USAGE_ALIASES = { '5h': 'five_hour', '7d': 'seven_day' };
+
+/**
+ * Which chips a name in the segment list stands for. A name maps to the chips it
+ * contributes, so the sequence is data instead of the order of push calls. That is
+ * what lets a caller reorder: `--segments` used to filter only, and its order was
+ * silently discarded, so a user who wanted Ctx first had no way to ask.
+ *
+ * @param {string} name
+ * @param {object} s the built chips, by slot (see formatReport)
+ * @param {Map<string, string>} usageByKey the usage chips by window key
+ * @returns {(string|null)[]}
+ */
+function segmentsNamed(name, s, usageByKey) {
+  switch (name) {
+    case 'cap-warn':  return [s.capWarn];
+    case 'spike':     return [s.spike];
+    case 'version':   return [s.version];
+    // `rules` renders only when asked for by name. Verbose is the shipped
+    // default, so riding with the harness chip would put it on everyone's
+    // line, and its ⚠ count repeats what `rule-health` already raises there.
+    case 'harness':   return [s.harness];
+    case 'rules':     return [s.rules];
+    case 'subagents': return [s.subagents];
+    case 'korean':    return [s.korean];
+    case 'model':     return [s.model];
+    case 'effort':    return [s.effort];
+    // The routing chips (already empty when a headline line owns the story), then
+    // the session's own subagent runs.
+    case 'delegated': return [...s.delegated, s.subagents];
+    case 'doc2md':    return s.doc2md;
+    case 'hit':       return [s.hit];
+    case 'ttl':       return [s.ttl];
+    case 'month':     return [s.month];
+    case 'ctx':       return [s.ctx];
+    case 'saved':     return [s.saved];
+    case 'period':    return [s.period];
+    // Every rate-limit window, in payload order.
+    case 'usage':     return s.usage.map(({ seg }) => seg);
+    default: {
+      const seg = usageByKey.get(USAGE_ALIASES[name] || name);
+      return seg ? [seg] : [];
+    }
+  }
+}
+
+/**
+ * The names to render, in order: the default sequence, or the caller's list.
+ */
+function resolveSegmentOrder(segments, caps, updateAvailable) {
   // An available upgrade is an "act on this" chip, so it moves up behind the
   // warning chips. With nothing to upgrade to it stays pure identity, at the
   // tail position DEFAULT_SEGMENT_ORDER gives it.
@@ -1125,18 +1225,26 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // and someone reordering segments is not asking to bury an alarm.
   const LEAD = ['cap-warn', 'spike'];
   let order = defaultOrder;
-  if (allow) {
+  if (segments && segments.length) {
     const names = segments.map((s) => String(s).toLowerCase());
     const lead = LEAD.filter((n) => names.includes(n));
     order = lead.concat(names.filter((n) => !LEAD.includes(n)));
   }
+  return order;
+}
 
+/**
+ * Walk the order and collect the chips, then fuse the analysis-window group.
+ * @returns {string[]}
+ */
+function arrangeSegments(order, s) {
+  const usageByKey = new Map(s.usage.map(({ key, seg }) => [key, seg]));
   const segs = [];
   // Dedupe so overlapping names (e.g. `usage,five_hour`) cannot print the same
   // chip twice.
   const seen = new Set();
   for (const name of order) {
-    for (const seg of segmentsNamed(name)) {
+    for (const seg of segmentsNamed(name, s, usageByKey)) {
       if (!seg || seen.has(seg)) continue;
       seen.add(seg);
       segs.push(seg);
@@ -1148,29 +1256,124 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // label covers all of it. Only fused when they actually ended up adjacent, so
   // a caller-supplied order is left alone. Identity comparison is safe here
   // because these are the very strings pushed into `segs`, not rebuilt copies.
-  const windowGroup = [hitSeg, saveSeg, periodSeg].filter((seg) => seg && segs.includes(seg));
+  const windowGroup = [s.hit, s.saved, s.period].filter((seg) => seg && segs.includes(seg));
   if (windowGroup.length > 1) {
     const at = segs.indexOf(windowGroup[0]);
     const adjacent = windowGroup.every((seg, i) => segs[at + i] === seg);
     if (adjacent) segs.splice(at, windowGroup.length, windowGroup.join(' '));
   }
+  return segs;
+}
+
+/**
+ * The headline lines that sit above the chips, as one string of `line\n` pairs.
+ */
+function buildHeadlines(delegated, doc2md, want, eol) {
+  // Each savings source that earned real money gets a headline line, ordered
+  // biggest saver first — the top line is the one the eye lands on, so it
+  // goes to whichever habit is actually paying for the tool. The diagnostics
+  // line always closes.
+  const headlines = [];
+  if (delegated.headline && want('delegated')) headlines.push(delegated.headline);
+  if (doc2md.headline && want('doc2md')) headlines.push(doc2md.headline);
+  headlines.sort((a, b) => b.usd - a.usd);
+  return headlines.map((h) => h.line + eol + '\n').join('');
+}
+
+/**
+ * @param {object} data - output of main report pipeline (summary, ttl, cost, options, lastActivity)
+ * @param {object} [opts]
+ * @param {boolean} [opts.color=true] - emit ANSI escape codes
+ * @param {boolean} [opts.verbose=false] - longer layout with labels
+ * @param {boolean} [opts.timer=true] - show TTL countdown segment
+ * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), model, effort, hit, ttl, month, saved, delegated, doc2md, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
+ * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
+ */
+export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
+  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort } = data;
+
+  const c = (v) => (color ? v : '');
+  // narrow shares the icon layout and swaps only the glyphs, so both modes take
+  // the same branches from here on.
+  const isIcon = mode === 'icon' || mode === 'narrow';
+  const g = glyphsFor(mode);
+
+  // The `--segments` filter, lowercased. Built first because two chips (harness,
+  // Korean style) draw only when it is null-or-names-them, so their builders
+  // need the answer.
+  const allow = segments && segments.length
+    ? new Set(segments.map((s) => String(s).toLowerCase()))
+    : null;
+
+  // Still needed by the headline lines, which are not part of the ordered
+  // segment list.
+  const want = (name) => !allow || allow.has(name);
+
+  // Cap-warn chip — leads everything when ANY rate-limit window is at 90%+.
+  // It's the most actionable signal we can show: no point optimizing cache
+  // hits if you're about to be rate-limited anyway. The chip body matches the
+  // English shape `🚨 5H 94%` / `🚨 7D 92%` so history parsers can dedupe on it.
+  // Computed before the usage segments so they know which window it claimed.
+  //
+  // Warning chips lead — a glance at the statusline catches "something's wrong"
+  // before parsing any numbers. Healthy states have no chip and look unchanged.
+  // Cap-warn outranks spike: an imminent rate-limit block is more urgent than
+  // a single spiking session.
+  const capWarn = pickCapWarn(caps);
+
+  // Routing and doc2md each return a chip and, for real money, a headline line.
+  const delegated = buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color);
+  const doc2md = buildDoc2mdSeg(data.doc2mdTotals, singleLine, c, isIcon, verbose, g);
+
+  // An available upgrade moves the version chip forward (see resolveSegmentOrder).
+  const updateAvailable = !!(data.update && data.update.available);
+
+  // One slot per chip; segmentsNamed() maps the names in the segment list onto
+  // these slots, so this is the only place that knows how each chip is built.
+  const built = {
+    capWarn: buildCapWarnSeg(capWarn, c, isIcon, g, color, mode),
+    spike: buildSpikeSeg(spikeChip, c),
+    usage: buildUsageSegs(caps, capWarn, c, isIcon, verbose, g, color, mode),
+    ctx: buildCtxSeg(ctxLive, contextWindow, c, isIcon, verbose, g),
+    ttl: buildTtlSeg({ ttl, ttlBucket: data.ttlBucket, lastActivity }, timer, c, isIcon, verbose, g),
+    // Model, then the effort that qualifies it: the same model answers
+    // differently at `low` and at `max`, and the pair is one glance.
+    model: buildModelSeg(model, c, isIcon, g),
+    effort: buildEffortSeg(effort, c, isIcon, g),
+    delegated: delegated.chips,
+    // The inline chip steps aside when a headline line owns the story.
+    doc2md: doc2md.headline ? [] : [doc2md.chip],
+    // This session's subagent runs by model family. It is a session figure, so
+    // it sits with the routing chips rather than with the lifetime totals.
+    subagents: buildSessionDelegationSeg(data.sessionDelegation, c, isIcon, verbose, g),
+    hit: buildHitSeg(summary.hitRate, c, isIcon, verbose, g),
+    saved: buildSavedSeg(cost, c, isIcon, verbose, g),
+    period: buildPeriodSeg(options, c, verbose),
+    month: buildMonthSeg(data.monthSpend, c, isIcon, verbose, g),
+    // Harness 🅷 N/5 — project-scoped completeness of CLAUDE.md harness rules.
+    // Silent when the project hasn't opted in (no CLAUDE.md and no .claude/), and
+    // silent at a full 5/5 with no warning unless `--segments` names it. Otherwise
+    // 🅷 N/5 (yellow) so the user can spot a missing section at a glance and know
+    // to run `harness init`, or the red warning chip.
+    harness: buildHarnessSeg(c, isIcon, g, ctxLive?.size ?? null, !!allow && allow.has('harness')),
+    // Korean-style chip — rendered only when named and the injection is on.
+    korean: buildKoreanSeg(c, isIcon, verbose, g, !!allow && allow.has('korean')),
+    // Version / upgrade chip. Read from a cache written by a detached background
+    // check — this render path never touches the network.
+    version: buildVersionSeg(options.version, data.update, c, isIcon, verbose, g),
+    // Delegation-rule registry (`rules 10 · ⚠1`), opt-in through `--segments`.
+    rules: buildRulesSeg(data.ruleStats, c, g),
+  };
+
+  const order = resolveSegmentOrder(segments, caps, updateAvailable);
+  const segs = arrangeSegments(order, built);
+
   // Trailing erase-to-end-of-line so any leftover characters from a previous
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard
   // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
   // allowed — --no-color/NO_COLOR consumers expect escape-free output.
   const eol = color ? '\x1b[K' : '';
   const rest = segs.join(' · ') + eol;
-  // Each savings source that earned real money gets a headline line, ordered
-  // biggest saver first — the top line is the one the eye lands on, so it
-  // goes to whichever habit is actually paying for the tool. The diagnostics
-  // line always closes.
-  const headlines = [];
-  if (totalsLine && want('delegated')) {
-    headlines.push({ usd: Number(totals && totals.total) || 0, line: totalsLine });
-  }
-  if (doc2mdLine && want('doc2md')) {
-    headlines.push({ usd: doc2mdUsd, line: doc2mdLine });
-  }
-  headlines.sort((a, b) => b.usd - a.usd);
-  return headlines.map((h) => h.line + eol + '\n').join('') + rest;
+  return buildHeadlines(delegated, doc2md, want, eol) + rest;
 }

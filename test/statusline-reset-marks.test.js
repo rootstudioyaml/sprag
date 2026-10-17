@@ -137,8 +137,8 @@ test('the dropped-runs chip survives a dated zero', () => {
 
 test('doc2md carries the mark too, and shows a dated zero as a chip', () => {
   const zero = { doc2mdTotals: { total: 0, docs: 0, byExt: [], since: SINCE } };
-  assert.match(formatReport(data(zero), opts), /Doc2md saved \$0\.00 since 10\/9/);
-  assert.match(formatReport(data(zero), { ...opts, mode: 'icon' }), /📄 \$0\.00 \(10\/9~\)/);
+  assert.match(formatReport(data(zero), opts), /Doc2md saved \$0 since 10\/9/);
+  assert.match(formatReport(data(zero), { ...opts, mode: 'icon' }), /📄 \$0 \(10\/9~\)/);
   // Never reset and never converted: nothing to say.
   assert.doesNotMatch(
     formatReport(data({ doc2mdTotals: { total: 0, docs: 0, byExt: [], since: null } }), opts),
@@ -241,11 +241,11 @@ test('the CLI passes the reset mark and scan age to the formatter', () => {
     );
     const out = renderStatusline(home, PAYLOAD, COMPACT);
     assert.match(out.split('\n')[0], /^🔀 Routing saved \$0\.00 since 10\/9 scan 5d$/, 'the headline carries both');
-    assert.match(out, /📄 \$0\.00 \(10\/9~\)/, 'and so does the document counter');
+    assert.match(out, /📄 \$0 \(10\/9~\)/, 'and so does the document counter');
     // The same data, spelled out.
     const verbose = renderStatusline(home, PAYLOAD, { args: ['--verbose'] });
     assert.match(verbose.split('\n')[0], /^🔀 Routing saved \$0\.00 since 10\/9 last scan 5d ago$/);
-    assert.match(verbose, /📄 Doc2md saved \$0\.00 since 10\/9/);
+    assert.match(verbose, /📄 Doc2md saved \$0 since 10\/9/);
   } finally {
     home.cleanup();
   }

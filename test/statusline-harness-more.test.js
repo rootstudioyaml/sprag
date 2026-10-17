@@ -36,7 +36,13 @@ process.env.XDG_CONFIG_HOME = CFG;
 for (const k of ['ANTHROPIC_MODEL', 'CLAUDE_CODE_AUTO_COMPACT_WINDOW']) delete process.env[k];
 // The chip reads the root from the working directory, like the real statusline.
 process.chdir(PROJ);
-after(() => rmSync(SANDBOX, { recursive: true, force: true }));
+// Step out of the sandbox before deleting it: Windows refuses to remove the
+// working directory of a live process (EBUSY), and the retries cover the short
+// window in which antivirus or the indexer still holds a handle on the files.
+after(() => {
+  process.chdir(tmpdir());
+  rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+});
 
 const { harnessStatusForStatusline } = await import('../src/harness.js');
 const { harnessClaudeMdBlock } = await import('../src/harness-templates.js');
@@ -195,7 +201,9 @@ test('one warning alone renders without a count', () => {
 
 test('the count does not turn a healthy score into a warning', () => {
   arrange();
-  const out = formatReport(reportData(), { ...opts, mode: 'icon' });
+  // A healthy chip is hidden unless named, so ask for it: this case is about the
+  // chip's text, not about whether it is on the default line.
+  const out = formatReport(reportData(), { ...opts, mode: 'icon', segments: ['harness'] });
   assert.match(out, /🅷 5\/5/);
   assert.doesNotMatch(out, /⚠ .*\+\d/);
 });

@@ -87,6 +87,16 @@ function tableColor() {
 }
 
 // Subcommands this build knows how to run. Used only by the guard below.
+/**
+ * `--segments a,b,c` as a list, or null for the default order. One parser for
+ * the demo, the populated line and the no-session line, so `--segments harness`
+ * means the same chip set on each of them.
+ */
+function segmentsFromArgs() {
+  const raw = getArg('--segments');
+  return raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : null;
+}
+
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
@@ -521,10 +531,7 @@ async function main() {
       : (hasFlag('--no-verbose') || hasFlag('--compact') ? false : cfg.verbose);
     const showTimer = hasFlag('--no-timer') ? false : cfg.timer;
     const colorOk = !hasFlag('--no-color') && !process.env.NO_COLOR && cfg.color;
-    const segmentsArg = getArg('--segments');
-    const segments = segmentsArg
-      ? segmentsArg.split(',').map((s) => s.trim()).filter(Boolean)
-      : null;
+    const segments = segmentsFromArgs();
     const out = formatReport(data, {
       color: colorOk,
       verbose: isVerbose,
@@ -628,7 +635,7 @@ async function main() {
       const { withBaseStatusline } = await import('../src/statusline-base.js');
       console.log(withBaseStatusline(formatNoSession(
         { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION) },
-        { color: colorOk, mode: labelMode },
+        { color: colorOk, mode: labelMode, segments: segmentsFromArgs() },
       )));
       return;
     }
@@ -977,10 +984,7 @@ async function main() {
     const colorOk =
       !hasFlag('--no-color') && !process.env.NO_COLOR && cfg.color;
 
-    const segmentsArg = getArg('--segments');
-    const segments = segmentsArg
-      ? segmentsArg.split(',').map((s) => s.trim()).filter(Boolean)
-      : null;
+    const segments = segmentsFromArgs();
     output = formatReport(data, {
       color: colorOk,
       verbose: isVerbose,

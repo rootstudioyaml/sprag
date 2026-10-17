@@ -4,7 +4,7 @@
  *   rules 10 · ⚠1     the delegation rules that apply here, and how many are
  *                     flagged for review (the same `review` status that raises
  *                     the 🅷 `rule-health` warning)
- *   v3.59.0 ✓6h       the running version is the latest, as of the last time the
+ *   v3.59.0 ✓6h ago   the running version is the latest, as of the last time the
  *                     registry was asked
  *
  * Neither appears in the default layout. The update chip's existing behaviour
@@ -132,8 +132,8 @@ const upToDate = (checkedAgoMs, extra = {}) => ({
 
 test('verbose shows how long ago the version was last confirmed', () => {
   const out = formatReport(data(upToDate(6 * HOUR)), { ...opts, verbose: true });
-  assert.match(out, /v3\.59\.0 ✓6h/);
-  assert.match(formatReport(data(upToDate(6 * HOUR)), { ...opts, verbose: true, mode: 'icon' }), /v3\.59\.0 ✓6h/);
+  assert.match(out, /v3\.59\.0 ✓6h ago/);
+  assert.match(formatReport(data(upToDate(6 * HOUR)), { ...opts, verbose: true, mode: 'icon' }), /v3\.59\.0 ✓6h ago/);
 });
 
 test('the age steps through minutes, hours and days', () => {
@@ -177,7 +177,7 @@ test('the age is dim, like the version it qualifies', () => {
   const truecolor = process.env.COLORTERM === 'truecolor' || process.env.COLORTERM === '24bit';
   const GRAY = truecolor ? '\x1b[38;2;100;116;139m' : '\x1b[90m';
   const out = formatReport(data(upToDate(6 * HOUR)), { timer: false, verbose: true });
-  assert.ok(out.includes(`${GRAY}v3.59.0 ✓6h`), 'version and age share one gray span');
+  assert.ok(out.includes(`${GRAY}v3.59.0 ✓6h ago`), 'version and age share one gray span');
 });
 
 // ---------------------------------------------------------------------------
@@ -214,7 +214,7 @@ test('the CLI carries the last check time out of the update state', () => {
     }));
     const env = { CTS_NO_UPDATE_CHECK: undefined };
     const verbose = renderStatusline(home, PAYLOAD, { args: ['--verbose'], env });
-    assert.match(verbose, new RegExp(`v${PKG_VERSION.replace(/\./g, '\\.')} ✓6h`));
+    assert.match(verbose, new RegExp(`v${PKG_VERSION.replace(/\./g, '\\.')} ✓6h ago`));
     assert.doesNotMatch(renderStatusline(home, PAYLOAD, { args: ['--no-verbose'], env }), /✓/, 'bare version when compact');
     // With checks switched off the state file is a leftover and says nothing.
     const off = renderStatusline(home, PAYLOAD, { args: ['--verbose'], env: { CTS_NO_UPDATE_CHECK: '1' } });

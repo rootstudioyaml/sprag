@@ -4,7 +4,7 @@
 
 ## 🅷 Harness 모드
 
-다섯 원칙(Ratchet · Evidence · PEV · Structured Task · Default Safe Path)을 한 줄 명령으로 `CLAUDE.md`에 셋업하고 statusline이 `🅷 5/5`로 점수화합니다. 같은 에러가 반복되면 `🅷⚠ ratchet?` 알림이 떠서 룰로 승격할 수 있습니다.
+다섯 원칙(Ratchet · Evidence · PEV · Structured Task · Default Safe Path)을 한 줄 명령으로 `CLAUDE.md`에 셋업하고 statusline이 `🅷` 칩으로 점수화합니다. 점수가 만점이고 경고가 없을 때는 칩이 나오지 않으므로, 실제로 보게 되는 것은 `🅷 4/5` 같은 감점과 아래 경고들입니다. 같은 에러가 반복되면 `🅷⚠ ratchet?` 알림이 떠서 룰로 승격할 수 있습니다.
 
 ```bash
 sprag harness init                # 이 프로젝트에 셋업
