@@ -118,6 +118,14 @@ const MANIFEST = [
     keywords: ['sprag commands', 'sprag cli reference', 'claude-token-saver commands'],
   },
   {
+    slug: 'team',
+    src: 'TEAM.md',
+    title: 'Sprag team layer: shared spend, savings and rules',
+    description:
+      'The opt-in team layer: what each member uploads (daily aggregates only), how an organization enrolls with one environment variable, and how team-approved rules reach every session.',
+    keywords: ['claude code team spend', 'sprag team', 'claude code team dashboard', 'team token usage claude code'],
+  },
+  {
     slug: 'korean-style',
     src: 'KOREAN-STYLE.md',
     title: 'Korean writing style gate for Claude Code output',
