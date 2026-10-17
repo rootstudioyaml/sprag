@@ -42,14 +42,14 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sectionFor, DRAFT_MARKER, KO_HEADING, needsReview } from '../src/changelog.js';
+import { sectionFor, DRAFT_MARKER, KO_HEADING, needsReview } from './changelog.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_SLUG = 'rootstudioyaml/sprag';
 // The draft still needs a pass before it goes out — the changelog entry is
 // written for a reader who has the repository open, and the release is read by
 // someone deciding whether to upgrade. The marker is what `--publish` refuses on,
-// and it is defined in src/changelog.js so that deploy.mjs gates on the same one.
+// and it is defined in scripts/changelog.mjs so that deploy.mjs gates on the same one.
 
 function usage(msg) {
   if (msg) console.error(`release-notes: ${msg}`);

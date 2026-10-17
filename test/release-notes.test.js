@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { sectionFor, DRAFT_MARKER, KO_HEADING, needsReview } from '../src/changelog.js';
+import { sectionFor, DRAFT_MARKER, KO_HEADING, needsReview } from '../scripts/changelog.mjs';
 import { releaseHighlights } from '../src/update-check.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -125,8 +125,8 @@ test('both publish paths gate through the shared marker', () => {
   // the next time one of the two files is edited.
   for (const rel of ['scripts/release-notes.mjs', 'scripts/deploy.mjs']) {
     const src = readFileSync(join(ROOT, rel), 'utf8');
-    const line = (src.match(/^import \{([^}]*)\} from '\.\.\/src\/changelog\.js';$/m) || [])[1];
-    assert.ok(line, `${rel} must import from src/changelog.js rather than spell the marker out`);
+    const line = (src.match(/^import \{([^}]*)\} from '\.\/changelog\.mjs';$/m) || [])[1];
+    assert.ok(line, `${rel} must import from ./changelog.mjs rather than spell the marker out`);
     // Every shared name the file uses has to be in that import. Checking only
     // that the import exists is not enough: this file imported `sectionFor`
     // alone while using three more names, and the module threw ReferenceError on

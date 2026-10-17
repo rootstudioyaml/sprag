@@ -23,7 +23,7 @@ import { readFileSync, existsSync, mkdtempSync, mkdirSync, readdirSync, rmSync }
 import { tmpdir } from 'node:os';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DRAFT_MARKER, needsReview } from '../src/changelog.js';
+import { DRAFT_MARKER, needsReview } from './changelog.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
