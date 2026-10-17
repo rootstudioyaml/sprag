@@ -45,7 +45,7 @@ jobs:
 
       # enablement turns Pages on from the workflow itself, so no manual
       # repository-settings step is needed on a fresh clone.
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
 
