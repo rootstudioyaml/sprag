@@ -36,3 +36,10 @@ graphify-out/
 # every load, so never committed; package.json `files` leaves them out too.
 mod/*/.claude-plugin/types/
 mod/*/tsconfig.json
+
+# Working notes that never belonged in the published tree: design sketches,
+# launch drafts and the rename roadmap stay local to the maintainer.
+docs/_*.md
+docs/LAUNCH-POSTS.md
+docs/DISCUSSION-pinned-draft.md
+docs/RENAME-SPRAG.md
