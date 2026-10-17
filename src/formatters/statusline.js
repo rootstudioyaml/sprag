@@ -28,6 +28,7 @@ import { MIN_VOTES } from '../model-alias.js';
 import { bedrockDisplayFromId } from '../stdin-payload.js';
 import { modelFamily } from '../savings-ledger.js';
 import { shareLegend } from '../model-share.js';
+import { STAR_URL } from '../star-note.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
 // next to each other — terminal palettes set them with unbalanced perceptual
@@ -1032,6 +1033,13 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color) {
   };
 }
 
+/** The one-time star ask (see star-note.js); null unless the CLI passed a chip. */
+function buildStarSeg(star, c, isIcon) {
+  if (!star || typeof star !== 'object' || !Number.isFinite(star.usd)) return null;
+  const text = `${isIcon ? '⭐ ' : ''}${formatMoney(star.usd)} saved · star ${STAR_URL}`;
+  return `${c(YELLOW)}${text}${c(RESET)}`;
+}
+
 /**
  * Doc2md chip and headline line. As with routing, they are alternatives: money
  * earns the headline line, and the chip is for what a line would be all frame
@@ -1142,6 +1150,8 @@ export const DEFAULT_SEGMENT_ORDER = [
   // Lifetime, from the savings ledgers. Delegation stays ahead of the cache
   // figure: routing is what the tool is for, the cache number is a brag stat.
   'delegated', 'doc2md',
+  // One-time star ask; renders only while readStarChip returns an object.
+  'star',
   // Analysis window. These two are the only chips measured over it, so the label
   // sits with them and the three render as one group.
   'hit', 'saved', 'period',
@@ -1182,6 +1192,7 @@ function segmentsNamed(name, s, usageByKey) {
     // the session's own subagent runs.
     case 'delegated': return [...s.delegated, s.subagents];
     case 'doc2md':    return s.doc2md;
+    case 'star':      return [s.star];
     case 'hit':       return [s.hit];
     case 'ttl':       return [s.ttl];
     case 'month':     return [s.month];
@@ -1287,7 +1298,7 @@ function buildHeadlines(delegated, doc2md, want, eol) {
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), model, effort, hit, ttl, month, saved, delegated, doc2md, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), model, effort, hit, ttl, month, saved, delegated, doc2md, star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
@@ -1344,6 +1355,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     delegated: delegated.chips,
     // The inline chip steps aside when a headline line owns the story.
     doc2md: doc2md.headline ? [] : [doc2md.chip],
+    star: buildStarSeg(data.star, c, isIcon),
     // This session's subagent runs by model family. It is a session figure, so
     // it sits with the routing chips rather than with the lifetime totals.
     subagents: buildSessionDelegationSeg(data.sessionDelegation, c, isIcon, verbose, g),

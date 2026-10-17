@@ -69,6 +69,7 @@ Everything that costs nothing until it is needed is on after a plain install. Th
 | Korean writing guidance | on when the locale is Korean (asked at a terminal) | `korean off`, `CTS_NO_KOREAN=1` |
 | compact-window warning chip | on | `compact-window off` |
 | Update-available chip | on | `CTS_NO_UPDATE_CHECK=1` |
+| ⭐ Star note (once, for a day, after $10 saved by routing and doc2md) | on | `CTS_NO_NOTE=1` |
 | **Pinning compact-window** (`autoCompactWindow` 500k) | **off — run it yourself** | `compact-window set --global` or `--project` |
 | **Model-fitting rules** (`ratchet-model.md` delegations) | **candidates are proposed only** | review and approve with `route-scan rules` |
 | `handoff` (back up work before a cap) | an on-demand command | n/a |

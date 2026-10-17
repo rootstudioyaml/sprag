@@ -34,6 +34,22 @@ function markShown(key, now) {
   writeFileSync(firstRunStatePath(), JSON.stringify(state) + '\n');
 }
 
+/** When `key` was marked shown (epoch ms), or null. For notes that stay
+ *  visible for a window after the first time instead of printing once. */
+export function noteShownAt(key) {
+  const at = Number(load()[key]);
+  return Number.isFinite(at) && at > 0 ? at : null;
+}
+
+/** Persist `key` as shown at `now`. Best-effort, like `shouldShowOnce`. */
+export function markNoteShown(key, now = Date.now()) {
+  try {
+    markShown(key, now);
+  } catch {
+    /* state dir unwritable — the note may show again, never a failure */
+  }
+}
+
 /** True only the first time this key is asked about. Best-effort — a
  *  read-only state dir just means the note repeats, never that we crash. */
 export function shouldShowOnce(key, { now = Date.now() } = {}) {

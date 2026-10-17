@@ -59,6 +59,7 @@ import { chipForIssues } from '../src/advice.js';
 import { debug } from '../src/debug.js';
 import { createArgs } from '../src/cli-args.js';
 import { readUpdateChip } from '../src/update-notice.js';
+import { readStarChip } from '../src/star-note.js';
 import { selectAgent } from '../src/agent.js';
 
 const selection = (() => {
@@ -940,6 +941,11 @@ async function main() {
     options: { days, windowHours, windowLabel, version: PKG_VERSION },
     // Cached-only; the background refresh it may trigger lands on a later render.
     update: format === 'statusline' ? readUpdateChip(PKG_VERSION) : null,
+    // The totals are already in hand above; passing them spares a second read of
+    // both ledgers on every render.
+    star: format === 'statusline'
+      ? readStarChip({ savedUsd: delegationSaved + (Number(doc2mdTotals?.total) || 0) })
+      : null,
     lastActivity,
     monthSpend: monthSpendInfo,
     modelShare,

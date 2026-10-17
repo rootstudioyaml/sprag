@@ -128,6 +128,7 @@ test('every name in the default order is one the renderer knows', () => {
     doc2mdTotals: { total: 1.8, docs: 3 },
     monthSpend: { label: 'Sep', usd: 804 },
     update: { available: true, latest: '9.9.9' },
+    star: { usd: 12, shownAt: Date.now() },
   };
   const missing = [];
   for (const name of DEFAULT_SEGMENT_ORDER) {
