@@ -71,3 +71,19 @@ npm의 `postinstall`은 전역 npm 설치일 때만 설정을 실행합니다. �
 | `handoff` (한도 임박 시 작업 백업) | 필요할 때 직접 실행하는 명령입니다 | 해당 없습니다 |
 
 `compact-window set` 은 Claude Code 의 `settings.json` 에 값을 적고, 전역과 프로젝트 중 어디에 적을지는 사람이 정해야 하므로 자동으로 실행하지 않습니다. 모델 피팅 룰도 같은 이유로 승인 단계를 남겨 두었습니다. 어떤 작업을 더 싼 티어에 맡길지는 사용자의 판단이 필요합니다.
+
+### 네트워크 접근
+
+Sprag 이 측정하는 값은 모두 사용자 컴퓨터의 파일에서 나옵니다. 아래 표는 Sprag 이 네트워크로 나가는 지점 전부이며, 게시된 패키지(3.68.0)를 정적으로 스캔해서 뽑았습니다. statusline 을 그리는 동안 네트워크를 기다리는 일은 없습니다. 요청은 분리된 자식 프로세스가 보내고, 그리는 쪽은 캐시된 답만 읽습니다.
+
+| 목적지 | 시점 | 보내는 내용 | 끄는 방법 |
+|---|---|---|---|
+| `registry.npmjs.org/sprag-cli/latest` | statusline 에서 하루 한 번, SessionStart 훅에서 3시간마다 | 요청 자체만 보내고 식별 정보는 없습니다 | `CTS_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER=1` |
+| `api.github.com/repos/rootstudioyaml/sprag/releases/tags/<버전>` | 위 확인에서 새 버전이 보이면 그 릴리스의 핵심 세 줄을 가져옵니다 | 요청 자체만 보냅니다 | 위와 같습니다 |
+| 사용자의 LiteLLM 게이트웨이: `GET /key/info`, `/user/info`, `/model/info` | `ANTHROPIC_BASE_URL` 이 게이트웨이를 가리키고 키가 있을 때만 동작합니다. 예산 게이지는 statusline 주기로, `/model/info` 는 `sprag profile-map --refresh` 를 실행할 때나 예산 갱신에 편승해서 갱신합니다. Codex 는 자체 설정의 provider 주소를 씁니다 | 사용자가 이미 쓰는 키를 `Authorization` 헤더에 넣습니다. 키는 Sprag 의 캐시 파일에 적지 않습니다 | `ANTHROPIC_BASE_URL` 을 해제하거나 `sprag mode` 에서 예산 세그먼트를 뺍니다 |
+| `gh` CLI 를 통한 GitHub 이슈 | `sprag feedback` 을 실행했고 `gh` 가 로그인된 경우에만 | 입력한 메시지와 버전·OS·Node.js 버전 | `--anonymous` 를 붙이면 `gh` 경로를 건너뜁니다 |
+| `docs.google.com/forms/…/formResponse` | `sprag feedback` 을 실행했고 `gh` 를 쓸 수 없는 경우에만 | 같은 메시지와 메타데이터를 관리자가 읽는 익명 폼으로 보냅니다 | `feedback` 을 실행하지 않으면 됩니다. 실행하면 미리 채운 이슈 URL 과 함께 로컬 사본도 남습니다 |
+| `npm install -g sprag-cli@<버전>` | `sprag upgrade` 에서 제안을 수락한 뒤에만 | 일반 npm 설치입니다 | 제안을 거절합니다 |
+| Sprag 전용 venv 에 `pip install markitdown`, Sprag 데이터 디렉터리에 `npm install openfig-core` | doc2md 변환기를 터미널에서 설치하기로 했을 때, 또는 문서가 처음 변환기를 필요로 할 때 | 일반 패키지 설치입니다. `openfig-core` 는 `--ignore-scripts` 로 설치합니다 | `CTS_DOC2MD_NO_AUTOINSTALL=1` 로 자동 설치만 막을 수 있습니다 |
+
+사용량 데이터, 트랜스크립트 내용, 프로젝트 경로는 컴퓨터 밖으로 나가지 않습니다. 절감 원장과 route-scan 룰, 히스토리 파일은 Skill 의 저장 위치 절에 적힌 사용자 데이터 디렉터리에만 남습니다.

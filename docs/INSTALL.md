@@ -75,4 +75,20 @@ Everything that costs nothing until it is needed is on after a plain install. Th
 
 `compact-window set` writes into Claude Code's `settings.json` and a human has to choose global or project scope, so it is never run for you. Model-fitting rules keep an approval step for the same reason: which work belongs on a cheaper tier is your call.
 
+### Network access
+
+Everything Sprag measures comes from files on your machine. The list below is every place it talks to over the network, taken from a static scan of the published package (3.68.0). Nothing here runs while the statusline renders: fetches happen in a detached child and the render path reads the cached answer.
+
+| Destination | When | What is sent | How to turn it off |
+|---|---|---|---|
+| `registry.npmjs.org/sprag-cli/latest` | once a day from the statusline, every 3 hours from the SessionStart hook | the request only; no identifiers | `CTS_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER=1` |
+| `api.github.com/repos/rootstudioyaml/sprag/releases/tags/<version>` | with the registry check, when a newer version exists, to show its three highlights | the request only | same switch |
+| your LiteLLM gateway: `GET /key/info`, `/user/info`, `/model/info` | only when `ANTHROPIC_BASE_URL` points at a gateway and a key is available; the budget gauge refreshes on the statusline's cadence, `/model/info` on `sprag profile-map --refresh` or alongside a budget refresh. Codex uses the provider base from its own config | your own key as the `Authorization` header; the key is never written to Sprag's cache files | unset `ANTHROPIC_BASE_URL`, or `sprag mode` without the budget segment |
+| GitHub issue via the `gh` CLI | `sprag feedback` only, when `gh` is logged in | the message you typed, plus version, OS and Node.js version | `--anonymous` skips the `gh` path |
+| `docs.google.com/forms/…/formResponse` | `sprag feedback` only, when `gh` is not available | the same message and metadata, to an anonymous form the maintainer reads | do not run `feedback`; `sprag feedback` also saves a local copy with a prefilled issue URL |
+| `npm install -g sprag-cli@<version>` | `sprag upgrade`, after you accept the offer | an ordinary npm install | decline the offer |
+| `pip install markitdown` into Sprag's own venv; `npm install openfig-core` into Sprag's data directory | the doc2md converter, when you accept the install at a terminal or a document first needs it | ordinary package installs; `openfig-core` installs with `--ignore-scripts` | `CTS_DOC2MD_NO_AUTOINSTALL=1` stops the automatic case |
+
+No usage data, transcript content or project paths leave the machine. The savings ledger, the route-scan rules and the history files stay under the user-data directory listed in the Skill's storage section.
+
 ---
