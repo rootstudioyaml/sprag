@@ -72,6 +72,6 @@
   },
   "author": "DeepPulse (https://www.youtube.com/@DeepPulseKR)",
   "dependencies": {
-    "smol-toml": "^1.9.0"
+    "smol-toml": "^1.9.1"
   }
 }
