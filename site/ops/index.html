@@ -532,14 +532,14 @@
       <div class="range-bar" id="range-bar"></div>
       <div id="view-list" class="stack">
         <section aria-label="Overview">
-          <div class="kpis"><div class="totals" id="totals"></div></div>
+          <div class="kpis" id="totals-box"><div class="kcards k5" id="totals"></div></div>
           <p class="err" id="tot-err" role="alert"></p>
         </section>
 
         <section class="card of-card" id="town-card" hidden aria-label="Sprag town"><div id="town-box"></div></section>
 
         <section class="ov" aria-label="Trends">
-          <div class="card" aria-labelledby="ov-rev-h">
+          <div class="card" id="ov-rev-card" aria-labelledby="ov-rev-h">
             <div class="sec-h">
               <h2 id="ov-rev-h" data-k="ov.rev.h">Sprag revenue</h2>
               <div class="ov-ctl">
@@ -558,9 +558,10 @@
             <div class="ov-sub" data-k="ov.seat.h">Seats in use</div>
             <div class="ov-chart" id="ov-seat"></div>
             <div class="ov-leg" id="ov-seat-leg"></div>
+            <div id="ov-rail"></div>
             <p class="err" id="ov-err" role="alert"></p>
           </div>
-          <div class="card" aria-labelledby="ov-org-h">
+          <div class="card" id="ov-org-card" aria-labelledby="ov-org-h">
             <div class="sec-h"><h2 id="ov-org-h" data-k="ov.org.h">Seats by organization</h2><span class="count" id="ov-org-n"></span></div>
             <div class="ov-leg" id="ov-org-leg"></div>
             <div class="ov-list" id="ov-orgs"></div>
@@ -568,7 +569,7 @@
           </div>
         </section>
 
-        <section class="card flush" aria-labelledby="att-h">
+        <section class="card flush" id="att-card" aria-labelledby="att-h">
           <div class="sec-h">
             <h2 id="att-h" data-k="att.h">Machines needing attention</h2>
             <div class="seg" role="tablist">
@@ -577,29 +578,13 @@
             </div>
           </div>
           <p class="sub" id="att-sub"></p>
-          <div class="tbl-wrap att-tbl"><table><thead id="att-head"></thead><tbody id="att-body"></tbody></table></div>
-          <p class="empty" id="att-empty" hidden data-k="att.none">No machines in this list.</p>
+          <div id="att-dt"></div>
           <p class="err" id="att-err" role="alert"></p>
         </section>
 
-        <section class="card flush" aria-labelledby="orgs-h" style="min-width:0">
-          <div class="sec-h"><h2 id="orgs-h" data-k="orgs.h">Organizations</h2><span class="count" id="orgs-count"></span></div>
-          <div class="filters">
-            <input type="text" id="q" data-ph="f.q" placeholder="Search name or owner email" aria-label="Search" />
-            <select id="f-plan" aria-label="Plan"><option value="" data-k="f.allplans">All plans</option><option value="pro" data-k="plan.pro">Pro</option><option value="enterprise" data-k="plan.enterprise">Enterprise</option></select>
-            <select id="f-status" aria-label="Status"><option value="" data-k="f.allstatus">All statuses</option><option value="active" data-k="st.active">Active</option><option value="suspended" data-k="st.suspended">Suspended</option></select>
-          </div>
-          <div class="tbl-wrap tall org-tbl"><table>
-            <thead><tr>
-              <th data-k="c.name">Name</th><th data-k="c.plan">Plan</th><th data-k="c.status">Status</th><th data-k="c.seats">Seats</th>
-              <th class="n" data-k="c.teams">Teams</th><th class="n" data-k="c.members">Members</th><th class="n" data-k="c.paused">Paused</th><th class="n" data-k="c.late">Late</th><th data-k="c.owners">Owners</th>
-              <th class="n" id="th-sp">Spent</th><th class="n" id="th-sv">Saved</th><th class="n" data-k="c.rev">Sprag revenue / mo</th><th data-k="c.seen">Last seen</th><th data-k="c.created">Created</th>
-            </tr></thead>
-            <tbody id="org-body"></tbody>
-          </table></div>
-          <p class="empty" id="orgs-empty" hidden data-k="orgs.none">No organizations match.</p>
-          <p class="empty loading" id="orgs-loading" data-k="loading">Loading</p>
-          <p class="err" id="orgs-err" role="alert"></p>
+        <section class="card flush" id="orgs-card" aria-labelledby="orgs-h" style="min-width:0">
+          <div class="sec-h"><h2 id="orgs-h" data-k="orgs.h">Organizations</h2></div>
+          <div id="orgs-dt"></div>
         </section>
       </div>
 
@@ -685,6 +670,7 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="../assets/admin-ux.js"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -818,7 +804,7 @@ const I18N = {
     's.team':'{n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
     's.suspendconfirm':'Suspend {name}? Members stop syncing and new joins are refused until you set it back to Active.',
     'k.id':'ID','k.seats':'Seats','k.created':'Created','k.seen':'Last seen','k.you':'Your role',
-    'd.back':'← Organizations','d.tab.overview':'Overview','d.tab.seats':'Seats','d.tab.settings':'Settings','d.notfound':'Organization not found.',
+    'd.back':'← Organizations','d.tab.overview':'Town','d.tab.seats':'Seats','d.tab.settings':'Settings','d.notfound':'Organization not found.',
     'd.admins':'Owners and admins','d.opnote':'Operator note',
     'role.owner':'Owner','role.admin':'Admin','role.superuser':'Superuser'
   },
@@ -932,7 +918,7 @@ const I18N = {
     's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
     's.suspendconfirm':'{name} 조직을 정지할까요? 사용 중으로 되돌릴 때까지 멤버 동기화가 멈추고 새 참여도 거절됩니다.',
     'k.id':'ID','k.seats':'좌석','k.created':'생성일','k.seen':'마지막 접속','k.you':'내 권한',
-    'd.back':'← 조직 목록','d.tab.overview':'개요','d.tab.seats':'좌석','d.tab.settings':'설정','d.notfound':'조직을 찾을 수 없습니다',
+    'd.back':'← 조직 목록','d.tab.overview':'타운','d.tab.seats':'좌석','d.tab.settings':'설정','d.notfound':'조직을 찾을 수 없습니다',
     'd.admins':'오너와 어드민','d.opnote':'운영 메모',
     'role.owner':'오너','role.admin':'어드민','role.superuser':'슈퍼유저'
   }
@@ -943,6 +929,8 @@ Object.assign(I18N.en, {"of.server":"Sprag server","of.spent":"Spend","of.saved"
 Object.assign(I18N.ko, {"of.server":"Sprag 서버","of.spent":"지출","of.saved":"절감","of.team":"팀","of.prompts":"프롬프트","of.deleg":"위임 비율","of.why":"데이터가 없는 이유","of.why.paused":"{x}부터 업로드 꺼짐","of.why.last":"마지막 업로드 {x}","of.tier.power":"AI 파워 유저","of.tier.active":"활발","of.tier.normal":"보통","of.tier.low":"활용 장려 필요","of.tier.nodata":"데이터 없음","of.tag.off":"⏸ 업로드 꺼짐","of.tag.late":"⏸ 지연","of.tag.closed":"정지됨","of.hud":"사용 중 {n}명 · 파워 유저 {p} · 장려 필요 {l} · 업로드 꺼짐 {o} · 좌석 {u} / {limit}","of.hud.closed":"좌석 {u} / {limit} · 모든 조명 꺼짐","of.free":"빈 좌석 {n}개","of.more":"+{n}명 더","of.b.deleg":"{m}에 위임 {n}회","of.b.deleg0":"위임 {n}회","of.b.prompts":"프롬프트 {n}회","of.lg.bot":"{m} 조수","of.lg.any":"AI 조수 (위임 실행)","of.lg.screen":"밝은 모니터 = 활발히 사용","of.lg.power":"사자 · AI 파워 유저","of.lg.active":"여우 · 활발","of.lg.normal":"곰 · 보통","of.lg.low":"병아리 · 활용 장려 필요","of.lg.ghost":"유령 · 데이터 없음","of.aria":"가상 사무실: 팀 {teams}개, {n}명, 좌석 {used}/{limit} 사용","of.demo.0":"haiku에 테스트 위임","of.demo.1":"\"이 PR 리뷰해줘\"","of.demo.2":"opus가 리팩터링 중","of.town":"Sprag 타운","of.fs":"전체 화면","of.fs.exit":"전체 화면 종료","of.close":"닫기","of.d.os":"컴퓨터","of.runs":"위임 실행","of.d.daily":"일별 지출","of.d.last":"마지막 업로드","of.d.seats":"좌석 상세 보기","of.d.prompts":"프롬프트 보기","of.hint":"클릭 후 스크롤로 확대","of.reset":"보기 초기화","of.zoomIn":"확대","of.zoomOut":"축소","of.d.pdaily":"일별 프롬프트","of.d.cmp":"팀과 회사 비교","of.d.machines":"컴퓨터","of.d.up":"업로드","of.d.seen":"마지막 접속","of.d.events":"최근 활동","of.d.none":"데이터 없음","of.d.today":"오늘 지출","of.d.errors":"위임 오류","of.d.days":"활동 일수","of.d.avg":"평균 프롬프트 길이","of.d.lastp":"마지막 프롬프트","of.d.me":"이 사람","of.d.team":"팀 중앙값","of.d.org":"회사 중앙값","of.d.why":"지출 상위 {a}% · 위임 비율 {b} (회사 중앙값 {c})","of.ev.joined":"참여","of.ev.paused":"업로드 중지","of.ev.resumed":"업로드 재개","of.ev.left":"나감","of.ev.removed":"제거됨","of.ev.restored":"복원됨","tn.title":"Sprag 타운","tn.hud":"회사 {n}곳 · 프로 {p} · 엔터프라이즈 {e} · Sprag 월 매출 {r} · 좌석 {u} / {l}","tn.rev":"월 {v}","tn.full":"만석","tn.plan":"요금제","tn.seats":"좌석","tn.revm":"Sprag 월 매출","tn.members":"멤버","tn.paused":"중지된 컴퓨터","tn.late":"지연된 컴퓨터","tn.created":"생성일","tn.more":"+{n}곳","tn.lg.lit":"밝은 창 = 사용 중 좌석","tn.lg.dark":"어두운 창 = 빈 계약 좌석","tn.lg.bot":"로봇 = 업로드","tn.lg.shut":"셔터 = 정지됨","tn.open":"조직 상세 보기","tn.aria":"Sprag 타운: 회사 {n}곳","tn.teams":"팀","tn.d.utilTip":"좌석 {u} / {l} 사용 · {p}","tn.d.freeTip":"빈 좌석 {n}개","tn.d.fail":"자세한 내용을 불러오지 못했습니다","tn.d.loading":"자세한 내용을 불러오는 중","tn.d.signals":"컴퓨터 상태","tn.d.teams":"팀별 멤버","tn.d.top":"지출 상위 5명","tn.d.util":"좌석 사용률"});
 Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg.90d":"90d","rg.this":"This month","rg.last":"Last month","rg.custom":"Custom","rg.from":"From","rg.to":"To","rg.bad":"Enter both dates","rg.order":"The start date must not be after the end date","rg.max":"The range can be 365 days at most"});
 Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
+Object.assign(I18N.en, {"ux.rail.sp":"Total spend and seats in use","ux.rail.seats":"avg {n} seats in use","ux.g.nav":"Pages","ux.g.sections":"Sections","ux.g.orgs":"Organizations","ux.noorgs":"No organizations yet","ux.town.err":"The town view could not be drawn","ux.scene.err":"The office view could not be drawn","ux.nomachines":"No machines have joined yet","sr.empty":"No machines have joined yet","ux.fail":"Could not load this section","ux.sec.totals":"Overview numbers"});
+Object.assign(I18N.ko, {"ux.rail.sp":"전체 지출과 사용 중인 좌석","ux.rail.seats":"평균 사용 좌석 {n}개","ux.g.nav":"페이지","ux.g.sections":"구역","ux.g.orgs":"조직","ux.noorgs":"아직 등록된 조직이 없습니다","ux.town.err":"타운 화면을 그리지 못했습니다","ux.scene.err":"사무실 화면을 그리지 못했습니다","ux.nomachines":"아직 참여한 컴퓨터가 없습니다","sr.empty":"아직 참여한 컴퓨터가 없습니다","ux.fail":"이 영역을 불러오지 못했습니다","ux.sec.totals":"한눈에 보기 숫자"});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -1035,7 +1023,11 @@ const Range = (function(){
     }));
     sync();
   }
-  return { render, label, list, onChange: fn => subs.push(fn), args: () => ({ p_from: from, p_to: to }),
+  /* last(n): the n days ending today; isLast(n): whether the range is exactly that; prevArgs: the period of equal length right before it */
+  function last(n){ const td = today(); apply(ymd(shift(td, -(n - 1))), ymd(td), [7, 30, 90].includes(n) ? n + 'd' : 'custom'); }
+  function isLast(n){ return to === ymd(today()) && spanOf(parse(from), parse(to)) === n; }
+  function prevArgs(){ const len = spanOf(parse(from), parse(to)), pt = shift(parse(from), -1); return { p_from: ymd(shift(pt, -(len - 1))), p_to: ymd(pt) }; }
+  return { render, label, list, last, isLast, prevArgs, onChange: fn => subs.push(fn), args: () => ({ p_from: from, p_to: to }),
     get from(){ return from; }, get to(){ return to; }, days: () => spanOf(parse(from), parse(to)) };
 })();
 const fmtDate = d => d ? new Date(d).toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'en-US', {year:'numeric', month:'short', day:'numeric'}) : '';
@@ -1153,6 +1145,7 @@ function setLang(next, remember){
   document.querySelectorAll('[data-aria]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.aria)); });
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   if(remember) lsSet('sprag.lang', lang);
+  AdminUX.refreshHint();
   if(!$('form-code').hidden) $('code-sent').textContent = t('si.sent', {email: pendingEmail}, true);
   renderAll();
 }
@@ -1276,30 +1269,56 @@ async function onSession(session){
   let admin = false;
   try{ admin = (await rpc('is_platform_admin')) === true; }catch(e){ admin = false; }
   $('denied').hidden = admin; $('ops').hidden = !admin;
-  if(admin) await Promise.all([loadTotals(), loadOrgs(), loadAttention(), loadTrends()]);
+  if(admin) await Promise.all([loadTotals(), loadOrgs(), loadAttention(), loadTrends(), loadRail()]);
   renderAll();
   route();
 }
 
 /* ── data ─────────────────────────────────────────────────────────────── */
-let totals = null, orgsLoaded = false;
+let totals = null, orgsLoaded = false, totalsLoaded = false, totalsErr = '', orgsErr = '', attErr = '', prevOrgs = null;
 async function loadTotals(){
-  $('tot-err').textContent = '';
-  try{ totals = await rpc('ops_totals'); }catch(e){ totals = null; $('tot-err').textContent = errMsg(e); }
+  totalsErr = '';
+  try{ totals = await rpc('ops_totals'); }catch(e){ totals = null; totalsErr = errMsg(e); }
+  totalsLoaded = true;
   renderTotals();
 }
+/* ops_orgs and team_member_usage for other ranges (previous period, 7/30/90/365 rail) are cached for a minute */
+const oCache = new Map();
+function cachedOrgs(a){
+  const k = a.p_from + '|' + a.p_to, hit = oCache.get(k);
+  if(hit && Date.now() - hit.t < 60000) return hit.p;
+  const p = rpc('ops_orgs', a); oCache.set(k, { t: Date.now(), p }); p.catch(() => oCache.delete(k));
+  return p;
+}
+const uCache = new Map();
+function teamUsage(id, a){
+  const k = id + '|' + a.p_from + '|' + a.p_to, hit = uCache.get(k);
+  if(hit && Date.now() - hit.t < 60000) return hit.p;
+  const p = rpc('team_member_usage', { p_team_id: id, ...a }); uCache.set(k, { t: Date.now(), p }); p.catch(() => uCache.delete(k));
+  return p;
+}
+function sumUsage(list){
+  const o = { sp:0, sv:0, dl:0, byDay:{} };
+  list.forEach(d => ((d && d.members) || []).forEach(m => {
+    o.sp += Number(m.spent) || 0; o.sv += Number(m.saved) || 0; o.dl += Number(m.delegated) || 0;
+    (m.series || []).forEach(r => { const k = String(r.day).slice(0, 10), x = o.byDay[k] || (o.byDay[k] = { sp:0, sv:0 }); x.sp += Number(r.spent) || 0; x.sv += Number(r.saved) || 0; });
+  }));
+  return o;
+}
 async function loadOrgs(){
-  $('orgs-err').textContent = '';
-  try{ const d = await rpc('ops_orgs', Range.args()); orgs = Array.isArray(d) ? d : []; }catch(e){ orgs = []; $('orgs-err').textContent = errMsg(e); }
+  orgsErr = '';
+  try{ const d = await rpc('ops_orgs', Range.args()); orgs = Array.isArray(d) ? d : []; }catch(e){ orgs = []; orgsErr = errMsg(e); }
   orgsLoaded = true;
   renderOrgs();
   renderOvSeats();
   renderTotals(); // revenue in the strip is summed from the organization rows
+  try{ prevOrgs = orgsErr ? null : await cachedOrgs(Range.prevArgs()); }catch(e){ prevOrgs = null; }
+  renderTotals(); renderDetail();
 }
 async function loadAttention(){
-  $('att-err').textContent = '';
+  attErr = '';
   try{ const d = await rpc('ops_attention'); attention = {paused:(d && d.paused) || [], late:(d && d.late) || []}; }
-  catch(e){ attention = {paused:[], late:[]}; $('att-err').textContent = errMsg(e); }
+  catch(e){ attention = {paused:[], late:[]}; attErr = errMsg(e); }
   renderAttention();
 }
 async function selectOrg(id){
@@ -1340,7 +1359,7 @@ document.querySelectorAll('#d-tabs .tab').forEach(b => b.addEventListener('click
 }));
 
 /* ── render ───────────────────────────────────────────────────────────── */
-function renderAll(){ Range.render(); renderTotals(); renderOrgs(); renderOverview(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); }
+function renderAll(){ Range.render(); renderTotals(); renderOrgs(); renderOverview(); renderRail(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); }
 function renderAttention(){
   TownHost.sync();
   const rows = attention[attTab] || [], paused = attTab === 'paused';
@@ -1349,37 +1368,84 @@ function renderAttention(){
     b.setAttribute('aria-selected', String(k === attTab));
   });
   $('att-sub').textContent = t('att.sub.' + attTab);
-  $('att-head').innerHTML = `<tr><th>${esc(t('att.org'))}</th><th>${esc(t('att.team'))}</th><th>${esc(t('att.machine'))}</th><th>${esc(t(paused ? 'att.since' : 'att.upload'))}</th><th>${esc(t('att.seen'))}</th></tr>`;
-  $('att-body').innerHTML = rows.map(r => `<tr data-id="${esc(r.org_id)}" tabindex="0"><td class="nm">${esc(r.org_name)}</td><td>${esc(r.team_name)}</td><td>${esc(r.display_name)}</td>
-    <td>${esc(paused ? rel(r.sync_state_at) : (r.last_upload_at ? rel(r.last_upload_at) : t('never')))}</td><td>${esc(rel(r.last_seen))}</td></tr>`).join('');
-  $('att-empty').hidden = rows.length > 0;
-  $('att-body').querySelectorAll('tr').forEach(tr => {
-    tr.addEventListener('click', () => go('#org/' + encodeURIComponent(tr.dataset.id) + '/seats'));
-    tr.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go('#org/' + encodeURIComponent(tr.dataset.id) + '/seats'); } });
+  const ms = v => { const x = v ? new Date(v).getTime() : NaN; return isFinite(x) ? x : null; };
+  const when = r => paused ? r.sync_state_at : r.last_upload_at;
+  AdminUX.table('att-' + attTab).render($('att-dt'), {
+    wrap:'att-tbl', csvName:'sprag-attention-' + attTab, rows,
+    error: attErr ? { msg: attErr, retry: loadAttention } : null,
+    empty: { msg: t('att.none') },
+    onRow: r => go('#org/' + encodeURIComponent(r.org_id) + '/seats'),
+    search: r => [r.org_name, r.team_name, r.display_name].join(' '),
+    columns: [
+      { key:'org', label:t('att.org'), cls:'nm', val: r => r.org_name || '' },
+      { key:'team', label:t('att.team'), val: r => r.team_name || '' },
+      { key:'machine', label:t('att.machine'), val: r => r.display_name || '' },
+      { key:'when', label:t(paused ? 'att.since' : 'att.upload'), first:-1, val: r => ms(when(r)), csv: r => when(r) || '', cell: r => esc(when(r) ? rel(when(r)) : t('never')) },
+      { key:'seen', label:t('att.seen'), first:-1, val: r => ms(r.last_seen), csv: r => r.last_seen || '', cell: r => esc(rel(r.last_seen)) }
+    ]
   });
 }
 $('tab-paused').addEventListener('click', () => { attTab = 'paused'; renderAttention(); });
 $('tab-late').addEventListener('click', () => { attTab = 'late'; renderAttention(); });
 
+const sumOf = (list, k) => (list || []).reduce((n, o) => n + (Number(o[k] ?? o[k + '_30d']) || 0), 0);
 function renderTotals(){
-  const x = totals; if(!x){ $('totals').innerHTML = ''; return; }
-  const c = (cls, label, val) => `<div class="${cls}"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
-  $('totals').innerHTML =
-    c('', t('tot.orgs'), x.orgs ?? 0) + c('', t('tot.pro'), x.orgs_pro ?? 0) + c('', t('tot.ent'), x.orgs_enterprise ?? x.orgs_business ?? 0) +
-    c('', t('tot.seats'), t('tot.seatsof', {used: x.seats_used ?? 0, limit: x.seats_limit_sum ?? 0}, true)) +
-    c('', t('tot.active'), x.members_active_30d ?? 0) + c('', t('tot.paused'), x.seats_paused ?? 0) + c('', t('tot.late'), x.seats_late ?? 0) + c('sp', t('tot.sp'), money(x.spent_30d)) + c('sv', t('tot.rev'), money(totalRevenue()));
+  const host = $('totals'), x = totals;
+  if(totalsErr){ host.className = ''; host.replaceChildren(AdminUX.state('error', totalsErr, { label: AdminUX.u('retry'), run: loadTotals })); return; }
+  if(!x || !orgsLoaded || !trendsLoaded){ host.className = 'kcards k5'; host.innerHTML = ''; return; }
+  const days = Range.list(), pa = Range.prevArgs(), pLab = Range.label(pa.p_from, pa.p_to), prevDay = pa.p_to;
+  const tm = {}; trends.forEach(d => { tm[d.day] = d; });
+  const at = (d, fn) => tm[d] ? Number(fn(tm[d])) : null;
+  const ser = fn => { const v = days.map(d => tm[d] ? Number(fn(tm[d])) : NaN), ok = v.filter(isFinite); if(ok.length < 2) return null; let last = ok[0]; return v.map(n => { if(isFinite(n)) last = n; return last; }); };
+  const born = d => orgs.filter(o => fmtDay(o.created_at) <= d).length;
+  const int = n => Math.round(n).toLocaleString('en-US'), jump = id => () => AdminUX.jump(id);
+  const used = x.seats_used ?? 0, lim = x.seats_limit_sum ?? 0, sp = sumOf(orgs, 'spent'), sv = sumOf(orgs, 'saved'), late = x.seats_late ?? 0;
+  AdminUX.kpis(host, [
+    { id:'orgs', label:t('tot.orgs'), value:x.orgs ?? 0, cur: orgs.length, fmt:int, prev: orgs.length ? born(prevDay) : null, delta:'abs', judge:'good', prevLabel:pLab, series: days.length > 1 && orgs.length ? days.map(born) : null, onClick: jump('orgs-card') },
+    { id:'pro', label:t('tot.pro'), value:x.orgs_pro ?? 0, fmt:int, prev: at(prevDay, d => d.orgs_pro), delta:'abs', judge:'good', prevLabel:pLab, series: ser(d => d.orgs_pro), onClick: jump('orgs-card') },
+    { id:'ent', label:t('tot.ent'), value:x.orgs_enterprise ?? x.orgs_business ?? 0, fmt:int, prev: at(prevDay, d => d.orgs_enterprise), delta:'abs', judge:'good', prevLabel:pLab, series: ser(d => d.orgs_enterprise), onClick: jump('orgs-card') },
+    { id:'seats', label:t('tot.seats'), value:used, fmt: n => t('tot.seatsof', { used: Math.round(n), limit: lim }, true), prev: at(prevDay, d => d.seats_used), delta:'abs', judge:'neutral', prevLabel:pLab, series: ser(d => d.seats_used),
+      sub: `<span class="bar${lim && used >= lim ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></span>`, onClick: jump('ov-org-card') },
+    { id:'active', label:t('tot.active'), value:x.members_active_30d ?? 0, fmt:int, onClick: jump('att-card') },
+    { id:'paused', label:t('tot.paused'), value:x.seats_paused ?? 0, fmt:int, onClick: () => { attTab = 'paused'; renderAttention(); AdminUX.jump('att-card'); } },
+    { id:'late', label:t('tot.late'), tone: late ? 'lt' : '', value:late, fmt:int, onClick: () => { attTab = 'late'; renderAttention(); AdminUX.jump('att-card'); } },
+    { id:'sp', label:t('c.sp') + ' · ' + Range.label(), tone:'sp', value:sp, fmt:money, prev: prevOrgs ? sumOf(prevOrgs, 'spent') : null, judge:'neutral', prevLabel:pLab, onClick: jump('orgs-card') },
+    { id:'sv', label:t('c.sv') + ' · ' + Range.label(), tone:'sv', value:sv, fmt:money, prev: prevOrgs ? sumOf(prevOrgs, 'saved') : null, judge:'good', prevLabel:pLab, onClick: jump('orgs-card') },
+    { id:'rev', label:t('tot.rev'), tone:'sv', value:totalRevenue(), cur: trends.length ? Number(trends[trends.length - 1].revenue) : null, fmt:money, prev: at(prevDay, d => d.revenue), judge:'good', prevLabel:pLab, series: ser(d => d.revenue), onClick: jump('ov-rev-card') }
+  ], { id:'ops', cols:'k5' });
+}
+/* rail under the charts: total spend (ops_orgs per range, cached) and average seats in use (ops_trends) for 7 / 30 / 90 / 365 days */
+let railSpend = null;
+async function loadRail(){
+  const ds = [7, 30, 90, 365], td = fmtDay(new Date());
+  try{
+    const lists = await Promise.all(ds.map(n => cachedOrgs({ p_from: fmtDay(new Date(Date.now() - (n - 1) * 864e5)), p_to: td })));
+    railSpend = ds.map((n, i) => ({ days:n, sp: sumOf(lists[i], 'spent') }));
+  }catch(e){ railSpend = null; }
+  renderRail();
+}
+function renderRail(){
+  const host = $('ov-rail');
+  if(!host) return;
+  if(!railSpend){ host.innerHTML = ''; return; }
+  const items = railSpend.map(r => {
+    const w = trends.slice(-r.days).map(d => d.seats_used).filter(v => v != null).map(Number);
+    return { days:r.days, main: money(r.sp), sub: w.length ? t('ux.rail.seats', { n: Math.round(w.reduce((a, b) => a + b, 0) / w.length) }, true) : null };
+  });
+  AdminUX.rail(host, { title:t('ux.rail.sp'), items, active: [7, 30, 90, 365].find(n => Range.isLast(n)) || null, onPick: n => Range.last(n) });
 }
 /* ── overview: revenue + seat trends (inline SVG), seats by organization ── */
 let trends = [], trendDays = Number(lsGet('sprag.ops.range')) || 90, trendErr = '', trendsLoaded = false;
 if(![30, 90, 180].includes(trendDays)) trendDays = 90;
 async function loadTrends(){
-  $('ov-err').textContent = '';
+  trendErr = ''; AdminUX.err($('ov-err'), '');
   try{
-    const d = await rpc('ops_trends', {p_days: Math.max(trendDays, 31)});
+    let d;
+    try{ d = await rpc('ops_trends', {p_days: 365}); }catch(e){ d = await rpc('ops_trends', {p_days: Math.max(trendDays, 31)}); }
     trends = (d && Array.isArray(d.days)) ? d.days : [];
-  }catch(e){ trends = []; $('ov-err').textContent = errMsg(e); }
+  }catch(e){ trends = []; trendErr = errMsg(e); }
   trendsLoaded = true;
-  renderOverview();
+  renderOverview(); renderTotals(); renderRail();
 }
 const compact = n => { n = Number(n) || 0; return n >= 1000 ? '$' + (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k' : '$' + Math.round(n); };
 const niceMax = v => { if(v <= 0) return 10; const e = Math.pow(10, Math.floor(Math.log10(v))), f = v / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e; };
@@ -1432,8 +1498,9 @@ function renderOverview(){
   ovWidth = rev.clientWidth;
   renderOvSeats();
   if(!days.length){
-    const msg = `<p class="empty" style="padding:28px 0">${esc(trendsLoaded ? t('ov.nodata') : t('loading'))}</p>`;
-    rev.innerHTML = msg; seat.innerHTML = ''; $('ov-now').textContent = ''; $('ov-delta').hidden = true; $('ov-delta-l').textContent = '';
+    if(!trendsLoaded) rev.innerHTML = `<p class="msg loading">${esc(t('loading'))}</p>`;
+    else rev.replaceChildren(trendErr ? AdminUX.state('error', trendErr, { label: AdminUX.u('retry'), run: loadTrends }) : AdminUX.state('empty', t('ov.nodata')));
+    seat.innerHTML = ''; $('ov-now').textContent = ''; $('ov-delta').hidden = true; $('ov-delta-l').textContent = '';
     $('ov-rev-leg').innerHTML = ''; $('ov-seat-leg').innerHTML = '';
     return;
   }
@@ -1503,44 +1570,49 @@ function renderOvSeats(){
 }
 document.querySelectorAll('#ov-range button').forEach(b => b.addEventListener('click', () => {
   const d = Number(b.dataset.days); if(d === trendDays) return;
-  trendDays = d; lsSet('sprag.ops.range', String(d)); loadTrends();
+  trendDays = d; lsSet('sprag.ops.range', String(d)); renderOverview();
 }));
 $('ov-ref').addEventListener('click', async () => {
   const b = $('ov-ref'); b.disabled = true;
-  try{ await rpc('ops_snapshot_now'); }catch(e){ $('ov-err').textContent = errMsg(e); b.disabled = false; return; }
-  await Promise.all([loadTrends(), loadOrgs(), loadTotals()]);
+  try{ await rpc('ops_snapshot_now'); }catch(e){ AdminUX.err($('ov-err'), errMsg(e), () => $('ov-ref').click()); b.disabled = false; return; }
+  oCache.clear(); uCache.clear();
+  await Promise.all([loadTrends(), loadOrgs(), loadTotals(), loadRail()]);
   b.disabled = false;
 });
 if(window.ResizeObserver) new ResizeObserver(() => { const w = $('ov-rev').clientWidth; if(w && Math.abs(w - ovWidth) > 2) renderOverview(); }).observe($('ov-rev'));
 
-function filtered(){
-  const q = $('q').value.trim().toLowerCase(), p = $('f-plan').value, s = $('f-status').value;
-  return orgs.filter(o => (!p || o.plan === p) && (!s || o.status === s) &&
-    (!q || (o.name || '').toLowerCase().includes(q) || (o.owners || []).some(e => String(e).toLowerCase().includes(q))));
-}
 function renderOrgs(){
   TownHost.sync();
-  $('th-sp').textContent = t('c.sp') + ' · ' + Range.label(); $('th-sv').textContent = t('c.sv') + ' · ' + Range.label();
-  const rows = filtered();
-  $('org-body').innerHTML = rows.map(o => {
-    const used = Number(o.seats_used) || 0, lim = Number(o.seat_limit) || 0, full = lim && used >= lim;
-    const own = (o.owners || []).join(', ');
-    return `<tr data-id="${esc(o.id)}" tabindex="0">
-      <td class="nm" title="${esc(o.name)}">${esc(o.name)}</td>
-      <td><span class="tag${o.plan === 'enterprise' ? ' plus' : ''}">${esc(t('plan.' + (o.plan === 'enterprise' ? 'enterprise' : 'pro')))}</span></td>
-      <td><span class="badge ${o.status === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + (o.status === 'suspended' ? 'suspended' : 'active')))}</span></td>
-      <td><div class="seatcell"><span>${used} / ${lim}</span><div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div></div></td>
-      <td class="n">${Number(o.teams) || 0}</td><td class="n">${Number(o.members_total) || 0}</td>
-      <td class="n">${Number(o.seats_paused) || 0}</td><td class="n${Number(o.seats_late) ? ' lt' : ''}">${Number(o.seats_late) || 0}</td>
-      <td class="own" title="${esc(own)}">${esc(own)}</td>
-      <td class="n">${money(o.spent ?? o.spent_30d)}</td><td class="n">${money(o.saved ?? o.saved_30d)}</td><td class="n" title="${esc(revenueNote(o))}">${money(orgRevenue(o))}</td>
-      <td>${esc(rel(o.last_seen))}</td><td class="num-d">${esc(fmtDay(o.created_at))}</td></tr>`;
-  }).join('');
-  $('orgs-loading').hidden = orgsLoaded; $('orgs-empty').hidden = !orgsLoaded || rows.length > 0;
-  $('orgs-count').textContent = orgsLoaded ? (rows.length === orgs.length ? String(rows.length) : rows.length + ' / ' + orgs.length) : '';
-  $('org-body').querySelectorAll('tr').forEach(tr => {
-    tr.addEventListener('click', () => go('#org/' + encodeURIComponent(tr.dataset.id)));
-    tr.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go('#org/' + encodeURIComponent(tr.dataset.id)); } });
+  const ms = v => { const x = v ? new Date(v).getTime() : NaN; return isFinite(x) ? x : null; };
+  const n0 = v => Number(v) || 0, planOf = o => o.plan === 'enterprise' ? 'enterprise' : 'pro', statOf = o => o.status === 'suspended' ? 'suspended' : 'active';
+  AdminUX.table('orgs').render($('orgs-dt'), {
+    wrap:'org-tbl', csvName:'sprag-organizations', rows: orgs,
+    loading: orgsLoaded ? '' : t('loading'),
+    error: orgsErr ? { msg: orgsErr, retry: loadOrgs } : null,
+    empty: { msg: t('ux.noorgs') },
+    onRow: o => go('#org/' + encodeURIComponent(o.id)),
+    search: o => [o.name, (o.owners || []).join(' ')].join(' '),
+    filters: [
+      { key:'plan', label:t('c.plan'), options: [{ v:'pro', label:t('plan.pro') }, { v:'enterprise', label:t('plan.enterprise') }], match: (o, v) => planOf(o) === v },
+      { key:'status', label:t('c.status'), options: [{ v:'active', label:t('st.active') }, { v:'suspended', label:t('st.suspended') }], match: (o, v) => statOf(o) === v }
+    ],
+    columns: [
+      { key:'name', label:t('c.name'), cls:'nm', tdAttr: o => `title="${esc(o.name)}"`, val: o => o.name || '' },
+      { key:'plan', label:t('c.plan'), val: o => t('plan.' + planOf(o)), cell: o => `<span class="tag${planOf(o) === 'enterprise' ? ' plus' : ''}">${esc(t('plan.' + planOf(o)))}</span>` },
+      { key:'status', label:t('c.status'), val: o => t('st.' + statOf(o)), cell: o => `<span class="badge ${statOf(o) === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + statOf(o)))}</span>` },
+      { key:'seats', label:t('c.seats'), first:-1, val: o => n0(o.seats_used), csv: o => n0(o.seats_used) + ' / ' + n0(o.seat_limit),
+        cell: o => { const used = n0(o.seats_used), lim = n0(o.seat_limit), full = lim && used >= lim; return `<div class="seatcell"><span>${used} / ${lim}</span><div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div></div>`; } },
+      { key:'teams', label:t('c.teams'), cls:'n', first:-1, val: o => n0(o.teams) },
+      { key:'members', label:t('c.members'), cls:'n', first:-1, val: o => n0(o.members_total) },
+      { key:'paused', label:t('c.paused'), cls:'n', first:-1, val: o => n0(o.seats_paused) },
+      { key:'late', label:t('c.late'), cls:'n', first:-1, val: o => n0(o.seats_late), cell: o => n0(o.seats_late) ? `<span style="color:var(--warn);font-weight:600">${n0(o.seats_late)}</span>` : '0' },
+      { key:'owners', label:t('c.owners'), cls:'own', tdAttr: o => `title="${esc((o.owners || []).join(', '))}"`, val: o => (o.owners || []).join(', ') },
+      { key:'sp', label: () => t('c.sp') + ' · ' + Range.label(), cls:'n', first:-1, val: o => n0(o.spent ?? o.spent_30d), cell: o => money(o.spent ?? o.spent_30d) },
+      { key:'sv', label: () => t('c.sv') + ' · ' + Range.label(), cls:'n', first:-1, val: o => n0(o.saved ?? o.saved_30d), cell: o => money(o.saved ?? o.saved_30d) },
+      { key:'rev', label:t('c.rev'), cls:'n', first:-1, tdAttr: o => `title="${esc(revenueNote(o))}"`, val: o => orgRevenue(o), cell: o => money(orgRevenue(o)) },
+      { key:'seen', label:t('c.seen'), first:-1, val: o => ms(o.last_seen), csv: o => o.last_seen || '', cell: o => esc(rel(o.last_seen)) },
+      { key:'created', label:t('c.created'), cls:'num-d', first:-1, val: o => fmtDay(o.created_at), csv: o => fmtDay(o.created_at) }
+    ]
   });
 }
 function fillForm(){
@@ -1550,6 +1622,19 @@ function fillForm(){
   $('e-status').value = sel.status === 'suspended' ? 'suspended' : 'active';
   $('e-note').value = sel.note || '';
 }
+/* daily spend and savings of the open organization, for the sparklines in its cards (team_member_usage per team) */
+const Det = (function(){
+  let key = '', byDay = null, seq = 0;
+  async function ensure(){
+    if(!sel || !sum) return;
+    const ids = (sum.teams || []).map(x => x.id), k = sel.id + '|' + JSON.stringify(Range.args()) + '|' + ids.join();
+    if(k === key) return;
+    key = k; byDay = null; const my = ++seq;
+    try{ const list = await Promise.all(ids.map(id => teamUsage(id, Range.args()))); if(my !== seq) return; byDay = sumUsage(list).byDay; }catch(e){ byDay = null; }
+    renderDetail();
+  }
+  return { ensure, get byDay(){ return byDay; } };
+})();
 function renderDetail(){
   const r = parseHash();
   if(!r) return;
@@ -1563,13 +1648,23 @@ function renderDetail(){
   $('d-badges').innerHTML = `<span class="tag${sel.plan === 'enterprise' ? ' plus' : ''}">${esc(t('plan.' + (sel.plan === 'enterprise' ? 'enterprise' : 'pro')))}</span>
     <span class="badge ${sel.status === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + (sel.status === 'suspended' ? 'suspended' : 'active')))}</span>`;
   const used = Number(sel.seats_used) || 0, lim = Number(sel.seat_limit) || 0, full = lim && used >= lim;
-  const st = (cls, label, val) => `<div class="stat ${cls}"><span>${esc(label)}</span><b>${val}</b></div>`;
-  $('d-stats').innerHTML =
-    st('', t('c.seats'), `${used} / ${lim}<div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div>`) +
-    st('', t('c.paused'), Number(sel.seats_paused) || 0) + st(Number(sel.seats_late) ? 'lt' : '', t('c.late'), Number(sel.seats_late) || 0) +
-    st('', t('c.teams'), Number(sel.teams) || 0) + st('', t('c.members'), Number(sel.members_total) || 0) +
-    st('sp', t('c.sp') + ' · ' + Range.label(), esc(money(sel.spent ?? sel.spent_30d))) + st('sv', t('c.sv') + ' · ' + Range.label(), esc(money(sel.saved ?? sel.saved_30d))) + st('sv', t('c.rev'), esc(money(orgRevenue(sel)))) +
-    st('', t('c.seen'), esc(rel(sel.last_seen))) + st('', t('c.created'), esc(fmtDay(sel.created_at)));
+  const days = Range.list(), pa = Range.prevArgs(), pLab = Range.label(pa.p_from, pa.p_to), prow = prevOrgs && prevOrgs.find(o => o.id === sel.id), dsp = Det.byDay;
+  const sr = Seats.loaded() ? AdminUX.seatSeries(Seats.events(), days, used, 200) : null, n0 = v => Number(v) || 0, int = n => Math.round(n).toLocaleString('en-US');
+  const S = it => ({ static:true, noChip:true, ...it }), rl = ' · ' + Range.label();
+  AdminUX.kpis($('d-stats'), [
+    { id:'seats', label:t('c.seats'), value:used, fmt: n => Math.round(n) + ' / ' + lim, prev: sr ? sr.start : null, delta:'abs', judge:'neutral', prevLabel:pLab, series: sr ? sr.series : null,
+      sub: `<span class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></span>`, onClick: () => go('#org/' + encodeURIComponent(sel.id) + '/seats') },
+    S({ id:'paused', label:t('c.paused'), value:n0(sel.seats_paused), fmt:int }),
+    S({ id:'late', label:t('c.late'), tone: n0(sel.seats_late) ? 'lt' : '', value:n0(sel.seats_late), fmt:int }),
+    S({ id:'teams', label:t('c.teams'), value:n0(sel.teams), fmt:int }),
+    S({ id:'members', label:t('c.members'), value:n0(sel.members_total), fmt:int }),
+    { id:'sp', label:t('c.sp') + rl, tone:'sp', static:true, value:n0(sel.spent ?? sel.spent_30d), fmt:money, prev: prow ? n0(prow.spent ?? prow.spent_30d) : null, judge:'neutral', prevLabel:pLab, series: dsp ? days.map(d => (dsp[d] || { sp:0 }).sp) : null },
+    { id:'sv', label:t('c.sv') + rl, tone:'sv', static:true, value:n0(sel.saved ?? sel.saved_30d), fmt:money, prev: prow ? n0(prow.saved ?? prow.saved_30d) : null, judge:'good', prevLabel:pLab, series: dsp ? days.map(d => (dsp[d] || { sv:0 }).sv) : null },
+    S({ id:'rev', label:t('c.rev'), tone:'sv', value:orgRevenue(sel), fmt:money }),
+    S({ id:'seen', label:t('c.seen'), text:rel(sel.last_seen) }),
+    S({ id:'created', label:t('c.created'), text:fmtDay(sel.created_at) })
+  ], { id:'d:' + sel.id, cols:'k5' });
+  Det.ensure();
   const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [];
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
     <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
@@ -1580,7 +1675,6 @@ function renderDetail(){
 }
 
 /* ── actions ──────────────────────────────────────────────────────────── */
-['q','f-plan','f-status'].forEach(id => $(id).addEventListener('input', renderOrgs));
 $('form-set').addEventListener('submit', async ev => {
   ev.preventDefault(); $('set-err').textContent = ''; $('set-ok').textContent = '';
   if(!sel) return;
@@ -1614,38 +1708,58 @@ $('form-owner').addEventListener('submit', async ev => {
 /* ── seats roster + activity (shared by site/team and site/ops) ───────── */
 const osLabel = r => { const a = [[r.os, r.os_version].filter(Boolean).join(' '), r.arch].filter(Boolean); return a.length ? a.join(' · ') : '—'; };
 const Seats = (function(){
-  const st = { orgId:null, rows:[], events:[], filter:'', evMax:50, err:'', busy:false };
+  const st = { orgId:null, rows:[], events:[], evMax:50, err:'', busy:false, loaded:false };
   let cfg = null, box = null;
+  const dt = AdminUX.table('seats');
   const NAME = r => r.display_name || r.member_id;
   const BADGE = { ok:'good', late:'warn', paused:'plus', silent:'dim', left:'dim', removed:'bad' };
+  const SIGS = ['ok', 'late', 'paused', 'silent', 'left', 'removed'];
+  const ms = v => { const x = v ? new Date(v).getTime() : NaN; return isFinite(x) ? x : null; };
+  const iso = v => v ? new Date(v).toISOString() : '';
+  const goneOf = r => r.signal === 'left' || r.signal === 'removed';
   function init(c){
     cfg = c; box = $(c.box);
     box.addEventListener('click', onClick);
     box.addEventListener('change', onChange);
   }
   async function load(orgId, keepErr){
+    if(st.orgId !== (orgId || null)) dt.reset();
     st.orgId = orgId || null;
     if(!keepErr) st.err = '';
-    if(!st.orgId){ st.rows = []; st.events = []; render(); if(cfg.onRows) cfg.onRows(st.rows); return; }
+    if(!st.orgId){ st.rows = []; st.events = []; st.loaded = false; render(); if(cfg.onRows) cfg.onRows(st.rows); return; }
     try{
       const [r, e] = await Promise.all([
         cfg.rpc('org_seats', { p_org_id: orgId }),
         cfg.rpc('org_member_events', { p_org_id: orgId, p_limit: 200 })]);
       if(st.orgId !== orgId) return;
-      st.rows = Array.isArray(r) ? r : []; st.events = Array.isArray(e) ? e : [];
+      st.rows = Array.isArray(r) ? r : []; st.events = Array.isArray(e) ? e : []; st.loaded = true;
     }catch(x){ st.err = errMsg(x); }
     render();
     if(cfg.onRows) cfg.onRows(st.rows);
   }
-  /* focus: highlight a machine (or all machines of a team) from the seat field; the caller switches to the seats tab */
+  /* focus: highlight a machine (or all machines of a team) from the seat field; the caller switches to the seats view */
   function focus(h){
-    st.filter = ''; st.hl = h; render();
+    st.hl = h; dt.reveal(r => st.hl && (st.hl.id === r.member_id || (st.hl.team && st.hl.team === r.team_id))); render();
     setTimeout(() => { const el = box.querySelector('tr.hl'); if(el) el.scrollIntoView({ block:'center', behavior:'smooth' }); }, 120);
     setTimeout(() => { if(st.hl === h){ st.hl = null; render(); } }, 6000);
   }
   function actor(e){
     const who = t('sr.actor.' + (['owner', 'admin', 'superuser'].includes(e.actor) ? e.actor : 'member'));
     return e.actor_email ? who + ' (' + esc(e.actor_email) + ')' : who;
+  }
+  function actions(r){
+    if(!cfg.canAct || st.busy) return '';
+    let act = '';
+    if(r.signal === 'removed') return `<button type="button" class="btn sm" data-restore="${esc(r.member_id)}">${esc(t('sr.restore'))}</button>`;
+    if(goneOf(r)) return '';
+    if(cfg.canMerge && r.holds_seat){
+      if(r.seat_of) act += `<button type="button" class="btn sm" data-unmerge="${esc(r.member_id)}">${esc(t('sr.unmerge'))}</button>`;
+      else {
+        const tg = st.rows.filter(x => x.holds_seat && !x.seat_of && x.member_id !== r.member_id);
+        if(tg.length) act += `<select class="mg" data-merge="${esc(r.member_id)}" aria-label="${esc(t('sr.merge'))}"><option value="">${esc(t('sr.merge'))}</option>${tg.map(x => `<option value="${esc(x.member_id)}">${esc(NAME(x))}</option>`).join('')}</select>`;
+      }
+    }
+    return act + `<button type="button" class="btn sm danger" data-remove="${esc(r.member_id)}">${esc(t('sr.remove'))}</button>`;
   }
   function render(){
     if(!box) return;
@@ -1655,53 +1769,47 @@ const Seats = (function(){
     const chips = [['ac', t('sr.s.ok'), cnt('ok')], ['pa', t('sr.s.late'), cnt('late')], ['', t('sr.s.paused'), cnt('paused')], ['', t('sr.s.silent'), cnt('silent')],
       ['tt', t('sr.used'), (Number(lim.used) || 0) + ' / ' + (Number(lim.limit) || 0)]]
       .map(c => `<div class="chip ${c[0]}"><span>${c[1]}</span><b>${esc(c[2])}</b></div>`).join('');
-    const rows = st.rows.filter(r => !st.filter || r.signal === st.filter);
-    const body = rows.map(r => {
-      const gone = r.signal === 'left' || r.signal === 'removed';
-      const host = r.seat_of ? st.rows.find(x => x.member_id === r.seat_of) : null;
-      const shares = r.seat_of ? `<span class="share">${t('sr.shares', { name: host ? NAME(host) : '?' })}</span>` : '';
-      let act = '';
-      if(cfg.canAct && !st.busy){
-        if(r.signal === 'removed') act = `<button type="button" class="btn sm" data-restore="${esc(r.member_id)}">${esc(t('sr.restore'))}</button>`;
-        else if(!gone){
-          if(cfg.canMerge && r.holds_seat){
-            if(r.seat_of) act += `<button type="button" class="btn sm" data-unmerge="${esc(r.member_id)}">${esc(t('sr.unmerge'))}</button>`;
-            else {
-              const tg = st.rows.filter(x => x.holds_seat && !x.seat_of && x.member_id !== r.member_id);
-              if(tg.length) act += `<select class="mg" data-merge="${esc(r.member_id)}" aria-label="${esc(t('sr.merge'))}"><option value="">${esc(t('sr.merge'))}</option>${tg.map(x => `<option value="${esc(x.member_id)}">${esc(NAME(x))}</option>`).join('')}</select>`;
-            }
-          }
-          act += `<button type="button" class="btn sm danger" data-remove="${esc(r.member_id)}">${esc(t('sr.remove'))}</button>`;
-        }
-      }
-      return `<tr class="${gone ? 'gone' : ''}${st.hl && (st.hl.id === r.member_id || (st.hl.team && st.hl.team === r.team_id)) ? ' hl' : ''}"><td class="sn" title="${esc(NAME(r))}">${esc(NAME(r))}${shares}</td>
-        <td class="tm" title="${esc(r.team_name || '')}">${esc(r.team_name || '')}</td>
-        <td>${gone ? '' : `<span class="badge ${r.switch === 'off' ? 'warn' : 'good'}" title="${esc(t('sr.tip.switch.' + (r.switch === 'off' ? 'off' : 'on')))}">${esc(t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')))}</span>`}</td>
-        <td><span class="badge ${BADGE[r.signal] || 'dim'}" title="${esc(t('sr.tip.' + r.signal))}">${esc(t('sr.s.' + r.signal))}</span></td>
-        <td>${gone ? '' : esc(r.last_upload_at ? rel(r.last_upload_at) : t('never'))}</td>
-        <td>${esc(rel(r.last_seen))}</td><td>${r.signal === 'paused' ? esc(rel(r.sync_state_at)) : ''}</td>
-        <td>${esc(r.sprag_version || '')}</td><td class="dim">${esc(osLabel(r))}</td>
-        <td class="c-joined">${esc(fmtDate(r.joined_at))}</td><td class="act"><div class="acts">${act}</div></td></tr>`;
-    }).join('');
-    const opts = ['', 'ok', 'late', 'paused', 'silent', 'left', 'removed'].map(s =>
-      `<option value="${s}" ${st.filter === s ? 'selected' : ''}>${esc(s ? t('sr.s.' + s) : t('sr.all'))}</option>`).join('');
     const evs = st.events.slice(0, st.evMax);
     const evHtml = evs.length ? evs.map(e => `<div class="evt"><span class="em"><b style="font-weight:500">${t('sr.ev.' + e.event, { name: e.display_name || '?' })}</b>
       <span class="share">${esc(e.team_name || '')} · ${actor(e)}</span></span><time title="${esc(new Date(e.at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US'))}">${esc(rel(e.at))}</time></div>`).join('')
       : `<p class="msg">${esc(t('sr.ev.none'))}</p>`;
-    box.innerHTML = `<div class="sr-top"><div class="chips">${chips}</div>
-      <div class="sr-tools"><label class="thr"><span>${esc(t('sr.filter'))}</span><select id="sr-filter">${opts}</select></label></div></div>
-      <div class="tbl-wrap tall sr-tbl"><table><thead><tr>
-        <th>${esc(t('sr.c.name'))}</th><th>${esc(t('sr.c.team'))}</th><th>${esc(t('sr.c.switch'))}</th><th>${esc(t('sr.c.signal'))}</th><th>${esc(t('sr.c.upload'))}</th>
-        <th>${esc(t('sr.c.seen'))}</th><th>${esc(t('sr.c.since'))}</th><th>${esc(t('sr.c.ver'))}</th><th>${esc(t('sr.c.os'))}</th><th class="c-joined">${esc(t('sr.c.joined'))}</th><th></th></tr></thead>
-        <tbody>${body}</tbody></table></div>
-      ${rows.length ? '' : `<p class="empty">${esc(t('sr.none'))}</p>`}
+    box.innerHTML = `<div class="sr-top"><div class="chips">${chips}</div></div>
+      <div class="mv"></div><div class="sr-dt"></div>
       <p class="note">${esc(t('sr.note'))}</p>
-      <p class="err" role="alert">${esc(st.err)}</p>
+      <p class="err" role="alert"></p>
       <div class="sr-act"><h3>${esc(t('sr.act'))}</h3>
       <div>${evHtml}</div></div>
       ${st.events.length > st.evMax ? `<button type="button" class="btn sm sr-more" data-more="1">${esc(t('sr.more'))}</button>` : ''}`;
-    if(st.refocus){ st.refocus = false; const f = box.querySelector('#sr-filter'); if(f) f.focus(); }
+    const failed = !!st.err && !st.rows.length;
+    if(st.loaded && !failed && st.rows.length) AdminUX.movement(box.querySelector('.mv'), { events: st.events, days: Range.list(), limit: 200 });
+    AdminUX.err(box.querySelector('.err'), failed ? '' : st.err, () => load(st.orgId));
+    const tm = r => `title="${esc(r.team_name || '')}"`;
+    dt.render(box.querySelector('.sr-dt'), {
+      wrap:'sr-tbl', csvName:'sprag-seats', rows: st.rows,
+      error: failed ? { msg: st.err, retry: () => load(st.orgId) } : null,
+      empty: { msg: t('sr.empty'), action: cfg.emptyAction ? cfg.emptyAction() : null },
+      filters: [{ key:'signal', label: t('sr.filter'), options: SIGS.map(s => ({ v:s, label:t('sr.s.' + s) })), match: (r, v) => r.signal === v }],
+      search: r => [NAME(r), r.team_name, r.sprag_version, osLabel(r), t('sr.s.' + r.signal)].join(' '),
+      rowClass: r => (goneOf(r) ? 'gone' : '') + (st.hl && (st.hl.id === r.member_id || (st.hl.team && st.hl.team === r.team_id)) ? ' hl' : ''),
+      columns: [
+        { key:'name', label:t('sr.c.name'), cls:'sn', tdAttr: r => `title="${esc(NAME(r))}"`, val: NAME,
+          cell: r => { const host = r.seat_of ? st.rows.find(x => x.member_id === r.seat_of) : null; return esc(NAME(r)) + (r.seat_of ? `<span class="share">${t('sr.shares', { name: host ? NAME(host) : '?' })}</span>` : ''); } },
+        { key:'team', label:t('sr.c.team'), cls:'tm', tdAttr: tm, val: r => r.team_name || '' },
+        { key:'switch', label:t('sr.c.switch'), val: r => goneOf(r) ? '' : (r.switch === 'off' ? t('sr.sw.off') : t('sr.sw.on')),
+          cell: r => goneOf(r) ? '' : `<span class="badge ${r.switch === 'off' ? 'warn' : 'good'}" title="${esc(t('sr.tip.switch.' + (r.switch === 'off' ? 'off' : 'on')))}">${esc(t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')))}</span>` },
+        { key:'signal', label:t('sr.c.signal'), val: r => SIGS.indexOf(r.signal), csv: r => t('sr.s.' + r.signal),
+          cell: r => `<span class="badge ${BADGE[r.signal] || 'dim'}" title="${esc(t('sr.tip.' + r.signal))}">${esc(t('sr.s.' + r.signal))}</span>` },
+        { key:'upload', label:t('sr.c.upload'), first:-1, val: r => goneOf(r) ? null : ms(r.last_upload_at), csv: r => goneOf(r) ? '' : iso(r.last_upload_at),
+          cell: r => goneOf(r) ? '' : esc(r.last_upload_at ? rel(r.last_upload_at) : t('never')) },
+        { key:'seen', label:t('sr.c.seen'), first:-1, val: r => ms(r.last_seen), csv: r => iso(r.last_seen), cell: r => esc(rel(r.last_seen)) },
+        { key:'since', label:t('sr.c.since'), first:-1, val: r => r.signal === 'paused' ? ms(r.sync_state_at) : null, csv: r => r.signal === 'paused' ? iso(r.sync_state_at) : '',
+          cell: r => r.signal === 'paused' ? esc(rel(r.sync_state_at)) : '' },
+        { key:'ver', label:t('sr.c.ver'), val: r => r.sprag_version || '' },
+        { key:'os', label:t('sr.c.os'), cls:'dim', val: osLabel },
+        { key:'joined', label:t('sr.c.joined'), cls:'c-joined', first:-1, val: r => ms(r.joined_at), csv: r => iso(r.joined_at), cell: r => esc(fmtDate(r.joined_at)) },
+        { key:'act', label:'', cls:'act', noCsv:true, cell: r => `<div class="acts">${actions(r)}</div>` }
+      ]
+    });
   }
   async function act(fn, args){
     st.err = ''; st.busy = true; render();
@@ -1725,7 +1833,6 @@ const Seats = (function(){
   }
   function onChange(ev){
     const el = ev.target;
-    if(el.id === 'sr-filter'){ st.filter = el.value; st.refocus = true; return render(); }
     if(el.dataset.merge){
       const r = byId(el.dataset.merge), tg = byId(el.value);
       if(!r || !tg){ el.value = ''; return; }
@@ -1733,7 +1840,7 @@ const Seats = (function(){
       else el.value = '';
     }
   }
-  return { init, load, render, focus, rows: () => st.rows, events: () => st.events };
+  return { init, load, render, focus, rows: () => st.rows, events: () => st.events, loaded: () => st.loaded };
 })();
 
 /* ── demo roster (?demo=1): fake rows, no network ──────────────────────── */
@@ -1770,6 +1877,10 @@ function demoSeatStore(orgId, teams){
     if(r.signal === 'removed') events.push({ at: r.left_at, event: 'removed', actor: 'owner', actor_email: 'ana@northwind.example', member_id: r.member_id, display_name: r.display_name, team_name: r.team_name });
   });
   events.push({ at: ago(0.3), event: 'resumed', actor: 'member', actor_email: null, member_id: rows[1].member_id, display_name: rows[1].display_name, team_name: rows[1].team_name });
+  /* extra history so the seat movement chart has weeks to show: [machine index, event, days ago, actor] */
+  [[1, 'paused', 27, 'member'], [1, 'resumed', 26, 'member'], [2, 'restored', 24, 'owner'], [9, 'left', 22, 'member'], [10, 'removed', 19, 'owner'], [11, 'paused', 17, 'member'], [12, 'restored', 15, 'owner'],
+   [13, 'left', 12, 'member'], [4, 'paused', 10, 'member'], [3, 'removed', 9, 'owner'], [3, 'restored', 8, 'owner'], [14, 'paused', 5, 'member'], [6, 'left', 33, 'member'], [8, 'restored', 41, 'owner'], [7, 'removed', 50, 'owner'], [0, 'paused', 44, 'member'], [0, 'resumed', 43, 'member']]
+    .forEach(([i, event, d, actor]) => { const r = rows[i % rows.length]; events.push({ at: ago(d), event, actor, actor_email: actor === 'member' ? null : 'ana@northwind.example', member_id: r.member_id, display_name: r.display_name, team_name: r.team_name }); });
   events.sort((a, b) => new Date(b.at) - new Date(a.at));
   return (demoSeatStores[orgId] = { rows, events });
 }
@@ -1791,7 +1902,7 @@ function demoSeatsRpc(orgId, teams, name, a){
 
 /* ── prompt usage: per-user table + prompt list (shared by site/team and site/ops) ── */
 const Prompts = (function(){
-  const st = { orgId:null, plan:null, usage:null, err:'', lock:'', loading:false, sort:'prompts', dir:-1, member:null, items:[], more:false, next:null, q:'', busy:false, open:{}, seq:0 };
+  const st = { orgId:null, plan:null, usage:null, err:'', lock:'', loading:false, member:null, items:[], more:false, next:null, q:'', busy:false, open:{}, seq:0 };
   let cfg = null, box = null, timer = 0;
   const PAGE = 50;
   const osName = r => [r.os, r.os_version && !String(r.os || '').includes(r.os_version) ? r.os_version : ''].filter(Boolean).join(' ') || '—';
@@ -1832,8 +1943,6 @@ const Prompts = (function(){
     else if(/capture is off/i.test(m)) st.lock = 'cap';
     else st.err = errMsg(e);
   }
-  const SORTS = { name:r => String(r.display_name || '').toLowerCase(), team:r => String(r.team_name || '').toLowerCase(), os:r => osName(r).toLowerCase(),
-    prompts:r => +r.prompts, chars:r => +r.chars, avg:r => +r.avg_chars, days:r => +r.active_days, last:r => new Date(r.last_prompt_at).getTime() || 0 };
   const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
   function lockHtml(){
     if(st.lock === 'plan') return `<div class="pu-lock">${lockSvg}<div><h3>${esc(t('pu.lock.plan.h'))}</h3><p>${esc(t('pu.lock.plan.p'))}</p><a class="btn" href="/pricing/">${esc(t('pu.lock.plan.cta'))}</a></div></div>`;
@@ -1844,24 +1953,34 @@ const Prompts = (function(){
     if(!st.orgId){ box.innerHTML = ''; return; }
     if(st.loading) { box.innerHTML = `<p class="msg loading">${esc(t('pu.loading'))}</p>`; return; }
     if(st.lock){ box.innerHTML = lockHtml(); return; }
-    if(st.err && !st.usage){ box.innerHTML = `<p class="err" role="alert">${esc(st.err)}</p>`; return; }
+    if(st.err && !st.usage){ box.replaceChildren(AdminUX.state('error', st.err, { label: AdminUX.u('retry'), run: () => activate(true) })); return; }
     if(st.member) return renderMember();
     const u = st.usage || { members: [], totals: {}, days: Range.days() }, tot = u.totals || {}, list = Range.list(u.from, u.to), days = list.length, rlab = Range.label(list[0], list[list.length - 1]);
     const chips = [['ac', t('pu.t.prompts'), num(tot.prompts)], ['', t('pu.t.chars'), num(tot.chars)], ['', t('pu.t.users'), num(tot.users)]]
       .map(c => `<div class="chip ${c[0]}"><span>${esc(c[1])}</span><b>${esc(c[2])}</b></div>`).join('');
-    const f = SORTS[st.sort], rows = (u.members || []).slice().sort((a, b) => { const x = f(a), y = f(b); return (x < y ? -1 : x > y ? 1 : 0) * st.dir; });
-    const th = (k, label, cls) => `<th class="${cls || ''}" aria-sort="${st.sort === k ? (st.dir < 0 ? 'descending' : 'ascending') : 'none'}"><button type="button" class="pu-sort" data-sort="${k}">${esc(label)}</button></th>`;
-    const body = rows.map(r => `<tr class="pu-row" data-m="${esc(r.member_id)}">
-      <td class="sn" title="${esc(r.display_name)}"><button type="button" class="pu-open" data-open="${esc(r.member_id)}">${esc(r.display_name)}</button><span class="share pu-tm">${esc(r.team_name || '')}</span></td>
-      <td class="tm" title="${esc(r.team_name || '')}">${esc(r.team_name || '')}</td><td class="dim">${esc(osName(r))}</td>
-      <td class="num">${num(r.prompts)}</td><td class="num">${num(r.chars)}</td><td class="num">${num(r.avg_chars)}</td><td class="num">${num(r.active_days)}</td>
-      <td>${esc(rel(r.last_prompt_at))}</td><td>${spark(r.by_day, list)}</td></tr>`).join('');
-    box.innerHTML = `<div class="sr-top"><div class="chips">${chips}</div></div>
-      <div class="tbl-wrap tall pu-tbl"><table><thead><tr>
-        ${th('name', t('pu.c.user'))}${th('team', t('pu.c.team'))}${th('os', t('pu.c.os'))}${th('prompts', t('pu.c.prompts'), 'num')}${th('chars', t('pu.c.chars'), 'num')}${th('avg', t('pu.c.avg'), 'num')}${th('days', t('pu.c.days'), 'num')}${th('last', t('pu.c.last'))}
-        <th>${esc(t('pu.c.trend', { d: days }))}</th></tr></thead><tbody>${body}</tbody></table></div>
-      ${rows.length ? '' : `<p class="empty">${esc(t('pu.none', { r: rlab }))}</p>`}
-      <p class="note">${esc(t('pu.note', { r: rlab }))}</p><p class="err" role="alert">${esc(st.err)}</p>`;
+    const rows = u.members || [];
+    box.innerHTML = `<div class="sr-top"><div class="chips">${chips}</div></div><div class="pu-dt"></div>
+      <p class="note">${esc(t('pu.note', { r: rlab }))}</p><p class="err" role="alert"></p>`;
+    AdminUX.err(box.querySelector('.err'), st.err, () => activate(true));
+    const tm = r => `title="${esc(r.team_name || '')}"`;
+    AdminUX.table('prompts').render(box.querySelector('.pu-dt'), {
+      wrap:'pu-tbl', csvName:'sprag-prompts', rows, sort:{ col:'prompts', dir:-1 },
+      empty:{ msg: t('pu.none', { r: rlab }, true) },
+      search: r => [r.display_name, r.team_name, osName(r)].join(' '),
+      onRow: r => openRow(r), rowClass: () => 'pu-row',
+      columns:[
+        { key:'name', label:t('pu.c.user'), cls:'sn', tdAttr: r => `title="${esc(r.display_name)}"`, val: r => r.display_name || '',
+          cell: r => `<button type="button" class="pu-open" data-open="${esc(r.member_id)}">${esc(r.display_name)}</button><span class="share pu-tm">${esc(r.team_name || '')}</span>` },
+        { key:'team', label:t('pu.c.team'), cls:'tm', tdAttr: tm, val: r => r.team_name || '' },
+        { key:'os', label:t('pu.c.os'), cls:'dim', val: r => osName(r) },
+        { key:'prompts', label:t('pu.c.prompts'), cls:'num', first:-1, val: r => +r.prompts || 0, cell: r => num(r.prompts) },
+        { key:'chars', label:t('pu.c.chars'), cls:'num', first:-1, val: r => +r.chars || 0, cell: r => num(r.chars) },
+        { key:'avg', label:t('pu.c.avg'), cls:'num', first:-1, val: r => +r.avg_chars || 0, cell: r => num(r.avg_chars) },
+        { key:'days', label:t('pu.c.days'), cls:'num', first:-1, val: r => +r.active_days || 0, cell: r => num(r.active_days) },
+        { key:'last', label:t('pu.c.last'), first:-1, val: r => new Date(r.last_prompt_at).getTime() || null, csv: r => r.last_prompt_at || '', cell: r => esc(rel(r.last_prompt_at)) },
+        { key:'trend', label:t('pu.c.trend', { d: days }), noSort:true, noCsv:true, cell: r => spark(r.by_day, list) }
+      ]
+    });
   }
   function renderMember(){
     const m = st.member;
@@ -1895,10 +2014,10 @@ const Prompts = (function(){
     }catch(e){ if(seq !== st.seq) return; st.err = errMsg(e); }
     st.busy = false; renderList();
   }
+  function openRow(r){ st.member = r; st.q = ''; st.open = {}; render(); fetchPrompts(false); }
   function onClick(ev){
     const b = ev.target.closest('button'); if(!b) return;
-    if(b.dataset.sort){ if(st.sort === b.dataset.sort) st.dir = -st.dir; else { st.sort = b.dataset.sort; st.dir = /^(name|team|os)$/.test(st.sort) ? 1 : -1; } render(); const nb = box.querySelector(`[data-sort="${st.sort}"]`); if(nb) nb.focus(); }
-    else if(b.dataset.open){ const r = ((st.usage && st.usage.members) || []).find(x => x.member_id === b.dataset.open); if(r){ st.member = r; st.q = ''; st.open = {}; render(); fetchPrompts(false); } }
+    if(b.dataset.open){ const r = ((st.usage && st.usage.members) || []).find(x => x.member_id === b.dataset.open); if(r) openRow(r); }
     else if(b.dataset.back){ st.member = null; st.items = []; st.err = ''; st.seq++; render(); }
     else if(b.dataset.more) fetchPrompts(true);
     else if(b.dataset.x){ st.open[b.dataset.x] = !st.open[b.dataset.x]; renderList(); const nb = box.querySelector(`[data-x="${b.dataset.x}"]`); if(nb) nb.focus(); }
@@ -1980,6 +2099,7 @@ const demoPrompts = (function(){
 })();
 
 Range.onChange(async () => {
+  Seats.render(); loadRail();
   await loadOrgs();
   if(sel){ sel = orgs.find(o => o.id === sel.id) || sel; renderDetail(); }
   SceneHost.sync();
@@ -1988,21 +2108,27 @@ Range.onChange(async () => {
 /* ── Sprag town: animated overview of all companies at the top of the list view (operator only) ── */
 const TownHost = (function(){
   let ctl = null, mod = null, dead = false, sig = '', seq = 0;
-  function stop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } sig = ''; $('town-card').hidden = true; }
+  function drop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } sig = ''; }
+  function stop(){ drop(); $('town-card').hidden = true; }
+  function showState(kind, msg, action){ drop(); $('town-card').hidden = false; $('town-box').replaceChildren(AdminUX.state(kind, msg, action)); }
+  function fail(){ dead = true; showState('error', t('ux.town.err'), { label: AdminUX.u('retry'), run: () => { dead = false; sync(); } }); }
   async function sync(){
-    if(dead) return;
-    if(!(user && orgsLoaded && orgs.length && !$('ops').hidden && !$('view-list').hidden)) return stop();
+    if(!(user && !$('ops').hidden && !$('view-list').hidden && orgsLoaded)) return stop();
+    if(orgsErr) return showState('error', orgsErr, { label: AdminUX.u('retry'), run: loadOrgs });
+    if(!orgs.length) return showState('empty', t('ux.noorgs'));
+    if(dead) return fail();
     const key = [lang, JSON.stringify(Range.args()), orgs.map(o => [o.id, o.name, o.plan, o.status, o.seat_limit, o.seats_used, o.spent, o.seats_paused, o.seats_late].join(':')).join('|'), attention.paused.length, attention.late.length].join('#');
     if(ctl && key === sig) return;
     sig = key; const my = ++seq; $('town-card').hidden = false;
-    if(!mod){ try{ mod = await import('/assets/scene/town-scene.js'); }catch(e){ dead = true; return stop(); } if(my !== seq) return; }
+    if(!mod){ try{ mod = await import('/assets/scene/town-scene.js'); }catch(e){ return fail(); } if(my !== seq) return; }
     const data = mod.townSceneData({ orgs, attention, rangeLabel: Range.label(), t, money, revenue: orgRevenue, rel });
     if(ctl){ ctl.update(data); return; }
-    ctl = mod.mountTownScene($('town-box'), data, { onOpenOrg: id => go('#org/' + encodeURIComponent(id)), onFail: () => { dead = true; stop(); },
+    $('town-box').textContent = '';
+    ctl = mod.mountTownScene($('town-box'), data, { onOpenOrg: id => go('#org/' + encodeURIComponent(id)), onFail: () => { fail(); },
       loadDetail: async id => {
         const [rows, summary] = await Promise.all([rpc('org_seats', { p_org_id: id }), rpc('org_summary', { p_org_id: id })]), usage = {};
         const tids = [...new Set([...((summary && summary.teams) || []).map(x => x.id), ...(rows || []).map(r => r.team_id)])].filter(Boolean);
-        await Promise.all(tids.map(async tid => { try{ const d = await rpc('team_member_usage', { p_team_id: tid, ...Range.args() }); ((d && d.members) || []).forEach(u => { usage[u.member_id] = u; }); }catch(e){} }));
+        await Promise.all(tids.map(async tid => { try{ const d = await teamUsage(tid, Range.args()); ((d && d.members) || []).forEach(u => { usage[u.member_id] = u; }); }catch(e){} }));
         return mod.townDetailData({ rows: Array.isArray(rows) ? rows : [], summary, usage, t, money, rel });
       } });
   }
@@ -2012,11 +2138,14 @@ const TownHost = (function(){
 /* ── seat field: three.js hero scene at the top of the organization overview (machines from org_seats, spend from team_member_usage) ── */
 const SceneHost = (function(){
   let ctl = null, mod = null, dead = false, sig = '', lastRows = null, mounted = '', usage = {}, curData = null, promptRows = null, ukey = '', seq = 0;
-  function stop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } mounted = ''; sig = ''; lastRows = null; $('scene-card').hidden = true; }
+  function drop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } mounted = ''; sig = ''; lastRows = null; }
+  function stop(){ drop(); $('scene-card').hidden = true; }
+  function showState(kind, msg, action){ drop(); $('scene-card').hidden = false; $('scene-box').replaceChildren(AdminUX.state(kind, msg, action)); }
+  function fail(){ dead = true; showState('error', t('ux.scene.err'), { label: AdminUX.u('retry'), run: () => { dead = false; sync(); } }); }
   async function fetchUsage(ids){
     const out = {};
     await Promise.all(ids.map(async id => {
-      try{ const d = await rpc('team_member_usage', { p_team_id: id, ...Range.args() }); ((d && d.members) || []).forEach(u => { out[u.member_id] = u; }); }catch(e){}
+      try{ const d = await teamUsage(id, Range.args()); ((d && d.members) || []).forEach(u => { out[u.member_id] = u; }); }catch(e){}
     }));
     return out;
   }
@@ -2025,9 +2154,10 @@ const SceneHost = (function(){
     try{ const d = await rpc('org_prompt_usage', { p_org_id: sel.id, p_days: 30, ...Range.args() }); return (d && d.members) || []; }catch(e){ return null; }
   }
   async function sync(){
-    if(dead) return;
     if(!(user && sel && curTab === 'overview' && !$('view-detail').hidden)) return stop();
+    if(dead) return fail();
     const rows = Seats.rows(), tl = (sum && sum.teams) || [];
+    if(Seats.loaded() && !rows.length) return showState('empty', t('ux.nomachines'));
     const key = [sel.id, lang, JSON.stringify(Range.args()), sel.seats_used, sel.seat_limit, sel.status, tl.map(x => x.id + x.name).join()].join('|');
     if(rows === lastRows && key === sig) return;
     lastRows = rows; sig = key;
@@ -2038,18 +2168,19 @@ const SceneHost = (function(){
       const [u, pr] = await Promise.all([fetchUsage(ids), fetchPrompts()]); if(my !== seq) return;
       usage = u; promptRows = pr; ukey = uk;
     }
-    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js'); }catch(e){ dead = true; return stop(); } if(my !== seq) return; }
+    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js'); }catch(e){ return fail(); } if(my !== seq) return; }
     const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: sel.seats_used, limit: sel.seat_limit, orgName: sel.name, rangeLabel: Range.label(), closed: sel.status === 'suspended', t, rel, os: osLabel, events: Seats.events(),
       demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
     if(ctl && mounted !== sel.id){ ctl.destroy(); ctl = null; }
     if(ctl){ ctl.update(data); return; }
     mounted = sel.id;
+    $('scene-box').textContent = '';
     ctl = mod.mountOfficeScene($('scene-box'), data, {
       onSeats: id => { Seats.focus({ id }); go('#org/' + encodeURIComponent(sel.id) + '/seats'); },
       onPrompts: async id => { const m = curData && curData.people.find(x => x.id === id), base = '#org/' + encodeURIComponent(sel.id); go(base + '/prompts'); if(!(m && m.promptId && await Prompts.openMember(m.promptId))){ Seats.focus({ id }); go(base + '/seats'); } },
       onTeam: id => { Seats.focus({ team: id }); go('#org/' + encodeURIComponent(sel.id) + '/seats'); },
       onServer: () => { const n = $('scene-card').nextElementSibling; if(n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
-      onFail: () => { dead = true; stop(); }
+      onFail: () => { fail(); }
     });
   }
   return { sync };
@@ -2060,7 +2191,7 @@ const SceneHost = (function(){
   Prompts.init({ box:'pu-box', ops:true, orgId:() => sel && sel.id, plan:() => sel && sel.plan, rpc });
   Seats.init({
     box:'seats-box', canAct:true, canMerge:false, rpc,
-    onRows: () => SceneHost.sync(),
+    onRows: () => { renderDetail(); SceneHost.sync(); },
     limit:() => sel && {used:sel.seats_used, limit:sel.seat_limit},
     after: async () => {
       const id = sel && sel.id; if(!id) return;
@@ -2070,6 +2201,21 @@ const SceneHost = (function(){
       await Seats.load(id);
     }
   });
+  const Pal = AdminUX.palette({
+    items: () => {
+      if(!user || $('ops').hidden) return [];
+      const out = [], enc = encodeURIComponent, inDetail = !!parseHash() && sel;
+      out.push({ group: t('ux.g.nav'), label: t('orgs.h'), key: 'G H', run: () => go('#orgs') });
+      if(inDetail) [['overview', 'd.tab.overview'], ['seats', 'd.tab.seats'], ['prompts', 'd.tab.prompts'], ['settings', 'd.tab.settings']].forEach(([k, lk]) =>
+        out.push({ group: t('ux.g.sections'), label: t(lk), hint: sel.name, run: () => go('#org/' + enc(sel.id) + (k === 'overview' ? '' : '/' + k)) }));
+      else [['totals-box', 'ux.sec.totals'], ['town-card', 'of.town'], ['ov-rev-card', 'ov.rev.h'], ['ov-org-card', 'ov.org.h'], ['att-card', 'att.h'], ['orgs-card', 'orgs.h']].forEach(([id, lk]) =>
+        out.push({ group: t('ux.g.sections'), label: t(lk), run: () => { if(parseHash()) go('#orgs'); setTimeout(() => AdminUX.jump(id), 80); } }));
+      orgs.forEach(o => out.push({ group: t('ux.g.orgs'), label: o.name, hint: [t('plan.' + (o.plan === 'enterprise' ? 'enterprise' : 'pro')), (o.owners || [])[0]].filter(Boolean).join(' · '), run: () => go('#org/' + enc(o.id)) }));
+      return out;
+    },
+    get go(){ return { h: { label: t('orgs.h'), run: () => { if(user && !$('ops').hidden) go('#orgs'); } } }; }
+  });
+  AdminUX.hint(document.querySelector('.hbar-r'), document.querySelector('.hbar-r .lang'), () => Pal.open());
   setLang(window.__initLang, false);
   if(DEMO){
     sb = { auth: demoAuth() }; bootAuthParams();
