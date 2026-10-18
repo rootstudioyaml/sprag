@@ -68,12 +68,14 @@ export const OF_CSS = `
 .of-tip div span:last-child{color:#3a2f27;text-align:right}
 .of-tip .tier{margin-top:2px;font-weight:600}
 .of-tip .t-power{color:#6d28d9}.of-tip .t-active{color:#1d6fb8}.of-tip .t-normal{color:#6b6256}.of-tip .t-low{color:#b45309}.of-tip .t-nodata{color:#6b7280}
-.of-fs{position:absolute;top:10px;right:10px;z-index:6;width:32px;height:32px;border-radius:50%;border:1px solid rgba(120,90,60,.18);background:rgba(255,255,255,.94);color:#3a2f27;box-shadow:0 2px 6px rgba(90,60,30,.16);display:grid;place-items:center;padding:0;transition:right .28s cubic-bezier(.23,1,.32,1)}
-.of-fs:hover,.of-fs:focus-visible{border-color:#8b7cf0}.of-fs svg{width:16px;height:16px}
+.of-tools{position:absolute;top:10px;right:10px;z-index:6;display:flex;gap:6px;transition:right .28s cubic-bezier(.23,1,.32,1)}
+.of-tb{width:32px;height:32px;border-radius:50%;border:1px solid rgba(120,90,60,.18);background:rgba(255,255,255,.94);color:#3a2f27;box-shadow:0 2px 6px rgba(90,60,30,.16);display:grid;place-items:center;padding:0;font:600 17px/1 inherit}
+.of-tb:hover,.of-tb:focus-visible{border-color:#8b7cf0}.of-tb svg{width:16px;height:16px}
+.of-hint{position:absolute;left:50%;bottom:46px;transform:translateX(-50%);z-index:6;background:rgba(58,47,39,.88);color:#fff;font-size:12px;padding:5px 12px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .4s;white-space:nowrap}.of-hint.on{opacity:1}
 .of-card:fullscreen,.of-card:-webkit-full-screen{width:100%;height:100%;margin:0;border-radius:0;background:#f6ead2}
 .of-card:fullscreen .of-stage,.of-card:-webkit-full-screen .of-stage,.of-card.of-fsx .of-stage{height:100vh;height:100dvh}
 .of-card.of-fsx{position:fixed;inset:0;z-index:1000;margin:0;border-radius:0;border:0;background:#f6ead2}
-.of-drawer{position:absolute;top:0;right:0;bottom:0;width:340px;max-width:100%;z-index:5;display:flex;flex-direction:column;background:#fffdf8;border-left:1px solid rgba(120,90,60,.16);box-shadow:-8px 0 24px rgba(90,60,30,.16);color:#3a2f27;font-size:12.5px;line-height:1.5;transform:translateX(100%);visibility:hidden;transition:transform .28s cubic-bezier(.23,1,.32,1),visibility 0s .28s}
+.of-drawer{position:absolute;top:0;right:0;bottom:0;width:420px;max-width:100%;z-index:5;display:flex;flex-direction:column;background:#fffdf8;border-left:1px solid rgba(120,90,60,.16);box-shadow:-8px 0 24px rgba(90,60,30,.16);color:#3a2f27;font-size:12.5px;line-height:1.5;transform:translateX(100%);visibility:hidden;transition:transform .28s cubic-bezier(.23,1,.32,1),visibility 0s .28s}
 .of-drawer.open{transform:none;visibility:visible;transition:transform .28s cubic-bezier(.23,1,.32,1)}
 .of-drawer .hd{display:flex;align-items:center;gap:10px;padding:14px 14px 10px;border-bottom:1px solid rgba(120,90,60,.12)}
 .of-drawer .hd svg{width:30px;height:30px;flex:none}.of-drawer .hd div{min-width:0;flex:1}
@@ -82,16 +84,32 @@ export const OF_CSS = `
 .of-drawer .bd{flex:1;overflow-y:auto;padding:10px 14px}
 .of-drawer dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0 0 10px}.of-drawer dt{color:#6a5a4a}.of-drawer dd{margin:0;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .of-drawer h4{margin:10px 0 4px;font-size:11px;font-weight:600;color:#6a5a4a}
-.of-drawer .fam{display:flex;height:10px;border-radius:5px;overflow:hidden;background:#eee6d6}.of-drawer .fam i{display:block;height:100%}
+.of-drawer .fam{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#eee6d6}.of-drawer .fam i{display:block;height:100%}
 .of-drawer .famt{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#6a5a4a;margin-top:4px}
-.of-drawer svg.sp{width:100%;height:40px;display:block}
+.of-drawer .sec{margin:0 0 16px}.of-drawer .sec>h4{margin:0 0 6px}
+.of-drawer .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.of-drawer .kv{background:#f7f1e4;border-radius:10px;padding:6px 10px;min-width:0}.of-drawer .kv span{display:block;font-size:11px;color:#6a5a4a}.of-drawer .kv b{font-size:13.5px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.of-drawer .badge{display:inline-block;padding:0 8px;border-radius:999px;font-size:11px;font-weight:600;background:#f1ebff;color:#4c1d95;margin-left:6px;vertical-align:1px}
+.of-drawer .why{margin:8px 0 12px;padding:8px 10px;border-radius:10px;background:#f1ebff;color:#3b2a78;font-size:12px}
+.of-drawer .ch{position:relative;height:96px;touch-action:pan-y;outline-offset:3px;border-radius:6px}.of-drawer .ch svg{width:100%;height:100%;display:block}
+.of-drawer .cx{position:absolute;top:0;bottom:0;width:1px;background:rgba(58,47,39,.45);pointer-events:none;display:none}
+.of-drawer .ct{position:absolute;top:2px;z-index:3;pointer-events:none;background:#3a2f27;color:#fff;font-size:11px;line-height:1.45;padding:4px 8px;border-radius:8px;white-space:nowrap;display:none}
+.of-dtip{position:absolute;z-index:9;pointer-events:none;background:#3a2f27;color:#fff;font-size:11px;padding:4px 8px;border-radius:8px;white-space:nowrap;display:none}
+.of-drawer .leg{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#6a5a4a;margin-top:4px}.of-drawer .leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.of-drawer .cmp{margin-bottom:10px}.of-drawer .cmp .ml{font-size:11.5px;font-weight:600;margin-bottom:2px}
+.of-drawer .cr{display:grid;grid-template-columns:76px 1fr 64px;align-items:center;gap:6px;font-size:11px;color:#6a5a4a;outline-offset:2px;border-radius:4px}.of-drawer .cr .tr{height:7px;background:#eee6d6;border-radius:4px;overflow:hidden}.of-drawer .cr .tr i{display:block;height:100%}.of-drawer .cr span{text-align:right;color:#3a2f27;font-variant-numeric:tabular-nums}
+.of-drawer .mrow{border:1px solid rgba(120,90,60,.14);border-radius:10px;padding:7px 10px;margin-bottom:6px;font-size:11.5px;line-height:1.55}.of-drawer .mrow b{font-size:12.5px}.of-drawer .mrow small{color:#6a5a4a;display:block}
+.of-drawer .sig{display:inline-block;padding:0 7px;border-radius:999px;font-size:10.5px;font-weight:600;color:#fff;margin-left:6px}
+.of-drawer .evr{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:4px 0;border-bottom:1px dashed rgba(120,90,60,.18)}.of-drawer .evr span:last-child{color:#6a5a4a;white-space:nowrap}
+.of-drawer .fam{outline-offset:2px}.of-drawer .fam i{outline-offset:-2px}
+.of-drawer .ld{color:#6a5a4a;font-size:12px;padding:8px 0}
 .of-drawer .ft{display:flex;gap:8px;flex-wrap:wrap;padding:10px 14px 14px;border-top:1px solid rgba(120,90,60,.12)}
 .of-dbtn{flex:1;min-width:120px;font:inherit;font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;border:1px solid #cfc3f7;background:#f1ebff;color:#4c1d95}
 .of-dbtn.pri{background:#6d5ce7;border-color:#6d5ce7;color:#fff}.of-dbtn:hover{filter:brightness(.96)}
-.of-stage.has-drawer .of-fs{right:350px}
-@media (max-width:480px){.of-drawer{top:auto;left:0;right:0;width:auto;height:72%;border-left:0;border-top:1px solid rgba(120,90,60,.16);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(90,60,30,.18);transform:translateY(100%)}.of-stage.has-drawer .of-fs{right:10px}}
+.of-stage.has-drawer .of-tools{right:430px}
+@media (max-width:480px){.of-drawer{top:auto;left:0;right:0;width:auto;height:72%;border-left:0;border-top:1px solid rgba(120,90,60,.16);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(90,60,30,.18);transform:translateY(100%)}.of-stage.has-drawer .of-tools{right:10px}}
+@media (max-width:480px){.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer{height:640px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer canvas{height:300px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer .of-drawer{height:calc(100% - 300px)}}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
-@media (max-width:640px){.of-stage{height:300px}.of-hud{left:12px;right:12px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
+@media (max-width:640px){.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:150px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
 `;
 
 export function webglOk(){
@@ -106,11 +124,129 @@ export const THREE_LIB = THREE_URL;
 export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const hash = s => { let h = 2166136261; for(const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0) / 4294967296; };
 
+/* Orbit / pan / zoom for the orthographic cameras of both scenes. The camera orbits a target: azimuth is free (360 degrees, with inertia),
+ * polar angle is clamped to 20-70 degrees from the horizon, right-drag or shift-drag pans inside the bounds, the wheel and pinch zoom toward the pointer.
+ * cfg: { T, canvas, stage, camera, target0:[x,y,z], theta0, phi0, dist, bounds(), size():[W,H], ppu(), isFs(), reduced, request(), onTap(px,py,ev), onMove(px,py,ev), onLeave(), onDrag(bool), onFocus(), onEnter() } */
+export function makeView(cfg){
+  const T = cfg.T, cam = cfg.camera, tgt = new T.Vector3(...cfg.target0), tgt0 = tgt.clone(), rc = new T.Raycaster(), plane = new T.Plane(new T.Vector3(0, 1, 0), 0), V = new T.Vector3(), V2 = new T.Vector3(), N = new T.Vector2();
+  const PMIN = 0.35, PMAX = 1.22, ZMIN = 0.6, ZMAX = 4, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  let th = cfg.theta0, ph = cfg.phi0, zoom = 1, zT = 1, vth = 0, vph = 0, last = -99, now = 0, swayAmp = 1, focused = false, g = null, anchor = null, thEff = th;
+  const ptrs = new Map();
+  const pick = (px, py, out) => { const [W, H] = cfg.size(); plane.constant = -tgt.y; N.set(px / W * 2 - 1, -(py / H) * 2 + 1); rc.setFromCamera(N, cam); return rc.ray.intersectPlane(plane, out); };
+  function clampT(){ const b = cfg.bounds(); tgt.x = clamp(tgt.x, b.x0, b.x1); tgt.z = clamp(tgt.z, b.z0, b.z1); }
+  function pose(){
+    const sp = Math.sin(ph), d = cfg.dist;
+    cam.position.set(tgt.x + d * sp * Math.sin(thEff), tgt.y + d * Math.cos(ph), tgt.z + d * sp * Math.cos(thEff)); cam.lookAt(tgt); cam.zoom = zoom; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+  }
+  function zoomStep(){
+    if(Math.abs(zT - zoom) < 1e-4) return false;
+    const a = anchor || (() => { const [W, H] = cfg.size(); return [W / 2, H / 2]; })(); pick(a[0], a[1], V);
+    zoom += (zT - zoom) * 0.35; if(Math.abs(zT - zoom) < 1e-3) zoom = zT; cam.zoom = zoom; cam.updateProjectionMatrix();
+    if(pick(a[0], a[1], V2)){ tgt.add(V.sub(V2)); clampT(); } pose(); return true;
+  }
+  const mark = () => { last = now; };
+  function zoomAt(f, px, py){ zT = clamp(zT * f, ZMIN, ZMAX); anchor = px == null ? null : [px, py]; mark(); cfg.request(); }
+  function update(dt, time){
+    now = time; const idle = time - last > 20;
+    swayAmp += ((idle && !cfg.reduced ? 1 : 0) - swayAmp) * Math.min(1, dt * 1.5);
+    if(!g && !cfg.reduced && (Math.abs(vth) > 1e-3 || Math.abs(vph) > 1e-3)){ th += vth * dt; ph = clamp(ph + vph * dt, PMIN, PMAX); const k = Math.exp(-dt * 3); vth *= k; vph *= k; }
+    thEff = th + swayAmp * 0.05 * Math.sin(time * 0.22); cfg.canvas.style.touchAction = cfg.isFs() ? 'none' : 'pan-y';
+    pose(); zoomStep();
+  }
+  function reset(){ th = cfg.theta0; ph = cfg.phi0; zoom = zT = 1; vth = vph = 0; tgt.copy(tgt0); thEff = th; mark(); pose(); cfg.request(); }
+  const rect = () => cfg.canvas.getBoundingClientRect(), pt = ev => { const r = rect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+  cfg.canvas.addEventListener('pointerdown', ev => {
+    cfg.canvas.setPointerCapture(ev.pointerId); ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]); focused = true; if(cfg.onFocus) cfg.onFocus(); mark();
+    if(ptrs.size === 2){ const [a, b] = [...ptrs.values()]; g = { mode: 'pinch', d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z0: zT, moved: true }; vth = vph = 0; }
+    else g = { mode: ev.button === 2 || ev.shiftKey ? 'pan' : 'orbit', lx: ev.clientX, ly: ev.clientY, sx: ev.clientX, sy: ev.clientY, moved: false, t: performance.now() };
+  });
+  cfg.canvas.addEventListener('contextmenu', ev => ev.preventDefault());
+  cfg.canvas.addEventListener('pointermove', ev => {
+    if(ptrs.has(ev.pointerId)) ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if(!g){ if(ev.pointerType !== 'touch') cfg.onMove(...pt(ev), ev); return; }
+    if(g.mode === 'pinch'){ if(ptrs.size < 2) return; const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), r = rect(); zT = clamp(g.z0 * d / g.d0, ZMIN, ZMAX); anchor = [(a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top]; mark(); cfg.request(); return; }
+    const dx = ev.clientX - g.lx, dy = ev.clientY - g.ly;
+    if(!g.moved && Math.hypot(ev.clientX - g.sx, ev.clientY - g.sy) > 5){ g.moved = true; cfg.canvas.classList.add('drag'); if(cfg.onDrag) cfg.onDrag(true); }
+    if(!g.moved) return;
+    const tNow = performance.now(), dts = Math.max(0.008, (tNow - g.t) / 1000); g.t = tNow; g.lx = ev.clientX; g.ly = ev.clientY; mark();
+    if(g.mode === 'pan'){
+      const u = 1 / (cfg.ppu() * zoom), sp = Math.sin(th), cp = Math.cos(th);
+      tgt.x += -cp * dx * u - sp * dy * u / Math.max(0.3, Math.cos(ph)); tgt.z += sp * dx * u - cp * dy * u / Math.max(0.3, Math.cos(ph)); clampT();
+    } else { const dth = -dx * 0.008, dph = -dy * 0.006; th += dth; ph = clamp(ph + dph, PMIN, PMAX); vth = vth * 0.5 + 0.5 * dth / dts; vph = vph * 0.5 + 0.5 * dph / dts; }
+    cfg.request();
+  });
+  const end = ev => {
+    ptrs.delete(ev.pointerId); const gg = g;
+    if(ptrs.size === 0){ g = null; cfg.canvas.classList.remove('drag'); if(cfg.onDrag) cfg.onDrag(false); }
+    else if(ptrs.size === 1 && gg && gg.mode === 'pinch') g = null;
+    if(!gg || gg.moved || ev.type === 'pointercancel' || gg.mode !== 'orbit') return;
+    cfg.onTap(...pt(ev), ev);
+  };
+  cfg.canvas.addEventListener('pointerup', end); cfg.canvas.addEventListener('pointercancel', end);
+  cfg.canvas.addEventListener('wheel', ev => {
+    if(!(cfg.isFs() || ev.ctrlKey || ev.metaKey || focused)) return;
+    ev.preventDefault(); const [px, py] = pt(ev); zoomAt(Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015)), px, py);
+  }, { passive: false });
+  cfg.stage.addEventListener('pointerenter', () => { if(!focused && !cfg.isFs() && cfg.onEnter) cfg.onEnter(); });
+  cfg.stage.addEventListener('pointerleave', () => { focused = false; if(!g) cfg.onLeave(); });
+  return { update, reset, zoomBy: f => zoomAt(f), azimuth: () => thEff, zoom: () => zoom, apply: pose,
+    defaultCam(far){ const c = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, far || 400), sp = Math.sin(cfg.phi0); c.position.set(tgt0.x + cfg.dist * sp * Math.sin(cfg.theta0), tgt0.y + cfg.dist * Math.cos(cfg.phi0), tgt0.z + cfg.dist * sp * Math.cos(cfg.theta0)); c.lookAt(tgt0); c.updateMatrixWorld(); return c; } };
+}
+
+/* Drawer widgets shared by both scenes: charts with a crosshair tooltip, segmented bars and comparison bars with hover tooltips (all keyboard focusable). */
+const kreg = {};
+export const kit = {
+  chart(id, days, series, w = 380, h = 96){
+    kreg[id] = { days, series };
+    const n = days.length, mx = Math.max(1e-9, ...series.flatMap(s => s.vals)), pad = 4, bw = (w - 2 * pad) / Math.max(1, n), X = i => pad + (i + 0.5) * bw, Y = v => h - 4 - (v / mx) * (h - 12);
+    let gs = '';
+    series.forEach(s => { if(s.kind === 'bar') s.vals.forEach((v, i) => { const y = Y(v); gs += `<rect x="${(X(i) - bw * 0.36).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * 0.72).toFixed(1)}" height="${Math.max(0, h - 4 - y).toFixed(1)}" rx="1.5" fill="${s.color}" opacity=".85"/>`; });
+      else gs += `<polyline points="${s.vals.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${s.color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>`; });
+    return `<div class="ch" data-ch="${esc(id)}" tabindex="0" role="img" aria-label="${esc(days.length ? days[0] + ' – ' + days[days.length - 1] : '')}"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gs}</svg><div class="cx"></div><div class="ct"></div></div>`
+      + `<div class="leg">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>`;
+  },
+  stack(parts){ const tot = parts.reduce((a, q) => a + q.v, 0) || 1; return `<div class="fam">${parts.filter(q => q.v > 0).map(q => `<i tabindex="0" style="width:${(q.v / tot * 100).toFixed(2)}%;background:${q.color}" data-tip="${esc(q.tip)}"></i>`).join('')}</div>`; },
+  cmp(rows){   /* rows: [{label, items:[{name, v, txt, color}]}] */
+    return rows.map(r => { const mx = Math.max(1e-9, ...r.items.map(q => q.v)); return `<div class="cmp"><div class="ml">${esc(r.label)}</div>${r.items.map(q => `<div class="cr" tabindex="0" data-tip="${esc(q.name + ' · ' + q.txt)}"><em style="font-style:normal">${esc(q.name)}</em><div class="tr"><i style="width:${(q.v / mx * 100).toFixed(1)}%;background:${q.color}"></i></div><span>${esc(q.txt)}</span></div>`).join('')}</div>`; }).join('');
+  },
+  bind(root){
+    if(root.__kit) return; root.__kit = true;
+    const tip = document.createElement('div'); tip.className = 'of-dtip'; root.appendChild(tip);
+    const showChart = (ch, i) => {
+      const d = kreg[ch.dataset.ch]; if(!d || !d.days.length) return; i = Math.max(0, Math.min(d.days.length - 1, i)); ch.__i = i;
+      const r = ch.getBoundingClientRect(), x = (i + 0.5) / d.days.length * r.width, cx = ch.querySelector('.cx'), ct = ch.querySelector('.ct');
+      cx.style.display = 'block'; cx.style.left = x + 'px'; ct.innerHTML = `<b>${esc(d.days[i])}</b>` + d.series.map(s => `<div><span style="color:${s.color}">●</span> ${esc(s.name)} ${esc(s.fmt(s.vals[i]))}</div>`).join(''); ct.style.display = 'block';
+      ct.style.left = Math.max(0, Math.min(r.width - ct.offsetWidth, x - ct.offsetWidth / 2)) + 'px';
+    };
+    const hideChart = ch => { ch.querySelector('.cx').style.display = 'none'; ch.querySelector('.ct').style.display = 'none'; };
+    const showTip = el => { if(!tip.isConnected) root.appendChild(tip); const r = el.getBoundingClientRect(), rr = root.getBoundingClientRect(); tip.textContent = el.dataset.tip; tip.style.display = 'block';
+      tip.style.left = Math.max(4, Math.min(rr.width - tip.offsetWidth - 4, r.left - rr.left + r.width / 2 - tip.offsetWidth / 2)) + 'px'; tip.style.top = Math.max(2, r.top - rr.top - tip.offsetHeight - 6) + 'px'; };
+    const hideTip = () => { tip.style.display = 'none'; };
+    const move = ev => {
+      const ch = ev.target.closest('.ch'); root.querySelectorAll('.ch').forEach(c => { if(c !== ch) hideChart(c); });
+      if(ch){ const r = ch.getBoundingClientRect(); showChart(ch, Math.floor((ev.clientX - r.left) / r.width * kreg[ch.dataset.ch].days.length)); }
+      const t = ev.target.closest('[data-tip]'); if(t) showTip(t); else hideTip();
+    };
+    root.addEventListener('pointermove', move); root.addEventListener('pointerdown', move);
+    root.addEventListener('pointerleave', () => { root.querySelectorAll('.ch').forEach(hideChart); hideTip(); });
+    root.addEventListener('focusin', ev => { const ch = ev.target.closest && ev.target.closest('.ch'); if(ch) showChart(ch, ch.__i ?? 0); const t = ev.target.closest && ev.target.closest('[data-tip]'); if(t) showTip(t); });
+    root.addEventListener('focusout', () => { root.querySelectorAll('.ch').forEach(hideChart); hideTip(); });
+    root.addEventListener('keydown', ev => { const ch = ev.target.closest && ev.target.closest('.ch'); if(!ch || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(ev.key)) return; ev.preventDefault(); const n = kreg[ch.dataset.ch].days.length; showChart(ch, ev.key === 'Home' ? 0 : ev.key === 'End' ? n - 1 : (ch.__i ?? 0) + (ev.key === 'ArrowRight' ? 1 : -1)); });
+  }
+};
+
 /* Shared stage chrome for the office and town scenes: the fullscreen button (Fullscreen API on the card, fixed overlay where it is missing)
  * and the slide-in drawer (bottom sheet on phones). o: { ui: () => ({fs, fsExit, close}), request(), onClose(), onAction(name) }. */
 export function makeChrome(stage, container, o){
   const drawer = document.createElement('aside'); drawer.className = 'of-drawer'; drawer.setAttribute('aria-hidden', 'true'); stage.appendChild(drawer);
-  const fs = document.createElement('button'); fs.type = 'button'; fs.className = 'of-fs'; stage.appendChild(fs);
+  const tools = document.createElement('div'); tools.className = 'of-tools'; stage.appendChild(tools);
+  const mkBtn = (cls, html, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'of-tb ' + cls; b.innerHTML = html; b.addEventListener('click', fn); tools.appendChild(b); return b; };
+  const RESET = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8a5.5 5.5 0 1 0 1.8-4.1M2.5 2.5v3.2h3.2"/></svg>';
+  const bReset = mkBtn('of-rs', RESET, () => o.onReset && o.onReset()), bOut = mkBtn('of-zo', '−', () => o.onZoom && o.onZoom(1 / 1.35)), bIn = mkBtn('of-zi', '+', () => o.onZoom && o.onZoom(1.35));
+  const fs = mkBtn('of-fs', '', () => toggleFs());
+  const hint = document.createElement('div'); hint.className = 'of-hint'; stage.appendChild(hint); let hintT = 0;
+  const hideHint = () => { clearTimeout(hintT); hint.classList.remove('on'); };
+  const showHint = () => { if(fsOn()) return; hint.textContent = (o.ui() || {}).hint || ''; hint.classList.add('on'); clearTimeout(hintT); hintT = setTimeout(hideHint, 2600); };
   const card = container.closest('.of-card') || container;
   let fsX = false;
   const nativeFs = () => document.fullscreenElement || document.webkitFullscreenElement;
@@ -119,7 +255,9 @@ export function makeChrome(stage, container, o){
   const OUT = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4"/></svg>';
   function syncFs(){
     const on = fsOn(), ui = o.ui() || {}, lbl = on ? ui.fsExit : ui.fs;
-    fs.innerHTML = on ? OUT : IN; fs.setAttribute('aria-label', lbl || ''); fs.title = lbl || ''; fs.setAttribute('aria-pressed', String(on)); o.request();
+    fs.innerHTML = on ? OUT : IN; fs.setAttribute('aria-label', lbl || ''); fs.title = lbl || ''; fs.setAttribute('aria-pressed', String(on));
+    [[bReset, ui.reset], [bOut, ui.zoomOut], [bIn, ui.zoomIn]].forEach(([b, l]) => { b.setAttribute('aria-label', l || ''); b.title = l || ''; });
+    if(on) hideHint(); o.request(); if(o.onFsChange) o.onFsChange(on);
   }
   function overlay(on){ fsX = on; card.classList.toggle('of-fsx', on); document.documentElement.style.overflow = on ? 'hidden' : ''; syncFs(); }
   function exitFs(){ if(nativeFs() === card) (document.exitFullscreen || document.webkitExitFullscreen).call(document); if(fsX) overlay(false); }
@@ -129,7 +267,6 @@ export function makeChrome(stage, container, o){
     else if(card.webkitRequestFullscreen) card.webkitRequestFullscreen();
     else overlay(true);
   }
-  fs.addEventListener('click', toggleFs);
   const onFs = () => syncFs();
   document.addEventListener('fullscreenchange', onFs); document.addEventListener('webkitfullscreenchange', onFs);
   const isOpen = () => drawer.classList.contains('open');
@@ -137,7 +274,7 @@ export function makeChrome(stage, container, o){
   drawer.addEventListener('click', ev => { const b = ev.target.closest('[data-a]'); if(!b) return; if(b.dataset.a === 'close') close(); else { if(fsOn()) exitFs(); o.onAction(b.dataset.a); } });
   const onKey = ev => { if(ev.key !== 'Escape') return; if(isOpen()){ close(); ev.stopPropagation(); } else if(fsX) overlay(false); };
   document.addEventListener('keydown', onKey);
-  return { fsOn, syncFs, isOpen, close, setHtml(h){ drawer.innerHTML = h; }, open(){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden', 'false'); stage.classList.add('has-drawer'); o.request(); },
+  return { el: drawer, showHint, hideHint, fsOn, syncFs, isOpen, close, setHtml(h){ drawer.innerHTML = h; }, open(){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden', 'false'); stage.classList.add('has-drawer'); o.request(); },
     destroy(){ document.removeEventListener('keydown', onKey); document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('webkitfullscreenchange', onFs); exitFs(); } };
 }
 
@@ -153,13 +290,14 @@ export function mountOfficeScene(container, data, opts = {}){
   const elLabels = document.createElement('div'); stage.appendChild(elLabels);
   const elTip = document.createElement('div'); elTip.className = 'of-tip'; elTip.hidden = true; stage.appendChild(elTip);
   let sel = null, selId = null, ring = null;
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onReset: () => view && view.reset(), request: () => request(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
     onAction: a => { if(!sel) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
   const syncFs = () => chrome.syncFs();
+  kit.bind(chrome.el);
 
   let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null;
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0;
-  let statics = [], dyn = [], drag = null, yawD = 0, lastTouch = -9, hover = null, scale = 10;
+  let statics = [], dyn = [], hover = null, scale = 10, view = null, wallIdx = { z: [], x: [] }, wallHid = { z: false, x: false }, decals = [], signs = [], decFlip = false;
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
   let M4 = null, S = null, TMP = null, PT = null, HP = null, Mh = null, Mp = null, Q1 = null, E1 = null, V1 = null, V2 = null, ONE = null;
   const v3 = () => new T.Vector3();
@@ -200,7 +338,7 @@ export function mountOfficeScene(container, data, opts = {}){
   /* ── scene construction (re-run on every update) ── */
   function clear(){
     dyn.forEach(o => { if(o.isObject3D){ if(o.parent) o.parent.remove(o); if(o.isInstancedMesh) o.dispose(); } else if(o.dispose) o.dispose(); });
-    world.clear(); dyn = []; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
+    world.clear(); dyn = []; decals = []; signs = []; decFlip = false; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
     lab = { zones: [], tags: [], server: null, more: null, sign: null };
   }
   function mk(geo, mat, n, shadow = true){
@@ -255,18 +393,20 @@ export function mountOfficeScene(container, data, opts = {}){
   }
 
   /* ── the person drawer (fullscreen and drawer plumbing live in makeChrome) ── */
-  function sparkSvg(v){
-    if(!v || v.length < 2 || !v.some(x => x > 0)) return '';
-    const mx = Math.max(...v), pts = v.map((x, i) => [i / (v.length - 1) * 300, 36 - (mx ? x / mx : 0) * 32]), line = pts.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ');
-    return `<svg class="sp" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,38 ${line} 300,38" fill="rgba(139,124,240,.18)"/><polyline points="${line}" fill="none" stroke="#6d5ce7" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
-  }
   function renderDrawer(){
     if(!sel) return;
-    const p = sel.p, dt = p.detail || {}, ui = cur.ui || {}, fam = dt.fam, tot = fam ? fam.haiku + fam.sonnet + fam.opus : 0;
-    chrome.setHtml(`<div class="hd">${iconSvg(sel.ghost ? 'ghost' : p.tier)}<div><b title="${esc(p.name)}">${esc(p.name)}</b><small>${esc(p.teamName)} · ${esc(p.tierText)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
-      + `<div class="bd"><dl>${(dt.rows || []).map(r => `<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join('')}</dl>`
-      + (tot ? `<h4>${esc(ui.runs)}</h4><div class="fam">${['haiku', 'sonnet', 'opus'].map(f => fam[f] ? `<i style="width:${(fam[f] / tot * 100).toFixed(1)}%;background:${FAMC[f]}"></i>` : '').join('')}</div><div class="famt">${['haiku', 'sonnet', 'opus'].filter(f => fam[f]).map(f => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${FAMC[f]}"></i>${f} ${fam[f]}</span>`).join('')}</div>` : '')
-      + (sparkSvg(dt.series) ? `<h4>${esc(ui.daily)}</h4>${sparkSvg(dt.series)}` : '') + `</div>`
+    const p = sel.p, dt = p.detail || {}, ui = cur.ui || {}, fam = dt.fam, tot = fam ? fam.haiku + fam.sonnet + fam.opus : 0, fm = dt.fmt || (v => String(v)), id = 'o-' + p.id;
+    const sec = (title, html) => html ? `<div class="sec"><h4>${esc(title)}</h4>${html}</div>` : '';
+    const famHtml = tot ? kit.stack(['haiku', 'sonnet', 'opus'].map(f => ({ v: fam[f], color: FAMC[f], tip: `${f} · ${fam[f]} · ${Math.round(fam[f] / tot * 100)}%` })))
+      + `<div class="famt">${['haiku', 'sonnet', 'opus'].filter(f => fam[f]).map(f => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${FAMC[f]}"></i>${f} ${fam[f]}</span>`).join('')}</div>` : '';
+    const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }]) : '';
+    const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }]) : '';
+    chrome.setHtml(`<div class="hd">${iconSvg(sel.ghost ? 'ghost' : p.tier)}<div><b title="${esc(p.name)}">${esc(p.name)}<span class="badge">${esc(p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
+      + `<div class="bd"><div class="why">${esc(dt.why)}</div>`
+      + (dt.grid && dt.grid.length ? `<div class="sec"><div class="grid">${dt.grid.map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div></div>` : '')
+      + sec(ui.runs, famHtml) + sec(ui.cmp, kit.cmp(dt.cmp || [])) + sec(ui.daily, daily) + sec(ui.pdaily, pdaily)
+      + sec(ui.machines, (dt.machines || []).map(m => `<div class="mrow"><b>${esc(m.name)}</b><span class="sig" style="background:${m.color}">${esc(m.sig)}</span><small>${esc(m.os)}${m.ver ? ' · ' + esc(m.ver) : ''} · ${esc(m.sw)}</small><small>${esc(ui.up)} ${esc(m.up)} · ${esc(ui.seen)} ${esc(m.seen)}</small></div>`).join(''))
+      + sec(ui.events, (dt.events || []).map(e => `<div class="evr"><span>${esc(e.text)}</span><span>${esc(e.when)}</span></div>`).join('')) + `</div>`
       + `<div class="ft"><button type="button" class="of-dbtn pri" data-a="seats">${esc(ui.seats)}</button>${dt.canPrompts ? `<button type="button" class="of-dbtn" data-a="prompts">${esc(ui.prompts)}</button>` : ''}</div>`);
   }
   function openDrawer(o){ sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; }
@@ -286,15 +426,16 @@ export function mountOfficeScene(container, data, opts = {}){
     const R = Math.hypot(FW, FD) / 2 + 4; Object.assign(sun.shadow.camera, { left: -R, right: R, top: R, bottom: -R }); sun.shadow.camera.updateProjectionMatrix();
     const grey = C('#dcdce2'), col = c => closed ? C(c).lerp(grey, 0.5) : C(c);
 
-    const sb = [], B = (c, w, h, dd, x, y, z) => sb.push([c, w, h, dd, x, y, z]);       /* static boxes */
+    let ws = null; wallIdx = { z: [], x: [] }; wallHid = { z: false, x: false };
+    const sb = [], B = (c, w, h, dd, x, y, z) => { sb.push([c, w, h, dd, x, y, z]); if(ws) wallIdx[ws].push(sb.length - 1); };       /* static boxes */
     const sp = [], Sp = (c, r, x, y, z, sx = 1, sy = 1, sz = 1) => sp.push([c, r, x, y, z, sx, sy, sz]);   /* static spheres */
     const IW = FW + 4, ID = FD + 4;
     B('#cfe8b5', IW, 0.5, ID, 0, -0.45, 0);                                           /* garden island */
     B('#b99a73', IW - 0.6, 0.3, ID - 0.6, 0, -0.85, 0);
     B('#e9c99a', FW, 0.4, FD, 0, -0.2, 0);                                            /* wood floor, plank stripes */
     for(let k = 0; k * 1.2 < FD - 0.2; k++) B(k % 2 ? '#e2bf8c' : '#f0d2a6', FW, 0.03, 1.2, 0, 0.015, -FD / 2 + 0.6 + k * 1.2);
-    B('#f6ecd6', FW, 2.2, 0.3, 0, 1.1, -FD / 2); B('#d3ecdc', 0.3, 2.2, FD, -FW / 2, 1.1, 0);
-    B('#fffaf0', FW, 0.12, 0.4, 0, 2.26, -FD / 2); B('#fffaf0', 0.4, 0.12, FD, -FW / 2, 2.26, 0);
+    ws = 'z'; B('#f6ecd6', FW, 2.2, 0.3, 0, 1.1, -FD / 2); B('#fffaf0', FW, 0.12, 0.4, 0, 2.26, -FD / 2);
+    ws = 'x'; B('#d3ecdc', 0.3, 2.2, FD, -FW / 2, 1.1, 0); B('#fffaf0', 0.4, 0.12, FD, -FW / 2, 2.26, 0); ws = null;   /* walls that end up between the camera and the room are flattened in updateWalls() */
     const win = (x, z, alongX) => {                                                    /* window with blinds (closed) or glass (open) and a light patch */
       const gx = alongX ? 2.2 : 0.1, gz = alongX ? 0.1 : 2.2, fx = alongX ? 2.5 : 0.08, fz = alongX ? 0.08 : 2.5, ox = alongX ? 0 : 0.2, oz = alongX ? 0.2 : 0;
       B('#ffffff', fx, 1.3, fz, x + ox - (alongX ? 0 : 0.02), 1.3, z + oz - (alongX ? 0.02 : 0));
@@ -302,8 +443,8 @@ export function mountOfficeScene(container, data, opts = {}){
       if(closed) for(let q = 0; q < 4; q++) B('#b7b7c2', alongX ? 2.2 : 0.12, 0.04, alongX ? 0.12 : 2.2, x + ox + (alongX ? 0 : 0.05), 1.02 + q * 0.25, z + oz + (alongX ? 0.05 : 0));
       else B('#f8e2b0', alongX ? 2.2 : 2.6, 0.02, alongX ? 2.6 : 2.2, alongX ? x : x + 1.5, 0.04, alongX ? z + 1.6 : z);
     };
-    for(let x = -FW / 2 + 3.5; x < FW / 2 - 1.5; x += 6.5) win(x, -FD / 2 + 0.15, true);
-    for(let z = -FD / 2 + 3.5; z < FD / 2 - 1.5; z += 6.5) win(-FW / 2 + 0.15, z, false);
+    ws = 'z'; for(let x = -FW / 2 + 3.5; x < FW / 2 - 1.5; x += 6.5) win(x, -FD / 2 + 0.15, true);
+    ws = 'x'; for(let z = -FD / 2 + 3.5; z < FD / 2 - 1.5; z += 6.5) win(-FW / 2 + 0.15, z, false); ws = null;
     const RUG = ['#ffd6c9', '#c9ecd6', '#e3d7fa', '#cde8f8', '#fde9b8', '#f9d4e4'], CH = ['#f7a98f', '#8fd6ac', '#b7a2ee', '#8cc7ee', '#f3cd7a', '#f0a8c8'];
     let zi = 0; const zi2 = []; const screens = [], ghosts = [], solids = [];
     zones.forEach(zn => {
@@ -335,12 +476,12 @@ export function mountOfficeScene(container, data, opts = {}){
         /* name painted on the rug (floor decal), darker shade of the rug colour; a signpost carries the ghost count when there is one */
         const hsl = {}; C(rc).getHSL(hsl); const ink = zn.kind === 'free' ? C('#8a7a66') : C().setHSL(hsl.h, Math.min(0.62, hsl.s + 0.2), 0.3);
         zn.dw = Math.min(zn.w - 0.8, 9); zn.dx = zn.cx - zn.w / 2 + 0.4;
-        const dm = decal(zn.name, zn.dw, LANE - 0.3, closed ? ink.clone().lerp(grey, 0.5).getStyle() : ink.getStyle()); dm.position.set(zn.dx + zn.dw / 2, 0.085, zn.cz + zn.d / 2 - LANE / 2);
+        const dm = decal(zn.name, zn.dw, LANE - 0.3, closed ? ink.clone().lerp(grey, 0.5).getStyle() : ink.getStyle()); dm.position.set(zn.dx + zn.dw / 2, 0.085, zn.cz + zn.d / 2 - LANE / 2); decals.push(dm);
         zn.gh = zn.kind === 'team' ? zn.ps.filter(q => q.tag).length : 0;
         if(zn.gh){
           const sx = zn.cx + zn.w / 2 - 0.8, sz = zn.cz + zn.d / 2 - 0.6; zn.sign = { x: sx, z: sz };
           B('#b98b5a', 0.14, 1.5, 0.14, sx, 0.75, sz); B('#c9976a', 1.3, 0.75, 0.1, sx, 1.75, sz); B(CH[(zi + 5) % CH.length], 0.14, 0.3, 0.15, sx, 1.15, sz);
-          const sm2 = signTex(zn.gh); sm2.position.set(sx, 1.75, sz + 0.06); world.add(sm2);
+          const sm2 = signTex(zn.gh); sm2.position.set(sx, 1.75, sz + 0.06); world.add(sm2); signs.push(sm2);
         }
         if(zn.kind === 'team') zi2.push(zn);
       }
@@ -356,7 +497,7 @@ export function mountOfficeScene(container, data, opts = {}){
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
       B('#e8a77f', 0.7, 0.6, 0.7, x, 0.3, z); Sp('#8fcf9b', 0.6, x, 1.2, z); Sp('#a8dba0', 0.45, x + 0.3, 1.6, z - 0.1); Sp('#9fd49a', 0.42, x - 0.3, 1.5, z + 0.1);
     });
-    const sm = sets.sm = mk(sets.box, std({}), sb.length); tintZ = null; sb.forEach((b, i) => { setM(sm, i, b[4], b[5], b[6], 0, 0, b[1], b[2], b[3]); sm.setColorAt(i, col(b[0])); });
+    const sm = sets.sm = mk(sets.box, std({}), sb.length); tintZ = null; sets.sb = sb; sb.forEach((b, i) => { setM(sm, i, b[4], b[5], b[6], 0, 0, b[1], b[2], b[3]); sm.setColorAt(i, col(b[0])); });
     sm.instanceMatrix.needsUpdate = true; sm.instanceColor.needsUpdate = true;
     const sh = mk(sets.sph, std({}), sp.length); sp.forEach((b, i) => { setM(sh, i, b[2], b[3], b[4], 0, 0, b[1] * b[5], b[1] * b[6], b[1] * b[7]); sh.setColorAt(i, col(b[0])); });
     sh.instanceMatrix.needsUpdate = true; sh.instanceColor.needsUpdate = true;
@@ -440,11 +581,16 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   const ease = u => u * u * (3 - 2 * u);
   function arcTo(a, b, u, out){ const e = ease(u); out.lerpVectors(a, b, e); out.y += Math.sin(Math.PI * u) * 2.1; return out; }
+  function updateWalls(){
+    if(!sets.sm || !view) return; const a = view.azimuth(), want = { z: Math.cos(a) < -0.05, x: Math.sin(a) < -0.05 };
+    ['z', 'x'].forEach(k => { if(want[k] === wallHid[k]) return; wallHid[k] = want[k];
+      wallIdx[k].forEach(i => { const b = sets.sb[i]; setM(sets.sm, i, b[4], b[5], b[6], 0, 0, b[1], want[k] ? 0.001 : b[2], b[3]); }); sets.sm.instanceMatrix.needsUpdate = true; });
+  }
   function step(dt){
     time += dt;
-    const idle = !drag && time - lastTouch > 2.5;
-    if(idle) yawD *= Math.exp(-dt * 1.2);
-    world.rotation.y = yawD + (reduced ? 0 : 0.05 * Math.sin(time * 0.22));
+    view.update(dt, time); updateWalls();
+    { const az = view.azimuth(), flip = Math.cos(az) < 0;   /* floor text flips 180 degrees when the camera is on the far side, signs face the camera */
+      if(flip !== decFlip){ decFlip = flip; decals.forEach(m => { m.rotation.y = flip ? Math.PI : 0; }); } signs.forEach(m => { m.rotation.y = az; }); }
     const closed = !!cur.closed;
     /* people: arms bob while typing, the head turns toward the room now and then */
     sets.f.forEach(f => {
@@ -518,7 +664,10 @@ export function mountOfficeScene(container, data, opts = {}){
     if(hudBox) placed.push(hudBox);
     /* every HTML label is nudged upward until it no longer overlaps one placed before it */
     const place = (el, v, dx, dy, nudge = true, yo = 0) => {
-      const [x, y] = proj(v, PT), w = el.offsetWidth, h = el.offsetHeight, px = Math.round(clampX(x + dx - w / 2, w));
+      const [x, y] = proj(v, PT);
+      if(x < -30 || x > W + 30 || y < -30 || y > H + 30){ el.style.display = 'none'; return; }   /* anchors that scroll out of view hide instead of sticking to the edge */
+      el.style.display = '';
+      const w = el.offsetWidth, h = el.offsetHeight, px = Math.round(clampX(x + dx - w / 2, w));
       let py = Math.round(Math.min(H - 26, Math.max(4, y + dy + yo)));
       for(let k = 0; nudge && k < 8; k++){
         const hit = placed.find(r => px < r[0] + r[2] + 2 && px + w + 2 > r[0] && py < r[1] + r[3] + 2 && py + h + 2 > r[1]);
@@ -547,8 +696,7 @@ export function mountOfficeScene(container, data, opts = {}){
   /* ── camera: fixed isometric, frustum fitted to the island box (with room for HUD and legend) ── */
   function fit(){
     if(!camera || !W || !H || !world) return;
-    const inv = camera.matrixWorldInverse, v = v3(), m = mobile() ? 0.2 : 1.5, xs = [BB.x0 - m, BB.x1 + m], zs2 = [BB.z0 - m, BB.z1 + m];
-    camera.updateMatrixWorld(); inv.copy(camera.matrixWorld).invert();
+    const dc = view.defaultCam(), inv = dc.matrixWorldInverse, v = v3(), m = mobile() ? 0.2 : 1.5, xs = [BB.x0 - m, BB.x1 + m], zs2 = [BB.z0 - m, BB.z1 + m];
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for(const yw of [-0.1, 0, 0.1]) for(const x of xs) for(const y of [-0.2, 4.6]) for(const z of zs2){
       v.set(x * Math.cos(yw) + z * Math.sin(yw), y, -x * Math.sin(yw) + z * Math.cos(yw)).applyMatrix4(inv);
@@ -558,10 +706,10 @@ export function mountOfficeScene(container, data, opts = {}){
     const padT = Math.round(elHud.offsetHeight * 0.4) + 6, padB = elLegend.offsetHeight + 4, padX = mobile() ? 4 : 16;
     const s = Math.min((W - 2 * padX) / (x1 - x0), (H - padT - padB) / (y1 - y0)), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, py = padT + (H - padT - padB) / 2;
     scale = s; Object.assign(camera, { left: cx - W / 2 / s, right: cx + W / 2 / s, top: cy + py / s, bottom: cy - (H - py) / s });
-    camera.updateProjectionMatrix();
+    view.apply();
   }
   function resize(){
-    const w = stage.clientWidth, h = stage.clientHeight;
+    const w = stage.clientWidth, h = (canvas && canvas.clientHeight) || stage.clientHeight;   /* the canvas keeps its height when a phone drawer grows the stage */
     if(!w || !h || !renderer) return;
     const was = mobile(); W = w; H = h; renderer.setSize(w, h, false);
     if(was !== mobile() && cur) return build(cur);
@@ -570,12 +718,12 @@ export function mountOfficeScene(container, data, opts = {}){
 
   /* ── pointer: drag rotates within +-35 degrees, hover tooltip, click opens the person ── */
   function nearest(px, py){
-    let best = null, bd = 1e9; const rad = Math.max(16, Math.min(46, scale * 0.9));
+    let best = null, bd = 1e9; const rad = Math.max(16, Math.min(46, scale * view.zoom() * 0.9));
     people.forEach(o => { const [x, y] = proj(HP.set(o.x, 2.0, o.z + 0.2), PT), dd = Math.hypot(x - px, y - py); if(dd < rad && dd < bd){ bd = dd; best = o; } });
     if(best) return { person: best };
     const f = zoneAt(px, py), q = f && f.q;
     if(q){ const z = zones.find(z => z.dw && q.x >= z.dx && q.x <= z.dx + z.dw && q.z >= z.cz + z.d / 2 - LANE && q.z <= z.cz + z.d / 2) || zones.find(z => z.sign && Math.hypot(q.x - z.sign.x, q.z - z.sign.z) < 1.1); if(z && z.kind === 'team') return { team: z }; }
-    if(srv){ const [x, y] = proj(HP.set(srv.x, 1.8, srv.z), PT); if(Math.hypot(x - px, y - py) < Math.max(26, scale * 1.8)) return { server: true }; }
+    if(srv){ const [x, y] = proj(HP.set(srv.x, 1.8, srv.z), PT); if(Math.hypot(x - px, y - py) < Math.max(26, scale * view.zoom() * 1.8)) return { server: true }; }
     return null;
   }
   function showTip(h, px, py){
@@ -592,29 +740,19 @@ export function mountOfficeScene(container, data, opts = {}){
     showTip(h, px, py);
   }
   const pt = ev => { const r = canvas.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
-  function bindPointer(){
-    canvas.addEventListener('pointerdown', ev => { drag = { x: ev.clientX, y: ev.clientY, moved: false, y0: yawD }; lastTouch = time; canvas.setPointerCapture(ev.pointerId); });
-    canvas.addEventListener('pointermove', ev => {
-      const [px, py] = pt(ev);
-      if(drag){
-        const dx = ev.clientX - drag.x;
-        if(!drag.moved && Math.abs(dx) > 5){ drag.moved = true; canvas.classList.add('drag'); setHover(null); }
-        if(drag.moved){ yawD = Math.max(-0.61, Math.min(0.61, drag.y0 + dx * 0.006)); lastTouch = time; request(); }
-        return;
-      }
-      if(ev.pointerType !== 'touch'){ const h = nearest(px, py); setHover(h, px, py); const f = zoneAt(px, py); setTint(f && f.zn && f.zn.kind === 'team' ? f.zn : null); }
-    });
-    const end = ev => {
-      const d = drag; drag = null; canvas.classList.remove('drag'); lastTouch = time;
-      if(!d || d.moved || ev.type === 'pointercancel') return;
-      const [px, py] = pt(ev), h = nearest(px, py);
-      if(!h){ setHover(null); if(sel) closeDrawer(); return; }
-      if(h.server){ if(opts.onServer) opts.onServer(); return; }
-      if(h.team){ if(opts.onTeam) opts.onTeam(h.team.id); return; }
-      setHover(null); if(sel === h.person) closeDrawer(); else openDrawer(h.person);
-    };
-    canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
-    canvas.addEventListener('pointerleave', () => { if(!drag){ setHover(null); setTint(null); } });
+  function bindView(){
+    view = makeView({ T, canvas, stage, camera, target0: [0, 0.9, 0], theta0: Math.PI / 4, phi0: Math.atan2(Math.hypot(20, 20), 16.6), dist: Math.hypot(20, 16.6, 20), reduced,
+      bounds: () => ({ x0: BB.x0, x1: BB.x1, z0: BB.z0, z1: BB.z1 }), size: () => [W, H], ppu: () => scale, isFs: () => chrome.fsOn(), request,
+      onFocus: () => chrome.hideHint(), onEnter: () => chrome.showHint(), onDrag: on => { if(on) setHover(null); },
+      onMove: (px, py) => { const h = nearest(px, py); setHover(h, px, py); const f = zoneAt(px, py); setTint(f && f.zn && f.zn.kind === 'team' ? f.zn : null); },
+      onLeave: () => { setHover(null); setTint(null); },
+      onTap: (px, py) => {
+        const h = nearest(px, py);
+        if(!h){ setHover(null); if(sel) closeDrawer(); return; }
+        if(h.server){ if(opts.onServer) opts.onServer(); return; }
+        if(h.team){ if(opts.onTeam) opts.onTeam(h.team.id); return; }
+        setHover(null); if(sel === h.person) closeDrawer(); else openDrawer(h.person);
+      } });
   }
 
   async function init(){
@@ -628,12 +766,12 @@ export function mountOfficeScene(container, data, opts = {}){
     canvas = renderer.domElement; canvas.setAttribute('role', 'img'); stage.insertBefore(canvas, stage.firstChild);
     scene = new T.Scene(); world = new T.Group(); scene.add(world); rcast = new T.Raycaster(); rplane = new T.Plane(new T.Vector3(0, 1, 0), -0.07);
     M4 = new T.Object3D(); S = v3(); TMP = v3(); PT = v3(); HP = v3(); Mh = new T.Matrix4(); Mp = new T.Matrix4(); Q1 = new T.Quaternion(); E1 = new T.Euler(); V1 = v3(); V2 = v3(); ONE = v3().set(1, 1, 1);
-    camera = new T.OrthographicCamera(-10, 10, 10, -10, 0.1, 200); camera.position.set(20, 17.5, 20); camera.lookAt(0, 0.9, 0);
+    camera = new T.OrthographicCamera(-10, 10, 10, -10, 0.1, 400);
     hemi = new T.HemisphereLight('#fff7e6', '#e8dcc4', 1.25); sun = new T.DirectionalLight('#fff0d4', 0.85); sun.position.set(8, 18, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
     scene.add(hemi, sun, sun.target);
     sets = { box: new T.BoxGeometry(1, 1, 1), sph: new T.SphereGeometry(1, 16, 12), cone: new T.ConeGeometry(1, 2, 10), torso: new T.CapsuleGeometry(0.3, 0.32, 4, 10), arm: new T.CapsuleGeometry(0.1, 0.26, 3, 6) };
     statics.push(sets.box, sets.sph, sets.cone, sets.torso, sets.arm);
-    started = true; bindPointer();
+    started = true; bindView();
     ro = new ResizeObserver(resize); ro.observe(stage);
     W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false);
     build(cur); request();
@@ -688,15 +826,17 @@ export function officeSceneData(o){
   const all = [...groups.entries()].map(([key, rs]) => {
     rs.sort((a, b) => (a.member_id === key ? -1 : 0) - (b.member_id === key ? -1 : 0));
     const host = rs[0], mix = { haiku: 0, sonnet: 0, opus: 0 };
-    let spent = 0, saved = 0, runs = 0, fam = false; const days = {};
+    let spent = 0, saved = 0, runs = 0, fam = false, today = 0, errors = 0; const days = {};
     rs.forEach(r => {
-      ((usage[r.member_id] || {}).series || []).forEach(q => { days[q.day] = (days[q.day] || 0) + (Number(q.spent) || 0); });
+      ((usage[r.member_id] || {}).series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.spent) || 0; d[1] += Number(q.saved) || 0; });
+      today += Number((usage[r.member_id] || {}).spent_today) || 0; errors += Number((usage[r.member_id] || {}).errors) || 0;
       const u = usage[r.member_id] || {}; spent += Number(u.spent) || 0; saved += Number(u.saved) || 0; runs += Number(u.delegated) || 0;
       const f = u.families; if(f) Object.keys(mix).forEach(k => { const n = Number(f[k]) || 0; if(n){ mix[k] += n; orgMix[k] += n; fam = true; } });
     });
-    let prompts = 0, promptId = null;
-    if(pr) rs.forEach(r => { const p = pr.find(x => x.member_id === r.member_id) || pr.find(x => x.display_name && x.display_name === r.display_name); if(p){ prompts += Number(p.prompts) || 0; promptId = promptId || p.member_id; } });
-    return { id: key, host, rs, spent, saved, runs, series: Object.keys(days).sort().map(d => days[d]), mix: fam ? mix : null, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spent + saved > 0 ? saved / (spent + saved) : 0 };
+    let prompts = 0, promptId = null, chars = 0, lastPrompt = null; const pdays = {};
+    if(pr) rs.forEach(r => { const p = pr.find(x => x.member_id === r.member_id) || pr.find(x => x.display_name && x.display_name === r.display_name); if(p){ prompts += Number(p.prompts) || 0; chars += Number(p.chars) || 0; promptId = promptId || p.member_id;
+      if(p.last_prompt_at && (!lastPrompt || p.last_prompt_at > lastPrompt)) lastPrompt = p.last_prompt_at; (p.by_day || []).forEach(q => { pdays[q.day] = (pdays[q.day] || 0) + (Number(q.prompts) || 0); }); } });
+    return { id: key, host, rs, spent, saved, runs, today, errors, days, pdays, chars, lastPrompt, mix: fam ? mix : null, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spent + saved > 0 ? saved / (spent + saved) : 0 };
   });
   all.sort((a, b) => b.spent - a.spent);
   const shown = all.slice(0, MAXP), more = all.length - shown.length;
@@ -720,6 +860,10 @@ export function officeSceneData(o){
       return 'any';
     });
   };
+  const median = a => { if(!a.length) return 0; const q = [...a].sort((x, y) => x - y), m = Math.floor(q.length / 2); return q.length % 2 ? q[m] : (q[m - 1] + q[m]) / 2; };
+  const orgM = { spent: median(sp), dlg: median(dl), prompts: median(pm) }, teamM = {};
+  teams.forEach(tm => { const r = ranked.filter(x => x.host.team_id === tm.id); teamM[tm.id] = { spent: median(r.map(x => x.spent)), dlg: median(r.map(x => x.dlg)), prompts: median(r.map(x => x.prompts)) }; });
+  const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' };
   let demoI = 0;
   const people = shown.map(p => {
     const nodata = !p.ok; p.tier = nodata ? 'nodata' : p.tier;
@@ -738,9 +882,21 @@ export function officeSceneData(o){
     }
     const late = p.rs.some(r => r.signal === 'late' || r.signal === 'silent') && !paused;
     return { id: p.id, name: p.host.display_name || p.id, teamId: p.host.team_id, teamName: p.host.team_name || '', tier: p.tier, spent: p.spent, promptId: p.promptId, tip,
-      detail: { rows: [[t('of.d.os'), [...new Set(p.rs.map(r => o.os(r)))].join(', ')]].concat(nodata && !closed ? [[t('of.why'), why], [t('of.d.last'), lastUp ? o.rel(lastUp) : t('never')]]
-          : [[t('of.spent'), money(p.spent)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pc(p.dlg)], [t('of.runs'), String(p.runs)]].concat(pr ? [[t('of.prompts'), String(p.prompts)]] : [])),
-        fam: p.mix, series: nodata ? null : p.series, canPrompts: !!(pr && p.promptId) },
+      detail: (() => {
+        const ids2 = new Set(p.rs.map(r => r.member_id)), tm = teamM[p.host.team_id] || { spent: 0, dlg: 0, prompts: 0 }, dd = Object.keys(p.days).sort(), pd = Object.keys(p.pdays).sort();
+        const lastP = p.lastPrompt ? o.rel(p.lastPrompt) : t('never');
+        const hasData = !nodata && !closed;
+        const grid = hasData ? [[t('of.spent'), money(p.spent)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pc(p.dlg)], [t('of.d.today'), money(p.today)], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]]
+          .concat(pr ? [[t('of.prompts'), String(p.prompts)], [t('of.d.days'), String(pd.length)], [t('of.d.avg'), p.prompts ? t('pu.chars', { n: Math.round(p.chars / p.prompts) }, true) : '—'], [t('of.d.lastp'), lastP]] : []) : [];
+        const mk3 = (v1, v2, v3, f, nm) => [{ name: t('of.d.me'), v: v1, txt: f(v1), color: '#7c6cf0' }, { name: t('of.d.team'), v: v2, txt: f(v2), color: '#8ec5fb' }, { name: t('of.d.org'), v: v3, txt: f(v3), color: '#d4c7a8' }];
+        const cmp = hasData ? [{ label: t('of.spent'), items: mk3(p.spent, tm.spent, orgM.spent, money) }, { label: t('of.deleg'), items: mk3(p.dlg, tm.dlg, orgM.dlg, pc) }].concat(pr ? [{ label: t('of.prompts'), items: mk3(p.prompts, tm.prompts, orgM.prompts, v => String(Math.round(v))) }] : []) : [];
+        const evs = (o.events || []).filter(e => ids2.has(e.member_id)).sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 8).map(e => ({ text: t('of.ev.' + e.event) === 'of.ev.' + e.event ? String(e.event) : t('of.ev.' + e.event), when: o.rel(e.at) }));
+        return { why: hasData ? t('of.d.why', { a: Math.max(1, Math.round((1 - rank(sp, p.spent)) * 100)), b: pc(p.dlg), c: pc(orgM.dlg) }, true) : closed ? t('of.tag.closed') : t('of.why') + ': ' + why,
+          grid, cmp, fam: p.mix, fmt: money, days: hasData ? dd : [], spent: dd.map(d => p.days[d][0]), saved: dd.map(d => p.days[d][1]),
+          pdays: hasData && pr ? pd : [], pvals: pd.map(d => p.pdays[d]),
+          machines: p.rs.map(r => ({ name: r.display_name || r.member_id, os: o.os(r), ver: r.sprag_version ? 'v' + r.sprag_version : '', color: SIG[r.signal] || '#8a8794', sig: t('sr.s.' + r.signal), sw: t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')), up: r.last_upload_at ? o.rel(r.last_upload_at) : t('never'), seen: r.last_seen ? o.rel(r.last_seen) : t('never') })),
+          events: evs, canPrompts: !!(pr && p.promptId) };
+      })(),
       tierText: closed ? t('of.tag.closed') : t('of.tier.' + p.tier), tag: closed ? '' : nodata ? t(late ? 'of.tag.late' : 'of.tag.off') : '', bots: nodata ? [] : botsFor(p), bubbles };
   });
   const cnt = k => people.filter(m => m.tier === k).length, used = Number(o.used) || 0, limit = Number(o.limit) || 0, free = limit > used ? limit - used : 0;
@@ -750,7 +906,7 @@ export function officeSceneData(o){
   const fam = mixTot > 0 || people.some(p => p.bots.some(b => b !== 'any'));
   const legend = closed ? [] : ['power', 'active', 'normal', 'low', 'ghost'].map(k => ({ k, label: t('of.lg.' + k) }))
     .concat(fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: t('of.lg.bot', { m: f }, true) })) : [{ c: '#c4b5fd', label: t('of.lg.any') }], [{ label: t('of.lg.screen') }]);
-  const ui = { fs: t('of.fs'), fsExit: t('of.fs.exit'), close: t('of.close'), runs: t('of.runs'), daily: t('of.d.daily'), seats: t('of.d.seats'), prompts: t('of.d.prompts') };
+  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.spent') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
     activity: act, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend,

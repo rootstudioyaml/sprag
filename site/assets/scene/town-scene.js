@@ -5,7 +5,7 @@
  * Sprag HQ in the middle, one office building per company on a ring around it. Footprint and height follow the contracted seats,
  * every window is a seat (warm lit = in use, dark = unused), delivery bots fly to HQ, suspended companies are shuttered and grey.
  * Shared pieces (loader, WebGL check, styles, fullscreen button and drawer) come from office-scene.js. */
-import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome } from './office-scene.js';
+import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit } from './office-scene.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#6f6c82';
 const PASTEL = ['#f9d9c4', '#d7ecd9', '#e6dcf8', '#d3e8f7', '#fbe9b9', '#f7d6e4'];
@@ -27,14 +27,29 @@ export function townSceneData(o){
     return { ...r, util, act, bots, full, plan,
       sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late },
       detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit + ' · ' + pc(util)], [t('tn.revm'), o.money(r.rev)], [t('of.spent') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
-        [t('tn.members'), String(r.members)], [t('tn.paused'), String(r.paused)], [t('tn.late'), String(r.late)], [t('tn.created'), day(r.created)]], status: r.closed ? t('of.tag.closed') : '' } };
+        [t('tn.members'), String(r.members)], [t('tn.teams'), String(r.teams)], [t('tn.paused'), String(r.paused)], [t('tn.late'), String(r.late)], [t('tn.created'), day(r.created)]], status: r.closed ? t('of.tag.closed') : '',
+        utilTip: t('tn.d.utilTip', { u: r.used, l: r.limit, p: pc(util) }, true), freeTip: t('tn.d.freeTip', { n: Math.max(0, r.limit - r.used) }, true) } };
   });
   const all = o.orgs || [], sum = k => all.reduce((a, g) => a + (Number(g[k]) || 0), 0), pro = all.filter(g => g.plan !== 'enterprise').length, ent = all.length - pro;
   const rev = all.reduce((a, g) => a + o.revenue(g), 0);
   return { companies: list, more: Math.max(0, more), moreLabel: more > 0 ? t('tn.more', { n: more }, true) : '',
     hud: { title: t('tn.title'), stats: t('tn.hud', { n: all.length, p: pro, e: ent, r: o.money(rev), u: sum('seats_used'), l: sum('seat_limit') }, true) },
     legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
-    ui: { fs: t('of.fs'), fsExit: t('of.fs.exit'), close: t('of.close'), org: t('tn.open') }, aria: t('tn.aria', { n: all.length }, true) };
+    ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.spent', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
+      dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
+}
+
+/* Lazy per-company details for the drawer, built from existing superuser RPCs: o: { rows (org_seats), summary (org_summary), usage ({member_id: team_member_usage row}), t, money, rel } */
+export function townDetailData(o){
+  const t = o.t, money = o.money, rows = (o.rows || []).filter(r => ['ok', 'late', 'paused', 'silent'].includes(r.signal)), usage = o.usage || {};
+  const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' }, cnt = { ok: 0, late: 0, paused: 0, silent: 0 }; rows.forEach(r => { cnt[r.signal]++; });
+  const sig = Object.keys(cnt).map(k => ({ v: cnt[k], color: SIG[k], label: t('sr.s.' + k), tip: t('sr.s.' + k) + ' · ' + cnt[k] }));
+  const ids = new Set((o.rows || []).map(r => r.member_id)), people = new Map();
+  rows.forEach(r => { const key = r.seat_of && ids.has(r.seat_of) ? r.seat_of : r.member_id, p = people.get(key) || { name: '', spent: 0 }; if(!p.name || r.member_id === key) p.name = r.display_name || r.member_id; p.spent += Number((usage[r.member_id] || {}).spent) || 0; people.set(key, p); });
+  const top = [...people.values()].sort((a, b) => b.spent - a.spent).slice(0, 5).map(p => ({ name: p.name, v: p.spent, txt: money(p.spent), color: '#8b7cf0' }));
+  const days = {}; Object.values(usage).forEach(u => (u.series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.spent) || 0; d[1] += Number(q.saved) || 0; }));
+  const dd = Object.keys(days).sort(), tm = ((o.summary && o.summary.teams) || []).map(x => ({ name: x.name, v: Number(x.members_active) || 0, txt: String(Number(x.members_active) || 0), color: '#8ec5fb' }));
+  return { sig, top, teams: tm, days: dd, spent: dd.map(d => days[d][0]), saved: dd.map(d => days[d][1]), fmt: money };
 }
 
 export function mountTownScene(container, data, opts = {}){
@@ -47,11 +62,12 @@ export function mountTownScene(container, data, opts = {}){
   const stage = container.querySelector('.of-stage'), elHud = stage.querySelector('.of-hud'), elLegend = stage.querySelector('.of-legend');
   const elLabels = document.createElement('div'); stage.appendChild(elLabels);
   let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null, M4 = null, V1 = null, V2 = null, TMP = null;
-  let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0, drag = null, yawD = 0, lastTouch = -9, scale = 10, hover = null;
+  let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0, scale = 10, hover = null, view = null, cache = new Map();
   let boardW = 5, bld = [], bots = [], hq = { x: 0, z: 0, top: 7 }, bb = { pts: [[-9, 0, -9], [9, 12, 9]], x1: 9, z1: 9, h: 8 }, sel = null, selId = null, ring = null, moreLbl = null, hqFlash = 0, meshes = {}, dyn = [];
   const mobile = () => W < 520, v3 = () => new T.Vector3(), C = h => new T.Color(h), track = o => { dyn.push(o); return o; };
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
     onAction: a => { if(a === 'org' && sel && opts.onOpenOrg) opts.onOpenOrg(sel.c.id); } });
+  kit.bind(chrome.el);
 
   function clear(){ dyn.forEach(o => { if(o.isObject3D){ if(o.parent) o.parent.remove(o); if(o.isInstancedMesh) o.dispose(); } else if(o.dispose) o.dispose(); }); world.clear(); dyn = []; elLabels.innerHTML = ''; bld = []; bots = []; moreLbl = null; }
   function mk(geo, mat, n, shadow = true){ const m = track(new T.InstancedMesh(geo, mat, Math.max(1, n))); m.count = n; m.castShadow = m.receiveShadow = shadow; m.frustumCulled = false; world.add(m); return m; }
@@ -78,7 +94,7 @@ export function mountTownScene(container, data, opts = {}){
   }
 
   function build(d){
-    cur = d; clear(); bb.h = 8;
+    cur = d; clear(); cache.clear(); bb.h = 8;
     const cs = d.companies || [], closedAll = false;
     elHud.innerHTML = `<b>${esc(d.hud.title)}</b>${esc(d.hud.stats)}`;
     elLegend.innerHTML = (d.legend || []).map(l => `<span><i style="background:${l.c}"></i>${esc(l.label)}</span>`).join('');
@@ -132,7 +148,7 @@ export function mountTownScene(container, data, opts = {}){
     for(let q = 0; q < 12; q++){ const a = q / 12 * Math.PI * 2; win.push([Math.cos(a) * (R0 + 0.04), 1.8, Math.sin(a) * (R0 + 0.04), 2, true, a]); }
     { const c2 = document.createElement('canvas'), x2 = c2.getContext('2d'); c2.width = 700; c2.height = 220; x2.fillStyle = '#5e6ad2'; x2.beginPath(); x2.roundRect ? x2.roundRect(6, 6, 688, 208, 60) : x2.rect(6, 6, 688, 208); x2.fill();
       x2.fillStyle = '#fff'; x2.font = '800 130px "Geist","Noto Sans KR",-apple-system,sans-serif'; x2.textBaseline = 'middle'; x2.textAlign = 'center'; x2.fillText('Sprag', 350, 116);
-      const hb = track(new T.Mesh(track(new T.PlaneGeometry(5.4, 5.4 * 220 / 700)), track(new T.MeshBasicMaterial({ map: tex(c2), toneMapped: false, transparent: true })))); hb.position.set(0, 6.9, 0); hb.rotation.y = Math.PI / 4; hb.position.y = 10.6; world.add(hb); }
+      const hb = track(new T.Mesh(track(new T.PlaneGeometry(5.4, 5.4 * 220 / 700)), track(new T.MeshBasicMaterial({ map: tex(c2), toneMapped: false, transparent: true })))); hb.position.set(0, 10.6, 0); meshes.hqSign = hb; world.add(hb); }
     /* grass island, scaled to the ring */
     let gu = 8, gv = 8; const pts = [];
     bld.forEach(b => { gu = Math.max(gu, Math.abs((b.x - b.z) * 0.7071) + b.w * 0.8 + 5); gv = Math.max(gv, Math.abs((b.x + b.z) * 0.7071) + b.w * 0.8 + 5);
@@ -170,17 +186,26 @@ export function mountTownScene(container, data, opts = {}){
     fit(); frames = 0; renderer.shadowMap.needsUpdate = true; chrome.syncFs(); step(0); request();
   }
   function renderDrawer(){
-    if(!sel) return; const c = sel.c, ui = cur.ui || {};
-    chrome.setHtml(`<div class="hd"><div><b title="${esc(c.name)}">${esc(c.name)}</b><small>${esc(c.plan)}${c.detail.status ? ' · ' + esc(c.detail.status) : ''}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
-      + `<div class="bd"><dl>${c.detail.rows.map(r => `<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join('')}</dl></div><div class="ft"><button type="button" class="of-dbtn pri" data-a="org">${esc(ui.org)}</button></div>`);
+    if(!sel) return; const c = sel.c, ui = cur.ui || {}, d = sel.det, fm = d && d.fmt || (v => String(v)), id = 't-' + c.id;
+    const sec = (title, html) => html ? `<div class="sec"><h4>${esc(title)}</h4>${html}</div>` : '';
+    const util = kit.stack([{ v: c.used, color: '#7c6cf0', tip: c.detail.utilTip }, { v: Math.max(0, c.limit - c.used), color: '#e2d8c2', tip: c.detail.freeTip }]);
+    let more = `<div class="ld">${esc(d === false ? ui.dFail : ui.dLoading)}</div>`;
+    if(d){
+      more = sec(ui.dSignals, kit.stack(d.sig) + `<div class="famt">${d.sig.filter(q => q.v).map(q => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${q.color}"></i>${esc(q.label)} ${q.v}</span>`).join('')}</div>`)
+        + sec(ui.daily, d.days.length ? kit.chart(id + '-d', d.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: d.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: d.saved, fmt: fm }]) : '')
+        + sec(ui.dTeams, kit.cmp([{ label: '', items: d.teams }])) + sec(ui.dTop, kit.cmp([{ label: '', items: d.top }]));
+    }
+    chrome.setHtml(`<div class="hd"><div><b title="${esc(c.name)}">${esc(c.name)}<span class="badge">${esc(c.plan)}</span></b><small>${esc(c.detail.status || '')}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
+      + `<div class="bd"><div class="sec"><div class="grid">${c.detail.rows.map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div></div>`
+      + sec(ui.dUtil, util) + more + `</div><div class="ft"><button type="button" class="of-dbtn pri" data-a="org">${esc(ui.org)}</button></div>`);
   }
 
   const ease = u => u * u * (3 - 2 * u);
   function arc(a, b, u, out){ out.lerpVectors(a, b, ease(u)); out.y += Math.sin(Math.PI * u) * 3.2; return out; }
   function step(dt){
     time += dt;
-    if(!drag && time - lastTouch > 2.5) yawD *= Math.exp(-dt * 1.2);
-    world.rotation.y = yawD + (reduced ? 0 : 0.04 * Math.sin(time * 0.2));
+    view.update(dt, time);
+    const az = view.azimuth(); bld.forEach(b => { b.board.rotation.y = az; }); if(meshes.hqSign) meshes.hqSign.rotation.y = az;   /* signs always face the camera */
     const HQ = V2.set(hq.x, hq.top, hq.z);
     bots.forEach(b => {
       const o = b.b, a = b.a0 + time * 0.6 * (b.j % 2 ? -1 : 1), roof = o.H + 1.2 + b.j * 0.3;
@@ -200,7 +225,7 @@ export function mountTownScene(container, data, opts = {}){
   function proj(v, out){ out.copy(v).applyMatrix4(world.matrixWorld).project(camera); return [(out.x * 0.5 + 0.5) * W, (-out.y * 0.5 + 0.5) * H]; }
   function render(){
     renderer.render(scene, camera);
-    if(moreLbl){ const [x, y] = proj(V1.set(bb.x1 - 2, 0.3, bb.z1 - 1), TMP); moreLbl.style.transform = `translate(${Math.round(Math.min(W - moreLbl.offsetWidth - 4, Math.max(4, x)))}px,${Math.round(Math.min(H - 40, y))}px)`; }
+    if(moreLbl){ const [x, y] = proj(V1.set(bb.x1 - 2, 0.3, bb.z1 - 1), TMP); const off = x < -30 || x > W + 30 || y < -30 || y > H + 30; moreLbl.style.display = off ? 'none' : ''; moreLbl.style.transform = `translate(${Math.round(Math.min(W - moreLbl.offsetWidth - 4, Math.max(4, x)))}px,${Math.round(Math.min(H - 40, y))}px)`; }
   }
   function frame(now){
     raf = 0; if(started !== true || destroyed || !visible || document.hidden) return;
@@ -214,42 +239,39 @@ export function mountTownScene(container, data, opts = {}){
   }
   function fit(){
     if(!camera || !W || !H) return;
-    const inv = camera.matrixWorldInverse, v = v3(); camera.updateMatrixWorld(); inv.copy(camera.matrixWorld).invert();
+    const dc = view.defaultCam(), inv = dc.matrixWorldInverse, v = v3();
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for(const yw of [-0.1, 0, 0.1]) for(const q of bb.pts){
       v.set(q[0] * Math.cos(yw) + q[2] * Math.sin(yw), q[1], -q[0] * Math.sin(yw) + q[2] * Math.cos(yw)).applyMatrix4(inv); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
     }
     const padT = Math.round(elHud.offsetHeight * 0.4) + 6, padB = elLegend.offsetHeight + 4, padX = mobile() ? 4 : 16;
     const s = Math.min((W - 2 * padX) / (x1 - x0), (H - padT - padB) / (y1 - y0)), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, py = padT + (H - padT - padB) / 2;
-    scale = s; Object.assign(camera, { left: cx - W / 2 / s, right: cx + W / 2 / s, top: cy + py / s, bottom: cy - (H - py) / s }); camera.updateProjectionMatrix();
+    scale = s; Object.assign(camera, { left: cx - W / 2 / s, right: cx + W / 2 / s, top: cy + py / s, bottom: cy - (H - py) / s }); view.apply();
   }
   function resize(){
-    const w = stage.clientWidth, h = stage.clientHeight; if(!w || !h || !renderer) return;
+    const w = stage.clientWidth, h = (canvas && canvas.clientHeight) || stage.clientHeight;   /* the canvas keeps its height when a phone drawer grows the stage */ if(!w || !h || !renderer) return;
     const was = mobile(); W = w; H = h; renderer.setSize(w, h, false); if(was !== mobile() && cur) return build(cur); fit(); request();
   }
   /* pointer: drag rotates within +-35 degrees; a click on a building or its sign opens the drawer, a click on empty ground closes it */
   function nearest(px, py){
     let best = null, bd = 1e9;
-    bld.forEach(b => { for(const [pt, r] of [[V1.set(b.x, b.H * 0.5, b.z), b.w * scale * 0.75 + 6], [V1.set(b.board.position.x, b.board.position.y, b.board.position.z), boardW * scale * 0.45]]){
+    bld.forEach(b => { for(const [pt, r] of [[V1.set(b.x, b.H * 0.5, b.z), b.w * scale * view.zoom() * 0.75 + 6], [V1.set(b.board.position.x, b.board.position.y, b.board.position.z), boardW * scale * view.zoom() * 0.45]]){
       const [x, y] = proj(pt, TMP), d = Math.hypot(x - px, y - py); if(d < r && d < bd){ bd = d; best = b; } } });
     return best;
   }
-  const pt = ev => { const r = canvas.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
-  function bindPointer(){
-    canvas.addEventListener('pointerdown', ev => { drag = { x: ev.clientX, moved: false, y0: yawD }; lastTouch = time; canvas.setPointerCapture(ev.pointerId); });
-    canvas.addEventListener('pointermove', ev => {
-      if(drag){ const dx = ev.clientX - drag.x; if(!drag.moved && Math.abs(dx) > 5){ drag.moved = true; canvas.classList.add('drag'); } if(drag.moved){ yawD = Math.max(-0.61, Math.min(0.61, drag.y0 + dx * 0.006)); lastTouch = time; request(); } return; }
-      if(ev.pointerType !== 'touch'){ const [px, py] = pt(ev), h = nearest(px, py); if(hover !== h){ hover = h; canvas.classList.toggle('hit', !!h); } }
-    });
-    const end = ev => {
-      const d = drag; drag = null; canvas.classList.remove('drag'); lastTouch = time; if(!d || d.moved || ev.type === 'pointercancel') return;
-      const [px, py] = pt(ev), b = nearest(px, py);
-      if(!b){ chrome.close(); return; }
-      if(sel === b){ chrome.close(); return; }
-      sel = b; selId = b.c.id; renderDrawer(); chrome.open(); ring.visible = true;
-    };
-    canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
-    canvas.addEventListener('pointerleave', () => { if(!drag){ hover = null; canvas.classList.remove('hit'); } });
+  function select(b){
+    sel = b; selId = b.c.id; renderDrawer(); chrome.open(); ring.visible = true;
+    if(!opts.loadDetail) return;
+    let pr = cache.get(b.c.id); if(!pr){ pr = Promise.resolve(opts.loadDetail(b.c.id)).catch(() => null); cache.set(b.c.id, pr); }
+    pr.then(d => { b.det = d || false; if(sel === b) renderDrawer(); });
+  }
+  function bindView(){
+    view = makeView({ T, canvas, stage, camera, target0: [0, 2, 0], theta0: Math.PI / 4, phi0: Math.atan2(Math.hypot(30, 30), 24), dist: Math.hypot(30, 24, 30), reduced,
+      bounds: () => ({ x0: -bb.x1, x1: bb.x1, z0: -bb.z1, z1: bb.z1 }), size: () => [W, H], ppu: () => scale, isFs: () => chrome.fsOn(), request,
+      onFocus: () => chrome.hideHint(), onEnter: () => chrome.showHint(),
+      onMove: (px, py) => { const h = nearest(px, py); if(hover !== h){ hover = h; canvas.classList.toggle('hit', !!h); } },
+      onLeave: () => { hover = null; canvas.classList.remove('hit'); },
+      onTap: (px, py) => { const b = nearest(px, py); if(!b || sel === b){ chrome.close(); return; } select(b); } });
   }
   async function init(){
     if(started || destroyed) return; started = 'loading';
@@ -260,11 +282,11 @@ export function mountTownScene(container, data, opts = {}){
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
     canvas = renderer.domElement; canvas.setAttribute('role', 'img'); stage.insertBefore(canvas, stage.firstChild);
     scene = new T.Scene(); world = new T.Group(); scene.add(world); M4 = new T.Object3D(); V1 = v3(); V2 = v3(); TMP = v3();
-    camera = new T.OrthographicCamera(-10, 10, 10, -10, 0.1, 400); camera.position.set(30, 26, 30); camera.lookAt(0, 2, 0);
+    camera = new T.OrthographicCamera(-10, 10, 10, -10, 0.1, 400);
     hemi = new T.HemisphereLight('#fff7e6', '#e8dcc4', 1.25); sun = new T.DirectionalLight('#fff0d4', 0.85); sun.position.set(14, 30, 10); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
     Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, far: 160 }); sun.shadow.camera.updateProjectionMatrix(); scene.add(hemi, sun, sun.target);
     meshes = { box: new T.BoxGeometry(1, 1, 1), sph: new T.SphereGeometry(1, 16, 12) };
-    started = true; bindPointer(); ro = new ResizeObserver(resize); ro.observe(stage);
+    started = true; bindView(); ro = new ResizeObserver(resize); ro.observe(stage);
     W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false); build(cur); request();
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if(started === true && !destroyed) build(cur); });
   }
