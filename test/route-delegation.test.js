@@ -95,8 +95,13 @@ test('episodeRank takes the priciest model that touched the episode', () => {
 test('tierForRank maps a run model back to the rule tier it represents', () => {
   assert.equal(tierForRank(0), 'T2');
   assert.equal(tierForRank(1), 'T1');
-  assert.equal(tierForRank(2), null, 'an opus run is not a downgrade — no saving to attribute');
-  assert.deepEqual(TIER_TARGET_RANK, { T2: 0, T1: 1 });
+  assert.equal(tierForRank(2), 'T1H', 'an opus run is a T1H delegation, but only worth it from a rank-3 session');
+  assert.equal(tierForRank(3), null, 'a fable run is not a downgrade — no saving to attribute');
+  assert.deepEqual(TIER_TARGET_RANK, { T2: 0, T1: 1, T1H: 2 });
+  assert.equal(worthDelegating('T1H', 3), true);
+  assert.equal(worthDelegating('T1H', 2), false, 'opus session: opus is not cheaper');
+  assert.equal(worthDelegating('T1H', 1), false);
+  assert.equal(worthDelegating('T1H', 0), false);
 });
 
 // ── Workstream A — subagent parsing + attribution ────────────────────────

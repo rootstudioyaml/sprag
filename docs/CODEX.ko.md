@@ -200,6 +200,7 @@ sprag delegate shared status --agent codex
 # 자동으로 정해진 난도별 모델을 바꾸고 싶을 때만:
 sprag delegate shared map T2 --from PARENT_MODEL --model SMALL_MODEL --effort high --agent codex
 sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort medium --agent codex
+sprag delegate shared map T1H --from PARENT_MODEL --model LARGE_MODEL --effort high --agent codex
 ```
 
 등록 전에 전역과 프로젝트 범위를 선택합니다. 프로젝트에만 적용하려면 `--global` 대신

@@ -47,6 +47,11 @@ test('escalate and edit regexes match the intended shapes only', () => {
   assert.equal(ESCALATE_RE.test('왜 이렇게 나오지'), true);
   assert.equal(ESCALATE_RE.test('릴리즈 진행하자'), true);
   assert.equal(ESCALATE_RE.test('릴리즈 노트 업데이트'), false, 'editing release notes is not a release');
+  assert.equal(ESCALATE_RE.test('운영디비 승인할게 너가 진행해줘'), true);
+  assert.equal(ESCALATE_RE.test('운영 DB 마이그레이션 돌려줘'), true);
+  assert.equal(ESCALATE_RE.test('승인할게 너가 직접 실행해줘'), true);
+  assert.equal(ESCALATE_RE.test('run it against the prod database'), true);
+  assert.equal(ESCALATE_RE.test('승인된 룰 목록 보여줘'), false, 'an approved rule is a product noun');
   assert.equal(EDIT_RE.test('설정되도록하자'), true);
   assert.equal(EDIT_RE.test('유지되도록 하자'), true);
   assert.equal(EDIT_RE.test('되게 느린데 확인해봐'), false, 'the intensifier is not an edit');

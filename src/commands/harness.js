@@ -255,7 +255,7 @@ export async function run({ args, hasFlag }) {
           example: routeCandidate.example,
           count: routeCandidate.count,
           // Calibrated budget snapshot — ratchet-model.md restates it when it
-          // merges a category's T2 and T1 rules into one conditional rule.
+          // merges a category's T2, T1 and T1H rules into one conditional rule.
           budget: routeCandidate.budget || null,
           promotedAt: new Date().toISOString().slice(0, 10),
           lastSeen: new Date().toISOString().slice(0, 10),

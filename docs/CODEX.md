@@ -302,6 +302,7 @@ sprag delegate shared status --agent codex
 # optional, to override the automatic tier models:
 sprag delegate shared map T2 --from PARENT_MODEL --model SMALL_MODEL --effort high --agent codex
 sprag delegate shared map T1 --from PARENT_MODEL --model MEDIUM_MODEL --effort medium --agent codex
+sprag delegate shared map T1H --from PARENT_MODEL --model LARGE_MODEL --effort high --agent codex
 ```
 
 The map lines are optional. A tier without a mapping resolves automatically,

@@ -405,10 +405,10 @@ export async function run({ args, hasFlag, numArg }) {
       if (open.length > 0) {
         if (lang === 'ko') {
           lines.push(`[sprag route-scan] 최근 ${cache.days}일 세션에서 비싼 모델(opus/fable)이 반복 처리해 온, 더 싼 모델로 넘겨도 되는 작업이 감지되었습니다.`);
-          lines.push('(R<N>은 후보 번호, T2/T1은 난이도 등급입니다 — 사용자에게 전달할 때는 코드가 아니라 아래 풀어쓴 설명으로 브리핑하세요)');
+          lines.push('(R<N>은 후보 번호, T2/T1/T1H는 난이도 등급입니다 — 사용자에게 전달할 때는 코드가 아니라 아래 풀어쓴 설명으로 브리핑하세요)');
         } else {
           lines.push(`[sprag route-scan] Over the last ${cache.days} days, expensive models (opus/fable) repeatedly handled work that a cheaper model could take.`);
-          lines.push('(R<N> is the candidate id, T2/T1 the difficulty tier — brief the user with the spelled-out wording below, not the codes.)');
+          lines.push('(R<N> is the candidate id, T2/T1/T1H the difficulty tier — brief the user with the spelled-out wording below, not the codes.)');
         }
         for (const c of open) {
           const tier = c.tier || 'T2';
@@ -503,7 +503,7 @@ export async function run({ args, hasFlag, numArg }) {
       (await import('../first-run-note.js')).printOnce('route-scan', lang);
       return;
     }
-    console.log(lang === 'ko' ? '\n위임 후보 (R<N>=후보 번호, T2/T1=난이도 등급):' : '\nDelegation candidates (R<N> = candidate id, T2/T1 = difficulty tier):');
+    console.log(lang === 'ko' ? '\n위임 후보 (R<N>=후보 번호, T2/T1/T1H=난이도 등급):' : '\nDelegation candidates (R<N> = candidate id, T2/T1/T1H = difficulty tier):');
     for (const c of open) {
       const tier = c.tier || 'T2';
       if (lang === 'ko') {

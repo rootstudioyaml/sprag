@@ -38,7 +38,7 @@ test('호스트가 관리하지 않는 세션에서는 빈 변수가 있어도 �
 });
 
 test('haiku 가 등록되지 않으면 haiku 안내를 빼고 sonnet 으로만 안내한다', () => {
-  const env = { ...HOST, ANTHROPIC_DEFAULT_HAIKU_MODEL: '', ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-5-5' };
+  const env = { ...HOST, ANTHROPIC_DEFAULT_HAIKU_MODEL: '', ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-5-5', ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-opus-5-5' };
   assert.deepEqual(unreachableTiers(env), ['T2']);
   const match = routeMatch(PROMPT, { rules, root: EMPTY, env });
   assert.equal(match.t2, undefined);
@@ -59,7 +59,7 @@ test('두 등급 모두 등록되지 않으면 위임 대신 직접 처리와 �
 });
 
 test('두 등급이 모두 등록되면 지금처럼 haiku 와 sonnet 을 함께 안내한다', () => {
-  const env = { ...HOST, ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-5-5', ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-5-5' };
+  const env = { ...HOST, ANTHROPIC_DEFAULT_HAIKU_MODEL: 'claude-haiku-5-5', ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-5-5', ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-opus-5-5' };
   assert.deepEqual(unreachableTiers(env), []);
   assert.match(hint(env), /기본 model: haiku, 여러 단계·여러 파일이 얽히면 model: sonnet/);
 });

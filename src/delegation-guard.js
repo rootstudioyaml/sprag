@@ -123,6 +123,7 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
   // because the Korean section below weighs the same answer.
   const modelHint = String(payload?.tool_input?.model || payload?.tool_input?.subagent_type || '');
   const isHaiku = /haiku/i.test(modelHint);
+  const isOpus = /opus/i.test(modelHint);
 
   const bounds = boundsText();
   if (bounds) {
@@ -132,8 +133,8 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
     // own calibrated budget for the tier replaces them, so the subagent is told
     // the same limit the main model was (see route-caps.js). A T1 rule sets no
     // call count, and the default one stays in that case.
-    const fallback = isHaiku ? { calls: 8, out: 1500 } : { calls: 20, out: 8000 };
-    const matched = routeCaps?.[isHaiku ? 'T2' : 'T1'];
+    const fallback = isHaiku ? { calls: 8, out: 1500 } : isOpus ? { calls: 20, out: 30000 } : { calls: 20, out: 8000 };
+    const matched = routeCaps?.[isHaiku ? 'T2' : isOpus ? 'T1H' : 'T1'];
     const calls = Number.isFinite(matched?.calls) && matched.calls > 0 ? matched.calls : fallback.calls;
     const out = Number.isFinite(matched?.out) && matched.out > 0 ? matched.out : fallback.out;
     const capLine = `Cap for this delegation: ${calls} tool calls, ${out.toLocaleString('en-US')} output tokens.`;

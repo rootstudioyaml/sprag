@@ -44,6 +44,10 @@ export const T2_OUT_CLAMP = [1000, 3000];   // default 1500 pre-calibration
 export const T1_MAX_MUTATING = 6;
 export const T1_MAX_ERRORS = 1;
 export const T1_OUT_CLAMP = [5000, 15000];  // default 8000 pre-calibration
+// T1H (opus, Fable sessions only): too heavy for sonnet but still bounded.
+export const T1H_MAX_ERRORS = 3;
+export const T1H_MAX_MUTATING = 20;
+export const T1H_OUT_CLAMP = [15000, 60000]; // default 30000 pre-calibration
 export const T0_MIN_ERRORS = 2;             // repeated tool errors = hard, by outcome
 export const T0_MIN_MUTATING = 7;
 // Episodes below this output size carry no delegable work (conversational
@@ -65,7 +69,14 @@ export const MIN_DELEGABLE_OUT = 100;
 // questions that merely contained "statusline". None gained a hint. Bare
 // '리뷰' and '보안' are left out on purpose: they are product nouns in ordinary
 // status checks ("리뷰 허브 배치 확인"), so only the request-shaped forms count.
-export const ESCALATE_RE = /설계|아키텍처|리팩토링|원인\s*(?:분석|파악|확인|규명|조사)|원인을?\s*찾|버그|개선할|개선점|개선\s*(?:사항|방안)|검토해보|검수|코드\s*리뷰|리뷰\s*해|취약|보안\s*(?:점검|검토|감사|리뷰|이슈)|비교|왜(?=[\s?]|$)|이유|제출|배포|출시|퍼블리시|릴리[스즈](?!\s*노트)|(?<!나)머지|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge|root cause|code review|security (?:review|audit)|vulnerabilit/i;
+//
+// 2026-10-18: production-database work and a user's go-ahead ("운영디비 승인할게
+// 너가 진행해줘", "승인할게 너가 직접 실행해줘") read as light run episodes and
+// became Opus (T1H) candidates. Measured on 6,473 local prompts over 90 days:
+// the two term groups catch 7 + 12 prompts, of which 4 were not already
+// escalated, all of them approvals or production-DB asks. Bare '승인' is left
+// out: "승인된 룰" is a product noun in sprag's own ratchet flow.
+export const ESCALATE_RE = /운영\s*(?:db|디비|데이터베이스|서버|환경)|프로덕션|\bprod(?:uction)?\s*(?:db|database|server|env)|승인\s*(?:할게|했어|했으니|했습니다|합니다|해줄게|완료)|\bapproved?\b|설계|아키텍처|리팩토링|원인\s*(?:분석|파악|확인|규명|조사)|원인을?\s*찾|버그|개선할|개선점|개선\s*(?:사항|방안)|검토해보|검수|코드\s*리뷰|리뷰\s*해|취약|보안\s*(?:점검|검토|감사|리뷰|이슈)|비교|왜(?=[\s?]|$)|이유|제출|배포|출시|퍼블리시|릴리[스즈](?!\s*노트)|(?<!나)머지|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge|root cause|code review|security (?:review|audit)|vulnerabilit/i;
 
 // Implementation asks phrased around a run/check verb ("설치와 동시에 설정되도록
 // 하자", "피드백 확인해주고 아이콘도 만들자"). Editing is not delegable, and at
@@ -412,32 +423,30 @@ const percentile = (sorted, p) => sorted[Math.min(sorted.length - 1, Math.floor(
  * Falls back to mid-clamp defaults when the sample is too small to trust.
  */
 export function calibrateThresholds(episodeOuts) {
-  if (episodeOuts.length < 100) return { t2Out: 1500, t1Out: 8000, calibrated: false };
+  if (episodeOuts.length < 100) return { t2Out: 1500, t1Out: 8000, t1hOut: 30000, calibrated: false };
   const sorted = [...episodeOuts].sort((a, b) => a - b);
   return {
     t2Out: clamp(Math.max(percentile(sorted, 0.25), 1500), T2_OUT_CLAMP),
     t1Out: clamp(percentile(sorted, 0.75), T1_OUT_CLAMP),
+    t1hOut: clamp(percentile(sorted, 0.95), T1H_OUT_CLAMP),
     calibrated: true,
   };
 }
 
 /**
- * Tier classification (docs/TIER_CRITERIA.md §3). Returns 'T0'|'T1'|'T2',
+ * Tier classification (docs/TIER_CRITERIA.md §3). Returns 'T0'|'T1H'|'T1'|'T2',
  * or null when the episode carries nothing delegable. Order matters: hard
  * evidence (errors, heavy mutation, big output, judgement keywords) wins
  * before any cheap-band check.
  */
 export function tierOf(ep, category, th) {
   if (ep.out < MIN_DELEGABLE_OUT) return null;
-  if (
-    ep.errors >= T0_MIN_ERRORS ||
-    ep.mutating >= T0_MIN_MUTATING ||
-    ep.out > th.t1Out ||
-    ESCALATE_RE.test(ep.text)
-  ) return 'T0';
+  if (ESCALATE_RE.test(ep.text)) return 'T0';
   if (!category || ep.delegated > 0) return 'T0';
   if (ep.calls <= T2_MAX_CALLS && ep.out <= th.t2Out && ep.mutating <= T2_MAX_MUTATING && ep.errors === 0) return 'T2';
   if (ep.out <= th.t1Out && ep.mutating <= T1_MAX_MUTATING && ep.errors <= T1_MAX_ERRORS) return 'T1';
+  const t1hOut = th.t1hOut ?? 30000;
+  if (ep.errors <= T1H_MAX_ERRORS && ep.mutating <= T1H_MAX_MUTATING && ep.out <= t1hOut) return 'T1H';
   return 'T0';
 }
 
@@ -611,13 +620,13 @@ export async function runRouteScan({ days = 14 } = {}) {
       const shapeTier = tierOf({ ...ep, errors: 0 }, cat, thresholds);
       // Same rank gate as the candidate path below — a denominator counting
       // episodes that can't produce a rule would skew that rule's error rate.
-      if ((shapeTier === 'T1' || shapeTier === 'T2') && worthDelegating(shapeTier, epRank)) {
+      if ((shapeTier === 'T1' || shapeTier === 'T2' || shapeTier === 'T1H') && worthDelegating(shapeTier, epRank)) {
         bumpStats(`${shapeTier}|${cat.id}|${projectDir}`, ep);
         bumpStats(`${shapeTier}|${cat.id}|*`, ep);
       }
     }
     const tier = tierOf(ep, cat, thresholds);
-    if (tier !== 'T1' && tier !== 'T2') continue;
+    if (tier !== 'T1' && tier !== 'T2' && tier !== 'T1H') continue;
     if (!worthDelegating(tier, epRank)) continue;
     tieredEpisodes += 1;
     const key = `${tier}|${cat.id}|${projectDir}`;
@@ -626,7 +635,7 @@ export async function runRouteScan({ days = 14 } = {}) {
       category: cat.id,
       label: cat.label,
       labelEn: cat.labelEn,
-      agent: tier === 'T2' ? cat.agent : 'sonnet',
+      agent: tier === 'T2' ? cat.agent : tier === 'T1H' ? 'opus' : 'sonnet',
       project: projectDir,
       projectPath: '',
       count: 0,
@@ -653,7 +662,7 @@ export async function runRouteScan({ days = 14 } = {}) {
   // where a promoted rule's real success rate lives, so they get their own
   // pass: join each episode to the subagent transcripts it spawned, and file
   // the outcome under the tier that run's model represents — a haiku run is a
-  // T2 rule firing, a sonnet run a T1 one. Runs that were not a downgrade
+  // T2 rule firing, a sonnet run a T1 one, an opus run (Fable session) a T1H one. Runs that were not a downgrade
   // (same tier or higher) carry no delegation saving and are skipped.
   const delegatedStats = new Map(); // "tier|category|project" → outcome aggregate
   let unresolvedRuns = 0;           // delegated runs dropped for an unpriceable model id
@@ -774,7 +783,7 @@ export async function runRouteScan({ days = 14 } = {}) {
   // time rather than hardcoded downstream.
   const budgetOf = (g) => ({
     calls: g.tier === 'T2' ? T2_MAX_CALLS + 2 : null,
-    out: g.tier === 'T2' ? thresholds.t2Out : thresholds.t1Out,
+    out: g.tier === 'T2' ? thresholds.t2Out : g.tier === 'T1H' ? thresholds.t1hOut : thresholds.t1Out,
   });
   // Shared with the seed presets (src/seed-rules.js) through model-rules.js —
   // one template, so a reworded rule cannot mean two different things
@@ -945,7 +954,7 @@ export async function shouldRescan(cache, { days = 14, afterDelegation = false }
 }
 
 /**
- * Human-readable labels for the T0/T1/T2 codes and scope values — used by
+ * Human-readable labels for the T0/T1H/T1/T2 codes and scope values — used by
  * every user-facing listing so a bare code never appears without its meaning
  * (first-time users can't be expected to know the tier vocabulary).
  */
@@ -953,11 +962,13 @@ export function tierLabel(tier, lang = 'ko') {
   const ko = {
     T2: '단순 작업, haiku급이면 충분',
     T1: '중간 난도, sonnet급이면 충분',
+    T1H: '고난도 구현, opus급이면 충분 (Fable 세션 전용)',
     T0: '고난도, 지금 모델 유지',
   };
   const en = {
     T2: 'simple — haiku-class is enough',
     T1: 'moderate — sonnet-class is enough',
+    T1H: 'heavy, opus-class is enough (Fable sessions only)',
     T0: 'hard — stays on the session model',
   };
   return (lang === 'ko' ? ko : en)[tier] || tier;

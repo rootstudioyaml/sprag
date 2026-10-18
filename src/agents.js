@@ -26,10 +26,12 @@ const AGENT_MODEL = {
   'haiku-runner': 'haiku',
   'haiku-translate': 'haiku',
   'sonnet-worker': 'sonnet',
+  'opus-worker': 'opus',
   // A T1 rule names its target by tier alone (`agent: 'sonnet'`). Without these
   // the phrase fell through to the haiku default, and a sonnet rule told the
   // session to delegate to haiku. resolveAgentName maps them to an agent file.
   sonnet: 'sonnet',
+  opus: 'opus',
   haiku: 'haiku',
 };
 
@@ -50,7 +52,7 @@ export function agentExists(name, root = process.cwd()) {
 }
 
 /** Agent a bare tier name stands for when that agent's file exists. */
-const TIER_AGENT = { sonnet: 'sonnet-worker', haiku: 'haiku-explore' };
+const TIER_AGENT = { sonnet: 'sonnet-worker', opus: 'opus-worker', haiku: 'haiku-explore' };
 
 /**
  * The agent a rule target really names on this machine, or null when none is

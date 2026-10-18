@@ -126,8 +126,8 @@ export function sessionModelRank({ env = process.env, transcriptPath = null, sna
  * and saves nothing. Outside such a host an unset variable selects Claude
  * Code's built-in default for the tier, so nothing is reported unreachable.
  */
-const TIER_ALIAS_ENV = { T2: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', T1: 'ANTHROPIC_DEFAULT_SONNET_MODEL' };
-const TIER_ALIAS = { T2: 'haiku', T1: 'sonnet' };
+const TIER_ALIAS_ENV = { T2: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', T1: 'ANTHROPIC_DEFAULT_SONNET_MODEL', T1H: 'ANTHROPIC_DEFAULT_OPUS_MODEL' };
+const TIER_ALIAS = { T2: 'haiku', T1: 'sonnet', T1H: 'opus' };
 
 export function unreachableTiers(env = process.env) {
   if (env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST !== '1') return [];
@@ -205,7 +205,8 @@ export function routeMatch(text, { rules, sessionRank = null, root, env = proces
   const nearest = [...reachable].sort((a, b) => scopeRank(b) - scopeRank(a));
   const t2 = nearest.find((r) => r.tier === 'T2');
   const t1 = nearest.find((r) => r.tier === 'T1');
-  return t2 || t1 ? { cat, t2, t1 } : null;
+  const t1h = nearest.find((r) => r.tier === 'T1H');
+  return t2 || t1 || t1h ? { cat, t2, t1, t1h } : null;
 }
 
 /** The budgets a match states, by tier: what the delegation guard repeats to the subagent. */
@@ -214,6 +215,7 @@ export function matchCaps(match) {
   const caps = {};
   if (match.t2) caps.T2 = ruleBudget(match.t2);
   if (match.t1) caps.T1 = ruleBudget(match.t1);
+  if (match.t1h) caps.T1H = ruleBudget(match.t1h);
   return caps;
 }
 
@@ -248,10 +250,10 @@ function unreachableNotice(label, tiers, ko) {
 export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match, env } = {}) {
   const found = match === undefined ? routeMatch(text, { rules, sessionRank, root, env }) : match;
   if (!found) return null;
-  const { cat, t2, t1 } = found;
+  const { cat, t2, t1, t1h } = found;
   const ko = lang === 'ko';
   const label = ko ? (cat.label || cat.id) : (cat.labelEn || cat.label || cat.id);
-  if (!t2 && !t1 && found.unreachable?.length) return unreachableNotice(label, found.unreachable, ko);
+  if (!t2 && !t1 && !t1h && found.unreachable?.length) return unreachableNotice(label, found.unreachable, ko);
   // `root` is threaded through to agentPhrase, which names the subagent only
   // when its .md actually exists on this machine. A caller that pins it can
   // therefore get a deterministic phrase; a test that does not pin it reads
@@ -262,21 +264,28 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
   // T1 is named through its delegation agent only when that file exists here;
   // otherwise the literal tier string stays, so output without agents is unchanged.
   const t1Root = root === undefined ? undefined : root;
-  const t1Named = resolveAgentName('sonnet', t1Root) !== null;
-  const t1Phrase = t1Named ? phrase('sonnet') : 'model: sonnet';
+  const tierPhrase = (name) => (resolveAgentName(name, t1Root) !== null ? phrase(name) : `model: ${name}`);
+  const picked = [t2, t1, t1h].filter(Boolean);
   let target;
-  if (t2 && t1) {
+  if (picked.length >= 2) {
+    const named = (r) => (r.tier === 'T2' ? phrase(r.agent) : tierPhrase(r.tier === 'T1H' ? 'opus' : 'sonnet'));
+    const when = (r, i) => {
+      if (i === 0) return null;
+      if (r.tier === 'T1H') return ko ? '범위가 크면(Fable·Mythos 세션 한정)' : 'for large scope (Fable/Mythos sessions only)';
+      return ko ? '여러 단계·여러 파일이 얽히면' : 'when it spans multiple steps or file edits';
+    };
     target = ko
-      ? `기본 ${phrase(t2.agent)}, 여러 단계·여러 파일이 얽히면 ${t1Phrase}`
-      : `${phrase(t2.agent)} by default, ${t1Phrase} when it spans multiple steps or file edits`;
+      ? picked.map((r, i) => `${when(r, i) ?? '기본'} ${named(r)}`).join(', ')
+      : picked.map((r, i) => (i === 0 ? `${named(r)} by default` : `${named(r)} ${when(r, i)}`)).join(', ');
   } else {
-    const only = t2 || t1;
-    target = ko ? phrase(only.agent) : phrase(only.agent);
+    const only = picked[0];
+    target = only.tier === 'T1H' ? tierPhrase('opus') : phrase(only.agent);
   }
 
-  const caps = [t2, t1].filter(Boolean).map((r) => budgetCapPhrase(r, lang));
-  const capText = caps.length === 2
-    ? (ko ? `상한 haiku ${caps[0]} / sonnet ${caps[1]}` : `cap haiku ${caps[0]} / sonnet ${caps[1]}`)
+  const MODEL_OF = { T2: 'haiku', T1: 'sonnet', T1H: 'opus' };
+  const caps = picked.map((r) => budgetCapPhrase(r, lang));
+  const capText = picked.length >= 2
+    ? (ko ? '상한 ' : 'cap ') + picked.map((r, i) => `${MODEL_OF[r.tier]} ${caps[i]}`).join(' / ')
     : (ko ? `상한 ${caps[0]}` : `cap ${caps[0]}`);
 
   // The marker line is the one in ratchet-model.md, so the user sees the same

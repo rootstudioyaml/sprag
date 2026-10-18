@@ -72,7 +72,8 @@ export function wilsonLowerBound(errs, n) {
 // route-scan's pre-calibration defaults. Kept as local constants rather than
 // imported: route-scan imports this module, and a static back-import would
 // close the cycle.
-const DEFAULT_BUDGET = { T2: { calls: 8, out: 1500 }, T1: { calls: null, out: 8000 } };
+const DEFAULT_BUDGET = { T2: { calls: 8, out: 1500 }, T1: { calls: null, out: 8000 },
+  T1H: { calls: null, out: 30000 } };
 
 /** The budget a rule is held to: its calibrated one, or the default of its tier. */
 export function ruleBudget(rule) {
@@ -132,20 +133,27 @@ function shortExample(text) {
   return one.length <= EXAMPLE_MAX ? one : `${one.slice(0, EXAMPLE_MAX - 1)}…`;
 }
 
-// T1 is named through its delegation agent only when that file exists; without
-// it the literal `model: sonnet` stays so output on such machines is unchanged.
-function t1Target(root, ko) {
-  if (resolveAgentName('sonnet', root) === null) return null;
-  return (ko ? agentPhrase : agentPhraseEn)('sonnet', { root });
+// T1 (and T1H) is named through its delegation agent only when that file
+// exists; without it the literal `model: sonnet` / `model: opus` stays so
+// output on such machines is unchanged.
+function t1Target(root, ko, tier = 'sonnet') {
+  if (resolveAgentName(tier, root) === null) return null;
+  return (ko ? agentPhrase : agentPhraseEn)(tier, { root });
 }
 
 export function modelRuleBaseText(g, lang = userLanguage(), { root } = {}) {
   if (lang === 'ko') {
+    if (g.tier === 'T1H') {
+      return `"${g.label}" 고난도 구현 요청(예: "${shortExample(g.example)}")은 Fable·Mythos 세션에 한해 ${t1Target(root, true, 'opus') ?? 'model: opus'}에 위임`;
+    }
     return g.tier === 'T2'
       ? `"${g.label}" 단순 요청(예: "${shortExample(g.example)}")은 ${agentPhrase(g.agent, { root })}에 위임`
       : `"${g.label}" 중간 난도 요청(예: "${shortExample(g.example)}")은 ${t1Target(root, true) ?? 'model: sonnet'}에 위임`;
   }
   const example = g.exampleEn || g.example;
+  if (g.tier === 'T1H') {
+    return `Heavy "${g.labelEn}" implementation requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false, 'opus') ?? 'a model: opus subagent'}, in Fable/Mythos sessions only`;
+  }
   return g.tier === 'T2'
     ? `Simple "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${agentPhraseEn(g.agent, { root })}`
     : `Moderate "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false) ?? 'a model: sonnet subagent'}`;
@@ -275,8 +283,12 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
     '- **effort**: 모델 티어와 다른 축이다. 설치된 서브에이전트는 검증 형태에 따라',
     '  effort가 고정되어 있다. 명령 출력이나 파일 대조로 검증되는 위임(조회·명령',
     '  실행·정형 변환을 맡는 haiku 에이전트)은 low, 확정된 설계를 테스트에 맞춰',
-    '  구현하는 위임(sonnet 워커)은 medium이다. 메인 세션의 effort는 바꾸지 않고,',
+    '  구현하는 위임(sonnet 워커)은 medium, 범위가 큰 구현·디버깅 위임(opus 워커)은',
+    '  high다. 메인 세션의 effort는 바꾸지 않고,',
     '  CLAUDE_CODE_EFFORT_LEVEL은 서브에이전트의 effort를 덮어쓰므로 설정하지 않는다.',
+    '- **고난도 구현(T1H)**: 설계는 메인이 확정하고, 범위가 크거나 sonnet 이 틀린',
+    '  적 있는 구현·디버깅은 opus 에 위임한다. Fable·Mythos 세션에서만 적용되며,',
+    '  설계 판단과 되돌릴 수 없는 작업은 메인 모델에 남긴다.',
     '- **위임 배치**: 서브에이전트 비용의 지배 항은 생성이 아니라 컨텍스트',
     '  적재다. 같은 파일들을 읽어야 하는 작업 여러 개는 에이전트 하나에 묶어',
     '  보내고, 읽는 영역이 다른 작업만 나눈다.',
@@ -337,8 +349,13 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
     '  by how their work is verified: low where the check is command output or a',
     '  file comparison (the haiku agents for lookups, command runs and mechanical',
     '  conversion), medium where a fixed design is implemented against tests (the',
-    '  sonnet worker). Leave the main session\'s effort alone, and never set',
+    '  sonnet worker), high for large implementation or debugging (the opus',
+    '  worker). Leave the main session\'s effort alone, and never set',
     '  CLAUDE_CODE_EFFORT_LEVEL: it overrides every subagent\'s own value.',
+    '- **Heavy implementation (T1H)**: the main model fixes the design; large-scope',
+    '  implementation or debugging, or work sonnet has already got wrong, goes to',
+    '  opus. Applies in Fable/Mythos sessions only; design judgement and',
+    '  irreversible work stay on the main model.',
     '- **Batching**: a subagent\'s dominant cost is context ingestion, not',
     '  generation. Bundle tasks that read the same files into one agent; split',
     '  only when the areas they read differ.',
@@ -384,13 +401,13 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
     const saved = r.savedUsd ? `, saved ~${signedUsd(r.savedUsd)}` : '';
     return `${base}, delegated ×${r.delegatedRuns} err ${pct(r.delegatedErrRate)}%${saved}`;
   };
-  // Merged T2+T1 rules carry two caps, so they state both once rather than
+  // Merged rules carry one cap per tier, so they state them once rather than
   // repeating the whole stop-condition per tier.
-  const mergedBudget = (t2, t1) => ko
-    ? `상한 haiku ${budgetCapPhrase(t2, 'ko')} / sonnet ${budgetCapPhrase(t1, 'ko')}`
-    : `cap haiku ${budgetCapPhrase(t2, 'en')} / sonnet ${budgetCapPhrase(t1, 'en')}`;
+  const TIER_MODEL = { T2: 'haiku', T1: 'sonnet', T1H: 'opus' };
+  const mergedBudget = (tiers) => (ko ? '상한 ' : 'cap ') + tiers
+    .map((r) => `${TIER_MODEL[r.tier]} ${budgetCapPhrase(r, ko ? 'ko' : 'en')}`).join(' / ');
 
-  // A category can carry both a T2 (haiku) and a T1 (sonnet) rule. Tier is
+  // A category can carry a T2 (haiku), a T1 (sonnet) and a T1H (opus) rule. Tier is
   // only known after an episode finishes, so two separate bullets give the
   // reading LLM no way to pick one at request time — merge such pairs into a
   // single conditional rule with explicit request-time criteria (default to
@@ -405,38 +422,50 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
   // text stored on the rule is whatever wording and language were current when
   // it was promoted, which is how an English line sat in a Korean file. A rule
   // missing what the template needs still falls back to its stored text.
-  const baseTextOf = (r) => ((r.tier === 'T2' || r.tier === 'T1') && r.label && (ko || r.labelEn)
+  const baseTextOf = (r) => ((r.tier === 'T2' || r.tier === 'T1' || r.tier === 'T1H') && r.label && (ko || r.labelEn)
     ? modelRuleBaseText(r, lang, { root }) : r.rule);
+  const DELEGATION_TIERS = ['T2', 'T1', 'T1H'];
   for (const group of byCategory.values()) {
-    const t2 = group.find((r) => r.tier === 'T2');
-    const t1 = group.find((r) => r.tier === 'T1');
+    const picked = DELEGATION_TIERS.map((t) => group.find((r) => r.tier === t)).filter(Boolean);
     // A second rule of a tier the line already covers (two global rules of one
     // category, promoted from different projects) says nothing the line does
     // not, so it adds no line of its own. Its review flag and its numbers stay
     // visible on the line that speaks for it.
-    const extras = t2 || t1 ? group.filter((r) => r !== t2 && r !== t1 && (r.tier === 'T2' || r.tier === 'T1')) : [];
-    const unknown = group.filter((r) => r !== t2 && r !== t1 && !extras.includes(r));
+    const extras = picked.length ? group.filter((r) => !picked.includes(r) && DELEGATION_TIERS.includes(r.tier)) : [];
+    const unknown = group.filter((r) => !picked.includes(r) && !extras.includes(r));
     const extraHealth = extras.map(healthOf).join('');
     const extraStats = extras.map((r) => ` / +${r.tier} ${statsOf(r)}`).join('');
-    if (t2 && t1) {
+    if (picked.length >= 2) {
       // Seeded rules carry a localized example; scan-produced ones only have the
       // user's own prompt, so exampleEn is a preference, not a requirement.
       const ex = (r) => shortExample(ko ? r.example : (r.exampleEn || r.example));
-      // One line per category, stating only what differs between the two tiers.
+      const target = (r) => {
+        if (r.tier === 'T2') return (ko ? agentPhrase : agentPhraseEn)(r.agent, { root });
+        const name = r.tier === 'T1H' ? 'opus' : 'sonnet';
+        return t1Target(root, ko, name) ?? `model: ${name}`;
+      };
+      // One line per category, stating only what differs between the tiers.
       // The exceptions this used to spell out (design judgement, irreversible
       // work) are identical in every rule and now sit in the header's shared
       // clauses, so a rule the model re-reads on every request is short enough to
       // match at a glance.
+      const when = (r, first) => {
+        if (first) return ko ? '기본' : 'by default';
+        if (r.tier === 'T1H') return ko ? '범위가 크면(Fable·Mythos 세션 한정)' : 'for large scope (Fable/Mythos sessions only)';
+        return ko ? '여러 단계·여러 파일이 얽히면' : 'when it spans multiple steps or file edits';
+      };
+      const parts = picked.map((r, i) => (ko
+        ? `${when(r, i === 0)} ${target(r)}(예: "${ex(r)}")`
+        : `${i === 0 ? `${target(r)} ${when(r, true)}` : `${target(r)} ${when(r, false)}`} (e.g. "${ex(r)}")`));
+      const head = picked[0];
       const rule = ko
-        ? `"${t2.label}": 기본 ${agentPhrase(t2.agent, { root })}(예: "${ex(t2)}"), ` +
-          `여러 단계·여러 파일이 얽히면 ${t1Target(root, true) ?? 'model: sonnet'}(예: "${ex(t1)}"). ` +
-          mergedBudget(t2, t1)
-        : `"${t2.labelEn || t2.label}": ${agentPhraseEn(t2.agent, { root })} by default (e.g. "${ex(t2)}"), ` +
-          `${t1Target(root, false) ?? 'model: sonnet'} when it spans multiple steps or file edits (e.g. "${ex(t1)}"). ` +
-          mergedBudget(t2, t1);
-      lines.push(`- ${rule}${healthOf(t2)}${healthOf(t1)}${extraHealth} <!-- T2 ${statsOf(t2)} / T1 ${statsOf(t1)}${extraStats} -->`);
-    } else if (t2 || t1) {
-      const r = t2 || t1;
+        ? `"${head.label}": ${parts.join(', ')}. ${mergedBudget(picked)}`
+        : `"${head.labelEn || head.label}": ${parts.join(', ')}. ${mergedBudget(picked)}`;
+      const health = picked.map(healthOf).join('');
+      const stats = picked.map((r) => `${r.tier} ${statsOf(r)}`).join(' / ');
+      lines.push(`- ${rule}${health}${extraHealth} <!-- ${stats}${extraStats} -->`);
+    } else if (picked.length === 1) {
+      const r = picked[0];
       lines.push(`- ${composeRuleText(baseTextOf(r), r, lang)}${healthOf(r)}${extraHealth} <!-- ${statsOf(r)}${extraStats} -->`);
     }
     for (const r of unknown) lines.push(`- ${composeRuleText(r.rule, r, lang)}${healthOf(r)} <!-- ${statsOf(r)} -->`);

@@ -15,13 +15,16 @@ import { childEnv } from './helpers/child-env.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = join(ROOT, 'bin', 'cli.js');
 const url = (f) => pathToFileURL(join(ROOT, 'src', f)).href;
-const NAMES = ['haiku-explore', 'haiku-runner', 'haiku-translate', 'sonnet-worker'];
+const NAMES = ['haiku-explore', 'haiku-runner', 'haiku-translate', 'sonnet-worker', 'opus-worker'];
 const TOOLS = {
   'haiku-explore': 'Read, Grep, Glob, Bash',
   'haiku-runner': 'Bash, Read, Grep, Glob',
   'haiku-translate': 'Read, Grep, Glob, Edit, Write',
   'sonnet-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
+  'opus-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
 };
+const MODEL = { 'sonnet-worker': 'sonnet', 'opus-worker': 'claude-opus-5-5' };
+const EFFORT = { 'sonnet-worker': 'medium', 'opus-worker': 'high' };
 
 function sandbox(t) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cts-dagents-')));
@@ -46,7 +49,7 @@ function sandbox(t) {
 
 const present = (s) => NAMES.filter((n) => existsSync(s.file(n)));
 
-test('sync writes four agent files with exact tools, model, marker and a no-MCP description', (t) => {
+test('sync writes five agent files with exact tools, model, marker and a no-MCP description', (t) => {
   const s = sandbox(t);
   const r = s.sync();
   assert.deepEqual(r.written.sort(), [...NAMES].sort());
@@ -55,11 +58,11 @@ test('sync writes four agent files with exact tools, model, marker and a no-MCP 
     const fm = text.slice(0, text.indexOf('\n---', 3));
     assert.ok(fm.includes(`name: ${n}\n`), n);
     assert.ok(fm.includes(`\ntools: ${TOOLS[n]}\n`), `${n} tools`);
-    assert.ok(fm.includes(`\nmodel: ${n.startsWith('sonnet') ? 'sonnet' : 'haiku'}\n`), `${n} model`);
+    assert.ok(fm.includes(`\nmodel: ${MODEL[n] ?? 'haiku'}\n`), `${n} model`);
     // Effort follows the verification shape, not the tier: command output and
     // file comparison verify the haiku agents, so they run at low; the worker
     // implements a fixed design against tests, so it takes medium.
-    assert.ok(fm.includes(`\neffort: ${n.startsWith('sonnet') ? 'medium' : 'low'}\n`), `${n} effort`);
+    assert.ok(fm.includes(`\neffort: ${EFFORT[n] ?? 'low'}\n`), `${n} effort`);
     assert.ok(fm.includes('# managed by sprag (sprag:delegation-agent); edits are overwritten'), `${n} marker`);
     assert.match(fm, /description: .*It has no MCP tools\./, `${n} description`);
     assert.ok(!text.slice(fm.length).includes('sprag:delegation-agent'), 'marker stays out of the body');
@@ -71,7 +74,7 @@ test('a second sync writes nothing', (t) => {
   s.sync();
   const r = s.sync();
   assert.deepEqual(r.written, []);
-  assert.equal(r.unchanged.length, 4);
+  assert.equal(r.unchanged.length, 5);
 });
 
 test('a user file without the marker is never overwritten', (t) => {
@@ -80,7 +83,7 @@ test('a user file without the marker is never overwritten', (t) => {
   writeFileSync(s.file('haiku-explore'), '---\nname: haiku-explore\nmodel: haiku\n---\nmine\n');
   const r = s.sync();
   assert.deepEqual(r.skipped, [{ name: 'haiku-explore', reason: 'not-owned' }]);
-  assert.equal(r.written.length, 3);
+  assert.equal(r.written.length, 4);
   assert.ok(readFileSync(s.file('haiku-explore'), 'utf8').includes('mine'));
 });
 
@@ -90,7 +93,7 @@ test('delegationAgents:false and remove delete only marked files', (t) => {
   writeFileSync(s.file('haiku-runner'), '---\nname: haiku-runner\n---\nuser copy\n');
   s.setConfig({ delegationAgents: false });
   const r = s.sync();
-  assert.deepEqual(r.removed.sort(), ['haiku-explore', 'haiku-translate', 'sonnet-worker']);
+  assert.deepEqual(r.removed.sort(), ['haiku-explore', 'haiku-translate', 'opus-worker', 'sonnet-worker']);
   assert.deepEqual(present(s), ['haiku-runner']);
   assert.deepEqual(s.remove().removed, []);
   assert.ok(existsSync(s.file('haiku-runner')));

@@ -30,9 +30,9 @@ Usage: sprag <command> --agent codex [options]
   delegate implementation       After design: resolve T1 with --from, --provider, --session
   delegate rules                Codex rules and shared delegation policies
   delegate shared on|off|status  Reuse approved policies; keep original scopes
-  delegate shared map T1|T2     Map a tier: --from <parent> --model <target>
+  delegate shared map T1|T1H|T2 Map a tier: --from <parent> --model <target>
                                 Optional --provider <id> and --effort <level>
-  delegate shared unmap T1|T2   Remove a mapping: --from <parent> [--provider <id>]
+  delegate shared unmap T1|T1H|T2 Remove a mapping: --from <parent> [--provider <id>]
   delegate shared min-context N Parent input tokens before shared guidance; default resets
   delegate shared auto on|off   Resolve unmapped tiers from priced models already run in Codex
   route-scan [--refresh]         Discover recurring simple turns in local logs
@@ -202,7 +202,7 @@ export async function run({ args, version }) {
     for (const c of open) {
       const target = c.suggestedModel ? `-> ${c.suggestedModel}${Number.isFinite(c.estSavedUsd) ? ` (~${signedUsd(c.estSavedUsd, 4)} over ${c.count} turns)` : ''}`
         : `-> choose --model${c.alternatives.length ? ` (priced cheaper: ${c.alternatives.join(', ')})` : ''}`;
-      console.log(`R${c.id} ${c.category} x${c.count} [T2 ${c.tiers.T2} / T1 ${c.tiers.T1}] ${c.provider || 'unknown provider'} / ${c.from} ${target}`);
+      console.log(`R${c.id} ${c.category} x${c.count} [T2 ${c.tiers.T2} / T1 ${c.tiers.T1} / T1H ${c.tiers.T1H ?? 0}] ${c.provider || 'unknown provider'} / ${c.from} ${target}`);
       console.log(`   ${c.projectRoot}`);
       console.log(`   e.g. ${JSON.stringify(c.example)}`);
     }

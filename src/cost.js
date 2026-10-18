@@ -249,8 +249,11 @@ export function modelRank(model) {
   return rank ?? 1;
 }
 
-/** Price rank each delegation tier targets: T2 → haiku, T1 → sonnet. */
-export const TIER_TARGET_RANK = { T2: 0, T1: 1 };
+/**
+ * Price rank each delegation tier targets: T2 → haiku, T1 → sonnet, T1H → opus.
+ * T1H is worth it only from a rank-3 (Fable/Mythos) session.
+ */
+export const TIER_TARGET_RANK = { T2: 0, T1: 1, T1H: 2 };
 
 /**
  * Which delegation tier a subagent run at this price rank represents.
@@ -260,6 +263,7 @@ export const TIER_TARGET_RANK = { T2: 0, T1: 1 };
 export function tierForRank(rank) {
   if (rank === 0) return 'T2';
   if (rank === 1) return 'T1';
+  if (rank === 2) return 'T1H';
   return null;
 }
 

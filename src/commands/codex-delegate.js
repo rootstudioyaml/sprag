@@ -43,7 +43,7 @@ function printShared(cfg, { details = false } = {}) {
   if (missing.length) {
     console.log(`Unmapped tiers for ${parent || 'any parent model'} on ${provider || 'unknown provider'}: ${missing.join(', ')}`
       + `${autoOn && auto.reason ? ` (auto: ${auto.reason})` : ''}. `
-      + `Set: sprag delegate shared map <T1|T2> --from ${parent || '<parent-model>'} --model <target-model> --agent codex`);
+      + `Set: sprag delegate shared map <T1|T1H|T2> --from ${parent || '<parent-model>'} --model <target-model> --agent codex`);
   }
   console.log(`Automatic tier models: ${autoOn ? 'on' : 'off'} (turn ${autoOn ? 'off' : 'on'}: sprag delegate shared auto ${autoOn ? 'off' : 'on'} --agent codex)`);
   if (!parent && targets.length) console.log('Codex config names no default model; each mapping routes only sessions on its --from model.');
@@ -74,7 +74,7 @@ export function run({ args, getArg, hasFlag, root }) {
   if (sub === 'shared') {
     const action = args[2] || 'status';
     if (!['status', 'on', 'off', 'map', 'unmap', 'min-context', 'auto'].includes(action)) {
-      throw new Error('Usage: delegate shared status|on|off|map <T1|T2>|unmap <T1|T2>|min-context <tokens|default>|auto on|off --agent codex');
+      throw new Error('Usage: delegate shared status|on|off|map <T1|T1H|T2>|unmap <T1|T1H|T2>|min-context <tokens|default>|auto on|off --agent codex');
     }
     if (hasFlag('--global') || hasFlag('--project')) throw new Error('Shared policies retain their approved scope; mappings do not change it.');
     const provided = (flag) => args.some((arg) => arg === flag || arg.startsWith(`${flag}=`));
@@ -86,7 +86,7 @@ export function run({ args, getArg, hasFlag, root }) {
       const tier = args[3];
       const from = getArg('--from');
       const provider = getArg('--provider') ?? codexProviderName();
-      if (!SHARED_RULE_TIERS.includes(tier)) throw new Error('Shared rule tier must be T1 or T2.');
+      if (!SHARED_RULE_TIERS.includes(tier)) throw new Error('Shared rule tier must be T1, T1H or T2.');
       const same = (t) => t.tier === tier && t.from === from && t.provider === provider;
       if (action === 'map') {
         const target = validateCodexSharedTarget({ tier, from, provider, model: getArg('--model'), effort: getArg('--effort') });

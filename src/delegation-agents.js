@@ -28,7 +28,7 @@ const MARK_LINE = `# managed by sprag (${OWNER_MARK}); edits are overwritten`;
 // comparison (lookups, test runs, mechanical conversion) extra thinking buys
 // nothing, so those agents run at low. The worker implements a design the
 // caller already fixed, against tests, so it takes the default for well-specified
-// work, medium. The main session's effort is never touched here, and
+// work, medium; the opus worker takes the larger, harder share of that work at high. The main session's effort is never touched here, and
 // CLAUDE_CODE_EFFORT_LEVEL must stay unset: it overrides every agent's own value.
 export const DEFINITIONS = [
   {
@@ -62,6 +62,18 @@ export const DEFINITIONS = [
     tools: 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
     role: 'Your role: multi-step work and the implementation half of a design the caller already fixed.',
     description: 'Mid-tier worker for multi-step tasks and implementation handed over with a fixed design. It has no MCP tools.',
+  },
+  {
+    // The full model id, not the `opus` alias: Claude Code resolves a bare
+    // alias to an older model than the one the tier means (haiku was observed
+    // resolving to Haiku 4.5). A host that remaps ANTHROPIC_DEFAULT_OPUS_MODEL
+    // is better served by the rule's `model: opus` fallback phrase.
+    name: 'opus-worker',
+    model: 'claude-opus-5-5',
+    effort: 'high',
+    tools: 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
+    role: 'Your role: large implementation and debugging work whose design the caller already fixed. Hand design judgement and irreversible actions back to the caller.',
+    description: 'Heavy worker for Fable sessions: large implementation, debugging and refactoring handed over with a fixed design. It has no MCP tools.',
   },
 ];
 

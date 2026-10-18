@@ -415,3 +415,29 @@ test('unmapped tiers resolve to cheaper priced models already run in Codex, the 
   assert.match(f.run(['delegate', 'shared', 'status']).stdout, /Automatic tier models: off/);
   assert.notEqual(f.run(['delegate', 'shared', 'auto', 'maybe']).status, 0);
 });
+
+test('T1H resolves to the most expensive cheaper model, only with three or more candidates', (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.home, 'config.toml'), 'model_provider="openai"\nmodel="gpt-6-astra"\n');
+  const observe = (models) => writeFileSync(join(f.dir, 'codex-route-scan.json'),
+    JSON.stringify({ version: 1, candidates: [], observedModels: models.map((m) => `openai|${m}`) }));
+  const query = { ...f.opts, cfg: { codex: { delegate: true } }, model: 'gpt-6-astra', provider: 'openai' };
+
+  observe(['gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-terra']);
+  const three = autoCodexSharedTargets(query).targets;
+  assert.deepEqual(three.map((x) => x.tier), ['T2', 'T1', 'T1H']);
+  assert.equal(new Set(three.map((x) => x.model)).size, 3, 'T1H differs from T1 and T2');
+  assert.equal(three[0].model, 'gpt-6-luna');
+
+  observe(['gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna']);
+  assert.deepEqual(autoCodexSharedTargets(query).targets.map((x) => x.tier), ['T2', 'T1'], 'two candidates: no T1H');
+});
+
+test('delegate shared map accepts T1H', (t) => {
+  const f = fixture(t);
+  const r = f.run(['delegate', 'shared', 'map', 'T1H', '--from', 'gpt-6-astra', '--model', 'gpt-5.6-terra', '--provider', 'openai', '--agent', 'codex']);
+  assert.equal(r.status, 0, r.stderr + r.stdout);
+  const bad = f.run(['delegate', 'shared', 'map', 'T3', '--from', 'gpt-6-astra', '--model', 'gpt-5.6-terra', '--provider', 'openai', '--agent', 'codex']);
+  assert.notEqual(bad.status, 0);
+  assert.match(bad.stderr, /T1, T1H or T2/);
+});

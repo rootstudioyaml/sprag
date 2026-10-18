@@ -36,7 +36,7 @@ export function validateCodexTarget(model, effort) {
 
 export function validateCodexSharedTarget({ tier, from, model, effort, provider }) {
   validateCodexTarget(model, effort);
-  if (!SHARED_RULE_TIERS.includes(tier)) throw new Error('Shared rule tier must be T1 or T2.');
+  if (!SHARED_RULE_TIERS.includes(tier)) throw new Error('Shared rule tier must be T1, T1H or T2.');
   if (!safeId(from) || from === model) throw new Error('--from must name a different parent model.');
   if (!safeId(provider)) throw new Error('A shared model mapping requires a Codex provider ID.');
   return { tier, from, model, ...(effort === undefined ? {} : { effort }), provider };
@@ -78,7 +78,7 @@ function catalogCodexModels(home) {
 }
 
 /**
- * The models Codex resolves T2 and T1 to when the user mapped none, the way
+ * The models Codex resolves T2, T1 and T1H to when the user mapped none, the way
  * Claude Code resolves `haiku` and `sonnet`. Candidates are the models that
  * already ran in this user's Codex sessions plus, for the built-in OpenAI
  * provider only, the models Codex's catalog lists for the account (a gateway
@@ -86,7 +86,8 @@ function catalogCodexModels(home) {
  * qualifies only if it is priced on the parent's provider and costs less than
  * the parent, so the hint never names a model the gateway cannot serve. The
  * cheapest is T2 and the next one up is T1; with a single candidate T1 stays
- * on the main agent. Returns { targets, reason }.
+ * on the main agent. T1H is the most expensive cheaper model, and only when
+ * there are at least three candidates, so that it differs from T1. Returns { targets, reason }.
  */
 export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDir(), model, provider, now = Date.now() } = {}) {
   if (!safeId(model) || !safeId(provider)) return { targets: [], reason: 'unknown parent model or provider' };
@@ -104,7 +105,9 @@ export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDi
       ? `${model} is already the cheapest available model on ${provider}`
       : `no cheaper priced model has run in your Codex sessions on ${provider}` };
   }
-  const targets = cheaper.slice(0, 2).map((x, i) => ({ tier: i === 0 ? 'T2' : 'T1', from: model, model: x.model, provider, auto: true }));
+  const picks = cheaper.slice(0, 2).map((x, i) => ({ tier: i === 0 ? 'T2' : 'T1', x }));
+  if (cheaper.length >= 3) picks.push({ tier: 'T1H', x: cheaper.at(-1) });
+  const targets = picks.map(({ tier, x }) => ({ tier, from: model, model: x.model, provider, auto: true }));
   return { targets, reason: null };
 }
 
@@ -240,7 +243,7 @@ export function codexDelegateMinContext(cfg) {
 // Codex tells the model to set spawn_agent's model only on the user's request,
 // so the shared hint says where this request came from.
 const SHARED_APPROVAL = 'The user approved this policy and its model mapping, so setting model here follows the user\'s request.';
-const SHARED_TIER_GUIDANCE = 'Choose T2 only for a simple bounded lookup or command. Use T1 for multi-step tool chains or work spanning multiple files. If the required tier is not mapped, keep the task on the main agent. Do not delegate design judgement, diagnosis, or irreversible actions.';
+const SHARED_TIER_GUIDANCE = 'Choose T2 only for a simple bounded lookup or command. Use T1 for multi-step tool chains or work spanning multiple files. Use T1H only for large-scope work that T1 would likely get wrong. If the required tier is not mapped, keep the task on the main agent. Do not delegate design judgement, diagnosis, or irreversible actions.';
 const WAIT_TEXT = 'Wait for it to finish (call wait_agent with timeout_ms of at least 120000, and again if it times out) and do not do the delegated task yourself while it runs; then verify its result and report unfinished work. Do not spawn another CLI process. '
   + 'If sub-agent tools or the target model are unavailable, keep the task on the main agent and state that delegation was unavailable.';
 

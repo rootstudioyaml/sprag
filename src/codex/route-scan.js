@@ -92,7 +92,9 @@ function pickTarget(group, { prices, known, home }) {
     .sort((a, b) => a.usd - b.usd);
   const eligible = cheaper.filter((x) => known.has(`${group.provider}|${x.model}`));
   // Simple work goes to the cheapest model; moderate work steps down one notch.
-  const pick = group.tiers.T2 >= group.tiers.T1 ? eligible[0] : eligible.at(-1);
+  // The heaviest band goes to the most expensive cheaper model (the T1H target).
+  const { T2, T1, T1H } = group.tiers;
+  const pick = T2 >= T1 && T2 >= T1H ? eligible[0] : eligible.at(-1);
   return {
     suggestedModel: pick?.model ?? null,
     alternatives: pick ? [] : cheaper.slice(0, 3).map((x) => x.model),
@@ -135,10 +137,10 @@ export async function runCodexRouteScan({ days = 14, now = Date.now(), home, dir
     const runtime = codexPromptCategory(ep.text);
     if (!runtime || !categorize(ep.text, ep.tools)) continue;
     const tier = tierOf(ep, runtime, thresholds);
-    if (tier !== 'T1' && tier !== 'T2') continue;
+    if (tier !== 'T1' && tier !== 'T2' && tier !== 'T1H') continue;
     const key = `${runtime.id}|${ep.provider}|${ep.model}|${ep.projectRoot}`;
     const g = groups.get(key) || { signature: key, category: runtime.id, label: runtime.label, labelEn: runtime.labelEn,
-      from: ep.model, provider: ep.provider, projectRoot: ep.projectRoot, count: 0, tiers: { T1: 0, T2: 0 }, example: ep.text,
+      from: ep.model, provider: ep.provider, projectRoot: ep.projectRoot, count: 0, tiers: { T1: 0, T2: 0, T1H: 0 }, example: ep.text,
       tokens: { input: 0, cached: 0, cacheWrite: 0, output: 0 }, lastSeen: 0 };
     g.count++;
     g.tiers[tier]++;
@@ -154,7 +156,7 @@ export async function runCodexRouteScan({ days = 14, now = Date.now(), home, dir
         (!r.provider || r.provider === g.provider) &&
         (r.scope === 'global' || r.targetRoot === g.projectRoot))) return true;
     const shared = sharedCodexModelRules({ cfg, dir, root: g.projectRoot, model: g.from, provider: g.provider });
-    return ['T1', 'T2'].every((tier) => !g.tiers[tier] || shared.some((r) => r.category === g.category && r.tier === tier));
+    return ['T1', 'T2', 'T1H'].every((tier) => !g.tiers[tier] || shared.some((r) => r.category === g.category && r.tier === tier));
   };
   const known = new Set([...observed, ...rules.filter((r) => r.provider).map((r) => `${r.provider}|${r.model}`)]);
   const target = cfg?.codex?.delegateTarget?.model;

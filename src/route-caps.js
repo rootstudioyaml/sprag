@@ -13,7 +13,7 @@
  * rule clears it, so a cap never outlives the turn it was stated for.
  *
  * State: <stateDir>/route-caps.json
- *   { sessions: { [session_id]: { ts, T2?: { calls, out }, T1?: { calls, out } } } }
+ *   { sessions: { [session_id]: { ts, T2?: { calls, out }, T1?: { calls, out }, T1H?: { calls, out } } } }
  */
 
 import { readFileSync } from 'node:fs';
@@ -49,7 +49,7 @@ export function recordRouteCaps(sessionId, caps, now = Date.now()) {
   if (typeof sessionId !== 'string' || sessionId === '') return false;
   const state = load();
   const next = {};
-  for (const tier of ['T2', 'T1']) {
+  for (const tier of ['T2', 'T1', 'T1H']) {
     if (validBudget(caps?.[tier])) next[tier] = { calls: caps[tier].calls ?? null, out: caps[tier].out };
   }
   const has = Object.keys(next).length > 0;
@@ -69,6 +69,6 @@ export function routeCapsFor(sessionId, now = Date.now()) {
   const s = load().sessions[sessionId];
   if (!s || !Number.isFinite(s.ts) || now - s.ts > TTL_MS) return null;
   const out = {};
-  for (const tier of ['T2', 'T1']) if (validBudget(s[tier])) out[tier] = s[tier];
+  for (const tier of ['T2', 'T1', 'T1H']) if (validBudget(s[tier])) out[tier] = s[tier];
   return Object.keys(out).length ? out : null;
 }

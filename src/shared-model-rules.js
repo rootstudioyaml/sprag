@@ -3,7 +3,7 @@ import { isAbsolute, resolve } from 'node:path';
 import { loadModelRules, ruleBudget } from './model-rules.js';
 import { findProjectRoot } from './harness.js';
 
-export const SHARED_RULE_TIERS = ['T2', 'T1'];
+export const SHARED_RULE_TIERS = ['T2', 'T1', 'T1H'];
 const CATEGORIES = new Set(['paste', 'translate', 'explore', 'read', 'check', 'run']);
 
 /** A root as a real path, so a symlinked checkout or macOS /var names one directory once. */
