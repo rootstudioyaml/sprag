@@ -137,13 +137,15 @@
   .dhead .back:hover{color:var(--ink)}
   .dtitle{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .dtitle h2{font-size:24px;letter-spacing:-.02em;overflow-wrap:anywhere}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:14px 22px;margin-top:18px}
+  .stats{display:flex;flex-wrap:wrap;gap:14px 32px;margin-top:18px}
+  .stat{flex:0 0 auto;min-width:72px}
+  .stat:first-child{min-width:140px}
   .stat span{display:block;font-size:11.5px;color:var(--faint)}
   .stat b{display:block;font-size:17px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;margin-top:2px;white-space:nowrap}
   .stat .bar{margin-top:6px;max-width:none;height:6px}
   .stat.sv b{color:var(--teal)} .stat.sp b{color:var(--amber2)} .stat.lt b{color:var(--warn)}
   .dhead .tabs{margin-top:20px}
-  @media(max-width:520px){.stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px}.stat b{font-size:15px}.dtitle h2{font-size:21px}}
+  @media(max-width:520px){.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px}.stat{min-width:0}.stat b{white-space:normal}.stat b{font-size:15px}.dtitle h2{font-size:21px}}
   .totals div b{font-size:24px}
   @media(max-width:520px){.totals{gap:20px 26px}.totals div b{font-size:21px}}
   /* seats roster + activity (shared by team and ops) */
@@ -184,7 +186,9 @@
   .tbl-wrap select,.sr-tbl select.mg{padding-right:26px;background-position:right 8px center;background-size:11px;width:112px}
   td.act{text-align:right;width:1%;white-space:nowrap}
   .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;min-width:0}
-  .sr-tbl table{min-width:980px}
+  .sr-tbl table{min-width:880px}
+  .sr-tbl th,.sr-tbl td{padding-left:10px;padding-right:10px}
+  @media(max-width:1100px){.sr-tbl .c-joined{display:none}}
   .sr-tbl th,.sr-tbl td{white-space:nowrap}
   .sr-tbl td.sn{white-space:normal;min-width:160px;max-width:240px;overflow:hidden}
   .mem-tbl table{min-width:1000px}
@@ -1068,7 +1072,7 @@ const Seats = (function(){
         <td>${gone ? '' : esc(r.last_upload_at ? rel(r.last_upload_at) : t('never'))}</td>
         <td>${esc(rel(r.last_seen))}</td><td>${r.signal === 'paused' ? esc(rel(r.sync_state_at)) : ''}</td>
         <td>${esc(r.sprag_version || '')}</td>
-        <td>${esc(fmtDate(r.joined_at))}</td><td class="act"><div class="acts">${act}</div></td></tr>`;
+        <td class="c-joined">${esc(fmtDate(r.joined_at))}</td><td class="act"><div class="acts">${act}</div></td></tr>`;
     }).join('');
     const opts = ['', 'ok', 'late', 'paused', 'silent', 'left', 'removed'].map(s =>
       `<option value="${s}" ${st.filter === s ? 'selected' : ''}>${esc(s ? t('sr.s.' + s) : t('sr.all'))}</option>`).join('');
@@ -1080,7 +1084,7 @@ const Seats = (function(){
       <div class="sr-tools"><label class="thr"><span>${esc(t('sr.filter'))}</span><select id="sr-filter">${opts}</select></label></div>
       <div class="tbl-wrap sr-tbl"><table><thead><tr>
         <th>${esc(t('sr.c.name'))}</th><th>${esc(t('sr.c.team'))}</th><th>${esc(t('sr.c.switch'))}</th><th>${esc(t('sr.c.signal'))}</th><th>${esc(t('sr.c.upload'))}</th>
-        <th>${esc(t('sr.c.seen'))}</th><th>${esc(t('sr.c.since'))}</th><th>${esc(t('sr.c.ver'))}</th><th>${esc(t('sr.c.joined'))}</th><th></th></tr></thead>
+        <th>${esc(t('sr.c.seen'))}</th><th>${esc(t('sr.c.since'))}</th><th>${esc(t('sr.c.ver'))}</th><th class="c-joined">${esc(t('sr.c.joined'))}</th><th></th></tr></thead>
         <tbody>${body}</tbody></table></div>
       ${rows.length ? '' : `<p class="msg">${esc(t('sr.none'))}</p>`}
       <p class="note">${esc(t('sr.note'))}</p>
