@@ -4,7 +4,8 @@
  * else in the CLI takes the extracted values.
  */
 
-import { readFileSync } from 'node:fs';
+import { readSync } from 'node:fs';
+import { isatty } from 'node:tty';
 
 /**
  * Read the JSON blob Claude Code feeds the statusline command on stdin.
@@ -30,12 +31,40 @@ import { readFileSync } from 'node:fs';
 // command, so the raw text is read on first use and cached for the process.
 let rawCache = null;
 
+// The TTY test goes through isatty(0), never process.stdin: touching that
+// getter builds a stream that switches a pipe to non-blocking mode, and
+// readFileSync(0) then throws EAGAIN whenever the writer has not written yet.
+// Under load that dropped the whole payload (session id, rate limits, model)
+// on a random refresh. EAGAIN is still retried below for the same reason, in
+// case some other module touches process.stdin first.
+const STDIN_WAIT_MS = 2000;
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+function readFd0() {
+  const chunks = [];
+  const buf = Buffer.alloc(65536);
+  const deadline = Date.now() + STDIN_WAIT_MS;
+  for (;;) {
+    let n;
+    try {
+      n = readSync(0, buf, 0, buf.length, null);
+    } catch (e) {
+      if (e && e.code === 'EAGAIN' && Date.now() < deadline) { sleep(5); continue; }
+      if (e && e.code === 'EOF') break; // Windows reports a closed pipe this way
+      throw e;
+    }
+    if (n === 0) break;
+    chunks.push(Buffer.from(buf.subarray(0, n)));
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 /** The raw stdin text, read once. '' when stdin is a TTY or empty. */
 export function readStdinRaw() {
   if (rawCache !== null) return rawCache;
-  if (process.stdin.isTTY) return (rawCache = '');
+  if (isatty(0)) return (rawCache = '');
   try {
-    rawCache = readFileSync(0, 'utf8') || '';
+    rawCache = readFd0() || '';
   } catch {
     rawCache = '';
   }
@@ -43,7 +72,7 @@ export function readStdinRaw() {
 }
 
 export function readStdinJson() {
-  if (process.stdin.isTTY) return null;
+  if (isatty(0)) return null;
   try {
     const raw = readStdinRaw();
     if (!raw || !raw.trim()) return null;
