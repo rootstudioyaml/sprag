@@ -152,23 +152,59 @@
   .chip b{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
   .chip.ac b{color:var(--teal)} .chip.pa b{color:var(--warn)}
   .sr-tools{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
-  .sr-tbl table{min-width:0;font-size:12.5px}
-  .sr-tbl th,.sr-tbl td{padding:9px 7px;white-space:normal}
+  .sr-tbl table{font-size:12.5px}
+  .sr-tbl th,.sr-tbl td{padding:9px 10px}
   .sr-tbl .badge{white-space:nowrap}
-  .sr-tbl select.mg{max-width:112px}
   .sr-tbl td.sn{font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis}
-  .sr-tbl td.act{text-align:right}
-  .sr-tbl td.act{white-space:normal;width:1%}
-  .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;min-width:120px}
   .sr-tbl tr.gone td{color:var(--faint)}
   #seats-box tbody tr{cursor:default}
   #seats-box tbody tr:hover td{background:none}
-  #seats-box td select.mg{padding:4px 8px;font-size:12.5px}
   .sr-more{margin-top:10px}
   .evt{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:13px;flex-wrap:wrap}
   .evt:first-of-type{border-top:0}
   .evt time{color:var(--faint);font-size:12.5px;white-space:nowrap}
   .chip.pa b{color:var(--warn)}
+
+  /* ── shared controls: one height (36px), 13.5px, one radius ─────────── */
+  :root{color-scheme:dark}
+  input[type=text],input[type=email],input[type=password],input[type=number],select{font:inherit;font-size:13.5px;line-height:normal;height:36px;padding:0 12px;background-color:var(--bg);border:1px solid var(--line2);border-radius:var(--r);color:var(--ink);min-width:0}
+  select{-webkit-appearance:none;appearance:none;padding-right:32px;cursor:pointer;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238a8f98' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;background-size:12px}
+  select:hover{border-color:#3a3d47}
+  select option{background:#141516;color:var(--ink)}
+  textarea{font-size:13.5px}
+  .btn,.btn.sm{height:36px;padding:0 14px;font-size:13.5px;line-height:1;white-space:nowrap;border-radius:var(--r)}
+  .btn.sm{padding:0 12px}
+  .thr input{width:90px;padding:0 10px}
+  .row.grow > select,.row.grow > .btn{flex:0 0 auto}
+  /* compact contexts (table cells, list rows): 30px controls */
+  .tbl-wrap .btn,.tbl-wrap .btn.sm,.tbl-wrap select,.arow .btn,.arow .btn.sm,.rule .btn,.rule .btn.sm{height:30px;padding:0 10px;font-size:12.5px;border-radius:6px}
+  .tbl-wrap select,.sr-tbl select.mg{padding-right:26px;background-position:right 8px center;background-size:11px;width:112px}
+  td.act{text-align:right;width:1%;white-space:nowrap}
+  .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:nowrap;min-width:0}
+  .sr-tbl table{min-width:980px}
+  .sr-tbl th,.sr-tbl td{white-space:nowrap}
+  .sr-tbl td.sn{white-space:normal;min-width:160px;max-width:240px;overflow:hidden}
+  .mem-tbl table{min-width:1000px}
+  .badge.good{border-color:var(--teal);color:var(--teal)}
+  .badge.bad{border-color:var(--red);color:var(--red)}
+  [role=tab][aria-selected=true].btn{border-color:var(--amber);color:var(--ink)}
+  .tabs{display:flex;gap:4px;margin-top:16px;border-bottom:1px solid var(--line)}
+  .tab{background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:8px 12px;margin-bottom:-1px;font-size:13.5px;transition:color .18s var(--ease),border-color .18s var(--ease)}
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected=true]{color:var(--ink);border-color:var(--amber)}
+  .auth .tabs + form{margin-top:18px}
+  .who-acts{display:flex;gap:8px;flex-wrap:wrap}
+  .pwbox{display:grid;gap:12px;max-width:420px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  .layout > .card{margin-top:0}
+  #app > * + *{margin-top:16px}
+  .sr-tools .thr select{min-width:140px}
+  @media(max-width:520px){
+    .row.grow > input,.addrule input[type=text]{flex:1 1 100%}
+    .row.grow > select{flex:1 1 auto}
+    .sr-tools,.card > .row{align-items:flex-start}
+    .chip{min-width:0;flex:1 1 calc(50% - 5px)}
+    .tok code{font-size:12px}
+  }
 </style>
 </head>
 <body>
@@ -204,6 +240,19 @@
 
   <section id="auth" class="card auth" aria-labelledby="auth-h">
     <h2 id="auth-h" data-k="si.h">Sign in</h2>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab" role="tab" id="tab-otp" aria-selected="true" data-k="si.tab.otp">Email code</button>
+      <button type="button" class="tab" role="tab" id="tab-pw" aria-selected="false" data-k="si.tab.pw">Password</button>
+    </div>
+    <form id="form-pw" hidden novalidate>
+      <label class="f"><span data-k="si.email">Email</span>
+        <input type="email" id="pw-email" autocomplete="username" inputmode="email" placeholder="you@company.com" />
+      </label>
+      <label class="f"><span data-k="si.pass">Password</span>
+        <input type="password" id="pw-pass" autocomplete="current-password" />
+      </label>
+      <div class="row"><button class="btn pri" type="submit" id="btn-pw" data-k="si.pwgo">Sign in</button></div>
+    </form>
     <form id="form-email" novalidate>
       <label class="f"><span data-k="si.email">Email</span>
         <input type="email" id="email" autocomplete="email" inputmode="email" placeholder="you@company.com" required />
@@ -227,8 +276,20 @@
     <div class="card">
       <div class="row" style="justify-content:space-between">
         <div class="who"><span data-k="si.as">Signed in as</span> <b id="who-email"></b></div>
-        <button class="btn sm" id="btn-out" data-k="si.out">Sign out</button>
+        <div class="who-acts"><button class="btn sm" id="btn-setpw" type="button" data-k="pw.set">Set password</button>
+        <button class="btn sm" id="btn-out" data-k="si.out">Sign out</button></div>
       </div>
+      <form class="pwbox" id="form-setpw" hidden novalidate>
+        <h3 data-k="pw.set">Set password</h3>
+        <label class="f"><span data-k="pw.new">New password (10+ characters)</span>
+          <input type="password" id="pw-new" autocomplete="new-password" /></label>
+        <label class="f"><span data-k="pw.again">Repeat new password</span>
+          <input type="password" id="pw-again" autocomplete="new-password" /></label>
+        <div class="row"><button class="btn pri" type="submit" id="btn-pw-save" data-k="pw.save">Save password</button>
+          <button class="btn" type="button" id="btn-pw-cancel" data-k="pw.cancel">Cancel</button></div>
+        <p class="ok" id="setpw-ok" style="margin:0"></p>
+        <p class="err" id="setpw-err" role="alert" style="margin:0"></p>
+      </form>
     </div>
 
     <section class="card" id="denied" hidden>
@@ -405,6 +466,9 @@ const I18N = {
     'h.eyebrow':'Superuser','h.title':'Superuser console','h.lede':'Every customer organization, its seats, spend and plan.',
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
     'si.sent':'We sent a code to {email}.','si.as':'Signed in as','si.out':'Sign out',
+    'si.tab.otp':'Email code','si.tab.pw':'Password','si.pass':'Password','si.pwgo':'Sign in','si.badpw':'Enter your email and password.',
+    'pw.set':'Set password','pw.new':'New password (10+ characters)','pw.again':'Repeat new password','pw.save':'Save password','pw.cancel':'Cancel',
+    'pw.short':'Use at least 10 characters.','pw.mismatch':'The two passwords do not match.','pw.done':'Password saved. You can now sign in with it.',
     'si.bademail':'Enter a valid email address.','si.badcode':'Enter the 6-digit code from the email.',
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
@@ -439,14 +503,14 @@ const I18N = {
     "sr.none":"조건에 맞는 컴퓨터가 없습니다.",
     "sr.remove":"제거",
     "sr.restore":"복원",
-    "sr.merge":"자리 합치기…",
+    "sr.merge":"좌석 합치기…",
     "sr.unmerge":"합치기 해제",
-    "sr.shares":"{name} 컴퓨터와 자리를 같이 씁니다",
+    "sr.shares":"{name} 컴퓨터와 좌석을 같이 씁니다",
     "sr.note":"중지된 컴퓨터는 SPRAG_NO_TEAM_SYNC=1 설정으로 사용량 전송을 멈춘 컴퓨터입니다. 오너나 어드민이 제거하기 전까지 좌석을 계속 차지합니다. 지연은 업로드는 허용돼 있지만 48시간 넘게 데이터가 오지 않은 상태입니다.",
     "sr.removeconfirm":"{name} 컴퓨터를 제거할까요? 좌석이 비고 이 컴퓨터의 키는 더 이상 쓸 수 없습니다. 빈 좌석이 있으면 나중에 복원할 수 있습니다.",
     "sr.restoreconfirm":"{name} 컴퓨터를 복원할까요? 좌석 한 개를 다시 차지합니다.",
-    "sr.mergeconfirm":"{name} 컴퓨터와 {into} 컴퓨터를 한 자리로 셀까요? 같은 사람이 컴퓨터 두 대를 쓸 때 사용하세요.",
-    "sr.unmergeconfirm":"{name} 컴퓨터에 다시 자리를 따로 줄까요?",
+    "sr.mergeconfirm":"{name} 컴퓨터와 {into} 컴퓨터를 한 좌석으로 셀까요? 같은 사람이 컴퓨터 두 대를 쓸 때 사용하세요.",
+    "sr.unmergeconfirm":"{name} 컴퓨터에 다시 좌석을 따로 줄까요?",
     "sr.act":"활동 기록",
     "sr.more":"더 보기",
     "sr.ev.none":"아직 기록이 없습니다.",
@@ -495,6 +559,9 @@ const I18N = {
     'h.eyebrow':'슈퍼유저','h.title':'슈퍼유저 콘솔','h.lede':'모든 고객 조직의 좌석, 지출, 요금제를 봅니다.',
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
     'si.sent':'{email}로 코드를 보냈습니다.','si.as':'로그인 계정','si.out':'로그아웃',
+    'si.tab.otp':'이메일 코드','si.tab.pw':'비밀번호','si.pass':'비밀번호','si.pwgo':'로그인','si.badpw':'이메일과 비밀번호를 입력해 주세요.',
+    'pw.set':'비밀번호 설정','pw.new':'새 비밀번호 (10자 이상)','pw.again':'새 비밀번호 확인','pw.save':'비밀번호 저장','pw.cancel':'취소',
+    'pw.short':'10자 이상으로 정해 주세요.','pw.mismatch':'두 비밀번호가 서로 다릅니다.','pw.done':'비밀번호를 저장했습니다. 이제 비밀번호로 로그인할 수 있습니다.',
     'si.bademail':'올바른 이메일 주소를 입력해 주세요.','si.badcode':'메일에 적힌 6자리 코드를 입력해 주세요.',
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
@@ -628,7 +695,7 @@ $('form-email').addEventListener('submit', async ev => {
     const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
     if(error) throw error;
     pendingEmail = email;
-    $('form-email').hidden = true; $('form-code').hidden = false;
+    otpStage = true; $('form-email').hidden = true; $('form-code').hidden = false;
     $('code-sent').textContent = t('si.sent', {email}, true);
     $('code').focus();
   }catch(e){ showAuthErr(errMsg(e)); }
@@ -648,7 +715,7 @@ $('form-code').addEventListener('submit', async ev => {
   finally{ $('btn-verify').disabled = false; }
 });
 $('btn-back').addEventListener('click', () => {
-  $('form-code').hidden = true; $('form-email').hidden = false; showAuthErr(''); $('email').focus();
+  otpStage = false; $('form-code').hidden = true; $('form-email').hidden = false; showAuthErr(''); $('email').focus();
 });
 $('btn-out').addEventListener('click', async () => {
   if(DEMO) return;
@@ -656,8 +723,66 @@ $('btn-out').addEventListener('click', async () => {
   await onSession(null);
 });
 
+
+/* ── password sign-in and set password ────────────────────────────────── */
+let otpStage = false;
+function setAuthTab(mode){
+  const pw = mode === 'pw';
+  $('tab-otp').setAttribute('aria-selected', String(!pw)); $('tab-pw').setAttribute('aria-selected', String(pw));
+  $('form-pw').hidden = !pw;
+  $('form-email').hidden = pw || otpStage; $('form-code').hidden = pw || !otpStage;
+  showAuthErr('');
+}
+$('tab-otp').addEventListener('click', () => setAuthTab('otp'));
+$('tab-pw').addEventListener('click', () => setAuthTab('pw'));
+$('form-pw').addEventListener('submit', async ev => {
+  ev.preventDefault(); showAuthErr('');
+  const email = $('pw-email').value.trim(), password = $('pw-pass').value;
+  if(!email || !password) return showAuthErr(t('si.badpw'));
+  if(!sb) return showAuthErr(t('err.lib'));
+  $('btn-pw').disabled = true;
+  try{
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+    $('pw-pass').value = '';
+    await onSession(data.session);
+  }catch(e){ showAuthErr(errMsg(e)); }
+  finally{ $('btn-pw').disabled = false; }
+});
+function resetSetPw(){ ['pw-new', 'pw-again'].forEach(i => { $(i).value = ''; }); $('setpw-ok').textContent = ''; $('setpw-err').textContent = ''; }
+$('btn-setpw').addEventListener('click', () => { const f = $('form-setpw'); f.hidden = !f.hidden; resetSetPw(); if(!f.hidden) $('pw-new').focus(); });
+$('btn-pw-cancel').addEventListener('click', () => { $('form-setpw').hidden = true; resetSetPw(); });
+$('form-setpw').addEventListener('submit', async ev => {
+  ev.preventDefault(); $('setpw-ok').textContent = ''; $('setpw-err').textContent = '';
+  const a = $('pw-new').value, b = $('pw-again').value;
+  if(a.length < 10) return void ($('setpw-err').textContent = t('pw.short'));
+  if(a !== b) return void ($('setpw-err').textContent = t('pw.mismatch'));
+  $('btn-pw-save').disabled = true;
+  try{
+    const { error } = await sb.auth.updateUser({ password: a });
+    if(error) throw error;
+    resetSetPw(); $('setpw-ok').textContent = t('pw.done');
+  }catch(e){ $('setpw-err').textContent = errMsg(e); }
+  finally{ $('btn-pw-save').disabled = false; }
+});
+/* demo only: fake auth, no network and nothing stored */
+function demoAuth(){
+  return {
+    signInWithPassword: async ({ email, password }) => password.length < 4 ? { data:null, error:{ message:'Invalid login credentials' } } : { data:{ session:{ user:{ email } } }, error:null },
+    updateUser: async () => ({ data:{ user:{} }, error:null }),
+    signInWithOtp: async () => ({ error:null }),
+    verifyOtp: async ({ email }) => ({ data:{ session:{ user:{ email } } }, error:null }),
+    signOut: async () => {}, getSession: async () => ({ data:{ session:null } }), onAuthStateChange: () => {}
+  };
+}
+function bootAuthParams(){
+  const q = new URLSearchParams(location.search);
+  if(q.get('signin') === 'password') setAuthTab('pw');
+}
+
 async function onSession(session){
   user = session ? session.user : null;
+  if(!user){ $('form-setpw').hidden = true; resetSetPw(); }
   $('auth').hidden = !!user; $('app').hidden = !user;
   orgs = []; sel = null; sum = null;
   $('ops').hidden = true; $('denied').hidden = true;
@@ -990,7 +1115,16 @@ function demoSeatsRpc(orgId, teams, name, a){
     }
   });
   setLang(window.__initLang, false);
-  if(DEMO){ user = {email:'root.studio.yaml@gmail.com'}; await onSession({user}); const pick = new URLSearchParams(location.search).get('org'); if(pick) await selectOrg(pick); return; }
+  if(DEMO){
+    sb = { auth: demoAuth() }; bootAuthParams();
+    const dq = new URLSearchParams(location.search);
+    if(dq.get('signedout') === '1') return;
+    user = {email:'root.studio.yaml@gmail.com'}; await onSession({user});
+    if(dq.get('org')) await selectOrg(dq.get('org'));
+    if(dq.get('setpw') === '1') $('btn-setpw').click();
+    return;
+  }
+  bootAuthParams();
   if(!window.supabase){ showAuthErr(t('err.lib')); return; }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   try{
