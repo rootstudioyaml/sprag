@@ -702,7 +702,7 @@ const I18N = {
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
     'deny.h':'This page is for Sprag superusers.','deny.d':'This account has no superuser access.',
-    'tot.h':'Overview','tot.orgs':'Organizations','tot.ent':'Enterprise','tot.seats':'Seats used','tot.active':'Active members 30d','tot.sp':'Spent 30d','tot.sv':'Saved 30d',
+    'tot.h':'Overview','tot.orgs':'Organizations','tot.pro':'Pro','tot.ent':'Enterprise','tot.seats':'Seats used','tot.active':'Active members 30d','tot.sp':'Spent 30d','tot.sv':'Saved 30d',
     'tot.seatsof':'{used} / {limit}',
     'orgs.h':'Organizations','orgs.none':'No organizations match.','f.q':'Search name or owner email','f.allplans':'All plans','f.allstatus':'All statuses','f.email':'Email',
     'plan.pro':'Pro','plan.enterprise':'Enterprise','st.active':'Active','st.suspended':'Suspended',
@@ -797,7 +797,7 @@ const I18N = {
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
     'deny.h':'Sprag 슈퍼유저 전용 페이지입니다.','deny.d':'이 계정에는 슈퍼유저 권한이 없습니다.',
-    'tot.h':'한눈에 보기','tot.orgs':'조직','tot.ent':'엔터프라이즈','tot.seats':'사용 중인 좌석','tot.active':'30일 활동 멤버','tot.sp':'30일 지출','tot.sv':'30일 절감',
+    'tot.h':'한눈에 보기','tot.orgs':'조직','tot.pro':'프로','tot.ent':'엔터프라이즈','tot.seats':'사용 중인 좌석','tot.active':'30일 활동 멤버','tot.sp':'30일 지출','tot.sv':'30일 절감',
     'tot.seatsof':'{used} / {limit}',
     'orgs.h':'조직','orgs.none':'조건에 맞는 조직이 없습니다.','f.q':'이름 또는 오너 이메일 검색','f.allplans':'모든 요금제','f.allstatus':'모든 상태','f.email':'이메일',
     'plan.pro':'프로','plan.enterprise':'엔터프라이즈','st.active':'사용 중','st.suspended':'정지됨',
@@ -875,7 +875,7 @@ const demo = (function(){
       }));
       return out;
     }
-    if(name === 'ops_totals') return {orgs:orgs.length, orgs_enterprise:orgs.filter(o => o.plan === 'enterprise').length, seats_used:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.holds_seat && !x.seat_of).length,0), seats_paused:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'paused').length,0), seats_late:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'late').length,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
+    if(name === 'ops_totals') return {orgs:orgs.length, orgs_pro:orgs.filter(o => o.plan === 'pro').length, orgs_enterprise:orgs.filter(o => o.plan === 'enterprise').length, seats_used:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.holds_seat && !x.seat_of).length,0), seats_paused:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'paused').length,0), seats_late:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'late').length,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
     const o = orgs.find(x => x.id === a.p_org_id);
     if(!o) throw new Error('not found');
     if(name === 'org_summary') return sums(o);
@@ -1118,7 +1118,7 @@ function renderTotals(){
   const x = totals; if(!x){ $('totals').innerHTML = ''; return; }
   const c = (cls, label, val) => `<div class="${cls}"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
   $('totals').innerHTML =
-    c('', t('tot.orgs'), x.orgs ?? 0) + c('', t('tot.ent'), x.orgs_enterprise ?? x.orgs_business ?? 0) +
+    c('', t('tot.orgs'), x.orgs ?? 0) + c('', t('tot.pro'), x.orgs_pro ?? 0) + c('', t('tot.ent'), x.orgs_enterprise ?? x.orgs_business ?? 0) +
     c('', t('tot.seats'), t('tot.seatsof', {used: x.seats_used ?? 0, limit: x.seats_limit_sum ?? 0}, true)) +
     c('', t('tot.active'), x.members_active_30d ?? 0) + c('', t('tot.paused'), x.seats_paused ?? 0) + c('', t('tot.late'), x.seats_late ?? 0) + c('sp', t('tot.sp'), money(x.spent_30d)) + c('sv', t('tot.sv'), money(x.saved_30d));
 }
