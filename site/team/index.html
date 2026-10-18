@@ -255,6 +255,41 @@
   .setform form{display:grid;gap:var(--s3);max-width:520px}
   .setform select,.setform input{width:100%}
 
+  /* ── prompt usage (Enterprise) ─────────────────────────────────────────── */
+  .pu-sort{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:4px;color:inherit;font:inherit;white-space:nowrap}
+  .pu-sort:hover{color:var(--ink)} .pu-sort:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:3px}
+  .pu-sort::after{content:"";width:0;height:0;border:4px solid transparent;opacity:0}
+  th[aria-sort=descending] .pu-sort::after{border-top-color:var(--accent2);border-bottom:0;opacity:1;margin-top:2px}
+  th[aria-sort=ascending] .pu-sort::after{border-bottom-color:var(--accent2);border-top:0;opacity:1;margin-bottom:2px}
+  th[aria-sort] .pu-sort{color:var(--ink)}
+  #pu-box td.num,#pu-box th.num{text-align:right} #pu-box th.num .pu-sort{justify-content:flex-end}
+  #pu-box tr.pu-row{cursor:pointer} #pu-box tr.pu-row:hover td{background:var(--hover)}
+  .pu-open{all:unset;cursor:pointer;color:var(--ink);font-weight:500;overflow-wrap:anywhere;text-align:left}
+  .pu-open:hover{color:var(--accent2)} .pu-open:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:3px}
+  .pu-spark{display:block;width:96px;height:24px;color:var(--accent2)}
+  .pu-lock{display:flex;gap:var(--s4);align-items:flex-start;padding:var(--s2) 0}
+  .pu-lock svg{flex:0 0 auto;width:28px;height:28px;color:var(--accent2);margin-top:2px}
+  .pu-lock h3{margin:0 0 6px} .pu-lock p{color:var(--dim);font-size:13px;max-width:62ch;margin:0 0 var(--s3)}
+  .pu-who{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s3)}
+  .pu-who h3{margin:0;overflow-wrap:anywhere} .pu-who .share{display:block;margin-top:2px}
+  .pu-tools{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap;margin-bottom:var(--s3)}
+  .pu-tools input[type=text]{flex:1 1 240px;max-width:420px}
+  .pu-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+  .pu-p{padding:12px 14px;border-top:1px solid var(--line);min-width:0} .pu-p:first-child{border-top:0}
+  .pu-m{display:flex;gap:6px var(--s4);flex-wrap:wrap;align-items:baseline;color:var(--faint);font-size:12px;margin-bottom:6px}
+  .pu-m time{color:var(--dim)} .pu-m .pr-proj{font-family:var(--mono);font-size:11.5px}
+  .pu-t{margin:0;font:inherit;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+  .pu-t.mono{font-family:var(--mono);font-size:12px;line-height:1.55;color:var(--dim);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
+  .pu-t.clamp{max-height:4.6em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 60%,transparent);mask-image:linear-gradient(#000 60%,transparent)}
+  .pu-t.mono.clamp{max-height:8.2em}
+  .pu-x{margin-top:6px;padding:0;height:auto;border:0;background:none;color:var(--accent2);font-size:12px}
+  .pu-more{margin-top:var(--s3)}
+    .pu-tbl td.sn{font-weight:500;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+  .pu-tbl td.tm{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+  .pu-tbl th:first-child,.pu-tbl td:first-child{padding-left:20px}
+  .pu-tm{display:none}
+  @media(max-width:640px){.pu-tbl table{min-width:0}.pu-spark{width:72px}#pu-box .tbl-wrap th:nth-child(2),#pu-box .tbl-wrap td:nth-child(2),#pu-box .tbl-wrap th:nth-child(3),#pu-box .tbl-wrap td:nth-child(3),#pu-box .tbl-wrap th:nth-child(5),#pu-box .tbl-wrap td:nth-child(5),#pu-box .tbl-wrap th:nth-child(7),#pu-box .tbl-wrap td:nth-child(7),#pu-box .tbl-wrap th:nth-child(9),#pu-box .tbl-wrap td:nth-child(9){display:none}.pu-tm{display:block;overflow:hidden;text-overflow:ellipsis}#pu-box td.sn{max-width:150px}.pu-tbl th:first-child,.pu-tbl td:first-child{padding-left:12px}.pu-open{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pu-lock{flex-direction:column;gap:var(--s2)}}
+
   /* ── team view ──────────────────────────────────────────────────────────── */
   .org-top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--s4);flex-wrap:wrap}
   .org-top h2{font-size:17px;letter-spacing:-.015em;overflow-wrap:anywhere}
@@ -376,6 +411,7 @@
       <button type="button" class="vtab" role="tab" id="vtab-overview" data-view="overview" data-k="v.overview">Overview</button>
       <button type="button" class="vtab" role="tab" id="vtab-seats" data-view="seats" data-k="v.seats">Seats</button>
       <button type="button" class="vtab" role="tab" id="vtab-teams" data-view="teams" data-k="v.teams">Teams</button>
+      <button type="button" class="vtab" role="tab" id="vtab-prompts" data-view="prompts" data-k="v.prompts" hidden>Prompts</button>
     </nav>
     <div class="hbar-r">
       <div class="orgbar" id="orgbar" hidden>
@@ -487,6 +523,12 @@
     </section>
     </section>
 
+    <section class="view" id="view-prompts" role="tabpanel" aria-labelledby="vtab-prompts" hidden>
+    <section class="card" id="pu-card" aria-label="Prompts">
+      <div id="pu-box"></div>
+    </section>
+    </section>
+
     <section class="view" id="view-teams" role="tabpanel" aria-labelledby="vtab-teams" hidden>
     <div class="tlayout">
     <aside class="tside" aria-labelledby="teams-h">
@@ -544,9 +586,9 @@
         <div class="switch">
           <button class="sw" id="sw-capture" role="switch" aria-checked="false" aria-labelledby="pol-cap"></button>
           <b id="pol-cap" style="font-weight:500" data-k="pol.cap">Prompt capture</b>
-          <a class="planlink" id="pol-plan" href="/pricing/" hidden>Business</a>
+          <a class="planlink" id="pol-plan" href="/pricing/" hidden>Enterprise</a>
         </div>
-        <p class="sub" data-k="pol.desc">Off by default. Needs the Business plan.</p>
+        <p class="sub" data-k="pol.desc">Off by default. Needs the Enterprise plan.</p>
         <p class="msg warn" id="pol-plannote" hidden></p>
         <p class="err" id="pol-err" role="alert"></p>
       </section>
@@ -713,14 +755,14 @@ const I18N = {
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
     't.h':'Your teams','t.new':'New team','t.ph':'Team name','t.create':'Create','t.empty':'No teams yet. Create one below.',
-    't.active':'{n} active','plan.team':'Team','plan.business':'Business','t.noname':'Enter a team name.',
+    't.active':'{n} active','plan.pro':'Pro','plan.enterprise':'Enterprise','t.noname':'Enter a team name.',
     'copy':'Copy','copied':'Copied',
     'inv.h':'Invite token','inv.rotate':'Rotate','inv.rotnote':'Old tokens stop working as soon as you rotate.',
     'inv.confirm':'Rotate the invite token? Old tokens stop working right away, so anything that uses one (join commands, shell profiles, managed settings) needs the new token.',
     'en.h':'Enroll members','en.1':'One person on one machine','en.2':'Shell profile','en.3':'Claude Code managed settings (whole organization)',
     'en.where':'On macOS, managed settings live at <code>/Library/Application Support/ClaudeCode/managed-settings.json</code>.',
     'data.sent':'Members send one row per day: spend, savings, delegation count, model-family share, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.',
-    'pol.h':'Policy','pol.cap':'Prompt capture','pol.desc':'Off by default. Needs the Business plan.',
+    'pol.h':'Policy','pol.cap':'Prompt capture','pol.desc':'Off by default. Needs the Enterprise plan.',
     'pol.confirm':"Members' CLIs will start uploading their Claude Code / Codex prompts (user turns only) in compressed daily batches. Each member sees this policy in `sprag team status`.",
     'mem.h':'Members','mem.thr':"Highlight when today's spend is above $",
     'mem.name':'Name','mem.agent':'Agent','mem.ver':'Version','mem.joined':'Joined','mem.seen':'Last seen',
@@ -748,7 +790,7 @@ const I18N = {
     'seat.shares':'shares a seat with {name}','seat.merge':'Merge seat…','seat.unmerge':'Unmerge',
     'seat.mergeconfirm':'Count {name} and {into} as one seat? Use this when they are the same person on two machines.',
     'seat.unmergeconfirm':'Give {name} a separate seat again?',
-    'pol.plannote':'Your organization is on the {plan} plan. Sprag sets the plan; to switch prompt capture on, contact us about Business.'
+    'pol.plannote':'Your organization is on the {plan} plan. Sprag sets the plan; to switch prompt capture on, contact us about Enterprise.'
   },
   ko: {
     "acct.aria":"계정","sr.c.os":"OS","mem.os":"OS","loading":"불러오는 중",
@@ -817,14 +859,14 @@ const I18N = {
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
     't.h':'내 팀','t.new':'새 팀','t.ph':'팀 이름','t.create':'만들기','t.empty':'아직 팀이 없습니다. 아래에서 만들어 보세요.',
-    't.active':'활동 멤버 {n}명','plan.team':'팀','plan.business':'비즈니스','t.noname':'팀 이름을 입력해 주세요.',
+    't.active':'활동 멤버 {n}명','plan.pro':'프로','plan.enterprise':'엔터프라이즈','t.noname':'팀 이름을 입력해 주세요.',
     'copy':'복사','copied':'복사함',
     'inv.h':'초대 토큰','inv.rotate':'교체','inv.rotnote':'교체하는 즉시 이전 토큰은 쓸 수 없게 됩니다.',
     'inv.confirm':'초대 토큰을 교체할까요? 이전 토큰은 바로 쓸 수 없게 되므로, 이전 토큰을 쓰던 join 명령, 셸 프로필, 관리 설정은 새 토큰으로 바꿔야 합니다.',
     'en.h':'멤버 등록','en.1':'한 사람, 한 컴퓨터','en.2':'셸 프로필','en.3':'Claude Code 관리 설정 (조직 전체)',
     'en.where':'macOS에서 관리 설정 파일은 <code>/Library/Application Support/ClaudeCode/managed-settings.json</code>에 둡니다.',
     'data.sent':'멤버는 하루에 한 줄씩 보냅니다. 지출, 절감액, 위임 횟수, 모델 계열 비중, sprag 버전입니다. 프롬프트 수집을 켜지 않는 한 프롬프트, 대화 기록, 경로, 프로젝트 이름은 보내지 않습니다.',
-    'pol.h':'정책','pol.cap':'프롬프트 수집','pol.desc':'기본값은 꺼짐입니다. 비즈니스 요금제가 필요합니다.',
+    'pol.h':'정책','pol.cap':'프롬프트 수집','pol.desc':'기본값은 꺼짐입니다. 엔터프라이즈 요금제가 필요합니다.',
     'pol.confirm':'멤버의 CLI가 Claude Code / Codex 프롬프트(사용자 입력만)를 하루 단위로 압축해 올리기 시작합니다. 각 멤버는 `sprag team status`에서 이 정책을 볼 수 있습니다.',
     'mem.h':'멤버','mem.thr':'오늘 지출이 이 금액을 넘으면 강조 $',
     'mem.name':'이름','mem.agent':'에이전트','mem.ver':'버전','mem.joined':'가입일','mem.seen':'마지막 접속',
@@ -852,9 +894,11 @@ const I18N = {
     'seat.shares':'{name}님과 좌석을 같이 씁니다','seat.merge':'좌석 합치기…','seat.unmerge':'합치기 해제',
     'seat.mergeconfirm':'{name}님과 {into}님을 한 좌석으로 셀까요? 같은 사람이 컴퓨터 두 대를 쓸 때 사용하세요.',
     'seat.unmergeconfirm':'{name}님에게 다시 좌석을 따로 줄까요?',
-    'pol.plannote':'이 조직은 {plan} 요금제입니다. 요금제는 Sprag가 정하며, 프롬프트 수집을 켜려면 비즈니스 요금제를 문의해 주세요.'
+    'pol.plannote':'이 조직은 {plan} 요금제입니다. 요금제는 Sprag가 정하며, 프롬프트 수집을 켜려면 엔터프라이즈 요금제를 문의해 주세요.'
   }
 };
+Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in the last {d} days.", "pu.note": "Last {d} days, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts in the last {d} days", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match.", "pu.chars": "{n} chars"});
+Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "컴퓨터", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "최근 {d}일 동안 수집된 프롬프트가 없습니다", "pu.note": "최근 {d}일, 프롬프트 수집을 켠 팀 기준입니다. 컴퓨터를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "최근 {d}일 동안 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다", "pu.chars": "{n}자"});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -1021,7 +1065,7 @@ async function onSession(session){
 
 /* ── teams ────────────────────────────────────────────────────────────── */
 /* ── organizations ────────────────────────────────────────────────────── */
-const planOf = x => { const o = orgs.find(y => y.id === (x && x.org_id)); return (o && o.plan) || (x && x.plan) || 'team'; };
+const planOf = x => { const o = orgs.find(y => y.id === (x && x.org_id)); return (o && o.plan) || (x && x.plan) || 'pro'; };
 const isAdmin = () => !!org && (org.role === 'owner' || org.role === 'admin');
 const isOwner = () => !!org && org.role === 'owner';
 const visibleTeams = () => org ? teams.filter(x => x.org_id === org.id) : teams;
@@ -1089,9 +1133,9 @@ function renderOrg(){
   $('org-h').textContent = org.name || '';
   $('org-sel').innerHTML = orgs.map(o => `<option value="${esc(o.id)}" ${o.id === org.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('');
   $('orgbar').hidden = orgs.length < 2;
-  const plan = org.plan === 'business' ? 'business' : 'team';
+  const plan = org.plan === 'enterprise' ? 'enterprise' : 'pro';
   $('org-plan').textContent = t('plan.' + plan);
-  $('org-plan').className = 'tag' + (plan === 'business' ? ' plus' : '');
+  $('org-plan').className = 'tag' + (plan === 'enterprise' ? ' plus' : '');
   $('org-role').textContent = t('o.role', {role: t('role.' + (org.role === 'owner' ? 'owner' : 'admin'))}, true);
   const used = Number(org.seats_used) || 0, lim = Number(org.seat_limit) || 0;
   $('org-seats').textContent = t('o.seats', {used, limit: lim}, true);
@@ -1215,7 +1259,7 @@ function go(v, id, s, scroll){
 let scrollNext = false;
 function parseHash(){
   const p = location.hash.replace(/^#/, '').split('/').map(decodeURIComponent);
-  return { v: ['overview', 'seats', 'teams'].includes(p[0]) ? p[0] : null, id: p[1] || null, s: SUBS.includes(p[2]) ? p[2] : null };
+  return { v: ['overview', 'seats', 'teams', 'prompts'].includes(p[0]) ? p[0] : null, id: p[1] || null, s: SUBS.includes(p[2]) ? p[2] : null };
 }
 async function route(initial){
   if(!user) return;
@@ -1244,13 +1288,14 @@ async function route(initial){
 window.addEventListener('hashchange', () => route(false));
 function renderView(){
   $('vtabs').hidden = !user;
-  ['overview', 'seats', 'teams'].forEach(v => {
+  ['overview', 'seats', 'teams', 'prompts'].forEach(v => {
     const ok = viewOk(v), on = ok && view === v;
     $('vtab-' + v).hidden = !ok;
     $('vtab-' + v).setAttribute('aria-selected', String(on));
     $('view-' + v).hidden = !on;
   });
   if(!viewOk(view)){ view = firstView(); renderView(); }
+  else if(view === 'prompts') Prompts.activate();
 }
 function renderSub(){
   document.querySelectorAll('#stabs [data-sub]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.sub === sub)));
@@ -1268,7 +1313,7 @@ $('btn-newteam').addEventListener('click', () => {
 /* ── renderers ────────────────────────────────────────────────────────── */
 function renderAll(){
   if(!user) return;
-  renderOrg(); renderTeams(); renderPanel(); Seats.render();
+  renderOrg(); renderTeams(); renderPanel(); Seats.render(); Prompts.render();
 }
 function renderTeams(){
   const box = $('teams-list');
@@ -1277,7 +1322,7 @@ function renderTeams(){
   if(!vt.length){ box.innerHTML = '<p class="msg" style="margin-top:0">' + esc(t('t.empty')) + '</p>'; $('form-team').hidden = false; return; }
   box.innerHTML = vt.map(x => `<button type="button" class="team-item" data-id="${esc(x.id)}" aria-pressed="${team && team.id === x.id}">
       <span class="nm">${esc(x.name)}</span>
-      <span class="mt"><span>${t('t.active', {n: counts[x.id] || 0})}</span><span class="tag ${planOf(x) === 'business' ? 'plus' : ''}">${esc(t('plan.' + (planOf(x) === 'business' ? 'business' : 'team')))}</span></span></button>`).join('');
+      <span class="mt"><span>${t('t.active', {n: counts[x.id] || 0})}</span><span class="tag ${planOf(x) === 'enterprise' ? 'plus' : ''}">${esc(t('plan.' + (planOf(x) === 'enterprise' ? 'enterprise' : 'pro')))}</span></span></button>`).join('');
   box.querySelectorAll('.team-item').forEach(b => b.addEventListener('click', () => go('teams', b.dataset.id, null, false)));
 }
 function renderPanel(){
@@ -1286,21 +1331,21 @@ function renderPanel(){
   renderSub();
   if(!team) return;
   $('team-title').textContent = team.name;
-  $('team-plan').textContent = t('plan.' + (planOf(team) === 'business' ? 'business' : 'team'));
-  $('team-plan').className = 'tag' + (planOf(team) === 'business' ? ' plus' : '');
+  $('team-plan').textContent = t('plan.' + (planOf(team) === 'enterprise' ? 'enterprise' : 'pro'));
+  $('team-plan').className = 'tag' + (planOf(team) === 'enterprise' ? ' plus' : '');
   const tok = team.invite_token || '';
   $('inv-token').textContent = tok;
   $('sn-join').textContent = 'npm i -g sprag-cli@latest && sprag team join ' + tok;
   $('sn-env').textContent = 'export SPRAG_TEAM_TOKEN=' + tok;
   $('sn-json').textContent = JSON.stringify({ env: { SPRAG_TEAM_TOKEN: tok } }, null, 2);
-  const plus = planOf(team) === 'business';
+  const plus = planOf(team) === 'enterprise';
   const sw = $('sw-capture');
   sw.setAttribute('aria-checked', String(!!team.prompt_capture));
   sw.disabled = !plus;
   $('pol-plan').hidden = plus;
   $('pol-plannote').hidden = plus;
   $('pol-plannote').textContent = t('pol.plannote', {plan: t('plan.' + planOf(team))}, true);
-  $('pol-plan').textContent = t('plan.business');
+  $('pol-plan').textContent = t('plan.enterprise');
   $('thr').value = lsGet('sprag.team.thr.' + team.id) ?? '20';
   $('prompts').hidden = !team.prompt_capture || sub !== 'policy';
   renderMembers(); renderChart(); renderRules(); renderPrompts();
@@ -1395,7 +1440,7 @@ $('btn-rotate').addEventListener('click', async () => {
 
 $('sw-capture').addEventListener('click', async () => {
   $('pol-err').textContent = '';
-  if(planOf(team) !== 'business') return;
+  if(planOf(team) !== 'enterprise') return;
   const next = !team.prompt_capture;
   if(next && !confirm(t('pol.confirm', null, true))) return;
   try{
@@ -1467,7 +1512,7 @@ async function setRule(id, status){
   }catch(e){ $('ru-err').textContent = errMsg(e); }
 }
 
-/* ── prompt capture (Business). Every call fails soft. ───────────────── */
+/* ── prompt capture (Enterprise). Every call fails soft. ───────────────── */
 async function loadPromptDays(){
   if(!team || !team.prompt_capture) return;
   const ids = members.map(m => m.member_id);
@@ -1653,6 +1698,186 @@ const Seats = (function(){
   return { init, load, render };
 })();
 
+/* ── prompt usage: per-user table + prompt list (shared by site/team and site/ops) ── */
+const Prompts = (function(){
+  const st = { orgId:null, plan:null, usage:null, err:'', lock:'', loading:false, sort:'prompts', dir:-1, member:null, items:[], more:false, next:null, q:'', busy:false, open:{}, seq:0 };
+  let cfg = null, box = null, timer = 0;
+  const PAGE = 50;
+  const osName = r => [r.os, r.os_version && !String(r.os || '').includes(r.os_version) ? r.os_version : ''].filter(Boolean).join(' ') || '—';
+  const num = n => Number(n || 0).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US');
+  const day0 = d => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
+  function spark(by, days){
+    const m = {}; (by || []).forEach(x => { m[String(x.day).slice(0, 10)] = Number(x.prompts) || 0; });
+    const v = []; for(let i = days - 1; i >= 0; i--) v.push(m[day0(i)] || 0);
+    const mx = Math.max(1, ...v), w = 96, h = 24, bw = w / v.length;
+    const bars = v.map((n, i) => { const bh = n ? Math.max(1.5, n / mx * (h - 2)) : 0.8; return `<rect x="${(i * bw + 0.5).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${Math.max(1, bw - 1).toFixed(1)}" height="${bh.toFixed(1)}" rx="0.6" fill="currentColor" opacity="${n ? 1 : .25}"/>`; }).join('');
+    const total = v.reduce((a, b) => a + b, 0);
+    return `<svg class="pu-spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(t('pu.spark', { n: total, d: days }))}">${bars}</svg>`;
+  }
+  function init(c){
+    cfg = c; box = $(c.box);
+    box.addEventListener('click', onClick);
+    box.addEventListener('input', onInput);
+  }
+  function reset(){ st.orgId = null; st.usage = null; st.member = null; st.items = []; st.err = ''; st.lock = ''; render(); }
+  /* activate: load the usage table the first time a view needs it (or after the org changed) */
+  async function activate(force){
+    const id = cfg.orgId(), plan = cfg.plan();
+    if(!id){ reset(); return; }
+    if(!force && st.orgId === id && st.plan === plan && (st.loading || st.usage || st.lock || st.err)) return;
+    Object.assign(st, { orgId:id, plan, usage:null, err:'', lock:'', member:null, items:[], q:'', loading:true });
+    render();
+    if(plan !== 'enterprise'){ st.lock = 'plan'; st.loading = false; return render(); }
+    const seq = ++st.seq;
+    try{
+      const d = await cfg.rpc('org_prompt_usage', { p_org_id: id, p_days: 30 });
+      if(seq !== st.seq) return;
+      st.usage = d || { members: [], totals: {}, days: 30 };
+    }catch(e){ if(seq !== st.seq) return; lockFrom(e); }
+    st.loading = false; render();
+  }
+  function lockFrom(e){
+    const m = String((e && e.message) || e);
+    if(/Enterprise plan/i.test(m)) st.lock = 'plan';
+    else if(/capture is off/i.test(m)) st.lock = 'cap';
+    else st.err = errMsg(e);
+  }
+  const SORTS = { name:r => String(r.display_name || '').toLowerCase(), team:r => String(r.team_name || '').toLowerCase(), os:r => osName(r).toLowerCase(),
+    prompts:r => +r.prompts, chars:r => +r.chars, avg:r => +r.avg_chars, days:r => +r.active_days, last:r => new Date(r.last_prompt_at).getTime() || 0 };
+  const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
+  function lockHtml(){
+    if(st.lock === 'plan') return `<div class="pu-lock">${lockSvg}<div><h3>${esc(t('pu.lock.plan.h'))}</h3><p>${esc(t('pu.lock.plan.p'))}</p><a class="btn" href="/pricing/">${esc(t('pu.lock.plan.cta'))}</a></div></div>`;
+    return `<div class="pu-lock">${lockSvg}<div><h3>${esc(t('pu.lock.cap.h'))}</h3><p>${esc(t(cfg.ops ? 'pu.lock.cap.ops' : 'pu.lock.cap.p'))}</p></div></div>`;
+  }
+  function render(){
+    if(!box) return;
+    if(!st.orgId){ box.innerHTML = ''; return; }
+    if(st.loading) { box.innerHTML = `<p class="msg loading">${esc(t('pu.loading'))}</p>`; return; }
+    if(st.lock){ box.innerHTML = lockHtml(); return; }
+    if(st.err && !st.usage){ box.innerHTML = `<p class="err" role="alert">${esc(st.err)}</p>`; return; }
+    if(st.member) return renderMember();
+    const u = st.usage || { members: [], totals: {}, days: 30 }, days = u.days || 30, tot = u.totals || {};
+    const chips = [['ac', t('pu.t.prompts'), num(tot.prompts)], ['', t('pu.t.chars'), num(tot.chars)], ['', t('pu.t.users'), num(tot.users)]]
+      .map(c => `<div class="chip ${c[0]}"><span>${esc(c[1])}</span><b>${esc(c[2])}</b></div>`).join('');
+    const f = SORTS[st.sort], rows = (u.members || []).slice().sort((a, b) => { const x = f(a), y = f(b); return (x < y ? -1 : x > y ? 1 : 0) * st.dir; });
+    const th = (k, label, cls) => `<th class="${cls || ''}" aria-sort="${st.sort === k ? (st.dir < 0 ? 'descending' : 'ascending') : 'none'}"><button type="button" class="pu-sort" data-sort="${k}">${esc(label)}</button></th>`;
+    const body = rows.map(r => `<tr class="pu-row" data-m="${esc(r.member_id)}">
+      <td class="sn" title="${esc(r.display_name)}"><button type="button" class="pu-open" data-open="${esc(r.member_id)}">${esc(r.display_name)}</button><span class="share pu-tm">${esc(r.team_name || '')}</span></td>
+      <td class="tm" title="${esc(r.team_name || '')}">${esc(r.team_name || '')}</td><td class="dim">${esc(osName(r))}</td>
+      <td class="num">${num(r.prompts)}</td><td class="num">${num(r.chars)}</td><td class="num">${num(r.avg_chars)}</td><td class="num">${num(r.active_days)}</td>
+      <td>${esc(rel(r.last_prompt_at))}</td><td>${spark(r.by_day, days)}</td></tr>`).join('');
+    box.innerHTML = `<div class="sr-top"><div class="chips">${chips}</div></div>
+      <div class="tbl-wrap tall pu-tbl"><table><thead><tr>
+        ${th('name', t('pu.c.user'))}${th('team', t('pu.c.team'))}${th('os', t('pu.c.os'))}${th('prompts', t('pu.c.prompts'), 'num')}${th('chars', t('pu.c.chars'), 'num')}${th('avg', t('pu.c.avg'), 'num')}${th('days', t('pu.c.days'), 'num')}${th('last', t('pu.c.last'))}
+        <th>${esc(t('pu.c.trend', { d: days }))}</th></tr></thead><tbody>${body}</tbody></table></div>
+      ${rows.length ? '' : `<p class="empty">${esc(t('pu.none', { d: days }))}</p>`}
+      <p class="note">${esc(t('pu.note', { d: days }))}</p><p class="err" role="alert">${esc(st.err)}</p>`;
+  }
+  function renderMember(){
+    const m = st.member;
+    box.innerHTML = `<div class="pu-who"><div><h3>${esc(m.display_name)}</h3><span class="share">${esc([m.team_name, osName(m)].filter(Boolean).join(' · '))}</span></div>
+      <button type="button" class="btn sm" data-back="1">${esc(t('pu.back'))}</button></div>
+      <div class="pu-tools"><input type="text" id="pu-q" value="${esc(st.q)}" placeholder="${esc(t('pu.search'))}" aria-label="${esc(t('pu.search'))}" autocomplete="off" /></div>
+      <div id="pu-list"></div><p class="err" role="alert" id="pu-err"></p>`;
+    renderList();
+  }
+  function renderList(){
+    const el = $('pu-list'); if(!el) return;
+    $('pu-err').textContent = st.err;
+    if(st.busy && !st.items.length){ el.innerHTML = `<p class="msg loading">${esc(t('pu.loading'))}</p>`; return; }
+    if(!st.items.length){ el.innerHTML = `<p class="empty">${esc(t('pu.noprompts'))}</p>`; return; }
+    el.innerHTML = `<div class="pu-list">${st.items.map(p => {
+      const text = String(p.text || ''), lines = text.split('\n').length, mono = lines >= 3, long = text.length > 260 || lines > 4, open = !!st.open[p.id];
+      return `<article class="pu-p"><div class="pu-m"><time datetime="${esc(p.at)}">${esc(new Date(p.at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US', { dateStyle:'medium', timeStyle:'short' }))}</time>
+        ${p.project ? `<span class="pr-proj">${esc(p.project)}</span>` : ''}<span>${esc(t('pu.chars', { n: num(p.chars) }))}</span></div>
+        <pre class="pu-t${mono ? ' mono' : ''}${long && !open ? ' clamp' : ''}">${esc(text)}</pre>
+        ${long ? `<button type="button" class="pu-x" data-x="${esc(p.id)}" aria-expanded="${open}">${esc(t(open ? 'pu.collapse' : 'pu.expand'))}</button>` : ''}</article>`; }).join('')}</div>
+      ${st.more ? `<button type="button" class="btn pu-more" data-more="1" ${st.busy ? 'disabled' : ''}>${esc(t('pu.more'))}</button>` : ''}`;
+  }
+  async function fetchPrompts(append){
+    const seq = ++st.seq; st.busy = true; st.err = '';
+    if(!append){ st.items = []; st.more = false; st.next = null; }
+    renderList();
+    try{
+      const d = await cfg.rpc('member_prompts', { p_member_id: st.member.member_id, p_before: append ? st.next : null, p_limit: PAGE, p_query: st.q || null });
+      if(seq !== st.seq) return;
+      st.items = st.items.concat((d && d.prompts) || []); st.more = !!(d && d.has_more); st.next = d && d.next_before;
+    }catch(e){ if(seq !== st.seq) return; st.err = errMsg(e); }
+    st.busy = false; renderList();
+  }
+  function onClick(ev){
+    const b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.sort){ if(st.sort === b.dataset.sort) st.dir = -st.dir; else { st.sort = b.dataset.sort; st.dir = /^(name|team|os)$/.test(st.sort) ? 1 : -1; } render(); const nb = box.querySelector(`[data-sort="${st.sort}"]`); if(nb) nb.focus(); }
+    else if(b.dataset.open){ const r = ((st.usage && st.usage.members) || []).find(x => x.member_id === b.dataset.open); if(r){ st.member = r; st.q = ''; st.open = {}; render(); fetchPrompts(false); } }
+    else if(b.dataset.back){ st.member = null; st.items = []; st.err = ''; st.seq++; render(); }
+    else if(b.dataset.more) fetchPrompts(true);
+    else if(b.dataset.x){ st.open[b.dataset.x] = !st.open[b.dataset.x]; renderList(); const nb = box.querySelector(`[data-x="${b.dataset.x}"]`); if(nb) nb.focus(); }
+  }
+  function onInput(ev){
+    if(ev.target.id !== 'pu-q') return;
+    clearTimeout(timer); const v = ev.target.value.trim();
+    timer = setTimeout(() => { if(v === st.q) return; st.q = v; fetchPrompts(false); }, 300);
+  }
+  return { init, activate, reset, render };
+})();
+
+/* ── demo prompts (?demo=1): synthetic rows, no network ────────────────── */
+const demoPrompts = (function(){
+  let data = null;
+  const FILES = ['auth.spec.ts', 'invoice_service.py', 'CheckoutForm.tsx', 'schema.prisma', 'deploy.yml', 'retry.go'];
+  const EN = ['fix the failing test in %s', 'add a unit test for %s', 'refactor %s to remove the duplicated branch', 'explain what %s does, briefly', 'continue', 'use the existing util instead'];
+  const KO = ['%s 리팩터링해줘', '%s 에서 실패하는 테스트 고쳐줘', '%s 에 예외 처리 추가해줘', '방금 변경이 빌드를 깼어, 되돌려줘', '좋아, 그대로 진행해'];
+  const LOG = 'ERROR in src/%s:42\n  TypeError: Cannot read properties of undefined (reading \'id\')\n    at handler (src/api/routes.ts:118:22)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n';
+  const PEOPLE = [['MacBook-Pro-Jisoo', 'Platform', 'macOS 26', 1.4], ['dev-linux-minho', 'Platform', 'Ubuntu 24.04', 1.0], ['ana-mbp', 'Apps', 'macOS 15', 0.9],
+    ['win-workstation-04', 'Apps', 'Windows 11', 0.6], ['서연-맥북', 'Platform', 'macOS 26', 1.2], ['build-farm-arm64', 'Apps', 'Ubuntu 24.04', 0.25]];
+  function build(){
+    let s = 42; const r = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const pick = a => a[Math.floor(r() * a.length)];
+    let id = 1;
+    data = PEOPLE.map((p, i) => {
+      const prompts = [];
+      for(let d = 0; d < 30; d++){
+        if(r() < 0.15) continue;
+        const wk = [0, 6].includes(new Date(Date.now() - d * 864e5).getDay());
+        const n = Math.floor(Math.pow(r(), 1.6) * 38 * p[3] / (wk ? 4 : 1));
+        for(let k = 0; k < n; k++){
+          const x = r(); let text;
+          if(x < 0.06) text = 'Here is the output, what is going wrong?\n\n' + (LOG.replace('%s', pick(FILES)) + '\n').repeat(2 + Math.floor(r() * 5));
+          else if(x < 0.55) text = pick(EN).replace('%s', pick(FILES));
+          else text = pick(KO).replace('%s', pick(FILES));
+          const at = new Date(Date.now() - d * 864e5 - (k * 7 + r() * 5) * 6e4 - i * 1e3).toISOString();
+          prompts.push({ id: id++, at, project: pick(['billing-api', 'web-app', 'mobile-client']), chars: text.length, text });
+        }
+      }
+      prompts.sort((a, b) => b.at.localeCompare(a.at));
+      return { member_id: 'demo-pm' + i, display_name: p[0], team_name: p[1], os: p[2], prompts };
+    });
+  }
+  return function(name, a){
+    a = a || {}; if(!data) build();
+    if(name === 'org_prompt_usage'){
+      const days = a.p_days || 30, since = new Date(Date.now() - days * 864e5).toISOString();
+      const members = data.map(m => {
+        const ps = m.prompts.filter(p => p.at >= since), by = {};
+        ps.forEach(p => { const d = p.at.slice(0, 10); by[d] = (by[d] || 0) + 1; });
+        const chars = ps.reduce((n, p) => n + p.chars, 0);
+        return { member_id: m.member_id, display_name: m.display_name, team_name: m.team_name, os: m.os, prompts: ps.length, chars,
+          avg_chars: ps.length ? Math.round(chars / ps.length) : 0, active_days: Object.keys(by).length, last_prompt_at: ps[0] && ps[0].at,
+          by_day: Object.keys(by).sort().map(d => ({ day: d, prompts: by[d] })) };
+      }).filter(m => m.prompts).sort((x, y) => y.prompts - x.prompts);
+      return { days, totals: { prompts: members.reduce((n, m) => n + m.prompts, 0), chars: members.reduce((n, m) => n + m.chars, 0), users: members.length }, members };
+    }
+    if(name === 'member_prompts'){
+      const m = data.find(x => x.member_id === a.p_member_id); if(!m) throw new Error('member not found');
+      const q = String(a.p_query || '').toLowerCase(), lim = a.p_limit || 50;
+      const all = m.prompts.filter(p => (!a.p_before || p.at < a.p_before) && (!q || p.text.toLowerCase().includes(q)));
+      const page = all.slice(0, lim);
+      return { member: { member_id: m.member_id, display_name: m.display_name, team_name: m.team_name, os: m.os }, prompts: page, has_more: all.length > lim, next_before: all.length > lim ? page[page.length - 1].at : null };
+    }
+    throw new Error('unknown rpc ' + name);
+  };
+})();
+
 /* ── demo roster (?demo=1): fake rows, no network ──────────────────────── */
 const demoSeatStores = {};
 const DEMO_ACTOR = 'owner';
@@ -1708,7 +1933,7 @@ function demoSb(){
     {id:'demo-t2', name:'Apps', org_id:'demo-org', owner_uid:'u1', invite_token:'spt_fedcba9876543210fedcba9876543210', prompt_capture:false, created_at:ago(60)}];
   const store = () => demoSeatStore('demo-org', tm);
   const used = () => store().rows.filter(r => r.holds_seat && !r.seat_of).length;
-  const org = () => ({id:'demo-org', name:'Northwind Labs', plan:'business', seat_limit:12, seats_used:used(), role:'owner'});
+  const org = () => ({id:'demo-org', name:'Northwind Labs', plan:'enterprise', seat_limit:12, seats_used:used(), role:'owner'});
   const summary = () => store().rows.map((r, i) => ({ member_id:r.member_id, team_id:r.team_id, display_name:r.display_name, agent:r.agent, sprag_version:r.sprag_version, os:r.os, os_version:r.os_version, arch:r.arch,
     auto_joined:r.auto_joined, joined_at:r.joined_at, last_seen:r.last_seen, left_at:r.left_at, seat_of:r.seat_of, org_id:'demo-org',
     spent_30d:(i + 1) * 31.4, saved_30d:(i + 1) * 12.7, delegated_30d:(i + 1) * 9, errors_30d:0, spent_today:i === 0 ? 24.5 : (i % 4) * 1.3, saved_today:i * 0.4 }));
@@ -1730,11 +1955,16 @@ function demoSb(){
         if(name === 'org_my') return {data:[org()], error:null};
         if(name === 'org_summary') return {data:{...org(), teams:tm.map((x, i) => ({id:x.id, name:x.name, members_active:4 + i, seats:3 + i})),
           admins:[{user_id:'u1', email:'ana@northwind.example', role:'owner'}, {user_id:'u2', email:'jun@northwind.example', role:'admin'}]}, error:null};
+        if(name === 'org_prompt_usage' || name === 'member_prompts') return {data: demoPrompts(name, a), error:null};
         return {data: demoSeatsRpc('demo-org', tm, name, a), error:null};
       }catch(e){ return {data:null, error:e}; }
     } };
 }
 (async function boot(){
+  Prompts.init({
+    box:'pu-box', orgId:() => org && org.id, plan:() => org && org.plan,
+    rpc: async (name, args) => { const { data, error } = await sb.rpc(name, args); if(error) throw error; return data; }
+  });
   Seats.init({
     box:'seats-box', rpc: async (name, args) => { const { data, error } = await sb.rpc(name, args); if(error) throw error; return data; },
     get canAct(){ return isAdmin(); }, canMerge:true,

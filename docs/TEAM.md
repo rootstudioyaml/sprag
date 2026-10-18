@@ -101,7 +101,7 @@ Every team belongs to an organization, and seats are bought per organization, no
 - **Second machine.** When the same person uses two machines, an owner or admin can merge the second one into the first so the two share one seat. In the dashboard, use "Merge seat" on the member row; "Unmerge" gives it its own seat back. A merged row shows "shares a seat with <name>".
 - **The limit.** Each organization has a seat limit. A join past the limit is refused: `sprag team join` exits 1 with "This organization has no free seat. Ask your organization owner or admin to add seats", and an environment auto-join stays silent and tries again at a later session start. Lowering the limit below current use never removes anyone; it only refuses new joins until Sprag raises it again.
 - **Roles.** There are three permission levels. The superuser is Sprag staff: it sets the plan and the seat limit, suspends organizations, adds owners, and sees every organization at sprag.io/ops/. An owner is a company's top level: it appoints and removes admins, and does everything an admin does. An admin is a company's management level: it creates teams and manages members, rules and seats. The person who created a team has no special rights over it; only the organization's owners and admins and the superuser manage teams. Owners and admins see the seat limit in the dashboard. To add seats, write to sales@sprag.io.
-- **The plan.** Sprag sets the plan (`team` or `business`) on the organization; owners and admins cannot change it. Prompt capture can be switched on only while the organization is on Business. To change the plan, contact us.
+- **The plan.** Sprag sets the plan (`pro` or `enterprise`) on the organization; owners and admins cannot change it. Prompt capture can be switched on only while the organization is on Enterprise. To change the plan, contact us.
 
 Create a team inside an existing organization from the CLI with `sprag team create --org <org-id>`. The command prints the organization name and how many seats are used. `sprag team status` shows the organization name.
 
@@ -131,13 +131,17 @@ Below the roster, an activity log lists joined, paused, resumed, left, removed a
 
 ## Plans
 
-Free, Team ($5 per seat per month) and Business ($10 per seat per month, with prompt capture). Details are on https://sprag.io/pricing/.
+Free, Pro ($5 per seat per month) and Enterprise ($10 per seat per month, with prompt capture and per-user prompt usage). Volume or annual invoicing is a custom agreement; write to sales@sprag.io. Details are on https://sprag.io/pricing/.
+
+## Prompt usage (Enterprise)
+
+Owners and admins of an Enterprise organization get a Prompts tab on sprag.io/team: a per-user table of prompts, characters, average length, active days and last prompt, and a searchable prompt list per user. Prompts are stored only for Enterprise teams that have prompt capture switched on; Pro organizations see a locked state. The CLI does not upload prompts yet; the uploader ships in a later release, so the page stays empty until then.
 
 ## Privacy notes
 
-- Owners and admins see per-member daily totals, not sessions or prompts.
+- Owners and admins see per-member daily totals, not sessions or prompts, unless the organization is on Enterprise and the team has prompt capture switched on.
 - A member sees the same payload with `sprag team status --show-payload`.
-- Prompt capture is a Business policy that an owner or admin can switch on in the dashboard. Members see its state in `sprag team status`. The current CLI does not upload prompts yet; that is a separate, later release.
+- Prompt capture is an Enterprise policy that an owner or admin can switch on in the dashboard. Members see its state in `sprag team status`. The current CLI does not upload prompts yet; that is a separate, later release.
 - Rule text leaves your machine only through `sprag team propose`.
 
 ## Files and environment variables

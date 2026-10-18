@@ -254,6 +254,41 @@
   .setform form{display:grid;gap:var(--s3);max-width:520px}
   .setform select,.setform input{width:100%}
 
+  /* ── prompt usage (Enterprise) ─────────────────────────────────────────── */
+  .pu-sort{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:4px;color:inherit;font:inherit;white-space:nowrap}
+  .pu-sort:hover{color:var(--ink)} .pu-sort:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:3px}
+  .pu-sort::after{content:"";width:0;height:0;border:4px solid transparent;opacity:0}
+  th[aria-sort=descending] .pu-sort::after{border-top-color:var(--accent2);border-bottom:0;opacity:1;margin-top:2px}
+  th[aria-sort=ascending] .pu-sort::after{border-bottom-color:var(--accent2);border-top:0;opacity:1;margin-bottom:2px}
+  th[aria-sort] .pu-sort{color:var(--ink)}
+  #pu-box td.num,#pu-box th.num{text-align:right} #pu-box th.num .pu-sort{justify-content:flex-end}
+  #pu-box tr.pu-row{cursor:pointer} #pu-box tr.pu-row:hover td{background:var(--hover)}
+  .pu-open{all:unset;cursor:pointer;color:var(--ink);font-weight:500;overflow-wrap:anywhere;text-align:left}
+  .pu-open:hover{color:var(--accent2)} .pu-open:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:3px}
+  .pu-spark{display:block;width:96px;height:24px;color:var(--accent2)}
+  .pu-lock{display:flex;gap:var(--s4);align-items:flex-start;padding:var(--s2) 0}
+  .pu-lock svg{flex:0 0 auto;width:28px;height:28px;color:var(--accent2);margin-top:2px}
+  .pu-lock h3{margin:0 0 6px} .pu-lock p{color:var(--dim);font-size:13px;max-width:62ch;margin:0 0 var(--s3)}
+  .pu-who{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s3)}
+  .pu-who h3{margin:0;overflow-wrap:anywhere} .pu-who .share{display:block;margin-top:2px}
+  .pu-tools{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap;margin-bottom:var(--s3)}
+  .pu-tools input[type=text]{flex:1 1 240px;max-width:420px}
+  .pu-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+  .pu-p{padding:12px 14px;border-top:1px solid var(--line);min-width:0} .pu-p:first-child{border-top:0}
+  .pu-m{display:flex;gap:6px var(--s4);flex-wrap:wrap;align-items:baseline;color:var(--faint);font-size:12px;margin-bottom:6px}
+  .pu-m time{color:var(--dim)} .pu-m .pr-proj{font-family:var(--mono);font-size:11.5px}
+  .pu-t{margin:0;font:inherit;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+  .pu-t.mono{font-family:var(--mono);font-size:12px;line-height:1.55;color:var(--dim);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
+  .pu-t.clamp{max-height:4.6em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 60%,transparent);mask-image:linear-gradient(#000 60%,transparent)}
+  .pu-t.mono.clamp{max-height:8.2em}
+  .pu-x{margin-top:6px;padding:0;height:auto;border:0;background:none;color:var(--accent2);font-size:12px}
+  .pu-more{margin-top:var(--s3)}
+    .pu-tbl td.sn{font-weight:500;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+  .pu-tbl td.tm{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+  .pu-tbl th:first-child,.pu-tbl td:first-child{padding-left:20px}
+  .pu-tm{display:none}
+  @media(max-width:640px){.pu-tbl table{min-width:0}.pu-spark{width:72px}#pu-box .tbl-wrap th:nth-child(2),#pu-box .tbl-wrap td:nth-child(2),#pu-box .tbl-wrap th:nth-child(3),#pu-box .tbl-wrap td:nth-child(3),#pu-box .tbl-wrap th:nth-child(5),#pu-box .tbl-wrap td:nth-child(5),#pu-box .tbl-wrap th:nth-child(7),#pu-box .tbl-wrap td:nth-child(7),#pu-box .tbl-wrap th:nth-child(9),#pu-box .tbl-wrap td:nth-child(9){display:none}.pu-tm{display:block;overflow:hidden;text-overflow:ellipsis}#pu-box td.sn{max-width:150px}.pu-tbl th:first-child,.pu-tbl td:first-child{padding-left:12px}.pu-open{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pu-lock{flex-direction:column;gap:var(--s2)}}
+
   /* ── team view ──────────────────────────────────────────────────────────── */
   .org-top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--s4);flex-wrap:wrap}
   .org-top h2{font-size:17px;letter-spacing:-.015em;overflow-wrap:anywhere}
@@ -466,7 +501,7 @@
           <div class="sec-h"><h2 id="orgs-h" data-k="orgs.h">Organizations</h2><span class="count" id="orgs-count"></span></div>
           <div class="filters">
             <input type="text" id="q" data-ph="f.q" placeholder="Search name or owner email" aria-label="Search" />
-            <select id="f-plan" aria-label="Plan"><option value="" data-k="f.allplans">All plans</option><option value="team" data-k="plan.team">Team</option><option value="business" data-k="plan.business">Business</option></select>
+            <select id="f-plan" aria-label="Plan"><option value="" data-k="f.allplans">All plans</option><option value="pro" data-k="plan.pro">Pro</option><option value="enterprise" data-k="plan.enterprise">Enterprise</option></select>
             <select id="f-status" aria-label="Status"><option value="" data-k="f.allstatus">All statuses</option><option value="active" data-k="st.active">Active</option><option value="suspended" data-k="st.suspended">Suspended</option></select>
           </div>
           <div class="tbl-wrap tall org-tbl"><table>
@@ -491,6 +526,7 @@
           <div class="tabs" role="tablist" id="d-tabs">
             <button type="button" class="tab" role="tab" id="dt-overview" data-tab="overview" aria-selected="true" data-k="d.tab.overview">Overview</button>
             <button type="button" class="tab" role="tab" id="dt-seats" data-tab="seats" aria-selected="false" data-k="d.tab.seats">Seats</button>
+            <button type="button" class="tab" role="tab" id="dt-prompts" data-tab="prompts" aria-selected="false" data-k="d.tab.prompts">Prompts</button>
             <button type="button" class="tab" role="tab" id="dt-settings" data-tab="settings" aria-selected="false" data-k="d.tab.settings">Settings</button>
           </div>
         </section>
@@ -520,12 +556,16 @@
           <div id="seats-box"></div>
         </section>
 
+        <section class="card" id="p-prompts" role="tabpanel" hidden aria-label="Prompts">
+          <div id="pu-box"></div>
+        </section>
+
         <div id="p-settings" class="cols2 setform" role="tabpanel" hidden>
           <section class="card">
             <form id="form-set">
               <h3 data-k="s.edit">Edit</h3>
               <label class="f"><span data-k="c.plan">Plan</span>
-                <select id="e-plan"><option value="team" data-k="plan.team">Team</option><option value="business" data-k="plan.business">Business</option></select></label>
+                <select id="e-plan"><option value="pro" data-k="plan.pro">Pro</option><option value="enterprise" data-k="plan.enterprise">Enterprise</option></select></label>
               <label class="f"><span data-k="s.limit">Seat limit</span>
                 <input type="number" id="e-limit" min="1" max="10000" step="1" inputmode="numeric" /></label>
               <label class="f"><span data-k="c.status">Status</span>
@@ -662,10 +702,10 @@ const I18N = {
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
     'deny.h':'This page is for Sprag superusers.','deny.d':'This account has no superuser access.',
-    'tot.h':'Overview','tot.orgs':'Organizations','tot.biz':'Business','tot.seats':'Seats used','tot.active':'Active members 30d','tot.sp':'Spent 30d','tot.sv':'Saved 30d',
+    'tot.h':'Overview','tot.orgs':'Organizations','tot.ent':'Enterprise','tot.seats':'Seats used','tot.active':'Active members 30d','tot.sp':'Spent 30d','tot.sv':'Saved 30d',
     'tot.seatsof':'{used} / {limit}',
     'orgs.h':'Organizations','orgs.none':'No organizations match.','f.q':'Search name or owner email','f.allplans':'All plans','f.allstatus':'All statuses','f.email':'Email',
-    'plan.team':'Team','plan.business':'Business','st.active':'Active','st.suspended':'Suspended',
+    'plan.pro':'Pro','plan.enterprise':'Enterprise','st.active':'Active','st.suspended':'Suspended',
     'c.name':'Name','c.plan':'Plan','c.status':'Status','c.seats':'Seats','c.teams':'Teams','c.members':'Members','c.owners':'Owners',
     'c.sp':'Spent 30d','c.sv':'Saved 30d','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
     's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (superuser only)','s.save':'Save','s.saved':'Saved',
@@ -757,10 +797,10 @@ const I18N = {
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
     'deny.h':'Sprag 슈퍼유저 전용 페이지입니다.','deny.d':'이 계정에는 슈퍼유저 권한이 없습니다.',
-    'tot.h':'한눈에 보기','tot.orgs':'조직','tot.biz':'비즈니스','tot.seats':'사용 중인 좌석','tot.active':'30일 활동 멤버','tot.sp':'30일 지출','tot.sv':'30일 절감',
+    'tot.h':'한눈에 보기','tot.orgs':'조직','tot.ent':'엔터프라이즈','tot.seats':'사용 중인 좌석','tot.active':'30일 활동 멤버','tot.sp':'30일 지출','tot.sv':'30일 절감',
     'tot.seatsof':'{used} / {limit}',
     'orgs.h':'조직','orgs.none':'조건에 맞는 조직이 없습니다.','f.q':'이름 또는 오너 이메일 검색','f.allplans':'모든 요금제','f.allstatus':'모든 상태','f.email':'이메일',
-    'plan.team':'팀','plan.business':'비즈니스','st.active':'사용 중','st.suspended':'정지됨',
+    'plan.pro':'프로','plan.enterprise':'엔터프라이즈','st.active':'사용 중','st.suspended':'정지됨',
     'c.name':'이름','c.plan':'요금제','c.status':'상태','c.seats':'좌석','c.teams':'팀','c.members':'멤버','c.owners':'오너',
     'c.sp':'30일 지출','c.sv':'30일 절감','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
     's.teams':'팀','s.admins':'어드민','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (슈퍼유저만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
@@ -773,6 +813,8 @@ const I18N = {
     'role.owner':'오너','role.admin':'어드민','role.superuser':'슈퍼유저'
   }
 };
+Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in the last {d} days.", "pu.note": "Last {d} days, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts in the last {d} days", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match.", "pu.chars": "{n} chars"});
+Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "컴퓨터", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "최근 {d}일 동안 수집된 프롬프트가 없습니다", "pu.note": "최근 {d}일, 프롬프트 수집을 켠 팀 기준입니다. 컴퓨터를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "최근 {d}일 동안 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다", "pu.chars": "{n}자"});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -800,11 +842,11 @@ function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
 const demo = (function(){
   const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
   const orgs = [
-    {id:'d1', name:'Northwind Labs', plan:'business', status:'active', seat_limit:50, seats_used:50, teams:4, members_total:57, owners:['ana@northwind.example'], spent_30d:4821.4, saved_30d:2210.15, last_seen:new Date(Date.now()-120000).toISOString(), created_at:ago(140), note:'Annual contract, renewal in March.'},
-    {id:'d2', name:'Kestrel Robotics', plan:'team', status:'active', seat_limit:10, seats_used:7, teams:1, members_total:9, owners:['jun@kestrel.example','mia@kestrel.example'], spent_30d:612.08, saved_30d:240.9, last_seen:ago(1), created_at:ago(61), note:''},
-    {id:'d3', name:'서울 스튜디오', plan:'team', status:'active', seat_limit:25, seats_used:12, teams:2, members_total:14, owners:['min@seoul.example'], spent_30d:1304.77, saved_30d:688.2, last_seen:ago(0.2), created_at:ago(33), note:''},
-    {id:'d4', name:'Old Harbor Co', plan:'team', status:'suspended', seat_limit:5, seats_used:3, teams:1, members_total:3, owners:['pat@oldharbor.example'], spent_30d:0, saved_30d:0, last_seen:ago(19), created_at:ago(210), note:'Suspended: invoice unpaid.'},
-    {id:'d5', name:'Quill & Co', plan:'business', status:'active', seat_limit:100, seats_used:41, teams:6, members_total:44, owners:['sam@quill.example'], spent_30d:3150.0, saved_30d:1490.6, last_seen:ago(0.05), created_at:ago(12), note:''}
+    {id:'d1', name:'Northwind Labs', plan:'enterprise', status:'active', seat_limit:50, seats_used:50, teams:4, members_total:57, owners:['ana@northwind.example'], spent_30d:4821.4, saved_30d:2210.15, last_seen:new Date(Date.now()-120000).toISOString(), created_at:ago(140), note:'Annual contract, renewal in March.'},
+    {id:'d2', name:'Kestrel Robotics', plan:'pro', status:'active', seat_limit:10, seats_used:7, teams:1, members_total:9, owners:['jun@kestrel.example','mia@kestrel.example'], spent_30d:612.08, saved_30d:240.9, last_seen:ago(1), created_at:ago(61), note:''},
+    {id:'d3', name:'서울 스튜디오', plan:'pro', status:'active', seat_limit:25, seats_used:12, teams:2, members_total:14, owners:['min@seoul.example'], spent_30d:1304.77, saved_30d:688.2, last_seen:ago(0.2), created_at:ago(33), note:''},
+    {id:'d4', name:'Old Harbor Co', plan:'pro', status:'suspended', seat_limit:5, seats_used:3, teams:1, members_total:3, owners:['pat@oldharbor.example'], spent_30d:0, saved_30d:0, last_seen:ago(19), created_at:ago(210), note:'Suspended: invoice unpaid.'},
+    {id:'d5', name:'Quill & Co', plan:'enterprise', status:'active', seat_limit:100, seats_used:41, teams:6, members_total:44, owners:['sam@quill.example'], spent_30d:3150.0, saved_30d:1490.6, last_seen:ago(0.05), created_at:ago(12), note:''}
   ];
   const sums = o => ({id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, seats_used:o.seats_used, role:'superuser',
     teams:[{id:o.id+'t1', name:'Platform', members_active:Math.ceil(o.seats_used/2), seats:Math.ceil(o.seats_used/2)},{id:o.id+'t2', name:'Apps', members_active:Math.floor(o.seats_used/2), seats:Math.floor(o.seats_used/2)}],
@@ -815,6 +857,7 @@ const demo = (function(){
   return function(name, a){
     a = a || {};
     if(name === 'is_platform_admin') return true;
+    if(name === 'org_prompt_usage' || name === 'member_prompts') return demoPrompts(name, a);
     if(SEATRPC.includes(name)){
       const o = orgs.find(x => x.id === a.p_org_id);
       return demoSeatsRpc(a.p_org_id, o ? teamsOf(o) : [], name, a);
@@ -832,7 +875,7 @@ const demo = (function(){
       }));
       return out;
     }
-    if(name === 'ops_totals') return {orgs:orgs.length, orgs_business:orgs.filter(o => o.plan === 'business').length, seats_used:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.holds_seat && !x.seat_of).length,0), seats_paused:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'paused').length,0), seats_late:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'late').length,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
+    if(name === 'ops_totals') return {orgs:orgs.length, orgs_enterprise:orgs.filter(o => o.plan === 'enterprise').length, seats_used:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.holds_seat && !x.seat_of).length,0), seats_paused:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'paused').length,0), seats_late:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'late').length,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
     const o = orgs.find(x => x.id === a.p_org_id);
     if(!o) throw new Error('not found');
     if(name === 'org_summary') return sums(o);
@@ -1018,7 +1061,7 @@ async function selectOrg(id){
   sel = orgs.find(o => o.id === id) || null; sum = null;
   $('set-err').textContent = ''; $('own-err').textContent = ''; $('set-ok').textContent = ''; $('own-ok').textContent = '';
   renderDetail();
-  if(!sel){ Seats.load(null); return; }
+  if(!sel){ Seats.load(null); Prompts.reset(); return; }
   fillForm();
   Seats.load(id);
   try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){ $('set-err').textContent = errMsg(e); }
@@ -1028,7 +1071,7 @@ async function selectOrg(id){
 /* ── routing: #orgs (list), #org/<id>[/seats|/settings] (detail) ──────── */
 let curTab = 'overview';
 function parseHash(){
-  const m = location.hash.replace(/^#/, '').match(/^org\/([^/]+)(?:\/(seats|settings))?\/?$/);
+  const m = location.hash.replace(/^#/, '').match(/^org\/([^/]+)(?:\/(seats|prompts|settings))?\/?$/);
   return m ? { id: decodeURIComponent(m[1]), tab: m[2] || 'overview' } : null;
 }
 function go(h){ if(location.hash === h) route(); else location.hash = h; }
@@ -1037,7 +1080,7 @@ async function route(){
   const r = parseHash();
   $('view-list').hidden = !!r; $('view-detail').hidden = !r;
   if(!r){
-    if(shown){ shown = ''; sel = null; sum = null; Seats.load(null); }
+    if(shown){ shown = ''; sel = null; sum = null; Seats.load(null); Prompts.reset(); }
     return;
   }
   curTab = r.tab;
@@ -1051,7 +1094,7 @@ document.querySelectorAll('#d-tabs .tab').forEach(b => b.addEventListener('click
 }));
 
 /* ── render ───────────────────────────────────────────────────────────── */
-function renderAll(){ renderTotals(); renderOrgs(); renderDetail(); renderAttention(); Seats.render(); }
+function renderAll(){ renderTotals(); renderOrgs(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); }
 function renderAttention(){
   const rows = attention[attTab] || [], paused = attTab === 'paused';
   ['paused', 'late'].forEach(k => {
@@ -1075,7 +1118,7 @@ function renderTotals(){
   const x = totals; if(!x){ $('totals').innerHTML = ''; return; }
   const c = (cls, label, val) => `<div class="${cls}"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
   $('totals').innerHTML =
-    c('', t('tot.orgs'), x.orgs ?? 0) + c('', t('tot.biz'), x.orgs_business ?? 0) +
+    c('', t('tot.orgs'), x.orgs ?? 0) + c('', t('tot.ent'), x.orgs_enterprise ?? x.orgs_business ?? 0) +
     c('', t('tot.seats'), t('tot.seatsof', {used: x.seats_used ?? 0, limit: x.seats_limit_sum ?? 0}, true)) +
     c('', t('tot.active'), x.members_active_30d ?? 0) + c('', t('tot.paused'), x.seats_paused ?? 0) + c('', t('tot.late'), x.seats_late ?? 0) + c('sp', t('tot.sp'), money(x.spent_30d)) + c('sv', t('tot.sv'), money(x.saved_30d));
 }
@@ -1091,7 +1134,7 @@ function renderOrgs(){
     const own = (o.owners || []).join(', ');
     return `<tr data-id="${esc(o.id)}" tabindex="0">
       <td class="nm" title="${esc(o.name)}">${esc(o.name)}</td>
-      <td><span class="tag${o.plan === 'business' ? ' plus' : ''}">${esc(t('plan.' + (o.plan === 'business' ? 'business' : 'team')))}</span></td>
+      <td><span class="tag${o.plan === 'enterprise' ? ' plus' : ''}">${esc(t('plan.' + (o.plan === 'enterprise' ? 'enterprise' : 'pro')))}</span></td>
       <td><span class="badge ${o.status === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + (o.status === 'suspended' ? 'suspended' : 'active')))}</span></td>
       <td><div class="seatcell"><span>${used} / ${lim}</span><div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div></div></td>
       <td class="n">${Number(o.teams) || 0}</td><td class="n">${Number(o.members_total) || 0}</td>
@@ -1109,7 +1152,7 @@ function renderOrgs(){
 }
 function fillForm(){
   if(!sel) return;
-  $('e-plan').value = sel.plan === 'business' ? 'business' : 'team';
+  $('e-plan').value = sel.plan === 'enterprise' ? 'enterprise' : 'pro';
   $('e-limit').value = sel.seat_limit || '';
   $('e-status').value = sel.status === 'suspended' ? 'suspended' : 'active';
   $('e-note').value = sel.note || '';
@@ -1117,14 +1160,14 @@ function fillForm(){
 function renderDetail(){
   const r = parseHash();
   if(!r) return;
-  const tabs = { overview: 'p-overview', seats: 'p-seats', settings: 'p-settings' };
+  const tabs = { overview: 'p-overview', seats: 'p-seats', prompts: 'p-prompts', settings: 'p-settings' };
   document.querySelectorAll('#d-tabs .tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === curTab)));
   Object.keys(tabs).forEach(k => { $(tabs[k]).hidden = !sel || k !== curTab; });
   $('d-head').querySelector('.dtitle').hidden = !sel; $('d-stats').parentNode.hidden = !sel; $('d-tabs').hidden = !sel;
   $('d-missing').hidden = !!sel;
   if(!sel){ $('d-name').textContent = ''; return; }
   $('d-name').textContent = sel.name;
-  $('d-badges').innerHTML = `<span class="tag${sel.plan === 'business' ? ' plus' : ''}">${esc(t('plan.' + (sel.plan === 'business' ? 'business' : 'team')))}</span>
+  $('d-badges').innerHTML = `<span class="tag${sel.plan === 'enterprise' ? ' plus' : ''}">${esc(t('plan.' + (sel.plan === 'enterprise' ? 'enterprise' : 'pro')))}</span>
     <span class="badge ${sel.status === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + (sel.status === 'suspended' ? 'suspended' : 'active')))}</span>`;
   const used = Number(sel.seats_used) || 0, lim = Number(sel.seat_limit) || 0, full = lim && used >= lim;
   const st = (cls, label, val) => `<div class="stat ${cls}"><span>${esc(label)}</span><b>${val}</b></div>`;
@@ -1139,6 +1182,7 @@ function renderDetail(){
     <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
   $('side-admins').innerHTML = ad.length ? ad.map(a => `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
   $('d-note').textContent = sel.note || t('s.none');
+  if(curTab === 'prompts') Prompts.activate();
 }
 
 /* ── actions ──────────────────────────────────────────────────────────── */
@@ -1337,8 +1381,189 @@ function demoSeatsRpc(orgId, teams, name, a){
   throw new Error('unknown rpc ' + name);
 }
 
+/* ── prompt usage: per-user table + prompt list (shared by site/team and site/ops) ── */
+const Prompts = (function(){
+  const st = { orgId:null, plan:null, usage:null, err:'', lock:'', loading:false, sort:'prompts', dir:-1, member:null, items:[], more:false, next:null, q:'', busy:false, open:{}, seq:0 };
+  let cfg = null, box = null, timer = 0;
+  const PAGE = 50;
+  const osName = r => [r.os, r.os_version && !String(r.os || '').includes(r.os_version) ? r.os_version : ''].filter(Boolean).join(' ') || '—';
+  const num = n => Number(n || 0).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US');
+  const day0 = d => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
+  function spark(by, days){
+    const m = {}; (by || []).forEach(x => { m[String(x.day).slice(0, 10)] = Number(x.prompts) || 0; });
+    const v = []; for(let i = days - 1; i >= 0; i--) v.push(m[day0(i)] || 0);
+    const mx = Math.max(1, ...v), w = 96, h = 24, bw = w / v.length;
+    const bars = v.map((n, i) => { const bh = n ? Math.max(1.5, n / mx * (h - 2)) : 0.8; return `<rect x="${(i * bw + 0.5).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${Math.max(1, bw - 1).toFixed(1)}" height="${bh.toFixed(1)}" rx="0.6" fill="currentColor" opacity="${n ? 1 : .25}"/>`; }).join('');
+    const total = v.reduce((a, b) => a + b, 0);
+    return `<svg class="pu-spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(t('pu.spark', { n: total, d: days }))}">${bars}</svg>`;
+  }
+  function init(c){
+    cfg = c; box = $(c.box);
+    box.addEventListener('click', onClick);
+    box.addEventListener('input', onInput);
+  }
+  function reset(){ st.orgId = null; st.usage = null; st.member = null; st.items = []; st.err = ''; st.lock = ''; render(); }
+  /* activate: load the usage table the first time a view needs it (or after the org changed) */
+  async function activate(force){
+    const id = cfg.orgId(), plan = cfg.plan();
+    if(!id){ reset(); return; }
+    if(!force && st.orgId === id && st.plan === plan && (st.loading || st.usage || st.lock || st.err)) return;
+    Object.assign(st, { orgId:id, plan, usage:null, err:'', lock:'', member:null, items:[], q:'', loading:true });
+    render();
+    if(plan !== 'enterprise'){ st.lock = 'plan'; st.loading = false; return render(); }
+    const seq = ++st.seq;
+    try{
+      const d = await cfg.rpc('org_prompt_usage', { p_org_id: id, p_days: 30 });
+      if(seq !== st.seq) return;
+      st.usage = d || { members: [], totals: {}, days: 30 };
+    }catch(e){ if(seq !== st.seq) return; lockFrom(e); }
+    st.loading = false; render();
+  }
+  function lockFrom(e){
+    const m = String((e && e.message) || e);
+    if(/Enterprise plan/i.test(m)) st.lock = 'plan';
+    else if(/capture is off/i.test(m)) st.lock = 'cap';
+    else st.err = errMsg(e);
+  }
+  const SORTS = { name:r => String(r.display_name || '').toLowerCase(), team:r => String(r.team_name || '').toLowerCase(), os:r => osName(r).toLowerCase(),
+    prompts:r => +r.prompts, chars:r => +r.chars, avg:r => +r.avg_chars, days:r => +r.active_days, last:r => new Date(r.last_prompt_at).getTime() || 0 };
+  const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
+  function lockHtml(){
+    if(st.lock === 'plan') return `<div class="pu-lock">${lockSvg}<div><h3>${esc(t('pu.lock.plan.h'))}</h3><p>${esc(t('pu.lock.plan.p'))}</p><a class="btn" href="/pricing/">${esc(t('pu.lock.plan.cta'))}</a></div></div>`;
+    return `<div class="pu-lock">${lockSvg}<div><h3>${esc(t('pu.lock.cap.h'))}</h3><p>${esc(t(cfg.ops ? 'pu.lock.cap.ops' : 'pu.lock.cap.p'))}</p></div></div>`;
+  }
+  function render(){
+    if(!box) return;
+    if(!st.orgId){ box.innerHTML = ''; return; }
+    if(st.loading) { box.innerHTML = `<p class="msg loading">${esc(t('pu.loading'))}</p>`; return; }
+    if(st.lock){ box.innerHTML = lockHtml(); return; }
+    if(st.err && !st.usage){ box.innerHTML = `<p class="err" role="alert">${esc(st.err)}</p>`; return; }
+    if(st.member) return renderMember();
+    const u = st.usage || { members: [], totals: {}, days: 30 }, days = u.days || 30, tot = u.totals || {};
+    const chips = [['ac', t('pu.t.prompts'), num(tot.prompts)], ['', t('pu.t.chars'), num(tot.chars)], ['', t('pu.t.users'), num(tot.users)]]
+      .map(c => `<div class="chip ${c[0]}"><span>${esc(c[1])}</span><b>${esc(c[2])}</b></div>`).join('');
+    const f = SORTS[st.sort], rows = (u.members || []).slice().sort((a, b) => { const x = f(a), y = f(b); return (x < y ? -1 : x > y ? 1 : 0) * st.dir; });
+    const th = (k, label, cls) => `<th class="${cls || ''}" aria-sort="${st.sort === k ? (st.dir < 0 ? 'descending' : 'ascending') : 'none'}"><button type="button" class="pu-sort" data-sort="${k}">${esc(label)}</button></th>`;
+    const body = rows.map(r => `<tr class="pu-row" data-m="${esc(r.member_id)}">
+      <td class="sn" title="${esc(r.display_name)}"><button type="button" class="pu-open" data-open="${esc(r.member_id)}">${esc(r.display_name)}</button><span class="share pu-tm">${esc(r.team_name || '')}</span></td>
+      <td class="tm" title="${esc(r.team_name || '')}">${esc(r.team_name || '')}</td><td class="dim">${esc(osName(r))}</td>
+      <td class="num">${num(r.prompts)}</td><td class="num">${num(r.chars)}</td><td class="num">${num(r.avg_chars)}</td><td class="num">${num(r.active_days)}</td>
+      <td>${esc(rel(r.last_prompt_at))}</td><td>${spark(r.by_day, days)}</td></tr>`).join('');
+    box.innerHTML = `<div class="sr-top"><div class="chips">${chips}</div></div>
+      <div class="tbl-wrap tall pu-tbl"><table><thead><tr>
+        ${th('name', t('pu.c.user'))}${th('team', t('pu.c.team'))}${th('os', t('pu.c.os'))}${th('prompts', t('pu.c.prompts'), 'num')}${th('chars', t('pu.c.chars'), 'num')}${th('avg', t('pu.c.avg'), 'num')}${th('days', t('pu.c.days'), 'num')}${th('last', t('pu.c.last'))}
+        <th>${esc(t('pu.c.trend', { d: days }))}</th></tr></thead><tbody>${body}</tbody></table></div>
+      ${rows.length ? '' : `<p class="empty">${esc(t('pu.none', { d: days }))}</p>`}
+      <p class="note">${esc(t('pu.note', { d: days }))}</p><p class="err" role="alert">${esc(st.err)}</p>`;
+  }
+  function renderMember(){
+    const m = st.member;
+    box.innerHTML = `<div class="pu-who"><div><h3>${esc(m.display_name)}</h3><span class="share">${esc([m.team_name, osName(m)].filter(Boolean).join(' · '))}</span></div>
+      <button type="button" class="btn sm" data-back="1">${esc(t('pu.back'))}</button></div>
+      <div class="pu-tools"><input type="text" id="pu-q" value="${esc(st.q)}" placeholder="${esc(t('pu.search'))}" aria-label="${esc(t('pu.search'))}" autocomplete="off" /></div>
+      <div id="pu-list"></div><p class="err" role="alert" id="pu-err"></p>`;
+    renderList();
+  }
+  function renderList(){
+    const el = $('pu-list'); if(!el) return;
+    $('pu-err').textContent = st.err;
+    if(st.busy && !st.items.length){ el.innerHTML = `<p class="msg loading">${esc(t('pu.loading'))}</p>`; return; }
+    if(!st.items.length){ el.innerHTML = `<p class="empty">${esc(t('pu.noprompts'))}</p>`; return; }
+    el.innerHTML = `<div class="pu-list">${st.items.map(p => {
+      const text = String(p.text || ''), lines = text.split('\n').length, mono = lines >= 3, long = text.length > 260 || lines > 4, open = !!st.open[p.id];
+      return `<article class="pu-p"><div class="pu-m"><time datetime="${esc(p.at)}">${esc(new Date(p.at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US', { dateStyle:'medium', timeStyle:'short' }))}</time>
+        ${p.project ? `<span class="pr-proj">${esc(p.project)}</span>` : ''}<span>${esc(t('pu.chars', { n: num(p.chars) }))}</span></div>
+        <pre class="pu-t${mono ? ' mono' : ''}${long && !open ? ' clamp' : ''}">${esc(text)}</pre>
+        ${long ? `<button type="button" class="pu-x" data-x="${esc(p.id)}" aria-expanded="${open}">${esc(t(open ? 'pu.collapse' : 'pu.expand'))}</button>` : ''}</article>`; }).join('')}</div>
+      ${st.more ? `<button type="button" class="btn pu-more" data-more="1" ${st.busy ? 'disabled' : ''}>${esc(t('pu.more'))}</button>` : ''}`;
+  }
+  async function fetchPrompts(append){
+    const seq = ++st.seq; st.busy = true; st.err = '';
+    if(!append){ st.items = []; st.more = false; st.next = null; }
+    renderList();
+    try{
+      const d = await cfg.rpc('member_prompts', { p_member_id: st.member.member_id, p_before: append ? st.next : null, p_limit: PAGE, p_query: st.q || null });
+      if(seq !== st.seq) return;
+      st.items = st.items.concat((d && d.prompts) || []); st.more = !!(d && d.has_more); st.next = d && d.next_before;
+    }catch(e){ if(seq !== st.seq) return; st.err = errMsg(e); }
+    st.busy = false; renderList();
+  }
+  function onClick(ev){
+    const b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.sort){ if(st.sort === b.dataset.sort) st.dir = -st.dir; else { st.sort = b.dataset.sort; st.dir = /^(name|team|os)$/.test(st.sort) ? 1 : -1; } render(); const nb = box.querySelector(`[data-sort="${st.sort}"]`); if(nb) nb.focus(); }
+    else if(b.dataset.open){ const r = ((st.usage && st.usage.members) || []).find(x => x.member_id === b.dataset.open); if(r){ st.member = r; st.q = ''; st.open = {}; render(); fetchPrompts(false); } }
+    else if(b.dataset.back){ st.member = null; st.items = []; st.err = ''; st.seq++; render(); }
+    else if(b.dataset.more) fetchPrompts(true);
+    else if(b.dataset.x){ st.open[b.dataset.x] = !st.open[b.dataset.x]; renderList(); const nb = box.querySelector(`[data-x="${b.dataset.x}"]`); if(nb) nb.focus(); }
+  }
+  function onInput(ev){
+    if(ev.target.id !== 'pu-q') return;
+    clearTimeout(timer); const v = ev.target.value.trim();
+    timer = setTimeout(() => { if(v === st.q) return; st.q = v; fetchPrompts(false); }, 300);
+  }
+  return { init, activate, reset, render };
+})();
+
+/* ── demo prompts (?demo=1): synthetic rows, no network ────────────────── */
+const demoPrompts = (function(){
+  let data = null;
+  const FILES = ['auth.spec.ts', 'invoice_service.py', 'CheckoutForm.tsx', 'schema.prisma', 'deploy.yml', 'retry.go'];
+  const EN = ['fix the failing test in %s', 'add a unit test for %s', 'refactor %s to remove the duplicated branch', 'explain what %s does, briefly', 'continue', 'use the existing util instead'];
+  const KO = ['%s 리팩터링해줘', '%s 에서 실패하는 테스트 고쳐줘', '%s 에 예외 처리 추가해줘', '방금 변경이 빌드를 깼어, 되돌려줘', '좋아, 그대로 진행해'];
+  const LOG = 'ERROR in src/%s:42\n  TypeError: Cannot read properties of undefined (reading \'id\')\n    at handler (src/api/routes.ts:118:22)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n';
+  const PEOPLE = [['MacBook-Pro-Jisoo', 'Platform', 'macOS 26', 1.4], ['dev-linux-minho', 'Platform', 'Ubuntu 24.04', 1.0], ['ana-mbp', 'Apps', 'macOS 15', 0.9],
+    ['win-workstation-04', 'Apps', 'Windows 11', 0.6], ['서연-맥북', 'Platform', 'macOS 26', 1.2], ['build-farm-arm64', 'Apps', 'Ubuntu 24.04', 0.25]];
+  function build(){
+    let s = 42; const r = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const pick = a => a[Math.floor(r() * a.length)];
+    let id = 1;
+    data = PEOPLE.map((p, i) => {
+      const prompts = [];
+      for(let d = 0; d < 30; d++){
+        if(r() < 0.15) continue;
+        const wk = [0, 6].includes(new Date(Date.now() - d * 864e5).getDay());
+        const n = Math.floor(Math.pow(r(), 1.6) * 38 * p[3] / (wk ? 4 : 1));
+        for(let k = 0; k < n; k++){
+          const x = r(); let text;
+          if(x < 0.06) text = 'Here is the output, what is going wrong?\n\n' + (LOG.replace('%s', pick(FILES)) + '\n').repeat(2 + Math.floor(r() * 5));
+          else if(x < 0.55) text = pick(EN).replace('%s', pick(FILES));
+          else text = pick(KO).replace('%s', pick(FILES));
+          const at = new Date(Date.now() - d * 864e5 - (k * 7 + r() * 5) * 6e4 - i * 1e3).toISOString();
+          prompts.push({ id: id++, at, project: pick(['billing-api', 'web-app', 'mobile-client']), chars: text.length, text });
+        }
+      }
+      prompts.sort((a, b) => b.at.localeCompare(a.at));
+      return { member_id: 'demo-pm' + i, display_name: p[0], team_name: p[1], os: p[2], prompts };
+    });
+  }
+  return function(name, a){
+    a = a || {}; if(!data) build();
+    if(name === 'org_prompt_usage'){
+      const days = a.p_days || 30, since = new Date(Date.now() - days * 864e5).toISOString();
+      const members = data.map(m => {
+        const ps = m.prompts.filter(p => p.at >= since), by = {};
+        ps.forEach(p => { const d = p.at.slice(0, 10); by[d] = (by[d] || 0) + 1; });
+        const chars = ps.reduce((n, p) => n + p.chars, 0);
+        return { member_id: m.member_id, display_name: m.display_name, team_name: m.team_name, os: m.os, prompts: ps.length, chars,
+          avg_chars: ps.length ? Math.round(chars / ps.length) : 0, active_days: Object.keys(by).length, last_prompt_at: ps[0] && ps[0].at,
+          by_day: Object.keys(by).sort().map(d => ({ day: d, prompts: by[d] })) };
+      }).filter(m => m.prompts).sort((x, y) => y.prompts - x.prompts);
+      return { days, totals: { prompts: members.reduce((n, m) => n + m.prompts, 0), chars: members.reduce((n, m) => n + m.chars, 0), users: members.length }, members };
+    }
+    if(name === 'member_prompts'){
+      const m = data.find(x => x.member_id === a.p_member_id); if(!m) throw new Error('member not found');
+      const q = String(a.p_query || '').toLowerCase(), lim = a.p_limit || 50;
+      const all = m.prompts.filter(p => (!a.p_before || p.at < a.p_before) && (!q || p.text.toLowerCase().includes(q)));
+      const page = all.slice(0, lim);
+      return { member: { member_id: m.member_id, display_name: m.display_name, team_name: m.team_name, os: m.os }, prompts: page, has_more: all.length > lim, next_before: all.length > lim ? page[page.length - 1].at : null };
+    }
+    throw new Error('unknown rpc ' + name);
+  };
+})();
+
 /* ── boot ─────────────────────────────────────────────────────────────── */
 (async function boot(){
+  Prompts.init({ box:'pu-box', ops:true, orgId:() => sel && sel.id, plan:() => sel && sel.plan, rpc });
   Seats.init({
     box:'seats-box', canAct:true, canMerge:false, rpc,
     limit:() => sel && {used:sel.seats_used, limit:sel.seat_limit},
@@ -1358,7 +1583,7 @@ function demoSeatsRpc(orgId, teams, name, a){
     user = {email:'root.studio.yaml@gmail.com'}; await onSession({user});
     if(dq.get('org')){
       const tab = location.hash.replace(/^#/, '').replace(/^org\/[^/]+\/?/, '');
-      history.replaceState(null, '', location.pathname + location.search + '#org/' + encodeURIComponent(dq.get('org')) + (/^(seats|settings)$/.test(tab) ? '/' + tab : ''));
+      history.replaceState(null, '', location.pathname + location.search + '#org/' + encodeURIComponent(dq.get('org')) + (/^(seats|prompts|settings)$/.test(tab) ? '/' + tab : ''));
       await route();
     }
     if(dq.get('setpw') === '1') $('btn-setpw').click();

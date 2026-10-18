@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sprag Pricing | Free for you, per seat for teams</title>
-<meta name="description" content="Sprag is free on your machine. Teams pay per seat for a shared dashboard and team-approved rules; Business adds prompt monitoring." />
+<meta name="description" content="Sprag is free on your machine. Teams pay per seat for a shared dashboard and team-approved rules; Enterprise adds prompt capture and per-user prompt usage." />
 <link rel="canonical" href="https://sprag.io/pricing/" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="theme-color" content="#010102" />
@@ -185,43 +185,43 @@
 
     <article class="plan feat">
       <span class="badge" data-k="p.popular">Most popular</span>
-      <h2 data-k="p.team">Team</h2>
-      <p class="for" data-k="p.team.for">For teams that want one view of spend and savings.</p>
-      <div class="price"><b data-price="team">$5</b><span data-k="p.per">per seat<br>/ month</span></div>
+      <h2 data-k="p.pro">Pro</h2>
+      <p class="for" data-k="p.pro.for">For teams that want one view of spend and savings.</p>
+      <div class="price"><b data-price="pro">$5</b><span data-k="p.per">per seat<br>/ month</span></div>
       <p class="fine" data-fine data-k="p.fine.m">Billed monthly</p>
       <a class="btn pri" href="/team/" data-k="p.start">Get started</a>
-      <p class="inc" data-k="p.team.inc">Everything in Free, plus:</p>
+      <p class="inc" data-k="p.pro.inc">Everything in Free, plus:</p>
       <ul>
-        <li data-k="p.team.1">Shared team dashboard</li>
-        <li data-k="p.team.2">Daily spend and savings per member</li>
-        <li data-k="p.team.3">Team-approved rules for every member</li>
-        <li data-k="p.team.4">Org rollout with one env var</li>
-        <li data-k="p.team.5">Invite rotation and member removal</li>
+        <li data-k="p.pro.1">Shared team dashboard</li>
+        <li data-k="p.pro.2">Daily spend and savings per member</li>
+        <li data-k="p.pro.3">Team-approved rules for every member</li>
+        <li data-k="p.pro.4">Org rollout with one env var</li>
+        <li data-k="p.pro.5">Invite rotation and member removal</li>
       </ul>
     </article>
 
     <article class="plan">
-      <h2 data-k="p.biz">Business</h2>
-      <p class="for" data-k="p.biz.for">For teams that also review how prompts are written.</p>
-      <div class="price"><b data-price="business">$10</b><span data-k="p.per">per seat<br>/ month</span></div>
+      <h2 data-k="p.ent">Enterprise</h2>
+      <p class="for" data-k="p.ent.for">For teams that also review how prompts are written.</p>
+      <div class="price"><b data-price="enterprise">$10</b><span data-k="p.per">per seat<br>/ month</span></div>
       <p class="fine" data-fine data-k="p.fine.m">Billed monthly</p>
       <a class="btn" href="/team/" data-k="p.start">Get started</a>
-      <p class="inc" data-k="p.biz.inc">Everything in Team, plus:</p>
+      <p class="inc" data-k="p.ent.inc">Everything in Pro, plus:</p>
       <ul>
-        <li data-k="p.biz.1">Prompt monitoring for admins</li>
-        <li data-k="p.biz.2">User prompts only, uploaded in compressed daily batches</li>
-        <li data-k="p.biz.3">Browse prompts by member and day</li>
-        <li data-k="p.biz.4">Capture policy visible to every member</li>
+        <li data-k="p.ent.1">Prompt capture and per-user prompt usage</li>
+        <li data-k="p.ent.2">User prompts only, uploaded in daily batches</li>
+        <li data-k="p.ent.3">Browse prompts by member and day</li>
+        <li data-k="p.ent.4">Capture policy visible to every member</li>
       </ul>
     </article>
   </div>
 
   <div class="ent">
     <div>
-      <h2 data-k="p.ent">Enterprise</h2>
-      <p data-k="p.ent.p">Annual invoicing, a security review or custom data retention for a larger rollout.</p>
+      <h2 data-k="p.cus">Custom</h2>
+      <p data-k="p.cus.p">Volume or annual invoicing, a security review or custom data retention for a larger rollout. Write to sales@sprag.io.</p>
     </div>
-    <a class="btn" href="https://github.com/rootstudioyaml/sprag/discussions" data-k="p.ent.cta">Contact us</a>
+    <a class="btn" href="mailto:sales@sprag.io" data-k="p.cus.cta">Contact sales</a>
   </div>
 
   <section class="blk">
@@ -232,8 +232,8 @@
           <tr>
             <th></th>
             <th data-k="p.free">Free</th>
-            <th class="feat"><span data-k="p.team">Team</span><small data-cmp="team">$5</small></th>
-            <th><span data-k="p.biz">Business</span><small data-cmp="business">$10</small></th>
+            <th class="feat"><span data-k="p.pro">Pro</span><small data-cmp="pro">$5</small></th>
+            <th><span data-k="p.ent">Enterprise</span><small data-cmp="enterprise">$10</small></th>
           </tr>
         </thead>
         <tbody>
@@ -269,8 +269,8 @@
       <details><summary data-k="p.q0">How are seats counted?</summary><p data-k="p.a0">Seats are bought per organization. A seat is one machine active in the last 30 days, and an admin can merge a person's second machine into the same seat. Joins past the limit are refused until Sprag raises it. To add seats, contact <a href="mailto:sales@sprag.io">sales@sprag.io</a>.</p></details>
       <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. Nothing is uploaded until a member joins a team, and the free CLI never needs an account. <code>sprag team status --show-payload</code> prints exactly what a member sends.</p></details>
       <details><summary data-k="p.q2">Who consents when a company rolls this out?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members still see what is sent with <code>sprag team status</code>, and <code>sprag team leave</code> wins over the env var.</p></details>
-      <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only the team owner, and only on the Business plan. It is off by default, and every member can see its state in <code>sprag team status</code>.</p></details>
-      <details><summary data-k="p.q6">Can I switch plans or cancel?</summary><p data-k="p.a6">Yes. Moving between Team and Business changes the per-seat price from the next billing period, and canceling keeps the free CLI working as before.</p></details>
+      <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only an organization owner or admin, and only on the Enterprise plan. It is off by default, and every member can see its state in <code>sprag team status</code>.</p></details>
+      <details><summary data-k="p.q6">Can I switch plans or cancel?</summary><p data-k="p.a6">Yes. Moving between Pro and Enterprise changes the per-seat price from the next billing period, and canceling keeps the free CLI working as before.</p></details>
       <details><summary data-k="p.q5">Where is the data stored?</summary><p data-k="p.a5">In Supabase, in the ap-northeast-2 (Seoul) region.</p></details>
     </div>
   </section>
@@ -296,7 +296,7 @@
 
 <script>
 /* Prices live here. Change them in this block only. Annual is per seat per month, billed yearly. */
-const PRICES = { monthly: { team: 5, business: 10 }, annual: { team: 4, business: 8 } };
+const PRICES = { monthly: { pro: 5, enterprise: 10 }, annual: { pro: 4, enterprise: 8 } };
 let cycle = 'monthly';
 
 const KO = {
@@ -309,16 +309,16 @@ const KO = {
   'p.free.1':'내 기록에서 뽑은 라우팅 규칙', 'p.free.2':'더 싼 모델로 고정한 서브에이전트',
   'p.free.3':'절감액 원장과 statusline', 'p.free.4':'pptx, xlsx, docx, pdf용 doc2md',
   'p.free.5':'어떤 데이터도 밖으로 나가지 않음',
-  'p.popular':'가장 많이 선택', 'p.team':'팀', 'p.team.for':'지출과 절감액을 한곳에서 보려는 팀',
+  'p.popular':'가장 많이 선택', 'p.pro':'프로', 'p.pro.for':'지출과 절감액을 한곳에서 보려는 팀',
   'p.per':'좌석당<br>/ 월', 'p.fine.m':'월 단위 청구', 'p.fine.a':'연 단위 청구',
-  'p.start':'시작하기', 'p.team.inc':'무료 기능 전부와 함께',
-  'p.team.1':'팀 공유 대시보드', 'p.team.2':'멤버별 하루 지출과 절감액',
-  'p.team.3':'팀이 승인한 규칙을 모든 멤버에게 적용', 'p.team.4':'환경 변수 하나로 조직 배포',
-  'p.team.5':'초대 토큰 교체와 멤버 제거',
-  'p.biz':'비즈니스', 'p.biz.for':'프롬프트 작성 방식까지 검토하려는 팀', 'p.biz.inc':'팀 기능 전부와 함께',
-  'p.biz.1':'관리자용 프롬프트 모니터링', 'p.biz.2':'사용자 프롬프트만, 하루 단위 압축 업로드',
-  'p.biz.3':'멤버와 날짜별 프롬프트 열람', 'p.biz.4':'모든 멤버에게 보이는 수집 정책',
-  'p.ent':'엔터프라이즈', 'p.ent.p':'대규모 도입에 필요한 연간 인보이스, 보안 검토, 데이터 보존 기간 조정', 'p.ent.cta':'문의하기',
+  'p.start':'시작하기', 'p.pro.inc':'무료 기능 전부와 함께',
+  'p.pro.1':'팀 공유 대시보드', 'p.pro.2':'멤버별 하루 지출과 절감액',
+  'p.pro.3':'팀이 승인한 규칙을 모든 멤버에게 적용', 'p.pro.4':'환경 변수 하나로 조직 배포',
+  'p.pro.5':'초대 토큰 교체와 멤버 제거',
+  'p.ent':'엔터프라이즈', 'p.ent.for':'프롬프트 작성 방식까지 검토하려는 팀', 'p.ent.inc':'프로 기능 전부와 함께',
+  'p.ent.1':'프롬프트 수집과 사용자별 프롬프트 사용량', 'p.ent.2':'사용자 프롬프트만, 하루 단위 업로드',
+  'p.ent.3':'멤버와 날짜별 프롬프트 열람', 'p.ent.4':'모든 멤버에게 보이는 수집 정책',
+  'p.cus':'맞춤 계약', 'p.cus.p':'대규모 도입에 필요한 대량 구매, 연간 인보이스, 보안 검토, 데이터 보존 기간 조정은 sales@sprag.io 로 문의해 주세요', 'p.cus.cta':'영업팀에 문의',
   'p.cmp.h':'요금제 비교',
   'p.g1':'내 컴퓨터에서', 'p.r1':'오픈소스 CLI와 훅', 'p.r2':'내 기록에서 뽑은 라우팅 규칙',
   'p.r3':'절감액 원장과 statusline', 'p.r4':'doc2md 문서 변환',
@@ -336,9 +336,9 @@ const KO = {
   'p.q2':'회사가 도입하면 동의는 누가 하나요?',
   'p.a2':'조직 단위로 배포할 때는 조직의 결정이 동의입니다. 멤버는 <code>sprag team status</code>로 전송 내용을 볼 수 있고, <code>sprag team leave</code>는 환경 변수보다 우선합니다.',
   'p.q4':'프롬프트 수집은 누가 정하나요?',
-  'p.a4':'팀 소유자만 정할 수 있고 비즈니스 요금제에서만 켜집니다. 기본값은 꺼짐이며, 모든 멤버가 <code>sprag team status</code>에서 상태를 확인할 수 있습니다.',
+  'p.a4':'조직 오너나 어드민만 정할 수 있고 엔터프라이즈 요금제에서만 켜집니다. 기본값은 꺼짐이며, 모든 멤버가 <code>sprag team status</code>에서 상태를 확인할 수 있습니다.',
   'p.q6':'요금제를 바꾸거나 해지할 수 있나요?',
-  'p.a6':'네. 팀과 비즈니스 사이를 옮기면 다음 청구 기간부터 좌석당 요금이 바뀌고, 해지해도 무료 CLI는 그대로 쓸 수 있습니다.',
+  'p.a6':'네. 프로와 엔터프라이즈 사이를 옮기면 다음 청구 기간부터 좌석당 요금이 바뀌고, 해지해도 무료 CLI는 그대로 쓸 수 있습니다.',
   'p.q5':'데이터는 어디에 저장되나요?',
   'p.a5':'Supabase의 ap-northeast-2(서울) 리전에 저장됩니다.',
   'p.cta':'한 명으로 시작해서 나중에 사람을 더하세요.', 'p.docs':'팀 가이드 읽기'
@@ -347,7 +347,7 @@ const EN = { 'p.fine.a':'Billed annually' };
 document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
 const META = {
   en: { title:'Sprag Pricing | Free for you, per seat for teams', desc: document.querySelector('meta[name=description]').content },
-  ko: { title:'Sprag 요금 · 개인은 무료, 팀은 좌석당', desc:'Sprag는 내 컴퓨터에서 무료입니다. 팀은 좌석당 요금으로 공유 대시보드와 팀 승인 규칙을 쓰고, 비즈니스는 프롬프트 모니터링을 더합니다.' }
+  ko: { title:'Sprag 요금 · 개인은 무료, 팀은 좌석당', desc:'Sprag는 내 컴퓨터에서 무료입니다. 팀은 좌석당 요금으로 공유 대시보드와 팀 승인 규칙을 쓰고, 엔터프라이즈는 프롬프트 수집과 사용자별 사용량을 더합니다.' }
 };
 let lang = 'en';
 
