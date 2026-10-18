@@ -30,7 +30,7 @@ function fixture(t) {
   const codex = join(dir, 'codex');
   const root = join(dir, 'project');
   for (const path of [home, join(codex, 'sessions'), join(root, '.git')]) mkdirSync(path, { recursive: true });
-  const env = childEnv({ HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(dir, 'config'), CTS_DOC2MD_NO_AUTOINSTALL: '1', CTS_NO_DOC2MD: '1' });
+  const env = childEnv({ HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(dir, 'config'), SPRAG_DOC2MD_NO_AUTOINSTALL: '1', SPRAG_NO_DOC2MD: '1' });
   const run = (args, input) => spawnSync(process.execPath, [CLI, ...args, '--agent', 'codex'], {
     env, cwd: root, input: input === undefined ? undefined : JSON.stringify(input), encoding: 'utf8', timeout: 10000,
   });

@@ -121,7 +121,7 @@ test('spawnTeamSyncIfDue spawns when due or auto-join pending, not otherwise', (
   const tok = { SPRAG_TEAM_TOKEN: `spt_${'a'.repeat(32)}` };
   assert.equal(spawnTeamSyncIfDue({ ...base, state: {}, env: tok }), true);
   const n = calls.length;
-  assert.equal(spawnTeamSyncIfDue({ ...base, state: due, env: { CTS_NO_TEAM_SYNC: '1' } }), false);
+  assert.equal(spawnTeamSyncIfDue({ ...base, state: due, env: { SPRAG_NO_TEAM_SYNC: '1' } }), false);
   assert.equal(spawnTeamSyncIfDue({ ...base, state: {}, env: {} }), false);
   assert.equal(spawnTeamSyncIfDue({ ...base, state: { memberKey: 'k', lastSyncAt: base.now - 1000 }, env: {} }), false);
   assert.equal(spawnTeamSyncIfDue({ ...base, state: { left: true }, env: tok }), false);

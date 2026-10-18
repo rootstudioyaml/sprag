@@ -114,7 +114,7 @@ test('real CLI hooks bind inline panels even with panel auto-start suppressed', 
   const f = fixture(t);
   const one = f.log('one', 20000);
   const env = childEnv({ HOME: f.home, CODEX_HOME: f.home, XDG_CONFIG_HOME: join(f.home, 'cfg'),
-    SPRAG_CODEX_PANEL: '1', SPRAG_CODEX_PANEL_BINDING: f.a, CTS_NO_KOREAN: '1' });
+    SPRAG_CODEX_PANEL: '1', SPRAG_CODEX_PANEL_BINDING: f.a, SPRAG_NO_KOREAN: '1' });
   for (const event of ['session-start', 'panel-start']) {
     createPanelBinding(f.a);
     const result = spawnSync(process.execPath, [CLI, 'codex-hook', '--agent', 'codex', '--event', event], {

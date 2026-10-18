@@ -103,7 +103,7 @@ test('one failed Codex cache view preserves prompt briefing and other document c
   writeFileSync(transcript, JSON.stringify({ timestamp: new Date().toISOString(), type: 'event_msg', payload: {
     type: 'token_count', info: { last_token_usage: { input_tokens: 190000 }, model_context_window: 200000 },
   } }) + '\n');
-  const env = childEnv({ HOME: home, CODEX_HOME: join(home, 'codex'), XDG_CONFIG_HOME: state, CTS_LANG: 'en', CTS_DOC2MD_NO_AUTOINSTALL: '1' });
+  const env = childEnv({ HOME: home, CODEX_HOME: join(home, 'codex'), XDG_CONFIG_HOME: state, SPRAG_LANG: 'en', SPRAG_DOC2MD_NO_AUTOINSTALL: '1' });
   const result = spawnSync(process.execPath, [CLI, 'codex-hook', '--event', 'prompt', '--agent', 'codex'], {
     cwd: home, env, encoding: 'utf8', timeout: 10000,
     input: JSON.stringify({ session_id: 'main', cwd: home, transcript_path: transcript, prompt: 'Read first.pdf and second.pdf' }),
@@ -151,7 +151,7 @@ test('Codex CLI status, prompt, pre-read and off use shared cached conversions w
   let cached;
   try { cached = doc2md.writeCache(source, '# Extracted text\n', { pages: 1 }); }
   finally { if (previous === undefined) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = previous; }
-  const env = childEnv({ HOME: home, CODEX_HOME: join(home, 'codex'), XDG_CONFIG_HOME: state, CTS_LANG: 'en', CTS_DOC2MD_NO_AUTOINSTALL: '1', CTS_NO_KOREAN: '1' });
+  const env = childEnv({ HOME: home, CODEX_HOME: join(home, 'codex'), XDG_CONFIG_HOME: state, SPRAG_LANG: 'en', SPRAG_DOC2MD_NO_AUTOINSTALL: '1', SPRAG_NO_KOREAN: '1' });
   const run = (args, payload) => spawnSync(process.execPath, [CLI, ...args, '--agent', 'codex'], { cwd: home, env, input: payload && JSON.stringify(payload), encoding: 'utf8', timeout: 10000 });
   const status = run(['doc2md', 'status']);
   assert.equal(status.status, 0, status.stderr);

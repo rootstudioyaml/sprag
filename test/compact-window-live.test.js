@@ -30,7 +30,7 @@ const { recordLiveWindow, latestLiveWindow } = await import('../src/ctx-window-c
 function status() {
   return spawnSync(process.execPath, [CLI, 'compact-window'], {
     cwd: SANDBOX,
-    env: childEnv({ HOME, USERPROFILE: HOME, XDG_CONFIG_HOME: CFG, CTS_LANG: 'en' }),
+    env: childEnv({ HOME, USERPROFILE: HOME, XDG_CONFIG_HOME: CFG, SPRAG_LANG: 'en' }),
     encoding: 'utf8',
   }).stdout;
 }

@@ -104,7 +104,7 @@ export function renderStatusline(home, payload = {}, { args = [], cwd = home.pro
       // Update checks would otherwise try the network in a sandbox whose state
       // file says it is due. A case about the update chip supplies a fresh
       // state file and does not need this.
-      CTS_NO_UPDATE_CHECK: '1',
+      SPRAG_NO_UPDATE_CHECK: '1',
       ...env,
     }),
     input: JSON.stringify(payload),

@@ -212,12 +212,12 @@ test('the CLI carries the last check time out of the update state', () => {
     writeFileSync(join(home.dataDir, 'update-check.json'), JSON.stringify({
       checkedAt: Date.now() - 6 * HOUR, latest: PKG_VERSION, current: PKG_VERSION,
     }));
-    const env = { CTS_NO_UPDATE_CHECK: undefined };
+    const env = { SPRAG_NO_UPDATE_CHECK: undefined };
     const verbose = renderStatusline(home, PAYLOAD, { args: ['--verbose'], env });
     assert.match(verbose, new RegExp(`v${PKG_VERSION.replace(/\./g, '\\.')} ✓6h ago`));
     assert.doesNotMatch(renderStatusline(home, PAYLOAD, { args: ['--no-verbose'], env }), /✓/, 'bare version when compact');
     // With checks switched off the state file is a leftover and says nothing.
-    const off = renderStatusline(home, PAYLOAD, { args: ['--verbose'], env: { CTS_NO_UPDATE_CHECK: '1' } });
+    const off = renderStatusline(home, PAYLOAD, { args: ['--verbose'], env: { SPRAG_NO_UPDATE_CHECK: '1' } });
     assert.doesNotMatch(off, /✓\d/);
   } finally {
     home.cleanup();
@@ -231,7 +231,7 @@ test('the CLI leaves an available update alone', () => {
     writeFileSync(join(home.dataDir, 'update-check.json'), JSON.stringify({
       checkedAt: Date.now() - HOUR, latest: '99.0.0', current: PKG_VERSION,
     }));
-    const out = renderStatusline(home, PAYLOAD, { args: ['--verbose'], env: { CTS_NO_UPDATE_CHECK: undefined } });
+    const out = renderStatusline(home, PAYLOAD, { args: ['--verbose'], env: { SPRAG_NO_UPDATE_CHECK: undefined } });
     assert.match(out, new RegExp(`⬆ Update v${PKG_VERSION.replace(/\./g, '\\.')} → 99\\.0\\.0`));
     assert.doesNotMatch(out, /✓\d/);
   } finally {

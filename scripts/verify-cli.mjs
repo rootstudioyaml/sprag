@@ -37,8 +37,8 @@ const env = {
   CODEX_HOME: join(home, '.codex'),
   XDG_CONFIG_HOME: join(work, 'state'),
   APPDATA: join(work, 'state'),
-  CTS_DOC2MD_NO_AUTOINSTALL: '1',
-  CTS_NO_ROUTE_SCAN: '1',
+  SPRAG_DOC2MD_NO_AUTOINSTALL: '1',
+  SPRAG_NO_ROUTE_SCAN: '1',
   NO_COLOR: '1',
 };
 

@@ -24,9 +24,9 @@ const globalNpmConfig = join(work, 'global-npmrc');
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const env = childEnv({
   HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(work, 'state'),
-  APPDATA: join(work, 'state'), ZDOTDIR: home, CTS_LANG: 'en',
-  CTS_NO_KOREAN: '1', CTS_NO_INPUT: '1', CTS_DOC2MD_NO_AUTOINSTALL: '1',
-  CTS_NO_UPDATE_CHECK: '1', CTS_NO_TMUX: '1', NO_COLOR: '1',
+  APPDATA: join(work, 'state'), ZDOTDIR: home, SPRAG_LANG: 'en',
+  SPRAG_NO_KOREAN: '1', SPRAG_NO_INPUT: '1', SPRAG_DOC2MD_NO_AUTOINSTALL: '1',
+  SPRAG_NO_UPDATE_CHECK: '1', SPRAG_NO_TMUX: '1', NO_COLOR: '1',
   NPM_CONFIG_USERCONFIG: userNpmConfig,
   NPM_CONFIG_GLOBALCONFIG: globalNpmConfig,
   NPM_CONFIG_CACHE: cache || join(work, 'npm-cache'),

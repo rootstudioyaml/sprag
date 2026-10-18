@@ -1,3 +1,4 @@
+import { envVar } from '../env.js';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -116,7 +117,7 @@ async function routeNotice(root, { spawnRescan = defaultRescan } = {}) {
 }
 
 function defaultRescan() {
-  if (process.env.CTS_NO_ROUTE_SCAN === '1') return;
+  if (envVar('NO_ROUTE_SCAN') === '1') return;
   spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet', '--agent', 'codex'],
     { detached: true, stdio: 'ignore', windowsHide: true }).unref();
 }
@@ -130,7 +131,7 @@ function defaultRescan() {
  * of the parent is the earliest point that knows one was spawned.
  */
 function defaultLedgerRefresh() {
-  if (process.env.CTS_NO_ROUTE_SCAN === '1') return;
+  if (envVar('NO_ROUTE_SCAN') === '1') return;
   spawn(process.execPath, [process.argv[1], 'route-scan', 'savings', '--refresh', '--quiet', '--agent', 'codex'],
     { detached: true, stdio: 'ignore', windowsHide: true }).unref();
 }
@@ -219,7 +220,7 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
     try { korean = syncCodexKoreanBlock({ cfg }); } catch (e) { debug('codex:korean-sync', e); }
     if (korean?.action !== 'unchanged') parts.push({ priority: 2, spill: true, text: koreanStyleInjection({ cfg }) });
     parts.push({ priority: 3, spill: true, text: await cohesionInjection({ cfg }) });
-    if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) parts.push({ priority: 4, spill: true, text: codexDocumentNote() });
+    if (envVar('NO_DOC2MD') !== '1' && cfg?.codex?.doc2md !== false) parts.push({ priority: 4, spill: true, text: codexDocumentNote() });
     // Offers ask the user a question; a `codex exec` run has no one to answer it.
     if (event === 'session-start' && payload.source !== 'compact' && !isCodexExecSession(payload.transcript_path)) {
       if (version) parts.push({ priority: 5, text: updateOffer(version, { agent: 'codex', lang: userLanguage() }) });
@@ -247,14 +248,14 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
       }
       catch (e) { debug('codex:brief', e); }
     }
-    if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) {
+    if (envVar('NO_DOC2MD') !== '1' && cfg?.codex?.doc2md !== false) {
       const identity = codexDocumentContext(payload);
       parts.push(doc2md.contextForPrompt(payload, { lang: userLanguage(), agent: 'codex', convert: (source) => convertCodexDocument(source, identity) }));
     }
     return context('UserPromptSubmit', parts.filter(Boolean).join('\n\n'));
   }
   if (event === 'pre-tool') {
-    if (process.env.CTS_NO_DOC2MD !== '1' && cfg?.codex?.doc2md !== false) {
+    if (envVar('NO_DOC2MD') !== '1' && cfg?.codex?.doc2md !== false) {
       const result = codexDocumentTool(payload);
       if (result) return result;
     }

@@ -18,12 +18,12 @@ const TOKEN = 'spt_' + 'a'.repeat(32);
 
 function isolate(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-team-'));
-  const saved = { xdg: process.env.XDG_CONFIG_HOME, off: process.env.CTS_NO_TEAM_SYNC, tok: process.env.SPRAG_TEAM_TOKEN };
+  const saved = { xdg: process.env.XDG_CONFIG_HOME, off: process.env.SPRAG_NO_TEAM_SYNC, tok: process.env.SPRAG_TEAM_TOKEN };
   process.env.XDG_CONFIG_HOME = root;
-  delete process.env.CTS_NO_TEAM_SYNC;
+  delete process.env.SPRAG_NO_TEAM_SYNC;
   delete process.env.SPRAG_TEAM_TOKEN;
   t.after(() => {
-    for (const [k, v] of [['XDG_CONFIG_HOME', saved.xdg], ['CTS_NO_TEAM_SYNC', saved.off], ['SPRAG_TEAM_TOKEN', saved.tok]]) {
+    for (const [k, v] of [['XDG_CONFIG_HOME', saved.xdg], ['SPRAG_NO_TEAM_SYNC', saved.off], ['SPRAG_TEAM_TOKEN', saved.tok]]) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
@@ -99,7 +99,7 @@ test('syncTeam skips without any fetch for disabled, not-joined, left, not-due; 
   const dir = isolate(t);
   const f = fakeFetch({ ledger_upsert: 0, team_rules_get: { rules: [], removed: [] } });
   const now = Date.now();
-  assert.deepEqual(await syncTeam({ dir, fetch: f, now, env: { CTS_NO_TEAM_SYNC: '1' } }), { skipped: 'disabled' });
+  assert.deepEqual(await syncTeam({ dir, fetch: f, now, env: { SPRAG_NO_TEAM_SYNC: '1' } }), { skipped: 'disabled' });
   assert.deepEqual(await syncTeam({ dir, fetch: f, now, env: {} }), { skipped: 'not-joined' });
   saveTeamState({ version: 1, left: true }, dir);
   assert.deepEqual(await syncTeam({ dir, fetch: f, now, env: {} }), { skipped: 'left' });

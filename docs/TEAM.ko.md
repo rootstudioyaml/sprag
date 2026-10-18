@@ -2,7 +2,7 @@
 
 [← README](../README.ko.md) · [English](./TEAM.md)
 
-Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야만 쓰이는 선택 기능입니다. 팀원마다 하루 지출과 절감액을 한 대시보드에서 보고, 팀 소유자가 승인한 래칫 룰을 함께 쓸 수 있습니다. `sprag team join <토큰>` 을 실행하거나 환경에 `SPRAG_TEAM_TOKEN` 을 지정하기 전에는 아무것도 전송하지 않습니다. `CTS_NO_TEAM_SYNC=1` 을 지정하면 다른 설정과 상관없이 팀 관련 네트워크 통신이 모두 꺼집니다.
+Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야만 쓰이는 선택 기능입니다. 팀원마다 하루 지출과 절감액을 한 대시보드에서 보고, 팀 소유자가 승인한 래칫 룰을 함께 쓸 수 있습니다. `sprag team join <토큰>` 을 실행하거나 환경에 `SPRAG_TEAM_TOKEN` 을 지정하기 전에는 아무것도 전송하지 않습니다. `SPRAG_NO_TEAM_SYNC=1` 을 지정하면 다른 설정과 상관없이 팀 관련 네트워크 통신이 모두 꺼집니다.
 
 ## 보내는 것과 보내지 않는 것
 
@@ -128,4 +128,4 @@ Free, Team(좌석당 월 $5), 비즈니스(좌석당 월 $10, 프롬프트 수�
 | `~/.claude/ratchet-team.md` | Claude Code 용 승인된 팀 룰이며 `~/.claude/CLAUDE.md` 에서 import 합니다 |
 | `<CODEX_HOME>/ratchet-team.md` | Codex 용 같은 룰 |
 | `SPRAG_TEAM_TOKEN` | 초대 토큰이며, 다음 세션 시작 때 컴퓨터를 등록합니다 |
-| `CTS_NO_TEAM_SYNC=1` | 팀 관련 네트워크 통신을 모두 끕니다 |
+| `SPRAG_NO_TEAM_SYNC=1` | 팀 관련 네트워크 통신을 모두 끕니다 |

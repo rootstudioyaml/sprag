@@ -240,7 +240,7 @@ test('the brief hook hands the session cwd to the hint, so a project agent is na
 
   const run = (payload) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {
     cwd: elsewhere,
-    env: childEnv({ HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, NO_COLOR: '1', CTS_NO_UPDATE_CHECK: '1' }),
+    env: childEnv({ HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, NO_COLOR: '1', SPRAG_NO_UPDATE_CHECK: '1' }),
     input: JSON.stringify(payload),
     encoding: 'utf8',
   });

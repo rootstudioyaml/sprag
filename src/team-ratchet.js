@@ -10,6 +10,7 @@
  *   Codex        <CODEX_HOME>/ratchet-team.md
  */
 
+import { envVar } from './env.js';
 import * as childProcess from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -65,7 +66,7 @@ export function autoJoinPending(state, env = process.env) {
 }
 
 export function teamSyncDisabled(env = process.env) {
-  return env.CTS_NO_TEAM_SYNC === '1';
+  return envVar('NO_TEAM_SYNC', env) === '1';
 }
 
 export function teamRatchetPath({ agent = 'claude' } = {}) {

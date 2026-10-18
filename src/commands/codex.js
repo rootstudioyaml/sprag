@@ -1,3 +1,4 @@
+import { envVar } from '../env.js';
 import { createArgs } from '../cli-args.js';
 import { configureCodexHooks } from '../codex/installer.js';
 import { initCodexHarness, uninitCodexHarness, codexHarnessStatus, syncCodexKoreanBlock } from '../codex/harness.js';
@@ -412,7 +413,7 @@ export async function run({ args, version }) {
     const hook = configureCodexHooks({ panelAuto });
     console.log(`Codex hooks: ${hook.file} (${hook.action})`);
     for (const line of describePanelSetup(panel)) console.log(`Codex ${line}`);
-    if (process.env.CTS_NO_HARNESS !== '1') {
+    if (envVar('NO_HARNESS') !== '1') {
       const h = initCodexHarness({ root, scope: 'global' });
       console.log(`Codex harness: ${h.file}`);
       try {
@@ -544,7 +545,7 @@ export async function run({ args, version }) {
     const { createRequire } = await import('node:module');
     const doc2md = createRequire(import.meta.url)('../doc2md.cjs');
     const { codexHookStatus } = await import('../codex/installer.js');
-    console.log(`Codex document conversion: ${loadConfig()?.codex?.doc2md === false || process.env.CTS_NO_DOC2MD === '1' ? 'off' : 'on'}`);
+    console.log(`Codex document conversion: ${loadConfig()?.codex?.doc2md === false || envVar('NO_DOC2MD') === '1' ? 'off' : 'on'}`);
     console.log(`Formats: ${doc2md.TARGET_EXTENSIONS.join(' ')}`);
     console.log(`Converter: ${doc2md.findInterpreter() || 'missing; run sprag doc2md install-converter --agent codex'}`);
     console.log(`Cache: ${doc2md.cacheDir()}`);

@@ -164,11 +164,11 @@ test('the single-line statusline shows the ledger total, not the registry sum', 
   }));
   const cli = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
   for (const layout of [['--single-line'], []]) {
-    // CTS_NO_UPDATE_CHECK: the statusline otherwise leaves a detached child
+    // SPRAG_NO_UPDATE_CHECK: the statusline otherwise leaves a detached child
     // asking the registry for the latest version, and that child wrote its
     // answer into the sandbox while the suite was removing it (ENOTEMPTY on a
     // macOS CI job).
-    const env = childEnv({ HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(home, 'config'), CTS_NO_UPDATE_CHECK: '1' });
+    const env = childEnv({ HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(home, 'config'), SPRAG_NO_UPDATE_CHECK: '1' });
     const run = spawnSync(process.execPath, [cli, '--statusline', '--no-color', ...layout], { input: '{}', encoding: 'utf8', env });
     assert.equal(run.status, 0, run.stderr);
     assert.match(run.stdout, /Routing saved \$12\.3/, run.stdout);

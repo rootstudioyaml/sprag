@@ -29,10 +29,11 @@
  * once-a-day pass as the version check, and its absence never blocks the
  * notice — a version number alone is still worth saying.
  *
- * Opt out with CTS_NO_UPDATE_CHECK=1 or NO_UPDATE_NOTIFIER (the de-facto
+ * Opt out with SPRAG_NO_UPDATE_CHECK=1 or NO_UPDATE_NOTIFIER (the de-facto
  * standard env var — anyone who set it for other CLIs meant us too).
  */
 
+import { envVar } from './env.js';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname, sep } from 'node:path';
@@ -63,7 +64,7 @@ export function updateStatePath() {
 }
 
 export function updateCheckDisabled() {
-  return process.env.CTS_NO_UPDATE_CHECK === '1' || !!process.env.NO_UPDATE_NOTIFIER;
+  return envVar('NO_UPDATE_CHECK') === '1' || !!process.env.NO_UPDATE_NOTIFIER;
 }
 
 export function readUpdateState() {

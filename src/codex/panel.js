@@ -1,3 +1,4 @@
+import { envVar } from '../env.js';
 import { resolve, relative, isAbsolute, basename } from 'node:path';
 import { realpathSync, statSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -151,7 +152,7 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
       cohesion: cfg?.cohesion?.enabled === true,
       brief: cfg?.codex?.brief !== false,
       delegate: codexDelegateEnabled(cfg),
-      doc2md: cfg?.codex?.doc2md !== false && process.env.CTS_NO_DOC2MD !== '1',
+      doc2md: cfg?.codex?.doc2md !== false && envVar('NO_DOC2MD') !== '1',
       update: version ? readUpdateChip(version, { refresh: refreshUpdate }) : null,
       updatedAt: new Date() };
   };

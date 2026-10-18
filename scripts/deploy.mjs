@@ -239,9 +239,9 @@ if (!dryRun) {
 run('npm', ['install', '-g', `sprag-cli@${version}`], { env: npmEnv() });
 // npm 11 holds back install scripts not listed in allow-scripts, so the
 // package's postinstall (`sprag install`) does not run and the hooks keep the
-// previous version's settings. Running it here does the same work; CTS_NO_INPUT
+// previous version's settings. Running it here does the same work; SPRAG_NO_INPUT
 // keeps it from stopping to ask anything.
-run('sprag', ['install'], { env: { ...npmEnv(), CTS_NO_INPUT: '1' } });
+run('sprag', ['install'], { env: { ...npmEnv(), SPRAG_NO_INPUT: '1' } });
 
 console.log(onNpm
   ? `\ndeploy: ${tag} was already on npm — release notes republished, nothing else changed.`

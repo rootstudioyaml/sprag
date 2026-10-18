@@ -24,7 +24,7 @@ function sandbox(t, { codex = false } = {}) {
   const home = join(dir, 'home');
   mkdirSync(join(home, '.claude'), { recursive: true });
   if (codex) mkdirSync(join(home, '.codex'), { recursive: true });
-  const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'ko',
+  const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', SPRAG_LANG: 'ko',
     ...(codex ? { CODEX_HOME: join(home, '.codex') } : {}) });
   // stdin is closed unless a payload is passed: an open pipe with no writer
   // would leave any child that reads stdin waiting forever.

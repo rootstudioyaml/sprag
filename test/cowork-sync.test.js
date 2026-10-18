@@ -37,7 +37,7 @@ function sandbox(t) {
   mkdirSync(join(home, '.claude'), { recursive: true });
   const appdata = join(home, 'AppData', 'Roaming');
   const env = childEnv({
-    HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'ko',
+    HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', SPRAG_LANG: 'ko',
     ...(process.platform === 'win32' ? { APPDATA: appdata } : {}),
   });
   const sessionsRoot = process.platform === 'win32'

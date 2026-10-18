@@ -31,7 +31,7 @@ function sandbox(t) {
   t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const home = join(dir, 'home');
   mkdirSync(join(home, '.claude'), { recursive: true });
-  const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'ko',
+  const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', SPRAG_LANG: 'ko',
     ...(process.platform === 'win32' ? { USERPROFILE: home } : {}) });
   const run = (args, input) => execFileSync(process.execPath, [CLI, ...args], {
     cwd: dir, env, encoding: 'utf8', input, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'], timeout: 120_000 });

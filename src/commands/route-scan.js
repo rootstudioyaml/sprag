@@ -522,7 +522,7 @@ export async function run({ args, hasFlag, numArg }) {
     console.log(lang === 'ko' ? '등록 / 무시:' : 'Promote / dismiss:');
     console.log('  sprag harness promote R<N> --global|--project');
     console.log('  sprag route-scan dismiss <N>');
-    // 최초 1회만 — 매번 찍으면 도구가 광고판이 된다 (CTS_NO_NOTE=1 로 끔)
+    // 최초 1회만 — 매번 찍으면 도구가 광고판이 된다 (SPRAG_NO_NOTE=1 로 끔)
     (await import('../first-run-note.js')).printOnce('route-scan', lang);
     return;
 }

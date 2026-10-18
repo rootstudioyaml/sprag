@@ -5,7 +5,7 @@ import { ensureTmux, setupCodexPanel, describePanelSetup } from '../src/codex/pa
 test('ensureTmux skips without probing when opted out or in CI', () => {
   let calls = 0;
   const exec = () => { calls += 1; };
-  assert.deepEqual(ensureTmux({ env: { CTS_NO_TMUX: '1' }, exec }), { status: 'skipped' });
+  assert.deepEqual(ensureTmux({ env: { SPRAG_NO_TMUX: '1' }, exec }), { status: 'skipped' });
   assert.deepEqual(ensureTmux({ env: { CI: 'true' }, exec }), { status: 'skipped' });
   assert.equal(calls, 0);
 });

@@ -8,10 +8,11 @@
  *
  * Once, because a chip that keeps asking is an advertisement. For 24 hours,
  * which is long enough to be seen across a day of sessions and short enough
- * not to linger. CTS_NO_NOTE=1 suppresses it, the same opt-out as every
+ * not to linger. SPRAG_NO_NOTE=1 suppresses it, the same opt-out as every
  * other one-time note.
  */
 
+import { envVar } from './env.js';
 import { createRequire } from 'node:module';
 import { delegationSavedTotals } from './savings-ledger.js';
 import { noteShownAt, markNoteShown } from './first-run-note.js';
@@ -43,7 +44,7 @@ export function toolSavedUsd(now = Date.now(), dir = userDataDir()) {
 /** `{ usd, shownAt }` while the chip should show, else null. Never throws. */
 export function readStarChip({ now = Date.now(), dir = userDataDir(), savedUsd } = {}) {
   try {
-    if (process.env.CTS_NO_NOTE === '1') return null;
+    if (envVar('NO_NOTE') === '1') return null;
     const shownAt = noteShownAt('star');
     if (shownAt === null) {
       const usd = savedUsd ?? toolSavedUsd(now, dir);

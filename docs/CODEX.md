@@ -36,7 +36,7 @@ events documented below. Admin policies or `features.hooks = false` may disable
 hooks. The `sprag` executable and Node.js must be on Codex's PATH.
 
 On macOS with zsh, installation also makes sure tmux is present: it installs
-tmux with Homebrew when missing (skip this with `CTS_NO_TMUX=1`) and adds the
+tmux with Homebrew when missing (skip this with `SPRAG_NO_TMUX=1`) and adds the
 zsh integration so typing `codex` shows the panel inline in the same terminal.
 The separate-window hook is then not registered. When tmux cannot be
 installed, the login shell is not zsh, or an existing `codex` alias or
@@ -49,7 +49,7 @@ Codex, run `sprag panel doctor --agent codex` to check the last hook execution,
 any launch failure, and recent rendered frames. These diagnostics are local;
 they do not read or change Codex's trust database.
 
-`CTS_NO_HARNESS=1` skips the global harness. Korean guidance is opt-in, using the
+`SPRAG_NO_HARNESS=1` skips the global harness. Korean guidance is opt-in, using the
 existing shared Sprag preference:
 
 ```sh
@@ -133,7 +133,7 @@ benchmark.
 
 The document converter is shared with Claude Code and requires its optional
 converter dependencies. Disable automatic Codex conversion and write guards with
-`sprag doc2md off --agent codex` or `CTS_NO_DOC2MD=1`. PreToolUse handles supported
+`sprag doc2md off --agent codex` or `SPRAG_NO_DOC2MD=1`. PreToolUse handles supported
 file-read calls and literal single-file `cat`, `head`, and `tail` reads. Successful
 conversion blocks the original read with the Markdown path for a retry. Conversion
 failures are reported; unsafe archives are denied. Patches and recognized shell
@@ -755,7 +755,7 @@ should keep using `npm i -g sprag-cli --ignore-scripts` followed by
 
 The panel places an available update before usage metrics. Dismissing a version
 with `sprag update-check --dismiss --agent codex` hides its chip and session
-offer until a newer version appears. `CTS_NO_UPDATE_CHECK=1` or
+offer until a newer version appears. `SPRAG_NO_UPDATE_CHECK=1` or
 `NO_UPDATE_NOTIFIER` disables checks. Compaction, subagent starts and `codex exec`
 do not ask to upgrade. SessionStart checks at most every three hours; the live
 panel uses the shared 24-hour interval and never waits for a network response.

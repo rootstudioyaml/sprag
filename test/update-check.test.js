@@ -101,8 +101,8 @@ test('dismissing silences the session-start offer for that version only', async 
 test('env opt-out disables the check entirely', async (t) => {
   isolated(t);
   writeState({ checkedAt: Date.now(), latest: '3.25.0' });
-  process.env.CTS_NO_UPDATE_CHECK = '1';
-  t.after(() => { delete process.env.CTS_NO_UPDATE_CHECK; });
+  process.env.SPRAG_NO_UPDATE_CHECK = '1';
+  t.after(() => { delete process.env.SPRAG_NO_UPDATE_CHECK; });
   const s = updateStatus('3.24.0');
   assert.equal(s.available, false);
   assert.equal(maybeSpawnUpdateCheck('3.24.0'), false, 'no background process either');

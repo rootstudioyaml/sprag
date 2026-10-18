@@ -8,10 +8,10 @@ import { recordCodexHistoryEvent, readCodexHistory } from '../src/codex/brief.js
 
 function sandbox(t) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-codex-context-'));
-  const saved = { XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME, CODEX_HOME: process.env.CODEX_HOME, CTS_NO_ROUTE_SCAN: process.env.CTS_NO_ROUTE_SCAN };
+  const saved = { XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME, CODEX_HOME: process.env.CODEX_HOME, SPRAG_NO_ROUTE_SCAN: process.env.SPRAG_NO_ROUTE_SCAN };
   process.env.XDG_CONFIG_HOME = join(dir, 'config');
   process.env.CODEX_HOME = join(dir, 'codex');
-  process.env.CTS_NO_ROUTE_SCAN = '1';
+  process.env.SPRAG_NO_ROUTE_SCAN = '1';
   mkdirSync(join(dir, 'codex'), { recursive: true });
   mkdirSync(join(dir, 'project', '.git'), { recursive: true });
   t.after(() => {

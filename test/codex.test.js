@@ -21,7 +21,7 @@ function fixture(t) {
   const root = join(dir, 'project');
   mkdirSync(home); mkdirSync(codex); mkdirSync(root);
   mkdirSync(join(root, '.git'));
-  const env = childEnv({ HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(dir, 'state'), CTS_LANG: 'en', CTS_DOC2MD_NO_AUTOINSTALL: '1' });
+  const env = childEnv({ HOME: home, CODEX_HOME: codex, XDG_CONFIG_HOME: join(dir, 'state'), SPRAG_LANG: 'en', SPRAG_DOC2MD_NO_AUTOINSTALL: '1' });
   const run = (...args) => execFileSync(process.execPath, [CLI, ...args], { env, cwd: root, encoding: 'utf8', timeout: 20000 });
   const fail = (...args) => spawnSync(process.execPath, [CLI, ...args], { env, cwd: root, encoding: 'utf8', timeout: 20000 });
   return { dir, home, codex, root, env, run, fail };

@@ -171,7 +171,7 @@ test('the prompt hook stays quiet for the reproduced question and still hints a 
 
   const run = (prompt) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {
     cwd: project,
-    env: childEnv({ HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, NO_COLOR: '1', CTS_NO_UPDATE_CHECK: '1' }),
+    env: childEnv({ HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, NO_COLOR: '1', SPRAG_NO_UPDATE_CHECK: '1' }),
     input: JSON.stringify({ session_id: 'explain-q', prompt, cwd: project }),
     encoding: 'utf8',
   });

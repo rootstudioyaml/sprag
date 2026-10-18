@@ -25,13 +25,13 @@ const require = createRequire(import.meta.url);
 function isolated(t) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-doc2md-'));
   const prevData = process.env.XDG_CONFIG_HOME;
-  const prevPy = process.env.CTS_DOC2MD_PYTHON;
+  const prevPy = process.env.SPRAG_DOC2MD_PYTHON;
   process.env.XDG_CONFIG_HOME = dir;
   t.after(() => {
     if (prevData === undefined) delete process.env.XDG_CONFIG_HOME;
     else process.env.XDG_CONFIG_HOME = prevData;
-    if (prevPy === undefined) delete process.env.CTS_DOC2MD_PYTHON;
-    else process.env.CTS_DOC2MD_PYTHON = prevPy;
+    if (prevPy === undefined) delete process.env.SPRAG_DOC2MD_PYTHON;
+    else process.env.SPRAG_DOC2MD_PYTHON = prevPy;
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   return dir;
@@ -558,11 +558,11 @@ test('the interpreter probe rejects a half-finished install and an outdated Pyth
 
   // With auto-install switched off, nothing is spawned and the answer is a
   // plain false — the escape hatch a locked-down machine needs.
-  const prev = process.env.CTS_DOC2MD_NO_AUTOINSTALL;
-  process.env.CTS_DOC2MD_NO_AUTOINSTALL = '1';
+  const prev = process.env.SPRAG_DOC2MD_NO_AUTOINSTALL;
+  process.env.SPRAG_DOC2MD_NO_AUTOINSTALL = '1';
   t.after(() => {
-    if (prev === undefined) delete process.env.CTS_DOC2MD_NO_AUTOINSTALL;
-    else process.env.CTS_DOC2MD_NO_AUTOINSTALL = prev;
+    if (prev === undefined) delete process.env.SPRAG_DOC2MD_NO_AUTOINSTALL;
+    else process.env.SPRAG_DOC2MD_NO_AUTOINSTALL = prev;
   });
   assert.equal(d.ensureConverterInstalled({ waitMs: 10 }), false);
 });
@@ -572,11 +572,11 @@ test('an encrypted document is reported as locked, never as corruption, and the 
   const dir = isolated(t);
   // Without this the isolated state directory looks like a fresh machine and
   // the auto-install fires for real: a 15s test that races its own cleanup.
-  const prev = process.env.CTS_DOC2MD_NO_AUTOINSTALL;
-  process.env.CTS_DOC2MD_NO_AUTOINSTALL = '1';
+  const prev = process.env.SPRAG_DOC2MD_NO_AUTOINSTALL;
+  process.env.SPRAG_DOC2MD_NO_AUTOINSTALL = '1';
   t.after(() => {
-    if (prev === undefined) delete process.env.CTS_DOC2MD_NO_AUTOINSTALL;
-    else process.env.CTS_DOC2MD_NO_AUTOINSTALL = prev;
+    if (prev === undefined) delete process.env.SPRAG_DOC2MD_NO_AUTOINSTALL;
+    else process.env.SPRAG_DOC2MD_NO_AUTOINSTALL = prev;
   });
   const d = require('../src/doc2md.cjs');
 

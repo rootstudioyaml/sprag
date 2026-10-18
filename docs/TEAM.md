@@ -2,7 +2,7 @@
 
 [← README](../README.md) · [한국어](./TEAM.ko.md)
 
-Sprag is local-only by default. The team layer is an opt-in add-on that lets a group see each member's daily spend and savings in one dashboard, and share the ratchet rules the team owner approves. Nothing is sent until you run `sprag team join <token>` or your environment sets `SPRAG_TEAM_TOKEN`. `CTS_NO_TEAM_SYNC=1` turns off all team network traffic, whatever else is configured.
+Sprag is local-only by default. The team layer is an opt-in add-on that lets a group see each member's daily spend and savings in one dashboard, and share the ratchet rules the team owner approves. Nothing is sent until you run `sprag team join <token>` or your environment sets `SPRAG_TEAM_TOKEN`. `SPRAG_NO_TEAM_SYNC=1` turns off all team network traffic, whatever else is configured.
 
 ## What is sent and what is not
 
@@ -128,4 +128,4 @@ Free, Team ($5 per seat per month) and Business ($10 per seat per month, with pr
 | `~/.claude/ratchet-team.md` | Approved team rules for Claude Code, imported from `~/.claude/CLAUDE.md` |
 | `<CODEX_HOME>/ratchet-team.md` | The same rules for Codex |
 | `SPRAG_TEAM_TOKEN` | Invite token; enrolls the machine at the next session start |
-| `CTS_NO_TEAM_SYNC=1` | Disables all team network traffic |
+| `SPRAG_NO_TEAM_SYNC=1` | Disables all team network traffic |

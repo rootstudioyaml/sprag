@@ -30,7 +30,7 @@ sprag install --agent codex
 Claude 설정이나 `config.toml`은 고치지 않습니다.
 
 macOS zsh 환경에서는 설치가 tmux 설치 여부를 먼저 확인합니다. tmux가 없으면 Homebrew로 설치하고,
-`CTS_NO_TMUX=1`을 지정하면 이 단계를 건너뜁니다. 이어서 zsh 연동을 추가해 `codex`를 입력하면 같은
+`SPRAG_NO_TMUX=1`을 지정하면 이 단계를 건너뜁니다. 이어서 zsh 연동을 추가해 `codex`를 입력하면 같은
 터미널 안에 패널이 인라인으로 붙으며, 이때는 별도 창을 여는 훅을 등록하지 않습니다. tmux를 설치할 수
 없거나 로그인 셸이 zsh가 아니거나 이미 사용자의 `codex` 별칭·함수가 있으면 별도 Terminal 창 방식으로
 대신 동작합니다. `sprag panel shell remove --agent codex`로 끈 설정은 재설치와 업그레이드에도 그대로
@@ -344,7 +344,7 @@ sprag capabilities --agent codex
 패널은 새 버전이 있으면 사용량 앞에 알림을 표시하고, 백그라운드에서 버전 캐시를 갱신합니다.
 일회성 상태줄은 캐시만 읽습니다. 대화형 SessionStart는 변경 내용을 알리고 설치 동의를 구합니다.
 `sprag update-check --dismiss --agent codex`로 해당 버전의 알림을 끌 수 있습니다.
-`CTS_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER`는 확인 자체를 끕니다.
+`SPRAG_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER`는 확인 자체를 끕니다.
 compaction, 하위 세션 시작, `codex exec`에는 업그레이드 질문을 넣지 않습니다.
 
 ```sh

@@ -119,7 +119,7 @@ test('sprag saved prints the model-share table', (t) => {
   t.after(home.cleanup);
   const out = strip(execFileSync(process.execPath, [CLI, 'saved'], {
     cwd: home.project,
-    env: childEnv({ HOME: home.dir, XDG_CONFIG_HOME: join(home.dir, 'cfg'), APPDATA: join(home.dir, 'cfg'), NO_COLOR: '1', CTS_NO_UPDATE_CHECK: '1', LANG: 'en_US.UTF-8' }),
+    env: childEnv({ HOME: home.dir, XDG_CONFIG_HOME: join(home.dir, 'cfg'), APPDATA: join(home.dir, 'cfg'), NO_COLOR: '1', SPRAG_NO_UPDATE_CHECK: '1', LANG: 'en_US.UTF-8' }),
     encoding: 'utf8',
   }));
   assert.match(out, /Model share|모델별 사용 비중/);

@@ -25,7 +25,7 @@ function fixture(t) {
   const dir = join(base, 'state', 'claude-token-saver');
   for (const p of [home, codex, dir, join(root, '.git')]) mkdirSync(p, { recursive: true });
   const env = childEnv({ HOME: home, CODEX_HOME: codex, ZDOTDIR: home, XDG_CONFIG_HOME: join(base, 'state'),
-    CTS_LANG: 'en', CTS_NO_TMUX: '1', CTS_NO_DOC2MD: '1', CTS_NO_UPDATE_CHECK: '1' });
+    SPRAG_LANG: 'en', SPRAG_NO_TMUX: '1', SPRAG_NO_DOC2MD: '1', SPRAG_NO_UPDATE_CHECK: '1' });
   const run = (args, payload, over = {}) => spawnSync(process.execPath, [CLI, ...args, '--agent', 'codex'], {
     cwd: root, env: { ...env, ...over }, input: payload ? JSON.stringify(payload) : '', encoding: 'utf8', timeout: 15000,
   });
@@ -39,7 +39,7 @@ test('Codex CLI surfaces cached updates, uses safe commands, and honors dismissa
   const f = fixture(t);
   const state = { current: VERSION, latest: '99.0.0', checkedAt: Date.now(), highlightsFor: '99.0.0', highlights: ['Release change.'] };
   f.save('update-check.json', state);
-  const on = { CTS_NO_UPDATE_CHECK: '' };
+  const on = { SPRAG_NO_UPDATE_CHECK: '' };
   assert.match(f.ok(['--statusline', '--text'], null, on), /-> 99\.0\.0/);
   const check = f.ok(['update-check'], null, on);
   assert.match(check, /--ignore-scripts/);
@@ -62,10 +62,10 @@ test('Codex CLI surfaces cached updates, uses safe commands, and honors dismissa
 
 test('shared updater uses the session interval and keeps one-shot renders offline', (t) => {
   const f = fixture(t);
-  const keys = ['XDG_CONFIG_HOME', 'CTS_NO_UPDATE_CHECK', 'NO_UPDATE_NOTIFIER'];
+  const keys = ['XDG_CONFIG_HOME', 'SPRAG_NO_UPDATE_CHECK', 'NO_UPDATE_NOTIFIER'];
   const old = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
   process.env.XDG_CONFIG_HOME = join(f.base, 'state');
-  delete process.env.CTS_NO_UPDATE_CHECK;
+  delete process.env.SPRAG_NO_UPDATE_CHECK;
   delete process.env.NO_UPDATE_NOTIFIER;
   t.after(() => { for (const [k, v] of Object.entries(old)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } });
   const checkedAt = Date.now() - 4 * 3600000;

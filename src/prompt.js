@@ -9,6 +9,7 @@
  * decide-it-for-them behavior untouched.
  */
 
+import { envVar } from './env.js';
 import { createInterface } from 'node:readline';
 
 /**
@@ -19,7 +20,7 @@ import { createInterface } from 'node:readline';
  * checked because build agents deadlock rather than answer.
  */
 export function canPrompt({ env = process.env, stdin = process.stdin, stdout = process.stdout } = {}) {
-  if (env.CTS_NO_INPUT === '1') return false;
+  if (envVar('NO_INPUT', env) === '1') return false;
   if (env.CI && env.CI !== 'false') return false;
   if (env.npm_lifecycle_event === 'postinstall') return false;
   return Boolean(stdin.isTTY && stdout.isTTY);

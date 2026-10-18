@@ -26,6 +26,7 @@
  *                                               # (or set CACHE_MONITOR_EXCLUDE_SESSION env var)
  */
 
+import { envVar } from '../src/env.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, isAbsolute, join } from 'node:path';
@@ -207,7 +208,7 @@ Usage:
   sprag update-check       is a newer version out?
   sprag brief --hook       internal: the UserPromptSubmit hook entry point
   sprag feedback "<msg>"   file a bug report / feature request (no browser needed)
-  sprag team create|join|status|sync|leave   opt-in team layer: daily aggregates only (CTS_NO_TEAM_SYNC=1 turns it off)
+  sprag team create|join|status|sync|leave   opt-in team layer: daily aggregates only (SPRAG_NO_TEAM_SYNC=1 turns it off)
   sprag upgrade            install the latest release
   sprag --install-hook     install cache-monitor PostToolUse hook
   sprag --uninstall-hook   remove that hook
@@ -1015,7 +1016,7 @@ async function main() {
     // could take. The scan is local and writes only sprag's own cache file;
     // --project skips it because the scan covers all projects, not one.
     let routing = null;
-    if (!projectFilter && process.env.CTS_NO_ROUTE_SCAN !== '1') {
+    if (!projectFilter && envVar('NO_ROUTE_SCAN') !== '1') {
       try {
         const rs = await import('../src/route-scan.js');
         let cache = rs.readRouteScan();

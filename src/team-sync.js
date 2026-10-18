@@ -11,9 +11,10 @@
  *   team.json        membership state (mode 0600; holds the member key)
  *   team-rules.json  last pulled team rules
  *
- * Opt out of all network traffic with CTS_NO_TEAM_SYNC=1.
+ * Opt out of all network traffic with SPRAG_NO_TEAM_SYNC=1.
  */
 
+import { envVar } from './env.js';
 import { readFileSync, existsSync, rmSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { userInfo } from 'node:os';
@@ -55,7 +56,7 @@ export function saveTeamState(state, dir = userDataDir()) {
   }
 }
 
-export function teamSyncDisabled(env = process.env) { return env.CTS_NO_TEAM_SYNC === '1'; }
+export function teamSyncDisabled(env = process.env) { return envVar('NO_TEAM_SYNC', env) === '1'; }
 export function isJoined(state) { return !!(state && state.memberKey && !state.left); }
 
 export function teamSyncDue(state, now = Date.now()) {

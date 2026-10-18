@@ -254,7 +254,7 @@ sprag feedback "Bedrock에서 5m TTL 칩이 사라지지 않아요"
 
 Sprag 은 켜지 않으면 로컬에서만 동작합니다. `sprag team join <토큰>` 을 실행하거나(조직 전체는 `SPRAG_TEAM_TOKEN`) 하면 컴퓨터마다 하루에 한 행씩 올라갑니다. 내용은 지출, 절감액, 위임 실행 횟수, 모델 계열 비중입니다. 프롬프트, 대화 기록, 파일 경로, 프로젝트 이름은 보내지 않으며, `sprag team status --show-payload` 로 올라갈 내용을 그대로 볼 수 있습니다. 그 대신 팀 소유자는 대시보드에서 구성원별 합계를 보고, 모든 구성원에게 자동으로 적용될 래칫 룰을 승인할 수 있습니다.
 
-`CTS_NO_TEAM_SYNC=1` 은 팀 관련 통신을 모두 끄고, `sprag team leave` 는 참여를 해제합니다.
+`SPRAG_NO_TEAM_SYNC=1` 은 팀 관련 통신을 모두 끄고, `sprag team leave` 는 참여를 해제합니다.
 
 - [팀 기능 안내](docs/TEAM.ko.md)
 - 대시보드: https://sprag.io/team/

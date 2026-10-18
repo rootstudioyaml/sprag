@@ -80,7 +80,7 @@ test('brief 훅은 자기 프로세스 환경으로 등록되지 않은 등급�
 
   const run = (extra) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {
     cwd: project,
-    env: childEnv({ HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, NO_COLOR: '1', CTS_NO_UPDATE_CHECK: '1', ...extra }),
+    env: childEnv({ HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, NO_COLOR: '1', SPRAG_NO_UPDATE_CHECK: '1', ...extra }),
     input: JSON.stringify({ session_id: 'brief-host', prompt: PROMPT, cwd: project }),
     encoding: 'utf8',
   });

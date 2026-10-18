@@ -20,11 +20,11 @@ const ACCESS = 'access-token-xyz';
 
 function isolate(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-create-'));
-  const keys = ['XDG_CONFIG_HOME', 'CTS_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN'];
+  const keys = ['XDG_CONFIG_HOME', 'SPRAG_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN'];
   const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
   process.env.XDG_CONFIG_HOME = root;
   delete process.env.SPRAG_TEAM_TOKEN;
-  process.env.CTS_NO_TEAM_SYNC = '1'; // join still runs (explicit action); the follow-up sync is skipped
+  process.env.SPRAG_NO_TEAM_SYNC = '1'; // join still runs (explicit action); the follow-up sync is skipped
   t.after(() => {
     for (const k of keys) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

@@ -158,7 +158,7 @@ test('install prints the wrapper sentence when it skips', () => {
   }));
   try {
     const out = execFileSync(process.execPath, [CLI, 'install'], {
-      env: childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', CTS_LANG: 'en' }),
+      env: childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', SPRAG_LANG: 'en' }),
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 120_000,

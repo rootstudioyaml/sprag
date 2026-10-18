@@ -34,7 +34,7 @@ import zipfile
 
 MAX_UNCOMPRESSED = 500 * 1024 * 1024
 MAX_RATIO = 200
-ROW_CAP = int(os.environ.get("CTS_DOC2MD_ROW_CAP", "50000"))
+ROW_CAP = int(os.environ.get("SPRAG_DOC2MD_ROW_CAP", os.environ.get("CTS_DOC2MD_ROW_CAP", "50000")))
 ZIP_EXTS = {".pptx", ".xlsx", ".docx"}
 
 

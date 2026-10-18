@@ -18,6 +18,7 @@
  * terminal (postinstall, CI, pipes) it keeps theirs, as before.
  */
 
+import { envVar } from '../env.js';
 import { debug } from '../debug.js';
 
 /** Thrown when the user declines an optional step, so it is not reported as a failure. */
@@ -50,7 +51,7 @@ export async function run({ hasFlag }) {
     // English — the one outcome a Korean-locale machine should not get by
     // default. Already decided means never asked again.
     try {
-      if (!languageDecided() && !process.env.CTS_LANG) {
+      if (!languageDecided() && !envVar('LANG')) {
         const { koreanLocaleDetected } = await import('../korean-style.js');
         const detected = koreanLocaleDetected() ? 'ko' : 'en';
         console.log('');
@@ -63,14 +64,14 @@ export async function run({ hasFlag }) {
         }
         setUserLanguage(chosen);
         console.log(`  language: set to ${chosen === 'ko' ? '한국어' : 'English'} — change it any time with \`sprag mode lang=${chosen === 'ko' ? 'en' : 'ko'}\``);
-      } else if (process.env.CTS_LANG) {
+      } else if (envVar('LANG')) {
         // Escape hatch for scripted installs, which cannot answer a prompt but
         // do know which language the machine's user reads.
-        const forced = setUserLanguage(process.env.CTS_LANG);
+        const forced = setUserLanguage(envVar('LANG'));
         console.log('');
         console.log(forced
-          ? `  language: set to ${forced} (CTS_LANG)`
-          : `  language: ignored CTS_LANG=${process.env.CTS_LANG} — use 'ko' or 'en'`);
+          ? `  language: set to ${forced} (SPRAG_LANG)`
+          : `  language: ignored SPRAG_LANG=${envVar('LANG')} — use 'ko' or 'en'`);
       }
     } catch (e) {
       debug('install:language', e); // the English fallback still works
@@ -166,16 +167,16 @@ export async function run({ hasFlag }) {
     // any one project, and the harness principles are project-independent.
     // Only ever ADDS — harnessInit appends its own marked block, backs up the
     // previous file, and leaves surrounding content untouched. Skipped when a
-    // block is already there (nothing to do) and when CTS_NO_HARNESS=1 is set,
+    // block is already there (nothing to do) and when SPRAG_NO_HARNESS=1 is set,
     // for anyone who wants the statusline without the CLAUDE.md rules.
     try {
       const { harnessInit, harnessStatus } = await import('../harness.js');
       const before = harnessStatus(undefined, { scope: 'global' });
-      if (process.env.CTS_NO_HARNESS === '1') {
+      if (envVar('NO_HARNESS') === '1') {
         console.log('');
         console.log(lang === 'ko'
-          ? '  harness: CTS_NO_HARNESS=1 이므로 건너뜁니다 (나중에 `harness init --global`).'
-          : '  harness: skipped (CTS_NO_HARNESS=1) — run `harness init --global` later.');
+          ? '  harness: SPRAG_NO_HARNESS=1 이므로 건너뜁니다 (나중에 `harness init --global`).'
+          : '  harness: skipped (SPRAG_NO_HARNESS=1) — run `harness init --global` later.');
       } else if (before.hasBlock) {
         console.log('');
         console.log(lang === 'ko'
@@ -242,11 +243,11 @@ export async function run({ hasFlag }) {
     // upgrade never re-enables something they turned off.
     try {
       const ks = await import('../korean-style.js');
-      if (process.env.CTS_NO_KOREAN === '1') {
+      if (envVar('NO_KOREAN') === '1') {
         console.log('');
         console.log(lang === 'ko'
-          ? '  korean: CTS_NO_KOREAN=1 이므로 건너뜁니다 (나중에 `korean on`).'
-          : '  korean: skipped (CTS_NO_KOREAN=1) — run `korean on` later.');
+          ? '  korean: SPRAG_NO_KOREAN=1 이므로 건너뜁니다 (나중에 `korean on`).'
+          : '  korean: skipped (SPRAG_NO_KOREAN=1) — run `korean on` later.');
       } else if (ks.koreanStyleDecided()) {
         console.log('');
         console.log(lang === 'ko'
@@ -328,11 +329,11 @@ export async function run({ hasFlag }) {
       const { createRequire } = await import('node:module');
       const require = createRequire(import.meta.url);
       const doc2md = require('../doc2md.cjs');
-      if (process.env.CTS_NO_DOC2MD === '1') {
+      if (envVar('NO_DOC2MD') === '1') {
         console.log('');
         console.log(lang === 'ko'
-          ? '  doc2md: CTS_NO_DOC2MD=1 이므로 건너뜁니다 (나중에 `doc2md on`).'
-          : '  doc2md: skipped (CTS_NO_DOC2MD=1) — run `doc2md on` later.');
+          ? '  doc2md: SPRAG_NO_DOC2MD=1 이므로 건너뜁니다 (나중에 `doc2md on`).'
+          : '  doc2md: skipped (SPRAG_NO_DOC2MD=1) — run `doc2md on` later.');
       } else {
         const { installDoc2mdHook } = await import('../installer.js');
         const res = installDoc2mdHook();
@@ -430,7 +431,7 @@ export async function run({ hasFlag }) {
     try {
       const { codexUserDir } = await import('../agent.js');
       const { existsSync } = await import('node:fs');
-      if (process.env.CTS_NO_CODEX !== '1' && existsSync(codexUserDir())) {
+      if (envVar('NO_CODEX') !== '1' && existsSync(codexUserDir())) {
         let proceed = true;
         if (interactive) {
           console.log('');
@@ -451,7 +452,7 @@ export async function run({ hasFlag }) {
             if (!tmuxAvailable() && !await confirm(lang === 'ko'
               ? '  codex: tmux 가 없습니다. Homebrew 로 설치해 같은 창에 패널을 붙일까요?'
               : '  codex: tmux is missing. Install it with Homebrew so the panel shares the Codex window?', { defaultValue: true })) {
-              env = { ...process.env, CTS_NO_TMUX: '1' };
+              env = { ...process.env, SPRAG_NO_TMUX: '1' };
             }
           }
           let panel;
@@ -465,7 +466,7 @@ export async function run({ hasFlag }) {
           console.log('');
           console.log(`  codex: hooks ${hook.action} (${hook.file})`);
           for (const line of describePanelSetup(panel, lang)) console.log(`  codex: ${line}`);
-          if (process.env.CTS_NO_HARNESS !== '1') {
+          if (envVar('NO_HARNESS') !== '1') {
             const h = initCodexHarness({ scope: 'global' });
             console.log(`  codex: harness ${h.file}`);
             try {

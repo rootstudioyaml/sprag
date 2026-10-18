@@ -33,7 +33,7 @@ export function captureCodexPanel(output) {
       { type: 'event_msg', payload: { type: 'task_complete' } },
     ].map((row) => ({ timestamp: new Date(now).toISOString(), ...row }));
     writeFileSync(join(home, 'sessions', 'example.jsonl'), records.map((r) => JSON.stringify(r)).join('\n') + '\n');
-    const env = childEnv({ HOME: work, CODEX_HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, CTS_LANG: 'en', CTS_NO_KOREAN: '1' });
+    const env = childEnv({ HOME: work, CODEX_HOME: home, XDG_CONFIG_HOME: state, APPDATA: state, SPRAG_LANG: 'en', SPRAG_NO_KOREAN: '1' });
     const run = (args) => execFileSync(process.execPath, [join(root, 'bin/cli.js'), ...args, '--agent', 'codex'],
       { cwd: project, env, encoding: 'utf8', timeout: 10000 });
     run(['harness', 'init', '--project']);

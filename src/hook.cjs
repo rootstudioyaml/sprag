@@ -13,11 +13,12 @@
 'use strict';
 
 // CJS twin of src/debug.js \u2014 hook failures must stay silent for the session
-// but be visible under CTS_DEBUG=1, otherwise a broken path is
+// but be visible under SPRAG_DEBUG=1, otherwise a broken path is
 // indistinguishable from "nothing to do".
-var CTS_DEBUG = !!process.env.CTS_DEBUG;
+// Standalone hook (no requires), so the SPRAG_ -> CTS_ fallback is inline.
+var DEBUG_ON = !!(process.env.SPRAG_DEBUG ?? process.env.CTS_DEBUG);
 function dbg(scope, err) {
-  if (!CTS_DEBUG) return;
+  if (!DEBUG_ON) return;
   process.stderr.write('[cts:' + scope + '] ' + ((err && err.stack) || String(err)) + '\n');
 }
 

@@ -1,6 +1,6 @@
 /**
  * The one-time star chip: shown for 24 hours once routing + doc2md savings
- * first reach $10, never again, and never when CTS_NO_NOTE=1.
+ * first reach $10, never again, and never when SPRAG_NO_NOTE=1.
  *
  * Why it needs pinning: the chip is an ask, so the failure modes are all
  * annoying ones — repeating after the window, showing below the threshold, or
@@ -20,11 +20,11 @@ const HOUR = 3600 * 1000;
 
 function isolate(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-star-'));
-  const saved = { xdg: process.env.XDG_CONFIG_HOME, note: process.env.CTS_NO_NOTE };
+  const saved = { xdg: process.env.XDG_CONFIG_HOME, note: process.env.SPRAG_NO_NOTE };
   process.env.XDG_CONFIG_HOME = dir;
-  delete process.env.CTS_NO_NOTE;
+  delete process.env.SPRAG_NO_NOTE;
   t.after(() => {
-    for (const [k, v] of [['XDG_CONFIG_HOME', saved.xdg], ['CTS_NO_NOTE', saved.note]]) {
+    for (const [k, v] of [['XDG_CONFIG_HOME', saved.xdg], ['SPRAG_NO_NOTE', saved.note]]) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
@@ -66,9 +66,9 @@ test('crossing $10 shows for 24h, then never again', (t) => {
   assert.equal(readStarChip({ now: now + 26 * HOUR, savedUsd: 500 }), null);
 });
 
-test('CTS_NO_NOTE=1 suppresses it and writes nothing', (t) => {
+test('SPRAG_NO_NOTE=1 suppresses it and writes nothing', (t) => {
   isolate(t);
-  process.env.CTS_NO_NOTE = '1';
+  process.env.SPRAG_NO_NOTE = '1';
   assert.equal(readStarChip({ now: 1_000_000, savedUsd: 100 }), null);
   assert.equal('star' in stored(), false);
 });

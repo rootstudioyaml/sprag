@@ -29,10 +29,10 @@ test('a leaking variable is dropped even when the ambient environment has it', (
   process.env.TERMINAL_EMULATOR = 'JetBrains-JediTerm';
   process.env.SPRAG_ICON = 'force';
   process.env.COLORTERM = 'truecolor';
-  process.env.CTS_LANG = 'ko';
+  process.env.SPRAG_LANG = 'ko';
   try {
     const env = childEnv({ HOME: '/tmp/sandbox' });
-    for (const name of ['TERMINAL_EMULATOR', 'SPRAG_ICON', 'COLORTERM', 'CTS_LANG']) {
+    for (const name of ['TERMINAL_EMULATOR', 'SPRAG_ICON', 'COLORTERM', 'SPRAG_LANG']) {
       assert.equal(env[name], undefined, `${name} must not reach the child`);
     }
     // And the variables a child needs to run at all are still there.
@@ -57,14 +57,14 @@ test('HOME is required, mirrored to USERPROFILE, and overridable', () => {
 });
 
 test('overrides win, and undefined means "not set"', () => {
-  const env = childEnv({ HOME: '/tmp/sandbox', CTS_LANG: 'en', PATH: undefined });
-  assert.equal(env.CTS_LANG, 'en', 'a case may add back what it is about');
+  const env = childEnv({ HOME: '/tmp/sandbox', SPRAG_LANG: 'en', PATH: undefined });
+  assert.equal(env.SPRAG_LANG, 'en', 'a case may add back what it is about');
   assert.equal('PATH' in env, false, 'undefined removes rather than sets the string "undefined"');
 });
 
 test('no spawned child can wait on a terminal, unless the case says so', () => {
-  assert.equal(childEnv({ HOME: '/tmp/sandbox' }).CTS_NO_INPUT, '1');
-  assert.equal(childEnv({ HOME: '/tmp/sandbox', CTS_NO_INPUT: undefined }).CTS_NO_INPUT, undefined);
+  assert.equal(childEnv({ HOME: '/tmp/sandbox' }).SPRAG_NO_INPUT, '1');
+  assert.equal(childEnv({ HOME: '/tmp/sandbox', SPRAG_NO_INPUT: undefined }).SPRAG_NO_INPUT, undefined);
 });
 
 /** Every `env.NAME` and `env['NAME']` read, in .js, .cjs and .mjs alike. */
@@ -90,6 +90,15 @@ test('the scrub list covers every variable the source reads', () => {
     for (const match of text.matchAll(ENV_READ)) {
       const name = match[1] || match[2];
       if (!known.has(name)) missing.set(name, file.slice(ROOT.length));
+    }
+  }
+  /* envVar('NAME') reads SPRAG_NAME first and the legacy CTS_NAME second, so a
+     stray value under either name changes the child. Both have to be scrubbed. */
+  for (const file of ['src', 'bin', 'scripts'].flatMap((d) => sourceFiles(join(ROOT, d)))) {
+    for (const match of readFileSync(file, 'utf8').matchAll(/\benvVar\('([A-Z][A-Z0-9_]+)'/g)) {
+      for (const prefix of ['SPRAG_', 'CTS_']) {
+        if (!known.has(prefix + match[1])) missing.set(prefix + match[1], file.slice(ROOT.length));
+      }
     }
   }
   /* A read that nobody scrubs is a variable the developer's shell decides, and

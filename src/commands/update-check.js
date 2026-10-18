@@ -46,8 +46,8 @@ export async function run({ hasFlag, version, agent = 'claude' }) {
 
   if (updateCheckDisabled()) {
     console.log(lang === 'ko'
-      ? `현재 버전 v${version} — 업데이트 확인이 환경 변수로 꺼져 있습니다 (CTS_NO_UPDATE_CHECK / NO_UPDATE_NOTIFIER).`
-      : `v${version} — update checks are disabled by env var (CTS_NO_UPDATE_CHECK / NO_UPDATE_NOTIFIER).`);
+      ? `현재 버전 v${version} — 업데이트 확인이 환경 변수로 꺼져 있습니다 (SPRAG_NO_UPDATE_CHECK / NO_UPDATE_NOTIFIER).`
+      : `v${version} — update checks are disabled by env var (SPRAG_NO_UPDATE_CHECK / NO_UPDATE_NOTIFIER).`);
     return;
   }
 

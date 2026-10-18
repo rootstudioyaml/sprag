@@ -8,6 +8,7 @@
  * not zsh, or the user already has their own `codex` alias/function.
  */
 
+import { envVar } from '../env.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -21,7 +22,7 @@ export function tmuxAvailable({ exec = execFileSync } = {}) {
 
 export function ensureTmux({ platform = process.platform, env = process.env, exec = execFileSync, exists = existsSync } = {}) {
   // Checked first, before probing anything, so tests and CI never spawn brew.
-  if (env.CTS_NO_TMUX === '1' || (env.CI && env.CI !== 'false')) return { status: 'skipped' };
+  if (envVar('NO_TMUX', env) === '1' || (env.CI && env.CI !== 'false')) return { status: 'skipped' };
   if (tmuxAvailable({ exec })) return { status: 'present' };
   if (platform !== 'darwin') {
     return { status: 'unavailable', detail: 'install tmux with your package manager (e.g. sudo apt install tmux)' };

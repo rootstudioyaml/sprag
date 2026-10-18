@@ -28,6 +28,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const ledger = require('./doc2md-ledger.cjs');
+const { envVar } = require('./env.cjs');
 
 // Formats where the original is of no use to the model. Images are absent
 // deliberately: markitdown returns nothing for them, and OCR misread resource
@@ -247,7 +248,7 @@ const IS_WINDOWS = process.platform === 'win32';
  */
 function interpreterCandidates() {
   const out = [];
-  if (process.env.CTS_DOC2MD_PYTHON) out.push({ bin: process.env.CTS_DOC2MD_PYTHON, args: [] });
+  if (envVar('DOC2MD_PYTHON')) out.push({ bin: envVar('DOC2MD_PYTHON'), args: [] });
   // The tool's own venv, created by `doc2md install-converter`. First because
   // it is the only one this tool controls: telling people to `pip install`
   // into the system interpreter is how a token-saving CLI ends up owning a
@@ -477,7 +478,7 @@ function convert(filePath, { converter = CONVERTER, python: pythonOverride = nul
     // The .fig parser is an npm install of a few hundred KB, fast enough to
     // wait for inline the first time a Figma file turns up.
     if (!result.ok && result.reason === 'no-figparser'
-        && process.env.CTS_DOC2MD_NO_AUTOINSTALL !== '1') {
+        && envVar('DOC2MD_NO_AUTOINSTALL') !== '1') {
       fig2md.installFigParser(userDataDir());
       result = spawnFigConvert(fig2md, filePath);
     }
@@ -565,7 +566,7 @@ function convert(filePath, { converter = CONVERTER, python: pythonOverride = nul
  * Returns true when a converter is ready to use right now.
  */
 function ensureConverterInstalled({ waitMs = 15_000 } = {}) {
-  if (process.env.CTS_DOC2MD_NO_AUTOINSTALL === '1') return false;
+  if (envVar('DOC2MD_NO_AUTOINSTALL') === '1') return false;
   if (findInterpreter()) return true;
 
   const lock = path.join(userDataDir(), 'doc2md-install.lock');

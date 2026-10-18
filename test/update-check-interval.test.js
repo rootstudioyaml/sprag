@@ -25,10 +25,10 @@ const HOUR = 60 * 60 * 1000;
 function isolated(t) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-update-interval-'));
   const saved = {};
-  for (const name of ['XDG_CONFIG_HOME', 'CTS_NO_UPDATE_CHECK', 'NO_UPDATE_NOTIFIER']) saved[name] = process.env[name];
+  for (const name of ['XDG_CONFIG_HOME', 'SPRAG_NO_UPDATE_CHECK', 'NO_UPDATE_NOTIFIER']) saved[name] = process.env[name];
   process.env.XDG_CONFIG_HOME = dir;
   // An opt-out inherited from the shell would make every case below vacuous.
-  delete process.env.CTS_NO_UPDATE_CHECK;
+  delete process.env.SPRAG_NO_UPDATE_CHECK;
   delete process.env.NO_UPDATE_NOTIFIER;
   t.after(() => {
     for (const [name, value] of Object.entries(saved)) {
@@ -184,7 +184,7 @@ test('maybeSpawnUpdateCheck judges age by the intervalMs it is given', (t) => {
 test('the env opt-out also stops a version change from spawning', (t) => {
   isolated(t);
   writeState({ checkedAt: Date.now(), latest: '3.58.0', current: '3.57.0' });
-  process.env.CTS_NO_UPDATE_CHECK = '1';
+  process.env.SPRAG_NO_UPDATE_CHECK = '1';
   const { calls, spawnImpl } = recorder();
   assert.equal(updateStatus('3.59.0').stale, false);
   assert.equal(maybeSpawnUpdateCheck('3.59.0', { spawnImpl }), false);

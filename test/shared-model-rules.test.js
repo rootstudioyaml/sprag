@@ -31,7 +31,7 @@ function fixture(t) {
   const recorded = [];
   const opts = { dir, root, home, cfg, rules: [], contextTokens: 60000, record: (r) => recorded.push(r) };
   const env = childEnv({ HOME: base, CODEX_HOME: home, XDG_CONFIG_HOME: join(base, 'state'),
-    CTS_NO_KOREAN: '1', CTS_NO_DOC2MD: '1', CTS_LANG: 'en' });
+    SPRAG_NO_KOREAN: '1', SPRAG_NO_DOC2MD: '1', SPRAG_LANG: 'en' });
   const run = (args, input, { agent = 'codex', cwd = root } = {}) => spawnSync(process.execPath, [CLI, ...args, '--agent', agent],
     { cwd, env, encoding: 'utf8', timeout: 10000, input: input && JSON.stringify(input) });
   return { ...opts, base, file, save, payload, recorded, opts, run };

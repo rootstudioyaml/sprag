@@ -7,12 +7,13 @@
  * a genuinely broken path (bad permissions on the state dir, a corrupt hook
  * payload) is indistinguishable from "nothing to do".
  *
- * `CTS_DEBUG=1` makes those swallowed failures visible on stderr — which the
+ * `SPRAG_DEBUG=1` makes those swallowed failures visible on stderr — which the
  * statusline contract discards and hooks surface in Claude Code's debug
  * output — without changing behavior in any way.
  */
 
-const ENABLED = !!process.env.CTS_DEBUG;
+import { envVar } from './env.js';
+const ENABLED = !!envVar('DEBUG');
 
 /**
  * @param {string} scope short label for where the failure happened

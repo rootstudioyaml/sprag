@@ -224,7 +224,7 @@ test('legacy function-call failures remain visible to ratchet detection', (t) =>
 test('Codex seed accepts and skips independently of Claude with the chosen scopes', (t) => {
   const f = fixture(t);
   const env = childEnv({ HOME: f.base, CODEX_HOME: f.home, XDG_CONFIG_HOME: join(f.base, 'state'),
-    CTS_NO_KOREAN: '1', CTS_LANG: 'en' });
+    SPRAG_NO_KOREAN: '1', SPRAG_LANG: 'en' });
   const run = (args) => spawnSync(process.execPath, [CLI, ...args], {
     cwd: f.root, env, encoding: 'utf8', timeout: 10000,
   });

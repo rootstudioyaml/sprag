@@ -19,10 +19,10 @@ test('canPrompt requires both streams to be a terminal', () => {
   assert.equal(canPrompt({ env: {}, stdin: tty, stdout: notTty }), false);
 });
 
-test('canPrompt refuses inside npm postinstall, CI and CTS_NO_INPUT', () => {
+test('canPrompt refuses inside npm postinstall, CI and SPRAG_NO_INPUT', () => {
   assert.equal(canPrompt({ env: { npm_lifecycle_event: 'postinstall' }, stdin: tty, stdout: tty }), false);
   assert.equal(canPrompt({ env: { CI: 'true' }, stdin: tty, stdout: tty }), false);
-  assert.equal(canPrompt({ env: { CTS_NO_INPUT: '1' }, stdin: tty, stdout: tty }), false);
+  assert.equal(canPrompt({ env: { SPRAG_NO_INPUT: '1' }, stdin: tty, stdout: tty }), false);
   // CI=false is what some shells export when the variable is merely defined.
   assert.equal(canPrompt({ env: { CI: 'false' }, stdin: tty, stdout: tty }), true);
 });

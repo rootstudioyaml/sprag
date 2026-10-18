@@ -56,8 +56,8 @@ export async function run({ args, hasFlag }) {
     const result = await refreshGatewayModelMap({ base, key });
     if (!result) {
       say(ko
-        ? `LiteLLM 에서 모델 정보를 가져오지 못했습니다 (GET ${base}/model/info). CTS_DEBUG=1 로 다시 실행하면 원인이 보입니다.`
-        : `Could not fetch model info from LiteLLM (GET ${base}/model/info). Re-run with CTS_DEBUG=1 to see why.`);
+        ? `LiteLLM 에서 모델 정보를 가져오지 못했습니다 (GET ${base}/model/info). SPRAG_DEBUG=1 로 다시 실행하면 원인이 보입니다.`
+        : `Could not fetch model info from LiteLLM (GET ${base}/model/info). Re-run with SPRAG_DEBUG=1 to see why.`);
       process.exitCode = 1;
       return;
     }

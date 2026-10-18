@@ -48,7 +48,7 @@ One install sets up everything: **statusline, Skill, SessionStart hook, the 🅷
 
 Setup runs from npm's `postinstall` only for a global npm install. A project dependency install, the `npx` cache and anything with `CI` set skip it and print one line saying so, because the hooks call `sprag` by name and those installs do not put it on PATH. `SPRAG_POSTINSTALL=1` forces the setup and `SPRAG_POSTINSTALL=0` skips it; either way `sprag install` does the same thing by hand.
 
-Outside a terminal — npm `postinstall`, CI, piped stdin — the question is skipped and the old defaults apply. Use `--yes` or `--no-input` to skip it deliberately, `CTS_NO_HARNESS=1 npm i -g sprag-cli` to skip the harness entirely, and `sprag harness uninit --global` to undo it.
+Outside a terminal — npm `postinstall`, CI, piped stdin — the question is skipped and the old defaults apply. Use `--yes` or `--no-input` to skip it deliberately, `SPRAG_NO_HARNESS=1 npm i -g sprag-cli` to skip the harness entirely, and `sprag harness uninit --global` to undo it.
 
 > ⚠️ Avoid `sudo` global installs — the Skill lands in root's `~/.claude` instead of yours. Use nvm/fnm/Volta or `npm config set prefix ~/.npm-global`.
 
@@ -63,18 +63,20 @@ Everything that costs nothing until it is needed is on after a plain install. Th
 | SessionStart hook (route-scan refresh) | on | same |
 | UserPromptSubmit hook (brief injection) | on | same |
 | First route-scan (last 14 days of logs) | runs once during the install | n/a |
-| 🅷 Harness 5 principles (`~/.claude/CLAUDE.md`) | on (shown and confirmed once at a terminal) | `harness uninit --global`, `CTS_NO_HARNESS=1` |
-| doc2md hooks (Read, Edit/Write, prompt) | on | `doc2md off`, `CTS_NO_DOC2MD=1` |
+| 🅷 Harness 5 principles (`~/.claude/CLAUDE.md`) | on (shown and confirmed once at a terminal) | `harness uninit --global`, `SPRAG_NO_HARNESS=1` |
+| doc2md hooks (Read, Edit/Write, prompt) | on | `doc2md off`, `SPRAG_NO_DOC2MD=1` |
 | doc2md converter (markitdown venv) | offered at a terminal; an unattended install prints the command | install later with `doc2md install-converter` |
-| Korean writing guidance | on when the locale is Korean (asked at a terminal) | `korean off`, `CTS_NO_KOREAN=1` |
+| Korean writing guidance | on when the locale is Korean (asked at a terminal) | `korean off`, `SPRAG_NO_KOREAN=1` |
 | compact-window warning chip | on | `compact-window off` |
-| Update-available chip | on | `CTS_NO_UPDATE_CHECK=1` |
-| ⭐ Star note (once, for a day, after $10 saved by routing and doc2md) | on | `CTS_NO_NOTE=1` |
+| Update-available chip | on | `SPRAG_NO_UPDATE_CHECK=1` |
+| ⭐ Star note (once, for a day, after $10 saved by routing and doc2md) | on | `SPRAG_NO_NOTE=1` |
 | **Pinning compact-window** (`autoCompactWindow` 500k) | **off — run it yourself** | `compact-window set --global` or `--project` |
 | **Model-fitting rules** (`ratchet-model.md` delegations) | **candidates are proposed only** | review and approve with `route-scan rules` |
 | `handoff` (back up work before a cap) | an on-demand command | n/a |
 
 `compact-window set` writes into Claude Code's `settings.json` and a human has to choose global or project scope, so it is never run for you. Model-fitting rules keep an approval step for the same reason: which work belongs on a cheaper tier is your call.
+
+The `SPRAG_` variables above used to carry a `CTS_` prefix (`CTS_NO_UPDATE_CHECK`, `CTS_NO_HARNESS` and so on). The old `CTS_` names are still read, and the `SPRAG_` name wins when both are set.
 
 ### Network access
 
@@ -82,14 +84,14 @@ Everything Sprag measures comes from files on your machine. The list below is ev
 
 | Destination | When | What is sent | How to turn it off |
 |---|---|---|---|
-| `registry.npmjs.org/sprag-cli/latest` | once a day from the statusline, every 3 hours from the SessionStart hook | the request only; no identifiers | `CTS_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER=1` |
+| `registry.npmjs.org/sprag-cli/latest` | once a day from the statusline, every 3 hours from the SessionStart hook | the request only; no identifiers | `SPRAG_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER=1` |
 | `api.github.com/repos/rootstudioyaml/sprag/releases/tags/<version>` | with the registry check, when a newer version exists, to show its three highlights | the request only | same switch |
 | your LiteLLM gateway: `GET /key/info`, `/user/info`, `/model/info` | only when `ANTHROPIC_BASE_URL` points at a gateway and a key is available; the budget gauge refreshes on the statusline's cadence, `/model/info` on `sprag profile-map --refresh` or alongside a budget refresh. Codex uses the provider base from its own config | your own key as the `Authorization` header; the key is never written to Sprag's cache files | unset `ANTHROPIC_BASE_URL`, or `sprag mode` without the budget segment |
 | GitHub issue via the `gh` CLI | `sprag feedback` only, when `gh` is logged in | the message you typed, plus version, OS and Node.js version | `--anonymous` skips the `gh` path |
 | `docs.google.com/forms/…/formResponse` | `sprag feedback` only, when `gh` is not available | the same message and metadata, to an anonymous form the maintainer reads | do not run `feedback`; `sprag feedback` also saves a local copy with a prefilled issue URL |
 | `npm install -g sprag-cli@<version>` | `sprag upgrade`, after you accept the offer | an ordinary npm install | decline the offer |
-| `pip install markitdown` into Sprag's own venv; `npm install openfig-core` into Sprag's data directory | the doc2md converter, when you accept the install at a terminal or a document first needs it | ordinary package installs; `openfig-core` installs with `--ignore-scripts` | `CTS_DOC2MD_NO_AUTOINSTALL=1` stops the automatic case |
-| `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase) | only after `sprag team join` or with `SPRAG_TEAM_TOKEN` set; then every 6 hours from the SessionStart hook's detached child | daily aggregates per local day: spend (USD), savings (USD), delegated-run count, model-family share, Sprag version, agent, and your display name. No prompts, transcripts, file paths, project names or API keys. A rule goes up only with `sprag team propose`. See [Team layer](./TEAM.md) | `sprag team leave` or `CTS_NO_TEAM_SYNC=1` |
+| `pip install markitdown` into Sprag's own venv; `npm install openfig-core` into Sprag's data directory | the doc2md converter, when you accept the install at a terminal or a document first needs it | ordinary package installs; `openfig-core` installs with `--ignore-scripts` | `SPRAG_DOC2MD_NO_AUTOINSTALL=1` stops the automatic case |
+| `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase) | only after `sprag team join` or with `SPRAG_TEAM_TOKEN` set; then every 6 hours from the SessionStart hook's detached child | daily aggregates per local day: spend (USD), savings (USD), delegated-run count, model-family share, Sprag version, agent, and your display name. No prompts, transcripts, file paths, project names or API keys. A rule goes up only with `sprag team propose`. See [Team layer](./TEAM.md) | `sprag team leave` or `SPRAG_NO_TEAM_SYNC=1` |
 
 No usage data, transcript content or project paths leave the machine, unless you join a team. A team receives only the daily aggregates listed in the last row of the table above, nothing else. The savings ledger, the route-scan rules and the history files stay under the user-data directory listed in the Skill's storage section.
 

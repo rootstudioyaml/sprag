@@ -24,7 +24,8 @@
 
 /**
  * Every environment variable src/, bin/ and scripts/ read. Sorted, so a new
- * entry lands where a reader looks for it.
+ * entry lands where a reader looks for it. The renamed SPRAG_ variables are
+ * listed beside their legacy CTS_ names, which are still read as a fallback.
  */
 export const SCRUBBED = [
   'ANTHROPIC_API_KEY',
@@ -48,6 +49,7 @@ export const SCRUBBED = [
   'CTS_DEBUG',
   'CTS_DOC2MD_NO_AUTOINSTALL',
   'CTS_DOC2MD_PYTHON',
+  'CTS_DOC2MD_ROW_CAP',
   'CTS_LANG',
   'CTS_NO_CODEX',
   'CTS_NO_DOC2MD',
@@ -71,7 +73,22 @@ export const SCRUBBED = [
   'SHELL',
   'SPRAG_CODEX_PANEL',
   'SPRAG_CODEX_PANEL_BINDING',
+  'SPRAG_DEBUG',
+  'SPRAG_DOC2MD_NO_AUTOINSTALL',
+  'SPRAG_DOC2MD_PYTHON',
+  'SPRAG_DOC2MD_ROW_CAP',
   'SPRAG_ICON',
+  'SPRAG_LANG',
+  'SPRAG_NO_CODEX',
+  'SPRAG_NO_DOC2MD',
+  'SPRAG_NO_HARNESS',
+  'SPRAG_NO_INPUT',
+  'SPRAG_NO_KOREAN',
+  'SPRAG_NO_NOTE',
+  'SPRAG_NO_ROUTE_SCAN',
+  'SPRAG_NO_TEAM_SYNC',
+  'SPRAG_NO_TMUX',
+  'SPRAG_NO_UPDATE_CHECK',
   'SPRAG_POSTINSTALL',
   'SPRAG_TEAM_TOKEN',
   'TERMINAL_EMULATOR',
@@ -113,17 +130,17 @@ export function childEnv(overrides = {}) {
   /* A spawned CLI must never wait on a terminal. Non-TTY stdio already settles
      this, but stating it means a test that does hand the child a TTY cannot
      hang the suite. A caller that is testing the prompt itself overrides it. */
-  env.CTS_NO_INPUT = '1';
+  env.SPRAG_NO_INPUT = '1';
   /* Codex SessionStart kicks a detached route-scan when the scan cache is
      stale, which in a test means a process outliving its temp directory.
      A case testing that spawn overrides it. */
-  env.CTS_NO_ROUTE_SCAN = '1';
+  env.SPRAG_NO_ROUTE_SCAN = '1';
   /* The statusline and the hooks spawn a detached update check when the
      registry answer is stale. Its working directory is the case's temp
      directory, and Windows refuses to remove a directory a live process sits
      in: the 2026-10 CI runs failed every cleanup with EBUSY and then hung. A
      case about the update chip passes `undefined` to let the check run. */
-  env.CTS_NO_UPDATE_CHECK = '1';
+  env.SPRAG_NO_UPDATE_CHECK = '1';
   /* Windows resolves the home through USERPROFILE, so a case that names only
      HOME means the same directory on both platforms. */
   env.USERPROFILE = overrides.HOME;
