@@ -34,7 +34,7 @@
   code{font-family:var(--mono);font-size:.92em}
   [hidden]{display:none!important}
   a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:4px}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px}
   header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(1,1,2,.8);backdrop-filter:blur(12px)}
   header .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15.5px;letter-spacing:.01em}
@@ -214,7 +214,7 @@
   .sr-tbl table{min-width:980px}
   .sr-tbl th,.sr-tbl td{white-space:nowrap}
   .sr-tbl td.sn{white-space:normal;min-width:160px;max-width:240px;overflow:hidden}
-  .mem-tbl table{min-width:1000px}
+  .mem-tbl table{min-width:860px}
   .badge.good{border-color:var(--teal);color:var(--teal)}
   .badge.bad{border-color:var(--red);color:var(--red)}
   [role=tab][aria-selected=true].btn{border-color:var(--amber);color:var(--ink)}
@@ -228,6 +228,42 @@
   .layout > .card{margin-top:0}
   #app > * + *{margin-top:16px}
   .sr-tools .thr select{min-width:140px}
+  /* ── organization views + team sub-views ─────────────────────────────── */
+  .orgbar{display:flex;justify-content:flex-end}
+  .vtabs{position:sticky;top:56px;z-index:40;display:flex;gap:4px;margin-top:16px;padding:0;border-bottom:1px solid var(--line);background:var(--bg)}
+  .vtab{background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:12px 16px;margin-bottom:-1px;font-size:14px;font-weight:500;transition:color .18s var(--ease),border-color .18s var(--ease)}
+  .vtab:hover{color:var(--ink)}
+  .vtab[aria-selected=true]{color:var(--ink);border-color:var(--amber)}
+  #views{scroll-margin-top:112px;margin-top:20px;min-height:50vh}
+  .view[hidden]{display:none!important}
+  .view > .card + .card{margin-top:16px}
+  .tlayout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;align-items:start}
+  .tside{position:sticky;top:124px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:16px}
+  .tside-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .tside-head h2{font-size:15px}
+  .tside .teams-list{margin-top:12px;gap:8px}
+  .tside .team-item{flex-direction:column;align-items:flex-start;gap:4px}
+  .tside .newteam{margin-top:14px;padding-top:14px}
+  .tmain{min-width:0}
+  .thead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .thead h2{font-size:20px;overflow-wrap:anywhere}
+  .stabs{margin-top:4px;overflow-x:auto;scrollbar-width:thin}
+  .stabs .tab{white-space:nowrap}
+  .sub-pane[hidden]{display:none!important}
+  .tmain .stack > .sub-pane{margin-top:0}
+  .tmain .stack{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+  .tmain .stack > * + *{margin-top:0}
+  @media(max-width:860px){
+    .tlayout{grid-template-columns:1fr}
+    .tside{position:static;padding:14px}
+    .tside .teams-list{display:flex;overflow-x:auto;gap:8px;padding-bottom:4px;scrollbar-width:thin}
+    .tside .team-item{width:auto;min-width:150px;flex:0 0 auto}
+  }
+  @media(max-width:520px){
+    .vtab{flex:1 1 0;padding:12px 6px;text-align:center}
+    .orgbar{justify-content:stretch}
+    .orgbar .thr{width:100%}.orgbar select{flex:1}
+  }
   @media(max-width:520px){
     .row.grow > input,.addrule input[type=text]{flex:1 1 100%}
     .row.grow > select{flex:1 1 auto}
@@ -327,12 +363,21 @@
       </form>
     </div>
 
+    <div class="orgbar" id="orgbar" hidden>
+      <label class="thr"><span data-k="o.switch">Switch</span>
+        <select id="org-sel" data-aria="o.switch.aria" aria-label="Organization"></select></label>
+    </div>
+
+    <nav class="vtabs" id="vtabs" role="tablist" data-aria="v.aria" aria-label="Sections" hidden>
+      <button type="button" class="vtab" role="tab" id="vtab-overview" data-view="overview" data-k="v.overview">Overview</button>
+      <button type="button" class="vtab" role="tab" id="vtab-seats" data-view="seats" data-k="v.seats">Seats</button>
+      <button type="button" class="vtab" role="tab" id="vtab-teams" data-view="teams" data-k="v.teams">Teams</button>
+    </nav>
+
+    <div id="views">
+    <section class="view" id="view-overview" role="tabpanel" aria-labelledby="vtab-overview">
     <section class="card" id="org-card" aria-labelledby="org-h" hidden>
-      <div class="row" style="justify-content:space-between">
-        <h2 id="org-h" data-k="o.h">Organization</h2>
-        <label class="thr"><span data-k="o.switch">Switch</span>
-          <select id="org-sel" data-aria="o.switch.aria" aria-label="Organization"></select></label>
-      </div>
+      <h2 id="org-h" data-k="o.h">Organization</h2>
       <div class="row" style="margin-top:12px">
         <span class="badge" id="org-plan"></span>
         <span class="sub" id="org-role" style="margin:0"></span>
@@ -358,16 +403,24 @@
         </div>
       </div>
     </section>
+    </section>
 
+    <section class="view" id="view-seats" role="tabpanel" aria-labelledby="vtab-seats" hidden>
     <section class="card" id="seats-card" hidden aria-labelledby="seats-h">
       <h2 id="seats-h" data-k="sr.h">Seats</h2>
       <div id="seats-box"></div>
     </section>
+    </section>
 
-    <section class="card" aria-labelledby="teams-h">
-      <h2 id="teams-h" data-k="t.h">Your teams</h2>
+    <section class="view" id="view-teams" role="tabpanel" aria-labelledby="vtab-teams" hidden>
+    <div class="tlayout">
+    <aside class="tside" aria-labelledby="teams-h">
+      <div class="tside-head">
+        <h2 id="teams-h" data-k="t.h">Your teams</h2>
+        <button type="button" class="btn sm" id="btn-newteam" aria-expanded="false" data-k="tn.add">+ New team</button>
+      </div>
       <div class="teams-list" id="teams-list"></div>
-      <form class="newteam" id="form-team">
+      <form class="newteam" id="form-team" hidden>
         <h3 id="new-title" data-k="t.new">New team</h3>
         <div class="row grow" style="margin-top:10px">
           <input type="text" id="team-name" maxlength="80" data-ph="t.ph" placeholder="Team name" aria-label="Team name" />
@@ -375,10 +428,23 @@
         </div>
       </form>
       <p class="err" id="teams-err" role="alert"></p>
-    </section>
+    </aside>
 
+    <div class="tmain">
+    <p class="msg" id="team-pick" data-k="tn.pick">Pick a team to see its details.</p>
     <div id="panel" class="stack" hidden>
-      <section class="card" aria-labelledby="inv-h">
+      <div class="thead">
+        <h2 id="team-title"></h2>
+        <span class="badge" id="team-plan"></span>
+      </div>
+      <nav class="tabs stabs" id="stabs" role="tablist" data-aria="tv.aria" aria-label="Team sections">
+        <button type="button" class="tab" role="tab" data-sub="members" data-k="tv.members">Members</button>
+        <button type="button" class="tab" role="tab" data-sub="usage" data-k="tv.usage">Usage</button>
+        <button type="button" class="tab" role="tab" data-sub="rules" data-k="tv.rules">Rules</button>
+        <button type="button" class="tab" role="tab" data-sub="invite" data-k="tv.invite">Invite &amp; enroll</button>
+        <button type="button" class="tab" role="tab" data-sub="policy" data-k="tv.policy">Policy</button>
+      </nav>
+      <section class="card sub-pane" data-pane="invite" aria-labelledby="inv-h">
         <h2 id="inv-h" data-k="inv.h">Invite token</h2>
         <div class="tok"><code id="inv-token"></code><button type="button" data-copy-el="inv-token" data-k="copy">Copy</button></div>
         <div class="row" style="margin-top:12px">
@@ -398,7 +464,7 @@
         <p class="sent" data-k="data.sent">Members send one row per day: spend, savings, delegation count, model-family share, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.</p>
       </section>
 
-      <section class="card" aria-labelledby="pol-h">
+      <section class="card sub-pane" data-pane="policy" aria-labelledby="pol-h">
         <h2 id="pol-h" data-k="pol.h">Policy</h2>
         <div class="switch">
           <button class="sw" id="sw-capture" role="switch" aria-checked="false" aria-labelledby="pol-cap"></button>
@@ -410,7 +476,7 @@
         <p class="err" id="pol-err" role="alert"></p>
       </section>
 
-      <section class="card" aria-labelledby="mem-h">
+      <section class="card sub-pane" data-pane="members" aria-labelledby="mem-h">
         <div class="row" style="justify-content:space-between">
           <h2 id="mem-h" data-k="mem.h">Members</h2>
           <label class="thr"><span data-k="mem.thr">Highlight when today's spend is above $</span>
@@ -429,7 +495,7 @@
         <p class="err" id="mem-err" role="alert"></p>
       </section>
 
-      <section class="card" aria-labelledby="ch-h">
+      <section class="card sub-pane" data-pane="usage" aria-labelledby="ch-h">
         <h2 id="ch-h" data-k="ch.h">Last 30 days</h2>
         <div class="totals">
           <div class="sp"><span data-k="ch.sp">Spent</span><b id="tot-sp">$0.00</b></div>
@@ -440,7 +506,7 @@
         <p class="err" id="ch-err" role="alert"></p>
       </section>
 
-      <section class="card" aria-labelledby="ru-h">
+      <section class="card sub-pane" data-pane="rules" aria-labelledby="ru-h">
         <h2 id="ru-h" data-k="ru.h">Team rules</h2>
         <p class="sub" data-k="ru.desc">Approved rules are pushed to every member at session start.</p>
         <div class="rules3">
@@ -458,7 +524,7 @@
         <p class="err" id="ru-err" role="alert"></p>
       </section>
 
-      <section class="card" id="prompts" aria-labelledby="pm-h" hidden>
+      <section class="card sub-pane" data-pane="policy" id="prompts" aria-labelledby="pm-h" hidden>
         <h2 id="pm-h" data-k="pm.h">Prompts</h2>
         <p class="sub" data-k="pm.desc">User prompts only, newest first.</p>
         <p class="msg warn" id="pm-off" hidden data-k="pm.off">Prompt capture is not enabled on this server yet.</p>
@@ -467,6 +533,10 @@
         <div class="plist" id="pm-list"></div>
         <p class="err" id="pm-err" role="alert"></p>
       </section>
+    </div>
+    </div>
+    </div>
+    </section>
     </div>
   </div>
 </main>
@@ -564,7 +634,7 @@ const I18N = {
     'mem.h':'Members','mem.thr':"Highlight when today's spend is above $",
     'mem.name':'Name','mem.agent':'Agent','mem.ver':'Version','mem.joined':'Joined','mem.seen':'Last seen',
     'mem.sp':'Spent 30d','mem.sv':'Saved 30d','mem.dl':'Delegated 30d','mem.today':'Today',
-    'mem.none':'No members yet. Share the invite token above.','mem.left':'left','mem.never':'never','mem.remove':'Remove',
+    'mem.none':'No members yet. Share the invite token from the Invite & enroll tab.','mem.left':'left','mem.never':'never','mem.remove':'Remove',
     'mem.confirm':'Remove {name} from this team? Their history stays, and they no longer count as an active seat.',
     'ch.h':'Last 30 days','ch.sp':'Spent','ch.sv':'Saved','ch.none':'No ledger rows yet.',
     'ru.h':'Team rules','ru.desc':'Approved rules are pushed to every member at session start.',
@@ -581,6 +651,9 @@ const I18N = {
     'o.teams':'Teams in this organization','o.teams.none':'No teams yet.','o.team.members':'{n} active · {s} seats',
     'o.team.open':'Open',
     'o.new':'New team in {org}',
+    'v.aria':'Sections','v.overview':'Overview','v.seats':'Seats','v.teams':'Teams',
+    'tv.aria':'Team sections','tv.members':'Members','tv.usage':'Usage','tv.rules':'Rules','tv.invite':'Invite & enroll','tv.policy':'Policy',
+    'tn.add':'+ New team','tn.pick':'Pick a team to see its details.',
     'seat.shares':'shares a seat with {name}','seat.merge':'Merge seat…','seat.unmerge':'Unmerge',
     'seat.mergeconfirm':'Count {name} and {into} as one seat? Use this when they are the same person on two machines.',
     'seat.unmergeconfirm':'Give {name} a separate seat again?',
@@ -665,7 +738,7 @@ const I18N = {
     'mem.h':'멤버','mem.thr':'오늘 지출이 이 금액을 넘으면 강조 $',
     'mem.name':'이름','mem.agent':'에이전트','mem.ver':'버전','mem.joined':'가입일','mem.seen':'마지막 접속',
     'mem.sp':'30일 지출','mem.sv':'30일 절감','mem.dl':'30일 위임','mem.today':'오늘',
-    'mem.none':'아직 멤버가 없습니다. 위의 초대 토큰을 공유해 주세요.','mem.left':'탈퇴','mem.never':'없음','mem.remove':'제거',
+    'mem.none':'아직 멤버가 없습니다. 초대·등록 탭의 초대 토큰을 공유해 주세요.','mem.left':'탈퇴','mem.never':'없음','mem.remove':'제거',
     'mem.confirm':'{name}님을 이 팀에서 제거할까요? 기록은 남고, 활동 좌석으로 세지 않습니다.',
     'ch.h':'최근 30일','ch.sp':'지출','ch.sv':'절감','ch.none':'아직 기록이 없습니다.',
     'ru.h':'팀 규칙','ru.desc':'승인한 규칙은 모든 멤버의 세션 시작 때 적용됩니다.',
@@ -682,6 +755,9 @@ const I18N = {
     'o.teams':'이 조직의 팀','o.teams.none':'아직 팀이 없습니다.','o.team.members':'활동 멤버 {n}명 · 좌석 {s}개',
     'o.team.open':'열기',
     'o.new':'{org}에 새 팀 만들기',
+    'v.aria':'구역','v.overview':'개요','v.seats':'좌석','v.teams':'팀',
+    'tv.aria':'팀 구역','tv.members':'멤버','tv.usage':'사용량','tv.rules':'규칙','tv.invite':'초대·등록','tv.policy':'정책',
+    'tn.add':'+ 새 팀','tn.pick':'팀을 골라 주세요',
     'seat.shares':'{name}님과 좌석을 같이 씁니다','seat.merge':'좌석 합치기…','seat.unmerge':'합치기 해제',
     'seat.mergeconfirm':'{name}님과 {into}님을 한 좌석으로 셀까요? 같은 사람이 컴퓨터 두 대를 쓸 때 사용하세요.',
     'seat.unmergeconfirm':'{name}님에게 다시 좌석을 따로 줄까요?',
@@ -840,10 +916,11 @@ async function onSession(session){
   user = session ? session.user : null;
   if(!user){ $('form-setpw').hidden = true; resetSetPw(); }
   $('auth').hidden = !!user; $('app').hidden = !user;
-  if(!user){ teams = []; team = null; counts = {}; orgs = []; org = null; orgSum = null; renderAll(); return; }
+  if(!user){ teams = []; team = null; counts = {}; orgs = []; org = null; orgSum = null; renderAll(); renderView(); return; }
   $('who-email').textContent = user.email || '';
   await loadOrgs();
   await loadTeams();
+  route(true);
 }
 
 /* ── teams ────────────────────────────────────────────────────────────── */
@@ -884,6 +961,7 @@ $('org-sel').addEventListener('change', async () => {
   await loadOrgSummary();
   const vt = visibleTeams();
   if(vt.length === 1) await selectTeam(vt[0].id);
+  go(view, view === 'teams' && team ? team.id : null, null, false);
 });
 $('form-admin').addEventListener('submit', async ev => {
   ev.preventDefault(); $('org-err').textContent = '';
@@ -910,9 +988,10 @@ function renderOrg(){
   const card = $('org-card');
   card.hidden = !(user && org);
   $('seats-card').hidden = !(user && org && isAdmin());
+  renderView();
   if(card.hidden) return;
   $('org-sel').innerHTML = orgs.map(o => `<option value="${esc(o.id)}" ${o.id === org.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('');
-  $('org-sel').parentElement.hidden = orgs.length < 2;
+  $('orgbar').hidden = orgs.length < 2;
   const plan = org.plan === 'business' ? 'business' : 'team';
   $('org-plan').textContent = t('plan.' + plan);
   $('org-plan').className = 'badge' + (plan === 'business' ? ' plus' : '');
@@ -932,7 +1011,7 @@ function renderOrg(){
     <span class="row"><button type="button" class="btn sm" data-ot="${esc(x.id)}">${esc(t('o.team.open'))}</button>
     </span></div>`).join('')
     : `<p class="none msg">${esc(t('o.teams.none'))}</p>`;
-  $('org-teams').querySelectorAll('[data-ot]').forEach(b => b.addEventListener('click', () => selectTeam(b.dataset.ot)));
+  $('org-teams').querySelectorAll('[data-ot]').forEach(b => b.addEventListener('click', () => go('teams', b.dataset.ot, null, true)));
 }
 
 /* ── teams ────────────────────────────────────────────────────────────── */
@@ -964,6 +1043,8 @@ $('form-team').addEventListener('submit', async ev => {
     const newId = data && data.id;
     await loadOrgs(data && data.org_id);
     await loadTeams(newId);
+    $('form-team').hidden = true; $('btn-newteam').setAttribute('aria-expanded', 'false');
+    if(newId) go('teams', newId, 'invite', false);
   }catch(e){ $('teams-err').textContent = errMsg(e); }
 });
 
@@ -1019,6 +1100,74 @@ async function loadRules(){
   renderRules();
 }
 
+/* ── views + hash routing ─────────────────────────────────────────────── */
+const SUBS = ['members', 'usage', 'rules', 'invite', 'policy'];
+let view = 'overview', sub = 'members';
+const viewOk = v => v === 'teams' ? true : !!org && (v === 'overview' || isAdmin());
+function firstView(){ return viewOk('overview') ? 'overview' : 'teams'; }
+function hashFor(v, id, s){
+  if(v !== 'teams') return '#' + v;
+  return '#teams' + (id ? '/' + encodeURIComponent(id) + (s ? '/' + s : '') : '');
+}
+/* go: change the view, keep the URL hash in step, scroll to the content top */
+function go(v, id, s, scroll){
+  const h = hashFor(v, id, s || (v === 'teams' && id ? sub : null));
+  scrollNext = !!scroll;
+  if(location.hash === h) route(false); else location.hash = h;
+}
+let scrollNext = false;
+function parseHash(){
+  const p = location.hash.replace(/^#/, '').split('/').map(decodeURIComponent);
+  return { v: ['overview', 'seats', 'teams'].includes(p[0]) ? p[0] : null, id: p[1] || null, s: SUBS.includes(p[2]) ? p[2] : null };
+}
+async function route(initial){
+  if(!user) return;
+  const h = parseHash();
+  let v = h.v || firstView();
+  if(!viewOk(v)) v = firstView();
+  if(v === 'teams'){
+    const vt = visibleTeams();
+    const want = h.id && teams.find(x => x.id === h.id) ? h.id : (team && vt.some(x => x.id === team.id) ? team.id : (vt[0] && vt[0].id));
+    if(h.s) sub = h.s;
+    view = v; renderView();
+    if(want && (!team || team.id !== want)) await selectTeam(want);
+    const canon = hashFor('teams', team && team.id, sub);
+    if(team && location.hash !== canon) history.replaceState(null, '', canon);
+  }else{
+    view = v; renderView();
+    const canon = '#' + v;
+    if(location.hash !== canon) history.replaceState(null, '', canon);
+  }
+  if(scrollNext && !initial){
+    const el = $('views'), top = el.getBoundingClientRect().top + window.scrollY - 112;
+    if(window.scrollY > top) window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+  }
+  scrollNext = false;
+}
+window.addEventListener('hashchange', () => route(false));
+function renderView(){
+  $('vtabs').hidden = !user;
+  ['overview', 'seats', 'teams'].forEach(v => {
+    const ok = viewOk(v), on = ok && view === v;
+    $('vtab-' + v).hidden = !ok;
+    $('vtab-' + v).setAttribute('aria-selected', String(on));
+    $('view-' + v).hidden = !on;
+  });
+  if(!viewOk(view)){ view = firstView(); renderView(); }
+}
+function renderSub(){
+  document.querySelectorAll('#stabs [data-sub]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.sub === sub)));
+  document.querySelectorAll('.sub-pane').forEach(p => { p.hidden = p.dataset.pane !== sub; });
+  $('prompts').hidden = !(team && team.prompt_capture) || sub !== 'policy';
+}
+document.querySelectorAll('#vtabs [data-view]').forEach(b => b.addEventListener('click', () => go(b.dataset.view, b.dataset.view === 'teams' && team ? team.id : null, null, true)));
+document.querySelectorAll('#stabs [data-sub]').forEach(b => b.addEventListener('click', () => { if(team) go('teams', team.id, b.dataset.sub, false); }));
+$('btn-newteam').addEventListener('click', () => {
+  const f = $('form-team'); f.hidden = !f.hidden;
+  $('btn-newteam').setAttribute('aria-expanded', String(!f.hidden));
+  if(!f.hidden) $('team-name').focus();
+});
+
 /* ── renderers ────────────────────────────────────────────────────────── */
 function renderAll(){
   if(!user) return;
@@ -1028,15 +1177,20 @@ function renderTeams(){
   const box = $('teams-list');
   const vt = visibleTeams();
   $('new-title').textContent = org ? t('o.new', {org: org.name}, true) : t('t.new');
-  if(!vt.length){ box.innerHTML = '<p class="msg">' + esc(t('t.empty')) + '</p>'; return; }
+  if(!vt.length){ box.innerHTML = '<p class="msg" style="margin-top:0">' + esc(t('t.empty')) + '</p>'; $('form-team').hidden = false; return; }
   box.innerHTML = vt.map(x => `<button type="button" class="team-item" data-id="${esc(x.id)}" aria-pressed="${team && team.id === x.id}">
       <span class="nm">${esc(x.name)}</span>
       <span class="mt"><span>${t('t.active', {n: counts[x.id] || 0})}</span><span class="badge ${planOf(x) === 'business' ? 'plus' : ''}">${esc(t('plan.' + (planOf(x) === 'business' ? 'business' : 'team')))}</span></span></button>`).join('');
-  box.querySelectorAll('.team-item').forEach(b => b.addEventListener('click', () => selectTeam(b.dataset.id)));
+  box.querySelectorAll('.team-item').forEach(b => b.addEventListener('click', () => go('teams', b.dataset.id, null, false)));
 }
 function renderPanel(){
   $('panel').hidden = !team;
+  $('team-pick').hidden = !!team || !visibleTeams().length;
+  renderSub();
   if(!team) return;
+  $('team-title').textContent = team.name;
+  $('team-plan').textContent = t('plan.' + (planOf(team) === 'business' ? 'business' : 'team'));
+  $('team-plan').className = 'badge' + (planOf(team) === 'business' ? ' plus' : '');
   const tok = team.invite_token || '';
   $('inv-token').textContent = tok;
   $('sn-join').textContent = 'npm i -g sprag-cli@latest && sprag team join ' + tok;
@@ -1051,7 +1205,7 @@ function renderPanel(){
   $('pol-plannote').textContent = t('pol.plannote', {plan: t('plan.' + planOf(team))}, true);
   $('pol-plan').textContent = t('plan.business');
   $('thr').value = lsGet('sprag.team.thr.' + team.id) ?? '20';
-  $('prompts').hidden = !team.prompt_capture;
+  $('prompts').hidden = !team.prompt_capture || sub !== 'policy';
   renderMembers(); renderChart(); renderRules(); renderPrompts();
 }
 function thr(){ const v = parseFloat($('thr').value); return isFinite(v) ? v : 20; }
@@ -1063,14 +1217,9 @@ function renderMembers(){
     const gone = !!m.left_at, hot = !gone && Number(m.spent_today) > limit;
     const host = m.seat_of ? members.find(x => x.member_id === m.seat_of) : null;
     const shares = m.seat_of ? `<span class="share">${esc(t('seat.shares', {name: host ? (host.display_name || host.member_id) : '?'}, true))}</span>` : '';
-    let seatAct = '';
-    if(isAdmin() && !gone){
-      if(m.seat_of) seatAct = `<button type="button" class="btn sm" data-un="${esc(m.member_id)}">${esc(t('seat.unmerge'))}</button> `;
-      else {
-        const targets = members.filter(x => !x.left_at && !x.seat_of && x.member_id !== m.member_id);
-        if(targets.length) seatAct = `<select class="mg" data-mg="${esc(m.member_id)}" aria-label="${esc(t('seat.merge'))}"><option value="">${esc(t('seat.merge'))}</option>${targets.map(x => `<option value="${esc(x.member_id)}">${esc(x.display_name || x.member_id)}</option>`).join('')}</select> `;
-      }
-    }
+    // Seat merge and unmerge live in the Seats tab, which lists every machine
+    // of the organization; this table keeps one action so the row fits.
+    const seatAct = '';
     return `<tr class="${gone ? 'gone' : ''} ${hot ? 'hot' : ''}">
       <td>${esc(m.display_name || '—')}${gone ? ` <span class="badge">${esc(t('mem.left'))}</span>` : ''}${shares}</td>
       <td>${esc(m.agent || '')}</td><td>${esc(m.sprag_version || '')}</td>
@@ -1499,8 +1648,10 @@ function demoSb(){
     sb = demoSb(); bootAuthParams();
     const dq = new URLSearchParams(location.search);
     if(dq.get('signedout') === '1') return;
+    /* ?team=<id> opens the Teams tab on that team; a bare #<sub> hash picks its sub-tab */
+    const h0 = location.hash.replace('#', '');
+    if(dq.get('team') && !/^teams/.test(h0)) history.replaceState(null, '', '#teams/' + dq.get('team') + (SUBS.includes(h0) ? '/' + h0 : ''));
     await onSession({user:{email:'ana@northwind.example'}});
-    if(dq.get('team')) await selectTeam(dq.get('team'));
     if(dq.get('setpw') === '1') $('btn-setpw').click();
     return;
   }
