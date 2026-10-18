@@ -111,7 +111,9 @@ Create a team inside an existing organization from the CLI with `sprag team crea
 
 ## The dashboard
 
-https://sprag.io/team/ is where an owner or admin signs in with an email code, creates a team and gets the invite token. From there they see per-member spend and savings for the last 30 days, approve or remove rules, and remove members. The organization panel shows the plan, seats used against the limit, admins and every team. The superuser sees every organization at sprag.io/ops/.
+https://sprag.io/team/ is where an owner or admin signs in with an email code, creates a team and gets the invite token. From there they see per-member spend and savings, approve or remove rules, and remove members. The organization panel shows the plan, seats used against the limit, admins and every team. The superuser sees every organization at sprag.io/ops/.
+
+A date range control at the top of the dashboard (7d, 30d, 90d, This month, Last month or Custom) sets the period for the members table, the Usage chart and the prompt usage tab. It defaults to the last 30 days, uses your local calendar days with the end date included, and allows 365 days at most. The choice is kept in the page address (`?from=2026-10-01&to=2026-10-18`), so a reload or a shared link shows the same period. The superuser console at /ops/ has the same control for the organization table, the organization header and its prompt usage.
 
 ### The seat roster
 

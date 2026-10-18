@@ -390,6 +390,17 @@
     .topnav{margin:0 -6px;order:5;flex:1 1 100%}
     .org-tbl td.nm,.att-tbl td.nm{max-width:150px}
   }
+  .range-bar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);margin:0 0 var(--s4)}
+  .range-bar .rg-t{font-size:12px;color:var(--faint)}
+  .range-bar .rg-lab{font:500 12.5px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+  .range-bar .rg-c{display:inline-flex;align-items:center;gap:6px;color:var(--faint)}
+  .range-bar input[type=date]{font:inherit;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--surface);border:1px solid var(--line2);border-radius:var(--r);padding:3px 8px;color-scheme:inherit}
+  .range-bar .rg-err{color:var(--bad,#e5484d);font-size:12.5px}
+  .range-bar .rg-err:empty{display:none}
+  .range-bar .seg{max-width:100%;flex-wrap:wrap}
+  .totals b,.stat b{font-variant-numeric:tabular-nums}
+  .stat b{white-space:normal;overflow-wrap:anywhere}
+  .stat span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -483,6 +494,7 @@
 
   <!-- signed in -->
   <div id="app" hidden>
+    <div class="range-bar" id="range-bar"></div>
     <div id="views">
     <section class="view" id="view-overview" role="tabpanel" aria-labelledby="vtab-overview">
     <section class="card" id="org-card" aria-labelledby="org-h" hidden>
@@ -603,8 +615,8 @@
           <thead><tr>
             <th data-k="mem.name">Name</th><th data-k="mem.agent">Agent</th><th data-k="mem.ver">Version</th><th data-k="mem.os">OS</th>
             <th data-k="mem.joined">Joined</th><th data-k="mem.seen">Last seen</th>
-            <th class="n" data-k="mem.sp">Spent 30d</th><th class="n" data-k="mem.sv">Saved 30d</th>
-            <th class="n" data-k="mem.dl">Delegated 30d</th><th class="n" data-k="mem.today">Today</th><th></th>
+            <th class="n" id="th-sp">Spent</th><th class="n" id="th-sv">Saved</th>
+            <th class="n" id="th-dl">Delegated</th><th class="n" data-k="mem.today">Today</th><th></th>
           </tr></thead>
           <tbody id="mem-body"></tbody>
         </table></div>
@@ -613,7 +625,7 @@
       </section>
 
       <section class="card sub-pane" data-pane="usage" aria-labelledby="ch-h">
-        <h2 id="ch-h" data-k="ch.h">Last 30 days</h2>
+        <h2 id="ch-h">Usage</h2>
         <div class="usage-tot">
           <div class="sp"><span data-k="ch.sp">Spent</span><b id="tot-sp">$0.00</b></div>
           <div class="sv"><span data-k="ch.sv">Saved</span><b id="tot-sv">$0.00</b></div>
@@ -766,10 +778,10 @@ const I18N = {
     'pol.confirm':"Members' CLIs will start uploading their Claude Code / Codex prompts (user turns only) in compressed daily batches. Each member sees this policy in `sprag team status`.",
     'mem.h':'Members','mem.thr':"Highlight when today's spend is above $",
     'mem.name':'Name','mem.agent':'Agent','mem.ver':'Version','mem.joined':'Joined','mem.seen':'Last seen',
-    'mem.sp':'Spent 30d','mem.sv':'Saved 30d','mem.dl':'Delegated 30d','mem.today':'Today',
+    'mem.sp':'Spent','mem.sv':'Saved','mem.dl':'Delegated','mem.today':'Today',
     'mem.none':'No members yet. Share the invite token from the Invite & enroll tab.','mem.left':'left','mem.never':'never','mem.remove':'Remove',
     'mem.confirm':'Remove {name} from this team? Their history stays, and they no longer count as an active seat.',
-    'ch.h':'Last 30 days','ch.sp':'Spent','ch.sv':'Saved','ch.none':'No ledger rows yet.',
+    'ch.h':'Usage','ch.sp':'Spent','ch.sv':'Saved','ch.none':'No ledger rows yet.',
     'ru.h':'Team rules','ru.desc':'Approved rules are pushed to every member at session start.',
     'ru.approved':'Approved','ru.proposed':'Proposed','ru.removed':'Removed','ru.none':'None',
     'ru.ph':'Rule text','ru.add':'Add rule','ru.approve':'Approve','ru.remove':'Remove','ru.empty':'Enter the rule text.',
@@ -870,10 +882,10 @@ const I18N = {
     'pol.confirm':'멤버의 CLI가 Claude Code / Codex 프롬프트(사용자 입력만)를 하루 단위로 압축해 올리기 시작합니다. 각 멤버는 `sprag team status`에서 이 정책을 볼 수 있습니다.',
     'mem.h':'멤버','mem.thr':'오늘 지출이 이 금액을 넘으면 강조 $',
     'mem.name':'이름','mem.agent':'에이전트','mem.ver':'버전','mem.joined':'가입일','mem.seen':'마지막 접속',
-    'mem.sp':'30일 지출','mem.sv':'30일 절감','mem.dl':'30일 위임','mem.today':'오늘',
+    'mem.sp':'지출','mem.sv':'절감','mem.dl':'위임','mem.today':'오늘',
     'mem.none':'아직 멤버가 없습니다. 초대·등록 탭의 초대 토큰을 공유해 주세요.','mem.left':'탈퇴','mem.never':'없음','mem.remove':'제거',
     'mem.confirm':'{name}님을 이 팀에서 제거할까요? 기록은 남고, 활동 좌석으로 세지 않습니다.',
-    'ch.h':'최근 30일','ch.sp':'지출','ch.sv':'절감','ch.none':'아직 기록이 없습니다.',
+    'ch.h':'사용량','ch.sp':'지출','ch.sv':'절감','ch.none':'아직 기록이 없습니다.',
     'ru.h':'팀 규칙','ru.desc':'승인한 규칙은 모든 멤버의 세션 시작 때 적용됩니다.',
     'ru.approved':'승인됨','ru.proposed':'제안됨','ru.removed':'제거됨','ru.none':'없음',
     'ru.ph':'규칙 내용','ru.add':'규칙 추가','ru.approve':'승인','ru.remove':'제거','ru.empty':'규칙 내용을 입력해 주세요.',
@@ -897,8 +909,10 @@ const I18N = {
     'pol.plannote':'이 조직은 {plan} 요금제입니다. 요금제는 Sprag가 정하며, 프롬프트 수집을 켜려면 엔터프라이즈 요금제를 문의해 주세요.'
   }
 };
-Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in the last {d} days.", "pu.note": "Last {d} days, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts in the last {d} days", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match.", "pu.chars": "{n} chars"});
-Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "컴퓨터", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "최근 {d}일 동안 수집된 프롬프트가 없습니다", "pu.note": "최근 {d}일, 프롬프트 수집을 켠 팀 기준입니다. 컴퓨터를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "최근 {d}일 동안 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다", "pu.chars": "{n}자"});
+Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in this range ({r}).", "pu.note": "{r}, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts, {r}", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match.", "pu.chars": "{n} chars"});
+Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "컴퓨터", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "이 기간({r}) 동안 수집된 프롬프트가 없습니다", "pu.note": "{r}, 프롬프트 수집을 켠 팀 기준입니다. 컴퓨터를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "{r} 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다", "pu.chars": "{n}자"});
+Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg.90d":"90d","rg.this":"This month","rg.last":"Last month","rg.custom":"Custom","rg.from":"From","rg.to":"To","rg.bad":"Enter both dates","rg.order":"The start date must not be after the end date","rg.max":"The range can be 365 days at most"});
+Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -908,6 +922,86 @@ function t(k, vars, raw){
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = n => '$' + (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+/* ── shared date range: local calendar days, "to" inclusive, max 365 days; kept in the URL search (from, to) ── */
+const fmtDay = d => { if(!d) return ''; const x = new Date(d); return isNaN(x) ? '' : x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+const Range = (function(){
+  const MAXD = 365, KEYS = ['7d', '30d', '90d', 'this', 'last', 'custom'];
+  const ymd = d => fmtDay(d);
+  const parse = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); if(!m) return null; const d = new Date(+m[1], +m[2] - 1, +m[3]); return ymd(d) === s ? d : null; };
+  const shift = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const today = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+  const spanOf = (a, b) => Math.round((b - a) / 864e5) + 1;
+  function bounds(k){
+    const td = today();
+    if(k === '7d') return [shift(td, -6), td];
+    if(k === '90d') return [shift(td, -89), td];
+    if(k === 'this') return [new Date(td.getFullYear(), td.getMonth(), 1), td];
+    if(k === 'last') return [new Date(td.getFullYear(), td.getMonth() - 1, 1), new Date(td.getFullYear(), td.getMonth(), 0)];
+    return [shift(td, -29), td];
+  }
+  const keyOf = (f, e) => ['7d', '30d', '90d', 'this', 'last'].find(k => { const b = bounds(k); return ymd(b[0]) === f && ymd(b[1]) === e; }) || 'custom';
+  let from, to, key, err = '', host = null; const subs = [];
+  (function(){
+    const q = new URLSearchParams(location.search), a = parse(q.get('from')), b = parse(q.get('to'));
+    if(a && b && a <= b && spanOf(a, b) <= MAXD){ from = ymd(a); to = ymd(b); } else { const d = bounds('30d'); from = ymd(d[0]); to = ymd(d[1]); }
+    key = keyOf(from, to);
+  })();
+  function persist(){
+    const q = new URLSearchParams(location.search);
+    if(key === '30d'){ q.delete('from'); q.delete('to'); } else { q.set('from', from); q.set('to', to); }
+    const s = q.toString();
+    try{ history.replaceState(history.state, '', location.pathname + (s ? '?' + s : '') + location.hash); }catch(e){}
+  }
+  function label(f, e){
+    const a = parse(f || from), b = parse(e || to), y = new Date().getFullYear(), yr = a.getFullYear() !== y || b.getFullYear() !== y;
+    const one = d => lang === 'ko' ? (yr ? d.getFullYear() + '.' : '') + (d.getMonth() + 1) + '.' + d.getDate()
+      : d.toLocaleDateString('en-US', yr ? { month:'short', day:'numeric', year:'numeric' } : { month:'short', day:'numeric' });
+    return one(a) + '–' + one(b);
+  }
+  function list(f, e){
+    const a = parse(f || from), b = parse(e || to), out = [];
+    for(let d = a; d <= b; d = shift(d, 1)) out.push(ymd(d));
+    return out;
+  }
+  function apply(f, e, k){
+    const a = parse(f), b = parse(e);
+    if(!a || !b){ err = t('rg.bad'); return sync(); }
+    if(a > b){ err = t('rg.order'); return sync(); }
+    if(spanOf(a, b) > MAXD){ err = t('rg.max'); return sync(); }
+    err = ''; from = ymd(a); to = ymd(b); key = k || keyOf(from, to);
+    persist(); sync(); subs.forEach(fn => fn());
+  }
+  function pick(k){
+    if(k === 'custom'){ key = 'custom'; err = ''; persist(); return sync(); }
+    const b = bounds(k); apply(ymd(b[0]), ymd(b[1]), k);
+  }
+  function sync(){
+    if(!host) return;
+    host.querySelectorAll('[data-r]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.r === key)));
+    const c = host.querySelector('.rg-c'); c.hidden = key !== 'custom';
+    const fi = host.querySelector('[data-end=from]'), ti = host.querySelector('[data-end=to]');
+    if(document.activeElement !== fi) fi.value = from;
+    if(document.activeElement !== ti) ti.value = to;
+    host.querySelector('.rg-lab').textContent = label();
+    host.querySelector('.rg-err').textContent = err;
+  }
+  function render(){
+    host = document.getElementById('range-bar'); if(!host) return;
+    host.innerHTML = `<span class="rg-t">${esc(t('rg.title'))}</span>
+      <div class="seg" role="tablist" aria-label="${esc(t('rg.title'))}">${KEYS.map(k => `<button type="button" role="tab" data-r="${k}" aria-selected="false">${esc(t('rg.' + k))}</button>`).join('')}</div>
+      <span class="rg-c" hidden><input type="date" data-end="from" aria-label="${esc(t('rg.from'))}" /><i>–</i><input type="date" data-end="to" aria-label="${esc(t('rg.to'))}" /></span>
+      <b class="rg-lab"></b><span class="rg-err" role="alert"></span>`;
+    host.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => pick(b.dataset.r)));
+    host.querySelectorAll('[data-end]').forEach(i => i.addEventListener('change', () => {
+      const f = host.querySelector('[data-end=from]').value, e = host.querySelector('[data-end=to]').value;
+      if(f && e) apply(f, e, 'custom');
+    }));
+    sync();
+  }
+  return { render, label, list, onChange: fn => subs.push(fn), args: () => ({ p_from: from, p_to: to }),
+    get from(){ return from; }, get to(){ return to; }, days: () => spanOf(parse(from), parse(to)) };
+})();
 const fmtDate = d => d ? new Date(d).toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'en-US', {year:'numeric', month:'short', day:'numeric'}) : '';
 function rel(d){
   if(!d) return t('mem.never');
@@ -1212,24 +1306,25 @@ async function loadMembers(){
   renderTeams(); renderMembers();
 }
 
+let usageById = {};
 async function loadLedger(){
   $('ch-err').textContent = '';
-  ledger = [];
-  const ids = members.map(m => m.member_id);
-  if(ids.length){
-    const since = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
+  ledger = []; usageById = {};
+  const seq = ++ledgerSeq, tid = team && team.id;
+  if(tid && members.length){
     try{
-      for(let from = 0; ; from += 1000){
-        const { data, error } = await sb.from('ledger_daily').select('member_id,day,spent_usd,saved_usd')
-          .in('member_id', ids).gte('day', since).order('day').range(from, from + 999);
-        if(error) throw error;
-        ledger.push(...data);
-        if(data.length < 1000) break;
-      }
-    }catch(e){ $('ch-err').textContent = errMsg(e); }
+      const { data, error } = await sb.rpc('team_member_usage', { p_team_id: tid, ...Range.args() });
+      if(error) throw error;
+      if(seq !== ledgerSeq) return;
+      ((data && data.members) || []).forEach(u => {
+        usageById[u.member_id] = u;
+        (u.series || []).forEach(r => ledger.push({ member_id: u.member_id, day: r.day, spent_usd: r.spent, saved_usd: r.saved }));
+      });
+    }catch(e){ if(seq !== ledgerSeq) return; $('ch-err').textContent = errMsg(e); }
   }
-  renderChart();
+  renderMembers(); renderChart();
 }
+let ledgerSeq = 0;
 
 async function loadRules(){
   $('ru-err').textContent = '';
@@ -1270,6 +1365,7 @@ async function route(initial){
     const vt = visibleTeams();
     const want = h.id && teams.find(x => x.id === h.id) ? h.id : (team && vt.some(x => x.id === team.id) ? team.id : (vt[0] && vt[0].id));
     if(h.s) sub = h.s;
+    renderSub();
     view = v; renderView();
     if(want && (!team || team.id !== want)) await selectTeam(want);
     const canon = hashFor('teams', team && team.id, sub);
@@ -1294,6 +1390,7 @@ function renderView(){
     $('vtab-' + v).setAttribute('aria-selected', String(on));
     $('view-' + v).hidden = !on;
   });
+  $('range-bar').hidden = !(view === 'teams' || view === 'prompts');
   if(!viewOk(view)){ view = firstView(); renderView(); }
   else if(view === 'prompts') Prompts.activate();
 }
@@ -1312,6 +1409,7 @@ $('btn-newteam').addEventListener('click', () => {
 
 /* ── renderers ────────────────────────────────────────────────────────── */
 function renderAll(){
+  Range.render();
   if(!user) return;
   renderOrg(); renderTeams(); renderPanel(); Seats.render(); Prompts.render();
 }
@@ -1351,8 +1449,11 @@ function renderPanel(){
   renderMembers(); renderChart(); renderRules(); renderPrompts();
 }
 function thr(){ const v = parseFloat($('thr').value); return isFinite(v) ? v : 20; }
+const U = m => usageById[m.member_id] || {};
 function renderMembers(){
   if(!team) return;
+  const rl = Range.label();
+  $('th-sp').textContent = t('mem.sp') + ' · ' + rl; $('th-sv').textContent = t('mem.sv') + ' · ' + rl; $('th-dl').textContent = t('mem.dl') + ' · ' + rl;
   const limit = thr();
   $('mem-empty').hidden = members.length > 0;
   $('mem-body').innerHTML = members.map(m => {
@@ -1366,8 +1467,8 @@ function renderMembers(){
       <td>${esc(m.display_name || '—')}${gone ? ` <span class="badge">${esc(t('mem.left'))}</span>` : ''}${shares}</td>
       <td class="dim">${esc(m.agent || '')}</td><td class="dim">${esc(m.sprag_version || '')}</td><td class="dim">${esc(osLabel(m))}</td>
       <td class="dim">${esc(fmtDate(m.joined_at))}</td><td class="dim">${esc(rel(m.last_seen))}</td>
-      <td class="n">${money(m.spent_30d)}</td><td class="n">${money(m.saved_30d)}</td>
-      <td class="n">${Number(m.delegated_30d) || 0}</td><td class="n today">${money(m.spent_today)}</td>
+      <td class="n">${money(U(m).spent)}</td><td class="n">${money(U(m).saved)}</td>
+      <td class="n">${Number(U(m).delegated) || 0}</td><td class="n today">${money(m.spent_today)}</td>
       <td class="act">${gone ? '' : `<div class="acts">${seatAct}<button type="button" class="btn sm danger" data-rm="${esc(m.member_id)}">${esc(t('mem.remove'))}</button></div>`}</td></tr>`;
   }).join('');
   $('mem-body').querySelectorAll('[data-mg]').forEach(sel => sel.addEventListener('change', () => { if(sel.value) mergeSeat(sel.dataset.mg, sel.value); else sel.value = ''; }));
@@ -1376,8 +1477,8 @@ function renderMembers(){
 }
 function renderChart(){
   if(!team) return;
-  const days = [];
-  for(let i = 29; i >= 0; i--) days.push(new Date(Date.now() - i * 86400000).toISOString().slice(0, 10));
+  const days = Range.list();
+  $('ch-h').textContent = t('ch.h') + ' · ' + Range.label();
   const agg = Object.fromEntries(days.map(d => [d, {sp:0, sv:0}]));
   ledger.forEach(r => { const a = agg[String(r.day).slice(0, 10)]; if(a){ a.sp += Number(r.spent_usd) || 0; a.sv += Number(r.saved_usd) || 0; } });
   const totSp = days.reduce((s, d) => s + agg[d].sp, 0), totSv = days.reduce((s, d) => s + agg[d].sv, 0);
@@ -1386,7 +1487,7 @@ function renderChart(){
   const W = 1080, H = 240, L = 46, B = 24, T = 10, R = 6, plotH = H - B - T, plotW = W - L - R;
   const max = Math.max(0.01, ...days.map(d => Math.max(agg[d].sp, agg[d].sv)));
   const nice = (() => { const p = Math.pow(10, Math.floor(Math.log10(max))); const f = max / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; })();
-  const slot = plotW / days.length, bw = Math.max(2, slot * 0.36);
+  const slot = plotW / days.length, bw = Math.max(slot > 6 ? 2 : 1, slot * 0.36);
   let g = '';
   for(let i = 0; i <= 4; i++){
     const v = nice * i / 4, y = T + plotH - plotH * i / 4;
@@ -1397,7 +1498,7 @@ function renderChart(){
     const hs = plotH * a.sp / nice, hv = plotH * a.sv / nice;
     g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hs}" rx="1.5" fill="#828fff"><title>${esc(d)} · ${esc(t('ch.sp'))} ${money(a.sp)}</title></rect>`;
     g += `<rect x="${x + 0.5}" y="${T + plotH - hv}" width="${bw}" height="${hv}" rx="1.5" fill="#35d6a8"><title>${esc(d)} · ${esc(t('ch.sv'))} ${money(a.sv)}</title></rect>`;
-    if(i % 5 === 0 || i === days.length - 1)
+    if(i % Math.ceil(days.length / 7) === 0 || i === days.length - 1)
       g += `<text x="${x}" y="${H - 7}" text-anchor="middle" fill="#686a74" font-size="10" font-family="Geist Mono,monospace">${esc(d.slice(5))}</text>`;
   });
   $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('ch.h'))}">${g}</svg>`;
@@ -1705,14 +1806,13 @@ const Prompts = (function(){
   const PAGE = 50;
   const osName = r => [r.os, r.os_version && !String(r.os || '').includes(r.os_version) ? r.os_version : ''].filter(Boolean).join(' ') || '—';
   const num = n => Number(n || 0).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US');
-  const day0 = d => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
-  function spark(by, days){
+  function spark(by, list){
     const m = {}; (by || []).forEach(x => { m[String(x.day).slice(0, 10)] = Number(x.prompts) || 0; });
-    const v = []; for(let i = days - 1; i >= 0; i--) v.push(m[day0(i)] || 0);
+    const v = list.map(d => m[d] || 0);
     const mx = Math.max(1, ...v), w = 96, h = 24, bw = w / v.length;
     const bars = v.map((n, i) => { const bh = n ? Math.max(1.5, n / mx * (h - 2)) : 0.8; return `<rect x="${(i * bw + 0.5).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${Math.max(1, bw - 1).toFixed(1)}" height="${bh.toFixed(1)}" rx="0.6" fill="currentColor" opacity="${n ? 1 : .25}"/>`; }).join('');
     const total = v.reduce((a, b) => a + b, 0);
-    return `<svg class="pu-spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(t('pu.spark', { n: total, d: days }))}">${bars}</svg>`;
+    return `<svg class="pu-spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(t('pu.spark', { n: total, r: Range.label(list[0], list[list.length - 1]) }))}">${bars}</svg>`;
   }
   function init(c){
     cfg = c; box = $(c.box);
@@ -1730,9 +1830,9 @@ const Prompts = (function(){
     if(plan !== 'enterprise'){ st.lock = 'plan'; st.loading = false; return render(); }
     const seq = ++st.seq;
     try{
-      const d = await cfg.rpc('org_prompt_usage', { p_org_id: id, p_days: 30 });
+      const d = await cfg.rpc('org_prompt_usage', { p_org_id: id, p_days: 30, ...Range.args() });
       if(seq !== st.seq) return;
-      st.usage = d || { members: [], totals: {}, days: 30 };
+      st.usage = d || { members: [], totals: {}, days: Range.days() };
     }catch(e){ if(seq !== st.seq) return; lockFrom(e); }
     st.loading = false; render();
   }
@@ -1756,7 +1856,7 @@ const Prompts = (function(){
     if(st.lock){ box.innerHTML = lockHtml(); return; }
     if(st.err && !st.usage){ box.innerHTML = `<p class="err" role="alert">${esc(st.err)}</p>`; return; }
     if(st.member) return renderMember();
-    const u = st.usage || { members: [], totals: {}, days: 30 }, days = u.days || 30, tot = u.totals || {};
+    const u = st.usage || { members: [], totals: {}, days: Range.days() }, tot = u.totals || {}, list = Range.list(u.from, u.to), days = list.length, rlab = Range.label(list[0], list[list.length - 1]);
     const chips = [['ac', t('pu.t.prompts'), num(tot.prompts)], ['', t('pu.t.chars'), num(tot.chars)], ['', t('pu.t.users'), num(tot.users)]]
       .map(c => `<div class="chip ${c[0]}"><span>${esc(c[1])}</span><b>${esc(c[2])}</b></div>`).join('');
     const f = SORTS[st.sort], rows = (u.members || []).slice().sort((a, b) => { const x = f(a), y = f(b); return (x < y ? -1 : x > y ? 1 : 0) * st.dir; });
@@ -1765,13 +1865,13 @@ const Prompts = (function(){
       <td class="sn" title="${esc(r.display_name)}"><button type="button" class="pu-open" data-open="${esc(r.member_id)}">${esc(r.display_name)}</button><span class="share pu-tm">${esc(r.team_name || '')}</span></td>
       <td class="tm" title="${esc(r.team_name || '')}">${esc(r.team_name || '')}</td><td class="dim">${esc(osName(r))}</td>
       <td class="num">${num(r.prompts)}</td><td class="num">${num(r.chars)}</td><td class="num">${num(r.avg_chars)}</td><td class="num">${num(r.active_days)}</td>
-      <td>${esc(rel(r.last_prompt_at))}</td><td>${spark(r.by_day, days)}</td></tr>`).join('');
+      <td>${esc(rel(r.last_prompt_at))}</td><td>${spark(r.by_day, list)}</td></tr>`).join('');
     box.innerHTML = `<div class="sr-top"><div class="chips">${chips}</div></div>
       <div class="tbl-wrap tall pu-tbl"><table><thead><tr>
         ${th('name', t('pu.c.user'))}${th('team', t('pu.c.team'))}${th('os', t('pu.c.os'))}${th('prompts', t('pu.c.prompts'), 'num')}${th('chars', t('pu.c.chars'), 'num')}${th('avg', t('pu.c.avg'), 'num')}${th('days', t('pu.c.days'), 'num')}${th('last', t('pu.c.last'))}
         <th>${esc(t('pu.c.trend', { d: days }))}</th></tr></thead><tbody>${body}</tbody></table></div>
-      ${rows.length ? '' : `<p class="empty">${esc(t('pu.none', { d: days }))}</p>`}
-      <p class="note">${esc(t('pu.note', { d: days }))}</p><p class="err" role="alert">${esc(st.err)}</p>`;
+      ${rows.length ? '' : `<p class="empty">${esc(t('pu.none', { r: rlab }))}</p>`}
+      <p class="note">${esc(t('pu.note', { r: rlab }))}</p><p class="err" role="alert">${esc(st.err)}</p>`;
   }
   function renderMember(){
     const m = st.member;
@@ -1818,7 +1918,8 @@ const Prompts = (function(){
     clearTimeout(timer); const v = ev.target.value.trim();
     timer = setTimeout(() => { if(v === st.q) return; st.q = v; fetchPrompts(false); }, 300);
   }
-  return { init, activate, reset, render };
+  function rangeChanged(){ if(st.orgId) activate(true); }
+  return { init, activate, reset, render, rangeChanged };
 })();
 
 /* ── demo prompts (?demo=1): synthetic rows, no network ────────────────── */
@@ -1856,16 +1957,16 @@ const demoPrompts = (function(){
   return function(name, a){
     a = a || {}; if(!data) build();
     if(name === 'org_prompt_usage'){
-      const days = a.p_days || 30, since = new Date(Date.now() - days * 864e5).toISOString();
+      const days = a.p_days || 30, since = a.p_from ? new Date(a.p_from + 'T00:00:00').toISOString() : new Date(Date.now() - days * 864e5).toISOString(), until = a.p_to ? new Date(new Date(a.p_to + 'T00:00:00').getTime() + 864e5).toISOString() : '9';
       const members = data.map(m => {
-        const ps = m.prompts.filter(p => p.at >= since), by = {};
+        const ps = m.prompts.filter(p => p.at >= since && p.at < until), by = {};
         ps.forEach(p => { const d = p.at.slice(0, 10); by[d] = (by[d] || 0) + 1; });
         const chars = ps.reduce((n, p) => n + p.chars, 0);
         return { member_id: m.member_id, display_name: m.display_name, team_name: m.team_name, os: m.os, prompts: ps.length, chars,
           avg_chars: ps.length ? Math.round(chars / ps.length) : 0, active_days: Object.keys(by).length, last_prompt_at: ps[0] && ps[0].at,
           by_day: Object.keys(by).sort().map(d => ({ day: d, prompts: by[d] })) };
       }).filter(m => m.prompts).sort((x, y) => y.prompts - x.prompts);
-      return { days, totals: { prompts: members.reduce((n, m) => n + m.prompts, 0), chars: members.reduce((n, m) => n + m.chars, 0), users: members.length }, members };
+      return { days: a.p_from ? Range.list(a.p_from, a.p_to).length : days, from: a.p_from, to: a.p_to, totals: { prompts: members.reduce((n, m) => n + m.prompts, 0), chars: members.reduce((n, m) => n + m.chars, 0), users: members.length }, members };
     }
     if(name === 'member_prompts'){
       const m = data.find(x => x.member_id === a.p_member_id); if(!m) throw new Error('member not found');
@@ -1924,6 +2025,7 @@ function demoSeatsRpc(orgId, teams, name, a){
   throw new Error('unknown rpc ' + name);
 }
 
+Range.onChange(() => { if(team) loadLedger(); Prompts.rangeChanged(); });
 /* ── boot ─────────────────────────────────────────────────────────────── */
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 function demoSb(){
@@ -1937,7 +2039,7 @@ function demoSb(){
   const summary = () => store().rows.map((r, i) => ({ member_id:r.member_id, team_id:r.team_id, display_name:r.display_name, agent:r.agent, sprag_version:r.sprag_version, os:r.os, os_version:r.os_version, arch:r.arch,
     auto_joined:r.auto_joined, joined_at:r.joined_at, last_seen:r.last_seen, left_at:r.left_at, seat_of:r.seat_of, org_id:'demo-org',
     spent_30d:(i + 1) * 31.4, saved_30d:(i + 1) * 12.7, delegated_30d:(i + 1) * 9, errors_30d:0, spent_today:i === 0 ? 24.5 : (i % 4) * 1.3, saved_today:i * 0.4 }));
-  const ledger = () => { const out = []; store().rows.forEach((r, i) => { if(r.left_at) return; for(let d = 0; d < 30; d++) out.push({member_id:r.member_id, day:ago(d).slice(0, 10), spent_usd:(1 + (d % 6) * .5) * (i + 1) * .6, saved_usd:(1 + (d % 4) * .4) * (i + 1) * .3}); }); return out; };
+  const ledger = () => { const out = []; store().rows.forEach((r, i) => { if(r.left_at) return; for(let d = 0; d < 400; d++) out.push({member_id:r.member_id, day:ago(d).slice(0, 10), spent_usd:(1 + (d % 6) * .5) * (i + 1) * .6, saved_usd:(1 + (d % 4) * .4) * (i + 1) * .3}); }); return out; };
   const q = rows => { let data = rows; const o = {};
     ['select', 'order', 'gte', 'range', 'limit', 'update', 'insert'].forEach(k => { o[k] = () => o; });
     o.eq = (c, v) => { data = data.filter(r => r[c] === v); return o; };
@@ -1953,6 +2055,11 @@ function demoSb(){
     rpc: async (name, a) => {
       try{
         if(name === 'org_my') return {data:[org()], error:null};
+        if(name === 'team_member_usage'){
+          const days = new Set(Range.list(a.p_from, a.p_to)), td = fmtDay(new Date()), rows = ledger();
+          return {data:{ from:a.p_from, to:a.p_to, members: summary().map(m => { const r = rows.filter(x => x.member_id === m.member_id && days.has(x.day)), sum = k => r.reduce((n, x) => n + x[k], 0);
+            return { member_id:m.member_id, spent:sum('spent_usd'), saved:sum('saved_usd'), delegated:Math.round(r.length * (m.delegated_30d / 30)), errors:0, spent_today:m.spent_today, saved_today:m.saved_today, series:r.map(x => ({day:x.day, spent:x.spent_usd, saved:x.saved_usd})) }; }) }, error:null};
+        }
         if(name === 'org_summary') return {data:{...org(), teams:tm.map((x, i) => ({id:x.id, name:x.name, members_active:4 + i, seats:3 + i})),
           admins:[{user_id:'u1', email:'ana@northwind.example', role:'owner'}, {user_id:'u2', email:'jun@northwind.example', role:'admin'}]}, error:null};
         if(name === 'org_prompt_usage' || name === 'member_prompts') return {data: demoPrompts(name, a), error:null};

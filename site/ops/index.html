@@ -428,6 +428,18 @@
     .topnav{margin:0 -6px;order:5;flex:1 1 100%}
     .org-tbl td.nm,.att-tbl td.nm{max-width:150px}
   }
+  .range-bar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);margin:0 0 var(--s4)}
+  .range-bar .rg-t{font-size:12px;color:var(--faint)}
+  .range-bar .rg-lab{font:500 12.5px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+  .range-bar .rg-c{display:inline-flex;align-items:center;gap:6px;color:var(--faint)}
+  .range-bar input[type=date]{font:inherit;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--surface);border:1px solid var(--line2);border-radius:var(--r);padding:3px 8px;color-scheme:inherit}
+  .range-bar .rg-err{color:var(--bad,#e5484d);font-size:12.5px}
+  .range-bar .rg-err:empty{display:none}
+  .range-bar .seg{max-width:100%;flex-wrap:wrap}
+  .totals b,.stat b{font-variant-numeric:tabular-nums}
+  .stat b{white-space:normal;overflow-wrap:anywhere}
+  @media (min-width:641px) and (max-width:1240px){#d-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}
+  .stat span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -516,6 +528,7 @@
     </section>
 
     <div id="ops" class="stack" hidden>
+      <div class="range-bar" id="range-bar"></div>
       <div id="view-list" class="stack">
         <section aria-label="Overview">
           <div class="kpis"><div class="totals" id="totals"></div></div>
@@ -577,7 +590,7 @@
             <thead><tr>
               <th data-k="c.name">Name</th><th data-k="c.plan">Plan</th><th data-k="c.status">Status</th><th data-k="c.seats">Seats</th>
               <th class="n" data-k="c.teams">Teams</th><th class="n" data-k="c.members">Members</th><th class="n" data-k="c.paused">Paused</th><th class="n" data-k="c.late">Late</th><th data-k="c.owners">Owners</th>
-              <th class="n" data-k="c.sp">Spent 30d</th><th class="n" data-k="c.sv">Saved 30d</th><th class="n" data-k="c.rev">Revenue / mo</th><th data-k="c.seen">Last seen</th><th data-k="c.created">Created</th>
+              <th class="n" id="th-sp">Spent</th><th class="n" id="th-sv">Saved</th><th class="n" data-k="c.rev">Revenue / mo</th><th data-k="c.seen">Last seen</th><th data-k="c.created">Created</th>
             </tr></thead>
             <tbody id="org-body"></tbody>
           </table></div>
@@ -795,7 +808,7 @@ const I18N = {
     'orgs.h':'Organizations','orgs.none':'No organizations match.','f.q':'Search name or owner email','f.allplans':'All plans','f.allstatus':'All statuses','f.email':'Email',
     'plan.pro':'Pro','plan.enterprise':'Enterprise','st.active':'Active','st.suspended':'Suspended',
     'c.name':'Name','c.plan':'Plan','c.status':'Status','c.seats':'Seats','c.teams':'Teams','c.members':'Members','c.owners':'Owners',
-    'c.sp':'Spent 30d','c.sv':'Saved 30d','c.rev':'Revenue / mo','rev.note':'{seats} contracted seats × ${price} ({plan}); suspended organizations count as $0','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
+    'c.sp':'Spent','c.sv':'Saved','c.rev':'Revenue / mo','rev.note':'{seats} contracted seats × ${price} ({plan}); suspended organizations count as $0','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
     's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (superuser only)','s.save':'Save','s.saved':'Saved',
     's.owner':'Add owner by email','s.ownerd':'For support when the customer lost access. The person must have signed in once.','s.ownerbtn':'Add owner','s.ownerok':'Added {email}',
     's.team':'{n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
@@ -909,7 +922,7 @@ const I18N = {
     'orgs.h':'조직','orgs.none':'조건에 맞는 조직이 없습니다.','f.q':'이름 또는 오너 이메일 검색','f.allplans':'모든 요금제','f.allstatus':'모든 상태','f.email':'이메일',
     'plan.pro':'프로','plan.enterprise':'엔터프라이즈','st.active':'사용 중','st.suspended':'정지됨',
     'c.name':'이름','c.plan':'요금제','c.status':'상태','c.seats':'좌석','c.teams':'팀','c.members':'멤버','c.owners':'오너',
-    'c.sp':'30일 지출','c.sv':'30일 절감','c.rev':'월 수익','rev.note':'계약 좌석 {seats}개 × ${price} ({plan}), 정지된 조직은 $0','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
+    'c.sp':'지출','c.sv':'절감','c.rev':'월 수익','rev.note':'계약 좌석 {seats}개 × ${price} ({plan}), 정지된 조직은 $0','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
     's.teams':'팀','s.admins':'어드민','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (슈퍼유저만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
     's.owner':'이메일로 오너 추가','s.ownerd':'고객이 접근 권한을 잃었을 때 지원용으로 씁니다. 해당 계정이 한 번은 로그인한 적이 있어야 합니다.','s.ownerbtn':'오너 추가','s.ownerok':'{email}님을 추가했습니다',
     's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
@@ -920,8 +933,10 @@ const I18N = {
     'role.owner':'오너','role.admin':'어드민','role.superuser':'슈퍼유저'
   }
 };
-Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in the last {d} days.", "pu.note": "Last {d} days, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts in the last {d} days", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match.", "pu.chars": "{n} chars"});
-Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "컴퓨터", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "최근 {d}일 동안 수집된 프롬프트가 없습니다", "pu.note": "최근 {d}일, 프롬프트 수집을 켠 팀 기준입니다. 컴퓨터를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "최근 {d}일 동안 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다", "pu.chars": "{n}자"});
+Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in this range ({r}).", "pu.note": "{r}, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts, {r}", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match.", "pu.chars": "{n} chars"});
+Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "컴퓨터", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "이 기간({r}) 동안 수집된 프롬프트가 없습니다", "pu.note": "{r}, 프롬프트 수집을 켠 팀 기준입니다. 컴퓨터를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "{r} 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다", "pu.chars": "{n}자"});
+Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg.90d":"90d","rg.this":"This month","rg.last":"Last month","rg.custom":"Custom","rg.from":"From","rg.to":"To","rg.bad":"Enter both dates","rg.order":"The start date must not be after the end date","rg.max":"The range can be 365 days at most"});
+Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -937,6 +952,86 @@ const SEAT_PRICE = { pro: 5, enterprise: 10 };
 const orgRevenue = o => o && o.status !== 'suspended' ? (Number(o.seat_limit) || 0) * (SEAT_PRICE[o.plan === 'enterprise' ? 'enterprise' : 'pro']) : 0;
 const totalRevenue = () => orgs.reduce((s, o) => s + orgRevenue(o), 0);
 const revenueNote = o => t('rev.note', { seats: Number(o.seat_limit) || 0, price: SEAT_PRICE[o.plan === 'enterprise' ? 'enterprise' : 'pro'], plan: t('plan.' + (o.plan === 'enterprise' ? 'enterprise' : 'pro')) }, true);
+
+/* ── shared date range: local calendar days, "to" inclusive, max 365 days; kept in the URL search (from, to) ── */
+const fmtDay = d => { if(!d) return ''; const x = new Date(d); return isNaN(x) ? '' : x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+const Range = (function(){
+  const MAXD = 365, KEYS = ['7d', '30d', '90d', 'this', 'last', 'custom'];
+  const ymd = d => fmtDay(d);
+  const parse = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); if(!m) return null; const d = new Date(+m[1], +m[2] - 1, +m[3]); return ymd(d) === s ? d : null; };
+  const shift = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const today = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+  const spanOf = (a, b) => Math.round((b - a) / 864e5) + 1;
+  function bounds(k){
+    const td = today();
+    if(k === '7d') return [shift(td, -6), td];
+    if(k === '90d') return [shift(td, -89), td];
+    if(k === 'this') return [new Date(td.getFullYear(), td.getMonth(), 1), td];
+    if(k === 'last') return [new Date(td.getFullYear(), td.getMonth() - 1, 1), new Date(td.getFullYear(), td.getMonth(), 0)];
+    return [shift(td, -29), td];
+  }
+  const keyOf = (f, e) => ['7d', '30d', '90d', 'this', 'last'].find(k => { const b = bounds(k); return ymd(b[0]) === f && ymd(b[1]) === e; }) || 'custom';
+  let from, to, key, err = '', host = null; const subs = [];
+  (function(){
+    const q = new URLSearchParams(location.search), a = parse(q.get('from')), b = parse(q.get('to'));
+    if(a && b && a <= b && spanOf(a, b) <= MAXD){ from = ymd(a); to = ymd(b); } else { const d = bounds('30d'); from = ymd(d[0]); to = ymd(d[1]); }
+    key = keyOf(from, to);
+  })();
+  function persist(){
+    const q = new URLSearchParams(location.search);
+    if(key === '30d'){ q.delete('from'); q.delete('to'); } else { q.set('from', from); q.set('to', to); }
+    const s = q.toString();
+    try{ history.replaceState(history.state, '', location.pathname + (s ? '?' + s : '') + location.hash); }catch(e){}
+  }
+  function label(f, e){
+    const a = parse(f || from), b = parse(e || to), y = new Date().getFullYear(), yr = a.getFullYear() !== y || b.getFullYear() !== y;
+    const one = d => lang === 'ko' ? (yr ? d.getFullYear() + '.' : '') + (d.getMonth() + 1) + '.' + d.getDate()
+      : d.toLocaleDateString('en-US', yr ? { month:'short', day:'numeric', year:'numeric' } : { month:'short', day:'numeric' });
+    return one(a) + '–' + one(b);
+  }
+  function list(f, e){
+    const a = parse(f || from), b = parse(e || to), out = [];
+    for(let d = a; d <= b; d = shift(d, 1)) out.push(ymd(d));
+    return out;
+  }
+  function apply(f, e, k){
+    const a = parse(f), b = parse(e);
+    if(!a || !b){ err = t('rg.bad'); return sync(); }
+    if(a > b){ err = t('rg.order'); return sync(); }
+    if(spanOf(a, b) > MAXD){ err = t('rg.max'); return sync(); }
+    err = ''; from = ymd(a); to = ymd(b); key = k || keyOf(from, to);
+    persist(); sync(); subs.forEach(fn => fn());
+  }
+  function pick(k){
+    if(k === 'custom'){ key = 'custom'; err = ''; persist(); return sync(); }
+    const b = bounds(k); apply(ymd(b[0]), ymd(b[1]), k);
+  }
+  function sync(){
+    if(!host) return;
+    host.querySelectorAll('[data-r]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.r === key)));
+    const c = host.querySelector('.rg-c'); c.hidden = key !== 'custom';
+    const fi = host.querySelector('[data-end=from]'), ti = host.querySelector('[data-end=to]');
+    if(document.activeElement !== fi) fi.value = from;
+    if(document.activeElement !== ti) ti.value = to;
+    host.querySelector('.rg-lab').textContent = label();
+    host.querySelector('.rg-err').textContent = err;
+  }
+  function render(){
+    host = document.getElementById('range-bar'); if(!host) return;
+    host.innerHTML = `<span class="rg-t">${esc(t('rg.title'))}</span>
+      <div class="seg" role="tablist" aria-label="${esc(t('rg.title'))}">${KEYS.map(k => `<button type="button" role="tab" data-r="${k}" aria-selected="false">${esc(t('rg.' + k))}</button>`).join('')}</div>
+      <span class="rg-c" hidden><input type="date" data-end="from" aria-label="${esc(t('rg.from'))}" /><i>–</i><input type="date" data-end="to" aria-label="${esc(t('rg.to'))}" /></span>
+      <b class="rg-lab"></b><span class="rg-err" role="alert"></span>`;
+    host.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => pick(b.dataset.r)));
+    host.querySelectorAll('[data-end]').forEach(i => i.addEventListener('change', () => {
+      const f = host.querySelector('[data-end=from]').value, e = host.querySelector('[data-end=to]').value;
+      if(f && e) apply(f, e, 'custom');
+    }));
+    sync();
+  }
+  return { render, label, list, onChange: fn => subs.push(fn), args: () => ({ p_from: from, p_to: to }),
+    get from(){ return from; }, get to(){ return to; }, days: () => spanOf(parse(from), parse(to)) };
+})();
 const fmtDate = d => d ? new Date(d).toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'en-US', {year:'numeric', month:'short', day:'numeric'}) : '';
 function rel(d){
   if(!d) return t('never');
@@ -977,7 +1072,9 @@ const demo = (function(){
     }
     if(name === 'ops_orgs') return orgs.map(o => {
       const r = rowsOf(o);
-      return {...o, seats_used:r.filter(x => x.holds_seat && !x.seat_of).length, seats_paused:r.filter(x => x.signal === 'paused').length, seats_late:r.filter(x => x.signal === 'late').length};
+      const dl = Range.list(a.p_from, a.p_to), ci = orgs.indexOf(o) + 1, born = fmtDay(o.created_at);
+      const wt = d => d < born ? 0 : 0.55 + 0.9 * (((Date.parse(d) / 864e5 | 0) * 2654435761 * ci % 1000) / 1000), tot = Range.list(fmtDay(new Date(Date.now() - 29 * 864e5)), fmtDay(new Date())).reduce((n, d) => n + wt(d), 0) || 1, sw = dl.reduce((n, d) => n + wt(d), 0);
+      return {...o, spent: o.spent_30d * sw / tot, saved: o.saved_30d * sw / tot, range_from: dl[0], range_to: dl[dl.length - 1], seats_used:r.filter(x => x.holds_seat && !x.seat_of).length, seats_paused:r.filter(x => x.signal === 'paused').length, seats_late:r.filter(x => x.signal === 'late').length};
     });
     if(name === 'ops_attention'){
       const out = {paused:[], late:[]};
@@ -1179,7 +1276,7 @@ async function loadTotals(){
 }
 async function loadOrgs(){
   $('orgs-err').textContent = '';
-  try{ const d = await rpc('ops_orgs'); orgs = Array.isArray(d) ? d : []; }catch(e){ orgs = []; $('orgs-err').textContent = errMsg(e); }
+  try{ const d = await rpc('ops_orgs', Range.args()); orgs = Array.isArray(d) ? d : []; }catch(e){ orgs = []; $('orgs-err').textContent = errMsg(e); }
   orgsLoaded = true;
   renderOrgs();
   renderOvSeats();
@@ -1228,7 +1325,7 @@ document.querySelectorAll('#d-tabs .tab').forEach(b => b.addEventListener('click
 }));
 
 /* ── render ───────────────────────────────────────────────────────────── */
-function renderAll(){ renderTotals(); renderOrgs(); renderOverview(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); }
+function renderAll(){ Range.render(); renderTotals(); renderOrgs(); renderOverview(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); }
 function renderAttention(){
   const rows = attention[attTab] || [], paused = attTab === 'paused';
   ['paused', 'late'].forEach(k => {
@@ -1406,6 +1503,7 @@ function filtered(){
     (!q || (o.name || '').toLowerCase().includes(q) || (o.owners || []).some(e => String(e).toLowerCase().includes(q))));
 }
 function renderOrgs(){
+  $('th-sp').textContent = t('c.sp') + ' · ' + Range.label(); $('th-sv').textContent = t('c.sv') + ' · ' + Range.label();
   const rows = filtered();
   $('org-body').innerHTML = rows.map(o => {
     const used = Number(o.seats_used) || 0, lim = Number(o.seat_limit) || 0, full = lim && used >= lim;
@@ -1418,8 +1516,8 @@ function renderOrgs(){
       <td class="n">${Number(o.teams) || 0}</td><td class="n">${Number(o.members_total) || 0}</td>
       <td class="n">${Number(o.seats_paused) || 0}</td><td class="n${Number(o.seats_late) ? ' lt' : ''}">${Number(o.seats_late) || 0}</td>
       <td class="own" title="${esc(own)}">${esc(own)}</td>
-      <td class="n">${money(o.spent_30d)}</td><td class="n">${money(o.saved_30d)}</td><td class="n" title="${esc(revenueNote(o))}">${money(orgRevenue(o))}</td>
-      <td>${esc(rel(o.last_seen))}</td><td>${esc(fmtDate(o.created_at))}</td></tr>`;
+      <td class="n">${money(o.spent ?? o.spent_30d)}</td><td class="n">${money(o.saved ?? o.saved_30d)}</td><td class="n" title="${esc(revenueNote(o))}">${money(orgRevenue(o))}</td>
+      <td>${esc(rel(o.last_seen))}</td><td class="num-d">${esc(fmtDay(o.created_at))}</td></tr>`;
   }).join('');
   $('orgs-loading').hidden = orgsLoaded; $('orgs-empty').hidden = !orgsLoaded || rows.length > 0;
   $('orgs-count').textContent = orgsLoaded ? (rows.length === orgs.length ? String(rows.length) : rows.length + ' / ' + orgs.length) : '';
@@ -1453,8 +1551,8 @@ function renderDetail(){
     st('', t('c.seats'), `${used} / ${lim}<div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div>`) +
     st('', t('c.paused'), Number(sel.seats_paused) || 0) + st(Number(sel.seats_late) ? 'lt' : '', t('c.late'), Number(sel.seats_late) || 0) +
     st('', t('c.teams'), Number(sel.teams) || 0) + st('', t('c.members'), Number(sel.members_total) || 0) +
-    st('sp', t('c.sp'), esc(money(sel.spent_30d))) + st('sv', t('c.sv'), esc(money(sel.saved_30d))) + st('sv', t('c.rev'), esc(money(orgRevenue(sel)))) +
-    st('', t('c.seen'), esc(rel(sel.last_seen))) + st('', t('c.created'), esc(fmtDate(sel.created_at)));
+    st('sp', t('c.sp') + ' · ' + Range.label(), esc(money(sel.spent ?? sel.spent_30d))) + st('sv', t('c.sv') + ' · ' + Range.label(), esc(money(sel.saved ?? sel.saved_30d))) + st('sv', t('c.rev'), esc(money(orgRevenue(sel)))) +
+    st('', t('c.seen'), esc(rel(sel.last_seen))) + st('', t('c.created'), esc(fmtDay(sel.created_at)));
   const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [];
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
     <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
@@ -1666,14 +1764,13 @@ const Prompts = (function(){
   const PAGE = 50;
   const osName = r => [r.os, r.os_version && !String(r.os || '').includes(r.os_version) ? r.os_version : ''].filter(Boolean).join(' ') || '—';
   const num = n => Number(n || 0).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US');
-  const day0 = d => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
-  function spark(by, days){
+  function spark(by, list){
     const m = {}; (by || []).forEach(x => { m[String(x.day).slice(0, 10)] = Number(x.prompts) || 0; });
-    const v = []; for(let i = days - 1; i >= 0; i--) v.push(m[day0(i)] || 0);
+    const v = list.map(d => m[d] || 0);
     const mx = Math.max(1, ...v), w = 96, h = 24, bw = w / v.length;
     const bars = v.map((n, i) => { const bh = n ? Math.max(1.5, n / mx * (h - 2)) : 0.8; return `<rect x="${(i * bw + 0.5).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${Math.max(1, bw - 1).toFixed(1)}" height="${bh.toFixed(1)}" rx="0.6" fill="currentColor" opacity="${n ? 1 : .25}"/>`; }).join('');
     const total = v.reduce((a, b) => a + b, 0);
-    return `<svg class="pu-spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(t('pu.spark', { n: total, d: days }))}">${bars}</svg>`;
+    return `<svg class="pu-spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(t('pu.spark', { n: total, r: Range.label(list[0], list[list.length - 1]) }))}">${bars}</svg>`;
   }
   function init(c){
     cfg = c; box = $(c.box);
@@ -1691,9 +1788,9 @@ const Prompts = (function(){
     if(plan !== 'enterprise'){ st.lock = 'plan'; st.loading = false; return render(); }
     const seq = ++st.seq;
     try{
-      const d = await cfg.rpc('org_prompt_usage', { p_org_id: id, p_days: 30 });
+      const d = await cfg.rpc('org_prompt_usage', { p_org_id: id, p_days: 30, ...Range.args() });
       if(seq !== st.seq) return;
-      st.usage = d || { members: [], totals: {}, days: 30 };
+      st.usage = d || { members: [], totals: {}, days: Range.days() };
     }catch(e){ if(seq !== st.seq) return; lockFrom(e); }
     st.loading = false; render();
   }
@@ -1717,7 +1814,7 @@ const Prompts = (function(){
     if(st.lock){ box.innerHTML = lockHtml(); return; }
     if(st.err && !st.usage){ box.innerHTML = `<p class="err" role="alert">${esc(st.err)}</p>`; return; }
     if(st.member) return renderMember();
-    const u = st.usage || { members: [], totals: {}, days: 30 }, days = u.days || 30, tot = u.totals || {};
+    const u = st.usage || { members: [], totals: {}, days: Range.days() }, tot = u.totals || {}, list = Range.list(u.from, u.to), days = list.length, rlab = Range.label(list[0], list[list.length - 1]);
     const chips = [['ac', t('pu.t.prompts'), num(tot.prompts)], ['', t('pu.t.chars'), num(tot.chars)], ['', t('pu.t.users'), num(tot.users)]]
       .map(c => `<div class="chip ${c[0]}"><span>${esc(c[1])}</span><b>${esc(c[2])}</b></div>`).join('');
     const f = SORTS[st.sort], rows = (u.members || []).slice().sort((a, b) => { const x = f(a), y = f(b); return (x < y ? -1 : x > y ? 1 : 0) * st.dir; });
@@ -1726,13 +1823,13 @@ const Prompts = (function(){
       <td class="sn" title="${esc(r.display_name)}"><button type="button" class="pu-open" data-open="${esc(r.member_id)}">${esc(r.display_name)}</button><span class="share pu-tm">${esc(r.team_name || '')}</span></td>
       <td class="tm" title="${esc(r.team_name || '')}">${esc(r.team_name || '')}</td><td class="dim">${esc(osName(r))}</td>
       <td class="num">${num(r.prompts)}</td><td class="num">${num(r.chars)}</td><td class="num">${num(r.avg_chars)}</td><td class="num">${num(r.active_days)}</td>
-      <td>${esc(rel(r.last_prompt_at))}</td><td>${spark(r.by_day, days)}</td></tr>`).join('');
+      <td>${esc(rel(r.last_prompt_at))}</td><td>${spark(r.by_day, list)}</td></tr>`).join('');
     box.innerHTML = `<div class="sr-top"><div class="chips">${chips}</div></div>
       <div class="tbl-wrap tall pu-tbl"><table><thead><tr>
         ${th('name', t('pu.c.user'))}${th('team', t('pu.c.team'))}${th('os', t('pu.c.os'))}${th('prompts', t('pu.c.prompts'), 'num')}${th('chars', t('pu.c.chars'), 'num')}${th('avg', t('pu.c.avg'), 'num')}${th('days', t('pu.c.days'), 'num')}${th('last', t('pu.c.last'))}
         <th>${esc(t('pu.c.trend', { d: days }))}</th></tr></thead><tbody>${body}</tbody></table></div>
-      ${rows.length ? '' : `<p class="empty">${esc(t('pu.none', { d: days }))}</p>`}
-      <p class="note">${esc(t('pu.note', { d: days }))}</p><p class="err" role="alert">${esc(st.err)}</p>`;
+      ${rows.length ? '' : `<p class="empty">${esc(t('pu.none', { r: rlab }))}</p>`}
+      <p class="note">${esc(t('pu.note', { r: rlab }))}</p><p class="err" role="alert">${esc(st.err)}</p>`;
   }
   function renderMember(){
     const m = st.member;
@@ -1779,7 +1876,8 @@ const Prompts = (function(){
     clearTimeout(timer); const v = ev.target.value.trim();
     timer = setTimeout(() => { if(v === st.q) return; st.q = v; fetchPrompts(false); }, 300);
   }
-  return { init, activate, reset, render };
+  function rangeChanged(){ if(st.orgId) activate(true); }
+  return { init, activate, reset, render, rangeChanged };
 })();
 
 /* ── demo prompts (?demo=1): synthetic rows, no network ────────────────── */
@@ -1817,16 +1915,16 @@ const demoPrompts = (function(){
   return function(name, a){
     a = a || {}; if(!data) build();
     if(name === 'org_prompt_usage'){
-      const days = a.p_days || 30, since = new Date(Date.now() - days * 864e5).toISOString();
+      const days = a.p_days || 30, since = a.p_from ? new Date(a.p_from + 'T00:00:00').toISOString() : new Date(Date.now() - days * 864e5).toISOString(), until = a.p_to ? new Date(new Date(a.p_to + 'T00:00:00').getTime() + 864e5).toISOString() : '9';
       const members = data.map(m => {
-        const ps = m.prompts.filter(p => p.at >= since), by = {};
+        const ps = m.prompts.filter(p => p.at >= since && p.at < until), by = {};
         ps.forEach(p => { const d = p.at.slice(0, 10); by[d] = (by[d] || 0) + 1; });
         const chars = ps.reduce((n, p) => n + p.chars, 0);
         return { member_id: m.member_id, display_name: m.display_name, team_name: m.team_name, os: m.os, prompts: ps.length, chars,
           avg_chars: ps.length ? Math.round(chars / ps.length) : 0, active_days: Object.keys(by).length, last_prompt_at: ps[0] && ps[0].at,
           by_day: Object.keys(by).sort().map(d => ({ day: d, prompts: by[d] })) };
       }).filter(m => m.prompts).sort((x, y) => y.prompts - x.prompts);
-      return { days, totals: { prompts: members.reduce((n, m) => n + m.prompts, 0), chars: members.reduce((n, m) => n + m.chars, 0), users: members.length }, members };
+      return { days: a.p_from ? Range.list(a.p_from, a.p_to).length : days, from: a.p_from, to: a.p_to, totals: { prompts: members.reduce((n, m) => n + m.prompts, 0), chars: members.reduce((n, m) => n + m.chars, 0), users: members.length }, members };
     }
     if(name === 'member_prompts'){
       const m = data.find(x => x.member_id === a.p_member_id); if(!m) throw new Error('member not found');
@@ -1839,6 +1937,11 @@ const demoPrompts = (function(){
   };
 })();
 
+Range.onChange(async () => {
+  await loadOrgs();
+  if(sel){ sel = orgs.find(o => o.id === sel.id) || sel; renderDetail(); }
+  Prompts.rangeChanged();
+});
 /* ── boot ─────────────────────────────────────────────────────────────── */
 (async function boot(){
   Prompts.init({ box:'pu-box', ops:true, orgId:() => sel && sel.id, plan:() => sel && sel.plan, rpc });
