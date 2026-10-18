@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag Operator | Console</title>
-<meta name="description" content="Sprag operator console." />
+<title>Sprag Superuser | Console</title>
+<meta name="description" content="Sprag superuser console." />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="theme-color" content="#010102" />
 <link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
@@ -120,7 +120,8 @@
   .totals{gap:34px}
   .filters{margin-top:14px}
   .filters input[type=text]{flex:1 1 240px}
-  table{min-width:980px}
+  table{min-width:1080px}
+  td.lt{color:var(--warn);font-weight:600}
   tbody tr{cursor:pointer;transition:background .15s var(--ease)}
   tbody tr:hover td{background:rgba(255,255,255,.03)}
   tbody tr[aria-selected=true] td{background:rgba(94,106,210,.1)}
@@ -142,6 +143,32 @@
   .kv dt{color:var(--faint)} .kv dd{overflow-wrap:anywhere}
   .totals div b{font-size:24px}
   @media(max-width:520px){.totals{gap:20px 26px}.totals div b{font-size:21px}}
+  /* seats roster + activity (shared by team and ops) */
+  .badge.warn{border-color:var(--warn);color:var(--warn)}
+  .badge.dim{color:var(--faint)}
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .chip{border:1px solid var(--line);border-radius:var(--r);background:var(--panel2);padding:8px 14px;min-width:100px}
+  .chip span{display:block;font-size:11.5px;color:var(--faint)}
+  .chip b{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .chip.ac b{color:var(--teal)} .chip.pa b{color:var(--warn)}
+  .sr-tools{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+  .sr-tbl table{min-width:0;font-size:12.5px}
+  .sr-tbl th,.sr-tbl td{padding:9px 7px;white-space:normal}
+  .sr-tbl .badge{white-space:nowrap}
+  .sr-tbl select.mg{max-width:112px}
+  .sr-tbl td.sn{font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis}
+  .sr-tbl td.act{text-align:right}
+  .sr-tbl td.act{white-space:normal;width:1%}
+  .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;min-width:120px}
+  .sr-tbl tr.gone td{color:var(--faint)}
+  #seats-box tbody tr{cursor:default}
+  #seats-box tbody tr:hover td{background:none}
+  #seats-box td select.mg{padding:4px 8px;font-size:12.5px}
+  .sr-more{margin-top:10px}
+  .evt{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:13px;flex-wrap:wrap}
+  .evt:first-of-type{border-top:0}
+  .evt time{color:var(--faint);font-size:12.5px;white-space:nowrap}
+  .chip.pa b{color:var(--warn)}
 </style>
 </head>
 <body>
@@ -170,8 +197,8 @@
 
 <main class="wrap">
   <div class="page-head">
-    <p class="eyebrow" data-k="h.eyebrow">Operator</p>
-    <h1 data-k="h.title">Operator console</h1>
+    <p class="eyebrow" data-k="h.eyebrow">Superuser</p>
+    <h1 data-k="h.title">Superuser console</h1>
     <p class="lede" data-k="h.lede">Every customer organization, its seats, spend and plan.</p>
   </div>
 
@@ -205,8 +232,8 @@
     </div>
 
     <section class="card" id="denied" hidden>
-      <h2 data-k="deny.h">This page is for Sprag operators.</h2>
-      <p class="sub" data-k="deny.d">This account has no operator access.</p>
+      <h2 data-k="deny.h">This page is for Sprag superusers.</h2>
+      <p class="sub" data-k="deny.d">This account has no superuser access.</p>
     </section>
 
     <div id="ops" class="stack" hidden>
@@ -214,6 +241,18 @@
         <h2 id="tot-h" data-k="tot.h">Overview</h2>
         <div class="totals" id="totals"></div>
         <p class="err" id="tot-err" role="alert"></p>
+      </section>
+
+      <section class="card" aria-labelledby="att-h">
+        <h2 id="att-h" data-k="att.h">Machines needing attention</h2>
+        <div class="row" role="tablist" style="margin-top:12px">
+          <button type="button" class="btn sm" role="tab" id="tab-paused" aria-selected="true"></button>
+          <button type="button" class="btn sm" role="tab" id="tab-late" aria-selected="false"></button>
+        </div>
+        <p class="sub" id="att-sub"></p>
+        <div class="tbl-wrap"><table style="min-width:760px"><thead id="att-head"></thead><tbody id="att-body"></tbody></table></div>
+        <p class="msg" id="att-empty" hidden data-k="att.none">No machines in this list.</p>
+        <p class="err" id="att-err" role="alert"></p>
       </section>
 
       <div class="layout" id="layout">
@@ -227,7 +266,7 @@
           <div class="tbl-wrap"><table>
             <thead><tr>
               <th data-k="c.name">Name</th><th data-k="c.plan">Plan</th><th data-k="c.status">Status</th><th data-k="c.seats">Seats</th>
-              <th class="n" data-k="c.teams">Teams</th><th class="n" data-k="c.members">Members</th><th data-k="c.owners">Owners</th>
+              <th class="n" data-k="c.teams">Teams</th><th class="n" data-k="c.members">Members</th><th class="n" data-k="c.paused">Paused</th><th class="n" data-k="c.late">Late</th><th data-k="c.owners">Owners</th>
               <th class="n" data-k="c.sp">Spent 30d</th><th class="n" data-k="c.sv">Saved 30d</th><th data-k="c.seen">Last seen</th><th data-k="c.created">Created</th>
             </tr></thead>
             <tbody id="org-body"></tbody>
@@ -268,6 +307,11 @@
           </form>
         </aside>
       </div>
+
+      <section class="card" id="seats-card" hidden aria-labelledby="seats-h">
+        <h2 id="seats-h"></h2>
+        <div id="seats-box"></div>
+      </section>
     </div>
   </div>
 </main>
@@ -289,46 +333,184 @@ const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 /* ── locale ───────────────────────────────────────────────────────────── */
 const I18N = {
   en: {
-    'h.eyebrow':'Operator','h.title':'Operator console','h.lede':'Every customer organization, its seats, spend and plan.',
+    "sr.h":"Seats",
+    "sr.used":"Used / limit",
+    "sr.s.paused":"Paused",
+    "sr.s.left":"Left",
+    "sr.s.removed":"Removed",
+    "sr.all":"All statuses",
+    "sr.filter":"Status",
+    "sr.c.name":"Machine",
+    "sr.c.team":"Team",
+    "sr.c.ver":"Version",
+    "sr.c.seen":"Last contact",
+    "sr.c.since":"Paused since",
+    "sr.c.joined":"Joined",
+    "sr.none":"No machines match.",
+    "sr.remove":"Remove",
+    "sr.restore":"Restore",
+    "sr.merge":"Merge seat…",
+    "sr.unmerge":"Unmerge",
+    "sr.shares":"shares a seat with {name}",
+    "sr.note":"Paused machines stopped sending usage with SPRAG_NO_TEAM_SYNC=1. They keep their seat until an owner or admin removes them. Late means uploads are allowed but nothing arrived for 48 hours.",
+    "sr.removeconfirm":"Remove {name}? Its seat is freed and its key stops working. You can restore it later if a seat is free.",
+    "sr.restoreconfirm":"Restore {name}? It takes one seat again.",
+    "sr.mergeconfirm":"Count {name} and {into} as one seat? Use this when they are the same person on two machines.",
+    "sr.unmergeconfirm":"Give {name} a separate seat again?",
+    "sr.act":"Activity",
+    "sr.more":"Show more",
+    "sr.ev.none":"No activity yet.",
+    "sr.ev.joined":"{name} joined",
+    "sr.ev.paused":"{name} paused uploads",
+    "sr.ev.resumed":"{name} resumed uploads",
+    "sr.ev.left":"{name} left on its own",
+    "sr.ev.removed":"{name} was removed",
+    "sr.ev.restored":"{name} was restored",
+    "sr.actor.member":"the machine",
+    "sr.actor.admin":"admin",
+    "sr.actor.owner":"owner","sr.actor.superuser":"superuser",
+    "sr.s.ok":"OK",
+    "sr.s.late":"Late",
+    "sr.s.silent":"Silent",
+    "sr.sw.on":"On",
+    "sr.sw.off":"Off",
+    "sr.c.switch":"Upload switch",
+    "sr.c.signal":"Signal",
+    "sr.c.upload":"Last upload",
+    "sr.tip.ok":"Uploads are on and data arrived in the last 48 hours.",
+    "sr.tip.late":"Uploads allowed but nothing arrived for 48h+; the machine may be offline or the Claude Code sessions are not running.",
+    "sr.tip.paused":"The member turned uploads off with SPRAG_NO_TEAM_SYNC=1. The seat stays counted.",
+    "sr.tip.silent":"Uploads are on, but the machine has not contacted Sprag for 30+ days. It no longer holds a seat.",
+    "sr.tip.left":"The member left the team on their own.",
+    "sr.tip.removed":"An owner, admin or the superuser removed this machine.",
+    "sr.tip.switch.on":"Uploads allowed",
+    "sr.tip.switch.off":"Uploads switched off by the member",
+    "att.h":"Machines needing attention",
+    "att.paused":"Paused",
+    "att.late":"Late",
+    "att.none":"No machines in this list.",
+    "att.sub.paused":"Machines that switched uploads off keep their seat.",
+    "att.sub.late":"Uploads are allowed, but nothing arrived for 48h+.",
+    "att.org":"Organization",
+    "att.team":"Team",
+    "att.machine":"Machine",
+    "att.since":"Paused since",
+    "att.upload":"Last upload",
+    "att.seen":"Last contact",
+    "tot.paused":"Paused seats",
+    "tot.late":"Late seats",
+    "c.paused":"Paused",
+    "c.late":"Late",
+    "s.seats":"Seats in {name}",
+    'h.eyebrow':'Superuser','h.title':'Superuser console','h.lede':'Every customer organization, its seats, spend and plan.',
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
     'si.sent':'We sent a code to {email}.','si.as':'Signed in as','si.out':'Sign out',
     'si.bademail':'Enter a valid email address.','si.badcode':'Enter the 6-digit code from the email.',
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
-    'deny.h':'This page is for Sprag operators.','deny.d':'This account has no operator access.',
+    'deny.h':'This page is for Sprag superusers.','deny.d':'This account has no superuser access.',
     'tot.h':'Overview','tot.orgs':'Organizations','tot.biz':'Business','tot.seats':'Seats used','tot.active':'Active members 30d','tot.sp':'Spent 30d','tot.sv':'Saved 30d',
     'tot.seatsof':'{used} / {limit}',
     'orgs.h':'Organizations','orgs.none':'No organizations match.','f.q':'Search name or owner email','f.allplans':'All plans','f.allstatus':'All statuses','f.email':'Email',
     'plan.team':'Team','plan.business':'Business','st.active':'Active','st.suspended':'Suspended',
     'c.name':'Name','c.plan':'Plan','c.status':'Status','c.seats':'Seats','c.teams':'Teams','c.members':'Members','c.owners':'Owners',
     'c.sp':'Spent 30d','c.sv':'Saved 30d','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
-    's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (operator only)','s.save':'Save','s.saved':'Saved',
+    's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (superuser only)','s.save':'Save','s.saved':'Saved',
     's.owner':'Add owner by email','s.ownerd':'For support when the customer lost access. The person must have signed in once.','s.ownerbtn':'Add owner','s.ownerok':'Added {email}',
-    's.team':'{owner} · {n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
+    's.team':'{n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
     's.suspendconfirm':'Suspend {name}? Members stop syncing and new joins are refused until you set it back to Active.',
     'k.id':'ID','k.seats':'Seats','k.created':'Created','k.seen':'Last seen','k.you':'Your role',
-    'role.owner':'Owner','role.admin':'Admin','role.operator':'Operator'
+    'role.owner':'Owner','role.admin':'Admin','role.superuser':'Superuser'
   },
   ko: {
-    'h.eyebrow':'운영자','h.title':'운영자 콘솔','h.lede':'모든 고객 조직의 좌석, 지출, 요금제를 봅니다.',
+    "sr.h":"좌석 현황",
+    "sr.used":"사용 / 한도",
+    "sr.s.paused":"중지됨",
+    "sr.s.left":"나감",
+    "sr.s.removed":"제거됨",
+    "sr.all":"모든 상태",
+    "sr.filter":"상태",
+    "sr.c.name":"컴퓨터",
+    "sr.c.team":"팀",
+    "sr.c.ver":"버전",
+    "sr.c.seen":"마지막 접속",
+    "sr.c.since":"중지 시작",
+    "sr.c.joined":"참여일",
+    "sr.none":"조건에 맞는 컴퓨터가 없습니다.",
+    "sr.remove":"제거",
+    "sr.restore":"복원",
+    "sr.merge":"자리 합치기…",
+    "sr.unmerge":"합치기 해제",
+    "sr.shares":"{name} 컴퓨터와 자리를 같이 씁니다",
+    "sr.note":"중지된 컴퓨터는 SPRAG_NO_TEAM_SYNC=1 설정으로 사용량 전송을 멈춘 컴퓨터입니다. 오너나 어드민이 제거하기 전까지 좌석을 계속 차지합니다. 지연은 업로드는 허용돼 있지만 48시간 넘게 데이터가 오지 않은 상태입니다.",
+    "sr.removeconfirm":"{name} 컴퓨터를 제거할까요? 좌석이 비고 이 컴퓨터의 키는 더 이상 쓸 수 없습니다. 빈 좌석이 있으면 나중에 복원할 수 있습니다.",
+    "sr.restoreconfirm":"{name} 컴퓨터를 복원할까요? 좌석 한 개를 다시 차지합니다.",
+    "sr.mergeconfirm":"{name} 컴퓨터와 {into} 컴퓨터를 한 자리로 셀까요? 같은 사람이 컴퓨터 두 대를 쓸 때 사용하세요.",
+    "sr.unmergeconfirm":"{name} 컴퓨터에 다시 자리를 따로 줄까요?",
+    "sr.act":"활동 기록",
+    "sr.more":"더 보기",
+    "sr.ev.none":"아직 기록이 없습니다.",
+    "sr.ev.joined":"{name} 컴퓨터가 참여했습니다",
+    "sr.ev.paused":"{name} 컴퓨터가 업로드를 중지했습니다",
+    "sr.ev.resumed":"{name} 컴퓨터가 업로드를 다시 시작했습니다",
+    "sr.ev.left":"{name} 컴퓨터가 스스로 나갔습니다",
+    "sr.ev.removed":"{name} 컴퓨터를 제거했습니다",
+    "sr.ev.restored":"{name} 컴퓨터를 복원했습니다",
+    "sr.actor.member":"본인 컴퓨터",
+    "sr.actor.admin":"어드민",
+    "sr.actor.owner":"오너","sr.actor.superuser":"슈퍼유저",
+    "sr.s.ok":"정상",
+    "sr.s.late":"지연",
+    "sr.s.silent":"무응답",
+    "sr.sw.on":"켜짐",
+    "sr.sw.off":"꺼짐",
+    "sr.c.switch":"업로드 스위치",
+    "sr.c.signal":"신호",
+    "sr.c.upload":"마지막 업로드",
+    "sr.tip.ok":"업로드가 켜져 있고 최근 48시간 안에 데이터가 도착했습니다.",
+    "sr.tip.late":"업로드는 허용돼 있지만 48시간 넘게 도착한 데이터가 없습니다. 컴퓨터가 꺼져 있거나 Claude Code 세션이 실행되지 않을 수 있습니다.",
+    "sr.tip.paused":"멤버가 SPRAG_NO_TEAM_SYNC=1 로 업로드를 껐습니다. 좌석은 계속 차지합니다.",
+    "sr.tip.silent":"업로드는 켜져 있지만 30일 넘게 Sprag에 접속하지 않았습니다. 더 이상 좌석을 차지하지 않습니다.",
+    "sr.tip.left":"멤버가 스스로 팀에서 나갔습니다.",
+    "sr.tip.removed":"오너, 어드민 또는 슈퍼유저가 이 컴퓨터를 제거했습니다.",
+    "sr.tip.switch.on":"업로드 허용",
+    "sr.tip.switch.off":"멤버가 업로드를 끈 상태",
+    "att.h":"확인이 필요한 컴퓨터",
+    "att.paused":"중지됨",
+    "att.late":"지연",
+    "att.none":"해당하는 컴퓨터가 없습니다.",
+    "att.sub.paused":"업로드를 끈 컴퓨터는 좌석을 계속 차지합니다.",
+    "att.sub.late":"업로드는 허용돼 있지만 48시간 넘게 데이터가 오지 않았습니다.",
+    "att.org":"조직",
+    "att.team":"팀",
+    "att.machine":"컴퓨터",
+    "att.since":"중지 시작",
+    "att.upload":"마지막 업로드",
+    "att.seen":"마지막 접속",
+    "tot.paused":"중지된 좌석",
+    "tot.late":"지연된 좌석",
+    "c.paused":"중지",
+    "c.late":"지연",
+    "s.seats":"{name} 좌석 현황",
+    'h.eyebrow':'슈퍼유저','h.title':'슈퍼유저 콘솔','h.lede':'모든 고객 조직의 좌석, 지출, 요금제를 봅니다.',
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
     'si.sent':'{email}로 코드를 보냈습니다.','si.as':'로그인 계정','si.out':'로그아웃',
     'si.bademail':'올바른 이메일 주소를 입력해 주세요.','si.badcode':'메일에 적힌 6자리 코드를 입력해 주세요.',
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
-    'deny.h':'Sprag 운영자 전용 페이지입니다.','deny.d':'이 계정에는 운영자 권한이 없습니다.',
+    'deny.h':'Sprag 슈퍼유저 전용 페이지입니다.','deny.d':'이 계정에는 슈퍼유저 권한이 없습니다.',
     'tot.h':'한눈에 보기','tot.orgs':'조직','tot.biz':'비즈니스','tot.seats':'사용 중인 좌석','tot.active':'30일 활동 멤버','tot.sp':'30일 지출','tot.sv':'30일 절감',
     'tot.seatsof':'{used} / {limit}',
-    'orgs.h':'조직','orgs.none':'조건에 맞는 조직이 없습니다.','f.q':'이름 또는 소유자 이메일 검색','f.allplans':'모든 요금제','f.allstatus':'모든 상태','f.email':'이메일',
+    'orgs.h':'조직','orgs.none':'조건에 맞는 조직이 없습니다.','f.q':'이름 또는 오너 이메일 검색','f.allplans':'모든 요금제','f.allstatus':'모든 상태','f.email':'이메일',
     'plan.team':'팀','plan.business':'비즈니스','st.active':'사용 중','st.suspended':'정지됨',
-    'c.name':'이름','c.plan':'요금제','c.status':'상태','c.seats':'좌석','c.teams':'팀','c.members':'멤버','c.owners':'소유자',
+    'c.name':'이름','c.plan':'요금제','c.status':'상태','c.seats':'좌석','c.teams':'팀','c.members':'멤버','c.owners':'오너',
     'c.sp':'30일 지출','c.sv':'30일 절감','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
-    's.teams':'팀','s.admins':'관리자','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (운영자만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
-    's.owner':'이메일로 소유자 추가','s.ownerd':'고객이 접근 권한을 잃었을 때 지원용으로 씁니다. 해당 계정이 한 번은 로그인한 적이 있어야 합니다.','s.ownerbtn':'소유자 추가','s.ownerok':'{email}님을 추가했습니다',
-    's.team':'{owner} · 활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
+    's.teams':'팀','s.admins':'어드민','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (슈퍼유저만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
+    's.owner':'이메일로 오너 추가','s.ownerd':'고객이 접근 권한을 잃었을 때 지원용으로 씁니다. 해당 계정이 한 번은 로그인한 적이 있어야 합니다.','s.ownerbtn':'오너 추가','s.ownerok':'{email}님을 추가했습니다',
+    's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
     's.suspendconfirm':'{name} 조직을 정지할까요? 사용 중으로 되돌릴 때까지 멤버 동기화가 멈추고 새 참여도 거절됩니다.',
     'k.id':'ID','k.seats':'좌석','k.created':'생성일','k.seen':'마지막 접속','k.you':'내 권한',
-    'role.owner':'소유자','role.admin':'관리자','role.operator':'운영자'
+    'role.owner':'오너','role.admin':'어드민','role.superuser':'슈퍼유저'
   }
 };
 let lang = 'en';
@@ -364,14 +546,33 @@ const demo = (function(){
     {id:'d4', name:'Old Harbor Co', plan:'team', status:'suspended', seat_limit:5, seats_used:3, teams:1, members_total:3, owners:['pat@oldharbor.example'], spent_30d:0, saved_30d:0, last_seen:ago(19), created_at:ago(210), note:'Suspended: invoice unpaid.'},
     {id:'d5', name:'Quill & Co', plan:'business', status:'active', seat_limit:100, seats_used:41, teams:6, members_total:44, owners:['sam@quill.example'], spent_30d:3150.0, saved_30d:1490.6, last_seen:ago(0.05), created_at:ago(12), note:''}
   ];
-  const sums = o => ({id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, seats_used:o.seats_used, role:'operator',
-    teams:[{id:o.id+'t1', name:'Platform', owner_email:o.owners[0], members_active:Math.ceil(o.seats_used/2), seats:Math.ceil(o.seats_used/2)},{id:o.id+'t2', name:'Apps', owner_email:o.owners[0], members_active:Math.floor(o.seats_used/2), seats:Math.floor(o.seats_used/2)}],
+  const sums = o => ({id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, seats_used:o.seats_used, role:'superuser',
+    teams:[{id:o.id+'t1', name:'Platform', members_active:Math.ceil(o.seats_used/2), seats:Math.ceil(o.seats_used/2)},{id:o.id+'t2', name:'Apps', members_active:Math.floor(o.seats_used/2), seats:Math.floor(o.seats_used/2)}],
     admins:o.owners.map(e => ({user_id:e, email:e, role:'owner'}))});
+  const teamsOf = o => [{id:o.id+'t1', name:'Platform'}, {id:o.id+'t2', name:'Apps'}];
+  const rowsOf = o => demoSeatStore(o.id, teamsOf(o)).rows;
+  const SEATRPC = ['org_seats', 'org_member_events', 'member_remove', 'member_restore'];
   return function(name, a){
     a = a || {};
     if(name === 'is_platform_admin') return true;
-    if(name === 'ops_orgs') return orgs.map(o => ({...o}));
-    if(name === 'ops_totals') return {orgs:orgs.length, orgs_business:orgs.filter(o => o.plan === 'business').length, seats_used:orgs.reduce((s,o) => s+o.seats_used,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
+    if(SEATRPC.includes(name)){
+      const o = orgs.find(x => x.id === a.p_org_id);
+      return demoSeatsRpc(a.p_org_id, o ? teamsOf(o) : [], name, a);
+    }
+    if(name === 'ops_orgs') return orgs.map(o => {
+      const r = rowsOf(o);
+      return {...o, seats_used:r.filter(x => x.holds_seat && !x.seat_of).length, seats_paused:r.filter(x => x.signal === 'paused').length, seats_late:r.filter(x => x.signal === 'late').length};
+    });
+    if(name === 'ops_attention'){
+      const out = {paused:[], late:[]};
+      orgs.forEach(o => rowsOf(o).forEach(r => {
+        const base = {org_id:o.id, org_name:o.name, team_name:r.team_name, display_name:r.display_name, last_seen:r.last_seen, last_upload_at:r.last_upload_at};
+        if(r.signal === 'paused') out.paused.push({...base, sync_state_at:r.sync_state_at});
+        if(r.signal === 'late') out.late.push({...base, joined_at:r.joined_at});
+      }));
+      return out;
+    }
+    if(name === 'ops_totals') return {orgs:orgs.length, orgs_business:orgs.filter(o => o.plan === 'business').length, seats_used:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.holds_seat && !x.seat_of).length,0), seats_paused:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'paused').length,0), seats_late:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'late').length,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
     const o = orgs.find(x => x.id === a.p_org_id);
     if(!o) throw new Error('not found');
     if(name === 'org_summary') return sums(o);
@@ -388,7 +589,7 @@ const demo = (function(){
 })();
 
 /* ── state ────────────────────────────────────────────────────────────── */
-let sb = null, user = null, orgs = [], sel = null, sum = null, pendingEmail = '';
+let sb = null, user = null, orgs = [], sel = null, sum = null, pendingEmail = '', attention = {paused:[], late:[]}, attTab = 'paused';
 async function rpc(name, args){
   if(DEMO) return demo(name, args);
   const { data, error } = await sb.rpc(name, args || {});
@@ -402,7 +603,7 @@ function setLang(next, remember){
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-k]').forEach(el => { el.innerHTML = t(el.dataset.k); });
   document.querySelectorAll('[data-ph]').forEach(el => { el.placeholder = t(el.dataset.ph); });
-  document.title = lang === 'ko' ? 'Sprag 운영자 콘솔' : 'Sprag Operator | Console';
+  document.title = lang === 'ko' ? 'Sprag 슈퍼유저 콘솔' : 'Sprag Superuser | Console';
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   if(remember) lsSet('sprag.lang', lang);
   if(!$('form-code').hidden) $('code-sent').textContent = t('si.sent', {email: pendingEmail}, true);
@@ -465,7 +666,7 @@ async function onSession(session){
   let admin = false;
   try{ admin = (await rpc('is_platform_admin')) === true; }catch(e){ admin = false; }
   $('denied').hidden = admin; $('ops').hidden = !admin;
-  if(admin) await Promise.all([loadTotals(), loadOrgs()]);
+  if(admin) await Promise.all([loadTotals(), loadOrgs(), loadAttention()]);
   renderAll();
 }
 
@@ -481,25 +682,52 @@ async function loadOrgs(){
   try{ const d = await rpc('ops_orgs'); orgs = Array.isArray(d) ? d : []; }catch(e){ orgs = []; $('orgs-err').textContent = errMsg(e); }
   renderOrgs();
 }
+async function loadAttention(){
+  $('att-err').textContent = '';
+  try{ const d = await rpc('ops_attention'); attention = {paused:(d && d.paused) || [], late:(d && d.late) || []}; }
+  catch(e){ attention = {paused:[], late:[]}; $('att-err').textContent = errMsg(e); }
+  renderAttention();
+}
 async function selectOrg(id){
   sel = orgs.find(o => o.id === id) || null; sum = null;
   $('set-err').textContent = ''; $('own-err').textContent = ''; $('set-ok').textContent = ''; $('own-ok').textContent = '';
   renderOrgs(); renderSide();
-  if(!sel) return;
+  if(!sel){ Seats.load(null); return; }
   fillForm();
+  Seats.load(id);
   try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){ $('set-err').textContent = errMsg(e); }
   if(sel && sel.id === id) renderSide();
 }
 
 /* ── render ───────────────────────────────────────────────────────────── */
-function renderAll(){ renderTotals(); renderOrgs(); renderSide(); }
+function renderAll(){ renderTotals(); renderOrgs(); renderSide(); renderAttention(); Seats.render(); }
+function renderAttention(){
+  const rows = attention[attTab] || [], paused = attTab === 'paused';
+  ['paused', 'late'].forEach(k => {
+    const b = $('tab-' + k); b.textContent = t('att.' + k) + ' (' + (attention[k] || []).length + ')';
+    b.setAttribute('aria-selected', String(k === attTab)); b.style.borderColor = k === attTab ? 'var(--amber)' : '';
+    b.style.color = k === attTab ? 'var(--ink)' : '';
+  });
+  $('att-sub').textContent = t('att.sub.' + attTab);
+  $('att-head').innerHTML = `<tr><th>${esc(t('att.org'))}</th><th>${esc(t('att.team'))}</th><th>${esc(t('att.machine'))}</th><th>${esc(t(paused ? 'att.since' : 'att.upload'))}</th><th>${esc(t('att.seen'))}</th></tr>`;
+  $('att-body').innerHTML = rows.map(r => `<tr data-id="${esc(r.org_id)}" tabindex="0"><td class="nm">${esc(r.org_name)}</td><td>${esc(r.team_name)}</td><td>${esc(r.display_name)}</td>
+    <td>${esc(paused ? rel(r.sync_state_at) : (r.last_upload_at ? rel(r.last_upload_at) : t('never')))}</td><td>${esc(rel(r.last_seen))}</td></tr>`).join('');
+  $('att-empty').hidden = rows.length > 0;
+  $('att-body').querySelectorAll('tr').forEach(tr => {
+    tr.addEventListener('click', () => selectOrg(tr.dataset.id));
+    tr.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); selectOrg(tr.dataset.id); } });
+  });
+}
+$('tab-paused').addEventListener('click', () => { attTab = 'paused'; renderAttention(); });
+$('tab-late').addEventListener('click', () => { attTab = 'late'; renderAttention(); });
+
 function renderTotals(){
   const x = totals; if(!x){ $('totals').innerHTML = ''; return; }
   const c = (cls, label, val) => `<div class="${cls}"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
   $('totals').innerHTML =
     c('', t('tot.orgs'), x.orgs ?? 0) + c('', t('tot.biz'), x.orgs_business ?? 0) +
     c('', t('tot.seats'), t('tot.seatsof', {used: x.seats_used ?? 0, limit: x.seats_limit_sum ?? 0}, true)) +
-    c('', t('tot.active'), x.members_active_30d ?? 0) + c('sp', t('tot.sp'), money(x.spent_30d)) + c('sv', t('tot.sv'), money(x.saved_30d));
+    c('', t('tot.active'), x.members_active_30d ?? 0) + c('', t('tot.paused'), x.seats_paused ?? 0) + c('', t('tot.late'), x.seats_late ?? 0) + c('sp', t('tot.sp'), money(x.spent_30d)) + c('sv', t('tot.sv'), money(x.saved_30d));
 }
 function filtered(){
   const q = $('q').value.trim().toLowerCase(), p = $('f-plan').value, s = $('f-status').value;
@@ -517,6 +745,7 @@ function renderOrgs(){
       <td><span class="badge ${o.status === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + (o.status === 'suspended' ? 'suspended' : 'active')))}</span></td>
       <td><div class="seatcell"><span>${used} / ${lim}</span><div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div></div></td>
       <td class="n">${Number(o.teams) || 0}</td><td class="n">${Number(o.members_total) || 0}</td>
+      <td class="n">${Number(o.seats_paused) || 0}</td><td class="n${Number(o.seats_late) ? ' lt' : ''}">${Number(o.seats_late) || 0}</td>
       <td class="own" title="${esc(own)}">${esc(own)}</td>
       <td class="n">${money(o.spent_30d)}</td><td class="n">${money(o.saved_30d)}</td>
       <td>${esc(rel(o.last_seen))}</td><td>${esc(fmtDate(o.created_at))}</td></tr>`;
@@ -536,7 +765,9 @@ function fillForm(){
 }
 function renderSide(){
   $('side').hidden = !sel; $('layout').classList.toggle('open', !!sel);
+  $('seats-card').hidden = !sel;
   if(!sel) return;
+  $('seats-h').textContent = t('s.seats', {name: sel.name}, true);
   $('side-h').textContent = sel.name;
   $('side-badges').innerHTML = `<span class="badge${sel.plan === 'business' ? ' plus' : ''}">${esc(t('plan.' + (sel.plan === 'business' ? 'business' : 'team')))}</span>
     <span class="badge ${sel.status === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + (sel.status === 'suspended' ? 'suspended' : 'active')))}</span>`;
@@ -545,13 +776,13 @@ function renderSide(){
     <dt>${esc(t('k.id'))}</dt><dd><code>${esc(sel.id)}</code></dd>`;
   const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [];
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
-    <span class="share">${esc(t('s.team', {owner: x.owner_email || '', n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
+    <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
   $('side-admins').innerHTML = ad.length ? ad.map(a => `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
 }
 
 /* ── actions ──────────────────────────────────────────────────────────── */
 ['q','f-plan','f-status'].forEach(id => $(id).addEventListener('input', renderOrgs));
-$('side-close').addEventListener('click', () => { sel = null; sum = null; renderOrgs(); renderSide(); });
+$('side-close').addEventListener('click', () => { sel = null; sum = null; renderOrgs(); renderSide(); Seats.load(null); });
 $('form-set').addEventListener('submit', async ev => {
   ev.preventDefault(); $('set-err').textContent = ''; $('set-ok').textContent = '';
   if(!sel) return;
@@ -582,10 +813,184 @@ $('form-owner').addEventListener('submit', async ev => {
   }catch(e){ $('own-err').textContent = errMsg(e); }
 });
 
+/* ── seats roster + activity (shared by site/team and site/ops) ───────── */
+const Seats = (function(){
+  const st = { orgId:null, rows:[], events:[], filter:'', evMax:50, err:'', busy:false };
+  let cfg = null, box = null;
+  const NAME = r => r.display_name || r.member_id;
+  const BADGE = { ok:'good', late:'warn', paused:'plus', silent:'dim', left:'dim', removed:'bad' };
+  function init(c){
+    cfg = c; box = $(c.box);
+    box.addEventListener('click', onClick);
+    box.addEventListener('change', onChange);
+  }
+  async function load(orgId, keepErr){
+    st.orgId = orgId || null;
+    if(!keepErr) st.err = '';
+    if(!st.orgId){ st.rows = []; st.events = []; render(); return; }
+    try{
+      const [r, e] = await Promise.all([
+        cfg.rpc('org_seats', { p_org_id: orgId }),
+        cfg.rpc('org_member_events', { p_org_id: orgId, p_limit: 200 })]);
+      if(st.orgId !== orgId) return;
+      st.rows = Array.isArray(r) ? r : []; st.events = Array.isArray(e) ? e : [];
+    }catch(x){ st.err = errMsg(x); }
+    render();
+  }
+  function actor(e){
+    const who = t('sr.actor.' + (['owner', 'admin', 'superuser'].includes(e.actor) ? e.actor : 'member'));
+    return e.actor_email ? who + ' (' + esc(e.actor_email) + ')' : who;
+  }
+  function render(){
+    if(!box) return;
+    if(!st.orgId){ box.innerHTML = ''; return; }
+    const cnt = s => st.rows.filter(r => r.signal === s).length;
+    const lim = cfg.limit() || {};
+    const chips = [['ac', t('sr.s.ok'), cnt('ok')], ['pa', t('sr.s.late'), cnt('late')], ['', t('sr.s.paused'), cnt('paused')], ['', t('sr.s.silent'), cnt('silent')],
+      ['', t('sr.used'), (Number(lim.used) || 0) + ' / ' + (Number(lim.limit) || 0)]]
+      .map(c => `<div class="chip ${c[0]}"><span>${c[1]}</span><b>${esc(c[2])}</b></div>`).join('');
+    const rows = st.rows.filter(r => !st.filter || r.signal === st.filter);
+    const body = rows.map(r => {
+      const gone = r.signal === 'left' || r.signal === 'removed';
+      const host = r.seat_of ? st.rows.find(x => x.member_id === r.seat_of) : null;
+      const shares = r.seat_of ? `<span class="share">${t('sr.shares', { name: host ? NAME(host) : '?' })}</span>` : '';
+      let act = '';
+      if(cfg.canAct && !st.busy){
+        if(r.signal === 'removed') act = `<button type="button" class="btn sm" data-restore="${esc(r.member_id)}">${esc(t('sr.restore'))}</button>`;
+        else if(!gone){
+          if(cfg.canMerge && r.holds_seat){
+            if(r.seat_of) act += `<button type="button" class="btn sm" data-unmerge="${esc(r.member_id)}">${esc(t('sr.unmerge'))}</button>`;
+            else {
+              const tg = st.rows.filter(x => x.holds_seat && !x.seat_of && x.member_id !== r.member_id);
+              if(tg.length) act += `<select class="mg" data-merge="${esc(r.member_id)}" aria-label="${esc(t('sr.merge'))}"><option value="">${esc(t('sr.merge'))}</option>${tg.map(x => `<option value="${esc(x.member_id)}">${esc(NAME(x))}</option>`).join('')}</select>`;
+            }
+          }
+          act += `<button type="button" class="btn sm danger" data-remove="${esc(r.member_id)}">${esc(t('sr.remove'))}</button>`;
+        }
+      }
+      return `<tr class="${gone ? 'gone' : ''}"><td class="sn" title="${esc(NAME(r))}">${esc(NAME(r))}${shares}</td>
+        <td>${esc(r.team_name || '')}</td>
+        <td>${gone ? '' : `<span class="badge ${r.switch === 'off' ? 'warn' : 'good'}" title="${esc(t('sr.tip.switch.' + (r.switch === 'off' ? 'off' : 'on')))}">${esc(t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')))}</span>`}</td>
+        <td><span class="badge ${BADGE[r.signal] || 'dim'}" title="${esc(t('sr.tip.' + r.signal))}">${esc(t('sr.s.' + r.signal))}</span></td>
+        <td>${gone ? '' : esc(r.last_upload_at ? rel(r.last_upload_at) : t('never'))}</td>
+        <td>${esc(rel(r.last_seen))}</td><td>${r.signal === 'paused' ? esc(rel(r.sync_state_at)) : ''}</td>
+        <td>${esc(r.sprag_version || '')}</td>
+        <td>${esc(fmtDate(r.joined_at))}</td><td class="act"><div class="acts">${act}</div></td></tr>`;
+    }).join('');
+    const opts = ['', 'ok', 'late', 'paused', 'silent', 'left', 'removed'].map(s =>
+      `<option value="${s}" ${st.filter === s ? 'selected' : ''}>${esc(s ? t('sr.s.' + s) : t('sr.all'))}</option>`).join('');
+    const evs = st.events.slice(0, st.evMax);
+    const evHtml = evs.length ? evs.map(e => `<div class="evt"><span class="em"><b style="font-weight:500">${t('sr.ev.' + e.event, { name: e.display_name || '?' })}</b>
+      <span class="share">${esc(e.team_name || '')} · ${actor(e)}</span></span><time title="${esc(new Date(e.at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US'))}">${esc(rel(e.at))}</time></div>`).join('')
+      : `<p class="msg">${esc(t('sr.ev.none'))}</p>`;
+    box.innerHTML = `<div class="chips">${chips}</div>
+      <div class="sr-tools"><label class="thr"><span>${esc(t('sr.filter'))}</span><select id="sr-filter">${opts}</select></label></div>
+      <div class="tbl-wrap sr-tbl"><table><thead><tr>
+        <th>${esc(t('sr.c.name'))}</th><th>${esc(t('sr.c.team'))}</th><th>${esc(t('sr.c.switch'))}</th><th>${esc(t('sr.c.signal'))}</th><th>${esc(t('sr.c.upload'))}</th>
+        <th>${esc(t('sr.c.seen'))}</th><th>${esc(t('sr.c.since'))}</th><th>${esc(t('sr.c.ver'))}</th><th>${esc(t('sr.c.joined'))}</th><th></th></tr></thead>
+        <tbody>${body}</tbody></table></div>
+      ${rows.length ? '' : `<p class="msg">${esc(t('sr.none'))}</p>`}
+      <p class="note">${esc(t('sr.note'))}</p>
+      <p class="err" role="alert">${esc(st.err)}</p>
+      <h3 style="margin-top:22px">${esc(t('sr.act'))}</h3>
+      <div>${evHtml}</div>
+      ${st.events.length > st.evMax ? `<button type="button" class="btn sm sr-more" data-more="1">${esc(t('sr.more'))}</button>` : ''}`;
+    if(st.refocus){ st.refocus = false; const f = box.querySelector('#sr-filter'); if(f) f.focus(); }
+  }
+  async function act(fn, args){
+    st.err = ''; st.busy = true; render();
+    try{ await cfg.rpc(fn, args); st.busy = false; await cfg.after(); }
+    catch(e){ st.busy = false; st.err = errMsg(e); await load(st.orgId, true); }
+  }
+  function byId(id){ return st.rows.find(r => r.member_id === id); }
+  function onClick(ev){
+    const b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.more){ st.evMax += 50; return render(); }
+    if(b.dataset.remove){
+      const r = byId(b.dataset.remove); if(!r) return;
+      if(confirm(t('sr.removeconfirm', { name: NAME(r) }, true))) act('member_remove', { p_member_id: r.member_id });
+    } else if(b.dataset.restore){
+      const r = byId(b.dataset.restore); if(!r) return;
+      if(confirm(t('sr.restoreconfirm', { name: NAME(r) }, true))) act('member_restore', { p_member_id: r.member_id });
+    } else if(b.dataset.unmerge){
+      const r = byId(b.dataset.unmerge); if(!r) return;
+      if(confirm(t('sr.unmergeconfirm', { name: NAME(r) }, true))) act('seat_unmerge', { p_member_id: r.member_id });
+    }
+  }
+  function onChange(ev){
+    const el = ev.target;
+    if(el.id === 'sr-filter'){ st.filter = el.value; st.refocus = true; return render(); }
+    if(el.dataset.merge){
+      const r = byId(el.dataset.merge), tg = byId(el.value);
+      if(!r || !tg){ el.value = ''; return; }
+      if(confirm(t('sr.mergeconfirm', { name: NAME(r), into: NAME(tg) }, true))) act('seat_merge', { p_member_id: r.member_id, p_into_member_id: tg.member_id });
+      else el.value = '';
+    }
+  }
+  return { init, load, render };
+})();
+
+/* ── demo roster (?demo=1): fake rows, no network ──────────────────────── */
+const demoSeatStores = {};
+const DEMO_ACTOR = 'superuser';
+function demoSeatStore(orgId, teams){
+  if(demoSeatStores[orgId]) return demoSeatStores[orgId];
+  const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
+  const names = ['ana-macbook', 'studio-mac', 'dev-linux-02', 'ci-runner-7', 'jun-air', 'mia-pro', 'build-box', 'ops-laptop', 'lab-mini', 'pat-thinkpad'];
+  // [signal, days since last contact, days since last upload, paused for days]
+  const spec = [['ok', 0.01, 0.01], ['ok', 0.2, 0.3], ['ok', 1, 1.2], ['paused', 45, 52, 52], ['paused', 3, 3, 3], ['silent', 41, 41], ['late', 2, 3.5], ['left', 12, 12], ['removed', 20, 20], ['late', 0.5, 6]];
+  const rows = spec.map((s, i) => {
+    const tm = teams[i % teams.length], sg = s[0], gone = sg === 'left' || sg === 'removed';
+    return { member_id: orgId + '-m' + i, team_id: tm.id, team_name: tm.name, display_name: names[i], agent: i % 3 === 2 ? 'codex' : 'claude',
+      sprag_version: i === 5 ? '3.68.0' : '3.70.0', auto_joined: i % 2 === 1, joined_at: ago(70 - i * 3), last_seen: ago(s[1]),
+      last_upload_at: ago(s[2]), last_rules_at: ago(s[1]),
+      sync_state: sg === 'paused' ? 'paused' : 'active', sync_state_at: sg === 'paused' ? ago(s[3]) : null,
+      switch: sg === 'paused' ? 'off' : 'on', signal: sg,
+      left_at: gone ? ago(s[1]) : null, removed: sg === 'removed', seat_of: i === 6 ? orgId + '-m0' : null,
+      holds_seat: !gone && sg !== 'silent', status: sg === 'ok' || sg === 'late' ? 'active' : sg === 'silent' ? 'idle' : sg };
+  });
+  const events = [];
+  rows.forEach(r => {
+    events.push({ at: r.joined_at, event: 'joined', actor: 'member', actor_email: null, member_id: r.member_id, display_name: r.display_name, team_name: r.team_name });
+    if(r.signal === 'paused') events.push({ at: r.sync_state_at, event: 'paused', actor: 'member', actor_email: null, member_id: r.member_id, display_name: r.display_name, team_name: r.team_name });
+    if(r.signal === 'left') events.push({ at: r.left_at, event: 'left', actor: 'member', actor_email: null, member_id: r.member_id, display_name: r.display_name, team_name: r.team_name });
+    if(r.signal === 'removed') events.push({ at: r.left_at, event: 'removed', actor: 'owner', actor_email: 'ana@northwind.example', member_id: r.member_id, display_name: r.display_name, team_name: r.team_name });
+  });
+  events.push({ at: ago(0.3), event: 'resumed', actor: 'member', actor_email: null, member_id: rows[1].member_id, display_name: rows[1].display_name, team_name: rows[1].team_name });
+  events.sort((a, b) => new Date(b.at) - new Date(a.at));
+  return (demoSeatStores[orgId] = { rows, events });
+}
+function demoSeatsRpc(orgId, teams, name, a){
+  if(name === 'org_seats') return demoSeatStore(orgId, teams).rows.map(r => ({ ...r }));
+  if(name === 'org_member_events') return demoSeatStore(orgId, teams).events.slice(0, (a && a.p_limit) || 200);
+  const id = a && a.p_member_id;
+  for(const k in demoSeatStores){
+    const s = demoSeatStores[k], r = s.rows.find(x => x.member_id === id);
+    if(!r) continue;
+    const ev = (event, actor) => s.events.unshift({ at: new Date().toISOString(), event, actor, actor_email: 'demo@example.test', member_id: r.member_id, display_name: r.display_name, team_name: r.team_name });
+    if(name === 'member_remove'){ Object.assign(r, { left_at: new Date().toISOString(), removed: true, holds_seat: false, status: 'removed', signal: 'removed' }); ev('removed', DEMO_ACTOR); return { removed: true }; }
+    if(name === 'member_restore'){ Object.assign(r, { left_at: null, removed: false, holds_seat: true, last_seen: new Date().toISOString(), status: r.sync_state === 'paused' ? 'paused' : 'active', signal: r.sync_state === 'paused' ? 'paused' : 'late' }); ev('restored', DEMO_ACTOR); return { restored: true }; }
+    if(name === 'seat_unmerge'){ r.seat_of = null; return {}; }
+    if(name === 'seat_merge'){ r.seat_of = a.p_into_member_id; return {}; }
+  }
+  throw new Error('unknown rpc ' + name);
+}
+
 /* ── boot ─────────────────────────────────────────────────────────────── */
 (async function boot(){
+  Seats.init({
+    box:'seats-box', canAct:true, canMerge:false, rpc,
+    limit:() => sel && {used:sel.seats_used, limit:sel.seat_limit},
+    after: async () => {
+      const id = sel && sel.id; if(!id) return;
+      await Promise.all([loadOrgs(), loadTotals(), loadAttention()]);
+      sel = orgs.find(o => o.id === id) || null;
+      renderOrgs(); renderSide();
+      await Seats.load(id);
+    }
+  });
   setLang(window.__initLang, false);
-  if(DEMO){ user = {email:'root.studio.yaml@gmail.com'}; await onSession({user}); return; }
+  if(DEMO){ user = {email:'root.studio.yaml@gmail.com'}; await onSession({user}); const pick = new URLSearchParams(location.search).get('org'); if(pick) await selectOrg(pick); return; }
   if(!window.supabase){ showAuthErr(t('err.lib')); return; }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   try{
