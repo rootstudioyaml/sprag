@@ -612,7 +612,7 @@ function renderPanel(){
   if(!team) return;
   const tok = team.invite_token || '';
   $('inv-token').textContent = tok;
-  $('sn-join').textContent = 'sprag team join ' + tok;
+  $('sn-join').textContent = 'npm i -g sprag-cli@latest && sprag team join ' + tok;
   $('sn-env').textContent = 'export SPRAG_TEAM_TOKEN=' + tok;
   $('sn-json').textContent = JSON.stringify({ env: { SPRAG_TEAM_TOKEN: tok } }, null, 2);
   const plus = team.plan === 'business';

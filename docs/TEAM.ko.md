@@ -24,6 +24,28 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 
 목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave` 입니다.
 
+## CLI에서 팀 만들기
+
+웹 대시보드 없이 팀을 만들 수 있습니다. 로그인은 메일로 받는 6자리 코드(15분간 유효)로 하며, Sprag 은 로그인 세션을 저장하지 않습니다.
+
+터미널에서는 명령 하나를 실행하고 묻는 대로 답하면 됩니다 (이메일, 코드, 팀 이름).
+
+```bash
+sprag team create
+```
+
+에이전트나 터미널이 없는 셸에서는 두 단계로 나눕니다.
+
+```bash
+sprag team create --email you@example.com --name "Acme"
+# 메일로 코드가 오면 이어서 실행합니다
+sprag team create --email you@example.com --name "Acme" --code 123456
+```
+
+첫 단계는 코드만 보냅니다. 두 번째 단계에서 코드를 확인하고 팀을 만든 뒤 초대 토큰, 멤버용 명령(`npm i -g sprag-cli@latest && sprag team join <토큰>`), 조직용 환경 변수(`export SPRAG_TEAM_TOKEN=<토큰>`), 대시보드 주소를 출력합니다. 같은 이메일로 https://sprag.io/team/ 에 로그인하면 팀을 관리할 수 있습니다.
+
+기본적으로 이 PC가 첫 멤버로 참여하고 동기화를 한 번 실행합니다. 참여하지 않으려면 `--no-join` 을 붙입니다. 이미 팀에 참여한 PC에서는 먼저 `sprag team leave` 를 실행하거나 `--no-join` 을 붙여야 합니다.
+
 ## 개인으로 참여하기
 
 팀 소유자에게 초대 토큰을 받은 뒤 실행합니다.

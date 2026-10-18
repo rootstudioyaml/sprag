@@ -24,6 +24,28 @@ The upload runs at most once every 6 hours, from a detached child process that t
 
 Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose` and `team_leave`.
 
+## Create a team from the CLI
+
+You can set up a team without the web dashboard. Signing in uses a 6-digit code emailed to you (valid 15 minutes). Sprag never stores the sign-in session.
+
+In a terminal, run one command and answer the prompts (email, code, team name):
+
+```bash
+sprag team create
+```
+
+From an agent or any shell without a terminal, it takes two steps:
+
+```bash
+sprag team create --email you@example.com --name "Acme"
+# the code arrives by email, then:
+sprag team create --email you@example.com --name "Acme" --code 123456
+```
+
+The first step only sends the code. The second verifies it and creates the team. It then prints the invite token, the member command (`npm i -g sprag-cli@latest && sprag team join <token>`), the organization line (`export SPRAG_TEAM_TOKEN=<token>`) and the dashboard address. Sign in to https://sprag.io/team/ with the same email to manage the team.
+
+By default this machine joins as the first member and runs one sync. Pass `--no-join` to skip that. If this machine is already in a team, run `sprag team leave` first or pass `--no-join`.
+
 ## Join as an individual
 
 The team owner gives you an invite token. Then:

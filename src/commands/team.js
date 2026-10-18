@@ -1,5 +1,5 @@
 /**
- * team — `sprag team <join|leave|status|sync|rules|propose>`.
+ * team — `sprag team <create|join|leave|status|sync|rules|propose>`.
  *
  * The opt-in team layer. `join` shows exactly what will be uploaded (daily
  * aggregates only) and asks before enrolling. `sync --background` is what the
@@ -14,13 +14,14 @@ import { userInfo } from 'node:os';
 import { userLanguage } from '../config.js';
 import {
   loadTeamState, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
-  teamRulesCachePath, teamSyncDisabled,
+  teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam,
 } from '../team-sync.js';
 
 const T = {
   en: {
     usage: [
       'Usage: sprag team <command>',
+      '  create [--email <e>] [--name <n>] [--code <6 digits>] [--no-join]   create a team (you become the owner)',
       '  join [token] [--name <n>] [--yes]   join a team (token or SPRAG_TEAM_TOKEN)',
       '  leave                                leave the team and stop uploading',
       '  status [--show-payload]              membership, last sync, what is sent',
@@ -50,10 +51,29 @@ const T = {
     needText: 'Missing rule text. Usage: sprag team propose <text> [--scope ratchet|model]',
     badScope: 'Scope must be ratchet or model.',
     needJoin: 'Join a team first: sprag team join <token>',
+    createUsage: 'Usage: sprag team create --email <e> --name "<team name>" [--code <6 digits>] [--no-join]',
+    badEmail: 'That does not look like an email address.',
+    badCode: 'The code is 6 digits, like 123456.',
+    needEmail: 'Missing --email. Usage: sprag team create --email <e> --name "<team name>"',
+    needName: 'Missing --name. Usage: sprag team create --email <e> --name "<team name>" --code <6 digits>',
+    alreadyJoined: (n) => `This machine is already in team "${n}". Run \`sprag team leave\` first, or pass --no-join.`,
+    askEmail: 'Your email: ',
+    askCode: 'Code from the email (6 digits): ',
+    askTeamName: (d) => `Team name [${d}]: `,
+    codeSent: (e) => `A 6-digit code was sent to ${e} (valid 15 minutes).`,
+    rerun: (e, n) => `Then run: sprag team create --email ${e} --name "${n}" --code <code>`,
+    created: (n) => `Created team "${n}".`,
+    inviteToken: 'Invite token',
+    memberCmd: 'Member command',
+    orgLine: 'Organization env',
+    dashboard: (e) => `Dashboard: https://sprag.io/team/ (sign in with ${e})`,
+    noJoinNote: 'This machine did not join (--no-join).',
+    syncFailed: (e) => `Team created, but the first sync failed: ${e}`,
   },
   ko: {
     usage: [
       '사용법: sprag team <명령>',
+      '  create [--email <e>] [--name <이름>] [--code <6자리>] [--no-join]   팀 만들기 (만든 사람이 소유자)',
       '  join [토큰] [--name <이름>] [--yes]   팀에 참여 (토큰 또는 SPRAG_TEAM_TOKEN)',
       '  leave                                  팀에서 나가고 업로드 중단',
       '  status [--show-payload]                참여 상태, 마지막 동기화, 보내는 내용',
@@ -83,23 +103,106 @@ const T = {
     needText: '규칙 내용이 없습니다. 사용법: sprag team propose <내용> [--scope ratchet|model]',
     badScope: '범위는 ratchet 또는 model 이어야 합니다.',
     needJoin: '먼저 팀에 참여하세요: sprag team join <토큰>',
+    createUsage: '사용법: sprag team create --email <e> --name "<팀 이름>" [--code <6자리>] [--no-join]',
+    badEmail: '이메일 주소 형식이 아닙니다',
+    badCode: '코드는 123456 같은 6자리 숫자입니다',
+    needEmail: '--email 이 없습니다. 사용법: sprag team create --email <e> --name "<팀 이름>"',
+    needName: '--name 이 없습니다. 사용법: sprag team create --email <e> --name "<팀 이름>" --code <6자리>',
+    alreadyJoined: (n) => `이 PC는 이미 팀 "${n}" 에 참여 중입니다. 먼저 \`sprag team leave\` 를 실행하거나 --no-join 을 붙이세요`,
+    askEmail: '이메일: ',
+    askCode: '메일로 받은 코드 (6자리): ',
+    askTeamName: (d) => `팀 이름 [${d}]: `,
+    codeSent: (e) => `${e} 로 6자리 코드를 보냈습니다 (15분간 유효)`,
+    rerun: (e, n) => `받은 코드로 다시 실행하세요: sprag team create --email ${e} --name "${n}" --code <코드>`,
+    created: (n) => `팀 "${n}" 을 만들었습니다`,
+    inviteToken: '초대 토큰',
+    memberCmd: '멤버용 명령',
+    orgLine: '조직 환경 변수',
+    dashboard: (e) => `대시보드: https://sprag.io/team/ (${e} 로 로그인)`,
+    noJoinNote: '이 PC는 참여하지 않았습니다 (--no-join)',
+    syncFailed: (e) => `팀은 만들어졌지만 첫 동기화에 실패했습니다: ${e}`,
   },
 };
 
-function confirm(question) {
+function prompt(question) {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
-    rl.question(question, (a) => { rl.close(); resolve(/^y(es)?$/i.test(a.trim())); });
+    rl.question(question, (a) => { rl.close(); resolve(a.trim()); });
   });
 }
 
-export async function run({ args, hasFlag, getArg, version }) {
+async function confirm(question) {
+  return /^y(es)?$/i.test(await prompt(question));
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CODE_RE = /^\d{6}$/;
+
+/** `sprag team create`: sign in by emailed code, insert the team, join as first member. */
+async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive, ask }) {
+  const noJoin = hasFlag('--no-join');
+  const st0 = loadTeamState();
+  if (isJoined(st0) && !noJoin) { console.error(m.alreadyJoined(st0.teamName || '')); return process.exit(1); }
+
+  let email = getArg('--email');
+  let name = getArg('--name');
+  const code = getArg('--code');
+  if (code !== undefined && code !== null && !CODE_RE.test(String(code))) { console.error(m.badCode); return process.exit(2); }
+  if (!email && interactive) email = await ask(m.askEmail);
+  if (!email) { console.error(m.needEmail); return process.exit(2); }
+  if (!EMAIL_RE.test(email)) { console.error(m.badEmail); return process.exit(2); }
+
+  let osName = 'my';
+  try { osName = userInfo().username || 'my'; } catch { /* no passwd entry */ }
+  const defaultName = `${osName}'s team`;
+
+  let useCode = code;
+  if (!useCode) {
+    if (!interactive) {
+      await requestSignInCode({ email, fetch });
+      out(m.codeSent(email));
+      out(m.rerun(email, name || defaultName));
+      return undefined;
+    }
+    await requestSignInCode({ email, fetch });
+    out(m.codeSent(email));
+    useCode = await ask(m.askCode);
+    if (!CODE_RE.test(useCode)) { console.error(m.badCode); return process.exit(2); }
+  }
+  if (!name && interactive) name = (await ask(m.askTeamName(defaultName))) || defaultName;
+  if (!name) { console.error(m.needName); return process.exit(2); }
+
+  const { accessToken, userId } = await verifySignInCode({ email, code: useCode, fetch });
+  const team = await createTeam({ name, accessToken, userId, fetch });
+  out(m.created(team.name || name));
+  out(`${m.inviteToken}: ${team.inviteToken}`);
+  out(`${m.memberCmd}: npm i -g sprag-cli@latest && sprag team join ${team.inviteToken}`);
+  out(`${m.orgLine}: export SPRAG_TEAM_TOKEN=${team.inviteToken}`);
+  out(m.dashboard(email));
+
+  if (noJoin) { out(m.noJoinNote); return undefined; }
+  let display = 'member';
+  try { display = userInfo().username || 'member'; } catch { /* no passwd entry */ }
+  await joinTeam({ token: team.inviteToken, displayName: display, fetch, version });
+  if (!teamSyncDisabled()) {
+    const r = await syncTeam({ force: true, fetch, version });
+    if (r.error) console.error(m.syncFailed(r.error));
+    else if (!r.skipped) out(m.synced(r.uploaded, r.rules));
+  }
+  return undefined;
+}
+
+export async function run({ args, hasFlag, getArg, version, fetch, interactive, ask }) {
   const m = T[userLanguage()] || T.en;
   const verb = args[1];
   const out = (s) => console.log(s);
 
   try {
     switch (verb) {
+      case 'create': {
+        const tty = interactive !== undefined ? interactive : !!(process.stdin.isTTY && process.stdout.isTTY);
+        return await createFlow({ m, out, hasFlag, getArg, version, fetch, interactive: tty, ask: ask || prompt });
+      }
       case 'join': {
         const token = (args[2] && !args[2].startsWith('--') ? args[2] : null) || process.env.SPRAG_TEAM_TOKEN;
         if (!token) { console.error(m.noToken); return process.exit(2); }

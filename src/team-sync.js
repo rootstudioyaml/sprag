@@ -89,6 +89,57 @@ export async function rpc(fn, params, {
   }
 }
 
+/**
+ * One JSON request against the Supabase project, for the owner sign-in flow
+ * (GoTrue email code + the teams table). Same injectable fetch and 8s timeout
+ * as rpc(). Errors carry the server's own message. The access token only ever
+ * lives in memory: it is never written to disk or printed.
+ */
+async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetch, timeoutMs = 8000, url = TEAM_API_URL, key = TEAM_ANON_KEY, prefer } = {}) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const headers = { apikey: key, 'Content-Type': 'application/json' };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    if (prefer) headers.Prefer = prefer;
+    const res = await fetch(`${url}${path}`, { method: 'POST', headers, body: JSON.stringify(body || {}), signal: ctl.signal });
+    let data = null;
+    try { data = await res.json(); } catch { /* empty or non-JSON body */ }
+    if (!res.ok) {
+      const msg = (data && (data.msg || data.error_description || data.message)) || `HTTP ${res.status}`;
+      throw new Error(`${label}: ${msg}`);
+    }
+    return data;
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Error(`${label}: timeout`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Email a 6-digit sign-in code (valid 15 minutes). Creates the user if new. */
+export async function requestSignInCode({ email, fetch } = {}) {
+  await apiJson('/auth/v1/otp', { body: { email, create_user: true }, label: 'sign-in', fetch });
+}
+
+/** Exchange the emailed code for a session. Returns { accessToken, userId }. */
+export async function verifySignInCode({ email, code, fetch } = {}) {
+  const r = await apiJson('/auth/v1/verify', { body: { type: 'email', email, token: code }, label: 'verify', fetch });
+  if (!r || !r.access_token || !r.user || !r.user.id) throw new Error('verify: no session returned');
+  return { accessToken: r.access_token, userId: r.user.id };
+}
+
+/** Insert a team owned by the signed-in user (RLS allows the owner insert). */
+export async function createTeam({ name, accessToken, userId, fetch } = {}) {
+  const r = await apiJson('/rest/v1/teams', {
+    body: { name, owner_uid: userId }, accessToken, prefer: 'return=representation', label: 'create team', fetch,
+  });
+  const row = Array.isArray(r) ? r[0] : r;
+  if (!row || !row.invite_token) throw new Error('create team: no invite token returned');
+  return { id: row.id, name: row.name, inviteToken: row.invite_token, plan: row.plan };
+}
+
 /** Local calendar day, same key as stats.js. */
 function dayKey(ms) {
   const d = new Date(ms);

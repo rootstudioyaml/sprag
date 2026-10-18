@@ -207,7 +207,7 @@ Usage:
   sprag update-check       is a newer version out?
   sprag brief --hook       internal: the UserPromptSubmit hook entry point
   sprag feedback "<msg>"   file a bug report / feature request (no browser needed)
-  sprag team join|status|sync|leave   opt-in team layer: daily aggregates only (CTS_NO_TEAM_SYNC=1 turns it off)
+  sprag team create|join|status|sync|leave   opt-in team layer: daily aggregates only (CTS_NO_TEAM_SYNC=1 turns it off)
   sprag upgrade            install the latest release
   sprag --install-hook     install cache-monitor PostToolUse hook
   sprag --uninstall-hook   remove that hook
