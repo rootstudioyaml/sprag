@@ -11,15 +11,21 @@ import { HARNESS_BLOCK_BEGIN, HARNESS_BLOCK_END } from '../src/harness-templates
 
 function sandbox(t) {
   const dir = mkdtempSync(join(tmpdir(), 'cts-team-'));
-  const saved = { HOME: process.env.HOME, XDG: process.env.XDG_CONFIG_HOME, CODEX: process.env.CODEX_HOME };
+  const saved = {
+    HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE,
+    XDG: process.env.XDG_CONFIG_HOME, CODEX: process.env.CODEX_HOME,
+  };
+  // os.homedir() reads USERPROFILE on Windows, HOME elsewhere.
   process.env.HOME = join(dir, 'home');
+  process.env.USERPROFILE = join(dir, 'home');
   process.env.XDG_CONFIG_HOME = join(dir, 'cfg');
   delete process.env.CODEX_HOME;
   mkdirSync(join(dir, 'home', '.claude'), { recursive: true });
   const data = join(dir, 'cfg', 'claude-token-saver');
   mkdirSync(data, { recursive: true });
   t.after(() => {
-    for (const [k, v] of [['HOME', saved.HOME], ['XDG_CONFIG_HOME', saved.XDG], ['CODEX_HOME', saved.CODEX]]) {
+    for (const [k, v] of [['HOME', saved.HOME], ['USERPROFILE', saved.USERPROFILE],
+      ['XDG_CONFIG_HOME', saved.XDG], ['CODEX_HOME', saved.CODEX]]) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
