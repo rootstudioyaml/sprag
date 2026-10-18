@@ -9,7 +9,9 @@
  * Day/night follows the viewer's local clock (dawn 5-7, day 7-17, dusk 17-19, night 19-5, smooth blends, re-evaluated every minute).
  * Weather comes from Open-Meteo for Seoul (fixed coordinates, no key, no geolocation, cached 30 min, 4 s timeout, silent fallback to clear).
  * Debug overrides for screenshots only (also honoured in ?demo=1):  ?tod=night|dawn|dusk|day   ?wx=clear|clouds|fog|rain|snow|storm
- * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built. */
+ * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
+ * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
+ * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
 import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit } from './office-scene.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#5f6a88';
@@ -31,14 +33,14 @@ export function townSceneData(o){
     const plan = t(r.ent ? 'plan.enterprise' : 'plan.pro');
     return { ...r, util, act, bots, full, plan,
       sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late },
-      detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit + ' · ' + pc(util)], [t('tn.revm'), o.money(r.rev)], [t('of.spent') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
+      detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit + ' · ' + pc(util)], [t('tn.revm'), o.money(r.rev), 'rev'], [t('of.spent') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
         [t('tn.members'), String(r.members)], [t('tn.teams'), String(r.teams)], [t('tn.paused'), String(r.paused)], [t('tn.late'), String(r.late)], [t('tn.created'), day(r.created)]], status: r.closed ? t('of.tag.closed') : '',
         utilTip: t('tn.d.utilTip', { u: r.used, l: r.limit, p: pc(util) }, true), freeTip: t('tn.d.freeTip', { n: Math.max(0, r.limit - r.used) }, true) } };
   });
   const all = o.orgs || [], sum = k => all.reduce((a, g) => a + (Number(g[k]) || 0), 0), pro = all.filter(g => g.plan !== 'enterprise').length, ent = all.length - pro;
-  const rev = all.reduce((a, g) => a + o.revenue(g), 0);
+  const rev = all.reduce((a, g) => a + o.revenue(g), 0), stats = t('tn.hud', { n: all.length, p: pro, e: ent, r: o.money(rev), u: sum('seats_used'), l: sum('seat_limit') }, true);
   return { companies: list, more: Math.max(0, more), moreLabel: more > 0 ? t('tn.more', { n: more }, true) : '',
-    hud: { title: t('tn.title'), stats: t('tn.hud', { n: all.length, p: pro, e: ent, r: o.money(rev), u: sum('seats_used'), l: sum('seat_limit') }, true) },
+    hud: { title: t('tn.title'), stats, statsNoRev: stats.split(' · ').filter(x => x.indexOf(o.money(rev)) < 0).join(' · ') },
     legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
     ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.spent', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
       dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
@@ -130,7 +132,7 @@ function boxG(T, sx, sy, sz, r){
   g.userData.per = 16; return g;
 }
 
-const TW_CSS = `.tw-chip{display:inline-block;margin-top:4px;padding:1px 9px;border-radius:999px;background:rgba(255,255,255,.8);border:1px solid rgba(120,90,60,.16);font-size:11px;font-weight:600;color:#6a5a4a;pointer-events:none}
+const TW_CSS = `.tw-chip{display:block;width:fit-content;margin-top:6px;line-height:1.5;padding:1px 9px;border-radius:999px;background:rgba(255,255,255,.8);border:1px solid rgba(120,90,60,.16);font-size:11px;font-weight:600;color:#6a5a4a;pointer-events:none}
 .tw-chip[hidden]{display:none}
 .tw-stars{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.2s;background-repeat:no-repeat,repeat-x;background-position:0 0,0 0;background-size:100% 100%,640px 420px}
 .of-stage.tw-night .of-hud,.of-stage.tw-night .of-hud b{color:#e8ecff}
@@ -142,7 +144,7 @@ export function mountTownScene(container, data, opts = {}){
   if(!webglOk()){ if(opts.onFail) opts.onFail('webgl'); return noop; }
   if(!document.getElementById('of-style')){ const s = document.createElement('style'); s.id = 'of-style'; s.textContent = OF_CSS; document.head.appendChild(s); }
   if(!document.getElementById('tw-style')){ const s = document.createElement('style'); s.id = 'tw-style'; s.textContent = TW_CSS; document.head.appendChild(s); }
-  const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), showRev = opts.showRevenue !== false;
   const qs = new URLSearchParams(location.search), DBG_TOD = qs.get('tod'), DBG_WX = qs.get('wx');
   container.innerHTML = '<div class="of-stage"><div class="of-hud"></div><div class="of-legend"></div></div>';
   const stage = container.querySelector('.of-stage'), elHud = stage.querySelector('.of-hud'), elLegend = stage.querySelector('.of-legend');
@@ -251,7 +253,7 @@ export function mountTownScene(container, data, opts = {}){
     let cx = 40 + x.measureText(sg.seats).width + 28;
     if(sg.full){ x.font = `800 60px ${F}`; const tw = x.measureText(sg.full).width; x.fillStyle = '#4caf82'; rr2(cx, 172, tw + 44, 86, 43); x.fill(); x.fillStyle = '#fff'; x.fillText(sg.full, cx + 22, 217); cx += tw + 72; }
     if(sg.warn){ x.fillStyle = '#b4443f'; x.fillRect(cx, 180, 16, 70); x.fillRect(cx + 28, 180, 16, 70); x.font = `800 80px ${F}`; x.fillText(String(sg.warn), cx + 62, 217); }
-    x.font = `700 80px ${F}`; x.fillStyle = closed ? '#8a8794' : '#2f7a56'; x.fillText(sg.rev, 40, 320);
+    if(showRev){ x.font = `700 80px ${F}`; x.fillStyle = closed ? '#8a8794' : '#2f7a56'; x.fillText(sg.rev, 40, 320); }
     const g = track(new T.PlaneGeometry(w, w * ch / cw)), m = track(new T.Mesh(g, track(new T.MeshBasicMaterial({ map: tex(c), toneMapped: false, transparent: true, depthTest: false }))));
     m.renderOrder = 10;   /* signs stay readable even when a taller building stands in front */
     return m;
@@ -268,7 +270,7 @@ export function mountTownScene(container, data, opts = {}){
   function build(d){
     cur = d; clear(); cache.clear(); bb.h = 8; GB = {}; WL = []; SH = []; builtSnow = wx.kind === 'snow';
     const cs = d.companies || [];
-    elHud.innerHTML = `<b>${esc(d.hud.title)}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
+    elHud.innerHTML = `<b>${esc(d.hud.title)}</b>${esc(showRev ? d.hud.stats : d.hud.statsNoRev ?? '')}`; elHud.appendChild(elChip); renderChip();
     elLegend.innerHTML = (d.legend || []).map(l => `<span><i style="background:${l.c}"></i>${esc(l.label)}</span>`).join('');
     if(canvas) canvas.setAttribute('aria-label', d.aria || '');
     (container.closest('.of-card') || container).setAttribute('aria-label', d.hud.title);
@@ -449,34 +451,121 @@ export function mountTownScene(container, data, opts = {}){
     });
 
     /* ── HQ landmark and plaza ── */
-    hq = { x: 0, z: 0, top: 9.2 };
-    { const cream = C('#fff1da'), cream2 = C('#f6e6cc'), purple = C('#5e6ad2'), stone = C('#efe5d1'), stone2 = C('#e3d6bb');
+    hq = { x: 0, z: 0, top: 16.2 };   /* spire tip: delivery bots dock here */
+    { const stone = C('#efe5d1'), stone2 = C('#e3d6bb'), pale = C('#f4f1fb'), lilac = C('#8b7cf0'), cyan = C('#7fe3ff'), glassC = C('#cfe6ff'), white = C('#ffffff');
+      const ringF = (key, x, y, z, r0, r1, col, seg = 64) => { const g = new T.RingGeometry(r0, r1, seg); g.rotateX(-Math.PI / 2); put(key, g, x, y, z, 0, 0, 0, col, 0); g.dispose(); };
       for(let k = 0; k < 16; k++){ const g = new T.CircleGeometry(PLAZA, 2, k * Math.PI / 8, Math.PI / 8); g.rotateX(-Math.PI / 2); g.scale(1, 1, 1); put('road', g, 0, LOTY - 0.04, 0, 0, 0, 0, k % 2 ? stone : stone2, 0); g.dispose(); }
       { const g = new T.RingGeometry(PLAZA - 0.5, PLAZA, 64); g.rotateX(-Math.PI / 2); put('road', g, 0, LOTY - 0.035, 0, 0, 0, 0, C('#cdbf9f'), 0); g.dispose(); }
       { const g = new T.RingGeometry(5.3, 5.6, 64); g.rotateX(-Math.PI / 2); put('road', g, 0, LOTY - 0.03, 0, 0, 0, 0, C('#cfc6f2'), 0); g.dispose(); }
       for(let k = 0; k < 16; k++){ const a = k * Math.PI / 8; B('road', Math.cos(a) * 6.8, LOTY - 0.032, Math.sin(a) * 6.8, 2.2, 0.006, 0.06, C('#cdbf9f'), 0, -a); }
       Cy('road', 0, 0.025, 0, PLAZA + 0.3, PLAZA + 0.3, 0.05, 64, C('#d3c8b0'));
       Pl('ao', 0, LOTY - 0.02, 0, 11.4, 11.4, WHITE());
-      Cy('road', 0, 0.12, 0, 5.15, 5.15, 0.12, 48, stone); Cy('road', 0, 0.2, 0, 4.7, 4.7, 0.1, 48, C('#f5eddc'));
-      const bodyH = (y0, y1, r, col, seg = 40) => Cy('p', 0, (y0 + y1) / 2, 0, r, r, y1 - y0, seg, col);
-      bodyH(0.25, 2.5, 4.3, cream); Cy('g', 0, 1.15, 0, 4.34, 4.34, 1.2, 40, C('#8fc5ea')); for(let k = 0; k < 28; k++){ const a = k / 28 * Math.PI * 2; B('m', Math.cos(a) * 4.38, 1.15, Math.sin(a) * 4.38, 0.1, 1.2, 0.1, C('#ffffff'), 0, -a); }
-      Cy('p', 0, 2.55, 0, 4.5, 4.5, 0.18, 40, stone);
-      bodyH(2.5, 5.2, 3.5, cream2); Cy('g', 0, 3.8, 0, 3.55, 3.55, 1.6, 40, C('#7fb8e6'));
-      for(let k = 0; k < 20; k++){ const a = k / 20 * Math.PI * 2; B('m', Math.cos(a) * 3.58, 3.8, Math.sin(a) * 3.58, 0.09, 1.6, 0.09, C('#ffffff'), 0, -a); B('p', Math.cos(a) * 3.57, 3.8, Math.sin(a) * 3.57, 0.1, 1.9, 0.16, cream, 0.03, -a); }
-      Cy('p', 0, 5.3, 0, 3.7, 3.7, 0.28, 40, purple);
-      bodyH(5.4, 7.2, 2.6, cream); Cy('p', 0, 7.25, 0, 2.78, 2.78, 0.14, 40, stone);
-      { const g = new T.SphereGeometry(2.45, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2); g.scale(1, 0.28, 1); put('p', g, 0, 7.3, 0, 0, 0, 0, C('#e8e4ff'), 0); g.dispose(); }
-      Cy('p', 0, 8.0, 0, 1.0, 1.1, 0.12, 28, purple); { const g = new T.TorusGeometry(0.85, 0.035, 6, 32); g.rotateX(Math.PI / 2); put('glow', g, 0, 8.09, 0, 0, 0, 0, C('#cfc6ff'), 0); g.dispose(); }
-      Cy('m', 0, 8.65, 0, 0.04, 0.07, 1.2, 8, C('#ffffff')); for(let j = 0; j < 2; j++) B('m', 0, 8.55 + j * 0.3, 0, 0.7 - j * 0.25, 0.03, 0.03, C('#ffffff'));
-      for(let k = 0; k < 10; k++){ const a = k / 10 * Math.PI * 2 + 0.15; WL.push({ x: Math.cos(a) * 2.6, z: Math.sin(a) * 2.6, ry: Math.PI / 2 - a, y: 6.3, lit: true, fw: 0.62, fh: 0.8, bd: 0.08, fc: C('#ffffff'), cross: false, hq: true }); }
-      /* fountain, planters, benches */
-      const fx0 = 4.6, fz0 = 4.6; Cy('p', fx0, 0.3, fz0, 1.0, 1.05, 0.34, 28, stone); Cy('g', fx0, 0.43, fz0, 0.85, 0.85, 0.06, 28, C('#7fd0f0')); Cy('p', fx0, 0.6, fz0, 0.14, 0.2, 0.5, 10, stone); Cy('g', fx0, 0.9, fz0, 0.3, 0.12, 0.08, 14, C('#a8e2f5')); Cy('g', fx0, 1.15, fz0, 0.03, 0.12, 0.55, 8, C('#d6f3fc'));
-      for(const [dx2, dz2] of [[0.5, 0], [-0.5, 0.2], [0.1, -0.5]]) Sph('g', fx0 + dx2, 0.55, fz0 + dz2, 0.07, 0.07, 0.07, C('#d6f3fc'));
-      for(const a of [0.15, 1.35, 2.25, 3.4, 4.6, 5.55]){ const x = Math.cos(a) * 7.0, z = Math.sin(a) * 7.0; Cy('p', x, 0.3, z, 0.58, 0.5, 0.4, 14, stone); Cy('p', x, 0.5, z, 0.5, 0.5, 0.04, 14, C('#7a5a3a')); SH.push([x, 0.8, z, 0.46, '#6fb067'], [x + 0.18, 1.1, z + 0.1, 0.12, '#f4a9c0'], [x - 0.2, 1.05, z - 0.1, 0.1, '#ffd36a']); }
-      for(const a of [0.75, 2.4, 3.9, 5.2]){ const x = Math.cos(a) * 5.9, z = Math.sin(a) * 5.9, ry2 = -a + Math.PI / 2;
+      Cy('road', 0, 0.12, 0, 5.15, 5.15, 0.12, 48, stone); Cy('road', 0, 0.2, 0, 4.7, 4.7, 0.1, 48, C('#f3effa')); ringF('glow', 0, 0.253, 0, 4.5, 4.58, lilac);
+
+      /* ── futuristic tower: a tapered, twisted mirror-glass shaft built from rotated square sections (smooth normals up each face) ── */
+      const SECT = (cx, cz, y0, y1, h0, h1, tw, a0) => t => ({ x: cx, z: cz, y: y0 + (y1 - y0) * t, h: h0 + (h1 - h0) * t, a: a0 + tw * t });
+      const CK = [[-1, -1], [1, -1], [1, 1], [-1, 1]], FN = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+      const cornerAt = (S, k, g = 0) => { const [lx, lz] = rot(CK[k][0] * (S.h + g), CK[k][1] * (S.h + g), S.a); return [S.x + lx, S.y, S.z + lz]; };
+      const newAcc = () => ({ p: [], uv: [], tt: [], i: [] });
+      /* strip: rows of two points (own vertices, so edges stay hard); winding is flipped to face `out` */
+      const strip = (acc, rows, out, uvf) => {
+        const o = acc.p.length / 3; rows.forEach((r, j) => r.forEach((q, s) => { acc.p.push(q[0], q[1], q[2]); const uv = uvf ? uvf(j, s, r) : [0, 0]; acc.uv.push(uv[0], uv[1]); acc.tt.push(r.t); }));
+        const a = rows[0][0], b = rows[0][1], c = rows[1][0], fl = ((b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1])) * out[0] + ((b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2])) * out[1] + ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) * out[2] < 0;
+        for(let j = 0; j < rows.length - 1; j++){ const i0 = o + 2 * j; if(fl) acc.i.push(i0, i0 + 2, i0 + 1, i0 + 1, i0 + 2, i0 + 3); else acc.i.push(i0, i0 + 1, i0 + 2, i0 + 1, i0 + 3, i0 + 2); }
+      };
+      const shaft = (acc, SC, t0, t1, n, g, u0) => {   /* the four faces between t0 and t1, g = push outward */
+        for(let k = 0; k < 4; k++){
+          const rows = []; for(let j = 0; j <= n; j++){ const t = t0 + (t1 - t0) * j / n, S = SC(t); rows.push(Object.assign([cornerAt(S, k, g), cornerAt(S, (k + 1) % 4, g)], { t, w: 2 * S.h })); }
+          const [nx, nz] = rot(FN[k][0], FN[k][1], SC((t0 + t1) / 2).a);
+          strip(acc, rows, [nx, 0, nz], (j, s, r) => [(s ? r.w / 4.4 : 0) + k * 0.31 + u0, r[0][1] / 5.6]);
+        }
+      };
+      const sweep = (acc, SC, t0, t1, n, at, w, d, b0) => {   /* thin rib (w wide, d deep) following a line on the shaft */
+        const Rw = [[], [], []]; let f0 = null;
+        for(let j = 0; j <= n; j++){ const t = t0 + (t1 - t0) * j / n, f = at(SC(t)), P = (a, b) => [f.c[0] + f.u[0] * a + f.n[0] * b, f.c[1], f.c[2] + f.u[1] * a + f.n[1] * b], h = w / 2; if(!f0) f0 = f;
+          Rw[0].push(Object.assign([P(h, d), P(-h, d)], { t })); Rw[1].push(Object.assign([P(h, b0), P(h, d)], { t })); Rw[2].push(Object.assign([P(-h, d), P(-h, b0)], { t })); }
+        strip(acc, Rw[0], [f0.n[0], 0, f0.n[1]]); strip(acc, Rw[1], [f0.u[0], 0, f0.u[1]]); strip(acc, Rw[2], [-f0.u[0], 0, -f0.u[1]]);
+      };
+      const faceAt = (k, p) => S => { const A = cornerAt(S, k), B2 = cornerAt(S, (k + 1) % 4), [nx, nz] = rot(FN[k][0], FN[k][1], S.a), L = Math.hypot(B2[0] - A[0], B2[2] - A[2]); return { c: [A[0] + (B2[0] - A[0]) * p, A[1], A[2] + (B2[2] - A[2]) * p], u: [(B2[0] - A[0]) / L, (B2[2] - A[2]) / L], n: [nx, nz] }; };
+      const cornerLed = k => S => { const P = cornerAt(S, k), dx = P[0] - S.x, dz = P[2] - S.z, L = Math.hypot(dx, dz); return { c: P, u: [-dz / L, dx / L], n: [dx / L, dz / L] }; };
+      const geoOf = acc => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(acc.p, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(acc.uv, 2)); g.setIndex(acc.i); g.computeVertexNormals(); return g; };
+      const putAcc = (key, acc, col) => { const g = geoOf(acc); put(key, g, 0, 0, 0, 0, 0, 0, col, 0); g.dispose(); };
+      /* shared curtain-wall materials (created once): mirror glass with a floor-line map and a night-time window emissive map */
+      if(!TX.hqCell){
+        { const [c, x] = cv(256, 256), rn = rng('hq-cell'); x.fillStyle = '#fff'; x.fillRect(0, 0, 256, 256);
+          for(let r = 0; r < 8; r++) for(let q = 0; q < 8; q++){ const v = 176 + Math.floor(rn() * 40); x.fillStyle = `rgb(${v - 38},${v - 12},${v + 22})`; x.fillRect(q * 32, r * 32, 32, 32); x.fillStyle = '#5d70ab'; x.fillRect(q * 32, r * 32 + 26, 32, 6); x.fillStyle = '#e4eaf8'; x.fillRect(q * 32, r * 32, 2, 32); }
+          TX.hqCell = rep(c); }
+        { const [c, x] = cv(256, 256), rn = rng('hq-lit'), pal = ['#ffd9a0', '#ffd9a0', '#bfe6ff', '#cfc6ff']; x.fillStyle = '#000'; x.fillRect(0, 0, 256, 256);
+          for(let r = 0; r < 8; r++) for(let q = 0; q < 8; q++){ if(rn() < 0.42) continue; x.fillStyle = pal[Math.floor(rn() * pal.length)]; x.fillRect(q * 32 + 3, r * 32 + 3, 28, 21); }
+          TX.hqLit = rep(c); }
+        MT.hqg = new T.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, map: TX.hqCell, emissive: 0xffffff, emissiveMap: TX.hqLit, emissiveIntensity: 0, roughness: 0.07, metalness: 0.62, envMap: envTex, envMapIntensity: 1.5 }); MT.hqg.userData.e = 1.5;
+        MT.hqGlow = new T.MeshBasicMaterial({ map: TX.glow, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+      }
+
+      /* lobby drum and roof slab */
+      Cy('g', 0, 1.0, 0, 3.78, 3.78, 1.5, 48, C('#8fbde8')); for(let k = 0; k < 36; k++){ const a = k / 36 * Math.PI * 2; B('m', Math.cos(a) * 3.8, 1.0, Math.sin(a) * 3.8, 0.07, 1.5, 0.07, white, 0, -a); }
+      Cy('m', 0, 1.83, 0, 4.1, 4.1, 0.16, 48, pale); ringF('glow', 0, 1.912, 0, 3.98, 4.06, lilac, 64);
+      B('m', 3.0, 1.46, 3.0, 0.8, 0.07, 1.9, pale, 0.02, -Math.PI / 4); for(const s of [-0.5, 0.5]){ const [ox, oz] = rot(0, s, -Math.PI / 4); B('glow', 2.72 + ox, 0.82, 2.72 + oz, 0.05, 0.9, 0.12, cyan, 0, -Math.PI / 4); }   /* entrance canopy and light slots on the camera side */
+      /* the shaft */
+      const SC = SECT(0, 0, 1.9, 13.6, 2.25, 1.2, 1.5, 0), S1 = SC(1), accG = newAcc(), accF = newAcc(), accL = newAcc();
+      shaft(accG, SC, 0, 1, 22, 0, 0);
+      for(let k = 0; k < 4; k++) for(const p of [0.3, 0.7]) sweep(accF, SC, 0, 0.985, 22, faceAt(k, p), 0.05, 0.13, 0);
+      for(let k = 0; k < 4; k++) sweep(accL, SC, 0.01, 0.99, 22, cornerLed(k), 0.13, 0.07, -0.05);
+      for(const tb of [0.13, 0.31, 0.49, 0.67, 0.85]) shaft(accL, SC, tb - 0.006, tb + 0.006, 1, 0.045, 0);
+      /* satellite pod (a smaller twist) joined by a skybridge, and a cantilever deck on the other side */
+      const SP = SECT(-4.4, 4.4, 0.12, 6.6, 1.0, 0.72, -0.9, 0.35), accP = newAcc(); shaft(accP, SP, 0, 1, 14, 0, 0.17);
+      putAcc('hqg', accG, glassC); putAcc('hqg', accP, glassC); putAcc('m', accF, white);
+      B('m', 0, 13.64, 0, 2 * S1.h + 0.14, 0.12, 2 * S1.h + 0.14, pale, 0.03, S1.a); B('m', 0, 13.96, 0, 1.4, 0.52, 1.4, pale, 0.05, S1.a); B('g', 0, 13.96, 0, 1.46, 0.3, 1.46, glassC, 0.04, S1.a);
+      [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([nx, nz]) => { const [px, pz] = rot(nx * (S1.h + 0.02), nz * (S1.h + 0.02), S1.a); B('glow', px, 13.71, pz, nx ? 0.06 : 2 * S1.h + 0.1, 0.06, nx ? 2 * S1.h + 0.1 : 0.06, lilac, 0, S1.a); });
+      Cy('m', 0, 15.2, 0, 0.03, 0.09, 2.0, 10, white); for(const [yy, rr] of [[14.65, 0.26], [15.2, 0.18], [15.7, 0.12]]){ Cy('m', 0, yy, 0, rr, rr, 0.03, 20, pale); ringF('glow', 0, yy + 0.02, 0, rr * 0.6, rr * 0.82, cyan, 24); }
+      { const P = SP(1); B('m', P.x, 6.7, P.z, 2 * P.h + 0.16, 0.1, 2 * P.h + 0.16, pale, 0.03, P.a); B('glow', P.x, 6.78, P.z, 0.9, 0.06, 0.9, cyan, 0, P.a); Cy('m', P.x, 7.25, P.z, 0.02, 0.05, 1.0, 8, white); B('m', P.x, 0.17, P.z, 2.9, 0.16, 2.9, pale, 0.05, 0.35); }
+      { const ph = 3 * Math.PI / 4, dx = Math.cos(ph), dz = Math.sin(ph), L = 4.15, mid = 3.575, bx = dx * mid, bz = dz * mid;   /* skybridge toward the pod (screen left) */
+        B('g', bx, 5.0, bz, L, 0.6, 0.7, glassC, 0.1, -ph); B('m', bx, 5.34, bz, L + 0.04, 0.08, 0.82, pale, 0.02, -ph); B('m', bx, 4.64, bz, L + 0.04, 0.09, 0.82, pale, 0.02, -ph); B('glow', bx, 4.57, bz, L * 0.9, 0.03, 0.3, cyan, 0, -ph);
+        for(let j = 0; j <= 4; j++){ const s = (j / 4 - 0.5) * (L - 0.1); B('m', bx + dx * s, 5.0, bz + dz * s, 0.05, 0.66, 0.78, white, 0, -ph); } }
+      { const ph = -Math.PI / 4, DR = 1.75, dx = Math.cos(ph) * 3.1, dz = Math.sin(ph) * 3.1, dy = 8.3;   /* cantilever deck (screen right) */
+        Cy('m', dx, dy, dz, DR, DR, 0.12, 40, pale); Cy('m', dx, dy - 0.33, dz, DR - 0.1, 0.55, 0.55, 40, C('#dfe4f2')); ringF('glow', dx, dy + 0.062, dz, DR - 0.14, DR - 0.04, lilac, 40); ringF('glow', dx, dy - 0.06, dz, DR + 0.02, DR + 0.09, cyan, 40);
+        for(let k = 0; k < 18; k++){ const a = k / 18 * Math.PI * 2, px = dx + Math.cos(a) * (DR - 0.06), pz = dz + Math.sin(a) * (DR - 0.06); if(Math.hypot(px, pz) < 2.3) continue; Cy('m', px, dy + 0.27, pz, 0.022, 0.022, 0.42, 5, white); }
+        { const g = new T.TorusGeometry(DR - 0.06, 0.02, 5, 40); g.rotateX(Math.PI / 2); put('glow', g, dx, dy + 0.48, dz, 0, 0, 0, cyan, 0); g.dispose(); }
+        Cy('m', dx + 0.3, dy + 0.3, dz - 0.05, 0.26, 0.26, 0.4, 14, C('#e6e9f4')); Sph('g', dx + 0.3, dy + 0.7, dz - 0.05, 0.3, 0.3, 0.3, C('#a9d8ff')); }
+      /* landing pads, shallow reflecting pool, planters, benches, ring of path lights (gl = soft ground glow that only shows at night: [x, y, z, size, colour]) */
+      const gl = [[0, 0.268, 0, 15.5, '#7a6cf0']];
+      for(const a of [0, Math.PI / 2, Math.PI * 1.25]){ const x = Math.cos(a) * 6.1, z = Math.sin(a) * 6.1, ry2 = -a + Math.PI / 2;
+        Cy('m', x, 0.08, z, 1.1, 1.1, 0.04, 36, C('#c9c4e0')); Cy('p', x, 0.11, z, 1.0, 1.0, 0.06, 36, C('#e6e3f3')); ringF('glow', x, 0.145, z, 0.86, 0.93, cyan, 40);
+        for(const sx of [-0.26, 0.26]){ const [ox, oz] = rot(sx, 0, ry2); B('glow', x + ox, 0.147, z + oz, 0.09, 0.012, 0.6, lilac, 0, ry2); } B('glow', x, 0.147, z, 0.43, 0.012, 0.09, lilac, 0, ry2);
+        gl.push([x, 0.075, z, 3.9, '#6fe3ff']); }
+      { const roads = edges.filter(e => e.hq);
+        for(let k = 0; k < 30; k++){ const a = k / 30 * Math.PI * 2 + 0.05, x = Math.cos(a) * 7.8, z = Math.sin(a) * 7.8;
+          if(roads.some(e => x * e.ux + z * e.uz > 0 && Math.abs(x * e.uz - z * e.ux) < 2.3)) continue;
+          Cy('m', x, 0.22, z, 0.055, 0.07, 0.34, 8, C('#d9d6ea')); B('glow', x, 0.43, z, 0.15, 0.05, 0.15, k % 3 ? lilac : cyan, 0.01); gl.push([x, 0.075, z, 1.5, k % 3 ? '#9b8cff' : '#6fe3ff']); } }
+      { const fx0 = 4.6, fz0 = 4.6;
+        Cy('p', fx0, 0.18, fz0, 1.28, 1.32, 0.16, 40, C('#f4f1fb')); Cy('g', fx0, 0.235, fz0, 1.12, 1.12, 0.05, 40, C('#9fd6ff')); ringF('glow', fx0, 0.265, fz0, 1.16, 1.22, cyan, 48); ringF('glow', fx0, 0.262, fz0, 0.5, 0.54, C('#b9efff'), 32);
+        Cy('m', fx0, 0.6, fz0, 0.03, 0.06, 0.7, 8, white); Sph('g', fx0, 0.98, fz0, 0.09, 0.09, 0.09, C('#d6f3fc'));
+        for(let j = 0; j < 7; j++){ const a = j * 2.4, r = 0.32 + 0.07 * j; Sph('g', fx0 + Math.cos(a) * r, 0.5 + 0.11 * j, fz0 + Math.sin(a) * r, 0.045, 0.045, 0.045, C('#d6f3fc')); }
+        gl.push([fx0, 0.28, fz0, 3.6, '#7fe3ff']); }
+      for(const a of [0.4, 1.18, 3.0, 3.5, 4.4, 5.2, 5.95]){ const x = Math.cos(a) * 7.1, z = Math.sin(a) * 7.1; Cy('p', x, 0.3, z, 0.58, 0.5, 0.4, 14, C('#f4f1fb')); Cy('p', x, 0.5, z, 0.5, 0.5, 0.04, 14, C('#7a5a3a')); SH.push([x, 0.8, z, 0.46, '#6fb067'], [x + 0.18, 1.1, z + 0.1, 0.12, '#f4a9c0'], [x - 0.2, 1.05, z - 0.1, 0.1, '#ffd36a']); }
+      for(const a of [0.35, 1.22, 3.1, 4.5, 5.55]){ const x = Math.cos(a) * 5.9, z = Math.sin(a) * 5.9, ry2 = -a + Math.PI / 2;
         B('wood', x, 0.42, z, 1.1, 0.07, 0.36, C('#c9976a'), 0.02, ry2, 0, 2.1); const [bx2, bz2] = rot(0, -0.17, ry2); B('wood', x + bx2, 0.65, z + bz2, 1.1, 0.34, 0.05, C('#c9976a'), 0.02, ry2, 0, 2.1);
         for(const sx of [-0.45, 0.45]){ const [lx2, lz2] = rot(sx, 0, ry2); B('m', x + lx2, 0.2, z + lz2, 0.06, 0.4, 0.34, C('#5b5668'), 0, ry2); } }
       for(let k = 0; k < 4; k++){ const a = k * Math.PI / 2 + Math.PI / 4 + 0.2, x = Math.cos(a) * 7.5, z = Math.sin(a) * 7.5; lampPts.push([x, z]); }
+
+      /* animated light (hqFx runs from step): corner strips and bands pulse up the shaft, windows and ground glow at night, the halo ring floats, turns and carries a bead */
+      const lgm = track(new T.BufferGeometry()), colA = new T.Float32BufferAttribute(new Float32Array(accL.tt.length * 3), 3); colA.setUsage(T.DynamicDrawUsage);
+      lgm.setAttribute('position', new T.Float32BufferAttribute(accL.p, 3)); lgm.setAttribute('color', colA); lgm.setIndex(accL.i);
+      const led = track(new T.Mesh(lgm, track(new T.MeshBasicMaterial({ vertexColors: true, toneMapped: false })))); led.frustumCulled = false; world.add(led);
+      const hg = mk(meshes.plane, MT.hqGlow, gl.length, false, false); gl.forEach((q, i) => { setM(hg, i, q[0], q[1], q[2], -Math.PI / 2, 0, q[3], q[3], 1); hg.setColorAt(i, C(q[4])); }); hg.instanceMatrix.needsUpdate = true; hg.instanceColor.needsUpdate = true; hg.renderOrder = 2;
+      const hY = 11.3, hR = 3.0, hgrp = track(new T.Group()), htilt = track(new T.Group()), hc = track(new T.MeshBasicMaterial({ color: '#7f70ee', toneMapped: false })), ha = track(new T.MeshBasicMaterial({ color: '#9b8cff', transparent: true, opacity: 0.1, depthWrite: false, toneMapped: false }));
+      const hg1 = track(new T.TorusGeometry(hR, 0.06, 8, 96)), hg2 = track(new T.TorusGeometry(hR, 0.34, 8, 64)); hg1.rotateX(Math.PI / 2); hg2.rotateX(Math.PI / 2);
+      const bead = track(new T.Mesh(track(new T.SphereGeometry(0.17, 10, 8)), track(new T.MeshBasicMaterial({ color: '#bff3ff', toneMapped: false }))));
+      htilt.rotation.x = 0.2; htilt.add(track(new T.Mesh(hg1, hc)), track(new T.Mesh(hg2, ha)), bead); hgrp.add(htilt); hgrp.position.y = hY; world.add(hgrp);
+      const pp = C('#9a8cff'), pc = C('#6fe0ff'), tc = new T.Color(), HC0 = C('#a99dff'), HC1 = C('#e4deff');
+      meshes.hqFx = tm => {
+        const n = night, a = colA.array, tt = accL.tt, base = 0.85 + 0.8 * n;
+        MT.hqg.emissiveIntensity = n * 1.15; MT.hqGlow.opacity = n * 0.8; hg.visible = n > 0.03;
+        for(let i = 0; i < tt.length; i++){ const w = reduced ? 0.3 : Math.pow(0.5 + 0.5 * Math.sin(6.2832 * (tm * 0.14 - tt[i] * 1.4)), 4); tc.copy(pp).lerp(pc, 0.1 + 0.7 * w).multiplyScalar(base * (0.8 + 0.9 * w)); a[i * 3] = tc.r; a[i * 3 + 1] = tc.g; a[i * 3 + 2] = tc.b; }
+        colA.needsUpdate = true;
+        hc.color.copy(HC0).lerp(HC1, n); ha.opacity = 0.09 + 0.3 * n; hgrp.position.y = hY + (reduced ? 0 : Math.sin(tm * 0.7) * 0.12); hgrp.rotation.y = reduced ? 0 : tm * 0.2;
+        const ba = reduced ? 0.8 : tm * 0.9; bead.position.set(Math.cos(ba) * hR, 0, Math.sin(ba) * hR);
+      };
     }
     /* cars parked along some streets */
     { const R = rng('cars'), cols = ['#e4574f', '#4f8fe4', '#f2c04b', '#5cb98a', '#f2f0ea', '#8a6fd9'], cand = edges.filter(e => e.end - e.s0 > 6);
@@ -492,6 +581,7 @@ export function mountTownScene(container, data, opts = {}){
     bld.forEach(b => { gu = Math.max(gu, Math.abs((b.x - b.z) * 0.7071) + b.w * 0.8 + 4.2); gv = Math.max(gv, Math.abs((b.x + b.z) * 0.7071) + b.w * 0.8 + 4.2);
       for(const dx of [-1, 1]) for(const dz of [-1, 1]) for(const y of [0, b.H + 3.6]) pts.push([b.x + dx * (b.w / 2 + 1.5), y, b.z + dz * (b.w / 2 + 1.5)]); });
     for(const dx of [-1, 1]) for(const dz of [-1, 1]) for(const y of [0, 12]) pts.push([dx * 7, y, dz * 7]);
+    pts.push([0, hq.top + 4.2, 0]);   /* HQ spire and floating sign */
     gu = Math.max(gu, 14); gv = Math.max(gv, 14);
     const isl = (rad, y, h, mats) => { const m = track(new T.Mesh(track(new T.CylinderGeometry(1, 1, h, 96)), mats)); m.scale.set(rad[0], 1, rad[1]); m.rotation.y = Math.PI / 4; m.position.y = y; m.receiveShadow = true; m.castShadow = false; world.add(m); return m; };
     { const gt = isl([gu, gv], -0.2, 0.4, [MT.side, MT.grassTop, MT.side]); 
@@ -576,11 +666,15 @@ export function mountTownScene(container, data, opts = {}){
       const sb2 = track(new T.Mesh(meshes.box, std({ color: '#b98b5a' }))); sb2.scale.set(0.16, 1.4, 0.16); sb2.position.set(m.position.x, 0.7, m.position.z); sb2.castShadow = true; world.add(sb2);
     });
     if(fulls.length){ const ft = tex(fullSign(fulls[0].c.sign.full)); fulls.forEach(f => { const m = track(new T.Mesh(meshes.plane, track(new T.MeshBasicMaterial({ map: ft, toneMapped: false, transparent: true })))); m.scale.set(2.6, 1.05, 1); m.position.set(f.x, f.base + 1.0 + 0.55, f.z); world.add(m); billboards.push(m); }); }
-    { const c2 = document.createElement('canvas'), x2 = c2.getContext('2d'); c2.width = 700; c2.height = 220; x2.fillStyle = '#5e6ad2'; x2.beginPath(); x2.roundRect ? x2.roundRect(6, 6, 688, 208, 60) : x2.rect(6, 6, 688, 208); x2.fill();
-      x2.lineWidth = 8; x2.strokeStyle = '#a5adf5'; x2.stroke(); x2.fillStyle = '#fff'; x2.font = '800 130px "Geist","Noto Sans KR",-apple-system,sans-serif'; x2.textBaseline = 'middle'; x2.textAlign = 'center'; x2.fillText('Sprag', 350, 116);
-      const grp = track(new T.Group()), hb = track(new T.Mesh(track(new T.PlaneGeometry(5.4, 5.4 * 220 / 700)), track(new T.MeshBasicMaterial({ map: tex(c2), toneMapped: false, transparent: true }))));
-      const halo = track(new T.Mesh(meshes.plane, MT.signHalo)); halo.scale.set(9, 5, 1); halo.position.z = -0.05; hb.position.z = 0.02; grp.add(halo, hb); grp.position.set(0, 10.9, 0); meshes.hqSign = grp; world.add(grp); }
-    { const tip = track(new T.Mesh(track(new T.SphereGeometry(0.2, 10, 8)), track(new T.MeshBasicMaterial({ color: '#8b7cf0', toneMapped: false })))); tip.position.y = 9.2; world.add(tip); meshes.tip = tip; }
+    /* HQ sign: a dark glass plate with a glowing rim that floats above the spire and always faces the camera */
+    { const c2 = document.createElement('canvas'), x2 = c2.getContext('2d'); c2.width = 700; c2.height = 220;
+      const plate = () => { x2.beginPath(); x2.roundRect ? x2.roundRect(8, 8, 684, 204, 52) : x2.rect(8, 8, 684, 204); };
+      const bg = x2.createLinearGradient(0, 0, 0, 220); bg.addColorStop(0, 'rgba(56,50,138,.95)'); bg.addColorStop(1, 'rgba(24,22,80,.95)'); x2.fillStyle = bg; plate(); x2.fill();
+      const bd = x2.createLinearGradient(0, 0, 700, 0); bd.addColorStop(0, '#b9b1ff'); bd.addColorStop(0.5, '#8fe7ff'); bd.addColorStop(1, '#b9b1ff'); x2.lineWidth = 7; x2.strokeStyle = bd; x2.shadowColor = '#8fe7ff'; x2.shadowBlur = 14; plate(); x2.stroke();
+      x2.fillStyle = '#fff'; x2.shadowColor = '#9a8cff'; x2.shadowBlur = 22; x2.font = '800 130px "Geist","Noto Sans KR",-apple-system,sans-serif'; x2.textBaseline = 'middle'; x2.textAlign = 'center'; x2.fillText('Sprag', 350, 116);
+      const grp = track(new T.Group()), hb = track(new T.Mesh(track(new T.PlaneGeometry(5.6, 5.6 * 220 / 700)), track(new T.MeshBasicMaterial({ map: tex(c2), toneMapped: false, transparent: true }))));
+      const halo = track(new T.Mesh(meshes.plane, MT.signHalo)); halo.scale.set(9.5, 5, 1); halo.position.z = -0.05; hb.position.z = 0.02; grp.add(halo, hb); const ss = Math.max(1, sw * 1.1 / 5.6); grp.scale.setScalar(ss); grp.position.set(0, hq.top + 1.4 + 0.88 * ss, 0); meshes.hqSign = grp; world.add(grp); }
+    { const tip = track(new T.Mesh(track(new T.SphereGeometry(0.2, 10, 8)), track(new T.MeshBasicMaterial({ color: '#7fe3ff', toneMapped: false })))); tip.position.y = hq.top; world.add(tip); meshes.tip = tip; }
 
     /* ── delivery bots: orbit their roof, fly to HQ now and then; more bots and flights for busier companies ── */
     const bl = []; bld.forEach(b => { for(let j = 0; j < b.c.bots; j++) bl.push({ b, j }); });
@@ -677,7 +771,7 @@ export function mountTownScene(container, data, opts = {}){
         + sec(ui.dTeams, kit.cmp([{ label: '', items: d.teams }])) + sec(ui.dTop, kit.cmp([{ label: '', items: d.top }]));
     }
     chrome.setHtml(`<div class="hd"><div><b title="${esc(c.name)}">${esc(c.name)}<span class="badge">${esc(c.plan)}</span></b><small>${esc(c.detail.status || '')}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
-      + `<div class="bd"><div class="sec"><div class="grid">${c.detail.rows.map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div></div>`
+      + `<div class="bd"><div class="sec"><div class="grid">${c.detail.rows.filter(r => showRev || r[2] !== 'rev').map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div></div>`
       + sec(ui.dUtil, util) + more + `</div><div class="ft"><button type="button" class="of-dbtn pri" data-a="org">${esc(ui.org)}</button></div>`);
   }
 
@@ -699,7 +793,7 @@ export function mountTownScene(container, data, opts = {}){
       setM(meshes.bm, b.i, b.pos.x, b.pos.y, b.pos.z, 0, 0, 0.3, 0.3, 0.3); setM(meshes.gl, b.i, b.pos.x, b.pos.y, b.pos.z, 0, 0, 0.6, 0.6, 0.6);
     });
     if(bots.length){ meshes.bm.instanceMatrix.needsUpdate = meshes.gl.instanceMatrix.needsUpdate = true; }
-    hqFlash = Math.max(0, hqFlash - dt * 1.6); if(meshes.tip) meshes.tip.scale.setScalar(1 + hqFlash * 1.6);
+    hqFlash = Math.max(0, hqFlash - dt * 1.6); if(meshes.tip) meshes.tip.scale.setScalar(1 + hqFlash * 1.6); if(meshes.hqFx) meshes.hqFx(time);
     if(peds.length){ peds.forEach((p, i) => { const e = p.e, lo = e.s0 + 2, hi = Math.max(lo + 1, e.end), s = lo + (hi - lo) * (0.5 + 0.5 * Math.sin(time * p.sp + p.ph)), bob = Math.abs(Math.sin(time * 5 + p.ph)) * 0.025 * (reduced ? 0 : 1);
         const x = e.ax + e.ux * s + e.px * p.side * 1.5, z = e.az + e.uz * s + e.pz * p.side * 1.5; setM(meshes.pb, i, x, 0.3 + bob, z, 0, 0, 0.11, 0.44, 0.11); setM(meshes.ph, i, x, 0.64 + bob, z, 0, 0, 0.11, 0.11, 0.11); });
       meshes.pb.instanceMatrix.needsUpdate = meshes.ph.instanceMatrix.needsUpdate = true; }
@@ -800,6 +894,11 @@ export function mountTownScene(container, data, opts = {}){
   });
   return {
     update(d){ cur = d; if(started === true) build(d); },
+    get view(){ return view; },
+    ready: () => started === true && !!view,
+    orgs: () => bld.map(b => ({ id: b.c.id, name: b.c.name, x: b.x, z: b.z, w: b.w, h: b.H })),
+    selectOrg(id){ const b = bld.find(q => q.c.id === id); if(b) select(b); return !!b; },
+    closeDrawer: () => chrome.close(),
     destroy(){
       destroyed = true; if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); if(io) io.disconnect(); if(ro) ro.disconnect(); clearInterval(minuteTimer);
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
