@@ -189,7 +189,12 @@ export function makeView(cfg){
   }, { passive: false });
   cfg.stage.addEventListener('pointerenter', () => { if(!focused && !cfg.isFs() && cfg.onEnter) cfg.onEnter(); });
   cfg.stage.addEventListener('pointerleave', () => { focused = false; if(!g) cfg.onLeave(); });
-  return { update, reset, zoomBy: f => zoomAt(f), azimuth: () => thEff, zoom: () => zoom, apply: pose,
+  /* programmatic pose for tests and screenshots: { th, ph, zoom, x, z } (all optional) */
+  function setPose(o){
+    if(o.th != null){ th = o.th; thEff = th; } if(o.ph != null) ph = clamp(o.ph, PMIN, PMAX); if(o.zoom != null) zoom = zT = clamp(o.zoom, ZMIN, ZMAX);
+    if(o.x != null) tgt.x = o.x; if(o.z != null) tgt.z = o.z; vth = vph = 0; mark(); pose(); cfg.request();
+  }
+  return { update, reset, setPose, zoomBy: f => zoomAt(f), azimuth: () => thEff, zoom: () => zoom, apply: pose,
     defaultCam(far){ const c = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, far || 400), sp = Math.sin(cfg.phi0); c.position.set(tgt0.x + cfg.dist * sp * Math.sin(cfg.theta0), tgt0.y + cfg.dist * Math.cos(cfg.phi0), tgt0.z + cfg.dist * sp * Math.cos(cfg.theta0)); c.lookAt(tgt0); c.updateMatrixWorld(); return c; } };
 }
 
