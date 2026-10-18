@@ -26,8 +26,9 @@ const T = {
       '  join [token] [--name <n>] [--yes]   join a team (token or SPRAG_TEAM_TOKEN)',
       '  leave                                leave the team and stop uploading',
       '  status [--show-payload]              membership, last sync, what is sent',
-      '  sync [--force]                       upload aggregates, prompts (Enterprise capture) and pull team rules now',
-      '  rules                                show cached team rules',
+      '  sync [--force] [--rules-only]        upload aggregates, prompts (Enterprise capture) and pull rules now',
+      '                                       (--rules-only: pull organization and team rules only, upload nothing)',
+      '  rules                                show cached organization and team rules',
       '  propose <text> [--scope ratchet|model]   propose a rule to the team',
     ].join('\n'),
     willSend: 'Joining uploads daily aggregates only, per local day:\n  - spend (USD)\n  - savings (USD)\n  - delegation run counts\n  - model-family share\nNo prompts, file paths or transcripts are sent.',
@@ -55,8 +56,9 @@ const T = {
     pendingExample: (e) => `Example (redacted): ${e.at} · ${e.project || '-'} · ${e.text}`,
     disabled: 'Team sync is disabled (SPRAG_NO_TEAM_SYNC=1).',
     skipped: (s) => `Skipped: ${s}`,
-    synced: (u, r, p) => `Synced: ${u} day rows uploaded, ${r} team rules${p ? `, ${p} prompts` : ''}.`,
-    noRules: 'No team rules yet.',
+    synced: (u, r, p) => `Synced: ${u} day rows uploaded, ${r} rules${p ? `, ${p} prompts` : ''}.`,
+    rulesPulled: (r) => `Rules updated: ${r} organization and team rules. A new session applies them.`,
+    noRules: 'No organization or team rules yet.',
     proposed: (id) => `Proposed. Id: ${id}`,
     needText: 'Missing rule text. Usage: sprag team propose <text> [--scope ratchet|model]',
     badScope: 'Scope must be ratchet or model.',
@@ -87,8 +89,9 @@ const T = {
       '  join [토큰] [--name <이름>] [--yes]   팀에 참여 (토큰 또는 SPRAG_TEAM_TOKEN)',
       '  leave                                  팀에서 나가고 업로드 중단',
       '  status [--show-payload]                참여 상태, 마지막 동기화, 보내는 내용',
-      '  sync [--force]                         지금 집계를 올리고 팀 규칙을 받기',
-      '  rules                                  받아 둔 팀 규칙 보기',
+      '  sync [--force] [--rules-only]          지금 집계를 올리고 규칙을 받기',
+      '                                         (--rules-only: 조직·팀 규칙만 받고 아무것도 올리지 않음)',
+      '  rules                                  받아 둔 조직·팀 규칙 보기',
       '  propose <내용> [--scope ratchet|model]   팀에 규칙 제안',
     ].join('\n'),
     willSend: '참여하면 로컬 날짜별 하루 단위 집계만 올라갑니다.\n  - 지출(USD)\n  - 절감(USD)\n  - 위임 실행 횟수\n  - 모델 계열 비중\n프롬프트, 파일 경로, 대화 기록은 보내지 않습니다.',
@@ -116,8 +119,9 @@ const T = {
     pendingExample: (e) => `예시 (비밀값 가림): ${e.at} · ${e.project || '-'} · ${e.text}`,
     disabled: '팀 동기화가 꺼져 있습니다 (SPRAG_NO_TEAM_SYNC=1).',
     skipped: (s) => `건너뜀: ${s}`,
-    synced: (u, r, p) => `동기화 완료: ${u}일치 집계 업로드, 팀 규칙 ${r}개${p ? `, 프롬프트 ${p}건` : ''}.`,
-    noRules: '아직 팀 규칙이 없습니다.',
+    synced: (u, r, p) => `동기화 완료: ${u}일치 집계 업로드, 규칙 ${r}개${p ? `, 프롬프트 ${p}건` : ''}.`,
+    rulesPulled: (r) => `규칙을 받았습니다: 조직·팀 규칙 ${r}개. 새 세션부터 적용됩니다.`,
+    noRules: '아직 조직이나 팀 규칙이 없습니다.',
     proposed: (id) => `제안했습니다. ID: ${id}`,
     needText: '규칙 내용이 없습니다. 사용법: sprag team propose <내용> [--scope ratchet|model]',
     badScope: '범위는 ratchet 또는 model 이어야 합니다.',
@@ -142,6 +146,20 @@ const T = {
     syncFailed: (e) => `팀은 만들어졌지만 첫 동기화에 실패했습니다: ${e}`,
   },
 };
+
+/**
+ * `sprag team rules` lines: `- [org · model] text`, organization rules first.
+ * Rows without a level (older servers) are team rules. Removed ids are skipped.
+ */
+export function formatRuleLines(cache) {
+  const removed = new Set(Array.isArray(cache?.removed) ? cache.removed : []);
+  const rules = (Array.isArray(cache?.rules) ? cache.rules : [])
+    .filter((r) => r && typeof r.text === 'string' && r.text.trim() && !removed.has(r.id));
+  const org = rules.filter((r) => r.level === 'org');
+  const team = rules.filter((r) => r.level !== 'org');
+  return [...org, ...team].map((r) =>
+    `- [${r.level === 'org' ? 'org' : 'team'} · ${r.scope === 'model' ? 'model' : 'ratchet'}] ${r.text.trim().replace(/\s*\n\s*/g, ' ')}`);
+}
 
 function prompt(question) {
   return new Promise((resolve) => {
@@ -271,24 +289,26 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         return undefined;
       }
       case 'sync': {
+        const rulesOnly = hasFlag('--rules-only');
         if (hasFlag('--background')) {
-          if (!hasFlag('--prompts-only')) await autoJoin({ version });
-          await syncTeam({ version, promptsOnly: hasFlag('--prompts-only') });
+          if (!hasFlag('--prompts-only') && !rulesOnly) await autoJoin({ version });
+          await syncTeam({ version, promptsOnly: hasFlag('--prompts-only'), rulesOnly });
           return undefined;
         }
-        const r = await syncTeam({ force: hasFlag('--force'), version });
+        // Run by hand, --rules-only always pulls (no hourly gate).
+        const r = await syncTeam({ force: hasFlag('--force') || rulesOnly, rulesOnly, version });
         if (hasFlag('--quiet')) return undefined;
         if (r.error) { console.error(r.error); return process.exit(1); }
         if (r.skipped) out(r.skipped === 'disabled' ? m.disabled : m.skipped(r.skipped));
+        else if (r.rulesOnly) out(m.rulesPulled(r.rules));
         else out(m.synced(r.uploaded, r.rules, r.prompts));
         return undefined;
       }
       case 'rules': {
         let cache = null;
         try { cache = JSON.parse(readFileSync(teamRulesCachePath(), 'utf8')); } catch { /* none cached */ }
-        const rules = cache && Array.isArray(cache.rules) ? cache.rules : [];
-        if (rules.length === 0) { out(m.noRules); return undefined; }
-        for (const r of rules) out(`- [${r.scope}] ${r.text}`);
+        if (formatRuleLines(cache).length === 0) { out(m.noRules); return undefined; }
+        for (const line of formatRuleLines(cache)) out(line);
         return undefined;
       }
       case 'propose': {

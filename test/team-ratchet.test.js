@@ -6,7 +6,9 @@ import { tmpdir } from 'node:os';
 import {
   TEAM_RATCHET_MARKER, renderTeamRatchet, syncTeamRatchet, ensureTeamImport, spawnTeamSyncIfDue,
   autoJoinNoticeBlock, teamRatchetPath, teamSyncDue, isJoined, autoJoinPending, readTeamState,
+  rulesPullDue, RULES_PULL_INTERVAL_MS, spawnTeamSyncOnPrompt,
 } from '../src/team-ratchet.js';
+import { formatRuleLines } from '../src/commands/team.js';
 import { HARNESS_BLOCK_BEGIN, HARNESS_BLOCK_END } from '../src/harness-templates.js';
 
 function sandbox(t) {
@@ -49,15 +51,126 @@ test('render: en/ko, removed skipped, model section, null when empty', () => {
   const en = renderTeamRatchet(CACHE, { lang: 'en' });
   assert.equal(en.split('\n')[0], TEAM_RATCHET_MARKER);
   assert.match(en, /# Team Ratchet Rules/);
-  assert.match(en, /## Rules\n\n- A → do a/);
+  // rows without a level are team rules (servers older than the org layer)
+  assert.match(en, /## Team rules\n\n- A → do a/);
   assert.doesNotMatch(en, /B → do b/);
-  assert.match(en, /## Model rules\n\n- C → model c/);
+  assert.match(en, /### Team model rules\n\n- C → model c/);
+  assert.doesNotMatch(en, /Organization/);
+  assert.match(en, /Rules approved by team "Acme"/);
   const ko = renderTeamRatchet(CACHE, { lang: 'ko' });
   assert.match(ko, /# 팀 래칫 룰/);
   assert.match(ko, /팀 "Acme" 이 승인한 룰/);
   assert.match(renderTeamRatchet(CACHE, { lang: 'ko', agent: 'codex' }), /# Team Ratchet Rules/);
   assert.equal(renderTeamRatchet(null), null);
   assert.equal(renderTeamRatchet({ rules: [{ id: 'x', text: 't' }], removed: ['x'] }), null);
+});
+
+const LEVELED = {
+  teamName: 'Payments',
+  orgName: 'Acme Org',
+  rules: [
+    { id: 'o1', text: 'Org plain', scope: 'ratchet', level: 'org' },
+    { id: 'o2', text: 'Org model', scope: 'model', level: 'org' },
+    { id: 't1', text: 'Team plain', scope: 'ratchet', level: 'team' },
+    { id: 't2', text: 'Team model', scope: 'model', level: 'team' },
+  ],
+  removed: [],
+};
+
+test('render: organization rules first, team rules after, model rules as sub-sections', () => {
+  const en = renderTeamRatchet(LEVELED, { lang: 'en' });
+  assert.equal(en, [
+    TEAM_RATCHET_MARKER,
+    '# Team Ratchet Rules (managed by sprag)',
+    '',
+    'Rules approved for organization "Acme Org" and team "Payments". sprag rewrites this file at session start, so do not edit it by hand. List: `sprag team rules`',
+    '',
+    '## Organization rules',
+    '',
+    '- Org plain',
+    '',
+    '### Organization model rules',
+    '',
+    '- Org model',
+    '',
+    '## Team rules',
+    '',
+    '- Team plain',
+    '',
+    '### Team model rules',
+    '',
+    '- Team model',
+    '',
+  ].join('\n'));
+  const ko = renderTeamRatchet(LEVELED, { lang: 'ko' });
+  assert.match(ko, /조직 "Acme Org" 과 팀 "Payments" 에서 승인한 룰입니다/);
+  assert.match(ko, /## 조직 룰\n\n- Org plain\n\n### 조직 모델 룰\n\n- Org model\n\n## 팀 룰\n\n- Team plain\n\n### 팀 모델 룰\n\n- Team model\n$/);
+  // Codex reads English whatever the language
+  assert.match(renderTeamRatchet(LEVELED, { lang: 'ko', agent: 'codex' }), /## Organization rules/);
+  // empty sections are left out: org model only, no team rules
+  const orgOnly = renderTeamRatchet({ ...LEVELED, rules: [LEVELED.rules[1]] }, { lang: 'en' });
+  assert.match(orgOnly, /## Organization rules\n\n### Organization model rules\n\n- Org model\n$/);
+  assert.doesNotMatch(orgOnly, /Team rules|Team model rules/);
+  // removed org rule is dropped like a team rule
+  assert.doesNotMatch(renderTeamRatchet({ ...LEVELED, removed: ['o1'] }, { lang: 'en' }), /Org plain/);
+});
+
+test('team rules listing: org first, level and scope tags with a middle dot, no pipes', () => {
+  const lines = formatRuleLines({ ...LEVELED, rules: [...LEVELED.rules].reverse(), removed: ['t1'] });
+  assert.deepEqual(lines, [
+    '- [org · model] Org model',
+    '- [org · ratchet] Org plain',
+    '- [team · model] Team model',
+  ]);
+  assert.deepEqual(formatRuleLines({ rules: [{ id: 'x', text: 'legacy', scope: 'ratchet' }] }), ['- [team · ratchet] legacy']);
+  assert.deepEqual(formatRuleLines(null), []);
+  assert.ok(lines.every((l) => !l.includes('|')));
+});
+
+test('rulesPullDue: an hour after rules last arrived, out of the full sync\'s way', () => {
+  const now = 1_800_000_000_000;
+  const MIN = 60_000;
+  const base = { memberKey: 'k', lastSyncAt: now - 3 * 3600_000 };
+  assert.equal(RULES_PULL_INTERVAL_MS, 60 * MIN);
+  const cases = [
+    [{ ...base }, true], // never pulled rules-only; the full sync was 3h ago
+    [{ ...base, lastRulesAt: now - 59 * MIN }, false],
+    [{ ...base, lastRulesAt: now - 60 * MIN }, true],
+    [{ memberKey: 'k', lastSyncAt: now - 10 * MIN }, false], // a full sync pulled rules 10 minutes ago
+    [{ memberKey: 'k' }, true],
+    [{ ...base, lastRulesAttemptAt: now - 5 * MIN }, false], // in flight or just failed
+    [{ ...base, lastRulesAttemptAt: now - 16 * MIN }, true],
+    [{ ...base, lastSyncAttemptAt: now - 30_000 }, false], // full sync in flight
+    [{ ...base, syncFailures: 1, lastSyncAttemptAt: now - 5 * MIN }, false], // full sync backing off
+    [{ ...base, pausedReported: true }, false],
+    [{ ...base, left: true }, false],
+    [{}, false],
+  ];
+  for (const [state, want] of cases) assert.equal(rulesPullDue(state, now, {}), want, JSON.stringify(state));
+  assert.equal(rulesPullDue(base, now, { SPRAG_NO_TEAM_SYNC: '1' }), false);
+});
+
+test('session start and prompt hooks spawn the rules-only pull when only it is due', () => {
+  const now = 1_800_000_000_000;
+  const calls = [];
+  const spawn = (cmd, args) => { calls.push(args); return { unref() {} }; };
+  const common = { now, env: {}, spawn, argv: ['node', '/cli.js'], execPath: '/bin/node' };
+  const rulesDue = { memberKey: 'k', lastSyncAt: now - 2 * 3600_000, lastRulesAt: now - 61 * 60_000 };
+  assert.equal(spawnTeamSyncIfDue({ ...common, state: rulesDue }), true);
+  assert.equal(spawnTeamSyncOnPrompt({ ...common, state: rulesDue }), true);
+  // the full sync wins when it is due
+  assert.equal(spawnTeamSyncIfDue({ ...common, state: { ...rulesDue, lastSyncAt: now - 7 * 3600_000 } }), true);
+  // the prompt upload wins on the prompt hook
+  assert.equal(spawnTeamSyncOnPrompt({ ...common, state: { ...rulesDue, promptCapture: true } }), true);
+  // nothing due
+  assert.equal(spawnTeamSyncIfDue({ ...common, state: { ...rulesDue, lastRulesAt: now - 60_000 } }), false);
+  assert.equal(spawnTeamSyncOnPrompt({ ...common, state: { ...rulesDue, lastRulesAt: now - 60_000 } }), false);
+  assert.deepEqual(calls, [
+    ['/cli.js', 'team', 'sync', '--background', '--rules-only'],
+    ['/cli.js', 'team', 'sync', '--background', '--rules-only'],
+    ['/cli.js', 'team', 'sync', '--background'],
+    ['/cli.js', 'team', 'sync', '--background', '--prompts-only'],
+  ]);
 });
 
 test('sync writes, is idempotent, removes owned file, keeps foreign file', (t) => {

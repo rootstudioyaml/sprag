@@ -20,9 +20,13 @@ const ACCESS = 'access-token-xyz';
 
 function isolate(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-create-'));
-  const keys = ['XDG_CONFIG_HOME', 'SPRAG_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN'];
+  const keys = ['XDG_CONFIG_HOME', 'SPRAG_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN', 'HOME', 'USERPROFILE', 'CODEX_HOME'];
   const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
   process.env.XDG_CONFIG_HOME = root;
+  // a successful pull rewrites ~/.claude/ratchet-team.md: keep it in the temp dir
+  process.env.HOME = root;
+  process.env.USERPROFILE = root;
+  process.env.CODEX_HOME = join(root, '.codex');
   delete process.env.SPRAG_TEAM_TOKEN;
   process.env.SPRAG_NO_TEAM_SYNC = '1'; // join still runs (explicit action); the follow-up sync is skipped
   t.after(() => {

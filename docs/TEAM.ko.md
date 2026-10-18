@@ -72,7 +72,9 @@ Sprag 이 올라갈 항목 목록을 보여 주고 확인을 묻습니다. `--na
 
 ## 팀 룰
 
-오너와 어드민은 대시보드에서 룰을 승인합니다. 구성원도 룰을 제안할 수 있습니다.
+룰은 두 단계로 나뉩니다. **조직 룰**은 조직 안의 모든 팀에 적용되고, 오너와 어드민이 대시보드의 규칙 탭에서 직접 씁니다. **팀 룰**은 한 팀에만 적용되고, 역시 오너와 어드민이 그 탭에서 승인합니다. 승인된 팀 룰은 "조직 전체에 적용" 버튼 한 번으로 조직 룰로 올릴 수 있습니다. 이때 팀 쪽 사본은 내려가므로 같은 룰이 한 PC에 두 번 들어가지 않습니다.
+
+구성원도 팀 룰을 제안할 수 있습니다.
 
 ```bash
 sprag team propose "커밋 전에 lint 실행" --scope ratchet
@@ -80,7 +82,9 @@ sprag team propose "커밋 전에 lint 실행" --scope ratchet
 
 `--scope` 는 `ratchet`(기본값) 또는 `model` 입니다. 제안은 오너나 어드민이 승인할 때까지 대기 상태로 남습니다.
 
-승인된 룰은 다음 동기화 때 내려옵니다. Sprag 은 이를 `~/.claude/ratchet-team.md`(Codex 는 `<CODEX_HOME>/ratchet-team.md`)에 쓰고, 그 파일이 있는 동안 `~/.claude/CLAUDE.md` 의 전역 harness 블록에서 import 합니다. Sprag 이 세션을 시작할 때 파일을 통째로 다시 쓰므로 직접 고치지 마십시오. `sprag team rules` 는 받아 둔 룰을 보여 줍니다. `sprag team leave` 는 멤버 키, 캐시, import 를 지웁니다.
+**룰이 도착하는 시점.** 승인된 룰은 각 PC에서 다음 세션을 시작할 때 반영됩니다. PC는 새 룰을 많아야 한 시간에 한 번 확인하고, 사용량은 6시간마다 올립니다. 바로 적용하려면 `sprag team sync --force` 를 실행한 뒤 새 세션을 여십시오. 어느 쪽 동기화든 룰을 받는 즉시 룰 파일을 다시 쓰므로, 다음 세션은 추가 요청 없이 새 룰을 읽습니다. `sprag team sync --rules-only` 는 룰만 받고 아무것도 올리지 않습니다.
+
+Sprag 은 룰을 `~/.claude/ratchet-team.md`(Codex 는 `<CODEX_HOME>/ratchet-team.md`)에 씁니다. 조직 룰이 먼저, 팀 룰이 그다음이고, 모델 룰은 각각의 하위 절로 들어갑니다. 그 파일이 있는 동안 `~/.claude/CLAUDE.md` 의 전역 harness 블록에서 import 합니다. Sprag 이 파일을 통째로 다시 쓰므로 직접 고치지 마십시오. `sprag team rules` 는 받아 둔 룰을 `- [org · model] 내용`, `- [team · ratchet] 내용` 형태로 보여 줍니다. `sprag team leave` 는 멤버 키, 캐시, import 를 지웁니다.
 
 ## 상태 확인, 전송 내용 확인, 나가기
 
@@ -88,8 +92,8 @@ sprag team propose "커밋 전에 lint 실행" --scope ratchet
 |---|---|
 | `sprag team join [토큰] [--name <이름>] [--yes]` | 팀에 참여 |
 | `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 마지막 동기화를 보여 줍니다. `--show-payload` 를 붙이면 보내는 기기 정보와 올라갈 하루 단위 행도 그대로 출력합니다 |
-| `sprag team sync [--force]` | 지금 업로드하고 룰을 받습니다. `--force` 는 6시간 간격을 무시합니다 |
-| `sprag team rules` | 받아 둔 팀 룰 보기 |
+| `sprag team sync [--force] [--rules-only]` | 지금 업로드하고 룰을 받습니다. `--force` 는 6시간 간격을 무시하고, `--rules-only` 는 조직·팀 룰만 받고 아무것도 올리지 않습니다 |
+| `sprag team rules` | 받아 둔 조직·팀 룰 보기 |
 | `sprag team propose "<내용>" [--scope ratchet\|model]` | 팀에 룰 제안 |
 | `sprag team leave` | 팀에서 나가고 업로드 중단 |
 
@@ -110,7 +114,7 @@ sprag team propose "커밋 전에 lint 실행" --scope ratchet
 
 ## 대시보드
 
-https://sprag.io/team/ 에서 오너나 어드민이 이메일 코드로 로그인하고, 팀을 만들고, 초대 토큰을 받습니다. 여기서 구성원별 지출과 절감액을 보고, 룰을 승인하거나 삭제하고, 구성원을 내보낼 수 있습니다. 조직 패널에는 요금제, 한도 대비 사용 좌석, 어드민, 전체 팀이 보입니다. 슈퍼유저는 sprag.io/ops/ 에서 모든 조직을 봅니다.
+https://sprag.io/team/ 에서 오너나 어드민이 이메일 코드로 로그인하고, 팀을 만들고, 초대 토큰을 받습니다. 여기서 구성원별 지출과 절감액을 보고, 규칙 탭에서 조직 룰과 팀 룰을 관리하고, 구성원을 내보낼 수 있습니다. 조직 패널에는 요금제, 한도 대비 사용 좌석, 어드민, 전체 팀이 보입니다. 슈퍼유저는 sprag.io/ops/ 에서 모든 조직을 봅니다.
 
 대시보드 맨 위의 기간 선택(7일, 30일, 90일, 이번 달, 지난 달, 직접 선택)이 멤버 표, 사용량 차트, 프롬프트 사용량 탭의 기간을 정합니다. 기본값은 최근 30일이고, 내 컴퓨터의 달력 날짜를 쓰며 종료일도 포함합니다. 최대 365일까지 고를 수 있습니다. 고른 기간은 주소(`?from=2026-10-01&to=2026-10-18`)에 남으므로 새로고침하거나 링크를 공유해도 같은 기간이 보입니다. sprag.io/ops/ 슈퍼유저 콘솔에도 같은 선택이 있어 조직 표, 조직 머리말, 조직의 프롬프트 사용량에 적용됩니다.
 
@@ -162,9 +166,9 @@ Free, 프로(좌석당 월 $5), 엔터프라이즈(좌석당 월 $10, 프롬프�
 | 이름 | 용도 |
 |---|---|
 | `<사용자 데이터 디렉터리>/team.json` | 참여 상태와 멤버 키(권한 0600) |
-| `<사용자 데이터 디렉터리>/team-rules.json` | 마지막 동기화 때 받은 룰 |
+| `<사용자 데이터 디렉터리>/team-rules.json` | 마지막 동기화 때 받은 조직·팀 룰 |
 | `<사용자 데이터 디렉터리>/prompts-offsets.json` | 프롬프트 업로더가 기록 파일마다 어디까지 읽었는지 적은 파일이며, 프롬프트 수집이 켜진 동안만 있습니다 |
-| `~/.claude/ratchet-team.md` | Claude Code 용 승인된 팀 룰이며 `~/.claude/CLAUDE.md` 에서 import 합니다 |
+| `~/.claude/ratchet-team.md` | Claude Code 용 승인된 조직·팀 룰이며 `~/.claude/CLAUDE.md` 에서 import 합니다 |
 | `<CODEX_HOME>/ratchet-team.md` | Codex 용 같은 룰 |
 | `SPRAG_TEAM_TOKEN` | 초대 토큰이며, 다음 세션 시작 때 컴퓨터를 등록합니다 |
 | `SPRAG_NO_TEAM_SYNC=1` | 사용량 업로드를 모두 멈춥니다. 참여한 컴퓨터는 스위치가 처음 켜졌을 때와 다시 꺼졌을 때 상태만 담은 호출을 한 번씩 보냅니다(옛 이름 `CTS_NO_TEAM_SYNC` 도 읽습니다) |

@@ -9,7 +9,13 @@
  *
  * Files in the user data dir:
  *   team.json        membership state (mode 0600; holds the member key)
- *   team-rules.json  last pulled team rules
+ *   team-rules.json  last pulled rules (organization rules first, then team
+ *                    rules; each row carries level 'org' or 'team')
+ *
+ * Rules arrive with every full sync (6 hours) and with the rules-only pull
+ * (`team sync --rules-only`, at most hourly). Either kind rewrites the ratchet
+ * files right away, so a new session picks the rules up without waiting for
+ * the next session-start render.
  *
  * Opt out of all network traffic with SPRAG_NO_TEAM_SYNC=1.
  */
@@ -26,6 +32,8 @@ import { debug } from './debug.js';
 import { loadLedger, modelFamily, roundUsd } from './savings-ledger.js';
 import { sessionCost, pricedParts } from './claude-price.js';
 import { uploadPrompts, dropOffsets, promptOffsetsExist } from './team-prompts.js';
+import { rulesPullDue, syncTeamRatchet, ensureTeamImport } from './team-ratchet.js';
+import { codexUserDir } from './agent.js';
 
 export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -405,8 +413,48 @@ export async function leaveTeam({ fetch, dir = userDataDir(), now = Date.now() }
   return next;
 }
 
+/**
+ * Pull the approved rules and write team-rules.json. Rows are kept as the
+ * server sends them, `level` included. Returns the RPC body and the rule rows.
+ */
+async function pullRules({ memberKey, dir, fetch, now }) {
+  const r = (await rpc('team_rules_get', { member_key: memberKey }, { fetch })) || {};
+  const rules = Array.isArray(r.rules) ? r.rules : [];
+  writeStateFile(teamRulesCachePath(dir), JSON.stringify({
+    version: 1, fetchedAt: now, teamId: r.team_id, teamName: r.team_name, orgId: r.org_id || null, orgName: r.org_name || null,
+    plan: r.plan, promptCapture: !!r.prompt_capture, rules, removed: Array.isArray(r.removed) ? r.removed : [],
+  }, null, 2) + '\n');
+  return { r, rules };
+}
+
+/** State fields a rules pull refreshes. */
+function withRulesMeta(state, r, now) {
+  const next = { ...state, lastRulesAt: now };
+  if (r.team_name) next.teamName = r.team_name;
+  if (r.plan) next.plan = r.plan;
+  if (r.org_name) next.orgName = r.org_name;
+  if (r.prompt_capture !== undefined) next.promptCapture = !!r.prompt_capture;
+  delete next.lastRulesError;
+  return next;
+}
+
+/**
+ * Re-render the ratchet files from the fresh cache, for Claude Code and, when
+ * its home exists, Codex, and keep the CLAUDE.md import in step. Fails soft:
+ * the session-start hook renders them again anyway.
+ */
+export function refreshTeamRatchetFiles({ dir = userDataDir() } = {}) {
+  const out = {};
+  for (const agent of ['claude', 'codex']) {
+    if (agent === 'codex' && !existsSync(codexUserDir())) continue;
+    try { out[agent] = syncTeamRatchet({ agent, dir }); } catch (e) { debug('team-sync:ratchet', e); }
+  }
+  try { ensureTeamImport(); } catch (e) { debug('team-sync:import', e); }
+  return out;
+}
+
 export async function syncTeam({
-  now = Date.now(), dir = userDataDir(), fetch, force = false, env = process.env, version, sessions, promptsOnly = false,
+  now = Date.now(), dir = userDataDir(), fetch, force = false, env = process.env, version, sessions, promptsOnly = false, rulesOnly = false,
 } = {}) {
   let state = loadTeamState(dir);
   // The switch stops every usage upload. A joined machine still tells the
@@ -425,6 +473,7 @@ export async function syncTeam({
   }
   if (state.left) return { skipped: 'left' };
   if (!isJoined(state)) return { skipped: 'not-joined' };
+  let resumed = false;
   if (state.pausedReported) {
     try {
       await rpc('member_set_sync', { member_key: state.memberKey, paused: false }, { fetch });
@@ -432,8 +481,26 @@ export async function syncTeam({
       delete state.pausedReported;
       saveTeamState(state, dir);
       force = true;
+      resumed = true;
     } catch (e) {
       debug('team-sync', e);
+    }
+  }
+  // Rules only: one small RPC, no ledger and no prompts, and lastSyncAt stays
+  // put. A resume falls through to the full sync instead.
+  if (rulesOnly && !resumed) {
+    if (!force && !rulesPullDue(state, now, env)) return { skipped: 'not-due' };
+    state = { ...state, lastRulesAttemptAt: now };
+    try { saveTeamState(state, dir); } catch (e) { debug('team-sync', e); }
+    try {
+      const { r, rules } = await pullRules({ memberKey: state.memberKey, dir, fetch, now });
+      saveTeamState(withRulesMeta(loadTeamState(dir), r, now), dir);
+      refreshTeamRatchetFiles({ dir });
+      return { uploaded: 0, rules: rules.length, rulesOnly: true };
+    } catch (e) {
+      debug('team-sync', e);
+      try { saveTeamState({ ...loadTeamState(dir), lastRulesError: e.message }, dir); } catch (e2) { debug('team-sync', e2); }
+      return { error: e.message };
     }
   }
   // Prompts have their own 30-minute timer and are cheap (bytes past the stored
@@ -456,20 +523,12 @@ export async function syncTeam({
     const rows = (await aggregateDaily({ now, dir, sessions, days: win.days }))
       .filter((r) => r.day >= win.startKey).slice(-MAX_ROWS);
     await rpc('ledger_upsert', { member_key: state.memberKey, rows, sprag_version: version || '' }, { fetch });
-    const r = (await rpc('team_rules_get', { member_key: state.memberKey }, { fetch })) || {};
-    const rules = Array.isArray(r.rules) ? r.rules : [];
-    writeStateFile(teamRulesCachePath(dir), JSON.stringify({
-      version: 1, fetchedAt: now, teamId: r.team_id, teamName: r.team_name, plan: r.plan,
-      promptCapture: !!r.prompt_capture, rules, removed: Array.isArray(r.removed) ? r.removed : [],
-    }, null, 2) + '\n');
-    const next = { ...state, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) };
+    const { r, rules } = await pullRules({ memberKey: state.memberKey, dir, fetch, now });
+    const next = withRulesMeta({ ...state, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, r, now);
     delete next.syncFailures;
-    if (r.team_name) next.teamName = r.team_name;
-    if (r.plan) next.plan = r.plan;
-    if (r.org_name) next.orgName = r.org_name;
-    if (r.prompt_capture !== undefined) next.promptCapture = !!r.prompt_capture;
     delete next.lastError;
     saveTeamState(next, dir);
+    refreshTeamRatchetFiles({ dir });
     const prompts = await syncPrompts({ state: next, dir, fetch, now });
     return { uploaded: rows.length, rules: rules.length, ...(prompts !== null ? { prompts } : {}) };
   } catch (e) {

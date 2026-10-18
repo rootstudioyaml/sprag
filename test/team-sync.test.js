@@ -169,6 +169,81 @@ test('syncTeam happy path uploads, caches rules and updates state', async (t) =>
   assert.equal(st.lastError, undefined);
 });
 
+const LEVELED_RULES = {
+  team_id: 't1', team_name: 'Payments', plan: 'pro', prompt_capture: false, org_id: 'o1', org_name: 'Acme Org',
+  rules: [
+    { id: 'o1r', text: 'org rule', scope: 'model', level: 'org' },
+    { id: 't1r', text: 'team rule', scope: 'ratchet', level: 'team' },
+  ],
+  removed: [],
+};
+
+test('rules-only pull: one RPC, keeps level, stamps lastRulesAt, leaves the ledger timer alone, rewrites the ratchet files', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  const lastSyncAt = now - 2 * 3600_000;
+  saveTeamState(joinedState({ lastSyncAt, ledgerSyncedThrough: '2026-10-01', promptCapture: true, lastPromptSyncAt: 5 }), dir);
+  mkdirSync(process.env.CODEX_HOME, { recursive: true }); // Codex installed: its copy is written too
+  const f = fakeFetch({ team_rules_get: LEVELED_RULES });
+  const r = await syncTeam({ dir, fetch: f, now, env: {}, rulesOnly: true });
+  assert.deepEqual(r, { uploaded: 0, rules: 2, rulesOnly: true });
+  assert.deepEqual(f.calls.map((c) => c.fn), ['team_rules_get']);
+  const cache = JSON.parse(readFileSync(teamRulesCachePath(dir), 'utf8'));
+  assert.deepEqual(cache.rules.map((x) => x.level), ['org', 'team']);
+  assert.equal(cache.orgName, 'Acme Org');
+  const st = loadTeamState(dir);
+  assert.equal(st.lastRulesAt, now);
+  assert.equal(st.lastSyncAt, lastSyncAt, 'the 6-hour ledger timer is untouched');
+  assert.equal(st.ledgerSyncedThrough, '2026-10-01');
+  assert.equal(st.lastPromptSyncAt, 5);
+  assert.equal(st.orgName, 'Acme Org');
+  for (const file of [join(process.env.HOME, '.claude', 'ratchet-team.md'), join(process.env.CODEX_HOME, 'ratchet-team.md')]) {
+    const text = readFileSync(file, 'utf8');
+    assert.match(text, /org rule/, file);
+    assert.match(text, /team rule/, file);
+  }
+  // not due again within the hour (background), but a forced pull runs
+  assert.equal((await syncTeam({ dir, fetch: f, now: now + 30 * 60_000, env: {}, rulesOnly: true })).skipped, 'not-due');
+  assert.equal(f.calls.length, 1);
+  const again = await syncTeam({ dir, fetch: f, now: now + 30 * 60_000, env: {}, rulesOnly: true, force: true });
+  assert.equal(again.rules, 2);
+  assert.equal(f.calls.length, 2);
+});
+
+test('rules-only pull without Codex leaves CODEX_HOME alone; a failure keeps lastRulesAt and backs off', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  saveTeamState(joinedState({ lastSyncAt: now - 2 * 3600_000 }), dir);
+  const down = fakeFetch({ team_rules_get: { status: 500, json: { message: 'boom' } } });
+  const r = await syncTeam({ dir, fetch: down, now, env: {}, rulesOnly: true });
+  assert.match(r.error, /boom/);
+  let st = loadTeamState(dir);
+  assert.equal(st.lastRulesAt, undefined);
+  assert.equal(st.lastRulesAttemptAt, now);
+  assert.equal(st.syncFailures, undefined, 'a rules-only failure is not a ledger failure');
+  assert.equal((await syncTeam({ dir, fetch: down, now: now + 5 * 60_000, env: {}, rulesOnly: true })).skipped, 'not-due');
+  const ok = fakeFetch({ team_rules_get: LEVELED_RULES });
+  assert.equal((await syncTeam({ dir, fetch: ok, now: now + 16 * 60_000, env: {}, rulesOnly: true })).rules, 2);
+  st = loadTeamState(dir);
+  assert.equal(st.lastRulesError, undefined);
+  assert.ok(existsSync(join(process.env.HOME, '.claude', 'ratchet-team.md')));
+  assert.equal(existsSync(process.env.CODEX_HOME), false);
+});
+
+test('a full sync also stamps lastRulesAt and rewrites the ratchet file at once', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ ledger_upsert: 0, team_rules_get: LEVELED_RULES });
+  const r = await syncTeam({ dir, fetch: f, now, env: {}, sessions: [] });
+  assert.equal(r.rules, 2);
+  const st = loadTeamState(dir);
+  assert.equal(st.lastRulesAt, now);
+  assert.equal(st.lastSyncAt, now);
+  const text = readFileSync(join(process.env.HOME, '.claude', 'ratchet-team.md'), 'utf8');
+  assert.ok(text.indexOf('- org rule') > 0 && text.indexOf('- org rule') < text.indexOf('- team rule'), 'organization rules come first');
+});
+
 test('syncTeam on fetch failure returns error, backs off and never throws', async (t) => {
   const dir = isolate(t);
   const now = Date.now();

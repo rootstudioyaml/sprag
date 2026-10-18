@@ -71,6 +71,26 @@ export function teamSyncDue(state, now = Date.now()) {
 }
 
 export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+export const RULES_PULL_INTERVAL_MS = 60 * 60 * 1000;
+const RULES_RETRY_MS = 15 * 60 * 1000;
+
+/**
+ * The rules-only pull (one small RPC, no ledger parsing) is due an hour after
+ * the last time rules arrived, by either kind of sync. It stays out of the way
+ * of the full sync: not while that one is in flight or backing off after a
+ * failure (its retry pulls the rules too), and not within 15 minutes of its own
+ * last attempt, which doubles as its in-flight guard and failure backoff.
+ */
+export function rulesPullDue(state, now = Date.now(), env = process.env) {
+  if (!isJoined(state) || state.pausedReported || teamSyncDisabled(env)) return false;
+  if ((Number(state.syncFailures) || 0) > 0) return false;
+  const attempt = Number(state.lastSyncAttemptAt);
+  if (Number.isFinite(attempt) && attempt > 0 && now - attempt >= 0 && now - attempt < IN_FLIGHT_MS) return false;
+  const tried = Number(state.lastRulesAttemptAt);
+  if (Number.isFinite(tried) && tried > 0 && now - tried >= 0 && now - tried < RULES_RETRY_MS) return false;
+  const last = Math.max(Number(state.lastRulesAt) || 0, Number(state.lastSyncAt) || 0);
+  return last <= 0 || now - last >= RULES_PULL_INTERVAL_MS;
+}
 
 /**
  * Stat-free gate for the prompt uploader: joined, capture on (as last seen by a
@@ -102,19 +122,34 @@ export function renderTeamRatchet(cache, { lang = 'en', agent = 'claude' } = {})
   if (!cache || !Array.isArray(cache.rules)) return null;
   const removed = new Set(Array.isArray(cache.removed) ? cache.removed : []);
   const live = cache.rules.filter((r) => r && typeof r.text === 'string' && r.text.trim() && !removed.has(r.id));
-  const ratchet = live.filter((r) => (r.scope || 'ratchet') !== 'model');
-  const model = live.filter((r) => r.scope === 'model');
-  if (!ratchet.length && !model.length) return null;
+  if (!live.length) return null;
+  // Rows from servers older than the org layer carry no level: they are team rules.
+  const org = live.filter((r) => r.level === 'org');
+  const team = live.filter((r) => r.level !== 'org');
+  const isModel = (r) => r.scope === 'model';
   const ko = lang === 'ko' && agent !== 'codex';
   const name = cache.teamName || '';
+  const orgName = cache.orgName || '';
+  const scopeLine = ko
+    ? (orgName ? `조직 "${orgName}" 과 팀 "${name}" 에서 승인한 룰입니다.` : `팀 "${name}" 이 승인한 룰입니다.`)
+    : (orgName ? `Rules approved for organization "${orgName}" and team "${name}".` : `Rules approved by team "${name}".`);
   const head = ko
-    ? `# 팀 래칫 룰 (sprag 관리)\n\n팀 "${name}" 이 승인한 룰입니다. sprag 가 세션 시작 때 통째로 다시 쓰므로 직접 고치지 마십시오. 목록: \`sprag team rules\``
-    : `# Team Ratchet Rules (managed by sprag)\n\nRules approved by team "${name}". sprag rewrites this file at session start, so do not edit it by hand. List: \`sprag team rules\``;
+    ? `# 팀 래칫 룰 (sprag 관리)\n\n${scopeLine} sprag 가 세션 시작 때 통째로 다시 쓰므로 직접 고치지 마십시오. 목록: \`sprag team rules\``
+    : `# Team Ratchet Rules (managed by sprag)\n\n${scopeLine} sprag rewrites this file at session start, so do not edit it by hand. List: \`sprag team rules\``;
+  const H = ko
+    ? { org: '조직 룰', orgModel: '조직 모델 룰', team: '팀 룰', teamModel: '팀 모델 룰' }
+    : { org: 'Organization rules', orgModel: 'Organization model rules', team: 'Team rules', teamModel: 'Team model rules' };
   const line = (r) => `- ${r.text.trim().replace(/\s*\n\s*/g, ' ')}`;
-  let out = `${TEAM_RATCHET_MARKER}\n${head}\n`;
-  if (ratchet.length) out += `\n## Rules\n\n${ratchet.map(line).join('\n')}\n`;
-  if (model.length) out += `\n## Model rules\n\n${model.map(line).join('\n')}\n`;
-  return out;
+  const section = (rows, title, modelTitle) => {
+    if (!rows.length) return '';
+    const plain = rows.filter((r) => !isModel(r));
+    const model = rows.filter(isModel);
+    let s = `\n## ${title}\n`;
+    if (plain.length) s += `\n${plain.map(line).join('\n')}\n`;
+    if (model.length) s += `\n### ${modelTitle}\n\n${model.map(line).join('\n')}\n`;
+    return s;
+  };
+  return `${TEAM_RATCHET_MARKER}\n${head}\n${section(org, H.org, H.orgModel)}${section(team, H.team, H.teamModel)}`;
 }
 
 function writeIfChanged(file, text) {
@@ -177,13 +212,20 @@ export function spawnTeamSyncIfDue({
 } = {}) {
   // Switched off: spawn once more only to report the pause (team-sync.js).
   // Switched back on after a reported pause: spawn now to report the resume.
+  // Otherwise the full sync when it is due, else the hourly rules-only pull.
+  let flags;
   if (teamSyncDisabled(env)) {
     if (!isJoined(state) || state.pausedReported) return false;
-  } else if (!autoJoinPending(state, env) && !teamSyncDue(state, now) && !(isJoined(state) && state.pausedReported)) {
+    flags = ['--background'];
+  } else if (autoJoinPending(state, env) || teamSyncDue(state, now) || (isJoined(state) && state.pausedReported)) {
+    flags = ['--background'];
+  } else if (rulesPullDue(state, now, env)) {
+    flags = ['--background', '--rules-only'];
+  } else {
     return false;
   }
   try {
-    spawn(execPath, [argv[1], 'team', 'sync', '--background'],
+    spawn(execPath, [argv[1], 'team', 'sync', ...flags],
       { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     return true;
   } catch (e) {
@@ -197,6 +239,7 @@ export function spawnTeamSyncIfDue({
  * parsing here. When the ledger/rules sync is due (6 hours after the last success,
  * or its failure backoff elapsed), start the detached `team sync --background`
  * child; else, when only the prompt upload is due, start it in prompts-only
+ * mode; else, when only the hourly rules pull is due, start it in rules-only
  * mode. Prints nothing.
  */
 export function spawnTeamSyncOnPrompt({
@@ -207,6 +250,7 @@ export function spawnTeamSyncOnPrompt({
   let flags;
   if (teamSyncDue(state, now)) flags = ['--background'];
   else if (promptSyncDue(state, now, env)) flags = ['--background', '--prompts-only'];
+  else if (rulesPullDue(state, now, env)) flags = ['--background', '--rules-only'];
   else return false;
   try {
     spawn(execPath, [argv[1], 'team', 'sync', ...flags], { detached: true, stdio: 'ignore', windowsHide: true }).unref();

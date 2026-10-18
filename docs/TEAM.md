@@ -72,7 +72,9 @@ The machine joins at the next session start. The first session after that prints
 
 ## Team rules
 
-Owners and admins approve rules in the dashboard. Members can also suggest one:
+Rules come at two levels. **Organization rules** apply to every team in the organization; owners and admins write them on the Rules tab of the dashboard. **Team rules** apply to one team; owners and admins approve them there too. An approved team rule can be applied to the whole organization with one click ("Apply to whole organization"): it moves to the organization level and its team copy is retired, so no machine receives it twice.
+
+Members can suggest a team rule:
 
 ```bash
 sprag team propose "Run lint before every commit" --scope ratchet
@@ -80,7 +82,9 @@ sprag team propose "Run lint before every commit" --scope ratchet
 
 `--scope` is `ratchet` (the default) or `model`. A proposal stays pending until an owner or admin approves it.
 
-Approved rules come back with the next sync. Sprag writes them to `~/.claude/ratchet-team.md` (Codex: `<CODEX_HOME>/ratchet-team.md`) and imports that file from the global harness block of `~/.claude/CLAUDE.md` for as long as the file exists. Do not edit the file by hand, because Sprag rewrites it at session start. `sprag team rules` lists the cached rules. `sprag team leave` removes the member key, the cache and the import.
+**When a rule arrives.** Approved rules reach a machine at its next session start. A machine checks for new rules at most every hour and uploads usage every 6 hours; `sprag team sync --force` then a new session applies them at once. Both kinds of sync rewrite the rule files as soon as the rules arrive, so the next session reads them without another round trip. `sprag team sync --rules-only` pulls the rules alone and uploads nothing.
+
+Sprag writes the rules to `~/.claude/ratchet-team.md` (Codex: `<CODEX_HOME>/ratchet-team.md`), organization rules first and then team rules, each with its model rules in a sub-section, and imports that file from the global harness block of `~/.claude/CLAUDE.md` for as long as the file exists. Do not edit the file by hand, because Sprag rewrites it. `sprag team rules` lists the cached rules as `- [org · model] text` or `- [team · ratchet] text`. `sprag team leave` removes the member key, the cache and the import.
 
 ## Status, payload and leaving
 
@@ -88,8 +92,8 @@ Approved rules come back with the next sync. Sprag writes them to `~/.claude/rat
 |---|---|
 | `sprag team join [token] [--name <n>] [--yes]` | Join a team |
 | `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name, last sync. `--show-payload` also prints the device info and the exact daily rows that would be uploaded |
-| `sprag team sync [--force]` | Upload now and pull rules. `--force` ignores the 6-hour interval |
-| `sprag team rules` | Show the cached team rules |
+| `sprag team sync [--force] [--rules-only]` | Upload now and pull rules. `--force` ignores the 6-hour interval; `--rules-only` pulls the organization and team rules and uploads nothing |
+| `sprag team rules` | Show the cached organization and team rules |
 | `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team |
 | `sprag team leave` | Leave the team and stop uploading |
 
@@ -111,7 +115,7 @@ Create a team inside an existing organization from the CLI with `sprag team crea
 
 ## The dashboard
 
-https://sprag.io/team/ is where an owner or admin signs in with an email code, creates a team and gets the invite token. From there they see per-member spend and savings, approve or remove rules, and remove members. The organization panel shows the plan, seats used against the limit, admins and every team. The superuser sees every organization at sprag.io/ops/.
+https://sprag.io/team/ is where an owner or admin signs in with an email code, creates a team and gets the invite token. From there they see per-member spend and savings, manage organization and team rules on the Rules tab, and remove members. The organization panel shows the plan, seats used against the limit, admins and every team. The superuser sees every organization at sprag.io/ops/.
 
 A date range control at the top of the dashboard (7d, 30d, 90d, This month, Last month or Custom) sets the period for the members table, the Usage chart and the prompt usage tab. It defaults to the last 30 days, uses your local calendar days with the end date included, and allows 365 days at most. The choice is kept in the page address (`?from=2026-10-01&to=2026-10-18`), so a reload or a shared link shows the same period. The superuser console at /ops/ has the same control for the organization table, the organization header and its prompt usage.
 
@@ -163,9 +167,9 @@ Owners and admins of an Enterprise organization get a Prompts tab on sprag.io/te
 | Name | Purpose |
 |---|---|
 | `<user data dir>/team.json` | Membership state and the member key (mode 0600) |
-| `<user data dir>/team-rules.json` | Rules pulled at the last sync |
+| `<user data dir>/team-rules.json` | Organization and team rules pulled at the last sync |
 | `<user data dir>/prompts-offsets.json` | Where the prompt uploader stopped in each transcript; exists only while prompt capture is on |
-| `~/.claude/ratchet-team.md` | Approved team rules for Claude Code, imported from `~/.claude/CLAUDE.md` |
+| `~/.claude/ratchet-team.md` | Approved organization and team rules for Claude Code, imported from `~/.claude/CLAUDE.md` |
 | `<CODEX_HOME>/ratchet-team.md` | The same rules for Codex |
 | `SPRAG_TEAM_TOKEN` | Invite token; enrolls the machine at the next session start |
 | `SPRAG_NO_TEAM_SYNC=1` | Stops every usage upload. A joined machine sends only one status-only call when it first sees the switch on and when it is off again (old name `CTS_NO_TEAM_SYNC` still read) |

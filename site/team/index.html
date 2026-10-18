@@ -350,6 +350,34 @@
   .rules3 .none{color:var(--faint);font-size:12.5px;padding-top:6px}
   .addrule{margin-top:var(--s4);padding-top:var(--s4);border-top:1px solid var(--line)}
   .addrule input[type=text]{flex:1 1 260px}
+  /* Rules tab: summary strip, organization rules, one collapsible section per team */
+  .rl-sum{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s4);padding:var(--s3) var(--s4)}
+  .rl-sum .k{display:flex;align-items:baseline;gap:6px;font-size:13px;color:var(--dim);white-space:nowrap}
+  .rl-sum .k b{font:600 18px/1 var(--sans);color:var(--ink);letter-spacing:-.01em}
+  .rl-sum .k.warn b{color:var(--warn)}
+  .rl-sum .when{flex:1 1 280px;font-size:12.5px;color:var(--faint);min-width:0}
+  .rl-list .rule:first-child{border-top:0}
+  .rl-list .rule{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s2) var(--s3);flex-wrap:wrap}
+  .rl-list .rule p{flex:1 1 320px;min-width:0}
+  .rl-list .rule .acts{margin-top:0;flex:0 0 auto;flex-wrap:wrap}
+  .rl-list .none,.rl-ro .none{color:var(--faint);font-size:12.5px;padding:6px 0}
+  .rl-team{padding:0}
+  .rl-team > details > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:var(--s4) 20px}
+  .rl-team > details > summary::-webkit-details-marker{display:none}
+  .rl-team > details > summary::before{content:"";width:7px;height:7px;border-right:1.5px solid var(--dim);border-bottom:1.5px solid var(--dim);transform:rotate(-45deg);transition:transform .15s var(--ease);flex:0 0 auto}
+  .rl-team > details[open] > summary::before{transform:rotate(45deg)}
+  .rl-team .tn{font-weight:600;font-size:14.5px;overflow-wrap:anywhere;min-width:0;flex:1 1 200px}
+  .rl-team .cnt{font-size:12.5px;color:var(--faint);white-space:nowrap}
+  .rl-team .cnt .pend{color:var(--warn)}
+  .rl-body{padding:0 20px var(--s4)}
+  .rl-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3)}
+  .rl-cols > div,.rl-ro{border:1px solid var(--line);border-radius:var(--r);padding:var(--s3) var(--s4);background:var(--bg);min-width:0}
+  .rl-ro{margin-top:var(--s3);margin-bottom:var(--s3)}
+  .rl-ro .rule .tag{margin-right:6px}
+  .rl-manage{margin-top:var(--s3);font-size:12.5px}
+  .rl-manage a,.rl-orgline a{color:var(--accent2)}
+  .rl-manage a:hover,.rl-orgline a:hover{text-decoration:underline}
+  .rl-orgline{margin-top:var(--s3)}
   .pm{margin-top:var(--s3)}
   .pm details{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);margin-top:var(--s2)}
   .pm summary{cursor:pointer;padding:9px 14px;font-weight:500;font-size:13px}
@@ -369,7 +397,7 @@
     .tside{position:static}
     .tside .teams-list{display:flex;overflow-x:auto;gap:var(--s2);padding-bottom:4px;scrollbar-width:thin}
     .tside .team-item{width:auto;min-width:150px;max-width:240px;flex:0 0 auto;border:1px solid var(--line)}
-    .rules3{grid-template-columns:minmax(0,1fr)}
+    .rules3,.rl-cols{grid-template-columns:minmax(0,1fr)}
     .orgbar{order:9;flex:1 1 100%}
     .orgbar select{max-width:none;width:100%}
     header .wrap{row-gap:var(--s2);padding-top:10px;padding-bottom:10px}
@@ -390,6 +418,10 @@
     .tok code{font-size:12px}
     .topnav{margin:0 -6px;order:5;flex:1 1 100%}
     .org-tbl td.nm,.att-tbl td.nm{max-width:150px}
+    .rl-team > details > summary{padding:var(--s3) var(--s4)}
+    .rl-body{padding:0 var(--s4) var(--s4)}
+    .rl-sum{padding:var(--s3)}
+    .rl-sum .when{flex-basis:100%}
   }
   .range-bar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);margin:0 0 var(--s4)}
   .range-bar .rg-t{font-size:12px;color:var(--faint)}
@@ -423,6 +455,7 @@
       <button type="button" class="vtab" role="tab" id="vtab-overview" data-view="overview" data-k="v.overview">Overview</button>
       <button type="button" class="vtab" role="tab" id="vtab-seats" data-view="seats" data-k="v.seats">Seats</button>
       <button type="button" class="vtab" role="tab" id="vtab-teams" data-view="teams" data-k="v.teams">Teams</button>
+      <button type="button" class="vtab" role="tab" id="vtab-rules" data-view="rules" data-k="v.rules" aria-controls="view-rules" hidden>Rules</button>
       <button type="button" class="vtab" role="tab" id="vtab-prompts" data-view="prompts" data-k="v.prompts" hidden>Prompts</button>
     </nav>
     <div class="hbar-r">
@@ -522,6 +555,7 @@
       </div>
       <p class="note" data-k="o.seatnote">A seat is one machine active in the last 30 days, or one that paused uploads. Joins past the limit are refused until Sprag raises it. Sprag sets the plan and the limit.</p>
       <p class="note" style="margin-top:6px" data-k="o.addseats">To add seats, contact <a href="mailto:sales@sprag.io">sales@sprag.io</a>.</p>
+      <p class="sub rl-orgline" id="org-rules" hidden></p>
       <p class="err" id="org-err" role="alert"></p>
     </section>
     <div class="cols2" id="org-cols" style="margin-top:var(--s4)" hidden>
@@ -545,6 +579,10 @@
     <section class="card" id="seats-card" hidden aria-label="Seats">
       <div id="seats-box"></div>
     </section>
+    </section>
+
+    <section class="view" id="view-rules" role="tabpanel" aria-labelledby="vtab-rules" hidden>
+    <div id="rules-box" class="stack"></div>
     </section>
 
     <section class="view" id="view-prompts" role="tabpanel" aria-labelledby="vtab-prompts" hidden>
@@ -638,18 +676,7 @@
       <section class="card sub-pane" data-pane="rules" aria-labelledby="ru-h">
         <h2 id="ru-h" data-k="ru.h">Team rules</h2>
         <p class="sub" data-k="ru.desc">Approved rules are pushed to every member at session start.</p>
-        <div class="rules3">
-          <div><h3 data-k="ru.approved">Approved</h3><div id="ru-approved"></div></div>
-          <div><h3 data-k="ru.proposed">Proposed</h3><div id="ru-proposed"></div></div>
-          <div><h3 data-k="ru.removed">Removed</h3><div id="ru-removed"></div></div>
-        </div>
-        <form class="addrule" id="form-rule">
-          <div class="row">
-            <input type="text" id="rule-text" maxlength="500" data-ph="ru.ph" placeholder="Rule text" aria-label="Rule text" />
-            <select id="rule-scope" aria-label="Scope"><option value="ratchet">ratchet</option><option value="model">model</option></select>
-            <button class="btn pri" type="submit" data-k="ru.add">Add rule</button>
-          </div>
-        </form>
+        <div id="ru-box"></div>
         <p class="err" id="ru-err" role="alert"></p>
       </section>
 
@@ -918,6 +945,27 @@ Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg
 Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
 Object.assign(I18N.en, {"ux.seats":"Seats in use","ux.deleg":"Delegated runs","ux.ou.h":"Usage across the organization","ux.rail.sp":"Spent over recent ranges","ux.rail.saved":"saved {v}","ux.copyinvite":"Copy invite link","ux.nomachines":"No machines have joined yet","ux.noledger":"No usage recorded in this range","ux.g.nav":"Pages","ux.g.sections":"Team sections","ux.g.teams":"Teams","ux.g.people":"People","ux.scene.err":"The office view could not be drawn","ux.fail.usage":"Could not load usage","sr.empty":"No machines have joined yet","ux.active":"Active","ux.tabs.hint":"Open"});
 Object.assign(I18N.ko, {"ux.seats":"사용 중인 좌석","ux.deleg":"위임 실행","ux.ou.h":"조직 전체 사용량","ux.rail.sp":"최근 기간별 지출","ux.rail.saved":"절감 {v}","ux.copyinvite":"초대 링크 복사","ux.nomachines":"아직 참여한 컴퓨터가 없습니다","ux.noledger":"이 기간에 기록된 사용량이 없습니다","ux.g.nav":"페이지","ux.g.sections":"팀 구역","ux.g.teams":"팀","ux.g.people":"사람","ux.scene.err":"사무실 화면을 그리지 못했습니다","ux.fail.usage":"사용량을 불러오지 못했습니다","sr.empty":"아직 참여한 컴퓨터가 없습니다","ux.active":"활동 중","ux.tabs.hint":"열기"});
+/* Rules tab (organization rules + every team's rules) */
+Object.assign(I18N.en, {"v.rules":"Rules","rl.sum.aria":"Rules summary","rl.sum.org":"organization rules","rl.sum.team":"team rules","rl.sum.pending":"pending proposals",
+  "rl.when":"Machines in use pick up approved rules within an hour and apply them at their next session start.",
+  "rl.org.h":"Organization rules","rl.org.desc":"Applies to every team; members get it at their next session start.","rl.org.none":"No organization rules yet.",
+  "rl.org.ph":"A rule for every team","rl.org.rmconfirm":"Remove this organization rule? Machines drop it at their next session start.",
+  "rl.team.h":"Team rules · {name}","rl.team.cnt":"{a} approved","rl.team.pend":"{p} pending","rl.team.ph":"A rule for {name}",
+  "rl.pending":"Proposals from members","rl.pending.none":"No pending proposals.","rl.reject":"Reject",
+  "rl.promote":"Apply to whole organization","rl.promote.confirm":"Apply this rule to every team in {org}? It moves from this team to the organization rules.",
+  "rl.tag.org":"Org","rl.ro":"Organization rules (this team gets them too)","rl.manage":"Manage every team's rules in the <a href=\"#rules\">Rules tab</a>.",
+  "rl.card":"Organization rules: {n} · pending proposals: {p}","rl.card.go":"Open the Rules tab","rl.notext":"Enter the rule text.","rl.scope":"Scope",
+  "rl.noteams":"No teams yet. Team rules appear here once a team exists."});
+Object.assign(I18N.ko, {"v.rules":"규칙","rl.sum.aria":"규칙 요약","rl.sum.org":"조직 규칙","rl.sum.team":"팀 규칙","rl.sum.pending":"대기 중인 제안",
+  "rl.when":"승인한 규칙은 사용 중인 PC가 한 시간 안에 받아 두고, 다음 세션 시작 때 반영됩니다",
+  "rl.org.h":"조직 규칙","rl.org.desc":"모든 팀에 적용되고, 멤버 PC에는 다음 세션 시작 때 반영됩니다","rl.org.none":"아직 조직 규칙이 없습니다",
+  "rl.org.ph":"모든 팀에 적용할 규칙","rl.org.rmconfirm":"이 조직 규칙을 제거할까요? 멤버 PC에서는 다음 세션 시작 때 빠집니다",
+  "rl.team.h":"팀 규칙 · {name}","rl.team.cnt":"승인 {a}개","rl.team.pend":"제안 {p}건","rl.team.ph":"{name} 팀에 적용할 규칙",
+  "rl.pending":"멤버 제안","rl.pending.none":"대기 중인 제안이 없습니다","rl.reject":"거절",
+  "rl.promote":"조직 전체에 적용","rl.promote.confirm":"이 규칙을 {org}의 모든 팀에 적용할까요? 이 팀 규칙에서 조직 규칙으로 옮겨집니다",
+  "rl.tag.org":"조직","rl.ro":"조직 규칙 (이 팀에도 적용됩니다)","rl.manage":"모든 팀의 규칙은 <a href=\"#rules\">규칙 탭</a>에서 관리합니다",
+  "rl.card":"조직 규칙 {n}개 · 대기 중인 제안 {p}건","rl.card.go":"규칙 탭 열기","rl.notext":"규칙 내용을 입력해 주세요","rl.scope":"범위",
+  "rl.noteams":"아직 팀이 없습니다. 팀을 만들면 여기에 팀 규칙이 나옵니다"});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -1197,6 +1245,7 @@ async function loadOrgSummary(){
     }catch(e){ AdminUX.err($('org-err'), errMsg(e), loadOrgSummary); }
   }
   Seats.load(org && isAdmin() ? org.id : null);
+  RulesView.load();
   renderOrg();
 }
 $('org-sel').addEventListener('change', async () => {
@@ -1273,6 +1322,7 @@ async function loadTeams(keepId){
     if(!sum.error) (sum.data || []).forEach(r => { if(!r.left_at) counts[r.team_id] = (counts[r.team_id] || 0) + 1; });
   }catch(e){ AdminUX.err($('teams-err'), errMsg(e), () => loadTeams(keepId)); }
   renderTeams();
+  RulesView.load();
   const vt = visibleTeams();
   const last = keepId || lsGet('sprag.team.last');
   const pick = vt.find(x => x.id === last) || (vt.length === 1 ? vt[0] : null);
@@ -1364,19 +1414,14 @@ async function loadLedger(){
 }
 let ledgerSeq = 0;
 
-async function loadRules(){
-  AdminUX.err($('ru-err'), '');
-  try{
-    const { data, error } = await sb.from('team_rules').select('*').eq('team_id', team.id).order('created_at', {ascending:false});
-    if(error) throw error;
-    rules = data || [];
-  }catch(e){ AdminUX.err($('ru-err'), errMsg(e), loadRules); }
-  renderRules();
-}
+/* team Rules sub-tab: the org's rules are loaded once for every team (RulesView below) */
+async function loadRules(){ await RulesView.load(); }
 
 /* ── views + hash routing ─────────────────────────────────────────────── */
 const SUBS = ['members', 'usage', 'rules', 'invite', 'policy'];
 let view = 'overview', sub = 'members';
+/* top-level views in tab order; the Rules tab sits between Teams and Prompts */
+const VIEWS = ['overview', 'seats', 'teams', 'rules', 'prompts'];
 const viewOk = v => v === 'teams' ? true : !!org && (v === 'overview' || isAdmin());
 function firstView(){ return viewOk('overview') ? 'overview' : 'teams'; }
 function hashFor(v, id, s){
@@ -1392,7 +1437,7 @@ function go(v, id, s, scroll){
 let scrollNext = false;
 function parseHash(){
   const p = location.hash.replace(/^#/, '').split('/').map(decodeURIComponent);
-  return { v: ['overview', 'seats', 'teams', 'prompts'].includes(p[0]) ? p[0] : null, id: p[1] || null, s: SUBS.includes(p[2]) ? p[2] : null };
+  return { v: VIEWS.includes(p[0]) ? p[0] : null, id: p[1] || null, s: SUBS.includes(p[2]) ? p[2] : null };
 }
 async function route(initial){
   if(!user) return;
@@ -1422,16 +1467,17 @@ async function route(initial){
 window.addEventListener('hashchange', () => route(false));
 function renderView(){
   $('vtabs').hidden = !user;
-  ['overview', 'seats', 'teams', 'prompts'].forEach(v => {
+  VIEWS.forEach(v => {
     const ok = viewOk(v), on = ok && view === v;
     $('vtab-' + v).hidden = !ok;
     $('vtab-' + v).setAttribute('aria-selected', String(on));
     $('view-' + v).hidden = !on;
   });
-  $('range-bar').hidden = false;
+  $('range-bar').hidden = view === 'rules';   /* rules have no date range */
   OvUsage.sync();
   if(!viewOk(view)){ view = firstView(); renderView(); }
   else if(view === 'prompts') Prompts.activate();
+  else if(view === 'rules'){ RulesView.load(); RulesView.paint(); }
   SceneHost.sync();
 }
 function renderSub(){
@@ -1451,7 +1497,7 @@ $('btn-newteam').addEventListener('click', () => {
 function renderAll(){
   Range.render();
   if(!user) return;
-  renderOrg(); renderTeams(); renderPanel(); Seats.render(); Prompts.render();
+  renderOrg(); renderTeams(); renderPanel(); Seats.render(); Prompts.render(); RulesView.paint();
 }
 function renderTeams(){
   const box = $('teams-list');
@@ -1560,18 +1606,7 @@ function renderChart(){
   if(!ledger.length){ $('chart').replaceChildren(AdminUX.state('empty', t(members.length ? 'ux.noledger' : 'ux.nomachines'), inviteAction())); return; }
   $('chart').innerHTML = usageChartSvg(days, agg, t('ch.h'));
 }
-function renderRules(){
-  if(!team) return;
-  ['approved', 'proposed', 'removed'].forEach(st => {
-    const list = rules.filter(r => r.status === st);
-    $('ru-' + st).innerHTML = list.length ? list.map(r => `<div class="rule"><p><span class="sc">${esc(r.scope)}</span>${esc(r.text)}</p>
-      <div class="acts">${st === 'proposed' ? `<button type="button" class="btn sm" data-ap="${esc(r.id)}">${esc(t('ru.approve'))}</button>` : ''}
-      ${st !== 'removed' ? `<button type="button" class="btn sm danger" data-rr="${esc(r.id)}">${esc(t('ru.remove'))}</button>` : ''}</div></div>`).join('')
-      : `<p class="none">${esc(t('ru.none'))}</p>`;
-  });
-  document.querySelectorAll('[data-ap]').forEach(b => b.addEventListener('click', () => setRule(b.dataset.ap, 'approved')));
-  document.querySelectorAll('[data-rr]').forEach(b => b.addEventListener('click', () => setRule(b.dataset.rr, 'removed')));
-}
+function renderRules(){ RulesView.paint(); }
 
 /* ── actions ──────────────────────────────────────────────────────────── */
 document.addEventListener('click', async ev => {
@@ -1648,27 +1683,133 @@ async function removeMember(id){
   }catch(e){ $('mem-err').textContent = errMsg(e); }
 }
 
-$('form-rule').addEventListener('submit', async ev => {
-  ev.preventDefault(); $('ru-err').textContent = '';
-  const text = $('rule-text').value.trim();
-  if(!text) return void ($('ru-err').textContent = t('ru.empty'));
-  try{
-    const { error } = await sb.from('team_rules').insert({ team_id: team.id, text, scope: $('rule-scope').value, status: 'approved', approved_at: new Date().toISOString() });
-    if(error) throw error;
-    $('rule-text').value = '';
-    await loadRules();
-  }catch(e){ $('ru-err').textContent = errMsg(e); }
-});
-async function setRule(id, status){
-  $('ru-err').textContent = '';
-  const now = new Date().toISOString();
-  const patch = status === 'approved' ? { status, approved_at: now } : { status, removed_at: now };
-  try{
-    const { error } = await sb.from('team_rules').update(patch).eq('id', id);
-    if(error) throw error;
-    await loadRules();
-  }catch(e){ $('ru-err').textContent = errMsg(e); }
-}
+/* ── rules: organization rules and every team's rules of the selected organization.
+   One loader and one set of renderers serve the Rules tab, the team Rules sub-tab
+   (organization rules read-only on top, then that team's section) and the count line
+   on the organization card. Writes go through RLS (org_rules, team_rules) and the
+   org_rule_promote RPC. ── */
+const RulesView = (function(){
+  let key = '', orgRules = [], teamRules = [], loaded = false, orgErr = '', teamErr = '', seq = 0, busy = null, openFor = '';
+  const errs = {}, open = new Set();
+  const when = (r, k) => new Date(r[k] || r.created_at || 0).getTime() || 0;
+  const orgSorted = () => orgRules.slice().sort((a, b) => when(a, 'approved_at') - when(b, 'approved_at'));
+  const ofTeam = (tid, st) => teamRules.filter(r => r.team_id === tid && r.status === st)
+    .sort((a, b) => st === 'approved' ? when(a, 'approved_at') - when(b, 'approved_at') : when(b, 'created_at') - when(a, 'created_at'));
+  const inOrg = st => { const ids = new Set(visibleTeams().map(x => x.id)); return teamRules.filter(r => r.status === st && ids.has(r.team_id)).length; };
+  const row = (r, acts, pre) => `<div class="rule"><p>${pre || ''}<span class="sc">${esc(r.scope === 'model' ? 'model' : 'ratchet')}</span>${esc(r.text)}</p>${acts ? `<div class="acts">${acts}</div>` : ''}</div>`;
+  const btn = (act, id, label, cls) => `<button type="button" class="btn sm${cls ? ' ' + cls : ''}" data-rl="${act}" data-id="${esc(id)}">${esc(label)}</button>`;
+  const none = k => `<p class="none">${esc(t(k, null, true))}</p>`;
+  const errP = k => `<p class="err" role="alert">${errs[k] ? esc(errs[k]) : ''}</p>`;
+  const loadingP = () => '<p class="msg loading">' + esc(t('loading')) + '</p>';
+  function form(kind, tid, ph){
+    return `<form class="addrule" data-rlform="${kind}"${tid ? ` data-team="${esc(tid)}"` : ''} novalidate><div class="row">
+      <input type="text" name="text" maxlength="2000" placeholder="${esc(ph)}" aria-label="${esc(ph)}" />
+      <select name="scope" aria-label="${esc(t('rl.scope', null, true))}"><option value="ratchet">ratchet</option><option value="model">model</option></select>
+      <button class="btn pri" type="submit">${esc(t('ru.add', null, true))}</button></div></form>`;
+  }
+  function teamBody(tid){
+    const tm = teams.find(x => x.id === tid) || {}, ap = ofTeam(tid, 'approved'), pe = ofTeam(tid, 'proposed');
+    return `<div class="rl-cols">
+      <div><h3>${esc(t('ru.approved', null, true))}</h3><div class="rl-list">${ap.length ? ap.map(r => row(r, btn('promote', r.id, t('rl.promote', null, true)) + btn('tr-rm', r.id, t('ru.remove', null, true), 'danger'))).join('') : none('ru.none')}</div></div>
+      <div><h3>${esc(t('rl.pending', null, true))}</h3><div class="rl-list">${pe.length ? pe.map(r => row(r, btn('approve', r.id, t('ru.approve', null, true), 'pri') + btn('reject', r.id, t('rl.reject', null, true), 'danger'))).join('') : none('rl.pending.none')}</div></div>
+    </div>${form('team', tid, t('rl.team.ph', {name: tm.name || ''}, true))}${errP(tid)}`;
+  }
+  function paintTab(){
+    const box = $('rules-box'); if(!box || $('view-rules').hidden) return;
+    if(!org){ box.innerHTML = ''; return; }
+    if(!loaded){ box.innerHTML = loadingP(); return; }
+    const vt = visibleTeams(), nPend = inOrg('proposed');
+    const k = (n, label, cls) => `<span class="k${cls ? ' ' + cls : ''}">${lang === 'ko' ? esc(label) + '<b>' + n + '</b>' : '<b>' + n + '</b>' + esc(label)}</span>`;
+    let h = `<section class="card rl-sum" aria-label="${esc(t('rl.sum.aria', null, true))}">${k(orgRules.length, t('rl.sum.org', null, true))}${k(inOrg('approved'), t('rl.sum.team', null, true))}${k(nPend, t('rl.sum.pending', null, true), nPend ? 'warn' : '')}<span class="when">${esc(t('rl.when', null, true))}</span></section>`;
+    h += `<section class="card" aria-labelledby="rl-org-h"><div class="sec-h"><h2 id="rl-org-h">${esc(t('rl.org.h', null, true))}<span class="count">${orgRules.length}</span></h2></div>
+      <p class="sub">${esc(t('rl.org.desc', null, true))}</p>`;
+    h += orgErr ? `<p class="err" role="alert">${esc(orgErr)}</p>`
+      : `<div class="rl-list" style="margin-top:var(--s3)">${orgRules.length ? orgSorted().map(r => row(r, btn('org-rm', r.id, t('ru.remove', null, true), 'danger'))).join('') : none('rl.org.none')}</div>${form('org', null, t('rl.org.ph', null, true))}${errP('org')}`;
+    h += '</section>';
+    if(teamErr) h += `<section class="card"><p class="err" role="alert">${esc(teamErr)}</p></section>`;
+    else if(!vt.length) h += `<section class="card"><p class="msg" style="margin:0">${esc(t('rl.noteams', null, true))}</p></section>`;
+    else vt.forEach(x => {
+      const a = ofTeam(x.id, 'approved').length, p = ofTeam(x.id, 'proposed').length;
+      h += `<section class="card rl-team"><details data-rlteam="${esc(x.id)}"${open.has(x.id) ? ' open' : ''}><summary><span class="tn">${esc(t('rl.team.h', {name: x.name}, true))}</span>
+        <span class="cnt">${esc(t('rl.team.cnt', {a}, true))}${p ? ` · <span class="pend">${esc(t('rl.team.pend', {p}, true))}</span>` : ''}</span></summary>
+        <div class="rl-body">${teamBody(x.id)}</div></details></section>`;
+    });
+    box.innerHTML = h;
+    box.querySelectorAll('details[data-rlteam]').forEach(d => d.addEventListener('toggle', () => { if(d.open) open.add(d.dataset.rlteam); else open.delete(d.dataset.rlteam); }));
+  }
+  function paintPane(){
+    const box = $('ru-box'); if(!box || !team) return;
+    if(!loaded){ box.innerHTML = loadingP(); return; }
+    const ro = orgErr ? '' : `<div class="rl-ro"><h3>${esc(t('rl.ro', null, true))}</h3><div class="rl-list">${orgRules.length
+      ? orgSorted().map(r => row(r, '', `<span class="tag">${esc(t('rl.tag.org', null, true))}</span>`)).join('') : none('rl.org.none')}</div></div>`;
+    box.innerHTML = ro + (teamErr ? `<p class="err" role="alert">${esc(teamErr)}</p>` : teamBody(team.id)) + `<p class="rl-manage">${t('rl.manage')}</p>`;
+  }
+  function paintCard(){
+    const el = $('org-rules'); if(!el) return;
+    if(!(org && loaded && !orgErr)){ el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = esc(t('rl.card', {n: orgRules.length, p: inOrg('proposed')}, true)) + ` · <a href="#rules">${esc(t('rl.card.go', null, true))}</a>`;
+  }
+  function paint(){ paintTab(); paintPane(); paintCard(); }
+  function load(force){
+    if(!(user && org)){ key = ''; orgRules = []; teamRules = []; loaded = false; paint(); return Promise.resolve(); }
+    const oid = org.id, ids = visibleTeams().map(x => x.id), k = oid + '|' + ids.join();
+    if(!force && k === key) return busy || Promise.resolve();
+    if(k !== key) loaded = false;
+    key = k; const my = ++seq;
+    paint();
+    const soft = q => Promise.resolve(q).then(r => r || { data: [] }, e => ({ error: e }));
+    busy = (async () => {
+      const [o, tr] = await Promise.all([
+        soft(sb.from('org_rules').select('*').eq('org_id', oid).eq('status', 'approved')),
+        ids.length ? soft(sb.from('team_rules').select('*').in('team_id', ids)) : Promise.resolve({ data: [] })]);
+      if(my !== seq) return;
+      orgErr = o.error ? errMsg(o.error) : ''; teamErr = tr.error ? errMsg(tr.error) : '';
+      orgRules = o.error ? [] : (o.data || []); teamRules = tr.error ? [] : (tr.data || []);
+      loaded = true; busy = null;
+      if(openFor !== oid && ids.length){
+        openFor = oid; open.clear();
+        ids.forEach(id => { if(ofTeam(id, 'proposed').length) open.add(id); });
+        if(!open.size && ids[0]) open.add(ids[0]);
+      }
+      paint();
+    })();
+    return busy;
+  }
+  async function act(kind, id){
+    const r0 = teamRules.find(x => x.id === id), ek = kind === 'org-rm' ? 'org' : (r0 && r0.team_id) || 'org';
+    errs[ek] = '';
+    const now = new Date().toISOString();
+    try{
+      let res;
+      if(kind === 'org-rm'){ if(!confirm(t('rl.org.rmconfirm', null, true))) return; res = await sb.from('org_rules').update({ status: 'removed', removed_at: now }).eq('id', id); }
+      else if(kind === 'promote'){ if(!confirm(t('rl.promote.confirm', {org: org ? org.name : ''}, true))) return; res = await sb.rpc('org_rule_promote', { p_rule_id: id }); }
+      else if(kind === 'approve') res = await sb.from('team_rules').update({ status: 'approved', approved_at: now }).eq('id', id);
+      else if(kind === 'reject' || kind === 'tr-rm') res = await sb.from('team_rules').update({ status: 'removed', removed_at: now }).eq('id', id);
+      else return;
+      if(res && res.error) throw res.error;
+    }catch(e){ errs[ek] = errMsg(e); return paint(); }
+    await load(true);
+  }
+  async function add(kind, tid, text, scope){
+    const ek = kind === 'org' ? 'org' : tid;
+    errs[ek] = '';
+    if(!text){ errs[ek] = t('rl.notext', null, true); return paint(); }
+    try{
+      const res = kind === 'org'
+        ? await sb.from('org_rules').insert({ org_id: org.id, text, scope: scope === 'model' ? 'model' : 'ratchet' })
+        : await sb.from('team_rules').insert({ team_id: tid, text, scope: scope === 'model' ? 'model' : 'ratchet', status: 'approved', approved_at: new Date().toISOString() });
+      if(res && res.error) throw res.error;
+    }catch(e){ errs[ek] = errMsg(e); return paint(); }
+    await load(true);
+  }
+  document.addEventListener('click', ev => { const b = ev.target.closest('[data-rl]'); if(b){ ev.preventDefault(); act(b.dataset.rl, b.dataset.id); } });
+  document.addEventListener('submit', ev => {
+    const f = ev.target.closest('form[data-rlform]'); if(!f) return;
+    ev.preventDefault(); add(f.dataset.rlform, f.dataset.team || null, f.elements.text.value.trim(), f.elements.scope.value);
+  });
+  return { load, paint, pending: () => inOrg('proposed') };
+})();
 
 /* ── prompt capture (Enterprise). Every call fails soft. ───────────────── */
 async function loadPromptDays(){
@@ -2178,6 +2319,7 @@ const SceneHost = (function(){
       onServer: () => { const n = $('scene-card').nextElementSibling; if(n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
       onFail: () => { fail(); }
     });
+    if(DEMO && new URLSearchParams(location.search).get('rec') === '1') window.__sprag = { town: null, office: ctl };   /* video/tour recordings (demo only) */
   }
   return { sync };
 })();
@@ -2268,15 +2410,55 @@ function demoSb(){
     o.in = (c, v) => { data = data.filter(r => v.includes(r[c])); return o; };
     o.single = () => { data = data[0] || {}; return o; };
     o.then = (res, rej) => Promise.resolve({data, error:null}).then(res, rej); return o; };
-  const tables = { teams:() => tm, team_member_summary:summary, ledger_daily:ledger, team_rules:() => [
-    {id:'r1', team_id:'demo-t1', text:'Run the full test suite before reporting done', scope:'ratchet', status:'approved', created_at:ago(9)},
-    {id:'r2', team_id:'demo-t1', text:'Delegate lookups to the small model', scope:'model', status:'proposed', created_at:ago(2)}] };
+  const tables = { teams:() => tm, team_member_summary:summary, ledger_daily:ledger };
+  /* rules: a mutable in-memory store, so add, approve, reject, remove and promote all work in the demo */
+  const ko = lang === 'ko', T2 = (en, k) => ko ? k : en;
+  const rulesDb = {
+    org_rules: [
+      {id:'or1', org_id:'demo-org', text:T2('Never paste customer data or production secrets into a prompt', '고객 데이터와 운영 비밀값은 프롬프트에 붙여 넣지 않는다'), scope:'ratchet', status:'approved', approved_at:ago(40), created_at:ago(40)},
+      {id:'or2', org_id:'demo-org', text:T2('Keep design in the main session and delegate implementation to sonnet', '설계는 메인 세션이 맡고, 구현은 sonnet에 위임'), scope:'model', status:'approved', approved_at:ago(12), created_at:ago(12)}],
+    team_rules: [
+      {id:'r1', team_id:'demo-t1', text:T2('Run the full test suite before reporting done', '완료 보고 전에 전체 테스트를 돌린다'), scope:'ratchet', status:'approved', approved_at:ago(9), created_at:ago(9)},
+      {id:'r3', team_id:'demo-t1', text:T2('Ask before touching anything under infra/prod', 'infra/prod 아래는 한 줄이라도 고치기 전에 먼저 묻는다'), scope:'ratchet', status:'approved', approved_at:ago(6), created_at:ago(6)},
+      {id:'r2', team_id:'demo-t1', text:T2('Delegate lookups to the small model', '파일 찾기 같은 조회는 haiku에 맡긴다'), scope:'model', status:'proposed', created_at:ago(2)},
+      {id:'r4', team_id:'demo-t1', text:T2('Pin the node version in CI to the value in .nvmrc', 'CI의 node 버전은 .nvmrc 값에 고정한다'), scope:'ratchet', status:'proposed', created_at:ago(1)},
+      {id:'r5', team_id:'demo-t2', text:T2('Run the simulator smoke test before every release build', '릴리스 빌드 전에는 시뮬레이터 스모크 테스트를 돌린다'), scope:'ratchet', status:'approved', approved_at:ago(15), created_at:ago(15)},
+      {id:'r6', team_id:'demo-t2', text:T2('Use sonnet for UI copy changes', 'UI 문구 수정은 sonnet에 맡긴다'), scope:'model', status:'proposed', created_at:ago(3)},
+      {id:'r7', team_id:'demo-t3', text:T2('Never run notebooks against the production warehouse', '운영 웨어하우스에 노트북을 직접 붙이지 않는다'), scope:'ratchet', status:'approved', approved_at:ago(20), created_at:ago(20)},
+      {id:'r8', team_id:'demo-t1', text:T2('Always use --force when a migration fails', '마이그레이션이 실패하면 --force 로 다시 돌린다'), scope:'ratchet', status:'removed', approved_at:ago(30), removed_at:ago(25), created_at:ago(30)}] };
+  let ruleSeq = 0;
+  const rulesQ = name => { const rows = rulesDb[name], keep = []; let patch = null, ins = null; const o = {};
+    ['select', 'order', 'limit'].forEach(k => { o[k] = () => o; });
+    o.eq = (c, v) => { keep.push(r => r[c] === v); return o; };
+    o.in = (c, v) => { keep.push(r => v.includes(r[c])); return o; };
+    o.update = p => { patch = p; return o; };
+    o.insert = row => { ins = row; return o; };
+    o.then = (res, rej) => { const now = new Date().toISOString(); let data;
+      if(ins){ const r = { id: 'demo-' + name + '-' + (++ruleSeq), status: 'approved', approved_at: now, created_at: now, ...ins }; rows.push(r); data = [r]; }
+      else { data = rows.filter(r => keep.every(f => f(r))); if(patch) data.forEach(r => Object.assign(r, patch)); data = data.map(r => ({ ...r })); }
+      return Promise.resolve({ data, error: null }).then(res, rej); };
+    return o; };
+  const promoteRule = id => {
+    const r = rulesDb.team_rules.find(x => x.id === id);
+    if(!r) throw new Error('rule not found');
+    if(r.status !== 'approved') throw new Error('only an approved rule can be promoted');
+    const now = new Date().toISOString(), nid = 'demo-org_rules-' + (++ruleSeq);
+    rulesDb.org_rules.push({ id: nid, org_id: 'demo-org', text: r.text, scope: r.scope, status: 'approved', approved_at: now, created_at: now });
+    Object.assign(r, { status: 'removed', removed_at: now });
+    return nid;
+  };
+  /* video/tour recordings (?rec=1): rules added through the form stay in memory for the session, so the list shows them */
+  const recRules = [], rec = new URLSearchParams(location.search).get('rec') === '1';
   return {
     auth: demoAuth(),
-    from: name => q((tables[name] || (() => []))()),
+    from: name => { if(rulesDb[name]) return rulesQ(name);
+      const o = q([...(name === 'team_rules' ? recRules : []), ...(tables[name] || (() => []))()]);
+      if(rec && name === 'team_rules') o.insert = row => { recRules.unshift({ id: 'rec' + recRules.length, created_at: new Date().toISOString(), ...row }); return o; };
+      return o; },
     rpc: async (name, a) => {
       try{
         if(name === 'org_my') return {data:[org()], error:null};
+        if(name === 'org_rule_promote') return {data: promoteRule(a && a.p_rule_id), error:null};
         if(name === 'team_member_usage'){
           const days = new Set(Range.list(a.p_from, a.p_to)), td = fmtDay(new Date()), rows = ledger();
           return {data:{ from:a.p_from, to:a.p_to, members: summary().map(m => { const r = rows.filter(x => x.member_id === m.member_id && days.has(x.day)), sum = k => r.reduce((n, x) => n + x[k], 0);
@@ -2306,7 +2488,7 @@ function demoSb(){
     items: () => {
       if(!user) return [];
       const out = [], nav = t('ux.g.nav');
-      ['overview', 'seats', 'teams', 'prompts'].filter(viewOk).forEach(v => out.push({ group: nav, label: t('v.' + v), key: v === 'overview' ? 'G O' : v === 'seats' ? 'G S' : v === 'teams' ? 'G T' : 'G P', run: () => go(v, v === 'teams' && team ? team.id : null, null, true) }));
+      VIEWS.filter(viewOk).forEach(v => out.push({ group: nav, label: t('v.' + v), key: 'G ' + ({ overview: 'O', seats: 'S', teams: 'T', rules: 'R', prompts: 'P' })[v], run: () => go(v, v === 'teams' && team ? team.id : null, null, true) }));
       if(team) SUBS.forEach(sb2 => out.push({ group: t('ux.g.sections'), label: t('tv.' + sb2), hint: team.name, run: () => go('teams', team.id, sb2, true) }));
       visibleTeams().forEach(x => out.push({ group: t('ux.g.teams'), label: x.name, hint: t('t.active', { n: counts[x.id] || 0 }, true), run: () => go('teams', x.id, null, true) }));
       const people = Seats.rows().length ? Seats.rows().map(r => ({ id: r.member_id, name: r.display_name || r.member_id, team: r.team_name, sig: r.signal })) : members.map(m => ({ id: m.member_id, name: m.display_name || m.member_id, team: team && team.name, sig: m.left_at ? 'left' : 'ok' }));
@@ -2316,7 +2498,7 @@ function demoSb(){
     },
     get go(){
       const to = (v, label) => ({ label, run: () => { if(user && viewOk(v)) go(v, v === 'teams' && team ? team.id : null, null, true); } });
-      return { o: to('overview', t('v.overview')), s: to('seats', t('v.seats')), t: to('teams', t('v.teams')), p: to('prompts', t('v.prompts')) };
+      return { o: to('overview', t('v.overview')), s: to('seats', t('v.seats')), t: to('teams', t('v.teams')), r: to('rules', t('v.rules')), p: to('prompts', t('v.prompts')) };
     }
   });
   AdminUX.hint(document.querySelector('.hbar-r'), document.querySelector('.hbar-r .lang'), () => Pal.open());
