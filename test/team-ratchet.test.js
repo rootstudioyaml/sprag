@@ -121,11 +121,16 @@ test('spawnTeamSyncIfDue spawns when due or auto-join pending, not otherwise', (
   const tok = { SPRAG_TEAM_TOKEN: `spt_${'a'.repeat(32)}` };
   assert.equal(spawnTeamSyncIfDue({ ...base, state: {}, env: tok }), true);
   const n = calls.length;
-  assert.equal(spawnTeamSyncIfDue({ ...base, state: due, env: { SPRAG_NO_TEAM_SYNC: '1' } }), false);
+  // Switched off: one more spawn reports the pause, then nothing.
+  assert.equal(spawnTeamSyncIfDue({ ...base, state: due, env: { SPRAG_NO_TEAM_SYNC: '1' } }), true);
+  assert.equal(spawnTeamSyncIfDue({ ...base, state: { ...due, pausedReported: true }, env: { SPRAG_NO_TEAM_SYNC: '1' } }), false);
+  assert.equal(spawnTeamSyncIfDue({ ...base, state: {}, env: { SPRAG_NO_TEAM_SYNC: '1' } }), false);
+  // Switched back on after a reported pause: spawn even before the interval.
+  assert.equal(spawnTeamSyncIfDue({ ...base, state: { memberKey: 'k', lastSyncAt: base.now - 1000, pausedReported: true }, env: {} }), true);
   assert.equal(spawnTeamSyncIfDue({ ...base, state: {}, env: {} }), false);
   assert.equal(spawnTeamSyncIfDue({ ...base, state: { memberKey: 'k', lastSyncAt: base.now - 1000 }, env: {} }), false);
   assert.equal(spawnTeamSyncIfDue({ ...base, state: { left: true }, env: tok }), false);
-  assert.equal(calls.length, n);
+  assert.equal(calls.length, n + 2, 'only the pause report and the resume report spawned');
   assert.equal(isJoined({ memberKey: 'k', left: true }), false);
   assert.equal(teamSyncDue({ memberKey: 'k', lastSyncAt: base.now }, base.now), false);
   assert.equal(autoJoinPending({ memberKey: 'k' }, tok), false);

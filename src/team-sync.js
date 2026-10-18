@@ -301,10 +301,34 @@ export async function leaveTeam({ fetch, dir = userDataDir(), now = Date.now() }
 export async function syncTeam({
   now = Date.now(), dir = userDataDir(), fetch, force = false, env = process.env, version, sessions,
 } = {}) {
-  if (teamSyncDisabled(env)) return { skipped: 'disabled' };
-  const state = loadTeamState(dir);
+  let state = loadTeamState(dir);
+  // The switch stops every usage upload. A joined machine still tells the
+  // server once that it paused (no usage data), so the organization sees a
+  // paused seat instead of a machine that went quiet.
+  if (teamSyncDisabled(env)) {
+    if (!isJoined(state) || state.pausedReported) return { skipped: 'disabled' };
+    try {
+      await rpc('member_set_sync', { member_key: state.memberKey, paused: true }, { fetch });
+      saveTeamState({ ...state, pausedReported: true }, dir);
+      return { skipped: 'disabled', reported: 'paused' };
+    } catch (e) {
+      debug('team-sync', e);
+      return { skipped: 'disabled', error: e.message };
+    }
+  }
   if (state.left) return { skipped: 'left' };
   if (!isJoined(state)) return { skipped: 'not-joined' };
+  if (state.pausedReported) {
+    try {
+      await rpc('member_set_sync', { member_key: state.memberKey, paused: false }, { fetch });
+      state = { ...state };
+      delete state.pausedReported;
+      saveTeamState(state, dir);
+      force = true;
+    } catch (e) {
+      debug('team-sync', e);
+    }
+  }
   if (!force && !teamSyncDue(state, now)) return { skipped: 'not-due' };
   try {
     const rows = (await aggregateDaily({ now, dir, sessions })).slice(-MAX_ROWS);

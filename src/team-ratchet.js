@@ -152,8 +152,13 @@ export function spawnTeamSyncIfDue({
   state = readTeamState(), now = Date.now(), env = process.env,
   spawn = childProcess.spawn, argv = process.argv, execPath = process.execPath,
 } = {}) {
-  if (teamSyncDisabled(env)) return false;
-  if (!autoJoinPending(state, env) && !teamSyncDue(state, now)) return false;
+  // Switched off: spawn once more only to report the pause (team-sync.js).
+  // Switched back on after a reported pause: spawn now to report the resume.
+  if (teamSyncDisabled(env)) {
+    if (!isJoined(state) || state.pausedReported) return false;
+  } else if (!autoJoinPending(state, env) && !teamSyncDue(state, now) && !(isJoined(state) && state.pausedReported)) {
+    return false;
+  }
   try {
     spawn(execPath, [argv[1], 'team', 'sync', '--background'],
       { detached: true, stdio: 'ignore', windowsHide: true }).unref();

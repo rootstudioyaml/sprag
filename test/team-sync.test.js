@@ -111,6 +111,33 @@ test('syncTeam skips without any fetch for disabled, not-joined, left, not-due; 
   assert.equal(f.calls.length, 2);
 });
 
+test('syncTeam reports a pause once without usage data, then the resume before the next upload', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({ member_set_sync: { sync_state: 'x' }, ledger_upsert: 0, team_rules_get: { rules: [], removed: [] } });
+  const now = Date.now();
+  saveTeamState(joinedState({ lastSyncAt: now - 1000 }), dir);
+  const off = { SPRAG_NO_TEAM_SYNC: '1' };
+  assert.deepEqual(await syncTeam({ dir, fetch: f, now, env: off }), { skipped: 'disabled', reported: 'paused' });
+  assert.deepEqual(f.calls.map((c) => [c.fn, c.body.paused]), [['member_set_sync', true]]);
+  assert.equal(await syncTeam({ dir, fetch: f, now, env: off }).then((r) => r.skipped), 'disabled');
+  assert.equal(f.calls.length, 1, 'a reported pause is not sent again');
+  const r = await syncTeam({ dir, fetch: f, now, env: {}, sessions: [] });
+  assert.deepEqual(f.calls.slice(1).map((c) => c.fn), ['member_set_sync', 'ledger_upsert', 'team_rules_get']);
+  assert.equal(f.calls[1].body.paused, false);
+  assert.equal(r.uploaded, 0, 'the resume forces an upload even before the interval');
+  assert.equal(loadTeamState(dir).pausedReported, undefined);
+});
+
+test('syncTeam keeps retrying the pause report when the server refuses it', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({ member_set_sync: { status: 404, json: { message: 'no such function' } } });
+  saveTeamState(joinedState(), dir);
+  const r = await syncTeam({ dir, fetch: f, env: { SPRAG_NO_TEAM_SYNC: '1' } });
+  assert.equal(r.skipped, 'disabled');
+  assert.match(r.error, /no such function/);
+  assert.equal(loadTeamState(dir).pausedReported, undefined);
+});
+
 test('syncTeam happy path uploads, caches rules and updates state', async (t) => {
   const dir = isolate(t);
   const now = Date.now();
