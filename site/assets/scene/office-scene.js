@@ -358,6 +358,26 @@ export function mountOfficeScene(container, data, opts = {}){
     fpt(o, o.x, hy, hz, V1); Mh.compose(V1, Q1.setFromEuler(E1.set(0, yaw, 0)), ONE);
     V1.set(pt.p[0] * K, pt.p[1] * K, pt.p[2] * K); E1.set(pt.r || 0, 0, 0); Mp.compose(V1, Q1.setFromEuler(E1), V2); Mp.premultiply(Mh); mesh.setMatrixAt(i, Mp);
   }
+  /* Where a head looks: mostly at the monitor (yaw 0 faces the screen), with a
+     glance at a neighbour on either side or toward the room every few seconds,
+     eased in and out. Chicks on a coffee break look around more often. A still
+     frame (reduced motion) uses the room-facing pose so the faces show. */
+  function headYaw(o, low, mv, dt){
+    if(!mv) return HEAD_YAW;
+    const L = o.look || (o.look = { yaw: 0, to: 0, next: 1 + Math.random() * 4 });
+    L.next -= dt;
+    if(L.next <= 0){
+      if(L.to !== 0 && Math.random() < 0.85){ L.to = 0; L.next = (low ? 1.5 : 3) + Math.random() * (low ? 3 : 6); }
+      else {
+        const r = Math.random();
+        L.to = r < 0.35 ? -1.1 : r < 0.7 ? 1.1 : HEAD_YAW;
+        L.to += (Math.random() - 0.5) * 0.4;
+        L.next = 0.8 + Math.random() * 1.8;
+      }
+    }
+    L.yaw += (L.to - L.yaw) * Math.min(1, dt * 4);
+    return L.yaw + Math.sin(time * 0.6 + o.ph) * 0.05;
+  }
   const setK = (m, i, o, x, y, z, rx, sx = 1, sy = 1, sz = 1) => { fpt(o, x, y, z, TMP); setM(m, i, TMP.x, TMP.y, TMP.z, rx, 0, sx * K, sy * K, sz * K); };
 
   /* ── 3D text: floor decals and signpost boards are canvas textures, so no HTML pills compete with the speech bubbles ── */
@@ -602,7 +622,7 @@ export function mountOfficeScene(container, data, opts = {}){
         setK(f.torso, i, o, o.x, 1.05, o.z + 0.3, lean);
         if(low){ setK(f.arm, i * 2, o, o.x + 0.36, 1.2, o.z + 0.12, 0); setK(f.arm, i * 2 + 1, o, o.x - 0.34, 1.0, o.z + 0.1, Math.PI / 2, 1, 1, 0.8); }
         else { setK(f.arm, i * 2, o, o.x - 0.3, 1.1 + bob, o.z - 0.12, Math.PI / 2); setK(f.arm, i * 2 + 1, o, o.x + 0.3, 1.1 - bob, o.z - 0.12, Math.PI / 2); }
-        const hy = 1.7 + (mv ? Math.sin(tt * 1.3 + ph) * 0.015 : 0), yaw = HEAD_YAW + (mv ? Math.sin(tt * 0.6 + ph) * 0.18 : 0), hz = o.z + 0.3 + (low ? 0.15 : -0.05);
+        const hy = 1.7 + (mv ? Math.sin(tt * 1.3 + ph) * 0.015 : 0), yaw = headYaw(o, low, mv, dt), hz = o.z + 0.3 + (low ? 0.15 : -0.05);
         o.pl.forEach(q => putPart(q.m, q.i, q.pt, o, hy, hz, yaw));
         if(f.ghost){ putPart(f.rimH, i, o.rimPt, o, hy, hz, yaw); setK(f.rimT, i, o, o.x, 1.05, o.z + 0.3, lean, 1.12, 1.1, 1.12); }
       });
