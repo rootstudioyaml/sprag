@@ -242,7 +242,7 @@ test('seat limit reached on join: typed error, friendly message, exit 1', async 
   try { await run({ args, hasFlag: (n) => args.includes(n), getArg, version: '0.0.0' }); } catch { /* exit */ }
   finally { console.error = origErr; console.log = origLog; process.exit = origExit; globalThis.fetch = origFetch; }
   assert.equal(code, 1);
-  assert.match(errs.join('\n'), /(free seat|남은 자리)/);
+  assert.match(errs.join('\n'), /(free seat|남은 좌석)/);
   assert.ok(!/P0001|team_join:/.test(errs.join('\n')));
 });
 
