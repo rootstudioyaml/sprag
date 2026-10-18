@@ -22,7 +22,7 @@ Not sent: prompts, transcripts, file paths, project names, rule text, API keys. 
 
 The upload runs at most once every 6 hours, from a detached child process that the SessionStart hook spawns. It never runs on the statusline path.
 
-Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose` and `team_leave`.
+Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose` and `team_leave`; `sprag team create` also calls `team_create` with your sign-in session.
 
 ## Create a team from the CLI
 
@@ -92,9 +92,21 @@ Approved rules come back with the next sync. Sprag writes them to `~/.claude/rat
 | `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team |
 | `sprag team leave` | Leave the team and stop uploading |
 
+## Organizations and seats
+
+Every team belongs to an organization, and seats are bought per organization, not per team. Teams you create without naming an organization get a new one automatically, so existing setups keep working.
+
+- **What a seat is.** One machine (one member key) that was active in the last 30 days and has not left. Members who left are not counted.
+- **Second machine.** When the same person uses two machines, an admin can merge the second one into the first so the two share one seat. In the dashboard, use "Merge seat" on the member row; "Unmerge" gives it its own seat back. A merged row shows "shares a seat with <name>".
+- **The limit.** Each organization has a seat limit. A join past the limit is refused: `sprag team join` exits 1 with "This organization has no free seat. Ask your Sprag admin to raise the seat limit", and an environment auto-join stays silent and tries again at a later session start. Lowering the limit below current use never removes anyone; it only refuses new joins until the owner raises it again.
+- **Roles.** The organization owner sets the seat limit, appoints or removes admins and renames the organization. An admin creates teams, assigns team owners and sees every team in the organization. A team owner manages only their own team, as before.
+- **The plan.** Sprag sets the plan (`team` or `business`) on the organization; owners cannot change it. Prompt capture can be switched on only while the organization is on Business. To change the plan, contact us.
+
+Create a team inside an existing organization from the CLI with `sprag team create --org <org-id>`. The command prints the organization name and how many seats are used. `sprag team status` shows the organization name.
+
 ## The dashboard
 
-https://sprag.io/team/ is where the owner signs in with an email code, creates a team and gets the invite token. From there the owner sees per-member spend and savings for the last 30 days, approves or removes rules, and removes members.
+https://sprag.io/team/ is where the owner signs in with an email code, creates a team and gets the invite token. From there the owner sees per-member spend and savings for the last 30 days, approves or removes rules, and removes members. Organization owners and admins also get an organization panel: plan, seats used against the limit, admins, every team with its owner, and merge or unmerge of seats.
 
 ## Plans
 

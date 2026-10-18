@@ -94,6 +94,18 @@
   .badge{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line2);color:var(--dim);border-radius:99px;padding:2px 8px}
   .badge.plus{border-color:var(--amber);color:var(--amber2)}
   html[lang=ko] .badge{font-family:var(--sans);letter-spacing:0;text-transform:none}
+  .bar{height:8px;border:1px solid var(--line2);border-radius:99px;background:var(--panel2);overflow:hidden;margin-top:12px;max-width:420px}
+  .bar i{display:block;height:100%;background:var(--amber);min-width:2px}
+  .bar.full i{background:var(--warn)}
+  .org-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+  .org-grid > div{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--panel2);min-width:0}
+  .org-grid table{min-width:0}
+  .arow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px;flex-wrap:wrap}
+  .arow:first-of-type{border-top:0}
+  .arow .em{overflow-wrap:anywhere}
+  .share{display:block;color:var(--faint);font-size:11.5px;margin-top:2px}
+  td select.mg{padding:4px 8px;font-size:12.5px}
+  @media(max-width:860px){.org-grid{grid-template-columns:1fr}}
   .newteam{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
 
   .tok{display:flex;align-items:stretch;gap:0;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;background:var(--bg);margin-top:12px}
@@ -229,11 +241,47 @@
       </div>
     </div>
 
+    <section class="card" id="org-card" aria-labelledby="org-h" hidden>
+      <div class="row" style="justify-content:space-between">
+        <h2 id="org-h" data-k="o.h">Organization</h2>
+        <label class="thr"><span data-k="o.switch">Switch</span>
+          <select id="org-sel" data-aria="o.switch.aria" aria-label="Organization"></select></label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <span class="badge" id="org-plan"></span>
+        <span class="sub" id="org-role" style="margin:0"></span>
+      </div>
+      <p class="sub" id="org-seats"></p>
+      <div class="bar" id="org-bar" role="img"><i id="org-bar-fill" style="width:0"></i></div>
+      <p class="note" data-k="o.seatnote">A seat is one machine active in the last 30 days. Joins past the limit are refused until the owner raises it. Sprag sets the plan; to change it, contact us.</p>
+      <form class="row" id="form-limit" hidden style="margin-top:12px">
+        <label class="thr"><span data-k="o.limit">Seat limit</span>
+          <input type="number" id="org-limit" min="1" max="10000" step="1" inputmode="numeric" /></label>
+        <button class="btn sm pri" type="submit" data-k="o.save">Save</button>
+      </form>
+      <p class="err" id="org-err" role="alert"></p>
+      <div class="org-grid">
+        <div>
+          <h3 data-k="o.admins">Admins</h3>
+          <div id="org-admins"></div>
+          <form class="row grow" id="form-admin" hidden style="margin-top:12px">
+            <input type="email" id="admin-email" data-ph="o.admin.ph" placeholder="Email" aria-label="Email" />
+            <select id="admin-role" aria-label="Role"><option value="admin" data-k="role.admin">Admin</option><option value="owner" data-k="role.owner">Owner</option></select>
+            <button class="btn sm pri" type="submit" data-k="o.admin.add">Add</button>
+          </form>
+        </div>
+        <div>
+          <h3 data-k="o.teams">Teams in this organization</h3>
+          <div id="org-teams"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="card" aria-labelledby="teams-h">
       <h2 id="teams-h" data-k="t.h">Your teams</h2>
       <div class="teams-list" id="teams-list"></div>
       <form class="newteam" id="form-team">
-        <h3 data-k="t.new">New team</h3>
+        <h3 id="new-title" data-k="t.new">New team</h3>
         <div class="row grow" style="margin-top:10px">
           <input type="text" id="team-name" maxlength="80" data-ph="t.ph" placeholder="Team name" aria-label="Team name" />
           <button class="btn pri" type="submit" data-k="t.create">Create</button>
@@ -271,6 +319,7 @@
           <a class="planlink" id="pol-plan" href="/pricing/" hidden>Business</a>
         </div>
         <p class="sub" data-k="pol.desc">Off by default. Needs the Business plan.</p>
+        <p class="msg warn" id="pol-plannote" hidden></p>
         <p class="err" id="pol-err" role="alert"></p>
       </section>
 
@@ -380,7 +429,21 @@ const I18N = {
     'ru.ph':'Rule text','ru.add':'Add rule','ru.approve':'Approve','ru.remove':'Remove','ru.empty':'Enter the rule text.',
     'pm.h':'Prompts','pm.desc':'User prompts only, newest first.','pm.off':'Prompt capture is not enabled on this server yet.',
     'pm.none':'No captured days yet.','pm.day':'{day} · {prompts} prompts · {kb} KB','pm.loading':'Loading…','pm.empty':'No prompts on this day.',
-    'pm.fail':'Could not load this day. Prompt capture may not be enabled on this server yet.'
+    'pm.fail':'Could not load this day. Prompt capture may not be enabled on this server yet.',
+    'o.h':'Organization','o.switch':'Switch','o.switch.aria':'Organization',
+    'o.role':'You are {role} here','role.owner':'Owner','role.admin':'Admin',
+    'o.seats':'{used} of {limit} seats used','o.seatnote':'A seat is one machine active in the last 30 days. Joins past the limit are refused until the owner raises it. Sprag sets the plan; to change it, contact us.',
+    'o.limit':'Seat limit','o.save':'Save','o.limit.bad':'Enter a whole number from 1 to 10000.',
+    'o.admins':'Admins','o.admin.ph':'Email','o.admin.add':'Add','o.admin.remove':'Remove',
+    'o.admin.confirm':'Remove {email} from this organization?','o.admin.empty':'Enter an email address.',
+    'o.teams':'Teams in this organization','o.teams.none':'No teams yet.','o.team.members':'{n} active · {s} seats',
+    'o.team.owner':'Owner: {email}','o.team.open':'Open','o.team.setowner':'Change owner',
+    'o.team.prompt':'Email of the new team owner (they must have signed in at sprag.io/team once):',
+    'o.new':'New team in {org}',
+    'seat.shares':'shares a seat with {name}','seat.merge':'Merge seat…','seat.unmerge':'Unmerge',
+    'seat.mergeconfirm':'Count {name} and {into} as one seat? Use this when they are the same person on two machines.',
+    'seat.unmergeconfirm':'Give {name} a separate seat again?',
+    'pol.plannote':'Your organization is on the {plan} plan. Sprag sets the plan; to switch prompt capture on, contact us about Business.'
   },
   ko: {
     'nav.docs':'문서','nav.pricing':'요금',
@@ -413,7 +476,21 @@ const I18N = {
     'ru.ph':'규칙 내용','ru.add':'규칙 추가','ru.approve':'승인','ru.remove':'제거','ru.empty':'규칙 내용을 입력해 주세요.',
     'pm.h':'프롬프트','pm.desc':'사용자 프롬프트만, 최신순으로 보여 줍니다.','pm.off':'이 서버에서는 아직 프롬프트 수집을 켤 수 없습니다.',
     'pm.none':'수집된 날짜가 아직 없습니다.','pm.day':'{day} · 프롬프트 {prompts}개 · {kb}KB','pm.loading':'불러오는 중…','pm.empty':'이 날짜에는 프롬프트가 없습니다.',
-    'pm.fail':'이 날짜를 불러오지 못했습니다. 이 서버에서 프롬프트 수집이 아직 켜지지 않았을 수 있습니다.'
+    'pm.fail':'이 날짜를 불러오지 못했습니다. 이 서버에서 프롬프트 수집이 아직 켜지지 않았을 수 있습니다.',
+    'o.h':'조직','o.switch':'전환','o.switch.aria':'조직',
+    'o.role':'이 조직에서 {role} 권한입니다','role.owner':'소유자','role.admin':'관리자',
+    'o.seats':'자리 {limit}개 중 {used}개 사용 중','o.seatnote':'자리 하나는 최근 30일 안에 활동한 컴퓨터 한 대입니다. 한도를 넘으면 소유자가 한도를 올릴 때까지 새 참여가 거절됩니다. 요금제는 Sprag가 정하며, 바꾸려면 문의해 주세요.',
+    'o.limit':'자리 한도','o.save':'저장','o.limit.bad':'1에서 10000 사이의 정수를 입력해 주세요.',
+    'o.admins':'관리자','o.admin.ph':'이메일','o.admin.add':'추가','o.admin.remove':'제거',
+    'o.admin.confirm':'{email}님을 이 조직에서 제거할까요?','o.admin.empty':'이메일 주소를 입력해 주세요.',
+    'o.teams':'이 조직의 팀','o.teams.none':'아직 팀이 없습니다.','o.team.members':'활동 멤버 {n}명 · 자리 {s}개',
+    'o.team.owner':'팀 소유자: {email}','o.team.open':'열기','o.team.setowner':'소유자 변경',
+    'o.team.prompt':'새 팀 소유자의 이메일 (sprag.io/team에 한 번 로그인한 계정이어야 합니다):',
+    'o.new':'{org}에 새 팀 만들기',
+    'seat.shares':'{name}님과 자리를 같이 씁니다','seat.merge':'자리 합치기…','seat.unmerge':'합치기 해제',
+    'seat.mergeconfirm':'{name}님과 {into}님을 한 자리로 셀까요? 같은 사람이 컴퓨터 두 대를 쓸 때 사용하세요.',
+    'seat.unmergeconfirm':'{name}님에게 다시 자리를 따로 줄까요?',
+    'pol.plannote':'이 조직은 {plan} 요금제입니다. 요금제는 Sprag가 정하며, 프롬프트 수집을 켜려면 비즈니스 요금제를 문의해 주세요.'
   }
 };
 let lang = 'en';
@@ -439,6 +516,7 @@ const errMsg = e => t('err.generic', {msg: (e && e.message) || String(e)});
 
 /* ── state ────────────────────────────────────────────────────────────── */
 let sb = null, user = null, teams = [], counts = {}, team = null;
+let orgs = [], org = null, orgSum = null;
 let members = [], ledger = [], rules = [];
 let promptsState = { off:false, days:[], openKey:null, items:null, loading:false, fail:false };
 
@@ -451,6 +529,7 @@ function setLang(next, remember){
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-k]').forEach(el => { el.innerHTML = t(el.dataset.k); });
   document.querySelectorAll('[data-ph]').forEach(el => { el.placeholder = t(el.dataset.ph); });
+  document.querySelectorAll('[data-aria]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.aria)); });
   document.title = lang === 'ko' ? 'Sprag 팀 · 소유자 대시보드' : 'Sprag Teams | Owner dashboard';
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   if(remember) lsSet('sprag.lang', lang);
@@ -508,13 +587,124 @@ $('btn-out').addEventListener('click', async () => {
 async function onSession(session){
   user = session ? session.user : null;
   $('auth').hidden = !!user; $('app').hidden = !user;
-  if(!user){ teams = []; team = null; counts = {}; renderAll(); return; }
+  if(!user){ teams = []; team = null; counts = {}; orgs = []; org = null; orgSum = null; renderAll(); return; }
   $('who-email').textContent = user.email || '';
+  await loadOrgs();
   await loadTeams();
 }
 
 /* ── teams ────────────────────────────────────────────────────────────── */
-async function loadTeams(){
+/* ── organizations ────────────────────────────────────────────────────── */
+const planOf = x => { const o = orgs.find(y => y.id === (x && x.org_id)); return (o && o.plan) || (x && x.plan) || 'team'; };
+const isAdmin = () => !!org && (org.role === 'owner' || org.role === 'admin');
+const isOwner = () => !!org && org.role === 'owner';
+const visibleTeams = () => org ? teams.filter(x => x.org_id === org.id) : teams;
+
+async function loadOrgs(keepId){
+  $('org-err').textContent = '';
+  try{
+    const { data, error } = await sb.rpc('org_my');
+    if(error) throw error;
+    orgs = Array.isArray(data) ? data : [];
+  }catch(e){ orgs = []; $('org-err').textContent = errMsg(e); }
+  const want = keepId || (org && org.id) || lsGet('sprag.org.last');
+  org = orgs.find(o => o.id === want) || orgs[0] || null;
+  await loadOrgSummary();
+}
+async function loadOrgSummary(){
+  orgSum = null;
+  if(org){
+    try{
+      const { data, error } = await sb.rpc('org_summary', { p_org_id: org.id });
+      if(error) throw error;
+      orgSum = data;
+      Object.assign(org, { plan: data.plan, seat_limit: data.seat_limit, seats_used: data.seats_used, role: data.role || org.role, name: data.name });
+    }catch(e){ $('org-err').textContent = errMsg(e); }
+  }
+  renderOrg();
+}
+$('org-sel').addEventListener('change', async () => {
+  org = orgs.find(o => o.id === $('org-sel').value) || null;
+  if(org) lsSet('sprag.org.last', org.id);
+  team = null; renderTeams(); renderPanel();
+  await loadOrgSummary();
+  const vt = visibleTeams();
+  if(vt.length === 1) await selectTeam(vt[0].id);
+});
+$('form-limit').addEventListener('submit', async ev => {
+  ev.preventDefault(); $('org-err').textContent = '';
+  const n = Number($('org-limit').value);
+  if(!Number.isInteger(n) || n < 1 || n > 10000) return void ($('org-err').textContent = t('o.limit.bad'));
+  try{
+    const { error } = await sb.rpc('org_set_seat_limit', { p_org_id: org.id, p_limit: n });
+    if(error) throw error;
+    await loadOrgs(org.id);
+  }catch(e){ $('org-err').textContent = errMsg(e); }
+});
+$('form-admin').addEventListener('submit', async ev => {
+  ev.preventDefault(); $('org-err').textContent = '';
+  const email = $('admin-email').value.trim();
+  if(!email) return void ($('org-err').textContent = t('o.admin.empty'));
+  try{
+    const { error } = await sb.rpc('org_add_admin', { p_org_id: org.id, p_email: email, p_role: $('admin-role').value });
+    if(error) throw error;
+    $('admin-email').value = '';
+    await loadOrgSummary();
+  }catch(e){ $('org-err').textContent = errMsg(e); }
+});
+async function removeAdmin(uid){
+  const a = ((orgSum && orgSum.admins) || []).find(x => x.user_id === uid); if(!a) return;
+  if(!confirm(t('o.admin.confirm', {email: a.email || uid}, true))) return;
+  $('org-err').textContent = '';
+  try{
+    const { error } = await sb.rpc('org_remove_admin', { p_org_id: org.id, p_user_id: uid });
+    if(error) throw error;
+    await loadOrgs(org.id);
+  }catch(e){ $('org-err').textContent = errMsg(e); }
+}
+async function setTeamOwner(teamId){
+  const email = (prompt(t('o.team.prompt', null, true)) || '').trim();
+  if(!email) return;
+  $('org-err').textContent = '';
+  try{
+    const { error } = await sb.rpc('team_set_owner', { p_team_id: teamId, p_email: email });
+    if(error) throw error;
+    await loadOrgSummary();
+  }catch(e){ $('org-err').textContent = errMsg(e); }
+}
+function renderOrg(){
+  const card = $('org-card');
+  card.hidden = !(user && org);
+  if(card.hidden) return;
+  $('org-sel').innerHTML = orgs.map(o => `<option value="${esc(o.id)}" ${o.id === org.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('');
+  $('org-sel').parentElement.hidden = orgs.length < 2;
+  const plan = org.plan === 'business' ? 'business' : 'team';
+  $('org-plan').textContent = t('plan.' + plan);
+  $('org-plan').className = 'badge' + (plan === 'business' ? ' plus' : '');
+  $('org-role').textContent = t('o.role', {role: t('role.' + (org.role === 'owner' ? 'owner' : 'admin'))}, true);
+  const used = Number(org.seats_used) || 0, lim = Number(org.seat_limit) || 0;
+  $('org-seats').textContent = t('o.seats', {used, limit: lim}, true);
+  $('org-bar').className = 'bar' + (lim && used >= lim ? ' full' : '');
+  $('org-bar-fill').style.width = (lim ? Math.min(100, Math.round(used / lim * 100)) : 0) + '%';
+  $('form-limit').hidden = !isOwner();
+  if(document.activeElement !== $('org-limit')) $('org-limit').value = lim || '';
+  $('form-admin').hidden = !isOwner();
+  const admins = (orgSum && orgSum.admins) || [];
+  $('org-admins').innerHTML = admins.map(a => `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span>
+    ${isOwner() ? `<button type="button" class="btn sm danger" data-ra="${esc(a.user_id)}">${esc(t('o.admin.remove'))}</button>` : ''}</div>`).join('');
+  $('org-admins').querySelectorAll('[data-ra]').forEach(b => b.addEventListener('click', () => removeAdmin(b.dataset.ra)));
+  const ts = (orgSum && orgSum.teams) || [];
+  $('org-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
+      <span class="share">${esc(t('o.team.owner', {email: x.owner_email || ''}, true))} · ${esc(t('o.team.members', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span>
+    <span class="row"><button type="button" class="btn sm" data-ot="${esc(x.id)}">${esc(t('o.team.open'))}</button>
+    ${isAdmin() ? `<button type="button" class="btn sm" data-os="${esc(x.id)}">${esc(t('o.team.setowner'))}</button>` : ''}</span></div>`).join('')
+    : `<p class="none msg">${esc(t('o.teams.none'))}</p>`;
+  $('org-teams').querySelectorAll('[data-ot]').forEach(b => b.addEventListener('click', () => selectTeam(b.dataset.ot)));
+  $('org-teams').querySelectorAll('[data-os]').forEach(b => b.addEventListener('click', () => setTeamOwner(b.dataset.os)));
+}
+
+/* ── teams ────────────────────────────────────────────────────────────── */
+async function loadTeams(keepId){
   $('teams-err').textContent = '';
   try{
     const { data, error } = await sb.from('teams').select('*').order('created_at', {ascending:true});
@@ -525,8 +715,9 @@ async function loadTeams(){
     if(!sum.error) (sum.data || []).forEach(r => { if(!r.left_at) counts[r.team_id] = (counts[r.team_id] || 0) + 1; });
   }catch(e){ $('teams-err').textContent = errMsg(e); }
   renderTeams();
-  const last = lsGet('sprag.team.last');
-  const pick = teams.find(x => x.id === last) || (teams.length === 1 ? teams[0] : null);
+  const vt = visibleTeams();
+  const last = keepId || lsGet('sprag.team.last');
+  const pick = vt.find(x => x.id === last) || (vt.length === 1 ? vt[0] : null);
   if(pick) await selectTeam(pick.id); else { team = null; renderPanel(); }
 }
 
@@ -535,16 +726,18 @@ $('form-team').addEventListener('submit', async ev => {
   const name = $('team-name').value.trim();
   if(!name) return void ($('teams-err').textContent = t('t.noname'));
   try{
-    const { data, error } = await sb.from('teams').insert({ name, owner_uid: user.id }).select().single();
+    const { data, error } = await sb.rpc('team_create', { p_name: name, p_org_id: org ? org.id : null });
     if(error) throw error;
     $('team-name').value = '';
-    teams.push(data); renderTeams();
-    await selectTeam(data.id);
+    const newId = data && data.id;
+    await loadOrgs(data && data.org_id);
+    await loadTeams(newId);
   }catch(e){ $('teams-err').textContent = errMsg(e); }
 });
 
 async function selectTeam(id){
   const picked = teams.find(x => x.id === id); if(!picked) return;
+  if(picked.org_id && (!org || org.id !== picked.org_id) && orgs.some(o => o.id === picked.org_id)){ org = orgs.find(o => o.id === picked.org_id); lsSet('sprag.org.last', org.id); loadOrgSummary(); }
   team = picked; lsSet('sprag.team.last', id);
   members = []; ledger = []; rules = [];
   promptsState = { off:false, days:[], openKey:null, items:null, loading:false, fail:false };
@@ -597,14 +790,16 @@ async function loadRules(){
 /* ── renderers ────────────────────────────────────────────────────────── */
 function renderAll(){
   if(!user) return;
-  renderTeams(); renderPanel();
+  renderOrg(); renderTeams(); renderPanel();
 }
 function renderTeams(){
   const box = $('teams-list');
-  if(!teams.length){ box.innerHTML = '<p class="msg">' + esc(t('t.empty')) + '</p>'; return; }
-  box.innerHTML = teams.map(x => `<button type="button" class="team-item" data-id="${esc(x.id)}" aria-pressed="${team && team.id === x.id}">
+  const vt = visibleTeams();
+  $('new-title').textContent = org ? t('o.new', {org: org.name}, true) : t('t.new');
+  if(!vt.length){ box.innerHTML = '<p class="msg">' + esc(t('t.empty')) + '</p>'; return; }
+  box.innerHTML = vt.map(x => `<button type="button" class="team-item" data-id="${esc(x.id)}" aria-pressed="${team && team.id === x.id}">
       <span class="nm">${esc(x.name)}</span>
-      <span class="mt"><span>${t('t.active', {n: counts[x.id] || 0})}</span><span class="badge ${x.plan === 'business' ? 'plus' : ''}">${esc(t('plan.' + (x.plan === 'business' ? 'business' : 'team')))}</span></span></button>`).join('');
+      <span class="mt"><span>${t('t.active', {n: counts[x.id] || 0})}</span><span class="badge ${planOf(x) === 'business' ? 'plus' : ''}">${esc(t('plan.' + (planOf(x) === 'business' ? 'business' : 'team')))}</span></span></button>`).join('');
   box.querySelectorAll('.team-item').forEach(b => b.addEventListener('click', () => selectTeam(b.dataset.id)));
 }
 function renderPanel(){
@@ -615,11 +810,13 @@ function renderPanel(){
   $('sn-join').textContent = 'npm i -g sprag-cli@latest && sprag team join ' + tok;
   $('sn-env').textContent = 'export SPRAG_TEAM_TOKEN=' + tok;
   $('sn-json').textContent = JSON.stringify({ env: { SPRAG_TEAM_TOKEN: tok } }, null, 2);
-  const plus = team.plan === 'business';
+  const plus = planOf(team) === 'business';
   const sw = $('sw-capture');
   sw.setAttribute('aria-checked', String(!!team.prompt_capture));
   sw.disabled = !plus;
   $('pol-plan').hidden = plus;
+  $('pol-plannote').hidden = plus;
+  $('pol-plannote').textContent = t('pol.plannote', {plan: t('plan.' + planOf(team))}, true);
   $('pol-plan').textContent = t('plan.business');
   $('thr').value = lsGet('sprag.team.thr.' + team.id) ?? '20';
   $('prompts').hidden = !team.prompt_capture;
@@ -632,14 +829,26 @@ function renderMembers(){
   $('mem-empty').hidden = members.length > 0;
   $('mem-body').innerHTML = members.map(m => {
     const gone = !!m.left_at, hot = !gone && Number(m.spent_today) > limit;
+    const host = m.seat_of ? members.find(x => x.member_id === m.seat_of) : null;
+    const shares = m.seat_of ? `<span class="share">${esc(t('seat.shares', {name: host ? (host.display_name || host.member_id) : '?'}, true))}</span>` : '';
+    let seatAct = '';
+    if(isAdmin() && !gone){
+      if(m.seat_of) seatAct = `<button type="button" class="btn sm" data-un="${esc(m.member_id)}">${esc(t('seat.unmerge'))}</button> `;
+      else {
+        const targets = members.filter(x => !x.left_at && !x.seat_of && x.member_id !== m.member_id);
+        if(targets.length) seatAct = `<select class="mg" data-mg="${esc(m.member_id)}" aria-label="${esc(t('seat.merge'))}"><option value="">${esc(t('seat.merge'))}</option>${targets.map(x => `<option value="${esc(x.member_id)}">${esc(x.display_name || x.member_id)}</option>`).join('')}</select> `;
+      }
+    }
     return `<tr class="${gone ? 'gone' : ''} ${hot ? 'hot' : ''}">
-      <td>${esc(m.display_name || '—')}${gone ? ` <span class="badge">${esc(t('mem.left'))}</span>` : ''}</td>
+      <td>${esc(m.display_name || '—')}${gone ? ` <span class="badge">${esc(t('mem.left'))}</span>` : ''}${shares}</td>
       <td>${esc(m.agent || '')}</td><td>${esc(m.sprag_version || '')}</td>
       <td>${esc(fmtDate(m.joined_at))}</td><td>${esc(rel(m.last_seen))}</td>
       <td class="n">${money(m.spent_30d)}</td><td class="n">${money(m.saved_30d)}</td>
       <td class="n">${Number(m.delegated_30d) || 0}</td><td class="n today">${money(m.spent_today)}</td>
-      <td>${gone ? '' : `<button type="button" class="btn sm danger" data-rm="${esc(m.member_id)}">${esc(t('mem.remove'))}</button>`}</td></tr>`;
+      <td>${gone ? '' : `${seatAct}<button type="button" class="btn sm danger" data-rm="${esc(m.member_id)}">${esc(t('mem.remove'))}</button>`}</td></tr>`;
   }).join('');
+  $('mem-body').querySelectorAll('[data-mg]').forEach(sel => sel.addEventListener('change', () => { if(sel.value) mergeSeat(sel.dataset.mg, sel.value); else sel.value = ''; }));
+  $('mem-body').querySelectorAll('[data-un]').forEach(b => b.addEventListener('click', () => unmergeSeat(b.dataset.un)));
   $('mem-body').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => removeMember(b.dataset.rm)));
 }
 function renderChart(){
@@ -708,7 +917,7 @@ $('btn-rotate').addEventListener('click', async () => {
 
 $('sw-capture').addEventListener('click', async () => {
   $('pol-err').textContent = '';
-  if(team.plan !== 'business') return;
+  if(planOf(team) !== 'business') return;
   const next = !team.prompt_capture;
   if(next && !confirm(t('pol.confirm', null, true))) return;
   try{
@@ -726,6 +935,26 @@ $('thr').addEventListener('input', () => {
   renderMembers();
 });
 
+async function seatCall(fn, params, label){
+  $('mem-err').textContent = '';
+  try{
+    const { error } = await sb.rpc(fn, params);
+    if(error) throw error;
+    await loadMembers();
+    await loadOrgs(org && org.id);
+  }catch(e){ $('mem-err').textContent = errMsg(e); renderMembers(); }
+}
+async function mergeSeat(id, into){
+  const m = members.find(x => x.member_id === id), tg = members.find(x => x.member_id === into);
+  if(!m || !tg) return renderMembers();
+  if(!confirm(t('seat.mergeconfirm', {name: m.display_name || id, into: tg.display_name || into}, true))) return renderMembers();
+  await seatCall('seat_merge', { p_member_id: id, p_into_member_id: into });
+}
+async function unmergeSeat(id){
+  const m = members.find(x => x.member_id === id); if(!m) return;
+  if(!confirm(t('seat.unmergeconfirm', {name: m.display_name || id}, true))) return;
+  await seatCall('seat_unmerge', { p_member_id: id });
+}
 async function removeMember(id){
   const m = members.find(x => x.member_id === id); if(!m) return;
   if(!confirm(t('mem.confirm', {name: m.display_name || id}, true))) return;

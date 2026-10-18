@@ -130,15 +130,35 @@ export async function verifySignInCode({ email, code, fetch } = {}) {
   return { accessToken: r.access_token, userId: r.user.id };
 }
 
-/** Insert a team owned by the signed-in user (RLS allows the owner insert). */
-export async function createTeam({ name, accessToken, userId, fetch } = {}) {
-  const r = await apiJson('/rest/v1/teams', {
-    body: { name, owner_uid: userId }, accessToken, prefer: 'return=representation', label: 'create team', fetch,
+/**
+ * Create a team through the team_create RPC as the signed-in user. A null orgId
+ * makes the server open a new organization named after the team; otherwise the
+ * caller must be an owner or admin of that organization. userId is accepted for
+ * call-site compatibility; the server derives the owner from the session.
+ */
+export async function createTeam({ name, accessToken, userId, orgId = null, fetch } = {}) {
+  void userId;
+  const r = await apiJson('/rest/v1/rpc/team_create', {
+    body: { p_name: name, p_org_id: orgId || null }, accessToken, label: 'create team', fetch,
   });
   const row = Array.isArray(r) ? r[0] : r;
   if (!row || !row.invite_token) throw new Error('create team: no invite token returned');
-  return { id: row.id, name: row.name, inviteToken: row.invite_token, plan: row.plan };
+  return {
+    id: row.id, name: row.name, inviteToken: row.invite_token, plan: row.plan,
+    orgId: row.org_id || null, orgName: row.org_name || null,
+  };
 }
+
+/** Typed error for the server's 'seat limit reached' refusal (code SEAT_LIMIT). */
+export class SeatLimitError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'SeatLimitError';
+    this.code = 'SEAT_LIMIT';
+  }
+}
+
+export const isSeatLimitError = (e) => !!e && (e.code === 'SEAT_LIMIT' || /seat limit reached/i.test(String(e.message || '')));
 
 /** Local calendar day, same key as stats.js. */
 function dayKey(ms) {
@@ -229,9 +249,15 @@ export async function joinTeam({
 } = {}) {
   if (!TOKEN_RE.test(String(token || ''))) throw new Error('invalid invite token (expected spt_ + 32 hex characters)');
   const name = String(displayName || '').trim() || 'member';
-  const r = await rpc('team_join', {
-    invite_token: token, display_name: name, agent, sprag_version: version || '', auto_joined: !!autoJoined,
-  }, { fetch });
+  let r;
+  try {
+    r = await rpc('team_join', {
+      invite_token: token, display_name: name, agent, sprag_version: version || '', auto_joined: !!autoJoined,
+    }, { fetch });
+  } catch (e) {
+    if (isSeatLimitError(e)) throw new SeatLimitError(e.message);
+    throw e;
+  }
   if (!r || !r.member_key) throw new Error('team_join: no member key returned');
   const state = {
     version: TEAM_STATE_VERSION,
@@ -240,6 +266,10 @@ export async function joinTeam({
     memberId: r.member_id,
     memberKey: r.member_key,
     plan: r.plan,
+    orgId: r.org_id || null,
+    orgName: r.org_name || null,
+    seatsUsed: Number.isFinite(r.seats_used) ? r.seats_used : null,
+    seatLimit: Number.isFinite(r.seat_limit) ? r.seat_limit : null,
     promptCapture: !!r.prompt_capture,
     displayName: name,
     agent,
@@ -287,6 +317,7 @@ export async function syncTeam({
     const next = { ...state, lastSyncAt: now, lastSyncRows: rows.length };
     if (r.team_name) next.teamName = r.team_name;
     if (r.plan) next.plan = r.plan;
+    if (r.org_name) next.orgName = r.org_name;
     if (r.prompt_capture !== undefined) next.promptCapture = !!r.prompt_capture;
     delete next.lastError;
     saveTeamState(next, dir);
@@ -311,6 +342,7 @@ export async function autoJoin({ env = process.env, fetch, dir = userDataDir(), 
   try {
     return await joinTeam({ token, displayName: name, autoJoined: true, fetch, dir, version, now });
   } catch (e) {
+    // SeatLimitError (code SEAT_LIMIT) lands here too: auto-join stays silent and retries next session.
     debug('team-sync', e);
     return null;
   }

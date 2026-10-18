@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  requestSignInCode, verifySignInCode, createTeam, loadTeamState, saveTeamState, teamStatePath,
+  requestSignInCode, verifySignInCode, createTeam, joinTeam, loadTeamState, saveTeamState, teamStatePath,
   TEAM_API_URL, TEAM_ANON_KEY,
 } from '../src/team-sync.js';
 import { userDataDir } from '../src/paths.js';
@@ -50,8 +50,8 @@ function mockFetch(routes = {}) {
 const happy = () => mockFetch({
   '/auth/v1/otp': { json: {} },
   '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1' } } },
-  '/rest/v1/teams': { status: 201, json: [{ id: 't-1', name: 'Acme', invite_token: TOKEN, plan: 'free' }] },
-  '/rest/v1/rpc/team_join': { json: { member_key: 'spk_k', member_id: 'm1', team_id: 't-1', team_name: 'Acme', plan: 'free', prompt_capture: false } },
+  '/rest/v1/rpc/team_create': { json: { id: 't-1', name: 'Acme', org_id: 'o-1', org_name: 'Acme Org', invite_token: TOKEN, plan: 'team' } },
+  '/rest/v1/rpc/team_join': { json: { member_key: 'spk_k', member_id: 'm1', team_id: 't-1', team_name: 'Acme', plan: 'team', prompt_capture: false, org_id: 'o-1', org_name: 'Acme Org', seats_used: 1, seat_limit: 5 } },
 });
 
 /** Runs the command with a fake process.exit/console; returns exit code and output. */
@@ -91,16 +91,21 @@ test('verifySignInCode posts type/email/token and returns accessToken + userId',
   assert.equal(f.calls[0].headers.Authorization, undefined);
 });
 
-test('createTeam sends Bearer + Prefer and maps the row', async () => {
-  const f = mockFetch({ '/rest/v1/teams': { status: 201, json: [{ id: 't-1', name: 'Acme', invite_token: TOKEN, plan: 'free' }] } });
-  const r = await createTeam({ name: 'Acme', accessToken: ACCESS, userId: 'u-1', fetch: f });
-  assert.deepEqual(r, { id: 't-1', name: 'Acme', inviteToken: TOKEN, plan: 'free' });
+test('createTeam calls rpc/team_create with Bearer and p_org_id, maps the row', async () => {
+  const f = mockFetch({ '/rest/v1/rpc/team_create': { json: { id: 't-1', name: 'Acme', org_id: 'o-9', org_name: 'Big Org', invite_token: TOKEN, plan: 'business' } } });
+  const r = await createTeam({ name: 'Acme', accessToken: ACCESS, userId: 'u-1', orgId: 'o-9', fetch: f });
+  assert.deepEqual(r, { id: 't-1', name: 'Acme', inviteToken: TOKEN, plan: 'business', orgId: 'o-9', orgName: 'Big Org' });
   const c = f.calls[0];
-  assert.equal(c.path, '/rest/v1/teams');
+  assert.equal(c.path, '/rest/v1/rpc/team_create');
   assert.equal(c.headers.Authorization, `Bearer ${ACCESS}`);
-  assert.equal(c.headers.Prefer, 'return=representation');
   assert.equal(c.headers.apikey, TEAM_ANON_KEY);
-  assert.deepEqual(c.body, { name: 'Acme', owner_uid: 'u-1' });
+  assert.deepEqual(c.body, { p_name: 'Acme', p_org_id: 'o-9' });
+});
+
+test('createTeam without orgId sends p_org_id null', async () => {
+  const f = happy();
+  await createTeam({ name: 'Acme', accessToken: ACCESS, userId: 'u-1', fetch: f });
+  assert.deepEqual(f.calls[0].body, { p_name: 'Acme', p_org_id: null });
 });
 
 test('helpers surface the server message from msg / error_description / message', async () => {
@@ -126,7 +131,7 @@ test('create with --code verifies, creates, joins, saves state and prints the to
   const f = happy();
   const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456'], { fetch: f });
   assert.equal(r.code, 0, r.err);
-  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/verify', '/rest/v1/teams', '/rest/v1/rpc/team_join']);
+  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/verify', '/rest/v1/rpc/team_create', '/rest/v1/rpc/team_join']);
   assert.ok(r.out.includes(TOKEN));
   assert.ok(r.out.includes(`npm i -g sprag-cli@latest && sprag team join ${TOKEN}`));
   assert.ok(r.out.includes(`export SPRAG_TEAM_TOKEN=${TOKEN}`));
@@ -194,6 +199,60 @@ test('interactive flow asks for email, code and name', async (t) => {
   const answers = ['a@b.co', '123456', 'Acme'];
   const r = await runCreate([], { fetch: f, interactive: true, ask: async () => answers.shift() });
   assert.equal(r.code, 0, r.err);
-  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/otp', '/auth/v1/verify', '/rest/v1/teams', '/rest/v1/rpc/team_join']);
-  assert.deepEqual(f.calls[2].body.name, 'Acme');
+  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/otp', '/auth/v1/verify', '/rest/v1/rpc/team_create', '/rest/v1/rpc/team_join']);
+  assert.equal(f.calls[2].body.p_name, 'Acme');
+});
+
+test('create --org sends p_org_id to rpc/team_create with Bearer and prints org seats', async (t) => {
+  isolate(t);
+  const f = happy();
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--org', 'o-1'], { fetch: f });
+  assert.equal(r.code, 0, r.err);
+  const c = f.calls.find((x) => x.path === '/rest/v1/rpc/team_create');
+  assert.deepEqual(c.body, { p_name: 'Acme', p_org_id: 'o-1' });
+  assert.equal(c.headers.Authorization, `Bearer ${ACCESS}`);
+  assert.ok(r.out.includes('Acme Org'));
+  assert.match(r.out, /1\/5/);
+  const st = loadTeamState();
+  assert.equal(st.orgName, 'Acme Org');
+  assert.equal(st.seatLimit, 5);
+});
+
+test('create --org without a value exits 2 before any network call', async (t) => {
+  isolate(t);
+  const f = happy();
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'x', '--org'], { fetch: f });
+  assert.equal(r.code, 2);
+  assert.equal(f.calls.length, 0);
+});
+
+test('seat limit reached on join: typed error, friendly message, exit 1', async (t) => {
+  isolate(t);
+  const f = mockFetch({ '/rest/v1/rpc/team_join': { status: 400, json: { message: 'seat limit reached', code: 'P0001' } } });
+  await assert.rejects(joinTeam({ token: TOKEN, displayName: 'x', fetch: f }), (e) => e.code === 'SEAT_LIMIT');
+  const args = ['team', 'join', TOKEN, '--yes'];
+  const getArg = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
+  const errs = []; const origErr = console.error; const origLog = console.log; const origExit = process.exit;
+  let code = 0;
+  console.error = (s) => errs.push(String(s)); console.log = () => {};
+  process.exit = (c) => { code = c; throw new Error('exit'); };
+  // run() reaches the network through the default fetch, so swap it for this call
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (url, init) => f(url, init);
+  try { await run({ args, hasFlag: (n) => args.includes(n), getArg, version: '0.0.0' }); } catch { /* exit */ }
+  finally { console.error = origErr; console.log = origLog; process.exit = origExit; globalThis.fetch = origFetch; }
+  assert.equal(code, 1);
+  assert.match(errs.join('\n'), /(free seat|남은 자리)/);
+  assert.ok(!/P0001|team_join:/.test(errs.join('\n')));
+});
+
+test('status prints the organization name when the state has it', async (t) => {
+  isolate(t);
+  saveTeamState({ version: 1, memberKey: 'spk_k', teamName: 'Acme', orgName: 'Acme Org', plan: 'team', displayName: 'me' });
+  const args = ['team', 'status'];
+  const lines = []; const origLog = console.log;
+  console.log = (s) => lines.push(String(s));
+  try { await run({ args, hasFlag: (n) => args.includes(n), getArg: () => undefined, version: '0.0.0' }); }
+  finally { console.log = origLog; }
+  assert.ok(lines.some((l) => l.includes('Acme Org')));
 });

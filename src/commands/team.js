@@ -14,14 +14,14 @@ import { userInfo } from 'node:os';
 import { userLanguage } from '../config.js';
 import {
   loadTeamState, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
-  teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam,
+  teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError,
 } from '../team-sync.js';
 
 const T = {
   en: {
     usage: [
       'Usage: sprag team <command>',
-      '  create [--email <e>] [--name <n>] [--code <6 digits>] [--no-join]   create a team (you become the owner)',
+      '  create [--email <e>] [--name <n>] [--code <6 digits>] [--org <org-id>] [--no-join]   create a team (you become the owner)',
       '  join [token] [--name <n>] [--yes]   join a team (token or SPRAG_TEAM_TOKEN)',
       '  leave                                leave the team and stop uploading',
       '  status [--show-payload]              membership, last sync, what is sent',
@@ -36,6 +36,11 @@ const T = {
     noToken: 'Missing invite token. Pass it as an argument or set SPRAG_TEAM_TOKEN.',
     aborted: 'Not joined.',
     joined: (n) => `Joined team "${n}". Check it with: sprag team status`,
+    seatLimit: 'This organization has no free seat. Ask your Sprag admin to raise the seat limit, then join again.',
+    org: 'Organization',
+    seats: (u, l) => `${u}/${l} seats used`,
+    orgCreated: (n, u, l) => `Organization: ${n}${u != null && l != null ? ` (${u}/${l} seats used)` : ''}`,
+    badOrg: '--org needs an organization id.',
     left: 'Left the team. Nothing is uploaded any more.',
     notJoined: 'Not in a team. Join with: sprag team join <token>',
     team: 'Team', plan: 'Plan', capture: 'Prompt capture', name: 'Display name',
@@ -73,7 +78,7 @@ const T = {
   ko: {
     usage: [
       '사용법: sprag team <명령>',
-      '  create [--email <e>] [--name <이름>] [--code <6자리>] [--no-join]   팀 만들기 (만든 사람이 소유자)',
+      '  create [--email <e>] [--name <이름>] [--code <6자리>] [--org <조직 ID>] [--no-join]   팀 만들기 (만든 사람이 소유자)',
       '  join [토큰] [--name <이름>] [--yes]   팀에 참여 (토큰 또는 SPRAG_TEAM_TOKEN)',
       '  leave                                  팀에서 나가고 업로드 중단',
       '  status [--show-payload]                참여 상태, 마지막 동기화, 보내는 내용',
@@ -88,6 +93,11 @@ const T = {
     noToken: '초대 토큰이 없습니다. 인자로 넘기거나 SPRAG_TEAM_TOKEN 을 설정하세요.',
     aborted: '참여하지 않았습니다.',
     joined: (n) => `팀 "${n}" 에 참여했습니다. 확인: sprag team status`,
+    seatLimit: '이 조직에 남은 자리가 없습니다. Sprag 관리자에게 자리 한도를 늘려 달라고 요청한 뒤 다시 참여하세요',
+    org: '조직',
+    seats: (u, l) => `자리 ${u}/${l} 사용 중`,
+    orgCreated: (n, u, l) => `조직: ${n}${u != null && l != null ? ` (자리 ${u}/${l} 사용 중)` : ''}`,
+    badOrg: '--org 에는 조직 ID 가 필요합니다',
     left: '팀에서 나왔습니다. 이제 아무것도 업로드하지 않습니다.',
     notJoined: '참여한 팀이 없습니다. 참여하려면: sprag team join <토큰>',
     team: '팀', plan: '플랜', capture: '프롬프트 수집', name: '표시 이름',
@@ -144,6 +154,8 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   const st0 = loadTeamState();
   if (isJoined(st0) && !noJoin) { console.error(m.alreadyJoined(st0.teamName || '')); return process.exit(1); }
 
+  const org = getArg('--org');
+  if (hasFlag('--org') && (!org || org.startsWith('--'))) { console.error(m.badOrg); return process.exit(2); }
   let email = getArg('--email');
   let name = getArg('--name');
   const code = getArg('--code');
@@ -173,8 +185,9 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   if (!name) { console.error(m.needName); return process.exit(2); }
 
   const { accessToken, userId } = await verifySignInCode({ email, code: useCode, fetch });
-  const team = await createTeam({ name, accessToken, userId, fetch });
+  const team = await createTeam({ name, accessToken, userId, orgId: org || null, fetch });
   out(m.created(team.name || name));
+  if (team.orgName && noJoin) out(m.orgCreated(team.orgName, null, null));
   out(`${m.inviteToken}: ${team.inviteToken}`);
   out(`${m.memberCmd}: npm i -g sprag-cli@latest && sprag team join ${team.inviteToken}`);
   out(`${m.orgLine}: export SPRAG_TEAM_TOKEN=${team.inviteToken}`);
@@ -183,7 +196,8 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   if (noJoin) { out(m.noJoinNote); return undefined; }
   let display = 'member';
   try { display = userInfo().username || 'member'; } catch { /* no passwd entry */ }
-  await joinTeam({ token: team.inviteToken, displayName: display, fetch, version });
+  const joined = await joinTeam({ token: team.inviteToken, displayName: display, fetch, version });
+  if (joined.orgName && joined.seatsUsed != null && joined.seatLimit != null) out(m.orgCreated(joined.orgName, joined.seatsUsed, joined.seatLimit));
   if (!teamSyncDisabled()) {
     const r = await syncTeam({ force: true, fetch, version });
     if (r.error) console.error(m.syncFailed(r.error));
@@ -216,6 +230,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         }
         const st = await joinTeam({ token, displayName: name, version });
         out(m.joined(st.teamName));
+        if (st.orgName && st.seatsUsed != null && st.seatLimit != null) out(m.orgCreated(st.orgName, st.seatsUsed, st.seatLimit));
         return undefined;
       }
       case 'leave':
@@ -226,6 +241,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         const st = loadTeamState();
         if (!isJoined(st)) { out(m.notJoined); return undefined; }
         out(`${m.team}: ${st.teamName}`);
+        if (st.orgName) out(`${m.org}: ${st.orgName}`);
         out(`${m.plan}: ${st.plan}`);
         out(`${m.capture}: ${st.promptCapture ? m.on : m.off}`);
         out(`${m.name}: ${st.displayName}`);
@@ -272,7 +288,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         return verb && verb !== 'help' ? process.exit(2) : undefined;
     }
   } catch (e) {
-    console.error(e.message);
+    console.error(isSeatLimitError(e) ? m.seatLimit : e.message);
     return process.exit(1);
   }
 }

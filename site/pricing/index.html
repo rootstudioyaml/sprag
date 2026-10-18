@@ -266,7 +266,7 @@
   <section class="blk">
     <h2 data-k="p.faq.h">Questions</h2>
     <div class="faqs">
-      <details><summary data-k="p.q0">How are seats counted?</summary><p data-k="p.a0">A seat is a member who was active in the last 30 days. Members who left are not billed.</p></details>
+      <details><summary data-k="p.q0">How are seats counted?</summary><p data-k="p.a0">Seats are bought per organization. A seat is one machine active in the last 30 days, and an admin can merge a person's second machine into the same seat. Joins past the limit are refused until the owner raises it.</p></details>
       <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. Nothing is uploaded until a member joins a team, and the free CLI never needs an account. <code>sprag team status --show-payload</code> prints exactly what a member sends.</p></details>
       <details><summary data-k="p.q2">Who consents when a company rolls this out?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members still see what is sent with <code>sprag team status</code>, and <code>sprag team leave</code> wins over the env var.</p></details>
       <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only the team owner, and only on the Business plan. It is off by default, and every member can see its state in <code>sprag team status</code>.</p></details>
@@ -330,7 +330,7 @@ const KO = {
   'p.c13c':'하루 집계와 프롬프트', 'p.r14':'저장 리전', 'p.seoul':'서울',
   'p.faq.h':'자주 묻는 질문',
   'p.q0':'좌석은 어떻게 세나요?',
-  'p.a0':'최근 30일 안에 활동한 멤버가 한 좌석입니다. 팀을 떠난 멤버에게는 청구하지 않습니다.',
+  'p.a0':'좌석은 조직 단위로 구매합니다. 좌석 하나는 최근 30일 안에 활동한 컴퓨터 한 대이고, 같은 사람의 두 번째 컴퓨터는 관리자가 같은 좌석으로 합칠 수 있습니다. 한도를 넘는 참여는 소유자가 한도를 올릴 때까지 거절됩니다.',
   'p.q1':'기본으로 올라가는 데이터가 있나요?',
   'p.a1':'없습니다. 멤버가 팀에 가입하기 전에는 아무것도 올라가지 않고, 무료 CLI는 계정이 필요 없습니다. 멤버가 보내는 내용은 <code>sprag team status --show-payload</code>로 그대로 볼 수 있습니다.',
   'p.q2':'회사가 도입하면 동의는 누가 하나요?',
