@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { envVar } from '../src/env.js';
 import { teamSyncDisabled } from '../src/team-sync.js';
@@ -82,7 +82,8 @@ test('only the helper and the documented fallbacks mention CTS_ in the source', 
   const offenders = ['src', 'bin', 'scripts', 'presets']
     .flatMap((d) => walk(join(ROOT, d)))
     .filter((f) => /\.(js|cjs|mjs|py)$/.test(f))
-    .map((f) => f.slice(ROOT.length))
+    // Windows paths use backslashes; compare in the repo's forward-slash form.
+    .map((f) => relative(ROOT, f).split(sep).join('/'))
     .filter((f) => !allowed.has(f) && readFileSync(join(ROOT, f), 'utf8').includes('CTS_'));
   assert.deepEqual(offenders, [], 'read variables through envVar() and name them SPRAG_');
 });
