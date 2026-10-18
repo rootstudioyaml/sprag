@@ -225,6 +225,7 @@
   tr.hot td{background:rgba(232,171,60,.07)}
   tr.hot td.today{color:var(--warn);font-weight:600}
   tr.gone td{color:var(--faint)}
+  tr.hl td{background:var(--accent-bg)}
   td.lt{color:var(--warn);font-weight:600}
   td .badge,td .tag{vertical-align:middle}
   td.nm{font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis}
@@ -535,6 +536,8 @@
           <p class="err" id="tot-err" role="alert"></p>
         </section>
 
+        <section class="card of-card" id="town-card" hidden aria-label="Sprag town"><div id="town-box"></div></section>
+
         <section class="ov" aria-label="Trends">
           <div class="card" aria-labelledby="ov-rev-h">
             <div class="sec-h">
@@ -618,6 +621,7 @@
         </section>
 
         <div id="p-overview" class="stack" role="tabpanel">
+          <section class="card of-card" id="scene-card" hidden><div id="scene-box"></div></section>
           <div class="cols2">
             <section class="card">
               <h3 data-k="s.teams">Teams</h3>
@@ -935,6 +939,8 @@ const I18N = {
 };
 Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in this range ({r}).", "pu.note": "{r}, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts, {r}", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match.", "pu.chars": "{n} chars"});
 Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "컴퓨터", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "이 기간({r}) 동안 수집된 프롬프트가 없습니다", "pu.note": "{r}, 프롬프트 수집을 켠 팀 기준입니다. 컴퓨터를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "{r} 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다", "pu.chars": "{n}자"});
+Object.assign(I18N.en, {"of.server":"Sprag server","of.spent":"Spend","of.saved":"Saved","of.team":"Team","of.prompts":"Prompts","of.deleg":"Delegation","of.why":"Why no data","of.why.paused":"Uploads off since {x}","of.why.last":"Last upload {x}","of.tier.power":"AI power user","of.tier.active":"Active","of.tier.normal":"Normal","of.tier.low":"Getting started","of.tier.nodata":"No data","of.tag.off":"⏸ Uploads off","of.tag.late":"⏸ Late","of.tag.closed":"Suspended","of.hud":"{n} in use · {p} power · {l} need a nudge · {o} uploads off · seats {u} / {limit}","of.hud.closed":"Seats {u} / {limit} · all lights off","of.free":"Free seats {n}","of.more":"+{n} more","of.b.deleg":"{n} runs delegated to {m}","of.b.deleg0":"{n} delegated runs","of.b.prompts":"{n} prompts","of.lg.bot":"{m} helper","of.lg.any":"AI helper (delegated runs)","of.lg.screen":"Bright monitor = active use","of.lg.power":"Lion · AI power user","of.lg.active":"Fox · Active","of.lg.normal":"Bear · Normal","of.lg.low":"Chick · Getting started","of.lg.ghost":"Ghost · No data","of.aria":"Virtual office: {n} people in {teams} teams, {used} of {limit} seats used","of.demo.0":"Delegating tests to haiku","of.demo.1":"\"Review this PR\"","of.demo.2":"opus is refactoring","of.town":"Sprag Town","of.fs":"Full screen","of.fs.exit":"Exit full screen","of.close":"Close","of.d.os":"Machines","of.runs":"Delegated runs","of.d.daily":"Daily spend","of.d.last":"Last upload","of.d.seats":"View seat details","of.d.prompts":"View prompts","tn.title":"Sprag Town","tn.hud":"{n} companies · {p} Pro · {e} Enterprise · Sprag revenue / mo {r} · seats {u} / {l}","tn.rev":"{v} / mo","tn.full":"Full","tn.plan":"Plan","tn.seats":"Seats","tn.revm":"Sprag revenue / mo","tn.members":"Members","tn.paused":"Paused machines","tn.late":"Late machines","tn.created":"Created","tn.more":"+{n} more","tn.lg.lit":"Lit window = seat in use","tn.lg.dark":"Dark window = unused contracted seat","tn.lg.bot":"Bots = uploads","tn.lg.shut":"Shutters = suspended","tn.open":"View organization","tn.aria":"Sprag Town: {n} companies"});
+Object.assign(I18N.ko, {"of.server":"Sprag 서버","of.spent":"지출","of.saved":"절감","of.team":"팀","of.prompts":"프롬프트","of.deleg":"위임 비율","of.why":"데이터가 없는 이유","of.why.paused":"{x}부터 업로드 꺼짐","of.why.last":"마지막 업로드 {x}","of.tier.power":"AI 파워 유저","of.tier.active":"활발","of.tier.normal":"보통","of.tier.low":"활용 장려 필요","of.tier.nodata":"데이터 없음","of.tag.off":"⏸ 업로드 꺼짐","of.tag.late":"⏸ 지연","of.tag.closed":"정지됨","of.hud":"사용 중 {n}명 · 파워 유저 {p} · 장려 필요 {l} · 업로드 꺼짐 {o} · 좌석 {u} / {limit}","of.hud.closed":"좌석 {u} / {limit} · 모든 조명 꺼짐","of.free":"빈 좌석 {n}개","of.more":"+{n}명 더","of.b.deleg":"{m}에 위임 {n}회","of.b.deleg0":"위임 {n}회","of.b.prompts":"프롬프트 {n}회","of.lg.bot":"{m} 조수","of.lg.any":"AI 조수 (위임 실행)","of.lg.screen":"밝은 모니터 = 활발히 사용","of.lg.power":"사자 · AI 파워 유저","of.lg.active":"여우 · 활발","of.lg.normal":"곰 · 보통","of.lg.low":"병아리 · 활용 장려 필요","of.lg.ghost":"유령 · 데이터 없음","of.aria":"가상 사무실: 팀 {teams}개, {n}명, 좌석 {used}/{limit} 사용","of.demo.0":"haiku에 테스트 위임","of.demo.1":"\"이 PR 리뷰해줘\"","of.demo.2":"opus가 리팩터링 중","of.town":"Sprag 타운","of.fs":"전체 화면","of.fs.exit":"전체 화면 종료","of.close":"닫기","of.d.os":"컴퓨터","of.runs":"위임 실행","of.d.daily":"일별 지출","of.d.last":"마지막 업로드","of.d.seats":"좌석 상세 보기","of.d.prompts":"프롬프트 보기","tn.title":"Sprag 타운","tn.hud":"회사 {n}곳 · 프로 {p} · 엔터프라이즈 {e} · Sprag 월 매출 {r} · 좌석 {u} / {l}","tn.rev":"월 {v}","tn.full":"만석","tn.plan":"요금제","tn.seats":"좌석","tn.revm":"Sprag 월 매출","tn.members":"멤버","tn.paused":"중지된 컴퓨터","tn.late":"지연된 컴퓨터","tn.created":"생성일","tn.more":"+{n}곳","tn.lg.lit":"밝은 창 = 사용 중 좌석","tn.lg.dark":"어두운 창 = 빈 계약 좌석","tn.lg.bot":"로봇 = 업로드","tn.lg.shut":"셔터 = 정지됨","tn.open":"조직 상세 보기","tn.aria":"Sprag 타운: 회사 {n}곳"});
 Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg.90d":"90d","rg.this":"This month","rg.last":"Last month","rg.custom":"Custom","rg.from":"From","rg.to":"To","rg.bad":"Enter both dates","rg.order":"The start date must not be after the end date","rg.max":"The range can be 365 days at most"});
 Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
 let lang = 'en';
@@ -1051,15 +1057,15 @@ const demo = (function(){
   const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
   const orgs = [
     {id:'d1', name:'Northwind Labs', plan:'enterprise', status:'active', seat_limit:50, seats_used:50, teams:4, members_total:57, owners:['ana@northwind.example'], spent_30d:4821.4, saved_30d:2210.15, last_seen:new Date(Date.now()-120000).toISOString(), created_at:ago(140), note:'Annual contract, renewal in March.'},
-    {id:'d2', name:'Kestrel Robotics', plan:'pro', status:'active', seat_limit:10, seats_used:7, teams:1, members_total:9, owners:['jun@kestrel.example','mia@kestrel.example'], spent_30d:612.08, saved_30d:240.9, last_seen:ago(1), created_at:ago(61), note:''},
+    {id:'d2', name:'Kestrel Robotics', plan:'pro', status:'active', seat_limit:12, seats_used:7, teams:1, members_total:9, owners:['jun@kestrel.example','mia@kestrel.example'], spent_30d:612.08, saved_30d:240.9, last_seen:ago(1), created_at:ago(61), note:''},
     {id:'d3', name:'서울 스튜디오', plan:'pro', status:'active', seat_limit:25, seats_used:12, teams:2, members_total:14, owners:['min@seoul.example'], spent_30d:1304.77, saved_30d:688.2, last_seen:ago(0.2), created_at:ago(33), note:''},
     {id:'d4', name:'Old Harbor Co', plan:'pro', status:'suspended', seat_limit:5, seats_used:3, teams:1, members_total:3, owners:['pat@oldharbor.example'], spent_30d:0, saved_30d:0, last_seen:ago(19), created_at:ago(210), note:'Suspended: invoice unpaid.'},
     {id:'d5', name:'Quill & Co', plan:'enterprise', status:'active', seat_limit:100, seats_used:41, teams:6, members_total:44, owners:['sam@quill.example'], spent_30d:3150.0, saved_30d:1490.6, last_seen:ago(0.05), created_at:ago(12), note:''}
   ];
   const sums = o => ({id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, seats_used:o.seats_used, role:'superuser',
-    teams:[{id:o.id+'t1', name:'Platform', members_active:Math.ceil(o.seats_used/2), seats:Math.ceil(o.seats_used/2)},{id:o.id+'t2', name:'Apps', members_active:Math.floor(o.seats_used/2), seats:Math.floor(o.seats_used/2)}],
+    teams:teamsOf(o).map((x, i, all) => ({id:x.id, name:x.name, members_active:Math.floor(o.seats_used / all.length) + (i < o.seats_used % all.length ? 1 : 0), seats:Math.floor(o.seats_used / all.length) + (i < o.seats_used % all.length ? 1 : 0)})),
     admins:o.owners.map(e => ({user_id:e, email:e, role:'owner'}))});
-  const teamsOf = o => [{id:o.id+'t1', name:'Platform'}, {id:o.id+'t2', name:'Apps'}];
+  const teamsOf = o => ['Platform', 'Apps', 'Data', 'Infra', 'Design', 'Growth'].slice(0, Math.max(1, o.teams)).map((nm, k) => ({id:o.id+'t'+(k+1), name:nm}));
   const rowsOf = o => demoSeatStore(o.id, teamsOf(o)).rows;
   const SEATRPC = ['org_seats', 'org_member_events', 'member_remove', 'member_restore'];
   return function(name, a){
@@ -1076,6 +1082,14 @@ const demo = (function(){
       const wt = d => d < born ? 0 : 0.55 + 0.9 * (((Date.parse(d) / 864e5 | 0) * 2654435761 * ci % 1000) / 1000), tot = Range.list(fmtDay(new Date(Date.now() - 29 * 864e5)), fmtDay(new Date())).reduce((n, d) => n + wt(d), 0) || 1, sw = dl.reduce((n, d) => n + wt(d), 0);
       return {...o, spent: o.spent_30d * sw / tot, saved: o.saved_30d * sw / tot, range_from: dl[0], range_to: dl[dl.length - 1], seats_used:r.filter(x => x.holds_seat && !x.seat_of).length, seats_paused:r.filter(x => x.signal === 'paused').length, seats_late:r.filter(x => x.signal === 'late').length};
     });
+    if(name === 'team_member_usage'){
+      const o = orgs.find(x => a.p_team_id.startsWith(x.id + 't')); if(!o) throw new Error('not found');
+      const n = Range.list(a.p_from, a.p_to).length;
+      return {from:a.p_from, to:a.p_to, days:n, members: rowsOf(o).filter(r => r.team_id === a.p_team_id).map(r => {
+        const i = (+r.member_id.split('-m')[1] || 0) + (DEMO_OFF[o.id] || 0), spent = DEMO_SPEND[i % 15] * (o.spent_30d / 20) * n / 30, dg = spent > 0 ? Math.max(1, Math.round(Math.sqrt(spent) * 1.2)) : 0, pf = DEMO_FAM[i % 4];
+        return {member_id:r.member_id, spent, saved:spent * DEMO_DLG[i % 15], delegated:dg, families:{haiku:Math.round(dg * pf[0]), sonnet:Math.round(dg * pf[1]), opus:Math.round(dg * pf[2])}, errors:0, spent_today:0, saved_today:0, series:Range.list(a.p_from, a.p_to).map((d, k) => ({day:d, spent:spent / n * (0.5 + ((k * 7 + i * 3) % 10) / 10), saved:0}))};
+      })};
+    }
     if(name === 'ops_attention'){
       const out = {paused:[], late:[]};
       orgs.forEach(o => rowsOf(o).forEach(r => {
@@ -1310,6 +1324,7 @@ async function route(){
   if(!user || $('ops').hidden) return;
   const r = parseHash();
   $('view-list').hidden = !!r; $('view-detail').hidden = !r;
+  TownHost.sync();
   if(!r){
     if(shown){ shown = ''; sel = null; sum = null; Seats.load(null); Prompts.reset(); }
     return;
@@ -1327,6 +1342,7 @@ document.querySelectorAll('#d-tabs .tab').forEach(b => b.addEventListener('click
 /* ── render ───────────────────────────────────────────────────────────── */
 function renderAll(){ Range.render(); renderTotals(); renderOrgs(); renderOverview(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); }
 function renderAttention(){
+  TownHost.sync();
   const rows = attention[attTab] || [], paused = attTab === 'paused';
   ['paused', 'late'].forEach(k => {
     const b = $('tab-' + k); b.innerHTML = esc(t('att.' + k)) + '<span class="n2">' + (attention[k] || []).length + '</span>';
@@ -1503,6 +1519,7 @@ function filtered(){
     (!q || (o.name || '').toLowerCase().includes(q) || (o.owners || []).some(e => String(e).toLowerCase().includes(q))));
 }
 function renderOrgs(){
+  TownHost.sync();
   $('th-sp').textContent = t('c.sp') + ' · ' + Range.label(); $('th-sv').textContent = t('c.sv') + ' · ' + Range.label();
   const rows = filtered();
   $('org-body').innerHTML = rows.map(o => {
@@ -1559,6 +1576,7 @@ function renderDetail(){
   $('side-admins').innerHTML = ad.length ? ad.map(a => `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
   $('d-note').textContent = sel.note || t('s.none');
   if(curTab === 'prompts') Prompts.activate();
+  SceneHost.sync();
 }
 
 /* ── actions ──────────────────────────────────────────────────────────── */
@@ -1608,7 +1626,7 @@ const Seats = (function(){
   async function load(orgId, keepErr){
     st.orgId = orgId || null;
     if(!keepErr) st.err = '';
-    if(!st.orgId){ st.rows = []; st.events = []; render(); return; }
+    if(!st.orgId){ st.rows = []; st.events = []; render(); if(cfg.onRows) cfg.onRows(st.rows); return; }
     try{
       const [r, e] = await Promise.all([
         cfg.rpc('org_seats', { p_org_id: orgId }),
@@ -1617,6 +1635,13 @@ const Seats = (function(){
       st.rows = Array.isArray(r) ? r : []; st.events = Array.isArray(e) ? e : [];
     }catch(x){ st.err = errMsg(x); }
     render();
+    if(cfg.onRows) cfg.onRows(st.rows);
+  }
+  /* focus: highlight a machine (or all machines of a team) from the seat field; the caller switches to the seats tab */
+  function focus(h){
+    st.filter = ''; st.hl = h; render();
+    setTimeout(() => { const el = box.querySelector('tr.hl'); if(el) el.scrollIntoView({ block:'center', behavior:'smooth' }); }, 120);
+    setTimeout(() => { if(st.hl === h){ st.hl = null; render(); } }, 6000);
   }
   function actor(e){
     const who = t('sr.actor.' + (['owner', 'admin', 'superuser'].includes(e.actor) ? e.actor : 'member'));
@@ -1649,7 +1674,7 @@ const Seats = (function(){
           act += `<button type="button" class="btn sm danger" data-remove="${esc(r.member_id)}">${esc(t('sr.remove'))}</button>`;
         }
       }
-      return `<tr class="${gone ? 'gone' : ''}"><td class="sn" title="${esc(NAME(r))}">${esc(NAME(r))}${shares}</td>
+      return `<tr class="${gone ? 'gone' : ''}${st.hl && (st.hl.id === r.member_id || (st.hl.team && st.hl.team === r.team_id)) ? ' hl' : ''}"><td class="sn" title="${esc(NAME(r))}">${esc(NAME(r))}${shares}</td>
         <td class="tm" title="${esc(r.team_name || '')}">${esc(r.team_name || '')}</td>
         <td>${gone ? '' : `<span class="badge ${r.switch === 'off' ? 'warn' : 'good'}" title="${esc(t('sr.tip.switch.' + (r.switch === 'off' ? 'off' : 'on')))}">${esc(t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')))}</span>`}</td>
         <td><span class="badge ${BADGE[r.signal] || 'dim'}" title="${esc(t('sr.tip.' + r.signal))}">${esc(t('sr.s.' + r.signal))}</span></td>
@@ -1708,18 +1733,25 @@ const Seats = (function(){
       else el.value = '';
     }
   }
-  return { init, load, render };
+  return { init, load, render, focus, rows: () => st.rows };
 })();
 
 /* ── demo roster (?demo=1): fake rows, no network ──────────────────────── */
 const demoSeatStores = {};
+/* demo spend per machine index and saved-to-spend ratio, so the adoption map shows every tier */
+const DEMO_SPEND = [1.6, 0.05, 0.9, 0.3, 0.3, 0.1, 0.2, 0, 0, 2.2, 0.08, 3.0, 1.8, 0.4, 4.2], DEMO_DLG = [0.3, 0.2, 0.5, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.9, 0.4, 1.1, 0.5, 0.4, 1.3];
 const DEMO_ACTOR = 'superuser';
+/* demo roster size, spend offset and delegated model mix per organization, so every company looks different */
+const DEMO_N = {d1:30, d2:8, d3:14, d4:3, d5:26}, DEMO_OFF = {d1:0, d2:3, d3:7, d4:5, d5:11}, DEMO_FAM = [[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]];
 function demoSeatStore(orgId, teams){
   if(demoSeatStores[orgId]) return demoSeatStores[orgId];
   const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
-  const names = ['ana-macbook', 'studio-mac', 'dev-linux-02', 'ci-runner-7', 'jun-air', 'mia-pro', 'build-box', 'ops-laptop', 'lab-mini', 'pat-thinkpad'];
+  const names = ['ana-macbook', 'studio-mac', 'dev-linux-02', 'ci-runner-7', 'jun-air', 'mia-pro', 'build-box', 'ops-laptop', 'lab-mini', 'pat-thinkpad', 'ci-runner-2', 'kim-studio', 'dev-linux-05', 'qa-mac', 'rina-air'];
   // [signal, days since last contact, days since last upload, paused for days]
-  const spec = [['ok', 0.01, 0.01], ['ok', 0.2, 0.3], ['ok', 1, 1.2], ['paused', 45, 52, 52], ['paused', 3, 3, 3], ['silent', 41, 41], ['late', 2, 3.5], ['left', 12, 12], ['removed', 20, 20], ['late', 0.5, 6]];
+  const spec0 = [['ok', 0.01, 0.01], ['ok', 0.2, 0.3], ['ok', 1, 1.2], ['paused', 45, 52, 52], ['paused', 3, 3, 3], ['silent', 41, 41], ['late', 2, 3.5], ['left', 12, 12], ['removed', 20, 20], ['ok', 0.3, 0.4], ['ok', 0.1, 0.05], ['ok', 0.6, 0.9], ['ok', 2, 2.5], ['late', 5, 8], ['ok', 0.02, 0.02]];
+  const XT = [['ok', 0.3, 0.3], ['ok', 0.1, 0.2], ['ok', 1, 1.4], ['ok', 0.5, 0.6], ['late', 3, 4.5], ['ok', 0.2, 0.2], ['ok', 0.7, 0.8], ['paused', 9, 12, 12]];
+  const nm = DEMO_N[orgId] || 15, spec = Array.from({length: nm}, (_, i) => i < 15 ? spec0[i] : XT[i % XT.length]);
+  while(names.length < nm) names.push('dev-box-' + names.length);
   const rows = spec.map((s, i) => {
     const tm = teams[i % teams.length], sg = s[0], gone = sg === 'left' || sg === 'removed';
     return { member_id: orgId + '-m' + i, team_id: tm.id, team_name: tm.name, display_name: names[i], agent: i % 3 === 2 ? 'codex' : 'claude',
@@ -1877,7 +1909,16 @@ const Prompts = (function(){
     timer = setTimeout(() => { if(v === st.q) return; st.q = v; fetchPrompts(false); }, 300);
   }
   function rangeChanged(){ if(st.orgId) activate(true); }
-  return { init, activate, reset, render, rangeChanged };
+  /* openMember: open one person's prompt list from outside (the seat field); resolves false when the member has no prompt record */
+  async function openMember(id){
+    await activate();
+    for(let i = 0; i < 50 && st.loading; i++) await new Promise(r => setTimeout(r, 100));
+    const r = ((st.usage && st.usage.members) || []).find(x => x.member_id === id);
+    if(!r) return false;
+    st.member = r; st.q = ''; st.open = {}; render(); fetchPrompts(false);
+    return true;
+  }
+  return { init, activate, reset, render, rangeChanged, openMember };
 })();
 
 /* ── demo prompts (?demo=1): synthetic rows, no network ────────────────── */
@@ -1887,8 +1928,8 @@ const demoPrompts = (function(){
   const EN = ['fix the failing test in %s', 'add a unit test for %s', 'refactor %s to remove the duplicated branch', 'explain what %s does, briefly', 'continue', 'use the existing util instead'];
   const KO = ['%s 리팩터링해줘', '%s 에서 실패하는 테스트 고쳐줘', '%s 에 예외 처리 추가해줘', '방금 변경이 빌드를 깼어, 되돌려줘', '좋아, 그대로 진행해'];
   const LOG = 'ERROR in src/%s:42\n  TypeError: Cannot read properties of undefined (reading \'id\')\n    at handler (src/api/routes.ts:118:22)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n';
-  const PEOPLE = [['MacBook-Pro-Jisoo', 'Platform', 'macOS 26', 1.4], ['dev-linux-minho', 'Platform', 'Ubuntu 24.04', 1.0], ['ana-mbp', 'Apps', 'macOS 15', 0.9],
-    ['win-workstation-04', 'Apps', 'Windows 11', 0.6], ['서연-맥북', 'Platform', 'macOS 26', 1.2], ['build-farm-arm64', 'Apps', 'Ubuntu 24.04', 0.25]];
+  const PEOPLE = [['ana-macbook', 'Platform', 'macOS 26', 1.4], ['dev-linux-02', 'Platform', 'Ubuntu 24.04', 1.0], ['studio-mac', 'Apps', 'macOS 15', 0.9],
+    ['kim-studio', 'Data', 'Windows 11', 0.6], ['rina-air', 'Apps', 'macOS 26', 1.2], ['dev-linux-05', 'Data', 'Ubuntu 24.04', 0.25]];
   function build(){
     let s = 42; const r = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
     const pick = a => a[Math.floor(r() * a.length)];
@@ -1940,13 +1981,79 @@ const demoPrompts = (function(){
 Range.onChange(async () => {
   await loadOrgs();
   if(sel){ sel = orgs.find(o => o.id === sel.id) || sel; renderDetail(); }
+  SceneHost.sync();
   Prompts.rangeChanged();
 });
+/* ── Sprag town: animated overview of all companies at the top of the list view (operator only) ── */
+const TownHost = (function(){
+  let ctl = null, mod = null, dead = false, sig = '', seq = 0;
+  function stop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } sig = ''; $('town-card').hidden = true; }
+  async function sync(){
+    if(dead) return;
+    if(!(user && orgsLoaded && orgs.length && !$('ops').hidden && !$('view-list').hidden)) return stop();
+    const key = [lang, JSON.stringify(Range.args()), orgs.map(o => [o.id, o.name, o.plan, o.status, o.seat_limit, o.seats_used, o.spent, o.seats_paused, o.seats_late].join(':')).join('|'), attention.paused.length, attention.late.length].join('#');
+    if(ctl && key === sig) return;
+    sig = key; const my = ++seq; $('town-card').hidden = false;
+    if(!mod){ try{ mod = await import('/assets/scene/town-scene.js'); }catch(e){ dead = true; return stop(); } if(my !== seq) return; }
+    const data = mod.townSceneData({ orgs, attention, rangeLabel: Range.label(), t, money, revenue: orgRevenue, rel });
+    if(ctl){ ctl.update(data); return; }
+    ctl = mod.mountTownScene($('town-box'), data, { onOpenOrg: id => go('#org/' + encodeURIComponent(id)), onFail: () => { dead = true; stop(); } });
+  }
+  return { sync };
+})();
+
+/* ── seat field: three.js hero scene at the top of the organization overview (machines from org_seats, spend from team_member_usage) ── */
+const SceneHost = (function(){
+  let ctl = null, mod = null, dead = false, sig = '', lastRows = null, mounted = '', usage = {}, curData = null, promptRows = null, ukey = '', seq = 0;
+  function stop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } mounted = ''; sig = ''; lastRows = null; $('scene-card').hidden = true; }
+  async function fetchUsage(ids){
+    const out = {};
+    await Promise.all(ids.map(async id => {
+      try{ const d = await rpc('team_member_usage', { p_team_id: id, ...Range.args() }); ((d && d.members) || []).forEach(u => { out[u.member_id] = u; }); }catch(e){}
+    }));
+    return out;
+  }
+  async function fetchPrompts(){
+    if(sel.plan !== 'enterprise') return null;
+    try{ const d = await rpc('org_prompt_usage', { p_org_id: sel.id, p_days: 30, ...Range.args() }); return (d && d.members) || []; }catch(e){ return null; }
+  }
+  async function sync(){
+    if(dead) return;
+    if(!(user && sel && curTab === 'overview' && !$('view-detail').hidden)) return stop();
+    const rows = Seats.rows(), tl = (sum && sum.teams) || [];
+    const key = [sel.id, lang, JSON.stringify(Range.args()), sel.seats_used, sel.seat_limit, sel.status, tl.map(x => x.id + x.name).join()].join('|');
+    if(rows === lastRows && key === sig) return;
+    lastRows = rows; sig = key;
+    const my = ++seq, uk = sel.id + '|' + JSON.stringify(Range.args()) + '|' + rows.length;
+    $('scene-card').hidden = false;
+    if(ukey !== uk){
+      const ids = [...new Set([...tl.map(x => x.id), ...rows.map(r => r.team_id)])].filter(Boolean);
+      const [u, pr] = await Promise.all([fetchUsage(ids), fetchPrompts()]); if(my !== seq) return;
+      usage = u; promptRows = pr; ukey = uk;
+    }
+    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js'); }catch(e){ dead = true; return stop(); } if(my !== seq) return; }
+    const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: sel.seats_used, limit: sel.seat_limit, orgName: sel.name, rangeLabel: Range.label(), closed: sel.status === 'suspended', t, rel, os: osLabel,
+      demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
+    if(ctl && mounted !== sel.id){ ctl.destroy(); ctl = null; }
+    if(ctl){ ctl.update(data); return; }
+    mounted = sel.id;
+    ctl = mod.mountOfficeScene($('scene-box'), data, {
+      onSeats: id => { Seats.focus({ id }); go('#org/' + encodeURIComponent(sel.id) + '/seats'); },
+      onPrompts: async id => { const m = curData && curData.people.find(x => x.id === id), base = '#org/' + encodeURIComponent(sel.id); go(base + '/prompts'); if(!(m && m.promptId && await Prompts.openMember(m.promptId))){ Seats.focus({ id }); go(base + '/seats'); } },
+      onTeam: id => { Seats.focus({ team: id }); go('#org/' + encodeURIComponent(sel.id) + '/seats'); },
+      onServer: () => { const n = $('scene-card').nextElementSibling; if(n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+      onFail: () => { dead = true; stop(); }
+    });
+  }
+  return { sync };
+})();
+
 /* ── boot ─────────────────────────────────────────────────────────────── */
 (async function boot(){
   Prompts.init({ box:'pu-box', ops:true, orgId:() => sel && sel.id, plan:() => sel && sel.plan, rpc });
   Seats.init({
     box:'seats-box', canAct:true, canMerge:false, rpc,
+    onRows: () => SceneHost.sync(),
     limit:() => sel && {used:sel.seats_used, limit:sel.seat_limit},
     after: async () => {
       const id = sel && sel.id; if(!id) return;

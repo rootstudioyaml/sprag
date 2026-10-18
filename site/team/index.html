@@ -187,6 +187,7 @@
   tr.hot td{background:rgba(232,171,60,.07)}
   tr.hot td.today{color:var(--warn);font-weight:600}
   tr.gone td{color:var(--faint)}
+  tr.hl td{background:var(--accent-bg)}
   td.lt{color:var(--warn);font-weight:600}
   td .badge,td .tag{vertical-align:middle}
   td.nm{font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis}
@@ -497,6 +498,7 @@
     <div class="range-bar" id="range-bar"></div>
     <div id="views">
     <section class="view" id="view-overview" role="tabpanel" aria-labelledby="vtab-overview">
+    <section class="card of-card" id="scene-card" hidden><div id="scene-box"></div></section>
     <section class="card" id="org-card" aria-labelledby="org-h" hidden>
       <div class="org-top">
         <div>
@@ -911,6 +913,8 @@ const I18N = {
 };
 Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in this range ({r}).", "pu.note": "{r}, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts, {r}", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match.", "pu.chars": "{n} chars"});
 Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "컴퓨터", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "이 기간({r}) 동안 수집된 프롬프트가 없습니다", "pu.note": "{r}, 프롬프트 수집을 켠 팀 기준입니다. 컴퓨터를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "{r} 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다", "pu.chars": "{n}자"});
+Object.assign(I18N.en, {"of.server":"Sprag server","of.spent":"Spend","of.saved":"Saved","of.team":"Team","of.prompts":"Prompts","of.deleg":"Delegation","of.why":"Why no data","of.why.paused":"Uploads off since {x}","of.why.last":"Last upload {x}","of.tier.power":"AI power user","of.tier.active":"Active","of.tier.normal":"Normal","of.tier.low":"Getting started","of.tier.nodata":"No data","of.tag.off":"⏸ Uploads off","of.tag.late":"⏸ Late","of.tag.closed":"Suspended","of.hud":"{n} in use · {p} power · {l} need a nudge · {o} uploads off · seats {u} / {limit}","of.hud.closed":"Seats {u} / {limit} · all lights off","of.free":"Free seats {n}","of.more":"+{n} more","of.b.deleg":"{n} runs delegated to {m}","of.b.deleg0":"{n} delegated runs","of.b.prompts":"{n} prompts","of.lg.bot":"{m} helper","of.lg.any":"AI helper (delegated runs)","of.lg.screen":"Bright monitor = active use","of.lg.power":"Lion · AI power user","of.lg.active":"Fox · Active","of.lg.normal":"Bear · Normal","of.lg.low":"Chick · Getting started","of.lg.ghost":"Ghost · No data","of.aria":"Virtual office: {n} people in {teams} teams, {used} of {limit} seats used","of.demo.0":"Delegating tests to haiku","of.demo.1":"\"Review this PR\"","of.demo.2":"opus is refactoring","of.town":"Sprag Town","of.fs":"Full screen","of.fs.exit":"Exit full screen","of.close":"Close","of.d.os":"Machines","of.runs":"Delegated runs","of.d.daily":"Daily spend","of.d.last":"Last upload","of.d.seats":"View seat details","of.d.prompts":"View prompts"});
+Object.assign(I18N.ko, {"of.server":"Sprag 서버","of.spent":"지출","of.saved":"절감","of.team":"팀","of.prompts":"프롬프트","of.deleg":"위임 비율","of.why":"데이터가 없는 이유","of.why.paused":"{x}부터 업로드 꺼짐","of.why.last":"마지막 업로드 {x}","of.tier.power":"AI 파워 유저","of.tier.active":"활발","of.tier.normal":"보통","of.tier.low":"활용 장려 필요","of.tier.nodata":"데이터 없음","of.tag.off":"⏸ 업로드 꺼짐","of.tag.late":"⏸ 지연","of.tag.closed":"정지됨","of.hud":"사용 중 {n}명 · 파워 유저 {p} · 장려 필요 {l} · 업로드 꺼짐 {o} · 좌석 {u} / {limit}","of.hud.closed":"좌석 {u} / {limit} · 모든 조명 꺼짐","of.free":"빈 좌석 {n}개","of.more":"+{n}명 더","of.b.deleg":"{m}에 위임 {n}회","of.b.deleg0":"위임 {n}회","of.b.prompts":"프롬프트 {n}회","of.lg.bot":"{m} 조수","of.lg.any":"AI 조수 (위임 실행)","of.lg.screen":"밝은 모니터 = 활발히 사용","of.lg.power":"사자 · AI 파워 유저","of.lg.active":"여우 · 활발","of.lg.normal":"곰 · 보통","of.lg.low":"병아리 · 활용 장려 필요","of.lg.ghost":"유령 · 데이터 없음","of.aria":"가상 사무실: 팀 {teams}개, {n}명, 좌석 {used}/{limit} 사용","of.demo.0":"haiku에 테스트 위임","of.demo.1":"\"이 PR 리뷰해줘\"","of.demo.2":"opus가 리팩터링 중","of.town":"Sprag 타운","of.fs":"전체 화면","of.fs.exit":"전체 화면 종료","of.close":"닫기","of.d.os":"컴퓨터","of.runs":"위임 실행","of.d.daily":"일별 지출","of.d.last":"마지막 업로드","of.d.seats":"좌석 상세 보기","of.d.prompts":"프롬프트 보기"});
 Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg.90d":"90d","rg.this":"This month","rg.last":"Last month","rg.custom":"Custom","rg.from":"From","rg.to":"To","rg.bad":"Enter both dates","rg.order":"The start date must not be after the end date","rg.max":"The range can be 365 days at most"});
 Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
 let lang = 'en';
@@ -1033,6 +1037,7 @@ function setLang(next, remember){
   document.title = lang === 'ko' ? 'Sprag 팀 · 오너 대시보드' : 'Sprag Teams | Owner dashboard';
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   if(remember) lsSet('sprag.lang', lang);
+  if(window.__sceneReady) SceneHost.sync();
   if(!$('form-code').hidden) $('code-sent').textContent = t('si.sent', {email: pendingEmail}, true);
   renderAll();
 }
@@ -1247,6 +1252,7 @@ function renderOrg(){
     </span></div>`).join('')
     : `<p class="none msg">${esc(t('o.teams.none'))}</p>`;
   $('org-teams').querySelectorAll('[data-ot]').forEach(b => b.addEventListener('click', () => go('teams', b.dataset.ot, null, true)));
+  SceneHost.sync();
 }
 
 /* ── teams ────────────────────────────────────────────────────────────── */
@@ -1393,6 +1399,7 @@ function renderView(){
   $('range-bar').hidden = !(view === 'teams' || view === 'prompts');
   if(!viewOk(view)){ view = firstView(); renderView(); }
   else if(view === 'prompts') Prompts.activate();
+  SceneHost.sync();
 }
 function renderSub(){
   document.querySelectorAll('#stabs [data-sub]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.sub === sub)));
@@ -1696,7 +1703,7 @@ const Seats = (function(){
   async function load(orgId, keepErr){
     st.orgId = orgId || null;
     if(!keepErr) st.err = '';
-    if(!st.orgId){ st.rows = []; st.events = []; render(); return; }
+    if(!st.orgId){ st.rows = []; st.events = []; render(); if(cfg.onRows) cfg.onRows(st.rows); return; }
     try{
       const [r, e] = await Promise.all([
         cfg.rpc('org_seats', { p_org_id: orgId }),
@@ -1705,6 +1712,13 @@ const Seats = (function(){
       st.rows = Array.isArray(r) ? r : []; st.events = Array.isArray(e) ? e : [];
     }catch(x){ st.err = errMsg(x); }
     render();
+    if(cfg.onRows) cfg.onRows(st.rows);
+  }
+  /* focus: highlight a machine (or all machines of a team) from the seat field; the caller switches to the seats view */
+  function focus(h){
+    st.filter = ''; st.hl = h; render();
+    setTimeout(() => { const el = box.querySelector('tr.hl'); if(el) el.scrollIntoView({ block:'center', behavior:'smooth' }); }, 120);
+    setTimeout(() => { if(st.hl === h){ st.hl = null; render(); } }, 6000);
   }
   function actor(e){
     const who = t('sr.actor.' + (['owner', 'admin', 'superuser'].includes(e.actor) ? e.actor : 'member'));
@@ -1737,7 +1751,7 @@ const Seats = (function(){
           act += `<button type="button" class="btn sm danger" data-remove="${esc(r.member_id)}">${esc(t('sr.remove'))}</button>`;
         }
       }
-      return `<tr class="${gone ? 'gone' : ''}"><td class="sn" title="${esc(NAME(r))}">${esc(NAME(r))}${shares}</td>
+      return `<tr class="${gone ? 'gone' : ''}${st.hl && (st.hl.id === r.member_id || (st.hl.team && st.hl.team === r.team_id)) ? ' hl' : ''}"><td class="sn" title="${esc(NAME(r))}">${esc(NAME(r))}${shares}</td>
         <td class="tm" title="${esc(r.team_name || '')}">${esc(r.team_name || '')}</td>
         <td>${gone ? '' : `<span class="badge ${r.switch === 'off' ? 'warn' : 'good'}" title="${esc(t('sr.tip.switch.' + (r.switch === 'off' ? 'off' : 'on')))}">${esc(t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')))}</span>`}</td>
         <td><span class="badge ${BADGE[r.signal] || 'dim'}" title="${esc(t('sr.tip.' + r.signal))}">${esc(t('sr.s.' + r.signal))}</span></td>
@@ -1796,7 +1810,7 @@ const Seats = (function(){
       else el.value = '';
     }
   }
-  return { init, load, render };
+  return { init, load, render, focus, rows: () => st.rows };
 })();
 
 /* ── prompt usage: per-user table + prompt list (shared by site/team and site/ops) ── */
@@ -1919,7 +1933,16 @@ const Prompts = (function(){
     timer = setTimeout(() => { if(v === st.q) return; st.q = v; fetchPrompts(false); }, 300);
   }
   function rangeChanged(){ if(st.orgId) activate(true); }
-  return { init, activate, reset, render, rangeChanged };
+  /* openMember: open one person's prompt list from outside (the seat field); resolves false when the member has no prompt record */
+  async function openMember(id){
+    await activate();
+    for(let i = 0; i < 50 && st.loading; i++) await new Promise(r => setTimeout(r, 100));
+    const r = ((st.usage && st.usage.members) || []).find(x => x.member_id === id);
+    if(!r) return false;
+    st.member = r; st.q = ''; st.open = {}; render(); fetchPrompts(false);
+    return true;
+  }
+  return { init, activate, reset, render, rangeChanged, openMember };
 })();
 
 /* ── demo prompts (?demo=1): synthetic rows, no network ────────────────── */
@@ -1929,8 +1952,8 @@ const demoPrompts = (function(){
   const EN = ['fix the failing test in %s', 'add a unit test for %s', 'refactor %s to remove the duplicated branch', 'explain what %s does, briefly', 'continue', 'use the existing util instead'];
   const KO = ['%s 리팩터링해줘', '%s 에서 실패하는 테스트 고쳐줘', '%s 에 예외 처리 추가해줘', '방금 변경이 빌드를 깼어, 되돌려줘', '좋아, 그대로 진행해'];
   const LOG = 'ERROR in src/%s:42\n  TypeError: Cannot read properties of undefined (reading \'id\')\n    at handler (src/api/routes.ts:118:22)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n';
-  const PEOPLE = [['MacBook-Pro-Jisoo', 'Platform', 'macOS 26', 1.4], ['dev-linux-minho', 'Platform', 'Ubuntu 24.04', 1.0], ['ana-mbp', 'Apps', 'macOS 15', 0.9],
-    ['win-workstation-04', 'Apps', 'Windows 11', 0.6], ['서연-맥북', 'Platform', 'macOS 26', 1.2], ['build-farm-arm64', 'Apps', 'Ubuntu 24.04', 0.25]];
+  const PEOPLE = [['ana-macbook', 'Platform', 'macOS 26', 1.4], ['dev-linux-02', 'Platform', 'Ubuntu 24.04', 1.0], ['studio-mac', 'Apps', 'macOS 15', 0.9],
+    ['kim-studio', 'Data', 'Windows 11', 0.6], ['rina-air', 'Apps', 'macOS 26', 1.2], ['dev-linux-05', 'Data', 'Ubuntu 24.04', 0.25]];
   function build(){
     let s = 42; const r = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
     const pick = a => a[Math.floor(r() * a.length)];
@@ -1981,13 +2004,18 @@ const demoPrompts = (function(){
 
 /* ── demo roster (?demo=1): fake rows, no network ──────────────────────── */
 const demoSeatStores = {};
+/* demo spend per machine index and saved-to-spend ratio, so the adoption map shows every tier */
+const DEMO_SPEND = [1.6, 0.05, 0.9, 0.3, 0.3, 0.1, 0.2, 0, 0, 2.2, 0.08, 3.0, 1.8, 0.4, 4.2], DEMO_DLG = [0.3, 0.2, 0.5, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.9, 0.4, 1.1, 0.5, 0.4, 1.3];
 const DEMO_ACTOR = 'owner';
 function demoSeatStore(orgId, teams){
   if(demoSeatStores[orgId]) return demoSeatStores[orgId];
   const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
-  const names = ['ana-macbook', 'studio-mac', 'dev-linux-02', 'ci-runner-7', 'jun-air', 'mia-pro', 'build-box', 'ops-laptop', 'lab-mini', 'pat-thinkpad'];
+  const names = ['ana-macbook', 'studio-mac', 'dev-linux-02', 'ci-runner-7', 'jun-air', 'mia-pro', 'build-box', 'ops-laptop', 'lab-mini', 'pat-thinkpad', 'ci-runner-2', 'kim-studio', 'dev-linux-05', 'qa-mac', 'rina-air'];
   // [signal, days since last contact, days since last upload, paused for days]
-  const spec = [['ok', 0.01, 0.01], ['ok', 0.2, 0.3], ['ok', 1, 1.2], ['paused', 45, 52, 52], ['paused', 3, 3, 3], ['silent', 41, 41], ['late', 2, 3.5], ['left', 12, 12], ['removed', 20, 20], ['late', 0.5, 6]];
+  const spec0 = [['ok', 0.01, 0.01], ['ok', 0.2, 0.3], ['ok', 1, 1.2], ['paused', 45, 52, 52], ['paused', 3, 3, 3], ['silent', 41, 41], ['late', 2, 3.5], ['left', 12, 12], ['removed', 20, 20], ['ok', 0.3, 0.4], ['ok', 0.1, 0.05], ['ok', 0.6, 0.9], ['ok', 2, 2.5], ['late', 5, 8], ['ok', 0.02, 0.02]];
+  const XT = [['ok', 0.3, 0.3], ['ok', 0.1, 0.2], ['ok', 1, 1.4], ['ok', 0.5, 0.6], ['late', 3, 4.5], ['ok', 0.2, 0.2], ['ok', 0.7, 0.8]];
+  const spec = Array.from({length: 24}, (_, i) => i < 15 ? spec0[i] : XT[i % XT.length]);
+  while(names.length < 24) names.push('dev-box-' + names.length);
   const rows = spec.map((s, i) => {
     const tm = teams[i % teams.length], sg = s[0], gone = sg === 'left' || sg === 'removed';
     return { member_id: orgId + '-m' + i, team_id: tm.id, team_name: tm.name, display_name: names[i], agent: i % 3 === 2 ? 'codex' : 'claude',
@@ -2025,21 +2053,68 @@ function demoSeatsRpc(orgId, teams, name, a){
   throw new Error('unknown rpc ' + name);
 }
 
-Range.onChange(() => { if(team) loadLedger(); Prompts.rangeChanged(); });
+Range.onChange(() => { if(team) loadLedger(); Prompts.rangeChanged(); SceneHost.sync(); });
+
+/* ── seat field: three.js hero scene on the Overview tab (admins only; machines from org_seats, spend from team_member_usage) ── */
+const SceneHost = (function(){
+  let ctl = null, mod = null, dead = false, sig = '', lastRows = null, mounted = '', usage = {}, curData = null, promptRows = null, ukey = '', seq = 0;
+  function stop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } mounted = ''; sig = ''; lastRows = null; $('scene-card').hidden = true; }
+  async function fetchUsage(ids){
+    const out = {};
+    await Promise.all(ids.map(async id => {
+      try{ const { data, error } = await sb.rpc('team_member_usage', { p_team_id: id, ...Range.args() }); if(!error) ((data && data.members) || []).forEach(u => { out[u.member_id] = u; }); }catch(e){}
+    }));
+    return out;
+  }
+  async function fetchPrompts(){
+    if(org.plan !== 'enterprise') return null;
+    try{ const { data, error } = await sb.rpc('org_prompt_usage', { p_org_id: org.id, p_days: 30, ...Range.args() }); return error ? null : ((data && data.members) || []); }catch(e){ return null; }
+  }
+  async function sync(){
+    if(dead) return;
+    if(!(user && org && isAdmin() && view === 'overview')) return stop();
+    const rows = Seats.rows(), tl = (orgSum && orgSum.teams) || [];
+    const key = [org.id, lang, JSON.stringify(Range.args()), org.seats_used, org.seat_limit, org.status, tl.map(x => x.id + x.name).join()].join('|');
+    if(rows === lastRows && key === sig) return;
+    lastRows = rows; sig = key;
+    const my = ++seq, uk = org.id + '|' + JSON.stringify(Range.args()) + '|' + rows.length;
+    $('scene-card').hidden = false;
+    if(ukey !== uk){
+      const ids = [...new Set([...tl.map(x => x.id), ...rows.map(r => r.team_id)])].filter(Boolean);
+      const [u, pr] = await Promise.all([fetchUsage(ids), fetchPrompts()]); if(my !== seq) return;
+      usage = u; promptRows = pr; ukey = uk;
+    }
+    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js'); }catch(e){ dead = true; return stop(); } if(my !== seq) return; }
+    const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: org.seats_used, limit: org.seat_limit, orgName: org.name, rangeLabel: Range.label(), closed: false, t, rel, os: osLabel,
+      demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
+    if(ctl && mounted !== org.id){ ctl.destroy(); ctl = null; }
+    if(ctl){ ctl.update(data); return; }
+    mounted = org.id;
+    ctl = mod.mountOfficeScene($('scene-box'), data, {
+      onSeats: id => { Seats.focus({ id }); go('seats', null, null, true); },
+      onPrompts: async id => { const m = curData && curData.people.find(x => x.id === id); go('prompts', null, null, true); if(!(m && m.promptId && await Prompts.openMember(m.promptId))) { Seats.focus({ id }); go('seats', null, null, true); } },
+      onTeam: id => go('teams', id, null, true),
+      onServer: () => { const n = $('scene-card').nextElementSibling; if(n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+      onFail: () => { dead = true; stop(); }
+    });
+  }
+  return { sync };
+})();
 /* ── boot ─────────────────────────────────────────────────────────────── */
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 function demoSb(){
   const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
   const tm = [
     {id:'demo-t1', name:'Platform', org_id:'demo-org', owner_uid:'u1', invite_token:'spt_0123456789abcdef0123456789abcdef', prompt_capture:false, created_at:ago(100)},
-    {id:'demo-t2', name:'Apps', org_id:'demo-org', owner_uid:'u1', invite_token:'spt_fedcba9876543210fedcba9876543210', prompt_capture:false, created_at:ago(60)}];
+    {id:'demo-t2', name:'Apps', org_id:'demo-org', owner_uid:'u1', invite_token:'spt_fedcba9876543210fedcba9876543210', prompt_capture:false, created_at:ago(60)},
+    {id:'demo-t3', name:'Data', org_id:'demo-org', owner_uid:'u1', invite_token:'spt_0f1e2d3c4b5a69788796a5b4c3d2e1f0', prompt_capture:false, created_at:ago(30)}];
   const store = () => demoSeatStore('demo-org', tm);
   const used = () => store().rows.filter(r => r.holds_seat && !r.seat_of).length;
-  const org = () => ({id:'demo-org', name:'Northwind Labs', plan:'enterprise', seat_limit:12, seats_used:used(), role:'owner'});
+  const org = () => ({id:'demo-org', name:'Northwind Labs', plan:'enterprise', seat_limit:24, seats_used:used(), role:'owner'});
   const summary = () => store().rows.map((r, i) => ({ member_id:r.member_id, team_id:r.team_id, display_name:r.display_name, agent:r.agent, sprag_version:r.sprag_version, os:r.os, os_version:r.os_version, arch:r.arch,
     auto_joined:r.auto_joined, joined_at:r.joined_at, last_seen:r.last_seen, left_at:r.left_at, seat_of:r.seat_of, org_id:'demo-org',
     spent_30d:(i + 1) * 31.4, saved_30d:(i + 1) * 12.7, delegated_30d:(i + 1) * 9, errors_30d:0, spent_today:i === 0 ? 24.5 : (i % 4) * 1.3, saved_today:i * 0.4 }));
-  const ledger = () => { const out = []; store().rows.forEach((r, i) => { if(r.left_at) return; for(let d = 0; d < 400; d++) out.push({member_id:r.member_id, day:ago(d).slice(0, 10), spent_usd:(1 + (d % 6) * .5) * (i + 1) * .6, saved_usd:(1 + (d % 4) * .4) * (i + 1) * .3}); }); return out; };
+  const ledger = () => { const out = []; store().rows.forEach((r, i) => { if(r.left_at) return; for(let d = 0; d < 400; d++) out.push({member_id:r.member_id, day:ago(d).slice(0, 10), spent_usd:(1 + (d % 6) * .5) * DEMO_SPEND[i % 15] * .6, saved_usd:(1 + (d % 4) * .4) * DEMO_SPEND[i % 15] * .6 * DEMO_DLG[i % 15]}); }); return out; };
   const q = rows => { let data = rows; const o = {};
     ['select', 'order', 'gte', 'range', 'limit', 'update', 'insert'].forEach(k => { o[k] = () => o; });
     o.eq = (c, v) => { data = data.filter(r => r[c] === v); return o; };
@@ -2058,7 +2133,7 @@ function demoSb(){
         if(name === 'team_member_usage'){
           const days = new Set(Range.list(a.p_from, a.p_to)), td = fmtDay(new Date()), rows = ledger();
           return {data:{ from:a.p_from, to:a.p_to, members: summary().map(m => { const r = rows.filter(x => x.member_id === m.member_id && days.has(x.day)), sum = k => r.reduce((n, x) => n + x[k], 0);
-            return { member_id:m.member_id, spent:sum('spent_usd'), saved:sum('saved_usd'), delegated:Math.round(r.length * (m.delegated_30d / 30)), errors:0, spent_today:m.spent_today, saved_today:m.saved_today, series:r.map(x => ({day:x.day, spent:x.spent_usd, saved:x.saved_usd})) }; }) }, error:null};
+            return { member_id:m.member_id, spent:sum('spent_usd'), saved:sum('saved_usd'), delegated:Math.round(r.length * (m.delegated_30d / 30)), families:((pf, dg) => ({haiku:Math.round(dg * pf[0]), sonnet:Math.round(dg * pf[1]), opus:Math.round(dg * pf[2])}))([[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]][Math.round(m.spent_30d / 31.4) % 4], Math.round(r.length * (m.delegated_30d / 30))), errors:0, spent_today:m.spent_today, saved_today:m.saved_today, series:r.map(x => ({day:x.day, spent:x.spent_usd, saved:x.saved_usd})) }; }) }, error:null};
         }
         if(name === 'org_summary') return {data:{...org(), teams:tm.map((x, i) => ({id:x.id, name:x.name, members_active:4 + i, seats:3 + i})),
           admins:[{user_id:'u1', email:'ana@northwind.example', role:'owner'}, {user_id:'u2', email:'jun@northwind.example', role:'admin'}]}, error:null};
@@ -2074,6 +2149,7 @@ function demoSb(){
   });
   Seats.init({
     box:'seats-box', rpc: async (name, args) => { const { data, error } = await sb.rpc(name, args); if(error) throw error; return data; },
+    onRows: () => SceneHost.sync(),
     get canAct(){ return isAdmin(); }, canMerge:true,
     limit:() => org && {used: org.seats_used, limit: org.seat_limit},
     after: async () => { if(team) await loadMembers(); await loadOrgs(org && org.id); }
