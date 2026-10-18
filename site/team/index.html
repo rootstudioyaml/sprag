@@ -268,9 +268,9 @@
         <div class="switch">
           <button class="sw" id="sw-capture" role="switch" aria-checked="false" aria-labelledby="pol-cap"></button>
           <b id="pol-cap" style="font-weight:500" data-k="pol.cap">Prompt capture</b>
-          <a class="planlink" id="pol-plan" href="/pricing/" hidden>Team Plus</a>
+          <a class="planlink" id="pol-plan" href="/pricing/" hidden>Business</a>
         </div>
-        <p class="sub" data-k="pol.desc">Off by default. Needs the Team Plus plan.</p>
+        <p class="sub" data-k="pol.desc">Off by default. Needs the Business plan.</p>
         <p class="err" id="pol-err" role="alert"></p>
       </section>
 
@@ -360,14 +360,14 @@ const I18N = {
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
     't.h':'Your teams','t.new':'New team','t.ph':'Team name','t.create':'Create','t.empty':'No teams yet. Create one below.',
-    't.active':'{n} active','plan.team':'Team','plan.team_plus':'Team Plus','t.noname':'Enter a team name.',
+    't.active':'{n} active','plan.team':'Team','plan.business':'Business','t.noname':'Enter a team name.',
     'copy':'Copy','copied':'Copied',
     'inv.h':'Invite token','inv.rotate':'Rotate','inv.rotnote':'Old tokens stop working as soon as you rotate.',
     'inv.confirm':'Rotate the invite token? Old tokens stop working right away, so anything that uses one (join commands, shell profiles, managed settings) needs the new token.',
     'en.h':'Enroll members','en.1':'One person on one machine','en.2':'Shell profile','en.3':'Claude Code managed settings (whole organization)',
     'en.where':'On macOS, managed settings live at <code>/Library/Application Support/ClaudeCode/managed-settings.json</code>.',
     'data.sent':'Members send one row per day: spend, savings, delegation count, model-family share, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.',
-    'pol.h':'Policy','pol.cap':'Prompt capture','pol.desc':'Off by default. Needs the Team Plus plan.',
+    'pol.h':'Policy','pol.cap':'Prompt capture','pol.desc':'Off by default. Needs the Business plan.',
     'pol.confirm':"Members' CLIs will start uploading their Claude Code / Codex prompts (user turns only) in compressed daily batches. Each member sees this policy in `sprag team status`.",
     'mem.h':'Members','mem.thr':"Highlight when today's spend is above $",
     'mem.name':'Name','mem.agent':'Agent','mem.ver':'Version','mem.joined':'Joined','mem.seen':'Last seen',
@@ -393,14 +393,14 @@ const I18N = {
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
     't.h':'내 팀','t.new':'새 팀','t.ph':'팀 이름','t.create':'만들기','t.empty':'아직 팀이 없습니다. 아래에서 만들어 보세요.',
-    't.active':'활동 멤버 {n}명','plan.team':'팀','plan.team_plus':'팀 플러스','t.noname':'팀 이름을 입력해 주세요.',
+    't.active':'활동 멤버 {n}명','plan.team':'팀','plan.business':'비즈니스','t.noname':'팀 이름을 입력해 주세요.',
     'copy':'복사','copied':'복사함',
     'inv.h':'초대 토큰','inv.rotate':'교체','inv.rotnote':'교체하는 즉시 이전 토큰은 쓸 수 없게 됩니다.',
     'inv.confirm':'초대 토큰을 교체할까요? 이전 토큰은 바로 쓸 수 없게 되므로, 이전 토큰을 쓰던 join 명령, 셸 프로필, 관리 설정은 새 토큰으로 바꿔야 합니다.',
     'en.h':'멤버 등록','en.1':'한 사람, 한 컴퓨터','en.2':'셸 프로필','en.3':'Claude Code 관리 설정 (조직 전체)',
     'en.where':'macOS에서 관리 설정 파일은 <code>/Library/Application Support/ClaudeCode/managed-settings.json</code>에 둡니다.',
     'data.sent':'멤버는 하루에 한 줄씩 보냅니다. 지출, 절감액, 위임 횟수, 모델 계열 비중, sprag 버전입니다. 프롬프트 수집을 켜지 않는 한 프롬프트, 대화 기록, 경로, 프로젝트 이름은 보내지 않습니다.',
-    'pol.h':'정책','pol.cap':'프롬프트 수집','pol.desc':'기본값은 꺼짐입니다. 팀 플러스 요금제가 필요합니다.',
+    'pol.h':'정책','pol.cap':'프롬프트 수집','pol.desc':'기본값은 꺼짐입니다. 비즈니스 요금제가 필요합니다.',
     'pol.confirm':'멤버의 CLI가 Claude Code / Codex 프롬프트(사용자 입력만)를 하루 단위로 압축해 올리기 시작합니다. 각 멤버는 `sprag team status`에서 이 정책을 볼 수 있습니다.',
     'mem.h':'멤버','mem.thr':'오늘 지출이 이 금액을 넘으면 강조 $',
     'mem.name':'이름','mem.agent':'에이전트','mem.ver':'버전','mem.joined':'가입일','mem.seen':'마지막 접속',
@@ -604,7 +604,7 @@ function renderTeams(){
   if(!teams.length){ box.innerHTML = '<p class="msg">' + esc(t('t.empty')) + '</p>'; return; }
   box.innerHTML = teams.map(x => `<button type="button" class="team-item" data-id="${esc(x.id)}" aria-pressed="${team && team.id === x.id}">
       <span class="nm">${esc(x.name)}</span>
-      <span class="mt"><span>${t('t.active', {n: counts[x.id] || 0})}</span><span class="badge ${x.plan === 'team_plus' ? 'plus' : ''}">${esc(t('plan.' + (x.plan === 'team_plus' ? 'team_plus' : 'team')))}</span></span></button>`).join('');
+      <span class="mt"><span>${t('t.active', {n: counts[x.id] || 0})}</span><span class="badge ${x.plan === 'business' ? 'plus' : ''}">${esc(t('plan.' + (x.plan === 'business' ? 'business' : 'team')))}</span></span></button>`).join('');
   box.querySelectorAll('.team-item').forEach(b => b.addEventListener('click', () => selectTeam(b.dataset.id)));
 }
 function renderPanel(){
@@ -615,12 +615,12 @@ function renderPanel(){
   $('sn-join').textContent = 'sprag team join ' + tok;
   $('sn-env').textContent = 'export SPRAG_TEAM_TOKEN=' + tok;
   $('sn-json').textContent = JSON.stringify({ env: { SPRAG_TEAM_TOKEN: tok } }, null, 2);
-  const plus = team.plan === 'team_plus';
+  const plus = team.plan === 'business';
   const sw = $('sw-capture');
   sw.setAttribute('aria-checked', String(!!team.prompt_capture));
   sw.disabled = !plus;
   $('pol-plan').hidden = plus;
-  $('pol-plan').textContent = t('plan.team_plus');
+  $('pol-plan').textContent = t('plan.business');
   $('thr').value = lsGet('sprag.team.thr.' + team.id) ?? '20';
   $('prompts').hidden = !team.prompt_capture;
   renderMembers(); renderChart(); renderRules(); renderPrompts();
@@ -708,7 +708,7 @@ $('btn-rotate').addEventListener('click', async () => {
 
 $('sw-capture').addEventListener('click', async () => {
   $('pol-err').textContent = '';
-  if(team.plan !== 'team_plus') return;
+  if(team.plan !== 'business') return;
   const next = !team.prompt_capture;
   if(next && !confirm(t('pol.confirm', null, true))) return;
   try{
@@ -759,7 +759,7 @@ async function setRule(id, status){
   }catch(e){ $('ru-err').textContent = errMsg(e); }
 }
 
-/* ── prompt capture (Team Plus). Every call fails soft. ───────────────── */
+/* ── prompt capture (Business). Every call fails soft. ───────────────── */
 async function loadPromptDays(){
   if(!team || !team.prompt_capture) return;
   const ids = members.map(m => m.member_id);

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sprag Pricing | Free for you, per seat for teams</title>
-<meta name="description" content="Sprag is free. Teams pay per seat for a shared dashboard, team-approved rules and optional prompt capture." />
+<meta name="description" content="Sprag is free on your machine. Teams pay per seat for a shared dashboard and team-approved rules; Business adds prompt monitoring." />
 <link rel="canonical" href="https://sprag.io/pricing/" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="theme-color" content="#010102" />
@@ -52,54 +52,78 @@
   .lang button:hover{color:var(--dim)}
   .lang button[aria-pressed=true]{background:rgba(94,106,210,.12);color:var(--amber)}
   html[lang=ko] body{word-break:keep-all;line-height:1.65}
-  .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);border-radius:var(--r);padding:11px 16px;font-size:13.5px;color:var(--dim);background:transparent;transition:border-color .18s var(--ease),color .18s var(--ease),transform .16s var(--ease)}
-  .btn:hover{border-color:#3a3d47;color:var(--ink)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line2);border-radius:var(--r);padding:11px 16px;font-size:13.5px;font-weight:500;color:var(--ink);background:var(--panel2);transition:border-color .18s var(--ease),background .18s var(--ease),transform .16s var(--ease)}
+  .btn:hover{border-color:#3a3d47;background:#1a1b1d}
   .btn:active{transform:scale(.97)}
   .btn.pri{background:var(--amber);border-color:var(--amber);color:#fff}
   .btn.pri:hover{background:var(--amber2);border-color:var(--amber2)}
   @media(max-width:720px){header nav .hide-sm{display:none}}
   @media(hover:none) and (pointer:coarse){.lang button{padding:10px 12px}.btn{min-height:44px}}
 
-  .hero{padding:72px 0 40px;text-align:center}
-  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber2)}
-  html[lang=ko] .eyebrow{font-family:var(--sans);letter-spacing:.02em;text-transform:none}
-  h1{font-size:clamp(32px,6vw,54px);letter-spacing:-.025em;line-height:1.1;margin:14px auto 0;max-width:20ch}
-  .lede{color:var(--dim);font-size:16.5px;max-width:52ch;margin:18px auto 0;text-wrap:balance}
-  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}
-  .plan{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:28px 24px;display:flex;flex-direction:column}
-  .plan.feat{border-color:var(--amber);background:linear-gradient(180deg,rgba(94,106,210,.1),var(--panel) 55%)}
-  .plan h2{font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
-  .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--amber);color:var(--amber2);border-radius:99px;padding:2px 8px;font-weight:500}
-  html[lang=ko] .tag{font-family:var(--sans);letter-spacing:0;text-transform:none}
-  .price{margin-top:16px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-  .price b{font-size:44px;letter-spacing:-.03em;line-height:1}
-  .price span{color:var(--faint);font-size:13px}
-  .plan .for{margin-top:10px;color:var(--dim);font-size:14px;min-height:3.1em}
-  .plan ul{list-style:none;margin:20px 0 24px;display:grid;gap:10px;align-content:start;font-size:14px;color:var(--ink);flex:1}
-  .plan li{padding-left:22px;position:relative;line-height:1.5}
-  .plan li::before{content:"";position:absolute;left:2px;top:.5em;width:10px;height:5px;border-left:2px solid var(--teal);border-bottom:2px solid var(--teal);transform:rotate(-45deg) translateY(-2px)}
-  .plan .note{color:var(--faint);font-size:12.5px;border-top:1px solid var(--line);padding-top:14px}
-  @media(max-width:860px){.plans{grid-template-columns:1fr}.plan .for{min-height:0}}
+  /* hero + billing toggle */
+  .hero{padding:72px 0 8px;text-align:center}
+  h1{font-size:clamp(34px,6vw,56px);letter-spacing:-.03em;line-height:1.08}
+  .lede{color:var(--dim);font-size:16.5px;max-width:50ch;margin:16px auto 0;text-wrap:balance}
+  .cycle{display:inline-flex;align-items:center;margin:30px auto 0;border:1px solid var(--line2);border-radius:99px;padding:3px;background:var(--panel)}
+  .cycle button{border:0;background:transparent;color:var(--dim);font-size:13px;font-weight:500;padding:7px 16px;border-radius:99px;display:inline-flex;align-items:center;gap:8px;transition:background .18s var(--ease),color .18s var(--ease)}
+  .cycle button[aria-pressed=true]{background:var(--panel2);color:var(--ink);box-shadow:0 0 0 1px var(--line2)}
+  .chip{font-size:11px;font-weight:600;color:var(--teal);background:rgba(53,214,168,.1);border-radius:99px;padding:1px 7px}
 
-  section.blk{padding:56px 0 8px}
-  section.blk h2{font-size:24px;letter-spacing:-.02em}
-  section.blk p{color:var(--dim);margin-top:12px;max-width:68ch;font-size:15px;line-height:1.7}
-  .quote{margin-top:14px;border:1px solid var(--line2);border-left:3px solid var(--teal);border-radius:var(--r);background:var(--panel);padding:16px 18px;color:var(--ink);font-size:15px;max-width:68ch}
-  .faqs{margin-top:20px;border-top:1px solid var(--line)}
+  /* plan cards */
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+  .plan{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:28px 24px 26px;display:flex;flex-direction:column}
+  .plan.feat{border-color:var(--amber);background:linear-gradient(180deg,rgba(94,106,210,.12),var(--panel) 50%)}
+  .badge{position:absolute;top:-11px;left:24px;font-size:11px;font-weight:600;letter-spacing:.02em;color:#fff;background:var(--amber);border-radius:99px;padding:3px 10px}
+  .plan h2{font-size:17px;font-weight:600}
+  .plan .for{margin-top:6px;color:var(--dim);font-size:13.5px;min-height:2.9em}
+  .price{margin-top:18px;display:flex;align-items:baseline;gap:6px}
+  .price b{font-size:44px;font-weight:600;letter-spacing:-.035em;line-height:1}
+  .price span{color:var(--dim);font-size:13px;line-height:1.35}
+  .fine{margin-top:6px;color:var(--faint);font-size:12.5px;min-height:1.5em}
+  .plan .btn{margin-top:22px;width:100%}
+  .plan .inc{margin-top:24px;font-size:12.5px;font-weight:600;color:var(--dim)}
+  .plan ul{list-style:none;margin-top:12px;display:grid;gap:10px;font-size:14px}
+  .plan li{padding-left:24px;position:relative;line-height:1.45}
+  .plan li::before{content:"";position:absolute;left:3px;top:.42em;width:10px;height:5px;border-left:2px solid var(--teal);border-bottom:2px solid var(--teal);transform:rotate(-45deg)}
+  @media(max-width:880px){.plans{grid-template-columns:1fr;max-width:460px;margin-left:auto;margin-right:auto}.plan .for,.fine{min-height:0}}
+
+  .ent{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .ent h2{font-size:16px;font-weight:600}
+  .ent p{color:var(--dim);font-size:14px;margin-top:2px}
+
+  /* comparison table */
+  section.blk{padding:80px 0 8px}
+  section.blk > h2{font-size:28px;letter-spacing:-.02em;text-align:center}
+  .tbl{margin-top:28px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;min-width:620px;border-collapse:collapse;font-size:14px}
+  thead th{position:sticky;top:56px;background:var(--bg);z-index:1;text-align:center;font-weight:600;padding:14px 10px;border-bottom:1px solid var(--line2);font-size:14.5px}
+  thead th:first-child{text-align:left}
+  thead th small{display:block;color:var(--faint);font-weight:400;font-size:12px;margin-top:2px}
+  tbody th{text-align:left;font-weight:400;color:var(--ink);padding:13px 10px;width:40%}
+  tbody td{text-align:center;padding:13px 10px;color:var(--dim)}
+  tbody tr{border-bottom:1px solid var(--line)}
+  tr.grp th{padding:30px 10px 10px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--amber2);border-bottom:1px solid var(--line2)}
+  html[lang=ko] tr.grp th{letter-spacing:.02em;text-transform:none;font-size:13px}
+  td .y{display:inline-block;width:11px;height:6px;border-left:2px solid var(--teal);border-bottom:2px solid var(--teal);transform:rotate(-45deg) translateY(-2px)}
+  td .n{color:var(--faint)}
+  td.feat,th.feat{background:rgba(94,106,210,.05)}
+
+  /* faq + cta */
+  .faqs{margin:28px auto 0;max-width:760px;border-top:1px solid var(--line)}
   .faqs details{border-bottom:1px solid var(--line)}
-  .faqs summary{cursor:pointer;padding:16px 4px;font-size:15px;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .faqs summary{cursor:pointer;padding:18px 4px;font-size:15px;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px}
   .faqs summary::-webkit-details-marker{display:none}
   .faqs summary::after{content:"+";color:var(--faint);font-family:var(--mono);font-size:16px}
   .faqs details[open] summary::after{content:"\2212"}
   .faqs summary:hover{color:var(--amber2)}
-  .faqs p{padding:0 4px 16px;margin:0;max-width:70ch}
-  .cta{text-align:center;padding:64px 0 80px;margin-top:56px;border-top:1px solid var(--line)}
-  .cta h2{font-size:26px;letter-spacing:-.02em;max-width:26ch;margin:0 auto}
+  .faqs p{padding:0 4px 18px;color:var(--dim);font-size:14.5px;line-height:1.7}
+  .cta{text-align:center;padding:72px 0 88px;margin-top:80px;border-top:1px solid var(--line)}
+  .cta h2{font-size:28px;letter-spacing:-.02em;max-width:24ch;margin:0 auto}
   .cta .actions{margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
   footer{border-top:1px solid var(--line);padding:32px 0 52px;color:var(--faint);font-size:13px}
   footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
   footer a:hover{color:var(--ink)}
-  @media(max-width:520px){.wrap{padding:0 16px}}
+  @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:56px}}
 </style>
 </head>
 <body>
@@ -132,9 +156,12 @@
 <main>
 <div class="hero">
   <div class="wrap">
-    <p class="eyebrow" data-k="p.eyebrow">Pricing</p>
-    <h1 data-k="p.h1">Sprag is free. Teams pay per seat.</h1>
-    <p class="lede" data-k="p.lede">The CLI on your machine costs nothing and stays on your machine. A team plan adds a shared view of spend and savings for whoever owns the bill.</p>
+    <h1 data-k="p.h1">Pricing</h1>
+    <p class="lede" data-k="p.lede">Free on your own machine. Per seat when a team wants one view of what its agents spend and save.</p>
+    <div class="cycle" role="group" aria-label="Billing period">
+      <button data-cycle="monthly" aria-pressed="true" data-k="p.monthly">Monthly</button>
+      <button data-cycle="annual" aria-pressed="false"><span data-k="p.annual">Annual</span><span class="chip">−20%</span></button>
+    </div>
   </div>
 </div>
 
@@ -142,67 +169,108 @@
   <div class="plans">
     <article class="plan">
       <h2 data-k="p.free">Free</h2>
-      <div class="price"><b data-price="free">$0</b><span data-k="p.forever">forever</span></div>
-      <p class="for" data-k="p.free.for">For anyone running Claude Code or Codex alone.</p>
+      <p class="for" data-k="p.free.for">For one developer on Claude Code or Codex.</p>
+      <div class="price"><b>$0</b></div>
+      <p class="fine" data-k="p.free.fine">Open source, no account</p>
+      <a class="btn" href="/docs/install/" data-k="p.free.cta">Install the CLI</a>
+      <p class="inc" data-k="p.free.inc">Includes:</p>
       <ul>
-        <li data-k="p.free.1">The open-source CLI</li>
-        <li data-k="p.free.2">Local routing rules</li>
-        <li data-k="p.free.3">Savings ledger</li>
-        <li data-k="p.free.4">doc2md and the statusline</li>
+        <li data-k="p.free.1">Routing rules derived from your own logs</li>
+        <li data-k="p.free.2">Sub-agents pinned to cheaper models</li>
+        <li data-k="p.free.3">Savings ledger and statusline</li>
+        <li data-k="p.free.4">doc2md for pptx, xlsx, docx and pdf</li>
+        <li data-k="p.free.5">Nothing leaves your machine</li>
       </ul>
-      <p class="note" data-k="p.free.note">Nothing leaves your machine.</p>
     </article>
 
     <article class="plan feat">
-      <h2><span data-k="p.team">Team</span></h2>
-      <div class="price"><b data-price="team">$5</b><span data-k="p.per">per seat per month</span></div>
-      <p class="for" data-k="p.team.for">For a group that wants one shared view of spend and savings.</p>
+      <span class="badge" data-k="p.popular">Most popular</span>
+      <h2 data-k="p.team">Team</h2>
+      <p class="for" data-k="p.team.for">For teams that want one view of spend and savings.</p>
+      <div class="price"><b data-price="team">$5</b><span data-k="p.per">per seat<br>/ month</span></div>
+      <p class="fine" data-fine data-k="p.fine.m">Billed monthly</p>
+      <a class="btn pri" href="/team/" data-k="p.start">Get started</a>
+      <p class="inc" data-k="p.team.inc">Everything in Free, plus:</p>
       <ul>
-        <li data-k="p.team.1">Shared dashboard</li>
+        <li data-k="p.team.1">Shared team dashboard</li>
         <li data-k="p.team.2">Daily spend and savings per member</li>
-        <li data-k="p.team.3">Team-approved rules pushed to every member at session start</li>
-        <li data-k="p.team.4">Org enrollment with one env var</li>
-        <li data-k="p.team.5">Remove members any time</li>
+        <li data-k="p.team.3">Team-approved rules for every member</li>
+        <li data-k="p.team.4">Org rollout with one env var</li>
+        <li data-k="p.team.5">Invite rotation and member removal</li>
       </ul>
-      <a class="btn pri" href="/team/" data-k="p.open">Open the dashboard</a>
     </article>
 
     <article class="plan">
-      <h2><span data-k="p.plus">Team Plus</span></h2>
-      <div class="price"><b data-price="teamPlus">$10</b><span data-k="p.per">per seat per month</span></div>
-      <p class="for" data-k="p.plus.for">For teams that also want to see how prompts are written.</p>
+      <h2 data-k="p.biz">Business</h2>
+      <p class="for" data-k="p.biz.for">For teams that also review how prompts are written.</p>
+      <div class="price"><b data-price="business">$10</b><span data-k="p.per">per seat<br>/ month</span></div>
+      <p class="fine" data-fine data-k="p.fine.m">Billed monthly</p>
+      <a class="btn" href="/team/" data-k="p.start">Get started</a>
+      <p class="inc" data-k="p.biz.inc">Everything in Team, plus:</p>
       <ul>
-        <li data-k="p.plus.1">Everything in Team</li>
-        <li data-k="p.plus.2">Prompt capture: user prompts only, in compressed daily batches</li>
-        <li data-k="p.plus.3">Search by member and day</li>
-        <li data-k="p.plus.4">A policy switch that members can see</li>
+        <li data-k="p.biz.1">Prompt monitoring for admins</li>
+        <li data-k="p.biz.2">User prompts only, uploaded in compressed daily batches</li>
+        <li data-k="p.biz.3">Browse prompts by member and day</li>
+        <li data-k="p.biz.4">Capture policy visible to every member</li>
       </ul>
-      <p class="note" data-k="p.plus.note">Off by default. The owner turns it on per team.</p>
     </article>
   </div>
 
-  <section class="blk">
-    <h2 data-k="p.seats.h">How seats are counted</h2>
-    <p data-k="p.seats.p">A seat is a member who was active in the last 30 days. Members who left are not billed.</p>
-  </section>
+  <div class="ent">
+    <div>
+      <h2 data-k="p.ent">Enterprise</h2>
+      <p data-k="p.ent.p">Annual invoicing, a security review or custom data retention for a larger rollout.</p>
+    </div>
+    <a class="btn" href="https://github.com/rootstudioyaml/sprag/discussions" data-k="p.ent.cta">Contact us</a>
+  </div>
 
   <section class="blk">
-    <h2 data-k="p.sent.h">What is sent</h2>
-    <div class="quote" data-k="p.sent.p">Members send one row per day: spend, savings, delegation count, model-family share, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.</div>
-  </section>
+    <h2 data-k="p.cmp.h">Compare plans</h2>
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th data-k="p.free">Free</th>
+            <th class="feat"><span data-k="p.team">Team</span><small data-cmp="team">$5</small></th>
+            <th><span data-k="p.biz">Business</span><small data-cmp="business">$10</small></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="grp"><th colspan="4" data-k="p.g1">On your machine</th></tr>
+          <tr><th data-k="p.r1">Open-source CLI and hooks</th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
+          <tr><th data-k="p.r2">Routing rules from your logs</th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
+          <tr><th data-k="p.r3">Savings ledger and statusline</th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
+          <tr><th data-k="p.r4">doc2md document conversion</th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
 
-  <section class="blk">
-    <h2 data-k="p.bill.h">How billing starts</h2>
-    <p data-k="p.bill.p">Create your team today. Billing is invoiced monthly per active seat and starts when we enable it for your team from the dashboard. You will see the switch there first.</p>
+          <tr class="grp"><th colspan="4" data-k="p.g2">Team</th></tr>
+          <tr><th data-k="p.r5">Members</th><td><span class="n">—</span></td><td class="feat" data-k="p.unl">Unlimited</td><td data-k="p.unl">Unlimited</td></tr>
+          <tr><th data-k="p.r6">Shared dashboard</th><td><span class="n">—</span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
+          <tr><th data-k="p.r7">Daily spend and savings per member</th><td><span class="n">—</span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
+          <tr><th data-k="p.r8">Team-approved rules</th><td><span class="n">—</span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
+          <tr><th data-k="p.r9">Org rollout with <code>SPRAG_TEAM_TOKEN</code></th><td><span class="n">—</span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
+
+          <tr class="grp"><th colspan="4" data-k="p.g3">Prompt monitoring</th></tr>
+          <tr><th data-k="p.r10">Prompt capture (user prompts only)</th><td><span class="n">—</span></td><td class="feat"><span class="n">—</span></td><td><i class="y"></i></td></tr>
+          <tr><th data-k="p.r11">Browse by member and day</th><td><span class="n">—</span></td><td class="feat"><span class="n">—</span></td><td><i class="y"></i></td></tr>
+          <tr><th data-k="p.r12">Policy visible to members</th><td><span class="n">—</span></td><td class="feat"><span class="n">—</span></td><td><i class="y"></i></td></tr>
+
+          <tr class="grp"><th colspan="4" data-k="p.g4">Data</th></tr>
+          <tr><th data-k="p.r13">What leaves your machine</th><td data-k="p.c13a">Nothing</td><td class="feat" data-k="p.c13b">One aggregate row per day</td><td data-k="p.c13c">Daily rows and prompts</td></tr>
+          <tr><th data-k="p.r14">Storage region</th><td><span class="n">—</span></td><td class="feat" data-k="p.seoul">Seoul</td><td data-k="p.seoul">Seoul</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <section class="blk">
     <h2 data-k="p.faq.h">Questions</h2>
     <div class="faqs">
-      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. Team features are opt-in. Nothing is uploaded until a member joins a team, and the free CLI never needs an account.</p></details>
-      <details><summary data-k="p.q2">Who consents when a company rolls this out?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members still see what is sent with <code>sprag team status</code>.</p></details>
-      <details><summary data-k="p.q3">Can a member leave?</summary><p data-k="p.a3">Yes. A member can leave at any time, and the owner can remove a member from the dashboard. A member who left is no longer billed.</p></details>
-      <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">It is a per-team policy that only the owner can change, and every member can see it in <code>sprag team status</code>. It needs the Team Plus plan.</p></details>
+      <details><summary data-k="p.q0">How are seats counted?</summary><p data-k="p.a0">A seat is a member who was active in the last 30 days. Members who left are not billed.</p></details>
+      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. Nothing is uploaded until a member joins a team, and the free CLI never needs an account. <code>sprag team status --show-payload</code> prints exactly what a member sends.</p></details>
+      <details><summary data-k="p.q2">Who consents when a company rolls this out?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members still see what is sent with <code>sprag team status</code>, and <code>sprag team leave</code> wins over the env var.</p></details>
+      <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only the team owner, and only on the Business plan. It is off by default, and every member can see its state in <code>sprag team status</code>.</p></details>
+      <details><summary data-k="p.q6">Can I switch plans or cancel?</summary><p data-k="p.a6">Yes. Moving between Team and Business changes the per-seat price from the next billing period, and canceling keeps the free CLI working as before.</p></details>
       <details><summary data-k="p.q5">Where is the data stored?</summary><p data-k="p.a5">In Supabase, in the ap-northeast-2 (Seoul) region.</p></details>
     </div>
   </section>
@@ -212,8 +280,8 @@
   <div class="wrap">
     <h2 data-k="p.cta">Start with a team of one and add people later.</h2>
     <div class="actions">
-      <a class="btn pri" href="/team/" data-k="p.open">Open the dashboard</a>
-      <a class="btn" href="/docs/" data-k="p.docs">Read the docs</a>
+      <a class="btn pri" href="/team/" data-k="p.start">Get started</a>
+      <a class="btn" href="/docs/team/" data-k="p.docs">Read the team guide</a>
     </div>
   </div>
 </section>
@@ -227,67 +295,79 @@
 </footer>
 
 <script>
-/* Prices live here. Change them in this block only. */
-const PRICES = { free: 0, team: 5, teamPlus: 10 };
-const money = n => '$' + n;
-document.querySelectorAll('[data-price]').forEach(el => { el.textContent = money(PRICES[el.dataset.price]); });
+/* Prices live here. Change them in this block only. Annual is per seat per month, billed yearly. */
+const PRICES = { monthly: { team: 5, business: 10 }, annual: { team: 4, business: 8 } };
+let cycle = 'monthly';
 
 const KO = {
   'nav.docs':'문서', 'nav.teams':'팀', 'nav.pricing':'요금',
-  'p.eyebrow':'요금',
-  'p.h1':'Sprag는 무료입니다. 팀만 좌석당 냅니다.',
-  'p.lede':'내 컴퓨터에서 쓰는 CLI는 비용이 없고, 데이터도 내 컴퓨터에 남습니다. 팀 요금제는 비용을 책임지는 사람이 지출과 절감액을 한곳에서 보게 해 줍니다.',
-  'p.free':'무료', 'p.forever':'영구 무료',
-  'p.free.for':'Claude Code나 Codex를 혼자 쓰는 분께 맞습니다.',
-  'p.free.1':'오픈소스 CLI', 'p.free.2':'로컬 라우팅 규칙', 'p.free.3':'절감액 기록', 'p.free.4':'doc2md와 statusline',
-  'p.free.note':'어떤 데이터도 내 컴퓨터 밖으로 나가지 않습니다.',
-  'p.team':'팀', 'p.per':'좌석당 월',
-  'p.team.for':'지출과 절감액을 한곳에서 보고 싶은 그룹에 맞습니다.',
-  'p.team.1':'공유 대시보드', 'p.team.2':'멤버별 일일 지출과 절감액',
-  'p.team.3':'팀이 승인한 규칙을 모든 멤버의 세션 시작 때 적용',
-  'p.team.4':'환경 변수 하나로 조직 등록', 'p.team.5':'언제든 멤버 제거',
-  'p.open':'대시보드 열기', 'p.docs':'문서 읽기',
-  'p.plus':'팀 플러스',
-  'p.plus.for':'프롬프트를 어떻게 쓰는지도 보고 싶은 팀에 맞습니다.',
-  'p.plus.1':'팀 요금제의 모든 기능',
-  'p.plus.2':'프롬프트 수집: 사용자 프롬프트만, 하루 단위로 압축해 전송',
-  'p.plus.3':'멤버와 날짜로 검색', 'p.plus.4':'멤버에게도 보이는 정책 스위치',
-  'p.plus.note':'기본값은 꺼짐입니다. 소유자가 팀 단위로 켭니다.',
-  'p.seats.h':'좌석 계산 방식',
-  'p.seats.p':'최근 30일 안에 활동한 멤버가 한 좌석입니다. 팀을 떠난 멤버에게는 청구하지 않습니다.',
-  'p.sent.h':'전송하는 데이터',
-  'p.sent.p':'멤버는 하루에 한 줄씩 보냅니다. 지출, 절감액, 위임 횟수, 모델 계열 비중, sprag 버전입니다. 프롬프트 수집을 켜지 않는 한 프롬프트, 대화 기록, 경로, 프로젝트 이름은 보내지 않습니다.',
-  'p.bill.h':'청구는 언제 시작되나요',
-  'p.bill.p':'팀은 오늘 바로 만들 수 있습니다. 청구는 활성 좌석 기준으로 매달 인보이스를 보내는 방식이고, 우리가 해당 팀의 청구를 켜는 시점에 시작됩니다. 그 스위치는 대시보드에서 먼저 보게 됩니다.',
+  'p.h1':'요금',
+  'p.lede':'내 컴퓨터에서는 무료입니다. 팀이 에이전트 지출과 절감액을 한곳에서 보려면 좌석당 요금을 냅니다.',
+  'p.monthly':'월간', 'p.annual':'연간',
+  'p.free':'무료', 'p.free.for':'Claude Code나 Codex를 혼자 쓰는 개발자', 'p.free.fine':'오픈소스, 계정 없음',
+  'p.free.cta':'CLI 설치', 'p.free.inc':'포함 기능',
+  'p.free.1':'내 기록에서 뽑은 라우팅 규칙', 'p.free.2':'더 싼 모델로 고정한 서브에이전트',
+  'p.free.3':'절감액 원장과 statusline', 'p.free.4':'pptx, xlsx, docx, pdf용 doc2md',
+  'p.free.5':'어떤 데이터도 밖으로 나가지 않음',
+  'p.popular':'가장 많이 선택', 'p.team':'팀', 'p.team.for':'지출과 절감액을 한곳에서 보려는 팀',
+  'p.per':'좌석당<br>/ 월', 'p.fine.m':'월 단위 청구', 'p.fine.a':'연 단위 청구',
+  'p.start':'시작하기', 'p.team.inc':'무료 기능 전부와 함께',
+  'p.team.1':'팀 공유 대시보드', 'p.team.2':'멤버별 하루 지출과 절감액',
+  'p.team.3':'팀이 승인한 규칙을 모든 멤버에게 적용', 'p.team.4':'환경 변수 하나로 조직 배포',
+  'p.team.5':'초대 토큰 교체와 멤버 제거',
+  'p.biz':'비즈니스', 'p.biz.for':'프롬프트 작성 방식까지 검토하려는 팀', 'p.biz.inc':'팀 기능 전부와 함께',
+  'p.biz.1':'관리자용 프롬프트 모니터링', 'p.biz.2':'사용자 프롬프트만, 하루 단위 압축 업로드',
+  'p.biz.3':'멤버와 날짜별 프롬프트 열람', 'p.biz.4':'모든 멤버에게 보이는 수집 정책',
+  'p.ent':'엔터프라이즈', 'p.ent.p':'대규모 도입에 필요한 연간 인보이스, 보안 검토, 데이터 보존 기간 조정', 'p.ent.cta':'문의하기',
+  'p.cmp.h':'요금제 비교',
+  'p.g1':'내 컴퓨터에서', 'p.r1':'오픈소스 CLI와 훅', 'p.r2':'내 기록에서 뽑은 라우팅 규칙',
+  'p.r3':'절감액 원장과 statusline', 'p.r4':'doc2md 문서 변환',
+  'p.g2':'팀', 'p.r5':'멤버 수', 'p.unl':'무제한', 'p.r6':'공유 대시보드',
+  'p.r7':'멤버별 하루 지출과 절감액', 'p.r8':'팀 승인 규칙', 'p.r9':'<code>SPRAG_TEAM_TOKEN</code>으로 조직 배포',
+  'p.g3':'프롬프트 모니터링', 'p.r10':'프롬프트 수집(사용자 프롬프트만)', 'p.r11':'멤버와 날짜별 열람',
+  'p.r12':'멤버에게 보이는 정책',
+  'p.g4':'데이터', 'p.r13':'밖으로 나가는 데이터', 'p.c13a':'없음', 'p.c13b':'하루 집계 한 줄',
+  'p.c13c':'하루 집계와 프롬프트', 'p.r14':'저장 리전', 'p.seoul':'서울',
   'p.faq.h':'자주 묻는 질문',
+  'p.q0':'좌석은 어떻게 세나요?',
+  'p.a0':'최근 30일 안에 활동한 멤버가 한 좌석입니다. 팀을 떠난 멤버에게는 청구하지 않습니다.',
   'p.q1':'기본으로 올라가는 데이터가 있나요?',
-  'p.a1':'없습니다. 팀 기능은 직접 켜야 합니다. 멤버가 팀에 가입하기 전에는 아무것도 올라가지 않고, 무료 CLI는 계정이 필요 없습니다.',
+  'p.a1':'없습니다. 멤버가 팀에 가입하기 전에는 아무것도 올라가지 않고, 무료 CLI는 계정이 필요 없습니다. 멤버가 보내는 내용은 <code>sprag team status --show-payload</code>로 그대로 볼 수 있습니다.',
   'p.q2':'회사가 도입하면 동의는 누가 하나요?',
-  'p.a2':'조직 단위로 배포할 때는 조직의 결정이 동의입니다. 멤버는 <code>sprag team status</code>로 무엇이 전송되는지 직접 볼 수 있습니다.',
-  'p.q3':'멤버가 팀을 나갈 수 있나요?',
-  'p.a3':'네, 언제든 나갈 수 있고 소유자도 대시보드에서 멤버를 제거할 수 있습니다. 나간 멤버에게는 더 이상 청구하지 않습니다.',
+  'p.a2':'조직 단위로 배포할 때는 조직의 결정이 동의입니다. 멤버는 <code>sprag team status</code>로 전송 내용을 볼 수 있고, <code>sprag team leave</code>는 환경 변수보다 우선합니다.',
   'p.q4':'프롬프트 수집은 누가 정하나요?',
-  'p.a4':'팀 단위 정책이며 소유자만 바꿀 수 있습니다. 모든 멤버가 <code>sprag team status</code>에서 확인할 수 있고, 팀 플러스 요금제가 필요합니다.',
+  'p.a4':'팀 소유자만 정할 수 있고 비즈니스 요금제에서만 켜집니다. 기본값은 꺼짐이며, 모든 멤버가 <code>sprag team status</code>에서 상태를 확인할 수 있습니다.',
+  'p.q6':'요금제를 바꾸거나 해지할 수 있나요?',
+  'p.a6':'네. 팀과 비즈니스 사이를 옮기면 다음 청구 기간부터 좌석당 요금이 바뀌고, 해지해도 무료 CLI는 그대로 쓸 수 있습니다.',
   'p.q5':'데이터는 어디에 저장되나요?',
   'p.a5':'Supabase의 ap-northeast-2(서울) 리전에 저장됩니다.',
-  'p.cta':'한 명으로 시작해서 나중에 사람을 더하세요.'
+  'p.cta':'한 명으로 시작해서 나중에 사람을 더하세요.', 'p.docs':'팀 가이드 읽기'
 };
-const EN = {};
-document.querySelectorAll('[data-k]').forEach(el => EN[el.dataset.k] = el.innerHTML);
+const EN = { 'p.fine.a':'Billed annually' };
+document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
 const META = {
   en: { title:'Sprag Pricing | Free for you, per seat for teams', desc: document.querySelector('meta[name=description]').content },
-  ko: { title:'Sprag 요금 · 개인은 무료, 팀은 좌석당', desc:'Sprag는 무료입니다. 팀은 공유 대시보드, 팀 승인 규칙, 선택형 프롬프트 수집을 좌석당 요금으로 씁니다.' }
+  ko: { title:'Sprag 요금 · 개인은 무료, 팀은 좌석당', desc:'Sprag는 내 컴퓨터에서 무료입니다. 팀은 좌석당 요금으로 공유 대시보드와 팀 승인 규칙을 쓰고, 비즈니스는 프롬프트 모니터링을 더합니다.' }
 };
 let lang = 'en';
-function setLang(next, remember){
-  lang = next === 'ko' ? 'ko' : 'en';
+
+function render(){
   const dict = lang === 'ko' ? KO : EN;
   document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.innerHTML = v; });
+  document.querySelectorAll('[data-price]').forEach(el => { el.textContent = '$' + PRICES[cycle][el.dataset.price]; });
+  document.querySelectorAll('[data-cmp]').forEach(el => { el.textContent = '$' + PRICES[cycle][el.dataset.cmp]; });
+  const fine = dict[cycle === 'annual' ? 'p.fine.a' : 'p.fine.m'];
+  document.querySelectorAll('[data-fine]').forEach(el => { el.innerHTML = fine; });
+  document.querySelectorAll('.cycle button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cycle === cycle)));
+}
+function setLang(next, remember){
+  lang = next === 'ko' ? 'ko' : 'en';
   document.documentElement.lang = lang;
   document.title = META[lang].title;
   document.querySelector('meta[name=description]').content = META[lang].desc;
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   if(remember){ try{ localStorage.setItem('sprag.lang', lang); }catch(e){} }
+  render();
 }
 (function(){
   const q = new URLSearchParams(location.search).get('lang');
@@ -296,6 +376,7 @@ function setLang(next, remember){
   setLang(q || stored || (/\bko\b|ko-/i.test(nav) ? 'ko' : 'en'), false);
 })();
 document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+document.querySelectorAll('.cycle button').forEach(b => b.addEventListener('click', () => { cycle = b.dataset.cycle; render(); }));
 </script>
 </body>
 </html>

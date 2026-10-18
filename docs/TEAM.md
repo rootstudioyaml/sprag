@@ -76,13 +76,13 @@ https://sprag.io/team/ is where the owner signs in with an email code, creates a
 
 ## Plans
 
-Free, Team ($5 per seat per month) and Team Plus ($10 per seat per month, with prompt capture). Details are on https://sprag.io/pricing/.
+Free, Team ($5 per seat per month) and Business ($10 per seat per month, with prompt capture). Details are on https://sprag.io/pricing/.
 
 ## Privacy notes
 
 - The owner sees per-member daily totals, not sessions or prompts.
 - A member sees the same payload with `sprag team status --show-payload`.
-- Prompt capture is a Team Plus policy that the owner can switch on in the dashboard. Members see its state in `sprag team status`. The current CLI does not upload prompts yet; that is a separate, later release.
+- Prompt capture is a Business policy that the owner can switch on in the dashboard. Members see its state in `sprag team status`. The current CLI does not upload prompts yet; that is a separate, later release.
 - Rule text leaves your machine only through `sprag team propose`.
 
 ## Files and environment variables
