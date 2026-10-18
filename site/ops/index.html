@@ -419,8 +419,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script>
-const SUPABASE_URL = 'https://hiycfjwswtkixyoqkznm.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpeWNmandzd3RraXh5b3Frem5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNTc4MzYsImV4cCI6MjEwNzgzMzgzNn0.gyYcvGD70CEX64aGV-dsmZgmmOBdvhJlzIpx9Qo2l3w';
+// Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
+// Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
+const LOCAL_API = ['localhost', '127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).get('api') === 'local';
+const SUPABASE_URL = LOCAL_API ? 'http://127.0.0.1:55321' : 'https://hiycfjwswtkixyoqkznm.supabase.co';
+const SUPABASE_ANON_KEY = LOCAL_API
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpeWNmandzd3RraXh5b3Frem5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNTc4MzYsImV4cCI6MjEwNzgzMzgzNn0.gyYcvGD70CEX64aGV-dsmZgmmOBdvhJlzIpx9Qo2l3w';
+if(LOCAL_API){
+  const hw = document.querySelector('header .wrap');
+  if(hw){
+    const b = document.createElement('span');
+    b.textContent = 'LOCAL API';
+    b.title = 'Talking to http://127.0.0.1:55321, not production';
+    b.style.cssText = 'margin-left:12px;padding:2px 8px;border-radius:6px;background:#d97706;color:#fff;font:600 11px/1.6 system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap';
+    const br = hw.querySelector('.brand'); if(br) br.after(b); else hw.appendChild(b);
+  }
+}
 
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 
