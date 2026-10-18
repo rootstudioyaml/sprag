@@ -12,6 +12,7 @@ import { createInterface } from 'node:readline';
 import { readFileSync } from 'node:fs';
 import { userInfo } from 'node:os';
 import { userLanguage } from '../config.js';
+import { pendingPrompts } from '../team-prompts.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
   teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError,
@@ -25,7 +26,7 @@ const T = {
       '  join [token] [--name <n>] [--yes]   join a team (token or SPRAG_TEAM_TOKEN)',
       '  leave                                leave the team and stop uploading',
       '  status [--show-payload]              membership, last sync, what is sent',
-      '  sync [--force]                       upload aggregates and pull team rules now',
+      '  sync [--force]                       upload aggregates, prompts (Enterprise capture) and pull team rules now',
       '  rules                                show cached team rules',
       '  propose <text> [--scope ratchet|model]   propose a rule to the team',
     ].join('\n'),
@@ -48,9 +49,13 @@ const T = {
     neverSynced: 'Last sync: never',
     lastError: 'Last error',
     on: 'on', off: 'off',
+    lastPrompts: (t, n) => `Last prompt upload: ${t} (${n} prompts)`,
+    noPrompts: 'Last prompt upload: never',
+    pendingPrompts: (n) => `Prompts waiting to upload: ${n}`,
+    pendingExample: (e) => `Example (redacted): ${e.at} · ${e.project || '-'} · ${e.text}`,
     disabled: 'Team sync is disabled (SPRAG_NO_TEAM_SYNC=1).',
     skipped: (s) => `Skipped: ${s}`,
-    synced: (u, r) => `Synced: ${u} day rows uploaded, ${r} team rules.`,
+    synced: (u, r, p) => `Synced: ${u} day rows uploaded, ${r} team rules${p ? `, ${p} prompts` : ''}.`,
     noRules: 'No team rules yet.',
     proposed: (id) => `Proposed. Id: ${id}`,
     needText: 'Missing rule text. Usage: sprag team propose <text> [--scope ratchet|model]',
@@ -105,9 +110,13 @@ const T = {
     neverSynced: '마지막 동기화: 아직 없음',
     lastError: '마지막 오류',
     on: '켜짐', off: '꺼짐',
+    lastPrompts: (t, n) => `마지막 프롬프트 업로드: ${t} (${n}건)`,
+    noPrompts: '마지막 프롬프트 업로드: 아직 없음',
+    pendingPrompts: (n) => `업로드 대기 중인 프롬프트: ${n}건`,
+    pendingExample: (e) => `예시 (비밀값 가림): ${e.at} · ${e.project || '-'} · ${e.text}`,
     disabled: '팀 동기화가 꺼져 있습니다 (SPRAG_NO_TEAM_SYNC=1).',
     skipped: (s) => `건너뜀: ${s}`,
-    synced: (u, r) => `동기화 완료: ${u}일치 집계 업로드, 팀 규칙 ${r}개.`,
+    synced: (u, r, p) => `동기화 완료: ${u}일치 집계 업로드, 팀 규칙 ${r}개${p ? `, 프롬프트 ${p}건` : ''}.`,
     noRules: '아직 팀 규칙이 없습니다.',
     proposed: (id) => `제안했습니다. ID: ${id}`,
     needText: '규칙 내용이 없습니다. 사용법: sprag team propose <내용> [--scope ratchet|model]',
@@ -201,7 +210,7 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   if (!teamSyncDisabled()) {
     const r = await syncTeam({ force: true, fetch, version });
     if (r.error) console.error(m.syncFailed(r.error));
-    else if (!r.skipped) out(m.synced(r.uploaded, r.rules));
+    else if (!r.skipped) out(m.synced(r.uploaded, r.rules, r.prompts));
   }
   return undefined;
 }
@@ -244,26 +253,34 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         if (st.orgName) out(`${m.org}: ${st.orgName}`);
         out(`${m.plan}: ${st.plan}`);
         out(`${m.capture}: ${st.promptCapture ? m.on : m.off}`);
+        if (st.promptCapture) {
+          out(st.lastPromptUploadAt ? m.lastPrompts(new Date(st.lastPromptUploadAt).toLocaleString(), st.lastPromptCount || 0) : m.noPrompts);
+        }
         out(`${m.name}: ${st.displayName}`);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(`${m.lastError}: ${st.lastError}`);
         if (hasFlag('--show-payload')) {
           out(`device: ${JSON.stringify(st.deviceInfo || deviceInfo())}`);
           out(JSON.stringify(await aggregateDaily(), null, 2));
+          if (st.promptCapture) {
+            const pend = await pendingPrompts();
+            out(m.pendingPrompts(pend.count));
+            if (pend.example) out(m.pendingExample(pend.example));
+          }
         }
         return undefined;
       }
       case 'sync': {
         if (hasFlag('--background')) {
-          await autoJoin({ version });
-          await syncTeam({ version });
+          if (!hasFlag('--prompts-only')) await autoJoin({ version });
+          await syncTeam({ version, promptsOnly: hasFlag('--prompts-only') });
           return undefined;
         }
         const r = await syncTeam({ force: hasFlag('--force'), version });
         if (hasFlag('--quiet')) return undefined;
         if (r.error) { console.error(r.error); return process.exit(1); }
         if (r.skipped) out(r.skipped === 'disabled' ? m.disabled : m.skipped(r.skipped));
-        else out(m.synced(r.uploaded, r.rules));
+        else out(m.synced(r.uploaded, r.rules, r.prompts));
         return undefined;
       }
       case 'rules': {

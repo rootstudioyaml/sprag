@@ -31,6 +31,7 @@ export { TEAM_RATCHET_IMPORT_RE, teamRatchetImportLine };
 
 export const TEAM_RATCHET_MARKER = '<!-- sprag:team-ratchet -->';
 const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const IN_FLIGHT_MS = 2 * 60 * 1000;
 const TOKEN_RE = /^spt_[0-9a-f]{32}$/;
 
 export const teamStatePathFor = (dir = userDataDir()) => join(dir, 'team.json');
@@ -57,8 +58,30 @@ export function isJoined(state) {
 
 export function teamSyncDue(state, now = Date.now()) {
   if (!isJoined(state)) return false;
+  // Same rule as teamSyncDue in team-sync.js (a test pins the two together).
+  const attempt = Number(state.lastSyncAttemptAt);
+  if (Number.isFinite(attempt) && attempt > 0 && now - attempt >= 0 && now - attempt < IN_FLIGHT_MS) return false;
+  const failures = Number(state.syncFailures) || 0;
+  if (failures > 0) {
+    const delay = Math.min(15 * 60 * 1000 * 2 ** (failures - 1), 60 * 60 * 1000);
+    return !Number.isFinite(attempt) || attempt <= 0 || now - attempt >= delay;
+  }
   const at = Number(state.lastSyncAt);
-  return !Number.isFinite(at) || at <= 0 || now - at > SYNC_INTERVAL_MS;
+  return !Number.isFinite(at) || at <= 0 || now - at >= SYNC_INTERVAL_MS;
+}
+
+export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+
+/**
+ * Stat-free gate for the prompt uploader: joined, capture on (as last seen by a
+ * sync), uploads not switched off or reported paused, and the last prompt run is
+ * 30 minutes old. Reads nothing but the already-loaded team.json.
+ */
+export function promptSyncDue(state, now = Date.now(), env = process.env) {
+  if (!isJoined(state) || state.promptCapture !== true || state.pausedReported) return false;
+  if (teamSyncDisabled(env)) return false;
+  const at = Number(state.lastPromptSyncAt);
+  return !Number.isFinite(at) || at <= 0 || now - at >= PROMPT_SYNC_INTERVAL_MS;
 }
 
 export function autoJoinPending(state, env = process.env) {
@@ -165,6 +188,31 @@ export function spawnTeamSyncIfDue({
     return true;
   } catch (e) {
     debug('team-ratchet:spawn', e);
+    return false;
+  }
+}
+
+/**
+ * Called from the per-prompt hooks: one small team.json read, no network and no
+ * parsing here. When the ledger/rules sync is due (6 hours after the last success,
+ * or its failure backoff elapsed), start the detached `team sync --background`
+ * child; else, when only the prompt upload is due, start it in prompts-only
+ * mode. Prints nothing.
+ */
+export function spawnTeamSyncOnPrompt({
+  state = readTeamState(), now = Date.now(), env = process.env,
+  spawn = childProcess.spawn, argv = process.argv, execPath = process.execPath,
+} = {}) {
+  if (teamSyncDisabled(env) || !isJoined(state)) return false;
+  let flags;
+  if (teamSyncDue(state, now)) flags = ['--background'];
+  else if (promptSyncDue(state, now, env)) flags = ['--background', '--prompts-only'];
+  else return false;
+  try {
+    spawn(execPath, [argv[1], 'team', 'sync', ...flags], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    return true;
+  } catch (e) {
+    debug('team-ratchet:spawn-prompt-hook', e);
     return false;
   }
 }

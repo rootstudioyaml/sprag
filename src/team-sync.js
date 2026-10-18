@@ -25,12 +25,18 @@ import { writeStateFile } from './state-file.js';
 import { debug } from './debug.js';
 import { loadLedger, modelFamily, roundUsd } from './savings-ledger.js';
 import { sessionCost, pricedParts } from './claude-price.js';
+import { uploadPrompts, dropOffsets, promptOffsetsExist } from './team-prompts.js';
+
+export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
 const require = createRequire(import.meta.url);
 
 export const TEAM_API_URL = 'https://hiycfjwswtkixyoqkznm.supabase.co';
 // Public anon key (role=anon). Access is gated by the RPCs, not by this value.
 export const TEAM_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpeWNmandzd3RraXh5b3Frem5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNTc4MzYsImV4cCI6MjEwNzgzMzgzNn0.gyYcvGD70CEX64aGV-dsmZgmmOBdvhJlzIpx9Qo2l3w';
+// Local testing only: SPRAG_TEAM_API_URL + SPRAG_TEAM_ANON_KEY point the client at a local stack.
+export const teamApiUrl = (env = process.env) => envVar('TEAM_API_URL', env) || TEAM_API_URL;
+export const teamAnonKey = (env = process.env) => envVar('TEAM_ANON_KEY', env) || TEAM_ANON_KEY;
 export const TEAM_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export const TEAM_STATE_VERSION = 1;
 
@@ -60,12 +66,59 @@ export function saveTeamState(state, dir = userDataDir()) {
 export function teamSyncDisabled(env = process.env) { return envVar('NO_TEAM_SYNC', env) === '1'; }
 export function isJoined(state) { return !!(state && state.memberKey && !state.left); }
 
+/** Prompt uploads run on their own 30-minute timer, only while capture is on. */
+export function promptSyncDue(state, now = Date.now()) {
+  return isJoined(state) && state.promptCapture === true && !state.pausedReported
+    && (!state.lastPromptSyncAt || now - state.lastPromptSyncAt >= PROMPT_SYNC_INTERVAL_MS);
+}
+
+export const LEDGER_RETRY_BASE_MS = 15 * 60 * 1000;
+export const LEDGER_RETRY_MAX_MS = 60 * 60 * 1000;
+const IN_FLIGHT_MS = 2 * 60 * 1000;
+export const LEDGER_WINDOW_DAYS = 30;
+
+/** Retry delay after n consecutive failed ledger syncs: 15, 30, 60 minutes, then 60. */
+export function ledgerRetryDelayMs(failures) {
+  const n = Math.max(1, Math.floor(Number(failures) || 1));
+  return Math.min(LEDGER_RETRY_BASE_MS * 2 ** (n - 1), LEDGER_RETRY_MAX_MS);
+}
+
+/**
+ * The ledger/rules sync is due every 6 hours after the last SUCCESS, or, after a
+ * failure, when the backoff since the last attempt has elapsed. An attempt that
+ * began less than 2 minutes ago counts as in flight, so two hooks do not both spawn.
+ */
 export function teamSyncDue(state, now = Date.now()) {
-  return isJoined(state) && (!state.lastSyncAt || now - state.lastSyncAt >= TEAM_SYNC_INTERVAL_MS);
+  if (!isJoined(state)) return false;
+  const attempt = Number(state.lastSyncAttemptAt);
+  if (Number.isFinite(attempt) && attempt > 0 && now - attempt >= 0 && now - attempt < IN_FLIGHT_MS) return false;
+  const failures = Number(state.syncFailures) || 0;
+  if (failures > 0) return !Number.isFinite(attempt) || attempt <= 0 || now - attempt >= ledgerRetryDelayMs(failures);
+  return !state.lastSyncAt || now - state.lastSyncAt >= TEAM_SYNC_INTERVAL_MS;
+}
+
+/**
+ * Which local days a ledger sync uploads: from the day before the watermark (that
+ * day was still open when it was uploaded) through today, at most 30 days. With
+ * no watermark, the last 30 days.
+ */
+export function ledgerWindow(state, now = Date.now()) {
+  const today = new Date(now);
+  const earliest = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (LEDGER_WINDOW_DAYS - 1));
+  let start = earliest;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(state?.ledgerSyncedThrough || ''));
+  if (m) {
+    const from = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) - 1);
+    if (from > earliest) start = from;
+  }
+  const startKey = dayKey(start.getTime());
+  // aggregateDaily cuts by time, so ask for a little more and filter by day below
+  const days = Math.ceil((now - start.getTime()) / 86400000) + 1;
+  return { startKey, days };
 }
 
 export async function rpc(fn, params, {
-  fetch = globalThis.fetch, timeoutMs = 8000, url = TEAM_API_URL, key = TEAM_ANON_KEY,
+  fetch = globalThis.fetch, timeoutMs = 8000, url = teamApiUrl(), key = teamAnonKey(),
 } = {}) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
@@ -97,7 +150,7 @@ export async function rpc(fn, params, {
  * as rpc(). Errors carry the server's own message. The access token only ever
  * lives in memory: it is never written to disk or printed.
  */
-async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetch, timeoutMs = 8000, url = TEAM_API_URL, key = TEAM_ANON_KEY, prefer } = {}) {
+async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetch, timeoutMs = 8000, url = teamApiUrl(), key = teamAnonKey(), prefer } = {}) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
@@ -353,7 +406,7 @@ export async function leaveTeam({ fetch, dir = userDataDir(), now = Date.now() }
 }
 
 export async function syncTeam({
-  now = Date.now(), dir = userDataDir(), fetch, force = false, env = process.env, version, sessions,
+  now = Date.now(), dir = userDataDir(), fetch, force = false, env = process.env, version, sessions, promptsOnly = false,
 } = {}) {
   let state = loadTeamState(dir);
   // The switch stops every usage upload. A joined machine still tells the
@@ -383,10 +436,25 @@ export async function syncTeam({
       debug('team-sync', e);
     }
   }
-  if (!force && !teamSyncDue(state, now)) return { skipped: 'not-due' };
+  // Prompts have their own 30-minute timer and are cheap (bytes past the stored
+  // offsets); the ledger re-parses 30 days of sessions and keeps its 6 hours.
+  if (promptsOnly || (!force && !teamSyncDue(state, now))) {
+    if (!force && !promptSyncDue(state, now)) return { skipped: 'not-due' };
+    if (!state.promptCapture) return { skipped: 'not-due' };
+    // claim the slot first so a second hook in the same minute finds nothing due
+    state = { ...state, lastPromptSyncAt: now };
+    saveTeamState(state, dir);
+    const prompts = await syncPrompts({ state, dir, fetch, now });
+    return { uploaded: 0, rules: 0, prompts: prompts ?? 0, promptsOnly: true };
+  }
+  // Claim the attempt first: a second hook within two minutes sees it in flight.
+  state = { ...state, lastSyncAttemptAt: now };
+  try { saveTeamState(state, dir); } catch (e) { debug('team-sync', e); }
   state = await reportDeviceInfo({ state, dir, fetch, env });
   try {
-    const rows = (await aggregateDaily({ now, dir, sessions })).slice(-MAX_ROWS);
+    const win = ledgerWindow(state, now);
+    const rows = (await aggregateDaily({ now, dir, sessions, days: win.days }))
+      .filter((r) => r.day >= win.startKey).slice(-MAX_ROWS);
     await rpc('ledger_upsert', { member_key: state.memberKey, rows, sprag_version: version || '' }, { fetch });
     const r = (await rpc('team_rules_get', { member_key: state.memberKey }, { fetch })) || {};
     const rules = Array.isArray(r.rules) ? r.rules : [];
@@ -394,19 +462,56 @@ export async function syncTeam({
       version: 1, fetchedAt: now, teamId: r.team_id, teamName: r.team_name, plan: r.plan,
       promptCapture: !!r.prompt_capture, rules, removed: Array.isArray(r.removed) ? r.removed : [],
     }, null, 2) + '\n');
-    const next = { ...state, lastSyncAt: now, lastSyncRows: rows.length };
+    const next = { ...state, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) };
+    delete next.syncFailures;
     if (r.team_name) next.teamName = r.team_name;
     if (r.plan) next.plan = r.plan;
     if (r.org_name) next.orgName = r.org_name;
     if (r.prompt_capture !== undefined) next.promptCapture = !!r.prompt_capture;
     delete next.lastError;
     saveTeamState(next, dir);
-    return { uploaded: rows.length, rules: rules.length };
+    const prompts = await syncPrompts({ state: next, dir, fetch, now });
+    return { uploaded: rows.length, rules: rules.length, ...(prompts !== null ? { prompts } : {}) };
   } catch (e) {
     debug('team-sync', e);
-    // Stamp lastSyncAt too, so an offline machine backs off for the interval.
-    try { saveTeamState({ ...state, lastSyncAt: now, lastError: e.message }, dir); } catch (e2) { debug('team-sync', e2); }
+    // lastSyncAt stays the last SUCCESS and the watermark does not move, so the
+    // next success re-sends every missed day. Retry after 15, 30, 60 minutes.
+    try {
+      saveTeamState({ ...state, lastSyncAttemptAt: now, syncFailures: (Number(state.syncFailures) || 0) + 1, lastError: e.message }, dir);
+    } catch (e2) { debug('team-sync', e2); }
     return { error: e.message };
+  }
+}
+
+/**
+ * Prompt upload step of a sync. Capture off: forget the offsets so a later
+ * switch-on starts at the end of every file. Capture on: upload what is new.
+ * Fails soft; a problem here never marks the whole sync as failed.
+ */
+async function syncPrompts({ state, dir, fetch, now = Date.now() }) {
+  try {
+    if (!state.promptCapture) {
+      if (promptOffsetsExist(dir)) dropOffsets(dir);
+      return null;
+    }
+    const put = (params) => rpc('prompt_chunk_put', { member_key: state.memberKey, ...params }, { fetch, timeoutMs: 30000 });
+    const r = await uploadPrompts({ put, dir });
+    const fresh = loadTeamState(dir);
+    if (r.off) {
+      dropOffsets(dir);
+      saveTeamState({ ...fresh, promptCapture: false }, dir);
+      return null;
+    }
+    const patch = { lastPromptSyncAt: now };
+    if (r.uploaded > 0) {
+      Object.assign(patch, { lastPromptUploadAt: Date.now(), lastPromptCount: r.uploaded,
+        promptsUploadedTotal: (fresh.promptsUploadedTotal || 0) + r.uploaded });
+    }
+    saveTeamState({ ...fresh, ...patch }, dir);
+    return r.uploaded;
+  } catch (e) {
+    debug('team-sync', e);
+    return null;
   }
 }
 

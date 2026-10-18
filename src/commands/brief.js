@@ -23,6 +23,8 @@ export async function run({ hasFlag }) {
     }
     const ctx = readStdinJson() || {};
     const parts = [];
+    // Team prompt upload (Enterprise, opt-in): a stat-light gate, the work runs in a detached child.
+    try { (await import('../team-ratchet.js')).spawnTeamSyncOnPrompt(); } catch (e) { debug('brief:team-prompts', e); }
     try {
       const { runBrief } = await import('../brief.js');
       // `root` is the session's cwd for the same reason routeHint takes it below:

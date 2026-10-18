@@ -19,11 +19,11 @@ After you join, Sprag uploads one row per local calendar day:
 | Display name | the name you chose at join; the default is your OS user name |
 | Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04) and CPU architecture (arm64 or x64); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
 
-Not sent: prompts, transcripts, file paths, project names, rule text, API keys. A rule leaves your machine only when you run `sprag team propose` yourself.
+Not sent: prompts, transcripts, file paths, project names, rule text, API keys. The one exception is the opt-in prompt upload of an Enterprise team with prompt capture on, described under "Prompt usage (Enterprise)". A rule leaves your machine only when you run `sprag team propose` yourself.
 
-The upload runs at most once every 6 hours, from a detached child process that the SessionStart hook spawns. It never runs on the statusline path.
+The daily aggregate upload runs at most once every 6 hours after the last successful one, from a detached child process that the SessionStart hook (and the prompt hook, which only reads a small local file) spawns. If a sync fails, for example because the network is down, it is retried after 15, then 30, then 60 minutes (60 at most) instead of waiting 6 hours. The CLI remembers the last day it uploaded and re-sends from the day before it, up to 30 days, so a machine that was offline for days catches up on its first successful sync. Re-sending a day is safe because each day is an upsert. The prompt upload of an Enterprise team with capture on has its own 30-minute timer (see "Prompt usage (Enterprise)"). It never runs on the statusline path.
 
-Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave` and `member_set_sync` (the upload-switch status call, see "The upload switch"); `sprag team create` also calls `team_create` with your sign-in session.
+Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only) and `member_set_sync` (the upload-switch status call, see "The upload switch"); `sprag team create` also calls `team_create` with your sign-in session.
 
 ## Create a team from the CLI
 
@@ -135,13 +135,25 @@ Free, Pro ($5 per seat per month) and Enterprise ($10 per seat per month, with p
 
 ## Prompt usage (Enterprise)
 
-Owners and admins of an Enterprise organization get a Prompts tab on sprag.io/team: a per-user table of prompts, characters, average length, active days and last prompt, and a searchable prompt list per user. Prompts are stored only for Enterprise teams that have prompt capture switched on; Pro organizations see a locked state. The CLI does not upload prompts yet; the uploader ships in a later release, so the page stays empty until then.
+Owners and admins of an Enterprise organization get a Prompts tab on sprag.io/team: a per-user table of prompts, characters, average length, active days and last prompt, and a searchable prompt list per user. Prompts are stored only for Enterprise teams that have prompt capture switched on; Pro organizations see a locked state.
+
+**What is captured.** Only the prompts you typed yourself, from your main Claude Code sessions (`~/.claude/projects/**/*.jsonl`) and Codex sessions (`<CODEX_HOME or ~/.codex>/sessions/**/*.jsonl`). Each prompt goes up as its time, the project folder's name (the last part of the path, never the full path) and its text, cut at 20,000 characters. Not captured: assistant replies, tool output, file contents, subagent transcripts, slash-command wrappers, system reminders, or any file path.
+
+**Redaction.** Before upload, obvious secrets are replaced with `[redacted]`: API keys and tokens (`sk-...`, `sk-ant-...`, `ghp_...`, `gho_...`, `github_pat_...`, `AKIA...`, `xox[abpr]-...`), `Bearer` tokens, private key blocks, and `KEY=`, `TOKEN=`, `PASSWORD=` and `SECRET=` assignments. This catches common shapes, not every secret, so do not paste secrets into prompts on a machine with capture on.
+
+**No backfill.** The first time a machine sees prompt capture on, it marks the end of every existing transcript and uploads only what you type after that. Nothing written before the policy reached your machine is sent, and what you type while capture is off is never sent later. Transcripts created afterwards are read from their start. When the policy turns off, the machine forgets its place (`prompts-offsets.json`), so switching it on again starts fresh at the end of every file.
+
+**Cadence.** Prompts are uploaded about every 30 minutes while Claude Code or Codex is in use; the daily aggregate stays at every 6 hours. A prompt you submit checks a small local timer and, when 30 minutes have passed, starts a detached background upload (no network and no parsing happen in the hook itself). A session start and `sprag team sync --force` also upload. One run sends at most 2,000 prompts or 8 MB; the rest waits for the next sync. The file path is never sent; each file is identified by the first 16 characters of a hash of its path, and a repeated chunk is ignored by the server.
+
+**Check it.** `sprag team status` shows "Prompt capture: on" and the time and count of the last prompt upload. `sprag team status --show-payload` also shows how many prompts are waiting and one example (time, project, first 80 characters), never the full text of the pending prompts.
+
+**How to stop.** Ask an owner or admin to switch prompt capture off for the team (the next sync stops the upload and clears the position file); set `SPRAG_NO_TEAM_SYNC=1` to stop every upload right away; or run `sprag team leave`.
 
 ## Privacy notes
 
 - Owners and admins see per-member daily totals, not sessions or prompts, unless the organization is on Enterprise and the team has prompt capture switched on.
 - A member sees the same payload with `sprag team status --show-payload`.
-- Prompt capture is an Enterprise policy that an owner or admin can switch on in the dashboard. Members see its state in `sprag team status`. The current CLI does not upload prompts yet; that is a separate, later release.
+- Prompt capture is an Enterprise policy that an owner or admin can switch on in the dashboard. Members see its state in `sprag team status`. When capture is on, the CLI uploads the prompts you type after the policy reached your machine (see "Prompt usage (Enterprise)").
 - Rule text leaves your machine only through `sprag team propose`.
 
 ## Files and environment variables
@@ -150,6 +162,7 @@ Owners and admins of an Enterprise organization get a Prompts tab on sprag.io/te
 |---|---|
 | `<user data dir>/team.json` | Membership state and the member key (mode 0600) |
 | `<user data dir>/team-rules.json` | Rules pulled at the last sync |
+| `<user data dir>/prompts-offsets.json` | Where the prompt uploader stopped in each transcript; exists only while prompt capture is on |
 | `~/.claude/ratchet-team.md` | Approved team rules for Claude Code, imported from `~/.claude/CLAUDE.md` |
 | `<CODEX_HOME>/ratchet-team.md` | The same rules for Codex |
 | `SPRAG_TEAM_TOKEN` | Invite token; enrolls the machine at the next session start |

@@ -18,12 +18,14 @@ const TOKEN = 'spt_' + 'a'.repeat(32);
 
 function isolate(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-team-'));
-  const saved = { xdg: process.env.XDG_CONFIG_HOME, off: process.env.SPRAG_NO_TEAM_SYNC, tok: process.env.SPRAG_TEAM_TOKEN };
+  const saved = { home: process.env.HOME, codex: process.env.CODEX_HOME, xdg: process.env.XDG_CONFIG_HOME, off: process.env.SPRAG_NO_TEAM_SYNC, tok: process.env.SPRAG_TEAM_TOKEN };
   process.env.XDG_CONFIG_HOME = root;
+  process.env.HOME = root; // the prompt uploader looks for transcripts under HOME, never the real one
+  process.env.CODEX_HOME = join(root, '.codex');
   delete process.env.SPRAG_NO_TEAM_SYNC;
   delete process.env.SPRAG_TEAM_TOKEN;
   t.after(() => {
-    for (const [k, v] of [['XDG_CONFIG_HOME', saved.xdg], ['SPRAG_NO_TEAM_SYNC', saved.off], ['SPRAG_TEAM_TOKEN', saved.tok]]) {
+    for (const [k, v] of [['HOME', saved.home], ['CODEX_HOME', saved.codex], ['XDG_CONFIG_HOME', saved.xdg], ['SPRAG_NO_TEAM_SYNC', saved.off], ['SPRAG_TEAM_TOKEN', saved.tok]]) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
@@ -151,7 +153,7 @@ test('syncTeam happy path uploads, caches rules and updates state', async (t) =>
       rules: [{ id: 'r1', text: 'be nice', scope: 'ratchet', approved_at: 'x' }], removed: ['r0'] },
   });
   const r = await syncTeam({ dir, fetch: f, now, env: {}, version: '9.9.9', sessions: [] });
-  assert.deepEqual(r, { uploaded: 1, rules: 1 });
+  assert.deepEqual(r, { uploaded: 1, rules: 1, prompts: 0 }); // capture on, first sight: offsets pinned, nothing uploaded
   assert.deepEqual(f.calls.map((c) => c.fn), ['ledger_upsert', 'team_rules_get']);
   assert.equal(f.calls[0].body.member_key, 'spk_secret');
   assert.equal(f.calls[0].body.rows.length, 1);
@@ -175,7 +177,9 @@ test('syncTeam on fetch failure returns error, backs off and never throws', asyn
   const r = await syncTeam({ dir, fetch: f, now, env: {}, sessions: [] });
   assert.match(r.error, /offline/);
   const st = loadTeamState(dir);
-  assert.equal(st.lastSyncAt, now);
+  assert.equal(st.lastSyncAt, null, 'lastSyncAt stays the last SUCCESS');
+  assert.equal(st.lastSyncAttemptAt, now);
+  assert.equal(st.syncFailures, 1);
   assert.match(st.lastError, /offline/);
 });
 

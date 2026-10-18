@@ -232,6 +232,7 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
   }
   if (event === 'prompt') {
     const parts = [];
+    try { (await import('../team-ratchet.js')).spawnTeamSyncOnPrompt(); } catch (e) { debug('codex:team-prompts', e); }
     if (codexDelegateEnabled(cfg)) {
       // Before the hint for this prompt is recorded: a hint from an earlier turn
       // that no child claimed is closed, and children that did run get priced.
