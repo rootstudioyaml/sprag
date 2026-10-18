@@ -508,7 +508,7 @@
             <thead><tr>
               <th data-k="c.name">Name</th><th data-k="c.plan">Plan</th><th data-k="c.status">Status</th><th data-k="c.seats">Seats</th>
               <th class="n" data-k="c.teams">Teams</th><th class="n" data-k="c.members">Members</th><th class="n" data-k="c.paused">Paused</th><th class="n" data-k="c.late">Late</th><th data-k="c.owners">Owners</th>
-              <th class="n" data-k="c.sp">Spent 30d</th><th class="n" data-k="c.sv">Saved 30d</th><th data-k="c.seen">Last seen</th><th data-k="c.created">Created</th>
+              <th class="n" data-k="c.sp">Spent 30d</th><th class="n" data-k="c.sv">Saved 30d</th><th class="n" data-k="c.rev">Revenue / mo</th><th data-k="c.seen">Last seen</th><th data-k="c.created">Created</th>
             </tr></thead>
             <tbody id="org-body"></tbody>
           </table></div>
@@ -702,12 +702,12 @@ const I18N = {
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
     'deny.h':'This page is for Sprag superusers.','deny.d':'This account has no superuser access.',
-    'tot.h':'Overview','tot.orgs':'Organizations','tot.pro':'Pro','tot.ent':'Enterprise','tot.seats':'Seats used','tot.active':'Active members 30d','tot.sp':'Spent 30d','tot.sv':'Saved 30d',
+    'tot.h':'Overview','tot.orgs':'Organizations','tot.pro':'Pro','tot.ent':'Enterprise','tot.seats':'Seats used','tot.active':'Active members 30d','tot.sp':'Spent 30d','tot.sv':'Saved 30d','tot.rev':'Revenue / mo',
     'tot.seatsof':'{used} / {limit}',
     'orgs.h':'Organizations','orgs.none':'No organizations match.','f.q':'Search name or owner email','f.allplans':'All plans','f.allstatus':'All statuses','f.email':'Email',
     'plan.pro':'Pro','plan.enterprise':'Enterprise','st.active':'Active','st.suspended':'Suspended',
     'c.name':'Name','c.plan':'Plan','c.status':'Status','c.seats':'Seats','c.teams':'Teams','c.members':'Members','c.owners':'Owners',
-    'c.sp':'Spent 30d','c.sv':'Saved 30d','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
+    'c.sp':'Spent 30d','c.sv':'Saved 30d','c.rev':'Revenue / mo','rev.note':'{seats} contracted seats × ${price} ({plan}); suspended organizations count as $0','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
     's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (superuser only)','s.save':'Save','s.saved':'Saved',
     's.owner':'Add owner by email','s.ownerd':'For support when the customer lost access. The person must have signed in once.','s.ownerbtn':'Add owner','s.ownerok':'Added {email}',
     's.team':'{n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
@@ -797,12 +797,12 @@ const I18N = {
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
     'deny.h':'Sprag 슈퍼유저 전용 페이지입니다.','deny.d':'이 계정에는 슈퍼유저 권한이 없습니다.',
-    'tot.h':'한눈에 보기','tot.orgs':'조직','tot.pro':'프로','tot.ent':'엔터프라이즈','tot.seats':'사용 중인 좌석','tot.active':'30일 활동 멤버','tot.sp':'30일 지출','tot.sv':'30일 절감',
+    'tot.h':'한눈에 보기','tot.orgs':'조직','tot.pro':'프로','tot.ent':'엔터프라이즈','tot.seats':'사용 중인 좌석','tot.active':'30일 활동 멤버','tot.sp':'30일 지출','tot.sv':'30일 절감','tot.rev':'월 수익',
     'tot.seatsof':'{used} / {limit}',
     'orgs.h':'조직','orgs.none':'조건에 맞는 조직이 없습니다.','f.q':'이름 또는 오너 이메일 검색','f.allplans':'모든 요금제','f.allstatus':'모든 상태','f.email':'이메일',
     'plan.pro':'프로','plan.enterprise':'엔터프라이즈','st.active':'사용 중','st.suspended':'정지됨',
     'c.name':'이름','c.plan':'요금제','c.status':'상태','c.seats':'좌석','c.teams':'팀','c.members':'멤버','c.owners':'오너',
-    'c.sp':'30일 지출','c.sv':'30일 절감','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
+    'c.sp':'30일 지출','c.sv':'30일 절감','c.rev':'월 수익','rev.note':'계약 좌석 {seats}개 × ${price} ({plan}), 정지된 조직은 $0','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
     's.teams':'팀','s.admins':'어드민','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (슈퍼유저만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
     's.owner':'이메일로 오너 추가','s.ownerd':'고객이 접근 권한을 잃었을 때 지원용으로 씁니다. 해당 계정이 한 번은 로그인한 적이 있어야 합니다.','s.ownerbtn':'오너 추가','s.ownerok':'{email}님을 추가했습니다',
     's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
@@ -824,6 +824,12 @@ function t(k, vars, raw){
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = n => '$' + (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+/* Monthly revenue per organization: contracted seats (the limit the superuser set after payment)
+   times the seat price. No billing integration yet, so this is the contract value, not cash received. */
+const SEAT_PRICE = { pro: 5, enterprise: 10 };
+const orgRevenue = o => o && o.status !== 'suspended' ? (Number(o.seat_limit) || 0) * (SEAT_PRICE[o.plan === 'enterprise' ? 'enterprise' : 'pro']) : 0;
+const totalRevenue = () => orgs.reduce((s, o) => s + orgRevenue(o), 0);
+const revenueNote = o => t('rev.note', { seats: Number(o.seat_limit) || 0, price: SEAT_PRICE[o.plan === 'enterprise' ? 'enterprise' : 'pro'], plan: t('plan.' + (o.plan === 'enterprise' ? 'enterprise' : 'pro')) }, true);
 const fmtDate = d => d ? new Date(d).toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'en-US', {year:'numeric', month:'short', day:'numeric'}) : '';
 function rel(d){
   if(!d) return t('never');
@@ -1050,6 +1056,7 @@ async function loadOrgs(){
   try{ const d = await rpc('ops_orgs'); orgs = Array.isArray(d) ? d : []; }catch(e){ orgs = []; $('orgs-err').textContent = errMsg(e); }
   orgsLoaded = true;
   renderOrgs();
+  renderTotals(); // revenue in the strip is summed from the organization rows
 }
 async function loadAttention(){
   $('att-err').textContent = '';
@@ -1120,7 +1127,7 @@ function renderTotals(){
   $('totals').innerHTML =
     c('', t('tot.orgs'), x.orgs ?? 0) + c('', t('tot.pro'), x.orgs_pro ?? 0) + c('', t('tot.ent'), x.orgs_enterprise ?? x.orgs_business ?? 0) +
     c('', t('tot.seats'), t('tot.seatsof', {used: x.seats_used ?? 0, limit: x.seats_limit_sum ?? 0}, true)) +
-    c('', t('tot.active'), x.members_active_30d ?? 0) + c('', t('tot.paused'), x.seats_paused ?? 0) + c('', t('tot.late'), x.seats_late ?? 0) + c('sp', t('tot.sp'), money(x.spent_30d)) + c('sv', t('tot.sv'), money(x.saved_30d));
+    c('', t('tot.active'), x.members_active_30d ?? 0) + c('', t('tot.paused'), x.seats_paused ?? 0) + c('', t('tot.late'), x.seats_late ?? 0) + c('sp', t('tot.sp'), money(x.spent_30d)) + c('sv', t('tot.rev'), money(totalRevenue()));
 }
 function filtered(){
   const q = $('q').value.trim().toLowerCase(), p = $('f-plan').value, s = $('f-status').value;
@@ -1140,7 +1147,7 @@ function renderOrgs(){
       <td class="n">${Number(o.teams) || 0}</td><td class="n">${Number(o.members_total) || 0}</td>
       <td class="n">${Number(o.seats_paused) || 0}</td><td class="n${Number(o.seats_late) ? ' lt' : ''}">${Number(o.seats_late) || 0}</td>
       <td class="own" title="${esc(own)}">${esc(own)}</td>
-      <td class="n">${money(o.spent_30d)}</td><td class="n">${money(o.saved_30d)}</td>
+      <td class="n">${money(o.spent_30d)}</td><td class="n">${money(o.saved_30d)}</td><td class="n" title="${esc(revenueNote(o))}">${money(orgRevenue(o))}</td>
       <td>${esc(rel(o.last_seen))}</td><td>${esc(fmtDate(o.created_at))}</td></tr>`;
   }).join('');
   $('orgs-loading').hidden = orgsLoaded; $('orgs-empty').hidden = !orgsLoaded || rows.length > 0;
@@ -1175,7 +1182,7 @@ function renderDetail(){
     st('', t('c.seats'), `${used} / ${lim}<div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div>`) +
     st('', t('c.paused'), Number(sel.seats_paused) || 0) + st(Number(sel.seats_late) ? 'lt' : '', t('c.late'), Number(sel.seats_late) || 0) +
     st('', t('c.teams'), Number(sel.teams) || 0) + st('', t('c.members'), Number(sel.members_total) || 0) +
-    st('sp', t('c.sp'), esc(money(sel.spent_30d))) + st('sv', t('c.sv'), esc(money(sel.saved_30d))) +
+    st('sp', t('c.sp'), esc(money(sel.spent_30d))) + st('sv', t('c.sv'), esc(money(sel.saved_30d))) + st('sv', t('c.rev'), esc(money(orgRevenue(sel)))) +
     st('', t('c.seen'), esc(rel(sel.last_seen))) + st('', t('c.created'), esc(fmtDate(sel.created_at)));
   const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [];
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
