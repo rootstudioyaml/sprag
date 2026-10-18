@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag Superuser | Console</title>
+<title>Sprag Superuser Console</title>
 <meta name="description" content="Sprag superuser console." />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="theme-color" content="#010102" />
@@ -124,23 +124,26 @@
   td.lt{color:var(--warn);font-weight:600}
   tbody tr{cursor:pointer;transition:background .15s var(--ease)}
   tbody tr:hover td{background:rgba(255,255,255,.03)}
-  tbody tr[aria-selected=true] td{background:rgba(94,106,210,.1)}
   td.nm{font-weight:500;max-width:220px;overflow:hidden;text-overflow:ellipsis}
   td.own{max-width:200px;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
   .seatcell{display:flex;align-items:center;gap:8px}
   .seatcell .bar{margin:0;width:64px;height:6px}
   .bar.full i{background:var(--red)}
-  .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
-  .layout.open{grid-template-columns:minmax(0,1fr) 380px}
-  .side{position:sticky;top:72px}
-  @media(max-width:1000px){.layout.open{grid-template-columns:minmax(0,1fr)}.side{position:static}}
-  .side .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-  .side form{display:grid;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
-  .side textarea{background:var(--bg);border:1px solid var(--line2);border-radius:var(--r);color:var(--ink);padding:9px 12px;font:inherit;min-height:84px;resize:vertical;width:100%}
-  .side textarea:focus{border-color:var(--amber);outline:0}
-  .side select,.side input{width:100%}
-  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;margin-top:14px}
-  .kv dt{color:var(--faint)} .kv dd{overflow-wrap:anywhere}
+  .setform form{display:grid;gap:12px;max-width:520px}
+  .setform textarea{background:var(--bg);border:1px solid var(--line2);border-radius:var(--r);color:var(--ink);padding:9px 12px;font:inherit;min-height:84px;resize:vertical;width:100%}
+  .setform textarea:focus{border-color:var(--amber);outline:0}
+  .setform select,.setform input{width:100%}
+  .dhead .back{display:inline-block;font-size:13px;color:var(--dim);margin-bottom:12px}
+  .dhead .back:hover{color:var(--ink)}
+  .dtitle{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .dtitle h2{font-size:24px;letter-spacing:-.02em;overflow-wrap:anywhere}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:14px 22px;margin-top:18px}
+  .stat span{display:block;font-size:11.5px;color:var(--faint)}
+  .stat b{display:block;font-size:17px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;margin-top:2px;white-space:nowrap}
+  .stat .bar{margin-top:6px;max-width:none;height:6px}
+  .stat.sv b{color:var(--teal)} .stat.sp b{color:var(--amber2)} .stat.lt b{color:var(--warn)}
+  .dhead .tabs{margin-top:20px}
+  @media(max-width:520px){.stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px}.stat b{font-size:15px}.dtitle h2{font-size:21px}}
   .totals div b{font-size:24px}
   @media(max-width:520px){.totals{gap:20px 26px}.totals div b{font-size:21px}}
   /* seats roster + activity (shared by team and ops) */
@@ -195,7 +198,6 @@
   .auth .tabs + form{margin-top:18px}
   .who-acts{display:flex;gap:8px;flex-wrap:wrap}
   .pwbox{display:grid;gap:12px;max-width:420px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
-  .layout > .card{margin-top:0}
   #app > * + *{margin-top:16px}
   .sr-tools .thr select{min-width:140px}
   @media(max-width:520px){
@@ -298,25 +300,25 @@
     </section>
 
     <div id="ops" class="stack" hidden>
-      <section class="card" aria-labelledby="tot-h">
-        <h2 id="tot-h" data-k="tot.h">Overview</h2>
-        <div class="totals" id="totals"></div>
-        <p class="err" id="tot-err" role="alert"></p>
-      </section>
+      <div id="view-list" class="stack">
+        <section class="card" aria-labelledby="tot-h">
+          <h2 id="tot-h" data-k="tot.h">Overview</h2>
+          <div class="totals" id="totals"></div>
+          <p class="err" id="tot-err" role="alert"></p>
+        </section>
 
-      <section class="card" aria-labelledby="att-h">
-        <h2 id="att-h" data-k="att.h">Machines needing attention</h2>
-        <div class="row" role="tablist" style="margin-top:12px">
-          <button type="button" class="btn sm" role="tab" id="tab-paused" aria-selected="true"></button>
-          <button type="button" class="btn sm" role="tab" id="tab-late" aria-selected="false"></button>
-        </div>
-        <p class="sub" id="att-sub"></p>
-        <div class="tbl-wrap"><table style="min-width:760px"><thead id="att-head"></thead><tbody id="att-body"></tbody></table></div>
-        <p class="msg" id="att-empty" hidden data-k="att.none">No machines in this list.</p>
-        <p class="err" id="att-err" role="alert"></p>
-      </section>
+        <section class="card" aria-labelledby="att-h">
+          <h2 id="att-h" data-k="att.h">Machines needing attention</h2>
+          <div class="row" role="tablist" style="margin-top:12px">
+            <button type="button" class="btn sm" role="tab" id="tab-paused" aria-selected="true"></button>
+            <button type="button" class="btn sm" role="tab" id="tab-late" aria-selected="false"></button>
+          </div>
+          <p class="sub" id="att-sub"></p>
+          <div class="tbl-wrap"><table style="min-width:760px"><thead id="att-head"></thead><tbody id="att-body"></tbody></table></div>
+          <p class="msg" id="att-empty" hidden data-k="att.none">No machines in this list.</p>
+          <p class="err" id="att-err" role="alert"></p>
+        </section>
 
-      <div class="layout" id="layout">
         <section class="card" aria-labelledby="orgs-h" style="min-width:0">
           <h2 id="orgs-h" data-k="orgs.h">Organizations</h2>
           <div class="row filters">
@@ -335,44 +337,71 @@
           <p class="msg" id="orgs-empty" hidden data-k="orgs.none">No organizations match.</p>
           <p class="err" id="orgs-err" role="alert"></p>
         </section>
-
-        <aside class="card side" id="side" hidden aria-labelledby="side-h">
-          <div class="top">
-            <div><h2 id="side-h"></h2><div class="row" style="margin-top:8px" id="side-badges"></div></div>
-            <button class="btn sm" id="side-close" type="button" data-k="close">Close</button>
-          </div>
-          <dl class="kv" id="side-kv"></dl>
-          <div style="margin-top:16px"><h3 data-k="s.teams">Teams</h3><div id="side-teams"></div></div>
-          <div style="margin-top:16px"><h3 data-k="s.admins">Admins</h3><div id="side-admins"></div></div>
-
-          <form id="form-set">
-            <h3 data-k="s.edit">Edit</h3>
-            <label class="f"><span data-k="c.plan">Plan</span>
-              <select id="e-plan"><option value="team" data-k="plan.team">Team</option><option value="business" data-k="plan.business">Business</option></select></label>
-            <label class="f"><span data-k="s.limit">Seat limit</span>
-              <input type="number" id="e-limit" min="1" max="10000" step="1" inputmode="numeric" /></label>
-            <label class="f"><span data-k="c.status">Status</span>
-              <select id="e-status"><option value="active" data-k="st.active">Active</option><option value="suspended" data-k="st.suspended">Suspended</option></select></label>
-            <label class="f"><span data-k="s.note">Note</span>
-              <textarea id="e-note" maxlength="2000"></textarea></label>
-            <div class="row"><button class="btn pri" type="submit" data-k="s.save">Save</button><span class="ok" id="set-ok" style="margin:0"></span></div>
-            <p class="err" id="set-err" role="alert"></p>
-          </form>
-
-          <form id="form-owner">
-            <h3 data-k="s.owner">Add owner by email</h3>
-            <p class="sub" style="margin-top:0" data-k="s.ownerd">For support when the customer lost access. The person must have signed in once.</p>
-            <input type="email" id="o-email" data-ph="f.email" placeholder="Email" aria-label="Email" />
-            <div class="row"><button class="btn" type="submit" data-k="s.ownerbtn">Add owner</button><span class="ok" id="own-ok" style="margin:0"></span></div>
-            <p class="err" id="own-err" role="alert"></p>
-          </form>
-        </aside>
       </div>
 
-      <section class="card" id="seats-card" hidden aria-labelledby="seats-h">
-        <h2 id="seats-h"></h2>
-        <div id="seats-box"></div>
-      </section>
+      <div id="view-detail" class="stack" hidden>
+        <section class="card dhead" id="d-head" aria-labelledby="d-name">
+          <a class="back" href="#orgs" data-k="d.back">← Organizations</a>
+          <div class="dtitle"><h2 id="d-name"></h2><span class="row" id="d-badges"></span></div>
+          <div class="stats" id="d-stats"></div>
+          <div class="tabs" role="tablist" id="d-tabs">
+            <button type="button" class="tab" role="tab" id="dt-overview" data-tab="overview" aria-selected="true" data-k="d.tab.overview">Overview</button>
+            <button type="button" class="tab" role="tab" id="dt-seats" data-tab="seats" aria-selected="false" data-k="d.tab.seats">Seats</button>
+            <button type="button" class="tab" role="tab" id="dt-settings" data-tab="settings" aria-selected="false" data-k="d.tab.settings">Settings</button>
+          </div>
+        </section>
+
+        <section class="card" id="d-missing" hidden>
+          <p class="msg" style="margin:0" data-k="d.notfound">Organization not found.</p>
+        </section>
+
+        <div id="p-overview" class="stack" role="tabpanel">
+          <section class="card">
+            <h3 data-k="s.teams">Teams</h3>
+            <div id="side-teams"></div>
+          </section>
+          <section class="card">
+            <h3 data-k="d.admins">Owners and admins</h3>
+            <div id="side-admins"></div>
+          </section>
+          <section class="card">
+            <h3 data-k="d.opnote">Operator note</h3>
+            <p class="msg" id="d-note" style="white-space:pre-wrap"></p>
+          </section>
+        </div>
+
+        <section class="card" id="p-seats" role="tabpanel" hidden aria-labelledby="seats-h">
+          <h2 id="seats-h" data-k="sr.h">Seats</h2>
+          <div id="seats-box"></div>
+        </section>
+
+        <div id="p-settings" class="stack setform" role="tabpanel" hidden>
+          <section class="card">
+            <form id="form-set">
+              <h3 data-k="s.edit">Edit</h3>
+              <label class="f"><span data-k="c.plan">Plan</span>
+                <select id="e-plan"><option value="team" data-k="plan.team">Team</option><option value="business" data-k="plan.business">Business</option></select></label>
+              <label class="f"><span data-k="s.limit">Seat limit</span>
+                <input type="number" id="e-limit" min="1" max="10000" step="1" inputmode="numeric" /></label>
+              <label class="f"><span data-k="c.status">Status</span>
+                <select id="e-status"><option value="active" data-k="st.active">Active</option><option value="suspended" data-k="st.suspended">Suspended</option></select></label>
+              <label class="f"><span data-k="s.note">Note</span>
+                <textarea id="e-note" maxlength="2000"></textarea></label>
+              <div class="row"><button class="btn pri" type="submit" data-k="s.save">Save</button><span class="ok" id="set-ok" style="margin:0"></span></div>
+              <p class="err" id="set-err" role="alert"></p>
+            </form>
+          </section>
+          <section class="card">
+            <form id="form-owner">
+              <h3 data-k="s.owner">Add owner by email</h3>
+              <p class="sub" style="margin-top:0" data-k="s.ownerd">For support when the customer lost access. The person must have signed in once.</p>
+              <input type="email" id="o-email" data-ph="f.email" placeholder="Email" aria-label="Email" />
+              <div class="row"><button class="btn" type="submit" data-k="s.ownerbtn">Add owner</button><span class="ok" id="own-ok" style="margin:0"></span></div>
+              <p class="err" id="own-err" role="alert"></p>
+            </form>
+          </section>
+        </div>
+      </div>
     </div>
   </div>
 </main>
@@ -484,6 +513,8 @@ const I18N = {
     's.team':'{n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
     's.suspendconfirm':'Suspend {name}? Members stop syncing and new joins are refused until you set it back to Active.',
     'k.id':'ID','k.seats':'Seats','k.created':'Created','k.seen':'Last seen','k.you':'Your role',
+    'd.back':'← Organizations','d.tab.overview':'Overview','d.tab.seats':'Seats','d.tab.settings':'Settings','d.notfound':'Organization not found.',
+    'd.admins':'Owners and admins','d.opnote':'Operator note',
     'role.owner':'Owner','role.admin':'Admin','role.superuser':'Superuser'
   },
   ko: {
@@ -577,6 +608,8 @@ const I18N = {
     's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
     's.suspendconfirm':'{name} 조직을 정지할까요? 사용 중으로 되돌릴 때까지 멤버 동기화가 멈추고 새 참여도 거절됩니다.',
     'k.id':'ID','k.seats':'좌석','k.created':'생성일','k.seen':'마지막 접속','k.you':'내 권한',
+    'd.back':'← 조직 목록','d.tab.overview':'개요','d.tab.seats':'좌석','d.tab.settings':'설정','d.notfound':'조직을 찾을 수 없습니다',
+    'd.admins':'오너와 어드민','d.opnote':'운영 메모',
     'role.owner':'오너','role.admin':'어드민','role.superuser':'슈퍼유저'
   }
 };
@@ -656,7 +689,7 @@ const demo = (function(){
 })();
 
 /* ── state ────────────────────────────────────────────────────────────── */
-let sb = null, user = null, orgs = [], sel = null, sum = null, pendingEmail = '', attention = {paused:[], late:[]}, attTab = 'paused';
+let shown = '', sb = null, user = null, orgs = [], sel = null, sum = null, pendingEmail = '', attention = {paused:[], late:[]}, attTab = 'paused';
 async function rpc(name, args){
   if(DEMO) return demo(name, args);
   const { data, error } = await sb.rpc(name, args || {});
@@ -670,7 +703,7 @@ function setLang(next, remember){
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-k]').forEach(el => { el.innerHTML = t(el.dataset.k); });
   document.querySelectorAll('[data-ph]').forEach(el => { el.placeholder = t(el.dataset.ph); });
-  document.title = lang === 'ko' ? 'Sprag 슈퍼유저 콘솔' : 'Sprag Superuser | Console';
+  document.title = lang === 'ko' ? 'Sprag 슈퍼유저 콘솔' : 'Sprag Superuser Console';
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   if(remember) lsSet('sprag.lang', lang);
   if(!$('form-code').hidden) $('code-sent').textContent = t('si.sent', {email: pendingEmail}, true);
@@ -784,7 +817,7 @@ async function onSession(session){
   user = session ? session.user : null;
   if(!user){ $('form-setpw').hidden = true; resetSetPw(); }
   $('auth').hidden = !!user; $('app').hidden = !user;
-  orgs = []; sel = null; sum = null;
+  orgs = []; sel = null; sum = null; shown = '';
   $('ops').hidden = true; $('denied').hidden = true;
   if(!user){ renderAll(); return; }
   $('who-email').textContent = user.email || '';
@@ -793,6 +826,7 @@ async function onSession(session){
   $('denied').hidden = admin; $('ops').hidden = !admin;
   if(admin) await Promise.all([loadTotals(), loadOrgs(), loadAttention()]);
   renderAll();
+  route();
 }
 
 /* ── data ─────────────────────────────────────────────────────────────── */
@@ -816,16 +850,41 @@ async function loadAttention(){
 async function selectOrg(id){
   sel = orgs.find(o => o.id === id) || null; sum = null;
   $('set-err').textContent = ''; $('own-err').textContent = ''; $('set-ok').textContent = ''; $('own-ok').textContent = '';
-  renderOrgs(); renderSide();
+  renderDetail();
   if(!sel){ Seats.load(null); return; }
   fillForm();
   Seats.load(id);
   try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){ $('set-err').textContent = errMsg(e); }
-  if(sel && sel.id === id) renderSide();
+  if(sel && sel.id === id) renderDetail();
 }
 
+/* ── routing: #orgs (list), #org/<id>[/seats|/settings] (detail) ──────── */
+let curTab = 'overview';
+function parseHash(){
+  const m = location.hash.replace(/^#/, '').match(/^org\/([^/]+)(?:\/(seats|settings))?\/?$/);
+  return m ? { id: decodeURIComponent(m[1]), tab: m[2] || 'overview' } : null;
+}
+function go(h){ if(location.hash === h) route(); else location.hash = h; }
+async function route(){
+  if(!user || $('ops').hidden) return;
+  const r = parseHash();
+  $('view-list').hidden = !!r; $('view-detail').hidden = !r;
+  if(!r){
+    if(shown){ shown = ''; sel = null; sum = null; Seats.load(null); }
+    return;
+  }
+  curTab = r.tab;
+  const fresh = shown !== r.id;
+  if(fresh){ shown = r.id; window.scrollTo(0, 0); await selectOrg(r.id); }
+  else renderDetail();
+}
+window.addEventListener('hashchange', route);
+document.querySelectorAll('#d-tabs .tab').forEach(b => b.addEventListener('click', () => {
+  if(sel) go('#org/' + encodeURIComponent(sel.id) + (b.dataset.tab === 'overview' ? '' : '/' + b.dataset.tab));
+}));
+
 /* ── render ───────────────────────────────────────────────────────────── */
-function renderAll(){ renderTotals(); renderOrgs(); renderSide(); renderAttention(); Seats.render(); }
+function renderAll(){ renderTotals(); renderOrgs(); renderDetail(); renderAttention(); Seats.render(); }
 function renderAttention(){
   const rows = attention[attTab] || [], paused = attTab === 'paused';
   ['paused', 'late'].forEach(k => {
@@ -839,8 +898,8 @@ function renderAttention(){
     <td>${esc(paused ? rel(r.sync_state_at) : (r.last_upload_at ? rel(r.last_upload_at) : t('never')))}</td><td>${esc(rel(r.last_seen))}</td></tr>`).join('');
   $('att-empty').hidden = rows.length > 0;
   $('att-body').querySelectorAll('tr').forEach(tr => {
-    tr.addEventListener('click', () => selectOrg(tr.dataset.id));
-    tr.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); selectOrg(tr.dataset.id); } });
+    tr.addEventListener('click', () => go('#org/' + encodeURIComponent(tr.dataset.id) + '/seats'));
+    tr.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go('#org/' + encodeURIComponent(tr.dataset.id) + '/seats'); } });
   });
 }
 $('tab-paused').addEventListener('click', () => { attTab = 'paused'; renderAttention(); });
@@ -864,7 +923,7 @@ function renderOrgs(){
   $('org-body').innerHTML = rows.map(o => {
     const used = Number(o.seats_used) || 0, lim = Number(o.seat_limit) || 0, full = lim && used >= lim;
     const own = (o.owners || []).join(', ');
-    return `<tr data-id="${esc(o.id)}" tabindex="0" aria-selected="${sel && sel.id === o.id}">
+    return `<tr data-id="${esc(o.id)}" tabindex="0">
       <td class="nm" title="${esc(o.name)}">${esc(o.name)}</td>
       <td><span class="badge${o.plan === 'business' ? ' plus' : ''}">${esc(t('plan.' + (o.plan === 'business' ? 'business' : 'team')))}</span></td>
       <td><span class="badge ${o.status === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + (o.status === 'suspended' ? 'suspended' : 'active')))}</span></td>
@@ -877,8 +936,8 @@ function renderOrgs(){
   }).join('');
   $('orgs-empty').hidden = rows.length > 0;
   $('org-body').querySelectorAll('tr').forEach(tr => {
-    tr.addEventListener('click', () => selectOrg(tr.dataset.id));
-    tr.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); selectOrg(tr.dataset.id); } });
+    tr.addEventListener('click', () => go('#org/' + encodeURIComponent(tr.dataset.id)));
+    tr.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go('#org/' + encodeURIComponent(tr.dataset.id)); } });
   });
 }
 function fillForm(){
@@ -888,26 +947,35 @@ function fillForm(){
   $('e-status').value = sel.status === 'suspended' ? 'suspended' : 'active';
   $('e-note').value = sel.note || '';
 }
-function renderSide(){
-  $('side').hidden = !sel; $('layout').classList.toggle('open', !!sel);
-  $('seats-card').hidden = !sel;
-  if(!sel) return;
-  $('seats-h').textContent = t('s.seats', {name: sel.name}, true);
-  $('side-h').textContent = sel.name;
-  $('side-badges').innerHTML = `<span class="badge${sel.plan === 'business' ? ' plus' : ''}">${esc(t('plan.' + (sel.plan === 'business' ? 'business' : 'team')))}</span>
+function renderDetail(){
+  const r = parseHash();
+  if(!r) return;
+  const tabs = { overview: 'p-overview', seats: 'p-seats', settings: 'p-settings' };
+  document.querySelectorAll('#d-tabs .tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === curTab)));
+  Object.keys(tabs).forEach(k => { $(tabs[k]).hidden = !sel || k !== curTab; });
+  $('d-head').querySelector('.dtitle').hidden = !sel; $('d-stats').hidden = !sel; $('d-tabs').hidden = !sel;
+  $('d-missing').hidden = !!sel;
+  if(!sel){ $('d-name').textContent = ''; return; }
+  $('d-name').textContent = sel.name;
+  $('d-badges').innerHTML = `<span class="badge${sel.plan === 'business' ? ' plus' : ''}">${esc(t('plan.' + (sel.plan === 'business' ? 'business' : 'team')))}</span>
     <span class="badge ${sel.status === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + (sel.status === 'suspended' ? 'suspended' : 'active')))}</span>`;
-  $('side-kv').innerHTML = `<dt>${esc(t('k.seats'))}</dt><dd>${Number(sel.seats_used) || 0} / ${Number(sel.seat_limit) || 0}</dd>
-    <dt>${esc(t('k.created'))}</dt><dd>${esc(fmtDate(sel.created_at))}</dd><dt>${esc(t('k.seen'))}</dt><dd>${esc(rel(sel.last_seen))}</dd>
-    <dt>${esc(t('k.id'))}</dt><dd><code>${esc(sel.id)}</code></dd>`;
+  const used = Number(sel.seats_used) || 0, lim = Number(sel.seat_limit) || 0, full = lim && used >= lim;
+  const st = (cls, label, val) => `<div class="stat ${cls}"><span>${esc(label)}</span><b>${val}</b></div>`;
+  $('d-stats').innerHTML =
+    st('', t('c.seats'), `${used} / ${lim}<div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div>`) +
+    st('', t('c.paused'), Number(sel.seats_paused) || 0) + st(Number(sel.seats_late) ? 'lt' : '', t('c.late'), Number(sel.seats_late) || 0) +
+    st('', t('c.teams'), Number(sel.teams) || 0) + st('', t('c.members'), Number(sel.members_total) || 0) +
+    st('sp', t('c.sp'), esc(money(sel.spent_30d))) + st('sv', t('c.sv'), esc(money(sel.saved_30d))) +
+    st('', t('c.seen'), esc(rel(sel.last_seen))) + st('', t('c.created'), esc(fmtDate(sel.created_at)));
   const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [];
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
     <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
   $('side-admins').innerHTML = ad.length ? ad.map(a => `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
+  $('d-note').textContent = sel.note || t('s.none');
 }
 
 /* ── actions ──────────────────────────────────────────────────────────── */
 ['q','f-plan','f-status'].forEach(id => $(id).addEventListener('input', renderOrgs));
-$('side-close').addEventListener('click', () => { sel = null; sum = null; renderOrgs(); renderSide(); Seats.load(null); });
 $('form-set').addEventListener('submit', async ev => {
   ev.preventDefault(); $('set-err').textContent = ''; $('set-ok').textContent = '';
   if(!sel) return;
@@ -921,7 +989,7 @@ $('form-set').addEventListener('submit', async ev => {
     if(i >= 0 && row) orgs[i] = Object.assign({}, orgs[i], row);
     sel = orgs[i] || sel;
     $('set-ok').textContent = t('s.saved');
-    renderOrgs(); renderSide(); loadTotals();
+    renderOrgs(); renderDetail(); loadTotals();
   }catch(e){ $('set-err').textContent = errMsg(e); }
 });
 $('form-owner').addEventListener('submit', async ev => {
@@ -934,7 +1002,7 @@ $('form-owner').addEventListener('submit', async ev => {
     $('o-email').value = ''; $('own-ok').textContent = t('s.ownerok', {email}, true);
     const id = sel.id; await loadOrgs(); sel = orgs.find(o => o.id === id) || null; renderOrgs();
     try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){}
-    renderSide();
+    renderDetail();
   }catch(e){ $('own-err').textContent = errMsg(e); }
 });
 
@@ -1110,7 +1178,7 @@ function demoSeatsRpc(orgId, teams, name, a){
       const id = sel && sel.id; if(!id) return;
       await Promise.all([loadOrgs(), loadTotals(), loadAttention()]);
       sel = orgs.find(o => o.id === id) || null;
-      renderOrgs(); renderSide();
+      renderOrgs(); renderDetail();
       await Seats.load(id);
     }
   });
@@ -1120,7 +1188,11 @@ function demoSeatsRpc(orgId, teams, name, a){
     const dq = new URLSearchParams(location.search);
     if(dq.get('signedout') === '1') return;
     user = {email:'root.studio.yaml@gmail.com'}; await onSession({user});
-    if(dq.get('org')) await selectOrg(dq.get('org'));
+    if(dq.get('org')){
+      const tab = location.hash.replace(/^#/, '').replace(/^org\/[^/]+\/?/, '');
+      history.replaceState(null, '', location.pathname + location.search + '#org/' + encodeURIComponent(dq.get('org')) + (/^(seats|settings)$/.test(tab) ? '/' + tab : ''));
+      await route();
+    }
     if(dq.get('setpw') === '1') $('btn-setpw').click();
     return;
   }
