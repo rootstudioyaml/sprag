@@ -16,8 +16,9 @@
 
 import { envVar } from './env.js';
 import { readFileSync, existsSync, rmSync, chmodSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { userInfo } from 'node:os';
+import { userInfo, release as osRelease } from 'node:os';
 import { createRequire } from 'node:module';
 import { userDataDir } from './paths.js';
 import { writeStateFile } from './state-file.js';
@@ -245,8 +246,61 @@ export async function aggregateDaily({ now = Date.now(), dir = userDataDir(), da
     }));
 }
 
+// Device info: OS name, OS version and CPU architecture. Nothing that names the
+// machine (no hostname, username or path) is read or sent.
+const DARWIN_TO_MACOS = { 20: '11', 21: '12', 22: '13', 23: '14', 24: '15', 25: '26' };
+
+export function deviceInfo({
+  platform = process.platform, arch = process.arch, release = osRelease(),
+  exec = (cmd, args) => execFileSync(cmd, args, { timeout: 2000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }),
+  readText = (f) => readFileSync(f, 'utf8'),
+} = {}) {
+  let os = String(platform);
+  let osVersion = String(release || '');
+  try {
+    if (platform === 'darwin') {
+      os = 'macOS';
+      let v = '';
+      try { v = String(exec('sw_vers', ['-productVersion'])).trim(); } catch (e) { debug('team-sync', e); }
+      osVersion = v || DARWIN_TO_MACOS[parseInt(release, 10)] || osVersion;
+    } else if (platform === 'win32') {
+      os = 'Windows';
+      const build = parseInt(String(release).split('.')[2], 10);
+      osVersion = build >= 22000 ? '11' : '10';
+    } else if (platform === 'linux') {
+      os = 'Linux';
+      try {
+        const text = readText('/etc/os-release');
+        const get = (k) => (text.match(new RegExp(`^${k}=(.*)$`, 'm')) || [])[1]?.trim().replace(/^"|"$/g, '');
+        // NAME + VERSION_ID ("Ubuntu", "24.04"): the dashboard prints them
+        // side by side, and PRETTY_NAME already carries the version.
+        const name = get('NAME') || get('PRETTY_NAME');
+        if (name) { os = name; osVersion = get('VERSION_ID') || osVersion; }
+      } catch (e) { debug('team-sync', e); }
+    }
+  } catch (e) { debug('team-sync', e); }
+  return { os: os.slice(0, 40), os_version: osVersion.slice(0, 40), arch: String(arch).slice(0, 40) };
+}
+
+// Reports device info once after a join and again only when it changes. Fails
+// soft: the next sync retries. Never runs while uploads are switched off.
+export async function reportDeviceInfo({ state, dir = userDataDir(), fetch, env = process.env } = {}) {
+  if (teamSyncDisabled(env) || !isJoined(state)) return state;
+  const info = deviceInfo();
+  if (state.deviceInfo && JSON.stringify(state.deviceInfo) === JSON.stringify(info)) return state;
+  try {
+    await rpc('member_set_info', { member_key: state.memberKey, ...info }, { fetch });
+    const next = { ...state, deviceInfo: info };
+    saveTeamState(next, dir);
+    return next;
+  } catch (e) {
+    debug('team-sync', e);
+    return state;
+  }
+}
+
 export async function joinTeam({
-  token, displayName, agent = 'claude', autoJoined = false, fetch, dir = userDataDir(), version, now = Date.now(),
+  token, displayName, agent = 'claude', autoJoined = false, fetch, dir = userDataDir(), version, now = Date.now(), env = process.env,
 } = {}) {
   if (!TOKEN_RE.test(String(token || ''))) throw new Error('invalid invite token (expected spt_ + 32 hex characters)');
   const name = String(displayName || '').trim() || 'member';
@@ -281,7 +335,7 @@ export async function joinTeam({
     lastSyncRows: 0,
   };
   saveTeamState(state, dir);
-  return state;
+  return reportDeviceInfo({ state, dir, fetch, env });
 }
 
 export async function leaveTeam({ fetch, dir = userDataDir(), now = Date.now() } = {}) {
@@ -330,6 +384,7 @@ export async function syncTeam({
     }
   }
   if (!force && !teamSyncDue(state, now)) return { skipped: 'not-due' };
+  state = await reportDeviceInfo({ state, dir, fetch, env });
   try {
     const rows = (await aggregateDaily({ now, dir, sessions })).slice(-MAX_ROWS);
     await rpc('ledger_upsert', { member_key: state.memberKey, rows, sprag_version: version || '' }, { fetch });
@@ -365,7 +420,7 @@ export async function autoJoin({ env = process.env, fetch, dir = userDataDir(), 
   let name = 'member';
   try { name = userInfo().username || 'member'; } catch { /* no passwd entry */ }
   try {
-    return await joinTeam({ token, displayName: name, autoJoined: true, fetch, dir, version, now });
+    return await joinTeam({ token, displayName: name, autoJoined: true, fetch, dir, version, now, env });
   } catch (e) {
     // SeatLimitError (code SEAT_LIMIT) lands here too: auto-join stays silent and retries next session.
     debug('team-sync', e);

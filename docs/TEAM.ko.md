@@ -17,6 +17,7 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 | Sprag 버전 | 설치된 버전 |
 | 에이전트 | `claude` 또는 `codex` |
 | 표시 이름 | 참여할 때 정한 이름이며, 기본값은 OS 사용자 이름 |
+| 운영체제 | OS 이름과 버전(예: macOS 26, Windows 11, Ubuntu 24.04), CPU 아키텍처(arm64, x64)입니다. 참여한 직후 한 번 보내고, 바뀔 때만 다시 보냅니다. 호스트 이름, 사용자 이름, 경로처럼 컴퓨터를 이름으로 알아볼 수 있는 값은 보내지 않습니다 |
 
 보내지 않는 것은 프롬프트, 대화 기록, 파일 경로, 프로젝트 이름, 룰 내용, API 키입니다. 룰은 직접 `sprag team propose` 를 실행할 때만 밖으로 나갑니다.
 
@@ -86,7 +87,7 @@ sprag team propose "커밋 전에 lint 실행" --scope ratchet
 | 명령 | 설명 |
 |---|---|
 | `sprag team join [토큰] [--name <이름>] [--yes]` | 팀에 참여 |
-| `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 마지막 동기화를 보여 줍니다. `--show-payload` 를 붙이면 올라갈 하루 단위 행도 그대로 출력합니다 |
+| `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 마지막 동기화를 보여 줍니다. `--show-payload` 를 붙이면 보내는 기기 정보와 올라갈 하루 단위 행도 그대로 출력합니다 |
 | `sprag team sync [--force]` | 지금 업로드하고 룰을 받습니다. `--force` 는 6시간 간격을 무시합니다 |
 | `sprag team rules` | 받아 둔 팀 룰 보기 |
 | `sprag team propose "<내용>" [--scope ratchet\|model]` | 팀에 룰 제안 |

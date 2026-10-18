@@ -17,6 +17,7 @@ After you join, Sprag uploads one row per local calendar day:
 | Sprag version | the installed version |
 | Agent | `claude` or `codex` |
 | Display name | the name you chose at join; the default is your OS user name |
+| Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04) and CPU architecture (arm64 or x64); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
 
 Not sent: prompts, transcripts, file paths, project names, rule text, API keys. A rule leaves your machine only when you run `sprag team propose` yourself.
 
@@ -86,7 +87,7 @@ Approved rules come back with the next sync. Sprag writes them to `~/.claude/rat
 | Command | What it does |
 |---|---|
 | `sprag team join [token] [--name <n>] [--yes]` | Join a team |
-| `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name, last sync. `--show-payload` also prints the exact daily rows that would be uploaded |
+| `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name, last sync. `--show-payload` also prints the device info and the exact daily rows that would be uploaded |
 | `sprag team sync [--force]` | Upload now and pull rules. `--force` ignores the 6-hour interval |
 | `sprag team rules` | Show the cached team rules |
 | `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team |

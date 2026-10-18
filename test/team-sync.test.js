@@ -6,11 +6,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, hostname, userInfo } from 'node:os';
 import { join } from 'node:path';
 import {
   aggregateDaily, syncTeam, autoJoin, joinTeam, leaveTeam, rpc, loadTeamState, saveTeamState,
-  teamStatePath, teamRulesCachePath, autoJoinNotice, TEAM_SYNC_INTERVAL_MS,
+  teamStatePath, teamRulesCachePath, autoJoinNotice, TEAM_SYNC_INTERVAL_MS, deviceInfo,
 } from '../src/team-sync.js';
 import { userDataDir } from '../src/paths.js';
 
@@ -52,7 +52,7 @@ const JOINED = {
   member_key: 'spk_secret', member_id: 'm1', team_id: 't1', team_name: 'Acme', plan: 'free', prompt_capture: false,
 };
 const joinedState = (extra = {}) => ({
-  version: 1, memberKey: 'spk_secret', teamName: 'Acme', displayName: 'me', lastSyncAt: null, ...extra,
+  version: 1, memberKey: 'spk_secret', teamName: 'Acme', displayName: 'me', lastSyncAt: null, deviceInfo: deviceInfo(), ...extra,
 });
 
 test('aggregateDaily buckets by local day, sums savings, counts runs, shares families, adds session spend', async (t) => {
@@ -184,18 +184,19 @@ test('autoJoin joins once from the env token and never after leaving', async (t)
   const f = fakeFetch({ team_join: JOINED });
   const env = { SPRAG_TEAM_TOKEN: TOKEN };
   const st = await autoJoin({ env, fetch: f, dir, version: '1.0.0' });
-  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls.length, 2);
   assert.equal(f.calls[0].body.auto_joined, true);
   assert.equal(st.memberKey, 'spk_secret');
   assert.equal(st.autoJoinNoticePending, true);
+  assert.deepEqual(f.calls.map((c) => c.fn), ['team_join', 'member_set_info']);
   assert.equal(await autoJoin({ env, fetch: f, dir }), null);
-  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls.length, 2);
 
   const dir2 = join(dir, 'other');
   mkdirSync(dir2);
   saveTeamState({ version: 1, left: true }, dir2);
   assert.equal(await autoJoin({ env, fetch: f, dir: dir2 }), null);
-  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls.length, 2);
   assert.equal(await autoJoin({ env: { SPRAG_TEAM_TOKEN: 'bad' }, fetch: f, dir: join(dir, 'x') }), null);
 });
 
@@ -238,4 +239,66 @@ test('team.json is written with mode 0600', { skip: process.platform === 'win32'
 test('rpc throws with the server message on a 400', async () => {
   const f = fakeFetch({ team_join: { status: 400, json: { message: 'invalid invite', code: 'P0001' } } });
   await assert.rejects(() => rpc('team_join', {}, { fetch: f }), /team_join: invalid invite/);
+});
+
+test('deviceInfo maps macOS, Windows and Linux without any machine name', () => {
+  const mac = deviceInfo({ platform: 'darwin', arch: 'arm64', release: '25.1.0', exec: () => '26.1\n' });
+  assert.deepEqual(mac, { os: 'macOS', os_version: '26.1', arch: 'arm64' });
+  const macFallback = deviceInfo({ platform: 'darwin', arch: 'x64', release: '24.6.0', exec: () => { throw new Error('no sw_vers'); } });
+  assert.deepEqual(macFallback, { os: 'macOS', os_version: '15', arch: 'x64' });
+  assert.equal(deviceInfo({ platform: 'win32', arch: 'x64', release: '10.0.22631' }).os_version, '11');
+  assert.equal(deviceInfo({ platform: 'win32', arch: 'x64', release: '10.0.19045' }).os_version, '10');
+  const lin = deviceInfo({ platform: 'linux', arch: 'x64', release: '6.8.0', readText: () => 'NAME="Ubuntu"\nPRETTY_NAME="Ubuntu 24.04.1 LTS"\nVERSION_ID="24.04"\n' });
+  assert.deepEqual(lin, { os: 'Ubuntu', os_version: '24.04', arch: 'x64' });
+  const linFallback = deviceInfo({ platform: 'linux', arch: 'arm64', release: '6.8.0', readText: () => { throw new Error('ENOENT'); } });
+  assert.deepEqual(linFallback, { os: 'Linux', os_version: '6.8.0', arch: 'arm64' });
+});
+
+test('deviceInfo (live) has the three keys and never contains the hostname or username', () => {
+  const info = deviceInfo();
+  assert.deepEqual(Object.keys(info).sort(), ['arch', 'os', 'os_version']);
+  const blob = JSON.stringify(info).toLowerCase();
+  for (const secret of [hostname(), userInfo().username]) {
+    if (secret && secret.length >= 4) assert.ok(!blob.includes(secret.toLowerCase()), 'leaked ' + secret);
+  }
+});
+
+test('device info is sent once after join, not resent when unchanged, resent when changed, skipped while paused', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({ team_join: JOINED, member_set_info: null, ledger_upsert: 0, team_rules_get: { rules: [], removed: [] } });
+  const st = await joinTeam({ token: TOKEN, displayName: 'me', fetch: f, dir, env: {} });
+  assert.deepEqual(f.calls.map((c) => c.fn), ['team_join', 'member_set_info']);
+  assert.equal(f.calls[1].body.member_key, 'spk_secret');
+  assert.deepEqual(Object.keys(f.calls[1].body).sort(), ['arch', 'member_key', 'os', 'os_version']);
+  assert.deepEqual(st.deviceInfo, deviceInfo());
+  assert.deepEqual(loadTeamState(dir).deviceInfo, deviceInfo());
+
+  await syncTeam({ dir, fetch: f, env: {}, force: true, sessions: [] });
+  assert.deepEqual(f.calls.slice(2).map((c) => c.fn), ['ledger_upsert', 'team_rules_get'], 'unchanged info is not resent');
+
+  saveTeamState({ ...loadTeamState(dir), deviceInfo: { os: 'macOS', os_version: '0', arch: 'old' } }, dir);
+  await syncTeam({ dir, fetch: f, env: {}, force: true, sessions: [] });
+  assert.deepEqual(f.calls.slice(4).map((c) => c.fn), ['member_set_info', 'ledger_upsert', 'team_rules_get']);
+  assert.deepEqual(loadTeamState(dir).deviceInfo, deviceInfo());
+
+  // paused: no info call, neither at join nor in sync
+  const dir2 = join(dir, 'paused');
+  mkdirSync(dir2);
+  const g = fakeFetch({ team_join: JOINED, member_set_sync: {} });
+  const st2 = await joinTeam({ token: TOKEN, displayName: 'me', fetch: g, dir: dir2, env: { SPRAG_NO_TEAM_SYNC: '1' } });
+  assert.equal(st2.deviceInfo, undefined);
+  saveTeamState({ ...loadTeamState(dir2), deviceInfo: undefined }, dir2);
+  await syncTeam({ dir: dir2, fetch: g, env: { SPRAG_NO_TEAM_SYNC: '1' } });
+  assert.deepEqual(g.calls.map((c) => c.fn), ['team_join', 'member_set_sync']);
+});
+
+test('a failed device info report is soft: join succeeds and the next sync retries', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({ team_join: JOINED, member_set_info: { status: 404, json: { message: 'no such function' } },
+    ledger_upsert: 0, team_rules_get: { rules: [], removed: [] } });
+  const st = await joinTeam({ token: TOKEN, displayName: 'me', fetch: f, dir, env: {} });
+  assert.equal(st.memberKey, 'spk_secret');
+  assert.equal(loadTeamState(dir).deviceInfo, undefined);
+  await syncTeam({ dir, fetch: f, env: {}, force: true, sessions: [] });
+  assert.equal(f.calls.filter((c) => c.fn === 'member_set_info').length, 2);
 });

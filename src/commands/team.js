@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { userInfo } from 'node:os';
 import { userLanguage } from '../config.js';
 import {
-  loadTeamState, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
+  loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
   teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError,
 } from '../team-sync.js';
 
@@ -247,7 +247,10 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         out(`${m.name}: ${st.displayName}`);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(`${m.lastError}: ${st.lastError}`);
-        if (hasFlag('--show-payload')) out(JSON.stringify(await aggregateDaily(), null, 2));
+        if (hasFlag('--show-payload')) {
+          out(`device: ${JSON.stringify(st.deviceInfo || deviceInfo())}`);
+          out(JSON.stringify(await aggregateDaily(), null, 2));
+        }
         return undefined;
       }
       case 'sync': {
