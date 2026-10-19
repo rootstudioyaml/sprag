@@ -24,8 +24,12 @@ site/statusline.png
 # graphify knowledge graph (regenerable, local)
 graphify-out/
 
-# Local video working directory (not part of the shipped artifact)
-/video/
+# Local video working directory (not part of the shipped artifact), except the product tour sources
+/video/*
+!/video/tour/
+/video/tour/clips/
+/video/tour/out/
+/video/tour/recorder/node_modules/
 
 # A tool outside sprag writes `:memory:.ses` (timestamp + session id) into the
 # working directory of some Codex sessions; it is not a project file.

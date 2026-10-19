@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sprag tour</title>
+<meta name="description" content="A 90-second walk through the Sprag team dashboards." />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#0a0a0c" />
+<link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="../assets/logo/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
+<!-- Hidden page: not linked from any nav and not in sitemap.xml. The video files come from video/tour/build.sh. -->
+<style>
+  :root{
+    --bg:#0a0a0c; --surface:#0f0f12; --surface2:#141418; --hover:rgba(255,255,255,.035);
+    --line:#1f2024; --line2:#2c2d34; --line3:#3a3b44;
+    --ink:#ececef; --dim:#9b9da6; --faint:#686a74;
+    --accent:#5e6ad2; --accent2:#8a94f2; --accent-bg:rgba(94,106,210,.14); --ok:#3fd48f;
+    --sans:"Geist","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"Geist Mono","JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r:6px; --rl:10px; --ease:cubic-bezier(.23,1,.32,1); --bar-h:52px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg)}
+  h1,h2,h3{text-wrap:balance}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  html[lang=ko] body{word-break:keep-all;line-height:1.65}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+  :focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:4px}
+  ::selection{background:rgba(94,106,210,.4)}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(10,10,12,.88);backdrop-filter:blur(14px)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;min-height:var(--bar-h)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .brand svg{width:20px;height:20px;display:block}
+  header nav{display:flex;align-items:center;gap:2px;font-size:13px;font-weight:500;color:var(--dim)}
+  .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px;margin-left:12px}
+  .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+  .lang button:hover{color:var(--dim)}
+  .lang button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent2)}
+  @media(hover:none) and (pointer:coarse){.lang button{padding:8px 10px}}
+
+  main{padding:56px 0 72px}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 32px;flex-wrap:wrap;margin-bottom:24px}
+  h1{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1.15}
+  .sub{color:var(--dim);font-size:15px;margin-top:8px;max-width:56ch}
+  .site{font:500 13px/1 var(--mono);color:var(--accent2);border:1px solid var(--line2);border-radius:var(--r);padding:9px 12px;white-space:nowrap}
+  .site:hover{border-color:var(--line3);color:var(--ink)}
+  .player{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--rl);overflow:hidden;border:1px solid var(--line);background:#000;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  .player video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
+
+  footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
+  footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  footer a:hover{color:var(--ink)}
+  @media(max-width:520px){.wrap{padding:0 16px}main{padding:32px 0 48px}h1{font-size:26px}.sub{font-size:14px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
+        <g fill="#5e6ad2">
+          <rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/>
+          <g transform="rotate(120 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+          <g transform="rotate(240 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+        </g>
+        <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4"/>
+      </svg>
+      Sprag
+    </a>
+    <nav>
+      <span class="lang" role="group" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="ko" aria-pressed="false">KO</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1 data-k="t.h">Sprag tour</h1>
+      <p class="sub" data-k="t.sub">A 90-second walk through the Sprag team dashboards, from the whole town down to one person's card.</p>
+    </div>
+    <a class="site" href="https://sprag.io/">sprag.io</a>
+  </div>
+  <div class="player">
+    <video id="tour" controls playsinline preload="metadata" poster="poster-en.jpg" src="sprag-tour-en.mp4"></video>
+  </div>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Apache-2.0 © YAML Studio</span>
+    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+const KO = { 't.h': 'Sprag 둘러보기', 't.sub': '타운 전체에서 한 사람의 카드까지, Sprag 팀 대시보드를 90초 동안 둘러봅니다.' };
+const EN = { 't.h': 'Sprag tour', 't.sub': document.querySelector('[data-k="t.sub"]').textContent };
+const META = {
+  en: { title: 'Sprag tour', desc: document.querySelector('meta[name=description]').content },
+  ko: { title: 'Sprag 둘러보기', desc: 'Sprag 팀 대시보드를 90초 동안 둘러보는 영상입니다.' }
+};
+let lang = 'en';
+/* the video follows the page language: swap src and poster, keep the playback position and play state */
+function syncVideo(){
+  const v = document.getElementById('tour'), src = 'sprag-tour-' + lang + '.mp4';
+  if(v.getAttribute('src') === src) return;
+  const at = v.currentTime || 0, playing = !v.paused && !v.ended;
+  v.poster = 'poster-' + lang + '.jpg'; v.setAttribute('src', src); v.load();
+  if(at > 0) v.addEventListener('loadedmetadata', () => { v.currentTime = Math.min(at, v.duration || at); if(playing) v.play().catch(() => {}); }, { once: true });
+}
+function setLang(next, remember){
+  lang = next === 'ko' ? 'ko' : 'en';
+  document.documentElement.lang = lang;
+  document.title = META[lang].title;
+  document.querySelector('meta[name=description]').content = META[lang].desc;
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  if(remember){ try{ localStorage.setItem('sprag.lang', lang); }catch(e){} }
+  const dict = lang === 'ko' ? KO : EN;
+  document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.textContent = v; });
+  syncVideo();
+}
+(function(){
+  const q = new URLSearchParams(location.search).get('lang');
+  let stored = null; try{ stored = localStorage.getItem('sprag.lang'); }catch(e){}
+  const nav = (navigator.languages || [navigator.language || 'en']).join(',');
+  setLang(q || stored || (/\bko\b|ko-/i.test(nav) ? 'ko' : 'en'), false);
+})();
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+</script>
+</body>
+</html>
