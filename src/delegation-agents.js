@@ -12,16 +12,23 @@
  * that marker are ever overwritten or deleted; a same-named user file is left.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { claudeUserDir } from './paths.js';
 import { loadConfig } from './config.js';
+import { agentDefinitions } from './presets-source.js';
 
 export const OWNER_MARK = 'sprag:delegation-agent';
 const MARK_LINE = `# managed by sprag (${OWNER_MARK}); edits are overwritten`;
 
+// The definitions come from presets-source.js: the centrally published bundle
+// when it verifies, else presets/agents.json. Both have one shape:
+//   { name, model, effort, tools: [..], description: { ko, en }, body: { ko, en } }
+//
 // Models are aliases on purpose: behind a gateway they resolve through
-// ANTHROPIC_DEFAULT_*_MODEL, and a full model id would bypass that mapping.
+// ANTHROPIC_DEFAULT_*_MODEL, and a full model id would bypass that mapping. The
+// exception is opus-worker, which names the full id: Claude Code resolves a bare
+// alias to an older model than the one the tier means.
 //
 // Effort is a separate axis from the tier and is set by how the work gets
 // verified, not by how hard it is. Where the check is command output or a file
@@ -30,68 +37,25 @@ const MARK_LINE = `# managed by sprag (${OWNER_MARK}); edits are overwritten`;
 // caller already fixed, against tests, so it takes the default for well-specified
 // work, medium; the opus worker takes the larger, harder share of that work at high. The main session's effort is never touched here, and
 // CLAUDE_CODE_EFFORT_LEVEL must stay unset: it overrides every agent's own value.
-export const DEFINITIONS = [
-  {
-    name: 'haiku-explore',
-    model: 'haiku',
-    effort: 'low',
-    tools: 'Read, Grep, Glob, Bash',
-    role: 'Your role: read-only exploration, lookups, status checks, and questions about pasted logs or text.',
-    description: 'Cheap read-only exploration, lookup, status checks and summaries for delegated tasks. It has no MCP tools.',
-  },
-  {
-    name: 'haiku-runner',
-    model: 'haiku',
-    effort: 'low',
-    tools: 'Bash, Read, Grep, Glob',
-    role: 'Your role: run the build, test, or git commands you are given and report the result.',
-    description: 'Cheap runner for build, test and git commands in delegated tasks. It has no MCP tools.',
-  },
-  {
-    name: 'haiku-translate',
-    model: 'haiku',
-    effort: 'low',
-    tools: 'Read, Grep, Glob, Edit, Write',
-    role: 'Your role: batch translation and mechanical text conversion of the files or text you are given.',
-    description: 'Cheap batch translation and structured text conversion for delegated tasks. It has no MCP tools.',
-  },
-  {
-    name: 'sonnet-worker',
-    model: 'sonnet',
-    effort: 'medium',
-    tools: 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
-    role: 'Your role: multi-step work and the implementation half of a design the caller already fixed.',
-    description: 'Mid-tier worker for multi-step tasks and implementation handed over with a fixed design. It has no MCP tools.',
-  },
-  {
-    // The full model id, not the `opus` alias: Claude Code resolves a bare
-    // alias to an older model than the one the tier means (haiku was observed
-    // resolving to Haiku 4.5). A host that remaps ANTHROPIC_DEFAULT_OPUS_MODEL
-    // is better served by the rule's `model: opus` fallback phrase.
-    name: 'opus-worker',
-    model: 'claude-opus-5-5',
-    effort: 'high',
-    tools: 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
-    role: 'Your role: large implementation and debugging work whose design the caller already fixed. Hand design judgement and irreversible actions back to the caller.',
-    description: 'Heavy worker for Fable sessions: large implementation, debugging and refactoring handed over with a fixed design. It has no MCP tools.',
-  },
-];
+//
+// The files are rendered from the English copy. They are prompts the model
+// reads, and the Korean copy is what the /ops console shows beside it.
+export function definitions() {
+  return agentDefinitions();
+}
 
 function render(def) {
+  const body = String((def.body && def.body.en) || '').replace(/\s+$/, '');
   return [
     '---',
     `name: ${def.name}`,
-    `description: ${def.description}`,
-    `tools: ${def.tools}`,
+    `description: ${(def.description && def.description.en) || ''}`,
+    `tools: ${(Array.isArray(def.tools) ? def.tools : [def.tools]).join(', ')}`,
     `model: ${def.model}`,
     `effort: ${def.effort}`,
     MARK_LINE,
     '---',
-    def.role,
-    'Do only the delegated task, and stay within the caps (tool calls, output tokens) the caller wrote in the prompt.',
-    "Report concisely, in the language of the caller's prompt.",
-    'If you need an MCP tool or any tool not on your list, stop at once and report one line: "needs general-purpose: <tools needed>". The parent will delegate again.',
-    'Do not guess at anything you could not verify; say that you could not verify it.',
+    body,
     '',
   ].join('\n');
 }
@@ -110,13 +74,27 @@ function readOwned(path) {
   try { return { text: readFileSync(path, 'utf8') }; } catch { return null; }
 }
 
+/** Names of the files in the agents dir that carry our marker. */
+function ownedNames() {
+  let entries = [];
+  try { entries = readdirSync(agentsDir()); } catch { return []; }
+  const out = [];
+  for (const e of entries) {
+    if (!e.endsWith('.md')) continue;
+    const f = readOwned(join(agentsDir(), e));
+    if (f && isOwned(f.text)) out.push(e.slice(0, -3));
+  }
+  return out;
+}
+
 export function removeDelegationAgents() {
   const removed = [];
-  for (const def of DEFINITIONS) {
-    const p = fileOf(def.name);
+  const names = new Set([...definitions().map((d) => d.name), ...ownedNames()]);
+  for (const name of names) {
+    const p = fileOf(name);
     try {
       const f = readOwned(p);
-      if (f && isOwned(f.text)) { unlinkSync(p); removed.push(def.name); }
+      if (f && isOwned(f.text)) { unlinkSync(p); removed.push(name); }
     } catch { /* one file failing does not stop the rest */ }
   }
   return { written: [], unchanged: [], skipped: [], removed };
@@ -128,7 +106,8 @@ export function syncDelegationAgents({ agent = 'claude' } = {}) {
   try {
     if (loadConfig().delegationAgents === false) return removeDelegationAgents();
   } catch { /* an unreadable config means the default, on */ }
-  for (const def of DEFINITIONS) {
+  const defs = definitions();
+  for (const def of defs) {
     try {
       const p = fileOf(def.name);
       const want = render(def);
@@ -143,13 +122,22 @@ export function syncDelegationAgents({ agent = 'claude' } = {}) {
       res.skipped.push({ name: def.name, reason: `error: ${e.message}` });
     }
   }
+  // An agent the published presets dropped or renamed: its old file is ours
+  // (the marker says so) and nothing names it any more.
+  if (defs.length > 0) {
+    const keep = new Set(defs.map((d) => d.name));
+    for (const name of ownedNames()) {
+      if (keep.has(name)) continue;
+      try { unlinkSync(fileOf(name)); res.removed.push(name); } catch { /* left for the next sync */ }
+    }
+  }
   return res;
 }
 
 export function delegationAgentStatus() {
   let enabled = true;
   try { enabled = loadConfig().delegationAgents !== false; } catch { /* default on */ }
-  const agents = DEFINITIONS.map((def) => {
+  const agents = definitions().map((def) => {
     const f = existsSync(fileOf(def.name)) ? readOwned(fileOf(def.name)) : null;
     const state = !f ? 'absent' : isOwned(f.text) ? 'installed-by-sprag' : 'user-file';
     return { name: def.name, state };

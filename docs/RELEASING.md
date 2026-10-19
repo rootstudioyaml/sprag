@@ -31,6 +31,10 @@ before publishing anything if the draft is missing or still carries its REVIEW
 line, if the branch is not `main`, or if the working tree is dirty. Steps 1 and 2
 — writing the changelog entry and filling both halves of the draft — stay a
 person's work.
+So does step 2b, `npm run presets:pull`: it copies the presets published from
+the /ops console into `presets/`, the fallback every CLI uses until a signed
+bundle verifies, and has to be committed before the deploy, which refuses a dirty
+tree.
 
 A version already on npm is treated as the "released without notes" case: the
 tag and the package are correct, so it publishes the notes and stops. That makes
@@ -54,6 +58,11 @@ $EDITOR CHANGELOG.md                    # add "### vX.Y.Z (YYYY-MM-DD)"
 node scripts/release-notes.mjs X.Y.Z    # writes docs/releases/vX.Y.Z.md
                                         # and prints the three lines users will see
 $EDITOR docs/releases/vX.Y.Z.md         # fill the English half; delete the REVIEW line
+
+# ── 2b. Pull the published presets into the package fallback. ─────────
+npm run presets:pull -- --dry-run       # what would change in presets/*.json
+npm run presets:pull                    # write them; commit with the changelog
+                                        # refuses a bundle the CLI would not apply
 
 # ── 3. Verify. This is the gate for everything above. ──────────────────
 npm test                                # fails if the draft is missing or unreviewed

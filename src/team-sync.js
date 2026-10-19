@@ -125,6 +125,29 @@ export function ledgerWindow(state, now = Date.now()) {
   return { startKey, days };
 }
 
+/**
+ * The preset bundle version this machine runs (0 for the bundled presets), so
+ * the /ops console can show how far a published version has rolled out. A
+ * server without the preset_version argument (before 20261018001400_presets)
+ * answers "Could not find the function"; the upload is then repeated without it.
+ */
+async function ledgerUpsert({ memberKey, rows, version, dir, fetch }) {
+  const params = { member_key: memberKey, rows, sprag_version: version || '' };
+  let presetVersion = null;
+  try {
+    const { presetSource } = await import('./presets-source.js');
+    const s = presetSource({ dir });
+    presetVersion = s.kind === 'remote' ? s.version : 0;
+  } catch (e) { debug('team-sync:preset-version', e); }
+  if (presetVersion == null) return rpc('ledger_upsert', params, { fetch });
+  try {
+    return await rpc('ledger_upsert', { ...params, preset_version: presetVersion }, { fetch });
+  } catch (e) {
+    if (!/preset_version|Could not find the function|PGRST202/i.test(String(e && e.message))) throw e;
+    return rpc('ledger_upsert', params, { fetch });
+  }
+}
+
 export async function rpc(fn, params, {
   fetch = globalThis.fetch, timeoutMs = 8000, url = teamApiUrl(), key = teamAnonKey(),
 } = {}) {
@@ -522,7 +545,7 @@ export async function syncTeam({
     const win = ledgerWindow(state, now);
     const rows = (await aggregateDaily({ now, dir, sessions, days: win.days }))
       .filter((r) => r.day >= win.startKey).slice(-MAX_ROWS);
-    await rpc('ledger_upsert', { member_key: state.memberKey, rows, sprag_version: version || '' }, { fetch });
+    await ledgerUpsert({ memberKey: state.memberKey, rows, version, dir, fetch });
     const { r, rules } = await pullRules({ memberKey: state.memberKey, dir, fetch, now });
     const next = withRulesMeta({ ...state, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, r, now);
     delete next.syncFailures;

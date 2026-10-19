@@ -441,6 +441,46 @@
   .stat b{white-space:normal;overflow-wrap:anywhere}
   @media (min-width:641px) and (max-width:1240px){#d-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}
   .stat span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+  /* ── presets (#presets) ─────────────────────────────────────────────── */
+  @media(min-width:1000px){.kcards.k6{grid-template-columns:repeat(6,minmax(0,1fr))}}
+  #pr-sum .kv b{overflow-wrap:anywhere;white-space:normal}
+  #pr-sum [data-kid=sig] .kv b{font:600 15px/1.4 var(--mono);letter-spacing:0}
+  .pr-steps{list-style:none;display:grid;gap:var(--s2);margin-top:var(--s3)}
+  .pr-steps li{display:flex;align-items:flex-start;gap:var(--s3);padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface2);font-size:13px}
+  .pr-steps li > span:nth-child(2){flex:1;min-width:0;overflow-wrap:anywhere}
+  .pr-steps .pr-ck{width:18px;height:18px;border-radius:50%;border:1px solid var(--line3);display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:var(--ok);flex:0 0 auto;margin-top:1px}
+  .pr-steps li.done .pr-ck{border-color:var(--ok)}
+  .pr-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--s3);margin-top:var(--s3)}
+  .pr-kv dt{font-size:12px;color:var(--faint)}
+  .pr-kv dd{font-size:13px;overflow-wrap:anywhere;margin-top:2px}
+  .pr-pre{margin-top:var(--s2);padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);font:12px/1.5 var(--mono);color:var(--dim);white-space:pre-wrap;word-break:break-all;max-width:100%}
+  .pr-acts{margin-top:var(--s3)}
+  .pr-file{cursor:pointer}
+  .pr-dh{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;margin-top:var(--s2)}
+  .pr-meta{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:var(--s3);margin-top:var(--s3)}
+  .pr-meta input{width:100%}
+  .pr-sec{margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--line);min-width:0}
+  .pr-sec h3{font-size:14px;font-weight:600}
+  .pr-form h4{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+  .pr-tbl table{min-width:720px}
+  .pr-htbl table{min-width:900px}
+  .pr-tbl td.tx,.pr-htbl td.tx{max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pr-tbl td.nw,.pr-htbl td.nw{white-space:nowrap}
+  .pr-tbl td.mono{font-family:var(--mono);font-size:12px}
+  .pr-ra{display:inline-flex;gap:4px}
+  .dimt{color:var(--faint)}
+  .pr-form{margin-top:var(--s3);padding:var(--s4);border:1px solid var(--line2);border-radius:var(--r);background:var(--surface2);min-width:0}
+  .pr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3);margin-top:var(--s3)}
+  .pr-grid .w{grid-column:1/-1}
+  .pr-grid input,.pr-grid select{width:100%}
+  .pr-grid input[readonly]{color:var(--dim);font-family:var(--mono)}
+  .pr-chips{border:0;display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;min-width:0}
+  .pr-chips legend{font-size:12.5px;color:var(--dim);margin-bottom:6px}
+  .pr-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line2);border-radius:999px;font-size:12.5px;color:var(--ink);cursor:pointer}
+  .pr-chip:has(input:checked){border-color:rgba(94,106,210,.6);background:var(--accent-bg)}
+  .pr-chips .note{margin-top:0;flex-basis:100%}
+  .pr-foot{padding-top:var(--s4);border-top:1px solid var(--line);margin-top:var(--s5)}
+  @media(max-width:600px){.pr-meta,.pr-grid{grid-template-columns:minmax(0,1fr)}.pr-tbl td.tx,.pr-htbl td.tx{max-width:200px}}
 </style>
 </head>
 <body>
@@ -458,7 +498,7 @@
       </svg>
       <span class="bn">Sprag</span>
     </a>
-    <nav class="topnav" id="topnav" hidden aria-label="Sections"><a href="#orgs" id="nav-orgs" aria-current="page" data-k="orgs.h">Organizations</a></nav>
+    <nav class="topnav" id="topnav" hidden aria-label="Sections"><a href="#orgs" id="nav-orgs" aria-current="page" data-k="orgs.h">Organizations</a><a href="#presets" id="nav-presets" data-k="pr.h">Presets</a></nav>
     <div class="hbar-r">
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
@@ -658,6 +698,19 @@
           </section>
         </div>
       </div>
+
+      <div id="view-presets" class="stack" hidden>
+        <section class="dhead" aria-labelledby="pr-h">
+          <div class="dtitle"><h2 id="pr-h" data-k="pr.h">Presets</h2></div>
+          <p class="sub" data-k="pr.lead"></p>
+          <p class="ok" id="pr-flash" role="status"></p><p class="err" id="pr-flash-err" role="alert"></p>
+        </section>
+        <section class="kpis" id="pr-sum-box" aria-labelledby="pr-h"><div class="kcards" id="pr-sum"></div></section>
+        <section class="card" id="pr-first" hidden></section>
+        <section class="card" id="pr-draft-card" aria-labelledby="pr-draft-h"><div class="sec-h"><h2 id="pr-draft-h" data-k="pr.d.h">Draft</h2></div><div id="pr-draft"></div></section>
+        <section class="card" id="pr-key-card" aria-labelledby="pr-key-h"><div class="sec-h"><h2 id="pr-key-h" data-k="pr.k.h">Signing key</h2></div><div id="pr-key"></div></section>
+        <section class="card flush" id="pr-hist-card" aria-labelledby="pr-hist-h" style="min-width:0"><div class="sec-h"><h2 id="pr-hist-h" data-k="pr.h.h">History</h2></div><div id="pr-hist"></div></section>
+      </div>
     </div>
   </div>
 </main>
@@ -671,6 +724,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="../assets/admin-ux.js"></script>
+<script src="../assets/preset-sign.js"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -691,6 +745,9 @@ if(LOCAL_API){
 }
 
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
+/* video/tour recordings (demo only): ?rec=1 exposes the scene handles on window.__sprag, &norev=1 hides Sprag revenue in the town */
+const REC = DEMO && new URLSearchParams(location.search).get('rec') === '1', NOREV = REC && new URLSearchParams(location.search).get('norev') === '1';
+if(REC) window.__sprag = { town: null, office: null };
 
 /* ── locale ───────────────────────────────────────────────────────────── */
 const I18N = {
@@ -931,6 +988,9 @@ Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg
 Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
 Object.assign(I18N.en, {"ux.rail.sp":"Total spend and seats in use","ux.rail.seats":"avg {n} seats in use","ux.g.nav":"Pages","ux.g.sections":"Sections","ux.g.orgs":"Organizations","ux.noorgs":"No organizations yet","ux.town.err":"The town view could not be drawn","ux.scene.err":"The office view could not be drawn","ux.nomachines":"No machines have joined yet","sr.empty":"No machines have joined yet","ux.fail":"Could not load this section","ux.sec.totals":"Overview numbers"});
 Object.assign(I18N.ko, {"ux.rail.sp":"전체 지출과 사용 중인 좌석","ux.rail.seats":"평균 사용 좌석 {n}개","ux.g.nav":"페이지","ux.g.sections":"구역","ux.g.orgs":"조직","ux.noorgs":"아직 등록된 조직이 없습니다","ux.town.err":"타운 화면을 그리지 못했습니다","ux.scene.err":"사무실 화면을 그리지 못했습니다","ux.nomachines":"아직 참여한 컴퓨터가 없습니다","sr.empty":"아직 참여한 컴퓨터가 없습니다","ux.fail":"이 영역을 불러오지 못했습니다","ux.sec.totals":"한눈에 보기 숫자"});
+/* presets view (#presets) */
+Object.assign(I18N.en, {"pr.h":"Presets","pr.lead":"Ratchet presets, model-routing presets and delegation agents that every Sprag CLI pulls once a day. A CLI applies a version only when its signature matches a key the CLI lists; otherwise it keeps the presets bundled with the package.","pr.loading":"Loading…","pr.s.h":"Published version","pr.s.ver":"Published version","pr.s.nopub":"Nothing published yet","pr.s.sig":"Signing key","pr.s.unsigned":"Unsigned","pr.s.unsignedSub":"CLIs keep the bundled presets","pr.s.mine":"Signed with this browser's key","pr.s.other":"Signed with another key","pr.s.rr":"Ratchet presets","pr.s.mr":"Routing presets","pr.s.ag":"Delegation agents","pr.s.ro":"Rollout","pr.s.roSub":"{n} PCs on the latest / {m} reporting","pr.s.roNone":"No PC has reported yet","pr.f.h":"First run","pr.f.lead":"CLIs ignore unsigned bundles and bundles signed with a key they do not list, so nothing reaches users until these three steps are done.","pr.f.1":"Create the signing key below and keep the backup file somewhere safe","pr.f.2":"Paste the public key into <code>PRESET_SIGNING_KEYS</code> in <code>src/preset-sign.js</code> and release the CLI","pr.f.3":"Make a draft and publish it as v{v}","pr.f.done":"Done","pr.f.todo":"To do","pr.k.h":"Signing key","pr.k.none":"This browser has no signing key. Create one, or import the backup file of an existing key.","pr.k.create":"Create key","pr.k.import":"Import backup","pr.k.fp":"Fingerprint (kid)","pr.k.created":"Created","pr.k.rel":"Published version","pr.k.relMine":"v{v} is signed with this key","pr.k.relOther":"v{v} is signed with another key ({kid})","pr.k.relNone":"The published version is unsigned","pr.k.backupNow":"Keep the backup file outside this browser. Clearing site data deletes the key, and without the backup no other browser can publish with it.","pr.k.paste":"Paste this line into <code>PRESET_SIGNING_KEYS</code> in <code>src/preset-sign.js</code>. It holds only the public key.","pr.k.copy":"Copy","pr.k.copied":"Copied","pr.k.backup":"Download backup","pr.k.replace":"Replace key","pr.k.replaceQ":"Replace the signing key in this browser? CLIs only accept versions signed with a key they list.","pr.k.imported":"Key imported","pr.d.h":"Draft","pr.d.none":"No draft. Start one from the published v{v}.","pr.d.nonePub":"No draft and nothing published yet.","pr.d.new":"New draft","pr.d.badge":"Draft v{v}","pr.d.dirty":"Unsaved changes","pr.d.notes":"Notes","pr.d.notesPh":"What changed in this version","pr.d.mincli":"Minimum CLI version","pr.d.save":"Save draft","pr.d.publish":"Sign and publish v{v}","pr.d.discard":"Discard draft","pr.d.saved":"Draft saved","pr.d.published":"Published v{v}. CLIs pick it up within a day.","pr.d.signNote":"Publishing signs the saved draft with key {kid} in this browser.","pr.d.noKeyNote":"Create or import the signing key before publishing.","pr.d.noKey":"No signing key in this browser","pr.d.publishQ":"Publish v{v} signed with {kid}? Every CLI that lists this key applies it within a day.","pr.d.discardQ":"Discard draft v{v}?","pr.e.h.ratchet":"Ratchet presets","pr.e.h.model":"Model routing presets","pr.e.h.agent":"Delegation agents","pr.e.lead.ratchet":"Offered one at a time by sprag seed. Editing the text keeps the id, so machines that accepted a preset get the new wording.","pr.e.lead.model":"Tier delegation rules offered at session start. The id is the category and the tier.","pr.e.lead.agent":"Written to ~/.claude/agents at session start. The English body is the prompt the model reads.","pr.e.add":"Add row","pr.e.edit":"Edit","pr.e.dup":"Duplicate","pr.e.rm":"Remove","pr.e.rmQ":"Remove {k} from the draft?","pr.e.new":"new","pr.e.noid":"(no id yet)","pr.e.allAgents":"all","pr.e.empty":"No rows","pr.e.close":"Done","pr.e.editing":"Editing {k}","pr.e.idAuto":"Set from the Korean text","pr.e.agentsHint":"Leave both off to apply it to every agent","pr.e.idNew":"A new preset gets the same id the CLI derives: fix- and the first 6 hex digits of the sha1 of the Korean text.","pr.e.idKeep":"The id stays the same when you edit the text.","pr.e.midNew":"A new preset gets the id category-tier.","pr.e.none":"none","pr.e.bodyHint":"The agent file is written from the English description and body. The Korean copy is for reading here.","pr.c.id":"ID","pr.c.ko":"Korean","pr.c.en":"English","pr.c.agents":"Agents","pr.c.tier":"Tier","pr.c.label":"Label","pr.c.agent":"Delegate to","pr.c.budget":"Caps","pr.c.category":"Category","pr.c.labelKo":"Label (Korean)","pr.c.labelEn":"Label (English)","pr.c.exKo":"Example (Korean)","pr.c.exEn":"Example (English)","pr.c.calls":"Tool call cap","pr.c.out":"Output token cap","pr.c.name":"Name","pr.c.model":"Model","pr.c.effort":"Effort","pr.c.tools":"Tools","pr.c.toolsIn":"Tools (comma separated)","pr.c.desc":"Description","pr.c.descKo":"Description (Korean)","pr.c.descEn":"Description (English, one line)","pr.c.bodyKo":"Body (Korean)","pr.c.bodyEn":"Body (English)","pr.c.version":"Version","pr.c.status":"Status","pr.c.notes":"Notes","pr.c.sig":"Signature","pr.c.counts":"Contents","pr.c.by":"By","pr.c.at":"Date","pr.b.calls":"{n} calls","pr.b.out":"{n} tokens","pr.v.ratchet":"needs an id, Korean and English text","pr.v.model":"needs id, tier, category, both labels and an agent","pr.v.agent":"needs a lowercase name, model, effort and tools","pr.v.agentText":"needs a one-line English description and an English body","pr.v.dupId":"duplicate id","pr.v.dupName":"duplicate name","pr.v.mincli":"Minimum CLI version must look like 3.71.0","pr.v.size":"The bundle is larger than 200 KB","pr.v.more":"and {n} more","pr.h.h":"History","pr.h.empty":"No versions yet","pr.h.revert":"Restore this version","pr.h.revertQ":"Make a new draft with this version's content? Publishing it rolls the presets back.","pr.h.hasDraft":"A draft already exists. Publish or discard it first.","pr.h.open":"Open draft","pr.h.notYet":"not signed yet","pr.h.seed":"package seed","pr.h.counts":"ratchet {a} · routing {b} · agents {c}","pr.st.published":"Published","pr.st.archived":"Archived","pr.st.draft":"Draft"});
+Object.assign(I18N.ko, {"pr.h":"프리셋","pr.lead":"모든 Sprag CLI가 하루에 한 번 받아 가는 래칫 프리셋, 모델 라우팅 프리셋, 위임 에이전트입니다. CLI는 서명이 자기 키 목록과 맞을 때만 새 버전을 적용하고, 맞지 않으면 패키지에 들어 있는 프리셋을 계속 씁니다.","pr.loading":"불러오는 중","pr.s.h":"게시 버전","pr.s.ver":"게시 버전","pr.s.nopub":"아직 게시한 버전이 없습니다","pr.s.sig":"서명 키","pr.s.unsigned":"서명 없음","pr.s.unsignedSub":"CLI는 동봉 프리셋을 씁니다","pr.s.mine":"이 브라우저의 키로 서명","pr.s.other":"다른 키로 서명","pr.s.rr":"래칫 프리셋","pr.s.mr":"모델 라우팅 프리셋","pr.s.ag":"위임 에이전트","pr.s.ro":"롤아웃","pr.s.roSub":"최신 프리셋 PC {n} / 보고된 PC {m}","pr.s.roNone":"아직 보고한 PC가 없습니다","pr.f.h":"처음 한 번 할 일","pr.f.lead":"CLI는 서명이 없거나 모르는 키로 서명된 버전을 무시합니다. 아래 세 단계를 마쳐야 사용자에게 전달됩니다.","pr.f.1":"아래에서 서명 키를 만들고 백업 파일을 안전한 곳에 보관합니다","pr.f.2":"공개 키를 <code>src/preset-sign.js</code>의 <code>PRESET_SIGNING_KEYS</code>에 붙여 넣고 CLI를 릴리스합니다","pr.f.3":"초안을 만들어 v{v}로 게시합니다","pr.f.done":"완료","pr.f.todo":"할 일","pr.k.h":"서명 키","pr.k.none":"이 브라우저에는 서명 키가 없습니다. 새로 만들거나 기존 키의 백업 파일을 가져오십시오.","pr.k.create":"키 만들기","pr.k.import":"백업에서 가져오기","pr.k.fp":"지문 (kid)","pr.k.created":"만든 날","pr.k.rel":"게시 버전","pr.k.relMine":"v{v}는 이 키로 서명했습니다","pr.k.relOther":"v{v}는 다른 키({kid})로 서명했습니다","pr.k.relNone":"게시 버전에 서명이 없습니다","pr.k.backupNow":"백업 파일은 이 브라우저 밖에 보관하십시오. 사이트 데이터를 지우면 키도 사라지고, 백업이 없으면 다른 브라우저에서 이 키로 게시할 수 없습니다.","pr.k.paste":"이 줄을 <code>src/preset-sign.js</code>의 <code>PRESET_SIGNING_KEYS</code>에 붙여 넣으십시오. 공개 키만 들어 있습니다.","pr.k.copy":"복사","pr.k.copied":"복사했습니다","pr.k.backup":"백업 내려받기","pr.k.replace":"키 교체","pr.k.replaceQ":"이 브라우저의 서명 키를 바꿀까요? CLI는 자기 목록에 있는 키로 서명한 버전만 받습니다","pr.k.imported":"키를 가져왔습니다","pr.d.h":"초안","pr.d.none":"초안이 없습니다. 게시된 v{v}에서 새 초안을 만드십시오","pr.d.nonePub":"초안도 게시 버전도 아직 없습니다","pr.d.new":"새 초안","pr.d.badge":"초안 v{v}","pr.d.dirty":"저장 안 된 변경","pr.d.notes":"메모","pr.d.notesPh":"이 버전에서 바뀐 점","pr.d.mincli":"최소 CLI 버전","pr.d.save":"저장","pr.d.publish":"서명하고 v{v} 게시","pr.d.discard":"초안 삭제","pr.d.saved":"초안을 저장했습니다","pr.d.published":"v{v}를 게시했습니다. CLI는 하루 안에 받아 갑니다","pr.d.signNote":"게시하면 저장된 초안에 이 브라우저의 키 {kid}로 서명합니다","pr.d.noKeyNote":"게시하기 전에 서명 키를 만들거나 가져오십시오","pr.d.noKey":"이 브라우저에 서명 키가 없습니다","pr.d.publishQ":"v{v}를 키 {kid}로 서명해 게시할까요? 이 키를 아는 모든 CLI가 하루 안에 적용합니다","pr.d.discardQ":"초안 v{v}를 삭제할까요?","pr.e.h.ratchet":"래칫 프리셋","pr.e.h.model":"모델 라우팅 프리셋","pr.e.h.agent":"위임 에이전트","pr.e.lead.ratchet":"sprag seed가 하나씩 제안합니다. 문구를 고쳐도 id는 그대로라서, 이미 수락한 컴퓨터는 새 문구를 받습니다.","pr.e.lead.model":"세션을 시작할 때 제안하는 티어 위임 룰입니다. id는 카테고리와 티어를 이어 만듭니다.","pr.e.lead.agent":"세션을 시작할 때 ~/.claude/agents에 파일로 씁니다. 모델이 읽는 프롬프트는 영어 본문입니다.","pr.e.add":"행 추가","pr.e.edit":"편집","pr.e.dup":"복제","pr.e.rm":"삭제","pr.e.rmQ":"초안에서 {k}를 삭제할까요?","pr.e.new":"새 항목","pr.e.noid":"(id 없음)","pr.e.allAgents":"전체","pr.e.empty":"행이 없습니다","pr.e.close":"닫기","pr.e.editing":"{k} 편집","pr.e.idAuto":"한국어 문구로 정해집니다","pr.e.agentsHint":"둘 다 끄면 모든 에이전트에 적용됩니다","pr.e.idNew":"새 프리셋의 id는 CLI와 같은 규칙으로 만듭니다. 한국어 문구 sha1의 앞 6자리 앞에 fix-를 붙입니다.","pr.e.idKeep":"문구를 고쳐도 id는 바뀌지 않습니다","pr.e.midNew":"새 프리셋의 id는 카테고리-티어 형식입니다","pr.e.none":"없음","pr.e.bodyHint":"에이전트 파일은 영어 설명과 본문으로 씁니다. 한국어는 이 화면에서 읽기 위한 사본입니다.","pr.c.id":"ID","pr.c.ko":"한국어","pr.c.en":"영어","pr.c.agents":"에이전트","pr.c.tier":"티어","pr.c.label":"이름","pr.c.agent":"위임 대상","pr.c.budget":"상한","pr.c.category":"카테고리","pr.c.labelKo":"이름 (한국어)","pr.c.labelEn":"이름 (영어)","pr.c.exKo":"예시 (한국어)","pr.c.exEn":"예시 (영어)","pr.c.calls":"도구 호출 상한","pr.c.out":"출력 토큰 상한","pr.c.name":"이름","pr.c.model":"모델","pr.c.effort":"effort","pr.c.tools":"도구","pr.c.toolsIn":"도구 (쉼표로 구분)","pr.c.desc":"설명","pr.c.descKo":"설명 (한국어)","pr.c.descEn":"설명 (영어, 한 줄)","pr.c.bodyKo":"본문 (한국어)","pr.c.bodyEn":"본문 (영어)","pr.c.version":"버전","pr.c.status":"상태","pr.c.notes":"메모","pr.c.sig":"서명","pr.c.counts":"구성","pr.c.by":"만든 사람","pr.c.at":"날짜","pr.b.calls":"호출 {n}회","pr.b.out":"토큰 {n}","pr.v.ratchet":"id와 한국어, 영어 문구가 필요합니다","pr.v.model":"id, 티어, 카테고리, 두 이름, 위임 대상이 필요합니다","pr.v.agent":"소문자 이름, 모델, effort, 도구가 필요합니다","pr.v.agentText":"한 줄짜리 영어 설명과 영어 본문이 필요합니다","pr.v.dupId":"id가 겹칩니다","pr.v.dupName":"이름이 겹칩니다","pr.v.mincli":"최소 CLI 버전은 3.71.0 형식으로 적어야 합니다","pr.v.size":"번들이 200 KB를 넘습니다","pr.v.more":"외 {n}건","pr.h.h":"이력","pr.h.empty":"아직 버전이 없습니다","pr.h.revert":"이 버전으로 되돌리기","pr.h.revertQ":"이 버전의 내용으로 새 초안을 만들까요? 그 초안을 게시하면 프리셋이 되돌아갑니다","pr.h.hasDraft":"초안이 이미 있습니다. 먼저 게시하거나 삭제하십시오","pr.h.open":"초안 열기","pr.h.notYet":"서명 전","pr.h.seed":"패키지 기본값","pr.h.counts":"래칫 {a} · 라우팅 {b} · 에이전트 {c}","pr.st.published":"게시됨","pr.st.archived":"보관됨","pr.st.draft":"초안"});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -1129,7 +1189,7 @@ const demo = (function(){
 /* ── state ────────────────────────────────────────────────────────────── */
 let shown = '', sb = null, user = null, orgs = [], sel = null, sum = null, pendingEmail = '', attention = {paused:[], late:[]}, attTab = 'paused';
 async function rpc(name, args){
-  if(DEMO) return demo(name, args);
+  if(DEMO) return /^presets?_/.test(name) ? presetDemo(name, args) : demo(name, args);
   const { data, error } = await sb.rpc(name, args || {});
   if(error) throw error;
   return data;
@@ -1341,9 +1401,15 @@ function parseHash(){
 function go(h){ if(location.hash === h) route(); else location.hash = h; }
 async function route(){
   if(!user || $('ops').hidden) return;
-  const r = parseHash();
-  $('view-list').hidden = !!r; $('view-detail').hidden = !r;
+  const pv = isPresetsHash(), r = pv ? null : parseHash();
+  $('view-list').hidden = !!r || pv; $('view-detail').hidden = !r; $('view-presets').hidden = !pv; $('range-bar').hidden = pv;
+  [['nav-orgs', !pv], ['nav-presets', pv]].forEach(([id, on]) => on ? $(id).setAttribute('aria-current', 'page') : $(id).removeAttribute('aria-current'));
   TownHost.sync();
+  if(pv){
+    if(shown){ shown = ''; sel = null; sum = null; Seats.load(null); Prompts.reset(); }
+    await Presets.open();
+    return;
+  }
   if(!r){
     if(shown){ shown = ''; sel = null; sum = null; Seats.load(null); Prompts.reset(); }
     return;
@@ -1359,7 +1425,7 @@ document.querySelectorAll('#d-tabs .tab').forEach(b => b.addEventListener('click
 }));
 
 /* ── render ───────────────────────────────────────────────────────────── */
-function renderAll(){ Range.render(); renderTotals(); renderOrgs(); renderOverview(); renderRail(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); }
+function renderAll(){ Range.render(); renderTotals(); renderOrgs(); renderOverview(); renderRail(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); Presets.render(); }
 function renderAttention(){
   TownHost.sync();
   const rows = attention[attTab] || [], paused = attTab === 'paused';
@@ -2124,13 +2190,14 @@ const TownHost = (function(){
     const data = mod.townSceneData({ orgs, attention, rangeLabel: Range.label(), t, money, revenue: orgRevenue, rel });
     if(ctl){ ctl.update(data); return; }
     $('town-box').textContent = '';
-    ctl = mod.mountTownScene($('town-box'), data, { onOpenOrg: id => go('#org/' + encodeURIComponent(id)), onFail: () => { fail(); },
+    ctl = mod.mountTownScene($('town-box'), data, { showRevenue: !NOREV, onOpenOrg: id => go('#org/' + encodeURIComponent(id)), onFail: () => { fail(); },
       loadDetail: async id => {
         const [rows, summary] = await Promise.all([rpc('org_seats', { p_org_id: id }), rpc('org_summary', { p_org_id: id })]), usage = {};
         const tids = [...new Set([...((summary && summary.teams) || []).map(x => x.id), ...(rows || []).map(r => r.team_id)])].filter(Boolean);
         await Promise.all(tids.map(async tid => { try{ const d = await teamUsage(tid, Range.args()); ((d && d.members) || []).forEach(u => { usage[u.member_id] = u; }); }catch(e){} }));
         return mod.townDetailData({ rows: Array.isArray(rows) ? rows : [], summary, usage, t, money, rel });
       } });
+    if(REC) window.__sprag.town = ctl;
   }
   return { sync };
 })();
@@ -2182,11 +2249,521 @@ const SceneHost = (function(){
       onServer: () => { const n = $('scene-card').nextElementSibling; if(n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
       onFail: () => { fail(); }
     });
+    if(REC) window.__sprag.office = ctl;
   }
   return { sync };
 })();
 
 /* ── boot ─────────────────────────────────────────────────────────────── */
+/* ── presets (#presets): the ratchet, routing and agent presets every CLI pulls ──
+   The draft is edited here, signed in this browser (site/assets/preset-sign.js, the same
+   canonical JSON as src/preset-sign.js) and published with preset_publish. The CLI applies
+   a bundle only when the signature verifies against a key listed in PRESET_SIGNING_KEYS. */
+const isPresetsHash = () => /^#presets\/?$/.test(location.hash);
+const Presets = (function(){
+  const S = { opened:false, loading:false, loaded:false, err:'', list:[], draft:null, rollout:null, dirty:false,
+    key:null, keyReady:false, keyErr:'', keyNew:false, edit:null, msg:'', busy:false };
+  const KINDS = ['ratchet', 'model', 'agent'];
+  const FIELD = { ratchet:'ratchet_rules', model:'model_rules', agent:'agents' };
+  const TIERS = ['T2', 'T1', 'T1H'], EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+  /* the same checks as bundleShapeError() in src/presets-source.js, so a publish the CLI would reject stops here */
+  const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/, NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/, MODEL_RE = /^[A-Za-z0-9._-]{1,80}$/,
+    LINE_RE = /^[^\r\n]{1,600}$/, TOOL_RE = /^[A-Za-z0-9_*().: -]{1,80}$/, MAXB = 200 * 1024;
+  const clone = v => JSON.parse(JSON.stringify(v));
+  const clean = list => JSON.parse(JSON.stringify(list || [], (k, v) => k === '_new' ? undefined : v));
+  const str = v => typeof v === 'string' && v.trim() !== '';
+  const listOf = kind => S.draft ? S.draft[FIELD[kind]] : [];
+  const rowKey = (kind, r) => kind === 'agent' ? r.name : r.id;
+  const pub = () => S.list.find(b => b.status === 'published') || null;
+  const when = s => s ? fmtDate(s) : '-';
+
+  function setDirty(v){ S.dirty = v; const b = $('pr-dirty'); if(b) b.hidden = !v; }
+  function say(msg, bad){ S.msg = bad ? '' : msg; const ok = $('pr-ok'), er = $('pr-err'); if(ok) ok.textContent = bad ? '' : (msg || ''); if(er) AdminUX.err(er, bad ? msg : ''); }
+
+  async function initKey(){
+    if(S.keyReady) return;
+    try{
+      if(!window.PresetSign) throw new Error('preset-sign.js did not load');
+      /* demo: an in-memory key so publishing works end to end; nothing is stored */
+      S.key = DEMO ? await PresetSign.generate() : await PresetSign.loadKey();
+    }catch(e){ S.key = null; S.keyErr = errMsg(e); }
+    S.keyReady = true;
+  }
+  async function load(){
+    S.loading = true; S.err = ''; render();
+    try{
+      const [list, roll] = await Promise.all([rpc('preset_admin_list'), rpc('preset_rollout').catch(() => null)]);
+      S.list = Array.isArray(list) ? list : []; S.rollout = roll || null;
+      const d = S.list.find(b => b.status === 'draft');
+      if(!d){ S.draft = null; setDirty(false); }
+      else if(!S.dirty || !S.draft || S.draft.id !== d.id){
+        const row = await rpc('preset_admin_get', { p_id: d.id });
+        S.draft = { id: row.id, version: row.version, format: row.format || 1, min_cli: row.min_cli || '', notes: row.notes || '',
+          ratchet_rules: clone(row.ratchet_rules || []), model_rules: clone(row.model_rules || []), agents: clone(row.agents || []) };
+        S.edit = null; setDirty(false);
+      }
+    }catch(e){ S.err = errMsg(e); }
+    S.loading = false; S.loaded = true; render();
+  }
+  async function open(){
+    S.opened = true;
+    window.scrollTo(0, 0);
+    if(!S.keyReady){ await initKey(); }
+    if(!S.loaded && !S.loading) await load(); else render();
+  }
+
+  /* ── summary ── */
+  function renderSum(){
+    const host = $('pr-sum'); if(!host) return;
+    if(S.err && !S.list.length){ host.className = ''; host.replaceChildren(AdminUX.state('error', S.err, { label: AdminUX.u('retry'), run: load })); return; }
+    const p = pub(), r = S.rollout, int = n => Math.round(Number(n) || 0).toLocaleString('en-US');
+    const signed = p && p.signed, mine = signed && S.key && p.kid === S.key.kid;
+    AdminUX.kpis(host, [
+      { id:'ver', label:t('pr.s.ver'), text: p ? 'v' + p.version : '-', sub: p ? esc(when(p.published_at)) : esc(t('pr.s.nopub')), static:true, noChip:true },
+      { id:'sig', label:t('pr.s.sig'), text: signed ? p.kid : t('pr.s.unsigned'), tone: signed ? '' : 'lt',
+        sub: esc(signed ? (mine ? t('pr.s.mine') : t('pr.s.other')) : t('pr.s.unsignedSub')), static:true, noChip:true },
+      { id:'rr', label:t('pr.s.rr'), text: p ? int(p.ratchet_n) : '-', static:true, noChip:true },
+      { id:'mr', label:t('pr.s.mr'), text: p ? int(p.model_n) : '-', static:true, noChip:true },
+      { id:'ag', label:t('pr.s.ag'), text: p ? int(p.agents_n) : '-', static:true, noChip:true },
+      { id:'ro', label:t('pr.s.ro'), text: r && r.published_version != null ? int(r.latest) + ' / ' + int(r.reporting) : '-',
+        sub: esc(r && r.published_version != null ? t('pr.s.roSub', { n:int(r.latest), m:int(r.reporting) }, true) : t('pr.s.roNone')), static:true, noChip:true }
+    ], { id:'pr', cols:'k6' });
+  }
+  /* first run: key, paste into the CLI, publish a signed version */
+  function renderFirst(){
+    const host = $('pr-first'); if(!host) return;
+    const p = pub(), signed = !!(p && p.signed);
+    if(!S.loaded || (signed && S.key)){ host.hidden = true; host.innerHTML = ''; return; }
+    host.hidden = false;
+    const step = (done, k, vars) => `<li class="${done ? 'done' : ''}"><span class="pr-ck" aria-hidden="true">${done ? '&#10003;' : ''}</span><span>${t(k, vars)}</span><span class="badge ${done ? 'good' : 'dim'}">${esc(t(done ? 'pr.f.done' : 'pr.f.todo'))}</span></li>`;
+    host.innerHTML = `<div class="sec-h"><h2>${esc(t('pr.f.h'))}</h2></div><p class="sub">${esc(t('pr.f.lead'))}</p><ol class="pr-steps">` +
+      step(!!S.key, 'pr.f.1') + step(signed, 'pr.f.2') + step(signed, 'pr.f.3', { v: S.draft ? S.draft.version : ((p ? p.version : 0) + 1) }) + '</ol>';
+  }
+
+  /* ── signing key ── */
+  function keySnippet(k){ return "{ kid: '" + k.kid + "', jwk: " + JSON.stringify(k.publicJwk) + ' },'; }
+  function renderKey(){
+    const host = $('pr-key'); if(!host) return;
+    if(!S.keyReady){ host.innerHTML = `<p class="msg loading">${esc(t('pr.loading'))}</p>`; return; }
+    const k = S.key, p = pub();
+    const imp = `<label class="btn sm pr-file"><input type="file" accept="application/json,.json" id="pr-imp" class="sr-only" />${esc(t('pr.k.import'))}</label>`;
+    if(!k){
+      host.innerHTML = `<p class="sub">${esc(t('pr.k.none'))}</p>` + (S.keyErr ? `<p class="err">${esc(S.keyErr)}</p>` : '') +
+        `<div class="row pr-acts"><button type="button" class="btn pri sm" data-k-act="create"${S.keyErr ? ' disabled' : ''}>${esc(t('pr.k.create'))}</button>${imp}</div><p class="err" id="pr-key-err" role="alert"></p>`;
+      return;
+    }
+    const rel = p && p.signed ? (p.kid === k.kid ? t('pr.k.relMine', { v:p.version }) : t('pr.k.relOther', { v:p.version, kid:p.kid })) : t('pr.k.relNone');
+    host.innerHTML = `<dl class="pr-kv"><div><dt>${esc(t('pr.k.fp'))}</dt><dd><code>${esc(k.kid)}</code></dd></div>` +
+      `<div><dt>${esc(t('pr.k.created'))}</dt><dd>${esc(when(k.createdAt))}</dd></div><div><dt>${esc(t('pr.k.rel'))}</dt><dd>${esc(rel)}</dd></div></dl>` +
+      (S.keyNew ? `<p class="msg warn">${esc(t('pr.k.backupNow'))}</p>` : '') +
+      `<p class="note">${t('pr.k.paste')}</p><pre class="pr-pre" id="pr-snip">${esc(keySnippet(k))}</pre>` +
+      `<div class="row pr-acts"><button type="button" class="btn sm" data-k-act="copy">${esc(t('pr.k.copy'))}</button>` +
+      `<button type="button" class="btn sm" data-k-act="backup">${esc(t('pr.k.backup'))}</button>${imp}` +
+      `<button type="button" class="btn sm danger" data-k-act="create">${esc(t('pr.k.replace'))}</button><span class="ok" id="pr-key-ok"></span></div><p class="err" id="pr-key-err" role="alert"></p>`;
+  }
+  function downloadBackup(k){
+    const body = JSON.stringify({ type:'sprag-preset-signing-key', kid:k.kid, createdAt:k.createdAt, publicJwk:k.publicJwk, privateJwk:k.privateJwk }, null, 2);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], { type:'application/json' }));
+    a.download = 'sprag-preset-key-' + k.kid + '.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  async function keyAct(act, el){
+    const er = $('pr-key-err'); AdminUX.err(er, '');
+    try{
+      if(act === 'create'){
+        if(S.key && !confirm(t('pr.k.replaceQ'))) return;
+        el.disabled = true;
+        const k = await PresetSign.generate();
+        if(!DEMO) await PresetSign.saveKey(k);
+        S.key = k; S.keyNew = true; S.keyErr = '';
+        if(!DEMO) downloadBackup(k);
+        render();
+      }else if(act === 'backup'){ downloadBackup(S.key); S.keyNew = false; renderKey(); }
+      else if(act === 'copy'){
+        await navigator.clipboard.writeText(keySnippet(S.key));
+        const ok = $('pr-key-ok'); if(ok){ ok.textContent = t('pr.k.copied'); setTimeout(() => { if(ok.isConnected) ok.textContent = ''; }, 2000); }
+      }
+    }catch(e){ AdminUX.err($('pr-key-err'), errMsg(e)); if(el) el.disabled = false; }
+  }
+  async function importFile(file){
+    try{
+      const k = await PresetSign.importBackup(JSON.parse(await file.text()));
+      if(S.key && S.key.kid !== k.kid && !confirm(t('pr.k.replaceQ'))) return;
+      if(!DEMO) await PresetSign.saveKey(k);
+      S.key = k; S.keyNew = false; S.keyErr = ''; render();
+      const ok = $('pr-key-ok'); if(ok) ok.textContent = t('pr.k.imported');
+    }catch(e){ AdminUX.err($('pr-key-err'), errMsg(e)); }
+  }
+
+  /* ── draft editor ── */
+  const cut = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+  const acts = (kind, i) => `<span class="pr-ra"><button type="button" class="btn sm" data-act="edit" data-kind="${kind}" data-i="${i}">${esc(t('pr.e.edit'))}</button>` +
+    `<button type="button" class="btn sm" data-act="dup" data-kind="${kind}" data-i="${i}">${esc(t('pr.e.dup'))}</button>` +
+    `<button type="button" class="btn sm danger" data-act="rm" data-kind="${kind}" data-i="${i}">${esc(t('pr.e.rm'))}</button></span>`;
+  const idCell = r => `<code>${esc(r.id || t('pr.e.noid'))}</code>${r._new ? ' <span class="tag plus">' + esc(t('pr.e.new')) + '</span>' : ''}`;
+  function columns(kind){
+    const L = listOf(kind), ix = r => L.indexOf(r);
+    if(kind === 'ratchet') return [
+      { key:'id', label:() => t('pr.c.id'), val:r => r.id || '', cell:idCell, cls:'mono nw' },
+      { key:'ko', label:() => t('pr.c.ko'), val:r => r.ko || '', cell:r => esc(cut(r.ko, 90)), cls:'tx' },
+      { key:'en', label:() => t('pr.c.en'), val:r => r.en || '', cell:r => esc(cut(r.en, 90)), cls:'tx' },
+      { key:'agents', label:() => t('pr.c.agents'), val:r => (r.agents || []).join(' '), cell:r => r.agents && r.agents.length ? r.agents.map(a => `<span class="tag">${esc(a)}</span>`).join(' ') : `<span class="dimt">${esc(t('pr.e.allAgents'))}</span>`, cls:'nw' },
+      { key:'act', label:'', noSort:true, noCsv:true, cell:r => acts(kind, ix(r)), cls:'r nw' }];
+    if(kind === 'model') return [
+      { key:'id', label:() => t('pr.c.id'), val:r => r.id || '', cell:idCell, cls:'mono nw' },
+      { key:'tier', label:() => t('pr.c.tier'), val:r => r.tier || '', cls:'mono nw' },
+      { key:'label', label:() => t('pr.c.label'), val:r => (lang === 'ko' ? r.label : r.labelEn) || r.label || '', cell:r => esc(cut(lang === 'ko' ? r.label : r.labelEn, 60)), cls:'tx' },
+      { key:'agent', label:() => t('pr.c.agent'), val:r => r.agent || '', cls:'mono nw' },
+      { key:'budget', label:() => t('pr.c.budget'), val:r => (r.budget && r.budget.out) || 0, cell:r => esc(budgetText(r.budget)), cls:'nw' },
+      { key:'act', label:'', noSort:true, noCsv:true, cell:r => acts(kind, ix(r)), cls:'r nw' }];
+    return [
+      { key:'name', label:() => t('pr.c.name'), val:r => r.name || '', cell:r => `<code>${esc(r.name || t('pr.e.noid'))}</code>${r._new ? ' <span class="tag plus">' + esc(t('pr.e.new')) + '</span>' : ''}`, cls:'nw' },
+      { key:'model', label:() => t('pr.c.model'), val:r => r.model || '', cls:'mono nw' },
+      { key:'effort', label:() => t('pr.c.effort'), val:r => r.effort || '', cls:'mono nw' },
+      { key:'tools', label:() => t('pr.c.tools'), val:r => (r.tools || []).join(', '), cell:r => esc(cut((r.tools || []).join(', '), 48)), cls:'tx' },
+      { key:'desc', label:() => t('pr.c.desc'), val:r => (r.description && (lang === 'ko' ? r.description.ko : r.description.en)) || '', cell:r => esc(cut(r.description && (lang === 'ko' ? (r.description.ko || r.description.en) : r.description.en), 80)), cls:'tx' },
+      { key:'act', label:'', noSort:true, noCsv:true, cell:r => acts(kind, ix(r)), cls:'r nw' }];
+  }
+  function budgetText(b){
+    if(!b) return '-';
+    const parts = [];
+    if(b.calls != null) parts.push(t('pr.b.calls', { n:b.calls }, true));
+    if(b.out != null) parts.push(t('pr.b.out', { n:Number(b.out).toLocaleString('en-US') }, true));
+    return parts.join(' · ') || '-';
+  }
+  function renderTable(kind){
+    const host = $('pr-t-' + kind); if(!host || !S.draft) return;
+    const n = $('pr-n-' + kind); if(n) n.textContent = listOf(kind).length;
+    AdminUX.table('pr-' + kind).render(host, { rows: listOf(kind).slice(), columns: columns(kind), pageSize: 100, wrap: 'pr-tbl', csvName: 'sprag-presets-' + kind,
+      onRow: r => openEdit(kind, listOf(kind).indexOf(r)), empty: { msg: t('pr.e.empty'), action: { label: t('pr.e.add'), run: () => addRow(kind) } } });
+  }
+  function renderDraft(){
+    const host = $('pr-draft'); if(!host) return;
+    if(S.loading && !S.loaded){ host.innerHTML = `<p class="msg loading">${esc(t('pr.loading'))}</p>`; return; }
+    if(!S.draft){
+      const p = pub();
+      host.replaceChildren(AdminUX.state('empty', p ? t('pr.d.none', { v:p.version }, true) : t('pr.d.nonePub'), { label: t('pr.d.new'), run: el => { el.disabled = true; newDraft(); } }));
+      return;
+    }
+    const d = S.draft;
+    const sec = kind => `<div class="pr-sec" id="pr-sec-${kind}"><div class="sec-h"><h3>${esc(t('pr.e.h.' + kind))}<span class="count" id="pr-n-${kind}"></span></h3>` +
+      `<button type="button" class="btn sm" data-act="add" data-kind="${kind}">${esc(t('pr.e.add'))}</button></div><p class="note">${esc(t('pr.e.lead.' + kind))}</p>` +
+      `<div id="pr-t-${kind}"></div><div class="pr-form" id="pr-f-${kind}" hidden></div></div>`;
+    host.innerHTML = `<div class="pr-dh"><span class="tag plus">${esc(t('pr.d.badge', { v:d.version }, true))}</span><span class="badge warn" id="pr-dirty"${S.dirty ? '' : ' hidden'}>${esc(t('pr.d.dirty'))}</span></div>` +
+      `<div class="pr-meta"><label class="f"><span>${esc(t('pr.d.notes'))}</span><input type="text" id="pr-notes" maxlength="2000" value="${esc(d.notes)}" placeholder="${esc(t('pr.d.notesPh'))}" /></label>` +
+      `<label class="f"><span>${esc(t('pr.d.mincli'))}</span><input type="text" id="pr-mincli" inputmode="decimal" value="${esc(d.min_cli)}" placeholder="3.71.0" /></label></div>` +
+      KINDS.map(sec).join('') +
+      `<div class="row pr-acts pr-foot"><button type="button" class="btn" data-act="save">${esc(t('pr.d.save'))}</button>` +
+      `<button type="button" class="btn pri" data-act="publish">${esc(t('pr.d.publish', { v:d.version }, true))}</button>` +
+      `<button type="button" class="btn danger" data-act="discard">${esc(t('pr.d.discard'))}</button><span class="ok" id="pr-ok"></span></div>` +
+      `<p class="note">${esc(S.key ? t('pr.d.signNote', { kid:S.key.kid }, true) : t('pr.d.noKeyNote'))}</p><p class="err" id="pr-err" role="alert"></p>`;
+    KINDS.forEach(renderTable);
+    if(S.msg) $('pr-ok').textContent = S.msg;
+    if(S.edit) openEdit(S.edit.kind, S.edit.i, true);
+  }
+
+  /* row form: inputs carry data-f (a path into the row); edits apply as you type */
+  function fieldsHtml(kind, r){
+    const inp = (f, lab, v, o) => `<label class="f${o && o.wide ? ' w' : ''}"><span>${esc(lab)}</span><input type="${o && o.num ? 'number' : 'text'}" data-f="${f}" value="${esc(v ?? '')}"${o && o.ro ? ' readonly' : ''}${o && o.ph ? ' placeholder="' + esc(o.ph) + '"' : ''}${o && o.list ? ' list="' + o.list + '"' : ''}${o && o.num ? ' min="0" step="1" inputmode="numeric"' : ''} /></label>`;
+    const area = (f, lab, v, rows) => `<label class="f w"><span>${esc(lab)}</span><textarea data-f="${f}" rows="${rows || 3}">${esc(v ?? '')}</textarea></label>`;
+    const sel = (f, lab, v, opts) => `<label class="f"><span>${esc(lab)}</span><select data-f="${f}">${opts.map(o => `<option${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`;
+    if(kind === 'ratchet'){
+      const on = a => r.agents && r.agents.includes(a);
+      return inp('id', t('pr.c.id'), r.id, { ro:true, ph:t('pr.e.idAuto') }) +
+        `<fieldset class="f pr-chips"><legend>${esc(t('pr.c.agents'))}</legend>` + ['claude', 'codex'].map(a => `<label class="pr-chip"><input type="checkbox" data-f="agents.${a}"${on(a) ? ' checked' : ''} />${esc(a)}</label>`).join('') +
+        `<span class="note">${esc(t('pr.e.agentsHint'))}</span></fieldset>` +
+        area('ko', t('pr.c.ko'), r.ko, 4) + area('en', t('pr.c.en'), r.en, 4) + `<p class="note w">${esc(t(r._new ? 'pr.e.idNew' : 'pr.e.idKeep'))}</p>`;
+    }
+    if(kind === 'model'){
+      const b = r.budget || {};
+      return inp('id', t('pr.c.id'), r.id, { ro:true, ph:t('pr.e.idAuto') }) + sel('tier', t('pr.c.tier'), r.tier || 'T2', TIERS) +
+        inp('category', t('pr.c.category'), r.category, { ph:'run' }) + inp('agent', t('pr.c.agent'), r.agent, { list:'pr-agent-names', ph:'haiku-runner' }) +
+        inp('label', t('pr.c.labelKo'), r.label, { wide:true }) + inp('labelEn', t('pr.c.labelEn'), r.labelEn, { wide:true }) +
+        inp('example', t('pr.c.exKo'), r.example, { wide:true }) + inp('exampleEn', t('pr.c.exEn'), r.exampleEn, { wide:true }) +
+        inp('budget.calls', t('pr.c.calls'), b.calls, { num:true, ph:t('pr.e.none') }) + inp('budget.out', t('pr.c.out'), b.out, { num:true }) +
+        `<datalist id="pr-agent-names">${listOf('agent').map(a => `<option value="${esc(a.name)}"></option>`).join('')}<option value="sonnet"></option><option value="haiku"></option></datalist>` +
+        `<p class="note w">${esc(t(r._new ? 'pr.e.midNew' : 'pr.e.idKeep'))}</p>`;
+    }
+    const dsc = r.description || {}, body = r.body || {};
+    return inp('name', t('pr.c.name'), r.name, { ph:'sonnet-worker' }) + inp('model', t('pr.c.model'), r.model, { ph:'sonnet' }) +
+      sel('effort', t('pr.c.effort'), r.effort || 'medium', EFFORTS) + inp('tools', t('pr.c.toolsIn'), (r.tools || []).join(', '), { wide:true, ph:'Read, Grep, Glob, Bash' }) +
+      inp('description.ko', t('pr.c.descKo'), dsc.ko, { wide:true }) + inp('description.en', t('pr.c.descEn'), dsc.en, { wide:true }) +
+      area('body.ko', t('pr.c.bodyKo'), body.ko, 8) + area('body.en', t('pr.c.bodyEn'), body.en, 8) + `<p class="note w">${esc(t('pr.e.bodyHint'))}</p>`;
+  }
+  function openEdit(kind, i, keep){
+    const r = listOf(kind)[i]; if(!r) return;
+    KINDS.forEach(k => { if(k !== kind){ const f = $('pr-f-' + k); if(f){ f.hidden = true; f.innerHTML = ''; } } });
+    S.edit = { kind, i };
+    const f = $('pr-f-' + kind); if(!f) return;
+    f.hidden = false;
+    f.innerHTML = `<div class="sec-h"><h4>${esc(t('pr.e.editing', { k: rowKey(kind, r) || t('pr.e.new') }, true))}</h4><button type="button" class="btn sm" data-act="close">${esc(t('pr.e.close'))}</button></div><div class="pr-grid">${fieldsHtml(kind, r)}</div>`;
+    if(!keep) setTimeout(() => { AdminUX.jump(f); const x = f.querySelector('textarea,input:not([readonly])'); if(x) x.focus({ preventScroll:true }); }, 30);
+  }
+  function closeEdit(){ const e = S.edit; S.edit = null; if(e){ const f = $('pr-f-' + e.kind); if(f){ f.hidden = true; f.innerHTML = ''; } renderTable(e.kind); } }
+  async function presetId(text){ return PresetSign.presetId(text); }
+  async function onField(el){
+    const e = S.edit; if(!e) return;
+    const r = listOf(e.kind)[e.i]; if(!r) return;
+    const f = el.dataset.f, v = el.type === 'checkbox' ? el.checked : el.value;
+    if(f.startsWith('agents.')){
+      const a = f.slice(7), set = new Set(r.agents || []);
+      if(v) set.add(a); else set.delete(a);
+      if(set.size) r.agents = ['claude', 'codex'].filter(x => set.has(x)); else delete r.agents;
+    }else if(f === 'tools') r.tools = String(v).split(',').map(s => s.trim()).filter(Boolean);
+    else if(f.startsWith('budget.')){
+      r.budget = r.budget || {};
+      const n = String(v).trim() === '' ? null : Math.max(0, Math.round(Number(v)));
+      r.budget[f.slice(7)] = n === null || !isFinite(n) ? null : n;
+    }else if(f.includes('.')){ const [a, b] = f.split('.'); r[a] = r[a] || {}; r[a][b] = v; }
+    else r[f] = v;
+    setDirty(true);
+    /* a new preset's id follows the CLI's scheme until it is published; an existing id never changes */
+    if(r._new && e.kind === 'ratchet' && f === 'ko'){
+      const ko = String(r.ko || '').trim(), id = ko ? await presetId(ko) : '';
+      if(String(r.ko || '').trim() === ko){ r.id = id; const x = $('pr-f-ratchet') && $('pr-f-ratchet').querySelector('[data-f="id"]'); if(x) x.value = id; }
+    }
+    if(r._new && e.kind === 'model' && (f === 'tier' || f === 'category')){
+      r.id = r.category && r.tier ? (String(r.category).trim() + '-' + String(r.tier).toLowerCase()) : '';
+      const x = $('pr-f-model') && $('pr-f-model').querySelector('[data-f="id"]'); if(x) x.value = r.id;
+    }
+  }
+  function blank(kind){
+    if(kind === 'ratchet') return { _new:true, id:'', ko:'', en:'' };
+    if(kind === 'model') return { _new:true, id:'', tier:'T2', category:'', label:'', labelEn:'', agent:'', example:'', exampleEn:'', budget:{ calls:8, out:1500 } };
+    return { _new:true, name:'', model:'sonnet', effort:'medium', tools:['Read', 'Grep', 'Glob'], description:{ ko:'', en:'' }, body:{ ko:'', en:'' } };
+  }
+  function addRow(kind){ const L = listOf(kind); L.push(blank(kind)); setDirty(true); renderTable(kind); openEdit(kind, L.length - 1); }
+  function dupRow(kind, i){
+    const L = listOf(kind), c = clone(L[i]); c._new = true;
+    if(kind === 'agent') c.name = (c.name || 'agent') + '-copy';
+    L.splice(i + 1, 0, c); setDirty(true); renderTable(kind); openEdit(kind, i + 1);
+  }
+  function rmRow(kind, i){
+    const L = listOf(kind), r = L[i]; if(!r) return;
+    if(!confirm(t('pr.e.rmQ', { k: rowKey(kind, r) || t('pr.e.new') }, true))) return;
+    L.splice(i, 1); setDirty(true);
+    if(S.edit && S.edit.kind === kind){ S.edit = null; const f = $('pr-f-' + kind); if(f){ f.hidden = true; f.innerHTML = ''; } }
+    renderTable(kind);
+  }
+
+  /* problems the server or the CLI would reject, named by row */
+  function problems(d){
+    const out = [], seen = { ratchet:new Set(), model:new Set(), agent:new Set() };
+    const who = (kind, r, i) => t('pr.e.h.' + kind) + ' ' + (rowKey(kind, r) || '#' + (i + 1));
+    d.ratchet_rules.forEach((r, i) => {
+      if(!ID_RE.test(r.id || '') || !str(r.ko) || !str(r.en)) out.push(who('ratchet', r, i) + ': ' + t('pr.v.ratchet'));
+      else if(seen.ratchet.has(r.id)) out.push(who('ratchet', r, i) + ': ' + t('pr.v.dupId')); else seen.ratchet.add(r.id);
+    });
+    d.model_rules.forEach((r, i) => {
+      if(!ID_RE.test(r.id || '') || !TIERS.includes(r.tier) || !ID_RE.test(r.category || '') || !str(r.label) || !str(r.labelEn) || !str(r.agent) || !LINE_RE.test(r.agent))
+        out.push(who('model', r, i) + ': ' + t('pr.v.model'));
+      else if(seen.model.has(r.id)) out.push(who('model', r, i) + ': ' + t('pr.v.dupId')); else seen.model.add(r.id);
+    });
+    d.agents.forEach((a, i) => {
+      if(!NAME_RE.test(a.name || '') || !MODEL_RE.test(a.model || '') || !EFFORTS.includes(a.effort) || !Array.isArray(a.tools) || !a.tools.length || a.tools.some(x => !TOOL_RE.test(x)))
+        out.push(who('agent', a, i) + ': ' + t('pr.v.agent'));
+      else if(!a.description || !LINE_RE.test(a.description.en || '') || (a.description.ko && !LINE_RE.test(a.description.ko)) || !a.body || !str(a.body.en))
+        out.push(who('agent', a, i) + ': ' + t('pr.v.agentText'));
+      else if(seen.agent.has(a.name)) out.push(who('agent', a, i) + ': ' + t('pr.v.dupName')); else seen.agent.add(a.name);
+    });
+    if(d.min_cli && !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(String(d.min_cli).trim())) out.push(t('pr.v.mincli'));
+    return out;
+  }
+  async function save(){
+    const d = S.draft;
+    d.notes = $('pr-notes') ? $('pr-notes').value : d.notes; d.min_cli = $('pr-mincli') ? $('pr-mincli').value.trim() : d.min_cli;
+    if(d.min_cli && !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(d.min_cli)) throw new Error(t('pr.v.mincli'));
+    const payload = { p_id:d.id, p_ratchet_rules:clean(d.ratchet_rules), p_model_rules:clean(d.model_rules), p_agents:clean(d.agents), p_min_cli:d.min_cli || null, p_notes:d.notes || null };
+    if(new TextEncoder().encode(JSON.stringify([payload.p_ratchet_rules, payload.p_model_rules, payload.p_agents])).length > MAXB) throw new Error(t('pr.v.size'));
+    await rpc('preset_draft_save', payload);
+    setDirty(false);
+  }
+  async function guard(btn, fn){
+    if(S.busy) return; S.busy = true; if(btn) btn.disabled = true; say('');
+    try{ await fn(); }catch(e){ say(errMsg(e), true); }
+    finally{ S.busy = false; if(btn && btn.isConnected) btn.disabled = false; }
+  }
+  async function doSave(btn){ await guard(btn, async () => { await save(); say(t('pr.d.saved')); await loadList(); }); }
+  async function doPublish(btn){
+    await guard(btn, async () => {
+      const d = S.draft;
+      if(!S.key) throw new Error(t('pr.d.noKey'));
+      d.notes = $('pr-notes').value; d.min_cli = $('pr-mincli').value.trim();
+      const probs = problems(d);
+      if(probs.length) throw new Error(probs.slice(0, 4).join(' / ') + (probs.length > 4 ? ' ' + t('pr.v.more', { n:probs.length - 4 }, true) : ''));
+      if(!confirm(t('pr.d.publishQ', { v:d.version, kid:S.key.kid }, true))) return;
+      await save();
+      /* sign exactly what the server stored: that is what presets_published() hands every CLI */
+      const row = await rpc('preset_admin_get', { p_id:d.id });
+      const bundle = { format:row.format || 1, version:row.version, min_cli:row.min_cli ?? null, ratchet_rules:row.ratchet_rules, model_rules:row.model_rules, agents:row.agents };
+      const sig = await PresetSign.sign(bundle, S.key);
+      if(!(await PresetSign.verify({ ...bundle, sig }, S.key.publicJwk))) throw new Error('signature self-check failed');
+      const res = await rpc('preset_publish', { p_id:d.id, p_sig:sig });
+      S.draft = null; S.edit = null; setDirty(false);
+      S.msg = '';
+      await load();
+      flash(t('pr.d.published', { v:(res && res.version) || row.version }, true));
+    });
+  }
+  async function doDiscard(btn){
+    if(!S.draft || !confirm(t('pr.d.discardQ', { v:S.draft.version }, true))) return;
+    await guard(btn, async () => { await rpc('preset_draft_delete', { p_id:S.draft.id }); S.draft = null; S.edit = null; setDirty(false); await load(); });
+  }
+  async function newDraft(from){
+    try{
+      if(from){
+        if(S.draft) throw new Error(t('pr.h.hasDraft'));
+        await rpc('preset_revert', { p_id:from });
+      }else await rpc('preset_draft_new', {});
+      S.dirty = false; S.draft = null;
+      await load();
+      AdminUX.jump('pr-draft-card');
+    }catch(e){ flash(errMsg(e), true); }
+  }
+  async function loadList(){
+    try{ const list = await rpc('preset_admin_list'); S.list = Array.isArray(list) ? list : S.list; }catch(e){}
+    renderSum(); renderHist(); renderFirst();
+  }
+  function flash(msg, bad){ const el = $('pr-flash'); if(!el) return; if(bad){ el.textContent = ''; AdminUX.err($('pr-flash-err'), msg); } else { AdminUX.err($('pr-flash-err'), ''); el.textContent = msg; } }
+
+  /* ── history ── */
+  function renderHist(){
+    const host = $('pr-hist'); if(!host) return;
+    const stLabel = s => t('pr.st.' + s), stCls = s => s === 'published' ? 'good' : s === 'draft' ? 'warn' : 'dim';
+    AdminUX.table('pr-hist').render(host, {
+      rows: S.list, wrap: 'pr-htbl', csvName: 'sprag-preset-history', sort: { col:'version', dir:-1 },
+      loading: !S.loaded ? t('pr.loading') : '', error: S.err && !S.list.length ? { msg:S.err, retry:load } : null,
+      empty: { msg: t('pr.h.empty') },
+      filters: [{ key:'st', label:t('pr.c.status'), options:['published', 'archived', 'draft'].map(v => ({ v, label:stLabel(v) })), match:(r, v) => r.status === v }],
+      columns: [
+        { key:'version', label:() => t('pr.c.version'), val:r => Number(r.version) || 0, cell:r => `<b class="mono">v${esc(r.version)}</b>`, first:-1, cls:'nw' },
+        { key:'status', label:() => t('pr.c.status'), val:r => stLabel(r.status), cell:r => `<span class="badge ${stCls(r.status)}">${esc(stLabel(r.status))}</span>`, cls:'nw' },
+        { key:'notes', label:() => t('pr.c.notes'), val:r => r.notes || '', cell:r => esc(cut(r.notes, 70) || '-'), cls:'tx' },
+        { key:'kid', label:() => t('pr.c.sig'), val:r => r.kid || '', cell:r => r.kid ? `<code>${esc(r.kid)}</code>` : `<span class="dimt">${esc(t(r.status === 'draft' ? 'pr.h.notYet' : 'pr.s.unsigned'))}</span>`, cls:'nw' },
+        { key:'n', label:() => t('pr.c.counts'), val:r => (r.ratchet_n || 0) + (r.model_n || 0) + (r.agents_n || 0), cell:r => esc(t('pr.h.counts', { a:r.ratchet_n || 0, b:r.model_n || 0, c:r.agents_n || 0 }, true)), cls:'nw' },
+        { key:'by', label:() => t('pr.c.by'), val:r => r.created_by || '', cell:r => esc(r.created_by || t('pr.h.seed')), cls:'tx' },
+        { key:'at', label:() => t('pr.c.at'), val:r => r.published_at || r.created_at || '', cell:r => esc(when(r.published_at || r.created_at)), first:-1, cls:'nw' },
+        { key:'act', label:'', noSort:true, noCsv:true, cls:'r nw', cell:r => r.status === 'archived' ? `<button type="button" class="btn sm" data-act="revert" data-id="${esc(r.id)}">${esc(t('pr.h.revert'))}</button>` : r.status === 'draft' ? `<button type="button" class="btn sm" data-act="godraft">${esc(t('pr.h.open'))}</button>` : '' }
+      ]
+    });
+  }
+
+  function render(){
+    if(!S.opened) return;
+    renderSum(); renderFirst(); renderKey(); renderDraft(); renderHist();
+  }
+  /* one delegated listener for the whole view: the tables and forms re-render inside it */
+  function bind(){
+    const v = $('view-presets'); if(!v || v.dataset.bound) return; v.dataset.bound = '1';
+    v.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-act],[data-k-act]'); if(!b || !v.contains(b)) return;
+      if(b.dataset.kAct) return keyAct(b.dataset.kAct, b);
+      const kind = b.dataset.kind, i = +b.dataset.i;
+      switch(b.dataset.act){
+        case 'add': return addRow(kind);
+        case 'edit': return openEdit(kind, i);
+        case 'dup': return dupRow(kind, i);
+        case 'rm': return rmRow(kind, i);
+        case 'close': return closeEdit();
+        case 'save': return doSave(b);
+        case 'publish': return doPublish(b);
+        case 'discard': return doDiscard(b);
+        case 'revert': if(confirm(t('pr.h.revertQ'))) newDraft(b.dataset.id); return;
+        case 'godraft': return AdminUX.jump('pr-draft-card');
+      }
+    });
+    v.addEventListener('input', ev => {
+      const el = ev.target;
+      if(el.dataset && el.dataset.f) onField(el);
+      else if(el.id === 'pr-notes' || el.id === 'pr-mincli'){ if(S.draft){ S.draft[el.id === 'pr-notes' ? 'notes' : 'min_cli'] = el.value; setDirty(true); } }
+    });
+    v.addEventListener('change', ev => {
+      const el = ev.target;
+      if(el.id === 'pr-imp' && el.files && el.files[0]){ importFile(el.files[0]); el.value = ''; }
+      else if(el.dataset && el.dataset.f && (el.type === 'checkbox' || el.tagName === 'SELECT')) onField(el);
+    });
+  }
+  window.addEventListener('beforeunload', ev => { if(S.dirty){ ev.preventDefault(); ev.returnValue = ''; } });
+  return { open: async () => { bind(); await open(); }, render, kid: () => S.key && S.key.kid, sections: () => [['pr-sum-box', 'pr.s.h'], ['pr-key-card', 'pr.k.h'], ['pr-draft-card', 'pr.d.h'], ['pr-hist-card', 'pr.h.h']] };
+})();
+
+/* ── demo presets (?demo=1): a published v3, a draft v4 and the history before it, no network ── */
+const presetDemo = (function(){
+  let rows = null;
+  const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString(), clone = v => JSON.parse(JSON.stringify(v));
+  const R = [
+    { id:'fix-bd7836', ko:'웹 fetch/search에서 robots·UA 차단이 나오면 curl에 브라우저 UA 헤더를 붙여 다시 시도한다', en:'When a web fetch or search is blocked by robots or the user agent, retry with curl and a browser User-Agent header', agents:['claude'] },
+    { id:'fix-ce98b4', ko:'자동화 도구가 grep·정규식으로 찾는 마커 텍스트는 리팩터링하거나 줄이지 않는다', en:'Never refactor or shorten marker text that tools find by grep or regex', agents:['claude'] },
+    { id:'fix-1dee5f', ko:'입력 데이터를 바꾸면 거기서 나온 파생 자산을 끝까지 다시 만든다', en:'When input data changes, regenerate every asset derived from it' },
+    { id:'fix-aa18bc', ko:'같은 품질 문제가 재발하면 문구를 고치지 말고 기계 판정 가능한지부터 따진다', en:'When the same quality problem recurs, check whether the rule can be checked by a machine before rewording it' },
+    { id:'fix-777a15', ko:'여러 파일에 걸친 구현은 설계를 메인 모델이 정하고 코드 작성은 sonnet 서브에이전트에 맡긴다', en:'For multi-file work the main model fixes the design and a sonnet subagent writes the code' }
+  ];
+  const M = [
+    { id:'run-t2', tier:'T2', category:'run', label:'명령 실행 (빌드·테스트·git)', labelEn:'running commands (build/test/git)', agent:'haiku-runner', example:'npm test 돌려봐', exampleEn:'run npm test', budget:{ calls:8, out:1500 } },
+    { id:'run-t1', tier:'T1', category:'run', label:'명령 실행 (빌드·테스트·git)', labelEn:'running commands (build/test/git)', agent:'sonnet', example:'빌드하고 실패한 테스트만 보여줘', exampleEn:'build and show only the failing tests', budget:{ calls:null, out:6000 } },
+    { id:'explore-t2', tier:'T2', category:'explore', label:'탐색·조회 (파일/값 찾기)', labelEn:'lookup (find files/values)', agent:'haiku-explore', example:'이 설정 어디서 읽어?', exampleEn:'where is this setting read', budget:{ calls:8, out:1500 } },
+    { id:'read-t2', tier:'T2', category:'read', label:'읽기·요약·설명', labelEn:'reading and summarising', agent:'haiku-explore', example:'이 파일 요약해줘', exampleEn:'summarise this file', budget:{ calls:8, out:1900 } }
+  ];
+  const A = [
+    { name:'haiku-explore', model:'haiku', effort:'low', tools:['Read', 'Grep', 'Glob', 'Bash'], description:{ ko:'위임 작업용 저비용 읽기 전용 탐색, 조회, 상태 확인 에이전트입니다', en:'Cheap read-only exploration, lookup and status checks for delegated tasks' }, body:{ ko:'맡은 역할: 읽기 전용 탐색과 조회입니다.\n상한을 넘기지 마십시오.', en:'Role: read-only exploration and lookups.\nStay within the caps the caller wrote.' } },
+    { name:'sonnet-worker', model:'sonnet', effort:'medium', tools:['Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write'], description:{ ko:'설계가 확정된 구현을 테스트에 맞춰 끝내는 에이전트입니다', en:'Implements a fixed design against the tests' }, body:{ ko:'맡은 역할: 확정된 설계의 구현입니다.', en:'Role: implement the design the caller fixed.' } },
+    { name:'opus-worker', model:'claude-opus-5-5', effort:'high', tools:['Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write'], description:{ ko:'범위가 큰 구현과 디버깅을 맡는 에이전트입니다', en:'Large implementation and debugging work' }, body:{ ko:'맡은 역할: 범위가 큰 구현과 디버깅입니다.', en:'Role: large implementation and debugging work.' } }
+  ];
+  function init(){
+    const kid = Presets.kid() || '5e6ad2c0ffee0042', sig = { alg:'ES256', kid, value:'demo' };
+    const by = 'root.studio.yaml@gmail.com';
+    const mk = (version, status, r, m, a, o) => Object.assign({ id:'pv' + version, version, format:1, status, ratchet_rules:clone(r), model_rules:clone(m), agents:clone(a), min_cli:'3.71.0', notes:null, sig:null, created_by:by, created_at:ago(30), published_at:null }, o);
+    const r2 = R.slice(0, 4), r3 = R.slice(), r4 = clone(R);
+    r4[2].ko = '입력 데이터를 바꾸면 거기에 의존하는 파생 자산을 마지막 단계까지 다시 만든다';
+    r4.push({ id:'fix-3c91e0', ko:'병렬 서브에이전트가 같은 워킹트리에서 작업 중이면 git stash·reset 을 쓰지 않는다', en:'While parallel subagents share a working tree, do not use git stash or reset', agents:['claude', 'codex'] });
+    rows = [
+      mk(1, 'archived', r2, M.slice(0, 2), A.slice(0, 2), { min_cli:null, notes:'Seeded from sprag-cli 3.70', created_by:null, created_at:ago(9), published_at:ago(9) }),
+      mk(2, 'archived', r2, M, A, { notes:'First signed bundle', sig, created_at:ago(6), published_at:ago(6) }),
+      mk(3, 'published', r3, M, A, { notes:'Adds the multi-file delegation rule', sig, created_at:ago(2.2), published_at:ago(2) }),
+      mk(4, 'draft', r4, M, A, { notes:'Rewords fix-1dee5f, adds the shared worktree rule', created_at:ago(0.1) })
+    ];
+  }
+  const summary = r => ({ id:r.id, version:r.version, format:r.format, status:r.status, notes:r.notes, min_cli:r.min_cli, kid:r.sig ? r.sig.kid : null, signed:!!r.sig,
+    created_by:r.created_by, created_at:r.created_at, published_at:r.published_at, ratchet_n:r.ratchet_rules.length, model_n:r.model_rules.length, agents_n:r.agents.length });
+  return async function(name, a){
+    if(!rows) init();
+    a = a || {};
+    const byId = id => { const r = rows.find(x => x.id === id); if(!r) throw new Error('preset bundle not found'); return r; };
+    const pub = () => rows.find(r => r.status === 'published');
+    const draftNew = from => {
+      if(rows.some(r => r.status === 'draft')) throw new Error('a draft already exists; publish or discard it first');
+      const src = from ? byId(from) : pub(), v = Math.max(...rows.map(r => r.version)) + 1;
+      const r = { id:'pv' + v, version:v, format:1, status:'draft', ratchet_rules:clone(src.ratchet_rules), model_rules:clone(src.model_rules), agents:clone(src.agents),
+        min_cli:src.min_cli, notes:'Based on v' + src.version, sig:null, created_by:'root.studio.yaml@gmail.com', created_at:new Date().toISOString(), published_at:null };
+      rows.push(r); return r;
+    };
+    switch(name){
+      case 'preset_admin_list': return rows.slice().sort((x, y) => y.version - x.version).map(summary);
+      case 'preset_admin_get': return clone(byId(a.p_id));
+      case 'preset_rollout': return { published_version:pub() ? pub().version : null, latest:37, reporting:52, members:61 };
+      case 'preset_draft_new': return draftNew(a.p_from).id;
+      case 'preset_draft_save': {
+        const r = byId(a.p_id); if(r.status !== 'draft') throw new Error('only a draft can be edited');
+        Object.assign(r, { ratchet_rules:clone(a.p_ratchet_rules), model_rules:clone(a.p_model_rules), agents:clone(a.p_agents), min_cli:a.p_min_cli || null, notes:a.p_notes || null });
+        return { id:r.id, version:r.version };
+      }
+      case 'preset_draft_delete': { const r = byId(a.p_id); if(r.status !== 'draft') throw new Error('no draft with that id'); rows.splice(rows.indexOf(r), 1); return null; }
+      case 'preset_publish': {
+        const r = byId(a.p_id); if(r.status !== 'draft') throw new Error('only a draft can be published');
+        if(!a.p_sig || a.p_sig.alg !== 'ES256' || !a.p_sig.kid || !a.p_sig.value) throw new Error('a signature {alg: ES256, kid, value} is required');
+        const p = pub(); if(p) p.status = 'archived';
+        Object.assign(r, { status:'published', published_at:new Date().toISOString(), sig:a.p_sig });
+        return { id:r.id, version:r.version, published_at:r.published_at };
+      }
+      case 'preset_revert': {
+        const r = byId(a.p_id); if(r.status !== 'archived') throw new Error('only an archived version can be restored');
+        const d = draftNew(r.id); d.notes = 'Revert to v' + r.version; return d.id;
+      }
+    }
+    throw new Error('unknown rpc ' + name);
+  };
+})();
+
 (async function boot(){
   Prompts.init({ box:'pu-box', ops:true, orgId:() => sel && sel.id, plan:() => sel && sel.plan, rpc });
   Seats.init({
@@ -2204,16 +2781,18 @@ const SceneHost = (function(){
   const Pal = AdminUX.palette({
     items: () => {
       if(!user || $('ops').hidden) return [];
-      const out = [], enc = encodeURIComponent, inDetail = !!parseHash() && sel;
+      const out = [], enc = encodeURIComponent, inDetail = !!parseHash() && sel, onPr = isPresetsHash();
       out.push({ group: t('ux.g.nav'), label: t('orgs.h'), key: 'G H', run: () => go('#orgs') });
-      if(inDetail) [['overview', 'd.tab.overview'], ['seats', 'd.tab.seats'], ['prompts', 'd.tab.prompts'], ['settings', 'd.tab.settings']].forEach(([k, lk]) =>
+      out.push({ group: t('ux.g.nav'), label: t('pr.h'), key: 'G P', run: () => go('#presets') });
+      if(onPr) Presets.sections().forEach(([id, lk]) => out.push({ group: t('ux.g.sections'), label: t(lk), hint: t('pr.h'), run: () => AdminUX.jump(id) }));
+      else if(inDetail) [['overview', 'd.tab.overview'], ['seats', 'd.tab.seats'], ['prompts', 'd.tab.prompts'], ['settings', 'd.tab.settings']].forEach(([k, lk]) =>
         out.push({ group: t('ux.g.sections'), label: t(lk), hint: sel.name, run: () => go('#org/' + enc(sel.id) + (k === 'overview' ? '' : '/' + k)) }));
       else [['totals-box', 'ux.sec.totals'], ['town-card', 'of.town'], ['ov-rev-card', 'ov.rev.h'], ['ov-org-card', 'ov.org.h'], ['att-card', 'att.h'], ['orgs-card', 'orgs.h']].forEach(([id, lk]) =>
-        out.push({ group: t('ux.g.sections'), label: t(lk), run: () => { if(parseHash()) go('#orgs'); setTimeout(() => AdminUX.jump(id), 80); } }));
+        out.push({ group: t('ux.g.sections'), label: t(lk), run: () => { if(parseHash() || isPresetsHash()) go('#orgs'); setTimeout(() => AdminUX.jump(id), 80); } }));
       orgs.forEach(o => out.push({ group: t('ux.g.orgs'), label: o.name, hint: [t('plan.' + (o.plan === 'enterprise' ? 'enterprise' : 'pro')), (o.owners || [])[0]].filter(Boolean).join(' · '), run: () => go('#org/' + enc(o.id)) }));
       return out;
     },
-    get go(){ return { h: { label: t('orgs.h'), run: () => { if(user && !$('ops').hidden) go('#orgs'); } } }; }
+    get go(){ return { h: { label: t('orgs.h'), run: () => { if(user && !$('ops').hidden) go('#orgs'); } }, p: { label: t('pr.h'), run: () => { if(user && !$('ops').hidden) go('#presets'); } } }; }
   });
   AdminUX.hint(document.querySelector('.hbar-r'), document.querySelector('.hbar-r .lang'), () => Pal.open());
   setLang(window.__initLang, false);

@@ -12,6 +12,8 @@
  * This module closes that gap with presets bundled in the package:
  *   presets/model-rules.json   → tier-delegation rules (the model ratchet)
  *   presets/ratchet-rules.json → field-tested mistake rules (the global ratchet)
+ * or, when one has been fetched and verifies, the centrally published bundle
+ * with the same shape (presets-source.js).
  *
  * Nothing is written without the user agreeing to that specific rule. The
  * SessionStart hook lists what is pending and tells the model to ask one rule at
@@ -25,9 +27,8 @@
 
 import { readFileSync } from 'node:fs';
 import { CLI_NAME } from './cli-name.js';
-import { join, dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
+import { join, resolve } from 'node:path';
+import { modelPresets as sourceModelPresets } from './presets-source.js';
 import { sharedModelRulesForProject, loadSharedModelRules, sharedProjectRoots, realProjectRoot } from './shared-model-rules.js';
 import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
@@ -44,8 +45,6 @@ import {
   harnessPromote,
   presetRuleEntries,
 } from './harness.js';
-
-const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Codex answers are kept apart: saying no in one agent must not consume the
 // other agent's offer, and the two agents write to different ratchet files.
@@ -66,14 +65,12 @@ export function saveSeedState(state, opts = {}) {
   writeStateFile(seedStatePath(opts), JSON.stringify(state, null, 2) + '\n');
 }
 
-/** Bundled tier-delegation presets (empty array when the file is unreadable). */
+/**
+ * Tier-delegation presets: the published bundle when it verifies, else the
+ * bundled presets/model-rules.json (empty array when that is unreadable).
+ */
 export function modelPresets() {
-  try {
-    const data = JSON.parse(readFileSync(join(packageRoot, 'presets', 'model-rules.json'), 'utf8'));
-    return Array.isArray(data.presets) ? data.presets : [];
-  } catch {
-    return [];
-  }
+  return sourceModelPresets();
 }
 
 /**
@@ -87,10 +84,11 @@ export function ratchetPresets(lang = userLanguage(), { agent = 'claude' } = {})
     // tiers would only mislead a Codex session.
     .filter((r) => !r.agents || r.agents.includes(agent))
     .map((r) => ({
-      // Hashed from the Korean text in both languages: the id has to survive a
-      // reworded translation, or a user who declined a rule would be asked again
-      // the next time its English copy changes.
-      id: `fix-${createHash('sha1').update(r.ko).digest('hex').slice(0, 6)}`,
+      // The id is carried by the preset itself: first derived from the Korean
+      // text, then kept when a published bundle rewords the rule, so a user who
+      // accepted or declined it keeps that answer. presets-source.js fills it in
+      // for an entry that has none, from the Korean text as before.
+      id: r.id,
       text: lang === 'ko' ? r.ko : r.en,
       ko: r.ko,
     }));

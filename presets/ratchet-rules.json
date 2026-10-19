@@ -6,31 +6,39 @@
     "each answer. Both read this file, so there is one source for the wording.",
     "Each rule carries both languages because the text is injected into the model's",
     "context, where a Korean-only rule would steer an English session into Korean.",
-    "Ids are derived from the `ko` text (the canonical one), so a rule keeps its",
-    "identity — and a user's 'no' — when the English wording is revised."
+    "Each rule carries a stable `id`. It was derived once from the `ko` text",
+    "(fix-<sha1(ko)[0:6]>) and is kept when the wording changes, so a rule keeps its",
+    "identity, and a user's 'no', across rewording. This file is also the fallback for",
+    "the centrally published preset bundle; `npm run presets:pull` refreshes it."
   ],
   "rules": [
     {
+      "id": "fix-bd7836",
       "ko": "웹 fetch/search에서 robots·UA 차단('unable to fetch' 등)이 발생하면 → curl에 브라우저 UA(Mozilla/5.0 ... Chrome/...) 헤더를 붙여 재시도. reddit 등은 .json 엔드포인트 + UA 조합으로 접근 가능",
       "en": "When a web fetch/search is blocked by robots or user-agent checks ('unable to fetch' and similar) → retry with curl carrying a browser UA header (Mozilla/5.0 ... Chrome/...). Sites like reddit also answer on their .json endpoints with that UA"
     },
     {
+      "id": "fix-4168c2",
       "ko": "ratchet 룰 promote 호출 직전 사용자에게 scope(global/project)를 먼저 묻는다 — Bash 환경은 non-TTY라 CLI readline 프롬프트가 안 뜨므로, 호출자(LLM)가 대신 묻고 --global/--project 플래그를 명시해 실행",
       "en": "Ask the user for the scope (global or project) before calling ratchet promote — the Bash environment is non-TTY, so the CLI's readline prompt never appears; the caller (the model) has to ask and pass --global/--project explicitly"
     },
     {
+      "id": "fix-ce98b4",
       "ko": "자동화 도구가 grep·정규식으로 찾는 마커 텍스트(헤더·앵커·키워드 라인)는 리팩터링·압축·수정 금지 — 정확 매칭 검출은 한 글자만 바뀌어도 깨짐",
       "en": "Never refactor, compress or reword marker text that an automated tool finds by grep or regex (headings, anchors, keyword lines) — exact-match detection breaks on a single changed character"
     },
     {
+      "id": "fix-b1da7a",
       "ko": "자동화 설계에서 vision/screenshot 루프가 보이면 → 호출 가능한 함수·API·MCP tool부터 찾는다. 통제 가능한 내부 도구는 무조건 API, 통제 불가 외부 SaaS만 vision 차선책. 인터페이스를 바꾼 뒤에 모델을 내린다 — 거꾸로 가면 토큰 폭발",
       "en": "When an automation design calls for a vision/screenshot loop → look for a callable function, API or MCP tool first. Anything you control gets an API; vision is the fallback only for external SaaS you cannot change. Fix the interface before lowering the model — doing it the other way round explodes the token cost"
     },
     {
+      "id": "fix-1dee5f",
       "ko": "입력 데이터(ground-truth) 변경 시 그에 의존하는 모든 파생 자산을 끝까지 재생성한다 — 중간 단계를 생략하면 stale 산출물이 새 입력 위에 얹혀 결과가 깨짐",
       "en": "When the ground-truth input changes, regenerate every derived asset all the way through — skipping an intermediate step leaves a stale artifact sitting on top of the new input and the result breaks"
     },
     {
+      "id": "fix-f558f9",
       "ko": "탐색·조회·상태 확인·명령 실행 같은 단순 요청은 `model: haiku` 서브에이전트로 위임해 상위 모델 토큰을 아낀다 (읽기 전용 preset 에이전트가 이미 있으면 그걸 쓰고, 없으면 티어만 내려서 위임)",
       "en": "Delegate simple requests — lookup, status checks, running commands — to a `model: haiku` subagent to keep the expensive model's tokens for real work (use an existing read-only preset agent when there is one; otherwise delegate with the tier lowered)",
       "agents": [
@@ -38,10 +46,12 @@
       ]
     },
     {
+      "id": "fix-aa18bc",
       "ko": "지침이나 룰이 지켜지지 않아 같은 품질 문제가 재발하면 문구를 다시 쓰지 말 것 → 그 조항이 기계로 판정 가능한지부터 따지고(문자열 비교나 정규식으로 결정되면 판정 가능), 가능하면 쓰기 시점 훅이나 테스트 같은 차단 지점을 추가한다. 판단이 필요한 잔여 부분만 지침에 남기고 그 경계를 지침에 적는다. 실제 코퍼스에 돌려 오탐 건수를 센 뒤 좁히고, 회귀 테스트를 같은 커밋에 넣는다",
       "en": "When a guideline keeps being violated and the same quality defect recurs, do NOT reword the instruction → first ask whether the clause is machine-decidable (a string comparison or regex settles it), and if so add an enforcement point such as a write-time hook or a test. Leave only the judgement remainder in the prose and state that boundary there. Measure the false-positive count on a real corpus, narrow until it is acceptable, and land a regression test in the same commit"
     },
     {
+      "id": "fix-777a15",
       "ko": "여러 파일에 걸친 구현을 맡으면 → 설계와 스펙 확정은 메인 모델이 하고 코드 작성은 서브에이전트에 위임한다(Claude는 `model: sonnet`, Codex는 명시적 매핑을 우선해 해석한 T1을 쓰며 haiku나 T2에는 구현을 맡기지 않는다). 위임 프롬프트에는 설계, 수정할 파일, 제약, 완료 기준, 테스트 명령, 예산, 권장 모델과 그 이유를 적어 다른 문맥 없이 실행할 수 있게 한다. 이미 읽은 파일의 약 50줄 이하 변경이나 의존 단계가 하나뿐인 짧은 구현, 그리고 위임 도구나 하위 모델을 쓸 수 없는 경우는 메인 모델이 직접 처리한다. 위임한 구현은 끝날 때까지 기다리고 같은 구현을 중복 실행하지 않으며, 돌아온 diff와 테스트 결과를 메인 모델이 직접 검증한 뒤에 완료로 보고한다",
       "en": "When an implementation spans several files → the main model settles the design and specification, then delegates the code writing to a subagent (Claude: `model: sonnet`; Codex: its resolved T1, explicit mapping first; never haiku or T2 for implementation). Write the delegation prompt so it runs without other context: design, files to change, constraints, completion criteria, test commands, budget, and the recommended model with a one-line reason. Keep changes of roughly 50 lines or less in files already read, a single short dependency chain, or cases where the subagent tools or the lower model are unavailable on the main model. Wait for the delegated work instead of duplicating it, and verify the returned diff and the actual test results before reporting completion",
       "agents": [

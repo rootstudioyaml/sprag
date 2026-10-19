@@ -246,6 +246,12 @@ Commands default to Claude Code; add `--agent codex` to pick Codex, for example 
 
 The full command list, the Claude Code and Codex comparison, accounting limits and removal are in [Codex support and limits](https://sprag.io/docs/codex/) ([source](https://github.com/rootstudioyaml/sprag/blob/main/docs/CODEX.md)), or run `sprag capabilities --agent codex` for the support matrix.
 
+## Presets
+
+The ratchet presets, model-routing presets and delegation agents in `presets/` are also published centrally from the Sprag console. Once a day the CLI asks the Sprag server whether a newer version exists, a read-only request that carries nothing about you, and applies it only when its signature verifies against a key built into the CLI. Offline, blocked or unverified, it keeps the copy bundled with the package. A new version takes effect at the next session start, and presets you already accepted with `sprag seed` pick up reworded text on their own; new presets are still offered one at a time.
+
+`sprag presets status` shows which copy is in use and why, `sprag presets sync` checks now, `sprag presets show` prints the effective presets, and `SPRAG_NO_PRESET_SYNC=1` turns the fetch off. The request is listed in the network table of the [install guide](https://github.com/rootstudioyaml/sprag/blob/main/docs/INSTALL.md).
+
 ## Day-to-day commands
 
 | Command | What it does |

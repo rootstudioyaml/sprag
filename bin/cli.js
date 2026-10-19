@@ -103,7 +103,7 @@ function segmentsFromArgs() {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team',
+  'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets',
 ]);
 
 // Flags each entry path reads, collected from the hasFlag/getArg/numArg calls in
@@ -197,6 +197,7 @@ Usage:
   sprag handoff            write a session handoff file
   sprag mode [keywords]    statusline preferences (icon/text, en/ko, window, ttl)
   sprag seed               register the bundled starter rules, one answer at a time
+  sprag presets [status|sync|show]   centrally published presets: source, fetch now, effective list
   sprag cowork [sync|on|off|exclude <dir>|include <dir>]   copy the ratchet rules into Cowork tab folders
   sprag korean on|off|status     Korean writing guidance + write-time check
   sprag cohesion on|off|status   English sentence-connection guidance
@@ -394,6 +395,13 @@ async function main() {
   //   sprag seed | seed accept <id> --global|--project | seed skip <id>
   if (args[0] === 'seed') {
     return (await import('../src/commands/seed.js')).run({ args, hasFlag });
+  }
+
+  // Subcommand: presets — the centrally published preset bundle (read-only
+  // fetch, signature-checked) or the bundled fallback. See src/presets-source.js.
+  //   sprag presets [status] | presets sync [--force] | presets show [--json]
+  if (args[0] === 'presets') {
+    return (await import('../src/commands/presets.js')).run({ args, hasFlag });
   }
 
   // Subcommand: cowork — ratchet copies for the Claude app's Cowork tab.

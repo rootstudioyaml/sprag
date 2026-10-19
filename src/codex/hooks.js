@@ -181,6 +181,7 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
     const parts = [];
     // Keep the preset file current with this version's wording before it is read.
     if (event === 'session-start') {
+      try { (await import('../preset-sync.js')).spawnPresetSyncIfDue(); } catch (e) { debug('codex:preset-sync', e); }
       try { (await import('../preset-ratchet.js')).preparePresetRatchet({ agent: 'codex' }); } catch (e) { debug('codex:preset', e); }
     }
     const { presetRatchetPath } = await import('../preset-ratchet.js');

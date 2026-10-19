@@ -30,6 +30,7 @@ import { sessionCost } from './claude-price.js';
 import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { modelRuleBaseText } from './model-rules.js';
 import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
+import { modelPresets as sourceModelPresets } from './presets-source.js';
 
 // ── Tier bands (docs/TIER_CRITERIA.md §3) ────────────────────────────────
 // T2 (haiku): finished in few calls, tiny output, near-zero mutation, no
@@ -162,6 +163,18 @@ const CATEGORIES = [
     kw: [[/\bgit |\bcommit(?:s|ted)?\b|\bpush(?:ed|es)?\b|\bnpm |\bpip3? |빌드해|빌드 돌/i, 2], [/실행|돌려|\brun\b|\bbuild\b|빌드|테스트|설치/i, 1]],
   },
 ];
+// The T2 agent a category's candidates name follows the published model presets
+// when one covers that category (presets-source.js), so renaming an agent in the
+// /ops console renames it in new candidates too. Categories without a preset
+// (translate) keep the name above.
+function t2AgentFor(cat) {
+  try {
+    const p = sourceModelPresets().find((x) => x.tier === 'T2' && x.category === cat.id);
+    if (p && typeof p.agent === 'string' && p.agent) return p.agent;
+  } catch { /* the built-in name below */ }
+  return cat.agent;
+}
+
 // English keywords are matched as whole words. As bare substrings, `pip`
 // claimed "pipeline", `commit` "commitment", `find` "findings" and `status`
 // "statusline", which filed questions about those under run, explore or check.
@@ -635,7 +648,7 @@ export async function runRouteScan({ days = 14 } = {}) {
       category: cat.id,
       label: cat.label,
       labelEn: cat.labelEn,
-      agent: tier === 'T2' ? cat.agent : tier === 'T1H' ? 'opus' : 'sonnet',
+      agent: tier === 'T2' ? t2AgentFor(cat) : tier === 'T1H' ? 'opus' : 'sonnet',
       project: projectDir,
       projectPath: '',
       count: 0,

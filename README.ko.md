@@ -192,6 +192,12 @@ Codex에는 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙, 한국
 
 전체 명령 목록과 Claude Code·Codex 비교, 집계 한계, 제거 방법은 [Codex 지원 범위와 제한](https://sprag.io/docs/ko/codex/)([원문](https://github.com/rootstudioyaml/sprag/blob/main/docs/CODEX.ko.md))에 있습니다. `sprag capabilities --agent codex`로 기능별 지원 여부를 확인할 수도 있습니다.
 
+## 프리셋
+
+`presets/` 에 들어 있는 래칫 프리셋, 모델 라우팅 프리셋, 위임 에이전트는 Sprag 콘솔에서도 게시합니다. CLI는 하루에 한 번 Sprag 서버에 새 버전이 있는지 묻고, 서명이 CLI에 들어 있는 키로 확인될 때만 그 버전을 적용합니다. 이 요청은 읽기 전용이고, 사용자를 알아볼 만한 정보는 담지 않습니다. 오프라인이거나 막혀 있거나 서명이 맞지 않으면 패키지에 동봉된 사본을 계속 씁니다. 새 버전은 다음 세션을 시작할 때 적용되고, `sprag seed` 로 이미 수락한 프리셋은 고쳐진 문구를 알아서 받습니다. 새로 생긴 프리셋은 지금처럼 하나씩 제안합니다.
+
+`sprag presets status` 는 어느 사본을 왜 쓰는지 보여 주고, `sprag presets sync` 는 바로 확인하고, `sprag presets show` 는 지금 적용 중인 프리셋을 출력합니다. 받아 오기를 끄려면 `SPRAG_NO_PRESET_SYNC=1` 을 설정하십시오. 이 요청은 [설치 안내](https://github.com/rootstudioyaml/sprag/blob/main/docs/INSTALL.ko.md)의 네트워크 표에 있습니다.
+
 ## 자주 쓰는 명령
 
 | 명령 | 하는 일 |

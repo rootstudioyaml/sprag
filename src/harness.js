@@ -11,7 +11,6 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'no
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import {
   HARNESS_SECTIONS,
   HARNESS_BLOCK_BEGIN,
@@ -28,6 +27,7 @@ import { ruleHealthWarningForStatusline, modelRatchetPathFor, renderModelRatchet
 import { compactWindowWarningForStatusline } from './compact-window.js';
 import { userLanguage } from './config.js';
 import { codexUserDir } from './agent.js';
+import { ratchetPresetEntries } from './presets-source.js';
 
 const require = createRequire(import.meta.url);
 function readHarnessState() {
@@ -441,19 +441,9 @@ export async function harnessPull({ root = findProjectRoot(), scope = 'global', 
  * turns a rule the user already answered into a new one.
  */
 export function presetRuleEntries() {
-  try {
-    // fileURLToPath, not `.pathname`: the latter yields `/D:/repo/src` on
-    // Windows, where the read fails and the catch below turns a missing
-    // file into an empty rule set without ever saying so.
-    const path = join(dirname(fileURLToPath(import.meta.url)), '..', 'presets', 'ratchet-rules.json');
-    const data = JSON.parse(readFileSync(path, 'utf8'));
-    return (Array.isArray(data.rules) ? data.rules : [])
-      .filter((r) => r && typeof r.ko === 'string' && r.ko.trim())
-      .map((r) => ({ ko: r.ko.trim(), en: (r.en || r.ko).trim(),
-        ...(Array.isArray(r.agents) ? { agents: r.agents.filter((a) => typeof a === 'string') } : {}) }));
-  } catch {
-    return [];
-  }
+  // The published bundle when it verifies, else presets/ratchet-rules.json
+  // (presets-source.js). Each entry carries its stable id.
+  return ratchetPresetEntries();
 }
 
 /** Preset rule text in the user's configured language. */

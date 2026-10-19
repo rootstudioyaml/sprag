@@ -83,6 +83,7 @@ Sprag 이 측정하는 값은 모두 사용자 컴퓨터의 파일에서 나옵�
 |---|---|---|---|
 | `registry.npmjs.org/sprag-cli/latest` | statusline 에서 하루 한 번, SessionStart 훅에서 3시간마다 | 요청 자체만 보내고 식별 정보는 없습니다 | `SPRAG_NO_UPDATE_CHECK=1` 또는 `NO_UPDATE_NOTIFIER=1` |
 | `api.github.com/repos/rootstudioyaml/sprag/releases/tags/<버전>` | 위 확인에서 새 버전이 보이면 그 릴리스의 핵심 세 줄을 가져옵니다 | 요청 자체만 보냅니다 | 위와 같습니다 |
+| `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/presets_version`, `presets_published` (Supabase, 읽기 전용) | SessionStart 훅의 분리된 자식 프로세스가 최대 24시간에 한 번 확인합니다. `presets_published` 는 게시 버전이 바뀌었을 때만 부르고, `sprag presets sync` 로 바로 확인할 수도 있습니다 | 요청 자체만 보냅니다. 공개 anon 키를 쓰며 구성원 키나 식별 정보는 없습니다. 게시된 래칫·모델 라우팅·위임 에이전트 프리셋은 CLI 에 들어 있는 키로 서명이 확인될 때만 적용합니다. 오프라인이거나 막혀 있거나 서명이 맞지 않으면 패키지에 동봉된 프리셋을 계속 쓰고, `sprag presets status` 가 어느 쪽을 왜 쓰는지 알려 줍니다 | `SPRAG_NO_PRESET_SYNC=1` 또는 `SPRAG_NO_UPDATE_CHECK=1` |
 | 사용자의 LiteLLM 게이트웨이: `GET /key/info`, `/user/info`, `/model/info` | `ANTHROPIC_BASE_URL` 이 게이트웨이를 가리키고 키가 있을 때만 동작합니다. 예산 게이지는 statusline 주기로, `/model/info` 는 `sprag profile-map --refresh` 를 실행할 때나 예산 갱신에 편승해서 갱신합니다. Codex 는 자체 설정의 provider 주소를 씁니다 | 사용자가 이미 쓰는 키를 `Authorization` 헤더에 넣습니다. 키는 Sprag 의 캐시 파일에 적지 않습니다 | `ANTHROPIC_BASE_URL` 을 해제하거나 `sprag mode` 에서 예산 세그먼트를 뺍니다 |
 | `gh` CLI 를 통한 GitHub 이슈 | `sprag feedback` 을 실행했고 `gh` 가 로그인된 경우에만 | 입력한 메시지와 버전·OS·Node.js 버전 | `--anonymous` 를 붙이면 `gh` 경로를 건너뜁니다 |
 | `docs.google.com/forms/…/formResponse` | `sprag feedback` 을 실행했고 `gh` 를 쓸 수 없는 경우에만 | 같은 메시지와 메타데이터를 관리자가 읽는 익명 폼으로 보냅니다 | `feedback` 을 실행하지 않으면 됩니다. 실행하면 미리 채운 이슈 URL 과 함께 로컬 사본도 남습니다 |

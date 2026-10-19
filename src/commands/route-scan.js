@@ -296,6 +296,10 @@ export async function run({ args, hasFlag, numArg }) {
       // would keep reading the old wording indefinitely. The call writes only
       // when the rendering differs, so the common case is a read and a string
       // compare.
+      // Central presets: kick the detached, read-only fetch when a day has
+      // passed. What it fetches is applied by the renders below at the NEXT
+      // session start; this one uses whatever was already cached.
+      try { (await import('../preset-sync.js')).spawnPresetSyncIfDue(); } catch (e) { debug('route-scan:preset-sync', e); }
       // Agent files come first so the ratchet-model.md rendered next names them.
       try { (await import('../delegation-agents.js')).syncDelegationAgents(); } catch (e) { debug('route-scan:delegation-agents', e); }
       try { mrHook.syncAllFiles(); } catch (e) { debug('route-scan:sync-ratchet', e); }
