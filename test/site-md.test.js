@@ -114,12 +114,22 @@ test('build({ outDir }) generates the full site/docs tree', () => {
     assert.ok(existsSync(join(outDir, 'docs', 'ko', 'index.html')));
 
     const sitemap = readFileSync(join(outDir, 'sitemap.xml'), 'utf8');
+    const enIndex = readFileSync(join(outDir, 'docs', 'index.html'), 'utf8');
+    const koIndex = readFileSync(join(outDir, 'docs', 'ko', 'index.html'), 'utf8');
     for (const e of entries) {
-      assert.match(sitemap, new RegExp(`https://sprag\\.io/docs/${e.slug}/`));
+      // A hidden page still builds and stays reachable by URL, but it is never
+      // advertised: no sitemap entry, no index card and no indexing.
+      const advertise = e.hidden ? assert.doesNotMatch : assert.match;
+      advertise(sitemap, new RegExp(`https://sprag\\.io/docs/${e.slug}/`));
+      advertise(enIndex, new RegExp(`href="/docs/${e.slug}/"`));
       if (e.hasKo) {
-        assert.match(sitemap, new RegExp(`https://sprag\\.io/docs/ko/${e.slug}/`));
+        advertise(sitemap, new RegExp(`https://sprag\\.io/docs/ko/${e.slug}/`));
+        advertise(koIndex, new RegExp(`href="/docs/ko/${e.slug}/"`));
       }
+      const robots = e.hidden ? /content="noindex, nofollow"/ : /content="index, follow"/;
+      assert.match(readFileSync(join(outDir, 'docs', e.slug, 'index.html'), 'utf8'), robots);
     }
+    assert.ok(entries.some((e) => e.hidden), 'at least one page is URL-only');
     assert.match(sitemap, /<loc>https:\/\/sprag\.io\/<\/loc>/);
   } finally {
     rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

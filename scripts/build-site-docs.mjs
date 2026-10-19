@@ -120,6 +120,10 @@ const MANIFEST = [
   {
     slug: 'team',
     src: 'TEAM.md',
+    // Built and reachable by URL, but kept out of the docs index, the "more
+    // docs" lists and the sitemap (noindex) until the team plan launches, like
+    // site/team/ and site/pricing/.
+    hidden: true,
     title: 'Sprag team layer: shared spend, savings and rules',
     description:
       'The opt-in team layer: what each member uploads (daily aggregates only), how an organization enrolls with one environment variable, and how team-approved rules reach every session.',
@@ -448,7 +452,7 @@ function styleBlock() {
 </style>`;
 }
 
-function pageHead({ lang, slug, title, description, keywordsStr, canonical, hasKo, koUrl, enUrl, dateModified }) {
+function pageHead({ lang, slug, title, description, keywordsStr, canonical, hasKo, koUrl, enUrl, dateModified, hidden = false }) {
   const altBlock =
     hasKo === undefined
       ? ''
@@ -478,7 +482,7 @@ function pageHead({ lang, slug, title, description, keywordsStr, canonical, hasK
 <meta name="keywords" content="${escapeAttr(keywordsStr)}" />
 <link rel="canonical" href="${canonical}" />
 ${altBlock}
-<meta name="robots" content="index, follow" />
+<meta name="robots" content="${hidden ? 'noindex, nofollow' : 'index, follow'}" />
 <meta property="og:type" content="article" />
 <meta property="og:title" content="${escapeAttr(title)}" />
 <meta property="og:description" content="${escapeAttr(description)}" />
@@ -546,6 +550,7 @@ function docPageHtml(opts) {
     enUrl,
     koUrl,
     moreDocs,
+    hidden = false,
   } = opts;
   const canonical = lang === 'ko' ? `${SITE_ORIGIN}/docs/ko/${slug}/` : `${SITE_ORIGIN}/docs/${slug}/`;
   const docsHref = lang === 'ko' ? '/docs/ko/' : '/docs/';
@@ -556,6 +561,7 @@ function docPageHtml(opts) {
     description,
     keywordsStr,
     canonical,
+    hidden,
     hasKo,
     koUrl,
     enUrl,
@@ -663,8 +669,10 @@ function buildSitemap(entries) {
     <priority>0.7</priority>
   </url>`);
   // site/team/ and site/pricing/ stay out of the sitemap until the team plan
-  // launches; they are reachable by URL only (both carry noindex).
+  // launches; they are reachable by URL only (both carry noindex). Hidden
+  // manifest entries (docs/team) stay out for the same reason.
   for (const e of entries) {
+    if (e.hidden) continue;
     const enUrl = `${SITE_ORIGIN}/docs/${e.slug}/`;
     const koUrl = e.hasKo ? `${SITE_ORIGIN}/docs/ko/${e.slug}/` : null;
     const enAlt = e.hasKo
@@ -735,7 +743,7 @@ export function build({ outDir } = {}) {
 
     const { html: enHtml } = renderMarkdown(e.enBody, { link });
     const enMore = entries
-      .filter((o) => o.slug !== e.slug)
+      .filter((o) => !o.hidden && o.slug !== e.slug)
       .map((o) => ({ href: `/docs/${o.slug}/`, title: o.title }));
     const enPage = docPageHtml({
       lang: 'en',
@@ -749,6 +757,7 @@ export function build({ outDir } = {}) {
       enUrl,
       koUrl,
       moreDocs: enMore,
+      hidden: e.hidden,
     });
     const enPath = path.join(targetSiteDir, 'docs', e.slug, 'index.html');
     writeFile(enPath, enPage);
@@ -757,7 +766,7 @@ export function build({ outDir } = {}) {
     if (e.hasKo) {
       const { html: koHtml } = renderMarkdown(e.koBody, { link });
       const koMore = entries
-        .filter((o) => o.hasKo && o.slug !== e.slug)
+        .filter((o) => !o.hidden && o.hasKo && o.slug !== e.slug)
         .map((o) => ({ href: `/docs/ko/${o.slug}/`, title: o.koTitle }));
       const koPage = docPageHtml({
         lang: 'ko',
@@ -771,6 +780,7 @@ export function build({ outDir } = {}) {
         enUrl,
         koUrl,
         moreDocs: koMore,
+        hidden: e.hidden,
       });
       const koPath = path.join(targetSiteDir, 'docs', 'ko', e.slug, 'index.html');
       writeFile(koPath, koPage);
@@ -780,11 +790,11 @@ export function build({ outDir } = {}) {
 
   // Index pages.
   const enIndexPath = path.join(targetSiteDir, 'docs', 'index.html');
-  writeFile(enIndexPath, indexPageHtml({ lang: 'en', entries }));
+  writeFile(enIndexPath, indexPageHtml({ lang: 'en', entries: entries.filter((e) => !e.hidden) }));
   written.push(enIndexPath);
 
   const koIndexPath = path.join(targetSiteDir, 'docs', 'ko', 'index.html');
-  writeFile(koIndexPath, indexPageHtml({ lang: 'ko', entries: entries.filter((e) => e.hasKo) }));
+  writeFile(koIndexPath, indexPageHtml({ lang: 'ko', entries: entries.filter((e) => e.hasKo && !e.hidden) }));
   written.push(koIndexPath);
 
   // Sitemap.

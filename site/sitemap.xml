@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://sprag.io/</loc>
-    <lastmod>2026-10-18</lastmod>
+    <lastmod>2026-10-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en"/>
@@ -177,24 +177,6 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>
     <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/commands/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/commands/"/>
-  </url>
-  <url>
-    <loc>https://sprag.io/docs/team/</loc>
-    <lastmod>2026-10-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/team/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/team/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/team/"/>
-  </url>
-  <url>
-    <loc>https://sprag.io/docs/ko/team/</loc>
-    <lastmod>2026-10-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/team/"/>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/team/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/team/"/>
   </url>
   <url>
     <loc>https://sprag.io/docs/korean-style/</loc>
