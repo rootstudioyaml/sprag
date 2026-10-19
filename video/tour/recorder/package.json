@@ -1,0 +1,9 @@
+{
+  "name": "sprag-tour-recorder",
+  "private": true,
+  "type": "module",
+  "description": "Records the Sprag tour clips with puppeteer-core and the system Chrome (see ../README.md)",
+  "dependencies": {
+    "puppeteer-core": "25.14.0"
+  }
+}

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="__LANG__">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <!--
+      Sprag tour, 90 s, 1920x1080, 30 fps. HyperFrames composition template.
+      build.sh copies this file into out/build-<lang>/ with __LANG__ replaced by ko or en and the clips of that
+      language beside it (clips/<lang>/*.mp4 -> clips/*.mp4). Captions for both languages live here; the html lang
+      attribute hides the other set. Recorded clips come from recorder/record.mjs. The music is muxed afterwards by
+      build.sh (volume envelope and loudness), so this file has no audio element.
+
+      Shots (start, length incl. the 0.45 s crossfade into the next):
+        0     town-hook       night rain, zoom out from the HQ        + saving counter
+        8     town-select     a company's drawer slides in
+        14    office-intro    the company's office
+        20    office-lion     lion, orbit, bots and server, chick with coffee
+        38    office-drawer   person card, model mix, daily chart
+        50    team-kpi        KPI cards, range rail
+        55    team-seats      seat movement and table
+        60    team-palette    Cmd+K
+        64    team-rules      add a model rule
+        71    terminal        sprag team rules (built here)
+        76    town-dawn/day/dusk/snow   2 s each, one camera path
+        84    closing         logo, line, sprag.io
+      One tween per property per element: entrances on the inner element, exits on the outer wrapper.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Archivo:wght@800&display=block" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0c; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; word-break: keep-all; color: #fff; }
+      html[lang="ko"] .e, html[lang="en"] .k { display: none; }
+
+      .vid { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover; }
+      .scene { position: absolute; inset: 0; }
+
+      /* captions: bottom centre, inside the 16:9 safe area */
+      .cap { position: absolute; left: 60px; right: 60px; bottom: 96px; display: flex; justify-content: center; z-index: 50; pointer-events: none; }
+      .cap-in { display: inline-block; max-width: 1500px; padding: 16px 34px 18px; border-radius: 24px; background: rgba(10, 10, 16, 0.86);
+        border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 12px 44px rgba(0, 0, 0, 0.38); font-size: 42px; font-weight: 700; line-height: 1.34; text-align: center; letter-spacing: -0.01em; }
+
+      /* hook counter, top left under the scene HUD */
+      #counter { position: absolute; left: 60px; top: 150px; z-index: 50; }
+      #counter .pill { display: inline-flex; align-items: center; gap: 14px; padding: 14px 26px; border-radius: 22px; background: rgba(16, 14, 26, 0.66);
+        font-size: 40px; font-weight: 700; line-height: 1; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); }
+      #counter .num { display: inline-flex; color: #7ee2b0; font-variant-numeric: tabular-nums; }
+      #counter .d { display: inline-block; height: 1em; overflow: hidden; }
+      #counter .d span { display: block; }
+      #counter .d span i { display: block; height: 1em; line-height: 1em; font-style: normal; }
+      #counter .lbl { color: #e8e6f2; font-weight: 500; }
+
+      /* terminal */
+      #term { background: radial-gradient(ellipse at 50% 40%, #191a2e 0%, #0a0a0c 70%); z-index: 20; }
+      #term .card { position: absolute; left: 230px; top: 150px; width: 1460px; height: 560px; border-radius: 22px; background: #0f1016;
+        border: 1px solid #2c2d34; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); overflow: hidden; }
+      #term .bar { height: 54px; display: flex; align-items: center; gap: 12px; padding: 0 22px; background: #15161d; border-bottom: 1px solid #23242c; }
+      #term .bar i { width: 15px; height: 15px; border-radius: 50%; display: block; }
+      #term .bar b { margin-left: 16px; font: 500 20px 'JetBrains Mono', monospace; color: #7c7f8c; }
+      #term .body { padding: 34px 44px; font: 500 29px/1.75 'JetBrains Mono', monospace; color: #d9dbe4; white-space: nowrap; }
+      #term .ko-t { font-family: 'Noto Sans KR', sans-serif; font-weight: 500; }
+      #term .ps { color: #8a94f2; }
+      #term .tag { color: #7ee2b0; }
+      #term .tag.m { color: #8ec5fb; }
+      #term .fit { color: #f9a8d4; }
+      #term .dim { color: #7c7f8c; }
+      #term .cur { display: inline-block; width: 15px; height: 32px; background: #d9dbe4; vertical-align: -5px; margin-left: 4px; }
+
+      /* closing */
+      #closing { background: radial-gradient(ellipse at 50% 42%, #fffaf0 0%, #f6ead2 78%); z-index: 30; color: #2a2118; }
+      #closing .logo { position: absolute; left: 50%; top: 300px; width: 760px; margin-left: -380px; }
+      #closing .logo svg { width: 760px; height: auto; display: block; }
+      #closing .line { position: absolute; left: 60px; right: 60px; top: 560px; text-align: center; font-size: 54px; font-weight: 700; line-height: 1.32; letter-spacing: -0.015em; }
+      #closing .url { position: absolute; left: 0; right: 0; top: 760px; text-align: center; font: 700 40px 'JetBrains Mono', monospace; color: #5e6ad2; letter-spacing: 0.02em; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="90" data-width="1920" data-height="1080">
+      <!-- recorded clips, later ones stack on top and fade in over the earlier ones -->
+      <video id="v-hook" class="clip vid" src="clips/town-hook.mp4" data-start="0" data-duration="8.45" data-media-start="0" data-track-index="0" muted playsinline style="z-index:1"></video>
+      <video id="v-select" class="clip vid" src="clips/town-select.mp4" data-start="8" data-duration="6.45" data-media-start="0" data-track-index="1" muted playsinline style="z-index:2"></video>
+      <video id="v-office" class="clip vid" src="clips/office-intro.mp4" data-start="14" data-duration="6.45" data-media-start="0" data-track-index="2" muted playsinline style="z-index:3"></video>
+      <video id="v-lion" class="clip vid" src="clips/office-lion.mp4" data-start="20" data-duration="18.45" data-media-start="0" data-track-index="3" muted playsinline style="z-index:4"></video>
+      <video id="v-drawer" class="clip vid" src="clips/office-drawer.mp4" data-start="38" data-duration="12.45" data-media-start="0" data-track-index="4" muted playsinline style="z-index:5"></video>
+      <video id="v-kpi" class="clip vid" src="clips/team-kpi.mp4" data-start="50" data-duration="5.45" data-media-start="0" data-track-index="5" muted playsinline style="z-index:6"></video>
+      <video id="v-seats" class="clip vid" src="clips/team-seats.mp4" data-start="55" data-duration="5.45" data-media-start="0" data-track-index="6" muted playsinline style="z-index:7"></video>
+      <video id="v-pal" class="clip vid" src="clips/team-palette.mp4" data-start="60" data-duration="4.45" data-media-start="0" data-track-index="7" muted playsinline style="z-index:8"></video>
+      <video id="v-rules" class="clip vid" src="clips/team-rules.mp4" data-start="64" data-duration="7.45" data-media-start="0" data-track-index="8" muted playsinline style="z-index:9"></video>
+      <video id="v-dawn" class="clip vid" src="clips/town-dawn.mp4" data-start="76" data-duration="2.45" data-media-start="0" data-track-index="9" muted playsinline style="z-index:21"></video>
+      <video id="v-day" class="clip vid" src="clips/town-day.mp4" data-start="78" data-duration="2.45" data-media-start="0" data-track-index="10" muted playsinline style="z-index:22"></video>
+      <video id="v-dusk" class="clip vid" src="clips/town-dusk.mp4" data-start="80" data-duration="2.45" data-media-start="0" data-track-index="11" muted playsinline style="z-index:23"></video>
+      <video id="v-snow" class="clip vid" src="clips/town-snow.mp4" data-start="82" data-duration="2.45" data-media-start="0" data-track-index="12" muted playsinline style="z-index:24"></video>
+
+      <!-- 71-76.45: the same rules arriving on a member's machine -->
+      <div id="term" class="clip scene" data-start="71" data-duration="5.45" data-track-index="13">
+        <div class="card" id="term-card">
+          <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><b>~/projects/app</b></div>
+          <div class="body">
+            <div><span class="ps">$ </span><span id="cmd"><span class="ch">s</span><span class="ch">p</span><span class="ch">r</span><span class="ch">a</span><span class="ch">g</span><span class="ch"> </span><span class="ch">t</span><span class="ch">e</span><span class="ch">a</span><span class="ch">m</span><span class="ch"> </span><span class="ch">r</span><span class="ch">u</span><span class="ch">l</span><span class="ch">e</span><span class="ch">s</span></span></div>
+            <div class="out" id="o1"><span class="dim">- </span><span class="tag">[org · ratchet]</span> <span class="k ko-t">고객 데이터와 운영 비밀값은 프롬프트에 붙여 넣지 않는다</span><span class="e">Never paste customer data or production secrets into a prompt</span></div>
+            <div class="out" id="o2"><span class="dim">- </span><span class="tag">[team · ratchet]</span> <span class="k ko-t">완료 보고 전에 전체 테스트를 돌린다</span><span class="e">Run the full test suite before reporting done</span></div>
+            <div class="out" id="o3"><span class="dim">- </span><span class="tag m">[team · model]</span> <span class="k"><span class="ko-t">설계는 메인 세션이 맡고, 구현은 </span>sonnet<span class="ko-t">에 위임</span></span><span class="e">Main session designs, Sonnet implements</span></div>
+            <div class="out" id="o4" style="margin-top:26px"><span class="ps">$ </span><span class="dim">claude</span></div>
+            <div class="out fit" id="o5"><span class="k">🔀 [sprag] <span class="ko-t">모델 피팅</span>: "<span class="ko-t">구현</span>" → sonnet-worker <span class="ko-t">위임</span></span><span class="e">🔀 [sprag] model fitting: "implementation" → delegated to sonnet-worker</span><span class="cur" id="cur"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 84-90: closing -->
+      <div id="closing" class="clip scene" data-start="84" data-duration="6" data-track-index="14">
+        <div class="logo" id="logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag">
+            <defs><g id="sprag-cam"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)" /></g></defs>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6" />
+            <g fill="#5e6ad2"><use href="#sprag-cam" /><use href="#sprag-cam" transform="rotate(120 32 32)" /><use href="#sprag-cam" transform="rotate(240 32 32)" /></g>
+            <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4" />
+            <text x="76" y="43" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="31" font-weight="800" letter-spacing="5" fill="#0b0d12">SPRAG</text>
+          </svg>
+        </div>
+        <div class="line" id="close-line"><span class="k">AI를 쓰는 팀의 관리,<br />Sprag가 가볍게 만듭니다</span><span class="e">Sprag makes managing<br />AI teams light work</span></div>
+        <div class="url" id="close-url">sprag.io</div>
+      </div>
+
+      <!-- hook counter: digits roll to $4,629 in the first 3 s -->
+      <div id="counter" class="clip" data-start="0.3" data-duration="7.45" data-track-index="15">
+        <div class="pill" id="counter-in">
+          <span class="lbl k">절감</span>
+          <span class="num">$<span class="d" id="d1"></span>,<span class="d" id="d2"></span><span class="d" id="d3"></span><span class="d" id="d4"></span></span>
+          <span class="lbl k">· 30일</span><span class="lbl e">saved · 30 days</span>
+        </div>
+      </div>
+
+      <!-- captions -->
+      <div class="cap clip" id="c1" data-start="0.6" data-duration="7.15" data-track-index="16"><div class="cap-in"><span class="k">AI 비용이 어디로 가는지,<br />이제 보입니다</span><span class="e">See where your team's<br />AI spend really goes</span></div></div>
+      <div class="cap clip" id="c2" data-start="8.5" data-duration="11.25" data-track-index="16"><div class="cap-in"><span class="k">표 대신,<br />걸어 들어가는 대시보드</span><span class="e">Not a spreadsheet.<br />A dashboard you walk into</span></div></div>
+      <div class="cap clip" id="c3" data-start="20.5" data-duration="17.25" data-track-index="16"><div class="cap-in"><span class="k">AI 파워 유저부터<br />이제 막 시작한 사람까지</span><span class="e">From AI power users to<br />those just getting started</span></div></div>
+      <div class="cap clip" id="c4" data-start="38.5" data-duration="11.25" data-track-index="16"><div class="cap-in"><span class="k">비용, 절감, 맡긴 모델까지<br />사람마다 한 장</span><span class="e">Spend, savings and model<br />mix, one card per person</span></div></div>
+      <div class="cap clip" id="c5" data-start="50.5" data-duration="13.25" data-track-index="16"><div class="cap-in"><span class="k">기간별로 비교하고,<br />좌석 변동까지 한눈에</span><span class="e">Compare any period,<br />see every seat change</span></div></div>
+      <div class="cap clip" id="c6" data-start="64.5" data-duration="11.25" data-track-index="16"><div class="cap-in"><span class="k">라우팅 규칙은 중앙에서 한 번<br />모든 PC에 자동으로</span><span class="e">Set routing rules once,<br />every machine follows</span></div></div>
+      <div class="cap clip" id="c7" data-start="76.5" data-duration="7.25" data-track-index="16"><div class="cap-in"><span class="k">매일 들어오고 싶은 대시보드</span><span class="e">A dashboard you'll<br />actually want to open</span></div></div>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      /* crossfades: each later clip fades in over the one below it */
+      [["#v-select", 8], ["#v-office", 14], ["#v-lion", 20], ["#v-drawer", 38], ["#v-kpi", 50], ["#v-seats", 55], ["#v-pal", 60], ["#v-rules", 64],
+       ["#term", 71], ["#v-dawn", 76], ["#v-day", 78], ["#v-dusk", 80], ["#v-snow", 82], ["#closing", 84]].forEach(([id, t]) => {
+        tl.fromTo(id, { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "none" }, t);
+      });
+
+      /* captions: entrance on .cap-in, exit fade on the wrapper */
+      document.querySelectorAll(".cap").forEach((el) => {
+        const s = +el.dataset.start, d = +el.dataset.duration;
+        tl.fromTo(el.querySelector(".cap-in"), { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" }, s);
+        tl.to(el, { opacity: 0, duration: 0.35, ease: "none" }, s + d - 0.35);
+      });
+
+      /* counter: each digit is a strip 0-9, 0-9, 0..target that rolls up; the pill enters, then fades with the hook */
+      const H = 40, target = [4, 6, 2, 9];
+      target.forEach((v, i) => {
+        const strip = document.createElement("span"), n = 20 + v;
+        for (let k = 0; k <= n; k++) { const c = document.createElement("i"); c.textContent = String(k % 10); strip.appendChild(c); }
+        document.getElementById("d" + (i + 1)).appendChild(strip);
+        tl.fromTo(strip, { y: 0 }, { y: -n * H, duration: 2.2 + i * 0.18, ease: "power3.out" }, 0.55);
+      });
+      tl.fromTo("#counter-in", { opacity: 0, y: -14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0.3);
+      tl.to("#counter", { opacity: 0, duration: 0.35, ease: "none" }, 7.4);
+
+      /* terminal: card enters, the command types out, the rules print, then the statusline line */
+      tl.fromTo("#term-card", { y: 26, scale: 0.985 }, { y: 0, scale: 1, duration: 0.6, ease: "power2.out" }, 71.05);
+      document.querySelectorAll("#cmd .ch").forEach((c, i) => tl.fromTo(c, { opacity: 0 }, { opacity: 1, duration: 0.01 }, 71.55 + i * 0.055));
+      ["#o1", "#o2", "#o3"].forEach((id, i) => tl.fromTo(id, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.28, ease: "power2.out" }, 72.65 + i * 0.16));
+      tl.fromTo("#o4", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 73.45);
+      tl.fromTo("#o5", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 73.85);
+
+      /* closing */
+      tl.fromTo("#logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.8, ease: "power2.out" }, 84.35);
+      tl.fromTo("#close-line", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 84.95);
+      tl.fromTo("#close-url", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 85.55);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
