@@ -8,7 +8,11 @@
  *   { teams:[{id,name}], people:[{id,name,teamId,teamName,tier:'power'|'active'|'normal'|'low'|'nodata',tag,tierText,tip:[[k,v]],bots:['haiku'|'sonnet'|'opus'|'any'],bubbles:[{text,ai}],promptId,spent}],
  *     free, freeLabel, more, moreLabel, server:{label}, activity:0..1, closed, hud:{title,stats,closed}, legend:[{k:tier|'ghost',label}|{c,label}|{label}], aria }
  * people[].detail feeds the side drawer (click a person); data.ui holds its strings. opts: { onSeats(id), onPrompts(id), onTeam(id), onServer(), onFail(reason) }
- * The scene keeps its own bright palette in both page themes. three.js is imported lazily the first time the container scrolls into view. */
+ * The scene keeps its own bright palette in both page themes. three.js is imported lazily the first time the container scrolls into view.
+ * The returned handle also carries view, ready(), people(), server() and selectPerson(id) / closeDrawer() for scripted recordings (video/tour).
+ * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
+ * glowing screens take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
+import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
 const MAXP = 60, FAMC = { haiku: '#7fe0b8', sonnet: '#8ec5fb', opus: '#f9a8d4' };
 const TV = { power: { body: '#a78bfa', scr: '#d8ccff', bri: 1, sp: 15 }, active: { body: '#7cc4f2', scr: '#a8dcff', bri: 1, sp: 9 },
@@ -37,6 +41,15 @@ const ANIMALS = {
 };
 const GHOST = { name: 'ghost', icon: SVG('<path d="M3 14V8a5 5 0 0110 0v6l-1.7-1.4L9.7 14 8 12.6 6.3 14l-1.6-1.4z" fill="#fff" stroke="#b8b2a6"/>' + dot(6.3, 8, '#8a8f9c') + dot(9.7, 8, '#8a8f9c')),
   parts: () => [P('sph', '#ffffff', [0, 0, 0], [0.36, 0.36, 0.36]), ...eyes(-0.33, 0.045, '#8a8f9c')] };
+/* office light per time of day (blended by sky.js): hemisphere sky/ground/intensity, sun colour/intensity/position, backdrop c0/c1,
+ * outside tint for the lawn and shrubs, warm interior lamps 0..1, night amount. The day row is the original cozy daylight; hi never drops
+ * low enough to lose the faces (applyEnv also clamps it). Exposure is folded into the intensities (the renderer has no tone mapping). */
+const OANC = {
+  night: { hs: '#a3acd8', hg: '#6a6585', hi: 1.1, sc: '#aebfff', si: 0.3, sp: [6, 18, 10], c0: '#2b3a78', c1: '#0b1030', out: '#b4bde0', lamp: 1, n: 1 },
+  dawn:  { hs: '#ffe6d6', hg: '#e8cdb0', hi: 1.15, sc: '#ffb58a', si: 0.72, sp: [2, 10, 14], c0: '#ffe0cf', c1: '#f0bfae', out: '#fbeee6', lamp: 0.3, n: 0.3 },
+  day:   { hs: '#fff7e6', hg: '#e8dcc4', hi: 1.25, sc: '#fff0d4', si: 0.85, sp: [8, 18, 6], c0: '#fffaf0', c1: '#f6ead2', out: '#ffffff', lamp: 0, n: 0 },
+  dusk:  { hs: '#ffd9c0', hg: '#d9b0a0', hi: 1.1, sc: '#ff9460', si: 0.8, sp: [14, 10, 2], c0: '#ffd5b0', c1: '#e5a186', out: '#f0d6cc', lamp: 0.65, n: 0.45 }
+};
 const HEAD_YAW = -1.75;   /* heads glance toward the room so the faces show to the isometric camera */
 const iconSvg = k => (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon;
 
@@ -294,6 +307,13 @@ export function mountOfficeScene(container, data, opts = {}){
   const stage = container.querySelector('.of-stage'), elHud = stage.querySelector('.of-hud'), elLegend = stage.querySelector('.of-legend');
   const elLabels = document.createElement('div'); stage.appendChild(elLabels);
   const elTip = document.createElement('div'); elTip.className = 'of-tip'; elTip.hidden = true; stage.appendChild(elTip);
+  /* sky: stars behind the canvas (the stage is a stacking context), haze over it for fog, the weather chip on its own HUD line */
+  injectSkyCss();
+  const ov = parseOverrides();
+  const elStars = document.createElement('div'); elStars.className = 'sk-stars'; elStars.style.zIndex = '-1'; stage.insertBefore(elStars, stage.firstChild);
+  const elHaze = document.createElement('div'); elHaze.className = 'sk-haze'; stage.appendChild(elHaze);
+  const elChip = document.createElement('div'); elChip.className = 'sk-chip'; elChip.hidden = true;
+  let wx = ov.weather || { ...WX_CLEAR }, builtSnow = false, envN = 0, flash = 0, lightT = 4, baseHemi = 1, minuteTimer = 0, lamps = [], wxs = null, flakeG = null;
   let sel = null, selId = null, ring = null;
   const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onReset: () => view && view.reset(), request: () => request(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
     onAction: a => { if(!sel) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
@@ -304,7 +324,7 @@ export function mountOfficeScene(container, data, opts = {}){
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0;
   let statics = [], dyn = [], hover = null, scale = 10, view = null, wallIdx = { z: [], x: [] }, wallHid = { z: false, x: false }, decals = [], signs = [], decFlip = false;
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
-  let M4 = null, S = null, TMP = null, PT = null, HP = null, Mh = null, Mp = null, Q1 = null, E1 = null, V1 = null, V2 = null, ONE = null;
+  let TMP2 = null, M4 = null, S = null, TMP = null, PT = null, HP = null, Mh = null, Mp = null, Q1 = null, E1 = null, V1 = null, V2 = null, ONE = null;
   const v3 = () => new T.Vector3();
   const track = o => { dyn.push(o); return o; };
   const mobile = () => W < 520;
@@ -440,33 +460,36 @@ export function mountOfficeScene(container, data, opts = {}){
   function build(d){
     cur = d; clear();
     const closed = !!d.closed, pl = d.people || [];
-    elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`;
+    elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
     elLegend.innerHTML = (d.legend || []).map(l => `<span>${l.k ? iconSvg(l.k) : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}</span>`).join('');
     if(canvas) canvas.setAttribute('aria-label', d.aria || '');
     (container.closest('.of-card') || container).setAttribute('aria-label', d.hud.title);
     zones = layout(d);
-    /* warm daylight, softer and greyer when the organization is suspended */
-    hemi.color.set(closed ? '#eceef2' : '#fff7e6'); hemi.groundColor.set(closed ? '#d2d3da' : '#e8dcc4'); hemi.intensity = closed ? 1.15 : 1.25;
-    sun.color.set(closed ? '#e8e8ee' : '#fff0d4'); sun.intensity = closed ? 0.45 : 0.85;
+    /* lights, backdrop and lawn follow the time of day and the weather in applyEnv(); a suspended office stays grey there too */
     const R = Math.hypot(FW, FD) / 2 + 4; Object.assign(sun.shadow.camera, { left: -R, right: R, top: R, bottom: -R }); sun.shadow.camera.updateProjectionMatrix();
     const grey = C('#dcdce2'), col = c => closed ? C(c).lerp(grey, 0.5) : C(c);
+    const snowy = builtSnow = wx.kind === 'snow', SNOW = '#f7faff';
+    const W0 = wxs = { outB: [], outS: [], glass: [], patch: [], wins: [], lamps: [], stones: [], glassBase: [] };
 
     let ws = null; wallIdx = { z: [], x: [] }; wallHid = { z: false, x: false };
     const sb = [], B = (c, w, h, dd, x, y, z) => { sb.push([c, w, h, dd, x, y, z]); if(ws) wallIdx[ws].push(sb.length - 1); };       /* static boxes */
     const sp = [], Sp = (c, r, x, y, z, sx = 1, sy = 1, sz = 1) => sp.push([c, r, x, y, z, sx, sy, sz]);   /* static spheres */
+    const OB = (kind, ...a) => { B(...a); W0.outB.push([sb.length - 1, col(a[0]), kind]); }, OS = (kind, ...a) => { Sp(...a); W0.outS.push([sp.length - 1, col(a[0]), kind]); };   /* outdoors: tinted by applyEnv */
     const IW = FW + 4, ID = FD + 4;
-    B('#cfe8b5', IW, 0.5, ID, 0, -0.45, 0);                                           /* garden island */
-    B('#b99a73', IW - 0.6, 0.3, ID - 0.6, 0, -0.85, 0);
+    OB('lawn', '#cfe8b5', IW, 0.5, ID, 0, -0.45, 0);                                  /* garden island */
+    OB('soil', '#b99a73', IW - 0.6, 0.3, ID - 0.6, 0, -0.85, 0);
     B('#e9c99a', FW, 0.4, FD, 0, -0.2, 0);                                            /* wood floor, plank stripes */
     for(let k = 0; k * 1.2 < FD - 0.2; k++) B(k % 2 ? '#e2bf8c' : '#f0d2a6', FW, 0.03, 1.2, 0, 0.015, -FD / 2 + 0.6 + k * 1.2);
-    ws = 'z'; B('#f6ecd6', FW, 2.2, 0.3, 0, 1.1, -FD / 2); B('#fffaf0', FW, 0.12, 0.4, 0, 2.26, -FD / 2);
-    ws = 'x'; B('#d3ecdc', 0.3, 2.2, FD, -FW / 2, 1.1, 0); B('#fffaf0', 0.4, 0.12, FD, -FW / 2, 2.26, 0); ws = null;   /* walls that end up between the camera and the room are flattened in updateWalls() */
+    ws = 'z'; B('#f6ecd6', FW, 2.2, 0.3, 0, 1.1, -FD / 2); B('#fffaf0', FW, 0.12, 0.4, 0, 2.26, -FD / 2); if(snowy) B(SNOW, FW + 0.06, 0.1, 0.46, 0, 2.37, -FD / 2);
+    ws = 'x'; B('#d3ecdc', 0.3, 2.2, FD, -FW / 2, 1.1, 0); B('#fffaf0', 0.4, 0.12, FD, -FW / 2, 2.26, 0); if(snowy) B(SNOW, 0.46, 0.1, FD + 0.06, -FW / 2, 2.37, 0); ws = null;   /* walls that end up between the camera and the room are flattened in updateWalls() */
     const win = (x, z, alongX) => {                                                    /* window with blinds (closed) or glass (open) and a light patch */
       const gx = alongX ? 2.2 : 0.1, gz = alongX ? 0.1 : 2.2, fx = alongX ? 2.5 : 0.08, fz = alongX ? 0.08 : 2.5, ox = alongX ? 0 : 0.2, oz = alongX ? 0.2 : 0;
       B('#ffffff', fx, 1.3, fz, x + ox - (alongX ? 0 : 0.02), 1.3, z + oz - (alongX ? 0.02 : 0));
-      B(closed ? '#d6d6dc' : '#bfe3f5', gx, 1.0, gz, x + ox + (alongX ? 0 : 0.04), 1.3, z + oz + (alongX ? 0.04 : 0));
+      B(closed ? '#d6d6dc' : '#bfe3f5', gx, 1.0, gz, x + ox + (alongX ? 0 : 0.04), 1.3, z + oz + (alongX ? 0.04 : 0)); if(!closed) W0.glass.push(sb.length - 1);
+      W0.wins.push({ x: x + ox + (alongX ? 0 : 0.11), z: z + oz + (alongX ? 0.11 : 0), alongX, ws });   /* inner glass face, for raindrops */
+      if(snowy) B(SNOW, alongX ? 2.5 : 0.34, 0.07, alongX ? 0.34 : 2.5, x + ox + (alongX ? 0 : 0.06), 0.68, z + oz + (alongX ? 0.06 : 0));   /* snow on the sill */
       if(closed) for(let q = 0; q < 4; q++) B('#b7b7c2', alongX ? 2.2 : 0.12, 0.04, alongX ? 0.12 : 2.2, x + ox + (alongX ? 0 : 0.05), 1.02 + q * 0.25, z + oz + (alongX ? 0.05 : 0));
-      else B('#f8e2b0', alongX ? 2.2 : 2.6, 0.02, alongX ? 2.6 : 2.2, alongX ? x : x + 1.5, 0.04, alongX ? z + 1.6 : z);
+      else { B('#f8e2b0', alongX ? 2.2 : 2.6, 0.02, alongX ? 2.6 : 2.2, alongX ? x : x + 1.5, 0.04, alongX ? z + 1.6 : z); W0.patch.push(sb.length - 1); }
     };
     ws = 'z'; for(let x = -FW / 2 + 3.5; x < FW / 2 - 1.5; x += 6.5) win(x, -FD / 2 + 0.15, true);
     ws = 'x'; for(let z = -FD / 2 + 3.5; z < FD / 2 - 1.5; z += 6.5) win(-FW / 2 + 0.15, z, false); ws = null;
@@ -508,15 +531,24 @@ export function mountOfficeScene(container, data, opts = {}){
           B('#b98b5a', 0.14, 1.5, 0.14, sx, 0.75, sz); B('#c9976a', 1.3, 0.75, 0.1, sx, 1.75, sz); B(CH[(zi + 5) % CH.length], 0.14, 0.3, 0.15, sx, 1.15, sz);
           const sm2 = signTex(zn.gh); sm2.position.set(sx, 1.75, sz + 0.06); world.add(sm2); signs.push(sm2);
         }
-        if(zn.kind === 'team') zi2.push(zn);
+        if(zn.kind === 'team'){
+          zi2.push(zn);
+          /* floor lamp in the aisle at the back-left corner of the rug; lit in the evening with a warm pool over the team */
+          const lx = zn.cx - zn.w / 2 - 0.55, lz = zn.cz - zn.d / 2 + 0.5;
+          B('#8a7a66', 0.42, 0.06, 0.42, lx, 0.03, lz); B('#8a7a66', 0.07, 2.4, 0.07, lx, 1.2, lz);
+          W0.lamps.push({ x: lx, z: lz, cx: zn.cx, cz: zn.cz, r: Math.min(zn.w, zn.d) * 0.5, n: zn.n });
+        }
       }
     });
     /* garden: round bushes with little flowers around the building, bushy plants inside the corners */
     const GR = ['#9fd49a', '#b5e0a0', '#8fcf9b'], FL = ['#ffb3c7', '#fff08a', '#ffffff'], bush = (x, z, k) => {
-      const r = 0.55 + hash(k) * 0.35; Sp(GR[k % 3], r, x, r * 0.8, z, 1, 0.85, 1); Sp(GR[(k + 1) % 3], r * 0.7, x + r * 0.8, r * 0.55, z + 0.2, 1, 0.85, 1);
-      Sp(FL[k % 3], 0.1, x + 0.15, r * 1.5, z + 0.3); Sp(FL[(k + 1) % 3], 0.1, x - 0.3, r * 1.35, z + 0.2); Sp(FL[(k + 2) % 3], 0.09, x + 0.4, r * 1.2, z - 0.2);
+      const r = 0.55 + hash(k) * 0.35; OS('bush', GR[k % 3], r, x, r * 0.8, z, 1, 0.85, 1); OS('bush', GR[(k + 1) % 3], r * 0.7, x + r * 0.8, r * 0.55, z + 0.2, 1, 0.85, 1);
+      if(snowy){ OS('snow', SNOW, r * 0.86, x, r * 1.22, z, 1, 0.42, 1); OS('snow', SNOW, r * 0.6, x + r * 0.8, r * 0.86, z + 0.2, 1, 0.42, 1); return; }   /* white caps hide the flowers */
+      OS('flower', FL[k % 3], 0.1, x + 0.15, r * 1.5, z + 0.3); OS('flower', FL[(k + 1) % 3], 0.1, x - 0.3, r * 1.35, z + 0.2); OS('flower', FL[(k + 2) % 3], 0.09, x + 0.4, r * 1.2, z - 0.2);
     };
     let bk = 0;
+    /* stepping stones from the open front edge to the lawn edge, between two shrubs; they go dark and glossy in the rain */
+    { const xp = -FW / 2 + 4.4 * (Math.max(0, Math.round(FW / 2 / 4.4 - 0.5)) + 0.5); [0.42, 1.02, 1.62].forEach((dz, i) => W0.stones.push([xp + (i % 2 ? 0.12 : -0.08), FD / 2 + dz, i])); }
     for(let x = -FW / 2; x <= FW / 2; x += 4.4){ bush(x, FD / 2 + 1.1, bk++); bush(x + 1.4, -FD / 2 - 1.1, bk++); }
     for(let z = -FD / 2 + 2; z <= FD / 2 - 1; z += 4.4){ bush(FW / 2 + 1.1, z, bk++); bush(-FW / 2 - 1.1, z + 1.2, bk++); }
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
@@ -524,8 +556,9 @@ export function mountOfficeScene(container, data, opts = {}){
     });
     const sm = sets.sm = mk(sets.box, std({}), sb.length); tintZ = null; sets.sb = sb; sb.forEach((b, i) => { setM(sm, i, b[4], b[5], b[6], 0, 0, b[1], b[2], b[3]); sm.setColorAt(i, col(b[0])); });
     sm.instanceMatrix.needsUpdate = true; sm.instanceColor.needsUpdate = true;
-    const sh = mk(sets.sph, std({}), sp.length); sp.forEach((b, i) => { setM(sh, i, b[2], b[3], b[4], 0, 0, b[1] * b[5], b[1] * b[6], b[1] * b[7]); sh.setColorAt(i, col(b[0])); });
+    const sh = sets.sh = mk(sets.sph, std({}), sp.length); sp.forEach((b, i) => { setM(sh, i, b[2], b[3], b[4], 0, 0, b[1] * b[5], b[1] * b[6], b[1] * b[7]); sh.setColorAt(i, col(b[0])); });
     sh.instanceMatrix.needsUpdate = true; sh.instanceColor.needsUpdate = true;
+    buildEnv(W0, col);
 
     /* animals: torso + arms + a list of head and body parts per person, instanced per geometry; ghosts are translucent white */
     const fig = (arr, ghost) => {
@@ -591,8 +624,126 @@ export function mountOfficeScene(container, data, opts = {}){
     if(sel){ renderDrawer(); ring.visible = true; } else if(selId) closeDrawer();
     syncFs();
     sets.act = Math.max(0, Math.min(1, d.activity || 0));
+    applyEnv();
     fit(); frames = 0; renderer.shadowMap.needsUpdate = true;
     step(0); request();
+  }
+  /* ── day / night and weather (logic shared through sky.js): meshes are made per build, colours and intensities are set in applyEnv()
+     (every build and every minute), motion runs in stepWx(). Particles exist only while animating; reduced motion keeps clouds and snow cover. ── */
+  const LAMP_I = 11;
+  function buildEnv(W0, col){
+    const st = wx.kind, wet = st === 'rain' || st === 'storm', snow = st === 'snow', LP = W0.lamps, S = W0.stones;
+    W0.white = C('#f4f6ff'); W0.R = Math.hypot(FW, FD) / 2 + 16;
+    if(LP.length){   /* lamp shades, a halo round each bulb and a soft warm pool over the team */
+      W0.lampM = mk(sets.sph, bas({}), LP.length, false);
+      W0.haloM = mk(sets.sph, bas({ color: '#ffcf7a', transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending }), LP.length, false);
+      W0.poolM = mk(sets.disc, bas({ color: '#ffb35c', map: sets.soft, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending }), LP.length, false);
+      LP.forEach((l, i) => { setM(W0.lampM, i, l.x, 2.52, l.z, 0, 0, 0.3, 0.24, 0.3); setM(W0.haloM, i, l.x, 2.52, l.z, 0, 0, 0.7, 0.7, 0.7); setM(W0.poolM, i, l.cx, 0.1, l.cz, 0, 0, l.r * 2.2, 1, l.r * 2.2); });
+    }
+    W0.lit = [...LP].sort((a, b) => b.n - a.n).slice(0, lamps.length);   /* the biggest teams get a real warm point light */
+    W0.path = mk(sets.box, std({ roughness: 0.9 }), S.length, false); W0.path.receiveShadow = true;
+    W0.pud = mk(sets.disc, bas({ map: sets.soft, transparent: true, opacity: 0.5, depthWrite: false }), S.length, false); W0.pud.visible = wet || snow;
+    S.forEach(([x, z, i]) => { setM(W0.path, i, x, -0.17, z, 0, 0.12 * (i - 1), 0.78, 0.06, 0.48); W0.path.setColorAt(i, col(i % 2 ? '#dcd2c2' : '#e8dfd0')); setM(W0.pud, i, x + 0.04, -0.135, z, 0, 0.3 * i, snow ? 0.95 : 0.62, 1, snow ? 0.62 : 0.36); });
+    if(S.length) W0.path.instanceColor.needsUpdate = true;
+    if(wx.cloud > 0.3 && st !== 'clear'){   /* soft cloud shadows drifting over the floor (clipped to it) */
+      const pl = [[1, 0, FW / 2], [-1, 0, FW / 2], [0, 1, FD / 2], [0, -1, FD / 2]].map(([a, c, k]) => new T.Plane(new T.Vector3(a, 0, c), k)), n = 5;
+      const m = mk(sets.disc, bas({ color: '#1c2238', map: sets.soft, transparent: true, opacity: 0.07 + 0.1 * wx.cloud, depthWrite: false, clippingPlanes: pl }), n, false);
+      W0.cs = { m, list: Array.from({ length: n }, (_, i) => ({ x: -FW / 2 - 2 + (i + hash('cs' + i)) / n * (FW + 4), z: -FD / 2 + (0.1 + 0.8 * hash('cz' + i)) * FD, sx: 4 + hash('sx' + i) * 3, sz: 2.6 + hash('sz' + i) * 2, sp: 0.7 + hash('sp' + i) * 0.6 })) };
+    }
+    if(!reduced && (wet || snow)){   /* rain streaks or flakes around the building, never over the desks */
+      const n = Math.min(1200, Math.floor((snow ? 650 : 520) + 600 * wx.rain));
+      const m = mk(snow ? flakeG : sets.box, bas({ color: snow ? '#ffffff' : '#cfdcf2', transparent: true, opacity: snow ? 0.92 : 0.5, depthWrite: false }), n, false);
+      const p = W0.parts = { snow, n, m, x: new Float32Array(n), y: new Float32Array(n), z: new Float32Array(n), v: new Float32Array(n), ph: new Float32Array(n), g: new Float32Array(n), ox: FW / 2 + 2.6, oz: FD / 2 + 2.6, ix: FW / 2 + 0.35, iz: FD / 2 + 0.35, top: 7.5 };
+      for(let i = 0; i < n; i++){ dropAt(p, i, false); p.v[i] = snow ? 0.9 + Math.random() * 0.8 : 13 + Math.random() * 6; p.ph[i] = Math.random() * 6.28; }
+    }
+    if(!reduced && wet && W0.wins.length){   /* drops running down the inside of the glass */
+      const per = 5, n = W0.wins.length * per, m = mk(sets.box, bas({ color: '#eef5ff', transparent: true, opacity: 0.6, depthWrite: false }), n, false);
+      W0.drip = { m, list: Array.from({ length: n }, (_, i) => ({ w: W0.wins[Math.floor(i / per)], u: Math.random() * 1.9 - 0.95, y: 0.85 + Math.random() * 0.9, v: 0.2 + Math.random() * 0.45 })) };
+    }
+  }
+  function dropAt(p, i, top){
+    let x = 0, z = 0;
+    for(let k = 0; k < 12; k++){ x = (Math.random() * 2 - 1) * p.ox; z = (Math.random() * 2 - 1) * p.oz; if(Math.abs(x) > p.ix || Math.abs(z) > p.iz) break; }
+    if(Math.abs(x) <= p.ix && Math.abs(z) <= p.iz) z = -p.iz - 0.6;
+    /* on the camera side a drop starts low, so its streak never crosses the desks on screen */
+    const az = view ? view.azimuth() : Math.PI / 4, near = x * Math.sin(az) + z * Math.cos(az) > 0, hTop = near ? 0.8 : p.top;
+    p.x[i] = x; p.z[i] = z; p.y[i] = top ? hTop : Math.random() * hTop;
+    p.g[i] = Math.abs(x) < FW / 2 + 2 && Math.abs(z) < FD / 2 + 2 ? -0.2 : -1.1;
+  }
+  function applyEnv(){
+    const w = wxs; if(!renderer || !w || !sets || !sets.sm) return;
+    const P = blendAnchors(OANC, ov.hour != null ? ov.hour : hourOf(), T), closed = !!cur.closed, st = wx.kind, wet = st === 'rain' || st === 'storm', snow = st === 'snow', fog = st === 'fog';
+    const n = envN = P.n, dayK = 1 - n, ovc = clampN((wx.cloud - 0.15) / 0.85, 0, 1), lamp = closed ? 0 : P.lamp;
+    /* sky and sun: dimmer under cloud and storm, the hemisphere never drops below the floor that keeps the faces readable */
+    hemi.color.copy(P.hs); hemi.groundColor.copy(P.hg); sun.color.copy(P.sc);
+    let hi = P.hi * (1 - 0.1 * ovc), si = P.si * (1 - 0.5 * ovc - (st === 'storm' ? 0.15 : 0));
+    if(closed){ hemi.color.lerp(C('#e6e7ec'), 0.7); hemi.groundColor.lerp(C('#d2d3da'), 0.7); sun.color.lerp(C('#e8e8ee'), 0.7); hi *= 0.92; si *= 0.53; }
+    baseHemi = hemi.intensity = Math.max(0.85, hi); sun.intensity = si; sun.position.set(P.sp[0], P.sp[1], P.sp[2]).normalize().multiplyScalar(w.R);
+    lamps.forEach((L, i) => { const q = w.lit[i]; L.intensity = q ? lamp * LAMP_I : 0; if(q) L.position.set(q.cx, 3.4, q.cz); });
+    if(w.lampM){
+      w.lampM.material.color.set('#f1e6d0').lerp(C('#ffd98c'), lamp).multiplyScalar(1 - 0.55 * n * (1 - lamp));
+      w.haloM.material.opacity = 0.3 * lamp; w.poolM.material.opacity = 0.3 * lamp; w.haloM.visible = w.poolM.visible = lamp > 0.02;
+    }
+    /* backdrop, stars and haze */
+    const dull = clampN((wx.cloud - 0.15) * 0.95 + (fog ? 0.2 : 0), 0, 1), gr = c => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return c.clone().lerp(new T.Color(l * 0.9, l * 0.93, l), dull * (0.35 + 0.65 * dayK)).multiplyScalar(1 - 0.1 * dull * dayK); };
+    const dark = st === 'storm' ? 0.76 : wet ? 0.9 : 1, s0 = gr(P.c0).multiplyScalar(dark), s1 = gr(P.c1).multiplyScalar(dark);
+    stage.style.background = `radial-gradient(ellipse at 50% 35%, #${s0.getHexString()} 0, #${s1.getHexString()} 80%)`;
+    stage.classList.toggle('sk-night', n > 0.55); renderChip();
+    elStars.style.opacity = String(clampN((n - 0.5) * 2.2, 0, 1) * (1 - clampN((wx.cloud - 0.25) / 0.5, 0, 1)));   /* overcast skies hide the stars and the moon */
+    const fogC = s0.clone().lerp(s1, 0.4).lerp(C('#e9edf2'), 0.55 * dayK), rgb = fogC.getStyle().replace(/^rgb\(|\)$/g, '');
+    elHaze.style.background = `radial-gradient(ellipse at 50% 52%, rgba(${rgb},0) 26%, rgba(${rgb},.72) 74%, rgba(${rgb},.9) 100%)`;
+    elHaze.style.opacity = String(fog ? 1 : wet ? 0.38 : snow ? 0.3 : 0);
+    /* outdoors: lawn, soil and shrubs take the time-of-day tint, go white under snow, darker in the rain, milky in fog */
+    const WH = C('#f4f8fc'), SN = C('#d4e0ff').multiplyScalar(1 + 0.5 * (1 - Math.abs(dayK * 2 - 1))), tint = snow ? P.out.clone().lerp(WH, 0.65 * dayK) : P.out, tmp = new T.Color();   /* snow stays pale at dusk, blue at night */
+    w.outB.forEach(([i, base, kind]) => { tmp.copy(base); if(snow && kind === 'lawn') tmp.lerp(SN, 0.94).multiplyScalar(1.3);   /* snow under an overcast sky still reads white */ if(wet && kind === 'lawn') tmp.multiplyScalar(0.86); tmp.multiply(tint); if(fog) tmp.lerp(fogC, 0.45); sets.sm.setColorAt(i, tmp); });
+    w.outS.forEach(([i, base, kind]) => { tmp.copy(base); if(snow && kind === 'bush') tmp.lerp(WH, 0.25); if(kind === 'snow') tmp.copy(SN).multiplyScalar(1.3); if(wet && kind !== 'snow') tmp.multiplyScalar(0.86); tmp.multiply(tint); if(fog) tmp.lerp(fogC, 0.45); sets.sh.setColorAt(i, tmp); });
+    w.glassBase = w.glass.map(() => { const c = C('#bfe3f5').lerp(C('#2f3a6c'), n * 0.85).lerp(C('#b3bdc8'), ovc * 0.5 * dayK); if(fog) c.lerp(fogC, 0.5); if(snow) c.lerp(WH, 0.25 * dayK); return c; });
+    w.patch.forEach(i => sets.sm.setColorAt(i, C('#f8e2b0').lerp(C('#e9c99a'), clampN(n * 1.7 + ovc * 0.8, 0, 1))));
+    paintGlass(flash); sets.sh.instanceColor.needsUpdate = true;
+    if(w.path){
+      const pm = w.path.material; pm.color.setScalar(wet ? 0.58 : 1).multiply(tint); pm.roughness = wet ? 0.16 : 0.9; pm.metalness = wet ? 0.2 : 0;
+      w.pud.material.color.copy(snow ? WH : C('#d6e6f7').lerp(C('#5a6aa8'), n)); if(snow) w.pud.material.color.multiply(tint); w.pud.material.opacity = snow ? 0.95 : 0.55;
+    }
+    if(w.parts && !w.parts.snow) w.parts.m.material.color.set('#6f819e').lerp(C('#cfdcf2'), n);   /* streaks stay visible against a pale day sky */
+    if(w.cs) w.cs.m.material.opacity = (0.07 + 0.1 * wx.cloud) * (1 - 0.75 * n);
+    /* painted floor text and signs are unlit, so they dim with the room; helper bots glow stronger at night */
+    const dk = 1 - 0.42 * n * (1 - 0.35 * lamp);
+    decals.forEach(m => { m.material.color.setScalar(dk); m.children.forEach(c => c.material && c.material.color.setScalar(dk)); }); signs.forEach(m => m.material.color.setScalar(dk));
+    if(sets.gl) sets.gl.material.opacity = 0.22 + 0.3 * n;
+    renderer.shadowMap.needsUpdate = true; request();
+  }
+  function paintGlass(f){
+    const w = wxs; if(!w || !w.glassBase || !sets.sm) return;
+    const c = new T.Color(); w.glass.forEach((i, k) => sets.sm.setColorAt(i, c.copy(w.glassBase[k]).lerp(w.white, f))); sets.sm.instanceColor.needsUpdate = true;
+  }
+  function renderChip(){
+    const c = chipText(wx, document.documentElement.lang || (/[가-힣]/.test((cur && cur.hud && cur.hud.title) || '') ? 'ko' : 'en'), envN > 0.55);
+    elChip.hidden = !c; if(c){ elChip.textContent = c.text; elChip.title = c.title; }
+  }
+  function stepWx(dt){
+    const w = wxs; if(!w) return;
+    if(w.cs){ const sp = (0.2 + wx.wind * 0.02) * dt; w.cs.list.forEach((b, i) => { b.x += sp * b.sp; if(b.x - b.sx / 2 > FW / 2) b.x = -FW / 2 - b.sx / 2; setM(w.cs.m, i, b.x, 0.1, b.z, 0, 0, b.sx, 1, b.sz); }); w.cs.m.instanceMatrix.needsUpdate = true; }
+    const p = w.parts;
+    if(p){
+      const tilt = clampN(wx.wind / 40, 0, 1) * 0.5, drift = Math.tan(tilt);
+      for(let i = 0; i < p.n; i++){
+        p.y[i] -= p.v[i] * dt; p.x[i] += p.snow ? (Math.sin(time * 0.9 + p.ph[i]) * 0.4 + drift * 1.2) * dt : drift * p.v[i] * dt;
+        if(p.y[i] < p.g[i] || Math.abs(p.x[i]) > p.ox || (Math.abs(p.x[i]) < p.ix && Math.abs(p.z[i]) < p.iz)) dropAt(p, i, true);
+        M4.position.set(p.x[i], p.y[i], p.z[i]); M4.rotation.set(0, 0, p.snow ? 0 : tilt); if(p.snow) M4.scale.setScalar(0.07); else M4.scale.set(0.022, 0.42, 0.022);
+        M4.updateMatrix(); p.m.setMatrixAt(i, M4.matrix);
+      }
+      p.m.instanceMatrix.needsUpdate = true;
+    }
+    if(w.drip){
+      w.drip.list.forEach((q, i) => { q.y -= q.v * dt; if(q.y < 0.84){ q.y = 1.76; q.u = Math.random() * 1.9 - 0.95; } const g = q.w, s = wallHid[g.ws] ? 0 : 1;
+        setM(w.drip.m, i, g.alongX ? g.x + q.u : g.x, q.y, g.alongX ? g.z : g.z + q.u, 0, 0, 0.016 * s, 0.11 * s, 0.016 * s); });
+      w.drip.m.instanceMatrix.needsUpdate = true;
+    }
+    if(wx.kind === 'storm' && !reduced){ lightT -= dt; if(lightT < 0){ flash = 1; lightT = 4 + Math.random() * 8; } }
+    if(flash > 0){
+      flash = Math.max(0, flash - dt * 4); const f = flash * (Math.random() < 0.7 ? 1 : 0.45);
+      hemi.intensity = baseHemi + f * 1.4; paintGlass(f); stage.style.filter = flash > 0.02 ? `brightness(${(1 + f * 0.28).toFixed(2)})` : '';
+    }
   }
   function showBub(b, o, now){
     const L = o.p.bubbles, bb = L[(o.bi = ((o.bi ?? -1) + 1) % L.length)];
@@ -639,19 +790,19 @@ export function mountOfficeScene(container, data, opts = {}){
       setM(sets.spk, i, q.o.x + Math.cos(a) * r, 2.45 + q.k * 0.25 + Math.sin(a * 2) * 0.06, q.o.z + 0.25 + Math.sin(a) * r * 0.7, 0, 0, 0.09 * tw, 0.09 * tw, 0.09 * tw);
     });
     if(sparks.length) sets.spk.instanceMatrix.needsUpdate = true;
-    /* monitors flicker subtly */
-    const c = new T.Color();
+    /* monitors flicker subtly; in the evening the lit ones glow brighter and the dark ones sink into the room */
+    const c = new T.Color(), WHT = TMP2 || (TMP2 = new T.Color('#ffffff'));
     scr.list.forEach((s, i) => {
       const key = s[3], tv = TV[key === 'off' ? 'nodata' : key], flick = reduced || key === 'off' ? 1 : 1 + 0.06 * Math.sin(time * 23 + s[4] * 7) * (Math.sin(time * 3.1 + s[4]) > 0.55 ? 1 : 0.25);
-      c.set(key === 'off' || closed ? '#59566a' : tv.scr).multiplyScalar(key === 'off' || closed ? 1 : tv.bri * flick); scr.m.setColorAt(i, c);
+      c.set(key === 'off' || closed ? '#59566a' : tv.scr).multiplyScalar(key === 'off' || closed ? 1 - 0.45 * envN : tv.bri * flick); if(envN && key !== 'off' && !closed) c.lerp(WHT, 0.16 * envN); scr.m.setColorAt(i, c);
     });
     if(scr.list.length) scr.m.instanceColor.needsUpdate = true;
-    /* server lights: blink rate follows org activity */
+    /* server lights: blink rate follows org activity, brighter at night */
     if(srv){
       const rate = 0.6 + 2.4 * (sets.act || 0), cc = new T.Color();
       srvLights.forEach((l, i) => {
         const on = closed ? 0 : Math.sin((time * rate / l.per + l.ph) * 6.28) > (-0.1 + 0.5 * (1 - (sets.act || 0)) * 0.6);
-        cc.copy(l.c); if(closed) cc.set('#7a7690'); else if(!on) cc.lerp(C('#6a6384'), 0.8); else cc.multiplyScalar(1 + sFlash * 0.3); srv.lights.setColorAt(i, cc);
+        cc.copy(l.c); if(closed) cc.set('#7a7690'); else if(!on) cc.lerp(C('#6a6384'), 0.8 - 0.3 * envN); else { cc.multiplyScalar(1 + sFlash * 0.3); if(envN) cc.lerp(WHT, 0.22 * envN); } srv.lights.setColorAt(i, cc);
       });
       srv.lights.instanceColor.needsUpdate = true; sFlash = Math.max(0, sFlash - dt * 1.5);
       S.set(srv.x, 3.4, srv.z + 0.3);
@@ -668,10 +819,11 @@ export function mountOfficeScene(container, data, opts = {}){
       } else if(b.st === 1){ b.t += dt / 2; if(b.t >= 1){ b.st = 2; b.t = 0; sFlash = 1; pos.copy(S); } else arcTo(b.p0, S, b.t, pos); b.tr.ln.material.opacity = 0.9; }
       else if(b.st === 2){ b.t += dt / 0.6; pos.copy(S); pos.y += Math.sin(time * 6) * 0.05; if(b.t >= 1){ b.st = 3; b.t = 0; } }
       else { b.t += dt / 2; orbit(b, TMP); if(b.t >= 1){ b.st = 0; b.tr.busy = false; b.tr.ln.visible = false; b.next = time + (b.o.p.tier === 'power' ? 5 : 11) + hash(b.o.p.id + time) * 7; orbit(b, pos); } else { arcTo(S, TMP, b.t, pos); b.tr.ln.material.opacity = 0.9 * (1 - b.t); } }
-      setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.24, 0.24, 0.24); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, 0.46, 0.46, 0.46);
+      setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.24, 0.24, 0.24); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, 0.46 + 0.16 * envN, 0.46 + 0.16 * envN, 0.46 + 0.16 * envN);
       setM(sets.an, b.i, pos.x, pos.y + 0.32, pos.z, 0, 0, 0.03, 0.2, 0.03); setM(sets.tp, b.i, pos.x, pos.y + 0.46, pos.z, 0, 0, 0.06, 0.06, 0.06);
     });
     if(bots.length){ [sets.bm, sets.gl, sets.an, sets.tp].forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
+    stepWx(dt);
     /* bubbles: at most 4 at once, a new one every few seconds among power and active people */
     if(!reduced && bubs.length){
       bubs.forEach(b => { if(b.o && time > b.until - 0.5) b.el.classList.remove('on'); if(b.o && time > b.until){ b.o = null; } });
@@ -787,15 +939,21 @@ export function mountOfficeScene(container, data, opts = {}){
     try{ renderer = new T.WebGLRenderer({ antialias: true, alpha: true }); }
     catch(e){ started = false; if(opts.onFail) opts.onFail('webgl'); return; }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setClearColor(0x000000, 0);
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false; renderer.localClippingEnabled = true;
     canvas = renderer.domElement; canvas.setAttribute('role', 'img'); stage.insertBefore(canvas, stage.firstChild);
     scene = new T.Scene(); world = new T.Group(); scene.add(world); rcast = new T.Raycaster(); rplane = new T.Plane(new T.Vector3(0, 1, 0), -0.07);
     M4 = new T.Object3D(); S = v3(); TMP = v3(); PT = v3(); HP = v3(); Mh = new T.Matrix4(); Mp = new T.Matrix4(); Q1 = new T.Quaternion(); E1 = new T.Euler(); V1 = v3(); V2 = v3(); ONE = v3().set(1, 1, 1);
     camera = new T.OrthographicCamera(-10, 10, 10, -10, 0.1, 400);
     hemi = new T.HemisphereLight('#fff7e6', '#e8dcc4', 1.25); sun = new T.DirectionalLight('#fff0d4', 0.85); sun.position.set(8, 18, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
     scene.add(hemi, sun, sun.target);
-    sets = { box: new T.BoxGeometry(1, 1, 1), sph: new T.SphereGeometry(1, 16, 12), cone: new T.ConeGeometry(1, 2, 10), torso: new T.CapsuleGeometry(0.3, 0.32, 4, 10), arm: new T.CapsuleGeometry(0.1, 0.26, 3, 6) };
-    statics.push(sets.box, sets.sph, sets.cone, sets.torso, sets.arm);
+    for(let i = 0; i < 4; i++){ const L = new T.PointLight('#ffc98a', 0, 0, 2); scene.add(L); lamps.push(L); }   /* evening lamps: a fixed count, so no shader recompiles */
+    sets = { box: new T.BoxGeometry(1, 1, 1), sph: new T.SphereGeometry(1, 16, 12), cone: new T.ConeGeometry(1, 2, 10), torso: new T.CapsuleGeometry(0.3, 0.32, 4, 10), arm: new T.CapsuleGeometry(0.1, 0.26, 3, 6), disc: new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2) };
+    { const c = document.createElement('canvas'), x = c.getContext('2d'); c.width = c.height = 64; const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);   /* soft round blob for pools, puddles and cloud shadows */
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.5, 'rgba(255,255,255,.7)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); sets.soft = new T.CanvasTexture(c); }
+    flakeG = new T.IcosahedronGeometry(1, 0);
+    statics.push(sets.box, sets.sph, sets.cone, sets.torso, sets.arm, sets.disc, sets.soft, flakeG);
+    elStars.style.backgroundImage = starsBackground();
+    minuteTimer = setInterval(() => { if(started === true && !destroyed) applyEnv(); }, 60000);   /* the clock moves the light every minute */
     started = true; bindView();
     ro = new ResizeObserver(resize); ro.observe(stage);
     W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false);
@@ -807,18 +965,26 @@ export function mountOfficeScene(container, data, opts = {}){
     if(visible && !started) init(); else if(visible) request();
   }, { threshold: 0.05 });
   io.observe(container);
+  /* real Seoul weather once per mount (cached 30 min, shared with the town); a failure leaves the clear default and hides the chip */
+  if(!ov.weather) fetchWeather().then(d => { if(destroyed || !d) return; wx = weatherFromCode(d); renderChip(); if(started === true) build(cur); });
   const onVis = () => { if(!document.hidden) request(); };
   document.addEventListener('visibilitychange', onVis);
-  elHud.innerHTML = `<b>${esc(data.hud.title)}</b>`; syncFs();
+  elHud.innerHTML = `<b>${esc(data.hud.title)}</b>`; elHud.appendChild(elChip); renderChip(); syncFs();
 
   return {
     update(d){ cur = d; if(started === true) build(d); },
+    get view(){ return view; },
+    ready: () => started === true && !!view,
+    people: () => people.map(o => ({ id: o.p.id, name: o.p.name, tier: o.p.tier, ghost: o.ghost, x: o.x, z: o.z })),
+    server: () => (srv ? { x: srv.x, z: srv.z } : null),
+    selectPerson(id){ const o = people.find(q => q.p.id === id); if(o) openDrawer(o); return !!o; },
+    closeDrawer: () => chrome.close(),
     destroy(){
-      destroyed = true; if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr);
+      destroyed = true; if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
       if(io) io.disconnect(); if(ro) ro.disconnect();
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
       if(started === true){
-        clear(); statics.forEach(o => o.dispose && o.dispose()); renderer.dispose();
+        clear(); wxs = null; lamps.forEach(L => { scene.remove(L); L.dispose(); }); lamps = []; statics.forEach(o => o.dispose && o.dispose()); renderer.dispose();
         const x = renderer.getContext().getExtension('WEBGL_lose_context'); if(x) x.loseContext();
         if(canvas.parentNode) canvas.parentNode.removeChild(canvas);
       }
