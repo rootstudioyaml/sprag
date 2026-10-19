@@ -570,6 +570,36 @@ async function main() {
     return;
   }
 
+  // Overlap guard: Claude Code relaunches the statusline every 5s without
+  // waiting for the previous run, so a slow render must not pile up processes.
+  let guard = null;
+  if (isStatusline && !demoArg) {
+    const g = await import('../src/statusline-guard.js');
+    const key = g.sessionKeyFrom(readStdinJson());
+    const lock = g.acquireStatuslineLock({ key });
+    if (!lock.acquired) {
+      const last = g.readLastRender({ key });
+      if (last !== null) console.log(last);
+      return;
+    }
+    const timer = g.armStatuslineDeadline({
+      budgetMs: g.statuslineBudgetMs(),
+      onExpire: () => {
+        const last = g.readLastRender({ key });
+        if (last !== null) console.log(last);
+        lock.release();
+        process.exit(0);
+      },
+    });
+    guard = {
+      finish(text) {
+        g.writeLastRender({ key, text });
+        if (timer) clearTimeout(timer);
+        lock.release();
+      },
+    };
+  }
+
   // Report generation
   // Statusline window comes from persisted config — hours-precise so users
   // can pick `1h` / `6h` etc, not just whole days. Other formats default to
@@ -651,10 +681,12 @@ async function main() {
         } catch (e) { debug('caps-cache:persist', e); }
       }
       const { withBaseStatusline } = await import('../src/statusline-base.js');
-      console.log(withBaseStatusline(formatNoSession(
+      const noSessionOut = withBaseStatusline(formatNoSession(
         { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION) },
         { color: colorOk, mode: labelMode, segments: segmentsFromArgs() },
-      ), { input: readStdinRaw() }));
+      ), { input: readStdinRaw() });
+      if (guard) guard.finish(noSessionOut);
+      console.log(noSessionOut);
       return;
     }
     // JSON mode stays JSON. A caller that asked for machine-readable output
@@ -1049,6 +1081,7 @@ async function main() {
     const { withBaseStatusline } = await import('../src/statusline-base.js');
     // The payload was read above; the base gets the same text, not a second read.
     output = withBaseStatusline(output, { input: readStdinRaw() });
+    if (guard) guard.finish(output);
   }
   console.log(output);
 }
