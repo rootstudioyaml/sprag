@@ -127,7 +127,7 @@ test('evaluateBundle: shape, size, format, min_cli and key checks', async () => 
   const tierOnly = ok.model_rules[0];
   assert.equal(tierOnly.agent, undefined);
   assert.equal(bundleShapeError({ ...ok, model_rules: [tierOnly, ...ok.model_rules.slice(1)] }), null, 'a model rule without agent');
-  assert.equal(bundleShapeError({ ...ok, model_rules: [{ ...tierOnly, agent: 'haiku-runner' }, ...ok.model_rules.slice(1)] }), null, 'a legacy rule with agent');
+  assert.equal(bundleShapeError({ ...ok, model_rules: [{ ...tierOnly, agent: 't2-runner' }, ...ok.model_rules.slice(1)] }), null, 'a legacy rule with agent');
   assert.equal(bundleShapeError({ ...ok, model_rules: [{ ...tierOnly, agent: 'x\ny' }, ...ok.model_rules.slice(1)] }), 'shape', 'a legacy agent is still one line');
   // An agent's tier and categories are optional (a legacy bundle lacks them), checked when present.
   const withAgent = (over) => ({ ...ok, agents: [{ ...ok.agents[0], ...over }, ...ok.agents.slice(1)] });
@@ -155,7 +155,7 @@ test('resolution: remote wins only while valid, everything else falls back to th
   // valid signed cache: remote, with the edited wording under the same id
   const edited = bundledBundle({ version: 2, minCli: '3.0.0' });
   edited.ratchet_rules[0] = { ...edited.ratchet_rules[0], en: 'Reworded centrally' };
-  edited.agents = edited.agents.filter((a) => a.name !== 'haiku-translate');
+  edited.agents = edited.agents.filter((a) => a.name !== 't2-translate');
   edited.sig = await PS.sign(edited, key);
   const good = sandboxDir(t);
   writeCache(good, edited);
@@ -374,16 +374,16 @@ test('agents: a published bundle that drops an agent removes our file for it, ne
   writeFileSync(join(agentsDir, 'mine.md'), '---\nname: mine\n---\nmy own agent\n');
 
   const b = bundledBundle({ version: 2, minCli: '3.0.0' });
-  b.agents = b.agents.filter((a) => a.name !== 'haiku-translate')
-    .map((a) => (a.name === 'haiku-runner' ? { ...a, effort: 'medium' } : a));
+  b.agents = b.agents.filter((a) => a.name !== 't2-translate')
+    .map((a) => (a.name === 't2-runner' ? { ...a, effort: 'medium' } : a));
   b.sig = await PS.sign(b, key);
   writeCache(join(home, '.config', 'claude-token-saver'), b);
   PRESET_SIGNING_KEYS.push({ kid: key.kid, jwk: key.publicJwk });
 
   const r = syncDelegationAgents();
-  assert.deepEqual(r.removed, ['haiku-translate']);
-  assert.deepEqual(r.written, ['haiku-runner']);
-  assert.match(readFileSync(join(agentsDir, 'haiku-runner.md'), 'utf8'), /\neffort: medium\n/);
-  assert.equal(existsSync(join(agentsDir, 'haiku-translate.md')), false);
+  assert.deepEqual(r.removed, ['t2-translate']);
+  assert.deepEqual(r.written, ['t2-runner']);
+  assert.match(readFileSync(join(agentsDir, 't2-runner.md'), 'utf8'), /\neffort: medium\n/);
+  assert.equal(existsSync(join(agentsDir, 't2-translate.md')), false);
   assert.equal(existsSync(join(agentsDir, 'mine.md')), true, 'a file without the marker is never touched');
 });

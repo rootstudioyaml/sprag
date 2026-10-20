@@ -27,7 +27,7 @@ const MARK_LINE = `# managed by sprag (${OWNER_MARK}); edits are overwritten`;
 //
 // Models are aliases on purpose: behind a gateway they resolve through
 // ANTHROPIC_DEFAULT_*_MODEL, and a full model id would bypass that mapping. The
-// exception is opus-worker, which names the full id: Claude Code resolves a bare
+// exception is t1h-worker, which names the full id: Claude Code resolves a bare
 // alias to an older model than the one the tier means.
 //
 // Effort is a separate axis from the tier and is set by how the work gets

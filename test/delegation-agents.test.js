@@ -15,16 +15,16 @@ import { childEnv } from './helpers/child-env.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = join(ROOT, 'bin', 'cli.js');
 const url = (f) => pathToFileURL(join(ROOT, 'src', f)).href;
-const NAMES = ['haiku-explore', 'haiku-runner', 'haiku-translate', 'sonnet-worker', 'opus-worker'];
+const NAMES = ['t2-explore', 't2-runner', 't2-translate', 't1-worker', 't1h-worker'];
 const TOOLS = {
-  'haiku-explore': 'Read, Grep, Glob, Bash',
-  'haiku-runner': 'Bash, Read, Grep, Glob',
-  'haiku-translate': 'Read, Grep, Glob, Edit, Write',
-  'sonnet-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
-  'opus-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
+  't2-explore': 'Read, Grep, Glob, Bash',
+  't2-runner': 'Bash, Read, Grep, Glob',
+  't2-translate': 'Read, Grep, Glob, Edit, Write',
+  't1-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
+  't1h-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
 };
-const MODEL = { 'sonnet-worker': 'sonnet', 'opus-worker': 'claude-opus-5-5' };
-const EFFORT = { 'sonnet-worker': 'medium', 'opus-worker': 'high' };
+const MODEL = { 't1-worker': 'sonnet', 't1h-worker': 'claude-opus-5-5' };
+const EFFORT = { 't1-worker': 'medium', 't1h-worker': 'high' };
 
 function sandbox(t) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cts-dagents-')));
@@ -80,23 +80,23 @@ test('a second sync writes nothing', (t) => {
 test('a user file without the marker is never overwritten', (t) => {
   const s = sandbox(t);
   mkdirSync(s.agents, { recursive: true });
-  writeFileSync(s.file('haiku-explore'), '---\nname: haiku-explore\nmodel: haiku\n---\nmine\n');
+  writeFileSync(s.file('t2-explore'), '---\nname: t2-explore\nmodel: haiku\n---\nmine\n');
   const r = s.sync();
-  assert.deepEqual(r.skipped, [{ name: 'haiku-explore', reason: 'not-owned' }]);
+  assert.deepEqual(r.skipped, [{ name: 't2-explore', reason: 'not-owned' }]);
   assert.equal(r.written.length, 4);
-  assert.ok(readFileSync(s.file('haiku-explore'), 'utf8').includes('mine'));
+  assert.ok(readFileSync(s.file('t2-explore'), 'utf8').includes('mine'));
 });
 
 test('delegationAgents:false and remove delete only marked files', (t) => {
   const s = sandbox(t);
   s.sync();
-  writeFileSync(s.file('haiku-runner'), '---\nname: haiku-runner\n---\nuser copy\n');
+  writeFileSync(s.file('t2-runner'), '---\nname: t2-runner\n---\nuser copy\n');
   s.setConfig({ delegationAgents: false });
   const r = s.sync();
-  assert.deepEqual(r.removed.sort(), ['haiku-explore', 'haiku-translate', 'opus-worker', 'sonnet-worker']);
-  assert.deepEqual(present(s), ['haiku-runner']);
+  assert.deepEqual(r.removed.sort(), ['t1-worker', 't1h-worker', 't2-explore', 't2-translate']);
+  assert.deepEqual(present(s), ['t2-runner']);
   assert.deepEqual(s.remove().removed, []);
-  assert.ok(existsSync(s.file('haiku-runner')));
+  assert.ok(existsSync(s.file('t2-runner')));
 });
 
 test("agent: 'codex' writes nothing", (t) => {
@@ -106,16 +106,16 @@ test("agent: 'codex' writes nothing", (t) => {
   assert.ok(!existsSync(s.agents));
 });
 
-test('agentPhrase for the sonnet tier follows the sonnet-worker file', (t) => {
+test('agentPhrase for the sonnet tier follows the t1-worker file', (t) => {
   const s = sandbox(t);
   const ko = () => s.call('agents.js', "m.agentPhrase('sonnet', { root: null })");
   const en = () => s.call('agents.js', "m.agentPhraseEn('sonnet', { root: null })");
   assert.equal(ko(), 'model: sonnet');
   assert.equal(en(), 'a model: sonnet subagent');
   mkdirSync(s.agents, { recursive: true });
-  writeFileSync(s.file('sonnet-worker'), '---\nmodel: sonnet\n---\n');
-  assert.equal(ko(), 'sonnet-worker(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: sonnet)');
-  assert.equal(en(), 'the sonnet-worker subagent (omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: sonnet)');
+  writeFileSync(s.file('t1-worker'), '---\nmodel: sonnet\n---\n');
+  assert.equal(ko(), 't1-worker(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: sonnet)');
+  assert.equal(en(), 'the t1-worker subagent (omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: sonnet)');
 });
 
 test('CLI: session-start hook installs the agents, delegate agents off/on removes and restores them', (t) => {
@@ -131,6 +131,21 @@ test('CLI: session-start hook installs the agents, delegate agents off/on remove
   const on = s.run(['delegate', 'agents', 'on']);
   assert.match(on, /켰습니다|are on/);
   assert.deepEqual(present(s), NAMES);
-  assert.match(s.run(['delegate', 'agents']), /haiku-explore: installed-by-sprag/);
+  assert.match(s.run(['delegate', 'agents']), /t2-explore: installed-by-sprag/);
   assert.ok(readdirSync(s.agents).length >= 4);
+});
+
+test('sync removes an owned file under a legacy name and leaves an unowned one', (t) => {
+  const s = sandbox(t);
+  mkdirSync(s.agents, { recursive: true });
+  const mark = '# managed by sprag (sprag:delegation-agent); edits are overwritten';
+  writeFileSync(s.file('haiku-explore'), `---\nname: haiku-explore\nmodel: haiku\n${mark}\n---\nold owned copy\n`);
+  writeFileSync(s.file('sonnet-worker'), '---\nname: sonnet-worker\nmodel: sonnet\n---\nuser-edited copy\n');
+  const r = s.sync();
+  assert.ok(r.removed.includes('haiku-explore'));
+  assert.ok(!r.removed.includes('sonnet-worker'));
+  assert.ok(!existsSync(s.file('haiku-explore')));
+  assert.ok(existsSync(s.file('sonnet-worker')));
+  assert.match(readFileSync(s.file('sonnet-worker'), 'utf8'), /user-edited copy/);
+  assert.deepEqual(present(s), [...NAMES]);
 });

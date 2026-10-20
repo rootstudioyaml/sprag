@@ -31,7 +31,7 @@ const saveRegistry = (list) => {
   writeFileSync(join(stateDir, 'model-rules.json'), JSON.stringify({ rules: list }));
 };
 const base = {
-  category: 'run', label: '명령 실행', labelEn: 'running commands', agent: 'haiku-runner',
+  category: 'run', label: '명령 실행', labelEn: 'running commands', agent: 't2-runner',
   scope: 'global', targetRoot: null, example: 'npm 인증', promotedAt: '2026-08-01', count: 5, status: 'active',
 };
 
@@ -89,7 +89,7 @@ test('B5: the rescan gate measures the window the way the scan recorded it', asy
 test('B6: the global rules file reads the same from every directory', () => {
   const project = join(home, 'work', 'with-agent');
   mkdirSync(join(project, '.claude', 'agents'), { recursive: true });
-  writeFileSync(join(project, '.claude', 'agents', 'haiku-runner.md'), '# agent\n');
+  writeFileSync(join(project, '.claude', 'agents', 't2-runner.md'), '# agent\n');
   const elsewhere = join(home, 'work', 'plain');
   mkdirSync(elsewhere, { recursive: true });
   saveRegistry([
@@ -107,9 +107,9 @@ test('B6: the global rules file reads the same from every directory', () => {
     assert.equal(readFileSync(globalFile, 'utf8'), fromProject);
     // The project's own agent is not one every project has, so the global file
     // names the model tier alone; the project file may name the agent.
-    assert.doesNotMatch(fromProject, /haiku-runner/);
+    assert.doesNotMatch(fromProject, /t2-runner/);
     assert.match(fromProject, /model: haiku subagent \(cap/);
-    assert.match(readFileSync(join(project, '.claude', 'ratchet-model.md'), 'utf8'), /the haiku-runner subagent \(omit the model argument; /);
+    assert.match(readFileSync(join(project, '.claude', 'ratchet-model.md'), 'utf8'), /the t2-runner subagent \(omit the model argument; /);
   } finally {
     process.chdir(cwd);
   }

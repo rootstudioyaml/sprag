@@ -115,12 +115,12 @@ test('collectSubagentRun aggregates tokens, errors and the model from a run', as
     assistant({ model: 'claude-haiku-4-5', out: 200, ts: '2026-08-01T00:00:09.000Z' }),
   ].join('\n') + '\n');
   writeFileSync(join(root, 'agent-abc.meta.json'), JSON.stringify({
-    agentType: 'haiku-explore', toolUseId: 'toolu_X', spawnDepth: 1,
+    agentType: 't2-explore', toolUseId: 'toolu_X', spawnDepth: 1,
   }));
 
   const run = await collectSubagentRun(p);
   assert.equal(run.agentId, 'abc');
-  assert.equal(run.agentType, 'haiku-explore');
+  assert.equal(run.agentType, 't2-explore');
   assert.equal(run.toolUseId, 'toolu_X');
   assert.equal(run.model, 'claude-haiku-4-5');
   assert.equal(run.calls, 2);
@@ -235,7 +235,7 @@ test('runSaving matches estimateCost on the per-bucket split', () => {
 // ── Workstream D + render ────────────────────────────────────────────────
 
 const baseRule = {
-  category: 'explore', label: '탐색', labelEn: 'lookup', agent: 'haiku-explore',
+  category: 'explore', label: '탐색', labelEn: 'lookup', agent: 't2-explore',
   scope: 'global', example: '어디 있지', promotedAt: '2026-08-01', count: 5,
 };
 
@@ -407,7 +407,7 @@ test('syncAllFiles writes a target once and then leaves it alone', async () => {
     mr.saveModelRules({ rules: [{
       status: 'active', scope: 'project', targetRoot: root, tier: 'T2',
       category: 'cmd', label: '명령 실행', labelEn: 'running commands',
-      example: 'ex', agent: 'haiku-runner', rule: 'r', signature: 'sig',
+      example: 'ex', agent: 't2-runner', rule: 'r', signature: 'sig',
       count: 5, errRate: 0,
     }] });
     const p = mr.modelRatchetPathFor('project', root);

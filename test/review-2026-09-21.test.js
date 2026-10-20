@@ -59,7 +59,7 @@ test('escalate and edit regexes match the intended shapes only', () => {
 });
 
 test('a long written request is not a paste; a log or stack trace is', () => {
-  const rules = [{ category: 'paste', tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } }];
+  const rules = [{ category: 'paste', tier: 'T2', agent: 't2-explore', budget: { calls: 8, out: 1500 } }];
   const spec = ('이 기능은 사용자가 지도를 열었을 때 현재 위치 주변 매장을 보여 주고 ').repeat(12);
   assert.ok(spec.length >= 400);
   assert.equal(looksPasted(spec), false);

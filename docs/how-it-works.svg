@@ -241,10 +241,10 @@
           <text class="t mono" x="304" y="586">"run the tests" → haiku</text>
           <text class="s mono" x="304" y="604" data-k="fl.b2s">ratchet-model.md · from your logs</text></g>
         <g class="dnode teal"><rect x="576" y="528" width="236" height="56" rx="9"/>
-          <text class="t mono" x="594" y="552">haiku-runner</text>
+          <text class="t mono" x="594" y="552">t2-runner</text>
           <text class="s" x="594" y="570" data-k="fl.b3">runs it, returns the output</text></g>
         <g class="dnode blue"><rect x="576" y="600" width="236" height="56" rx="9"/>
-          <text class="t mono" x="594" y="624">sonnet-worker</text>
+          <text class="t mono" x="594" y="624">t1-worker</text>
           <text class="s" x="594" y="642" data-k="fl.b4">writes it, returns a diff</text></g>
         <g class="dnode out"><rect x="872" y="554" width="212" height="56" rx="9"/>
           <text class="t" x="890" y="578" data-k="fl.b5">the main agent reviews</text>

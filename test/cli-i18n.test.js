@@ -43,15 +43,15 @@ const MODERN = {
   category: 'check',
   label: '상태 확인·검증',
   labelEn: 'status checks / verification',
-  agent: 'haiku-explore',
+  agent: 't2-explore',
   project: 'proj',
   projectPath: '/tmp/proj',
   count: 7,
   models: ['claude-opus-5'],
   example: 'is the build green',
   suggestedScope: 'project',
-  rule: '"상태 확인·검증" 유형의 단순 요청은 haiku-explore로 위임한다',
-  ruleEn: 'Delegate simple "status checks / verification" requests to the haiku-explore subagent',
+  rule: '"상태 확인·검증" 유형의 단순 요청은 t2-explore로 위임한다',
+  ruleEn: 'Delegate simple "status checks / verification" requests to the t2-explore subagent',
 };
 
 // A candidate cached by an older version, before labelEn/ruleEn existed.
@@ -75,7 +75,7 @@ test('the SessionStart hook briefing is English for an English user', () => {
     const out = run(['route-scan', '--hook'], dir, home);
     assert.match(out, /Candidate R1/);
     assert.match(out, /status checks \/ verification/);
-    assert.match(out, /haiku-explore/);
+    assert.match(out, /t2-explore/);
     assert.doesNotMatch(out, HANGUL, 'no Korean may leak into an English session context');
   } finally {
     cleanup();

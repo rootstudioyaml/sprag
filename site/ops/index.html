@@ -2539,7 +2539,7 @@ const Presets = (function(){
         `<p class="note w">${esc(t(r._new ? 'pr.e.midNew' : 'pr.e.idKeep'))}</p>`;
     }
     const dsc = r.description || {}, body = r.body || {};
-    return inp('name', t('pr.c.name'), r.name, { ph:'sonnet-worker' }) + inp('model', t('pr.c.model'), r.model, { ph:'sonnet' }) +
+    return inp('name', t('pr.c.name'), r.name, { ph:'t1-worker' }) + inp('model', t('pr.c.model'), r.model, { ph:'sonnet' }) +
       sel('effort', t('pr.c.effort'), r.effort || 'medium', EFFORTS) + sel('tier', t('pr.c.tier'), r.tier || '', r.tier ? TIERS : [''].concat(TIERS)) +
       inp('categories', t('pr.c.cats'), (r.categories || []).join(', '), { ph:'explore, read' }) + `<p class="note">${esc(t('pr.e.catsHint'))}</p>` + inp('tools', t('pr.c.toolsIn'), (r.tools || []).join(', '), { wide:true, ph:'Read, Grep, Glob, Bash' }) +
       inp('description.ko', t('pr.c.descKo'), dsc.ko, { wide:true }) + inp('description.en', t('pr.c.descEn'), dsc.en, { wide:true }) +
@@ -2758,15 +2758,15 @@ const presetDemo = (function(){
     { id:'fix-777a15', ko:'여러 파일에 걸친 구현은 설계를 메인 모델이 정하고 코드 작성은 sonnet 서브에이전트에 맡긴다', en:'For multi-file work the main model fixes the design and a sonnet subagent writes the code' }
   ];
   const M = [
-    { id:'run-t2', tier:'T2', category:'run', label:'명령 실행 (빌드·테스트·git)', labelEn:'running commands (build/test/git)', agent:'haiku-runner', example:'npm test 돌려봐', exampleEn:'run npm test', budget:{ calls:8, out:1500 } },
+    { id:'run-t2', tier:'T2', category:'run', label:'명령 실행 (빌드·테스트·git)', labelEn:'running commands (build/test/git)', agent:'t2-runner', example:'npm test 돌려봐', exampleEn:'run npm test', budget:{ calls:8, out:1500 } },
     { id:'run-t1', tier:'T1', category:'run', label:'명령 실행 (빌드·테스트·git)', labelEn:'running commands (build/test/git)', agent:'sonnet', example:'빌드하고 실패한 테스트만 보여줘', exampleEn:'build and show only the failing tests', budget:{ calls:null, out:6000 } },
-    { id:'explore-t2', tier:'T2', category:'explore', label:'탐색·조회 (파일/값 찾기)', labelEn:'lookup (find files/values)', agent:'haiku-explore', example:'이 설정 어디서 읽어?', exampleEn:'where is this setting read', budget:{ calls:8, out:1500 } },
-    { id:'read-t2', tier:'T2', category:'read', label:'읽기·요약·설명', labelEn:'reading and summarising', agent:'haiku-explore', example:'이 파일 요약해줘', exampleEn:'summarise this file', budget:{ calls:8, out:1900 } }
+    { id:'explore-t2', tier:'T2', category:'explore', label:'탐색·조회 (파일/값 찾기)', labelEn:'lookup (find files/values)', agent:'t2-explore', example:'이 설정 어디서 읽어?', exampleEn:'where is this setting read', budget:{ calls:8, out:1500 } },
+    { id:'read-t2', tier:'T2', category:'read', label:'읽기·요약·설명', labelEn:'reading and summarising', agent:'t2-explore', example:'이 파일 요약해줘', exampleEn:'summarise this file', budget:{ calls:8, out:1900 } }
   ];
   const A = [
-    { name:'haiku-explore', model:'haiku', effort:'low', tier:'T2', categories:['explore', 'read', 'check', 'paste'], tools:['Read', 'Grep', 'Glob', 'Bash'], description:{ ko:'위임 작업용 저비용 읽기 전용 탐색, 조회, 상태 확인 에이전트입니다', en:'Cheap read-only exploration, lookup and status checks for delegated tasks' }, body:{ ko:'맡은 역할: 읽기 전용 탐색과 조회입니다.\n상한을 넘기지 마십시오.', en:'Role: read-only exploration and lookups.\nStay within the caps the caller wrote.' } },
-    { name:'sonnet-worker', model:'sonnet', effort:'medium', tier:'T1', categories:['*'], tools:['Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write'], description:{ ko:'설계가 확정된 구현을 테스트에 맞춰 끝내는 에이전트입니다', en:'Implements a fixed design against the tests' }, body:{ ko:'맡은 역할: 확정된 설계의 구현입니다.', en:'Role: implement the design the caller fixed.' } },
-    { name:'opus-worker', model:'claude-opus-5-5', effort:'high', tier:'T1H', categories:['*'], tools:['Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write'], description:{ ko:'범위가 큰 구현과 디버깅을 맡는 에이전트입니다', en:'Large implementation and debugging work' }, body:{ ko:'맡은 역할: 범위가 큰 구현과 디버깅입니다.', en:'Role: large implementation and debugging work.' } }
+    { name:'t2-explore', model:'haiku', effort:'low', tier:'T2', categories:['explore', 'read', 'check', 'paste'], tools:['Read', 'Grep', 'Glob', 'Bash'], description:{ ko:'위임 작업용 저비용 읽기 전용 탐색, 조회, 상태 확인 에이전트입니다', en:'Cheap read-only exploration, lookup and status checks for delegated tasks' }, body:{ ko:'맡은 역할: 읽기 전용 탐색과 조회입니다.\n상한을 넘기지 마십시오.', en:'Role: read-only exploration and lookups.\nStay within the caps the caller wrote.' } },
+    { name:'t1-worker', model:'sonnet', effort:'medium', tier:'T1', categories:['*'], tools:['Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write'], description:{ ko:'설계가 확정된 구현을 테스트에 맞춰 끝내는 에이전트입니다', en:'Implements a fixed design against the tests' }, body:{ ko:'맡은 역할: 확정된 설계의 구현입니다.', en:'Role: implement the design the caller fixed.' } },
+    { name:'t1h-worker', model:'claude-opus-5-5', effort:'high', tier:'T1H', categories:['*'], tools:['Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write'], description:{ ko:'범위가 큰 구현과 디버깅을 맡는 에이전트입니다', en:'Large implementation and debugging work' }, body:{ ko:'맡은 역할: 범위가 큰 구현과 디버깅입니다.', en:'Role: large implementation and debugging work.' } }
   ];
   function init(){
     const kid = Presets.kid() || '5e6ad2c0ffee0042', sig = { alg:'ES256', kid, value:'demo' };
