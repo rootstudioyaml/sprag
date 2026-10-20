@@ -2770,7 +2770,7 @@ const presetDemo = (function(){
   ];
   function init(){
     const kid = Presets.kid() || '5e6ad2c0ffee0042', sig = { alg:'ES256', kid, value:'demo' };
-    const by = 'root.studio.yaml@gmail.com';
+    const by = 'demo@example.com';
     const mk = (version, status, r, m, a, o) => Object.assign({ id:'pv' + version, version, format:1, status, ratchet_rules:clone(r), model_rules:clone(m), agents:clone(a), min_cli:'3.71.0', notes:null, sig:null, created_by:by, created_at:ago(30), published_at:null }, o);
     const r2 = R.slice(0, 4), r3 = R.slice(), r4 = clone(R);
     r4[2].ko = '입력 데이터를 바꾸면 거기에 의존하는 파생 자산을 마지막 단계까지 다시 만든다';
@@ -2793,7 +2793,7 @@ const presetDemo = (function(){
       if(rows.some(r => r.status === 'draft')) throw new Error('a draft already exists; publish or discard it first');
       const src = from ? byId(from) : pub(), v = Math.max(...rows.map(r => r.version)) + 1;
       const r = { id:'pv' + v, version:v, format:1, status:'draft', ratchet_rules:clone(src.ratchet_rules), model_rules:clone(src.model_rules), agents:clone(src.agents),
-        min_cli:src.min_cli, notes:'Based on v' + src.version, sig:null, created_by:'root.studio.yaml@gmail.com', created_at:new Date().toISOString(), published_at:null };
+        min_cli:src.min_cli, notes:'Based on v' + src.version, sig:null, created_by:'demo@example.com', created_at:new Date().toISOString(), published_at:null };
       rows.push(r); return r;
     };
     switch(name){
@@ -2859,7 +2859,7 @@ const presetDemo = (function(){
     sb = { auth: demoAuth() }; bootAuthParams();
     const dq = new URLSearchParams(location.search);
     if(dq.get('signedout') === '1') return;
-    user = {email:'root.studio.yaml@gmail.com'}; await onSession({user});
+    user = {email:'demo@example.com'}; await onSession({user});
     if(dq.get('org')){
       const tab = location.hash.replace(/^#/, '').replace(/^org\/[^/]+\/?/, '');
       history.replaceState(null, '', location.pathname + location.search + '#org/' + encodeURIComponent(dq.get('org')) + (/^(seats|prompts|settings)$/.test(tab) ? '/' + tab : ''));
