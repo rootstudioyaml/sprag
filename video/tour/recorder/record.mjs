@@ -60,6 +60,7 @@ const dnClip = (tod, wx, from) => ({ group: 'town', url: ops(`tod=${tod}&wx=${wx
 
 const RF = '#ru-box form[data-rlform=team]';   /* the team's add-rule form on the Rules sub-tab */
 const LION = 'd1-m14', CHICK = 'd1-m10', ORG = 'd1';
+const PRO_P = 'demo-org-m9', ENT_P = 'demo-org-m11';   /* team console demo: pat-thinkpad (power user), kim-studio (most prompts) */
 const SHOTS = {
   /* 0-8 s: night rain, slow zoom out from the HQ to the whole island */
   'town-hook': { group: 'town', url: ops('tod=night&wx=rain'), scene: 'town', dur: 8.6,
@@ -134,6 +135,51 @@ const SHOTS = {
       if(at(t, 4.8)) await c.eval(`(() => { const s = document.querySelector(${JSON.stringify(RF + ' select[name=scope]')}); s.value = 'model'; s.dispatchEvent(new Event('change', { bubbles: true })); s.focus({ preventScroll: true }); })()`);
       if(t >= 4.9 && t < 5.5) await c.moveTo(RF + ' button[type=submit]', ease((t - 4.9) / 0.6), [-1.5, 0.5], [0.5, 0.5]);
       if(at(t, 5.6)) await c.eval(`document.querySelector(${JSON.stringify(RF + ' button[type=submit]')}).click()`);
+    } },
+  /* ── plan promos (build-plans.sh): 30 s each, recorded from the customer's team console, not /ops ── */
+  /* Pro 0-7 s: the company's office in the team console, slow push in */
+  'pro-office': { url: team(), scene: 'office', dur: 7.6,
+    frame: async (c, t) => c.eval(setPose('office', poseAt([[0, { th: 0.70, ph: 1.04, zoom: 0.95, x: 0, z: 0 }], [7.6, { th: 1.0, ph: 0.98, zoom: 1.3, x: 0, z: 0 }]], t))) },
+  /* Pro 7-13 s: a power user's card opens, the model mix bar is hovered part by part */
+  'pro-person': { url: team(), scene: 'office', dur: 6.6,
+    prepare: async c => { const ps = await c.eval(`window.__sprag.office.people()`); c.L = ps.find(p => p.id === PRO_P) || ps.find(p => p.tier === 'power'); },
+    frame: async (c, t) => {
+      const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 1.0, ph: 0.98, zoom: 1.6, x: L.x + 2.2, z: L.z + 0.3 }], [6.6, { th: 1.12, ph: 0.95, zoom: 1.9, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
+      if(at(t, 0.5)) await c.eval(`window.__sprag.office.selectPerson('${L.id}')`);
+      if(t >= 2.2 && t < 5.4){
+        const k = Math.min(2, Math.floor((t - 2.2) / 1.07)), u = ease(((t - 2.2) - k * 1.07) / 0.5);
+        await c.moveTo(`.of-drawer .fam i:nth-child(${k + 1})`, u, k ? [0.5, 0.5] : [0.1, 1.6], [0.5, 0.5], k ? `.of-drawer .fam i:nth-child(${k})` : null);
+      }
+    } },
+  /* Enterprise 0-7 s: the office, the top prompter's card shows prompt counts, then the "see prompts" button */
+  'ent-office': { url: team(), scene: 'office', dur: 7.6,
+    prepare: async c => { const ps = await c.eval(`window.__sprag.office.people()`); c.L = ps.find(p => p.id === ENT_P) || ps.find(p => p.tier === 'power'); },
+    frame: async (c, t) => {
+      const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.75, ph: 1.03, zoom: 1.0, x: 0, z: 0 }], [2.0, { th: 0.95, ph: 0.98, zoom: 1.55, x: L.x + 2.2, z: L.z + 0.3 }], [7.6, { th: 1.08, ph: 0.95, zoom: 1.75, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
+      if(at(t, 2.1)) await c.eval(`window.__sprag.office.selectPerson('${L.id}')`);
+      if(t >= 4.6 && t < 5.6) await c.moveTo('.of-drawer [data-a=prompts]', ease((t - 4.6) / 1.0), [0.2, -6], [0.5, 0.5]);
+    } },
+  /* Enterprise 7-13 s: the Prompts tab, per-user usage with 30-day sparklines, sorted by characters */
+  'ent-usage': { url: team('', '#prompts'), dur: 6.6, waitFor: `!!document.querySelector('#pu-box tr.pu-row')`,
+    frame: async (c, t) => {
+      await c.eval(`window.scrollTo(0, ${Math.round(40 * ease(t / 2.0))})`);
+      if(t >= 2.6 && t < 3.4) await c.moveTo('#pu-box .dt-sort[data-col=chars]', ease((t - 2.6) / 0.8), [0.5, 4], [0.5, 0.5]);
+      if(at(t, 3.5)) await c.eval(`document.querySelector('#pu-box .dt-sort[data-col=chars]').click()`);
+    } },
+  /* Enterprise 13-20 s: one person's prompt list, then a search narrows it */
+  'ent-person': { url: team('', '#prompts'), dur: 7.1, waitFor: `!!document.querySelector('#pu-box tr.pu-row')`,
+    frame: async (c, t) => {
+      if(t >= 0.2 && t < 0.9) await c.moveTo('#pu-box tr.pu-row', ease((t - 0.2) / 0.7), [0.3, 3], [0.15, 0.5]);
+      if(at(t, 1.0)) await c.eval(`document.querySelector('#pu-box tr.pu-row').click()`);
+      if(at(t, 2.6)) await c.eval(`document.querySelector('#pu-q') && document.querySelector('#pu-q').focus({ preventScroll: true })`);
+      if(t >= 2.7 && t < 4.3){ const s = 'deploy', n = Math.min(s.length, 1 + Math.floor((t - 2.7) / 0.26)); await c.eval(`(() => { const i = document.querySelector('#pu-q'); if(i && i.value !== '${s.slice(0, n)}'){ i.value = '${s.slice(0, n)}'; i.dispatchEvent(new Event('input', { bubbles: true })); } })()`); }
+    } },
+  /* Enterprise 20-25 s: a team's policy, prompt capture switched on (confirm() answered in the page) */
+  'ent-policy': { url: team('team=demo-t1', '#policy'), dur: 6.1, waitFor: `!!document.querySelector('#sw-capture') && !document.querySelector('#sw-capture').closest('[hidden]')`,
+    prepare: async c => { await c.eval(`window.confirm = () => true`); },
+    frame: async (c, t) => {
+      if(t >= 0.8 && t < 1.8) await c.moveTo('#sw-capture', ease((t - 0.8) / 1.0), [6, 5], [0.5, 0.5]);
+      if(at(t, 2.0)) await c.eval(`document.querySelector('#sw-capture').click()`);
     } },
   /* 76-84 s: dawn, day, dusk, then a snowy night (crossfaded in the comp) */
   'town-dawn': dnClip('dawn', 'clear', 0),
