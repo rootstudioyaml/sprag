@@ -11,6 +11,7 @@
  */
 
 import { envVar } from './env.js';
+import { CLI_ENTRY, detachedChildEnv, isDetachedChild } from './cli-entry.js';
 import * as childProcess from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -208,8 +209,9 @@ export function ensureTeamImport() {
 
 export function spawnTeamSyncIfDue({
   state = readTeamState(), now = Date.now(), env = process.env,
-  spawn = childProcess.spawn, argv = process.argv, execPath = process.execPath,
+  spawn = childProcess.spawn, cliPath = CLI_ENTRY, execPath = process.execPath,
 } = {}) {
+  if (isDetachedChild(env)) return false;
   // Switched off: spawn once more only to report the pause (team-sync.js).
   // Switched back on after a reported pause: spawn now to report the resume.
   // Otherwise the full sync when it is due, else the hourly rules-only pull.
@@ -225,8 +227,8 @@ export function spawnTeamSyncIfDue({
     return false;
   }
   try {
-    spawn(execPath, [argv[1], 'team', 'sync', ...flags],
-      { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    spawn(execPath, [cliPath, 'team', 'sync', ...flags],
+      { detached: true, stdio: 'ignore', windowsHide: true, env: detachedChildEnv(env) }).unref();
     return true;
   } catch (e) {
     debug('team-ratchet:spawn', e);
@@ -244,16 +246,16 @@ export function spawnTeamSyncIfDue({
  */
 export function spawnTeamSyncOnPrompt({
   state = readTeamState(), now = Date.now(), env = process.env,
-  spawn = childProcess.spawn, argv = process.argv, execPath = process.execPath,
+  spawn = childProcess.spawn, cliPath = CLI_ENTRY, execPath = process.execPath,
 } = {}) {
-  if (teamSyncDisabled(env) || !isJoined(state)) return false;
+  if (isDetachedChild(env) || teamSyncDisabled(env) || !isJoined(state)) return false;
   let flags;
   if (teamSyncDue(state, now)) flags = ['--background'];
   else if (promptSyncDue(state, now, env)) flags = ['--background', '--prompts-only'];
   else if (rulesPullDue(state, now, env)) flags = ['--background', '--rules-only'];
   else return false;
   try {
-    spawn(execPath, [argv[1], 'team', 'sync', ...flags], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    spawn(execPath, [cliPath, 'team', 'sync', ...flags], { detached: true, stdio: 'ignore', windowsHide: true, env: detachedChildEnv(env) }).unref();
     return true;
   } catch (e) {
     debug('team-ratchet:spawn-prompt-hook', e);

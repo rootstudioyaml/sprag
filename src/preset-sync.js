@@ -26,6 +26,7 @@ import {
   cliVersion, evaluateBundle, presetSyncDisabled, readRemoteCache, remoteCachePath, resetPresetSourceMemo,
 } from './presets-source.js';
 import { PRESET_SIGNING_KEYS } from './preset-sign.js';
+import { CLI_ENTRY, detachedChildEnv, isDetachedChild } from './cli-entry.js';
 
 export const PRESET_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -51,9 +52,9 @@ export function nextPresetCheckAt(cache) {
  */
 export function spawnPresetSyncIfDue({
   env = process.env, now = Date.now(), dir = userDataDir(),
-  spawn = childProcess.spawn, argv = process.argv, execPath = process.execPath,
+  spawn = childProcess.spawn, cliPath = CLI_ENTRY, execPath = process.execPath,
 } = {}) {
-  if (presetSyncDisabled(env)) return false;
+  if (isDetachedChild(env) || presetSyncDisabled(env)) return false;
   const cache = readRemoteCache(dir);
   if (!presetSyncDue(cache, now)) return false;
   try {
@@ -63,8 +64,8 @@ export function spawnPresetSyncIfDue({
     return false;
   }
   try {
-    spawn(execPath, [argv[1], 'presets', 'sync', '--background'],
-      { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    spawn(execPath, [cliPath, 'presets', 'sync', '--background'],
+      { detached: true, stdio: 'ignore', windowsHide: true, env: detachedChildEnv(env) }).unref();
     return true;
   } catch (e) {
     debug('preset-sync:spawn', e);

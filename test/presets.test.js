@@ -241,16 +241,16 @@ test('cadence: one detached fetch per 24 hours, stamped before the spawn, never 
 
   const spawned = [];
   const spawn = (cmd, args, opts) => { spawned.push({ args, opts }); return { unref() {} }; };
-  const argv = ['node', '/x/bin/cli.js'];
-  assert.equal(spawnPresetSyncIfDue({ env: {}, now, dir, spawn, argv }), true);
+  const cliPath = '/x/bin/cli.js';
+  assert.equal(spawnPresetSyncIfDue({ env: {}, now, dir, spawn, cliPath }), true);
   assert.deepEqual(spawned[0].args, ['/x/bin/cli.js', 'presets', 'sync', '--background']);
   assert.equal(spawned[0].opts.detached, true);
   assert.equal(JSON.parse(readFileSync(remoteCachePath(dir), 'utf8')).checkedAt, now, 'stamped before spawning');
-  assert.equal(spawnPresetSyncIfDue({ env: {}, now: now + 60e3, dir, spawn, argv }), false, 'not again the same day');
-  assert.equal(spawnPresetSyncIfDue({ env: {}, now: now + PRESET_SYNC_INTERVAL_MS, dir, spawn, argv }), true);
+  assert.equal(spawnPresetSyncIfDue({ env: {}, now: now + 60e3, dir, spawn, cliPath }), false, 'not again the same day');
+  assert.equal(spawnPresetSyncIfDue({ env: {}, now: now + PRESET_SYNC_INTERVAL_MS, dir, spawn, cliPath }), true);
   const off = sandboxDir(t);
-  assert.equal(spawnPresetSyncIfDue({ env: { SPRAG_NO_PRESET_SYNC: '1' }, now, dir: off, spawn, argv }), false);
-  assert.equal(spawnPresetSyncIfDue({ env: { SPRAG_NO_UPDATE_CHECK: '1' }, now, dir: off, spawn, argv }), false);
+  assert.equal(spawnPresetSyncIfDue({ env: { SPRAG_NO_PRESET_SYNC: '1' }, now, dir: off, spawn, cliPath }), false);
+  assert.equal(spawnPresetSyncIfDue({ env: { SPRAG_NO_UPDATE_CHECK: '1' }, now, dir: off, spawn, cliPath }), false);
   assert.equal(existsSync(remoteCachePath(off)), false, 'an opted-out machine writes nothing');
   assert.equal(spawned.length, 2);
 });

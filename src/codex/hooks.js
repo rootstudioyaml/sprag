@@ -1,6 +1,6 @@
 import { envVar } from '../env.js';
+import { spawnDetachedCli } from '../cli-entry.js';
 import { createRequire } from 'node:module';
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, openSync, readFileSync, readSync, closeSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -118,8 +118,7 @@ async function routeNotice(root, { spawnRescan = defaultRescan } = {}) {
 
 function defaultRescan() {
   if (envVar('NO_ROUTE_SCAN') === '1') return;
-  spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet', '--agent', 'codex'],
-    { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  spawnDetachedCli(['route-scan', '--refresh', '--quiet', '--agent', 'codex']);
 }
 
 /**
@@ -132,8 +131,7 @@ function defaultRescan() {
  */
 function defaultLedgerRefresh() {
   if (envVar('NO_ROUTE_SCAN') === '1') return;
-  spawn(process.execPath, [process.argv[1], 'route-scan', 'savings', '--refresh', '--quiet', '--agent', 'codex'],
-    { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  spawnDetachedCli(['route-scan', 'savings', '--refresh', '--quiet', '--agent', 'codex']);
 }
 
 export function lintCodexTool(payload, { scope = 'all' } = {}) {
