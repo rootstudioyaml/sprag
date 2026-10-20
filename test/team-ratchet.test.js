@@ -154,7 +154,7 @@ test('session start and prompt hooks spawn the rules-only pull when only it is d
   const now = 1_800_000_000_000;
   const calls = [];
   const spawn = (cmd, args) => { calls.push(args); return { unref() {} }; };
-  const common = { now, env: {}, spawn, argv: ['node', '/cli.js'], execPath: '/bin/node' };
+  const common = { now, env: {}, spawn, cliPath: '/cli.js', execPath: '/bin/node' };
   const rulesDue = { memberKey: 'k', lastSyncAt: now - 2 * 3600_000, lastRulesAt: now - 61 * 60_000 };
   assert.equal(spawnTeamSyncIfDue({ ...common, state: rulesDue }), true);
   assert.equal(spawnTeamSyncOnPrompt({ ...common, state: rulesDue }), true);
@@ -225,7 +225,7 @@ test('ensureTeamImport adds inside the block, removes when file gone, skips bloc
 test('spawnTeamSyncIfDue spawns when due or auto-join pending, not otherwise', () => {
   const calls = [];
   const spawn = (cmd, args, opts) => { calls.push({ cmd, args, opts }); return { unref() {} }; };
-  const base = { spawn, argv: ['node', '/cli.js'], execPath: '/bin/node', now: 1_000_000_000_000 };
+  const base = { spawn, cliPath: '/cli.js', execPath: '/bin/node', now: 1_000_000_000_000 };
   const due = { memberKey: 'k', lastSyncAt: base.now - 7 * 3600 * 1000 };
   assert.equal(spawnTeamSyncIfDue({ ...base, state: due, env: {} }), true);
   assert.deepEqual(calls[0].args, ['/cli.js', 'team', 'sync', '--background']);

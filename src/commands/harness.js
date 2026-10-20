@@ -274,9 +274,8 @@ export async function run({ args, hasFlag }) {
         // Event-triggered refresh: establish the new rule's stat baseline
         // right away instead of waiting for the next data-gated rescan.
         try {
-          const { spawn } = await import('node:child_process');
-          spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
-            { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+          const { spawnDetachedCli } = await import('../cli-entry.js');
+          spawnDetachedCli(['route-scan', '--refresh', '--quiet']);
         } catch (e) { debug('promote:spawn-refresh', e); /* baseline arrives on the next gated rescan */ }
         return;
       }

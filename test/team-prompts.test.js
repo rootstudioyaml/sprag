@@ -429,7 +429,7 @@ test('the prompt hook spawns the right detached child only when due, and prints 
   const now = 1_800_000_000_000;
   const spawned = [];
   const spawn = (cmd, args, opts) => { spawned.push({ cmd, args, opts }); return { unref() {} }; };
-  const common = { now, env: {}, spawn, argv: ['node', '/x/cli.js'], execPath: '/bin/node' };
+  const common = { now, env: {}, spawn, cliPath: '/x/cli.js', execPath: '/bin/node' };
   const fresh = { memberKey: 'k', promptCapture: true, lastSyncAt: now - 60_000 };
   const out = [];
   const w = process.stdout.write; process.stdout.write = (c) => { out.push(c); return true; };
@@ -457,7 +457,7 @@ test('the hook spawns when a failure backoff has elapsed, not before', () => {
   const spawned = [];
   const spawn = (cmd, args) => { spawned.push(args); return { unref() {} }; };
   const st = { memberKey: 'k', lastSyncAt: t0 - 5 * 3600_000, lastSyncAttemptAt: t0, syncFailures: 1 };
-  const go = (now, state = st) => spawnTeamSyncOnPrompt({ state, now, env: {}, spawn, argv: ['n', '/x/cli.js'], execPath: '/bin/node' });
+  const go = (now, state = st) => spawnTeamSyncOnPrompt({ state, now, env: {}, spawn, cliPath: '/x/cli.js', execPath: '/bin/node' });
   assert.equal(go(t0 + 14 * 60_000), false);
   assert.equal(go(t0 + 15 * 60_000), true);
   assert.equal(go(t0 + 29 * 60_000, { ...st, syncFailures: 2 }), false);

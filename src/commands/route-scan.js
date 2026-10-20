@@ -259,9 +259,8 @@ export async function run({ args, hasFlag, numArg }) {
       try {
         const cache = rs.readRouteScan();
         if (!(await rs.shouldRescan(cache, { afterDelegation: true }))) return;
-        const { spawn } = await import('node:child_process');
-        spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
-          { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+        const { spawnDetachedCli } = await import('../cli-entry.js');
+        spawnDetachedCli(['route-scan', '--refresh', '--quiet']);
       } catch (e) {
         // A missed refresh only means the figure lags, which is what happened
         // before this hook existed. Never fail the tool call over it.
@@ -278,9 +277,8 @@ export async function run({ args, hasFlag, numArg }) {
       let cache = rs.readRouteScan();
       if (await rs.shouldRescan(cache)) {
         try {
-          const { spawn } = await import('node:child_process');
-          spawn(process.execPath, [process.argv[1], 'route-scan', '--refresh', '--quiet'],
-            { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+          const { spawnDetachedCli } = await import('../cli-entry.js');
+          spawnDetachedCli(['route-scan', '--refresh', '--quiet']);
         } catch (e) { debug('route-scan:spawn-refresh', e); /* stale cache is still usable below */ }
       }
       const open = rs.openCandidates(cache);

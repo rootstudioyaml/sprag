@@ -13,11 +13,15 @@ const OFF = { koreanStyle: { enabled: false } };
 /** An isolated Codex home and Sprag data dir; the real ~/.codex is never touched. */
 function sandbox(t) {
   const base = mkdtempSync(join(tmpdir(), 'sprag-oob-'));
-  const saved = { XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME, CODEX_HOME: process.env.CODEX_HOME, SPRAG_NO_ROUTE_SCAN: process.env.SPRAG_NO_ROUTE_SCAN };
+  const saved = { XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME, CODEX_HOME: process.env.CODEX_HOME, SPRAG_NO_ROUTE_SCAN: process.env.SPRAG_NO_ROUTE_SCAN, SPRAG_NO_PRESET_SYNC: process.env.SPRAG_NO_PRESET_SYNC, SPRAG_NO_TEAM_SYNC: process.env.SPRAG_NO_TEAM_SYNC };
   const home = join(base, 'codex'), dir = join(base, 'state', 'claude-token-saver');
   process.env.XDG_CONFIG_HOME = join(base, 'state');
   process.env.CODEX_HOME = home;
   process.env.SPRAG_NO_ROUTE_SCAN = '1';
+  // The session-start path starts detached syncs when their cache is stale; a
+  // fresh sandbox always is, and a test must not leave network children behind.
+  process.env.SPRAG_NO_PRESET_SYNC = '1';
+  process.env.SPRAG_NO_TEAM_SYNC = '1';
   mkdirSync(home, { recursive: true });
   mkdirSync(dir, { recursive: true });
   mkdirSync(join(base, 'project', '.git'), { recursive: true });
