@@ -133,7 +133,10 @@ test('a Fable session with a heavy episode yields a T1H rule candidate', async (
   const cache = await runRouteScan({ days: 14 });
   const c = cache.candidates.find((x) => x.tier === 'T1H');
   assert.ok(c, `candidates: ${JSON.stringify(cache.candidates.map((x) => x.signature))}`);
-  assert.equal(c.agent, 'opus');
+  // A candidate names its tier; the agents preset says opus-worker serves T1H.
+  assert.equal(c.agent, undefined);
+  const { agentForRule } = await import('../src/agents.js');
+  assert.equal(agentForRule(c), 'opus-worker');
   assert.equal(c.budget.out, cache.thresholds.t1hOut);
   assert.match(c.rule, /opus/);
   assert.match(c.rule, /Fable/);

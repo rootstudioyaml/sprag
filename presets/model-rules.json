@@ -4,7 +4,8 @@
     "counterpart to presets/ratchet-rules.md. These were promoted from the author's",
     "own route-scan candidates over months of real sessions, then stripped of the",
     "originating examples, project paths and recurrence counts: what carries over is",
-    "the shape of the work (category, tier, agent, cap), not the author's transcripts.",
+    "the shape of the work (category, tier, cap), not the author's transcripts. Which",
+    "agent serves a tier is said by presets/agents.json (tier, categories).",
     "Each entry is offered one at a time at session start; nothing is registered",
     "without the user saying yes. Caps are the defaults a scan would calibrate to;",
     "later scans refresh the stats on whatever the user accepts.",
@@ -18,7 +19,6 @@
       "category": "run",
       "label": "명령 실행 (빌드·테스트·git)",
       "labelEn": "running commands (build/test/git)",
-      "agent": "haiku-runner",
       "example": "npm test 돌려봐",
       "exampleEn": "run npm test",
       "budget": {
@@ -32,7 +32,6 @@
       "category": "run",
       "label": "명령 실행 (빌드·테스트·git)",
       "labelEn": "running commands (build/test/git)",
-      "agent": "sonnet",
       "example": "빌드하고 실패한 테스트만 보여줘",
       "exampleEn": "build it and show only the failing tests",
       "budget": {
@@ -46,7 +45,6 @@
       "category": "explore",
       "label": "탐색·조회 (파일/값 찾기)",
       "labelEn": "lookup (finding files/values)",
-      "agent": "haiku-explore",
       "example": "이 설정값 어느 파일에 있어?",
       "exampleEn": "which file holds this config value?",
       "budget": {
@@ -60,7 +58,6 @@
       "category": "explore",
       "label": "탐색·조회 (파일/값 찾기)",
       "labelEn": "lookup (finding files/values)",
-      "agent": "sonnet",
       "example": "이 함수를 호출하는 곳 전부 찾아줘",
       "exampleEn": "find every caller of this function",
       "budget": {
@@ -74,7 +71,6 @@
       "category": "check",
       "label": "상태 확인·검증",
       "labelEn": "status checks / verification",
-      "agent": "haiku-explore",
       "example": "지금 배포된 버전이 뭔지 확인해줘",
       "exampleEn": "check which version is deployed right now",
       "budget": {
@@ -88,7 +84,6 @@
       "category": "check",
       "label": "상태 확인·검증",
       "labelEn": "status checks / verification",
-      "agent": "sonnet",
       "example": "마이그레이션이 실제로 적용됐는지 확인해줘",
       "exampleEn": "verify the migration actually applied",
       "budget": {
@@ -102,7 +97,6 @@
       "category": "paste",
       "label": "붙여넣은 화면·로그 질문",
       "labelEn": "questions about pasted screens/logs",
-      "agent": "haiku-explore",
       "example": "이 에러 로그는 무슨 뜻이야?",
       "exampleEn": "what does this error log mean?",
       "budget": {
@@ -116,7 +110,6 @@
       "category": "paste",
       "label": "붙여넣은 화면·로그 질문",
       "labelEn": "questions about pasted screens/logs",
-      "agent": "sonnet",
       "example": "이 스택트레이스에서 어느 모듈이 죽은 건지 짚어줘",
       "exampleEn": "point out which module failed in this stack trace",
       "budget": {
@@ -130,7 +123,6 @@
       "category": "read",
       "label": "읽기·요약·설명",
       "labelEn": "reading / summarizing / explaining",
-      "agent": "haiku-explore",
       "example": "이 README 요약해줘",
       "exampleEn": "summarize this README",
       "budget": {
@@ -144,7 +136,6 @@
       "category": "read",
       "label": "읽기·요약·설명",
       "labelEn": "reading / summarizing / explaining",
-      "agent": "sonnet",
       "example": "이 함수가 하는 일을 단계별로 정리해줘",
       "exampleEn": "walk through what this function does, step by step",
       "budget": {

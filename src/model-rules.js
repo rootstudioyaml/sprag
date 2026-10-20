@@ -16,7 +16,8 @@
  *      (rule-health, per docs/TIER_CRITERIA.md).
  *
  * Registry file (source of truth): <stateDir>/model-rules.json
- *   { rules: [ { signature, tier, category, label, labelEn, agent, scope,  // 'project'|'global'
+ *   { rules: [ { signature, tier, category, label, labelEn, scope,  // 'project'|'global'
+ *                agent,                // legacy only: honoured when present, never written
  *                targetRoot,           // project root path (project scope)
  *                rule, example, count, errRate, promotedAt, lastSeen,
  *                status } ] }          // 'active' | 'review'
@@ -33,7 +34,7 @@ import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
-import { agentPhrase, agentPhraseEn, resolveAgentName } from './agents.js';
+import { agentPhrase, agentPhraseEn, resolveAgentName, agentForRule, TIER_MODEL } from './agents.js';
 import { writeStateFile } from './state-file.js';
 import { signedUsd } from './money.js';
 import { implementationDelegationRule } from './implementation-delegation.js';
@@ -120,7 +121,8 @@ export function composeRuleText(baseText, rule, lang = userLanguage()) {
  * wording — two copies of this template would drift the moment one is reworded,
  * and the drift only shows up in a file the model reads as instructions.
  *
- * `g` carries { tier, label, labelEn, example, exampleEn, agent }.
+ * `g` carries { tier, category, label, labelEn, example, exampleEn } and, on a
+ * legacy rule, `agent`; agentForRule turns tier and category into the agent.
  */
 /**
  * Trim an example to something a reader takes in at a glance. Scan-derived
@@ -133,30 +135,34 @@ function shortExample(text) {
   return one.length <= EXAMPLE_MAX ? one : `${one.slice(0, EXAMPLE_MAX - 1)}…`;
 }
 
+/** The agent (or bare alias) a rule's text names, before the file check. */
+const targetName = (g) => agentForRule(g) ?? TIER_MODEL[g.tier];
+
 // T1 (and T1H) is named through its delegation agent only when that file
 // exists; without it the literal `model: sonnet` / `model: opus` stays so
 // output on such machines is unchanged.
-function t1Target(root, ko, tier = 'sonnet') {
-  if (resolveAgentName(tier, root) === null) return null;
-  return (ko ? agentPhrase : agentPhraseEn)(tier, { root });
+function t1Target(root, ko, g) {
+  const name = targetName(g);
+  if (resolveAgentName(name, root) === null) return null;
+  return (ko ? agentPhrase : agentPhraseEn)(name, { root });
 }
 
 export function modelRuleBaseText(g, lang = userLanguage(), { root } = {}) {
   if (lang === 'ko') {
     if (g.tier === 'T1H') {
-      return `"${g.label}" 고난도 구현 요청(예: "${shortExample(g.example)}")은 Fable·Mythos 세션에 한해 ${t1Target(root, true, 'opus') ?? 'model: opus'}에 위임`;
+      return `"${g.label}" 고난도 구현 요청(예: "${shortExample(g.example)}")은 Fable·Mythos 세션에 한해 ${t1Target(root, true, g) ?? `model: ${TIER_MODEL.T1H}`}에 위임`;
     }
     return g.tier === 'T2'
-      ? `"${g.label}" 단순 요청(예: "${shortExample(g.example)}")은 ${agentPhrase(g.agent, { root })}에 위임`
-      : `"${g.label}" 중간 난도 요청(예: "${shortExample(g.example)}")은 ${t1Target(root, true) ?? 'model: sonnet'}에 위임`;
+      ? `"${g.label}" 단순 요청(예: "${shortExample(g.example)}")은 ${agentPhrase(targetName(g), { root })}에 위임`
+      : `"${g.label}" 중간 난도 요청(예: "${shortExample(g.example)}")은 ${t1Target(root, true, g) ?? `model: ${TIER_MODEL.T1}`}에 위임`;
   }
   const example = g.exampleEn || g.example;
   if (g.tier === 'T1H') {
-    return `Heavy "${g.labelEn}" implementation requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false, 'opus') ?? 'a model: opus subagent'}, in Fable/Mythos sessions only`;
+    return `Heavy "${g.labelEn}" implementation requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false, g) ?? `a model: ${TIER_MODEL.T1H} subagent`}, in Fable/Mythos sessions only`;
   }
   return g.tier === 'T2'
-    ? `Simple "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${agentPhraseEn(g.agent, { root })}`
-    : `Moderate "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false) ?? 'a model: sonnet subagent'}`;
+    ? `Simple "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${agentPhraseEn(targetName(g), { root })}`
+    : `Moderate "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false, g) ?? `a model: ${TIER_MODEL.T1} subagent`}`;
 }
 
 // See the note in route-scan.js — paths.js is the only place that resolves
@@ -403,7 +409,6 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
   };
   // Merged rules carry one cap per tier, so they state them once rather than
   // repeating the whole stop-condition per tier.
-  const TIER_MODEL = { T2: 'haiku', T1: 'sonnet', T1H: 'opus' };
   const mergedBudget = (tiers) => (ko ? '상한 ' : 'cap ') + tiers
     .map((r) => `${TIER_MODEL[r.tier]} ${budgetCapPhrase(r, ko ? 'ko' : 'en')}`).join(' / ');
 
@@ -440,9 +445,8 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
       // user's own prompt, so exampleEn is a preference, not a requirement.
       const ex = (r) => shortExample(ko ? r.example : (r.exampleEn || r.example));
       const target = (r) => {
-        if (r.tier === 'T2') return (ko ? agentPhrase : agentPhraseEn)(r.agent, { root });
-        const name = r.tier === 'T1H' ? 'opus' : 'sonnet';
-        return t1Target(root, ko, name) ?? `model: ${name}`;
+        if (r.tier === 'T2') return (ko ? agentPhrase : agentPhraseEn)(targetName(r), { root });
+        return t1Target(root, ko, r) ?? `model: ${TIER_MODEL[r.tier]}`;
       };
       // One line per category, stating only what differs between the tiers.
       // The exceptions this used to spell out (design judgement, irreversible

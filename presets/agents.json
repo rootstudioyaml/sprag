@@ -9,13 +9,23 @@
     "Effort follows how the work is verified: low for lookups and command runs, medium for",
     "implementation against tests, high for the larger opus share.",
     "The files are rendered in English (description.en, body.en): they are model-facing",
-    "prompts, and the Korean copy is what the /ops console shows next to it."
+    "prompts, and the Korean copy is what the /ops console shows next to it.",
+    "tier and categories say which model-routing rules an agent serves (agentForRule in",
+    "src/agents.js): a rule names only its category and tier, and \"*\" covers every category.",
+    "They are not written into the rendered files; Claude Code does not know those keys."
   ],
   "agents": [
     {
       "name": "haiku-explore",
       "model": "haiku",
       "effort": "low",
+      "tier": "T2",
+      "categories": [
+        "explore",
+        "read",
+        "check",
+        "paste"
+      ],
       "tools": [
         "Read",
         "Grep",
@@ -35,6 +45,10 @@
       "name": "haiku-runner",
       "model": "haiku",
       "effort": "low",
+      "tier": "T2",
+      "categories": [
+        "run"
+      ],
       "tools": [
         "Bash",
         "Read",
@@ -54,6 +68,10 @@
       "name": "haiku-translate",
       "model": "haiku",
       "effort": "low",
+      "tier": "T2",
+      "categories": [
+        "translate"
+      ],
       "tools": [
         "Read",
         "Grep",
@@ -74,6 +92,10 @@
       "name": "sonnet-worker",
       "model": "sonnet",
       "effort": "medium",
+      "tier": "T1",
+      "categories": [
+        "*"
+      ],
       "tools": [
         "Read",
         "Grep",
@@ -96,6 +118,10 @@
       "name": "opus-worker",
       "model": "claude-opus-5-5",
       "effort": "high",
+      "tier": "T1H",
+      "categories": [
+        "*"
+      ],
       "tools": [
         "Read",
         "Grep",

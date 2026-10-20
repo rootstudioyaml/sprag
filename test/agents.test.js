@@ -9,7 +9,7 @@ import assert from 'node:assert';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { agentExists, agentPhrase, agentPhraseEn } from '../src/agents.js';
+import { agentExists, agentPhrase, agentPhraseEn, agentForRule, TIER_MODEL } from '../src/agents.js';
 
 function isolatedHome(t) {
   const home = mkdtempSync(join(tmpdir(), 'cts-home-'));
@@ -55,4 +55,38 @@ test('project-level agent counts too', (t) => {
   // Unknown agent name defaults to the haiku tier unless told otherwise.
   assert.strictEqual(agentPhrase('mystery', { root }), 'model: haiku');
   assert.strictEqual(agentPhrase('mystery', { root, model: 'sonnet' }), 'model: sonnet');
+});
+
+test('agentForRule: a rule names its tier, the agents say which categories they serve', () => {
+  const agents = [
+    { name: 'cheap-look', tier: 'T2', categories: ['explore', 'read'] },
+    { name: 'cheap-run', tier: 'T2', categories: ['run'] },
+    { name: 'cheap-any', tier: 'T2', categories: ['*'] },
+    { name: 'worker', tier: 'T1', categories: ['*'] },
+    { name: 'legacy', tier: null, categories: [] },
+  ];
+  // the category match wins over an earlier "*" of the same tier
+  assert.strictEqual(agentForRule({ tier: 'T2', category: 'run' }, { agents }), 'cheap-run');
+  assert.strictEqual(agentForRule({ tier: 'T2', category: 'read' }, { agents }), 'cheap-look');
+  // no agent names the category: the first "*" agent of the tier
+  assert.strictEqual(agentForRule({ tier: 'T2', category: 'translate' }, { agents }), 'cheap-any');
+  assert.strictEqual(agentForRule({ tier: 'T1', category: 'run' }, { agents }), 'worker');
+  // a legacy rule's agent is an override
+  assert.strictEqual(agentForRule({ tier: 'T2', category: 'run', agent: 'haiku-runner' }, { agents }), 'haiku-runner');
+  assert.strictEqual(agentForRule({ tier: 'T2', category: 'run', agent: '' }, { agents }), 'cheap-run');
+  // no agent serves the tier
+  assert.strictEqual(agentForRule({ tier: 'T1H', category: 'run' }, { agents }), null);
+  assert.strictEqual(agentForRule({ tier: 'T2', category: 'run' }, { agents: [{ name: 'legacy', tier: null, categories: [] }] }), null);
+});
+
+test('agentForRule over the bundled agents keeps today\'s names', () => {
+  assert.strictEqual(agentForRule({ tier: 'T2', category: 'run' }), 'haiku-runner');
+  for (const c of ['explore', 'read', 'check', 'paste']) assert.strictEqual(agentForRule({ tier: 'T2', category: c }), 'haiku-explore');
+  assert.strictEqual(agentForRule({ tier: 'T2', category: 'translate' }), 'haiku-translate');
+  assert.strictEqual(agentForRule({ tier: 'T1', category: 'run' }), 'sonnet-worker');
+  assert.strictEqual(agentForRule({ tier: 'T1H', category: 'read' }), 'opus-worker');
+});
+
+test('TIER_MODEL turns a tier into its bare model alias', () => {
+  assert.deepStrictEqual(TIER_MODEL, { T2: 'haiku', T1: 'sonnet', T1H: 'opus' });
 });

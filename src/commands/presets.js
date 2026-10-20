@@ -92,8 +92,9 @@ export async function run({ args, hasFlag }) {
     }
     console.log('');
     console.log(ko ? `모델 라우팅 프리셋 ${out.model_rules.length}건` : `Model-routing presets (${out.model_rules.length})`);
+    const { agentForRule, TIER_MODEL } = await import('../agents.js');
     for (const m of out.model_rules) {
-      console.log(`  [${m.id}] ${m.tier} · ${ko ? m.label : m.labelEn} → ${m.agent}`);
+      console.log(`  [${m.id}] ${m.tier} · ${ko ? m.label : m.labelEn} → ${agentForRule(m, { agents: out.agents }) ?? TIER_MODEL[m.tier]}`);
     }
     console.log('');
     console.log(ko ? `위임 에이전트 ${out.agents.length}개` : `Delegation agents (${out.agents.length})`);

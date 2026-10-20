@@ -30,7 +30,7 @@ import { sessionCost } from './claude-price.js';
 import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { modelRuleBaseText } from './model-rules.js';
 import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
-import { modelPresets as sourceModelPresets } from './presets-source.js';
+import { agentForRule } from './agents.js';
 
 // ── Tier bands (docs/TIER_CRITERIA.md §3) ────────────────────────────────
 // T2 (haiku): finished in few calls, tiny output, near-zero mutation, no
@@ -115,7 +115,7 @@ export const RESCAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;      // any new data + a d
 // together triggers one scan rather than one per agent.
 export const RESCAN_AFTER_DELEGATION_MS = 30 * 1000;
 
-// Categories → recommended subagent. Classification is behavior-first with
+// Categories a request is filed under. Classification is behavior-first with
 // weighted keyword scoring as fallback — see categorize().
 const PASTE_MIN_LEN = 400;
 const CATEGORIES = [
@@ -123,21 +123,18 @@ const CATEGORIES = [
     id: 'paste',
     label: '붙여넣은 화면·로그 질문',
     labelEn: 'questions about pasted screens/logs',
-    agent: 'haiku-explore',
     kw: null, // matched by length, see categorize()
   },
   {
     id: 'translate',
     label: '배치 번역·정형 텍스트 변환',
     labelEn: 'batch translation / mechanical text transforms',
-    agent: 'haiku-translate',
     kw: [[/번역|translate/i, 2], [/변환해|표로 정리|포맷팅/i, 1]],
   },
   {
     id: 'explore',
     label: '탐색·조회 (파일/값 찾기)',
     labelEn: 'lookup (finding files/values)',
-    agent: 'haiku-explore',
     kw: [[/\bgrep\b|검색|\bsearch|\bfind\b/i, 2], [/찾아|어디|위치|목록|살펴/i, 1],
       [/정의(?:돼|되어)\s*있|어느\s*파일|어떤\s*파일에|\bwhich\s+file\b|\bwhere\s+(?:is|are)\b[^?\n]*\bdefined\b/i, 1]],
   },
@@ -145,34 +142,28 @@ const CATEGORIES = [
     id: 'read',
     label: '읽기·요약·설명',
     labelEn: 'reading / summarizing / explaining',
-    agent: 'haiku-explore',
     kw: [[/요약|summar|explain/i, 2], [/읽어|설명|정리해|보여줘|알려줘|뭐야|\bwhat\b/i, 1]],
   },
   {
     id: 'check',
     label: '상태 확인·검증',
     labelEn: 'status checks / verification',
-    agent: 'haiku-explore',
     kw: [[/확인|검증|\bverif|점검/i, 2], [/맞아\?|되나|됐나|됐어|되는지|괜찮|체크|\bcheck\b|\bstatus\b/i, 1]],
   },
   {
     id: 'run',
     label: '명령 실행 (빌드·테스트·git)',
     labelEn: 'running commands (build/test/git)',
-    agent: 'haiku-runner',
     kw: [[/\bgit |\bcommit(?:s|ted)?\b|\bpush(?:ed|es)?\b|\bnpm |\bpip3? |빌드해|빌드 돌/i, 2], [/실행|돌려|\brun\b|\bbuild\b|빌드|테스트|설치/i, 1]],
   },
 ];
-// The T2 agent a category's candidates name follows the published model presets
-// when one covers that category (presets-source.js), so renaming an agent in the
-// /ops console renames it in new candidates too. Categories without a preset
-// (translate) keep the name above.
+// The T2 agent a category's candidates name comes from the agents preset (the
+// agent whose tier and categories cover it, see agentForRule), so renaming or
+// re-scoping an agent in the /ops console carries over to new candidates.
 function t2AgentFor(cat) {
   try {
-    const p = sourceModelPresets().find((x) => x.tier === 'T2' && x.category === cat.id);
-    if (p && typeof p.agent === 'string' && p.agent) return p.agent;
-  } catch { /* the built-in name below */ }
-  return cat.agent;
+    return agentForRule({ tier: 'T2', category: cat.id }) ?? 'haiku';
+  } catch { return 'haiku'; }
 }
 
 // English keywords are matched as whole words. As bare substrings, `pip`
@@ -815,7 +806,6 @@ export async function runRouteScan({ days = 14 } = {}) {
       category: g.category,
       label: g.label,
       labelEn: g.labelEn,
-      agent: g.agent,
       project: g.project,
       // Real session cwd for the project (munged `project` is lossy) — lets
       // `harness promote R<N> --project` write the rule into the project the

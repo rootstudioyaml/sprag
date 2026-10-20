@@ -230,7 +230,12 @@ test('Codex seed accepts and skips independently of Claude with the chosen scope
   });
   const listing = run(['seed', '--agent', 'codex']);
   assert.equal(listing.status, 0, listing.stderr);
-  assert.doesNotMatch(listing.stdout, /model: haiku|model: sonnet/);
+  // The model-routing offers name the Codex tier mapping only. The bundled
+  // ratchet rules after them are tool-neutral and say how each tool resolves a
+  // tier, Claude's alias included, so only the model block is checked.
+  const modelBlock = listing.stdout.split(/\n\s*\[fix-/)[0];
+  assert.match(modelBlock, /Codex T2 mapping/);
+  assert.doesNotMatch(modelBlock, /model: haiku|model: sonnet/);
   assert.match(listing.stdout, /\[run-t2\]/);
   const ids = [...listing.stdout.matchAll(/\[(fix-[0-9a-f]{6})\]/g)].map((m) => m[1]);
   assert.ok(ids.length >= 3);

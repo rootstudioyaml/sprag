@@ -64,6 +64,13 @@ Create `model: haiku` subagents under `~/.claude/agents/` (e.g. haiku-explore /
 haiku-runner / haiku-translate) plus a `model: sonnet` general worker so the rules are
 immediately actionable.
 
+A rule names only its category and tier (T2, T1, T1H), never an agent. Each delegation
+agent in the presets says which `tier` it serves and for which `categories` (`*` for all),
+and Claude delegates to the first agent that matches: haiku-runner for run,
+haiku-explore for lookup, reading, checks and pasted logs, sonnet-worker for T1,
+opus-worker for T1H. Without that agent's file the rule says `model: <alias>`. Codex
+reads the same tier and uses the model mapped to it.
+
 
 ## 🔀 route-scan — "this recurring task could run on a cheaper tier"
 
