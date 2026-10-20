@@ -112,6 +112,7 @@ html[lang=ko] .kchip{font-family:var(--sans);font-size:11.5px}
 .dt-n{margin-left:auto;font:500 12px var(--mono);color:var(--faint);white-space:nowrap}
 html[lang=ko] .dt-n{font-family:var(--sans)}
 .dt-b{margin-top:0}
+.dt tr[tabindex]{cursor:pointer}   /* a row that opens something looks like it */
 .dt-sort{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:4px;color:inherit;font:inherit;white-space:nowrap}
 .dt-sort:hover{color:var(--ink)} .dt-sort:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:3px}
 .dt-sort::after{content:"";width:0;height:0;border:4px solid transparent;opacity:0}
