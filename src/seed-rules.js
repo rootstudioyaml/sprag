@@ -32,6 +32,11 @@ import { modelPresets as sourceModelPresets } from './presets-source.js';
 import { sharedModelRulesForProject, loadSharedModelRules, sharedProjectRoots, realProjectRoot } from './shared-model-rules.js';
 import { userDataDir } from './paths.js';
 import { agentForRule, TIER_MODEL } from './agents.js';
+import { firstSentence, OFFER_CUT } from './first-sentence.js';
+
+// Re-exported: the Codex delegation hints use the same cut through first-sentence.js,
+// which stays dependency-free so the per-prompt hook does not load this module.
+export { firstSentence, OFFER_CUT };
 import { userLanguage } from './config.js';
 import { writeStateFile } from './state-file.js';
 import {
@@ -148,9 +153,17 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), 
 }
 
 function codexSeedText(p, lang) {
-  const text = lang === 'ko'
-    ? `"${p.label}" 유형의 ${p.tier === 'T2' ? '단순' : '중간 난도'} 작업은 ${p.tier}에 위임합니다. 실행 모델은 Codex가 자동으로 정하거나 매핑으로 지정합니다.`
-    : `${p.tier === 'T2' ? 'Simple' : 'Moderate'} "${p.labelEn}" tasks use ${p.tier}. Codex resolves the execution model automatically or from a mapping.`;
+  // The role is the agent Claude delegates the same rule to; Codex runs that
+  // role on the model its tier mapping names, so both tools offer one value.
+  const role = agentForRule(p);
+  const level = lang === 'ko' ? (p.tier === 'T2' ? '단순' : '중간 난도') : (p.tier === 'T2' ? 'Simple' : 'Moderate');
+  const text = role
+    ? (lang === 'ko'
+      ? `"${p.label}" 유형의 ${level} 작업은 ${p.tier}에 위임합니다. 역할은 ${role}이고 실행 모델은 Codex가 티어 매핑으로 정합니다.`
+      : `${level} "${p.labelEn}" tasks use ${p.tier} as role ${role}; Codex resolves the model from the tier mapping.`)
+    : (lang === 'ko'
+      ? `"${p.label}" 유형의 ${level} 작업은 ${p.tier}에 위임합니다. 실행 모델은 Codex가 자동으로 정하거나 매핑으로 지정합니다.`
+      : `${level} "${p.labelEn}" tasks use ${p.tier}. Codex resolves the execution model automatically or from a mapping.`);
   return composeRuleText(text, p, lang);
 }
 
@@ -279,26 +292,6 @@ export async function resetSeeds({ agent = 'claude' } = {}) {
  * asked for, and because a single "register all of these?" question invites a
  * yes to rules the user never read.
  */
-/**
- * The first sentence of a rule, for the Codex seed offer. Codex keeps about
- * 2,000 tokens of a hook's context and drops a part that does not fit whole,
- * so listing every ratchet rule in full pushed the whole offer out. The offer
- * only has to say what each rule is about; accepting writes the full text.
- * A sentence ends at "다." or a full stop followed by whitespace (not an
- * ellipsis), or at "다" before a newline. Without one, a text over 140
- * characters is cut at the last space before 140 and marked with "…".
- */
-export const OFFER_CUT = 140;
-export function firstSentence(text) {
-  const t = String(text ?? '').trim();
-  const m = /(?<!\.)\.(?=\s)|다(?=\n)/.exec(t);
-  if (m && m.index + 1 < t.length) return t.slice(0, m.index + m[0].length).trim();
-  if (t.length <= OFFER_CUT) return t;
-  const head = t.slice(0, OFFER_CUT);
-  const sp = head.lastIndexOf(' ');
-  return `${(sp > 0 ? head.slice(0, sp) : head).trimEnd()}…`;
-}
-
 export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot(), agent = 'claude' } = {}) {
   const pending = pendingSeeds({ lang, root, agent });
   if (pending.length === 0) return null;

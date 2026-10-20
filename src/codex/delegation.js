@@ -13,6 +13,9 @@ import { loadConfig } from '../config.js';
 import { loadSharedModelRules, sharedModelRulesForProject, sharedRuleBounds, SHARED_RULE_TIERS } from '../shared-model-rules.js';
 import { codexPriceBook, readCodexPrices } from './cache-policy.js';
 import { codexRunCost } from '../gateway-prices.js';
+import { agentForRule } from '../agents.js';
+import { agentDefinitions } from '../presets-source.js';
+import { firstSentence } from '../first-sentence.js';
 
 export const CODEX_ROUTE_CATEGORIES = ['paste', 'translate', 'explore', 'read', 'check', 'run'];
 const MARKER = '<!-- sprag:codex:delegation -->';
@@ -124,13 +127,30 @@ export function codexTierTargets({ cfg = loadConfig(), dir = userDataDir(), home
   return [...explicit, ...auto];
 }
 
+/**
+ * The delegation role a rule runs as: the agent agentForRule() picks for its
+ * tier and category, the same one Claude delegates to, and the first sentence
+ * of that agent's English body. Codex runs the role on the model mapped to the
+ * tier, so both tools show one value for one rule. Null when no agent serves it.
+ */
+export function codexRoleFor(rule, { agents = agentDefinitions() } = {}) {
+  const role = agentForRule(rule, { agents });
+  if (!role) return { role: null, roleLine: null };
+  const def = agents.find((a) => a && a.name === role);
+  // The body opens with "Your role: …"; the hint already says "Role <name>:", so the prefix is dropped.
+  return { role, roleLine: def?.body?.en ? firstSentence(def.body.en.replace(/^\s*Your role:\s*/i, '')) : null };
+}
+
 export function sharedCodexModelRules({ cfg = loadConfig(), dir = userDataDir(), home = codexUserDir(), root, start = root,
   model, provider = codexProviderName() } = {}) {
   if (cfg.codex?.sharedRules?.enabled === false) return [];
   const targets = codexTierTargets({ cfg, dir, home, model, provider });
+  let agents = null;
   return sharedModelRulesForProject(loadSharedModelRules({ dir }), start).flatMap((rule) => {
     const target = targets.find((t) => t.tier === rule.tier);
-    return target ? [{ ...rule, ...target, source: 'shared', status: 'active' }] : [];
+    if (!target) return [];
+    agents ??= agentDefinitions();
+    return [{ ...rule, ...target, ...codexRoleFor(rule, { agents }), source: 'shared', status: 'active' }];
   });
 }
 
@@ -254,18 +274,21 @@ export function codexImplementationHint({ model, provider, sessionId, cfg = load
   if (!codexDelegateEnabled(cfg) || cfg.codex?.sharedRules?.enabled === false) return 'Implementation delegation is off. Keep the implementation on the main agent.';
   const target = codexTierTargets({ cfg, dir, home, model, provider }).find((t) => t.tier === 'T1');
   if (!target) return 'T1 is unresolved for this parent/provider. Keep the implementation on the main agent; do not fall back to T2.';
+  const { role, roleLine } = codexRoleFor({ tier: 'T1', category: 'implement' });
+  const asRole = role ? ` Run it as role ${role}${roleLine ? `: ${roleLine}` : '.'}` : '';
   const id = newRouteId();
   record({ id, parentSessionId: sessionId, via: 'prompt', source: 'implementation', tier: 'T1',
     from: model, to: target.model, provider, effort: target.effort ?? null }, { dir });
   return `[Sprag implementation delegation] The user-approved implementation-split policy keeps design and specification on the main agent. `
-    + `Delegate only the implementation of that completed design to model ${target.model}${target.effort ? `, reasoning_effort ${target.effort}` : ''}, with fork_turns "none". `
+    + `Delegate only the implementation of that completed design to model ${target.model}${target.effort ? `, reasoning_effort ${target.effort}` : ''}, with fork_turns "none".${asRole} `
     + 'Never delegate design judgement or irreversible actions. Give one child a self-contained specification, owned files, constraints, test commands, completion criteria and the reason for this model choice. '
     + 'Cap: 8000 output tokens. Stop and report partial work before exceeding it. Do not recursively delegate. '
     + WAIT_TEXT + `\nEnd the child task message with this route line only:\n<!-- sprag:codex:route id=${id} -->`;
 }
 
 function sharedTargetText(rule) {
-  return `${rule.tier}: model ${rule.model}${rule.effort ? `, reasoning_effort ${rule.effort}` : ''}. ${sharedRuleBounds(rule)}`.trim();
+  const role = rule.role ? ` Role ${rule.role}:${rule.roleLine ? ` ${rule.roleLine}` : ''}` : '';
+  return `${rule.tier}: model ${rule.model}${rule.effort ? `, reasoning_effort ${rule.effort}` : ''}.${role} ${sharedRuleBounds(rule)}`.trim();
 }
 
 function sharedDenyReason(routes) {

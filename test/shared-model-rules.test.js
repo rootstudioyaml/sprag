@@ -174,6 +174,7 @@ test('project policies match either agent root of the working directory and its 
 
 test('CLI exposes unmapped policies and validates mappings before any writes', (t) => {
   const f = fixture(t);
+  // The seed text follows the configured language.
   const config = join(f.dir, 'config.json');
   const result = f.run(['delegate', 'rules']);
   assert.equal(result.status, 0, result.stderr);
@@ -199,6 +200,7 @@ test('CLI maps once for all categories, replaces idempotently, and never touches
   const f = fixture(t);
   f.save([policy(), policy('T2', { category: 'read', signature: 'T2|read|preset' })]);
   const original = readFileSync(f.file, 'utf8');
+  // The seed text follows the configured language.
   const config = join(f.dir, 'config.json');
   writeFileSync(config, JSON.stringify({ delegate: { enabled: true }, language: 'ko' }));
   const map = ['delegate', 'shared', 'map', 'T2', '--from', 'parent-model', '--model', 'small-model'];
@@ -249,10 +251,13 @@ test('Codex-first user can approve bundled policies, map a model and route witho
   // both tools' resolution of a tier, so only the model block is checked.
   const modelBlock = listing.stdout.split(/\n\s*\[fix-/)[0];
   assert.match(modelBlock, /Codex T2 mapping/);
-  assert.doesNotMatch(modelBlock, /haiku-explore|model: haiku|model: sonnet/);
+  // A role is the delegation agent both tools share; a Claude model alias never appears.
+  assert.doesNotMatch(modelBlock, /model: haiku|model: sonnet/);
+  assert.match(modelBlock, /tasks use T2 as role haiku-explore; Codex resolves the model from the tier mapping/);
   const accepted = f.run(['seed', 'accept', 'explore-t2', '--global']);
   assert.equal(accepted.status, 0, accepted.stderr);
-  assert.doesNotMatch(accepted.stdout, /haiku|sonnet/);
+  assert.doesNotMatch(accepted.stdout, /model: haiku|model: sonnet/);
+  assert.match(accepted.stdout, /as role haiku-explore/);
   const stored = JSON.parse(readFileSync(f.file, 'utf8')).rules;
   assert.equal(stored.length, 1);
   assert.equal(stored[0].approvedBy, 'codex');
@@ -329,6 +334,7 @@ test('Claude seed keeps legacy project answers decided and scopes new answers to
 test('status checks mappings for the configured parent model, and the context gate is shown and set by CLI', (t) => {
   const f = fixture(t);
   writeFileSync(join(f.home, 'config.toml'), 'model_provider="gateway"\nmodel="parent-model"\n');
+  // The seed text follows the configured language.
   const config = join(f.dir, 'config.json');
   assert.equal(f.run(['delegate', 'shared', 'map', 'T2', '--from', 'other-parent', '--model', 'small-model']).status, 0);
   let out = f.run(['delegate', 'shared', 'status']).stdout;
@@ -445,4 +451,37 @@ test('delegate shared map accepts T1H', (t) => {
   const bad = f.run(['delegate', 'shared', 'map', 'T3', '--from', 'gpt-6-astra', '--model', 'gpt-5.6-terra', '--provider', 'openai', '--agent', 'codex']);
   assert.notEqual(bad.status, 0);
   assert.match(bad.stderr, /T1, T1H or T2/);
+});
+
+test('a shared rule runs as the same delegation role Claude uses, on the model mapped to its tier', async (t) => {
+  const f = fixture(t);
+  const run = (tier) => policy(tier, { category: 'run', signature: `${tier}|run|original-project`, agent: undefined });
+  f.save([run('T2'), run('T1')]);
+  const rules = sharedCodexModelRules({ ...f.opts, model: 'parent-model', provider: 'gateway' });
+  assert.deepEqual(rules.map((r) => [r.tier, r.role]).sort(), [['T1', 'sonnet-worker'], ['T2', 'haiku-runner']]);
+  const t2 = rules.find((r) => r.tier === 'T2');
+  assert.equal(t2.roleLine, 'run the build, test, or git commands you are given and report the result.');
+  const hint = codexRouteHint({ ...f.payload, prompt: 'Run npm test and show me the output' }, f.opts);
+  assert.match(hint, /approved shared run policy/);
+  assert.match(hint, /T2: model small-model, reasoning_effort high\. Role haiku-runner: run the build/);
+  assert.match(hint, /T1: model medium-model, reasoning_effort high\. Role sonnet-worker: multi-step work/);
+  // Without an agent for the tier the role clause is left out.
+  const { codexRoleFor } = await import('../src/codex/delegation.js');
+  assert.deepEqual(codexRoleFor({ tier: 'T2', category: 'run' }, { agents: [] }), { role: null, roleLine: null });
+});
+
+test('the Codex seed offer names the role in both languages', (t) => {
+  const f = fixture(t);
+  rmSync(f.file);
+  const seed = () => spawnSync(process.execPath, [CLI, 'seed', '--agent', 'codex'], { cwd: f.root, encoding: 'utf8', timeout: 10000,
+    env: childEnv({ HOME: f.base, CODEX_HOME: f.home, XDG_CONFIG_HOME: join(f.base, 'state'), SPRAG_NO_KOREAN: '1' }) });
+  // The seed text follows the configured language.
+  const config = join(f.dir, 'config.json');
+  writeFileSync(config, JSON.stringify({ language: 'ko' }));
+  const ko = seed();
+  assert.equal(ko.status, 0, ko.stderr);
+  assert.match(ko.stdout, /\[run-t2\][^\n]*\n\s*"명령 실행[^\n]*역할은 haiku-runner이고 실행 모델은 Codex가 티어 매핑으로 정합니다/);
+  writeFileSync(config, JSON.stringify({ language: 'en' }));
+  const en = seed();
+  assert.match(en.stdout, /tasks use T1 as role sonnet-worker; Codex resolves the model from the tier mapping/);
 });
