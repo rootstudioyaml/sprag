@@ -280,7 +280,7 @@ test('implementation uses T1 only and attributes the matching child through bind
     record: (entry, options) => recordCodexDelegation({ ...entry, at: now - 15000 }, options) };
   const hint = codexImplementationHint(opts);
   assert.match(hint, /model child-model, reasoning_effort high/);
-  assert.match(hint, /fork_turns "none"/);
+  assert.match(hint, /fork_turns "none"\. Run it as role sonnet-worker: multi-step work/);
   assert.match(hint, /8000 output tokens/);
   assert.match(hint, /120000/);
   assert.doesNotMatch(hint, /cheap-model/);
