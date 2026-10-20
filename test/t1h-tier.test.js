@@ -133,10 +133,10 @@ test('a Fable session with a heavy episode yields a T1H rule candidate', async (
   const cache = await runRouteScan({ days: 14 });
   const c = cache.candidates.find((x) => x.tier === 'T1H');
   assert.ok(c, `candidates: ${JSON.stringify(cache.candidates.map((x) => x.signature))}`);
-  // A candidate names its tier; the agents preset says opus-worker serves T1H.
+  // A candidate names its tier; the agents preset says t1h-worker serves T1H.
   assert.equal(c.agent, undefined);
   const { agentForRule } = await import('../src/agents.js');
-  assert.equal(agentForRule(c), 'opus-worker');
+  assert.equal(agentForRule(c), 't1h-worker');
   assert.equal(c.budget.out, cache.thresholds.t1hOut);
   assert.match(c.rule, /opus/);
   assert.match(c.rule, /Fable/);
@@ -165,7 +165,7 @@ test('a Fable session delegating to an Opus subagent books a positive T1H saving
     assistantLine({ model: OPUS, ms: t + 5000, out: 200000, cacheRead: 2_000_000 }),
     assistantLine({ model: OPUS, ms: t + 9000, out: 100, cacheRead: 2_000_000 }),
   ].join('\n') + '\n');
-  writeFileSync(join(sub, 'agent-h.meta.json'), JSON.stringify({ agentType: 'opus-worker', toolUseId: 'toolu_h', spawnDepth: 1 }));
+  writeFileSync(join(sub, 'agent-h.meta.json'), JSON.stringify({ agentType: 't1h-worker', toolUseId: 'toolu_h', spawnDepth: 1 }));
   writeFileSync(RULES_FILE, JSON.stringify({ rules: [{
     signature: 'T1H|check|*', scope: 'global', tier: 'T1H', category: 'check', project: '*',
     label: '상태 확인·검증', labelEn: 'status checks / verification', example: '상태 확인해줘',
@@ -193,7 +193,7 @@ test('an Opus subagent run inside an Opus session earns no saving', async () => 
     assistantLine({ model: OPUS, ms: t + 30000, out: 60 }),
   ].join('\n') + '\n');
   writeFileSync(join(sub, 'agent-o.jsonl'), assistantLine({ model: OPUS, ms: t + 5000, out: 5000 }) + '\n');
-  writeFileSync(join(sub, 'agent-o.meta.json'), JSON.stringify({ agentType: 'opus-worker', toolUseId: 'toolu_o', spawnDepth: 1 }));
+  writeFileSync(join(sub, 'agent-o.meta.json'), JSON.stringify({ agentType: 't1h-worker', toolUseId: 'toolu_o', spawnDepth: 1 }));
   const before = Object.values(loadLedger().events).filter((e) => e.to === OPUS && e.from === OPUS).length;
   await runRouteScan({ days: 14 });
   assert.equal(JSON.parse(readFileSync(RULES_FILE, 'utf8')).rules[0].delegatedRuns ?? 0, 0);
@@ -207,7 +207,7 @@ const base = { status: 'active', scope: 'global', category: 'check', label: '상
 
 test('a category with T2, T1 and T1H renders one line with three branches and caps', () => {
   const rules = [
-    { ...base, tier: 'T2', agent: 'haiku-explore', rule: 'r2', budget: { calls: 8, out: 1500 } },
+    { ...base, tier: 'T2', agent: 't2-explore', rule: 'r2', budget: { calls: 8, out: 1500 } },
     { ...base, tier: 'T1', agent: 'sonnet', rule: 'r1', budget: { calls: null, out: 8000 } },
     { ...base, tier: 'T1H', agent: 'opus', rule: 'rh', budget: { calls: null, out: 30000 } },
   ];

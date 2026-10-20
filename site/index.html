@@ -865,10 +865,10 @@ sprag harness check</pre><button class="icon-button" data-copy="claude-install-c
           <text class="t mono" x="304" y="586">"run the tests" → haiku</text>
           <text class="s mono" x="304" y="604" data-k="fl.b2s">ratchet-model.md · from your logs</text></g>
         <g class="dnode teal"><rect x="576" y="528" width="236" height="56" rx="9"/>
-          <text class="t mono" x="594" y="552">haiku-runner</text>
+          <text class="t mono" x="594" y="552">t2-runner</text>
           <text class="s" x="594" y="570" data-k="fl.b3">runs it, returns the output</text></g>
         <g class="dnode blue"><rect x="576" y="600" width="236" height="56" rx="9"/>
-          <text class="t mono" x="594" y="624">sonnet-worker</text>
+          <text class="t mono" x="594" y="624">t1-worker</text>
           <text class="s" x="594" y="642" data-k="fl.b4">writes it, returns a diff</text></g>
         <g class="dnode out"><rect x="872" y="554" width="212" height="56" rx="9"/>
           <text class="t" x="890" y="578" data-k="fl.b5">the main agent reviews</text>
@@ -923,8 +923,8 @@ sprag harness check</pre><button class="icon-button" data-copy="claude-install-c
         <div class="n">02</div>
         <h3 data-k="how.s2h">Safe work goes to a sub-agent</h3>
         <p data-k="how.s2p">When a task matches one your history shows is safe, Sprag spawns a sub-agent on a cheaper tier to do it and hands the result back for review. Anything that fails quietly stays with the main agent.</p>
-        <pre>"git status"       → <b>haiku-runner</b>
-"build the app"    → <b>sonnet-worker</b>
+        <pre>"git status"       → <b>t2-runner</b>
+"build the app"    → <b>t1-worker</b>
 "why is CI flaky?" → <b>main agent</b></pre>
       </div>
       <div class="step">
@@ -947,12 +947,12 @@ sprag harness check</pre><button class="icon-button" data-copy="claude-install-c
       <tbody>
         <tr>
           <td class="t-haiku">haiku</td><td>52%</td>
-          <td data-k="rt.r1a">lookups · status checks · test and lint runs<span class="why">haiku-runner sub-agent</span></td>
+          <td data-k="rt.r1a">lookups · status checks · test and lint runs<span class="why">t2-runner sub-agent</span></td>
           <td data-k="rt.r1b">Exit codes and diffs make a wrong answer obvious<span class="why">illustrative: 0% error over 41 delegated runs</span></td>
         </tr>
         <tr>
           <td class="t-sonnet">sonnet</td><td>33%</td>
-          <td data-k="rt.r2a">builds · mid-size refactors · mechanical ports<span class="why">sonnet-worker sub-agent</span></td>
+          <td data-k="rt.r2a">builds · mid-size refactors · mechanical ports<span class="why">t1-worker sub-agent</span></td>
           <td data-k="rt.r2b">The build and the test suite verify the result<span class="why">the main model reviews the diff before it counts as done</span></td>
         </tr>
         <tr>
@@ -1234,9 +1234,9 @@ const KO = {
   'rt.h2':'검증된 작업은 저렴한 티어로',
   'rt.lede':'쓰던 모델은 그대로 두고, 지난 기록에서 저렴한 티어가 한 번도 어긋나지 않은 작업만 골라 하위 에이전트에 맡깁니다. 결과는 메인 에이전트가 검증하고, 오류율이 올라간 규칙은 바로 회수합니다.',
   'rt.th1':'티어', 'rt.th2':'비중(예시)', 'rt.th3':'맡는 일', 'rt.th4':'안전한 이유',
-  'rt.r1a':'조회 · 상태 확인 · 테스트와 린트 실행<span class="why">haiku-runner 하위 에이전트</span>',
+  'rt.r1a':'조회 · 상태 확인 · 테스트와 린트 실행<span class="why">t2-runner 하위 에이전트</span>',
   'rt.r1b':'종료 코드와 diff가 틀린 답을 바로 드러냅니다<span class="why">예시 수치: 위임 41회에서 오류 0%</span>',
-  'rt.r2a':'빌드 · 중간 규모 리팩터링 · 기계적인 이식<span class="why">sonnet-worker 하위 에이전트</span>',
+  'rt.r2a':'빌드 · 중간 규모 리팩터링 · 기계적인 이식<span class="why">t1-worker 하위 에이전트</span>',
   'rt.r2b':'빌드와 테스트가 결과를 검증합니다<span class="why">메인 모델이 diff를 확인해야 완료로 칩니다</span>',
   'rt.r3a':'진단 · 설계 · 보안 · 되돌릴 수 없는 작업<span class="why">위임하지 않습니다</span>',
   'rt.r3b':'여기서 잘못된 판단을 잡아 줄 장치는 사용자뿐입니다<span class="why">일상적으로 보여도 예외를 두지 않습니다</span>',

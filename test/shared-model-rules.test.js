@@ -12,7 +12,7 @@ import { childEnv } from './helpers/child-env.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const policy = (tier = 'T2', extra = {}) => ({ status: 'active', category: 'explore', tier, scope: 'global',
-  targetRoot: null, signature: `${tier}|explore|original-project`, agent: tier === 'T2' ? 'haiku-explore' : 'sonnet',
+  targetRoot: null, signature: `${tier}|explore|original-project`, agent: tier === 'T2' ? 't2-explore' : 'sonnet',
   delegatedRuns: 100, savedUsd: 999, ...extra });
 const target = (tier = 'T2', extra = {}) => ({ tier, from: 'parent-model', model: tier === 'T2' ? 'small-model' : 'medium-model',
   effort: 'high', provider: 'gateway', ...extra });
@@ -253,11 +253,11 @@ test('Codex-first user can approve bundled policies, map a model and route witho
   assert.match(modelBlock, /Codex T2 mapping/);
   // A role is the delegation agent both tools share; a Claude model alias never appears.
   assert.doesNotMatch(modelBlock, /model: haiku|model: sonnet/);
-  assert.match(modelBlock, /tasks use T2 as role haiku-explore; Codex resolves the model from the tier mapping/);
+  assert.match(modelBlock, /tasks use T2 as role t2-explore; Codex resolves the model from the tier mapping/);
   const accepted = f.run(['seed', 'accept', 'explore-t2', '--global']);
   assert.equal(accepted.status, 0, accepted.stderr);
   assert.doesNotMatch(accepted.stdout, /model: haiku|model: sonnet/);
-  assert.match(accepted.stdout, /as role haiku-explore/);
+  assert.match(accepted.stdout, /as role t2-explore/);
   const stored = JSON.parse(readFileSync(f.file, 'utf8')).rules;
   assert.equal(stored.length, 1);
   assert.equal(stored[0].approvedBy, 'codex');
@@ -363,7 +363,7 @@ test('Claude routes a project rule only inside its project, so a Codex project a
   const f = fixture(t);
   const other = join(f.base, 'other');
   mkdirSync(join(other, '.git'), { recursive: true });
-  const rule = { category: 'explore', tier: 'T2', agent: 'haiku-explore', scope: 'project', targetRoot: f.root, approvedBy: 'codex' };
+  const rule = { category: 'explore', tier: 'T2', agent: 't2-explore', scope: 'project', targetRoot: f.root, approvedBy: 'codex' };
   assert.ok(routeMatch('Find the parser files', { rules: [rule], root: f.root }));
   assert.equal(routeMatch('Find the parser files', { rules: [rule], root: other }), null);
   assert.equal(routeMatch('Find the parser files', { rules: [rule] }), null, 'an unknown directory gets global rules only');
@@ -458,13 +458,13 @@ test('a shared rule runs as the same delegation role Claude uses, on the model m
   const run = (tier) => policy(tier, { category: 'run', signature: `${tier}|run|original-project`, agent: undefined });
   f.save([run('T2'), run('T1')]);
   const rules = sharedCodexModelRules({ ...f.opts, model: 'parent-model', provider: 'gateway' });
-  assert.deepEqual(rules.map((r) => [r.tier, r.role]).sort(), [['T1', 'sonnet-worker'], ['T2', 'haiku-runner']]);
+  assert.deepEqual(rules.map((r) => [r.tier, r.role]).sort(), [['T1', 't1-worker'], ['T2', 't2-runner']]);
   const t2 = rules.find((r) => r.tier === 'T2');
   assert.equal(t2.roleLine, 'run the build, test, or git commands you are given and report the result.');
   const hint = codexRouteHint({ ...f.payload, prompt: 'Run npm test and show me the output' }, f.opts);
   assert.match(hint, /approved shared run policy/);
-  assert.match(hint, /T2: model small-model, reasoning_effort high\. Role haiku-runner: run the build/);
-  assert.match(hint, /T1: model medium-model, reasoning_effort high\. Role sonnet-worker: multi-step work/);
+  assert.match(hint, /T2: model small-model, reasoning_effort high\. Role t2-runner: run the build/);
+  assert.match(hint, /T1: model medium-model, reasoning_effort high\. Role t1-worker: multi-step work/);
   // Without an agent for the tier the role clause is left out.
   const { codexRoleFor } = await import('../src/codex/delegation.js');
   assert.deepEqual(codexRoleFor({ tier: 'T2', category: 'run' }, { agents: [] }), { role: null, roleLine: null });
@@ -480,8 +480,8 @@ test('the Codex seed offer names the role in both languages', (t) => {
   writeFileSync(config, JSON.stringify({ language: 'ko' }));
   const ko = seed();
   assert.equal(ko.status, 0, ko.stderr);
-  assert.match(ko.stdout, /\[run-t2\][^\n]*\n\s*"명령 실행[^\n]*역할은 haiku-runner이고 실행 모델은 Codex가 티어 매핑으로 정합니다/);
+  assert.match(ko.stdout, /\[run-t2\][^\n]*\n\s*"명령 실행[^\n]*역할은 t2-runner이고 실행 모델은 Codex가 티어 매핑으로 정합니다/);
   writeFileSync(config, JSON.stringify({ language: 'en' }));
   const en = seed();
-  assert.match(en.stdout, /tasks use T1 as role sonnet-worker; Codex resolves the model from the tier mapping/);
+  assert.match(en.stdout, /tasks use T1 as role t1-worker; Codex resolves the model from the tier mapping/);
 });

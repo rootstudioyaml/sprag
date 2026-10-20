@@ -1,7 +1,7 @@
 /**
  * How a delegation target is phrased in generated rules.
  *
- * Rules used to name concrete subagents (`haiku-explore`, `haiku-runner`, …).
+ * Rules used to name concrete subagents (`t2-explore`, `t2-runner`, …).
  * Those live in the user's own `~/.claude/agents/` and are NOT shipped by this
  * package, so on any machine that never created them the generated rule told
  * the model to delegate to an agent that does not exist. The model tier is the
@@ -10,7 +10,7 @@
  * there, which keeps the tool-restricted preset in play for users who have it.
  *
  * A rule that names a tier alone (`sonnet`, `haiku`) resolves to that tier's
- * delegation-only agent (`sonnet-worker`, `haiku-explore`, installed by
+ * delegation-only agent (`t1-worker`, `t2-explore`, installed by
  * delegation-agents.js) when its file exists. A phrase that names an agent
  * always carries a general-purpose fallback, because Cowork reads no agents
  * directory and a copied rule would otherwise name an agent that is not there.
@@ -22,6 +22,20 @@ import { claudeUserDir } from './paths.js';
 import { agentDefinitions } from './presets-source.js';
 
 /**
+ * Agents used to be named after their model. They are named by tier now, since
+ * the model behind a tier changes and a stale model name inside an agent name
+ * misleads. A registry, a hand-written rule or a user's own file may still carry
+ * the old name, so it keeps resolving to the new one.
+ */
+export const LEGACY_AGENT_NAMES = {
+  'haiku-explore': 't2-explore',
+  'haiku-runner': 't2-runner',
+  'haiku-translate': 't2-translate',
+  'sonnet-worker': 't1-worker',
+  'opus-worker': 't1h-worker',
+};
+
+/**
  * Bare model alias each routing tier stands for. A rule says only its tier;
  * where no agent serves that tier, this alias is what the text names.
  */
@@ -29,11 +43,11 @@ export const TIER_MODEL = { T2: 'haiku', T1: 'sonnet', T1H: 'opus' };
 
 /** Tier each preset agent is pinned to, for the `model:` half of the phrase. */
 const AGENT_MODEL = {
-  'haiku-explore': 'haiku',
-  'haiku-runner': 'haiku',
-  'haiku-translate': 'haiku',
-  'sonnet-worker': 'sonnet',
-  'opus-worker': 'opus',
+  't2-explore': 'haiku',
+  't2-runner': 'haiku',
+  't2-translate': 'haiku',
+  't1-worker': 'sonnet',
+  't1h-worker': 'opus',
   // A T1 rule names its target by tier alone (`agent: 'sonnet'`). Without these
   // the phrase fell through to the haiku default, and a sonnet rule told the
   // session to delegate to haiku. resolveAgentName maps them to an agent file.
@@ -48,7 +62,7 @@ const AGENT_MODEL = {
  * `root: null` asks about the user directory alone. Text that every project
  * reads (the global ratchet-model.md) has to be worded from what every project
  * can see: checked against the current directory, the same rule read
- * `haiku-explore(model: haiku)` when the scan ran in a project that defines
+ * `t2-explore(model: haiku)` when the scan ran in a project that defines
  * the agent and `model: haiku` when it ran anywhere else, and each flip
  * rewrote a file sitting in the prompt-cache prefix of every session.
  */
@@ -71,7 +85,9 @@ export function agentExists(name, root = process.cwd()) {
  */
 export function agentForRule(rule, { agents = agentDefinitions() } = {}) {
   if (!rule) return null;
-  if (typeof rule.agent === 'string' && rule.agent.trim()) return rule.agent;
+  if (typeof rule.agent === 'string' && rule.agent.trim()) {
+    return Object.hasOwn(LEGACY_AGENT_NAMES, rule.agent) ? LEGACY_AGENT_NAMES[rule.agent] : rule.agent;
+  }
   const list = (Array.isArray(agents) ? agents : []).filter((a) => a && a.tier === rule.tier);
   const cats = (a) => (Array.isArray(a.categories) ? a.categories : []);
   const exact = list.find((a) => cats(a).includes(rule.category));
@@ -80,47 +96,55 @@ export function agentForRule(rule, { agents = agentDefinitions() } = {}) {
   return any ? any.name : null;
 }
 
+/** Model alias an agent (or a legacy agent name) is pinned to, or undefined. */
+const modelOf = (name) => AGENT_MODEL[Object.hasOwn(LEGACY_AGENT_NAMES, name) ? LEGACY_AGENT_NAMES[name] : name];
+
 /** Agent a bare tier name stands for when that agent's file exists. */
-const TIER_AGENT = { sonnet: 'sonnet-worker', opus: 'opus-worker', haiku: 'haiku-explore' };
+const TIER_AGENT = { sonnet: 't1-worker', opus: 't1h-worker', haiku: 't2-explore' };
 
 /**
  * The agent a rule target really names on this machine, or null when none is
  * installed. A name wins when its own file exists; a bare tier name falls back
- * to its delegation-only agent.
+ * to its delegation-only agent. A legacy name maps to its tier-named successor
+ * first; when only the legacy file is installed (a user-edited file sprag does
+ * not own, so it was never removed) the legacy name is returned, because that is
+ * the file the phrase has to point at.
  */
 export function resolveAgentName(name, root = process.cwd()) {
-  if (agentExists(name, root)) return name;
-  const alt = TIER_AGENT[name];
+  const current = Object.hasOwn(LEGACY_AGENT_NAMES, name) ? LEGACY_AGENT_NAMES[name] : name;
+  if (agentExists(current, root)) return current;
+  if (current !== name && agentExists(name, root)) return name;
+  const alt = TIER_AGENT[current];
   return alt && agentExists(alt, root) ? alt : null;
 }
 
 /**
  * Korean phrase for a delegation target, e.g.
- *   agent present → `haiku-explore(model 인자 생략. …general-purpose에 model: haiku)`
+ *   agent present → `t2-explore(model 인자 생략. …general-purpose에 model: haiku)`
  *   agent absent  → `model: haiku`
  *
  * A named agent carries its model in its own definition, and the Agent tool's
  * `model` argument overrides that definition. The old phrase
- * `haiku-explore(model: haiku)` read as "pass model: haiku", and Claude Code
+ * `t2-explore(model: haiku)` read as "pass model: haiku", and Claude Code
  * resolves the bare `haiku` alias to an older Haiku than a definition pinned to
  * a full id (claude-haiku-5-5), so following the rule undid the pin. The phrase
  * now says to leave the argument out.
  */
 export function agentPhrase(name, { model, root } = {}) {
   const resolved = resolveAgentName(name, root);
-  if (!resolved) return `model: ${model || AGENT_MODEL[name] || 'haiku'}`;
-  const tier = AGENT_MODEL[resolved] || model || 'haiku';
+  if (!resolved) return `model: ${model || modelOf(name) || 'haiku'}`;
+  const tier = modelOf(resolved) || model || 'haiku';
   return `${resolved}(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: ${tier})`;
 }
 
 /**
  * English phrase, including the article, e.g.
- *   agent present → `the haiku-explore subagent (omit the model argument; …)`
+ *   agent present → `the t2-explore subagent (omit the model argument; …)`
  *   agent absent  → `a model: haiku subagent`
  */
 export function agentPhraseEn(name, { model, root } = {}) {
   const resolved = resolveAgentName(name, root);
-  if (!resolved) return `a model: ${model || AGENT_MODEL[name] || 'haiku'} subagent`;
-  const tier = AGENT_MODEL[resolved] || model || 'haiku';
+  if (!resolved) return `a model: ${model || modelOf(name) || 'haiku'} subagent`;
+  const tier = modelOf(resolved) || model || 'haiku';
   return `the ${resolved} subagent (omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: ${tier})`;
 }

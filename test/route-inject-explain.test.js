@@ -24,10 +24,10 @@ import { childEnv } from './helpers/child-env.js';
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 
 const rules = [
-  { category: 'run', tier: 'T2', agent: 'haiku-runner', budget: { calls: 8, out: 1500 } },
+  { category: 'run', tier: 'T2', agent: 't2-runner', budget: { calls: 8, out: 1500 } },
   { category: 'run', tier: 'T1', agent: 'sonnet', budget: { calls: null, out: 8000 } },
-  { category: 'check', tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } },
-  { category: 'read', tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } },
+  { category: 'check', tier: 'T2', agent: 't2-explore', budget: { calls: 8, out: 1500 } },
+  { category: 'read', tier: 'T2', agent: 't2-explore', budget: { calls: 8, out: 1500 } },
 ];
 
 // Same isolation as route-inject.test.js: the hint names an agent only when its

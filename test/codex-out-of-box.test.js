@@ -143,7 +143,7 @@ test('the prompt hook emits the route hint without a delegate setting and stays 
   writeFileSync(join(f.home, 'config.toml'), 'model_provider="gateway"\n');
   writeFileSync(join(f.dir, 'model-rules.json'), JSON.stringify({ rules: ['T1', 'T2'].map((tier) => ({ status: 'active',
     category: 'explore', tier, scope: 'global', targetRoot: null, signature: `${tier}|explore|original-project`,
-    agent: tier === 'T2' ? 'haiku-explore' : 'sonnet', delegatedRuns: 100, savedUsd: 999 })) }));
+    agent: tier === 'T2' ? 't2-explore' : 'sonnet', delegatedRuns: 100, savedUsd: 999 })) }));
   const transcript = join(f.base, 'rollout.jsonl');
   writeFileSync(transcript, JSON.stringify({ type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: { input_tokens: 70000 } } } }) + '\n');
   const targets = [{ tier: 'T2', from: 'parent-model', model: 'small-model', provider: 'gateway' },

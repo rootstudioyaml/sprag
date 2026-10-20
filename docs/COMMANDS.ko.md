@@ -31,7 +31,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag harness ...` | 🅷 Harness 관리 (아래 참고) |
 | `sprag route-scan` | 상위 모델이 반복 처리한 쉬운 작업을 감지해 haiku 위임 래칫 룰을 제안합니다 (아래 참고) |
 | `sprag route-scan savings` | 라우팅 절감 원장입니다. 모델 이동별 합계와 실행별 내역을 함께 보여 주며, 표시되는 금액의 근거가 됩니다 |
-| `sprag delegate agents [on\|off]` | 위임 전용 서브에이전트 네 개(`haiku-explore`, `haiku-runner`, `haiku-translate`, `sonnet-worker`)를 `~/.claude/agents` 에 설치하거나 상태를 보여 주고 제거합니다. `tools` 허용 목록에 MCP 도구가 없어서, 게이트웨이 뒤에서 서브에이전트의 첫 요청이 절반 가까이 줄어듭니다. 파일마다 `effort` 도 검증 방식에 맞춰 고정합니다. 결과를 명령 출력이나 파일 대조로 확인하는 haiku 에이전트 셋은 `low`, 확정된 설계를 테스트에 맞춰 구현하는 `sonnet-worker` 는 `medium` 입니다. sprag 가 쓴 파일만 덮어쓰거나 지웁니다 |
+| `sprag delegate agents [on\|off]` | 위임 전용 서브에이전트 다섯 개(`t2-explore`, `t2-runner`, `t2-translate`, `t1-worker`, `t1h-worker`)를 `~/.claude/agents` 에 설치하거나 상태를 보여 주고 제거합니다. `tools` 허용 목록에 MCP 도구가 없어서, 게이트웨이 뒤에서 서브에이전트의 첫 요청이 절반 가까이 줄어듭니다. 파일마다 `effort` 도 검증 방식에 맞춰 고정합니다. 결과를 명령 출력이나 파일 대조로 확인하는 haiku 에이전트 셋은 `low`, 확정된 설계를 테스트에 맞춰 구현하는 `t1-worker` 는 `medium` 입니다. sprag 가 쓴 파일만 덮어쓰거나 지웁니다 |
 | `sprag team create [--email <e>] [--name <이름>] [--code <6자리>] [--no-join]` | CLI에서 팀을 만듭니다. 메일로 받은 6자리 코드로 로그인하고, 초대 토큰과 멤버·조직용 명령을 출력하며, 이 PC를 첫 멤버로 참여시킵니다 (`--no-join` 은 참여 생략). 터미널이 없으면 두 단계로 나뉩니다 ([팀 기능](./TEAM.ko.md)) |
 | `sprag team join [토큰] [--name <이름>] [--yes]` | 팀 기능을 켭니다. 올라갈 내용(하루 단위 집계뿐)을 보여 준 뒤 등록합니다. 토큰을 생략하면 `SPRAG_TEAM_TOKEN` 을 읽습니다 ([팀 기능](./TEAM.ko.md)) |
 | `sprag team leave` | 팀에서 나가고 업로드를 멈추며, 멤버 키, 룰 캐시, 래칫 import 를 지웁니다 |

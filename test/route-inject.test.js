@@ -22,9 +22,9 @@ import { childEnv } from './helpers/child-env.js';
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 
 const rules = [
-  { category: 'check', tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } },
+  { category: 'check', tier: 'T2', agent: 't2-explore', budget: { calls: 8, out: 1500 } },
   { category: 'check', tier: 'T1', agent: 'sonnet', budget: { calls: null, out: 8000 } },
-  { category: 'explore', tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } },
+  { category: 'explore', tier: 'T2', agent: 't2-explore', budget: { calls: 8, out: 1500 } },
 ];
 // The hint names a subagent only when that agent's .md exists, and it looks in
 // two places: the project root and the user's ~/.claude. Which of the two
@@ -64,16 +64,16 @@ test('a classified request names its rule, its target and its cap', () => {
 
 test('an installed subagent is named, not just its model tier', (t) => {
   // The other half of the same contract: where the agent exists, saying
-  // "haiku-explore" tells the model which agent to spawn, and "model: haiku"
+  // "t2-explore" tells the model which agent to spawn, and "model: haiku"
   // leaves it to guess. The model argument is left out so the agent's own
   // definition decides the model.
   const root = mkdtempSync(join(tmpdir(), 'cts-agents-'));
   mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
-  writeFileSync(join(root, '.claude', 'agents', 'haiku-explore.md'), '# haiku-explore\n');
+  writeFileSync(join(root, '.claude', 'agents', 't2-explore.md'), '# t2-explore\n');
   t.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
   const out = withoutUserAgents(() => routeHint('지금 실행 중인 버전이 뭔지 확인해줘', { rules, lang: 'ko', root }));
-  assert.match(out, /기본 haiku-explore\(model 인자 생략\./, 'the agent is named when it is installed');
+  assert.match(out, /기본 t2-explore\(model 인자 생략\./, 'the agent is named when it is installed');
 });
 
 test('one registered tier means one target, not an invented pair', () => {
@@ -234,7 +234,7 @@ test('the brief hook hands the session cwd to the hint, so a project agent is na
   for (const d of [join(home, '.claude'), join(state, 'claude-token-saver'), join(project, '.claude', 'agents'), elsewhere]) {
     mkdirSync(d, { recursive: true });
   }
-  writeFileSync(join(project, '.claude', 'agents', 'haiku-explore.md'), '# haiku-explore\n');
+  writeFileSync(join(project, '.claude', 'agents', 't2-explore.md'), '# t2-explore\n');
   writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko' }) + '\n');
   writeFileSync(join(state, 'claude-token-saver', 'model-rules.json'), JSON.stringify({ rules }) + '\n');
 
@@ -247,14 +247,14 @@ test('the brief hook hands the session cwd to the hint, so a project agent is na
 
   const prompt = '지금 실행 중인 버전이 뭔지 확인해줘';
   const named = run({ session_id: 'brief-root', prompt, cwd: project });
-  assert.match(named, /기본 haiku-explore\(model 인자 생략\./, 'the payload cwd is what the lookup uses');
+  assert.match(named, /기본 t2-explore\(model 인자 생략\./, 'the payload cwd is what the lookup uses');
 
   /* A payload without the field keeps the old behaviour rather than throwing or
      going quiet: root stays undefined, the lookup finds nothing in either
      directory, and the hint still states the tier. */
   const bare = run({ session_id: 'brief-root', prompt });
   assert.match(bare, /기본 model: haiku/, 'the hint is still injected');
-  assert.doesNotMatch(bare, /haiku-explore/, 'and nothing in the hook process cwd may name an agent');
+  assert.doesNotMatch(bare, /t2-explore/, 'and nothing in the hook process cwd may name an agent');
 });
 
 // ── 2026-10-01 review: hints on requests that were not light work ────────
@@ -279,7 +279,7 @@ test('reviews, security checks and root-cause asks stay on the top tier even whe
 });
 
 test('an English keyword matches as a word, not inside a longer one', () => {
-  const all = ['check', 'run', 'read', 'explore'].map((category) => ({ category, tier: 'T2', agent: 'haiku-explore', budget: { calls: 8, out: 1500 } }));
+  const all = ['check', 'run', 'read', 'explore'].map((category) => ({ category, tier: 'T2', agent: 't2-explore', budget: { calls: 8, out: 1500 } }));
   const category = (text) => (hint(text, { rules: all }) || '').match(/위임 룰 "([^"]+)"/)?.[1] ?? null;
   // Each of these used to be filed under run, explore or check by a substring.
   assert.equal(category('pipeline 구조를 설명해줘'), '읽기·요약·설명');

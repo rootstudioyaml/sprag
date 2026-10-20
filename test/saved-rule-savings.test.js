@@ -111,7 +111,7 @@ test('the registry keeps delegatedRuns and the error rate while savedUsd follows
   writeFileSync(RULES_FILE, JSON.stringify({ rules: [{
     signature: 'T2|check|-p', scope: 'global', tier: 'T2', category: 'check', project: '-p',
     label: '상태 확인·검증', labelEn: 'status checks / verification', example: '상태 확인해줘',
-    agent: 'haiku-explore', status: 'active', errRate: 0, savedUsd: 999,
+    agent: 't2-explore', status: 'active', errRate: 0, savedUsd: 999,
   }] }));
   const stats = new Map();
   const ok = (startedAt) => ({ startedAt, out: 10, calls: 2, toolErrors: 0 });
@@ -178,7 +178,7 @@ function writeFixture() {
       assistantLine({ model: SUB, ms: r.at + 5000, out: r.out, cacheRead: 2_000_000 }),
       assistantLine({ model: SUB, ms: r.at + 9000, out: 100, cacheRead: 2_000_000 }),
     ].join('\n') + '\n');
-    writeFileSync(join(sub, `agent-${name}.meta.json`), JSON.stringify({ agentType: 'haiku-explore', toolUseId: r.id, spawnDepth: 1 }));
+    writeFileSync(join(sub, `agent-${name}.meta.json`), JSON.stringify({ agentType: 't2-explore', toolUseId: r.id, spawnDepth: 1 }));
   }
   return sub;
 }
@@ -187,7 +187,7 @@ function writeRegistry(extra = {}) {
   writeFileSync(RULES_FILE, JSON.stringify({ rules: [{
     signature: 'T2|check|*', scope: 'global', tier: 'T2', category: 'check', project: '*',
     label: '상태 확인·검증', labelEn: 'status checks / verification', example: '상태 확인해줘',
-    agent: 'haiku-explore', status: 'active', errRate: 0, count: 0, baselineModel: MAIN,
+    agent: 't2-explore', status: 'active', errRate: 0, count: 0, baselineModel: MAIN,
     baselineSource: 'dominant', budget: { calls: 8, out: 1500 }, ...extra,
   }] }));
 }

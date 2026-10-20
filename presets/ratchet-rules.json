@@ -29,8 +29,8 @@
     },
     {
       "id": "fix-b1da7a",
-      "ko": "자동화 설계에서 vision/screenshot 루프가 보이면 → 호출 가능한 함수·API·MCP tool부터 찾는다. 통제 가능한 내부 도구는 무조건 API, 통제 불가 외부 SaaS만 vision 차선책. 인터페이스를 바꾼 뒤에 모델을 내린다 — 거꾸로 가면 토큰 폭발",
-      "en": "When an automation design calls for a vision/screenshot loop → look for a callable function, API or MCP tool first. Anything you control gets an API; vision is the fallback only for external SaaS you cannot change. Fix the interface before lowering the model — doing it the other way round explodes the token cost"
+      "ko": "자동화 설계에서 vision/screenshot 루프가 보이면 → 호출 가능한 함수·API·MCP tool부터 찾는다. 통제 가능한 내부 도구는 무조건 API, 통제 불가 외부 SaaS만 vision 차선책. 인터페이스를 바꾼 뒤에 티어를 내린다(T1 → T2) — 거꾸로 가면 토큰 폭발",
+      "en": "When an automation design calls for a vision/screenshot loop → look for a callable function, API or MCP tool first. Anything you control gets an API; vision is the fallback only for external SaaS you cannot change. Change the interface first, then lower the tier (T1 → T2) — doing it the other way round explodes the token cost"
     },
     {
       "id": "fix-1dee5f",
@@ -39,8 +39,8 @@
     },
     {
       "id": "fix-f558f9",
-      "ko": "탐색·조회·상태 확인·명령 실행 같은 단순 요청은 T2 티어에 위임해 상위 모델 토큰을 아낀다. 티어는 도구가 해석한다. Claude는 그 카테고리의 T2 에이전트 파일을, 없으면 `model: haiku`를 쓰고 Codex는 T2에 매핑된 모델을 쓴다",
-      "en": "Delegate simple requests — lookup, status checks, running commands — to the T2 tier to keep the expensive model's tokens for real work. Each tool resolves the tier: Claude uses that category's T2 agent file or `model: haiku`, Codex the model mapped to T2"
+      "ko": "탐색·조회·상태 확인·명령 실행 같은 단순 요청은 T2 에이전트(t2-explore, t2-runner)에 위임해 상위 모델 토큰을 아낀다. 티어를 실제 모델로 바꾸는 일은 도구가 맡는다",
+      "en": "Delegate simple requests (lookup, status checks, running commands) to a T2 agent (t2-explore, t2-runner) to keep the expensive model's tokens for real work. The tool turns the tier into a model"
     },
     {
       "id": "fix-aa18bc",
@@ -49,8 +49,8 @@
     },
     {
       "id": "fix-777a15",
-      "ko": "여러 파일에 걸친 구현을 맡으면 → 설계와 스펙 확정은 메인 모델이 하고 코드 작성은 T1 티어에 위임하며, T2에는 구현을 맡기지 않는다. 티어는 도구가 해석한다. Claude는 그 카테고리의 T1 에이전트 파일을, 없으면 `model: sonnet`을 쓰고 Codex는 T1에 매핑된 모델을 쓴다. 위임 프롬프트에는 설계, 수정할 파일, 제약, 완료 기준, 테스트 명령, 예산, 권장 모델과 그 이유를 적어 다른 문맥 없이 실행할 수 있게 한다. 이미 읽은 파일의 약 50줄 이하 변경이나 의존 단계가 하나뿐인 짧은 구현, 그리고 위임 도구나 하위 모델을 쓸 수 없는 경우는 메인 모델이 직접 처리한다. 위임한 구현은 끝날 때까지 기다리고 같은 구현을 중복 실행하지 않으며, 돌아온 diff와 테스트 결과를 메인 모델이 직접 검증한 뒤에 완료로 보고한다",
-      "en": "When an implementation spans several files → the main model settles the design and specification and delegates the code writing to the T1 tier, never T2. Each tool resolves the tier: Claude uses that category's T1 agent file or `model: sonnet`, Codex the model mapped to T1. Write the delegation prompt so it runs without other context: design, files to change, constraints, completion criteria, test commands, budget, and the recommended model with a one-line reason. Keep changes of roughly 50 lines or less in files already read, a single short dependency chain, or cases where the subagent tools or the lower model are unavailable on the main model. Wait for the delegated work instead of duplicating it, and verify the returned diff and the actual test results before reporting completion"
+      "ko": "여러 파일에 걸친 구현을 맡으면 → 설계와 스펙 확정은 메인 모델이 하고 코드 작성은 T1 에이전트(t1-worker)에 위임하며, T2에는 구현을 맡기지 않는다. 위임 프롬프트에는 설계, 수정할 파일, 제약, 완료 기준, 테스트 명령, 예산, 권장 티어와 그 이유를 적어 다른 문맥 없이 실행할 수 있게 한다. 이미 읽은 파일의 약 50줄 이하 변경이나 의존 단계가 하나뿐인 짧은 구현, 그리고 위임 도구나 하위 티어를 쓸 수 없는 경우는 메인 모델이 직접 처리한다. 위임한 구현은 끝날 때까지 기다리고 같은 구현을 중복 실행하지 않으며, 돌아온 diff와 테스트 결과를 메인 모델이 직접 검증한 뒤에 완료로 보고한다",
+      "en": "When an implementation spans several files → the main model settles the design and specification and delegates the code writing to a T1 agent (t1-worker), never T2. Write the delegation prompt so it runs without other context: design, files to change, constraints, completion criteria, test commands, budget, and the recommended tier with a one-line reason. Keep changes of roughly 50 lines or less in files already read, a single short dependency chain, or cases where the subagent tools or the lower tier are unavailable on the main model. Wait for the delegated work instead of duplicating it, and verify the returned diff and the actual test results before reporting completion"
     },
     {
       "id": "fix-bec8e9",

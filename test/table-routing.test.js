@@ -8,7 +8,7 @@ import { buildTableDemoData } from '../src/demo.js';
 
 const base = () => buildTableDemoData({ version: '0.0.0' });
 const render = (routing) => formatReport({ ...base(), routing }, { color: false });
-const cand = (id, label, count) => ({ id, label, labelEn: label, count, agent: 'sonnet-worker' });
+const cand = (id, label, count) => ({ id, label, labelEn: label, count, agent: 't1-worker' });
 
 test('routing section shows share, candidates and approve command before warnings', () => {
   const out = render({
@@ -16,7 +16,7 @@ test('routing section shows share, candidates and approve command before warning
     candidates: [cand(1, 'running commands (build/test/git)', 15), cand(2, 'status checks / verification', 5)],
   });
   assert.match(out, /43 of 234 requests \(18%\) were lookups, checks or test runs a cheaper model handles\./);
-  assert.match(out, /R1 {2}"running commands \(build\/test\/git\)" ×15 {2}→ {2}delegate to sonnet-worker/);
+  assert.match(out, /R1 {2}"running commands \(build\/test\/git\)" ×15 {2}→ {2}delegate to t1-worker/);
   assert.match(out, /R2 {2}"status checks \/ verification" ×5/);
   assert.match(out, /harness promote R1 --global/);
   const at = out.indexOf('Routing');
