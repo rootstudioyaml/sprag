@@ -26,7 +26,8 @@ createServer(async (req, res) => {
       file = join(file, 'index.html');
     }
     const body = await readFile(file);
-    res.writeHead(200, { 'content-type': types[extname(file)] || 'application/octet-stream' }).end(body);
+    // Local checks edit files between reloads; without this Chrome reuses a module script it fetched minutes ago.
+    res.writeHead(200, { 'content-type': types[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' }).end(body);
   } catch {
     res.writeHead(404, { 'content-type': 'text/plain' }).end('not found');
   }
