@@ -71,7 +71,6 @@ export const OF_CSS = `
 .of-lbl{pointer-events:none;background:none;border:0;box-shadow:none;padding:2px 4px;color:#6a5a4a;text-shadow:0 0 4px #fff7e6,0 0 2px #fff7e6}
 .of-btn:hover,.of-btn:focus-visible{border-color:#8b7cf0;box-shadow:0 2px 8px rgba(120,100,240,.3)}
 .of-btn{max-width:240px;overflow:hidden;text-overflow:ellipsis;z-index:2}.of-btn.srv{max-width:none;background:#5a5270;color:#fff;border-radius:9px;border-color:rgba(255,255,255,.35)}
-.of-gi{position:absolute;left:0;top:0;z-index:1;pointer-events:none;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.95);box-shadow:0 1px 5px rgba(60,90,140,.35);display:grid;place-items:center;will-change:transform}.of-gi svg{width:15px;height:15px}
 .of-sign{color:#b4443f;font-size:14px}
 .of-bub{pointer-events:none;font-size:11px;line-height:1;color:#3a2f27;background:#fff;padding:5px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(90,60,30,.22);opacity:0;transition:opacity .35s ease}
 .of-bub.ai{background:#f1ebff;color:#4c1d95}.of-bub.on{opacity:1}
@@ -405,24 +404,46 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   const setK = (m, i, o, x, y, z, rx, sx = 1, sy = 1, sz = 1) => { fpt(o, x, y, z, TMP); setM(m, i, TMP.x, TMP.y, TMP.z, rx, 0, sx * K, sy * K, sz * K); };
 
-  /* ── 3D text: floor decals and signpost boards are canvas textures, so no HTML pills compete with the speech bubbles ── */
-  function decal(text, width, height, color){
-    const cw = 1024, ch = Math.round(cw * height / width), c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = ch;
-    x.font = `800 ${Math.round(ch * 0.78)}px "Noto Sans KR","Geist",-apple-system,"Segoe UI",sans-serif`; x.textBaseline = 'middle'; x.fillStyle = color;
-    let tx = text; if(x.measureText(tx).width > cw - 32){ while(tx.length > 1 && x.measureText(tx + '…').width > cw - 32) tx = tx.slice(0, -1); tx += '…'; }
-    x.fillText(tx, 16, ch * 0.54);
+  /* ── 3D text: one upright board per zone, a canvas texture that always faces the camera. The zone name used to be painted on the
+     floor, where a long name was cut to "…" and the rest read skewed and faint at this viewing angle; the board carries the whole name
+     on up to two lines, and for a team a small ghost badge with the number of people who have no data. ── */
+  function teamSign(name, gh, ink){
+    const cw = 1024, chh = 400, c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = chh;
+    const rr = (X, Y, Wd, Hh, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + Wd, Y, X + Wd, Y + Hh, r); x.arcTo(X + Wd, Y + Hh, X, Y + Hh, r); x.arcTo(X, Y + Hh, X, Y, r); x.arcTo(X, Y, X + Wd, Y, r); x.closePath(); };
+    x.fillStyle = '#f7e9cc'; rr(0, 0, cw, chh, 44); x.fill(); x.lineWidth = 14; x.strokeStyle = '#c9a26a'; rr(7, 7, cw - 14, chh - 14, 40); x.stroke();
+    const fam = '"Noto Sans KR","Geist",-apple-system,"Segoe UI",sans-serif', maxW = cw - 120 - (gh ? 200 : 0);
+    const wrap = (txt, fs) => {
+      x.font = `800 ${fs}px ${fam}`;
+      const lines = []; let cur = '';
+      for(const w of String(txt).split(/\s+/).filter(Boolean)){
+        const tr = cur ? cur + ' ' + w : w;
+        if(x.measureText(tr).width <= maxW){ cur = tr; continue; }
+        if(cur) lines.push(cur);
+        cur = w;
+        while(x.measureText(cur).width > maxW && cur.length > 1){ let k = cur.length; while(k > 1 && x.measureText(cur.slice(0, k)).width > maxW) k--; lines.push(cur.slice(0, k)); cur = cur.slice(k); }
+      }
+      if(cur) lines.push(cur);
+      return lines;
+    };
+    const words = String(name).split(/\s+/).filter(Boolean);
+    const longest = f => { x.font = `800 ${f}px ${fam}`; return Math.max(0, ...words.map(w => x.measureText(w).width)); };
+    let fs = 176, lines = wrap(name, fs);
+    /* shrink the type before a word gets broken in two, but never below 112px: a board nobody can read is no board */
+    while((lines.length > 2 || longest(fs) > maxW) && fs > 112){ fs -= 8; lines = wrap(name, fs); }
+    if(lines.length > 2){ lines = lines.slice(0, 2); lines[1] = lines[1].slice(0, -1) + '…'; }
+    x.fillStyle = ink; x.textBaseline = 'middle'; x.textAlign = 'left'; x.font = `800 ${fs}px ${fam}`;
+    const lh = fs * 1.1, y0 = chh / 2 - (lines.length - 1) * lh / 2;
+    lines.forEach((l, i) => x.fillText(l, 60, y0 + i * lh));
+    if(gh){
+      const bx = cw - 60 - 170, by = chh / 2;
+      x.fillStyle = '#ffffff'; rr(bx, by - 54, 170, 108, 54); x.fill(); x.lineWidth = 4; x.strokeStyle = '#d6d0c4'; x.stroke();
+      x.fillStyle = '#ffffff'; x.strokeStyle = '#b8b2a6'; x.lineWidth = 5;
+      x.beginPath(); x.arc(bx + 46, by - 4, 24, Math.PI, 0); x.lineTo(bx + 70, by + 24); x.lineTo(bx + 60, by + 15); x.lineTo(bx + 50, by + 24); x.lineTo(bx + 40, by + 15); x.lineTo(bx + 30, by + 24); x.lineTo(bx + 22, by + 15); x.lineTo(bx + 22, by - 4); x.closePath(); x.fill(); x.stroke();
+      x.fillStyle = '#8a8f9c'; x.beginPath(); x.arc(bx + 38, by - 8, 4.5, 0, 6.3); x.fill(); x.beginPath(); x.arc(bx + 54, by - 8, 4.5, 0, 6.3); x.fill();
+      x.fillStyle = '#5a4630'; x.font = `800 66px ${fam}`; x.fillText(String(gh), bx + 86, by);
+    }
     const tex = track(new T.CanvasTexture(c)); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    const g = track(new T.PlaneGeometry(width, height)); g.rotateX(-Math.PI / 2);
-    const m = track(new T.Mesh(g, track(new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false })))); world.add(m);
-    const see = track(new T.Mesh(g, track(new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.32, depthWrite: false, depthTest: false, toneMapped: false })))); see.renderOrder = 5; m.add(see);   /* faint see-through copy where desks or people stand in front */
-    return m;
-  }
-  function signTex(n){
-    const c = document.createElement('canvas'), x = c.getContext('2d'); c.width = 256; c.height = 128;
-    x.fillStyle = '#f3dcae'; x.fillRect(0, 0, 256, 128); x.fillStyle = '#5a4630'; x.fillRect(58, 34, 14, 60); x.fillRect(84, 34, 14, 60);
-    x.font = '800 78px "Geist","Noto Sans KR",-apple-system,sans-serif'; x.textBaseline = 'middle'; x.fillText(String(n), 118, 66);
-    const tex = track(new T.CanvasTexture(c)); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    return track(new T.Mesh(track(new T.PlaneGeometry(1.2, 0.6)), track(new T.MeshBasicMaterial({ map: tex, toneMapped: false }))));
+    return track(new T.Mesh(track(new T.PlaneGeometry(4.1, 1.6)), track(new T.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: true }))));
   }
   let tintZ = null, rcast = null, rplane = null;
   function floorPt(px, py){
@@ -521,16 +542,13 @@ export function mountOfficeScene(container, data, opts = {}){
         if(p.tier === 'low' && !ghost){ fpt(o, x + 0.38, 1.5, z + 0.04, TMP); B('#fffaf0', 0.22, 0.28, 0.22, TMP.x, TMP.y + 0.02, TMP.z); }
       });
       if(zn.kind === 'team' || zn.kind === 'free'){
-        /* name painted on the rug (floor decal), darker shade of the rug colour; a signpost carries the ghost count when there is one */
+        /* the zone's name board on a post at the front-right corner, ink in a darker shade of the rug colour; a team's board also counts its ghosts */
         const hsl = {}; C(rc).getHSL(hsl); const ink = zn.kind === 'free' ? C('#8a7a66') : C().setHSL(hsl.h, Math.min(0.62, hsl.s + 0.2), 0.3);
-        zn.dw = Math.min(zn.w - 0.8, 9); zn.dx = zn.cx - zn.w / 2 + 0.4;
-        const dm = decal(zn.name, zn.dw, LANE - 0.3, closed ? ink.clone().lerp(grey, 0.5).getStyle() : ink.getStyle()); dm.position.set(zn.dx + zn.dw / 2, 0.085, zn.cz + zn.d / 2 - LANE / 2); decals.push(dm);
+        zn.dw = 0;
         zn.gh = zn.kind === 'team' ? zn.ps.filter(q => q.tag).length : 0;
-        if(zn.gh){
-          const sx = zn.cx + zn.w / 2 - 0.8, sz = zn.cz + zn.d / 2 - 0.6; zn.sign = { x: sx, z: sz };
-          B('#b98b5a', 0.14, 1.5, 0.14, sx, 0.75, sz); B('#c9976a', 1.3, 0.75, 0.1, sx, 1.75, sz); B(CH[(zi + 5) % CH.length], 0.14, 0.3, 0.15, sx, 1.15, sz);
-          const sm2 = signTex(zn.gh); sm2.position.set(sx, 1.75, sz + 0.06); world.add(sm2); signs.push(sm2);
-        }
+        const sx = zn.cx + zn.w / 2 - 0.9, sz = zn.cz + zn.d / 2 - 0.6; zn.sign = { x: sx, z: sz };
+        B('#b98b5a', 0.14, 1.6, 0.14, sx, 0.8, sz); B(CH[(zi + 5) % CH.length], 0.14, 0.3, 0.15, sx, 1.2, sz);
+        const sm2 = teamSign(zn.name, zn.gh, (closed ? ink.clone().lerp(grey, 0.5) : ink).getStyle()); sm2.position.set(sx, 2.35, sz); world.add(sm2); signs.push(sm2);
         if(zn.kind === 'team'){
           zi2.push(zn);
           /* floor lamp in the aisle at the back-left corner of the rug; lit in the evening with a warm pool over the team */
@@ -562,9 +580,9 @@ export function mountOfficeScene(container, data, opts = {}){
 
     /* animals: torso + arms + a list of head and body parts per person, instanced per geometry; ghosts are translucent white */
     const fig = (arr, ghost) => {
-      const n = arr.length, mt = o => std(ghost ? { transparent: true, opacity: 0.58, depthWrite: false, ...o } : o);
+      const n = arr.length, mt = o => std(ghost ? { transparent: true, opacity: 0.3, depthWrite: false, ...o } : o);
       const f = { arr, ghost, torso: mk(sets.torso, mt({}), n, !ghost), arm: mk(sets.arm, mt({}), n * 2, !ghost), sph: null, cone: null, cnt: { sph: 0, cone: 0 } };
-      if(ghost){ const rm = bas({ color: '#9cc6f5', transparent: true, opacity: 0.5, side: T.BackSide, depthWrite: false }); f.rimH = mk(sets.sph, rm, n, false); f.rimT = mk(sets.torso, rm, n, false); }
+      if(ghost){ const rm = bas({ color: '#9cc6f5', transparent: true, opacity: 0.16, side: T.BackSide, depthWrite: false }); f.rimH = mk(sets.sph, rm, n, false); f.rimT = mk(sets.torso, rm, n, false); }
       arr.forEach(o => { o.parts = o.an.parts(); o.parts.forEach(pt => { f.cnt[pt.g]++; }); });
       f.sph = mk(sets.sph, mt({}), f.cnt.sph, !ghost); f.cone = mk(sets.cone, mt({}), f.cnt.cone, !ghost);
       const ix = { sph: 0, cone: 0 };
@@ -603,12 +621,11 @@ export function mountOfficeScene(container, data, opts = {}){
       const ln = track(new T.Line(g, track(new T.LineDashedMaterial({ color: 0xffffff, dashSize: 0.25, gapSize: 0.18, transparent: true, opacity: 0 })))); ln.frustumCulled = false; ln.visible = false; world.add(ln); trails.push({ ln, busy: false });
     }
 
-    /* HTML anchors: server label, ghost tags, "+N more", suspended sign */
+    /* HTML anchors: server label, "+N more", suspended sign. Ghosts get no pill: the faded figure says it, the hover tip and drawer say why. */
     if(srv){
       const b = label('of-btn srv', d.server.label, 'button'); b.title = d.server.label; b.addEventListener('click', () => opts.onServer && opts.onServer());
       lab.server = { el: b, pos: v3().set(srv.x, 4.2, srv.z) };
     }
-    people.forEach(o => { if(o.p.tag){ const e = label('of-gi', ''); e.innerHTML = iconSvg('ghost'); e.title = o.p.tag; lab.tags.push({ el: e, pos: v3().set(o.x, 3.35, o.z + 0.1), dyn: o }); } });
     if(d.more){ lab.more = { el: label('of-lbl', d.moreLabel), pos: v3().set(FW / 2 - 2.2, 0.2, FD / 2 - 0.6) }; }
     if(closed) lab.sign = { el: label('of-lbl of-sign', d.hud.closed), pos: v3().set(0, 0.2, FD / 2 + 0.2) };
     const cand = closed ? [] : solids.filter(o => (o.p.tier === 'power' || o.p.tier === 'active') && o.p.bubbles && o.p.bubbles.length);
@@ -708,7 +725,7 @@ export function mountOfficeScene(container, data, opts = {}){
     if(w.cs) w.cs.m.material.opacity = (0.07 + 0.1 * wx.cloud) * (1 - 0.75 * n);
     /* painted floor text and signs are unlit, so they dim with the room; helper bots glow stronger at night */
     const dk = 1 - 0.42 * n * (1 - 0.35 * lamp);
-    decals.forEach(m => { m.material.color.setScalar(dk); m.children.forEach(c => c.material && c.material.color.setScalar(dk)); }); signs.forEach(m => m.material.color.setScalar(dk));
+    decals.forEach(m => { m.material.color.setScalar(dk); m.children.forEach(c => c.material && c.material.color.setScalar(dk)); }); signs.forEach(m => m.material.color.setScalar(Math.max(dk, 0.82)));
     if(sets.gl) sets.gl.material.opacity = 0.22 + 0.3 * n;
     renderer.shadowMap.needsUpdate = true; request();
   }
