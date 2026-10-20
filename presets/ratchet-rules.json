@@ -57,6 +57,11 @@
       "agents": [
         "claude"
       ]
+    },
+    {
+      "id": "fix-bec8e9",
+      "ko": "전체 테스트·빌드·렌더처럼 프로세스를 여럿 띄우는 명령을 직접 돌리거나 서브에이전트에 맡길 때 → 프로세스 상한을 걸고 실행한다. macOS 와 Linux 는 `(ulimit -u $(( $(ps -u $(id -u) -o pid= | wc -l) + 150 )); <명령>)` 으로 감싼다. 상한에 걸리면 커널이 `spawn ... EAGAIN` 으로 거절하므로 머신이 멈추는 대신 범인 명령줄이 남는다(2026-10-20 테스트 파일이 자신을 복제해 node 4,055개, 메모리 고갈로 세 번 멈춤). `EAGAIN` 은 테스트 실패가 아니라 폭주 신호이므로 재실행하지 말고 `ps` 스냅샷으로 어떤 명령이 불어났는지부터 본다. 백그라운드 자식을 띄우는 코드는 `process.argv[1]` 대신 모듈 위치에서 구한 진입점 경로와 재진입 마커를 쓴다",
+      "en": "When you run, or hand a subagent, a command that starts many processes (a full test suite, a build, a render) → run it under a process cap. On macOS and Linux wrap it as `(ulimit -u $(( $(ps -u $(id -u) -o pid= | wc -l) + 150 )); <command>)`. At the cap the kernel refuses with `spawn ... EAGAIN`, so the culprit's command line survives instead of the machine stalling (2026-10-20: a test file relaunched itself, 4,055 node processes, three memory-exhaustion stalls). `EAGAIN` is a runaway signal, not a test failure: do not rerun; take a `ps` snapshot and see which command multiplied. Code that starts a background child uses an entry path resolved from the module's location plus a re-entry marker, never `process.argv[1]`"
     }
   ]
 }
