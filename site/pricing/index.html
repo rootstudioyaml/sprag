@@ -86,14 +86,22 @@
   .plan .for{margin-top:6px;color:var(--dim);font-size:13px;min-height:3.2em}
   .price{margin-top:24px;display:flex;align-items:baseline;gap:8px}
   .price b{font-size:44px;font-weight:600;letter-spacing:-.04em;line-height:1}
-  .price span{color:var(--dim);font-size:12.5px;line-height:1.35}
+  .price span{color:var(--dim);font-size:13px;line-height:1.35;white-space:nowrap}
   .fine{margin-top:8px;color:var(--faint);font-size:12.5px;min-height:1.5em}
   .plan .btn{margin-top:24px;width:100%}
   .plan .inc{margin-top:24px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--faint)}
   .plan ul{list-style:none;margin-top:12px;display:grid;gap:8px;font-size:13px;color:var(--dim)}
   .plan li{padding-left:20px;position:relative;line-height:1.5}
   .plan li::before{content:"";position:absolute;left:2px;top:.5em;width:8px;height:4px;border-left:1.5px solid var(--ok);border-bottom:1.5px solid var(--ok);transform:rotate(-45deg)}
-  @media(max-width:900px){.plans{grid-template-columns:1fr;max-width:480px;margin-left:auto;margin-right:auto}.plan .for,.fine{min-height:0}}
+  @media(max-width:900px){.plans{grid-template-columns:1fr}.plan .for,.fine{min-height:0}}
+  /* tablet: one plan per row, the price on the left and the feature list on the right */
+  @media(min-width:641px) and (max-width:900px){
+    .plan{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);grid-template-rows:repeat(5,auto) 1fr;column-gap:32px;align-items:start}
+    .plan > *{grid-column:1}
+    .plan .inc{grid-column:2;grid-row:1;margin-top:0;padding-top:0;border-top:0}
+    .plan ul{grid-column:2;grid-row:2 / -1}
+    .plan .tag{position:static;grid-column:1;justify-self:start;margin-bottom:10px}
+  }
 
   .strip{margin-top:16px;border:1px solid var(--line);border-radius:var(--rl);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .strip h2{font-size:14px;font-weight:600}
@@ -102,6 +110,12 @@
   section.blk{padding-top:88px}
   section.blk > h2{font-size:24px;font-weight:600;letter-spacing:-.025em}
   section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:60ch}
+
+  .vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px}
+  .vcard video{display:block;width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:var(--rl);background:#000}
+  .vcard figcaption{display:flex;align-items:baseline;gap:10px;margin-top:10px;font-size:13px;color:var(--dim)}
+  .vcard figcaption b{color:var(--ink);font-weight:600;flex:0 0 auto}
+  @media(max-width:720px){.vgrid{grid-template-columns:1fr}}
 
   table{margin-top:24px;width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
   thead th{position:sticky;top:var(--bar-h);z-index:5;background:rgba(10,10,12,.94);backdrop-filter:blur(8px);text-align:center;font-size:13px;font-weight:600;padding:12px 8px;border-bottom:1px solid var(--line2);vertical-align:bottom}
@@ -119,8 +133,16 @@
     table{font-size:12.5px}
     thead th{padding:10px 3px;font-size:12px}
     thead th small{font-size:11px}
-    tbody th{padding:9px 6px 9px 0;width:40%}
-    tbody td{padding:9px 3px;font-size:11.5px;width:20%}
+    /* the feature name takes the full width on its own line, the three plan values sit under it */
+    table,thead,tbody{display:block}
+    thead{position:sticky;top:var(--bar-h);z-index:5}
+    thead th{position:static}
+    thead tr,tbody tr:not(.grp){display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+    thead th:first-child{display:none}
+    tr.grp{display:block}
+    tr.grp th{display:block}
+    tbody tr:not(.grp) th{grid-column:1 / -1;width:auto;padding:12px 0 4px;border-bottom:0}
+    tbody td{width:auto;padding:4px 3px 12px;font-size:12px}
     code{overflow-wrap:anywhere}
   }
 
@@ -199,9 +221,9 @@
       <ul>
         <li data-k="p.free.1">Open-source CLI</li>
         <li data-k="p.free.2">Routing rules from your own logs</li>
-        <li data-k="p.free.3">Sub-agents pinned to cheaper models: Haiku and Sonnet, Opus for Fable sessions</li>
+        <li data-k="p.free.3">Sub-agents pinned to cheaper models</li>
         <li data-k="p.free.4">Savings ledger and statusline</li>
-        <li data-k="p.free.5">doc2md for pptx, xlsx, docx and pdf</li>
+        <li data-k="p.free.5">doc2md for Office files and PDF</li>
         <li data-k="p.free.6">Nothing leaves your machine</li>
       </ul>
     </article>
@@ -210,31 +232,31 @@
       <span class="tag" data-k="p.popular">Most popular</span>
       <h2 data-k="p.pro">Pro</h2>
       <p class="for" data-k="p.pro.for">For teams that want one view of spend and savings.</p>
-      <div class="price"><b data-price="pro">$5</b><span data-k="p.per">per seat<br>/ month</span></div>
+      <div class="price"><b data-price="pro">$5</b><span data-k="p.per">per seat / month</span></div>
       <p class="fine" data-fine="pro">Billed monthly</p>
       <a class="btn pri" href="/team/" data-k="p.start">Get started</a>
       <p class="inc" data-k="p.pro.inc">Everything in Free, plus</p>
       <ul>
-        <li data-k="p.pro.1">Organization dashboard: spend, savings and delegated runs per machine, with a 30-day chart</li>
-        <li data-k="p.pro.2">Seat roster with each machine's upload switch, signal (ok, late, paused, silent), last upload, OS and version</li>
-        <li data-k="p.pro.3">Remove, restore and merge seats, with an activity log</li>
-        <li data-k="p.pro.4">Team-approved rules pushed at session start</li>
-        <li data-k="p.pro.5">Rollout with <code>SPRAG_TEAM_TOKEN</code> or <code>sprag team join</code></li>
-        <li data-k="p.pro.6">Owner and admin roles, <code>sprag team create</code> from the terminal</li>
+        <li data-k="p.pro.1">Team dashboard with a 30-day chart</li>
+        <li data-k="p.pro.2">Seat roster with each machine's status</li>
+        <li data-k="p.pro.3">Remove, restore and merge seats</li>
+        <li data-k="p.pro.4">Team rules applied at session start</li>
+        <li data-k="p.pro.5">Rollout with <code>sprag team join</code></li>
+        <li data-k="p.pro.6">Owner and admin roles, activity log</li>
       </ul>
     </article>
 
     <article class="plan">
       <h2 data-k="p.ent">Enterprise</h2>
       <p class="for" data-k="p.ent.for">For teams that also review how prompts are written.</p>
-      <div class="price"><b data-price="enterprise">$10</b><span data-k="p.per">per seat<br>/ month</span></div>
+      <div class="price"><b data-price="enterprise">$10</b><span data-k="p.per">per seat / month</span></div>
       <p class="fine" data-fine="enterprise">Billed monthly</p>
       <a class="btn" href="/team/" data-k="p.start">Get started</a>
       <p class="inc" data-k="p.ent.inc">Everything in Pro, plus</p>
       <ul>
-        <li data-k="p.ent.1">Prompt capture per team: user-typed prompts only, secrets redacted, uploaded about every 30 minutes</li>
-        <li data-k="p.ent.2">No history from before the policy was turned on</li>
-        <li data-k="p.ent.3">Per-user prompt usage: prompts, characters, active days, 30-day trend</li>
+        <li data-k="p.ent.1">Prompt capture, secrets redacted</li>
+        <li data-k="p.ent.2">Nothing from before the policy was on</li>
+        <li data-k="p.ent.3">Per-user prompt usage and 30-day trend</li>
         <li data-k="p.ent.4">Each user's prompt list with search</li>
         <li data-k="p.ent.5">Capture policy visible to every member</li>
       </ul>
@@ -248,6 +270,21 @@
     </div>
     <a class="btn" href="mailto:sales@sprag.io" data-k="p.cus.cta">Contact sales</a>
   </div>
+
+  <section class="blk" aria-labelledby="vid-h">
+    <h2 id="vid-h" data-k="p.vid.h">Each plan in 30 seconds</h2>
+    <p class="sub" data-k="p.vid.sub">Recorded from the demo dashboard with sample data.</p>
+    <div class="vgrid">
+      <figure class="vcard">
+        <video data-vid="pro" controls preload="none" playsinline></video>
+        <figcaption><b data-k="p.pro">Pro</b><span data-k="p.vid.pro">Spend, savings, seats and team rules</span></figcaption>
+      </figure>
+      <figure class="vcard">
+        <video data-vid="ent" controls preload="none" playsinline></video>
+        <figcaption><b data-k="p.ent">Enterprise</b><span data-k="p.vid.ent">Prompt usage, prompt search and the capture policy</span></figcaption>
+      </figure>
+    </div>
+  </section>
 
   <section class="blk">
     <h2 data-k="p.cmp.h">Compare plans</h2>
@@ -392,32 +429,36 @@ const KO = {
  "p.free.inc": "포함 기능",
  "p.free.1": "오픈소스 CLI",
  "p.free.2": "내 기록에서 뽑은 라우팅 규칙",
- "p.free.3": "더 싼 모델로 고정한 서브에이전트: Haiku와 Sonnet, Fable 세션에서는 Opus",
+ "p.free.3": "더 싼 모델로 고정한 서브에이전트",
  "p.free.4": "절감액 원장과 statusline",
- "p.free.5": "pptx, xlsx, docx, pdf용 doc2md",
+ "p.free.5": "오피스 문서와 PDF를 doc2md로 변환",
  "p.free.6": "어떤 데이터도 밖으로 나가지 않음",
  "p.popular": "가장 많이 선택",
  "p.pro": "프로",
  "p.pro.for": "지출과 절감액을 한곳에서 보려는 팀",
- "p.per": "좌석당<br>/ 월",
+ "p.per": "좌석당 / 월",
  "p.start": "시작하기",
  "p.pro.inc": "무료 기능 전부와 함께",
- "p.pro.1": "조직 대시보드: 컴퓨터별 지출, 절감액, 위임 실행과 30일 차트",
- "p.pro.2": "좌석 명단: 컴퓨터별 업로드 스위치, 신호(정상, 지연, 일시중지, 무응답), 마지막 업로드, OS와 버전",
- "p.pro.3": "좌석 제거, 복원, 병합과 활동 기록",
+ "p.pro.1": "조직 대시보드와 30일 추이 차트",
+ "p.pro.2": "컴퓨터별 상태가 보이는 좌석 명단",
+ "p.pro.3": "좌석 제거, 복원, 병합",
  "p.pro.4": "세션 시작 때 적용되는 팀 승인 규칙",
- "p.pro.5": "<code>SPRAG_TEAM_TOKEN</code>이나 <code>sprag team join</code>으로 조직 배포",
- "p.pro.6": "오너와 어드민 역할, 터미널에서 <code>sprag team create</code>",
+ "p.pro.5": "<code>sprag team join</code>으로 조직 배포",
+ "p.pro.6": "오너와 어드민 역할, 활동 기록",
  "p.ent": "엔터프라이즈",
  "p.ent.for": "프롬프트 작성 방식까지 검토하려는 팀",
  "p.ent.inc": "프로 기능 전부와 함께",
- "p.ent.1": "팀별 프롬프트 수집: 직접 입력한 프롬프트만, 비밀 값은 가리고, 약 30분마다 업로드",
+ "p.ent.1": "팀별 프롬프트 수집, 비밀 값은 가림",
  "p.ent.2": "정책을 켜기 전 기록은 수집하지 않음",
- "p.ent.3": "사용자별 프롬프트 사용량: 프롬프트, 글자 수, 활동일, 30일 추이",
+ "p.ent.3": "사용자별 프롬프트 사용량과 30일 추이",
  "p.ent.4": "사용자별 프롬프트 목록과 검색",
  "p.ent.5": "모든 멤버에게 보이는 수집 정책",
  "p.cus": "맞춤 계약",
  "p.cus.p": "대량 구매, 연간 인보이스, 보안 검토, 데이터 보존 기간 조정",
+ "p.vid.h": "30초로 보는 요금제",
+ "p.vid.sub": "샘플 데이터를 넣은 데모 대시보드에서 녹화했습니다",
+ "p.vid.pro": "지출, 절감액, 좌석, 팀 규칙",
+ "p.vid.ent": "프롬프트 사용량과 검색, 수집 정책",
  "p.cus.cta": "영업팀에 문의",
  "p.cmp.h": "요금제 비교",
  "p.cmp.sub": "무료 기능은 유료 조직 안에서도 그대로 무료입니다",
@@ -505,6 +546,11 @@ function render(){
     el.textContent = cycle === 'annual' ? dict['p.fine.a'].replace('${y}', () => '$' + y) : dict['p.fine.m'];
   });
   document.querySelectorAll('.cycle button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cycle === cycle)));
+  /* plan videos (video/tour/build-plans.sh): swap to the current language's file, only when it changes */
+  document.querySelectorAll('video[data-vid]').forEach(v => {
+    const f = '../assets/video/plan-' + v.dataset.vid + '-' + lang;
+    if(v.dataset.cur !== f){ v.dataset.cur = f; v.poster = f + '.jpg'; v.src = f + '.mp4'; }
+  });
 }
 function setLang(next, remember){
   lang = next === 'ko' ? 'ko' : 'en';
