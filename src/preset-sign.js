@@ -37,7 +37,10 @@ import { createHash, createPublicKey, verify as cryptoVerify } from 'node:crypto
  * adding the new entry, releasing, then publishing with the new key; remove the
  * old entry one release later.
  */
-export const PRESET_SIGNING_KEYS = [];
+export const PRESET_SIGNING_KEYS = [
+  // Created 2026-10-20 for sprag.io/ops; the private half lives in the superuser's browser and its backup file.
+  { kid: '8bc624f874f5620a', jwk: { kty: 'EC', crv: 'P-256', x: 'Lx3x--sWgDZ2_7jWxO3_ks86MtihDNRRbckITpR5bLc', y: 'L2D7puHKmZhQRh7mWjGYsmIX_UrPBYjKt3nH8B51Bhg' } },
+];
 
 export const PRESET_BUNDLE_FORMAT = 1;
 export const PRESET_MAX_BYTES = 200 * 1024;

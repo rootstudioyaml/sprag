@@ -88,7 +88,10 @@ test('a bundle signed in the browser verifies in the CLI; tampering, unknown key
   assert.equal(verifyBundleSignature({ ...b, sig: { ...b.sig, kid: key.kid } }, [{ kid: key.kid, jwk: other.publicJwk }]).reason, 'bad-sig');
   assert.equal(verifyBundleSignature({ ...b, sig: null }, keys).reason, 'unsigned');
   assert.equal(verifyBundleSignature(b, []).reason, 'no-keys');
-  assert.equal(PRESET_SIGNING_KEYS.length, 0, 'ships empty until the superuser creates the key');
+  // The shipped list holds the production key, and each entry's kid is the fingerprint of its own jwk.
+  assert.ok(PRESET_SIGNING_KEYS.length >= 1, 'the production key ships with the CLI');
+  for (const k of PRESET_SIGNING_KEYS) assert.equal(jwkFingerprint(k.jwk), k.kid, `kid of ${k.kid} matches its jwk`);
+  assert.ok(PRESET_SIGNING_KEYS.some((k) => k.kid === '8bc624f874f5620a'), 'the 2026-10-20 key is listed');
 
   // A backup restores the same key.
   const restored = await PS.importBackup({ privateJwk: key.privateJwk });
@@ -329,7 +332,7 @@ test('sprag presets status / show: bundled fallback with the reason, in a sandbo
   let out = run(['presets', 'status'], { SPRAG_NO_UPDATE_CHECK: undefined });
   assert.match(out, /Presets source: bundled with sprag \d+\.\d+\.\d+ \(fallback\)/);
   assert.match(out, /Why: no published bundle has been fetched yet/);
-  assert.match(out, /Signing keys: none yet/);
+  assert.match(out, /Signing keys: 8bc624f874f5620a/);
   assert.match(out, /Next check: at the next session start/);
   out = run(['presets', 'status']);
   assert.match(out, /Why: remote presets are off/, 'the test environment opts out through SPRAG_NO_UPDATE_CHECK');
@@ -342,7 +345,7 @@ test('sprag presets status / show: bundled fallback with the reason, in a sandbo
   writeFileSync(join(home, '.config', 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko' }));
   out = run(['presets', 'status'], { SPRAG_NO_UPDATE_CHECK: undefined });
   assert.match(out, /프리셋 출처: sprag .* 동봉 프리셋/);
-  assert.match(out, /서명 키: 아직 없음/);
+  assert.match(out, /서명 키: 8bc624f874f5620a/);
   // a sync with the network opted out sends nothing and says so
   out = run(['presets', 'sync']);
   assert.match(out, /원격 프리셋이 꺼져 있습니다/);
@@ -354,12 +357,13 @@ test('agents: a published bundle that drops an agent removes our file for it, ne
   const home = sandboxDir(t);
   const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, XDG: process.env.XDG_CONFIG_HOME,
     A: process.env.SPRAG_NO_PRESET_SYNC, B: process.env.SPRAG_NO_UPDATE_CHECK, C: process.env.CTS_NO_UPDATE_CHECK, D: process.env.CTS_NO_PRESET_SYNC };
+  const shippedKeys = PRESET_SIGNING_KEYS.slice();
   const restore = (k, v) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; };
   t.after(() => {
     restore('HOME', saved.HOME); restore('USERPROFILE', saved.USERPROFILE); restore('XDG_CONFIG_HOME', saved.XDG);
     restore('SPRAG_NO_PRESET_SYNC', saved.A); restore('SPRAG_NO_UPDATE_CHECK', saved.B);
     restore('CTS_NO_UPDATE_CHECK', saved.C); restore('CTS_NO_PRESET_SYNC', saved.D);
-    PRESET_SIGNING_KEYS.length = 0;
+    PRESET_SIGNING_KEYS.splice(0, PRESET_SIGNING_KEYS.length, ...shippedKeys);
   });
   process.env.HOME = home; process.env.USERPROFILE = home; process.env.XDG_CONFIG_HOME = join(home, '.config');
   for (const k of ['SPRAG_NO_PRESET_SYNC', 'SPRAG_NO_UPDATE_CHECK', 'CTS_NO_UPDATE_CHECK', 'CTS_NO_PRESET_SYNC']) delete process.env[k];
