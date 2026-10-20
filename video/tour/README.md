@@ -63,3 +63,31 @@ The music (`deeppulse-main.mp3`, the owner's track) starts at 15.05 s because th
 1 s fade in, 2 s fade out, then a 2-pass `loudnorm` to -14 LUFS, -1 dBTP, LRA 11. Video is H.264 yuv420p, 2-pass at
 1050 kbit/s so each file stays under 15 MB, AAC 48 kHz 192 kbit/s, `+faststart`. The poster is the frame at 2 s.
 `build.sh` fails if a file is over 15 MB or has a one-frame luma drop (a blank frame).
+
+## Plan promos (Pro and Enterprise, 30 s)
+
+Two 30 second videos for the pricing page, in both languages, built by `build-plans.sh` into
+`site/assets/video/plan-<pro|ent>-<lang>.{mp4,jpg}`. They are recorded from the customer's team console demo
+(`/team/?demo=1&rec=1`, the Northwind Labs sample organization), not from `/ops`.
+
+```sh
+node scripts/serve-site.mjs 8788      # the site server, from the repo root
+./build-plans.sh                      # both plans, both languages; PLANS=ent LANGS=ko for one, SKIP_RECORD=1 to reuse clips
+```
+
+| Path | What |
+|---|---|
+| `plans/pro.html`, `plans/ent.html` | HyperFrames compositions (1920x1080, 30 fps, 30 s), `__LANG__` replaced per language |
+| `plans/plan.css`, `plans/plan.js` | Shared caption, badge and closing styles, and the shared timeline builder |
+
+| t (s) | Pro | Enterprise |
+|---|---|---|
+| 0-7 | office push in, plan badge: 팀의 AI 지출과 절감액, 한 화면에서 | office, the top prompter's card: 팀이 AI에게 어떻게 묻는지 이제 보입니다 |
+| 7-13 | a power user's card and model mix: 사람마다 지출, 절감, 맡긴 모델까지 | Prompts tab sorted by characters: 사용자별 프롬프트와 글자 수, 30일 추이까지 |
+| 13-18/20 | KPI cards, range rail: 기간을 바꿔 바로 비교 | one person's prompts, search: 사람마다 프롬프트를 읽고 검색 |
+| 18/20-25 | add a team rule: 팀 규칙은 한 번 정하면 모든 PC에 적용 | a team's prompt capture switched on: 수집은 팀마다 켜고, 켜기 전 기록은 가져오지 않습니다 |
+| 25-30 | logo, plan, 좌석당 월 $5, sprag.io/pricing | logo, plan, 좌석당 월 $10, sprag.io/pricing |
+
+The music is the same track, from 15.05 s, 0.5 under the opening shot, 0.3 under the body, 0.5 for the close, -14 LUFS.
+Video is 2-pass 1400 kbit/s, so each file is about 6 MB; the build fails over 8 MB or on a one-frame luma drop.
+The demo's `teams` update now patches its in-memory rows, so the Policy switch stays on in the recording (and for demo visitors).
