@@ -244,7 +244,12 @@ test('Codex-first user can approve bundled policies, map a model and route witho
   const listing = f.run(['seed']);
   assert.equal(listing.status, 0, listing.stderr);
   assert.match(listing.stdout, /\[explore-t2\]/);
-  assert.doesNotMatch(listing.stdout, /haiku-explore|model: haiku|model: sonnet/);
+  // The model-routing offers name Codex's tier mapping, never a Claude agent or
+  // alias. The bundled ratchet rules after them are tool-neutral and may name
+  // both tools' resolution of a tier, so only the model block is checked.
+  const modelBlock = listing.stdout.split(/\n\s*\[fix-/)[0];
+  assert.match(modelBlock, /Codex T2 mapping/);
+  assert.doesNotMatch(modelBlock, /haiku-explore|model: haiku|model: sonnet/);
   const accepted = f.run(['seed', 'accept', 'explore-t2', '--global']);
   assert.equal(accepted.status, 0, accepted.stderr);
   assert.doesNotMatch(accepted.stdout, /haiku|sonnet/);

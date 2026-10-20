@@ -19,6 +19,13 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { claudeUserDir } from './paths.js';
+import { agentDefinitions } from './presets-source.js';
+
+/**
+ * Bare model alias each routing tier stands for. A rule says only its tier;
+ * where no agent serves that tier, this alias is what the text names.
+ */
+export const TIER_MODEL = { T2: 'haiku', T1: 'sonnet', T1H: 'opus' };
 
 /** Tier each preset agent is pinned to, for the `model:` half of the phrase. */
 const AGENT_MODEL = {
@@ -49,6 +56,28 @@ export function agentExists(name, root = process.cwd()) {
   if (!name) return false;
   return (root !== null && existsSync(join(root, '.claude', 'agents', `${name}.md`))) ||
     existsSync(join(claudeUserDir(), 'agents', `${name}.md`));
+}
+
+/**
+ * The agent a model-routing rule delegates to, or null when no agent serves its
+ * tier. A rule carries only `category` and `tier`; the agents preset says which
+ * tier and categories each agent serves, so Claude and Codex read one key.
+ *
+ *   (a) `rule.agent` when it is a non-empty string: legacy registries and the
+ *       published v1 bundle still carry it, and it stays an explicit override,
+ *   (b) else the first agent of that tier whose categories name the category,
+ *   (c) else the first agent of that tier whose categories hold "*",
+ *   (d) else null.
+ */
+export function agentForRule(rule, { agents = agentDefinitions() } = {}) {
+  if (!rule) return null;
+  if (typeof rule.agent === 'string' && rule.agent.trim()) return rule.agent;
+  const list = (Array.isArray(agents) ? agents : []).filter((a) => a && a.tier === rule.tier);
+  const cats = (a) => (Array.isArray(a.categories) ? a.categories : []);
+  const exact = list.find((a) => cats(a).includes(rule.category));
+  if (exact) return exact.name;
+  const any = list.find((a) => cats(a).includes('*'));
+  return any ? any.name : null;
 }
 
 /** Agent a bare tier name stands for when that agent's file exists. */

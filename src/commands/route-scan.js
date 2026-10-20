@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url);
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
 import { signedUsd } from '../money.js';
+import { agentForRule, TIER_MODEL } from '../agents.js';
 
 /**
  * Whether the user turned doc2md on.
@@ -418,12 +419,12 @@ export async function run({ args, hasFlag, numArg }) {
           const rule = composed(lang === 'ko' ? c.rule : (c.ruleEn || c.rule), c);
           if (lang === 'ko') {
             lines.push(`  후보 R${c.id} — "${label}" 유형, ${c.count}회 반복 (프로젝트: ${c.project})`);
-            lines.push(`      판정: ${tier} (${rs.tierLabel(tier)}) → ${c.agent} 서브에이전트 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
+            lines.push(`      판정: ${tier} (${rs.tierLabel(tier)}) → ${agentForRule(c) ?? TIER_MODEL[tier]} 서브에이전트 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
             lines.push(`      예시 요청: "${c.example}"`);
             lines.push(`      등록 시 ratchet-model.md에 기록될 룰: "${rule}"`);
           } else {
             lines.push(`  Candidate R${c.id} — "${label}", seen ×${c.count} (project: ${c.project})`);
-            lines.push(`      verdict: ${tier} (${rs.tierLabel(tier, 'en')}) → delegate to the ${c.agent} subagent · suggested scope: ${rs.scopeLabel(c.suggestedScope, 'en')}`);
+            lines.push(`      verdict: ${tier} (${rs.tierLabel(tier, 'en')}) → delegate to the ${agentForRule(c) ?? TIER_MODEL[tier]} subagent · suggested scope: ${rs.scopeLabel(c.suggestedScope, 'en')}`);
             lines.push(`      example request: "${c.example}"`);
             lines.push(`      rule that would be written to ratchet-model.md: "${rule}"`);
           }
@@ -510,10 +511,10 @@ export async function run({ args, hasFlag, numArg }) {
       const tier = c.tier || 'T2';
       if (lang === 'ko') {
         console.log(`  R${c.id}  "${c.label}" ×${c.count}회 [${c.project}]`);
-        console.log(`       판정: ${tier} (${rs.tierLabel(tier)}) → ${c.agent} 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
+        console.log(`       판정: ${tier} (${rs.tierLabel(tier)}) → ${agentForRule(c) ?? TIER_MODEL[tier]} 위임 권장 · 적용 범위 제안: ${rs.scopeLabel(c.suggestedScope)}`);
       } else {
         console.log(`  R${c.id}  "${c.labelEn || c.label}" ×${c.count} [${c.project}]`);
-        console.log(`       verdict: ${tier} (${rs.tierLabel(tier, 'en')}) → delegate to ${c.agent} · suggested scope: ${rs.scopeLabel(c.suggestedScope, 'en')}`);
+        console.log(`       verdict: ${tier} (${rs.tierLabel(tier, 'en')}) → delegate to ${agentForRule(c) ?? TIER_MODEL[tier]} · suggested scope: ${rs.scopeLabel(c.suggestedScope, 'en')}`);
       }
       console.log(`       ${lang === 'ko' ? '예시' : 'example'}: "${c.example}"`);
       const mrList = await import('../model-rules.js');

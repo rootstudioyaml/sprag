@@ -31,6 +31,7 @@ import { join, resolve } from 'node:path';
 import { modelPresets as sourceModelPresets } from './presets-source.js';
 import { sharedModelRulesForProject, loadSharedModelRules, sharedProjectRoots, realProjectRoot } from './shared-model-rules.js';
 import { userDataDir } from './paths.js';
+import { agentForRule, TIER_MODEL } from './agents.js';
 import { userLanguage } from './config.js';
 import { writeStateFile } from './state-file.js';
 import {
@@ -130,7 +131,7 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), 
       id: p.id,
       tier: p.tier,
       label: lang === 'ko' ? p.label : p.labelEn,
-      agent: agent === 'codex' ? `Codex ${p.tier} mapping` : p.agent,
+      agent: agent === 'codex' ? `Codex ${p.tier} mapping` : (agentForRule(p) ?? TIER_MODEL[p.tier]),
       ruleText: agent === 'codex' ? codexSeedText(p, lang)
         : composeRuleText(modelRuleBaseText(p, lang), { budget: p.budget }, lang),
       preset: p,
@@ -212,7 +213,9 @@ export async function acceptSeed(id, { scope, root = findProjectRoot(), lang = u
     category: p.category,
     label: p.label,
     labelEn: p.labelEn,
-    agent: p.agent,
+    // A preset names its tier; only a legacy (v1) bundle preset still names an
+    // agent, and that override is kept rather than lost on accept.
+    ...(typeof p.agent === 'string' && p.agent ? { agent: p.agent } : {}),
     scope,
     targetRoot: scope === 'project' ? root : null,
     project,
@@ -276,6 +279,26 @@ export async function resetSeeds({ agent = 'claude' } = {}) {
  * asked for, and because a single "register all of these?" question invites a
  * yes to rules the user never read.
  */
+/**
+ * The first sentence of a rule, for the Codex seed offer. Codex keeps about
+ * 2,000 tokens of a hook's context and drops a part that does not fit whole,
+ * so listing every ratchet rule in full pushed the whole offer out. The offer
+ * only has to say what each rule is about; accepting writes the full text.
+ * A sentence ends at "다." or a full stop followed by whitespace (not an
+ * ellipsis), or at "다" before a newline. Without one, a text over 140
+ * characters is cut at the last space before 140 and marked with "…".
+ */
+export const OFFER_CUT = 140;
+export function firstSentence(text) {
+  const t = String(text ?? '').trim();
+  const m = /(?<!\.)\.(?=\s)|다(?=\n)/.exec(t);
+  if (m && m.index + 1 < t.length) return t.slice(0, m.index + m[0].length).trim();
+  if (t.length <= OFFER_CUT) return t;
+  const head = t.slice(0, OFFER_CUT);
+  const sp = head.lastIndexOf(' ');
+  return `${(sp > 0 ? head.slice(0, sp) : head).trimEnd()}…`;
+}
+
 export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot(), agent = 'claude' } = {}) {
   const pending = pendingSeeds({ lang, root, agent });
   if (pending.length === 0) return null;
@@ -291,7 +314,7 @@ export function seedOfferBlock({ lang = userLanguage(), root = findProjectRoot()
       `  4. Register none: ${cmd('skip all')} (never offered again)`,
       'Always confirm the scope with the user before running an accept command.',
       'Delegation policies are shared across Claude and Codex; approval retains the chosen scope. Codex execution also requires delegate on; tier models resolve from cheaper priced models already run in Codex, or from mappings: sprag delegate shared status --agent codex. Never assume Claude model names are Codex models.',
-      ...pending.map((s) => `  [${s.id}] ${s.ruleText}`),
+      ...pending.map((s) => `  [${s.id}] ${s.kind === 'ratchet' ? firstSentence(s.ruleText) : s.ruleText}`),
     ].join('\n');
   }
   const models = pending.filter((s) => s.kind === 'model');

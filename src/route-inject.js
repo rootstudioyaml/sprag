@@ -34,7 +34,7 @@
 import { categorizeScored, ESCALATE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
 import { loadModelRules, budgetCapPhrase, ruleBudget } from './model-rules.js';
 import { sharedProjectRoots, realProjectRoot, scopeRank } from './shared-model-rules.js';
-import { agentPhrase, agentPhraseEn, resolveAgentName } from './agents.js';
+import { agentPhrase, agentPhraseEn, resolveAgentName, agentForRule, TIER_MODEL } from './agents.js';
 import { userLanguage } from './config.js';
 import { aliasForRole, resolveModelAlias } from './model-alias.js';
 import { isRecognizedModelId, modelRank } from './cost.js';
@@ -263,12 +263,17 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
 
   // T1 is named through its delegation agent only when that file exists here;
   // otherwise the literal tier string stays, so output without agents is unchanged.
+  // A rule names its tier; agentForRule picks the agent that serves it.
   const t1Root = root === undefined ? undefined : root;
-  const tierPhrase = (name) => (resolveAgentName(name, t1Root) !== null ? phrase(name) : `model: ${name}`);
+  const nameOf = (r) => agentForRule(r) ?? TIER_MODEL[r.tier];
+  const tierPhrase = (r) => {
+    const name = nameOf(r);
+    return resolveAgentName(name, t1Root) !== null ? phrase(name) : `model: ${TIER_MODEL[r.tier]}`;
+  };
   const picked = [t2, t1, t1h].filter(Boolean);
   let target;
   if (picked.length >= 2) {
-    const named = (r) => (r.tier === 'T2' ? phrase(r.agent) : tierPhrase(r.tier === 'T1H' ? 'opus' : 'sonnet'));
+    const named = (r) => (r.tier === 'T2' ? phrase(nameOf(r)) : tierPhrase(r));
     const when = (r, i) => {
       if (i === 0) return null;
       if (r.tier === 'T1H') return ko ? '범위가 크면(Fable·Mythos 세션 한정)' : 'for large scope (Fable/Mythos sessions only)';
@@ -279,13 +284,12 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
       : picked.map((r, i) => (i === 0 ? `${named(r)} by default` : `${named(r)} ${when(r, i)}`)).join(', ');
   } else {
     const only = picked[0];
-    target = only.tier === 'T1H' ? tierPhrase('opus') : phrase(only.agent);
+    target = only.tier === 'T1H' ? tierPhrase(only) : phrase(nameOf(only));
   }
 
-  const MODEL_OF = { T2: 'haiku', T1: 'sonnet', T1H: 'opus' };
   const caps = picked.map((r) => budgetCapPhrase(r, lang));
   const capText = picked.length >= 2
-    ? (ko ? '상한 ' : 'cap ') + picked.map((r, i) => `${MODEL_OF[r.tier]} ${caps[i]}`).join(' / ')
+    ? (ko ? '상한 ' : 'cap ') + picked.map((r, i) => `${TIER_MODEL[r.tier]} ${caps[i]}`).join(' / ')
     : (ko ? `상한 ${caps[0]}` : `cap ${caps[0]}`);
 
   // The marker line is the one in ratchet-model.md, so the user sees the same

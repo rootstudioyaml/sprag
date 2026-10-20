@@ -196,13 +196,17 @@ test('a rule line carries exactly one pair of quotes around the work type', () =
 test('every bundled preset is complete and both rule sets share one template', async () => {
   const { modelPresets, ratchetPresets } = await import('../src/seed-rules.js');
   const { modelRuleBaseText } = await import('../src/model-rules.js');
+  const { agentForRule } = await import('../src/agents.js');
   const presets = modelPresets();
   assert.ok(presets.length > 0);
   const ids = new Set();
   for (const p of presets) {
-    for (const k of ['id', 'tier', 'category', 'label', 'labelEn', 'agent', 'example', 'exampleEn']) {
+    for (const k of ['id', 'tier', 'category', 'label', 'labelEn', 'example', 'exampleEn']) {
       assert.ok(p[k], `preset ${p.id} is missing ${k}`);
     }
+    // A preset names its tier only; the agents preset says who serves it.
+    assert.equal(p.agent, undefined, `preset ${p.id} names no agent`);
+    assert.ok(agentForRule(p), `an agent serves preset ${p.id}`);
     assert.ok(['T1', 'T2'].includes(p.tier));
     assert.ok(p.budget && typeof p.budget.out === 'number');
     assert.ok(!ids.has(p.id), `duplicate preset id ${p.id}`);
@@ -219,4 +223,24 @@ test('every bundled preset is complete and both rule sets share one template', a
   }
   const koIds = ratchetPresets('ko').map((r) => r.id);
   assert.deepEqual(ratchetPresets('en').map((r) => r.id), koIds);
+});
+
+test('firstSentence: the Codex seed offer lists each ratchet rule by its first sentence', async () => {
+  const { firstSentence, OFFER_CUT } = await import('../src/seed-rules.js');
+  // two sentences, either language: the first one
+  assert.equal(firstSentence('단순 요청은 T2 티어에 위임한다. 티어는 도구가 해석한다'), '단순 요청은 T2 티어에 위임한다.');
+  assert.equal(firstSentence('Delegate to the T2 tier. Each tool resolves it'), 'Delegate to the T2 tier.');
+  assert.equal(firstSentence('첫 줄에서 끝난다\n둘째 줄'), '첫 줄에서 끝난다');
+  // an ellipsis is not a sentence end
+  assert.equal(firstSentence('Retry with a UA (Mozilla/5.0 ... Chrome/...). Then stop'), 'Retry with a UA (Mozilla/5.0 ... Chrome/...).');
+  // one sentence: unchanged
+  assert.equal(firstSentence('Delegate simple requests to the T2 tier'), 'Delegate simple requests to the T2 tier');
+  assert.equal(firstSentence('하나뿐인 문장이다.'), '하나뿐인 문장이다.');
+  // a long single sentence: cut at a word boundary within 140 characters, marked
+  const long = Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ');
+  const cut = firstSentence(long);
+  assert.ok(cut.endsWith('…'));
+  assert.ok(cut.length <= OFFER_CUT + 1);
+  assert.ok(long.startsWith(cut.slice(0, -1)));
+  assert.equal(long[cut.length - 1], ' ', 'cut on a word boundary');
 });

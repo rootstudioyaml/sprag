@@ -90,7 +90,10 @@ export function bundleShapeError(b) {
   }
   for (const m of mr) {
     if (!m || !ID_RE.test(m.id) || !TIERS.includes(m.tier) || !ID_RE.test(m.category)) return 'shape';
-    if (!str(m.label) || !str(m.labelEn) || !str(m.agent) || !LINE_RE.test(m.agent)) return 'shape';
+    if (!str(m.label) || !str(m.labelEn)) return 'shape';
+    // `agent` is optional: a rule names its tier, and the agents say which tier
+    // and categories they serve. A legacy rule that still names one is checked.
+    if (m.agent != null && (!str(m.agent) || !LINE_RE.test(m.agent))) return 'shape';
     if (m.budget != null && (typeof m.budget !== 'object' || Array.isArray(m.budget))) return 'shape';
   }
   for (const a of ag) {
@@ -98,6 +101,10 @@ export function bundleShapeError(b) {
     if (!Array.isArray(a.tools) || a.tools.length === 0 || a.tools.some((t) => typeof t !== 'string' || !TOOL_RE.test(t))) return 'shape';
     if (!a.description || !LINE_RE.test(a.description.en || '') || (a.description.ko != null && !LINE_RE.test(a.description.ko))) return 'shape';
     if (!a.body || !str(a.body.en)) return 'shape';
+    // tier and categories are optional (a legacy bundle lacks them), checked when present.
+    if (a.tier != null && !TIERS.includes(a.tier)) return 'shape';
+    if (a.categories != null && (!Array.isArray(a.categories) || a.categories.length === 0 ||
+      a.categories.some((c) => c !== '*' && (typeof c !== 'string' || !ID_RE.test(c))))) return 'shape';
   }
   if (!uniq(rr, 'id') || !uniq(mr, 'id') || !uniq(ag, 'name')) return 'shape';
   return null;
@@ -188,12 +195,21 @@ export function modelPresets(opts = {}) {
   return Array.isArray(data?.presets) ? data.presets : [];
 }
 
-/** Delegation agents: [{ name, model, effort, tools[], description{ko,en}, body{ko,en} }] */
+// A legacy bundle has no tier or categories on its agents. Readers get one
+// shape either way: categories always an array, tier a string or null.
+function normaliseAgents(list) {
+  return (Array.isArray(list) ? list : []).filter(Boolean).map((a) => ({
+    ...a,
+    tier: typeof a.tier === 'string' && a.tier ? a.tier : null,
+    categories: Array.isArray(a.categories) ? a.categories.filter((c) => typeof c === 'string') : [],
+  }));
+}
+
+/** Delegation agents: [{ name, model, effort, tier, categories[], tools[], description{ko,en}, body{ko,en} }] */
 export function agentDefinitions(opts = {}) {
   const r = activeRemote(opts);
-  if (r.bundle) return r.bundle.agents.map((a) => ({ ...a }));
-  const data = readBundled('agents.json');
-  return Array.isArray(data?.agents) ? data.agents : [];
+  if (r.bundle) return normaliseAgents(r.bundle.agents);
+  return normaliseAgents(readBundled('agents.json')?.agents);
 }
 
 /** The bundle the bundled files make: the shape the server seeds as version 1. */

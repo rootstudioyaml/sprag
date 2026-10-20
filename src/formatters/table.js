@@ -5,6 +5,7 @@ import { ISSUE_MESSAGES } from '../advice.js';
 import { CLI_NAME } from '../cli-name.js';
 import { formatResetIn, formatResetClock } from '../format-time.js';
 import { labelForKey } from '../window-labels.js';
+import { agentForRule, TIER_MODEL } from '../agents.js';
 
 const C = {
   reset:  '\x1b[0m',
@@ -202,7 +203,7 @@ function renderRoutingSection(routing) {
     lines.push('  No recurring delegable work yet (a pattern needs 3 repeats). Approved rules apply from the next session.');
   } else {
     for (const c of cands) {
-      lines.push(`  R${c.id}  "${c.labelEn || c.label}" ×${c.count}  →  delegate to ${c.agent}`);
+      lines.push(`  R${c.id}  "${c.labelEn || c.label}" ×${c.count}  →  delegate to ${agentForRule(c) ?? TIER_MODEL[c.tier || 'T2']}`);
     }
     lines.push(`  Approve one:  ${b(`${CLI_NAME} harness promote R${cands[0].id} --global`)}      All candidates:  ${b(`${CLI_NAME} route-scan`)}`);
   }

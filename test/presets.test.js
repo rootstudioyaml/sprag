@@ -120,6 +120,20 @@ test('evaluateBundle: shape, size, format, min_cli and key checks', async () => 
   agents[0] = { ...ok.agents[0], description: { en: 'x\ntools: Bash' } };
   assert.equal(bundleShapeError({ ...ok, agents }), 'shape', 'a newline cannot add frontmatter fields');
   assert.equal(bundleShapeError({ ...ok, ratchet_rules: [...ok.ratchet_rules, { ...ok.ratchet_rules[0] }] }), 'shape', 'duplicate ids');
+  // A model rule names its tier; `agent` is optional and checked when present.
+  const tierOnly = ok.model_rules[0];
+  assert.equal(tierOnly.agent, undefined);
+  assert.equal(bundleShapeError({ ...ok, model_rules: [tierOnly, ...ok.model_rules.slice(1)] }), null, 'a model rule without agent');
+  assert.equal(bundleShapeError({ ...ok, model_rules: [{ ...tierOnly, agent: 'haiku-runner' }, ...ok.model_rules.slice(1)] }), null, 'a legacy rule with agent');
+  assert.equal(bundleShapeError({ ...ok, model_rules: [{ ...tierOnly, agent: 'x\ny' }, ...ok.model_rules.slice(1)] }), 'shape', 'a legacy agent is still one line');
+  // An agent's tier and categories are optional (a legacy bundle lacks them), checked when present.
+  const withAgent = (over) => ({ ...ok, agents: [{ ...ok.agents[0], ...over }, ...ok.agents.slice(1)] });
+  assert.equal(bundleShapeError(withAgent({ tier: 'T3' })), 'shape', 'tier outside TIERS');
+  assert.equal(bundleShapeError(withAgent({ categories: [] })), 'shape', 'empty categories');
+  assert.equal(bundleShapeError(withAgent({ categories: ['Bad Id'] })), 'shape', 'a category that is not an id');
+  assert.equal(bundleShapeError(withAgent({ categories: ['*'] })), null, '"*" covers every category');
+  const { tier: _t, categories: _c, ...legacyAgent } = ok.agents[0];
+  assert.equal(bundleShapeError({ ...ok, agents: [legacyAgent, ...ok.agents.slice(1)] }), null, 'a legacy agent without tier or categories');
   assert.equal(compareVersions('3.71.0', '3.70.9'), 1);
   assert.equal(compareVersions('3.71.0', '3.71.0-beta.1'), 0);
 });
@@ -169,6 +183,30 @@ test('resolution: remote wins only while valid, everything else falls back to th
   mkdirSync(garbage, { recursive: true });
   writeFileSync(remoteCachePath(garbage), '{not json');
   assert.equal(presetSource({ env, dir: garbage, keys }).kind, 'bundled');
+});
+
+test('agentDefinitions: a legacy bundle\'s agents read with categories [] and tier null', async (t) => {
+  const PS = browserSign();
+  const key = await PS.generate();
+  const keys = [{ kid: key.kid, jwk: key.publicJwk }];
+  const legacy = bundledBundle({ version: 2, minCli: '3.0.0' });
+  legacy.agents = legacy.agents.map(({ tier, categories, ...a }) => a);
+  legacy.sig = await PS.sign(legacy, key);
+  const dir = sandboxDir(t);
+  writeCache(dir, legacy);
+  const read = agentDefinitions({ env: {}, dir, keys });
+  assert.equal(read.length, legacy.agents.length);
+  for (const a of read) {
+    assert.equal(a.tier, null);
+    assert.deepEqual(a.categories, []);
+  }
+});
+
+test('bundled presets: no ratchet rule is scoped to one tool, no model rule names an agent', () => {
+  const ratchet = JSON.parse(readFileSync(join(ROOT, 'presets', 'ratchet-rules.json'), 'utf8')).rules;
+  for (const r of ratchet) assert.equal(r.agents, undefined, `${r.id} carries no agents scope`);
+  const model = JSON.parse(readFileSync(join(ROOT, 'presets', 'model-rules.json'), 'utf8')).presets;
+  for (const m of model) assert.equal(m.agent, undefined, `${m.id} names no agent`);
 });
 
 /** A fetch double for the two RPCs; `fail` makes every call reject like a blocked network. */
@@ -263,7 +301,7 @@ test('bundled files: presets/agents.json and the export have the bundle shape, a
   const agentsFile = JSON.parse(readFileSync(join(ROOT, 'presets', 'agents.json'), 'utf8'));
   assert.deepEqual(agentsFile.agents, b.agents);
   for (const a of agentsFile.agents) {
-    assert.deepEqual(Object.keys(a).sort(), ['body', 'description', 'effort', 'model', 'name', 'tools']);
+    assert.deepEqual(Object.keys(a), ['name', 'model', 'effort', 'tier', 'categories', 'tools', 'description', 'body']);
     for (const k of ['description', 'body']) {
       assert.ok(a[k].en && a[k].ko, `${a.name} ${k} has both languages`);
       assert.doesNotMatch(a[k].en, /[가-힣]/);

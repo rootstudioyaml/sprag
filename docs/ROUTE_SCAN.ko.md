@@ -28,6 +28,8 @@
 
 `~/.claude/agents/`에 `model: haiku` 서브에이전트(예: haiku-explore, haiku-runner, haiku-translate)와 `model: sonnet` 범용 서브에이전트를 만들어 두면, 룰을 등록하자마자 바로 실행할 수 있습니다.
 
+룰에는 카테고리와 티어(T2, T1, T1H)만 적고 에이전트 이름은 적지 않습니다. 프리셋의 위임 에이전트마다 맡는 `tier`와 `categories`(모든 카테고리면 `*`)가 있어서, Claude는 조건이 맞는 첫 에이전트에 위임합니다. 명령 실행은 haiku-runner, 탐색·읽기·상태 확인·붙여넣은 로그는 haiku-explore, T1은 sonnet-worker, T1H는 opus-worker가 맡습니다. 그 에이전트 파일이 없으면 룰에는 `model: <별칭>`이 들어갑니다. Codex는 같은 티어를 읽고 그 티어에 매핑된 모델을 씁니다.
+
 ## 🔀 route-scan: "이 반복 작업은 더 싼 티어로 내려도 됩니다"
 
 세션 로그에서 상위 모델(opus/fable)이 반복 처리해 온 쉬운 작업을 찾아 **haiku/sonnet 위임 룰로 승격**하자고 제안합니다. 전 과정이 로컬에서 돌아가고 토큰 비용은 0입니다.
