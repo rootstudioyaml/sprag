@@ -9,7 +9,8 @@ import assert from 'node:assert';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { agentExists, agentPhrase, agentPhraseEn, agentForRule, resolveAgentName, LEGACY_AGENT_NAMES, TIER_MODEL } from '../src/agents.js';
+import { agentExists, agentPhrase, agentPhraseEn, agentForRule, agentSpec, modelLabel, resolveAgentName, LEGACY_AGENT_NAMES, TIER_MODEL } from '../src/agents.js';
+import { renderModelRatchet } from '../src/model-rules.js';
 import { readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,8 +46,8 @@ test('user-level agent file is named, and the model argument left to its definit
   writeFileSync(join(home, '.claude', 'agents', 't2-runner.md'), '---\nmodel: haiku\n---\n');
   // The agent's definition holds its model; passing a `model` argument would
   // override a definition pinned to a full id with the bare alias.
-  assert.strictEqual(agentPhrase('t2-runner', { root }), 't2-runner(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: haiku)');
-  assert.strictEqual(agentPhraseEn('t2-runner', { root }), 'the t2-runner subagent (omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: haiku)');
+  assert.strictEqual(agentPhrase('t2-runner', { root }), 't2-runner(haiku. model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: haiku)');
+  assert.strictEqual(agentPhraseEn('t2-runner', { root }), 'the t2-runner subagent (haiku; omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: haiku)');
 });
 
 test('project-level agent counts too', (t) => {
@@ -54,7 +55,7 @@ test('project-level agent counts too', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'cts-proj-'));
   mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
   writeFileSync(join(root, '.claude', 'agents', 't1-worker.md'), '---\nmodel: sonnet\n---\n');
-  assert.strictEqual(agentPhrase('t1-worker', { root }), 't1-worker(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: sonnet)');
+  assert.strictEqual(agentPhrase('t1-worker', { root }), 't1-worker(sonnet. model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: sonnet)');
   // Unknown agent name defaults to the haiku tier unless told otherwise.
   assert.strictEqual(agentPhrase('mystery', { root }), 'model: haiku');
   assert.strictEqual(agentPhrase('mystery', { root, model: 'sonnet' }), 'model: sonnet');
@@ -121,7 +122,7 @@ test('resolveAgentName maps a legacy name to the new file, and falls back to an 
   // Only the legacy file is installed (a user-edited copy sprag never removed).
   writeFileSync(join(dir, 'haiku-runner.md'), '---\nmodel: haiku\n---\n');
   assert.strictEqual(resolveAgentName('haiku-runner', root), 'haiku-runner');
-  assert.strictEqual(agentPhrase('haiku-runner', { root }), 'haiku-runner(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: haiku)');
+  assert.strictEqual(agentPhrase('haiku-runner', { root }), 'haiku-runner(haiku. model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: haiku)');
   writeFileSync(join(dir, 'sonnet-worker.md'), '---\nmodel: sonnet\n---\n');
   assert.match(agentPhrase('sonnet-worker', { root }), /model: sonnet\)$/);
   // The new file wins as soon as it exists.
@@ -136,4 +137,54 @@ test('presets/agents.json names the agent by tier, never by model', () => {
   assert.strictEqual(agents.length, 5);
   for (const a of agents) assert.match(a.name, /^t(1h|1|2)-[a-z]+$/, a.name);
   for (const a of agents) assert.ok(!/needs general-purpose/.test(JSON.stringify(a.body)), `${a.name} body is tool-neutral`);
+});
+
+test('the phrase shows the model and effort the installed agent file pins', (t) => {
+  const home = isolatedHome(t);
+  const root = mkdtempSync(join(tmpdir(), 'cts-proj-'));
+  const dir = join(home, '.claude', 'agents');
+  mkdirSync(dir, { recursive: true });
+  // Claude Code draws a delegated run as `t1-worker(…)` only, so the phrase is
+  // the one place the real model and effort can come from.
+  writeFileSync(join(dir, 't1-worker.md'), '---\nname: t1-worker\nmodel: claude-sonnet-5-5\neffort: medium\n---\nbody\n');
+  assert.deepStrictEqual(agentSpec('t1-worker', root), { model: 'claude-sonnet-5-5', effort: 'medium' });
+  assert.strictEqual(agentPhrase('t1-worker', { root }), 't1-worker(Sonnet 5.5 · effort medium. model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: sonnet)');
+  assert.strictEqual(agentPhraseEn('t1-worker', { root }), 'the t1-worker subagent (Sonnet 5.5, effort medium; omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: sonnet)');
+  // A project copy is what Claude Code runs, so it wins over the user copy.
+  mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
+  writeFileSync(join(root, '.claude', 'agents', 't1-worker.md'), '---\nmodel: claude-opus-5-5\neffort: high\n---\n');
+  assert.deepStrictEqual(agentSpec('t1-worker', root), { model: 'claude-opus-5-5', effort: 'high' });
+  // The global file is worded from the user directory alone.
+  assert.deepStrictEqual(agentSpec('t1-worker', null), { model: 'claude-sonnet-5-5', effort: 'medium' });
+});
+
+test('agentSpec: no model means inherit, no frontmatter means unknown', (t) => {
+  const home = isolatedHome(t);
+  const root = mkdtempSync(join(tmpdir(), 'cts-proj-'));
+  const dir = join(home, '.claude', 'agents');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 't2-runner.md'), '---\nname: t2-runner\neffort: low\n---\n');
+  assert.deepStrictEqual(agentSpec('t2-runner', root), { model: 'inherit', effort: 'low' });
+  writeFileSync(join(dir, 't2-explore.md'), 'no frontmatter\n');
+  assert.strictEqual(agentSpec('t2-explore', root), null);
+  assert.strictEqual(agentPhrase('t2-explore', { root }), 't2-explore(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: haiku)');
+  assert.strictEqual(agentSpec('absent', root), null);
+});
+
+test('modelLabel names a full id and leaves an alias as written', () => {
+  assert.strictEqual(modelLabel('claude-sonnet-5-5'), 'Sonnet 5.5');
+  assert.strictEqual(modelLabel('claude-haiku-4-5-20251001'), 'Haiku 4.5');
+  // An alias may resolve to an older model, so it is shown untouched.
+  assert.strictEqual(modelLabel('sonnet'), 'sonnet');
+  assert.strictEqual(modelLabel('inherit'), 'inherit');
+});
+
+test('the ratchet header asks for the model and effort on the marker line and the Agent description', (t) => {
+  isolatedHome(t);
+  const ko = renderModelRatchet([], 'ko', { root: null });
+  assert.ok(ko.includes('`🔀 [sprag] 모델 피팅: "<유형>" → <agent> (<모델> · effort <effort>) 위임`'));
+  assert.ok(ko.includes('`[<모델> · <effort>]`'));
+  const en = renderModelRatchet([], 'en', { root: null });
+  assert.ok(en.includes('→ delegated to <agent> (<model> · effort <effort>)`'));
+  assert.ok(en.includes('`[<model> · <effort>]`'));
 });

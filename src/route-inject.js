@@ -296,9 +296,11 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
   // string whichever path decided to delegate.
   return ko
     ? `[sprag] 이 요청은 사용자가 이미 승인한 위임 룰 "${label}" 에 해당합니다: ${target} 로 위임하십시오 (${capText}). `
-      + `되묻지 말고 위임하고, 위임할 때 \`🔀 [sprag] 모델 피팅: "${label}" → <agent> 위임\` 을 먼저 표시하십시오. `
+      + `되묻지 말고 위임하고, 위임할 때 \`🔀 [sprag] 모델 피팅: "${label}" → <agent> (<모델> · effort <effort>) 위임\` 을 먼저 표시하십시오. `
+      + `모델과 effort 값은 위 에이전트 표기에 적힌 그대로 쓰고, Agent 도구의 description 맨 앞에도 \`[<모델> · <effort>]\` 를 붙이십시오. `
       + `상한을 넘길 것 같거나 에러가 나면 그 자리에서 멈추고 메인 모델이 이어받습니다.`
     : `[sprag] This request matches a delegation rule the user already approved — "${label}": delegate to ${target} (${capText}). `
-      + `Do not ask again; print \`🔀 [sprag] model fit: "${label}" → <agent>\` first. `
+      + `Do not ask again; print \`🔀 [sprag] model fit: "${label}" → <agent> (<model> · effort <effort>)\` first, `
+      + `with the model and effort the agent's phrase above gives, and start the Agent tool's description with \`[<model> · <effort>]\`. `
       + `If the run is likely to exceed its cap or hits an error, stop there and the main model takes over.`;
 }
