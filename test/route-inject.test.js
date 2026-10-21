@@ -76,6 +76,22 @@ test('an installed subagent is named, not just its model tier', (t) => {
   assert.match(out, /기본 t2-explore\(model 인자 생략\./, 'the agent is named when it is installed');
 });
 
+test('the hint carries the agent file model and effort, and asks for them on the Agent description', (t) => {
+  // Claude Code shows a delegated run as `t2-explore(…)` alone; the tier name
+  // says nothing about which model or effort actually ran.
+  const root = mkdtempSync(join(tmpdir(), 'cts-agents-'));
+  mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
+  writeFileSync(join(root, '.claude', 'agents', 't2-explore.md'), '---\nmodel: claude-haiku-5-5\neffort: low\n---\n');
+  t.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+
+  const out = withoutUserAgents(() => routeHint('지금 실행 중인 버전이 뭔지 확인해줘', { rules, lang: 'ko', root }));
+  assert.match(out, /기본 t2-explore\(Haiku 5\.5 · effort low\. model 인자 생략\./);
+  assert.match(out, /→ <agent> \(<모델> · effort <effort>\) 위임/);
+  assert.match(out, /description 맨 앞에도 `\[<모델> · <effort>\]`/);
+  const en = withoutUserAgents(() => routeHint('check which version is running right now', { rules, lang: 'en', root }));
+  if (en) assert.match(en, /start the Agent tool's description with `\[<model> · <effort>\]`/);
+});
+
 test('one registered tier means one target, not an invented pair', () => {
   const out = hint('이 설정값이 어느 파일에 있는지 찾아줘', {
     rules: rules.filter((r) => r.category === 'explore'),

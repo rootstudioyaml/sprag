@@ -114,8 +114,8 @@ test('agentPhrase for the sonnet tier follows the t1-worker file', (t) => {
   assert.equal(en(), 'a model: sonnet subagent');
   mkdirSync(s.agents, { recursive: true });
   writeFileSync(s.file('t1-worker'), '---\nmodel: sonnet\n---\n');
-  assert.equal(ko(), 't1-worker(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: sonnet)');
-  assert.equal(en(), 'the t1-worker subagent (omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: sonnet)');
+  assert.equal(ko(), 't1-worker(sonnet. model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: sonnet)');
+  assert.equal(en(), 'the t1-worker subagent (sonnet; omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: sonnet)');
 });
 
 test('CLI: session-start hook installs the agents, delegate agents off/on removes and restores them', (t) => {

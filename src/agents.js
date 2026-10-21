@@ -16,7 +16,7 @@
  * directory and a copied rule would otherwise name an agent that is not there.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { claudeUserDir } from './paths.js';
 import { agentDefinitions } from './presets-source.js';
@@ -134,7 +134,8 @@ export function agentPhrase(name, { model, root } = {}) {
   const resolved = resolveAgentName(name, root);
   if (!resolved) return `model: ${model || modelOf(name) || 'haiku'}`;
   const tier = modelOf(resolved) || model || 'haiku';
-  return `${resolved}(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: ${tier})`;
+  const spec = agentSpecLabel(resolved, root);
+  return `${resolved}(${spec ? `${spec}. ` : ''}model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: ${tier})`;
 }
 
 /**
@@ -146,5 +147,52 @@ export function agentPhraseEn(name, { model, root } = {}) {
   const resolved = resolveAgentName(name, root);
   if (!resolved) return `a model: ${model || modelOf(name) || 'haiku'} subagent`;
   const tier = modelOf(resolved) || model || 'haiku';
-  return `the ${resolved} subagent (omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: ${tier})`;
+  const spec = agentSpecLabel(resolved, root, ', ');
+  return `the ${resolved} subagent (${spec ? `${spec}; ` : ''}omit the model argument; if it is unavailable or MCP tools are needed, use general-purpose with model: ${tier})`;
+}
+
+/**
+ * The model and effort an installed agent file really pins, read from its
+ * frontmatter, or null when the file has none.
+ *
+ * The agent name says only the tier (`t1-worker`), and Claude Code draws a
+ * delegated run as `t1-worker(…)` with no model beside it. The phrase carries
+ * what the file says so the session can show it. The file is read rather
+ * than the preset because a user's own copy is never overwritten, and it may
+ * pin something else. A file without `model:` inherits the session model,
+ * which Claude Code writes as `inherit`.
+ */
+export function agentSpec(name, root = process.cwd()) {
+  const paths = [];
+  if (root !== null) paths.push(join(root, '.claude', 'agents', `${name}.md`));
+  paths.push(join(claudeUserDir(), 'agents', `${name}.md`));
+  for (const p of paths) {
+    let text;
+    try { text = readFileSync(p, 'utf8'); } catch { continue; }
+    const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+    if (!m) return null;
+    const field = (key) => {
+      const hit = new RegExp(`^${key}:[ \\t]*(.*?)[ \\t]*$`, 'm').exec(m[1]);
+      return hit && hit[1] ? hit[1] : null;
+    };
+    return { model: field('model') || 'inherit', effort: field('effort') };
+  }
+  return null;
+}
+
+/**
+ * Display name for a model value: `claude-sonnet-5-5` → `Sonnet 5.5`, a dated
+ * id loses its date. An alias or a gateway id stays as written, since an alias
+ * can resolve to an older model and that is worth seeing.
+ */
+export function modelLabel(model) {
+  const m = /^claude-([a-z]+)-(\d+)-(\d+)(?:-\d{8})?$/.exec(String(model || ''));
+  return m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}` : String(model || '');
+}
+
+/** `Sonnet 5.5 · effort medium` for an installed agent, or '' when unknown. */
+function agentSpecLabel(name, root, sep = ' · ') {
+  const spec = agentSpec(name, root);
+  if (!spec) return '';
+  return spec.effort ? `${modelLabel(spec.model)}${sep}effort ${spec.effort}` : modelLabel(spec.model);
 }
