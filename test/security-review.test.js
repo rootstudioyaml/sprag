@@ -66,6 +66,18 @@ test('the user-level apiKeyHelper still runs wherever the CLI is started', () =>
   rmSync(join(home, '.claude', 'settings.json'));
 });
 
+test('the apiKeyHelper is told not to open a login window, since the refresh runs with nobody watching', () => {
+  const root = join(home, 'noninteractive');
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  mkdirSync(root, { recursive: true });
+  const helper = join(root, 'helper.cjs');
+  writeFileSync(helper, `console.log('token-' + (process.env.APIKEY_HELPER_NONINTERACTIVE || 'unset'));\n`);
+  writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ apiKeyHelper: `node "${helper}"` }));
+  assert.equal(keyFromApiKeyHelper(root), 'token-1');
+  assert.equal(process.env.APIKEY_HELPER_NONINTERACTIVE, undefined, 'the flag must not leak into this process');
+  rmSync(join(home, '.claude', 'settings.json'));
+});
+
 test('the doc2md hook answers the permission question only when it refuses', () => {
   const note = JSON.parse(doc2md.formatHookOutput({ deny: false, reason: '[doc2md] could not convert, reading the original' }));
   assert.deepEqual(note.hookSpecificOutput, {
