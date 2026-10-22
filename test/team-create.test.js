@@ -5,8 +5,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, mkdirSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdtempSync, rmSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import {
   requestSignInCode, verifySignInCode, createTeam, joinTeam, loadTeamState, saveTeamState, teamStatePath,
@@ -14,6 +14,7 @@ import {
 } from '../src/team-sync.js';
 import { userDataDir } from '../src/paths.js';
 import { run } from '../src/commands/team.js';
+import { memberIdPath } from '../src/member-id.js';
 
 const TOKEN = 'spt_' + 'b'.repeat(32);
 const ACCESS = 'access-token-xyz';
@@ -59,8 +60,8 @@ const happy = () => mockFetch({
 });
 
 /** Runs the command with a fake process.exit/console; returns exit code and output. */
-async function runCreate(argv, { fetch, interactive = false, ask } = {}) {
-  const args = ['team', 'create', ...argv];
+async function runCreate(argv, { fetch, interactive = false, ask, verb = 'create' } = {}) {
+  const args = ['team', verb, ...argv];
   const getArg = (n) => { const i = args.indexOf(n); return i >= 0 && i + 1 < args.length ? args[i + 1] : undefined; };
   const hasFlag = (n) => args.includes(n);
   const lines = []; const errs = [];
@@ -259,4 +260,30 @@ test('status prints the organization name when the state has it', async (t) => {
   try { await run({ args, hasFlag: (n) => args.includes(n), getArg: () => undefined, version: '0.0.0' }); }
   finally { console.log = origLog; }
   assert.ok(lines.some((l) => l.includes('Acme Org')));
+});
+
+test('join without --name sends a random member id, not the OS user name', async (t) => {
+  isolate(t);
+  const f = happy();
+  const r = await runCreate([TOKEN, '--yes'], { fetch: f, verb: 'join' });
+  assert.equal(r.code, 0);
+  const call = f.calls.find((c) => c.path === '/rest/v1/rpc/team_join');
+  assert.match(call.body.display_name, /^member-[0-9a-f]{8}$/);
+  assert.notEqual(call.body.display_name, userInfo().username);
+});
+
+test('create without --code (no TTY) proposes a team name from the member id, not the OS user name', async (t) => {
+  isolate(t);
+  const r = await runCreate(['--email', 'x@example.com'], { fetch: happy() });
+  assert.equal(r.code, 0);
+  assert.match(r.out, /member-[0-9a-f]{8}'s team/);
+  assert.ok(!r.out.includes(`${userInfo().username}'s team`));
+});
+
+test('status for a joined state does not create the member-id file', async (t) => {
+  isolate(t);
+  saveTeamState({ version: 1, memberKey: 'spk_k', teamName: 'Acme', plan: 'team', displayName: 'member-0a1b2c3d' });
+  const r = await runCreate([], { verb: 'status' });
+  assert.equal(r.code, 0);
+  assert.equal(existsSync(memberIdPath()), false);
 });

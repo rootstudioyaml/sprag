@@ -17,6 +17,9 @@ import {
   upgradeCommand,
   maybeSpawnUpdateCheck,
   releaseHighlights,
+  npmRegistry,
+  latestUrl,
+  refreshUpdateState,
 } from '../src/update-check.js';
 import { formatReport, formatNoSession } from '../src/formatters/statusline.js';
 
@@ -166,7 +169,7 @@ test('the upgrade command matches how the copy was installed', () => {
 });
 
 test('the registry check always asks about the canonical package name', async (t) => {
-  isolated(t);
+  const home = isolated(t);
   const { refreshUpdateState, CANONICAL_PACKAGE_NAME, INSTALLED_UNDER_LEGACY_NAME } =
     await import('../src/update-check.js');
   const prevFetch = globalThis.fetch;
@@ -179,7 +182,7 @@ test('the registry check always asks about the canonical package name', async (t
       : { ok: true, status: 200, json: async () => ({ body: '- Something new.' }) };
   };
   t.after(() => { globalThis.fetch = prevFetch; });
-  const r = await refreshUpdateState('3.43.0');
+  const r = await refreshUpdateState('3.43.0', { env: {}, home });
   assert.equal(r.ok, true);
   assert.equal(r.latest, '9.9.9');
   assert.equal(CANONICAL_PACKAGE_NAME, 'sprag-cli');
@@ -196,7 +199,7 @@ test('the registry check always asks about the canonical package name', async (t
 });
 
 test('the notes request is skipped when there is no upgrade to describe', async (t) => {
-  isolated(t);
+  const home = isolated(t);
   const { refreshUpdateState } = await import('../src/update-check.js');
   const prevFetch = globalThis.fetch;
   const urls = [];
@@ -206,12 +209,12 @@ test('the notes request is skipped when there is no upgrade to describe', async 
   };
   t.after(() => { globalThis.fetch = prevFetch; });
   // Already current: nothing to sell, so nothing to fetch.
-  await refreshUpdateState('3.43.0');
+  await refreshUpdateState('3.43.0', { env: {}, home });
   assert.deepEqual(urls, ['https://registry.npmjs.org/sprag-cli/latest']);
 });
 
 test('a failed notes request still records the new version', async (t) => {
-  isolated(t);
+  const home = isolated(t);
   const { refreshUpdateState, updateStatus } = await import('../src/update-check.js');
   const prevFetch = globalThis.fetch;
   globalThis.fetch = async (url) => (String(url).includes('registry.npmjs.org')
@@ -220,7 +223,7 @@ test('a failed notes request still records the new version', async (t) => {
   t.after(() => { globalThis.fetch = prevFetch; });
   // Rate limits, an unreleased tag, a release written as prose: none of these
   // may cost the user the notice itself.
-  const r = await refreshUpdateState('3.43.0');
+  const r = await refreshUpdateState('3.43.0', { env: {}, home });
   assert.equal(r.ok, true);
   assert.equal(r.latest, '9.9.9');
   const st = updateStatus('3.43.0');
@@ -410,4 +413,88 @@ test('the notes request goes to this repository only, and only for a version', a
     assert.deepEqual(await fetchHighlights(bogus), [], `${bogus} must not be requested`);
   }
   assert.equal(urls.length, 1, 'and no second request was made');
+});
+
+test('npmRegistry prefers env, then the registry= line of .npmrc, then npmjs', () => {
+  const NEXUS = 'https://nexus.aws-bithumb.com/repository/npm-group/';
+  const rc = [
+    '# a comment',
+    '; another comment',
+    '@acme:registry=https://scoped.example.com/',
+    '//nexus.aws-bithumb.com/:_authToken=secret',
+    '  registry = ' + NEXUS + '  ',
+    'registry=https://second.example.com/',
+  ].join('\n');
+  const readText = () => rc;
+  assert.equal(npmRegistry({ env: {}, readText, home: '/h' }), NEXUS);
+  assert.equal(npmRegistry({ env: { npm_config_registry: 'https://a.example.com/' }, readText, home: '/h' }), 'https://a.example.com/');
+  assert.equal(npmRegistry({ env: { NPM_CONFIG_REGISTRY: 'https://b.example.com/' }, readText, home: '/h' }), 'https://b.example.com/');
+  assert.equal(
+    npmRegistry({ env: { npm_config_registry: 'https://a.example.com/', NPM_CONFIG_REGISTRY: 'https://b.example.com/' }, readText }),
+    'https://a.example.com/',
+  );
+  // Scoped lines and comments alone do not count.
+  assert.equal(
+    npmRegistry({ env: {}, readText: () => '@acme:registry=https://scoped.example.com/\n# registry=https://c.example.com/\n', home: '/h' }),
+    'https://registry.npmjs.org/',
+  );
+  // No file: the default.
+  assert.equal(npmRegistry({ env: {}, readText: () => { throw new Error('ENOENT'); }, home: '/h' }), 'https://registry.npmjs.org/');
+});
+
+test('latestUrl builds the dist-tag URL under the registry base and refuses anything but https', () => {
+  const want = 'https://nexus.aws-bithumb.com/repository/npm-group/sprag-cli/latest';
+  assert.equal(latestUrl('https://nexus.aws-bithumb.com/repository/npm-group/').href, want);
+  assert.equal(latestUrl('https://nexus.aws-bithumb.com/repository/npm-group').href, want);
+  assert.equal(latestUrl('https://registry.npmjs.org/').href, 'https://registry.npmjs.org/sprag-cli/latest');
+  assert.throws(() => latestUrl('http://registry.example.com/'), /refusing to request/);
+  assert.throws(() => latestUrl('file:///tmp/registry/'), /refusing to request/);
+});
+
+test('refreshUpdateState asks the configured registry and does not fall back to npmjs', async (t) => {
+  const home = isolated(t);
+  const prevFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    return { ok: true, status: 200, json: async () => ({ version: '3.43.0' }) };
+  };
+  t.after(() => { globalThis.fetch = prevFetch; });
+  const env = { npm_config_registry: 'https://nexus.aws-bithumb.com/repository/npm-group/' };
+  const r = await refreshUpdateState('3.43.0', { env, home });
+  assert.equal(r.ok, true);
+  assert.deepEqual(urls, ['https://nexus.aws-bithumb.com/repository/npm-group/sprag-cli/latest']);
+
+  // A failing mirror is a failure, not a reason to ask npmjs.
+  urls.length = 0;
+  globalThis.fetch = async (url) => { urls.push(String(url)); return { ok: false, status: 503, json: async () => ({}) }; };
+  const bad = await refreshUpdateState('3.43.0', { env, home });
+  assert.equal(bad.ok, false);
+  assert.deepEqual(urls, ['https://nexus.aws-bithumb.com/repository/npm-group/sprag-cli/latest']);
+});
+
+test('refreshUpdateState reads registry= from the .npmrc under the given home', async (t) => {
+  const home = isolated(t);
+  writeFileSync(join(home, '.npmrc'), 'registry=https://mirror.example.com/npm/\n');
+  const prevFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => { urls.push(String(url)); return { ok: true, status: 200, json: async () => ({ version: '3.43.0' }) }; };
+  t.after(() => { globalThis.fetch = prevFetch; });
+  await refreshUpdateState('3.43.0', { env: {}, home });
+  assert.deepEqual(urls, ['https://mirror.example.com/npm/sprag-cli/latest']);
+});
+
+test('npmRegistry strips one pair of matching quotes from .npmrc and env values', () => {
+  const rc = (text) => npmRegistry({ env: {}, readText: () => text, home: '/h' });
+  assert.equal(rc('registry="https://a.example.com/npm/"\n'), 'https://a.example.com/npm/');
+  assert.equal(rc("registry='https://b.example.com/npm/'\n"), 'https://b.example.com/npm/');
+  assert.equal(npmRegistry({ env: { npm_config_registry: '"https://c.example.com/"' }, home: '/h' }), 'https://c.example.com/');
+});
+
+test('latestUrl errors never include credentials', () => {
+  assert.throws(() => latestUrl('http://user:secret@nexus.example.com/repo/'), (e) => {
+    assert.match(e.message, /refusing to request/);
+    assert.ok(!e.message.includes('secret'));
+    return true;
+  });
 });

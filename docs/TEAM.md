@@ -16,14 +16,14 @@ After you join, Sprag uploads one row per local calendar day:
 | Model-family share | the share of those runs that went to each model family |
 | Sprag version | the installed version |
 | Agent | `claude` or `codex` |
-| Display name | the name you chose at join; the default is your OS user name |
-| Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04) and CPU architecture (arm64 or x64); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
+| Display name | the name you chose at join; the default is a random member ID such as `member-3f9a2c71`, created once per machine |
+| Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
 
 Not sent: prompts, transcripts, file paths, project names, rule text, API keys. The one exception is the opt-in prompt upload of an Enterprise team with prompt capture on, described under "Prompt usage (Enterprise)". A rule leaves your machine only when you run `sprag team propose` yourself.
 
 The daily aggregate upload runs at most once every 6 hours after the last successful one, from a detached child process that the SessionStart hook (and the prompt hook, which only reads a small local file) spawns. If a sync fails, for example because the network is down, it is retried after 15, then 30, then 60 minutes (60 at most) instead of waiting 6 hours. The CLI remembers the last day it uploaded and re-sends from the day before it, up to 30 days, so a machine that was offline for days catches up on its first successful sync. Re-sending a day is safe because each day is an upsert. The prompt upload of an Enterprise team with capture on has its own 30-minute timer (see "Prompt usage (Enterprise)"). It never runs on the statusline path.
 
-Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only) and `member_set_sync` (the upload-switch status call, see "The upload switch"); `sprag team create` also calls `team_create` with your sign-in session.
+Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only), `member_set_sync` (the upload-switch status call, see "The upload switch") and `member_set_info` (OS name and version; the `arch` argument is always empty); `sprag team create` also calls `team_create` with your sign-in session.
 
 ## Create a team from the CLI
 
@@ -55,7 +55,7 @@ An owner or admin gives you an invite token. Then:
 sprag team join <token> --name "Mina"
 ```
 
-Sprag prints the list of what will be uploaded and asks for confirmation. `--name` sets the display name (default: your OS user name). In a shell without a terminal, pass `--yes` to confirm. If you leave the token out, Sprag reads `SPRAG_TEAM_TOKEN`.
+Sprag prints the list of what will be uploaded and asks for confirmation. `--name` sets the display name (default: a random member ID like `member-3f9a2c71`, created once per machine and kept in the user data dir, so it is the same on every join from that machine). Members who joined before this change keep the name already stored on the server. In a shell without a terminal, pass `--yes` to confirm. If you leave the token out, Sprag reads `SPRAG_TEAM_TOKEN`.
 
 Check the result with `sprag team status`.
 
