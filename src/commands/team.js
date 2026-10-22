@@ -45,7 +45,7 @@ const T = {
     badOrg: '--org needs an organization id.',
     left: 'Left the team. Nothing is uploaded any more.',
     notJoined: 'Not in a team. Join with: sprag team join <token>',
-    team: 'Team', plan: 'Plan', capture: 'Prompt capture', name: 'Display name', memberId: 'Member ID',
+    team: 'Team', plan: 'Plan', capture: 'Prompt capture', name: 'Display name',
     lastSync: (t, n) => `Last sync: ${t} (${n} rows)`,
     neverSynced: 'Last sync: never',
     lastError: 'Last error',
@@ -108,7 +108,7 @@ const T = {
     badOrg: '--org 에는 조직 ID 가 필요합니다',
     left: '팀에서 나왔습니다. 이제 아무것도 업로드하지 않습니다.',
     notJoined: '참여한 팀이 없습니다. 참여하려면: sprag team join <토큰>',
-    team: '팀', plan: '플랜', capture: '프롬프트 수집', name: '표시 이름', memberId: '구성원 ID',
+    team: '팀', plan: '플랜', capture: '프롬프트 수집', name: '표시 이름',
     lastSync: (t, n) => `마지막 동기화: ${t} (${n}행)`,
     neverSynced: '마지막 동기화: 아직 없음',
     lastError: '마지막 오류',
@@ -252,7 +252,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
           if (!process.stdin.isTTY || !process.stdout.isTTY) { console.error(m.needYes); return process.exit(2); }
           if (!(await confirm(m.ask))) { out(m.aborted); return undefined; }
         }
-        const st = await joinTeam({ token, displayName: name, version });
+        const st = await joinTeam({ token, displayName: name, fetch, version });
         out(m.joined(st.teamName));
         if (st.orgName && st.seatsUsed != null && st.seatLimit != null) out(m.orgCreated(st.orgName, st.seatsUsed, st.seatLimit));
         return undefined;
@@ -272,7 +272,6 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
           out(st.lastPromptUploadAt ? m.lastPrompts(new Date(st.lastPromptUploadAt).toLocaleString(), st.lastPromptCount || 0) : m.noPrompts);
         }
         out(`${m.name}: ${st.displayName}`);
-        out(`${m.memberId}: ${memberId()}`);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(`${m.lastError}: ${st.lastError}`);
         if (hasFlag('--show-payload')) {
