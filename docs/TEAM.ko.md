@@ -16,14 +16,14 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 | 모델 계열 비중 | 위임 실행 중 모델 계열별 비율 |
 | Sprag 버전 | 설치된 버전 |
 | 에이전트 | `claude` 또는 `codex` |
-| 표시 이름 | 참여할 때 정한 이름이며, 기본값은 OS 사용자 이름 |
-| 운영체제 | OS 이름과 버전(예: macOS 26, Windows 11, Ubuntu 24.04), CPU 아키텍처(arm64, x64)입니다. 참여한 직후 한 번 보내고, 바뀔 때만 다시 보냅니다. 호스트 이름, 사용자 이름, 경로처럼 컴퓨터를 이름으로 알아볼 수 있는 값은 보내지 않습니다 |
+| 표시 이름 | 참여할 때 정한 이름이며, 기본값은 컴퓨터마다 한 번 만드는 `member-3f9a2c71` 같은 무작위 구성원 ID |
+| 운영체제 | OS 이름과 버전(예: macOS 26, Windows 11, Ubuntu 24.04)입니다. 참여한 직후 한 번 보내고, 바뀔 때만 다시 보냅니다. 호스트 이름, 사용자 이름, 경로처럼 컴퓨터를 이름으로 알아볼 수 있는 값은 보내지 않습니다 |
 
 보내지 않는 것은 프롬프트, 대화 기록, 파일 경로, 프로젝트 이름, 룰 내용, API 키입니다. 프롬프트 수집을 켠 엔터프라이즈 팀의 옵트인 프롬프트 업로드만 예외이며 "프롬프트 사용량 (엔터프라이즈)" 절에 적었습니다. 룰은 직접 `sprag team propose` 를 실행할 때만 밖으로 나갑니다.
 
 하루 단위 집계 업로드는 마지막 성공 이후 6시간에 한 번 이하로 실행됩니다. SessionStart 훅(그리고 작은 로컬 파일만 읽는 프롬프트 훅)이 띄운 분리된 자식 프로세스가 보냅니다. 네트워크가 끊기는 등 동기화가 실패하면 6시간을 기다리지 않고 15분, 30분, 60분 뒤에 다시 시도합니다(최대 60분 간격). 마지막으로 올린 날짜를 기억해 두었다가 그 전날부터 최대 30일 치를 다시 보내므로, 며칠 꺼져 있던 컴퓨터도 처음 성공하는 동기화에서 빠진 날을 따라잡습니다. 하루 단위 행은 덮어쓰기라 다시 보내도 안전합니다. 프롬프트 수집을 켠 엔터프라이즈 팀의 프롬프트 업로드는 따로 30분 타이머로 움직입니다("프롬프트 사용량 (엔터프라이즈)" 절 참고). statusline 을 그리는 경로에서는 절대 실행되지 않습니다.
 
-목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고) 입니다.
+목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값) 입니다.
 
 ## CLI에서 팀 만들기
 
@@ -55,7 +55,7 @@ sprag team create --email you@example.com --name "Acme" --code 123456
 sprag team join <토큰> --name "미나"
 ```
 
-Sprag 이 올라갈 항목 목록을 보여 주고 확인을 묻습니다. `--name` 은 표시 이름이며 기본값은 OS 사용자 이름입니다. 터미널이 없는 셸에서는 `--yes` 를 붙여 확인을 대신합니다. 토큰을 생략하면 `SPRAG_TEAM_TOKEN` 을 읽습니다.
+Sprag 이 올라갈 항목 목록을 보여 주고 확인을 묻습니다. `--name` 은 표시 이름이며 기본값은 `member-3f9a2c71` 같은 무작위 구성원 ID입니다. 이 ID는 컴퓨터마다 한 번 만들어 사용자 데이터 디렉터리에 보관하며, `--name` 으로 바꿀 수 있습니다. 이 변경 전에 참여한 구성원은 서버에 이미 저장된 이름을 그대로 씁니다. 터미널이 없는 셸에서는 `--yes` 를 붙여 확인을 대신합니다. 토큰을 생략하면 `SPRAG_TEAM_TOKEN` 을 읽습니다.
 
 결과는 `sprag team status` 로 확인합니다.
 

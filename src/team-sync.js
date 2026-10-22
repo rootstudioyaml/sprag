@@ -24,10 +24,11 @@ import { envVar } from './env.js';
 import { readFileSync, existsSync, rmSync, chmodSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { userInfo, release as osRelease } from 'node:os';
+import { release as osRelease } from 'node:os';
 import { createRequire } from 'node:module';
 import { userDataDir } from './paths.js';
 import { writeStateFile } from './state-file.js';
+import { memberId } from './member-id.js';
 import { debug } from './debug.js';
 import { loadLedger, modelFamily, roundUsd } from './savings-ledger.js';
 import { sessionCost, pricedParts } from './claude-price.js';
@@ -330,12 +331,14 @@ export async function aggregateDaily({ now = Date.now(), dir = userDataDir(), da
     }));
 }
 
-// Device info: OS name, OS version and CPU architecture. Nothing that names the
-// machine (no hostname, username or path) is read or sent.
+// Device info: OS name and OS version. The CPU architecture is not sent: the
+// `arch` key stays in the payload (the member_set_info RPC takes it as an
+// argument) but is always empty. Nothing that names the machine (no hostname,
+// username or path) is read or sent.
 const DARWIN_TO_MACOS = { 20: '11', 21: '12', 22: '13', 23: '14', 24: '15', 25: '26' };
 
 export function deviceInfo({
-  platform = process.platform, arch = process.arch, release = osRelease(),
+  platform = process.platform, release = osRelease(),
   exec = (cmd, args) => execFileSync(cmd, args, { timeout: 2000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }),
   readText = (f) => readFileSync(f, 'utf8'),
 } = {}) {
@@ -363,7 +366,7 @@ export function deviceInfo({
       } catch (e) { debug('team-sync', e); }
     }
   } catch (e) { debug('team-sync', e); }
-  return { os: os.slice(0, 40), os_version: osVersion.slice(0, 40), arch: String(arch).slice(0, 40) };
+  return { os: os.slice(0, 40), os_version: osVersion.slice(0, 40), arch: '' };
 }
 
 // Reports device info once after a join and again only when it changes. Fails
@@ -387,7 +390,7 @@ export async function joinTeam({
   token, displayName, agent = 'claude', autoJoined = false, fetch, dir = userDataDir(), version, now = Date.now(), env = process.env,
 } = {}) {
   if (!TOKEN_RE.test(String(token || ''))) throw new Error('invalid invite token (expected spt_ + 32 hex characters)');
-  const name = String(displayName || '').trim() || 'member';
+  const name = String(displayName || '').trim() || memberId({ dir });
   let r;
   try {
     r = await rpc('team_join', {
@@ -604,8 +607,7 @@ export async function autoJoin({ env = process.env, fetch, dir = userDataDir(), 
   // A state with `left: true` never auto-rejoins: leaving must beat the
   // environment, or `sprag team leave` would be undone by the next session.
   if (isJoined(state) || state.left) return null;
-  let name = 'member';
-  try { name = userInfo().username || 'member'; } catch { /* no passwd entry */ }
+  const name = memberId({ dir });
   try {
     return await joinTeam({ token, displayName: name, autoJoined: true, fetch, dir, version, now, env });
   } catch (e) {

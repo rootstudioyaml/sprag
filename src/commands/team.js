@@ -10,9 +10,9 @@
 
 import { createInterface } from 'node:readline';
 import { readFileSync } from 'node:fs';
-import { userInfo } from 'node:os';
 import { userLanguage } from '../config.js';
 import { pendingPrompts } from '../team-prompts.js';
+import { memberId } from '../member-id.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
   teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError,
@@ -191,9 +191,7 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   if (!email) { console.error(m.needEmail); return process.exit(2); }
   if (!EMAIL_RE.test(email)) { console.error(m.badEmail); return process.exit(2); }
 
-  let osName = 'my';
-  try { osName = userInfo().username || 'my'; } catch { /* no passwd entry */ }
-  const defaultName = `${osName}'s team`;
+  const defaultName = `${memberId()}'s team`;
 
   let useCode = code;
   if (!useCode) {
@@ -221,8 +219,7 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   out(m.dashboard(email));
 
   if (noJoin) { out(m.noJoinNote); return undefined; }
-  let display = 'member';
-  try { display = userInfo().username || 'member'; } catch { /* no passwd entry */ }
+  const display = memberId();
   const joined = await joinTeam({ token: team.inviteToken, displayName: display, fetch, version });
   if (joined.orgName && joined.seatsUsed != null && joined.seatLimit != null) out(m.orgCreated(joined.orgName, joined.seatsUsed, joined.seatLimit));
   if (!teamSyncDisabled()) {
@@ -248,14 +245,14 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         const token = (args[2] && !args[2].startsWith('--') ? args[2] : null) || process.env.SPRAG_TEAM_TOKEN;
         if (!token) { console.error(m.noToken); return process.exit(2); }
         let name = getArg('--name');
-        if (!name) { try { name = userInfo().username; } catch { name = 'member'; } }
+        if (!name) name = memberId();
         out(m.willSend);
         out(m.asName(name));
         if (!hasFlag('--yes')) {
           if (!process.stdin.isTTY || !process.stdout.isTTY) { console.error(m.needYes); return process.exit(2); }
           if (!(await confirm(m.ask))) { out(m.aborted); return undefined; }
         }
-        const st = await joinTeam({ token, displayName: name, version });
+        const st = await joinTeam({ token, displayName: name, fetch, version });
         out(m.joined(st.teamName));
         if (st.orgName && st.seatsUsed != null && st.seatLimit != null) out(m.orgCreated(st.orgName, st.seatsUsed, st.seatLimit));
         return undefined;
