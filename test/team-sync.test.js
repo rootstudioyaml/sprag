@@ -18,14 +18,16 @@ const TOKEN = 'spt_' + 'a'.repeat(32);
 
 function isolate(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-team-'));
-  const saved = { home: process.env.HOME, codex: process.env.CODEX_HOME, xdg: process.env.XDG_CONFIG_HOME, off: process.env.SPRAG_NO_TEAM_SYNC, tok: process.env.SPRAG_TEAM_TOKEN };
+  const saved = { home: process.env.HOME, codex: process.env.CODEX_HOME, xdg: process.env.XDG_CONFIG_HOME, off: process.env.SPRAG_NO_TEAM_SYNC, tok: process.env.SPRAG_TEAM_TOKEN, base: process.env.ANTHROPIC_BASE_URL };
   process.env.XDG_CONFIG_HOME = root;
   process.env.HOME = root; // the prompt uploader looks for transcripts under HOME, never the real one
   process.env.CODEX_HOME = join(root, '.codex');
   delete process.env.SPRAG_NO_TEAM_SYNC;
   delete process.env.SPRAG_TEAM_TOKEN;
+  // A gateway base in the developer's shell would price sessions from a table this sandbox lacks.
+  delete process.env.ANTHROPIC_BASE_URL;
   t.after(() => {
-    for (const [k, v] of [['HOME', saved.home], ['CODEX_HOME', saved.codex], ['XDG_CONFIG_HOME', saved.xdg], ['SPRAG_NO_TEAM_SYNC', saved.off], ['SPRAG_TEAM_TOKEN', saved.tok]]) {
+    for (const [k, v] of [['HOME', saved.home], ['CODEX_HOME', saved.codex], ['XDG_CONFIG_HOME', saved.xdg], ['SPRAG_NO_TEAM_SYNC', saved.off], ['SPRAG_TEAM_TOKEN', saved.tok], ['ANTHROPIC_BASE_URL', saved.base]]) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
@@ -279,6 +281,26 @@ test('autoJoin joins once from the env token and never after leaving', async (t)
   assert.equal(await autoJoin({ env: { SPRAG_TEAM_TOKEN: 'bad' }, fetch: f, dir: join(dir, 'x') }), null);
 });
 
+test('autoJoin and joinTeam default the display name to a random member id, never the OS user', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({ team_join: JOINED });
+  await autoJoin({ env: { SPRAG_TEAM_TOKEN: TOKEN }, fetch: f, dir, version: '1.0.0' });
+  const first = f.calls[0].body.display_name;
+  assert.match(first, /^member-[0-9a-f]{8}$/);
+  assert.notEqual(first, userInfo().username);
+
+  // The id is per machine: a manual join without --name reuses it, and leaving does not reset it.
+  await leaveTeam({ fetch: f, dir });
+  const f2 = fakeFetch({ team_join: JOINED });
+  await joinTeam({ token: TOKEN, fetch: f2, dir, version: '1.0.0' });
+  assert.equal(f2.calls[0].body.display_name, first);
+
+  // An explicit name still wins.
+  const f3 = fakeFetch({ team_join: JOINED });
+  await joinTeam({ token: TOKEN, displayName: 'Dana', fetch: f3, dir: join(dir, 'z'), version: '1.0.0' });
+  assert.equal(f3.calls[0].body.display_name, 'Dana');
+});
+
 test('autoJoinNotice clears the flag and speaks both languages', () => {
   const s = { autoJoinNoticePending: true, teamName: 'Acme' };
   assert.match(autoJoinNotice(s, 'ko'), /Acme/);
@@ -322,15 +344,15 @@ test('rpc throws with the server message on a 400', async () => {
 
 test('deviceInfo maps macOS, Windows and Linux without any machine name', () => {
   const mac = deviceInfo({ platform: 'darwin', arch: 'arm64', release: '25.1.0', exec: () => '26.1\n' });
-  assert.deepEqual(mac, { os: 'macOS', os_version: '26.1', arch: 'arm64' });
+  assert.deepEqual(mac, { os: 'macOS', os_version: '26.1', arch: '' });
   const macFallback = deviceInfo({ platform: 'darwin', arch: 'x64', release: '24.6.0', exec: () => { throw new Error('no sw_vers'); } });
-  assert.deepEqual(macFallback, { os: 'macOS', os_version: '15', arch: 'x64' });
+  assert.deepEqual(macFallback, { os: 'macOS', os_version: '15', arch: '' });
   assert.equal(deviceInfo({ platform: 'win32', arch: 'x64', release: '10.0.22631' }).os_version, '11');
   assert.equal(deviceInfo({ platform: 'win32', arch: 'x64', release: '10.0.19045' }).os_version, '10');
   const lin = deviceInfo({ platform: 'linux', arch: 'x64', release: '6.8.0', readText: () => 'NAME="Ubuntu"\nPRETTY_NAME="Ubuntu 24.04.1 LTS"\nVERSION_ID="24.04"\n' });
-  assert.deepEqual(lin, { os: 'Ubuntu', os_version: '24.04', arch: 'x64' });
+  assert.deepEqual(lin, { os: 'Ubuntu', os_version: '24.04', arch: '' });
   const linFallback = deviceInfo({ platform: 'linux', arch: 'arm64', release: '6.8.0', readText: () => { throw new Error('ENOENT'); } });
-  assert.deepEqual(linFallback, { os: 'Linux', os_version: '6.8.0', arch: 'arm64' });
+  assert.deepEqual(linFallback, { os: 'Linux', os_version: '6.8.0', arch: '' });
 });
 
 test('deviceInfo (live) has the three keys and never contains the hostname or username', () => {

@@ -16,8 +16,8 @@ After you join, Sprag uploads one row per local calendar day:
 | Model-family share | the share of those runs that went to each model family |
 | Sprag version | the installed version |
 | Agent | `claude` or `codex` |
-| Display name | the name you chose at join; the default is your OS user name |
-| Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04) and CPU architecture (arm64 or x64); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
+| Display name | the name you chose at join; the default is a random member ID such as `member-3f9a2c71`, created once per machine |
+| Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
 
 Not sent: prompts, transcripts, file paths, project names, rule text, API keys. The one exception is the opt-in prompt upload of an Enterprise team with prompt capture on, described under "Prompt usage (Enterprise)". A rule leaves your machine only when you run `sprag team propose` yourself.
 
@@ -55,7 +55,7 @@ An owner or admin gives you an invite token. Then:
 sprag team join <token> --name "Mina"
 ```
 
-Sprag prints the list of what will be uploaded and asks for confirmation. `--name` sets the display name (default: your OS user name). In a shell without a terminal, pass `--yes` to confirm. If you leave the token out, Sprag reads `SPRAG_TEAM_TOKEN`.
+Sprag prints the list of what will be uploaded and asks for confirmation. `--name` sets the display name (default: a random member ID like `member-3f9a2c71`, created once per machine and kept in the user data dir, so it is the same on every join from that machine). Members who joined before this change keep the name already stored on the server. In a shell without a terminal, pass `--yes` to confirm. If you leave the token out, Sprag reads `SPRAG_TEAM_TOKEN`.
 
 Check the result with `sprag team status`.
 

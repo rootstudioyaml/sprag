@@ -10,9 +10,9 @@
 
 import { createInterface } from 'node:readline';
 import { readFileSync } from 'node:fs';
-import { userInfo } from 'node:os';
 import { userLanguage } from '../config.js';
 import { pendingPrompts } from '../team-prompts.js';
+import { memberId } from '../member-id.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
   teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError,
@@ -45,7 +45,7 @@ const T = {
     badOrg: '--org needs an organization id.',
     left: 'Left the team. Nothing is uploaded any more.',
     notJoined: 'Not in a team. Join with: sprag team join <token>',
-    team: 'Team', plan: 'Plan', capture: 'Prompt capture', name: 'Display name',
+    team: 'Team', plan: 'Plan', capture: 'Prompt capture', name: 'Display name', memberId: 'Member ID',
     lastSync: (t, n) => `Last sync: ${t} (${n} rows)`,
     neverSynced: 'Last sync: never',
     lastError: 'Last error',
@@ -108,7 +108,7 @@ const T = {
     badOrg: '--org 에는 조직 ID 가 필요합니다',
     left: '팀에서 나왔습니다. 이제 아무것도 업로드하지 않습니다.',
     notJoined: '참여한 팀이 없습니다. 참여하려면: sprag team join <토큰>',
-    team: '팀', plan: '플랜', capture: '프롬프트 수집', name: '표시 이름',
+    team: '팀', plan: '플랜', capture: '프롬프트 수집', name: '표시 이름', memberId: '구성원 ID',
     lastSync: (t, n) => `마지막 동기화: ${t} (${n}행)`,
     neverSynced: '마지막 동기화: 아직 없음',
     lastError: '마지막 오류',
@@ -191,9 +191,7 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   if (!email) { console.error(m.needEmail); return process.exit(2); }
   if (!EMAIL_RE.test(email)) { console.error(m.badEmail); return process.exit(2); }
 
-  let osName = 'my';
-  try { osName = userInfo().username || 'my'; } catch { /* no passwd entry */ }
-  const defaultName = `${osName}'s team`;
+  const defaultName = `${memberId()}'s team`;
 
   let useCode = code;
   if (!useCode) {
@@ -221,8 +219,7 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   out(m.dashboard(email));
 
   if (noJoin) { out(m.noJoinNote); return undefined; }
-  let display = 'member';
-  try { display = userInfo().username || 'member'; } catch { /* no passwd entry */ }
+  const display = memberId();
   const joined = await joinTeam({ token: team.inviteToken, displayName: display, fetch, version });
   if (joined.orgName && joined.seatsUsed != null && joined.seatLimit != null) out(m.orgCreated(joined.orgName, joined.seatsUsed, joined.seatLimit));
   if (!teamSyncDisabled()) {
@@ -248,7 +245,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         const token = (args[2] && !args[2].startsWith('--') ? args[2] : null) || process.env.SPRAG_TEAM_TOKEN;
         if (!token) { console.error(m.noToken); return process.exit(2); }
         let name = getArg('--name');
-        if (!name) { try { name = userInfo().username; } catch { name = 'member'; } }
+        if (!name) name = memberId();
         out(m.willSend);
         out(m.asName(name));
         if (!hasFlag('--yes')) {
@@ -275,6 +272,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
           out(st.lastPromptUploadAt ? m.lastPrompts(new Date(st.lastPromptUploadAt).toLocaleString(), st.lastPromptCount || 0) : m.noPrompts);
         }
         out(`${m.name}: ${st.displayName}`);
+        out(`${m.memberId}: ${memberId()}`);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(`${m.lastError}: ${st.lastError}`);
         if (hasFlag('--show-payload')) {
