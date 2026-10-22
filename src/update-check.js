@@ -29,12 +29,19 @@
  * once-a-day pass as the version check, and its absence never blocks the
  * notice — a version number alone is still worth saying.
  *
+ * The version is asked of the npm registry the user has configured
+ * (npm_config_registry, then the `registry=` line of ~/.npmrc, then
+ * registry.npmjs.org), so a machine behind a corporate mirror checks the
+ * mirror instead of a host it may not be able to reach. A mirror that fails is
+ * reported as a failure; there is no silent fallback to npmjs.
+ *
  * Opt out with SPRAG_NO_UPDATE_CHECK=1 or NO_UPDATE_NOTIFIER (the de-facto
  * standard env var — anyone who set it for other CLIs meant us too).
  */
 
 import { envVar } from './env.js';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -335,6 +342,46 @@ function releaseTagUrl(version) {
 }
 
 /**
+ * The npm registry base URL the user has configured. Order: the
+ * npm_config_registry env var (either case), the `registry=` line of
+ * ~/.npmrc, then the public registry. `@scope:registry=` lines are ignored:
+ * they route other packages, not this one.
+ */
+export function npmRegistry({
+  env = process.env, readText = (f) => readFileSync(f, 'utf8'), home = homedir(),
+} = {}) {
+  const fromEnv = env.npm_config_registry || env.NPM_CONFIG_REGISTRY;
+  if (fromEnv) return fromEnv;
+  try {
+    for (const raw of readText(join(home, '.npmrc')).split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#') || line.startsWith(';')) continue;
+      const m = line.match(/^registry\s*=\s*(.+)$/);
+      if (m && m[1].trim()) return m[1].trim();
+    }
+  } catch (e) { debug('update-check:npmrc', e); }
+  return 'https://registry.npmjs.org/';
+}
+
+/**
+ * The `latest` dist-tag URL under a registry base, or a throw. The base comes
+ * from the environment or a config file, so it is checked rather than trusted:
+ * https only, and the parsed result must still sit under the base (`new URL`
+ * has collapsed any `../` by then, so the prefix test runs on the parsed href).
+ */
+export function latestUrl(registry) {
+  const base = new URL(String(registry).endsWith('/') ? String(registry) : `${registry}/`);
+  if (base.protocol !== 'https:') {
+    throw new Error(`refusing to request ${base.href}: registry must use https`);
+  }
+  const url = new URL(`${CANONICAL_NAME}/latest`, base);
+  if (!url.href.startsWith(base.href)) {
+    throw new Error(`refusing to request ${url.href}: outside ${base.href}`);
+  }
+  return url;
+}
+
+/**
  * Fetch the highlights for one version. Returns [] on any failure: the notice
  * is worth showing with a bare version number, so a missing release, a rate
  * limit, or an offline machine must not cost the user the notice itself. A
@@ -370,13 +417,16 @@ export async function fetchHighlights(version, { timeoutMs = FETCH_TIMEOUT_MS, l
  * Actually hit the registry and persist the answer. Only the detached child
  * and the explicit `update-check --refresh` command call this.
  */
-export async function refreshUpdateState(currentVersion) {
+export async function refreshUpdateState(currentVersion, { env, home } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     // The `latest` dist-tag endpoint returns a few hundred bytes, unlike the
     // full packument which is megabytes for a package with this many releases.
-    const res = await fetch(`https://registry.npmjs.org/${CANONICAL_NAME}/latest`, {
+    // The URL is a checked https registry base plus a constant package path.
+    // Same scanner false positive as the releases request above.
+    // nosemgrep: rules.lgpl.nodejs_scan.javascript-ssrf-rule-node_ssrf
+    const res = await fetch(latestUrl(npmRegistry({ env, home })), {
       signal: controller.signal,
       headers: { accept: 'application/json' },
     });

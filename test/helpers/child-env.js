@@ -74,6 +74,9 @@ export const SCRUBBED = [
   'LC_MESSAGES',
   'NO_COLOR',
   'NO_UPDATE_NOTIFIER',
+  'NPM_CONFIG_REGISTRY',
+  // npm itself sets the lowercase form for every `npm test` child.
+  'npm_config_registry',
   'NPM_TOKEN',
   'SHELL',
   'SPRAG_CODEX_PANEL',
