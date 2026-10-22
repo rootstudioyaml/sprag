@@ -71,6 +71,12 @@ export function isTrustedProject(cwd = process.cwd(), { home = homedir() } = {})
  *
  * 헬퍼 실행은 비용이 있으므로 갱신 경로(5분에 한 번 뜨는 detached 자식)에서만
  * 부릅니다. 수 초 간격으로 도는 렌더 경로에서 부르면 통계선이 그만큼 느려집니다.
+ *
+ * 헬퍼에는 APIKEY_HELPER_NONINTERACTIVE=1 을 넘겨, 캐시된 토큰이 없을 때 로그인
+ * 창을 띄우지 말고 바로 실패하라고 알립니다. 이 호출은 사용자 입력과 무관하게 5분마다
+ * 일어나므로, 헬퍼가 브라우저 인증을 시작하면 자리를 비운 동안 인증창이 쌓입니다.
+ * 게다가 HELPER_TIMEOUT_MS 안에 인증이 끝날 수 없어서 그 창은 어차피 쓸모가 없습니다.
+ * 이 변수를 모르는 헬퍼는 그대로 동작합니다.
  */
 export function keyFromApiKeyHelper(cwd = process.cwd()) {
   // 프로젝트 설정의 헬퍼는 그 저장소가 넣어 둔 셸 명령입니다. Claude Code 는 신뢰
@@ -96,6 +102,7 @@ export function keyFromApiKeyHelper(cwd = process.cwd()) {
         encoding: 'utf8',
         timeout: HELPER_TIMEOUT_MS,
         stdio: ['ignore', 'pipe', 'ignore'],
+        env: { ...process.env, APIKEY_HELPER_NONINTERACTIVE: '1' },
       });
       // 진행 로그를 함께 출력하는 헬퍼가 있으므로 마지막 비어 있지 않은 줄을 취합니다.
       const token = out.trim().split(/\r?\n/).filter(Boolean).pop();

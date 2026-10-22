@@ -23,7 +23,7 @@ v3.26.0부터 트랜스크립트의 모델 ID로 게이트웨이를 감지해 �
 
 LiteLLM 프록시로 Bedrock 등을 쓰면 Claude Code stdin 에 `rate_limits` 가 오지 않아 `✦ current`·`📅 weekly` 게이지가 아예 없습니다. 대신 LiteLLM 은 키별 `max_budget` 과 `spend` 를 관리하므로, 그 값을 가져와 같은 지점에 예산 게이지를 그립니다.
 
-- 감지 조건: `ANTHROPIC_BASE_URL` 이 공식 엔드포인트가 아닌 환경. 키는 `ANTHROPIC_AUTH_TOKEN`(또는 `ANTHROPIC_API_KEY`)에서 먼저 찾고, 없으면 `settings.json` 의 `apiKeyHelper` 를 실행해 얻습니다. 헬퍼 실행은 5분에 한 번 뜨는 갱신 프로세스 안에서만 하므로 통계선 렌더는 느려지지 않습니다 (v3.43.0).
+- 감지 조건: `ANTHROPIC_BASE_URL` 이 공식 엔드포인트가 아닌 환경. 키는 `ANTHROPIC_AUTH_TOKEN`(또는 `ANTHROPIC_API_KEY`)에서 먼저 찾고, 없으면 `settings.json` 의 `apiKeyHelper` 를 실행해 얻습니다. 헬퍼 실행은 5분에 한 번 뜨는 갱신 프로세스 안에서만 하므로 통계선 렌더는 느려지지 않습니다 (v3.43.0). 이때 헬퍼에 `APIKEY_HELPER_NONINTERACTIVE=1` 을 넘기므로, 이 변수를 확인하는 헬퍼는 캐시된 토큰이 없을 때 로그인 창을 띄우지 않고 바로 실패합니다. 사용자 입력 없이 5분마다 도는 갱신이 자리를 비운 동안 인증창을 쌓지 않게 하려는 장치입니다.
 - `/key/info` 가 404 를 주어도 갱신을 멈추지 않습니다. Okta JWT 같은 커스텀 인증을 쓰는 배포에서는 404 가 정상이고, 예산은 `/user/info` 에 들어 있습니다. 두 엔드포인트가 모두 실패할 때만 실패로 봅니다 (v3.43.0).
 - 팀 멤버십이 아니라 internal user 한도로 게이지를 그리게 되면 `budget (user)` 로 출처를 함께 표시합니다. LiteLLM 이 차단 여부를 판정할 때 보는 값은 팀 멤버십 한도라서, 두 값이 수백 배 어긋나는 배포가 있습니다 (v3.43.0).
 - 조회는 LiteLLM 의 `GET /key/info` 와 `GET /user/info` 로 하고, 호출 키 자신의 정보만 받습니다. 예산 출처는 실무에서 가장 많이 쓰는 **팀 멤버십 예산**(team_memberships 의 spend·max_budget)을 먼저 보고, 없으면 키 자체의 max_budget, 그다음 internal user 예산 순으로 고릅니다. 렌더는 캐시 파일만 읽으며, 갱신은 5분에 한 번 분리된 백그라운드 프로세스가 수행합니다 (update-check 와 같은 구조라 statusline 이 네트워크를 기다리지 않습니다).
