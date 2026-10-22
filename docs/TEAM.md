@@ -23,7 +23,7 @@ Not sent: prompts, transcripts, file paths, project names, rule text, API keys. 
 
 The daily aggregate upload runs at most once every 6 hours after the last successful one, from a detached child process that the SessionStart hook (and the prompt hook, which only reads a small local file) spawns. If a sync fails, for example because the network is down, it is retried after 15, then 30, then 60 minutes (60 at most) instead of waiting 6 hours. The CLI remembers the last day it uploaded and re-sends from the day before it, up to 30 days, so a machine that was offline for days catches up on its first successful sync. Re-sending a day is safe because each day is an upsert. The prompt upload of an Enterprise team with capture on has its own 30-minute timer (see "Prompt usage (Enterprise)"). It never runs on the statusline path.
 
-Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only) and `member_set_sync` (the upload-switch status call, see "The upload switch"); `sprag team create` also calls `team_create` with your sign-in session.
+Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only), `member_set_sync` (the upload-switch status call, see "The upload switch") and `member_set_info` (OS name and version; the `arch` argument is always empty); `sprag team create` also calls `team_create` with your sign-in session.
 
 ## Create a team from the CLI
 

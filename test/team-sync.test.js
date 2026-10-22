@@ -343,15 +343,16 @@ test('rpc throws with the server message on a 400', async () => {
 });
 
 test('deviceInfo maps macOS, Windows and Linux without any machine name', () => {
-  const mac = deviceInfo({ platform: 'darwin', arch: 'arm64', release: '25.1.0', exec: () => '26.1\n' });
+  // architecture is never read, so none is passed
+  const mac = deviceInfo({ platform: 'darwin', release: '25.1.0', exec: () => '26.1\n' });
   assert.deepEqual(mac, { os: 'macOS', os_version: '26.1', arch: '' });
-  const macFallback = deviceInfo({ platform: 'darwin', arch: 'x64', release: '24.6.0', exec: () => { throw new Error('no sw_vers'); } });
+  const macFallback = deviceInfo({ platform: 'darwin', release: '24.6.0', exec: () => { throw new Error('no sw_vers'); } });
   assert.deepEqual(macFallback, { os: 'macOS', os_version: '15', arch: '' });
-  assert.equal(deviceInfo({ platform: 'win32', arch: 'x64', release: '10.0.22631' }).os_version, '11');
-  assert.equal(deviceInfo({ platform: 'win32', arch: 'x64', release: '10.0.19045' }).os_version, '10');
-  const lin = deviceInfo({ platform: 'linux', arch: 'x64', release: '6.8.0', readText: () => 'NAME="Ubuntu"\nPRETTY_NAME="Ubuntu 24.04.1 LTS"\nVERSION_ID="24.04"\n' });
+  assert.equal(deviceInfo({ platform: 'win32', release: '10.0.22631' }).os_version, '11');
+  assert.equal(deviceInfo({ platform: 'win32', release: '10.0.19045' }).os_version, '10');
+  const lin = deviceInfo({ platform: 'linux', release: '6.8.0', readText: () => 'NAME="Ubuntu"\nPRETTY_NAME="Ubuntu 24.04.1 LTS"\nVERSION_ID="24.04"\n' });
   assert.deepEqual(lin, { os: 'Ubuntu', os_version: '24.04', arch: '' });
-  const linFallback = deviceInfo({ platform: 'linux', arch: 'arm64', release: '6.8.0', readText: () => { throw new Error('ENOENT'); } });
+  const linFallback = deviceInfo({ platform: 'linux', release: '6.8.0', readText: () => { throw new Error('ENOENT'); } });
   assert.deepEqual(linFallback, { os: 'Linux', os_version: '6.8.0', arch: '' });
 });
 

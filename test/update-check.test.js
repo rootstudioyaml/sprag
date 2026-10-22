@@ -483,3 +483,18 @@ test('refreshUpdateState reads registry= from the .npmrc under the given home', 
   await refreshUpdateState('3.43.0', { env: {}, home });
   assert.deepEqual(urls, ['https://mirror.example.com/npm/sprag-cli/latest']);
 });
+
+test('npmRegistry strips one pair of matching quotes from .npmrc and env values', () => {
+  const rc = (text) => npmRegistry({ env: {}, readText: () => text, home: '/h' });
+  assert.equal(rc('registry="https://a.example.com/npm/"\n'), 'https://a.example.com/npm/');
+  assert.equal(rc("registry='https://b.example.com/npm/'\n"), 'https://b.example.com/npm/');
+  assert.equal(npmRegistry({ env: { npm_config_registry: '"https://c.example.com/"' }, home: '/h' }), 'https://c.example.com/');
+});
+
+test('latestUrl errors never include credentials', () => {
+  assert.throws(() => latestUrl('http://user:secret@nexus.example.com/repo/'), (e) => {
+    assert.match(e.message, /refusing to request/);
+    assert.ok(!e.message.includes('secret'));
+    return true;
+  });
+});

@@ -350,14 +350,15 @@ function releaseTagUrl(version) {
 export function npmRegistry({
   env = process.env, readText = (f) => readFileSync(f, 'utf8'), home = homedir(),
 } = {}) {
-  const fromEnv = env.npm_config_registry || env.NPM_CONFIG_REGISTRY;
+  const unquote = (v) => v.trim().replace(/^(["'])(.*)\1$/, '$2');
+  const fromEnv = unquote(env.npm_config_registry || env.NPM_CONFIG_REGISTRY || '');
   if (fromEnv) return fromEnv;
   try {
     for (const raw of readText(join(home, '.npmrc')).split(/\r?\n/)) {
       const line = raw.trim();
       if (!line || line.startsWith('#') || line.startsWith(';')) continue;
       const m = line.match(/^registry\s*=\s*(.+)$/);
-      if (m && m[1].trim()) return m[1].trim();
+      if (m && unquote(m[1])) return unquote(m[1]);
     }
   } catch (e) { debug('update-check:npmrc', e); }
   return 'https://registry.npmjs.org/';
@@ -372,11 +373,12 @@ export function npmRegistry({
 export function latestUrl(registry) {
   const base = new URL(String(registry).endsWith('/') ? String(registry) : `${registry}/`);
   if (base.protocol !== 'https:') {
-    throw new Error(`refusing to request ${base.href}: registry must use https`);
+    // origin has no userinfo; it is "null" for non-http(s) schemes
+    throw new Error(`refusing to request ${base.origin === 'null' ? base.protocol : base.origin}: registry must use https`);
   }
   const url = new URL(`${CANONICAL_NAME}/latest`, base);
   if (!url.href.startsWith(base.href)) {
-    throw new Error(`refusing to request ${url.href}: outside ${base.href}`);
+    throw new Error(`refusing to request ${url.origin}${url.pathname}: outside the registry base`);
   }
   return url;
 }
