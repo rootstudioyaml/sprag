@@ -521,6 +521,7 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
     </a>
     <nav>
       <a href="${docsHref}">${lang === 'ko' ? '문서' : 'Docs'}</a>
+      <a href="/license/">${lang === 'ko' ? '라이선스' : 'License'}</a>
       ${langSwitch}
       ${GH_ICONS}
     </nav>
