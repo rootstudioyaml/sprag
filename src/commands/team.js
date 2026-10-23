@@ -33,6 +33,7 @@ const T = {
     ].join('\n'),
     willSend: 'Joining uploads daily aggregates only, per local day:\n  - spend (USD)\n  - savings (USD)\n  - delegation run counts\n  - model-family share\nNo prompts, file paths or transcripts are sent.',
     asName: (n) => `Display name: ${n}`,
+    asDevice: (d) => `Machine ID: ${d} (lets the organization count this machine once if it joins again)`,
     ask: 'Join? [y/N] ',
     needYes: 'Not a terminal. Re-run with --yes to confirm: sprag team join <token> --yes',
     noToken: 'Missing invite token. Pass it as an argument or set SPRAG_TEAM_TOKEN.',
@@ -43,6 +44,7 @@ const T = {
     seats: (u, l) => `${u}/${l} seats used`,
     orgCreated: (n, u, l) => `Organization: ${n}${u != null && l != null ? ` (${u}/${l} seats used)` : ''}`,
     badOrg: '--org needs an organization id.',
+    noOrgCreate: 'Only Sprag opens new organizations. Pass --org <id> for an organization you administer (the id is on the dashboard), or write to sales@sprag.io to open one.',
     left: 'Left the team. Nothing is uploaded any more.',
     notJoined: 'Not in a team. Join with: sprag team join <token>',
     team: 'Team', plan: 'Plan', capture: 'Prompt capture', name: 'Display name',
@@ -96,6 +98,7 @@ const T = {
     ].join('\n'),
     willSend: '참여하면 로컬 날짜별 하루 단위 집계만 올라갑니다.\n  - 지출(USD)\n  - 절감(USD)\n  - 위임 실행 횟수\n  - 모델 계열 비중\n프롬프트, 파일 경로, 대화 기록은 보내지 않습니다.',
     asName: (n) => `표시 이름: ${n}`,
+    asDevice: (d) => `기기 ID: ${d} (다시 참여해도 조직이 이 컴퓨터를 한 좌석으로 셉니다)`,
     ask: '참여할까요? [y/N] ',
     needYes: '터미널이 아닙니다. 확인하려면 --yes 를 붙여 다시 실행하세요: sprag team join <토큰> --yes',
     noToken: '초대 토큰이 없습니다. 인자로 넘기거나 SPRAG_TEAM_TOKEN 을 설정하세요.',
@@ -106,6 +109,7 @@ const T = {
     seats: (u, l) => `좌석 ${u}/${l} 사용 중`,
     orgCreated: (n, u, l) => `조직: ${n}${u != null && l != null ? ` (좌석 ${u}/${l} 사용 중)` : ''}`,
     badOrg: '--org 에는 조직 ID 가 필요합니다',
+    noOrgCreate: '새 조직은 Sprag가 개설합니다. 관리하는 조직이 있으면 --org <ID> 를 붙여 주세요(ID 는 대시보드에 있습니다). 조직 개설은 sales@sprag.io 로 문의해 주세요.',
     left: '팀에서 나왔습니다. 이제 아무것도 업로드하지 않습니다.',
     notJoined: '참여한 팀이 없습니다. 참여하려면: sprag team join <토큰>',
     team: '팀', plan: '플랜', capture: '프롬프트 수집', name: '표시 이름',
@@ -210,7 +214,13 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   if (!name) { console.error(m.needName); return process.exit(2); }
 
   const { accessToken, userId } = await verifySignInCode({ email, code: useCode, fetch });
-  const team = await createTeam({ name, accessToken, userId, orgId: org || null, fetch });
+  let team;
+  try {
+    team = await createTeam({ name, accessToken, userId, orgId: org || null, fetch });
+  } catch (e) {
+    if (/only Sprag operators/i.test(String(e && e.message))) { console.error(m.noOrgCreate); return process.exit(1); }
+    throw e;
+  }
   out(m.created(team.name || name));
   if (team.orgName && noJoin) out(m.orgCreated(team.orgName, null, null));
   out(`${m.inviteToken}: ${team.inviteToken}`);
@@ -248,6 +258,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         if (!name) name = memberId();
         out(m.willSend);
         out(m.asName(name));
+        out(m.asDevice(memberId()));
         if (!hasFlag('--yes')) {
           if (!process.stdin.isTTY || !process.stdout.isTTY) { console.error(m.needYes); return process.exit(2); }
           if (!(await confirm(m.ask))) { out(m.aborted); return undefined; }

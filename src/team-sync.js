@@ -390,12 +390,20 @@ export async function joinTeam({
   token, displayName, agent = 'claude', autoJoined = false, fetch, dir = userDataDir(), version, now = Date.now(), env = process.env,
 } = {}) {
   if (!TOKEN_RE.test(String(token || ''))) throw new Error('invalid invite token (expected spt_ + 32 hex characters)');
-  const name = String(displayName || '').trim() || memberId({ dir });
+  const device = memberId({ dir });
+  const name = String(displayName || '').trim() || device;
+  const params = { invite_token: token, display_name: name, agent, sprag_version: version || '', auto_joined: !!autoJoined };
   let r;
   try {
-    r = await rpc('team_join', {
-      invite_token: token, display_name: name, agent, sprag_version: version || '', auto_joined: !!autoJoined,
-    }, { fetch });
+    // device_id lets the server find this machine's earlier row in the organization and reuse its seat
+    // instead of adding a second one. A server older than that answers "Could not find the function";
+    // the join is then repeated without it.
+    try {
+      r = await rpc('team_join', { ...params, device_id: device }, { fetch });
+    } catch (e) {
+      if (!/device_id|Could not find the function|PGRST202/i.test(String(e && e.message))) throw e;
+      r = await rpc('team_join', params, { fetch });
+    }
   } catch (e) {
     if (isSeatLimitError(e)) throw new SeatLimitError(e.message);
     throw e;

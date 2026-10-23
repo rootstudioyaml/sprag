@@ -198,6 +198,19 @@ test('server error message is surfaced with exit 1', async (t) => {
   assert.match(r.err, /Token has expired or is invalid/);
 });
 
+test('create without --org on a server that keeps organizations to operators points at --org and sales, exit 1, no join', async (t) => {
+  isolate(t);
+  const f = mockFetch({
+    '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1' } } },
+    '/rest/v1/rpc/team_create': { status: 403, json: { code: '42501', message: 'only Sprag operators can open an organization; pass an organization you administer' } },
+  });
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456'], { fetch: f });
+  assert.equal(r.code, 1);
+  assert.match(r.err, /--org/);
+  assert.match(r.err, /sales@sprag\.io/);
+  assert.ok(!f.calls.some((c) => c.path.includes('team_join')));
+});
+
 test('interactive flow asks for email, code and name', async (t) => {
   isolate(t);
   const f = happy();

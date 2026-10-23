@@ -301,6 +301,34 @@ test('autoJoin and joinTeam default the display name to a random member id, neve
   assert.equal(f3.calls[0].body.display_name, 'Dana');
 });
 
+test('joinTeam sends the machine id as device_id even with a custom name, and retries without it on an older server', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({ team_join: JOINED });
+  await joinTeam({ token: TOKEN, fetch: f, dir, version: '1.0.0' });
+  const device = f.calls[0].body.device_id;
+  assert.match(device, /^member-[0-9a-f]{8}$/);
+  assert.equal(f.calls[0].body.display_name, device);
+
+  // The display name can change; the device id that the server dedupes on does not.
+  const f2 = fakeFetch({ team_join: JOINED });
+  await joinTeam({ token: TOKEN, displayName: 'Dana', fetch: f2, dir, version: '1.0.0' });
+  assert.equal(f2.calls[0].body.display_name, 'Dana');
+  assert.equal(f2.calls[0].body.device_id, device);
+
+  // A server without the device_id argument answers PGRST202; the join is repeated without it.
+  const f3 = fakeFetch({
+    team_join: (b) => (b.device_id ? { status: 404, json: { code: 'PGRST202', message: 'Could not find the function public.team_join(agent, auto_joined, device_id, display_name, invite_token, sprag_version)' } } : JOINED),
+  });
+  const st = await joinTeam({ token: TOKEN, fetch: f3, dir: join(dir, 'old'), version: '1.0.0' });
+  assert.equal(st.memberKey, 'spk_secret');
+  assert.deepEqual(f3.calls.filter((c) => c.fn === 'team_join').map((c) => 'device_id' in c.body), [true, false]);
+
+  // Other refusals are not retried.
+  const f4 = fakeFetch({ team_join: { status: 400, json: { message: 'seat limit reached' } } });
+  await assert.rejects(joinTeam({ token: TOKEN, fetch: f4, dir: join(dir, 'full'), version: '1.0.0' }), { code: 'SEAT_LIMIT' });
+  assert.equal(f4.calls.length, 1);
+});
+
 test('autoJoinNotice clears the flag and speaks both languages', () => {
   const s = { autoJoinNoticePending: true, teamName: 'Acme' };
   assert.match(autoJoinNotice(s, 'ko'), /Acme/);
