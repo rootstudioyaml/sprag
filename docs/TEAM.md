@@ -17,6 +17,7 @@ After you join, Sprag uploads one row per local calendar day:
 | Sprag version | the installed version |
 | Agent | `claude` or `codex` |
 | Display name | the name you chose at join; the default is a random member ID such as `member-3f9a2c71`, created once per machine |
+| Machine ID | the same random member ID, sent at join even when you choose another display name, so that a machine joining again reuses its seat in the organization instead of taking a second one |
 | Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
 
 Not sent: prompts, transcripts, file paths, project names, rule text, API keys. The one exception is the opt-in prompt upload of an Enterprise team with prompt capture on, described under "Prompt usage (Enterprise)". A rule leaves your machine only when you run `sprag team propose` yourself.
@@ -27,20 +28,20 @@ Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase,
 
 ## Create a team from the CLI
 
-You can set up a team without the web dashboard. Signing in uses a 6-digit code emailed to you (valid 15 minutes). Sprag never stores the sign-in session.
+You can set up a team without the web dashboard, inside an organization you own or administer (the organization id is in the dashboard; Sprag opens organizations, see "Organizations and seats"). Signing in uses a 6-digit code emailed to you (valid 15 minutes). Sprag never stores the sign-in session.
 
 In a terminal, run one command and answer the prompts (email, code, team name):
 
 ```bash
-sprag team create
+sprag team create --org <org-id>
 ```
 
 From an agent or any shell without a terminal, it takes two steps:
 
 ```bash
-sprag team create --email you@example.com --name "Acme"
+sprag team create --org <org-id> --email you@example.com --name "Acme"
 # the code arrives by email, then:
-sprag team create --email you@example.com --name "Acme" --code 123456
+sprag team create --org <org-id> --email you@example.com --name "Acme" --code 123456
 ```
 
 The first step only sends the code. The second verifies it and creates the team. It then prints the invite token, the member command (`npm i -g sprag-cli@latest && sprag team join <token>`), the organization line (`export SPRAG_TEAM_TOKEN=<token>`) and the dashboard address. Sign in to https://sprag.io/team/ with the same email to manage the team.
@@ -99,7 +100,9 @@ Sprag writes the rules to `~/.claude/ratchet-team.md` (Codex: `<CODEX_HOME>/ratc
 
 ## Organizations and seats
 
-Every team belongs to an organization, and seats are bought per organization, not per team. Teams you create without naming an organization get a new one automatically, so existing setups keep working.
+Every team belongs to an organization, and seats are bought per organization, not per team. Only Sprag opens organizations: write to sales@sprag.io, and the superuser opens one at sprag.io/ops/ and names its first owner. Owners and admins then create teams inside it.
+
+A machine holds one seat per organization. When it joins again, with `sprag team join` after `sprag team leave`, after a reinstall, or with the invite of another team in the same organization, the server finds its earlier row by the machine ID, moves it to the invited team and issues a new member key; no second row and no second seat appear. Joins to a different organization take a seat there.
 
 - **What a seat is.** One machine (one member key) that has not left and either sent anything in the last 30 days or is paused. A machine that has been silent for 30 days or more without being paused holds no seat. Members who left are not counted.
 - **Second machine.** When the same person uses two machines, an owner or admin can merge the second one into the first so the two share one seat. In the dashboard, use "Merge seat" on the member row; "Unmerge" gives it its own seat back. A merged row shows "shares a seat with <name>".
@@ -107,7 +110,7 @@ Every team belongs to an organization, and seats are bought per organization, no
 - **Roles.** There are three permission levels. The superuser is Sprag staff: it sets the plan and the seat limit, suspends organizations, adds owners, and sees every organization at sprag.io/ops/. An owner is a company's top level: it appoints and removes admins, and does everything an admin does. An admin is a company's management level: it creates teams and manages members, rules and seats. The person who created a team has no special rights over it; only the organization's owners and admins and the superuser manage teams. Owners and admins see the seat limit in the dashboard. To add seats, write to sales@sprag.io.
 - **The plan.** Sprag sets the plan (`pro` or `enterprise`) on the organization; owners and admins cannot change it. Prompt capture can be switched on only while the organization is on Enterprise. To change the plan, contact us.
 
-Create a team inside an existing organization from the CLI with `sprag team create --org <org-id>`. The command prints the organization name and how many seats are used. `sprag team status` shows the organization name.
+Create a team inside an organization you administer from the CLI with `sprag team create --org <org-id>`; without `--org` the server refuses, because only Sprag opens organizations. The command prints the organization name and how many seats are used. `sprag team status` shows the organization name.
 
 ## The upload switch
 
