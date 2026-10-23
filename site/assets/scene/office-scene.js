@@ -3,10 +3,10 @@
  *   const ctl = mountOfficeScene(container, data, opts);   // ctl = { update(data), destroy() }
  *   const data = officeSceneData({ rows, usage, promptRows, teams, used, limit, orgName, rangeLabel, t, money, rel, ... });
  *
- * One zone per team, one desk per person, AI helper bots, a server kiosk. Chunky pastel animal characters by tier (lion, fox, bear, chick, ghost), bright cozy daylight, orthographic isometric camera.
+ * One zone per team, one desk per person, AI helper bots, a server kiosk. Chunky pastel animal characters by grade (lion, tiger, fox, penguin, bear, rabbit, chick, ghost; see GRADES), bright cozy daylight, orthographic isometric camera.
  * data (all user-facing strings arrive ready-made, the host owns i18n):
- *   { teams:[{id,name}], people:[{id,name,teamId,teamName,tier:'power'|'active'|'normal'|'low'|'nodata',tag,tierText,tip:[[k,v]],bots:['haiku'|'sonnet'|'opus'|'any'],bubbles:[{text,ai}],promptId,spent}],
- *     free, freeLabel, more, moreLabel, server:{label}, activity:0..1, closed, hud:{title,stats,closed}, legend:[{k:tier|'ghost',label}|{c,label}|{label}], aria }
+ *   { teams:[{id,name}], people:[{id,name,teamId,teamName,tier:'power'|'active'|'normal'|'low'|'nodata',grade,gradeText,gradeLabel,tag,tierText,tip:[[k,v]],bots:['haiku'|'sonnet'|'opus'|'any'],bubbles:[{text,ai}],promptId,spent}],
+ *     free, freeLabel, more, moreLabel, server:{label}, activity:0..1, closed, hud:{title,stats,closed}, legend:[{k:grade|'ghost',label}|{c,label}|{label}], book:{title,range,rows:[{k,name,role,range,n}],note}|null, aria }
  * people[].detail feeds the side drawer (click a person); data.ui holds its strings. opts: { onSeats(id), onPrompts(id), onTeam(id), onServer(), onFail(reason) }
  * The scene keeps its own bright palette in both page themes. three.js is imported lazily the first time the container scrolls into view.
  * The returned handle also carries view, ready(), people(), server() and selectPerson(id) / closeDrawer() for scripted recordings (video/tour).
@@ -14,6 +14,7 @@
  * glowing screens take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
+export const W_FULL = [0.5, 0.3, 0.2], W_NOPR = [0.625, 0.375, 0];   /* spend, delegation, prompts rank weights (second set: prompt collection off) */
 const MAXP = 60, FAMC = { haiku: '#7fe0b8', sonnet: '#8ec5fb', opus: '#f9a8d4' };
 const TV = { power: { body: '#a78bfa', scr: '#d8ccff', bri: 1, sp: 15 }, active: { body: '#7cc4f2', scr: '#a8dcff', bri: 1, sp: 9 },
   normal: { body: '#d9cdb8', scr: '#8ea2b8', bri: 0.8, sp: 4.5 }, low: { body: '#f3b9a0', scr: '#4a4658', bri: 1, sp: 0 }, nodata: { body: '#ffffff', scr: '#6b6877', bri: 1, sp: 0 } };
@@ -24,18 +25,57 @@ const P = (g, c, p, s, r = 0, b = false) => ({ g, c, p, s, r, b });
 const eyes = (z, r = 0.045, c = '#2d2323') => [-0.12, 0.12].map(x => P('sph', c, [x, 0.06, z], [r, r, r]));
 const ears = (c, y, rad, z = -0.02) => [-1, 1].map(k => P('sph', c, [0.25 * k, y, z], [rad, rad, rad * 0.8]));
 const SVG = body => `<svg viewBox="0 0 16 16" aria-hidden="true">${body}</svg>`, dot = (x, y, c = '#2d2323') => `<circle cx="${x}" cy="${y}" r=".85" fill="${c}"/>`;
+/* The cast: one table of species (grades) from best to worst. Everything that sorts a person into a species (the data mapper), the field guide
+ * and its range text read this table and nothing else. sr = percentile of the overall score (0 lowest, 1 highest), dlg = delegation share,
+ * med = the company's median delegation share. A species needs sr >= minSr (sr > minSr when gt), and needDlg also dlg >= med; the first match
+ * wins, so a top scorer with a low delegation share falls through to the next rows. tier is the coarse class the rest of the scene uses. */
+export const GRADES = [
+  { k: 'lion', minSr: 0.9, needDlg: true, tier: 'power' },
+  { k: 'tiger', minSr: 0.8, needDlg: true, tier: 'power' },
+  { k: 'fox', minSr: 0.65, tier: 'active' },
+  { k: 'penguin', minSr: 0.5, tier: 'active' },
+  { k: 'bear', minSr: 0.35, tier: 'normal' },
+  { k: 'rabbit', minSr: 0.25, gt: true, tier: 'normal' },
+  { k: 'chick', minSr: -1, tier: 'low' }
+];
+export const GHOST_GRADE = { k: 'ghost', tier: 'nodata' };
+const SR_EPS = 1e-9, TIER_GRADE = { power: 'lion', active: 'fox', normal: 'bear', low: 'chick', nodata: 'ghost' };
+/* idle: no spend (and no prompts) in the period, which is always the last row */
+export function gradeOf(sr, dlg, med, idle){
+  if(idle) return GRADES[GRADES.length - 1].k;
+  const g = GRADES.find(x => (x.gt ? sr > x.minSr + SR_EPS : sr >= x.minSr - SR_EPS) && (!x.needDlg || dlg >= med));
+  return (g || GRADES[GRADES.length - 1]).k;
+}
+export const tierOfGrade = k => (k === 'ghost' ? GHOST_GRADE : GRADES.find(g => g.k === k) || GRADES[GRADES.length - 1]).tier;
+/* The numbers behind each row's range text, all derived from GRADES: a..b = "top a to b %", c = bottom share of the last row, d = the power cut ("top d %") */
+export function gradeBands(){
+  const pct = v => Math.round((1 - v) * 100), pw = Math.min(...GRADES.filter(g => g.needDlg).map(g => g.minSr));
+  return GRADES.map((g, i) => { const hi = i ? GRADES[i - 1].minSr : 1, a = pct(hi); return { k: g.k, tier: g.tier, needDlg: !!g.needDlg, a, b: Math.min(100, pct(g.minSr)), c: 100 - a, d: pct(pw) }; });
+}
+const gradeKey = p => (p && (p.grade || TIER_GRADE[p.tier])) || 'ghost';
 const ANIMALS = {
-  power: { name: 'lion', icon: SVG('<circle cx="8" cy="8" r="7.2" fill="#e0a23c"/><circle cx="8" cy="8" r="4.8" fill="#f6cf7a"/>' + dot(6.3, 7.6) + dot(9.7, 7.6) + '<ellipse cx="8" cy="10" rx="1.8" ry="1.2" fill="#fff0cf"/>'),
+  lion: { name: 'lion', icon: SVG('<circle cx="8" cy="8" r="7.2" fill="#e0a23c"/><circle cx="8" cy="8" r="4.8" fill="#f6cf7a"/>' + dot(6.3, 7.6) + dot(9.7, 7.6) + '<ellipse cx="8" cy="10" rx="1.8" ry="1.2" fill="#fff0cf"/>'),
     parts: () => [P('sph', '#e5a63f', [0, 0, 0.14], [0.54, 0.54, 0.24]), ...Array.from({ length: 9 }, (_, k) => P('sph', '#e0a23c', [Math.cos(k / 9 * 6.283) * 0.45, Math.sin(k / 9 * 6.283) * 0.45, 0.02], [0.14, 0.14, 0.14])),
       P('sph', '#f6cf7a', [0, 0, 0], [0.34, 0.34, 0.34]), ...ears('#f6cf7a', 0.3, 0.1), P('sph', '#fff0cf', [0, -0.1, -0.29], [0.15, 0.11, 0.1]), P('sph', '#c0626b', [0, -0.03, -0.39], [0.045, 0.035, 0.035]), ...eyes(-0.31)] },
-  active: { name: 'fox', icon: SVG('<polygon points="2,1 6.5,5 2.5,8" fill="#f4a261"/><polygon points="14,1 9.5,5 13.5,8" fill="#f4a261"/><circle cx="8" cy="9" r="5.6" fill="#f4a261"/><ellipse cx="8" cy="11.3" rx="3" ry="2.2" fill="#fff3e0"/>' + dot(6, 8.3) + dot(10, 8.3)),
+  tiger: { name: 'tiger', icon: SVG('<polygon points="2.5,2 6.5,4.6 3,8" fill="#f0913a"/><polygon points="13.5,2 9.5,4.6 13,8" fill="#f0913a"/><circle cx="8" cy="9" r="6" fill="#f0913a"/><path d="M6.4 4.4v2M8 4v2.3M9.6 4.4v2M2.7 9h1.5M2.9 11h1.4M13.3 9h-1.5M13.1 11h-1.4" stroke="#3b2a1e" stroke-width="1" stroke-linecap="round"/><ellipse cx="8" cy="11.4" rx="2.6" ry="1.9" fill="#fff6ea"/>' + dot(6, 8.6) + dot(10, 8.6)),
+    parts: () => [P('sph', '#f0913a', [0, 0, 0], [0.34, 0.34, 0.34]), ...ears('#f0913a', 0.3, 0.1), ...[-1, 1].map(k => P('sph', '#fff3e0', [0.25 * k, 0.3, -0.06], [0.06, 0.06, 0.04])),
+      ...[-0.13, 0, 0.13].map((x, j) => P('sph', '#3b2a1e', [x, 0.27 + (j === 1 ? 0.02 : 0), -0.2], [0.035, 0.1, 0.03])),
+      ...[-1, 1].flatMap(k => [P('sph', '#3b2a1e', [0.31 * k, 0.02, -0.12], [0.04, 0.025, 0.1]), P('sph', '#3b2a1e', [0.3 * k, -0.07, -0.12], [0.04, 0.025, 0.09])]),
+      P('sph', '#fff3e0', [0, -0.1, -0.3], [0.16, 0.11, 0.1]), P('sph', '#3b2f2f', [0, -0.04, -0.39], [0.045, 0.035, 0.035]), ...eyes(-0.31)] },
+  fox: { name: 'fox', icon: SVG('<polygon points="2,1 6.5,5 2.5,8" fill="#f4a261"/><polygon points="14,1 9.5,5 13.5,8" fill="#f4a261"/><circle cx="8" cy="9" r="5.6" fill="#f4a261"/><ellipse cx="8" cy="11.3" rx="3" ry="2.2" fill="#fff3e0"/>' + dot(6, 8.3) + dot(10, 8.3)),
     parts: () => [P('sph', '#f4a261', [0, 0, 0], [0.34, 0.34, 0.34]), ...[-1, 1].flatMap(k => [P('cone', '#f4a261', [0.2 * k, 0.4, 0], [0.13, 0.17, 0.1]), P('cone', '#fff0e0', [0.2 * k, 0.37, -0.05], [0.07, 0.1, 0.06]), P('sph', '#fff3e0', [0.2 * k, -0.1, -0.2], [0.13, 0.11, 0.12])]),
       P('sph', '#fff3e0', [0, -0.1, -0.3], [0.14, 0.1, 0.1]), P('sph', '#3b2f2f', [0, -0.04, -0.39], [0.045, 0.035, 0.035]), ...eyes(-0.31),
       P('sph', '#f4a261', [0.55, 0.8, 0.7], [0.14, 0.14, 0.3], 0, true), P('sph', '#fff3e0', [0.55, 0.8, 1.0], [0.11, 0.11, 0.11], 0, true)] },
-  normal: { name: 'bear', icon: SVG('<circle cx="3.5" cy="3.5" r="2.4" fill="#c8a98a"/><circle cx="12.5" cy="3.5" r="2.4" fill="#c8a98a"/><circle cx="8" cy="9" r="6" fill="#c8a98a"/><ellipse cx="8" cy="11" rx="2.6" ry="2" fill="#e6d3bd"/>' + dot(6, 8) + dot(10, 8)),
+  penguin: { name: 'penguin', icon: SVG('<circle cx="8" cy="8.6" r="6.2" fill="#2f3a66"/><ellipse cx="8" cy="9.6" rx="4.1" ry="3.8" fill="#ffffff"/>' + dot(6.2, 8.6) + dot(9.8, 8.6) + '<polygon points="6.9,10.2 9.1,10.2 8,12" fill="#f59e3a"/>'),
+    parts: () => [P('sph', '#2f3a66', [0, 0, 0], [0.33, 0.33, 0.33]), P('sph', '#ffffff', [0, -0.04, -0.2], [0.23, 0.21, 0.16]),
+      P('cone', '#f59e3a', [0, -0.07, -0.37], [0.06, 0.08, 0.06], -Math.PI / 2), ...eyes(-0.335, 0.04)] },
+  bear: { name: 'bear', icon: SVG('<circle cx="3.5" cy="3.5" r="2.4" fill="#c8a98a"/><circle cx="12.5" cy="3.5" r="2.4" fill="#c8a98a"/><circle cx="8" cy="9" r="6" fill="#c8a98a"/><ellipse cx="8" cy="11" rx="2.6" ry="2" fill="#e6d3bd"/>' + dot(6, 8) + dot(10, 8)),
     parts: () => [P('sph', '#c8a98a', [0, 0, 0], [0.35, 0.35, 0.35]), ...ears('#c8a98a', 0.28, 0.13), ...[-1, 1].map(k => P('sph', '#e6d3bd', [0.25 * k, 0.28, -0.08], [0.07, 0.07, 0.05])),
       P('sph', '#e6d3bd', [0, -0.1, -0.3], [0.15, 0.11, 0.1]), P('sph', '#3b2f2f', [0, -0.04, -0.39], [0.05, 0.04, 0.04]), ...eyes(-0.32)] },
-  low: { name: 'chick', icon: SVG('<circle cx="8" cy="9" r="6" fill="#ffe27a"/><polygon points="6.6,10 9.4,10 8,12.2" fill="#f59e3a"/>' + dot(6, 8) + dot(10, 8)),
+  rabbit: { name: 'rabbit', icon: SVG('<ellipse cx="5.6" cy="3.8" rx="1.7" ry="3.6" fill="#fffaf5" stroke="#e8dcd0" stroke-width=".5"/><ellipse cx="10.4" cy="3.8" rx="1.7" ry="3.6" fill="#fffaf5" stroke="#e8dcd0" stroke-width=".5"/><ellipse cx="5.6" cy="4" rx=".8" ry="2.3" fill="#ffc2d4"/><ellipse cx="10.4" cy="4" rx=".8" ry="2.3" fill="#ffc2d4"/><circle cx="8" cy="10" r="5.4" fill="#fffaf5" stroke="#e8dcd0" stroke-width=".5"/>' + dot(6.2, 9.4) + dot(9.8, 9.4) + '<ellipse cx="8" cy="11.3" rx=".9" ry=".7" fill="#ff9ab5"/>'),
+    parts: () => [P('sph', '#fffaf5', [0, 0, 0], [0.33, 0.33, 0.33]), ...[-1, 1].flatMap(k => [P('sph', '#fffaf5', [0.15 * k, 0.55, 0], [0.08, 0.27, 0.06]), P('sph', '#ffc2d4', [0.15 * k, 0.54, -0.04], [0.045, 0.2, 0.03]), P('sph', '#ffc2d4', [0.2 * k, -0.06, -0.26], [0.07, 0.05, 0.04])]),
+      P('sph', '#fffaf5', [0, -0.1, -0.28], [0.1, 0.07, 0.08]), P('sph', '#ff9ab5', [0, -0.04, -0.34], [0.045, 0.035, 0.035]), ...eyes(-0.3, 0.04)] },
+  chick: { name: 'chick', icon: SVG('<circle cx="8" cy="9" r="6" fill="#ffe27a"/><polygon points="6.6,10 9.4,10 8,12.2" fill="#f59e3a"/>' + dot(6, 8) + dot(10, 8)),
     parts: () => [P('sph', '#ffe27a', [0, 0, 0], [0.3, 0.3, 0.3]), P('sph', '#ffe27a', [0, 0.32, 0], [0.07, 0.07, 0.07]), P('sph', '#ffe27a', [-0.08, 0.3, 0.02], [0.06, 0.06, 0.06]), P('sph', '#ffe27a', [0.08, 0.3, 0.02], [0.06, 0.06, 0.06]),
       P('cone', '#f59e3a', [0, -0.04, -0.34], [0.07, 0.09, 0.07], -Math.PI / 2), ...[-1, 1].map(k => P('sph', '#ffb3c7', [0.17 * k, -0.06, -0.24], [0.06, 0.06, 0.05])), ...eyes(-0.27, 0.04)] },
 };
@@ -51,6 +91,7 @@ const OANC = {
   dusk:  { hs: '#ffd9c0', hg: '#d9b0a0', hi: 1.1, sc: '#ff9460', si: 0.8, sp: [14, 10, 2], c0: '#ffd5b0', c1: '#e5a186', out: '#f0d6cc', lamp: 0.65, n: 0.45 }
 };
 const HEAD_YAW = -1.75;   /* heads glance toward the room so the faces show to the isometric camera */
+const BOOK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2c2-.8 3.9-.6 5.5.6v9c-1.6-1.2-3.5-1.4-5.5-.6zM13.5 3.2c-2-.8-3.9-.6-5.5.6v9c1.6-1.2 3.5-1.4 5.5-.6z"/></svg>';
 const iconSvg = k => (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon;
 
 export const OF_CSS = `
@@ -120,6 +161,15 @@ export const OF_CSS = `
 .of-stage.has-drawer .of-tools{right:430px}
 @media (max-width:480px){.of-drawer{top:auto;left:0;right:0;width:auto;height:72%;border-left:0;border-top:1px solid rgba(120,90,60,.16);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(90,60,30,.18);transform:translateY(100%)}.of-stage.has-drawer .of-tools{right:10px}}
 @media (max-width:480px){.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer{height:640px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer canvas{height:300px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer .of-drawer{height:calc(100% - 300px)}}
+/* field guide */
+.of-drawer .bkn{margin:0 0 10px;font-size:12px;color:#6a5a4a}
+.of-drawer .bkr{display:grid;grid-template-columns:28px 1fr auto;grid-template-areas:'i n c' 'i r r';gap:1px 10px;align-items:center;width:100%;text-align:left;font:inherit;color:#3a2f27;background:#f7f1e4;border:1px solid transparent;border-radius:12px;padding:8px 10px;margin:0 0 6px;cursor:pointer}
+.of-drawer .bkr:hover,.of-drawer .bkr:focus-visible{border-color:#8b7cf0}
+.of-drawer .bkr svg{grid-area:i;width:26px;height:26px}.of-drawer .bkr .nm{grid-area:n;font-weight:600;font-size:13px}.of-drawer .bkr .nm small{font-weight:400;font-size:11.5px;color:#6a5a4a;margin-left:6px}
+.of-drawer .bkr .rg{grid-area:r;font-size:11.5px;color:#6a5a4a}.of-drawer .bkr .ct2{grid-area:c;font-weight:600;font-variant-numeric:tabular-nums;font-size:13px}
+.of-drawer .bkr.z{opacity:.45}
+.of-drawer .bknote{margin:12px 0 0;padding:8px 10px;border-radius:10px;background:#f1ebff;color:#3b2a78;font-size:12px}
+.of-drawer .grp{margin:0 0 14px}.of-drawer .grp+.grp{margin-top:18px;padding-top:12px;border-top:1px dashed rgba(120,90,60,.22)}.of-drawer .grp>h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
 @media (max-width:640px){.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:150px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
 `;
@@ -253,13 +303,15 @@ export const kit = {
 };
 
 /* Shared stage chrome for the office and town scenes: the fullscreen button (Fullscreen API on the card, fixed overlay where it is missing)
- * and the slide-in drawer (bottom sheet on phones). o: { ui: () => ({fs, fsExit, close}), request(), onClose(), onAction(name) }. */
+ * and the slide-in drawer (bottom sheet on phones). o: { ui: () => ({fs, fsExit, close, book}), request(), onClose(), onAction(name), onBook() (optional: adds the field-guide button) }. */
 export function makeChrome(stage, container, o){
   const drawer = document.createElement('aside'); drawer.className = 'of-drawer'; drawer.setAttribute('aria-hidden', 'true'); stage.appendChild(drawer);
   const tools = document.createElement('div'); tools.className = 'of-tools'; stage.appendChild(tools);
   const mkBtn = (cls, html, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'of-tb ' + cls; b.innerHTML = html; b.addEventListener('click', fn); tools.appendChild(b); return b; };
   const RESET = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8a5.5 5.5 0 1 0 1.8-4.1M2.5 2.5v3.2h3.2"/></svg>';
   const bReset = mkBtn('of-rs', RESET, () => o.onReset && o.onReset()), bOut = mkBtn('of-zo', '−', () => o.onZoom && o.onZoom(1 / 1.35)), bIn = mkBtn('of-zi', '+', () => o.onZoom && o.onZoom(1.35));
+  const BOOK = BOOK_ICON;
+  const bBook = o.onBook ? mkBtn('of-bk', BOOK, () => o.onBook()) : null;
   const fs = mkBtn('of-fs', '', () => toggleFs());
   const hint = document.createElement('div'); hint.className = 'of-hint'; stage.appendChild(hint); let hintT = 0;
   const hideHint = () => { clearTimeout(hintT); hint.classList.remove('on'); };
@@ -273,6 +325,7 @@ export function makeChrome(stage, container, o){
   function syncFs(){
     const on = fsOn(), ui = o.ui() || {}, lbl = on ? ui.fsExit : ui.fs;
     fs.innerHTML = on ? OUT : IN; fs.setAttribute('aria-label', lbl || ''); fs.title = lbl || ''; fs.setAttribute('aria-pressed', String(on));
+    [[bReset, ui.reset], [bOut, ui.zoomOut], [bIn, ui.zoomIn], [bBook, ui.book]].forEach(([b, l]) => { if(b){ b.setAttribute('aria-label', l || ''); b.title = l || ''; } });
     [[bReset, ui.reset], [bOut, ui.zoomOut], [bIn, ui.zoomIn]].forEach(([b, l]) => { b.setAttribute('aria-label', l || ''); b.title = l || ''; });
     if(on) hideHint(); o.request(); if(o.onFsChange) o.onFsChange(on);
   }
@@ -291,7 +344,7 @@ export function makeChrome(stage, container, o){
   drawer.addEventListener('click', ev => { const b = ev.target.closest('[data-a]'); if(!b) return; if(b.dataset.a === 'close') close(); else { if(fsOn()) exitFs(); o.onAction(b.dataset.a); } });
   const onKey = ev => { if(ev.key !== 'Escape') return; if(isOpen()){ close(); ev.stopPropagation(); } else if(fsX) overlay(false); };
   document.addEventListener('keydown', onKey);
-  return { el: drawer, showHint, hideHint, fsOn, syncFs, isOpen, close, setHtml(h){ drawer.innerHTML = h; }, open(){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden', 'false'); stage.classList.add('has-drawer'); o.request(); },
+  return { el: drawer, bookBtn: bBook, showHint, hideHint, fsOn, syncFs, isOpen, close, setHtml(h){ drawer.innerHTML = h; }, open(){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden', 'false'); stage.classList.add('has-drawer'); o.request(); },
     destroy(){ document.removeEventListener('keydown', onKey); document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('webkitfullscreenchange', onFs); exitFs(); } };
 }
 
@@ -313,11 +366,12 @@ export function mountOfficeScene(container, data, opts = {}){
   const elHaze = document.createElement('div'); elHaze.className = 'sk-haze'; stage.appendChild(elHaze);
   const elChip = document.createElement('div'); elChip.className = 'sk-chip'; elChip.hidden = true;
   let wx = ov.weather || { ...WX_CLEAR }, builtSnow = false, envN = 0, flash = 0, lightT = 4, baseHemi = 1, minuteTimer = 0, lamps = [], wxs = null, flakeG = null;
-  let sel = null, selId = null, ring = null;
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onReset: () => view && view.reset(), request: () => request(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
+  let sel = null, selId = null, ring = null, bookOpen = false, pulse = null;
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onReset: () => view && view.reset(), request: () => request(), onClose: () => { sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; }, onBook: () => openBook(),
     onAction: a => { if(!sel) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
   const syncFs = () => chrome.syncFs();
   kit.bind(chrome.el);
+  chrome.el.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('[data-bk]'); if(b) pulseGrade(b.dataset.bk); });
 
   let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null;
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0;
@@ -379,7 +433,7 @@ export function mountOfficeScene(container, data, opts = {}){
   function putPart(mesh, i, pt, o, hy, hz, yaw){
     E1.set(pt.r || 0, 0, 0); V2.set(pt.s[0] * K, pt.s[1] * K, pt.s[2] * K);
     if(pt.b){ fpt(o, o.x + pt.p[0], pt.p[1], o.z + pt.p[2], V1); Mp.compose(V1, Q1.setFromEuler(E1), V2); mesh.setMatrixAt(i, Mp); return; }
-    fpt(o, o.x, hy, hz, V1); Mh.compose(V1, Q1.setFromEuler(E1.set(0, yaw, 0)), ONE);
+    fpt(o, o.x, hy, hz, V1); Mh.compose(V1, Q1.setFromEuler(E1.set(o.hp || 0, yaw, o.hr || 0)), ONE);
     V1.set(pt.p[0] * K, pt.p[1] * K, pt.p[2] * K); E1.set(pt.r || 0, 0, 0); Mp.compose(V1, Q1.setFromEuler(E1), V2); Mp.premultiply(Mh); mesh.setMatrixAt(i, Mp);
   }
   /* Where a head looks: mostly at the monitor (yaw 0 faces the screen), with a
@@ -462,20 +516,38 @@ export function mountOfficeScene(container, data, opts = {}){
   function renderDrawer(){
     if(!sel) return;
     const p = sel.p, dt = p.detail || {}, ui = cur.ui || {}, fam = dt.fam, tot = fam ? fam.haiku + fam.sonnet + fam.opus : 0, fm = dt.fmt || (v => String(v)), id = 'o-' + p.id;
+    const kvGrid = rows => `<div class="grid">${rows.map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div>`;
     const sec = (title, html) => html ? `<div class="sec"><h4>${esc(title)}</h4>${html}</div>` : '';
     const famHtml = tot ? kit.stack(['haiku', 'sonnet', 'opus'].map(f => ({ v: fam[f], color: FAMC[f], tip: `${f} · ${fam[f]} · ${Math.round(fam[f] / tot * 100)}%` })))
       + `<div class="famt">${['haiku', 'sonnet', 'opus'].filter(f => fam[f]).map(f => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${FAMC[f]}"></i>${f} ${fam[f]}</span>`).join('')}</div>` : '';
     const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }]) : '';
     const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }]) : '';
-    chrome.setHtml(`<div class="hd">${iconSvg(sel.ghost ? 'ghost' : p.tier)}<div><b title="${esc(p.name)}">${esc(p.name)}<span class="badge">${esc(p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
+    chrome.setHtml(`<div class="hd">${iconSvg(sel.gk)}<div><b title="${esc(p.name)}">${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
       + `<div class="bd"><div class="why">${esc(dt.why)}</div>`
-      + (dt.grid && dt.grid.length ? `<div class="sec"><div class="grid">${dt.grid.map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div></div>` : '')
+      + (dt.groups && dt.groups.length ? `<div class="sec">${dt.groups.map(g => `<div class="grp"><h4>${esc(g.title)}</h4>${kvGrid(g.rows)}</div>`).join('')}</div>`
+        : dt.grid && dt.grid.length ? `<div class="sec">${kvGrid(dt.grid)}</div>` : '')
       + sec(ui.runs, famHtml) + sec(ui.cmp, kit.cmp(dt.cmp || [])) + sec(ui.daily, daily) + sec(ui.pdaily, pdaily)
       + sec(ui.machines, (dt.machines || []).map(m => `<div class="mrow"><b>${esc(m.name)}</b><span class="sig" style="background:${m.color}">${esc(m.sig)}</span><small>${esc(m.os)}${m.ver ? ' · ' + esc(m.ver) : ''} · ${esc(m.sw)}</small><small>${esc(ui.up)} ${esc(m.up)} · ${esc(ui.seen)} ${esc(m.seen)}</small></div>`).join(''))
       + sec(ui.events, (dt.events || []).map(e => `<div class="evr"><span>${esc(e.text)}</span><span>${esc(e.when)}</span></div>`).join('')) + `</div>`
       + `<div class="ft"><button type="button" class="of-dbtn pri" data-a="seats">${esc(ui.seats)}</button>${dt.canPrompts ? `<button type="button" class="of-dbtn" data-a="prompts">${esc(ui.prompts)}</button>` : ''}</div>`);
   }
-  function openDrawer(o){ sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; }
+  /* the field guide: the same drawer, one row per species, a click blinks a ring under everyone of that species */
+  function renderBook(){
+    const b = cur.book; if(!b) return;
+    chrome.setHtml(`<div class="hd">${BOOK_ICON}<div><b>${esc(b.title)}</b><small>${esc(b.range)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc((cur.ui || {}).close)}">×</button></div>`
+      + `<div class="bd">${b.rows.map(r => `<button type="button" class="bkr${r.n ? '' : ' z'}" data-bk="${esc(r.k)}">${iconSvg(r.k)}<span class="nm">${esc(r.name)}<small>${esc(r.role)}</small></span><span class="ct2">${esc(r.nText != null ? r.nText : r.n)}</span><span class="rg">${esc(r.range)}</span></button>`).join('')}<p class="bknote">${esc(b.note)}</p></div>`);
+  }
+  function openBook(){
+    if(!cur.book) return;
+    if(bookOpen && chrome.isOpen()){ chrome.close(); return; }
+    sel = null; selId = null; if(ring) ring.visible = false; bookOpen = true; renderBook(); chrome.open();
+  }
+  function pulseGrade(k){
+    if(!sets || !sets.pul) return;
+    pulse = { k, t0: performance.now() }; request();
+    if(reduced) setTimeout(() => { pulse = null; request(); }, 2500);
+  }
+  function openDrawer(o){ bookOpen = false; sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; }
   const closeDrawer = () => chrome.close();
 
   function build(d){
@@ -483,6 +555,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const closed = !!d.closed, pl = d.people || [];
     elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
     elLegend.innerHTML = (d.legend || []).map(l => `<span>${l.k ? iconSvg(l.k) : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}</span>`).join('');
+    if(chrome.bookBtn) chrome.bookBtn.style.display = d.book ? '' : 'none';
     if(canvas) canvas.setAttribute('aria-label', d.aria || '');
     (container.closest('.of-card') || container).setAttribute('aria-label', d.hud.title);
     zones = layout(d);
@@ -534,8 +607,8 @@ export function mountOfficeScene(container, data, opts = {}){
         B(chair, 0.8, 0.12, 0.8, x, 0.6, z + 0.35); B(chair, 0.8, 0.8, 0.12, x, 1.0, z + 0.78); B('#d6cfc4', 0.1, 0.6, 0.1, x, 0.3, z + 0.35);
         if(!p){ screens.push([x, 1.55, z - 0.95, 'off', 0]); return; }
         B('#fbf6ec', 0.9, 0.04, 0.3, x, 1.08, z - 0.3);
-        const ghost = closed || p.tier === 'nodata', key = ghost ? 'nodata' : p.tier;
-        const o = { x, z, p, tv: TV[key], an: ghost ? GHOST : ANIMALS[key], ghost, dy: 0, ph: hash(p.id) * 6.28 };
+        const ghost = closed || p.tier === 'nodata', key = ghost ? 'nodata' : p.tier, gk = ghost ? 'ghost' : gradeKey(p);
+        const o = { x, z, p, gk, tv: TV[key], an: ghost ? GHOST : ANIMALS[gk] || ANIMALS[TIER_GRADE[p.tier]], ghost, dy: 0, ph: hash(p.id) * 6.28 };
         o.idx = (ghost ? ghosts : solids).length; (ghost ? ghosts : solids).push(o); people.push(o);
         screens.push([x, 1.55, z - 0.95, key, o.ph]);
         if(ghost){ B('#ffffff', 0.08, 0.26, 0.03, x - 0.1, 1.55, z - 0.91); B('#ffffff', 0.08, 0.26, 0.03, x + 0.1, 1.55, z - 0.91); }
@@ -572,6 +645,10 @@ export function mountOfficeScene(container, data, opts = {}){
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
       B('#e8a77f', 0.7, 0.6, 0.7, x, 0.3, z); Sp('#8fcf9b', 0.6, x, 1.2, z); Sp('#a8dba0', 0.45, x + 0.3, 1.6, z - 0.1); Sp('#9fd49a', 0.42, x - 0.3, 1.5, z + 0.1);
     });
+    people.forEach(o => {   /* the nearest desk in the same row: whom to glance at */
+      let best = null, bd = 4; people.forEach(q => { if(q !== o && Math.abs(q.z - o.z) < 0.5 && Math.abs(q.x - o.x) < bd){ bd = Math.abs(q.x - o.x); best = q; } });
+      o.nb = best ? Math.sign(best.x - o.x) : hash(o.p.id + 'nb') < 0.5 ? -1 : 1;
+    });
     const sm = sets.sm = mk(sets.box, std({}), sb.length); tintZ = null; sets.sb = sb; sb.forEach((b, i) => { setM(sm, i, b[4], b[5], b[6], 0, 0, b[1], b[2], b[3]); sm.setColorAt(i, col(b[0])); });
     sm.instanceMatrix.needsUpdate = true; sm.instanceColor.needsUpdate = true;
     const sh = sets.sh = mk(sets.sph, std({}), sp.length); sp.forEach((b, i) => { setM(sh, i, b[2], b[3], b[4], 0, 0, b[1] * b[5], b[1] * b[6], b[1] * b[7]); sh.setColorAt(i, col(b[0])); });
@@ -596,13 +673,19 @@ export function mountOfficeScene(container, data, opts = {}){
       return f;
     };
     sets.f = [fig(solids, false), fig(ghosts, true)];
+    sets.mug = mk(sets.box, std({}), solids.length);   /* the coffee mug, shown in the hand during the coffee action */
+    solids.forEach((o, i) => { sets.mug.setColorAt(i, C('#fff6e8')); setM(sets.mug, i, o.x, 0, o.z, 0, 0, 0.0001, 0.0001, 0.0001); });
+    if(solids.length){ sets.mug.instanceColor.needsUpdate = true; sets.mug.instanceMatrix.needsUpdate = true; }
+    { const pg = track(new T.RingGeometry(0.75, 1.0, 40)); pg.rotateX(-Math.PI / 2);   /* blink ring for the field guide */
+      sets.pul = mk(pg, bas({ color: '#ff8a3d', transparent: true, opacity: 0.9, depthWrite: false }), people.length, false);
+      people.forEach((o, j) => setM(sets.pul, j, o.x, 0.1, o.z + 0.3, 0, 0, 0.0001, 1, 0.0001)); sets.pul.instanceMatrix.needsUpdate = true; }
     scr = { m: mk(sets.box, bas({}), screens.length, false), list: screens };
     screens.forEach((s, i) => { setM(scr.m, i, s[0], s[1], s[2] + 0.03, 0, 0, 1.05, 0.65, 0.06); scr.m.setColorAt(i, C('#000000')); });
     if(screens.length) scr.m.instanceMatrix.needsUpdate = true;
     const sl = mk(sets.sph, bas({}), srvLights.length, false); srvLights.forEach((l, i) => { setM(sl, i, l.x, l.y, l.z, 0, 0, 0.1, 0.1, 0.04); sl.setColorAt(i, l.c); }); sl.instanceMatrix.needsUpdate = true; srv.lights = sl;
     /* sparkles around the lions */
-    const lions = solids.filter(o => o.p.tier === 'power'); sparks = [];
-    lions.forEach(o => { for(let k = 0; k < 3; k++) sparks.push({ o, k }); });
+    const lions = solids.filter(o => o.gk === 'lion' || o.gk === 'tiger'); sparks = [];
+    lions.forEach(o => { for(let k = 0; k < (o.gk === 'lion' ? 3 : 1); k++) sparks.push({ o, k }); });
     sets.spk = mk(sets.sph, bas({}), sparks.length, false); sparks.forEach((q, i) => sets.spk.setColorAt(i, C('#fff0a0'))); if(sparks.length) sets.spk.instanceColor.needsUpdate = true;
 
     /* helper bots: round pastel bodies with an antenna and a soft glow, one orbiting each owner, flying to the server now and then */
@@ -639,6 +722,7 @@ export function mountOfficeScene(container, data, opts = {}){
       m2.position.y = -0.01; ring.add(m1, m2); ring.visible = false; world.add(ring); }
     sel = selId ? people.find(o => o.p.id === selId) || null : null;
     if(sel){ renderDrawer(); ring.visible = true; } else if(selId) closeDrawer();
+    if(bookOpen){ if(d.book) renderBook(); else chrome.close(); }
     syncFs();
     sets.act = Math.max(0, Math.min(1, d.activity || 0));
     applyEnv();
@@ -773,6 +857,17 @@ export function mountOfficeScene(container, data, opts = {}){
     return out.set(b.o.x + Math.cos(a) * b.rad, b.hy + Math.sin(time * 2 + b.a0) * 0.12, b.o.z + 0.1 + Math.sin(a) * b.rad * 0.8);
   }
   const ease = u => u * u * (3 - 2 * u);
+  /* Seated behaviour: typing is the base pose; every few seconds a person plays one short action over it. The schedule is a pure function of the
+     person's id and the round number (no random numbers), so a recording with a virtual clock replays it exactly. Power users type more and act
+     less often, chicks the other way round; dozing suits the calm animals, bouncing the lively ones. Poses blend in and out over 0.3 s. */
+  const SCH = { power: { gap: 1.7, skip: 0.5 }, active: { gap: 1.2, skip: 0.25 }, normal: { gap: 1, skip: 0.1 }, low: { gap: 0.6, skip: 0 } };
+  const ACT_ALL = ['stretch', 'coffee', 'think', 'look', 'wave'], CALM = new Set(['bear', 'rabbit', 'chick']), PEP = new Set(['lion', 'tiger', 'fox']);
+  function planAct(o, n, prev){
+    const sc = SCH[o.p.tier] || SCH.normal, id = o.p.id, gap = (4 + 8 * hash(id + 'g' + n)) * sc.gap, dur = 2 + 3 * hash(id + 'd' + n);
+    const list = ACT_ALL.concat(CALM.has(o.gk) ? ['doze'] : [], PEP.has(o.gk) ? ['bounce'] : []);
+    const kind = hash(id + 's' + n) < sc.skip ? null : list[Math.floor(hash(id + 'k' + n) * list.length)];
+    return { n, t0: prev + gap, t1: prev + gap + dur, kind };
+  }
   function arcTo(a, b, u, out){ const e = ease(u); out.lerpVectors(a, b, e); out.y += Math.sin(Math.PI * u) * 2.1; return out; }
   function updateWalls(){
     if(!sets.sm || !view) return; const a = view.azimuth(), want = { z: Math.cos(a) < -0.05, x: Math.sin(a) < -0.05 };
@@ -785,22 +880,49 @@ export function mountOfficeScene(container, data, opts = {}){
     { const az = view.azimuth(), flip = Math.cos(az) < 0;   /* floor text flips 180 degrees when the camera is on the far side, signs face the camera */
       if(flip !== decFlip){ decFlip = flip; decals.forEach(m => { m.rotation.y = flip ? Math.PI : 0; }); } signs.forEach(m => { m.rotation.y = az; }); }
     const closed = !!cur.closed;
-    /* people: arms bob while typing, the head turns toward the room now and then */
+    /* people: typing arms, the head turns toward the room now and then, and one scheduled action at a time (see planAct) */
     sets.f.forEach(f => {
       const mv = !reduced && !f.ghost;
       f.arr.forEach((o, i) => {
         const tier = o.ghost ? 'nodata' : o.p.tier, low = tier === 'low', sp = o.tv.sp, ph = o.ph, tt = mv ? time : 0;
-        const bob = sp ? Math.sin(tt * sp + ph) * 0.05 : 0, lean = low ? -0.3 + Math.sin(tt * 0.8 + ph) * 0.02 : 0.08;
-        o.dy = o.ghost ? 0.14 + (mv || !reduced ? Math.sin(time * 1.6 + ph) * 0.08 : 0) : 0;
+        const bob = sp ? Math.sin(tt * sp + ph) * 0.05 : 0, base = low ? -0.3 + Math.sin(tt * 0.8 + ph) * 0.02 : 0.08;
+        const L = low ? [0.36, 1.2, 0.12, 0, 1] : [-0.3, 1.1 + bob, -0.12, Math.PI / 2, 1], R = low ? [-0.34, 1.0, 0.1, Math.PI / 2, 0.8] : [0.3, 1.1 - bob, -0.12, Math.PI / 2, 1];
+        let lean = base, hp = 0, hr = 0, dyB = 0, mug = 0, yw = 0, yk = 0;
+        if(mv){
+          if(!o.act) o.act = planAct(o, 0, hash(o.p.id + 'i') * 2);
+          while(time >= o.act.t1) o.act = planAct(o, o.act.n + 1, o.act.t1);
+          const a = o.act, u = time - a.t0, e = a.kind && u > 0 ? ease(Math.max(0, Math.min(1, u / 0.3, (a.t1 - time) / 0.3))) : 0;
+          if(e > 0){
+            const mixA = (A, B2) => { for(let q = 0; q < 5; q++) A[q] += (B2[q] - A[q]) * e; };
+            switch(a.kind){
+              case 'stretch': { const w = Math.sin(u * 4) * 0.03; mixA(L, [-0.38, 1.6 + w, -0.1, 0, 1]); mixA(R, [0.38, 1.6 - w, -0.1, 0, 1]); lean += (-0.3 - lean) * e; hp = 0.25 * e; break; }
+              case 'coffee': { mixA(R, [0.2, 1.45, -0.02, 0.9, 1]); hp = 0.12 * e * Math.max(0, Math.sin(u * 2.4)); mug = e; break; }
+              case 'think': { mixA(R, [0.08, 1.5, -0.12, 0.5, 1]); hr = 0.28 * e; hp = -0.05 * e; yw = -0.25; yk = e; break; }
+              case 'look': yw = -o.nb * 0.95; yk = e; break;
+              case 'wave': { mixA(R, [0.42 + Math.sin(u * 9) * 0.12, 1.55, -0.05, 0, 1]); yw = HEAD_YAW; yk = 0.7 * e; break; }
+              case 'doze': { hp = -(0.32 + Math.sin(u * 2.2) * 0.1) * e; lean += 0.1 * e; break; }
+              case 'bounce': { dyB = 0.05 * Math.abs(Math.sin(u * 6)) * e; L[1] += Math.sin(u * 12) * 0.05 * e; R[1] -= Math.sin(u * 12) * 0.05 * e; break; }
+            }
+          }
+        }
+        o.dy = o.ghost ? 0.14 + (mv || !reduced ? Math.sin(time * 1.6 + ph) * 0.08 : 0) : dyB; o.hp = hp; o.hr = hr;
         setK(f.torso, i, o, o.x, 1.05, o.z + 0.3, lean);
-        if(low){ setK(f.arm, i * 2, o, o.x + 0.36, 1.2, o.z + 0.12, 0); setK(f.arm, i * 2 + 1, o, o.x - 0.34, 1.0, o.z + 0.1, Math.PI / 2, 1, 1, 0.8); }
-        else { setK(f.arm, i * 2, o, o.x - 0.3, 1.1 + bob, o.z - 0.12, Math.PI / 2); setK(f.arm, i * 2 + 1, o, o.x + 0.3, 1.1 - bob, o.z - 0.12, Math.PI / 2); }
-        const hy = 1.7 + (mv ? Math.sin(tt * 1.3 + ph) * 0.015 : 0), yaw = headYaw(o, low, mv, dt), hz = o.z + 0.3 + (low ? 0.15 : -0.05);
+        setK(f.arm, i * 2, o, o.x + L[0], L[1], o.z + L[2], L[3], 1, 1, L[4]); setK(f.arm, i * 2 + 1, o, o.x + R[0], R[1], o.z + R[2], R[3], 1, 1, R[4]);
+        const by = headYaw(o, low, mv, dt), hy = 1.7 + (mv ? Math.sin(tt * 1.3 + ph) * 0.015 : 0), yaw = by + (yw - by) * yk, hz = o.z + 0.3 + (low ? 0.15 : -0.05) - (lean - base) * 0.35;
         o.pl.forEach(q => putPart(q.m, q.i, q.pt, o, hy, hz, yaw));
+        if(!f.ghost && sets.mug){
+          if(mug > 0.05){ fpt(o, o.x + R[0], R[1] + 0.17, o.z + R[2] - 0.08, TMP); setM(sets.mug, o.idx, TMP.x, TMP.y, TMP.z, 0, 0, 0.1 * K, 0.13 * K, 0.1 * K); }
+          else setM(sets.mug, o.idx, o.x, 0, o.z, 0, 0, 0.0001, 0.0001, 0.0001);
+        }
         if(f.ghost){ putPart(f.rimH, i, o.rimPt, o, hy, hz, yaw); setK(f.rimT, i, o, o.x, 1.05, o.z + 0.3, lean, 1.12, 1.1, 1.12); }
       });
-      if(f.arr.length){ [f.torso, f.arm, f.sph, f.cone].concat(f.ghost ? [f.rimH, f.rimT] : []).forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
+      if(f.arr.length){ [f.torso, f.arm, f.sph, f.cone].concat(f.ghost ? [f.rimH, f.rimT] : [sets.mug]).forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
     });
+    if(sets.pul){   /* field guide: rings blink under everyone of the picked species for 2.4 s */
+      const now = performance.now(), on = !!pulse && now - pulse.t0 < 2400, blink = on && (reduced || Math.floor((now - pulse.t0) / 300) % 2 === 0);
+      people.forEach((o, j) => { const hit = blink && o.gk === pulse.k; setM(sets.pul, j, o.x, 0.1, o.z + 0.3, 0, 0, hit ? 1 : 0.0001, 1, hit ? 1 : 0.0001); });
+      sets.pul.instanceMatrix.needsUpdate = true; if(pulse && !on) pulse = null;
+    }
     if(sel && ring){ ring.position.set(sel.x, 0.09, sel.z + 0.3); ring.scale.setScalar(1 + (reduced ? 0 : 0.04 * Math.sin(time * 3))); }
     sparks.forEach((q, i) => {
       const a = (reduced ? 0 : time * 1.6) + q.k * 2.1 + q.o.ph, tw = reduced ? 0.7 : 0.55 + 0.45 * Math.sin(time * 5 + q.k * 2 + q.o.ph), r = 0.85 + q.k * 0.08;
@@ -923,7 +1045,7 @@ export function mountOfficeScene(container, data, opts = {}){
   function showTip(h, px, py){
     if(!h || !(h.person || h.team)){ elTip.hidden = true; return; }
     const p = h.person && h.person.p;
-    elTip.innerHTML = h.team ? `<b>${esc(h.team.name)}</b>` + (h.team.gh ? `<div><span>⏸</span><span>${h.team.gh}</span></div>` : '') : `<b>${esc(p.name)}</b>` + (p.tip || []).map(r => `<div><span>${esc(r[0])}</span><span>${esc(r[1])}</span></div>`).join('') + `<div class="tier t-${p.tier}"><span>${esc(p.tierText)}</span></div>`;
+    elTip.innerHTML = h.team ? `<b>${esc(h.team.name)}</b>` + (h.team.gh ? `<div><span>⏸</span><span>${h.team.gh}</span></div>` : '') : `<b>${esc(p.name)}</b>` + (p.tip || []).map(r => `<div><span>${esc(r[0])}</span><span>${esc(r[1])}</span></div>`).join('') + `<div class="tier t-${p.tier}"><span>${esc(p.gradeLabel || p.tierText)}</span></div>`;
     elTip.hidden = false;
     const tw = elTip.offsetWidth, th = elTip.offsetHeight;
     elTip.style.transform = `translate(${Math.round(Math.max(6, Math.min(W - tw - 6, px + 14)))}px,${Math.round(Math.max(6, Math.min(H - th - 6, py + 14)))}px)`;
@@ -959,7 +1081,7 @@ export function mountOfficeScene(container, data, opts = {}){
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false; renderer.localClippingEnabled = true;
     canvas = renderer.domElement; canvas.setAttribute('role', 'img'); stage.insertBefore(canvas, stage.firstChild);
     scene = new T.Scene(); world = new T.Group(); scene.add(world); rcast = new T.Raycaster(); rplane = new T.Plane(new T.Vector3(0, 1, 0), -0.07);
-    M4 = new T.Object3D(); S = v3(); TMP = v3(); PT = v3(); HP = v3(); Mh = new T.Matrix4(); Mp = new T.Matrix4(); Q1 = new T.Quaternion(); E1 = new T.Euler(); V1 = v3(); V2 = v3(); ONE = v3().set(1, 1, 1);
+    M4 = new T.Object3D(); S = v3(); TMP = v3(); PT = v3(); HP = v3(); Mh = new T.Matrix4(); Mp = new T.Matrix4(); Q1 = new T.Quaternion(); E1 = new T.Euler(0, 0, 0, 'YXZ'); V1 = v3(); V2 = v3(); ONE = v3().set(1, 1, 1);
     camera = new T.OrthographicCamera(-10, 10, 10, -10, 0.1, 400);
     hemi = new T.HemisphereLight('#fff7e6', '#e8dcc4', 1.25); sun = new T.DirectionalLight('#fff0d4', 0.85); sun.position.set(8, 18, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
     scene.add(hemi, sun, sun.target);
@@ -1013,8 +1135,8 @@ export function mountOfficeScene(container, data, opts = {}){
 /* Shared data mapper for both pages: one person per seat host (a host plus the machines merged into it), over the page's date range.
  * o: { rows (org_seats), usage ({machine member_id: {spent, saved, delegated, families?}}), promptRows (org_prompt_usage members, or null),
  *      teams, used, limit, orgName, rangeLabel, closed, demoBubbles ([{text, ai}] or null), t(key, vars, raw), rel(iso) }
- * Tiers: percentile score = .5 spend + .3 delegation share (saved / (spent + saved)) + .2 prompts (renormalized without prompts);
- *   low = bottom 25% or no spend and no prompts, power = top 20% with delegation >= median, active = top half, else normal.
+ * Grades (see GRADES): percentile score = .5 spend + .3 delegation share (saved / (spent + saved)) + .2 prompts (renormalized without prompts, W_NOPR);
+ *   the tier follows the grade: power = top 20% with delegation >= median, active = top half, normal = above the bottom 25%, low = bottom 25% or no spend and no prompts.
  * No data: a person without a machine in signal ok (paused, late, silent) is 'nodata' and stays out of the ranking. */
 export function officeSceneData(o){
   const money = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(2));
@@ -1034,9 +1156,10 @@ export function officeSceneData(o){
   const all = [...groups.entries()].map(([key, rs]) => {
     rs.sort((a, b) => (a.member_id === key ? -1 : 0) - (b.member_id === key ? -1 : 0));
     const host = rs[0], mix = { haiku: 0, sonnet: 0, opus: 0 };
-    let spent = 0, saved = 0, runs = 0, fam = false, today = 0, errors = 0; const days = {};
+    let spent = 0, saved = 0, runs = 0, fam = false, today = 0, errors = 0, savedToday = 0, delToday = null; const days = {};
     rs.forEach(r => {
       ((usage[r.member_id] || {}).series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.spent) || 0; d[1] += Number(q.saved) || 0; });
+      { const u1 = usage[r.member_id] || {}; savedToday += Number(u1.saved_today) || 0; if(u1.delegated_today != null) delToday = (delToday || 0) + (Number(u1.delegated_today) || 0); }
       today += Number((usage[r.member_id] || {}).spent_today) || 0; errors += Number((usage[r.member_id] || {}).errors) || 0;
       const u = usage[r.member_id] || {}; spent += Number(u.spent) || 0; saved += Number(u.saved) || 0; runs += Number(u.delegated) || 0;
       const f = u.families; if(f) Object.keys(mix).forEach(k => { const n = Number(f[k]) || 0; if(n){ mix[k] += n; orgMix[k] += n; fam = true; } });
@@ -1044,16 +1167,16 @@ export function officeSceneData(o){
     let prompts = 0, promptId = null, chars = 0, lastPrompt = null; const pdays = {};
     if(pr) rs.forEach(r => { const p = pr.find(x => x.member_id === r.member_id) || pr.find(x => x.display_name && x.display_name === r.display_name); if(p){ prompts += Number(p.prompts) || 0; chars += Number(p.chars) || 0; promptId = promptId || p.member_id;
       if(p.last_prompt_at && (!lastPrompt || p.last_prompt_at > lastPrompt)) lastPrompt = p.last_prompt_at; (p.by_day || []).forEach(q => { pdays[q.day] = (pdays[q.day] || 0) + (Number(q.prompts) || 0); }); } });
-    return { id: key, host, rs, spent, saved, runs, today, errors, days, pdays, chars, lastPrompt, mix: fam ? mix : null, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spent + saved > 0 ? saved / (spent + saved) : 0 };
+    return { id: key, host, rs, spent, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt, mix: fam ? mix : null, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spent + saved > 0 ? saved / (spent + saved) : 0 };
   });
   all.sort((a, b) => b.spent - a.spent);
   const shown = all.slice(0, MAXP), more = all.length - shown.length;
   const ranked = all.filter(p => p.ok), n = ranked.length;
   const rank = (arr, v) => { if(n < 2) return 0.5; let lo = 0, eq = 0; arr.forEach(x => { if(x < v) lo++; else if(x === v) eq++; }); return (lo + (eq - 1) / 2) / (n - 1); };
-  const sp = ranked.map(p => p.spent), dl = ranked.map(p => p.dlg), pm = ranked.map(p => p.prompts), w = pr ? [0.5, 0.3, 0.2] : [0.625, 0.375, 0];
+  const sp = ranked.map(p => p.spent), dl = ranked.map(p => p.dlg), pm = ranked.map(p => p.prompts), w = pr ? W_FULL : W_NOPR;
   ranked.forEach(p => { p.score = w[0] * rank(sp, p.spent) + w[1] * rank(dl, p.dlg) + (pr ? w[2] * rank(pm, p.prompts) : 0); });
   const sc = ranked.map(p => p.score), med = [...dl].sort((a, b) => a - b)[Math.floor(n / 2)] || 0;
-  ranked.forEach(p => { const sr = rank(sc, p.score); p.tier = sr <= 0.25 || (p.spent < 0.01 && (!pr || !p.prompts)) ? 'low' : sr >= 0.8 && p.dlg >= med ? 'power' : sr >= 0.5 ? 'active' : 'normal'; });
+  ranked.forEach(p => { const sr = rank(sc, p.score); p.grade = gradeOf(sr, p.dlg, med, p.spent < 0.01 && (!pr || !p.prompts)); p.tier = tierOfGrade(p.grade); });
   const pc = x => Math.round(x * 100) + '%', mixTot = Object.values(orgMix).reduce((a, b) => a + b, 0);
   const famOf = m => { const s = m ? Object.entries(m).sort((a, b) => b[1] - a[1]) : []; return s[0] && s[0][1] > 0 ? s[0][0] : null; };
   const botsFor = p => {
@@ -1074,7 +1197,7 @@ export function officeSceneData(o){
   const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' };
   let demoI = 0;
   const people = shown.map(p => {
-    const nodata = !p.ok; p.tier = nodata ? 'nodata' : p.tier;
+    const nodata = !p.ok; p.tier = nodata ? 'nodata' : p.tier; p.grade = nodata ? 'ghost' : p.grade;
     const paused = p.rs.find(r => r.signal === 'paused'), lastUp = p.rs.map(r => r.last_upload_at).filter(Boolean).sort().pop();
     const why = paused ? t('of.why.paused', { x: o.rel(paused.sync_state_at) }, true) : t('of.why.last', { x: lastUp ? o.rel(lastUp) : t('never') }, true);
     const tip = [[t('of.team'), p.host.team_name || '']];
@@ -1089,18 +1212,20 @@ export function officeSceneData(o){
       if(pr && p.prompts > 0) bubbles.push({ text: t('of.b.prompts', { n: p.prompts }, true) });
     }
     const late = p.rs.some(r => r.signal === 'late' || r.signal === 'silent') && !paused;
-    return { id: p.id, name: p.host.display_name || p.id, teamId: p.host.team_id, teamName: p.host.team_name || '', tier: p.tier, spent: p.spent, promptId: p.promptId, tip,
+    return { id: p.id, name: p.host.display_name || p.id, teamId: p.host.team_id, teamName: p.host.team_name || '', tier: p.tier, grade: p.grade, gradeText: t('of.g.' + p.grade), gradeLabel: closed ? t('of.tag.closed') : t('of.g.' + p.grade) + ' · ' + t('of.tier.' + p.tier), spent: p.spent, promptId: p.promptId, tip,
       detail: (() => {
         const ids2 = new Set(p.rs.map(r => r.member_id)), tm = teamM[p.host.team_id] || { spent: 0, dlg: 0, prompts: 0 }, dd = Object.keys(p.days).sort(), pd = Object.keys(p.pdays).sort();
         const lastP = p.lastPrompt ? o.rel(p.lastPrompt) : t('never');
         const hasData = !nodata && !closed;
-        const grid = hasData ? [[t('of.spent'), money(p.spent)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pc(p.dlg)], [t('of.d.today'), money(p.today)], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]]
-          .concat(pr ? [[t('of.prompts'), String(p.prompts)], [t('of.d.days'), String(pd.length)], [t('of.d.avg'), p.prompts ? t('pu.chars', { n: Math.round(p.chars / p.prompts) }, true) : '—'], [t('of.d.lastp'), lastP]] : []) : [];
+        const pRows = [[t('of.spent'), money(p.spent)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pc(p.dlg)], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]]
+          .concat(pr ? [[t('of.prompts'), String(p.prompts)], [t('of.d.days'), String(pd.length)], [t('of.d.avg'), p.prompts ? t('pu.chars', { n: Math.round(p.chars / p.prompts) }, true) : '—'], [t('of.d.lastp'), lastP]] : []);
+        const tRows = [[t('of.d.today'), money(p.today)], [t('of.d.today.s'), money(p.savedToday)], [t('of.d.today.r'), p.delToday == null ? '—' : String(p.delToday)]];
+        const groups = hasData ? [{ title: t('of.d.period', { x: o.rangeLabel }, true), rows: pRows }, { title: t('of.d.today.h'), rows: tRows }] : [], grid = hasData ? pRows.concat(tRows) : [];
         const mk3 = (v1, v2, v3, f, nm) => [{ name: t('of.d.me'), v: v1, txt: f(v1), color: '#7c6cf0' }, { name: t('of.d.team'), v: v2, txt: f(v2), color: '#8ec5fb' }, { name: t('of.d.org'), v: v3, txt: f(v3), color: '#d4c7a8' }];
         const cmp = hasData ? [{ label: t('of.spent'), items: mk3(p.spent, tm.spent, orgM.spent, money) }, { label: t('of.deleg'), items: mk3(p.dlg, tm.dlg, orgM.dlg, pc) }].concat(pr ? [{ label: t('of.prompts'), items: mk3(p.prompts, tm.prompts, orgM.prompts, v => String(Math.round(v))) }] : []) : [];
         const evs = (o.events || []).filter(e => ids2.has(e.member_id)).sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 8).map(e => ({ text: t('of.ev.' + e.event) === 'of.ev.' + e.event ? String(e.event) : t('of.ev.' + e.event), when: o.rel(e.at) }));
         return { why: hasData ? t('of.d.why', { a: Math.max(1, Math.round((1 - rank(sp, p.spent)) * 100)), b: pc(p.dlg), c: pc(orgM.dlg) }, true) : closed ? t('of.tag.closed') : t('of.why') + ': ' + why,
-          grid, cmp, fam: p.mix, fmt: money, days: hasData ? dd : [], spent: dd.map(d => p.days[d][0]), saved: dd.map(d => p.days[d][1]),
+          grid, groups, cmp, fam: p.mix, fmt: money, days: hasData ? dd : [], spent: dd.map(d => p.days[d][0]), saved: dd.map(d => p.days[d][1]),
           pdays: hasData && pr ? pd : [], pvals: pd.map(d => p.pdays[d]),
           machines: p.rs.map(r => ({ name: r.display_name || r.member_id, os: o.os(r), ver: r.sprag_version ? 'v' + r.sprag_version : '', color: SIG[r.signal] || '#8a8794', sig: t('sr.s.' + r.signal), sw: t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')), up: r.last_upload_at ? o.rel(r.last_upload_at) : t('never'), seen: r.last_seen ? o.rel(r.last_seen) : t('never') })),
           events: evs, canPrompts: !!(pr && p.promptId) };
@@ -1112,11 +1237,16 @@ export function officeSceneData(o){
   const stats = closed ? t('of.hud.closed', { u: used, limit }, true)
     : t('of.hud', { n: active, p: cnt('power'), l: cnt('low'), o: cnt('nodata'), u: used, limit }, true);
   const fam = mixTot > 0 || people.some(p => p.bots.some(b => b !== 'any'));
-  const legend = closed ? [] : ['power', 'active', 'normal', 'low', 'ghost'].map(k => ({ k, label: t('of.lg.' + k) }))
-    .concat(fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: t('of.lg.bot', { m: f }, true) })) : [{ c: '#c4b5fd', label: t('of.lg.any') }], [{ label: t('of.lg.screen') }]);
-  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts' }).map(([k, v]) => [k, t(v)]));
+  const gl = k => t('of.g.' + k), cntG = k => people.filter(m => m.grade === k).length, fw = v => String(Math.round(v * 1000) / 10);
+  const legend = closed ? [] : GRADES.map(g => ({ k: g.k, label: gl(g.k) })).concat([{ k: 'ghost', label: gl('ghost') }],
+    fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: t('of.lg.bot', { m: f }, true) })) : [{ c: '#c4b5fd', label: t('of.lg.any') }], [{ label: t('of.lg.screen') }, { label: t('of.lg.guide') }]);
+  const book = closed ? null : { title: t('of.book'), range: o.rangeLabel,
+    rows: gradeBands().map(b => ({ k: b.k, name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.k, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
+      .concat([{ k: 'ghost', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
+    note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true) };
+  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.spent') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
-    activity: act, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend,
+    activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend,
     aria: t('of.aria', { n: people.length, teams: teams.length, used, limit }, true) };
 }
