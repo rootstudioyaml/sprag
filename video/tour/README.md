@@ -82,11 +82,13 @@ node scripts/serve-site.mjs 8788      # the site server, from the repo root
 
 | t (s) | Pro | Enterprise |
 |---|---|---|
-| 0-7 | office push in, plan badge: 팀의 AI 지출과 절감액, 한 화면에서 | office, the top prompter's card: 팀이 AI에게 어떻게 묻는지 이제 보입니다 |
-| 7-13 | a power user's card and model mix: 사람마다 지출, 절감, 맡긴 모델까지 | Prompts tab sorted by characters: 사용자별 프롬프트와 글자 수, 30일 추이까지 |
-| 13-18/20 | KPI cards, range rail: 기간을 바꿔 바로 비교 | one person's prompts, search: 사람마다 프롬프트를 읽고 검색 |
-| 18/20-25 | add a team rule: 팀 규칙은 한 번 정하면 모든 PC에 적용 | a team's prompt capture switched on: 수집은 팀마다 켜고, 켜기 전 기록은 가져오지 않습니다 |
-| 25-30 | logo, plan, 좌석당 월 $5, sprag.io/pricing | logo, plan, 좌석당 월 $10, sprag.io/pricing |
+| 0-7 | office push in, plan badge: AI에 얼마 쓰고 얼마 아꼈는지, 팀 전체가 한 화면에 보입니다 | office, the top prompter's card: 팀이 AI에게 무엇을 묻는지 이제 직접 확인하세요 |
+| 7-13 | a power user's card and model mix: 누가 어떤 모델에 일을 맡기는지 사람별로 바로 확인하세요 | Prompts tab sorted by characters: 누가 얼마나 자주 묻는지, 30일 흐름까지 한 번에 |
+| 13-18/20 | KPI cards, range rail: 지난주와 이번 달, 클릭 한 번이면 비교 끝 | one person's prompts, search: 궁금한 프롬프트는 검색 한 번으로 찾아보세요 |
+| 18/20-25 | add a team rule: 규칙은 한 번만 정하세요, 팀원 PC에는 알아서 적용됩니다 | a team's prompt capture switched on: 수집은 팀별로 켜고 끕니다, 켜기 전 대화는 가져오지 않아요 |
+| 25-30 | logo, plan, 우리 팀에 맞게 안내해 드릴게요, sales@sprag.io | same, Enterprise |
+
+The closing card carries no price, so the same files play on `/pricing/` and on `/license/`.
 
 The music is the same track, from 15.05 s, 0.5 under the opening shot, 0.3 under the body, 0.5 for the close, -14 LUFS.
 Video is 2-pass 1400 kbit/s, so each file is about 6 MB; the build fails over 8 MB or on a one-frame luma drop.
