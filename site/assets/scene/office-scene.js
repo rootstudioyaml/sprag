@@ -958,8 +958,11 @@ export function mountOfficeScene(container, data, opts = {}){
       bm.setColorAt(i, c); gl.setColorAt(i, c); an.setColorAt(i, C('#ffffff')); tp.setColorAt(i, C('#ffffff'));
       bots.push({ i, o: b.o, a0: hash(b.o.p.id + b.j) * 6.28, rad: 1.85 + b.j * 0.25, sp: (b.o.p.tier === 'power' ? 0.7 : 0.45) * (b.j % 2 ? -1 : 1), hy: 3.95 + b.j * 0.22, st: 0,   /* well above the heads and wide of the seat, so a bot never sits on its owner's face */ t: 0, next: 1.5 + hash(b.o.p.id + 'n' + b.j) * 9, pos: v3(), p0: v3(), col: c.clone().multiplyScalar(0.8) });
     });
-    if(fl.length){ [bm, gl, an, tp].forEach(m => { m.instanceColor.needsUpdate = true; }); }
-    Object.assign(sets, { bm, gl, an, tp });
+    /* a face for each bot: a dark visor with two glowing eyes, and a small ear pod on each side in a deeper shade */
+    const vz = mk(sets.sph, bas({ color: '#2b2740' }), fl.length, false), ey = mk(sets.sph, bas({ color: '#e8fbff' }), fl.length * 2, false), er = mk(sets.sph, bas({}), fl.length * 2, false);
+    fl.forEach((b, i) => { const c = bots[bots.length - fl.length + i].col; er.setColorAt(2 * i, c); er.setColorAt(2 * i + 1, c); });
+    if(fl.length){ [bm, gl, an, tp, er].forEach(m => { m.instanceColor.needsUpdate = true; }); }
+    Object.assign(sets, { bm, gl, an, tp, vz, ey, er });
     for(let i = 0; i < 6 && bots.length; i++){
       const g = track(new T.BufferGeometry().setFromPoints(Array.from({ length: 25 }, () => v3())));
       const ln = track(new T.Line(g, track(new T.LineDashedMaterial({ color: 0xffffff, dashSize: 0.25, gapSize: 0.18, transparent: true, opacity: 0 })))); ln.frustumCulled = false; ln.visible = false; world.add(ln); trails.push({ ln, busy: false });
@@ -1286,10 +1289,17 @@ export function mountOfficeScene(container, data, opts = {}){
           /* the way home is a different arc to a moving seat: redraw the line along it every frame, so the bot stays on its line */
           const q = b.q || (b.q = v3()), ga = b.tr.ln.geometry.attributes.position;
           for(let k = 0; k <= 24; k++){ arcTo(S, TMP, k / 24, q); ga.setXYZ(k, q.x, q.y, q.z); } ga.needsUpdate = true; b.tr.ln.computeLineDistances(); } }
-      setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.19, 0.19, 0.19); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN);   /* small body, a thin glow */
+      { const az = view ? view.azimuth() : 0, fx = Math.sin(az), fz = Math.cos(az), rx_ = Math.cos(az), rz_ = -Math.sin(az), i2 = 2 * b.i;   /* the face turns to the camera */
+        const blink = reduced ? 1 : (Math.sin(time * 1.7 + b.a0 * 3) > 0.985 ? 0.15 : 1);
+        setM(sets.vz, b.i, pos.x + fx * 0.115, pos.y + 0.015, pos.z + fz * 0.115, 0, az, 0.15, 0.105, 0.085);
+        for(const [j, sd] of [[0, -1], [1, 1]]){
+          setM(sets.ey, i2 + j, pos.x + fx * 0.19 + rx_ * sd * 0.055, pos.y + 0.025, pos.z + fz * 0.19 + rz_ * sd * 0.055, 0, az, 0.026, 0.032 * blink, 0.02);
+          setM(sets.er, i2 + j, pos.x + rx_ * sd * 0.185, pos.y, pos.z + rz_ * sd * 0.185, 0, az, 0.045, 0.07, 0.07);
+        } }
+      setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.2, 0.185, 0.19); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN);   /* small body, a thin glow */
       setM(sets.an, b.i, pos.x, pos.y + 0.26, pos.z, 0, 0, 0.025, 0.16, 0.025); setM(sets.tp, b.i, pos.x, pos.y + 0.37, pos.z, 0, 0, 0.05, 0.05, 0.05);
     });
-    if(bots.length){ [sets.bm, sets.gl, sets.an, sets.tp].forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
+    if(bots.length){ [sets.bm, sets.gl, sets.an, sets.tp, sets.vz, sets.ey, sets.er].forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
     stepWx(dt);
     /* bubbles: at most 4 at once, a new one every few seconds among power and active people */
     if(!reduced && bubs.length){
