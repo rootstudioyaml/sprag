@@ -312,6 +312,8 @@ export const OF_CSS = `
 .of-drawer .cx{position:absolute;top:0;bottom:0;width:1px;background:rgba(58,47,39,.45);pointer-events:none;display:none}
 .of-drawer .ct{position:absolute;top:2px;z-index:3;pointer-events:none;background:#3a2f27;color:#fff;font-size:11px;line-height:1.45;padding:4px 8px;border-radius:8px;white-space:nowrap;display:none}
 .of-dtip{position:absolute;z-index:9;pointer-events:none;background:#3a2f27;color:#fff;font-size:11px;padding:4px 8px;border-radius:8px;white-space:nowrap;display:none}
+.of-drawer .ch .vl{position:absolute;transform:translate(-50%,-100%);margin-top:-2px;font-size:10px;line-height:1;font-weight:600;color:#5a4a3c;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums}.of-drawer .ch .vl.last{transform:translate(-80%,-100%)}
+.of-drawer .ax{display:flex;justify-content:space-between;font-size:10px;color:#9a8a7a;margin-top:2px;font-variant-numeric:tabular-nums}.of-drawer .leg b{font-weight:600;color:#3a2f27;margin-left:2px}
 .of-drawer .leg{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#6a5a4a;margin-top:4px}.of-drawer .leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
 .of-drawer .cmp{margin-bottom:10px}.of-drawer .cmp .ml{font-size:11.5px;font-weight:600;margin-bottom:2px}
 .of-drawer .cr{display:grid;grid-template-columns:76px 1fr 64px;align-items:center;gap:6px;font-size:11px;color:#6a5a4a;outline-offset:2px;border-radius:4px}.of-drawer .cr .tr{height:7px;background:#eee6d6;border-radius:4px;overflow:hidden}.of-drawer .cr .tr i{display:block;height:100%}.of-drawer .cr span{text-align:right;color:#3a2f27;font-variant-numeric:tabular-nums}
@@ -468,14 +470,21 @@ export function makeView(cfg){
 /* Drawer widgets shared by both scenes: charts with a crosshair tooltip, segmented bars and comparison bars with hover tooltips (all keyboard focusable). */
 const kreg = {};
 export const kit = {
-  chart(id, days, series, w = 380, h = 96){
+  chart(id, days, series, w = 380, h = 96, o = {}){
     kreg[id] = { days, series };
-    const n = days.length, mx = Math.max(1e-9, ...series.flatMap(s => s.vals)), pad = 4, bw = (w - 2 * pad) / Math.max(1, n), X = i => pad + (i + 0.5) * bw, Y = v => h - 4 - (v / mx) * (h - 12);
+    const n = days.length, mx = Math.max(1e-9, ...series.flatMap(s => s.vals)), pad = 4, bw = (w - 2 * pad) / Math.max(1, n), X = i => pad + (i + 0.5) * bw, Y = v => h - 4 - (v / mx) * (h - 24);   /* headroom for the value labels */
     let gs = '';
     series.forEach(s => { if(s.kind === 'bar') s.vals.forEach((v, i) => { const y = Y(v); gs += `<rect x="${(X(i) - bw * 0.36).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * 0.72).toFixed(1)}" height="${Math.max(0, h - 4 - y).toFixed(1)}" rx="1.5" fill="${s.color}" opacity=".85"/>`; });
       else gs += `<polyline points="${s.vals.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${s.color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>`; });
-    return `<div class="ch" data-ch="${esc(id)}" tabindex="0" role="img" aria-label="${esc(days.length ? days[0] + ' – ' + days[days.length - 1] : '')}"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gs}</svg><div class="cx"></div><div class="ct"></div></div>`
-      + `<div class="leg">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>`;
+    /* numbers without hovering: every bar's value when there are few, otherwise the peak and the latest day; the scale top; the first and last day; each series' total */
+    const bars = series.find(s => s.kind === 'bar'), lab = new Set();
+    const fits = bars && (n <= 10 || w / Math.max(1, n) >= bars.fmt(mx).length * 6.2 + 4);   /* every label fits over its own bar */
+    if(bars){ if(fits) bars.vals.forEach((v, i) => { if(v > 0) lab.add(i); }); else { const pk = bars.vals.indexOf(Math.max(...bars.vals)); if(bars.vals[pk] > 0) lab.add(pk); if(bars.vals[n - 1] > 0) lab.add(n - 1); } }
+    const vl = bars ? [...lab].map(i => `<span class="vl${i === n - 1 ? ' last' : ''}" style="left:${(X(i) / w * 100).toFixed(2)}%;top:${(Y(bars.vals[i]) / h * 100).toFixed(2)}%">${esc(bars.fmt(bars.vals[i]))}</span>`).join('') : '';
+    const sum = v => v.reduce((a, b) => a + b, 0);
+    const ax = n ? `<div class="ax"><span>${esc(days[0])}</span><span>${esc(days[n - 1])}</span></div>` : '';
+    return `<div class="ch" data-ch="${esc(id)}" tabindex="0" role="img" aria-label="${esc(days.length ? days[0] + ' – ' + days[days.length - 1] : '')}"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gs}</svg>${vl}<div class="cx"></div><div class="ct"></div></div>${ax}`
+      + `<div class="leg">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}${o.total ? ` <b>${esc(o.total)} ${esc(s.fmt(sum(s.vals)))}</b>` : ''}</span>`).join('')}</div>`;
   },
   stack(parts){ const tot = parts.reduce((a, q) => a + q.v, 0) || 1; return `<div class="fam">${parts.filter(q => q.v > 0).map(q => `<i tabindex="0" style="width:${(q.v / tot * 100).toFixed(2)}%;background:${q.color}" data-tip="${esc(q.tip)}"></i>`).join('')}</div>`; },
   cmp(rows){   /* rows: [{label, items:[{name, v, txt, color}]}] */
@@ -730,8 +739,8 @@ export function mountOfficeScene(container, data, opts = {}){
     const sec = (title, html) => html ? `<div class="sec"><h4>${esc(title)}</h4>${html}</div>` : '';
     const famHtml = tot ? kit.stack(['haiku', 'sonnet', 'opus'].map(f => ({ v: fam[f], color: FAMC[f], tip: `${f} · ${fam[f]} · ${Math.round(fam[f] / tot * 100)}%` })))
       + `<div class="famt">${['haiku', 'sonnet', 'opus'].filter(f => fam[f]).map(f => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${FAMC[f]}"></i>${f} ${fam[f]}</span>`).join('')}</div>` : '';
-    const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }]) : '';
-    const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }]) : '';
+    const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '';
+    const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }], undefined, undefined, { total: ui.total }) : '';
     chrome.setHtml(`<div class="hd">${iconSvg(sel.gk)}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
       + `<div class="bd"><div class="why">${esc(dt.why)}</div>`
       + ((dt.next || []).length ? `<div class="nx">${dt.next.map((l, i) => `<div${i ? '' : ' class="h"'}>${esc(l)}</div>`).join('')}</div>` : '')
@@ -1559,7 +1568,7 @@ export function officeSceneData(o){
     rows: bands.map(b => ({ k: b.k, tier: b.tier, no: t('of.g.no', { n: String(b.no).padStart(2, '0') }, true), name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.rk, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
       .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
     note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true) };
-  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
+  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.spent') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
     activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,
