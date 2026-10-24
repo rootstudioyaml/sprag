@@ -3,10 +3,10 @@
  *   const ctl = mountOfficeScene(container, data, opts);   // ctl = { update(data), destroy() }
  *   const data = officeSceneData({ rows, usage, promptRows, teams, used, limit, orgName, rangeLabel, t, money, rel, ... });
  *
- * One zone per team, one desk per person, AI helper bots, a server kiosk. Chunky pastel animal characters by grade (lion, tiger, fox, penguin, bear, rabbit, chick, ghost; see GRADES), bright cozy daylight, orthographic isometric camera.
+ * One zone per team, one desk per person, AI helper bots, a server kiosk. Chunky pastel animal characters by grade (thirty species from dragon to chick, plus the ghost; see GRADES), a crown on the company's number one, bright cozy daylight, orthographic isometric camera.
  * data (all user-facing strings arrive ready-made, the host owns i18n):
- *   { teams:[{id,name}], people:[{id,name,teamId,teamName,tier:'power'|'active'|'normal'|'low'|'nodata',grade,gradeText,gradeLabel,tag,tierText,tip:[[k,v]],bots:['haiku'|'sonnet'|'opus'|'any'],bubbles:[{text,ai}],promptId,spent}],
- *     free, freeLabel, more, moreLabel, server:{label}, activity:0..1, closed, hud:{title,stats,closed}, legend:[{k:grade|'ghost',label}|{c,label}|{label}], book:{title,range,rows:[{k,name,role,range,n}],note}|null, aria }
+ *   { teams:[{id,name}], people:[{id,name,teamId,teamName,tier:'power'|'active'|'normal'|'low'|'nodata',grade,gradeText,gradeLabel,rank,crown,tag,tierText,tip:[[k,v]],bots:['haiku'|'sonnet'|'opus'|'any'],bubbles:[{text,ai}],promptId,spent}],
+ *     free, freeLabel, more, moreLabel, server:{label}, activity:0..1, closed, hud:{title,stats,closed}, legend:[{k:grade|'ghost'|'crown',label}|{c,label}|{label}], book:{title,range,found,tiers,top:{title,rows:[{id,name,k,gname,team,crown,rk}]},rows:[{k,tier,no,name,role,range,n}],note}|null, aria }
  * people[].detail feeds the side drawer (click a person); data.ui holds its strings. opts: { onSeats(id), onPrompts(id), onTeam(id), onServer(), onFail(reason) }
  * The scene keeps its own bright palette in both page themes. three.js is imported lazily the first time the container scrolls into view.
  * The returned handle also carries view, ready(), people(), server() and selectPerson(id) / closeDrawer() for scripted recordings (video/tour).
@@ -22,24 +22,28 @@ const TV = { power: { body: '#a78bfa', scr: '#d8ccff', bri: 1, sp: 15 }, active:
 /* Animal set: one table, swap it to change the cast. Parts are spheres ('sph') and cones ('cone'); head parts are relative to the head
  * (it looks toward -z), parts with b:true are relative to the desk. p = position, s = scale (radius), r = rotation about x. */
 const P = (g, c, p, s, r = 0, b = false) => ({ g, c, p, s, r, b });
-const eyes = (z, r = 0.045, c = '#2d2323') => [-0.12, 0.12].map(x => P('sph', c, [x, 0.06, z], [r, r, r]));
+/* eyes carry a small white catchlight up and to the right, which is what makes the faces read as alive at this size */
+const eyes = (z, r = 0.045, c = '#2d2323', y = 0.06, dx = 0.12) => [-dx, dx].flatMap(x => [P('sph', c, [x, y, z], [r, r, r]), P('sph', '#ffffff', [x + r * 0.35, y + r * 0.4, z - r * 0.72], [r * 0.36, r * 0.36, r * 0.3])]);
 const ears = (c, y, rad, z = -0.02) => [-1, 1].map(k => P('sph', c, [0.25 * k, y, z], [rad, rad, rad * 0.8]));
-const SVG = body => `<svg viewBox="0 0 16 16" aria-hidden="true">${body}</svg>`, dot = (x, y, c = '#2d2323') => `<circle cx="${x}" cy="${y}" r=".85" fill="${c}"/>`;
+const SVG = body => `<svg viewBox="0 0 16 16" aria-hidden="true">${body}</svg>`, dot = (x, y, c = '#2d2323') => `<circle cx="${x}" cy="${y}" r=".85" fill="${c}"/><circle cx="${x + 0.3}" cy="${y - 0.32}" r=".3" fill="#fff"/>`;
 /* The cast: one table of species (grades) from best to worst. Everything that sorts a person into a species (the data mapper), the field guide
  * and its range text read this table and nothing else. sr = percentile of the overall score (0 lowest, 1 highest), dlg = delegation share,
  * med = the company's median delegation share. A species needs sr >= minSr (sr > minSr when gt), and needDlg also dlg >= med; the first match
  * wins, so a top scorer with a low delegation share falls through to the next rows. tier is the coarse class the rest of the scene uses. */
+/* Thirty species in four tiers (6 power, 9 active, 8 normal, 7 low). The bands narrow toward the top, so the rare species stay rare. */
+const G = (k, minSr, tier, x) => ({ k, minSr, tier, ...x }), D = { needDlg: true };
 export const GRADES = [
-  { k: 'lion', minSr: 0.9, needDlg: true, tier: 'power' },
-  { k: 'tiger', minSr: 0.8, needDlg: true, tier: 'power' },
-  { k: 'fox', minSr: 0.65, tier: 'active' },
-  { k: 'penguin', minSr: 0.5, tier: 'active' },
-  { k: 'bear', minSr: 0.35, tier: 'normal' },
-  { k: 'rabbit', minSr: 0.25, gt: true, tier: 'normal' },
-  { k: 'chick', minSr: -1, tier: 'low' }
+  G('dragon', 0.98, 'power', D), G('unicorn', 0.95, 'power', D), G('lion', 0.92, 'power', D), G('tiger', 0.89, 'power', D), G('eagle', 0.85, 'power', D), G('wolf', 0.8, 'power', D),
+  G('cheetah', 0.77, 'active'), G('fox', 0.74, 'active'), G('owl', 0.71, 'active'), G('husky', 0.68, 'active'), G('panda', 0.65, 'active'), G('koala', 0.62, 'active'),
+  G('penguin', 0.58, 'active'), G('raccoon', 0.54, 'active'), G('cat', 0.5, 'active'),
+  G('dog', 0.47, 'normal'), G('bear', 0.44, 'normal'), G('monkey', 0.41, 'normal'), G('deer', 0.38, 'normal'), G('elephant', 0.35, 'normal'), G('pig', 0.32, 'normal'),
+  G('sheep', 0.29, 'normal'), G('rabbit', 0.25, 'normal', { gt: true }),
+  G('duck', 0.22, 'low'), G('hedgehog', 0.19, 'low'), G('squirrel', 0.16, 'low'), G('hamster', 0.12, 'low'), G('frog', 0.08, 'low'), G('mouse', 0.04, 'low'), G('chick', -1, 'low')
 ];
 export const GHOST_GRADE = { k: 'ghost', tier: 'nodata' };
+export const TIERS = ['power', 'active', 'normal', 'low'];
 const SR_EPS = 1e-9, TIER_GRADE = { power: 'lion', active: 'fox', normal: 'bear', low: 'chick', nodata: 'ghost' };
+export const gradeIndex = k => GRADES.findIndex(g => g.k === k);
 /* idle: no spend (and no prompts) in the period, which is always the last row */
 export function gradeOf(sr, dlg, med, idle){
   if(idle) return GRADES[GRADES.length - 1].k;
@@ -47,10 +51,14 @@ export function gradeOf(sr, dlg, med, idle){
   return (g || GRADES[GRADES.length - 1]).k;
 }
 export const tierOfGrade = k => (k === 'ghost' ? GHOST_GRADE : GRADES.find(g => g.k === k) || GRADES[GRADES.length - 1]).tier;
-/* The numbers behind each row's range text, all derived from GRADES: a..b = "top a to b %", c = bottom share of the last row, d = the power cut ("top d %") */
+/* The numbers behind each row's range text, all derived from GRADES: a..b = "top a to b %", c = bottom share of the last row, d = the power cut ("top d %").
+ * rk names the range text: top (first row), fall (the first row without the delegation rule, where top scorers below the median land), last, or band; '.d' adds the delegation rule. */
 export function gradeBands(){
-  const pct = v => Math.round((1 - v) * 100), pw = Math.min(...GRADES.filter(g => g.needDlg).map(g => g.minSr));
-  return GRADES.map((g, i) => { const hi = i ? GRADES[i - 1].minSr : 1, a = pct(hi); return { k: g.k, tier: g.tier, needDlg: !!g.needDlg, a, b: Math.min(100, pct(g.minSr)), c: 100 - a, d: pct(pw) }; });
+  const pct = v => Math.round((1 - v) * 100), pw = Math.min(...GRADES.filter(g => g.needDlg).map(g => g.minSr)), fall = GRADES.findIndex(g => !g.needDlg);
+  return GRADES.map((g, i) => {
+    const hi = i ? GRADES[i - 1].minSr : 1, a = pct(hi), rk = i === GRADES.length - 1 ? 'last' : i === 0 ? 'top' : i === fall && fall > 0 ? 'fall' : 'band';
+    return { k: g.k, no: i + 1, tier: g.tier, needDlg: !!g.needDlg, rk: rk + (g.needDlg ? '.d' : ''), a, b: Math.min(100, pct(g.minSr)), c: 100 - a, d: pct(pw) };
+  });
 }
 const gradeKey = p => (p && (p.grade || TIER_GRADE[p.tier])) || 'ghost';
 const ANIMALS = {
@@ -79,6 +87,152 @@ const ANIMALS = {
     parts: () => [P('sph', '#ffe27a', [0, 0, 0], [0.3, 0.3, 0.3]), P('sph', '#ffe27a', [0, 0.32, 0], [0.07, 0.07, 0.07]), P('sph', '#ffe27a', [-0.08, 0.3, 0.02], [0.06, 0.06, 0.06]), P('sph', '#ffe27a', [0.08, 0.3, 0.02], [0.06, 0.06, 0.06]),
       P('cone', '#f59e3a', [0, -0.04, -0.34], [0.07, 0.09, 0.07], -Math.PI / 2), ...[-1, 1].map(k => P('sph', '#ffb3c7', [0.17 * k, -0.06, -0.24], [0.06, 0.06, 0.05])), ...eyes(-0.27, 0.04)] },
 };
+/* arms are paws in the species' fur; the torso keeps the tier colour as a shirt */
+Object.entries({ lion: '#f6cf7a', tiger: '#f0913a', fox: '#f4a261', penguin: '#2f3a66', bear: '#c8a98a', rabbit: '#fffaf5', chick: '#ffe27a' }).forEach(([k, c]) => { ANIMALS[k].arm = c; });
+
+/* Builder for the other species: a round head with ear, muzzle, nose and cheek presets, plus per-species extras.
+ * s: { fur, r (head radius), ear: round|point|small|none, earC, earIn, muz, nose, cheek, eyeC, noEyes, arm, x() head parts, tail() desk parts,
+ *      icon layers: ixB (behind the head), ix (over the head), ixF (over the face), stroke (outline for pale heads) } */
+const EAR = {
+  round: (c, i) => [-1, 1].flatMap(k => [P('sph', c, [0.25 * k, 0.28, -0.02], [0.12, 0.12, 0.1]), P('sph', i, [0.25 * k, 0.28, -0.08], [0.065, 0.065, 0.04])]),
+  point: (c, i) => [-1, 1].flatMap(k => [P('cone', c, [0.2 * k, 0.4, 0], [0.12, 0.16, 0.1]), P('cone', i, [0.2 * k, 0.37, -0.05], [0.065, 0.09, 0.05])]),
+  small: (c, i) => [-1, 1].flatMap(k => [P('sph', c, [0.24 * k, 0.29, 0], [0.08, 0.08, 0.06]), P('sph', i, [0.24 * k, 0.29, -0.04], [0.045, 0.045, 0.03])]),
+  none: () => []
+};
+const ICON_EAR = {
+  round: (c, i) => `<circle cx="3.6" cy="4" r="2.3" fill="${c}"/><circle cx="12.4" cy="4" r="2.3" fill="${c}"/><circle cx="3.6" cy="4" r="1.1" fill="${i}"/><circle cx="12.4" cy="4" r="1.1" fill="${i}"/>`,
+  point: (c, i) => `<polygon points="2.4,1.4 6.6,5 2.8,8" fill="${c}"/><polygon points="13.6,1.4 9.4,5 13.2,8" fill="${c}"/><polygon points="3.2,3 5.4,5.2 3.4,6.6" fill="${i}"/><polygon points="12.8,3 10.6,5.2 12.6,6.6" fill="${i}"/>`,
+  small: c => `<circle cx="4" cy="4.6" r="1.7" fill="${c}"/><circle cx="12" cy="4.6" r="1.7" fill="${c}"/>`,
+  none: () => ''
+};
+function beast(s){
+  const r = s.r || 0.34, ear = s.ear || 'round', ec = s.eyeC || '#2d2323', ein = s.earIn || s.muz || s.fur, line = s.stroke ? ' stroke="#e3d6c8" stroke-width=".5"' : '';
+  return { arm: s.arm || s.fur,
+    icon: SVG((s.ixB || '') + ICON_EAR[ear](s.earC || s.fur, ein) + `<circle cx="8" cy="9" r="6" fill="${s.fur}"${line}/>` + (s.muz ? `<ellipse cx="8" cy="11.2" rx="2.7" ry="2" fill="${s.muz}"/>` : '') + (s.ix || '')
+      + (s.noEyes ? '' : dot(6, 8.4, ec) + dot(10, 8.4, ec)) + (s.nose ? `<ellipse cx="8" cy="10.3" rx=".9" ry=".65" fill="${s.nose}"/>` : '')
+      + (s.cheek ? `<circle cx="4.7" cy="11" r=".9" fill="${s.cheek}" opacity=".75"/><circle cx="11.3" cy="11" r=".9" fill="${s.cheek}" opacity=".75"/>` : '') + (s.ixF || '')),
+    parts: () => [P('sph', s.fur, [0, 0, 0], [r, r, r]), ...EAR[ear](s.earC || s.fur, ein),
+      ...(s.muz ? [P('sph', s.muz, [0, -0.1, -(r - 0.05)], [0.15, 0.11, 0.1])] : []), ...(s.nose ? [P('sph', s.nose, [0, -0.04, -(r + 0.05)], [0.045, 0.035, 0.035])] : []),
+      ...(s.cheek ? [-1, 1].map(k => P('sph', s.cheek, [0.2 * k, -0.08, -(r - 0.09)], [0.06, 0.045, 0.04])) : []),
+      ...(s.noEyes ? [] : eyes(-(r - 0.03), 0.045, ec)), ...(s.x ? s.x() : []), ...(s.tail ? s.tail() : [])] };
+}
+const both = f => [-1, 1].flatMap(f), T_ = (c, p, s, r = 0) => P('sph', c, p, s, r, true), TC = (c, p, s, r = 0) => P('cone', c, p, s, r, true);
+const whiskers = c => both(k => [P('sph', c, [0.25 * k, -0.08, -0.27], [0.1, 0.007, 0.007]), P('sph', c, [0.25 * k, -0.12, -0.26], [0.1, 0.007, 0.007])]);
+Object.assign(ANIMALS, {
+  dragon: beast({ fur: '#6fcf8f', ear: 'none', muz: '#c8f2d2', cheek: '#ffb3c7', arm: '#5bbf7d',
+    x: () => [...both(k => [P('cone', '#ffd36b', [0.15 * k, 0.38, 0.06], [0.06, 0.13, 0.06], 0.45), P('sph', '#2f6b45', [0.05 * k, -0.07, -0.395], [0.018, 0.018, 0.012])]),
+      P('cone', '#ffb347', [0, 0.3, 0.2], [0.05, 0.08, 0.05], 0.9), P('cone', '#ffb347', [0, 0.13, 0.32], [0.05, 0.08, 0.05], 1.4), P('cone', '#ffb347', [0, -0.06, 0.34], [0.045, 0.07, 0.045], 1.8)],
+    tail: () => [...both(k => [T_('#4fae73', [0.44 * k, 1.45, 0.62], [0.05, 0.24, 0.2], 0.3)]), T_('#6fcf8f', [0.55, 0.78, 0.85], [0.13, 0.13, 0.26]), TC('#ffb347', [0.55, 0.78, 1.17], [0.08, 0.1, 0.06], Math.PI / 2)],
+    ixB: '<polygon points="4.2,0.8 6.6,4.6 3.8,4.9" fill="#ffd36b"/><polygon points="11.8,0.8 9.4,4.6 12.2,4.9" fill="#ffd36b"/>', ixF: '<circle cx="7.3" cy="11" r=".4" fill="#2f6b45"/><circle cx="8.7" cy="11" r=".4" fill="#2f6b45"/>' }),
+  unicorn: beast({ fur: '#fffaff', ear: 'point', earIn: '#ffc6df', muz: '#ffeef6', nose: '#ffa8c8', cheek: '#ffb3d1', arm: '#fbf2fa', stroke: true,
+    x: () => [P('cone', '#ffd36b', [0, 0.42, -0.16], [0.05, 0.15, 0.05], -0.45), P('sph', '#ffb3d9', [0, 0.3, 0.12], [0.12, 0.12, 0.12]), P('sph', '#b8d8ff', [0.02, 0.17, 0.27], [0.11, 0.11, 0.11]),
+      P('sph', '#d4c2ff', [0, 0, 0.32], [0.1, 0.1, 0.1]), P('sph', '#fff1a8', [0.03, 0.34, -0.06], [0.08, 0.08, 0.08])],
+    tail: () => [T_('#ffb3d9', [0.55, 0.8, 0.78], [0.11, 0.11, 0.18]), T_('#b8d8ff', [0.55, 0.72, 0.98], [0.1, 0.1, 0.16]), T_('#d4c2ff', [0.55, 0.62, 1.14], [0.08, 0.08, 0.12])],
+    ix: '<circle cx="11.6" cy="4.4" r="2" fill="#ffb3d9"/><circle cx="13.4" cy="6.9" r="1.6" fill="#b8d8ff"/><circle cx="13.6" cy="9.6" r="1.3" fill="#d4c2ff"/>', ixF: '<polygon points="7,4.2 9,4.2 8,0.3" fill="#ffd36b"/>' }),
+  eagle: beast({ fur: '#ffffff', ear: 'none', arm: '#7a5235', eyeC: '#3a2a14', stroke: true,
+    x: () => [P('cone', '#ffc23d', [0, -0.07, -0.37], [0.075, 0.12, 0.07], -Math.PI / 2), P('sph', '#e8a21a', [0, -0.12, -0.45], [0.035, 0.04, 0.03]),
+      ...both(k => [P('sph', '#e9e4da', [0.12 * k, 0.13, -0.29], [0.08, 0.03, 0.04])]), P('sph', '#7a5235', [0, -0.3, 0.02], [0.3, 0.12, 0.28])],
+    tail: () => [...both(k => [T_('#7a5235', [0.44 * k, 1.35, 0.55], [0.06, 0.26, 0.2], 0.2)]), T_('#ffffff', [0.5, 0.85, 0.82], [0.16, 0.05, 0.24])],
+    ixF: '<path d="M4.6 7.2l2.4.6M11.4 7.2 9 7.8" stroke="#b9ad98" stroke-width=".8" stroke-linecap="round"/><polygon points="6.4,9.8 9.6,9.8 8.4,13 7.6,12.4" fill="#ffc23d"/>' }),
+  wolf: beast({ fur: '#8e98a9', ear: 'point', earIn: '#e9edf2', muz: '#eef1f5', nose: '#2f2f38',
+    x: () => [...both(k => [P('sph', '#eef1f5', [0.27 * k, -0.12, -0.08], [0.12, 0.1, 0.12])]), P('sph', '#6d7687', [0, 0.22, -0.24], [0.1, 0.06, 0.06])],
+    tail: () => [T_('#8e98a9', [0.55, 0.8, 0.75], [0.14, 0.14, 0.3]), T_('#eef1f5', [0.55, 0.8, 1.05], [0.1, 0.1, 0.1])],
+    ix: '<polygon points="1.8,10.5 4,8 4.6,12.6" fill="#eef1f5"/><polygon points="14.2,10.5 12,8 11.4,12.6" fill="#eef1f5"/>' }),
+  cheetah: beast({ fur: '#f3c46c', ear: 'small', muz: '#fff6e2', nose: '#3b2a1e',
+    x: () => [...[[0.16, 0.22, -0.22], [-0.18, 0.2, -0.22], [0.02, 0.3, -0.14], [0.27, 0.06, -0.16], [-0.27, 0.05, -0.16], [0.1, 0.3, 0.05], [-0.12, 0.28, 0.1], [0, 0.15, 0.3], [0.25, 0.12, 0.2], [-0.24, 0.15, 0.18]]
+      .map(p => P('sph', '#4a3324', p, [0.035, 0.035, 0.025])), ...both(k => [P('sph', '#3b2a1e', [0.13 * k, -0.06, -0.31], [0.018, 0.07, 0.02])])],
+    tail: () => [T_('#f3c46c', [0.55, 0.78, 0.85], [0.08, 0.08, 0.3]), T_('#3b2a1e', [0.55, 0.78, 1.12], [0.07, 0.07, 0.07])],
+    ix: '<circle cx="5" cy="5.6" r=".6" fill="#4a3324"/><circle cx="10.8" cy="5.2" r=".6" fill="#4a3324"/><circle cx="8" cy="4.4" r=".5" fill="#4a3324"/><circle cx="3.4" cy="9" r=".5" fill="#4a3324"/><circle cx="12.6" cy="9" r=".5" fill="#4a3324"/>',
+    ixF: '<path d="M5.7 9.4l.4 2M10.3 9.4l-.4 2" stroke="#3b2a1e" stroke-width=".75" stroke-linecap="round"/>' }),
+  owl: beast({ fur: '#a5806a', ear: 'none', arm: '#8f6b55', noEyes: true,
+    x: () => [...both(k => [P('cone', '#8f6b55', [0.2 * k, 0.37, 0], [0.07, 0.12, 0.06]), P('sph', '#f1e3cf', [0.12 * k, 0.02, -0.22], [0.14, 0.15, 0.12]),
+      P('sph', '#ffd35c', [0.12 * k, 0.03, -0.32], [0.075, 0.075, 0.04]), P('sph', '#2d2323', [0.12 * k, 0.03, -0.35], [0.045, 0.045, 0.03]), P('sph', '#ffffff', [0.12 * k + 0.018, 0.052, -0.377], [0.016, 0.016, 0.012])]),
+      P('cone', '#f2a33a', [0, -0.09, -0.35], [0.045, 0.07, 0.04], -2.4)],
+    ixB: '<polygon points="3,1.6 6,4.4 3.4,5.6" fill="#8f6b55"/><polygon points="13,1.6 10,4.4 12.6,5.6" fill="#8f6b55"/>',
+    ixF: '<circle cx="5.9" cy="8.6" r="2.4" fill="#f1e3cf"/><circle cx="10.1" cy="8.6" r="2.4" fill="#f1e3cf"/><circle cx="5.9" cy="8.6" r="1.5" fill="#ffd35c"/><circle cx="10.1" cy="8.6" r="1.5" fill="#ffd35c"/>' + dot(5.9, 8.6) + dot(10.1, 8.6) + '<polygon points="7.2,10.4 8.8,10.4 8,12.2" fill="#f2a33a"/>' }),
+  husky: beast({ fur: '#6f7b8e', ear: 'point', earIn: '#f4f6fa', nose: '#2a2a30', eyeC: '#2f7fc4',
+    x: () => [P('sph', '#f4f6fa', [0, -0.07, -0.13], [0.27, 0.22, 0.2]), P('sph', '#ffffff', [0, -0.11, -0.3], [0.14, 0.1, 0.1]), ...both(k => [P('sph', '#ffffff', [0.12 * k, 0.15, -0.28], [0.05, 0.03, 0.03])])],
+    tail: () => [T_('#6f7b8e', [0.5, 1.05, 0.85], [0.12, 0.2, 0.12], 0.6), T_('#f4f6fa', [0.5, 1.22, 0.78], [0.08, 0.08, 0.08])],
+    ix: '<path d="M3 10c1.5-2.6 3-2.2 5 0 2-2.2 3.5-2.6 5 0-.8 3-2.8 4.7-5 4.7S3.8 13 3 10z" fill="#f4f6fa"/>' }),
+  panda: beast({ fur: '#ffffff', earC: '#2d2d33', earIn: '#2d2d33', muz: '#ffffff', nose: '#2d2d33', arm: '#2d2d33', eyeC: '#141418', stroke: true,
+    x: () => both(k => [P('sph', '#2d2d33', [0.12 * k, 0.05, -0.28], [0.075, 0.095, 0.05])]),
+    ix: '<ellipse cx="5.9" cy="8.6" rx="1.7" ry="2.1" fill="#2d2d33" transform="rotate(25 5.9 8.6)"/><ellipse cx="10.1" cy="8.6" rx="1.7" ry="2.1" fill="#2d2d33" transform="rotate(-25 10.1 8.6)"/>' }),
+  koala: beast({ fur: '#a9aeb8', ear: 'none',
+    x: () => [...both(k => [P('sph', '#a9aeb8', [0.3 * k, 0.22, 0], [0.17, 0.17, 0.12]), P('sph', '#eef0f4', [0.3 * k, 0.22, -0.06], [0.1, 0.1, 0.06])]), P('sph', '#3b3b46', [0, -0.06, -0.35], [0.07, 0.095, 0.06])],
+    ixB: '<circle cx="3" cy="5" r="3" fill="#a9aeb8"/><circle cx="13" cy="5" r="3" fill="#a9aeb8"/><circle cx="3" cy="5" r="1.7" fill="#eef0f4"/><circle cx="13" cy="5" r="1.7" fill="#eef0f4"/>',
+    ixF: '<ellipse cx="8" cy="10.6" rx="1.4" ry="1.9" fill="#3b3b46"/>' }),
+  raccoon: beast({ fur: '#a3a3ad', ear: 'small', earIn: '#ffffff', muz: '#ffffff', nose: '#2d2d33', arm: '#7c7c88',
+    x: () => [P('sph', '#3e3e48', [0, 0.05, -0.25], [0.25, 0.075, 0.08]), ...both(k => [P('sph', '#ffffff', [0.12 * k, 0.15, -0.29], [0.075, 0.03, 0.03])])],
+    tail: () => [0, 1, 2, 3].map(j => T_(j % 2 ? '#3e3e48' : '#a3a3ad', [0.55, 0.8, 0.68 + j * 0.13], [0.12 - j * 0.01, 0.12 - j * 0.01, 0.09])),
+    ix: '<rect x="2.6" y="7" width="10.8" height="3" rx="1.5" fill="#3e3e48"/><path d="M4.6 6l2.4.3M11.4 6 9 6.3" stroke="#fff" stroke-width=".8" stroke-linecap="round"/>' }),
+  cat: beast({ fur: '#bdb6c4', ear: 'point', earIn: '#ffc2d4', muz: '#f5f1f7', nose: '#ff9ab5', cheek: '#ffc2d4',
+    x: () => [...[-0.09, 0, 0.09].map((x, j) => P('sph', '#8e86a0', [x, 0.24 + (j === 1 ? 0.03 : 0), -0.24], [0.025, 0.07, 0.025])), ...whiskers('#ffffff')],
+    tail: () => [T_('#bdb6c4', [0.55, 0.75, 0.8], [0.07, 0.07, 0.26], -0.5), T_('#8e86a0', [0.55, 0.92, 1.02], [0.07, 0.07, 0.07])],
+    ix: '<path d="M6.8 4.2v1.6M8 3.8v2M9.2 4.2v1.6" stroke="#8e86a0" stroke-width=".8" stroke-linecap="round"/>' }),
+  dog: beast({ fur: '#eab86e', ear: 'none', muz: '#fff1d6', nose: '#2d2323',
+    x: () => [...both(k => [P('sph', '#c98f45', [0.31 * k, 0.06, 0], [0.09, 0.2, 0.13])]), P('sph', '#ff8fa3', [0, -0.2, -0.33], [0.045, 0.055, 0.025])],
+    tail: () => [T_('#eab86e', [0.55, 0.95, 0.82], [0.08, 0.2, 0.08], 0.7)],
+    ix: '<ellipse cx="2.9" cy="8.6" rx="1.8" ry="3.6" fill="#c98f45"/><ellipse cx="13.1" cy="8.6" rx="1.8" ry="3.6" fill="#c98f45"/>', ixF: '<ellipse cx="8" cy="12.9" rx=".9" ry="1.1" fill="#ff8fa3"/>' }),
+  monkey: beast({ fur: '#9a6a49', ear: 'none', noEyes: true,
+    x: () => [P('sph', '#f3d4b3', [0, -0.03, -0.17], [0.24, 0.22, 0.18]), ...eyes(-0.355), ...both(k => [P('sph', '#9a6a49', [0.33 * k, 0.02, 0], [0.1, 0.1, 0.07]), P('sph', '#f3d4b3', [0.33 * k, 0.02, -0.04], [0.06, 0.06, 0.04]),
+      P('sph', '#7a4f35', [0.03 * k, -0.08, -0.36], [0.015, 0.015, 0.01])]), P('sph', '#7a4f35', [0, -0.15, -0.34], [0.06, 0.012, 0.012]), P('sph', '#9a6a49', [0, 0.33, -0.05], [0.06, 0.08, 0.06])],
+    tail: () => [T_('#9a6a49', [0.55, 0.9, 0.85], [0.05, 0.25, 0.05], 0.4), T_('#9a6a49', [0.55, 1.13, 0.75], [0.07, 0.07, 0.07])],
+    ixB: '<circle cx="1.9" cy="9" r="1.8" fill="#9a6a49"/><circle cx="14.1" cy="9" r="1.8" fill="#9a6a49"/><circle cx="1.9" cy="9" r=".9" fill="#f3d4b3"/><circle cx="14.1" cy="9" r=".9" fill="#f3d4b3"/>',
+    ix: '<path d="M8 6.3c1-1.4 3.6-1.2 3.9.9.3 1.6-.4 2.2-.4 3 .5 2-1.4 3.6-3.5 3.6S4 12.2 4.5 10.2c0-.8-.7-1.4-.4-3C4.4 5.1 7 4.9 8 6.3z" fill="#f3d4b3"/>' + dot(6.3, 8.6) + dot(9.7, 8.6) + '<path d="M7 12h2" stroke="#7a4f35" stroke-width=".6" stroke-linecap="round"/>' }),
+  deer: beast({ fur: '#c98d58', ear: 'none', muz: '#f3dfc6', nose: '#2d2323',
+    x: () => [...both(k => [P('sph', '#c98d58', [0.31 * k, 0.2, 0.02], [0.11, 0.06, 0.05]), P('sph', '#f3dfc6', [0.31 * k, 0.2, -0.01], [0.07, 0.035, 0.03]),
+      P('cone', '#8b6441', [0.13 * k, 0.44, 0.04], [0.03, 0.14, 0.03]), P('cone', '#8b6441', [0.21 * k, 0.48, 0.02], [0.025, 0.1, 0.025]), P('sph', '#8b6441', [0.17 * k, 0.4, 0.03], [0.045, 0.03, 0.03])]),
+      ...[[0.1, 0.26, 0.1], [-0.12, 0.23, 0.15], [0, 0.12, 0.3]].map(p => P('sph', '#fff6ea', p, [0.035, 0.035, 0.025]))],
+    tail: () => [T_('#ffffff', [0.5, 0.75, 0.82], [0.07, 0.08, 0.07])],
+    ixB: '<path d="M5.2 4.4 4 1M4.5 2.6 2.4 1.8M10.8 4.4 12 1M11.5 2.6l2.1-.8" stroke="#8b6441" stroke-width="1.1" stroke-linecap="round"/><ellipse cx="2.4" cy="6.4" rx="2" ry="1.1" fill="#c98d58"/><ellipse cx="13.6" cy="6.4" rx="2" ry="1.1" fill="#c98d58"/>' }),
+  elephant: beast({ fur: '#aab6ca', ear: 'none',
+    x: () => [...both(k => [P('sph', '#aab6ca', [0.36 * k, 0.02, 0.05], [0.22, 0.25, 0.06]), P('sph', '#f2c4d2', [0.36 * k, 0.02, 0.01], [0.14, 0.17, 0.03]), P('cone', '#fffaf0', [0.12 * k, -0.2, -0.3], [0.03, 0.06, 0.03], -2.4)]),
+      P('sph', '#aab6ca', [0, -0.1, -0.34], [0.085, 0.09, 0.08]), P('sph', '#aab6ca', [0, -0.22, -0.39], [0.07, 0.1, 0.065]), P('sph', '#9aa6ba', [0, -0.32, -0.42], [0.06, 0.04, 0.055])],
+    tail: () => [T_('#aab6ca', [0.5, 0.75, 0.85], [0.03, 0.03, 0.16])],
+    ixB: '<circle cx="2.6" cy="8.4" r="3" fill="#aab6ca"/><circle cx="13.4" cy="8.4" r="3" fill="#aab6ca"/><circle cx="2.6" cy="8.4" r="1.8" fill="#f2c4d2"/><circle cx="13.4" cy="8.4" r="1.8" fill="#f2c4d2"/>',
+    ixF: '<path d="M8 10v3.4c0 .9.9 1.3 1.6.6" stroke="#8d9ab0" stroke-width="2" fill="none" stroke-linecap="round"/>' }),
+  pig: beast({ fur: '#ffbccb', ear: 'small', earC: '#ffbccb', earIn: '#ff9fb4', cheek: '#ff9fb4',
+    x: () => [...both(k => [P('cone', '#ffaabd', [0.25 * k, 0.33, -0.04], [0.08, 0.08, 0.06], -0.7)]), P('sph', '#ff9fb4', [0, -0.08, -0.35], [0.12, 0.09, 0.06]), ...both(k => [P('sph', '#c75c78', [0.04 * k, -0.08, -0.405], [0.02, 0.03, 0.01])])],
+    tail: () => [T_('#ffbccb', [0.45, 0.85, 0.88], [0.05, 0.05, 0.05]), T_('#ffbccb', [0.45, 0.92, 0.93], [0.04, 0.04, 0.04]), T_('#ffbccb', [0.45, 0.88, 0.99], [0.035, 0.035, 0.035])],
+    ixF: '<ellipse cx="8" cy="11.2" rx="2.2" ry="1.5" fill="#ff9fb4"/><circle cx="7.2" cy="11.2" r=".45" fill="#c75c78"/><circle cx="8.8" cy="11.2" r=".45" fill="#c75c78"/>' }),
+  sheep: beast({ fur: '#f6ece0', r: 0.3, ear: 'none', nose: '#b07a80', cheek: '#ffc2d4', arm: '#fffdf8',
+    x: () => [...[[0, 0.3, 0], [0.17, 0.27, 0.02], [-0.17, 0.27, 0.02], [0.09, 0.33, 0.12], [-0.09, 0.33, 0.12], [0, 0.25, 0.22], [0.25, 0.12, 0.12], [-0.25, 0.12, 0.12], [0, 0.08, 0.3], [0.2, 0, 0.22], [-0.2, 0, 0.22]]
+      .map(p => P('sph', '#fffdf8', p, [0.13, 0.13, 0.13])), ...both(k => [P('sph', '#e6d5c3', [0.33 * k, 0.03, 0], [0.12, 0.05, 0.07])])],
+    ixB: [[3.6, 4.6], [8, 3], [12.4, 4.6], [2.4, 8], [13.6, 8]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.5" fill="#fffdf8" stroke="#e3d6c8" stroke-width=".5"/>`).join('') }),
+  duck: beast({ fur: '#ffffff', ear: 'none', cheek: '#ffc2d4', stroke: true,
+    x: () => [P('sph', '#ff9f40', [0, -0.08, -0.34], [0.14, 0.045, 0.11]), P('sph', '#ffffff', [0, 0.36, 0.02], [0.05, 0.08, 0.05], 0.4)],
+    tail: () => [TC('#ffffff', [0.45, 0.8, 0.85], [0.08, 0.12, 0.06], 1.2)],
+    ixF: '<ellipse cx="8" cy="11" rx="2.6" ry="1.1" fill="#ff9f40"/>' }),
+  hedgehog: beast({ fur: '#f2dcc3', ear: 'small', earC: '#e4c6a4', earIn: '#ffc2d4', nose: '#2d2323', cheek: '#ffb3c7',
+    x: () => [P('sph', '#a07f62', [0, 0.05, 0.08], [0.33, 0.33, 0.3]), ...[[0, 0.32, 0.05, 0.2], [0.18, 0.27, 0.08, 0.4], [-0.18, 0.27, 0.08, 0.4], [0, 0.22, 0.24, 0.9], [0.2, 0.15, 0.22, 0.9], [-0.2, 0.15, 0.22, 0.9],
+      [0.3, 0.05, 0.1, 0.6], [-0.3, 0.05, 0.1, 0.6], [0, 0.02, 0.33, 1.4], [0.18, -0.05, 0.28, 1.4], [-0.18, -0.05, 0.28, 1.4]].map(([x, y, z, r]) => P('cone', '#8a6a52', [x, y, z], [0.07, 0.12, 0.07], r))],
+    ixB: '<path d="M2 9 .8 5.5l2.8.5-.1-3.4L6 4.4 8 1.2l2 3.2 2.5-1.8-.1 3.4 2.8-.5L14 9z" fill="#8a6a52"/>' }),
+  squirrel: beast({ fur: '#d9894d', ear: 'point', earIn: '#fff1de', muz: '#fff1de', nose: '#3b2a1e', cheek: '#ffb3a0',
+    x: () => both(k => [P('sph', '#b86a34', [0.2 * k, 0.55, 0], [0.03, 0.05, 0.03])]),
+    tail: () => [T_('#d9894d', [0.5, 1.0, 0.88], [0.17, 0.4, 0.17], 0.25), T_('#fff1de', [0.5, 1.32, 0.8], [0.09, 0.1, 0.09])],
+    ixB: '<ellipse cx="13.4" cy="9" rx="2.6" ry="5.8" fill="#c97a40"/>' }),
+  hamster: beast({ fur: '#f3c18c', ear: 'small', earIn: '#ffc2d4', nose: '#ff9ab5', cheek: '#ffb3c7',
+    x: () => [P('sph', '#fff7ec', [0, -0.1, -0.12], [0.3, 0.22, 0.25]), ...both(k => [P('sph', '#fff7ec', [0.22 * k, -0.1, -0.17], [0.14, 0.12, 0.13])]), P('sph', '#c98a6a', [0, -0.11, -0.36], [0.025, 0.012, 0.01])],
+    ix: '<ellipse cx="8" cy="11.6" rx="5.2" ry="3.2" fill="#fff7ec"/>' }),
+  frog: beast({ fur: '#8fd46e', ear: 'none', cheek: '#ffb3c7', arm: '#7cc65a', noEyes: true,
+    x: () => [P('sph', '#d8f2b8', [0, -0.14, -0.2], [0.22, 0.12, 0.15]), P('sph', '#4f9a3a', [0, -0.06, -0.335], [0.16, 0.012, 0.02]),
+      ...both(k => [P('sph', '#8fd46e', [0.15 * k, 0.24, -0.12], [0.12, 0.12, 0.12]), P('sph', '#ffffff', [0.15 * k, 0.26, -0.2], [0.07, 0.07, 0.05]), P('sph', '#2d2323', [0.15 * k, 0.26, -0.245], [0.04, 0.04, 0.025]),
+        P('sph', '#ffffff', [0.15 * k + 0.014, 0.278, -0.27], [0.014, 0.014, 0.01])])],
+    ixB: '<circle cx="4.6" cy="5" r="2.7" fill="#8fd46e"/><circle cx="11.4" cy="5" r="2.7" fill="#8fd46e"/>',
+    ixF: '<circle cx="4.6" cy="5" r="1.6" fill="#fff"/><circle cx="11.4" cy="5" r="1.6" fill="#fff"/>' + dot(4.6, 5.1) + dot(11.4, 5.1) + '<path d="M5.4 10.6q2.6 1.8 5.2 0" stroke="#4f9a3a" stroke-width=".7" fill="none" stroke-linecap="round"/>' }),
+  mouse: beast({ fur: '#c9c4cf', ear: 'none', muz: '#f3f0f5', nose: '#ff9ab5', cheek: '#ffc2d4',
+    x: () => [...both(k => [P('sph', '#c9c4cf', [0.27 * k, 0.3, 0], [0.16, 0.16, 0.07]), P('sph', '#ffc2d4', [0.27 * k, 0.3, -0.04], [0.1, 0.1, 0.04])]), ...whiskers('#8a8494')],
+    tail: () => [T_('#ffb3c7', [0.5, 0.7, 0.95], [0.025, 0.025, 0.3], 0.3)],
+    ixB: '<circle cx="3.4" cy="4" r="3" fill="#c9c4cf"/><circle cx="12.6" cy="4" r="3" fill="#c9c4cf"/><circle cx="3.4" cy="4" r="1.8" fill="#ffc2d4"/><circle cx="12.6" cy="4" r="1.8" fill="#ffc2d4"/>' })
+});
+/* the crown sits on the company's number one for the period; crownY lifts it over horns and tall ears */
+const CROWN_Y = { dragon: 0.46, unicorn: 0.46, deer: 0.5, rabbit: 0.42, owl: 0.42, sheep: 0.44, mouse: 0.42, koala: 0.4 };
+const crownParts = k => { const y = CROWN_Y[k] || 0.37;
+  return [P('sph', '#ffcf3f', [0, y, 0.02], [0.16, 0.04, 0.16]), ...[-0.1, 0, 0.1].map(x => P('cone', '#ffcf3f', [x, y + (x ? 0.06 : 0.08), 0.02], [0.04, x ? 0.06 : 0.08, 0.04])),
+    P('sph', '#ff5d7a', [0, y + 0.01, -0.14], [0.03, 0.03, 0.02]), ...[-1, 1].map(k2 => P('sph', '#7fd3ff', [0.11 * k2, y + 0.01, -0.11], [0.022, 0.022, 0.016]))]; };
+/* read-only access for tests: the parts and icon of a species */
+export const speciesArt = k => ANIMALS[k] || null;
+const CROWN_ICON = SVG('<path d="M2 12.5 1.2 4.6l3.9 3.2L8 2.4l2.9 5.4 3.9-3.2-.8 7.9z" fill="#ffcf3f" stroke="#d99a1a" stroke-width=".6" stroke-linejoin="round"/><circle cx="8" cy="10" r="1.1" fill="#ff5d7a"/>');
 const GHOST = { name: 'ghost', icon: SVG('<path d="M3 14V8a5 5 0 0110 0v6l-1.7-1.4L9.7 14 8 12.6 6.3 14l-1.6-1.4z" fill="#fff" stroke="#b8b2a6"/>' + dot(6.3, 8, '#8a8f9c') + dot(9.7, 8, '#8a8f9c')),
   parts: () => [P('sph', '#ffffff', [0, 0, 0], [0.36, 0.36, 0.36]), ...eyes(-0.33, 0.045, '#8a8f9c')] };
 /* office light per time of day (blended by sky.js): hemisphere sky/ground/intensity, sun colour/intensity/position, backdrop c0/c1,
@@ -92,7 +246,7 @@ const OANC = {
 };
 const HEAD_YAW = -1.75;   /* heads glance toward the room so the faces show to the isometric camera */
 const BOOK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2c2-.8 3.9-.6 5.5.6v9c-1.6-1.2-3.5-1.4-5.5-.6zM13.5 3.2c-2-.8-3.9-.6-5.5.6v9c1.6-1.2 3.5-1.4 5.5-.6z"/></svg>';
-const iconSvg = k => (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon;
+const iconSvg = k => (k === 'crown' ? CROWN_ICON : (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon);
 
 export const OF_CSS = `
 .of-card{padding:0!important;overflow:hidden;margin-bottom:var(--s4,16px)}
@@ -167,7 +321,15 @@ export const OF_CSS = `
 .of-drawer .bkr:hover,.of-drawer .bkr:focus-visible{border-color:#8b7cf0}
 .of-drawer .bkr svg{grid-area:i;width:26px;height:26px}.of-drawer .bkr .nm{grid-area:n;font-weight:600;font-size:13px}.of-drawer .bkr .nm small{font-weight:400;font-size:11.5px;color:#6a5a4a;margin-left:6px}
 .of-drawer .bkr .rg{grid-area:r;font-size:11.5px;color:#6a5a4a}.of-drawer .bkr .ct2{grid-area:c;font-weight:600;font-variant-numeric:tabular-nums;font-size:13px}
-.of-drawer .bkr.z{opacity:.45}
+.of-drawer .bkr.z{opacity:.5}.of-drawer .bkr.z svg{filter:grayscale(1) brightness(.6) contrast(.6)}
+.of-drawer .bkr .no{display:inline-block;min-width:40px;margin:0 6px 0 0;font-weight:600;font-size:11px;color:#8b7cf0;font-variant-numeric:tabular-nums}
+.of-drawer .bkh{margin:14px 0 6px;font-size:11.5px;color:#3a2f27}
+.of-drawer .bkt{margin:0 0 6px;padding:8px 10px 4px;border-radius:12px;background:linear-gradient(135deg,#fff4d6,#f1ebff)}.of-drawer .bkt h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
+.of-drawer .bkp{display:grid;grid-template-columns:30px 24px 1fr auto;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;color:#3a2f27;background:rgba(255,255,255,.7);border:1px solid transparent;border-radius:10px;padding:5px 8px;margin:0 0 4px;cursor:pointer}
+.of-drawer .bkp:hover,.of-drawer .bkp:focus-visible{border-color:#8b7cf0}.of-drawer .bkp svg{width:22px;height:22px}.of-drawer .bkp .rk{font-weight:700;font-size:12.5px;font-variant-numeric:tabular-nums;color:#6d28d9}
+.of-drawer .bkp .nm{min-width:0;font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.of-drawer .bkp .nm small{display:block;font-weight:400;font-size:11px;color:#6a5a4a}
+.of-drawer .nx{margin:-4px 0 12px;padding:8px 10px;border-radius:10px;background:#fff4d6;color:#5a3d0a;font-size:12px}.of-drawer .nx .h{font-weight:600}
+.of-drawer .hd b svg{width:16px;height:16px;margin-right:4px;vertical-align:-2px}
 .of-drawer .bknote{margin:12px 0 0;padding:8px 10px;border-radius:10px;background:#f1ebff;color:#3b2a78;font-size:12px}
 .of-drawer .grp{margin:0 0 14px}.of-drawer .grp+.grp{margin-top:18px;padding-top:12px;border-top:1px dashed rgba(120,90,60,.22)}.of-drawer .grp>h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
@@ -371,7 +533,10 @@ export function mountOfficeScene(container, data, opts = {}){
     onAction: a => { if(!sel) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
   const syncFs = () => chrome.syncFs();
   kit.bind(chrome.el);
-  chrome.el.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('[data-bk]'); if(b) pulseGrade(b.dataset.bk); });
+  chrome.el.addEventListener('click', ev => {
+    const b = ev.target.closest && ev.target.closest('[data-bk]'); if(b) pulseGrade(b.dataset.bk);
+    const pp = ev.target.closest && ev.target.closest('[data-pp]'); if(pp){ const o = people.find(q => q.p.id === pp.dataset.pp); if(o) openDrawer(o); }   /* leaderboard row opens that person */
+  });
 
   let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null;
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0;
@@ -522,8 +687,9 @@ export function mountOfficeScene(container, data, opts = {}){
       + `<div class="famt">${['haiku', 'sonnet', 'opus'].filter(f => fam[f]).map(f => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${FAMC[f]}"></i>${f} ${fam[f]}</span>`).join('')}</div>` : '';
     const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }]) : '';
     const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }]) : '';
-    chrome.setHtml(`<div class="hd">${iconSvg(sel.gk)}<div><b title="${esc(p.name)}">${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
+    chrome.setHtml(`<div class="hd">${iconSvg(sel.gk)}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
       + `<div class="bd"><div class="why">${esc(dt.why)}</div>`
+      + ((dt.next || []).length ? `<div class="nx">${dt.next.map((l, i) => `<div${i ? '' : ' class="h"'}>${esc(l)}</div>`).join('')}</div>` : '')
       + (dt.groups && dt.groups.length ? `<div class="sec">${dt.groups.map(g => `<div class="grp"><h4>${esc(g.title)}</h4>${kvGrid(g.rows)}</div>`).join('')}</div>`
         : dt.grid && dt.grid.length ? `<div class="sec">${kvGrid(dt.grid)}</div>` : '')
       + sec(ui.runs, famHtml) + sec(ui.cmp, kit.cmp(dt.cmp || [])) + sec(ui.daily, daily) + sec(ui.pdaily, pdaily)
@@ -534,8 +700,14 @@ export function mountOfficeScene(container, data, opts = {}){
   /* the field guide: the same drawer, one row per species, a click blinks a ring under everyone of that species */
   function renderBook(){
     const b = cur.book; if(!b) return;
-    chrome.setHtml(`<div class="hd">${BOOK_ICON}<div><b>${esc(b.title)}</b><small>${esc(b.range)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc((cur.ui || {}).close)}">×</button></div>`
-      + `<div class="bd">${b.rows.map(r => `<button type="button" class="bkr${r.n ? '' : ' z'}" data-bk="${esc(r.k)}">${iconSvg(r.k)}<span class="nm">${esc(r.name)}<small>${esc(r.role)}</small></span><span class="ct2">${esc(r.nText != null ? r.nText : r.n)}</span><span class="rg">${esc(r.range)}</span></button>`).join('')}<p class="bknote">${esc(b.note)}</p></div>`);
+    const top = b.top && b.top.rows.length ? `<div class="bkt"><h4>${esc(b.top.title)}</h4>${b.top.rows.map(r => `<button type="button" class="bkp" data-pp="${esc(r.id)}"><span class="rk">${esc(r.rk)}</span>${iconSvg(r.k)}<span class="nm">${esc(r.name)}<small>${esc(r.gname)}${r.team ? ' · ' + esc(r.team) : ''}</small></span>${r.crown ? CROWN_ICON : ''}</button>`).join('')}</div>` : '';
+    let tier = null, rows = '';
+    b.rows.forEach(r => {
+      if(b.tiers && r.tier !== tier){ tier = r.tier; rows += `<h4 class="bkh">${esc(b.tiers[r.tier] || r.role)}</h4>`; }
+      rows += `<button type="button" class="bkr${r.n ? '' : ' z'}" data-bk="${esc(r.k)}">${iconSvg(r.k)}<span class="nm">${r.no ? `<small class="no">${esc(r.no)}</small>` : ''}${esc(r.name)}${b.tiers ? '' : `<small>${esc(r.role)}</small>`}</span><span class="ct2">${esc(r.nText != null ? r.nText : r.n)}</span><span class="rg">${esc(r.range)}</span></button>`;
+    });
+    chrome.setHtml(`<div class="hd">${BOOK_ICON}<div><b>${esc(b.title)}</b><small>${esc(b.range)}${b.found ? ' · ' + esc(b.found) : ''}</small></div><button type="button" class="x" data-a="close" aria-label="${esc((cur.ui || {}).close)}">×</button></div>`
+      + `<div class="bd">${top}${rows}<p class="bknote">${esc(b.note)}</p></div>`);
   }
   function openBook(){
     if(!cur.book) return;
@@ -659,12 +831,12 @@ export function mountOfficeScene(container, data, opts = {}){
     const fig = (arr, ghost) => {
       const n = arr.length, mt = o => std(ghost ? { transparent: true, opacity: 0.3, depthWrite: false, ...o } : o);
       const f = { arr, ghost, torso: mk(sets.torso, mt({}), n, !ghost), arm: mk(sets.arm, mt({}), n * 2, !ghost), sph: null, cone: null, cnt: { sph: 0, cone: 0 } };
-      if(ghost){ const rm = bas({ color: '#9cc6f5', transparent: true, opacity: 0.16, side: T.BackSide, depthWrite: false }); f.rimH = mk(sets.sph, rm, n, false); f.rimT = mk(sets.torso, rm, n, false); }
-      arr.forEach(o => { o.parts = o.an.parts(); o.parts.forEach(pt => { f.cnt[pt.g]++; }); });
-      f.sph = mk(sets.sph, mt({}), f.cnt.sph, !ghost); f.cone = mk(sets.cone, mt({}), f.cnt.cone, !ghost);
+      if(ghost){ const rm = bas({ color: '#9cc6f5', transparent: true, opacity: 0.16, side: T.BackSide, depthWrite: false }); f.rimH = mk(sets.sphHi, rm, n, false); f.rimT = mk(sets.torso, rm, n, false); }
+      arr.forEach(o => { o.parts = o.an.parts().concat(!ghost && o.p.crown ? crownParts(o.gk) : []); o.parts.forEach(pt => { f.cnt[pt.g]++; }); });
+      f.sph = mk(sets.sphHi, mt({}), f.cnt.sph, !ghost); f.cone = mk(sets.coneHi, mt({}), f.cnt.cone, !ghost);
       const ix = { sph: 0, cone: 0 };
       arr.forEach((o, i) => {
-        const bc = ghost ? '#ffffff' : o.tv.body; f.torso.setColorAt(i, C(bc)); f.arm.setColorAt(i * 2, C(bc)); f.arm.setColorAt(i * 2 + 1, C(bc));
+        const bc = ghost ? '#ffffff' : o.tv.body, ac = ghost ? bc : o.an.arm || bc; f.torso.setColorAt(i, C(bc)); f.arm.setColorAt(i * 2, C(ac)); f.arm.setColorAt(i * 2 + 1, C(ac));
         o.rimPt = { p: [0, 0, 0], s: [0.415, 0.415, 0.415], r: 0 };
         o.pl = o.parts.map(pt => { const k = ix[pt.g]++; f[pt.g].setColorAt(k, C(pt.c)); return { m: f[pt.g], i: k, pt }; });
       });
@@ -683,10 +855,10 @@ export function mountOfficeScene(container, data, opts = {}){
     screens.forEach((s, i) => { setM(scr.m, i, s[0], s[1], s[2] + 0.03, 0, 0, 1.05, 0.65, 0.06); scr.m.setColorAt(i, C('#000000')); });
     if(screens.length) scr.m.instanceMatrix.needsUpdate = true;
     const sl = mk(sets.sph, bas({}), srvLights.length, false); srvLights.forEach((l, i) => { setM(sl, i, l.x, l.y, l.z, 0, 0, 0.1, 0.1, 0.04); sl.setColorAt(i, l.c); }); sl.instanceMatrix.needsUpdate = true; srv.lights = sl;
-    /* sparkles around the lions */
-    const lions = solids.filter(o => o.gk === 'lion' || o.gk === 'tiger'); sparks = [];
-    lions.forEach(o => { for(let k = 0; k < (o.gk === 'lion' ? 3 : 1); k++) sparks.push({ o, k }); });
-    sets.spk = mk(sets.sph, bas({}), sparks.length, false); sparks.forEach((q, i) => sets.spk.setColorAt(i, C('#fff0a0'))); if(sparks.length) sets.spk.instanceColor.needsUpdate = true;
+    /* sparkles around the power users: three for the two rarest species, two for the next two, one for the rest; four for the crown */
+    sparks = [];
+    solids.filter(o => o.p.tier === 'power').forEach(o => { const gi = gradeIndex(o.gk), n = o.p.crown ? 4 : gi < 2 ? 3 : gi < 4 ? 2 : 1; for(let k = 0; k < n; k++) sparks.push({ o, k }); });
+    sets.spk = mk(sets.sph, bas({}), sparks.length, false); sparks.forEach((q, i) => sets.spk.setColorAt(i, C(q.k === 3 ? '#ffd36b' : '#fff0a0'))); if(sparks.length) sets.spk.instanceColor.needsUpdate = true;
 
     /* helper bots: round pastel bodies with an antenna and a soft glow, one orbiting each owner, flying to the server now and then */
     const fl = [];
@@ -861,10 +1033,10 @@ export function mountOfficeScene(container, data, opts = {}){
      person's id and the round number (no random numbers), so a recording with a virtual clock replays it exactly. Power users type more and act
      less often, chicks the other way round; dozing suits the calm animals, bouncing the lively ones. Poses blend in and out over 0.3 s. */
   const SCH = { power: { gap: 1.7, skip: 0.5 }, active: { gap: 1.2, skip: 0.25 }, normal: { gap: 1, skip: 0.1 }, low: { gap: 0.6, skip: 0 } };
-  const ACT_ALL = ['stretch', 'coffee', 'think', 'look', 'wave'], CALM = new Set(['bear', 'rabbit', 'chick']), PEP = new Set(['lion', 'tiger', 'fox']);
+  const ACT_ALL = ['stretch', 'coffee', 'think', 'look', 'wave'], CALM = new Set(['normal', 'low']);   /* the top eight species bounce, normal and low tiers doze */
   function planAct(o, n, prev){
     const sc = SCH[o.p.tier] || SCH.normal, id = o.p.id, gap = (4 + 8 * hash(id + 'g' + n)) * sc.gap, dur = 2 + 3 * hash(id + 'd' + n);
-    const list = ACT_ALL.concat(CALM.has(o.gk) ? ['doze'] : [], PEP.has(o.gk) ? ['bounce'] : []);
+    const gi = gradeIndex(o.gk), list = ACT_ALL.concat(CALM.has(o.p.tier) ? ['doze'] : [], gi >= 0 && gi < 8 ? ['bounce'] : []);
     const kind = hash(id + 's' + n) < sc.skip ? null : list[Math.floor(hash(id + 'k' + n) * list.length)];
     return { n, t0: prev + gap, t1: prev + gap + dur, kind };
   }
@@ -1086,11 +1258,11 @@ export function mountOfficeScene(container, data, opts = {}){
     hemi = new T.HemisphereLight('#fff7e6', '#e8dcc4', 1.25); sun = new T.DirectionalLight('#fff0d4', 0.85); sun.position.set(8, 18, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
     scene.add(hemi, sun, sun.target);
     for(let i = 0; i < 4; i++){ const L = new T.PointLight('#ffc98a', 0, 0, 2); scene.add(L); lamps.push(L); }   /* evening lamps: a fixed count, so no shader recompiles */
-    sets = { box: new T.BoxGeometry(1, 1, 1), sph: new T.SphereGeometry(1, 16, 12), cone: new T.ConeGeometry(1, 2, 10), torso: new T.CapsuleGeometry(0.3, 0.32, 4, 10), arm: new T.CapsuleGeometry(0.1, 0.26, 3, 6), disc: new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2) };
+    sets = { box: new T.BoxGeometry(1, 1, 1), sph: new T.SphereGeometry(1, 16, 12), cone: new T.ConeGeometry(1, 2, 10), torso: new T.CapsuleGeometry(0.3, 0.32, 6, 16), arm: new T.CapsuleGeometry(0.1, 0.26, 4, 10), sphHi: new T.SphereGeometry(1, 20, 14), coneHi: new T.ConeGeometry(1, 2, 16), disc: new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2) };
     { const c = document.createElement('canvas'), x = c.getContext('2d'); c.width = c.height = 64; const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);   /* soft round blob for pools, puddles and cloud shadows */
       g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.5, 'rgba(255,255,255,.7)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); sets.soft = new T.CanvasTexture(c); }
     flakeG = new T.IcosahedronGeometry(1, 0);
-    statics.push(sets.box, sets.sph, sets.cone, sets.torso, sets.arm, sets.disc, sets.soft, flakeG);
+    statics.push(sets.box, sets.sph, sets.cone, sets.sphHi, sets.coneHi, sets.torso, sets.arm, sets.disc, sets.soft, flakeG);
     elStars.style.backgroundImage = starsBackground();
     minuteTimer = setInterval(() => { if(started === true && !destroyed) applyEnv(); }, 60000);   /* the clock moves the light every minute */
     started = true; bindView();
@@ -1176,7 +1348,9 @@ export function officeSceneData(o){
   const sp = ranked.map(p => p.spent), dl = ranked.map(p => p.dlg), pm = ranked.map(p => p.prompts), w = pr ? W_FULL : W_NOPR;
   ranked.forEach(p => { p.score = w[0] * rank(sp, p.spent) + w[1] * rank(dl, p.dlg) + (pr ? w[2] * rank(pm, p.prompts) : 0); });
   const sc = ranked.map(p => p.score), med = [...dl].sort((a, b) => a - b)[Math.floor(n / 2)] || 0;
-  ranked.forEach(p => { const sr = rank(sc, p.score); p.grade = gradeOf(sr, p.dlg, med, p.spent < 0.01 && (!pr || !p.prompts)); p.tier = tierOfGrade(p.grade); });
+  ranked.forEach(p => { p.sr = rank(sc, p.score); p.idle = p.spent < 0.01 && (!pr || !p.prompts); p.grade = gradeOf(p.sr, p.dlg, med, p.idle); p.tier = tierOfGrade(p.grade); });
+  /* standings: rank 1 is the highest score (ties share a rank); the crown goes to rank 1 when at least two people are ranked and they spent something */
+  ranked.forEach(p => { p.rank = 1 + ranked.filter(q => q.score > p.score + 1e-12).length; p.crown = n >= 2 && p.rank === 1 && !p.idle; });
   const pc = x => Math.round(x * 100) + '%', mixTot = Object.values(orgMix).reduce((a, b) => a + b, 0);
   const famOf = m => { const s = m ? Object.entries(m).sort((a, b) => b[1] - a[1]) : []; return s[0] && s[0][1] > 0 ? s[0][0] : null; };
   const botsFor = p => {
@@ -1195,6 +1369,19 @@ export function officeSceneData(o){
   const orgM = { spent: median(sp), dlg: median(dl), prompts: median(pm) }, teamM = {};
   teams.forEach(tm => { const r = ranked.filter(x => x.host.team_id === tm.id); teamM[tm.id] = { spent: median(r.map(x => x.spent)), dlg: median(r.map(x => x.dlg)), prompts: median(r.map(x => x.prompts)) }; });
   const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' };
+  /* the drawer's standings lines: overall rank, the crown, and what it takes to reach the next species up.
+     People to pass = how far the score percentile is below the next row's floor, in people; a row with the delegation rule also needs the median. */
+  const gn = k => t('of.g.' + k);
+  const standing = p => {
+    const gi = gradeIndex(p.grade); if(gi < 0) return [];
+    const out = [t('of.d.rank', { r: p.rank, n }, true)];
+    if(p.crown) out.push(t('of.d.crown'));
+    if(p.idle){ out.push(t('of.d.next.idle')); return out; }
+    if(gi === 0){ out.push(t('of.d.top')); return out; }
+    const g = GRADES[gi - 1], x = Math.max(0, Math.ceil((g.minSr - p.sr) * (n - 1) - 1e-6)), dl = g.needDlg && p.dlg < med, v = { x: Math.max(1, x), s: gn(g.k), c: pc(med) };
+    out.push(t(dl ? (x ? 'of.d.next.xd' : 'of.d.next.d') : 'of.d.next', v, true));
+    return out;
+  };
   let demoI = 0;
   const people = shown.map(p => {
     const nodata = !p.ok; p.tier = nodata ? 'nodata' : p.tier; p.grade = nodata ? 'ghost' : p.grade;
@@ -1212,7 +1399,10 @@ export function officeSceneData(o){
       if(pr && p.prompts > 0) bubbles.push({ text: t('of.b.prompts', { n: p.prompts }, true) });
     }
     const late = p.rs.some(r => r.signal === 'late' || r.signal === 'silent') && !paused;
-    return { id: p.id, name: p.host.display_name || p.id, teamId: p.host.team_id, teamName: p.host.team_name || '', tier: p.tier, grade: p.grade, gradeText: t('of.g.' + p.grade), gradeLabel: closed ? t('of.tag.closed') : t('of.g.' + p.grade) + ' · ' + t('of.tier.' + p.tier), spent: p.spent, promptId: p.promptId, tip,
+    const no = gradeIndex(p.grade) + 1, noText = no ? t('of.g.no', { n: String(no).padStart(2, '0') }, true) + ' ' : '';
+    if(!nodata && !closed) tip.push([t('of.d.rankk'), t('of.book.rank', { r: p.rank }, true) + ' / ' + n]);
+    return { id: p.id, name: p.host.display_name || p.id, teamId: p.host.team_id, teamName: p.host.team_name || '', tier: p.tier, grade: p.grade, gradeText: t('of.g.' + p.grade),
+      gradeLabel: closed ? t('of.tag.closed') : noText + t('of.g.' + p.grade) + ' · ' + t('of.tier.' + p.tier), rank: nodata ? 0 : p.rank, crown: !nodata && !closed && !!p.crown, spent: p.spent, promptId: p.promptId, tip,
       detail: (() => {
         const ids2 = new Set(p.rs.map(r => r.member_id)), tm = teamM[p.host.team_id] || { spent: 0, dlg: 0, prompts: 0 }, dd = Object.keys(p.days).sort(), pd = Object.keys(p.pdays).sort();
         const lastP = p.lastPrompt ? o.rel(p.lastPrompt) : t('never');
@@ -1224,7 +1414,7 @@ export function officeSceneData(o){
         const mk3 = (v1, v2, v3, f, nm) => [{ name: t('of.d.me'), v: v1, txt: f(v1), color: '#7c6cf0' }, { name: t('of.d.team'), v: v2, txt: f(v2), color: '#8ec5fb' }, { name: t('of.d.org'), v: v3, txt: f(v3), color: '#d4c7a8' }];
         const cmp = hasData ? [{ label: t('of.spent'), items: mk3(p.spent, tm.spent, orgM.spent, money) }, { label: t('of.deleg'), items: mk3(p.dlg, tm.dlg, orgM.dlg, pc) }].concat(pr ? [{ label: t('of.prompts'), items: mk3(p.prompts, tm.prompts, orgM.prompts, v => String(Math.round(v))) }] : []) : [];
         const evs = (o.events || []).filter(e => ids2.has(e.member_id)).sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 8).map(e => ({ text: t('of.ev.' + e.event) === 'of.ev.' + e.event ? String(e.event) : t('of.ev.' + e.event), when: o.rel(e.at) }));
-        return { why: hasData ? t('of.d.why', { a: Math.max(1, Math.round((1 - rank(sp, p.spent)) * 100)), b: pc(p.dlg), c: pc(orgM.dlg) }, true) : closed ? t('of.tag.closed') : t('of.why') + ': ' + why,
+        return { next: hasData ? standing(p) : [], why: hasData ? t('of.d.why', { a: Math.max(1, Math.round((1 - rank(sp, p.spent)) * 100)), b: pc(p.dlg), c: pc(orgM.dlg) }, true) : closed ? t('of.tag.closed') : t('of.why') + ': ' + why,
           grid, groups, cmp, fam: p.mix, fmt: money, days: hasData ? dd : [], spent: dd.map(d => p.days[d][0]), saved: dd.map(d => p.days[d][1]),
           pdays: hasData && pr ? pd : [], pvals: pd.map(d => p.pdays[d]),
           machines: p.rs.map(r => ({ name: r.display_name || r.member_id, os: o.os(r), ver: r.sprag_version ? 'v' + r.sprag_version : '', color: SIG[r.signal] || '#8a8794', sig: t('sr.s.' + r.signal), sw: t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')), up: r.last_upload_at ? o.rel(r.last_upload_at) : t('never'), seen: r.last_seen ? o.rel(r.last_seen) : t('never') })),
@@ -1238,11 +1428,18 @@ export function officeSceneData(o){
     : t('of.hud', { n: active, p: cnt('power'), l: cnt('low'), o: cnt('nodata'), u: used, limit }, true);
   const fam = mixTot > 0 || people.some(p => p.bots.some(b => b !== 'any'));
   const gl = k => t('of.g.' + k), cntG = k => people.filter(m => m.grade === k).length, fw = v => String(Math.round(v * 1000) / 10);
-  const legend = closed ? [] : GRADES.map(g => ({ k: g.k, label: gl(g.k) })).concat([{ k: 'ghost', label: gl('ghost') }],
-    fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: t('of.lg.bot', { m: f }, true) })) : [{ c: '#c4b5fd', label: t('of.lg.any') }], [{ label: t('of.lg.screen') }, { label: t('of.lg.guide') }]);
-  const book = closed ? null : { title: t('of.book'), range: o.rangeLabel,
-    rows: gradeBands().map(b => ({ k: b.k, name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.k, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
-      .concat([{ k: 'ghost', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
+  /* thirty icons do not fit a legend: one entry per tier, shown with the best species present in it (the field guide lists them all) */
+  const legend = closed ? [] : TIERS.map(tr => { const ps = people.filter(m => m.tier === tr).sort((a, b) => gradeIndex(a.grade) - gradeIndex(b.grade));
+    return { k: ps.length ? ps[0].grade : GRADES.find(g => g.tier === tr).k, label: t('of.tier.' + tr) }; })
+    .concat([{ k: 'ghost', label: gl('ghost') }], people.some(m => m.crown) ? [{ k: 'crown', label: t('of.lg.crown') }] : [],
+    fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: t('of.lg.bot', { m: f }, true) })) : [{ c: '#c4b5fd', label: t('of.lg.any') }], [{ label: t('of.lg.screen') }, { label: t('of.lg.guide', { n: GRADES.length }, true) }]);
+  const bands = gradeBands(), tierN = tr => bands.filter(b => b.tier === tr).length;
+  const book = closed ? null : { title: t('of.book'), range: o.rangeLabel, found: t('of.book.found', { f: bands.filter(b => cntG(b.k)).length, n: GRADES.length }, true),
+    tiers: Object.fromEntries(TIERS.map(tr => [tr, t('of.book.tier', { t: t('of.tier.' + tr), n: tierN(tr) }, true)]).concat([['nodata', t('of.tier.nodata')]])),
+    top: { title: t('of.book.top'), rows: people.filter(m => m.rank).sort((a, b) => a.rank - b.rank).slice(0, 5)
+      .map(m => ({ id: m.id, name: m.name, k: m.grade, gname: gl(m.grade), team: m.teamName, crown: m.crown, rk: t('of.book.rank', { r: m.rank }, true) })) },
+    rows: bands.map(b => ({ k: b.k, tier: b.tier, no: t('of.g.no', { n: String(b.no).padStart(2, '0') }, true), name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.rk, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
+      .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
     note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true) };
   const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
