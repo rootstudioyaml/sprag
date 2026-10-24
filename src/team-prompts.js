@@ -4,10 +4,13 @@
  * Runs inside syncTeam only when the team's policy has prompt capture on (the
  * server sends prompt_capture = true, and only for Enterprise organizations).
  * What leaves the machine: the prompts the user typed in their own main
- * sessions (Claude Code transcripts and Codex sessions), each as
+ * sessions (Claude Code transcripts and Codex sessions), including the ones
+ * typed while the assistant was still working (queued), each as
  * { at, project (a directory basename), text }, with obvious secrets replaced
  * by "[redacted]". Never sent: assistant replies, tool output, file contents,
- * subagent transcripts, slash-command wrappers, system reminders, local paths.
+ * subagent transcripts, slash-command wrappers, system reminders, local paths,
+ * background-task notifications, messages from other agents, and `!` shell
+ * commands with their output.
  *
  * Consent boundary: the first time a machine sees capture on, every existing
  * transcript's offset is set to its current size, so history written before the
@@ -77,14 +80,17 @@ const basenameOf = (p) => {
   return s.slice(Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\')) + 1).slice(0, 80);
 };
 
-const WRAPPER_RE = /<(?:command-name|command-message|command-args|local-command-stdout|local-command-stderr|local-command-caveat)>/;
+const WRAPPER_RE = /<(?:command-name|command-message|command-args|local-command-stdout|local-command-stderr|local-command-caveat|bash-input|bash-stdout|bash-stderr|task-notification)>/;
+// machine-written turns that arrive as user messages: a background task's completion, another agent's message, a harness notice
+const MACHINE_RE = /^\s*(?:<task-notification>|<agent-message\b|\[SYSTEM NOTIFICATION)/;
 const REMINDER_RE = /<system-reminder>[\s\S]*?<\/system-reminder>/g;
 
 /** Strip reminders, drop wrappers and injected context; null when nothing user-typed is left. */
 function cleanPrompt(raw) {
   if (typeof raw !== 'string') return null;
-  if (WRAPPER_RE.test(raw)) return null;
+  if (WRAPPER_RE.test(raw) || MACHINE_RE.test(raw)) return null;
   const text = raw.replace(REMINDER_RE, '').trim();
+  if (MACHINE_RE.test(text)) return null;
   if (!text) return null;
   if (text.startsWith('[Request interrupted by user')) return null;
   return redactSecrets(text).slice(0, MAX_TEXT);
@@ -97,7 +103,18 @@ const textParts = (content) => (Array.isArray(content) ? content : [])
 export function claudePromptFromLine(line) {
   let e;
   try { e = JSON.parse(line); } catch { return null; }
-  if (!e || e.type !== 'user' || e.isMeta || e.isSidechain || e.isCompactSummary || e.isVisibleInTranscriptOnly) return null;
+  if (!e || e.isSidechain) return null;
+  // A prompt typed while the assistant is still working is stored as a queued_command attachment, never as a user line;
+  // only the ones a person typed (origin.kind 'human') count, not queued task notifications or messages from other agents.
+  const q = e.type === 'attachment' ? e.attachment : null;
+  if (q) {
+    if (q.type !== 'queued_command' || q.isMeta || q.commandMode !== 'prompt' || q.origin?.kind !== 'human') return null;
+    const text = cleanPrompt(q.prompt);
+    const at = Date.parse(q.timestamp || e.timestamp);
+    if (!text || !Number.isFinite(at)) return null;
+    return { at: new Date(at).toISOString(), project: basenameOf(e.cwd), text };
+  }
+  if (e.type !== 'user' || e.isMeta || e.isCompactSummary || e.isVisibleInTranscriptOnly) return null;
   const c = e.message?.content;
   const text = cleanPrompt(typeof c === 'string' ? c : textParts(c));
   const at = Date.parse(e.timestamp);

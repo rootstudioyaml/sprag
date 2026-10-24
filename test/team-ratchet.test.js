@@ -150,24 +150,20 @@ test('rulesPullDue: an hour after rules last arrived, out of the full sync\'s wa
   assert.equal(rulesPullDue(base, now, { SPRAG_NO_TEAM_SYNC: '1' }), false);
 });
 
-test('session start and prompt hooks spawn the rules-only pull when only it is due', () => {
+test('rules ride on the 5-minute full sync, so the hooks spawn the full sync or the prompt upload, not a separate rules pull', () => {
   const now = 1_800_000_000_000;
   const calls = [];
   const spawn = (cmd, args) => { calls.push(args); return { unref() {} }; };
   const common = { now, env: {}, spawn, cliPath: '/cli.js', execPath: '/bin/node' };
-  const rulesDue = { memberKey: 'k', lastSyncAt: now - 2 * 3600_000, lastRulesAt: now - 61 * 60_000 };
-  assert.equal(spawnTeamSyncIfDue({ ...common, state: rulesDue }), true);
-  assert.equal(spawnTeamSyncOnPrompt({ ...common, state: rulesDue }), true);
-  // the full sync wins when it is due
-  assert.equal(spawnTeamSyncIfDue({ ...common, state: { ...rulesDue, lastSyncAt: now - 7 * 3600_000 } }), true);
-  // the prompt upload wins on the prompt hook
-  assert.equal(spawnTeamSyncOnPrompt({ ...common, state: { ...rulesDue, promptCapture: true } }), true);
-  // nothing due
-  assert.equal(spawnTeamSyncIfDue({ ...common, state: { ...rulesDue, lastRulesAt: now - 60_000 } }), false);
-  assert.equal(spawnTeamSyncOnPrompt({ ...common, state: { ...rulesDue, lastRulesAt: now - 60_000 } }), false);
+  // the full sync ran 2 minutes ago and brought the rules: the hourly rules timer has nothing to do
+  const fresh = { memberKey: 'k', lastSyncAt: now - 2 * 60_000, lastRulesAt: now - 61 * 60_000 };
+  assert.equal(spawnTeamSyncIfDue({ ...common, state: fresh }), false);
+  assert.equal(spawnTeamSyncOnPrompt({ ...common, state: fresh }), false);
+  // the full sync is due
+  assert.equal(spawnTeamSyncIfDue({ ...common, state: { ...fresh, lastSyncAt: now - 5 * 60_000 } }), true);
+  // the prompt upload is due on the prompt hook
+  assert.equal(spawnTeamSyncOnPrompt({ ...common, state: { ...fresh, promptCapture: true } }), true);
   assert.deepEqual(calls, [
-    ['/cli.js', 'team', 'sync', '--background', '--rules-only'],
-    ['/cli.js', 'team', 'sync', '--background', '--rules-only'],
     ['/cli.js', 'team', 'sync', '--background'],
     ['/cli.js', 'team', 'sync', '--background', '--prompts-only'],
   ]);
