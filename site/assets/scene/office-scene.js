@@ -1062,7 +1062,8 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   /* The cast: one sculpted glTF character per species (site/assets/scene/cast/<grade>.glb, made in Blender, Draco-compressed). The primitive
      figures stay on screen until every model has loaded and come back if any fails, so the office never shows an empty chair. */
-  let castOn = false;
+  let castOn = false, castGen = 0, castLoad = null;   /* castGen: a rebuild (weather, range, data) while models load must not let the older build add its set too */
+  const castCache = {};
   function castCrown(T){   /* a small gold crown on top of the head, in model units (the model is scaled after) */
     const g = new T.Group(), gold = new T.MeshStandardMaterial({ color: '#f2c14e', roughness: 0.3, metalness: 0.6 }), gem = new T.MeshStandardMaterial({ color: '#ff6f91', roughness: 0.25 });
     const band = new T.Mesh(new T.CylinderGeometry(0.13, 0.14, 0.07, 20, 1, true), gold); band.material.side = T.DoubleSide; g.add(band);
@@ -1071,12 +1072,13 @@ export function mountOfficeScene(container, data, opts = {}){
     g.position.set(0, 1.04, -0.02); g.rotation.x = -0.12; return g;
   }
   async function placeCast(solids, ghosts){
+    const gen = ++castGen; castOn = false;
     const all = solids.concat(ghosts); if(!all.length) return;
     try{
-      const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js/+esm')]);
-      const loader = new GLTFLoader(), dr = new DRACOLoader(); dr.setDecoderPath(CAST_DRACO); loader.setDRACOLoader(dr);
-      const cache = {}, load = k => cache[k] || (cache[k] = loader.loadAsync(CAST_URL + k + '.glb'));
-      const SC = 1.24;   /* every model is built at one body size, so one scale keeps bodies equal while ears, horns and manes stick out */
+      castLoad = castLoad || Promise.all([import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js/+esm')])
+        .then(([{ GLTFLoader }, { DRACOLoader }]) => { const l = new GLTFLoader(), dr = new DRACOLoader(); dr.setDecoderPath(CAST_DRACO); l.setDRACOLoader(dr); return l; });
+      const loader = await castLoad, load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '.glb'));   /* one download per species for the page's lifetime */
+      const SC = 1.6;   /* big enough that the head clears the monitor; every model is built at one body size, so one scale keeps bodies equal while ears, horns and manes stick out */
       const ms = await Promise.all(all.map(async o => {
         const g = await load(o.ghost ? 'ghost' : o.gk), m = g.scene.clone(true), box = new T.Box3().setFromObject(m);
         m.scale.setScalar(SC); o.y0 = 0.42 - box.min.y * SC; m.position.set(o.x, o.y0, o.z + 0.3); m.rotation.y = Math.PI;
@@ -1084,11 +1086,12 @@ export function mountOfficeScene(container, data, opts = {}){
         if(!o.ghost && o.p.crown) m.add(castCrown(T));   /* the primitive crown is hidden with the primitive figures */
         return [o, m];
       }));
+      if(gen !== castGen) return;   /* a newer build owns the scene now */
       ms.forEach(([o, m]) => { o.glb = m; world.add(m); });
       sets.f.forEach(f => { [f.torso, f.arm, f.scarf, f.sph, f.cone, f.rimH, f.rimT].forEach(m => { if(m) m.visible = false; }); });
       if(sets.mug) sets.mug.visible = false;
       castOn = true; request();
-    }catch(e){ castOn = false; }
+    }catch(e){ if(gen === castGen) castOn = false; }
   }
   function stepCast(){
     if(!castOn) return;
