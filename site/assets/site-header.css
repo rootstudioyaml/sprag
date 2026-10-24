@@ -1,4 +1,4 @@
-/* One site header for every public page (home, docs, license, legal, order, pricing, tour and the
+/* One site header for every public page (home, docs, license, legal, order, pricing and the
  * signed-out team console). Each page has its own tokens and fonts, so this file uses literal values
  * and selectors scoped to header.site-hdr that outrank the page's own header rules. Every nav link
  * carries the same padding, so the current-page pill never moves the other items. */
