@@ -71,6 +71,28 @@ test('claude: keeps typed prompts, drops tool results, meta, wrappers, reminders
   assert.equal(claudePromptFromLine('not json'), null);
 });
 
+test('claude: drops machine-written turns (task notifications, agent messages, harness notices, ! shell commands)', () => {
+  for (const w of [
+    '<task-notification>\n<task-id>a1</task-id>\n<output-file>/private/tmp/x.output</output-file>\n<status>completed</status>\n</task-notification>',
+    '<agent-message from="a1">\n[Subagent hand-back] report</agent-message>',
+    '[SYSTEM NOTIFICATION - NOT USER INPUT]\nbackground event',
+    '<bash-input>codex login</bash-input>', '<bash-stdout>token=abc</bash-stdout><bash-stderr></bash-stderr>',
+  ]) assert.equal(claudePromptFromLine(cl(w).trim()), null, w.slice(0, 30));
+  // a notice wrapped in a reminder and then a task notification is still machine-written
+  assert.equal(claudePromptFromLine(cl('<system-reminder>r</system-reminder>\n<task-notification><task-id>a</task-id></task-notification>').trim()), null);
+});
+
+test('claude: a prompt typed while the assistant was working (queued_command, human) is kept; queued machine turns are not', () => {
+  const queued = (prompt, origin, extra = {}) => JSON.stringify({ type: 'attachment', timestamp: TS(9), cwd: '/Users/dev/work/app',
+    attachment: { type: 'queued_command', prompt, commandMode: 'prompt', origin, timestamp: TS(8), ...extra } });
+  assert.deepEqual(claudePromptFromLine(queued('also fix the deer antlers', { kind: 'human' })), { at: TS(8), project: 'app', text: 'also fix the deer antlers' });
+  assert.equal(claudePromptFromLine(queued('<agent-message from="a">x</agent-message>', { kind: 'peer' }, { isMeta: true })), null);
+  assert.equal(claudePromptFromLine(queued('<task-notification><task-id>a</task-id></task-notification>', { kind: 'task-notification' }, { commandMode: 'task-notification' })), null);
+  assert.equal(claudePromptFromLine(queued('no origin', undefined)), null);
+  assert.equal(claudePromptFromLine(JSON.stringify({ type: 'attachment', timestamp: TS(1), attachment: { type: 'file', prompt: 'x' } })), null);
+  assert.equal(claudePromptFromLine(queued('side', { kind: 'human' }).replace('"type":"attachment"', '"type":"attachment","isSidechain":true')), null);
+});
+
 test('codex: reads UserMessage and legacy user_message, skips injected context', () => {
   const item = (text) => JSON.stringify({ timestamp: TS(2), type: 'event_msg', payload: { type: 'item_completed', item: { type: 'UserMessage', content: [{ type: 'text', text }] } } });
   const legacy = (message) => JSON.stringify({ timestamp: TS(2), type: 'event_msg', payload: { type: 'user_message', message } });
@@ -441,7 +463,7 @@ test('the prompt hook spawns the right detached child only when due, and prints 
     assert.equal(spawned.length, 0);
     // only the prompt upload is due
     assert.equal(spawnTeamSyncOnPrompt({ ...common, state: { ...fresh, lastPromptSyncAt: now - 31 * 60_000 } }), true);
-    // the ledger is due (6h after the last success): the full background sync
+    // the ledger is due (5 minutes after the last success): the full background sync
     assert.equal(spawnTeamSyncOnPrompt({ ...common, state: { ...fresh, lastSyncAt: now - 7 * 3600_000 } }), true);
   } finally { process.stdout.write = w; }
   assert.deepEqual(spawned.map((s) => s.args), [
@@ -494,6 +516,7 @@ test('plain background sync with the ledger not due still runs a due prompt uplo
   saveTeamState(joined({ lastSyncAt: now - 1000 }), sb.dir);
   writeFileSync(sb.session, '');
   await syncTeam({ force: true, fetch: fakeFetch(), sessions: [], now: now - 40 * 60_000 });
+  saveTeamState({ ...loadTeamState(sb.dir), lastSyncAt: now - 1000 }, sb.dir);   // the ledger ran a moment ago (it is due every 5 minutes)
   appendFileSync(sb.session, cl('x', 1));
   const f = fakeFetch();
   const r = await syncTeam({ fetch: f, now });
@@ -521,13 +544,13 @@ test('ledgerRetryDelayMs: 15, 30, 60 minutes, then capped at 60', () => {
   assert.deepEqual([1, 2, 3, 4, 9].map(ledgerRetryDelayMs), [15 * MIN, 30 * MIN, 60 * MIN, 60 * MIN, 60 * MIN]);
 });
 
-test('teamSyncDue: 6h after a success, backoff after a failure, in-flight guard; both copies agree', () => {
+test('teamSyncDue: 5 minutes after a success, backoff after a failure, in-flight guard; both copies agree', () => {
   const now = 1_800_000_000_000;
   const base = { memberKey: 'k' };
   const cases = [
     [{ ...base }, true],
-    [{ ...base, lastSyncAt: now - 5 * 3600_000 }, false],
-    [{ ...base, lastSyncAt: now - 6 * 3600_000 }, true],
+    [{ ...base, lastSyncAt: now - 4 * MIN }, false],
+    [{ ...base, lastSyncAt: now - 5 * MIN }, true],
     // failed 20 minutes ago: 15 minute backoff has passed even though the last success was an hour ago
     [{ ...base, lastSyncAt: now - 3600_000, lastSyncAttemptAt: now - 20 * MIN, syncFailures: 1 }, true],
     [{ ...base, lastSyncAt: now - 3600_000, lastSyncAttemptAt: now - 10 * MIN, syncFailures: 1 }, false],
@@ -578,9 +601,11 @@ test('a failed ledger sync retries after 15 minutes, backs off, caps, and a succ
   assert.equal(st.syncFailures, undefined);
   assert.equal(st.lastError, undefined);
   assert.equal(st.lastSyncAt, now);
-  // next try waits the regular 6 hours
-  now += 5 * 3600_000;
+  // next try waits the regular 5 minutes
+  now += 4 * MIN;
   assert.equal((await attempt(ok)).skipped, 'not-due');
+  now += MIN;
+  assert.equal((await attempt(ok)).skipped, undefined);
 });
 
 test('ledgerWindow: first sync is 30 days; later syncs start the day before the watermark, capped at 30', () => {

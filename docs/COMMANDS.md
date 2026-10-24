@@ -43,7 +43,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag team join [token] [--name <n>] [--yes]` | Opt in to the team layer: shows what will be uploaded (daily aggregates only), then enrolls. Without a token it reads `SPRAG_TEAM_TOKEN` ([Team layer](./TEAM.md)) |
 | `sprag team leave` | Leave the team, stop uploading, and remove the member key, the rules cache and the ratchet import |
 | `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name and last sync; `--show-payload` prints the exact rows that would be uploaded |
-| `sprag team sync [--force] [--rules-only]` | Upload the daily aggregates and pull approved organization and team rules now (`--force` ignores the 6-hour interval, `--rules-only` pulls rules and uploads nothing) |
+| `sprag team sync [--force] [--rules-only]` | Upload the daily aggregates and pull approved organization and team rules now (`--force` ignores the 5-minute interval, `--rules-only` pulls rules and uploads nothing) |
 | `sprag team rules` | Show the cached organization and team rules |
 | `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team owner |
 | `sprag cowork [sync\|on\|off\|exclude <dir>\|include <dir>]` | Finds the folders connected to the Claude app's Cowork tab and keeps a copy of the three ratchet files in each folder's `.claude/rules/sprag-cowork-ratchet.md`, because Cowork does not follow the `~/.claude` imports. The copy is refreshed at every session start, and the Code tab skips it through the `claudeMdExcludes` setting |

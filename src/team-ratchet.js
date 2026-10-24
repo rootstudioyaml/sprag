@@ -31,7 +31,7 @@ import { writeStateFile, writeViaTmp } from './state-file.js';
 export { TEAM_RATCHET_IMPORT_RE, teamRatchetImportLine };
 
 export const TEAM_RATCHET_MARKER = '<!-- sprag:team-ratchet -->';
-const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const SYNC_INTERVAL_MS = 5 * 60 * 1000;   // TEAM_SYNC_INTERVAL_MS in team-sync.js
 const IN_FLIGHT_MS = 2 * 60 * 1000;
 const TOKEN_RE = /^spt_[0-9a-f]{32}$/;
 
@@ -238,7 +238,7 @@ export function spawnTeamSyncIfDue({
 
 /**
  * Called from the per-prompt hooks: one small team.json read, no network and no
- * parsing here. When the ledger/rules sync is due (6 hours after the last success,
+ * parsing here. When the ledger/rules sync is due (5 minutes after the last success,
  * or its failure backoff elapsed), start the detached `team sync --background`
  * child; else, when only the prompt upload is due, start it in prompts-only
  * mode; else, when only the hourly rules pull is due, start it in rules-only

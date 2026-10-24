@@ -36,7 +36,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag team join [토큰] [--name <이름>] [--yes]` | 팀 기능을 켭니다. 올라갈 내용(하루 단위 집계뿐)을 보여 준 뒤 등록합니다. 토큰을 생략하면 `SPRAG_TEAM_TOKEN` 을 읽습니다 ([팀 기능](./TEAM.ko.md)) |
 | `sprag team leave` | 팀에서 나가고 업로드를 멈추며, 멤버 키, 룰 캐시, 래칫 import 를 지웁니다 |
 | `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 마지막 동기화를 보여 줍니다. `--show-payload` 는 올라갈 행을 그대로 출력합니다 |
-| `sprag team sync [--force] [--rules-only]` | 지금 하루 집계를 올리고 승인된 조직·팀 룰을 받습니다 (`--force` 는 6시간 간격을 무시, `--rules-only` 는 룰만 받고 아무것도 올리지 않음) |
+| `sprag team sync [--force] [--rules-only]` | 지금 하루 집계를 올리고 승인된 조직·팀 룰을 받습니다 (`--force` 는 5분 간격을 무시, `--rules-only` 는 룰만 받고 아무것도 올리지 않음) |
 | `sprag team rules` | 받아 둔 조직·팀 룰 보기 |
 | `sprag team propose "<내용>" [--scope ratchet\|model]` | 팀 소유자에게 룰 제안 |
 | `sprag cowork [sync\|on\|off\|exclude <폴더>\|include <폴더>]` | Claude 앱 Cowork 탭에 연결했던 폴더를 찾아, 각 폴더의 `.claude/rules/sprag-cowork-ratchet.md` 에 래칫 세 파일의 사본을 둡니다. Cowork는 `~/.claude` 의 import를 읽지 않기 때문입니다. 세션을 시작할 때마다 자동으로 갱신되며, Code 탭은 `claudeMdExcludes` 설정으로 이 사본을 읽지 않습니다 |

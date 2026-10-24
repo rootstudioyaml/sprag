@@ -12,7 +12,7 @@
  *   team-rules.json  last pulled rules (organization rules first, then team
  *                    rules; each row carries level 'org' or 'team')
  *
- * Rules arrive with every full sync (6 hours) and with the rules-only pull
+ * Rules arrive with every full sync (5 minutes) and with the rules-only pull
  * (`team sync --rules-only`, at most hourly). Either kind rewrites the ratchet
  * files right away, so a new session picks the rules up without waiting for
  * the next session-start render.
@@ -46,7 +46,7 @@ export const TEAM_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 // Local testing only: SPRAG_TEAM_API_URL + SPRAG_TEAM_ANON_KEY point the client at a local stack.
 export const teamApiUrl = (env = process.env) => envVar('TEAM_API_URL', env) || TEAM_API_URL;
 export const teamAnonKey = (env = process.env) => envVar('TEAM_ANON_KEY', env) || TEAM_ANON_KEY;
-export const TEAM_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+export const TEAM_SYNC_INTERVAL_MS = 5 * 60 * 1000;   // the copy in team-ratchet.js must match (test/team-prompts.test.js pins them)
 export const TEAM_STATE_VERSION = 1;
 
 const TOKEN_RE = /^spt_[0-9a-f]{32}$/;
@@ -93,7 +93,7 @@ export function ledgerRetryDelayMs(failures) {
 }
 
 /**
- * The ledger/rules sync is due every 6 hours after the last SUCCESS, or, after a
+ * The ledger/rules sync is due every 5 minutes after the last SUCCESS, or, after a
  * failure, when the backoff since the last attempt has elapsed. An attempt that
  * began less than 2 minutes ago counts as in flight, so two hooks do not both spawn.
  */
@@ -538,7 +538,7 @@ export async function syncTeam({
     }
   }
   // Prompts have their own 30-minute timer and are cheap (bytes past the stored
-  // offsets); the ledger re-parses 30 days of sessions and keeps its 6 hours.
+  // offsets); the ledger re-parses only the days since its watermark (about a second) and keeps its 5 minutes.
   if (promptsOnly || (!force && !teamSyncDue(state, now))) {
     if (!force && !promptSyncDue(state, now)) return { skipped: 'not-due' };
     if (!state.promptCapture) return { skipped: 'not-due' };
