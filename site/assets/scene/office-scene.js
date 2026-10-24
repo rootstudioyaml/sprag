@@ -1116,6 +1116,9 @@ export function mountOfficeScene(container, data, opts = {}){
   }
 
   /* ── animation ── */
+  function headPt(o, out){   /* just over the person's head: on the desk when it is posing, otherwise over the chair */
+    return o.pose ? out.set(o.x, POSE_Y + 2.05, o.z + POSE_Z) : out.set(o.x, castOn ? 2.45 : 2.1, o.z + 0.3);
+  }
   function orbit(b, out){
     const a = b.a0 + time * b.sp;
     const up = b.o === sel ? 1.9 : 0, wide = b.o === sel ? 1.5 : 1;   /* the picked one's bots rise and widen, clear of its face */
@@ -1277,18 +1280,22 @@ export function mountOfficeScene(container, data, opts = {}){
     let flying = bots.filter(b => b.st).length;
     bots.forEach(b => {
       const pos = b.pos;
+      /* A trip to the server always starts and ends on its owner's head, so the dashed line joins the person and the server:
+         1 dock (orbit down to the head), 2 out along the line, 3 at the server, 4 home along a redrawn line, 5 back up to the orbit */
+      const head = headPt(b.o, b.h || (b.h = v3())), drawLine = (from, to) => { const ga = b.tr.ln.geometry.attributes.position, q = b.q || (b.q = v3());
+        for(let k = 0; k <= 24; k++){ arcTo(from, to, k / 24, q); ga.setXYZ(k, q.x, q.y, q.z); } ga.needsUpdate = true; b.tr.ln.computeLineDistances(); };
       if(b.st === 0){
         orbit(b, pos);
         if(!reduced && time >= b.next && flying < 6){ const tr = trails.find(x => !x.busy); if(tr){ b.st = 1; b.t = 0; b.p0.copy(pos); b.tr = tr; tr.busy = true; flying++;
-          const a = tr.ln.geometry.attributes.position; for(let k = 0; k <= 24; k++){ arcTo(b.p0, S, k / 24, TMP); a.setXYZ(k, TMP.x, TMP.y, TMP.z); } a.needsUpdate = true;
-          tr.ln.material.color.copy(b.col); tr.ln.computeLineDistances(); tr.ln.visible = true; } else b.next = time + 3; }
-      } else if(b.st === 1){ b.t += dt / 2; if(b.t >= 1){ b.st = 2; b.t = 0; sFlash = 1; pos.copy(S); } else arcTo(b.p0, S, b.t, pos); b.tr.ln.material.opacity = 0.9; }
-      else if(b.st === 2){ b.t += dt / 0.6; pos.copy(S); pos.y += Math.sin(time * 6) * 0.05; if(b.t >= 1){ b.st = 3; b.t = 0; } }
-      else { b.t += dt / 2; orbit(b, TMP); if(b.t >= 1){ b.st = 0; b.tr.busy = false; b.tr.ln.visible = false; b.next = time + (b.o.p.tier === 'power' ? 5 : 11) + hash(b.o.p.id + time) * 7; orbit(b, pos); }
-        else { arcTo(S, TMP, b.t, pos); b.tr.ln.material.opacity = 0.9 * (1 - b.t);
-          /* the way home is a different arc to a moving seat: redraw the line along it every frame, so the bot stays on its line */
-          const q = b.q || (b.q = v3()), ga = b.tr.ln.geometry.attributes.position;
-          for(let k = 0; k <= 24; k++){ arcTo(S, TMP, k / 24, q); ga.setXYZ(k, q.x, q.y, q.z); } ga.needsUpdate = true; b.tr.ln.computeLineDistances(); } }
+          tr.ln.material.color.copy(b.col); tr.ln.material.opacity = 0; drawLine(head, S); tr.ln.visible = true; } else b.next = time + 3; }
+      } else if(b.st === 1){ b.t += dt / 0.45; pos.lerpVectors(b.p0, head, ease(Math.min(1, b.t))); drawLine(head, S); b.tr.ln.material.opacity = 0.9 * Math.min(1, b.t);
+        if(b.t >= 1){ b.st = 2; b.t = 0; b.p0.copy(head); } }
+      else if(b.st === 2){ b.t += dt / 2; if(b.t >= 1){ b.st = 3; b.t = 0; sFlash = 1; pos.copy(S); } else arcTo(b.p0, S, b.t, pos); b.tr.ln.material.opacity = 0.9; }
+      else if(b.st === 3){ b.t += dt / 0.6; pos.copy(S); pos.y += Math.sin(time * 6) * 0.05; drawLine(head, S); if(b.t >= 1){ b.st = 4; b.t = 0; } }
+      else if(b.st === 4){ b.t += dt / 2; drawLine(S, head); arcTo(S, head, Math.min(1, b.t), pos); b.tr.ln.material.opacity = 0.9;
+        if(b.t >= 1){ b.st = 5; b.t = 0; b.p0.copy(head); b.tr.busy = false; b.tr.ln.visible = false; } }
+      else { b.t += dt / 0.6; orbit(b, TMP); pos.lerpVectors(b.p0, TMP, ease(Math.min(1, b.t)));
+        if(b.t >= 1){ b.st = 0; b.next = time + (b.o.p.tier === 'power' ? 5 : 11) + hash(b.o.p.id + time) * 7; orbit(b, pos); } }
       { const az = view ? view.azimuth() : 0, fx = Math.sin(az), fz = Math.cos(az), rx_ = Math.cos(az), rz_ = -Math.sin(az), i2 = 2 * b.i;   /* the face turns to the camera */
         const blink = reduced ? 1 : (Math.sin(time * 1.7 + b.a0 * 3) > 0.985 ? 0.15 : 1);
         setM(sets.vz, b.i, pos.x + fx * 0.115, pos.y + 0.015, pos.z + fz * 0.115, 0, az, 0.15, 0.105, 0.085);
