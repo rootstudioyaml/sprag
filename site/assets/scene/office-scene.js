@@ -265,7 +265,8 @@ export const OF_CSS = `
 .of-legend:empty{display:none}
 .of-legend .keys{display:flex;flex-wrap:wrap;gap:2px 14px}.of-legend .keys .fm{margin:0 3px 0 8px}
 .of-strip{pointer-events:auto;display:flex;flex-wrap:wrap;align-items:center;gap:3px 12px;font:inherit;color:inherit;background:none;border:0;padding:2px 0 4px;margin:0;cursor:pointer;text-align:left;border-bottom:1px dashed rgba(120,90,60,.22)}
-.of-strip:hover b,.of-strip:focus-visible b{color:#6d28d9}.of-strip b{font-weight:600;color:#3a2f27;white-space:nowrap}.of-strip b svg{width:14px;height:14px;margin-right:4px;vertical-align:-2px}
+.of-strip .sbk,.of-strip button.sp{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;border-radius:6px}.of-strip button.sp:hover,.of-strip button.sp:focus-visible{background:rgba(124,108,240,.16);outline:none}.of-strip button.sp:hover svg{transform:scale(1.18)}.of-strip .sp svg{transition:transform .15s}
+.of-strip .sbk:hover b,.of-strip .sbk:focus-visible b{color:#6d28d9}.of-strip b{font-weight:600;color:#3a2f27;white-space:nowrap}.of-strip b svg{width:14px;height:14px;margin-right:4px;vertical-align:-2px}
 .of-strip .tg{display:inline-flex;align-items:center;gap:1px;white-space:nowrap}.of-strip .tg em{font-style:normal;font-weight:600;font-size:10.5px;margin-right:4px}
 .of-strip .t-power em{color:#b7791f}.of-strip .t-active em{color:#1d6fb8}.of-strip .t-normal em{color:#7a6c58}.of-strip .t-low em{color:#c2410c}
 .of-strip .sp svg{width:17px;height:17px;margin:0;vertical-align:-4px}.of-strip .sp.z svg{filter:grayscale(1);opacity:.32}
@@ -811,9 +812,14 @@ export function mountOfficeScene(container, data, opts = {}){
     cur = d; clear();
     const closed = !!d.closed, pl = d.people || [];
     elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
-    elLegend.innerHTML = (d.strip ? `<button type="button" class="of-strip" aria-label="${esc(d.strip.title)}"><b>${BOOK_ICON}${esc(d.strip.title)}</b>${d.strip.tiers.map(g => `<span class="tg t-${g.tier}"><em>${esc(g.label)}</em>${g.items.map(q => `<span class="sp${q.n ? '' : ' z'}" title="${esc(q.name + (q.n ? ' · ' + q.n : ''))}">${iconSvg(q.k)}</span>`).join('')}</span>`).join('')}</button>` : '')
+    elLegend.innerHTML = (d.strip ? `<div class="of-strip"><button type="button" class="sbk" aria-label="${esc(d.strip.title)}"><b>${BOOK_ICON}${esc(d.strip.title)}</b></button>${d.strip.tiers.map(g => `<span class="tg t-${g.tier}"><em>${esc(g.label)}</em>${g.items.map(q => q.n ? `<button type="button" class="sp" data-k="${esc(q.k)}" title="${esc(q.name + ' · ' + q.n)}" aria-label="${esc(q.name + ' · ' + q.n)}">${iconSvg(q.k)}</button>` : `<span class="sp z" title="${esc(q.name)}">${iconSvg(q.k)}</span>`).join('')}</span>`).join('')}</div>` : '')
       + `<div class="keys">${(d.legend || []).map(l => `<span>${l.k ? iconSvg(l.k) : l.bots ? '' : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}${(l.fams || []).map(f => `<i class="fm" style="background:${f.c}"></i>${esc(f.label)}`).join('')}</span>`).join('')}</div>`;
-    { const sb = elLegend.querySelector('.of-strip'); if(sb) sb.addEventListener('click', () => openBook()); }
+    { const sb = elLegend.querySelector('.of-strip .sbk'); if(sb) sb.addEventListener('click', () => openBook());
+      /* a species in the strip flies to a person of that species; clicking it again moves on to the next one, best ranked first */
+      elLegend.querySelectorAll('.of-strip .sp[data-k]').forEach(el => el.addEventListener('click', () => {
+        const k = el.dataset.k, list = people.filter(o => !o.ghost && o.gk === k).sort((a, b) => (a.p.rank || 1e9) - (b.p.rank || 1e9)); if(!list.length) return;
+        const at = list.indexOf(sel), next = list[(at + 1) % list.length]; openDrawer(next);
+      })); }
     if(chrome.bookBtn) chrome.bookBtn.style.display = d.book ? '' : 'none';
     if(canvas) canvas.setAttribute('aria-label', d.aria || '');
     (container.closest('.of-card') || container).setAttribute('aria-label', d.hud.title);
@@ -1253,7 +1259,8 @@ export function mountOfficeScene(container, data, opts = {}){
       people.forEach((o, j) => { const hit = blink && o.gk === pulse.k; setM(sets.pul, j, o.x, 0.1, o.z + 0.3, 0, 0, hit ? 1 : 0.0001, 1, hit ? 1 : 0.0001); });
       sets.pul.instanceMatrix.needsUpdate = true; if(pulse && !on) pulse = null;
     }
-    if(sel && ring){ ring.position.set(sel.x, 0.09, sel.z + 0.3); ring.scale.setScalar(1 + (reduced ? 0 : 0.04 * Math.sin(time * 3))); }
+    if(sel && ring){ const pz = !!sel.pose, k = (pz ? 0.5 : 1) * (1 + (reduced ? 0 : 0.04 * Math.sin(time * 3)));   /* on the desk under a posing character, on the floor round the chair otherwise */
+      ring.position.set(sel.x, pz ? POSE_Y + 0.02 : 0.09, sel.z + (pz ? POSE_Z : 0.3)); ring.scale.setScalar(k); }
     sparks.forEach((q, i) => {
       const a = (reduced ? 0 : time * 1.6) + q.k * 2.1 + q.o.ph, tw = reduced ? 0.7 : 0.55 + 0.45 * Math.sin(time * 5 + q.k * 2 + q.o.ph), r = 0.85 + q.k * 0.08;
       setM(sets.spk, i, q.o.x + Math.cos(a) * r, 3.1 + q.k * 0.22 + Math.sin(a * 2) * 0.06, q.o.z + 0.25 + Math.sin(a) * r * 0.7, 0, 0, 0.09 * tw, 0.09 * tw, 0.09 * tw);
