@@ -346,6 +346,25 @@
   .team-item .mt{display:flex;gap:var(--s2);align-items:center;color:var(--faint);font-size:12px;flex-shrink:0}
   .tside .team-item{flex-direction:column;align-items:flex-start;gap:2px}
   .newteam{margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--line)}
+  .nbadge{display:inline-block;margin-left:6px;min-width:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#17120a;font:600 11px/18px var(--mono);text-align:center}
+  .or-link{margin:var(--s3) 20px 20px;padding:var(--s3);border:1px solid var(--line);border-radius:var(--rl);display:grid;gap:var(--s2)}
+  .or-link .lbl{font-size:12px;color:var(--faint)}
+  .or-url{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
+  .or-url code{flex:1 1 280px;min-width:0;overflow-wrap:anywhere;padding:8px 10px;background:var(--bg);border:1px solid var(--line2);border-radius:var(--r)}
+  .or-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .or-wrap{overflow-x:auto;margin-top:var(--s3)}
+  .or-tbl th,.or-tbl td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+  .or-tbl th{font-weight:500;font-size:12px;color:var(--faint)}
+  .or-tbl tr.or-row{cursor:pointer}
+  .or-tbl tr.or-row:hover{background:var(--hover)}
+  .or-tbl td.n{text-align:right}
+  .or-det td{white-space:normal;background:var(--surface);padding:14px 16px}
+  .or-det dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;font-size:13px}
+  .or-det dt{color:var(--faint)} .or-det dd{overflow-wrap:anywhere}
+  .or-act{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:12px}
+  .or-res{margin-top:12px;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--r);font-size:13px;line-height:1.7}
+  .or-filter{padding:0 20px}
+  @media(max-width:640px){.or-link,.or-filter{margin-left:var(--s3);margin-right:var(--s3)}.or-filter{padding:0}}
   .neworg{margin:var(--s3) 20px 0;padding:var(--s3);border:1px solid var(--line);border-radius:var(--rl,10px);display:grid;gap:var(--s2,8px)}
   .tmain{min-width:0}
   .thead{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
@@ -503,7 +522,7 @@
       </svg>
       <span class="bn">Sprag</span>
     </a>
-    <nav class="topnav" id="topnav" hidden aria-label="Sections"><a href="#orgs" id="nav-orgs" aria-current="page" data-k="orgs.h">Organizations</a><a href="#presets" id="nav-presets" data-k="pr.h">Presets</a></nav>
+    <nav class="topnav" id="topnav" hidden aria-label="Sections"><a href="#orgs" id="nav-orgs" aria-current="page" data-k="orgs.h">Organizations</a><a href="#presets" id="nav-presets" data-k="pr.h">Presets</a><a href="#orders" id="nav-orders"><span data-k="or.nav">Orders</span><span class="nbadge" id="nav-orders-n" hidden></span></a></nav>
     <div class="hbar-r">
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
@@ -730,6 +749,41 @@
         <section class="card" id="pr-draft-card" aria-labelledby="pr-draft-h"><div class="sec-h"><h2 id="pr-draft-h" data-k="pr.d.h">Draft</h2></div><div id="pr-draft"></div></section>
         <section class="card" id="pr-key-card" aria-labelledby="pr-key-h"><div class="sec-h"><h2 id="pr-key-h" data-k="pr.k.h">Signing key</h2></div><div id="pr-key"></div></section>
         <section class="card flush" id="pr-hist-card" aria-labelledby="pr-hist-h" style="min-width:0"><div class="sec-h"><h2 id="pr-hist-h" data-k="pr.h.h">History</h2></div><div id="pr-hist"></div></section>
+      </div>
+
+      <div id="view-orders" class="stack" hidden>
+        <section class="dhead" aria-labelledby="or-h">
+          <div class="dtitle"><h2 id="or-h" data-k="or.h">Orders</h2></div>
+          <p class="sub" data-k="or.lead">Send a one-time order link, confirm deposits and open the organization once an order is paid.</p>
+          <p class="ok" id="or-flash" role="status"></p><p class="err" id="or-flash-err" role="alert"></p>
+        </section>
+        <section class="card flush" aria-labelledby="or-link-h">
+          <div class="sec-h"><h2 id="or-link-h" data-k="or.link.h">Create an order link</h2></div>
+          <form class="or-link" id="or-link-form">
+            <p class="sub" style="margin:0" data-k="or.link.d">The link is shown once. Only its hash is stored, so copy it before you leave this page. It is valid for 30 days and stops working after the first payment.</p>
+            <div class="row grow">
+              <select id="or-kind" aria-label="Kind"></select>
+              <select id="or-org" aria-label="Organization" hidden></select>
+            </div>
+            <div class="row grow">
+              <input type="email" id="or-email" data-ph="or.email" placeholder="Contact email (optional)" aria-label="Contact email" />
+              <input type="text" id="or-note" maxlength="500" data-ph="or.note" placeholder="Note (optional)" aria-label="Note" />
+            </div>
+            <div class="row"><button class="btn pri" type="submit" id="or-make" data-k="or.make">Create link</button></div>
+            <div id="or-made" hidden>
+              <div class="lbl" data-k="or.made.l">Order link</div>
+              <div class="or-url"><code id="or-url"></code><button type="button" class="btn sm" id="or-copy" data-k="or.copy">Copy</button></div>
+              <p class="sub" style="margin:6px 0 0" id="or-made-d"></p>
+            </div>
+            <p class="err" id="or-link-err" role="alert"></p>
+          </form>
+        </section>
+        <section class="card flush" aria-labelledby="or-list-h" style="min-width:0">
+          <div class="sec-h"><h2 id="or-list-h" data-k="or.list.h">Orders</h2><span class="count" id="or-count"></span></div>
+          <div class="or-filter"><div class="seg" role="tablist" id="or-filter" style="margin-top:var(--s3);flex-wrap:wrap"></div></div>
+          <p class="err" id="or-err" role="alert"></p>
+          <div class="or-wrap" id="or-box"></div>
+        </section>
       </div>
     </div>
   </div>
@@ -1045,6 +1099,47 @@ Object.assign(I18N.ko, {
  'bz.refund': "환불정책",
  'bz.verify': "사업자정보확인",
 });
+
+Object.assign(I18N.en, {
+ "or.nav":"Orders","or.h":"Orders","or.lead":"Send a one-time order link, confirm deposits and open the organization once an order is paid.",
+ "or.link.h":"Create an order link","or.link.d":"The link is shown once. Only its hash is stored, so copy it before you leave this page. It is valid for 30 days and stops working after the first payment.",
+ "or.kind.new":"New organization","or.kind.renew":"Renewal","or.kind.seats":"Add seats","or.org.pick":"Choose an organization","or.org.none":"No organization with a running term",
+ "or.email":"Contact email (optional)","or.note":"Note (optional)","or.make":"Create link","or.made.l":"Order link","or.copy":"Copy","or.copied":"Copied",
+ "or.made.d":"Shown once. It expires on {date}.","or.list.h":"Orders","or.all":"All","or.none":"No orders yet","or.loading":"Loading",
+ "or.st.pending":"Pending","or.st.awaiting_transfer":"Awaiting deposit","or.st.paid":"Paid","or.st.fulfilled":"Fulfilled","or.st.canceled":"Canceled","or.st.refunded":"Refunded",
+ "or.m.toss":"Toss","or.m.paddle":"Paddle","or.m.transfer":"Bank transfer",
+ "or.c.created":"Created","or.c.kind":"Kind","or.c.org":"Organization","or.c.plan":"Plan","or.c.seats":"Seats","or.c.months":"Months","or.c.total":"Total","or.c.method":"Method","or.c.status":"Status","or.c.buyer":"Buyer",
+ "or.d.owner":"Owner","or.d.admins":"Admins","or.d.teams":"Team names","or.d.ti":"Tax invoice","or.d.ref":"Payment reference","or.d.notes":"Notes","or.d.linknote":"Link note","or.d.contact":"Contact","or.d.paid":"Paid at","or.d.ful":"Fulfilled at","or.d.amount":"Amount","or.d.none":"None",
+ "or.ti.biz_no":"Business no.","or.ti.company":"Company","or.ti.ceo":"Representative","or.ti.email":"Email","or.ti.address":"Address",
+ "or.a.paid":"Confirm deposit","or.a.ful":"Open or apply","or.a.cancel":"Cancel order","or.a.refund":"Mark refunded",
+ "or.q.paid":"Confirm that {amount} was deposited for {org}? Add a note if you want (optional).",
+ "or.q.ful":"Open or apply this order for {org}? The invitation emails go out right away.",
+ "or.q.cancel":"Cancel this order for {org}? Add a reason if you want (optional).",
+ "or.q.refund":"Mark this order for {org} as refunded? The refund itself is made in Toss, Paddle or the bank. Add a note if you want (optional).",
+ "or.done.paid":"Deposit confirmed. The order is now paid.","or.done.cancel":"The order was updated.",
+ "or.r.h":"Applied","or.r.org":"Organization","or.r.until":"Paid until","or.r.owner":"Owner","or.r.admins":"Admins","or.r.teams":"The owner creates the teams after the first sign-in: {names}",
+ "or.r.st.added":"added","or.r.st.invited":"invited","c.until":"Paid until","ts.none":"No term","ts.active":"Active","ts.ending":"Ending soon","ts.grace":"Grace period","ts.expired":"Expired"
+});
+Object.assign(I18N.ko, {
+ "or.nav":"주문","or.h":"주문","or.lead":"일회용 주문 링크를 보내고, 입금을 확인하고, 결제된 주문은 조직에 반영합니다.",
+ "or.link.h":"주문 링크 만들기","or.link.d":"링크는 한 번만 보여 드립니다. 서버에는 해시만 저장되니 이 화면을 떠나기 전에 복사해 두세요. 30일 동안 쓸 수 있고, 첫 결제가 끝나면 닫힙니다.",
+ "or.kind.new":"새 조직","or.kind.renew":"연장","or.kind.seats":"좌석 추가","or.org.pick":"조직을 고르세요","or.org.none":"이용 기간이 남은 조직이 없습니다",
+ "or.email":"연락 이메일 (선택)","or.note":"메모 (선택)","or.make":"링크 만들기","or.made.l":"주문 링크","or.copy":"복사","or.copied":"복사했습니다",
+ "or.made.d":"지금만 보여 드립니다. {date}에 만료됩니다.","or.list.h":"주문 목록","or.all":"전체","or.none":"아직 주문이 없습니다","or.loading":"불러오는 중",
+ "or.st.pending":"결제 대기","or.st.awaiting_transfer":"입금 대기","or.st.paid":"결제 완료","or.st.fulfilled":"반영 완료","or.st.canceled":"취소","or.st.refunded":"환불",
+ "or.m.toss":"토스","or.m.paddle":"Paddle","or.m.transfer":"계좌 입금",
+ "or.c.created":"주문 시각","or.c.kind":"종류","or.c.org":"조직","or.c.plan":"플랜","or.c.seats":"좌석","or.c.months":"개월","or.c.total":"합계","or.c.method":"결제 수단","or.c.status":"상태","or.c.buyer":"주문자",
+ "or.d.owner":"오너","or.d.admins":"관리자","or.d.teams":"팀 이름","or.d.ti":"세금계산서","or.d.ref":"결제 참조값","or.d.notes":"메모","or.d.linknote":"링크 메모","or.d.contact":"연락처","or.d.paid":"결제 시각","or.d.ful":"반영 시각","or.d.amount":"금액","or.d.none":"없음",
+ "or.ti.biz_no":"사업자등록번호","or.ti.company":"상호","or.ti.ceo":"대표자","or.ti.email":"이메일","or.ti.address":"주소",
+ "or.a.paid":"입금 확인","or.a.ful":"조직 개설/반영","or.a.cancel":"취소","or.a.refund":"환불 처리",
+ "or.q.paid":"{org}의 {amount} 입금을 확인했나요? 남길 메모가 있으면 적어 주세요 (선택).",
+ "or.q.ful":"{org} 주문을 조직에 반영할까요? 초대 메일이 바로 나갑니다.",
+ "or.q.cancel":"{org} 주문을 취소할까요? 이유가 있으면 적어 주세요 (선택).",
+ "or.q.refund":"{org} 주문을 환불 처리할까요? 실제 환불은 토스, Paddle, 은행에서 따로 하셔야 합니다. 남길 메모가 있으면 적어 주세요 (선택).",
+ "or.done.paid":"입금을 확인했습니다. 주문이 결제 완료로 바뀌었습니다.","or.done.cancel":"주문 상태를 바꿨습니다.",
+ "or.r.h":"반영 결과","or.r.org":"조직","or.r.until":"이용 기간","or.r.owner":"오너","or.r.admins":"관리자","or.r.teams":"팀은 오너가 첫 로그인 뒤 만듭니다: {names}",
+ "or.r.st.added":"추가됨","or.r.st.invited":"초대함","c.until":"이용 기간","ts.none":"기간 없음","ts.active":"이용 중","ts.ending":"곧 종료","ts.grace":"유예 기간","ts.expired":"종료"
+});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -1168,6 +1263,17 @@ const demo = (function(){
     {id:'d4', name:'Old Harbor Co', plan:'pro', status:'suspended', seat_limit:5, seats_used:3, teams:1, members_total:3, owners:['pat@oldharbor.example'], spent_30d:0, saved_30d:0, last_seen:ago(19), created_at:ago(210), note:'Suspended: invoice unpaid.'},
     {id:'d5', name:'Quill & Co', plan:'enterprise', status:'active', seat_limit:100, seats_used:41, teams:6, members_total:44, owners:['sam@quill.example'], spent_30d:3150.0, saved_30d:1490.6, last_seen:ago(0.05), created_at:ago(12), note:''}
   ];
+  { const PU = {d1:420, d2:9, d3:100, d4:-5, d5:-30}, st = d => d > 14 ? 'active' : d >= 0 ? 'ending' : d >= -14 ? 'grace' : 'expired';
+    orgs.forEach(o => { const d = PU[o.id]; o.paid_until = fmtDay(new Date(Date.now() + d * day)); o.term_state = st(d); }); }
+  const dayIso = n => new Date(Date.now() + n * day).toISOString();
+  const ords = [
+    {id:'o6', kind:'new', org_id:null, org_name:'Harbor Analytics', owner_email:'lee@harbor.example', admin_emails:['kim@harbor.example','park@harbor.example'], team_names:['Data','Growth'], plan:'enterprise', seats:30, months:12, currency:'KRW', method:'transfer', order_name:'Sprag Enterprise 30 seats x 12 months', unit_price:11200, subtotal:4032000, vat:403200, total:4435200, buyer_name:'Lee Minho', buyer_email:'lee@harbor.example', tax_invoice:{biz_no:'1234567890', company:'Harbor Analytics Inc.', ceo:'Lee Minho', email:'tax@harbor.example', address:'Seoul Gangnam-gu Teheran-ro 1'}, status:'awaiting_transfer', provider_ref:null, status_note:null, created_at:ago(0.1), contact_email:'lee@harbor.example', link_note:'Intro call 10/22', current_org_name:null},
+    {id:'o5', kind:'new', org_id:null, org_name:'Mapleleaf Games', owner_email:'owner@mapleleaf.example', admin_emails:['ops@mapleleaf.example'], team_names:['Client','Server','QA'], plan:'pro', seats:12, months:6, currency:'KRW', method:'toss', order_name:'Sprag Pro 12 seats x 6 months', unit_price:7000, subtotal:504000, vat:50400, total:554400, buyer_name:'Han Seoyeon', buyer_email:'han@mapleleaf.example', tax_invoice:null, status:'paid', provider_ref:'tgen_20261024xxxx', status_note:null, created_at:ago(0.6), paid_at:ago(0.55), contact_email:'han@mapleleaf.example', link_note:null, current_org_name:null},
+    {id:'o4', kind:'renew', org_id:'d2', org_name:'Kestrel Robotics', owner_email:null, admin_emails:[], team_names:[], plan:'pro', seats:12, months:12, currency:'USD', method:'paddle', order_name:'Sprag Pro renewal 12 seats x 12 months', unit_price:4, subtotal:576, vat:0, total:576, buyer_name:'Jun Park', buyer_email:'jun@kestrel.example', tax_invoice:null, status:'paid', provider_ref:'txn_01j8demo', status_note:null, created_at:ago(1.2), paid_at:ago(1.1), contact_email:'jun@kestrel.example', link_note:'Renewal before 11/03', current_org_name:'Kestrel Robotics'},
+    {id:'o3', kind:'seats', org_id:'d3', org_name:'서울 스튜디오', owner_email:null, admin_emails:[], team_names:[], plan:'pro', seats:5, months:0, currency:'KRW', method:'toss', order_name:'Sprag Pro +5 seats for 100 days', unit_price:5600, subtotal:93333, vat:9333, total:102666, buyer_name:'Min Kang', buyer_email:'min@seoul.example', tax_invoice:null, status:'fulfilled', provider_ref:'tgen_20261015yyyy', status_note:null, created_at:ago(9), paid_at:ago(9), fulfilled_at:ago(8.8), contact_email:'min@seoul.example', link_note:null, current_org_name:'서울 스튜디오'},
+    {id:'o2', kind:'new', org_id:'d5', org_name:'Quill & Co', owner_email:'sam@quill.example', admin_emails:[], team_names:['Editorial'], plan:'enterprise', seats:100, months:24, currency:'KRW', method:'transfer', order_name:'Sprag Enterprise 100 seats x 24 months', unit_price:11200, subtotal:26880000, vat:2688000, total:29568000, buyer_name:'Sam Quill', buyer_email:'sam@quill.example', tax_invoice:{biz_no:'9876543210', company:'Quill & Co', ceo:'Sam Quill', email:'books@quill.example'}, status:'fulfilled', provider_ref:'transfer', status_note:'Deposit seen 09/30', created_at:ago(25), paid_at:ago(24), fulfilled_at:ago(24), contact_email:'sam@quill.example', link_note:null, current_org_name:'Quill & Co'},
+    {id:'o1', kind:'new', org_id:null, org_name:'Test Org', owner_email:'x@example.test', admin_emails:[], team_names:[], plan:'pro', seats:3, months:1, currency:'USD', method:'paddle', order_name:'Sprag Pro 3 seats x 1 month', unit_price:5, subtotal:15, vat:0, total:15, buyer_name:'Tester', buyer_email:'x@example.test', tax_invoice:null, status:'canceled', provider_ref:null, status_note:'replaced', created_at:ago(30), contact_email:null, link_note:null, current_org_name:null}
+  ];
   const sums = o => ({id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, seats_used:o.seats_used, role:'superuser',
     teams:teamsOf(o).map((x, i, all) => ({id:x.id, name:x.name, members_active:Math.floor(o.seats_used / all.length) + (i < o.seats_used % all.length ? 1 : 0), seats:Math.floor(o.seats_used / all.length) + (i < o.seats_used % all.length ? 1 : 0)})),
     admins:[...o.owners.map(e => ({user_id:e, email:e, role:'owner'})), ...(o.invites || []).map(e => ({user_id:null, email:e, role:'owner', pending:true}))]});
@@ -1230,6 +1336,21 @@ const demo = (function(){
       const known = orgs.some(x => x.owners.includes(a.p_owner_email));
       if(!known){ o.owners = []; o.invites = [a.p_owner_email]; }
       orgs.push(o); return {id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, owner_status: known ? 'added' : 'invited'};
+    }
+    if(name === 'ops_orders') return ords.filter(x => !a.p_status || x.status === a.p_status).map(x => ({...x}));
+    if(name === 'ops_order_link_create'){
+      if(a.p_kind !== 'new' && !orgs.some(x => x.id === a.p_org_id)) throw new Error('organization not found');
+      const tok = 'DEMO' + 'abcdefghijklmnopqrstuvwxyz0123456789_-ABCDEFGHIJ'.slice(0, 39);
+      return {token: tok, path: '/order/?t=' + tok, expires_at: dayIso(30)};
+    }
+    if(name === 'ops_order_mark_transfer_paid' || name === 'ops_order_fulfill' || name === 'ops_order_cancel'){
+      const x = ords.find(v => v.id === a.p_order_id); if(!x) throw new Error('order not found');
+      if(name === 'ops_order_mark_transfer_paid'){ if(x.status !== 'awaiting_transfer') throw new Error('only an order awaiting a deposit can be marked paid'); Object.assign(x, {status:'paid', paid_at:new Date().toISOString(), provider_ref:'transfer', status_note:a.p_note || null}); return {ok:true, order_id:x.id, status:'paid'}; }
+      if(name === 'ops_order_cancel'){ x.status = a.p_status; x.status_note = a.p_note || null; return {ok:true, order_id:x.id, status:x.status}; }
+      if(x.status !== 'paid') throw new Error('only a paid order can be fulfilled');
+      x.status = 'fulfilled'; x.fulfilled_at = new Date().toISOString();
+      return {order_id:x.id, kind:x.kind, org_id:x.org_id || 'd9', org_name:x.org_name, plan:x.plan, seat_limit:x.seats, paid_until:fmtDay(new Date(Date.now() + 365 * day)), owner_status: x.kind === 'new' ? 'invited' : null,
+        admins:x.admin_emails.map(e => ({email:e, status:'invited'})), teams_skipped:x.team_names.map(n => ({name:n, reason:'only an organization admin can create teams; the owner creates them on /team'}))};
     }
     if(name === 'ops_totals') return {orgs:orgs.length, orgs_pro:orgs.filter(o => o.plan === 'pro').length, orgs_enterprise:orgs.filter(o => o.plan === 'enterprise').length, seats_used:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.holds_seat && !x.seat_of).length,0), seats_paused:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'paused').length,0), seats_late:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'late').length,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
     const o = orgs.find(x => x.id === a.p_org_id);
@@ -1388,14 +1509,14 @@ async function onSession(session){
   user = session ? session.user : null;
   if(!user){ $('form-setpw').hidden = true; resetSetPw(); }
   $('auth').hidden = !!user; $('app').hidden = !user; $('acct').hidden = !user; $('topnav').hidden = !user; if(!user) closeMenu();
-  orgs = []; orgsLoaded = false; sel = null; sum = null; shown = '';
+  orgs = []; orgsLoaded = false; sel = null; sum = null; shown = ''; Orders.reset();
   $('ops').hidden = true; $('denied').hidden = true;
   if(!user){ renderAll(); return; }
   $('who-email').textContent = user.email || ''; $('acct-i').textContent = ((user.email || '?').trim()[0] || '?').toUpperCase();
   let admin = false;
   try{ admin = (await rpc('is_platform_admin')) === true; }catch(e){ admin = false; }
   $('denied').hidden = admin; $('ops').hidden = !admin;
-  if(admin) await Promise.all([loadTotals(), loadOrgs(), loadAttention(), loadTrends(), loadRail()]);
+  if(admin) await Promise.all([loadTotals(), loadOrgs(), loadAttention(), loadTrends(), loadRail(), Orders.load()]);
   renderAll();
   route();
 }
@@ -1467,13 +1588,18 @@ function parseHash(){
 function go(h){ if(location.hash === h) route(); else location.hash = h; }
 async function route(){
   if(!user || $('ops').hidden) return;
-  const pv = isPresetsHash(), r = pv ? null : parseHash();
-  $('view-list').hidden = !!r || pv; $('view-detail').hidden = !r; $('view-presets').hidden = !pv; $('range-bar').hidden = pv;
-  [['nav-orgs', !pv], ['nav-presets', pv]].forEach(([id, on]) => on ? $(id).setAttribute('aria-current', 'page') : $(id).removeAttribute('aria-current'));
+  const pv = isPresetsHash(), ov = isOrdersHash(), r = (pv || ov) ? null : parseHash();
+  $('view-list').hidden = !!r || pv || ov; $('view-detail').hidden = !r; $('view-presets').hidden = !pv; $('view-orders').hidden = !ov; $('range-bar').hidden = pv || ov;
+  [['nav-orgs', !pv && !ov], ['nav-presets', pv], ['nav-orders', ov]].forEach(([id, on]) => on ? $(id).setAttribute('aria-current', 'page') : $(id).removeAttribute('aria-current'));
   TownHost.sync();
   if(pv){
     if(shown){ shown = ''; sel = null; sum = null; Seats.load(null); Prompts.reset(); }
     await Presets.open();
+    return;
+  }
+  if(ov){
+    if(shown){ shown = ''; sel = null; sum = null; Seats.load(null); Prompts.reset(); }
+    await Orders.open();
     return;
   }
   if(!r){
@@ -1491,7 +1617,7 @@ document.querySelectorAll('#d-tabs .tab').forEach(b => b.addEventListener('click
 }));
 
 /* ── render ───────────────────────────────────────────────────────────── */
-function renderAll(){ Range.render(); renderTotals(); renderOrgs(); renderOverview(); renderRail(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); Presets.render(); }
+function renderAll(){ Range.render(); renderTotals(); renderOrgs(); renderOverview(); renderRail(); renderDetail(); renderAttention(); Seats.render(); Prompts.render(); Presets.render(); Orders.render(); }
 function renderAttention(){
   TownHost.sync();
   const rows = attention[attTab] || [], paused = attTab === 'paused';
@@ -1713,6 +1839,8 @@ $('ov-ref').addEventListener('click', async () => {
 });
 if(window.ResizeObserver) new ResizeObserver(() => { const w = $('ov-rev').clientWidth; if(w && Math.abs(w - ovWidth) > 2) renderOverview(); }).observe($('ov-rev'));
 
+const TERM_CLS = { none:'dim', active:'good', ending:'warn', grace:'warn', expired:'bad' };
+const termCell = o => o.paid_until ? `<span class="badge ${TERM_CLS[o.term_state] || 'dim'}">${esc(fmtDay(o.paid_until))}</span> <span class="share" style="color:var(--faint)">${esc(t('ts.' + (TERM_CLS[o.term_state] ? o.term_state : 'none')))}</span>` : `<span class="badge dim">${esc(t('ts.none'))}</span>`;
 function renderOrgs(){
   TownHost.sync();
   const ms = v => { const x = v ? new Date(v).getTime() : NaN; return isFinite(x) ? x : null; };
@@ -1734,6 +1862,7 @@ function renderOrgs(){
       { key:'status', label:t('c.status'), val: o => t('st.' + statOf(o)), cell: o => `<span class="badge ${statOf(o) === 'suspended' ? 'bad' : 'good'}">${esc(t('st.' + statOf(o)))}</span>` },
       { key:'seats', label:t('c.seats'), first:-1, val: o => n0(o.seats_used), csv: o => n0(o.seats_used) + ' / ' + n0(o.seat_limit),
         cell: o => { const used = n0(o.seats_used), lim = n0(o.seat_limit), full = lim && used >= lim; return `<div class="seatcell"><span>${used} / ${lim}</span><div class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></div></div>`; } },
+      { key:'until', label:t('c.until'), first:-1, val: o => o.paid_until || '', csv: o => o.paid_until || '', cell: o => termCell(o) },
       { key:'teams', label:t('c.teams'), cls:'n', first:-1, val: o => n0(o.teams) },
       { key:'members', label:t('c.members'), cls:'n', first:-1, val: o => n0(o.members_total) },
       { key:'paused', label:t('c.paused'), cls:'n', first:-1, val: o => n0(o.seats_paused) },
@@ -1794,6 +1923,7 @@ function renderDetail(){
     { id:'sv', label:t('c.sv') + rl, tone:'sv', static:true, value:n0(sel.saved ?? sel.saved_30d), fmt:money, prev: prow ? n0(prow.saved ?? prow.saved_30d) : null, judge:'good', prevLabel:pLab, series: dsp ? days.map(d => (dsp[d] || { sv:0 }).sv) : null },
     S({ id:'rev', label:t('c.rev'), tone:'sv', value:orgRevenue(sel), fmt:money }),
     S({ id:'seen', label:t('c.seen'), text:rel(sel.last_seen) }),
+    S({ id:'until', label:t('c.until'), text: sel.paid_until ? fmtDay(sel.paid_until) + ' · ' + t('ts.' + (TERM_CLS[sel.term_state] ? sel.term_state : 'none')) : t('ts.none') }),
     S({ id:'created', label:t('c.created'), text:fmtDay(sel.created_at) })
   ], { id:'d:' + sel.id, cols:'k5' });
   Det.ensure();
@@ -2359,6 +2489,150 @@ const SceneHost = (function(){
 })();
 
 /* ── boot ─────────────────────────────────────────────────────────────── */
+
+/* ── orders (#orders): order links, the order list, deposit confirmation and fulfilment ── */
+const isOrdersHash = () => /^#orders\/?$/.test(location.hash);
+const Orders = (function(){
+  const S = { list:[], loaded:false, err:'', filter:'', open:new Set(), busy:false, flash:'', flashErr:'', result:null, made:null, linkErr:'', opened:false };
+  const STATUSES = ['pending', 'awaiting_transfer', 'paid', 'fulfilled', 'canceled', 'refunded'];
+  const BADGE = { pending:'dim', awaiting_transfer:'warn', paid:'warn', fulfilled:'good', canceled:'dim', refunded:'bad' };
+  const money = (n, cur) => cur === 'USD' ? '$' + (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : (Math.round(Number(n)) || 0).toLocaleString('en-US') + '원';
+  const stamp = v => { if(!v) return ''; const x = new Date(v); return isNaN(x) ? '' : fmtDay(x) + ' ' + String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0'); };
+  const todo = () => S.list.filter(o => o.status === 'paid' || o.status === 'awaiting_transfer').length;
+  const origin = () => ['localhost', '127.0.0.1'].includes(location.hostname) ? location.origin : 'https://sprag.io';
+  function reset(){ S.list = []; S.loaded = false; S.err = ''; S.result = null; S.made = null; badge(); }
+  function badge(){ const n = todo(), el = $('nav-orders-n'); el.hidden = !n; el.textContent = n; }
+  async function load(){
+    S.err = '';
+    try{ const d = await rpc('ops_orders', { p_status: null }); S.list = Array.isArray(d) ? d : []; }catch(e){ S.list = []; S.err = errMsg(e); }
+    S.loaded = true; badge(); render();
+  }
+  async function open(){ if(!S.opened){ S.opened = true; fillKinds(); } await load(); }
+  function fillKinds(){
+    const k = $('or-kind'), v = k.value || 'new';
+    k.innerHTML = ['new', 'renew', 'seats'].map(x => `<option value="${x}">${esc(t('or.kind.' + x))}</option>`).join(''); k.value = v;
+    fillOrgs();
+  }
+  function fillOrgs(){
+    const kind = $('or-kind').value, sel2 = $('or-org'), cur = sel2.value;
+    sel2.hidden = kind === 'new';
+    const list = orgs.filter(o => kind !== 'seats' || (o.paid_until && o.paid_until > fmtDay(new Date())));
+    sel2.innerHTML = `<option value="">${esc(t(list.length || kind !== 'seats' ? 'or.org.pick' : 'or.org.none'))}</option>` + list.map(o => `<option value="${esc(o.id)}">${esc(o.name)}${o.paid_until ? ' · ' + esc(fmtDay(o.paid_until)) : ''}</option>`).join('');
+    sel2.value = list.some(o => o.id === cur) ? cur : '';
+  }
+  function dd(label, html){ return html ? `<dt>${esc(label)}</dt><dd>${html}</dd>` : ''; }
+  function detail(o){
+    const ti = o.tax_invoice ? Object.keys(o.tax_invoice).map(k => `${esc(t('or.ti.' + k))}: ${esc(o.tax_invoice[k])}`).join('<br>') : '';
+    const amount = `${esc(money(o.subtotal, o.currency))}` + (o.currency === 'KRW' ? ` + ${esc(money(o.vat, 'KRW'))}` : '') + ` = ${esc(money(o.total, o.currency))}`;
+    return `<tr class="or-det"><td colspan="10"><dl>
+      ${dd(t('or.d.amount'), amount)}
+      ${dd(t('or.d.owner'), esc(o.owner_email || ''))}
+      ${dd(t('or.d.admins'), (o.admin_emails || []).map(esc).join(', '))}
+      ${dd(t('or.d.teams'), (o.team_names || []).map(esc).join(', '))}
+      ${dd(t('or.d.ti'), ti)}
+      ${dd(t('or.d.contact'), esc(o.contact_email || ''))}
+      ${dd(t('or.d.ref'), o.provider_ref ? `<code>${esc(o.provider_ref)}</code>` : '')}
+      ${dd(t('or.d.paid'), esc(stamp(o.paid_at)))}
+      ${dd(t('or.d.ful'), esc(stamp(o.fulfilled_at)))}
+      ${dd(t('or.d.notes'), esc(o.status_note || ''))}
+      ${dd(t('or.d.linknote'), esc(o.link_note || ''))}
+    </dl>${actions(o)}${S.result && S.result.order_id === o.id ? result(S.result) : ''}</td></tr>`;
+  }
+  function actions(o){
+    const b = (act, key, cls) => `<button type="button" class="btn sm ${cls || ''}" data-act="${act}" data-id="${esc(o.id)}"${S.busy ? ' disabled' : ''}>${esc(t(key))}</button>`;
+    const out = [];
+    if(o.status === 'awaiting_transfer') out.push(b('paid', 'or.a.paid', 'pri'));
+    if(o.status === 'paid') out.push(b('ful', 'or.a.ful', 'pri'));
+    if(['pending', 'awaiting_transfer', 'paid'].includes(o.status)) out.push(b('cancel', 'or.a.cancel', 'danger'));
+    if(['paid', 'fulfilled'].includes(o.status)) out.push(b('refund', 'or.a.refund', 'danger'));
+    return out.length ? `<div class="or-act">${out.join('')}</div>` : '';
+  }
+  function result(r){
+    const st = x => t('or.r.st.' + (x === 'added' ? 'added' : 'invited'));
+    const teams = (r.teams_skipped || []).map(x => x.name);
+    return `<div class="or-res"><b>${esc(t('or.r.h'))}</b><br>
+      ${esc(t('or.r.org'))}: ${esc(r.org_name)} (${esc(t('plan.' + (r.plan === 'enterprise' ? 'enterprise' : 'pro')))}, ${esc(r.seat_limit)})<br>
+      ${esc(t('or.r.until'))}: ${esc(fmtDay(r.paid_until))}
+      ${r.owner_status ? `<br>${esc(t('or.r.owner'))}: ${esc(st(r.owner_status))}` : ''}
+      ${(r.admins || []).length ? `<br>${esc(t('or.r.admins'))}: ${r.admins.map(a => esc(a.email) + ' (' + esc(st(a.status)) + ')').join(', ')}` : ''}
+      ${teams.length ? `<br>${t('or.r.teams', { names: teams.map(esc).join(', ') }, true)}` : ''}</div>`;
+  }
+  function render(){
+    if(!$('or-box')) return;
+    $('or-flash').textContent = S.flash; $('or-flash').hidden = !S.flash;
+    $('or-flash-err').textContent = S.flashErr; $('or-flash-err').hidden = !S.flashErr;
+    $('or-err').textContent = S.err; $('or-err').hidden = !S.err;
+    $('or-link-err').textContent = S.linkErr; $('or-link-err').hidden = !S.linkErr;
+    if($('or-kind').options.length) { const cur = $('or-kind').value; $('or-kind').querySelectorAll('option').forEach(op => { op.textContent = t('or.kind.' + op.value); }); $('or-kind').value = cur; }
+    $('or-org').hidden = $('or-kind').value === 'new';
+    const f = $('or-filter');
+    f.innerHTML = ['', ...STATUSES].map(k => { const n = k ? S.list.filter(o => o.status === k).length : S.list.length;
+      return `<button type="button" role="tab" data-f="${k}" aria-selected="${S.filter === k}">${esc(k ? t('or.st.' + k) : t('or.all'))} <span class="n2">${n}</span></button>`; }).join('');
+    f.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S.filter = b.dataset.f; render(); }));
+    const rows = S.list.filter(o => !S.filter || o.status === S.filter);
+    $('or-count').textContent = rows.length ? String(rows.length) : '';
+    const box = $('or-box');
+    if(!S.loaded){ box.innerHTML = `<p class="msg" style="padding:0 20px">${esc(t('or.loading'))}</p>`; return; }
+    if(!rows.length){ box.innerHTML = `<p class="msg" style="padding:0 20px 16px">${esc(t('or.none'))}</p>`; return; }
+    box.innerHTML = `<table class="or-tbl"><thead><tr>${['created', 'kind', 'org', 'plan', 'seats', 'months', 'total', 'method', 'status', 'buyer'].map(k => `<th${['seats', 'months', 'total'].includes(k) ? ' class="n"' : ''}>${esc(t('or.c.' + k))}</th>`).join('')}</tr></thead><tbody>${
+      rows.map(o => `<tr class="or-row" data-id="${esc(o.id)}" tabindex="0" aria-expanded="${S.open.has(o.id)}">
+        <td>${esc(stamp(o.created_at))}</td><td>${esc(t('or.kind.' + o.kind))}</td><td>${esc(o.current_org_name || o.org_name)}</td>
+        <td><span class="tag${o.plan === 'enterprise' ? ' plus' : ''}">${esc(t('plan.' + (o.plan === 'enterprise' ? 'enterprise' : 'pro')))}</span></td>
+        <td class="n">${o.kind === 'seats' ? '+' : ''}${esc(o.seats)}</td><td class="n">${o.kind === 'seats' ? '' : esc(o.months)}</td>
+        <td class="n">${esc(money(o.total, o.currency))}</td><td>${esc(t('or.m.' + o.method))}</td>
+        <td><span class="badge ${BADGE[o.status] || 'dim'}">${esc(t('or.st.' + o.status))}</span></td><td>${esc(o.buyer_email || '')}</td></tr>${S.open.has(o.id) ? detail(o) : ''}`).join('')}</tbody></table>`;
+    box.querySelectorAll('tr.or-row').forEach(tr => {
+      const tog = () => { S.open.has(tr.dataset.id) ? S.open.delete(tr.dataset.id) : S.open.add(tr.dataset.id); render(); };
+      tr.addEventListener('click', tog);
+      tr.addEventListener('keydown', ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); tog(); } });
+    });
+    box.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => act(b.dataset.act, b.dataset.id)));
+  }
+  async function act(kind, id){
+    const o = S.list.find(x => x.id === id); if(!o || S.busy) return;
+    const vars = { org: o.current_org_name || o.org_name, amount: money(o.total, o.currency) };
+    let call, args = { p_order_id: id }, done = t('or.done.cancel');
+    if(kind === 'ful'){
+      if(!confirm(t('or.q.ful', vars, true))) return;
+      call = 'ops_order_fulfill';
+    }else{
+      const note = prompt(t('or.q.' + (kind === 'paid' ? 'paid' : kind === 'refund' ? 'refund' : 'cancel'), vars, true), '');
+      if(note === null) return;
+      if(kind === 'paid'){ call = 'ops_order_mark_transfer_paid'; args.p_note = note || null; done = t('or.done.paid'); }
+      else{ call = 'ops_order_cancel'; args.p_status = kind === 'refund' ? 'refunded' : 'canceled'; args.p_note = note || null; }
+    }
+    S.busy = true; S.flash = ''; S.flashErr = ''; S.result = null; render();
+    try{
+      const r = await rpc(call, args);
+      if(kind === 'ful'){ S.result = r; S.flash = ''; } else S.flash = done;
+      await load();
+      if(kind === 'ful') loadOrgs().then(renderAll).catch(() => {});
+    }catch(e){ S.flashErr = errMsg(e); }
+    S.busy = false; render();
+  }
+  $('or-kind').addEventListener('change', () => { fillOrgs(); render(); });
+  $('or-link-form').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const kind = $('or-kind').value, orgId = $('or-org').value;
+    S.linkErr = '';
+    if(kind !== 'new' && !orgId){ S.linkErr = t('or.org.pick'); render(); return; }
+    $('or-make').disabled = true;
+    try{
+      const r = await rpc('ops_order_link_create', { p_kind: kind, p_org_id: kind === 'new' ? null : orgId, p_contact_email: $('or-email').value.trim() || null, p_note: $('or-note').value.trim() || null });
+      S.made = { url: origin() + r.path, expires: r.expires_at };
+      $('or-url').textContent = S.made.url; $('or-made').hidden = false;
+      $('or-made-d').textContent = t('or.made.d', { date: fmtDay(r.expires_at) }, true);
+    }catch(e){ S.linkErr = errMsg(e); $('or-made').hidden = true; }
+    $('or-make').disabled = false; render();
+  });
+  $('or-copy').addEventListener('click', async () => {
+    if(!S.made) return;
+    try{ await navigator.clipboard.writeText(S.made.url); }catch(e){ const r = document.createRange(); r.selectNodeContents($('or-url')); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }
+    $('or-copy').textContent = t('or.copied'); setTimeout(() => { $('or-copy').textContent = t('or.copy'); }, 1500);
+  });
+  return { open, load, render, reset };
+})();
+
 /* ── presets (#presets): the ratchet, routing and agent presets every CLI pulls ──
    The draft is edited here, signed in this browser (site/assets/preset-sign.js, the same
    canonical JSON as src/preset-sign.js) and published with preset_publish. The CLI applies

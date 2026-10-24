@@ -562,6 +562,7 @@
       <p class="note" data-k="o.seatnote">A seat is one machine active in the last 30 days, or one that paused uploads. Joins past the limit are refused until Sprag raises it. Sprag sets the plan and the limit.</p>
       <p class="note" style="margin-top:6px" data-k="o.addseats">To add seats, contact <a href="mailto:sales@sprag.io">sales@sprag.io</a>.</p>
       <p class="sub rl-orgline" id="org-rules" hidden></p>
+      <p class="msg warn" id="org-term" role="status" hidden></p>
       <p class="err" id="org-err" role="alert"></p>
     </section>
     <div class="cols2" id="org-cols" style="margin-top:var(--s4)" hidden>
@@ -833,6 +834,7 @@ const I18N = {
     'pm.fail':'Could not load this day. Prompt capture may not be enabled on this server yet.',
     'o.h':'Organization','o.switch':'Switch','o.switch.aria':'Organization',
     'o.role':'You are {role} here','role.owner':'Owner','role.admin':'Admin',
+    'o.term':'Term: until {date}','o.term.ending':'Your term ends on {date}. To extend it, contact sales@sprag.io.','o.term.grace':'Your term ended on {date}. New uploads stop from {stop}.','o.term.expired':'Your term has ended, so new uploads and joins are not accepted. The dashboard stays available.',
     'o.seats':'Seats: {used} / {limit}','o.seatnote':'A seat is one machine active in the last 30 days, or one that paused uploads. Joins past the limit are refused until Sprag raises it. Sprag sets the plan and the limit.','o.addseats':'To add seats, contact <a href="mailto:sales@sprag.io">sales@sprag.io</a>.',
     'o.admins':'Admins','o.admin.ph':'Email','o.admin.add':'Add','o.admin.remove':'Remove','o.admin.added':'{email} was added.','o.admin.invited':'{email} was invited. They become {role} when they first sign in.','o.admin.pending':'Invited, waiting for first sign-in','o.admin.cancel':'Cancel invite','o.admin.cancelconfirm':'Cancel the invite for {email}?',
     'o.admin.confirm':'Remove {email} from this organization?','o.admin.empty':'Enter an email address.',
@@ -941,6 +943,7 @@ const I18N = {
     'pm.fail':'이 날짜를 불러오지 못했습니다. 이 서버에서 프롬프트 수집이 아직 켜지지 않았을 수 있습니다.',
     'o.h':'조직','o.switch':'전환','o.switch.aria':'조직',
     'o.role':'이 조직에서 {role} 권한입니다','role.owner':'오너','role.admin':'어드민',
+    'o.term':'이용 기간: ~ {date}','o.term.ending':'이용 기간이 {date}에 끝납니다. 연장은 sales@sprag.io로 문의해 주세요.','o.term.grace':'이용 기간이 {date}에 끝났습니다. {stop}부터 새 업로드가 멈춥니다.','o.term.expired':'이용 기간이 끝나 새 업로드와 참여를 받지 않습니다. 대시보드는 계속 볼 수 있습니다.',
     'o.seats':'좌석: {used} / {limit}','o.seatnote':'좌석 하나는 최근 30일 안에 활동했거나 업로드를 중지한 컴퓨터 한 대입니다. 한도를 넘으면 Sprag가 한도를 올릴 때까지 새 참여가 거절됩니다. 요금제와 한도는 Sprag가 정합니다.','o.addseats':'좌석을 늘리려면 <a href="mailto:sales@sprag.io">sales@sprag.io</a>로 문의해 주세요.',
     'o.admins':'어드민','o.admin.ph':'이메일','o.admin.add':'추가','o.admin.remove':'제거','o.admin.added':'{email}님을 추가했습니다.','o.admin.invited':'{email}님을 초대했습니다. 처음 로그인하면 {role} 권한이 부여됩니다.','o.admin.pending':'초대됨 · 첫 로그인 대기','o.admin.cancel':'초대 취소','o.admin.cancelconfirm':'{email}님의 초대를 취소할까요?',
     'o.admin.confirm':'{email}님을 이 조직에서 제거할까요?','o.admin.empty':'이메일 주소를 입력해 주세요.',
@@ -1294,7 +1297,7 @@ async function loadOrgSummary(){
       const { data, error } = await sb.rpc('org_summary', { p_org_id: org.id });
       if(error) throw error;
       orgSum = data;
-      Object.assign(org, { plan: data.plan, seat_limit: data.seat_limit, seats_used: data.seats_used, role: data.role || org.role, name: data.name });
+      Object.assign(org, { plan: data.plan, seat_limit: data.seat_limit, seats_used: data.seats_used, role: data.role || org.role, name: data.name, paid_until: data.paid_until, term_state: data.term_state });
     }catch(e){ AdminUX.err($('org-err'), errMsg(e), loadOrgSummary); }
   }
   Seats.load(org && isAdmin() ? org.id : null);
@@ -1358,7 +1361,12 @@ function renderOrg(){
   $('org-plan').className = 'tag' + (plan === 'enterprise' ? ' plus' : '');
   $('org-role').textContent = t('o.role', {role: t('role.' + (org.role === 'owner' ? 'owner' : 'admin'))}, true);
   const used = Number(org.seats_used) || 0, lim = Number(org.seat_limit) || 0;
-  $('org-seats').textContent = t('o.seats', {used, limit: lim}, true);
+  $('org-seats').textContent = t('o.seats', {used, limit: lim}, true) + (org.paid_until ? ' · ' + t('o.term', {date: fmtDay(org.paid_until)}, true) : '');
+  const termEl = $('org-term'), ts0 = org.term_state, pu = org.paid_until ? new Date(org.paid_until + 'T00:00:00') : null;
+  const termMsg = !isAdmin() || !pu ? '' : ts0 === 'ending' ? t('o.term.ending', {date: fmtDay(pu)}, true)
+    : ts0 === 'grace' ? t('o.term.grace', {date: fmtDay(pu), stop: fmtDay(new Date(pu.getFullYear(), pu.getMonth(), pu.getDate() + 14))}, true)
+    : ts0 === 'expired' ? t('o.term.expired') : '';
+  termEl.textContent = termMsg; termEl.hidden = !termMsg;
   $('org-bar').className = 'bar' + (lim && used >= lim ? ' full' : '');
   $('org-bar-fill').style.width = (lim ? Math.min(100, Math.round(used / lim * 100)) : 0) + '%';
   $('form-admin').hidden = !isOwner();
@@ -2507,7 +2515,7 @@ function demoSb(){
     {id:'demo-t3', name:'Data', org_id:'demo-org', owner_uid:'u1', invite_token:'spt_0f1e2d3c4b5a69788796a5b4c3d2e1f0', prompt_capture:false, created_at:ago(30)}];
   const store = () => demoSeatStore('demo-org', tm);
   const used = () => store().rows.filter(r => r.holds_seat && !r.seat_of).length;
-  const org = () => ({id:'demo-org', name:'Northwind Labs', plan:'enterprise', seat_limit:24, seats_used:used(), role:'owner'});
+  const org = () => ({id:'demo-org', name:'Northwind Labs', plan:'enterprise', seat_limit:24, seats_used:used(), role:'owner', paid_until:ago(-9).slice(0, 10), term_state:'ending'});
   const summary = () => store().rows.map((r, i) => ({ member_id:r.member_id, team_id:r.team_id, display_name:r.display_name, agent:r.agent, sprag_version:r.sprag_version, os:r.os, os_version:r.os_version, arch:r.arch,
     auto_joined:r.auto_joined, joined_at:r.joined_at, last_seen:r.last_seen, left_at:r.left_at, seat_of:r.seat_of, org_id:'demo-org',
     spent_30d:(i + 1) * 31.4, saved_30d:(i + 1) * 12.7, delegated_30d:(i + 1) * 9, errors_30d:0, spent_today:i === 0 ? 24.5 : (i % 4) * 1.3, saved_today:i * 0.4, delegated_today:i === 0 ? 31 : (i % 4) * 3 }));

@@ -222,7 +222,7 @@
     <article class="plan">
       <h2 data-k="p.free">Free</h2>
       <p class="for" data-k="p.free.for">For one developer on Claude Code or Codex.</p>
-      <div class="price"><b>$0</b></div>
+      <div class="price"><b data-free>$0</b></div>
       <p class="fine" data-k="p.free.fine">Open source, no account</p>
       <a class="btn" href="/docs/install/" data-k="p.free.cta">Install the CLI</a>
       <p class="inc" data-k="p.free.inc">Includes</p>
@@ -382,6 +382,10 @@
 <script>
 /* Prices live here. Change them in this block only. Annual is per seat per month, billed yearly. */
 const PRICES = { monthly: { pro: 5, enterprise: 10 }, annual: { pro: 4, enterprise: 8 } };
+/* Korean page shows won (VAT excluded). Same shape as PRICES. */
+const PRICES_KRW = { monthly: { pro: 7000, enterprise: 14000 }, annual: { pro: 5600, enterprise: 11200 } };
+const fmtPrice = n => lang === 'ko' ? n.toLocaleString('en-US') + '원' : '$' + n;
+const priceOf = (cy, plan) => (lang === 'ko' ? PRICES_KRW : PRICES)[cy][plan];
 let cycle = 'monthly';
 
 const KO = {
@@ -462,7 +466,7 @@ const KO = {
  "p.popular": "가장 많이 선택",
  "p.pro": "프로",
  "p.pro.for": "지출과 절감액을 한곳에서 보려는 팀",
- "p.per": "좌석당 / 월",
+ "p.per": "좌석당 월, 부가세 별도",
  "p.start": "시작하기",
  "p.pro.inc": "무료 기능 전부와 함께",
  "p.pro.1": "조직 대시보드와 30일 추이 차트",
@@ -507,7 +511,7 @@ const KO = {
  "p.cta": "한 명으로 시작해서 나중에 사람을 더하세요.",
  "p.docs": "팀 가이드 읽기",
  "p.fine.m": "월 단위 청구",
- "p.fine.a": "연 단위 청구, 좌석당 ${y}"
+ "p.fine.a": "연 단위 청구, 좌석당 ${y} (부가세 별도)"
 };
 const EN = {};
 document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
@@ -565,11 +569,12 @@ let lang = 'en';
 function render(){
   const dict = lang === 'ko' ? KO : EN;
   document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.innerHTML = v; });
-  document.querySelectorAll('[data-price]').forEach(el => { el.textContent = '$' + PRICES[cycle][el.dataset.price]; });
-  document.querySelectorAll('[data-cmp]').forEach(el => { el.textContent = '$' + PRICES[cycle][el.dataset.cmp]; });
+  document.querySelectorAll('[data-free]').forEach(el => { el.textContent = fmtPrice(0); });
+  document.querySelectorAll('[data-price]').forEach(el => { el.textContent = fmtPrice(priceOf(cycle, el.dataset.price)); });
+  document.querySelectorAll('[data-cmp]').forEach(el => { el.textContent = fmtPrice(priceOf(cycle, el.dataset.cmp)); });
   document.querySelectorAll('[data-fine]').forEach(el => {
-    const y = PRICES[cycle][el.dataset.fine] * 12;
-    el.textContent = cycle === 'annual' ? dict['p.fine.a'].replace('${y}', () => '$' + y) : dict['p.fine.m'];
+    const y = fmtPrice(priceOf(cycle, el.dataset.fine) * 12);
+    el.textContent = cycle === 'annual' ? dict['p.fine.a'].replace('${y}', () => y) : dict['p.fine.m'];
   });
   document.querySelectorAll('.cycle button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cycle === cycle)));
   /* plan videos (video/tour/build-plans.sh): swap to the current language's file, only when it changes */
