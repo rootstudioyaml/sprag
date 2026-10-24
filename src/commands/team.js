@@ -15,7 +15,7 @@ import { pendingPrompts } from '../team-prompts.js';
 import { memberId } from '../member-id.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
-  teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError,
+  teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError, isOrgExpiredError,
 } from '../team-sync.js';
 
 const T = {
@@ -40,6 +40,7 @@ const T = {
     aborted: 'Not joined.',
     joined: (n) => `Joined team "${n}". Check it with: sprag team status`,
     seatLimit: 'This organization has no free seat. Ask your organization owner or admin to add seats, then join again.',
+    orgExpired: "This organization's paid term has ended, so the server no longer accepts uploads or joins. Ask your organization owner to renew it (sales@sprag.io).",
     org: 'Organization',
     seats: (u, l) => `${u}/${l} seats used`,
     orgCreated: (n, u, l) => `Organization: ${n}${u != null && l != null ? ` (${u}/${l} seats used)` : ''}`,
@@ -105,6 +106,7 @@ const T = {
     aborted: '참여하지 않았습니다.',
     joined: (n) => `팀 "${n}" 에 참여했습니다. 확인: sprag team status`,
     seatLimit: '이 조직에 남은 좌석이 없습니다. 조직 오너나 어드민에게 좌석 추가를 요청한 뒤 다시 참여하세요',
+    orgExpired: '조직의 이용 기간이 끝나 서버가 업로드와 참여를 받지 않습니다. 조직 오너에게 연장을 요청하세요(sales@sprag.io)',
     org: '조직',
     seats: (u, l) => `좌석 ${u}/${l} 사용 중`,
     orgCreated: (n, u, l) => `조직: ${n}${u != null && l != null ? ` (좌석 ${u}/${l} 사용 중)` : ''}`,
@@ -284,7 +286,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         }
         out(`${m.name}: ${st.displayName}`);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
-        if (st.lastError) out(`${m.lastError}: ${st.lastError}`);
+        if (st.lastError) out(isOrgExpiredError(st.lastError) ? m.orgExpired : `${m.lastError}: ${st.lastError}`);
         if (hasFlag('--show-payload')) {
           out(`device: ${JSON.stringify(st.deviceInfo || deviceInfo())}`);
           out(JSON.stringify(await aggregateDaily(), null, 2));
@@ -336,7 +338,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         return verb && verb !== 'help' ? process.exit(2) : undefined;
     }
   } catch (e) {
-    console.error(isSeatLimitError(e) ? m.seatLimit : e.message);
+    console.error(isSeatLimitError(e) ? m.seatLimit : isOrgExpiredError(e) ? m.orgExpired : e.message);
     return process.exit(1);
   }
 }
