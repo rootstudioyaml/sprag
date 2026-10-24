@@ -83,6 +83,7 @@
   .vcard video{display:block;width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:var(--rl);background:#000}
   .vcard figcaption{display:flex;align-items:baseline;gap:10px;margin-top:10px;font-size:13px;color:var(--dim)}
   .vcard figcaption b{color:var(--ink);font-weight:600;flex:0 0 auto}
+  .vcard .ptag{flex:0 0 auto;align-self:center;padding:1px 8px;border-radius:999px;font:500 11.5px/1.6 var(--mono);color:var(--accent2);border:1px solid rgba(138,148,242,.4);background:var(--accent-bg)}
   @media(max-width:720px){.vgrid{grid-template-columns:1fr}}
 
   .faqs{margin-top:24px}
@@ -289,11 +290,11 @@
     <div class="vgrid">
       <figure class="vcard">
         <video data-vid="pro" controls preload="none" playsinline></video>
-        <figcaption><b data-k="l.f2.h">Team dashboard</b><span data-k="p.vid.pro">Spend, savings, seats and team rules</span></figcaption>
+        <figcaption><span class="ptag">Pro</span><b data-k="l.f2.h">Team dashboard</b><span data-k="p.vid.pro">Spend, savings, seats and team rules</span></figcaption>
       </figure>
       <figure class="vcard">
         <video data-vid="ent" controls preload="none" playsinline></video>
-        <figcaption><b data-k="l.f3.h">Prompt monitoring</b><span data-k="p.vid.ent">Prompt usage, prompt search and the capture policy</span></figcaption>
+        <figcaption><span class="ptag">Enterprise</span><b data-k="l.f3.h">Prompt monitoring</b><span data-k="p.vid.ent">Prompt usage, prompt search and the capture policy</span></figcaption>
       </figure>
     </div>
   </section>
