@@ -13,7 +13,8 @@
  * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
  * glowing screens take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
-const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
+const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
+const CAST_URL = new URL('./cast/', import.meta.url).href, CAST_DRACO = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/';
 export const W_FULL = [0.5, 0.3, 0.2], W_NOPR = [0.625, 0.375, 0];   /* spend, delegation, prompts rank weights (second set: prompt collection off) */
 const MAXP = 60, FAMC = { haiku: '#7fe0b8', sonnet: '#8ec5fb', opus: '#f9a8d4' };
 const TV = { power: { body: '#a78bfa', scr: '#d8ccff', bri: 1, sp: 15 }, active: { body: '#7cc4f2', scr: '#a8dcff', bri: 1, sp: 9 },
@@ -92,7 +93,7 @@ Object.entries({ lion: '#f6cf7a', tiger: '#f0913a', fox: '#f4a261', penguin: '#2
 
 /* Builder for the other species: a round head with ear, muzzle, nose and cheek presets, plus per-species extras.
  * s: { fur, r (head radius), ear: round|point|small|none, earC, earIn, muz, nose, cheek, eyeC, noEyes, arm, x() head parts, tail() desk parts,
- *      icon layers: ixB (behind the head), ix (over the head), ixF (over the face), stroke (outline for pale heads) } */
+ *      body (torso fur, defaults to arm), icon layers: ixB (behind the head), ix (over the head), ixF (over the face), stroke (outline for pale heads) } */
 const EAR = {
   round: (c, i) => [-1, 1].flatMap(k => [P('sph', c, [0.25 * k, 0.28, -0.02], [0.12, 0.12, 0.1]), P('sph', i, [0.25 * k, 0.28, -0.08], [0.065, 0.065, 0.04])]),
   point: (c, i) => [-1, 1].flatMap(k => [P('cone', c, [0.2 * k, 0.4, 0], [0.12, 0.16, 0.1]), P('cone', i, [0.2 * k, 0.37, -0.05], [0.065, 0.09, 0.05])]),
@@ -107,7 +108,7 @@ const ICON_EAR = {
 };
 function beast(s){
   const r = s.r || 0.34, ear = s.ear || 'round', ec = s.eyeC || '#2d2323', ein = s.earIn || s.muz || s.fur, line = s.stroke ? ' stroke="#e3d6c8" stroke-width=".5"' : '';
-  return { arm: s.arm || s.fur,
+  return { arm: s.arm || s.fur, body: s.body || s.arm || s.fur,
     icon: SVG((s.ixB || '') + ICON_EAR[ear](s.earC || s.fur, ein) + `<circle cx="8" cy="9" r="6" fill="${s.fur}"${line}/>` + (s.muz ? `<ellipse cx="8" cy="11.2" rx="2.7" ry="2" fill="${s.muz}"/>` : '') + (s.ix || '')
       + (s.noEyes ? '' : dot(6, 8.4, ec) + dot(10, 8.4, ec)) + (s.nose ? `<ellipse cx="8" cy="10.3" rx=".9" ry=".65" fill="${s.nose}"/>` : '')
       + (s.cheek ? `<circle cx="4.7" cy="11" r=".9" fill="${s.cheek}" opacity=".75"/><circle cx="11.3" cy="11" r=".9" fill="${s.cheek}" opacity=".75"/>` : '') + (s.ixF || '')),
@@ -120,16 +121,17 @@ const both = f => [-1, 1].flatMap(f), T_ = (c, p, s, r = 0) => P('sph', c, p, s,
 const whiskers = c => both(k => [P('sph', c, [0.25 * k, -0.08, -0.27], [0.1, 0.007, 0.007]), P('sph', c, [0.25 * k, -0.12, -0.26], [0.1, 0.007, 0.007])]);
 Object.assign(ANIMALS, {
   dragon: beast({ fur: '#6fcf8f', ear: 'none', muz: '#c8f2d2', cheek: '#ffb3c7', arm: '#5bbf7d',
-    x: () => [...both(k => [P('cone', '#ffd36b', [0.15 * k, 0.38, 0.06], [0.06, 0.13, 0.06], 0.45), P('sph', '#2f6b45', [0.05 * k, -0.07, -0.395], [0.018, 0.018, 0.012])]),
+    x: () => [...both(k => [P('cone', '#ffd36b', [0.16 * k, 0.4, 0.06], [0.075, 0.18, 0.075], 0.45), P('sph', '#2f6b45', [0.05 * k, -0.07, -0.395], [0.018, 0.018, 0.012])]),
       P('cone', '#ffb347', [0, 0.3, 0.2], [0.05, 0.08, 0.05], 0.9), P('cone', '#ffb347', [0, 0.13, 0.32], [0.05, 0.08, 0.05], 1.4), P('cone', '#ffb347', [0, -0.06, 0.34], [0.045, 0.07, 0.045], 1.8)],
-    tail: () => [...both(k => [T_('#4fae73', [0.44 * k, 1.45, 0.62], [0.05, 0.24, 0.2], 0.3)]), T_('#6fcf8f', [0.55, 0.78, 0.85], [0.13, 0.13, 0.26]), TC('#ffb347', [0.55, 0.78, 1.17], [0.08, 0.1, 0.06], Math.PI / 2)],
+    tail: () => [...both(k => [T_('#3f9e63', [0.46 * k, 1.52, 0.6], [0.06, 0.36, 0.3], 0.35), T_('#a8e8bc', [0.5 * k, 1.47, 0.62], [0.03, 0.28, 0.23], 0.35)]),
+      TC('#ffb347', [0, 1.55, 0.56], [0.06, 0.11, 0.06], 1.1), TC('#ffb347', [0, 1.37, 0.6], [0.06, 0.11, 0.06], 1.3), T_('#6fcf8f', [0.55, 0.78, 0.85], [0.13, 0.13, 0.26]), TC('#ffb347', [0.55, 0.78, 1.17], [0.08, 0.1, 0.06], Math.PI / 2)],
     ixB: '<polygon points="4.2,0.8 6.6,4.6 3.8,4.9" fill="#ffd36b"/><polygon points="11.8,0.8 9.4,4.6 12.2,4.9" fill="#ffd36b"/>', ixF: '<circle cx="7.3" cy="11" r=".4" fill="#2f6b45"/><circle cx="8.7" cy="11" r=".4" fill="#2f6b45"/>' }),
   unicorn: beast({ fur: '#fffaff', ear: 'point', earIn: '#ffc6df', muz: '#ffeef6', nose: '#ffa8c8', cheek: '#ffb3d1', arm: '#fbf2fa', stroke: true,
-    x: () => [P('cone', '#ffd36b', [0, 0.42, -0.16], [0.05, 0.15, 0.05], -0.45), P('sph', '#ffb3d9', [0, 0.3, 0.12], [0.12, 0.12, 0.12]), P('sph', '#b8d8ff', [0.02, 0.17, 0.27], [0.11, 0.11, 0.11]),
+    x: () => [P('cone', '#ffd36b', [0, 0.46, -0.17], [0.065, 0.22, 0.065], -0.45), P('sph', '#ffb3d9', [0, 0.3, 0.12], [0.12, 0.12, 0.12]), P('sph', '#b8d8ff', [0.02, 0.17, 0.27], [0.11, 0.11, 0.11]),
       P('sph', '#d4c2ff', [0, 0, 0.32], [0.1, 0.1, 0.1]), P('sph', '#fff1a8', [0.03, 0.34, -0.06], [0.08, 0.08, 0.08])],
-    tail: () => [T_('#ffb3d9', [0.55, 0.8, 0.78], [0.11, 0.11, 0.18]), T_('#b8d8ff', [0.55, 0.72, 0.98], [0.1, 0.1, 0.16]), T_('#d4c2ff', [0.55, 0.62, 1.14], [0.08, 0.08, 0.12])],
+    tail: () => [T_('#ffb3d9', [0, 1.48, 0.56], [0.13, 0.14, 0.1]), T_('#b8d8ff', [0, 1.32, 0.6], [0.11, 0.12, 0.09]), T_('#ffb3d9', [0.55, 0.8, 0.78], [0.11, 0.11, 0.18]), T_('#b8d8ff', [0.55, 0.72, 0.98], [0.1, 0.1, 0.16]), T_('#d4c2ff', [0.55, 0.62, 1.14], [0.08, 0.08, 0.12])],
     ix: '<circle cx="11.6" cy="4.4" r="2" fill="#ffb3d9"/><circle cx="13.4" cy="6.9" r="1.6" fill="#b8d8ff"/><circle cx="13.6" cy="9.6" r="1.3" fill="#d4c2ff"/>', ixF: '<polygon points="7,4.2 9,4.2 8,0.3" fill="#ffd36b"/>' }),
-  eagle: beast({ fur: '#ffffff', ear: 'none', arm: '#7a5235', eyeC: '#3a2a14', stroke: true,
+  eagle: beast({ fur: '#ffffff', ear: 'none', arm: '#7a5235', body: '#7a5235', eyeC: '#3a2a14', stroke: true,
     x: () => [P('cone', '#ffc23d', [0, -0.07, -0.37], [0.075, 0.12, 0.07], -Math.PI / 2), P('sph', '#e8a21a', [0, -0.12, -0.45], [0.035, 0.04, 0.03]),
       ...both(k => [P('sph', '#e9e4da', [0.12 * k, 0.13, -0.29], [0.08, 0.03, 0.04])]), P('sph', '#7a5235', [0, -0.3, 0.02], [0.3, 0.12, 0.28])],
     tail: () => [...both(k => [T_('#7a5235', [0.44 * k, 1.35, 0.55], [0.06, 0.26, 0.2], 0.2)]), T_('#ffffff', [0.5, 0.85, 0.82], [0.16, 0.05, 0.24])],
@@ -154,7 +156,7 @@ Object.assign(ANIMALS, {
     x: () => [P('sph', '#f4f6fa', [0, -0.07, -0.13], [0.27, 0.22, 0.2]), P('sph', '#ffffff', [0, -0.11, -0.3], [0.14, 0.1, 0.1]), ...both(k => [P('sph', '#ffffff', [0.12 * k, 0.15, -0.28], [0.05, 0.03, 0.03])])],
     tail: () => [T_('#6f7b8e', [0.5, 1.05, 0.85], [0.12, 0.2, 0.12], 0.6), T_('#f4f6fa', [0.5, 1.22, 0.78], [0.08, 0.08, 0.08])],
     ix: '<path d="M3 10c1.5-2.6 3-2.2 5 0 2-2.2 3.5-2.6 5 0-.8 3-2.8 4.7-5 4.7S3.8 13 3 10z" fill="#f4f6fa"/>' }),
-  panda: beast({ fur: '#ffffff', earC: '#2d2d33', earIn: '#2d2d33', muz: '#ffffff', nose: '#2d2d33', arm: '#2d2d33', eyeC: '#141418', stroke: true,
+  panda: beast({ fur: '#ffffff', earC: '#2d2d33', earIn: '#2d2d33', muz: '#ffffff', nose: '#2d2d33', arm: '#2d2d33', body: '#f4f4f6', eyeC: '#141418', stroke: true,
     x: () => both(k => [P('sph', '#2d2d33', [0.12 * k, 0.05, -0.28], [0.075, 0.095, 0.05])]),
     ix: '<ellipse cx="5.9" cy="8.6" rx="1.7" ry="2.1" fill="#2d2d33" transform="rotate(25 5.9 8.6)"/><ellipse cx="10.1" cy="8.6" rx="1.7" ry="2.1" fill="#2d2d33" transform="rotate(-25 10.1 8.6)"/>' }),
   koala: beast({ fur: '#a9aeb8', ear: 'none',
@@ -203,7 +205,7 @@ Object.assign(ANIMALS, {
     x: () => [P('sph', '#ff9f40', [0, -0.08, -0.34], [0.14, 0.045, 0.11]), P('sph', '#ffffff', [0, 0.36, 0.02], [0.05, 0.08, 0.05], 0.4)],
     tail: () => [TC('#ffffff', [0.45, 0.8, 0.85], [0.08, 0.12, 0.06], 1.2)],
     ixF: '<ellipse cx="8" cy="11" rx="2.6" ry="1.1" fill="#ff9f40"/>' }),
-  hedgehog: beast({ fur: '#f2dcc3', ear: 'small', earC: '#e4c6a4', earIn: '#ffc2d4', nose: '#2d2323', cheek: '#ffb3c7',
+  hedgehog: beast({ fur: '#f2dcc3', ear: 'small', earC: '#e4c6a4', earIn: '#ffc2d4', nose: '#2d2323', cheek: '#ffb3c7', body: '#a07f62',
     x: () => [P('sph', '#a07f62', [0, 0.05, 0.08], [0.33, 0.33, 0.3]), ...[[0, 0.32, 0.05, 0.2], [0.18, 0.27, 0.08, 0.4], [-0.18, 0.27, 0.08, 0.4], [0, 0.22, 0.24, 0.9], [0.2, 0.15, 0.22, 0.9], [-0.2, 0.15, 0.22, 0.9],
       [0.3, 0.05, 0.1, 0.6], [-0.3, 0.05, 0.1, 0.6], [0, 0.02, 0.33, 1.4], [0.18, -0.05, 0.28, 1.4], [-0.18, -0.05, 0.28, 1.4]].map(([x, y, z, r]) => P('cone', '#8a6a52', [x, y, z], [0.07, 0.12, 0.07], r))],
     ixB: '<path d="M2 9 .8 5.5l2.8.5-.1-3.4L6 4.4 8 1.2l2 3.2 2.5-1.8-.1 3.4 2.8-.5L14 9z" fill="#8a6a52"/>' }),
@@ -245,19 +247,27 @@ const OANC = {
   dusk:  { hs: '#ffd9c0', hg: '#d9b0a0', hi: 1.1, sc: '#ff9460', si: 0.8, sp: [14, 10, 2], c0: '#ffd5b0', c1: '#e5a186', out: '#f0d6cc', lamp: 0.65, n: 0.45 }
 };
 const HEAD_YAW = -1.75;   /* heads glance toward the room so the faces show to the isometric camera */
+const HS = 1.3, HEAD_Y = 1.84;   /* heads are drawn 1.3 times bigger than the body (chibi proportions), so ears, horns and manes stay readable at the default zoom */
+const BOT_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2v2" stroke="#8b7cf0" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="2" r="1.1" fill="#8b7cf0"/><circle cx="8" cy="9.4" r="5.4" fill="#c4b5fd"/><circle cx="6.1" cy="9" r="1" fill="#fff"/><circle cx="9.9" cy="9" r="1" fill="#fff"/></svg>';
 const BOOK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2c2-.8 3.9-.6 5.5.6v9c-1.6-1.2-3.5-1.4-5.5-.6zM13.5 3.2c-2-.8-3.9-.6-5.5.6v9c1.6-1.2 3.5-1.4 5.5-.6z"/></svg>';
 const iconSvg = k => (k === 'crown' ? CROWN_ICON : (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon);
 
 export const OF_CSS = `
 .of-card{padding:0!important;overflow:hidden;margin-bottom:var(--s4,16px)}
-.of-stage{position:relative;height:460px;overflow:hidden;contain:layout paint;background:radial-gradient(ellipse at 50% 35%,#fffaf0 0,#f6ead2 80%);color:#6a5a4a}
+.of-stage{position:relative;height:520px;overflow:hidden;contain:layout paint;background:radial-gradient(ellipse at 50% 35%,#fffaf0 0,#f6ead2 80%);color:#6a5a4a}
 .of-stage canvas{display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab}
 .of-stage canvas.drag{cursor:grabbing}.of-stage canvas.hit{cursor:pointer}
 .of-hud{position:absolute;left:16px;top:12px;right:16px;pointer-events:none;font-size:12px;line-height:1.45;z-index:2;color:#6a5a4a}
 .of-hud b{display:block;font-size:15px;font-weight:600;color:#3a2f27;letter-spacing:-.01em}
 .of-hud em{font-style:normal;margin-left:8px;font-size:11px;font-weight:600;color:#b4443f;border:1px solid currentColor;border-radius:999px;padding:1px 8px;vertical-align:2px;background:#fff}
-.of-legend{position:absolute;left:12px;right:auto;max-width:calc(100% - 24px);bottom:8px;display:flex;background:rgba(255,248,235,.85);border-radius:12px;padding:4px 10px;flex-wrap:wrap;gap:2px 16px;font-size:11.5px;line-height:1.5;color:#6a5a4a;pointer-events:none;z-index:2}
+.of-legend{position:absolute;left:12px;right:auto;max-width:calc(100% - 24px);bottom:8px;display:flex;flex-direction:column;align-items:flex-start;background:rgba(255,248,235,.85);border-radius:12px;padding:4px 10px;flex-wrap:wrap;gap:2px 16px;font-size:11.5px;line-height:1.5;color:#6a5a4a;pointer-events:none;z-index:2}
 .of-legend:empty{display:none}
+.of-legend .keys{display:flex;flex-wrap:wrap;gap:2px 14px}.of-legend .keys .fm{margin:0 3px 0 8px}
+.of-strip{pointer-events:auto;display:flex;flex-wrap:wrap;align-items:center;gap:3px 12px;font:inherit;color:inherit;background:none;border:0;padding:2px 0 4px;margin:0;cursor:pointer;text-align:left;border-bottom:1px dashed rgba(120,90,60,.22)}
+.of-strip:hover b,.of-strip:focus-visible b{color:#6d28d9}.of-strip b{font-weight:600;color:#3a2f27;white-space:nowrap}.of-strip b svg{width:14px;height:14px;margin-right:4px;vertical-align:-2px}
+.of-strip .tg{display:inline-flex;align-items:center;gap:1px;white-space:nowrap}.of-strip .tg em{font-style:normal;font-weight:600;font-size:10.5px;margin-right:4px}
+.of-strip .t-power em{color:#b7791f}.of-strip .t-active em{color:#1d6fb8}.of-strip .t-normal em{color:#7a6c58}.of-strip .t-low em{color:#c2410c}
+.of-strip .sp svg{width:17px;height:17px;margin:0;vertical-align:-4px}.of-strip .sp.z svg{filter:grayscale(1);opacity:.32}
 .of-legend span{white-space:nowrap}
 .of-legend svg{width:16px;height:16px;vertical-align:-4px;margin-right:5px}
 .of-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
@@ -333,7 +343,7 @@ export const OF_CSS = `
 .of-drawer .bknote{margin:12px 0 0;padding:8px 10px;border-radius:10px;background:#f1ebff;color:#3b2a78;font-size:12px}
 .of-drawer .grp{margin:0 0 14px}.of-drawer .grp+.grp{margin-top:18px;padding-top:12px;border-top:1px dashed rgba(120,90,60,.22)}.of-drawer .grp>h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
-@media (max-width:640px){.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:150px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
+@media (max-width:640px){.of-legend .keys,.of-strip .tg em,.of-strip b{display:none}.of-strip .sp svg{width:12px;height:12px}.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:150px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
 `;
 
 export function webglOk(){
@@ -598,8 +608,8 @@ export function mountOfficeScene(container, data, opts = {}){
   function putPart(mesh, i, pt, o, hy, hz, yaw){
     E1.set(pt.r || 0, 0, 0); V2.set(pt.s[0] * K, pt.s[1] * K, pt.s[2] * K);
     if(pt.b){ fpt(o, o.x + pt.p[0], pt.p[1], o.z + pt.p[2], V1); Mp.compose(V1, Q1.setFromEuler(E1), V2); mesh.setMatrixAt(i, Mp); return; }
-    fpt(o, o.x, hy, hz, V1); Mh.compose(V1, Q1.setFromEuler(E1.set(o.hp || 0, yaw, o.hr || 0)), ONE);
-    V1.set(pt.p[0] * K, pt.p[1] * K, pt.p[2] * K); E1.set(pt.r || 0, 0, 0); Mp.compose(V1, Q1.setFromEuler(E1), V2); Mp.premultiply(Mh); mesh.setMatrixAt(i, Mp);
+    V2.multiplyScalar(HS); fpt(o, o.x, hy, hz, V1); Mh.compose(V1, Q1.setFromEuler(E1.set(o.hp || 0, yaw, o.hr || 0)), ONE);
+    V1.set(pt.p[0] * K * HS, pt.p[1] * K * HS, pt.p[2] * K * HS); E1.set(pt.r || 0, 0, 0); Mp.compose(V1, Q1.setFromEuler(E1), V2); Mp.premultiply(Mh); mesh.setMatrixAt(i, Mp);
   }
   /* Where a head looks: mostly at the monitor (yaw 0 faces the screen), with a
      glance at a neighbour on either side or toward the room every few seconds,
@@ -726,7 +736,9 @@ export function mountOfficeScene(container, data, opts = {}){
     cur = d; clear();
     const closed = !!d.closed, pl = d.people || [];
     elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
-    elLegend.innerHTML = (d.legend || []).map(l => `<span>${l.k ? iconSvg(l.k) : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}</span>`).join('');
+    elLegend.innerHTML = (d.strip ? `<button type="button" class="of-strip" aria-label="${esc(d.strip.title)}"><b>${BOOK_ICON}${esc(d.strip.title)}</b>${d.strip.tiers.map(g => `<span class="tg t-${g.tier}"><em>${esc(g.label)}</em>${g.items.map(q => `<span class="sp${q.n ? '' : ' z'}" title="${esc(q.name + (q.n ? ' · ' + q.n : ''))}">${iconSvg(q.k)}</span>`).join('')}</span>`).join('')}</button>` : '')
+      + `<div class="keys">${(d.legend || []).map(l => `<span>${l.k ? iconSvg(l.k) : l.bots ? BOT_ICON : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}${(l.fams || []).map(f => `<i class="fm" style="background:${f.c}"></i>${esc(f.label)}`).join('')}</span>`).join('')}</div>`;
+    { const sb = elLegend.querySelector('.of-strip'); if(sb) sb.addEventListener('click', () => openBook()); }
     if(chrome.bookBtn) chrome.bookBtn.style.display = d.book ? '' : 'none';
     if(canvas) canvas.setAttribute('aria-label', d.aria || '');
     (container.closest('.of-card') || container).setAttribute('aria-label', d.hud.title);
@@ -830,17 +842,18 @@ export function mountOfficeScene(container, data, opts = {}){
     /* animals: torso + arms + a list of head and body parts per person, instanced per geometry; ghosts are translucent white */
     const fig = (arr, ghost) => {
       const n = arr.length, mt = o => std(ghost ? { transparent: true, opacity: 0.3, depthWrite: false, ...o } : o);
-      const f = { arr, ghost, torso: mk(sets.torso, mt({}), n, !ghost), arm: mk(sets.arm, mt({}), n * 2, !ghost), sph: null, cone: null, cnt: { sph: 0, cone: 0 } };
+      const f = { arr, ghost, torso: mk(sets.torso, mt({}), n, !ghost), arm: mk(sets.arm, mt({}), n * 2, !ghost), scarf: mk(sets.sphHi, mt({}), n, !ghost), sph: null, cone: null, cnt: { sph: 0, cone: 0 } };
       if(ghost){ const rm = bas({ color: '#9cc6f5', transparent: true, opacity: 0.16, side: T.BackSide, depthWrite: false }); f.rimH = mk(sets.sphHi, rm, n, false); f.rimT = mk(sets.torso, rm, n, false); }
       arr.forEach(o => { o.parts = o.an.parts().concat(!ghost && o.p.crown ? crownParts(o.gk) : []); o.parts.forEach(pt => { f.cnt[pt.g]++; }); });
       f.sph = mk(sets.sphHi, mt({}), f.cnt.sph, !ghost); f.cone = mk(sets.coneHi, mt({}), f.cnt.cone, !ghost);
       const ix = { sph: 0, cone: 0 };
       arr.forEach((o, i) => {
-        const bc = ghost ? '#ffffff' : o.tv.body, ac = ghost ? bc : o.an.arm || bc; f.torso.setColorAt(i, C(bc)); f.arm.setColorAt(i * 2, C(ac)); f.arm.setColorAt(i * 2 + 1, C(ac));
+        const tc = ghost ? '#ffffff' : o.tv.body, ac = ghost ? tc : o.an.arm || tc, bc = ghost ? tc : o.an.body || ac;   /* body in fur, scarf in the tier colour */
+        f.torso.setColorAt(i, C(bc)); f.arm.setColorAt(i * 2, C(ac)); f.arm.setColorAt(i * 2 + 1, C(ac)); f.scarf.setColorAt(i, C(tc));
         o.rimPt = { p: [0, 0, 0], s: [0.415, 0.415, 0.415], r: 0 };
         o.pl = o.parts.map(pt => { const k = ix[pt.g]++; f[pt.g].setColorAt(k, C(pt.c)); return { m: f[pt.g], i: k, pt }; });
       });
-      if(n){ f.torso.instanceColor.needsUpdate = f.arm.instanceColor.needsUpdate = true; }
+      if(n){ f.torso.instanceColor.needsUpdate = f.arm.instanceColor.needsUpdate = f.scarf.instanceColor.needsUpdate = true; }
       ['sph', 'cone'].forEach(g => { if(f.cnt[g]) f[g].instanceColor.needsUpdate = true; });
       return f;
     };
@@ -848,6 +861,7 @@ export function mountOfficeScene(container, data, opts = {}){
     sets.mug = mk(sets.box, std({}), solids.length);   /* the coffee mug, shown in the hand during the coffee action */
     solids.forEach((o, i) => { sets.mug.setColorAt(i, C('#fff6e8')); setM(sets.mug, i, o.x, 0, o.z, 0, 0, 0.0001, 0.0001, 0.0001); });
     if(solids.length){ sets.mug.instanceColor.needsUpdate = true; sets.mug.instanceMatrix.needsUpdate = true; }
+    if(opts.cast !== false) placeCast(solids, ghosts);
     { const pg = track(new T.RingGeometry(0.75, 1.0, 40)); pg.rotateX(-Math.PI / 2);   /* blink ring for the field guide */
       sets.pul = mk(pg, bas({ color: '#ff8a3d', transparent: true, opacity: 0.9, depthWrite: false }), people.length, false);
       people.forEach((o, j) => setM(sets.pul, j, o.x, 0.1, o.z + 0.3, 0, 0, 0.0001, 1, 0.0001)); sets.pul.instanceMatrix.needsUpdate = true; }
@@ -867,7 +881,7 @@ export function mountOfficeScene(container, data, opts = {}){
     fl.forEach((b, i) => {
       const c = C(b.fam === 'any' ? '#c4b5fd' : FAMC[b.fam]);
       bm.setColorAt(i, c); gl.setColorAt(i, c); an.setColorAt(i, C('#ffffff')); tp.setColorAt(i, C('#ffffff'));
-      bots.push({ i, o: b.o, a0: hash(b.o.p.id + b.j) * 6.28, rad: 1.5 + b.j * 0.25, sp: (b.o.p.tier === 'power' ? 0.7 : 0.45) * (b.j % 2 ? -1 : 1), hy: 2.95 + b.j * 0.25, st: 0, t: 0, next: 1.5 + hash(b.o.p.id + 'n' + b.j) * 9, pos: v3(), p0: v3(), col: c.clone().multiplyScalar(0.8) });
+      bots.push({ i, o: b.o, a0: hash(b.o.p.id + b.j) * 6.28, rad: 1.5 + b.j * 0.25, sp: (b.o.p.tier === 'power' ? 0.7 : 0.45) * (b.j % 2 ? -1 : 1), hy: 3.25 + b.j * 0.25, st: 0, t: 0, next: 1.5 + hash(b.o.p.id + 'n' + b.j) * 9, pos: v3(), p0: v3(), col: c.clone().multiplyScalar(0.8) });
     });
     if(fl.length){ [bm, gl, an, tp].forEach(m => { m.instanceColor.needsUpdate = true; }); }
     Object.assign(sets, { bm, gl, an, tp });
@@ -1046,6 +1060,42 @@ export function mountOfficeScene(container, data, opts = {}){
     ['z', 'x'].forEach(k => { if(want[k] === wallHid[k]) return; wallHid[k] = want[k];
       wallIdx[k].forEach(i => { const b = sets.sb[i]; setM(sets.sm, i, b[4], b[5], b[6], 0, 0, b[1], want[k] ? 0.001 : b[2], b[3]); }); sets.sm.instanceMatrix.needsUpdate = true; });
   }
+  /* The cast: one sculpted glTF character per species (site/assets/scene/cast/<grade>.glb, made in Blender, Draco-compressed). The primitive
+     figures stay on screen until every model has loaded and come back if any fails, so the office never shows an empty chair. */
+  let castOn = false;
+  function castCrown(T){   /* a small gold crown on top of the head, in model units (the model is scaled after) */
+    const g = new T.Group(), gold = new T.MeshStandardMaterial({ color: '#f2c14e', roughness: 0.3, metalness: 0.6 }), gem = new T.MeshStandardMaterial({ color: '#ff6f91', roughness: 0.25 });
+    const band = new T.Mesh(new T.CylinderGeometry(0.13, 0.14, 0.07, 20, 1, true), gold); band.material.side = T.DoubleSide; g.add(band);
+    for(let i = 0; i < 5; i++){ const a = i / 5 * Math.PI * 2, c = new T.Mesh(new T.ConeGeometry(0.032, 0.075, 8), gold); c.position.set(Math.sin(a) * 0.125, 0.07, Math.cos(a) * 0.125); g.add(c);
+      const b = new T.Mesh(new T.SphereGeometry(0.014, 8, 6), gem); b.position.set(Math.sin(a) * 0.137, 0.0, Math.cos(a) * 0.137); g.add(b); }
+    g.position.set(0, 1.04, -0.02); g.rotation.x = -0.12; return g;
+  }
+  async function placeCast(solids, ghosts){
+    const all = solids.concat(ghosts); if(!all.length) return;
+    try{
+      const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js/+esm')]);
+      const loader = new GLTFLoader(), dr = new DRACOLoader(); dr.setDecoderPath(CAST_DRACO); loader.setDRACOLoader(dr);
+      const cache = {}, load = k => cache[k] || (cache[k] = loader.loadAsync(CAST_URL + k + '.glb'));
+      const SC = 1.24;   /* every model is built at one body size, so one scale keeps bodies equal while ears, horns and manes stick out */
+      const ms = await Promise.all(all.map(async o => {
+        const g = await load(o.ghost ? 'ghost' : o.gk), m = g.scene.clone(true), box = new T.Box3().setFromObject(m);
+        m.scale.setScalar(SC); o.y0 = 0.42 - box.min.y * SC; m.position.set(o.x, o.y0, o.z + 0.3); m.rotation.y = Math.PI;
+        m.traverse(c => { if(c.isMesh){ c.castShadow = true; c.receiveShadow = true; } });
+        if(!o.ghost && o.p.crown) m.add(castCrown(T));   /* the primitive crown is hidden with the primitive figures */
+        return [o, m];
+      }));
+      ms.forEach(([o, m]) => { o.glb = m; world.add(m); });
+      sets.f.forEach(f => { [f.torso, f.arm, f.scarf, f.sph, f.cone, f.rimH, f.rimT].forEach(m => { if(m) m.visible = false; }); });
+      if(sets.mug) sets.mug.visible = false;
+      castOn = true; request();
+    }catch(e){ castOn = false; }
+  }
+  function stepCast(){
+    if(!castOn) return;
+    people.forEach(o => { const m = o.glb; if(!m) return;
+      const breathe = reduced ? 0 : Math.sin(time * 2.1 + o.ph) * 0.012;
+      m.position.y = o.y0 + (o.dy || 0) + breathe; m.rotation.y = Math.PI + (o.turn || 0) * 0.45; });
+  }
   function step(dt){
     time += dt;
     view.update(dt, time); updateWalls();
@@ -1079,17 +1129,19 @@ export function mountOfficeScene(container, data, opts = {}){
         }
         o.dy = o.ghost ? 0.14 + (mv || !reduced ? Math.sin(time * 1.6 + ph) * 0.08 : 0) : dyB; o.hp = hp; o.hr = hr;
         setK(f.torso, i, o, o.x, 1.05, o.z + 0.3, lean);
+        setK(f.scarf, i, o, o.x, 1.05 + 0.4 * Math.cos(lean), o.z + 0.3 + 0.4 * Math.sin(lean), lean, f.ghost ? 0.0001 : 0.34, 0.09, f.ghost ? 0.0001 : 0.34);
         setK(f.arm, i * 2, o, o.x + L[0], L[1], o.z + L[2], L[3], 1, 1, L[4]); setK(f.arm, i * 2 + 1, o, o.x + R[0], R[1], o.z + R[2], R[3], 1, 1, R[4]);
-        const by = headYaw(o, low, mv, dt), hy = 1.7 + (mv ? Math.sin(tt * 1.3 + ph) * 0.015 : 0), yaw = by + (yw - by) * yk, hz = o.z + 0.3 + (low ? 0.15 : -0.05) - (lean - base) * 0.35;
-        o.pl.forEach(q => putPart(q.m, q.i, q.pt, o, hy, hz, yaw));
+        const by = headYaw(o, low, mv, dt), hy = HEAD_Y + (mv ? Math.sin(tt * 1.3 + ph) * 0.015 : 0), yaw = by + (yw - by) * yk, hz = o.z + 0.3 + (low ? 0.15 : -0.05) - (lean - base) * 0.35;
+        o.pl.forEach(q => putPart(q.m, q.i, q.pt, o, hy, hz, yaw)); o.turn = yaw;   /* a glTF character turns its whole body a little where a primitive one turns its head */
         if(!f.ghost && sets.mug){
           if(mug > 0.05){ fpt(o, o.x + R[0], R[1] + 0.17, o.z + R[2] - 0.08, TMP); setM(sets.mug, o.idx, TMP.x, TMP.y, TMP.z, 0, 0, 0.1 * K, 0.13 * K, 0.1 * K); }
           else setM(sets.mug, o.idx, o.x, 0, o.z, 0, 0, 0.0001, 0.0001, 0.0001);
         }
         if(f.ghost){ putPart(f.rimH, i, o.rimPt, o, hy, hz, yaw); setK(f.rimT, i, o, o.x, 1.05, o.z + 0.3, lean, 1.12, 1.1, 1.12); }
       });
-      if(f.arr.length){ [f.torso, f.arm, f.sph, f.cone].concat(f.ghost ? [f.rimH, f.rimT] : [sets.mug]).forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
+      if(f.arr.length){ [f.torso, f.arm, f.scarf, f.sph, f.cone].concat(f.ghost ? [f.rimH, f.rimT] : [sets.mug]).forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
     });
+    stepCast();
     if(sets.pul){   /* field guide: rings blink under everyone of the picked species for 2.4 s */
       const now = performance.now(), on = !!pulse && now - pulse.t0 < 2400, blink = on && (reduced || Math.floor((now - pulse.t0) / 300) % 2 === 0);
       people.forEach((o, j) => { const hit = blink && o.gk === pulse.k; setM(sets.pul, j, o.x, 0.1, o.z + 0.3, 0, 0, hit ? 1 : 0.0001, 1, hit ? 1 : 0.0001); });
@@ -1098,7 +1150,7 @@ export function mountOfficeScene(container, data, opts = {}){
     if(sel && ring){ ring.position.set(sel.x, 0.09, sel.z + 0.3); ring.scale.setScalar(1 + (reduced ? 0 : 0.04 * Math.sin(time * 3))); }
     sparks.forEach((q, i) => {
       const a = (reduced ? 0 : time * 1.6) + q.k * 2.1 + q.o.ph, tw = reduced ? 0.7 : 0.55 + 0.45 * Math.sin(time * 5 + q.k * 2 + q.o.ph), r = 0.85 + q.k * 0.08;
-      setM(sets.spk, i, q.o.x + Math.cos(a) * r, 2.45 + q.k * 0.25 + Math.sin(a * 2) * 0.06, q.o.z + 0.25 + Math.sin(a) * r * 0.7, 0, 0, 0.09 * tw, 0.09 * tw, 0.09 * tw);
+      setM(sets.spk, i, q.o.x + Math.cos(a) * r, 3.1 + q.k * 0.22 + Math.sin(a * 2) * 0.06, q.o.z + 0.25 + Math.sin(a) * r * 0.7, 0, 0, 0.09 * tw, 0.09 * tw, 0.09 * tw);
     });
     if(sparks.length) sets.spk.instanceMatrix.needsUpdate = true;
     /* monitors flicker subtly; in the evening the lit ones glow brighter and the dark ones sink into the room */
@@ -1167,7 +1219,7 @@ export function mountOfficeScene(container, data, opts = {}){
     if(lab.more) place(lab.more.el, lab.more.pos, 0, -8);
     if(lab.sign) place(lab.sign.el, lab.sign.pos, 0, -8);
     lab.tags.forEach(l => place(l.el, l.pos, 0, -12, false, l.dyn ? l.dyn.dy * scale * 0.7 * -1 : 0));
-    bubs.forEach(b => { if(!b.o) return; HP.set(b.o.x, 3.3, b.o.z); place(b.el, HP, 0, -20); });
+    bubs.forEach(b => { if(!b.o) return; HP.set(b.o.x, 3.7, b.o.z); place(b.el, HP, 0, -20); });
   }
   function render(){ renderer.render(scene, camera); labels(); }
   function frame(now){
@@ -1428,13 +1480,13 @@ export function officeSceneData(o){
     : t('of.hud', { n: active, p: cnt('power'), l: cnt('low'), o: cnt('nodata'), u: used, limit }, true);
   const fam = mixTot > 0 || people.some(p => p.bots.some(b => b !== 'any'));
   const gl = k => t('of.g.' + k), cntG = k => people.filter(m => m.grade === k).length, fw = v => String(Math.round(v * 1000) / 10);
-  /* thirty icons do not fit a legend: one entry per tier, shown with the best species present in it (the field guide lists them all) */
-  const legend = closed ? [] : TIERS.map(tr => { const ps = people.filter(m => m.tier === tr).sort((a, b) => gradeIndex(a.grade) - gradeIndex(b.grade));
-    return { k: ps.length ? ps[0].grade : GRADES.find(g => g.tier === tr).k, label: t('of.tier.' + tr) }; })
-    .concat([{ k: 'ghost', label: gl('ghost') }], people.some(m => m.crown) ? [{ k: 'crown', label: t('of.lg.crown') }] : [],
-    fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: t('of.lg.bot', { m: f }, true) })) : [{ c: '#c4b5fd', label: t('of.lg.any') }], [{ label: t('of.lg.screen') }, { label: t('of.lg.guide', { n: GRADES.length }, true) }]);
-  const bands = gradeBands(), tierN = tr => bands.filter(b => b.tier === tr).length;
-  const book = closed ? null : { title: t('of.book'), range: o.rangeLabel, found: t('of.book.found', { f: bands.filter(b => cntG(b.k)).length, n: GRADES.length }, true),
+  /* the legend has two rows: the field-guide strip (all thirty species by tier, the ones nobody holds greyed out; a click opens the guide) and the symbol keys */
+  const bands = gradeBands(), tierN = tr => bands.filter(b => b.tier === tr).length, found = bands.filter(b => cntG(b.k)).length;
+  const strip = closed ? null : { title: t('of.lg.strip', { f: found, n: GRADES.length }, true),
+    tiers: TIERS.map(tr => ({ tier: tr, label: t('of.tier.' + tr), items: bands.filter(b => b.tier === tr).map(b => ({ k: b.k, name: gl(b.k), n: cntG(b.k) })) })) };
+  const legend = closed ? [] : (people.some(m => m.crown) ? [{ k: 'crown', label: t('of.lg.crown') }] : []).concat([{ k: 'ghost', label: t('of.lg.ghost') },
+    { bots: true, label: t('of.lg.bots'), fams: fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: f })) : [] }, { label: t('of.lg.screen') }]);
+  const book = closed ? null : { title: t('of.book'), range: o.rangeLabel, found: t('of.book.found', { f: found, n: GRADES.length }, true),
     tiers: Object.fromEntries(TIERS.map(tr => [tr, t('of.book.tier', { t: t('of.tier.' + tr), n: tierN(tr) }, true)]).concat([['nodata', t('of.tier.nodata')]])),
     top: { title: t('of.book.top'), rows: people.filter(m => m.rank).sort((a, b) => a.rank - b.rank).slice(0, 5)
       .map(m => ({ id: m.id, name: m.name, k: m.grade, gname: gl(m.grade), team: m.teamName, crown: m.crown, rk: t('of.book.rank', { r: m.rank }, true) })) },
@@ -1444,6 +1496,6 @@ export function officeSceneData(o){
   const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.spent') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
-    activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend,
+    activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,
     aria: t('of.aria', { n: people.length, teams: teams.length, used, limit }, true) };
 }

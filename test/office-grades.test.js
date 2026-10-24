@@ -76,7 +76,7 @@ test('team and ops pages carry the species names and range texts in en and ko', 
       const o = JSON.parse(line.replace(/^Object\.assign\(I18N\.\w+, /, '').replace(/\);\s*$/, ''));
       for(const g of GRADES.concat({ k: 'ghost' })) assert.ok(o['of.g.' + g.k], `${f} ${lang} of.g.${g.k}`);
       for(const rk of rks) assert.ok(o['of.gr.' + rk], `${f} ${lang} of.gr.${rk}`);
-      for(const k of ['of.g.no', 'of.book.found', 'of.book.tier', 'of.book.top', 'of.book.rank', 'of.lg.crown', 'of.d.rank', 'of.d.rankk', 'of.d.crown', 'of.d.top', 'of.d.next', 'of.d.next.d', 'of.d.next.xd', 'of.d.next.idle'])
+      for(const k of ['of.lg.strip', 'of.lg.bots', 'of.lg.ghost', 'of.g.no', 'of.book.found', 'of.book.tier', 'of.book.top', 'of.book.rank', 'of.lg.crown', 'of.d.rank', 'of.d.rankk', 'of.d.crown', 'of.d.top', 'of.d.next', 'of.d.next.d', 'of.d.next.xd', 'of.d.next.idle'])
         assert.ok(o[k], `${f} ${lang} ${k}`);
     }
   }
@@ -100,7 +100,11 @@ test('officeSceneData assigns grades, standings, book rows and day/today groups'
   assert.equal(crowned.length, 1); assert.equal(crowned[0].rank, 1);
   assert.deepEqual(d.book.top.rows.map(r => r.rk), [1, 2, 3, 4, 5].map(r => 'of.book.rank' + JSON.stringify({ r })));
   assert.equal(d.people.find(p => p.grade === 'ghost').rank, 0);
-  assert.equal(d.legend.filter(l => l.k && l.k !== 'ghost' && l.k !== 'crown').length, 4);
+  /* the legend strip lists all thirty species by tier, with counts that match the guide; the keys explain the crown, the ghost and the robots */
+  assert.deepEqual(d.strip.tiers.map(g => g.tier), TIERS);
+  assert.deepEqual(d.strip.tiers.flatMap(g => g.items.map(q => q.k)), GRADES.map(g => g.k));
+  assert.equal(d.strip.tiers.flatMap(g => g.items).reduce((a, q) => a + q.n, 0), d.people.filter(p => p.grade !== 'ghost').length);
+  assert.deepEqual(d.legend.map(l => l.k || (l.bots ? 'bots' : l.label)), ['crown', 'ghost', 'bots', 'of.lg.screen']);
   /* the drawer names the next species up, or says it is the top one */
   for(const p of d.people.filter(q => q.rank)){
     const nx = p.detail.next; assert.ok(nx[0].startsWith('of.d.rank'), p.id);
