@@ -74,7 +74,8 @@
 
   section.blk{padding-top:88px}
   section.blk > h2{font-size:24px;font-weight:600;letter-spacing:-.025em}
-  section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:60ch}
+  section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:780px;text-wrap:pretty}
+  @media(max-width:640px){section.blk > .sub br{display:none}}
 
   .vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px}
   .vcard video{display:block;width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:var(--rl);background:#000}
