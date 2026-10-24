@@ -1281,7 +1281,11 @@ export function mountOfficeScene(container, data, opts = {}){
           tr.ln.material.color.copy(b.col); tr.ln.computeLineDistances(); tr.ln.visible = true; } else b.next = time + 3; }
       } else if(b.st === 1){ b.t += dt / 2; if(b.t >= 1){ b.st = 2; b.t = 0; sFlash = 1; pos.copy(S); } else arcTo(b.p0, S, b.t, pos); b.tr.ln.material.opacity = 0.9; }
       else if(b.st === 2){ b.t += dt / 0.6; pos.copy(S); pos.y += Math.sin(time * 6) * 0.05; if(b.t >= 1){ b.st = 3; b.t = 0; } }
-      else { b.t += dt / 2; orbit(b, TMP); if(b.t >= 1){ b.st = 0; b.tr.busy = false; b.tr.ln.visible = false; b.next = time + (b.o.p.tier === 'power' ? 5 : 11) + hash(b.o.p.id + time) * 7; orbit(b, pos); } else { arcTo(S, TMP, b.t, pos); b.tr.ln.material.opacity = 0.9 * (1 - b.t); } }
+      else { b.t += dt / 2; orbit(b, TMP); if(b.t >= 1){ b.st = 0; b.tr.busy = false; b.tr.ln.visible = false; b.next = time + (b.o.p.tier === 'power' ? 5 : 11) + hash(b.o.p.id + time) * 7; orbit(b, pos); }
+        else { arcTo(S, TMP, b.t, pos); b.tr.ln.material.opacity = 0.9 * (1 - b.t);
+          /* the way home is a different arc to a moving seat: redraw the line along it every frame, so the bot stays on its line */
+          const q = b.q || (b.q = v3()), ga = b.tr.ln.geometry.attributes.position;
+          for(let k = 0; k <= 24; k++){ arcTo(S, TMP, k / 24, q); ga.setXYZ(k, q.x, q.y, q.z); } ga.needsUpdate = true; b.tr.ln.computeLineDistances(); } }
       setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.19, 0.19, 0.19); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN);   /* small body, a thin glow */
       setM(sets.an, b.i, pos.x, pos.y + 0.26, pos.z, 0, 0, 0.025, 0.16, 0.025); setM(sets.tp, b.i, pos.x, pos.y + 0.37, pos.z, 0, 0, 0.05, 0.05, 0.05);
     });
