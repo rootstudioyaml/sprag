@@ -218,7 +218,8 @@
    TOSS_CLIENT_KEY     Toss Payments client key (test_ck_... or live_ck_...), public by design.
    PADDLE_CLIENT_TOKEN Paddle client-side token (test_... or live_...), public by design.
    PADDLE_ENV          'sandbox' while testing, 'production' for live payments.
-   BANK_INFO           Deposit account text for bank-transfer orders, for example "KB 000000-00-000000 YAML Studio".
+   BANK_INFO           Fallback deposit account text. Leave it empty: the account comes from the server with a valid
+                       order link (order_link_open().bank), so it stays out of this public source.
                        Empty means the page says the account is sent by email. */
 const TOSS_CLIENT_KEY = '';
 const PADDLE_CLIENT_TOKEN = '';
@@ -422,11 +423,13 @@ function render(){
   else if(p === 'confirmfail') $app.innerHTML = msg(esc(t('toss_fail_h')), t('confirm_err', {msg:esc(S.tossMsg || ''), id:esc(S.order && S.order.order_id || ''), mail:MAIL}));
 }
 
+/* bank name, number and holder from order_link_open, else the BANK_INFO fallback */
+const bankText = () => { const b = S.info && S.info.bank; return b && b.number ? [b.bank, b.number, b.holder].filter(Boolean).join(' ') : BANK_INFO; };
 function renderTransfer(){
   const o = S.order, f = S.f;
   $app.innerHTML = msg(esc(t('wait_h')), esc(t('wait_d')),
     `<div class="total">${esc(money(o.total, o.currency))}</div><p style="margin-top:4px">${esc(t('wait_total'))}</p>
-     <div class="card acct"><b>${esc(t('wait_acct'))}</b><br>${BANK_INFO ? esc(BANK_INFO) : esc(t('wait_nobank'))}</div>
+     <div class="card acct"><b>${esc(t('wait_acct'))}</b><br>${bankText() ? esc(bankText()) : esc(t('wait_nobank'))}</div>
      <p>${esc(t('wait_after'))}</p><p><small>${esc(t('wait_ref', {id:o.order_id}))}</small></p>`);
 }
 
@@ -652,7 +655,7 @@ function defaults(info){
   let stored = null; try{ stored = localStorage.getItem('sprag.lang'); }catch(e){}
   setLang(Q.get('lang') || stored || (/\bko\b|ko-/i.test(nav) ? 'ko' : 'en'));
   if(DEMO){
-    SD.info = { kind:Q.get('kind') || 'new', org_name:'Northwind Labs', plan:'pro', seat_limit:24, paid_until:day(new Date(Date.now() + 40 * 864e5)), contact_email:'han@northwind.example', expires_at:new Date(Date.now() + 30 * 864e5).toISOString(), expired:false, paid:false, prices:DEMO_PRICES };
+    SD.info = { kind:Q.get('kind') || 'new', org_name:'Northwind Labs', plan:'pro', seat_limit:24, paid_until:day(new Date(Date.now() + 40 * 864e5)), contact_email:'han@northwind.example', expires_at:new Date(Date.now() + 30 * 864e5).toISOString(), expired:false, paid:false, prices:DEMO_PRICES, bank:{ bank:'예시은행', number:'000-0000-0000', holder:'예시 상호' } };
     if(SD.info.kind === 'new') SD.info = {...SD.info, org_name:null, plan:null, seat_limit:null, paid_until:null};
   }else{
     if(!window.supabase){ S.phase = 'error'; S.err = 'neterr'; render(); return; }
