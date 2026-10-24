@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sprag License | Open source under Apache-2.0</title>
-<meta name="description" content="Sprag is open source under Apache-2.0 and free to use. It runs on your machine and needs no account. Team features are set up for your organization on request." />
+<meta name="description" content="The Sprag CLI is open source under Apache-2.0 and free. It runs on your machine and needs no account. The team features are a paid service; contact sales@sprag.io." />
 <link rel="canonical" href="https://sprag.io/license/" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="theme-color" content="#0a0a0c" />
@@ -69,7 +69,7 @@
   .hero{padding:72px 0 0;display:flex;align-items:flex-end;justify-content:space-between;gap:24px 40px;flex-wrap:wrap}
   .eyebrow{font:500 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent2)}
   html[lang=ko] .eyebrow{font-family:var(--sans);letter-spacing:.02em;text-transform:none;font-size:12.5px}
-  h1{margin-top:16px;font-size:clamp(32px,5vw,50px);font-weight:600;letter-spacing:-.035em;line-height:1.1;max-width:18ch}
+  h1{margin-top:16px;font-size:clamp(32px,5vw,50px);font-weight:600;letter-spacing:-.035em;line-height:1.1;max-width:24ch}
   .lede{margin-top:16px;color:var(--dim);font-size:16px;max-width:680px;text-wrap:pretty}
   @media(max-width:640px){.lede br{display:none}}
   .chip{font:500 11px/1.4 var(--mono);color:var(--ok);padding:0 5px;border:1px solid rgba(63,212,143,.35);border-radius:4px}
@@ -118,6 +118,12 @@
   .lic li,.fcard li{padding-left:20px;position:relative;line-height:1.5}
   .lic li::before,.fcard li::before{content:"";position:absolute;left:2px;top:.5em;width:8px;height:4px;border-left:1.5px solid var(--ok);border-bottom:1.5px solid var(--ok);transform:rotate(-45deg)}
   @media(max-width:860px){.lic{grid-template-columns:1fr}}
+  .fcard .tag{display:inline-block;margin-bottom:10px;padding:2px 9px;border-radius:999px;font:500 11.5px/1.6 var(--mono);letter-spacing:.02em}
+  .fcard .tag.free{color:var(--ok);border:1px solid rgba(63,212,143,.35)}
+  .fcard .tag.paid{color:var(--accent2);border:1px solid rgba(138,148,242,.4);background:var(--accent-bg)}
+  .fcard .fcta{display:inline-block;margin-top:16px;color:var(--accent2);font-size:13px}
+  .fcard .fcta:hover{color:var(--ink)}
+  .lic .scope{margin-top:6px;color:var(--accent2);font-size:13px}
   .fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:24px}
   .fcard{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:22px}
   .fcard h3{font-size:14.5px;font-weight:600}.fcard .for{margin-top:6px;color:var(--dim);font-size:13px}
@@ -172,8 +178,8 @@
   <div class="hero">
     <div>
       <div class="eyebrow" data-k="p.eyebrow">License</div>
-      <h1 data-k="p.h1">Sprag is open source, and free to use.</h1>
-      <p class="lede" data-k="p.lede">The CLI is released under Apache-2.0.<br />It runs on your machine, needs no account and sends nothing anywhere.<br />If your organization wants the team features too, get in touch and we will set them up.</p>
+      <h1 data-k="p.h1">The Sprag CLI is open source,<br />and free.</h1>
+      <p class="lede" data-k="p.lede">The CLI is released under Apache-2.0.<br />It runs on your machine, needs no account and sends nothing anywhere.<br />The team features are a paid service. Get in touch if your organization wants them.</p>
       <div class="actions">
         <a class="btn pri" href="mailto:sales@sprag.io?subject=Sprag" data-k="p.contact">Get in touch</a>
       </div>
@@ -183,7 +189,8 @@
   <section class="lic" aria-labelledby="lic-h">
     <div>
       <h2 id="lic-h" data-k="l.lic.h">Apache License 2.0</h2>
-      <p data-k="l.lic.p">You can use Sprag at work, change it and share it. When you share a copy, keep the LICENSE and NOTICE files with it and mark what you changed.</p>
+      <p class="scope" data-k="l.lic.scope">Applies to the Sprag CLI. The team features are a separate paid service.</p>
+      <p data-k="l.lic.p">You can use the CLI at work, change it and share it. When you share a copy, keep the LICENSE and NOTICE files with it and mark what you changed.</p>
       <div class="links">
         <a class="btn" href="https://github.com/rootstudioyaml/sprag/blob/main/LICENSE" data-k="l.lic.full">Read the license</a>
         <a class="btn" href="https://github.com/rootstudioyaml/sprag" data-k="l.lic.src">Source on GitHub</a>
@@ -198,10 +205,11 @@
   </section>
 
   <section class="blk" aria-labelledby="feat-h">
-    <h2 id="feat-h" data-k="l.f.h">What Sprag does</h2>
-    <p class="sub" data-k="l.f.sub">The CLI works on its own on one machine.<br />The team features add one view for an organization.</p>
+    <h2 id="feat-h" data-k="l.f.h">Free CLI and paid team features</h2>
+    <p class="sub" data-k="l.f.sub">The CLI is free under Apache-2.0 and works on its own on one machine.<br />The team dashboard and prompt monitoring are a paid service. Get in touch to use them.</p>
     <div class="fgrid">
       <article class="fcard">
+        <span class="tag free" data-k="l.tag.free">Free · Apache-2.0</span>
         <h3 data-k="l.f1.h">On your machine</h3>
         <p class="for" data-k="l.f1.for">For anyone using Claude Code or Codex.</p>
         <ul>
@@ -213,6 +221,7 @@
         </ul>
       </article>
       <article class="fcard">
+        <span class="tag paid" data-k="l.tag.paid">Paid · contact us</span>
         <h3 data-k="l.f2.h">Team dashboard</h3>
         <p class="for" data-k="l.f2.for">For organizations that want one view of AI use.</p>
         <ul>
@@ -223,8 +232,10 @@
           <li data-k="p.pro.5">Rollout with <code>sprag team join</code></li>
           <li data-k="p.pro.6">Owner and admin roles, activity log</li>
         </ul>
+        <a class="fcta" href="mailto:sales@sprag.io?subject=Sprag" data-k="l.f.cta">Contact sales@sprag.io</a>
       </article>
       <article class="fcard">
+        <span class="tag paid" data-k="l.tag.paid">Paid · contact us</span>
         <h3 data-k="l.f3.h">Prompt monitoring</h3>
         <p class="for" data-k="l.f3.for">For organizations that also review how prompts are written.</p>
         <ul>
@@ -235,6 +246,7 @@
           <li data-k="p.ent.5">Capture policy visible to every member</li>
         </ul>
         <p class="note" data-k="l.f3.note">Off unless the organization turns it on.</p>
+        <a class="fcta" href="mailto:sales@sprag.io?subject=Sprag" data-k="l.f.cta">Contact sales@sprag.io</a>
       </article>
     </div>
   </section>
@@ -338,10 +350,11 @@ const KO = {
  "nav.teams": "팀",
  "nav.license": "라이선스",
  "p.eyebrow": "라이선스",
- "p.h1": "Sprag는 오픈소스이고, 무료로 씁니다",
- "p.lede": "CLI는 Apache-2.0으로 공개되어 있습니다.<br />내 컴퓨터에서 돌아가고, 계정이 필요 없으며, 어디로도 데이터를 보내지 않습니다.<br />조직에서 팀 기능도 쓰고 싶다면 연락 주세요. 직접 설정해 드립니다.",
+ "p.h1": "Sprag CLI는 오픈소스이고,<br />무료입니다",
+ "p.lede": "CLI는 Apache-2.0으로 공개되어 있습니다.<br />내 컴퓨터에서 돌아가고, 계정이 필요 없으며, 어디로도 데이터를 보내지 않습니다.<br />팀 기능은 유료 서비스입니다. 조직에서 쓰고 싶다면 문의해 주세요.",
  "p.contact": "문의하기",
  "l.lic.h": "Apache License 2.0",
+ "l.lic.scope": "Sprag CLI에 적용됩니다. 팀 기능은 별도의 유료 서비스입니다.",
  "l.lic.p": "회사에서 써도 되고, 고쳐 쓰거나 다른 사람과 나눠도 됩니다. 사본을 나눌 때는 LICENSE와 NOTICE 파일을 함께 두고, 바꾼 부분을 표시해 주세요.",
  "l.lic.full": "라이선스 전문 보기",
  "l.lic.src": "GitHub 소스",
@@ -349,8 +362,11 @@ const KO = {
  "l.lic.2": "코드 수정과 직접 빌드",
  "l.lic.3": "라이선스와 고지를 유지한 채 배포",
  "l.lic.4": "기여자 모두가 주는 특허 사용 허락",
- "l.f.h": "Sprag가 하는 일",
- "l.f.sub": "CLI는 컴퓨터 한 대에서 혼자 돌아갑니다.<br />팀 기능은 여기에 조직 전체를 한눈에 보는 화면을 더합니다.",
+ "l.f.h": "무료 CLI와 유료 팀 기능",
+ "l.f.sub": "CLI는 Apache-2.0 오픈소스로 무료이고, 컴퓨터 한 대에서 혼자 돌아갑니다.<br />팀 대시보드와 프롬프트 모니터링은 유료 서비스이며, 문의를 받아 제공합니다.",
+ "l.tag.free": "무료 · Apache-2.0",
+ "l.tag.paid": "유료 · 문의",
+ "l.f.cta": "sales@sprag.io로 문의",
  "l.f1.h": "내 컴퓨터에서",
  "l.f1.for": "Claude Code나 Codex를 쓰는 누구나",
  "p.free.2": "내 기록에서 뽑은 라우팅 규칙",
@@ -415,7 +431,7 @@ const EN = {};
 document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
 const META = {
   en: { title:'Sprag License | Open source under Apache-2.0', desc: document.querySelector('meta[name=description]').content },
-  ko: { title:'Sprag 라이선스 · Apache-2.0 오픈소스', desc:'Sprag는 Apache-2.0 오픈소스라 무료로 씁니다. 내 컴퓨터에서 돌아가고 계정이 필요 없습니다. 팀 기능은 요청하시면 조직에 맞춰 설정해 드립니다.' }
+  ko: { title:'Sprag 라이선스 · Apache-2.0 오픈소스', desc:'Sprag CLI는 Apache-2.0 오픈소스이고 무료입니다. 내 컴퓨터에서 돌아가고 계정이 필요 없습니다. 팀 기능은 유료 서비스이며 sales@sprag.io로 문의해 주세요.' }
 };
 let lang = 'en';
 
