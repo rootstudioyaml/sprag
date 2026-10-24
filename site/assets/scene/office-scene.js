@@ -1280,31 +1280,33 @@ export function mountOfficeScene(container, data, opts = {}){
     let flying = bots.filter(b => b.st).length;
     bots.forEach(b => {
       const pos = b.pos;
-      /* A trip to the server always starts and ends on its owner's head, so the dashed line joins the person and the server:
-         1 dock (orbit down to the head), 2 out along the line, 3 at the server, 4 home along a redrawn line, 5 back up to the orbit */
+      /* A bot shows up only for a trip, and the trip starts and ends on its owner's head, so the dashed line joins the person and the server:
+         0 hidden, 1 pops up over the head, 2 out along the line, 3 at the server, 4 home along a redrawn line, 5 shrinks away over the head */
       const head = headPt(b.o, b.h || (b.h = v3())), drawLine = (from, to) => { const ga = b.tr.ln.geometry.attributes.position, q = b.q || (b.q = v3());
         for(let k = 0; k <= 24; k++){ arcTo(from, to, k / 24, q); ga.setXYZ(k, q.x, q.y, q.z); } ga.needsUpdate = true; b.tr.ln.computeLineDistances(); };
       if(b.st === 0){
-        orbit(b, pos);
+        pos.copy(head);
         if(!reduced && time >= b.next && flying < 6){ const tr = trails.find(x => !x.busy); if(tr){ b.st = 1; b.t = 0; b.p0.copy(pos); b.tr = tr; tr.busy = true; flying++;
           tr.ln.material.color.copy(b.col); tr.ln.material.opacity = 0; drawLine(head, S); tr.ln.visible = true; } else b.next = time + 3; }
-      } else if(b.st === 1){ b.t += dt / 0.45; pos.lerpVectors(b.p0, head, ease(Math.min(1, b.t))); drawLine(head, S); b.tr.ln.material.opacity = 0.9 * Math.min(1, b.t);
+      } else if(b.st === 1){ b.t += dt / 0.45; pos.copy(head); drawLine(head, S); b.tr.ln.material.opacity = 0.9 * Math.min(1, b.t);
         if(b.t >= 1){ b.st = 2; b.t = 0; b.p0.copy(head); } }
       else if(b.st === 2){ b.t += dt / 2; if(b.t >= 1){ b.st = 3; b.t = 0; sFlash = 1; pos.copy(S); } else arcTo(b.p0, S, b.t, pos); b.tr.ln.material.opacity = 0.9; }
       else if(b.st === 3){ b.t += dt / 0.6; pos.copy(S); pos.y += Math.sin(time * 6) * 0.05; drawLine(head, S); if(b.t >= 1){ b.st = 4; b.t = 0; } }
       else if(b.st === 4){ b.t += dt / 2; drawLine(S, head); arcTo(S, head, Math.min(1, b.t), pos); b.tr.ln.material.opacity = 0.9;
         if(b.t >= 1){ b.st = 5; b.t = 0; b.p0.copy(head); b.tr.busy = false; b.tr.ln.visible = false; } }
-      else { b.t += dt / 0.6; orbit(b, TMP); pos.lerpVectors(b.p0, TMP, ease(Math.min(1, b.t)));
-        if(b.t >= 1){ b.st = 0; b.next = time + (b.o.p.tier === 'power' ? 5 : 11) + hash(b.o.p.id + time) * 7; orbit(b, pos); } }
+      else { b.t += dt / 0.4; pos.copy(head);
+        if(b.t >= 1){ b.st = 0; b.next = time + (b.o.p.tier === 'power' ? 5 : 11) + hash(b.o.p.id + time) * 7; } }
+      const sc = b.st === 0 ? 0.0001 : b.st === 1 ? Math.max(0.0001, ease(Math.min(1, b.t))) : b.st === 5 ? Math.max(0.0001, 1 - ease(Math.min(1, b.t))) : 1;   /* pop in, pop out */
       { const az = view ? view.azimuth() : 0, fx = Math.sin(az), fz = Math.cos(az), rx_ = Math.cos(az), rz_ = -Math.sin(az), i2 = 2 * b.i;   /* the face turns to the camera */
         const blink = reduced ? 1 : (Math.sin(time * 1.7 + b.a0 * 3) > 0.985 ? 0.15 : 1);
-        setM(sets.vz, b.i, pos.x + fx * 0.115, pos.y + 0.015, pos.z + fz * 0.115, 0, az, 0.15, 0.105, 0.085);
+        setM(sets.vz, b.i, pos.x + fx * 0.115 * sc, pos.y + 0.015 * sc, pos.z + fz * 0.115 * sc, 0, az, 0.15 * sc, 0.105 * sc, 0.085 * sc);
         for(const [j, sd] of [[0, -1], [1, 1]]){
-          setM(sets.ey, i2 + j, pos.x + fx * 0.19 + rx_ * sd * 0.055, pos.y + 0.025, pos.z + fz * 0.19 + rz_ * sd * 0.055, 0, az, 0.026, 0.032 * blink, 0.02);
-          setM(sets.er, i2 + j, pos.x + rx_ * sd * 0.185, pos.y, pos.z + rz_ * sd * 0.185, 0, az, 0.045, 0.07, 0.07);
+          setM(sets.ey, i2 + j, pos.x + (fx * 0.19 + rx_ * sd * 0.055) * sc, pos.y + 0.025 * sc, pos.z + (fz * 0.19 + rz_ * sd * 0.055) * sc, 0, az, 0.026 * sc, 0.032 * blink * sc, 0.02 * sc);
+          setM(sets.er, i2 + j, pos.x + rx_ * sd * 0.185 * sc, pos.y, pos.z + rz_ * sd * 0.185 * sc, 0, az, 0.045 * sc, 0.07 * sc, 0.07 * sc);
         } }
-      setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.2, 0.185, 0.19); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN);   /* small body, a thin glow */
-      setM(sets.an, b.i, pos.x, pos.y + 0.26, pos.z, 0, 0, 0.025, 0.16, 0.025); setM(sets.tp, b.i, pos.x, pos.y + 0.37, pos.z, 0, 0, 0.05, 0.05, 0.05);
+      const gs = (0.29 + 0.1 * envN) * sc;
+      setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.2 * sc, 0.185 * sc, 0.19 * sc); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, gs, gs, gs);   /* small body, a thin glow */
+      setM(sets.an, b.i, pos.x, pos.y + 0.26 * sc, pos.z, 0, 0, 0.025 * sc, 0.16 * sc, 0.025 * sc); setM(sets.tp, b.i, pos.x, pos.y + 0.37 * sc, pos.z, 0, 0, 0.05 * sc, 0.05 * sc, 0.05 * sc);
     });
     if(bots.length){ [sets.bm, sets.gl, sets.an, sets.tp, sets.vz, sets.ey, sets.er].forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
     stepWx(dt);
