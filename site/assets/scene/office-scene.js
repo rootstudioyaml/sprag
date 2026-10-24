@@ -584,7 +584,7 @@ export function mountOfficeScene(container, data, opts = {}){
   const elChip = document.createElement('div'); elChip.className = 'sk-chip'; elChip.hidden = true;
   let wx = ov.weather || { ...WX_CLEAR }, builtSnow = false, envN = 0, flash = 0, lightT = 4, baseHemi = 1, minuteTimer = 0, lamps = [], wxs = null, flakeG = null;
   let sel = null, selId = null, ring = null, bookOpen = false, pulse = null;
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), request: () => request(), onClose: () => { sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; hidePortrait(); }, onBook: () => openBook(),
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), request: () => request(), onClose: () => { unpose(sel); sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; hidePortrait(); }, onBook: () => openBook(),
     onAction: a => { if(!sel) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
   const syncFs = () => chrome.syncFs();
   kit.bind(chrome.el);
@@ -767,19 +767,19 @@ export function mountOfficeScene(container, data, opts = {}){
   function openBook(){
     if(!cur.book) return;
     if(bookOpen && chrome.isOpen()){ chrome.close(); return; }
-    sel = null; selId = null; if(ring) ring.visible = false; hidePortrait(); bookOpen = true; renderBook(); chrome.open();
+    unpose(sel); sel = null; selId = null; if(ring) ring.visible = false; hidePortrait(); bookOpen = true; renderBook(); chrome.open();
   }
   function pulseGrade(k){
     if(!sets || !sets.pul) return;
     pulse = { k, t0: performance.now() }; request();
     if(reduced) setTimeout(() => { pulse = null; request(); }, 2500);
   }
-  function openDrawer(o){ bookOpen = false; sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; portrait(o); focusOn(o); }
+  function openDrawer(o){ if(sel && sel !== o) unpose(sel); bookOpen = false; sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; portrait(o); focusOn(o); posePerson(o); }
   /* Look at the selected person from behind its chair (from the desk side the monitor hides the face) while it swivels round to face
      the camera, zoomed in, centred in the room the drawer and the portrait leave */
   function focusOn(o){
     if(!view) return; const W = stage.clientWidth, side = W > 480 ? 420 + (pr && pr.on ? PR_W + 10 : 0) : 0;
-    view.flyTo({ x: o.x, z: o.z + 0.3, th: 0, ph: 1.05, zoom: 3.6, ox: side / 2 });
+    view.flyTo({ x: o.x, z: o.z + POSE_Z + 0.6, th: 0, ph: 1.05, zoom: 3.4, ox: side / 2 });
   }
   /* The selected character, full body, turning a little in a small panel left of the drawer: its own renderer and scene, a clone of the loaded model */
   const PR_W = 240, PR_H = 320; let pr = null;
@@ -793,12 +793,13 @@ export function mountOfficeScene(container, data, opts = {}){
       pr = { c, r, sc, cam: new T.PerspectiveCamera(26, PR_W / PR_H, 0.1, 50), m: null, raf: 0, on: false };
     }
     if(pr.m) pr.sc.remove(pr.m);
-    const m = pr.m = o.glb.clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); pr.sc.add(m);
+    const m = pr.m = (o.pose || o.glb).clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); pr.sc.add(m);
+    m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
     const box = new T.Box3().setFromObject(m), cy = (box.min.y + box.max.y) / 2, hgt = box.max.y - box.min.y;
     pr.cam.position.set(0, cy + hgt * 0.08, hgt * 2.5); pr.cam.lookAt(0, cy, 0);
     pr.on = true; pr.c.classList.add('on');
     if(!pr.raf){ const t0 = performance.now(), loop = () => { if(!pr || !pr.on || destroyed){ if(pr) pr.raf = 0; return; }
-      if(pr.m) pr.m.rotation.y = reduced ? 0 : Math.sin((performance.now() - t0) / 1000 * 0.7) * 0.5; pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
+      const ts = (performance.now() - t0) / 1000; if(pr.m){ pr.m.rotation.y = reduced ? 0 : Math.sin(ts * 0.7) * 0.5; flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
       loop(); }
   }
   function hidePortrait(){ if(!pr) return; pr.on = false; pr.c.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }
@@ -949,11 +950,11 @@ export function mountOfficeScene(container, data, opts = {}){
     /* helper bots: round pastel bodies with an antenna and a soft glow, one orbiting each owner, flying to the server now and then */
     const fl = [];
     if(!closed) solids.forEach(o => (o.p.bots || []).forEach((fam, j) => fl.push({ o, fam, j })));
-    const bm = mk(sets.sph, bas({}), fl.length, false), gl = mk(sets.sph, bas({ transparent: true, opacity: 0.22, depthWrite: false }), fl.length, false), an = mk(sets.box, bas({}), fl.length, false), tp = mk(sets.sph, bas({}), fl.length, false);
+    const bm = mk(sets.sph, bas({}), fl.length, false), gl = mk(sets.sph, bas({ transparent: true, opacity: 0.12, depthWrite: false }), fl.length, false), an = mk(sets.box, bas({}), fl.length, false), tp = mk(sets.sph, bas({}), fl.length, false);
     fl.forEach((b, i) => {
       const c = C(b.fam === 'any' ? '#c4b5fd' : FAMC[b.fam]);
       bm.setColorAt(i, c); gl.setColorAt(i, c); an.setColorAt(i, C('#ffffff')); tp.setColorAt(i, C('#ffffff'));
-      bots.push({ i, o: b.o, a0: hash(b.o.p.id + b.j) * 6.28, rad: 1.5 + b.j * 0.25, sp: (b.o.p.tier === 'power' ? 0.7 : 0.45) * (b.j % 2 ? -1 : 1), hy: 3.25 + b.j * 0.25, st: 0, t: 0, next: 1.5 + hash(b.o.p.id + 'n' + b.j) * 9, pos: v3(), p0: v3(), col: c.clone().multiplyScalar(0.8) });
+      bots.push({ i, o: b.o, a0: hash(b.o.p.id + b.j) * 6.28, rad: 1.85 + b.j * 0.25, sp: (b.o.p.tier === 'power' ? 0.7 : 0.45) * (b.j % 2 ? -1 : 1), hy: 3.95 + b.j * 0.22, st: 0,   /* well above the heads and wide of the seat, so a bot never sits on its owner's face */ t: 0, next: 1.5 + hash(b.o.p.id + 'n' + b.j) * 9, pos: v3(), p0: v3(), col: c.clone().multiplyScalar(0.8) });
     });
     if(fl.length){ [bm, gl, an, tp].forEach(m => { m.instanceColor.needsUpdate = true; }); }
     Object.assign(sets, { bm, gl, an, tp });
@@ -997,7 +998,7 @@ export function mountOfficeScene(container, data, opts = {}){
       W0.lampM = mk(sets.sph, bas({}), LP.length, false);
       W0.haloM = mk(sets.sph, bas({ color: '#ffcf7a', transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending }), LP.length, false);
       W0.poolM = mk(sets.disc, bas({ color: '#ffb35c', map: sets.soft, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending }), LP.length, false);
-      LP.forEach((l, i) => { setM(W0.lampM, i, l.x, 2.52, l.z, 0, 0, 0.3, 0.24, 0.3); setM(W0.haloM, i, l.x, 2.52, l.z, 0, 0, 0.7, 0.7, 0.7); setM(W0.poolM, i, l.cx, 0.1, l.cz, 0, 0, l.r * 2.2, 1, l.r * 2.2); });
+      LP.forEach((l, i) => { setM(W0.lampM, i, l.x, 2.52, l.z, 0, 0, 0.3, 0.24, 0.3); setM(W0.haloM, i, l.x, 2.52, l.z, 0, 0, 0.42, 0.42, 0.42); setM(W0.poolM, i, l.cx, 0.1, l.cz, 0, 0, l.r * 2.2, 1, l.r * 2.2); });
     }
     W0.lit = [...LP].sort((a, b) => b.n - a.n).slice(0, lamps.length);   /* the biggest teams get a real warm point light */
     W0.path = mk(sets.box, std({ roughness: 0.9 }), S.length, false); W0.path.receiveShadow = true;
@@ -1041,7 +1042,7 @@ export function mountOfficeScene(container, data, opts = {}){
     lamps.forEach((L, i) => { const q = w.lit[i]; L.intensity = q ? lamp * LAMP_I : 0; if(q) L.position.set(q.cx, 3.4, q.cz); });
     if(w.lampM){
       w.lampM.material.color.set('#f1e6d0').lerp(C('#ffd98c'), lamp).multiplyScalar(1 - 0.55 * n * (1 - lamp));
-      w.haloM.material.opacity = 0.3 * lamp; w.poolM.material.opacity = 0.3 * lamp; w.haloM.visible = w.poolM.visible = lamp > 0.02;
+      w.haloM.material.opacity = 0.18 * lamp; w.poolM.material.opacity = 0.3 * lamp; w.haloM.visible = w.poolM.visible = lamp > 0.02;
     }
     /* backdrop, stars and haze */
     const dull = clampN((wx.cloud - 0.15) * 0.95 + (fog ? 0.2 : 0), 0, 1), gr = c => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return c.clone().lerp(new T.Color(l * 0.9, l * 0.93, l), dull * (0.35 + 0.65 * dayK)).multiplyScalar(1 - 0.1 * dull * dayK); };
@@ -1112,7 +1113,8 @@ export function mountOfficeScene(container, data, opts = {}){
   /* ── animation ── */
   function orbit(b, out){
     const a = b.a0 + time * b.sp;
-    return out.set(b.o.x + Math.cos(a) * b.rad, b.hy + Math.sin(time * 2 + b.a0) * 0.12, b.o.z + 0.1 + Math.sin(a) * b.rad * 0.8);
+    const up = b.o === sel ? 1.9 : 0, wide = b.o === sel ? 1.5 : 1;   /* the picked one's bots rise and widen, clear of its face */
+    return out.set(b.o.x + Math.cos(a) * b.rad * wide, b.hy + up + Math.sin(time * 2 + b.a0) * 0.12, b.o.z + 0.1 + Math.sin(a) * b.rad * 0.8 * wide);
   }
   const ease = u => u * u * (3 - 2 * u);
   /* Seated behaviour: typing is the base pose; every few seconds a person plays one short action over it. The schedule is a pure function of the
@@ -1134,7 +1136,7 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   /* The cast: one sculpted glTF character per species (site/assets/scene/cast/<grade>.glb, made in Blender, Draco-compressed). The primitive
      figures stay on screen until every model has loaded and come back if any fails, so the office never shows an empty chair. */
-  let castOn = false, castGen = 0, castLoad = null;   /* castGen: a rebuild (weather, range, data) while models load must not let the older build add its set too */
+  let castOn = false, castGen = 0, castLoad = null; const CAST_SC = 1.6, POSE_Z = -0.38, POSE_Y = 1.06;   /* the picked one jumps up onto its own desk, in front of the monitor: behind the chair it would stand in the next row's desk */   /* castGen: a rebuild (weather, range, data) while models load must not let the older build add its set too */
   const castCache = {};
   function castCrown(T){   /* a small gold crown on top of the head, in model units (the model is scaled after) */
     const g = new T.Group(), gold = new T.MeshStandardMaterial({ color: '#f2c14e', roughness: 0.3, metalness: 0.6 }), gem = new T.MeshStandardMaterial({ color: '#ff6f91', roughness: 0.25 });
@@ -1150,7 +1152,7 @@ export function mountOfficeScene(container, data, opts = {}){
       castLoad = castLoad || Promise.all([import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js/+esm')])
         .then(([{ GLTFLoader }, { DRACOLoader }]) => { const l = new GLTFLoader(), dr = new DRACOLoader(); dr.setDecoderPath(CAST_DRACO); l.setDRACOLoader(dr); return l; });
       const loader = await castLoad, load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '.glb'));   /* one download per species for the page's lifetime */
-      const SC = 1.6;   /* big enough that the head clears the monitor; every model is built at one body size, so one scale keeps bodies equal while ears, horns and manes stick out */
+      const SC = CAST_SC;   /* big enough that the head clears the monitor; every model is built at one body size, so one scale keeps bodies equal while ears, horns and manes stick out */
       const ms = await Promise.all(all.map(async o => {
         const g = await load(o.ghost ? 'ghost' : o.gk), m = g.scene.clone(true), box = new T.Box3().setFromObject(m);
         m.scale.setScalar(SC); o.y0 = 0.42 - box.min.y * SC; m.position.set(o.x, o.y0, o.z + 0.3); m.rotation.y = Math.PI;
@@ -1162,14 +1164,34 @@ export function mountOfficeScene(container, data, opts = {}){
       ms.forEach(([o, m]) => { o.glb = m; world.add(m); });
       sets.f.forEach(f => { [f.torso, f.arm, f.scarf, f.sph, f.cone, f.rimH, f.rimT].forEach(m => { if(m) m.visible = false; }); });
       if(sets.mug) sets.mug.visible = false;
-      castOn = true; request(); if(sel && !(pr && pr.on)) portrait(sel);   /* a person picked while the models were loading gets the portrait now */
+      castOn = true; request(); if(sel){ if(!(pr && pr.on)) portrait(sel); posePerson(sel); }   /* a person picked while the models were loading gets the portrait now */
     }catch(e){ if(gen === castGen) castOn = false; }
   }
+  /* Picked: the seated model gives way to a standing one (cast/<key>-pose.glb, fetched on the first pick) behind the chair, facing the
+     camera that flies in from that side; it hops and sways, and a winged one flaps (its wings are the nodes flap_L and flap_R) */
+  const poseCache = {};
+  function posePerson(o){
+    if(!castOn || !o || !o.glb || o.pose || o.poseLoading) return;
+    const key = o.ghost ? 'ghost' : o.gk; o.poseLoading = true;
+    (poseCache[key] = poseCache[key] || castLoad.then(l => l.loadAsync(CAST_URL + key + '-pose.glb'))).then(g => {
+      o.poseLoading = false; if(sel !== o || destroyed || !o.glb) return;
+      const m = g.scene.clone(true), box = new T.Box3().setFromObject(m);
+      m.scale.setScalar(CAST_SC); m.position.set(o.x, POSE_Y - box.min.y * CAST_SC, o.z + POSE_Z); m.userData.y0 = m.position.y;
+      m.traverse(c => { if(c.isMesh){ c.castShadow = true; c.receiveShadow = true; } });
+      if(!o.ghost && o.p.crown) m.add(castCrown(T));
+      m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
+      world.add(m); o.pose = m; o.glb.visible = false; portrait(o); request();
+    }).catch(() => { o.poseLoading = false; });   /* no standing model: the seated one keeps its swivel */
+  }
+  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; }
+  function flapAt(m, t){ const f = m.userData.flaps; if(!f) return; const a = reduced ? 0.25 : 0.32 + 0.38 * Math.sin(t * 13); if(f[0]) f[0].rotation.z = -a; if(f[1]) f[1].rotation.z = a; }
   function stepCast(dt){
     if(!castOn) return;
     people.forEach(o => { const m = o.glb; if(!m) return;
       const breathe = reduced ? 0 : Math.sin(time * 2.1 + o.ph) * 0.012, want = o === sel ? 1 : 0;
       o.spin = reduced ? want : (o.spin || 0) + (want - (o.spin || 0)) * Math.min(1, dt * 4);   /* the selected one swivels round in its chair to face the camera behind it */
+      if(o.pose){ const pm = o.pose, hop = reduced ? 0 : Math.abs(Math.sin(time * 4.2)); pm.position.y = pm.userData.y0 + hop * 0.16;
+        pm.rotation.z = reduced ? 0 : Math.sin(time * 2.1) * 0.07; pm.scale.set(CAST_SC * (1 + 0.04 * (1 - hop)), CAST_SC * (1 - 0.05 * (1 - hop)), CAST_SC * (1 + 0.04 * (1 - hop))); flapAt(pm, time); }
       m.position.y = o.y0 + (o.dy || 0) + breathe + o.spin * 0.32; m.rotation.y = (Math.PI + (o.turn || 0) * 0.45) * (1 - o.spin); });   /* and pops up over the chair back */
   }
   function step(dt){
@@ -1258,8 +1280,8 @@ export function mountOfficeScene(container, data, opts = {}){
       } else if(b.st === 1){ b.t += dt / 2; if(b.t >= 1){ b.st = 2; b.t = 0; sFlash = 1; pos.copy(S); } else arcTo(b.p0, S, b.t, pos); b.tr.ln.material.opacity = 0.9; }
       else if(b.st === 2){ b.t += dt / 0.6; pos.copy(S); pos.y += Math.sin(time * 6) * 0.05; if(b.t >= 1){ b.st = 3; b.t = 0; } }
       else { b.t += dt / 2; orbit(b, TMP); if(b.t >= 1){ b.st = 0; b.tr.busy = false; b.tr.ln.visible = false; b.next = time + (b.o.p.tier === 'power' ? 5 : 11) + hash(b.o.p.id + time) * 7; orbit(b, pos); } else { arcTo(S, TMP, b.t, pos); b.tr.ln.material.opacity = 0.9 * (1 - b.t); } }
-      setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.24, 0.24, 0.24); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, 0.46 + 0.16 * envN, 0.46 + 0.16 * envN, 0.46 + 0.16 * envN);
-      setM(sets.an, b.i, pos.x, pos.y + 0.32, pos.z, 0, 0, 0.03, 0.2, 0.03); setM(sets.tp, b.i, pos.x, pos.y + 0.46, pos.z, 0, 0, 0.06, 0.06, 0.06);
+      setM(sets.bm, b.i, pos.x, pos.y, pos.z, 0, 0, 0.19, 0.19, 0.19); setM(sets.gl, b.i, pos.x, pos.y, pos.z, 0, 0, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN, 0.29 + 0.1 * envN);   /* small body, a thin glow */
+      setM(sets.an, b.i, pos.x, pos.y + 0.26, pos.z, 0, 0, 0.025, 0.16, 0.025); setM(sets.tp, b.i, pos.x, pos.y + 0.37, pos.z, 0, 0, 0.05, 0.05, 0.05);
     });
     if(bots.length){ [sets.bm, sets.gl, sets.an, sets.tp].forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
     stepWx(dt);
@@ -1561,7 +1583,7 @@ export function officeSceneData(o){
   const strip = closed ? null : { title: t('of.lg.strip', { f: found, n: GRADES.length }, true),
     tiers: TIERS.map(tr => ({ tier: tr, label: t('of.tier.' + tr), items: bands.filter(b => b.tier === tr).map(b => ({ k: b.k, name: gl(b.k), n: cntG(b.k) })) })) };
   const legend = closed ? [] : (people.some(m => m.crown) ? [{ k: 'crown', label: t('of.lg.crown') }] : []).concat([{ k: 'ghost', label: t('of.lg.ghost') },
-    { bots: true, label: t('of.lg.bots'), fams: fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: f })) : [] }, { label: t('of.lg.screen') }]);
+    { bots: true, label: '', fams: fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: f })) : [] }, { label: t('of.lg.screen') }]);
   const book = closed ? null : { title: t('of.book'), range: o.rangeLabel, found: t('of.book.found', { f: found, n: GRADES.length }, true),
     tiers: Object.fromEntries(TIERS.map(tr => [tr, t('of.book.tier', { t: t('of.tier.' + tr), n: tierN(tr) }, true)]).concat([['nodata', t('of.tier.nodata')]])),
     top: { title: t('of.book.top'), rows: people.filter(m => m.rank).sort((a, b) => a.rank - b.rank).slice(0, 5)
