@@ -298,6 +298,7 @@ export const OF_CSS = `
 .of-drawer .hd{display:flex;align-items:center;gap:10px;padding:14px 14px 10px;border-bottom:1px solid rgba(120,90,60,.12)}
 .of-drawer .hd svg{width:30px;height:30px;flex:none}.of-drawer .hd div{min-width:0;flex:1}
 .of-drawer .hd b{display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.of-drawer .hd small{display:block;color:#6a5a4a;font-size:11.5px}
+.of-drawer .bkbar{padding:8px 14px 0}.of-drawer .bk{flex:none;border:1px solid rgba(120,90,60,.22);background:#fff;font:inherit;font-size:12px;font-weight:600;color:#3a2f27;padding:5px 11px;border-radius:999px;white-space:nowrap;cursor:pointer}.of-drawer .bk:hover{border-color:#8b7cf0}
 .of-drawer .x{border:0;background:none;font-size:20px;line-height:1;color:#6a5a4a;padding:4px 8px;border-radius:8px}.of-drawer .x:hover{background:rgba(120,90,60,.1)}
 .of-drawer .bd{flex:1;overflow-y:auto;padding:10px 14px}
 .of-drawer dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0 0 10px}.of-drawer dt{color:#6a5a4a}.of-drawer dd{margin:0;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
@@ -464,7 +465,7 @@ export function makeView(cfg){
     tgt.x = L(f.x, q.x); tgt.z = L(f.z, q.z); th = L(f.th, q.th); ph = L(f.ph, q.ph); zoom = zT = L(f.zoom, q.zoom); thEff = th;
     if(fly.t >= 1) fly = null; mark();
   }   /* inertia decays as e^-3t, so a 3a kick turns by a */
-  return { update, reset, setPose, zoomBy: f => zoomAt(f), turnBy, flyTo, flying: () => !!fly, azimuth: () => thEff, zoom: () => zoom, apply: pose,
+  return { update, reset, setPose, zoomBy: f => zoomAt(f), turnBy, flyTo, flying: () => !!fly, getPose: () => ({ x: tgt.x, z: tgt.z, th, ph, zoom: zT }), azimuth: () => thEff, zoom: () => zoom, apply: pose,
     defaultCam(far){ const c = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, far || 400), sp = Math.sin(cfg.phi0); c.position.set(tgt0.x + cfg.dist * sp * Math.sin(cfg.theta0), tgt0.y + cfg.dist * Math.cos(cfg.phi0), tgt0.z + cfg.dist * sp * Math.cos(cfg.theta0)); c.lookAt(tgt0); c.updateMatrixWorld(); return c; } };
 }
 
@@ -584,7 +585,7 @@ export function mountOfficeScene(container, data, opts = {}){
   const elChip = document.createElement('div'); elChip.className = 'sk-chip'; elChip.hidden = true;
   let wx = ov.weather || { ...WX_CLEAR }, builtSnow = false, envN = 0, flash = 0, lightT = 4, baseHemi = 1, minuteTimer = 0, lamps = [], wxs = null, flakeG = null;
   let sel = null, selId = null, ring = null, bookOpen = false, pulse = null;
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), request: () => request(), onClose: () => { unpose(sel); sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; hidePortrait(); }, onBook: () => openBook(),
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), request: () => request(), onClose: () => { unpose(sel); sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; hidePortrait(); if(homePose && view){ const h = homePose; homePose = null; view.flyTo(h); } },   /* back to the view before the pick */ onBook: () => openBook(),
     onAction: a => { if(!sel) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
   const syncFs = () => chrome.syncFs();
   kit.bind(chrome.el);
@@ -742,7 +743,7 @@ export function mountOfficeScene(container, data, opts = {}){
       + `<div class="famt">${['haiku', 'sonnet', 'opus'].filter(f => fam[f]).map(f => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${FAMC[f]}"></i>${f} ${fam[f]}</span>`).join('')}</div>` : '';
     const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '';
     const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }], undefined, undefined, { total: ui.total }) : '';
-    chrome.setHtml(`<div class="hd">${iconSvg(sel.gk)}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
+    chrome.setHtml(`<div class="hd">${iconSvg(sel.gk)}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div><div class="bkbar"><button type="button" class="bk" data-a="close">← ${esc(ui.back || ui.close)}</button></div>`
       + `<div class="bd"><div class="why">${esc(dt.why)}</div>`
       + ((dt.next || []).length ? `<div class="nx">${dt.next.map((l, i) => `<div${i ? '' : ' class="h"'}>${esc(l)}</div>`).join('')}</div>` : '')
       + (dt.groups && dt.groups.length ? `<div class="sec">${dt.groups.map(g => `<div class="grp"><h4>${esc(g.title)}</h4>${kvGrid(g.rows)}</div>`).join('')}</div>`
@@ -778,11 +779,12 @@ export function mountOfficeScene(container, data, opts = {}){
   /* Look at the selected person from behind its chair (from the desk side the monitor hides the face) while it swivels round to face
      the camera, zoomed in, centred in the room the drawer and the portrait leave */
   function focusOn(o){
-    if(!view) return; const W = stage.clientWidth, side = W > 480 ? 420 + (pr && pr.on ? PR_W + 10 : 0) : 0;
+    if(!view) return; if(!homePose) homePose = view.getPose();   /* where to fly back to when the drawer closes */
+    const W = stage.clientWidth, side = W > 480 ? 420 + (pr && pr.on ? PR_W + 10 : 0) : 0;
     view.flyTo({ x: o.x, z: o.z + POSE_Z + 0.6, th: 0, ph: 1.05, zoom: 3.4, ox: side / 2 });
   }
   /* The selected character, full body, turning a little in a small panel left of the drawer: its own renderer and scene, a clone of the loaded model */
-  const PR_W = 240, PR_H = 320; let pr = null;
+  const PR_W = 240, PR_H = 320; let pr = null, homePose = null;
   function portrait(o){
     if(!castOn || !o.glb || stage.clientWidth < 900){ hidePortrait(); return; }
     if(!pr){
@@ -1591,7 +1593,7 @@ export function officeSceneData(o){
     rows: bands.map(b => ({ k: b.k, tier: b.tier, no: t('of.g.no', { n: String(b.no).padStart(2, '0') }, true), name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.rk, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
       .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
     note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true) };
-  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
+  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', back: 'of.back', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.spent') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
     activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,
