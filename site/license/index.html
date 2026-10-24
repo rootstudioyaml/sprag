@@ -76,7 +76,8 @@
 
   section.blk{padding-top:88px}
   section.blk > h2{font-size:24px;font-weight:600;letter-spacing:-.025em}
-  section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:60ch}
+  section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:780px;text-wrap:pretty}
+  @media(max-width:640px){section.blk > .sub br{display:none}}
 
   .vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px}
   .vcard video{display:block;width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:var(--rl);background:#000}
@@ -198,7 +199,7 @@
 
   <section class="blk" aria-labelledby="feat-h">
     <h2 id="feat-h" data-k="l.f.h">What Sprag does</h2>
-    <p class="sub" data-k="l.f.sub">The CLI works on its own on one machine. The team features add one view for an organization.</p>
+    <p class="sub" data-k="l.f.sub">The CLI works on its own on one machine.<br />The team features add one view for an organization.</p>
     <div class="fgrid">
       <article class="fcard">
         <h3 data-k="l.f1.h">On your machine</h3>
@@ -349,7 +350,7 @@ const KO = {
  "l.lic.3": "라이선스와 고지를 유지한 채 배포",
  "l.lic.4": "기여자 모두가 주는 특허 사용 허락",
  "l.f.h": "Sprag가 하는 일",
- "l.f.sub": "CLI는 컴퓨터 한 대에서 혼자 돌아갑니다. 팀 기능은 여기에 조직 전체를 한눈에 보는 화면을 더합니다.",
+ "l.f.sub": "CLI는 컴퓨터 한 대에서 혼자 돌아갑니다.<br />팀 기능은 여기에 조직 전체를 한눈에 보는 화면을 더합니다.",
  "l.f1.h": "내 컴퓨터에서",
  "l.f1.for": "Claude Code나 Codex를 쓰는 누구나",
  "p.free.2": "내 기록에서 뽑은 라우팅 규칙",
