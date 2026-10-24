@@ -19,7 +19,8 @@ function planTimeline(fades, close) {
   tl.fromTo("#logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.7, ease: "power2.out" }, close + 0.3);
   tl.fromTo("#close-plan", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" }, close + 0.8);
   tl.fromTo("#close-price", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, close + 1.2);
-  tl.fromTo("#close-url", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, close + 1.6);
+  tl.fromTo("#close-compat", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, close + 1.5);
+  tl.fromTo("#close-url", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, close + 1.9);
 
   tl.seek(0);
   return tl;

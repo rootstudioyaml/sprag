@@ -21,8 +21,12 @@ html[lang="ko"] .e, html[lang="en"] .k { display: none; }
 
 /* closing */
 #closing { background: radial-gradient(ellipse at 50% 42%, #fffaf0 0%, #f6ead2 78%); z-index: 30; color: #2a2118; }
-#closing .logo { position: absolute; left: 50%; top: 250px; width: 620px; margin-left: -310px; }
+#closing .logo { position: absolute; left: 50%; top: 150px; width: 620px; margin-left: -310px; }
 #closing .logo svg { width: 620px; height: auto; display: block; }
-#closing .plan { position: absolute; left: 60px; right: 60px; top: 470px; text-align: center; font-size: 84px; font-weight: 900; line-height: 1.2; letter-spacing: -0.02em; }
-#closing .price { position: absolute; left: 60px; right: 60px; top: 600px; text-align: center; font-size: 46px; font-weight: 700; line-height: 1.3; color: #5a4a36; }
-#closing .url { position: absolute; left: 0; right: 0; top: 740px; text-align: center; font: 700 40px 'JetBrains Mono', monospace; color: #5e6ad2; letter-spacing: 0.02em; }
+#closing .plan { position: absolute; left: 60px; right: 60px; top: 350px; text-align: center; font-size: 84px; font-weight: 900; line-height: 1.2; letter-spacing: -0.02em; }
+#closing .price { position: absolute; left: 60px; right: 60px; top: 470px; text-align: center; font-size: 46px; font-weight: 700; line-height: 1.3; color: #5a4a36; }
+#closing .url { position: absolute; left: 0; right: 0; top: 880px; text-align: center; font: 700 40px 'JetBrains Mono', monospace; color: #5e6ad2; letter-spacing: 0.02em; }
+#closing .compat { position: absolute; left: 60px; right: 60px; top: 580px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+#closing .compat .row { display: flex; gap: 16px; justify-content: center; }
+#closing .compat .chip { padding: 12px 28px; border-radius: 999px; background: #fff; border: 2px solid #e2d3b6; font-size: 36px; font-weight: 700; line-height: 1.2; color: #2a2118; }
+#closing .compat .note { margin-top: 4px; font-size: 32px; font-weight: 500; color: #7a6750; }
