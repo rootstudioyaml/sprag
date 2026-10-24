@@ -42,7 +42,7 @@ export function townSceneData(o){
   return { companies: list, more: Math.max(0, more), moreLabel: more > 0 ? t('tn.more', { n: more }, true) : '',
     hud: { title: t('tn.title'), stats, statsNoRev: stats.split(' · ').filter(x => x.indexOf(o.money(rev)) < 0).join(' · ') },
     legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
-    ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.spent', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
+    ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', total: 'of.d.total', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.spent', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
       dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
 }
 
@@ -767,7 +767,7 @@ export function mountTownScene(container, data, opts = {}){
     let more = `<div class="ld">${esc(d === false ? ui.dFail : ui.dLoading)}</div>`;
     if(d){
       more = sec(ui.dSignals, kit.stack(d.sig) + `<div class="famt">${d.sig.filter(q => q.v).map(q => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${q.color}"></i>${esc(q.label)} ${q.v}</span>`).join('')}</div>`)
-        + sec(ui.daily, d.days.length ? kit.chart(id + '-d', d.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: d.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: d.saved, fmt: fm }]) : '')
+        + sec(ui.daily, d.days.length ? kit.chart(id + '-d', d.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: d.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: d.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '')
         + sec(ui.dTeams, kit.cmp([{ label: '', items: d.teams }])) + sec(ui.dTop, kit.cmp([{ label: '', items: d.top }]));
     }
     chrome.setHtml(`<div class="hd"><div><b title="${esc(c.name)}">${esc(c.name)}<span class="badge">${esc(c.plan)}</span></b><small>${esc(c.detail.status || '')}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
