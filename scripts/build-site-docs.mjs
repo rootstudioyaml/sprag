@@ -518,19 +518,21 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
         <a href="${koUrl}" aria-pressed="${lang === 'ko'}">KO</a>
       </span>`;
   }
+  // The site pages pick their language from ?lang= first, so a Korean doc keeps the reader in Korean.
+  const q = lang === 'ko' ? '?lang=ko' : '';
   return `<header>
   <div class="wrap">
-    <a class="brand" href="/">
+    <a class="brand" href="/${q}">
       ${BRAND_SVG}
       Sprag
     </a>
     <nav>
-      <a class="hide-sm" href="/#how">${lang === 'ko' ? '작동 방식' : 'How it works'}</a>
-      <a class="hide-sm" href="/#routing">${lang === 'ko' ? '라우팅' : 'Routing'}</a>
-      <a class="hide-sm" href="/#features">${lang === 'ko' ? '기능' : 'Features'}</a>
+      <a class="hide-sm" href="/${q}#how">${lang === 'ko' ? '작동 방식' : 'How it works'}</a>
+      <a class="hide-sm" href="/${q}#routing">${lang === 'ko' ? '라우팅' : 'Routing'}</a>
+      <a class="hide-sm" href="/${q}#features">${lang === 'ko' ? '기능' : 'Features'}</a>
       <a href="${docsHref}" aria-current="page">${lang === 'ko' ? '문서' : 'Docs'}</a>
-      <a href="/license/">${lang === 'ko' ? '라이선스' : 'License'}</a>
-      <a class="hide-sm" href="/team/">${lang === 'ko' ? '팀 콘솔' : 'Team console'}</a>
+      <a href="/license/${q}">${lang === 'ko' ? '라이선스' : 'License'}</a>
+      <a class="hide-sm" href="/team/${q}">${lang === 'ko' ? '팀 콘솔' : 'Team console'}</a>
       ${langSwitch}
       ${GH_ICONS}
     </nav>
@@ -566,14 +568,15 @@ function footerHtml(lang = 'en') {
   const l = lang === 'ko' ? 'ko' : 'en';
   const info = BIZ_INFO[l].map((t) => `<span>${t}</span>`).join(' · ');
   const [terms, privacy, refund, verify] = BIZ_LINKS[l];
+  const q = l === 'ko' ? '?lang=ko' : '';
   return `<footer>
   <div class="wrap">
     <span>Apache-2.0 © YAML Studio</span>
-    <span><a href="/docs/">Docs</a> · <a href="${REPO}">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="${REPO}/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
+    <span><a href="${l === 'ko' ? '/docs/ko/' : '/docs/'}">Docs</a> · <a href="${REPO}">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="${REPO}/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
   </div>
   <div class="wrap biz">
     <p>${info}</p>
-    <p><a href="/terms/">${terms}</a> · <a href="/privacy/" class="strong">${privacy}</a> · <a href="/refund/">${refund}</a> · <a href="${BIZ_FTC}" target="_blank" rel="noopener">${verify}</a></p>
+    <p><a href="/terms/${q}">${terms}</a> · <a href="/privacy/${q}" class="strong">${privacy}</a> · <a href="/refund/${q}">${refund}</a> · <a href="${BIZ_FTC}" target="_blank" rel="noopener">${verify}</a></p>
   </div>
 </footer>`;
 }
@@ -619,7 +622,7 @@ ${head}
 <body>
 ${headerHtml({ lang, docsHref, hasKo, enUrl, koUrl })}
 <main class="doc">
-  <nav class="crumbs"><a href="/">Sprag</a> / <a href="${docsHref}">${crumbLabel}</a></nav>
+  <nav class="crumbs"><a href="/${lang === 'ko' ? '?lang=ko' : ''}">Sprag</a> / <a href="${docsHref}">${crumbLabel}</a></nav>
   <h1>${escapeHtml(title)}</h1>
   <p class="lede">${escapeHtml(description)}</p>
   ${bodyHtml}
@@ -677,7 +680,7 @@ ${head}
 <body>
 ${headerHtml({ lang, docsHref, hasKo: true, enUrl: `${SITE_ORIGIN}/docs/`, koUrl: `${SITE_ORIGIN}/docs/ko/` })}
 <main class="doc">
-  <nav class="crumbs"><a href="/">Sprag</a> / ${title}</nav>
+  <nav class="crumbs"><a href="/${lang === 'ko' ? '?lang=ko' : ''}">Sprag</a> / ${title}</nav>
   <h1>${title}</h1>
   <p class="lede">${escapeHtml(description)}</p>
   <div class="dgrid">
