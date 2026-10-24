@@ -381,6 +381,7 @@ function styleBlock() {
   .brand svg{width:20px;height:20px;display:block}
   header nav{display:flex;align-items:center;gap:22px;font-size:13.5px;color:var(--dim)}
   header nav a:hover{color:var(--ink)}
+  header nav > a[aria-current]{color:var(--ink);background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line);border-radius:6px;padding:5px 10px}
   .gh{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);
       border-radius:6px;padding:5px 10px;font-size:12.5px;color:var(--dim)}
   .gh:hover{border-color:#3a3d47;color:var(--ink)}
@@ -524,8 +525,12 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
       Sprag
     </a>
     <nav>
-      <a href="${docsHref}">${lang === 'ko' ? '문서' : 'Docs'}</a>
+      <a class="hide-sm" href="/#how">${lang === 'ko' ? '작동 방식' : 'How it works'}</a>
+      <a class="hide-sm" href="/#routing">${lang === 'ko' ? '라우팅' : 'Routing'}</a>
+      <a class="hide-sm" href="/#features">${lang === 'ko' ? '기능' : 'Features'}</a>
+      <a href="${docsHref}" aria-current="page">${lang === 'ko' ? '문서' : 'Docs'}</a>
       <a href="/license/">${lang === 'ko' ? '라이선스' : 'License'}</a>
+      <a class="hide-sm" href="/team/">${lang === 'ko' ? '팀 콘솔' : 'Team console'}</a>
       ${langSwitch}
       ${GH_ICONS}
     </nav>

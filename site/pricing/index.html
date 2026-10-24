@@ -190,9 +190,12 @@
       Sprag
     </a>
     <nav>
+      <a class="hide-sm" href="/#how" data-k="nav.how">How it works</a>
+      <a class="hide-sm" href="/#routing" data-k="nav.routing">Routing</a>
+      <a class="hide-sm" href="/#features" data-k="nav.features">Features</a>
       <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
-      <a class="hide-sm" href="/team/" data-k="nav.teams">Teams</a>
-      <a href="/pricing/" aria-current="page" data-k="nav.pricing">Pricing</a>
+      <a href="/license/" data-k="nav.license">License</a>
+      <a class="hide-sm" href="/team/" data-k="nav.teams">Team console</a>
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
         <button data-lang="ko" aria-pressed="false">KO</button>
@@ -382,6 +385,12 @@ const PRICES = { monthly: { pro: 5, enterprise: 10 }, annual: { pro: 4, enterpri
 let cycle = 'monthly';
 
 const KO = {
+ "nav.how": "작동 방식",
+ "nav.routing": "라우팅",
+ "nav.features": "기능",
+ "nav.docs": "문서",
+ "nav.license": "라이선스",
+ "nav.teams": "팀 콘솔",
  'bz.name': "상호 케이프로샵 (브랜드 YAML Studio)",
  'bz.rep': "대표 고주호",
  'bz.brn': "사업자등록번호 104-37-62963",
@@ -434,9 +443,6 @@ const KO = {
  "c.r25": "<code>SPRAG_NO_TEAM_SYNC=1</code>로 업로드 중지",
  "c.r26": "<code>sprag team leave</code>",
  "c.r27": "<code>sprag team status --show-payload</code>",
- "nav.docs": "문서",
- "nav.teams": "팀",
- "nav.pricing": "요금",
  "p.eyebrow": "요금",
  "p.h1": "내 컴퓨터에서는 무료, 팀은 좌석당",
  "p.lede": "CLI는 계정 없이 쓸 수 있습니다. 팀이 에이전트 지출과 절감액을 한곳에서 보고 싶을 때 좌석당 요금을 냅니다.",
