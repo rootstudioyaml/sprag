@@ -810,7 +810,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const closed = !!d.closed, pl = d.people || [];
     elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
     elLegend.innerHTML = (d.strip ? `<button type="button" class="of-strip" aria-label="${esc(d.strip.title)}"><b>${BOOK_ICON}${esc(d.strip.title)}</b>${d.strip.tiers.map(g => `<span class="tg t-${g.tier}"><em>${esc(g.label)}</em>${g.items.map(q => `<span class="sp${q.n ? '' : ' z'}" title="${esc(q.name + (q.n ? ' · ' + q.n : ''))}">${iconSvg(q.k)}</span>`).join('')}</span>`).join('')}</button>` : '')
-      + `<div class="keys">${(d.legend || []).map(l => `<span>${l.k ? iconSvg(l.k) : l.bots ? BOT_ICON : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}${(l.fams || []).map(f => `<i class="fm" style="background:${f.c}"></i>${esc(f.label)}`).join('')}</span>`).join('')}</div>`;
+      + `<div class="keys">${(d.legend || []).map(l => `<span>${l.k ? iconSvg(l.k) : l.bots ? '' : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}${(l.fams || []).map(f => `<i class="fm" style="background:${f.c}"></i>${esc(f.label)}`).join('')}</span>`).join('')}</div>`;
     { const sb = elLegend.querySelector('.of-strip'); if(sb) sb.addEventListener('click', () => openBook()); }
     if(chrome.bookBtn) chrome.bookBtn.style.display = d.book ? '' : 'none';
     if(canvas) canvas.setAttribute('aria-label', d.aria || '');
