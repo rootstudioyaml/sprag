@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Terms of Service | Sprag</title>
+<meta name="description" content="Terms for the paid team features of Sprag: orders, payment, term, seats, data, liability and governing law." />
+<link rel="canonical" href="https://sprag.io/terms/" />
+<meta name="theme-color" content="#0a0a0c" />
+<link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="../assets/logo/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Sprag" />
+<meta property="og:title" content="Terms of Service | Sprag" />
+<meta property="og:description" content="Terms for the paid team features of Sprag: orders, payment, term, seats, data, liability and governing law." />
+<meta property="og:url" content="https://sprag.io/terms/" />
+<meta property="og:image" content="https://sprag.io/assets/og-card.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0a0a0c; --surface:#0f0f12; --surface2:#141418; --hover:rgba(255,255,255,.035);
+    --line:#1f2024; --line2:#2c2d34; --line3:#3a3b44;
+    --ink:#ececef; --dim:#9b9da6; --faint:#686a74;
+    --accent:#5e6ad2; --accent2:#8a94f2; --accent-bg:rgba(94,106,210,.14); --ok:#3fd48f;
+    --sans:"Geist","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"Geist Mono","JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r:6px; --rl:10px; --ease:cubic-bezier(.23,1,.32,1); --bar-h:52px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg);scroll-behavior:smooth}
+  h1,h2,h3{text-wrap:balance}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow-x:hidden}
+  html[lang=ko] body{word-break:keep-all;line-height:1.65}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+  code{font-family:var(--mono);font-size:.88em;color:var(--ink)}
+  :focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:4px}
+  ::selection{background:rgba(94,106,210,.4)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(10,10,12,.88);backdrop-filter:blur(14px)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;min-height:var(--bar-h)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .brand svg{width:20px;height:20px;display:block}
+  header nav{display:flex;align-items:center;gap:2px;font-size:13px;font-weight:500;color:var(--dim)}
+  header nav > a{padding:6px 10px;border-radius:var(--r);transition:color .15s var(--ease),background .15s var(--ease)}
+  header nav > a:hover{color:var(--ink);background:var(--hover)}
+  header nav > a[aria-current]{color:var(--ink);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
+  .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px;margin-left:12px}
+  .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+  .lang button:hover{color:var(--dim)}
+  .lang button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent2)}
+  @media(max-width:720px){header nav .hide-sm{display:none}}
+  @media(hover:none) and (pointer:coarse){.lang button{padding:8px 10px}}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;border:1px solid var(--line2);border-radius:var(--r);font-size:13px;font-weight:500;line-height:1;white-space:nowrap;color:var(--ink);background:var(--surface2);transition:border-color .15s var(--ease),background .15s var(--ease),transform .12s var(--ease)}
+  .btn:hover{border-color:var(--line3);background:#1a1a20}
+  .btn:active{transform:scale(.98)}
+  .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.pri:hover{background:#6d79e0;border-color:#6d79e0}
+  @media(hover:none) and (pointer:coarse){.btn{min-height:40px}}
+
+  .hero{padding:72px 0 0;display:flex;align-items:flex-end;justify-content:space-between;gap:24px 40px;flex-wrap:wrap}
+  .eyebrow{font:500 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent2)}
+  html[lang=ko] .eyebrow{font-family:var(--sans);letter-spacing:.02em;text-transform:none;font-size:12.5px}
+  h1{margin-top:16px;font-size:clamp(32px,5vw,50px);font-weight:600;letter-spacing:-.035em;line-height:1.1;max-width:18ch}
+  .lede{margin-top:16px;color:var(--dim);font-size:16px;max-width:52ch;text-wrap:balance}
+  .chip{font:500 11px/1.4 var(--mono);color:var(--ok);padding:0 5px;border:1px solid rgba(63,212,143,.35);border-radius:4px}
+
+  section.blk{padding-top:88px}
+  section.blk > h2{font-size:24px;font-weight:600;letter-spacing:-.025em}
+  section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:60ch}
+
+  .vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px}
+  .vcard video{display:block;width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:var(--rl);background:#000}
+  .vcard figcaption{display:flex;align-items:baseline;gap:10px;margin-top:10px;font-size:13px;color:var(--dim)}
+  .vcard figcaption b{color:var(--ink);font-weight:600;flex:0 0 auto}
+  @media(max-width:720px){.vgrid{grid-template-columns:1fr}}
+
+  .faqs{margin-top:24px}
+  .faq-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;border-top:1px solid var(--line)}
+  .faqs details{border-bottom:1px solid var(--line)}
+  .faqs summary{cursor:pointer;padding:16px 0;font-size:14px;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px;transition:color .15s var(--ease)}
+  .faqs summary::-webkit-details-marker{display:none}
+  .faqs summary::after{content:"+";color:var(--faint);font-family:var(--mono);font-size:15px;flex:0 0 auto}
+  .faqs details[open] summary::after{content:"\2212"}
+  .faqs summary:hover{color:var(--accent2)}
+  .faqs p{padding:0 0 18px;color:var(--dim);font-size:13.5px;line-height:1.7}
+  .faqs p a{color:var(--accent2)}
+  @media(max-width:860px){.faq-grid{grid-template-columns:1fr}}
+
+  .cta{margin-top:96px;border-top:1px solid var(--line);padding:56px 0 72px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .cta h2{font-size:24px;font-weight:600;letter-spacing:-.025em;max-width:22ch}
+  .cta .actions{display:flex;gap:8px;flex-wrap:wrap}
+  footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
+  footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
+  @media(max-width:640px){code{overflow-wrap:anywhere}.steps li,.fcard,.lic{min-width:0;overflow-wrap:anywhere}}
+  @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:48px}section.blk{padding-top:64px}}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+    .doc{max-width:78ch;padding:56px 0 24px;counter-reset:sec}
+  .doc h1{margin-top:12px;font-size:clamp(28px,4.4vw,40px);max-width:none}
+  .doc .eff{margin-top:12px;font:500 12.5px/1.4 var(--mono);color:var(--faint)}
+  html[lang=ko] .doc .eff{font-family:var(--sans)}
+  .doc .lede{max-width:none}
+  .doc h2{margin-top:44px;font-size:18px;font-weight:600;letter-spacing:-.02em;counter-increment:sec}
+  .doc h2::before{content:counter(sec) ". ";color:var(--accent2)}
+  .doc p,.doc li{margin-top:10px;color:var(--dim);font-size:14px;line-height:1.75}
+  .doc ul{list-style:none;display:grid;gap:0}
+  .doc li{padding-left:16px;position:relative}
+  .doc li::before{content:"";position:absolute;left:3px;top:.95em;width:4px;height:4px;border-radius:50%;background:var(--line3)}
+  .doc a{color:var(--accent2)}
+  .doc a:hover{text-decoration:underline}
+  .tbl{margin-top:14px;overflow-x:auto;border:1px solid var(--line);border-radius:var(--rl)}
+  .tbl table{border-collapse:collapse;width:100%;min-width:720px;font-size:13px}
+  .tbl th,.tbl td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);color:var(--dim);line-height:1.6}
+  .tbl th{color:var(--ink);font-weight:600;background:var(--surface);white-space:nowrap}
+  .tbl tr:last-child td{border-bottom:0}
+  .doc .back{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
+  @media(max-width:520px){.doc{padding-top:40px}}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
+        <g fill="#5e6ad2">
+          <rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/>
+          <g transform="rotate(120 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+          <g transform="rotate(240 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+        </g>
+        <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4"/>
+      </svg>
+      Sprag
+    </a>
+    <nav>
+      <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a class="hide-sm" href="/team/" data-k="nav.teams">Teams</a>
+      <a href="/license/" data-k="nav.license">License</a>
+      <span class="lang" role="group" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="ko" aria-pressed="false">KO</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+ <article class="doc">
+  <div class="eyebrow" data-k="t.eyebrow">Legal</div>
+  <h1 data-k="t.h1">Terms of Service</h1>
+  <p class="eff" data-k="t.eff">Effective 2026-11-01</p>
+  <p class="lede" data-k="t.lede">These terms apply to the paid team features of Sprag at sprag.io/team.</p>
+  <h2 data-k="k1">Service and scope</h2>
+  <ul>
+    <li data-k="k2">The Sprag CLI is open source under Apache-2.0. It is free and needs no account. The CLI is governed by its license, not by these terms.</li>
+    <li data-k="k3">These terms apply to the paid team features at sprag.io/team, such as the team dashboard, team rules and Enterprise prompt monitoring.</li>
+    <li data-k="k4">The service is operated by YAML Studio (케이프로샵), whose business details are shown at the bottom of this page.</li>
+  </ul>
+  <h2 data-k="k5">Orders and payment</h2>
+  <ul>
+    <li data-k="k6">An order sets the plan (Pro or Enterprise), the number of seats and the number of months. You pay for the whole term in advance.</li>
+    <li data-k="k7">Payments in Korea are processed by Toss Payments. Overseas payments are sold by Paddle.com as the Merchant of Record, and Paddle's buyer terms also apply to customers who pay through Paddle.</li>
+    <li data-k="k8">A company that needs a tax invoice can pay by bank deposit.</li>
+    <li data-k="k9">Prices are the amounts shown on the <a href="/pricing/">pricing page</a>. Korean won prices exclude VAT, which is added on the order screen. For overseas payments Paddle adds any sales tax at checkout.</li>
+  </ul>
+  <h2 data-k="k10">Term and renewal</h2>
+  <ul>
+    <li data-k="k11">You can use the service for the number of months you paid for. It does not renew automatically.</li>
+    <li data-k="k12">We tell you before the term ends. To extend, place a new order.</li>
+    <li data-k="k13">After the term ends and a grace period passes, new uploads are no longer accepted. The CLI keeps working for free.</li>
+  </ul>
+  <h2 data-k="k14">Opening the organization</h2>
+  <p data-k="k15">After the payment is confirmed, the operator opens your organization and invites the owner and admins named on the order by email. Everyone signs in with an email code.</p>
+  <h2 data-k="k16">Seats</h2>
+  <ul>
+    <li data-k="k17">One seat is one computer that was active in the last 30 days or was paused with the upload switch. A person's second computer can be merged into the same seat.</li>
+    <li data-k="k18">A computer that would go over the seat limit is refused.</li>
+    <li data-k="k19">To add seats, write to <a href="mailto:sales@sprag.io">sales@sprag.io</a>. Extra seats are charged for the remaining term, pro rata.</li>
+  </ul>
+  <h2 data-k="k20">Customer responsibilities</h2>
+  <ul>
+    <li data-k="k21">The customer (the organization) is responsible for telling its members what is collected and for getting any consent that is required.</li>
+    <li data-k="k22">Only an owner or admin can turn on prompt capture.</li>
+  </ul>
+  <h2 data-k="k23">Data</h2>
+  <p data-k="k24">How we handle personal data is described in the <a href="/privacy/">Privacy Policy</a>.</p>
+  <h2 data-k="k25">Changes, suspension and restrictions</h2>
+  <ul>
+    <li data-k="k26">We may change or suspend the service for maintenance or other operational reasons, and we announce significant changes in advance where we can.</li>
+    <li data-k="k27">We may restrict use if the service is used unlawfully or a payment is not made.</li>
+  </ul>
+  <h2 data-k="k28">Limit of liability</h2>
+  <ul>
+    <li data-k="k29">The free CLI is provided "as is" under Apache-2.0.</li>
+    <li data-k="k30">For the paid service, our liability for damages is limited to the amount you paid in the 12 months before the claim. This limit does not apply to damage caused intentionally or by gross negligence.</li>
+  </ul>
+  <h2 data-k="k31">Refunds</h2>
+  <p data-k="k32">Refunds follow the <a href="/refund/">Refund Policy</a>.</p>
+  <h2 data-k="k33">Governing law and contact</h2>
+  <ul>
+    <li data-k="k34">These terms are governed by the laws of the Republic of Korea. The Seoul Central District Court has jurisdiction over disputes.</li>
+    <li data-k="k35">Contact: <a href="mailto:sales@sprag.io">sales@sprag.io</a></li>
+    <li data-k="k36">If we change these terms, we post the new version on this page with its effective date.</li>
+  </ul>
+  <p class="back" data-k="t.back">Questions: <a href="mailto:sales@sprag.io">sales@sprag.io</a></p>
+ </article>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Apache-2.0 © YAML Studio</span>
+    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+  </div>
+  <div class="wrap biz">
+    <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></span></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
+  </div>
+</footer>
+
+<script>
+/* Legal page: English is the markup, Korean lives in KO. Same language switch as the license page. */
+const KO = {
+ "t.eyebrow": "약관과 정책",
+ "k1": "서비스와 적용 범위",
+ "k2": "Sprag CLI는 Apache-2.0 오픈소스이며 무료이고 계정이 필요 없습니다. CLI에는 해당 라이선스가 적용되고 이 약관은 적용되지 않습니다.",
+ "k3": "이 약관은 sprag.io/team 에서 제공하는 유료 팀 기능에 적용됩니다. 팀 대시보드, 팀 규칙, Enterprise 프롬프트 모니터링 등이 여기에 해당합니다.",
+ "k4": "서비스는 이 페이지 하단에 사업자 정보가 표시된 케이프로샵(YAML Studio)이 운영합니다.",
+ "k5": "계약과 결제",
+ "k6": "주문에서 플랜(Pro 또는 Enterprise), 좌석 수, 이용 개월 수를 정합니다. 이용 기간 전체를 선불로 결제합니다.",
+ "k7": "국내 결제는 토스페이먼츠가 처리합니다. 해외 결제는 Paddle.com이 판매 대행자(Merchant of Record)로서 판매하며, Paddle로 결제하는 고객에게는 Paddle의 구매자 약관도 함께 적용됩니다.",
+ "k8": "세금계산서가 필요한 법인은 계좌 입금으로 결제할 수 있습니다.",
+ "k9": "가격은 <a href=\"/pricing/\">요금 페이지</a>에 표시된 금액을 기준으로 합니다. 원화 가격은 부가세 별도이며, 주문 화면에서 부가세를 더한 합계를 보여 드립니다. 해외 결제의 세금은 Paddle이 결제 화면에서 더합니다.",
+ "k10": "이용 기간과 갱신",
+ "k11": "결제한 개월 수만큼 서비스를 이용할 수 있으며, 자동으로 갱신되지 않습니다.",
+ "k12": "종료하기 전에 미리 안내해 드립니다. 연장하려면 새로 주문하면 됩니다.",
+ "k13": "이용 기간이 끝나고 유예 기간이 지나면 새 업로드를 받지 않습니다. CLI는 계속 무료로 동작합니다.",
+ "k14": "조직 개설",
+ "k15": "결제가 확인되면 운영자가 조직을 개설하고, 주문서에 적은 오너와 관리자의 이메일로 초대합니다. 로그인은 이메일 코드로 합니다.",
+ "k16": "좌석",
+ "k17": "좌석 하나는 최근 30일 안에 활동했거나 업로드 스위치로 일시정지된 컴퓨터 한 대입니다. 같은 사람의 두 번째 컴퓨터는 같은 좌석으로 합칠 수 있습니다.",
+ "k18": "좌석 상한을 넘는 컴퓨터의 참여는 거절됩니다.",
+ "k19": "좌석을 늘리려면 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 문의해 주세요. 추가 좌석은 남은 이용 기간만큼 일할 계산해 결제합니다.",
+ "k20": "고객의 의무",
+ "k21": "구성원에게 수집되는 내용을 알리고 필요한 동의를 받는 것은 고객(조직)의 책임입니다.",
+ "k22": "프롬프트 수집은 오너와 관리자만 켤 수 있습니다.",
+ "k23": "데이터",
+ "k24": "개인정보를 어떻게 다루는지는 <a href=\"/privacy/\">개인정보처리방침</a>에 적혀 있습니다.",
+ "k25": "서비스 변경·중단과 이용 제한",
+ "k26": "점검이나 운영상의 이유로 서비스를 바꾸거나 일시 중단할 수 있으며, 중요한 변경은 가능한 한 미리 알립니다.",
+ "k27": "서비스를 불법적으로 이용하거나 결제를 이행하지 않으면 이용을 제한할 수 있습니다.",
+ "k28": "책임의 제한",
+ "k29": "무료 CLI는 Apache-2.0에 따라 \"있는 그대로\" 제공됩니다.",
+ "k30": "유료 서비스의 손해배상 책임은 청구 시점 직전 12개월 동안 결제한 금액을 한도로 합니다. 고의 또는 중대한 과실로 생긴 손해에는 이 한도를 적용하지 않습니다.",
+ "k31": "환불",
+ "k32": "환불은 <a href=\"/refund/\">환불정책</a>을 따릅니다.",
+ "k33": "준거법과 문의",
+ "k34": "이 약관은 대한민국 법률을 따르며, 분쟁은 서울중앙지방법원을 관할 법원으로 합니다.",
+ "k35": "문의: <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ "k36": "약관을 바꾸면 새 내용과 시행일을 이 페이지에 게시합니다.",
+ "t.h1": "이용약관",
+ "t.lede": "이 약관은 sprag.io/team 에서 제공하는 Sprag 유료 팀 기능에 적용됩니다.",
+ "t.eff": "시행일 2026-11-01",
+ "t.back": "문의: <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.name': "상호 케이프로샵 (브랜드 YAML Studio)",
+ 'bz.rep': "대표 고주호",
+ 'bz.brn': "사업자등록번호 104-37-62963",
+ 'bz.mo': "통신판매업 신고 제2026-서울관악-1299호",
+ 'bz.addr': "주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)",
+ 'bz.mail': "이메일 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "이용약관",
+ 'bz.priv': "개인정보처리방침",
+ 'bz.refund': "환불정책",
+ 'bz.verify': "사업자정보확인",
+};
+const EN = {};
+document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
+const META = {
+  en: { title:'Terms of Service | Sprag', desc: document.querySelector('meta[name=description]').content },
+  ko: { title:'이용약관 | Sprag', desc:"Sprag 유료 팀 기능의 주문, 결제, 이용 기간, 좌석, 데이터, 책임 범위와 준거법을 안내하는 이용약관입니다." }
+};
+let lang = 'en';
+function setLang(next, remember){
+  lang = next === 'ko' ? 'ko' : 'en';
+  document.documentElement.lang = lang;
+  document.title = META[lang].title;
+  document.querySelector('meta[name=description]').content = META[lang].desc;
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  if(remember){ try{ localStorage.setItem('sprag.lang', lang); }catch(e){} }
+  const dict = lang === 'ko' ? KO : EN;
+  document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.innerHTML = v; });
+}
+(function(){
+  const q = new URLSearchParams(location.search).get('lang');
+  let stored = null; try{ stored = localStorage.getItem('sprag.lang'); }catch(e){}
+  const nav = (navigator.languages || [navigator.language || 'en']).join(',');
+  setLang(q || stored || (/\bko\b|ko-/i.test(nav) ? 'ko' : 'en'), false);
+})();
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+</script>
+</body>
+</html>

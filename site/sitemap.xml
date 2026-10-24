@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://sprag.io/</loc>
-    <lastmod>2026-10-23</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en"/>
@@ -15,6 +15,27 @@
   <url>
     <loc>https://sprag.io/docs/ko/</loc>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://sprag.io/terms/</loc>
+    <lastmod>2026-11-01</lastmod>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/terms/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/terms/?lang=ko"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/privacy/</loc>
+    <lastmod>2026-11-01</lastmod>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/privacy/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/privacy/?lang=ko"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/refund/</loc>
+    <lastmod>2026-11-01</lastmod>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/refund/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/refund/?lang=ko"/>
   </url>
   <url>
     <loc>https://sprag.io/docs/codex/</loc>
@@ -144,7 +165,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/install/</loc>
-    <lastmod>2026-10-22</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/install/"/>
@@ -153,7 +174,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/ko/install/</loc>
-    <lastmod>2026-10-22</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/install/"/>
@@ -162,7 +183,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/commands/</loc>
-    <lastmod>2026-10-21</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>
@@ -171,7 +192,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/ko/commands/</loc>
-    <lastmod>2026-10-21</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>

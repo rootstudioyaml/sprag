@@ -393,6 +393,10 @@
   footer{border-top:1px solid var(--line);padding:var(--s4) 0 var(--s5);color:var(--faint);font-size:12px}
   footer .wrap{display:flex;justify-content:space-between;gap:var(--s3);flex-wrap:wrap}
   footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
 
   @media(max-width:860px){
     .tlayout{grid-template-columns:minmax(0,1fr)}
@@ -706,6 +710,10 @@
     <span>Apache-2.0 © YAML Studio</span>
     <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/license/">License</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
   </div>
+  <div class="wrap biz">
+    <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></span></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
+  </div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
@@ -977,6 +985,30 @@ Object.assign(I18N.ko, {"v.rules":"규칙","rl.sum.aria":"규칙 요약","rl.sum
   "rl.tag.org":"조직","rl.ro":"조직 규칙 (이 팀에도 적용됩니다)","rl.manage":"모든 팀의 규칙은 <a href=\"#rules\">규칙 탭</a>에서 관리합니다",
   "rl.card":"조직 규칙 {n}개 · 대기 중인 제안 {p}건","rl.card.go":"규칙 탭 열기","rl.notext":"규칙 내용을 입력해 주세요","rl.scope":"범위",
   "rl.noteams":"아직 팀이 없습니다. 팀을 만들면 여기에 팀 규칙이 나옵니다"});
+Object.assign(I18N.en, {
+ 'bz.name': "YAML Studio (케이프로샵)",
+ 'bz.rep': "Representative: 고주호",
+ 'bz.brn': "Business registration no. 104-37-62963",
+ 'bz.mo': "Mail-order business registration 2026-Seoul Gwanak-1299",
+ 'bz.addr': "3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea",
+ 'bz.mail': "Email: <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "Terms of Service",
+ 'bz.priv': "Privacy Policy",
+ 'bz.refund': "Refund Policy",
+ 'bz.verify': "Verify business info",
+});
+Object.assign(I18N.ko, {
+ 'bz.name': "상호 케이프로샵 (브랜드 YAML Studio)",
+ 'bz.rep': "대표 고주호",
+ 'bz.brn': "사업자등록번호 104-37-62963",
+ 'bz.mo': "통신판매업 신고 제2026-서울관악-1299호",
+ 'bz.addr': "주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)",
+ 'bz.mail': "이메일 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "이용약관",
+ 'bz.priv': "개인정보처리방침",
+ 'bz.refund': "환불정책",
+ 'bz.verify': "사업자정보확인",
+});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;

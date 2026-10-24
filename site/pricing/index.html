@@ -164,6 +164,10 @@
   footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
   footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
   footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
   @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:48px}.strip{padding:16px}.plan{padding:20px}.tag{top:18px;right:18px}section.blk{padding-top:64px}}
   @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
@@ -343,9 +347,9 @@
       <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. Free sends nothing and never needs an account. On Pro, a machine sends one aggregate row per day plus its OS name, version and architecture, never prompts, paths or hostnames. <code>sprag team status --show-payload</code> prints exactly what is sent.</p></details>
       <details><summary data-k="p.q2">Who consents in a company rollout?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members can still see what is sent with <code>sprag team status</code>. <code>SPRAG_NO_TEAM_SYNC=1</code> stops usage uploads, though the seat stays until an admin removes it, and <code>sprag team leave</code> wins over the env var.</p></details>
       <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only an organization owner or admin, and only on Enterprise. It is off by default, and the policy is visible to every member. Capture starts the moment it is turned on, with no history before it.</p></details>
-      <details><summary data-k="p.q6">Can I switch plans or cancel?</summary><p data-k="p.a6">Yes. Moving between Pro and Enterprise changes the per-seat price from the next billing period, and canceling keeps the free CLI working as before.</p></details>
+      <details><summary data-k="p.q6">Can I switch plans or cancel?</summary><p data-k="p.a6">Yes. Plans are prepaid for a fixed number of months, so a move between Pro and Enterprise applies from your next order. Refunds follow the <a href="/refund/">refund policy</a>. The free CLI keeps working as before either way.</p></details>
       <details><summary data-k="p.q5">Where is the data stored?</summary><p data-k="p.a5">In Supabase, in the ap-northeast-2 (Seoul) region.</p></details>
-      <details><summary data-k="p.q7">How do I add seats?</summary><p data-k="p.a7">Write to <a href="mailto:sales@sprag.io">sales@sprag.io</a> with your organization name and the number of seats you need.</p></details>
+      <details><summary data-k="p.q7">How do I add seats?</summary><p data-k="p.a7">Write to <a href="mailto:sales@sprag.io">sales@sprag.io</a> with your organization name and the number of seats you need. You will get an order link for the extra seats, priced for the remaining term.</p></details>
       </div>
     </div>
   </section>
@@ -365,6 +369,10 @@
     <span>Apache-2.0 © YAML Studio</span>
     <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
   </div>
+  <div class="wrap biz">
+    <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></span></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
+  </div>
 </footer>
 
 <script>
@@ -373,6 +381,17 @@ const PRICES = { monthly: { pro: 5, enterprise: 10 }, annual: { pro: 4, enterpri
 let cycle = 'monthly';
 
 const KO = {
+ 'bz.name': "상호 케이프로샵 (브랜드 YAML Studio)",
+ 'bz.rep': "대표 고주호",
+ 'bz.brn': "사업자등록번호 104-37-62963",
+ 'bz.mo': "통신판매업 신고 제2026-서울관악-1299호",
+ 'bz.addr': "주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)",
+ 'bz.mail': "이메일 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "이용약관",
+ 'bz.priv': "개인정보처리방침",
+ 'bz.refund': "환불정책",
+ 'bz.verify': "사업자정보확인",
+
  "c.g1": "내 컴퓨터에서",
  "c.r1": "오픈소스 CLI와 훅",
  "c.r2": "내 기록에서 뽑은 라우팅 규칙",
@@ -473,11 +492,11 @@ const KO = {
  "p.q4": "프롬프트 수집은 누가 정하나요?",
  "p.a4": "조직 오너나 어드민만 정할 수 있고 엔터프라이즈에서만 켤 수 있습니다. 기본값은 꺼짐이며 정책은 모든 멤버에게 보입니다. 켠 시점부터 수집하고 그 전 기록은 가져오지 않습니다.",
  "p.q6": "요금제를 바꾸거나 해지할 수 있나요?",
- "p.a6": "네. 프로와 엔터프라이즈 사이를 옮기면 다음 청구 기간부터 좌석당 요금이 바뀌고, 해지해도 무료 CLI는 그대로 쓸 수 있습니다.",
+ "p.a6": "네. 플랜은 정한 개월 수만큼 선불로 결제하므로, 프로와 엔터프라이즈 사이를 옮기는 것은 다음 주문부터 적용됩니다. 환불은 <a href=\"/refund/\">환불정책</a>을 따릅니다. 어느 쪽이든 무료 CLI는 그대로 쓸 수 있습니다.",
  "p.q5": "데이터는 어디에 저장되나요?",
  "p.a5": "Supabase의 ap-northeast-2(서울) 리전에 저장됩니다.",
  "p.q7": "좌석은 어떻게 늘리나요?",
- "p.a7": "조직 이름과 필요한 좌석 수를 적어 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 문의해 주세요.",
+ "p.a7": "조직 이름과 필요한 좌석 수를 적어 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 문의해 주세요. 추가 좌석의 주문 링크를 보내 드리며, 금액은 남은 이용 기간에 맞춰 계산합니다.",
  "p.cta": "한 명으로 시작해서 나중에 사람을 더하세요.",
  "p.docs": "팀 가이드 읽기",
  "p.fine.m": "월 단위 청구",

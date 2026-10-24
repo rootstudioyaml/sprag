@@ -101,6 +101,10 @@
   footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
   footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
   footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
   @media(max-width:640px){code{overflow-wrap:anywhere}.steps li,.fcard,.lic{min-width:0;overflow-wrap:anywhere}}
   @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:48px}section.blk{padding-top:64px}}
   @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -118,11 +122,19 @@
   .fcard ul{list-style:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:grid;gap:8px;font-size:13px;color:var(--dim)}
   .fcard .note{margin-top:14px;color:var(--faint);font-size:12.5px}
   @media(max-width:900px){.fgrid{grid-template-columns:1fr}}
-  .steps{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;list-style:none;counter-reset:st}
+  .wgrid{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .wcard{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:20px;min-width:0}
+  .wcard h3{font-size:14px;font-weight:600}
+  .wcard .chips{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+  .wcard .chip{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-family:inherit;font-size:13px;color:var(--ink);background:var(--bg)}
+  .wcard .note{margin-top:12px;color:var(--faint);font-size:12.5px}
+  @media(max-width:900px){.wgrid{grid-template-columns:1fr}}
+  .steps{margin-top:20px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;list-style:none;counter-reset:st}
   .steps li{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:20px;counter-increment:st;color:var(--dim);font-size:13.5px}
   .steps li::before{content:counter(st);display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent-bg);color:var(--accent2);font:500 12px var(--mono);margin-bottom:12px}
   .steps b{display:block;color:var(--ink);font-size:14px;font-weight:600;margin-bottom:6px}
-  @media(max-width:900px){.steps{grid-template-columns:1fr}}
+  @media(max-width:1000px){.steps{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:620px){.steps{grid-template-columns:1fr}}
 </style>
 
 </head>
@@ -161,8 +173,7 @@
       <h1 data-k="p.h1">Sprag is open source, and free to use.</h1>
       <p class="lede" data-k="p.lede">The CLI is released under Apache-2.0. It runs on your machine, needs no account and sends nothing anywhere. If your organization wants the team features too, get in touch and we will set them up.</p>
       <div class="actions">
-        <a class="btn pri" href="/docs/install/" data-k="p.install">Install the CLI</a>
-        <a class="btn" href="mailto:sales@sprag.io?subject=Sprag" data-k="p.contact">Get in touch</a>
+        <a class="btn pri" href="mailto:sales@sprag.io?subject=Sprag" data-k="p.contact">Get in touch</a>
       </div>
     </div>
   </div>
@@ -226,12 +237,33 @@
     </div>
   </section>
 
+  <section class="blk" aria-labelledby="works-h">
+    <h2 id="works-h" data-k="l.w.h">Works with your agents, however you pay for them</h2>
+    <p class="sub" data-k="l.w.sub">The CLI and the team features read the same local session logs, so they work the same way in every setup below.</p>
+    <div class="wgrid">
+      <div class="wcard">
+        <h3 data-k="l.w.a.h">Agents</h3>
+        <div class="chips"><span class="chip">Anthropic Claude Code</span><span class="chip">OpenAI Codex</span></div>
+      </div>
+      <div class="wcard">
+        <h3 data-k="l.w.p.h">First party (1P)</h3>
+        <div class="chips"><span class="chip" data-k="l.w.p.1">Personal subscriptions (Claude Pro and Max, ChatGPT)</span><span class="chip" data-k="l.w.p.2">Anthropic and OpenAI API keys</span></div>
+      </div>
+      <div class="wcard">
+        <h3 data-k="l.w.t.h">Third party (3P)</h3>
+        <div class="chips"><span class="chip">AWS Bedrock</span></div>
+        <p class="note" data-k="l.w.t.note">Gateway model IDs are mapped back to the model, so spend and savings use the right price.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="blk" aria-labelledby="how-h">
     <h2 id="how-h" data-k="l.how.h">How a team gets started</h2>
     <ol class="steps">
-      <li><b data-k="l.s1.h">Write to us</b><span data-k="l.s1">Tell us your organization name and roughly how many people will use it at <a href="mailto:sales@sprag.io">sales@sprag.io</a>.</span></li>
-      <li><b data-k="l.s2.h">We open your organization</b><span data-k="l.s2">Sprag opens the organization and connects the owner's account. The owner signs in at sprag.io/team with an email code.</span></li>
-      <li><b data-k="l.s3.h">Invite the team</b><span data-k="l.s3">The owner creates teams and shares the invite. Each member runs <code>sprag team join</code> once; a machine that joins again keeps its seat.</span></li>
+      <li><b data-k="l.s1.h">Get in touch</b><span data-k="l.s1">Email your organization name and roughly how many people will use it to <a href="mailto:sales@sprag.io">sales@sprag.io</a>, and we will send you an order link.</span></li>
+      <li><b data-k="l.s2.h">Order and pay</b><span data-k="l.s2">On the order link, choose the organization name, owner and admin emails, plan, number of seats and number of months, then pay. Korean cards and bank transfer, overseas cards, and a bank deposit with a tax invoice are supported.</span></li>
+      <li><b data-k="l.s3.h">We open your organization</b><span data-k="l.s3">Once the payment is confirmed, Sprag opens the organization and invites the owner and admins. They sign in at sprag.io/team with an email code.</span></li>
+      <li><b data-k="l.s4.h">Invite the team</b><span data-k="l.s4">The owner creates teams and shares the invite. Each member runs <code>sprag team join</code> once; a machine that joins again keeps its seat.</span></li>
     </ol>
   </section>
 
@@ -279,19 +311,33 @@
     <span>Apache-2.0 © YAML Studio</span>
     <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
   </div>
+  <div class="wrap biz">
+    <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></span></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
+  </div>
 </footer>
 
 <script>
 /* License page: the open-source license, what the CLI and the team features do, and how to get in touch. No plans, prices or contract terms. */
 
 const KO = {
+ 'bz.name': "상호 케이프로샵 (브랜드 YAML Studio)",
+ 'bz.rep': "대표 고주호",
+ 'bz.brn': "사업자등록번호 104-37-62963",
+ 'bz.mo': "통신판매업 신고 제2026-서울관악-1299호",
+ 'bz.addr': "주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)",
+ 'bz.mail': "이메일 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "이용약관",
+ 'bz.priv': "개인정보처리방침",
+ 'bz.refund': "환불정책",
+ 'bz.verify': "사업자정보확인",
+
  "nav.docs": "문서",
  "nav.teams": "팀",
  "nav.license": "라이선스",
  "p.eyebrow": "라이선스",
  "p.h1": "Sprag는 오픈소스이고, 무료로 씁니다",
  "p.lede": "CLI는 Apache-2.0으로 공개되어 있습니다. 내 컴퓨터에서 돌아가고, 계정이 필요 없으며, 어디로도 데이터를 보내지 않습니다. 조직에서 팀 기능도 쓰고 싶다면 연락 주세요. 직접 설정해 드립니다.",
- "p.install": "CLI 설치",
  "p.contact": "문의하기",
  "l.lic.h": "Apache License 2.0",
  "l.lic.p": "회사에서 써도 되고, 고쳐 쓰거나 다른 사람과 나눠도 됩니다. 사본을 나눌 때는 LICENSE와 NOTICE 파일을 함께 두고, 바꾼 부분을 표시해 주세요.",
@@ -326,13 +372,23 @@ const KO = {
  "p.ent.4": "사용자별 프롬프트 목록과 검색",
  "p.ent.5": "모든 멤버에게 보이는 수집 정책",
  "l.f3.note": "조직이 직접 켜기 전에는 꺼져 있습니다.",
+ "l.w.h": "어떤 에이전트, 어떤 결제 방식이든 그대로 씁니다",
+ "l.w.sub": "CLI와 팀 기능 모두 컴퓨터에 남는 세션 기록을 읽기 때문에, 아래 어느 환경에서든 똑같이 동작합니다.",
+ "l.w.a.h": "에이전트",
+ "l.w.p.h": "직접 결제 (1P)",
+ "l.w.p.1": "개인 구독 (Claude Pro·Max, ChatGPT)",
+ "l.w.p.2": "Anthropic·OpenAI API 키",
+ "l.w.t.h": "클라우드 경유 (3P)",
+ "l.w.t.note": "게이트웨이가 붙인 모델 ID도 원래 모델로 되돌려 읽어서, 지출과 절감액을 맞는 가격으로 계산합니다.",
  "l.how.h": "팀 도입은 이렇게 진행됩니다",
- "l.s1.h": "메일로 알려 주세요",
- "l.s1": "조직 이름과 쓰실 대략의 인원을 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 보내 주세요.",
- "l.s2.h": "Sprag가 조직을 열어 드립니다",
- "l.s2": "조직을 개설하고 오너 계정을 연결해 드립니다. 오너는 sprag.io/team 에서 이메일 코드로 로그인합니다.",
- "l.s3.h": "팀원을 초대하세요",
- "l.s3": "오너가 팀을 만들고 초대 토큰을 나눠 줍니다. 팀원은 <code>sprag team join</code> 을 한 번 실행하면 되고, 같은 컴퓨터로 다시 참여해도 좌석은 하나로 유지됩니다.",
+ "l.s1.h": "문의하기",
+ "l.s1": "조직 이름과 대략의 인원을 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 보내 주시면 주문 링크를 보내 드립니다.",
+ "l.s2.h": "주문과 결제",
+ "l.s2": "주문 링크에서 조직명, 오너·관리자 이메일, 플랜, 좌석 수, 이용 개월 수를 정하고 결제합니다. 국내 카드와 계좌이체, 해외 카드, 세금계산서용 계좌 입금을 쓸 수 있습니다.",
+ "l.s3.h": "조직 개설",
+ "l.s3": "결제가 확인되면 Sprag가 조직을 개설하고 오너와 관리자를 초대합니다. 초대받은 분은 sprag.io/team 에서 이메일 코드로 로그인합니다.",
+ "l.s4.h": "팀원을 초대하세요",
+ "l.s4": "오너가 팀을 만들고 초대 토큰을 나눠 줍니다. 팀원은 <code>sprag team join</code> 을 한 번 실행하면 되고, 같은 컴퓨터로 다시 참여해도 좌석은 하나로 유지됩니다.",
  "p.vid.h": "30초로 보는 팀 기능",
  "p.vid.sub": "샘플 데이터를 넣은 데모 대시보드에서 녹화했습니다",
  "p.vid.pro": "지출, 절감액, 좌석, 팀 규칙",

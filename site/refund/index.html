@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Refund Policy | Sprag</title>
+<meta name="description" content="How refunds work for prepaid Sprag team plans: full refund within 14 days, then the months that have not started." />
+<link rel="canonical" href="https://sprag.io/refund/" />
+<meta name="theme-color" content="#0a0a0c" />
+<link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="../assets/logo/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Sprag" />
+<meta property="og:title" content="Refund Policy | Sprag" />
+<meta property="og:description" content="How refunds work for prepaid Sprag team plans: full refund within 14 days, then the months that have not started." />
+<meta property="og:url" content="https://sprag.io/refund/" />
+<meta property="og:image" content="https://sprag.io/assets/og-card.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0a0a0c; --surface:#0f0f12; --surface2:#141418; --hover:rgba(255,255,255,.035);
+    --line:#1f2024; --line2:#2c2d34; --line3:#3a3b44;
+    --ink:#ececef; --dim:#9b9da6; --faint:#686a74;
+    --accent:#5e6ad2; --accent2:#8a94f2; --accent-bg:rgba(94,106,210,.14); --ok:#3fd48f;
+    --sans:"Geist","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"Geist Mono","JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r:6px; --rl:10px; --ease:cubic-bezier(.23,1,.32,1); --bar-h:52px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg);scroll-behavior:smooth}
+  h1,h2,h3{text-wrap:balance}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow-x:hidden}
+  html[lang=ko] body{word-break:keep-all;line-height:1.65}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+  code{font-family:var(--mono);font-size:.88em;color:var(--ink)}
+  :focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:4px}
+  ::selection{background:rgba(94,106,210,.4)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(10,10,12,.88);backdrop-filter:blur(14px)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;min-height:var(--bar-h)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .brand svg{width:20px;height:20px;display:block}
+  header nav{display:flex;align-items:center;gap:2px;font-size:13px;font-weight:500;color:var(--dim)}
+  header nav > a{padding:6px 10px;border-radius:var(--r);transition:color .15s var(--ease),background .15s var(--ease)}
+  header nav > a:hover{color:var(--ink);background:var(--hover)}
+  header nav > a[aria-current]{color:var(--ink);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
+  .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px;margin-left:12px}
+  .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+  .lang button:hover{color:var(--dim)}
+  .lang button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent2)}
+  @media(max-width:720px){header nav .hide-sm{display:none}}
+  @media(hover:none) and (pointer:coarse){.lang button{padding:8px 10px}}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;border:1px solid var(--line2);border-radius:var(--r);font-size:13px;font-weight:500;line-height:1;white-space:nowrap;color:var(--ink);background:var(--surface2);transition:border-color .15s var(--ease),background .15s var(--ease),transform .12s var(--ease)}
+  .btn:hover{border-color:var(--line3);background:#1a1a20}
+  .btn:active{transform:scale(.98)}
+  .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.pri:hover{background:#6d79e0;border-color:#6d79e0}
+  @media(hover:none) and (pointer:coarse){.btn{min-height:40px}}
+
+  .hero{padding:72px 0 0;display:flex;align-items:flex-end;justify-content:space-between;gap:24px 40px;flex-wrap:wrap}
+  .eyebrow{font:500 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent2)}
+  html[lang=ko] .eyebrow{font-family:var(--sans);letter-spacing:.02em;text-transform:none;font-size:12.5px}
+  h1{margin-top:16px;font-size:clamp(32px,5vw,50px);font-weight:600;letter-spacing:-.035em;line-height:1.1;max-width:18ch}
+  .lede{margin-top:16px;color:var(--dim);font-size:16px;max-width:52ch;text-wrap:balance}
+  .chip{font:500 11px/1.4 var(--mono);color:var(--ok);padding:0 5px;border:1px solid rgba(63,212,143,.35);border-radius:4px}
+
+  section.blk{padding-top:88px}
+  section.blk > h2{font-size:24px;font-weight:600;letter-spacing:-.025em}
+  section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:60ch}
+
+  .vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px}
+  .vcard video{display:block;width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:var(--rl);background:#000}
+  .vcard figcaption{display:flex;align-items:baseline;gap:10px;margin-top:10px;font-size:13px;color:var(--dim)}
+  .vcard figcaption b{color:var(--ink);font-weight:600;flex:0 0 auto}
+  @media(max-width:720px){.vgrid{grid-template-columns:1fr}}
+
+  .faqs{margin-top:24px}
+  .faq-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;border-top:1px solid var(--line)}
+  .faqs details{border-bottom:1px solid var(--line)}
+  .faqs summary{cursor:pointer;padding:16px 0;font-size:14px;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px;transition:color .15s var(--ease)}
+  .faqs summary::-webkit-details-marker{display:none}
+  .faqs summary::after{content:"+";color:var(--faint);font-family:var(--mono);font-size:15px;flex:0 0 auto}
+  .faqs details[open] summary::after{content:"\2212"}
+  .faqs summary:hover{color:var(--accent2)}
+  .faqs p{padding:0 0 18px;color:var(--dim);font-size:13.5px;line-height:1.7}
+  .faqs p a{color:var(--accent2)}
+  @media(max-width:860px){.faq-grid{grid-template-columns:1fr}}
+
+  .cta{margin-top:96px;border-top:1px solid var(--line);padding:56px 0 72px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .cta h2{font-size:24px;font-weight:600;letter-spacing:-.025em;max-width:22ch}
+  .cta .actions{display:flex;gap:8px;flex-wrap:wrap}
+  footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
+  footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
+  @media(max-width:640px){code{overflow-wrap:anywhere}.steps li,.fcard,.lic{min-width:0;overflow-wrap:anywhere}}
+  @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:48px}section.blk{padding-top:64px}}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+    .doc{max-width:78ch;padding:56px 0 24px;counter-reset:sec}
+  .doc h1{margin-top:12px;font-size:clamp(28px,4.4vw,40px);max-width:none}
+  .doc .eff{margin-top:12px;font:500 12.5px/1.4 var(--mono);color:var(--faint)}
+  html[lang=ko] .doc .eff{font-family:var(--sans)}
+  .doc .lede{max-width:none}
+  .doc h2{margin-top:44px;font-size:18px;font-weight:600;letter-spacing:-.02em;counter-increment:sec}
+  .doc h2::before{content:counter(sec) ". ";color:var(--accent2)}
+  .doc p,.doc li{margin-top:10px;color:var(--dim);font-size:14px;line-height:1.75}
+  .doc ul{list-style:none;display:grid;gap:0}
+  .doc li{padding-left:16px;position:relative}
+  .doc li::before{content:"";position:absolute;left:3px;top:.95em;width:4px;height:4px;border-radius:50%;background:var(--line3)}
+  .doc a{color:var(--accent2)}
+  .doc a:hover{text-decoration:underline}
+  .tbl{margin-top:14px;overflow-x:auto;border:1px solid var(--line);border-radius:var(--rl)}
+  .tbl table{border-collapse:collapse;width:100%;min-width:720px;font-size:13px}
+  .tbl th,.tbl td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);color:var(--dim);line-height:1.6}
+  .tbl th{color:var(--ink);font-weight:600;background:var(--surface);white-space:nowrap}
+  .tbl tr:last-child td{border-bottom:0}
+  .doc .back{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
+  @media(max-width:520px){.doc{padding-top:40px}}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
+        <g fill="#5e6ad2">
+          <rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/>
+          <g transform="rotate(120 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+          <g transform="rotate(240 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+        </g>
+        <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4"/>
+      </svg>
+      Sprag
+    </a>
+    <nav>
+      <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a class="hide-sm" href="/team/" data-k="nav.teams">Teams</a>
+      <a href="/license/" data-k="nav.license">License</a>
+      <span class="lang" role="group" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="ko" aria-pressed="false">KO</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+ <article class="doc">
+  <div class="eyebrow" data-k="t.eyebrow">Legal</div>
+  <h1 data-k="t.h1">Refund Policy</h1>
+  <p class="eff" data-k="t.eff">Effective 2026-11-01</p>
+  <p class="lede" data-k="t.lede">This policy covers the prepaid team plans of Sprag. The free CLI has nothing to refund.</p>
+  <h2 data-k="k1">Within 14 days of payment</h2>
+  <p data-k="k2">If you ask within 14 days of payment, we refund the full amount, whether or not you have used the service.</p>
+  <h2 data-k="k3">After 14 days</h2>
+  <p data-k="k4">After 14 days, we refund every month of the term that has not started yet. The month in progress is not refunded.</p>
+  <h2 data-k="k5">Reducing seats</h2>
+  <p data-k="k6">If you reduce the number of seats during the term, the difference is not refunded. The new number applies from your next order.</p>
+  <h2 data-k="k7">How to ask for a refund</h2>
+  <ul>
+    <li data-k="k8">Email <a href="mailto:sales@sprag.io">sales@sprag.io</a> with your organization name and payment details.</li>
+    <li data-k="k9">We process the request within 3 business days and refund to the payment method you used. Depending on the card issuer or bank, it can take a few more days to show up.</li>
+    <li data-k="k10">If you paid through Paddle, Paddle processes the refund. You can also ask for it at <a href="https://paddle.net" target="_blank" rel="noopener">paddle.net</a>.</li>
+  </ul>
+  <h2 data-k="k11">Your legal rights</h2>
+  <p data-k="k12">Nothing in this policy limits your right to withdraw from a contract under the law. See also the <a href="/terms/">Terms of Service</a>.</p>
+  <p class="back" data-k="t.back">Questions: <a href="mailto:sales@sprag.io">sales@sprag.io</a></p>
+ </article>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Apache-2.0 © YAML Studio</span>
+    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+  </div>
+  <div class="wrap biz">
+    <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></span></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
+  </div>
+</footer>
+
+<script>
+/* Legal page: English is the markup, Korean lives in KO. Same language switch as the license page. */
+const KO = {
+ "t.eyebrow": "약관과 정책",
+ "k1": "결제 후 14일 이내",
+ "k2": "결제 후 14일 이내에 요청하면 서비스를 썼는지와 관계없이 전액 환불합니다.",
+ "k3": "14일이 지난 뒤",
+ "k4": "14일이 지나면 아직 시작하지 않은 남은 개월 수만큼 환불합니다. 진행 중인 달은 환불하지 않습니다.",
+ "k5": "좌석을 줄일 때",
+ "k6": "이용 기간 중에 좌석을 줄여도 차액은 환불하지 않습니다. 줄인 좌석 수는 다음 주문부터 반영합니다.",
+ "k7": "환불 신청 방법",
+ "k8": "조직명과 결제 정보를 적어 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 보내 주세요.",
+ "k9": "영업일 기준 3일 안에 처리하고, 결제하신 수단으로 환불합니다. 카드사나 은행 사정에 따라 반영되기까지 며칠 더 걸릴 수 있습니다.",
+ "k10": "Paddle로 결제한 경우 환불은 Paddle이 처리합니다. <a href=\"https://paddle.net\" target=\"_blank\" rel=\"noopener\">paddle.net</a>에서도 신청할 수 있습니다.",
+ "k11": "법령상의 권리",
+ "k12": "이 정책은 법령에 따른 청약철회 권리를 제한하지 않습니다. <a href=\"/terms/\">이용약관</a>도 함께 확인해 주세요.",
+ "t.h1": "환불정책",
+ "t.lede": "이 정책은 선불로 결제하는 Sprag 팀 플랜에 적용됩니다. 무료 CLI에는 환불할 금액이 없습니다.",
+ "t.eff": "시행일 2026-11-01",
+ "t.back": "문의: <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.name': "상호 케이프로샵 (브랜드 YAML Studio)",
+ 'bz.rep': "대표 고주호",
+ 'bz.brn': "사업자등록번호 104-37-62963",
+ 'bz.mo': "통신판매업 신고 제2026-서울관악-1299호",
+ 'bz.addr': "주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)",
+ 'bz.mail': "이메일 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "이용약관",
+ 'bz.priv': "개인정보처리방침",
+ 'bz.refund': "환불정책",
+ 'bz.verify': "사업자정보확인",
+};
+const EN = {};
+document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
+const META = {
+  en: { title:'Refund Policy | Sprag', desc: document.querySelector('meta[name=description]').content },
+  ko: { title:'환불정책 | Sprag', desc:"선불로 결제한 Sprag 팀 플랜의 환불 기준입니다. 14일 이내 전액 환불, 이후에는 시작하지 않은 달만큼 환불합니다." }
+};
+let lang = 'en';
+function setLang(next, remember){
+  lang = next === 'ko' ? 'ko' : 'en';
+  document.documentElement.lang = lang;
+  document.title = META[lang].title;
+  document.querySelector('meta[name=description]').content = META[lang].desc;
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  if(remember){ try{ localStorage.setItem('sprag.lang', lang); }catch(e){} }
+  const dict = lang === 'ko' ? KO : EN;
+  document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.innerHTML = v; });
+}
+(function(){
+  const q = new URLSearchParams(location.search).get('lang');
+  let stored = null; try{ stored = localStorage.getItem('sprag.lang'); }catch(e){}
+  const nav = (navigator.languages || [navigator.language || 'en']).join(',');
+  setLang(q || stored || (/\bko\b|ko-/i.test(nav) ? 'ko' : 'en'), false);
+})();
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+</script>
+</body>
+</html>

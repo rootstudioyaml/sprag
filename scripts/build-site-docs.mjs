@@ -408,6 +408,10 @@ function styleBlock() {
   footer{border-top:1px solid var(--line);padding:36px 0 56px;color:var(--faint);font-size:13px}
   footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
   footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
 
   main.doc{max-width:78ch;margin:0 auto;padding:48px 24px 96px}
   main.doc h1,main.doc h2,main.doc h3,main.doc h4{scroll-margin-top:72px}
@@ -529,11 +533,42 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
 </header>`;
 }
 
-function footerHtml() {
+const BIZ_FTC = 'https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963';
+const BIZ_INFO = {
+  en: [
+    'YAML Studio (케이프로샵)',
+    'Representative: 고주호',
+    'Business registration no. 104-37-62963',
+    'Mail-order business registration 2026-Seoul Gwanak-1299',
+    '3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea',
+    'Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a>',
+  ],
+  ko: [
+    '상호 케이프로샵 (브랜드 YAML Studio)',
+    '대표 고주호',
+    '사업자등록번호 104-37-62963',
+    '통신판매업 신고 제2026-서울관악-1299호',
+    '주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)',
+    '이메일 <a href="mailto:sales@sprag.io">sales@sprag.io</a>',
+  ],
+};
+const BIZ_LINKS = {
+  en: ['Terms of Service', 'Privacy Policy', 'Refund Policy', 'Verify business info'],
+  ko: ['이용약관', '개인정보처리방침', '환불정책', '사업자정보확인'],
+};
+
+function footerHtml(lang = 'en') {
+  const l = lang === 'ko' ? 'ko' : 'en';
+  const info = BIZ_INFO[l].map((t) => `<span>${t}</span>`).join(' · ');
+  const [terms, privacy, refund, verify] = BIZ_LINKS[l];
   return `<footer>
   <div class="wrap">
     <span>Apache-2.0 © YAML Studio</span>
     <span><a href="/docs/">Docs</a> · <a href="${REPO}">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="${REPO}/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
+  </div>
+  <div class="wrap biz">
+    <p>${info}</p>
+    <p><a href="/terms/">${terms}</a> · <a href="/privacy/" class="strong">${privacy}</a> · <a href="/refund/">${refund}</a> · <a href="${BIZ_FTC}" target="_blank" rel="noopener">${verify}</a></p>
   </div>
 </footer>`;
 }
@@ -590,7 +625,7 @@ ${headerHtml({ lang, docsHref, hasKo, enUrl, koUrl })}
     </ul>
   </section>
 </main>
-${footerHtml()}
+${footerHtml(lang)}
 </body>
 </html>
 `;
@@ -644,7 +679,7 @@ ${headerHtml({ lang, docsHref, hasKo: true, enUrl: `${SITE_ORIGIN}/docs/`, koUrl
       ${cards}
   </div>
 </main>
-${footerHtml()}
+${footerHtml(lang)}
 </body>
 </html>
 `;
@@ -669,6 +704,17 @@ function buildSitemap(entries) {
     <loc>${SITE_ORIGIN}/docs/ko/</loc>
     <priority>0.7</priority>
   </url>`);
+  // Legal pages (hand-written, bilingual in-page): payment providers and the
+  // e-commerce act expect them to be discoverable.
+  for (const slug of ['terms', 'privacy', 'refund']) {
+    urls.push(`  <url>
+    <loc>${SITE_ORIGIN}/${slug}/</loc>
+    <lastmod>2026-11-01</lastmod>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="${SITE_ORIGIN}/${slug}/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="${SITE_ORIGIN}/${slug}/?lang=ko"/>
+  </url>`);
+  }
   // site/team/ and site/pricing/ stay out of the sitemap until the team plan
   // launches; they are reachable by URL only (both carry noindex). Hidden
   // manifest entries (docs/team) stay out for the same reason.

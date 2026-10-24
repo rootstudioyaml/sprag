@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy Policy | Sprag</title>
+<meta name="description" content="What personal data Sprag collects for paid team features and orders, why, how long it is kept, who processes it, and your rights." />
+<link rel="canonical" href="https://sprag.io/privacy/" />
+<meta name="theme-color" content="#0a0a0c" />
+<link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="../assets/logo/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Sprag" />
+<meta property="og:title" content="Privacy Policy | Sprag" />
+<meta property="og:description" content="What personal data Sprag collects for paid team features and orders, why, how long it is kept, who processes it, and your rights." />
+<meta property="og:url" content="https://sprag.io/privacy/" />
+<meta property="og:image" content="https://sprag.io/assets/og-card.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0a0a0c; --surface:#0f0f12; --surface2:#141418; --hover:rgba(255,255,255,.035);
+    --line:#1f2024; --line2:#2c2d34; --line3:#3a3b44;
+    --ink:#ececef; --dim:#9b9da6; --faint:#686a74;
+    --accent:#5e6ad2; --accent2:#8a94f2; --accent-bg:rgba(94,106,210,.14); --ok:#3fd48f;
+    --sans:"Geist","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"Geist Mono","JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r:6px; --rl:10px; --ease:cubic-bezier(.23,1,.32,1); --bar-h:52px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg);scroll-behavior:smooth}
+  h1,h2,h3{text-wrap:balance}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow-x:hidden}
+  html[lang=ko] body{word-break:keep-all;line-height:1.65}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+  code{font-family:var(--mono);font-size:.88em;color:var(--ink)}
+  :focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:4px}
+  ::selection{background:rgba(94,106,210,.4)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(10,10,12,.88);backdrop-filter:blur(14px)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;min-height:var(--bar-h)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .brand svg{width:20px;height:20px;display:block}
+  header nav{display:flex;align-items:center;gap:2px;font-size:13px;font-weight:500;color:var(--dim)}
+  header nav > a{padding:6px 10px;border-radius:var(--r);transition:color .15s var(--ease),background .15s var(--ease)}
+  header nav > a:hover{color:var(--ink);background:var(--hover)}
+  header nav > a[aria-current]{color:var(--ink);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
+  .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px;margin-left:12px}
+  .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+  .lang button:hover{color:var(--dim)}
+  .lang button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent2)}
+  @media(max-width:720px){header nav .hide-sm{display:none}}
+  @media(hover:none) and (pointer:coarse){.lang button{padding:8px 10px}}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;border:1px solid var(--line2);border-radius:var(--r);font-size:13px;font-weight:500;line-height:1;white-space:nowrap;color:var(--ink);background:var(--surface2);transition:border-color .15s var(--ease),background .15s var(--ease),transform .12s var(--ease)}
+  .btn:hover{border-color:var(--line3);background:#1a1a20}
+  .btn:active{transform:scale(.98)}
+  .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.pri:hover{background:#6d79e0;border-color:#6d79e0}
+  @media(hover:none) and (pointer:coarse){.btn{min-height:40px}}
+
+  .hero{padding:72px 0 0;display:flex;align-items:flex-end;justify-content:space-between;gap:24px 40px;flex-wrap:wrap}
+  .eyebrow{font:500 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent2)}
+  html[lang=ko] .eyebrow{font-family:var(--sans);letter-spacing:.02em;text-transform:none;font-size:12.5px}
+  h1{margin-top:16px;font-size:clamp(32px,5vw,50px);font-weight:600;letter-spacing:-.035em;line-height:1.1;max-width:18ch}
+  .lede{margin-top:16px;color:var(--dim);font-size:16px;max-width:52ch;text-wrap:balance}
+  .chip{font:500 11px/1.4 var(--mono);color:var(--ok);padding:0 5px;border:1px solid rgba(63,212,143,.35);border-radius:4px}
+
+  section.blk{padding-top:88px}
+  section.blk > h2{font-size:24px;font-weight:600;letter-spacing:-.025em}
+  section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:60ch}
+
+  .vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px}
+  .vcard video{display:block;width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:var(--rl);background:#000}
+  .vcard figcaption{display:flex;align-items:baseline;gap:10px;margin-top:10px;font-size:13px;color:var(--dim)}
+  .vcard figcaption b{color:var(--ink);font-weight:600;flex:0 0 auto}
+  @media(max-width:720px){.vgrid{grid-template-columns:1fr}}
+
+  .faqs{margin-top:24px}
+  .faq-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;border-top:1px solid var(--line)}
+  .faqs details{border-bottom:1px solid var(--line)}
+  .faqs summary{cursor:pointer;padding:16px 0;font-size:14px;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px;transition:color .15s var(--ease)}
+  .faqs summary::-webkit-details-marker{display:none}
+  .faqs summary::after{content:"+";color:var(--faint);font-family:var(--mono);font-size:15px;flex:0 0 auto}
+  .faqs details[open] summary::after{content:"\2212"}
+  .faqs summary:hover{color:var(--accent2)}
+  .faqs p{padding:0 0 18px;color:var(--dim);font-size:13.5px;line-height:1.7}
+  .faqs p a{color:var(--accent2)}
+  @media(max-width:860px){.faq-grid{grid-template-columns:1fr}}
+
+  .cta{margin-top:96px;border-top:1px solid var(--line);padding:56px 0 72px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .cta h2{font-size:24px;font-weight:600;letter-spacing:-.025em;max-width:22ch}
+  .cta .actions{display:flex;gap:8px;flex-wrap:wrap}
+  footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
+  footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
+  @media(max-width:640px){code{overflow-wrap:anywhere}.steps li,.fcard,.lic{min-width:0;overflow-wrap:anywhere}}
+  @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:48px}section.blk{padding-top:64px}}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+    .doc{max-width:78ch;padding:56px 0 24px;counter-reset:sec}
+  .doc h1{margin-top:12px;font-size:clamp(28px,4.4vw,40px);max-width:none}
+  .doc .eff{margin-top:12px;font:500 12.5px/1.4 var(--mono);color:var(--faint)}
+  html[lang=ko] .doc .eff{font-family:var(--sans)}
+  .doc .lede{max-width:none}
+  .doc h2{margin-top:44px;font-size:18px;font-weight:600;letter-spacing:-.02em;counter-increment:sec}
+  .doc h2::before{content:counter(sec) ". ";color:var(--accent2)}
+  .doc p,.doc li{margin-top:10px;color:var(--dim);font-size:14px;line-height:1.75}
+  .doc ul{list-style:none;display:grid;gap:0}
+  .doc li{padding-left:16px;position:relative}
+  .doc li::before{content:"";position:absolute;left:3px;top:.95em;width:4px;height:4px;border-radius:50%;background:var(--line3)}
+  .doc a{color:var(--accent2)}
+  .doc a:hover{text-decoration:underline}
+  .tbl{margin-top:14px;overflow-x:auto;border:1px solid var(--line);border-radius:var(--rl)}
+  .tbl table{border-collapse:collapse;width:100%;min-width:720px;font-size:13px}
+  .tbl th,.tbl td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);color:var(--dim);line-height:1.6}
+  .tbl th{color:var(--ink);font-weight:600;background:var(--surface);white-space:nowrap}
+  .tbl tr:last-child td{border-bottom:0}
+  .doc .back{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
+  @media(max-width:520px){.doc{padding-top:40px}}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
+        <g fill="#5e6ad2">
+          <rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/>
+          <g transform="rotate(120 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+          <g transform="rotate(240 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+        </g>
+        <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4"/>
+      </svg>
+      Sprag
+    </a>
+    <nav>
+      <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a class="hide-sm" href="/team/" data-k="nav.teams">Teams</a>
+      <a href="/license/" data-k="nav.license">License</a>
+      <span class="lang" role="group" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="ko" aria-pressed="false">KO</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+ <article class="doc">
+  <div class="eyebrow" data-k="t.eyebrow">Legal</div>
+  <h1 data-k="t.h1">Privacy Policy</h1>
+  <p class="eff" data-k="t.eff">Effective 2026-11-01</p>
+  <p class="lede" data-k="t.lede">This policy covers the paid team features at sprag.io and the orders for them.</p>
+  <h2 data-k="k1">Scope</h2>
+  <ul>
+    <li data-k="k2">The free Sprag CLI on its own sends nothing and needs no account. Every place the CLI can reach over the network is listed in the <a href="/docs/install/#network-access">network access table</a>.</li>
+    <li data-k="k3">This policy applies to the paid team features, the pages at sprag.io, and orders for the paid plans.</li>
+  </ul>
+  <h2 data-k="k4">What we collect</h2>
+  <ul>
+    <li data-k="k5">Orders: organization name, owner and admin emails, the payer's name and email, and business details for a tax invoice (for bank deposit payments). Card numbers and other payment details are handled by the payment provider, and Sprag does not store them.</li>
+    <li data-k="k6">Sign-in: the owner or admin email.</li>
+    <li data-k="k7">Team sync, from computers that joined a team: display name, OS name and version, CPU architecture, Sprag version, daily totals of spend, savings and delegated runs, and the share of each model family. Host names, user names and file paths are not sent.</li>
+    <li data-k="k8">Prompt capture, only on Enterprise and only when the organization turns it on: for prompts a person typed themselves, the time, the project folder name and the text (up to 20,000 characters, with values that look like tokens or keys masked).</li>
+  </ul>
+  <h2 data-k="k9">Why we use it</h2>
+  <ul>
+    <li data-k="k10">To take and fulfill orders, handle payment and issue tax invoices.</li>
+    <li data-k="k11">To open organizations, sign people in and show the team dashboard.</li>
+    <li data-k="k12">To answer questions and requests, and to meet legal duties.</li>
+  </ul>
+  <h2 data-k="k13">How long we keep it</h2>
+  <ul>
+    <li data-k="k14">Organization data is deleted within 30 days after the organization is closed.</li>
+    <li data-k="k15">Contract and payment records are kept for 5 years, and consumer complaint and dispute records for 3 years, as the Act on Consumer Protection in Electronic Commerce requires.</li>
+    <li data-k="k16">We do not sell personal data, and we share it only with the processors below or where the law requires.</li>
+  </ul>
+  <h2 data-k="k17">Processors and overseas transfer</h2>
+  <div class="tbl"><table>
+      <thead><tr><th scope="col" data-k="k18">Recipient</th><th scope="col" data-k="k19">Country</th><th scope="col" data-k="k20">Items</th><th scope="col" data-k="k21">Purpose</th><th scope="col" data-k="k22">Retention</th><th scope="col" data-k="k23">If you refuse</th></tr></thead>
+      <tbody>
+      <tr><td data-k="k24">Supabase Inc.</td><td data-k="k25">United States (the company). Data is stored in Seoul, South Korea (ap-northeast-2).</td><td data-k="k26">Sign-in email, organization data, team sync data and, if turned on, captured prompts</td><td data-k="k27">Database and authentication</td><td data-k="k28">Until 30 days after the organization is closed</td><td data-k="k29">The team features cannot be used without it.</td></tr>
+      <tr><td data-k="k30">Toss Payments Co., Ltd.</td><td data-k="k31">South Korea (domestic)</td><td data-k="k32">Payer name, email and payment details</td><td data-k="k33">Payments in Korea</td><td data-k="k34">Payment records for 5 years</td><td data-k="k35">Pay by bank deposit or through Paddle instead.</td></tr>
+      <tr><td data-k="k36r">Resend, Inc.</td><td data-k="k37r">United States</td><td data-k="k38r">Sign-in email address</td><td data-k="k39r">Sending sign-in code emails</td><td data-k="k40r">Until the email is delivered, then as Resend's own retention policy states</td><td data-k="k41r">You cannot sign in to the team dashboard without it.</td></tr>
+      <tr><td data-k="k36">Paddle.com Market Ltd</td><td data-k="k37">United Kingdom</td><td data-k="k38">Payer name, email, payment details and tax information</td><td data-k="k39">Overseas payment and sales as the Merchant of Record</td><td data-k="k40">As the law requires and as Paddle's own privacy notice states</td><td data-k="k41">Overseas payment becomes unavailable. Pay in Korea or by bank deposit instead.</td></tr>
+      </tbody>
+    </table></div>
+  <h2 data-k="k42">Your rights</h2>
+  <p data-k="k43">You can ask to see, correct, delete or stop the processing of your personal data. Write to <a href="mailto:sales@sprag.io">sales@sprag.io</a> and we will handle the request without delay.</p>
+  <h2 data-k="k44">How we destroy data</h2>
+  <p data-k="k45">When the retention period ends or the purpose is fulfilled, we delete the data in a way that cannot be restored. Records we must keep by law are kept separately until that period ends.</p>
+  <h2 data-k="k46">Cookies and similar tools</h2>
+  <ul>
+    <li data-k="k47">sprag.io has no advertising cookies and no analytics scripts, and the site does not set cookies of its own.</li>
+    <li data-k="k48">Your browser's local storage keeps your language choice and, after you sign in at sprag.io/team, the sign-in session.</li>
+    <li data-k="k49">Pages load fonts from Google Fonts, and the dashboard pages load a script from jsDelivr, so those providers see your IP address as in any web request.</li>
+  </ul>
+  <h2 data-k="k50">Security measures</h2>
+  <ul>
+    <li data-k="k51">Data is encrypted in transit.</li>
+    <li data-k="k52">Row-level access control in the database limits each person to the data of their own organization.</li>
+    <li data-k="k53">We collect only what the service needs.</li>
+  </ul>
+  <h2 data-k="k54">Privacy officer</h2>
+  <p data-k="k55">Name: 고주호. Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></p>
+  <h2 data-k="k56">Changes to this policy</h2>
+  <p data-k="k57">If we change this policy, we post the new version on this page with its effective date before it takes effect.</p>
+  <p class="back" data-k="t.back">Questions: <a href="mailto:sales@sprag.io">sales@sprag.io</a></p>
+ </article>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Apache-2.0 © YAML Studio</span>
+    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+  </div>
+  <div class="wrap biz">
+    <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></span></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
+  </div>
+</footer>
+
+<script>
+/* Legal page: English is the markup, Korean lives in KO. Same language switch as the license page. */
+const KO = {
+ "t.eyebrow": "약관과 정책",
+ "k1": "적용 범위",
+ "k2": "무료 Sprag CLI만 쓰면 아무것도 보내지 않고 계정도 필요 없습니다. CLI가 네트워크로 접속할 수 있는 곳은 모두 <a href=\"/docs/ko/install/#네트워크-접근\">네트워크 접속 표</a>에 정리되어 있습니다.",
+ "k3": "이 정책은 유료 팀 기능, sprag.io의 페이지, 유료 플랜 주문에 적용됩니다.",
+ "k4": "수집하는 항목",
+ "k5": "주문: 조직명, 오너·관리자 이메일, 결제자 이름과 이메일, 세금계산서에 쓸 사업자 정보(계좌 입금 결제 시). 카드 번호 같은 결제 수단 정보는 결제사가 처리하며 Sprag은 저장하지 않습니다.",
+ "k6": "로그인: 오너·관리자 이메일.",
+ "k7": "팀 동기화(팀에 참여한 컴퓨터): 표시 이름, OS 이름과 버전, CPU 아키텍처, Sprag 버전, 하루 단위 지출·절감·위임 집계, 모델 계열별 비중. 호스트 이름, 사용자 이름, 파일 경로는 보내지 않습니다.",
+ "k8": "프롬프트 수집(Enterprise에서 조직이 켠 경우에만): 직접 입력한 프롬프트의 시각, 프로젝트 폴더 이름, 본문(최대 20,000자, 토큰이나 키처럼 보이는 값은 가림).",
+ "k9": "이용 목적",
+ "k10": "주문을 받아 이행하고, 결제와 세금계산서 발행을 처리합니다.",
+ "k11": "조직을 개설하고, 로그인을 처리하고, 팀 대시보드를 보여 줍니다.",
+ "k12": "문의와 요청에 답하고, 법령상의 의무를 이행합니다.",
+ "k13": "보관 기간",
+ "k14": "조직 데이터는 조직을 해지한 뒤 30일 안에 삭제합니다.",
+ "k15": "전자상거래법에 따라 계약·결제 기록은 5년, 소비자 불만·분쟁 처리 기록은 3년 보관합니다.",
+ "k16": "개인정보를 판매하지 않으며, 아래 처리 위탁 업체나 법령이 요구하는 경우가 아니면 제3자에게 제공하지 않습니다.",
+ "k17": "처리 위탁과 국외 이전",
+ "k18": "수탁자",
+ "k19": "이전 국가",
+ "k20": "항목",
+ "k21": "목적",
+ "k22": "보유 기간",
+ "k23": "거부 방법",
+ "k24": "Supabase Inc.",
+ "k25": "미국(회사 소재지). 데이터는 대한민국 서울(ap-northeast-2)에 저장됩니다.",
+ "k26": "로그인 이메일, 조직 데이터, 팀 동기화 데이터, 켠 경우 수집된 프롬프트",
+ "k27": "데이터베이스와 인증",
+ "k28": "조직 해지 후 30일까지",
+ "k29": "거부하면 팀 기능을 쓸 수 없습니다.",
+ "k30": "토스페이먼츠(주)",
+ "k31": "대한민국(국내 처리)",
+ "k32": "결제자 이름, 이메일, 결제 정보",
+ "k33": "국내 결제",
+ "k34": "결제 기록은 5년",
+ "k35": "계좌 입금이나 Paddle 결제로 바꿀 수 있습니다.",
+ "k36r": "Resend, Inc.",
+ "k37r": "미국",
+ "k38r": "로그인 이메일 주소",
+ "k39r": "로그인 코드 메일 발송",
+ "k40r": "메일 전송까지, 이후는 Resend의 보관 정책에 따름",
+ "k41r": "팀 대시보드에 로그인할 수 없습니다.",
+ "k36": "Paddle.com Market Ltd",
+ "k37": "영국",
+ "k38": "결제자 이름, 이메일, 결제 정보, 세금 정보",
+ "k39": "해외 결제와 판매 대행(Merchant of Record)",
+ "k40": "법령이 정한 기간과 Paddle의 개인정보 안내에 따름",
+ "k41": "해외 결제는 쓸 수 없게 됩니다. 국내 결제나 계좌 입금으로 대신할 수 있습니다.",
+ "k42": "이용자의 권리",
+ "k43": "본인의 개인정보를 열람, 정정, 삭제하거나 처리를 멈추도록 요청할 수 있습니다. <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 보내 주시면 지체 없이 처리합니다.",
+ "k44": "파기 절차",
+ "k45": "보관 기간이 끝나거나 목적을 달성하면 복구할 수 없는 방법으로 삭제합니다. 법령에 따라 보관해야 하는 기록은 그 기간이 끝날 때까지 따로 보관합니다.",
+ "k46": "쿠키 등",
+ "k47": "sprag.io에는 광고 쿠키와 분석 스크립트가 없고, 사이트가 직접 설정하는 쿠키도 없습니다.",
+ "k48": "브라우저의 로컬 저장소에 언어 선택이 저장되고, sprag.io/team 에 로그인하면 로그인 세션도 저장됩니다.",
+ "k49": "페이지는 Google Fonts에서 글꼴을 불러오고 대시보드 페이지는 jsDelivr에서 스크립트를 불러옵니다. 그래서 일반적인 웹 요청처럼 해당 업체에 IP 주소가 전달됩니다.",
+ "k50": "안전성 확보 조치",
+ "k51": "전송 구간을 암호화합니다.",
+ "k52": "데이터베이스의 행 단위 접근 제어로 각자 자기 조직의 데이터만 볼 수 있게 합니다.",
+ "k53": "서비스에 필요한 항목만 수집합니다.",
+ "k54": "개인정보 보호책임자",
+ "k55": "성명: 고주호. 이메일: <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ "k56": "방침의 변경",
+ "k57": "이 방침을 바꾸면 시행 전에 새 내용과 시행일을 이 페이지에 게시합니다.",
+ "t.h1": "개인정보처리방침",
+ "t.lede": "이 정책은 sprag.io의 유료 팀 기능과 그 주문에 적용됩니다.",
+ "t.eff": "시행일 2026-11-01",
+ "t.back": "문의: <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.name': "상호 케이프로샵 (브랜드 YAML Studio)",
+ 'bz.rep': "대표 고주호",
+ 'bz.brn': "사업자등록번호 104-37-62963",
+ 'bz.mo': "통신판매업 신고 제2026-서울관악-1299호",
+ 'bz.addr': "주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)",
+ 'bz.mail': "이메일 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "이용약관",
+ 'bz.priv': "개인정보처리방침",
+ 'bz.refund': "환불정책",
+ 'bz.verify': "사업자정보확인",
+};
+const EN = {};
+document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
+const META = {
+  en: { title:'Privacy Policy | Sprag', desc: document.querySelector('meta[name=description]').content },
+  ko: { title:'개인정보처리방침 | Sprag', desc:"Sprag 유료 팀 기능과 주문에서 수집하는 개인정보의 항목, 목적, 보관 기간, 처리 위탁과 국외 이전, 이용자의 권리를 안내합니다." }
+};
+let lang = 'en';
+function setLang(next, remember){
+  lang = next === 'ko' ? 'ko' : 'en';
+  document.documentElement.lang = lang;
+  document.title = META[lang].title;
+  document.querySelector('meta[name=description]').content = META[lang].desc;
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  if(remember){ try{ localStorage.setItem('sprag.lang', lang); }catch(e){} }
+  const dict = lang === 'ko' ? KO : EN;
+  document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.innerHTML = v; });
+}
+(function(){
+  const q = new URLSearchParams(location.search).get('lang');
+  let stored = null; try{ stored = localStorage.getItem('sprag.lang'); }catch(e){}
+  const nav = (navigator.languages || [navigator.language || 'en']).join(',');
+  setLang(q || stored || (/\bko\b|ko-/i.test(nav) ? 'ko' : 'en'), false);
+})();
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+</script>
+</body>
+</html>

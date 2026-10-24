@@ -432,6 +432,10 @@
   footer{border-top:1px solid var(--line);padding:36px 0 56px;color:var(--faint);font-size:13px}
   footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
   footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
 
   *{letter-spacing:0!important}
   .support-line{margin:12px auto 0;color:var(--teal);font-size:15px;font-weight:500}
@@ -1115,6 +1119,10 @@ sprag harness check</pre><button class="icon-button" data-copy="claude-install-c
     <span>Apache-2.0 © YAML Studio</span>
     <span><a href="docs/">Docs</a> ·<a href="https://github.com/rootstudioyaml/sprag">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
   </div>
+  <div class="wrap biz">
+    <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></span></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
+  </div>
 </footer>
 
 <script>
@@ -1123,6 +1131,17 @@ sprag harness check</pre><button class="icon-button" data-copy="claude-install-c
    Korean copy follows the project's Korean style rules: no translationese,
    no em dashes in UI text, sentences that end properly.                */
 const KO = {
+ 'bz.name': "상호 케이프로샵 (브랜드 YAML Studio)",
+ 'bz.rep': "대표 고주호",
+ 'bz.brn': "사업자등록번호 104-37-62963",
+ 'bz.mo': "통신판매업 신고 제2026-서울관악-1299호",
+ 'bz.addr': "주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)",
+ 'bz.mail': "이메일 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "이용약관",
+ 'bz.priv': "개인정보처리방침",
+ 'bz.refund': "환불정책",
+ 'bz.verify': "사업자정보확인",
+
   'fl.p1':'내 세션', 'fl.c1':'무엇이 들어가나', 'fl.c2':'sprag', 'fl.c3':'무엇을 하나', 'fl.c4':'다시 사용자에게',
   'fl.h1':'지난 세션 214회', 'fl.h1s':'실행한 명령과 겪은 실패 전부',
   'fl.h2':'방금 요청한 작업', 'fl.h2s':'"테스트 돌려 줘"',
