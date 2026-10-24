@@ -59,6 +59,10 @@
   footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
   footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
   footer a:hover{color:var(--ink)}
+  footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .biz p+p{margin-top:4px}
+  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
+  footer .biz a.strong{font-weight:700;color:var(--dim)}
   @media(max-width:520px){.wrap{padding:0 16px}main{padding:32px 0 48px}h1{font-size:26px}.sub{font-size:14px}}
 </style>
 </head>
@@ -106,11 +110,27 @@
     <span>Apache-2.0 © YAML Studio</span>
     <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
   </div>
+  <div class="wrap biz">
+    <p><span data-k="bz.name">YAML Studio ((상호 비공개))</span> · <span data-k="bz.rep">Representative: 홍길동</span> · <span data-k="bz.brn">Business registration no. 000-00-00000</span> · <span data-k="bz.mo">Mail-order business registration 0000-00-0000</span> · <span data-k="bz.addr">(address withheld)</span> · <span data-k="bz.mail">Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a></span></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=0000000000" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
+  </div>
 </footer>
 
 <script>
-const KO = { 't.h': 'Sprag 둘러보기', 't.sub': '타운 전체에서 한 사람의 카드까지, Sprag 팀 대시보드를 90초 동안 둘러봅니다.' };
+const KO = {
+ 'bz.name': "상호 (상호 비공개) (브랜드 YAML Studio)",
+ 'bz.rep': "대표 홍길동",
+ 'bz.brn': "사업자등록번호 000-00-00000",
+ 'bz.mo': "통신판매업 신고 제0000-00-0000호",
+ 'bz.addr': "주소 (주소 비공개)",
+ 'bz.mail': "이메일 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>",
+ 'bz.terms': "이용약관",
+ 'bz.priv': "개인정보처리방침",
+ 'bz.refund': "환불정책",
+ 'bz.verify': "사업자정보확인",
+ 't.h': 'Sprag 둘러보기', 't.sub': '타운 전체에서 한 사람의 카드까지, Sprag 팀 대시보드를 90초 동안 둘러봅니다.' };
 const EN = { 't.h': 'Sprag tour', 't.sub': document.querySelector('[data-k="t.sub"]').textContent };
+document.querySelectorAll('[data-k^="bz."]').forEach(el => { EN[el.dataset.k] = el.innerHTML; });
 const META = {
   en: { title: 'Sprag tour', desc: document.querySelector('meta[name=description]').content },
   ko: { title: 'Sprag 둘러보기', desc: 'Sprag 팀 대시보드를 90초 동안 둘러보는 영상입니다.' }
@@ -132,7 +152,7 @@ function setLang(next, remember){
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   if(remember){ try{ localStorage.setItem('sprag.lang', lang); }catch(e){} }
   const dict = lang === 'ko' ? KO : EN;
-  document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.textContent = v; });
+  document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.innerHTML = v; });
   syncVideo();
 }
 (function(){
