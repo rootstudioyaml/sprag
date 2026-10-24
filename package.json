@@ -1,6 +1,6 @@
 {
   "name": "sprag-cli",
-  "version": "3.77.0",
+  "version": "3.78.0",
   "description": "Model-delegation router for Claude Code and Codex: lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and a live statusline shows spend and savings.",
   "type": "module",
   "bin": {
