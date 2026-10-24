@@ -776,7 +776,7 @@ export function mountOfficeScene(container, data, opts = {}){
     pulse = { k, t0: performance.now() }; request();
     if(reduced) setTimeout(() => { pulse = null; request(); }, 2500);
   }
-  function openDrawer(o){ if(sel && sel !== o) unpose(sel); bookOpen = false; sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; portrait(o); focusOn(o); posePerson(o); }
+  function openDrawer(o, fly = true){ if(sel && sel !== o) unpose(sel); bookOpen = false; sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; portrait(o); if(fly) focusOn(o); posePerson(o); }
   /* Look at the selected person from behind its chair (from the desk side the monitor hides the face) while it swivels round to face
      the camera, zoomed in, centred in the room the drawer and the portrait leave */
   function focusOn(o){
@@ -1351,7 +1351,7 @@ export function mountOfficeScene(container, data, opts = {}){
     lab.tags.forEach(l => place(l.el, l.pos, 0, -12, false, l.dyn ? l.dyn.dy * scale * 0.7 * -1 : 0));
     bubs.forEach(b => { if(!b.o) return; HP.set(b.o.x, 3.7, b.o.z); place(b.el, HP, 0, -20); });
   }
-  function render(){ renderer.render(scene, camera); labels(); }
+  function render(){ if(stage.clientWidth !== W) resize(); renderer.render(scene, camera); labels(); }   /* a drawer that just opened shrinks the stage before the ResizeObserver runs; without this one frame is drawn stretched */
   function frame(now){
     raf = 0; if(started !== true || destroyed || !visible || document.hidden) return;
     const t = now || performance.now(), dt = Math.min(0.05, (t - last) / 1000); last = t;
@@ -1470,7 +1470,7 @@ export function mountOfficeScene(container, data, opts = {}){
     ready: () => started === true && !!view,
     people: () => people.map(o => ({ id: o.p.id, name: o.p.name, tier: o.p.tier, ghost: o.ghost, x: o.x, z: o.z })),
     server: () => (srv ? { x: srv.x, z: srv.z } : null),
-    selectPerson(id){ const o = people.find(q => q.p.id === id); if(o) openDrawer(o); return !!o; },
+    selectPerson(id, opts){ const o = people.find(q => q.p.id === id); if(o) openDrawer(o, !(opts && opts.fly === false)); return !!o; },   /* fly:false keeps a scripted camera where the script put it */
     closeDrawer: () => chrome.close(),
     destroy(){
       destroyed = true; if(pr){ hidePortrait(); pr.r.dispose(); pr.c.remove(); pr = null; } if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
