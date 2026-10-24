@@ -42,7 +42,7 @@ export function townSceneData(o){
   return { companies: list, more: Math.max(0, more), moreLabel: more > 0 ? t('tn.more', { n: more }, true) : '',
     hud: { title: t('tn.title'), stats, statsNoRev: stats.split(' · ').filter(x => x.indexOf(o.money(rev)) < 0).join(' · ') },
     legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
-    ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.spent', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
+    ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.spent', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
       dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
 }
 
@@ -156,7 +156,7 @@ export function mountTownScene(container, data, opts = {}){
   let TX = {}, MT = {}, envTex = null, GB = {}, WL = [], SH = [], billboards = [], peds = [], clouds = [], parts = null, stars = null, tick = 0, minuteT = 0;
   let wx = DBG_WX && WX_DBG[DBG_WX] ? WX_DBG[DBG_WX] : { kind: 'clear', cloud: 0.12, wind: 6, temp: null, rain: 0 }, wxDbg = !!(DBG_WX && WX_DBG[DBG_WX]), night = 0, flash = 0, lightT = 6, baseHemi = 1, baseEx = 1, extent = 40, builtSnow = false;
   const mobile = () => W < 520, v3 = () => new T.Vector3(), C = h => new T.Color(h), track = o => { dyn.push(o); return o; };
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
     onAction: a => { if(a === 'org' && sel && opts.onOpenOrg) opts.onOpenOrg(sel.c.id); } });
   kit.bind(chrome.el);
 

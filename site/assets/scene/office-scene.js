@@ -324,6 +324,9 @@ export const OF_CSS = `
 .of-dbtn{flex:1;min-width:120px;font:inherit;font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;border:1px solid #cfc3f7;background:#f1ebff;color:#4c1d95}
 .of-dbtn.pri{background:#6d5ce7;border-color:#6d5ce7;color:#fff}.of-dbtn:hover{filter:brightness(.96)}
 .of-stage.has-drawer .of-tools{right:430px}
+.of-stage .of-portrait{position:absolute;right:430px;top:50%;width:240px;height:320px;transform:translate(16px,-50%);opacity:0;z-index:4;pointer-events:none;border-radius:18px;background:radial-gradient(ellipse at 50% 58%,rgba(255,253,248,.95) 0,rgba(255,253,248,.8) 45%,rgba(255,253,248,0) 72%);transition:opacity .3s,transform .3s cubic-bezier(.23,1,.32,1)}
+.of-stage .of-portrait.on{opacity:1;transform:translate(0,-50%)}
+@media (max-width:899px){.of-stage .of-portrait{display:none}}
 @media (max-width:480px){.of-drawer{top:auto;left:0;right:0;width:auto;height:72%;border-left:0;border-top:1px solid rgba(120,90,60,.16);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(90,60,30,.18);transform:translateY(100%)}.of-stage.has-drawer .of-tools{right:10px}}
 @media (max-width:480px){.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer{height:640px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer canvas{height:300px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer .of-drawer{height:calc(100% - 300px)}}
 /* field guide */
@@ -344,7 +347,7 @@ export const OF_CSS = `
 .of-drawer .bknote{margin:12px 0 0;padding:8px 10px;border-radius:10px;background:#f1ebff;color:#3b2a78;font-size:12px}
 .of-drawer .grp{margin:0 0 14px}.of-drawer .grp+.grp{margin-top:18px;padding-top:12px;border-top:1px dashed rgba(120,90,60,.22)}.of-drawer .grp>h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
-@media (max-width:640px){.of-legend .keys,.of-strip .tg em,.of-strip b{display:none}.of-strip .sp svg{width:12px;height:12px}.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:150px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
+@media (max-width:640px){.of-legend .keys,.of-strip .tg em,.of-strip b{display:none}.of-strip .sp svg{width:12px;height:12px}.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:200px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
 `;
 
 export function webglOk(){
@@ -390,14 +393,14 @@ export function makeView(cfg){
     now = time; const idle = time - last > 20;
     swayAmp += ((idle && !cfg.reduced ? 1 : 0) - swayAmp) * Math.min(1, dt * 1.5);
     if(!g && !cfg.reduced && (Math.abs(vth) > 1e-3 || Math.abs(vph) > 1e-3)){ th += vth * dt; ph = clamp(ph + vph * dt, PMIN, PMAX); const k = Math.exp(-dt * 3); vth *= k; vph *= k; }
-    thEff = th + swayAmp * 0.05 * Math.sin(time * 0.22); cfg.canvas.style.touchAction = cfg.isFs() ? 'none' : 'pan-y';
+    flyStep(dt); thEff = fly ? th : th + swayAmp * 0.05 * Math.sin(time * 0.22); cfg.canvas.style.touchAction = cfg.isFs() ? 'none' : 'pan-y';
     pose(); zoomStep();
   }
-  function reset(){ th = cfg.theta0; ph = cfg.phi0; zoom = zT = 1; vth = vph = 0; tgt.copy(tgt0); thEff = th; mark(); pose(); cfg.request(); }
+  function reset(){ fly = null; th = cfg.theta0; ph = cfg.phi0; zoom = zT = 1; vth = vph = 0; tgt.copy(tgt0); thEff = th; mark(); pose(); cfg.request(); }
   const rect = () => cfg.canvas.getBoundingClientRect(), pt = ev => { const r = rect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
   cfg.canvas.addEventListener('pointerdown', ev => {
-    cfg.canvas.setPointerCapture(ev.pointerId); ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]); focused = true; if(cfg.onFocus) cfg.onFocus(); mark();
-    if(ptrs.size === 2){ const [a, b] = [...ptrs.values()]; g = { mode: 'pinch', d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z0: zT, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, moved: true }; vth = vph = 0; }
+    fly = null; cfg.canvas.setPointerCapture(ev.pointerId); ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]); focused = true; if(cfg.onFocus) cfg.onFocus(); mark();
+    if(ptrs.size === 2){ const [a, b] = [...ptrs.values()]; g = { mode: 'pinch', d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z0: zT, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, ang: Math.atan2(b[1] - a[1], b[0] - a[0]), moved: true }; vth = vph = 0; }
     else g = { mode: ev.button === 2 || ev.shiftKey || ev.altKey ? 'orbit' : 'pan', lx: ev.clientX, ly: ev.clientY, sx: ev.clientX, sy: ev.clientY, moved: false, t: performance.now() };
   });
   cfg.canvas.addEventListener('contextmenu', ev => ev.preventDefault());
@@ -406,6 +409,7 @@ export function makeView(cfg){
     if(!g){ if(ev.pointerType !== 'touch') cfg.onMove(...pt(ev), ev); return; }
     if(g.mode === 'pinch'){ if(ptrs.size < 2) return; const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), r = rect(), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
       panBy(mx - g.mx, my - g.my); g.mx = mx; g.my = my;   /* the two fingers' midpoint drags the floor while their spread zooms */
+      const an = Math.atan2(b[1] - a[1], b[0] - a[0]); let da = an - g.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); th -= da; g.ang = an;   /* and a twist turns */
       zT = clamp(g.z0 * d / g.d0, ZMIN, ZMAX); anchor = [mx - r.left, my - r.top]; mark(); cfg.request(); return; }
     const dx = ev.clientX - g.lx, dy = ev.clientY - g.ly;
     if(!g.moved && Math.hypot(ev.clientX - g.sx, ev.clientY - g.sy) > 5){ g.moved = true; cfg.canvas.classList.add('drag'); if(cfg.onDrag) cfg.onDrag(true); }
@@ -425,12 +429,14 @@ export function makeView(cfg){
   cfg.canvas.addEventListener('pointerup', end); cfg.canvas.addEventListener('pointercancel', end);
   cfg.canvas.addEventListener('wheel', ev => {
     if(!(cfg.isFs() || ev.ctrlKey || ev.metaKey || focused)) return;
-    ev.preventDefault(); const [px, py] = pt(ev); zoomAt(Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015)), px, py);
+    ev.preventDefault(); fly = null; const [px, py] = pt(ev);
+    if(!ev.ctrlKey && Math.abs(ev.deltaX) > Math.abs(ev.deltaY)){ th -= ev.deltaX * 0.005; vth = 0; mark(); pose(); cfg.request(); return; }   /* a sideways two-finger swipe (or shift-wheel) turns */
+    zoomAt(Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015)), px, py);
   }, { passive: false });
   cfg.canvas.tabIndex = cfg.canvas.tabIndex >= 0 ? cfg.canvas.tabIndex : 0;
   cfg.canvas.addEventListener('keydown', ev => {   /* arrows pan a tenth of the view, Q and E turn by 15 degrees */
     const [W, H] = cfg.size(), step = Math.min(W, H) * 0.1, m = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[ev.key];
-    if(m){ ev.preventDefault(); panBy(m[0], m[1]); }
+    if(m){ ev.preventDefault(); fly = null; panBy(m[0], m[1]); }
     else if(ev.key === 'q' || ev.key === 'e' || ev.key === 'Q' || ev.key === 'E'){ ev.preventDefault(); th += (ev.key.toLowerCase() === 'q' ? 1 : -1) * Math.PI / 12; vth = 0; }
     else return;
     mark(); pose(); cfg.request();
@@ -442,7 +448,20 @@ export function makeView(cfg){
     if(o.th != null){ th = o.th; thEff = th; } if(o.ph != null) ph = clamp(o.ph, PMIN, PMAX); if(o.zoom != null) zoom = zT = clamp(o.zoom, ZMIN, ZMAX);
     if(o.x != null) tgt.x = o.x; if(o.z != null) tgt.z = o.z; vth = vph = 0; mark(); pose(); cfg.request();
   }
-  return { update, reset, setPose, zoomBy: f => zoomAt(f), azimuth: () => thEff, zoom: () => zoom, apply: pose,
+  function turnBy(a){ fly = null; if(cfg.reduced) th += a; else vth += a * 3; mark(); cfg.request(); }
+  /* glide to look at ground point (x, z) from azimuth th (the nearest turn of it), polar ph and zoom; ox shifts the point ox pixels left of centre (room for a side panel) */
+  let fly = null;
+  function flyTo(o){
+    const zt = clamp(o.zoom ?? zT, ZMIN, ZMAX), th1 = th + Math.atan2(Math.sin(o.th - th), Math.cos(o.th - th)), u = 1 / (cfg.ppu() * zt), ox = o.ox || 0;
+    const to = { x: o.x + Math.cos(th1) * ox * u, z: o.z - Math.sin(th1) * ox * u, th: th1, ph: clamp(o.ph ?? ph, PMIN, PMAX), zoom: zt };
+    fly = { t: cfg.reduced ? 1 : 0, f: { x: tgt.x, z: tgt.z, th, ph, zoom }, to }; vth = vph = 0; anchor = null; mark(); cfg.request();
+  }
+  function flyStep(dt){
+    if(!fly) return; fly.t = Math.min(1, fly.t + dt / 0.8); const k = 1 - Math.pow(1 - fly.t, 3), f = fly.f, q = fly.to, L = (a, b) => a + (b - a) * k;
+    tgt.x = L(f.x, q.x); tgt.z = L(f.z, q.z); th = L(f.th, q.th); ph = L(f.ph, q.ph); zoom = zT = L(f.zoom, q.zoom); thEff = th;
+    if(fly.t >= 1) fly = null; mark();
+  }   /* inertia decays as e^-3t, so a 3a kick turns by a */
+  return { update, reset, setPose, zoomBy: f => zoomAt(f), turnBy, flyTo, flying: () => !!fly, azimuth: () => thEff, zoom: () => zoom, apply: pose,
     defaultCam(far){ const c = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, far || 400), sp = Math.sin(cfg.phi0); c.position.set(tgt0.x + cfg.dist * sp * Math.sin(cfg.theta0), tgt0.y + cfg.dist * Math.cos(cfg.phi0), tgt0.z + cfg.dist * sp * Math.cos(cfg.theta0)); c.lookAt(tgt0); c.updateMatrixWorld(); return c; } };
 }
 
@@ -495,7 +514,9 @@ export function makeChrome(stage, container, o){
   const tools = document.createElement('div'); tools.className = 'of-tools'; stage.appendChild(tools);
   const mkBtn = (cls, html, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'of-tb ' + cls; b.innerHTML = html; b.addEventListener('click', fn); tools.appendChild(b); return b; };
   const RESET = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8a5.5 5.5 0 1 0 1.8-4.1M2.5 2.5v3.2h3.2"/></svg>';
-  const bReset = mkBtn('of-rs', RESET, () => o.onReset && o.onReset()), bOut = mkBtn('of-zo', '−', () => o.onZoom && o.onZoom(1 / 1.35)), bIn = mkBtn('of-zi', '+', () => o.onZoom && o.onZoom(1.35));
+  const TL = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 9.5A5 5 0 1 1 8 3.5h3M9.5 1.5 11.5 3.5 9.5 5.5"/></svg>';
+  const TR = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5A5 5 0 1 0 8 3.5H5M6.5 1.5 4.5 3.5 6.5 5.5"/></svg>';
+  const bReset = mkBtn('of-rs', RESET, () => o.onReset && o.onReset()), bTL = mkBtn('of-tl', TL, () => o.onTurn && o.onTurn(Math.PI / 4)), bTR = mkBtn('of-tr', TR, () => o.onTurn && o.onTurn(-Math.PI / 4)), bOut = mkBtn('of-zo', '−', () => o.onZoom && o.onZoom(1 / 1.35)), bIn = mkBtn('of-zi', '+', () => o.onZoom && o.onZoom(1.35));
   const BOOK = BOOK_ICON;
   const bBook = o.onBook ? mkBtn('of-bk', BOOK, () => o.onBook()) : null;
   const fs = mkBtn('of-fs', '', () => toggleFs());
@@ -511,7 +532,7 @@ export function makeChrome(stage, container, o){
   function syncFs(){
     const on = fsOn(), ui = o.ui() || {}, lbl = on ? ui.fsExit : ui.fs;
     fs.innerHTML = on ? OUT : IN; fs.setAttribute('aria-label', lbl || ''); fs.title = lbl || ''; fs.setAttribute('aria-pressed', String(on));
-    [[bReset, ui.reset], [bOut, ui.zoomOut], [bIn, ui.zoomIn], [bBook, ui.book]].forEach(([b, l]) => { if(b){ b.setAttribute('aria-label', l || ''); b.title = l || ''; } });
+    [[bReset, ui.reset], [bTL, ui.turnL], [bTR, ui.turnR], [bOut, ui.zoomOut], [bIn, ui.zoomIn], [bBook, ui.book]].forEach(([b, l]) => { if(b){ b.setAttribute('aria-label', l || ''); b.title = l || ''; } });
     [[bReset, ui.reset], [bOut, ui.zoomOut], [bIn, ui.zoomIn]].forEach(([b, l]) => { b.setAttribute('aria-label', l || ''); b.title = l || ''; });
     if(on) hideHint(); o.request(); if(o.onFsChange) o.onFsChange(on);
   }
@@ -553,7 +574,7 @@ export function mountOfficeScene(container, data, opts = {}){
   const elChip = document.createElement('div'); elChip.className = 'sk-chip'; elChip.hidden = true;
   let wx = ov.weather || { ...WX_CLEAR }, builtSnow = false, envN = 0, flash = 0, lightT = 4, baseHemi = 1, minuteTimer = 0, lamps = [], wxs = null, flakeG = null;
   let sel = null, selId = null, ring = null, bookOpen = false, pulse = null;
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onReset: () => view && view.reset(), request: () => request(), onClose: () => { sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; }, onBook: () => openBook(),
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), request: () => request(), onClose: () => { sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; hidePortrait(); }, onBook: () => openBook(),
     onAction: a => { if(!sel) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
   const syncFs = () => chrome.syncFs();
   kit.bind(chrome.el);
@@ -736,14 +757,41 @@ export function mountOfficeScene(container, data, opts = {}){
   function openBook(){
     if(!cur.book) return;
     if(bookOpen && chrome.isOpen()){ chrome.close(); return; }
-    sel = null; selId = null; if(ring) ring.visible = false; bookOpen = true; renderBook(); chrome.open();
+    sel = null; selId = null; if(ring) ring.visible = false; hidePortrait(); bookOpen = true; renderBook(); chrome.open();
   }
   function pulseGrade(k){
     if(!sets || !sets.pul) return;
     pulse = { k, t0: performance.now() }; request();
     if(reduced) setTimeout(() => { pulse = null; request(); }, 2500);
   }
-  function openDrawer(o){ bookOpen = false; sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; }
+  function openDrawer(o){ bookOpen = false; sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; portrait(o); focusOn(o); }
+  /* Look at the selected person from behind its chair (from the desk side the monitor hides the face) while it swivels round to face
+     the camera, zoomed in, centred in the room the drawer and the portrait leave */
+  function focusOn(o){
+    if(!view) return; const W = stage.clientWidth, side = W > 480 ? 420 + (pr && pr.on ? PR_W + 10 : 0) : 0;
+    view.flyTo({ x: o.x, z: o.z + 0.3, th: 0, ph: 1.05, zoom: 3.6, ox: side / 2 });
+  }
+  /* The selected character, full body, turning a little in a small panel left of the drawer: its own renderer and scene, a clone of the loaded model */
+  const PR_W = 240, PR_H = 320; let pr = null;
+  function portrait(o){
+    if(!castOn || !o.glb || stage.clientWidth < 900){ hidePortrait(); return; }
+    if(!pr){
+      const c = document.createElement('canvas'); c.className = 'of-portrait'; c.setAttribute('aria-hidden', 'true'); stage.appendChild(c);
+      let r; try{ r = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true }); }catch(e){ c.remove(); return; }
+      r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); r.setSize(PR_W, PR_H, false); r.setClearColor(0x000000, 0);
+      const sc = new T.Scene(), dl = new T.DirectionalLight('#fff0d4', 1.2); dl.position.set(1.5, 3, 4); sc.add(new T.HemisphereLight('#fff7e6', '#e8dcc4', 1.6), dl);
+      pr = { c, r, sc, cam: new T.PerspectiveCamera(26, PR_W / PR_H, 0.1, 50), m: null, raf: 0, on: false };
+    }
+    if(pr.m) pr.sc.remove(pr.m);
+    const m = pr.m = o.glb.clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); pr.sc.add(m);
+    const box = new T.Box3().setFromObject(m), cy = (box.min.y + box.max.y) / 2, hgt = box.max.y - box.min.y;
+    pr.cam.position.set(0, cy + hgt * 0.08, hgt * 2.5); pr.cam.lookAt(0, cy, 0);
+    pr.on = true; pr.c.classList.add('on');
+    if(!pr.raf){ const t0 = performance.now(), loop = () => { if(!pr || !pr.on || destroyed){ if(pr) pr.raf = 0; return; }
+      if(pr.m) pr.m.rotation.y = reduced ? 0 : Math.sin((performance.now() - t0) / 1000 * 0.7) * 0.5; pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
+      loop(); }
+  }
+  function hidePortrait(){ if(!pr) return; pr.on = false; pr.c.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }
   const closeDrawer = () => chrome.close();
 
   function build(d){
@@ -1104,14 +1152,15 @@ export function mountOfficeScene(container, data, opts = {}){
       ms.forEach(([o, m]) => { o.glb = m; world.add(m); });
       sets.f.forEach(f => { [f.torso, f.arm, f.scarf, f.sph, f.cone, f.rimH, f.rimT].forEach(m => { if(m) m.visible = false; }); });
       if(sets.mug) sets.mug.visible = false;
-      castOn = true; request();
+      castOn = true; request(); if(sel && !(pr && pr.on)) portrait(sel);   /* a person picked while the models were loading gets the portrait now */
     }catch(e){ if(gen === castGen) castOn = false; }
   }
-  function stepCast(){
+  function stepCast(dt){
     if(!castOn) return;
     people.forEach(o => { const m = o.glb; if(!m) return;
-      const breathe = reduced ? 0 : Math.sin(time * 2.1 + o.ph) * 0.012;
-      m.position.y = o.y0 + (o.dy || 0) + breathe; m.rotation.y = Math.PI + (o.turn || 0) * 0.45; });
+      const breathe = reduced ? 0 : Math.sin(time * 2.1 + o.ph) * 0.012, want = o === sel ? 1 : 0;
+      o.spin = reduced ? want : (o.spin || 0) + (want - (o.spin || 0)) * Math.min(1, dt * 4);   /* the selected one swivels round in its chair to face the camera behind it */
+      m.position.y = o.y0 + (o.dy || 0) + breathe + o.spin * 0.32; m.rotation.y = (Math.PI + (o.turn || 0) * 0.45) * (1 - o.spin); });   /* and pops up over the chair back */
   }
   function step(dt){
     time += dt;
@@ -1158,7 +1207,7 @@ export function mountOfficeScene(container, data, opts = {}){
       });
       if(f.arr.length){ [f.torso, f.arm, f.scarf, f.sph, f.cone].concat(f.ghost ? [f.rimH, f.rimT] : [sets.mug]).forEach(m => { m.instanceMatrix.needsUpdate = true; }); }
     });
-    stepCast();
+    stepCast(dt);
     if(sets.pul){   /* field guide: rings blink under everyone of the picked species for 2.4 s */
       const now = performance.now(), on = !!pulse && now - pulse.t0 < 2400, blink = on && (reduced || Math.floor((now - pulse.t0) / 300) % 2 === 0);
       people.forEach((o, j) => { const hit = blink && o.gk === pulse.k; setM(sets.pul, j, o.x, 0.1, o.z + 0.3, 0, 0, hit ? 1 : 0.0001, 1, hit ? 1 : 0.0001); });
@@ -1360,7 +1409,7 @@ export function mountOfficeScene(container, data, opts = {}){
     selectPerson(id){ const o = people.find(q => q.p.id === id); if(o) openDrawer(o); return !!o; },
     closeDrawer: () => chrome.close(),
     destroy(){
-      destroyed = true; if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
+      destroyed = true; if(pr){ hidePortrait(); pr.r.dispose(); pr.c.remove(); pr = null; } if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
       if(io) io.disconnect(); if(ro) ro.disconnect();
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
       if(started === true){
@@ -1510,7 +1559,7 @@ export function officeSceneData(o){
     rows: bands.map(b => ({ k: b.k, tier: b.tier, no: t('of.g.no', { n: String(b.no).padStart(2, '0') }, true), name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.rk, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
       .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
     note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true) };
-  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
+  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.spent') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
     activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,
