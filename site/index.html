@@ -471,6 +471,17 @@
   .card .vis{overflow-x:auto}
   .faqs p code{white-space:normal;overflow-wrap:anywhere}
   .hero .caption{font-size:12px}
+  .hero .teamband{margin:28px auto 0;max-width:900px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:24px;align-items:center;text-align:left;
+    padding:12px 24px 12px 12px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(135deg,rgba(94,106,210,.16),var(--panel) 60%);color:var(--ink);transition:border-color .2s}
+  .hero .teamband:hover{border-color:rgba(138,148,242,.55)}
+  .hero .teamband video{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:9px;background:#141516;object-fit:cover}
+  .teamband .tb-text{display:grid;gap:10px}
+  .teamband .tb-eyebrow{font:500 12px/1.4 var(--mono);color:#8a94f2;letter-spacing:.04em}
+  .teamband b{font-size:22px;line-height:1.3;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+  .teamband .tb-p{font-size:14px;line-height:1.55;color:var(--dim)}
+  .teamband .tb-cta{justify-self:start;margin-top:4px;padding:8px 14px;border-radius:8px;background:#5e6ad2;color:#fff;font-size:14px;font-weight:500}
+  .teamband .tb-cta::after{content:" →"}
+  @media(max-width:720px){.hero .teamband{grid-template-columns:1fr;padding:10px 10px 18px}.teamband .tb-text{padding:0 8px}.teamband b{font-size:19px}}
   .hero .compare{margin:28px auto 0;max-width:900px}
   .hero .compare video{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:10px;background:#141516}
   .hero .compare figcaption{margin-top:8px}
@@ -603,6 +614,17 @@
       <a class="btn" href="#how" data-k="hero.how">How it works</a>
     </div>
     <p class="copy-status sr-only" role="status" aria-live="polite"></p>
+    <a class="teamband" href="license/" aria-labelledby="tb-h">
+      <video id="team-video" autoplay muted loop playsinline preload="metadata" poster="assets/video/plan-pro-en.jpg" aria-hidden="true">
+        <source src="assets/video/plan-pro-en.mp4" type="video/mp4" />
+      </video>
+      <span class="tb-text">
+        <span class="tb-eyebrow" data-k="tb.eyebrow">Sprag for teams</span>
+        <b id="tb-h" data-k="tb.h">Your whole team's AI spend and savings, on one screen</b>
+        <span class="tb-p" data-k="tb.p">A virtual office with a character for every teammate, a seat roster, and rules the team approves once.</span>
+        <span class="tb-cta" data-k="tb.cta">See the team features</span>
+      </span>
+    </a>
 
     <figure class="compare">
       <video id="compare-video" autoplay muted loop playsinline preload="metadata"
@@ -1233,6 +1255,10 @@ const KO = {
   'hero.cta':'Sprag 설치',
   'hero.how':'작동 방식',
   'hero.capture':'CLI 캡처 · 예제 세션',
+  'tb.eyebrow':'팀을 위한 Sprag',
+  'tb.h':'팀 전체의 AI 지출과 절감액을 한 화면에서',
+  'tb.p':'팀원마다 캐릭터가 앉아 있는 가상 사무실, 좌석 명단, 한 번 승인하면 모두에게 적용되는 팀 규칙.',
+  'tb.cta':'팀 기능 보기',
   'hero.video':'같은 요청을 두 터미널에 넣고 공개 단가로 계산했습니다. 절감액 $4.85 가운데 doc2md가 $4.03, 라우팅이 $0.81입니다(반올림).',
   'hero.caption':'에이전트 기록은 분리하고 문체·문서 도구는 공유합니다. 확인할 수 없는 단가는 미상으로 남깁니다.',
   'setup.h2':'Sprag 설치',
@@ -1298,6 +1324,12 @@ function setLang(next, remember){
   });
   document.documentElement.lang = lang;
   // The comparison video carries burned-in captions, so each language has its own file.
+  const tv = document.getElementById('team-video');
+  if(tv && !tv.currentSrc.endsWith(`plan-pro-${lang}.mp4`)){
+    tv.poster = `assets/video/plan-pro-${lang}.jpg`;
+    tv.querySelector('source').src = `assets/video/plan-pro-${lang}.mp4`;
+    tv.load();
+  }
   const video = document.getElementById('compare-video');
   if(video && !video.currentSrc.endsWith(`sprag-compare-${lang}.mp4`)){
     video.poster = `assets/video/sprag-compare-${lang}.jpg`;
