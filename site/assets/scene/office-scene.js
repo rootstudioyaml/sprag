@@ -447,6 +447,7 @@ export function makeView(cfg){
   cfg.stage.addEventListener('pointerleave', () => { focused = false; if(!g) cfg.onLeave(); });
   /* programmatic pose for tests and screenshots: { th, ph, zoom, x, z } (all optional) */
   function setPose(o){
+    fly = null;   /* a scripted pose (tests, the video recorder) wins over a glide in progress */
     if(o.th != null){ th = o.th; thEff = th; } if(o.ph != null) ph = clamp(o.ph, PMIN, PMAX); if(o.zoom != null) zoom = zT = clamp(o.zoom, ZMIN, ZMAX);
     if(o.x != null) tgt.x = o.x; if(o.z != null) tgt.z = o.z; vth = vph = 0; mark(); pose(); cfg.request();
   }
