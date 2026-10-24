@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag License | Free for developers, team licenses on request</title>
-<meta name="description" content="The Sprag CLI is open source and free. Teams that want a shared dashboard and central rules get a Pro or Enterprise license through sales@sprag.io." />
+<title>Sprag License | Open source under Apache-2.0</title>
+<meta name="description" content="Sprag is open source under Apache-2.0 and free to use. It runs on your machine and needs no account. Team features are set up for your organization on request." />
 <link rel="canonical" href="https://sprag.io/license/" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="theme-color" content="#0a0a0c" />
@@ -14,7 +14,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Sprag" />
 <meta property="og:title" content="Sprag License" />
-<meta property="og:description" content="Free for developers. Team licenses on request." />
+<meta property="og:description" content="Open source under Apache-2.0. Free to use, no account." />
 <meta property="og:url" content="https://sprag.io/license/" />
 <meta property="og:image" content="https://sprag.io/assets/og-card.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -73,36 +73,6 @@
   .lede{margin-top:16px;color:var(--dim);font-size:16px;max-width:52ch;text-wrap:balance}
   .chip{font:500 11px/1.4 var(--mono);color:var(--ok);padding:0 5px;border:1px solid rgba(63,212,143,.35);border-radius:4px}
 
-  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
-  .plan{position:relative;border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:24px;display:flex;flex-direction:column}
-  .plan.feat{border-color:rgba(94,106,210,.7);box-shadow:0 0 0 1px rgba(94,106,210,.25)}
-  .tag{position:absolute;top:22px;right:22px;font:500 11px/1.3 var(--mono);color:var(--accent2);border:1px solid rgba(94,106,210,.5);background:var(--accent-bg);border-radius:4px;padding:1px 6px}
-  html[lang=ko] .tag{font-family:var(--sans)}
-  .plan h2{font-size:15px;font-weight:600;letter-spacing:-.005em}
-  .plan .for{margin-top:6px;color:var(--dim);font-size:13px;min-height:3.2em}
-  .price{margin-top:24px;display:flex;align-items:baseline;gap:8px}
-  .price b{font-size:44px;font-weight:600;letter-spacing:-.04em;line-height:1}
-  .price span{color:var(--dim);font-size:13px;line-height:1.35;white-space:nowrap}
-  .fine{margin-top:8px;color:var(--faint);font-size:12.5px;min-height:1.5em}
-  .plan .btn{margin-top:24px;width:100%}
-  .plan .inc{margin-top:24px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--faint)}
-  .plan ul{list-style:none;margin-top:12px;display:grid;gap:8px;font-size:13px;color:var(--dim)}
-  .plan li{padding-left:20px;position:relative;line-height:1.5}
-  .plan li::before{content:"";position:absolute;left:2px;top:.5em;width:8px;height:4px;border-left:1.5px solid var(--ok);border-bottom:1.5px solid var(--ok);transform:rotate(-45deg)}
-  @media(max-width:900px){.plans{grid-template-columns:1fr}.plan .for,.fine{min-height:0}}
-  /* tablet: one plan per row, the price on the left and the feature list on the right */
-  @media(min-width:641px) and (max-width:900px){
-    .plan{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);grid-template-rows:repeat(5,auto) 1fr;column-gap:32px;align-items:start}
-    .plan > *{grid-column:1}
-    .plan .inc{grid-column:2;grid-row:1;margin-top:0;padding-top:0;border-top:0}
-    .plan ul{grid-column:2;grid-row:2 / -1}
-    .plan .tag{position:static;grid-column:1;justify-self:start;margin-bottom:10px}
-  }
-
-  .strip{margin-top:16px;border:1px solid var(--line);border-radius:var(--rl);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .strip h2{font-size:14px;font-weight:600}
-  .strip p{color:var(--dim);font-size:13px;margin-top:2px;max-width:70ch}
-
   section.blk{padding-top:88px}
   section.blk > h2{font-size:24px;font-weight:600;letter-spacing:-.025em}
   section.blk > .sub{color:var(--dim);font-size:14px;margin-top:8px;max-width:60ch}
@@ -112,35 +82,6 @@
   .vcard figcaption{display:flex;align-items:baseline;gap:10px;margin-top:10px;font-size:13px;color:var(--dim)}
   .vcard figcaption b{color:var(--ink);font-weight:600;flex:0 0 auto}
   @media(max-width:720px){.vgrid{grid-template-columns:1fr}}
-
-  table{margin-top:24px;width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
-  thead th{position:sticky;top:var(--bar-h);z-index:5;background:rgba(10,10,12,.94);backdrop-filter:blur(8px);text-align:center;font-size:13px;font-weight:600;padding:12px 8px;border-bottom:1px solid var(--line2);vertical-align:bottom}
-  thead th:first-child{text-align:left}
-  thead th small{display:block;color:var(--faint);font:400 12px var(--sans);margin-top:2px}
-  thead th.feat{color:var(--accent2)}
-  tbody th{text-align:left;font-weight:400;color:var(--ink);padding:10px 8px 10px 0;border-bottom:1px solid var(--line);width:46%}
-  tbody td{text-align:center;padding:10px 8px;color:var(--dim);border-bottom:1px solid var(--line);width:18%;font-size:12.5px;line-height:1.4}
-  td.feat,th.feat{background:rgba(94,106,210,.045)}
-  tr.grp th{padding:32px 0 8px;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--line2);width:auto}
-  html[lang=ko] tr.grp th{letter-spacing:.01em;text-transform:none;font-size:12.5px}
-  .y{display:inline-block;width:9px;height:5px;border-left:1.5px solid var(--ok);border-bottom:1.5px solid var(--ok);transform:rotate(-45deg) translateY(-2px)}
-  .n{display:inline-block;width:8px;height:1px;background:var(--line3);vertical-align:middle}
-  @media(max-width:640px){
-    table{font-size:12.5px}
-    thead th{padding:10px 3px;font-size:12px}
-    thead th small{font-size:11px}
-    /* the feature name takes the full width on its own line, the three plan values sit under it */
-    table,thead,tbody{display:block}
-    thead{position:sticky;top:var(--bar-h);z-index:5}
-    thead th{position:static}
-    thead tr,tbody tr:not(.grp){display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
-    thead th:first-child{display:none}
-    tr.grp{display:block}
-    tr.grp th{display:block}
-    tbody tr:not(.grp) th{grid-column:1 / -1;width:auto;padding:12px 0 4px;border-bottom:0}
-    tbody td{width:auto;padding:4px 3px 12px;font-size:12px}
-    code{overflow-wrap:anywhere}
-  }
 
   .faqs{margin-top:24px}
   .faq-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;border-top:1px solid var(--line)}
@@ -160,9 +101,23 @@
   footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
   footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
   footer a:hover{color:var(--ink)}
-  @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:48px}.strip{padding:16px}.plan{padding:20px}.tag{top:18px;right:18px}section.blk{padding-top:64px}}
+  @media(max-width:640px){code{overflow-wrap:anywhere}.steps li,.fcard,.lic{min-width:0;overflow-wrap:anywhere}}
+  @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:48px}section.blk{padding-top:64px}}
   @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
-  .price b.ask{font-size:30px;letter-spacing:-.02em}
+  .hero .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}
+  .lic{margin-top:40px;border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:24px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px 40px}
+  .lic h2{font-size:15px;font-weight:600}.lic p{margin-top:8px;color:var(--dim);font-size:13.5px;max-width:60ch}
+  .lic .links{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .lic ul{list-style:none;display:grid;gap:8px;font-size:13px;color:var(--dim)}
+  .lic li,.fcard li{padding-left:20px;position:relative;line-height:1.5}
+  .lic li::before,.fcard li::before{content:"";position:absolute;left:2px;top:.5em;width:8px;height:4px;border-left:1.5px solid var(--ok);border-bottom:1.5px solid var(--ok);transform:rotate(-45deg)}
+  @media(max-width:860px){.lic{grid-template-columns:1fr}}
+  .fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:24px}
+  .fcard{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:22px}
+  .fcard h3{font-size:14.5px;font-weight:600}.fcard .for{margin-top:6px;color:var(--dim);font-size:13px}
+  .fcard ul{list-style:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:grid;gap:8px;font-size:13px;color:var(--dim)}
+  .fcard .note{margin-top:14px;color:var(--faint);font-size:12.5px}
+  @media(max-width:900px){.fgrid{grid-template-columns:1fr}}
   .steps{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;list-style:none;counter-reset:st}
   .steps li{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:20px;counter-increment:st;color:var(--dim);font-size:13.5px}
   .steps li::before{content:counter(st);display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent-bg);color:var(--accent2);font:500 12px var(--mono);margin-bottom:12px}
@@ -203,164 +158,116 @@
   <div class="hero">
     <div>
       <div class="eyebrow" data-k="p.eyebrow">License</div>
-      <h1 data-k="p.h1">Free for every developer. Team licenses on request.</h1>
-      <p class="lede" data-k="p.lede">The CLI is open source under Apache-2.0 and never needs an account. Teams that want one view of their AI spend and rules they set once get a Pro or Enterprise license sized to them.</p>
+      <h1 data-k="p.h1">Sprag is open source, and free to use.</h1>
+      <p class="lede" data-k="p.lede">The CLI is released under Apache-2.0. It runs on your machine, needs no account and sends nothing anywhere. If your organization wants the team features too, get in touch and we will set them up.</p>
+      <div class="actions">
+        <a class="btn pri" href="/docs/install/" data-k="p.install">Install the CLI</a>
+        <a class="btn" href="mailto:sales@sprag.io?subject=Sprag" data-k="p.contact">Get in touch</a>
+      </div>
     </div>
   </div>
 
-  <div class="plans">
-    <article class="plan">
-      <h2 data-k="p.free">Free</h2>
-      <p class="for" data-k="p.free.for">For one developer on Claude Code or Codex.</p>
-      <div class="price"><b class="ask" data-k="l.free.price">Free</b></div>
-      <p class="fine" data-k="p.free.fine">Open source, no account</p>
-      <a class="btn" href="/docs/install/" data-k="p.free.cta">Install the CLI</a>
-      <p class="inc" data-k="p.free.inc">Includes</p>
-      <ul>
-        <li data-k="p.free.1">Open-source CLI</li>
-        <li data-k="p.free.2">Routing rules from your own logs</li>
-        <li data-k="p.free.3">Sub-agents pinned to cheaper models</li>
-        <li data-k="p.free.4">Savings ledger and statusline</li>
-        <li data-k="p.free.5">doc2md for Office files and PDF</li>
-        <li data-k="p.free.6">Nothing leaves your machine</li>
-      </ul>
-    </article>
-
-    <article class="plan feat">
-      <span class="tag" data-k="p.popular">Most popular</span>
-      <h2 data-k="p.pro">Pro</h2>
-      <p class="for" data-k="p.pro.for">For teams that want one view of spend and savings.</p>
-      <div class="price"><b class="ask" data-k="l.ask">Contact us</b></div>
-      <p class="fine" data-k="l.fine">Sized to your seats</p>
-      <a class="btn pri" href="mailto:sales@sprag.io?subject=Sprag%20Pro%20license" data-k="l.cta">Ask about a license</a>
-      <p class="inc" data-k="p.pro.inc">Everything in Free, plus</p>
-      <ul>
-        <li data-k="p.pro.1">Team dashboard with a 30-day chart</li>
-        <li data-k="p.pro.2">Seat roster with each machine's status</li>
-        <li data-k="p.pro.3">Remove, restore and merge seats</li>
-        <li data-k="p.pro.4">Team rules applied at session start</li>
-        <li data-k="p.pro.5">Rollout with <code>sprag team join</code></li>
-        <li data-k="p.pro.6">Owner and admin roles, activity log</li>
-      </ul>
-    </article>
-
-    <article class="plan">
-      <h2 data-k="p.ent">Enterprise</h2>
-      <p class="for" data-k="p.ent.for">For teams that also review how prompts are written.</p>
-      <div class="price"><b class="ask" data-k="l.ask">Contact us</b></div>
-      <p class="fine" data-k="l.fine">Sized to your seats</p>
-      <a class="btn" href="mailto:sales@sprag.io?subject=Sprag%20Enterprise%20license" data-k="l.cta">Ask about a license</a>
-      <p class="inc" data-k="p.ent.inc">Everything in Pro, plus</p>
-      <ul>
-        <li data-k="p.ent.1">Prompt capture, secrets redacted</li>
-        <li data-k="p.ent.2">Nothing from before the policy was on</li>
-        <li data-k="p.ent.3">Per-user prompt usage and 30-day trend</li>
-        <li data-k="p.ent.4">Each user's prompt list with search</li>
-        <li data-k="p.ent.5">Capture policy visible to every member</li>
-      </ul>
-    </article>
-  </div>
-
-  <div class="strip">
+  <section class="lic" aria-labelledby="lic-h">
     <div>
-      <h2 data-k="p.cus">Custom</h2>
-      <p data-k="p.cus.p">Volume or annual invoicing, a security review, data retention terms.</p>
+      <h2 id="lic-h" data-k="l.lic.h">Apache License 2.0</h2>
+      <p data-k="l.lic.p">You can use Sprag at work, change it and share it. When you share a copy, keep the LICENSE and NOTICE files with it and mark what you changed.</p>
+      <div class="links">
+        <a class="btn" href="https://github.com/rootstudioyaml/sprag/blob/main/LICENSE" data-k="l.lic.full">Read the license</a>
+        <a class="btn" href="https://github.com/rootstudioyaml/sprag" data-k="l.lic.src">Source on GitHub</a>
+      </div>
     </div>
-    <a class="btn" href="mailto:sales@sprag.io" data-k="p.cus.cta">Contact sales</a>
-  </div>
+    <ul>
+      <li data-k="l.lic.1">Personal and company use</li>
+      <li data-k="l.lic.2">Changes and your own builds</li>
+      <li data-k="l.lic.3">Sharing copies, with the license and notices kept</li>
+      <li data-k="l.lic.4">A patent license from every contributor</li>
+    </ul>
+  </section>
+
+  <section class="blk" aria-labelledby="feat-h">
+    <h2 id="feat-h" data-k="l.f.h">What Sprag does</h2>
+    <p class="sub" data-k="l.f.sub">The CLI works on its own on one machine. The team features add one view for an organization.</p>
+    <div class="fgrid">
+      <article class="fcard">
+        <h3 data-k="l.f1.h">On your machine</h3>
+        <p class="for" data-k="l.f1.for">For anyone using Claude Code or Codex.</p>
+        <ul>
+          <li data-k="p.free.2">Routing rules from your own logs</li>
+          <li data-k="p.free.3">Sub-agents pinned to cheaper models</li>
+          <li data-k="p.free.4">Savings ledger and statusline</li>
+          <li data-k="p.free.5">doc2md for Office files and PDF</li>
+          <li data-k="p.free.6">Nothing leaves your machine</li>
+        </ul>
+      </article>
+      <article class="fcard">
+        <h3 data-k="l.f2.h">Team dashboard</h3>
+        <p class="for" data-k="l.f2.for">For organizations that want one view of AI use.</p>
+        <ul>
+          <li data-k="p.pro.1">Team dashboard with a 30-day chart</li>
+          <li data-k="l.f2.office">A virtual office with an animal for each person</li>
+          <li data-k="p.pro.2">Seat roster with each machine's status</li>
+          <li data-k="p.pro.4">Team rules applied at session start</li>
+          <li data-k="p.pro.5">Rollout with <code>sprag team join</code></li>
+          <li data-k="p.pro.6">Owner and admin roles, activity log</li>
+        </ul>
+      </article>
+      <article class="fcard">
+        <h3 data-k="l.f3.h">Prompt monitoring</h3>
+        <p class="for" data-k="l.f3.for">For organizations that also review how prompts are written.</p>
+        <ul>
+          <li data-k="p.ent.1">Prompt capture, secrets redacted</li>
+          <li data-k="p.ent.2">Nothing from before the policy was on</li>
+          <li data-k="p.ent.3">Per-user prompt usage and 30-day trend</li>
+          <li data-k="p.ent.4">Each user's prompt list with search</li>
+          <li data-k="p.ent.5">Capture policy visible to every member</li>
+        </ul>
+        <p class="note" data-k="l.f3.note">Off unless the organization turns it on.</p>
+      </article>
+    </div>
+  </section>
 
   <section class="blk" aria-labelledby="how-h">
     <h2 id="how-h" data-k="l.how.h">How a team gets started</h2>
     <ol class="steps">
-      <li><b data-k="l.s1.h">Write to us</b><span data-k="l.s1">Send your organization name, how many people will use it and the plan you have in mind to <a href="mailto:sales@sprag.io">sales@sprag.io</a>.</span></li>
-      <li><b data-k="l.s2.h">We open your organization</b><span data-k="l.s2">Sprag opens the organization with your seats and connects the owner's account. The owner signs in at sprag.io/team with an email code.</span></li>
+      <li><b data-k="l.s1.h">Write to us</b><span data-k="l.s1">Tell us your organization name and roughly how many people will use it at <a href="mailto:sales@sprag.io">sales@sprag.io</a>.</span></li>
+      <li><b data-k="l.s2.h">We open your organization</b><span data-k="l.s2">Sprag opens the organization and connects the owner's account. The owner signs in at sprag.io/team with an email code.</span></li>
       <li><b data-k="l.s3.h">Invite the team</b><span data-k="l.s3">The owner creates teams and shares the invite. Each member runs <code>sprag team join</code> once; a machine that joins again keeps its seat.</span></li>
     </ol>
   </section>
 
   <section class="blk" aria-labelledby="vid-h">
-    <h2 id="vid-h" data-k="p.vid.h">Each plan in 30 seconds</h2>
+    <h2 id="vid-h" data-k="p.vid.h">The team features in 30 seconds</h2>
     <p class="sub" data-k="p.vid.sub">Recorded from the demo dashboard with sample data.</p>
     <div class="vgrid">
       <figure class="vcard">
         <video data-vid="pro" controls preload="none" playsinline></video>
-        <figcaption><b data-k="p.pro">Pro</b><span data-k="p.vid.pro">Spend, savings, seats and team rules</span></figcaption>
+        <figcaption><b data-k="l.f2.h">Team dashboard</b><span data-k="p.vid.pro">Spend, savings, seats and team rules</span></figcaption>
       </figure>
       <figure class="vcard">
         <video data-vid="ent" controls preload="none" playsinline></video>
-        <figcaption><b data-k="p.ent">Enterprise</b><span data-k="p.vid.ent">Prompt usage, prompt search and the capture policy</span></figcaption>
+        <figcaption><b data-k="l.f3.h">Prompt monitoring</b><span data-k="p.vid.ent">Prompt usage, prompt search and the capture policy</span></figcaption>
       </figure>
     </div>
-  </section>
-
-  <section class="blk">
-    <h2 data-k="p.cmp.h">Compare plans</h2>
-    <p class="sub" data-k="p.cmp.sub">Everything in Free stays free inside a paid organization.</p>
-    <table>
-      <thead>
-        <tr>
-          <th><span class="sr" data-k="p.cmp.f">Feature</span></th>
-          <th data-k="p.free">Free</th>
-          <th class="feat"><span data-k="p.pro">Pro</span></th>
-          <th><span data-k="p.ent">Enterprise</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr class="grp"><th colspan="4" data-k="c.g1"></th></tr>
-        <tr><th data-k="c.r1"></th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r2"></th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r3"></th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r4"></th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r5"></th><td><i class="y"></i></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr class="grp"><th colspan="4" data-k="c.g2"></th></tr>
-        <tr><th data-k="c.r6"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r7"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r8"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r9"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r10"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r11"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r12"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r13"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r14"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr class="grp"><th colspan="4" data-k="c.g3"></th></tr>
-        <tr><th data-k="c.r15"></th><td><span class="n"></span></td><td class="feat" data-k="c.r15b"></td><td data-k="c.r15c"></td></tr>
-        <tr><th data-k="c.r16"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r17"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r18"></th><td><span class="n"></span></td><td class="feat" data-k="c.r18b"></td><td data-k="c.r18c"></td></tr>
-        <tr class="grp"><th colspan="4" data-k="c.g4"></th></tr>
-        <tr><th data-k="c.r19"></th><td><span class="n"></span></td><td class="feat"><span class="n"></span></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r20"></th><td><span class="n"></span></td><td class="feat"><span class="n"></span></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r21"></th><td><span class="n"></span></td><td class="feat"><span class="n"></span></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r22"></th><td><span class="n"></span></td><td class="feat"><span class="n"></span></td><td><i class="y"></i></td></tr>
-        <tr class="grp"><th colspan="4" data-k="c.g5"></th></tr>
-        <tr><th data-k="c.r23"></th><td data-k="c.r23a"></td><td class="feat" data-k="c.r23b"></td><td data-k="c.r23c"></td></tr>
-        <tr><th data-k="c.r24"></th><td><span class="n"></span></td><td class="feat" data-k="c.r24b"></td><td data-k="c.r24c"></td></tr>
-        <tr><th data-k="c.r25"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r26"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-        <tr><th data-k="c.r27"></th><td><span class="n"></span></td><td class="feat"><i class="y"></i></td><td><i class="y"></i></td></tr>
-      </tbody>
-    </table>
   </section>
 
   <section class="blk">
     <h2 data-k="p.faq.h">Questions</h2>
     <div class="faqs">
       <div class="faq-grid">
-      <details><summary data-k="p.q0">How are seats counted?</summary><p data-k="p.a0">One seat is one machine that was active in the last 30 days or is paused with the upload switch. A person's second machine can be merged into the same seat, and joins past the limit are refused.</p></details>
-      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. Free sends nothing and never needs an account. On Pro, a machine sends one aggregate row per day plus its OS name, version and architecture, never prompts, paths or hostnames. <code>sprag team status --show-payload</code> prints exactly what is sent.</p></details>
+      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. The CLI on its own sends nothing and never needs an account. A machine that joins a team sends one aggregate row per day plus its OS name and version, never prompts, paths or hostnames. <code>sprag team status --show-payload</code> prints exactly what is sent.</p></details>
       <details><summary data-k="p.q2">Who consents in a company rollout?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members can still see what is sent with <code>sprag team status</code>. <code>SPRAG_NO_TEAM_SYNC=1</code> stops usage uploads, though the seat stays until an admin removes it, and <code>sprag team leave</code> wins over the env var.</p></details>
-      <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only an organization owner or admin, and only on Enterprise. It is off by default, and the policy is visible to every member. Capture starts the moment it is turned on, with no history before it.</p></details>
-      <details><summary data-k="p.q6">Can we change plans or cancel?</summary><p data-k="p.a6">Yes. Tell us at <a href="mailto:sales@sprag.io">sales@sprag.io</a> and the change applies from the next contract period. If you cancel, the free CLI keeps working as before.</p></details>
+      <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only an organization owner or admin. It is off by default, and the policy is visible to every member. Capture starts the moment it is turned on, with no history before it.</p></details>
+      <details><summary data-k="p.q0">How are machines counted?</summary><p data-k="p.a0">One machine that was active in the last 30 days, or paused with the upload switch, counts once. A person's second machine can be merged into the same seat.</p></details>
       <details><summary data-k="p.q5">Where is the data stored?</summary><p data-k="p.a5">In Supabase, in the ap-northeast-2 (Seoul) region.</p></details>
-      <details><summary data-k="p.q7">How do I add seats?</summary><p data-k="p.a7">Write to <a href="mailto:sales@sprag.io">sales@sprag.io</a> with your organization name and the number of seats you need.</p></details>
+      <details><summary data-k="p.q6">Can we stop using the team features?</summary><p data-k="p.a6">Yes. Run <code>sprag team leave</code> on a machine, or tell us to close the organization. The CLI keeps working as before.</p></details>
       </div>
     </div>
   </section>
 
   <div class="cta">
-    <h2 data-k="p.cta">Tell us about your team, and we will suggest the right license.</h2>
+    <h2 data-k="p.cta">Questions, or want the team features for your organization?</h2>
     <div class="actions">
-      <a class="btn pri" href="mailto:sales@sprag.io?subject=Sprag%20team%20license" data-k="l.cta2">Email sales@sprag.io</a>
+      <a class="btn pri" href="mailto:sales@sprag.io?subject=Sprag" data-k="p.contact">Get in touch</a>
       <a class="btn" href="/docs/team/" data-k="p.docs">Read the team guide</a>
     </div>
   </div>
@@ -375,177 +282,82 @@
 </footer>
 
 <script>
-/* License page: built from site/pricing/index.html by hand, with every price removed. Pro and Enterprise go through sales@sprag.io. */
+/* License page: the open-source license, what the CLI and the team features do, and how to get in touch. No plans, prices or contract terms. */
 
 const KO = {
- "c.g1": "내 컴퓨터에서",
- "c.r1": "오픈소스 CLI와 훅",
- "c.r2": "내 기록에서 뽑은 라우팅 규칙",
- "c.r3": "더 싼 모델로 고정한 서브에이전트",
- "c.r4": "절감액 원장과 statusline",
- "c.r5": "doc2md 문서 변환",
- "c.g2": "조직",
- "c.r6": "컴퓨터별 지출, 절감액, 위임 실행 대시보드",
- "c.r7": "30일 추이 차트",
- "c.r8": "좌석 명단: 업로드 스위치, 신호, 마지막 업로드, OS와 버전",
- "c.r9": "좌석 제거, 복원, 병합",
- "c.r10": "활동 기록",
- "c.r11": "세션 시작 때 적용되는 팀 승인 규칙",
- "c.r12": "<code>SPRAG_TEAM_TOKEN</code>이나 <code>sprag team join</code>으로 배포",
- "c.r13": "오너와 어드민 역할",
- "c.r14": "터미널에서 <code>sprag team create</code>",
- "c.g3": "좌석과 컴퓨터",
- "c.r15": "좌석 기준",
- "c.r15b": "활동한 컴퓨터 한 대",
- "c.r15c": "활동한 컴퓨터 한 대",
- "c.r16": "같은 사람의 두 번째 컴퓨터 병합",
- "c.r17": "컴퓨터별 업로드 일시중지",
- "c.r18": "한도를 넘는 참여",
- "c.r18b": "거절",
- "c.r18c": "거절",
- "c.g4": "프롬프트 모니터링",
- "c.r19": "팀별 프롬프트 수집(직접 입력한 프롬프트만)",
- "c.r20": "사용자별 사용량: 프롬프트, 글자 수, 활동일, 30일 추이",
- "c.r21": "사용자별 프롬프트 목록과 검색",
- "c.r22": "모든 멤버에게 보이는 수집 정책",
- "c.g5": "데이터와 통제",
- "c.r23": "밖으로 나가는 데이터",
- "c.r23a": "없음",
- "c.r23b": "하루 집계",
- "c.r23c": "하루 집계, 프롬프트",
- "c.r24": "저장 리전",
- "c.r24b": "서울",
- "c.r24c": "서울",
- "c.r25": "<code>SPRAG_NO_TEAM_SYNC=1</code>로 업로드 중지",
- "c.r26": "<code>sprag team leave</code>",
- "c.r27": "<code>sprag team status --show-payload</code>",
  "nav.docs": "문서",
  "nav.teams": "팀",
- "nav.pricing": "요금",
+ "nav.license": "라이선스",
  "p.eyebrow": "라이선스",
- "p.h1": "개발자는 누구나 무료, 팀 라이선스는 문의로",
- "p.lede": "CLI는 Apache-2.0 오픈소스라 계정 없이 바로 씁니다. 팀의 AI 지출을 한눈에 보고 규칙을 한 번에 맞추고 싶다면, 팀 규모에 맞춰 프로나 엔터프라이즈 라이선스를 안내해 드립니다.",
- "p.monthly": "월간",
- "p.annual": "연간",
- "p.free": "무료",
- "p.free.for": "Claude Code나 Codex를 혼자 쓰는 개발자",
- "p.free.fine": "오픈소스, 계정 없음",
- "p.free.cta": "CLI 설치",
- "p.free.inc": "포함 기능",
- "p.free.1": "오픈소스 CLI",
+ "p.h1": "Sprag는 오픈소스이고, 무료로 씁니다",
+ "p.lede": "CLI는 Apache-2.0으로 공개되어 있습니다. 내 컴퓨터에서 돌아가고, 계정이 필요 없으며, 어디로도 데이터를 보내지 않습니다. 조직에서 팀 기능도 쓰고 싶다면 연락 주세요. 직접 설정해 드립니다.",
+ "p.install": "CLI 설치",
+ "p.contact": "문의하기",
+ "l.lic.h": "Apache License 2.0",
+ "l.lic.p": "회사에서 써도 되고, 고쳐 쓰거나 다른 사람과 나눠도 됩니다. 사본을 나눌 때는 LICENSE와 NOTICE 파일을 함께 두고, 바꾼 부분을 표시해 주세요.",
+ "l.lic.full": "라이선스 전문 보기",
+ "l.lic.src": "GitHub 소스",
+ "l.lic.1": "개인과 회사에서 사용",
+ "l.lic.2": "코드 수정과 직접 빌드",
+ "l.lic.3": "라이선스와 고지를 유지한 채 배포",
+ "l.lic.4": "기여자 모두가 주는 특허 사용 허락",
+ "l.f.h": "Sprag가 하는 일",
+ "l.f.sub": "CLI는 컴퓨터 한 대에서 혼자 돌아갑니다. 팀 기능은 여기에 조직 전체를 한눈에 보는 화면을 더합니다.",
+ "l.f1.h": "내 컴퓨터에서",
+ "l.f1.for": "Claude Code나 Codex를 쓰는 누구나",
  "p.free.2": "내 기록에서 뽑은 라우팅 규칙",
  "p.free.3": "더 싼 모델로 고정한 서브에이전트",
  "p.free.4": "절감액 원장과 statusline",
  "p.free.5": "오피스 문서와 PDF를 doc2md로 변환",
  "p.free.6": "어떤 데이터도 밖으로 나가지 않음",
- "p.popular": "가장 많이 선택",
- "p.pro": "프로",
- "p.pro.for": "지출과 절감액을 한곳에서 보려는 팀",
- "p.start": "시작하기",
- "p.pro.inc": "무료 기능 전부와 함께",
+ "l.f2.h": "팀 대시보드",
+ "l.f2.for": "조직의 AI 사용을 한곳에서 보려는 팀",
  "p.pro.1": "조직 대시보드와 30일 추이 차트",
+ "l.f2.office": "사람마다 동물 캐릭터가 앉아 있는 가상 사무실",
  "p.pro.2": "컴퓨터별 상태가 보이는 좌석 명단",
- "p.pro.3": "좌석 제거, 복원, 병합",
  "p.pro.4": "세션 시작 때 적용되는 팀 승인 규칙",
  "p.pro.5": "<code>sprag team join</code>으로 조직 배포",
  "p.pro.6": "오너와 어드민 역할, 활동 기록",
- "p.ent": "엔터프라이즈",
- "p.ent.for": "프롬프트 작성 방식까지 검토하려는 팀",
- "p.ent.inc": "프로 기능 전부와 함께",
+ "l.f3.h": "프롬프트 모니터링",
+ "l.f3.for": "프롬프트 작성 방식까지 검토하려는 팀",
  "p.ent.1": "팀별 프롬프트 수집, 비밀 값은 가림",
  "p.ent.2": "정책을 켜기 전 기록은 수집하지 않음",
  "p.ent.3": "사용자별 프롬프트 사용량과 30일 추이",
  "p.ent.4": "사용자별 프롬프트 목록과 검색",
  "p.ent.5": "모든 멤버에게 보이는 수집 정책",
- "p.cus": "맞춤 계약",
- "p.cus.p": "대량 구매, 연간 인보이스, 보안 검토, 데이터 보존 기간 조정",
- "p.vid.h": "30초로 보는 프로와 엔터프라이즈",
+ "l.f3.note": "조직이 직접 켜기 전에는 꺼져 있습니다.",
+ "l.how.h": "팀 도입은 이렇게 진행됩니다",
+ "l.s1.h": "메일로 알려 주세요",
+ "l.s1": "조직 이름과 쓰실 대략의 인원을 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 보내 주세요.",
+ "l.s2.h": "Sprag가 조직을 열어 드립니다",
+ "l.s2": "조직을 개설하고 오너 계정을 연결해 드립니다. 오너는 sprag.io/team 에서 이메일 코드로 로그인합니다.",
+ "l.s3.h": "팀원을 초대하세요",
+ "l.s3": "오너가 팀을 만들고 초대 토큰을 나눠 줍니다. 팀원은 <code>sprag team join</code> 을 한 번 실행하면 되고, 같은 컴퓨터로 다시 참여해도 좌석은 하나로 유지됩니다.",
+ "p.vid.h": "30초로 보는 팀 기능",
  "p.vid.sub": "샘플 데이터를 넣은 데모 대시보드에서 녹화했습니다",
  "p.vid.pro": "지출, 절감액, 좌석, 팀 규칙",
  "p.vid.ent": "프롬프트 사용량과 검색, 수집 정책",
- "p.cus.cta": "영업팀에 문의",
- "p.cmp.h": "플랜 비교",
- "p.cmp.sub": "무료 기능은 라이선스를 받은 조직 안에서도 그대로 무료입니다",
- "p.cmp.f": "기능",
  "p.faq.h": "자주 묻는 질문",
- "p.q0": "좌석은 어떻게 세나요?",
- "p.a0": "좌석 하나는 최근 30일 안에 활동했거나 업로드 스위치로 일시중지된 컴퓨터 한 대입니다. 같은 사람의 두 번째 컴퓨터는 같은 좌석으로 합칠 수 있고, 한도를 넘는 참여는 거절됩니다.",
  "p.q1": "기본으로 올라가는 데이터가 있나요?",
- "p.a1": "없습니다. 무료는 아무것도 보내지 않고 계정도 필요 없습니다. 프로에서는 컴퓨터마다 하루 집계 한 줄과 OS 이름, 버전, 아키텍처만 보내며 프롬프트, 경로, 호스트 이름은 보내지 않습니다. 실제로 나가는 내용은 <code>sprag team status --show-payload</code>로 그대로 볼 수 있습니다.",
+ "p.a1": "없습니다. CLI만 쓰면 아무것도 보내지 않고 계정도 필요 없습니다. 팀에 참여한 컴퓨터는 하루 집계 한 줄과 OS 이름, 버전만 보내며 프롬프트, 경로, 호스트 이름은 보내지 않습니다. 실제로 나가는 내용은 <code>sprag team status --show-payload</code>로 그대로 볼 수 있습니다.",
  "p.q2": "회사가 도입하면 동의는 누가 하나요?",
  "p.a2": "조직 단위로 배포할 때는 조직의 결정이 동의입니다. 멤버는 <code>sprag team status</code>로 전송 내용을 볼 수 있습니다. <code>SPRAG_NO_TEAM_SYNC=1</code>은 사용량 업로드를 멈추지만 좌석은 어드민이 제거할 때까지 남고, <code>sprag team leave</code>는 환경 변수보다 우선합니다.",
  "p.q4": "프롬프트 수집은 누가 정하나요?",
- "p.a4": "조직 오너나 어드민만 정할 수 있고 엔터프라이즈에서만 켤 수 있습니다. 기본값은 꺼짐이며 정책은 모든 멤버에게 보입니다. 켠 시점부터 수집하고 그 전 기록은 가져오지 않습니다.",
- "p.q6": "플랜을 바꾸거나 해지할 수 있나요?",
- "p.a6": "네. <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 알려 주시면 다음 계약 기간부터 바뀝니다. 해지해도 무료 CLI는 지금처럼 쓸 수 있습니다.",
+ "p.a4": "조직 오너나 어드민만 켤 수 있습니다. 기본값은 꺼짐이며 정책은 모든 멤버에게 보입니다. 켠 시점부터 수집하고 그 전 기록은 가져오지 않습니다.",
+ "p.q0": "컴퓨터는 어떻게 세나요?",
+ "p.a0": "최근 30일 안에 활동했거나 업로드 스위치로 일시중지한 컴퓨터를 한 대로 셉니다. 같은 사람의 두 번째 컴퓨터는 같은 좌석으로 합칠 수 있습니다.",
  "p.q5": "데이터는 어디에 저장되나요?",
  "p.a5": "Supabase의 ap-northeast-2(서울) 리전에 저장됩니다.",
- "p.q7": "좌석은 어떻게 늘리나요?",
- "p.a7": "조직 이름과 필요한 좌석 수를 적어 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 문의해 주세요.",
- "p.cta": "팀 상황을 알려 주시면 맞는 라이선스를 안내해 드릴게요.",
- "p.docs": "팀 가이드 읽기",
- "nav.license": "라이선스",
- "l.free.price": "무료",
- "l.ask": "문의",
- "l.fine": "좌석 수에 맞춰 안내",
- "l.cta": "라이선스 문의하기",
- "l.cta2": "sales@sprag.io로 메일 보내기",
- "l.how.h": "팀 도입은 이렇게 진행됩니다",
- "l.s1.h": "메일로 알려 주세요",
- "l.s1": "조직 이름, 쓰실 인원, 원하시는 플랜을 <a href=\"mailto:sales@sprag.io\">sales@sprag.io</a>로 보내 주세요.",
- "l.s2.h": "Sprag가 조직을 열어 드립니다",
- "l.s2": "좌석 수에 맞춰 조직을 개설하고 오너 계정을 연결해 드립니다. 오너는 sprag.io/team 에서 이메일 코드로 로그인합니다.",
- "l.s3.h": "팀원을 초대하세요",
- "l.s3": "오너가 팀을 만들고 초대 토큰을 나눠 줍니다. 팀원은 <code>sprag team join</code> 을 한 번 실행하면 되고, 같은 컴퓨터로 다시 참여해도 좌석은 하나로 유지됩니다."
+ "p.q6": "팀 기능을 그만 쓸 수 있나요?",
+ "p.a6": "네. 컴퓨터에서 <code>sprag team leave</code>를 실행하거나, 조직을 닫아 달라고 알려 주시면 됩니다. CLI는 지금처럼 계속 쓸 수 있습니다.",
+ "p.cta": "궁금한 점이 있거나 조직에서 팀 기능을 쓰고 싶으신가요?",
+ "p.docs": "팀 가이드 읽기"
 };
 const EN = {};
 document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
-Object.assign(EN, {
- "c.g1": "On your machine",
- "c.r1": "Open-source CLI and hooks",
- "c.r2": "Routing rules from your own logs",
- "c.r3": "Sub-agents pinned to cheaper models",
- "c.r4": "Savings ledger and statusline",
- "c.r5": "doc2md document conversion",
- "c.g2": "Organization",
- "c.r6": "Dashboard: spend, savings, delegated runs per machine",
- "c.r7": "30-day chart",
- "c.r8": "Seat roster: upload switch, signal, last upload, OS and version",
- "c.r9": "Remove, restore and merge seats",
- "c.r10": "Activity log",
- "c.r11": "Team-approved rules pushed at session start",
- "c.r12": "Rollout with <code>SPRAG_TEAM_TOKEN</code> or <code>sprag team join</code>",
- "c.r13": "Owner and admin roles",
- "c.r14": "<code>sprag team create</code> from the terminal",
- "c.g3": "Seats & machines",
- "c.r15": "A seat is",
- "c.r15b": "One active machine",
- "c.r15c": "One active machine",
- "c.r16": "Merge a person's second machine",
- "c.r17": "Pause a machine's upload",
- "c.r18": "Joins past the seat limit",
- "c.r18b": "Refused",
- "c.r18c": "Refused",
- "c.g4": "Prompt monitoring",
- "c.r19": "Prompt capture per team (user-typed prompts only)",
- "c.r20": "Per-user usage: prompts, characters, active days, 30-day trend",
- "c.r21": "Each user's prompt list with search",
- "c.r22": "Capture policy visible to every member",
- "c.g5": "Data & control",
- "c.r23": "What leaves your machine",
- "c.r23a": "Nothing",
- "c.r23b": "Daily row",
- "c.r23c": "Daily row, prompts",
- "c.r24": "Storage region",
- "c.r24b": "Seoul",
- "c.r24c": "Seoul",
- "c.r25": "<code>SPRAG_NO_TEAM_SYNC=1</code> stops uploads",
- "c.r26": "<code>sprag team leave</code>",
- "c.r27": "<code>sprag team status --show-payload</code>"
-});
 const META = {
-  en: { title:'Sprag License | Free for developers, team licenses on request', desc: document.querySelector('meta[name=description]').content },
-  ko: { title:'Sprag 라이선스 · 개발자는 무료, 팀은 문의', desc:'Sprag CLI는 오픈소스라 무료입니다. 팀 대시보드와 중앙 규칙이 필요한 팀은 sales@sprag.io로 프로나 엔터프라이즈 라이선스를 문의해 주세요.' }
+  en: { title:'Sprag License | Open source under Apache-2.0', desc: document.querySelector('meta[name=description]').content },
+  ko: { title:'Sprag 라이선스 · Apache-2.0 오픈소스', desc:'Sprag는 Apache-2.0 오픈소스라 무료로 씁니다. 내 컴퓨터에서 돌아가고 계정이 필요 없습니다. 팀 기능은 요청하시면 조직에 맞춰 설정해 드립니다.' }
 };
 let lang = 'en';
 
