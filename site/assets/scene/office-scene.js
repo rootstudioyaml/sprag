@@ -256,6 +256,7 @@ export const OF_CSS = `
 .of-card{padding:0!important;overflow:hidden;margin-bottom:var(--s4,16px)}
 .of-stage{position:relative;height:520px;overflow:hidden;contain:layout paint;background:radial-gradient(ellipse at 50% 35%,#fffaf0 0,#f6ead2 80%);color:#6a5a4a}
 .of-stage canvas{display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab}
+.of-stage canvas:focus:not(:focus-visible){outline:none}
 .of-stage canvas.drag{cursor:grabbing}.of-stage canvas.hit{cursor:pointer}
 .of-hud{position:absolute;left:16px;top:12px;right:16px;pointer-events:none;font-size:12px;line-height:1.45;z-index:2;color:#6a5a4a}
 .of-hud b{display:block;font-size:15px;font-weight:600;color:#3a2f27;letter-spacing:-.01em}
@@ -359,7 +360,8 @@ export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','
 export const hash = s => { let h = 2166136261; for(const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0) / 4294967296; };
 
 /* Orbit / pan / zoom for the orthographic cameras of both scenes. The camera orbits a target: azimuth is free (360 degrees, with inertia),
- * polar angle is clamped to 20-70 degrees from the horizon, right-drag or shift-drag pans inside the bounds, the wheel and pinch zoom toward the pointer.
+ * polar angle is clamped to 20-70 degrees from the horizon. A plain drag pans inside the bounds like a map, right-drag, shift-drag or alt-drag orbits,
+ * two fingers pinch-zoom and pan together, the arrow keys pan and Q/E turn while the stage has focus, and the wheel zooms toward the pointer.
  * cfg: { T, canvas, stage, camera, target0:[x,y,z], theta0, phi0, dist, bounds(), size():[W,H], ppu(), isFs(), reduced, request(), onTap(px,py,ev), onMove(px,py,ev), onLeave(), onDrag(bool), onFocus(), onEnter() } */
 export function makeView(cfg){
   const T = cfg.T, cam = cfg.camera, tgt = new T.Vector3(...cfg.target0), tgt0 = tgt.clone(), rc = new T.Raycaster(), plane = new T.Plane(new T.Vector3(0, 1, 0), 0), V = new T.Vector3(), V2 = new T.Vector3(), N = new T.Vector2();
@@ -379,6 +381,10 @@ export function makeView(cfg){
     if(pick(a[0], a[1], V2)){ tgt.add(V.sub(V2)); clampT(); } pose(); return true;
   }
   const mark = () => { last = now; };
+  function panBy(dx, dy){   /* screen pixels to a ground move: the target follows the drag so the floor stays under the pointer */
+    const u = 1 / (cfg.ppu() * zoom), sp = Math.sin(th), cp = Math.cos(th), k = 1 / Math.max(0.3, Math.cos(ph));
+    tgt.x += -cp * dx * u - sp * dy * u * k; tgt.z += sp * dx * u - cp * dy * u * k; clampT();
+  }
   function zoomAt(f, px, py){ zT = clamp(zT * f, ZMIN, ZMAX); anchor = px == null ? null : [px, py]; mark(); cfg.request(); }
   function update(dt, time){
     now = time; const idle = time - last > 20;
@@ -391,29 +397,29 @@ export function makeView(cfg){
   const rect = () => cfg.canvas.getBoundingClientRect(), pt = ev => { const r = rect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
   cfg.canvas.addEventListener('pointerdown', ev => {
     cfg.canvas.setPointerCapture(ev.pointerId); ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]); focused = true; if(cfg.onFocus) cfg.onFocus(); mark();
-    if(ptrs.size === 2){ const [a, b] = [...ptrs.values()]; g = { mode: 'pinch', d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z0: zT, moved: true }; vth = vph = 0; }
-    else g = { mode: ev.button === 2 || ev.shiftKey ? 'pan' : 'orbit', lx: ev.clientX, ly: ev.clientY, sx: ev.clientX, sy: ev.clientY, moved: false, t: performance.now() };
+    if(ptrs.size === 2){ const [a, b] = [...ptrs.values()]; g = { mode: 'pinch', d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z0: zT, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, moved: true }; vth = vph = 0; }
+    else g = { mode: ev.button === 2 || ev.shiftKey || ev.altKey ? 'orbit' : 'pan', lx: ev.clientX, ly: ev.clientY, sx: ev.clientX, sy: ev.clientY, moved: false, t: performance.now() };
   });
   cfg.canvas.addEventListener('contextmenu', ev => ev.preventDefault());
   cfg.canvas.addEventListener('pointermove', ev => {
     if(ptrs.has(ev.pointerId)) ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]);
     if(!g){ if(ev.pointerType !== 'touch') cfg.onMove(...pt(ev), ev); return; }
-    if(g.mode === 'pinch'){ if(ptrs.size < 2) return; const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), r = rect(); zT = clamp(g.z0 * d / g.d0, ZMIN, ZMAX); anchor = [(a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top]; mark(); cfg.request(); return; }
+    if(g.mode === 'pinch'){ if(ptrs.size < 2) return; const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), r = rect(), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      panBy(mx - g.mx, my - g.my); g.mx = mx; g.my = my;   /* the two fingers' midpoint drags the floor while their spread zooms */
+      zT = clamp(g.z0 * d / g.d0, ZMIN, ZMAX); anchor = [mx - r.left, my - r.top]; mark(); cfg.request(); return; }
     const dx = ev.clientX - g.lx, dy = ev.clientY - g.ly;
     if(!g.moved && Math.hypot(ev.clientX - g.sx, ev.clientY - g.sy) > 5){ g.moved = true; cfg.canvas.classList.add('drag'); if(cfg.onDrag) cfg.onDrag(true); }
     if(!g.moved) return;
     const tNow = performance.now(), dts = Math.max(0.008, (tNow - g.t) / 1000); g.t = tNow; g.lx = ev.clientX; g.ly = ev.clientY; mark();
-    if(g.mode === 'pan'){
-      const u = 1 / (cfg.ppu() * zoom), sp = Math.sin(th), cp = Math.cos(th);
-      tgt.x += -cp * dx * u - sp * dy * u / Math.max(0.3, Math.cos(ph)); tgt.z += sp * dx * u - cp * dy * u / Math.max(0.3, Math.cos(ph)); clampT();
-    } else { const dth = -dx * 0.008, dph = -dy * 0.006; th += dth; ph = clamp(ph + dph, PMIN, PMAX); vth = vth * 0.5 + 0.5 * dth / dts; vph = vph * 0.5 + 0.5 * dph / dts; }
+    if(g.mode === 'pan') panBy(dx, dy);
+    else { const dth = -dx * 0.008, dph = -dy * 0.006; th += dth; ph = clamp(ph + dph, PMIN, PMAX); vth = vth * 0.5 + 0.5 * dth / dts; vph = vph * 0.5 + 0.5 * dph / dts; }
     cfg.request();
   });
   const end = ev => {
     ptrs.delete(ev.pointerId); const gg = g;
     if(ptrs.size === 0){ g = null; cfg.canvas.classList.remove('drag'); if(cfg.onDrag) cfg.onDrag(false); }
     else if(ptrs.size === 1 && gg && gg.mode === 'pinch') g = null;
-    if(!gg || gg.moved || ev.type === 'pointercancel' || gg.mode !== 'orbit') return;
+    if(!gg || gg.moved || ev.type === 'pointercancel' || gg.mode === 'pinch' || ev.button === 2) return;   /* a click that did not move is a tap, whichever drag it would have started */
     cfg.onTap(...pt(ev), ev);
   };
   cfg.canvas.addEventListener('pointerup', end); cfg.canvas.addEventListener('pointercancel', end);
@@ -421,6 +427,14 @@ export function makeView(cfg){
     if(!(cfg.isFs() || ev.ctrlKey || ev.metaKey || focused)) return;
     ev.preventDefault(); const [px, py] = pt(ev); zoomAt(Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015)), px, py);
   }, { passive: false });
+  cfg.canvas.tabIndex = cfg.canvas.tabIndex >= 0 ? cfg.canvas.tabIndex : 0;
+  cfg.canvas.addEventListener('keydown', ev => {   /* arrows pan a tenth of the view, Q and E turn by 15 degrees */
+    const [W, H] = cfg.size(), step = Math.min(W, H) * 0.1, m = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[ev.key];
+    if(m){ ev.preventDefault(); panBy(m[0], m[1]); }
+    else if(ev.key === 'q' || ev.key === 'e' || ev.key === 'Q' || ev.key === 'E'){ ev.preventDefault(); th += (ev.key.toLowerCase() === 'q' ? 1 : -1) * Math.PI / 12; vth = 0; }
+    else return;
+    mark(); pose(); cfg.request();
+  });
   cfg.stage.addEventListener('pointerenter', () => { if(!focused && !cfg.isFs() && cfg.onEnter) cfg.onEnter(); });
   cfg.stage.addEventListener('pointerleave', () => { focused = false; if(!g) cfg.onLeave(); });
   /* programmatic pose for tests and screenshots: { th, ph, zoom, x, z } (all optional) */
