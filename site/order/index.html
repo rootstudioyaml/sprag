@@ -133,6 +133,7 @@
   .opt input{position:absolute;left:14px;top:17px;accent-color:var(--accent)}
   .opt:has(input:checked){border-color:var(--accent);background:var(--accent-bg)}
   .opt:has(input:disabled){opacity:.5;cursor:not-allowed}
+  .chk{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13.5px;color:var(--ink);cursor:pointer}
   .opt b{display:block;font-size:14px;font-weight:600}
   .opt span{display:block;margin-top:2px;font-size:12.5px;color:var(--dim)}
   .opt em{font-style:normal;margin-left:6px;font-size:11.5px;color:var(--warn);font-weight:500}
@@ -272,7 +273,7 @@ const I18N = {
   seats:'Seats', seats_add:'Seats to add', seats_hint:'One seat is one computer.', months:'Months', months_hint:'12 months or more gets the annual price.', m_unit:'{n}',
   s_pay:'Payment', m_toss:'Domestic payment (KRW)', m_toss_d:'Card or bank transfer through Toss Payments. VAT is added.',
   m_paddle:'International card (USD)', m_paddle_d:'Paid in USD through Paddle, our merchant of record. Sales tax is added at checkout.',
-  m_transfer:'Tax invoice by bank deposit (KRW)', m_transfer_d:'Deposit to our account and we issue a tax invoice. VAT is added.',
+  m_transfer:'Bank deposit (KRW)', m_transfer_d:'Deposit to our account. VAT is added.', ti_need:'I need a tax invoice',
   soon:'coming soon', toss_card:'Card', toss_bank:'Bank transfer', toss_how:'Toss payment type',
   buyer_name:'Buyer name', buyer_email:'Buyer email', buyer_hint:'The receipt goes to this address.',
   s_ti:'Tax invoice', ti_biz:'Business registration number', ti_company:'Company name', ti_ceo:'Representative', ti_email:'Email for the tax invoice', ti_addr:'Address (optional)',
@@ -287,9 +288,9 @@ const I18N = {
   toss_back_h:'Confirming your payment', toss_fail_h:'The payment did not go through', toss_fail_d:'{msg}', toss_fail_code:'Error code: {code}', retry:'Try again',
   confirm_err:'The payment could not be confirmed: {msg}. If money was taken, write to {mail} with this order number: {id}.',
   poll_h:'Waiting for the payment confirmation', poll_d:'This usually takes a few seconds.', poll_slow_h:'The confirmation is taking longer than usual', poll_slow_d:'Your payment is not lost. Check again in a minute, or write to {mail} with order number {id}.', check_again:'Check again',
-  wait_h:'Waiting for your deposit', wait_d:'Please deposit the amount below. We confirm the deposit by hand and issue the tax invoice after that.',
+  wait_h:'Waiting for your deposit', wait_d:'Please deposit the amount below. We confirm the deposit by hand.',
   wait_total:'Amount to deposit (VAT included)', wait_acct:'Deposit account', wait_nobank:'We will send the deposit account by email.', wait_ref:'Order number: {id}',
-  wait_after:'The tax invoice is issued after the deposit is confirmed. Once it is, the invitation email goes to the owner and admins.',
+  wait_after:'Once the deposit is confirmed, the invitation email goes to the owner and admins.', wait_ti:'The tax invoice is issued after the deposit is confirmed.',
   done_h:'Payment confirmed', done_d:'After we open the organization, invitation emails go to the owner and admins.', done_d_renew:'We apply it to your organization shortly and write to you if anything is needed.',
   demo_note:'Demo mode: nothing is sent and no payment is made.', demo_paid:'Demo: the payment was simulated as successful.',
   nav_lang:'Language'
@@ -315,7 +316,7 @@ const I18N = {
   seats:'좌석 수', seats_add:'추가할 좌석 수', seats_hint:'좌석 하나는 컴퓨터 한 대입니다.', months:'이용 개월 수', months_hint:'12개월 이상이면 연 단위 가격이 적용됩니다.', m_unit:'{n}개월',
   s_pay:'결제 방법', m_toss:'국내 결제 (원화)', m_toss_d:'토스페이먼츠로 카드나 계좌이체를 합니다. 부가세가 더해집니다.',
   m_paddle:'해외 카드 (USD)', m_paddle_d:'판매 대행사 Paddle을 통해 달러로 결제합니다. 세금은 결제 화면에서 더해집니다.',
-  m_transfer:'세금계산서 발행 (계좌 입금, 원화)', m_transfer_d:'계좌로 입금하시면 세금계산서를 발행해 드립니다. 부가세가 더해집니다.',
+  m_transfer:'계좌 입금 (원화)', m_transfer_d:'계좌로 입금합니다. 부가세가 더해집니다.', ti_need:'세금계산서가 필요합니다',
   soon:'준비 중', toss_card:'카드', toss_bank:'계좌이체', toss_how:'토스 결제 방식',
   buyer_name:'주문자 이름', buyer_email:'주문자 이메일', buyer_hint:'영수증을 이 주소로 보내 드립니다.',
   s_ti:'세금계산서 정보', ti_biz:'사업자등록번호', ti_company:'상호', ti_ceo:'대표자명', ti_email:'세금계산서 받을 이메일', ti_addr:'주소 (선택)',
@@ -330,9 +331,9 @@ const I18N = {
   toss_back_h:'결제를 확인하는 중입니다', toss_fail_h:'결제가 완료되지 않았습니다', toss_fail_d:'{msg}', toss_fail_code:'오류 코드 {code}', retry:'다시 시도',
   confirm_err:'결제를 확인하지 못했습니다: {msg}. 돈이 빠져나갔다면 주문번호 {id}와 함께 {mail}로 문의해 주세요.',
   poll_h:'결제 확인을 기다리는 중입니다', poll_d:'보통 몇 초면 끝납니다.', poll_slow_h:'확인이 평소보다 오래 걸립니다', poll_slow_d:'결제 내역은 사라지지 않습니다. 1분 뒤에 다시 확인하시거나 주문번호 {id}와 함께 {mail}로 문의해 주세요.', check_again:'다시 확인',
-  wait_h:'입금을 기다리고 있습니다', wait_d:'아래 금액을 입금해 주세요. 입금은 직접 확인하고, 확인되면 세금계산서를 발행해 드립니다.',
+  wait_h:'입금을 기다리고 있습니다', wait_d:'아래 금액을 입금해 주세요. 입금은 직접 확인합니다.',
   wait_total:'입금하실 금액 (부가세 포함)', wait_acct:'입금 계좌', wait_nobank:'입금 계좌는 메일로 안내해 드립니다.', wait_ref:'주문번호 {id}',
-  wait_after:'세금계산서는 입금 확인 뒤에 발행합니다. 입금이 확인되면 오너와 관리자 이메일로 초대 메일이 갑니다.',
+  wait_after:'입금이 확인되면 오너와 관리자 이메일로 초대 메일이 갑니다.', wait_ti:'세금계산서는 입금 확인 뒤에 발행합니다.',
   done_h:'결제가 확인되었습니다', done_d:'조직을 개설하면 오너와 관리자 이메일로 초대 메일이 갑니다.', done_d_renew:'곧 조직에 반영하고, 필요한 게 있으면 메일로 알려 드립니다.',
   demo_note:'데모 모드입니다. 아무것도 전송되지 않고 결제도 되지 않습니다.', demo_paid:'데모에서는 결제가 성공한 것으로 처리했습니다.',
   nav_lang:'언어'
@@ -392,7 +393,7 @@ const loadScript = src => new Promise((ok, no) => { const s = document.createEle
 /* ── state ── */
 const token = Q.get('t') || '';
 const S = { phase:'loading', info:null, order:null, err:'', quote:null, quoteErr:'', quoting:false, formErr:'', busy:false, errInfo:null,
-  f:{ org_name:'', owner_email:'', admins:[''], teams:[''], plan:'pro', seats:5, months:12, method:'', toss_type:'CARD', buyer_name:'', buyer_email:'', ti:{biz_no:'', company:'', ceo:'', email:'', address:''} } };
+  f:{ org_name:'', owner_email:'', admins:[''], teams:[''], plan:'pro', seats:5, months:12, method:'', toss_type:'CARD', need_ti:false, buyer_name:'', buyer_email:'', ti:{biz_no:'', company:'', ceo:'', email:'', address:''} } };
 const $app = document.getElementById('app');
 const tossOk = () => DEMO || !!TOSS_CLIENT_KEY, paddleOk = () => DEMO || !!PADDLE_CLIENT_TOKEN;
 const curOf = m => m === 'paddle' ? 'USD' : 'KRW';
@@ -430,7 +431,7 @@ function renderTransfer(){
   $app.innerHTML = msg(esc(t('wait_h')), esc(t('wait_d')),
     `<div class="total">${esc(money(o.total, o.currency))}</div><p style="margin-top:4px">${esc(t('wait_total'))}</p>
      <div class="card acct"><b>${esc(t('wait_acct'))}</b><br>${bankText() ? esc(bankText()) : esc(t('wait_nobank'))}</div>
-     <p>${esc(t('wait_after'))}</p><p><small>${esc(t('wait_ref', {id:o.order_id}))}</small></p>`);
+     <p>${S.f.need_ti ? esc(t('wait_ti')) + ' ' : ''}${esc(t('wait_after'))}</p><p><small>${esc(t('wait_ref', {id:o.order_id}))}</small></p>`);
 }
 
 function planName(p){ return p === 'enterprise' ? 'Enterprise' : 'Pro'; }
@@ -462,7 +463,7 @@ function renderForm(){
   /* a method without its key is left out entirely rather than shown as coming soon */
   const mopt = (m, ttl, d, ok, extra) => ok ? `<label class="opt"><input type="radio" name="method" value="${m}" ${f.method === m ? 'checked' : ''}><b>${esc(t(ttl))}</b><span>${esc(t(d))}</span>${extra || ''}</label>` : '';
   const tossSub = f.method === 'toss' && tossOk() ? `<div class="quick" style="margin-top:10px" role="radiogroup" aria-label="${esc(t('toss_how'))}">${[['CARD', 'toss_card'], ['TRANSFER', 'toss_bank']].map(([v, k]) => `<button type="button" data-tt="${v}" aria-pressed="${f.toss_type === v}">${esc(t(k))}</button>`).join('')}</div>` : '';
-  const tiBlock = f.method === 'transfer' ? `<section class="card"><h2>${esc(t('s_ti'))}</h2>
+  const tiBlock = f.method === 'transfer' && f.need_ti ? `<section class="card"><h2>${esc(t('s_ti'))}</h2>
     <div class="two"><div class="fld"><label>${esc(t('ti_biz'))}</label>${input('ti.biz_no', 'text', '000-00-00000', 'inputmode="numeric"')}</div><div class="fld"><label>${esc(t('ti_company'))}</label>${input('ti.company', 'text')}</div></div>
     <div class="two"><div class="fld"><label>${esc(t('ti_ceo'))}</label>${input('ti.ceo', 'text')}</div><div class="fld"><label>${esc(t('ti_email'))}</label>${input('ti.email', 'email')}</div></div>
     <div class="fld"><label>${esc(t('ti_addr'))}</label>${input('ti.address', 'text', '', 'maxlength="200"')}</div></section>` : '';
@@ -476,7 +477,7 @@ function renderForm(){
         <div class="two"><div class="fld"><label for="f-seats">${esc(t(kind === 'seats' ? 'seats_add' : 'seats'))}</label><input id="f-seats" class="num" type="number" min="1" max="10000" step="1" data-f="seats" value="${fieldVal(f.seats)}" inputmode="numeric" /><div class="hint">${esc(t('seats_hint'))}</div></div></div>
         ${monthsBlock}</section>
       <section class="card"><h2>${esc(t('s_pay'))}</h2><div class="opts" role="radiogroup" aria-label="${esc(t('s_pay'))}">
-        ${mopt('toss', 'm_toss', 'm_toss_d', tossOk(), tossSub)}${mopt('paddle', 'm_paddle', 'm_paddle_d', paddleOk())}${mopt('transfer', 'm_transfer', 'm_transfer_d', true)}</div>
+        ${mopt('toss', 'm_toss', 'm_toss_d', tossOk(), tossSub)}${mopt('paddle', 'm_paddle', 'm_paddle_d', paddleOk())}${mopt('transfer', 'm_transfer', 'm_transfer_d', true)}</div>${f.method === 'transfer' ? `<label class="chk"><input type="checkbox" data-needti ${f.need_ti ? 'checked' : ''}> ${esc(t('ti_need'))}</label>` : ''}
         <div class="two"><div class="fld"><label for="f-bn">${esc(t('buyer_name'))}</label><input id="f-bn" type="text" data-f="buyer_name" maxlength="100" value="${fieldVal(f.buyer_name)}" autocomplete="name" /></div>
         <div class="fld"><label for="f-be">${esc(t('buyer_email'))}</label><input id="f-be" type="email" data-f="buyer_email" value="${fieldVal(f.buyer_email)}" autocomplete="email" /></div></div>
         <div class="hint">${esc(t('buyer_hint'))}</div></section>
@@ -542,6 +543,7 @@ $app.addEventListener('input', ev => {
 $app.addEventListener('change', ev => {
   const el = ev.target;
   if(el.name === 'plan'){ S.f.plan = el.value; scheduleQuote(); renderForm(); }
+  if(el.dataset.needti !== undefined){ S.f.need_ti = el.checked; renderForm(); }
   if(el.name === 'method'){ const was = curOf(S.f.method); S.f.method = el.value; if(was !== curOf(el.value)){ S.quote = null; } scheduleQuote(); renderForm(); }
 });
 $app.addEventListener('click', ev => {
@@ -569,7 +571,7 @@ function validate(){
   if(kind !== 'seats'){ const m = Number(f.months); if(!Number.isInteger(m) || m < 1 || m > 36) return t('v_months'); }
   if(!f.buyer_name.trim()) return t('v_buyer');
   if(!MAILRE.test(f.buyer_email.trim())) return t('v_buyer_mail');
-  if(f.method === 'transfer'){
+  if(f.method === 'transfer' && f.need_ti){
     if(!/^\d{10}$/.test(f.ti.biz_no.replace(/-/g, ''))) return t('v_biz');
     if(!f.ti.company.trim() || !f.ti.ceo.trim() || !MAILRE.test(f.ti.email.trim())) return t('v_ti');
   }
@@ -578,7 +580,7 @@ function validate(){
 function buildOrder(){
   const f = S.f, kind = S.info.kind, o = { plan: kind === 'seats' ? S.info.plan : f.plan, seats:Number(f.seats), months: kind === 'seats' ? 0 : Number(f.months), currency:curOf(f.method), method:f.method, buyer_name:f.buyer_name.trim(), buyer_email:f.buyer_email.trim() };
   if(kind === 'new'){ o.org_name = f.org_name.trim(); o.owner_email = f.owner_email.trim(); o.admin_emails = f.admins.map(a => a.trim()).filter(Boolean); o.team_names = f.teams.map(a => a.trim()).filter(Boolean); }
-  if(f.method === 'transfer') o.tax_invoice = { biz_no:f.ti.biz_no.trim(), company:f.ti.company.trim(), ceo:f.ti.ceo.trim(), email:f.ti.email.trim(), address:f.ti.address.trim() };
+  if(f.method === 'transfer' && f.need_ti) o.tax_invoice = { biz_no:f.ti.biz_no.trim(), company:f.ti.company.trim(), ceo:f.ti.ceo.trim(), email:f.ti.email.trim(), address:f.ti.address.trim() };
   return o;
 }
 function formError(m){ S.formErr = m; const e = document.getElementById('ferr'); if(e){ e.textContent = m; e.hidden = !m; } }
