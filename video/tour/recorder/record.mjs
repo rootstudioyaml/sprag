@@ -14,7 +14,7 @@
  * Output: <out>/<lang>/<shot>.mp4 (1920x1080, 30 fps, H.264 CRF 12, an intermediate for the HyperFrames comp). */
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -90,7 +90,7 @@ const SHOTS = {
     prepare: async c => { const ps = await c.eval(`window.__sprag.office.people()`); c.L = ps.find(p => p.id === LION) || ps.find(p => p.tier === 'power'); },
     frame: async (c, t) => {
       const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 1.035, ph: 0.95, zoom: 1.9, x: L.x + 2.2, z: L.z + 0.3 }], [12.6, { th: 1.2, ph: 0.95, zoom: 2.0, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
-      if(at(t, 0.6)) await c.eval(`window.__sprag.office.selectPerson('${L.id}')`);
+      if(at(t, 0.6)) await c.eval(`window.__sprag.office.selectPerson('${L.id}', { fly: false })`);
       if(t >= 2.4 && t < 5.6){   /* model mix bar: haiku, sonnet, opus in turn */
         const k = Math.min(2, Math.floor((t - 2.4) / 1.07)), u = ease(((t - 2.4) - k * 1.07) / 0.5);
         await c.moveTo(`.of-drawer .fam i:nth-child(${k + 1})`, u, k ? [0.5, 0.5] : [0.1, 1.6], [0.5, 0.5], k ? `.of-drawer .fam i:nth-child(${k})` : null);
@@ -145,7 +145,7 @@ const SHOTS = {
     prepare: async c => { const ps = await c.eval(`window.__sprag.office.people()`); c.L = ps.find(p => p.id === PRO_P) || ps.find(p => p.tier === 'power'); },
     frame: async (c, t) => {
       const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 1.0, ph: 0.98, zoom: 1.6, x: L.x + 2.2, z: L.z + 0.3 }], [6.6, { th: 1.12, ph: 0.95, zoom: 1.9, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
-      if(at(t, 0.5)) await c.eval(`window.__sprag.office.selectPerson('${L.id}')`);
+      if(at(t, 0.5)) await c.eval(`window.__sprag.office.selectPerson('${L.id}', { fly: false })`);
       if(t >= 2.2 && t < 5.4){
         const k = Math.min(2, Math.floor((t - 2.2) / 1.07)), u = ease(((t - 2.2) - k * 1.07) / 0.5);
         await c.moveTo(`.of-drawer .fam i:nth-child(${k + 1})`, u, k ? [0.5, 0.5] : [0.1, 1.6], [0.5, 0.5], k ? `.of-drawer .fam i:nth-child(${k})` : null);
@@ -156,7 +156,7 @@ const SHOTS = {
     prepare: async c => { const ps = await c.eval(`window.__sprag.office.people()`); c.L = ps.find(p => p.id === ENT_P) || ps.find(p => p.tier === 'power'); },
     frame: async (c, t) => {
       const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.75, ph: 1.03, zoom: 1.0, x: 0, z: 0 }], [2.0, { th: 0.95, ph: 0.98, zoom: 1.55, x: L.x + 2.2, z: L.z + 0.3 }], [7.6, { th: 1.08, ph: 0.95, zoom: 1.75, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
-      if(at(t, 2.1)) await c.eval(`window.__sprag.office.selectPerson('${L.id}')`);
+      if(at(t, 2.1)) await c.eval(`window.__sprag.office.selectPerson('${L.id}', { fly: false })`);
       if(t >= 4.6 && t < 5.6) await c.moveTo('.of-drawer [data-a=prompts]', ease((t - 4.6) / 1.0), [0.2, -6], [0.5, 0.5]);
     } },
   /* Enterprise 7-13 s: the Prompts tab, per-user usage with 30-day sparklines, sorted by characters */
@@ -262,6 +262,24 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new'
 const gl = await (async () => { const p = await browser.newPage(); const r = await p.evaluate(() => { const g = document.createElement('canvas').getContext('webgl2'), d = g && g.getExtension('WEBGL_debug_renderer_info'); return d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : String(!!g); }); await p.close(); return r; })();
 console.log(`chrome ${await browser.version()} · WebGL ${gl} · lang ${LANG} · shots ${names.join(',')}`);
 let ok = true;
-for(const n of names){ try{ ok = (await record(browser, n, SHOTS[n])) && ok; }catch(e){ ok = false; console.error(`${LANG}/${n}: FAILED ${e.message}`); } }
+/* A screenshot now and then catches the compositor mid-frame and comes back as a tiled mosaic of the page. It shows up as
+   one frame whose mean luma jumps away from both neighbours in the same direction; such a clip is recorded again. */
+function glitches(file){
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-v', 'error', '-i', file, '-vf', 'signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  const y = [...String(r.stdout).matchAll(/YAVG=([0-9.]+)/g)].map(m => +m[1]), out = [];
+  for(let i = 1; i < y.length - 1; i++){ const a = y[i] - y[i - 1], b = y[i] - y[i + 1]; if(Math.abs(a) > 2.5 && Math.abs(b) > 2.5 && Math.sign(a) === Math.sign(b)) out.push((i / FPS).toFixed(2)); }
+  return out;
+}
+for(const n of names){
+  try{
+    let good = false;
+    for(let k = 1; k <= 3 && !good; k++){
+      good = await record(browser, n, SHOTS[n]);
+      const g = good ? glitches(path.join(OUT, LANG, n + '.mp4')) : [];
+      if(g.length){ good = false; if(k < 3) console.log(`  ${LANG}/${n}: one-frame glitch at ${g.join(', ')} s, recording again`); else console.error(`${LANG}/${n}: still glitched after 3 tries at ${g.join(', ')} s`); }
+    }
+    ok = good && ok;
+  }catch(e){ ok = false; console.error(`${LANG}/${n}: FAILED ${e.message}`); }
+}
 await browser.close();
 process.exit(ok ? 0 : 1);
