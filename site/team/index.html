@@ -45,6 +45,10 @@
 
   /* ── top bar ───────────────────────────────────────────────────────────── */
   header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(10,10,12,.88);backdrop-filter:blur(14px)}
+  /* demo only: the banner sits inside the sticky header, so .tside offsets by its height too */
+  .demobar{min-height:var(--demo-h);display:flex;align-items:center;justify-content:center;padding:6px var(--gut);font-size:12.5px;line-height:1.45;text-align:center;color:var(--warn);background:rgba(232,171,60,.1);border-bottom:1px solid rgba(232,171,60,.28)}
+  .demobar[hidden]{display:none}
+  body.demo{--demo-h:32px}
   header .wrap{max-width:1440px;margin:0 auto;padding:0 var(--gut);min-height:var(--bar-h);display:flex;align-items:center;gap:var(--s4);flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em;flex:0 0 auto}
   .brand svg{width:20px;height:20px;display:block}
@@ -301,6 +305,7 @@
   #org-seats{font-size:14px;color:var(--ink);font-weight:500}
   .tlayout{display:grid;grid-template-columns:224px minmax(0,1fr);gap:var(--s5);align-items:start}
   .tside{position:sticky;top:calc(var(--bar-h) + 16px)}
+  body.demo .tside{top:calc(var(--bar-h) + var(--demo-h) + 16px)}
   .tside-head{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);padding:0 2px}
   .tside .teams-list{margin-top:var(--s3);display:grid;gap:2px}
   .team-item{display:flex;justify-content:space-between;gap:var(--s3);align-items:center;border:0;border-radius:var(--r);padding:8px 10px;background:none;text-align:left;color:var(--dim);width:100%;transition:background .12s var(--ease),color .12s var(--ease)}
@@ -444,6 +449,7 @@
 </head>
 <body>
 <header>
+  <div class="demobar" id="demobar" role="note" data-k="demo.bar" hidden></div>
   <div class="wrap">
     <a class="brand" href="/" aria-label="Sprag">
       <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -774,6 +780,7 @@ const I18N = {
     "sr.tip.switch.off":"Uploads switched off by the member",
     "never":"never",
     'nav.docs':'Docs','nav.pricing':'Pricing',
+    'demo.bar':'This is a demo, so nothing you change here is saved. Feel free to try anything.',
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
     'si.sent':'We sent a code to {email}.',
     'si.notreg':'This email is not registered. Ask your organization\'s owner or an admin to add it.',
@@ -881,6 +888,7 @@ const I18N = {
     "sr.tip.switch.off":"멤버가 업로드를 끈 상태",
     "never":"없음",
     'nav.docs':'문서','nav.pricing':'요금',
+    'demo.bar':'데모에서는 실제 데이터가 저장되지 않습니다. 편하게 테스트해 보시면 됩니다.',
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
     'si.sent':'{email}로 코드를 보냈습니다.',
     'si.notreg':'등록되지 않은 이메일입니다. 조직 오너나 관리자에게 추가를 요청하세요.',
@@ -2575,6 +2583,8 @@ function demoSb(){
   if(DEMO){
     sb = demoSb(); bootAuthParams();
     const dq = new URLSearchParams(location.search);
+    /* recordings (rec=1) keep the frame clean */
+    if(dq.get('rec') !== '1'){ $('demobar').hidden = false; document.body.classList.add('demo'); }
     if(dq.get('signedout') === '1') return;
     /* ?team=<id> opens the Teams tab on that team; a bare #<sub> hash picks its sub-tab */
     const h0 = location.hash.replace('#', '');
