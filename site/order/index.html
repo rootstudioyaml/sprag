@@ -214,7 +214,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script>
-/* ── Config. The owner fills these in. An empty key shows that payment method as "coming soon" (disabled).
+/* ── Config. The owner fills these in. A payment method whose key is empty is not offered at all.
    TOSS_CLIENT_KEY     Toss Payments client key (test_ck_... or live_ck_...), public by design.
    PADDLE_CLIENT_TOKEN Paddle client-side token (test_... or live_...), public by design.
    PADDLE_ENV          'sandbox' while testing, 'production' for live payments.
@@ -456,7 +456,8 @@ function renderForm(){
   const monthsBlock = kind === 'seats' ? '' : `<div class="fld"><label for="f-months">${esc(t('months'))}</label>
     <div class="quick">${[1, 3, 6, 12, 24].map(m => `<button type="button" data-m="${m}" aria-pressed="${Number(f.months) === m}">${esc(t('m_unit', {n:m}))}</button>`).join('')}</div>
     <input id="f-months" class="num" type="number" min="1" max="36" step="1" data-f="months" value="${fieldVal(f.months)}" inputmode="numeric" /><div class="hint">${esc(t('months_hint'))}</div></div>`;
-  const mopt = (m, ttl, d, ok, extra) => `<label class="opt"><input type="radio" name="method" value="${m}" ${f.method === m ? 'checked' : ''} ${ok ? '' : 'disabled'}><b>${esc(t(ttl))}${ok ? '' : `<em>${esc(t('soon'))}</em>`}</b><span>${esc(t(d))}</span>${extra || ''}</label>`;
+  /* a method without its key is left out entirely rather than shown as coming soon */
+  const mopt = (m, ttl, d, ok, extra) => ok ? `<label class="opt"><input type="radio" name="method" value="${m}" ${f.method === m ? 'checked' : ''}><b>${esc(t(ttl))}</b><span>${esc(t(d))}</span>${extra || ''}</label>` : '';
   const tossSub = f.method === 'toss' && tossOk() ? `<div class="quick" style="margin-top:10px" role="radiogroup" aria-label="${esc(t('toss_how'))}">${[['CARD', 'toss_card'], ['TRANSFER', 'toss_bank']].map(([v, k]) => `<button type="button" data-tt="${v}" aria-pressed="${f.toss_type === v}">${esc(t(k))}</button>`).join('')}</div>` : '';
   const tiBlock = f.method === 'transfer' ? `<section class="card"><h2>${esc(t('s_ti'))}</h2>
     <div class="two"><div class="fld"><label>${esc(t('ti_biz'))}</label>${input('ti.biz_no', 'text', '000-00-00000', 'inputmode="numeric"')}</div><div class="fld"><label>${esc(t('ti_company'))}</label>${input('ti.company', 'text')}</div></div>
