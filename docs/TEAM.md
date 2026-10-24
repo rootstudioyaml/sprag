@@ -100,14 +100,14 @@ Sprag writes the rules to `~/.claude/ratchet-team.md` (Codex: `<CODEX_HOME>/ratc
 
 ## Organizations and seats
 
-Every team belongs to an organization, and seats are bought per organization, not per team. Only Sprag opens organizations: write to sales@sprag.io, and the superuser opens one at sprag.io/ops/ and names its first owner. Owners and admins then create teams inside it.
+Every team belongs to an organization, and seats are bought per organization, not per team. Only Sprag opens organizations: write to sales@sprag.io, and the superuser opens one at sprag.io/ops/ and names its first owner by email. The owner email is required, and the owner does not need an account yet: if the email has never signed in, Sprag keeps it as an invite, and the person becomes the owner the first time they sign in at https://sprag.io/team/ with that email. Owners and admins then create teams inside it.
 
 A machine holds one seat per organization. When it joins again, with `sprag team join` after `sprag team leave`, after a reinstall, or with the invite of another team in the same organization, the server finds its earlier row by the machine ID, moves it to the invited team and issues a new member key; no second row and no second seat appear. Joins to a different organization take a seat there.
 
 - **What a seat is.** One machine (one member key) that has not left and either sent anything in the last 30 days or is paused. A machine that has been silent for 30 days or more without being paused holds no seat. Members who left are not counted.
 - **Second machine.** When the same person uses two machines, an owner or admin can merge the second one into the first so the two share one seat. In the dashboard, use "Merge seat" on the member row; "Unmerge" gives it its own seat back. A merged row shows "shares a seat with <name>".
 - **The limit.** Each organization has a seat limit. A join past the limit is refused: `sprag team join` exits 1 with "This organization has no free seat. Ask your organization owner or admin to add seats", and an environment auto-join stays silent and tries again at a later session start. Lowering the limit below current use never removes anyone; it only refuses new joins until Sprag raises it again.
-- **Roles.** There are three permission levels. The superuser is Sprag staff: it sets the plan and the seat limit, suspends organizations, adds owners, and sees every organization at sprag.io/ops/. An owner is a company's top level: it appoints and removes admins, and does everything an admin does. An admin is a company's management level: it creates teams and manages members, rules and seats. The person who created a team has no special rights over it; only the organization's owners and admins and the superuser manage teams. Owners and admins see the seat limit in the dashboard. To add seats, write to sales@sprag.io.
+- **Roles.** There are three permission levels. The superuser is Sprag staff: it sets the plan and the seat limit, suspends organizations, adds owners by email (an email without an account is invited), and sees every organization at sprag.io/ops/. An owner is a company's top level: it appoints and removes admins by email (an email without an account is invited and shown as waiting for its first sign-in until the owner cancels it or the person signs in), and does everything an admin does. An admin is a company's management level: it creates teams and manages members, rules and seats. The person who created a team has no special rights over it; only the organization's owners and admins and the superuser manage teams. Owners and admins see the seat limit in the dashboard. To add seats, write to sales@sprag.io.
 - **The plan.** Sprag sets the plan (`pro` or `enterprise`) on the organization; owners and admins cannot change it. Prompt capture can be switched on only while the organization is on Enterprise. To change the plan, contact us.
 
 Create a team inside an organization you administer from the CLI with `sprag team create --org <org-id>`; without `--org` the server refuses, because only Sprag opens organizations. The command prints the organization name and how many seats are used. `sprag team status` shows the organization name.
@@ -118,7 +118,7 @@ Create a team inside an organization you administer from the CLI with `sprag tea
 
 ## The dashboard
 
-https://sprag.io/team/ is where an owner or admin signs in with an email code, creates a team and gets the invite token. From there they see per-member spend and savings, manage organization and team rules on the Rules tab, and remove members. The organization panel shows the plan, seats used against the limit, admins and every team. The superuser sees every organization at sprag.io/ops/.
+https://sprag.io/team/ is where a registered owner or admin signs in with an email code, creates a team and gets the invite token. There is no sign-up: an email that is not an owner, an admin or a pending invite is refused before any code is sent, with a message to ask the organization's owner to add it. Invited people become owner or admin automatically on their first sign-in. From there they see per-member spend and savings, manage organization and team rules on the Rules tab, and remove members. The organization panel shows the plan, seats used against the limit, admins and every team. The superuser sees every organization at sprag.io/ops/.
 
 A date range control at the top of the dashboard (7d, 30d, 90d, This month, Last month or Custom) sets the period for the members table, the Usage chart and the prompt usage tab. It defaults to the last 30 days, uses your local calendar days with the end date included, and allows 365 days at most. The choice is kept in the page address (`?from=2026-10-01&to=2026-10-18`), so a reload or a shared link shows the same period. The superuser console at /ops/ has the same control for the organization table, the organization header and its prompt usage.
 
@@ -134,9 +134,10 @@ Row actions:
 
 - **Remove** frees the seat, and the machine's key stops working.
 - **Restore** brings back only machines that an owner or admin removed, and only within the seat limit.
+- **Delete** appears on a machine that is already removed. After a confirmation it erases the machine's usage history and prompts for good, so they also drop out of the organization's past totals, and it cannot be undone. The activity log keeps one "deleted" line with the machine's name. An active machine must be removed first.
 - **Seat merge** and unmerge, as described above.
 
-Below the roster, an activity log lists joined, paused, resumed, left, removed and restored events, with who did each one: member, owner, admin or superuser.
+Below the roster, an activity log lists joined, paused, resumed, left, removed, restored and deleted events, with who did each one: member, owner, admin or superuser.
 
 ## Plans
 

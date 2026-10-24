@@ -627,10 +627,10 @@
           <div class="sec-h"><h2 id="orgs-h" data-k="orgs.h">Organizations</h2><button type="button" class="btn sm" id="btn-neworg" aria-expanded="false" aria-controls="form-org" data-k="no.add">+ New organization</button></div>
           <form class="neworg" id="form-org" hidden>
             <h3 data-k="no.h">Open an organization</h3>
-            <p class="sub" style="margin-top:0" data-k="no.d">Only Sprag opens organizations. The owner email is optional; that person must have signed in at sprag.io/team once. Owners then create teams inside it.</p>
+            <p class="sub" style="margin-top:0" data-k="no.d">Only Sprag opens organizations. The owner email is required. The owner does not need an account yet: they sign in at sprag.io/team with an email code sent to that address and become the owner then. An existing account is invited the same way. Owners then create teams inside it.</p>
             <div class="row grow">
               <input type="text" id="no-name" maxlength="80" data-ph="no.name" placeholder="Organization name" aria-label="Organization name" />
-              <input type="email" id="no-email" data-ph="no.email" placeholder="Owner email (optional)" aria-label="Owner email" />
+              <input type="email" id="no-email" required data-ph="no.email" placeholder="Owner email" aria-label="Owner email" />
             </div>
             <div class="row">
               <select id="no-plan" aria-label="Plan"><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select>
@@ -785,6 +785,9 @@ const I18N = {
     "sr.none":"No machines match.",
     "sr.remove":"Remove",
     "sr.restore":"Restore",
+    "sr.delete":"Delete",
+    "sr.deleteconfirm":"Delete {name} for good? This computer's usage history and prompts are erased and drop out of the organization's past totals. This cannot be undone.",
+    "sr.ev.deleted":"{name} was deleted",
     "sr.merge":"Merge seat…",
     "sr.unmerge":"Unmerge",
     "sr.shares":"shares a seat with {name}",
@@ -868,12 +871,12 @@ const I18N = {
     'deny.h':'This page is for Sprag superusers.','deny.d':'This account has no superuser access.',
     'tot.h':'Overview','tot.orgs':'Organizations','tot.pro':'Pro','tot.ent':'Enterprise','tot.seats':'Seats used','tot.active':'Active members 30d','tot.sp':'Spent 30d','tot.sv':'Saved 30d','tot.rev':'Sprag revenue / mo',
     'tot.seatsof':'{used} / {limit}',
-    'orgs.h':'Organizations','orgs.none':'No organizations match.','no.add':'+ New organization','no.h':'Open an organization','no.d':'Only Sprag opens organizations. The owner email is optional; that person must have signed in at sprag.io/team once. Owners then create teams inside it.','no.name':'Organization name','no.email':'Owner email (optional)','no.btn':'Open','no.ok':'Opened {name}','no.noname':'Enter an organization name.','f.q':'Search name or owner email','f.allplans':'All plans','f.allstatus':'All statuses','f.email':'Email',
+    'orgs.h':'Organizations','orgs.none':'No organizations match.','no.add':'+ New organization','no.h':'Open an organization','no.d':'Only Sprag opens organizations. The owner email is required. The owner does not need an account yet: they sign in at sprag.io/team with an email code sent to that address and become the owner then. An existing account is invited the same way. Owners then create teams inside it.','no.name':'Organization name','no.email':'Owner email','no.btn':'Open','no.ok':'Opened {name}.','no.noname':'Enter an organization name.','no.noemail':'Enter the owner email.','no.added':'{email} was added as owner.','no.invited':'{email} was invited as owner and becomes the owner on first sign-in.','d.pending':'Invited, waiting for first sign-in','d.cancel':'Cancel invite','d.cancelconfirm':'Cancel the invite for {email}?','f.q':'Search name or owner email','f.allplans':'All plans','f.allstatus':'All statuses','f.email':'Email',
     'plan.pro':'Pro','plan.enterprise':'Enterprise','st.active':'Active','st.suspended':'Suspended',
     'c.name':'Name','c.plan':'Plan','c.status':'Status','c.seats':'Seats','c.teams':'Teams','c.members':'Members','c.owners':'Owners',
     'c.sp':'Spent','c.sv':'Saved','c.rev':'Sprag revenue / mo','rev.note':'{seats} contracted seats × ${price} ({plan}); suspended organizations count as $0','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
     's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (superuser only)','s.save':'Save','s.saved':'Saved',
-    's.owner':'Add owner by email','s.ownerd':'For support when the customer lost access. The person must have signed in once.','s.ownerbtn':'Add owner','s.ownerok':'Added {email}',
+    's.owner':'Add owner by email','s.ownerd':'For support when the customer lost access. The person does not need an account yet; they become the owner when they sign in at sprag.io/team with an email code.','s.ownerbtn':'Add owner','s.ownerok':'Added {email}','s.ownerinvited':'Invited {email}. They become the owner on first sign-in.',
     's.team':'{n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
     's.suspendconfirm':'Suspend {name}? Members stop syncing and new joins are refused until you set it back to Active.',
     'k.id':'ID','k.seats':'Seats','k.created':'Created','k.seen':'Last seen','k.you':'Your role',
@@ -899,6 +902,9 @@ const I18N = {
     "sr.none":"조건에 맞는 컴퓨터가 없습니다.",
     "sr.remove":"제거",
     "sr.restore":"복원",
+    "sr.delete":"삭제",
+    "sr.deleteconfirm":"{name}을(를) 완전히 삭제할까요? 이 컴퓨터의 사용 기록과 프롬프트가 지워지고, 조직의 과거 합계에서도 빠집니다. 되돌릴 수 없습니다.",
+    "sr.ev.deleted":"{name} 컴퓨터를 삭제했습니다",
     "sr.merge":"좌석 합치기…",
     "sr.unmerge":"합치기 해제",
     "sr.shares":"{name} 컴퓨터와 좌석을 같이 씁니다",
@@ -982,12 +988,12 @@ const I18N = {
     'deny.h':'Sprag 슈퍼유저 전용 페이지입니다.','deny.d':'이 계정에는 슈퍼유저 권한이 없습니다.',
     'tot.h':'한눈에 보기','tot.orgs':'조직','tot.pro':'프로','tot.ent':'엔터프라이즈','tot.seats':'사용 중인 좌석','tot.active':'30일 활동 멤버','tot.sp':'30일 지출','tot.sv':'30일 절감','tot.rev':'Sprag 월 매출',
     'tot.seatsof':'{used} / {limit}',
-    'orgs.h':'조직','orgs.none':'조건에 맞는 조직이 없습니다.','no.add':'+ 새 조직','no.h':'조직 개설','no.d':'조직은 Sprag만 개설합니다. 오너 이메일은 비워 둬도 되며, 적는다면 그 계정이 sprag.io/team 에 한 번은 로그인한 적이 있어야 합니다. 개설한 뒤에는 오너가 그 안에 팀을 만듭니다.','no.name':'조직 이름','no.email':'오너 이메일 (선택)','no.btn':'개설','no.ok':'{name} 조직을 개설했습니다','no.noname':'조직 이름을 입력해 주세요.','f.q':'이름 또는 오너 이메일 검색','f.allplans':'모든 요금제','f.allstatus':'모든 상태','f.email':'이메일',
+    'orgs.h':'조직','orgs.none':'조건에 맞는 조직이 없습니다.','no.add':'+ 새 조직','no.h':'조직 개설','no.d':'조직은 Sprag만 개설합니다. 오너 이메일은 필수입니다. 오너는 미리 계정이 없어도 되고, sprag.io/team 에서 그 이메일로 받은 코드로 로그인하면 오너가 됩니다. 이미 계정이 있는 사람도 같은 방식으로 초대됩니다. 개설한 뒤에는 오너가 그 안에 팀을 만듭니다.','no.name':'조직 이름','no.email':'오너 이메일','no.btn':'개설','no.ok':'{name} 조직을 개설했습니다.','no.noname':'조직 이름을 입력해 주세요.','no.noemail':'오너 이메일을 입력해 주세요.','no.added':'{email}님을 오너로 추가했습니다.','no.invited':'{email}님을 오너로 초대했습니다. 처음 로그인하면 오너가 됩니다.','d.pending':'초대됨 · 첫 로그인 대기','d.cancel':'초대 취소','d.cancelconfirm':'{email}님의 초대를 취소할까요?','f.q':'이름 또는 오너 이메일 검색','f.allplans':'모든 요금제','f.allstatus':'모든 상태','f.email':'이메일',
     'plan.pro':'프로','plan.enterprise':'엔터프라이즈','st.active':'사용 중','st.suspended':'정지됨',
     'c.name':'이름','c.plan':'요금제','c.status':'상태','c.seats':'좌석','c.teams':'팀','c.members':'멤버','c.owners':'오너',
     'c.sp':'지출','c.sv':'절감','c.rev':'Sprag 월 매출','rev.note':'계약 좌석 {seats}개 × ${price} ({plan}), 정지된 조직은 $0','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
     's.teams':'팀','s.admins':'어드민','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (슈퍼유저만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
-    's.owner':'이메일로 오너 추가','s.ownerd':'고객이 접근 권한을 잃었을 때 지원용으로 씁니다. 해당 계정이 한 번은 로그인한 적이 있어야 합니다.','s.ownerbtn':'오너 추가','s.ownerok':'{email}님을 추가했습니다',
+    's.owner':'이메일로 오너 추가','s.ownerd':'고객이 접근 권한을 잃었을 때 지원용으로 씁니다. 계정이 아직 없어도 되고, sprag.io/team 에서 이메일 코드로 로그인하면 오너가 됩니다.','s.ownerbtn':'오너 추가','s.ownerok':'{email}님을 추가했습니다','s.ownerinvited':'{email}님을 초대했습니다. 처음 로그인하면 오너가 됩니다.',
     's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
     's.suspendconfirm':'{name} 조직을 정지할까요? 사용 중으로 되돌릴 때까지 멤버 동기화가 멈추고 새 참여도 거절됩니다.',
     'k.id':'ID','k.seats':'좌석','k.created':'생성일','k.seen':'마지막 접속','k.you':'내 권한',
@@ -1132,10 +1138,10 @@ const demo = (function(){
   ];
   const sums = o => ({id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, seats_used:o.seats_used, role:'superuser',
     teams:teamsOf(o).map((x, i, all) => ({id:x.id, name:x.name, members_active:Math.floor(o.seats_used / all.length) + (i < o.seats_used % all.length ? 1 : 0), seats:Math.floor(o.seats_used / all.length) + (i < o.seats_used % all.length ? 1 : 0)})),
-    admins:o.owners.map(e => ({user_id:e, email:e, role:'owner'}))});
+    admins:[...o.owners.map(e => ({user_id:e, email:e, role:'owner'})), ...(o.invites || []).map(e => ({user_id:null, email:e, role:'owner', pending:true}))]});
   const teamsOf = o => ['Platform', 'Apps', 'Data', 'Infra', 'Design', 'Growth'].slice(0, Math.max(1, o.teams)).map((nm, k) => ({id:o.id+'t'+(k+1), name:nm}));
   const rowsOf = o => demoSeatStore(o.id, teamsOf(o)).rows;
-  const SEATRPC = ['org_seats', 'org_member_events', 'member_remove', 'member_restore'];
+  const SEATRPC = ['org_seats', 'org_member_events', 'member_remove', 'member_restore', 'member_delete'];
   return function(name, a){
     a = a || {};
     if(name === 'is_platform_admin') return true;
@@ -1188,7 +1194,10 @@ const demo = (function(){
     }
     if(name === 'ops_org_create'){
       const o = {id:'d' + (orgs.length + 1), name:a.p_name, plan:a.p_plan || 'pro', status:'active', seat_limit:a.p_seat_limit || 5, seats_used:0, teams:0, members_total:0, owners:a.p_owner_email ? [a.p_owner_email] : [], spent_30d:0, saved_30d:0, last_seen:null, created_at:new Date().toISOString(), note:''};
-      orgs.push(o); return {id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit};
+      if(!a.p_owner_email) throw new Error('owner email is required');
+      const known = orgs.some(x => x.owners.includes(a.p_owner_email));
+      if(!known){ o.owners = []; o.invites = [a.p_owner_email]; }
+      orgs.push(o); return {id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, owner_status: known ? 'added' : 'invited'};
     }
     if(name === 'ops_totals') return {orgs:orgs.length, orgs_pro:orgs.filter(o => o.plan === 'pro').length, orgs_enterprise:orgs.filter(o => o.plan === 'enterprise').length, seats_used:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.holds_seat && !x.seat_of).length,0), seats_paused:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'paused').length,0), seats_late:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'late').length,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
     const o = orgs.find(x => x.id === a.p_org_id);
@@ -1201,7 +1210,12 @@ const demo = (function(){
       if(a.p_note != null) o.note = a.p_note;
       return {...o};
     }
-    if(name === 'ops_org_add_owner'){ o.owners.push(a.p_email); return {ok:true}; }
+    if(name === 'ops_org_add_owner'){
+      const known = orgs.some(x => x.owners.includes(a.p_email));
+      if(known){ o.owners.push(a.p_email); return {status:'added', email:a.p_email}; }
+      (o.invites = o.invites || []).push(a.p_email); return {status:'invited', email:a.p_email};
+    }
+    if(name === 'org_invite_cancel'){ o.invites = (o.invites || []).filter(e => e !== a.p_email); return {cancelled:true}; }
     throw new Error('unknown rpc ' + name);
   };
 })();
@@ -1754,7 +1768,10 @@ function renderDetail(){
   const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [];
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
     <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
-  $('side-admins').innerHTML = ad.length ? ad.map(a => `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
+  $('side-admins').innerHTML = ad.length ? ad.map(a => a.pending
+    ? `<div class="arow"><span class="em">${esc(a.email)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span> <span class="badge warn">${esc(t('d.pending'))}</span></span><button type="button" class="btn sm danger" data-ri="${esc(a.email)}">${esc(t('d.cancel'))}</button></div>`
+    : `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
+  $('side-admins').querySelectorAll('[data-ri]').forEach(b => b.addEventListener('click', () => cancelOwnerInvite(b.dataset.ri)));
   $('d-note').textContent = sel.note || t('s.none');
   if(curTab === 'prompts') Prompts.activate();
   SceneHost.sync();
@@ -1785,21 +1802,33 @@ $('form-org').addEventListener('submit', async ev => {
   ev.preventDefault(); $('no-err').textContent = ''; $('no-ok').textContent = '';
   const name = $('no-name').value.trim(), email = $('no-email').value.trim(), n = Number($('no-limit').value);
   if(!name) return void ($('no-err').textContent = t('no.noname'));
+  if(!email) return void ($('no-err').textContent = t('no.noemail'));
   if(!Number.isInteger(n) || n < 1 || n > 10000) return void ($('no-err').textContent = t('s.limitbad'));
   try{
-    await rpc('ops_org_create', { p_name: name, p_owner_email: email || null, p_plan: $('no-plan').value, p_seat_limit: n });
-    $('no-name').value = ''; $('no-email').value = ''; $('no-ok').textContent = t('no.ok', {name}, true);
+    const made = await rpc('ops_org_create', { p_name: name, p_owner_email: email, p_plan: $('no-plan').value, p_seat_limit: n });
+    $('no-name').value = ''; $('no-email').value = '';
+    $('no-ok').textContent = t('no.ok', {name}, true) + ' ' + t(made && made.owner_status === 'invited' ? 'no.invited' : 'no.added', {email}, true);
     oCache.clear(); await loadOrgs(); loadTotals();
   }catch(e){ $('no-err').textContent = errMsg(e); }
 });
+async function cancelOwnerInvite(email){
+  if(!sel || !confirm(t('d.cancelconfirm', {email}, true))) return;
+  $('own-err').textContent = ''; $('own-ok').textContent = '';
+  try{
+    await rpc('org_invite_cancel', { p_org_id: sel.id, p_email: email });
+    const id = sel.id;
+    try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){}
+    renderDetail();
+  }catch(e){ $('own-err').textContent = errMsg(e); }
+}
 $('form-owner').addEventListener('submit', async ev => {
   ev.preventDefault(); $('own-err').textContent = ''; $('own-ok').textContent = '';
   const email = $('o-email').value.trim();
   if(!sel) return;
   if(!email) return void ($('own-err').textContent = t('s.emailempty'));
   try{
-    await rpc('ops_org_add_owner', { p_org_id: sel.id, p_email: email });
-    $('o-email').value = ''; $('own-ok').textContent = t('s.ownerok', {email}, true);
+    const added = await rpc('ops_org_add_owner', { p_org_id: sel.id, p_email: email });
+    $('o-email').value = ''; $('own-ok').textContent = t(added && added.status === 'invited' ? 's.ownerinvited' : 's.ownerok', {email}, true);
     const id = sel.id; await loadOrgs(); sel = orgs.find(o => o.id === id) || null; renderOrgs();
     try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){}
     renderDetail();
@@ -1851,7 +1880,7 @@ const Seats = (function(){
   function actions(r){
     if(!cfg.canAct || st.busy) return '';
     let act = '';
-    if(r.signal === 'removed') return `<button type="button" class="btn sm" data-restore="${esc(r.member_id)}">${esc(t('sr.restore'))}</button>`;
+    if(r.signal === 'removed') return `<button type="button" class="btn sm" data-restore="${esc(r.member_id)}">${esc(t('sr.restore'))}</button> <button type="button" class="btn sm danger" data-delete="${esc(r.member_id)}">${esc(t('sr.delete'))}</button>`;
     if(goneOf(r)) return '';
     if(cfg.canMerge && r.holds_seat){
       if(r.seat_of) act += `<button type="button" class="btn sm" data-unmerge="${esc(r.member_id)}">${esc(t('sr.unmerge'))}</button>`;
@@ -1924,6 +1953,9 @@ const Seats = (function(){
     if(b.dataset.remove){
       const r = byId(b.dataset.remove); if(!r) return;
       if(confirm(t('sr.removeconfirm', { name: NAME(r) }, true))) act('member_remove', { p_member_id: r.member_id });
+    } else if(b.dataset.delete){
+      const r = byId(b.dataset.delete); if(!r) return;
+      if(confirm(t('sr.deleteconfirm', { name: NAME(r) }, true))) act('member_delete', { p_member_id: r.member_id });
     } else if(b.dataset.restore){
       const r = byId(b.dataset.restore); if(!r) return;
       if(confirm(t('sr.restoreconfirm', { name: NAME(r) }, true))) act('member_restore', { p_member_id: r.member_id });
@@ -1995,6 +2027,11 @@ function demoSeatsRpc(orgId, teams, name, a){
     const ev = (event, actor) => s.events.unshift({ at: new Date().toISOString(), event, actor, actor_email: 'demo@example.test', member_id: r.member_id, display_name: r.display_name, team_name: r.team_name });
     if(name === 'member_remove'){ Object.assign(r, { left_at: new Date().toISOString(), removed: true, holds_seat: false, status: 'removed', signal: 'removed' }); ev('removed', DEMO_ACTOR); return { removed: true }; }
     if(name === 'member_restore'){ Object.assign(r, { left_at: null, removed: false, holds_seat: true, last_seen: new Date().toISOString(), status: r.sync_state === 'paused' ? 'paused' : 'active', signal: r.sync_state === 'paused' ? 'paused' : 'late' }); ev('restored', DEMO_ACTOR); return { restored: true }; }
+    if(name === 'member_delete'){
+      if(!r.left_at) throw new Error('remove the member first');
+      s.rows.splice(s.rows.indexOf(r), 1); s.events = s.events.filter(e => e.member_id !== r.member_id);
+      s.events.unshift({ at: new Date().toISOString(), event: 'deleted', actor: DEMO_ACTOR, actor_email: 'demo@example.test', member_id: null, display_name: r.display_name, team_name: null });
+      return { deleted: true }; }
     if(name === 'seat_unmerge'){ r.seat_of = null; return {}; }
     if(name === 'seat_merge'){ r.seat_of = a.p_into_member_id; return {}; }
   }
