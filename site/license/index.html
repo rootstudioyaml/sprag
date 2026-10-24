@@ -70,7 +70,8 @@
   .eyebrow{font:500 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent2)}
   html[lang=ko] .eyebrow{font-family:var(--sans);letter-spacing:.02em;text-transform:none;font-size:12.5px}
   h1{margin-top:16px;font-size:clamp(32px,5vw,50px);font-weight:600;letter-spacing:-.035em;line-height:1.1;max-width:18ch}
-  .lede{margin-top:16px;color:var(--dim);font-size:16px;max-width:52ch;text-wrap:balance}
+  .lede{margin-top:16px;color:var(--dim);font-size:16px;max-width:680px;text-wrap:pretty}
+  @media(max-width:640px){.lede br{display:none}}
   .chip{font:500 11px/1.4 var(--mono);color:var(--ok);padding:0 5px;border:1px solid rgba(63,212,143,.35);border-radius:4px}
 
   section.blk{padding-top:88px}
@@ -171,7 +172,7 @@
     <div>
       <div class="eyebrow" data-k="p.eyebrow">License</div>
       <h1 data-k="p.h1">Sprag is open source, and free to use.</h1>
-      <p class="lede" data-k="p.lede">The CLI is released under Apache-2.0. It runs on your machine, needs no account and sends nothing anywhere. If your organization wants the team features too, get in touch and we will set them up.</p>
+      <p class="lede" data-k="p.lede">The CLI is released under Apache-2.0.<br />It runs on your machine, needs no account and sends nothing anywhere.<br />If your organization wants the team features too, get in touch and we will set them up.</p>
       <div class="actions">
         <a class="btn pri" href="mailto:sales@sprag.io?subject=Sprag" data-k="p.contact">Get in touch</a>
       </div>
@@ -337,7 +338,7 @@ const KO = {
  "nav.license": "라이선스",
  "p.eyebrow": "라이선스",
  "p.h1": "Sprag는 오픈소스이고, 무료로 씁니다",
- "p.lede": "CLI는 Apache-2.0으로 공개되어 있습니다. 내 컴퓨터에서 돌아가고, 계정이 필요 없으며, 어디로도 데이터를 보내지 않습니다. 조직에서 팀 기능도 쓰고 싶다면 연락 주세요. 직접 설정해 드립니다.",
+ "p.lede": "CLI는 Apache-2.0으로 공개되어 있습니다.<br />내 컴퓨터에서 돌아가고, 계정이 필요 없으며, 어디로도 데이터를 보내지 않습니다.<br />조직에서 팀 기능도 쓰고 싶다면 연락 주세요. 직접 설정해 드립니다.",
  "p.contact": "문의하기",
  "l.lic.h": "Apache License 2.0",
  "l.lic.p": "회사에서 써도 되고, 고쳐 쓰거나 다른 사람과 나눠도 됩니다. 사본을 나눌 때는 LICENSE와 NOTICE 파일을 함께 두고, 바꾼 부분을 표시해 주세요.",
