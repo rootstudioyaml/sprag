@@ -476,18 +476,6 @@
         <button type="button" class="acct-b" id="acct-b" aria-haspopup="true" aria-expanded="false" aria-controls="acct-menu" data-aria="acct.aria" aria-label="Account"><span id="acct-i">?</span></button>
         <div class="menu" id="acct-menu" hidden>
           <div class="who"><span data-k="si.as">Signed in as</span><b id="who-email"></b></div>
-          <button type="button" class="mi" id="btn-setpw" data-k="pw.set">Set password</button>
-          <form class="pwbox" id="form-setpw" hidden novalidate>
-            <h3 data-k="pw.set">Set password</h3>
-            <label class="f"><span data-k="pw.new">New password (10+ characters)</span>
-              <input type="password" id="pw-new" autocomplete="new-password" /></label>
-            <label class="f"><span data-k="pw.again">Repeat new password</span>
-              <input type="password" id="pw-again" autocomplete="new-password" /></label>
-            <div class="row"><button class="btn pri" type="submit" id="btn-pw-save" data-k="pw.save">Save password</button>
-              <button class="btn" type="button" id="btn-pw-cancel" data-k="pw.cancel">Cancel</button></div>
-            <p class="ok" id="setpw-ok"></p>
-            <p class="err" id="setpw-err" role="alert"></p>
-          </form>
           <button type="button" class="mi" id="btn-out" data-k="si.out">Sign out</button>
         </div>
       </div>
@@ -499,19 +487,6 @@
   <!-- signed out -->
   <section id="auth" class="card auth" aria-labelledby="auth-h">
     <h2 id="auth-h" data-k="si.h">Sign in</h2>
-    <div class="tabs" role="tablist">
-      <button type="button" class="tab" role="tab" id="tab-otp" aria-selected="true" data-k="si.tab.otp">Email code</button>
-      <button type="button" class="tab" role="tab" id="tab-pw" aria-selected="false" data-k="si.tab.pw">Password</button>
-    </div>
-    <form id="form-pw" hidden novalidate>
-      <label class="f"><span data-k="si.email">Email</span>
-        <input type="email" id="pw-email" autocomplete="username" inputmode="email" placeholder="you@company.com" />
-      </label>
-      <label class="f"><span data-k="si.pass">Password</span>
-        <input type="password" id="pw-pass" autocomplete="current-password" />
-      </label>
-      <div class="row"><button class="btn pri" type="submit" id="btn-pw" data-k="si.pwgo">Sign in</button></div>
-    </form>
     <form id="form-email" novalidate>
       <label class="f"><span data-k="si.email">Email</span>
         <input type="email" id="email" autocomplete="email" inputmode="email" placeholder="you@company.com" required />
@@ -804,9 +779,7 @@ const I18N = {
     'si.notreg':'This email is not registered. Ask your organization\'s owner or an admin to add it.',
     'si.note':'Registered owners and admins sign in here. Members never sign in; they run <code>sprag team join &lt;token&gt;</code> or get <code>SPRAG_TEAM_TOKEN</code> from you.',
     'si.as':'Signed in as','si.out':'Sign out',
-    'si.tab.otp':'Email code','si.tab.pw':'Password','si.pass':'Password','si.pwgo':'Sign in','si.badpw':'Enter your email and password.',
-    'pw.set':'Set password','pw.new':'New password (10+ characters)','pw.again':'Repeat new password','pw.save':'Save password','pw.cancel':'Cancel',
-    'pw.short':'Use at least 10 characters.','pw.mismatch':'The two passwords do not match.','pw.done':'Password saved. You can now sign in with it.',
+    'si.otponly':'Password sign-in has been turned off. Sign in with an email code.',
     'si.bademail':'Enter a valid email address.','si.badcode':'Enter the 6-digit code from the email.',
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
@@ -913,9 +886,7 @@ const I18N = {
     'si.notreg':'등록되지 않은 이메일입니다. 조직 오너나 관리자에게 추가를 요청하세요.',
     'si.note':'등록된 오너와 관리자만 여기서 로그인합니다. 멤버는 로그인하지 않고 <code>sprag team join &lt;token&gt;</code>을 실행하거나, 오너에게서 <code>SPRAG_TEAM_TOKEN</code>을 받으면 됩니다.',
     'si.as':'로그인 계정','si.out':'로그아웃',
-    'si.tab.otp':'이메일 코드','si.tab.pw':'비밀번호','si.pass':'비밀번호','si.pwgo':'로그인','si.badpw':'이메일과 비밀번호를 입력해 주세요.',
-    'pw.set':'비밀번호 설정','pw.new':'새 비밀번호 (10자 이상)','pw.again':'새 비밀번호 확인','pw.save':'비밀번호 저장','pw.cancel':'취소',
-    'pw.short':'10자 이상으로 정해 주세요.','pw.mismatch':'두 비밀번호가 서로 다릅니다.','pw.done':'비밀번호를 저장했습니다. 이제 비밀번호로 로그인할 수 있습니다.',
+    'si.otponly':'비밀번호 로그인은 사용하지 않습니다. 이메일 코드로 로그인해 주세요.',
     'si.bademail':'올바른 이메일 주소를 입력해 주세요.','si.badcode':'메일에 적힌 6자리 코드를 입력해 주세요.',
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
@@ -1151,6 +1122,15 @@ document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click
 /* ── auth ─────────────────────────────────────────────────────────────── */
 let pendingEmail = '';
 function showAuthErr(msg){ $('auth-err').textContent = msg || ''; }
+/* A session proves its mailbox only when it was opened with an email code (JWT amr otp or magiclink). The
+   database refuses admin work to any other session, so a leftover password session is signed out here. */
+function sessionProven(session){
+  try{
+    const b = session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const amr = JSON.parse(decodeURIComponent(escape(atob(b)))).amr || [];
+    return amr.some(a => a && (a.method === 'otp' || a.method === 'magiclink'));
+  }catch(e){ return false; }
+}
 
 $('form-email').addEventListener('submit', async ev => {
   ev.preventDefault(); showAuthErr('');
@@ -1198,70 +1178,29 @@ $('btn-out').addEventListener('click', async () => {
 });
 
 
-/* ── password sign-in and set password ────────────────────────────────── */
+/* ── account menu ───────────────────────────────────────────────────── */
 let otpStage = false;
-function setAuthTab(mode){
-  const pw = mode === 'pw';
-  $('tab-otp').setAttribute('aria-selected', String(!pw)); $('tab-pw').setAttribute('aria-selected', String(pw));
-  $('form-pw').hidden = !pw;
-  $('form-email').hidden = pw || otpStage; $('form-code').hidden = pw || !otpStage;
-  showAuthErr('');
-}
-$('tab-otp').addEventListener('click', () => setAuthTab('otp'));
-$('tab-pw').addEventListener('click', () => setAuthTab('pw'));
-$('form-pw').addEventListener('submit', async ev => {
-  ev.preventDefault(); showAuthErr('');
-  const email = $('pw-email').value.trim(), password = $('pw-pass').value;
-  if(!email || !password) return showAuthErr(t('si.badpw'));
-  if(!sb) return showAuthErr(t('err.lib'));
-  $('btn-pw').disabled = true;
-  try{
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if(error) throw error;
-    $('pw-pass').value = '';
-    await onSession(data.session);
-  }catch(e){ showAuthErr(errMsg(e)); }
-  finally{ $('btn-pw').disabled = false; }
-});
 function closeMenu(){ $('acct-menu').hidden = true; $('acct-b').setAttribute('aria-expanded', 'false'); }
 function openMenu(){ $('acct-menu').hidden = false; $('acct-b').setAttribute('aria-expanded', 'true'); }
 $('acct-b').addEventListener('click', () => { if($('acct-menu').hidden) openMenu(); else closeMenu(); });
 document.addEventListener('click', ev => { if(!$('acct-menu').hidden && !$('acct').contains(ev.target)) closeMenu(); });
 document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && !$('acct-menu').hidden){ closeMenu(); $('acct-b').focus(); } });
-function resetSetPw(){ ['pw-new', 'pw-again'].forEach(i => { $(i).value = ''; }); $('setpw-ok').textContent = ''; $('setpw-err').textContent = ''; }
-$('btn-setpw').addEventListener('click', () => { openMenu(); const f = $('form-setpw'); f.hidden = !f.hidden; resetSetPw(); if(!f.hidden) $('pw-new').focus(); });
-$('btn-pw-cancel').addEventListener('click', () => { $('form-setpw').hidden = true; resetSetPw(); });
-$('form-setpw').addEventListener('submit', async ev => {
-  ev.preventDefault(); $('setpw-ok').textContent = ''; $('setpw-err').textContent = '';
-  const a = $('pw-new').value, b = $('pw-again').value;
-  if(a.length < 10) return void ($('setpw-err').textContent = t('pw.short'));
-  if(a !== b) return void ($('setpw-err').textContent = t('pw.mismatch'));
-  $('btn-pw-save').disabled = true;
-  try{
-    const { error } = await sb.auth.updateUser({ password: a });
-    if(error) throw error;
-    resetSetPw(); $('setpw-ok').textContent = t('pw.done');
-  }catch(e){ $('setpw-err').textContent = errMsg(e); }
-  finally{ $('btn-pw-save').disabled = false; }
-});
 /* demo only: fake auth, no network and nothing stored */
 function demoAuth(){
   return {
-    signInWithPassword: async ({ email, password }) => password.length < 4 ? { data:null, error:{ message:'Invalid login credentials' } } : { data:{ session:{ user:{ email } } }, error:null },
-    updateUser: async () => ({ data:{ user:{} }, error:null }),
     signInWithOtp: async () => ({ error:null }),
     verifyOtp: async ({ email }) => ({ data:{ session:{ user:{ email } } }, error:null }),
     signOut: async () => {}, getSession: async () => ({ data:{ session:null } }), onAuthStateChange: () => {}
   };
 }
-function bootAuthParams(){
-  const q = new URLSearchParams(location.search);
-  if(q.get('signin') === 'password') setAuthTab('pw');
-}
+function bootAuthParams(){}
 
 async function onSession(session){
+  if(session && !DEMO && !sessionProven(session)){
+    try{ await sb.auth.signOut(); }catch(e){}
+    session = null; showAuthErr(t('si.otponly'));
+  }
   user = session ? session.user : null;
-  if(!user){ $('form-setpw').hidden = true; resetSetPw(); }
   $('auth').hidden = !!user; $('app').hidden = !user; $('acct').hidden = !user; if(!user) closeMenu();
   if(!user){ teams = []; team = null; counts = {}; orgs = []; org = null; orgSum = null; renderAll(); renderView(); return; }
   $('who-email').textContent = user.email || ''; $('acct-i').textContent = ((user.email || '?').trim()[0] || '?').toUpperCase();
@@ -2641,7 +2580,6 @@ function demoSb(){
     const h0 = location.hash.replace('#', '');
     if(dq.get('team') && !/^teams/.test(h0)) history.replaceState(null, '', '#teams/' + dq.get('team') + (SUBS.includes(h0) ? '/' + h0 : ''));
     await onSession({user:{email:'ana@northwind.example'}});
-    if(dq.get('setpw') === '1') $('btn-setpw').click();
     return;
   }
   bootAuthParams();
