@@ -332,7 +332,8 @@ const FAVICON_LINKS = `<link rel="icon" href="/assets/logo/favicon.svg" type="im
 
 const FONT_LINKS = `<link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />`;
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/site-header.css" />`;
 
 const BRAND_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true">
         <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
@@ -520,7 +521,7 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
   }
   // The site pages pick their language from ?lang= first, so a Korean doc keeps the reader in Korean.
   const q = lang === 'ko' ? '?lang=ko' : '';
-  return `<header>
+  return `<header class="site-hdr">
   <div class="wrap">
     <a class="brand" href="/${q}">
       ${BRAND_SVG}

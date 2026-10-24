@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   /* Sprag admin shell. Dense dark UI: hairline borders, Geist + Geist Mono, one accent (#5e6ad2). */
   :root{
@@ -46,8 +46,9 @@
   /* ── top bar ───────────────────────────────────────────────────────────── */
   header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(10,10,12,.88);backdrop-filter:blur(14px)}
   /* demo only: the banner sits inside the sticky header, so .tside offsets by its height too */
-  .demobar{min-height:var(--demo-h);display:flex;align-items:center;justify-content:center;padding:6px var(--gut);font-size:12.5px;line-height:1.45;text-align:center;color:var(--warn);background:rgba(232,171,60,.1);border-bottom:1px solid rgba(232,171,60,.28)}
+  .demobar{min-height:var(--demo-h);display:flex;align-items:center;justify-content:center;padding:6px var(--gut);font-size:12.5px;line-height:1.45;text-align:center;color:var(--warn);background:rgba(232,171,60,.1);border-top:1px solid rgba(232,171,60,.28)}
   .demobar[hidden]{display:none}
+  body:not(.authed) header.app-hdr,body.authed header.site-hdr{display:none}
   body.demo{--demo-h:32px}
   header .wrap{max-width:1440px;margin:0 auto;padding:0 var(--gut);min-height:var(--bar-h);display:flex;align-items:center;gap:var(--s4);flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em;flex:0 0 auto}
@@ -446,10 +447,10 @@
   .stat b{white-space:normal;overflow-wrap:anywhere}
   .stat span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 </style>
+<link rel="stylesheet" href="/assets/site-header.css" />
 </head>
 <body>
-<header>
-  <div class="demobar" id="demobar" role="note" data-k="demo.bar" hidden></div>
+<header class="app-hdr">
   <div class="wrap">
     <a class="brand" href="/" aria-label="Sprag">
       <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -486,6 +487,42 @@
         </div>
       </div>
     </div>
+  </div>
+  <div class="demobar" id="demobar" role="note" data-k="demo.bar" hidden></div>
+</header>
+<!-- signed out: the same header as the rest of the site -->
+<header class="site-hdr">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Sprag">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
+        <g fill="#5e6ad2">
+          <rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/>
+          <g transform="rotate(120 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+          <g transform="rotate(240 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
+        </g>
+        <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4"/>
+      </svg>
+      <span class="bn">Sprag</span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="/#how" data-k="nav.how">How it works</a>
+      <a class="hide-sm" href="/#routing" data-k="nav.routing">Routing</a>
+      <a class="hide-sm" href="/#features" data-k="nav.features">Features</a>
+      <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a href="/license/" data-k="nav.license">License</a>
+      <a class="hide-sm" href="/team/" aria-current="page" data-k="nav.teams">Team console</a>
+      <span class="lang" role="group" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="ko" aria-pressed="false">KO</button>
+      </span>
+      <a class="gh ic" href="https://github.com/rootstudioyaml/sprag" aria-label="GitHub" title="GitHub">
+        <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+      <a class="gh ic npmic" href="https://www.npmjs.com/package/sprag-cli" aria-label="npm" title="npm">
+        <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="#cb3837" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
+      </a>
+    </nav>
   </div>
 </header>
 
@@ -779,7 +816,7 @@ const I18N = {
     "sr.tip.switch.on":"Uploads allowed",
     "sr.tip.switch.off":"Uploads switched off by the member",
     "never":"never",
-    'nav.docs':'Docs','nav.pricing':'Pricing',
+    'nav.docs':'Docs','nav.pricing':'Pricing','nav.how':'How it works','nav.routing':'Routing','nav.features':'Features','nav.license':'License','nav.teams':'Team console',
     'demo.bar':'This is a demo, so nothing you change here is saved. Feel free to try anything.',
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
     'si.sent':'We sent a code to {email}.',
@@ -887,7 +924,7 @@ const I18N = {
     "sr.tip.switch.on":"업로드 허용",
     "sr.tip.switch.off":"멤버가 업로드를 끈 상태",
     "never":"없음",
-    'nav.docs':'문서','nav.pricing':'요금',
+    'nav.docs':'문서','nav.pricing':'요금','nav.how':'작동 방식','nav.routing':'라우팅','nav.features':'기능','nav.license':'라이선스','nav.teams':'팀 콘솔',
     'demo.bar':'데모에서는 실제 데이터가 저장되지 않습니다. 편하게 테스트해 보시면 됩니다.',
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
     'si.sent':'{email}로 코드를 보냈습니다.',
@@ -1209,6 +1246,7 @@ async function onSession(session){
     session = null; showAuthErr(t('si.otponly'));
   }
   user = session ? session.user : null;
+  document.body.classList.toggle('authed', !!user);
   $('auth').hidden = !!user; $('app').hidden = !user; $('acct').hidden = !user; if(!user) closeMenu();
   if(!user){ teams = []; team = null; counts = {}; orgs = []; org = null; orgSum = null; renderAll(); renderView(); return; }
   $('who-email').textContent = user.email || ''; $('acct-i').textContent = ((user.email || '?').trim()[0] || '?').toUpperCase();
