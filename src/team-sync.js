@@ -247,6 +247,9 @@ export class SeatLimitError extends Error {
 
 export const isSeatLimitError = (e) => !!e && (e.code === 'SEAT_LIMIT' || /seat limit reached/i.test(String(e.message || '')));
 
+/** The server refuses uploads and joins 14 days after an organization's paid term ends ('org_expired: ...'). */
+export const isOrgExpiredError = (e) => /\borg_expired\b/.test(String((e && e.message) || e || ''));
+
 /** Local calendar day, same key as stats.js. */
 function dayKey(ms) {
   const d = new Date(ms);
