@@ -312,13 +312,44 @@ For a bug, please include the tool version (`sprag --version`) and your OS. For 
 
 ## Teams
 
-Sprag stays local unless you opt in. With `sprag team join <token>` (or `SPRAG_TEAM_TOKEN` for a whole organization), each machine uploads one row per day: spend, savings, delegated-run count and model-family share. Prompts, transcripts, file paths and project names are never sent, and `sprag team status --show-payload` prints exactly what would go up. In return the team owner sees per-member totals in a dashboard and can approve ratchet rules that every member picks up automatically.
+The CLI is free and works on its own on one machine. For organizations, **Sprag Pro** and **Sprag Enterprise** add a shared dashboard built from the same local session logs. To start, write to [sales@sprag.io](mailto:sales@sprag.io).
+
+### Pro: team dashboard
+
+<a href="https://sprag.io/assets/video/plan-pro-en.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-en.gif" width="640" alt="A virtual office where every teammate sits as an animal character, then the organization dashboard with spend, savings, seats and a 30-day chart, then team rules approved once and picked up by every machine."></a>
+
+- Organization dashboard with a 30-day chart
+- A virtual office with an animal for each person
+- Seat roster with each machine's status
+- Team-approved rules applied at session start
+- Rollout with `sprag team join`
+- Owner and admin roles, activity log
+
+### Enterprise: prompt monitoring
+
+<a href="https://sprag.io/assets/video/plan-ent-en.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-ent-en.gif" width="640" alt="Per-user prompt usage with a 30-day trend, a prompt search for one person, and the team setting that turns prompt capture on."></a>
+
+Everything in Pro, plus:
+
+- Prompt capture per team, with secrets redacted
+- Nothing from before the policy was turned on
+- Per-user prompt usage and a 30-day trend
+- Each user's prompt list with search
+- A capture policy every member can see
+
+Prompt capture is off unless an organization owner or admin turns it on.
+
+<sub>Both videos are recorded from the demo dashboard with sample data. Full videos: <a href="https://sprag.io/assets/video/plan-pro-en.mp4">Pro (30s)</a> · <a href="https://sprag.io/assets/video/plan-ent-en.mp4">Enterprise (30s)</a></sub>
+
+### What a machine sends
+
+Sprag stays local unless you opt in. With `sprag team join <token>` (or `SPRAG_TEAM_TOKEN` for a whole organization), each machine uploads one row per day: spend, savings, delegated-run count and model-family share. Transcripts, file paths and project names are never sent. Prompts are not sent either, unless an Enterprise organization turns on prompt capture, and `sprag team status --show-payload` prints exactly what would go up. In return the team owner sees per-member totals in a dashboard and can approve ratchet rules that every member picks up automatically.
 
 `SPRAG_NO_TEAM_SYNC=1` turns all team traffic off, and `sprag team leave` removes the membership.
 
 - [Team layer guide](docs/TEAM.md)
-- Dashboard: https://sprag.io/team/
-- Plans and pricing: https://sprag.io/pricing/
+- Team console for owners and admins: https://sprag.io/team/
+- Plans: https://sprag.io/license/
 
 ## License
 

@@ -258,13 +258,44 @@ sprag feedback "Bedrock에서 5m TTL 칩이 사라지지 않아요"
 
 ## 팀
 
-Sprag 은 켜지 않으면 로컬에서만 동작합니다. `sprag team join <토큰>` 을 실행하거나(조직 전체는 `SPRAG_TEAM_TOKEN`) 하면 컴퓨터마다 하루에 한 행씩 올라갑니다. 내용은 지출, 절감액, 위임 실행 횟수, 모델 계열 비중입니다. 프롬프트, 대화 기록, 파일 경로, 프로젝트 이름은 보내지 않으며, `sprag team status --show-payload` 로 올라갈 내용을 그대로 볼 수 있습니다. 그 대신 팀 소유자는 대시보드에서 구성원별 합계를 보고, 모든 구성원에게 자동으로 적용될 래칫 룰을 승인할 수 있습니다.
+CLI는 무료이고 컴퓨터 한 대에서 혼자 동작합니다. 조직에는 **Sprag Pro** 와 **Sprag Enterprise** 가 같은 로컬 세션 로그로 만든 공용 대시보드를 더해 줍니다. 도입은 [sales@sprag.io](mailto:sales@sprag.io)로 문의해 주세요.
+
+### Pro: 팀 대시보드
+
+<a href="https://sprag.io/assets/video/plan-pro-ko.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-ko.gif" width="640" alt="팀원마다 동물 캐릭터로 앉아 있는 가상 사무실, 지출과 절감액, 좌석, 30일 차트가 있는 조직 대시보드, 한 번 승인하면 모든 컴퓨터에 적용되는 팀 규칙을 차례로 보여 줍니다."></a>
+
+- 조직 대시보드와 30일 추이 차트
+- 사람마다 동물 캐릭터가 앉아 있는 가상 사무실
+- 컴퓨터별 상태가 보이는 좌석 명단
+- 세션 시작 때 적용되는 팀 승인 규칙
+- `sprag team join` 으로 조직 배포
+- 오너와 어드민 역할, 활동 기록
+
+### Enterprise: 프롬프트 모니터링
+
+<a href="https://sprag.io/assets/video/plan-ent-ko.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-ent-ko.gif" width="640" alt="사용자별 프롬프트 사용량과 30일 추이, 한 사람의 프롬프트 검색, 팀별로 프롬프트 수집을 켜는 설정을 보여 줍니다."></a>
+
+Pro 의 기능에 더해 다음을 제공합니다.
+
+- 팀별 프롬프트 수집, 비밀 값은 가림
+- 정책을 켜기 전 기록은 수집하지 않음
+- 사용자별 프롬프트 사용량과 30일 추이
+- 사용자별 프롬프트 목록과 검색
+- 모든 멤버에게 보이는 수집 정책
+
+프롬프트 수집은 조직 오너나 어드민이 켜기 전까지 꺼져 있습니다.
+
+<sub>두 영상 모두 데모 대시보드에서 예시 데이터로 녹화했습니다. 전체 영상: <a href="https://sprag.io/assets/video/plan-pro-ko.mp4">Pro (30초)</a> · <a href="https://sprag.io/assets/video/plan-ent-ko.mp4">Enterprise (30초)</a></sub>
+
+### 컴퓨터가 보내는 것
+
+Sprag 은 켜지 않으면 로컬에서만 동작합니다. `sprag team join <토큰>` 을 실행하거나(조직 전체는 `SPRAG_TEAM_TOKEN`) 하면 컴퓨터마다 하루에 한 행씩 올라갑니다. 내용은 지출, 절감액, 위임 실행 횟수, 모델 계열 비중입니다. 대화 기록, 파일 경로, 프로젝트 이름은 보내지 않습니다. 프롬프트도 Enterprise 조직이 수집 정책을 켜지 않는 한 보내지 않으며, `sprag team status --show-payload` 로 올라갈 내용을 그대로 볼 수 있습니다. 그 대신 팀 소유자는 대시보드에서 구성원별 합계를 보고, 모든 구성원에게 자동으로 적용될 래칫 룰을 승인할 수 있습니다.
 
 `SPRAG_NO_TEAM_SYNC=1` 은 팀 관련 통신을 모두 끄고, `sprag team leave` 는 참여를 해제합니다.
 
 - [팀 기능 안내](docs/TEAM.ko.md)
-- 대시보드: https://sprag.io/team/
-- 플랜과 가격: https://sprag.io/pricing/
+- 오너와 어드민용 팀 콘솔: https://sprag.io/team/
+- 플랜 안내: https://sprag.io/license/
 
 ## 라이선스
 
