@@ -547,7 +547,7 @@
       </div>
     </form>
     <p class="err" id="auth-err" role="alert"></p>
-    <p class="note" data-k="si.note">Owners sign in here. Members never sign in; they run <code>sprag team join &lt;token&gt;</code> or get <code>SPRAG_TEAM_TOKEN</code> from you.</p>
+    <p class="note" data-k="si.note">This console is for owners and admins, and there is no sign-up. Sprag names the first owner when it opens your organization, and that owner adds the other owners and admins. A registered email signs in with a code, and an invited email gets its role at its first sign-in.<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.<br>To open a new organization, write to <a href="mailto:sales@sprag.io">sales@sprag.io</a>.</p>
   </section>
 
   <!-- signed in -->
@@ -820,8 +820,8 @@ const I18N = {
     'demo.bar':'This is a demo, so nothing you change here is saved. Feel free to try anything.',
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
     'si.sent':'We sent a code to {email}.',
-    'si.notreg':'This email is not registered. Ask your organization\'s owner or an admin to add it.',
-    'si.note':'Registered owners and admins sign in here. Members never sign in; they run <code>sprag team join &lt;token&gt;</code> or get <code>SPRAG_TEAM_TOKEN</code> from you.',
+    'si.notreg':'This email is not registered. Ask your organization\'s owner to add it.',
+    'si.note':'This console is for owners and admins, and there is no sign-up. Sprag names the first owner when it opens your organization, and that owner adds the other owners and admins. A registered email signs in with a code, and an invited email gets its role at its first sign-in.<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.<br>To open a new organization, write to <a href="mailto:sales@sprag.io">sales@sprag.io</a>.',
     'si.as':'Signed in as','si.out':'Sign out',
     'si.otponly':'Password sign-in has been turned off. Sign in with an email code.',
     'si.bademail':'Enter a valid email address.','si.badcode':'Enter the 6-digit code from the email.',
@@ -928,14 +928,14 @@ const I18N = {
     'demo.bar':'데모에서는 실제 데이터가 저장되지 않습니다. 편하게 테스트해 보시면 됩니다.',
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
     'si.sent':'{email}로 코드를 보냈습니다.',
-    'si.notreg':'등록되지 않은 이메일입니다. 조직 오너나 관리자에게 추가를 요청하세요.',
-    'si.note':'등록된 오너와 관리자만 여기서 로그인합니다. 멤버는 로그인하지 않고 <code>sprag team join &lt;token&gt;</code>을 실행하거나, 오너에게서 <code>SPRAG_TEAM_TOKEN</code>을 받으면 됩니다.',
+    'si.notreg':'등록되지 않은 이메일입니다. 조직 오너에게 추가를 요청하세요.',
+    'si.note':'오너와 어드민이 쓰는 콘솔이며, 가입 절차는 없습니다. 첫 오너는 Sprag가 조직을 열 때 지정하고, 다른 오너와 어드민은 그 오너가 추가합니다. 등록된 이메일로 코드를 받아 로그인하며, 초대받은 이메일은 처음 로그인할 때 권한이 생깁니다.<br>멤버는 로그인하지 않습니다. 오너나 어드민에게 팀 초대 토큰을 받아 <code>sprag team join &lt;token&gt;</code>을 실행하거나 <code>SPRAG_TEAM_TOKEN</code>을 설정하면 됩니다.<br>새 조직이 필요하면 <a href="mailto:sales@sprag.io">sales@sprag.io</a>로 문의해 주세요.',
     'si.as':'로그인 계정','si.out':'로그아웃',
     'si.otponly':'비밀번호 로그인은 사용하지 않습니다. 이메일 코드로 로그인해 주세요.',
     'si.bademail':'올바른 이메일 주소를 입력해 주세요.','si.badcode':'메일에 적힌 6자리 코드를 입력해 주세요.',
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
-    't.h':'내 팀','t.new':'새 팀','t.ph':'팀 이름','t.create':'만들기','t.empty':'아직 팀이 없습니다. 아래에서 만들어 보세요.','t.noorg':'이 계정의 이메일은 어느 조직의 오너나 관리자로도 등록되어 있지 않습니다. 조직 오너나 Sprag 운영자에게 추가를 요청하세요. 초대를 받았다면 이메일 코드로 한 번 로그인해 주세요. 비밀번호 로그인에는 초대가 적용되지 않습니다. 새 조직이 필요하면 <a href="mailto:sales@sprag.io">sales@sprag.io</a>로 문의해 주세요.',
+    't.h':'내 팀','t.new':'새 팀','t.ph':'팀 이름','t.create':'만들기','t.empty':'아직 팀이 없습니다. 아래에서 만들어 보세요.','t.noorg':'이 계정의 이메일은 어느 조직의 오너나 어드민으로도 등록되어 있지 않습니다. 조직 오너나 Sprag 운영자에게 추가를 요청하세요. 초대를 받았다면 이메일 코드로 한 번 로그인해 주세요. 비밀번호 로그인에는 초대가 적용되지 않습니다. 새 조직이 필요하면 <a href="mailto:sales@sprag.io">sales@sprag.io</a>로 문의해 주세요.',
     't.active':'활동 멤버 {n}명','plan.pro':'프로','plan.enterprise':'엔터프라이즈','t.noname':'팀 이름을 입력해 주세요.',
     'copy':'복사','copied':'복사함',
     'inv.h':'초대 토큰','inv.rotate':'교체','inv.rotnote':'교체하는 즉시 이전 토큰은 쓸 수 없게 됩니다.',
