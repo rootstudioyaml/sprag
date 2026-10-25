@@ -547,7 +547,7 @@
       </div>
     </form>
     <p class="err" id="auth-err" role="alert"></p>
-    <p class="note" data-k="si.note">This console is for owners and admins. To start an organization, write to <a href="mailto:sales@sprag.io">sales@sprag.io</a>. We send you a link to the order page, and once you pay, Sprag opens the organization and registers your email as its owner. From then on you sign in here with an email code.<br>The owner adds other owners and admins, and each of them gets the role at their first code sign-in.<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.</p>
+    <p class="note" data-k="si.note">This console is for owners and admins. To start a new organization, write to <a href="mailto:sales@sprag.io">sales@sprag.io</a>. An email registered as an owner or admin signs in here with an email code.<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.</p>
   </section>
 
   <!-- signed in -->
@@ -821,7 +821,7 @@ const I18N = {
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
     'si.sent':'We sent a code to {email}.',
     'si.notreg':'This email is not registered. Ask your organization\'s owner to add it.',
-    'si.note':'This console is for owners and admins. To start an organization, write to <a href="mailto:sales@sprag.io">sales@sprag.io</a>. We send you a link to the order page, and once you pay, Sprag opens the organization and registers your email as its owner. From then on you sign in here with an email code.<br>The owner adds other owners and admins, and each of them gets the role at their first code sign-in.<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.',
+    'si.note':'This console is for owners and admins. To start a new organization, write to <a href="mailto:sales@sprag.io">sales@sprag.io</a>. An email registered as an owner or admin signs in here with an email code.<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.',
     'si.as':'Signed in as','si.out':'Sign out',
     'si.otponly':'Password sign-in has been turned off. Sign in with an email code.',
     'si.bademail':'Enter a valid email address.','si.badcode':'Enter the 6-digit code from the email.',
@@ -929,7 +929,7 @@ const I18N = {
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
     'si.sent':'{email}로 코드를 보냈습니다.',
     'si.notreg':'등록되지 않은 이메일입니다. 조직 오너에게 추가를 요청하세요.',
-    'si.note':'오너와 어드민이 쓰는 콘솔입니다. 조직을 새로 시작하려면 <a href="mailto:sales@sprag.io">sales@sprag.io</a>로 문의해 주세요. 주문 페이지 링크를 보내 드리고, 결제가 끝나면 Sprag가 조직을 열어 그 이메일을 오너로 등록합니다. 그다음부터는 여기서 이메일 코드로 바로 로그인합니다.<br>다른 오너와 어드민은 오너가 추가하며, 추가된 사람은 처음 코드로 로그인할 때 권한이 생깁니다.<br>멤버는 로그인하지 않습니다. 오너나 어드민에게 팀 초대 토큰을 받아 <code>sprag team join &lt;token&gt;</code>을 실행하거나 <code>SPRAG_TEAM_TOKEN</code>을 설정하면 됩니다.',
+    'si.note':'오너와 어드민이 쓰는 콘솔입니다. 새 조직이 필요하면 <a href="mailto:sales@sprag.io">sales@sprag.io</a>로 문의해 주세요. 오너나 어드민으로 등록된 이메일은 여기서 이메일 코드로 로그인합니다.<br>멤버는 로그인하지 않습니다. 오너나 어드민에게 팀 초대 토큰을 받아 <code>sprag team join &lt;token&gt;</code>을 실행하거나 <code>SPRAG_TEAM_TOKEN</code>을 설정하면 됩니다.',
     'si.as':'로그인 계정','si.out':'로그아웃',
     'si.otponly':'비밀번호 로그인은 사용하지 않습니다. 이메일 코드로 로그인해 주세요.',
     'si.bademail':'올바른 이메일 주소를 입력해 주세요.','si.badcode':'메일에 적힌 6자리 코드를 입력해 주세요.',
