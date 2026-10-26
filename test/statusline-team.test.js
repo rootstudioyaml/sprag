@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { formatReport } from '../src/formatters/statusline.js';
+import { formatReport, formatNoSession } from '../src/formatters/statusline.js';
+import { resolveLabelMode } from '../src/statusline-mode.js';
 import { readTeamChip, saveTeamState } from '../src/team-sync.js';
 
 const base = () => ({
@@ -22,6 +23,22 @@ test('joined with a standing: member label, emoji, name (ko and en)', () => {
   // a ghost has no rank, and a rank past the count is ignored
   assert.equal(chip({ label: 'member-1e500474', lang: 'ko', standing: standing({ grade: 'ghost', rank: null, ranked: 12 }) }), 'member-1e500474 👻 유령');
   assert.equal(chip({ label: 'member-1e500474', lang: 'en', standing: standing({ rank: 13, ranked: 12 }) }), 'member-1e500474 🦊 Fox');
+});
+
+test('IntelliJ (narrow) and text mode drop the animal emoji but keep the name and rank', () => {
+  const team = { label: 'member-1e500474', lang: 'ko', standing: standing({ rank: 3, ranked: 12 }) };
+  // IntelliJ's terminal resolves to narrow: its font has no animal emoji.
+  const { mode } = resolveLabelMode({ hasFlag: (f) => f === '--icon', env: { TERMINAL_EMULATOR: 'JetBrains-JediTerm' } });
+  assert.equal(mode, 'narrow');
+  for (const m of [mode, 'text']) {
+    const out = formatReport({ ...base(), team }, { color: false, timer: false, mode: m, segments: ['team'] });
+    assert.equal(out.trim(), 'member-1e500474 여우 12명 중 3위', m);
+    const idle = formatNoSession({ team }, { color: false, mode: m });
+    assert.match(idle, /member-1e500474 여우 12명 중 3위/, m);
+    assert.doesNotMatch(idle, /🦊/, m);
+  }
+  // Outside IntelliJ the icon line keeps the emoji, on the idle line too.
+  assert.match(formatNoSession({ team }, { color: false, mode: 'icon' }), /member-1e500474 🦊 여우 12명 중 3위/);
 });
 
 test('chip sits right before the version chip', () => {

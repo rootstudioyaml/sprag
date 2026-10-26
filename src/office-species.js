@@ -42,8 +42,13 @@ export const SPECIES = {
   ghost: { emoji: '👻', en: 'Ghost', ko: '유령' },
 };
 
-/** `"<emoji> <name>"` for a grade key in the given language, or null for an unknown key. */
-export function speciesLabel(grade, lang = 'en') {
+/**
+ * `"<emoji> <name>"` for a grade key in the given language, or null for an unknown key.
+ * `emoji: false` leaves just the name, for terminals whose font has no animal emoji (IntelliJ).
+ */
+export function speciesLabel(grade, lang = 'en', { emoji = true } = {}) {
   const s = Object.prototype.hasOwnProperty.call(SPECIES, grade) ? SPECIES[grade] : null;
-  return s ? `${s.emoji} ${lang === 'ko' ? s.ko : s.en}` : null;
+  if (!s) return null;
+  const name = lang === 'ko' ? s.ko : s.en;
+  return emoji ? `${s.emoji} ${name}` : name;
 }

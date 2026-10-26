@@ -374,12 +374,14 @@ const TEAM_STANDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
  * member is in the team's virtual office and the rank (`member-1e500474 🦊 Fox #3 of 12`). Renders only
  * for a joined machine. A missing, unknown or day-old standing leaves just the
  * member label. Gray like the other identity chips; the emoji brings its own colour.
+ * The emoji draws only in icon mode: narrow (the IntelliJ default, whose font has
+ * no animal emoji) and text keep the animal's name and the rank.
  */
-function buildTeamSeg(team, c, now = Date.now()) {
+function buildTeamSeg(team, c, mode = 'icon', now = Date.now()) {
   if (!team || typeof team !== 'object' || !team.label) return null;
   const st = team.standing;
   const fresh = st && Number.isFinite(st.fetchedAt) && now - st.fetchedAt <= TEAM_STANDING_MAX_AGE_MS;
-  const animal = fresh ? speciesLabel(st.grade, team.lang) : null;
+  const animal = fresh ? speciesLabel(st.grade, team.lang, { emoji: mode === 'icon' }) : null;
   // The rank among the ranked people, the same standing the office drawer shows; a ghost has none.
   const ranked = animal && Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
   const place = ranked ? (team.lang === 'ko' ? ` ${st.ranked}명 중 ${st.rank}위` : ` #${st.rank} of ${st.ranked}`) : '';
@@ -575,7 +577,7 @@ export function formatNoSession({ caps = null, model = null, effort = null, wind
   const effortSeg = buildEffortSeg(effort, c, isIcon, g);
   if (effortSeg) segs.push(effortSeg);
   segs.push(`${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
-  const teamSeg = buildTeamSeg(team, c);
+  const teamSeg = buildTeamSeg(team, c, mode);
   if (teamSeg) segs.push(teamSeg);
   if (versionSeg && !(update && update.available)) segs.push(versionSeg);
   return segs.join(' · ') + (color ? '\x1b[K' : '');
@@ -1401,7 +1403,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // check — this render path never touches the network.
     version: buildVersionSeg(options.version, data.update, c, isIcon, verbose, g),
     // Member id and office animal, from team.json; null unless this machine joined a team.
-    team: buildTeamSeg(data.team, c),
+    team: buildTeamSeg(data.team, c, mode),
     // Delegation-rule registry (`rules 10 · ⚠1`), opt-in through `--segments`.
     rules: buildRulesSeg(data.ruleStats, c, g),
   };

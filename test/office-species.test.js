@@ -31,6 +31,8 @@ test('speciesLabel puts the emoji before the name and rejects unknown keys', () 
   assert.equal(speciesLabel('fox', 'ko'), '🦊 여우');
   assert.equal(speciesLabel('fox', 'en'), '🦊 Fox');
   assert.equal(speciesLabel('ghost', 'en'), '👻 Ghost');
+  assert.equal(speciesLabel('fox', 'ko', { emoji: false }), '여우');
+  assert.equal(speciesLabel('nope', 'en', { emoji: false }), null);
   assert.equal(speciesLabel('nope', 'en'), null);
   assert.equal(speciesLabel('toString', 'en'), null);
   for (const s of Object.values(SPECIES)) assert.ok(s.emoji && s.en && s.ko);
