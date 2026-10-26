@@ -2359,7 +2359,7 @@ const TownHost = (function(){
     const key = [lang, JSON.stringify(Range.args()), orgs.map(o => [o.id, o.name, o.plan, o.status, o.seat_limit, o.seats_used, o.spent, o.seats_paused, o.seats_late].join(':')).join('|'), attention.paused.length, attention.late.length].join('#');
     if(ctl && key === sig) return;
     sig = key; const my = ++seq; $('town-card').hidden = false;
-    if(!mod){ try{ mod = await import('/assets/scene/town-scene.js?v=3.80.0'); }catch(e){ return fail(); } if(my !== seq) return; }
+    if(!mod){ try{ mod = await import('/assets/scene/town-scene.js?v=3.80.1'); }catch(e){ return fail(); } if(my !== seq) return; }
     const data = mod.townSceneData({ orgs, attention, rangeLabel: Range.label(), t, money, revenue: orgRevenue, rel });
     if(ctl){ ctl.update(data); return; }
     $('town-box').textContent = '';
@@ -2408,7 +2408,7 @@ const SceneHost = (function(){
       const [u, pr] = await Promise.all([fetchUsage(ids), fetchPrompts()]); if(my !== seq) return;
       usage = u; promptRows = pr; ukey = uk;
     }
-    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.80.0'); }catch(e){ return fail(); } if(my !== seq) return; }
+    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.80.1'); }catch(e){ return fail(); } if(my !== seq) return; }
     const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: sel.seats_used, limit: sel.seat_limit, orgName: sel.name, rangeLabel: Range.label(), closed: sel.status === 'suspended', t, rel, os: osLabel, events: Seats.events(),
       demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
     if(ctl && mounted !== sel.id){ ctl.destroy(); ctl = null; }
