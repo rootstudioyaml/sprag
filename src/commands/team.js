@@ -1,5 +1,5 @@
 /**
- * team — `sprag team <create|join|leave|status|sync|rules|propose>`.
+ * team — `sprag team <create|join|name|leave|status|sync|rules|propose>`.
  *
  * The opt-in team layer. `join` shows exactly what will be uploaded (daily
  * aggregates only) and asks before enrolling. `sync --background` is what the
@@ -16,6 +16,7 @@ import { memberId } from '../member-id.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
   teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError, isOrgExpiredError,
+  setDisplayName,
 } from '../team-sync.js';
 
 const T = {
@@ -24,6 +25,7 @@ const T = {
       'Usage: sprag team <command>',
       '  create [--email <e>] [--name <n>] [--code <6 digits>] [--org <org-id>] [--no-join]   create a team (you become the owner)',
       '  join [token] [--name <n>] [--yes]   join a team (token or SPRAG_TEAM_TOKEN)',
+      '  name [<n>]                           show or change your display name',
       '  leave                                leave the team and stop uploading',
       '  status [--show-payload]              membership, last sync, what is sent',
       '  sync [--force] [--rules-only]        upload aggregates, prompts (Enterprise capture) and pull rules now',
@@ -66,6 +68,9 @@ const T = {
     needText: 'Missing rule text. Usage: sprag team propose <text> [--scope ratchet|model]',
     badScope: 'Scope must be ratchet or model.',
     needJoin: 'Join a team first: sprag team join <token>',
+    renamed: (n) => `Display name changed to "${n}". The dashboard shows it from now on.`,
+    nameHint: 'Change it with: sprag team name "<new name>"',
+    nameUnsupported: 'The team server does not support renaming yet. Try again after it is updated.',
     createUsage: 'Usage: sprag team create --email <e> --name "<team name>" [--code <6 digits>] [--no-join]',
     badEmail: 'That does not look like an email address.',
     badCode: 'The code is 6 digits, like 123456.',
@@ -90,6 +95,7 @@ const T = {
       '사용법: sprag team <명령>',
       '  create [--email <e>] [--name <이름>] [--code <6자리>] [--org <조직 ID>] [--no-join]   팀 만들기 (만든 사람이 조직 오너)',
       '  join [토큰] [--name <이름>] [--yes]   팀에 참여 (토큰 또는 SPRAG_TEAM_TOKEN)',
+      '  name [<이름>]                          표시 이름 보기 또는 바꾸기',
       '  leave                                  팀에서 나가고 업로드 중단',
       '  status [--show-payload]                참여 상태, 마지막 동기화, 보내는 내용',
       '  sync [--force] [--rules-only]          지금 집계를 올리고 규칙을 받기',
@@ -132,6 +138,9 @@ const T = {
     needText: '규칙 내용이 없습니다. 사용법: sprag team propose <내용> [--scope ratchet|model]',
     badScope: '범위는 ratchet 또는 model 이어야 합니다.',
     needJoin: '먼저 팀에 참여하세요: sprag team join <토큰>',
+    renamed: (n) => `표시 이름을 바꿨습니다: ${n}. 이제부터 대시보드에 이 이름이 나옵니다.`,
+    nameHint: '바꾸려면: sprag team name "<새 이름>"',
+    nameUnsupported: '팀 서버가 아직 이름 변경을 지원하지 않습니다. 서버가 갱신된 뒤 다시 시도하세요.',
     createUsage: '사용법: sprag team create --email <e> --name "<팀 이름>" [--code <6자리>] [--no-join]',
     badEmail: '이메일 주소 형식이 아닙니다',
     badCode: '코드는 123456 같은 6자리 숫자입니다',
@@ -180,6 +189,8 @@ async function confirm(question) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CODE_RE = /^\d{6}$/;
+// The default display name is the machine id; `status` and `join` then point at `team name`.
+const MACHINE_NAME_RE = /^member-[0-9a-f]{8}$/;
 
 /** `sprag team create`: sign in by emailed code, insert the team, join as first member. */
 async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive, ask }) {
@@ -256,8 +267,9 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
       case 'join': {
         const token = (args[2] && !args[2].startsWith('--') ? args[2] : null) || process.env.SPRAG_TEAM_TOKEN;
         if (!token) { console.error(m.noToken); return process.exit(2); }
+        // A rejoin keeps the name this machine had before (`team leave` keeps it in team.json).
         let name = getArg('--name');
-        if (!name) name = memberId();
+        if (!name) name = String(loadTeamState().displayName || '').trim() || memberId();
         out(m.willSend);
         out(m.asName(name));
         out(m.asDevice(memberId()));
@@ -268,6 +280,22 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         const st = await joinTeam({ token, displayName: name, fetch, version });
         out(m.joined(st.teamName));
         if (st.orgName && st.seatsUsed != null && st.seatLimit != null) out(m.orgCreated(st.orgName, st.seatsUsed, st.seatLimit));
+        if (MACHINE_NAME_RE.test(String(st.displayName || ''))) out(m.nameHint);
+        return undefined;
+      }
+      case 'name':
+      case 'rename': {
+        const st = loadTeamState();
+        if (!isJoined(st)) { console.error(m.needJoin); return process.exit(2); }
+        const next = args.slice(2).filter((a) => !a.startsWith('--')).join(' ').trim();
+        if (!next) { out(`${m.name}: ${st.displayName}`); out(m.nameHint); return undefined; }
+        if (teamSyncDisabled()) { out(m.disabled); return undefined; }
+        try {
+          out(m.renamed(await setDisplayName({ displayName: next, fetch })));
+        } catch (e) {
+          if (/Could not find the function|PGRST202/i.test(String(e && e.message))) { console.error(m.nameUnsupported); return process.exit(1); }
+          throw e;
+        }
         return undefined;
       }
       case 'leave':
@@ -285,6 +313,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
           out(st.lastPromptUploadAt ? m.lastPrompts(new Date(st.lastPromptUploadAt).toLocaleString(), st.lastPromptCount || 0) : m.noPrompts);
         }
         out(`${m.name}: ${st.displayName}`);
+        if (MACHINE_NAME_RE.test(String(st.displayName || ''))) out(`  ${m.nameHint}`);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(isOrgExpiredError(st.lastError) ? m.orgExpired : `${m.lastError}: ${st.lastError}`);
         if (hasFlag('--show-payload')) {

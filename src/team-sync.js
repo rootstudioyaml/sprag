@@ -483,6 +483,26 @@ export async function joinTeam({
   return out;
 }
 
+export const DISPLAY_NAME_MAX = 80;
+
+/**
+ * Rename this machine's member row (`sprag team name <n>`). The server trims
+ * and cuts the name the same way; its answer is what gets stored locally.
+ * Throws when not joined or the name is empty, before any fetch.
+ */
+export async function setDisplayName({ displayName, fetch, dir = userDataDir() } = {}) {
+  // Array.from counts code points like Postgres left() does, so an emoji is never split.
+  const name = Array.from(String(displayName || '').trim()).slice(0, DISPLAY_NAME_MAX).join('').trim();
+  if (!name) throw new Error('display name is empty');
+  const state = loadTeamState(dir);
+  if (!isJoined(state)) throw new Error('not in a team');
+  const r = await rpc('member_set_name', { member_key: state.memberKey, display_name: name }, { fetch });
+  const stored = typeof r === 'string' && r.trim() ? r : name;
+  // Re-read so a background sync that saved in the meantime keeps its fields.
+  saveTeamState({ ...loadTeamState(dir), displayName: stored }, dir);
+  return stored;
+}
+
 export async function leaveTeam({ fetch, dir = userDataDir(), now = Date.now() } = {}) {
   const prev = loadTeamState(dir);
   let lastError;
