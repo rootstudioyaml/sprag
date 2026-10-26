@@ -31,6 +31,7 @@ import { writeStateFile } from './state-file.js';
 import { memberId, readMemberId } from './member-id.js';
 import { userLanguage } from './config.js';
 import { debug } from './debug.js';
+import { trustSystemCA } from './system-ca.js';
 import { loadLedger, modelFamily, roundUsd } from './savings-ledger.js';
 import { sessionCost, pricedParts } from './claude-price.js';
 import { uploadPrompts, dropOffsets, promptOffsetsExist } from './team-prompts.js';
@@ -194,6 +195,7 @@ async function ledgerUpsert({ memberKey, rows, version, dir, fetch }) {
 export async function rpc(fn, params, {
   fetch = globalThis.fetch, timeoutMs = 8000, url = teamApiUrl(), key = teamAnonKey(),
 } = {}) {
+  trustSystemCA();
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
@@ -225,6 +227,7 @@ export async function rpc(fn, params, {
  * lives in memory: it is never written to disk or printed.
  */
 async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetch, timeoutMs = 8000, url = teamApiUrl(), key = teamAnonKey(), prefer } = {}) {
+  trustSystemCA();
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {

@@ -24,6 +24,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import os from 'node:os';
 import { debug } from '../debug.js';
+import { trustSystemCA } from '../system-ca.js';
 
 const REPO = 'rootstudioyaml/sprag';
 const ISSUES_URL = `https://github.com/${REPO}/issues`;
@@ -64,6 +65,7 @@ function tryGhCli(title, body) {
 
 async function tryForm(title, body, meta) {
   if (!FORM) return null;
+  trustSystemCA();
   try {
     const params = new URLSearchParams();
     params.set(FORM.message, `${title}\n\n${body}`);
