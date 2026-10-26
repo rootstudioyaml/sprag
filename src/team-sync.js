@@ -28,7 +28,8 @@ import { release as osRelease } from 'node:os';
 import { createRequire } from 'node:module';
 import { userDataDir } from './paths.js';
 import { writeStateFile } from './state-file.js';
-import { memberId } from './member-id.js';
+import { memberId, readMemberId } from './member-id.js';
+import { userLanguage } from './config.js';
 import { debug } from './debug.js';
 import { loadLedger, modelFamily, roundUsd } from './savings-ledger.js';
 import { sessionCost, pricedParts } from './claude-price.js';
@@ -70,6 +71,45 @@ export function saveTeamState(state, dir = userDataDir()) {
   if (process.platform !== 'win32') {
     try { chmodSync(file, 0o600); } catch (e) { debug('team-sync', e); }
   }
+}
+
+/**
+ * The member's animal from the virtual office, stored as `standing` in team.json
+ * for the statusline chip. Best effort: a server older than member_standing
+ * (PGRST202) or any failure leaves the state untouched and never fails the caller.
+ */
+async function refreshStanding({ memberKey, dir, fetch, now }) {
+  try {
+    const r = await rpc('member_standing', { member_key: memberKey }, { fetch });
+    if (!r || typeof r !== 'object' || typeof r.grade !== 'string') return;
+    const cur = loadTeamState(dir);
+    if (!isJoined(cur) || cur.memberKey !== memberKey) return;
+    saveTeamState({
+      ...cur,
+      standing: { grade: r.grade, tier: r.tier ?? null, rank: Number.isFinite(r.rank) ? r.rank : null, ranked: Number.isFinite(r.ranked) ? r.ranked : null, crown: !!r.crown, fetchedAt: now },
+    }, dir);
+  } catch (e) {
+    debug('team-sync', e); // PGRST202 "Could not find the function": an older server, ignore
+  }
+}
+
+/**
+ * What the statusline `team` chip needs, from team.json and the member-id file
+ * alone: no network and no file creation. Null when not joined (or left).
+ */
+export function readTeamChip({ dir = userDataDir() } = {}) {
+  try {
+    const state = loadTeamState(dir);
+    if (!isJoined(state)) return null;
+    const label = String(state.displayName || '').trim() || readMemberId({ dir });
+    if (!label) return null;
+    const st = state.standing;
+    return {
+      label,
+      lang: userLanguage(),
+      standing: st && typeof st.grade === 'string' ? { grade: st.grade, fetchedAt: Number(st.fetchedAt) || 0 } : null,
+    };
+  } catch (e) { debug('team-sync', e); return null; }
 }
 
 export function teamSyncDisabled(env = process.env) { return envVar('NO_TEAM_SYNC', env) === '1'; }
@@ -433,7 +473,9 @@ export async function joinTeam({
     lastSyncRows: 0,
   };
   saveTeamState(state, dir);
-  return reportDeviceInfo({ state, dir, fetch, env });
+  const out = await reportDeviceInfo({ state, dir, fetch, env });
+  await refreshStanding({ memberKey: r.member_key, dir, fetch, now });
+  return out;
 }
 
 export async function leaveTeam({ fetch, dir = userDataDir(), now = Date.now() } = {}) {
@@ -566,6 +608,7 @@ export async function syncTeam({
     delete next.lastError;
     saveTeamState(next, dir);
     refreshTeamRatchetFiles({ dir });
+    await refreshStanding({ memberKey: state.memberKey, dir, fetch, now });
     const prompts = await syncPrompts({ state: next, dir, fetch, now });
     return { uploaded: rows.length, rules: rules.length, ...(prompts !== null ? { prompts } : {}) };
   } catch (e) {

@@ -42,6 +42,8 @@ function mockFetch(routes = {}) {
   const calls = [];
   const f = async (url, init) => {
     const path = url.replace(TEAM_API_URL, '');
+    // The standing lookup after a join is best effort and not part of these flows; kept out of calls.
+    if (path.endsWith('/member_standing')) return { ok: false, status: 404, json: async () => ({ code: 'PGRST202', message: 'Could not find the function' }) };
     calls.push({ path, headers: init.headers, body: JSON.parse(init.body) });
     const key = Object.keys(routes).find((k) => path.startsWith(k));
     const r = key ? routes[key] : { status: 404, json: { message: 'no route' } };

@@ -24,7 +24,9 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 
 하루 단위 집계 업로드는 마지막 성공 이후 5분에 한 번 이하로 실행됩니다. SessionStart 훅(그리고 작은 로컬 파일만 읽는 프롬프트 훅)이 띄운 분리된 자식 프로세스가 보냅니다. 네트워크가 끊기는 등 동기화가 실패하면 5분 주기 대신 15분, 30분, 60분 뒤에 다시 시도합니다(최대 60분 간격). 마지막으로 올린 날짜를 기억해 두었다가 그 전날부터 최대 30일 치를 다시 보내므로, 며칠 꺼져 있던 컴퓨터도 처음 성공하는 동기화에서 빠진 날을 따라잡습니다. 하루 단위 행은 덮어쓰기라 다시 보내도 안전합니다. 프롬프트 수집을 켠 엔터프라이즈 팀의 프롬프트 업로드는 따로 30분 타이머로 움직입니다("프롬프트 사용량 (엔터프라이즈)" 절 참고). statusline 을 그리는 경로에서는 절대 실행되지 않습니다.
 
-목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값) 입니다.
+팀에 참여한 동안 statusline 에 `team` 칩이 나타나 멤버 ID 와 가상 사무실(Sprag 타운)에서 받은 동물을 보여 줍니다. 예를 들면 `member-1e500474 🦊 여우` 입니다. 동물은 5분마다 도는 전체 동기화가 서버에서 받아 `team.json` 에 저장한 순위로 정합니다. 서버가 아직 이 기능을 지원하지 않거나 마지막으로 받은 지 하루가 넘었다면 멤버 ID 만 표시합니다. 칩을 그릴 때는 로컬 파일만 읽습니다. 버전 칩 바로 앞에 놓이며, `--segments team` 으로 이 칩만 따로 볼 수 있습니다.
+
+목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값), `member_standing`(statusline 칩에 쓸 본인의 사무실 동물과 순위만 받고 다른 사람의 수치는 받지 않음) 입니다.
 
 ## CLI에서 팀 만들기
 

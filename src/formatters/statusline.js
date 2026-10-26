@@ -29,6 +29,7 @@ import { bedrockDisplayFromId } from '../stdin-payload.js';
 import { modelFamily } from '../savings-ledger.js';
 import { shareLegend } from '../model-share.js';
 import { STAR_URL } from '../star-note.js';
+import { speciesLabel } from '../office-species.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
 // next to each other — terminal palettes set them with unbalanced perceptual
@@ -365,6 +366,23 @@ function buildVersionSeg(version, update, c, isIcon, verbose, g) {
   return `${c(GRAY)}v${version}${age ? ` ✓${age} ago` : ''}${c(RESET)}`;
 }
 
+/** A standing older than this is not shown; the 5-minute team sync refreshes it long before. */
+const TEAM_STANDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Team chip: the member id and, once the server has told us, the animal that
+ * member is in the team's virtual office (`member-1e500474 🦊 Fox`). Renders only
+ * for a joined machine. A missing, unknown or day-old standing leaves just the
+ * member label. Gray like the other identity chips; the emoji brings its own colour.
+ */
+function buildTeamSeg(team, c, now = Date.now()) {
+  if (!team || typeof team !== 'object' || !team.label) return null;
+  const st = team.standing;
+  const fresh = st && Number.isFinite(st.fetchedAt) && now - st.fetchedAt <= TEAM_STANDING_MAX_AGE_MS;
+  const animal = fresh ? speciesLabel(st.grade, team.lang) : null;
+  return `${c(GRAY)}${team.label}${animal ? ` ${animal}` : ''}${c(RESET)}`;
+}
+
 /**
  * Harness 🅷 segment builder — shared by the full report and the no-session
  * fallback line. Best-effort: never throws into the statusline (corrupted
@@ -532,7 +550,7 @@ function buildCapWarnSeg(capWarn, c, isIcon, g, color, mode) {
  * harness, model, and effort chips still render around the "no session data"
  * note.
  */
-export function formatNoSession({ caps = null, model = null, effort = null, windowLabel = '', version = '', update = null } = {}, { color = true, mode = 'icon', segments = null } = {}) {
+export function formatNoSession({ caps = null, model = null, effort = null, windowLabel = '', version = '', update = null, team = null } = {}, { color = true, mode = 'icon', segments = null } = {}) {
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take
   // the same branches from here on.
@@ -554,6 +572,8 @@ export function formatNoSession({ caps = null, model = null, effort = null, wind
   const effortSeg = buildEffortSeg(effort, c, isIcon, g);
   if (effortSeg) segs.push(effortSeg);
   segs.push(`${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
+  const teamSeg = buildTeamSeg(team, c);
+  if (teamSeg) segs.push(teamSeg);
   if (versionSeg && !(update && update.available)) segs.push(versionSeg);
   return segs.join(' · ') + (color ? '\x1b[K' : '');
 }
@@ -1157,7 +1177,9 @@ export const DEFAULT_SEGMENT_ORDER = [
   'hit', 'saved', 'period',
   // Calendar month.
   'month',
-  'harness', 'korean', 'version',
+  'harness', 'korean',
+  // Joined machines only: member id and office animal. Identity, so it sits with version.
+  'team', 'version',
 ];
 
 // Legacy `--segments` aliases: `5h` ↔ `five_hour`, `7d` ↔ `seven_day`.
@@ -1186,6 +1208,7 @@ function segmentsNamed(name, s, usageByKey) {
     case 'rules':     return [s.rules];
     case 'subagents': return [s.subagents];
     case 'korean':    return [s.korean];
+    case 'team':      return [s.team];
     case 'model':     return [s.model];
     case 'effort':    return [s.effort];
     // The routing chips (already empty when a headline line owns the story), then
@@ -1298,7 +1321,7 @@ function buildHeadlines(delegated, doc2md, want, eol) {
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), model, effort, hit, ttl, month, saved, delegated, doc2md, star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), team (member id and office animal; joined machines only), model, effort, hit, ttl, month, saved, delegated, doc2md, star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
@@ -1374,6 +1397,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // Version / upgrade chip. Read from a cache written by a detached background
     // check — this render path never touches the network.
     version: buildVersionSeg(options.version, data.update, c, isIcon, verbose, g),
+    // Member id and office animal, from team.json; null unless this machine joined a team.
+    team: buildTeamSeg(data.team, c),
     // Delegation-rule registry (`rules 10 · ⚠1`), opt-in through `--segments`.
     rules: buildRulesSeg(data.ruleStats, c, g),
   };
