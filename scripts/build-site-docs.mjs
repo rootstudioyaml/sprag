@@ -577,7 +577,7 @@ function footerHtml(lang = 'en') {
   const q = l === 'ko' ? '?lang=ko' : '';
   return `<footer>
   <div class="wrap">
-    <span>Apache-2.0 © YAML Studio</span>
+    <span>Apache-2.0</span>
     <span><a href="${l === 'ko' ? '/docs/ko/' : '/docs/'}">Docs</a> · <a href="${REPO}">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="${REPO}/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
   </div>
   <div class="wrap biz"${SHOW_BIZ ? '' : ' hidden'}>
