@@ -411,6 +411,7 @@ function styleBlock() {
   footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
   footer a:hover{color:var(--ink)}
   footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+  footer .wrap.biz[hidden]{display:none}
   footer .biz p+p{margin-top:4px}
   footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
   footer .biz a.strong{font-weight:700;color:var(--dim)}
@@ -541,6 +542,10 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
 </header>`;
 }
 
+// The business block and the legal pages stay hidden until checkout goes
+// live: no buyer exists yet. Flip this to true with the hand-written pages
+// (drop their footer `hidden` and the legal pages' noindex) when payments open.
+const SHOW_BIZ = false;
 const BIZ_FTC = 'https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963';
 const BIZ_INFO = {
   en: [
@@ -575,7 +580,7 @@ function footerHtml(lang = 'en') {
     <span>Apache-2.0 © YAML Studio</span>
     <span><a href="${l === 'ko' ? '/docs/ko/' : '/docs/'}">Docs</a> · <a href="${REPO}">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="${REPO}/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
   </div>
-  <div class="wrap biz">
+  <div class="wrap biz"${SHOW_BIZ ? '' : ' hidden'}>
     <p>${info}</p>
     <p><a href="/terms/${q}">${terms}</a> · <a href="/privacy/${q}" class="strong">${privacy}</a> · <a href="/refund/${q}">${refund}</a> · <a href="${BIZ_FTC}" target="_blank" rel="noopener">${verify}</a></p>
   </div>
@@ -715,7 +720,7 @@ function buildSitemap(entries) {
   </url>`);
   // Legal pages (hand-written, bilingual in-page): payment providers and the
   // e-commerce act expect them to be discoverable.
-  for (const slug of ['terms', 'privacy', 'refund']) {
+  for (const slug of SHOW_BIZ ? ['terms', 'privacy', 'refund'] : []) {
     urls.push(`  <url>
     <loc>${SITE_ORIGIN}/${slug}/</loc>
     <lastmod>2026-11-01</lastmod>
