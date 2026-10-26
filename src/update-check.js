@@ -47,6 +47,7 @@ import { join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { userDataDir } from './paths.js';
 import { debug } from './debug.js';
+import { trustSystemCA } from './system-ca.js';
 
 // This copy may be installed under the canonical name or under the legacy one.
 // Releases go out under the canonical name, so that is the entry the registry
@@ -391,6 +392,7 @@ export function latestUrl(registry) {
  * highlights, and the notice still goes out.
  */
 export async function fetchHighlights(version, { timeoutMs = FETCH_TIMEOUT_MS, lang = 'en' } = {}) {
+  trustSystemCA();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -420,6 +422,7 @@ export async function fetchHighlights(version, { timeoutMs = FETCH_TIMEOUT_MS, l
  * and the explicit `update-check --refresh` command call this.
  */
 export async function refreshUpdateState(currentVersion, { env, home } = {}) {
+  trustSystemCA();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {

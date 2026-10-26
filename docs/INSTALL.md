@@ -97,4 +97,6 @@ Everything Sprag measures comes from files on your machine. The list below is ev
 
 No usage data, transcript content or project paths leave the machine, unless you join a team. A team receives only the daily aggregates listed in the team-layer rows of the table above and, for an Enterprise team with prompt capture on, the prompt upload described in the row after it. The savings ledger, the route-scan rules and the history files stay under the user-data directory listed in the Skill's storage section.
 
+On Node 22.19 or 24.5 and later, these requests also trust the operating system's certificate store (macOS Keychain, Windows certificate store, the Linux system bundle), on top of Node's bundled roots and `NODE_EXTRA_CA_CERTS`. Behind a corporate proxy that re-signs HTTPS with a root installed only in the system store, the update check, preset sync and team sync keep working without extra setup. The store is read once, just before the first request, never while the statusline renders. `SPRAG_SYSTEM_CA=0` turns this off; with `NODE_USE_SYSTEM_CA=1` or `--use-system-ca`, Node has already loaded the store and Sprag leaves it alone. Older Node versions keep the bundled roots only, so set `NODE_EXTRA_CA_CERTS` there.
+
 ---
