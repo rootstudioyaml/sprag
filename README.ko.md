@@ -258,7 +258,7 @@ sprag feedback "Bedrock에서 5m TTL 칩이 사라지지 않아요"
 
 ## 팀
 
-CLI는 무료이고 컴퓨터 한 대에서 혼자 동작합니다. 조직에는 **Sprag Pro** 와 **Sprag Enterprise** 가 같은 로컬 세션 로그로 만든 공용 대시보드를 더해 줍니다. 도입은 [sales@sprag.io](mailto:sales@sprag.io)로 문의해 주세요.
+CLI는 무료이고 컴퓨터 한 대에서 혼자 동작합니다. 조직에는 **Sprag Pro** 와 **Sprag Enterprise** 가 같은 로컬 세션 로그로 만든 공용 대시보드를 더해 줍니다. 도입은 [support@sprag.io](mailto:support@sprag.io)로 문의해 주세요.
 
 ### Pro: 팀 대시보드
 

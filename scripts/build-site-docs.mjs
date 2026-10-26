@@ -554,7 +554,7 @@ const BIZ_INFO = {
     'Business registration no. 104-37-62963',
     'Mail-order business registration 2026-Seoul Gwanak-1299',
     '3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea',
-    'Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a>',
+    'Email: <a href="mailto:support@sprag.io">support@sprag.io</a>',
   ],
   ko: [
     '상호 케이프로샵 (브랜드 YAML Studio)',
@@ -562,7 +562,7 @@ const BIZ_INFO = {
     '사업자등록번호 104-37-62963',
     '통신판매업 신고 제2026-서울관악-1299호',
     '주소 서울특별시 관악구 봉천로 408-1, 3층 216A호 (08757)',
-    '이메일 <a href="mailto:sales@sprag.io">sales@sprag.io</a>',
+    '이메일 <a href="mailto:support@sprag.io">support@sprag.io</a>',
   ],
 };
 const BIZ_LINKS = {
