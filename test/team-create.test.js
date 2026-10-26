@@ -209,7 +209,7 @@ test('create without --org on a server that keeps organizations to operators poi
   const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456'], { fetch: f });
   assert.equal(r.code, 1);
   assert.match(r.err, /--org/);
-  assert.match(r.err, /sales@sprag\.io/);
+  assert.match(r.err, /support@sprag\.io/);
   assert.ok(!f.calls.some((c) => c.path.includes('team_join')));
 });
 

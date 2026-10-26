@@ -312,7 +312,7 @@ For a bug, please include the tool version (`sprag --version`) and your OS. For 
 
 ## Teams
 
-The CLI is free and works on its own on one machine. For organizations, **Sprag Pro** and **Sprag Enterprise** add a shared dashboard built from the same local session logs. To start, write to [sales@sprag.io](mailto:sales@sprag.io).
+The CLI is free and works on its own on one machine. For organizations, **Sprag Pro** and **Sprag Enterprise** add a shared dashboard built from the same local session logs. To start, write to [support@sprag.io](mailto:support@sprag.io).
 
 ### Pro: team dashboard
 

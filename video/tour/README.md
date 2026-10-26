@@ -86,7 +86,7 @@ node scripts/serve-site.mjs 8788      # the site server, from the repo root
 | 7-13 | a power user's card and model mix: 누가 어떤 모델에 일을 맡기는지 사람별로 바로 확인하세요 | Prompts tab sorted by characters: 누가 얼마나 자주 묻는지, 30일 흐름까지 한 번에 |
 | 13-18/20 | KPI cards, range rail: 지난주와 이번 달, 클릭 한 번이면 비교 끝 | one person's prompts, search: 궁금한 프롬프트는 검색 한 번으로 찾아보세요 |
 | 18/20-25 | add a team rule: 규칙은 한 번만 정하세요, 팀원 PC에는 알아서 적용됩니다 | a team's prompt capture switched on: 수집은 팀별로 켜고 끕니다, 켜기 전 대화는 가져오지 않아요 |
-| 25-30 | logo, plan, 우리 팀에 맞게 안내해 드릴게요, sales@sprag.io | same, Enterprise |
+| 25-30 | logo, plan, 우리 팀에 맞게 안내해 드릴게요, support@sprag.io | same, Enterprise |
 
 The closing card carries no price, so the same files play on `/pricing/` and on `/license/`.
 

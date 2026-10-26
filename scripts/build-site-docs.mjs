@@ -554,7 +554,7 @@ const BIZ_INFO = {
     'Business registration no. 000-00-00000',
     'Mail-order business registration 0000-00-0000',
     '(address withheld)',
-    'Email: <a href="mailto:sales@sprag.io">sales@sprag.io</a>',
+    'Email: <a href="mailto:support@sprag.io">support@sprag.io</a>',
   ],
   ko: [
     '상호 (상호 비공개) (브랜드 YAML Studio)',
@@ -562,7 +562,7 @@ const BIZ_INFO = {
     '사업자등록번호 000-00-00000',
     '통신판매업 신고 제0000-00-0000호',
     '주소 (주소 비공개)',
-    '이메일 <a href="mailto:sales@sprag.io">sales@sprag.io</a>',
+    '이메일 <a href="mailto:support@sprag.io">support@sprag.io</a>',
   ],
 };
 const BIZ_LINKS = {
