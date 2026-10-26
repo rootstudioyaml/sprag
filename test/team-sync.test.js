@@ -39,16 +39,23 @@ function isolate(t) {
 
 function fakeFetch(handlers = {}) {
   const calls = [];
+  const standingCalls = [];
   const f = async (url, init) => {
     const fn = url.split('/rpc/')[1];
     const body = JSON.parse(init.body);
-    calls.push({ fn, body, headers: init.headers });
+    // member_standing is best effort and answers like an older server unless a test gives it a handler;
+    // its calls are kept apart so the call lists below describe the sync itself.
+    if (fn === 'member_standing') {
+      standingCalls.push({ fn, body });
+      if (!handlers.member_standing) return { ok: false, status: 404, json: async () => ({ code: 'PGRST202', message: 'Could not find the function public.member_standing' }) };
+    } else calls.push({ fn, body, headers: init.headers });
     const h = handlers[fn];
     const r = typeof h === 'function' ? h(body) : h;
     if (r && r.status && r.status >= 400) return { ok: false, status: r.status, json: async () => r.json };
     return { ok: true, status: 200, json: async () => (r === undefined ? true : r) };
   };
   f.calls = calls;
+  f.standingCalls = standingCalls;
   return f;
 }
 
@@ -431,4 +438,34 @@ test('a failed device info report is soft: join succeeds and the next sync retri
   assert.equal(loadTeamState(dir).deviceInfo, undefined);
   await syncTeam({ dir, fetch: f, env: {}, force: true, sessions: [] });
   assert.equal(f.calls.filter((c) => c.fn === 'member_set_info').length, 2);
+});
+
+test('a full sync stores the member standing; an older server (PGRST202) is ignored', async (t) => {
+  const dir = isolate(t);
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ member_standing: { member_id: 'm1', grade: 'fox', tier: 'active', rank: 3, ranked: 9, crown: false } });
+  const now = Date.now();
+  const r = await syncTeam({ dir, fetch: f, now, force: true });
+  assert.ok(!r.error, r.error);
+  assert.deepEqual(loadTeamState(dir).standing, { grade: 'fox', tier: 'active', rank: 3, ranked: 9, crown: false, fetchedAt: now });
+  assert.equal(f.standingCalls[0].body.member_key, 'spk_secret');
+
+  const dir2 = isolate(t);
+  saveTeamState(joinedState(), dir2);
+  const old = fakeFetch({ member_standing: { status: 404, json: { code: 'PGRST202', message: 'Could not find the function public.member_standing' } } });
+  const r2 = await syncTeam({ dir: dir2, fetch: old, force: true });
+  assert.ok(!r2.error, 'the sync still succeeds');
+  assert.ok(loadTeamState(dir2).lastSyncAt);
+  assert.equal(loadTeamState(dir2).standing, undefined);
+});
+
+test('joinTeam fetches the standing once, and leaveTeam drops it', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({ team_join: JOINED, member_standing: { grade: 'ghost', tier: 'nodata', rank: null, ranked: 0, crown: false } });
+  await joinTeam({ token: TOKEN, fetch: f, dir });
+  const st = loadTeamState(dir).standing;
+  assert.equal(st.grade, 'ghost');
+  assert.equal(st.rank, null);
+  await leaveTeam({ fetch: f, dir });
+  assert.equal(loadTeamState(dir).standing, undefined);
 });

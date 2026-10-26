@@ -32,6 +32,11 @@ function readValid(file) {
   } catch (e) { debug('member-id', e); return null; }
 }
 
+/** The stored id, or null. Read-only: the statusline must not create files. */
+export function readMemberId({ dir = userDataDir() } = {}) {
+  return readValid(memberIdPath(dir));
+}
+
 // Never throws: a failed write still returns the id it generated, and the
 // cache hands the same one back on the next call.
 export function memberId({ dir = userDataDir(), random = () => randomBytes(4).toString('hex') } = {}) {

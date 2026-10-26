@@ -682,7 +682,7 @@ async function main() {
       }
       const { withBaseStatusline } = await import('../src/statusline-base.js');
       const noSessionOut = withBaseStatusline(formatNoSession(
-        { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION) },
+        { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION), team: (await import('../src/team-sync.js')).readTeamChip() },
         { color: colorOk, mode: labelMode, segments: segmentsFromArgs() },
       ), { input: readStdinRaw() });
       if (guard) guard.finish(noSessionOut);
@@ -989,6 +989,8 @@ async function main() {
     options: { days, windowHours, windowLabel, version: PKG_VERSION },
     // Cached-only; the background refresh it may trigger lands on a later render.
     update: format === 'statusline' ? readUpdateChip(PKG_VERSION) : null,
+    // Member id and office animal from team.json; a file read, never the network.
+    team: format === 'statusline' ? (await import('../src/team-sync.js')).readTeamChip() : null,
     // The totals are already in hand above; passing them spares a second read of
     // both ledgers on every render.
     star: format === 'statusline'
