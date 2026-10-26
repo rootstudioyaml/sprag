@@ -371,7 +371,7 @@ const TEAM_STANDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Team chip: the member id and, once the server has told us, the animal that
- * member is in the team's virtual office (`member-1e500474 🦊 Fox`). Renders only
+ * member is in the team's virtual office and the rank (`member-1e500474 🦊 Fox #3 of 12`). Renders only
  * for a joined machine. A missing, unknown or day-old standing leaves just the
  * member label. Gray like the other identity chips; the emoji brings its own colour.
  */
@@ -380,7 +380,10 @@ function buildTeamSeg(team, c, now = Date.now()) {
   const st = team.standing;
   const fresh = st && Number.isFinite(st.fetchedAt) && now - st.fetchedAt <= TEAM_STANDING_MAX_AGE_MS;
   const animal = fresh ? speciesLabel(st.grade, team.lang) : null;
-  return `${c(GRAY)}${team.label}${animal ? ` ${animal}` : ''}${c(RESET)}`;
+  // The rank among the ranked people, the same standing the office drawer shows; a ghost has none.
+  const ranked = animal && Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
+  const place = ranked ? (team.lang === 'ko' ? ` ${st.ranked}명 중 ${st.rank}위` : ` #${st.rank} of ${st.ranked}`) : '';
+  return `${c(GRAY)}${team.label}${animal ? ` ${animal}${place}` : ''}${c(RESET)}`;
 }
 
 /**

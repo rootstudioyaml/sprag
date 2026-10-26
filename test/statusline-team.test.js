@@ -17,6 +17,11 @@ const standing = (extra = {}) => ({ grade: 'fox', fetchedAt: Date.now() - 60_000
 test('joined with a standing: member label, emoji, name (ko and en)', () => {
   assert.equal(chip({ label: 'member-1e500474', lang: 'ko', standing: standing() }), 'member-1e500474 🦊 여우');
   assert.equal(chip({ label: 'member-1e500474', lang: 'en', standing: standing() }), 'member-1e500474 🦊 Fox');
+  assert.equal(chip({ label: 'member-1e500474', lang: 'ko', standing: standing({ rank: 3, ranked: 12 }) }), 'member-1e500474 🦊 여우 12명 중 3위');
+  assert.equal(chip({ label: 'member-1e500474', lang: 'en', standing: standing({ rank: 3, ranked: 12 }) }), 'member-1e500474 🦊 Fox #3 of 12');
+  // a ghost has no rank, and a rank past the count is ignored
+  assert.equal(chip({ label: 'member-1e500474', lang: 'ko', standing: standing({ grade: 'ghost', rank: null, ranked: 12 }) }), 'member-1e500474 👻 유령');
+  assert.equal(chip({ label: 'member-1e500474', lang: 'en', standing: standing({ rank: 13, ranked: 12 }) }), 'member-1e500474 🦊 Fox');
 });
 
 test('chip sits right before the version chip', () => {
@@ -45,10 +50,10 @@ test('readTeamChip: joined, left and never joined; reads only and creates nothin
   const dir = mkdtempSync(join(tmpdir(), 'sprag-chip-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   assert.equal(readTeamChip({ dir }), null);
-  saveTeamState({ memberKey: 'spk_x', displayName: 'member-1e500474', standing: { grade: 'owl', fetchedAt: 5 } }, dir);
+  saveTeamState({ memberKey: 'spk_x', displayName: 'member-1e500474', standing: { grade: 'owl', rank: 2, ranked: 7, fetchedAt: 5 } }, dir);
   const joined = readTeamChip({ dir });
   assert.equal(joined.label, 'member-1e500474');
-  assert.deepEqual(joined.standing, { grade: 'owl', fetchedAt: 5 });
+  assert.deepEqual(joined.standing, { grade: 'owl', rank: 2, ranked: 7, fetchedAt: 5 });
   // No display name and no member-id file: nothing to show, and no file appears.
   saveTeamState({ memberKey: 'spk_x' }, dir);
   assert.equal(readTeamChip({ dir }), null);

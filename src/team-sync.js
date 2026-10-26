@@ -107,7 +107,9 @@ export function readTeamChip({ dir = userDataDir() } = {}) {
     return {
       label,
       lang: userLanguage(),
-      standing: st && typeof st.grade === 'string' ? { grade: st.grade, fetchedAt: Number(st.fetchedAt) || 0 } : null,
+      standing: st && typeof st.grade === 'string'
+        ? { grade: st.grade, rank: Number.isFinite(st.rank) ? st.rank : null, ranked: Number.isFinite(st.ranked) ? st.ranked : null, fetchedAt: Number(st.fetchedAt) || 0 }
+        : null,
     };
   } catch (e) { debug('team-sync', e); return null; }
 }
