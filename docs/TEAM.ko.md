@@ -26,7 +26,7 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 
 팀에 참여한 동안 statusline 에 `team` 칩이 나타나 멤버 ID 와 가상 사무실(Sprag 타운)에서 받은 동물을 보여 줍니다. 예를 들면 `member-1e500474 🦊 여우 12명 중 3위` 처럼 조직에서 순위에 오른 사람 가운데 몇 위인지도 함께 보여 줍니다. 동물은 5분마다 도는 전체 동기화가 서버에서 받아 `team.json` 에 저장한 순위로 정합니다. 서버가 아직 이 기능을 지원하지 않거나 마지막으로 받은 지 하루가 넘었다면 멤버 ID 만 표시합니다. 칩을 그릴 때는 로컬 파일만 읽습니다. 버전 칩 바로 앞에 놓이며, `--segments team` 으로 이 칩만 따로 볼 수 있습니다.
 
-목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값), `member_standing`(statusline 칩에 쓸 본인의 사무실 동물과 순위만 받고 다른 사람의 수치는 받지 않음) 입니다.
+목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값), `member_set_name`(`sprag team name` 을 실행할 때만), `member_standing`(statusline 칩에 쓸 본인의 사무실 동물과 순위만 받고 다른 사람의 수치는 받지 않음) 입니다.
 
 ## CLI에서 팀 만들기
 
@@ -62,6 +62,14 @@ Sprag 이 올라갈 항목 목록을 보여 주고 확인을 묻습니다. `--na
 
 결과는 `sprag team status` 로 확인합니다.
 
+참여한 뒤에 표시 이름을 바꾸려면 아래 명령을 실행합니다. `SPRAG_TEAM_TOKEN` 으로 자동 참여해 구성원 ID로 표시되는 컴퓨터도 같은 방법으로 바꿉니다.
+
+```bash
+sprag team name "김미나"
+```
+
+바꾼 뒤부터 대시보드에 새 이름이 나오며, 이미 올라간 날짜별 집계는 같은 구성원에 그대로 남습니다. 이름은 앞뒤 공백을 지우고 80자에서 자릅니다. 나중에 `--name` 없이 `sprag team join` 을 다시 실행하면 이 컴퓨터가 마지막으로 쓴 이름을 그대로 씁니다. 이름 없이 `sprag team name` 만 실행하면 지금 이름을 보여 줍니다.
+
 ## 조직 단위로 등록하기
 
 구성원이 각자 명령을 실행하지 않아도 모든 컴퓨터를 등록하려면 환경에 `SPRAG_TEAM_TOKEN=<토큰>` 을 지정합니다. 흔한 위치는 두 곳입니다.
@@ -94,6 +102,7 @@ Sprag 은 룰을 `~/.claude/ratchet-team.md`(Codex 는 `<CODEX_HOME>/ratchet-tea
 | 명령 | 설명 |
 |---|---|
 | `sprag team join [토큰] [--name <이름>] [--yes]` | 팀에 참여 |
+| `sprag team name [<이름>]` | 대시보드에 나오는 표시 이름 보기 또는 바꾸기 |
 | `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 마지막 동기화를 보여 줍니다. `--show-payload` 를 붙이면 보내는 기기 정보와 올라갈 하루 단위 행도 그대로 출력합니다 |
 | `sprag team sync [--force] [--rules-only]` | 지금 업로드하고 룰을 받습니다. `--force` 는 5분 간격을 무시하고, `--rules-only` 는 조직·팀 룰만 받고 아무것도 올리지 않습니다 |
 | `sprag team rules` | 받아 둔 조직·팀 룰 보기 |

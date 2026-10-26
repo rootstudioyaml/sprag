@@ -26,7 +26,7 @@ The daily aggregate upload runs at most once every 5 minutes after the last succ
 
 While this machine is joined, the statusline shows a `team` chip with your member id and your animal from the virtual office (Sprag Town), for example `member-1e500474 🦊 Fox #3 of 12`, with your overall rank among the ranked people of the organization. The animal comes from the standing the full sync fetches every 5 minutes and stores in `team.json`; if the server does not offer it yet, or the last fetch is more than a day old, only the member id is shown. Rendering the chip reads local files only. It sits just before the version chip, and `--segments team` shows it on its own.
 
-Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only), `member_set_sync` (the upload-switch status call, see "The upload switch") `member_set_info` (OS name and version; the `arch` argument is always empty) and `member_standing` (your own office animal and rank for the statusline chip; it returns nobody else's figures); `sprag team create` also calls `team_create` with your sign-in session.
+Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only), `member_set_sync` (the upload-switch status call, see "The upload switch") `member_set_info` (OS name and version; the `arch` argument is always empty), `member_set_name` (only when you run `sprag team name`) and `member_standing` (your own office animal and rank for the statusline chip; it returns nobody else's figures); `sprag team create` also calls `team_create` with your sign-in session.
 
 ## Create a team from the CLI
 
@@ -62,6 +62,14 @@ Sprag prints the list of what will be uploaded and asks for confirmation. `--nam
 
 Check the result with `sprag team status`.
 
+To change the display name after joining, including a machine that joined through `SPRAG_TEAM_TOKEN` under its member ID, run:
+
+```bash
+sprag team name "Mina Kim"
+```
+
+The dashboard shows the new name from then on; the uploaded days stay with the same member. Names are trimmed and cut at 80 characters. A later `sprag team join` without `--name` keeps the name this machine last used. `sprag team name` without a name prints the current one.
+
 ## Enroll an organization
 
 To enroll every machine without each person running a command, set `SPRAG_TEAM_TOKEN=<token>` in the environment. Two common places:
@@ -94,6 +102,7 @@ Sprag writes the rules to `~/.claude/ratchet-team.md` (Codex: `<CODEX_HOME>/ratc
 | Command | What it does |
 |---|---|
 | `sprag team join [token] [--name <n>] [--yes]` | Join a team |
+| `sprag team name [<n>]` | Show or change your display name on the dashboard |
 | `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name, last sync. `--show-payload` also prints the device info and the exact daily rows that would be uploaded |
 | `sprag team sync [--force] [--rules-only]` | Upload now and pull rules. `--force` ignores the 5-minute interval; `--rules-only` pulls the organization and team rules and uploads nothing |
 | `sprag team rules` | Show the cached organization and team rules |
