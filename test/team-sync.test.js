@@ -104,6 +104,9 @@ test('aggregateDaily buckets by local day, sums savings, counts runs, shares fam
   assert.equal(b.delegated_runs, 1);
   assert.deepEqual(b.family_share, { opus: 1 });
   assert.ok(b.spent_usd > 0, 'session spend lands on its start day');
+  assert.deepEqual(a.model_spend, {});
+  assert.deepEqual(Object.keys(b.model_spend), ['sonnet']);
+  assert.equal(b.model_spend.sonnet, b.spent_usd, 'per-model spend adds up to the day total');
 });
 
 test('syncTeam skips without any fetch for disabled, not-joined, left, not-due; force bypasses not-due', async (t) => {

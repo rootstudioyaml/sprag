@@ -12,7 +12,7 @@
  * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
-import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit } from './office-scene.js';
+import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts } from './office-scene.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#5f6a88';
 const PASTEL = ['#f9d9c4', '#d7ecd9', '#e6dcf8', '#d3e8f7', '#fbe9b9', '#f7d6e4'];
@@ -43,7 +43,7 @@ export function townSceneData(o){
     hud: { title: t('tn.title'), stats, statsNoRev: stats.split(' · ').filter(x => x.indexOf(o.money(rev)) < 0).join(' · ') },
     legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
     ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', total: 'of.d.total', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.spent', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
-      dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
+      dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dModels: 'tn.d.models', dModelsNone: 'tn.d.models.none', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
 }
 
 /* Lazy per-company details for the drawer, built from existing superuser RPCs: o: { rows (org_seats), summary (org_summary), usage ({member_id: team_member_usage row}), t, money, rel } */
@@ -52,11 +52,14 @@ export function townDetailData(o){
   const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' }, cnt = { ok: 0, late: 0, paused: 0, silent: 0 }; rows.forEach(r => { cnt[r.signal]++; });
   const sig = Object.keys(cnt).map(k => ({ v: cnt[k], color: SIG[k], label: t('sr.s.' + k), tip: t('sr.s.' + k) + ' · ' + cnt[k] }));
   const ids = new Set((o.rows || []).map(r => r.member_id)), people = new Map();
-  rows.forEach(r => { const key = r.seat_of && ids.has(r.seat_of) ? r.seat_of : r.member_id, p = people.get(key) || { name: '', spent: 0 }; if(!p.name || r.member_id === key) p.name = r.display_name || r.member_id; p.spent += Number((usage[r.member_id] || {}).spent) || 0; people.set(key, p); });
+  rows.forEach(r => { const key = r.seat_of && ids.has(r.seat_of) ? r.seat_of : r.member_id, p = people.get(key) || { name: '', spent: 0, models: null }; if(!p.name || r.member_id === key) p.name = r.display_name || r.member_id; p.spent += Number((usage[r.member_id] || {}).spent) || 0;
+    const mm = (usage[r.member_id] || {}).models; if(mm && typeof mm === 'object') Object.entries(mm).forEach(([k, v]) => { const n = Number(v); if(Number.isFinite(n) && n > 0){ p.models = p.models || {}; p.models[k] = (p.models[k] || 0) + n; } });
+    people.set(key, p); });
   const top = [...people.values()].sort((a, b) => b.spent - a.spent).slice(0, 5).map(p => ({ name: p.name, v: p.spent, txt: money(p.spent), color: '#8b7cf0' }));
   const days = {}; Object.values(usage).forEach(u => (u.series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.spent) || 0; d[1] += Number(q.saved) || 0; }));
   const dd = Object.keys(days).sort(), tm = ((o.summary && o.summary.teams) || []).map(x => ({ name: x.name, v: Number(x.members_active) || 0, txt: String(Number(x.members_active) || 0), color: '#8ec5fb' }));
-  return { sig, top, teams: tm, days: dd, spent: dd.map(d => days[d][0]), saved: dd.map(d => days[d][1]), fmt: money };
+  const models = [...people.values()].filter(p => p.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 10).map(p => ({ name: p.name, total: p.spent, txt: money(p.spent), parts: modelParts(p.models) }));
+  return { sig, top, models, modelsAny: models.some(m => m.parts.length > 0), teams: tm, days: dd, spent: dd.map(d => days[d][0]), saved: dd.map(d => days[d][1]), fmt: money };
 }
 
 /* ── building styles ─────────────────────────────────────────────────── */
@@ -769,6 +772,22 @@ export function mountTownScene(container, data, opts = {}){
       more = sec(ui.dSignals, kit.stack(d.sig) + `<div class="famt">${d.sig.filter(q => q.v).map(q => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${q.color}"></i>${esc(q.label)} ${q.v}</span>`).join('')}</div>`)
         + sec(ui.daily, d.days.length ? kit.chart(id + '-d', d.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: d.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: d.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '')
         + sec(ui.dTeams, kit.cmp([{ label: '', items: d.teams }])) + sec(ui.dTop, kit.cmp([{ label: '', items: d.top }]));
+      if(d.models && d.models.length){
+        const dot = c2 => `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${c2}"></i>`;
+        let mh;
+        if(!d.modelsAny) mh = `<div class="famt">${esc(ui.dModelsNone)}</div>`;
+        else {
+          const seen = new Map();
+          mh = d.models.map(m => {
+            const tot = m.parts.reduce((a, q) => a + q.v, 0);
+            m.parts.forEach(q => seen.set(q.k, q.color));
+            const bar = m.parts.length ? kit.stack(m.parts.map(q => ({ v: q.v, color: q.color, tip: `${m.name} · ${q.k} · ${fm(q.v)} · ${Math.round(q.v / tot * 100)}%` })))
+              + `<div class="famt">${esc(m.parts.slice(0, 3).map(q => `${q.k} ${Math.round(q.v / tot * 100)}%`).join(' · '))}</div>` : `<div class="famt">—</div>`;
+            return `<div class="pmr" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(m.name)}</span><b>${esc(m.txt)}</b></div>${bar}</div>`;
+          }).join('') + `<div class="famt">${[...seen].map(([k, c2]) => `<span>${dot(c2)}${esc(k)}</span>`).join('')}</div>`;
+        }
+        more += sec(ui.dModels, mh);
+      }
     }
     chrome.setHtml(`<div class="hd"><div><b title="${esc(c.name)}">${esc(c.name)}<span class="badge">${esc(c.plan)}</span></b><small>${esc(c.detail.status || '')}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div>`
       + `<div class="bd"><div class="sec"><div class="grid">${c.detail.rows.filter(r => showRev || r[2] !== 'rev').map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div></div>`

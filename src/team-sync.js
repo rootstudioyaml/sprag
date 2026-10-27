@@ -316,7 +316,7 @@ export async function aggregateDaily({ now = Date.now(), dir = userDataDir(), da
   const cutoff = now - days * 24 * 3600 * 1000;
   const byDay = new Map();
   const get = (day) => {
-    if (!byDay.has(day)) byDay.set(day, { spent: 0, saved: 0, runs: 0, fam: new Map() });
+    if (!byDay.has(day)) byDay.set(day, { spent: 0, saved: 0, runs: 0, fam: new Map(), models: new Map() });
     return byDay.get(day);
   };
   let marks = {};
@@ -353,14 +353,18 @@ export async function aggregateDaily({ now = Date.now(), dir = userDataDir(), da
       if (!s || !s.startTime || !s.totals) continue;
       const t = new Date(s.startTime).getTime();
       if (!Number.isFinite(t) || t < cutoff || t > now) continue;
-      let cost = 0;
+      const d = get(dayKey(t));
       for (const part of pricedParts(s)) {
         try {
           const c = sessionCost(part.totals, part.model);
-          if (c) cost += c.actual;
+          if (!c) continue;
+          d.spent += c.actual;
+          // Spend per model family (opus, sonnet, ...), so the console can show
+          // which models each person spends on. Unknown models keep a short raw name.
+          const fam = String(modelFamily(part.model)).slice(0, 40);
+          d.models.set(fam, (d.models.get(fam) || 0) + c.actual);
         } catch (e) { debug('team-sync', e); }
       }
-      get(dayKey(t)).spent += cost;
     }
   } catch (e) { debug('team-sync', e); }
 
@@ -375,6 +379,9 @@ export async function aggregateDaily({ now = Date.now(), dir = userDataDir(), da
       delegated_errors: null,
       family_share: Object.fromEntries(
         [...d.fam.entries()].map(([f, n]) => [f, Math.round((n / d.runs) * 1000) / 1000]),
+      ),
+      model_spend: Object.fromEntries(
+        [...d.models.entries()].map(([f, usd]) => [f, round4(usd)]).filter(([, usd]) => usd > 0),
       ),
     }));
 }
