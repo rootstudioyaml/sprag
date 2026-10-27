@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadSharedModelRules, sharedModelRulesForProject } from '../src/shared-model-rules.js';
-import { codexRouteHint, codexDelegationTool, sharedCodexModelRules, codexSharedTargets, autoCodexSharedTargets } from '../src/codex/delegation.js';
+import { codexRouteHint, codexDelegationTool, sharedCodexModelRules, codexSharedTargets, autoCodexSharedTargets, codexTierTargets } from '../src/codex/delegation.js';
 import { routeMatch } from '../src/route-inject.js';
 import { childEnv } from './helpers/child-env.js';
 
@@ -419,8 +419,8 @@ test('unmapped tiers resolve to cheaper priced models already run in Codex, the 
 
   const status = f.run(['delegate', 'shared', 'status']);
   assert.equal(status.status, 0, status.stderr);
-  assert.match(status.stdout, /T2 -> gpt-6-luna \(auto/);
-  assert.match(status.stdout, /T1 -> gpt-6-sol \(auto/);
+  assert.match(status.stdout, /T2 -> gpt-6-luna \(low\) \(auto/);
+  assert.match(status.stdout, /T1 -> gpt-6-sol \(high\) \(auto/);
   assert.doesNotMatch(status.stdout, /Unmapped tiers/);
   assert.equal(f.run(['delegate', 'shared', 'auto', 'off']).status, 0);
   assert.match(f.run(['delegate', 'shared', 'status']).stdout, /Automatic tier models: off/);
@@ -442,6 +442,29 @@ test('T1H resolves to the most expensive cheaper model, only with three or more 
 
   observe(['gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna']);
   assert.deepEqual(autoCodexSharedTargets(query).targets.map((x) => x.tier), ['T2', 'T1'], 'two candidates: no T1H');
+});
+
+test('automatic tier models carry the effort the preset agents give each tier', async (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.dir, 'codex-route-scan.json'), JSON.stringify({ version: 1, candidates: [],
+    observedModels: ['gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-terra'].map((m) => `openai|${m}`) }));
+  const query = { ...f.opts, cfg: { codex: { delegate: true } }, model: 'gpt-6-astra', provider: 'openai' };
+  const agents = [
+    { name: 't2-explore', tier: 'T2', effort: 'low' }, { name: 't2-runner', tier: 'T2', effort: 'low' },
+    { name: 't1-worker', tier: 'T1', effort: 'high' },
+    { name: 't1h-worker', tier: 'T1H', effort: 'medium' }, { name: 'other-t1h', tier: 'T1H', effort: 'high' },
+  ];
+  assert.deepEqual(autoCodexSharedTargets({ ...query, agents }).targets.map((x) => [x.tier, x.effort]),
+    [['T2', 'low'], ['T1', 'high'], ['T1H', undefined]], 'a tier whose agents disagree sends no effort');
+
+  // An explicit mapping keeps its own effort, or none, instead of the preset's.
+  const { tierPresetEffort } = await import('../src/codex/delegation.js');
+  assert.equal(tierPresetEffort('T2', agents), 'low');
+  assert.equal(tierPresetEffort('T3', agents), undefined);
+  const explicit = { codex: { delegate: true, sharedRules: { targets: [{ tier: 'T1', from: 'gpt-6-astra', model: 'gpt-5.6-terra', provider: 'openai' }] } } };
+  const t1 = codexTierTargets({ ...query, cfg: explicit }).find((x) => x.tier === 'T1');
+  assert.equal(t1.model, 'gpt-5.6-terra');
+  assert.equal(t1.effort, undefined);
 });
 
 test('delegate shared map accepts T1H', (t) => {
