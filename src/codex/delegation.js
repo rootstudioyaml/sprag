@@ -90,9 +90,12 @@ function catalogCodexModels(home) {
  * the parent, so the hint never names a model the gateway cannot serve. The
  * cheapest is T2 and the next one up is T1; with a single candidate T1 stays
  * on the main agent. T1H is the most expensive cheaper model, and only when
- * there are at least three candidates, so that it differs from T1. Returns { targets, reason }.
+ * there are at least three candidates, so that it differs from T1. Each target
+ * carries the reasoning effort the preset agents give its tier, the value the
+ * Claude agent files pin. Returns { targets, reason }.
  */
-export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDir(), model, provider, now = Date.now() } = {}) {
+export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDir(), model, provider, now = Date.now(),
+  agents } = {}) {
   if (!safeId(model) || !safeId(provider)) return { targets: [], reason: 'unknown parent model or provider' };
   const book = codexPriceBook(provider, readCodexPrices({ now, home, dir }), { home });
   if (!book) return { targets: [], reason: `no price table for ${provider}` };
@@ -110,8 +113,23 @@ export function autoCodexSharedTargets({ dir = userDataDir(), home = codexUserDi
   }
   const picks = cheaper.slice(0, 2).map((x, i) => ({ tier: i === 0 ? 'T2' : 'T1', x }));
   if (cheaper.length >= 3) picks.push({ tier: 'T1H', x: cheaper.at(-1) });
-  const targets = picks.map(({ tier, x }) => ({ tier, from: model, model: x.model, provider, auto: true }));
+  agents ??= agentDefinitions();
+  const targets = picks.map(({ tier, x }) => {
+    const effort = tierPresetEffort(tier, agents);
+    return { tier, from: model, model: x.model, ...(effort ? { effort } : {}), provider, auto: true };
+  });
   return { targets, reason: null };
+}
+
+/**
+ * The effort every preset agent of a tier shares, or undefined when they
+ * disagree or name none: a mixed tier leaves Codex on the model's default
+ * rather than guessing which role the request will run as.
+ */
+export function tierPresetEffort(tier, agents = agentDefinitions()) {
+  const efforts = new Set(agents.filter((a) => a && a.tier === tier).map((a) => a.effort));
+  const [effort] = efforts;
+  return efforts.size === 1 && effort && validEffort(effort) ? effort : undefined;
 }
 
 /**
