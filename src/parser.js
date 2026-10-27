@@ -354,7 +354,7 @@ export async function discoverSessionFiles(options = {}) {
  * `<session id>/subagents/agent-*.jsonl`. Their requests are billed like any
  * other and appear nowhere in the session's own transcript.
  */
-async function listSubagentFiles(sessionDir, projectDir, cutoff) {
+export async function listSubagentFiles(sessionDir, projectDir, cutoff) {
   const dir = join(sessionDir, 'subagents');
   let entries;
   try {
@@ -405,6 +405,8 @@ export function dedupeSessionFiles(files) {
  *
  * @param {object} [options] forwarded to discoverSessionFiles
  * @param {boolean} [options.noCache=false] bypass the cache entirely
+ * @param {object[]} [options.files] pre-discovered files; skips discovery
+ * @param {string} [options.cachePath] cache file to use instead of the default
  */
 function spansCutoff(session, cutoffMs) {
   return !!(session.startTime && session.startTime.getTime() < cutoffMs);
@@ -449,11 +451,14 @@ function withSinceTrim(summary, full, sinceMs) {
 }
 
 export async function parseAllSessions(options = {}) {
-  const files = await discoverSessionFiles(options);
+  // `options.files` is a list already discovered in discoverSessionFiles's
+  // shape (Cowork lives outside ~/.claude/projects); `options.cachePath` keeps
+  // such a source's entries out of the main session cache.
+  const files = options.files ?? await discoverSessionFiles(options);
   const concurrency = 10;
   const results = [];
   const useCache = !options.noCache;
-  const cache = useCache ? loadCache() : { entries: {} };
+  const cache = useCache ? loadCache(options.cachePath) : { entries: {} };
   let misses = 0;
   // The file-level mtime filter (discoverSessionFiles) is only a cheap
   // pre-selection: a session started months ago but touched today passes it,
@@ -488,7 +493,7 @@ export async function parseAllSessions(options = {}) {
     results.push(...parsed.filter(Boolean));
   }
 
-  if (useCache && misses > 0) saveCache(cache);
+  if (useCache && misses > 0) saveCache(cache, options.cachePath);
 
   return results.filter((s) => s.requestCount > 0);
 
