@@ -21,7 +21,7 @@ const PASTEL = ['#f9d9c4', '#d7ecd9', '#e6dcf8', '#d3e8f7', '#fbe9b9', '#f7d6e4'
 export function townSceneData(o){
   const t = o.t, att = o.attention || {}, cnt = (list, id) => (list || []).filter(r => r.org_id === id).length;
   const rows = (o.orgs || []).map(g => {
-    const closed = g.status === 'suspended', used = Number(g.seats_used) || 0, limit = Number(g.seat_limit) || 0, spent = Number(g.spent ?? g.spent_30d) || 0, saved = Number(g.saved ?? g.saved_30d) || 0;
+    const closed = g.status === 'suspended', used = Number(g.seats_used) || 0, limit = Number(g.seat_limit) || 0, spent = Number(g.total_spent ?? g.spent ?? g.spent_30d) || 0, saved = Number(g.saved ?? g.saved_30d) || 0;
     const paused = g.seats_paused ?? cnt(att.paused, g.id), late = g.seats_late ?? cnt(att.late, g.id), rev = o.revenue(g);
     return { id: g.id, name: g.name, ent: g.plan === 'enterprise', closed, used, limit, spent, saved, paused, late, rev, members: Number(g.members_total) || 0, created: g.created_at, teams: Number(g.teams) || 0 };
   }).sort((a, b) => b.rev - a.rev || b.limit - a.limit);
@@ -33,7 +33,7 @@ export function townSceneData(o){
     const plan = t(r.ent ? 'plan.enterprise' : 'plan.pro');
     return { ...r, util, act, bots, full, plan,
       sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late },
-      detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit + ' · ' + pc(util)], [t('tn.revm'), o.money(r.rev), 'rev'], [t('of.spent') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
+      detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit + ' · ' + pc(util)], [t('tn.revm'), o.money(r.rev), 'rev'], [t('of.total') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
         [t('tn.members'), String(r.members)], [t('tn.teams'), String(r.teams)], [t('tn.paused'), String(r.paused)], [t('tn.late'), String(r.late)], [t('tn.created'), day(r.created)]], status: r.closed ? t('of.tag.closed') : '',
         utilTip: t('tn.d.utilTip', { u: r.used, l: r.limit, p: pc(util) }, true), freeTip: t('tn.d.freeTip', { n: Math.max(0, r.limit - r.used) }, true) } };
   });
@@ -42,7 +42,7 @@ export function townSceneData(o){
   return { companies: list, more: Math.max(0, more), moreLabel: more > 0 ? t('tn.more', { n: more }, true) : '',
     hud: { title: t('tn.title'), stats, statsNoRev: stats.split(' · ').filter(x => x.indexOf(o.money(rev)) < 0).join(' · ') },
     legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
-    ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', total: 'of.d.total', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.spent', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
+    ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', total: 'of.d.total', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.total', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
       dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dModels: 'tn.d.models', dModelsNone: 'tn.d.models.none', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
 }
 
@@ -52,11 +52,11 @@ export function townDetailData(o){
   const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' }, cnt = { ok: 0, late: 0, paused: 0, silent: 0 }; rows.forEach(r => { cnt[r.signal]++; });
   const sig = Object.keys(cnt).map(k => ({ v: cnt[k], color: SIG[k], label: t('sr.s.' + k), tip: t('sr.s.' + k) + ' · ' + cnt[k] }));
   const ids = new Set((o.rows || []).map(r => r.member_id)), people = new Map();
-  rows.forEach(r => { const key = r.seat_of && ids.has(r.seat_of) ? r.seat_of : r.member_id, p = people.get(key) || { name: '', spent: 0, models: null }; if(!p.name || r.member_id === key) p.name = r.display_name || r.member_id; p.spent += Number((usage[r.member_id] || {}).spent) || 0;
+  rows.forEach(r => { const key = r.seat_of && ids.has(r.seat_of) ? r.seat_of : r.member_id, p = people.get(key) || { name: '', spent: 0, models: null }; if(!p.name || r.member_id === key) p.name = r.display_name || r.member_id; { const u = usage[r.member_id] || {}; p.spent += Number(u.total_spent ?? u.spent) || 0; }
     const mm = (usage[r.member_id] || {}).models; if(mm && typeof mm === 'object') Object.entries(mm).forEach(([k, v]) => { const n = Number(v); if(Number.isFinite(n) && n > 0){ p.models = p.models || {}; p.models[k] = (p.models[k] || 0) + n; } });
     people.set(key, p); });
   const top = [...people.values()].sort((a, b) => b.spent - a.spent).slice(0, 5).map(p => ({ name: p.name, v: p.spent, txt: money(p.spent), color: '#8b7cf0' }));
-  const days = {}; Object.values(usage).forEach(u => (u.series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.spent) || 0; d[1] += Number(q.saved) || 0; }));
+  const days = {}; Object.values(usage).forEach(u => (u.series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.total ?? q.spent) || 0; d[1] += Number(q.saved) || 0; }));
   const dd = Object.keys(days).sort(), tm = ((o.summary && o.summary.teams) || []).map(x => ({ name: x.name, v: Number(x.members_active) || 0, txt: String(Number(x.members_active) || 0), color: '#8ec5fb' }));
   const models = [...people.values()].filter(p => p.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 10).map(p => ({ name: p.name, total: p.spent, txt: money(p.spent), parts: modelParts(p.models) }));
   return { sig, top, models, modelsAny: models.some(m => m.parts.length > 0), teams: tm, days: dd, spent: dd.map(d => days[d][0]), saved: dd.map(d => days[d][1]), fmt: money };

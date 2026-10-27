@@ -58,6 +58,29 @@ export function recordCodexDocument(source, result, opts = {}) {
   } catch { /* Accounting must not prevent document conversion. */ }
 }
 
+/**
+ * One `{ ts, usd }` per recorded document, reset marks NOT applied (the
+ * caller decides which mark governs): the team upload sums these by local
+ * day beside the Claude doc2md ledger. `usd` is null for an unpriced record.
+ */
+export function codexDocumentEvents(opts = {}) {
+  const out = [];
+  try {
+    const dir = ledgerDir(opts);
+    for (const file of readdirSync(dir).filter((name) => /^[a-f0-9]{64}\.json$/.test(name))) {
+      try {
+        const event = JSON.parse(readFileSync(join(dir, file), 'utf8'));
+        if (![1, 2].includes(event?.version) || !['pdf', 'pptx', 'xlsx', 'xls', 'docx', 'fig'].includes(event.ext)) continue;
+        const ts = event.version === 2 ? event.at : statSync(join(dir, file)).mtimeMs;
+        const s = event.saving;
+        const usd = event.version === 2 && s?.method === 'office-xml-vs-markdown-bytes/4' && Number.isFinite(s.usd) ? s.usd : null;
+        out.push({ ts, usd });
+      } catch { /* Ignore only the damaged record. */ }
+    }
+  } catch { /* No Codex document history yet. */ }
+  return out;
+}
+
 // Legacy records use mtime; new records retain their first priced observation.
 export function codexDocumentTotals(opts = {}) {
   const since = readResetMarks(opts?.dir ?? userDataDir())['codex-docs'];

@@ -285,13 +285,17 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
     const actual = rates && run.usageKnown ? codexRunCost(run.tokens, rates.to) : null;
     const counterfactual = rates && run.usageKnown ? codexRunCost(run.tokens, rates.from) : null;
     const usd = actual === null || counterfactual === null ? null : roundUsd(run.aborted ? -actual : counterfactual - actual);
+    // `cost` is what the child itself cost on the model it ran on, recorded
+    // beside the saving (an interrupted child spent it too), so the team
+    // upload can report delegation cost rather than only the saving.
+    const cost = actual === null ? null : roundUsd(actual);
     const event = { ts: run.endedAt ?? route.at, parentSessionId: route.parentSessionId || run.parentThreadId || null,
       childSessionId: run.sessionId, source: route.source, category: route.category ?? null, scope: route.scope ?? null,
       ...(route.source === 'shared' ? { tier: route.tier, sharedSignature: route.sharedSignature } : {}),
       ...(route.source === 'implementation' ? { tier: route.tier } : {}),
       from: route.from, to, provider,
       ...(route.targetRoot !== undefined ? { targetRoot: route.targetRoot } : {}),
-      ...(route.ruleCreatedAt !== undefined ? { ruleCreatedAt: route.ruleCreatedAt } : {}), tokens: run.tokens, calls: run.calls, toolErrors: run.toolErrors, usd, rates: usd === null ? null : rates,
+      ...(route.ruleCreatedAt !== undefined ? { ruleCreatedAt: route.ruleCreatedAt } : {}), tokens: run.tokens, calls: run.calls, toolErrors: run.toolErrors, usd, cost, rates: usd === null ? null : rates,
       priceCheckedAt: rates?.checkedAt ?? null, priceSource, complete: run.complete, ...(run.aborted ? { aborted: true } : {}) };
     // A transient price outage must not erase a completed, unchanged priced run.
     if (usd === null && sameRun && previous.complete && Number.isFinite(previous.usd) &&
@@ -300,6 +304,20 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
   }
   if (changed) saveLedger(ledger, dir);
   return ledger;
+}
+
+/**
+ * What a ledger event's child run cost, in USD: the recorded `cost`, or, for
+ * events written before the field existed, the same figure recomputed from
+ * the tokens and the rate they were priced at. null when neither is known.
+ */
+export function codexEventCost(e) {
+  if (Number.isFinite(e?.cost)) return e.cost;
+  if (e?.tokens && e.rates?.to) {
+    const usd = codexRunCost(e.tokens, e.rates.to);
+    return Number.isFinite(usd) ? roundUsd(usd) : null;
+  }
+  return null;
 }
 
 /**

@@ -252,6 +252,22 @@ test("runRouteScan records each delegated run's cost beside its saving", async (
   assert.equal(totals.spentMissing, 0);
 });
 
+test("the ledger prices a saving against the episode's main model, not the rule's stale promotion-time baseline", async () => {
+  clearMarks();
+  // The rule was promoted while a cheaper model ran the main session; the
+  // episodes in the fixture ran on MAIN, which is what would do the work today.
+  writeRegistry({ baselineModel: 'claude-sonnet-4-5' });
+  await runRouteScan({ days: 14 });
+  const events = Object.values(loadLedger().events);
+  assert.equal(events.length, 2);
+  for (const e of events) assert.equal(e.from, MAIN, 'priced from the main model');
+  const byRun = Object.fromEntries(Object.entries(loadLedger().events).map(([key, e]) => [key.split(/[\\/]/).pop(), e]));
+  assert.equal(byRun['agent-new.jsonl'].usd, roundUsd(savedNew));
+  assert.equal(byRun['agent-old.jsonl'].usd, roundUsd(savedOld));
+  writeRegistry();
+  clearMarks();
+});
+
 // ── (b) the saved command rebuilds the figures ───────────────────────────
 
 /** Run `fn` with console.log collected, returning the lines. */

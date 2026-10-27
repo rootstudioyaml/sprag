@@ -36,8 +36,9 @@ const eyes = (z, r = 0.045, c = '#2d2323', y = 0.06, dx = 0.12) => [-dx, dx].fla
 const ears = (c, y, rad, z = -0.02) => [-1, 1].map(k => P('sph', c, [0.25 * k, y, z], [rad, rad, rad * 0.8]));
 const SVG = body => `<svg viewBox="0 0 16 16" aria-hidden="true">${body}</svg>`, dot = (x, y, c = '#2d2323') => `<circle cx="${x}" cy="${y}" r=".85" fill="${c}"/><circle cx="${x + 0.3}" cy="${y - 0.32}" r=".3" fill="#fff"/>`;
 /* The cast: one table of species (grades) from best to worst. Everything that sorts a person into a species (the data mapper), the field guide
- * and its range text read this table and nothing else. sr = percentile of the overall score (0 lowest, 1 highest), dlg = delegation share,
- * med = the company's median delegation share. A species needs sr >= minSr (sr > minSr when gt), and needDlg also dlg >= med; the first match
+ * and its range text read this table and nothing else. sr = percentile of the overall score (0 lowest, 1 highest), dlg = delegation share
+ * (null when unknown), med = the company's median delegation share. A species needs sr >= minSr (sr > minSr when gt), and needDlg also a known
+ * dlg >= med (an unknown share never passes it); the first match
  * wins, so a top scorer with a low delegation share falls through to the next rows. tier is the coarse class the rest of the scene uses. */
 /* Thirty species in four tiers (6 power, 9 active, 8 normal, 7 low). The bands narrow toward the top, so the rare species stay rare. */
 const G = (k, minSr, tier, x) => ({ k, minSr, tier, ...x }), D = { needDlg: true };
@@ -56,7 +57,7 @@ export const gradeIndex = k => GRADES.findIndex(g => g.k === k);
 /* idle: no spend (and no prompts) in the period, which is always the last row */
 export function gradeOf(sr, dlg, med, idle){
   if(idle) return GRADES[GRADES.length - 1].k;
-  const g = GRADES.find(x => (x.gt ? sr > x.minSr + SR_EPS : sr >= x.minSr - SR_EPS) && (!x.needDlg || dlg >= med));
+  const g = GRADES.find(x => (x.gt ? sr > x.minSr + SR_EPS : sr >= x.minSr - SR_EPS) && (!x.needDlg || (dlg != null && dlg >= med)));
   return (g || GRADES[GRADES.length - 1]).k;
 }
 export const tierOfGrade = k => (k === 'ghost' ? GHOST_GRADE : GRADES.find(g => g.k === k) || GRADES[GRADES.length - 1]).tier;
@@ -1499,10 +1500,14 @@ export function mountOfficeScene(container, data, opts = {}){
 }
 
 /* Shared data mapper for both pages: one person per seat host (a host plus the machines merged into it), over the page's date range.
- * o: { rows (org_seats), usage ({machine member_id: {spent, saved, delegated, families?}}), promptRows (org_prompt_usage members, or null),
+ * o: { rows (org_seats), usage ({machine member_id: {spent, saved, delegated, families?, total_spent?, local_spent?, gateway_spent?, gateway_user_hash?,
+ *      delegated_cost?, codex_delegated?, unpriced?, series?}}), promptRows (org_prompt_usage members, or null),
  *      teams, used, limit, orgName, rangeLabel, closed, demoBubbles ([{text, ai}] or null), t(key, vars, raw), rel(iso) }
- * Grades (see GRADES): percentile score = .5 spend + .3 delegation share (saved / (spent + saved)) + .2 prompts (renormalized without prompts, W_NOPR);
- *   the tier follows the grade: power = top 20% with delegation >= median, active = top half, normal = above the bottom 25%, low = bottom 25% or no spend and no prompts.
+ * Spend is the person's total usage: per day, the gateway (LiteLLM) figure counted once per gateway_user_hash (two machines of one person
+ *   share it), plus the total (else local spend) of every machine without a gateway figure that day. Old rows without the new keys fall back to spent.
+ * Grades (see GRADES): percentile score = .5 spend + .3 delegation share (delegated_cost / total usage) + .2 prompts (renormalized without prompts, W_NOPR);
+ *   a person none of whose machines sent delegated_cost has an unknown share: it ranks as 0, never meets the delegation rule, and is left out of the medians.
+ *   The tier follows the grade: power = top 20% with delegation >= median, active = top half, normal = above the bottom 25%, low = bottom 25% or no spend and no prompts.
  * No data: a person without a machine in signal ok (paused, late, silent) is 'nodata' and stays out of the ranking. */
 export function officeSceneData(o){
   const money = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(2));
@@ -1517,36 +1522,64 @@ export function officeSceneData(o){
     groups.get(key).push(r);
   });
   const orgMix = { haiku: 0, sonnet: 0, opus: 0 };
-  let totSpent = 0, totSaved = 0;
-  Object.values(usage).forEach(u => { totSpent += Number(u.spent) || 0; totSaved += Number(u.saved) || 0; });
+  const num = v => (v == null ? NaN : Number(v));
+  /* total usage over a set of machines: per day, the gateway figure once per hash, plus total (else spent) of the rest; a machine without series adds its own total once */
+  const usageTotal = us => {
+    const acc = {}; let total = 0;
+    us.forEach(u => {
+      const ser = Array.isArray(u.series) ? u.series : [], h = u.gateway_user_hash || null;
+      if(!ser.length){ total += Number(u.total_spent ?? u.spent) || 0; return; }
+      ser.forEach(q => {
+        const d = acc[q.day] || (acc[q.day] = { plain: 0, gw: {}, saved: 0 }), g = num(q.gateway);
+        d.saved += Number(q.saved) || 0;
+        if(h && Number.isFinite(g)) d.gw[h] = Math.max(d.gw[h] ?? 0, g); else d.plain += Number(q.total ?? q.spent) || 0;
+      });
+    });
+    const days = {};
+    Object.entries(acc).forEach(([d, x]) => { const v = x.plain + Object.values(x.gw).reduce((a, b) => a + b, 0); days[d] = [v, x.saved]; total += v; });
+    return { total, days };
+  };
+  let totSaved = 0;
+  Object.values(usage).forEach(u => { totSaved += Number(u.saved) || 0; });
+  const totSpent = usageTotal(Object.values(usage)).total;
   const all = [...groups.entries()].map(([key, rs]) => {
     rs.sort((a, b) => (a.member_id === key ? -1 : 0) - (b.member_id === key ? -1 : 0));
     const host = rs[0], mix = { haiku: 0, sonnet: 0, opus: 0 };
-    let spent = 0, saved = 0, runs = 0, fam = false, models = null, today = 0, errors = 0, savedToday = 0, delToday = null; const days = {};
+    let local = 0, saved = 0, runs = 0, fam = false, models = null, today = 0, errors = 0, savedToday = 0, delToday = null;
+    let dcost = null, codexRuns = 0, unpriced = 0, gwKnown = false; const todayGw = {};
+    const { total: spent, days } = usageTotal(rs.map(r => usage[r.member_id] || {}));
     rs.forEach(r => {
-      ((usage[r.member_id] || {}).series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.spent) || 0; d[1] += Number(q.saved) || 0; });
       { const u1 = usage[r.member_id] || {}; savedToday += Number(u1.saved_today) || 0; if(u1.delegated_today != null) delToday = (delToday || 0) + (Number(u1.delegated_today) || 0); }
-      today += Number((usage[r.member_id] || {}).spent_today) || 0; errors += Number((usage[r.member_id] || {}).errors) || 0;
-      const u = usage[r.member_id] || {}; spent += Number(u.spent) || 0; saved += Number(u.saved) || 0; runs += Number(u.delegated) || 0;
+      errors += Number((usage[r.member_id] || {}).errors) || 0;
+      const u = usage[r.member_id] || {}; local += Number(u.local_spent ?? u.spent) || 0; saved += Number(u.saved) || 0; runs += Number(u.delegated) || 0;
+      { const tdy = Number(u.total_spent_today ?? u.spent_today) || 0, h = u.gateway_user_hash || null;
+        if(h && Number.isFinite(num(u.gateway_spent))) todayGw[h] = Math.max(todayGw[h] ?? 0, tdy); else today += tdy; }
+      if(Number.isFinite(num(u.gateway_spent))) gwKnown = true;
+      { const c = num(u.delegated_cost); if(Number.isFinite(c)) dcost = (dcost || 0) + c; }
+      codexRuns += Number(u.codex_delegated) || 0; unpriced += Number(u.unpriced) || 0;
       if(u.models && typeof u.models === 'object') Object.entries(u.models).forEach(([k, v]) => { const n = Number(v); if(Number.isFinite(n) && n > 0){ models = models || {}; models[k] = (models[k] || 0) + n; } });
       const f = u.families; if(f) Object.keys(mix).forEach(k => { const n = Number(f[k]) || 0; if(n){ mix[k] += n; orgMix[k] += n; fam = true; } });
     });
     let prompts = 0, promptId = null, chars = 0, lastPrompt = null; const pdays = {};
     if(pr) rs.forEach(r => { const p = pr.find(x => x.member_id === r.member_id) || pr.find(x => x.display_name && x.display_name === r.display_name); if(p){ prompts += Number(p.prompts) || 0; chars += Number(p.chars) || 0; promptId = promptId || p.member_id;
       if(p.last_prompt_at && (!lastPrompt || p.last_prompt_at > lastPrompt)) lastPrompt = p.last_prompt_at; (p.by_day || []).forEach(q => { pdays[q.day] = (pdays[q.day] || 0) + (Number(q.prompts) || 0); }); } });
-    return { id: key, host, rs, spent, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt, mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spent + saved > 0 ? saved / (spent + saved) : 0 };
+    today += Object.values(todayGw).reduce((a, b) => a + b, 0);
+    return { id: key, host, rs, spent, local, unrec: gwKnown ? Math.max(0, spent - local) : null, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
+      mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: dcost != null && spent > 0 ? dcost / spent : null };
   });
   all.sort((a, b) => b.spent - a.spent);
   const shown = all.slice(0, MAXP), more = all.length - shown.length;
   const ranked = all.filter(p => p.ok), n = ranked.length;
   const rank = (arr, v) => { if(n < 2) return 0.5; let lo = 0, eq = 0; arr.forEach(x => { if(x < v) lo++; else if(x === v) eq++; }); return (lo + (eq - 1) / 2) / (n - 1); };
-  const sp = ranked.map(p => p.spent), dl = ranked.map(p => p.dlg), pm = ranked.map(p => p.prompts), w = pr ? W_FULL : W_NOPR;
-  ranked.forEach(p => { p.score = w[0] * rank(sp, p.spent) + w[1] * rank(dl, p.dlg) + (pr ? w[2] * rank(pm, p.prompts) : 0); });
-  const sc = ranked.map(p => p.score), med = [...dl].sort((a, b) => a - b)[Math.floor(n / 2)] || 0;
+  /* an unknown delegation share ranks as 0 but stays out of the medians */
+  const sp = ranked.map(p => p.spent), dl = ranked.map(p => p.dlg ?? 0), pm = ranked.map(p => p.prompts), w = pr ? W_FULL : W_NOPR;
+  const dlKnown = ranked.map(p => p.dlg).filter(x => x != null);
+  ranked.forEach(p => { p.score = w[0] * rank(sp, p.spent) + w[1] * rank(dl, p.dlg ?? 0) + (pr ? w[2] * rank(pm, p.prompts) : 0); });
+  const sc = ranked.map(p => p.score), med = [...dlKnown].sort((a, b) => a - b)[Math.floor(dlKnown.length / 2)] || 0;
   ranked.forEach(p => { p.sr = rank(sc, p.score); p.idle = p.spent < 0.01 && (!pr || !p.prompts); p.grade = gradeOf(p.sr, p.dlg, med, p.idle); p.tier = tierOfGrade(p.grade); });
   /* standings: rank 1 is the highest score (ties share a rank); the crown goes to rank 1 when at least two people are ranked and they spent something */
   ranked.forEach(p => { p.rank = 1 + ranked.filter(q => q.score > p.score + 1e-12).length; p.crown = n >= 2 && p.rank === 1 && !p.idle; });
-  const pc = x => Math.round(x * 100) + '%', mixTot = Object.values(orgMix).reduce((a, b) => a + b, 0);
+  const pc = x => Math.round(x * 100) + '%', pcN = x => (x == null ? t('of.unknown') : pc(x)), mixTot = Object.values(orgMix).reduce((a, b) => a + b, 0);
   const famOf = m => { const s = m ? Object.entries(m).sort((a, b) => b[1] - a[1]) : []; return s[0] && s[0][1] > 0 ? s[0][0] : null; };
   const botsFor = p => {
     const cap = p.tier === 'power' ? 3 : p.tier === 'active' ? 1 : 0;
@@ -1561,8 +1594,8 @@ export function officeSceneData(o){
     });
   };
   const median = a => { if(!a.length) return 0; const q = [...a].sort((x, y) => x - y), m = Math.floor(q.length / 2); return q.length % 2 ? q[m] : (q[m - 1] + q[m]) / 2; };
-  const orgM = { spent: median(sp), dlg: median(dl), prompts: median(pm) }, teamM = {};
-  teams.forEach(tm => { const r = ranked.filter(x => x.host.team_id === tm.id); teamM[tm.id] = { spent: median(r.map(x => x.spent)), dlg: median(r.map(x => x.dlg)), prompts: median(r.map(x => x.prompts)) }; });
+  const orgM = { spent: median(sp), dlg: median(dlKnown), prompts: median(pm) }, teamM = {};
+  teams.forEach(tm => { const r = ranked.filter(x => x.host.team_id === tm.id); teamM[tm.id] = { spent: median(r.map(x => x.spent)), dlg: median(r.map(x => x.dlg).filter(x => x != null)), prompts: median(r.map(x => x.prompts)) }; });
   const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' };
   /* the drawer's standings lines: overall rank, the crown, and what it takes to reach the next species up.
      People to pass = how far the score percentile is below the next row's floor, in people; a row with the delegation rule also needs the median. */
@@ -1573,7 +1606,7 @@ export function officeSceneData(o){
     if(p.crown) out.push(t('of.d.crown'));
     if(p.idle){ out.push(t('of.d.next.idle')); return out; }
     if(gi === 0){ out.push(t('of.d.top')); return out; }
-    const g = GRADES[gi - 1], x = Math.max(0, Math.ceil((g.minSr - p.sr) * (n - 1) - 1e-6)), dl = g.needDlg && p.dlg < med, v = { x: Math.max(1, x), s: gn(g.k), c: pc(med) };
+    const g = GRADES[gi - 1], x = Math.max(0, Math.ceil((g.minSr - p.sr) * (n - 1) - 1e-6)), dl = g.needDlg && !(p.dlg != null && p.dlg >= med), v = { x: Math.max(1, x), s: gn(g.k), c: pc(med) };
     out.push(t(dl ? (x ? 'of.d.next.xd' : 'of.d.next.d') : 'of.d.next', v, true));
     return out;
   };
@@ -1583,9 +1616,9 @@ export function officeSceneData(o){
     const paused = p.rs.find(r => r.signal === 'paused'), lastUp = p.rs.map(r => r.last_upload_at).filter(Boolean).sort().pop();
     const why = paused ? t('of.why.paused', { x: o.rel(paused.sync_state_at) }, true) : t('of.why.last', { x: lastUp ? o.rel(lastUp) : t('never') }, true);
     const tip = [[t('of.team'), p.host.team_name || '']];
-    if(closed) tip.push([t('of.spent'), money(p.spent)]);
+    if(closed) tip.push([t('of.total'), money(p.spent)]);
     else if(nodata) tip.push([t('of.why'), why]);
-    else { tip.push([t('of.spent'), money(p.spent)]); if(pr) tip.push([t('of.prompts'), String(p.prompts)]); tip.push([t('of.deleg'), pc(p.dlg)]); }
+    else { tip.push([t('of.total'), money(p.spent)]); if(pr) tip.push([t('of.prompts'), String(p.prompts)]); tip.push([t('of.deleg'), pcN(p.dlg)]); }
     const bubbles = [];
     if(o.demoBubbles && (p.tier === 'power' || p.tier === 'active')) bubbles.push(o.demoBubbles[demoI++ % o.demoBubbles.length]);
     else if(!nodata){
@@ -1602,15 +1635,18 @@ export function officeSceneData(o){
         const ids2 = new Set(p.rs.map(r => r.member_id)), tm = teamM[p.host.team_id] || { spent: 0, dlg: 0, prompts: 0 }, dd = Object.keys(p.days).sort(), pd = Object.keys(p.pdays).sort();
         const lastP = p.lastPrompt ? o.rel(p.lastPrompt) : t('never');
         const hasData = !nodata && !closed;
-        const pRows = [[t('of.spent'), money(p.spent)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pc(p.dlg)], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]]
+        const pRows = [[t('of.total'), money(p.spent) + (p.unpriced > 0 ? ' · ' + t('of.unpriced') : '')], [t('of.local'), money(p.local)]]
+          .concat(p.unrec != null ? [[t('of.unrec'), money(p.unrec)]] : [])
+          .concat([[t('of.dcost'), p.dcost == null ? t('of.unknown') : money(p.dcost)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pcN(p.dlg)], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]])
           .concat(pr ? [[t('of.prompts'), String(p.prompts)], [t('of.d.days'), String(pd.length)], [t('of.d.avg'), p.prompts ? t('pu.chars', { n: Math.round(p.chars / p.prompts) }, true) : '—'], [t('of.d.lastp'), lastP]] : []);
         const tRows = [[t('of.d.today'), money(p.today)], [t('of.d.today.s'), money(p.savedToday)], [t('of.d.today.r'), p.delToday == null ? '—' : String(p.delToday)]];
         const groups = hasData ? [{ title: t('of.d.period', { x: o.rangeLabel }, true), rows: pRows }, { title: t('of.d.today.h'), rows: tRows }] : [], grid = hasData ? pRows.concat(tRows) : [];
         const mk3 = (v1, v2, v3, f, nm) => [{ name: t('of.d.me'), v: v1, txt: f(v1), color: '#7c6cf0' }, { name: t('of.d.team'), v: v2, txt: f(v2), color: '#8ec5fb' }, { name: t('of.d.org'), v: v3, txt: f(v3), color: '#d4c7a8' }];
-        const cmp = hasData ? [{ label: t('of.spent'), items: mk3(p.spent, tm.spent, orgM.spent, money) }, { label: t('of.deleg'), items: mk3(p.dlg, tm.dlg, orgM.dlg, pc) }].concat(pr ? [{ label: t('of.prompts'), items: mk3(p.prompts, tm.prompts, orgM.prompts, v => String(Math.round(v))) }] : []) : [];
+        const dlgMe = mk3(p.dlg ?? 0, tm.dlg, orgM.dlg, pc); if(p.dlg == null) dlgMe[0].txt = t('of.unknown');
+        const cmp = hasData ? [{ label: t('of.total'), items: mk3(p.spent, tm.spent, orgM.spent, money) }, { label: t('of.deleg'), items: dlgMe }].concat(pr ? [{ label: t('of.prompts'), items: mk3(p.prompts, tm.prompts, orgM.prompts, v => String(Math.round(v))) }] : []) : [];
         const evs = (o.events || []).filter(e => ids2.has(e.member_id)).sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 8).map(e => ({ text: t('of.ev.' + e.event) === 'of.ev.' + e.event ? String(e.event) : t('of.ev.' + e.event), when: o.rel(e.at) }));
-        return { next: hasData ? standing(p) : [], why: hasData ? t('of.d.why', { a: Math.max(1, Math.round((1 - rank(sp, p.spent)) * 100)), b: pc(p.dlg), c: pc(orgM.dlg) }, true) : closed ? t('of.tag.closed') : t('of.why') + ': ' + why,
-          grid, groups, cmp, fam: p.mix, models: p.models, modelsMissing: p.spent > 0 && !p.models, fmt: money, days: hasData ? dd : [], spent: dd.map(d => p.days[d][0]), saved: dd.map(d => p.days[d][1]),
+        return { next: hasData ? standing(p) : [], why: hasData ? t('of.d.why', { a: Math.max(1, Math.round((1 - rank(sp, p.spent)) * 100)), b: pcN(p.dlg), c: pc(orgM.dlg) }, true) : closed ? t('of.tag.closed') : t('of.why') + ': ' + why,
+          grid, groups, cmp, fam: p.mix, models: p.models, modelsMissing: p.local > 0 && !p.models, fmt: money, days: hasData ? dd : [], spent: dd.map(d => p.days[d][0]), saved: dd.map(d => p.days[d][1]),
           pdays: hasData && pr ? pd : [], pvals: pd.map(d => p.pdays[d]),
           machines: p.rs.map(r => ({ name: r.display_name || r.member_id, os: o.os(r), ver: r.sprag_version ? 'v' + r.sprag_version : '', color: SIG[r.signal] || '#8a8794', sig: t('sr.s.' + r.signal), sw: t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')), up: r.last_upload_at ? o.rel(r.last_upload_at) : t('never'), seen: r.last_seen ? o.rel(r.last_seen) : t('never') })),
           events: evs, canPrompts: !!(pr && p.promptId) };
@@ -1636,9 +1672,9 @@ export function officeSceneData(o){
     rows: bands.map(b => ({ k: b.k, tier: b.tier, no: t('of.g.no', { n: String(b.no).padStart(2, '0') }, true), name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.rk, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
       .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
     note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true) };
-  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', back: 'of.back', runs: 'of.runs', models: 'of.d.models', modelsNone: 'of.d.models.none', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
+  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', back: 'of.back', runs: 'of.runs', models: 'of.d.models', modelsNone: 'of.d.models.none', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.total', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
-    server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.spent') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
+    server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.total') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
     activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,
     aria: t('of.aria', { n: people.length, teams: teams.length, used, limit }, true) };
 }
