@@ -23,7 +23,7 @@ const TOOLS = {
   't1-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
   't1h-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
 };
-const MODEL = { 't1-worker': 'sonnet', 't1h-worker': 'claude-opus-5-5' };
+const MODEL = { 't1-worker': 'sonnet', 't1h-worker': 'opus' };
 const EFFORT = { 't1-worker': 'high', 't1h-worker': 'high' };
 
 function sandbox(t) {
