@@ -24,7 +24,7 @@ const TOOLS = {
   't1h-worker': 'Read, Grep, Glob, Bash, Edit, Write, NotebookEdit',
 };
 const MODEL = { 't1-worker': 'sonnet', 't1h-worker': 'claude-opus-5-5' };
-const EFFORT = { 't1-worker': 'medium', 't1h-worker': 'high' };
+const EFFORT = { 't1-worker': 'high', 't1h-worker': 'high' };
 
 function sandbox(t) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'cts-dagents-')));
@@ -60,8 +60,8 @@ test('sync writes five agent files with exact tools, model, marker and a no-MCP 
     assert.ok(fm.includes(`\ntools: ${TOOLS[n]}\n`), `${n} tools`);
     assert.ok(fm.includes(`\nmodel: ${MODEL[n] ?? 'haiku'}\n`), `${n} model`);
     // Effort follows the verification shape, not the tier: command output and
-    // file comparison verify the haiku agents, so they run at low; the worker
-    // implements a fixed design against tests, so it takes medium.
+    // file comparison verify the haiku agents, so they run at low; both workers
+    // implement a fixed design, where a miss costs a rerun, so they run at high.
     assert.ok(fm.includes(`\neffort: ${EFFORT[n] ?? 'low'}\n`), `${n} effort`);
     assert.ok(fm.includes('# managed by sprag (sprag:delegation-agent); edits are overwritten'), `${n} marker`);
     assert.match(fm, /description: .*It has no MCP tools\./, `${n} description`);

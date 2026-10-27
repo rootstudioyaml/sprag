@@ -33,9 +33,10 @@ const MARK_LINE = `# managed by sprag (${OWNER_MARK}); edits are overwritten`;
 // Effort is a separate axis from the tier and is set by how the work gets
 // verified, not by how hard it is. Where the check is command output or a file
 // comparison (lookups, test runs, mechanical conversion) extra thinking buys
-// nothing, so those agents run at low. The worker implements a design the
-// caller already fixed, against tests, so it takes the default for well-specified
-// work, medium; the opus worker takes the larger, harder share of that work at high. The main session's effort is never touched here, and
+// nothing, so those agents run at low. Both workers implement a design the
+// caller already fixed and run at high: a wrong implementation costs a rerun and
+// another review by the main model, which outweighs the extra thinking. The
+// tier, not the effort, separates the sonnet worker from the opus one. The main session's effort is never touched here, and
 // CLAUDE_CODE_EFFORT_LEVEL must stay unset: it overrides every agent's own value.
 //
 // The files are rendered from the English copy. They are prompts the model

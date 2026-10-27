@@ -6,8 +6,8 @@
     "when its signature verifies; otherwise this file is used.",
     "Models are aliases on purpose (a gateway resolves them through ANTHROPIC_DEFAULT_*_MODEL),",
     "except t1h-worker, which names the full id: a bare alias resolves to an older model.",
-    "Effort follows how the work is verified: low for lookups and command runs, medium for",
-    "implementation against tests, high for the larger opus share.",
+    "Effort follows how the work is verified: low for lookups and command runs, high for",
+    "implementation by either worker (the sonnet worker moved from medium to high in 3.83.0).",
     "The files are rendered in English (description.en, body.en): they are model-facing",
     "prompts, and the Korean copy is what the /ops console shows next to it.",
     "tier and categories say which model-routing rules an agent serves (agentForRule in",
@@ -91,7 +91,7 @@
     {
       "name": "t1-worker",
       "model": "sonnet",
-      "effort": "medium",
+      "effort": "high",
       "tier": "T1",
       "categories": [
         "*"
