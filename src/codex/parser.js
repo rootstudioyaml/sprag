@@ -352,10 +352,12 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity, ke
   // Per-request rows let a caller apply long-context tiers, which depend on each request's own
   // prompt size. Off by default: the Codex panel keeps parsed sessions in memory.
   if (keepRequests) session.requests = [];
-  const addRequest = (ts, model, u) => {
+  // `prompt` is the request's own prompt size, which picks the tier. `input` can be larger:
+  // a snapshot delta may merge several responses, so the token amounts stay what totals sum.
+  const addRequest = (ts, model, u, prompt = u.input) => {
     if (!session.requests) return;
     const cached = Math.min(u.input, u.cached);
-    session.requests.push({ ts, model, input: u.input, cached, cacheWrite: Math.min(Math.max(0, u.input - cached), u.cacheWrite), output: u.output });
+    session.requests.push({ ts, model, prompt, input: u.input, cached, cacheWrite: Math.min(Math.max(0, u.input - cached), u.cacheWrite), output: u.output });
   };
   const copied = forkedCopyFilter();
   let previous = null;
@@ -436,7 +438,8 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity, ke
     addUsage(session.totals, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output });
     const perModel = (session.modelTotals ??= {})[session.model] ??= emptyTotals();
     addUsage(perModel, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output });
-    addRequest(ts, session.model, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output });
+    addRequest(ts, session.model, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output },
+      count(info.last_token_usage?.input_tokens) || delta.input);
     // Reasoning is a subset of output, just as cached input is a subset of input.
     session.reasoningOutputTokens += Math.min(delta.output, delta.reasoning);
     session.requestCount++;

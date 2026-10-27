@@ -27,7 +27,7 @@
 import { gatewayBase } from './gateway-auth.js';
 import { loadProfileMap, updateProfileMap, resetModelAliasCache, profileIdFrom, isGatewayModelId } from './model-alias.js';
 import { isRecognizedModelId } from './cost.js';
-import { deploymentPrice, PRICE_MAX_AGE_MS } from './gateway-prices.js';
+import { deploymentPrice, mergePrices, PRICE_MAX_AGE_MS } from './gateway-prices.js';
 import { debug } from './debug.js';
 
 /** 게이트웨이 모델 맵의 신선도 기준. 배포 구성은 하루에 여러 번 바뀌지 않습니다. */
@@ -171,8 +171,7 @@ export function deriveGatewayPrices(payload) {
     ]);
     for (const key of keys) {
       if (!key) continue;
-      if (!prices.has(key)) prices.set(key, price);
-      else if (JSON.stringify(prices.get(key)) !== JSON.stringify(price)) prices.set(key, null);
+      prices.set(key, prices.has(key) ? mergePrices(prices.get(key), price) : price);
     }
   }
   return Object.fromEntries(prices);

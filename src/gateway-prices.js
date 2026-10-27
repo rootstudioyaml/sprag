@@ -38,10 +38,9 @@ export function priceForPrompt(price, promptTokens) {
   const tier = price.tiers.filter((t) => t.threshold < promptTokens).pop();
   if (!tier) return price;
   const merged = { ...price };
-  for (const field of Object.keys(TIER_KEY_FIELDS)) if (tier[field] != null) merged[field] = tier[field];
+  for (const field of Object.values(TIER_FIELD)) if (tier[field] != null) merged[field] = tier[field];
   return merged;
 }
-const TIER_KEY_FIELDS = { input: 1, output: 1, cacheRead: 1, cacheWrite: 1, cacheWrite1h: 1 };
 
 /** Per-token prices by alias. Load-balanced deployments must agree, like cache policy. */
 export function gatewayPrices(payload) {
@@ -52,7 +51,20 @@ export function gatewayPrices(payload) {
     groups.set(row.model_name, [...(groups.get(row.model_name) || []), deploymentPrice(row)]);
   }
   return Object.fromEntries([...groups].map(([name, prices]) => [name,
-    prices[0] && prices.every((p) => JSON.stringify(p) === JSON.stringify(prices[0])) ? prices[0] : null]));
+    prices.reduce((merged, price) => mergePrices(merged, price))]));
+}
+
+/**
+ * The price two deployments of one key agree on. Differing base rates, or a deployment without a
+ * price, leave the key unpriced (null). Equal base rates with different tiers fall back to the
+ * base rates alone: the tier-less price the key had before tiers existed, never a guessed tier.
+ */
+export function mergePrices(a, b) {
+  if (!a || !b) return null;
+  const { tiers: tiersA, ...baseA } = a;
+  const { tiers: tiersB, ...baseB } = b;
+  if (JSON.stringify(baseA) !== JSON.stringify(baseB)) return null;
+  return JSON.stringify(tiersA) === JSON.stringify(tiersB) ? a : baseA;
 }
 
 /**
@@ -68,10 +80,12 @@ export function codexRunCost({ input = 0, cached = 0, cacheWrite = 0, output = 0
 }
 
 /**
- * USD for ONE request: the tier depends on this request's own prompt (`usage.input`),
- * so totals summed over many requests must keep using codexRunCost at base rates.
+ * USD for ONE request. The tier depends on this request's own prompt size: `usage.prompt` when
+ * the caller has it, else `usage.input`. The amounts always come from input/cached/cacheWrite/output,
+ * and `prompt` can be smaller than `input` when a row merges several responses. Totals summed over
+ * many requests must keep using codexRunCost at base rates.
  */
 export function codexRequestCost(usage, price) {
-  return codexRunCost(usage, priceForPrompt(price, usage.input));
+  return codexRunCost(usage, priceForPrompt(price, usage.prompt ?? usage.input));
 }
 

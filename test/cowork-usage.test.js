@@ -6,6 +6,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import zlib from 'node:zlib';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, utimesSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -72,7 +73,9 @@ test('discoverCoworkSessionFiles: exact depth only, subagents attached, mtime cu
 
   const files = await discoverCoworkSessionFiles({ days: 30, roots: [root], now });
   assert.deepEqual(files.map((f) => f.path), [main]);
-  assert.equal(files[0].projectDir, 'cowork');
+  // The real project folder name, as discoverSessionFiles reports it for Claude Code.
+  assert.equal(files[0].projectDir, 'session');
+  assert.equal(files[0].subagentFiles[0].projectDir, 'session');
   assert.equal(typeof files[0].mtime, 'number');
   assert.ok(files[0].size > 0);
   assert.deepEqual(files[0].subagentFiles.map((f) => f.path), [join(project, 'aaaa', 'subagents', 'agent-1.jsonl')]);
@@ -158,4 +161,51 @@ test('aggregateDaily: a model with an unpriced request adds one unpriced part an
   assert.equal(row.codex_spent_usd, 0.01); // only the priced model: 1000 * 1e-5
   assert.equal(row.unpriced_parts, 1);
   assert.deepEqual(Object.keys(row.model_spend), ['gpt-6-sol']);
+});
+
+// ── the real call path ────────────────────────────────────────────────────
+// The tests above inject `coworkSessions` and `codexSessions`, so they cannot see
+// aggregateDaily dropping an option on the way to the parsers. This one injects
+// neither: the rollout and the transcript are found by the parsers themselves.
+
+const HAS_ZSTD = typeof zlib.zstdCompressSync === 'function';
+// Where the desktop app keeps Cowork on this platform (coworkSessionRoots returns [] elsewhere).
+const COWORK_BASE = {
+  darwin: (home) => join(home, 'Library', 'Application Support', 'Claude-3p'),
+  win32: (home) => join(home, 'Claude-3p'), // %APPDATA% is the isolated root
+}[process.platform];
+
+test('aggregateDaily finds a .zst Codex rollout and a Cowork transcript with no sessions injected', {
+  skip: !HAS_ZSTD && !COWORK_BASE && 'no zstd in zlib and no Cowork root on this platform',
+}, async (t) => {
+  const { root, dir } = isolate(t);
+  const now = Date.now();
+  const ts = now - 3600000;
+  const iso = new Date(ts).toISOString();
+  if (HAS_ZSTD) {
+    const sessions = join(root, '.codex', 'sessions', iso.slice(0, 4), iso.slice(5, 7), iso.slice(8, 10));
+    mkdirSync(sessions, { recursive: true });
+    const rollout = [
+      { timestamp: iso, type: 'session_meta', payload: { id: 'sess-int', cwd: '/work/p', model_provider: 'gw' } },
+      { timestamp: iso, type: 'turn_context', payload: { turn_id: 't1', model: 'gpt-6-astra' } },
+      { timestamp: iso, type: 'token_usage_record', payload: { response_id: 'r1', turn_id: 't1',
+        usage: { input_tokens: 475594, cached_input_tokens: 475220, cache_write_input_tokens: 372, output_tokens: 342 } } },
+    ].map((e) => JSON.stringify(e)).join('\n') + '\n';
+    // Only the compressed file exists: finding it needs compressed discovery.
+    writeFileSync(join(sessions, 'rollout-int.jsonl.zst'), zlib.zstdCompressSync(Buffer.from(rollout)));
+  }
+  if (COWORK_BASE) {
+    const { project } = coworkTree(COWORK_BASE(root));
+    writeFileSync(join(project, 'cccc.jsonl'), JSON.stringify({
+      type: 'assistant', sessionId: 's-int', timestamp: iso, requestId: 'r-int',
+      message: { id: 'm-int', model: 'claude-sonnet-4-5', usage: { input_tokens: 1_000_000, output_tokens: 100_000 } },
+    }) + '\n');
+  }
+  // sessions: [] because src/parser.js fixes ~/.claude/projects at import time, before HOME is isolated
+  const [row, ...rest] = await aggregateDaily({ now, dir, days: 30, sessions: [], codexPrices: { ...prices, prices: { 'gpt-6-astra': TIERED } } });
+  assert.equal(rest.length, 0);
+  // 2 uncached * 2e-5 + 475220 * 2e-6 + 372 * 2.5e-5 + 342 * 7.5e-5 = 0.98543; at base rates it would be 0.49699
+  assert.equal(row.codex_spent_usd, HAS_ZSTD ? 0.9854 : 0);
+  // claude-sonnet-4-5 at list price: 1M input * $3 + 100K output * $15 = $4.50
+  assert.equal(row.spent_usd, COWORK_BASE ? 4.5 : 0);
 });

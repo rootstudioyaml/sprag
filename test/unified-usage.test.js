@@ -6,7 +6,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { sumSpendRows, gatewayDayValue, fetchGatewayDailySpend, gatewayUserHash } from '../src/gateway-spend.js';
@@ -14,6 +14,8 @@ import { parseCodexSessionFile } from '../src/codex/parser.js';
 import { recordCodexDelegation, bindCodexSubagent, refreshCodexLedger, codexEventCost } from '../src/codex/ledger.js';
 import { aggregateDaily, syncTeam, ledgerWindow, loadTeamState, saveTeamState, deviceInfo } from '../src/team-sync.js';
 import { userDataDir } from '../src/paths.js';
+import { codexBudgetProvider } from '../src/codex/budget.js';
+import { refreshCodexPrices } from '../src/codex/cache-policy.js';
 
 const GW = { ANTHROPIC_BASE_URL: 'https://litellm.example.com', ANTHROPIC_AUTH_TOKEN: 'sk-test-token' };
 
@@ -361,4 +363,43 @@ test('syncTeam: a failed gateway call still uploads (null totals) and keeps gate
   assert.equal(plain.calls.length, 0);
   const up3 = team.calls.filter((c) => c.fn === 'ledger_upsert')[2].body.rows;
   assert.equal(up3.at(-1).total_spent_usd, up3.at(-1).spent_usd);
+});
+
+test('syncTeam: a failed schema-1 price refresh is not retried for an hour', async (t) => {
+  const { root, dir } = isolate(t);
+  const now = new Date(2026, 9, 27, 12).getTime();
+  mkdirSync(process.env.CODEX_HOME, { recursive: true });
+  writeFileSync(join(process.env.CODEX_HOME, 'config.toml'), 'model_provider="litellm"\n[model_providers.litellm]\nname="LiteLLM"\nbase_url="https://example.test/v1"\nenv_key="SPRAG_TEST_PRICE_KEY"\n');
+  const savedKey = process.env.SPRAG_TEST_PRICE_KEY;
+  process.env.SPRAG_TEST_PRICE_KEY = 'sk-test-price';
+  t.after(() => { if (savedKey === undefined) delete process.env.SPRAG_TEST_PRICE_KEY; else process.env.SPRAG_TEST_PRICE_KEY = savedKey; });
+  // a cached table from before the tier change: a successful refresh, then the schema marker removed
+  const payload = { data: [{ model_name: 'gpt-6-sol', model_info: { mode: 'responses', input_cost_per_token: 1e-6, output_cost_per_token: 4e-6 } }] };
+  await refreshCodexPrices({ provider: codexBudgetProvider(), dir, now: now - 1000, fetchImpl: async () => ({ ok: true, json: async () => payload }) });
+  const cacheDir = join(dir, 'codex-cache-policy');
+  const file = join(cacheDir, readdirSync(cacheDir)[0]);
+  const snap = JSON.parse(readFileSync(file, 'utf8'));
+  delete snap.pricesSchema;
+  writeFileSync(file, JSON.stringify(snap));
+  saveTeamState({ version: 1, memberKey: 'spk_secret', teamName: 'Acme', displayName: 'me', lastSyncAt: null, deviceInfo: deviceInfo() }, dir);
+  const team = teamFake({ ledger_upsert: 1, team_rules_get: { rules: [], removed: [] } });
+  const modelInfoCalls = [];
+  const gatewayFetch = async (url) => { modelInfoCalls.push(url); return { ok: false, status: 500, json: async () => ({}) }; };
+  const common = { dir, fetch: team, env: {}, force: true, sessions: [], coworkSessions: [], codexSessions: [], codexLedger: { events: {} }, codexDocEvents: [], gatewayFetch };
+
+  const r1 = await syncTeam({ ...common, now });
+  assert.ok(!r1.error, r1.error);
+  assert.deepEqual(modelInfoCalls, ['https://example.test/model/info']);
+  assert.equal(loadTeamState(dir).codexPricesAttemptAt, now, 'the failed attempt is recorded');
+
+  const r2 = await syncTeam({ ...common, now: now + 10 * 60000 });
+  assert.ok(!r2.error, r2.error);
+  assert.equal(modelInfoCalls.length, 1, 'no second call inside the hour');
+  assert.equal(loadTeamState(dir).codexPricesAttemptAt, now, 'a skipped attempt does not move the record');
+
+  const r3 = await syncTeam({ ...common, now: now + 61 * 60000 });
+  assert.ok(!r3.error, r3.error);
+  assert.equal(modelInfoCalls.length, 2, 'retried after the hour');
+  assert.equal(loadTeamState(dir).codexPricesAttemptAt, now + 61 * 60000);
+  assert.ok(root);
 });

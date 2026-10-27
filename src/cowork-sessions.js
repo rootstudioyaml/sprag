@@ -16,16 +16,20 @@
  * separate file so thousands of transcripts never bloat session-cache.json.
  *
  * The macOS path is verified; the Windows and 1p (".../Claude") paths are
- * assumed, as in cowork-sync.js. Leaf module: node: builtins, ./parser.js and
- * ./paths.js only, so cowork-sync.js can import it without a cycle.
+ * assumed, as in cowork-sync.js. Leaf module: it imports only node: builtins and
+ * ./paths.js. The parser loads on demand inside the functions that need it, so
+ * cowork-sync.js (SessionStart hook) can import coworkSessionRoots without pulling
+ * in the parser graph, and without a cycle.
  */
 
 import { existsSync } from 'node:fs';
-import { readdir, stat } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { parseAllSessions, listSubagentFiles, dedupeSessionFiles } from './parser.js';
 import { userDataDir } from './paths.js';
+
+// Sessions scanned at once; each scan is a few readdirs and stats.
+const DISCOVER_BATCH = 16;
 
 export function coworkSessionRoots() {
   const bases = [];
@@ -49,42 +53,26 @@ async function subdirNames(dir) {
 
 /**
  * Transcripts modified within `days`, in the shape discoverSessionFiles returns.
- * Best-effort: an unreadable directory is skipped.
+ * Only <root>/<org>/<account>/<session> is walked here; each session's own projects
+ * directory goes through discoverSessionFiles, so Cowork follows every discovery rule
+ * of Claude Code. Best-effort: an unreadable directory is skipped.
  */
 export async function discoverCoworkSessionFiles({ days = 30, roots = coworkSessionRoots(), now = Date.now() } = {}) {
-  const cutoff = now - days * 24 * 60 * 60 * 1000;
-  const files = [];
+  const { discoverSessionFiles, dedupeSessionFiles } = await import('./parser.js');
+  const projectsDirs = [];
   for (const root of roots) {
     for (const org of await subdirNames(root)) {
       for (const account of await subdirNames(join(root, org))) {
         for (const session of await subdirNames(join(root, org, account))) {
-          const projectsDir = join(root, org, account, session, '.claude', 'projects');
-          for (const project of await subdirNames(projectsDir)) {
-            const projectPath = join(projectsDir, project);
-            let entries;
-            try {
-              entries = await readdir(projectPath);
-            } catch {
-              continue;
-            }
-            for (const name of entries) {
-              if (!name.endsWith('.jsonl')) continue;
-              try {
-                const fp = join(projectPath, name);
-                const s = await stat(fp);
-                if (!s.isFile() || s.mtimeMs < cutoff) continue;
-                const file = { path: fp, projectDir: 'cowork', mtime: s.mtimeMs, size: s.size };
-                const subagentFiles = await listSubagentFiles(join(projectPath, name.slice(0, -'.jsonl'.length)), 'cowork', cutoff);
-                if (subagentFiles.length) file.subagentFiles = subagentFiles;
-                files.push(file);
-              } catch {
-                continue;
-              }
-            }
-          }
+          projectsDirs.push(join(root, org, account, session, '.claude', 'projects'));
         }
       }
     }
+  }
+  const files = [];
+  for (let i = 0; i < projectsDirs.length; i += DISCOVER_BATCH) {
+    const batch = await Promise.all(projectsDirs.slice(i, i + DISCOVER_BATCH).map((root) => discoverSessionFiles({ root, days, now })));
+    for (const found of batch) files.push(...found);
   }
   // Transcript names are uuids, so this only collapses a copied session folder.
   return dedupeSessionFiles(files).sort((a, b) => a.mtime - b.mtime);
@@ -92,6 +80,7 @@ export async function discoverCoworkSessionFiles({ days = 30, roots = coworkSess
 
 /** Parsed Cowork sessions, marked `surface: 'cowork'`. */
 export async function parseCoworkSessions({ days = 30, roots } = {}) {
+  const { parseAllSessions } = await import('./parser.js');
   const sessions = await parseAllSessions({
     days,
     files: await discoverCoworkSessionFiles({ days, roots }),

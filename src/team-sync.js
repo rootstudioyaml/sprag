@@ -327,6 +327,25 @@ const round4 = (n) => Math.round(n * 10000) / 10000;
 const codexUsage = (t) => ({ input: (t.input || 0) + (t.cacheRead || 0) + (t.cacheCreation || 0), cached: t.cacheRead || 0, cacheWrite: t.cacheCreation || 0, output: t.output || 0 });
 
 /**
+ * `[model, usd]` pairs for one Codex session; usd is null when any part of that model is unpriced.
+ * With per-request rows the long-context tier depends on each request's own prompt size, which the
+ * session totals no longer show, so each request is priced alone. Otherwise the totals are priced.
+ */
+function codexSessionCosts(s, book) {
+  if (Array.isArray(s.requests) && s.requests.length) {
+    const byModel = new Map();
+    for (const r of s.requests) {
+      const model = r.model || s.model;
+      const usd = book ? codexRequestCost(r, book.prices?.[model]) : null;
+      byModel.set(model, usd === null || byModel.get(model) === null ? null : (byModel.get(model) || 0) + usd);
+    }
+    return [...byModel];
+  }
+  const parts = s.modelTotals && Object.keys(s.modelTotals).length ? Object.entries(s.modelTotals) : [[s.model, s.totals]];
+  return parts.map(([model, totals]) => [model, book ? codexRunCost(codexUsage(totals), book.prices?.[model]) : null]);
+}
+
+/**
  * Per-day rows, oldest first, only days with activity inside the window.
  *
  * Money fields (all rounded to 4 decimals):
@@ -478,34 +497,7 @@ export async function aggregateDaily({
       if (!inWindow(t)) continue;
       const d = get(dayKey(t));
       const book = codexPriceBook(s.provider, prices);
-      if (Array.isArray(s.requests) && s.requests.length) {
-        // Per-request pricing: the long-context tier depends on each request's
-        // own prompt size, which the session totals no longer show. A model
-        // with any unpriced request counts as one unpriced part, as before.
-        const byModel = new Map();
-        for (const r of s.requests) {
-          const m = r.model || s.model;
-          if (!byModel.has(m)) byModel.set(m, []);
-          byModel.get(m).push(r);
-        }
-        for (const [model, reqs] of byModel) {
-          let usd = 0;
-          let unpriced = false;
-          for (const r of reqs) {
-            const c = book ? codexRequestCost(r, book.prices?.[model]) : null;
-            if (c === null) { unpriced = true; break; }
-            usd += c;
-          }
-          if (unpriced) { d.unpriced += 1; continue; }
-          d.codex += usd;
-          if (s.isSubagent) d.subagent += usd;
-          addModel(d, model, usd);
-        }
-        continue;
-      }
-      const parts = s.modelTotals && Object.keys(s.modelTotals).length ? Object.entries(s.modelTotals) : [[s.model, s.totals]];
-      for (const [model, totals] of parts) {
-        const usd = book ? codexRunCost(codexUsage(totals), book.prices?.[model]) : null;
+      for (const [model, usd] of codexSessionCosts(s, book)) {
         if (usd === null) { d.unpriced += 1; continue; }
         d.codex += usd;
         if (s.isSubagent) d.subagent += usd;
@@ -557,21 +549,30 @@ export async function aggregateDaily({
     .filter((r) => r.spent_usd || r.codex_spent_usd || r.gateway_spent_usd || r.saved_usd || r.delegated_runs || r.delegated_cost_usd || r.subagent_cost_usd || r.unpriced_parts);
 }
 
+// After a failed refresh the gateway is left alone for this long; syncs run every 5 minutes.
+const CODEX_PRICES_RETRY_MS = 60 * 60 * 1000;
+
 /**
  * The Codex price table for the upload, refreshed once from the gateway when
- * the snapshot is missing or stale. Only the sync (a detached child) calls
- * this; `team status --show-payload` stays offline.
+ * the snapshot is missing, stale or from before the tier change. Only the sync
+ * (a detached child) calls this; `team status --show-payload` stays offline.
+ * Returns `{ prices, failed }`: `failed` means a refresh was tried and did not
+ * work, so the caller records the time and `attemptedAt` throttles the next try.
  */
-async function codexPricesForSync({ dir, now, fetchImpl }) {
+async function codexPricesForSync({ dir, now, fetchImpl, attemptedAt }) {
   const cached = readCodexPrices({ now, dir });
   // A snapshot from before the tier change lacks the tiers: refresh it, but
   // keep it as the fallback, since old prices still beat none.
-  if (cached && (cached.pricesSchema ?? 1) >= CODEX_PRICES_SCHEMA) return cached;
+  if (cached && (cached.pricesSchema ?? 1) >= CODEX_PRICES_SCHEMA) return { prices: cached };
+  if (Number.isFinite(attemptedAt) && now >= attemptedAt && now - attemptedAt < CODEX_PRICES_RETRY_MS) return { prices: cached };
   let provider = null;
   try { provider = codexBudgetProvider(); } catch (e) { debug('team-sync:codex-prices', e); }
-  if (!provider) return cached;
-  try { return (await refreshCodexPrices({ provider, dir, now, fetchImpl })) || cached; }
-  catch (e) { debug('team-sync:codex-prices', e); return cached; }
+  if (!provider) return { prices: cached };
+  try {
+    const fresh = await refreshCodexPrices({ provider, dir, now, fetchImpl });
+    if (fresh) return { prices: fresh };
+  } catch (e) { debug('team-sync:codex-prices', e); }
+  return { prices: cached, failed: true };
 }
 
 // Device info: OS name and OS version. The CPU architecture is not sent: the
@@ -834,7 +835,13 @@ export async function syncTeam({
     if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now });
     const gatewayOk = !!(gatewayDaily && !gatewayDaily.error);
     const win = ledgerWindow(state, now, { gateway: hasGateway });
-    const prices = codexPrices !== undefined ? codexPrices : await codexPricesForSync({ dir, now, fetchImpl: gatewayFetch });
+    let prices = codexPrices;
+    if (prices === undefined) {
+      const r = await codexPricesForSync({ dir, now, fetchImpl: gatewayFetch, attemptedAt: state.codexPricesAttemptAt });
+      prices = r.prices;
+      // Carried by `state` into both the success and the failure save below.
+      if (r.failed) state = { ...state, codexPricesAttemptAt: now };
+    }
     const rows = (await aggregateDaily({ now, dir, sessions, days: win.days, env, coworkSessions, codexSessions, codexLedger, codexDocEvents, codexPrices: prices, gatewayDaily }))
       .filter((r) => r.day >= win.startKey).slice(-MAX_ROWS);
     await ledgerUpsert({ memberKey: state.memberKey, rows, version, dir, fetch });
