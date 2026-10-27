@@ -8,6 +8,8 @@
  * Cache writes are now tracked separately for 5m and 1h TTLs, each with their own rate.
  */
 
+import { priceForPrompt } from './gateway-prices.js';
+
 // Haiku 5.5 charges a request whose prompt (input + cache writes + cache
 // reads) exceeds this many tokens at the higher 'claude-haiku-5-5-long' rates.
 // Each request is priced on its own, so callers accumulate such requests into
@@ -366,12 +368,8 @@ function priceTotals(totals, p) {
   return { actual, noCacheCost, scenario5mCost, write1h };
 }
 
-/**
- * Same shape as the list-price estimate, but priced at a gateway's per-token
- * rates (LiteLLM /model/info). A token class the gateway does not price makes
- * the whole estimate unknown (null) rather than free or list-priced.
- */
-function estimateCostAtPrice(totals, price) {
+/** Unrounded figures for one set of totals at one gateway price; null when a needed rate is missing. */
+function priceTotalsAtGateway(totals, price) {
   const write5m = totals.ephemeral5m ?? 0;
   const write1h = totals.ephemeral1h ?? 0;
   const untracked = Math.max(0, (totals.cacheCreation ?? 0) - write5m - write1h);
@@ -404,6 +402,32 @@ function estimateCostAtPrice(totals, price) {
       tokensToMillions(Math.max(0, read - extra5mCreation)) * cacheRead +
       tokensToMillions(totals.output) * output;
   }
+  return { actual, noCacheCost, scenario5mCost, applicable: price.cacheWrite != null && write1h > 0 };
+}
+
+/**
+ * Same shape as the list-price estimate, but priced at a gateway's per-token
+ * rates (LiteLLM /model/info). A token class the gateway does not price makes
+ * the whole estimate unknown (null) rather than free or list-priced.
+ *
+ * The parser splits requests whose prompt exceeds LONG_PROMPT_THRESHOLD into
+ * `totals.long`, so only a gateway tier at exactly that threshold can be
+ * applied here. A tier at any other threshold (e.g. 272K) cannot be told apart
+ * in aggregated Claude totals; those keep base rates.
+ */
+function estimateCostAtPrice(totals, price) {
+  const longTier = totals.long && price.tiers?.some((t) => t.threshold === LONG_PROMPT_THRESHOLD);
+  let parts;
+  if (longTier) {
+    parts = [priceTotalsAtGateway(subtractTotals(totals, totals.long), price),
+      priceTotalsAtGateway(totals.long, priceForPrompt(price, LONG_PROMPT_THRESHOLD + 1))];
+  } else {
+    parts = [priceTotalsAtGateway(totals, price)];
+  }
+  if (parts.some((part) => part === null)) return null;
+  const actual = parts.reduce((n, part) => n + part.actual, 0);
+  const noCacheCost = parts.reduce((n, part) => n + part.noCacheCost, 0);
+  const scenario5mCost = parts.reduce((n, part) => n + part.scenario5mCost, 0);
 
   return {
     tier: 'gateway',
@@ -413,7 +437,7 @@ function estimateCostAtPrice(totals, price) {
     savingsRate: noCacheCost > 0 ? (noCacheCost - actual) / noCacheCost : 0,
     scenario5mCost: round(scenario5mCost),
     extraCostIf5m: round(scenario5mCost - actual),
-    extraCostIf5mApplicable: price.cacheWrite != null && write1h > 0,
+    extraCostIf5mApplicable: parts.some((part) => part.applicable),
   };
 }
 

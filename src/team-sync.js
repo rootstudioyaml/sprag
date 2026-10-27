@@ -47,9 +47,11 @@ import { rulesPullDue, syncTeamRatchet, ensureTeamImport } from './team-ratchet.
 import { codexUserDir } from './agent.js';
 import { loadCodexLedger, codexEventCost } from './codex/ledger.js';
 import { codexDocumentEvents } from './codex/doc2md-ledger.js';
-import { codexPriceBook, readCodexPrices, refreshCodexPrices, codexRunCost } from './codex/cache-policy.js';
+import { codexPriceBook, readCodexPrices, refreshCodexPrices, codexRunCost, CODEX_PRICES_SCHEMA } from './codex/cache-policy.js';
+import { codexRequestCost } from './gateway-prices.js';
 import { codexBudgetProvider } from './codex/budget.js';
 import { fetchGatewayDailySpend, gatewayDayValue, gatewayEnv } from './gateway-spend.js';
+import { withClaudeSettingsEnv } from './gateway-auth.js';
 
 export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -326,14 +328,34 @@ const round4 = (n) => Math.round(n * 10000) / 10000;
 const codexUsage = (t) => ({ input: (t.input || 0) + (t.cacheRead || 0) + (t.cacheCreation || 0), cached: t.cacheRead || 0, cacheWrite: t.cacheCreation || 0, output: t.output || 0 });
 
 /**
+ * `[model, usd]` pairs for one Codex session; usd is null when any part of that model is unpriced.
+ * With per-request rows the long-context tier depends on each request's own prompt size, which the
+ * session totals no longer show, so each request is priced alone. Otherwise the totals are priced.
+ */
+function codexSessionCosts(s, book) {
+  if (Array.isArray(s.requests) && s.requests.length) {
+    const byModel = new Map();
+    for (const r of s.requests) {
+      const model = r.model || s.model;
+      const usd = book ? codexRequestCost(r, book.prices?.[model]) : null;
+      byModel.set(model, usd === null || byModel.get(model) === null ? null : (byModel.get(model) || 0) + usd);
+    }
+    return [...byModel];
+  }
+  const parts = s.modelTotals && Object.keys(s.modelTotals).length ? Object.entries(s.modelTotals) : [[s.model, s.totals]];
+  return parts.map(([model, totals]) => [model, book ? codexRunCost(codexUsage(totals), book.prices?.[model]) : null]);
+}
+
+/**
  * Per-day rows, oldest first, only days with activity inside the window.
  *
  * Money fields (all rounded to 4 decimals):
- *   spent_usd            Claude local spend, main session plus subagent runs,
- *                        on the session's start day (unchanged meaning: older
- *                        servers and pages keep reading it)
- *   claude_spent_usd     the same figure; subagent_cost_usd is the part of it
- *                        that subagent runs and Codex child sessions cost
+ *   spent_usd            Claude Code plus Cowork local spend, main session plus
+ *                        subagent runs, on the session's start day (unchanged
+ *                        meaning: older servers and pages keep reading it)
+ *   claude_spent_usd     the same figure (Claude Code plus Cowork);
+ *                        subagent_cost_usd is the part of it that subagent
+ *                        runs and Codex child sessions cost
  *   codex_spent_usd      Codex rollouts priced by the path they took (gateway
  *                        prices for a LiteLLM provider, OpenAI list prices for
  *                        direct calls); unpriced sessions count in unpriced_parts
@@ -355,9 +377,13 @@ const codexUsage = (t) => ({ input: (t.input || 0) + (t.cacheRead || 0) + (t.cac
  */
 export async function aggregateDaily({
   now = Date.now(), dir = userDataDir(), days = 30, sessions = null,
-  codexSessions = null, codexLedger = null, codexDocEvents = null, codexPrices = undefined, gatewayDaily = null, env = process.env,
+  coworkSessions = null, codexSessions = null, codexLedger = null, codexDocEvents = null, codexPrices = undefined, gatewayDaily = null, env = process.env,
 } = {}) {
   const { readResetMarks, isBeforeReset } = require('./saved-reset.cjs');
+  // Claude sessions are priced at the gateway's rates only when the gateway
+  // address is known; `team status --show-payload` and a Codex-started sync
+  // run without Claude Code's environment, so settings.json fills it in.
+  env = withClaudeSettingsEnv(env);
   const doc2md = require('./doc2md-ledger.cjs');
   const cutoff = now - days * 24 * 3600 * 1000;
   const byDay = new Map();
@@ -423,12 +449,9 @@ export async function aggregateDaily({
     d.models.set(fam, (d.models.get(fam) || 0) + usd);
   };
 
-  try {
-    let list = sessions;
-    if (!list) {
-      const { parseAllSessions } = await import('./parser.js');
-      list = await parseAllSessions({ days });
-    }
+  // Claude Code and Cowork sessions are priced alike; Cowork transcripts live
+  // outside ~/.claude/projects (see cowork-sessions.js).
+  const addClaudeSessions = (list) => {
     for (const s of list || []) {
       if (!s || !s.startTime || !s.totals) continue;
       const t = new Date(s.startTime).getTime();
@@ -444,6 +467,24 @@ export async function aggregateDaily({
         } catch (e) { debug('team-sync', e); }
       }
     }
+  };
+
+  try {
+    let list = sessions;
+    if (!list) {
+      const { parseAllSessions } = await import('./parser.js');
+      list = await parseAllSessions({ days });
+    }
+    addClaudeSessions(list);
+  } catch (e) { debug('team-sync', e); }
+
+  try {
+    let list = coworkSessions;
+    if (!list) {
+      const { parseCoworkSessions } = await import('./cowork-sessions.js');
+      list = await parseCoworkSessions({ days });
+    }
+    addClaudeSessions(list);
   } catch (e) { debug('team-sync', e); }
 
   // Codex sessions: priced per model from the rollout usage records, on the
@@ -452,7 +493,7 @@ export async function aggregateDaily({
     let list = codexSessions;
     if (!list) {
       const { parseAllCodexSessions } = await import('./codex/parser.js');
-      list = await parseAllCodexSessions({ days });
+      list = await parseAllCodexSessions({ days, compressed: true, keepRequests: true });
     }
     const prices = codexPrices === undefined ? readCodexPrices({ now, dir }) : codexPrices;
     for (const s of list || []) {
@@ -461,9 +502,7 @@ export async function aggregateDaily({
       if (!inWindow(t)) continue;
       const d = get(dayKey(t));
       const book = codexPriceBook(s.provider, prices);
-      const parts = s.modelTotals && Object.keys(s.modelTotals).length ? Object.entries(s.modelTotals) : [[s.model, s.totals]];
-      for (const [model, totals] of parts) {
-        const usd = book ? codexRunCost(codexUsage(totals), book.prices?.[model]) : null;
+      for (const [model, usd] of codexSessionCosts(s, book)) {
         if (usd === null) { d.unpriced += 1; continue; }
         d.codex += usd;
         if (s.isSubagent) d.subagent += usd;
@@ -515,19 +554,30 @@ export async function aggregateDaily({
     .filter((r) => r.spent_usd || r.codex_spent_usd || r.gateway_spent_usd || r.saved_usd || r.delegated_runs || r.delegated_cost_usd || r.subagent_cost_usd || r.unpriced_parts);
 }
 
+// After a failed refresh the gateway is left alone for this long; syncs run every 5 minutes.
+const CODEX_PRICES_RETRY_MS = 60 * 60 * 1000;
+
 /**
  * The Codex price table for the upload, refreshed once from the gateway when
- * the snapshot is missing or stale. Only the sync (a detached child) calls
- * this; `team status --show-payload` stays offline.
+ * the snapshot is missing, stale or from before the tier change. Only the sync
+ * (a detached child) calls this; `team status --show-payload` stays offline.
+ * Returns `{ prices, failed }`: `failed` means a refresh was tried and did not
+ * work, so the caller records the time and `attemptedAt` throttles the next try.
  */
-async function codexPricesForSync({ dir, now, fetchImpl }) {
+async function codexPricesForSync({ dir, now, fetchImpl, attemptedAt }) {
   const cached = readCodexPrices({ now, dir });
-  if (cached) return cached;
+  // A snapshot from before the tier change lacks the tiers: refresh it, but
+  // keep it as the fallback, since old prices still beat none.
+  if (cached && (cached.pricesSchema ?? 1) >= CODEX_PRICES_SCHEMA) return { prices: cached };
+  if (Number.isFinite(attemptedAt) && now >= attemptedAt && now - attemptedAt < CODEX_PRICES_RETRY_MS) return { prices: cached };
   let provider = null;
   try { provider = codexBudgetProvider(); } catch (e) { debug('team-sync:codex-prices', e); }
-  if (!provider) return null;
-  try { return await refreshCodexPrices({ provider, dir, now, fetchImpl }); }
-  catch (e) { debug('team-sync:codex-prices', e); return null; }
+  if (!provider) return { prices: cached };
+  try {
+    const fresh = await refreshCodexPrices({ provider, dir, now, fetchImpl });
+    if (fresh) return { prices: fresh };
+  } catch (e) { debug('team-sync:codex-prices', e); }
+  return { prices: cached, failed: true };
 }
 
 // Device info: OS name and OS version. The CPU architecture is not sent: the
@@ -710,13 +760,13 @@ export function refreshTeamRatchetFiles({ dir = userDataDir() } = {}) {
 
 /**
  * `gatewayFetch` is the fetch the gateway calls use (the team server's `fetch`
- * is injected separately so tests can fake each side). `codexSessions`,
+ * is injected separately so tests can fake each side). `coworkSessions`, `codexSessions`,
  * `codexLedger`, `codexDocEvents` and `codexPrices` pass straight to
  * aggregateDaily.
  */
 export async function syncTeam({
   now = Date.now(), dir = userDataDir(), fetch, force = false, env = process.env, version, sessions, promptsOnly = false, rulesOnly = false,
-  gatewayFetch = globalThis.fetch, codexSessions, codexLedger, codexDocEvents, codexPrices,
+  gatewayFetch = globalThis.fetch, coworkSessions, codexSessions, codexLedger, codexDocEvents, codexPrices,
 } = {}) {
   let state = loadTeamState(dir);
   // The switch stops every usage upload. A joined machine still tells the
@@ -785,13 +835,23 @@ export async function syncTeam({
     // not stop the upload: those days go up with local figures and null
     // totals (the server keeps what it already has), and gatewaySyncedThrough
     // stays put so the next successful call re-sends them.
+    // A sync started from a Codex hook lacks the gateway address Claude Code
+    // puts in its own environment; take it from settings.json so both agents
+    // price Claude the same way and both see the gateway figure.
+    env = withClaudeSettingsEnv(env);
     const hasGateway = !!gatewayEnv(env);
     let gatewayDaily = null;
     if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now });
     const gatewayOk = !!(gatewayDaily && !gatewayDaily.error);
     const win = ledgerWindow(state, now, { gateway: hasGateway });
-    const prices = codexPrices !== undefined ? codexPrices : await codexPricesForSync({ dir, now, fetchImpl: gatewayFetch });
-    const rows = (await aggregateDaily({ now, dir, sessions, days: win.days, env, codexSessions, codexLedger, codexDocEvents, codexPrices: prices, gatewayDaily }))
+    let prices = codexPrices;
+    if (prices === undefined) {
+      const r = await codexPricesForSync({ dir, now, fetchImpl: gatewayFetch, attemptedAt: state.codexPricesAttemptAt });
+      prices = r.prices;
+      // Carried by `state` into both the success and the failure save below.
+      if (r.failed) state = { ...state, codexPricesAttemptAt: now };
+    }
+    const rows = (await aggregateDaily({ now, dir, sessions, days: win.days, env, coworkSessions, codexSessions, codexLedger, codexDocEvents, codexPrices: prices, gatewayDaily }))
       .filter((r) => r.day >= win.startKey).slice(-MAX_ROWS);
     await ledgerUpsert({ memberKey: state.memberKey, rows, version, dir, fetch });
     const { r, rules } = await pullRules({ memberKey: state.memberKey, dir, fetch, now });
