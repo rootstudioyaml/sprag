@@ -19,8 +19,9 @@ const SKIP = typeof zlib.zstdCompressSync !== 'function' ? 'zlib has no zstd on 
 
 function tempDir(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-zstd-'));
-  const saved = { HOME: process.env.HOME, CODEX_HOME: process.env.CODEX_HOME, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME };
+  const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, CODEX_HOME: process.env.CODEX_HOME, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME };
   process.env.HOME = root;
+  process.env.USERPROFILE = root; // os.homedir() reads USERPROFILE on Windows, not HOME
   process.env.XDG_CONFIG_HOME = root;
   process.env.CODEX_HOME = join(root, '.codex');
   t.after(() => {
