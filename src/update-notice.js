@@ -1,4 +1,5 @@
 import { updateStatus, maybeSpawnUpdateCheck, readUpdateState, updateCheckDisabled, SESSION_START_CHECK_INTERVAL_MS } from './update-check.js';
+import { orgPolicyOffer } from './org-upgrade.js';
 import { debug } from './debug.js';
 
 /** Shared by terminal renders; registry I/O stays in the detached checker. */
@@ -20,8 +21,15 @@ export function upgradeInstructions(agent = 'claude') {
     : ['sprag upgrade'];
 }
 
-/** The model must obtain consent; a hook never installs a package itself. */
-export function updateOffer(version, { agent = 'claude', lang = 'en', ...opts } = {}) {
+/**
+ * The model must obtain consent; a hook never installs a package itself. The
+ * one exception is an organization minimum version (org-upgrade.js): that
+ * policy starts the install detached and the block only reports it.
+ * `orgUpgrade` carries that module's injectable options (spawn, root, now, dir).
+ */
+export function updateOffer(version, { agent = 'claude', lang = 'en', orgUpgrade = {}, ...opts } = {}) {
+  const org = orgPolicyOffer(version, { agent, lang, ...orgUpgrade });
+  if (org) return org.text;
   const u = readUpdateChip(version, { intervalMs: SESSION_START_CHECK_INTERVAL_MS, ...opts });
   if (!u?.available || u.dismissed) return null;
   const ko = lang === 'ko';
