@@ -171,6 +171,19 @@ async function agentsCommand(action, lang) {
   const st = da.delegationAgentStatus();
   console.log(ko ? `delegate agents: ${st.enabled ? 'on' : 'off'}` : `delegate agents: ${st.enabled ? 'on' : 'off'}`);
   const label = { 'installed-by-sprag': ko ? 'sprag 가 설치함' : 'installed by sprag', 'user-file': ko ? '직접 만든 파일' : 'user file', absent: ko ? '없음' : 'absent' };
-  for (const a of st.agents) console.log(`  ${a.name}: ${a.state} (${label[a.state]})`);
+  for (const a of st.agents) {
+    let extra = '';
+    if (a.drift) {
+      const { file, preset } = a.drift;
+      const parts = [`effort ${file.effort || '-'}`];
+      const ps = [`effort ${preset.effort || '-'}`];
+      if (da.modelFamily(file.model) !== da.modelFamily(preset.model)) {
+        parts.push(ko ? `모델 ${file.model || '-'}` : `model ${file.model || '-'}`);
+        ps.push(ko ? `모델 ${preset.model || '-'}` : `model ${preset.model || '-'}`);
+      }
+      extra = ko ? ` · ${parts.join(' · ')}, 프리셋 ${ps.join(' · ')}` : ` · ${parts.join(' · ')}, preset ${ps.join(' · ')}`;
+    }
+    console.log(`  ${a.name}: ${a.state} (${label[a.state]}${extra})`);
+  }
   console.log(ko ? '켜기 또는 끄기: sprag delegate agents on|off' : 'Toggle with: sprag delegate agents on|off');
 }
