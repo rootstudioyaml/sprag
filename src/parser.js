@@ -291,10 +291,13 @@ export async function getLastUserMessageTime(filePath) {
 
 /**
  * Discover all session JSONL files under ~/.claude/projects/
+ *
+ * `options.root` scans another projects directory (Cowork keeps one per session);
+ * `options.now` is the clock the `days` cutoff counts back from.
  */
 export async function discoverSessionFiles(options = {}) {
-  const { projectFilter, days = 30, excludeSessionPath } = options;
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const { projectFilter, days = 30, excludeSessionPath, root = CLAUDE_DIR, now = Date.now() } = options;
+  const cutoff = now - days * 24 * 60 * 60 * 1000;
   const files = [];
   // Resolve the excluded session to an absolute path so equality checks are exact.
   // Use path.isAbsolute() so Windows paths like C:\... are recognized too.
@@ -304,7 +307,7 @@ export async function discoverSessionFiles(options = {}) {
 
   let projectDirs;
   try {
-    projectDirs = await readdir(CLAUDE_DIR);
+    projectDirs = await readdir(root);
   } catch {
     return files;
   }
@@ -312,7 +315,7 @@ export async function discoverSessionFiles(options = {}) {
   for (const projDir of projectDirs) {
     if (projectFilter && !projDir.includes(projectFilter)) continue;
 
-    const projPath = join(CLAUDE_DIR, projDir);
+    const projPath = join(root, projDir);
     let entries;
     try {
       entries = await readdir(projPath);

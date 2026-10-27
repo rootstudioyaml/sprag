@@ -55,15 +55,23 @@ async function* zstdLines(filePath) {
   // pipe() does not forward errors, and a failed read would leave the loop waiting forever.
   input.on('error', (err) => inflate.destroy(err));
   input.pipe(inflate);
+  let decompressed = 0;
+  inflate.on('data', (chunk) => { decompressed += chunk.length; });
   const rl = createInterface({ input: inflate, crlfDelay: Infinity });
+  let finished = false;
   try {
     for await (const line of rl) yield line;
+    finished = true;
   } finally {
     rl.close();
     inflate.destroy();
     input.destroy();
     if (!input.closed) await once(input, 'close').catch(() => {});
   }
+  // Node's zstd stream can end quietly on a file cut short, while the binary path fails on a
+  // non-zero exit. A non-empty file that yields nothing is such a cut, not an empty rollout.
+  // A cut at a frame boundary of a multi-frame file still cannot be detected here.
+  if (finished && decompressed === 0 && input.bytesRead > 0) throw new Error(`zstd: ${filePath} is truncated (no data decompressed)`);
 }
 
 // Node before 22.15 has no zstd in zlib; the binary is the only way to read these files there.
