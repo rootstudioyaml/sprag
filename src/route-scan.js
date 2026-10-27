@@ -681,9 +681,9 @@ export async function runRouteScan({ days = 14 } = {}) {
   //
   // What counts as a routing saving is narrower than what counts for
   // rule-health above. A saving is the price difference a REGISTERED RULE
-  // caused: the model that used to handle this category (the rule's baseline,
-  // learned from episodes an expensive model handled directly) versus the
-  // model the run actually used. Subagent runs that no rule covers —
+  // caused: the model that would have done the work (the episode's own main
+  // model, the same counterfactual rule health uses) versus the model the run
+  // actually used. Subagent runs that no rule covers —
   // Explore, a hand-written agent, a plugin's own subagent — would have gone
   // to the same cheap model with or without this tool, so attributing their
   // savings here would credit the tool for work it did not route.
@@ -697,7 +697,11 @@ export async function runRouteScan({ days = 14 } = {}) {
   } catch { /* no registry → no attributable savings, which is the honest zero */ }
   // A rule's baseline: what it stored at promotion, else what this scan still
   // observes handling the category directly (a rule promoted before baselines
-  // existed backfills on the next refresh).
+  // existed backfills on the next refresh). The ledger only falls back to it
+  // when an episode's main model has no price: the model stored at promotion
+  // goes stale as soon as the user moves the main session to a newer model
+  // (opus-5 rules kept pricing savings at opus-5 rates under an opus-5-5
+  // main model, inflating every figure).
   const baselineFor = (rule, tier, catId, projectDir) => {
     if (rule.baselineModel) return rule.baselineModel;
     const s = episodeStats.get(`${tier}|${catId}|${projectDir}`)
@@ -746,15 +750,16 @@ export async function runRouteScan({ days = 14 } = {}) {
         const saved = runSaving(run, mainModel);
         bumpDelegated(`${runTier}|${cat.id}|${projectDir}`, run, saved);
         bumpDelegated(`${runTier}|${cat.id}|*`, run, saved);
-        // Routing saving: priced against the rule's baseline (before → after),
-        // not against whatever the session's priciest model happened to be.
+        // Routing saving: priced against the episode's main model (before →
+        // after); the rule's stored baseline is only the fallback when that
+        // model has no price.
         const rule = ruleForRun(runTier, cat.id, projectDir);
         if (!rule) continue; // no rule routed this run — not our saving to claim
         if (!ruleCouldHaveRouted(rule, run)) continue; // it did not exist yet
         // Priced below, after this scan's baselines have been written back to
         // the registry — see the note at the ledger write.
         if (!isRecognizedModelId(run.model)) continue;
-        ledgerEvents.push({ run, rule, tier: runTier, catId: cat.id, projectDir });
+        ledgerEvents.push({ run, rule, tier: runTier, catId: cat.id, projectDir, mainModel });
       }
     }
   }
@@ -878,7 +883,11 @@ export async function runRouteScan({ days = 14 } = {}) {
     const priced = [];
     for (const e of ledgerEvents) {
       const rule = fresh.find((r) => r.signature === e.rule.signature) || e.rule;
-      const baseline = baselineFor(rule, e.tier, e.catId, e.projectDir);
+      // The episode's main model is what would have done the work today; the
+      // rule's promotion-time baseline only stands in when it is unpriced.
+      const baseline = e.mainModel && isRecognizedModelId(e.mainModel)
+        ? e.mainModel
+        : baselineFor(rule, e.tier, e.catId, e.projectDir);
       // Both sides of the comparison must be ids the pricing table really
       // recognizes. A house alias from a company gateway prices as Sonnet by
       // default, which would fabricate a saving against a cheap baseline or

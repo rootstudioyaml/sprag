@@ -12,6 +12,14 @@
  *   team-rules.json  last pulled rules (organization rules first, then team
  *                    rules; each row carries level 'org' or 'team')
  *
+ * Daily row (v2, see aggregateDaily): beside spend/saved/delegated_runs/
+ * family_share/model_spend it carries claude_spent_usd, codex_spent_usd,
+ * gateway_spent_usd (the LiteLLM gateway's own figure for this user, when one
+ * is configured), gateway_user_hash (a 16-hex pseudonym of the gateway user,
+ * so two machines of one person are counted once), total_spent_usd,
+ * delegated_cost_usd, codex_delegated_runs, codex_delegated_cost_usd,
+ * subagent_cost_usd and unpriced_parts. null means unknown, 0 means none.
+ *
  * Rules arrive with every full sync (5 minutes) and with the rules-only pull
  * (`team sync --rules-only`, at most hourly). Either kind rewrites the ratchet
  * files right away, so a new session picks the rules up without waiting for
@@ -37,6 +45,11 @@ import { sessionCost, pricedParts } from './claude-price.js';
 import { uploadPrompts, dropOffsets, promptOffsetsExist } from './team-prompts.js';
 import { rulesPullDue, syncTeamRatchet, ensureTeamImport } from './team-ratchet.js';
 import { codexUserDir } from './agent.js';
+import { loadCodexLedger, codexEventCost } from './codex/ledger.js';
+import { codexDocumentEvents } from './codex/doc2md-ledger.js';
+import { codexPriceBook, readCodexPrices, refreshCodexPrices, codexRunCost } from './codex/cache-policy.js';
+import { codexBudgetProvider } from './codex/budget.js';
+import { fetchGatewayDailySpend, gatewayDayValue, gatewayEnv } from './gateway-spend.js';
 
 export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -152,15 +165,20 @@ export function teamSyncDue(state, now = Date.now()) {
 /**
  * Which local days a ledger sync uploads: from the day before the watermark (that
  * day was still open when it was uploaded) through today, at most 30 days. With
- * no watermark, the last 30 days.
+ * no watermark, the last 30 days. With a gateway configured the window also
+ * reaches back to `gatewaySyncedThrough`, the last day whose gateway figure
+ * went up: a sync whose gateway call failed uploaded local figures only, and
+ * those days are sent again (as upserts) once the gateway answers.
  */
-export function ledgerWindow(state, now = Date.now()) {
+export function ledgerWindow(state, now = Date.now(), { gateway = false } = {}) {
   const today = new Date(now);
   const earliest = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (LEDGER_WINDOW_DAYS - 1));
   let start = earliest;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(state?.ledgerSyncedThrough || ''));
-  if (m) {
-    const from = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) - 1);
+  const marks = [state?.ledgerSyncedThrough];
+  if (gateway) marks.push(state?.gatewaySyncedThrough);
+  const parsed = marks.map((v) => /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || '')));
+  if (parsed.every(Boolean)) {
+    const from = parsed.map((m) => new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) - 1)).sort((a, b) => a - b)[0];
     if (from > earliest) start = from;
   }
   const startKey = dayKey(start.getTime());
@@ -304,32 +322,66 @@ function dayKey(ms) {
 
 const round4 = (n) => Math.round(n * 10000) / 10000;
 
+/** A Codex session's usage in codexRunCost's shape: `input` includes the cached and written parts. */
+const codexUsage = (t) => ({ input: (t.input || 0) + (t.cacheRead || 0) + (t.cacheCreation || 0), cached: t.cacheRead || 0, cacheWrite: t.cacheCreation || 0, output: t.output || 0 });
+
 /**
  * Per-day rows, oldest first, only days with activity inside the window.
- * saved_usd honours the `sprag saved reset` marks (events before a mark are
- * skipped), the same way the ledger totals do. delegated_errors is always null:
- * the ledger carries no error flag.
+ *
+ * Money fields (all rounded to 4 decimals):
+ *   spent_usd            Claude local spend, main session plus subagent runs,
+ *                        on the session's start day (unchanged meaning: older
+ *                        servers and pages keep reading it)
+ *   claude_spent_usd     the same figure; subagent_cost_usd is the part of it
+ *                        that subagent runs and Codex child sessions cost
+ *   codex_spent_usd      Codex rollouts priced by the path they took (gateway
+ *                        prices for a LiteLLM provider, OpenAI list prices for
+ *                        direct calls); unpriced sessions count in unpriced_parts
+ *   gateway_spent_usd    the gateway's own daily figure for this user; null
+ *                        without a gateway, outside the days it covers, or
+ *                        when the call failed
+ *   total_spent_usd      gateway_spent_usd when known, else claude + codex;
+ *                        null only when the gateway call failed (so the server
+ *                        keeps the value an earlier sync stored)
+ *   delegated_cost_usd   what the runs sprag's rules delegated cost (Claude
+ *                        ledger `cost` plus Codex ledger cost); delegated_runs
+ *                        counts the same runs, Claude and Codex together
+ *   saved_usd            routing and doc2md savings, Claude and Codex; the
+ *                        only figure that honours the `sprag saved reset`
+ *                        marks (a reset is a stopwatch, not a refund)
+ * family_share covers Claude delegations only (the pages read haiku/sonnet/
+ * opus). delegated_errors is always null: the ledgers carry no error flag.
+ * Every source is injectable for tests; nothing here touches the network.
  */
-export async function aggregateDaily({ now = Date.now(), dir = userDataDir(), days = 30, sessions = null } = {}) {
+export async function aggregateDaily({
+  now = Date.now(), dir = userDataDir(), days = 30, sessions = null,
+  codexSessions = null, codexLedger = null, codexDocEvents = null, codexPrices = undefined, gatewayDaily = null, env = process.env,
+} = {}) {
   const { readResetMarks, isBeforeReset } = require('./saved-reset.cjs');
   const doc2md = require('./doc2md-ledger.cjs');
   const cutoff = now - days * 24 * 3600 * 1000;
   const byDay = new Map();
   const get = (day) => {
-    if (!byDay.has(day)) byDay.set(day, { spent: 0, saved: 0, runs: 0, fam: new Map(), models: new Map() });
+    if (!byDay.has(day)) {
+      byDay.set(day, { spent: 0, subagent: 0, codex: 0, saved: 0, runs: 0, cost: 0, codexRuns: 0, codexCost: 0, unpriced: 0, fam: new Map(), models: new Map() });
+    }
     return byDay.get(day);
   };
+  const inWindow = (ts) => Number.isFinite(ts) && ts >= cutoff && ts <= now;
   let marks = {};
   try { marks = readResetMarks(dir) || {}; } catch (e) { debug('team-sync', e); }
 
+  // Claude delegation ledger: runs and their cost regardless of reset marks,
+  // savings and family share only after the mark.
   try {
     for (const e of Object.values(loadLedger().events)) {
-      if (!Number.isFinite(e.ts) || e.ts < cutoff || e.ts > now) continue;
-      if (isBeforeReset(e.ts, marks.routing)) continue;
+      if (!inWindow(e.ts)) continue;
       const d = get(dayKey(e.ts));
+      d.runs += 1;
+      if (Number.isFinite(e.cost)) d.cost += e.cost; else d.unpriced += 1;
+      if (isBeforeReset(e.ts, marks.routing)) continue;
       const usd = Number(e.usd);
       if (Number.isFinite(usd)) d.saved += usd;
-      d.runs += 1;
       const fam = modelFamily(e.to);
       d.fam.set(fam, (d.fam.get(fam) || 0) + 1);
     }
@@ -337,11 +389,39 @@ export async function aggregateDaily({ now = Date.now(), dir = userDataDir(), da
 
   try {
     for (const e of Object.values(doc2md.loadLedger(dir).events)) {
-      if (!Number.isFinite(e.ts) || e.ts < cutoff || e.ts > now) continue;
-      if (isBeforeReset(e.ts, marks.doc2md)) continue;
+      if (!inWindow(e.ts) || isBeforeReset(e.ts, marks.doc2md)) continue;
       get(dayKey(e.ts)).saved += Number(e.usd) || 0;
     }
   } catch (e) { debug('team-sync', e); }
+
+  // Codex delegation ledger, the same rules; the event's cost is recomputed
+  // from its tokens when it predates the `cost` field.
+  try {
+    const events = Object.values((codexLedger || loadCodexLedger({ dir })).events || {});
+    for (const e of events) {
+      if (!inWindow(e.ts)) continue;
+      const d = get(dayKey(e.ts));
+      d.codexRuns += 1;
+      const cost = codexEventCost(e);
+      if (cost !== null) d.codexCost += cost; else d.unpriced += 1;
+      if (isBeforeReset(e.ts, marks['codex-routing'])) continue;
+      if (Number.isFinite(e.usd)) d.saved += e.usd;
+    }
+  } catch (e) { debug('team-sync', e); }
+
+  try {
+    for (const e of codexDocEvents || codexDocumentEvents({ dir })) {
+      if (!inWindow(e.ts) || isBeforeReset(e.ts, marks['codex-docs'])) continue;
+      if (Number.isFinite(e.usd)) get(dayKey(e.ts)).saved += e.usd;
+    }
+  } catch (e) { debug('team-sync', e); }
+
+  const addModel = (d, model, usd) => {
+    // Spend per model family (opus, sonnet, gpt-6-sol, ...), so the console can
+    // show which models each person spends on. Unknown models keep a short raw name.
+    const fam = String(modelFamily(model)).slice(0, 40);
+    d.models.set(fam, (d.models.get(fam) || 0) + usd);
+  };
 
   try {
     let list = sessions;
@@ -352,38 +432,102 @@ export async function aggregateDaily({ now = Date.now(), dir = userDataDir(), da
     for (const s of list || []) {
       if (!s || !s.startTime || !s.totals) continue;
       const t = new Date(s.startTime).getTime();
-      if (!Number.isFinite(t) || t < cutoff || t > now) continue;
+      if (!inWindow(t)) continue;
       const d = get(dayKey(t));
       for (const part of pricedParts(s)) {
         try {
-          const c = sessionCost(part.totals, part.model);
-          if (!c) continue;
+          const c = sessionCost(part.totals, part.model, { env });
+          if (!c) { d.unpriced += 1; continue; }
           d.spent += c.actual;
-          // Spend per model family (opus, sonnet, ...), so the console can show
-          // which models each person spends on. Unknown models keep a short raw name.
-          const fam = String(modelFamily(part.model)).slice(0, 40);
-          d.models.set(fam, (d.models.get(fam) || 0) + c.actual);
+          if (!part.own) d.subagent += c.actual;
+          addModel(d, part.model, c.actual);
         } catch (e) { debug('team-sync', e); }
       }
     }
   } catch (e) { debug('team-sync', e); }
 
+  // Codex sessions: priced per model from the rollout usage records, on the
+  // session's start day like Claude. Child sessions count as subagent cost.
+  try {
+    let list = codexSessions;
+    if (!list) {
+      const { parseAllCodexSessions } = await import('./codex/parser.js');
+      list = await parseAllCodexSessions({ days });
+    }
+    const prices = codexPrices === undefined ? readCodexPrices({ now, dir }) : codexPrices;
+    for (const s of list || []) {
+      if (!s || !s.startTime || !s.totals) continue;
+      const t = new Date(s.startTime).getTime();
+      if (!inWindow(t)) continue;
+      const d = get(dayKey(t));
+      const book = codexPriceBook(s.provider, prices);
+      const parts = s.modelTotals && Object.keys(s.modelTotals).length ? Object.entries(s.modelTotals) : [[s.model, s.totals]];
+      for (const [model, totals] of parts) {
+        const usd = book ? codexRunCost(codexUsage(totals), book.prices?.[model]) : null;
+        if (usd === null) { d.unpriced += 1; continue; }
+        d.codex += usd;
+        if (s.isSubagent) d.subagent += usd;
+        addModel(d, model, usd);
+      }
+    }
+  } catch (e) { debug('team-sync', e); }
+
+  // Gateway days with spend but no local record still get a row: that is the
+  // "unrecorded usage" the console shows.
+  const gw = gatewayDaily && !gatewayDaily.error && gatewayDaily.days ? gatewayDaily : null;
+  const gwFailed = !!(gatewayDaily && gatewayDaily.error);
+  if (gw) {
+    for (const [day, usd] of gw.days) {
+      if (usd > 0 && day >= dayKey(cutoff) && day <= dayKey(now)) get(day);
+    }
+  }
+
   return [...byDay.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .filter(([, d]) => d.spent || d.saved || d.runs)
-    .map(([day, d]) => ({
-      day,
-      spent_usd: round4(d.spent),
-      saved_usd: round4(d.saved),
-      delegated_runs: d.runs,
-      delegated_errors: null,
-      family_share: Object.fromEntries(
-        [...d.fam.entries()].map(([f, n]) => [f, Math.round((n / d.runs) * 1000) / 1000]),
-      ),
-      model_spend: Object.fromEntries(
-        [...d.models.entries()].map(([f, usd]) => [f, round4(usd)]).filter(([, usd]) => usd > 0),
-      ),
-    }));
+    .map(([day, d]) => {
+      const claude = round4(d.spent), codex = round4(d.codex);
+      const gateway = gw ? gatewayDayValue(gw, day) : null;
+      const total = gwFailed ? null : gateway !== null ? round4(gateway) : round4(claude + codex);
+      return {
+        day,
+        spent_usd: claude,
+        saved_usd: round4(d.saved),
+        delegated_runs: d.runs + d.codexRuns,
+        delegated_errors: null,
+        family_share: Object.fromEntries(
+          [...d.fam.entries()].map(([f, n]) => [f, Math.round((n / d.runs) * 1000) / 1000]),
+        ),
+        model_spend: Object.fromEntries(
+          [...d.models.entries()].map(([f, usd]) => [f, round4(usd)]).filter(([, usd]) => usd > 0),
+        ),
+        claude_spent_usd: claude,
+        codex_spent_usd: codex,
+        gateway_spent_usd: gateway === null ? null : round4(gateway),
+        gateway_user_hash: gw ? gw.userHash : null,
+        total_spent_usd: total,
+        delegated_cost_usd: round4(d.cost + d.codexCost),
+        codex_delegated_runs: d.codexRuns,
+        codex_delegated_cost_usd: round4(d.codexCost),
+        subagent_cost_usd: round4(d.subagent),
+        unpriced_parts: d.unpriced,
+      };
+    })
+    .filter((r) => r.spent_usd || r.codex_spent_usd || r.gateway_spent_usd || r.saved_usd || r.delegated_runs || r.delegated_cost_usd || r.subagent_cost_usd || r.unpriced_parts);
+}
+
+/**
+ * The Codex price table for the upload, refreshed once from the gateway when
+ * the snapshot is missing or stale. Only the sync (a detached child) calls
+ * this; `team status --show-payload` stays offline.
+ */
+async function codexPricesForSync({ dir, now, fetchImpl }) {
+  const cached = readCodexPrices({ now, dir });
+  if (cached) return cached;
+  let provider = null;
+  try { provider = codexBudgetProvider(); } catch (e) { debug('team-sync:codex-prices', e); }
+  if (!provider) return null;
+  try { return await refreshCodexPrices({ provider, dir, now, fetchImpl }); }
+  catch (e) { debug('team-sync:codex-prices', e); return null; }
 }
 
 // Device info: OS name and OS version. The CPU architecture is not sent: the
@@ -564,8 +708,15 @@ export function refreshTeamRatchetFiles({ dir = userDataDir() } = {}) {
   return out;
 }
 
+/**
+ * `gatewayFetch` is the fetch the gateway calls use (the team server's `fetch`
+ * is injected separately so tests can fake each side). `codexSessions`,
+ * `codexLedger`, `codexDocEvents` and `codexPrices` pass straight to
+ * aggregateDaily.
+ */
 export async function syncTeam({
   now = Date.now(), dir = userDataDir(), fetch, force = false, env = process.env, version, sessions, promptsOnly = false, rulesOnly = false,
+  gatewayFetch = globalThis.fetch, codexSessions, codexLedger, codexDocEvents, codexPrices,
 } = {}) {
   let state = loadTeamState(dir);
   // The switch stops every usage upload. A joined machine still tells the
@@ -630,12 +781,24 @@ export async function syncTeam({
   try { saveTeamState(state, dir); } catch (e) { debug('team-sync', e); }
   state = await reportDeviceInfo({ state, dir, fetch, env });
   try {
-    const win = ledgerWindow(state, now);
-    const rows = (await aggregateDaily({ now, dir, sessions, days: win.days }))
+    // The gateway's daily figure, when one is configured. A failed call does
+    // not stop the upload: those days go up with local figures and null
+    // totals (the server keeps what it already has), and gatewaySyncedThrough
+    // stays put so the next successful call re-sends them.
+    const hasGateway = !!gatewayEnv(env);
+    let gatewayDaily = null;
+    if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now });
+    const gatewayOk = !!(gatewayDaily && !gatewayDaily.error);
+    const win = ledgerWindow(state, now, { gateway: hasGateway });
+    const prices = codexPrices !== undefined ? codexPrices : await codexPricesForSync({ dir, now, fetchImpl: gatewayFetch });
+    const rows = (await aggregateDaily({ now, dir, sessions, days: win.days, env, codexSessions, codexLedger, codexDocEvents, codexPrices: prices, gatewayDaily }))
       .filter((r) => r.day >= win.startKey).slice(-MAX_ROWS);
     await ledgerUpsert({ memberKey: state.memberKey, rows, version, dir, fetch });
     const { r, rules } = await pullRules({ memberKey: state.memberKey, dir, fetch, now });
     const next = withRulesMeta({ ...state, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, r, now);
+    if (gatewayOk) next.gatewaySyncedThrough = dayKey(now);
+    else if (gatewayDaily && gatewayDaily.error) next.lastGatewayError = gatewayDaily.error;
+    if (gatewayOk || !hasGateway) delete next.lastGatewayError;
     delete next.syncFailures;
     delete next.lastError;
     saveTeamState(next, dir);
@@ -708,6 +871,6 @@ export function autoJoinNotice(state, lang = 'en') {
   state.autoJoinNoticePending = false;
   const name = state.teamName || '';
   return lang === 'ko'
-    ? `Sprag: 이 PC는 SPRAG_TEAM_TOKEN 으로 팀 "${name}" 에 자동 참여됐습니다. 보내는 것은 하루 단위 집계(지출·절감·위임 횟수)뿐입니다. \`sprag team status --show-payload\` 로 내용을 확인하고 \`sprag team leave\` 로 멈출 수 있습니다.`
-    : `Sprag: this machine was enrolled in team "${name}" through SPRAG_TEAM_TOKEN. It sends daily aggregates only (spend, savings, delegation counts). See what is sent with \`sprag team status --show-payload\`; stop with \`sprag team leave\`.`;
+    ? `Sprag: 이 PC는 SPRAG_TEAM_TOKEN 으로 팀 "${name}" 에 자동 참여됐습니다. 보내는 것은 하루 단위 집계(지출(Claude·Codex·게이트웨이), 위임 비용, 절감, 위임 횟수)뿐입니다. \`sprag team status --show-payload\` 로 내용을 확인하고 \`sprag team leave\` 로 멈출 수 있습니다.`
+    : `Sprag: this machine was enrolled in team "${name}" through SPRAG_TEAM_TOKEN. It sends daily aggregates only (spend across Claude, Codex and the gateway, delegation cost, savings, delegation counts). See what is sent with \`sprag team status --show-payload\`; stop with \`sprag team leave\`.`;
 }

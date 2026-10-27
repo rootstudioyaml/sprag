@@ -10,6 +10,12 @@ v3.47.0 까지 받으신 사본은 계속 MIT 조건을 따릅니다. 이미 받
 
 ## 전체 릴리스 노트
 
+### v3.84.0 (2026-10-27)
+- **팀 화면과 Sprag 타운이 Claude, Codex, 게이트웨이를 합친 전체 사용량과 그 가운데 위임에 쓴 금액을 보여 줍니다.** 하루 집계 행에 `claude_spent_usd`, `codex_spent_usd`, `gateway_spent_usd`, `total_spent_usd`, `delegated_cost_usd`, `codex_delegated_runs`, `codex_delegated_cost_usd`, `subagent_cost_usd`, `unpriced_parts`, `gateway_user_hash` 가 추가됐습니다. `ANTHROPIC_BASE_URL` 이 LiteLLM 게이트웨이를 가리키면 팀 동기화가 `GET /user/info` 와 `GET /global/spend/logs` 로 본인 사용자의 하루 금액을 읽어 전체 사용량으로 쓰고, 로컬 기록에 없는 요청은 화면에서 "기록 없는 사용량"으로 나옵니다. `gateway_user_hash` 는 게이트웨이 주소와 사용자 ID 를 해시한 가명 식별자로, 한 사람이 두 컴퓨터로 참여해도 게이트웨이 금액을 한 번만 세는 데 씁니다. 게이트웨이 조회가 실패해도 업로드는 진행되고, 다음 성공 때 그날부터 다시 보냅니다. 보내는 내용은 `sprag team status --show-payload` 와 [팀 문서](./docs/TEAM.ko.md)에 있습니다.
+- **위임 비율의 뜻이 바뀌었습니다.** 지금까지는 절감액을 지출과 절감액의 합으로 나눈 값이었고, 이제는 sprag 규칙이 보낸 위임 실행의 실제 비용을 전체 사용량으로 나눈 값입니다. 사무실의 동물 등급 판정(파워 유저 조건)도 이 값을 쓰므로 등급 분포가 달라질 수 있습니다. 구버전 클라이언트만 있는 사람은 위임 비율이 "알 수 없음"으로 나오고 회사 중앙값 계산에서 빠집니다. `delegated_runs` 는 Codex 위임을 포함하고 `sprag saved reset` 표시를 적용하지 않으므로 숫자가 커집니다. `saved_usd` 만 지금처럼 리셋 표시를 따릅니다.
+- **절감액의 비교 기준이 에피소드의 실제 메인 모델로 바뀌었습니다.** 규칙을 승격할 때 저장한 `baselineModel` 은 메인 모델을 바꾸면 낡아서(opus-5 기준으로 opus-5-5 세션의 절감을 계산) 절감액이 부풀려졌습니다. 다음 route-scan 부터 스캔 범위 안의 원장 이벤트를 새 기준으로 다시 계산하므로 절감 합계가 줄어들 수 있습니다. 메인 모델에 단가가 없을 때만 `baselineModel` 로 돌아갑니다.
+- **Codex 세션 금액을 rollout 의 사용 기록(`token_usage_record`)으로 계산합니다.** 신형 rollout 에서 누적 `token_count` 의 입력 토큰이 0 으로 남아 금액이 빠지던 문제를 고쳤고, 캐시 쓰기와 모델별 분리도 반영합니다. Codex 위임 원장에는 실행의 실제 비용(`cost`)이 함께 기록됩니다.
+
 ### v3.83.0 (2026-10-27)
 - **구현을 맡는 sonnet 워커(t1-worker)의 effort 를 medium 에서 high 로 올렸습니다.** 구현 위임이 틀리면 다시 돌리고 메인 모델이 한 번 더 검토해야 하므로, 처음부터 생각을 더 쓰는 편이 전체 비용이 적다고 판단했습니다. 다음 세션을 시작할 때 `~/.claude/agents/t1-worker.md` 를 새 값으로 다시 쓰고, 모델 피팅 래칫의 위임 표기도 `Sonnet 5.5 · effort high` 로 바뀝니다. 래칫의 에스컬레이션 조항은 누락형 실패를 재시도할 때 high 다음 단계인 xhigh 까지 올리도록 고쳤습니다.
 

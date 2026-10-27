@@ -328,23 +328,74 @@ export async function parseCodexTurns(filePath, { cutoffMs = -Infinity } = {}) {
   return session;
 }
 
-/** Rollout JSONL is a best-effort local format, not a stable Codex API. */
+/**
+ * Rollout JSONL is a best-effort local format, not a stable Codex API.
+ *
+ * Usage comes from two record kinds. Current rollouts write a top-level
+ * `token_usage_record` per response (`payload.usage`, a `response_id`, the
+ * turn's model in `turn_context`); older ones only carry the cumulative
+ * `event_msg/token_count` snapshot, whose `total_token_usage.input_tokens` is
+ * 0 in many current files. A file with any usage record is summed from the
+ * records (duplicates by `response_id` dropped); only a file without them
+ * falls back to the snapshot deltas. Either way `totals.cacheCreation` holds
+ * the cache writes and `modelTotals` splits the totals by the model each
+ * request ran on, so a session that switched models is priced per model.
+ */
 export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } = {}) {
   const session = {
     agent: 'codex', sessionId: null, filePath, projectDir: '', model: 'unknown',
     startTime: null, endTime: null, requestCount: 0, totals: emptyTotals(),
     maxContextPerRequest: 0, reasoningOutputTokens: 0, contextWindow: null,
     lastContextTokens: null, rateLimits: null, lastActivity: null, effort: null,
-    cacheActivity: null,
+    cacheActivity: null, modelTotals: null, usageSource: 'token_count',
   };
   const copied = forkedCopyFilter();
   let previous = null;
+  // usage records: per-response rows, keyed by response id to drop repeats
+  const records = [];
+  const seenResponses = new Set();
+  const turnModel = new Map();
+  const turnCumulative = new Map();
+  let contextModel = null;
+  const addUsage = (totals, u) => {
+    const cached = Math.min(u.input, u.cached);
+    const written = Math.min(Math.max(0, u.input - cached), u.cacheWrite);
+    totals.input += u.input - cached - written;
+    totals.cacheRead += cached;
+    totals.cacheCreation += written;
+    totals.output += u.output;
+  };
   for await (const line of transcriptLines(filePath)) {
     let e;
     try { e = JSON.parse(line); } catch { continue; }
     const p = e?.payload;
     if (!p || copied(e)) continue;
     updateSnapshot(session, e);
+    if (e.type === 'turn_context' && typeof p.model === 'string') {
+      contextModel = p.model;
+      if (p.turn_id) turnModel.set(p.turn_id, p.model);
+      continue;
+    }
+    if (e.type === 'token_usage_record') {
+      const u = p.usage || p.turn_token_usage;
+      if (!Number.isSafeInteger(u?.input_tokens) || !Number.isSafeInteger(u?.output_tokens)) continue;
+      if (typeof p.response_id === 'string' && p.response_id) {
+        if (seenResponses.has(p.response_id)) continue;
+        seenResponses.add(p.response_id);
+      }
+      let usage = { input: count(u.input_tokens), cached: count(u.cached_input_tokens),
+        cacheWrite: count(u.cache_write_input_tokens), output: count(u.output_tokens), reasoning: count(u.reasoning_output_tokens) };
+      if (!p.usage && p.turn_id) {
+        // turn_token_usage is the turn's running total: only its growth is new.
+        const prev = turnCumulative.get(p.turn_id);
+        turnCumulative.set(p.turn_id, usage);
+        if (prev) usage = Object.fromEntries(Object.keys(usage).map((k) => [k, Math.max(0, usage[k] - prev[k])]));
+      }
+      const ts = Date.parse(e.timestamp);
+      const model = (p.turn_id && turnModel.get(p.turn_id)) || (typeof p.model === 'string' ? p.model : null) || contextModel || session.model;
+      records.push({ ts, model, ...usage });
+      continue;
+    }
     if (e.type !== 'event_msg' || p.type !== 'token_count') continue;
     if (!p.info) continue;
     const info = p.info;
@@ -371,17 +422,33 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } =
         cached: Math.min(delta.input, delta.cached), written: Math.min(delta.input, delta.written) };
     }
     if (!Number.isFinite(ts) || ts < cutoffMs) continue;
-    const cached = Math.min(delta.input, delta.cached);
-    session.totals.input += delta.input - cached;
-    session.totals.cacheRead += cached;
-    session.totals.output += delta.output;
+    session.maxContextPerRequest = Math.max(session.maxContextPerRequest, count(info.last_token_usage?.input_tokens));
+    if (count(info.model_context_window)) session.contextWindow = info.model_context_window;
+    if (records.length) continue; // summed from the usage records below
+    addUsage(session.totals, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output });
+    const perModel = (session.modelTotals ??= {})[session.model] ??= emptyTotals();
+    addUsage(perModel, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output });
     // Reasoning is a subset of output, just as cached input is a subset of input.
     session.reasoningOutputTokens += Math.min(delta.output, delta.reasoning);
     session.requestCount++;
     session.startTime ??= new Date(ts);
     session.endTime = new Date(ts);
-    session.maxContextPerRequest = Math.max(session.maxContextPerRequest, count(info.last_token_usage?.input_tokens));
-    if (count(info.model_context_window)) session.contextWindow = info.model_context_window;
+  }
+  if (records.length) {
+    // The snapshot path may have run before the first record appeared; the
+    // records are the whole truth for this file, so start over from them.
+    Object.assign(session, { totals: emptyTotals(), modelTotals: null, reasoningOutputTokens: 0, requestCount: 0, startTime: null, endTime: null, usageSource: 'token_usage_record' });
+    for (const r of records) {
+      if (!Number.isFinite(r.ts) || r.ts < cutoffMs) continue;
+      if (!r.input && !r.output) continue;
+      addUsage(session.totals, r);
+      const perModel = (session.modelTotals ??= {})[r.model || 'unknown'] ??= emptyTotals();
+      addUsage(perModel, r);
+      session.reasoningOutputTokens += Math.min(r.output, r.reasoning);
+      session.requestCount++;
+      session.startTime ??= new Date(r.ts);
+      session.endTime = new Date(r.ts);
+    }
   }
   return session;
 }
