@@ -149,3 +149,49 @@ test('sync removes an owned file under a legacy name and leaves an unowned one',
   assert.match(readFileSync(s.file('sonnet-worker'), 'utf8'), /user-edited copy/);
   assert.deepEqual(present(s), [...NAMES]);
 });
+
+const userAgent = (s, name, { model, effort }) => {
+  mkdirSync(s.agents, { recursive: true });
+  const lines = ['---', `name: ${name}`, 'description: mine', 'tools: Read'];
+  if (model) lines.push(`model: ${model}`);
+  if (effort) lines.push(`effort: ${effort}`);
+  writeFileSync(s.file(name), [...lines, '---', 'body', ''].join('\n'));
+};
+const drift = (s) => s.call('delegation-agents.js', 'm.agentDrift()');
+
+test('agentDrift never reports a file sprag owns', (t) => {
+  const s = sandbox(t);
+  s.sync();
+  assert.deepEqual(drift(s), []);
+});
+
+test('agentDrift treats an alias and a pinned id of one family as equal', (t) => {
+  const s = sandbox(t);
+  userAgent(s, 't2-explore', { model: 'claude-haiku-5-5', effort: 'low' });
+  assert.deepEqual(drift(s), []);
+});
+
+test('agentDrift reports a user file whose effort differs from the preset', (t) => {
+  const s = sandbox(t);
+  userAgent(s, 't1-worker', { model: 'sonnet', effort: 'medium' });
+  assert.deepEqual(drift(s), [{ name: 't1-worker', file: { model: 'sonnet', effort: 'medium' }, preset: { model: 'sonnet', effort: 'high' } }]);
+  const st = s.call('delegation-agents.js', 'm.delegationAgentStatus()');
+  assert.equal(st.agents.find((a) => a.name === 't1-worker').drift.file.effort, 'medium');
+  assert.equal(st.agents.find((a) => a.name === 't2-explore').drift, null);
+});
+
+test('takeAgentDriftNotice shows once per preset key and again after the key changes', (t) => {
+  const s = sandbox(t);
+  userAgent(s, 't1-worker', { model: 'sonnet', effort: 'medium' });
+  const take = () => s.call('delegation-agents.js', "m.takeAgentDriftNotice({ lang: 'ko' })");
+  const first = take();
+  assert.match(first, /t1-worker: 파일 effort medium · 모델 sonnet, 프리셋 effort high · 모델 sonnet/);
+  assert.match(first, /프리셋 bundled/);
+  assert.equal(take(), null);
+  s.setConfig({ agentDriftNoticedKey: 'remote:0' });
+  assert.match(take(), /t1-worker/);
+  s.sync();
+  rmSync(s.file('t1-worker'));
+  s.setConfig({ agentDriftNoticedKey: 'remote:0' });
+  assert.equal(take(), null, 'no drift, no notice');
+});

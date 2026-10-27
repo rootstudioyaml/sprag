@@ -376,6 +376,8 @@ export async function run({ args, hasFlag, numArg }) {
       // where the *asking* happens: the model gets one line telling it a newer
       // version exists and to ask before installing anything. Cached read only
       // — the refresh runs detached off the statusline path, never here.
+      let driftBlock = null;
+      try { driftBlock = (await import('../delegation-agents.js')).takeAgentDriftNotice({ lang }); } catch (e) { debug('route-scan:agent-drift', e); }
       let updateBlock = null;
       try {
         const { updateOffer } = await import('../update-notice.js');
@@ -391,6 +393,7 @@ export async function run({ args, hasFlag, numArg }) {
       if (open.length === 0 && reviewRules.length === 0) {
         if (teamBlock) console.log(teamBlock);
         if (updateBlock) console.log(updateBlock);
+        if (driftBlock) console.log(driftBlock);
         if (seedBlock) console.log(seedBlock);
         if (doc2mdBlock) console.log(doc2mdBlock);
         if (koreanBlock) console.log(koreanBlock);
@@ -399,6 +402,7 @@ export async function run({ args, hasFlag, numArg }) {
       }
       if (teamBlock) console.log(teamBlock);
       if (updateBlock) console.log(updateBlock);
+      if (driftBlock) console.log(driftBlock);
       if (seedBlock) console.log(seedBlock);
       if (doc2mdBlock) console.log(doc2mdBlock);
       // This text is injected straight into the model's context, so it must
