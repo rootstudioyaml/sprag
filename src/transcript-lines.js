@@ -62,6 +62,10 @@ async function* zstdLines(filePath) {
   try {
     for await (const line of rl) yield line;
     finished = true;
+  } catch (err) {
+    // Some Node builds report a cut stream as a bare "unexpected end of file";
+    // name the file so the caller's debug log says which rollout it was.
+    throw new Error(`zstd: ${filePath}: ${err.message}`, { cause: err });
   } finally {
     rl.close();
     inflate.destroy();

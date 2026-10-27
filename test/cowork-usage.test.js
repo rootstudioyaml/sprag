@@ -18,9 +18,10 @@ import { userDataDir } from '../src/paths.js';
 function isolate(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-cowork-'));
   const saved = {};
-  for (const k of ['HOME', 'APPDATA', 'CODEX_HOME', 'XDG_CONFIG_HOME', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY']) saved[k] = process.env[k];
+  for (const k of ['HOME', 'USERPROFILE', 'APPDATA', 'CODEX_HOME', 'XDG_CONFIG_HOME', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY']) saved[k] = process.env[k];
   process.env.XDG_CONFIG_HOME = root;
   process.env.HOME = root;
+  process.env.USERPROFILE = root; // os.homedir() reads USERPROFILE on Windows, not HOME
   process.env.APPDATA = root;
   process.env.CODEX_HOME = join(root, '.codex');
   for (const k of ['ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY']) delete process.env[k];

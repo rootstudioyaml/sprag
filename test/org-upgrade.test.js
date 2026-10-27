@@ -21,7 +21,7 @@ import { runOrgPolicy, orgUpgradeCommands } from '../src/commands/upgrade.js';
 import { upgradeCommand } from '../src/update-check.js';
 import { CLI_ENTRY } from '../src/cli-entry.js';
 
-const KEYS = ['HOME', 'XDG_CONFIG_HOME', 'APPDATA', 'CODEX_HOME', 'SPRAG_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN', 'SPRAG_DETACHED_CHILD',
+const KEYS = ['HOME', 'USERPROFILE', 'XDG_CONFIG_HOME', 'APPDATA', 'CODEX_HOME', 'SPRAG_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN', 'SPRAG_DETACHED_CHILD',
   'SPRAG_NO_UPDATE_CHECK', 'NO_UPDATE_NOTIFIER', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY'];
 
 function isolate(t) {
@@ -29,6 +29,7 @@ function isolate(t) {
   const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
   for (const k of KEYS) delete process.env[k];
   process.env.HOME = root;
+  process.env.USERPROFILE = root; // os.homedir() reads USERPROFILE on Windows, not HOME
   process.env.XDG_CONFIG_HOME = root;
   process.env.APPDATA = root;
   process.env.CODEX_HOME = join(root, '.codex');
