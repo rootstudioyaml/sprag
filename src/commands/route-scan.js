@@ -385,7 +385,7 @@ export async function run({ args, hasFlag, numArg }) {
         // statusline's 24h: releases can land several times a day, and a
         // session opened that afternoon should hear about them. It lands in
         // time for the statusline and for the next session, not for this line.
-        if (pkgVersion) updateBlock = updateOffer(pkgVersion, { lang });
+        if (pkgVersion) updateBlock = updateOffer(pkgVersion, { agent: 'claude', lang });
       } catch (e) { debug('route-scan:update-check', e); /* the offer is optional */ }
 
       if (open.length === 0 && reviewRules.length === 0) {

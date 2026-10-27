@@ -44,6 +44,7 @@ import { loadLedger, modelFamily, roundUsd } from './savings-ledger.js';
 import { sessionCost, pricedParts } from './claude-price.js';
 import { uploadPrompts, dropOffsets, promptOffsetsExist } from './team-prompts.js';
 import { rulesPullDue, syncTeamRatchet, ensureTeamImport } from './team-ratchet.js';
+import { parseMinVersion } from './org-upgrade.js';
 import { codexUserDir } from './agent.js';
 import { loadCodexLedger, codexEventCost } from './codex/ledger.js';
 import { codexDocumentEvents } from './codex/doc2md-ledger.js';
@@ -677,18 +678,22 @@ async function pullRules({ memberKey, dir, fetch, now }) {
   const rules = Array.isArray(r.rules) ? r.rules : [];
   writeStateFile(teamRulesCachePath(dir), JSON.stringify({
     version: 1, fetchedAt: now, teamId: r.team_id, teamName: r.team_name, orgId: r.org_id || null, orgName: r.org_name || null,
+    minVersion: parseMinVersion(r.min_version),
     plan: r.plan, promptCapture: !!r.prompt_capture, rules, removed: Array.isArray(r.removed) ? r.removed : [],
   }, null, 2) + '\n');
   return { r, rules };
 }
 
 /** State fields a rules pull refreshes. */
-function withRulesMeta(state, r, now) {
+export function withRulesMeta(state, r, now) {
   const next = { ...state, lastRulesAt: now };
   if (r.team_name) next.teamName = r.team_name;
   if (r.plan) next.plan = r.plan;
   if (r.org_name) next.orgName = r.org_name;
   if (r.prompt_capture !== undefined) next.promptCapture = !!r.prompt_capture;
+  // The organization minimum version. An older server omits the key and leaves
+  // the state alone; a present null (or a malformed value) clears the minimum.
+  if (r.min_version !== undefined) next.minVersion = parseMinVersion(r.min_version);
   delete next.lastRulesError;
   return next;
 }

@@ -476,10 +476,12 @@ async function main() {
   // got here, then confirm the new version.
   //   sprag upgrade          # install the latest release
   //   sprag upgrade --print  # just show the command, run nothing
+  //   sprag upgrade --org-policy  # non-interactive, started by the session-start hook
   if (args[0] === 'upgrade') {
     return (await import('../src/commands/upgrade.js')).run({
       hasFlag,
       version: PKG_VERSION,
+      agent,
     });
   }
 

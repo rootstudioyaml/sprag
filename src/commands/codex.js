@@ -594,6 +594,8 @@ export async function run({ args, version }) {
     return;
   }
   if (cmd === 'upgrade') {
+    // The organization minimum version: the Codex session-start hook starts this detached.
+    if (hasFlag('--org-policy')) return (await import('./upgrade.js')).run({ hasFlag, version, agent: 'codex' });
     const { upgradeInstructions } = await import('../update-notice.js');
     const [command, setup] = upgradeInstructions('codex');
     if (!hasFlag('--print')) throw new Error(`For a Codex-only upgrade, run ${command}, then sprag install --agent codex.`);

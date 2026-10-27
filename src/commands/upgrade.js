@@ -4,6 +4,9 @@
  *
  *   sprag upgrade          # refresh the check, then install
  *   sprag upgrade --print  # show the command, run nothing
+ *   sprag upgrade --org-policy [--agent codex]
+ *                          # non-interactive: what the session-start hook starts
+ *                          # (detached) when the organization sets a minimum version
  *
  * This is the command the model runs after the user says yes to the
  * session-start offer, so it prints the exact command it is about to execute
@@ -12,6 +15,8 @@
  */
 
 import { spawn } from 'node:child_process';
+import { openSync, closeSync, writeSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 function runCommand(cmd) {
   return new Promise((resolve) => {
@@ -24,7 +29,138 @@ function runCommand(cmd) {
   });
 }
 
-export async function run({ hasFlag, version }) {
+/** Shell command with stdout and stderr appended to the log file; resolves to its exit code. */
+function runLogged(cmd, logFile) {
+  return new Promise((resolve) => {
+    let fd;
+    try {
+      mkdirSync(dirname(logFile), { recursive: true });
+      fd = openSync(logFile, 'a');
+      writeSync(fd, `$ ${cmd}\n`);
+    } catch { resolve(1); return; }
+    const done = (code) => { try { closeSync(fd); } catch { /* already closed */ } resolve(code); };
+    // Same fixed-string shell form as runCommand; nothing here is user input.
+    const child = spawn(cmd, { shell: true, stdio: ['ignore', fd, fd], windowsHide: true });
+    child.on('close', (code) => done(code === null ? 1 : code));
+    child.on('error', () => done(1));
+  });
+}
+
+/** Whether sprag's Claude Code hooks or statusline are registered in settings.json. */
+async function claudeIntegrationPresent() {
+  try {
+    const { readSettings, isOurCommand } = await import('../installer.js');
+    const { claudeUserDir } = await import('../paths.js');
+    const { join } = await import('node:path');
+    const read = readSettings(join(claudeUserDir(), 'settings.json'));
+    if (read.state !== 'ok') return false;
+    const s = read.settings;
+    if (isOurCommand(s.statusLine?.command)) return true;
+    return Object.values(s.hooks && typeof s.hooks === 'object' ? s.hooks : {}).some((groups) =>
+      Array.isArray(groups) && groups.some((g) => Array.isArray(g?.hooks) && g.hooks.some((h) => isOurCommand(h?.command))));
+  } catch { return false; }
+}
+
+/** Whether sprag's Codex hooks are registered. */
+async function codexIntegrationPresent() {
+  try {
+    const { codexHookStatus } = await import('../codex/installer.js');
+    return codexHookStatus().some((h) => h.registered);
+  } catch { return false; }
+}
+
+/**
+ * The commands an organization-policy upgrade runs for `agent`, in order. The
+ * agent's own install comes first; the other agent's integration is refreshed
+ * too when it is present, so a machine with both ends up on one version.
+ */
+export async function orgUpgradeCommands(agent, { claudePresent = claudeIntegrationPresent, codexPresent = codexIntegrationPresent } = {}) {
+  const { upgradeCommand } = await import('../update-check.js');
+  const { upgradeInstructions } = await import('../update-notice.js');
+  const cmds = agent === 'codex' ? [...upgradeInstructions('codex')] : [upgradeCommand(), 'sprag install'];
+  if (agent === 'codex' ? await claudePresent() : await codexPresent()) {
+    cmds.push(agent === 'codex' ? 'sprag install' : 'sprag install --agent codex');
+  }
+  return [...new Set(cmds)];
+}
+
+/**
+ * `sprag upgrade --org-policy`: the unattended upgrade the session-start hook
+ * starts when the organization sets a minimum version. Detached, so nothing
+ * goes to a terminal: output is appended to org-upgrade.log and the outcome to
+ * org-upgrade.json, which the next session reports. `exec`, `refresh` and
+ * `dir` are injectable for tests.
+ */
+export async function runOrgPolicy({
+  version, agent = 'claude', dir, now = Date.now, exec, refresh, claudePresent, codexPresent,
+} = {}) {
+  const { userDataDir } = await import('../paths.js');
+  const { readTeamState } = await import('../team-ratchet.js');
+  const org = await import('../org-upgrade.js');
+  const { isNewer, refreshUpdateState } = await import('../update-check.js');
+  const root = dir || userDataDir();
+  const logFile = org.orgUpgradeLogPath(root);
+  const run = exec || ((cmd) => runLogged(cmd, logFile));
+  const refreshState = refresh || refreshUpdateState;
+  const log = (line) => { try { writeLogLine(logFile, line); } catch { /* the record still says what happened */ } };
+
+  const prev = org.readOrgUpgrade(root);
+  if (prev.pid && prev.pid !== process.pid && org.orgUpgradeInFlight(prev, { now: now() })) {
+    return { ok: false, skipped: 'in-flight' };
+  }
+  const required = org.orgMinVersion(readTeamState(root));
+  const target = required || prev.target || null;
+  org.writeOrgUpgrade({
+    target, from: version, startedAt: prev.startedAt && !prev.finishedAt ? prev.startedAt : now(), pid: process.pid,
+    finishedAt: null, ok: null, error: null, announced: false,
+  }, root);
+  const finish = (ok, error = null, extra = {}) => {
+    org.writeOrgUpgrade({ finishedAt: now(), ok, error, ...extra }, root);
+    return { ok, error };
+  };
+
+  if (!required || !isNewer(required, version)) {
+    // The requirement went away while this was starting: nothing to report.
+    log(`nothing required (minimum ${required || 'unset'}, running ${version})`);
+    return finish(false, 'no minimum version is required any more', { announced: true });
+  }
+  const r = await refreshState(version);
+  const latest = r && r.ok ? r.latest : null;
+  if (!latest) {
+    log(`registry check failed: ${(r && r.error) || 'no answer'}`);
+    return finish(false, `could not read the latest version from the registry: ${(r && r.error) || 'no answer'}`);
+  }
+  if (isNewer(required, latest)) {
+    log(`required version ${required} is not published (latest ${latest})`);
+    return finish(false, `required version ${required} is not published (latest ${latest})`);
+  }
+
+  for (const cmd of await orgUpgradeCommands(agent, { claudePresent, codexPresent })) {
+    const code = await run(cmd);
+    if (code !== 0) {
+      log(`failed (exit ${code}): ${cmd}`);
+      return finish(false, `"${cmd}" exited with code ${code}`);
+    }
+  }
+  // Same as the interactive path: the cached "latest" now describes the new copy.
+  try { await refreshState(latest); } catch (e) { log(`state refresh failed: ${e && e.message}`); }
+  log(`upgraded ${version} -> ${latest}`);
+  return finish(true);
+}
+
+function writeLogLine(file, line) {
+  mkdirSync(dirname(file), { recursive: true });
+  const fd = openSync(file, 'a');
+  try { writeSync(fd, `[${new Date().toISOString()}] ${line}\n`); } finally { closeSync(fd); }
+}
+
+export async function run({ hasFlag, version, agent = 'claude' }) {
+  if (hasFlag('--org-policy')) {
+    // Detached, so the exit code is for whoever runs it by hand; the record has the reason.
+    const result = await runOrgPolicy({ version, agent });
+    if (!result.ok) process.exitCode = 1;
+    return;
+  }
   const { updateStatus, refreshUpdateState, upgradeCommand, INSTALLED_UNDER_LEGACY_NAME } =
     await import('../update-check.js');
   const { userLanguage } = await import('../config.js');
