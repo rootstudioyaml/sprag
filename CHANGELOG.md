@@ -10,6 +10,11 @@ v3.47.0 까지 받으신 사본은 계속 MIT 조건을 따릅니다. 이미 받
 
 ## 전체 릴리스 노트
 
+### v3.86.0 (2026-10-28)
+- **직접 고친 위임 에이전트 파일이 프리셋과 다르면 세션 시작 때 알려 줍니다.** sync 는 sprag 표지가 없는 `~/.claude/agents/<이름>.md` 를 사용자 파일로 보고 덮어쓰지 않는데, 지금까지는 이 동작이 조용히 일어나서 프리셋이 t1-worker 의 effort 를 high 로 올려도 직접 고친 파일은 medium 에 머물렀습니다. 이제 effort 가 다르거나 모델 계열이 다르면 프리셋 버전마다 한 번 알리고, `sprag delegate agents` 상태 줄에도 파일 값과 프리셋 값을 함께 보여 줍니다. sprag 가 관리하게 하려면 파일을 지운 뒤 `sprag delegate agents on` 을 실행합니다.
+- **Codex 의 자동 티어 모델에 프리셋 에이전트의 effort 를 함께 보냅니다.** 직접 매핑하지 않은 티어는 Codex 가 이미 실행한 더 싼 모델로 정해지는데, 그동안 `reasoning_effort` 를 보내지 않아 모델 기본값으로 실행됐고 프리셋의 effort 변경도 Codex 에는 닿지 않았습니다. 이제 T2 는 low, T1 과 T1H 는 high 처럼 그 티어 에이전트들이 공유하는 값을 보내고, `delegate shared status` 에도 표시합니다. `delegate shared map` 으로 직접 매핑한 티어는 지정한 값을 그대로 씁니다.
+- **고난도 구현 워커(t1h-worker)가 전체 모델 ID 대신 `opus` 별칭을 씁니다.** 다른 위임 에이전트처럼 게이트웨이가 `ANTHROPIC_DEFAULT_OPUS_MODEL` 로 모델을 바꿔 연결할 수 있게 하려는 변경이며, 현재 Claude Code 는 Anthropic API 에서 `opus` 를 `claude-opus-5-5` 로 연결하므로 직접 접속하는 컴퓨터의 동작은 같습니다.
+
 ### v3.85.0 (2026-10-27)
 - **조직 운영자가 정한 최소 버전보다 낮은 컴퓨터는 묻지 않고 스스로 업그레이드합니다.** Sprag 운영자가 ops 콘솔에서 조직마다 최소 버전을 정하면, 컴퓨터가 팀 룰과 함께 그 값을 받아 다음 세션을 시작할 때 분리된 백그라운드 프로세스로 `sprag upgrade --org-policy` 를 실행합니다. 설치 출력은 사용자 데이터 디렉터리의 `org-upgrade.log` 에 쌓이고 결과는 다음 세션에서 알려 주며, `sprag team status` 에서 최소 버전과 마지막 결과를 볼 수 있습니다. 그 밖의 업그레이드는 지금처럼 동의를 기다리고, git 체크아웃에서 실행한 사본은 스스로 업그레이드하지 않습니다. 자세한 내용은 [팀 문서](./docs/TEAM.ko.md)의 "조직 최소 버전" 절에 있습니다.
 - **하루 사용량에 Claude 데스크톱 앱의 Cowork 세션과 압축된 Codex 롤아웃이 포함됩니다.** Cowork 는 별도 설정 디렉터리에서 Claude Code 를 실행하므로 지금까지 세지 못했고, 이제 `spent_usd` 와 `claude_spent_usd` 에 더합니다. Codex 가 오래된 롤아웃을 `.jsonl.zst` 로 압축하면 그 금액이 빠지던 문제도 고쳤습니다. Cowork 기록은 로컬에서만 읽고, 밖으로 나가는 것은 지금처럼 하루 합계뿐입니다.
