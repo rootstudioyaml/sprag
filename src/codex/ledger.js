@@ -252,7 +252,8 @@ export async function refreshCodexLedger({ dir = userDataDir(), home, now = Date
   const bindMap = new Map(readCodexBindings({ dir }).filter((b) => byId.has(b.id)).map((b) => [b.childSessionId, b.id]));
   const closedAt = closedCodexRouteTimes({ dir });
   const oldest = Math.min(...pending.map((r) => r.at));
-  const files = await discoverCodexSessionFiles({ home, days: Math.max(1, (now - oldest) / 86400000 + 1) });
+  const files = await discoverCodexSessionFiles({ home, days: Math.max(1, (now - oldest) / 86400000 + 1), compressed: true });
+  // Child cost stays an aggregate at base rates: the long-context tier is not applied (children are rarely above 272K).
   let changed = false;
   const seen = new Set();
   for (const f of files.slice().reverse()) {

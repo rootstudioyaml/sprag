@@ -15,7 +15,7 @@ import {
 import { syncTeam, saveTeamState, loadTeamState, deviceInfo } from '../src/team-sync.js';
 import { userDataDir } from '../src/paths.js';
 
-const ENV_KEYS = ['XDG_CONFIG_HOME', 'HOME', 'USERPROFILE', 'CODEX_HOME', 'SPRAG_NO_TEAM_SYNC', 'CTS_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN'];
+const ENV_KEYS = ['XDG_CONFIG_HOME', 'HOME', 'USERPROFILE', 'APPDATA', 'CODEX_HOME', 'SPRAG_NO_TEAM_SYNC', 'CTS_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN'];
 
 function sandbox(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-prompts-'));
@@ -23,6 +23,7 @@ function sandbox(t) {
   process.env.XDG_CONFIG_HOME = join(root, 'xdg');
   process.env.HOME = root;
   process.env.USERPROFILE = root;
+  process.env.APPDATA = root; // Cowork transcripts are looked for under %APPDATA% on Windows
   process.env.CODEX_HOME = join(root, '.codex');
   for (const k of ['SPRAG_NO_TEAM_SYNC', 'CTS_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN']) delete process.env[k];
   const dir = userDataDir();

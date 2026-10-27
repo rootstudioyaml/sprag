@@ -10,7 +10,10 @@ import { codexCachePolicy } from './cache.js';
 import { PRICE_MAX_AGE_MS, gatewayPrices } from '../gateway-prices.js';
 import { OPENAI_LIST_PRICES, OPENAI_PRICES_CHECKED_AT } from '../openai-prices.js';
 
-export { PRICE_MAX_AGE_MS, rate, deploymentPrice, gatewayPrices, codexRunCost } from '../gateway-prices.js';
+export { PRICE_MAX_AGE_MS, rate, deploymentPrice, gatewayPrices, codexRunCost, priceForPrompt, codexRequestCost } from '../gateway-prices.js';
+
+// 2 adds long-context tiers to each price; a schema-1 table has none, so it is refreshed once.
+export const CODEX_PRICES_SCHEMA = 2;
 
 export const CACHE_POLICY_MAX_AGE_MS = 300000;
 const OPENAI_POLICY = 'https://developers.openai.com/api/docs/guides/prompt-caching#cache-lifetime';
@@ -124,7 +127,7 @@ export function readCodexPrices({ provider, now = Date.now(), ...opts } = {}) {
     const snapshot = JSON.parse(readFileSync(cacheFile(provider, opts), 'utf8'));
     if (!Number.isFinite(snapshot?.checkedAt) || snapshot.checkedAt > now || now - snapshot.checkedAt > PRICE_MAX_AGE_MS) return null;
     if (!snapshot.prices || typeof snapshot.prices !== 'object') return null;
-    return { checkedAt: snapshot.checkedAt, provider: provider.name, base: provider.base, prices: snapshot.prices };
+    return { checkedAt: snapshot.checkedAt, provider: provider.name, base: provider.base, prices: snapshot.prices, pricesSchema: snapshot.pricesSchema ?? 1 };
   } catch { return null; }
 }
 
@@ -149,7 +152,7 @@ async function writeGatewaySnapshot(provider, { fetchImpl = fetch, execute, ...o
   const now = opts.now ?? Date.now();
   let prices = null;
   try { prices = gatewayPrices(payload); } catch { /* Prices are optional; the policy stands alone. */ }
-  const snapshot = { checkedAt: now, models: gatewayCachePolicies(payload), prices };
+  const snapshot = { checkedAt: now, models: gatewayCachePolicies(payload), prices, pricesSchema: CODEX_PRICES_SCHEMA };
   const file = cacheFile(provider, opts);
   // Persist only policy and price fields, never raw model/info (which can contain secrets).
   mkdirSync(join(opts.dir || userDataDir(), 'codex-cache-policy'), { recursive: true, mode: 0o700 });

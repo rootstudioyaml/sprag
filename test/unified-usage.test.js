@@ -20,9 +20,10 @@ const GW = { ANTHROPIC_BASE_URL: 'https://litellm.example.com', ANTHROPIC_AUTH_T
 function isolate(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-unified-'));
   const saved = {};
-  for (const k of ['HOME', 'CODEX_HOME', 'XDG_CONFIG_HOME', 'SPRAG_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY']) saved[k] = process.env[k];
+  for (const k of ['HOME', 'APPDATA', 'CODEX_HOME', 'XDG_CONFIG_HOME', 'SPRAG_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY']) saved[k] = process.env[k];
   process.env.XDG_CONFIG_HOME = root;
   process.env.HOME = root;
+  process.env.APPDATA = root; // Cowork transcripts are looked for under %APPDATA% on Windows
   process.env.CODEX_HOME = join(root, '.codex');
   for (const k of ['SPRAG_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY']) delete process.env[k];
   t.after(() => {

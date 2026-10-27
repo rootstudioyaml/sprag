@@ -10,13 +10,13 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 
 | 항목 | 내용 |
 |---|---|
-| 지출(USD) | 로컬 세션 로그로 계산한 금액 |
+| 지출(USD) | 로컬 세션 로그로 계산한 금액이며 Claude 데스크톱 앱의 Cowork 세션을 포함합니다 |
 | 절감(USD) | 라우팅 원장과 doc2md 원장에서 가져온 금액 |
 | 위임 실행 횟수 | 그날 위임한 Claude와 Codex 실행의 수 |
 | 모델 계열 비중 | 위임 실행 중 모델 계열별 비율 |
 | 모델 계열별 지출(USD) | 그날 지출을 모델 계열(`opus`, `sonnet`, `haiku`, `fable` 등)별로 나눈 금액입니다. 콘솔에서 사람마다 어느 모델에 돈을 쓰는지 보여 주는 데 쓰며, 3.84.0부터 보냅니다 |
-| Claude 지출(USD) | Claude Code 로컬 지출입니다. 메인 세션과 서브에이전트 실행을 합친 금액이며 지출(USD)과 같은 값입니다. 3.84.0부터 보냅니다 |
-| Codex 지출(USD) | Codex 롤아웃 사용량 기록으로 계산한 로컬 지출입니다. 가격을 모르면 비어 있습니다. 3.84.0부터 보냅니다 |
+| Claude 지출(USD) | Claude Code와 Claude 데스크톱 앱 Cowork의 로컬 지출입니다. 메인 세션과 서브에이전트 실행을 합친 금액이며 지출(USD)과 같은 값입니다. 3.84.0부터 보냅니다 |
+| Codex 지출(USD) | Codex 롤아웃 사용량 기록으로 계산한 로컬 지출이며 압축된 롤아웃(`.jsonl.zst`)과 게이트웨이의 장문맥 구간 가격을 반영합니다. 가격을 모르면 비어 있습니다. 3.84.0부터 보냅니다 |
 | 게이트웨이 지출(USD) | LiteLLM 게이트웨이를 쓸 때 게이트웨이가 집계한 본인의 하루 지출입니다. 게이트웨이가 없거나 호출이 실패하면 비어 있습니다. 3.84.0부터 보냅니다 |
 | 게이트웨이 사용자 해시 | 게이트웨이 주소와 게이트웨이 사용자 ID를 합쳐 해시한 값의 앞 16자리(16진수)입니다. 한 사람이 컴퓨터 두 대를 써도 한 번만 세는 데 쓰며, 사용자 ID를 모르면 되돌릴 수 없습니다. 3.84.0부터 보냅니다 |
 | 총지출(USD) | 게이트웨이 금액을 알면 그 값이고, 모르면 Claude 지출과 Codex 지출의 합입니다. 3.84.0부터 보냅니다 |
@@ -36,7 +36,7 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 
 팀에 참여한 동안 statusline 에 `team` 칩이 나타나 멤버 ID 와 가상 사무실(Sprag 타운)에서 받은 동물을 보여 줍니다. 예를 들면 `member-1e500474 🦊 여우 12명 중 3위` 처럼 조직에서 순위에 오른 사람 가운데 몇 위인지도 함께 보여 줍니다. 동물은 5분마다 도는 전체 동기화가 서버에서 받아 `team.json` 에 저장한 순위로 정합니다. 서버가 아직 이 기능을 지원하지 않거나 마지막으로 받은 지 하루가 넘었다면 멤버 ID 만 표시합니다. 칩을 그릴 때는 로컬 파일만 읽습니다. IntelliJ 터미널은 글꼴에 동물 이모지가 없어 narrow 모드로 그리므로, 이때와 text 모드에서는 `member-1e500474 여우 12명 중 3위` 처럼 이모지 없이 이름만 보여 줍니다. 버전 칩 바로 앞에 놓이며, `--segments team` 으로 이 칩만 따로 볼 수 있습니다.
 
-목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값), `member_set_name`(`sprag team name` 을 실행할 때만), `member_standing`(statusline 칩에 쓸 본인의 사무실 동물과 순위만 받고 다른 사람의 수치는 받지 않음) 입니다. LiteLLM 게이트웨이를 설정했다면 하루 동기화마다 게이트웨이의 `GET /user/info` 와 `GET /global/spend/logs` 도 본인 키로 호출해 본인의 하루 게이트웨이 지출을 읽습니다. 그 밖의 것은 읽지 않으며 키는 저장하지 않습니다. `sprag team status --show-payload` 를 실행하면 보내는 행을 그대로 볼 수 있습니다.
+목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값), `member_set_name`(`sprag team name` 을 실행할 때만), `member_standing`(statusline 칩에 쓸 본인의 사무실 동물과 순위만 받고 다른 사람의 수치는 받지 않음) 입니다. LiteLLM 게이트웨이를 설정했다면 하루 동기화마다 게이트웨이의 `GET /user/info` 와 `GET /global/spend/logs` 도 본인 키로 호출해 본인의 하루 게이트웨이 지출을 읽습니다. 그 밖의 것은 읽지 않으며 키는 저장하지 않습니다. 비용을 계산하려고 `~/Library/Application Support/Claude-3p/local-agent-mode-sessions` 아래의 Claude 데스크톱 앱 Cowork 기록을 로컬에서 읽습니다. 밖으로 나가는 것은 하루 합계뿐이며 작업 이름과 프롬프트는 보내지 않습니다. `sprag team status --show-payload` 를 실행하면 보내는 행을 그대로 볼 수 있습니다.
 
 ## CLI에서 팀 만들기
 

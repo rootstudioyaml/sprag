@@ -341,13 +341,21 @@ export async function parseCodexTurns(filePath, { cutoffMs = -Infinity } = {}) {
  * the cache writes and `modelTotals` splits the totals by the model each
  * request ran on, so a session that switched models is priced per model.
  */
-export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } = {}) {
+export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity, keepRequests = false } = {}) {
   const session = {
     agent: 'codex', sessionId: null, filePath, projectDir: '', model: 'unknown',
     startTime: null, endTime: null, requestCount: 0, totals: emptyTotals(),
     maxContextPerRequest: 0, reasoningOutputTokens: 0, contextWindow: null,
     lastContextTokens: null, rateLimits: null, lastActivity: null, effort: null,
     cacheActivity: null, modelTotals: null, usageSource: 'token_count',
+  };
+  // Per-request rows let a caller apply long-context tiers, which depend on each request's own
+  // prompt size. Off by default: the Codex panel keeps parsed sessions in memory.
+  if (keepRequests) session.requests = [];
+  const addRequest = (ts, model, u) => {
+    if (!session.requests) return;
+    const cached = Math.min(u.input, u.cached);
+    session.requests.push({ ts, model, input: u.input, cached, cacheWrite: Math.min(Math.max(0, u.input - cached), u.cacheWrite), output: u.output });
   };
   const copied = forkedCopyFilter();
   let previous = null;
@@ -428,6 +436,7 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } =
     addUsage(session.totals, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output });
     const perModel = (session.modelTotals ??= {})[session.model] ??= emptyTotals();
     addUsage(perModel, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output });
+    addRequest(ts, session.model, { input: delta.input, cached: delta.cached, cacheWrite: delta.written, output: delta.output });
     // Reasoning is a subset of output, just as cached input is a subset of input.
     session.reasoningOutputTokens += Math.min(delta.output, delta.reasoning);
     session.requestCount++;
@@ -438,12 +447,14 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } =
     // The snapshot path may have run before the first record appeared; the
     // records are the whole truth for this file, so start over from them.
     Object.assign(session, { totals: emptyTotals(), modelTotals: null, reasoningOutputTokens: 0, requestCount: 0, startTime: null, endTime: null, usageSource: 'token_usage_record' });
+    if (session.requests) session.requests = [];
     for (const r of records) {
       if (!Number.isFinite(r.ts) || r.ts < cutoffMs) continue;
       if (!r.input && !r.output) continue;
       addUsage(session.totals, r);
       const perModel = (session.modelTotals ??= {})[r.model || 'unknown'] ??= emptyTotals();
       addUsage(perModel, r);
+      addRequest(r.ts, r.model || 'unknown', r);
       session.reasoningOutputTokens += Math.min(r.output, r.reasoning);
       session.requestCount++;
       session.startTime ??= new Date(r.ts);
@@ -453,17 +464,23 @@ export async function parseCodexSessionFile(filePath, { cutoffMs = -Infinity } =
   return session;
 }
 
-export async function discoverCodexSessionFiles({ home = codexUserDir(), days = 30, excludeSessionPath } = {}) {
+export async function discoverCodexSessionFiles({ home = codexUserDir(), days = 30, excludeSessionPath, compressed = false } = {}) {
   const cutoff = Date.now() - days * 86400000;
   const files = [];
   const excluded = excludeSessionPath ? resolve(excludeSessionPath) : null;
+  // Off by default: src/team-prompts.js reads rollouts by byte offset and the rescan gate in
+  // src/codex/route-scan.js sums file sizes, so both must keep seeing only plain files.
+  const wanted = (name) => name.endsWith('.jsonl') || (compressed && name.endsWith('.jsonl.zst'));
   async function walk(dir) {
     let entries;
     try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    const names = new Set(entries.map((entry) => entry.name));
     for (const entry of entries) {
       const path = join(dir, entry.name);
       if (entry.isDirectory()) await walk(path);
-      else if (entry.isFile() && entry.name.endsWith('.jsonl') && resolve(path) !== excluded) {
+      else if (entry.isFile() && wanted(entry.name) && resolve(path) !== excluded) {
+        // The live .jsonl wins over a compressed twin, or the session would count twice.
+        if (entry.name.endsWith('.zst') && names.has(entry.name.slice(0, -4))) continue;
         try {
           const s = await stat(path);
           if (s.mtimeMs >= cutoff) files.push({ path, mtime: s.mtimeMs, size: s.size });
@@ -482,7 +499,7 @@ export async function parseAllCodexSessions(options = {}) {
   const results = [];
   for (let i = 0; i < files.length; i += 10) {
     const batch = await Promise.all(files.slice(i, i + 10).map(async ({ path }) => {
-      try { return await parseCodexSessionFile(path, { cutoffMs }); } catch { return null; }
+      try { return await parseCodexSessionFile(path, { cutoffMs, keepRequests: options.keepRequests }); } catch { return null; }
     }));
     results.push(...batch.filter((s) => s?.requestCount && (!options.projectFilter || s.projectDir.includes(options.projectFilter))));
   }

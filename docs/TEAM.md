@@ -10,13 +10,13 @@ After you join, Sprag uploads one row per local calendar day:
 
 | Field | Meaning |
 |---|---|
-| Spend (USD) | priced from your local session logs |
+| Spend (USD) | priced from your local session logs, including Claude desktop Cowork sessions |
 | Savings (USD) | from the routing and doc2md ledgers |
 | Delegated runs | how many Claude and Codex runs were delegated that day |
 | Model-family share | the share of those runs that went to each model family |
 | Spend by model family (USD) | the day's spend split by model family (`opus`, `sonnet`, `haiku`, `fable`, ...), so the console can show which models each person spends on; sent from 3.84.0 |
-| Claude spend (USD) | Claude Code local spend, main sessions plus subagent runs; the same figure as Spend (USD); sent from 3.84.0 |
-| Codex spend (USD) | Codex local spend priced from the Codex rollout usage records, null when no price is known; sent from 3.84.0 |
+| Claude spend (USD) | Claude Code and Claude desktop Cowork local spend, main sessions plus subagent runs; the same figure as Spend (USD); sent from 3.84.0 |
+| Codex spend (USD) | Codex local spend priced from the Codex rollout usage records, including compressed rollouts (`.jsonl.zst`) and the gateway's long-context tier prices, null when no price is known; sent from 3.84.0 |
 | Gateway spend (USD) | the gateway's own daily spend for you when a LiteLLM gateway is configured, null when there is none or the call failed; sent from 3.84.0 |
 | Gateway user hash | the first 16 hex characters of a hash of the gateway URL and your gateway user id, so one person with two machines is counted once; not reversible without the id; sent from 3.84.0 |
 | Total spend (USD) | the gateway figure when known, otherwise Claude plus Codex; sent from 3.84.0 |
@@ -36,7 +36,7 @@ The daily aggregate upload runs at most once every 5 minutes after the last succ
 
 While this machine is joined, the statusline shows a `team` chip with your member id and your animal from the virtual office (Sprag Town), for example `member-1e500474 🦊 Fox #3 of 12`, with your overall rank among the ranked people of the organization. The animal comes from the standing the full sync fetches every 5 minutes and stores in `team.json`; if the server does not offer it yet, or the last fetch is more than a day old, only the member id is shown. Rendering the chip reads local files only. It sits just before the version chip, and `--segments team` shows it on its own. IntelliJ's terminal font has no animal emoji, so there (narrow mode) and in text mode the chip drops the emoji and keeps the name: `member-1e500474 Fox #3 of 12`.
 
-Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only), `member_set_sync` (the upload-switch status call, see "The upload switch") `member_set_info` (OS name and version; the `arch` argument is always empty), `member_set_name` (only when you run `sprag team name`) and `member_standing` (your own office animal and rank for the statusline chip; it returns nobody else's figures). When a LiteLLM gateway is configured, each daily sync also calls the gateway's `GET /user/info` and `GET /global/spend/logs` with your own key to read the gateway's daily spend for you; nothing else is read and the key is never stored. `sprag team status --show-payload` prints the exact rows. `sprag team create` also calls `team_create` with your sign-in session.
+Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only), `member_set_sync` (the upload-switch status call, see "The upload switch") `member_set_info` (OS name and version; the `arch` argument is always empty), `member_set_name` (only when you run `sprag team name`) and `member_standing` (your own office animal and rank for the statusline chip; it returns nobody else's figures). When a LiteLLM gateway is configured, each daily sync also calls the gateway's `GET /user/info` and `GET /global/spend/logs` with your own key to read the gateway's daily spend for you; nothing else is read and the key is never stored. Claude desktop Cowork transcripts under `~/Library/Application Support/Claude-3p/local-agent-mode-sessions` are read locally to price them; only the daily sums leave the machine, and task names and prompts are not sent. `sprag team status --show-payload` prints the exact rows. `sprag team create` also calls `team_create` with your sign-in session.
 
 ## Create a team from the CLI
 
