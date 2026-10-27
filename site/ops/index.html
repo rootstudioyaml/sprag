@@ -672,6 +672,10 @@
             </section>
           </div>
           <section class="card">
+            <h3 data-k="s.minver">Minimum Sprag version</h3>
+            <p class="msg" id="d-minver" style="margin-top:8px"></p>
+          </section>
+          <section class="card">
             <h3 data-k="d.opnote">Operator note</h3>
             <p class="msg" id="d-note" style="white-space:pre-wrap;margin-top:8px"></p>
           </section>
@@ -695,6 +699,9 @@
                 <input type="number" id="e-limit" min="1" max="10000" step="1" inputmode="numeric" /></label>
               <label class="f"><span data-k="c.status">Status</span>
                 <select id="e-status"><option value="active" data-k="st.active">Active</option><option value="suspended" data-k="st.suspended">Suspended</option></select></label>
+              <label class="f"><span data-k="s.minver">Minimum Sprag version</span>
+                <input type="text" id="e-minver" maxlength="20" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="3.84.0" pattern="[0-9]+\.[0-9]+\.[0-9]+" />
+                <span class="msg" data-k="s.minverhint">Optional. Machines below this version upgrade themselves in the background at session start. Leave empty for no minimum.</span></label>
               <label class="f"><span data-k="s.note">Note</span>
                 <textarea id="e-note" maxlength="2000"></textarea></label>
               <div class="row"><button class="btn pri" type="submit" data-k="s.save">Save</button><span class="ok" id="set-ok"></span></div>
@@ -1043,6 +1050,8 @@ Object.assign(I18N.ko, {"of.g.dragon": "용", "of.g.unicorn": "유니콘", "of.g
 Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg.90d":"90d","rg.this":"This month","rg.last":"Last month","rg.custom":"Custom","rg.from":"From","rg.to":"To","rg.bad":"Enter both dates","rg.order":"The start date must not be after the end date","rg.max":"The range can be 365 days at most"});
 Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
 Object.assign(I18N.en, {"of.d.models":"Spend by model","of.d.models.none":"No per-model figures yet. Machines send them from sprag 3.84.0 on.","tn.d.models":"Spend by model per user","tn.d.models.none":"No per-model figures yet. Machines send them from sprag 3.84.0 on."});
+Object.assign(I18N.en, {"s.minver":"Minimum Sprag version","s.minverhint":"Optional. Machines below this version upgrade themselves in the background at session start. Leave empty for no minimum.","s.minvernone":"No minimum","s.minverbad":"Enter the version as X.Y.Z, like 3.84.0, or leave it empty.","s.minvermissing":"The server does not support a minimum version yet. Apply the server migration for ops_org_set (p_min_version), then save again."});
+Object.assign(I18N.ko, {"s.minver":"최소 Sprag 버전","s.minverhint":"선택 사항입니다. 이 버전보다 낮은 컴퓨터는 세션을 시작할 때 백그라운드에서 스스로 업그레이드합니다. 비워 두면 최소 버전이 없습니다.","s.minvernone":"최소 버전 없음","s.minverbad":"버전을 3.84.0 같은 X.Y.Z 형식으로 입력하거나 비워 두세요.","s.minvermissing":"서버가 아직 최소 버전을 지원하지 않습니다. ops_org_set 의 서버 마이그레이션(p_min_version)을 적용한 뒤 다시 저장하세요."});
 Object.assign(I18N.ko, {"of.d.models":"모델별 지출","of.d.models.none":"아직 모델별 수치가 없습니다. sprag 3.84.0 이상을 쓰는 컴퓨터부터 보냅니다.","tn.d.models":"사용자별 모델 지출","tn.d.models.none":"아직 모델별 수치가 없습니다. sprag 3.84.0 이상을 쓰는 컴퓨터부터 보냅니다."});
 Object.assign(I18N.en, {"ux.rail.sp":"Total spend and seats in use","ux.rail.seats":"avg {n} seats in use","ux.g.nav":"Pages","ux.g.sections":"Sections","ux.g.orgs":"Organizations","ux.noorgs":"No organizations yet","ux.town.err":"The town view could not be drawn","ux.scene.err":"The office view could not be drawn","ux.nomachines":"No machines have joined yet","sr.empty":"No machines have joined yet","ux.fail":"Could not load this section","ux.sec.totals":"Overview numbers"});
 Object.assign(I18N.ko, {"ux.rail.sp":"전체 지출과 사용 중인 좌석","ux.rail.seats":"평균 사용 좌석 {n}개","ux.g.nav":"페이지","ux.g.sections":"구역","ux.g.orgs":"조직","ux.noorgs":"아직 등록된 조직이 없습니다","ux.town.err":"타운 화면을 그리지 못했습니다","ux.scene.err":"사무실 화면을 그리지 못했습니다","ux.nomachines":"아직 참여한 컴퓨터가 없습니다","sr.empty":"아직 참여한 컴퓨터가 없습니다","ux.fail":"이 영역을 불러오지 못했습니다","ux.sec.totals":"한눈에 보기 숫자"});
@@ -1231,7 +1240,7 @@ function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
 const demo = (function(){
   const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
   const orgs = [
-    {id:'d1', name:'Northwind Labs', plan:'enterprise', status:'active', seat_limit:50, seats_used:50, teams:4, members_total:57, owners:['ana@northwind.example'], spent_30d:4821.4, saved_30d:2210.15, last_seen:new Date(Date.now()-120000).toISOString(), created_at:ago(140), note:'Annual contract, renewal in March.'},
+    {id:'d1', name:'Northwind Labs', plan:'enterprise', status:'active', seat_limit:50, seats_used:50, teams:4, members_total:57, owners:['ana@northwind.example'], spent_30d:4821.4, saved_30d:2210.15, last_seen:new Date(Date.now()-120000).toISOString(), created_at:ago(140), note:'Annual contract, renewal in March.', min_version:'3.84.0'},
     {id:'d2', name:'Kestrel Robotics', plan:'pro', status:'active', seat_limit:12, seats_used:7, teams:1, members_total:9, owners:['jun@kestrel.example','mia@kestrel.example'], spent_30d:612.08, saved_30d:240.9, last_seen:ago(1), created_at:ago(61), note:''},
     {id:'d3', name:'서울 스튜디오', plan:'pro', status:'active', seat_limit:25, seats_used:12, teams:2, members_total:14, owners:['min@seoul.example'], spent_30d:1304.77, saved_30d:688.2, last_seen:ago(0.2), created_at:ago(33), note:''},
     {id:'d4', name:'Old Harbor Co', plan:'pro', status:'suspended', seat_limit:5, seats_used:3, teams:1, members_total:3, owners:['pat@oldharbor.example'], spent_30d:0, saved_30d:0, last_seen:ago(19), created_at:ago(210), note:'Suspended: invoice unpaid.'},
@@ -1344,6 +1353,7 @@ const demo = (function(){
       if(a.p_seat_limit != null) o.seat_limit = a.p_seat_limit;
       if(a.p_status != null) o.status = a.p_status;
       if(a.p_note != null) o.note = a.p_note;
+      if(a.p_min_version != null) o.min_version = a.p_min_version === '' ? null : a.p_min_version;
       return {...o};
     }
     if(name === 'ops_org_add_owner'){
@@ -1847,6 +1857,7 @@ function fillForm(){
   $('e-limit').value = sel.seat_limit || '';
   $('e-status').value = sel.status === 'suspended' ? 'suspended' : 'active';
   $('e-note').value = sel.note || '';
+  $('e-minver').value = sel.min_version || '';
 }
 /* daily spend and savings of the open organization, for the sparklines in its cards (team_member_usage per team) */
 const Det = (function(){
@@ -1899,6 +1910,7 @@ function renderDetail(){
     ? `<div class="arow"><span class="em">${esc(a.email)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span> <span class="badge warn">${esc(t('d.pending'))}</span></span><button type="button" class="btn sm danger" data-ri="${esc(a.email)}">${esc(t('d.cancel'))}</button></div>`
     : `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
   $('side-admins').querySelectorAll('[data-ri]').forEach(b => b.addEventListener('click', () => cancelOwnerInvite(b.dataset.ri)));
+  $('d-minver').textContent = sel.min_version ? 'v' + sel.min_version : t('s.minvernone');
   $('d-note').textContent = sel.note || t('s.none');
   if(curTab === 'prompts') Prompts.activate();
   SceneHost.sync();
@@ -1911,15 +1923,20 @@ $('form-set').addEventListener('submit', async ev => {
   const n = Number($('e-limit').value), status = $('e-status').value;
   if(!Number.isInteger(n) || n < 1 || n > 10000) return void ($('set-err').textContent = t('s.limitbad'));
   if(status === 'suspended' && sel.status !== 'suspended' && !confirm(t('s.suspendconfirm', {name: sel.name}, true))) return;
+  /* p_min_version goes along only when the value changed (null leaves it, '' clears it), so saving the other fields keeps working on a server without the migration */
+  const minv = $('e-minver').value.trim(), minChanged = minv !== (sel.min_version || '');
+  if(minv && !/^\d+\.\d+\.\d+$/.test(minv)) return void ($('set-err').textContent = t('s.minverbad'));
   const id = sel.id;
   try{
-    const row = await rpc('ops_org_set', { p_org_id: id, p_plan: $('e-plan').value, p_seat_limit: n, p_status: status, p_note: $('e-note').value });
+    const args = { p_org_id: id, p_plan: $('e-plan').value, p_seat_limit: n, p_status: status, p_note: $('e-note').value };
+    if(minChanged) args.p_min_version = minv;
+    const row = await rpc('ops_org_set', args);
     const i = orgs.findIndex(o => o.id === id);
     if(i >= 0 && row) orgs[i] = Object.assign({}, orgs[i], row);
     sel = orgs[i] || sel;
     $('set-ok').textContent = t('s.saved');
     renderOrgs(); renderDetail(); loadTotals(); loadTrends();
-  }catch(e){ $('set-err').textContent = errMsg(e); }
+  }catch(e){ $('set-err').textContent = minChanged && /p_min_version|PGRST202|Could not find the function/i.test(String((e && (e.message || e.code)) || e)) ? t('s.minvermissing') : errMsg(e); }
 });
 $('btn-neworg').addEventListener('click', () => {
   const f = $('form-org'); f.hidden = !f.hidden; $('btn-neworg').setAttribute('aria-expanded', String(!f.hidden));

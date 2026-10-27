@@ -133,6 +133,14 @@ A machine holds one seat per organization. When it joins again, with `sprag team
 
 Create a team inside an organization you administer from the CLI with `sprag team create --org <org-id>`; without `--org` the server refuses, because only Sprag opens organizations. The command prints the organization name and how many seats are used. `sprag team status` shows the organization name.
 
+## Organization minimum version
+
+The Sprag operator can set a minimum Sprag version for an organization in the ops console (sprag.io/ops/); owners and admins cannot. The machines pick it up with the team rules, about once an hour.
+
+A machine in that organization that runs an older version upgrades itself at the next session start, in the background and without asking. This is the one case where Sprag installs a package without a question; every other upgrade still waits for your consent. The model is only told that the upgrade started and that the new version applies from the next session. The install output goes to `org-upgrade.log` in the user data directory, and the next session reports whether it worked. `sprag team status` shows the minimum, the version this machine runs and the last result.
+
+If the upgrade fails, for example because the required version is not published yet or the global install location needs administrator rights, Sprag tries again after an hour at most, and the session start tells you to run `sprag upgrade` yourself. A copy that runs from a git checkout never upgrades itself.
+
 ## The upload switch
 
 `SPRAG_NO_TEAM_SYNC=1` (the old name `CTS_NO_TEAM_SYNC` is still read) stops every usage upload. A joined machine sends one status-only call, `member_set_sync`, with no usage data, the first time it sees the switch on, and one more when it is off again. After that it uploads immediately. That call is how the dashboard can tell a paused machine from a silent one. A paused machine keeps its seat until an owner or admin removes it.
@@ -193,6 +201,7 @@ Owners and admins of an Enterprise organization get a Prompts tab on sprag.io/te
 |---|---|
 | `<user data dir>/team.json` | Membership state and the member key (mode 0600) |
 | `<user data dir>/team-rules.json` | Organization and team rules pulled at the last sync |
+| `<user data dir>/org-upgrade.json`, `org-upgrade.log` | State and install output of the organization minimum-version upgrade |
 | `<user data dir>/prompts-offsets.json` | Where the prompt uploader stopped in each transcript; exists only while prompt capture is on |
 | `~/.claude/ratchet-team.md` | Approved organization and team rules for Claude Code, imported from `~/.claude/CLAUDE.md` |
 | `<CODEX_HOME>/ratchet-team.md` | The same rules for Codex |

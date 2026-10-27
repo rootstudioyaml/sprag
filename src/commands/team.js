@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { userLanguage } from '../config.js';
 import { pendingPrompts } from '../team-prompts.js';
 import { memberId } from '../member-id.js';
+import { orgMinVersion, readOrgUpgrade, orgUpgradeInFlight } from '../org-upgrade.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
   teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError, isOrgExpiredError,
@@ -54,6 +55,10 @@ const T = {
     lastSync: (t, n) => `Last sync: ${t} (${n} rows)`,
     neverSynced: 'Last sync: never',
     lastError: 'Last error',
+    orgMin: (min, cur) => `Organization minimum version: v${min} (this machine runs v${cur})`,
+    orgUpgradeRunning: (t) => `Organization upgrade to v${t} is running in the background (log: org-upgrade.log)`,
+    orgUpgradeOk: (t, when) => `Last organization upgrade: v${t} installed (${when})`,
+    orgUpgradeFailed: (t, when, e) => `Last organization upgrade: v${t} failed (${when}): ${e}. Run sprag upgrade yourself.`,
     on: 'on', off: 'off',
     lastPrompts: (t, n) => `Last prompt upload: ${t} (${n} prompts)`,
     noPrompts: 'Last prompt upload: never',
@@ -124,6 +129,10 @@ const T = {
     lastSync: (t, n) => `마지막 동기화: ${t} (${n}행)`,
     neverSynced: '마지막 동기화: 아직 없음',
     lastError: '마지막 오류',
+    orgMin: (min, cur) => `조직 최소 버전: v${min} (이 컴퓨터는 v${cur} 실행 중)`,
+    orgUpgradeRunning: (t) => `조직 정책에 따라 v${t} 로 백그라운드 업그레이드를 진행 중입니다 (로그: org-upgrade.log)`,
+    orgUpgradeOk: (t, when) => `마지막 조직 업그레이드: v${t} 설치 완료 (${when})`,
+    orgUpgradeFailed: (t, when, e) => `마지막 조직 업그레이드: v${t} 설치 실패 (${when}): ${e}. sprag upgrade 를 직접 실행하십시오.`,
     on: '켜짐', off: '꺼짐',
     lastPrompts: (t, n) => `마지막 프롬프트 업로드: ${t} (${n}건)`,
     noPrompts: '마지막 프롬프트 업로드: 아직 없음',
@@ -316,6 +325,17 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         if (MACHINE_NAME_RE.test(String(st.displayName || ''))) out(`  ${m.nameHint}`);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(isOrgExpiredError(st.lastError) ? m.orgExpired : `${m.lastError}: ${st.lastError}`);
+        if (orgMinVersion(st)) out(m.orgMin(orgMinVersion(st), version));
+        {
+          const up = readOrgUpgrade();
+          if (up.target) {
+            if (orgUpgradeInFlight(up)) out(m.orgUpgradeRunning(up.target));
+            else if (Number.isFinite(up.finishedAt)) {
+              const when = new Date(up.finishedAt).toLocaleString();
+              out(up.ok ? m.orgUpgradeOk(up.target, when) : m.orgUpgradeFailed(up.target, when, up.error || '-'));
+            }
+          }
+        }
         if (hasFlag('--show-payload')) {
           out(`device: ${JSON.stringify(st.deviceInfo || deviceInfo())}`);
           out(JSON.stringify(await aggregateDaily(), null, 2));
