@@ -18,16 +18,17 @@ const TOKEN = 'spt_' + 'a'.repeat(32);
 
 function isolate(t) {
   const root = mkdtempSync(join(tmpdir(), 'sprag-team-'));
-  const saved = { home: process.env.HOME, codex: process.env.CODEX_HOME, xdg: process.env.XDG_CONFIG_HOME, off: process.env.SPRAG_NO_TEAM_SYNC, tok: process.env.SPRAG_TEAM_TOKEN, base: process.env.ANTHROPIC_BASE_URL };
+  const saved = { home: process.env.HOME, appdata: process.env.APPDATA, codex: process.env.CODEX_HOME, xdg: process.env.XDG_CONFIG_HOME, off: process.env.SPRAG_NO_TEAM_SYNC, tok: process.env.SPRAG_TEAM_TOKEN, base: process.env.ANTHROPIC_BASE_URL };
   process.env.XDG_CONFIG_HOME = root;
   process.env.HOME = root; // the prompt uploader looks for transcripts under HOME, never the real one
+  process.env.APPDATA = root; // Cowork transcripts are looked for under %APPDATA% on Windows
   process.env.CODEX_HOME = join(root, '.codex');
   delete process.env.SPRAG_NO_TEAM_SYNC;
   delete process.env.SPRAG_TEAM_TOKEN;
   // A gateway base in the developer's shell would price sessions from a table this sandbox lacks.
   delete process.env.ANTHROPIC_BASE_URL;
   t.after(() => {
-    for (const [k, v] of [['HOME', saved.home], ['CODEX_HOME', saved.codex], ['XDG_CONFIG_HOME', saved.xdg], ['SPRAG_NO_TEAM_SYNC', saved.off], ['SPRAG_TEAM_TOKEN', saved.tok], ['ANTHROPIC_BASE_URL', saved.base]]) {
+    for (const [k, v] of [['HOME', saved.home], ['APPDATA', saved.appdata], ['CODEX_HOME', saved.codex], ['XDG_CONFIG_HOME', saved.xdg], ['SPRAG_NO_TEAM_SYNC', saved.off], ['SPRAG_TEAM_TOKEN', saved.tok], ['ANTHROPIC_BASE_URL', saved.base]]) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

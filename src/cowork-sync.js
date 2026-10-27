@@ -28,6 +28,7 @@ import { join, resolve, sep, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { userDataDir, claudeUserDir } from './paths.js';
+import { coworkSessionRoots } from './cowork-sessions.js';
 import { loadConfig, saveConfig, userLanguage } from './config.js';
 import { writeStateFile } from './state-file.js';
 import { readSettings, writeSettings } from './installer.js';
@@ -83,16 +84,7 @@ export function saveCoworkState(state) {
 
 // ---------- discovery ----------
 
-export function coworkSessionRoots() {
-  const bases = [];
-  if (process.platform === 'darwin') {
-    const support = join(homedir(), 'Library', 'Application Support');
-    bases.push(join(support, 'Claude'), join(support, 'Claude-3p'));
-  } else if (process.platform === 'win32' && process.env.APPDATA) {
-    bases.push(join(process.env.APPDATA, 'Claude'), join(process.env.APPDATA, 'Claude-3p'));
-  }
-  return bases.map((b) => join(b, 'local-agent-mode-sessions')).filter((p) => existsSync(p));
-}
+export { coworkSessionRoots };
 
 function subdirs(dir) {
   try {

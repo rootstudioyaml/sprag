@@ -95,12 +95,15 @@ function deserialize(stored, filePath, projectDir) {
  * Load the cache into a plain object. Any problem (missing file, bad JSON,
  * version bump) yields an empty cache — the caller just re-parses.
  *
+ * `path` defaults to the main cache; Cowork passes its own file so thousands of
+ * its transcripts never bloat the one the statusline loads every few seconds.
+ *
  * @returns {{ entries: Record<string, {mtimeMs:number,size:number,s:object}> }}
  */
-export function loadCache() {
+export function loadCache(path = CACHE_PATH) {
   try {
-    if (!existsSync(CACHE_PATH)) return { entries: {} };
-    const data = JSON.parse(readFileSync(CACHE_PATH, 'utf8'));
+    if (!existsSync(path)) return { entries: {} };
+    const data = JSON.parse(readFileSync(path, 'utf8'));
     if (!data || data.version !== CACHE_VERSION || !data.entries || typeof data.entries !== 'object') {
       return { entries: {} };
     }
@@ -177,16 +180,16 @@ export function putCachedSince(cache, file, sinceMs, session) {
  * on Windows for same-volume replaces, so a reader never sees a partial file.
  * Best-effort: a write failure just means the next run re-parses.
  */
-export function saveCache(cache) {
+export function saveCache(cache, path = CACHE_PATH) {
   try {
     const dir = userDataDir();
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     const cutoff = Date.now() - PRUNE_AFTER_MS;
     const entries = {};
-    for (const [path, e] of Object.entries(cache.entries)) {
-      if (e && typeof e.mtimeMs === 'number' && e.mtimeMs >= cutoff) entries[path] = e;
+    for (const [transcript, e] of Object.entries(cache.entries)) {
+      if (e && typeof e.mtimeMs === 'number' && e.mtimeMs >= cutoff) entries[transcript] = e;
     }
-    writeViaTmp(`${CACHE_PATH}.${process.pid}.tmp`, CACHE_PATH, JSON.stringify({ version: CACHE_VERSION, entries }) + '\n');
+    writeViaTmp(`${path}.${process.pid}.tmp`, path, JSON.stringify({ version: CACHE_VERSION, entries }) + '\n');
   } catch (e) {
     debug('session-cache:save', e); // best-effort — never block a report
   }

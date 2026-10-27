@@ -9,8 +9,37 @@ export function deploymentPrice(row) {
   if (mode && !['chat', 'responses', 'completion'].includes(mode)) return null;
   const input = rate(info.input_cost_per_token), output = rate(info.output_cost_per_token);
   if (input === null || output === null) return null;
-  return { input, output, cacheRead: rate(info.cache_read_input_token_cost), cacheWrite: rate(info.cache_creation_input_token_cost),
+  const price = { input, output, cacheRead: rate(info.cache_read_input_token_cost), cacheWrite: rate(info.cache_creation_input_token_cost),
     cacheWrite1h: rate(info.cache_creation_input_token_cost_above_1hr) };
+  // `_above_<N>k_tokens` keys reprice a whole request whose prompt exceeds N thousand tokens.
+  // The plain `cache_creation_input_token_cost_above_1hr` has no `k_tokens` suffix: it is the 1h write rate, not a tier.
+  const tiers = new Map();
+  for (const [key, value] of Object.entries(info)) {
+    const m = TIER_KEY.exec(key);
+    // /model/info lists every tier key with null for the models that have no tier.
+    if (!m || rate(value) === null) continue;
+    const threshold = Number(m[2]) * 1000;
+    const tier = tiers.get(threshold) || { threshold, input: null, output: null, cacheRead: null, cacheWrite: null, cacheWrite1h: null };
+    tier[TIER_FIELD[m[1]]] = rate(value);
+    tiers.set(threshold, tier);
+  }
+  // Only when present, so untiered models keep the exact old shape (prices are compared via JSON.stringify).
+  if (tiers.size) price.tiers = [...tiers.values()].sort((a, b) => a.threshold - b.threshold);
+  return price;
+}
+
+const TIER_KEY = /^(input_cost_per_token|output_cost_per_token|cache_read_input_token_cost|cache_creation_input_token_cost|cache_creation_input_token_cost_above_1hr)_above_(\d+)k_tokens$/;
+const TIER_FIELD = { input_cost_per_token: 'input', output_cost_per_token: 'output', cache_read_input_token_cost: 'cacheRead',
+  cache_creation_input_token_cost: 'cacheWrite', cache_creation_input_token_cost_above_1hr: 'cacheWrite1h' };
+
+/** `price` with the highest tier whose threshold the prompt exceeds (strictly, as LiteLLM does) laid over it. */
+export function priceForPrompt(price, promptTokens) {
+  if (!price?.tiers) return price;
+  const tier = price.tiers.filter((t) => t.threshold < promptTokens).pop();
+  if (!tier) return price;
+  const merged = { ...price };
+  for (const field of Object.values(TIER_FIELD)) if (tier[field] != null) merged[field] = tier[field];
+  return merged;
 }
 
 /** Per-token prices by alias. Load-balanced deployments must agree, like cache policy. */
@@ -22,7 +51,20 @@ export function gatewayPrices(payload) {
     groups.set(row.model_name, [...(groups.get(row.model_name) || []), deploymentPrice(row)]);
   }
   return Object.fromEntries([...groups].map(([name, prices]) => [name,
-    prices[0] && prices.every((p) => JSON.stringify(p) === JSON.stringify(prices[0])) ? prices[0] : null]));
+    prices.reduce((merged, price) => mergePrices(merged, price))]));
+}
+
+/**
+ * The price two deployments of one key agree on. Differing base rates, or a deployment without a
+ * price, leave the key unpriced (null). Equal base rates with different tiers fall back to the
+ * base rates alone: the tier-less price the key had before tiers existed, never a guessed tier.
+ */
+export function mergePrices(a, b) {
+  if (!a || !b) return null;
+  const { tiers: tiersA, ...baseA } = a;
+  const { tiers: tiersB, ...baseB } = b;
+  if (JSON.stringify(baseA) !== JSON.stringify(baseB)) return null;
+  return JSON.stringify(tiersA) === JSON.stringify(tiersB) ? a : baseA;
 }
 
 /**
@@ -35,5 +77,15 @@ export function codexRunCost({ input = 0, cached = 0, cacheWrite = 0, output = 0
   // cache_write_input_tokens is billed at the creation rate when one is published, else as input.
   const uncached = Math.max(0, input - cached - cacheWrite);
   return uncached * price.input + cached * (price.cacheRead ?? 0) + cacheWrite * (price.cacheWrite ?? price.input) + output * price.output;
+}
+
+/**
+ * USD for ONE request. The tier depends on this request's own prompt size: `usage.prompt` when
+ * the caller has it, else `usage.input`. The amounts always come from input/cached/cacheWrite/output,
+ * and `prompt` can be smaller than `input` when a row merges several responses. Totals summed over
+ * many requests must keep using codexRunCost at base rates.
+ */
+export function codexRequestCost(usage, price) {
+  return codexRunCost(usage, priceForPrompt(price, usage.prompt ?? usage.input));
 }
 
