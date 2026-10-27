@@ -14,6 +14,7 @@ After you join, Sprag uploads one row per local calendar day:
 | Savings (USD) | from the routing and doc2md ledgers |
 | Delegated runs | how many runs were delegated that day |
 | Model-family share | the share of those runs that went to each model family |
+| Spend by model family (USD) | the day's spend split by model family (`opus`, `sonnet`, `haiku`, `fable`, ...), so the console can show which models each person spends on; sent from 3.84.0 |
 | Sprag version | the installed version |
 | Agent | `claude` or `codex` |
 | Display name | the name you chose at join; the default is a random member ID such as `member-3f9a2c71`, created once per machine |

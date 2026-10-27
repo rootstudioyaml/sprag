@@ -17,6 +17,14 @@ const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +e
 const CAST_URL = new URL('./cast/', import.meta.url).href, CAST_DRACO = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/';
 export const W_FULL = [0.5, 0.3, 0.2], W_NOPR = [0.625, 0.375, 0];   /* spend, delegation, prompts rank weights (second set: prompt collection off) */
 const MAXP = 60, FAMC = { haiku: '#7fe0b8', sonnet: '#8ec5fb', opus: '#f9a8d4' };
+/* spend per model: fixed colours for the known families, grey for any other raw name; known ones first in this order, the rest by value */
+export const MODELC = { fable: '#fcd34d', mythos: '#c4b5fd', opus: '#f9a8d4', sonnet: '#8ec5fb', haiku: '#7fe0b8' };
+export function modelParts(models){
+  if(!models || typeof models !== 'object') return [];
+  const ord = Object.keys(MODELC), ents = Object.entries(models).map(([k, v]) => [k, Number(v)]).filter(([, v]) => Number.isFinite(v) && v > 0);
+  const known = ord.map(k => ents.find(e => e[0] === k)).filter(Boolean), rest = ents.filter(e => !ord.includes(e[0])).sort((a, b) => b[1] - a[1]);
+  return known.concat(rest).map(([k, v]) => ({ k, v, color: MODELC[k] || '#cbd5e1' }));
+}
 const TV = { power: { body: '#a78bfa', scr: '#d8ccff', bri: 1, sp: 15 }, active: { body: '#7cc4f2', scr: '#a8dcff', bri: 1, sp: 9 },
   normal: { body: '#d9cdb8', scr: '#8ea2b8', bri: 0.8, sp: 4.5 }, low: { body: '#f3b9a0', scr: '#4a4658', bri: 1, sp: 0 }, nodata: { body: '#ffffff', scr: '#6b6877', bri: 1, sp: 0 } };
 
@@ -742,6 +750,10 @@ export function mountOfficeScene(container, data, opts = {}){
     const sec = (title, html) => html ? `<div class="sec"><h4>${esc(title)}</h4>${html}</div>` : '';
     const famHtml = tot ? kit.stack(['haiku', 'sonnet', 'opus'].map(f => ({ v: fam[f], color: FAMC[f], tip: `${f} · ${fam[f]} · ${Math.round(fam[f] / tot * 100)}%` })))
       + `<div class="famt">${['haiku', 'sonnet', 'opus'].filter(f => fam[f]).map(f => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${FAMC[f]}"></i>${f} ${fam[f]}</span>`).join('')}</div>` : '';
+    const mp = modelParts(dt.models), mtot = mp.reduce((a, q) => a + q.v, 0), mpc = q => Math.round(q.v / mtot * 100);
+    const modelsHtml = mp.length ? kit.stack(mp.map(q => ({ v: q.v, color: q.color, tip: `${q.k} · ${fm(q.v)} · ${mpc(q)}%` })))
+      + `<div class="famt">${mp.map(q => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${q.color}"></i>${esc(q.k)} ${esc(fm(q.v))} (${mpc(q)}%)</span>`).join('')}</div>`
+      : dt.modelsMissing ? `<div class="famt">${esc(ui.modelsNone)}</div>` : '';
     const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '';
     const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }], undefined, undefined, { total: ui.total }) : '';
     chrome.setHtml(`<div class="hd">${iconSvg(sel.gk)}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div><div class="bkbar"><button type="button" class="bk" data-a="close">← ${esc(ui.back || ui.close)}</button></div>`
@@ -749,7 +761,7 @@ export function mountOfficeScene(container, data, opts = {}){
       + ((dt.next || []).length ? `<div class="nx">${dt.next.map((l, i) => `<div${i ? '' : ' class="h"'}>${esc(l)}</div>`).join('')}</div>` : '')
       + (dt.groups && dt.groups.length ? `<div class="sec">${dt.groups.map(g => `<div class="grp"><h4>${esc(g.title)}</h4>${kvGrid(g.rows)}</div>`).join('')}</div>`
         : dt.grid && dt.grid.length ? `<div class="sec">${kvGrid(dt.grid)}</div>` : '')
-      + sec(ui.runs, famHtml) + sec(ui.cmp, kit.cmp(dt.cmp || [])) + sec(ui.daily, daily) + sec(ui.pdaily, pdaily)
+      + sec(ui.models, modelsHtml) + sec(ui.runs, famHtml) + sec(ui.cmp, kit.cmp(dt.cmp || [])) + sec(ui.daily, daily) + sec(ui.pdaily, pdaily)
       + sec(ui.machines, (dt.machines || []).map(m => `<div class="mrow"><b>${esc(m.name)}</b><span class="sig" style="background:${m.color}">${esc(m.sig)}</span><small>${esc(m.os)}${m.ver ? ' · ' + esc(m.ver) : ''} · ${esc(m.sw)}</small><small>${esc(ui.up)} ${esc(m.up)} · ${esc(ui.seen)} ${esc(m.seen)}</small></div>`).join(''))
       + sec(ui.events, (dt.events || []).map(e => `<div class="evr"><span>${esc(e.text)}</span><span>${esc(e.when)}</span></div>`).join('')) + `</div>`
       + `<div class="ft"><button type="button" class="of-dbtn pri" data-a="seats">${esc(ui.seats)}</button>${dt.canPrompts ? `<button type="button" class="of-dbtn" data-a="prompts">${esc(ui.prompts)}</button>` : ''}</div>`);
@@ -1510,18 +1522,19 @@ export function officeSceneData(o){
   const all = [...groups.entries()].map(([key, rs]) => {
     rs.sort((a, b) => (a.member_id === key ? -1 : 0) - (b.member_id === key ? -1 : 0));
     const host = rs[0], mix = { haiku: 0, sonnet: 0, opus: 0 };
-    let spent = 0, saved = 0, runs = 0, fam = false, today = 0, errors = 0, savedToday = 0, delToday = null; const days = {};
+    let spent = 0, saved = 0, runs = 0, fam = false, models = null, today = 0, errors = 0, savedToday = 0, delToday = null; const days = {};
     rs.forEach(r => {
       ((usage[r.member_id] || {}).series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.spent) || 0; d[1] += Number(q.saved) || 0; });
       { const u1 = usage[r.member_id] || {}; savedToday += Number(u1.saved_today) || 0; if(u1.delegated_today != null) delToday = (delToday || 0) + (Number(u1.delegated_today) || 0); }
       today += Number((usage[r.member_id] || {}).spent_today) || 0; errors += Number((usage[r.member_id] || {}).errors) || 0;
       const u = usage[r.member_id] || {}; spent += Number(u.spent) || 0; saved += Number(u.saved) || 0; runs += Number(u.delegated) || 0;
+      if(u.models && typeof u.models === 'object') Object.entries(u.models).forEach(([k, v]) => { const n = Number(v); if(Number.isFinite(n) && n > 0){ models = models || {}; models[k] = (models[k] || 0) + n; } });
       const f = u.families; if(f) Object.keys(mix).forEach(k => { const n = Number(f[k]) || 0; if(n){ mix[k] += n; orgMix[k] += n; fam = true; } });
     });
     let prompts = 0, promptId = null, chars = 0, lastPrompt = null; const pdays = {};
     if(pr) rs.forEach(r => { const p = pr.find(x => x.member_id === r.member_id) || pr.find(x => x.display_name && x.display_name === r.display_name); if(p){ prompts += Number(p.prompts) || 0; chars += Number(p.chars) || 0; promptId = promptId || p.member_id;
       if(p.last_prompt_at && (!lastPrompt || p.last_prompt_at > lastPrompt)) lastPrompt = p.last_prompt_at; (p.by_day || []).forEach(q => { pdays[q.day] = (pdays[q.day] || 0) + (Number(q.prompts) || 0); }); } });
-    return { id: key, host, rs, spent, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt, mix: fam ? mix : null, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spent + saved > 0 ? saved / (spent + saved) : 0 };
+    return { id: key, host, rs, spent, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt, mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spent + saved > 0 ? saved / (spent + saved) : 0 };
   });
   all.sort((a, b) => b.spent - a.spent);
   const shown = all.slice(0, MAXP), more = all.length - shown.length;
@@ -1597,7 +1610,7 @@ export function officeSceneData(o){
         const cmp = hasData ? [{ label: t('of.spent'), items: mk3(p.spent, tm.spent, orgM.spent, money) }, { label: t('of.deleg'), items: mk3(p.dlg, tm.dlg, orgM.dlg, pc) }].concat(pr ? [{ label: t('of.prompts'), items: mk3(p.prompts, tm.prompts, orgM.prompts, v => String(Math.round(v))) }] : []) : [];
         const evs = (o.events || []).filter(e => ids2.has(e.member_id)).sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 8).map(e => ({ text: t('of.ev.' + e.event) === 'of.ev.' + e.event ? String(e.event) : t('of.ev.' + e.event), when: o.rel(e.at) }));
         return { next: hasData ? standing(p) : [], why: hasData ? t('of.d.why', { a: Math.max(1, Math.round((1 - rank(sp, p.spent)) * 100)), b: pc(p.dlg), c: pc(orgM.dlg) }, true) : closed ? t('of.tag.closed') : t('of.why') + ': ' + why,
-          grid, groups, cmp, fam: p.mix, fmt: money, days: hasData ? dd : [], spent: dd.map(d => p.days[d][0]), saved: dd.map(d => p.days[d][1]),
+          grid, groups, cmp, fam: p.mix, models: p.models, modelsMissing: p.spent > 0 && !p.models, fmt: money, days: hasData ? dd : [], spent: dd.map(d => p.days[d][0]), saved: dd.map(d => p.days[d][1]),
           pdays: hasData && pr ? pd : [], pvals: pd.map(d => p.pdays[d]),
           machines: p.rs.map(r => ({ name: r.display_name || r.member_id, os: o.os(r), ver: r.sprag_version ? 'v' + r.sprag_version : '', color: SIG[r.signal] || '#8a8794', sig: t('sr.s.' + r.signal), sw: t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')), up: r.last_upload_at ? o.rel(r.last_upload_at) : t('never'), seen: r.last_seen ? o.rel(r.last_seen) : t('never') })),
           events: evs, canPrompts: !!(pr && p.promptId) };
@@ -1623,7 +1636,7 @@ export function officeSceneData(o){
     rows: bands.map(b => ({ k: b.k, tier: b.tier, no: t('of.g.no', { n: String(b.no).padStart(2, '0') }, true), name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.rk, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
       .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
     note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true) };
-  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', back: 'of.back', runs: 'of.runs', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
+  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', back: 'of.back', runs: 'of.runs', models: 'of.d.models', modelsNone: 'of.d.models.none', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.spent', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.spent') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
     activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,

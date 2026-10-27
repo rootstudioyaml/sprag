@@ -15,6 +15,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
+.mmix{display:inline-flex;width:84px;height:8px;border-radius:4px;overflow:hidden;vertical-align:middle;background:rgba(128,128,128,.15)}
+.mmix i{display:block;height:100%}
+.mmix-t{margin-left:6px;font-size:12px;color:var(--dim,#8a8794);white-space:nowrap}
   /* Sprag admin shell. Dense dark UI: hairline borders, Geist + Geist Mono, one accent (#5e6ad2). */
   :root{
     --bg:#0a0a0c; --surface:#0f0f12; --surface2:#141418; --hover:rgba(255,255,255,.035);
@@ -667,7 +670,7 @@
         <div class="snip"><h3 data-k="en.3">Claude Code managed settings (whole organization)</h3>
           <div class="tok"><code id="sn-json"></code><button type="button" data-copy-el="sn-json" data-k="copy">Copy</button></div></div>
         <p class="note" data-k="en.where">On macOS, managed settings live at <code>/Library/Application Support/ClaudeCode/managed-settings.json</code>.</p>
-        <p class="sent" data-k="data.sent">Members send one row per day: spend, savings, delegation count, model-family share, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.</p>
+        <p class="sent" data-k="data.sent">Members send one row per day: spend, savings, delegation count, model-family share, spend per model family, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.</p>
       </section>
 
       <section class="card sub-pane" data-pane="policy" aria-labelledby="pol-h">
@@ -835,7 +838,7 @@ const I18N = {
     'inv.confirm':'Rotate the invite token? Old tokens stop working right away, so anything that uses one (join commands, shell profiles, managed settings) needs the new token.',
     'en.h':'Enroll members','en.1':'One person on one machine','en.2':'Shell profile','en.3':'Claude Code managed settings (whole organization)',
     'en.where':'On macOS, managed settings live at <code>/Library/Application Support/ClaudeCode/managed-settings.json</code>.',
-    'data.sent':'Members send one row per day: spend, savings, delegation count, model-family share, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.',
+    'data.sent':'Members send one row per day: spend, savings, delegation count, model-family share, spend per model family, sprag version. No prompts, transcripts, paths or project names unless prompt capture is on.',
     'pol.h':'Policy','pol.cap':'Prompt capture','pol.desc':'Off by default. Needs the Enterprise plan.',
     'pol.confirm':"Members' CLIs will start uploading their Claude Code / Codex prompts (user turns only) in compressed daily batches. Each member sees this policy in `sprag team status`.",
     'mem.h':'Members','mem.thr':"Highlight when today's spend is above $",
@@ -943,7 +946,7 @@ const I18N = {
     'inv.confirm':'초대 토큰을 교체할까요? 이전 토큰은 바로 쓸 수 없게 되므로, 이전 토큰을 쓰던 join 명령, 셸 프로필, 관리 설정은 새 토큰으로 바꿔야 합니다.',
     'en.h':'멤버 등록','en.1':'한 사람, 한 컴퓨터','en.2':'셸 프로필','en.3':'Claude Code 관리 설정 (조직 전체)',
     'en.where':'macOS에서 관리 설정 파일은 <code>/Library/Application Support/ClaudeCode/managed-settings.json</code>에 둡니다.',
-    'data.sent':'멤버는 하루에 한 줄씩 보냅니다. 지출, 절감액, 위임 횟수, 모델 계열 비중, sprag 버전입니다. 프롬프트 수집을 켜지 않는 한 프롬프트, 대화 기록, 경로, 프로젝트 이름은 보내지 않습니다.',
+    'data.sent':'멤버는 하루에 한 줄씩 보냅니다. 지출, 절감액, 위임 횟수, 모델 계열 비중, 모델 계열별 지출, sprag 버전입니다. 프롬프트 수집을 켜지 않는 한 프롬프트, 대화 기록, 경로, 프로젝트 이름은 보내지 않습니다.',
     'pol.h':'정책','pol.cap':'프롬프트 수집','pol.desc':'기본값은 꺼짐입니다. 엔터프라이즈 요금제가 필요합니다.',
     'pol.confirm':'멤버의 CLI가 Claude Code / Codex 프롬프트(사용자 입력만)를 하루 단위로 압축해 올리기 시작합니다. 각 멤버는 `sprag team status`에서 이 정책을 볼 수 있습니다.',
     'mem.h':'멤버','mem.thr':'오늘 지출이 이 금액을 넘으면 강조 $',
@@ -982,6 +985,8 @@ Object.assign(I18N.en, {"of.g.dragon": "Dragon", "of.g.unicorn": "Unicorn", "of.
 Object.assign(I18N.ko, {"of.g.dragon": "용", "of.g.unicorn": "유니콘", "of.g.lion": "사자", "of.g.tiger": "호랑이", "of.g.eagle": "독수리", "of.g.wolf": "늑대", "of.g.cheetah": "치타", "of.g.fox": "여우", "of.g.owl": "부엉이", "of.g.husky": "허스키", "of.g.panda": "판다", "of.g.koala": "코알라", "of.g.penguin": "펭귄", "of.g.raccoon": "너구리", "of.g.cat": "고양이", "of.g.dog": "강아지", "of.g.bear": "곰", "of.g.monkey": "원숭이", "of.g.deer": "사슴", "of.g.elephant": "코끼리", "of.g.pig": "돼지", "of.g.sheep": "양", "of.g.rabbit": "토끼", "of.g.duck": "오리", "of.g.hedgehog": "고슴도치", "of.g.squirrel": "다람쥐", "of.g.hamster": "햄스터", "of.g.frog": "개구리", "of.g.mouse": "생쥐", "of.g.chick": "병아리", "of.g.ghost": "유령", "of.g.no": "No.{n}", "of.gr.top.d": "종합 점수 상위 {b}% · 위임 비율이 회사 중앙값 이상", "of.gr.band.d": "종합 점수 상위 {a}~{b}% · 위임 비율이 회사 중앙값 이상", "of.gr.fall": "종합 점수 상위 {a}~{b}%, 또는 상위 {d}% 안이지만 위임 비율이 회사 중앙값 미만", "of.gr.band": "종합 점수 상위 {a}~{b}%", "of.gr.last": "종합 점수 하위 {c}%, 또는 기간 지출 없음", "of.gr.ghost": "업로드된 데이터 없음", "of.book.found": "{n}종 중 {f}종 발견", "of.book.tier": "{t} · {n}종", "of.book.top": "이번 기간 순위", "of.book.rank": "{r}위", "of.lg.crown": "왕관 = 이번 기간 1위", "of.d.rankk": "순위", "of.d.rank": "회사 {n}명 중 종합 {r}위", "of.d.crown": "이번 기간 회사 1위입니다", "of.d.top": "도감에서 가장 높은 종입니다", "of.d.next": "{x}명을 더 앞지르면 {s} 단계로 올라갑니다", "of.d.next.d": "위임 비율을 회사 중앙값({c}) 이상으로 올리면 {s} 단계로 올라갑니다", "of.d.next.xd": "{x}명을 더 앞지르고 위임 비율이 회사 중앙값({c}) 이상이면 {s} 단계로 올라갑니다", "of.d.next.idle": "이 기간에 지출이 생기면 순위에 오릅니다", "of.book": "동물 도감", "of.book.n": "{n}명", "of.book.note": "종합 점수는 기간 지출 순위 {s}%, 위임 비율 순위 {d}%, 프롬프트 수 순위 {p}%를 더해 매깁니다. 프롬프트 수집이 꺼진 조직은 지출 {s2}%, 위임 {d2}%로 계산합니다. 종은 이 점수의 순위로 나누고, 위임 비율은 회사 중앙값과 견줍니다.", "of.lg.guide": "도감에서 {n}종 모두 보기", "of.d.period": "선택 기간 · {x}", "of.d.today.h": "오늘", "of.d.today.s": "오늘 절감", "of.d.today.r": "오늘 위임 실행", "of.server": "Sprag 서버", "of.spent": "지출", "of.saved": "절감", "of.team": "팀", "of.prompts": "프롬프트", "of.deleg": "위임 비율", "of.why": "데이터가 없는 이유", "of.why.paused": "{x}부터 업로드 꺼짐", "of.why.last": "마지막 업로드 {x}", "of.tier.power": "AI 파워 유저", "of.tier.active": "활발", "of.tier.normal": "보통", "of.tier.low": "활용 장려 필요", "of.tier.nodata": "데이터 없음", "of.tag.off": "⏸ 업로드 꺼짐", "of.tag.late": "⏸ 지연", "of.tag.closed": "정지됨", "of.hud": "사용 중 {n}명 · 파워 유저 {p} · 장려 필요 {l} · 업로드 꺼짐 {o} · 좌석 {u} / {limit}", "of.hud.closed": "좌석 {u} / {limit} · 모든 조명 꺼짐", "of.free": "빈 좌석 {n}개", "of.more": "+{n}명 더", "of.b.deleg": "{m}에 위임 {n}회", "of.b.deleg0": "위임 {n}회", "of.b.prompts": "프롬프트 {n}회", "of.lg.bot": "{m} 조수", "of.lg.any": "AI 조수 (위임 실행)", "of.lg.screen": "밝은 모니터 = 활발히 사용", "of.lg.power": "사자 · AI 파워 유저", "of.lg.active": "여우 · 활발", "of.lg.normal": "곰 · 보통", "of.lg.low": "병아리 · 활용 장려 필요", "of.lg.ghost": "유령 = 업로드된 데이터 없음", "of.aria": "가상 사무실: 팀 {teams}개, {n}명, 좌석 {used}/{limit} 사용", "of.demo.0": "haiku에 테스트 위임", "of.demo.1": "\"이 PR 리뷰해줘\"", "of.demo.2": "opus가 리팩터링 중", "of.town": "Sprag 타운", "of.fs": "전체 화면", "of.fs.exit": "전체 화면 종료", "of.close": "닫기", "of.back": "사무실 전체 보기", "of.d.os": "컴퓨터", "of.runs": "위임 실행", "of.d.daily": "일별 지출", "of.d.last": "마지막 업로드", "of.d.seats": "좌석 상세 보기", "of.d.prompts": "프롬프트 보기", "of.hint": "드래그로 이동, 화살표 버튼이나 오른쪽 드래그로 회전, 클릭 후 스크롤로 확대", "of.reset": "보기 초기화", "of.d.total": "합계", "of.turnL": "왼쪽으로 돌리기", "of.turnR": "오른쪽으로 돌리기", "of.zoomIn": "확대", "of.zoomOut": "축소", "of.d.pdaily": "일별 프롬프트", "of.d.cmp": "팀과 회사 비교", "of.d.machines": "컴퓨터", "of.d.up": "업로드", "of.d.seen": "마지막 접속", "of.d.events": "최근 활동", "of.d.none": "데이터 없음", "of.d.today": "오늘 지출", "of.d.errors": "위임 오류", "of.d.days": "활동 일수", "of.d.avg": "평균 프롬프트 길이", "of.d.lastp": "마지막 프롬프트", "of.d.me": "이 사람", "of.d.team": "팀 중앙값", "of.d.org": "회사 중앙값", "of.d.why": "지출 상위 {a}% · 위임 비율 {b} (회사 중앙값 {c})", "of.ev.joined": "참여", "of.ev.paused": "업로드 중지", "of.ev.resumed": "업로드 재개", "of.ev.left": "나감", "of.ev.removed": "제거됨", "of.ev.restored": "복원됨", "of.lg.strip": "동물 도감 {f}/{n}종 · 눌러서 전체 보기", "of.lg.bots": "책상 주위를 도는 로봇 = AI에게 맡긴 작업"});
 Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg.90d":"90d","rg.this":"This month","rg.last":"Last month","rg.custom":"Custom","rg.from":"From","rg.to":"To","rg.bad":"Enter both dates","rg.order":"The start date must not be after the end date","rg.max":"The range can be 365 days at most"});
 Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
+Object.assign(I18N.en, {"of.d.models":"Spend by model","of.d.models.none":"No per-model figures yet. Machines send them from sprag 3.84.0 on.","mem.models":"Spend by model"});
+Object.assign(I18N.ko, {"of.d.models":"모델별 지출","of.d.models.none":"아직 모델별 수치가 없습니다. sprag 3.84.0 이상을 쓰는 컴퓨터부터 보냅니다.","mem.models":"모델별 지출"});
 Object.assign(I18N.en, {"ux.seats":"Seats in use","ux.deleg":"Delegated runs","ux.ou.h":"Usage across the organization","ux.rail.sp":"Spent over recent ranges","ux.rail.saved":"saved {v}","ux.copyinvite":"Copy invite link","ux.nomachines":"No machines have joined yet","ux.noledger":"No usage recorded in this range","ux.g.nav":"Pages","ux.g.sections":"Team sections","ux.g.teams":"Teams","ux.g.people":"People","ux.scene.err":"The office view could not be drawn","ux.fail.usage":"Could not load usage","sr.empty":"No machines have joined yet","ux.active":"Active","ux.tabs.hint":"Open"});
 Object.assign(I18N.ko, {"ux.seats":"사용 중인 좌석","ux.deleg":"위임 실행","ux.ou.h":"조직 전체 사용량","ux.rail.sp":"최근 기간별 지출","ux.rail.saved":"절감 {v}","ux.copyinvite":"초대 링크 복사","ux.nomachines":"아직 참여한 컴퓨터가 없습니다","ux.noledger":"이 기간에 기록된 사용량이 없습니다","ux.g.nav":"페이지","ux.g.sections":"팀 구역","ux.g.teams":"팀","ux.g.people":"사람","ux.scene.err":"사무실 화면을 그리지 못했습니다","ux.fail.usage":"사용량을 불러오지 못했습니다","sr.empty":"아직 참여한 컴퓨터가 없습니다","ux.active":"활동 중","ux.tabs.hint":"열기"});
 /* Rules tab (organization rules + every team's rules) */
@@ -1607,6 +1612,14 @@ function renderPanel(){
 }
 function thr(){ const v = parseFloat($('thr').value); return isFinite(v) ? v : 20; }
 const U = m => usageById[m.member_id] || {};
+/* spend per model, same colour/order rule as the office drawer */
+const MODELC = { fable:'#fcd34d', mythos:'#c4b5fd', opus:'#f9a8d4', sonnet:'#8ec5fb', haiku:'#7fe0b8' };
+function modelParts(models){
+  if(!models || typeof models !== 'object') return [];
+  const ord = Object.keys(MODELC), ents = Object.entries(models).map(([k, v]) => [k, Number(v)]).filter(([, v]) => isFinite(v) && v > 0);
+  const known = ord.map(k => ents.find(e => e[0] === k)).filter(Boolean), rest = ents.filter(e => ord.indexOf(e[0]) < 0).sort((a, b) => b[1] - a[1]);
+  return known.concat(rest).map(([k, v]) => ({ k, v, color: MODELC[k] || '#cbd5e1' }));
+}
 function renderMembers(){
   if(!team) return;
   const limit = thr(), ms = v => { const x = v ? new Date(v).getTime() : NaN; return isFinite(x) ? x : null; };
@@ -1629,6 +1642,10 @@ function renderMembers(){
       { key:'sp', label: () => t('mem.sp') + ' · ' + Range.label(), cls:'n', first:-1, val: m => f1(U(m).spent), cell: m => money(U(m).spent) },
       { key:'sv', label: () => t('mem.sv') + ' · ' + Range.label(), cls:'n', first:-1, val: m => f1(U(m).saved), cell: m => money(U(m).saved) },
       { key:'dl', label: () => t('mem.dl') + ' · ' + Range.label(), cls:'n', first:-1, val: m => f1(U(m).delegated), cell: m => String(f1(U(m).delegated)) },
+      { key:'models', label: () => t('mem.models') + ' · ' + Range.label(), noSort:true, val: m => { const p = modelParts(U(m).models); return p.length ? p[0].k : ''; },
+        csv: m => modelParts(U(m).models).map(q => `${q.k} ${money(q.v)}`).join('; '),
+        cell: m => { const p = modelParts(U(m).models); if(!p.length) return '—'; const tot = p.reduce((a, q) => a + q.v, 0), pc = q => Math.round(q.v / tot * 100);
+          return `<span class="mmix">${p.map(q => `<i style="width:${(q.v / tot * 100).toFixed(1)}%;background:${q.color}" title="${esc(q.k)} · ${esc(money(q.v))} · ${pc(q)}%"></i>`).join('')}</span><span class="mmix-t">${p.slice().sort((a, b) => b.v - a.v).slice(0, 2).map(q => `${esc(q.k)} ${pc(q)}%`).join(' · ')}</span>`; } },
       { key:'today', label:t('mem.today.sp'), cls:'n today t0', thCls:'n t0', first:-1, val: m => f1(m.spent_today), cell: m => money(m.spent_today) },
       { key:'today_sv', label:t('mem.today.sv'), cls:'n', thCls:'n', first:-1, val: m => f1(m.saved_today), cell: m => money(m.saved_today) },
       { key:'today_dl', label:t('mem.today.dl'), cls:'n', thCls:'n', first:-1, val: m => f1(m.delegated_today), cell: m => m.delegated_today == null ? '—' : String(f1(m.delegated_today)) },
@@ -2578,7 +2595,7 @@ function demoSb(){
         if(name === 'team_member_usage'){
           const days = new Set(Range.list(a.p_from, a.p_to)), td = fmtDay(new Date()), rows = ledger();
           return {data:{ from:a.p_from, to:a.p_to, members: summary().map(m => { const r = rows.filter(x => x.member_id === m.member_id && days.has(x.day)), sum = k => r.reduce((n, x) => n + x[k], 0);
-            return { member_id:m.member_id, spent:sum('spent_usd'), saved:sum('saved_usd'), delegated:Math.round(sum('spent_usd') * 3.4), families:((pf, dg) => ({haiku:Math.round(dg * pf[0]), sonnet:Math.round(dg * pf[1]), opus:Math.round(dg * pf[2])}))([[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]][Math.round(m.spent_30d / 31.4) % 4], Math.round(sum('spent_usd') * 3.4)), errors:0, spent_today:m.spent_today, saved_today:m.saved_today, delegated_today:m.delegated_today, series:r.map(x => ({day:x.day, spent:x.spent_usd, saved:x.saved_usd})) }; }) }, error:null};
+            return { member_id:m.member_id, spent:sum('spent_usd'), saved:sum('saved_usd'), delegated:Math.round(sum('spent_usd') * 3.4), families:((pf, dg) => ({haiku:Math.round(dg * pf[0]), sonnet:Math.round(dg * pf[1]), opus:Math.round(dg * pf[2])}))([[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]][Math.round(m.spent_30d / 31.4) % 4], Math.round(sum('spent_usd') * 3.4)), models:((s, pf) => { const q = x => Math.round(x * 1e4) / 1e4, o = q(s * (pf[2] * 0.6 + 0.25)), n = q(s * pf[1] * 0.6), h = q(s * pf[0] * 0.15); return {opus:o, sonnet:n, haiku:h, fable:q(Math.max(0, s - o - n - h))}; })(sum('spent_usd'), [[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]][Math.round(m.spent_30d / 31.4) % 4]), errors:0, spent_today:m.spent_today, saved_today:m.saved_today, delegated_today:m.delegated_today, series:r.map(x => ({day:x.day, spent:x.spent_usd, saved:x.saved_usd})) }; }) }, error:null};
         }
         if(name === 'org_summary') return {data:{...org(), teams:tm.map((x, i) => ({id:x.id, name:x.name, members_active:4 + i, seats:3 + i})),
           admins:[{user_id:'u1', email:'ana@northwind.example', role:'owner'}, {user_id:'u2', email:'jun@northwind.example', role:'admin'}, ...pendingInv.map(x => ({ ...x }))]}, error:null};
