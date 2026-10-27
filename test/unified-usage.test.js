@@ -16,6 +16,7 @@ import { aggregateDaily, syncTeam, ledgerWindow, loadTeamState, saveTeamState, d
 import { userDataDir } from '../src/paths.js';
 import { codexBudgetProvider } from '../src/codex/budget.js';
 import { refreshCodexPrices } from '../src/codex/cache-policy.js';
+import { withClaudeSettingsEnv } from '../src/gateway-auth.js';
 
 const GW = { ANTHROPIC_BASE_URL: 'https://litellm.example.com', ANTHROPIC_AUTH_TOKEN: 'sk-test-token' };
 
@@ -402,4 +403,39 @@ test('syncTeam: a failed schema-1 price refresh is not retried for an hour', asy
   assert.equal(modelInfoCalls.length, 2, 'retried after the hour');
   assert.equal(loadTeamState(dir).codexPricesAttemptAt, now + 61 * 60000);
   assert.ok(root);
+});
+
+// ── Claude Code settings env (a sync started from a Codex hook) ────────────
+function writeClaudeSettings(root, env) {
+  mkdirSync(join(root, '.claude'), { recursive: true });
+  writeFileSync(join(root, '.claude', 'settings.json'), JSON.stringify({ env }));
+}
+
+test('withClaudeSettingsEnv fills a missing gateway address and token from settings.json only', (t) => {
+  const { root } = isolate(t);
+  assert.deepEqual(withClaudeSettingsEnv({ PATH: '/bin' }, { home: root }), { PATH: '/bin' }, 'no settings file: unchanged');
+  writeClaudeSettings(root, { ANTHROPIC_BASE_URL: 'https://gw.example.com/', ANTHROPIC_AUTH_TOKEN: 'sk-from-settings', OTHER: 'x' });
+  assert.deepEqual(withClaudeSettingsEnv({ PATH: '/bin' }, { home: root }),
+    { PATH: '/bin', ANTHROPIC_BASE_URL: 'https://gw.example.com/', ANTHROPIC_AUTH_TOKEN: 'sk-from-settings' }, 'only the gateway keys are copied');
+  assert.equal(withClaudeSettingsEnv({ ANTHROPIC_AUTH_TOKEN: 'sk-env' }, { home: root }).ANTHROPIC_AUTH_TOKEN, 'sk-env', 'a token already in the environment wins');
+  const own = { ANTHROPIC_BASE_URL: 'https://other.example.com' };
+  assert.equal(withClaudeSettingsEnv(own, { home: root }), own, 'an address already set is never mixed with another gateway\'s token');
+  writeClaudeSettings(root, { ANTHROPIC_AUTH_TOKEN: 'sk-only-token' });
+  assert.deepEqual(withClaudeSettingsEnv({}, { home: root }), {}, 'a token without an address is not copied');
+});
+
+test('syncTeam from a process without Claude Code\'s environment still reads the gateway named in settings.json', async (t) => {
+  const { root, dir } = isolate(t);
+  writeClaudeSettings(root, { ANTHROPIC_BASE_URL: GW.ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN: GW.ANTHROPIC_AUTH_TOKEN });
+  const now = new Date(2026, 9, 27, 12).getTime();
+  saveTeamState({ version: 1, memberKey: 'spk_secret', teamName: 'Acme', displayName: 'me', lastSyncAt: null, deviceInfo: deviceInfo(), ledgerSyncedThrough: '2026-10-25' }, dir);
+  const team = teamFake({ ledger_upsert: 1, team_rules_get: { rules: [], removed: [] } });
+  const gw = gatewayFake({ rows: [{ date: '2026-10-26', spend: 42, user: 'me@example.com' }] });
+  const r = await syncTeam({ dir, fetch: team, env: {}, force: true, now, sessions: [], coworkSessions: [], codexSessions: [], codexLedger: { events: {} }, codexDocEvents: [], codexPrices: null, gatewayFetch: gw });
+  assert.ok(!r.error, r.error);
+  assert.ok(gw.calls.some((u) => new URL(u).pathname === '/global/spend/logs'), 'the gateway was asked even though the environment had no address');
+  const rows = team.calls.find((c) => c.fn === 'ledger_upsert').body.rows;
+  const d26 = rows.find((x) => x.day === '2026-10-26');
+  assert.equal(d26.gateway_spent_usd, 42);
+  assert.equal(d26.total_spent_usd, 42);
 });

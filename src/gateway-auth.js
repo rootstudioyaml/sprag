@@ -114,6 +114,39 @@ export function keyFromApiKeyHelper(cwd = process.cwd()) {
   return null;
 }
 
+const SETTINGS_ENV_KEYS = ['ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY'];
+
+/**
+ * 프로세스 환경에 게이트웨이 주소가 없을 때, ~/.claude/settings.json 의 env 블록에서
+ * 주소와 토큰을 가져와 채운 사본을 돌려줍니다.
+ *
+ * 팀 동기화는 Claude Code 훅에서도 Codex 훅에서도 시작됩니다. Claude Code 는
+ * settings.json 의 env 를 자기 프로세스에 넣어 주지만 Codex 프로세스에는 그 값이
+ * 없습니다. 그래서 같은 하루 행이 어느 에이전트가 동기화했느냐에 따라 게이트웨이
+ * 단가와 목록 단가 사이를 오가고, 게이트웨이 금액도 생겼다 사라졌습니다.
+ *
+ * 환경에 주소가 이미 있으면 그대로 둡니다. 다른 게이트웨이의 토큰이 섞이면 안
+ * 되기 때문입니다. 프로젝트 설정은 신뢰 확인이 필요하므로 읽지 않고, 관리형 설정은
+ * 홈 디렉터리 밖에 있어 테스트에서 격리할 수 없으므로 읽지 않습니다.
+ */
+export function withClaudeSettingsEnv(env = process.env, { home = homedir() } = {}) {
+  if ((env.ANTHROPIC_BASE_URL || '').trim()) return env;
+  let fromSettings;
+  try {
+    fromSettings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'))?.env;
+  } catch {
+    return env;
+  }
+  if (!fromSettings || typeof fromSettings !== 'object') return env;
+  const base = typeof fromSettings.ANTHROPIC_BASE_URL === 'string' ? fromSettings.ANTHROPIC_BASE_URL.trim() : '';
+  if (!base) return env;
+  const next = { ...env };
+  for (const k of SETTINGS_ENV_KEYS) {
+    if (!(next[k] || '').trim() && typeof fromSettings[k] === 'string' && fromSettings[k].trim()) next[k] = fromSettings[k].trim();
+  }
+  return next;
+}
+
 /** 환경변수 토큰을 먼저 보고, 없으면 apiKeyHelper 로 내려갑니다. */
 export function resolveKey(env = process.env) {
   const direct = (env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY || '').trim();

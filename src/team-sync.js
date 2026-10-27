@@ -51,6 +51,7 @@ import { codexPriceBook, readCodexPrices, refreshCodexPrices, codexRunCost, CODE
 import { codexRequestCost } from './gateway-prices.js';
 import { codexBudgetProvider } from './codex/budget.js';
 import { fetchGatewayDailySpend, gatewayDayValue, gatewayEnv } from './gateway-spend.js';
+import { withClaudeSettingsEnv } from './gateway-auth.js';
 
 export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -379,6 +380,10 @@ export async function aggregateDaily({
   coworkSessions = null, codexSessions = null, codexLedger = null, codexDocEvents = null, codexPrices = undefined, gatewayDaily = null, env = process.env,
 } = {}) {
   const { readResetMarks, isBeforeReset } = require('./saved-reset.cjs');
+  // Claude sessions are priced at the gateway's rates only when the gateway
+  // address is known; `team status --show-payload` and a Codex-started sync
+  // run without Claude Code's environment, so settings.json fills it in.
+  env = withClaudeSettingsEnv(env);
   const doc2md = require('./doc2md-ledger.cjs');
   const cutoff = now - days * 24 * 3600 * 1000;
   const byDay = new Map();
@@ -830,6 +835,10 @@ export async function syncTeam({
     // not stop the upload: those days go up with local figures and null
     // totals (the server keeps what it already has), and gatewaySyncedThrough
     // stays put so the next successful call re-sends them.
+    // A sync started from a Codex hook lacks the gateway address Claude Code
+    // puts in its own environment; take it from settings.json so both agents
+    // price Claude the same way and both see the gateway figure.
+    env = withClaudeSettingsEnv(env);
     const hasGateway = !!gatewayEnv(env);
     let gatewayDaily = null;
     if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now });
