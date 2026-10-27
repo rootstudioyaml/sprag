@@ -116,7 +116,7 @@
     },
     {
       "name": "t1h-worker",
-      "model": "claude-opus-5-5",
+      "model": "opus",
       "effort": "high",
       "tier": "T1H",
       "categories": [

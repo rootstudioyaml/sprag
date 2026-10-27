@@ -26,9 +26,11 @@ const MARK_LINE = `# managed by sprag (${OWNER_MARK}); edits are overwritten`;
 //   { name, model, effort, tools: [..], description: { ko, en }, body: { ko, en } }
 //
 // Models are aliases on purpose: behind a gateway they resolve through
-// ANTHROPIC_DEFAULT_*_MODEL, and a full model id would bypass that mapping. The
-// exception is t1h-worker, which names the full id: Claude Code resolves a bare
-// alias to an older model than the one the tier means.
+// ANTHROPIC_DEFAULT_*_MODEL, and a full model id would bypass that mapping.
+// t1h-worker used to pin claude-opus-5-5 because older Claude Code releases
+// resolved the haiku alias to Haiku 4.5; 2.1.302 resolves opus, sonnet and
+// haiku to the current 5.5 models on the first-party API, so all five agents
+// use aliases (preset v4).
 //
 // Effort is a separate axis from the tier and is set by how the work gets
 // verified, not by how hard it is. Where the check is command output or a file
