@@ -30,7 +30,7 @@ export function withBaseStatusline(output, { input = '' } = {}) {
   try {
     const cmd = loadConfig().statuslineBase?.command;
     if (typeof cmd !== 'string' || !cmd.trim() || OURS.test(cmd)) return output;
-    const opts = { input, encoding: 'utf8', timeout: 1500, env: { ...process.env, [NESTED]: '1' } };
+    const opts = { input, encoding: 'utf8', timeout: 1500, windowsHide: true, env: { ...process.env, [NESTED]: '1' } };
     const r = process.platform === 'win32'
       ? spawnSync(cmd, { ...opts, shell: true })
       : spawnSync('/bin/sh', ['-c', cmd], opts);
