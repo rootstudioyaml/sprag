@@ -28,6 +28,13 @@
  *     to hand a question about how the tool behaves to a command-running haiku.
  *     Answering it takes the main model's knowledge, not a command. The read
  *     category is exempt: explaining is what it is for.
+ *   - the "prompt" is a message the harness wrote, not the user: a background
+ *     task notification, a system reminder, a slash-command echo. Measured over
+ *     14 days, 25 of 67 `<task-notification>` messages carried a hint.
+ *   - the text asks for an opinion ("…하는게 좋은가?", "…괜찮지 않을까 싶은데")
+ *     and no request verb follows. Answering it is judgement, not a lookup. On
+ *     a 28-day corpus the pattern removed 6 of 286 hints and none of the turns
+ *     that actually delegated.
  * A hint that fires on the wrong request costs more than one that stays quiet.
  */
 
@@ -46,6 +53,33 @@ const LOG_SHAPE_RE = /^\s+at\s|\b(error|exception|traceback|warn(ing)?|fatal)\b|
 export function looksPasted(text) {
   const lines = (String(text).match(/\n/g) || []).length;
   return lines >= PASTE_MIN_LINES || LOG_SHAPE_RE.test(text);
+}
+
+/**
+ * Messages the harness injects into the user turn. They arrive through the same
+ * hook as typed prompts but are not requests, so nothing here is routed. A
+ * `<pasted_content` wrapper is deliberately absent: that is the user's own text.
+ */
+const SYSTEM_PROMPT_PREFIXES = [
+  '<task-notification>', '<system-reminder>', '<command-name>', '<command-message>', '<command-args>',
+  '<local-command-', '<bash-input>', '<bash-stdout>', '<bash-stderr>', '[Request interrupted',
+];
+
+/** True for a message the harness wrote rather than the user (see SYSTEM_PROMPT_PREFIXES). */
+export function isSystemPrompt(text) {
+  const t = String(text || '').trim();
+  return SYSTEM_PROMPT_PREFIXES.some((p) => t.startsWith(p));
+}
+
+/** Endings that ask what the model thinks ("좋은가", "괜찮지 않을까", "should we"). */
+const OPINION_RE = /(?:좋은가|좋을까|좋겠지|좋지\s*않|낫겠|낫지\s*않|나을까|나을\s*듯|괜찮(?:을까|은가|겠|지\s*않)|어때|어떨까|어떤가|맞(?:을까|는\s*건가|는가)|아닐까|아닌가|싶은데|듯\s*한데|생각(?:해|이)|의견|\bshould\s+(?:we|i)\b|\bwhat do you think\b|\bis it (?:better|worth)\b)/i;
+/** A request verb in the same text turns the opinion ending back into a task ("…아닐까 확인해줘"). */
+const REQ_RE = /(?:해|봐|줘|찾아|알려|보여|돌려|만들어|올려|정리해)\s*(?:줘|주세요|줄래|봐|보자)|해줘|하자|해봐|부탁/;
+
+/** True for a question that asks for an opinion and carries no request verb. */
+export function isOpinionQuestion(text) {
+  const t = String(text || '');
+  return OPINION_RE.test(t) && !REQ_RE.test(t);
 }
 
 /** Shortest text worth classifying; below this a prompt is an ack, not a task. */
@@ -152,6 +186,8 @@ export function unreachableTiers(env = process.env) {
 export function routeMatch(text, { rules, sessionRank = null, root, env = process.env } = {}) {
   const t = String(text || '').trim();
   if (t.length < MIN_LEN) return null;
+  // A task notification or command echo is not a request, whatever words it holds.
+  if (isSystemPrompt(t)) return null;
   // Judgement and irreversible work stay on the top tier. This check comes
   // before classification because such a request often looks like a light
   // "run" or "check" in its wording.
@@ -159,6 +195,9 @@ export function routeMatch(text, { rules, sessionRank = null, root, env = proces
   // Same for implementation work dressed as a run or a check: an edit is not
   // delegable, and with no tool calls yet only the wording can say so.
   if (EDIT_RE.test(t)) return null;
+  // "…하는게 좋은가?" asks what the model thinks. The answer is judgement, and a
+  // hint to hand it to a cheaper model is wrong however light the keywords look.
+  if (isOpinionQuestion(t)) return null;
 
   const scored = categorizeScored(t, null);
   if (!scored) return null;
@@ -237,23 +276,25 @@ function unreachableNotice(label, tiers, ko) {
       + `"Register a ${models} model in the Claude app settings to hand requests like this to a cheaper model."`;
 }
 
+/** The label a hint names its rule by: the category's label in the user's language. */
+export function hintLabel(match, { lang = userLanguage() } = {}) {
+  const { cat } = match;
+  return lang === 'ko' ? (cat.label || cat.id) : (cat.labelEn || cat.label || cat.id);
+}
+
 /**
- * @param {string} text the prompt just submitted
- * @param {object} [opts] as routeMatch, plus:
+ * The delegation target a hint names ("the haiku agent", "model: sonnet when it
+ * spans …"), without the surrounding sentence. Split out of routeHint so the
+ * follow-up notice (src/route-follow.js) repeats exactly the words the hint used.
+ *
+ * @param {{t2?: object, t1?: object, t1h?: object}} match a routeMatch result with at least one tier
+ * @param {object} [opts]
  * @param {string} [opts.lang] 'ko' | 'en'
- * @param {string} [opts.root] project root used to look for a subagent's .md.
- *   The hint names the agent when that file exists and only its model tier when
- *   it does not, so a caller that needs a predictable phrase pins this.
- * @param {object|null} [opts.match] a routeMatch result the caller already has
- * @returns {string|null} the line to inject, or null to stay quiet
+ * @param {string} [opts.root] as routeHint
  */
-export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match, env } = {}) {
-  const found = match === undefined ? routeMatch(text, { rules, sessionRank, root, env }) : match;
-  if (!found) return null;
-  const { cat, t2, t1, t1h } = found;
+export function hintTarget(match, { lang = userLanguage(), root } = {}) {
+  const { t2, t1, t1h } = match;
   const ko = lang === 'ko';
-  const label = ko ? (cat.label || cat.id) : (cat.labelEn || cat.label || cat.id);
-  if (!t2 && !t1 && !t1h && found.unreachable?.length) return unreachableNotice(label, found.unreachable, ko);
   // `root` is threaded through to agentPhrase, which names the subagent only
   // when its .md actually exists on this machine. A caller that pins it can
   // therefore get a deterministic phrase; a test that does not pin it reads
@@ -286,6 +327,28 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
     const only = picked[0];
     target = only.tier === 'T1H' ? tierPhrase(only) : phrase(nameOf(only));
   }
+  return target;
+}
+
+/**
+ * @param {string} text the prompt just submitted
+ * @param {object} [opts] as routeMatch, plus:
+ * @param {string} [opts.lang] 'ko' | 'en'
+ * @param {string} [opts.root] project root used to look for a subagent's .md.
+ *   The hint names the agent when that file exists and only its model tier when
+ *   it does not, so a caller that needs a predictable phrase pins this.
+ * @param {object|null} [opts.match] a routeMatch result the caller already has
+ * @returns {string|null} the line to inject, or null to stay quiet
+ */
+export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match, env } = {}) {
+  const found = match === undefined ? routeMatch(text, { rules, sessionRank, root, env }) : match;
+  if (!found) return null;
+  const { t2, t1, t1h } = found;
+  const ko = lang === 'ko';
+  const label = hintLabel(found, { lang });
+  if (!t2 && !t1 && !t1h && found.unreachable?.length) return unreachableNotice(label, found.unreachable, ko);
+  const target = hintTarget(found, { lang, root });
+  const picked = [t2, t1, t1h].filter(Boolean);
 
   const caps = picked.map((r) => budgetCapPhrase(r, lang));
   const capText = picked.length >= 2

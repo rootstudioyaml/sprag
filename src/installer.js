@@ -596,6 +596,56 @@ export function installDelegationHook() {
   return { path: file, action: 'created' };
 }
 
+// PostToolUse hook behind the delegation follow-up (src/route-follow.js). After
+// a prompt carried a delegation hint, it counts the model's direct lookups and
+// nudges once at the second. The matcher lists what the counter reads: lookups,
+// shell, edits, delegations, and MCP/web tools. Anything else never starts it.
+//
+// The same command also runs on PreToolUse for Task/Agent. PostToolUse for a
+// delegation arrives only once the subagent has finished, and the subagent's
+// own lookups in between would otherwise count toward the parent's turn and
+// nudge a turn that did delegate. Stopping the count when the call starts closes
+// that window without relying on a subagent marker in the payload.
+const ROUTE_FOLLOW_HOOK_COMMAND = `${CLI} brief --hook-tool`;
+const ROUTE_FOLLOW_MATCHER = 'Read|Grep|Glob|LS|Bash|Edit|Write|MultiEdit|NotebookEdit|Task|Agent|WebFetch|WebSearch|mcp__.*';
+const ROUTE_FOLLOW_PRE_MATCHER = 'Task|Agent';
+
+export function installRouteFollowHook() {
+  const dir = claudeUserDir();
+  const file = join(dir, 'settings.json');
+  mkdirSync(dir, { recursive: true });
+
+  const read = readSettings(file);
+  if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
+  const settings = read.settings;
+
+  const hooksProblem = ensureHooksObject(settings);
+  if (hooksProblem) return { path: file, action: 'skipped', reason: hooksProblem };
+  for (const event of ['PostToolUse', 'PreToolUse']) {
+    if (settings.hooks[event] !== undefined && !Array.isArray(settings.hooks[event])) {
+      return { path: file, action: 'skipped', reason: `hooks.${event} is not an array — fix settings.json manually` };
+    }
+  }
+  // Whole-token match: `brief --hook` (UserPromptSubmit) must not count as this hook.
+  const ours = (list) => list.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isOurSubcommand(h?.command, 'brief', '--hook-tool')),
+  );
+  let added = false;
+  for (const [event, matcher] of [['PostToolUse', ROUTE_FOLLOW_MATCHER], ['PreToolUse', ROUTE_FOLLOW_PRE_MATCHER]]) {
+    const list = Array.isArray(settings.hooks[event]) ? settings.hooks[event] : [];
+    if (ours(list)) continue;
+    list.push({ matcher, hooks: [{ type: 'command', command: ROUTE_FOLLOW_HOOK_COMMAND, timeout: 5 }] });
+    settings.hooks[event] = list;
+    added = true;
+  }
+  if (!added) return { path: file, action: 'exists' };
+  {
+    const writeProblem = writeSettings(file, settings);
+    if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
+  }
+  return { path: file, action: 'created' };
+}
+
 const BRIEF_HOOK_COMMAND = `${CLI} brief --hook`;
 
 export function installBriefHook() {
@@ -1346,6 +1396,7 @@ export function installAll({ force = false } = {}) {
     delegationMeterMod: installDelegationMeterMod(),
     statuslineMod: installStatuslineMod(),
     briefHook: installBriefHook(),
+    routeFollowHook: installRouteFollowHook(),
     cacheMonitorMigration: migrateLegacyCacheMonitorHook(),
     legacy: removeLegacyCommand(),
   };

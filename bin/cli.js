@@ -208,6 +208,7 @@ Usage:
   sprag litellm-budget     LiteLLM gateway key budget and spend
   sprag update-check       is a newer version out?
   sprag brief --hook       internal: the UserPromptSubmit hook entry point
+  sprag brief --hook-tool  internal: the PostToolUse hook entry point (delegation follow-up)
   sprag feedback "<msg>"   file a bug report / feature request (no browser needed)
   sprag team create|join|status|sync|leave   opt-in team layer: daily aggregates only (SPRAG_NO_TEAM_SYNC=1 turns it off)
   sprag upgrade            install the latest release
@@ -353,6 +354,8 @@ async function main() {
   // brief --hook — UserPromptSubmit hook mode: per-session, change-triggered
   // briefing of state the statusline can only chip (ctx tier crossings,
   // mid-session route/rule-health changes). Silent when nothing changed.
+  // brief --hook-tool — PostToolUse hook mode: one nudge when a hinted turn
+  // keeps looking things up instead of delegating.
   if (args[0] === 'brief') {
     return (await import('../src/commands/brief.js')).run({ hasFlag });
   }

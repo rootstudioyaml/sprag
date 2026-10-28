@@ -10,6 +10,7 @@ import { signedUsd } from '../money.js';
 import { codexProviderName, codexModelName } from '../agent.js';
 import { loadSharedModelRules, sharedModelRulesForProject, SHARED_RULE_TIERS } from '../shared-model-rules.js';
 import { codexDelegationDiagnostics } from '../codex/delegation-diagnostics.js';
+import { followStats } from '../route-follow.js';
 
 // Starts from the working directory, as the hooks do, so a project policy
 // stored under either agent's project root is counted.
@@ -137,11 +138,17 @@ export function run({ args, getArg, hasFlag, root }) {
     let events = [];
     try { events = Object.values(loadCodexLedger().events); } catch { /* No ledger yet: rules list without outcomes. */ }
     const inReview = new Set(codexRulesInReview({ rules, events, root: null }).map((x) => x.index));
+    // How hinted turns of each category ended (src/route-follow.js); the shared
+    // policies printed below are not per-category lines, so only these rules get it.
+    let follow = new Map();
+    try { follow = followStats({ days: 14, agent: 'codex' }); } catch { /* No event log yet. */ }
     rules.forEach((r, i) => {
       const h = codexRuleHealth(r, { events });
       const outcome = h.runs ? ` | measured x${h.runs}, err ${Math.round(h.rate * 100)}%, saved ${signedUsd(h.saved, 4)}` : '';
       const warn = inReview.has(i + 1) ? ` | rule-health: ${h.errs}/${h.runs} runs failed, narrow the condition or remove (delegate rules rm ${i + 1} --agent codex)` : '';
       console.log(`#${i + 1} ${r.category} | ${r.from} -> ${r.model} | ${r.scope}${r.targetRoot ? ` ${r.targetRoot}` : ''}${outcome}${warn}`);
+      const f = follow.get(r.category);
+      if (f && f.hints > 0) console.log(`      hints x${f.hints} | delegated at once ${f.delegatedAtOnce} | nudged ${f.nudged} -> delegated ${f.delegatedAfterNudge} (last 14 days)`);
     });
     printShared(cfg, { details: true });
     return;

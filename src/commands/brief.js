@@ -11,14 +11,28 @@
  * brief --hook — UserPromptSubmit hook mode: per-session, change-triggered
  * briefing of state the statusline can only chip (ctx tier crossings,
  * mid-session route/rule-health changes). Silent when nothing changed.
+ * brief --hook-tool — PostToolUse hook mode: counts the direct lookups of a
+ * turn that carried a delegation hint and nudges once (src/route-follow.js).
  */
 
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
 
 export async function run({ hasFlag }) {
+    if (hasFlag('--hook-tool')) {
+      // PostToolUse: a nudge is context for the model, so it goes out as
+      // hookSpecificOutput; nothing is printed when there is nothing to say.
+      try {
+        const { followToolUse } = await import('../route-follow.js');
+        const nudge = followToolUse(readStdinJson() || {});
+        if (nudge) {
+          console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: nudge } }));
+        }
+      } catch (e) { debug('brief:hook-tool', e); }
+      return;
+    }
     if (!hasFlag('--hook')) {
-      console.error('Usage: sprag brief --hook   (UserPromptSubmit hook mode)');
+      console.error('Usage: sprag brief --hook   (UserPromptSubmit hook mode)\n       sprag brief --hook-tool   (PostToolUse hook mode)');
       process.exit(1);
     }
     const ctx = readStdinJson() || {};
@@ -39,7 +53,7 @@ export async function run({ hasFlag }) {
     // the match here removes both steps. Silent unless it is sure — see
     // src/route-inject.js.
     try {
-      const { routeHint, routeMatch, matchCaps, sessionModelRank } = await import('../route-inject.js');
+      const { routeHint, routeMatch, matchCaps, sessionModelRank, hintTarget, hintLabel } = await import('../route-inject.js');
       // The payload names the session but not its model, so the rank comes from
       // the transcript: without it a Sonnet session is told to delegate to
       // Sonnet, which saves nothing.
@@ -54,6 +68,25 @@ export async function run({ hasFlag }) {
       const match = routeMatch(ctx.prompt, { sessionRank, root: ctx.cwd });
       const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd, match });
       if (hint) parts.push(hint);
+      // Remember that this turn carried a delegation hint, so the PostToolUse
+      // hook can nudge when the model looks things up itself instead. The
+      // unreachable-only notice tells the model NOT to delegate, so it starts
+      // no follow-up. A prompt without a hint clears the previous turn's record.
+      try {
+        const { startFollow, clearFollow } = await import('../route-follow.js');
+        const { userLanguage } = await import('../config.js');
+        if (hint && match && (match.t2 || match.t1 || match.t1h)) {
+          const lang = userLanguage();
+          startFollow(ctx.session_id, {
+            category: match.cat.id,
+            label: hintLabel(match, { lang }),
+            target: hintTarget(match, { lang, root: ctx.cwd }),
+            lang,
+          });
+        } else {
+          clearFollow(ctx.session_id);
+        }
+      } catch (e) { debug('brief:route-follow', e); /* never block a prompt */ }
       // The delegation guard repeats these caps to the subagent, so the limit it
       // works under is the one this hint states. A prompt with no match clears
       // the record of the turn before it.

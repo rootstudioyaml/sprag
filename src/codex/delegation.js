@@ -6,7 +6,7 @@ import { userDataDir } from '../paths.js';
 import { writeViaTmp } from '../state-file.js';
 import { codexUserDir, codexProviderName } from '../agent.js';
 import { categorize, ESCALATE_RE, EDIT_RE } from '../route-scan.js';
-import { looksPasted } from '../route-inject.js';
+import { looksPasted, isSystemPrompt, isOpinionQuestion } from '../route-inject.js';
 import { newRouteId, recordCodexDelegation } from './ledger.js';
 import { readCodexTailLines } from './parser.js';
 import { loadConfig } from '../config.js';
@@ -226,6 +226,9 @@ export function removeCodexModelRule(index, { dir = userDataDir() } = {}) {
  */
 export function codexPromptCategory(text) {
   const prompt = typeof text === 'string' ? text.trim() : '';
+  // Same two gates as the Claude Code hint (routeMatch): a harness message is
+  // not a request, and an opinion question is judgement rather than a lookup.
+  if (isSystemPrompt(prompt) || isOpinionQuestion(prompt)) return null;
   if (prompt.length < 8 || ESCALATE_RE.test(prompt) || EDIT_RE.test(prompt) || /\b(?:implement|modify|fix|delete|push|commit)\b/i.test(prompt)) return null;
   const category = categorize(prompt, null);
   if (!category || (category.id === 'paste' && !looksPasted(prompt))) return null;
