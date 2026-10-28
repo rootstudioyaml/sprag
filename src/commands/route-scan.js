@@ -154,6 +154,9 @@ export async function run({ args, hasFlag, numArg }) {
       const { modelRank } = await import('../cost.js');
       const sessionModel = aliasForRole('main');
       const sessionRank = sessionModel ? modelRank(sessionModel) : null;
+      // Read once: how the hinted turns of each category ended (src/route-follow.js).
+      let follow = new Map();
+      try { follow = (await import('../route-follow.js')).followStats({ days: 14, agent: 'claude' }); } catch (e) { debug('route-scan:follow-stats', e); }
       rules.forEach((r, i) => {
         const health = r.status === 'review'
           ? (lang === 'ko' ? '  ⚠ 에러율 초과 — 재검토 필요' : '  ⚠ error rate over threshold — needs review')
@@ -185,6 +188,12 @@ export async function run({ args, hasFlag, numArg }) {
               ? '실제 위임 기록이 아직 없습니다.'
               : 'measured delegations — (none yet)'));
         console.log(`      ${measured}`);
+        const f = follow.get(r.category);
+        if (f && f.hints > 0) {
+          console.log(lang === 'ko'
+            ? `      위임 힌트 ${f.hints}회 · 즉시 위임 ${f.delegatedAtOnce} · 재촉 ${f.nudged}회 → 위임 ${f.delegatedAfterNudge} (최근 14일)`
+            : `      hints ×${f.hints} · delegated at once ${f.delegatedAtOnce} · nudged ${f.nudged} → delegated ${f.delegatedAfterNudge} (last 14 days)`);
+        }
         // Same composer the md file uses, so what is listed here is exactly
         // what the model reads.
         console.log(`      ${mr.composeRuleText(r.rule, r, lang)}`);

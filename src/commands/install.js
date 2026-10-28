@@ -91,6 +91,7 @@ export async function run({ hasFlag }) {
     print('mod (desktop statusline, Claude Code 2.1.287+)', r.statuslineMod);
     if (r.statuslineMod.reason) console.log(`    ${r.statuslineMod.reason}`);
     print('UserPromptSubmit hook (brief)', r.briefHook);
+    print('PostToolUse hook (delegation follow-up)', r.routeFollowHook);
     {
       let s = r.statusline;
       // A different statusline is already installed. Replacing it silently

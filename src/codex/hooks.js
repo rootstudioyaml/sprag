@@ -12,7 +12,8 @@ import { writeViaTmp } from '../state-file.js';
 import { findProjectRoot } from '../harness.js';
 import { runCodexBrief } from './brief.js';
 import { codexDocumentTool, codexDocumentNote, convertCodexDocument, codexDocumentContext } from './doc2md.js';
-import { codexDelegationTool, codexRouteHint, codexDelegateEnabled } from './delegation.js';
+import { codexDelegationTool, codexRouteHint, codexDelegateEnabled, codexPromptCategory } from './delegation.js';
+import { startFollow, clearFollow, followToolUse } from '../route-follow.js';
 import { bindCodexSubagent, closeStaleCodexRoutes, unsettledCodexRoutes } from './ledger.js';
 import { seedOfferBlock } from '../seed-rules.js';
 import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './route-scan.js';
@@ -174,6 +175,9 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
     if (event === 'subagent-start' && !codexDelegateEnabled(cfg)) return null;
     if (event === 'subagent-start') {
       try { bindCodexSubagent(payload); } catch (e) { debug('codex:bind', e); }
+      // A child was spawned, so the parent's turn stops being counted for the
+      // follow-up nudge. `spawn_agent` is the tool name followToolUse treats as a delegation.
+      try { followToolUse({ session_id: payload.session_id, tool_name: 'spawn_agent' }, { cfg }); } catch (e) { debug('codex:follow-stop', e); }
     }
     const root = findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' });
     const parts = [];
@@ -237,9 +241,27 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
       // that no child claimed is closed, and children that did run get priced.
       try { closeStaleCodexRoutes(payload); } catch (e) { debug('codex:close-routes', e); }
       try { if (unsettledCodexRoutes() > 0) refreshLedger(); } catch (e) { debug('codex:ledger-refresh', e); }
+      let routeHint = null;
       try {
-        parts.push(codexRouteHint(payload, { cfg, root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }) }));
+        routeHint = codexRouteHint(payload, { cfg, root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }) });
+        parts.push(routeHint);
       } catch (e) { debug('codex:route-hint', e); }
+      // A hinted turn is followed by PostToolUse, which nudges once if the
+      // parent keeps looking things up itself. An unhinted prompt clears the last turn's record.
+      try {
+        const category = routeHint ? codexPromptCategory(payload.prompt) : null;
+        if (routeHint && category) {
+          startFollow(payload.session_id, {
+            agent: 'codex',
+            category: category.id,
+            label: category.labelEn || category.id,
+            target: 'the child the routing hint named (spawn it with that model and route line)',
+            lang: 'en',
+          });
+        } else {
+          clearFollow(payload.session_id);
+        }
+      } catch (e) { debug('codex:route-follow', e); }
     }
     if (cfg?.codex?.brief !== false) {
       try {
@@ -262,12 +284,16 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
     return codexDelegationTool(payload, { cfg, root: findProjectRoot(payload.cwd || process.cwd(), { agent: 'codex' }) });
   }
   if (event === 'post-tool') {
-    if (!koreanStyleEnabled(cfg) || cfg?.koreanStyle?.lint === 'off') return null;
-    const result = lintCodexTool(payload, { scope: cfg?.koreanStyle?.lintScope === 'prose' ? 'prose' : 'all' });
-    const text = typeof result === 'string' ? result : result ? lint.formatFindings(result.filePath, result.findings) : null;
-    if (!text) return null;
-    if (cfg?.koreanStyle?.lint === 'warn') return context('PostToolUse', text);
-    return { decision: 'block', reason: text };
+    // The follow-up nudge runs whether or not the Korean style check is on, so
+    // it is computed first and merged with the check's result.
+    const nudge = followToolUse(payload, { cfg });
+    let text = null;
+    if (koreanStyleEnabled(cfg) && cfg?.koreanStyle?.lint !== 'off') {
+      const result = lintCodexTool(payload, { scope: cfg?.koreanStyle?.lintScope === 'prose' ? 'prose' : 'all' });
+      text = typeof result === 'string' ? result : result ? lint.formatFindings(result.filePath, result.findings) : null;
+    }
+    if (text && cfg?.koreanStyle?.lint !== 'warn') return { decision: 'block', reason: nudge ? `${text}\n\n${nudge}` : text };
+    return context('PostToolUse', [text, nudge].filter(Boolean).join('\n\n'));
   }
   throw new Error(`Unknown Codex hook event: ${event}`);
 }

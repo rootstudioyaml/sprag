@@ -58,6 +58,31 @@ waiting an hour at best and a day at worst. Measured: a scan is ~0.5s over 14 da
 and 67MB, and delegations run ~1.6×/day, so this costs well under a second a day. A
 30-second floor keeps a fan-out of parallel agents to a single scan.
 
+## Follow-up after a routing hint
+
+A rule that matches a prompt is stated as a hint on that turn. Measured over 14 days,
+22 of 100 hinted turns delegated; the rest ran two or more direct lookups with no
+edit. So `install` also registers a PostToolUse hook (`sprag brief --hook-tool`) that
+follows a hinted turn:
+
+- **When it speaks:** at the second direct lookup (Read, Grep, Glob, LS, a read-only
+  shell command) of the turn it sends one notice, once per turn. The notice names the
+  rule and the same delegation target the hint named, and asks the model to pass the
+  remaining lookups on, or to say in one line why it continues directly.
+- **When it stops counting:** the turn delegates (`Task`/`Agent`), edits a file, or runs
+  a mutating shell command (`git push`, `rm`, a redirect to a file, `npm install`, ...).
+  The same command is also registered on PreToolUse for `Task`/`Agent`, because the
+  PostToolUse of a delegation arrives only after the subagent finishes; stopping at the
+  start keeps the subagent's own lookups from counting toward the parent's turn.
+- **MCP and web lookups** (`mcp__*`, `WebFetch`, `WebSearch`) count too. The rule's agent
+  may lack those tools, so the notice points at `general-purpose` (model: haiku) instead.
+- **Measurement:** `route-scan rules` adds a line per rule: hints, delegations at once,
+  nudges, and delegations after a nudge, over the last 14 days. Events are kept in
+  `route-follow-events.jsonl` next to `config.json`.
+- **Off:** set `"routeFollowUp": false` in `config.json` (there is no CLI command for
+  this setting). Codex gets the same follow-up in English through its own hooks, only
+  where its routing hint is on (`sprag delegate on --agent codex`).
+
 ## Recommended companion setup
 
 Create `model: haiku` subagents under `~/.claude/agents/` (e.g. t2-explore /
