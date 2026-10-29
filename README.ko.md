@@ -17,6 +17,11 @@
 
 [sprag.io](https://sprag.io) · [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
 
+<a href="https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md#팀"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-ko.gif" width="640" alt="팀원마다 동물 캐릭터로 앉아 있는 가상 사무실, 지출과 절감액, 좌석, 30일 차트가 있는 조직 대시보드, 한 번 승인하면 모든 컴퓨터에 적용되는 팀 규칙을 차례로 보여 줍니다."></a>
+
+**Sprag Pro · 팀이 함께 쓰는 Sprag**: 팀 전체의 AI 지출과 절감액을 한 화면에서 봅니다.<br>
+<sub>팀원마다 캐릭터가 앉아 있는 가상 사무실, 좌석 명단, 한 번 승인하면 모두에게 적용되는 팀 규칙을 담았습니다. <a href="https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md#팀">팀 기능 보기</a> · <a href="mailto:support@sprag.io">support@sprag.io</a></sub>
+
 <a href="https://sprag.io/assets/video/sprag-compare-ko.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-compare-ko.gif" width="760" alt="두 터미널에 같은 요청 12건을 넣습니다. sprag 를 적용한 쪽은 조회와 테스트 실행을 저렴한 모델에 넘기고 문서를 Markdown 으로 바꿔 넣어, 하루를 $6.68 대신 $1.83 로 마칩니다."></a>
 
 같은 요청 12건, 두 터미널: sprag 적용 시 **$6.68 → $1.83 (72.6% 절감)**<br>
