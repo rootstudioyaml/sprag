@@ -17,6 +17,11 @@
 
 [sprag.io](https://sprag.io) · [Benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
 
+<a href="https://github.com/rootstudioyaml/sprag#teams"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-en.gif" width="640" alt="A virtual office where every teammate sits as an animal character, then the organization dashboard with spend, savings, seats and a 30-day chart, then team rules approved once and picked up by every machine."></a>
+
+**Sprag Pro · for teams**: your whole team's AI spend and savings, on one screen.<br>
+<sub>A virtual office with a character for every teammate, a seat roster, and rules the team approves once. <a href="https://github.com/rootstudioyaml/sprag#teams">See the team features</a> · <a href="mailto:support@sprag.io">support@sprag.io</a></sub>
+
 <a href="https://sprag.io/assets/video/sprag-compare-en.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-compare-en.gif" width="760" alt="Two terminals receive the same twelve requests. With Sprag, lookups and test runs go to cheaper models and documents go in as Markdown; the day ends at $1.83 against $6.68 without Sprag."></a>
 
 Same 12 requests, two terminals: **$6.68 → $1.83 (−72.6%)** with Sprag.<br>
