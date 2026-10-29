@@ -90,6 +90,11 @@ node scripts/serve-site.mjs 8788      # the site server, from the repo root
 
 The closing card carries no price, so the same files play on `/pricing/` and on `/license/`.
 
+The README GIFs (`docs/plan-<pro|ent>-<lang>.gif`, 640x360, 6 fps, 64 colours, about 3 MB) are cut from the finished
+videos and must be rebuilt whenever they are: `ffmpeg -i site/assets/video/plan-pro-en.mp4 -vf
+"fps=6,scale=640:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64:stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle"
+-loop 0 docs/plan-pro-en.gif`, once per plan and language.
+
 The music is the same track, from 15.05 s, 0.5 under the opening shot, 0.3 under the body, 0.5 for the close, -14 LUFS.
 Video is 2-pass 1400 kbit/s, so each file is about 6 MB; the build fails over 8 MB or on a one-frame luma drop.
 The demo's `teams` update now patches its in-memory rows, so the Policy switch stays on in the recording (and for demo visitors).
