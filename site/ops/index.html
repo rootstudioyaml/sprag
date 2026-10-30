@@ -669,6 +669,8 @@
             <section class="card">
               <h3 data-k="d.admins">Owners and admins</h3>
               <div id="side-admins"></div>
+              <p class="ok" id="adm-ok"></p>
+              <p class="err" id="adm-err" role="alert"></p>
             </section>
           </div>
           <section class="card">
@@ -710,10 +712,11 @@
           </section>
           <section class="card">
             <form id="form-owner">
-              <h3 data-k="s.owner">Add owner by email</h3>
-              <p class="sub" style="margin-top:0" data-k="s.ownerd">For support when the customer lost access. The person must have signed in once.</p>
+              <h3 data-k="s.owner">Add owner or admin by email</h3>
+              <p class="sub" style="margin-top:0" data-k="s.ownerd">The superuser has the same rights as the organization's owner.</p>
               <input type="email" id="o-email" data-ph="f.email" placeholder="Email" aria-label="Email" />
-              <div class="row"><button class="btn" type="submit" data-k="s.ownerbtn">Add owner</button><span class="ok" id="own-ok"></span></div>
+              <div class="row"><select id="o-role" aria-label="Role" style="width:auto"><option value="admin" data-k="role.admin">Admin</option><option value="owner" data-k="role.owner">Owner</option></select>
+                <button class="btn" type="submit" data-k="s.ownerbtn">Add</button><span class="ok" id="own-ok"></span></div>
               <p class="err" id="own-err" role="alert"></p>
             </form>
           </section>
@@ -919,7 +922,7 @@ const I18N = {
     'c.name':'Name','c.plan':'Plan','c.status':'Status','c.seats':'Seats','c.teams':'Teams','c.members':'Members','c.owners':'Owners',
     'c.sp':'Spent','c.sv':'Saved','c.rev':'Sprag revenue / mo','rev.note':'{seats} contracted seats × ${price} ({plan}); suspended organizations count as $0','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
     's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (superuser only)','s.save':'Save','s.saved':'Saved',
-    's.owner':'Add owner by email','s.ownerd':'For support when the customer lost access. The person does not need an account yet; they become the owner when they sign in at sprag.io/team with an email code.','s.ownerbtn':'Add owner','s.ownerok':'Added {email}','s.ownerinvited':'Invited {email}. They become the owner on first sign-in.',
+    's.owner':'Add owner or admin by email','s.ownerd':'The superuser has the same rights as the organization\'s owner: appoint or remove owners and admins, for example when the customer lost access. The person does not need an account yet; they get the role when they sign in at sprag.io/team with an email code.','s.ownerbtn':'Add','s.ownerok':'Added {email}','s.ownerinvited':'Invited {email}. They get the {role} role on first sign-in.','s.adminrm':'Remove','s.adminrmconfirm':'Remove {email} from this organization?','s.adminrmok':'Removed {email}',
     's.team':'{n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
     's.suspendconfirm':'Suspend {name}? Members stop syncing and new joins are refused until you set it back to Active.',
     'k.id':'ID','k.seats':'Seats','k.created':'Created','k.seen':'Last seen','k.you':'Your role',
@@ -1034,7 +1037,7 @@ const I18N = {
     'c.name':'이름','c.plan':'요금제','c.status':'상태','c.seats':'좌석','c.teams':'팀','c.members':'멤버','c.owners':'오너',
     'c.sp':'지출','c.sv':'절감','c.rev':'Sprag 월 매출','rev.note':'계약 좌석 {seats}개 × ${price} ({plan}), 정지된 조직은 $0','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
     's.teams':'팀','s.admins':'어드민','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (슈퍼유저만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
-    's.owner':'이메일로 오너 추가','s.ownerd':'고객이 접근 권한을 잃었을 때 지원용으로 씁니다. 계정이 아직 없어도 되고, sprag.io/team 에서 이메일 코드로 로그인하면 오너가 됩니다.','s.ownerbtn':'오너 추가','s.ownerok':'{email}님을 추가했습니다','s.ownerinvited':'{email}님을 초대했습니다. 처음 로그인하면 오너가 됩니다.',
+    's.owner':'이메일로 오너·어드민 추가','s.ownerd':'슈퍼유저는 조직 오너와 같은 권한으로 오너와 어드민을 지정하거나 제거합니다. 고객이 접근 권한을 잃었을 때도 이 기능을 씁니다. 계정이 아직 없어도 되고, sprag.io/team 에서 이메일 코드로 로그인하면 그 역할을 받습니다.','s.ownerbtn':'추가','s.ownerok':'{email}님을 추가했습니다','s.ownerinvited':'{email}님을 초대했습니다. 처음 로그인하면 {role} 권한을 받습니다.','s.adminrm':'제거','s.adminrmconfirm':'{email}님을 이 조직에서 제거할까요?','s.adminrmok':'{email}님을 제거했습니다',
     's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
     's.suspendconfirm':'{name} 조직을 정지할까요? 사용 중으로 되돌릴 때까지 멤버 동기화가 멈추고 새 참여도 거절됩니다.',
     'k.id':'ID','k.seats':'좌석','k.created':'생성일','k.seen':'마지막 접속','k.you':'내 권한',
@@ -1259,7 +1262,8 @@ const demo = (function(){
   ];
   const sums = o => ({id:o.id, name:o.name, plan:o.plan, seat_limit:o.seat_limit, seats_used:o.seats_used, role:'superuser',
     teams:teamsOf(o).map((x, i, all) => ({id:x.id, name:x.name, members_active:Math.floor(o.seats_used / all.length) + (i < o.seats_used % all.length ? 1 : 0), seats:Math.floor(o.seats_used / all.length) + (i < o.seats_used % all.length ? 1 : 0)})),
-    admins:[...o.owners.map(e => ({user_id:e, email:e, role:'owner'})), ...(o.invites || []).map(e => ({user_id:null, email:e, role:'owner', pending:true}))]});
+    admins:[...o.owners.map(e => ({user_id:e, email:e, role:'owner'})), ...(o.admins || []).map(e => ({user_id:e, email:e, role:'admin'})),
+      ...(o.invites || []).map(e => ({user_id:null, email:e, role:'owner', pending:true})), ...(o.adminInvites || []).map(e => ({user_id:null, email:e, role:'admin', pending:true}))]});
   const teamsOf = o => ['Platform', 'Apps', 'Data', 'Infra', 'Design', 'Growth'].slice(0, Math.max(1, o.teams)).map((nm, k) => ({id:o.id+'t'+(k+1), name:nm}));
   const rowsOf = o => demoSeatStore(o.id, teamsOf(o)).rows;
   const SEATRPC = ['org_seats', 'org_member_events', 'member_remove', 'member_restore', 'member_delete'];
@@ -1361,7 +1365,17 @@ const demo = (function(){
       if(known){ o.owners.push(a.p_email); return {status:'added', email:a.p_email}; }
       (o.invites = o.invites || []).push(a.p_email); return {status:'invited', email:a.p_email};
     }
-    if(name === 'org_invite_cancel'){ o.invites = (o.invites || []).filter(e => e !== a.p_email); return {cancelled:true}; }
+    if(name === 'org_add_admin'){
+      const known = orgs.some(x => x.owners.includes(a.p_email) || (x.admins || []).includes(a.p_email));
+      if(known && !o.owners.includes(a.p_email)){ (o.admins = o.admins || []).push(a.p_email); return {status:'added', email:a.p_email, role:'admin'}; }
+      (o.adminInvites = o.adminInvites || []).push(a.p_email); return {status:'invited', email:a.p_email, role:'admin'};
+    }
+    if(name === 'org_remove_admin'){
+      if(o.owners.includes(a.p_user_id)){ if(o.owners.length < 2) throw new Error('an organization needs at least one owner'); o.owners = o.owners.filter(e => e !== a.p_user_id); }
+      else o.admins = (o.admins || []).filter(e => e !== a.p_user_id);
+      return {removed:true};
+    }
+    if(name === 'org_invite_cancel'){ o.invites = (o.invites || []).filter(e => e !== a.p_email); o.adminInvites = (o.adminInvites || []).filter(e => e !== a.p_email); return {cancelled:true}; }
     throw new Error('unknown rpc ' + name);
   };
 })();
@@ -1543,7 +1557,7 @@ async function loadAttention(){
 }
 async function selectOrg(id){
   sel = orgs.find(o => o.id === id) || null; sum = null;
-  $('set-err').textContent = ''; $('own-err').textContent = ''; $('set-ok').textContent = ''; $('own-ok').textContent = '';
+  $('set-err').textContent = ''; $('own-err').textContent = ''; $('set-ok').textContent = ''; $('own-ok').textContent = ''; $('adm-err').textContent = ''; $('adm-ok').textContent = '';
   renderDetail();
   if(!sel){ Seats.load(null); Prompts.reset(); return; }
   fillForm();
@@ -1903,13 +1917,14 @@ function renderDetail(){
     S({ id:'created', label:t('c.created'), text:fmtDay(sel.created_at) })
   ], { id:'d:' + sel.id, cols:'k5' });
   Det.ensure();
-  const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [];
+  const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [], owners = ad.filter(a => !a.pending && a.role === 'owner').length;
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
     <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
   $('side-admins').innerHTML = ad.length ? ad.map(a => a.pending
     ? `<div class="arow"><span class="em">${esc(a.email)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span> <span class="badge warn">${esc(t('d.pending'))}</span></span><button type="button" class="btn sm danger" data-ri="${esc(a.email)}">${esc(t('d.cancel'))}</button></div>`
-    : `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
+    : `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span>${a.role === 'owner' && owners < 2 ? '' : `<button type="button" class="btn sm danger" data-ra="${esc(a.user_id)}">${esc(t('s.adminrm'))}</button>`}</div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
   $('side-admins').querySelectorAll('[data-ri]').forEach(b => b.addEventListener('click', () => cancelOwnerInvite(b.dataset.ri)));
+  $('side-admins').querySelectorAll('[data-ra]').forEach(b => b.addEventListener('click', () => removeOrgAdmin(b.dataset.ra)));
   $('d-minver').textContent = sel.min_version ? 'v' + sel.min_version : t('s.minvernone');
   $('d-note').textContent = sel.note || t('s.none');
   if(curTab === 'prompts') Prompts.activate();
@@ -1957,22 +1972,38 @@ $('form-org').addEventListener('submit', async ev => {
 });
 async function cancelOwnerInvite(email){
   if(!sel || !confirm(t('d.cancelconfirm', {email}, true))) return;
-  $('own-err').textContent = ''; $('own-ok').textContent = '';
+  $('adm-err').textContent = ''; $('adm-ok').textContent = '';
   try{
     await rpc('org_invite_cancel', { p_org_id: sel.id, p_email: email });
     const id = sel.id;
     try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){}
     renderDetail();
-  }catch(e){ $('own-err').textContent = errMsg(e); }
+  }catch(e){ $('adm-err').textContent = errMsg(e); }
+}
+async function removeOrgAdmin(uid){
+  const a = ((sum && sum.admins) || []).find(x => !x.pending && x.user_id === uid); if(!sel || !a) return;
+  const email = a.email || uid;
+  if(!confirm(t('s.adminrmconfirm', {email}, true))) return;
+  $('adm-err').textContent = ''; $('adm-ok').textContent = '';
+  try{
+    await rpc('org_remove_admin', { p_org_id: sel.id, p_user_id: uid });
+    $('adm-ok').textContent = t('s.adminrmok', {email}, true);
+    const id = sel.id; await loadOrgs(); sel = orgs.find(o => o.id === id) || null; renderOrgs();
+    try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){}
+    renderDetail();
+  }catch(e){ $('adm-err').textContent = errMsg(e); }
 }
 $('form-owner').addEventListener('submit', async ev => {
   ev.preventDefault(); $('own-err').textContent = ''; $('own-ok').textContent = '';
-  const email = $('o-email').value.trim();
+  const email = $('o-email').value.trim(), role = $('o-role').value === 'owner' ? 'owner' : 'admin';
   if(!sel) return;
   if(!email) return void ($('own-err').textContent = t('s.emailempty'));
   try{
-    const added = await rpc('ops_org_add_owner', { p_org_id: sel.id, p_email: email });
-    $('o-email').value = ''; $('own-ok').textContent = t(added && added.status === 'invited' ? 's.ownerinvited' : 's.ownerok', {email}, true);
+    /* owners keep going through ops_org_add_owner; admins use the owner's own RPC, which accepts the superuser since 20261030000100 */
+    const added = role === 'owner'
+      ? await rpc('ops_org_add_owner', { p_org_id: sel.id, p_email: email })
+      : await rpc('org_add_admin', { p_org_id: sel.id, p_email: email, p_role: 'admin' });
+    $('o-email').value = ''; $('own-ok').textContent = t(added && added.status === 'invited' ? 's.ownerinvited' : 's.ownerok', {email, role: t('role.' + role)}, true);
     const id = sel.id; await loadOrgs(); sel = orgs.find(o => o.id === id) || null; renderOrgs();
     try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){}
     renderDetail();
