@@ -21,7 +21,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { discoverSessionFiles } from './parser.js';
-import { collectSessionRecords } from './session-records.js';
+import { collectSessionRecords, delegationContexts } from './session-records.js';
+import { netSavingV3, unitRates, exactCost, priceSource } from './net-saving.js';
 import {
   collectSubagentRuns, indexRuns, exactRunsForEpisode, fallbackRunsForEpisode,
 } from './subagent-records.js';
@@ -387,13 +388,51 @@ export function worthDelegating(tier, rank) {
  * negative. null means a side has no price (a gateway session whose /model/info
  * table lacks the model), which is unpriced, not zero.
  */
-export function runSaving(run, mainModel) {
+export function runSaving(run, mainModel, { env = process.env } = {}) {
   if (!run.model || !mainModel) return null;
   const totals = runTotals(run);
-  const actual = sessionCost(totals, run.model);
-  const counterfactual = sessionCost(totals, mainModel);
+  const actual = sessionCost(totals, run.model, { env });
+  const counterfactual = sessionCost(totals, mainModel, { env });
   if (!actual || !counterfactual) return null;
   return counterfactual.actual - actual.actual;
+}
+
+/**
+ * The saving of one delegated run on the v3 basis (src/net-saving.js): the main
+ * model's cache re-reads and the context the run's findings would have added,
+ * against the run's own cost plus the main session's delegation overhead.
+ *
+ * `info` is this run's entry from delegationContexts (the main session around
+ * the Agent call). Anything v3 needs and cannot get (no info, no per-call data,
+ * no price on either side) sends the run to the v2 formula instead, tagged
+ * basis 'v2', so the figure is never invented. null still means unpriced.
+ *
+ * @returns {{usd:number, basis:'v3'|'v2', cfWork?:number, cfCarry?:number, overhead?:number}|null}
+ */
+export function runSavingDetail(run, mainModel, info, { env = process.env } = {}) {
+  if (!run.model || !mainModel) return null;
+  const v3 = (() => {
+    if (!info || !Array.isArray(run.perCall) || run.perCall.length === 0) return null;
+    if (!Number.isFinite(info.resultChars)) return null;
+    const rates = unitRates(mainModel, { env });
+    const subActual = exactCost(runTotals(run), run.model, { env });
+    if (!rates || subActual === null) return null;
+    // A background launch returns only an acknowledgement; the report that
+    // follows is the run's final message.
+    const chars = info.resultChars + (info.async ? (run.finalChars || 0) : 0);
+    return netSavingV3({
+      calls: run.perCall,
+      mainCtx: info.C,
+      followUps: info.N,
+      promptTokens: info.P,
+      resultTokens: chars / 4,
+      rates,
+      subActual,
+    });
+  })();
+  if (v3) return { basis: 'v3', ...v3 };
+  const v2 = runSaving(run, mainModel, { env });
+  return Number.isFinite(v2) ? { usd: v2, basis: 'v2' } : null;
 }
 
 /**
@@ -537,7 +576,13 @@ export function tallyDelegatedRun(stats, key, run, saved, resetMark = null) {
   stats.set(key, d);
 }
 
-export async function runRouteScan({ days = 14 } = {}) {
+/**
+ * @param {object} [opts]
+ * @param {number} [opts.days] scan window
+ * @param {Array|null} [opts.trace] when an array, each priced ledger event is
+ *   pushed to it with both the v2 and the v3 figure (measurement; not stored)
+ */
+export async function runRouteScan({ days = 14, trace = null } = {}) {
   const files = await discoverSessionFiles({ days });
 
   // Behind a Bedrock/LiteLLM gateway the transcripts carry an inference-profile
@@ -555,6 +600,7 @@ export async function runRouteScan({ days = 14 } = {}) {
   const all = []; // { ep, projectDir, sessionPath }
   const dataBytes = windowBytes(files); // window size snapshot — the rescan gate diffs against it
   const runIndexBySession = new Map(); // sessionPath → indexRuns() result
+  const delegationInfoBySession = new Map(); // sessionPath → Map(tool_use id → main-side context of that delegation)
   for (const f of files) {
     let records;
     try {
@@ -570,7 +616,10 @@ export async function runRouteScan({ days = 14 } = {}) {
     // delegation it made. Best-effort: sessions that never delegated have no
     // directory and cost one failed readdir.
     const runs = await collectSubagentRuns(f.path);
-    if (runs.length > 0) runIndexBySession.set(f.path, indexRuns(runs));
+    if (runs.length > 0) {
+      runIndexBySession.set(f.path, indexRuns(runs));
+      delegationInfoBySession.set(f.path, delegationContexts(records));
+    }
   }
   const totalEpisodes = all.length;
   const thresholds = calibrateThresholds(all.map((x) => x.ep.out));
@@ -750,7 +799,8 @@ export async function runRouteScan({ days = 14 } = {}) {
           if (run.model) unresolvedModels.add(run.model);
         }
         if (!runTier || !worthDelegating(runTier, mainRank)) continue;
-        const saved = runSaving(run, mainModel);
+        const info = run.toolUseId ? delegationInfoBySession.get(sessionPath)?.get(run.toolUseId) : undefined;
+        const saved = runSavingDetail(run, mainModel, info)?.usd ?? null;
         bumpDelegated(`${runTier}|${cat.id}|${projectDir}`, run, saved);
         bumpDelegated(`${runTier}|${cat.id}|*`, run, saved);
         // Routing saving: priced against the episode's main model (before →
@@ -762,7 +812,7 @@ export async function runRouteScan({ days = 14 } = {}) {
         // Priced below, after this scan's baselines have been written back to
         // the registry — see the note at the ledger write.
         if (!isRecognizedModelId(run.model)) continue;
-        ledgerEvents.push({ run, rule, tier: runTier, catId: cat.id, projectDir, mainModel });
+        ledgerEvents.push({ run, rule, tier: runTier, catId: cat.id, projectDir, mainModel, info });
       }
     }
   }
@@ -888,7 +938,8 @@ export async function runRouteScan({ days = 14 } = {}) {
       const rule = fresh.find((r) => r.signature === e.rule.signature) || e.rule;
       // The episode's main model is what would have done the work today; the
       // rule's promotion-time baseline only stands in when it is unpriced.
-      const baseline = e.mainModel && isRecognizedModelId(e.mainModel)
+      const fromEpisode = !!(e.mainModel && isRecognizedModelId(e.mainModel));
+      const baseline = fromEpisode
         ? e.mainModel
         : baselineFor(rule, e.tier, e.catId, e.projectDir);
       // Both sides of the comparison must be ids the pricing table really
@@ -897,18 +948,39 @@ export async function runRouteScan({ days = 14 } = {}) {
       // erase a real one — worse than showing nothing. Map such ids in
       // profile-map.json's `modelAliases` to bring these runs back in.
       if (!baseline || !isRecognizedModelId(baseline)) continue;
-      const usd = runSaving(e.run, baseline);
+      const detail = runSavingDetail(e.run, baseline, e.info);
       // A loss is recorded too; only an unpriced run (null) has nothing to record.
-      if (!Number.isFinite(usd)) continue;
+      if (!detail || !Number.isFinite(detail.usd)) continue;
       priced.push({
         key: e.run.path,
         ts: e.run.endedAt ?? e.run.startedAt ?? Date.now(),
-        usd,
+        usd: detail.usd,
         cost: runCost(e.run),
         rule: rule.signature,
         from: baseline,
         to: e.run.model,
+        basis: detail.basis,
+        priceSource: priceSource(),
+        baselineSource: fromEpisode ? 'episode' : 'rule',
       });
+      if (Array.isArray(trace)) {
+        trace.push({
+          key: e.run.path,
+          rule: rule.signature,
+          from: baseline,
+          to: e.run.model,
+          basis: detail.basis,
+          usd: detail.usd,
+          v2: runSaving(e.run, baseline),
+          cfWork: detail.cfWork,
+          cfCarry: detail.cfCarry,
+          overhead: detail.overhead,
+          firstWrite: detail.basis === 'v3' ? (e.run.perCall[0].newIn * (unitRates(baseline)?.write ?? 0)) : 0,
+          calls: e.run.calls,
+          C: e.info?.C ?? null,
+          N: e.info?.N ?? null,
+        });
+      }
     }
     recordDelegationEvents(priced);
   } catch {

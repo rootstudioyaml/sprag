@@ -118,9 +118,13 @@ export async function run({ args, hasFlag, numArg }) {
         console.log(`            ${lang === 'ko' ? '룰' : 'rule'}: ${e.rule || '(unattributed)'}`);
       }
       console.log('');
+      const v3Runs = events.filter((e) => e.basis === 'v3').length;
       console.log(lang === 'ko'
-        ? '금액은 "룰 승격 전 그 유형을 처리하던 모델"과 실제 실행 모델의 가격 차이입니다 (토큰 수는 고정 가정).'
-        : 'Each amount is the price gap between the model that handled this category before the rule and the model that actually ran it (token counts held constant).');
+        ? '금액은 실행 1건마다 "그 에피소드에서 가장 비싼 모델이 같은 일을 직접 했을 때의 비용"에서 실제로 든 비용을 뺀 값입니다. 직접 했다면 호출마다 다시 읽었을 캐시 컨텍스트와 이후 호출에 쌓였을 도구 결과를 앞쪽에 넣고, 위임 프롬프트와 돌아온 결과를 다시 읽는 비용은 실제 비용 쪽에 넣습니다.'
+        : 'Each amount, per run, is what the most expensive model in that episode would have cost doing the same work itself, minus what delegating actually cost. The first side counts the cached context it would have re-read on every call and the tool results it would have carried into later calls; the second adds the delegation prompt and the returned report, re-read on later calls.');
+      console.log(lang === 'ko'
+        ? `메인 세션 기록을 읽지 못한 실행과 이 계산법 이전 기록(${events.length - v3Runs}건)은 토큰 수를 고정하고 모델 가격 차이만 본 이전 방식입니다. 이번 목록에서 새 방식은 ${v3Runs}건입니다.`
+        : `Runs whose main-session numbers could not be read, and records from before this method (${events.length - v3Runs}), use the older price-gap method with token counts held constant. ${v3Runs} in this list use the new one.`);
       return;
     }
 

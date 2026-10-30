@@ -90,6 +90,16 @@ export async function collectSubagentRun(jsonlPath) {
     startedAt: null,
     endedAt: null,
     bytes: 0,
+    // One entry per API call, in order: the context it carried (ctx), the part
+    // of it that was not a cache read (newIn) and what it wrote (out). The
+    // net-saving counterfactual re-prices the run call by call from these.
+    perCall: records.map((r) => ({
+      ctx: r.prompt_tokens || 0,
+      newIn: (r.input_tokens || 0) + (r.cache_creation_tokens || 0),
+      out: r.completion_tokens || 0,
+    })),
+    // Size of the last text the run produced, i.e. the report it hands back.
+    finalChars: [...records].reverse().find((r) => (r.textChars || 0) > 0)?.textChars ?? 0,
   };
   const byModelOut = new Map();
   for (const r of records) {

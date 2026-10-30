@@ -9,8 +9,18 @@
  * upsert instead of double-counting.
  *
  * File: <userDataDir>/delegation-ledger.json
- *   { "version": 2,
- *     "events": { "<run path>": { "ts", "usd", "cost", "rule", "from", "to" } } }
+ *   { "version": 3,
+ *     "events": { "<run path>": { "ts", "usd", "cost", "rule", "from", "to",
+ *                                 "basis", "priceSource", "baselineSource" } } }
+ *
+ * Version 3 prices a run on the net-saving basis (src/net-saving.js), and each
+ * event says how it was priced: `basis` 'v3' (cache re-reads and carried
+ * context counted) or 'v2' (run tokens repriced only, used when the main
+ * session's numbers could not be read), `priceSource` 'list' | 'gateway', and
+ * `baselineSource` 'episode' (the episode's own main model) | 'rule' (the
+ * rule's stored baseline, when that model had no price). Version 2 events keep
+ * their value and read as basis v2; a rescan reprices those still inside the
+ * scan window as v3 and leaves the older ones alone.
  *
  * `from`/`to` are the models the routing decision moved between, and `usd` is
  * the price difference between them for this run's tokens. `cost` is what the
@@ -42,7 +52,9 @@ export function ledgerPath() {
   return join(userDataDir(), 'delegation-ledger.json');
 }
 
-export const LEDGER_VERSION = 2;
+export const LEDGER_VERSION = 3;
+// Version 2 differs only in lacking the basis fields, so it is read as is.
+const READABLE_VERSIONS = new Set([2, LEDGER_VERSION]);
 
 /**
  * Which run a ledger key names, wherever its transcript sits:
@@ -65,8 +77,10 @@ export function loadLedger() {
     }
     // Pre-v2 events were priced against a different counterfactual — drop them
     // instead of mixing two meanings into one total. The next scan rebuilds
-    // whatever is still attributable.
-    if (data.version !== LEDGER_VERSION) return { version: LEDGER_VERSION, events: {} };
+    // whatever is still attributable. v2 events are kept: they are the same
+    // kind of figure (basis v2), only unlabelled.
+    if (!READABLE_VERSIONS.has(data.version)) return { version: LEDGER_VERSION, events: {} };
+    data.version = LEDGER_VERSION;
     // One event per run: duplicates recorded from a second copy of the same
     // transcript are dropped here, so every reader sums each run once and the
     // next write persists the cleanup.
@@ -84,7 +98,7 @@ export function loadLedger() {
 
 /**
  * Upsert saving events. `events` is an array of
- * { key, ts, usd, cost, rule, from, to } where `key` is the run's transcript
+ * { key, ts, usd, cost, rule, from, to, basis, priceSource, baselineSource } where `key` is the run's transcript
  * path (unique per subagent run) and `from`/`to` name the models the routing
  * decision moved between. `usd` is signed: a run on a pricier model is a loss
  * and is recorded as a negative amount so it reduces the totals. Only
@@ -108,7 +122,10 @@ export function recordDelegationEvents(events) {
     const cost = Number.isFinite(e.cost) ? roundUsd(e.cost) : undefined;
     // An event recorded before `cost` existed compares unequal here, so the
     // first scan that still covers the run fills its cost in.
-    if (prev && prev.ts === e.ts && prev.usd === usd && prev.cost === cost) continue;
+    // The same goes for the basis fields: a v2 event rescanned as v3 differs.
+    if (prev && prev.ts === e.ts && prev.usd === usd && prev.cost === cost
+      && prev.basis === (e.basis || undefined) && prev.priceSource === (e.priceSource || undefined)
+      && prev.baselineSource === (e.baselineSource || undefined)) continue;
     if (prevKey !== e.key) delete data.events[prevKey];
     keyOf.set(id, e.key);
     data.events[e.key] = {
@@ -118,6 +135,9 @@ export function recordDelegationEvents(events) {
       ...(e.rule ? { rule: e.rule } : {}),
       ...(e.from ? { from: e.from } : {}),
       ...(e.to ? { to: e.to } : {}),
+      ...(e.basis ? { basis: e.basis } : {}),
+      ...(e.priceSource ? { priceSource: e.priceSource } : {}),
+      ...(e.baselineSource ? { baselineSource: e.baselineSource } : {}),
     };
     changed = true;
   }
