@@ -775,7 +775,13 @@ async function main() {
       maybeSpawnBudgetCheck();
       if (!caps || !Array.isArray(caps.windows) || caps.windows.length === 0) {
         const bw = budgetWindow();
-        if (bw) caps = { windows: [bw] };
+        if (bw) {
+          caps = { windows: [bw] };
+          // The prompt hook reads the budget from last-caps.json, and the
+          // snapshot above was written before this window existed.
+          const { persistSnapshot } = await import('../src/caps-cache.js');
+          persistSnapshot({ caps, model });
+        }
       }
     } catch (e) {
       debug('litellm-budget:window', e);

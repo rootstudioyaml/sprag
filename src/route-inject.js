@@ -47,6 +47,7 @@ import { aliasForRole, resolveModelAlias } from './model-alias.js';
 import { isRecognizedModelId, modelRank } from './cost.js';
 import { loadRecentSnapshot } from './caps-cache.js';
 import { getSessionModel } from './parser.js';
+import { labelForKey } from './window-labels.js';
 
 const PASTE_MIN_LINES = 8;
 const LOG_SHAPE_RE = /^\s+at\s|\b(error|exception|traceback|warn(ing)?|fatal)\b|^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/im;
@@ -331,16 +332,42 @@ export function hintTarget(match, { lang = userLanguage(), root } = {}) {
 }
 
 /**
+ * The line a delegation hint ends with when a usage window is running low, or
+ * '' when there is nothing to add. It only changes how readily the model
+ * delegates; the target tier and the caps stay what the rule says.
+ *
+ * @param {{level: string, pct: number, key: string}|null|undefined} pressure a capPressure result
+ */
+export function pressureLine(pressure, { lang = userLanguage() } = {}) {
+  if (!pressure || (pressure.level !== 'high' && pressure.level !== 'critical')) return '';
+  const label = labelForKey(pressure.key).short;
+  const pct = Math.round(pressure.pct);
+  const ko = lang === 'ko';
+  if (pressure.level === 'critical') {
+    return ko
+      ? `한도 위험: ${label} ${pct}%. 여러 단계 작업도 위임 대상으로 보고, 메인 모델을 바꾸는 것(/model)도 사용자에게 제안하십시오.`
+      : `Usage limit critical: ${label} ${pct}%. Treat multi-step work as delegable too, and suggest to the user switching the main model (/model).`;
+  }
+  return ko
+    ? `한도 압박: ${label} ${pct}%. 판단이 애매하면 위임하십시오.`
+    : `Usage limit pressure: ${label} ${pct}%. When in doubt, delegate.`;
+}
+
+/**
  * @param {string} text the prompt just submitted
  * @param {object} [opts] as routeMatch, plus:
  * @param {string} [opts.lang] 'ko' | 'en'
+ * @param {object|null} [opts.pressure] a capPressure result. A delegation hint
+ *   ends with one more line when it is high or critical; null or omitted leaves
+ *   the hint exactly as it was. The caller passes it rather than this function
+ *   reading the snapshot, so a hint stays a function of its arguments.
  * @param {string} [opts.root] project root used to look for a subagent's .md.
  *   The hint names the agent when that file exists and only its model tier when
  *   it does not, so a caller that needs a predictable phrase pins this.
  * @param {object|null} [opts.match] a routeMatch result the caller already has
  * @returns {string|null} the line to inject, or null to stay quiet
  */
-export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match, env } = {}) {
+export function routeHint(text, { rules, lang = userLanguage(), root, sessionRank = null, match, env, pressure = null } = {}) {
   const found = match === undefined ? routeMatch(text, { rules, sessionRank, root, env }) : match;
   if (!found) return null;
   const { t2, t1, t1h } = found;
@@ -355,9 +382,10 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
     ? (ko ? '상한 ' : 'cap ') + picked.map((r, i) => `${TIER_MODEL[r.tier]} ${caps[i]}`).join(' / ')
     : (ko ? `상한 ${caps[0]}` : `cap ${caps[0]}`);
 
+  const extra = pressureLine(pressure, { lang });
   // The marker line is the one in ratchet-model.md, so the user sees the same
   // string whichever path decided to delegate.
-  return ko
+  const body = ko
     ? `[sprag] 이 요청은 사용자가 이미 승인한 위임 룰 "${label}" 에 해당합니다: ${target} 로 위임하십시오 (${capText}). `
       + `되묻지 말고 위임하고, 위임할 때 \`🔀 [sprag] 모델 피팅: "${label}" → <agent> (<모델> · effort <effort>) 위임\` 을 먼저 표시하십시오. `
       + `모델과 effort 값은 위 에이전트 표기에 적힌 그대로 쓰고, Agent 도구의 description 맨 앞에도 \`[<모델> · <effort>]\` 를 붙이십시오. `
@@ -366,4 +394,5 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
       + `Do not ask again; print \`🔀 [sprag] model fit: "${label}" → <agent> (<model> · effort <effort>)\` first, `
       + `with the model and effort the agent's phrase above gives, and start the Agent tool's description with \`[<model> · <effort>]\`. `
       + `If the run is likely to exceed its cap or hits an error, stop there and the main model takes over.`;
+  return extra ? `${body}\n${extra}` : body;
 }

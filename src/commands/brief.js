@@ -66,7 +66,17 @@ export async function run({ hasFlag }) {
       // already reads it (src/delegation-guard.js). A payload without the field
       // leaves root undefined, which is the behaviour this had before.
       const match = routeMatch(ctx.prompt, { sessionRank, root: ctx.cwd });
-      const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd, match });
+      // How near the usage limit is, from the statusline snapshot. Read only when
+      // a hint will be written, and only the file: no network in a prompt hook.
+      let pressure = null;
+      if (match) {
+        try {
+          const { capPressure } = await import('../caps-cache.js');
+          const { getSessionModel } = await import('../parser.js');
+          pressure = capPressure({ sessionModel: getSessionModel(ctx.transcript_path) });
+        } catch (e) { debug('brief:cap-pressure', e); }
+      }
+      const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd, match, pressure });
       if (hint) parts.push(hint);
       // Remember that this turn carried a delegation hint, so the PostToolUse
       // hook can nudge when the model looks things up itself instead. The
