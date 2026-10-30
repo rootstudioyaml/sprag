@@ -176,10 +176,17 @@ export async function run({ args, hasFlag, numArg }) {
         // Measured outcome of the rule actually firing, plus what it saved.
         // A rule with no measured delegations shows "—", never "$0.00": the
         // two mean opposite things (no data vs. data showing no value).
+        // The session model's own failure rate on the same work, so the user
+        // can tell a downgrade that hurts from work that fails on any model.
+        const base = r.baselineSample >= mr.HEALTH_MIN_SAMPLE && Number.isFinite(r.baselineErrRate)
+          ? (lang === 'ko'
+            ? ` (직접 처리 시 ${Math.round(r.baselineErrRate * 100)}%)`
+            : ` (session model ${Math.round(r.baselineErrRate * 100)}%)`)
+          : '';
         const measured = r.delegatedRuns
           ? (lang === 'ko'
-            ? `실제 위임 ${r.delegatedRuns}건 · 에러율 ${Math.round((r.delegatedErrRate || 0) * 100)}% · 절감 ~${signedUsd(r.savedUsd || 0)}`
-            : `measured ×${r.delegatedRuns} · err ${Math.round((r.delegatedErrRate || 0) * 100)}% · saved ~${signedUsd(r.savedUsd || 0)}`)
+            ? `실제 위임 ${r.delegatedRuns}건 · 에러율 ${Math.round((r.delegatedErrRate || 0) * 100)}%${base} · 절감 ~${signedUsd(r.savedUsd || 0)}`
+            : `measured ×${r.delegatedRuns} · err ${Math.round((r.delegatedErrRate || 0) * 100)}%${base} · saved ~${signedUsd(r.savedUsd || 0)}`)
           : (sessionRank !== null && !rs.worthDelegating(r.tier, sessionRank)
             ? (lang === 'ko'
               ? `이 규칙은 현재 기본 모델(${sessionModel}) 기준으로는 적용되지 않습니다. 세션 모델이 이미 위임 목표와 같은 급이어서 절감이 발생하지 않습니다.`
@@ -454,17 +461,18 @@ export async function run({ args, hasFlag, numArg }) {
       }
       if (reviewRules.length > 0) {
         lines.push(lang === 'ko'
-          ? '[sprag rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 기준(20%)을 넘어 재검토가 필요한 룰이 있습니다 — 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:'
-          : '[sprag rule-health] Some user-approved delegation rules now exceed the 20% error-rate threshold for their delegated category — brief the user and discuss narrowing or removing them:');
+          ? '[sprag rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 룰별 기준을 넘어 재검토가 필요한 룰이 있습니다. 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:'
+          : '[sprag rule-health] Some user-approved delegation rules now exceed their error-rate threshold for the delegated category — brief the user and discuss narrowing or removing them:');
         for (const r of reviewRules) {
           // Say WHICH signal tripped: a measured delegation failure rate is a
           // much stronger claim than the shape-based proxy, and the user's
           // decision (narrow vs. remove) depends on knowing which it is.
           const measured = r.healthSource === 'delegated';
           const rate = Math.round(((measured ? r.delegatedErrRate : r.errRate) || 0) * 100);
+          const bar = Math.round(mrHook.ruleReviewThreshold(r) * 100);
           const evidence = lang === 'ko'
-            ? (measured ? `실제 위임 ${r.delegatedRuns}건 실측 에러율 ${rate}%` : `유형 에러율 ${rate}% (형태 기반 추정)`)
-            : (measured ? `${rate}% measured across ${r.delegatedRuns} real delegations` : `${rate}% for the category (shape-based proxy)`);
+            ? (measured ? `실제 위임 ${r.delegatedRuns}건 실측 에러율 ${rate}% (기준 ${bar}%)` : `유형 에러율 ${rate}% (형태 기반 추정, 기준 ${bar}%)`)
+            : (measured ? `${rate}% measured across ${r.delegatedRuns} real delegations (threshold ${bar}%)` : `${rate}% for the category (shape-based proxy, threshold ${bar}%)`);
           lines.push(lang === 'ko'
             ? `  룰 #${r.n} (${r.tier} ${rs.tierLabel(r.tier)} · ${rs.scopeLabel(r.scope)}) — ${evidence}`
             : `  rule #${r.n} (${r.tier} ${rs.tierLabel(r.tier, 'en')} · ${rs.scopeLabel(r.scope, 'en')}) — ${evidence}`);
