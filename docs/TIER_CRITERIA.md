@@ -218,9 +218,9 @@ LLM 호출이 발생해 "전 과정 로컬·LLM 0회" 원칙과 충돌하므로 
 - 실무 사례: github.com/anthropics/claude-code/issues/67898 · github.com/lucemia/claude-session-analyzer · mindstudio.ai 블로그
 </details>
 
-## 2026-10 보강: 기준선 비교와 탐색 후 판정 실측 (2026-10-30)
+## 2026-10 보강: 기준선 비교, 탐색 후 판정, 임계값 보류 검증 실측 (2026-10-30)
 
-2026년 4월 이후 arXiv에 올라온 라우팅 논문 중 sprag에 바로 적용할 수 있는 두 가지를 로컬 로그로 확인했습니다.
+2026년 4월 이후 arXiv에 올라온 라우팅 논문 중 sprag에 바로 적용할 수 있는 세 가지를 로컬 로그로 확인했습니다.
 
 **1. rule-health는 세션 모델의 실패율과 비교합니다.** 여러 모델을 조합해도 모든 모델이 함께 틀리는 비율 이상으로는 정확도를 올릴 수 없다는 결과가 있습니다(Co-Failure Ceiling). 이 결과에 따르면, 세션 모델도 같이 실패하는 작업은 위임 탓으로 볼 수 없습니다. 그래서 실측 위임 룰은 같은 유형을 세션 모델이 직접 처리했을 때의 실패율을 기준으로 삼고, 20%는 하한으로만 씁니다. 두 실패율은 같은 판정(`isFailedRun`, 도구 에러 밀도 10% 초과)으로 셉니다. 2026-10-30 기준 14일 로그에서는 직접 처리 실패율이 가장 높은 유형도 17%여서, 바뀐 룰 상태는 없습니다. 대신 `sprag route-scan rules` 에 두 값이 나란히 나오므로, 위임이 품질을 떨어뜨렸는지 바로 확인할 수 있습니다. 예를 들어 T1 명령 실행 룰은 위임했을 때 9%, 직접 처리했을 때 8%였습니다.
 
@@ -236,6 +236,9 @@ LLM 호출이 발생해 "전 과정 로컬·LLM 0회" 원칙과 충돌하므로 
 
 초반 2~3회에서는 신호가 거의 없고, 의미 있는 비율은 6회 무렵에야 나옵니다. 이 지점은 지금 haiku 위임에 거는 상한(도구 호출 8회)과 겹칩니다. 그래서 체크포인트 조항을 추가하는 대신 현행 상한을 유지합니다. SWE-Router는 궤적 내용 전체를 학습된 가치 함수로 읽으므로, 이번 결과는 그 방법을 반박하지 않습니다. sprag가 기록하는 횟수형 신호로는 초반 판정이 어렵다는 뜻입니다.
 
+**3. 출력 임계값은 지금처럼 스캔마다 다시 맞춥니다.** JEV-as-a-Judge는 평가 데이터를 보기 전에 확신 임계값을 고정하고, 보류해 둔 데이터로 검증합니다. route-scan은 스캔할 때마다 최근 14일 분포로 t2Out·t1Out·t1hOut을 다시 계산하므로, 임계값을 정한 구간과 임계값을 적용하는 구간이 겹칩니다. `scripts/threshold-holdout-probe.mjs` 는 30일 로그 중 앞부분만으로 임계값을 고정하고, 그 값을 최근 7일에 적용했을 때 스캔 방식과 티어가 얼마나 달라지는지 셉니다. 주별로 맞춘 t1Out은 7천에서 1만 4천 토큰까지 두 배 가까이 흔들렸습니다. 그런데도 최근 7일의 티어 판정 가능 에피소드 318건 중 티어가 바뀐 것은 12건(3.8%)이었고, 보류 구간을 3일로 줄이면 97건 중 2건이었습니다. 임계값은 흔들려도 티어 경계를 넘는 에피소드는 적다는 결과입니다. 그래서 고정 방식으로 바꾸지 않고, 이 스크립트를 재측정 도구로 남겨 둡니다.
+
 출처:
 - Co-Failure Ceiling: [When Does Combining Language Models Help? A Co-Failure Ceiling on Routing, Voting, and Mixture-of-Agents Across 67 Frontier Models](https://arxiv.org/abs/2606.27288) (2026)
 - SWE-Router: [SWE-Router: Routing in Multi-turn Agentic Software Engineering Tasks](https://arxiv.org/abs/2607.00053) (2026)
+- JEV-as-a-Judge: [JEV-as-a-Judge: Accept When Confident, Escalate When Unsure](https://arxiv.org/abs/2609.26550) (2026)
