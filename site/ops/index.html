@@ -716,7 +716,7 @@
               <p class="sub" style="margin-top:0" data-k="s.ownerd">The superuser has the same rights as the organization's owner.</p>
               <input type="email" id="o-email" data-ph="f.email" placeholder="Email" aria-label="Email" />
               <div class="row"><select id="o-role" aria-label="Role" style="width:auto"><option value="admin" data-k="role.admin">Admin</option><option value="owner" data-k="role.owner">Owner</option></select>
-                <button class="btn" type="submit" data-k="s.ownerbtn">Add</button><span class="ok" id="own-ok"></span></div>
+                <button class="btn" type="submit" id="o-btn" data-k="s.btnadmin">Add admin</button><span class="ok" id="own-ok"></span></div>
               <p class="err" id="own-err" role="alert"></p>
             </form>
           </section>
@@ -922,7 +922,7 @@ const I18N = {
     'c.name':'Name','c.plan':'Plan','c.status':'Status','c.seats':'Seats','c.teams':'Teams','c.members':'Members','c.owners':'Owners',
     'c.sp':'Spent','c.sv':'Saved','c.rev':'Sprag revenue / mo','rev.note':'{seats} contracted seats × ${price} ({plan}); suspended organizations count as $0','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
     's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (superuser only)','s.save':'Save','s.saved':'Saved',
-    's.owner':'Add owner or admin by email','s.ownerd':'The superuser has the same rights as the organization\'s owner: appoint or remove owners and admins, for example when the customer lost access. The person does not need an account yet; they get the role when they sign in at sprag.io/team with an email code.','s.ownerbtn':'Add','s.ownerok':'Added {email}','s.ownerinvited':'Invited {email}. They get the {role} role on first sign-in.','s.adminrm':'Remove','s.adminrmconfirm':'Remove {email} from this organization?','s.adminrmok':'Removed {email}',
+    's.owner':'Add owner or admin by email','s.ownerd':'The superuser has the same rights as the organization\'s owner: appoint or remove owners and admins, for example when the customer lost access. The person does not need an account yet; they get the role when they sign in at sprag.io/team with an email code.','s.btnadmin':'Add admin','s.btnowner':'Add owner','s.ownerok':'Added {email}','s.ownerinvited':'Invited {email}. They get the {role} role on first sign-in.','s.adminrm':'Remove','s.adminrmconfirm':'Remove {email} from this organization?','s.adminrmok':'Removed {email}',
     's.team':'{n} active · {s} seats','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
     's.suspendconfirm':'Suspend {name}? Members stop syncing and new joins are refused until you set it back to Active.',
     'k.id':'ID','k.seats':'Seats','k.created':'Created','k.seen':'Last seen','k.you':'Your role',
@@ -1037,7 +1037,7 @@ const I18N = {
     'c.name':'이름','c.plan':'요금제','c.status':'상태','c.seats':'좌석','c.teams':'팀','c.members':'멤버','c.owners':'오너',
     'c.sp':'지출','c.sv':'절감','c.rev':'Sprag 월 매출','rev.note':'계약 좌석 {seats}개 × ${price} ({plan}), 정지된 조직은 $0','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
     's.teams':'팀','s.admins':'어드민','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (슈퍼유저만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
-    's.owner':'이메일로 오너·어드민 추가','s.ownerd':'슈퍼유저는 조직 오너와 같은 권한으로 오너와 어드민을 지정하거나 제거합니다. 고객이 접근 권한을 잃었을 때도 이 기능을 씁니다. 계정이 아직 없어도 되고, sprag.io/team 에서 이메일 코드로 로그인하면 그 역할을 받습니다.','s.ownerbtn':'추가','s.ownerok':'{email}님을 추가했습니다','s.ownerinvited':'{email}님을 초대했습니다. 처음 로그인하면 {role} 권한을 받습니다.','s.adminrm':'제거','s.adminrmconfirm':'{email}님을 이 조직에서 제거할까요?','s.adminrmok':'{email}님을 제거했습니다',
+    's.owner':'이메일로 오너·어드민 추가','s.ownerd':'슈퍼유저는 조직 오너와 같은 권한으로 오너와 어드민을 지정하거나 제거합니다. 고객이 접근 권한을 잃었을 때도 이 기능을 씁니다. 계정이 아직 없어도 되고, sprag.io/team 에서 이메일 코드로 로그인하면 그 역할을 받습니다.','s.btnadmin':'어드민 추가','s.btnowner':'오너 추가','s.ownerok':'{email}님을 추가했습니다','s.ownerinvited':'{email}님을 초대했습니다. 처음 로그인하면 {role} 권한을 받습니다.','s.adminrm':'제거','s.adminrmconfirm':'{email}님을 이 조직에서 제거할까요?','s.adminrmok':'{email}님을 제거했습니다',
     's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
     's.suspendconfirm':'{name} 조직을 정지할까요? 사용 중으로 되돌릴 때까지 멤버 동기화가 멈추고 새 참여도 거절됩니다.',
     'k.id':'ID','k.seats':'좌석','k.created':'생성일','k.seen':'마지막 접속','k.you':'내 권한',
@@ -1993,6 +1993,8 @@ async function removeOrgAdmin(uid){
     renderDetail();
   }catch(e){ $('adm-err').textContent = errMsg(e); }
 }
+/* the button names the role it adds; data-k follows so a language switch keeps the right label */
+$('o-role').addEventListener('change', () => { const b = $('o-btn'); b.dataset.k = $('o-role').value === 'owner' ? 's.btnowner' : 's.btnadmin'; b.innerHTML = t(b.dataset.k); });
 $('form-owner').addEventListener('submit', async ev => {
   ev.preventDefault(); $('own-err').textContent = ''; $('own-ok').textContent = '';
   const email = $('o-email').value.trim(), role = $('o-role').value === 'owner' ? 'owner' : 'admin';
