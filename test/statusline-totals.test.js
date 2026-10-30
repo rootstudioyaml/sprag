@@ -107,7 +107,7 @@ test('the total renders in the savings green', () => {
   assert.doesNotMatch(out, /weekly|monthly/, 'the rolling windows are gone');
 });
 
-test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
+test('ledger v1 events are discarded, not mixed into v3 totals', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'cts-ledger-v1-'));
   process.env.XDG_CONFIG_HOME = dir;
   t.after(() => {
@@ -125,12 +125,12 @@ test('ledger v1 events are discarded, not mixed into v2 totals', async (t) => {
   const m = await import('../src/savings-ledger.js?v1');
   assert.deepEqual(m.delegationSavedTotals(), { week: 0, month: 0, total: 0, spent: 0, spentMissing: 0, pairs: [], since: null });
 
-  // A v2 write starts the file over and stamps the version.
+  // A write starts the file over and stamps the current version.
   m.recordDelegationEvents([
     { key: '/new.jsonl', ts: Date.now(), usd: 0.5, rule: 'T1|run|p', from: 'claude-fable-5', to: 'claude-sonnet-5' },
   ]);
   const led = m.loadLedger();
-  assert.equal(led.version, 2);
+  assert.equal(led.version, 3);
   assert.equal(Object.keys(led.events).length, 1);
   assert.deepEqual(led.events['/new.jsonl'], {
     ts: led.events['/new.jsonl'].ts,

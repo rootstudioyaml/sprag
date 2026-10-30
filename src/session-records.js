@@ -36,6 +36,7 @@ function contentText(content) {
  */
 const MUTATING_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit', 'Bash']);
 const DELEGATION_TOOLS = new Set(['Task', 'Agent']);
+const HANDBACK_TOOL = 'SubagentHandback';
 
 // Permission rejections and harness policy denials arrive as is_error
 // tool_results, but they encode the user's choice / the permission system's
@@ -88,6 +89,7 @@ function isRealToolError(block) {
 
 export async function collectSessionRecords(filePath, { includeContent = true } = {}) {
   const records = new Map();
+  const delegationReq = new Map(); // Task/Agent tool_use id → requestId of the record that issued it
   let depth = 0;
   let lastUserText = '';
   let lastCwd = '';
@@ -114,6 +116,23 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
           if (isRealToolError(b)) lastRecord.toolErrors += 1;
         }
       }
+      // What a Task/Agent call handed back to this session: its size is what
+      // stays in the context for every later call (see delegationContexts).
+      // A background launch returns only an acknowledgement here; the report
+      // itself arrives later, so the entry is marked `async`.
+      if (Array.isArray(msg.content)) {
+        for (const b of msg.content) {
+          if (!b || b.type !== 'tool_result' || typeof b.tool_use_id !== 'string') continue;
+          const reqId = delegationReq.get(b.tool_use_id);
+          const owner = reqId !== undefined ? records.get(reqId) : null;
+          if (!owner) continue;
+          const tr = entry.toolUseResult;
+          owner.delegationResults[b.tool_use_id] = {
+            chars: toolResultText(b.content).length,
+            async: !!(tr && typeof tr === 'object' && (tr.isAsync === true || tr.status === 'async_launched')),
+          };
+        }
+      }
       continue;
     }
     if (entry.type !== 'assistant' || !msg) continue;
@@ -136,13 +155,21 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
     // transcripts under <session>/subagents/*.meta.json, which is how the
     // outcome of a delegation is measured (rule-health v2).
     const delegationToolUseIds = [...(prev?.delegationToolUseIds || [])];
+    let textChars = 0;
     if (Array.isArray(msg.content)) {
       for (const b of msg.content) {
+        if (b && b.type === 'text' && typeof b.text === 'string') textChars += b.text.length;
+        // A subagent that reports through the handback tool puts the report in
+        // the tool's `message`, not in a text block.
+        if (b && b.type === 'tool_use' && b.name === HANDBACK_TOOL && typeof b.input?.message === 'string') textChars += b.input.message.length;
         if (!b || b.type !== 'tool_use') continue;
         if (MUTATING_TOOLS.has(b.name)) mutatingToolCalls += 1;
         if (DELEGATION_TOOLS.has(b.name)) {
           delegationCalls += 1;
-          if (typeof b.id === 'string') delegationToolUseIds.push(b.id);
+          if (typeof b.id === 'string') {
+            delegationToolUseIds.push(b.id);
+            delegationReq.set(b.id, reqId);
+          }
         }
         if (typeof b.name === 'string') toolCounts[b.name] = (toolCounts[b.name] || 0) + 1;
       }
@@ -174,9 +201,60 @@ export async function collectSessionRecords(filePath, { includeContent = true } 
       delegationToolUseIds,
       toolErrors: prev?.toolErrors || 0,
       toolCounts,
+      // Characters of assistant text; for a subagent transcript the last
+      // record's value is the report it hands back to its parent.
+      textChars: (prev?.textChars || 0) + textChars,
+      // tool_use id → { chars, async } of the result the call received.
+      delegationResults: prev?.delegationResults || {},
     };
     records.set(reqId, lastRecord);
   }
 
   return [...records.values()];
+}
+
+/** Later main calls counted for how long a delegation's result stays in context. */
+export const CARRY_CAP = 50;
+/** A call whose context falls below this share of the one before it follows a compaction. */
+export const COMPACTION_RATIO = 0.5;
+
+/**
+ * Per Task/Agent tool_use id, what the session around the delegation looked
+ * like, from the session's own call records (collectSessionRecords order):
+ *   C           context of the call that issued it (input + cache read + cache write)
+ *   N           main calls after it in the same session, stopping at the next
+ *               compaction (context drops below COMPACTION_RATIO of the call
+ *               before) or the end, capped at CARRY_CAP
+ *   P           output tokens that call spent writing the prompt (its output
+ *               shared evenly between the delegations it issued)
+ *   resultChars size of the tool_result that came back, null when none was seen
+ *   async       that result was only a background-launch acknowledgement
+ * A value that cannot be read stays null, and the caller then declines to use
+ * the entry rather than guess.
+ */
+export function delegationContexts(records) {
+  const out = new Map();
+  for (let j = 0; j < records.length; j++) {
+    const r = records[j];
+    const ids = r.delegationToolUseIds || [];
+    if (ids.length === 0) continue;
+    let n = 0;
+    for (let k = j + 1; k < records.length && n < CARRY_CAP; k++) {
+      if (records[k].prompt_tokens < records[k - 1].prompt_tokens * COMPACTION_RATIO) break;
+      n += 1;
+    }
+    const ctx = r.prompt_tokens > 0 ? r.prompt_tokens : null;
+    const prompt = r.completion_tokens > 0 ? r.completion_tokens / ids.length : null;
+    for (const id of ids) {
+      const res = r.delegationResults?.[id];
+      out.set(id, {
+        C: ctx,
+        N: n,
+        P: prompt,
+        resultChars: res ? res.chars : null,
+        async: res ? res.async : false,
+      });
+    }
+  }
+  return out;
 }

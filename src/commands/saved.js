@@ -155,7 +155,12 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
         : (ko ? `${fmtTime(marks[s])} 이후` : `since ${fmtTime(marks[s])}`);
       console.log(`${label(s)}: ${fmtTotal(t)} (${since})`);
     }
-    if (agent !== 'codex') await printModelShare({ ko, dir, money });
+    if (agent !== 'codex') {
+      console.log(ko
+        ? '라우팅 절감은 위임하지 않고 직접 했을 때의 캐시 읽기와 쌓일 컨텍스트까지 반영해 계산합니다 (v3).'
+        : 'Routing saved is net of the cache re-reads and carried context the same work would have cost without delegating (v3).');
+      await printModelShare({ ko, dir, money });
+    }
     return;
   }
 
