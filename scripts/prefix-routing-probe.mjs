@@ -17,47 +17,16 @@
 //
 // Read-only. Usage: node scripts/prefix-routing-probe.mjs [days=30] [--json]
 
-import { discoverSessionFiles } from '../src/parser.js';
-import { collectSessionRecords } from '../src/session-records.js';
 import {
   categorize, tierOf, calibrateThresholds, isSkippable, episodeRank, worthDelegating,
   T2_MAX_CALLS, T2_MAX_MUTATING, T1_MAX_MUTATING, T1_MAX_ERRORS,
 } from '../src/route-scan.js';
+import { fold, loadEpisodes } from './lib/episodes.mjs';
 
 const days = Number(process.argv.find((a) => /^\d+$/.test(a))) || 30;
 const asJson = process.argv.includes('--json');
 const KS = [1, 2, 3, 4, 6];
 const RANK = { T2: 0, T1: 1, T1H: 2, T0: 3 };
-
-/** Episodes as route-scan builds them, keeping the per-call records. */
-function episodesOf(records) {
-  const out = [];
-  let cur = null;
-  for (const r of records) {
-    const text = (r.userText || '').trim();
-    if (!cur || cur.text !== text) {
-      cur = { text, recs: [] };
-      out.push(cur);
-    }
-    cur.recs.push(r);
-  }
-  return out;
-}
-
-/** Fold the first `k` calls (all when k is omitted) into tierOf's episode shape. */
-function fold(recs, text, k = recs.length) {
-  const ep = { text, calls: 0, out: 0, mutating: 0, errors: 0, delegated: 0, models: new Set(), tools: {} };
-  for (const r of recs.slice(0, k)) {
-    ep.calls += 1;
-    ep.out += r.completion_tokens || 0;
-    ep.mutating += r.mutatingToolCalls || 0;
-    ep.errors += r.toolErrors || 0;
-    ep.delegated += r.delegationCalls || 0;
-    ep.models.add(r.model);
-    for (const [name, n] of Object.entries(r.toolCounts || {})) ep.tools[name] = (ep.tools[name] || 0) + n;
-  }
-  return ep;
-}
 
 /** Lowest tier the prefix still fits; a prefix only ever rules tiers out. */
 function prefixFloor(p, th) {
@@ -66,13 +35,7 @@ function prefixFloor(p, th) {
   return 'T1H';
 }
 
-const files = await discoverSessionFiles({ days });
-const raw = [];
-for (const f of files) {
-  let records;
-  try { records = await collectSessionRecords(f.path, { includeContent: true }); } catch { continue; }
-  for (const e of episodesOf(records)) if (e.text) raw.push(e);
-}
+const raw = await loadEpisodes(days);
 const th = calibrateThresholds(raw.map((e) => fold(e.recs, e.text).out));
 
 const rows = [];
