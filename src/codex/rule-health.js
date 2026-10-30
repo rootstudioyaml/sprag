@@ -1,14 +1,16 @@
 import { resolve } from 'node:path';
 import { loadCodexLedger } from './ledger.js';
 import { isFailedRun } from '../route-scan.js';
-import { wilsonLowerBound, HEALTH_ERR_RATE, HEALTH_MIN_SAMPLE_DELEGATED } from '../model-rules.js';
+import { wilsonLowerBound, reviewThreshold, HEALTH_MIN_SAMPLE_DELEGATED } from '../model-rules.js';
 import { loadSharedModelRules, sharedModelRulesForProject, realProjectRoot } from '../shared-model-rules.js';
 
 /**
  * Measured outcome of one Codex rule, judged as Claude's rule health judges
  * its delegations: a run fails when interrupted or when its tool-error density
  * crosses isFailedRun's line, and the rule goes to review only when the Wilson
- * lower bound of the failure rate clears HEALTH_ERR_RATE over enough runs.
+ * lower bound of the failure rate clears reviewThreshold over enough runs.
+ * The Codex ledger records no episodes the session model handled itself, so
+ * there is no baseline and the threshold is the HEALTH_ERR_RATE floor.
  */
 export function codexRuleHealth(rule, { events = Object.values(loadCodexLedger().events) } = {}) {
   const since = Date.parse(rule.createdAt);
@@ -25,7 +27,7 @@ export function codexRuleHealth(rule, { events = Object.values(loadCodexLedger()
 function healthOf(runs) {
   const errs = runs.filter((e) => e.aborted || isFailedRun({ toolErrors: e.toolErrors, calls: e.calls })).length;
   const saved = runs.filter((e) => Number.isFinite(e.usd)).reduce((sum, e) => sum + e.usd, 0);
-  const review = runs.length >= HEALTH_MIN_SAMPLE_DELEGATED && wilsonLowerBound(errs, runs.length) > HEALTH_ERR_RATE;
+  const review = runs.length >= HEALTH_MIN_SAMPLE_DELEGATED && wilsonLowerBound(errs, runs.length) > reviewThreshold(null);
   return { runs: runs.length, errs, rate: runs.length ? errs / runs.length : 0, saved, status: review ? 'review' : 'active' };
 }
 

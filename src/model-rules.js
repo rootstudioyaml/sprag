@@ -69,6 +69,28 @@ export function wilsonLowerBound(errs, n) {
   return Math.max(0, (center - margin) / denom);
 }
 
+/**
+ * Error rate a delegated rule must clear before it goes to review. Failures
+ * the session model also hits on the same work are not the downgrade's fault:
+ * a combination of models cannot beat the rate at which all of them fail
+ * together (Co-Failure Ceiling, arXiv 2606.27288). So when the session model's
+ * own failure rate on this category is known from enough episodes, the bar is
+ * that rate, never lower than HEALTH_ERR_RATE. Without a baseline (Codex
+ * ledgers carry none, a fresh category has too few episodes) the floor alone
+ * applies, as before.
+ */
+export function reviewThreshold(baselineErrRate, baselineSample = 0) {
+  if (!(baselineSample >= HEALTH_MIN_SAMPLE) || !Number.isFinite(baselineErrRate)) return HEALTH_ERR_RATE;
+  return Math.max(HEALTH_ERR_RATE, baselineErrRate);
+}
+
+/** The threshold a stored rule was judged against, for messages that quote it. */
+export function ruleReviewThreshold(rule) {
+  return rule && rule.healthSource === 'delegated'
+    ? reviewThreshold(rule.baselineErrRate, rule.baselineSample)
+    : HEALTH_ERR_RATE;
+}
+
 // Fallback budget for rules promoted before budgets were recorded — matches
 // route-scan's pre-calibration defaults. Kept as local constants rather than
 // imported: route-scan imports this module, and a static back-import would
@@ -649,9 +671,19 @@ export function refreshModelRules(episodeStats, delegatedStats = new Map(), { no
     // asks "does work SHAPED like this tend to fail?"; the measurement asks
     // "does this rule fail when it actually fires?" — only the second can
     // catch a rule that is mis-firing on requests it should never have taken.
+    // Baseline: how often the session model itself failed on work shaped like
+    // this rule, judged by isFailedRun's tool-error density just as delegated
+    // runs are. The proxy errRate above counts any tool error, so comparing
+    // the two would set a stricter test for the delegate than for the baseline.
+    const baseSample = s ? s.epCount : 0;
+    const baseRate = baseSample > 0 ? (s.failCount || 0) / baseSample : null;
+    if (r.baselineErrRate !== baseRate || r.baselineSample !== baseSample) {
+      r.baselineErrRate = baseRate;
+      r.baselineSample = baseSample;
+    }
     if (r.delegatedRuns >= HEALTH_MIN_SAMPLE_DELEGATED) {
       r.healthSource = 'delegated';
-      r.status = wilsonLowerBound(d ? d.errRuns : 0, r.delegatedRuns) > HEALTH_ERR_RATE
+      r.status = wilsonLowerBound(d ? d.errRuns : 0, r.delegatedRuns) > reviewThreshold(baseRate, baseSample)
         ? 'review' : 'active';
     } else {
       r.healthSource = 'proxy';

@@ -581,10 +581,13 @@ export async function runRouteScan({ days = 14 } = {}) {
   const episodeStats = new Map(); // "category|project" (+ "category|*") → outcome stats
   let tieredEpisodes = 0;
   const bumpStats = (key, ep) => {
-    const s = episodeStats.get(key) || { count: 0, errCount: 0, epCount: 0, baselineModel: null, modelCounts: {} };
+    const s = episodeStats.get(key) || { count: 0, errCount: 0, failCount: 0, epCount: 0, baselineModel: null, modelCounts: {} };
     s.count += 1;
     s.epCount += 1;
     if (ep.errors > 0) s.errCount += 1;
+    // Same failure test a delegated run gets, so rule health can compare the
+    // delegate against the session model on equal terms (reviewThreshold).
+    if (isFailedRun({ toolErrors: ep.errors, calls: ep.calls })) s.failCount += 1;
     // Baseline model: what actually handled this category BEFORE any rule sent
     // it elsewhere. This is the only honest counterfactual for "routing saved
     // money" — the session's priciest model is not, since it may never have
