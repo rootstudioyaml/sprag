@@ -86,3 +86,54 @@ export function loadRecentSnapshot({ maxAgeMs = 5 * 60 * 1000 } = {}) {
     return null;
   }
 }
+
+/** Used percentage at which a window counts as under pressure. */
+export const CAP_PRESSURE_HIGH = 70;
+/** Used percentage at which a window counts as about to run out. */
+export const CAP_PRESSURE_CRITICAL = 90;
+
+const MODEL_FAMILY_RE = /opus|sonnet|haiku|fable/i;
+
+function modelFamily(text) {
+  const m = MODEL_FAMILY_RE.exec(String(text || ''));
+  return m ? m[0].toLowerCase() : null;
+}
+
+/**
+ * How close the busiest usage window is to its limit, read from the statusline
+ * snapshot. The prompt hook uses it to say how hard to lean on delegation.
+ *
+ * A per-model window (`seven_day_opus` and the like) counts only for a session
+ * on that model family, because another family's quota does not constrain it.
+ * With the session's family unknown such a window is kept: overstating the
+ * pressure is cheaper than hiding it. `litellm_budget` is an ordinary window
+ * here and is reported with source 'litellm'.
+ *
+ * @param {object} [opts]
+ * @param {{caps?: object|null}|null} [opts.snapshot] defaults to the recent snapshot
+ * @param {string|null} [opts.sessionModel] model id or display name of the session
+ * @returns {{ level: 'normal'|'high'|'critical', pct: number, key: string,
+ *             source: 'subscription'|'litellm' }|null}
+ *   null when there is no fresh snapshot or no window with a usable percentage
+ */
+export function capPressure({ snapshot = loadRecentSnapshot(), sessionModel } = {}) {
+  const windows = snapshot && snapshot.caps && Array.isArray(snapshot.caps.windows) ? snapshot.caps.windows : [];
+  const sessionFamily = modelFamily(sessionModel);
+  let top = null;
+  for (const w of windows) {
+    if (!w || typeof w.key !== 'string') continue;
+    if (typeof w.usedPct !== 'number' || !Number.isFinite(w.usedPct)) continue;
+    const family = modelFamily(w.key);
+    if (family && sessionFamily && family !== sessionFamily) continue;
+    if (!top || w.usedPct > top.usedPct) top = w;
+  }
+  if (!top) return null;
+  const level = top.usedPct >= CAP_PRESSURE_CRITICAL ? 'critical'
+    : top.usedPct >= CAP_PRESSURE_HIGH ? 'high' : 'normal';
+  return {
+    level,
+    pct: top.usedPct,
+    key: top.key,
+    source: top.key === 'litellm_budget' ? 'litellm' : 'subscription',
+  };
+}
