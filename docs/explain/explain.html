@@ -4,11 +4,12 @@
 <meta charset="utf-8" />
 <title>Sprag explain cards</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- Source for docs/sprag-explain-{en,ko}.png (the README images). The cards, CSS and Korean strings are the same
-     as the section under the terminal video in site/index.html; test/explain-static.test.js keeps them in step.
-     Open with ?lang=ko or ?lang=en, then capture with system Chrome:
+<!-- Source for docs/sprag-limits-{en,ko}.png and docs/sprag-savings-{en,ko}.png (the README images). The sections, CSS and
+     Korean strings are the same as the ones under the terminal video in site/index.html; test/explain-static.test.js keeps them
+     in step. Open with ?lang=ko|en and ?part=limits|savings (omit part to see both). The page height is written to
+     document.body.dataset.h, so capture with system Chrome using that as the window height:
      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars --window-size=1520,<height> \
-       --force-device-scale-factor=2 --virtual-time-budget=3000 --screenshot=<png> "file://<path>/explain.html?lang=ko" -->
+       --force-device-scale-factor=2 --virtual-time-budget=3000 --screenshot=<png> "file://<path>/explain.html?lang=ko&part=savings" -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -26,8 +27,8 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.55;padding:40px}
-  /* explain cards: limit-aware delegation and the savings basis (static, em-based so the README image can scale them) */
-  .explain{--ex-fs:14px;font-size:var(--ex-fs);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.15em;
+  /* explain sections: limit-aware delegation, then the savings basis (static, em-based so the README images can scale them) */
+  .explain{--ex-fs:14px;font-size:var(--ex-fs);display:grid;grid-template-columns:minmax(0,1fr);gap:1.4em;
     margin:28px auto 0;max-width:900px;text-align:left;font-family:var(--sans);line-height:1.5;color:var(--ink)}
   .ex-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--rc);padding:1.5em;display:flex;flex-direction:column;min-width:0}
   .ex-card h3{font-family:var(--disp);font-size:1.3em;font-weight:600;line-height:1.3;color:var(--ink)}
@@ -49,29 +50,42 @@
   .ex-lock div{display:flex;gap:.7em;align-items:flex-start;border-top:1px solid var(--line);padding-top:1em;margin-top:1.3em;
     color:var(--dim);font-size:.9em;line-height:1.5}
   .ex-lock svg{flex:none;width:1.25em;height:1.25em;margin-top:.05em;color:var(--teal)}
-  .ex-calc{margin-top:1.3em;border:1px solid var(--line);border-radius:.5em;overflow:hidden;background:#0a0b0e}
+  /* savings: two columns on one row grid (subgrid), so each formula row and its measured amount share a height */
+  .ex-cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);column-gap:1.15em;margin-top:1.3em}
+  .ex-col{display:grid;grid-row:span 7;grid-template-rows:subgrid;border:1px solid var(--line);border-radius:.5em;overflow:hidden;background:#0a0b0e;min-width:0}
+  .ex-colhead{display:flex;flex-direction:column;justify-content:center;padding:.7em .95em;background:rgba(255,255,255,.035);border-bottom:1px solid var(--line)}
+  .ex-ct{font-weight:600;font-size:.93em;color:var(--ink);line-height:1.4}
+  .ex-colhead small{display:block;margin-top:.15em;font-size:.78em;color:var(--faint);line-height:1.45}
   .ex-row{display:grid;grid-template-columns:2.8em minmax(0,1fr);border-top:1px solid var(--line)}
-  .ex-row:first-child{border-top:0}
+  .ex-colhead + .ex-row{border-top:0}
   .ex-op{display:flex;align-items:center;justify-content:center;font-size:1.15em;font-weight:600;color:var(--dim);
     background:rgba(255,255,255,.025);border-right:1px solid var(--line)}
   .ex-row.plus .ex-op{color:var(--teal)}.ex-row.minus .ex-op{color:var(--red)}
   .ex-item{padding:.7em .95em;min-width:0}
   .ex-item b{display:block;font-weight:500;color:var(--ink);line-height:1.4}
   .ex-item small{display:block;margin-top:.2em;font-size:.84em;color:var(--faint);line-height:1.45}
+  .ex-val .ex-row{grid-template-columns:minmax(0,1fr)}
+  .ex-amt{display:flex;align-items:center;justify-content:flex-end;gap:.7em;padding:.7em .95em;font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  .ex-amt i{font-style:normal;font-weight:600;color:var(--dim)}
+  .ex-amt b{min-width:7em;text-align:right;font-weight:500;color:var(--ink)}
+  .ex-row.plus .ex-amt i{color:var(--teal)}.ex-row.minus .ex-amt i{color:var(--red)}
   .ex-row.total{background:rgba(94,106,210,.16);border-top-color:var(--line2)}
   .ex-row.total .ex-op{color:var(--amber2);background:rgba(94,106,210,.18)}
   .ex-row.total .ex-item b{font-weight:700;font-size:1.12em}
-  .ex-notes{margin-top:auto;padding-top:1.1em;display:grid;gap:.4em;font-size:.82em;color:var(--faint);line-height:1.5;text-wrap:pretty}
+  .ex-row.total .ex-amt i{color:var(--amber2)}
+  .ex-row.total .ex-amt b{font-weight:700;font-size:1.12em;min-width:6.25em}
+  .ex-notes{grid-column:2;padding-top:.9em;display:grid;gap:.4em;font-size:.82em;color:var(--faint);line-height:1.5;text-wrap:pretty}
   html[lang=ko] .explain{word-break:keep-all}
-  @media(max-width:720px){.explain{grid-template-columns:1fr}.ex-card{padding:1.25em}}
+  @media(max-width:720px){.ex-card{padding:1.25em}.ex-cols{grid-template-columns:minmax(0,1fr);row-gap:.9em}.ex-col{grid-row:span 7}.ex-notes{grid-column:1}}
   /* README image: 28px base keeps the text legible when the PNG is shown 760px wide */
   .explain{--ex-fs:28px;max-width:1440px;margin:0 auto}
+  .explain.single .ex-card{margin:0}
 </style>
 </head>
 <body>
 <main id="shot">
     <div class="explain">
-      <article class="ex-card">
+      <section class="ex-card ex-limits" data-part="limits">
         <h3 data-k="ex.a.h">The fuller your limit, the more Sprag delegates</h3>
         <p class="ex-lede" data-k="ex.a.p">Based on whichever is fullest: the 5-hour and 7-day subscription limits or a LiteLLM budget</p>
         <div class="ex-bar" aria-hidden="true"><i class="ex-c1"></i><i class="ex-c2"></i><i class="ex-c3"></i></div>
@@ -85,23 +99,36 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
           <span data-k="ex.a.lock">Design, security and deploys stay on the main model at any limit</span>
         </div></div>
-      </article>
-      <article class="ex-card">
+      </section>
+      <section class="ex-card ex-savings" data-part="savings">
         <h3 data-k="ex.b.h">How savings are counted</h3>
         <p class="ex-lede" data-k="ex.b.p">What the main model would have paid to do the delegated work, minus what it actually cost</p>
-        <div class="ex-calc">
-          <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r1">Re-reading the whole conversation on every call</b><small data-k="ex.b.s1">main model's cache-read rate, 260k tokens on average</small></span></div>
-          <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r2">Re-reading the files and output that piled up</b><small data-k="ex.b.s2">until the next compaction, at most 50 calls</small></span></div>
-          <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r3">New input and output</b><small data-k="ex.b.s3">main model's cache-write and output rates</small></span></div>
-          <div class="ex-row minus"><span class="ex-op" aria-hidden="true">−</span><span class="ex-item"><b data-k="ex.b.r4">What the subagent actually cost</b></span></div>
-          <div class="ex-row minus"><span class="ex-op" aria-hidden="true">−</span><span class="ex-item"><b data-k="ex.b.r5">The cost of delegating</b><small data-k="ex.b.s5">writing the instruction, reading the result</small></span></div>
-          <div class="ex-row total"><span class="ex-op" aria-hidden="true">=</span><span class="ex-item"><b data-k="ex.b.r6">Saving</b></span></div>
+        <div class="ex-cols">
+          <div class="ex-col">
+            <div class="ex-colhead"><b class="ex-ct" data-k="ex.b.f">Formula</b></div>
+            <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r1">Re-reading the whole conversation on every call</b><small data-k="ex.b.s1">actual conversation size at delegation × main model's cache-read rate</small></span></div>
+            <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r2">Re-reading the files and output that piled up</b><small data-k="ex.b.s2">until the next compaction, at most 50 calls</small></span></div>
+            <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r3">New input and output</b><small data-k="ex.b.s3">main model's cache-write and output rates</small></span></div>
+            <div class="ex-row minus"><span class="ex-op" aria-hidden="true">−</span><span class="ex-item"><b data-k="ex.b.r4">What the subagent actually cost</b></span></div>
+            <div class="ex-row minus"><span class="ex-op" aria-hidden="true">−</span><span class="ex-item"><b data-k="ex.b.r5">The cost of delegating</b><small data-k="ex.b.s5">writing the instruction, reading the result</small></span></div>
+            <div class="ex-row total"><span class="ex-op" aria-hidden="true">=</span><span class="ex-item"><b data-k="ex.b.r6">Saving</b></span></div>
+          </div>
+          <div class="ex-col ex-val">
+            <div class="ex-colhead"><b class="ex-ct" data-k="ex.b.m">Last 14 days, measured</b><small data-k="ex.b.d">Oct 17 to Oct 31, 2026, one dev machine, 83 delegations</small></div>
+            <div class="ex-row plus"><span class="ex-amt"><i>+</i><b>$136.02</b></span></div>
+            <div class="ex-row plus"><span class="ex-amt"><i>+</i><b>$56.26</b></span></div>
+            <div class="ex-row plus"><span class="ex-amt"><i>+</i><b>$81.47</b></span></div>
+            <div class="ex-row minus"><span class="ex-amt"><i>−</i><b>$48.19</b></span></div>
+            <div class="ex-row minus"><span class="ex-amt"><i>−</i><b>$9.18</b></span></div>
+            <div class="ex-row total"><span class="ex-amt"><i>=</i><b>$216.38</b></span></div>
+          </div>
+          <div class="ex-notes">
+            <p data-k="ex.b.n1">Conversation size at delegation: 266k tokens on average, 236k median</p>
+            <p data-k="ex.b.n2">No delegation counted as a loss</p>
+            <p data-k="ex.b.n3">Assumes the main model would have made as many calls, so the real saving can be smaller</p>
+          </div>
         </div>
-        <div class="ex-notes">
-          <p data-k="ex.b.n1">Measured on a dev machine: 14 days, 87 delegations, $209.67 saved, none counted as a loss</p>
-          <p data-k="ex.b.n2">Assumes the main model would have made as many calls, so the real saving can be smaller</p>
-        </div>
-      </article>
+      </section>
     </div>
 </main>
 <script>
@@ -116,7 +143,7 @@ const KO = {
   'ex.b.h':'절감액 계산 기준',
   'ex.b.p':'위임한 일을 메인 모델이 직접 했다면 냈을 비용에서, 실제로 쓴 비용을 뺍니다',
   'ex.b.r1':'매 호출마다 대화 전체 다시 읽기',
-  'ex.b.s1':'메인 모델의 캐시 읽기 단가, 평균 26만 토큰',
+  'ex.b.s1':'위임 시점의 실제 대화 크기 × 메인 모델 캐시 읽기 단가',
   'ex.b.r2':'쌓인 파일·명령 출력 다시 읽기',
   'ex.b.s2':'다음 압축까지, 최대 50회',
   'ex.b.r3':'새 입력과 출력',
@@ -125,14 +152,24 @@ const KO = {
   'ex.b.r5':'위임 비용',
   'ex.b.s5':'위임 지시 작성, 결과 읽기',
   'ex.b.r6':'절감액',
-  'ex.b.n1':'개발 PC 실측: 14일, 위임 87건, $209.67 절감, 손해로 계산된 건 0건',
-  'ex.b.n2':'메인 모델도 같은 횟수로 호출했다고 가정하므로, 실제 절감은 이보다 작을 수 있습니다',
+  'ex.b.f':'계산식',
+  'ex.b.m':'최근 14일 실측',
+  'ex.b.d':'2026-10-17 ~ 2026-10-31, 개발 PC 1대, 위임 83건',
+  'ex.b.n1':'위임 시점 대화 크기: 평균 26.6만 토큰, 중앙값 23.6만 토큰',
+  'ex.b.n2':'손해로 계산된 위임 0건',
+  'ex.b.n3':'메인 모델도 같은 횟수로 호출했다고 가정하므로 실제 절감은 이보다 작을 수 있습니다',
 };
 const EN = {};
 document.querySelectorAll('[data-k]').forEach(el => EN[el.dataset.k] = el.innerHTML);
 const lang = new URLSearchParams(location.search).get('lang') === 'ko' ? 'ko' : 'en';
 document.documentElement.lang = lang;
 if (lang === 'ko') document.querySelectorAll('[data-k]').forEach(el => { if (KO[el.dataset.k] !== undefined) el.innerHTML = KO[el.dataset.k]; });
+const part = new URLSearchParams(location.search).get('part');
+if (part === 'limits' || part === 'savings') {
+  document.querySelector('.explain').classList.add('single');
+  document.querySelectorAll('.explain [data-part]').forEach(el => { if (el.dataset.part !== part) el.remove(); });
+}
+window.addEventListener('load', () => setTimeout(() => { document.body.dataset.h = Math.ceil(document.getElementById('shot').getBoundingClientRect().bottom + 40); }, 500));
 </script>
 </body>
 </html>
