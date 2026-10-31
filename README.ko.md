@@ -63,7 +63,7 @@ pnpm이나 bun처럼 패키지 관리자가 설치 스크립트를 건너뛰면,
 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📦 Ctx 47% of 1M
 ```
 
-![statusline 예시. 첫 줄은 라우팅 절감액, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
+![statusline 예시. 첫 줄은 라우팅 절감액과 모델별 사용 비중, 둘째 줄은 문서 변환 절감액, 셋째 줄은 진단 칩입니다](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
 Sprag는 사용자가 고른 모델을 바꾸지 않습니다. 분석은 로컬 세션 기록만 읽으며,
 추가 모델 호출이나 API 키가 필요하지 않습니다. `sprag uninstall` 은 설치 때

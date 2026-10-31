@@ -36,10 +36,11 @@ const payload = JSON.stringify({
 
 // The input-spike chip reflects whatever this machine ran in the last day, so a
 // capture taken after one heavy session would publish a red warning as if it
-// were part of the product's normal look. Every other segment keeps the
+// were part of the product's normal look. The team chip names this machine's
+// member id, which must not be published. Every other segment keeps the
 // default order.
 const { DEFAULT_SEGMENT_ORDER } = await import('../src/formatters/statusline.js');
-const segments = DEFAULT_SEGMENT_ORDER.filter((name) => name !== 'spike').join(',');
+const segments = DEFAULT_SEGMENT_ORDER.filter((name) => name !== 'spike' && name !== 'team').join(',');
 const raw = execSync(`node bin/cli.js --statusline --segments ${segments}`, {
   cwd: repoRoot,
   input: payload,
