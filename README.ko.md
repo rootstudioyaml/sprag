@@ -27,7 +27,9 @@
 같은 요청 12건, 두 터미널: sprag 적용 시 **$6.68 → $1.83 (72.6% 절감)**<br>
 <sub>예시 요청을 공개 단가로 계산했습니다. <a href="https://sprag.io/assets/video/sprag-compare-ko.mp4">전체 영상 (41초)</a></sub>
 
-<img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-explain-ko.png" width="760" alt="카드 두 장입니다. 첫 번째는 5시간·7일·LiteLLM 한도가 찰수록 더 많이 위임한다는 내용으로, 70%까지는 평소대로, 70%부터는 판단이 애매하면, 90%부터는 여러 단계 작업도 위임하고 설계·보안·배포는 항상 메인 모델이 맡습니다. 두 번째는 절감액이 메인 모델이 직접 했다면 냈을 비용에서 서브에이전트와 위임에 실제로 든 비용을 뺀 값이라는 계산 기준입니다.">
+<img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-limits-ko.png" width="760" alt="5시간·7일·LiteLLM 한도가 찰수록 더 많이 위임합니다. 70%까지는 평소대로, 70%부터는 판단이 애매하면, 90%부터는 여러 단계 작업도 위임하고, 설계·보안·배포는 한도와 상관없이 메인 모델이 처리합니다.">
+
+<img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-savings-ko.png" width="760" alt="절감액 계산 기준입니다. 위임한 일을 메인 모델이 직접 했다면 냈을 비용에서 실제로 쓴 비용을 뺀 값이며, 계산식과 실측 금액을 나란히 보여 줍니다. 최근 14일(2026-10-17 ~ 2026-10-31, 개발 PC 1대, 위임 83건) 절감액 합계는 $216.38이고 손해로 계산된 위임은 0건입니다.">
 
 </div>
 
