@@ -1,0 +1,22 @@
+{
+  "days": 14,
+  "from": "2026-10-17",
+  "to": "2026-10-31",
+  "runs": 83,
+  "fallbackV2": 0,
+  "outsideWindow": 6,
+  "terms": {
+    "rereadConversation": 136.02,
+    "rereadPiledUp": 56.26,
+    "newInputOutput": 81.47,
+    "subagentCost": 48.19,
+    "delegatingCost": 9.18
+  },
+  "saving": 216.38,
+  "check": 216.38,
+  "negativeRuns": 0,
+  "contextTokens": {
+    "mean": 266050,
+    "median": 236298
+  }
+}
