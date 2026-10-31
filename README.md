@@ -79,7 +79,7 @@ If your package manager skips install scripts (pnpm, bun), run `sprag install` o
 🧠 Cache hit 98.8% · ⏳ Cache expires 59:46 · 📦 Ctx 47% of 1M
 ```
 
-![statusline example: routing savings on row 1, document conversion savings on row 2, diagnostics on row 3](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
+![statusline example: routing savings and the share of spend by model on row 1, document conversion savings on row 2, diagnostics on row 3](https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/statusline.png)
 
 Sprag never swaps the model you picked. Analysis reads your local session
 logs only, with no extra model calls and no API key. `sprag uninstall` removes
