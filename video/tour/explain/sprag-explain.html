@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="__LANG__">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <!--
+      Sprag v3.90.0 explainer, 37 s, 1920x1080, 30 fps. Pure HTML and GSAP, no recorded clips. HyperFrames composition
+      template, built by build-explain.sh (__LANG__ becomes ko or en). Both languages live in this file as .k and .e spans.
+
+      Scenes (start, length):
+        0    S1  hook: the closer you get to your limit, the more Sprag hands off
+        4    S2  usage-limit gauge fills, requests split into a main lane and a subagent lane, hint card turns yellow then red
+        13   S3  lock: design, security and deploys stay on the main model
+        17   S4  how Sprag counts what you saved
+        21   S5  one bar, titled with what the main model would have paid, stacks in three pieces (the last one is minus)
+        28   S6  counter from $0 to $209.67
+        33   S7  logo, install command, sprag.io
+
+      The chip lanes in S2 are a diagram, not a measurement, so no percentage is drawn for them.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Archivo:wght@800&display=block" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #010102; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; font-weight: 700; word-break: keep-all; color: #f7f8f8; background: #010102; }
+      html[lang="ko"] .e, html[lang="en"] .k { display: none; }
+      .scene { position: absolute; inset: 0; z-index: 10; }
+      .abs { position: absolute; }
+
+      /* background: two slow glows and a faint grid, always moving */
+      #bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+      #bg .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px); background-size: 96px 96px; }
+      #bg .glow { position: absolute; width: 1300px; height: 1300px; border-radius: 50%; }
+      #glow1 { left: -500px; top: -600px; background: radial-gradient(circle, rgba(94,106,210,0.30) 0%, rgba(94,106,210,0) 62%); }
+      #glow2 { left: 1000px; top: 380px; background: radial-gradient(circle, rgba(53,214,168,0.14) 0%, rgba(53,214,168,0) 62%); }
+
+      .hl { position: absolute; left: 60px; right: 60px; text-align: center; font-weight: 900; letter-spacing: -0.02em; line-height: 1.28; }
+      .dim { color: #8a8f98; }
+
+      /* S1 */
+      #s1 .hl { top: 470px; font-size: 84px; }
+      #s1 .hl .l { display: block; }
+      #s1 svg { position: absolute; left: 810px; top: 120px; width: 300px; height: 300px; }
+
+      /* S2 */
+      #s2 .g-label { position: absolute; left: 270px; width: 400px; top: 446px; text-align: center; font-size: 52px; font-weight: 900; line-height: 1.1; }
+      #s2 .g-sub { position: absolute; left: 70px; width: 800px; top: 744px; text-align: center; font-size: 40px; font-weight: 500; color: #8a8f98; }
+      #s2 svg.gauge { position: absolute; left: 0; top: 0; width: 940px; height: 940px; }
+      #s2 svg.lanes { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+      .lane { position: absolute; left: 1290px; width: 570px; height: 170px; border-radius: 22px; background: rgba(255,255,255,0.045); border: 2px solid; padding: 18px 28px 0; font-size: 40px; font-weight: 700; line-height: 1.22; overflow: hidden; }
+      #laneU { top: 185px; border-color: #5e6ad2; box-shadow: 0 0 40px rgba(94,106,210,0.20); }
+      #laneD { top: 585px; border-color: #35d6a8; box-shadow: 0 0 40px rgba(53,214,168,0.20); }
+      .lane .track { position: absolute; left: 28px; right: 28px; bottom: 16px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); }
+      .lane .fill { height: 8px; border-radius: 4px; width: 0%; }
+      #laneU .fill { background: #828fff; }
+      #laneD .fill { background: #35d6a8; }
+      .chip { position: absolute; left: 0; top: 0; width: 72px; height: 34px; margin: -17px 0 0 -36px; border-radius: 17px; opacity: 0; }
+      .chip.u { background: #6c78e6; box-shadow: 0 0 22px rgba(108,120,230,0.65); }
+      .chip.d { background: #35d6a8; box-shadow: 0 0 22px rgba(53,214,168,0.65); }
+      #src { position: absolute; left: 912px; top: 452px; width: 36px; height: 36px; border-radius: 50%; background: #f7f8f8; box-shadow: 0 0 0 10px rgba(255,255,255,0.10); }
+      #hint { position: absolute; left: 980px; top: 800px; width: 880px; height: 190px; border-radius: 26px; background: rgba(245,197,66,0.14); border: 3px solid #f5c542; opacity: 0; }
+      #hint .t { position: absolute; left: 34px; right: 34px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 44px; font-weight: 700; line-height: 1.32; }
+      #hint .t1 { color: #ffe9a8; }
+      #hint .t2 { color: #ffd2d2; opacity: 0; }
+
+      /* S3 */
+      #s3 .lock { position: absolute; left: 760px; top: 90px; width: 400px; height: 480px; }
+      #s3 .rip { position: absolute; left: 710px; top: 80px; width: 500px; height: 500px; border-radius: 50%; border: 4px solid #828fff; opacity: 0; }
+      #s3 .hl { top: 700px; font-size: 68px; }
+
+      /* S4 */
+      #s4 .hl { top: 400px; font-size: 92px; }
+      #s4 .hl .l { display: block; }
+      #s4 .mark { background-image: linear-gradient(#5e6ad2, #5e6ad2); background-repeat: no-repeat; background-position: 0 100%; background-size: 0% 16px; padding-bottom: 6px; }
+      #s4 .orb { position: absolute; width: 22px; height: 22px; border-radius: 50%; }
+
+      /* S5 */
+      #s5 .hd { position: absolute; left: 60px; right: 60px; top: 100px; text-align: center; font-size: 62px; font-weight: 900; line-height: 1.25; letter-spacing: -0.02em; }
+      #s5 .base { position: absolute; left: 380px; width: 1180px; top: 640px; height: 3px; background: rgba(255,255,255,0.28); }
+      #s5 .bar { position: absolute; width: 200px; }
+      #p1 { left: 480px; top: 400px; height: 240px; background: #6c78e6; transform-origin: 50% 100%; }
+      #p2 { left: 480px; top: 260px; height: 140px; background: #6a9bff; border-radius: 10px 10px 0 0; transform-origin: 50% 100%; }
+      #p3 { left: 480px; top: 640px; height: 80px; background: repeating-linear-gradient(45deg, rgba(255,107,107,0.95) 0 10px, rgba(255,107,107,0.45) 10px 20px); border-radius: 0 0 10px 10px; transform-origin: 50% 0%; }
+      .row { position: absolute; left: 790px; width: 720px; padding-left: 26px; font-size: 40px; font-weight: 700; line-height: 1.34; border-left: 8px solid; transform: translateY(-50%); }
+      #r1 { top: 520px; border-color: #6c78e6; }
+      #r2 { top: 330px; border-color: #6a9bff; }
+      #r3 { top: 680px; border-color: #ff6b6b; color: #ffc4c4; }
+      .lead { position: absolute; left: 700px; width: 72px; height: 3px; background: rgba(255,255,255,0.35); transform-origin: 0 50%; }
+      #l1 { top: 520px; } #l2 { top: 330px; } #l3 { top: 680px; }
+      .cap { position: absolute; left: 60px; right: 60px; bottom: 96px; display: flex; justify-content: center; z-index: 50; pointer-events: none; }
+      .cap-in { display: inline-block; max-width: 1700px; padding: 16px 34px 18px; border-radius: 24px; background: rgba(10,10,16,0.86); border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 12px 44px rgba(0,0,0,0.38); font-size: 42px; font-weight: 700; line-height: 1.34; text-align: center; letter-spacing: -0.01em; }
+
+      /* S6 */
+      #s6 .lab { position: absolute; left: 60px; right: 60px; top: 190px; text-align: center; font-size: 60px; font-weight: 900; }
+      #s6 .num { position: absolute; left: 0; right: 0; top: 300px; text-align: center; font: 700 250px/1.1 'JetBrains Mono', monospace; letter-spacing: -0.03em; color: #f7f8f8; transform-origin: 50% 50%; }
+      #s6 .trk { position: absolute; left: 260px; width: 1400px; top: 640px; height: 26px; border-radius: 13px; background: rgba(255,255,255,0.09); overflow: hidden; }
+            #s6 .trk .new { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #5e6ad2, #35d6a8); }
+      #s6 .mk { position: absolute; top: 690px; font: 500 38px 'JetBrains Mono', monospace; color: #8a8f98; }
+      #s6 .small { position: absolute; left: 60px; right: 60px; top: 800px; text-align: center; font-size: 44px; font-weight: 500; color: #b8bcc6; }
+
+      /* S7 */
+      #s7 .logo { position: absolute; left: 625px; top: 190px; width: 780px; }
+      #s7 .logo svg { width: 780px; height: auto; display: block; }
+      #s7 .cmd { position: absolute; left: 0; right: 0; top: 570px; text-align: center; font: 700 76px 'JetBrains Mono', monospace; color: #f7f8f8; }
+      #s7 .cmd-box { position: absolute; left: 50%; top: 540px; width: 1000px; margin-left: -500px; height: 140px; border-radius: 28px; background: rgba(255,255,255,0.05); border: 2px solid rgba(130,143,255,0.5); }
+      #s7 .cmd span.ch { display: inline-block; opacity: 0; }
+      #s7 .url { position: absolute; left: 0; right: 0; top: 770px; text-align: center; font-size: 66px; font-weight: 900; color: #828fff; letter-spacing: 0.01em; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="37" data-width="1920" data-height="1080">
+      <div id="bg"><div class="glow" id="glow1"></div><div class="glow" id="glow2"></div><div class="grid"></div></div>
+
+      <!-- S1 hook -->
+      <div id="s1" class="clip scene" data-start="0" data-duration="4" data-track-index="0">
+        <svg viewBox="-150 -150 300 300" aria-hidden="true">
+          <circle r="110" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="24" />
+          <circle id="s1ring" r="110" fill="none" stroke="#6c78e6" stroke-width="24" stroke-dasharray="691.15" stroke-dashoffset="691.15" transform="rotate(-90)" style="filter: drop-shadow(0 0 10px rgba(108,120,230,0.55))" />
+        </svg>
+        <div class="hl" id="s1hl">
+          <span class="k"><span class="l" id="s1a">한도가 차오를수록,</span><span class="l" id="s1b">Sprag는 더 많이 맡깁니다</span></span>
+          <span class="e"><span class="l" id="s1c">The closer you get to your limit,</span><span class="l" id="s1d">the more Sprag hands off</span></span>
+        </div>
+      </div>
+
+      <!-- S2 gauge and lanes -->
+      <div id="s2" class="clip scene" data-start="4" data-duration="9" data-track-index="1">
+        <svg class="gauge" viewBox="0 0 940 940" aria-hidden="true">
+          <circle cx="470" cy="470" r="210" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="38" />
+          <circle id="gring" cx="470" cy="470" r="210" fill="none" stroke="#6c78e6" stroke-width="38" stroke-dasharray="1319.47" stroke-dashoffset="1319.47" transform="rotate(-90 470 470)" style="filter: drop-shadow(0 0 14px rgba(108,120,230,0.55))" />
+          <line id="tick70" stroke="rgba(255,255,255,0.7)" stroke-width="5" stroke-linecap="round" />
+          <line id="tick90" stroke="rgba(255,255,255,0.7)" stroke-width="5" stroke-linecap="round" />
+        </svg>
+        <div class="g-label"><span class="k">사용량 한도</span><span class="e">Usage limit</span></div>
+        <div class="g-sub"><span class="k">5H · 7D · LiteLLM 예산</span><span class="e">5H · 7D · LiteLLM budget</span></div>
+        <svg class="lanes" viewBox="0 0 1920 1080" aria-hidden="true">
+          <path d="M930 470 L1180 470" stroke="rgba(255,255,255,0.22)" stroke-width="3" stroke-dasharray="10 10" fill="none" />
+          <path d="M1180 470 C1235 470 1235 270 1290 270" stroke="rgba(130,143,255,0.55)" stroke-width="3" fill="none" />
+          <path d="M1180 470 C1235 470 1235 670 1290 670" stroke="rgba(53,214,168,0.55)" stroke-width="3" fill="none" />
+        </svg>
+        <div id="src"></div>
+        <div class="lane" id="laneU"><span class="k">메인 모델 (Opus)</span><span class="e">Main model (Opus)</span><div class="track"><div class="fill" id="fillU"></div></div></div>
+        <div class="lane" id="laneD"><span class="k">서브에이전트 (Sonnet · Haiku)</span><span class="e">Subagent (Sonnet · Haiku)</span><div class="track"><div class="fill" id="fillD"></div></div></div>
+        <div id="chips"></div>
+        <div id="hint">
+          <div class="t t1"><span class="k">70% 이상: 판단이 애매하면 위임</span><span class="e">70% and up: when in doubt, delegate</span></div>
+          <div class="t t2"><span class="k">90% 이상: 여러 단계 작업도 위임, /model 전환 제안</span><span class="e">90% and up: delegate multi-step work too, suggest /model</span></div>
+        </div>
+      </div>
+
+      <!-- S3 lock -->
+      <div id="s3" class="clip scene" data-start="13" data-duration="4" data-track-index="2">
+        <div class="rip" id="rip1"></div><div class="rip" id="rip2"></div><div class="rip" id="rip3"></div>
+        <svg class="lock" id="lock" viewBox="0 0 200 240" aria-hidden="true">
+          <defs><linearGradient id="lockg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a86ee" /><stop offset="1" stop-color="#4650b8" /></linearGradient></defs>
+          <g id="shackle"><path d="M60 104 V72 a40 40 0 0 1 80 0 V104" fill="none" stroke="#c4caff" stroke-width="18" stroke-linecap="round" /></g>
+          <rect x="30" y="100" width="140" height="112" rx="24" fill="url(#lockg)" />
+          <circle cx="100" cy="150" r="13" fill="#0b0d12" /><rect x="96" y="156" width="8" height="30" rx="4" fill="#0b0d12" />
+        </svg>
+        <div class="hl" id="s3hl">
+          <span class="k">설계 · 보안 · 배포는<br />언제나 메인 모델이 처리합니다</span>
+          <span class="e">Design, security and deploys<br />always stay on the main model</span>
+        </div>
+      </div>
+
+      <!-- S4 new baseline -->
+      <div id="s4" class="clip scene" data-start="17" data-duration="4" data-track-index="3">
+        <div class="hl" id="s4hl">
+          <span class="k"><span class="l">Sprag가 <span class="mark" id="mk1">절감액을 계산하는 기준</span></span></span>
+          <span class="e"><span class="l">How Sprag counts <span class="mark" id="mk2">what you saved</span></span></span>
+        </div>
+        <div class="orb" id="orbA" style="background:#6c78e6; box-shadow:0 0 30px #6c78e6"></div>
+        <div class="orb" id="orbB" style="background:#35d6a8; box-shadow:0 0 30px #35d6a8"></div>
+      </div>
+
+      <!-- S5 before and after -->
+      <div id="s5" class="clip scene" data-start="21" data-duration="7" data-track-index="4">
+        <div class="hd" id="hdTitle"><span class="k">메인 모델이 직접 했다면 냈을 비용</span><span class="e">What the main model would have paid to do it itself</span></div>
+        <div class="base"></div>
+        <div class="bar" id="p1"></div><div class="bar" id="p2"></div><div class="bar" id="p3"></div>
+        <div class="lead" id="l1"></div><div class="lead" id="l2"></div><div class="lead" id="l3"></div>
+        <div class="row" id="r1"><span class="k">매 호출마다 대화 전체 다시 읽기 <span style="white-space:nowrap">(평균 26만 토큰)</span></span><span class="e">Re-reading the whole conversation on every call (260k tokens on average)</span></div>
+        <div class="row" id="r2"><span class="k">쌓인 파일 · 명령 출력 다시 읽기</span><span class="e">Re-reading the files and output that piled up</span></div>
+        <div class="row" id="r3"><span class="k">위임 비용 차감</span><span class="e">Minus the cost of delegating</span></div>
+        <div class="cap" id="c5"><div class="cap-in"><span class="k">다시 읽는 토큰은 캐시 읽기 단가(입력의 1/10)로 계산</span><span class="e">Re-read tokens are priced at the cache-read rate, a tenth of input</span></div></div>
+      </div>
+
+      <!-- S6 counter -->
+      <div id="s6" class="clip scene" data-start="28" data-duration="5" data-track-index="5">
+        <div class="lab" id="s6lab"><span class="k">위임 87건, 14일 동안 절감</span><span class="e">Saved across 87 delegations in 14 days</span></div>
+        <div class="num" id="num">$0.00</div>
+        <div class="trk"><div class="new" id="newfill"></div></div>
+        <div class="mk" style="left:260px" id="mkL">$0</div>
+        <div class="mk" style="right:260px" id="mkR">$209.67</div>
+        <div class="small" id="s6small"><span class="k">개발 PC 실측, 손해로 계산된 건 0건</span><span class="e">Measured on a dev machine, none counted as a loss</span></div>
+      </div>
+
+      <!-- S7 closing -->
+      <div id="s7" class="clip scene" data-start="33" data-duration="4" data-track-index="6">
+        <div class="logo" id="logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag">
+            <defs><g id="sprag-cam"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)" /></g></defs>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6" />
+            <g id="cams" fill="#5e6ad2"><use href="#sprag-cam" /><use href="#sprag-cam" transform="rotate(120 32 32)" /><use href="#sprag-cam" transform="rotate(240 32 32)" /></g>
+            <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4" />
+            <text x="76" y="43" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="31" font-weight="800" letter-spacing="5" fill="#F2F3F6">SPRAG</text>
+          </svg>
+        </div>
+        <div class="cmd-box" id="cmdbox"></div>
+        <div class="cmd" id="cmd"></div>
+        <div class="url" id="url">sprag.io</div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const $ = (s) => document.querySelector(s);
+      const IN = "power2.out";
+
+      // scene fades: 0.4 s in, 0.3 s out; each scene is cut to its own length
+      [["#s1", 0, 4], ["#s2", 4, 9], ["#s3", 13, 4], ["#s4", 17, 4], ["#s5", 21, 7], ["#s6", 28, 5], ["#s7", 33, 4]].forEach(([id, s, d]) => {
+        tl.fromTo(id, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, s);
+        if (id !== "#s7") tl.to(id, { opacity: 0, duration: 0.3, ease: "none" }, s + d - 0.3);
+        else tl.to(id, { opacity: 0, duration: 0.5, ease: "none" }, s + d - 0.5);
+      });
+
+      // the background is static: every scene has its own motion, and a drifting backdrop makes the README GIF several times larger
+
+      // ---------- S1 (0 to 4)
+      tl.fromTo("#s1ring", { strokeDashoffset: 691.15 }, { strokeDashoffset: 691.15 * 0.05, duration: 3.4, ease: "none" }, 0.2);
+      tl.fromTo("#s1ring", { stroke: "#6c78e6" }, { stroke: "#f5c542", duration: 0.5, ease: "none", immediateRender: false }, 2.4);
+      tl.fromTo("#s1ring", { stroke: "#f5c542" }, { stroke: "#ff6b6b", duration: 0.5, ease: "none", immediateRender: false }, 3.0);
+      ["#s1a", "#s1c"].forEach((s) => tl.fromTo(s, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: IN }, 0.35));
+      ["#s1b", "#s1d"].forEach((s) => tl.fromTo(s, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: IN }, 1.05));
+
+      // ---------- S2 (4 to 13): gauge 0 to 95% between 4.6 and 10.8
+      const CG = 1319.47, G0 = 4.6, GD = 6.2, GP = 0.95;
+      tl.fromTo("#gring", { strokeDashoffset: CG }, { strokeDashoffset: CG * (1 - GP), duration: GD, ease: "none" }, G0);
+      const tAt = (p) => G0 + GD * (p / GP);                 // time the gauge crosses p
+      [[0.7, "#tick70"], [0.9, "#tick90"]].forEach(([p, id]) => {
+        const a = p * 2 * Math.PI - Math.PI / 2, c = Math.cos(a), s = Math.sin(a);
+        const el = $(id);
+        el.setAttribute("x1", 470 + 184 * c); el.setAttribute("y1", 470 + 184 * s);
+        el.setAttribute("x2", 470 + 240 * c); el.setAttribute("y2", 470 + 240 * s);
+      });
+      const t70 = tAt(0.7), t90 = tAt(0.9);
+      tl.fromTo("#gring", { stroke: "#6c78e6" }, { stroke: "#f5c542", duration: 0.25, ease: "none" }, t70 - 0.05);
+      tl.fromTo("#gring", { stroke: "#f5c542" }, { stroke: "#ff6b6b", duration: 0.25, ease: "none", immediateRender: false }, t90 - 0.05);
+      tl.fromTo(".g-label", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "none" }, 4.4);
+      tl.fromTo(".g-sub", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: IN }, 4.6);
+      tl.fromTo("#src", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 4.5);
+      tl.fromTo("#laneU", { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.5, ease: IN }, 4.6);
+      tl.fromTo("#laneD", { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.5, ease: IN }, 4.75);
+
+      // request chips: the share sent down grows with the gauge (error-diffusion keeps it exact and deterministic)
+      const chipsEl = $("#chips");
+      let acc = 0.5; const win = []; let prevU = 0, prevD = 0;
+      for (let i = 0, t = 4.95; t <= 11.6; i++, t = 4.95 + i * 0.28) {
+        const p = Math.min(GP, Math.max(0, (t - G0) / GD * GP));
+        const ratio = 0.06 + 0.88 * (p / GP);
+        acc += ratio;
+        const down = acc >= 1; if (down) acc -= 1;
+        const el = document.createElement("div");
+        el.className = "chip " + (down ? "d" : "u"); chipsEl.appendChild(el);
+        const ly = down ? 670 : 270, arrive = t + 1.0;
+        tl.fromTo(el, { x: 930, y: 470, opacity: 0, scale: 1 }, { opacity: 1, duration: 0.15, ease: "none" }, t);
+        tl.to(el, { x: 1180, duration: 0.6, ease: "none" }, t);
+        tl.to(el, { x: 1250, y: ly, duration: 0.4, ease: "sine.inOut" }, t + 0.6);
+        tl.to(el, { opacity: 0, scale: 0.4, duration: 0.18, ease: "none" }, arrive);
+        win.push(down ? 1 : 0); if (win.length > 6) win.shift();
+        const shareD = win.reduce((a, b) => a + b, 0) / win.length * 100, shareU = 100 - shareD;
+        tl.fromTo("#fillU", { width: prevU + "%" }, { width: shareU + "%", duration: 0.2, ease: "none" }, arrive);
+        tl.fromTo("#fillD", { width: prevD + "%" }, { width: shareD + "%", duration: 0.2, ease: "none" }, arrive);
+        prevU = shareU; prevD = shareD;
+        tl.fromTo(down ? "#laneD" : "#laneU", { scale: 1 }, { scale: 1.02, duration: 0.09, yoyo: true, repeat: 1, ease: "none" }, arrive);
+      }
+
+      // hint card: yellow at 70%, red at 90%
+      tl.fromTo("#hint", { opacity: 0, y: 30, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.6)" }, t70);
+      tl.fromTo("#hint", { backgroundColor: "rgba(245,197,66,0.14)", borderColor: "#f5c542" }, { backgroundColor: "rgba(255,107,107,0.17)", borderColor: "#ff6b6b", duration: 0.35, ease: "none" }, t90);
+      tl.fromTo(".t1", { opacity: 1 }, { opacity: 0, duration: 0.25, ease: "none" }, t90);
+      tl.fromTo(".t2", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, t90 + 0.2);
+      tl.fromTo("#hint", { x: 0 }, { x: 10, duration: 0.05, yoyo: true, repeat: 5, ease: "none" }, t90 + 0.2);
+
+      // ---------- S3 (13 to 17)
+      tl.fromTo("#lock", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.5)" }, 13.4);
+      tl.fromTo("#shackle", { y: -34 }, { y: 0, duration: 0.35, ease: "power3.in" }, 14.1);
+      [["#rip1", 14.45], ["#rip2", 15.35], ["#rip3", 16.2]].forEach(([id, t]) => tl.fromTo(id, { opacity: 0.7, scale: 0.55 }, { opacity: 0, scale: 1.25, duration: 1.1, ease: "power1.out" }, t));
+      tl.fromTo("#lock", { rotation: 0 }, { rotation: -4, duration: 0.12, yoyo: true, repeat: 3, ease: "sine.inOut", transformOrigin: "50% 100%", immediateRender: false }, 14.45);
+      tl.fromTo("#s3hl", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: IN }, 14.5);
+
+      // ---------- S4 (17 to 21)
+      tl.fromTo("#s4hl .l", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: IN, stagger: 0.35 }, 17.4);
+      tl.fromTo(".mark", { backgroundSize: "0% 16px" }, { backgroundSize: "100% 16px", duration: 1.0, ease: "power2.inOut" }, 18.4);
+      tl.fromTo("#orbA", { x: 360, y: 760, opacity: 0 }, { x: 1560, y: 760, opacity: 1, duration: 3.2, ease: "sine.inOut" }, 17.5);
+      tl.fromTo("#orbB", { x: 1560, y: 800, opacity: 0 }, { x: 360, y: 800, opacity: 1, duration: 3.2, ease: "sine.inOut" }, 17.5);
+
+      // ---------- S5 (21 to 28): one bar, three pieces
+      tl.fromTo("#hdTitle", { opacity: 0, y: -16 }, { opacity: 1, y: 0, duration: 0.6, ease: IN }, 21.4);
+      tl.fromTo("#p1", { scaleY: 0 }, { scaleY: 1, duration: 0.8, ease: IN }, 22.1);
+      tl.fromTo("#l1", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "none" }, 22.8);
+      tl.fromTo("#r1", { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.5, ease: IN }, 22.9);
+      tl.fromTo("#p2", { scaleY: 0 }, { scaleY: 1, duration: 0.7, ease: IN }, 23.9);
+      tl.fromTo("#l2", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "none" }, 24.5);
+      tl.fromTo("#r2", { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.5, ease: IN }, 24.6);
+      tl.fromTo("#p3", { scaleY: 0 }, { scaleY: 1, duration: 0.6, ease: IN }, 25.5);
+      tl.fromTo("#l3", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "none" }, 26.0);
+      tl.fromTo("#r3", { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.5, ease: IN }, 26.1);
+      tl.fromTo("#c5 .cap-in", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.55, ease: IN }, 24.4);
+      tl.fromTo("#p3", { opacity: 1 }, { opacity: 0.7, duration: 0.3, yoyo: true, repeat: 3, ease: "none", immediateRender: false }, 26.2);
+
+      // ---------- S6 (28 to 33): counter $0 to $209.67, driven by per-frame sets so it survives seeking
+      const A = 0, B = 209.67, CS = 28.9, CD = 2.7, ease = gsap.parseEase("power2.out");
+      tl.fromTo("#s6lab", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: IN }, 28.4);
+      tl.fromTo("#num", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.5, ease: IN }, 28.5);
+      tl.fromTo(".trk, #mkL, #mkR", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "none" }, 28.6);
+      const steps = Math.round(CD * 30);
+      for (let i = 1; i <= steps; i++) {
+        const v = A + (B - A) * ease(i / steps);
+        tl.set("#num", { textContent: "$" + v.toFixed(2) }, CS + i / 30);
+      }
+      tl.fromTo("#newfill", { width: "0%" }, { width: "100%", duration: CD, ease: "power2.out" }, CS);
+      tl.fromTo("#num", { color: "#f7f8f8" }, { color: "#35d6a8", duration: CD, ease: "none", immediateRender: false }, CS);
+      tl.fromTo("#num", { scale: 1 }, { scale: 1.05, duration: 0.25, yoyo: true, repeat: 1, ease: "power1.inOut", immediateRender: false }, CS + CD);
+      tl.fromTo("#s6small", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: IN }, 31.3);
+
+      // ---------- S7 (33 to 37)
+      tl.fromTo("#logo", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.7, ease: IN }, 33.5);
+      tl.fromTo("#cams", { rotation: 0, svgOrigin: "32 32" }, { rotation: 240, svgOrigin: "32 32", duration: 1.4, ease: "power3.inOut" }, 33.8);
+      tl.fromTo("#cmdbox", { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 0.5, ease: IN }, 34.3);
+      const cmd = $("#cmd"), text = "npm i -g sprag-cli";
+      [...text].forEach((c) => { const s = document.createElement("span"); s.className = "ch"; s.innerHTML = c === " " ? "&nbsp;" : c; cmd.appendChild(s); });
+      tl.fromTo("#cmd .ch", { opacity: 0 }, { opacity: 1, duration: 0.01, ease: "none", stagger: 0.045 }, 34.6);
+      tl.fromTo("#url", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: IN }, 35.5);
+
+      tl.seek(0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

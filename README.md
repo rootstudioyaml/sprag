@@ -27,6 +27,11 @@
 Same 12 requests, two terminals: **$6.68 → $1.83 (−72.6%)** with Sprag.<br>
 <sub>Example requests priced at public list rates. <a href="https://sprag.io/assets/video/sprag-compare-en.mp4">Full video (41s)</a></sub>
 
+<a href="https://sprag.io/assets/video/sprag-explain-en.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-explain-en.gif" width="760" alt="As a usage-limit gauge fills, more requests shift from the main model to subagents, and then a bar stacks up what the main model would have paid to do the work itself."></a>
+
+Delegates more as your limit fills, and counts savings as what the main model would have paid to do the work itself.<br>
+<sub>Concept diagram, not a measurement; the $209.67 saved is 87 delegations over 14 days on a dev machine. <a href="https://sprag.io/assets/video/sprag-explain-en.mp4">Full video (37s)</a></sub>
+
 </div>
 
 ---
