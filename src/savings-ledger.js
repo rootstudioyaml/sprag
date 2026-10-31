@@ -110,6 +110,10 @@ export function recordDelegationEvents(events) {
   const data = loadLedger();
   data.version = LEDGER_VERSION;
   let changed = false;
+  // Earliest moment whose figures this call changed. A rescan that reprices or
+  // finds a run from days ago changes a day the team sync already uploaded;
+  // changedSince tells it to reach back that far (see changedSinceForSync).
+  let earliest = Infinity;
   const keyOf = new Map(Object.keys(data.events).map((k) => [runIdentity(k), k]));
   for (const e of events) {
     if (!e || !e.key || typeof e.usd !== 'number' || !Number.isFinite(e.usd) || !Number.isFinite(e.ts)) continue;
@@ -126,6 +130,7 @@ export function recordDelegationEvents(events) {
     if (prev && prev.ts === e.ts && prev.usd === usd && prev.cost === cost
       && prev.basis === (e.basis || undefined) && prev.priceSource === (e.priceSource || undefined)
       && prev.baselineSource === (e.baselineSource || undefined)) continue;
+    earliest = Math.min(earliest, e.ts, Number.isFinite(prev?.ts) ? prev.ts : Infinity);
     if (prevKey !== e.key) delete data.events[prevKey];
     keyOf.set(id, e.key);
     data.events[e.key] = {
@@ -142,10 +147,52 @@ export function recordDelegationEvents(events) {
     changed = true;
   }
   if (!changed) return;
+  if (Number.isFinite(earliest)) {
+    data.changedSince = Math.min(Number.isFinite(data.changedSince) ? data.changedSince : Infinity, earliest);
+    data.changeSeq = (Number(data.changeSeq) || 0) + 1;
+  }
   try {
     writeStateFile(ledgerPath(), JSON.stringify(data) + '\n');
   } catch {
     // statusline totals just stay stale until the next successful scan
+  }
+}
+
+/**
+ * The ledger's pending change mark, for the team sync: `since` is the earliest
+ * event time a recordDelegationEvents call changed after the last upload, and
+ * `seq` identifies that state so the sync clears only what it uploaded.
+ * null when nothing changed.
+ */
+export function changedSinceForSync() {
+  const data = loadLedger();
+  // Ledgers written before the mark existed may already hold repriced days
+  // (the v3 rescan) that went up with old figures. The first sync after the
+  // upgrade re-sends every event it can reach once; uploads are upserts.
+  if (data.changeTracking !== 1) {
+    const ts = Object.values(data.events).map((e) => e?.ts).filter(Number.isFinite);
+    const since = Math.min(...ts, Number.isFinite(data.changedSince) ? data.changedSince : Infinity);
+    return { since: Number.isFinite(since) ? since : Date.now(), seq: Number(data.changeSeq) || 0, initial: true };
+  }
+  return Number.isFinite(data.changedSince) ? { since: data.changedSince, seq: Number(data.changeSeq) || 0 } : null;
+}
+
+/**
+ * Clear the change mark once the team sync uploaded from its day onward. A
+ * scan that changed the ledger again in the meantime bumped `seq`; the mark is
+ * then kept, so the next sync covers that change too.
+ */
+export function clearChangedSince(seq) {
+  const data = loadLedger();
+  if ((Number(data.changeSeq) || 0) !== seq) return false;
+  if (!Number.isFinite(data.changedSince) && data.changeTracking === 1) return false;
+  delete data.changedSince;
+  data.changeTracking = 1;
+  try {
+    writeStateFile(ledgerPath(), JSON.stringify(data) + '\n');
+    return true;
+  } catch {
+    return false;
   }
 }
 

@@ -624,7 +624,8 @@ test('after 3 offline days the first success uploads those days plus the previou
   const at = (d, h = 9) => new Date(2026, 9, d, h).getTime();
   const ledgerEvents = {};
   for (const [i, d] of [10, 14, 15, 16, 17, 18].entries()) ledgerEvents[`e${i}/subagents/1`] = { ts: at(d), usd: 1, to: 'claude-haiku-4-5' };
-  writeFileSync(join(sb.dir, 'delegation-ledger.json'), JSON.stringify({ version: 2, events: ledgerEvents }));
+  // changeTracking: a ledger whose past days have not changed since the last upload
+  writeFileSync(join(sb.dir, 'delegation-ledger.json'), JSON.stringify({ version: 2, events: ledgerEvents, changeTracking: 1 }));
   // synced through the 14th (successfully, 6h+ ago), then three offline days
   saveTeamState(joined({ promptCapture: false, lastSyncAt: now - 7 * 3600_000, ledgerSyncedThrough: '2026-10-15' }), sb.dir);
   const f = fakeFetch({ capture: false });

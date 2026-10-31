@@ -40,7 +40,7 @@ import { memberId, readMemberId } from './member-id.js';
 import { userLanguage } from './config.js';
 import { debug } from './debug.js';
 import { trustSystemCA } from './system-ca.js';
-import { loadLedger, modelFamily, roundUsd } from './savings-ledger.js';
+import { loadLedger, modelFamily, roundUsd, changedSinceForSync, clearChangedSince } from './savings-ledger.js';
 import { sessionCost, pricedParts } from './claude-price.js';
 import { uploadPrompts, dropOffsets, promptOffsetsExist } from './team-prompts.js';
 import { rulesPullDue, syncTeamRatchet, ensureTeamImport } from './team-ratchet.js';
@@ -172,8 +172,12 @@ export function teamSyncDue(state, now = Date.now()) {
  * reaches back to `gatewaySyncedThrough`, the last day whose gateway figure
  * went up: a sync whose gateway call failed uploaded local figures only, and
  * those days are sent again (as upserts) once the gateway answers.
+ *
+ * `changedSince` (ms) is the earliest event time the delegation ledger changed
+ * since the last upload, for instance a rescan repricing runs from last week.
+ * The window reaches back to that day too, still no further than 30 days.
  */
-export function ledgerWindow(state, now = Date.now(), { gateway = false } = {}) {
+export function ledgerWindow(state, now = Date.now(), { gateway = false, changedSince = null } = {}) {
   const today = new Date(now);
   const earliest = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (LEDGER_WINDOW_DAYS - 1));
   let start = earliest;
@@ -183,6 +187,11 @@ export function ledgerWindow(state, now = Date.now(), { gateway = false } = {}) 
   if (parsed.every(Boolean)) {
     const from = parsed.map((m) => new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) - 1)).sort((a, b) => a - b)[0];
     if (from > earliest) start = from;
+  }
+  if (Number.isFinite(changedSince)) {
+    const c = new Date(changedSince);
+    const changedDay = new Date(c.getFullYear(), c.getMonth(), c.getDate());
+    if (changedDay < start) start = changedDay < earliest ? earliest : changedDay;
   }
   const startKey = dayKey(start.getTime());
   // aggregateDaily cuts by time, so ask for a little more and filter by day below
@@ -848,7 +857,11 @@ export async function syncTeam({
     let gatewayDaily = null;
     if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now });
     const gatewayOk = !!(gatewayDaily && !gatewayDaily.error);
-    const win = ledgerWindow(state, now, { gateway: hasGateway });
+    // Days the delegation ledger changed after they were uploaded (a rescan
+    // repriced them) go up again from the earliest one.
+    let change = null;
+    try { change = changedSinceForSync(); } catch (e) { debug('team-sync', e); }
+    const win = ledgerWindow(state, now, { gateway: hasGateway, changedSince: change?.since });
     let prices = codexPrices;
     if (prices === undefined) {
       const r = await codexPricesForSync({ dir, now, fetchImpl: gatewayFetch, attemptedAt: state.codexPricesAttemptAt });
@@ -867,6 +880,9 @@ export async function syncTeam({
     delete next.syncFailures;
     delete next.lastError;
     saveTeamState(next, dir);
+    if (change) {
+      try { clearChangedSince(change.seq); } catch (e) { debug('team-sync', e); }
+    }
     refreshTeamRatchetFiles({ dir });
     await refreshStanding({ memberKey: state.memberKey, dir, fetch, now });
     const prompts = await syncPrompts({ state: next, dir, fetch, now });
