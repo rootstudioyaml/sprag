@@ -486,6 +486,44 @@
   .hero .compare{margin:28px auto 0;max-width:900px}
   .hero .compare video{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:10px;background:#141516}
   .hero .compare figcaption{margin-top:8px}
+  /* explain cards: limit-aware delegation and the savings basis (static, em-based so the README image can scale them) */
+  .explain{--ex-fs:14px;font-size:var(--ex-fs);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.15em;
+    margin:28px auto 0;max-width:900px;text-align:left;font-family:var(--sans);line-height:1.5;color:var(--ink)}
+  .ex-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--rc);padding:1.5em;display:flex;flex-direction:column;min-width:0}
+  .ex-card h3{font-family:var(--disp);font-size:1.3em;font-weight:600;line-height:1.3;color:var(--ink)}
+  .ex-lede{margin-top:.55em;color:var(--dim);font-size:.93em;line-height:1.55;text-wrap:pretty}
+  .ex-bar{display:flex;gap:2px;height:1.15em;margin-top:1.5em;border-radius:.3em;overflow:hidden}
+  .ex-bar i{display:block}
+  .ex-c1{background:#4b5059}.ex-c2{background:#d2a45e}.ex-c3{background:var(--red)}
+  .ex-bar .ex-c1{flex:70}.ex-bar .ex-c2{flex:20}.ex-bar .ex-c3{flex:10}
+  .ex-ticks{position:relative;height:1.3em;margin-top:.35em;font-size:.78em;color:var(--faint)}
+  .ex-ticks span{position:absolute;top:0;white-space:nowrap}
+  .ex-ticks .t0{left:0}.ex-ticks .t70{left:70%;transform:translateX(-50%)}
+  .ex-ticks .t90{left:90%;transform:translateX(-100%)}.ex-ticks .t100{right:0}
+  .ex-zones{list-style:none;margin-top:.9em;display:grid;gap:.95em}
+  .ex-zones li{display:grid;grid-template-columns:.7em 6.8em minmax(0,1fr);column-gap:.65em;align-items:baseline;font-size:.93em;line-height:1.45}
+  .ex-zones li i{display:block;width:.7em;height:.7em;border-radius:50%;align-self:center}
+  .ex-zones b{font-weight:600;color:var(--ink);white-space:nowrap}
+  .ex-zones span{color:var(--dim);text-wrap:pretty}
+  .ex-lock{margin-top:auto;padding-top:1.2em}
+  .ex-lock div{display:flex;gap:.7em;align-items:flex-start;border-top:1px solid var(--line);padding-top:1em;margin-top:1.3em;
+    color:var(--dim);font-size:.9em;line-height:1.5}
+  .ex-lock svg{flex:none;width:1.25em;height:1.25em;margin-top:.05em;color:var(--teal)}
+  .ex-calc{margin-top:1.3em;border:1px solid var(--line);border-radius:.5em;overflow:hidden;background:#0a0b0e}
+  .ex-row{display:grid;grid-template-columns:2.8em minmax(0,1fr);border-top:1px solid var(--line)}
+  .ex-row:first-child{border-top:0}
+  .ex-op{display:flex;align-items:center;justify-content:center;font-size:1.15em;font-weight:600;color:var(--dim);
+    background:rgba(255,255,255,.025);border-right:1px solid var(--line)}
+  .ex-row.plus .ex-op{color:var(--teal)}.ex-row.minus .ex-op{color:var(--red)}
+  .ex-item{padding:.7em .95em;min-width:0}
+  .ex-item b{display:block;font-weight:500;color:var(--ink);line-height:1.4}
+  .ex-item small{display:block;margin-top:.2em;font-size:.84em;color:var(--faint);line-height:1.45}
+  .ex-row.total{background:rgba(94,106,210,.16);border-top-color:var(--line2)}
+  .ex-row.total .ex-op{color:var(--amber2);background:rgba(94,106,210,.18)}
+  .ex-row.total .ex-item b{font-weight:700;font-size:1.12em}
+  .ex-notes{margin-top:auto;padding-top:1.1em;display:grid;gap:.4em;font-size:.82em;color:var(--faint);line-height:1.5;text-wrap:pretty}
+  html[lang=ko] .explain{word-break:keep-all}
+  @media(max-width:720px){.explain{grid-template-columns:1fr}.ex-card{padding:1.25em}}
   @media(max-width:600px){
     .wrap{padding:0 18px}header nav{gap:10px}
     .hero{padding-top:28px}h1{font-size:36px}h2{font-size:26px}
@@ -636,13 +674,39 @@
       <figcaption id="compare-caption" class="caption" data-k="hero.video">Same requests in two terminals, priced at public list rates. Of the $4.85 saved, doc2md accounts for $4.03 and routing for $0.81 (rounded).</figcaption>
     </figure>
 
-    <figure class="compare">
-      <video id="explain-video" autoplay muted loop playsinline preload="metadata"
-             poster="assets/video/sprag-explain-en.jpg" aria-describedby="explain-caption">
-        <source src="assets/video/sprag-explain-en.mp4" type="video/mp4" />
-      </video>
-      <figcaption id="explain-caption" class="caption" data-k="hero.explain">Delegates more as your limit fills, and counts savings as what the main model would have paid to do the work itself</figcaption>
-    </figure>
+    <div class="explain">
+      <article class="ex-card">
+        <h3 data-k="ex.a.h">The fuller your limit, the more Sprag delegates</h3>
+        <p class="ex-lede" data-k="ex.a.p">Based on whichever is fullest: the 5-hour and 7-day subscription limits or a LiteLLM budget</p>
+        <div class="ex-bar" aria-hidden="true"><i class="ex-c1"></i><i class="ex-c2"></i><i class="ex-c3"></i></div>
+        <div class="ex-ticks" aria-hidden="true"><span class="t0">0</span><span class="t70">70</span><span class="t90">90</span><span class="t100">100</span></div>
+        <ul class="ex-zones">
+          <li><i class="ex-c1"></i><b>0~70%</b><span data-k="ex.a.z1">As usual: delegate when a rule matches</span></li>
+          <li><i class="ex-c2"></i><b>70~90%</b><span data-k="ex.a.z2">When in doubt, delegate</span></li>
+          <li><i class="ex-c3"></i><b data-k="ex.a.r3">90% and up</b><span data-k="ex.a.z3">Delegate multi-step work too, and suggest /model</span></li>
+        </ul>
+        <div class="ex-lock"><div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+          <span data-k="ex.a.lock">Design, security and deploys stay on the main model at any limit</span>
+        </div></div>
+      </article>
+      <article class="ex-card">
+        <h3 data-k="ex.b.h">How savings are counted</h3>
+        <p class="ex-lede" data-k="ex.b.p">What the main model would have paid to do the delegated work, minus what it actually cost</p>
+        <div class="ex-calc">
+          <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r1">Re-reading the whole conversation on every call</b><small data-k="ex.b.s1">main model's cache-read rate, 260k tokens on average</small></span></div>
+          <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r2">Re-reading the files and output that piled up</b><small data-k="ex.b.s2">until the next compaction, at most 50 calls</small></span></div>
+          <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r3">New input and output</b><small data-k="ex.b.s3">main model's cache-write and output rates</small></span></div>
+          <div class="ex-row minus"><span class="ex-op" aria-hidden="true">−</span><span class="ex-item"><b data-k="ex.b.r4">What the subagent actually cost</b></span></div>
+          <div class="ex-row minus"><span class="ex-op" aria-hidden="true">−</span><span class="ex-item"><b data-k="ex.b.r5">The cost of delegating</b><small data-k="ex.b.s5">writing the instruction, reading the result</small></span></div>
+          <div class="ex-row total"><span class="ex-op" aria-hidden="true">=</span><span class="ex-item"><b data-k="ex.b.r6">Saving</b></span></div>
+        </div>
+        <div class="ex-notes">
+          <p data-k="ex.b.n1">Measured on a dev machine: 14 days, 87 delegations, $209.67 saved, none counted as a loss</p>
+          <p data-k="ex.b.n2">Assumes the main model would have made as many calls, so the real saving can be smaller</p>
+        </div>
+      </article>
+    </div>
 
     <div class="demo">
       <div class="titlebar">
@@ -1269,7 +1333,27 @@ const KO = {
   'tb.h':'팀 전체의 AI 지출과 절감액을 한 화면에서',
   'tb.p':'팀원마다 캐릭터가 앉아 있는 가상 사무실, 좌석 명단, 한 번 승인하면 모두에게 적용되는 팀 규칙.',
   'tb.cta':'팀 기능 보기',
-  'hero.explain':'한도가 찰수록 더 많이 위임하고, 절감액은 메인 모델이 직접 했을 때의 비용으로 계산합니다',
+  'ex.a.h':'한도가 찰수록 더 많이 위임합니다',
+  'ex.a.p':'5시간·7일 구독 한도와 LiteLLM 예산 중 가장 많이 찬 쪽을 기준으로 합니다',
+  'ex.a.z1':'평소대로: 등록된 룰에 맞으면 위임',
+  'ex.a.z2':'판단이 애매하면 위임',
+  'ex.a.r3':'90% 이상',
+  'ex.a.z3':'여러 단계 작업도 위임하고, /model 전환을 제안',
+  'ex.a.lock':'설계·보안·배포는 한도와 상관없이 메인 모델이 처리합니다',
+  'ex.b.h':'절감액 계산 기준',
+  'ex.b.p':'위임한 일을 메인 모델이 직접 했다면 냈을 비용에서, 실제로 쓴 비용을 뺍니다',
+  'ex.b.r1':'매 호출마다 대화 전체 다시 읽기',
+  'ex.b.s1':'메인 모델의 캐시 읽기 단가, 평균 26만 토큰',
+  'ex.b.r2':'쌓인 파일·명령 출력 다시 읽기',
+  'ex.b.s2':'다음 압축까지, 최대 50회',
+  'ex.b.r3':'새 입력과 출력',
+  'ex.b.s3':'메인 모델의 캐시 쓰기·출력 단가',
+  'ex.b.r4':'서브에이전트가 실제로 쓴 비용',
+  'ex.b.r5':'위임 비용',
+  'ex.b.s5':'위임 지시 작성, 결과 읽기',
+  'ex.b.r6':'절감액',
+  'ex.b.n1':'개발 PC 실측: 14일, 위임 87건, $209.67 절감, 손해로 계산된 건 0건',
+  'ex.b.n2':'메인 모델도 같은 횟수로 호출했다고 가정하므로, 실제 절감은 이보다 작을 수 있습니다',
   'hero.video':'같은 요청을 두 터미널에 넣고 공개 단가로 계산했습니다. 절감액 $4.85 가운데 doc2md가 $4.03, 라우팅이 $0.81입니다(반올림).',
   'hero.caption':'에이전트 기록은 분리하고 문체·문서 도구는 공유합니다. 확인할 수 없는 단가는 미상으로 남깁니다.',
   'setup.h2':'Sprag 설치',
@@ -1346,12 +1430,6 @@ function setLang(next, remember){
     video.poster = `assets/video/sprag-compare-${lang}.jpg`;
     video.querySelector('source').src = `assets/video/sprag-compare-${lang}.mp4`;
     video.load();
-  }
-  const ev = document.getElementById('explain-video');
-  if(ev && !ev.currentSrc.endsWith(`sprag-explain-${lang}.mp4`)){
-    ev.poster = `assets/video/sprag-explain-${lang}.jpg`;
-    ev.querySelector('source').src = `assets/video/sprag-explain-${lang}.mp4`;
-    ev.load();
   }
   document.title = META[lang].title;
   document.querySelector('meta[name=description]').content = META[lang].desc;
