@@ -111,9 +111,12 @@ export function netSavingV3({ calls, mainCtx, followUps, promptTokens, resultTok
   const ctx1 = calls[0].ctx;
   const grow = (c) => Math.max(0, c.ctx - ctx1);
   let cfWork = 0;
+  let cfReread = 0;
   let totalOut = 0;
   calls.forEach((c, i) => {
-    cfWork += (mainCtx + grow(c)) * rates.cacheRead;
+    const reread = (mainCtx + grow(c)) * rates.cacheRead;
+    cfWork += reread;
+    cfReread += reread;
     if (!(skipFirstWrite && i === 0)) cfWork += c.newIn * rates.write;
     cfWork += c.out * rates.output;
     totalOut += c.out;
@@ -124,5 +127,7 @@ export function netSavingV3({ calls, mainCtx, followUps, promptTokens, resultTok
     + resultTokens * rates.write
     + resultTokens * followUps * rates.cacheRead;
   const actual = subActual + overhead;
-  return { usd: cfWork + cfCarry - actual, cfWork, cfCarry, overhead, actual };
+  // cfReread is the part of cfWork spent re-reading context; the rest is new
+  // input and output. Split out so the savings page can show each term.
+  return { usd: cfWork + cfCarry - actual, cfWork, cfReread, cfCarry, overhead, actual, subActual };
 }
