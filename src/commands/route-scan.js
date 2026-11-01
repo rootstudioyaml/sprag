@@ -410,9 +410,18 @@ export async function run({ args, hasFlag, numArg }) {
         if (pkgVersion) updateBlock = updateOffer(pkgVersion, { agent: 'claude', lang });
       } catch (e) { debug('route-scan:update-check', e); /* the offer is optional */ }
 
+      // Once-a-month nudge to reset the saved counters; null unless they have
+      // gone a whole month without one and there is something to reset.
+      let monthlyResetBlock = null;
+      try {
+        const { monthlyResetOffer, offersOnSessionSource } = await import('../monthly-reset-offer.js');
+        if (offersOnSessionSource(hookCtx.source)) monthlyResetBlock = monthlyResetOffer({ lang });
+      } catch (e) { debug('route-scan:monthly-reset', e); /* the offer is optional */ }
+
       if (open.length === 0 && reviewRules.length === 0) {
         if (teamBlock) console.log(teamBlock);
         if (updateBlock) console.log(updateBlock);
+        if (monthlyResetBlock) console.log(monthlyResetBlock);
         if (driftBlock) console.log(driftBlock);
         if (seedBlock) console.log(seedBlock);
         if (doc2mdBlock) console.log(doc2mdBlock);
@@ -422,6 +431,7 @@ export async function run({ args, hasFlag, numArg }) {
       }
       if (teamBlock) console.log(teamBlock);
       if (updateBlock) console.log(updateBlock);
+      if (monthlyResetBlock) console.log(monthlyResetBlock);
       if (driftBlock) console.log(driftBlock);
       if (seedBlock) console.log(seedBlock);
       if (doc2mdBlock) console.log(doc2mdBlock);
