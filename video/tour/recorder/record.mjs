@@ -181,6 +181,45 @@ const SHOTS = {
       if(t >= 0.8 && t < 1.8) await c.moveTo('#sw-capture', ease((t - 0.8) / 1.0), [6, 5], [0.5, 0.5]);
       if(at(t, 2.0)) await c.eval(`document.querySelector('#sw-capture').click()`);
     } },
+  /* ── YouTube ad (build-plans.sh PLANS=ad): the team console office explained, then the audit cases ── */
+  /* the apex person of the demo office: open each power user's card once and keep the lowest species number ("No.01 용") */
+  ...(() => {
+    const apex = async c => {
+      const ps = await c.eval(`window.__sprag.office.people()`), s = await c.eval(`window.__sprag.office.server()`);
+      let best = null;
+      for(const p of ps.filter(q => q.tier === 'power' && !q.ghost)){
+        await c.eval(`window.__sprag.office.selectPerson('${p.id}', { fly: false })`); await c.run(0.4);
+        const no = await c.eval(`(() => { const b = document.querySelector('.of-drawer .hd .badge'); const m = b && /No\\.(\\d+)/.exec(b.textContent); return m ? +m[1] : 99; })()`);
+        if(!best || no < best.no) best = { ...p, no };
+      }
+      await c.eval(`window.__sprag.office.closeDrawer()`); await c.run(0.6);
+      c.L = best || ps.find(p => p.tier === 'power'); c.Lo = ps.find(p => p.tier === 'low' && !p.ghost) || ps[ps.length - 1]; c.S = s;
+    };
+    return {
+      /* fly from the whole office down to the apex predator, half an orbit around it */
+      'ad-predator': { url: team(), scene: 'office', dur: 5.6, prepare: apex,
+        frame: async (c, t) => { const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.85, ph: 1.0, zoom: 1.1, x: 0, z: 0 }], [2.6, { th: 1.05, ph: 0.9, zoom: 2.9, x: L.x, z: L.z + 0.3 }], [5.6, { th: 1.75, ph: 0.86, zoom: 3.1, x: L.x, z: L.z + 0.3 }]], t))); } },
+      /* low over the desks at night, so lit screens glow: from the apex person's bright screen across to a dark one */
+      'ad-monitors': { url: team('tod=night'), scene: 'office', dur: 5.1, prepare: apex,
+        frame: async (c, t) => { const L = c.L, D = c.Lo; await c.eval(setPose('office', poseAt([[0, { th: 1.0, ph: 0.82, zoom: 2.6, x: L.x, z: L.z }], [5.1, { th: 1.15, ph: 0.82, zoom: 2.6, x: D.x, z: D.z }]], t))); } },
+      /* the apex person's card: the period figures held for the zoom inset, then down to the daily chart and across it */
+      'ad-drawer': { url: team(), scene: 'office', dur: 9.1, prepare: apex,
+        frame: async (c, t) => {
+          const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 1.0, ph: 0.96, zoom: 1.8, x: L.x + 2.2, z: L.z + 0.3 }], [9.1, { th: 1.15, ph: 0.94, zoom: 2.0, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
+          if(at(t, 0.4)) await c.eval(`window.__sprag.office.selectPerson('${L.id}', { fly: false })`);
+          if(t >= 3.4 && t < 4.4) await c.eval(`(() => { const bd = document.querySelector('.of-drawer .bd'), ch = bd && bd.querySelector('.ch'); if(!ch) return; const to = ch.offsetTop - bd.offsetTop - 120; bd.__s0 ??= bd.scrollTop; bd.scrollTop = bd.__s0 + (to - bd.__s0) * ${ease((t - 3.4) / 1.0)}; })()`);
+          if(t >= 4.6) await c.moveTo('.of-drawer .ch', 1, [0.5, 0.5], [0.06 + 0.88 * ease((t - 4.6) / 3.4), 0.55]);
+        } },
+    };
+  })(),
+  /* the top prompter's list: the newest cards (personal use, customer data, masked values), then a search for 고객 */
+  'ad-cases': { url: team('', '#prompts'), dur: 8.1, waitFor: `!!document.querySelector('#pu-box tr.pu-row')`,
+    frame: async (c, t) => {
+      if(t >= 0.2 && t < 0.8) await c.moveTo('#pu-box tr.pu-row', ease((t - 0.2) / 0.6), [0.3, 3], [0.15, 0.5]);
+      if(at(t, 0.9)) await c.eval(`document.querySelector('#pu-box tr.pu-row').click()`);
+      if(at(t, 5.0)) await c.eval(`(() => { const i = document.querySelector('#pu-q'); i && i.focus({ preventScroll: true }); })()`);
+      if(t >= 5.2 && t < 6.0){ const s = KO ? '고객' : 'customer', n = Math.min(s.length, 1 + Math.floor((t - 5.2) / 0.3)); await c.eval(`(() => { const i = document.querySelector('#pu-q'), v = ${JSON.stringify(s)}.slice(0, ${n}); if(i && i.value !== v){ i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); } })()`); }
+    } },
   /* 76-84 s: dawn, day, dusk, then a snowy night (crossfaded in the comp) */
   'town-dawn': dnClip('dawn', 'clear', 0),
   'town-day': dnClip('day', 'clear', 2.0),
