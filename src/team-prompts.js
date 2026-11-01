@@ -7,7 +7,9 @@
  * sessions (Claude Code transcripts and Codex sessions), including the ones
  * typed while the assistant was still working (queued), each as
  * { at, project (a directory basename), text }, with obvious secrets replaced
- * by "[redacted]". Never sent: assistant replies, tool output, file contents,
+ * by "[redacted]" and personal data (email, Korean phone, resident registration
+ * and card numbers) by "[redacted:email|phone|rrn|card]", all on this machine
+ * before upload. Never sent: assistant replies, tool output, file contents,
  * subagent transcripts, slash-command wrappers, system reminders, local paths,
  * background-task notifications, messages from other agents, and `!` shell
  * commands with their output.
@@ -72,6 +74,62 @@ export function redactSecrets(text) {
 }
 
 // ---------------------------------------------------------------------------
+// Personal data (PII) redaction. Typed markers: [redacted:email] [redacted:phone] [redacted:rrn] [redacted:card].
+// Tuned for coding prompts: a miss is acceptable, a mangled code snippet is not.
+// ---------------------------------------------------------------------------
+
+const MARK_EMAIL = '[redacted:email]';
+const MARK_PHONE = '[redacted:phone]';
+const MARK_RRN = '[redacted:rrn]';
+const MARK_CARD = '[redacted:card]';
+
+// local@a.b.tld: dotted domain, TLD of 2+ letters. `react@18.3.1` has no letter TLD; the `git@github.com` SSH remote user is skipped in the callback.
+const EMAIL_RE = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*)\.[A-Za-z]{2,}(?![A-Za-z0-9-])/g;
+// asset names such as logo@2x.png and a version with a prerelease tag such as react@18.3.1-beta.abc are not addresses
+const looksLikeAssetOrVersion = (domain) => { const first = domain.split('.')[0]; return !/[A-Za-z]/.test(first) || /^\d+x$/i.test(first); };
+
+const PHONE_RES = [
+  // mobile: 010 / 011 / 016 / 017 / 018 / 019, separators optional
+  /(?<![\w.])01[016789][-. ]?\d{3,4}[-. ]?\d{4}(?!\w)/g,
+  // international form of a mobile number: +82 10 ..., +82-10-..., +82 (0)10 ...
+  /(?<![\w])\+82[-. ]?(?:\(0\)[-. ]?)?10[-. ]?\d{3,4}[-. ]?\d{4}(?!\w)/g,
+  // landline and 070: area code only when joined by hyphens, so plain digit runs stay untouched
+  /(?<![\w-])0(?:[2-6][0-9]?|70)-\d{3,4}-\d{4}(?![\w-])/g,
+];
+
+// YYMMDD-GXXXXXX, G is 1-8 (birth century and sex, foreigners 5-8); month and day are range-checked below
+const RRN_RE = /(?<![\w-])(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[- ][1-8]\d{6}(?!\w)/g;
+
+// grouped (4-4-4-4, 4-4-4-4-3, 4-6-5) or contiguous 15-16 digits
+const CARD_RE = /(?<![\w-])(?:\d{4}([ -])\d{4}\1\d{4}\1\d{4}(?:\1\d{3})?|\d{4}([ -])\d{6}\2\d{5}|\d{15,16})(?![\w-])/g;
+const CARD_IIN_RE = /^(?:4|5[1-5]|222[1-9]|22[3-9]\d|2[3-6]\d\d|27[01]\d|2720|3[457]|6011|65|9)/;
+
+function luhnOk(digits) {
+  let sum = 0;
+  for (let i = digits.length - 1, dbl = false; i >= 0; i--, dbl = !dbl) {
+    let d = digits.charCodeAt(i) - 48;
+    if (dbl) { d *= 2; if (d > 9) d -= 9; }
+    sum += d;
+  }
+  return sum % 10 === 0;
+}
+
+/** Mask email addresses, Korean phone numbers, resident registration numbers and card numbers with typed markers. */
+export function redactPersonal(text) {
+  let s = String(text ?? '');
+  s = s.replace(EMAIL_RE, (m, domain) => (/^git@/i.test(m) || looksLikeAssetOrVersion(domain) ? m : MARK_EMAIL));
+  s = s.replace(CARD_RE, (m) => {
+    const digits = m.replace(/\D/g, '');
+    if (digits.length < 13 || digits.length > 19 || !luhnOk(digits)) return m;
+    if (/^\d+$/.test(m) && !CARD_IIN_RE.test(digits)) return m; // contiguous digits need a real issuer prefix
+    return MARK_CARD;
+  });
+  s = s.replace(RRN_RE, MARK_RRN);
+  for (const re of PHONE_RES) s = s.replace(re, MARK_PHONE);
+  return s;
+}
+
+// ---------------------------------------------------------------------------
 // Prompt extraction
 // ---------------------------------------------------------------------------
 
@@ -93,7 +151,7 @@ function cleanPrompt(raw) {
   if (MACHINE_RE.test(text)) return null;
   if (!text) return null;
   if (text.startsWith('[Request interrupted by user')) return null;
-  return redactSecrets(text).slice(0, MAX_TEXT);
+  return redactPersonal(redactSecrets(text)).slice(0, MAX_TEXT);
 }
 
 const textParts = (content) => (Array.isArray(content) ? content : [])
