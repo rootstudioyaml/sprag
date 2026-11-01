@@ -227,11 +227,19 @@ export function codexErrorSignature(ev, { cwd, home = homedir() } = {}) {
   return `${head}: ${text}`;
 }
 
+/**
+ * Whether tool output is Sprag's own feedback. Output left by older versions has no leading
+ * glyph (`[sprag ...`) or the old fitting-line glyph (`🔀 [sprag] ...`), so the prefix is optional.
+ */
+export function isSpragFeedback(output) {
+  return /^(?:(?:✇|🔀) )?\[(?:korean-style|claude-token-saver|sprag)/.test(String(output || '').trim());
+}
+
 /** Whether a failure is worth remembering, rather than a probe or Sprag's own feedback. */
 function countable(ev) {
   if (!ev.failed) return false;
   // Sprag's write lint rewrites the tool output; that is feedback, not a mistake to learn from.
-  if (/^\[(?:korean-style|claude-token-saver|sprag)/.test(String(ev.output || '').trim())) return false;
+  if (isSpragFeedback(ev.output)) return false;
   if (ev.kind === 'patch') return true;
   // `rg` finding nothing and `ls` on an absent path are how exploration works.
   const types = (ev.parsed || []).map((c) => c?.type);

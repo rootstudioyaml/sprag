@@ -266,7 +266,7 @@ export async function runBrief({ sessionId, transcriptPath, root = process.cwd()
 
   if (items.length === 0) return null;
   const lines = [
-    '[sprag 브리핑] 아래 상태 변화를 사용자에게 알려주세요. 진행 중인 답변 흐름을 끊지 말고, 답변 말미에 `※ [sprag]` 라벨을 달아 각 항목을 1~2줄로 요약해 전달하면 됩니다 (이 브리핑은 항목당 한 번만 주입됩니다):',
+    '✇ [sprag 브리핑] 아래 상태 변화를 사용자에게 알려주세요. 진행 중인 답변 흐름을 끊지 말고, 답변 말미에 `✇ [sprag]` 라벨을 달아 각 항목을 1~2줄로 요약해 전달하면 됩니다 (이 브리핑은 항목당 한 번만 주입됩니다):',
   ];
   for (const it of items) lines.push(`- ${it}`);
   return lines.join('\n');

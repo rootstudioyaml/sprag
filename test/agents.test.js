@@ -182,7 +182,7 @@ test('modelLabel names a full id and leaves an alias as written', () => {
 test('the ratchet header asks for the model and effort on the marker line and the Agent description', (t) => {
   isolatedHome(t);
   const ko = renderModelRatchet([], 'ko', { root: null });
-  assert.ok(ko.includes('`🔀 [sprag] 모델 피팅: "<유형>" → <agent> (<모델> · effort <effort>) 위임`'));
+  assert.ok(ko.includes('`✇ [sprag] 모델 피팅: "<유형>" → <agent> (<모델> · effort <effort>) 위임`'));
   assert.ok(ko.includes('`[<모델> · <effort>]`'));
   const en = renderModelRatchet([], 'en', { root: null });
   assert.ok(en.includes('→ delegated to <agent> (<model> · effort <effort>)`'));

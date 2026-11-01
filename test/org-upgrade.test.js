@@ -272,7 +272,7 @@ test('updateOffer without team state is byte-for-byte the consent offer', (t) =>
   seedUpdateCheck(dir);
   const spawnImpl = () => ({ unref() {} });
   const expected = [
-    '[sprag update] A newer version is available: v3.83.0 → 99.0.0.',
+    '✇ [sprag update] A newer version is available: v3.83.0 → 99.0.0.',
     '  - Faster things',
     '  - Fewer bugs',
     'Show the changes and ask the user whether to upgrade. Run these commands only if they agree; do not install without asking.',

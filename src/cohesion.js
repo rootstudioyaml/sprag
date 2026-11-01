@@ -62,7 +62,7 @@ export async function cohesionInjection({ cfg = loadConfig() } = {}) {
   const text = cohesionText();
   if (!text) return null;
   return [
-    '[sprag cohesion] Follow this guidance for English prose in this session.',
+    '✇ [sprag cohesion] Follow this guidance for English prose in this session.',
     'The user enabled it in sprag.',
     '',
     text,

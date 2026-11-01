@@ -59,7 +59,7 @@ test('a classified request names its rule, its target and its cap', () => {
   assert.match(out, /기본 model: haiku/, 'names the cheap default');
   assert.match(out, /model: sonnet/, 'and the escalation target');
   assert.match(out, /상한 haiku 도구 호출 8회·출력 1500 토큰 \/ sonnet 출력 8000 토큰/);
-  assert.match(out, /🔀 \[sprag\] 모델 피팅/, 'carries the same marker line as ratchet-model.md');
+  assert.match(out, /✇ \[sprag\] 모델 피팅/, 'carries the same marker line as ratchet-model.md');
 });
 
 test('an installed subagent is named, not just its model tier', (t) => {

@@ -441,10 +441,10 @@ export async function run({ args, hasFlag, numArg }) {
       const lines = [];
       if (open.length > 0) {
         if (lang === 'ko') {
-          lines.push(`[sprag route-scan] 최근 ${cache.days}일 세션에서 비싼 모델(opus/fable)이 반복 처리해 온, 더 싼 모델로 넘겨도 되는 작업이 감지되었습니다.`);
+          lines.push(`✇ [sprag route-scan] 최근 ${cache.days}일 세션에서 비싼 모델(opus/fable)이 반복 처리해 온, 더 싼 모델로 넘겨도 되는 작업이 감지되었습니다.`);
           lines.push('(R<N>은 후보 번호, T2/T1/T1H는 난이도 등급입니다 — 사용자에게 전달할 때는 코드가 아니라 아래 풀어쓴 설명으로 브리핑하세요)');
         } else {
-          lines.push(`[sprag route-scan] Over the last ${cache.days} days, expensive models (opus/fable) repeatedly handled work that a cheaper model could take.`);
+          lines.push(`✇ [sprag route-scan] Over the last ${cache.days} days, expensive models (opus/fable) repeatedly handled work that a cheaper model could take.`);
           lines.push('(R<N> is the candidate id, T2/T1/T1H the difficulty tier — brief the user with the spelled-out wording below, not the codes.)');
         }
         for (const c of open) {
@@ -475,8 +475,8 @@ export async function run({ args, hasFlag, numArg }) {
       }
       if (reviewRules.length > 0) {
         lines.push(lang === 'ko'
-          ? '[sprag rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 룰별 기준을 넘어 재검토가 필요한 룰이 있습니다. 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:'
-          : '[sprag rule-health] Some user-approved delegation rules now exceed their error-rate threshold for the delegated category — brief the user and discuss narrowing or removing them:');
+          ? '✇ [sprag rule-health] 사용자가 승인한 위임 룰 중, 위임 대상 유형의 최근 에러율이 룰별 기준을 넘어 재검토가 필요한 룰이 있습니다. 사용자에게 브리핑하고 조건 좁히기/제거를 상의하세요:'
+          : '✇ [sprag rule-health] Some user-approved delegation rules now exceed their error-rate threshold for the delegated category — brief the user and discuss narrowing or removing them:');
         for (const r of reviewRules) {
           // Say WHICH signal tripped: a measured delegation failure rate is a
           // much stronger claim than the shape-based proxy, and the user's
@@ -497,8 +497,8 @@ export async function run({ args, hasFlag, numArg }) {
           : '  remove with: sprag route-scan rules rm <N>');
       }
       lines.push(lang === 'ko'
-        ? '위 내용은 사용자의 첫 메시지 주제와 무관하더라도(단순 인사여도) 첫 응답 말미에 `※ [sprag]` 라벨을 달아 요약 브리핑하세요 — 사용자가 물어볼 때까지 기다리지 말 것.'
-        : 'Summarize the above at the end of your first response under a `※ [sprag]` label, even if the user\'s first message is unrelated (a bare greeting counts) — do not wait to be asked.');
+        ? '위 내용은 사용자의 첫 메시지 주제와 무관하더라도(단순 인사여도) 첫 응답 말미에 `✇ [sprag]` 라벨을 달아 요약 브리핑하세요 — 사용자가 물어볼 때까지 기다리지 말 것.'
+        : 'Summarize the above at the end of your first response under a `✇ [sprag]` label, even if the user\'s first message is unrelated (a bare greeting counts) — do not wait to be asked.');
       // Style first, briefing second: the briefing is Korean prose too, so the
       // guidance has to be in context before the model reads it.
       if (koreanBlock) console.log(koreanBlock + '\n');

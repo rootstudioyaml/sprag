@@ -268,10 +268,10 @@ export function matchCaps(match) {
 function unreachableNotice(label, tiers, ko) {
   const models = tiers.map((t) => TIER_ALIAS[t]).join(', ');
   return ko
-    ? `[sprag] 이 요청은 위임 룰 "${label}" 에 해당하지만, 이 세션에는 ${models} 모델이 등록되어 있지 않습니다. `
+    ? `✇ [sprag] 이 요청은 위임 룰 "${label}" 에 해당하지만, 이 세션에는 ${models} 모델이 등록되어 있지 않습니다. `
       + `위임해도 세션 모델이 그대로 처리하므로 비용이 줄지 않으니, 위임하지 말고 직접 처리하십시오. `
       + `이 안내를 이번 세션에서 처음 받았다면 답변 끝에 "Claude 앱 설정에 ${models} 모델을 등록하면 이런 요청을 더 싼 모델에 맡길 수 있습니다."라고 사용자에게 한 줄로 알리십시오.`
-    : `[sprag] This request matches the delegation rule "${label}", but no ${models} model is registered for this session, `
+    : `✇ [sprag] This request matches the delegation rule "${label}", but no ${models} model is registered for this session, `
       + `so a delegated run would stay on the session model and save nothing. Handle it directly instead of delegating. `
       + `If this is the first such notice in this session, end your reply with one line for the user: `
       + `"Register a ${models} model in the Claude app settings to hand requests like this to a cheaper model."`;
@@ -386,12 +386,12 @@ export function routeHint(text, { rules, lang = userLanguage(), root, sessionRan
   // The marker line is the one in ratchet-model.md, so the user sees the same
   // string whichever path decided to delegate.
   const body = ko
-    ? `[sprag] 이 요청은 사용자가 이미 승인한 위임 룰 "${label}" 에 해당합니다: ${target} 로 위임하십시오 (${capText}). `
-      + `되묻지 말고 위임하고, 위임할 때 \`🔀 [sprag] 모델 피팅: "${label}" → <agent> (<모델> · effort <effort>) 위임\` 을 먼저 표시하십시오. `
+    ? `✇ [sprag] 이 요청은 사용자가 이미 승인한 위임 룰 "${label}" 에 해당합니다: ${target} 로 위임하십시오 (${capText}). `
+      + `되묻지 말고 위임하고, 위임할 때 \`✇ [sprag] 모델 피팅: "${label}" → <agent> (<모델> · effort <effort>) 위임\` 을 먼저 표시하십시오. `
       + `모델과 effort 값은 위 에이전트 표기에 적힌 그대로 쓰고, Agent 도구의 description 맨 앞에도 \`[<모델> · <effort>]\` 를 붙이십시오. `
       + `상한을 넘길 것 같거나 에러가 나면 그 자리에서 멈추고 메인 모델이 이어받습니다.`
-    : `[sprag] This request matches a delegation rule the user already approved — "${label}": delegate to ${target} (${capText}). `
-      + `Do not ask again; print \`🔀 [sprag] model fit: "${label}" → <agent> (<model> · effort <effort>)\` first, `
+    : `✇ [sprag] This request matches a delegation rule the user already approved — "${label}": delegate to ${target} (${capText}). `
+      + `Do not ask again; print \`✇ [sprag] model fit: "${label}" → <agent> (<model> · effort <effort>)\` first, `
       + `with the model and effort the agent's phrase above gives, and start the Agent tool's description with \`[<model> · <effort>]\`. `
       + `If the run is likely to exceed its cap or hits an error, stop there and the main model takes over.`;
   return extra ? `${body}\n${extra}` : body;

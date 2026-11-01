@@ -38,7 +38,7 @@ test('the second lookup gets one notice, naming the rule and the target', (t) =>
   startFollow(SID, INFO, { dir, now: T0 });
   assert.equal(use(dir, 'Read', { file_path: '/a' }), null);
   const out = use(dir, 'Grep', { pattern: 'x' });
-  assert.match(out, /^\[sprag\] 이 턴은 위임 룰 "탐색·조회 \(파일\/값 찾기\)" 에 해당하는데/);
+  assert.match(out, /^✇ \[sprag\] 이 턴은 위임 룰 "탐색·조회 \(파일\/값 찾기\)" 에 해당하는데/);
   assert.match(out, /직접 조회를 2회 했습니다/);
   assert.match(out, /남은 조회는 model: haiku 에 넘기고/);
   assert.equal(use(dir, 'Read'), null, 'the third call is silent');
@@ -49,7 +49,7 @@ test('English notice for lang en', (t) => {
   startFollow(SID, { ...INFO, label: 'lookup', lang: 'en' }, { dir, now: T0 });
   use(dir, 'Read');
   const out = use(dir, 'Glob');
-  assert.match(out, /^\[sprag\] This turn matches the delegation rule "lookup", but you have run 2 lookups yourself/);
+  assert.match(out, /^✇ \[sprag\] This turn matches the delegation rule "lookup", but you have run 2 lookups yourself/);
   assert.match(out, /Hand the remaining lookups to model: haiku/);
 });
 
