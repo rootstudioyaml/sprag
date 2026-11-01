@@ -158,14 +158,14 @@ function nudgeText(info, n, mcp) {
       + 'This notice is sent once per turn.';
   }
   if (info.lang === 'ko') {
-    return `[sprag] 이 턴은 위임 룰 "${label}" 에 해당하는데, 위임하지 않고 직접 조회를 ${n}회 했습니다. `
+    return `✇ [sprag] 이 턴은 위임 룰 "${label}" 에 해당하는데, 위임하지 않고 직접 조회를 ${n}회 했습니다. `
       + (mcp
         ? 'MCP·웹 도구가 필요한 조회이므로 남은 조회는 general-purpose(model: haiku) 에 넘기고, 지금까지 확인한 내용은 위임 프롬프트에 요약해 넣으십시오. '
         : `남은 조회는 ${target} 에 넘기고, 지금까지 확인한 내용은 위임 프롬프트에 요약해 넣으십시오. `)
       + '직접 처리해야 할 이유(설계 판단이 필요함, 수정이 필요함, 한두 번 더 조회하면 끝남)가 있으면 그 이유를 답변에 한 줄로 밝히고 계속하십시오. '
       + '이 안내는 이번 턴에 한 번만 나갑니다.';
   }
-  return `[sprag] This turn matches the delegation rule "${label}", but you have run ${n} lookups yourself instead of delegating. `
+  return `✇ [sprag] This turn matches the delegation rule "${label}", but you have run ${n} lookups yourself instead of delegating. `
     + (mcp
       ? 'These lookups need MCP or web tools, so hand the remaining ones to general-purpose (model: haiku) and summarize what you have already found in the delegation prompt. '
       : `Hand the remaining lookups to ${target} and summarize what you have already found in the delegation prompt. `)

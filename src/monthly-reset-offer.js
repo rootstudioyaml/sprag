@@ -88,13 +88,13 @@ export function monthlyResetOffer({ dir = userDataDir(), now = Date.now(), lang 
 
     const block = ko
       ? [
-        `[sprag monthly-reset] ${today.getMonth() + 1}월 1일 이후 절감 집계를 초기화한 적이 없습니다. 지금 보이는 값은 ${sinceText} 누적입니다: 라우팅 절감 ${formatMoney(routingOk)}, Doc2md 절감 ${formatMoney(docOk)}.`,
+        `✇ [sprag monthly-reset] ${today.getMonth() + 1}월 1일 이후 절감 집계를 초기화한 적이 없습니다. 지금 보이는 값은 ${sinceText} 누적입니다: 라우팅 절감 ${formatMoney(routingOk)}, Doc2md 절감 ${formatMoney(docOk)}.`,
         '이번 달 기준으로 새로 보려면 초기화를 권장합니다. 초기화하면 라우팅 절감과 Doc2md 절감, Model used 비율이 지금부터 다시 집계됩니다. 기록은 지워지지 않고 `sprag saved undo` 로 되돌릴 수 있습니다.',
         '사용자에게 위 내용을 알리고 초기화할지 물어보십시오. 승낙한 경우에만 아래 명령을 실행하십시오. 거절하면 아무것도 실행하지 않으며, 이번 달에는 다시 묻지 않습니다.',
         '  sprag saved reset all',
       ]
       : [
-        `[sprag monthly-reset] The saved counters have not been reset since ${MONTH_NAMES[today.getMonth()]} 1. The figures shown are cumulative ${sinceText}: routing saved ${formatMoney(routingOk)}, Doc2md saved ${formatMoney(docOk)}.`,
+        `✇ [sprag monthly-reset] The saved counters have not been reset since ${MONTH_NAMES[today.getMonth()]} 1. The figures shown are cumulative ${sinceText}: routing saved ${formatMoney(routingOk)}, Doc2md saved ${formatMoney(docOk)}.`,
         'A reset is recommended to see this month on its own. It restarts routing savings, Doc2md savings and the Model used share from now. Nothing is deleted, and `sprag saved undo` puts it back.',
         'Tell the user this and ask whether to reset. Run the command below only if they agree. If they decline, run nothing; this month they will not be asked again.',
         '  sprag saved reset all',

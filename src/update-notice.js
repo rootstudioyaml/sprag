@@ -34,8 +34,8 @@ export function updateOffer(version, { agent = 'claude', lang = 'en', orgUpgrade
   if (!u?.available || u.dismissed) return null;
   const ko = lang === 'ko';
   return [
-    ko ? `[sprag update] 새 버전이 나와 있습니다: v${u.current} → ${u.latest}.`
-      : `[sprag update] A newer version is available: v${u.current} → ${u.latest}.`,
+    ko ? `✇ [sprag update] 새 버전이 나와 있습니다: v${u.current} → ${u.latest}.`
+      : `✇ [sprag update] A newer version is available: v${u.current} → ${u.latest}.`,
     ...(u.highlights || []).slice(0, 3).map((note) => `  - ${note}`),
     ko ? '사용자에게 변경 내용을 알리고 업그레이드할지 물어보십시오. 승낙한 경우에만 아래 명령을 실행하십시오.'
       : 'Show the changes and ask the user whether to upgrade. Run these commands only if they agree; do not install without asking.',

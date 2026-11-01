@@ -49,7 +49,7 @@ beforeEach(() => {
 test('offers when the ledgers have savings and no mark falls this month', () => {
   const out = monthlyResetOffer({ dir: DIR, now: NOW, lang: 'en' });
   assert.ok(out);
-  assert.match(out, /^\[sprag monthly-reset\]/);
+  assert.match(out, /^✇ \[sprag monthly-reset\]/);
   assert.match(out, /routing saved \$3\.00, Doc2md saved \$1\.00/);
   assert.match(out, /sprag saved reset all/);
 });
@@ -88,7 +88,7 @@ test('null, and no state, when both totals are zero', () => {
 
 test('Korean and English wording', () => {
   const ko = monthlyResetOffer({ dir: DIR, now: NOW, lang: 'ko' });
-  assert.match(ko, /^\[sprag monthly-reset\] 10월 1일 이후 절감 집계를 초기화한 적이 없습니다\./);
+  assert.match(ko, /^✇ \[sprag monthly-reset\] 10월 1일 이후 절감 집계를 초기화한 적이 없습니다\./);
   assert.match(ko, /라우팅 절감 \$3\.00, Doc2md 절감 \$1\.00\./);
   assert.match(ko, /`sprag saved undo` 로 되돌릴 수 있습니다/);
   assert.match(ko, /이번 달에는 다시 묻지 않습니다/);

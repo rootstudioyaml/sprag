@@ -132,23 +132,23 @@ export function orgUpgradeNotice(version, { lang = 'en', status, dir = userDataD
   try {
     if (status && status.status === 'started') {
       return ko
-        ? `[sprag 조직 정책] 조직 정책에 따라 최소 버전 v${status.target} 가 필요해 백그라운드에서 업그레이드를 시작했습니다. 다음 세션부터 새 버전이 적용됩니다.`
-        : `[sprag org policy] The organization requires at least v${status.target}, so an upgrade was started in the background. The new version applies from the next session.`;
+        ? `✇ [sprag 조직 정책] 조직 정책에 따라 최소 버전 v${status.target} 가 필요해 백그라운드에서 업그레이드를 시작했습니다. 다음 세션부터 새 버전이 적용됩니다.`
+        : `✇ [sprag org policy] The organization requires at least v${status.target}, so an upgrade was started in the background. The new version applies from the next session.`;
     }
     const rec = readOrgUpgrade(dir);
     if (rec.announced || !rec.target || !Number.isFinite(rec.finishedAt)) return null;
     if (rec.ok === true && !isNewer(rec.target, version)) {
       writeOrgUpgrade({ announced: true }, dir);
       return ko
-        ? `[sprag 조직 정책] 조직 최소 버전 v${rec.target} 로의 업그레이드가 끝났습니다. 현재 v${version} 가 실행 중입니다.`
-        : `[sprag org policy] The upgrade to the organization minimum v${rec.target} finished. Running v${version}.`;
+        ? `✇ [sprag 조직 정책] 조직 최소 버전 v${rec.target} 로의 업그레이드가 끝났습니다. 현재 v${version} 가 실행 중입니다.`
+        : `✇ [sprag org policy] The upgrade to the organization minimum v${rec.target} finished. Running v${version}.`;
     }
     if (rec.ok === false && isNewer(rec.target, version)) {
       writeOrgUpgrade({ announced: true }, dir);
       const reason = String(rec.error || 'unknown').slice(0, 200);
       return ko
-        ? `[sprag 조직 정책] 조직 최소 버전 v${rec.target} 로의 자동 업그레이드가 실패했습니다: ${reason}. 사용자에게 알리고 sprag upgrade 를 직접 실행하도록 안내하십시오.`
-        : `[sprag org policy] The automatic upgrade to the organization minimum v${rec.target} failed: ${reason}. Tell the user to run sprag upgrade themselves.`;
+        ? `✇ [sprag 조직 정책] 조직 최소 버전 v${rec.target} 로의 자동 업그레이드가 실패했습니다: ${reason}. 사용자에게 알리고 sprag upgrade 를 직접 실행하도록 안내하십시오.`
+        : `✇ [sprag org policy] The automatic upgrade to the organization minimum v${rec.target} failed: ${reason}. Tell the user to run sprag upgrade themselves.`;
     }
   } catch (e) {
     debug('org-upgrade:notice', e);

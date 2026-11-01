@@ -205,8 +205,8 @@ export function takeAgentDriftNotice({ lang = 'ko' } = {}) {
   const v = (x) => x || '-';
   return [
     ko
-      ? `[sprag agents] 프리셋 ${label}이 지정한 값과 다른 직접 만든 에이전트 파일이 있어서, sync가 이 파일들을 덮어쓰지 않았습니다.`
-      : `[sprag agents] Some agent files you made yourself differ from what preset ${label} specifies, so sync did not overwrite them.`,
+      ? `✇ [sprag agents] 프리셋 ${label}이 지정한 값과 다른 직접 만든 에이전트 파일이 있어서, sync가 이 파일들을 덮어쓰지 않았습니다.`
+      : `✇ [sprag agents] Some agent files you made yourself differ from what preset ${label} specifies, so sync did not overwrite them.`,
     ...drift.map((d) => ko
       ? `- ${d.name}: 파일 effort ${v(d.file.effort)} · 모델 ${v(d.file.model)}, 프리셋 effort ${v(d.preset.effort)} · 모델 ${v(d.preset.model)}`
       : `- ${d.name}: file effort ${v(d.file.effort)} · model ${v(d.file.model)}, preset effort ${v(d.preset.effort)} · model ${v(d.preset.model)}`),
