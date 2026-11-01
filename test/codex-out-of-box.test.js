@@ -63,10 +63,10 @@ test('disabling removes the block and keeps the user text around it', (t) => {
   assert.equal(backups(f.home).length, 1, 'first addition to a user file is backed up');
   assert.match(readFileSync(file, 'utf8'), /^# My rules\n\nBe kind\.\n\n<!-- sprag:codex:korean-style:begin -->/);
   // Replacing the block's own contents needs no further backup.
-  writeFileSync(file, readFileSync(file, 'utf8').replace('이 지침은 사용자가', 'STALE 사용자가'));
+  writeFileSync(file, readFileSync(file, 'utf8').replace('이 지침은 사용자가', '__SPRAG_STALE_MARK__ 사용자가'));
   assert.equal(syncCodexKoreanBlock({ cfg: ON, home: f.home }).action, 'written');
   assert.equal(backups(f.home).length, 1);
-  assert.doesNotMatch(readFileSync(file, 'utf8'), /STALE/);
+  assert.doesNotMatch(readFileSync(file, 'utf8'), /__SPRAG_STALE_MARK__/);
   const removed = syncCodexKoreanBlock({ cfg: OFF, home: f.home });
   assert.equal(removed.action, 'removed');
   assert.equal(readFileSync(file, 'utf8'), '# My rules\n\nBe kind.\n');

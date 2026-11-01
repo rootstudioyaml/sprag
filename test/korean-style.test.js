@@ -40,9 +40,8 @@ test('turning it on produces an injection block that frames the rules', async (t
   // rather than as rules governing its own writing.
   assert.match(block, /sprag korean-style/);
   assert.match(block, /지침을 따르십시오/);
-  // Provenance travels with the text.
-  assert.match(block, /snflkd/);
-  assert.match(block, /MIT/);
+  // The evidence behind the rules travels with the text.
+  assert.match(block, /근거와 참고 문헌: https:\/\/sprag\.io\/docs\/korean-style\//);
   // The guidance itself is present, not just the framing.
   assert.match(block, /문장을 끝까지 씁니다/);
   // Scope has to read as inclusion. The old wording ("답변·문서·주석이 아닌
@@ -62,7 +61,7 @@ test('the scope lines alone decide whether code comments are covered', async (t)
   const ks = await import('../src/korean-style.js?precedence');
   ks.setKoreanStyleEnabled(true);
 
-  // The vendored fluent-korean text disclaimed code comments while the wide
+  // The guidance shipped through v3.90 disclaimed code comments while the wide
   // scope claimed them, and the model guessed wrong in September 2026. The
   // rules file now says nothing about comments, so the scope lines are the
   // only sentence on it and no override is needed.
@@ -79,10 +78,10 @@ test('the scope lines alone decide whether code comments are covered', async (t)
 
 test('the attribution line does not break the rule it cites', async () => {
   const ks = await import('../src/korean-style.js?source');
-  // 구 단위 4번 조항이 엠대시를 금지합니다. 출처 문구가 그 표기를 쓰고 있으면
-  // 지침 스스로 어기는 예시가 되므로 콜론으로 적습니다.
+  // 규칙 2절 3번 조항이 엠대시를 금지합니다. 출처 문구가 그 표기를 쓰고 있으면
+  // 규칙 스스로 어기는 예시가 됩니다.
   assert.doesNotMatch(ks.KOREAN_STYLE_SOURCE, /—/);
-  assert.match(ks.KOREAN_STYLE_SOURCE, /snflkd/);
+  assert.match(ks.KOREAN_STYLE_SOURCE, /^https:\/\/sprag\.io\//);
 });
 
 test('the rules text drops the provenance comment but keeps the rules', async () => {
@@ -97,12 +96,10 @@ test('the rules text drops the provenance comment but keeps the rules', async ()
   assert.match(text, /가운뎃점으로 나열하지 않습니다/);
 });
 
-test('the MIT license ships for the clauses adapted from fluent-korean', async () => {
+test('no third-party style text or license ships any more', async () => {
   const ks = await import('../src/korean-style.js?license');
-  assert.ok(existsSync(ks.KOREAN_STYLE_LICENSE_PATH), 'license file is present');
-  const license = readFileSync(ks.KOREAN_STYLE_LICENSE_PATH, 'utf8');
-  assert.match(license, /MIT License/);
-  assert.match(license, /Copyright \(c\) 2026 snflkd/);
+  assert.equal(ks.KOREAN_STYLE_LICENSE_PATH, undefined);
+  assert.doesNotMatch(readFileSync(ks.KOREAN_STYLE_PATH, 'utf8'), /fluent-korean|snflkd/);
 });
 
 test('locale decides the install-time default, not a coin flip', async () => {
@@ -128,9 +125,9 @@ test('the injected rules obey their own comma and middle-dot clauses', async () 
   assert.deepEqual(findings, []);
 });
 
-test('the injection no longer carries the fluent-korean scope override', async () => {
+test('the injection no longer carries the old scope override', async () => {
   const ks = await import('../src/korean-style.js?override');
   for (const line of ks.koreanScopeLines({ koreanStyle: { lintScope: 'all' } })) {
-    assert.doesNotMatch(line, /fluent-korean 본문/);
+    assert.doesNotMatch(line, /우선합니다/);
   }
 });

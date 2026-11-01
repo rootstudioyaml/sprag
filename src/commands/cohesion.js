@@ -27,7 +27,7 @@ export async function run({ args }) {
       if (koreanStyleEnabled()) {
         console.log(lang === 'ko'
           ? '참고: korean 지침이 켜져 있는 동안에는 같은 원칙이 이미 들어가므로 이 블록은 주입되지 않습니다.'
-          : 'Note: while the Korean guidance is on, its supplement already carries these rules, so this block is not injected.');
+          : 'Note: while the Korean guidance is on, its rules already carry these clauses, so this block is not injected.');
       }
     } else {
       console.log(lang === 'ko' ? 'cohesion off: 더 이상 주입하지 않습니다.' : 'cohesion off — no longer injected.');

@@ -1,13 +1,13 @@
 <!--
   English cohesion guidance — claude-token-saver's own text, distilled from the
-  same sources as the Korean supplement's cohesion section: the given-new
+  same sources as the cohesion section of the Korean rules: the given-new
   contract from text linguistics, and three studies on Korean learner writing
   whose validated principles are language-neutral (surface connectives
   correlate negatively or not at all with judged text quality; elaboration is
   the only connection type with a positive correlation).
 
   Injected at session start when `claude-token-saver cohesion on` is set and
-  the Korean guidance is off (the Korean supplement already carries these
+  the Korean guidance is off (the Korean rules already carry these
   rules, so injecting both would bill the same principles twice).
 -->
 

@@ -282,17 +282,17 @@ export async function run({ hasFlag }) {
           ? '  korean: 한국어 문체 규칙을 세션 시작 시 주입할 수 있습니다.'
           : '  korean: Korean style rules can be injected at session start.');
         console.log(lang === 'ko'
-          ? '           내용: 조사·어미를 생략하지 않고, 명사구가 아니라 서술어로 문장을 끝맺으며,'
-          : '           what it does: keeps particles and endings, ends sentences with a predicate,');
+          ? '           내용: 연결어미 뒤 쉼표와 가운뎃점 나열처럼 기계가 쓴 티가 나는 습관을 줄이고'
+          : '           what it does: curbs the habits that mark Korean as machine-written (commas after');
         console.log(lang === 'ko'
-          ? '                 번역체 대신 자연스러운 한국어를 쓰도록 지시합니다. 기본 범위는 코드 주석과 문자열까지 포함하며, `korean lint scope prose` 로 산문만 검사하도록 좁힐 수 있습니다.'
-          : '                 and asks for idiomatic Korean over translationese. The default scope includes code comments and strings; `korean lint scope prose` narrows it to prose.');
+          ? '                 문장을 끝까지 쓰며 번역투를 고치도록 지시합니다. 기본 범위는 코드 주석과 문자열까지 포함하고 `korean lint scope prose` 로 산문만 검사하도록 좁힐 수 있습니다.'
+          : '                 connective endings, middle-dot lists), keeps sentences complete, and fixes translationese. The default scope includes code comments and strings; `korean lint scope prose` narrows it to prose.');
         console.log(lang === 'ko'
-          ? '           비용: 세션당 약 1.5k 토큰(턴마다가 아니라 세션 시작 시 1회, 이후 프롬프트 캐시에 포함).'
-          : '           cost: ~1.5k tokens per session (once at session start, cached from the second request on).');
+          ? '           비용: 세션당 약 1.8k 토큰(턴마다가 아니라 세션 시작 시 1회, 이후 프롬프트 캐시에 포함).'
+          : '           cost: ~1.8k tokens per session (once at session start, cached from the second request on).');
         console.log(lang === 'ko'
-          ? `           출처: ${ks.KOREAN_STYLE_SOURCE}`
-          : `           source: ${ks.KOREAN_STYLE_SOURCE}`);
+          ? `           근거: ${ks.KOREAN_STYLE_SOURCE}`
+          : `           evidence: ${ks.KOREAN_STYLE_SOURCE}`);
         console.log(lang === 'ko'
           ? `           감지된 환경: ${detected ? '한국어 (기본값 켬)' : '한국어 아님 (기본값 끔)'}`
           : `           detected locale: ${detected ? 'Korean (default on)' : 'not Korean (default off)'}`);

@@ -19,13 +19,9 @@
  *
  * The rules are sprag's own (presets/korean-style/rules.md, 2026-11-01). Each
  * clause rests on a measurement or a cited source, listed in that file's
- * header. A few clauses and examples are adapted from fluent-korean
- * (https://github.com/snflkd/fluent-korean), Copyright (c) 2026 snflkd, MIT
- * License, so its license still ships as presets/korean-style/LICENSE-fluent-korean.
- * Until v3.90 the fluent-korean text was vendored verbatim with a supplement
- * appended; measured output showed it did not touch the habits that read as
- * machine-written (comma after a connective ending, middle-dot lists), so it
- * was replaced.
+ * header and in docs/KOREAN-STYLE.md. The guidance shipped through v3.90 did
+ * not touch the habits that read as machine-written (a comma after a
+ * connective ending, middle-dot lists), so it was replaced.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -39,11 +35,8 @@ const require = createRequire(import.meta.url);
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const KOREAN_STYLE_PATH = join(packageRoot, 'presets', 'korean-style', 'rules.md');
-export const KOREAN_STYLE_LICENSE_PATH = join(packageRoot, 'presets', 'korean-style', 'LICENSE-fluent-korean');
-// The separator here is a colon, not an em dash. The rules this line cites ban
-// em dashes in Korean prose, and shipping one inside their own attribution is
-// the kind of contradiction that teaches the model the rule is negotiable.
-export const KOREAN_STYLE_SOURCE = 'sprag rules; some clauses adapted from fluent-korean by snflkd (MIT): https://github.com/snflkd/fluent-korean';
+// Where the evidence behind each clause and the cited studies are listed.
+export const KOREAN_STYLE_SOURCE = 'https://sprag.io/docs/korean-style/';
 
 /** Whether session-start injection is enabled. Off unless the user asked. */
 export function koreanStyleEnabled(cfg = loadConfig()) {
@@ -166,7 +159,7 @@ export function koreanStyleInjection({ cfg = loadConfig() } = {}) {
     '이 지침은 사용자가 sprag에 설정한 것입니다.',
     ...koreanScopeLines(cfg),
     '표기 규칙(예외 없이 적용): 도구 호출 인자에 한국어를 비롯한 비ASCII 문자열을 담을 때에는 반드시 리터럴 UTF-8로 작성하고 \\uXXXX 유니코드 이스케이프로는 절대 작성하지 마십시오. 이스케이프로 작성하면 글자가 깨진 채 파일에 기록되는 사례가 자주 발생합니다.',
-    `(출처: ${KOREAN_STYLE_SOURCE})`,
+    `(근거와 참고 문헌: ${KOREAN_STYLE_SOURCE})`,
     '',
     text,
   ].join('\n');

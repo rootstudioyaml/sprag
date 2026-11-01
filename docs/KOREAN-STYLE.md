@@ -35,16 +35,24 @@ Three things change. Clauses chained with em dashes become separate sentences, s
 
 The technical content is identical in both. The guidance touches sentence construction only, not judgement or accuracy: the answer does not change, it just stops needing a second read. In a channel people scroll through, that difference cuts follow-up questions — and the tokens those follow-ups would have cost.
 
+### Design
+
+Korean style is handled in three layers.
+
+1. **Rules with evidence** (`presets/korean-style/rules.md`), injected once per session. Every clause carries a measurement or a cited study, and taste without evidence stays out. The over-correction guard, which forbids "fixing" forms people use more than LLMs do, was admitted by the same bar.
+2. **A write-time check** (`src/korean-lint.cjs`). The clauses a string comparison or a regex can decide are checked the moment a file is written. Guidance is read once, while the check runs on every write, so any clause that can be decided belongs to the check.
+3. **A measurement loop.** A new check pattern goes in only after its sampled precision on a real corpus is known, and after a rule change the output before and after is measured with the same metrics. The v3.91.0 replacement of the rules came out of this loop.
+
+The target is less grammar than the habits readers recognise as machine voice. In a rubric study every LLM essay got full marks for orthography. What readers object to is prose that is too even and too formulaic, so the rules ask for concrete facts and broken patterns rather than more polish.
+
 ### sprag's own rules (v3.91.0)
 
-Since v3.91.0 the injected text is a single file sprag writes itself, `presets/korean-style/rules.md`. Earlier releases vendored the fluent-korean text verbatim and appended a supplement. Measurement is why it changed: the old guidance did not touch the two strongest habits that make Korean read as machine-written.
+Since v3.91.0 the injected text is a single file sprag writes itself, `presets/korean-style/rules.md`. The guidance shipped through v3.90 was replaced because of measurement: the old guidance did not touch the two strongest habits that make Korean read as machine-written.
 
 - **A comma after a connective ending.** This was the strongest signal in KatFishNet (ACL 2025), a study of LLM-generated Korean: in essays, people put a comma after a connective ending 4.10% of the time and LLMs 19.83%. In DeepPulse narration the rate *rose* after the old guidance was injected, from 5.12 to 9.20 per 1,000 characters.
 - **Middle-dot lists** such as `직급·처우` or `커밋·푸시했다`, which drop the particle and glue words together. In October 2026 transcripts, assistant replies used the middle dot 7.3 times as often as user messages. The old write-time lint contributed: it suggested the middle dot as a replacement for the em dash.
 
-The new rules have nine sections: commas and middle dots, complete sentences, formulaic constructions ("not A but B" contrasts, punchline paragraph endings, answering one's own question), specificity, translationese, cohesion, an over-correction guard, and reading aloud. Every clause cites its evidence in the file header: KatFishNet, the im-not-ai corpus study of AI Korean, Martin Fowler's "LLM Voice", and the National Institute of Korean Language guidelines and cohesion studies the old supplement cited.
-
-One principle comes from Fowler: readers notice machine voice in prose that is too even and too smooth. So the rules do not aim at more polish. They ask for concrete facts and for breaking formulaic patterns.
+The new rules have nine sections: commas and middle dots, complete sentences, formulaic constructions ("not A but B" contrasts, punchline paragraph endings, answering one's own question), specificity, translationese, cohesion, an over-correction guard, and reading aloud. Every clause cites its evidence in the file header; the full list is under [References](#references) below.
 
 **Most of the cohesion section is not Korean-specific.** Given-before-new ordering, one clear referent per pronoun, keeping one subject per paragraph, and bridging sentences instead of leaping apply to English prose the same way. For English deliverables, `sprag cohesion on` injects those rules as a standalone English block (~0.5k tokens per session). While `korean on` is active the block is suppressed, because the Korean rules already carry them.
 
@@ -107,8 +115,32 @@ The install **prints what the guidance changes, its per-session cost and its sou
 
 Installs with nobody attached — npm `postinstall`, CI, piped stdin — skip the question and apply the locale default, because a blocked prompt hangs the install. In that case, if the locale is not Korean the setting is **left undecided rather than recorded**, so a later run at a terminal still gets to ask. Use `--yes` or `--no-input` to force the non-interactive path, or `SPRAG_NO_KOREAN=1` to skip the feature entirely. **Once you have turned it on or off yourself, that choice sticks — an upgrade never overrides it.**
 
-> **Source and license**
-> The rules are sprag's own. A few clauses and examples are adapted from [fluent-korean](https://github.com/snflkd/fluent-korean). Copyright (c) 2026 snflkd, MIT License.
-> The full license ships with the package at `presets/korean-style/LICENSE-fluent-korean`. Through v3.90 the fluent-korean text was injected verbatim.
+### References
 
----
+The rules file header lists the same sources clause by clause.
+
+**Detecting and measuring LLM Korean**
+
+- Park, S., Kim, S., Kim, D.-K., Han, Y.-S. (2025). KatFishNet: Detecting LLM-Generated Korean Text through Linguistic Feature Analysis. *ACL 2025*. [arXiv:2503.00032](https://arxiv.org/abs/2503.00032). Detects LLM Korean from comma use, commas after connective endings, spacing and POS-combination diversity; comma features alone reach 94.88 AUC on essays.
+- Park, S., Han, Y.-S. (2026). When LLM Essays Outscore Student Essays: What a Korean Writing Rubric Rewards and Where Readers Disagree. [arXiv:2601.19913](https://arxiv.org/abs/2601.19913). LLM essays hit the maximum on orthography and register; student essays led on creativity and natural phrasing.
+- epoko77-ai/im-not-ai, [evidence.md](https://github.com/epoko77-ai/im-not-ai/blob/main/docs/en/evidence.md). A public log-likelihood comparison of 60 AI and 60 human pieces: "A가 아니라 B" contrasts at 9.2x, while people used `~를 통해` and `~것이다` twice as often. Not peer reviewed.
+- Fowler, M. (2026). [LLM Voice](https://martinfowler.com/bliki/LLM-Voice.html). The observation that readers spot smooth but soulless prose, and the read-it-aloud principle.
+
+**Translationese and public-language guidance**
+
+- National Institute of Korean Language, 「한눈에 알아보는 공공언어 바로 쓰기」.
+- Hangeul Culture Association, [translationese correction cases](https://www.urimal.org/4544).
+- Kubernetes Korean [localization guide](https://kubernetes.io/ko/docs/contribute/localization_ko/), for the first-mention bilingual rule.
+- 김은일, 안경록, 정연창 (2011). [영어 수동문의 한국어 번역에 대한 기능문법적 설명](https://www.earticle.net/Article/A139223). 언어과학 18(1). 68.7% of English passives were rendered as Korean actives.
+
+**Cohesion**
+
+- 「한국어 교육과 결속성(cohesion) 및 응집성(coherence)의 문제」, KCI ART002501143. Cohesive devices show no or negative correlation with text quality.
+- 「한국어 학습자의 쓰기 텍스트에 나타난 응결성과 응집성의 상관분석」, 우리말글, KCI ART002240473. Overused substitution correlates negatively; only elaborative linking correlates positively.
+- 「한국어 학습자 텍스트의 내용적 오류 양상: 응집성 중심」 (2023), DBpia NODE11604445.
+
+**sprag's own measurements** (2026-11-01)
+
+- 60 DeepPulse narration episodes: connective commas, sentence length and "not A but B" contrasts before and after the guidance was injected.
+- 132 Claude Code transcripts: middle dots (7.3x) and connective commas (3.9x) in assistant replies against user messages.
+- 297 Korean documents in yaml-sns-agent: sampled precision for each check pattern.

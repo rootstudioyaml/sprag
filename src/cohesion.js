@@ -1,7 +1,7 @@
 /**
  * cohesion — English sentence-connection guidance injected at session start.
  *
- * The Korean supplement's cohesion section turned out to be language-neutral:
+ * The cohesion section of the Korean rules turned out to be language-neutral:
  * given-before-new ordering, one referent per pronoun, subject consistency,
  * bridging instead of leaping, merging choppy sentences. English-only users
  * never run `korean on`, so those rules never reached them. This module ships
@@ -12,7 +12,7 @@
  * Enable with `sprag cohesion on`.
  *
  * When the Korean guidance is enabled, this block is NOT injected even if
- * enabled: the Korean supplement already carries the cohesion rules, and
+ * enabled: the Korean rules already carry the cohesion clauses, and
  * injecting the same principles twice bills them twice.
  */
 
@@ -51,7 +51,7 @@ export function cohesionText() {
 
 /**
  * Block to inject at session start, or null when disabled, unavailable, or
- * redundant (Korean guidance on — its supplement already carries these rules).
+ * redundant (Korean guidance on: its rules already carry these clauses).
  */
 export async function cohesionInjection({ cfg = loadConfig() } = {}) {
   if (!cohesionEnabled(cfg)) return null;
