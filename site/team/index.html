@@ -291,6 +291,7 @@
   .pu-m time{color:var(--dim)} .pu-m .pr-proj{font-family:var(--mono);font-size:11.5px}
   .pu-t{margin:0;font:inherit;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
   .pu-t.mono{font-family:var(--mono);font-size:12px;line-height:1.55;color:var(--dim);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
+  mark.rd{background:rgba(245,180,60,.18);color:#f3b54a;border:1px solid rgba(245,180,60,.45);border-radius:4px;padding:0 5px;font-size:.92em;font-style:normal;white-space:nowrap}
   .pu-t.clamp{max-height:4.6em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 60%,transparent);mask-image:linear-gradient(#000 60%,transparent)}
   .pu-t.mono.clamp{max-height:8.2em}
   .pu-x{margin-top:6px;padding:0;height:auto;border:0;background:none;color:var(--accent2);font-size:12px}
@@ -733,7 +734,7 @@
     <span>Apache-2.0</span>
     <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/license/">License</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
   </div>
-  <div class="wrap biz" hidden>
+  <div class="wrap biz">
     <p><span data-k="bz.name">YAML Studio ((상호 비공개))</span> · <span data-k="bz.rep">Representative: 홍길동</span> · <span data-k="bz.brn">Business registration no. 000-00-00000</span> · <span data-k="bz.mo">Mail-order business registration 0000-00-0000</span> · <span data-k="bz.addr">(address withheld)</span> · <span data-k="bz.mail">Email: <a href="mailto:support@sprag.io">support@sprag.io</a></span></p>
     <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=0000000000" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
   </div>
@@ -1042,6 +1043,9 @@ function t(k, vars, raw){
 }
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* rdHtml: prompt text with the CLI's mask markers shown as small pills. Escape first, then swap the escaped marker strings, so the text itself can never inject markup. */
+const RD_LABEL = { ko: { email: '이메일 가림', phone: '전화번호 가림', rrn: '주민번호 가림', card: '카드번호 가림', secret: '비밀값 가림' }, en: { email: 'email hidden', phone: 'phone hidden', rrn: 'ID number hidden', card: 'card hidden', secret: 'secret hidden' } };
+const rdHtml = v => esc(v).replace(/\[redacted(?::(email|phone|rrn|card))?\]/g, (m, k) => `<mark class="rd" title="${m}">\u{1F512}${(RD_LABEL[lang === 'ko' ? 'ko' : 'en'])[k || 'secret']}</mark>`);
 const money = n => '$' + (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 
 /* ── shared date range: local calendar days, "to" inclusive, max 365 days; kept in the URL search (from, to) ── */
@@ -1981,7 +1985,7 @@ function renderPrompts(){
   const list = $('pm-list');
   if(promptsState.loading) list.innerHTML = '<p class="msg">' + esc(t('pm.loading')) + '</p>';
   else if(promptsState.fail) list.innerHTML = '<p class="msg warn">' + esc(t('pm.fail')) + '</p>';
-  else if(promptsState.items) list.innerHTML = promptsState.items.length ? promptsState.items.map(p => `<div class="pr"><div class="m"><span>${esc(p.ts ? new Date(p.ts).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US') : '')}</span><span>${esc(p.project || '')}</span></div><pre>${esc(p.text)}</pre></div>`).join('')
+  else if(promptsState.items) list.innerHTML = promptsState.items.length ? promptsState.items.map(p => `<div class="pr"><div class="m"><span>${esc(p.ts ? new Date(p.ts).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US') : '')}</span><span>${esc(p.project || '')}</span></div><pre>${rdHtml(p.text)}</pre></div>`).join('')
     : '<p class="msg">' + esc(t('pm.empty')) + '</p>';
   else list.innerHTML = '';
 }
@@ -2255,7 +2259,7 @@ const Prompts = (function(){
       const text = String(p.text || ''), lines = text.split('\n').length, mono = lines >= 3, long = text.length > 260 || lines > 4, open = !!st.open[p.id];
       return `<article class="pu-p"><div class="pu-m"><time datetime="${esc(p.at)}">${esc(new Date(p.at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US', { dateStyle:'medium', timeStyle:'short' }))}</time>
         ${p.project ? `<span class="pr-proj">${esc(p.project)}</span>` : ''}<span>${esc(t('pu.chars', { n: num(p.chars) }))}</span></div>
-        <pre class="pu-t${mono ? ' mono' : ''}${long && !open ? ' clamp' : ''}">${esc(text)}</pre>
+        <pre class="pu-t${mono ? ' mono' : ''}${long && !open ? ' clamp' : ''}">${rdHtml(text)}</pre>
         ${long ? `<button type="button" class="pu-x" data-x="${esc(p.id)}" aria-expanded="${open}">${esc(t(open ? 'pu.collapse' : 'pu.expand'))}</button>` : ''}</article>`; }).join('')}</div>
       ${st.more ? `<button type="button" class="btn pu-more" data-more="1" ${st.busy ? 'disabled' : ''}>${esc(t('pu.more'))}</button>` : ''}`;
   }
@@ -2303,6 +2307,16 @@ const demoPrompts = (function(){
   const EN = ['fix the failing test in %s', 'add a unit test for %s', 'refactor %s to remove the duplicated branch', 'explain what %s does, briefly', 'continue', 'use the existing util instead'];
   const KO = ['%s 리팩터링해줘', '%s 에서 실패하는 테스트 고쳐줘', '%s 에 예외 처리 추가해줘', '방금 변경이 빌드를 깼어, 되돌려줘', '좋아, 그대로 진행해'];
   const LOG = 'ERROR in src/%s:42\n  TypeError: Cannot read properties of undefined (reading \'id\')\n    at handler (src/api/routes.ts:118:22)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n';
+  /* audit cases: what the CLI would have uploaded after masking personal data and secrets on the machine. Offsets from now, so a recording clock fixed at 2026-10-18 12:00 KST gives 10-18 11:42, 11:20, 10:05 and 10-17 18:31, 16:12, 14:50 */
+  const CASES_FOR = 'rina-air', CASE_MIN = [18, 40, 115, 1049, 1188, 1270];
+  const CASES = [
+    ['web-app', '주말에 제주도 2박 3일 여행 일정 짜줘. 렌터카랑 맛집 동선까지 넣어서'],
+    ['billing-api', '고객 김민지 님([redacted:phone], [redacted:email])이 환불 요청했어. 사과 메일 답장 초안 써줘'],
+    ['billing-api', '아래 회원 명단을 엑셀 표로 정리해줘\n박서준 [redacted:rrn] [redacted:phone]\n이하은 [redacted:rrn] [redacted:phone]\n최도윤 [redacted:rrn] [redacted:phone]'],
+    ['web-app', '중고 거래 앱에 올릴 아이폰 15 판매 글 써줘, 개인 거래라 짧게'],
+    ['billing-api', '결제 실패한 카드 [redacted:card] 건 로그 보고 원인 찾아줘'],
+    ['mobile-client', 'S3 업로드가 계속 실패해. AWS_SECRET_ACCESS_KEY=[redacted] 로 설정했는데 뭐가 문제야?']
+  ];
   function build(rows){
     let s = 42; const r = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
     const pick = a => a[Math.floor(r() * a.length)];
@@ -2323,6 +2337,12 @@ const demoPrompts = (function(){
           const at = new Date(Date.now() - d * 864e5 - (k * 7 + r() * 5) * 6e4 - i * 1e3).toISOString();
           prompts.push({ id: id++, at, project: pick(['billing-api', 'web-app', 'mobile-client']), chars: text.length, text });
         }
+      }
+      if(r0.display_name === CASES_FOR){
+        /* the cases are the newest prompts of this machine: drop generated ones that would sort above them */
+        const cut = new Date(Date.now() - CASE_MIN[CASE_MIN.length - 1] * 6e4).toISOString();
+        for(let j = prompts.length - 1; j >= 0; j--) if(prompts[j].at > cut) prompts.splice(j, 1);
+        CASES.forEach((c, j) => prompts.push({ id: id++, at: new Date(Date.now() - CASE_MIN[j] * 6e4).toISOString(), project: c[0], chars: c[1].length, text: c[1] }));
       }
       prompts.sort((a, b) => b.at.localeCompare(a.at));
       return { member_id: r0.member_id, display_name: p[0], team_name: p[1], os: p[2], prompts };
