@@ -1,0 +1,6 @@
+# Text files check out with LF on every OS. Without this, a Windows checkout
+# (core.autocrlf=true on the runner image) turns every text file into CRLF, and
+# any test that cuts a committed file on '\n' fails there and only there:
+# explain-static did on every Windows run from 2026-10-31 until d876bf5.
+# Binary files (glb, png, mp4, ...) are detected by content and left alone.
+* text=auto eol=lf
