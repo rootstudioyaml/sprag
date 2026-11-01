@@ -4,18 +4,18 @@
 
 ## 🇰🇷 Korean writing guidance
 
-Injects guidance that corrects how Claude writes Korean (dropped sentence parts, noun-stopped sentences, translationese, em-dash overuse) **once per session.**
+Injects rules that correct how Claude writes Korean **once per session.**
 
 ```bash
 sprag korean on       # on, for every project
 sprag korean status   # state, cost, provenance
-sprag korean show     # print the guidance itself
+sprag korean show     # print the rules themselves
 sprag korean off      # off
 ```
 
 Claude Code's output styles can do the same thing, but an output style is **a single global slot**: turning it on takes that slot away from anything else and has to be configured per machine. This ships the guidance inside the package and delivers it through the SessionStart hook that is already installed, so it **applies wherever the CLI is installed and leaves the output-style slot free.** It survives `/clear`, because the hook fires again.
 
-Cost is **~1.5k tokens per session, injected once at session start rather than per turn**, and covered by the prompt cache from the second request on. When it is on, a `✍️` chip appears in the statusline.
+Cost is **~1.8k tokens per session, injected once at session start rather than per turn**, and covered by the prompt cache from the second request on. When it is on, a `✍️` chip appears in the statusline.
 
 ### Before and after
 
@@ -35,19 +35,20 @@ Three things change. Clauses chained with em dashes become separate sentences, s
 
 The technical content is identical in both. The guidance touches sentence construction only, not judgement or accuracy: the answer does not change, it just stops needing a second read. In a channel people scroll through, that difference cuts follow-up questions — and the tokens those follow-ups would have cost.
 
-### The supplement: cohesion and conservative correctness rules
+### sprag's own rules (v3.91.0)
 
-The vendored fluent-korean text ships unmodified; everything collected since lives in a separate supplement (`presets/korean-style/supplement.md`) appended to the same injection. It was compiled conservatively — only clauses that are nearly always an improvement, sourced from the National Institute of Korean Language's public-language guidelines, the Kubernetes Korean localization guide, and three peer-reviewed studies on text cohesion in Korean writing.
+Since v3.91.0 the injected text is a single file sprag writes itself, `presets/korean-style/rules.md`. Earlier releases vendored the fluent-korean text verbatim and appended a supplement. Measurement is why it changed: the old guidance did not touch the two strongest habits that make Korean read as machine-written.
 
-It adds three layers:
+- **A comma after a connective ending.** This was the strongest signal in KatFishNet (ACL 2025), a study of LLM-generated Korean: in essays, people put a comma after a connective ending 4.10% of the time and LLMs 19.83%. In DeepPulse narration the rate *rose* after the old guidance was injected, from 5.12 to 9.20 per 1,000 characters.
+- **Middle-dot lists** such as `직급·처우` or `커밋·푸시했다`, which drop the particle and glue words together. In October 2026 transcripts, assistant replies used the middle dot 7.3 times as often as user messages. The old write-time lint contributed: it suggested the middle dot as a replacement for the em dash.
 
-- **Translationese**: double passives, Japanese-derived calques, `~에 있어서`, possession-verb renderings of English *have*. The machine-checkable ones also run in the write-time lint (below).
-- **AI-writing tics**: automatic intensifiers ("다양한", "핵심적인"), signpost sentences, rhetorical question-then-answer, unconditionally upbeat endings.
-- **Cohesion** — how sentences connect, which no regex can check. The research finding that shapes this section: surface connectives (conjunctions, demonstratives) correlate *negatively or not at all* with judged text quality, while elaboration — the next sentence picking up and unpacking what the previous one introduced — is the only connection type with a positive correlation. So the guidance says: when a transition feels rough, fix the information order (given before new), don't add a connective.
+The new rules have nine sections: commas and middle dots, complete sentences, formulaic constructions ("not A but B" contrasts, punchline paragraph endings, answering one's own question), specificity, translationese, cohesion, an over-correction guard, and reading aloud. Every clause cites its evidence in the file header: KatFishNet, the im-not-ai corpus study of AI Korean, Martin Fowler's "LLM Voice", and the National Institute of Korean Language guidelines and cohesion studies the old supplement cited.
 
-**Most of the cohesion layer is not Korean-specific.** Given-before-new ordering (the "given-new contract"), one clear referent per pronoun, keeping one subject per paragraph, bridging sentences instead of leaping, and merging choppy repetitive sentences into a modifier-plus-core structure apply to English prose the same way — the studies happen to be about Korean learners, but the principles they validate are the standard cohesion model from text linguistics. If you write English deliverables with Claude, run `sprag cohesion on` — it injects exactly those five rules as a standalone English block (~0.5k tokens per session), no Korean feature required. While `korean on` is active the block is suppressed, because the Korean supplement already carries the same rules.
+One principle comes from Fowler: readers notice machine voice in prose that is too even and too smooth. So the rules do not aim at more polish. They ask for concrete facts and for breaking formulaic patterns.
 
-A final subsection lists what must **not** be "corrected": settled domain terms, formal register, and verbatim quotations — every lint finding is a request to confirm, not a verdict.
+**Most of the cohesion section is not Korean-specific.** Given-before-new ordering, one clear referent per pronoun, keeping one subject per paragraph, and bridging sentences instead of leaping apply to English prose the same way. For English deliverables, `sprag cohesion on` injects those rules as a standalone English block (~0.5k tokens per session). While `korean on` is active the block is suppressed, because the Korean rules already carry them.
+
+The over-correction section lists what must **not** be changed. People use `~를 통해` and `~것이다` about twice as often as LLMs do, so they are never replaced wholesale. Settled domain terms, formal register, and verbatim quotations stay too, and every lint finding is a request to confirm, not a verdict.
 
 ### The write-time check (v3.24.0)
 
@@ -66,13 +67,13 @@ sprag korean lint scope prose   # documents only
 sprag korean lint docs/*.md     # check files already on disk
 ```
 
-Checked: 15 figurative phrases, translationese markers, separators (`—`·`ㅡ`·`|`), three or more `의` particles in one phrase, a period after a nominal ending, and since v3.42.7 two consecutive sentences closing on the identical predicate. Clauses that genuinely need judgement — dropped sentence elements, word choice, near-miss repetition — stay with the guidance text.
+Checked: 15 figurative phrases, translationese markers, separators (`—`, `ㅡ`, `|`), three or more `의` particles in one phrase, a period after a nominal ending, and since v3.42.7 two consecutive sentences closing on the identical predicate. v3.91.0 adds four: a second comma after a connective ending in one paragraph, a comma after a conjunctive adverb, a middle dot between Hangul words (table cells and settled pairs such as `한·중` excepted), and a second `아니라` contrast in one paragraph. Clauses that genuinely need judgement — dropped sentence elements, word choice, near-miss repetition — stay with the guidance text.
 
 Bash writes are checked too (v3.42.7). A heredoc, a `tee`, or a `sed -i` puts Korean on disk exactly like Write does, and a subagent handed Bash but not Write reaches for `cat > file` first — so leaving Bash off the matcher exempted every artifact produced by delegated work. Only redirection targets are recognised, never the command body, so Korean inside an `echo` is not mistaken for prose.
 
 A file that must quote the banned forms — a fixture for this checker, a style report — opts out with one `korean-lint: off` line anywhere in it.
 
-The default `all` scope covers code comments, UI strings, subtitles, templates, and build output, not just documents. The vendored guidance exempts comments, but comments are read by people and generated artifacts (PDF, HTML) are assembled from those strings, so exempting them reopens the exact gap that was reported. Only installed dependencies, VCS internals, lockfiles, and binary or image files are skipped; `dist/` and `build/` are checked. `korean lint scope prose` restores the narrow reading.
+The default `all` scope covers code comments, UI strings, subtitles, templates, and build output, not just documents. Comments are read by people and generated artifacts (PDF, HTML) are assembled from those strings, so exempting them reopens the exact gap that was reported. Only installed dependencies, VCS internals, lockfiles, and binary or image files are skipped; `dist/` and `build/` are checked. `korean lint scope prose` narrows the check to documents.
 
 The scope sentence in the injected guidance is generated from the same setting, so the model is never told one rule while being corrected against another.
 
@@ -95,7 +96,7 @@ Alongside the writing guidance, one more line is injected: **non-ASCII strings i
 
 When the model puts Korean into a Write or Edit parameter as escapes, those escapes are sometimes not decoded into code points at all: the literal text `한` lands in the file. The artifact carries mojibake, and the model keeps editing on top of it without noticing that what it wrote and what the file holds have diverged. Not writing escapes in the first place removes the path entirely, so the rule blocks the input instead of repairing the output.
 
-This line lives in sprag's own framing paragraph, not in the vendored fluent-korean text. It governs encoding rather than style, and the vendored wording is kept unmodified. For the same reason it carries no exceptions, unlike the style rules that skip code and commit messages. It adds roughly 60 tokens per session.
+This line lives in sprag's framing paragraph, not in the style rules file, because it governs encoding rather than style. Unlike the style rules, which skip commit messages, it carries no exceptions. It adds roughly 60 tokens per session.
 
 > **Evidence**
 > The same failure is reported against Claude Code: [#12417, unicode handling regression](https://github.com/anthropics/claude-code/issues/12417) and [#26141, Edit silently corrupting unicode](https://github.com/anthropics/claude-code/issues/26141).
@@ -107,7 +108,7 @@ The install **prints what the guidance changes, its per-session cost and its sou
 Installs with nobody attached — npm `postinstall`, CI, piped stdin — skip the question and apply the locale default, because a blocked prompt hangs the install. In that case, if the locale is not Korean the setting is **left undecided rather than recorded**, so a later run at a terminal still gets to ask. Use `--yes` or `--no-input` to force the non-interactive path, or `SPRAG_NO_KOREAN=1` to skip the feature entirely. **Once you have turned it on or off yourself, that choice sticks — an upgrade never overrides it.**
 
 > **Source and license**
-> The guidance text comes from [fluent-korean](https://github.com/snflkd/fluent-korean). Copyright (c) 2026 snflkd, MIT License.
-> The wording is unmodified; only the output-style frontmatter was removed. The full license ships with the package at `presets/korean-style/LICENSE-fluent-korean`.
+> The rules are sprag's own. A few clauses and examples are adapted from [fluent-korean](https://github.com/snflkd/fluent-korean). Copyright (c) 2026 snflkd, MIT License.
+> The full license ships with the package at `presets/korean-style/LICENSE-fluent-korean`. Through v3.90 the fluent-korean text was injected verbatim.
 
 ---

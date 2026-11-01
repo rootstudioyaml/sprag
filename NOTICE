@@ -20,11 +20,12 @@ change applies to later releases.
 --------------------------------------------------------------------------------
 Third-party content redistributed with this project
 
-presets/korean-style/fluent-korean.md
+presets/korean-style/rules.md (portions)
     fluent-korean, Copyright (c) 2026 snflkd, MIT License.
-    Vendored with only the output-style frontmatter removed; the guidance text
-    is unmodified. It stays under its own terms, which are reproduced in
-    presets/korean-style/LICENSE-fluent-korean.
+    A few clauses and examples in sprag's own Korean style rules are adapted
+    from fluent-korean. Those portions stay under its terms, which are
+    reproduced in presets/korean-style/LICENSE-fluent-korean. Releases before
+    v3.91.0 shipped the fluent-korean text verbatim.
     Upstream: https://github.com/snflkd/fluent-korean
 
 --------------------------------------------------------------------------------

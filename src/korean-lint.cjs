@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * korean-lint — machine-checkable half of the fluent-korean guidance.
+ * korean-lint: machine-checkable half of the Korean style rules.
  *
  * Why this exists next to korean-style.js:
  *
@@ -126,7 +126,7 @@ const TRANSLATIONESE = [
   // Conservative additions (2026-09-13), sourced from 국립국어원 공공언어
   // 지침, 한글문화연대 교정 사례, 쿠버네티스 한글화 가이드. Bar for inclusion:
   // the form is nearly always an improvement to change, so a confirm-request
-  // on it is rarely noise. See presets/korean-style/supplement.md.
+  // on it is rarely noise. See presets/korean-style/rules.md, section 6.
   // `졌` is the past tense (`보여졌다`, `쓰여졌습니다`), which the first list missed.
   { re: /(?:보여|쓰여|불려|잊혀)[지집진질져졌]/, fix: "이중 피동입니다. '보인다', '쓰인', '불린', '잊힌'처럼 단일 피동으로 씁니다" },
   { re: /에 다름 아니/, fix: "일본어 번역투입니다. '~일 뿐이다', '바로 ~이다'로 바꿉니다" },

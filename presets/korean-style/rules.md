@@ -1,7 +1,7 @@
 <!--
-  sprag's own Korean style rules. Draft of 2026-11-01, written to replace the
-  vendored fluent-korean.md and supplement.md with one file whose clauses each
-  rest on a measurement or a cited source.
+  sprag's own Korean style rules, written 2026-11-01. They replaced the
+  vendored fluent-korean.md and its supplement.md with one file whose clauses
+  each rest on a measurement or a cited source.
 
   Evidence (full list with numbers in the 2026-11-01 research notes):
   - KatFishNet, Park et al., ACL 2025 (arXiv 2503.00032): LLM Korean puts a
@@ -25,7 +25,7 @@
 
 ## 한국어 문체 규칙 (sprag)
 
-이 규칙은 세션이 쓰는 모든 한국어에 적용합니다. 답변과 문서, 코드 주석, 화면 문자열, 내레이션이 모두 대상입니다. 메모리 파일이나 서브에이전트 프롬프트처럼 모델만 읽는 글도 예외가 아닙니다. 그런 글은 다음 세션의 문맥에 들어가서 모델이 그 문체를 그대로 따라 쓰기 때문입니다. 원문을 옮기는 인용과 프로젝트의 커밋 메시지 관례는 수정하지 않습니다.
+메모리 파일이나 서브에이전트 프롬프트처럼 모델만 읽는 글에도 이 규칙을 적용합니다. 그런 글은 다음 세션의 문맥에 들어가고, 모델은 문맥에 있는 문체를 그대로 따라 씁니다.
 
 규칙의 목표는 문장을 더 매끄럽게 다듬는 데 있지 않습니다. 독자는 지나치게 고르고 매끄러운 문장에서 오히려 기계의 말투를 알아챕니다. 구체적인 사실을 쓰고 정형화된 꼴을 깨는 것이 목표입니다.
 

@@ -44,7 +44,7 @@ test('turning it on produces an injection block that frames the rules', async (t
   assert.match(block, /snflkd/);
   assert.match(block, /MIT/);
   // The guidance itself is present, not just the framing.
-  assert.match(block, /문장 성분/);
+  assert.match(block, /문장을 끝까지 씁니다/);
   // Scope has to read as inclusion. The old wording ("답변·문서·주석이 아닌
   // 산문 전반") parses far more naturally as EXCLUDING documents, and a
   // session that read it that way shipped 18 em dashes in a markdown
@@ -52,31 +52,26 @@ test('turning it on produces an injection block that frames the rules', async (t
   assert.match(block, /적용 대상:.*문서/s);
   assert.match(block, /적용 예외:/);
   assert.doesNotMatch(block, /문서·주석이 아닌/, 'no negation governing the scope list');
-  // The exception list has to agree with the vendored text, which excludes
-  // quotes, code and code comments.
-  assert.match(block, /적용 예외:.*코드 주석/s);
 
   ks.setKoreanStyleEnabled(false);
   assert.equal(ks.koreanStyleInjection(), null);
 });
 
-test('the wide scope names which side wins where it contradicts the vendored text', async (t) => {
+test('the scope lines alone decide whether code comments are covered', async (t) => {
   isolated(t);
   const ks = await import('../src/korean-style.js?precedence');
   ks.setKoreanStyleEnabled(true);
 
-  // The default scope claims code comments; the vendored text disclaims them,
-  // twice. Both sentences ship, so the block has to say which one governs or
-  // the model is left to guess. It guessed wrong in September 2026 and put em
-  // dashes in comments and log strings while the rules were active.
+  // The vendored fluent-korean text disclaimed code comments while the wide
+  // scope claimed them, and the model guessed wrong in September 2026. The
+  // rules file now says nothing about comments, so the scope lines are the
+  // only sentence on it and no override is needed.
+  assert.doesNotMatch(ks.koreanStyleText(), /코드 주석에는 이 지침들을 적용하지 않습니다/);
   const wide = ks.koreanStyleInjection();
-  assert.match(wide, /코드 주석에도 지침을 적용하십시오/);
-  assert.match(wide, /바로 위의 적용 대상과 적용 예외가 그 문장보다 우선합니다/);
+  assert.match(wide, /적용 대상:.*코드 주석/);
+  assert.doesNotMatch(wide, /우선합니다/);
 
-  // The narrow scope already agrees with the vendored text, so an override
-  // there would only add noise and contradict the exception list above it.
   const narrow = ks.koreanStyleInjection({ cfg: { koreanStyle: { enabled: true, lintScope: 'prose' } } });
-  assert.doesNotMatch(narrow, /코드 주석에도 지침을 적용하십시오/);
   assert.match(narrow, /적용 예외:.*코드 주석/);
 
   ks.setKoreanStyleEnabled(false);
@@ -90,18 +85,19 @@ test('the attribution line does not break the rule it cites', async () => {
   assert.match(ks.KOREAN_STYLE_SOURCE, /snflkd/);
 });
 
-test('the vendored text drops the provenance comment but keeps the rules', async () => {
+test('the rules text drops the provenance comment but keeps the rules', async () => {
   const ks = await import('../src/korean-style.js?text');
   const raw = readFileSync(ks.KOREAN_STYLE_PATH, 'utf8');
-  assert.match(raw, /snflkd/, 'the file records where it came from');
+  assert.match(raw, /KatFishNet/, 'the file records the evidence behind each clause');
   const text = ks.koreanStyleText();
   // Every token of the HTML comment would be billed per session, so it is
   // stripped from what gets injected.
-  assert.doesNotMatch(text, /Vendored from/);
-  assert.match(text, /조사와 어미를 생략하지 말아야 합니다/);
+  assert.doesNotMatch(text, /Evidence \(full list/);
+  assert.match(text, /연결어미 뒤에는 쉼표를 찍지 않습니다/);
+  assert.match(text, /가운뎃점으로 나열하지 않습니다/);
 });
 
-test('the MIT license ships alongside the vendored text', async () => {
+test('the MIT license ships for the clauses adapted from fluent-korean', async () => {
   const ks = await import('../src/korean-style.js?license');
   assert.ok(existsSync(ks.KOREAN_STYLE_LICENSE_PATH), 'license file is present');
   const license = readFileSync(ks.KOREAN_STYLE_LICENSE_PATH, 'utf8');
@@ -122,18 +118,19 @@ test('locale decides the install-time default, not a coin flip', async () => {
   assert.equal(on({ LANG: 'tok_XX.UTF-8' }), false);
 });
 
-test('the supplement is appended after the vendored text, comment stripped', async () => {
-  const ks = await import('../src/korean-style.js?supplement');
-  assert.ok(existsSync(ks.KOREAN_STYLE_SUPPLEMENT_PATH), 'supplement file is present');
-  const text = ks.koreanStyleText();
-  // The vendored body still comes first, unmodified.
-  assert.match(text, /조사와 어미를 생략하지 말아야 합니다/);
-  // The supplement follows, without its provenance comment.
-  assert.match(text, /보강 지침/);
-  assert.match(text, /과교정 금지 조항/);
-  assert.doesNotMatch(text, /claude-token-saver's own supplement/);
-  assert.ok(
-    text.indexOf('조사와 어미를 생략') < text.indexOf('보강 지침'),
-    'supplement comes after the vendored guidance',
-  );
+test('the injected rules obey their own comma and middle-dot clauses', async () => {
+  // The rules are read by the model every session, and the model copies the
+  // style of its context. A rules file that breaks its own clauses teaches the
+  // habit it bans, which is how the old lint hint spread middle dots.
+  const ks = await import('../src/korean-style.js?selfcheck');
+  const lint = (await import('../src/korean-lint.cjs')).default;
+  const findings = lint.lintKoreanText(ks.koreanStyleText(), { maxFindings: 100 });
+  assert.deepEqual(findings, []);
+});
+
+test('the injection no longer carries the fluent-korean scope override', async () => {
+  const ks = await import('../src/korean-style.js?override');
+  for (const line of ks.koreanScopeLines({ koreanStyle: { lintScope: 'all' } })) {
+    assert.doesNotMatch(line, /fluent-korean 본문/);
+  }
 });
