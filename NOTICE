@@ -18,17 +18,6 @@ Anyone who received a copy under those terms keeps them for that copy; this
 change applies to later releases.
 
 --------------------------------------------------------------------------------
-Third-party content redistributed with this project
-
-presets/korean-style/rules.md (portions)
-    fluent-korean, Copyright (c) 2026 snflkd, MIT License.
-    A few clauses and examples in sprag's own Korean style rules are adapted
-    from fluent-korean. Those portions stay under its terms, which are
-    reproduced in presets/korean-style/LICENSE-fluent-korean. Releases before
-    v3.91.0 shipped the fluent-korean text verbatim.
-    Upstream: https://github.com/snflkd/fluent-korean
-
---------------------------------------------------------------------------------
 Trademarks
 
 Section 6 of the License grants no rights in the project's names or marks.

@@ -189,7 +189,7 @@ in Korean, is in [Tier criteria](https://github.com/rootstudioyaml/sprag/blob/ma
 | 🅷 **Harness score** | Five operating principles checked live. Skip the verify step and `🅷 4/5` says so before you report done. | [harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.md) |
 | 📊 **Token telemetry** | Cache hit rate, TTL, context size, output spikes and both rate-limit windows, in the prompt every turn. | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md) |
 | 📄 **doc2md** | pptx, xlsx, pdf, docx and fig converted on demand, so a document costs one read instead of your whole context. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) |
-| 🇰🇷 **Style gates** | Write-time prose lint enforced by hook. Shipping today for Korean technical writing: double passives, translationese, cohesion. | [style](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) |
+| 🇰🇷 **Style gates** | Write-time prose lint enforced by hook. Shipping today for Korean: commas after connective endings, middle-dot lists, translationese, each rule backed by a cited study or a measurement. | [style](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) |
 
 The two savings figures are never added together. They measure different things:
 the routing ledger records the price difference on delegated runs, and the
@@ -287,7 +287,7 @@ Every subcommand, flag and the output-language setting: [command reference](http
 | [Tier criteria](https://github.com/rootstudioyaml/sprag/blob/main/docs/TIER_CRITERIA.md) | Why T0/T1/T2 split where they do, with sources (Korean) |
 | [Benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) | The 11,696-instance LLMRouterBench run |
 | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.md) ([한국어](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.ko.md)) | Supported formats, savings evidence, editing documents, DRM cases |
-| [Korean style](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) | What gets injected, the write-time check, before/after |
+| [Korean style](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.md) | Design, the write-time check, before/after, references |
 | [Not a router](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.md) | Why realtime routing breaks the cache and costs more |
 | [Gateways & environment](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.md) | Bedrock, Vertex, LiteLLM budgets, pricing table, FAQ, how it works |
 | [Reduce Claude Code tokens](https://sprag.io/docs/reduce-claude-code-tokens/) | Compact/clear timing, subagent exploration, document conversion, cache TTL |

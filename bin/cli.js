@@ -386,7 +386,7 @@ async function main() {
   }
 
   // Subcommand: cohesion — English sentence-connection guidance injected at
-  // session start; the language-neutral half of the Korean supplement.
+  // session start; the language-neutral half of the Korean rules.
   //   sprag cohesion on | off | status | show
   if (args[0] === 'cohesion') {
     return (await import('../src/commands/cohesion.js')).run({ args, hasFlag });

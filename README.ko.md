@@ -150,7 +150,7 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 | 🅷 **하네스 점수** | 다섯 가지 운영 원칙을 실시간으로 점검합니다. 검증 단계를 건너뛰면 `🅷 4/5`가 먼저 알려 줍니다. | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.ko.md) |
 | 📊 **토큰 텔레메트리** | 캐시 적중률과 TTL, 컨텍스트 크기, 출력 급증, 두 가지 사용량 한도를 매 턴 표시합니다. | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md) |
 | 📄 **doc2md** | pptx와 xlsx, pdf, docx, fig를 필요할 때 Markdown 으로 바꿔 읽습니다. | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.ko.md) |
-| 🇰🇷 **문체 게이트** | 쓰는 시점에 hook으로 검사합니다. 이중 피동과 번역투, 문장 연결을 살핍니다. | [문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) |
+| 🇰🇷 **문체 게이트** | 쓰는 시점에 hook으로 검사합니다. 연결어미 뒤 쉼표와 가운뎃점 나열, 번역투를 살피고 규칙마다 논문이나 실측 근거가 있습니다. | [문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) |
 
 두 절감액은 한 숫자로 합치지 않습니다. 재는 대상이 다르기 때문입니다. 라우팅 원장은 위임된 실행의 단가 차액을 적고, 변환 원장은 문서가 쓰지 않게 된 토큰을 적습니다.
 
@@ -233,7 +233,7 @@ Codex에는 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙, 한국
 | [티어 판별 기준](https://github.com/rootstudioyaml/sprag/blob/main/docs/TIER_CRITERIA.md) | T0·T1·T2 를 가르는 근거와 연구 출처 |
 | [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) | LLMRouterBench 11,696문항 재현 결과 |
 | [doc2md](https://github.com/rootstudioyaml/sprag/blob/main/docs/DOC2MD.ko.md) | 변환 대상 포맷, 절감 근거, 문서 수정 절차, DRM 문서 |
-| [한국어 문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) | 주입 내용, 쓰기 시점 검사, 적용 전후 비교 |
+| [한국어 문체 지침](https://github.com/rootstudioyaml/sprag/blob/main/docs/KOREAN-STYLE.ko.md) | 설계 개념, 쓰기 시점 검사, 적용 전후 비교, 참고 문헌 |
 | [라우터가 아닌 이유](https://github.com/rootstudioyaml/sprag/blob/main/docs/NOT-A-ROUTER.ko.md) | 실시간 라우팅이 캐시를 깨서 비용을 키우는 구조 |
 | [게이트웨이와 환경](https://github.com/rootstudioyaml/sprag/blob/main/docs/GATEWAYS.ko.md) | Bedrock·Vertex·LiteLLM, 가격표, FAQ, 동작 원리 |
 | [클로드 코드 토큰 줄이는 법](https://sprag.io/docs/ko/reduce-claude-code-tokens/) | 압축·초기화 타이밍, 서브에이전트 탐색, 문서 변환, 캐시 TTL |

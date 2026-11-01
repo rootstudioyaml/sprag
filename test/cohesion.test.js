@@ -30,7 +30,7 @@ test('injection is opt-in and suppressed while the Korean guidance is on', async
   const block = await co.cohesionInjection({ cfg: { cohesion: { enabled: true } } });
   assert.match(block, /\[sprag cohesion\]/);
   assert.match(block, /No leaps/);
-  // Enabled, Korean on: the Korean supplement already carries these rules.
+  // Enabled, Korean on: the Korean rules already carry these clauses.
   const suppressed = await co.cohesionInjection({
     cfg: { cohesion: { enabled: true }, koreanStyle: { enabled: true } },
   });

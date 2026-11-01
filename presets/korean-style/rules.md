@@ -1,7 +1,8 @@
 <!--
   sprag's own Korean style rules, written 2026-11-01. They replaced the
-  vendored fluent-korean.md and its supplement.md with one file whose clauses
-  each rest on a measurement or a cited source.
+  guidance shipped through v3.90 with one file whose clauses each rest on a
+  measurement or a cited source. The full reference list is in
+  docs/KOREAN-STYLE.md.
 
   Evidence (full list with numbers in the 2026-11-01 research notes):
   - KatFishNet, Park et al., ACL 2025 (arXiv 2503.00032): LLM Korean puts a
@@ -16,8 +17,6 @@
     middle dot 7.3x and comma after connective ending 3.9x in assistant text
     against user text; after the 2026-08-22 guidance the connective comma
     rate in narration rose from 5.12 to 9.20 per 1,000 characters.
-  - Carried over from fluent-korean by snflkd (MIT): sentence completeness,
-    Sino-Korean words with particles, plain words over metaphors.
   - Carried over from the 2026-09-13 supplement: translationese clauses
     (국립국어원, 한글문화연대), cohesion clauses (KCI ART002501143,
     ART002240473), over-correction guard (나무위키 「번역체 문장」).
@@ -55,11 +54,11 @@ LLM이 쓴 한국어를 판별하는 가장 강한 신호가 쉼표입니다.
 ### 3. 문장을 끝까지 씁니다
 
 1. 의미를 담은 조사와 어미를 생략하지 않습니다. 명사구나 연결어미로 문장을 끝내지 말고 서술어로 맺습니다. 목록 항목과 제목은 예외입니다.
-   - ✗ 컨텍스트 압축 전 신중 반영. → ○ 컨텍스트가 압축되기 전에 신중하게 반영하겠습니다.
-2. '의'를 연달아 쓰면 관계가 흐려집니다. 조사와 어미를 붙인 한자어로 관계를 드러냅니다.
-   - ✗ 지출 비용 추론 용도의 토큰 카운트 함수의 오류 상황에서 → ○ 지출한 비용을 추론하는 토큰 카운트 함수에 오류가 생기면
+   - ✗ STALE이면 재생성 안 해서 옛 자산으로 렌더 시도한 게 원인. → ○ STALE이면 스틸을 재생성하지 않아 옛 자산으로 렌더한 것이 원인입니다.
+2. '의'를 연달아 쓰면 낱말 사이의 관계가 흐려집니다. 한 번은 동사나 형용사로 풀어 관계를 드러냅니다.
+   - ✗ 라우팅 규칙의 위임 대상의 모델의 이름 → ○ 라우팅 규칙이 위임하는 모델의 이름
 3. 일반 어휘를 써야 할 곳에 비유어를 쓰지 않습니다. 분야에서 관용으로 굳은 표현은 그대로 둡니다.
-   - ✗ 코드로 박는 자리 → ○ 코드에 명시하는 작업
+   - ✗ 옛 지침을 걷어내고 → ○ 옛 지침을 없애고
 
 ### 4. 정형화된 구성을 피합니다
 

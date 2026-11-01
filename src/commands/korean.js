@@ -240,8 +240,8 @@ export async function run({ args, hasFlag }) {
         ? '  주입 시점: 세션 시작 1회 (매 턴이 아니므로 두 번째 요청부터는 캐시에 올라갑니다)'
         : '  Injected once per session (not per turn), so it rides the prompt cache from the second request on.');
       console.log(lang === 'ko'
-        ? `  출처: ${ks.KOREAN_STYLE_SOURCE}`
-        : `  Source: ${ks.KOREAN_STYLE_SOURCE}`);
+        ? `  근거와 참고 문헌: ${ks.KOREAN_STYLE_SOURCE}`
+        : `  Evidence and references: ${ks.KOREAN_STYLE_SOURCE}`);
       if (hook.action === 'skipped') {
         console.log(lang === 'ko'
           ? `  ⚠ 쓰기 시점 검사 훅을 못 걸었습니다: ${hook.reason}`
@@ -270,8 +270,7 @@ export async function run({ args, hasFlag }) {
     console.log(`  비용: 세션당 약 ${tokens} 토큰 (세션 시작 1회 주입)`);
     console.log(`  쓰기 시점 검사: ${koreanLintMode(loadConfig())}, 범위 ${koreanLintScope(loadConfig())} (바꾸려면 sprag korean lint block|warn|off, korean lint scope all|prose)`);
     console.log(`  답변 언어 검사: ${koreanReplyCheckOn(loadConfig()) ? '켜짐' : '꺼짐'} (바꾸려면 sprag korean reply on|off)`);
-    console.log(`  출처: ${ks.KOREAN_STYLE_SOURCE}`);
-    console.log(`  라이선스 전문: ${ks.KOREAN_STYLE_LICENSE_PATH}`);
+    console.log(`  근거와 참고 문헌: ${ks.KOREAN_STYLE_SOURCE}`);
     console.log(on
       ? '  끄려면: sprag korean off'
       : '  켜려면: sprag korean on');
@@ -280,8 +279,7 @@ export async function run({ args, hasFlag }) {
     console.log(`  Cost: ~${tokens} tokens per session (injected once at session start)`);
     console.log(`  Write-time check: ${koreanLintMode(loadConfig())}, scope ${koreanLintScope(loadConfig())} (change with: sprag korean lint block|warn|off, korean lint scope all|prose)`);
     console.log(`  Reply-language check: ${koreanReplyCheckOn(loadConfig()) ? 'on' : 'off'} (change with: sprag korean reply on|off)`);
-    console.log(`  Source: ${ks.KOREAN_STYLE_SOURCE}`);
-    console.log(`  License text: ${ks.KOREAN_STYLE_LICENSE_PATH}`);
+    console.log(`  Evidence and references: ${ks.KOREAN_STYLE_SOURCE}`);
     console.log(on
       ? '  Turn off with: sprag korean off'
       : '  Turn on with: sprag korean on');
