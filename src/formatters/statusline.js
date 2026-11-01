@@ -1,5 +1,6 @@
 /**
- * Statusline formatter — compact single-line output for Claude Code statusline API.
+ * Statusline formatter — compact output for Claude Code statusline API: one chip
+ * line, wrapped onto a few lines when COLUMNS is known and the chips would not fit.
  * Called every ~300ms, so kept minimal and fast. ANSI color codes included by default.
  *
  * Example output (color):
@@ -30,6 +31,7 @@ import { modelFamily } from '../savings-ledger.js';
 import { shareLegend } from '../model-share.js';
 import { STAR_URL } from '../star-note.js';
 import { speciesLabel } from '../office-species.js';
+import { cellWidth } from '../cell-width.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
 // next to each other — terminal palettes set them with unbalanced perceptual
@@ -547,15 +549,133 @@ function buildCapWarnSeg(capWarn, c, isIcon, g, color, mode) {
   return `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
 }
 
+// Room Claude Code keeps for its own padding around the statusline. A guess
+// from observed truncation, so it may be tuned.
+const STATUSLINE_MARGIN = 4;
+const CHIP_SEP = ' · ';
+const SEP_WIDTH = 3;
+// Continuation rows of a wrapped headline start indented, so they read as the
+// rest of the line above rather than as a new headline.
+const HEADLINE_INDENT = '  ';
+
+const availWidth = (columns) => Math.max(20, columns - STATUSLINE_MARGIN);
+
+/**
+ * Wrap one headline line to `avail` cells. A headline is sections joined by a
+ * gray `|`, and a section is items joined by a gray `·` (see buildDelegatedSeg
+ * and buildDoc2mdSeg), so it breaks at those joints and never inside an item.
+ * The routing line lists every model pair on purpose, which makes it the
+ * widest line of the statusline: unwrapped, the terminal cut it at the total
+ * and hid the whole breakdown.
+ */
+function wrapHeadline(line, avail, c) {
+  if (cellWidth(line) <= avail) return [line];
+  const bar = `  ${c(GRAY)}|${c(RESET)}  `;
+  const dot = ` ${c(GRAY)}·${c(RESET)} `;
+  const pieces = [];
+  line.split(bar).forEach((section, i) => {
+    section.split(dot).forEach((text, j) => pieces.push({ text, sep: j ? dot : i ? bar : '' }));
+  });
+  const rows = [];
+  let row = '';
+  let used = 0;
+  for (const { text, sep } of pieces) {
+    const w = cellWidth(text);
+    const sepW = cellWidth(sep);
+    if (row && used + sepW + w > avail) {
+      rows.push(row);
+      row = HEADLINE_INDENT + text;
+      used = HEADLINE_INDENT.length + w;
+    } else {
+      used += (row ? sepW : 0) + w;
+      row += (row ? sep : '') + text;
+    }
+  }
+  if (row) rows.push(row);
+  return rows;
+}
+
+/**
+ * Join chips into statusline lines no wider than the terminal. Without a known
+ * width Claude Code truncates the single line with an ellipsis, which hides the
+ * chips at the tail; wrapping at chip boundaries keeps every one readable.
+ *
+ * Chips arrive in priority order, so when the wrap needs more than `maxLines`
+ * lines the lowest-priority tail is dropped and counted in a `+N` chip.
+ * `protectedSegs` (the chips that stop the work) are never dropped, even if the
+ * result then overflows `maxLines`.
+ *
+ * @param {string[]} segs
+ * @param {object} [o]
+ * @param {number} [o.columns] - terminal width; falsy returns the legacy one-line join
+ * @param {number} [o.maxLines=3]
+ * @param {string} [o.eol=''] - erase-to-end-of-line suffix, appended to every line
+ * @param {Set<string>} [o.protectedSegs]
+ * @param {boolean} [o.color=true] - gray the `+N` chip
+ * @returns {string} lines joined by `eol + '\n'`; no trailing newline
+ */
+export function layoutChips(segs, o = {}) {
+  return fitChips(segs, o).text;
+}
+
+// layoutChips plus how many chips it had to drop, so formatReport can tell a
+// clean fit from one that cost chips.
+function fitChips(segs, { columns, maxLines = 3, eol = '', protectedSegs = new Set(), color = true } = {}) {
+  if (!columns || !Number.isFinite(columns)) return { text: segs.join(CHIP_SEP) + eol, dropped: 0 };
+  const avail = availWidth(columns);
+  const widths = new Map();
+  const widthOf = (chip) => {
+    let w = widths.get(chip);
+    if (w === undefined) { w = cellWidth(chip); widths.set(chip, w); }
+    return w;
+  };
+  const wrap = (chips) => {
+    const lines = [];
+    let line = [];
+    let used = 0;
+    for (const chip of chips) {
+      const w = widthOf(chip);
+      if (line.length && used + SEP_WIDTH + w > avail) {
+        lines.push(line);
+        line = [];
+        used = 0;
+      }
+      used += (line.length ? SEP_WIDTH : 0) + w;
+      line.push(chip);
+    }
+    if (line.length) lines.push(line);
+    return lines;
+  };
+
+  let kept = segs;
+  let dropped = 0;
+  let lines = wrap(kept);
+  while (lines.length > maxLines) {
+    // Drop from the tail, skipping protected chips and any `+N` already added.
+    let at = kept.length - 1;
+    if (dropped) at -= 1;
+    while (at >= 0 && protectedSegs.has(kept[at])) at -= 1;
+    if (at < 0) break;
+    const base = dropped ? kept.slice(0, -1) : kept;
+    dropped += 1;
+    const rest = base.filter((_, i) => i !== at);
+    const more = `${color ? GRAY : ''}+${dropped}${color ? RESET : ''}`;
+    kept = [...rest, more];
+    lines = wrap(kept);
+  }
+  return { text: lines.map((l) => l.join(CHIP_SEP) + eol).join('\n'), dropped };
+}
+
 /**
  * Fallback line for when no session data exists in the analysis window.
  * The stdin payload (rate limits, model) is still live in that case, and a
  * 90%+ cap warning is exactly the kind of signal that must not disappear
  * just because the user has been idle past the window — so cap-warn,
  * harness, model, and effort chips still render around the "no session data"
- * note.
+ * note. With `columns` the chips wrap onto at most `maxLines` lines (see
+ * layoutChips).
  */
-export function formatNoSession({ caps = null, model = null, effort = null, windowLabel = '', version = '', update = null, team = null } = {}, { color = true, mode = 'icon', segments = null } = {}) {
+export function formatNoSession({ caps = null, model = null, effort = null, windowLabel = '', version = '', update = null, team = null } = {}, { color = true, mode = 'icon', segments = null, columns = 0, maxLines = 3 } = {}) {
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take
   // the same branches from here on.
@@ -580,7 +700,9 @@ export function formatNoSession({ caps = null, model = null, effort = null, wind
   const teamSeg = buildTeamSeg(team, c, mode);
   if (teamSeg) segs.push(teamSeg);
   if (versionSeg && !(update && update.available)) segs.push(versionSeg);
-  return segs.join(' · ') + (color ? '\x1b[K' : '');
+  return layoutChips(segs, {
+    columns, maxLines, eol: color ? '\x1b[K' : '', protectedSegs: new Set(capSeg ? [capSeg] : []), color,
+  });
 }
 
 /**
@@ -1307,7 +1429,7 @@ function arrangeSegments(order, s) {
 /**
  * The headline lines that sit above the chips, as one string of `line\n` pairs.
  */
-function buildHeadlines(delegated, doc2md, want, eol) {
+function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v) {
   // Each savings source that earned real money gets a headline line, ordered
   // biggest saver first — the top line is the one the eye lands on, so it
   // goes to whichever habit is actually paying for the tool. The diagnostics
@@ -1316,7 +1438,10 @@ function buildHeadlines(delegated, doc2md, want, eol) {
   if (delegated.headline && want('delegated')) headlines.push(delegated.headline);
   if (doc2md.headline && want('doc2md')) headlines.push(doc2md.headline);
   headlines.sort((a, b) => b.usd - a.usd);
-  return headlines.map((h) => h.line + eol + '\n').join('');
+  const rows = columns
+    ? headlines.flatMap((h) => wrapHeadline(h.line, availWidth(columns), c))
+    : headlines.map((h) => h.line);
+  return rows.map((row) => row + eol + '\n').join('');
 }
 
 /**
@@ -1327,9 +1452,11 @@ function buildHeadlines(delegated, doc2md, want, eol) {
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
  * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), team (member id and office animal; joined machines only), model, effort, hit, ttl, month, saved, delegated, doc2md, star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
- * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line).
+ * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line). It also ignores `columns`.
+ * @param {number} [opts.columns=0] - terminal width in cells (Claude Code exports it as COLUMNS). When set, the chips wrap at chip boundaries instead of being truncated by the terminal; 0 keeps one unbounded line. A verbose layout that would need chips dropped is re-rendered once in the compact layout first.
+ * @param {number} [opts.maxLines=3] - most chip lines when `columns` is set; lower-priority tail chips collapse into a `+N` chip beyond that. Counts the chip lines only: the headline lines above them wrap at their own `|` and `·` joints and are not included. Cap, usage, ctx, spike chips are never dropped.
  */
-export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false } = {}) {
+export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false, columns = 0, maxLines = 3 } = {}) {
   const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort } = data;
 
   const c = (v) => (color ? v : '');
@@ -1416,6 +1543,17 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
   // allowed — --no-color/NO_COLOR consumers expect escape-free output.
   const eol = color ? '\x1b[K' : '';
-  const rest = segs.join(' · ') + eol;
-  return buildHeadlines(delegated, doc2md, want, eol) + rest;
+  if (singleLine || !columns) return buildHeadlines(delegated, doc2md, want, eol) + segs.join(' · ') + eol;
+  const headlines = buildHeadlines(delegated, doc2md, want, eol, columns, c);
+
+  // The chips that stop the work: layoutChips drops from the tail when the
+  // terminal is narrow, and these must survive that.
+  const protectedSegs = new Set([built.capWarn, built.spike, built.ctx, ...built.usage.map((u) => u.seg)].filter(Boolean));
+  const fitted = fitChips(segs, { columns, maxLines, eol, protectedSegs, color });
+  // Verbose labels are the first thing to give up: if they only fit by dropping
+  // chips, the compact layout (same chips, shorter text) may keep all of them.
+  if (verbose && fitted.dropped) {
+    return formatReport(data, { color, verbose: false, timer, mode, segments, singleLine, columns, maxLines });
+  }
+  return headlines + fitted.text;
 }

@@ -24,6 +24,7 @@ import { codexRulesInReview, codexSharedRuleHealth } from './rule-health.js';
 import { readCodexRouteScan, openCodexCandidates } from './route-scan.js';
 import { codexBudgetProvider } from './budget.js';
 import { readUpdateChip } from '../update-notice.js';
+import { cellWidth } from '../cell-width.js';
 
 const CODEX_SUPPORTED_SEGMENTS = new Set([
   'cap-warn', 'spike', 'usage', 'ctx', 'ttl', 'model', 'effort',
@@ -223,8 +224,7 @@ function sessionLabel(data) {
 // Labels from logs are ASCII-sanitized; only our known glyphs need wide cells.
 const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' });
 export function panelCellWidth(text) {
-  return [...graphemes.segment(text.replace(/\x1b\[[0-9;]*m/g, ''))].reduce((n, { segment }) =>
-    n + (/^[\p{Mark}\u200d]+$/u.test(segment) ? 0 : segment.includes('\ufe0f') || segment.codePointAt(0) >= 0x1f000 ? 2 : 1), 0);
+  return cellWidth(text);
 }
 
 function panelGroups(data, { now, version = '', full = false, mode = full ? 'text' : data.labelMode || 'icon' }) {
