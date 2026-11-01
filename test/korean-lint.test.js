@@ -32,6 +32,47 @@ test('catches the metaphors that slipped through review in hn124', () => {
   assert.deepEqual(findings.map((f) => f.line), [1, 2, 3]);
 });
 
+const rulesOf = (text) => lint.lintKoreanText(text).map((f) => f.rule);
+
+test('connective comma: one per paragraph passes, a second one is raised', () => {
+  assert.ok(!rulesOf('파일을 읽고, 결과를 확인합니다.').includes('연결어미 쉼표'));
+  assert.ok(rulesOf('파일을 읽고, 결과를 확인하면, 다음으로 넘어갑니다.').includes('연결어미 쉼표'));
+  // A noun or particle that only ends in a connective's spelling is not one.
+  assert.ok(!rulesOf('문서, 순서, 화면을 서울에서, 봅니다.').includes('연결어미 쉼표'));
+});
+
+test('conjunctive adverb comma is raised, but "A는 물론, B" is not', () => {
+  assert.ok(rulesOf('그러나, 이 방법은 느립니다.').includes('접속부사 쉼표'));
+  assert.ok(rulesOf('결과가 나왔습니다. 즉, 원인은 캐시입니다.').includes('접속부사 쉼표'));
+  assert.ok(!rulesOf('둠과 퀘이크는 물론, 컴파일러보다 큽니다.').includes('접속부사 쉼표'));
+});
+
+test('middle dot between Hangul words is raised outside tables and settled pairs', () => {
+  assert.ok(rulesOf('직급·처우가 맞지 않습니다.').includes('가운뎃점'));
+  assert.ok(rulesOf('한 번 커밋·푸시했습니다.').includes('가운뎃점'));
+  assert.ok(!rulesOf('| 입력·출력 | 값 |').includes('가운뎃점'));
+  assert.ok(!rulesOf('한·중 관계와 남·북 회담을 다룹니다.').includes('가운뎃점'));
+  assert.ok(!rulesOf('Haiku 5.5 · effort low').includes('가운뎃점'));
+});
+
+test("'아니라' twice in one paragraph is raised, once is not", () => {
+  assert.ok(!rulesOf('문제는 속도가 아니라 비용입니다.').includes("'아니라' 반복"));
+  assert.ok(rulesOf('속도가 아니라 비용이고, 비용이 아니라 신뢰입니다.').includes("'아니라' 반복"));
+});
+
+test('new punctuation fixes never recommend the middle dot', () => {
+  for (const f of lint.lintKoreanText('그러나, 직급·처우를 읽고, 확인하면, 됩니다. 속도가 아니라 비용, 비용이 아니라 신뢰입니다.')) {
+    assert.doesNotMatch(f.fix, /·/, `${f.rule}: ${f.fix}`);
+  }
+});
+
+test('separator fix never suggests the middle dot as a replacement', () => {
+  const [finding] = lint.lintKoreanText('토큰을 아낍니다 — 그리고 막습니다');
+  assert.equal(finding.rule, '구분자');
+  assert.doesNotMatch(finding.fix, /가운뎃점\(·\)으로 바꿉니다/);
+  assert.match(finding.fix, /바꾸지 않습니다/);
+});
+
 test('catches translationese, repeated 의, and separators', () => {
   const findings = lint.lintKoreanText('성능에 대한 분석 — 지출의 비용의 추론의 결과입니다');
   const rules = new Set(findings.map((f) => f.rule));
