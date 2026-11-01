@@ -88,6 +88,7 @@
   .price b{font-size:44px;font-weight:600;letter-spacing:-.04em;line-height:1}
   .price span{color:var(--dim);font-size:13px;line-height:1.35;white-space:nowrap}
   .fine{margin-top:8px;color:var(--faint);font-size:12.5px;min-height:1.5em}
+  .fine.krw{margin-top:2px;min-height:0}
   .plan .btn{margin-top:24px;width:100%}
   .plan .inc{margin-top:24px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--faint)}
   .plan ul{list-style:none;margin-top:12px;display:grid;gap:8px;font-size:13px;color:var(--dim)}
@@ -250,7 +251,8 @@
       <p class="for" data-k="p.pro.for">For teams that want one view of spend and savings.</p>
       <div class="price"><b data-price="pro">$5</b><span data-k="p.per">per seat / month</span></div>
       <p class="fine" data-fine="pro">Billed monthly</p>
-      <a class="btn pri" href="/team/" data-k="p.start">Get started</a>
+      <p class="fine krw" data-krw="pro" hidden></p>
+      <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag%20Pro" data-k="p.ask">Contact us</a>
       <p class="inc" data-k="p.pro.inc">Everything in Free, plus</p>
       <ul>
         <li data-k="p.pro.1">Team dashboard with a 30-day chart</li>
@@ -267,10 +269,11 @@
       <p class="for" data-k="p.ent.for">For teams that also review how prompts are written.</p>
       <div class="price"><b data-price="enterprise">$10</b><span data-k="p.per">per seat / month</span></div>
       <p class="fine" data-fine="enterprise">Billed monthly</p>
-      <a class="btn" href="/team/" data-k="p.start">Get started</a>
+      <p class="fine krw" data-krw="enterprise" hidden></p>
+      <a class="btn" href="mailto:support@sprag.io?subject=Sprag%20Enterprise" data-k="p.ask">Contact us</a>
       <p class="inc" data-k="p.ent.inc">Everything in Pro, plus</p>
       <ul>
-        <li data-k="p.ent.1">Prompt capture, secrets redacted</li>
+        <li data-k="p.ent.1">Prompt capture, secrets and personal data masked on each machine</li>
         <li data-k="p.ent.2">Nothing from before the policy was on</li>
         <li data-k="p.ent.3">Per-user prompt usage and 30-day trend</li>
         <li data-k="p.ent.4">Each user's prompt list with search</li>
@@ -367,9 +370,9 @@
   </section>
 
   <div class="cta">
-    <h2 data-k="p.cta">Start with a team of one and add people later.</h2>
+    <h2 data-k="p.cta">Tell us your organization and seat count, and we will send you an order link.</h2>
     <div class="actions">
-      <a class="btn pri" href="/team/" data-k="p.start">Get started</a>
+      <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag%20Team" data-k="p.ask">Contact us</a>
       <a class="btn" href="/docs/team/" data-k="p.docs">Read the team guide</a>
     </div>
   </div>
@@ -381,7 +384,7 @@
     <span>Apache-2.0</span>
     <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
   </div>
-  <div class="wrap biz" hidden>
+  <div class="wrap biz">
     <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:support@sprag.io">support@sprag.io</a></span></p>
     <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a> · <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963" data-k="bz.verify" target="_blank" rel="noopener">Verify business info</a></p>
   </div>
@@ -390,10 +393,11 @@
 <script>
 /* Prices live here. Change them in this block only. Annual is per seat per month, billed yearly. */
 const PRICES = { monthly: { pro: 5, enterprise: 10 }, annual: { pro: 4, enterprise: 8 } };
-/* Korean page shows won (VAT excluded). Same shape as PRICES. */
+/* Both languages show USD. The Korean page adds a small line with the won amount for bank transfer (VAT excluded). Same shape as PRICES. */
 const PRICES_KRW = { monthly: { pro: 7000, enterprise: 14000 }, annual: { pro: 5600, enterprise: 11200 } };
-const fmtPrice = n => lang === 'ko' ? n.toLocaleString('en-US') + '원' : '$' + n;
-const priceOf = (cy, plan) => (lang === 'ko' ? PRICES_KRW : PRICES)[cy][plan];
+const fmtPrice = n => '$' + n;
+const priceOf = (cy, plan) => PRICES[cy][plan];
+const krwOf = (cy, plan) => PRICES_KRW[cy][plan].toLocaleString('en-US');
 let cycle = 'monthly';
 
 const KO = {
@@ -475,7 +479,7 @@ const KO = {
  "p.pro": "프로",
  "p.pro.for": "지출과 절감액을 한곳에서 보려는 팀",
  "p.per": "좌석당 월, 부가세 별도",
- "p.start": "시작하기",
+ "p.ask": "도입 문의",
  "p.pro.inc": "무료 기능 전부와 함께",
  "p.pro.1": "조직 대시보드와 30일 추이 차트",
  "p.pro.2": "컴퓨터별 상태가 보이는 좌석 명단",
@@ -486,7 +490,7 @@ const KO = {
  "p.ent": "엔터프라이즈",
  "p.ent.for": "프롬프트 작성 방식까지 검토하려는 팀",
  "p.ent.inc": "프로 기능 전부와 함께",
- "p.ent.1": "팀별 프롬프트 수집, 비밀 값은 가림",
+ "p.ent.1": "프롬프트 수집, 비밀값과 개인정보는 팀원 PC에서 가린 뒤 전송",
  "p.ent.2": "정책을 켜기 전 기록은 수집하지 않음",
  "p.ent.3": "사용자별 프롬프트 사용량과 30일 추이",
  "p.ent.4": "사용자별 프롬프트 목록과 검색",
@@ -516,10 +520,11 @@ const KO = {
  "p.a5": "Supabase의 ap-northeast-2(서울) 리전에 저장됩니다.",
  "p.q7": "좌석은 어떻게 늘리나요?",
  "p.a7": "조직 이름과 필요한 좌석 수를 적어 <a href=\"mailto:support@sprag.io\">support@sprag.io</a>로 문의해 주세요. 추가 좌석의 주문 링크를 보내 드리며, 금액은 남은 이용 기간에 맞춰 계산합니다.",
- "p.cta": "한 명으로 시작해서 나중에 사람을 더하세요.",
+ "p.cta": "조직 이름과 좌석 수를 알려 주시면 주문 링크를 보내 드립니다.",
  "p.docs": "팀 가이드 읽기",
  "p.fine.m": "월 단위 청구",
- "p.fine.a": "연 단위 청구, 좌석당 ${y} (부가세 별도)"
+ "p.fine.a": "연 단위 청구, 좌석당 ${y} (부가세 별도)",
+ "p.krw": "원화 입금 시 좌석당 월 ${w}원, 부가세 별도"
 };
 const EN = {};
 document.querySelectorAll('[data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
@@ -583,6 +588,10 @@ function render(){
   document.querySelectorAll('[data-fine]').forEach(el => {
     const y = fmtPrice(priceOf(cycle, el.dataset.fine) * 12);
     el.textContent = cycle === 'annual' ? dict['p.fine.a'].replace('${y}', () => y) : dict['p.fine.m'];
+  });
+  document.querySelectorAll('[data-krw]').forEach(el => {
+    el.hidden = lang !== 'ko';
+    el.textContent = lang === 'ko' ? KO['p.krw'].replace('${w}', () => krwOf(cycle, el.dataset.krw)) : '';
   });
   document.querySelectorAll('.cycle button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cycle === cycle)));
   /* plan videos (video/tour/build-plans.sh): swap to the current language's file, only when it changes */

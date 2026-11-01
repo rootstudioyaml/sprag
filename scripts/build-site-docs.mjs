@@ -542,10 +542,11 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
 </header>`;
 }
 
-// The business block and the legal pages stay hidden until checkout goes
-// live: no buyer exists yet. Flip this to true with the hand-written pages
-// (drop their footer `hidden` and the legal pages' noindex) when payments open.
-const SHOW_BIZ = false;
+// The business block and the legal pages were hidden while no buyer existed.
+// They are back on since 2026-11-01, when paid ads started sending people to
+// the order page. Flip together with the hand-written pages' footer `hidden`
+// and the legal pages' noindex.
+const SHOW_BIZ = true;
 const BIZ_FTC = 'https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963';
 const BIZ_INFO = {
   en: [
