@@ -85,6 +85,22 @@ test('the published tarball is compared with the tag before the local install', 
   );
 });
 
+test('CI on origin/main is checked after the pull and before the publish', () => {
+  const pull = lineOf(/run\(\s*'git'.*'pull'/);
+  const gate = lineOf(/^\s*requireGreenCi\(\);/);
+  const publish = lineOf(/run\('npm', \['publish'\]/);
+  assert.ok(gate > 0, 'deploy.mjs no longer checks the CI result before releasing');
+  assert.ok(
+    pull < gate,
+    'the CI check runs before the pull, so it reads a stale origin/main.',
+  );
+  assert.ok(
+    gate < publish,
+    `the publish at line ${publish + 1} runs before the CI check at line ${gate + 1}; `
+    + 'a release that fails on Windows would be on npm before anyone looked.',
+  );
+});
+
 test('the dirty check still guards the pull', () => {
   const dirty = lineOf(/git', \['status', '--porcelain'\]/);
   const pull = lineOf(/run\(\s*'git'.*'pull'/);

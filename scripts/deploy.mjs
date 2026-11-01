@@ -128,6 +128,58 @@ function verifyPublishedTarball(version, tag) {
   }
 }
 
+/**
+ * Stop unless the test workflow passed on what is being released.
+ *
+ * The suite runs locally before the publish, but locally means macOS, and every
+ * CI failure from 2026-10-18 to 2026-11-01 was on the Windows runners: 67 red
+ * runs out of 100, with 3.90.3, 3.90.4 and 3.91.0 published on top of them
+ * because nothing here looked. The release is checked against origin/main as
+ * the pull left it; commits made here and not yet pushed have never reached CI,
+ * so only the changelog entry and its notes draft may ride along unchecked.
+ */
+const CI_WORKFLOW = 'test';
+const CI_DELAY_MS = 30_000;
+// 20 minutes: the slowest job (doc2md) has a 20-minute timeout of its own.
+const CI_ATTEMPTS = 40;
+const RIDES_ALONG = (file) => file === 'CHANGELOG.md' || file.startsWith('docs/releases/');
+
+function requireGreenCi() {
+  const sha = capture('git', ['rev-parse', 'origin/main']).out;
+  const short = sha.slice(0, 7);
+  const unpushed = capture('git', ['diff', '--name-only', sha, 'HEAD']).out.split('\n').filter(Boolean);
+  const untested = unpushed.filter((f) => !RIDES_ALONG(f));
+  if (untested.length) {
+    stop(`${untested.length} file(s) changed since origin/main have not been through CI.`,
+      `${untested.join('\n')}\n\nPush them, let the test workflow pass, then deploy.`);
+  }
+  for (let i = 1; ; i++) {
+    const listed = capture('gh', ['run', 'list', '--workflow', CI_WORKFLOW, '--commit', sha,
+      '--event', 'push', '--limit', '1', '--json', 'databaseId,status,conclusion,url']);
+    if (!listed.ok) stop(`could not read the CI result for ${short} from GitHub.`, listed.err || listed.out);
+    const ci = JSON.parse(listed.out || '[]')[0];
+    if (ci && ci.status === 'completed') {
+      if (ci.conclusion === 'success') {
+        console.log(`deploy: CI passed on ${short} (${ci.url}).`);
+        return;
+      }
+      const jobs = capture('gh', ['run', 'view', String(ci.databaseId), '--json', 'jobs', '--jq',
+        '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped") | .name']).out;
+      stop(`CI ended "${ci.conclusion}" on ${short}; fix it before releasing.`, `${ci.url}\n${jobs}`);
+    }
+    const state = ci ? ci.status : 'no run yet';
+    if (dryRun) {
+      console.log(`deploy: CI on ${short} is ${state}; a real run would wait for it.`);
+      return;
+    }
+    if (i === CI_ATTEMPTS) {
+      stop(`CI on ${short} is still ${state} after ${(CI_ATTEMPTS * CI_DELAY_MS) / 60_000} minutes.`, ci ? ci.url : '');
+    }
+    console.log(`deploy: waiting for CI on ${short} (${state}, ${i}/${CI_ATTEMPTS})...`);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, CI_DELAY_MS);
+  }
+}
+
 // --- preflight --------------------------------------------------------------
 // The pull comes first, and that ordering is the whole point of this block.
 // Everything below decides what to release by reading CHANGELOG.md off the disk,
@@ -185,6 +237,7 @@ if (dryRun) console.log('deploy: dry run; nothing below is executed.');
 // package are correct, and only the release body is missing, so publishing the
 // notes is the whole remaining job.
 if (!onNpm) {
+  requireGreenCi();
   run('npm', ['test']);
   run('node', ['scripts/verify-cli.mjs']);
   if (pkg.version !== version) run('npm', ['version', version]);
