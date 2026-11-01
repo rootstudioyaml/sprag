@@ -100,6 +100,19 @@ function segmentsFromArgs() {
   return raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : null;
 }
 
+/**
+ * Terminal width for the statusline wrap: `--columns N`, else the COLUMNS that
+ * Claude Code exports to the statusline process, else 0 (no wrapping). The demo
+ * passes `useEnv: false` so recordings do not change with the shell they run in.
+ */
+function columnsFromArgs({ useEnv = true } = {}) {
+  const positive = (v) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n > 0 ? n : 0;
+  };
+  return positive(getArg('--columns')) || (useEnv ? positive(process.env.COLUMNS) : 0);
+}
+
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
@@ -117,7 +130,7 @@ const KNOWN_SUBCOMMANDS = new Set([
 const FLAG_SPECS = {
   report: {
     value: ['--format', '-f', '--project', '-p', '--days', '-d', '--hours', '--demo',
-      '--demo-cycle-sec', '--segments', '--exclude-session', '--threshold'],
+      '--demo-cycle-sec', '--segments', '--exclude-session', '--threshold', '--columns'],
     bool: ['--statusline', '--verbose', '--no-verbose', '--compact', '--no-color', '--icon',
       '--no-icon', '--text', '--narrow', '--no-timer', '--single-line', '--demo-label',
       '--version', '-v', '--help', '-h', '--hook', '--hook-run', '--install-hook', '--uninstall-hook'],
@@ -216,6 +229,7 @@ Usage:
   sprag --uninstall-hook   remove that hook
   sprag --statusline       one-line output for Claude Code statusline
       --verbose / --no-color / --icon / --no-timer / --single-line
+      --columns N   wrap chips to N cells (default: $COLUMNS, which Claude Code sets)
 
 Run any subcommand with --help for its own options where available.
 Bug reports & feature requests: https://github.com/rootstudioyaml/sprag/issues
@@ -562,6 +576,7 @@ async function main() {
       mode: labelMode,
       segments,
       singleLine: hasFlag('--single-line'),
+      columns: columnsFromArgs({ useEnv: false }),
     });
     // For `cycle` mode, prefix with the scenario label so the screen recorder
     // shows what the viewer is looking at (only when explicitly requested).
@@ -688,7 +703,7 @@ async function main() {
       const { withBaseStatusline } = await import('../src/statusline-base.js');
       const noSessionOut = withBaseStatusline(formatNoSession(
         { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION), team: (await import('../src/team-sync.js')).readTeamChip() },
-        { color: colorOk, mode: labelMode, segments: segmentsFromArgs() },
+        { color: colorOk, mode: labelMode, segments: segmentsFromArgs(), columns: columnsFromArgs() },
       ), { input: readStdinRaw() });
       if (guard) guard.finish(noSessionOut);
       console.log(noSessionOut);
@@ -1063,6 +1078,7 @@ async function main() {
       // multi-line statusline in some versions (anthropics/claude-code#35176)
       // — --single-line restores the legacy one-line layout in that case.
       singleLine: hasFlag('--single-line'),
+      columns: columnsFromArgs(),
     });
   } else {
     // The first screen is the pitch: what share of recent work a cheaper model
