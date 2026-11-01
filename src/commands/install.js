@@ -279,8 +279,8 @@ export async function run({ hasFlag }) {
         const detected = ks.koreanLocaleDetected();
         console.log('');
         console.log(lang === 'ko'
-          ? '  korean: 한국어 문체 지침(fluent-korean)을 세션 시작 시 주입할 수 있습니다.'
-          : '  korean: Korean writing guidance (fluent-korean) can be injected at session start.');
+          ? '  korean: 한국어 문체 규칙을 세션 시작 시 주입할 수 있습니다.'
+          : '  korean: Korean style rules can be injected at session start.');
         console.log(lang === 'ko'
           ? '           내용: 조사·어미를 생략하지 않고, 명사구가 아니라 서술어로 문장을 끝맺으며,'
           : '           what it does: keeps particles and endings, ends sentences with a predicate,');

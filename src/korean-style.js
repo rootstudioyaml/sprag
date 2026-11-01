@@ -12,15 +12,20 @@
  * change and no plugin to install, and they survive `/clear` because the hook
  * fires again.
  *
- * Cost: the text is ~1.3k tokens, injected once per session (not per turn) and
+ * Cost: the text is ~2.5k tokens, injected once per session (not per turn) and
  * covered by the prompt cache from the second request on. A token-saving tool
  * has no business spending that silently, so the feature is opt-in via
  * `sprag korean on`.
  *
- * The guidance itself is vendored from fluent-korean
+ * The rules are sprag's own (presets/korean-style/rules.md, 2026-11-01). Each
+ * clause rests on a measurement or a cited source, listed in that file's
+ * header. A few clauses and examples are adapted from fluent-korean
  * (https://github.com/snflkd/fluent-korean), Copyright (c) 2026 snflkd, MIT
- * License — see presets/korean-style/LICENSE-fluent-korean. Only the
- * output-style frontmatter was stripped; the wording is unmodified.
+ * License, so its license still ships as presets/korean-style/LICENSE-fluent-korean.
+ * Until v3.90 the fluent-korean text was vendored verbatim with a supplement
+ * appended; measured output showed it did not touch the habits that read as
+ * machine-written (comma after a connective ending, middle-dot lists), so it
+ * was replaced.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -33,16 +38,12 @@ const require = createRequire(import.meta.url);
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-export const KOREAN_STYLE_PATH = join(packageRoot, 'presets', 'korean-style', 'fluent-korean.md');
-// Our own conservative additions (국립국어원 공공언어 지침, 쿠버네티스 한글화
-// 가이드 등에서 수집). Appended after the vendored text so the vendored file
-// stays byte-identical to upstream.
-export const KOREAN_STYLE_SUPPLEMENT_PATH = join(packageRoot, 'presets', 'korean-style', 'supplement.md');
+export const KOREAN_STYLE_PATH = join(packageRoot, 'presets', 'korean-style', 'rules.md');
 export const KOREAN_STYLE_LICENSE_PATH = join(packageRoot, 'presets', 'korean-style', 'LICENSE-fluent-korean');
-// The separator here is a colon, not an em dash. The guidance this line cites
-// bans em dashes in Korean prose, and shipping one inside its own attribution
-// is the kind of contradiction that teaches the model the rule is negotiable.
-export const KOREAN_STYLE_SOURCE = 'fluent-korean by snflkd (MIT): https://github.com/snflkd/fluent-korean';
+// The separator here is a colon, not an em dash. The rules this line cites ban
+// em dashes in Korean prose, and shipping one inside their own attribution is
+// the kind of contradiction that teaches the model the rule is negotiable.
+export const KOREAN_STYLE_SOURCE = 'sprag rules; some clauses adapted from fluent-korean by snflkd (MIT): https://github.com/snflkd/fluent-korean';
 
 /** Whether session-start injection is enabled. Off unless the user asked. */
 export function koreanStyleEnabled(cfg = loadConfig()) {
@@ -111,9 +112,9 @@ export function setKoreanStyleEnabled(enabled) {
 }
 
 /**
- * The guidance text, with the vendoring comment stripped (it is provenance for
- * readers of the repo, not instruction for the model — and every token of it
- * would be charged on each session).
+ * The rules text, with the provenance comment stripped (it is for readers of
+ * the repo, not instruction for the model, and every token of it would be
+ * charged on each session).
  *
  * Returns null when the file is missing, which the hook reads as "inject
  * nothing" rather than failing a session start.
@@ -121,20 +122,8 @@ export function setKoreanStyleEnabled(enabled) {
 export function koreanStyleText() {
   try {
     if (!existsSync(KOREAN_STYLE_PATH)) return null;
-    const raw = readFileSync(KOREAN_STYLE_PATH, 'utf8');
-    const body = raw.replace(/^<!--[\s\S]*?-->\s*/, '').trim();
-    if (!body) return null;
-    // The supplement is optional: a missing or empty file degrades to the
-    // vendored guidance alone rather than failing the injection.
-    try {
-      if (existsSync(KOREAN_STYLE_SUPPLEMENT_PATH)) {
-        const sup = readFileSync(KOREAN_STYLE_SUPPLEMENT_PATH, 'utf8')
-          .replace(/^<!--[\s\S]*?-->\s*/, '')
-          .trim();
-        if (sup) return `${body}\n\n${sup}`;
-      }
-    } catch { /* supplement unreadable: fall back to the vendored text */ }
-    return body;
+    const body = readFileSync(KOREAN_STYLE_PATH, 'utf8').replace(/^<!--[\s\S]*?-->\s*/, '').trim();
+    return body || null;
   } catch {
     return null;
   }
@@ -157,20 +146,13 @@ export function koreanScopeLines(cfg = loadConfig()) {
   const scope = cfg?.koreanStyle?.lintScope === 'prose' ? 'prose' : 'all';
   if (scope === 'prose') {
     return [
-      '적용 대상: 대화 답변, 그리고 새로 작성하거나 수정하는 마크다운·문서·보고서의 한국어 산문을 모두 포함합니다.',
+      '적용 대상: 대화 답변, 그리고 새로 작성하거나 수정하는 마크다운 문서와 보고서의 한국어 산문을 모두 포함합니다.',
       '적용 예외: 원문을 그대로 옮기는 인용, 코드, 코드 주석, 그리고 프로젝트의 기존 표기 관례를 따라야 하는 커밋 메시지와 로그 문자열입니다.',
     ];
   }
   return [
     '적용 대상: 대화 답변, 그리고 세션이 쓰거나 고치는 모든 파일의 한국어를 포함합니다. 문서와 보고서는 물론이고 코드 주석, 화면에 나가는 문자열, 자막과 템플릿, 스크립트가 읽어 산출물을 만드는 데이터 파일까지 모두 해당합니다.',
     '적용 예외: 원문을 그대로 옮기는 인용과, 프로젝트의 기존 표기 관례를 따라야 하는 커밋 메시지와 로그 문자열입니다.',
-    // The vendored text says the opposite of the line above, and it says so
-    // twice. Left unaddressed the model has no way to decide which sentence
-    // governs a code comment, and in September 2026 that ambiguity shipped em
-    // dashes into comments and log strings while the guidance was active. The
-    // vendored wording stays untouched, so the conflict is resolved by naming
-    // which side wins rather than by editing the source.
-    '아래에 이어지는 fluent-korean 본문은 "인용, 코드, 코드 주석에는 이 지침들을 적용하지 않습니다"라고 적고 있으며 동작 범위 2번 조항에서 한 번 더 강조합니다. 그러나 이 세션에서는 바로 위의 적용 대상과 적용 예외가 그 문장보다 우선합니다. 즉 코드 주석에도 지침을 적용하십시오.',
     '쓰기 시점에 기계 검사가 함께 돌아갑니다. 위반을 알리면 그 파일을 고친 뒤에 다음 작업으로 넘어가십시오.',
   ];
 }
@@ -183,7 +165,7 @@ export function koreanStyleInjection({ cfg = loadConfig() } = {}) {
     '[sprag korean-style] 이 세션에서 한국어를 출력할 때는 아래 지침을 따르십시오.',
     '이 지침은 사용자가 sprag에 설정한 것입니다.',
     ...koreanScopeLines(cfg),
-    '표기 규칙(예외 없이 적용): 도구 호출 인자에 한국어를 비롯한 비ASCII 문자열을 담을 때에는 반드시 리터럴 UTF-8로 작성하고, \\uXXXX 유니코드 이스케이프로는 절대 작성하지 마십시오. 이스케이프로 작성하면 글자가 깨진 채 파일에 기록되는 사례가 자주 발생합니다.',
+    '표기 규칙(예외 없이 적용): 도구 호출 인자에 한국어를 비롯한 비ASCII 문자열을 담을 때에는 반드시 리터럴 UTF-8로 작성하고 \\uXXXX 유니코드 이스케이프로는 절대 작성하지 마십시오. 이스케이프로 작성하면 글자가 깨진 채 파일에 기록되는 사례가 자주 발생합니다.',
     `(출처: ${KOREAN_STYLE_SOURCE})`,
     '',
     text,
