@@ -124,6 +124,10 @@
   .fcard .tag.plan{color:var(--accent2);border:1px solid rgba(138,148,242,.4);background:var(--accent-bg)}
   .fcard .tag.free{color:var(--ok);border:1px solid rgba(63,212,143,.35)}
   .fcard .fcta{display:inline-block;margin-top:16px;color:var(--accent2);font-size:13px}
+  .fcard .fvid{display:inline-flex;align-items:center;gap:7px;margin:16px 14px 0 0;padding:5px 12px;border:1px solid rgba(138,148,242,.45);border-radius:999px;background:var(--accent-bg);color:var(--accent2);font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:color .15s var(--ease),border-color .15s var(--ease)}
+  .fcard .fvid:hover{color:var(--ink);border-color:var(--accent2)}
+  .fcard .fvid::before{content:"";width:0;height:0;border-left:7px solid currentColor;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent}
+  .vcard.wide{grid-column:1/-1}
   .fcard .fcta:hover{color:var(--ink)}
   .lic .scope{margin-top:6px;color:var(--accent2);font-size:13px}
   .fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:24px}
@@ -154,13 +158,9 @@
   <div class="wrap">
     <a class="brand" href="/">
       <svg viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="32" cy="32" r="26" fill="none" stroke="#59637A" stroke-width="6"/>
-        <g fill="#5e6ad2">
-          <rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/>
-          <g transform="rotate(120 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
-          <g transform="rotate(240 32 32)"><rect x="26.5" y="9.5" width="11" height="15" rx="3.6" transform="rotate(-30 32 17)"/></g>
-        </g>
-        <circle cx="32" cy="32" r="8.5" fill="none" stroke="#59637A" stroke-width="4"/>
+        <path fill="currentColor" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/>
+        <path fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/>
+        <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
       </svg>
       Sprag
     </a>
@@ -231,6 +231,7 @@
           <li data-k="p.free.5">doc2md for Office files and PDF</li>
           <li data-k="p.free.6">Nothing leaves your machine</li>
         </ul>
+        <button class="fvid" type="button" data-play="all" data-k="l.f.vid" hidden>Watch the video</button>
       </article>
       <article class="fcard">
         <span class="tag plan">Pro</span>
@@ -244,6 +245,7 @@
           <li data-k="p.pro.5">Rollout with <code>sprag team join</code></li>
           <li data-k="p.pro.6">Owner and admin roles, activity log</li>
         </ul>
+        <button class="fvid" type="button" data-play="pro" data-k="l.f.vid">Watch the video</button>
         <a class="fcta" href="mailto:support@sprag.io?subject=Sprag" data-k="l.f.cta">Contact support@sprag.io</a>
       </article>
       <article class="fcard">
@@ -251,13 +253,14 @@
         <h3 data-k="l.f3.h">Prompt monitoring</h3>
         <p class="for" data-k="l.f3.for">For organizations that also review how prompts are written.</p>
         <ul>
-          <li data-k="p.ent.1">Prompt capture, secrets redacted</li>
+          <li data-k="p.ent.1">Prompt capture, secrets and personal data masked on each machine</li>
           <li data-k="p.ent.2">Nothing from before the policy was on</li>
           <li data-k="p.ent.3">Per-user prompt usage and 30-day trend</li>
           <li data-k="p.ent.4">Each user's prompt list with search</li>
           <li data-k="p.ent.5">Capture policy visible to every member</li>
         </ul>
         <p class="note" data-k="l.f3.note">Off unless the organization turns it on.</p>
+        <button class="fvid" type="button" data-play="ent" data-k="l.f.vid">Watch the video</button>
         <a class="fcta" href="mailto:support@sprag.io?subject=Sprag" data-k="l.f.cta">Contact support@sprag.io</a>
       </article>
     </div>
@@ -296,6 +299,10 @@
     <h2 id="vid-h" data-k="p.vid.h">The team features in 30 seconds</h2>
     <p class="sub" data-k="p.vid.sub">Recorded from the demo dashboard with sample data.</p>
     <div class="vgrid">
+      <figure class="vcard wide" data-only="ko" hidden>
+        <video data-vid="all" controls preload="none" playsinline></video>
+        <figcaption><span class="ptag">Pro + Enterprise</span><b data-k="p.vid.all.h">Sprag at a glance</b><span data-k="p.vid.all">Team AI spend, usage, rules and prompt audits in one minute</span></figcaption>
+      </figure>
       <figure class="vcard">
         <video data-vid="pro" controls preload="none" playsinline></video>
         <figcaption><span class="ptag">Pro</span><b data-k="l.f2.h">Team dashboard</b><span data-k="p.vid.pro">Spend, savings, seats and team rules</span></figcaption>
@@ -380,6 +387,7 @@ const KO = {
  "l.f.sub": "CLI는 Apache-2.0 오픈소스로 무료이고, 컴퓨터 한 대에서 혼자 돌아갑니다.<br />팀 대시보드와 프롬프트 모니터링은 문의해 주세요.",
  "l.tag.free": "무료 · Apache-2.0",
  "l.f.cta": "support@sprag.io로 문의",
+ "l.f.vid": "영상으로 확인하기",
  "l.f1.h": "내 컴퓨터에서",
  "l.f1.for": "Claude Code나 Codex를 쓰는 누구나",
  "p.free.2": "내 기록에서 뽑은 라우팅 규칙",
@@ -397,7 +405,7 @@ const KO = {
  "p.pro.6": "오너와 어드민 역할, 활동 기록",
  "l.f3.h": "프롬프트 모니터링",
  "l.f3.for": "프롬프트 작성 방식까지 검토하려는 팀",
- "p.ent.1": "팀별 프롬프트 수집, 비밀 값은 가림",
+ "p.ent.1": "프롬프트 수집, 비밀값과 개인정보는 팀원 PC에서 가린 뒤 전송",
  "p.ent.2": "정책을 켜기 전 기록은 수집하지 않음",
  "p.ent.3": "사용자별 프롬프트 사용량과 30일 추이",
  "p.ent.4": "사용자별 프롬프트 목록과 검색",
@@ -418,7 +426,9 @@ const KO = {
  "l.s3": "Sprag가 조직을 개설하고 오너와 관리자를 초대합니다. 초대받은 분은 sprag.io/team 에서 이메일 코드로 로그인합니다.",
  "l.s4.h": "팀원을 초대하세요",
  "l.s4": "오너가 팀을 만들고 초대 토큰을 나눠 줍니다. 팀원은 <code>sprag team join</code> 을 한 번 실행하면 되고, 같은 컴퓨터로 다시 참여해도 좌석은 하나로 유지됩니다.",
- "p.vid.h": "30초로 보는 팀 기능",
+ "p.vid.h": "영상으로 보는 팀 기능",
+ "p.vid.all.h": "한눈에 보는 Sprag",
+ "p.vid.all": "팀 AI 비용, 사용량, 규칙과 프롬프트 감사까지 1분",
  "p.vid.sub": "샘플 데이터를 넣은 데모 대시보드에서 녹화했습니다",
  "p.vid.pro": "지출, 절감액, 좌석, 팀 규칙",
  "p.vid.ent": "프롬프트 사용량과 검색, 수집 정책",
@@ -450,11 +460,24 @@ function render(){
   const dict = lang === 'ko' ? KO : EN;
   document.querySelectorAll('[data-k]').forEach(el => { const v = dict[el.dataset.k]; if(v !== undefined) el.innerHTML = v; });
   /* plan videos (video/tour/build-plans.sh): swap to the current language's file, only when it changes */
+  /* Korean: the overview, Pro and Enterprise videos (plan-all/pro2/ent2-ko, Korean only); English: the 30 s promos */
+  document.querySelectorAll('[data-only="ko"], .fvid[data-play="all"]').forEach(el => { el.hidden = lang !== 'ko'; });
   document.querySelectorAll('video[data-vid]').forEach(v => {
-    const f = '../assets/video/plan-' + v.dataset.vid + '-' + lang;
+    if(lang !== 'ko' && v.dataset.vid === 'all'){ v.pause(); v.removeAttribute('src'); v.removeAttribute('poster'); delete v.dataset.cur; return; }
+    const id = lang === 'ko' ? ({ all: 'all', pro: 'pro2', ent: 'ent2' })[v.dataset.vid] : v.dataset.vid;
+    const f = '../assets/video/plan-' + id + '-' + lang;
     if(v.dataset.cur !== f){ v.dataset.cur = f; v.poster = f + '.jpg'; v.src = f + '.mp4'; }
   });
 }
+/* "Watch the video" on a plan card: glide down to that plan's video and play it, pausing the others.
+   play() runs inside the click, so the browser allows sound. */
+document.querySelectorAll('.fvid[data-play]').forEach(b => b.addEventListener('click', () => {
+  const v = document.querySelector('video[data-vid="' + b.dataset.play + '"]');
+  if(!v) return;
+  document.querySelectorAll('video[data-vid]').forEach(o => { if(o !== v) o.pause(); });
+  v.closest('figure').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  const p = v.play(); if(p && p.catch) p.catch(() => {});
+}));
 function setLang(next, remember){
   lang = next === 'ko' ? 'ko' : 'en';
   document.documentElement.lang = lang;

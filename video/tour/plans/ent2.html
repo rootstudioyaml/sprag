@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="__LANG__">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <!--
+      Sprag Enterprise, 35 s, 1920x1080, 30 fps, Korean only, light style (light.css), built by build-plans.sh
+      (PLANS=ent2 LANGS=ko) and played on the Korean license page as plan-ent2-ko.
+
+      Beats (start):
+        0     hook        a prompt with a customer's phone number is typed; the number turns into "전화번호 가림" on the PC
+        5.4   hook line   팀원의 프롬프트를 안전하게 감사하세요
+        7.4   usage       Prompts tab
+        11.6  personal    two cards of personal use (stills)
+        14.8  customer    customer data with masked values (stills)
+        18.9  privacy     masked on the PC before upload
+        23.9  policy      the owner turns capture on; nothing from before it
+        28.1  plan        Enterprise $10
+        31    closing     contact
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Archivo:wght@800&display=block" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="light.css" />
+    <style>
+      #pr .tx mark { font-size: 44px; }
+      #e-raw { color: #d9534f; font-family: 'JetBrains Mono', monospace; font-size: 48px; }
+      #e-m { display: none; }
+      #pr-dlg span { background: #fff4dc; border-color: #f3b54a; color: #9a6400; }
+      #pl-ent { left: 580px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="35" data-width="1920" data-height="1080">
+
+      <div id="pr"><div class="tx"><span id="e-tx"></span><span id="e-raw"></span><mark id="e-m">전화번호 가림</mark><span id="e-tail"></span><i id="pr-cur"></i></div>
+        <div class="ft"><span class="l">Claude Code</span><span class="m">Sonnet</span><span class="go"></span></div></div>
+      <div id="pr-dlg"><span>Sprag: 전송 전에 이 PC에서 가렸어요</span></div>
+      <div id="hk-big">팀원의 프롬프트를<br /><em>안전하게</em> 감사하세요</div>
+
+      <div class="hd" id="h1" data-s="7.6" data-d="4">팀원이 AI에게 무엇을 물었는지 <em>한눈에</em></div>
+      <div class="hd" id="h2" data-s="11.7" data-d="3.1">업무와 무관한 사용도,</div>
+      <div class="hd" id="h3" data-s="14.9" data-d="3.8"><em>고객정보</em>를 넣은 프롬프트도 바로 보입니다</div>
+      <div class="hd" id="h4" data-s="19.1" data-d="4.8">민감정보는 <em>팀원 PC에서 먼저</em> 가린 뒤 보냅니다</div>
+      <div class="hd" id="h5" data-s="24" data-d="3.9">수집은 오너가 켜고, <em>켜기 전 대화</em>는 가져오지 않습니다</div>
+
+      <div class="card" id="k-usage" data-s="7.4" data-d="4.3"><video id="v-usage" src="clips/ent-usage.mp4" data-start="7.4" data-duration="4.3" data-media-start="0.6" data-track-index="1" muted playsinline style="transform:scale(1.12);transform-origin:25% 30%"></video></div>
+      <div class="card" id="k-policy" data-s="23.9" data-d="4.1"><video id="v-policy" src="clips/ent-policy.mp4" data-start="23.9" data-duration="4.1" data-media-start="1.2" data-track-index="2" muted playsinline style="transform:scale(1.3);transform-origin:22% 40%"></video></div>
+
+      <div class="crop" id="i-c1" data-s="12" data-d="2.8" style="left:315px;top:330px;width:1290px;height:120px"><img id="im-c1" src="stills/cases.png" alt="" style="transform:scale(1.5) translate(-70px,-368px)" /></div>
+      <div class="crop" id="i-c4" data-s="12.5" data-d="2.3" style="left:315px;top:560px;width:1290px;height:113px"><img id="im-c4" src="stills/cases.png" alt="" style="transform:scale(1.5) translate(-70px,-793px)" /></div>
+      <div class="crop" id="i-c2" data-s="15.1" data-d="3.6" style="left:345px;top:330px;width:1230px;height:120px"><img id="im-c2" src="stills/cases.png" alt="" style="transform:scale(1.5) translate(-70px,-472px)" /></div>
+      <div class="crop" id="i-c3" data-s="15.7" data-d="3" style="left:345px;top:560px;width:558px;height:210px"><img id="im-c3" src="stills/cases.png" alt="" style="transform:scale(1.5) translate(-88px,-624px)" /></div>
+      <div class="tag" id="t-c1" data-s="12.3" data-d="2.5" style="left:315px;top:470px">여행 일정</div>
+      <div class="tag" id="t-c4" data-s="12.8" data-d="2" style="left:315px;top:690px">개인 거래 글</div>
+      <div class="tag" id="t-c2" data-s="15.4" data-d="3.3" style="left:345px;top:470px">고객 연락처는 가려서 저장</div>
+      <div class="tag" id="t-c3" data-s="16" data-d="2.7" style="left:930px;top:640px">회원 명단, 주민번호와 전화번호 가림</div>
+
+      <div class="box" id="pv-pc" style="left:140px"><div class="k">팀원 PC, Sprag</div>
+        <div class="t">고객 김민지 님<br /><span class="slot"><span class="raw" id="pv-r1">010-1234-5678</span><span class="msk" id="pv-m1"><mark>전화번호 가림</mark></span></span><br /><span class="slot"><span class="raw" id="pv-r2">minji@mail.com</span><span class="msk" id="pv-m2"><mark>이메일 가림</mark></span></span></div></div>
+      <div id="pv-pkt"></div>
+      <div class="box" id="pv-sv" style="right:140px"><div class="k">Sprag 중앙 서버</div>
+        <div class="t">고객 김민지 님<br /><mark>전화번호 가림</mark><br /><mark>이메일 가림</mark></div></div>
+      <div id="pv-foot">안심하고 쓰셔도 됩니다</div>
+
+      <div class="plan" id="pl-ent"><div class="w">팀원의 모든 프롬프트까지 보려면</div><div class="n">ENTERPRISE</div><div class="p">$10<small>좌석당 월</small></div><div class="d">Pro 전체에 더해<br />프롬프트 감사와 검색</div></div>
+
+      <div id="cl">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag" id="cl-logo">
+          <path fill="#15161c" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/><path fill="#15161c" stroke="#15161c" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/><path fill="none" stroke="#15161c" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
+          <text x="76" y="43" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="31" font-weight="800" letter-spacing="5" fill="#0b0d12">SPRAG</text>
+        </svg>
+        <div class="l1" id="cl-l1">프롬프트 감사는 <span style="color:#5e6ad2">Sprag Enterprise</span>로</div>
+        <div class="cta" id="cl-cta"><span class="lb">도입 문의</span><span class="ml">support@sprag.io</span></div>
+        <div class="url" id="cl-url">https://sprag.io</div>
+        <div class="fine" id="cl-fine">좌석당 월 $10, 부가세 별도</div>
+      </div>
+
+      <div id="dot"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const show = (sel, s, d, from = { y: 24 }) => {
+        tl.fromTo(sel, { opacity: 0, ...from }, { opacity: 1, y: 0, x: 0, scale: 1, duration: 0.45, ease: "power3.out" }, s);
+        tl.to(sel, { opacity: 0, duration: 0.3, ease: "none" }, s + d - 0.3);
+      };
+      const typeInto = (id, text, s, d) => { const el = document.getElementById(id), o = { n: 0 };
+        tl.fromTo(o, { n: 0 }, { n: text.length, duration: d, ease: "none", onUpdate: () => { el.textContent = text.slice(0, Math.round(o.n)); } }, s); };
+
+      // hook: the request carries a customer's phone number; on the PC the number turns into a mask before upload
+      tl.fromTo("#pr", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.1);
+      typeInto("e-tx", "고객 김민지 님 ", 0.5, 0.5);
+      typeInto("e-raw", "010-1234-5678", 1.0, 0.7);
+      typeInto("e-tail", " 환불 사과 메일 써줘", 1.7, 0.7);
+      tl.fromTo("#pr-cur", { opacity: 1 }, { opacity: 0, duration: 0.2, ease: "none" }, 2.5);
+      tl.fromTo("#e-raw", { opacity: 1 }, { opacity: 0, duration: 0.2, ease: "none" }, 2.8);
+      tl.set("#e-raw", { display: "none" }, 3.0);
+      tl.set("#e-m", { display: "inline-block" }, 3.0);
+      tl.fromTo("#e-m", { opacity: 0, scale: 1.4 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2.4)", immediateRender: false }, 3.0);
+      tl.fromTo("#pr-dlg", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(2)" }, 3.4);
+      tl.to(["#pr", "#pr-dlg"], { opacity: 0, y: -30, duration: 0.4, ease: "power2.in" }, 5.0);
+      tl.fromTo("#hk-big", { opacity: 0, scale: 1.08 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 5.4);
+      tl.to("#hk-big", { opacity: 0, duration: 0.01 }, 7.3);
+
+      const dot = (t) => { tl.fromTo("#dot", { scale: 0, opacity: 1 }, { scale: 40, opacity: 1, duration: 0.4, ease: "power3.in" }, t);
+        tl.to("#dot", { opacity: 0, duration: 0.35, ease: "none" }, t + 0.45); tl.set("#dot", { scale: 0 }, t + 0.82); };
+      dot(7.05); dot(18.5); dot(27.7);
+      tl.set("#dot", { scale: 0, opacity: 0 }, 0);
+
+      document.querySelectorAll(".hd").forEach((el) => show(el, +el.dataset.s, +el.dataset.d));
+      document.querySelectorAll(".card").forEach((el) => show(el, +el.dataset.s, +el.dataset.d, { y: 40, scale: 0.97 }));
+      document.querySelectorAll(".crop").forEach((el) => show(el, +el.dataset.s, +el.dataset.d, { y: 40, scale: 0.96 }));
+      document.querySelectorAll(".tag").forEach((el) => show(el, +el.dataset.s, +el.dataset.d, { y: 14 }));
+
+      // privacy
+      show("#pv-pc", 19.1, 4.6, { x: -40 });
+      tl.fromTo("#pv-sv", { opacity: 0, x: 40 }, { opacity: 0.35, x: 0, duration: 0.45, ease: "power3.out" }, 19.2);
+      tl.to("#pv-sv", { opacity: 1, duration: 0.3, ease: "none" }, 21.6);
+      tl.to("#pv-sv", { opacity: 0, duration: 0.3, ease: "none" }, 23.4);
+      ["1", "2"].forEach((k, i) => {
+        tl.fromTo("#pv-r" + k, { opacity: 1 }, { opacity: 0, duration: 0.25, ease: "none" }, 20.1 + i * 0.35);
+        tl.fromTo("#pv-m" + k, { opacity: 0, scale: 1.3 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.4)" }, 20.25 + i * 0.35);
+      });
+      tl.fromTo("#pv-pkt", { opacity: 0, x: 0 }, { opacity: 1, x: 70, duration: 0.6, ease: "power1.inOut" }, 21.0);
+      tl.to("#pv-pkt", { opacity: 0, duration: 0.2, ease: "none" }, 21.6);
+      show("#pv-foot", 22.0, 1.7, { y: 20 });
+
+      // plan
+      show("#pl-ent", 28.2, 2.8, { y: 50 });
+
+      // closing
+      tl.fromTo("#cl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 31.0);
+      tl.fromTo("#cl-logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 31.1);
+      tl.fromTo("#cl-l1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 31.5);
+      tl.fromTo("#cl-cta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 31.9);
+      tl.fromTo("#cl-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 32.1);
+      tl.fromTo("#cl-fine", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 32.3);
+
+      tl.seek(0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

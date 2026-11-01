@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="__LANG__">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <!--
+      Sprag Pro + Enterprise YouTube ad, second take: 60 s, 1920x1080, 30 fps, Korean only, built by build-plans.sh
+      (PLANS=ad2 LANGS=ko). Same clips and stills as ad.html, in a light, one-idea-per-screen style: a white canvas,
+      one headline at a time above one floating card, a purple dot between the sections. The hook acts instead of
+      telling: a request is typed, Sprag hands the test run to haiku, the saving appears.
+
+      Video cards are plain wrappers (.card, timed by GSAP through data-s/data-d) around a timed <video>, because
+      HyperFrames rejects a video nested in a wrapper that has data-start. Image cards crop the stills.
+
+      Beats (start):
+        0     hook        prompt card, typing, 작업 중, delegated to haiku, $1.52 saved (README average per run)
+        5.4   hook line   그냥 쓰세요, 비용은 Sprag가 챙깁니다
+        7.4   compat      Claude Code and Codex, subscriptions, API keys, AWS Bedrock
+        11    town        full frame: the whole office turning, then one flight down to the apex animal (ad-town2)
+        20    monitors    lit and dark screens at night
+        24.5  card        the period figures and the daily chart (stills)
+        31    rules       one rule for every machine
+        35.3  plans       Pro $5 for cost only, Enterprise $10 for every prompt
+        40.3  audit       personal use, then customer data with masked values (stills)
+        48.3  privacy     masked on the PC before upload
+        53.3  saving      $150 a month per person is possible with the open source CLI alone
+        56.6  closing     logo, contact
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Archivo:wght@800&display=block" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="light.css" />
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="60" data-width="1920" data-height="1080">
+
+      <!-- 0 hook -->
+      <div id="pr-run">작업 중 <span id="pr-sec">1s</span></div>
+      <div id="pr"><div class="tx"><span id="pr-tx"></span><i id="pr-cur"></i></div>
+        <div class="ft"><span class="l">Claude Code</span><span class="m">Opus</span><span class="go"></span></div></div>
+      <div id="pr-dlg"><span>Sprag: 테스트 실행은 haiku에 위임</span></div>
+      <div id="pr-done">완료! 이번 위임으로 <b>$1.52</b> 아꼈어요</div>
+      <div id="hk-big">그냥 쓰세요<br /><em>비용은 Sprag가</em> 챙깁니다</div>
+
+      <!-- 7.4 compat -->
+      <div id="cp">
+        <div class="h">어떻게 쓰든 모두 지원합니다</div>
+        <div class="row"><div class="tool" id="cp-t1"><small>Anthropic</small>Claude Code</div><div class="tool" id="cp-t2"><small>OpenAI</small>Codex</div></div>
+        <div class="row"><span class="acc" id="cp-a1">개인 구독</span><span class="acc" id="cp-a2">엔터프라이즈 구독</span><span class="acc" id="cp-a3">API 키</span><span class="acc" id="cp-a4">AWS Bedrock</span></div>
+      </div>
+
+      <!-- headlines -->
+      <div class="hd ov" id="h1" data-s="11.5" data-d="3.6"><span>팀 전체가 하나의 <em>Sprag 타운</em>이 됩니다</span></div>
+      <div class="hd ov" id="h2" data-s="15.2" data-d="4.8"><span>많이 쓰고 비용을 잘 절감할수록 <em>상위 포식자</em>가 됩니다</span></div>
+      <div class="hd ov" id="h3" data-s="20.2" data-d="4.3"><span><em>밝은 모니터</em>는 지금 활발히 쓰는 중입니다</span></div>
+      <div class="hd" id="h4" data-s="24.6" data-d="6.3">누르면 지출, 절감, 위임 비율이 <em>한 장</em>에</div>
+      <div class="hd" id="h5" data-s="31.1" data-d="4">규칙은 한 번, <em>팀원 PC 전부</em>에</div>
+      <div class="hd" id="h6" data-s="35.5" data-d="4.8">필요한 만큼만 고르세요</div>
+      <div class="hd" id="h7" data-s="40.5" data-d="3.6">팀원이 AI에게 무엇을 물었는지 <em>감사</em>합니다</div>
+      <div class="hd" id="h8" data-s="44.2" data-d="3.9"><em>고객정보</em>를 넣은 프롬프트도 바로 보입니다</div>
+      <div class="hd" id="h9" data-s="48.5" data-d="4.8">민감정보는 <em>팀원 PC에서 먼저</em> 가린 뒤 보냅니다</div>
+
+      <!-- video cards -->
+      <div class="card full" id="k-town" data-s="11" data-d="9.3"><video id="v-town" src="clips/ad-town2.mp4" data-start="11" data-duration="9.3" data-media-start="0.2" data-track-index="1" muted playsinline></video></div>
+      <div class="book" id="i-book" data-s="15.6" data-d="4.4"><img id="im-book" src="stills/book.png" alt="" /></div>
+      <div class="card full" id="k-mon" data-s="20" data-d="4.6"><video id="v-mon" src="clips/ad-monitors.mp4" data-start="20" data-duration="4.6" data-media-start="0.3" data-track-index="3" muted playsinline></video></div>
+      <div class="card" id="k-rules" data-s="31" data-d="4.3"><video id="v-rules" src="clips/team-rules.mp4" data-start="31" data-duration="4.3" data-media-start="2.4" data-track-index="4" muted playsinline style="transform:scale(1.35);transform-origin:35% 66%"></video></div>
+
+      <!-- image cards (stills) -->
+      <div class="crop" id="i-figs" data-s="24.9" data-d="6" style="left:150px;top:290px;width:840px;height:546px"><img id="im-figs" src="stills/figs.png" alt="" style="transform:scale(1.4) translate(-1305px,-180px)" /></div>
+      <div class="crop" id="i-chart" data-s="26.4" data-d="4.5" style="left:1030px;top:398px;width:840px;height:329px"><img id="im-chart" src="stills/chart.png" alt="" style="transform:scale(1.4) translate(-1305px,-295px)" /></div>
+      <div class="crop" id="i-c1" data-s="41" data-d="3.1" style="left:315px;top:330px;width:1290px;height:120px"><img id="im-c1" src="stills/cases.png" alt="" style="transform:scale(1.5) translate(-70px,-368px)" /></div>
+      <div class="crop" id="i-c4" data-s="41.6" data-d="2.5" style="left:315px;top:560px;width:1290px;height:113px"><img id="im-c4" src="stills/cases.png" alt="" style="transform:scale(1.5) translate(-70px,-793px)" /></div>
+      <div class="crop" id="i-c2" data-s="44.4" data-d="3.8" style="left:345px;top:330px;width:1230px;height:120px"><img id="im-c2" src="stills/cases.png" alt="" style="transform:scale(1.5) translate(-70px,-472px)" /></div>
+      <div class="crop" id="i-c3" data-s="45.1" data-d="3.1" style="left:345px;top:560px;width:558px;height:210px"><img id="im-c3" src="stills/cases.png" alt="" style="transform:scale(1.5) translate(-88px,-624px)" /></div>
+      <div class="tag" id="t-c1" data-s="41.3" data-d="2.8" style="left:315px;top:470px">업무와 무관한 사용</div>
+      <div class="tag" id="t-c4" data-s="41.9" data-d="2.2" style="left:315px;top:690px">개인 거래 글</div>
+      <div class="tag" id="t-c2" data-s="44.7" data-d="3.5" style="left:345px;top:470px">고객 연락처는 가려서 저장</div>
+      <div class="tag" id="t-c3" data-s="45.4" data-d="2.8" style="left:930px;top:640px">회원 명단, 주민번호와 전화번호 가림</div>
+
+      <!-- plans -->
+      <div class="plan" id="pl-pro" style="left:180px"><div class="w">비용만 중앙에서 관리하려면</div><div class="n">PRO</div><div class="p">$5<small>좌석당 월</small></div><div class="d">사람별 비용과 절감액,<br />팀 규칙 일괄 적용</div></div>
+      <div class="plan" id="pl-ent" style="left:980px"><div class="w">팀원의 모든 프롬프트까지 보려면</div><div class="n">ENTERPRISE</div><div class="p">$10<small>좌석당 월</small></div><div class="d">Pro 전체에 더해<br />프롬프트 감사와 검색</div></div>
+
+      <!-- privacy -->
+      <div class="box" id="pv-pc" style="left:140px"><div class="k">팀원 PC, Sprag</div>
+        <div class="t">고객 김민지 님<br /><span class="slot"><span class="raw" id="pv-r1">010-1234-5678</span><span class="msk" id="pv-m1"><mark>전화번호 가림</mark></span></span><br /><span class="slot"><span class="raw" id="pv-r2">minji@mail.com</span><span class="msk" id="pv-m2"><mark>이메일 가림</mark></span></span></div></div>
+      <div id="pv-pkt"></div>
+      <div class="box" id="pv-sv" style="right:140px"><div class="k">Sprag 중앙 서버</div>
+        <div class="t">고객 김민지 님<br /><mark>전화번호 가림</mark><br /><mark>이메일 가림</mark></div></div>
+      <div id="pv-foot">안심하고 쓰셔도 됩니다</div>
+
+      <!-- saving -->
+      <div id="sv">
+        <div class="who" id="sv-who">한 사람당, 매달</div>
+        <div class="top" id="sv-top">Sprag 오픈소스만 적용해도</div>
+        <div class="num" id="sv-num">$0</div>
+        <div class="lbl" id="sv-lbl">수준의 AI 비용을 아낄 수 있습니다</div>
+        <div class="note">제작자 실사용 기록(30일, 공개 정가 기준), 사용량에 따라 달라집니다</div>
+      </div>
+
+      <!-- closing -->
+      <div id="cl">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag" id="cl-logo">
+          <path fill="#15161c" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/><path fill="#15161c" stroke="#15161c" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/><path fill="none" stroke="#15161c" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
+          <text x="76" y="43" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="31" font-weight="800" letter-spacing="5" fill="#0b0d12">SPRAG</text>
+        </svg>
+        <div class="l1" id="cl-l1">이제 그냥 쓰세요</div>
+        <div class="cta" id="cl-cta"><span class="lb">도입 문의</span><span class="ml">support@sprag.io</span></div>
+        <div class="url" id="cl-url">https://sprag.io</div>
+        <div class="fine" id="cl-fine">Pro $5, Enterprise $10, 좌석당 월, 부가세 별도</div>
+      </div>
+
+      <div id="dot"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const show = (sel, s, d, from = { y: 24 }) => {
+        tl.fromTo(sel, { opacity: 0, ...from }, { opacity: 1, y: 0, x: 0, scale: 1, duration: 0.45, ease: "power3.out" }, s);
+        tl.to(sel, { opacity: 0, duration: 0.3, ease: "none" }, s + d - 0.3);
+      };
+
+      // hook: the request is typed into the prompt box, work runs, Sprag hands the test run to haiku, the saving lands
+      const req = "결제 모듈 테스트가 실패해, 고쳐줘", tx = document.getElementById("pr-tx"), ty = { n: 0 };
+      tl.fromTo("#pr", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.1);
+      tl.fromTo(ty, { n: 0 }, { n: req.length, duration: 1.5, ease: "none", onUpdate: () => { tx.textContent = req.slice(0, Math.round(ty.n)); } }, 0.5);
+      tl.fromTo("#pr-cur", { opacity: 1 }, { opacity: 0, duration: 0.2, ease: "none" }, 2.1);
+      const sec = { v: 1 }, secEl = document.getElementById("pr-sec");
+      tl.fromTo("#pr-run", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 2.2);
+      tl.fromTo(sec, { v: 1 }, { v: 9, duration: 1.6, ease: "none", onUpdate: () => { secEl.textContent = Math.round(sec.v) + "s"; } }, 2.2);
+      tl.fromTo("#pr-dlg", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(2)" }, 2.9);
+      tl.fromTo("#pr-done", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 3.9);
+      tl.to(["#pr", "#pr-run", "#pr-dlg", "#pr-done"], { opacity: 0, y: -30, duration: 0.4, ease: "power2.in" }, 5.1);
+      tl.fromTo("#hk-big", { opacity: 0, scale: 1.08 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 5.5);
+      tl.to("#hk-big", { opacity: 0, duration: 0.3, ease: "none" }, 7.1);
+
+      // compat
+      tl.fromTo("#cp", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 7.4);
+      ["#cp-t1", "#cp-t2"].forEach((id, i) => tl.fromTo(id, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(2)" }, 7.7 + i * 0.15));
+      ["#cp-a1", "#cp-a2", "#cp-a3", "#cp-a4"].forEach((id, i) => tl.fromTo(id, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.4)" }, 8.4 + i * 0.2));
+      tl.to("#cp", { opacity: 0, duration: 0.01 }, 11.05);
+
+      // purple dot between sections: grows over everything, the next section is ready under it, then it fades
+      const dot = (t) => { tl.fromTo("#dot", { scale: 0, opacity: 1 }, { scale: 40, opacity: 1, duration: 0.4, ease: "power3.in" }, t);
+        tl.to("#dot", { opacity: 0, duration: 0.35, ease: "none" }, t + 0.45); tl.set("#dot", { scale: 0 }, t + 0.82); };
+      dot(10.65); dot(34.9); dot(47.9);
+      tl.set("#dot", { scale: 0, opacity: 0 }, 0);
+
+      document.querySelectorAll(".hd").forEach((el) => show(el, +el.dataset.s, +el.dataset.d));
+      document.querySelectorAll(".card").forEach((el) => {
+        const s = +el.dataset.s, d = +el.dataset.d, full = el.classList.contains("full");
+        // a full card opens from card size to the whole frame; the monitors cut straight in after the town
+        if(full && el.id === "k-town"){ tl.set(el, { opacity: 0 }, 0); tl.fromTo(el, { opacity: 1, scale: 0.7, borderRadius: 40 }, { opacity: 1, scale: 1, borderRadius: 0, duration: 0.7, ease: "power3.inOut", immediateRender: false }, s); }
+        else tl.fromTo(el, { opacity: 0, y: full ? 0 : 40, scale: full ? 1 : 0.97 }, { opacity: 1, y: 0, scale: 1, duration: full ? 0.35 : 0.5, ease: "power3.out" }, s);
+        tl.to(el, { opacity: 0, duration: 0.3, ease: "none" }, s + d - 0.3);
+      });
+      document.querySelectorAll(".crop").forEach((el) => show(el, +el.dataset.s, +el.dataset.d, { y: 40, scale: 0.96 }));
+      show("#i-book", +document.getElementById("i-book").dataset.s, +document.getElementById("i-book").dataset.d, { x: -60 });
+      document.querySelectorAll(".tag").forEach((el) => show(el, +el.dataset.s, +el.dataset.d, { y: 14 }));
+
+      // plans
+      show("#pl-pro", 35.8, 4.5, { y: 50 });
+      show("#pl-ent", 36.4, 3.9, { y: 50 });
+
+      // privacy: raw values flip to masks on the PC, a dot carries the masked text to the server
+      show("#pv-pc", 48.7, 4.6, { x: -40 });
+      tl.fromTo("#pv-sv", { opacity: 0, x: 40 }, { opacity: 0.35, x: 0, duration: 0.45, ease: "power3.out" }, 48.8);
+      tl.to("#pv-sv", { opacity: 1, duration: 0.3, ease: "none" }, 51.2);
+      tl.to("#pv-sv", { opacity: 0, duration: 0.3, ease: "none" }, 53.0);
+      ["1", "2"].forEach((k, i) => {
+        tl.fromTo("#pv-r" + k, { opacity: 1 }, { opacity: 0, duration: 0.25, ease: "none" }, 49.7 + i * 0.35);
+        tl.fromTo("#pv-m" + k, { opacity: 0, scale: 1.3 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.4)" }, 49.85 + i * 0.35);
+      });
+      tl.fromTo("#pv-pkt", { opacity: 0, x: 0 }, { opacity: 1, x: 70, duration: 0.6, ease: "power1.inOut" }, 50.6);
+      tl.to("#pv-pkt", { opacity: 0, duration: 0.2, ease: "none" }, 51.2);
+      show("#pv-foot", 51.6, 1.7, { y: 20 });
+
+      // saving
+      const sv = { v: 0 }, svEl = document.getElementById("sv-num");
+      tl.fromTo("#sv", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 53.3);
+      tl.fromTo("#sv-who", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.4)" }, 53.4);
+      tl.fromTo("#sv-top", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 53.6);
+      tl.fromTo(sv, { v: 0 }, { v: 150, duration: 1.2, ease: "power2.out", onUpdate: () => { svEl.textContent = "$" + Math.round(sv.v); } }, 53.8);
+      tl.fromTo("#sv-lbl", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 54.9);
+      tl.to("#sv", { opacity: 0, duration: 0.3, ease: "none" }, 56.4);
+
+      // closing
+      tl.fromTo("#cl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 56.6);
+      tl.fromTo("#cl-logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 56.7);
+      tl.fromTo("#cl-l1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 57.1);
+      tl.fromTo("#cl-cta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 57.5);
+      tl.fromTo("#cl-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 57.8);
+      tl.fromTo("#cl-fine", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 57.9);
+
+      tl.seek(0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,94 @@
+/* Shared styles of the light, one-idea-per-screen videos (ad2.html, pro2.html, ent2.html). */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #f6f6f3; }
+#root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; word-break: keep-all; color: #15161c; background: #f6f6f3; }
+.abs { position: absolute; }
+.hd { position: absolute; left: 80px; right: 80px; top: 92px; text-align: center; font-size: 66px; font-weight: 900; letter-spacing: -0.035em; line-height: 1.2; opacity: 0; }
+.hd em { font-style: normal; color: #5e6ad2; }
+.card { position: absolute; left: 288px; top: 250px; width: 1344px; height: 756px; border-radius: 30px; overflow: hidden; opacity: 0; background: #000;
+  box-shadow: 0 30px 80px rgba(20, 22, 40, 0.18), 0 0 0 1px rgba(20, 22, 40, 0.06); }
+.card video { position: absolute; left: 0; top: 0; width: 1344px; height: 756px; object-fit: cover; }
+/* office beats: the card opens to the full frame, so the town reads at phone size */
+.card.full { left: 0; top: 0; width: 1920px; height: 1080px; border-radius: 0; box-shadow: none; }
+.card.full video { width: 1920px; height: 1080px; }
+.hd.ov { top: 54px; z-index: 20; }
+.hd.ov span { display: inline-block; padding: 18px 46px 22px; border-radius: 26px; background: rgba(255, 255, 255, 0.94); box-shadow: 0 14px 40px rgba(20, 22, 40, 0.16); }
+.crop { position: absolute; overflow: hidden; border-radius: 22px; opacity: 0; background: #0b0b0e;
+  box-shadow: 0 24px 60px rgba(20, 22, 40, 0.2), 0 0 0 1px rgba(20, 22, 40, 0.06); }
+.crop img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+.tag { position: absolute; padding: 10px 22px; border-radius: 999px; background: #fff4dc; border: 2px solid #f3b54a; color: #9a6400; font-size: 32px; font-weight: 700; white-space: nowrap; opacity: 0; }
+
+/* hook */
+#pr { position: absolute; left: 360px; top: 390px; width: 1200px; padding: 40px 48px 30px; border-radius: 40px; background: #fff; opacity: 0;
+  box-shadow: 0 30px 80px rgba(20, 22, 40, 0.12), 0 0 0 1px rgba(20, 22, 40, 0.08); }
+#pr .tx { font-size: 52px; font-weight: 500; line-height: 1.4; min-height: 73px; letter-spacing: -0.02em; }
+#pr .tx i { display: inline-block; width: 4px; height: 56px; margin-left: 4px; vertical-align: -8px; background: #15161c; }
+#pr .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; padding-top: 22px; border-top: 1px solid #ececf0; }
+#pr .ft .l { font-size: 30px; font-weight: 700; color: #8a8c96; }
+#pr .ft .m { padding: 8px 22px; border-radius: 999px; background: #f1f1f5; font-size: 30px; font-weight: 700; color: #4a4c57; }
+#pr .ft .go { width: 70px; height: 70px; border-radius: 50%; background: #15161c; }
+#pr-run { position: absolute; left: 380px; top: 300px; font-size: 40px; font-weight: 500; color: #a0a2ab; opacity: 0; }
+#pr-dlg { position: absolute; left: 360px; top: 690px; display: flex; gap: 18px; opacity: 0; }
+#pr-dlg span { padding: 14px 30px; border-radius: 999px; background: #eef0ff; border: 2px solid #aab2ff; font-size: 38px; font-weight: 700; color: #3e48b0; }
+#pr-done { position: absolute; left: 380px; top: 800px; font-size: 52px; font-weight: 900; letter-spacing: -0.03em; opacity: 0; }
+#pr-done b { color: #2f9e6f; }
+#hk-big { position: absolute; left: 0; right: 0; top: 360px; text-align: center; font-size: 120px; font-weight: 900; line-height: 1.18; letter-spacing: -0.05em; opacity: 0; }
+#hk-big em { font-style: normal; color: #5e6ad2; }
+
+/* compat */
+#cp { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 34px; opacity: 0; }
+#cp .h { font-size: 66px; font-weight: 900; letter-spacing: -0.035em; margin-bottom: 14px; }
+#cp .row { display: flex; gap: 26px; }
+#cp .tool { padding: 26px 50px; border-radius: 26px; background: #fff; box-shadow: 0 18px 50px rgba(20, 22, 40, 0.1), 0 0 0 1px rgba(20, 22, 40, 0.06); font: 800 62px/1 'Archivo', sans-serif; }
+#cp .tool small { display: block; font: 700 26px/1 'Noto Sans KR', sans-serif; color: #8a8c96; margin-bottom: 12px; }
+#cp .acc { padding: 16px 38px; border-radius: 999px; background: #eef0ff; border: 2px solid #aab2ff; font-size: 46px; font-weight: 700; color: #3e48b0; }
+
+/* plans */
+.plan { position: absolute; top: 300px; width: 760px; height: 560px; padding: 54px 60px; border-radius: 36px; background: #fff; opacity: 0;
+  box-shadow: 0 30px 80px rgba(20, 22, 40, 0.12), 0 0 0 1px rgba(20, 22, 40, 0.06); }
+.plan .w { font-size: 42px; font-weight: 700; color: #6b6d78; }
+.plan .n { margin-top: 26px; font: 800 96px/1 'Archivo', sans-serif; letter-spacing: 0.01em; }
+.plan .p { margin-top: 34px; font: 800 120px/1 'Archivo', sans-serif; }
+.plan .p small { font: 700 40px 'Noto Sans KR', sans-serif; color: #6b6d78; margin-left: 14px; }
+.plan .d { margin-top: 34px; font-size: 36px; font-weight: 500; line-height: 1.45; color: #4a4c57; }
+#pl-ent { border: 3px solid #5e6ad2; }
+#pl-ent .n { color: #5e6ad2; }
+
+/* privacy */
+.box { position: absolute; top: 380px; width: 700px; padding: 36px 40px; border-radius: 30px; background: #fff; opacity: 0;
+  box-shadow: 0 24px 60px rgba(20, 22, 40, 0.12), 0 0 0 1px rgba(20, 22, 40, 0.06); }
+.box .k { font-size: 34px; font-weight: 700; color: #8a8c96; margin-bottom: 20px; }
+.box .t { position: relative; font-size: 44px; font-weight: 500; line-height: 1.7; }
+.slot { position: relative; display: inline-block; min-width: 360px; height: 1.5em; vertical-align: middle; }
+.raw { position: absolute; left: 0; top: 50%; transform: translateY(-50%); color: #d9534f; font: 500 40px 'JetBrains Mono', monospace; white-space: nowrap; }
+.msk { position: absolute; left: 0; top: 50%; transform: translateY(-50%); white-space: nowrap; opacity: 0; }
+mark { padding: 4px 16px; border-radius: 10px; background: #fff4dc; border: 2px solid #f3b54a; color: #9a6400; font-size: 36px; font-weight: 700; }
+/* a padlock in front of every mask, like the console pill (an emoji would be dropped by the renderer) */
+mark::before { content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.3em; vertical-align: -0.06em; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 7V5a3 3 0 0 1 6 0v2' fill='none' stroke='%239a6400' stroke-width='1.8'/%3E%3Crect x='2.5' y='7' width='11' height='8' rx='1.6' fill='%239a6400'/%3E%3C/svg%3E") no-repeat center / contain; }
+#pv-pkt { position: absolute; left: 900px; top: 560px; width: 50px; height: 50px; border-radius: 50%; background: #5e6ad2; opacity: 0; }
+#pv-foot { position: absolute; left: 0; right: 0; top: 860px; text-align: center; font-size: 58px; font-weight: 900; color: #2f9e6f; opacity: 0; }
+
+/* saving */
+#sv { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; }
+#sv .who { padding: 12px 34px; border-radius: 999px; background: #e3f6ec; border: 2px solid #2f9e6f; color: #1f7a52; font-size: 42px; font-weight: 900; }
+#sv .top { margin-top: 30px; font-size: 62px; font-weight: 700; color: #4a4c57; }
+#sv .num { margin-top: 6px; font: 800 300px/1 'Archivo', sans-serif; color: #2f9e6f; }
+#sv .lbl { margin-top: 6px; font-size: 70px; font-weight: 900; letter-spacing: -0.03em; }
+#sv .note { position: absolute; left: 0; right: 0; bottom: 70px; text-align: center; font-size: 28px; font-weight: 500; color: #8a8c96; }
+
+/* closing */
+#cl { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; }
+#cl svg { width: 560px; height: auto; }
+#cl .l1 { margin-top: 56px; font-size: 76px; font-weight: 900; letter-spacing: -0.04em; }
+#cl .cta { margin-top: 56px; display: inline-flex; align-items: baseline; gap: 24px; padding: 22px 56px; border-radius: 999px; background: #5e6ad2; color: #fff; }
+#cl .cta .lb { font-size: 46px; font-weight: 900; }
+#cl .cta .ml { font: 700 50px 'JetBrains Mono', monospace; }
+#cl .url { margin-top: 30px; font: 700 54px 'JetBrains Mono', monospace; color: #15161c; letter-spacing: 0.01em; }
+#cl .fine { margin-top: 26px; font-size: 32px; font-weight: 500; color: #6b6d78; }
+
+#dot { position: absolute; left: 930px; top: 510px; width: 60px; height: 60px; border-radius: 50%; background: #5e6ad2; z-index: 90; opacity: 0; }
+
+/* the field guide (동물 도감) card on the left during the predator line */
+.book { position: absolute; left: 60px; top: 180px; width: 534px; height: 850px; overflow: hidden; border-radius: 26px; opacity: 0; z-index: 15;
+  box-shadow: 0 24px 60px rgba(20, 22, 40, 0.25), 0 0 0 1px rgba(20, 22, 40, 0.08); background: #fff; }
+.book img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; transform: scale(0.85) translate(-1292px, 0); }

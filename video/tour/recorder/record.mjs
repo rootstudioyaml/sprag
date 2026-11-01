@@ -199,6 +199,12 @@ const SHOTS = {
       /* fly from the whole office down to the apex predator, half an orbit around it */
       'ad-predator': { url: team(), scene: 'office', dur: 5.6, prepare: apex,
         frame: async (c, t) => { const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.85, ph: 1.0, zoom: 1.1, x: 0, z: 0 }], [2.6, { th: 1.05, ph: 0.9, zoom: 2.9, x: L.x, z: L.z + 0.3 }], [5.6, { th: 1.75, ph: 0.86, zoom: 3.1, x: L.x, z: L.z + 0.3 }]], t))); } },
+      /* the field guide (동물 도감) opened from the legend strip, held still for the ad's left-hand card */
+      'ad-book': { url: team(), scene: 'office', dur: 2.1,
+        prepare: async c => { await c.eval(`document.querySelector('.of-strip .sbk').click()`); await c.run(0.8); } },
+      /* ad2: one continuous move, the whole office turning slowly, then a single flight down to the apex predator */
+      'ad-town2': { url: team(), scene: 'office', dur: 9.6, prepare: apex,
+        frame: async (c, t) => { const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.62, ph: 1.04, zoom: 0.98, x: 0, z: 0 }], [3.6, { th: 0.92, ph: 1.0, zoom: 1.12, x: 0, z: 0 }], [6.4, { th: 1.05, ph: 0.9, zoom: 2.9, x: L.x, z: L.z + 0.3 }], [9.6, { th: 1.55, ph: 0.87, zoom: 3.1, x: L.x, z: L.z + 0.3 }]], t))); } },
       /* low over the desks at night, so lit screens glow: from the apex person's bright screen across to a dark one */
       'ad-monitors': { url: team('tod=night'), scene: 'office', dur: 5.1, prepare: apex,
         frame: async (c, t) => { const L = c.L, D = c.Lo; await c.eval(setPose('office', poseAt([[0, { th: 1.0, ph: 0.82, zoom: 2.6, x: L.x, z: L.z }], [5.1, { th: 1.15, ph: 0.82, zoom: 2.6, x: D.x, z: D.z }]], t))); } },

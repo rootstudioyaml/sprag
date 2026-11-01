@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="__LANG__">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <!--
+      Sprag Pro, 40 s, 1920x1080, 30 fps, Korean only, light style (light.css), built by build-plans.sh (PLANS=pro2 LANGS=ko)
+      and played on the Korean license page as plan-pro2-ko. Same clips and stills as ad2.html.
+
+      Beats (start):
+        0     hook        prompt card, typing, 작업 중, delegated to haiku, $1.52 saved (README average per run)
+        5.4   hook line   그냥 쓰세요, 비용은 Sprag가 챙깁니다
+        7.4   town        full frame: the whole office turning, then one flight down to the apex animal (ad-town2)
+        16.7  monitors    lit and dark screens at night
+        21.2  card        the period figures and the daily chart (stills)
+        27.2  rules       one rule for every machine
+        31.5  saving      $150 a month per person is possible with the open source CLI alone
+        34.8  closing     Pro $5, contact
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Archivo:wght@800&display=block" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="light.css" />
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="40" data-width="1920" data-height="1080">
+
+      <div id="pr-run">작업 중 <span id="pr-sec">1s</span></div>
+      <div id="pr"><div class="tx"><span id="pr-tx"></span><i id="pr-cur"></i></div>
+        <div class="ft"><span class="l">Claude Code</span><span class="m">Opus</span><span class="go"></span></div></div>
+      <div id="pr-dlg"><span>Sprag: 테스트 실행은 haiku에 위임</span></div>
+      <div id="pr-done">완료! 이번 위임으로 <b>$1.52</b> 아꼈어요</div>
+      <div id="hk-big">그냥 쓰세요<br /><em>비용은 Sprag가</em> 챙깁니다</div>
+
+      <div class="hd ov" id="h1" data-s="7.9" data-d="3.6"><span>팀 전체가 하나의 <em>Sprag 타운</em>이 됩니다</span></div>
+      <div class="hd ov" id="h2" data-s="11.6" data-d="4.8"><span>많이 쓰고 비용을 잘 절감할수록 <em>상위 포식자</em>가 됩니다</span></div>
+      <div class="hd ov" id="h3" data-s="16.9" data-d="4.3"><span><em>밝은 모니터</em>는 지금 활발히 쓰는 중입니다</span></div>
+      <div class="hd" id="h4" data-s="21.3" data-d="6">누르면 지출, 절감, 위임 비율이 <em>한 장</em>에</div>
+      <div class="hd" id="h5" data-s="27.3" data-d="4.1">규칙은 한 번, <em>팀원 PC 전부</em>에</div>
+
+      <div class="card full" id="k-town" data-s="7.4" data-d="9.6"><video id="v-town" src="clips/ad-town2.mp4" data-start="7.4" data-duration="9.6" data-media-start="0" data-track-index="1" muted playsinline></video></div>
+      <div class="book" id="i-book" data-s="12" data-d="4.4"><img id="im-book" src="stills/book.png" alt="" /></div>
+      <div class="card full" id="k-mon" data-s="16.7" data-d="4.7"><video id="v-mon" src="clips/ad-monitors.mp4" data-start="16.7" data-duration="4.7" data-media-start="0.2" data-track-index="2" muted playsinline></video></div>
+      <div class="card" id="k-rules" data-s="27.2" data-d="4.3"><video id="v-rules" src="clips/team-rules.mp4" data-start="27.2" data-duration="4.3" data-media-start="2.4" data-track-index="3" muted playsinline style="transform:scale(1.35);transform-origin:35% 66%"></video></div>
+
+      <div class="crop" id="i-figs" data-s="21.6" data-d="5.6" style="left:150px;top:290px;width:840px;height:546px"><img id="im-figs" src="stills/figs.png" alt="" style="transform:scale(1.4) translate(-1305px,-180px)" /></div>
+      <div class="crop" id="i-chart" data-s="23.1" data-d="4.1" style="left:1030px;top:398px;width:840px;height:329px"><img id="im-chart" src="stills/chart.png" alt="" style="transform:scale(1.4) translate(-1305px,-295px)" /></div>
+
+      <div id="sv">
+        <div class="who" id="sv-who">한 사람당, 매달</div>
+        <div class="top" id="sv-top">Sprag 오픈소스만 적용해도</div>
+        <div class="num" id="sv-num">$0</div>
+        <div class="lbl" id="sv-lbl">수준의 AI 비용을 아낄 수 있습니다</div>
+        <div class="note">제작자 실사용 기록(30일, 공개 정가 기준), 사용량에 따라 달라집니다</div>
+      </div>
+
+      <div id="cl">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag" id="cl-logo">
+          <path fill="#15161c" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/><path fill="#15161c" stroke="#15161c" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/><path fill="none" stroke="#15161c" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
+          <text x="76" y="43" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="31" font-weight="800" letter-spacing="5" fill="#0b0d12">SPRAG</text>
+        </svg>
+        <div class="l1" id="cl-l1">팀 AI 비용은 <span style="color:#5e6ad2">Sprag Pro</span>로</div>
+        <div class="cta" id="cl-cta"><span class="lb">도입 문의</span><span class="ml">support@sprag.io</span></div>
+        <div class="url" id="cl-url">https://sprag.io</div>
+        <div class="fine" id="cl-fine">좌석당 월 $5, 부가세 별도</div>
+      </div>
+
+      <div id="dot"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const show = (sel, s, d, from = { y: 24 }) => {
+        tl.fromTo(sel, { opacity: 0, ...from }, { opacity: 1, y: 0, x: 0, scale: 1, duration: 0.45, ease: "power3.out" }, s);
+        tl.to(sel, { opacity: 0, duration: 0.3, ease: "none" }, s + d - 0.3);
+      };
+
+      // hook: the request is typed, work runs, Sprag hands the test run to haiku, the saving lands
+      const req = "결제 모듈 테스트가 실패해, 고쳐줘", tx = document.getElementById("pr-tx"), ty = { n: 0 };
+      tl.fromTo("#pr", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.1);
+      tl.fromTo(ty, { n: 0 }, { n: req.length, duration: 1.5, ease: "none", onUpdate: () => { tx.textContent = req.slice(0, Math.round(ty.n)); } }, 0.5);
+      tl.fromTo("#pr-cur", { opacity: 1 }, { opacity: 0, duration: 0.2, ease: "none" }, 2.1);
+      const sec = { v: 1 }, secEl = document.getElementById("pr-sec");
+      tl.fromTo("#pr-run", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 2.2);
+      tl.fromTo(sec, { v: 1 }, { v: 9, duration: 1.6, ease: "none", onUpdate: () => { secEl.textContent = Math.round(sec.v) + "s"; } }, 2.2);
+      tl.fromTo("#pr-dlg", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(2)" }, 2.9);
+      tl.fromTo("#pr-done", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 3.9);
+      tl.to(["#pr", "#pr-run", "#pr-dlg", "#pr-done"], { opacity: 0, y: -30, duration: 0.4, ease: "power2.in" }, 5.1);
+      tl.fromTo("#hk-big", { opacity: 0, scale: 1.08 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 5.5);
+      tl.to("#hk-big", { opacity: 0, duration: 0.01 }, 7.3);
+
+      // purple dot between sections
+      const dot = (t) => { tl.fromTo("#dot", { scale: 0, opacity: 1 }, { scale: 40, opacity: 1, duration: 0.4, ease: "power3.in" }, t);
+        tl.to("#dot", { opacity: 0, duration: 0.35, ease: "none" }, t + 0.45); tl.set("#dot", { scale: 0 }, t + 0.82); };
+      dot(7.05); dot(31.15);
+      tl.set("#dot", { scale: 0, opacity: 0 }, 0);
+
+      document.querySelectorAll(".hd").forEach((el) => show(el, +el.dataset.s, +el.dataset.d));
+      document.querySelectorAll(".card").forEach((el) => {
+        const s = +el.dataset.s, d = +el.dataset.d, full = el.classList.contains("full");
+        if(el.id === "k-town"){ tl.set(el, { opacity: 0 }, 0); tl.fromTo(el, { opacity: 1, scale: 0.7, borderRadius: 40 }, { opacity: 1, scale: 1, borderRadius: 0, duration: 0.7, ease: "power3.inOut", immediateRender: false }, s); }
+        else tl.fromTo(el, { opacity: 0, y: full ? 0 : 40, scale: full ? 1 : 0.97 }, { opacity: 1, y: 0, scale: 1, duration: full ? 0.35 : 0.5, ease: "power3.out" }, s);
+        tl.to(el, { opacity: 0, duration: 0.3, ease: "none" }, s + d - 0.3);
+      });
+      document.querySelectorAll(".crop").forEach((el) => show(el, +el.dataset.s, +el.dataset.d, { y: 40, scale: 0.96 }));
+      show("#i-book", +document.getElementById("i-book").dataset.s, +document.getElementById("i-book").dataset.d, { x: -60 });
+
+      // saving
+      const sv = { v: 0 }, svEl = document.getElementById("sv-num");
+      tl.fromTo("#sv", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 31.5);
+      tl.fromTo("#sv-who", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.4)" }, 31.6);
+      tl.fromTo("#sv-top", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 31.8);
+      tl.fromTo(sv, { v: 0 }, { v: 150, duration: 1.2, ease: "power2.out", onUpdate: () => { svEl.textContent = "$" + Math.round(sv.v); } }, 32.0);
+      tl.fromTo("#sv-lbl", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 33.1);
+      tl.to("#sv", { opacity: 0, duration: 0.3, ease: "none" }, 34.5);
+
+      // closing
+      tl.fromTo("#cl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 34.8);
+      tl.fromTo("#cl-logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 34.9);
+      tl.fromTo("#cl-l1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 35.3);
+      tl.fromTo("#cl-cta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 35.7);
+      tl.fromTo("#cl-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 36.0);
+      tl.fromTo("#cl-fine", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 36.1);
+
+      tl.seek(0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
