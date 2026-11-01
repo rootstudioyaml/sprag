@@ -1049,7 +1049,7 @@ function sinceFormatters(c, isIcon, verbose) {
  *
  * @returns {{ chips: (string|null)[], headline: { usd: number, line: string } | null }}
  */
-function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color) {
+function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
   // Delegation savings — a DIFFERENT number from the "Cache saved" chip, which
   // covers the prompt cache only. This one is what running work on a cheaper
   // tier saved, the lifetime total of the delegation ledger (counted from the
@@ -1112,18 +1112,9 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color) {
     : null;
   // The unresolved count stands in only while there are no savings to show, so
   // a dated zero keeps both: the reset and the dropped runs are separate facts.
-  // What the spend was made of, for the same period as the routing counter:
-  // "◩ Model used ● Opus 90%  ● Sonnet 10%". A segment of its own, after the
-  // savings and their breakdown, so a share is never read as another saving.
-  // Only with a savings figure beside it, and absent when switched off
-  // (`mode no-share`) or empty.
-  const ms = data.modelShare;
-  const usedLabel = isIcon ? `${g.used} Model used` : 'Model used';
-  const usedSeg = ms && Number(ms.totalUsd) > 0 && Array.isArray(ms.families) && ms.families.length
-    ? `${c(GREEN)}${usedLabel}${c(RESET)} ${shareLegend(ms.families, { color })}`
-    : '';
-  const withShare = (chip) => (chip && usedSeg ? `${chip}  ${c(GRAY)}|${c(RESET)}  ${usedSeg}` : chip);
-  const delegateSeg = withShare(savingsChip) || (delegationSaved === 0 ? unresolvedSeg : null);
+  // The Model used share is no longer attached here: it has its own chip
+  // (buildShareSeg), so it survives when there is no savings figure to carry it.
+  const delegateSeg = savingsChip || (delegationSaved === 0 ? unresolvedSeg : null);
   const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
 
   // Routing-savings headline line (multi-line layout). The lifetime sum from
@@ -1135,8 +1126,8 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color) {
   // a row of rolling windows it read as a breakdown of whichever one it
   // touched. A single lifetime total makes the whole line one timeframe with
   // nothing to mismatch.
-  //   icon:  "🔀 Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4 | 📊 Model used ● Opus 90%"
-  //   text:  "Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4 | Model used ● Opus 90%"
+  //   icon:  "🔀 Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4"
+  //   text:  "Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4"
   let totalsLine = null;
   const totalsNum = Number(totals && totals.total);
   // A zero total gets its line only when a reset mark explains it; see the
@@ -1166,8 +1157,7 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color) {
       `${c(tone)}${c(BOLD)}${head}${c(RESET)} ` +
       `${c(tone)}${formatMoney(totalsNum)}${c(RESET)}` +
       sinceWord(routingSince) + scanTag +
-      (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '') +
-      (usedSeg ? `  ${c(GRAY)}|${c(RESET)}  ${usedSeg}` : '');
+      (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 
   return {
@@ -1178,6 +1168,22 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color) {
     chips: totalsLine ? (totalsNum === 0 ? [unresolvedSeg] : []) : [delegateSeg, delegateExtra],
     headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine } : null,
   };
+}
+
+/**
+ * What the spend was made of, as its own chip: "◩ Model used ● Opus 90%  ●
+ * Sonnet 10% (since 10/9)". It used to ride behind the routing savings and
+ * vanished whenever there was no savings figure. The period is dated every time
+ * because it differs from the other chips: the routing reset mark, the start of
+ * the month when never reset, or the 90-day cap (see loadModelShare). Absent
+ * when switched off (`mode no-share`) or empty.
+ */
+function buildShareSeg(ms, c, isIcon, g, color) {
+  if (!(ms && Number(ms.totalUsd) > 0 && Array.isArray(ms.families) && ms.families.length)) return null;
+  const usedLabel = isIcon ? `${g.used} Model used` : 'Model used';
+  const date = formatSince(ms.since);
+  const sinceText = date ? ` ${c(GRAY)}(since ${date})${c(RESET)}` : '';
+  return `${c(GREEN)}${usedLabel}${c(RESET)} ${shareLegend(ms.families, { color })}${sinceText}`;
 }
 
 /** The one-time star ask (see star-note.js); null unless the CLI passed a chip. */
@@ -1297,6 +1303,9 @@ export const DEFAULT_SEGMENT_ORDER = [
   // Lifetime, from the savings ledgers. Delegation stays ahead of the cache
   // figure: routing is what the tool is for, the cache number is a brag stat.
   'delegated', 'doc2md',
+  // Same period as the routing counter, so it sits after the lifetime routing
+  // figures but carries its own since date.
+  'share',
   // One-time star ask; renders only while readStarChip returns an object.
   'star',
   // Analysis window. These two are the only chips measured over it, so the label
@@ -1342,6 +1351,7 @@ function segmentsNamed(name, s, usageByKey) {
     // the session's own subagent runs.
     case 'delegated': return [...s.delegated, s.subagents];
     case 'doc2md':    return s.doc2md;
+    case 'share':     return [s.share];
     case 'star':      return [s.star];
     case 'hit':       return [s.hit];
     case 'ttl':       return [s.ttl];
@@ -1451,7 +1461,7 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v)
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), team (member id and office animal; joined machines only), model, effort, hit, ttl, month, saved, delegated, doc2md, star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), team (member id and office animal; joined machines only), model, effort, hit, ttl, month, saved, delegated, doc2md, share (Model used by family, dated), star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line). It also ignores `columns`.
  * @param {number} [opts.columns=0] - terminal width in cells (Claude Code exports it as COLUMNS). When set, the chips wrap at chip boundaries instead of being truncated by the terminal; 0 keeps one unbounded line. A verbose layout that would need chips dropped is re-rendered once in the compact layout first.
  * @param {number} [opts.maxLines=3] - most chip lines when `columns` is set; lower-priority tail chips collapse into a `+N` chip beyond that. Counts the chip lines only: the headline lines above them wrap at their own `|` and `·` joints and are not included. Cap, usage, ctx, spike chips are never dropped.
@@ -1489,7 +1499,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const capWarn = pickCapWarn(caps);
 
   // Routing and doc2md each return a chip and, for real money, a headline line.
-  const delegated = buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g, color);
+  const delegated = buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g);
   const doc2md = buildDoc2mdSeg(data.doc2mdTotals, singleLine, c, isIcon, verbose, g);
 
   // An available upgrade moves the version chip forward (see resolveSegmentOrder).
@@ -1510,6 +1520,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     delegated: delegated.chips,
     // The inline chip steps aside when a headline line owns the story.
     doc2md: doc2md.headline ? [] : [doc2md.chip],
+    share: buildShareSeg(data.modelShare, c, isIcon, g, color),
     star: buildStarSeg(data.star, c, isIcon),
     // This session's subagent runs by model family. It is a session figure, so
     // it sits with the routing chips rather than with the lifetime totals.

@@ -100,18 +100,43 @@ function sandboxWithSessions() {
   return home;
 }
 
-test('statusline: the share legend follows the Routing saved chip; no-share removes it', (t) => {
+test('statusline: Model used is its own chip, dated, and not part of the routing headline', (t) => {
   const home = sandboxWithSessions();
   t.after(home.cleanup);
   const out = renderStatusline(home, {}, { args: ['--single-line'] });
-  assert.match(out, /Routing saved \$0\.00 since \S+  \|  (?:\S+ )?Model used Opus \d+%  Haiku \d+%/);
+  assert.match(out, /Routing saved \$0\.00 since \S+/);
+  assert.doesNotMatch(out, /Routing saved[^\n]*\|[^\n]*Model used/, 'no longer attached behind the routing savings');
+  assert.match(out, /Model used Opus \d+%  Haiku \d+% \(since \d+\/\d+\)/);
   const multi = renderStatusline(home, {});
-  assert.match(multi.split('\n')[0], /Routing saved .*  \|  (?:\S+ )?Model used Opus \d+%/);
+  assert.doesNotMatch(multi.split('\n')[0], /Model used/, 'the routing headline stays free of the share');
+  assert.match(multi, /Model used Opus \d+%/);
 
   writeFileSync(join(home.dir, 'cfg', 'claude-token-saver', 'config.json'), JSON.stringify({ statusline: { modelShare: false } }));
   const off = renderStatusline(home, {}, { args: ['--single-line'] });
   assert.match(off, /Routing saved/);
   assert.doesNotMatch(off, /Model used|Opus \d+%/);
+});
+
+test('statusline: Model used shows with zero routing savings and no reset mark, dated from the month start', (t) => {
+  const home = makeHome('sprag-share-zero-');
+  t.after(home.cleanup);
+  writeSession(home, { sessionId: 'main-1', model: 'claude-opus-5', output: 400_000, subagents: ['claude-haiku-5'], subagentOutput: 200_000 });
+  const out = renderStatusline(home, {});
+  assert.doesNotMatch(out, /Routing saved/, 'no savings figure and no mark: no routing chip');
+  const m = out.match(/Model used Opus \d+%[^\n]*\(since (\d+)\/(\d+)\)/);
+  assert.ok(m, `share chip with a since date expected in: ${out}`);
+  assert.equal(Number(m[1]), new Date().getMonth() + 1);
+  assert.equal(Number(m[2]), 1);
+});
+
+test('statusline: --segments share renders the chip alone; --segments delegated does not', (t) => {
+  const home = sandboxWithSessions();
+  t.after(home.cleanup);
+  const only = renderStatusline(home, {}, { args: ['--segments', 'share'] });
+  assert.match(only, /Model used Opus \d+%/);
+  assert.doesNotMatch(only, /Routing saved/);
+  const other = renderStatusline(home, {}, { args: ['--segments', 'delegated'] });
+  assert.doesNotMatch(other, /Model used/);
 });
 
 test('sprag saved prints the model-share table', (t) => {
