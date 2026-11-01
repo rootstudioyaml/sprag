@@ -36,7 +36,7 @@ jobs:
       - name: Stage assets
         run: cp docs/statusline.png site/statusline.png
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
 
