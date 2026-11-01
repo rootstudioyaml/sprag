@@ -31,7 +31,12 @@ function fixture(t) {
   });
   const ok = (...args) => { const r = run(...args); assert.equal(r.status, 0, r.stderr); return r.stdout; };
   const save = (name, value) => writeFileSync(join(dir, name), JSON.stringify(value));
-  t.after(() => rmSync(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+  // On Windows a CLI child can still hold the project directory as its cwd when the test ends.
+  // A leftover temp directory is not what this test checks, so EBUSY there is not a failure.
+  t.after(() => {
+    try { rmSync(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
+    catch (e) { if (process.platform !== 'win32' || e.code !== 'EBUSY') throw e; }
+  });
   return { base, home, codex, root, dir, env, run, ok, save };
 }
 
