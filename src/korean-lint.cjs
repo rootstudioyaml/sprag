@@ -82,36 +82,36 @@ const METAPHOR_LEXICON = [
   {
     re: /(?<!빈 |좌석 |앞 |뒤 |옆 )(?:^|(?<=\s))자리(?:에서|에서는|에|로|가|는|다|입니다|였습니다)?(?=\s|$|[.,·)])/,
     except: /(?:^|\s)(?:\d+|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|몇) 자리(?=\s|$)|(?:첫째|둘째|셋째|넷째|다섯째|[일십백천만]의) 자리|자리 ?(?:수|숫자)(?![가-힣]{2})/,
-    fix: "'지점'·'상황'·'부분'처럼 뜻을 그대로 담은 명사로 바꿉니다",
+    fix: "'지점', '상황', '부분'처럼 뜻을 그대로 담은 명사로 바꿉니다",
   },
   // The lookbehind pins the match to the start of a Hangul run. Without it the
   // engine retried `[가-힣]+` from every character of a long run that has no
   // `의 흐름` in it, which is quadratic: a 200k-character run took 20 seconds.
-  { re: /(?<![가-힣])[가-힣]+의\s*흐름/, fix: "'방향'·'순서'·'경과'로 바꿉니다" },
-  { re: /닿(?:는다|습니다|아|는 지점)/, fix: "'겨냥하다'·'해당하다'처럼 동작을 그대로 서술합니다" },
-  { re: /박(?:아 두|혀 있|아 넣)/, fix: "'명시하다'·'기록하다'로 바꿉니다" },
-  { re: /걷어내/, fix: "'없애다'·'제거하다'로 바꿉니다" },
-  { re: /손대(?:는|지|어)/, fix: "'수정하다'·'변경하다'로 바꿉니다" },
+  { re: /(?<![가-힣])[가-힣]+의\s*흐름/, fix: "'방향', '순서', '경과'로 바꿉니다" },
+  { re: /닿(?:는다|습니다|아|는 지점)/, fix: "'겨냥하다', '해당하다'처럼 동작을 그대로 서술합니다" },
+  { re: /박(?:아 두|혀 있|아 넣)/, fix: "'명시하다', '기록하다'로 바꿉니다" },
+  { re: /걷어내/, fix: "'없애다', '제거하다'로 바꿉니다" },
+  { re: /손대(?:는|지|어)/, fix: "'수정하다', '변경하다'로 바꿉니다" },
   { re: /발목을 잡/, fix: '무엇이 어떻게 막는지 그대로 서술합니다' },
-  { re: /민낯|속살/, fix: "'실제 상태'·'내부 구조'로 바꿉니다" },
-  { re: /열쇠(?:다|입니다|가 된다)/, fix: "'핵심 조건'·'결정 요인'으로 바꿉니다" },
+  { re: /민낯|속살/, fix: "'실제 상태', '내부 구조'로 바꿉니다" },
+  { re: /열쇠(?:다|입니다|가 된다)/, fix: "'핵심 조건', '결정 요인'으로 바꿉니다" },
   { re: /물꼬|신호탄|분수령|기폭제/, fix: '무엇이 시작되고 무엇이 바뀌는지 그대로 적습니다' },
   { re: /판(?:을|도가|이)\s*(?:흔들|바뀌|뒤집)/, fix: '무엇이 어떻게 달라지는지 그대로 적습니다' },
-  { re: /몸집|심장부|두뇌 역할/, fix: "'규모'·'중심 구성 요소'로 바꿉니다" },
+  { re: /몸집|심장부|두뇌 역할/, fix: "'규모', '중심 구성 요소'로 바꿉니다" },
   { re: /벽에 부딪|길을 열|문을 열/, fix: '무엇이 막히고 무엇이 가능해지는지 그대로 적습니다' },
   { re: /갈림길|갈리는 지점/, fix: "'결정이 나뉘는 조건'으로 바꿉니다" },
-  { re: /깨어나|잠들어 있/, fix: "'동작을 시작하다'·'실행되지 않고 있다'로 바꿉니다" },
+  { re: /깨어나|잠들어 있/, fix: "'동작을 시작하다', '실행되지 않고 있다'로 바꿉니다" },
   // Added 2026-09-13. "fails loudly / fails silently" reads as idiom in English
   // but lands as figurative vocabulary in Korean: a failure has no volume.
   // 0 hits across 400 Korean files in yaml-sns-agent, so the confirm-request is
   // not noise.
   {
     re: /(?:시끄럽게|시끄러운|조용히|조용한)\s*[가-힣]*(?:실패|틀리|드러나|어긋)|(?:실패|오류|버그)[가은는이]?\s*(?:시끄럽|시끄러운|조용하|조용한)/,
-    fix: "무엇으로 실패를 확인하는지 적습니다. '종료 코드로 바로 드러나는가'·'검증 없이 지나가는가'",
+    fix: "무엇으로 실패를 확인하는지 적습니다. '종료 코드로 바로 드러나는가', '검증 없이 지나가는가'",
   },
   {
     re: /안전망/,
-    fix: "'검증 수단'·'확인 장치'처럼 무엇이 실패를 잡아내는지 그대로 적습니다",
+    fix: "'검증 수단', '확인 장치'처럼 무엇이 실패를 잡아내는지 그대로 적습니다",
   },
 ];
 
@@ -121,24 +121,55 @@ const TRANSLATIONESE = [
   { re: /[을를] 위한/, fix: '서술어로 풀어 씁니다' },
   // Every conjugation, not the stem alone: `되어졌다`, `되어진`, `되어질`.
   { re: /되어[지진질져졌집]/, fix: '이중 피동을 없애고 능동이나 단일 피동으로 씁니다' },
-  { re: /하는 것을 통해/, fix: "'~해서'·'~함으로써'로 줄입니다" },
+  { re: /하는 것을 통해/, fix: "'~해서', '~함으로써'로 줄입니다" },
   { re: /라고 할 수 있다/, fix: '단정하거나 근거를 붙여 서술합니다' },
   // Conservative additions (2026-09-13), sourced from 국립국어원 공공언어
-  // 지침·한글문화연대 교정 사례·쿠버네티스 한글화 가이드. Bar for inclusion:
+  // 지침, 한글문화연대 교정 사례, 쿠버네티스 한글화 가이드. Bar for inclusion:
   // the form is nearly always an improvement to change, so a confirm-request
   // on it is rarely noise. See presets/korean-style/supplement.md.
   // `졌` is the past tense (`보여졌다`, `쓰여졌습니다`), which the first list missed.
-  { re: /(?:보여|쓰여|불려|잊혀)[지집진질져졌]/, fix: "이중 피동입니다. '보인다'·'쓰인'·'불린'·'잊힌'처럼 단일 피동으로 씁니다" },
-  { re: /에 다름 아니/, fix: "일본어 번역투입니다. '~일 뿐이다'·'바로 ~이다'로 바꿉니다" },
+  { re: /(?:보여|쓰여|불려|잊혀)[지집진질져졌]/, fix: "이중 피동입니다. '보인다', '쓰인', '불린', '잊힌'처럼 단일 피동으로 씁니다" },
+  { re: /에 다름 아니/, fix: "일본어 번역투입니다. '~일 뿐이다', '바로 ~이다'로 바꿉니다" },
   { re: /지 않으면 안 [되된됩돼]/, fix: "이중 부정 번역투입니다. '~해야 합니다'로 바꿉니다" },
   // `X에 있어서` also means "because it is at X", which is plain Korean. Two
   // signs separate that reading without touching the calque: a noun that names
   // a location or a container before it, or the clause ending right after it
   // (the calque is never clause-final). Corpus check: 4 hits before, 3 after,
   // the dropped one a quotation ending in `베드락에 있어서`.
-  { re: /(?<!여기|거기|저기|어디|(?:^|\s)(?:안|밖|위|아래|옆|앞|뒤|속)|서버|폴더|디렉터리|디렉토리|경로|파일|목록|메모리|디스크|저장소|캐시|변수|로컬|원격)에 있어서(?!요|["'”’)\]]|[.!?]|$)/, fix: "'~에서'·'~에는'으로 바꿉니다" },
-  { re: /(?:의미|특징|장점|단점|성격|가능성|중요성|효과)[을를] 가지고 있/, fix: "'~이다'·'~가 있다'로 바꿉니다 (have 직역)" },
+  { re: /(?<!여기|거기|저기|어디|(?:^|\s)(?:안|밖|위|아래|옆|앞|뒤|속)|서버|폴더|디렉터리|디렉토리|경로|파일|목록|메모리|디스크|저장소|캐시|변수|로컬|원격)에 있어서(?!요|["'”’)\]]|[.!?]|$)/, fix: "'~에서', '~에는'으로 바꿉니다" },
+  { re: /(?:의미|특징|장점|단점|성격|가능성|중요성|효과)[을를] 가지고 있/, fix: "'~이다', '~가 있다'로 바꿉니다 (have 직역)" },
 ];
+
+// AI-tell punctuation (2026-11-01). KatFishNet (ACL 2025) found LLM Korean puts
+// a comma after a connective ending about five times as often as people do
+// (essays 19.83% vs 4.10%), and our own transcripts showed the same gap at 3.9x.
+// People do write the comma now and then, so a single one passes and only a
+// second one in the same paragraph is raised. Corpus check on 297 Korean files
+// in yaml-sns-agent: 40 of 40 sampled hits were real connective commas.
+// The word before each comma is read by walking back from the comma, and its
+// ending is tested afterwards. Any `[가-힣]+` scanned left to right ahead of
+// the comma retries from every position of a long comma-free Hangul run, which
+// is quadratic.
+function wordsBeforeCommas(line) {
+  const out = [];
+  for (let i = line.indexOf(','); i !== -1; i = line.indexOf(',', i + 1)) {
+    let j = i;
+    while (j > 0 && /[가-힣]/.test(line[j - 1])) j--;
+    if (j < i) out.push(line.slice(j, i));
+  }
+  return out;
+}
+const CONNECTIVE_ENDING = /(?:고|며|면|서|는데|은데|던데|지만|니까|므로|도록|려고|면서|거나|든지|다가)$/;
+// Nouns and particles that merely end in a connective's spelling.
+const CONNECTIVE_LOOKALIKE = /(?:문서|순서|서류|보고서|설명서|계약서|신청서|증명서|명세서|의견서|제안서|교과서|에서|최고|광고|경고|창고|원고|참고|재고|사고|측면|화면|반면|장면|표면|국면|전면|이면|단면|내면|외면|평면|방면|지면|가면|양면|그런데|그러면|그러니까|그러므로|그리고|아니면|예를 들면)$/;
+// Korean orthography never asks for a comma after a conjunctive adverb; the
+// habit comes from English. `A는 물론, B` is left out because people write it.
+const CONJUNCTIVE_COMMA = /(?:^|[\s"'“(])(?:그리고|그러나|하지만|그런데|그래서|따라서|또한|게다가|그러므로|즉|반면에?|결국|다만|특히),/;
+// A middle dot between Hangul words compresses a particle away (`직급·처우`,
+// `커밋·푸시했다`). Assistant text used it 7.3x as often as user text in the
+// 2026-11-01 transcript count. Settled pairs and table cells are exempt.
+const MIDDLE_DOT = /[가-힣]·[가-힣]/g;
+const SETTLED_DOT = /^(?:한|남|북|미|중|일|노|사|여|야|초|고|동|서|좌|우|상|하|입|출|전|후)·(?:중|북|남|미|일|사|야|고|서|우|하|출|후|대)/;
 
 // Guidance 3.7: a period belongs after a 종결어미, not after a nominal ending.
 const NOMINAL_ENDING = /(?:음|함|됨|임|점|론|양|성|화)\.$/;
@@ -268,7 +299,9 @@ function lintKoreanText(text, { maxFindings = 20, code = false } = {}) {
     // there; in a document a leading `|` is a table row rather than a sentence.
     const sep = line.match(code ? /[—ㅡ]/ : /[—ㅡ|]/);
     if (sep && !(sep[0] === '|' && /^\s*\|/.test(line))) {
-      push('구분자', sep[0], '접속사나 쉼표, 가운뎃점(·)으로 바꿉니다');
+      // The middle dot is not offered as a substitute: it is itself an AI tell
+      // in Korean prose, and recommending it here taught sessions to scatter it.
+      push('구분자', sep[0], '문장을 둘로 나누거나 접속사로 잇습니다. 가운뎃점(·)으로 바꾸지 않습니다');
     }
 
     for (const { re, fix } of TRANSLATIONESE) {
@@ -279,6 +312,25 @@ function lintKoreanText(text, { maxFindings = 20, code = false } = {}) {
     for (const { re, except, fix } of METAPHOR_LEXICON) {
       const m = except ? firstUnexcepted(line, re, except) : line.match(re);
       if (m) push('비유 어휘', m[0], fix);
+    }
+
+    const connectives = wordsBeforeCommas(line).filter((w) => CONNECTIVE_ENDING.test(w) && !CONNECTIVE_LOOKALIKE.test(w));
+    if (connectives.length >= 2) {
+      push('연결어미 쉼표', connectives.slice(0, 3).map((w) => `${w},`).join(' '), '연결어미 뒤 쉼표를 지웁니다. 절이 셋 이상 이어지면 문장을 나눕니다');
+    }
+
+    const conj = line.match(CONJUNCTIVE_COMMA);
+    if (conj) push('접속부사 쉼표', conj[0].trim(), '접속부사 뒤 쉼표를 지웁니다');
+
+    if (!/^\s*\|/.test(line)) {
+      const dot = [...line.matchAll(MIDDLE_DOT)].find((m) => !SETTLED_DOT.test(line.slice(m.index)));
+      if (dot) {
+        push('가운뎃점', line.slice(Math.max(0, dot.index - 6), dot.index + 7).trim(), "명사는 '와/과'나 쉼표로, 동사는 '~하고'로 풀어 씁니다");
+      }
+    }
+
+    if ((line.match(/아니라/g) || []).length >= 2) {
+      push("'아니라' 반복", line.trim().slice(0, 30), "'A가 아니라 B' 대조는 한 번만 쓰고 나머지는 B만 말합니다");
     }
 
     for (const chunk of line.split(/[.,·\n]/)) {
