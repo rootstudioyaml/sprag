@@ -24,6 +24,8 @@ HF=(npx --yes hyperframes@0.8.133)
 export HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_SKIP_SKILLS=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 shots_pro=pro-office,pro-person,team-kpi,team-rules
 shots_ent=ent-office,ent-usage,ent-person,ent-policy
+# the YouTube ad (plans/ad.html) is Korean only and stays in out/, it is not copied to the site
+shots_ad=pro-office,ad-predator,ad-monitors,ad-drawer,team-rules,ent-usage,ad-cases
 
 curl -sf -o /dev/null http://localhost:8788/ || { echo "site server is not running on :8788"; exit 1; }
 mkdir -p out
@@ -34,19 +36,27 @@ if [ "$BGM" = none ]; then
   echo "music: none (BGM=none), the videos carry no audio track"
 else
   [ -f "$BGM" ] || { echo "music not found: $BGM"; exit 1; }
-  # 0.5 under the opening shot, 0.3 under the body, back to 0.5 for the close; 1 s fade in, 2 s fade out
-  VOL="if(lt(t,7),0.5,if(lt(t,8),0.5-0.2*(t-7),if(lt(t,24),0.3,if(lt(t,25),0.3+0.2*(t-24),0.5))))"
+fi
+# music for one video length ($DUR): 0.5 under the opening, 0.3 under the body, back to 0.5 for the last 5 s;
+# 1 s fade in, 2 s fade out. Sets $AF, the measured loudnorm pass for the mux.
+make_bgm() {
+  local B1=7 B2=8 C1=$((DUR-6)) C2=$((DUR-5))
+  local VOL="if(lt(t,$B1),0.5,if(lt(t,$B2),0.5-0.2*(t-$B1),if(lt(t,$C1),0.3,if(lt(t,$C2),0.3+0.2*(t-$C1),0.5))))"
   ffmpeg -hide_banner -loglevel error -y -i "$BGM" -af "atrim=$BGM_START:$(echo "$BGM_START + $DUR" | bc),asetpts=PTS-STARTPTS,volume='$VOL':eval=frame,afade=t=in:d=1,afade=t=out:st=$((DUR-2)):d=2" \
     -ar 48000 -ac 2 out/bgm-plans.wav
   LN=$(ffmpeg -hide_banner -nostats -i out/bgm-plans.wav -af "loudnorm=I=-14:TP=-1:LRA=11:print_format=json" -f null - 2>&1 | sed -n '/^{/,/^}/p')
   j() { echo "$LN" | sed -n "s/.*\"$1\" : \"\([^\"]*\)\".*/\1/p"; }
   # measured against -1 dBTP, applied with -2: the limiter plus the AAC encode overshoot about 0.7 dB (see build.sh)
   AF="loudnorm=I=-14:TP=-2:LRA=11:measured_I=$(j input_i):measured_TP=$(j input_tp):measured_LRA=$(j input_lra):measured_thresh=$(j input_thresh):offset=$(j target_offset):linear=true"
-fi
+}
 
 for P in $PLANS; do
-  case "$P" in pro) SHOTS="$shots_pro";; ent) SHOTS="$shots_ent";; *) echo "unknown plan $P"; exit 2;; esac
+  case "$P" in pro) SHOTS="$shots_pro";; ent) SHOTS="$shots_ent";; ad) SHOTS="$shots_ad";; *) echo "unknown plan $P"; exit 2;; esac
+  # the plan promos are 30 s and stay under 8 MB; the ad is 60 s and may use 16 MB
+  if [ "$P" = ad ]; then DUR=60; MAXB=16000000; else DUR=30; MAXB=8000000; fi
+  [ "$NO_BGM" = 1 ] || make_bgm
   for L in $LANGS; do
+    [ "$P" = ad ] && [ "$L" != ko ] && { echo "the ad is Korean only, skipping $L"; continue; }
     echo "== $P $L =="
     [ "${SKIP_RECORD:-0}" = 1 ] || node recorder/record.mjs --lang "$L" --shots "$SHOTS"
     B="out/plan-$P-$L"
@@ -54,6 +64,14 @@ for P in $PLANS; do
     sed "s/__LANG__/$L/" "plans/$P.html" > "$B/index.html"
     cp plans/plan.css plans/plan.js "$B/"
     for s in ${SHOTS//,/ }; do cp -L "clips/$L/$s.mp4" "$B/clips/"; done
+    # the ad's zoom insets are stills, so they do not drift with the camera: name, clip, time in the clip
+    if [ "$P" = ad ]; then
+      mkdir -p "$B/stills"
+      for st in server:pro-office:4.2 figs:ad-drawer:2.0 chart:ad-drawer:6.0 cases:ad-cases:2.0; do
+        IFS=: read -r SN SC ST <<< "$st"
+        ffmpeg -hide_banner -loglevel error -y -ss "$ST" -i "clips/$L/$SC.mp4" -frames:v 1 "$B/stills/$SN.png"
+      done
+    fi
     "${HF[@]}" lint "$B"
     "${HF[@]}" render "$B" --fps 30 -q delivery --resolution landscape --video-frame-format png -o "$HERE/$B/video.mp4"
 
@@ -81,8 +99,9 @@ for P in $PLANS; do
       const v = require("fs").readFileSync(process.argv[1], "utf8").match(/YAVG=([\d.]+)/g).map(s => +s.slice(5));
       let drops = 0; for (let i = 1; i < v.length - 1; i++) if (v[i] < v[i - 1] * 0.5 && v[i] < v[i + 1] * 0.5) drops++;
       console.log(`frames ${v.length}, min YAVG ${Math.min(...v).toFixed(1)}, sudden one-frame drops ${drops}`); if (drops) process.exit(1);' "out/yavg-plan-$P-$L.txt"
-    SIZE=$(stat -f %z "$OUTF"); [ "$SIZE" -le 8000000 ] || { echo "too big: $SIZE bytes"; exit 1; }
+    SIZE=$(stat -f %z "$OUTF"); [ "$SIZE" -le "$MAXB" ] || { echo "too big: $SIZE bytes"; exit 1; }
 
+    [ "$P" = ad ] && { echo "ad done: $OUTF ($SIZE bytes)"; continue; }
     mkdir -p "$REPO/site/assets/video"
     cp "$OUTF" "$REPO/site/assets/video/plan-$P-$L.mp4"; cp "out/plan-$P-$L.jpg" "$REPO/site/assets/video/plan-$P-$L.jpg"
     echo "$P $L done: $OUTF ($SIZE bytes)"

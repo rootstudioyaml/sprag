@@ -98,3 +98,21 @@ videos and must be rebuilt whenever they are: `ffmpeg -i site/assets/video/plan-
 The music is the same track, from 15.05 s, 0.5 under the opening shot, 0.3 under the body, 0.5 for the close, -14 LUFS.
 Video is 2-pass 1400 kbit/s, so each file is about 6 MB; the build fails over 8 MB or on a one-frame luma drop.
 The demo's `teams` update now patches its in-memory rows, so the Policy switch stays on in the recording (and for demo visitors).
+
+## YouTube ad (Pro and Enterprise, 60 s, Korean)
+
+`plans/ad.html` is a 60 second in-stream ad for both paid plans, built by the same script into `out/plan-ad-ko.mp4`
+(it is not copied to the site). The shots are `pro-office`, `ad-predator`, `ad-monitors` (recorded with `tod=night` so
+lit screens glow), `ad-drawer`, `team-rules`, `ent-usage` and `ad-cases`; the `ad-*` shots find the demo office's apex
+person by opening each power user's card and keeping the lowest species number. The audit cases (personal use,
+customer data with masked values) are fixed demo prompts of rina-air in `site/team/index.html`.
+
+```sh
+node scripts/serve-site.mjs 8788
+PLANS=ad LANGS=ko ./build-plans.sh            # SKIP_RECORD=1 to reuse clips
+```
+
+Zoom insets are plain wrappers (`.inset`, timed by GSAP through `data-s`/`data-d`) around a second `<video>` of the
+same clip with its own `data-start`: HyperFrames rejects a video nested in a wrapper that has `data-start`. Emoji are
+dropped by the renderer, so the tier ladder uses coloured dots. The ad's music bed and the 16 MB size limit follow
+`DUR=60` in the script.
