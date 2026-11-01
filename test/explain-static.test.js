@@ -11,7 +11,8 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
-const read = (p) => readFileSync(ROOT + p, 'utf8');
+// A Windows checkout turns LF into CRLF, and the block matchers below anchor on '\n'.
+const read = (p) => readFileSync(ROOT + p, 'utf8').replace(/\r\n/g, '\n');
 const snap = JSON.parse(read('docs/explain/savings-snapshot.json'));
 const site = read('site/index.html');
 const page = read('docs/explain/explain.html');
