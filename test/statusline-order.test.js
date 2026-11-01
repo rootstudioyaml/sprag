@@ -126,6 +126,7 @@ test('every name in the default order is one the renderer knows', () => {
     spikeChip: '⚠ Input spike',
     delegationSaved: 3.2,
     doc2mdTotals: { total: 1.8, docs: 3 },
+    modelShare: { totalUsd: 10, families: [{ family: 'opus', usd: 9 }, { family: 'haiku', usd: 1 }], since: Date.now() - 86400000 },
     monthSpend: { label: 'Sep', usd: 804 },
     update: { available: true, latest: '9.9.9' },
     star: { usd: 12, shownAt: Date.now() },
