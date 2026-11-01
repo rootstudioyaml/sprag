@@ -24,8 +24,9 @@ HF=(npx --yes hyperframes@0.8.133)
 export HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_SKIP_SKILLS=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 shots_pro=pro-office,pro-person,team-kpi,team-rules
 shots_ent=ent-office,ent-usage,ent-person,ent-policy
-# the YouTube ad (plans/ad.html) is Korean only and stays in out/, it is not copied to the site
-shots_ad=pro-office,ad-predator,ad-monitors,ad-drawer,team-rules,ent-usage,ad-cases
+# the YouTube ads (plans/ad.html, and plans/ad2.html in a light, one-idea-per-screen style) are Korean only and stay
+# in out/, they are not copied to the site
+shots_ad=pro-office,ad-predator,ad-monitors,ad-drawer,team-rules,ent-usage,ad-cases,ad-town2,ent-policy,ad-book
 
 curl -sf -o /dev/null http://localhost:8788/ || { echo "site server is not running on :8788"; exit 1; }
 mkdir -p out
@@ -51,23 +52,23 @@ make_bgm() {
 }
 
 for P in $PLANS; do
-  case "$P" in pro) SHOTS="$shots_pro";; ent) SHOTS="$shots_ent";; ad) SHOTS="$shots_ad";; *) echo "unknown plan $P"; exit 2;; esac
+  case "$P" in pro) SHOTS="$shots_pro";; ent) SHOTS="$shots_ent";; ad|ad2|pro2|ent2) SHOTS="$shots_ad";; *) echo "unknown plan $P"; exit 2;; esac
   # the plan promos are 30 s and stay under 8 MB; the ad is 60 s and may use 16 MB
-  if [ "$P" = ad ]; then DUR=60; MAXB=16000000; else DUR=30; MAXB=8000000; fi
+  case "$P" in ad|ad2) DUR=60; MAXB=16000000;; pro2) DUR=40; MAXB=12000000;; ent2) DUR=35; MAXB=12000000;; *) DUR=30; MAXB=8000000;; esac
   [ "$NO_BGM" = 1 ] || make_bgm
   for L in $LANGS; do
-    [ "$P" = ad ] && [ "$L" != ko ] && { echo "the ad is Korean only, skipping $L"; continue; }
+    case "$P" in ad|ad2|pro2|ent2) [ "$L" != ko ] && { echo "the ad is Korean only, skipping $L"; continue; };; esac
     echo "== $P $L =="
     [ "${SKIP_RECORD:-0}" = 1 ] || node recorder/record.mjs --lang "$L" --shots "$SHOTS"
     B="out/plan-$P-$L"
     rm -rf "$B"; mkdir -p "$B/clips"
     sed "s/__LANG__/$L/" "plans/$P.html" > "$B/index.html"
-    cp plans/plan.css plans/plan.js "$B/"
+    cp plans/plan.css plans/plan.js plans/light.css "$B/"
     for s in ${SHOTS//,/ }; do cp -L "clips/$L/$s.mp4" "$B/clips/"; done
     # the ad's zoom insets are stills, so they do not drift with the camera: name, clip, time in the clip
-    if [ "$P" = ad ]; then
+    if [ "$P" != pro ] && [ "$P" != ent ]; then
       mkdir -p "$B/stills"
-      for st in server:pro-office:4.2 figs:ad-drawer:2.0 chart:ad-drawer:6.0 cases:ad-cases:2.0; do
+      for st in server:pro-office:4.2 figs:ad-drawer:2.0 chart:ad-drawer:6.0 cases:ad-cases:2.0 book:ad-book:1.5; do
         IFS=: read -r SN SC ST <<< "$st"
         ffmpeg -hide_banner -loglevel error -y -ss "$ST" -i "clips/$L/$SC.mp4" -frames:v 1 "$B/stills/$SN.png"
       done
@@ -101,7 +102,11 @@ for P in $PLANS; do
       console.log(`frames ${v.length}, min YAVG ${Math.min(...v).toFixed(1)}, sudden one-frame drops ${drops}`); if (drops) process.exit(1);' "out/yavg-plan-$P-$L.txt"
     SIZE=$(stat -f %z "$OUTF"); [ "$SIZE" -le "$MAXB" ] || { echo "too big: $SIZE bytes"; exit 1; }
 
-    [ "$P" = ad ] && { echo "ad done: $OUTF ($SIZE bytes)"; continue; }
+    # the Korean license page plays the light videos as plan-<all|pro2|ent2>-ko; ad (the first take) stays in out/
+    case "$P" in ad) echo "$P done: $OUTF ($SIZE bytes)"; continue;; ad2) SITE=all;; *) SITE=$P;; esac
+    mkdir -p "$REPO/site/assets/video"
+    cp "$OUTF" "$REPO/site/assets/video/plan-$SITE-$L.mp4"; cp "out/plan-$P-$L.jpg" "$REPO/site/assets/video/plan-$SITE-$L.jpg"
+    echo "$P $L done: $OUTF ($SIZE bytes)"; continue
     mkdir -p "$REPO/site/assets/video"
     cp "$OUTF" "$REPO/site/assets/video/plan-$P-$L.mp4"; cp "out/plan-$P-$L.jpg" "$REPO/site/assets/video/plan-$P-$L.jpg"
     echo "$P $L done: $OUTF ($SIZE bytes)"
