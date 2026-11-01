@@ -544,6 +544,11 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
 // and the legal pages' noindex.
 const SHOW_BIZ = true;
 const BIZ_FTC = 'https://www.ftc.go.kr/bizCommPop.do?wrkr_no=0000000000';
+// The FTC lookup still lists the values filed on 2026-07-09 for another service
+// (its support email and a Toss Payments shop page as the domain). The link is
+// hidden until the change filing for sprag.io is reflected there. To restore it,
+// set this to true and put the same anchor back in the hand-written pages' footer.
+const SHOW_FTC = false;
 const BIZ_INFO = {
   en: [
     'YAML Studio ((상호 비공개))',
@@ -579,7 +584,7 @@ function footerHtml(lang = 'en') {
   </div>
   <div class="wrap biz"${SHOW_BIZ ? '' : ' hidden'}>
     <p>${info}</p>
-    <p><a href="/terms/${q}">${terms}</a> · <a href="/privacy/${q}" class="strong">${privacy}</a> · <a href="/refund/${q}">${refund}</a> · <a href="${BIZ_FTC}" target="_blank" rel="noopener">${verify}</a></p>
+    <p><a href="/terms/${q}">${terms}</a> · <a href="/privacy/${q}" class="strong">${privacy}</a> · <a href="/refund/${q}">${refund}</a>${SHOW_FTC ? ` · <a href="${BIZ_FTC}" target="_blank" rel="noopener">${verify}</a>` : ''}</p>
   </div>
 </footer>`;
 }
