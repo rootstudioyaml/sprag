@@ -163,6 +163,11 @@ export function childEnv(overrides = {}) {
      in: the 2026-10 CI runs failed every cleanup with EBUSY and then hung. A
      case about the update chip passes `undefined` to let the check run. */
   env.SPRAG_NO_UPDATE_CHECK = '1';
+  /* A statusline render with no rate_limits starts a detached usage-credit
+     refresh, which reads the real keychain and calls api.anthropic.com. The
+     gauge is on by default, so every statusline case would do that. A case
+     about that refresh passes `undefined`. */
+  env.SPRAG_OAUTH_BUDGET = '0';
   /* Windows resolves the home through USERPROFILE, so a case that names only
      HOME means the same directory on both platforms. */
   env.USERPROFILE = overrides.HOME;

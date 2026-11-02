@@ -1,8 +1,8 @@
 /**
  * oauth-budget: claude.ai 로 로그인한 Enterprise 사용자의 usage-credit 예산을 조회합니다.
  *
- * 이 사용자들은 Claude Code 상태줄 입력에 rate_limits 를 받지 못합니다. opt-in 을
- * 켜면 `GET https://api.anthropic.com/api/oauth/usage` 응답의 extra_usage 로
+ * 이 사용자들은 Claude Code 상태줄 입력에 rate_limits 를 받지 못합니다. 기본으로 켜져
+ * 있으며 `GET https://api.anthropic.com/api/oauth/usage` 응답의 extra_usage 로
  * 예산 게이지(`💳 budget ▰▱ 54% $271/$500`)를 그립니다. 공식 문서에 없는
  * 엔드포인트라서 응답 모양이 다르면 아무것도 그리지 않습니다.
  *
@@ -31,6 +31,10 @@ const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
 // 키체인 허용 대화상자가 뜨는 환경에서 5분마다 창이 쌓이지 않도록, 토큰을 못 읽으면 쉽니다.
 const NO_TOKEN_BACKOFF_MS = 6 * 60 * 60 * 1000;
+// Pro 와 Max 는 상태줄 입력에 rate_limits 가 오므로 이 경로가 필요 없습니다. 세션 첫
+// 응답 전에는 rate_limits 가 비어 이 경로가 불리는데, 그때마다 조회하지 않도록 하루 쉽니다.
+const PLAN_BACKOFF_MS = 24 * 60 * 60 * 1000;
+const PLANS_WITH_RATE_LIMITS = new Set(['pro', 'max']);
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 
 export function oauthStatePath() {
@@ -52,19 +56,23 @@ function writeOauthState(next) {
   writeFileSync(oauthStatePath(), JSON.stringify(next, null, 2) + '\n');
 }
 
-/** opt-in 여부: `sprag mode oauth-budget` 또는 SPRAG_OAUTH_BUDGET=1. */
+/** 기본으로 켜져 있습니다. `sprag mode no-oauth-budget` 이나 SPRAG_OAUTH_BUDGET=0 으로 끕니다. */
 export function oauthBudgetEnabled(cfg = loadConfig(), env = process.env) {
-  return cfg?.statusline?.oauthBudget === true || envVar('OAUTH_BUDGET', env) === '1';
+  if (envVar('OAUTH_BUDGET', env) === '0') return false;
+  return cfg?.statusline?.oauthBudget !== false;
 }
 
-/** 게이트웨이나 API 키 사용자는 OAuth 로그인 사용자가 아닙니다. */
+/** 게이트웨이, API 키, 클라우드 공급자 사용자는 OAuth 로그인 사용자가 아닙니다. */
 export function oauthEligible(env = process.env) {
   if (gatewayBase(env)) return false;
-  if (env.ANTHROPIC_API_KEY) return false;
+  if (env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN) return false;
+  for (const k of ['CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY']) {
+    if (env[k] && env[k] !== '0' && env[k] !== 'false') return false;
+  }
   return true;
 }
 
-function tokenFromCredentialJson(raw) {
+function credentialFromJson(raw) {
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -77,7 +85,8 @@ function tokenFromCredentialJson(raw) {
   const exp = Number(o.expiresAt);
   // 만료된 토큰은 쓰지 않습니다. 갱신은 Claude Code 몫입니다.
   if (Number.isFinite(exp) && exp > 0 && exp <= Date.now()) return null;
-  return token;
+  const plan = typeof o.subscriptionType === 'string' ? o.subscriptionType : null;
+  return { token, subscriptionType: plan };
 }
 
 /**
@@ -86,20 +95,25 @@ function tokenFromCredentialJson(raw) {
  * 읽지 못하거나 만료됐으면 null.
  */
 export function readOauthToken(env = process.env, deps = {}) {
+  return readOauthCredential(env, deps)?.token ?? null;
+}
+
+/** readOauthToken 과 같은 순서로 읽고 요금제(subscriptionType)도 함께 돌려줍니다. */
+export function readOauthCredential(env = process.env, deps = {}) {
   const exec = deps.execFileSync || execFileSync;
   const read = deps.readFileSync || readFileSync;
   const platform = deps.platform || process.platform;
-  if (env.CLAUDE_CODE_OAUTH_TOKEN) return env.CLAUDE_CODE_OAUTH_TOKEN;
+  if (env.CLAUDE_CODE_OAUTH_TOKEN) return { token: env.CLAUDE_CODE_OAUTH_TOKEN, subscriptionType: null };
   try {
     if (platform === 'darwin') {
       const out = exec('security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], {
         timeout: 3000,
         stdio: ['ignore', 'pipe', 'ignore'],
       });
-      return tokenFromCredentialJson(String(out));
+      return credentialFromJson(String(out));
     }
     const dir = env.CLAUDE_CONFIG_DIR || join(deps.homedir || homedir(), '.claude');
-    return tokenFromCredentialJson(String(read(join(dir, '.credentials.json'), 'utf8')));
+    return credentialFromJson(String(read(join(dir, '.credentials.json'), 'utf8')));
   } catch (e) {
     // 오류 객체에 명령 출력이 실릴 수 있어 종류만 남깁니다.
     debug('oauth-budget:token', new Error(`token read failed (${e?.code || 'error'})`));
@@ -178,12 +192,18 @@ export function maybeSpawnOauthBudgetCheck(env = process.env, deps = {}) {
  */
 export async function refreshOauthBudgetState(env = process.env, fetchImpl = fetch, deps = {}) {
   const now = deps.now ?? Date.now();
-  const token = readOauthToken(env, deps);
-  if (!token) {
+  const cred = readOauthCredential(env, deps);
+  if (!cred) {
     const next = { checkedAt: now, backoffUntil: now + NO_TOKEN_BACKOFF_MS, error: 'no-token' };
     writeOauthState(next);
     return next;
   }
+  if (PLANS_WITH_RATE_LIMITS.has(cred.subscriptionType)) {
+    const next = { checkedAt: now, backoffUntil: now + PLAN_BACKOFF_MS, skipped: 'plan-has-rate-limits' };
+    writeOauthState(next);
+    return next;
+  }
+  const { token } = cred;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {

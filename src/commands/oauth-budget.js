@@ -2,7 +2,7 @@
  * Subcommand: oauth-budget, claude.ai usage-credit 예산(Enterprise) 조회.
  *   sprag oauth-budget            # 캐시된 예산을 게이지와 금액으로 출력
  *   sprag oauth-budget --json     # 캐시 원본 JSON 출력
- *   sprag oauth-budget --refresh  # 지금 조회 (detached 자식이 사용, opt-in 과 무관)
+ *   sprag oauth-budget --refresh  # 지금 조회 (detached 자식이 사용, 끈 상태와 무관)
  */
 
 import { debug } from '../debug.js';
@@ -23,7 +23,7 @@ export async function run({ hasFlag }) {
     return;
   }
   if (!oauthBudgetEnabled()) {
-    console.log('꺼져 있습니다. `sprag mode oauth-budget` 으로 켜십시오 (SPRAG_OAUTH_BUDGET=1 도 됩니다).');
+    console.log('꺼져 있습니다. `sprag mode oauth-budget` 으로 다시 켜십시오 (SPRAG_OAUTH_BUDGET=0 이면 그 변수를 지우십시오).');
     return;
   }
   const state = readOauthState();
