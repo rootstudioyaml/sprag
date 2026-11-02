@@ -59,8 +59,8 @@ const KEYWORDS = {
   // Model-share bar and letters beside the routing chip; on unless switched off.
   share:      { key: 'modelShare', value: true  },
   'no-share': { key: 'modelShare', value: false },
-  // Enterprise(claude.ai 로그인) 사용자의 usage-credit 예산 게이지. 네트워크 조회가
-  // 따르므로 기본은 꺼 둔다. src/oauth-budget.js 참고.
+  // Enterprise(claude.ai 로그인) 사용자의 usage-credit 예산 게이지. 기본으로 켜져 있고
+  // rate_limits 가 오는 Pro 와 Max 는 조회하지 않는다. src/oauth-budget.js 참고.
   'oauth-budget':    { key: 'oauthBudget', value: true  },
   'no-oauth-budget': { key: 'oauthBudget', value: false },
 };
@@ -203,7 +203,7 @@ export function statuslineDefaults() {
     timer:       s.timer   !== false,
     color:       s.color   !== false,
     modelShare:  s.modelShare !== false,
-    oauthBudget: s.oauthBudget === true,
+    oauthBudget: s.oauthBudget !== false,
     windowHours,
     windowLabel: formatWindow(windowHours),
     // 'auto' | '5m' | '1h'. Auto lets the measured split decide and falls back

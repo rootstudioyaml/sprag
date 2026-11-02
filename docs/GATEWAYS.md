@@ -31,17 +31,18 @@ Behind a LiteLLM proxy (Bedrock and friends), Claude Code's stdin never carries 
 - Unlimited keys (no `max_budget`) get no gauge. The `💵` monthly-spend segment still shows, since it comes from session logs.
 - Inspect with `sprag litellm-budget` (gauge with used/remaining amounts), `--json` (raw cache), or `--refresh` (query now).
 
-### claude.ai Enterprise: usage-credit budget gauge (opt-in, v3.93.0)
+### claude.ai Enterprise: usage-credit budget gauge (v3.93.0)
 
-Enterprise users who sign in with claude.ai do not get `rate_limits` in the statusline input either. With the opt-in on, the statusline reads `extra_usage` from `GET https://api.anthropic.com/api/oauth/usage` and draws `💳 budget ▰▱ 54% $271/$500` in the same place.
+Enterprise users who sign in with claude.ai do not get `rate_limits` in the statusline input either. The statusline now reads `extra_usage` from `GET https://api.anthropic.com/api/oauth/usage` and draws `💳 budget ▰▱ 54% $271/$500` in the same place.
 
-- Turn it on with `sprag mode oauth-budget` (off again with `sprag mode no-oauth-budget`), or set `SPRAG_OAUTH_BUDGET=1`.
-- Source priority: ① `rate_limits` from the statusline input, ② the LiteLLM budget, ③ `/api/oauth/usage`. When an earlier source supplies a window, this one makes no network call at all, so Pro and Max users are unaffected.
+- On by default. Turn it off with `sprag mode no-oauth-budget` (back on with `sprag mode oauth-budget`), or set `SPRAG_OAUTH_BUDGET=0`.
+- It stays out of the way for everyone else: a gateway, `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`, or Bedrock, Vertex or Foundry skips it before any token is read. A Pro or Max login (`subscriptionType` in the stored credentials) skips the request and rests for 24 hours, since those plans get `rate_limits`.
+- Source priority: ① `rate_limits` from the statusline input, ② the LiteLLM budget, ③ `/api/oauth/usage`. When an earlier source supplies a window, this one does not run at all.
 - The endpoint is not in the official documentation. If the response has a different shape (no `extra_usage`, extra usage disabled, a non-USD currency), nothing is drawn.
 - The OAuth token is read from `CLAUDE_CODE_OAUTH_TOKEN`, the macOS keychain item `Claude Code-credentials`, or `.credentials.json` in the Claude config directory, only inside the background refresh process. It is held in memory and never written to the cache, logs or arguments. Refreshing an expired token stays with Claude Code.
 - The response carries no reset time, so the gauge shows none.
 - If the token cannot be read (a denied or timed-out keychain prompt included), the refresh rests for 6 hours so permission dialogs do not pile up every five minutes.
-- Inspect with `sprag oauth-budget`, `--json` (raw cache), or `--refresh` (query now, works even with the opt-in off).
+- Inspect with `sprag oauth-budget`, `--json` (raw cache), or `--refresh` (query now, works even when turned off).
 
 One related non-bug: if your session model is already sonnet, a sonnet-delegation (T1) rule can never save anything, because there is no price gap to capture. That is correct, but `route-scan rules` displayed it identically to "no delegations yet", so it now says outright that the rule does not apply at the current default model.
 

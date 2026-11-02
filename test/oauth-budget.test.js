@@ -31,8 +31,9 @@ function clearState() {
   rmSync(statePath(), { force: true });
 }
 
-const ON = { statusline: { oauthBudget: true } };
-const OFF = {};
+// 기본으로 켜져 있으므로 빈 설정이 켜짐이고, `sprag mode no-oauth-budget` 이 꺼짐입니다.
+const ON = {};
+const OFF = { statusline: { oauthBudget: false } };
 const TOKEN = 'sk-ant-oat01-SECRET-TOKEN-VALUE';
 
 const ENTERPRISE = { extra_usage: { is_enabled: true, monthly_limit: 50000, used_credits: 27140, utilization: 54, currency: 'USD' } };
@@ -156,7 +157,7 @@ test('refresh: 토큰이 없으면 6시간 백오프를 쓰고 요청하지 않�
   assert.deepEqual(readOauthState(), { checkedAt: 10_000, backoffUntil: 10_000 + 6 * 60 * 60 * 1000, error: 'no-token' });
 });
 
-test('maybeSpawn: opt-in 이 꺼져 있거나 게이트웨이, API 키가 있으면 띄우지 않는다', async () => {
+test('maybeSpawn: 꺼 두었거나 게이트웨이, API 키가 있으면 띄우지 않는다', async () => {
   const { maybeSpawnOauthBudgetCheck } = await import('../src/oauth-budget.js');
   clearState();
   let spawned = 0;
@@ -164,6 +165,10 @@ test('maybeSpawn: opt-in 이 꺼져 있거나 게이트웨이, API 키가 있으
   assert.equal(maybeSpawnOauthBudgetCheck({}, { cfg: OFF, spawnDetachedCli }), false);
   assert.equal(maybeSpawnOauthBudgetCheck({ ANTHROPIC_BASE_URL: 'https://gw.example.com' }, { cfg: ON, spawnDetachedCli }), false);
   assert.equal(maybeSpawnOauthBudgetCheck({ ANTHROPIC_API_KEY: 'k' }, { cfg: ON, spawnDetachedCli }), false);
+  assert.equal(maybeSpawnOauthBudgetCheck({ ANTHROPIC_AUTH_TOKEN: 'k' }, { cfg: ON, spawnDetachedCli }), false);
+  assert.equal(maybeSpawnOauthBudgetCheck({ CLAUDE_CODE_USE_BEDROCK: '1' }, { cfg: ON, spawnDetachedCli }), false);
+  assert.equal(maybeSpawnOauthBudgetCheck({ CLAUDE_CODE_USE_VERTEX: 'true' }, { cfg: ON, spawnDetachedCli }), false);
+  assert.equal(maybeSpawnOauthBudgetCheck({ SPRAG_OAUTH_BUDGET: '0' }, { cfg: ON, spawnDetachedCli }), false);
   assert.equal(spawned, 0);
   assert.equal(existsSync(statePath()), false, '띄우지 않으면 시도 기록도 남기지 않는다');
 });
@@ -200,7 +205,7 @@ test('oauthBudgetWindow: opt-in 이 꺼져 있으면 null, 켜져 있으면 spen
   assert.deepEqual(oauthBudgetWindow({ cfg: ON, env: {} }), {
     key: 'spend_limit', usedPct: 54, resetsAt: null, spend: 271.4, maxBudget: 500, source: 'oauth',
   });
-  assert.equal(oauthBudgetWindow({ cfg: OFF, env: { SPRAG_OAUTH_BUDGET: '1' } }).key, 'spend_limit');
+  assert.equal(oauthBudgetWindow({ cfg: ON, env: { SPRAG_OAUTH_BUDGET: '0' } }), null);
   // 나중에 API 키나 게이트웨이로 옮긴 사용자에게는 옛 캐시를 그리지 않는다.
   assert.equal(oauthBudgetWindow({ cfg: ON, env: { ANTHROPIC_API_KEY: 'sk-test' } }), null);
   assert.equal(oauthBudgetWindow({ cfg: ON, env: { ANTHROPIC_BASE_URL: 'https://litellm.example.com' } }), null);
@@ -238,3 +243,35 @@ test('렌더: 이 창을 caps 로 넣으면 상태줄에 $271 과 $500 이 나�
 function readFileState() {
   return JSON.parse(readFileSync(statePath(), 'utf8'));
 }
+
+test('기본값: 설정이 비어 있으면 켜져 있다', async () => {
+  const { oauthBudgetEnabled } = await import('../src/oauth-budget.js');
+  assert.equal(oauthBudgetEnabled({}, {}), true);
+  assert.equal(oauthBudgetEnabled({ statusline: {} }, {}), true);
+  assert.equal(oauthBudgetEnabled(OFF, {}), false);
+  assert.equal(oauthBudgetEnabled({}, { SPRAG_OAUTH_BUDGET: '0' }), false);
+  assert.equal(oauthBudgetEnabled({}, { CLAUDE_CODE_USE_BEDROCK: '0' }), true);
+});
+
+test('refresh: Pro 와 Max 로그인은 요청하지 않고 하루 쉰다', async () => {
+  const { refreshOauthBudgetState, readOauthState } = await import('../src/oauth-budget.js');
+  const fetchImpl = async () => { throw new Error('must not fetch'); };
+  for (const plan of ['pro', 'max']) {
+    clearState();
+    const execFileSync = () => JSON.stringify({ claudeAiOauth: { accessToken: TOKEN, expiresAt: Date.now() + 3600_000, subscriptionType: plan } });
+    await refreshOauthBudgetState({}, fetchImpl, { now: 5000, execFileSync, platform: 'darwin' });
+    assert.deepEqual(readOauthState(), { checkedAt: 5000, backoffUntil: 5000 + 24 * 60 * 60 * 1000, skipped: 'plan-has-rate-limits' });
+    assert.ok(!readFileSync(statePath(), 'utf8').includes(TOKEN));
+  }
+});
+
+test('refresh: Pro, Max 가 아닌 로그인은 조회한다', async () => {
+  const { refreshOauthBudgetState } = await import('../src/oauth-budget.js');
+  clearState();
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return { ok: true, status: 200, json: async () => ENTERPRISE }; };
+  const execFileSync = () => JSON.stringify({ claudeAiOauth: { accessToken: TOKEN, expiresAt: Date.now() + 3600_000, subscriptionType: 'enterprise' } });
+  const next = await refreshOauthBudgetState({}, fetchImpl, { now: 6000, execFileSync, platform: 'darwin' });
+  assert.equal(calls, 1);
+  assert.equal(next.maxBudget, 500);
+});

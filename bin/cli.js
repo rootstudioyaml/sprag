@@ -219,7 +219,7 @@ Usage:
   sprag compact-window     audit or pin autoCompactWindow for 1M sessions
   sprag saved [reset|undo] show, reset or restore the saved-money counters (--agent codex for Codex)
   sprag litellm-budget     LiteLLM gateway key budget and spend
-  sprag oauth-budget       claude.ai usage-credit budget (opt-in)
+  sprag oauth-budget       claude.ai usage-credit budget (Enterprise)
   sprag update-check       is a newer version out?
   sprag brief --hook       internal: the UserPromptSubmit hook entry point
   sprag brief --hook-tool  internal: the PostToolUse hook entry point (delegation follow-up)
@@ -480,7 +480,7 @@ async function main() {
   if (args[0] === 'litellm-budget') {
     return (await import('../src/commands/litellm-budget.js')).run({ hasFlag });
   }
-  // Subcommand: oauth-budget, claude.ai usage-credit 예산 조회 (opt-in).
+  // Subcommand: oauth-budget, claude.ai usage-credit 예산 조회.
   //   sprag oauth-budget [--json | --refresh]
   if (args[0] === 'oauth-budget') {
     return (await import('../src/commands/oauth-budget.js')).run({ hasFlag });
@@ -809,7 +809,7 @@ async function main() {
     }
   }
   // claude.ai(Enterprise) 로그인 사용자: rate_limits 도 LiteLLM 창도 없을 때만
-  // opt-in 된 /api/oauth/usage 캐시로 예산 게이지를 그린다. 창이 이미 있는
+  // /api/oauth/usage 캐시로 예산 게이지를 그린다(기본으로 켜져 있음). 창이 이미 있는
   // Pro/Max 는 여기서 네트워크는 물론 캐시도 건드리지 않는다.
   if (isStatusline && (!caps || !Array.isArray(caps.windows) || caps.windows.length === 0)) {
     try {
