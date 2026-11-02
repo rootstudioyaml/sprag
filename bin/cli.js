@@ -217,7 +217,7 @@ Usage:
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
   sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
   sprag compact-window     audit or pin autoCompactWindow for 1M sessions
-  sprag saved [reset|undo] show, reset or restore the saved-money counters (--agent codex for Codex)
+  sprag saved [reset|undo|keep] show, reset or restore the saved-money counters (--agent codex for Codex)
   sprag litellm-budget     LiteLLM gateway key budget and spend
   sprag oauth-budget       claude.ai usage-credit budget (Enterprise)
   sprag update-check       is a newer version out?
@@ -428,7 +428,7 @@ async function main() {
   }
 
   // Subcommand: saved — stopwatch reset for the lifetime "saved" counters.
-  //   sprag saved | saved reset [routing|doc2md|all] | saved undo
+  //   sprag saved | saved reset [routing|doc2md|all] | saved undo | saved keep
   if (args[0] === 'saved') {
     return (await import('../src/commands/saved.js')).run({ args, hasFlag });
   }
