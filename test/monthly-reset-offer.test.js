@@ -123,7 +123,16 @@ test('never throws: an unwritable state location yields null', () => {
 test('the offer rides a fresh session start only', () => {
   // SessionStart also fires on resume, clear and compact; asking right after an
   // auto-compact would interrupt work and spend the month's one ask.
-  assert.equal(offersOnSessionSource('startup'), true);
-  assert.equal(offersOnSessionSource(undefined), true);
-  for (const source of ['resume', 'clear', 'compact']) assert.equal(offersOnSessionSource(source), false, source);
+  assert.equal(offersOnSessionSource('startup', 'cli'), true);
+  assert.equal(offersOnSessionSource(undefined, 'cli'), true);
+  assert.equal(offersOnSessionSource('startup', null), true);
+  assert.equal(offersOnSessionSource('startup', 'claude-vscode'), true);
+  for (const source of ['resume', 'clear', 'compact']) assert.equal(offersOnSessionSource(source, 'cli'), false, source);
+});
+
+test('SDK sessions never get the offer, so an unattended batch job cannot use up the month', () => {
+  for (const entrypoint of ['sdk-cli', 'sdk-ts', 'sdk-py']) {
+    assert.equal(offersOnSessionSource('startup', entrypoint), false, entrypoint);
+    assert.equal(offersOnSessionSource(undefined, entrypoint), false, entrypoint);
+  }
 });
