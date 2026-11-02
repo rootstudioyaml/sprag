@@ -30,6 +30,18 @@ LiteLLM 프록시로 Bedrock 등을 쓰면 Claude Code stdin 에 `rate_limits` �
 - `max_budget` 이 없는 무제한 키는 게이지를 만들지 않습니다. 이 경우에도 `💵` 월 지출 세그먼트는 세션 로그 기반이라 그대로 표시됩니다.
 - 상태 확인: `sprag litellm-budget` (게이지·사용·잔여 금액 출력) · `--json` (캐시 원본) · `--refresh` (즉시 조회).
 
+### claude.ai Enterprise: usage-credit 예산 게이지 (opt-in, v3.93.0)
+
+claude.ai 로 로그인한 Enterprise 사용자도 상태줄 입력에서 `rate_limits` 를 받지 못합니다. opt-in 을 켜면 `GET https://api.anthropic.com/api/oauth/usage` 응답의 `extra_usage` 로 cap 게이지가 놓이던 지점에 `💳 budget ▰▱ 54% $271/$500` 게이지를 그립니다.
+
+- 켜는 방법은 `sprag mode oauth-budget` 입니다. 끄려면 `sprag mode no-oauth-budget` 을 쓰고, 환경변수 `SPRAG_OAUTH_BUDGET=1` 로도 켤 수 있습니다.
+- 출처 우선순위는 ① 상태줄 입력의 `rate_limits` ② LiteLLM 예산 ③ `/api/oauth/usage` 순입니다. 앞선 출처가 창을 주면 이 경로는 네트워크를 아예 부르지 않으므로 Pro 와 Max 사용자에게는 아무 일도 생기지 않습니다.
+- 이 엔드포인트는 공식 문서에 없습니다. 응답 형태가 다르면(`extra_usage` 가 없거나 꺼져 있거나 통화가 USD 가 아니면) 아무것도 그리지 않습니다.
+- OAuth 토큰은 `CLAUDE_CODE_OAUTH_TOKEN`, macOS 키체인 항목 `Claude Code-credentials`, Claude 설정 디렉터리의 `.credentials.json` 순으로 읽으며, 백그라운드 갱신 프로세스 안에서만 읽습니다. 토큰은 메모리에서만 쓰고 캐시와 로그와 인자에 남기지 않습니다. 만료된 토큰의 갱신은 Claude Code 가 맡습니다.
+- 응답에 리셋 시각이 없으므로 게이지에도 리셋 시각을 표시하지 않습니다.
+- 토큰을 읽지 못하면(키체인 거부나 시간 초과 포함) 6시간 동안 갱신을 쉽니다. 키체인 허용 대화상자가 5분마다 쌓이지 않게 하려는 장치입니다.
+- 상태 확인은 `sprag oauth-budget` 으로 합니다. `--json` 은 캐시 원본을, `--refresh` 는 즉시 조회를 냅니다(opt-in 이 꺼져 있어도 동작합니다).
+
 세션 기본 모델이 sonnet 이면 sonnet 위임 규칙(T1)은 구조적으로 절감이 0입니다. 같은 급으로 내려보내 봐야 차액이 없기 때문이며 이는 정상 동작입니다. 다만 `route-scan rules` 가 이 경우를 "아직 위임 없음"과 같은 문구로 표시해 고장처럼 보였으므로, 이제 현재 기본 모델 기준으로 적용되지 않는다는 사실을 따로 적습니다.
 
 ### LiteLLM: 모델 별칭을 게이트웨이에서 가져옵니다 (`sprag profile-map --refresh`)
