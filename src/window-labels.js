@@ -36,6 +36,11 @@ const KNOWN = {
     // Budgets reset on a billing cycle, so "in 3d 4h" beats a bare weekday.
     resetStyle: 'countdown',
   },
+  // Claude apps 게이트웨이가 거는 지출 한도. LiteLLM 예산과 같은 뜻이라 같은 모양으로 그린다.
+  spend_limit: {
+    short: 'BUDGET', long: 'Spend limit', icon: '💳', narrowIcon: '◫', usageLabel: 'budget',
+    resetStyle: 'countdown',
+  },
 };
 
 function deriveShort(key) {

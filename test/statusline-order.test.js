@@ -8,6 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatReport, DEFAULT_SEGMENT_ORDER } from '../src/formatters/statusline.js';
+import { extractCaps } from '../src/stdin-payload.js';
 
 function data({ fiveHourPct = 31, sevenDayPct = 10 } = {}) {
   return {
@@ -173,6 +174,19 @@ test('the month estimate steps aside when a gateway reports its own spend', () =
     { ...opts, segments: ['month'] },
   );
   assert.match(asked, /Sep/, '--segments month must still work');
+
+  // A Claude apps gateway reports its limit as `rate_limits.spend_limit`; it is
+  // the same measured figure, so it renders as a budget and replaces the estimate.
+  const spend = extractCaps({ rate_limits: { spend_limit: { used_percentage: 62.8, resets_at: now + 100000, used_usd: 314.12, limit_usd: 500, period: 'monthly' } } });
+  assert.deepEqual([spend.windows[0].spend, spend.windows[0].maxBudget], [314.12, 500]);
+  const apps = formatReport({ ...withMonth, caps: spend }, opts);
+  assert.doesNotMatch(apps, /Sep/);
+  assert.match(apps, /budget/);
+  assert.match(apps, /\$314\/\$500/);
+  // Before 2.1.284 the amounts are absent: the gauge still renders, without dollars.
+  const pctOnly = extractCaps({ rate_limits: { spend_limit: { used_percentage: 40, resets_at: now + 100000 } } });
+  assert.equal(pctOnly.windows[0].maxBudget, undefined);
+  assert.match(formatReport({ ...data(), caps: pctOnly }, opts), /budget/);
 });
 
 test('the window label groups with the two chips it measures', () => {
