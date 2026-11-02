@@ -111,11 +111,21 @@ export function extractCaps(stdinJson) {
     const rawReset = typeof value.resets_at === 'string' && value.resets_at.trim() !== ''
       ? Number(value.resets_at)
       : value.resets_at;
-    windows.push({
+    const win = {
       key,
       usedPct,
       resetsAt: typeof rawReset === 'number' && Number.isFinite(rawReset) && rawReset > 0 ? rawReset : null,
-    });
+    };
+    // A Claude apps gateway with a spend limit sends `spend_limit` with dollar
+    // amounts (Claude Code 2.1.284+). Carry them under the names the LiteLLM
+    // budget window uses so the gauge renders `$used/$limit` the same way.
+    const used = Number(value.used_usd);
+    const limit = Number(value.limit_usd);
+    if (value.used_usd != null && value.limit_usd != null && Number.isFinite(used) && Number.isFinite(limit) && limit > 0) {
+      win.spend = used;
+      win.maxBudget = limit;
+    }
+    windows.push(win);
   }
   return windows.length ? { windows } : null;
 }

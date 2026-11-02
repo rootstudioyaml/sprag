@@ -68,7 +68,7 @@ test('no narrow glyph reaches above the BMP', () => {
 });
 
 test('narrow window icons are verified as well', () => {
-  const keys = ['five_hour', 'seven_day', 'seven_day_sonnet', 'seven_day_opus', 'litellm_budget', 'unknown_window'];
+  const keys = ['five_hour', 'seven_day', 'seven_day_sonnet', 'seven_day_opus', 'litellm_budget', 'spend_limit', 'unknown_window'];
   for (const key of keys) {
     const { narrowIcon } = labelForKey(key);
     assert.ok(narrowIcon, `${key} needs a narrowIcon`);

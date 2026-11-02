@@ -1388,7 +1388,7 @@ function resolveSegmentOrder(segments, caps, updateAvailable) {
   // number, so the estimate steps aside when the measured value is present.
   // `--segments month` still asks for it explicitly and still gets it.
   const hasGatewayBudget = !!(caps && Array.isArray(caps.windows)
-    && caps.windows.some((w) => w && w.key === 'litellm_budget'));
+    && caps.windows.some((w) => w && (w.key === 'litellm_budget' || w.key === 'spend_limit')));
   if (hasGatewayBudget) defaultOrder = defaultOrder.filter((n) => n !== 'month');
 
   // A caller-supplied list sets the filter AND the order. Warning chips keep
