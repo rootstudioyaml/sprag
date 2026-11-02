@@ -199,3 +199,39 @@ test('CLI: --agent codex saved reset uses the codex scopes', () => {
   assert.ok(m['codex-routing'] > 0 && m['codex-docs'] > 0 && m.routing === null);
   clean();
 });
+
+test('resetSaved can date the mark before now, and undo still restores', () => {
+  clean();
+  const mark = NOW - 5 * DAY;
+  const marks = resetSaved(['routing'], { dir: DIR, now: NOW, mark });
+  assert.equal(marks.routing, mark);
+  assert.equal(readResetMarks(DIR).routing, mark);
+  undoReset({ dir: DIR });
+  assert.equal(readResetMarks(DIR).routing, null);
+  clean();
+});
+
+test('CLI: saved reset --month-start dates the mark to the 1st, 00:00 local', () => {
+  // The monthly offer is usually answered on the 2nd or later; a mark at "now"
+  // would drop the first days of the month from the new total.
+  clean();
+  writeLedgers();
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
+  const out = cli('saved', 'reset', 'routing', '--month-start');
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, new RegExp(`counts from ${today.getMonth() + 1}/1 00:00`));
+  const marks = readResetMarks(DIR);
+  assert.equal(marks.routing, monthStart);
+  assert.equal(marks.doc2md, null, 'the positional scope still applies next to the flag');
+  clean();
+});
+
+test('CLI: saved reset --month-start with no scope resets all', () => {
+  clean();
+  const out = cli('saved', 'reset', '--month-start');
+  assert.equal(out.status, 0, out.stderr);
+  const marks = readResetMarks(DIR);
+  assert.ok(marks.routing > 0 && marks.routing === marks.doc2md);
+  clean();
+});

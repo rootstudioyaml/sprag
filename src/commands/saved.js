@@ -3,6 +3,7 @@
  *
  *   sprag saved                              # totals since the last reset
  *   sprag saved reset [routing|doc2md|all]   # start counting from now
+ *     --month-start                          # or from the 1st of this month, 00:00 local
  *   sprag saved undo                         # put the previous counters back
  *   sprag saved keep                         # decline this month's reset offer
  *   (add --agent codex for the Codex counters: codex-routing, codex-docs)
@@ -166,7 +167,7 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
   }
 
   if (sub === 'reset') {
-    const arg = args[2] || 'all';
+    const arg = args.slice(2).find((a) => !a.startsWith('-')) || 'all';
     const base = agent === 'codex' ? { routing: 'codex-routing', doc2md: 'codex-docs' } : { routing: 'routing', doc2md: 'doc2md' };
     let targets;
     if (arg === 'all') targets = scopes;
@@ -178,13 +179,27 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
         : `Unknown scope: ${arg}. Valid scopes are ${scopes.join(', ')}, all.`);
       process.exit(1);
     }
+    // --month-start dates the mark to the 1st, 00:00 local, rather than now: the
+    // monthly offer is usually answered a day or more into the month (the 1st
+    // fell on a Sunday in 2026-11), and a mark at "now" would drop those days.
+    const now = Date.now();
+    const today = new Date(now);
+    const fromMonthStart = hasFlag('--month-start');
+    const mark = fromMonthStart ? new Date(today.getFullYear(), today.getMonth(), 1).getTime() : now;
     const before = {};
     for (const s of targets) before[s] = await currentTotals(s, dir);
-    resetSaved(targets, { dir });
+    resetSaved(targets, { dir, now, mark });
     for (const s of targets) {
-      console.log(ko
-        ? `${label(s)} 카운터를 0으로 초기화했습니다. 이전 합계는 ${fmtTotal(before[s])}입니다.`
-        : `Reset the ${label(s)} counter to zero. The previous total was ${fmtTotal(before[s])}.`);
+      if (fromMonthStart) {
+        const after = await currentTotals(s, dir);
+        console.log(ko
+          ? `${label(s)} 카운터를 ${today.getMonth() + 1}월 1일 0시부터 다시 셉니다. 이번 달 합계는 ${fmtTotal(after)}이고 이전 합계는 ${fmtTotal(before[s])}입니다.`
+          : `The ${label(s)} counter now counts from ${today.getMonth() + 1}/1 00:00. This month so far: ${fmtTotal(after)}. The previous total was ${fmtTotal(before[s])}.`);
+      } else {
+        console.log(ko
+          ? `${label(s)} 카운터를 0으로 초기화했습니다. 이전 합계는 ${fmtTotal(before[s])}입니다.`
+          : `Reset the ${label(s)} counter to zero. The previous total was ${fmtTotal(before[s])}.`);
+      }
     }
     console.log(ko
       ? `원장 기록은 지우지 않았습니다. \`sprag saved undo${suffix}\`로 되돌릴 수 있습니다.`

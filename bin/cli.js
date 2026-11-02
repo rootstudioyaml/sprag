@@ -428,7 +428,7 @@ async function main() {
   }
 
   // Subcommand: saved — stopwatch reset for the lifetime "saved" counters.
-  //   sprag saved | saved reset [routing|doc2md|all] | saved undo | saved keep
+  //   sprag saved | saved reset [routing|doc2md|all] [--month-start] | saved undo | saved keep
   if (args[0] === 'saved') {
     return (await import('../src/commands/saved.js')).run({ args, hasFlag });
   }

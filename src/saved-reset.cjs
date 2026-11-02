@@ -72,17 +72,19 @@ function readResetMarks(dir) {
 }
 
 /**
- * Reset the given scopes to `now`. Returns the new marks. Unknown scopes are
- * ignored; the caller validates user input.
+ * Reset the given scopes to `mark` (default `now`). Returns the new marks.
+ * Unknown scopes are ignored; the caller validates user input. `mark` may lie
+ * before `now`: `sprag saved reset --month-start` dates it to the 1st so a
+ * reset made on the 2nd still counts the whole month.
  */
-function resetSaved(scopes, { dir, now = Date.now() } = {}) {
+function resetSaved(scopes, { dir, now = Date.now(), mark = now } = {}) {
   const state = readState(dir);
   const valid = [...new Set(scopes)].filter((s) => SCOPES.includes(s));
   if (valid.length === 0) return state.marks;
   const prev = {};
   for (const s of valid) {
     prev[s] = state.marks[s];
-    state.marks[s] = now;
+    state.marks[s] = mark;
   }
   state.history.push({ at: now, scopes: valid, prev });
   if (state.history.length > MAX_HISTORY) state.history.splice(0, state.history.length - MAX_HISTORY);
