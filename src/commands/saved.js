@@ -4,6 +4,7 @@
  *   sprag saved                              # totals since the last reset
  *   sprag saved reset [routing|doc2md|all]   # start counting from now
  *   sprag saved undo                         # put the previous counters back
+ *   sprag saved keep                         # decline this month's reset offer
  *   (add --agent codex for the Codex counters: codex-routing, codex-docs)
  *
  * Nothing is deleted. A reset only records a timestamp, and the totals count
@@ -194,6 +195,17 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
     return;
   }
 
+  // The "no" answer to the session-start reset offer (src/monthly-reset-offer.js).
+  // Without it the offer comes back at every fresh session this month.
+  if (sub === 'keep') {
+    const { declineMonthlyReset } = await import('../monthly-reset-offer.js');
+    const month = declineMonthlyReset({ dir });
+    console.log(ko
+      ? `${month} 에는 초기화 안내를 더 띄우지 않습니다. 카운터는 그대로 이어서 셉니다.`
+      : `No more reset offers for ${month}. The counters keep running.`);
+    return;
+  }
+
   if (sub === 'undo') {
     const undone = undoReset({ dir });
     if (!undone) {
@@ -214,7 +226,7 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
   }
 
   console.error(ko
-    ? `알 수 없는 하위 명령입니다: ${sub}. 사용법은 sprag saved [reset|undo] 입니다.`
-    : `Unknown subcommand: ${sub}. Usage: sprag saved [reset|undo].`);
+    ? `알 수 없는 하위 명령입니다: ${sub}. 사용법은 sprag saved [reset|undo|keep] 입니다.`
+    : `Unknown subcommand: ${sub}. Usage: sprag saved [reset|undo|keep].`);
   process.exit(1);
 }
