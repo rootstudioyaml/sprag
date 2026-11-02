@@ -52,7 +52,7 @@ test('offers when the ledgers have savings and no mark falls this month', () => 
   assert.ok(out);
   assert.match(out, /^✇ \[sprag monthly-reset\]/);
   assert.match(out, /routing saved \$3\.00, Doc2md saved \$1\.00/);
-  assert.match(out, /sprag saved reset all/);
+  assert.match(out, /^  sprag saved reset all --month-start$/m);
 });
 
 test('an unanswered offer comes back at the next session, and printing writes no state', () => {
