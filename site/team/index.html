@@ -996,6 +996,7 @@ Object.assign(I18N.ko, {"ux.seats":"사용 중인 좌석","ux.deleg":"위임 실
 Object.assign(I18N.en, {"v.rules":"Rules","rl.sum.aria":"Rules summary","rl.sum.org":"organization rules","rl.sum.team":"team rules","rl.sum.pending":"pending proposals",
   "rl.when":"Machines in use pick up approved rules within an hour and apply them at their next session start.",
   "rl.org.h":"Organization rules","rl.org.desc":"Applies to every team; members get it at their next session start.","rl.org.none":"No organization rules yet.",
+  "rl.pre.h":"Sprag preset rules","rl.pre.desc":"Recommended rules that Sprag publishes. Each machine chooses which ones to apply, so this list is not what every member runs. Read only: neither owners nor admins can change it here.","rl.pre.ver":"Version {v}, published {d}","rl.pre.none":"No preset bundle is published.","rl.pre.show":"Show {n} rules",
   "rl.org.ph":"A rule for every team","rl.org.rmconfirm":"Remove this organization rule? Machines drop it at their next session start.",
   "rl.team.h":"Team rules · {name}","rl.team.cnt":"{a} approved","rl.team.pend":"{p} pending","rl.team.ph":"A rule for {name}",
   "rl.pending":"Proposals from members","rl.pending.none":"No pending proposals.","rl.reject":"Reject",
@@ -1006,6 +1007,7 @@ Object.assign(I18N.en, {"v.rules":"Rules","rl.sum.aria":"Rules summary","rl.sum.
 Object.assign(I18N.ko, {"v.rules":"규칙","rl.sum.aria":"규칙 요약","rl.sum.org":"조직 규칙","rl.sum.team":"팀 규칙","rl.sum.pending":"대기 중인 제안",
   "rl.when":"승인한 규칙은 사용 중인 PC가 한 시간 안에 받아 두고, 다음 세션 시작 때 반영됩니다",
   "rl.org.h":"조직 규칙","rl.org.desc":"모든 팀에 적용되고, 멤버 PC에는 다음 세션 시작 때 반영됩니다","rl.org.none":"아직 조직 규칙이 없습니다",
+  "rl.pre.h":"Sprag 기본 프리셋","rl.pre.desc":"Sprag가 배포하는 추천 규칙입니다. 적용 여부는 PC마다 따로 고르므로 모든 멤버가 이 목록을 쓰고 있다는 뜻은 아닙니다. 읽기 전용이라 오너와 관리자도 여기서 고칠 수 없습니다.","rl.pre.ver":"버전 {v}, {d} 게시","rl.pre.none":"게시된 프리셋이 없습니다","rl.pre.show":"규칙 {n}개 보기",
   "rl.org.ph":"모든 팀에 적용할 규칙","rl.org.rmconfirm":"이 조직 규칙을 제거할까요? 멤버 PC에서는 다음 세션 시작 때 빠집니다",
   "rl.team.h":"팀 규칙 · {name}","rl.team.cnt":"승인 {a}개","rl.team.pend":"제안 {p}건","rl.team.ph":"{name} 팀에 적용할 규칙",
   "rl.pending":"멤버 제안","rl.pending.none":"대기 중인 제안이 없습니다","rl.reject":"거절",
@@ -1848,9 +1850,36 @@ async function removeMember(id){
    One loader and one set of renderers serve the Rules tab, the team Rules sub-tab
    (organization rules read-only on top, then that team's section) and the count line
    on the organization card. Writes go through RLS (org_rules, team_rules) and the
-   org_rule_promote RPC. ── */
+   org_rule_promote RPC.
+   The Sprag preset section is read only by design: it calls presets_published() and
+   nothing else. Editing and publishing presets stays on /ops for the superuser (the
+   preset_* RPCs refuse anyone else and the CLI applies only a signed bundle), and
+   test/team-presets-readonly.test.js keeps every write path out of this page. ── */
 const RulesView = (function(){
   let key = '', orgRules = [], teamRules = [], loaded = false, orgErr = '', teamErr = '', seq = 0, busy = null, openFor = '';
+  let presets = null, presetsErr = '', presetsAsked = false;
+  function presetsSection(){
+    if(!presetsAsked) return '';
+    const rules = presets && Array.isArray(presets.ratchet_rules) ? presets.ratchet_rules : [];
+    const text = r => String((r && (r[lang] || r.en || r.ko)) || '');
+    let body;
+    if(presetsErr) body = `<p class="err" role="alert">${esc(presetsErr)}</p>`;
+    else if(!presets) body = loadingP();
+    else if(!rules.length) body = none('rl.pre.none');
+    else body = `<p class="sub">${esc(t('rl.pre.ver', {v: presets.version, d: String(presets.published_at || '').slice(0, 10)}, true))}</p>
+      <details><summary>${esc(t('rl.pre.show', {n: rules.length}, true))}</summary><div class="rl-list" style="margin-top:var(--s3)">${rules.map(r => `<div class="rule"><p><span class="sc">preset</span>${esc(text(r))}</p></div>`).join('')}</div></details>`;
+    return `<section class="card" aria-labelledby="rl-pre-h"><div class="sec-h"><h2 id="rl-pre-h">${esc(t('rl.pre.h', null, true))}<span class="count">${rules.length}</span></h2></div>
+      <p class="sub">${esc(t('rl.pre.desc', null, true))}</p>${body}</section>`;
+  }
+  /* once per page: the published bundle is the same for every organization */
+  function loadPresets(){
+    if(presetsAsked) return;
+    presetsAsked = true;
+    new Promise(ok => ok(sb.rpc('presets_published'))).then(({ data, error }) => {
+      if(error) throw error;
+      presets = data && typeof data === 'object' ? data : {};
+    }).catch(e => { presetsErr = errMsg(e); }).then(paintTab);
+  }
   const errs = {}, open = new Set();
   const when = (r, k) => new Date(r[k] || r.created_at || 0).getTime() || 0;
   const orgSorted = () => orgRules.slice().sort((a, b) => when(a, 'approved_at') - when(b, 'approved_at'));
@@ -1887,7 +1916,9 @@ const RulesView = (function(){
     h += orgErr ? `<p class="err" role="alert">${esc(orgErr)}</p>`
       : `<div class="rl-list" style="margin-top:var(--s3)">${orgRules.length ? orgSorted().map(r => row(r, btn('org-rm', r.id, t('ru.remove', null, true), 'danger'))).join('') : none('rl.org.none')}</div>${form('org', null, t('rl.org.ph', null, true))}${errP('org')}`;
     h += '</section>';
-    if(teamErr) h += `<section class="card"><p class="err" role="alert">${esc(teamErr)}</p></section>`;
+    loadPresets();
+    h += presetsSection();
+    if(teamErr) h +=`<section class="card"><p class="err" role="alert">${esc(teamErr)}</p></section>`;
     else if(!vt.length) h += `<section class="card"><p class="msg" style="margin:0">${esc(t('rl.noteams', null, true))}</p></section>`;
     else vt.forEach(x => {
       const a = ofTeam(x.id, 'approved').length, p = ofTeam(x.id, 'proposed').length;
@@ -2672,6 +2703,10 @@ function demoSb(){
           return {data:{ id:gone.id, name:gone.name, org_id:'demo-org', deleted:true, members_deleted:mine.length, seats_used:used() }, error:null};
         }
         if(name === 'org_rule_promote') return {data: promoteRule(a && a.p_rule_id), error:null};
+        if(name === 'presets_published') return {data:{ format:1, version:'2026.11.01', published_at:ago(1), ratchet_rules:[
+          {id:'demo-p1', en:'When a web fetch is blocked by robots or user-agent checks, retry with a browser User-Agent header.', ko:'웹 fetch가 robots나 UA 검사로 막히면 브라우저 User-Agent 헤더를 붙여 다시 시도한다'},
+          {id:'demo-p2', en:'Never edit marker text that automation finds by exact match (headers, anchors, keyword lines).', ko:'자동화 도구가 정확 매칭으로 찾는 마커 텍스트(헤더, 앵커, 키워드 줄)는 고치지 않는다'},
+          {id:'demo-p3', en:'When input data changes, regenerate every asset derived from it.', ko:'입력 데이터가 바뀌면 그 데이터에서 만든 산출물을 끝까지 다시 만든다'}] }, error:null};
         if(name === 'team_member_usage'){
           const days = new Set(Range.list(a.p_from, a.p_to)), td = fmtDay(new Date()), rows = ledger();
           /* new total-usage keys: every other member has a gateway (total = spent * 1.6, counted once per hash), member 3 sent no delegation cost (unknown path), member 2 has unpriced parts */
