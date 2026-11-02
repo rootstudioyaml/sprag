@@ -925,7 +925,7 @@ const I18N = {
     'c.sp':'Spent','c.sv':'Saved','c.rev':'Sprag revenue / mo','rev.note':'{seats} contracted seats × ${price} ({plan}); suspended organizations count as $0','c.seen':'Last seen','c.created':'Created','never':'never','close':'Close',
     's.teams':'Teams','s.admins':'Admins','s.none':'None','s.edit':'Edit','s.limit':'Seat limit','s.note':'Note (superuser only)','s.save':'Save','s.saved':'Saved',
     's.owner':'Add owner or admin by email','s.ownerd':'The superuser has the same rights as the organization\'s owner: appoint or remove owners and admins, for example when the customer lost access. The person does not need an account yet; they get the role when they sign in at sprag.io/team with an email code.','s.btnadmin':'Add admin','s.btnowner':'Add owner','s.ownerok':'Added {email}','s.ownerinvited':'Invited {email}. They get the {role} role on first sign-in.','s.adminrm':'Remove','s.adminrmconfirm':'Remove {email} from this organization?','s.adminrmok':'Removed {email}',
-    's.team':'{n} active · {s} seats','s.teamph':'Team name','s.teamadd':'Create team','s.teamnoname':'Enter a team name.','s.teamok':'Created {name}. Invite token: {token}','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
+    's.team':'{n} active · {s} seats','s.teamph':'Team name','s.teamadd':'Create team','s.teamnoname':'Enter a team name.','s.teamok':'Created {name}. Invite token: {token}','s.teamdel':'Delete','s.teamdelconfirm':'Delete the team {name}? Usage history and activity logs of past members are erased with it. This cannot be undone.','s.teamdelok':'Deleted the team: {name}','s.teamdelactive':'This team still has active members. Remove them first, then delete the team.','s.limitbad':'Enter a whole number from 1 to 10000.','s.emailempty':'Enter an email address.',
     's.suspendconfirm':'Suspend {name}? Members stop syncing and new joins are refused until you set it back to Active.',
     'k.id':'ID','k.seats':'Seats','k.created':'Created','k.seen':'Last seen','k.you':'Your role',
     'd.back':'← Organizations','d.tab.overview':'Town','d.tab.seats':'Seats','d.tab.settings':'Settings','d.notfound':'Organization not found.',
@@ -1040,7 +1040,7 @@ const I18N = {
     'c.sp':'지출','c.sv':'절감','c.rev':'Sprag 월 매출','rev.note':'계약 좌석 {seats}개 × ${price} ({plan}), 정지된 조직은 $0','c.seen':'마지막 접속','c.created':'생성일','never':'없음','close':'닫기',
     's.teams':'팀','s.admins':'어드민','s.none':'없음','s.edit':'수정','s.limit':'좌석 한도','s.note':'메모 (슈퍼유저만 볼 수 있음)','s.save':'저장','s.saved':'저장했습니다',
     's.owner':'이메일로 오너·어드민 추가','s.ownerd':'슈퍼유저는 조직 오너와 같은 권한으로 오너와 어드민을 지정하거나 제거합니다. 고객이 접근 권한을 잃었을 때도 이 기능을 씁니다. 계정이 아직 없어도 되고, sprag.io/team 에서 이메일 코드로 로그인하면 그 역할을 받습니다.','s.btnadmin':'어드민 추가','s.btnowner':'오너 추가','s.ownerok':'{email}님을 추가했습니다','s.ownerinvited':'{email}님을 초대했습니다. 처음 로그인하면 {role} 권한을 받습니다.','s.adminrm':'제거','s.adminrmconfirm':'{email}님을 이 조직에서 제거할까요?','s.adminrmok':'{email}님을 제거했습니다',
-    's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.teamph':'팀 이름','s.teamadd':'팀 만들기','s.teamnoname':'팀 이름을 입력해 주세요.','s.teamok':'팀을 만들었습니다: {name}. 초대 토큰: {token}','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
+    's.team':'활동 멤버 {n}명 · 좌석 {s}개','s.teamph':'팀 이름','s.teamadd':'팀 만들기','s.teamnoname':'팀 이름을 입력해 주세요.','s.teamok':'팀을 만들었습니다: {name}. 초대 토큰: {token}','s.teamdel':'삭제','s.teamdelconfirm':'{name} 팀을 삭제할까요? 과거 멤버의 사용 기록과 활동 로그도 함께 지워지며 되돌릴 수 없습니다.','s.teamdelok':'팀을 삭제했습니다: {name}','s.teamdelactive':'활동 중인 멤버가 남아 있습니다. 멤버를 모두 제거한 뒤 삭제하세요.','s.limitbad':'1에서 10000 사이의 정수를 입력해 주세요.','s.emailempty':'이메일 주소를 입력해 주세요.',
     's.suspendconfirm':'{name} 조직을 정지할까요? 사용 중으로 되돌릴 때까지 멤버 동기화가 멈추고 새 참여도 거절됩니다.',
     'k.id':'ID','k.seats':'좌석','k.created':'생성일','k.seen':'마지막 접속','k.you':'내 권한',
     'd.back':'← 조직 목록','d.tab.overview':'타운','d.tab.seats':'좌석','d.tab.settings':'설정','d.notfound':'조직을 찾을 수 없습니다',
@@ -1351,6 +1351,12 @@ const demo = (function(){
         admins:x.admin_emails.map(e => ({email:e, status:'invited'})), teams_skipped:x.team_names.map(n => ({name:n, reason:'only an organization admin can create teams; the owner creates them on /team'}))};
     }
     if(name === 'ops_totals') return {orgs:orgs.length, orgs_pro:orgs.filter(o => o.plan === 'pro').length, orgs_enterprise:orgs.filter(o => o.plan === 'enterprise').length, seats_used:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.holds_seat && !x.seat_of).length,0), seats_paused:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'paused').length,0), seats_late:orgs.reduce((s,o) => s+rowsOf(o).filter(x => x.signal === 'late').length,0), seats_limit_sum:orgs.reduce((s,o) => s+o.seat_limit,0), members_active_30d:orgs.reduce((s,o) => s+o.seats_used,0), spent_30d:orgs.reduce((s,o) => s+o.spent_30d,0), total_spent_30d:orgs.reduce((s,o) => s+o.spent_30d*(o.plan === 'enterprise' ? 1.3 : 1),0), delegated_cost_30d:orgs.reduce((s,o) => s+o.spent_30d*0.014,0), saved_30d:orgs.reduce((s,o) => s+o.saved_30d,0)};
+    if(name === 'team_delete'){
+      const o2 = orgs.find(x => String(a.p_team_id).startsWith(x.id + 't')), tm2 = o2 && teamsOf(o2).find(x => x.id === a.p_team_id);
+      if(!tm2) throw new Error('team not found');
+      o2.teamNames = teamsOf(o2).filter(x => x.id !== tm2.id).map(x => x.name); o2.teams = o2.teamNames.length;
+      return {id:tm2.id, name:tm2.name, org_id:o2.id, deleted:true, members_deleted:0, seats_used:o2.seats_used};
+    }
     const o = orgs.find(x => x.id === a.p_org_id);
     if(!o) throw new Error('not found');
     if(name === 'org_summary') return sums(o);
@@ -1925,7 +1931,8 @@ function renderDetail(){
   Det.ensure();
   const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [], owners = ad.filter(a => !a.pending && a.role === 'owner').length;
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
-    <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
+    <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span><button type="button" class="btn sm danger" data-rt="${esc(x.id)}">${esc(t('s.teamdel'))}</button></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
+  $('side-teams').querySelectorAll('[data-rt]').forEach(b => b.addEventListener('click', () => deleteTeam(b.dataset.rt)));
   $('side-admins').innerHTML = ad.length ? ad.map(a => a.pending
     ? `<div class="arow"><span class="em">${esc(a.email)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span> <span class="badge warn">${esc(t('d.pending'))}</span></span><button type="button" class="btn sm danger" data-ri="${esc(a.email)}">${esc(t('d.cancel'))}</button></div>`
     : `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span>${a.role === 'owner' && owners < 2 ? '' : `<button type="button" class="btn sm danger" data-ra="${esc(a.user_id)}">${esc(t('s.adminrm'))}</button>`}</div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
@@ -1998,6 +2005,18 @@ async function removeOrgAdmin(uid){
     try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){}
     renderDetail();
   }catch(e){ $('adm-err').textContent = errMsg(e); }
+}
+async function deleteTeam(teamId){
+  const tm = ((sum && sum.teams) || []).find(x => x.id === teamId); if(!sel || !tm) return;
+  if(!confirm(t('s.teamdelconfirm', {name: tm.name}, true))) return;
+  $('team-err').textContent = ''; $('team-ok').textContent = '';
+  try{
+    await rpc('team_delete', { p_team_id: teamId });
+    $('team-ok').textContent = t('s.teamdelok', {name: tm.name}, true);
+    const id = sel.id; oCache.clear(); await loadOrgs(); sel = orgs.find(o => o.id === id) || null; renderOrgs();
+    try{ sum = await rpc('org_summary', { p_org_id: id }); }catch(e){}
+    renderDetail();
+  }catch(e){ $('team-err').textContent = /^the team still has active members/.test((e && e.message) || '') ? t('s.teamdelactive') : errMsg(e); }
 }
 /* team_create accepts the superuser in any organization since 20261102000100 (the teams insert trigger used to refuse it) */
 $('form-team').addEventListener('submit', async ev => {

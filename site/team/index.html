@@ -630,6 +630,7 @@
         </div>
       </form>
       <p class="err" id="teams-err" role="alert"></p>
+      <p class="ok" id="teams-ok" role="status"></p>
     </aside>
 
     <div class="tmain">
@@ -654,6 +655,13 @@
           <span class="sub" style="margin:0" data-k="inv.rotnote">Old tokens stop working as soon as you rotate.</span>
         </div>
         <p class="err" id="inv-err" role="alert"></p>
+        <div id="team-del" hidden>
+          <div class="row" style="margin-top:12px">
+            <button type="button" class="btn sm danger" id="btn-delete-team" data-k="td.btn">Delete team</button>
+            <span class="sub" style="margin:0" data-k="td.note">Only a team with no active members can be deleted.</span>
+          </div>
+          <p class="err" id="team-del-err" role="alert"></p>
+        </div>
 
         <h2 style="margin-top:26px" data-k="en.h">Enroll members</h2>
         <div class="snip"><h3 data-k="en.1">One person on one machine</h3>
@@ -827,6 +835,7 @@ const I18N = {
     't.h':'Your teams','t.new':'New team','t.ph':'Team name','t.create':'Create','t.empty':'No teams yet. Create one below.','t.noorg':'This account\'s email is not registered as an owner or admin of any organization. Ask your organization\'s owner, or a Sprag operator, to add it. If you were invited, sign in with an email code once; an invitation is not applied to a password sign-in. To open a new organization, write to <a href="mailto:support@sprag.io">support@sprag.io</a>.',
     't.active':'{n} active','plan.pro':'Pro','plan.enterprise':'Enterprise','t.noname':'Enter a team name.',
     'copy':'Copy','copied':'Copied',
+    'td.btn':'Delete team','td.note':'Only a team with no active members can be deleted.','td.confirm':'Delete the team {name}? Usage history and activity logs of past members are erased with it. This cannot be undone.','td.ok':'Deleted the team: {name}','td.active':'This team still has active members. Remove them first, then delete the team.',
     'inv.h':'Invite token','inv.rotate':'Rotate','inv.rotnote':'Old tokens stop working as soon as you rotate.',
     'inv.confirm':'Rotate the invite token? Old tokens stop working right away, so anything that uses one (join commands, shell profiles, managed settings) needs the new token.',
     'en.h':'Enroll members','en.1':'One person on one machine','en.2':'Shell profile','en.3':'Claude Code managed settings (whole organization)',
@@ -935,6 +944,7 @@ const I18N = {
     't.h':'내 팀','t.new':'새 팀','t.ph':'팀 이름','t.create':'만들기','t.empty':'아직 팀이 없습니다. 아래에서 만들어 보세요.','t.noorg':'이 계정의 이메일은 어느 조직의 오너나 어드민으로도 등록되어 있지 않습니다. 조직 오너나 Sprag 운영자에게 추가를 요청하세요. 초대를 받았다면 이메일 코드로 한 번 로그인해 주세요. 비밀번호 로그인에는 초대가 적용되지 않습니다. 새 조직이 필요하면 <a href="mailto:support@sprag.io">support@sprag.io</a>로 문의해 주세요.',
     't.active':'활동 멤버 {n}명','plan.pro':'프로','plan.enterprise':'엔터프라이즈','t.noname':'팀 이름을 입력해 주세요.',
     'copy':'복사','copied':'복사함',
+    'td.btn':'팀 삭제','td.note':'활동 멤버가 없는 팀만 삭제할 수 있습니다.','td.confirm':'{name} 팀을 삭제할까요? 과거 멤버의 사용 기록과 활동 로그도 함께 지워지며 되돌릴 수 없습니다.','td.ok':'팀을 삭제했습니다: {name}','td.active':'활동 중인 멤버가 남아 있습니다. 멤버를 모두 제거한 뒤 삭제하세요.',
     'inv.h':'초대 토큰','inv.rotate':'교체','inv.rotnote':'교체하는 즉시 이전 토큰은 쓸 수 없게 됩니다.',
     'inv.confirm':'초대 토큰을 교체할까요? 이전 토큰은 바로 쓸 수 없게 되므로, 이전 토큰을 쓰던 join 명령, 셸 프로필, 관리 설정은 새 토큰으로 바꿔야 합니다.',
     'en.h':'멤버 등록','en.1':'한 사람, 한 컴퓨터','en.2':'셸 프로필','en.3':'Claude Code 관리 설정 (조직 전체)',
@@ -1606,6 +1616,7 @@ function renderPanel(){
   $('team-plan').className = 'tag' + (planOf(team) === 'enterprise' ? ' plus' : '');
   const tok = team.invite_token || '';
   $('inv-token').textContent = tok;
+  $('team-del').hidden = !isAdmin();
   $('sn-join').textContent = 'npm i -g sprag-cli@latest && sprag team join ' + tok;
   $('sn-env').textContent = 'export SPRAG_TEAM_TOKEN=' + tok;
   $('sn-json').textContent = JSON.stringify({ env: { SPRAG_TEAM_TOKEN: tok } }, null, 2);
@@ -1749,6 +1760,24 @@ $('btn-rotate').addEventListener('click', async () => {
     team.invite_token = typeof data === 'string' ? data : (data && data.token) || team.invite_token;
     renderPanel();
   }catch(e){ $('inv-err').textContent = errMsg(e); }
+});
+
+$('btn-delete-team').addEventListener('click', async () => {
+  if(!team || !isAdmin()) return;
+  $('team-del-err').textContent = ''; $('teams-ok').textContent = '';
+  const gone = team;
+  if(!confirm(t('td.confirm', {name: gone.name}, true))) return;
+  try{
+    const { error } = await sb.rpc('team_delete', { p_team_id: gone.id });
+    if(error) throw error;
+    team = null;
+    await loadOrgs(org && org.id);
+    await loadTeams();
+    go(view, team ? team.id : null, null, false);
+    $('teams-ok').textContent = t('td.ok', {name: gone.name}, true);
+  }catch(e){
+    $('team-del-err').textContent = /^the team still has active members/.test((e && e.message) || '') ? t('td.active') : errMsg(e);
+  }
 });
 
 $('sw-capture').addEventListener('click', async () => {
@@ -2631,6 +2660,17 @@ function demoSb(){
           return {data:{ org_id:'demo-org', email:em, role:a.p_role, status:'invited' }, error:null};
         }
         if(name === 'org_invite_cancel'){ const i = pendingInv.findIndex(x => x.email === String(a.p_email).toLowerCase()); if(i < 0) throw new Error('no such invite'); pendingInv.splice(i, 1); return {data:{ cancelled:true }, error:null}; }
+        if(name === 'team_delete'){
+          const i = tm.findIndex(x => x.id === a.p_team_id);
+          if(i < 0) throw new Error('team not found');
+          const rows = store().rows, mine = rows.filter(r => r.team_id === a.p_team_id);
+          if(mine.some(r => !r.left_at)) throw new Error('the team still has active members');
+          const gone = tm.splice(i, 1)[0];
+          mine.forEach(r => rows.splice(rows.indexOf(r), 1));
+          const ids = new Set(mine.map(r => r.member_id)); store().events = store().events.filter(e => !ids.has(e.member_id));
+          rulesDb.team_rules = rulesDb.team_rules.filter(r => r.team_id !== gone.id);
+          return {data:{ id:gone.id, name:gone.name, org_id:'demo-org', deleted:true, members_deleted:mine.length, seats_used:used() }, error:null};
+        }
         if(name === 'org_rule_promote') return {data: promoteRule(a && a.p_rule_id), error:null};
         if(name === 'team_member_usage'){
           const days = new Set(Range.list(a.p_from, a.p_to)), td = fmtDay(new Date()), rows = ledger();
