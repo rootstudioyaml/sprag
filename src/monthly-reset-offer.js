@@ -38,8 +38,15 @@ function readState(file) {
  * right after an auto-compact would interrupt work in progress and use up the
  * month's one ask there. A payload without `source` (older Claude Code, or a
  * manual run) counts as a fresh start.
+ *
+ * SDK sessions (`claude -p`, Agent SDK; CLAUDE_CODE_ENTRYPOINT `sdk-*`) are
+ * skipped too: they are mostly unattended batch jobs, and the offer marks the
+ * month as asked the moment it is printed. On 2026-11-01 a headless
+ * localization job got November's offer, nobody saw it, and the interactive
+ * sessions that followed stayed silent.
  */
-export function offersOnSessionSource(source) {
+export function offersOnSessionSource(source, entrypoint = process.env.CLAUDE_CODE_ENTRYPOINT) {
+  if (typeof entrypoint === 'string' && entrypoint.startsWith('sdk')) return false;
   return !source || source === 'startup';
 }
 
