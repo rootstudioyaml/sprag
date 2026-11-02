@@ -116,7 +116,7 @@ function columnsFromArgs({ useEnv = true } = {}) {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets',
+  'seed', 'litellm-budget', 'oauth-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets',
 ]);
 
 // Flags each entry path reads, collected from the hasFlag/getArg/numArg calls in
@@ -219,6 +219,7 @@ Usage:
   sprag compact-window     audit or pin autoCompactWindow for 1M sessions
   sprag saved [reset|undo] show, reset or restore the saved-money counters (--agent codex for Codex)
   sprag litellm-budget     LiteLLM gateway key budget and spend
+  sprag oauth-budget       claude.ai usage-credit budget (opt-in)
   sprag update-check       is a newer version out?
   sprag brief --hook       internal: the UserPromptSubmit hook entry point
   sprag brief --hook-tool  internal: the PostToolUse hook entry point (delegation follow-up)
@@ -478,6 +479,11 @@ async function main() {
   //   sprag litellm-budget [--json | --refresh]
   if (args[0] === 'litellm-budget') {
     return (await import('../src/commands/litellm-budget.js')).run({ hasFlag });
+  }
+  // Subcommand: oauth-budget, claude.ai usage-credit 예산 조회 (opt-in).
+  //   sprag oauth-budget [--json | --refresh]
+  if (args[0] === 'oauth-budget') {
+    return (await import('../src/commands/oauth-budget.js')).run({ hasFlag });
   }
 
   // Subcommand: profile-map · LiteLLM 게이트웨이의 프로파일 ID → 모델 별칭
@@ -800,6 +806,23 @@ async function main() {
       }
     } catch (e) {
       debug('litellm-budget:window', e);
+    }
+  }
+  // claude.ai(Enterprise) 로그인 사용자: rate_limits 도 LiteLLM 창도 없을 때만
+  // opt-in 된 /api/oauth/usage 캐시로 예산 게이지를 그린다. 창이 이미 있는
+  // Pro/Max 는 여기서 네트워크는 물론 캐시도 건드리지 않는다.
+  if (isStatusline && (!caps || !Array.isArray(caps.windows) || caps.windows.length === 0)) {
+    try {
+      const { maybeSpawnOauthBudgetCheck, oauthBudgetWindow } = await import('../src/oauth-budget.js');
+      maybeSpawnOauthBudgetCheck();
+      const ow = oauthBudgetWindow();
+      if (ow) {
+        caps = { windows: [ow] };
+        const { persistSnapshot } = await import('../src/caps-cache.js');
+        persistSnapshot({ caps, model });
+      }
+    } catch (e) {
+      debug('oauth-budget:window', e);
     }
   }
   if (!isStatusline && (!caps || !model)) {
