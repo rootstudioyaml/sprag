@@ -257,3 +257,63 @@ test('autoJoinNoticeBlock returns the line once and clears the flag', (t) => {
   join1(s.data, { autoJoinNoticePending: true });
   assert.match(autoJoinNoticeBlock(s.data, 'ko'), /자동 참여됐습니다/);
 });
+
+// --- model rules redrawn from the structured `rec` ---
+// The Korean category labels below are quoted verbatim from src/rule-categories.js (their middle dots are the stored text).
+
+const recRow = (rec, extra = {}) => ({ id: 'm1', text: 'SERVER TEXT', scope: 'model', level: 'org', rec, ...extra });
+const recCache = (rows) => ({ teamName: 'Acme', rules: rows, removed: [] });
+
+test('render: a model row with a valid rec is drawn locally, in Korean and English, with the cap and without an example', (t) => {
+  sandbox(t);
+  const rec = { category: 'explore', tier: 'T2', calls: 6, out: 1200 };
+  const ko = renderTeamRatchet(recCache([recRow(rec)]), { lang: 'ko' });
+  assert.match(ko, /^- "탐색·조회 \(파일\/값 찾기\)" 단순 요청은 .+에 위임 \(상한 도구 호출 6회·출력 1200 토큰\)$/m);
+  assert.doesNotMatch(ko, /SERVER TEXT/);
+  assert.doesNotMatch(ko, /\(예:/, 'no empty example parenthesis');
+  const en = renderTeamRatchet(recCache([recRow(rec)]), { lang: 'en' });
+  assert.match(en, /^- Simple "lookup \(finding files\/values\)" requests go to .+ \(cap 6 tool calls \/ 1200 output tokens\)$/m);
+  assert.doesNotMatch(en, /e\.g\./);
+  assert.doesNotMatch(en, /SERVER TEXT/);
+  // Codex files stay English even when the language is Korean
+  assert.match(renderTeamRatchet(recCache([recRow(rec)]), { lang: 'ko', agent: 'codex' }), /^- Simple "lookup/m);
+});
+
+test('render: tier wording and the budget default for a missing cap', (t) => {
+  sandbox(t);
+  const t1 = renderTeamRatchet(recCache([recRow({ category: 'read', tier: 'T1', calls: null, out: null })]), { lang: 'en' });
+  assert.match(t1, /^- Moderate "reading \/ summarizing \/ explaining" requests go to .+ \(cap 8000 output tokens\)$/m);
+  const t1h = renderTeamRatchet(recCache([recRow({ category: 'run', tier: 'T1H', calls: null, out: 20000 })]), { lang: 'ko' });
+  assert.match(t1h, /고난도 구현 요청은 Fable·Mythos 세션에 한해 .+에 위임 \(상한 출력 20000 토큰\)$/m);
+  const t2 = renderTeamRatchet(recCache([recRow({ category: 'check', tier: 'T2', calls: 4, out: null })]), { lang: 'en' });
+  assert.match(t2, /\(cap 4 tool calls \/ 1500 output tokens\)$/m, 'the tier default fills the missing output cap');
+});
+
+test('render: a row without a rec, with a bad rec, or outside the model scope keeps the server text', (t) => {
+  sandbox(t);
+  for (const row of [
+    recRow(null),
+    recRow(undefined),
+    recRow({ category: 'nope', tier: 'T2', calls: 1, out: 1 }),
+    recRow({ category: 'explore', tier: 'T9', calls: 1, out: 1 }),
+    recRow('explore'),
+    recRow({ category: 'explore', tier: 'T2', calls: 1, out: 1 }, { scope: 'ratchet' }),
+  ]) {
+    const text = renderTeamRatchet(recCache([row]), { lang: 'en' });
+    assert.match(text, /^- SERVER TEXT$/m, JSON.stringify(row.rec));
+  }
+});
+
+test('sprag team rules lines draw a rec row the same way', (t) => {
+  sandbox(t);
+  const cache = recCache([recRow({ category: 'translate', tier: 'T2', calls: 8, out: 1500 }), { id: 'p', text: 'plain', scope: 'ratchet', level: 'team' }]);
+  const lines = formatRuleLines(cache, { lang: 'ko' });
+  assert.equal(lines.length, 2);
+  assert.match(lines[0], /^- \[org · model\] "배치 번역·정형 텍스트 변환" 단순 요청은 .+에 위임 \(상한 도구 호출 8회·출력 1500 토큰\)$/);
+  assert.equal(lines[1], '- [team · ratchet] plain');
+  const en = formatRuleLines(cache, { lang: 'en' });
+  assert.match(en[0], /^- \[org · model\] Simple "batch translation \/ mechanical text transforms" requests go to /);
+  // the file and the command print the same sentence
+  const fileLine = renderTeamRatchet(cache, { lang: 'en' }).split('\n').find((l) => l.startsWith('- Simple'));
+  assert.equal(en[0].replace('- [org · model] ', '- '), fileLine);
+});

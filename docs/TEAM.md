@@ -30,13 +30,30 @@ After you join, Sprag uploads one row per local calendar day:
 | Machine ID | the same random member ID, sent at join even when you choose another display name, so that a machine joining again reuses its seat in the organization instead of taking a second one |
 | Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
 
-Not sent: prompts, transcripts, file paths, project names, rule text, API keys. The one exception is the opt-in prompt upload of an Enterprise team with prompt capture on, described under "Prompt usage (Enterprise)". A rule leaves your machine only when you run `sprag team propose` yourself.
+Not sent: prompts, transcripts, file paths, project names, rule text, rule examples, API keys. The one exception is the opt-in prompt upload of an Enterprise team with prompt capture on, described under "Prompt usage (Enterprise)". A rule's text leaves your machine only when you run `sprag team propose` yourself.
+
+### Delegation rule summary
+
+Besides the daily rows, a full sync reports one summary of the model-fitting rules that `sprag route-scan` registered on this machine (the file `model-rules.json`). It goes up through `member_rules_report` when it differs from the last one sent or a day has passed. Rules that are off are left out. Rules of one category and tier from several projects are folded into one row, so a row has no project in it.
+
+| Field | Meaning |
+|---|---|
+| Category and tier | one of paste, translate, explore, read, check, run, and one of T2, T1, T1H |
+| Status | `active`, or `review` when every folded rule is flagged for review |
+| Episodes | how often the pattern was seen in the logs |
+| Delegations and failure rate | how many delegated runs the rule got and the share that failed |
+| Baseline failure rate | the share of failures when the session model did such work itself, null when unknown |
+| Savings (USD) | what the rule's delegated runs saved |
+| Cap | the tool-call and output-token cap the rule carries |
+| Since | the date the rule was first registered |
+
+Rule text, examples and project paths stay on the machine. `sprag team status --show-payload` prints the exact summary. An older server without `member_rules_report` is skipped without an error.
 
 The daily aggregate upload runs at most once every 5 minutes after the last successful one, from a detached child process that the SessionStart hook (and the prompt hook, which only reads a small local file) spawns. If a sync fails, for example because the network is down, it is retried after 15, then 30, then 60 minutes (60 at most) instead of every 5 minutes. The CLI remembers the last day it uploaded and re-sends from the day before it, up to 30 days, so a machine that was offline for days catches up on its first successful sync. Re-sending a day is safe because each day is an upsert. The prompt upload of an Enterprise team with capture on has its own 30-minute timer (see "Prompt usage (Enterprise)"). It never runs on the statusline path.
 
 While this machine is joined, the statusline shows a `team` chip with your member id and your animal from the virtual office (Sprag Town), for example `member-1e500474 🦊 Fox #3 of 12`, with your overall rank among the ranked people of the organization. The animal comes from the standing the full sync fetches every 5 minutes and stores in `team.json`; if the server does not offer it yet, or the last fetch is more than a day old, only the member id is shown. Rendering the chip reads local files only. It sits just before the version chip, and `--segments team` shows it on its own. IntelliJ's terminal font has no animal emoji, so there (narrow mode) and in text mode the chip drops the emoji and keeps the name: `member-1e500474 Fox #3 of 12`.
 
-Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only), `member_set_sync` (the upload-switch status call, see "The upload switch") `member_set_info` (OS name and version; the `arch` argument is always empty), `member_set_name` (only when you run `sprag team name`) and `member_standing` (your own office animal and rank for the statusline chip; it returns nobody else's figures). When a LiteLLM gateway is configured, each daily sync also calls the gateway's `GET /user/info` and `GET /global/spend/logs` with your own key to read the gateway's daily spend for you; nothing else is read and the key is never stored. Claude desktop Cowork transcripts under `~/Library/Application Support/Claude-3p/local-agent-mode-sessions` are read locally to price them; only the daily sums leave the machine, and task names and prompts are not sent. `sprag team status --show-payload` prints the exact rows. `sprag team create` also calls `team_create` with your sign-in session.
+Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase, region ap-northeast-2). The calls are the RPCs `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put` (Enterprise prompt capture only), `member_set_sync` (the upload-switch status call, see "The upload switch") `member_set_info` (OS name and version; the `arch` argument is always empty), `member_set_name` (only when you run `sprag team name`), `member_rules_report` (the delegation rule summary above) and `member_standing` (your own office animal and rank for the statusline chip; it returns nobody else's figures). When a LiteLLM gateway is configured, each daily sync also calls the gateway's `GET /user/info` and `GET /global/spend/logs` with your own key to read the gateway's daily spend for you; nothing else is read and the key is never stored. Claude desktop Cowork transcripts under `~/Library/Application Support/Claude-3p/local-agent-mode-sessions` are read locally to price them; only the daily sums leave the machine, and task names and prompts are not sent. `sprag team status --show-payload` prints the exact rows. `sprag team create` also calls `team_create` with your sign-in session.
 
 ## Create a team from the CLI
 
@@ -107,13 +124,15 @@ sprag team propose "Run lint before every commit" --scope ratchet
 
 Sprag writes the rules to `~/.claude/ratchet-team.md` (Codex: `<CODEX_HOME>/ratchet-team.md`), organization rules first and then team rules, each with its model rules in a sub-section, and imports that file from the global harness block of `~/.claude/CLAUDE.md` for as long as the file exists. Do not edit the file by hand, because Sprag rewrites it. `sprag team rules` lists the cached rules as `- [org · model] text` or `- [team · ratchet] text`. `sprag team leave` removes the member key, the cache and the import.
 
+**Recommended delegation rules.** The summaries that members report are collected on the Rules tab of the dashboard as recommended delegation rules, one per category and tier: how many members run it, the delegation count, the failure rate and the savings. An owner or admin reads them there and applies a recommendation to the team or to the whole organization. The applied rule arrives with a structured record (category, tier and cap) next to its text. Each machine redraws a model rule from that record, with the agent names it has itself and in the language of its own settings (Codex files stay English), so a rule written on one machine never names an agent that another machine lacks. The redrawn sentence has no example, and the cap is the one in the record. A rule without a record is written as the server sent it. `sprag team rules` shows the redrawn sentence.
+
 ## Status, payload and leaving
 
 | Command | What it does |
 |---|---|
 | `sprag team join [token] [--name <n>] [--yes]` | Join a team |
 | `sprag team name [<n>]` | Show or change your display name on the dashboard |
-| `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name, last sync. `--show-payload` also prints the device info and the exact daily rows that would be uploaded |
+| `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name, last sync. `--show-payload` also prints the device info, the exact daily rows and the delegation rule summary that would be uploaded |
 | `sprag team sync [--force] [--rules-only]` | Upload now and pull rules. `--force` ignores the 5-minute interval; `--rules-only` pulls the organization and team rules and uploads nothing |
 | `sprag team rules` | Show the cached organization and team rules |
 | `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team |
@@ -193,7 +212,7 @@ Owners and admins of an Enterprise organization get a Prompts tab on sprag.io/te
 - Owners and admins see per-member daily totals, not sessions or prompts, unless the organization is on Enterprise and the team has prompt capture switched on.
 - A member sees the same payload with `sprag team status --show-payload`.
 - Prompt capture is an Enterprise policy that an owner or admin can switch on in the dashboard. Members see its state in `sprag team status`. When capture is on, the CLI uploads the prompts you type after the policy reached your machine (see "Prompt usage (Enterprise)").
-- Rule text leaves your machine only through `sprag team propose`.
+- Rule text leaves your machine only through `sprag team propose`. The delegation rule summary carries numbers per category and tier, never text or paths.
 
 ## Files and environment variables
 

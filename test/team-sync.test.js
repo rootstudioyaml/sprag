@@ -10,8 +10,9 @@ import { tmpdir, hostname, userInfo } from 'node:os';
 import { join } from 'node:path';
 import {
   aggregateDaily, syncTeam, autoJoin, joinTeam, leaveTeam, rpc, loadTeamState, saveTeamState,
-  teamStatePath, teamRulesCachePath, autoJoinNotice, TEAM_SYNC_INTERVAL_MS, deviceInfo,
+  teamStatePath, teamRulesCachePath, autoJoinNotice, TEAM_SYNC_INTERVAL_MS, deviceInfo, RULE_STATS_RESEND_MS,
 } from '../src/team-sync.js';
+import { autoJoinNoticeBlock } from '../src/team-ratchet.js';
 import { userDataDir } from '../src/paths.js';
 
 const TOKEN = 'spt_' + 'a'.repeat(32);
@@ -346,7 +347,8 @@ test('autoJoinNotice clears the flag and speaks both languages', () => {
   assert.match(autoJoinNotice(s, 'ko'), /Acme/);
   assert.equal(s.autoJoinNoticePending, false);
   assert.equal(autoJoinNotice(s, 'ko'), null);
-  assert.match(autoJoinNotice({ autoJoinNoticePending: true, teamName: 'A' }, 'en'), /daily aggregates only/);
+  assert.match(autoJoinNotice({ autoJoinNoticePending: true, teamName: 'A' }, 'en'), /daily aggregates .* and a delegation rule summary \(category, tier, delegation count, failure rate, savings\) only/);
+  assert.match(autoJoinNotice({ autoJoinNoticePending: true, teamName: 'A' }, 'ko'), /위임 룰 요약\(카테고리, 티어, 위임 횟수, 실패율, 절감액\)/);
 });
 
 test('joinTeam rejects a malformed token before any fetch', async (t) => {
@@ -473,4 +475,130 @@ test('joinTeam fetches the standing once, and leaveTeam drops it', async (t) => 
   assert.equal(st.rank, null);
   await leaveTeam({ fetch: f, dir });
   assert.equal(loadTeamState(dir).standing, undefined);
+});
+
+test('the two auto-join notices (team-sync and team-ratchet) say the same thing in both languages', (t) => {
+  const dir = isolate(t);
+  for (const lang of ['en', 'ko']) {
+    saveTeamState({ version: 1, memberKey: 'k', teamName: 'Acme', autoJoinNoticePending: true }, dir);
+    const fromBlock = autoJoinNoticeBlock(dir, lang);
+    const fromSync = autoJoinNotice({ autoJoinNoticePending: true, teamName: 'Acme' }, lang);
+    assert.ok(fromBlock && fromBlock === fromSync, `${lang} copies drifted`);
+  }
+});
+
+// --- delegation rule summary (member_rules_report) ---
+
+const RULE = (over = {}) => ({
+  signature: 'T2|explore|/Users/x/secret-project', tier: 'T2', category: 'explore', label: 'l', labelEn: 'l',
+  scope: 'project', targetRoot: '/Users/x/secret-project', project: '/Users/x/secret-project', rule: 'text', example: 'prompt excerpt',
+  count: 4, promotedAt: '2026-10-01', status: 'active', delegatedRuns: 6, delegatedErrRate: 0.5, savedUsd: 2, baselineErrRate: 0.2, baselineSample: 5,
+  ...over,
+});
+const writeRegistry = (dir, rules) => writeFileSync(join(dir, 'model-rules.json'), JSON.stringify({ rules }));
+const reportCalls = (f) => f.calls.filter((c) => c.fn === 'member_rules_report');
+const SYNC_OK = { ledger_upsert: 0, team_rules_get: { rules: [], removed: [] } };
+
+test('a full sync reports the rule summary after the ledger, and stores what it sent', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  writeRegistry(dir, [RULE()]);
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ ...SYNC_OK, member_rules_report: 1 });
+  const r = await syncTeam({ dir, fetch: f, now, env: {}, sessions: [] });
+  assert.equal(r.error, undefined);
+  assert.deepEqual(f.calls.map((c) => c.fn), ['ledger_upsert', 'team_rules_get', 'member_rules_report']);
+  const body = reportCalls(f)[0].body;
+  assert.deepEqual(Object.keys(body).sort(), ['member_key', 'rules']);
+  assert.equal(body.member_key, 'spk_secret');
+  assert.equal(body.rules.length, 1);
+  assert.equal(body.rules[0].category, 'explore');
+  assert.equal(body.rules[0].tier, 'T2');
+  assert.equal(body.rules[0].delegated, 6);
+  assert.ok(!JSON.stringify(f.calls).includes('secret-project'), 'no project path in any request');
+  assert.ok(!JSON.stringify(f.calls).includes('prompt excerpt'), 'no example text in any request');
+  const st = loadTeamState(dir);
+  assert.equal(st.ruleStatsAt, now);
+  assert.match(st.ruleStatsSent, /^[0-9a-f]{32}$/);
+});
+
+test('the same summary is not sent again within 24 hours, a changed one is, and a day later it is', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  writeRegistry(dir, [RULE()]);
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ ...SYNC_OK, member_rules_report: 1 });
+  await syncTeam({ dir, fetch: f, now, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 1);
+  await syncTeam({ dir, fetch: f, now: now + 6 * 60_000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 1, 'unchanged and fresh: nothing sent');
+  writeRegistry(dir, [RULE({ delegatedRuns: 7 })]);
+  await syncTeam({ dir, fetch: f, now: now + 12 * 60_000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 2, 'a changed summary goes up at once');
+  await syncTeam({ dir, fetch: f, now: now + 12 * 60_000 + RULE_STATS_RESEND_MS - 1000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 2);
+  await syncTeam({ dir, fetch: f, now: now + 12 * 60_000 + RULE_STATS_RESEND_MS + 1000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 3, 'a day old: sent again');
+});
+
+test('no rules and nothing sent before: no call; rules that all went away are reported as an empty list once', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ ...SYNC_OK, member_rules_report: 1 });
+  await syncTeam({ dir, fetch: f, now, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 0);
+  writeRegistry(dir, [RULE()]);
+  await syncTeam({ dir, fetch: f, now: now + 1000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 1);
+  writeRegistry(dir, []);
+  await syncTeam({ dir, fetch: f, now: now + 2000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 2);
+  assert.deepEqual(reportCalls(f)[1].body.rules, []);
+  await syncTeam({ dir, fetch: f, now: now + 3000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 2, 'the empty list is not repeated');
+});
+
+test('a server without member_rules_report does not fail the sync, and the call is not retried at once', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  writeRegistry(dir, [RULE()]);
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ ...SYNC_OK, member_rules_report: { status: 404, json: { code: 'PGRST202', message: 'Could not find the function public.member_rules_report(member_key, rules) in the schema cache' } } });
+  const r = await syncTeam({ dir, fetch: f, now, env: {}, sessions: [] });
+  assert.equal(r.error, undefined);
+  assert.equal(r.rules, 0);
+  const st = loadTeamState(dir);
+  assert.equal(st.lastSyncAt, now, 'the sync counts as a success');
+  assert.equal(st.syncFailures, undefined);
+  assert.equal(st.lastError, undefined);
+  assert.equal(st.ruleStatsSent, undefined);
+  assert.equal(reportCalls(f).length, 1);
+  await syncTeam({ dir, fetch: f, now: now + 6 * 60_000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 1, 'backs off for an hour after a failure');
+  await syncTeam({ dir, fetch: f, now: now + 61 * 60_000, env: {}, sessions: [], force: true });
+  assert.equal(reportCalls(f).length, 2);
+});
+
+test('any other failure of the report is soft too', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  writeRegistry(dir, [RULE()]);
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ ...SYNC_OK, member_rules_report: { status: 500, json: { message: 'boom' } } });
+  const r = await syncTeam({ dir, fetch: f, now, env: {}, sessions: [] });
+  assert.equal(r.error, undefined);
+  assert.equal(loadTeamState(dir).lastSyncAt, now);
+});
+
+test('the rules-only pull, the prompts-only path and a disabled switch never report the summary', async (t) => {
+  const dir = isolate(t);
+  const now = Date.now();
+  writeRegistry(dir, [RULE()]);
+  saveTeamState(joinedState({ lastSyncAt: now - 2 * 3600_000, promptCapture: true }), dir);
+  const f = fakeFetch({ ...SYNC_OK, member_rules_report: 1 });
+  await syncTeam({ dir, fetch: f, now, env: {}, rulesOnly: true, force: true });
+  await syncTeam({ dir, fetch: f, now, env: {}, promptsOnly: true, force: true });
+  await syncTeam({ dir, fetch: f, now, env: { SPRAG_NO_TEAM_SYNC: '1' }, force: true });
+  assert.equal(reportCalls(f).length, 0);
 });

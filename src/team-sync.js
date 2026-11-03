@@ -25,6 +25,11 @@
  * files right away, so a new session picks the rules up without waiting for
  * the next session-start render.
  *
+ * A full sync also reports a per-category summary of the machine's model
+ * delegation rules (category, tier, counts, rates, savings; see
+ * team-rule-stats.js), when it changed or a day has passed. Rule text,
+ * examples and project paths stay local.
+ *
  * Opt out of all network traffic with SPRAG_NO_TEAM_SYNC=1.
  */
 
@@ -32,6 +37,7 @@ import { envVar } from './env.js';
 import { readFileSync, existsSync, rmSync, chmodSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { release as osRelease } from 'node:os';
 import { createRequire } from 'node:module';
 import { userDataDir } from './paths.js';
@@ -43,6 +49,7 @@ import { trustSystemCA } from './system-ca.js';
 import { loadLedger, modelFamily, roundUsd, changedSinceForSync, clearChangedSince } from './savings-ledger.js';
 import { sessionCost, pricedParts } from './claude-price.js';
 import { uploadPrompts, dropOffsets, promptOffsetsExist } from './team-prompts.js';
+import { ruleStatsSummary } from './team-rule-stats.js';
 import { rulesPullDue, syncTeamRatchet, ensureTeamImport } from './team-ratchet.js';
 import { parseMinVersion } from './org-upgrade.js';
 import { codexUserDir } from './agent.js';
@@ -772,6 +779,40 @@ export function refreshTeamRatchetFiles({ dir = userDataDir() } = {}) {
   return out;
 }
 
+export const RULE_STATS_RESEND_MS = 24 * 60 * 60 * 1000;
+const RULE_STATS_RETRY_MS = 60 * 60 * 1000;
+
+/**
+ * Report the delegation-rule summary (member_rules_report) when it differs from
+ * what was last sent or the last report is a day old. Returns the team.json
+ * fields to merge into the sync's state, or null for "nothing to change".
+ * Fails soft: a failure (an older server answers "Could not find the function")
+ * never fails the sync, and is retried after an hour at the earliest.
+ */
+async function reportRuleStats({ state, dir, fetch, now }) {
+  try {
+    const rows = ruleStatsSummary({ dir });
+    // Never reported and nothing to report: no call at all.
+    if (!rows.length && !state.ruleStatsSent) return null;
+    const hash = createHash('sha256').update(JSON.stringify(rows)).digest('hex').slice(0, 32);
+    const age = now - Number(state.ruleStatsAt);
+    const fresh = Number.isFinite(age) && age >= 0 && age < RULE_STATS_RESEND_MS;
+    if (hash === state.ruleStatsSent && (fresh || !rows.length)) return null;
+    const tried = now - Number(state.ruleStatsTriedAt);
+    if (Number.isFinite(tried) && tried >= 0 && tried < RULE_STATS_RETRY_MS) return null;
+    try {
+      await rpc('member_rules_report', { member_key: state.memberKey, rules: rows }, { fetch });
+    } catch (e) {
+      debug('team-sync:rule-stats', e);
+      return { ruleStatsTriedAt: now };
+    }
+    return { ruleStatsSent: hash, ruleStatsAt: now, ruleStatsTriedAt: undefined };
+  } catch (e) {
+    debug('team-sync:rule-stats', e);
+    return null;
+  }
+}
+
 /**
  * `gatewayFetch` is the fetch the gateway calls use (the team server's `fetch`
  * is injected separately so tests can fake each side). `coworkSessions`, `codexSessions`,
@@ -873,7 +914,8 @@ export async function syncTeam({
       .filter((r) => r.day >= win.startKey).slice(-MAX_ROWS);
     await ledgerUpsert({ memberKey: state.memberKey, rows, version, dir, fetch });
     const { r, rules } = await pullRules({ memberKey: state.memberKey, dir, fetch, now });
-    const next = withRulesMeta({ ...state, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, r, now);
+    const ruleStats = await reportRuleStats({ state, dir, fetch, now });
+    const next = withRulesMeta({ ...state, ...ruleStats, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, r, now);
     if (gatewayOk) next.gatewaySyncedThrough = dayKey(now);
     else if (gatewayDaily && gatewayDaily.error) next.lastGatewayError = gatewayDaily.error;
     if (gatewayOk || !hasGateway) delete next.lastGatewayError;
@@ -952,6 +994,6 @@ export function autoJoinNotice(state, lang = 'en') {
   state.autoJoinNoticePending = false;
   const name = state.teamName || '';
   return lang === 'ko'
-    ? `Sprag: 이 PC는 SPRAG_TEAM_TOKEN 으로 팀 "${name}" 에 자동 참여됐습니다. 보내는 것은 하루 단위 집계(지출(Claude·Codex·게이트웨이), 위임 비용, 절감, 위임 횟수)뿐입니다. \`sprag team status --show-payload\` 로 내용을 확인하고 \`sprag team leave\` 로 멈출 수 있습니다.`
-    : `Sprag: this machine was enrolled in team "${name}" through SPRAG_TEAM_TOKEN. It sends daily aggregates only (spend across Claude, Codex and the gateway, delegation cost, savings, delegation counts). See what is sent with \`sprag team status --show-payload\`; stop with \`sprag team leave\`.`;
+    ? `Sprag: 이 PC는 SPRAG_TEAM_TOKEN 으로 팀 "${name}" 에 자동 참여됐습니다. 보내는 것은 하루 단위 집계(지출(Claude, Codex, 게이트웨이), 위임 비용, 절감, 위임 횟수)와 위임 룰 요약(카테고리, 티어, 위임 횟수, 실패율, 절감액)뿐입니다. \`sprag team status --show-payload\` 로 내용을 확인하고 \`sprag team leave\` 로 멈출 수 있습니다.`
+    : `Sprag: this machine was enrolled in team "${name}" through SPRAG_TEAM_TOKEN. It sends daily aggregates (spend across Claude, Codex and the gateway, delegation cost, savings, delegation counts) and a delegation rule summary (category, tier, delegation count, failure rate, savings) only. See what is sent with \`sprag team status --show-payload\`; stop with \`sprag team leave\`.`;
 }

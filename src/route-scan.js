@@ -30,6 +30,7 @@ import { modelRank, isRecognizedModelId, TIER_TARGET_RANK, tierForRank } from '.
 import { sessionCost } from './claude-price.js';
 import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { modelRuleBaseText } from './model-rules.js';
+import { RULE_CATEGORY_LABELS } from './rule-categories.js';
 import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 import { agentForRule } from './agents.js';
 
@@ -121,40 +122,28 @@ export const RESCAN_AFTER_DELEGATION_MS = 30 * 1000;
 const PASTE_MIN_LEN = 400;
 const CATEGORIES = [
   {
-    id: 'paste',
-    label: '붙여넣은 화면·로그 질문',
-    labelEn: 'questions about pasted screens/logs',
+    ...RULE_CATEGORY_LABELS.paste,
     kw: null, // matched by length, see categorize()
   },
   {
-    id: 'translate',
-    label: '배치 번역·정형 텍스트 변환',
-    labelEn: 'batch translation / mechanical text transforms',
+    ...RULE_CATEGORY_LABELS.translate,
     kw: [[/번역|translate/i, 2], [/변환해|표로 정리|포맷팅/i, 1]],
   },
   {
-    id: 'explore',
-    label: '탐색·조회 (파일/값 찾기)',
-    labelEn: 'lookup (finding files/values)',
+    ...RULE_CATEGORY_LABELS.explore,
     kw: [[/\bgrep\b|검색|\bsearch|\bfind\b/i, 2], [/찾아|어디|위치|목록|살펴/i, 1],
       [/정의(?:돼|되어)\s*있|어느\s*파일|어떤\s*파일에|\bwhich\s+file\b|\bwhere\s+(?:is|are)\b[^?\n]*\bdefined\b/i, 1]],
   },
   {
-    id: 'read',
-    label: '읽기·요약·설명',
-    labelEn: 'reading / summarizing / explaining',
+    ...RULE_CATEGORY_LABELS.read,
     kw: [[/요약|summar|explain/i, 2], [/읽어|설명|정리해|보여줘|알려줘|뭐야|\bwhat\b/i, 1]],
   },
   {
-    id: 'check',
-    label: '상태 확인·검증',
-    labelEn: 'status checks / verification',
+    ...RULE_CATEGORY_LABELS.check,
     kw: [[/확인|검증|\bverif|점검/i, 2], [/맞아\?|되나|됐나|됐어|되는지|괜찮|체크|\bcheck\b|\bstatus\b/i, 1]],
   },
   {
-    id: 'run',
-    label: '명령 실행 (빌드·테스트·git)',
-    labelEn: 'running commands (build/test/git)',
+    ...RULE_CATEGORY_LABELS.run,
     kw: [[/\bgit |\bcommit(?:s|ted)?\b|\bpush(?:ed|es)?\b|\bnpm |\bpip3? |빌드해|빌드 돌/i, 2], [/실행|돌려|\brun\b|\bbuild\b|빌드|테스트|설치/i, 1]],
   },
 ];

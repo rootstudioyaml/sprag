@@ -2,9 +2,10 @@ import { realpathSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { loadModelRules, ruleBudget } from './model-rules.js';
 import { findProjectRoot } from './harness.js';
+import { RULE_TIERS, RULE_CATEGORY_IDS } from './rule-categories.js';
 
-export const SHARED_RULE_TIERS = ['T2', 'T1', 'T1H'];
-const CATEGORIES = new Set(['paste', 'translate', 'explore', 'read', 'check', 'run']);
+export const SHARED_RULE_TIERS = [...RULE_TIERS];
+const CATEGORIES = new Set(RULE_CATEGORY_IDS);
 
 /** A root as a real path, so a symlinked checkout or macOS /var names one directory once. */
 export function realProjectRoot(path) {
