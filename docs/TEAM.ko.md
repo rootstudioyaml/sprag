@@ -30,13 +30,30 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 | 기기 ID | 위와 같은 무작위 구성원 ID입니다. 표시 이름을 바꿔도 참여할 때 함께 보내며, 같은 컴퓨터가 다시 참여하면 조직 안에서 기존 좌석을 그대로 쓰게 하는 데 씁니다 |
 | 운영체제 | OS 이름과 버전(예: macOS 26, Windows 11, Ubuntu 24.04)입니다. 참여한 직후 한 번 보내고, 바뀔 때만 다시 보냅니다. 호스트 이름, 사용자 이름, 경로처럼 컴퓨터를 이름으로 알아볼 수 있는 값은 보내지 않습니다 |
 
-보내지 않는 것은 프롬프트, 대화 기록, 파일 경로, 프로젝트 이름, 룰 내용, API 키입니다. 프롬프트 수집을 켠 엔터프라이즈 팀의 옵트인 프롬프트 업로드만 예외이며 "프롬프트 사용량 (엔터프라이즈)" 절에 적었습니다. 룰은 직접 `sprag team propose` 를 실행할 때만 밖으로 나갑니다.
+보내지 않는 것은 프롬프트, 대화 기록, 파일 경로, 프로젝트 이름, 룰 내용, 룰 예시, API 키입니다. 프롬프트 수집을 켠 엔터프라이즈 팀의 옵트인 프롬프트 업로드만 예외이며 "프롬프트 사용량 (엔터프라이즈)" 절에 적었습니다. 룰 본문은 직접 `sprag team propose` 를 실행할 때만 밖으로 나갑니다.
+
+### 위임 룰 요약
+
+하루 단위 행과 별도로, 전체 동기화는 `sprag route-scan` 이 이 PC에 등록한 모델 위임 룰(`model-rules.json`)의 요약 한 벌을 올립니다. 직전에 보낸 요약과 다르거나 하루가 지났을 때 `member_rules_report` 로 올라갑니다. 꺼진 룰은 빠집니다. 여러 프로젝트에 같은 카테고리와 티어의 룰이 있으면 한 행으로 합치므로 행에는 프로젝트가 없습니다.
+
+| 항목 | 의미 |
+|---|---|
+| 카테고리와 티어 | paste, translate, explore, read, check, run 중 하나와 T2, T1, T1H 중 하나 |
+| 상태 | `active`, 합친 룰이 모두 검토 대상이면 `review` |
+| 에피소드 | 기록에서 그 패턴이 나타난 횟수 |
+| 위임 횟수와 실패율 | 룰이 받은 위임 실행 수와 그중 실패한 비율 |
+| 기준선 실패율 | 세션 모델이 직접 같은 일을 했을 때의 실패 비율이며 모르면 null |
+| 절감액(USD) | 룰이 위임한 실행이 아낀 금액 |
+| 상한 | 룰이 지닌 도구 호출과 출력 토큰 상한 |
+| 시작일 | 룰을 처음 등록한 날짜 |
+
+룰 본문, 예시, 프로젝트 경로는 PC에 남습니다. `sprag team status --show-payload` 가 올라갈 요약을 그대로 보여 줍니다. `member_rules_report` 가 없는 옛 서버는 오류 없이 건너뜁니다.
 
 하루 단위 집계 업로드는 마지막 성공 이후 5분에 한 번 이하로 실행됩니다. SessionStart 훅(그리고 작은 로컬 파일만 읽는 프롬프트 훅)이 띄운 분리된 자식 프로세스가 보냅니다. 네트워크가 끊기는 등 동기화가 실패하면 5분 주기 대신 15분, 30분, 60분 뒤에 다시 시도합니다(최대 60분 간격). 마지막으로 올린 날짜를 기억해 두었다가 그 전날부터 최대 30일 치를 다시 보내므로, 며칠 꺼져 있던 컴퓨터도 처음 성공하는 동기화에서 빠진 날을 따라잡습니다. 하루 단위 행은 덮어쓰기라 다시 보내도 안전합니다. 프롬프트 수집을 켠 엔터프라이즈 팀의 프롬프트 업로드는 따로 30분 타이머로 움직입니다("프롬프트 사용량 (엔터프라이즈)" 절 참고). statusline 을 그리는 경로에서는 절대 실행되지 않습니다.
 
 팀에 참여한 동안 statusline 에 `team` 칩이 나타나 멤버 ID 와 가상 사무실(Sprag 타운)에서 받은 동물을 보여 줍니다. 예를 들면 `member-1a2b3c4d 🦊 여우 12명 중 3위` 처럼 조직에서 순위에 오른 사람 가운데 몇 위인지도 함께 보여 줍니다. 동물은 5분마다 도는 전체 동기화가 서버에서 받아 `team.json` 에 저장한 순위로 정합니다. 서버가 아직 이 기능을 지원하지 않거나 마지막으로 받은 지 하루가 넘었다면 멤버 ID 만 표시합니다. 칩을 그릴 때는 로컬 파일만 읽습니다. IntelliJ 터미널은 글꼴에 동물 이모지가 없어 narrow 모드로 그리므로, 이때와 text 모드에서는 `member-1a2b3c4d 여우 12명 중 3위` 처럼 이모지 없이 이름만 보여 줍니다. 버전 칩 바로 앞에 놓이며, `--segments team` 으로 이 칩만 따로 볼 수 있습니다.
 
-목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값), `member_set_name`(`sprag team name` 을 실행할 때만), `member_standing`(statusline 칩에 쓸 본인의 사무실 동물과 순위만 받고 다른 사람의 수치는 받지 않음) 입니다. LiteLLM 게이트웨이를 설정했다면 하루 동기화마다 게이트웨이의 `GET /user/info` 와 `GET /global/spend/logs` 도 본인 키로 호출해 본인의 하루 게이트웨이 지출을 읽습니다. 그 밖의 것은 읽지 않으며 키는 저장하지 않습니다. 비용을 계산하려고 `~/Library/Application Support/Claude-3p/local-agent-mode-sessions` 아래의 Claude 데스크톱 앱 Cowork 기록을 로컬에서 읽습니다. 밖으로 나가는 것은 하루 합계뿐이며 작업 이름과 프롬프트는 보내지 않습니다. `sprag team status --show-payload` 를 실행하면 보내는 행을 그대로 볼 수 있습니다.
+목적지는 `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` 입니다(Supabase, ap-northeast-2 리전). 호출하는 RPC 는 `team_join`, `ledger_upsert`, `team_rules_get`, `team_rule_propose`, `team_leave`, `prompt_chunk_put`(엔터프라이즈 프롬프트 수집일 때만), `member_set_sync`(업로드 스위치 상태 호출, "업로드 스위치" 참고), `member_set_info`(OS 이름과 버전, `arch` 인자는 항상 빈 값), `member_set_name`(`sprag team name` 을 실행할 때만), `member_rules_report`(위 위임 룰 요약), `member_standing`(statusline 칩에 쓸 본인의 사무실 동물과 순위만 받고 다른 사람의 수치는 받지 않음) 입니다. LiteLLM 게이트웨이를 설정했다면 하루 동기화마다 게이트웨이의 `GET /user/info` 와 `GET /global/spend/logs` 도 본인 키로 호출해 본인의 하루 게이트웨이 지출을 읽습니다. 그 밖의 것은 읽지 않으며 키는 저장하지 않습니다. 비용을 계산하려고 `~/Library/Application Support/Claude-3p/local-agent-mode-sessions` 아래의 Claude 데스크톱 앱 Cowork 기록을 로컬에서 읽습니다. 밖으로 나가는 것은 하루 합계뿐이며 작업 이름과 프롬프트는 보내지 않습니다. `sprag team status --show-payload` 를 실행하면 보내는 행을 그대로 볼 수 있습니다.
 
 ## CLI에서 팀 만들기
 
@@ -107,13 +124,15 @@ sprag team propose "커밋 전에 lint 실행" --scope ratchet
 
 Sprag 은 룰을 `~/.claude/ratchet-team.md`(Codex 는 `<CODEX_HOME>/ratchet-team.md`)에 씁니다. 조직 룰이 먼저, 팀 룰이 그다음이고, 모델 룰은 각각의 하위 절로 들어갑니다. 그 파일이 있는 동안 `~/.claude/CLAUDE.md` 의 전역 harness 블록에서 import 합니다. Sprag 이 파일을 통째로 다시 쓰므로 직접 고치지 마십시오. `sprag team rules` 는 받아 둔 룰을 `- [org · model] 내용`, `- [team · ratchet] 내용` 형태로 보여 줍니다. `sprag team leave` 는 멤버 키, 캐시, import 를 지웁니다.
 
+**추천 위임 룰.** 구성원이 올린 요약은 대시보드의 규칙 탭에 추천 위임 룰로 모입니다. 카테고리와 티어마다 한 건이며 이 룰을 쓰는 구성원 수, 위임 횟수, 실패율, 절감액이 붙습니다. 오너나 어드민이 그 탭에서 추천을 읽고 팀이나 조직 전체에 적용합니다. 적용된 룰은 문장과 함께 구조화된 기록(카테고리, 티어, 상한)을 달고 내려옵니다. 각 PC는 그 기록으로 모델 룰을 자기 환경에서 다시 그립니다. 에이전트 이름은 그 PC에 있는 것을 쓰고 언어는 자기 설정을 따르므로(Codex 파일은 영어로 남습니다) 한 PC에서 쓴 룰이 다른 PC에 없는 에이전트를 가리키는 일이 없습니다. 다시 그린 문장에는 예시가 없고 상한은 기록에 담긴 값입니다. 기록이 없는 룰은 서버가 보낸 문장 그대로 씁니다. `sprag team rules` 도 다시 그린 문장을 보여 줍니다.
+
 ## 상태 확인, 전송 내용 확인, 나가기
 
 | 명령 | 설명 |
 |---|---|
 | `sprag team join [토큰] [--name <이름>] [--yes]` | 팀에 참여 |
 | `sprag team name [<이름>]` | 대시보드에 나오는 표시 이름 보기 또는 바꾸기 |
-| `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 마지막 동기화를 보여 줍니다. `--show-payload` 를 붙이면 보내는 기기 정보와 올라갈 하루 단위 행도 그대로 출력합니다 |
+| `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 마지막 동기화를 보여 줍니다. `--show-payload` 를 붙이면 보내는 기기 정보와 올라갈 하루 단위 행, 위임 룰 요약도 그대로 출력합니다 |
 | `sprag team sync [--force] [--rules-only]` | 지금 업로드하고 룰을 받습니다. `--force` 는 5분 간격을 무시하고, `--rules-only` 는 조직·팀 룰만 받고 아무것도 올리지 않습니다 |
 | `sprag team rules` | 받아 둔 조직·팀 룰 보기 |
 | `sprag team propose "<내용>" [--scope ratchet\|model]` | 팀에 룰 제안 |
@@ -192,7 +211,7 @@ Free, 프로(좌석당 월 $5), 엔터프라이즈(좌석당 월 $10, 프롬프�
 - 오너와 어드민은 구성원별 하루 합계를 봅니다. 엔터프라이즈 조직에서 팀이 프롬프트 수집을 켠 경우를 빼면 세션이나 프롬프트는 보지 못합니다.
 - 구성원은 `sprag team status --show-payload` 로 같은 내용을 직접 볼 수 있습니다.
 - 프롬프트 수집은 엔터프라이즈 정책이며, 오너나 어드민이 대시보드에서 켤 수 있습니다. 구성원은 `sprag team status` 에서 설정 상태를 확인합니다. 수집이 켜져 있으면 CLI 가 정책이 이 컴퓨터에 닿은 뒤 입력한 프롬프트를 올립니다("프롬프트 사용량 (엔터프라이즈)" 절 참고).
-- 룰 내용은 `sprag team propose` 를 통해서만 밖으로 나갑니다.
+- 룰 내용은 `sprag team propose` 를 통해서만 밖으로 나갑니다. 위임 룰 요약에는 카테고리와 티어별 숫자만 있고 본문이나 경로는 없습니다.
 
 ## 파일과 환경 변수
 

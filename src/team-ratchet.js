@@ -18,6 +18,8 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { codexUserDir } from './agent.js';
 import { userLanguage } from './config.js';
+import { modelRuleBaseText, composeRuleText, ruleBudget } from './model-rules.js';
+import { RULE_CATEGORY_LABELS, isRuleCategory, isRuleTier } from './rule-categories.js';
 import { debug } from './debug.js';
 import {
   HARNESS_BLOCK_BEGIN,
@@ -119,10 +121,44 @@ export function teamRatchetPath({ agent = 'claude' } = {}) {
     : join(homedir(), '.claude', 'ratchet-team.md');
 }
 
+const posInt = (v) => (Number.isSafeInteger(v) && v > 0 ? v : null);
+
+/** The structured recommendation of a model rule row, or null when absent or not a known category and tier. */
+function validRec(r) {
+  const rec = r && r.scope === 'model' ? r.rec : null;
+  return rec && typeof rec === 'object' && isRuleCategory(rec.category) && isRuleTier(rec.tier) ? rec : null;
+}
+
+/**
+ * The sentence a team rule row is written as on this machine. A model rule that
+ * carries a valid `rec` is drawn locally (the agent named is the one this
+ * machine has, the cap comes from the record, there is no example). Any other
+ * row keeps the server's `text`. Returns '' for a row with neither.
+ * Korean only for lang 'ko' on Claude; Codex files stay English.
+ */
+export function teamRuleText(r, { lang = 'en', agent = 'claude' } = {}) {
+  const rec = validRec(r);
+  if (rec) {
+    const ko = lang === 'ko' && agent !== 'codex';
+    const l = ko ? 'ko' : 'en';
+    const { label, labelEn } = RULE_CATEGORY_LABELS[rec.category];
+    const calls = posInt(rec.calls);
+    const out = posInt(rec.out);
+    // Both caps missing: the tier's own default. One missing: its default fills in.
+    const base = ruleBudget({ tier: rec.tier });
+    const budget = calls === null && out === null ? base : { calls, out: out ?? base.out };
+    // root null: this file is global, so it names only agents the user directory holds.
+    const text = modelRuleBaseText({ tier: rec.tier, category: rec.category, label, labelEn, example: '' }, l, { root: null });
+    return composeRuleText(text, { tier: rec.tier, budget }, l);
+  }
+  return typeof r?.text === 'string' ? r.text.trim() : '';
+}
+
 export function renderTeamRatchet(cache, { lang = 'en', agent = 'claude' } = {}) {
   if (!cache || !Array.isArray(cache.rules)) return null;
   const removed = new Set(Array.isArray(cache.removed) ? cache.removed : []);
-  const live = cache.rules.filter((r) => r && typeof r.text === 'string' && r.text.trim() && !removed.has(r.id));
+  const textOf = (r) => teamRuleText(r, { lang, agent });
+  const live = cache.rules.filter((r) => r && textOf(r) && !removed.has(r.id));
   if (!live.length) return null;
   // Rows from servers older than the org layer carry no level: they are team rules.
   const org = live.filter((r) => r.level === 'org');
@@ -140,7 +176,7 @@ export function renderTeamRatchet(cache, { lang = 'en', agent = 'claude' } = {})
   const H = ko
     ? { org: '조직 룰', orgModel: '조직 모델 룰', team: '팀 룰', teamModel: '팀 모델 룰' }
     : { org: 'Organization rules', orgModel: 'Organization model rules', team: 'Team rules', teamModel: 'Team model rules' };
-  const line = (r) => `- ${r.text.trim().replace(/\s*\n\s*/g, ' ')}`;
+  const line = (r) => `- ${textOf(r).replace(/\s*\n\s*/g, ' ')}`;
   const section = (rows, title, modelTitle) => {
     if (!rows.length) return '';
     const plain = rows.filter((r) => !isModel(r));
@@ -271,6 +307,6 @@ export function autoJoinNoticeBlock(dir = userDataDir(), lang = userLanguage()) 
   try { writeStateFile(file, `${JSON.stringify({ ...state, autoJoinNoticePending: false }, null, 2)}\n`); }
   catch (e) { debug('team-ratchet:notice-clear', e); }
   return lang === 'ko'
-    ? `Sprag: 이 PC는 SPRAG_TEAM_TOKEN 으로 팀 "${name}" 에 자동 참여됐습니다. 보내는 것은 하루 단위 집계(지출(Claude·Codex·게이트웨이), 위임 비용, 절감, 위임 횟수)뿐입니다. \`sprag team status --show-payload\` 로 내용을 확인하고 \`sprag team leave\` 로 멈출 수 있습니다.`
-    : `Sprag: this machine was enrolled in team "${name}" through SPRAG_TEAM_TOKEN. It sends daily aggregates only (spend across Claude, Codex and the gateway, delegation cost, savings, delegation counts). See what is sent with \`sprag team status --show-payload\`; stop with \`sprag team leave\`.`;
+    ? `Sprag: 이 PC는 SPRAG_TEAM_TOKEN 으로 팀 "${name}" 에 자동 참여됐습니다. 보내는 것은 하루 단위 집계(지출(Claude, Codex, 게이트웨이), 위임 비용, 절감, 위임 횟수)와 위임 룰 요약(카테고리, 티어, 위임 횟수, 실패율, 절감액)뿐입니다. \`sprag team status --show-payload\` 로 내용을 확인하고 \`sprag team leave\` 로 멈출 수 있습니다.`
+    : `Sprag: this machine was enrolled in team "${name}" through SPRAG_TEAM_TOKEN. It sends daily aggregates (spend across Claude, Codex and the gateway, delegation cost, savings, delegation counts) and a delegation rule summary (category, tier, delegation count, failure rate, savings) only. See what is sent with \`sprag team status --show-payload\`; stop with \`sprag team leave\`.`;
 }

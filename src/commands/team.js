@@ -2,7 +2,7 @@
  * team — `sprag team <create|join|name|leave|status|sync|rules|propose>`.
  *
  * The opt-in team layer. `join` shows exactly what will be uploaded (daily
- * aggregates only) and asks before enrolling. `sync --background` is what the
+ * aggregates and a delegation rule summary) and asks before enrolling. `sync --background` is what the
  * SessionStart hook's detached child runs: auto-join from SPRAG_TEAM_TOKEN,
  * then upload and pull, printing nothing. All network access goes through
  * rpc() in src/team-sync.js. Exit codes: 0 ok, 1 error, 2 usage.
@@ -13,6 +13,8 @@ import { readFileSync } from 'node:fs';
 import { userLanguage } from '../config.js';
 import { pendingPrompts } from '../team-prompts.js';
 import { memberId } from '../member-id.js';
+import { teamRuleText } from '../team-ratchet.js';
+import { ruleStatsSummary } from '../team-rule-stats.js';
 import { orgMinVersion, readOrgUpgrade, orgUpgradeInFlight } from '../org-upgrade.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
@@ -28,13 +30,14 @@ const T = {
       '  join [token] [--name <n>] [--yes]   join a team (token or SPRAG_TEAM_TOKEN)',
       '  name [<n>]                           show or change your display name',
       '  leave                                leave the team and stop uploading',
-      '  status [--show-payload]              membership, last sync, what is sent',
+      '  status [--show-payload]              membership, last sync, what is sent (daily aggregates and rule summary)',
       '  sync [--force] [--rules-only]        upload aggregates, prompts (Enterprise capture) and pull rules now',
       '                                       (--rules-only: pull organization and team rules only, upload nothing)',
       '  rules                                show cached organization and team rules',
       '  propose <text> [--scope ratchet|model]   propose a rule to the team',
     ].join('\n'),
-    willSend: 'Joining uploads daily aggregates only, per local day:\n  - spend (USD)\n  - savings (USD)\n  - delegation run counts\n  - model-family share\nNo prompts, file paths or transcripts are sent.',
+    willSend: 'Joining uploads aggregates only. Per local day:\n  - spend (USD)\n  - savings (USD)\n  - delegation run counts\n  - model-family share\nAnd one summary of your delegation rules, per category and tier:\n  - category, tier, delegation count, failure rate, savings (USD)\nNo prompts, rule text, examples, file paths or transcripts are sent.',
+    rulesPayload: 'delegation rule summary (member_rules_report)',
     asName: (n) => `Display name: ${n}`,
     asDevice: (d) => `Machine ID: ${d} (lets the organization count this machine once if it joins again)`,
     ask: 'Join? [y/N] ',
@@ -102,13 +105,14 @@ const T = {
       '  join [토큰] [--name <이름>] [--yes]   팀에 참여 (토큰 또는 SPRAG_TEAM_TOKEN)',
       '  name [<이름>]                          표시 이름 보기 또는 바꾸기',
       '  leave                                  팀에서 나가고 업로드 중단',
-      '  status [--show-payload]                참여 상태, 마지막 동기화, 보내는 내용',
+      '  status [--show-payload]                참여 상태, 마지막 동기화, 보내는 내용(하루 집계와 룰 요약)',
       '  sync [--force] [--rules-only]          지금 집계를 올리고 규칙을 받기',
       '                                         (--rules-only: 조직·팀 규칙만 받고 아무것도 올리지 않음)',
       '  rules                                  받아 둔 조직·팀 규칙 보기',
       '  propose <내용> [--scope ratchet|model]   팀에 규칙 제안',
     ].join('\n'),
-    willSend: '참여하면 로컬 날짜별 하루 단위 집계만 올라갑니다.\n  - 지출(USD)\n  - 절감(USD)\n  - 위임 실행 횟수\n  - 모델 계열 비중\n프롬프트, 파일 경로, 대화 기록은 보내지 않습니다.',
+    willSend: '참여하면 집계만 올라갑니다. 로컬 날짜별로는 다음과 같습니다.\n  - 지출(USD)\n  - 절감(USD)\n  - 위임 실행 횟수\n  - 모델 계열 비중\n위임 룰은 카테고리와 티어별 요약 한 벌이 올라갑니다.\n  - 카테고리, 티어, 위임 횟수, 실패율, 절감액(USD)\n프롬프트, 룰 본문, 예시, 파일 경로, 대화 기록은 보내지 않습니다.',
+    rulesPayload: '위임 룰 요약 (member_rules_report)',
     asName: (n) => `표시 이름: ${n}`,
     asDevice: (d) => `기기 ID: ${d} (다시 참여해도 조직이 이 컴퓨터를 한 좌석으로 셉니다)`,
     ask: '참여할까요? [y/N] ',
@@ -175,14 +179,15 @@ const T = {
  * `sprag team rules` lines: `- [org · model] text`, organization rules first.
  * Rows without a level (older servers) are team rules. Removed ids are skipped.
  */
-export function formatRuleLines(cache) {
+export function formatRuleLines(cache, { lang = userLanguage() } = {}) {
   const removed = new Set(Array.isArray(cache?.removed) ? cache.removed : []);
+  const textOf = (r) => teamRuleText(r, { lang });
   const rules = (Array.isArray(cache?.rules) ? cache.rules : [])
-    .filter((r) => r && typeof r.text === 'string' && r.text.trim() && !removed.has(r.id));
+    .filter((r) => r && textOf(r) && !removed.has(r.id));
   const org = rules.filter((r) => r.level === 'org');
   const team = rules.filter((r) => r.level !== 'org');
   return [...org, ...team].map((r) =>
-    `- [${r.level === 'org' ? 'org' : 'team'} · ${r.scope === 'model' ? 'model' : 'ratchet'}] ${r.text.trim().replace(/\s*\n\s*/g, ' ')}`);
+    `- [${r.level === 'org' ? 'org' : 'team'} · ${r.scope === 'model' ? 'model' : 'ratchet'}] ${textOf(r).replace(/\s*\n\s*/g, ' ')}`);
 }
 
 function prompt(question) {
@@ -339,6 +344,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         if (hasFlag('--show-payload')) {
           out(`device: ${JSON.stringify(st.deviceInfo || deviceInfo())}`);
           out(JSON.stringify(await aggregateDaily(), null, 2));
+          out(`${m.rulesPayload}: ${JSON.stringify(ruleStatsSummary(), null, 2)}`);
           if (st.promptCapture) {
             const pend = await pendingPrompts();
             out(m.pendingPrompts(pend.count));

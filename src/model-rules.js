@@ -170,21 +170,26 @@ function t1Target(root, ko, g) {
 }
 
 export function modelRuleBaseText(g, lang = userLanguage(), { root } = {}) {
+  // A rule redrawn from a structured record (the team layer) has no example:
+  // the parenthesis is left out rather than printed empty.
+  const hasExample = !!(String(g.example || '').trim() || String(g.exampleEn || '').trim());
   if (lang === 'ko') {
+    const eg = hasExample ? `(예: "${shortExample(g.example)}")` : '';
     if (g.tier === 'T1H') {
-      return `"${g.label}" 고난도 구현 요청(예: "${shortExample(g.example)}")은 Fable·Mythos 세션에 한해 ${t1Target(root, true, g) ?? `model: ${TIER_MODEL.T1H}`}에 위임`;
+      return `"${g.label}" 고난도 구현 요청${eg}은 Fable·Mythos 세션에 한해 ${t1Target(root, true, g) ?? `model: ${TIER_MODEL.T1H}`}에 위임`;
     }
     return g.tier === 'T2'
-      ? `"${g.label}" 단순 요청(예: "${shortExample(g.example)}")은 ${agentPhrase(targetName(g), { root })}에 위임`
-      : `"${g.label}" 중간 난도 요청(예: "${shortExample(g.example)}")은 ${t1Target(root, true, g) ?? `model: ${TIER_MODEL.T1}`}에 위임`;
+      ? `"${g.label}" 단순 요청${eg}은 ${agentPhrase(targetName(g), { root })}에 위임`
+      : `"${g.label}" 중간 난도 요청${eg}은 ${t1Target(root, true, g) ?? `model: ${TIER_MODEL.T1}`}에 위임`;
   }
   const example = g.exampleEn || g.example;
+  const eg = hasExample ? ` (e.g. "${shortExample(example)}")` : '';
   if (g.tier === 'T1H') {
-    return `Heavy "${g.labelEn}" implementation requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false, g) ?? `a model: ${TIER_MODEL.T1H} subagent`}, in Fable/Mythos sessions only`;
+    return `Heavy "${g.labelEn}" implementation requests${eg} go to ${t1Target(root, false, g) ?? `a model: ${TIER_MODEL.T1H} subagent`}, in Fable/Mythos sessions only`;
   }
   return g.tier === 'T2'
-    ? `Simple "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${agentPhraseEn(targetName(g), { root })}`
-    : `Moderate "${g.labelEn}" requests (e.g. "${shortExample(example)}") go to ${t1Target(root, false, g) ?? `a model: ${TIER_MODEL.T1} subagent`}`;
+    ? `Simple "${g.labelEn}" requests${eg} go to ${agentPhraseEn(targetName(g), { root })}`
+    : `Moderate "${g.labelEn}" requests${eg} go to ${t1Target(root, false, g) ?? `a model: ${TIER_MODEL.T1} subagent`}`;
 }
 
 // See the note in route-scan.js — paths.js is the only place that resolves

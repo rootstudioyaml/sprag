@@ -224,7 +224,7 @@ Usage:
   sprag brief --hook       internal: the UserPromptSubmit hook entry point
   sprag brief --hook-tool  internal: the PostToolUse hook entry point (delegation follow-up)
   sprag feedback "<msg>"   file a bug report / feature request (no browser needed)
-  sprag team create|join|status|sync|leave   opt-in team layer: daily aggregates only (SPRAG_NO_TEAM_SYNC=1 turns it off)
+  sprag team create|join|status|sync|leave   opt-in team layer: daily aggregates and a rule summary only (SPRAG_NO_TEAM_SYNC=1 turns it off)
   sprag upgrade            install the latest release
   sprag --install-hook     install cache-monitor PostToolUse hook
   sprag --uninstall-hook   remove that hook
