@@ -63,3 +63,33 @@ test('recText writes the fallback sentence per tier, language and budget', () =>
   assert.match(recText(heavy, 'ko'), /고난도 구현 요청은 Opus 서브에이전트에 위임, Fable·Mythos 세션에 한함 \(상한 출력 26729 토큰\)$/);
   assert.ok(!/cap/.test(recText({ category: 'read', tier: 'T2', calls: null, out: null }, 'en')), 'no budget, no cap clause');
 });
+
+test('each recommendation can open a contributor table, and the origin badges have their keys', () => {
+  // the table is drawn only when the server sent contributors, from the fields rule_recommendations returns
+  assert.match(html, /function recDetail\(r\)\{[\s\S]*?Array\.isArray\(r\.contributors\)[\s\S]*?if\(!cs\.length\) return ''/);
+  for (const f of ['c.name', 'c.team_name', 'c.delegated', 'c.delegated_err', 'c.saved_usd', 'c.since', 'c.origin']) {
+    assert.ok(html.includes(f), `the table does not read ${f}`);
+  }
+  assert.match(html, /<details class="rc-detail"[^`]*data-rckey/);
+  assert.match(html, /\$\{recBadges\(r\)\}/, 'the badges sit in the row head');
+  assert.match(html, /\$\{recDetail\(r\)\}<\/div>`;/, 'the table is part of the row');
+  assert.match(html, /r\.in_preset === true/);
+  assert.match(html, /origin_counts\.scan/);
+  // both languages carry every key the table and the badges use
+  const keys = ['rc.b.preset', 'rc.b.scan', 'rc.d.sum', 'rc.d.member', 'rc.d.team', 'rc.d.deleg', 'rc.d.fail', 'rc.d.saved', 'rc.d.since', 'rc.d.origin',
+    'rc.o.preset', 'rc.o.scan', 'rc.o.both', 'rc.o.unknown'];
+  for (const lang of ['en', 'ko']) {
+    const start = html.indexOf(`Object.assign(I18N.${lang}, {"rc.h"`);
+    const block = html.slice(start, html.indexOf('});', start));
+    assert.ok(start > 0, `no rc block for ${lang}`);
+    for (const k of keys) assert.ok(block.includes(`"${k}":`), `${lang} lacks ${k}`);
+  }
+  assert.match(html, /"rc\.b\.preset":"Sprag 프리셋"/);
+  assert.match(html, /"rc\.b\.scan":"자체 학습 \{n\}명"/);
+});
+
+test('the demo answers with contributors, origin counts and in_preset, and opens the first table', () => {
+  assert.match(html, /contributors, origin_counts:oc, in_preset:true/);
+  assert.match(html, /DEMO && !recOpenSeeded/);
+  assert.match(html, /origin:O\[\(bi \+ i\) % 3\]/);
+});

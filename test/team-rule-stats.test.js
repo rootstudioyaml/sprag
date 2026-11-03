@@ -38,7 +38,7 @@ test('the row keys are exactly the allowlist', () => {
   const rows = summarizeModelRules(REGISTRY);
   assert.deepEqual([...RULE_STAT_KEYS].sort(), [
     'baseline_err', 'budget_calls', 'budget_out', 'category', 'delegated', 'delegated_err',
-    'episodes', 'saved_usd', 'since', 'status', 'tier',
+    'episodes', 'origin', 'saved_usd', 'since', 'status', 'tier',
   ]);
   for (const row of rows) assert.deepEqual(Object.keys(row).sort(), [...RULE_STAT_KEYS].sort());
 });
@@ -58,7 +58,7 @@ test('rules of one category and tier fold: sums, weighted means, earliest date, 
     delegated_err: 0.125,     // (10 * 0.2 + 30 * 0.1) / 40
     saved_usd: 3.24,          // 1.234 + 2.005, two decimals
     baseline_err: 0.15,       // (10 * 0.3 + 30 * 0.1) / 40
-    budget_calls: 8, budget_out: 1500, since: '2026-09-01',
+    budget_calls: 8, budget_out: 1500, since: '2026-09-01', origin: 'scan',
   });
   assert.equal(rows.filter((r) => r.category === 'explore' && r.tier === 'T2').length, 1, 'one row per pair');
 });
@@ -67,7 +67,7 @@ test('a rule with no measurements and no budget gets nulls and the tier default'
   const row = summarizeModelRules(REGISTRY).find((r) => r.category === 'check');
   assert.deepEqual(row, {
     category: 'check', tier: 'T1', status: 'active', episodes: 2, delegated: 0, delegated_err: null,
-    saved_usd: 0, baseline_err: null, budget_calls: null, budget_out: 8000, since: null,
+    saved_usd: 0, baseline_err: null, budget_calls: null, budget_out: 8000, since: null, origin: 'scan',
   });
 });
 
@@ -79,6 +79,22 @@ test('off rules, unknown tiers and unknown categories are left out; all review f
   assert.equal(onlyReview[0].status, 'review');
   assert.deepEqual(summarizeModelRules(null), []);
   assert.deepEqual(summarizeModelRules([null, 5, {}]), []);
+});
+
+test('origin is one of three fixed words: preset, scan or both', () => {
+  const preset = (over) => base({ signature: 'T1|run|preset', project: null, targetRoot: null, scope: 'global', origin: 'preset', tier: 'T1', category: 'run', ...over });
+  const scan = (over) => base({ tier: 'T1', category: 'run', ...over });
+  const originOf = (rules) => summarizeModelRules(rules)[0].origin;
+  assert.equal(originOf([preset({})]), 'preset');
+  assert.equal(originOf([scan({})]), 'scan');
+  assert.equal(originOf([preset({}), scan({})]), 'both');
+  assert.equal(originOf([preset({}), preset({ signature: 'T1|run|preset-2' , origin: 'preset' })]), 'preset');
+  // either marker alone is enough: the signature of an older registry entry, or the origin field
+  assert.equal(originOf([preset({ origin: undefined })]), 'preset', 'signature ending in |preset');
+  assert.equal(originOf([preset({ signature: 'T1|run|global' })]), 'preset', 'origin field');
+  // a scan rule never reads as a preset: its signature ends in the munged project key
+  assert.equal(originOf([scan({ signature: 'T1|run|-Users-someone-secret-preset-app' })]), 'scan');
+  for (const row of summarizeModelRules([preset({}), scan({ category: 'read' })])) assert.ok(['preset', 'scan', 'both'].includes(row.origin));
 });
 
 test('the pair is unique and the list never exceeds the server cap', () => {

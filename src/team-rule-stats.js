@@ -5,8 +5,8 @@
  * The registry (model-rules.json) holds project paths, the user's prompt
  * excerpts and rule sentences. None of that may leave the machine, so the
  * summary is built from an allowlist: each output row is a new object whose
- * keys are RULE_STAT_KEYS, filled only from numbers, the two enumerations
- * (category, tier) and one date. test/team-rule-stats.test.js pins the key set
+ * keys are RULE_STAT_KEYS, filled only from numbers, the enumerations
+ * (category, tier, status, origin) and one date. test/team-rule-stats.test.js pins the key set
  * and checks that no path or example text survives into the JSON.
  *
  * Rules of one (category, tier) from different projects fold into one row;
@@ -19,7 +19,7 @@ import { RULE_CATEGORY_IDS, RULE_TIERS, isRuleCategory, isRuleTier } from './rul
 export const RULE_STATS_MAX = 24;
 export const RULE_STAT_KEYS = Object.freeze([
   'category', 'tier', 'status', 'episodes', 'delegated', 'delegated_err',
-  'saved_usd', 'baseline_err', 'budget_calls', 'budget_out', 'since',
+  'saved_usd', 'baseline_err', 'budget_calls', 'budget_out', 'since', 'origin',
 ]);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -38,6 +38,19 @@ function weighted(pairs) {
     weight += w;
   }
   return weight > 0 ? round(sum / weight, 4) : null;
+}
+
+/**
+ * Where the folded rules came from, as one of three fixed words. A Sprag preset the
+ * user accepted is marked `origin: 'preset'` and signed `<tier>|<category>|preset`
+ * (src/seed-rules.js); every other rule was promoted from this machine's own
+ * route-scan candidates. 'both' means the row folds rules of the two kinds.
+ */
+const isPresetRule = (r) => r.origin === 'preset' || (typeof r.signature === 'string' && r.signature.endsWith('|preset'));
+function ruleOrigin(rules) {
+  const presets = rules.filter(isPresetRule).length;
+  if (presets === 0) return 'scan';
+  return presets === rules.length ? 'preset' : 'both';
 }
 
 /** The most common budget among the rules; the first one wins a tie. */
@@ -89,6 +102,7 @@ export function summarizeModelRules(rules) {
         budget_calls: budget.calls,
         budget_out: budget.out,
         since: dates[0] || null,
+        origin: ruleOrigin(list),
       });
     }
   }
