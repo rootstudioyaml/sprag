@@ -394,6 +394,15 @@
   .rc-m b{color:var(--ink);font-weight:600}
   .rl-list .rule .rc-teams{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:6px var(--s4);font-size:12.5px;color:var(--dim)}
   .rc-teams > span{display:inline-flex;align-items:center;gap:6px}
+  .rc-b{display:inline-block;margin-left:8px;padding:0 7px;border:1px solid var(--line2);border-radius:999px;font-size:11.5px;line-height:18px;color:var(--dim);white-space:nowrap;vertical-align:1px}
+  .rc-b.pre{color:var(--accent2);border-color:var(--accent2)}
+  .rl-list .rule .rc-detail{flex:0 0 100%;min-width:0;font-size:12.5px}
+  .rc-detail > summary{cursor:pointer;color:var(--dim);padding:2px 0}
+  .rc-detail[open] > summary{color:var(--ink)}
+  .rc-detail .tbl-wrap{margin-top:var(--s2)}
+  .rc-tbl{min-width:560px}
+  .rc-tbl th,.rc-tbl td{height:32px}
+  .rc-tbl td.o{color:var(--dim)}
   .rc-teams em{font-style:normal;color:var(--faint)}
   .pm{margin-top:var(--s3)}
   .pm details{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);margin-top:var(--s2)}
@@ -1029,14 +1038,22 @@ Object.assign(I18N.en, {"rc.h":"Recommended delegation rules",
   "rc.none":"No rules to recommend yet.",
   "rc.use":"{a} of {m} members use it","rc.deleg":"{n} delegations","rc.fail":"{p}% failed","rc.per":"{v} saved per user","rc.more":"Expected extra savings {v}",
   "rc.confirm":"Apply this rule to every team in {org}? Machines pick it up at their next session start.",
-  "rc.team.apply":"Apply to this team","rc.team.on":"Applied","rc.team.all":"All use it","rc.team.h":"Recommended for this team"});
+  "rc.team.apply":"Apply to this team","rc.team.on":"Applied","rc.team.all":"All use it","rc.team.h":"Recommended for this team",
+  "rc.b.preset":"Sprag preset","rc.b.scan":"{n} learned on their own",
+  "rc.d.sum":"Who saved how much ({n})",
+  "rc.d.member":"Member","rc.d.team":"Team","rc.d.deleg":"Delegations","rc.d.fail":"Failure rate","rc.d.saved":"Savings","rc.d.since":"Since","rc.d.origin":"Origin",
+  "rc.o.preset":"Sprag preset","rc.o.scan":"Learned on their own","rc.o.both":"Both","rc.o.unknown":"Unknown"});
 Object.assign(I18N.ko, {"rc.h":"추천 위임 규칙",
   "rc.desc":"조직 안의 다른 PC가 이미 쓰면서 성과를 낸 위임 규칙입니다. 적용하면 아직 쓰지 않는 멤버도 같은 절감 효과를 얻습니다. 절감액은 멤버마다 route-scan 기록이 남은 기간을 기준으로 하므로 기간이 서로 다를 수 있습니다.",
   "rc.why":"위임이 {n}회 이상이고 실패율이 {p}% 이하이며 절감액이 0보다 크고 아직 쓰지 않는 멤버가 있는 규칙을 추천합니다",
   "rc.none":"아직 추천할 규칙이 없습니다",
   "rc.use":"{m}명 중 {a}명 사용","rc.deleg":"위임 {n}회","rc.fail":"실패율 {p}%","rc.per":"사용자당 평균 절감 {v}","rc.more":"예상 추가 절감 {v}",
   "rc.confirm":"이 추천 규칙을 {org}의 모든 팀에 적용할까요? 멤버 PC에는 다음 세션 시작 때 반영됩니다",
-  "rc.team.apply":"이 팀에 적용","rc.team.on":"적용됨","rc.team.all":"모두 사용 중","rc.team.h":"이 팀에 추천하는 규칙"});
+  "rc.team.apply":"이 팀에 적용","rc.team.on":"적용됨","rc.team.all":"모두 사용 중","rc.team.h":"이 팀에 추천하는 규칙",
+  "rc.b.preset":"Sprag 프리셋","rc.b.scan":"자체 학습 {n}명",
+  "rc.d.sum":"누가 얼마나 아꼈는지 ({n}명)",
+  "rc.d.member":"멤버","rc.d.team":"팀","rc.d.deleg":"위임 횟수","rc.d.fail":"실패율","rc.d.saved":"절감액","rc.d.since":"시작일","rc.d.origin":"출처",
+  "rc.o.preset":"Sprag 프리셋","rc.o.scan":"자체 학습","rc.o.both":"둘 다","rc.o.unknown":"알 수 없음"});
 Object.assign(I18N.en, {
  'bz.name': "YAML Studio ((상호 비공개))",
  'bz.rep': "Representative: 홍길동",
@@ -1911,6 +1928,9 @@ const RulesView = (function(){
   /* recommendations: rule_recommendations(p_org) rolls the members' per-rule results up per organization.
      recOff: the server has no such function yet (older deployment), so the section is not drawn at all. */
   let recs = [], recErr = '', recOff = false, recBusy = false;
+  /* which recommendations show their contributor table; kept across repaints. The demo opens the first one once. */
+  const recOpen = new Set();
+  let recOpenSeeded = false;
   const recKey = r => r.category + '|' + r.tier;
   const recProven = r => Number(r.delegated) >= REC_MIN_DELEGATED && r.delegated_err != null && Number(r.delegated_err) <= REC_MAX_ERR
     && Number(r.saved_usd) > 0 && Number(r.adopters) >= 1 && Number(r.adopters) < Number(r.members);
@@ -1926,6 +1946,24 @@ const RulesView = (function(){
   }
   const recHead = r => `<span class="sc">${esc(REC_TIERS[r.tier] || r.tier)}</span>${esc(recName(r))}`;
   const recChip = html => `<span>${html}</span>`;
+  /* origin badges: in the published Sprag presets, and how many members learned the rule from their own route-scan.
+     Both keys are absent in an answer from an older server, and then no badge is drawn. */
+  function recBadges(r){
+    let h = '';
+    if(r.in_preset === true) h += `<span class="rc-b pre">${esc(t('rc.b.preset', null, true))}</span>`;
+    const sc = r.origin_counts ? Number(r.origin_counts.scan) : 0;
+    if(sc > 0) h += `<span class="rc-b">${esc(t('rc.b.scan', {n: sc}, true))}</span>`;
+    return h;
+  }
+  /* contributor table: one row per member, savings first. Without contributors (older server) nothing is drawn. */
+  function recDetail(r){
+    const cs = Array.isArray(r.contributors) ? r.contributors : [];
+    if(!cs.length) return '';
+    const k = recKey(r), pct = v => v == null ? '-' : +(Number(v) * 100).toFixed(1) + '%', orig = o => t('rc.o.' + (['preset', 'scan', 'both'].includes(o) ? o : 'unknown'), null, true);
+    const rows = cs.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.team_name)}</td><td class="n">${Number(c.delegated)}</td><td class="n">${pct(c.delegated_err)}</td><td class="n">${money(c.saved_usd)}</td><td>${esc(c.since || '-')}</td><td class="o">${esc(orig(c.origin))}</td></tr>`).join('');
+    return `<details class="rc-detail" data-rckey="${esc(k)}"${recOpen.has(k) ? ' open' : ''}><summary>${esc(t('rc.d.sum', {n: cs.length}, true))}</summary>
+      <div class="tbl-wrap"><table class="rc-tbl"><thead><tr><th>${esc(t('rc.d.member', null, true))}</th><th>${esc(t('rc.d.team', null, true))}</th><th class="n">${esc(t('rc.d.deleg', null, true))}</th><th class="n">${esc(t('rc.d.fail', null, true))}</th><th class="n">${esc(t('rc.d.saved', null, true))}</th><th>${esc(t('rc.d.since', null, true))}</th><th>${esc(t('rc.d.origin', null, true))}</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+  }
   const recBtn = (act, r, label, tid) => `<button type="button" class="btn sm${act === 'rec-org' ? ' pri' : ''}" data-rl="${act}" data-id="${esc(recKey(r))}"${tid ? ` data-team="${esc(tid)}"` : ''}>${esc(label)}</button>`;
   function recTab(){
     if(recOff) return '';
@@ -1940,8 +1978,8 @@ const RulesView = (function(){
         const state = x.adopted ? `<em>${esc(t('rc.team.on', null, true))}</em>` : Number(x.adopters) >= Number(x.members) ? `<em>${esc(t('rc.team.all', null, true))}</em>` : recBtn('rec-team', r, t('rc.team.apply', null, true), x.team_id);
         return `<span>${esc(x.team_name)} ${Number(x.adopters)}/${Number(x.members)} ${state}</span>`;
       }).join('');
-      return `<div class="rule"><p>${recHead(r)}<span class="rc-m">${recChip(esc(t('rc.use', {a, m}, true)))}${recChip(esc(t('rc.deleg', {n: Number(r.delegated)}, true)))}${recChip(esc(t('rc.fail', {p: +(Number(r.delegated_err) * 100).toFixed(1)}, true)))}${recChip(esc(t('rc.per', {v: money(per)}, true)))}${recChip('<b>' + esc(t('rc.more', {v: money(recGain(r, a, m))}, true)) + '</b>')}</span></p>
-        <div class="acts">${recBtn('rec-org', r, t('rl.promote', null, true))}</div>${teamsHtml ? `<div class="rc-teams">${teamsHtml}</div>` : ''}</div>`;
+      return `<div class="rule"><p>${recHead(r)}${recBadges(r)}<span class="rc-m">${recChip(esc(t('rc.use', {a, m}, true)))}${recChip(esc(t('rc.deleg', {n: Number(r.delegated)}, true)))}${recChip(esc(t('rc.fail', {p: +(Number(r.delegated_err) * 100).toFixed(1)}, true)))}${recChip(esc(t('rc.per', {v: money(per)}, true)))}${recChip('<b>' + esc(t('rc.more', {v: money(recGain(r, a, m))}, true)) + '</b>')}</span></p>
+        <div class="acts">${recBtn('rec-org', r, t('rl.promote', null, true))}</div>${teamsHtml ? `<div class="rc-teams">${teamsHtml}</div>` : ''}${recDetail(r)}</div>`;
     }).join('') + '</div>';
     return `<section class="card" aria-labelledby="rc-h"><div class="sec-h"><h2 id="rc-h">${esc(t('rc.h', null, true))}<span class="count">${recErr ? 0 : list.length}</span></h2></div>
       <p class="sub">${esc(t('rc.desc', null, true))}</p>${body}${errP('rec')}</section>`;
@@ -2029,6 +2067,7 @@ const RulesView = (function(){
     });
     box.innerHTML = h;
     box.querySelectorAll('details[data-rlteam]').forEach(d => d.addEventListener('toggle', () => { if(d.open) open.add(d.dataset.rlteam); else open.delete(d.dataset.rlteam); }));
+    box.querySelectorAll('details[data-rckey]').forEach(d => d.addEventListener('toggle', () => { if(d.open) recOpen.add(d.dataset.rckey); else recOpen.delete(d.dataset.rckey); }));
   }
   function paintPane(){
     const box = $('ru-box'); if(!box || !team) return;
@@ -2064,6 +2103,12 @@ const RulesView = (function(){
       recOff = !!(rc.error && (rc.error.code === 'PGRST202' || /Could not find the function/i.test(rc.error.message || '')));
       recErr = rc.error && !recOff ? errMsg(rc.error) : '';
       recs = rc.error || !Array.isArray(rc.data) ? [] : rc.data;
+      /* the demo shows the first recommendation with its table open */
+      if(DEMO && !recOpenSeeded && recs.length){
+        recOpenSeeded = true;
+        const first = recSort(recs.filter(r => recProven(r) && !r.org_adopted))[0];
+        if(first) recOpen.add(recKey(first));
+      }
       loaded = true; busy = null;
       if(openFor !== oid && ids.length){
         openFor = oid; open.clear();
@@ -2783,13 +2828,23 @@ function demoSb(){
     { category:'check', tier:'T2', delegated:3, err:0, per:1.2, calls:8, out:1500, ad:{'demo-t1':1, 'demo-t2':0, 'demo-t3':0} }];
   const recOrg = new Set(), recTeam = new Set();
   const recMembers = () => { const n = {}; store().rows.forEach(r => { if(!r.left_at) n[r.team_id] = (n[r.team_id] || 0) + 1; }); return n; };
-  const recRows = () => { const mem = recMembers(); return recBase.map(b => {
+  /* contributors: the first `adopters` live members of each team, savings falling off by rank (they add up to saved_usd), origins rotating */
+  const recWho = (b, bi, teams) => { const rows = store().rows.filter(r => !r.left_at), who = [];
+    teams.forEach(x => rows.filter(r => r.team_id === x.team_id).slice(0, x.adopters).forEach(r => who.push(r)));
+    const w = i => 1 / (i + 1), sum = who.reduce((n, _, i) => n + w(i), 0), O = ['scan', 'preset', 'both'];
+    return who.map((r, i) => ({ name:r.display_name, team_name:r.team_name, delegated:Math.max(1, Math.round(b.delegated * w(i) / sum)),
+      delegated_err:Math.round(b.err * (i % 2 ? 0.7 : 1.3) * 10000) / 10000, saved_usd:Math.round(b.per * who.length * w(i) / sum * 100) / 100,
+      since:new Date(Date.now() - (14 + i * 11 + bi * 3) * 864e5).toISOString().slice(0, 10), origin:O[(bi + i) % 3] }))
+      .sort((p, q) => q.saved_usd - p.saved_usd); };
+  const recRows = () => { const mem = recMembers(); return recBase.map((b, bi) => {
     const k = b.category + '|' + b.tier, orgOn = recOrg.has(k);
     const teams = tm.map(x => { const m = mem[x.id] || 0, on = orgOn || recTeam.has(k + '|' + x.id), a = on ? m : Math.min(b.ad[x.id] || 0, m);
       return { team_id:x.id, team_name:x.name, adopters:a, members:m, adopted:on }; });
     const adopters = teams.reduce((n, x) => n + x.adopters, 0), members = teams.reduce((n, x) => n + x.members, 0);
+    const contributors = recWho(b, bi, teams), oc = { preset:0, scan:0, both:0, unknown:0 };
+    contributors.forEach(c => { oc[c.origin] += 1; });
     return { category:b.category, tier:b.tier, adopters, members, delegated:b.delegated, delegated_err:b.err, saved_usd:Math.round(b.per * adopters * 100) / 100,
-      budget_calls:b.calls, budget_out:b.out, org_adopted:orgOn, teams }; }); };
+      budget_calls:b.calls, budget_out:b.out, org_adopted:orgOn, teams, contributors, origin_counts:oc, in_preset:true }; }); };
   /* an inserted rule that carries rec marks that recommendation as adopted */
   const recApplied = (name, row) => { if(!row.rec) return; const k = row.rec.category + '|' + row.rec.tier; if(name === 'org_rules') recOrg.add(k); else recTeam.add(k + '|' + row.team_id); };
   const pendingInv = [{ user_id:null, email:'mina@northwind.example', role:'admin', pending:true }];
