@@ -390,6 +390,11 @@
   .rl-manage a,.rl-orgline a{color:var(--accent2)}
   .rl-manage a:hover,.rl-orgline a:hover{text-decoration:underline}
   .rl-orgline{margin-top:var(--s3)}
+  .rc-m{display:flex;flex-wrap:wrap;gap:2px var(--s3);margin-top:4px;color:var(--dim);font-size:12.5px}
+  .rc-m b{color:var(--ink);font-weight:600}
+  .rl-list .rule .rc-teams{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:6px var(--s4);font-size:12.5px;color:var(--dim)}
+  .rc-teams > span{display:inline-flex;align-items:center;gap:6px}
+  .rc-teams em{font-style:normal;color:var(--faint)}
   .pm{margin-top:var(--s3)}
   .pm details{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);margin-top:var(--s2)}
   .pm summary{cursor:pointer;padding:9px 14px;font-weight:500;font-size:13px}
@@ -750,6 +755,8 @@ const SUPABASE_URL = LOCAL_API ? 'http://127.0.0.1:55321' : 'https://hiycfjwswtk
 const SUPABASE_ANON_KEY = LOCAL_API
   ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
   : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpeWNmandzd3RraXh5b3Frem5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNTc4MzYsImV4cCI6MjEwNzgzMzgzNn0.gyYcvGD70CEX64aGV-dsmZgmmOBdvhJlzIpx9Qo2l3w';
+/* Recommended delegation rules (Rules tab): a rule is recommended only when it has proven itself on the members who already use it */
+const REC_MIN_DELEGATED = 5, REC_MAX_ERR = 0.2;
 if(LOCAL_API){
   const hw = document.querySelector('header .wrap');
   if(hw){
@@ -1015,6 +1022,21 @@ Object.assign(I18N.ko, {"v.rules":"규칙","rl.sum.aria":"규칙 요약","rl.sum
   "rl.tag.org":"조직","rl.ro":"조직 규칙 (이 팀에도 적용됩니다)","rl.manage":"모든 팀의 규칙은 <a href=\"#rules\">규칙 탭</a>에서 관리합니다",
   "rl.card":"조직 규칙 {n}개 · 대기 중인 제안 {p}건","rl.card.go":"규칙 탭 열기","rl.notext":"규칙 내용을 입력해 주세요","rl.scope":"범위",
   "rl.noteams":"아직 팀이 없습니다. 팀을 만들면 여기에 팀 규칙이 나옵니다"});
+/* Rules tab: recommended delegation rules */
+Object.assign(I18N.en, {"rc.h":"Recommended delegation rules",
+  "rc.desc":"Delegation rules that machines in your organization already run with proven results. Apply one to bring the same savings to the members who do not use it yet. Savings are measured over each member's own route-scan history, so the period differs by member.",
+  "rc.why":"A rule is recommended when it has {n} or more delegations, a failure rate of {p}% or less, savings above zero and at least one member who does not use it yet.",
+  "rc.none":"No rules to recommend yet.",
+  "rc.use":"{a} of {m} members use it","rc.deleg":"{n} delegations","rc.fail":"{p}% failed","rc.per":"{v} saved per user","rc.more":"Expected extra savings {v}",
+  "rc.confirm":"Apply this rule to every team in {org}? Machines pick it up at their next session start.",
+  "rc.team.apply":"Apply to this team","rc.team.on":"Applied","rc.team.all":"All use it","rc.team.h":"Recommended for this team"});
+Object.assign(I18N.ko, {"rc.h":"추천 위임 규칙",
+  "rc.desc":"조직 안의 다른 PC가 이미 쓰면서 성과를 낸 위임 규칙입니다. 적용하면 아직 쓰지 않는 멤버도 같은 절감 효과를 얻습니다. 절감액은 멤버마다 route-scan 기록이 남은 기간을 기준으로 하므로 기간이 서로 다를 수 있습니다.",
+  "rc.why":"위임이 {n}회 이상이고 실패율이 {p}% 이하이며 절감액이 0보다 크고 아직 쓰지 않는 멤버가 있는 규칙을 추천합니다",
+  "rc.none":"아직 추천할 규칙이 없습니다",
+  "rc.use":"{m}명 중 {a}명 사용","rc.deleg":"위임 {n}회","rc.fail":"실패율 {p}%","rc.per":"사용자당 평균 절감 {v}","rc.more":"예상 추가 절감 {v}",
+  "rc.confirm":"이 추천 규칙을 {org}의 모든 팀에 적용할까요? 멤버 PC에는 다음 세션 시작 때 반영됩니다",
+  "rc.team.apply":"이 팀에 적용","rc.team.on":"적용됨","rc.team.all":"모두 사용 중","rc.team.h":"이 팀에 추천하는 규칙"});
 Object.assign(I18N.en, {
  'bz.name': "YAML Studio (케이프로샵)",
  'bz.rep': "Representative: 고주호",
@@ -1846,6 +1868,34 @@ async function removeMember(id){
   }catch(e){ $('mem-err').textContent = errMsg(e); }
 }
 
+/* Category labels of the recommended delegation rules. A verbatim copy of label (ko) and labelEn (en) in
+   src/route-scan.js CATEGORIES, so the text written here reads like the text a member PC writes itself.
+   test/team-rule-recommendations.test.js fails when the two copies drift apart. */
+const REC_CATS = {
+  paste: { ko: '붙여넣은 화면·로그 질문', en: 'questions about pasted screens/logs' },
+  translate: { ko: '배치 번역·정형 텍스트 변환', en: 'batch translation / mechanical text transforms' },
+  explore: { ko: '탐색·조회 (파일/값 찾기)', en: 'lookup (finding files/values)' },
+  read: { ko: '읽기·요약·설명', en: 'reading / summarizing / explaining' },
+  check: { ko: '상태 확인·검증', en: 'status checks / verification' },
+  run: { ko: '명령 실행 (빌드·테스트·git)', en: 'running commands (build/test/git)' }
+};
+const REC_TIERS = { T2: 'Haiku', T1: 'Sonnet', T1H: 'Opus' };
+/* The plain-text stand-in stored in text for sprag versions that predate rec. Newer member PCs redraw the rule from rec. */
+function recText(rec, lang){
+  const ko = lang === 'ko', c = REC_CATS[rec.category] || { ko: rec.category, en: rec.category }, label = ko ? c.ko : c.en, tier = rec.tier;
+  const calls = rec.calls == null ? null : Number(rec.calls), out = rec.out == null ? null : Number(rec.out);
+  let cap = '';
+  if(ko) cap = out == null ? '' : ' (상한 ' + (calls == null ? '' : '도구 호출 ' + calls + '회, ') + '출력 ' + out + ' 토큰)';
+  else cap = out == null ? '' : ', cap ' + (calls == null ? '' : calls + ' tool calls / ') + out + ' output tokens';
+  if(ko){
+    if(tier === 'T1H') return '"' + label + '" 고난도 구현 요청은 Opus 서브에이전트에 위임, Fable·Mythos 세션에 한함' + cap;
+    return '"' + label + '" ' + (tier === 'T1' ? '중간 난도' : '단순') + ' 요청은 ' + (tier === 'T1' ? 'Sonnet' : 'Haiku') + ' 서브에이전트에 위임' + cap;
+  }
+  if(tier === 'T1H') return 'Heavy "' + label + '" implementation requests go to an Opus subagent in Fable/Mythos sessions only' + cap;
+  return (tier === 'T1' ? 'Moderate' : 'Simple') + ' "' + label + '" requests go to a ' + (tier === 'T1' ? 'Sonnet' : 'Haiku') + ' subagent' + cap;
+}
+/* end of rec text */
+
 /* ── rules: organization rules and every team's rules of the selected organization.
    One loader and one set of renderers serve the Rules tab, the team Rules sub-tab
    (organization rules read-only on top, then that team's section) and the count line
@@ -1858,6 +1908,56 @@ async function removeMember(id){
 const RulesView = (function(){
   let key = '', orgRules = [], teamRules = [], loaded = false, orgErr = '', teamErr = '', seq = 0, busy = null, openFor = '';
   let presets = null, presetsErr = '', presetsAsked = false;
+  /* recommendations: rule_recommendations(p_org) rolls the members' per-rule results up per organization.
+     recOff: the server has no such function yet (older deployment), so the section is not drawn at all. */
+  let recs = [], recErr = '', recOff = false, recBusy = false;
+  const recKey = r => r.category + '|' + r.tier;
+  const recProven = r => Number(r.delegated) >= REC_MIN_DELEGATED && r.delegated_err != null && Number(r.delegated_err) <= REC_MAX_ERR
+    && Number(r.saved_usd) > 0 && Number(r.adopters) >= 1 && Number(r.adopters) < Number(r.members);
+  const recPer = r => Number(r.saved_usd) / Number(r.adopters);
+  const recGain = (r, a, m) => recPer(r) * (m - a);
+  const recTeamOf = (r, tid) => (r.teams || []).find(x => x.team_id === tid);
+  const recName = r => (REC_CATS[r.category] ? REC_CATS[r.category][lang === 'ko' ? 'ko' : 'en'] : r.category);
+  /* same category side by side: categories by their best row, rows inside a category by expected extra savings */
+  function recSort(list){
+    const gain = r => recGain(r, Number(r.adopters), Number(r.members)), best = {};
+    list.forEach(r => { best[r.category] = Math.max(best[r.category] === undefined ? -Infinity : best[r.category], gain(r)); });
+    return list.slice().sort((a, b) => (best[b.category] - best[a.category]) || (a.category < b.category ? -1 : a.category > b.category ? 1 : 0) || (gain(b) - gain(a)));
+  }
+  const recHead = r => `<span class="sc">${esc(REC_TIERS[r.tier] || r.tier)}</span>${esc(recName(r))}`;
+  const recChip = html => `<span>${html}</span>`;
+  const recBtn = (act, r, label, tid) => `<button type="button" class="btn sm${act === 'rec-org' ? ' pri' : ''}" data-rl="${act}" data-id="${esc(recKey(r))}"${tid ? ` data-team="${esc(tid)}"` : ''}>${esc(label)}</button>`;
+  function recTab(){
+    if(recOff) return '';
+    const list = recSort(recs.filter(r => recProven(r) && !r.org_adopted));
+    const ids = new Set(visibleTeams().map(x => x.id));
+    let body;
+    if(recErr) body = `<p class="err" role="alert">${esc(recErr)}</p>`;
+    else if(!list.length) body = none('rc.none') + `<p class="sub">${esc(t('rc.why', {n: REC_MIN_DELEGATED, p: +(REC_MAX_ERR * 100).toFixed(1)}, true))}</p>`;
+    else body = '<div class="rl-list" style="margin-top:var(--s3)">' + list.map(r => {
+      const a = Number(r.adopters), m = Number(r.members), per = recPer(r);
+      const teamsHtml = (r.teams || []).filter(x => ids.has(x.team_id)).map(x => {
+        const state = x.adopted ? `<em>${esc(t('rc.team.on', null, true))}</em>` : Number(x.adopters) >= Number(x.members) ? `<em>${esc(t('rc.team.all', null, true))}</em>` : recBtn('rec-team', r, t('rc.team.apply', null, true), x.team_id);
+        return `<span>${esc(x.team_name)} ${Number(x.adopters)}/${Number(x.members)} ${state}</span>`;
+      }).join('');
+      return `<div class="rule"><p>${recHead(r)}<span class="rc-m">${recChip(esc(t('rc.use', {a, m}, true)))}${recChip(esc(t('rc.deleg', {n: Number(r.delegated)}, true)))}${recChip(esc(t('rc.fail', {p: +(Number(r.delegated_err) * 100).toFixed(1)}, true)))}${recChip(esc(t('rc.per', {v: money(per)}, true)))}${recChip('<b>' + esc(t('rc.more', {v: money(recGain(r, a, m))}, true)) + '</b>')}</span></p>
+        <div class="acts">${recBtn('rec-org', r, t('rl.promote', null, true))}</div>${teamsHtml ? `<div class="rc-teams">${teamsHtml}</div>` : ''}</div>`;
+    }).join('') + '</div>';
+    return `<section class="card" aria-labelledby="rc-h"><div class="sec-h"><h2 id="rc-h">${esc(t('rc.h', null, true))}<span class="count">${recErr ? 0 : list.length}</span></h2></div>
+      <p class="sub">${esc(t('rc.desc', null, true))}</p>${body}${errP('rec')}</section>`;
+  }
+  /* team sub-tab: only what applies to this team, short */
+  function recPane(tid){
+    if(recOff) return '';
+    if(recErr) return `<div class="rl-ro"><h3>${esc(t('rc.team.h', null, true))}</h3><p class="err" role="alert">${esc(recErr)}</p></div>`;
+    const list = recSort(recs.filter(r => { const x = recTeamOf(r, tid); return recProven(r) && !r.org_adopted && x && !x.adopted && Number(x.adopters) < Number(x.members); }));
+    if(!list.length) return '';
+    return `<div class="rl-ro"><h3>${esc(t('rc.team.h', null, true))}</h3><div class="rl-list">${list.map(r => {
+      const x = recTeamOf(r, tid), a = Number(x.adopters), m = Number(x.members);
+      return `<div class="rule"><p>${recHead(r)}<span class="rc-m">${recChip(esc(t('rc.use', {a, m}, true)))}${recChip('<b>' + esc(t('rc.more', {v: money(recGain(r, a, m))}, true)) + '</b>')}</span></p>
+        <div class="acts">${recBtn('rec-team', r, t('rc.team.apply', null, true), tid)}</div></div>`;
+    }).join('')}</div>${errP('rec')}</div>`;
+  }
   function presetsSection(){
     if(!presetsAsked) return '';
     const rules = presets && Array.isArray(presets.ratchet_rules) ? presets.ratchet_rules : [];
@@ -1911,6 +2011,7 @@ const RulesView = (function(){
     const vt = visibleTeams(), nPend = inOrg('proposed');
     const k = (n, label, cls) => `<span class="k${cls ? ' ' + cls : ''}">${lang === 'ko' ? esc(label) + '<b>' + n + '</b>' : '<b>' + n + '</b>' + esc(label)}</span>`;
     let h = `<section class="card rl-sum" aria-label="${esc(t('rl.sum.aria', null, true))}">${k(orgRules.length, t('rl.sum.org', null, true))}${k(inOrg('approved'), t('rl.sum.team', null, true))}${k(nPend, t('rl.sum.pending', null, true), nPend ? 'warn' : '')}<span class="when">${esc(t('rl.when', null, true))}</span></section>`;
+    h += recTab();
     h += `<section class="card" aria-labelledby="rl-org-h"><div class="sec-h"><h2 id="rl-org-h">${esc(t('rl.org.h', null, true))}<span class="count">${orgRules.length}</span></h2></div>
       <p class="sub">${esc(t('rl.org.desc', null, true))}</p>`;
     h += orgErr ? `<p class="err" role="alert">${esc(orgErr)}</p>`
@@ -1934,7 +2035,7 @@ const RulesView = (function(){
     if(!loaded){ box.innerHTML = loadingP(); return; }
     const ro = orgErr ? '' : `<div class="rl-ro"><h3>${esc(t('rl.ro', null, true))}</h3><div class="rl-list">${orgRules.length
       ? orgSorted().map(r => row(r, '', `<span class="tag">${esc(t('rl.tag.org', null, true))}</span>`)).join('') : none('rl.org.none')}</div></div>`;
-    box.innerHTML = ro + (teamErr ? `<p class="err" role="alert">${esc(teamErr)}</p>` : teamBody(team.id)) + `<p class="rl-manage">${t('rl.manage')}</p>`;
+    box.innerHTML = ro + recPane(team.id) + (teamErr ? `<p class="err" role="alert">${esc(teamErr)}</p>` : teamBody(team.id)) + `<p class="rl-manage">${t('rl.manage')}</p>`;
   }
   function paintCard(){
     const el = $('org-rules'); if(!el) return;
@@ -1944,7 +2045,7 @@ const RulesView = (function(){
   }
   function paint(){ paintTab(); paintPane(); paintCard(); }
   function load(force){
-    if(!(user && org)){ key = ''; orgRules = []; teamRules = []; loaded = false; paint(); return Promise.resolve(); }
+    if(!(user && org)){ key = ''; orgRules = []; teamRules = []; recs = []; recErr = ''; loaded = false; paint(); return Promise.resolve(); }
     const oid = org.id, ids = visibleTeams().map(x => x.id), k = oid + '|' + ids.join();
     if(!force && k === key) return busy || Promise.resolve();
     if(k !== key) loaded = false;
@@ -1952,12 +2053,17 @@ const RulesView = (function(){
     paint();
     const soft = q => Promise.resolve(q).then(r => r || { data: [] }, e => ({ error: e }));
     busy = (async () => {
-      const [o, tr] = await Promise.all([
+      const [o, tr, rc] = await Promise.all([
         soft(sb.from('org_rules').select('*').eq('org_id', oid).eq('status', 'approved')),
-        ids.length ? soft(sb.from('team_rules').select('*').in('team_id', ids)) : Promise.resolve({ data: [] })]);
+        ids.length ? soft(sb.from('team_rules').select('*').in('team_id', ids)) : Promise.resolve({ data: [] }),
+        soft(sb.rpc('rule_recommendations', { p_org: oid }))]);
       if(my !== seq) return;
       orgErr = o.error ? errMsg(o.error) : ''; teamErr = tr.error ? errMsg(tr.error) : '';
       orgRules = o.error ? [] : (o.data || []); teamRules = tr.error ? [] : (tr.data || []);
+      /* no such function yet: draw nothing. Any other error is shown in the section */
+      recOff = !!(rc.error && (rc.error.code === 'PGRST202' || /Could not find the function/i.test(rc.error.message || '')));
+      recErr = rc.error && !recOff ? errMsg(rc.error) : '';
+      recs = rc.error || !Array.isArray(rc.data) ? [] : rc.data;
       loaded = true; busy = null;
       if(openFor !== oid && ids.length){
         openFor = oid; open.clear();
@@ -1995,7 +2101,26 @@ const RulesView = (function(){
     }catch(e){ errs[ek] = errMsg(e); return paint(); }
     await load(true);
   }
-  document.addEventListener('click', ev => { const b = ev.target.closest('[data-rl]'); if(b){ ev.preventDefault(); act(b.dataset.rl, b.dataset.id); } });
+  /* apply a recommendation: the same RLS insert add() uses, plus rec so member PCs redraw the rule for their own setup */
+  async function applyRec(kind, rkey, tid){
+    const r = recs.find(x => recKey(x) === rkey);
+    if(!r || !org || recBusy) return;
+    errs.rec = '';
+    const rec = { category: r.category, tier: r.tier, calls: r.budget_calls == null ? null : r.budget_calls, out: r.budget_out == null ? null : r.budget_out };
+    const text = recText(rec, lang);
+    if(kind === 'rec-org' && !confirm(t('rc.confirm', {org: org.name}, true))) return;
+    recBusy = true;
+    try{
+      const res = kind === 'rec-org'
+        ? await sb.from('org_rules').insert({ org_id: org.id, text, scope: 'model', rec })
+        : await sb.from('team_rules').insert({ team_id: tid, text, scope: 'model', rec, status: 'approved', approved_at: new Date().toISOString() });
+      if(res && res.error) throw res.error;
+    }catch(e){ errs.rec = errMsg(e); recBusy = false; return paint(); }
+    recBusy = false;
+    await load(true);
+  }
+  document.addEventListener('click', ev => { const b = ev.target.closest('[data-rl]'); if(!b) return; ev.preventDefault();
+    if(b.dataset.rl === 'rec-org' || b.dataset.rl === 'rec-team') applyRec(b.dataset.rl, b.dataset.id, b.dataset.team || null); else act(b.dataset.rl, b.dataset.id); });
   document.addEventListener('submit', ev => {
     const f = ev.target.closest('form[data-rlform]'); if(!f) return;
     ev.preventDefault(); add(f.dataset.rlform, f.dataset.team || null, f.elements.text.value.trim(), f.elements.scope.value);
@@ -2648,6 +2773,25 @@ function demoSb(){
       {id:'r7', team_id:'demo-t3', text:T2('Never run notebooks against the production warehouse', '운영 웨어하우스에 노트북을 직접 붙이지 않는다'), scope:'ratchet', status:'approved', approved_at:ago(20), created_at:ago(20)},
       {id:'r8', team_id:'demo-t1', text:T2('Always use --force when a migration fails', '마이그레이션이 실패하면 --force 로 다시 돌린다'), scope:'ratchet', status:'removed', approved_at:ago(30), removed_at:ago(25), created_at:ago(30)}] };
   let ruleSeq = 0;
+  /* recommendations: results of rules some members already run, rolled up per organization (the shape of rule_recommendations).
+     adopters per team start low and jump to the whole team once a rec rule is inserted for it or for the organization. */
+  const recBase = [
+    { category:'explore', tier:'T2', delegated:84, err:0.04, per:9.8, calls:8, out:1500, ad:{'demo-t1':3, 'demo-t2':1, 'demo-t3':0} },
+    { category:'run', tier:'T2', delegated:41, err:0.1, per:6.4, calls:8, out:1500, ad:{'demo-t1':2, 'demo-t2':1, 'demo-t3':1} },
+    { category:'run', tier:'T1', delegated:19, err:0.16, per:11.2, calls:null, out:6100, ad:{'demo-t1':1, 'demo-t2':0, 'demo-t3':1} },
+    { category:'read', tier:'T2', delegated:23, err:0.35, per:3.1, calls:8, out:1918, ad:{'demo-t1':1, 'demo-t2':1, 'demo-t3':0} },
+    { category:'check', tier:'T2', delegated:3, err:0, per:1.2, calls:8, out:1500, ad:{'demo-t1':1, 'demo-t2':0, 'demo-t3':0} }];
+  const recOrg = new Set(), recTeam = new Set();
+  const recMembers = () => { const n = {}; store().rows.forEach(r => { if(!r.left_at) n[r.team_id] = (n[r.team_id] || 0) + 1; }); return n; };
+  const recRows = () => { const mem = recMembers(); return recBase.map(b => {
+    const k = b.category + '|' + b.tier, orgOn = recOrg.has(k);
+    const teams = tm.map(x => { const m = mem[x.id] || 0, on = orgOn || recTeam.has(k + '|' + x.id), a = on ? m : Math.min(b.ad[x.id] || 0, m);
+      return { team_id:x.id, team_name:x.name, adopters:a, members:m, adopted:on }; });
+    const adopters = teams.reduce((n, x) => n + x.adopters, 0), members = teams.reduce((n, x) => n + x.members, 0);
+    return { category:b.category, tier:b.tier, adopters, members, delegated:b.delegated, delegated_err:b.err, saved_usd:Math.round(b.per * adopters * 100) / 100,
+      budget_calls:b.calls, budget_out:b.out, org_adopted:orgOn, teams }; }); };
+  /* an inserted rule that carries rec marks that recommendation as adopted */
+  const recApplied = (name, row) => { if(!row.rec) return; const k = row.rec.category + '|' + row.rec.tier; if(name === 'org_rules') recOrg.add(k); else recTeam.add(k + '|' + row.team_id); };
   const pendingInv = [{ user_id:null, email:'mina@northwind.example', role:'admin', pending:true }];
   const rulesQ = name => { const rows = rulesDb[name], keep = []; let patch = null, ins = null; const o = {};
     ['select', 'order', 'limit'].forEach(k => { o[k] = () => o; });
@@ -2656,7 +2800,7 @@ function demoSb(){
     o.update = p => { patch = p; return o; };
     o.insert = row => { ins = row; return o; };
     o.then = (res, rej) => { const now = new Date().toISOString(); let data;
-      if(ins){ const r = { id: 'demo-' + name + '-' + (++ruleSeq), status: 'approved', approved_at: now, created_at: now, ...ins }; rows.push(r); data = [r]; }
+      if(ins){ const r = { id: 'demo-' + name + '-' + (++ruleSeq), status: 'approved', approved_at: now, created_at: now, ...ins }; rows.push(r); data = [r]; recApplied(name, r); }
       else { data = rows.filter(r => keep.every(f => f(r))); if(patch) data.forEach(r => Object.assign(r, patch)); data = data.map(r => ({ ...r })); }
       return Promise.resolve({ data, error: null }).then(res, rej); };
     return o; };
@@ -2702,6 +2846,7 @@ function demoSb(){
           rulesDb.team_rules = rulesDb.team_rules.filter(r => r.team_id !== gone.id);
           return {data:{ id:gone.id, name:gone.name, org_id:'demo-org', deleted:true, members_deleted:mine.length, seats_used:used() }, error:null};
         }
+        if(name === 'rule_recommendations') return {data: recRows(), error:null};
         if(name === 'org_rule_promote') return {data: promoteRule(a && a.p_rule_id), error:null};
         if(name === 'presets_published') return {data:{ format:1, version:'2026.11.01', published_at:ago(1), ratchet_rules:[
           {id:'demo-p1', en:'When a web fetch is blocked by robots or user-agent checks, retry with a browser User-Agent header.', ko:'웹 fetch가 robots나 UA 검사로 막히면 브라우저 User-Agent 헤더를 붙여 다시 시도한다'},
