@@ -1034,7 +1034,7 @@ Object.assign(I18N.ko, {"v.rules":"규칙","rl.sum.aria":"규칙 요약","rl.sum
 /* Rules tab: recommended delegation rules */
 Object.assign(I18N.en, {"rc.h":"Recommended delegation rules",
   "rc.desc":"Delegation rules that machines in your organization already run with proven results. Apply one to bring the same savings to the members who do not use it yet. Savings are measured over each member's own route-scan history, so the period differs by member.",
-  "rc.why":"A rule is recommended when it has {n} or more delegations, a failure rate of {p}% or less, savings above zero and at least one member who does not use it yet.",
+  "rc.why":"A rule is recommended when it has {n} or more delegations, a failure rate of {p}% or less, savings above zero and at least one member who does not use it yet. Rules already in the Sprag preset bundle are left out.",
   "rc.none":"No rules to recommend yet.",
   "rc.use":"{a} of {m} members use it","rc.deleg":"{n} delegations","rc.fail":"{p}% failed","rc.per":"{v} saved per user","rc.more":"Expected extra savings {v}",
   "rc.confirm":"Apply this rule to every team in {org}? Machines pick it up at their next session start.",
@@ -1045,7 +1045,7 @@ Object.assign(I18N.en, {"rc.h":"Recommended delegation rules",
   "rc.o.preset":"Sprag preset","rc.o.scan":"Learned on their own","rc.o.both":"Both","rc.o.unknown":"Unknown"});
 Object.assign(I18N.ko, {"rc.h":"추천 위임 규칙",
   "rc.desc":"조직 안의 다른 PC가 이미 쓰면서 성과를 낸 위임 규칙입니다. 적용하면 아직 쓰지 않는 멤버도 같은 절감 효과를 얻습니다. 절감액은 멤버마다 route-scan 기록이 남은 기간을 기준으로 하므로 기간이 서로 다를 수 있습니다.",
-  "rc.why":"위임이 {n}회 이상이고 실패율이 {p}% 이하이며 절감액이 0보다 크고 아직 쓰지 않는 멤버가 있는 규칙을 추천합니다",
+  "rc.why":"위임이 {n}회 이상이고 실패율이 {p}% 이하이며 절감액이 0보다 크고 아직 쓰지 않는 멤버가 있는 규칙을 추천합니다. Sprag 프리셋에 이미 들어 있는 규칙은 추천하지 않습니다",
   "rc.none":"아직 추천할 규칙이 없습니다",
   "rc.use":"{m}명 중 {a}명 사용","rc.deleg":"위임 {n}회","rc.fail":"실패율 {p}%","rc.per":"사용자당 평균 절감 {v}","rc.more":"예상 추가 절감 {v}",
   "rc.confirm":"이 추천 규칙을 {org}의 모든 팀에 적용할까요? 멤버 PC에는 다음 세션 시작 때 반영됩니다",
@@ -1933,7 +1933,9 @@ const RulesView = (function(){
   let recOpenSeeded = false;
   const recKey = r => r.category + '|' + r.tier;
   const recProven = r => Number(r.delegated) >= REC_MIN_DELEGATED && r.delegated_err != null && Number(r.delegated_err) <= REC_MAX_ERR
-    && Number(r.saved_usd) > 0 && Number(r.adopters) >= 1 && Number(r.adopters) < Number(r.members);
+    && Number(r.saved_usd) > 0 && Number(r.adopters) >= 1 && Number(r.adopters) < Number(r.members)
+    /* a rule the Sprag preset bundle already ships reaches every machine through the preset, so it is not recommended */
+    && r.in_preset !== true;
   const recPer = r => Number(r.saved_usd) / Number(r.adopters);
   const recGain = (r, a, m) => recPer(r) * (m - a);
   const recTeamOf = (r, tid) => (r.teams || []).find(x => x.team_id === tid);
@@ -2831,7 +2833,7 @@ function demoSb(){
   /* contributors: the first `adopters` live members of each team, savings falling off by rank (they add up to saved_usd), origins rotating */
   const recWho = (b, bi, teams) => { const rows = store().rows.filter(r => !r.left_at), who = [];
     teams.forEach(x => rows.filter(r => r.team_id === x.team_id).slice(0, x.adopters).forEach(r => who.push(r)));
-    const w = i => 1 / (i + 1), sum = who.reduce((n, _, i) => n + w(i), 0), O = ['scan', 'preset', 'both'];
+    const w = i => 1 / (i + 1), sum = who.reduce((n, _, i) => n + w(i), 0), O = ['scan', 'both', 'scan'];
     return who.map((r, i) => ({ name:r.display_name, team_name:r.team_name, delegated:Math.max(1, Math.round(b.delegated * w(i) / sum)),
       delegated_err:Math.round(b.err * (i % 2 ? 0.7 : 1.3) * 10000) / 10000, saved_usd:Math.round(b.per * who.length * w(i) / sum * 100) / 100,
       since:new Date(Date.now() - (14 + i * 11 + bi * 3) * 864e5).toISOString().slice(0, 10), origin:O[(bi + i) % 3] }))
@@ -2844,7 +2846,7 @@ function demoSb(){
     const contributors = recWho(b, bi, teams), oc = { preset:0, scan:0, both:0, unknown:0 };
     contributors.forEach(c => { oc[c.origin] += 1; });
     return { category:b.category, tier:b.tier, adopters, members, delegated:b.delegated, delegated_err:b.err, saved_usd:Math.round(b.per * adopters * 100) / 100,
-      budget_calls:b.calls, budget_out:b.out, org_adopted:orgOn, teams, contributors, origin_counts:oc, in_preset:true }; }); };
+      budget_calls:b.calls, budget_out:b.out, org_adopted:orgOn, teams, contributors, origin_counts:oc, in_preset:false }; }); };
   /* an inserted rule that carries rec marks that recommendation as adopted */
   const recApplied = (name, row) => { if(!row.rec) return; const k = row.rec.category + '|' + row.rec.tier; if(name === 'org_rules') recOrg.add(k); else recTeam.add(k + '|' + row.team_id); };
   const pendingInv = [{ user_id:null, email:'mina@northwind.example', role:'admin', pending:true }];

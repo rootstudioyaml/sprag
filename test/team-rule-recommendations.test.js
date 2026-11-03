@@ -89,7 +89,11 @@ test('each recommendation can open a contributor table, and the origin badges ha
 });
 
 test('the demo answers with contributors, origin counts and in_preset, and opens the first table', () => {
-  assert.match(html, /contributors, origin_counts:oc, in_preset:true/);
+  assert.match(html, /contributors, origin_counts:oc, in_preset:false/);
   assert.match(html, /DEMO && !recOpenSeeded/);
   assert.match(html, /origin:O\[\(bi \+ i\) % 3\]/);
+});
+
+test('a rule already in the published preset bundle is not recommended', () => {
+  assert.match(html, /&& r\.in_preset !== true;/);
 });
