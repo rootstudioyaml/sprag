@@ -57,6 +57,8 @@ No extra model calls or API key are needed for analysis. Optional Codex gateway
 budget and price lookups contact your configured LiteLLM endpoint using its
 existing credentials. The CLI requires Node.js 20+ and one TOML parser dependency.
 
+The free CLI sends nothing that identifies you and needs no account. Pro uploads daily figures only from computers that joined a team, and Enterprise adds masked prompt capture only for teams an admin switched on. [What Sprag sends](docs/DATA.md) lists every item by plan, with the source file behind it.
+
 ```bash
 npm i -g sprag-cli   # Claude Code, plus Codex when it is installed
 ```
@@ -280,6 +282,7 @@ Every subcommand, flag and the output-language setting: [command reference](http
 |---|---|
 | [Codex](https://sprag.io/docs/codex/) | Installation, panel, native hooks, automatic candidates, presets, and accounting limits |
 | [Install](https://github.com/rootstudioyaml/sprag/blob/main/docs/INSTALL.md) | What the install turns on, what stays manual, how to turn each part off |
+| [What Sprag sends](https://sprag.io/docs/data/) ([한국어](https://sprag.io/docs/ko/data/)) | Every outbound item by plan (open source, Pro, Enterprise), who can see it, and how to turn it off |
 | [Statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md) | Segments, warning chips, spike issue codes, update notifications |
 | [Commands](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md) | Full CLI surface |
 | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.md) | The five principles, rule promotion, compact-window pinning, seed presets |
@@ -357,6 +360,7 @@ Sprag stays local unless you opt in. With `sprag team join <token>` (or `SPRAG_T
 `SPRAG_NO_TEAM_SYNC=1` turns all team traffic off, and `sprag team leave` removes the membership.
 
 - [Team layer guide](docs/TEAM.md)
+- [What Sprag sends, by plan](docs/DATA.md)
 - Team console for owners and admins: https://sprag.io/team/
 - Plans: https://sprag.io/license/
 

@@ -318,7 +318,7 @@
     <h2 data-k="p.faq.h">Questions</h2>
     <div class="faqs">
       <div class="faq-grid">
-      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. The CLI on its own sends nothing and never needs an account. A machine that joins a team sends one aggregate row per day plus its OS name and version, never prompts, paths or hostnames. <code>sprag team status --show-payload</code> prints exactly what is sent.</p></details>
+      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. The CLI on its own sends nothing that identifies you and never needs an account. A machine that joins a team sends one aggregate row per day plus its OS name and version, never prompts, paths or hostnames. <code>sprag team status --show-payload</code> prints exactly what is sent, and <a href="/docs/data/">What Sprag sends</a> lists every item by plan.</p></details>
       <details><summary data-k="p.q2">Who consents in a company rollout?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members can still see what is sent with <code>sprag team status</code>. <code>SPRAG_NO_TEAM_SYNC=1</code> stops usage uploads, though the seat stays until an admin removes it, and <code>sprag team leave</code> wins over the env var.</p></details>
       <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only an organization owner or admin. It is off by default, and the policy is visible to every member. Capture starts the moment it is turned on, with no history before it.</p></details>
       <details><summary data-k="p.q0">How are machines counted?</summary><p data-k="p.a0">One machine that was active in the last 30 days, or paused with the upload switch, counts once. A person's second machine can be merged into the same seat.</p></details>
@@ -434,7 +434,7 @@ const KO = {
  "p.vid.ent": "프롬프트 사용량과 검색, 수집 정책",
  "p.faq.h": "자주 묻는 질문",
  "p.q1": "기본으로 올라가는 데이터가 있나요?",
- "p.a1": "없습니다. CLI만 쓰면 아무것도 보내지 않고 계정도 필요 없습니다. 팀에 참여한 컴퓨터는 하루 집계 한 줄과 OS 이름, 버전만 보내며 프롬프트, 경로, 호스트 이름은 보내지 않습니다. 실제로 나가는 내용은 <code>sprag team status --show-payload</code>로 그대로 볼 수 있습니다.",
+ "p.a1": "없습니다. CLI만 쓰면 사용자를 알아볼 수 있는 데이터를 보내지 않고 계정도 필요 없습니다. 팀에 참여한 컴퓨터는 하루 집계 한 줄과 OS 이름, 버전만 보내며 프롬프트, 경로, 호스트 이름은 보내지 않습니다. 실제로 나가는 내용은 <code>sprag team status --show-payload</code>로 그대로 볼 수 있고, 플랜별 전체 항목은 <a href=\"/docs/ko/data/\">전송 데이터 안내</a>에 있습니다.",
  "p.q2": "회사가 도입하면 동의는 누가 하나요?",
  "p.a2": "조직 단위로 배포할 때는 조직의 결정이 동의입니다. 멤버는 <code>sprag team status</code>로 전송 내용을 볼 수 있습니다. <code>SPRAG_NO_TEAM_SYNC=1</code>은 사용량 업로드를 멈추지만 좌석은 어드민이 제거할 때까지 남고, <code>sprag team leave</code>는 환경 변수보다 우선합니다.",
  "p.q4": "프롬프트 수집은 누가 정하나요?",

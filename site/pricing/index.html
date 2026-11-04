@@ -355,7 +355,7 @@
     <div class="faqs">
       <div class="faq-grid">
       <details><summary data-k="p.q0">How are seats counted?</summary><p data-k="p.a0">One seat is one machine that was active in the last 30 days or is paused with the upload switch. A person's second machine can be merged into the same seat, and joins past the limit are refused.</p></details>
-      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. Free sends nothing and never needs an account. On Pro, a machine sends one aggregate row per day plus its OS name, version and architecture, never prompts, paths or hostnames. <code>sprag team status --show-payload</code> prints exactly what is sent.</p></details>
+      <details><summary data-k="p.q1">Is anything uploaded by default?</summary><p data-k="p.a1">No. The free CLI sends nothing that identifies you and never needs an account. On Pro, only a machine that joined a team sends one aggregate row per day plus its OS name and version, never prompts, paths or hostnames. <code>sprag team status --show-payload</code> prints exactly what is sent, and <a href="/docs/data/">What Sprag sends</a> lists every item by plan.</p></details>
       <details><summary data-k="p.q2">Who consents in a company rollout?</summary><p data-k="p.a2">For an organization deployment, the organization's decision counts as the consent. Members can still see what is sent with <code>sprag team status</code>. <code>SPRAG_NO_TEAM_SYNC=1</code> stops usage uploads, though the seat stays until an admin removes it, and <code>sprag team leave</code> wins over the env var.</p></details>
       <details><summary data-k="p.q4">Who decides on prompt capture?</summary><p data-k="p.a4">Only an organization owner or admin, and only on Enterprise. It is off by default, and the policy is visible to every member. Capture starts the moment it is turned on, with no history before it.</p></details>
       <details><summary data-k="p.q6">Can I switch plans or cancel?</summary><p data-k="p.a6">Yes. Plans are prepaid for a fixed number of months, so a move between Pro and Enterprise applies from your next order. Refunds follow the <a href="/refund/">refund policy</a>. The free CLI keeps working as before either way.</p></details>
@@ -382,7 +382,7 @@
   </div>
   <div class="wrap biz">
     <p><span data-k="bz.name">YAML Studio (케이프로샵)</span> · <span data-k="bz.rep">Representative: 고주호</span> · <span data-k="bz.brn">Business registration no. 104-37-62963</span> · <span data-k="bz.mo">Mail-order business registration 2026-Seoul Gwanak-1299</span> · <span data-k="bz.addr">3F 216A, 408-1 Bongcheon-ro, Gwanak-gu, Seoul 08757, Republic of Korea</span> · <span data-k="bz.mail">Email: <a href="mailto:support@sprag.io">support@sprag.io</a></span></p>
-    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <a href="/refund/" data-k="bz.refund">Refund Policy</a></p>
+    <p><a href="/terms/" data-k="bz.terms">Terms of Service</a> · <a href="/privacy/" data-k="bz.priv" class="strong">Privacy Policy</a> · <span data-k="bz.data"><a href="/docs/data/">What Sprag sends</a></span> · <a href="/refund/" data-k="bz.refund">Refund Policy</a></p>
   </div>
 </footer>
 
@@ -411,6 +411,7 @@ const KO = {
  'bz.mail': "이메일 <a href=\"mailto:support@sprag.io\">support@sprag.io</a>",
  'bz.terms': "이용약관",
  'bz.priv': "개인정보처리방침",
+ 'bz.data': "<a href=\"/docs/ko/data/\">전송 데이터 안내</a>",
  'bz.refund': "환불정책",
  'bz.verify': "사업자정보확인",
 
@@ -505,7 +506,7 @@ const KO = {
  "p.q0": "좌석은 어떻게 세나요?",
  "p.a0": "좌석 하나는 최근 30일 안에 활동했거나 업로드 스위치로 일시중지된 컴퓨터 한 대입니다. 같은 사람의 두 번째 컴퓨터는 같은 좌석으로 합칠 수 있고, 한도를 넘는 참여는 거절됩니다.",
  "p.q1": "기본으로 올라가는 데이터가 있나요?",
- "p.a1": "없습니다. 무료는 아무것도 보내지 않고 계정도 필요 없습니다. 프로에서는 컴퓨터마다 하루 집계 한 줄과 OS 이름, 버전, 아키텍처만 보내며 프롬프트, 경로, 호스트 이름은 보내지 않습니다. 실제로 나가는 내용은 <code>sprag team status --show-payload</code>로 그대로 볼 수 있습니다.",
+ "p.a1": "없습니다. 무료 CLI는 사용자를 알아볼 수 있는 데이터를 보내지 않고 계정도 필요 없습니다. 프로에서는 팀에 참여한 컴퓨터만 하루 집계 한 줄과 OS 이름, 버전을 보내며 프롬프트, 경로, 호스트 이름은 보내지 않습니다. 실제로 나가는 내용은 <code>sprag team status --show-payload</code>로 그대로 볼 수 있고, 플랜별 전체 항목은 <a href=\"/docs/ko/data/\">전송 데이터 안내</a>에 있습니다.",
  "p.q2": "회사가 도입하면 동의는 누가 하나요?",
  "p.a2": "조직 단위로 배포할 때는 조직의 결정이 동의입니다. 멤버는 <code>sprag team status</code>로 전송 내용을 볼 수 있습니다. <code>SPRAG_NO_TEAM_SYNC=1</code>은 사용량 업로드를 멈추지만 좌석은 어드민이 제거할 때까지 남고, <code>sprag team leave</code>는 환경 변수보다 우선합니다.",
  "p.q4": "프롬프트 수집은 누가 정하나요?",

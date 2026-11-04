@@ -130,6 +130,14 @@ const MANIFEST = [
     keywords: ['claude code team spend', 'sprag team', 'claude code team dashboard', 'team token usage claude code'],
   },
   {
+    slug: 'data',
+    src: 'DATA.md',
+    title: 'What Sprag sends: open source, Pro and Enterprise',
+    description:
+      'Plan by plan, what leaves your computer when you use Sprag: anonymous version and preset checks on the free CLI, daily aggregates on Pro, and opt-in masked prompt capture on Enterprise. Each item names its source file.',
+    keywords: ['sprag privacy', 'sprag telemetry', 'sprag data collection', 'claude code tool privacy', 'what does sprag send'],
+  },
+  {
     slug: 'korean-style',
     src: 'KOREAN-STYLE.md',
     title: 'Korean writing style gate for Claude Code output',
