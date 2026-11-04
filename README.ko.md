@@ -43,6 +43,8 @@
 
 세션 분석은 로컬에서 실행하므로 추가 모델 호출이나 API 키가 필요하지 않습니다. Codex의 선택 기능인 예산·단가 조회는 기존 인증 정보로 사용자가 설정한 LiteLLM에 접속합니다. CLI는 Node.js 20 이상과 TOML 파서 하나를 사용합니다.
 
+무료 CLI는 사용자를 알아볼 수 있는 데이터를 보내지 않고 계정도 필요 없습니다. Pro는 팀에 참여한 컴퓨터만 하루 단위 숫자를 올리고, Enterprise는 어드민이 켠 팀에 한해 가림 처리한 프롬프트를 더합니다. 플랜별 전체 항목과 근거 파일은 [Sprag 이 보내는 데이터](docs/DATA.ko.md)에 있습니다.
+
 ```bash
 npm i -g sprag-cli   # Claude Code용이며, Codex가 설치되어 있으면 Codex도 함께 설정합니다
 ```
@@ -226,6 +228,7 @@ Codex에는 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙, 한국
 |---|---|
 | [Codex](https://sprag.io/docs/ko/codex/) | 설치, 패널, 기본 훅, 자동 후보, 프리셋, 집계 한계 |
 | [설치와 기본 설정](https://github.com/rootstudioyaml/sprag/blob/main/docs/INSTALL.ko.md) | 설치 직후 켜지는 기능, 직접 켜야 하는 기능, 끄는 방법 |
+| [Sprag 이 보내는 데이터](https://sprag.io/docs/ko/data/) | 오픈소스, Pro, Enterprise 플랜별로 밖으로 나가는 항목, 볼 수 있는 사람, 끄는 방법 |
 | [statusline](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md) | 세그먼트 의미, 경고 칩, 토큰 급증 원인 코드, 업데이트 안내 |
 | [명령](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md) | 전체 서브커맨드와 CLI 옵션 |
 | [Harness](https://github.com/rootstudioyaml/sprag/blob/main/docs/HARNESS.ko.md) | 5원칙, 래칫 승격, compact-window 고정, seed 프리셋 |
@@ -303,6 +306,7 @@ Sprag 은 켜지 않으면 로컬에서만 동작합니다. `sprag team join <�
 `SPRAG_NO_TEAM_SYNC=1` 은 팀 관련 통신을 모두 끄고, `sprag team leave` 는 참여를 해제합니다.
 
 - [팀 기능 안내](docs/TEAM.ko.md)
+- [플랜별 전송 데이터 안내](docs/DATA.ko.md)
 - 오너와 어드민용 팀 콘솔: https://sprag.io/team/
 - 플랜 안내: https://sprag.io/license/
 

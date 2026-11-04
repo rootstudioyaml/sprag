@@ -165,7 +165,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/install/</loc>
-    <lastmod>2026-11-03</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/install/"/>
@@ -174,7 +174,7 @@
   </url>
   <url>
     <loc>https://sprag.io/docs/ko/install/</loc>
-    <lastmod>2026-11-03</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/install/"/>
@@ -198,6 +198,24 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/commands/"/>
     <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/commands/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/commands/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/data/</loc>
+    <lastmod>2026-11-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/data/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/data/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/data/"/>
+  </url>
+  <url>
+    <loc>https://sprag.io/docs/ko/data/</loc>
+    <lastmod>2026-11-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/docs/data/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/docs/ko/data/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sprag.io/docs/data/"/>
   </url>
   <url>
     <loc>https://sprag.io/docs/korean-style/</loc>
