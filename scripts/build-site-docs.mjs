@@ -545,11 +545,12 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
 </header>`;
 }
 
-// The business block and the legal pages were hidden while no buyer existed.
-// They are back on since 2026-11-01, when paid ads started sending people to
-// the order page. Flip together with the hand-written pages' footer `hidden`
-// and the legal pages' noindex.
-const SHOW_BIZ = true;
+// The business block and the legal pages stay hidden until the first paying
+// customer: they were on from 2026-11-01 and went off again on 2026-11-05.
+// Payment sends the order link by mail, so the footer is not needed yet. Flip
+// together with the hand-written pages' footer `hidden` and the legal pages'
+// noindex.
+const SHOW_BIZ = false;
 const BIZ_FTC = 'https://www.ftc.go.kr/bizCommPop.do?wrkr_no=1043762963';
 // The FTC lookup still lists the values filed on 2026-07-09 for another service
 // (its support email and a Toss Payments shop page as the domain). The link is
