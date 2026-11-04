@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { sumSpendRows, gatewayDayValue, fetchGatewayDailySpend, gatewayUserHash } from '../src/gateway-spend.js';
+import { sumSpendRows, gatewayDayValue, fetchGatewayDailySpend, gatewayUserHash, logStartMs, GATEWAY_LOG_PAGE_SIZE, GATEWAY_LOG_MAX_PAGES } from '../src/gateway-spend.js';
 import { parseCodexSessionFile } from '../src/codex/parser.js';
 import { recordCodexDelegation, bindCodexSubagent, refreshCodexLedger, codexEventCost } from '../src/codex/ledger.js';
 import { aggregateDaily, syncTeam, ledgerWindow, loadTeamState, saveTeamState, deviceInfo } from '../src/team-sync.js';
@@ -39,8 +39,12 @@ function isolate(t) {
   return { root, dir };
 }
 
-/** A gateway fake: /key/info 404, /user/info with the id, /global/spend/logs with rows for two users. */
-function gatewayFake({ userId = 'me@example.com', rows, keyInfo = false, fail = null, hang = false } = {}) {
+/**
+ * A gateway fake: /key/info 404, /user/info with the id, /global/spend/logs
+ * with rows for two users. /spend/logs/v2 is 404 (an older gateway) unless
+ * `logs` is given; then it pages `logs` the way LiteLLM does.
+ */
+function gatewayFake({ userId = 'me@example.com', rows, logs = null, keyInfo = false, fail = null, hang = false } = {}) {
   const calls = [];
   const f = async (url, init) => {
     calls.push(url);
@@ -55,6 +59,12 @@ function gatewayFake({ userId = 'me@example.com', rows, keyInfo = false, fail = 
     if (path === '/key/info') return keyInfo ? { ok: true, status: 200, json: async () => ({ info: { user_id: userId } }) } : { ok: false, status: 404, json: async () => ({}) };
     if (path === '/user/info') return { ok: true, status: 200, json: async () => ({ user_info: { user_id: userId } }) };
     if (path === '/global/spend/logs') return { ok: true, status: 200, json: async () => rows };
+    if (path === '/spend/logs/v2' && logs) {
+      const q = new URL(url).searchParams;
+      const page = Number(q.get('page')), size = Number(q.get('page_size'));
+      const data = typeof logs === 'function' ? logs(page, size) : logs.slice((page - 1) * size, page * size);
+      return { ok: true, status: 200, json: async () => ({ data, page, page_size: size }) };
+    }
     return { ok: false, status: 404, json: async () => ({}) };
   };
   f.calls = calls;
@@ -82,7 +92,8 @@ test('fetchGatewayDailySpend: own rows by day, 0 inside the window, null outside
   const now = new Date(2026, 9, 25, 12).getTime();
   const f = gatewayFake({ rows: ROWS });
   const r = await fetchGatewayDailySpend({ env: GW, fetchImpl: f, now });
-  assert.deepEqual(f.calls.map((u) => new URL(u).pathname), ['/key/info', '/user/info', '/global/spend/logs']);
+  assert.deepEqual(f.calls.map((u) => new URL(u).pathname), ['/key/info', '/user/info', '/spend/logs/v2', '/global/spend/logs']);
+  assert.equal(r.dayBasis, 'utc', 'without /spend/logs/v2 the UTC daily totals are used');
   assert.equal(r.userId, 'me@example.com');
   assert.equal(r.userHash, gatewayUserHash('https://litellm.example.com', 'me@example.com'));
   assert.match(r.userHash, /^[0-9a-f]{16}$/);
@@ -95,9 +106,72 @@ test('fetchGatewayDailySpend: own rows by day, 0 inside the window, null outside
   // /key/info answering with the id is used first, like pickBudgetSource
   const g = gatewayFake({ rows: ROWS, keyInfo: true, userId: 'other@example.com' });
   const r2 = await fetchGatewayDailySpend({ env: GW, fetchImpl: g, now });
-  assert.deepEqual(g.calls.map((u) => new URL(u).pathname), ['/key/info', '/global/spend/logs']);
+  assert.deepEqual(g.calls.map((u) => new URL(u).pathname), ['/key/info', '/spend/logs/v2', '/global/spend/logs']);
   assert.equal(gatewayDayValue(r2, '2026-10-20'), 0, 'rows of another user are not summed');
 });
+
+/** Runs `fn` with the process in Korean time, the zone the team machines use. */
+async function inSeoul(fn) {
+  const saved = process.env.TZ;
+  process.env.TZ = 'Asia/Seoul';
+  try { return await fn(); } finally { if (saved === undefined) delete process.env.TZ; else process.env.TZ = saved; }
+}
+
+test('logStartMs reads a startTime without an offset as UTC', () => {
+  const z = Date.parse('2026-10-20T23:30:00Z');
+  assert.equal(logStartMs('2026-10-20T23:30:00'), z);
+  assert.equal(logStartMs('2026-10-20 23:30:00.123'), z + 123);
+  assert.equal(logStartMs('2026-10-20T23:30:00Z'), z);
+  assert.equal(logStartMs('2026-10-21T08:30:00+09:00'), z);
+  assert.ok(Number.isNaN(logStartMs('')));
+  assert.ok(Number.isNaN(logStartMs(null)));
+});
+
+test('fetchGatewayDailySpend: request logs are summed by the Korean day, not the UTC date', () => inSeoul(async () => {
+  const now = new Date(2026, 9, 25, 12).getTime();
+  const logs = [
+    { startTime: '2026-10-20T14:59:59', spend: 1, user: 'me@example.com' }, // 10-20 23:59 KST
+    { startTime: '2026-10-20T15:00:00', spend: 2, user: 'me@example.com' }, // 10-21 00:00 KST, UTC date 10-20
+    { startTime: '2026-10-20 23:30:00', spend: 4, user: 'me@example.com' }, // 10-21 08:30 KST
+    { startTime: '2026-10-21T01:00:00Z', spend: 8, user: 'me@example.com' },
+    { startTime: '2026-10-21T01:00:00Z', spend: 500, user: 'someone-else' },
+    { startTime: 'garbage', spend: 16, user: 'me@example.com' },
+  ];
+  const f = gatewayFake({ rows: ROWS, logs });
+  const r = await fetchGatewayDailySpend({ env: GW, fetchImpl: f, now, from: '2026-10-20' });
+  assert.deepEqual(f.calls.map((u) => new URL(u).pathname), ['/key/info', '/user/info', '/spend/logs/v2']);
+  const q = new URL(f.calls[2]).searchParams;
+  assert.equal(q.get('user_id'), 'me@example.com');
+  assert.equal(q.get('start_date'), '2026-10-19 15:00:00', 'local midnight of the first day, in UTC');
+  assert.equal(q.get('end_date'), '2026-10-25 03:00:00');
+  assert.equal(q.get('sort_order'), 'asc');
+  assert.equal(r.dayBasis, 'local');
+  assert.equal(r.coveredFrom, '2026-10-20');
+  assert.equal(r.coveredTo, '2026-10-25');
+  assert.equal(gatewayDayValue(r, '2026-10-20'), 1);
+  assert.equal(gatewayDayValue(r, '2026-10-21'), 14);
+  assert.equal(gatewayDayValue(r, '2026-10-22'), 0);
+  assert.equal(gatewayDayValue(r, '2026-10-19'), null, 'days before the first one asked are unknown');
+  // a missing or out-of-window start falls back to the 30-day window
+  const wide = await fetchGatewayDailySpend({ env: GW, fetchImpl: gatewayFake({ rows: ROWS, logs }), now, from: '2026-01-01' });
+  assert.equal(wide.coveredFrom, '2026-09-26');
+}));
+
+test('fetchGatewayDailySpend: request logs are paged, and a log over the page cap uses the UTC totals', () => inSeoul(async () => {
+  const now = new Date(2026, 9, 25, 12).getTime();
+  const row = { startTime: '2026-10-24T03:00:00', spend: 0.001, user: 'me@example.com' };
+  const logs = [...Array(GATEWAY_LOG_PAGE_SIZE + 1)].map(() => row);
+  const f = gatewayFake({ rows: ROWS, logs });
+  const r = await fetchGatewayDailySpend({ env: GW, fetchImpl: f, now });
+  assert.deepEqual(f.calls.map((u) => new URL(u).searchParams.get('page')).slice(2), ['1', '2']);
+  assert.equal(Math.round(gatewayDayValue(r, '2026-10-24') * 1000), GATEWAY_LOG_PAGE_SIZE + 1);
+  const full = [...Array(GATEWAY_LOG_PAGE_SIZE)].map(() => row);
+  const big = gatewayFake({ rows: ROWS, logs: () => full });
+  const r2 = await fetchGatewayDailySpend({ env: GW, fetchImpl: big, now });
+  assert.equal(big.calls.filter((u) => new URL(u).pathname === '/spend/logs/v2').length, GATEWAY_LOG_MAX_PAGES);
+  assert.equal(r2.dayBasis, 'utc');
+  assert.equal(gatewayDayValue(r2, '2026-10-20'), 110);
+}));
 
 test('fetchGatewayDailySpend: no gateway → null, unknown user id → null, failure → { error }, timeout → { error }', async () => {
   assert.equal(await fetchGatewayDailySpend({ env: {}, fetchImpl: gatewayFake({ rows: ROWS }) }), null);

@@ -895,14 +895,15 @@ export async function syncTeam({
     // price Claude the same way and both see the gateway figure.
     env = withClaudeSettingsEnv(env);
     const hasGateway = !!gatewayEnv(env);
-    let gatewayDaily = null;
-    if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now });
-    const gatewayOk = !!(gatewayDaily && !gatewayDaily.error);
     // Days the delegation ledger changed after they were uploaded (a rescan
     // repriced them) go up again from the earliest one.
     let change = null;
     try { change = changedSinceForSync(); } catch (e) { debug('team-sync', e); }
     const win = ledgerWindow(state, now, { gateway: hasGateway, changedSince: change?.since });
+    // The gateway's request log is read only from the first day going up.
+    let gatewayDaily = null;
+    if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now, from: win.startKey });
+    const gatewayOk = !!(gatewayDaily && !gatewayDaily.error);
     let prices = codexPrices;
     if (prices === undefined) {
       const r = await codexPricesForSync({ dir, now, fetchImpl: gatewayFetch, attemptedAt: state.codexPricesAttemptAt });

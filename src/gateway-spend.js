@@ -9,8 +9,11 @@
  *
  *   GET {base}/key/info          the key's user_id (404 on custom-auth deployments)
  *   GET {base}/user/info         user_info.user_id as the fallback
+ *   GET {base}/spend/logs/v2     one row per request with its startTime, paged,
+ *                                for this user since the first local day asked
  *   GET {base}/global/spend/logs rows {date, spend, api_key, user}; the most
- *                                recent 30 days, every user the key may see
+ *                                recent 30 days, every user the key may see;
+ *                                the fallback when v2 is missing or too large
  *
  * Only rows whose `user` is this user id are summed: an admin key sees
  * everyone's rows and summing them all would report the whole company as one
@@ -21,9 +24,11 @@
  * a file (same rule as litellm-budget.js). Failures are returned as
  * `{ error }`, never thrown: the upload goes on with local figures.
  *
- * `date` is the gateway's calendar day (UTC on the deployments measured), so
- * a day can differ from the local day by up to a few hours of traffic; range
- * sums are unaffected.
+ * The request rows are summed by the local calendar day, the key every other
+ * figure in the daily row uses (Korean time on the machines measured). The
+ * daily tables behind /global/spend/logs and /user/daily/activity only keep
+ * the UTC date, so they cannot be regrouped: a request at 08:00 KST lands on
+ * the previous day there. That fallback result carries `dayBasis: 'utc'`.
  */
 
 import { createHash } from 'node:crypto';
@@ -42,8 +47,12 @@ export function gatewayEnv(env = process.env) {
 
 export const GATEWAY_SPEND_TIMEOUT_MS = 15000;
 export const GATEWAY_SPEND_DAYS = 30;
+export const GATEWAY_LOG_PAGE_SIZE = 1000;
+/** 60 pages of 1,000 requests; past that the UTC daily totals are cheaper. */
+export const GATEWAY_LOG_MAX_PAGES = 60;
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}/;
+const KEY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** Local calendar day, same key as team-sync.js and stats.js. */
 function dayKey(ms) {
@@ -79,6 +88,34 @@ export function sumSpendRows(rows, userId) {
 }
 
 /**
+ * Epoch ms of a spend log's startTime. The column is a timestamp without a
+ * zone holding UTC, so a value without an offset is read as UTC.
+ */
+export function logStartMs(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return NaN;
+  return Date.parse(/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s.replace(' ', 'T')}Z`);
+}
+
+/** Sum `/spend/logs/v2` request rows for one user by local calendar day. */
+export function sumLogRows(rows, userId) {
+  const days = new Map();
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    if (String(r.user ?? '') !== String(userId)) continue;
+    const usd = Number(r.spend);
+    const ms = logStartMs(r.startTime);
+    if (!Number.isFinite(usd) || !Number.isFinite(ms)) continue;
+    const day = dayKey(ms);
+    days.set(day, (days.get(day) || 0) + usd);
+  }
+  return days;
+}
+
+/** UTC "YYYY-MM-DD HH:MM:SS", the form /spend/logs/v2 reads its window in. */
+const utcStamp = (ms) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+
+/**
  * The gateway figure for one local day: a number inside the covered range (0
  * when the gateway has no row for it), null outside it or without a result.
  */
@@ -89,20 +126,47 @@ export function gatewayDayValue(result, day) {
 }
 
 /**
- * @returns {Promise<null | { error: string } | { days: Map<string, number>, coveredFrom: string, coveredTo: string, userId: string, userHash: string }>}
+ * @param {object} [opts]
+ * @param {string} [opts.from] first local day (YYYY-MM-DD) the caller needs;
+ *   request logs are read from there, never further back than 30 days
+ * @returns {Promise<null | { error: string } | { days: Map<string, number>, coveredFrom: string, coveredTo: string, dayBasis: 'local' | 'utc', userId: string, userHash: string }>}
  *   null when no gateway is configured or the user id cannot be learned.
  */
-export async function fetchGatewayDailySpend({ env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), timeoutMs = GATEWAY_SPEND_TIMEOUT_MS } = {}) {
+export async function fetchGatewayDailySpend({ env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), timeoutMs = GATEWAY_SPEND_TIMEOUT_MS, from = null } = {}) {
   const g = gatewayEnv(env);
   if (!g) return null;
   const { base, key } = g;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  // The request logs get half the time, so a slow or huge log still leaves
+  // room for the daily totals.
+  const logCtl = new AbortController();
+  const logTimer = setTimeout(() => logCtl.abort(), Math.floor(timeoutMs / 2));
+  const stopLogs = () => logCtl.abort();
+  ctl.signal.addEventListener('abort', stopLogs);
   const headers = { accept: 'application/json', authorization: `Bearer ${key}` };
-  const getJson = async (path) => {
-    const res = await fetchImpl(`${base}${path}`, { signal: ctl.signal, headers, redirect: 'error' });
-    if (!res.ok) throw new Error(`LiteLLM ${path} responded ${res.status}`);
+  const getJson = async (path, signal = ctl.signal) => {
+    const res = await fetchImpl(`${base}${path}`, { signal, headers, redirect: 'error' });
+    if (!res.ok) throw new Error(`LiteLLM ${path.split('?')[0]} responded ${res.status}`);
     return res.json();
+  };
+  // Request rows summed by local day, or null when the log is over the page
+  // cap. Oldest first, so requests made while paging only add to the end.
+  const logDays = async (userId, fromKey) => {
+    const m = KEY_RE.exec(fromKey);
+    const startMs = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+    const days = new Map();
+    for (let page = 1; page <= GATEWAY_LOG_MAX_PAGES; page++) {
+      const q = new URLSearchParams({
+        user_id: userId, start_date: utcStamp(startMs), end_date: utcStamp(now),
+        page: String(page), page_size: String(GATEWAY_LOG_PAGE_SIZE), sort_by: 'startTime', sort_order: 'asc',
+      });
+      const body = await getJson(`/spend/logs/v2?${q}`, logCtl.signal);
+      if (!body || !Array.isArray(body.data)) throw new Error('LiteLLM /spend/logs/v2 sent no data array');
+      for (const [day, usd] of sumLogRows(body.data, userId)) days.set(day, (days.get(day) || 0) + usd);
+      if (body.data.length < GATEWAY_LOG_PAGE_SIZE) return days;
+    }
+    return null;
   };
   try {
     // Same order as pickBudgetSource: the key's own user id first, then the
@@ -119,19 +183,32 @@ export async function fetchGatewayDailySpend({ env = process.env, fetchImpl = gl
       if (typeof id === 'string' && id) userId = id;
     }
     if (!userId) return null;
-    const rows = await getJson('/global/spend/logs');
-    const { days, earliest } = sumSpendRows(rows, userId);
     const coveredTo = dayKey(now);
     const windowStart = dayKey(now - (GATEWAY_SPEND_DAYS - 1) * 86400000);
+    const userHash = gatewayUserHash(base, userId);
+    const logFrom = KEY_RE.test(String(from || '')) && from > windowStart && from <= coveredTo ? from : windowStart;
+    let local = null;
+    try {
+      local = await logDays(userId, logFrom);
+    } catch (e) {
+      // The whole budget is spent: the daily totals would time out as well.
+      if (ctl.signal.aborted) throw e;
+      debug('gateway-spend:logs-v2', e);
+    }
+    if (local) return { days: local, coveredFrom: logFrom, coveredTo, dayBasis: 'local', userId, userHash };
+    const rows = await getJson('/global/spend/logs');
+    const { days, earliest } = sumSpendRows(rows, userId);
     // The response is the gateway's recent-30-day window. A day inside it with
     // no row is a day with no spend; the earliest row only widens the window
     // when the gateway sent more than 30 days.
     const coveredFrom = earliest && earliest < windowStart ? earliest : windowStart;
-    return { days, coveredFrom, coveredTo, userId, userHash: gatewayUserHash(base, userId) };
+    return { days, coveredFrom, coveredTo, dayBasis: 'utc', userId, userHash };
   } catch (e) {
     debug('gateway-spend', e);
     return { error: e && e.name === 'AbortError' ? 'timeout' : String((e && e.message) || e) };
   } finally {
     clearTimeout(timer);
+    clearTimeout(logTimer);
+    ctl.signal.removeEventListener('abort', stopLogs);
   }
 }
