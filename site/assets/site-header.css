@@ -31,7 +31,15 @@ header.site-hdr .lang button,header.site-hdr .lang a{display:inline-flex;align-i
 header.site-hdr .lang button+button,header.site-hdr .lang a+a{border-left:1px solid #34343a}
 header.site-hdr .lang button:hover,header.site-hdr .lang a:hover{color:#8a8f98}
 header.site-hdr .lang button[aria-pressed=true],header.site-hdr .lang a[aria-pressed=true]{background:rgba(94,106,210,.12);color:#5e6ad2}
-@media(max-width:720px){header.site-hdr nav .hide-sm{display:none}}
+/* Phones: the nav drops to its own row and scrolls sideways, so every link stays reachable. */
+@media(max-width:720px){
+  header.site-hdr .wrap{height:auto;flex-wrap:wrap;row-gap:0;padding-top:8px}
+  header.site-hdr nav{order:2;width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+    padding:6px 0 8px;white-space:nowrap}
+  header.site-hdr nav::-webkit-scrollbar{display:none}
+  header.site-hdr nav > *{flex:0 0 auto}
+  header.site-hdr nav > a:first-child{padding-left:0}
+}
 @media(max-width:480px){header.site-hdr .wrap{padding:0 16px}header.site-hdr nav > a.gh{margin-left:8px}}
 @media(hover:none) and (pointer:coarse){
   header.site-hdr nav > a.gh{width:40px;height:40px}
