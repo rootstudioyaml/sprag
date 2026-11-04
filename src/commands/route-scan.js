@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
+import { routingEnabled } from '../routing-switch.js';
 import { signedUsd } from '../money.js';
 import { agentForRule, TIER_MODEL } from '../agents.js';
 
@@ -302,7 +303,12 @@ export async function run({ args, hasFlag, numArg }) {
           spawnDetachedCli(['route-scan', '--refresh', '--quiet']);
         } catch (e) { debug('route-scan:spawn-refresh', e); /* stale cache is still usable below */ }
       }
-      const open = rs.openCandidates(cache);
+      // Routing master switch off: no candidate and no rule-health briefing goes
+      // to the session. The scan, agent files and ratchet files below still run,
+      // because the off state is rendered inside syncAllFiles and
+      // preparePresetRatchet.
+      const routingOn = routingEnabled();
+      const open = routingOn ? rs.openCandidates(cache) : [];
       // Rule text shown to the model must be composed the same way the md file
       // composes it, budget clause included — otherwise the briefing promises
       // one rule and the file carries another.
@@ -321,7 +327,12 @@ export async function run({ args, hasFlag, numArg }) {
       try { (await import('../preset-sync.js')).spawnPresetSyncIfDue(); } catch (e) { debug('route-scan:preset-sync', e); }
       // Agent files come first so the ratchet-model.md rendered next names them.
       try { (await import('../delegation-agents.js')).syncDelegationAgents(); } catch (e) { debug('route-scan:delegation-agents', e); }
-      try { mrHook.syncAllFiles(); } catch (e) { debug('route-scan:sync-ratchet', e); }
+      // The session's project is passed so its rule-less file follows the
+      // routing switch as well (see syncAllFiles).
+      try {
+        const { findProjectRoot } = await import('../harness.js');
+        mrHook.syncAllFiles({ roots: [findProjectRoot(hookCtx.cwd || process.cwd())] });
+      } catch (e) { debug('route-scan:sync-ratchet', e); }
       // Same reason for the preset ratchet: an upgrade that rewords or drops a
       // bundled rule reaches ratchet-preset.md here, without a reinstall. It
       // also moves presets older versions appended to ratchet.md.
@@ -345,7 +356,7 @@ export async function run({ args, hasFlag, numArg }) {
       let reviewRules = [];
       try {
         const mr = mrHook;
-        reviewRules = mr.loadModelRules().rules
+        if (routingOn) reviewRules = mr.loadModelRules().rules
           .map((r, i) => ({ ...r, n: i + 1 }))
           .filter((r) => r.status === 'review');
       } catch (e) { debug('route-scan:load-rules', e); /* candidate briefing still goes out */ }
@@ -533,6 +544,11 @@ export async function run({ args, hasFlag, numArg }) {
     console.log(lang === 'ko'
       ? `route-scan — 최근 ${cache.days}일: 에피소드 ${cache.totalEpisodes}건 중 easy ${cache.easyEpisodes}건 (${easyPct}%)  [스캔: ${cache.scannedAt}]`
       : `route-scan — last ${cache.days}d: ${cache.easyEpisodes}/${cache.totalEpisodes} episodes easy (${easyPct}%)  [scanned: ${cache.scannedAt}]`);
+    if (!routingEnabled()) {
+      console.log(lang === 'ko'
+        ? 'routing 이 꺼져 있어 후보를 세션에 알리지 않습니다. 켜기: sprag routing on'
+        : 'Routing is off, so candidates are not announced to the session. Enable with: sprag routing on');
+    }
     const open = rs.openCandidates(cache);
     if (open.length === 0) {
       console.log(lang === 'ko'

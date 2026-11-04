@@ -22,6 +22,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { codexUserDir } from './agent.js';
 import { userLanguage } from './config.js';
+import { routingEnabled, DELEGATION_PRESET_IDS } from './routing-switch.js';
 import {
   HARNESS_BLOCK_BEGIN,
   HARNESS_BLOCK_END,
@@ -55,7 +56,10 @@ function writeIfChanged(file, text) {
 /** The accepted-global presets, in the bundled order, with this version's wording. */
 export function acceptedGlobalPresets({ agent = 'claude', lang = userLanguage() } = {}) {
   const { decided } = loadSeedState({ agent });
+  // Routing off: delegation presets stay recorded in seed-state but are not rendered.
+  const on = routingEnabled();
   return ratchetPresets(lang, { agent })
+    .filter((p) => on || !DELEGATION_PRESET_IDS.has(p.id))
     .filter((p) => decided[p.id]?.action === 'accepted' && decided[p.id]?.scope === 'global')
     .map((p) => ({ id: p.id, text: p.text }));
 }

@@ -38,6 +38,7 @@ import { agentPhrase, agentPhraseEn, resolveAgentName, agentForRule, TIER_MODEL 
 import { writeStateFile } from './state-file.js';
 import { signedUsd } from './money.js';
 import { implementationDelegationRule } from './implementation-delegation.js';
+import { routingEnabled, routingOffRatchetText } from './routing-switch.js';
 
 // Post-promotion delegated-category error rate above this flags the rule
 // for review (rule-health). Calibrated against local T0 avg error incidence.
@@ -548,7 +549,7 @@ export function modelRatchetPathFor(scope, targetRoot) {
  * version's template, so an upgrade that reworded the rules reaches the disk
  * on the next session rather than waiting for a rescan to happen to fire.
  */
-export function syncAllFiles({ previousPaths = [] } = {}) {
+export function syncAllFiles({ previousPaths = [], roots = [] } = {}) {
   const data = loadModelRules();
   const byPath = new Map();
   for (const r of data.rules) {
@@ -572,6 +573,33 @@ export function syncAllFiles({ previousPaths = [] } = {}) {
     }
   };
   const written = [];
+  // Files that hold no rule but exist: the global one and those of `roots`.
+  // `harness init` seeds them with renderModelRatchet([]), whose header alone
+  // tells the model the user approved delegation, so the master switch has to
+  // reach them too even though the registry names none of them.
+  const ruleless = [modelRatchetPathFor('global'), ...roots.map((r) => modelRatchetPathFor('project', r))]
+    .filter((p, i, all) => all.indexOf(p) === i && !byPath.has(p) && existsSync(p));
+  // Master switch off: every file this registry owns says so instead of
+  // carrying rules. The registry itself is untouched, so turning routing back
+  // on re-renders everything.
+  if (!routingEnabled()) {
+    const text = routingOffRatchetText(userLanguage());
+    for (const p of byPath.keys()) {
+      if (writeIfChanged(p, text)) written.push(p);
+    }
+    for (const p of [...previousPaths, ...ruleless]) {
+      if (!byPath.has(p) && existsSync(p) && writeIfChanged(p, text)) written.push(p);
+    }
+    return written;
+  }
+  // Back on: a rule-less file still carrying the off notice gets the empty
+  // rendering back. Any other content is left as it is.
+  const offTexts = new Set([routingOffRatchetText('ko'), routingOffRatchetText('en')]);
+  for (const p of ruleless) {
+    let text = null;
+    try { text = readFileSync(p, 'utf8'); } catch { /* unreadable — leave it */ }
+    if (offTexts.has(text) && writeIfChanged(p, renderModelRatchet([]))) written.push(p);
+  }
   for (const [p, rules] of byPath) {
     // Agents are looked up where the file's readers are: the project for a
     // project file, the user directory alone for the global one.

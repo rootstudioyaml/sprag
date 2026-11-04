@@ -271,6 +271,7 @@ The ratchet presets, model-routing presets and delegation agents in `presets/` a
 | `sprag handoff` | Back work up to markdown before a cap blocks you |
 | `sprag route-scan` | Find delegation candidates in your own history (0 LLM calls) |
 | `sprag route-scan savings` | The routing-savings ledger |
+| `sprag routing on\|off` | Turn model delegation (rules, hints, candidates) on or off |
 | `sprag harness check` | Current 🅷 harness score |
 | `sprag doc2md <file>` | Convert one document to Markdown |
 

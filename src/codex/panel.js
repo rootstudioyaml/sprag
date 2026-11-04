@@ -24,6 +24,7 @@ import { codexRulesInReview, codexSharedRuleHealth } from './rule-health.js';
 import { readCodexRouteScan, openCodexCandidates } from './route-scan.js';
 import { codexBudgetProvider } from './budget.js';
 import { readUpdateChip } from '../update-notice.js';
+import { routingEnabled } from '../routing-switch.js';
 import { cellWidth } from '../cell-width.js';
 
 const CODEX_SUPPORTED_SEGMENTS = new Set([
@@ -125,7 +126,7 @@ export function createPanelReader({ root = process.cwd(), home, sessionId: pinne
       catch { rules[scope] = null; }
     }
     let route = [];
-    try { route = openCodexCandidates(readCodexRouteScan(), { root: project }); } catch { /* No scan yet. */ }
+    try { if (routingEnabled(cfg)) route = openCodexCandidates(readCodexRouteScan(), { root: project }); } catch { /* No scan yet. */ }
     let ruleReview = [];
     try {
       const modelRules = loadCodexModelRules();

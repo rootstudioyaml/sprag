@@ -26,6 +26,7 @@ import { routeWarningForStatusline } from './route-scan.js';
 import { ruleHealthWarningForStatusline, modelRatchetPathFor, renderModelRatchet } from './model-rules.js';
 import { compactWindowWarningForStatusline } from './compact-window.js';
 import { userLanguage } from './config.js';
+import { routingEnabled, routingOffRatchetText } from './routing-switch.js';
 import { codexUserDir } from './agent.js';
 import { ratchetPresetEntries } from './presets-source.js';
 
@@ -281,7 +282,7 @@ export function harnessInit({ root = findProjectRoot(), force = false, scope = '
   if (!existsSync(mrPath)) {
     try {
       mkdirSync(dirname(mrPath), { recursive: true });
-      writeFileSync(mrPath, renderModelRatchet([]));
+      writeFileSync(mrPath, routingEnabled() ? renderModelRatchet([]) : routingOffRatchetText(userLanguage()));
       result.wrote.push(mrPath);
     } catch { /* unwritable — route-scan will retry on its next sync */ }
   } else {
@@ -652,15 +653,17 @@ export function harnessStatusForStatusline(cfg, { root, liveWindow = null } = {}
   // Below session-quality warnings: a promoted delegation rule whose
   // category started failing (`rule-health R<N>`) — the user approved that
   // rule, so its degradation outranks a mere new-candidate nudge.
+  // Both routing warnings are skipped while the master switch is off.
+  const routingOn = routingEnabled(cfg);
   try {
-    const w = ruleHealthWarningForStatusline(projectRoot);
+    const w = routingOn ? ruleHealthWarningForStatusline(projectRoot) : null;
     if (w) warnings.push(w);
   } catch { /* registry unreadable — stay silent */ }
   // Lowest precedence: route-scan delegation candidate (`route? R<N>`).
   // Session-quality warnings above always win — routing is an optimization
   // nudge, not a correctness signal. Cheap: one small cached-JSON read.
   try {
-    const w = routeWarningForStatusline(projectRoot);
+    const w = routingOn ? routeWarningForStatusline(projectRoot) : null;
     if (w) warnings.push(w);
   } catch { /* scan cache unreadable — stay silent */ }
   // `warning` is the one shown; `moreWarnings` counts the ones it outranks.

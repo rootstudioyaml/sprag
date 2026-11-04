@@ -18,6 +18,7 @@ import { bindCodexSubagent, closeStaleCodexRoutes, unsettledCodexRoutes } from '
 import { seedOfferBlock } from '../seed-rules.js';
 import { readCodexRouteScan, openCodexCandidates, shouldRescanCodex } from './route-scan.js';
 import { userDataDir } from '../paths.js';
+import { routingEnabled } from '../routing-switch.js';
 import { debug } from '../debug.js';
 import { updateOffer } from '../update-notice.js';
 
@@ -236,7 +237,7 @@ export async function codexHookOutput(event, payload, { cfg = loadConfig(), refr
   if (event === 'prompt') {
     const parts = [];
     try { (await import('../team-ratchet.js')).spawnTeamSyncOnPrompt(); } catch (e) { debug('codex:team-prompts', e); }
-    if (codexDelegateEnabled(cfg)) {
+    if (codexDelegateEnabled(cfg) && routingEnabled(cfg)) {
       // Before the hint for this prompt is recorded: a hint from an earlier turn
       // that no child claimed is closed, and children that did run get priced.
       try { closeStaleCodexRoutes(payload); } catch (e) { debug('codex:close-routes', e); }

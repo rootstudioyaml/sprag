@@ -30,6 +30,7 @@ import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { resolveModelId, isOneMillionModel, effectiveWindow } from './compact-window.js';
 import { liveWindowFor } from './ctx-window-cache.js';
+import { routingEnabled } from './routing-switch.js';
 
 // Context tiers as a fraction of the session's context window. Tier 1 warns
 // (compaction/cost territory ahead), tier 2 urges wrapping up. A session only
@@ -214,8 +215,9 @@ export async function runBrief({ sessionId, transcriptPath, root = process.cwd()
   }
 
   // ── mid-session route-scan / rule-health changes (global state, briefed
-  //    at most once per session per signature) ──
-  try {
+  //    at most once per session per signature). Skipped while the routing
+  //    master switch is off. ──
+  if (routingEnabled()) try {
     const rs = await import('./route-scan.js');
     const mr = await import('./model-rules.js');
     const briefed = new Set(s.briefed || []);

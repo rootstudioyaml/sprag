@@ -217,6 +217,7 @@ Codex에는 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙, 한국
 | `sprag handoff` | 한도에 막히기 전에 작업 상태를 백업 |
 | `sprag route-scan` | 내 기록에서 위임 후보 찾기 (LLM 호출 0회) |
 | `sprag route-scan savings` | 라우팅 절감 원장 조회 |
+| `sprag routing on\|off` | 모델 위임(룰과 힌트와 후보 안내) 켜기와 끄기 |
 | `sprag harness check` | 🅷 하네스 점수 확인 |
 | `sprag doc2md <파일>` | 문서 한 건을 Markdown 으로 변환 |
 
