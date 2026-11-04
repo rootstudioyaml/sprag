@@ -134,7 +134,7 @@ const MANIFEST = [
     src: 'DATA.md',
     title: 'What Sprag sends: open source, Pro and Enterprise',
     description:
-      'Plan by plan, what leaves your computer when you use Sprag: anonymous version and preset checks on the free CLI, daily aggregates on Pro, and opt-in masked prompt capture on Enterprise. Each item names its source file.',
+      'Plan by plan, what Sprag uploads to its server: nothing on the free CLI, daily numeric totals on Pro, and opt-in masked prompt capture on Enterprise.',
     keywords: ['sprag privacy', 'sprag telemetry', 'sprag data collection', 'claude code tool privacy', 'what does sprag send'],
   },
   {
