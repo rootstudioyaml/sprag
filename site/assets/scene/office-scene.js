@@ -1546,7 +1546,7 @@ export function officeSceneData(o){
     rs.sort((a, b) => (a.member_id === key ? -1 : 0) - (b.member_id === key ? -1 : 0));
     const host = rs[0], mix = { haiku: 0, sonnet: 0, opus: 0 };
     let local = 0, saved = 0, runs = 0, fam = false, models = null, today = 0, errors = 0, savedToday = 0, delToday = null;
-    let dcost = null, codexRuns = 0, unpriced = 0, gwKnown = false; const todayGw = {};
+    let dcost = null, codexRuns = 0, unpriced = 0; const todayGw = {};
     const { total: spent, days } = usageTotal(rs.map(r => usage[r.member_id] || {}));
     rs.forEach(r => {
       { const u1 = usage[r.member_id] || {}; savedToday += Number(u1.saved_today) || 0; if(u1.delegated_today != null) delToday = (delToday || 0) + (Number(u1.delegated_today) || 0); }
@@ -1554,7 +1554,6 @@ export function officeSceneData(o){
       const u = usage[r.member_id] || {}; local += Number(u.local_spent ?? u.spent) || 0; saved += Number(u.saved) || 0; runs += Number(u.delegated) || 0;
       { const tdy = Number(u.total_spent_today ?? u.spent_today) || 0, h = u.gateway_user_hash || null;
         if(h && Number.isFinite(num(u.gateway_spent))) todayGw[h] = Math.max(todayGw[h] ?? 0, tdy); else today += tdy; }
-      if(Number.isFinite(num(u.gateway_spent))) gwKnown = true;
       { const c = num(u.delegated_cost); if(Number.isFinite(c)) dcost = (dcost || 0) + c; }
       codexRuns += Number(u.codex_delegated) || 0; unpriced += Number(u.unpriced) || 0;
       if(u.models && typeof u.models === 'object') Object.entries(u.models).forEach(([k, v]) => { const n = Number(v); if(Number.isFinite(n) && n > 0){ models = models || {}; models[k] = (models[k] || 0) + n; } });
@@ -1564,7 +1563,7 @@ export function officeSceneData(o){
     if(pr) rs.forEach(r => { const p = pr.find(x => x.member_id === r.member_id) || pr.find(x => x.display_name && x.display_name === r.display_name); if(p){ prompts += Number(p.prompts) || 0; chars += Number(p.chars) || 0; promptId = promptId || p.member_id;
       if(p.last_prompt_at && (!lastPrompt || p.last_prompt_at > lastPrompt)) lastPrompt = p.last_prompt_at; (p.by_day || []).forEach(q => { pdays[q.day] = (pdays[q.day] || 0) + (Number(q.prompts) || 0); }); } });
     today += Object.values(todayGw).reduce((a, b) => a + b, 0);
-    return { id: key, host, rs, spent, local, unrec: gwKnown ? Math.max(0, spent - local) : null, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
+    return { id: key, host, rs, spent, local, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
       mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: dcost != null && spent > 0 ? dcost / spent : null };
   });
   all.sort((a, b) => b.spent - a.spent);
@@ -1635,8 +1634,7 @@ export function officeSceneData(o){
         const ids2 = new Set(p.rs.map(r => r.member_id)), tm = teamM[p.host.team_id] || { spent: 0, dlg: 0, prompts: 0 }, dd = Object.keys(p.days).sort(), pd = Object.keys(p.pdays).sort();
         const lastP = p.lastPrompt ? o.rel(p.lastPrompt) : t('never');
         const hasData = !nodata && !closed;
-        const pRows = [[t('of.total'), money(p.spent) + (p.unpriced > 0 ? ' · ' + t('of.unpriced') : '')], [t('of.local'), money(p.local)]]
-          .concat(p.unrec != null ? [[t('of.unrec'), money(p.unrec)]] : [])
+        const pRows = [[t('of.total'), money(p.spent) + (p.unpriced > 0 ? ' · ' + t('of.unpriced') : '')]]
           .concat([[t('of.dcost'), p.dcost == null ? t('of.unknown') : money(p.dcost)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pcN(p.dlg)], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]])
           .concat(pr ? [[t('of.prompts'), String(p.prompts)], [t('of.d.days'), String(pd.length)], [t('of.d.avg'), p.prompts ? t('pu.chars', { n: Math.round(p.chars / p.prompts) }, true) : '—'], [t('of.d.lastp'), lastP]] : []);
         const tRows = [[t('of.d.today'), money(p.today)], [t('of.d.today.s'), money(p.savedToday)], [t('of.d.today.r'), p.delToday == null ? '—' : String(p.delToday)]];
