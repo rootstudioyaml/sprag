@@ -38,6 +38,7 @@ header.site-hdr .lang button[aria-pressed=true],header.site-hdr .lang a[aria-pre
     padding:6px 0 8px;white-space:nowrap}
   header.site-hdr nav::-webkit-scrollbar{display:none}
   header.site-hdr nav > *{flex:0 0 auto}
+  header.site-hdr nav .hide-sm{display:inline-block}
   header.site-hdr nav > a:first-child{padding-left:0}
 }
 @media(max-width:480px){header.site-hdr .wrap{padding:0 16px}header.site-hdr nav > a.gh{margin-left:8px}}

@@ -341,7 +341,7 @@ const FAVICON_LINKS = `<link rel="icon" href="/assets/logo/favicon.svg" type="im
 const FONT_LINKS = `<link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/assets/site-header.css" />`;
+<link rel="stylesheet" href="/assets/site-header.css?v=2" />`;
 
 const BRAND_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true">
         <path fill="currentColor" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/>
@@ -403,7 +403,6 @@ function styleBlock() {
   .lang a:hover{color:var(--dim)}
   .lang a[aria-pressed=true]{background:rgba(94,106,210,.12);color:var(--amber)}
   html[lang=ko] body{word-break:keep-all;line-height:1.7}
-  @media(max-width:720px){header nav .hide-sm{display:none}}
   @media(hover:none) and (pointer:coarse){
     .gh{min-height:40px;padding:8px 12px}
     .gh.ic{width:40px;height:40px}
