@@ -37,6 +37,7 @@ import {
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { loadConfig } from './config.js';
+import { routingEnabled } from './routing-switch.js';
 import { writeStateFile } from './state-file.js';
 import { debug } from './debug.js';
 
@@ -182,6 +183,7 @@ function nudgeText(info, n, mcp) {
  */
 export function followToolUse(payload, { now = Date.now(), cfg = loadConfig(), dir } = {}) {
   try {
+    if (!routingEnabled(cfg)) return null;
     if (cfg?.routeFollowUp === false) return null;
     // A subagent's own tool calls reach this hook under the parent's session id,
     // and PostToolUse for the Task call itself only fires once the subagent has

@@ -116,7 +116,7 @@ function columnsFromArgs({ useEnv = true } = {}) {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget', 'oauth-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets',
+  'seed', 'litellm-budget', 'oauth-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets', 'routing',
 ]);
 
 // Flags each entry path reads, collected from the hasFlag/getArg/numArg calls in
@@ -214,6 +214,7 @@ Usage:
   sprag cowork [sync|on|off|exclude <dir>|include <dir>]   copy the ratchet rules into Cowork tab folders
   sprag korean on|off|status     Korean writing guidance + write-time check
   sprag cohesion on|off|status   English sentence-connection guidance
+  sprag routing on|off|status   model delegation master switch (rules, hints, candidates)
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
   sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
   sprag compact-window     audit or pin autoCompactWindow for 1M sessions
@@ -392,6 +393,11 @@ async function main() {
   if (args[0] === 'cohesion') {
     return (await import('../src/commands/cohesion.js')).run({ args, hasFlag });
   }
+
+  // Subcommand: routing — master switch for model delegation (ratchet-model.md
+  // rules, prompt hints, route-scan candidates).
+  //   sprag routing on | off | status
+  if (args[0] === 'routing') return (await import('../src/commands/routing.js')).run({ args, hasFlag });
 
   // Subcommand: doc2md — convert pptx/xlsx/pdf/docx to Markdown before the
   // model reads them, so an unreadable binary never enters the context window.

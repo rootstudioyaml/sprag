@@ -17,6 +17,7 @@
 
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
+import { routingEnabled } from '../routing-switch.js';
 
 export async function run({ hasFlag }) {
     if (hasFlag('--hook-tool')) {
@@ -52,7 +53,20 @@ export async function run({ hasFlag }) {
     // resolving it against a general "don't spawn subagents" instruction; naming
     // the match here removes both steps. Silent unless it is sure — see
     // src/route-inject.js.
-    try {
+    // Master switch off (`sprag routing off`): no hint, and the records of the
+    // previous turn are cleared so the PostToolUse nudge and the delegation
+    // guard do not act on a hint that is no longer shown.
+    const routingOn = routingEnabled();
+    if (!routingOn) {
+      try {
+        const { clearFollow } = await import('../route-follow.js');
+        clearFollow(ctx.session_id);
+        const { matchCaps } = await import('../route-inject.js');
+        const { recordRouteCaps } = await import('../route-caps.js');
+        recordRouteCaps(ctx.session_id, matchCaps(null));
+      } catch (e) { debug('brief:routing-off', e); }
+    }
+    if (routingOn) try {
       const { routeHint, routeMatch, matchCaps, sessionModelRank, hintTarget, hintLabel } = await import('../route-inject.js');
       // The payload names the session but not its model, so the rank comes from
       // the transcript: without it a Sonnet session is told to delegate to

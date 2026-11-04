@@ -38,6 +38,7 @@ import { firstSentence, OFFER_CUT } from './first-sentence.js';
 // which stays dependency-free so the per-prompt hook does not load this module.
 export { firstSentence, OFFER_CUT };
 import { userLanguage } from './config.js';
+import { routingEnabled, DELEGATION_PRESET_IDS } from './routing-switch.js';
 import { writeStateFile } from './state-file.js';
 import {
   addModelRule,
@@ -109,8 +110,12 @@ const stripDate = (t) => t.replace(/^\d{4}-\d{2}-\d{2}(\s*\([^)]*\))?:\s*/, '').
  * A shared policy covers its tier and category only within its approved scope.
  * A decision in another project must not suppress this project's offer.
  */
-export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), agent = 'claude' } = {}) {
+export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), agent = 'claude', includeDelegation = false } = {}) {
   const { decided } = loadSeedState({ agent });
+  // With the routing master switch off, delegation presets are not offered.
+  // `includeDelegation` is for findSeed, so an explicit `seed accept <id>`
+  // still finds them.
+  const offerDelegation = includeDelegation || routingEnabled();
   const registered = sharedModelRulesForProject(loadSharedModelRules({ includeInactive: true }), root);
   const haveModel = new Set(registered.map((r) => `${r.tier}|${r.category}`));
 
@@ -123,7 +128,7 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), 
 
   const out = [];
   const roots = sharedProjectRoots(root);
-  for (const p of modelPresets()) {
+  for (const p of (offerDelegation ? modelPresets() : [])) {
     const decision = decided[p.id];
     if (decision?.action === 'skipped') continue;
     // An answer recorded before decisions kept targetRoot cannot name its
@@ -144,6 +149,7 @@ export function pendingSeeds({ lang = userLanguage(), root = findProjectRoot(), 
   }
   for (const p of ratchetPresets(lang, { agent })) {
     if (decided[p.id]) continue;
+    if (!offerDelegation && DELEGATION_PRESET_IDS.has(p.id)) continue;
     // Either language counts as already registered: `harness pull` may have
     // written the other one.
     if (haveText.has(stripDate(p.text)) || haveText.has(stripDate(p.ko))) continue;
@@ -169,7 +175,7 @@ function codexSeedText(p, lang) {
 
 /** One pending seed by id, or null. Ids are matched exactly. */
 export function findSeed(id, opts = {}) {
-  return pendingSeeds(opts).find((s) => s.id === id) || null;
+  return pendingSeeds({ ...opts, includeDelegation: true }).find((s) => s.id === id) || null;
 }
 
 function recordDecision(id, action, extra = {}, { agent = 'claude' } = {}) {
