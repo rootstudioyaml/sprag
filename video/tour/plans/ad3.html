@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
     <!--
-      Sprag YouTube ad, third take: 35 s, 1920x1080, 30 fps, Korean only, built by build-plans.sh (PLANS=ad3 LANGS=ko).
+      Sprag YouTube ad, third take: 37 s, 1920x1080, 30 fps, Korean only, built by build-plans.sh (PLANS=ad3 LANGS=ko).
       One message for company owners: employees keep their own AI subscriptions, the company still sees and manages
       usage centrally, like an enterprise plan. Amounts in Sprag are API list price equivalents, not billing, and the
       dashboard scene says so in a footnote. Same clips, stills and light.css as ad2.html; new CSS stays in this file.
@@ -20,9 +20,10 @@
         9.0   turn        the cards fly into one row in a panel, ? counts up to $212, $148, $96, $41, total $497
         12.0  town        the animals at their desks, full frame (ad-town2 from 5 s)
         16.0  proof       the ranking book, the figures card and the daily chart (real screens)
-        20.2  enterprise  the rules clip (cropped) and the masked customer prompt
-        26.0  payback     the $5 seat next to the $150 a month delegation saves (maker's own 30-day record)
-        31.0  closing     logo, line, price, url
+        20.2  pro         rules once for every PC (the rules clip, cropped), with a PRO badge
+        23.7  enterprise  prompt audit as its own scene: off-work use and a masked customer prompt, ENTERPRISE badge
+        28.0  payback     the $5 seat next to the $150 a month delegation saves (maker's own 30-day record)
+        33.0  closing     logo, line, price, url
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Archivo:wght@800&display=block" rel="stylesheet" />
@@ -54,7 +55,10 @@
       #tot b { margin-left: 16px; font: 800 78px 'Archivo', sans-serif; color: #2f9e6f; vertical-align: -4px; }
       #foot { position: absolute; left: 80px; width: 1760px; top: 896px; text-align: center; font-size: 24px; font-weight: 500; color: #6b6d78; opacity: 0; }
 
-      #k-rules { left: 60px; top: 290px; width: 852px; height: 606px; }
+      #k-rules { left: 534px; top: 250px; width: 852px; height: 606px; }
+      .hd .pn { display: inline-block; margin-right: 22px; padding: 4px 22px 8px; border-radius: 16px; font: 800 44px/1.2 'Archivo', sans-serif; letter-spacing: 0.04em; vertical-align: 6px; color: #fff; }
+      .hd .pn.pro { background: #4a4c57; }
+      .hd .pn.ent { background: #5e6ad2; }
       .tag.b { background: #eef0ff; border-color: #aab2ff; color: #3e48b0; }
 
       #cl .cta .lb { font-size: 58px; }
@@ -86,7 +90,7 @@
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="35" data-width="1920" data-height="1080">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="37" data-width="1920" data-height="1080">
 
       <!-- persistent small logo -->
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag" id="lg">
@@ -102,7 +106,8 @@
       <div class="card full" id="k-town"><video id="v-town" src="clips/ad-town2.mp4" data-start="12" data-duration="4" data-media-start="5" data-track-index="5" muted playsinline></video></div>
       <div class="hd ov" id="h-town"><span>흩어진 팀원이 <em>한 타운</em>에 모입니다</span></div>
       <div class="hd" id="h4">구독은 각자 그대로, 사용량은 <em>회사 한 화면</em>에</div>
-      <div class="hd" id="h5">사용 규칙과 프롬프트 감사도 <em>회사가 한 번에</em></div>
+      <div class="hd" id="h5"><span class="pn pro">PRO</span>사용 규칙은 한 번, <em>팀원 PC 전부</em>에</div>
+      <div class="hd" id="h7"><span class="pn ent">ENTERPRISE</span>팀원 프롬프트까지 <em>감사</em>합니다</div>
 
       <!-- members, then the panel they fly into -->
       <div id="panel"></div>
@@ -124,11 +129,13 @@
       <div class="crop" id="i-chart" style="left:830px;top:598px;width:840px;height:336px"><img id="im-chart" src="stills/chart.png" alt="" style="transform:scale(1.4) translate(-1305px,-295px)" /></div>
 
       <!-- enterprise: rules clip cropped to the rules list, the masked customer prompt -->
-      <div class="card" id="k-rules"><video id="v-rules" src="clips/team-rules.mp4" data-start="20.2" data-duration="5.8" data-media-start="1.3" data-track-index="4" muted playsinline style="position:absolute;left:0;top:0;width:1920px;height:1080px;object-fit:fill;transform-origin:0 0;transform:scale(1.2) translate(-435px,-140px)"></video></div>
-      <div class="tag" id="t-rules" style="left:60px;top:922px">사용 규칙은 모든 팀원에게 일괄 적용</div>
-      <div class="tag b" id="t-c0" style="left:950px;top:450px">팀원이 AI에 보낸 프롬프트</div>
-      <div class="crop" id="i-c2" style="left:950px;top:530px;width:912px;height:103px"><img id="im-c2" src="stills/cases.png" alt="" style="transform:scale(1.17) translate(-70px,-472px)" /></div>
-      <div class="tag" id="t-c2" style="left:950px;top:660px">고객 연락처는 가려서 저장</div>
+      <div class="card" id="k-rules"><video id="v-rules" src="clips/team-rules.mp4" data-start="20.2" data-duration="3.5" data-media-start="1.3" data-track-index="4" muted playsinline style="position:absolute;left:0;top:0;width:1920px;height:1080px;object-fit:fill;transform-origin:0 0;transform:scale(1.2) translate(-435px,-140px)"></video></div>
+      <div class="tag" id="t-rules" style="left:534px;top:882px">사용 규칙은 모든 팀원에게 일괄 적용</div>
+      <div class="tag b" id="t-c0" style="left:504px;top:290px">팀원이 AI에 보낸 프롬프트</div>
+      <div class="crop" id="i-c1" style="left:504px;top:370px;width:912px;height:103px"><img id="im-c1" src="stills/cases.png" alt="" style="transform:scale(1.17) translate(-70px,-368px)" /></div>
+      <div class="tag" id="t-c1" style="left:504px;top:493px">업무와 무관한 사용</div>
+      <div class="crop" id="i-c2" style="left:504px;top:620px;width:912px;height:103px"><img id="im-c2" src="stills/cases.png" alt="" style="transform:scale(1.17) translate(-70px,-472px)" /></div>
+      <div class="tag" id="t-c2" style="left:504px;top:743px">고객 연락처는 가려서 저장</div>
 
       <!-- closing -->
       <!-- 26 payback -->
@@ -171,7 +178,7 @@
 
       // persistent logo
       tl.fromTo("#lg", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.2);
-      tl.to("#lg", { opacity: 0, duration: 0.3, ease: "none" }, 30.7);
+      tl.to("#lg", { opacity: 0, duration: 0.3, ease: "none" }, 32.7);
 
       // headlines of the first three scenes
       show("#h1", 0.2, 4.8);
@@ -228,31 +235,37 @@
       inn("#i-chart", 16.9, { y: 40, scale: 0.96 });
       dot(19.65, ["#h4", "#i-book", "#i-figs", "#i-chart"]);
 
-      // enterprise: the cropped rules clip, then the masked prompt
+      // pro: rules once for every PC
       inn("#h5", 20.2);
       tl.fromTo("#k-rules", { opacity: 0, y: 40, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "power3.out" }, 20.3);
       inn("#t-rules", 20.9, { y: 14 });
-      inn("#t-c0", 21.4, { y: 14 });
-      inn("#i-c2", 21.7, { y: 40, scale: 0.96 });
-      inn("#t-c2", 22.3, { y: 14 });
-      tl.to(["#h5", "#k-rules", "#t-rules", "#t-c0", "#i-c2", "#t-c2"], { opacity: 0, duration: 0.3, ease: "none" }, 25.7);
+      tl.to(["#h5", "#k-rules", "#t-rules"], { opacity: 0, duration: 0.3, ease: "none" }, 23.4);
+
+      // enterprise: the prompt audit on its own, an off-work prompt, then a masked customer prompt
+      inn("#h7", 23.7);
+      inn("#t-c0", 24.0, { y: 14 });
+      inn("#i-c1", 24.2, { y: 40, scale: 0.96 });
+      inn("#t-c1", 24.6, { y: 14 });
+      inn("#i-c2", 25.1, { y: 40, scale: 0.96 });
+      inn("#t-c2", 25.5, { y: 14 });
+      tl.to(["#h7", "#t-c0", "#i-c1", "#t-c1", "#i-c2", "#t-c2"], { opacity: 0, duration: 0.3, ease: "none" }, 27.7);
 
       // payback: the fee card, then the saving counts up to $150, then the ratio
-      tl.fromTo("#h6", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 26.0);
-      tl.fromTo("#pb-fee", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 26.3);
-      tl.fromTo("#pb-sav", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 26.8);
-      tl.fromTo("#pb-v", { innerText: 0 }, { innerText: 150, snap: { innerText: 1 }, duration: 1.2, ease: "power2.out" }, 27.0);
-      tl.fromTo("#pb-x", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 28.4);
-      tl.fromTo("#pb-note", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 27.2);
-      tl.to(["#h6", "#pb-fee", "#pb-sav", "#pb-x", "#pb-note"], { opacity: 0, duration: 0.3, ease: "none" }, 30.7);
+      tl.fromTo("#h6", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 28.0);
+      tl.fromTo("#pb-fee", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 28.3);
+      tl.fromTo("#pb-sav", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 28.8);
+      tl.fromTo("#pb-v", { innerText: 0 }, { innerText: 150, snap: { innerText: 1 }, duration: 1.2, ease: "power2.out" }, 29.0);
+      tl.fromTo("#pb-x", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 30.4);
+      tl.fromTo("#pb-note", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 29.2);
+      tl.to(["#h6", "#pb-fee", "#pb-sav", "#pb-x", "#pb-note"], { opacity: 0, duration: 0.3, ease: "none" }, 32.7);
 
-      // closing, on screen until 35
-      tl.fromTo("#cl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 31.0);
-      tl.fromTo("#cl-logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 31.1);
-      tl.fromTo("#cl-l1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 31.5);
-      tl.fromTo("#cl-cta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 31.9);
-      tl.fromTo("#cl-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 32.2);
-      tl.fromTo("#cl-fine", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 32.3);
+      // closing, on screen until 37
+      tl.fromTo("#cl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 33.0);
+      tl.fromTo("#cl-logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 33.1);
+      tl.fromTo("#cl-l1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 33.5);
+      tl.fromTo("#cl-cta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 33.9);
+      tl.fromTo("#cl-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 34.2);
+      tl.fromTo("#cl-fine", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 34.3);
 
       tl.seek(0);
       window.__timelines["main"] = tl;
