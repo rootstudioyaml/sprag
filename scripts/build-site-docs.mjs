@@ -462,6 +462,16 @@ function styleBlock() {
 </style>`;
 }
 
+// Google Ads tag, kept identical to the one in the hand-written pages under site/.
+const GOOGLE_TAG = `<!-- Google tag (gtag.js): Google Ads conversion measurement, see /privacy/ -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18548782436"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'AW-18548782436');
+</script>`;
+
 function pageHead({ lang, slug, title, description, keywordsStr, canonical, hasKo, koUrl, enUrl, dateModified, hidden = false }) {
   const altBlock =
     hasKo === undefined
@@ -486,6 +496,7 @@ function pageHead({ lang, slug, title, description, keywordsStr, canonical, hasK
     mainEntityOfPage: canonical,
   };
   return `<meta charset="utf-8" />
+${GOOGLE_TAG}
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(title)} | Sprag</title>
 <meta name="description" content="${escapeAttr(description)}" />
