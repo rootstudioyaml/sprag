@@ -483,7 +483,9 @@ const GOOGLE_TAG = `<!-- Google tag (gtag.js): Google Ads conversion measurement
     var label = el.hasAttribute('data-copy') ? '3CnACPmE0bIdEOTq34xF' : 'rBY1CPyE0bIdEOTq34xF';
     gtag('event', 'conversion', {'send_to': 'AW-18548782436/' + label});
   });
-</script>`;
+</script>
+<!-- Cloudflare Web Analytics: cookieless visit counts, see /privacy/ -->
+<script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "61e11587311d49608109159f4d3507f0"}'></script>`;
 
 function pageHead({ lang, slug, title, description, keywordsStr, canonical, hasKo, koUrl, enUrl, dateModified, hidden = false }) {
   const altBlock =
