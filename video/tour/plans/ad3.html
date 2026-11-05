@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
     <!--
-      Sprag YouTube ad, third take: 30 s, 1920x1080, 30 fps, Korean only, built by build-plans.sh (PLANS=ad3 LANGS=ko).
+      Sprag YouTube ad, third take: 35 s, 1920x1080, 30 fps, Korean only, built by build-plans.sh (PLANS=ad3 LANGS=ko).
       One message for company owners: employees keep their own AI subscriptions, the company still sees and manages
       usage centrally, like an enterprise plan. Amounts in Sprag are API list price equivalents, not billing, and the
       dashboard scene says so in a footnote. Same clips, stills and light.css as ad2.html; new CSS stays in this file.
@@ -20,7 +20,8 @@
         9.0   turn        the cards fly into one row in a panel, ? counts up to $212, $148, $96, $41, total $497
         12.2  proof       the ranking book, the figures card and the daily chart (real screens)
         20.2  enterprise  the rules clip (cropped) and the masked customer prompt
-        26.0  closing     logo, line, price, url
+        26.0  payback     the $5 seat next to the $150 a month delegation saves (maker's own 30-day record)
+        31.0  closing     logo, line, price, url
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Archivo:wght@800&display=block" rel="stylesheet" />
@@ -56,10 +57,23 @@
       .tag.b { background: #eef0ff; border-color: #aab2ff; color: #3e48b0; }
 
       #cl .cta .lb { font-size: 58px; }
+      #h6 { top: 150px; }
+      .pb { position: absolute; top: 330px; width: 640px; height: 400px; border-radius: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0;
+        box-shadow: 0 30px 80px rgba(20, 22, 40, 0.10); }
+      .pb .k { font-size: 44px; font-weight: 900; letter-spacing: -0.03em; }
+      .pb .n { margin-top: 10px; font: 800 170px/1 'Archivo', sans-serif; }
+      .pb .u { margin-top: 18px; font-size: 38px; font-weight: 700; color: #6b6d78; }
+      #pb-fee { left: 210px; background: #fff; }
+      #pb-fee .n { color: #4a4c57; }
+      #pb-sav { right: 210px; background: #e3f6ec; border: 3px solid #2f9e6f; }
+      #pb-sav .k, #pb-sav .n { color: #1f7a52; }
+      #pb-x { position: absolute; left: 0; right: 0; top: 780px; text-align: center; font-size: 56px; font-weight: 900; letter-spacing: -0.03em; opacity: 0; }
+      #pb-x b { color: #2f9e6f; }
+      #pb-note { position: absolute; left: 0; right: 0; bottom: 70px; text-align: center; font-size: 28px; font-weight: 500; color: #8a8c96; opacity: 0; }
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1920" data-height="1080">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="35" data-width="1920" data-height="1080">
 
       <!-- persistent small logo -->
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag" id="lg">
@@ -72,7 +86,7 @@
       <div class="hd" id="h2" data-s="5.0" data-d="4.0">누가 얼마나 쓰는지 <em>회사는 모릅니다</em></div>
       <div class="hd" id="h3">Sprag를 설치하면</div>
       <div class="hd" id="h4">구독은 각자 그대로, 사용량은 <em>회사 한 화면</em>에</div>
-      <div class="hd" id="h5">사용 규칙과 프롬프트 감사까지, <em>엔터프라이즈처럼</em></div>
+      <div class="hd" id="h5">사용 규칙과 프롬프트 감사도 <em>회사가 한 번에</em></div>
 
       <!-- members, then the panel they fly into -->
       <div id="panel"></div>
@@ -101,6 +115,13 @@
       <div class="tag" id="t-c2" style="left:950px;top:660px">고객 연락처는 가려서 저장</div>
 
       <!-- closing -->
+      <!-- 26 payback -->
+      <div class="hd" id="h6">Sprag 구독료는 <em>절감액</em>으로 돌려받습니다</div>
+      <div class="pb" id="pb-fee"><div class="k">Sprag 구독료</div><div class="n">$5</div><div class="u">좌석당 월</div></div>
+      <div class="pb" id="pb-sav"><div class="k">모델 위임으로 아끼는 비용</div><div class="n">$<span id="pb-v">0</span></div><div class="u">한 사람당 월</div></div>
+      <div id="pb-x">구독료의 <b>30배</b>를 아낄 수 있습니다</div>
+      <div id="pb-note">제작자 실사용 기록(30일, 공개 정가 기준), 사용량에 따라 달라집니다</div>
+
       <div id="cl">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag" id="cl-logo">
           <path fill="#15161c" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/><path fill="#15161c" stroke="#15161c" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/><path fill="none" stroke="#15161c" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
@@ -134,7 +155,7 @@
 
       // persistent logo
       tl.fromTo("#lg", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.2);
-      tl.to("#lg", { opacity: 0, duration: 0.3, ease: "none" }, 25.7);
+      tl.to("#lg", { opacity: 0, duration: 0.3, ease: "none" }, 30.7);
 
       // headlines of the first three scenes
       show("#h1", 0.2, 4.8);
@@ -191,13 +212,22 @@
       inn("#t-c2", 22.3, { y: 14 });
       tl.to(["#h5", "#k-rules", "#t-rules", "#t-c0", "#i-c2", "#t-c2"], { opacity: 0, duration: 0.3, ease: "none" }, 25.7);
 
-      // closing, on screen until 30
-      tl.fromTo("#cl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 26.0);
-      tl.fromTo("#cl-logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 26.1);
-      tl.fromTo("#cl-l1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 26.5);
-      tl.fromTo("#cl-cta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 26.9);
-      tl.fromTo("#cl-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 27.2);
-      tl.fromTo("#cl-fine", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 27.3);
+      // payback: the fee card, then the saving counts up to $150, then the ratio
+      tl.fromTo("#h6", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 26.0);
+      tl.fromTo("#pb-fee", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 26.3);
+      tl.fromTo("#pb-sav", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 26.8);
+      tl.fromTo("#pb-v", { innerText: 0 }, { innerText: 150, snap: { innerText: 1 }, duration: 1.2, ease: "power2.out" }, 27.0);
+      tl.fromTo("#pb-x", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 28.4);
+      tl.fromTo("#pb-note", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 27.2);
+      tl.to(["#h6", "#pb-fee", "#pb-sav", "#pb-x", "#pb-note"], { opacity: 0, duration: 0.3, ease: "none" }, 30.7);
+
+      // closing, on screen until 35
+      tl.fromTo("#cl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 31.0);
+      tl.fromTo("#cl-logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 31.1);
+      tl.fromTo("#cl-l1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 31.5);
+      tl.fromTo("#cl-cta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 31.9);
+      tl.fromTo("#cl-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 32.2);
+      tl.fromTo("#cl-fine", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 32.3);
 
       tl.seek(0);
       window.__timelines["main"] = tl;
