@@ -470,6 +470,10 @@ const GOOGLE_TAG = `<!-- Google tag (gtag.js): Google Ads conversion measurement
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
   gtag('config', 'AW-18548782436');
+</script>
+<!-- Event snippet for 페이지 조회 conversion page: every public page counts, because Performance Max sends ad clicks to any sprag.io page -->
+<script>
+  gtag('event', 'conversion', {'send_to': 'AW-18548782436/cKBSCNv3vrIdEOTq34xF'});
 </script>`;
 
 function pageHead({ lang, slug, title, description, keywordsStr, canonical, hasKo, koUrl, enUrl, dateModified, hidden = false }) {
