@@ -23,6 +23,8 @@
     gtag('event', 'conversion', {'send_to': 'AW-18548782436/' + label});
   });
 </script>
+<!-- Cloudflare Web Analytics: cookieless visit counts, see /privacy/ -->
+<script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "61e11587311d49608109159f4d3507f0"}'></script>
 <meta name="robots" content="noindex, nofollow" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Privacy Policy | Sprag</title>
@@ -227,6 +229,7 @@
       <tr><td data-k="k30">Toss Payments Co., Ltd.</td><td data-k="k31">South Korea (domestic)</td><td data-k="k32">Payer name, email and payment details</td><td data-k="k33">Payments in Korea</td><td data-k="k34">Payment records for 5 years</td><td data-k="k35">Pay by bank deposit or through Paddle instead.</td></tr>
       <tr><td data-k="k36r">Resend, Inc.</td><td data-k="k37r">United States</td><td data-k="k38r">Sign-in email address</td><td data-k="k39r">Sending sign-in code emails</td><td data-k="k40r">Until the email is delivered, then as Resend's own retention policy states</td><td data-k="k41r">You cannot sign in to the team dashboard without it.</td></tr>
       <tr><td data-k="k36g">Google LLC</td><td data-k="k37g">United States</td><td data-k="k38g">Pages visited, install command copies and email link clicks, IP address, browser information and advertising cookie identifiers</td><td data-k="k39g">Measuring ad performance (Google Ads conversions)</td><td data-k="k40g">As Google's own retention policy states</td><td data-k="k41g">Block the cookies in your browser; the site still works.</td></tr>
+      <tr><td data-k="k36c">Cloudflare, Inc.</td><td data-k="k37c">United States</td><td data-k="k38c">IP address, browser information and pages visited, for every request to sprag.io</td><td data-k="k39c">Delivering the site, blocking automated traffic and counting visits without cookies (Web Analytics)</td><td data-k="k40c">As Cloudflare's own retention policy states</td><td data-k="k41c">The site cannot be reached without it.</td></tr>
       <tr><td data-k="k36">Paddle.com Market Ltd</td><td data-k="k37">United Kingdom</td><td data-k="k38">Payer name, email, payment details and tax information</td><td data-k="k39">Overseas payment and sales as the Merchant of Record</td><td data-k="k40">As the law requires and as Paddle's own privacy notice states</td><td data-k="k41">Overseas payment becomes unavailable. Pay in Korea or by bank deposit instead.</td></tr>
       </tbody>
     </table></div>
@@ -236,7 +239,7 @@
   <p data-k="k45">When the retention period ends or the purpose is fulfilled, we delete the data in a way that cannot be restored. Records we must keep by law are kept separately until that period ends.</p>
   <h2 data-k="k46">Cookies and similar tools</h2>
   <ul>
-    <li data-k="k47">sprag.io loads the Google Ads tag (gtag.js) to measure whether ads lead people to sprag.io and whether those visitors copy the install command or click an email link. Google may set advertising cookies for this. The site sets no cookies of its own and runs no other analytics scripts.</li>
+    <li data-k="k47">sprag.io loads the Google Ads tag (gtag.js) to measure whether ads lead people to sprag.io and whether those visitors copy the install command or click an email link. Google may set advertising cookies for this. The site sets no cookies of its own. Visits are also counted with Cloudflare Web Analytics, which uses no cookies.</li>
     <li data-k="k48">Your browser's local storage keeps your language choice and, after you sign in at sprag.io/team, the sign-in session.</li>
     <li data-k="k49">Pages load fonts from Google Fonts, and the dashboard pages load a script from jsDelivr, so those providers see your IP address as in any web request.</li>
     <li data-k="k49g">You can block these cookies in your browser settings or turn off ad personalization at adssettings.google.com. The site keeps working either way.</li>
@@ -326,6 +329,12 @@ const KO = {
  "k39g": "광고 성과 측정(Google Ads 전환)",
  "k40g": "Google의 보관 정책에 따릅니다",
  "k41g": "브라우저에서 쿠키를 차단하면 됩니다. 사이트 이용에는 지장이 없습니다.",
+ "k36c": "Cloudflare, Inc.",
+ "k37c": "미국",
+ "k38c": "sprag.io로 들어오는 모든 요청의 IP 주소, 브라우저 정보, 방문한 페이지",
+ "k39c": "사이트 전송, 자동화 트래픽 차단, 쿠키 없는 방문 통계(Web Analytics)",
+ "k40c": "Cloudflare의 보관 정책에 따릅니다",
+ "k41c": "사이트에 접속할 수 없습니다.",
  "k36": "Paddle.com Market Ltd",
  "k37": "영국",
  "k38": "결제자 이름, 이메일, 결제 정보, 세금 정보",
@@ -337,7 +346,7 @@ const KO = {
  "k44": "파기 절차",
  "k45": "보관 기간이 끝나거나 목적을 달성하면 복구할 수 없는 방법으로 삭제합니다. 법령에 따라 보관해야 하는 기록은 그 기간이 끝날 때까지 따로 보관합니다.",
  "k46": "쿠키 등",
- "k47": "sprag.io는 광고를 보고 들어온 방문과 그 방문자가 설치 명령을 복사하거나 이메일 링크를 눌렀는지 측정하려고 Google Ads 태그(gtag.js)를 불러옵니다. 이 과정에서 Google이 광고 쿠키를 설정할 수 있습니다. 사이트가 직접 설정하는 쿠키는 없고 다른 분석 스크립트도 쓰지 않습니다.",
+ "k47": "sprag.io는 광고를 보고 들어온 방문과 그 방문자가 설치 명령을 복사하거나 이메일 링크를 눌렀는지 측정하려고 Google Ads 태그(gtag.js)를 불러옵니다. 이 과정에서 Google이 광고 쿠키를 설정할 수 있습니다. 사이트가 직접 설정하는 쿠키는 없습니다. 방문 수는 쿠키를 쓰지 않는 Cloudflare Web Analytics로도 셉니다.",
  "k48": "브라우저의 로컬 저장소에 언어 선택이 저장되고, sprag.io/team 에 로그인하면 로그인 세션도 저장됩니다.",
  "k49": "페이지는 Google Fonts에서 글꼴을 불러오고 대시보드 페이지는 jsDelivr에서 스크립트를 불러옵니다. 그래서 일반적인 웹 요청처럼 해당 업체에 IP 주소가 전달됩니다.",
  "k49g": "브라우저 설정에서 이 쿠키를 차단하거나 adssettings.google.com에서 광고 개인 최적화를 끌 수 있습니다. 어느 경우에도 사이트는 그대로 쓸 수 있습니다.",
