@@ -26,7 +26,7 @@ HF=(npx --yes hyperframes@0.8.133)
 export HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_SKIP_SKILLS=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 shots_pro=pro-office,pro-person,team-kpi,team-rules
 shots_ent=ent-office,ent-usage,ent-person,ent-policy
-# the YouTube ads (plans/ad.html, plans/ad2.html in a light, one-idea-per-screen style, and plans/ad3.html, 35 s with
+# the YouTube ads (plans/ad.html, plans/ad2.html in a light, one-idea-per-screen style, and plans/ad3.html, 37 s with
 # one message for company owners) are Korean only and stay in out/, they are not copied to the site
 shots_ad=pro-office,ad-predator,ad-monitors,ad-drawer,team-rules,ent-usage,ad-cases,ad-town2,ent-policy,ad-book
 
@@ -58,8 +58,8 @@ make_bgm() {
 
 for P in $PLANS; do
   case "$P" in pro) SHOTS="$shots_pro";; ent) SHOTS="$shots_ent";; ad|ad2|ad3|pro2|ent2) SHOTS="$shots_ad";; *) echo "unknown plan $P"; exit 2;; esac
-  # the plan promos are 30 s and stay under 8 MB; the ad is 60 s and may use 16 MB, ad3 is 35 s
-  case "$P" in ad|ad2) DUR=60; MAXB=16000000;; ad3) DUR=35; MAXB=9000000;; pro2) DUR=40; MAXB=12000000;; ent2) DUR=35; MAXB=12000000;; *) DUR=30; MAXB=8000000;; esac
+  # the plan promos are 30 s and stay under 8 MB; the ad is 60 s and may use 16 MB, ad3 is 37 s
+  case "$P" in ad|ad2) DUR=60; MAXB=16000000;; ad3) DUR=37; MAXB=9500000;; pro2) DUR=40; MAXB=12000000;; ent2) DUR=35; MAXB=12000000;; *) DUR=30; MAXB=8000000;; esac
   [ "$NO_BGM" = 1 ] || make_bgm
   for L in $LANGS; do
     case "$P" in ad|ad2|ad3|pro2|ent2) [ "$L" != ko ] && { echo "the ad is Korean only, skipping $L"; continue; };; esac
