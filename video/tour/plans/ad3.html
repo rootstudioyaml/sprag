@@ -18,7 +18,8 @@
         0.2   hook        four employee cards pop in, each with a personal subscription (no prices)
         5.0   problem     "who uses how much, the company does not know": a pulsing ? on every card
         9.0   turn        the cards fly into one row in a panel, ? counts up to $212, $148, $96, $41, total $497
-        12.2  proof       the ranking book, the figures card and the daily chart (real screens)
+        12.0  town        the animals at their desks, full frame (ad-town2 from 5 s)
+        16.0  proof       the ranking book, the figures card and the daily chart (real screens)
         20.2  enterprise  the rules clip (cropped) and the masked customer prompt
         26.0  payback     the $5 seat next to the $150 a month delegation saves (maker's own 30-day record)
         31.0  closing     logo, line, price, url
@@ -85,6 +86,9 @@
       <div class="hd" id="h1" data-s="0.2" data-d="4.8">직원들 AI 구독, <em>각자 결제</em>하고 계신가요?</div>
       <div class="hd" id="h2" data-s="5.0" data-d="4.0">누가 얼마나 쓰는지 <em>회사는 모릅니다</em></div>
       <div class="hd" id="h3">Sprag를 설치하면</div>
+      <!-- 12 town: the animals at their desks (ad-town2 from 5 s, the flight down to the Data team) -->
+      <div class="card full" id="k-town"><video id="v-town" src="clips/ad-town2.mp4" data-start="12" data-duration="4" data-media-start="5" data-track-index="5" muted playsinline></video></div>
+      <div class="hd ov" id="h-town"><span>흩어진 팀원이 <em>한 타운</em>에 모입니다</span></div>
       <div class="hd" id="h4">구독은 각자 그대로, 사용량은 <em>회사 한 화면</em>에</div>
       <div class="hd" id="h5">사용 규칙과 프롬프트 감사도 <em>회사가 한 번에</em></div>
 
@@ -197,10 +201,19 @@
       dot(11.65, ["#h3", "#panel", "#pn-t", "#tot", "#foot", "#m1", "#m2", "#m3", "#m4"]);
 
       // proof: the book, then the figures, then the chart
-      inn("#h4", 12.2);
-      inn("#i-book", 12.3, { x: -60 });
-      inn("#i-figs", 12.8, { y: 40, scale: 0.96 });
-      inn("#i-chart", 13.3, { y: 40, scale: 0.96 });
+      // town: full frame under the dot, then a cut to the proof stills
+      tl.set("#k-town", { opacity: 0 }, 0);
+      tl.set("#k-town", { opacity: 1 }, 12.0);
+      // the clip has its own "Sprag 타운" header in the corner, so the persistent logo steps aside meanwhile
+      tl.set("#lg", { opacity: 0 }, 12.0);
+      tl.fromTo("#lg", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none", immediateRender: false }, 16.0);
+      tl.fromTo("#h-town", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 12.3);
+      tl.to(["#k-town", "#h-town"], { opacity: 0, duration: 0.3, ease: "none" }, 15.7);
+
+      inn("#h4", 16.0);
+      inn("#i-book", 16.1, { x: -60 });
+      inn("#i-figs", 16.5, { y: 40, scale: 0.96 });
+      inn("#i-chart", 16.9, { y: 40, scale: 0.96 });
       dot(19.65, ["#h4", "#i-book", "#i-figs", "#i-chart"]);
 
       // enterprise: the cropped rules clip, then the masked prompt
