@@ -6,6 +6,8 @@
 #   PLANS=ent LANGS=ko video/tour/build-plans.sh # one plan, one language
 #   SKIP_RECORD=1 video/tour/build-plans.sh      # reuse clips/<lang>/*.mp4
 #   BGM=none video/tour/build-plans.sh           # no music
+#   HF_WORKERS=4 video/tour/build-plans.sh       # screenshot capture; the single-worker drawElement path can miss
+#                                                # text that changes inside a card (ad3 counters)
 #
 # Same needs as build.sh: the site server on :8788, ffmpeg/ffprobe, Node 22+, the system Chrome, puppeteer-core in
 # recorder/node_modules. Run one build at a time, never two renders in parallel.
@@ -24,11 +26,14 @@ HF=(npx --yes hyperframes@0.8.133)
 export HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_SKIP_SKILLS=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 shots_pro=pro-office,pro-person,team-kpi,team-rules
 shots_ent=ent-office,ent-usage,ent-person,ent-policy
-# the YouTube ads (plans/ad.html, and plans/ad2.html in a light, one-idea-per-screen style) are Korean only and stay
-# in out/, they are not copied to the site
+# the YouTube ads (plans/ad.html, plans/ad2.html in a light, one-idea-per-screen style, and plans/ad3.html, 30 s with
+# one message for company owners) are Korean only and stay in out/, they are not copied to the site
 shots_ad=pro-office,ad-predator,ad-monitors,ad-drawer,team-rules,ent-usage,ad-cases,ad-town2,ent-policy,ad-book
 
-curl -sf -o /dev/null http://localhost:8788/ || { echo "site server is not running on :8788"; exit 1; }
+# recording needs the site server, a render from existing clips (SKIP_RECORD=1) does not
+if [ "${SKIP_RECORD:-0}" != 1 ]; then
+  curl -sf -o /dev/null http://localhost:8788/ || { echo "site server is not running on :8788"; exit 1; }
+fi
 mkdir -p out
 
 NO_BGM=0
@@ -52,12 +57,12 @@ make_bgm() {
 }
 
 for P in $PLANS; do
-  case "$P" in pro) SHOTS="$shots_pro";; ent) SHOTS="$shots_ent";; ad|ad2|pro2|ent2) SHOTS="$shots_ad";; *) echo "unknown plan $P"; exit 2;; esac
-  # the plan promos are 30 s and stay under 8 MB; the ad is 60 s and may use 16 MB
-  case "$P" in ad|ad2) DUR=60; MAXB=16000000;; pro2) DUR=40; MAXB=12000000;; ent2) DUR=35; MAXB=12000000;; *) DUR=30; MAXB=8000000;; esac
+  case "$P" in pro) SHOTS="$shots_pro";; ent) SHOTS="$shots_ent";; ad|ad2|ad3|pro2|ent2) SHOTS="$shots_ad";; *) echo "unknown plan $P"; exit 2;; esac
+  # the plan promos are 30 s and stay under 8 MB; the ad is 60 s and may use 16 MB, ad3 is 30 s
+  case "$P" in ad|ad2) DUR=60; MAXB=16000000;; ad3) DUR=30; MAXB=8000000;; pro2) DUR=40; MAXB=12000000;; ent2) DUR=35; MAXB=12000000;; *) DUR=30; MAXB=8000000;; esac
   [ "$NO_BGM" = 1 ] || make_bgm
   for L in $LANGS; do
-    case "$P" in ad|ad2|pro2|ent2) [ "$L" != ko ] && { echo "the ad is Korean only, skipping $L"; continue; };; esac
+    case "$P" in ad|ad2|ad3|pro2|ent2) [ "$L" != ko ] && { echo "the ad is Korean only, skipping $L"; continue; };; esac
     echo "== $P $L =="
     [ "${SKIP_RECORD:-0}" = 1 ] || node recorder/record.mjs --lang "$L" --shots "$SHOTS"
     B="out/plan-$P-$L"
@@ -74,7 +79,7 @@ for P in $PLANS; do
       done
     fi
     "${HF[@]}" lint "$B"
-    "${HF[@]}" render "$B" --fps 30 -q delivery --resolution landscape --video-frame-format png -o "$HERE/$B/video.mp4"
+    "${HF[@]}" render "$B" ${HF_WORKERS:+--workers "$HF_WORKERS"} --fps 30 -q delivery --resolution landscape --video-frame-format png -o "$HERE/$B/video.mp4"
 
     OUTF="out/plan-$P-$L.mp4"
     ( cd "$B" && ffmpeg -hide_banner -loglevel error -y -i video.mp4 -an -c:v libx264 -preset slow -b:v "$VBITRATE" -pass 1 -passlogfile x264 -pix_fmt yuv420p -f mp4 /dev/null )
@@ -103,7 +108,7 @@ for P in $PLANS; do
     SIZE=$(stat -f %z "$OUTF"); [ "$SIZE" -le "$MAXB" ] || { echo "too big: $SIZE bytes"; exit 1; }
 
     # the Korean license page plays the light videos as plan-<all|pro2|ent2>-ko; ad (the first take) stays in out/
-    case "$P" in ad) echo "$P done: $OUTF ($SIZE bytes)"; continue;; ad2) SITE=all;; *) SITE=$P;; esac
+    case "$P" in ad|ad3) echo "$P done: $OUTF ($SIZE bytes)"; continue;; ad2) SITE=all;; *) SITE=$P;; esac
     mkdir -p "$REPO/site/assets/video"
     cp "$OUTF" "$REPO/site/assets/video/plan-$SITE-$L.mp4"; cp "out/plan-$P-$L.jpg" "$REPO/site/assets/video/plan-$SITE-$L.jpg"
     echo "$P $L done: $OUTF ($SIZE bytes)"; continue
