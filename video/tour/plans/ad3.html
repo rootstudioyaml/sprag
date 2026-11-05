@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="__LANG__">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <!--
+      Sprag YouTube ad, third take: 30 s, 1920x1080, 30 fps, Korean only, built by build-plans.sh (PLANS=ad3 LANGS=ko).
+      One message for company owners: employees keep their own AI subscriptions, the company still sees and manages
+      usage centrally, like an enterprise plan. Amounts in Sprag are API list price equivalents, not billing, and the
+      dashboard scene says so in a footnote. Same clips, stills and light.css as ad2.html; new CSS stays in this file.
+
+      The rules clip shows the business registration line in its page footer (y 960 to 1010 of the 1080 frame). It must
+      never be visible: the video sits in an overflow:hidden wrapper that crops the frame to y 140..645, the footer is
+      far below that. Video cards are plain wrappers timed by GSAP (HyperFrames rejects a video nested in a wrapper that
+      has data-start).
+
+      Beats (start):
+        0.2   hook        four employee cards pop in, each with a personal subscription (no prices)
+        5.0   problem     "who uses how much, the company does not know": a pulsing ? on every card
+        9.0   turn        the cards fly into one row in a panel, ? counts up to $212, $148, $96, $41, total $497
+        12.2  proof       the ranking book, the figures card and the daily chart (real screens)
+        20.2  enterprise  the rules clip (cropped) and the masked customer prompt
+        26.0  closing     logo, line, price, url
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=JetBrains+Mono:wght@500;700&family=Archivo:wght@800&display=block" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="light.css" />
+    <style>
+      #lg { position: absolute; left: 60px; top: 28px; width: 141px; height: 36px; z-index: 30; opacity: 0; }
+      .hd { z-index: 20; }
+
+      /* member cards: placed at their row position, GSAP offsets them into the scattered hook layout */
+      .mc { position: absolute; top: 350px; width: 400px; padding: 26px 24px; border-radius: 28px; background: #fff; opacity: 0; z-index: 10;
+        box-shadow: 0 24px 60px rgba(20, 22, 40, 0.14), 0 0 0 1px rgba(20, 22, 40, 0.07); }
+      .mc .nm { display: flex; align-items: baseline; gap: 14px; height: 52px; white-space: nowrap; }
+      .mc .nm b { font-size: 42px; font-weight: 900; letter-spacing: -0.03em; }
+      .mc .nm span { font-size: 28px; font-weight: 700; color: #6b6d78; }
+      .mc .tl { margin-top: 8px; height: 44px; font-size: 36px; font-weight: 900; color: #3e48b0; white-space: nowrap; }
+      .mc .pl { display: inline-block; margin-top: 12px; padding: 6px 14px; border-radius: 999px; background: #eef0ff; border: 2px solid #aab2ff; font-size: 26px; font-weight: 700; color: #3e48b0; white-space: nowrap; }
+      .mc .us { height: 0; overflow: hidden; opacity: 0; border-top: 2px solid #ececf0; margin-top: 14px; }
+      .mc .us .lb { padding-top: 8px; height: 40px; font-size: 28px; font-weight: 700; color: #6b6d78; }
+      .mc .us .vl { position: relative; height: 100px; }
+      .mc .q, .mc .v { position: absolute; left: 0; top: 0; font: 800 92px/100px 'Archivo', sans-serif; }
+      .mc .q { color: #5e6ad2; transform-origin: 20px 50px; }
+      .mc .v { color: #2f9e6f; opacity: 0; }
+
+      #panel { position: absolute; left: 80px; top: 230px; width: 1760px; height: 640px; border-radius: 36px; background: #fff; opacity: 0; z-index: 5;
+        box-shadow: 0 30px 80px rgba(20, 22, 40, 0.12), 0 0 0 1px rgba(20, 22, 40, 0.07); }
+      #pn-t { position: absolute; left: 120px; top: 258px; font-size: 46px; font-weight: 900; letter-spacing: -0.03em; opacity: 0; z-index: 6; }
+      #tot { position: absolute; left: 80px; width: 1760px; top: 764px; text-align: center; font-size: 62px; font-weight: 900; letter-spacing: -0.03em; opacity: 0; z-index: 6; }
+      #tot b { margin-left: 16px; font: 800 78px 'Archivo', sans-serif; color: #2f9e6f; vertical-align: -4px; }
+      #foot { position: absolute; left: 80px; width: 1760px; top: 896px; text-align: center; font-size: 24px; font-weight: 500; color: #6b6d78; opacity: 0; }
+
+      #k-rules { left: 60px; top: 290px; width: 852px; height: 606px; }
+      .tag.b { background: #eef0ff; border-color: #aab2ff; color: #3e48b0; }
+
+      #cl .cta .lb { font-size: 58px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1920" data-height="1080">
+
+      <!-- persistent small logo -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag" id="lg">
+        <path fill="#15161c" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/><path fill="#15161c" stroke="#15161c" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/><path fill="none" stroke="#15161c" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
+        <text x="76" y="43" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="31" font-weight="800" letter-spacing="5" fill="#0b0d12">SPRAG</text>
+      </svg>
+
+      <!-- headlines -->
+      <div class="hd" id="h1" data-s="0.2" data-d="4.8">직원들 AI 구독, <em>각자 결제</em>하고 계신가요?</div>
+      <div class="hd" id="h2" data-s="5.0" data-d="4.0">누가 얼마나 쓰는지 <em>회사는 모릅니다</em></div>
+      <div class="hd" id="h3">Sprag를 설치하면</div>
+      <div class="hd" id="h4">구독은 각자 그대로, 사용량은 <em>회사 한 화면</em>에</div>
+      <div class="hd" id="h5">사용 규칙과 프롬프트 감사까지, <em>엔터프라이즈처럼</em></div>
+
+      <!-- members, then the panel they fly into -->
+      <div id="panel"></div>
+      <div id="pn-t">우리 회사 AI 사용 현황</div>
+      <div class="mc" id="m1" style="left:120px"><div class="nm"><b>김지훈</b><span>개발팀장</span></div><div class="tl">Claude Code</div><div class="pl">Claude Max 개인 구독</div>
+        <div class="us"><div class="lb">이번 달 사용량</div><div class="vl"><span class="q">?</span><span class="v">$<span class="n">0</span></span></div></div></div>
+      <div class="mc" id="m2" style="left:546px"><div class="nm"><b>박서연</b><span>백엔드</span></div><div class="tl">Claude Code</div><div class="pl">Claude Pro 개인 구독</div>
+        <div class="us"><div class="lb">이번 달 사용량</div><div class="vl"><span class="q">?</span><span class="v">$<span class="n">0</span></span></div></div></div>
+      <div class="mc" id="m3" style="left:972px"><div class="nm"><b>이도윤</b><span>프론트엔드</span></div><div class="tl">Codex</div><div class="pl">ChatGPT Plus 개인 구독</div>
+        <div class="us"><div class="lb">이번 달 사용량</div><div class="vl"><span class="q">?</span><span class="v">$<span class="n">0</span></span></div></div></div>
+      <div class="mc" id="m4" style="left:1398px"><div class="nm"><b>최하은</b><span>데이터</span></div><div class="tl">Claude Code</div><div class="pl">Claude Pro 개인 구독</div>
+        <div class="us"><div class="lb">이번 달 사용량</div><div class="vl"><span class="q">?</span><span class="v">$<span class="n">0</span></span></div></div></div>
+      <div id="tot">합계<b>$<span id="tot-v">0</span></b></div>
+      <div id="foot">금액은 API 정가 환산</div>
+
+      <!-- proof: real screens from stills -->
+      <div class="book" id="i-book" style="top:200px;height:830px"><img id="im-book" src="stills/book.png" alt="" /></div>
+      <div class="crop" id="i-figs" style="left:830px;top:225px;width:840px;height:343px"><img id="im-figs" src="stills/figs.png" alt="" style="transform:scale(1.4) translate(-1305px,-395px)" /></div>
+      <div class="crop" id="i-chart" style="left:830px;top:598px;width:840px;height:336px"><img id="im-chart" src="stills/chart.png" alt="" style="transform:scale(1.4) translate(-1305px,-295px)" /></div>
+
+      <!-- enterprise: rules clip cropped to the rules list, the masked customer prompt -->
+      <div class="card" id="k-rules"><video id="v-rules" src="clips/team-rules.mp4" data-start="20.2" data-duration="5.8" data-media-start="1.3" data-track-index="4" muted playsinline style="position:absolute;left:0;top:0;width:1920px;height:1080px;object-fit:fill;transform-origin:0 0;transform:scale(1.2) translate(-435px,-140px)"></video></div>
+      <div class="tag" id="t-rules" style="left:60px;top:922px">사용 규칙은 모든 팀원에게 일괄 적용</div>
+      <div class="tag b" id="t-c0" style="left:950px;top:450px">팀원이 AI에 보낸 프롬프트</div>
+      <div class="crop" id="i-c2" style="left:950px;top:530px;width:912px;height:103px"><img id="im-c2" src="stills/cases.png" alt="" style="transform:scale(1.17) translate(-70px,-472px)" /></div>
+      <div class="tag" id="t-c2" style="left:950px;top:660px">고객 연락처는 가려서 저장</div>
+
+      <!-- closing -->
+      <div id="cl">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 64" role="img" aria-label="Sprag" id="cl-logo">
+          <path fill="#15161c" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/><path fill="#15161c" stroke="#15161c" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/><path fill="none" stroke="#15161c" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
+          <text x="76" y="43" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="31" font-weight="800" letter-spacing="5" fill="#0b0d12">SPRAG</text>
+        </svg>
+        <div class="l1" id="cl-l1">구독은 그대로, 관리는 회사가</div>
+        <div class="cta" id="cl-cta"><span class="lb">좌석당 월 $5부터</span></div>
+        <div class="url" id="cl-url">https://sprag.io</div>
+        <div class="fine" id="cl-fine">Pro $5, Enterprise $10, 좌석당 월, 부가세 별도</div>
+      </div>
+
+      <div id="dot"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      // show: fade and rise in, fade out at the end; inn: only in (the purple dot hides the scene instead)
+      const show = (sel, s, d, from = { y: 24 }) => {
+        tl.fromTo(sel, { opacity: 0, ...from }, { opacity: 1, y: 0, x: 0, scale: 1, duration: 0.45, ease: "power3.out" }, s);
+        tl.to(sel, { opacity: 0, duration: 0.3, ease: "none" }, s + d - 0.3);
+      };
+      const inn = (sel, s, from = { y: 24 }) => tl.fromTo(sel, { opacity: 0, ...from }, { opacity: 1, y: 0, x: 0, scale: 1, duration: 0.45, ease: "power3.out" }, s);
+      // purple dot between sections: grows over everything, the scene under it is swapped, then it fades
+      const dot = (t, hide) => {
+        tl.fromTo("#dot", { scale: 0, opacity: 1 }, { scale: 40, opacity: 1, duration: 0.45, ease: "power3.in" }, t);
+        tl.set(hide, { opacity: 0 }, t + 0.46);
+        tl.to("#dot", { opacity: 0, duration: 0.35, ease: "none" }, t + 0.5);
+        tl.set("#dot", { scale: 0 }, t + 0.86);
+      };
+      tl.set("#dot", { scale: 0, opacity: 0 }, 0);
+
+      // persistent logo
+      tl.fromTo("#lg", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.2);
+      tl.to("#lg", { opacity: 0, duration: 0.3, ease: "none" }, 25.7);
+
+      // headlines of the first three scenes
+      show("#h1", 0.2, 4.8);
+      show("#h2", 5.0, 4.0);
+      inn("#h3", 9.0);
+
+      // hook: four cards pop in, scattered with slight rotations
+      const mem = ["#m1", "#m2", "#m3", "#m4"];
+      const sc = [{ x: -20, y: -20, rotation: -4 }, { x: 4, y: 210, rotation: 3 }, { x: 38, y: -10, rotation: -2 }, { x: 72, y: 250, rotation: 4 }];
+      mem.forEach((m, i) => {
+        tl.set(m, { ...sc[i] }, 0);
+        tl.fromTo(m, { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(2)" }, 0.5 + i * 0.4);
+      });
+
+      // problem: a pulsing ? under every card's "this month's usage" line
+      mem.forEach((m, i) => {
+        tl.fromTo(m + " .us", { height: 0, opacity: 0 }, { height: 152, opacity: 1, duration: 0.45, ease: "power3.out" }, 5.3 + i * 0.12);
+        tl.fromTo(m + " .q", { scale: 1 }, { scale: 1.14, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: 5 }, 5.9 + i * 0.12);
+      });
+
+      // turn: the cards fly into one row inside the panel, the values count up
+      tl.fromTo("#panel", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 9.0);
+      tl.fromTo("#pn-t", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 9.5);
+      mem.forEach((m, i) => {
+        tl.fromTo(m, { ...sc[i], backgroundColor: "#ffffff" }, { x: 0, y: 0, rotation: 0, backgroundColor: "#f7f7fb", duration: 0.9, ease: "power3.inOut" }, 9.1 + i * 0.12);
+      });
+      const vals = [212, 148, 96, 41], cur = vals.map(() => ({ v: 0 }));
+      mem.forEach((m, i) => {
+        const el = document.querySelector(m + " .v");
+        tl.fromTo(m + " .q", { opacity: 1 }, { opacity: 0, duration: 0.15, ease: "none" }, 10.3 + i * 0.2);
+        tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.15, ease: "none" }, 10.3 + i * 0.2);
+        tl.fromTo(el.querySelector(".n"), { innerText: 0 }, { innerText: vals[i], snap: { innerText: 1 }, duration: 1.0, ease: "power2.out" }, 10.35 + i * 0.2);
+      });
+      const tv = { v: 0 }, tvEl = document.getElementById("tot-v");
+      tl.fromTo("#tot", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 11.3);
+      tl.fromTo(tvEl, { innerText: 0 }, { innerText: 497, snap: { innerText: 1 }, duration: 0.6, ease: "power2.out" }, 11.35);
+      tl.fromTo("#foot", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 11.4);
+
+      dot(11.65, ["#h3", "#panel", "#pn-t", "#tot", "#foot", "#m1", "#m2", "#m3", "#m4"]);
+
+      // proof: the book, then the figures, then the chart
+      inn("#h4", 12.2);
+      inn("#i-book", 12.3, { x: -60 });
+      inn("#i-figs", 12.8, { y: 40, scale: 0.96 });
+      inn("#i-chart", 13.3, { y: 40, scale: 0.96 });
+      dot(19.65, ["#h4", "#i-book", "#i-figs", "#i-chart"]);
+
+      // enterprise: the cropped rules clip, then the masked prompt
+      inn("#h5", 20.2);
+      tl.fromTo("#k-rules", { opacity: 0, y: 40, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "power3.out" }, 20.3);
+      inn("#t-rules", 20.9, { y: 14 });
+      inn("#t-c0", 21.4, { y: 14 });
+      inn("#i-c2", 21.7, { y: 40, scale: 0.96 });
+      inn("#t-c2", 22.3, { y: 14 });
+      tl.to(["#h5", "#k-rules", "#t-rules", "#t-c0", "#i-c2", "#t-c2"], { opacity: 0, duration: 0.3, ease: "none" }, 25.7);
+
+      // closing, on screen until 30
+      tl.fromTo("#cl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 26.0);
+      tl.fromTo("#cl-logo", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }, 26.1);
+      tl.fromTo("#cl-l1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 26.5);
+      tl.fromTo("#cl-cta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, 26.9);
+      tl.fromTo("#cl-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 27.2);
+      tl.fromTo("#cl-fine", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 27.3);
+
+      tl.seek(0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
