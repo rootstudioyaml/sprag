@@ -474,6 +474,15 @@ const GOOGLE_TAG = `<!-- Google tag (gtag.js): Google Ads conversion measurement
 <!-- Event snippet for 페이지 조회 conversion page: every public page counts, because Performance Max sends ad clicks to any sprag.io page -->
 <script>
   gtag('event', 'conversion', {'send_to': 'AW-18548782436/cKBSCNv3vrIdEOTq34xF'});
+</script>
+<!-- Event snippets for 설치 명령 복사 and 문의 메일 클릭 conversions: a click on an install command copy button or an email link counts -->
+<script>
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest && e.target.closest('[data-copy], a[href^="mailto:"]');
+    if (!el) return;
+    var label = el.hasAttribute('data-copy') ? '3CnACPmE0bIdEOTq34xF' : 'rBY1CPyE0bIdEOTq34xF';
+    gtag('event', 'conversion', {'send_to': 'AW-18548782436/' + label});
+  });
 </script>`;
 
 function pageHead({ lang, slug, title, description, keywordsStr, canonical, hasKo, koUrl, enUrl, dateModified, hidden = false }) {
