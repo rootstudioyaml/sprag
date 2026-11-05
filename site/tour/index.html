@@ -14,6 +14,15 @@
 <script>
   gtag('event', 'conversion', {'send_to': 'AW-18548782436/cKBSCNv3vrIdEOTq34xF'});
 </script>
+<!-- Event snippets for 설치 명령 복사 and 문의 메일 클릭 conversions: a click on an install command copy button or an email link counts -->
+<script>
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest && e.target.closest('[data-copy], a[href^="mailto:"]');
+    if (!el) return;
+    var label = el.hasAttribute('data-copy') ? '3CnACPmE0bIdEOTq34xF' : 'rBY1CPyE0bIdEOTq34xF';
+    gtag('event', 'conversion', {'send_to': 'AW-18548782436/' + label});
+  });
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sprag tour</title>
 <meta name="description" content="A 90-second walk through the Sprag team dashboards." />
