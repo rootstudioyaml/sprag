@@ -67,6 +67,22 @@ test('the Invite & enroll tab and the empty state use the same join command as t
   assert.equal(html.split("sprag team join ' +").length - 1, 1, 'the join command string is built in one place only');
 });
 
+test('the dashboards load admin-ux.js and preset-sign.js with ?v=<package version>', () => {
+  // Cloudflare serves /assets with max-age=14400. Without the query a browser kept the old
+  // admin-ux.js under the v3.99.0 page and the export threw 'AdminUX.csv is not a function'.
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const ops = readFileSync(new URL('../site/ops/index.html', import.meta.url), 'utf8');
+  for (const [name, page] of [['team', html], ['ops', ops]]) {
+    assert.ok(page.includes(`<script src="/assets/admin-ux.js?v=${version}"></script>`), `${name}: admin-ux.js is not versioned`);
+    assert.doesNotMatch(page, /<script src="[^"]*\/assets\/(admin-ux|preset-sign)\.js"/, `${name}: an unversioned dashboard script is left`);
+  }
+  assert.ok(ops.includes(`<script src="/assets/preset-sign.js?v=${version}"></script>`));
+  const sync = readFileSync(new URL('../scripts/sync-site-version.mjs', import.meta.url), 'utf8');
+  const re = new RegExp(sync.match(/const sceneRe = \/(.+)\/g;/)[1], 'g');
+  assert.equal(`src="/assets/admin-ux.js?v=1.0.0" import('/assets/scene/office-scene.js?v=1.0.0')`.replace(re, '$19.9.9'),
+    `src="/assets/admin-ux.js?v=9.9.9" import('/assets/scene/office-scene.js?v=9.9.9')`, 'npm version bumps the dashboard scripts too');
+});
+
 test('CSV cells quote commas and JSON, and neutralise a team name that starts like a formula', () => {
   const cell = csvCell();
   assert.equal(cell('{"env":{"SPRAG_TEAM_TOKEN":"x"}}'), '"{""env"":{""SPRAG_TEAM_TOKEN"":""x""}}"');
