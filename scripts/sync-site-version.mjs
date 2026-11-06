@@ -17,9 +17,12 @@ const page = join(ROOT, 'site', 'index.html');
 // office-scene.js kept drawing the old office after a deploy, because neither
 // GitHub Pages nor a browser revalidates a module script that carries no
 // validators. The query changes with every release, so the new page always
-// fetches the new module.
+// fetches the new module. The dashboards' classic scripts (admin-ux.js,
+// preset-sign.js) carry the same query: Cloudflare serves /assets with
+// max-age=14400, so after v3.99.0 a browser kept the old admin-ux.js under the
+// new page and the join command export threw 'AdminUX.csv is not a function'.
 const scenePages = ['ops', 'team'].map((d) => join(ROOT, 'site', d, 'index.html'));
-const sceneRe = /(\/assets\/scene\/[a-z-]+\.js\?v=)[^'"]+/g;
+const sceneRe = /(\/assets\/(?:scene\/)?[a-z-]+\.js\?v=)[^'"]+/g;
 const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 
 const html = readFileSync(page, 'utf8');
@@ -47,4 +50,4 @@ for (const file of scenePages) {
 if (!process.argv.includes('--no-stage')) {
   execFileSync('git', ['add', ...staged], { cwd: ROOT, stdio: 'inherit' });
 }
-console.log(`sync-site-version: site/index.html softwareVersion = ${version}; scene imports ?v=${version}`);
+console.log(`sync-site-version: site/index.html softwareVersion = ${version}; scene imports and dashboard scripts ?v=${version}`);
