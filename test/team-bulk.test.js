@@ -17,10 +17,10 @@ function pageHelpers() {
   const start = html.indexOf('const BULK_MAX = ');
   const end = html.indexOf('/* end of team bulk helpers */', start);
   assert.ok(start > 0 && end > start, 'team bulk helper block not found in site/team/index.html');
-  return new Function(`${html.slice(start, end)}\nreturn { BULK_MAX, TEAM_NAME_MAX, bulkNames, joinRows, joinCmd, JOIN_HEAD };`)();
+  return new Function(`${html.slice(start, end)}\nreturn { BULK_MAX, TEAM_NAME_MAX, bulkNames, joinRows, joinCmd, JOIN_HEAD, joinCell, joinCsvText };`)();
 }
 
-/** csvCell from admin-ux.js, the escaping AdminUX.csv applies to every cell. */
+/** csvCell from admin-ux.js, the escaping the member table export applies to every cell. */
 function csvCell() {
   const start = ux.indexOf('const csvCell = ');
   const end = ux.indexOf('function download(', start);
@@ -84,9 +84,23 @@ test('the dashboards load admin-ux.js and preset-sign.js with ?v=<package versio
 });
 
 test('CSV cells quote commas and JSON, and neutralise a team name that starts like a formula', () => {
-  const cell = csvCell();
+  const { joinCell: cell, joinCsvText } = pageHelpers();
   assert.equal(cell('{"env":{"SPRAG_TEAM_TOKEN":"x"}}'), '"{""env"":{""SPRAG_TEAM_TOKEN"":""x""}}"');
   assert.equal(cell('=HYPERLINK("x")'), '"\'=HYPERLINK(""x"")"');
   assert.equal(cell('npm i -g sprag-cli@latest && sprag team join spt_1'), 'npm i -g sprag-cli@latest && sprag team join spt_1');
-  assert.match(ux, /window\.AdminUX = \{[^}]*\bcsv\b[^}]*\}/);
+  assert.equal(joinCsvText([['team', 'x'], ['A, B', null]]), 'team,x\r\n"A, B",\r\n');
+});
+
+test('the page escapes CSV cells exactly like admin-ux.js', () => {
+  const { joinCell } = pageHelpers(), ref = csvCell();
+  for (const v of ['plain', 'a,b', 'say "hi"', 'two\nlines', '=SUM(A1)', '+1', '@x', '-x', '-1.5', '\tx', 'spt_ab', 42, null, undefined, ''])
+    assert.equal(joinCell(v), ref(v), JSON.stringify(v));
+});
+
+test('the export does not depend on a function a cached admin-ux.js may lack', () => {
+  // A browser that keeps an older admin-ux.js under a new page threw 'AdminUX.csv is not a function'.
+  const start = html.indexOf('function exportJoins(');
+  const body = html.slice(start, html.indexOf('\n}\n', start));
+  assert.ok(start > 0 && body.includes('joinCsv('), 'exportJoins writes the file with the page-local joinCsv');
+  assert.doesNotMatch(body, /AdminUX\./);
 });

@@ -1511,12 +1511,28 @@ function joinRows(list){
   return [JOIN_HEAD].concat((list || []).filter(x => x && x.invite_token).map(x => [x.name, x.id, x.invite_token, joinCmd(x.invite_token),
     'export SPRAG_TEAM_TOKEN=' + x.invite_token, JSON.stringify({ env: { SPRAG_TEAM_TOKEN: x.invite_token } })]));
 }
+/* joinCsv: the export writes its own file, so a browser holding an older admin-ux.js (served with max-age=14400) cannot break it.
+   joinCell escapes exactly like csvCell in admin-ux.js; test/team-bulk.test.js compares the two. */
+const joinCell = v => {
+  if(v == null) return '';
+  let s = String(v);
+  if(typeof v === 'string' && /^[=+@\t\r]|^-(?![\d.])/.test(s)) s = "'" + s;
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+};
+const joinCsvText = rows => rows.map(r => r.map(joinCell).join(',')).join('\r\n') + '\r\n';
 /* end of team bulk helpers */
+function joinCsv(name, rows){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + joinCsvText(rows)], { type:'text/csv;charset=utf-8' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
 
 function exportJoins(list, tag){
   const rows = joinRows(list);
   if(rows.length < 2) return void ($('teams-err').textContent = t('tj.none'));
-  AdminUX.csv('sprag-team-joins-' + (tag ? tag + '-' : '') + AdminUX.ymd(new Date()) + '.csv', rows);
+  const d = new Date(), p2 = n => String(n).padStart(2, '0');
+  joinCsv('sprag-team-joins-' + (tag ? tag + '-' : '') + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + '.csv', rows);
 }
 ['btn-joins', 'btn-joins-o'].forEach(id => $(id).addEventListener('click', () => exportJoins(visibleTeams())));
 
