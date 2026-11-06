@@ -320,6 +320,11 @@
   .team-item .mt{display:flex;gap:var(--s2);align-items:center;color:var(--faint);font-size:12px;flex-shrink:0}
   .tside .team-item{flex-direction:column;align-items:flex-start;gap:2px}
   .newteam{margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--line)}
+  .newteam .bulk{margin-top:var(--s3)}
+  .newteam .bulk summary{cursor:pointer;color:var(--dim);font-size:12.5px}
+  .newteam .bulk summary:hover{color:var(--ink)}
+  .newteam .bulk textarea{margin-top:8px}
+  #bulk-st{overflow-wrap:anywhere}
   .tmain{min-width:0}
   .thead{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
   .thead h2{font-size:20px;letter-spacing:-.02em;overflow-wrap:anywhere}
@@ -606,7 +611,9 @@
         </form>
       </section>
       <section class="card">
-        <h3 data-k="o.teams">Teams in this organization</h3>
+        <div class="sec-h"><h3 data-k="o.teams">Teams in this organization</h3>
+          <button type="button" class="btn sm" id="btn-joins-o" data-k="tj.btn" hidden>Export join commands</button></div>
+        <p class="sub" data-k="tj.note">The CSV lists each team's invite token next to its join command, shell profile line and managed settings, so you can hand each team its own command.</p>
         <div id="org-teams"></div>
       </section>
     </div>
@@ -642,7 +649,14 @@
           <input type="text" id="team-name" maxlength="80" data-ph="t.ph" placeholder="Team name" aria-label="Team name" />
           <button class="btn pri" type="submit" data-k="t.create">Create</button>
         </div>
+        <details class="bulk" id="bulk">
+          <summary data-k="tb.sum">Create several teams at once</summary>
+          <textarea id="bulk-names" rows="5" data-ph="tb.ph" placeholder="One team name per line" aria-label="Team names, one per line"></textarea>
+          <div class="row" style="margin-top:8px"><button class="btn pri sm" type="button" id="btn-bulk" data-k="tb.create">Create all</button></div>
+          <p class="sub" id="bulk-st" role="status" style="margin-top:8px"></p>
+        </details>
       </form>
+      <button type="button" class="btn sm" id="btn-joins" style="margin-top:12px" data-k="tj.btn" hidden>Export join commands</button>
       <p class="err" id="teams-err" role="alert"></p>
       <p class="ok" id="teams-ok" role="status"></p>
     </aside>
@@ -880,6 +894,13 @@ const I18N = {
     'o.teams':'Teams in this organization','o.teams.none':'No teams yet.','o.team.members':'{n} active · {s} seats',
     'o.team.open':'Open',
     'o.new':'New team in {org}',
+    'tb.sum':'Create several teams at once','tb.ph':'One team name per line','tb.create':'Create all',
+    'tb.none':'Enter at least one team name, one per line.','tb.max':'Up to {n} teams at a time. Split the list and run it again.',
+    'tb.run':'Creating {i} of {n}…','tb.done':'Created {n} teams.','tb.dup':'Skipped, already in this organization or listed twice ({n}): {list}',
+    'tb.long':'Skipped, over 80 characters ({n}): {list}','tb.stop':'Stopped at "{name}": {err}. Not created ({k}) and kept in the box for another run.',
+    'tb.export':'Export join commands for these {n} teams',
+    'tj.btn':'Export join commands','tj.note':'The CSV lists each team\'s invite token next to its join command, shell profile line and managed settings, so you can hand each team its own command.',
+    'tj.none':'No team has an invite token to export.',
     'v.aria':'Sections','v.overview':'Town','v.seats':'Seats','v.teams':'Teams',
     'tv.aria':'Team sections','tv.members':'Members','tv.usage':'Usage','tv.rules':'Rules','tv.invite':'Invite & enroll','tv.policy':'Policy',
     'tn.add':'+ New team','tn.pick':'Pick a team to see its details.',
@@ -989,6 +1010,13 @@ const I18N = {
     'o.teams':'이 조직의 팀','o.teams.none':'아직 팀이 없습니다.','o.team.members':'활동 멤버 {n}명 · 좌석 {s}개',
     'o.team.open':'열기',
     'o.new':'{org}에 새 팀 만들기',
+    'tb.sum':'여러 팀 한 번에 만들기','tb.ph':'한 줄에 팀 이름 하나씩','tb.create':'모두 만들기',
+    'tb.none':'팀 이름을 한 줄에 하나씩 입력해 주세요.','tb.max':'한 번에 {n}개까지 만들 수 있습니다. 목록을 나눠서 다시 실행해 주세요.',
+    'tb.run':'{n}개 중 {i}번째 만드는 중…','tb.done':'팀 {n}개를 만들었습니다.','tb.dup':'이 조직에 이미 있거나 목록에 두 번 나온 이름 {n}개는 건너뛰었습니다: {list}',
+    'tb.long':'80자를 넘는 이름 {n}개는 건너뛰었습니다: {list}','tb.stop':'"{name}"에서 멈췄습니다: {err}. 만들지 못한 이름 {k}개는 다시 실행할 수 있게 입력란에 남겨 두었습니다.',
+    'tb.export':'방금 만든 팀 {n}개의 가입 명령어 내보내기',
+    'tj.btn':'가입 명령어 내보내기','tj.note':'CSV에는 팀마다 초대 토큰과 가입 명령어, 셸 프로필 줄, 관리형 설정이 함께 들어 있어 팀별로 명령어를 나눠 줄 수 있습니다.',
+    'tj.none':'내보낼 초대 토큰이 있는 팀이 없습니다.',
     'v.aria':'구역','v.overview':'타운','v.seats':'좌석','v.teams':'팀',
     'tv.aria':'팀 구역','tv.members':'멤버','tv.usage':'사용량','tv.rules':'규칙','tv.invite':'초대·등록','tv.policy':'정책',
     'tn.add':'+ 새 팀','tn.pick':'팀을 골라 주세요',
@@ -1462,6 +1490,71 @@ $('form-team').addEventListener('submit', async ev => {
   }catch(e){ $('teams-err').textContent = errMsg(e); }
 });
 
+/* team bulk create and join command export: pure helpers, evaluated by test/team-bulk.test.js */
+const BULK_MAX = 50, TEAM_NAME_MAX = 80;
+/* bulkNames: one name per line. Blank lines go; names already in the organization or listed twice (case-insensitive)
+   land in dup and names over 80 characters (counted the way team_create counts them) in long, so neither reaches the server */
+function bulkNames(text, existing){
+  const seen = new Set((existing || []).map(n => String(n).trim().toLowerCase())), names = [], dup = [], long = [];
+  String(text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean).forEach(n => {
+    const k = n.toLowerCase();
+    if([...n].length > TEAM_NAME_MAX) long.push(n);
+    else if(seen.has(k)) dup.push(n);
+    else { seen.add(k); names.push(n); }
+  });
+  return { names, dup, long };
+}
+/* joinRows: the team to join command mapping a CSV export carries, header first. Teams without a token are left out. */
+const JOIN_HEAD = ['team', 'team_id', 'invite_token', 'join_command', 'shell_profile', 'managed_settings'];
+const joinCmd = tok => 'npm i -g sprag-cli@latest && sprag team join ' + tok;
+function joinRows(list){
+  return [JOIN_HEAD].concat((list || []).filter(x => x && x.invite_token).map(x => [x.name, x.id, x.invite_token, joinCmd(x.invite_token),
+    'export SPRAG_TEAM_TOKEN=' + x.invite_token, JSON.stringify({ env: { SPRAG_TEAM_TOKEN: x.invite_token } })]));
+}
+/* end of team bulk helpers */
+
+function exportJoins(list, tag){
+  const rows = joinRows(list);
+  if(rows.length < 2) return void ($('teams-err').textContent = t('tj.none'));
+  AdminUX.csv('sprag-team-joins-' + (tag ? tag + '-' : '') + AdminUX.ymd(new Date()) + '.csv', rows);
+}
+['btn-joins', 'btn-joins-o'].forEach(id => $(id).addEventListener('click', () => exportJoins(visibleTeams())));
+
+$('btn-bulk').addEventListener('click', async () => {
+  const st = $('bulk-st'), btn = $('btn-bulk'), box = $('bulk-names');
+  $('teams-err').textContent = ''; st.textContent = '';
+  if(!org) return void ($('teams-err').innerHTML = t('t.noorg'));
+  const { names, dup, long } = bulkNames(box.value, visibleTeams().map(x => x.name));
+  if(names.length > BULK_MAX) return void (st.textContent = t('tb.max', {n: BULK_MAX}, true));
+  const lines = [];
+  if(dup.length) lines.push(t('tb.dup', {n: dup.length, list: dup.join(', ')}));
+  if(long.length) lines.push(t('tb.long', {n: long.length, list: long.join(', ')}));
+  if(!names.length){ st.innerHTML = [esc(t('tb.none'))].concat(lines).join('<br>'); return; }
+  btn.disabled = true;
+  const made = [];
+  let stop = null;
+  for(let i = 0; i < names.length; i++){
+    st.textContent = t('tb.run', {i: i + 1, n: names.length}, true);
+    try{
+      const { data, error } = await sb.rpc('team_create', { p_name: names[i], p_org_id: org.id });
+      if(error) throw error;
+      if(data && data.id) made.push(data.id);
+    }catch(e){
+      stop = t('tb.stop', {name: names[i], err: errMsg(e), k: names.length - i});
+      box.value = names.slice(i).join('\n');   /* what is left stays in the box for a second run */
+      break;
+    }
+  }
+  if(!stop) box.value = '';
+  btn.disabled = false;
+  if(made.length){ await loadOrgs(org.id); await loadTeams(team && team.id); }
+  if(made.length) lines.unshift(esc(t('tb.done', {n: made.length}, true)));
+  if(stop) lines.push(stop);
+  st.innerHTML = lines.join('<br>') + (made.length ? `<br><button type="button" class="btn sm" id="btn-bulk-export" style="margin-top:8px">${esc(t('tb.export', {n: made.length}, true))}</button>` : '');
+  const ids = new Set(made), ex = $('btn-bulk-export');
+  if(ex) ex.addEventListener('click', () => exportJoins(teams.filter(x => ids.has(x.id)), 'new'));
+});
+
 async function selectTeam(id){
   const picked = teams.find(x => x.id === id); if(!picked) return;
   if(picked.org_id && (!org || org.id !== picked.org_id) && orgs.some(o => o.id === picked.org_id)){ org = orgs.find(o => o.id === picked.org_id); lsSet('sprag.org.last', org.id); loadOrgSummary(); }
@@ -1516,7 +1609,7 @@ function sumUsage(list){
 }
 /* delegation ratio = delegation cost / total usage; null (unknown) when the cost is unknown or there is no usage */
 const ratioOf = s => (s && s.dc != null && s.tot > 0 ? s.dc / s.tot : null), pct1 = v => (v * 100).toFixed(1) + '%';
-function inviteCmd(){ const tm = team && team.invite_token ? team : visibleTeams().find(x => x.invite_token); return tm ? 'npm i -g sprag-cli@latest && sprag team join ' + tm.invite_token : ''; }
+function inviteCmd(){ const tm = team && team.invite_token ? team : visibleTeams().find(x => x.invite_token); return tm ? joinCmd(tm.invite_token) : ''; }
 function inviteAction(){
   const c = inviteCmd(); if(!c) return null;
   return { label: t('ux.copyinvite'), run: async el => { try{ await navigator.clipboard.writeText(c); el.textContent = t('copied'); }catch(e){} } };
@@ -1637,6 +1730,7 @@ function renderTeams(){
   $('new-title').textContent = org ? t('o.new', {org: org.name}, true) : t('t.new');
   /* teams are created inside an organization the user administers; only Sprag operators open organizations (from /ops) */
   const can = !!org; $('btn-newteam').hidden = !can; if(!can) $('form-team').hidden = true;
+  const tokens = can && vt.some(x => x.invite_token); $('btn-joins').hidden = !tokens; $('btn-joins-o').hidden = !tokens;
   if(!vt.length){
     box.innerHTML = '<p class="msg" style="margin-top:0">' + (can ? esc(t('t.empty')) : t('t.noorg')) + '</p>';
     if(can) $('form-team').hidden = false;
@@ -1658,7 +1752,7 @@ function renderPanel(){
   const tok = team.invite_token || '';
   $('inv-token').textContent = tok;
   $('team-del').hidden = !isAdmin();
-  $('sn-join').textContent = 'npm i -g sprag-cli@latest && sprag team join ' + tok;
+  $('sn-join').textContent = joinCmd(tok);
   $('sn-env').textContent = 'export SPRAG_TEAM_TOKEN=' + tok;
   $('sn-json').textContent = JSON.stringify({ env: { SPRAG_TEAM_TOKEN: tok } }, null, 2);
   const plus = planOf(team) === 'enterprise';
@@ -2902,6 +2996,14 @@ function demoSb(){
           const ids = new Set(mine.map(r => r.member_id)); store().events = store().events.filter(e => !ids.has(e.member_id));
           rulesDb.team_rules = rulesDb.team_rules.filter(r => r.team_id !== gone.id);
           return {data:{ id:gone.id, name:gone.name, org_id:'demo-org', deleted:true, members_deleted:mine.length, seats_used:used() }, error:null};
+        }
+        if(name === 'team_create'){
+          const nm = String((a && a.p_name) || '').trim();
+          if(!nm || [...nm].length > 80) throw new Error('name must be 1 to 80 characters');
+          const hex = Array.from({length:32}, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+          const r = {id:'demo-t' + (tm.length + 1) + '-' + Date.now().toString(36), name:nm, org_id:'demo-org', owner_uid:'u1', invite_token:'spt_' + hex, prompt_capture:false, created_at:new Date().toISOString()};
+          tm.push(r);
+          return {data:{ ...r, org_name:'Northwind Labs', plan:'enterprise' }, error:null};
         }
         if(name === 'rule_recommendations') return {data: recRows(), error:null};
         if(name === 'org_rule_promote') return {data: promoteRule(a && a.p_rule_id), error:null};

@@ -604,5 +604,8 @@ function seatSeries(events, days, nowCount, limit){
   return { series: out, net: inRange, start: Math.max(0, nowCount - inRange) };
 }
 
-window.AdminUX = { u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, ymd, esc };
+/* csv: download rows (arrays of cells, the first row is the header) as a CSV file, same escaping as the table export */
+function csv(name, rows){ download(name, rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n'); }
+
+window.AdminUX = { u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, ymd, esc, csv };
 })();
