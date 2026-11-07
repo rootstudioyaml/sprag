@@ -97,7 +97,7 @@ export function agentForRule(rule, { agents = agentDefinitions() } = {}) {
 }
 
 /** Model alias an agent (or a legacy agent name) is pinned to, or undefined. */
-const modelOf = (name) => AGENT_MODEL[Object.hasOwn(LEGACY_AGENT_NAMES, name) ? LEGACY_AGENT_NAMES[name] : name];
+export const modelOf = (name) => AGENT_MODEL[Object.hasOwn(LEGACY_AGENT_NAMES, name) ? LEGACY_AGENT_NAMES[name] : name];
 
 /** Agent a bare tier name stands for when that agent's file exists. */
 const TIER_AGENT = { sonnet: 't1-worker', opus: 't1h-worker', haiku: 't2-explore' };

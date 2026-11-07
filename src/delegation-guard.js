@@ -27,6 +27,7 @@ import { homedir } from 'node:os';
 import { loadConfig, saveConfig } from './config.js';
 import { recentToolPaths } from './session-paths.js';
 import { routeCapsFor } from './route-caps.js';
+import { modelOf } from './agents.js';
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -120,8 +121,12 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
 
   // Read from `model` first — it is the more specific field when both are set
   // — falling back to `subagent_type`. Hoisted out of the bounds section
-  // because the Korean section below weighs the same answer.
-  const modelHint = String(payload?.tool_input?.model || payload?.tool_input?.subagent_type || '');
+  // because the Korean section below weighs the same answer. The preset agents
+  // are named by tier (t2-explore, t1h-worker), so a bare subagent_type says
+  // nothing about the model until it is looked up; without that every
+  // tier-named delegation got the 20-call / 8,000-token sonnet cap.
+  const agentName = String(payload?.tool_input?.subagent_type || '');
+  const modelHint = String(payload?.tool_input?.model || modelOf(agentName) || agentName);
   const isHaiku = /haiku/i.test(modelHint);
   const isOpus = /opus/i.test(modelHint);
 

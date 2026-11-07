@@ -119,6 +119,21 @@ test('decideForDelegation: the tool-call cap depends on whether haiku is the tar
   assert.match(nonHaiku.updatedInput.prompt, /Cap for this delegation: 20 tool calls, 8,000 output tokens\./);
 });
 
+test('decideForDelegation: tier-named preset agents get the cap of the model they are pinned to', async () => {
+  const capFor = async (subagent_type) => (await decideForDelegation(
+    { tool_name: 'Task', tool_input: { prompt: 'summarize this file', subagent_type } },
+    { cfg: ON, home: EMPTY_HOME, routeCaps: null },
+  )).updatedInput.prompt.match(/Cap for this delegation: [^\n]+/)[0];
+
+  // Neither name contains the model, so a plain /haiku/ test on the name
+  // handed both the sonnet default of 20 calls and 8,000 tokens.
+  assert.equal(await capFor('t2-explore'), 'Cap for this delegation: 8 tool calls, 1,500 output tokens.');
+  assert.equal(await capFor('haiku-runner'), 'Cap for this delegation: 8 tool calls, 1,500 output tokens.');
+  assert.equal(await capFor('t1h-worker'), 'Cap for this delegation: 20 tool calls, 30,000 output tokens.');
+  assert.equal(await capFor('t1-worker'), 'Cap for this delegation: 20 tool calls, 8,000 output tokens.');
+  assert.equal(await capFor('general-purpose'), 'Cap for this delegation: 20 tool calls, 8,000 output tokens.');
+});
+
 test('formatHookOutput: null in, null out; otherwise fixes hookEventName and sends no permissionDecision', () => {
   assert.equal(formatHookOutput(null), null);
   assert.equal(formatHookOutput(undefined), null);
