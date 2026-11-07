@@ -553,6 +553,7 @@
       <label class="f"><span data-k="si.code">6-digit code</span>
         <input type="text" id="code" class="codein" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······" />
       </label>
+      <p class="note" data-k="si.mailnote">Company mail servers sometimes hold the first mail from a new sender for a few minutes. The code lasts 30 minutes. Requesting a new code cancels the previous one, so use the newest mail.</p>
       <div class="row">
         <button class="btn pri" type="submit" id="btn-verify" data-k="si.verify">Verify</button>
         <button class="btn" type="button" id="btn-back" data-k="si.back">Use a different email</button>
@@ -917,7 +918,7 @@ const I18N = {
     "c.late":"Late",
     "s.seats":"Seats in {name}",
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
-    'si.sent':'We sent a code to {email}.','si.captcha':'The security check has not finished yet. Wait a moment and press Send code again.','si.as':'Signed in as','si.out':'Sign out',
+    'si.sent':'We sent a code to {email}.','si.captcha':'The security check has not finished yet. Wait a moment and press Send code again.','si.ratelimit':'Too many sign-in attempts from this network. Wait 5 minutes and try again. An office that shares one address counts together.','si.toosoon':'A code went to this address moments ago. Wait {s} seconds and request again. Only the newest code works.','si.codebad':'That code is not valid any more. A code lasts 30 minutes and requesting a new one cancels the old one, so enter the code from the newest mail or request another.','si.sendfail':'The mail could not be sent right now. Wait a minute and request the code again.','si.mailrate':'The hourly mail quota is used up. Try again in an hour or write to support@sprag.io.','si.captchafail':'The security check did not pass. Reload the page and try again.','si.mailnote':'Company mail servers sometimes hold the first mail from a new sender for a few minutes. The code lasts 30 minutes. Requesting a new code cancels the previous one, so use the newest mail.','si.notops':'This email is not an operator account.','si.as':'Signed in as','si.out':'Sign out',
     'si.otponly':'Password sign-in has been turned off. Sign in with an email code.',
     'si.expired':'Your session is older than seven days. Sign in again.','si.mfareset':'Replace authenticator app','si.mfaerr':'Could not replace the authenticator app: {msg}',
     'si.bademail':'Enter a valid email address.','si.badcode':'Enter the 6-digit code from the email.',
@@ -1033,7 +1034,7 @@ const I18N = {
     "c.late":"지연",
     "s.seats":"{name} 좌석 현황",
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
-    'si.sent':'{email}로 코드를 보냈습니다.','si.captcha':'보안 확인이 아직 끝나지 않았습니다. 잠시 뒤 다시 눌러 주세요.','si.as':'로그인 계정','si.out':'로그아웃',
+    'si.sent':'{email}로 코드를 보냈습니다.','si.captcha':'보안 확인이 아직 끝나지 않았습니다. 잠시 뒤 다시 눌러 주세요.','si.ratelimit':'이 네트워크에서 로그인 시도가 너무 많습니다. 5분 뒤 다시 해 주세요. 한 사무실에서 주소 하나를 같이 쓰면 함께 집계됩니다.','si.toosoon':'이 주소로 방금 코드를 보냈습니다. {s}초 뒤에 다시 요청해 주세요. 가장 최근 코드만 유효합니다.','si.codebad':'이 코드는 더 이상 유효하지 않습니다. 코드는 30분 동안 쓸 수 있고 새로 요청하면 이전 코드는 무효가 되니 가장 최근 메일의 코드를 넣거나 새로 요청해 주세요.','si.sendfail':'지금은 메일을 보내지 못했습니다. 1분 뒤 코드를 다시 요청해 주세요.','si.mailrate':'이번 시간의 메일 발송 한도를 다 썼습니다. 한 시간 뒤 다시 하거나 support@sprag.io 로 알려 주세요.','si.captchafail':'보안 확인을 통과하지 못했습니다. 페이지를 새로 고친 뒤 다시 해 주세요.','si.mailnote':'회사 메일 서버는 처음 받는 발신자의 메일을 몇 분 붙잡아 두기도 합니다. 코드는 30분 동안 유효합니다. 새로 요청하면 이전 코드는 무효가 되니 가장 최근 메일의 코드를 쓰세요.','si.notops':'운영자 계정이 아닌 이메일입니다.','si.as':'로그인 계정','si.out':'로그아웃',
     'si.otponly':'비밀번호 로그인은 사용하지 않습니다. 이메일 코드로 로그인해 주세요.',
     'si.expired':'로그인한 지 7일이 지났습니다. 다시 로그인해 주세요.','si.mfareset':'인증 앱 교체','si.mfaerr':'인증 앱을 교체하지 못했습니다: {msg}',
     'si.bademail':'올바른 이메일 주소를 입력해 주세요.','si.badcode':'메일에 적힌 6자리 코드를 입력해 주세요.',
@@ -1245,7 +1246,22 @@ function rel(d){
   if(a < 86400) return f.format(Math.round(sec / 3600), 'hour');
   return f.format(Math.round(sec / 86400), 'day');
 }
-const errMsg = e => t('err.generic', {msg: (e && e.message) || String(e)});
+/* GoTrue's sign-in errors arrive in English with no hint about the fix; these carry it. Everything else keeps the server text. */
+const AUTH_ERRS = [
+  [/over_request_rate_limit|request rate limit/i, 'si.ratelimit'],
+  [/email rate limit exceeded/i, 'si.mailrate'],
+  [/only request this after (\d+) seconds?/i, 'si.toosoon'],
+  [/otp_expired|expired or is invalid/i, 'si.codebad'],
+  [/error sending .*(email|link)/i, 'si.sendfail'],
+  [/captcha/i, 'si.captchafail'],
+  [/otp_disabled|signups not allowed/i, 'si.notops']
+];
+const errMsg = e => {
+  const msg = (e && e.message) || String(e);
+  const hay = ((e && e.code) || '') + ' ' + msg;
+  for(const [re, key] of AUTH_ERRS){ const m = re.exec(hay); if(m) return t(key, { s: m[1] || '' }); }
+  return t('err.generic', {msg});
+};
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
 
