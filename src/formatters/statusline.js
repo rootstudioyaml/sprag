@@ -279,8 +279,8 @@ function buildKoreanSeg(c, isIcon, verbose, g, explicit = false) {
  * Effort tones are not this palette's to choose: they are Claude Code's own, so
  * the chip shows a level in the color its `/effort` picker showed when the level
  * was set. src/effort-palette.js holds the values and the evidence for them,
- * including why `xhigh` and `ultracode` share a color once the shimmer that
- * separates them in the app is dropped.
+ * including why `xhigh` and the ultra chip's glow share a hue once the shimmer
+ * that separates them in the app is dropped.
  *
  * This replaced a scheme of this tool's own devising (gray below default, the
  * model chip's violet at default, bold above it). That scheme was internally
@@ -298,8 +298,8 @@ const EFFORT_TONES = effortTones({ truecolor: TRUECOLOR });
 
 /**
  * Effort chip builder — the level from Claude Code's stdin payload
- * (`effort.level`, see extractEffort), or `ultracode` when the entry point
- * resolved that from the transcript (see effortChipLevel).
+ * (`effort.level`, see extractEffort), shown as it arrives. Ultracode is not a
+ * level any more and has its own chip (see buildUltraSeg).
  *
  * The level is a word ("high"), so icon modes need no label beside the glyph:
  * `🔬 high` already reads. Text mode names the field, because a bare "high"
@@ -321,15 +321,42 @@ function buildEffortSeg(effort, c, isIcon, g) {
   // cycling would show only the first three stops — red, orange, yellow, which
   // reads as a warm gradient and not as a rainbow. Spreading walks the whole
   // arc whatever the word's length.
-  if (Array.isArray(tone)) {
-    const chars = [...effort];
-    const last = Math.max(1, chars.length - 1);
-    const word = chars
-      .map((ch, i) => `${c(tone[Math.round((i * (tone.length - 1)) / last)])}${ch}`)
-      .join('');
-    return `${c(tone[0])}${head}${word}${c(RESET)}`;
-  }
+  if (Array.isArray(tone)) return `${c(tone[0])}${head}${spreadTone(tone, effort, c)}${c(RESET)}`;
   return `${c(tone)}${head}${effort}${c(RESET)}`;
+}
+
+/** A word painted with a ramp of escapes spread evenly across its characters. */
+function spreadTone(tone, text, c) {
+  const chars = [...text];
+  const last = Math.max(1, chars.length - 1);
+  return chars
+    .map((ch, i) => `${c(tone[Math.round((i * (tone.length - 1)) / last)])}${ch}`)
+    .join('');
+}
+
+/**
+ * Ultracode chip builder — a separate chip from effort because ultracode is a
+ * session toggle that works at any level (Claude Code 2.1.302), not a level.
+ *
+ * `ultra` is true/false from the transcript (see ultracodeChipState), or
+ * null/undefined when this render has no transcript to ask — the table view, a
+ * payload without `transcript_path` — in which case no chip is drawn rather than
+ * guessing "off". On is the `max` rainbow in bold, spread across the label:
+ * ultracode multiplies what a turn spends, so the chip has to be the loudest
+ * thing on the line rather than a tint the eye slides past. The purple glow it
+ * first used read as one more colored chip. Bold keeps it apart from a `max`
+ * effort chip beside it, which uses the same seven stops without weight. The
+ * stops are an array in the 8-color form too, so both terminals get a rainbow.
+ * Off is gray.
+ */
+function buildUltraSeg(ultra, c, isIcon, g) {
+  if (typeof ultra !== 'boolean') return null;
+  const state = ultra ? 'on' : 'off';
+  const label = isIcon ? `ultra ${state}` : `Ultra ${state}`;
+  const head = isIcon ? `${g.ultra} ` : '';
+  if (!ultra) return `${c(GRAY)}${head}${label}${c(RESET)}`;
+  const tone = EFFORT_TONES.max;
+  return `${c(BOLD)}${c(tone[0])}${head}${spreadTone(tone, label, c)}${c(RESET)}`;
 }
 
 /**
@@ -675,7 +702,7 @@ function fitChips(segs, { columns, maxLines = 3, eol = '', protectedSegs = new S
  * note. With `columns` the chips wrap onto at most `maxLines` lines (see
  * layoutChips).
  */
-export function formatNoSession({ caps = null, model = null, effort = null, windowLabel = '', version = '', update = null, team = null } = {}, { color = true, mode = 'icon', segments = null, columns = 0, maxLines = 3 } = {}) {
+export function formatNoSession({ caps = null, model = null, effort = null, ultra = null, windowLabel = '', version = '', update = null, team = null } = {}, { color = true, mode = 'icon', segments = null, columns = 0, maxLines = 3 } = {}) {
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take
   // the same branches from here on.
@@ -696,6 +723,8 @@ export function formatNoSession({ caps = null, model = null, effort = null, wind
   if (modelSeg) segs.push(modelSeg);
   const effortSeg = buildEffortSeg(effort, c, isIcon, g);
   if (effortSeg) segs.push(effortSeg);
+  const ultraSeg = buildUltraSeg(ultra, c, isIcon, g);
+  if (ultraSeg) segs.push(ultraSeg);
   segs.push(`${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
   const teamSeg = buildTeamSeg(team, c, mode);
   if (teamSeg) segs.push(teamSeg);
@@ -1294,7 +1323,7 @@ export const DEFAULT_SEGMENT_ORDER = [
   'cap-warn', 'spike',
   'usage', 'ctx',
   'ttl',
-  'model', 'effort',
+  'model', 'effort', 'ultra',
   // Grouped by the timeframe each figure covers, because mixing them was the
   // problem: a lifetime total, a windowed rate and a calendar-month estimate sat
   // interleaved, with one window label at the end of the line that appeared to
@@ -1347,6 +1376,7 @@ function segmentsNamed(name, s, usageByKey) {
     case 'team':      return [s.team];
     case 'model':     return [s.model];
     case 'effort':    return [s.effort];
+    case 'ultra':     return [s.ultra];
     // The routing chips (already empty when a headline line owns the story), then
     // the session's own subagent runs.
     case 'delegated': return [...s.delegated, s.subagents];
@@ -1461,13 +1491,13 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v)
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), team (member id and office animal; joined machines only), model, effort, hit, ttl, month, saved, delegated, doc2md, share (Model used by family, dated), star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), team (member id and office animal; joined machines only), model, effort, ultra (ultracode on/off; live statusline only), hit, ttl, month, saved, delegated, doc2md, share (Model used by family, dated), star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line). It also ignores `columns`.
  * @param {number} [opts.columns=0] - terminal width in cells (Claude Code exports it as COLUMNS). When set, the chips wrap at chip boundaries instead of being truncated by the terminal; 0 keeps one unbounded line. A verbose layout that would need chips dropped is re-rendered once in the compact layout first.
  * @param {number} [opts.maxLines=3] - most chip lines when `columns` is set; lower-priority tail chips collapse into a `+N` chip beyond that. Counts the chip lines only: the headline lines above them wrap at their own `|` and `·` joints and are not included. Cap, usage, ctx, spike chips are never dropped.
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false, columns = 0, maxLines = 3 } = {}) {
-  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort, liveModel } = data;
+  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort, ultra, liveModel } = data;
 
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take
@@ -1517,6 +1547,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // differently at `low` and at `max`, and the pair is one glance.
     model: buildModelSeg(model, c, isIcon, g),
     effort: buildEffortSeg(effort, c, isIcon, g),
+    // Its own chip, not a level: ultracode works at any effort (see buildUltraSeg).
+    ultra: buildUltraSeg(ultra, c, isIcon, g),
     delegated: delegated.chips,
     // The inline chip steps aside when a headline line owns the story.
     doc2md: doc2md.headline ? [] : [doc2md.chip],
