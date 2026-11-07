@@ -44,7 +44,7 @@ This list is the input to `scripts/upstream-watch.mjs`. It is compiled from the 
 - Entry fields `type` (`user`, `assistant`, `attachment`), `timestamp`, `sessionId`, `requestId`, `cwd`, `isSidechain`, `toolUseResult`; used by `src/parser.js:44` and `src/session-records.js:106`.
 - `message.id`, `message.model` (including `<synthetic>`), `message.usage` with `input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, `cache_creation.ephemeral_5m_input_tokens`, `ephemeral_1h_input_tokens`; used by `src/parser.js:55`.
 - Gateway-shaped usage keys `inference_geo`, `iterations`, `speed`; used by `src/parser.js:19`.
-- Attachment entries `ultra_effort_enter` and `ultra_effort_exit`, and the command output strings `Set effort level to ...` and `Current effort level: ...`; used by `src/ultracode.js:64` and `src/ultracode.js:91`.
+- Attachment entries `ultra_effort_enter` and `ultra_effort_exit`, and the command output strings `Ultracode on (...`, `Ultracode off`, `Current effort level: ...` and `Effort level: auto ...` (with the ` · Ultracode on` / ` · Ultracode off` suffix), plus the pre-2.1.302 `Set effort level to ultracode ...`; used by `src/ultracode.js:76` and `src/ultracode.js:128`.
 - Streaming duplicates share a `requestId`; sprag keeps the last one; used by `src/parser.js:27`.
 - Declared model attachments in the transcript; used by `src/model-alias.js:380`.
 
@@ -64,7 +64,7 @@ This list is the input to `scripts/upstream-watch.mjs`. It is compiled from the 
 - `claude --version` output parsed as a semver to gate features; used by `src/compact-window.js:41`.
 - `/autocompact` writes `autoCompactWindow` and `"auto"` since 2.1.288; used by `src/compact-window.js:25`.
 - Model aliases `opus`, `sonnet`, `haiku` in agent frontmatter and in `Task` `model`; used by `src/delegation-agents.js:57` and `src/model-alias.js:92`.
-- `/effort` levels `low`, `medium`, `high`, `xhigh`, `max`, `ultracode`; used by `src/ultracode.js:67` and `src/effort-palette.js:9`.
+- `/effort` levels `low`, `medium`, `high`, `xhigh`, `max`, and the `effortUltra` color of the ultracode toggle; used by `src/effort-palette.js:9`.
 - `claude --print --input-format stream-json` behavior for document blocks, measured once for the doc2md savings estimate; used by `src/doc2md-ledger.cjs:23`.
 - `claude --continue` is recommended in user-facing advice; used by `src/advice.js:139`.
 - Claude app Cowork sessions under `~/Library/Application Support/Claude/local-agent-mode-sessions/<org>/<account>/<session>/.claude/projects`; used by `src/cowork-sessions.js:37` and `src/cowork-sessions.js:67`.

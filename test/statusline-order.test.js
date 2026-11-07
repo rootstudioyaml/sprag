@@ -132,6 +132,7 @@ test('every name in the default order is one the renderer knows', () => {
     update: { available: true, latest: '9.9.9' },
     star: { usd: 12, shownAt: Date.now() },
     team: { label: 'member-1e500474', lang: 'en', standing: null },
+    ultra: false,                           // drawn only when a live render supplies it
   };
   const missing = [];
   for (const name of DEFAULT_SEGMENT_ORDER) {

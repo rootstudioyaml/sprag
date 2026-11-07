@@ -42,7 +42,7 @@ import {
   extractTranscriptPath,
 } from '../src/stdin-payload.js';
 
-import { effortChipLevel } from '../src/ultracode.js';
+import { ultracodeChipState } from '../src/ultracode.js';
 
 import { parseAllSessions, sessionsSince, getLastUserMessageTime } from '../src/parser.js';
 import {
@@ -93,6 +93,16 @@ const { getArg, hasFlag, numArg } = createArgs(args);
  */
 function tableColor() {
   return !hasFlag('--no-color') && !process.env.NO_COLOR && !!process.stdout.isTTY;
+}
+
+/**
+ * The ultra chip's state for a live statusline render: true/false when the
+ * payload names a `transcript_path`, null (no chip) when it does not. Off covers
+ * "turned off", "never touched" and an unreadable transcript alike.
+ */
+function ultraChipFor(stdinJson) {
+  const path = extractTranscriptPath(stdinJson);
+  return path ? ultracodeChipState(path) === true : null;
 }
 
 // Subcommands this build knows how to run. Used only by the guard below.
@@ -700,9 +710,10 @@ async function main() {
       const stdinJson = readStdinJson();
       const caps = extractCaps(stdinJson);
       const model = extractModel(stdinJson);
-      // Resolved the same way as on the populated line below, so the chip does
-      // not change its mind about the level when the analysis window empties.
-      const effort = effortChipLevel(extractEffort(stdinJson), extractTranscriptPath(stdinJson));
+      // Resolved the same way as on the populated line below, so the chips do
+      // not change their minds when the analysis window empties.
+      const effort = extractEffort(stdinJson);
+      const ultra = ultraChipFor(stdinJson);
       // Recorded here too: a fresh session can render before it has any request
       // in the analysis window, and its first prompt is briefed from this.
       const ctxLive = extractContextUsage(stdinJson);
@@ -720,7 +731,7 @@ async function main() {
       }
       const { withBaseStatusline } = await import('../src/statusline-base.js');
       const noSessionOut = withBaseStatusline(formatNoSession(
-        { caps, model, effort, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION), team: (await import('../src/team-sync.js')).readTeamChip() },
+        { caps, model, effort, ultra, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION), team: (await import('../src/team-sync.js')).readTeamChip() },
         { color: colorOk, mode: labelMode, segments: segmentsFromArgs(), columns: columnsFromArgs() },
       ), { input: readStdinRaw() });
       if (guard) guard.finish(noSessionOut);
@@ -773,13 +784,11 @@ async function main() {
   // user has since changed would be worse there than no chip at all. The effort
   // chip is a live-statusline reading only.
   //
-  // `ultracode` is the one level the payload cannot name — Claude Code raises it
-  // to xhigh and reports that — so the transcript settles which of the two this
-  // session is on. Only an xhigh payload can resolve to ultracode, so a session
-  // on any other level pays nothing for the check (see src/ultracode.js).
-  const effort = isStatusline
-    ? effortChipLevel(extractEffort(stdinJson), extractTranscriptPath(stdinJson))
-    : extractEffort(stdinJson);
+  // Ultracode is a separate toggle the payload cannot name, so the transcript
+  // settles it (see src/ultracode.js). Only a live statusline render that was
+  // handed a transcript path asks; every other caller gets no ultra chip.
+  const effort = extractEffort(stdinJson);
+  const ultra = isStatusline ? ultraChipFor(stdinJson) : null;
   const ctxLive = extractContextUsage(stdinJson);
   // The prompt-submit briefing has no payload field for the window, so it reads
   // back what this render was told (see src/ctx-window-cache.js).
@@ -1076,6 +1085,7 @@ async function main() {
     // Raw payload model id for the compact-window chip's `modelSettings` lookup.
     liveModel: isStatusline ? liveModelIdOf(stdinJson) : undefined,
     effort,
+    ultra,
     delegationSaved,
     delegationTotals,
     doc2mdTotals,

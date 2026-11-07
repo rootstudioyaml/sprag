@@ -221,7 +221,7 @@ export function extractEffort(stdinJson) {
 /**
  * The current session's transcript path, as Claude Code reports it.
  *
- * Read for one thing only: the effort chip's ultracode check, which the payload
+ * Read for one thing only: the ultra chip's ultracode check, which the payload
  * cannot answer on its own (see src/ultracode.js). Everything else about the
  * current session comes from the analysis window, so a missing or non-string
  * path is not worth a fallback — the caller simply skips the check.

@@ -1,18 +1,17 @@
 /**
- * Ultracode detection — the one effort level Claude Code does not put in the
+ * Ultracode detection — the one session state Claude Code does not put in the
  * statusline payload.
  *
- * `/effort ultracode` is "xhigh + dynamic workflow orchestration, this session
- * only". Claude Code stores it as two things: the effort level, which it raises
- * to `xhigh`, and a session flag for the orchestration half. Only the level
- * reaches the statusline contract (2.1.276 builds the payload as
- * `...modelHasEffort(model) && { effort: { level: resolved } }`, where `resolved`
- * is validated against the level list and so can never read "ultracode"), so a
- * session on ultracode and a session on plain xhigh arrive here identical.
+ * Since 2.1.302 ultracode is not an effort level. It is an independent toggle,
+ * "dynamic workflows on every task", that can be on at any level, and the
+ * payload still carries only `effort.level`; there is no ultracode field. (The
+ * older builds raised the level to `xhigh` and reported that, so the two
+ * arrived identical. The new ones leave the level alone, so there is nothing in
+ * the payload to recover it from at all.)
  *
- * What does distinguish them is in the transcript. Claude Code injects a
- * system-reminder when ultracode turns on and another when it turns off, and
- * both are recorded as attachment entries:
+ * What does carry it is the transcript. Claude Code injects a system-reminder
+ * when ultracode turns on and another when it turns off, and both are recorded
+ * as attachment entries:
  *
  *   {"type":"attachment","attachment":{"type":"ultra_effort_enter","reminderType":"full"}}
  *   {"type":"attachment","attachment":{"type":"ultra_effort_exit"}}
@@ -21,29 +20,40 @@
  * is switched on ("full"), then every tenth user turn as a reminder ("sparse",
  * TURNS_BETWEEN_MAINTENANCE = 10) — so the most recent of the two markers is
  * the current state, and an active session keeps refreshing it near the tail.
+ * (A keyword in the prompt can switch it on for one turn only; that writes a
+ * different attachment and is deliberately not a session state here.)
  *
  * A marker is only written when the NEXT turn is assembled, though, so on its own
- * it leaves the chip a turn behind: you run `/effort ultracode`, nothing has been
- * recorded yet, and the chip still says xhigh until you send something. The
- * command's own output closes that gap, because Claude Code writes it to the
- * transcript the moment the command returns:
+ * it leaves the chip a turn behind. The command's own output closes that gap,
+ * because Claude Code writes it to the transcript the moment the command returns:
  *
- *   {"type":"user","message":{"content":"<local-command-stdout>Set effort level to
- *    ultracode (this session only): xhigh + dynamic workflow orchestration</local-command-stdout>"}}
+ *   {"type":"user","message":{"content":"<local-command-stdout>Ultracode on (this
+ *    session only): dynamic workflows on every task. Effort stays high.</local-command-stdout>"}}
  *
- * measured 7s, 34s and 72s ahead of the matching attachment in one session. Both
- * directions are legible there: the ultracode row is the only one that names the
- * level, and every other `/effort <level>` clears the flag as it sets the level
- * (`effortUpdate:{value:e,ultracode:!1}`), so those rows mean "off". The bare
- * query prints `Current effort level: …`, which reads the same way.
+ * The strings below are the ones the 2.1.302 binary builds in its `k()` function:
+ *
+ *   on     Ultracode on (this session only): dynamic workflows on every task. Effort stays high.
+ *   off    Ultracode off. Effort stays high.
+ *   query  Current effort level: high (…)  or  Effort level: auto (currently high),
+ *          with ` · Ultracode on` appended while it is on; no suffix means off.
+ *   level  Set effort level to high: …  — changes only the level, so it says nothing
+ *          about ultracode locally. A remote session appends ` · Ultracode off`
+ *          (U+00B7) when the level change switched it off, and `Effort level set
+ *          to auto…` can carry the same suffix.
+ *
+ * Builds before 2.1.302 phrase it as a level instead: `Set effort level to
+ * ultracode …` and `Current effort level: ultracode (…)` turn it on. Their
+ * `Set effort level to <level>` rows used to mean "off", but that is no longer
+ * true of the new builds and the two cannot be told apart, so those rows decide
+ * nothing; the old builds' next-turn exit attachment clears the state, which
+ * costs one turn of lag.
  *
  * Hence the read below: walk backwards from the end of the transcript and take
  * whichever of the two signals comes last. The scan is capped (see SCAN_BYTES)
  * because the statusline re-renders every few seconds and most sessions carry
  * neither signal — an uncapped backwards scan would read the whole transcript,
  * every render, to answer "no". The cap makes the failure one-directional: past
- * it we report "not ultracode", which is what the chip showed before this
- * existed.
+ * it we report "off", which is what the line showed before this existed.
  */
 
 import { openSync, readSync, closeSync, statSync } from 'node:fs';
@@ -57,16 +67,21 @@ import { openSync, readSync, closeSync, statSync } from 'node:fs';
  */
 const SCAN_BYTES = 4 * 1024 * 1024;
 /**
- * Substrings worth parsing a line for. The first is the attachment; the other
- * two are the shapes `/effort` prints. Cheap prefilters only — every hit is
- * parsed and checked before it counts.
+ * Substrings worth parsing a line for. The first is the attachment; the rest are
+ * the shapes the toggle and the `/effort` query print. Cheap prefilters only —
+ * every hit is parsed and checked before it counts. A `Set effort level to` /
+ * `Effort level set to` row matters only when it carries the ` · Ultracode off`
+ * suffix, which the `Ultracode off` entry already catches.
  */
-const MARKERS = ['ultra_effort_', 'Set effort level to', 'Current effort level:'];
+const MARKERS = [
+  'ultra_effort_', 'Ultracode on (', 'Ultracode off', 'Effort level: auto', 'Current effort level:',
+  'Set effort level to ultracode',
+];
 const NEWLINE = 0x0a;
-/** The levels Claude Code accepts; any of them being SET means ultracode is off. */
-const PLAIN_LEVELS = /Set effort level to (?:low|medium|high|xhigh|max)\b/;
-/** The bare query's answer, which names ultracode when it is on. */
-const QUERY_LEVEL = /Current effort level: (\w+)/;
+const COMMAND_STDOUT = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/;
+/** A query answer or level change that ends in the ultracode suffix. */
+const SUFFIX_ON = /\s·\sUltracode on\s*$/;
+const SUFFIX_OFF = /\s·\sUltracode off\s*$/;
 
 /**
  * The state one transcript line carries, or null when it carries none.
@@ -95,49 +110,50 @@ function markerState(line) {
 }
 
 /**
- * The state one `/effort` command output reports, or null when the entry is not
- * one.
+ * The state one command output reports, or null when the entry is not one or
+ * says nothing about ultracode.
  *
  * The filter is narrow on purpose, because these phrases travel. In the session
- * this was built in, "Set effort level to …" appears six times outside a real
- * command output: three times in assistant text that quoted it and three in tool
- * results that printed it. Requiring a user entry whose content is a plain
- * string carrying the `<local-command-stdout>` wrapper excluded all six and kept
- * all twelve real ones — a tool result's content is an array of blocks, and
+ * the first version was built in, "Set effort level to …" appears six times
+ * outside a real command output: three times in assistant text that quoted it and
+ * three in tool results that printed it. Requiring a user entry whose content is a
+ * plain string carrying the `<local-command-stdout>` wrapper excluded all six and
+ * kept all twelve real ones — a tool result's content is an array of blocks, and
  * quoted prose is not a user entry at all.
  *
  * A cancelled picker writes `<local-command-stdout>Cancelled</local-command-stdout>`,
- * which matches nothing here and correctly changes no state.
+ * which matches nothing here and correctly changes no state, and so does a plain
+ * `Set effort level to high: …` row.
  */
 function commandState(entry) {
   if (entry.type !== 'user') return null;
   const content = entry.message && entry.message.content;
   if (typeof content !== 'string' || !content.includes('<local-command-stdout>')) return null;
-  if (content.includes('Set effort level to ultracode')) return true;
-  const query = content.match(QUERY_LEVEL);
-  if (query) return query[1] === 'ultracode';
-  if (PLAIN_LEVELS.test(content)) return false;
+  const wrapped = content.match(COMMAND_STDOUT);
+  const text = (wrapped ? wrapped[1] : content).trim();
+  if (text.startsWith('Ultracode on (')) return true;
+  if (text.startsWith('Ultracode off')) return false;
+  // Before 2.1.302 ultracode was a level, and naming it meant on.
+  if (/^Set effort level to ultracode\b/.test(text)) return true;
+  if (/^Current effort level: ultracode\b/.test(text)) return true;
+  // The query answers in both directions: the suffix is present only while on.
+  if (/^(?:Current effort level:|Effort level: auto)/.test(text)) return SUFFIX_ON.test(text);
+  // A level change leaves ultracode alone locally; only the remote suffix says off.
+  if (/^(?:Set effort level to|Effort level set to)\b/.test(text)) return SUFFIX_OFF.test(text) ? false : null;
   return null;
 }
 
-/**
- * Is ultracode on, according to this transcript?
- *
- * @param {string|null|undefined} transcriptPath - `transcript_path` from the statusline payload.
- * @param {object} [opts]
- * @param {number} [opts.scanBytes=SCAN_BYTES] - how many trailing bytes to search.
- * @returns {boolean|null} true/false from the newest marker, null when there is
- *   none in range or the file cannot be read. Callers treat null as "not
- *   ultracode"; it is kept distinct from false so a caller can tell "the
- *   session turned it off" from "nothing said".
- */
-export function ultracodeFromTranscript(transcriptPath, { scanBytes = SCAN_BYTES } = {}) {
-  if (typeof transcriptPath !== 'string' || transcriptPath === '') return null;
+/** Returned by readState when the transcript cannot be read at all. */
+const UNREADABLE = Symbol('unreadable');
+
+/** The newest marker in the trailing window: true/false, null for none, UNREADABLE for no file. */
+function readState(transcriptPath, scanBytes) {
+  if (typeof transcriptPath !== 'string' || transcriptPath === '') return UNREADABLE;
   let size;
   try {
     size = statSync(transcriptPath).size;
   } catch {
-    return null;
+    return UNREADABLE;
   }
   if (size === 0) return null;
 
@@ -148,7 +164,7 @@ export function ultracodeFromTranscript(transcriptPath, { scanBytes = SCAN_BYTES
     fd = openSync(transcriptPath, 'r');
     readSync(fd, buf, 0, buf.length, start);
   } catch {
-    return null;
+    return UNREADABLE;
   } finally {
     if (fd !== undefined) try { closeSync(fd); } catch { /* already closed */ }
   }
@@ -180,23 +196,35 @@ export function ultracodeFromTranscript(transcriptPath, { scanBytes = SCAN_BYTES
 }
 
 /**
- * The level the effort chip should name.
+ * Is ultracode on, according to this transcript?
  *
- * Reads the transcript only when the payload says `xhigh`, since that is the
- * only level ultracode can present as — which keeps every other session, and
- * every non-statusline caller, at zero extra I/O.
- *
- * The `xhigh` guard is also what keeps a stale marker honest. Dropping effort
- * (say `/effort medium`) turns ultracode off, but the `exit` marker is only
- * written when the next turn is assembled, so between those two moments the
- * newest marker still says `enter` while the payload already says `medium`.
- * Trusting the level here means the chip follows the payload, not the lag.
- *
- * @param {string|null} level - the level from the payload (see extractEffort).
- * @param {string|null|undefined} transcriptPath
- * @returns {string|null} `'ultracode'`, or `level` unchanged.
+ * @param {string|null|undefined} transcriptPath - `transcript_path` from the statusline payload.
+ * @param {object} [opts]
+ * @param {number} [opts.scanBytes=SCAN_BYTES] - how many trailing bytes to search.
+ * @returns {boolean|null} true/false from the newest marker, null when there is
+ *   none in range or the file cannot be read. It is kept distinct from false so a
+ *   caller can tell "the session turned it off" from "nothing said".
  */
-export function effortChipLevel(level, transcriptPath) {
-  if (level !== 'xhigh') return level;
-  return ultracodeFromTranscript(transcriptPath) === true ? 'ultracode' : level;
+export function ultracodeFromTranscript(transcriptPath, { scanBytes = SCAN_BYTES } = {}) {
+  const state = readState(transcriptPath, scanBytes);
+  return state === UNREADABLE ? null : state;
+}
+
+/**
+ * The state the ultra chip should show.
+ *
+ * Unlike the level it replaced, ultracode no longer rides on any effort level, so
+ * there is no payload value to gate the read on and no stale-marker guard to
+ * apply: the transcript is the only source and the newest marker is the answer.
+ * The caller still decides whether to ask at all (a live statusline render that
+ * was handed a transcript path), which keeps every other caller at zero I/O.
+ *
+ * @param {string|null|undefined} transcriptPath
+ * @returns {boolean|null} true while on; false when off or when nothing in range
+ *   says otherwise; null when there is no readable transcript.
+ */
+export function ultracodeChipState(transcriptPath) {
+  const state = readState(transcriptPath, SCAN_BYTES);
+  if (state === UNREADABLE) return null;
+  return state === true;
 }
