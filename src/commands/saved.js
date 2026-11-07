@@ -81,21 +81,17 @@ function printEffortRaises({ ko, money, totals, since }) {
   const count = Number(totals?.count) || 0;
   if (count <= 0) return;
   const cost = money(Number(totals.cost) || 0);
-  const keptRuns = Number(totals.keptRuns) || 0;
   const missing = Number(totals.costMissing) || 0;
   const unpriced = missing > 0 ? ` +${missing} unpriced` : '';
-  // The same shape as the routing line above it: the saving first, then what it
-  // is made of. A raise no rule routed has no saving to show and is counted apart.
-  const kept = keptRuns > 0 ? money(Number(totals.kept) || 0) : (ko ? '측정 없음' : 'none measured');
-  const unmatched = count - keptRuns;
+  // The guard is a quality measure, not a saver: the count and what the raised
+  // runs cost, and no saving of its own. What those runs saved by routing is
+  // Routing saved's figure above and is not repeated here.
   if (ko) {
-    const runs = `상향 ${count}회${unmatched > 0 && keptRuns > 0 ? ` (룰 없는 ${unmatched}회는 절감 미측정)` : ''}`;
-    console.log(`effort 절감: ${kept} · ${runs} · 실행 비용 ${cost}${unpriced} (${since})`);
-    console.log('  effort 없이 Sonnet에 보낸 위임을 high로 올린 횟수와 그 위임이 낸 라우팅 절감입니다. 이 절감은 위 라우팅 절감에 이미 들어 있습니다.');
+    console.log(`effort 가드: 상향 ${count}회 · 실행 비용 ${cost}${unpriced} (${since})`);
+    console.log('  effort 없이 Sonnet에 보낸 위임을 high로 올려 조용한 저품질 결과를 막습니다. 근거는 재생 실험입니다(여러 파일 조회를 medium 0/3, high 2/3 그대로 전달, 비용 약 25% 증가). 효과는 품질이라 금액으로 재지 않습니다.');
   } else {
-    const runs = `${count} raised${unmatched > 0 && keptRuns > 0 ? ` (${unmatched} with no rule, saving not measured)` : ''}`;
-    console.log(`Effort saved: ${kept} · ${runs} · run cost ${cost}${unpriced} (${since})`);
-    console.log('  Sonnet delegations sent without an effort ran at high; the saving is what those runs saved by routing and is already inside the routing figure above.');
+    console.log(`Effort guard: ${count} raised · run cost ${cost}${unpriced} (${since})`);
+    console.log('  Sonnet delegations sent without an effort run at high so that a silently wrong result does not come back. The evidence is the replay (a multi-file lookup relayable 0/3 at medium, 2/3 at high, about 25% more cost). The effect is quality, so no amount is claimed for it.');
   }
 }
 

@@ -46,6 +46,9 @@ const ICON = {
   // cells while being counted as one, and the line shifts on every repaint. 🔬
   // is W, so it measures the same as its neighbours.
   effort: '🔬',
+  // The effort guard's flame, drawn right after 🔬 on its headline line: the
+  // guard is the one thing the statusline shows off. U+1F525, East Asian Width W.
+  flame: '🔥',
   // Ultracode: many arms working at once, which is what it turns on (every task
   // fans out to parallel subagents). U+1F419, East Asian Width W like the rest
   // of this set. 🎼 (orchestration) was the first pick but did not read as
@@ -83,6 +86,7 @@ const NARROW = {
   korean: '⌨',    // an input/typing convention rather than a hand
   model: '◈',
   effort: '▲',    // a magnitude: how hard the turn is being worked
+  flame: '',      // no font-verified flame; the guard line starts with ▲ alone
   ultra: '◕',     // a nearly full dial; shared with the unknown-window icon, the only ◕ in the line
   routing: '⇉',   // sent down a different path
   doc: '≣',       // stacked lines: a page of text
