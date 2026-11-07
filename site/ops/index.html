@@ -545,6 +545,7 @@
       <label class="f"><span data-k="si.email">Email</span>
         <input type="email" id="email" autocomplete="email" inputmode="email" placeholder="you@company.com" required />
       </label>
+      <div id="captcha" class="captcha"></div>
       <div class="row"><button class="btn pri" type="submit" id="btn-send" data-k="si.send">Send code</button></div>
     </form>
     <form id="form-code" hidden novalidate>
@@ -794,6 +795,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" integrity="sha384-YieCqqg9gQufX7+5HcFvCEg/n3KUEdl8/Jb+A6J0npf1mB740VayvwKjTrtCeUoy" crossorigin="anonymous"></script>
 <script src="/assets/admin-ux.js?v=3.105.0"></script>
 <script src="/assets/admin-mfa.js?v=3.105.0"></script>
+<script src="/assets/sign-in-captcha.js?v=3.105.0"></script>
 <script src="/assets/preset-sign.js?v=3.105.0"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
@@ -915,7 +917,7 @@ const I18N = {
     "c.late":"Late",
     "s.seats":"Seats in {name}",
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
-    'si.sent':'We sent a code to {email}.','si.as':'Signed in as','si.out':'Sign out',
+    'si.sent':'We sent a code to {email}.','si.captcha':'The security check has not finished yet. Wait a moment and press Send code again.','si.as':'Signed in as','si.out':'Sign out',
     'si.otponly':'Password sign-in has been turned off. Sign in with an email code.',
     'si.expired':'Your session is older than seven days. Sign in again.','si.mfareset':'Replace authenticator app','si.mfaerr':'Could not replace the authenticator app: {msg}',
     'si.bademail':'Enter a valid email address.','si.badcode':'Enter the 6-digit code from the email.',
@@ -1031,7 +1033,7 @@ const I18N = {
     "c.late":"지연",
     "s.seats":"{name} 좌석 현황",
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
-    'si.sent':'{email}로 코드를 보냈습니다.','si.as':'로그인 계정','si.out':'로그아웃',
+    'si.sent':'{email}로 코드를 보냈습니다.','si.captcha':'보안 확인이 아직 끝나지 않았습니다. 잠시 뒤 다시 눌러 주세요.','si.as':'로그인 계정','si.out':'로그아웃',
     'si.otponly':'비밀번호 로그인은 사용하지 않습니다. 이메일 코드로 로그인해 주세요.',
     'si.expired':'로그인한 지 7일이 지났습니다. 다시 로그인해 주세요.','si.mfareset':'인증 앱 교체','si.mfaerr':'인증 앱을 교체하지 못했습니다: {msg}',
     'si.bademail':'올바른 이메일 주소를 입력해 주세요.','si.badcode':'메일에 적힌 6자리 코드를 입력해 주세요.',
@@ -1447,14 +1449,17 @@ $('form-email').addEventListener('submit', async ev => {
   if(!sb) return showAuthErr(t('err.lib'));
   $('btn-send').disabled = true;
   try{
-    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    /* The code request passes Cloudflare Turnstile (sign-in-captcha.js); the server refuses it without the token. */
+    const captchaToken = window.SpragCaptcha ? await SpragCaptcha.token() : undefined;
+    if(window.SpragCaptcha && !captchaToken){ showAuthErr(t('si.captcha')); return; }
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false, captchaToken } });
     if(error) throw error;
     pendingEmail = email;
     otpStage = true; $('form-email').hidden = true; $('form-code').hidden = false;
     $('code-sent').textContent = t('si.sent', {email}, true);
     $('code').focus();
   }catch(e){ showAuthErr(errMsg(e)); }
-  finally{ $('btn-send').disabled = false; }
+  finally{ $('btn-send').disabled = false; if(window.SpragCaptcha) SpragCaptcha.reset(); }
 });
 $('form-code').addEventListener('submit', async ev => {
   ev.preventDefault(); showAuthErr('');
@@ -3360,6 +3365,7 @@ const presetDemo = (function(){
     if(evt === 'SIGNED_OUT' && user) onSession(null);
   });
 })();
+if(window.SpragCaptcha && $('captcha')) SpragCaptcha.mount($('captcha')).catch(() => {});
 </script>
 </body>
 </html>

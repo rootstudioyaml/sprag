@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync, mkdirSync, readFileSync, existsSync } from 'node:f
 import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import {
-  requestSignInCode, verifySignInCode, createTeam, joinTeam, loadTeamState, saveTeamState, teamStatePath,
+  verifySignInCode, createTeam, joinTeam, loadTeamState, saveTeamState, teamStatePath,
   TEAM_API_URL, TEAM_ANON_KEY,
 } from '../src/team-sync.js';
 import { userDataDir } from '../src/paths.js';
@@ -67,7 +67,7 @@ const happy = () => mockFetch({
 });
 
 /** Runs the command with a fake process.exit/console; returns exit code and output. */
-async function runCreate(argv, { fetch, interactive = false, ask, verb = 'create' } = {}) {
+async function runCreate(argv, { fetch, interactive = false, ask, verb = 'create', openUrl = () => {} } = {}) {
   const args = ['team', verb, ...argv];
   const getArg = (n) => { const i = args.indexOf(n); return i >= 0 && i + 1 < args.length ? args[i + 1] : undefined; };
   const hasFlag = (n) => args.includes(n);
@@ -78,22 +78,11 @@ async function runCreate(argv, { fetch, interactive = false, ask, verb = 'create
   console.log = (s) => lines.push(String(s));
   console.error = (s) => errs.push(String(s));
   process.exit = (c) => { if (!code) code = c; throw new Exit(); };
-  try { await run({ args, hasFlag, getArg, version: '0.0.0', fetch, interactive, ask }); }
+  try { await run({ args, hasFlag, getArg, version: '0.0.0', fetch, interactive, ask, openUrl }); }
   catch (e) { if (!(e instanceof Exit)) throw e; }
   finally { console.log = origLog; console.error = origErr; process.exit = origExit; }
   return { code, out: lines.join('\n'), err: errs.join('\n') };
 }
-
-test('requestSignInCode posts email + create_user with the anon key only', async () => {
-  const f = mockFetch({ '/auth/v1/otp': { json: {} } });
-  await requestSignInCode({ email: 'a@b.co', fetch: f });
-  const c = f.calls[0];
-  assert.equal(c.path, '/auth/v1/otp');
-  assert.deepEqual(c.body, { email: 'a@b.co', create_user: true });
-  assert.equal(c.headers.apikey, TEAM_ANON_KEY);
-  assert.equal(c.headers.Authorization, undefined);
-  assert.equal(c.headers['Content-Type'], 'application/json');
-});
 
 test('verifySignInCode posts type/email/token and returns accessToken + userId', async () => {
   const f = mockFetch({ '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1' } } } });
@@ -122,20 +111,21 @@ test('createTeam without orgId sends p_org_id null', async () => {
 
 test('helpers surface the server message from msg / error_description / message', async () => {
   for (const [json, want] of [[{ msg: 'bad msg' }, 'bad msg'], [{ error_description: 'bad desc' }, 'bad desc'], [{ message: 'bad message' }, 'bad message']]) {
-    const f = mockFetch({ '/auth/v1/otp': { status: 422, json } });
-    await assert.rejects(requestSignInCode({ email: 'a@b.co', fetch: f }), (e) => e.message.includes(want));
+    const f = mockFetch({ '/auth/v1/verify': { status: 422, json } });
+    await assert.rejects(verifySignInCode({ email: 'a@b.co', code: '123456', fetch: f }), (e) => e.message.includes(want));
   }
   const f = mockFetch({ '/auth/v1/verify': { status: 500, json: null } });
   await assert.rejects(verifySignInCode({ email: 'a@b.co', code: '123456', fetch: f }), /HTTP 500/);
 });
 
-test('create without --code (no TTY) sends the code and prints the re-run hint', async (t) => {
+test('create without --code (no TTY) says where to request the code and prints the re-run hint', async (t) => {
   isolate(t);
   const f = happy();
   const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme'], { fetch: f });
   assert.equal(r.code, 0);
+  assert.match(r.out, /https:\/\/sprag\.io\/team\//);
   assert.match(r.out, /sprag team create --email a@b\.co --name "Acme" --code <(code|코드)>/);
-  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/otp']);
+  assert.deepEqual(f.calls, []);
 });
 
 test('create with --code and --app-code verifies both steps, creates with the aal2 token, joins, saves state and prints the token', async (t) => {
@@ -279,8 +269,8 @@ test('interactive flow asks for email, code, name and the authenticator code', a
   const asked = [];
   const r = await runCreate([], { fetch: f, interactive: true, ask: async (q) => { asked.push(q); return answers.shift(); } });
   assert.equal(r.code, 0, r.err);
-  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/otp', '/auth/v1/verify', '/auth/v1/factors/f-1/challenge', '/auth/v1/factors/f-1/verify', '/rest/v1/rpc/team_create', '/rest/v1/rpc/team_join']);
-  assert.equal(f.calls[4].body.p_name, 'Acme');
+  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/verify', '/auth/v1/factors/f-1/challenge', '/auth/v1/factors/f-1/verify', '/rest/v1/rpc/team_create', '/rest/v1/rpc/team_join']);
+  assert.equal(f.calls[3].body.p_name, 'Acme');
   assert.match(asked[3], /authenticator|인증 앱/);
 });
 

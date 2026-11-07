@@ -59,7 +59,7 @@ Sprag 은 기본적으로 로컬에서만 동작합니다. 팀 기능은 켜야�
 
 웹 대시보드 없이도, 내가 오너나 어드민인 조직 안에 팀을 만들 수 있습니다. 조직 ID는 대시보드에 있고, 조직 개설은 Sprag가 합니다("조직과 좌석" 절 참고). 로그인은 메일로 받는 6자리 코드(15분간 유효)와 인증 앱 코드로 합니다. 인증 앱이 없는 계정은 sprag.io/team 에서 먼저 등록합니다. Sprag 은 로그인 세션을 저장하지 않습니다.
 
-터미널에서는 명령 하나를 실행하고 묻는 대로 답하면 됩니다 (이메일, 코드, 팀 이름).
+터미널에서는 명령 하나를 실행하고 묻는 대로 답하면 됩니다 (이메일, 코드, 팀 이름, 인증 앱 코드). 코드는 명령이 열어 주는 https://sprag.io/team/ 에서 이메일을 입력해 요청합니다. 코드 요청이 브라우저에서만 되는 Cloudflare 확인을 거치기 때문입니다. 메일로 받은 코드는 터미널에 입력합니다.
 
 ```bash
 sprag team create --org <조직 ID>
@@ -69,11 +69,11 @@ sprag team create --org <조직 ID>
 
 ```bash
 sprag team create --org <조직 ID> --email you@example.com --name "Acme"
-# 메일로 코드가 오면 이어서 실행합니다
+# https://sprag.io/team/ 에서 그 이메일로 코드를 요청해 받으면 이어서 실행합니다
 sprag team create --org <조직 ID> --email you@example.com --name "Acme" --code 123456 --app-code 654321
 ```
 
-첫 단계는 코드만 보냅니다. 두 번째 단계에서 코드를 확인하고 팀을 만든 뒤 초대 토큰, 멤버용 명령(`npm i -g sprag-cli@latest && sprag team join <토큰>`), 조직용 환경 변수(`export SPRAG_TEAM_TOKEN=<토큰>`), 대시보드 주소를 출력합니다. 같은 이메일로 https://sprag.io/team/ 에 로그인하면 팀을 관리할 수 있습니다.
+첫 단계는 코드를 어디서 요청하는지만 알려 줍니다. 두 번째 단계에서 코드와 인증 앱 코드를 확인하고 팀을 만든 뒤 초대 토큰, 멤버용 명령(`npm i -g sprag-cli@latest && sprag team join <토큰>`), 조직용 환경 변수(`export SPRAG_TEAM_TOKEN=<토큰>`), 대시보드 주소를 출력합니다. 같은 이메일로 https://sprag.io/team/ 에 로그인하면 팀을 관리할 수 있습니다.
 
 기본적으로 이 PC가 첫 멤버로 참여하고 동기화를 한 번 실행합니다. 참여하지 않으려면 `--no-join` 을 붙입니다. 이미 팀에 참여한 PC에서는 먼저 `sprag team leave` 를 실행하거나 `--no-join` 을 붙여야 합니다.
 
