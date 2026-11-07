@@ -1097,10 +1097,11 @@ export function removeDoc2mdHook() {
 // timeout is safe and catches a hung read fast. The size lives in that one
 // constant; quoting a number here is only ever a stale copy of it.
 //
-// Installed by `delegate on`, removed by `delegate off`. Idempotent. Not part
-// of `installAll()` — this feature rewrites tool input on every delegation,
-// which is exactly the kind of silent-by-default behavior install.js's other
-// opt-in features (doc2md, korean, cohesion) avoid shipping without being asked.
+// Installed by `sprag install` (on by default since v3.104.0) and by
+// `delegate on`, removed by `delegate off`. Idempotent. Kept out of
+// `installAll()` because install.js has to read the user's choice first: an
+// explicit `delegate off` must survive an upgrade, and the install prints what
+// the hook appends before the first delegation it rewrites.
 const DELEGATION_GUARD_HOOK_COMMAND = `${CLI} delegate --hook`;
 // Install, remove and the status readout all judge a command through
 // isDelegationGuardHookCommand() below, which compares whole tokens.
@@ -1327,17 +1328,17 @@ export function uninstallAll({ purge = false } = {}) {
     // The state directory stays so a reinstall keeps ledgers and preferences,
     // with one exception carved out just below.
     result.kept.push('state directory (savings ledgers, config, cache) — remove with --purge');
-    // delegate.enabled is not a preference, it is an assertion that a hook is
-    // registered — and the hooks were just removed above. `delegate on` goes
-    // out of its way to hold the invariant "flag on implies hook registered",
-    // installing first and leaving the flag alone when that fails; leaving the
-    // flag set here breaks the same invariant from the other side and makes
-    // status report `delegate: on, hook not registered` after a clean
-    // uninstall. Config it does not own is left untouched.
+    // An explicit `delegate.enabled: true` is not a preference, it is an
+    // assertion that a hook is registered, and the hooks were just removed
+    // above. Dropping the key returns the guard to its default, so a later
+    // reinstall registers it again the way a fresh install would. An explicit
+    // `false` is the user's choice and is kept. Config it does not own is left
+    // untouched.
     try {
       const cfg = loadConfig();
-      if (cfg?.delegate?.enabled) {
-        cfg.delegate = { ...cfg.delegate, enabled: false };
+      if (cfg?.delegate?.enabled === true) {
+        const { enabled: _dropped, ...rest } = cfg.delegate;
+        cfg.delegate = rest;
         saveConfig(cfg);
         result.removed.push('delegate flag');
       }

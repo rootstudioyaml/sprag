@@ -15,9 +15,16 @@
  * tends to explore until its own context runs out rather than until the task
  * is answered, which is the tool-call-cap section below.
  *
- * Opt-in via `sprag delegate on` — like doc2md and korean-style, a feature
- * that rewrites tool input silently has to be something the user asked for,
- * not something that ships on by default.
+ * On by default since v3.104.0; `sprag delegate off` turns it off and the
+ * choice survives upgrades. It started as opt-in (2026-09-21) on the principle
+ * that a hook rewriting tool input silently should be asked for. Two things
+ * changed that. The replay of 2026-11-07 measured what the guard prevents:
+ * a multi-file lookup sent to sonnet without an effort argument ran at medium
+ * and was relayable in 0 of 3 runs, against 2 of 3 at high. And the rewrite is
+ * no longer silent: `sprag install` says what it appends before the first
+ * delegation, and the statusline counts every effort raise (`🔬↑N`). The one
+ * expensive section, the Korean style guidance (~7k tokens), still follows its
+ * own opt-in through koreanStyleEnabled().
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -41,9 +48,18 @@ const DELEGATION_MARKER = '<!-- sprag:delegation -->';
 /** The rules file the ratchet section points at. One place, two readers. */
 const ratchetPath = (home = homedir()) => join(home, '.claude', 'ratchet.md');
 
-/** Whether the delegation guard is on. Off unless the user asked. */
+/**
+ * Whether the delegation guard is on. On unless the user turned it off: only
+ * an explicit `false` disables it, so a config written before the default
+ * changed (no `delegate` key at all) reads as on.
+ */
 export function delegateEnabled(cfg = loadConfig()) {
-  return cfg?.delegate?.enabled === true;
+  return cfg?.delegate?.enabled !== false;
+}
+
+/** Whether the user has set the guard either way, as opposed to the default. */
+export function delegateDecided(cfg = loadConfig()) {
+  return typeof cfg?.delegate?.enabled === 'boolean';
 }
 
 export function setDelegateEnabled(enabled) {

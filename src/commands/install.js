@@ -367,6 +367,46 @@ export async function run({ hasFlag }) {
       debug('install:doc2md', e); // optional feature; never fail install
     }
 
+    // Delegation guard, on by default since v3.104.0. It rewrites every
+    // Task/Agent prompt, so the install says what it appends before the first
+    // delegation it touches; that notice is what makes a default-on rewrite
+    // acceptable. An explicit `delegate off` is kept across upgrades. The
+    // Korean section inside it still follows `korean on|off` above.
+    try {
+      const dg = await import('../delegation-guard.js');
+      if (envVar('NO_DELEGATE') === '1') {
+        console.log('');
+        console.log(lang === 'ko'
+          ? '  delegate: SPRAG_NO_DELEGATE=1 이므로 건너뜁니다 (나중에 `delegate on`).'
+          : '  delegate: skipped (SPRAG_NO_DELEGATE=1) — run `delegate on` later.');
+      } else if (!dg.delegateEnabled()) {
+        console.log('');
+        console.log(lang === 'ko'
+          ? '  delegate: 기존 설정 유지, 위임 가드 꺼짐 (켜려면 `sprag delegate on`)'
+          : '  delegate: keeping your setting, delegation guard off (turn on with `sprag delegate on`)');
+      } else {
+        const { installDelegationGuardHook } = await import('../installer.js');
+        const res = installDelegationGuardHook();
+        console.log('');
+        console.log(res.action === 'skipped'
+          ? `  delegate: ${res.reason}`
+          : `  delegate: PreToolUse hook ${res.action} (${res.path})`);
+        if (res.action !== 'skipped' && res.action !== 'exists') {
+          console.log(lang === 'ko'
+            ? '            서브에이전트 위임 프롬프트에 룰이 정한 상한과 이미 읽은 경로를 덧붙입니다.'
+            : '            appends the rule\'s caps and already-read paths to every subagent delegation prompt.');
+          console.log(lang === 'ko'
+            ? '            effort 없이 Sonnet에 보낸 위임은 high로 올립니다(실측: 여러 파일 조회 medium 0/3, high 2/3). 상태줄 🔬↑N 이 횟수입니다.'
+            : '            a Sonnet delegation sent without an effort runs at high (measured: multi-file lookup 0/3 at medium, 2/3 at high). The statusline counts these as 🔬↑N.');
+          console.log(lang === 'ko'
+            ? '            근거: https://sprag.io/proof/  끄기: sprag delegate off'
+            : '            evidence: https://sprag.io/proof/  turn off: sprag delegate off');
+        }
+      }
+    } catch (e) {
+      debug('install:delegate', e); // optional feature; never fail install
+    }
+
     // Starter rules. The asking itself belongs to the first session — a
     // postinstall cannot hold a conversation, and a prompt here would be
     // answered by whoever happens to be at the terminal for a set of rules
