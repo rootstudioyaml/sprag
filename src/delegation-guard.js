@@ -258,10 +258,55 @@ export async function decideForDelegation(payload, { cfg = loadConfig(), home = 
   // same tool_name, must not stack the appendix onto itself.
   if (prompt.includes(DELEGATION_MARKER)) return null;
 
+  const raise = wantsEffortRaise(toolInput);
   const appendix = await buildAppendix(payload, { cfg, home, routeCaps });
-  if (!appendix) return null;
+  if (!appendix && !raise) return null;
 
-  return { updatedInput: { ...toolInput, prompt: `${prompt}\n\n${appendix}` } };
+  const parts = [prompt];
+  if (appendix) parts.push(appendix);
+  // The marker line goes into the prompt as well as the input: the prompt is
+  // what the subagent transcript keeps, so route-scan can later tell a raise
+  // this hook made from an effort the caller chose (see src/route-scan.js).
+  if (raise) parts.push(EFFORT_RAISE_MARKER);
+  const updatedInput = { ...toolInput, prompt: parts.join('\n\n') };
+  if (raise) updatedInput.effort = RAISED_EFFORT;
+  return { updatedInput };
+}
+
+/** Effort a sonnet delegation runs at when the call passed none. */
+export const RAISED_EFFORT = 'high';
+
+/**
+ * Line appended to the prompt of a delegation whose effort this hook set.
+ * route-scan greps subagent transcripts for it, so the text is part of the
+ * ledger's contract: change it and the count of raises resets to zero.
+ */
+export const EFFORT_RAISE_MARKER = 'Effort for this delegation: high (set by sprag; the call did not pass one).';
+
+/**
+ * True when the call hands work to a sonnet target that pins no effort of
+ * its own, and the caller passed none.
+ *
+ * Why sonnet, and why high. A `general-purpose` call with `model: sonnet` is
+ * the route the rules give a lookup that spans several files or a delegated
+ * investigation, and without an effort argument Claude Code runs it at
+ * medium. Replayed on fixed cases (2026-11-07, blind-graded): the multi-file
+ * lookup was relayable at medium in 0 of 3 runs and at high in 2 of 3, for
+ * about 25% more cost; across six new cases sonnet at high was relayable in
+ * 5 at 30–60% of the Opus cost. Medium was where the silent losses came
+ * from, so high is the floor this hook sets.
+ *
+ * Left alone: the preset agents (t1-worker is high, the t2 agents low —
+ * their files pin it, and the haiku agents were fine at low on the work the
+ * rules send them), a call that names an effort (the caller's choice,
+ * including the escalation step that passes the next level up), and haiku or
+ * opus targets, where no measurement backs a change.
+ */
+export function wantsEffortRaise(toolInput) {
+  if (!toolInput || typeof toolInput !== 'object') return false;
+  if (typeof toolInput.effort === 'string' && toolInput.effort !== '') return false;
+  if (modelOf(String(toolInput.subagent_type || ''))) return false;
+  return /sonnet/i.test(String(toolInput.model || ''));
 }
 
 /**
