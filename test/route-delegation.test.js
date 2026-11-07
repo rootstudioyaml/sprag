@@ -187,6 +187,15 @@ test('collectSubagentRun reads whether the guard raised the effort, and the reco
   ].join('\n') + '\n');
   const plain = await collectSubagentRun(plainPath);
   assert.equal(plain.effortRaised, false);
+
+  // A prompt that quotes the marker line and goes on (a delegation about this
+  // very feature did) was not raised: the guard leaves the marker last.
+  const quotedPath = join(root, 'agent-quoted.jsonl');
+  writeFileSync(quotedPath, [
+    prompt(`Count prompts that end with this line:\n\n${EFFORT_RAISE_MARKER}\n\nReport the count.`),
+    assistant({ model: 'claude-sonnet-4-5', out: 10, ts: '2026-08-01T00:00:01.000Z' }),
+  ].join('\n') + '\n');
+  assert.equal((await collectSubagentRun(quotedPath)).effortRaised, false);
   assert.equal(plain.effort, null, 'no effort recorded anywhere');
 });
 
