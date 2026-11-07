@@ -70,6 +70,28 @@ async function refreshRuleSavings(ko, rescan) {
   }
 }
 
+/**
+ * Sonnet delegations the guard ran at high effort because the call passed none
+ * (src/delegation-guard.js), from the last route-scan. The statusline shows only
+ * the count; the cost is said here, along with the fact that the saving above
+ * already paid for it. Silent when nothing was raised or the scan is unreadable.
+ */
+function printEffortRaises({ ko, money, readScan }) {
+  let r;
+  try {
+    r = readScan()?.effortRaises;
+  } catch (e) {
+    debug('saved:effort-raises', e);
+    return;
+  }
+  const count = Number(r?.count) || 0;
+  if (count <= 0) return;
+  const cost = money(Number(r.cost) || 0);
+  console.log(ko
+    ? `effort 상향: ${count}회 · 실행 비용 ${cost} (effort 없이 Sonnet에 보낸 위임을 high로 올렸습니다. 절감액에는 이미 반영돼 있습니다)`
+    : `Effort raised: ${count} runs · run cost ${cost} (sonnet delegations sent without an effort were run at high; the saving above is already net of it)`);
+}
+
 const FAMILY_NAMES = { opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku', fable: 'Fable', mythos: 'Mythos' };
 
 /**
@@ -118,7 +140,7 @@ async function printModelShare({ ko, dir, money }) {
   }
 }
 
-export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan }) {
+export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan, readScan: readScanArg }) {
   const { userLanguage } = await import('../config.js');
   const { userDataDir } = await import('../paths.js');
   const { readResetMarks, resetSaved, undoReset } = await import('../saved-reset.cjs');
@@ -150,12 +172,14 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
 
   if (sub === undefined) {
     const marks = readResetMarks(dir);
+    const readScan = readScanArg || (await import('../route-scan.js')).readRouteScan;
     for (const s of scopes) {
       const t = await currentTotals(s, dir);
       const since = marks[s] === null
         ? (ko ? '초기화한 적 없음' : 'not reset')
         : (ko ? `${fmtTime(marks[s])} 이후` : `since ${fmtTime(marks[s])}`);
       console.log(`${label(s)}: ${fmtTotal(t)} (${since})`);
+      if (s === 'routing') printEffortRaises({ ko, money, readScan });
     }
     if (agent !== 'codex') {
       console.log(ko

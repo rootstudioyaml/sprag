@@ -57,3 +57,25 @@ test('the segment whitelist knows the chip by name', () => {
 test('--no-color output carries no ANSI escapes', () => {
   assert.doesNotMatch(formatReport(data(3.2), opts), /\x1b\[/);
 });
+
+// Sonnet delegations the guard ran at high effort (route-scan's effortRaises).
+// A cost, not a saving, so the chip is gray and sits right after the savings.
+test('raised-effort runs get a count chip after the savings, and nothing at zero', () => {
+  const raised = (n) => ({ ...data(3.2), effortRaises: { count: n, cost: 1.23, since: Date.now() } });
+  const text = formatReport(raised(3), opts);
+  assert.match(text, /Routing saved \$3\.20? · effort↑3/);
+  assert.match(formatReport(raised(3), { ...opts, mode: 'icon' }), /🔀 \$3\.20? · 🔬↑3/);
+  assert.match(formatReport(raised(3), { ...opts, mode: 'icon', verbose: true }), /effort raised ×3/);
+  // Gray in color mode: the same tone as the period label, not the savings green.
+  const colored = formatReport(raised(3), { ...opts, color: true });
+  const tone = colored.match(/(\x1b\[[\d;]+m)effort↑3\x1b\[0m/)?.[1];
+  assert.ok(tone, colored);
+  assert.equal(tone, colored.match(/(\x1b\[[\d;]+m)\(1d\)/)?.[1]);
+
+  // Byte-identical to the line without the field when there is nothing to show.
+  for (const mode of ['text', 'icon']) {
+    const base = formatReport(data(3.2), { ...opts, mode });
+    assert.equal(formatReport(raised(0), { ...opts, mode }), base);
+    assert.equal(formatReport({ ...data(3.2), effortRaises: null }, { ...opts, mode }), base);
+  }
+});

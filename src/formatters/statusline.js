@@ -1146,6 +1146,15 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
   const delegateSeg = savingsChip || (delegationSaved === 0 ? unresolvedSeg : null);
   const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
 
+  // Sonnet delegations the guard ran at high effort because the call passed
+  // none. Gray, since it is a cost and not a saving: the savings beside it are
+  // already net of it, and `sprag saved` prints what the runs cost.
+  //   icon: "🔬↑3"  |  text: "effort↑3"  |  verbose: "effort raised ×3"
+  const raised = Number(data.effortRaises && data.effortRaises.count) || 0;
+  const raisedSeg = raised > 0
+    ? `${c(GRAY)}${verbose ? `effort raised ×${raised}` : isIcon ? `${g.effort}↑${raised}` : `effort↑${raised}`}${c(RESET)}`
+    : null;
+
   // Routing-savings headline line (multi-line layout). The lifetime sum from
   // the delegation ledger — the number the whole tool exists to grow, so it
   // gets line 1 to itself while the diagnostics move to line 2.
@@ -1194,7 +1203,10 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
     // would otherwise repeat it on line 2. The unresolved-runs chip survives the
     // headline when that headline is a dated zero, since a zero is exactly when
     // the dropped runs matter.
-    chips: totalsLine ? (totalsNum === 0 ? [unresolvedSeg] : []) : [delegateSeg, delegateExtra],
+    // The raise count is not part of that story, so it stays on line 2 either way.
+    chips: totalsLine
+      ? (totalsNum === 0 ? [unresolvedSeg, raisedSeg] : [raisedSeg])
+      : [delegateSeg, raisedSeg, delegateExtra],
     headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine } : null,
   };
 }
