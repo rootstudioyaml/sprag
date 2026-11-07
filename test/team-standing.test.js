@@ -29,7 +29,7 @@ test('the full block in Korean: rank and people ahead, formula, how to move, own
   assert.deepEqual(lines.slice(0, 6), [
     '순위: acmeco 종합 점수 12명 중 3위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)',
     '  앞에 2명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.',
-    '  종합 점수는 기간 지출 순위 63%와 위임 비율 순위 38%를 더한 값입니다.',
+    '  종합 점수는 기간 지출 순위 62.5%와 위임 비율 순위 37.5%를 더한 값입니다.',
     '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 같은 지출에서 싼 모델에 맡기는 몫을 늘려야 오릅니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
     '  이 컴퓨터: 지출 $481.20 · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%',
     '  다음 등급: 🐆 치타. 지금 백분위 75%, 2%p 더 오르면 됩니다 (2명 앞지르기).',
@@ -42,7 +42,7 @@ test('the full block in English', () => {
   const lines = standingGuideLines(guided(), { lang: 'en', org: 'acmeco' });
   assert.equal(lines[0], 'Standing: acmeco overall score #3 of 12 · 🦊 Fox (2026-10-09 to 2026-11-07)');
   assert.equal(lines[1], '  2 ahead of you; reach #1 and you wear the crown 👑.');
-  assert.equal(lines[2], '  The overall score adds the spend rank (63%) and the delegation-share rank (38%).');
+  assert.equal(lines[2], '  The overall score adds the spend rank (62.5%) and the delegation-share rank (37.5%).');
   assert.match(lines[3], /^  The spend rank rises with more tokens; the delegation rank rises by handing a larger share of the same spend to cheaper models\. The six species from Wolf up also need a delegation share at or above the company median\.$/);
   assert.equal(lines[4], '  This machine: spent $481.20 · delegation share 31% (company median 28%) · score percentile 75%');
   assert.equal(lines[5], '  Next species: 🐆 Cheetah. Percentile now 75%; 2 pts more and you are there (pass 2).');

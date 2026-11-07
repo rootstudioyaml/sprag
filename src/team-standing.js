@@ -27,6 +27,8 @@
 import { GRADES, TIER_NAMES, speciesLabel } from './office-species.js';
 
 const pct = (v) => `${Math.round(Number(v) * 100)}%`;
+/** A weight as a percentage with one decimal where it has one: 0.625 → 62.5%, 0.5 → 50%. */
+const pctW = (v) => `${Math.round(Number(v) * 1000) / 10}%`;
 const money = (v) => `$${Number(v).toFixed(2)}`;
 const floorPct = (g) => Math.round(g.minSr * 100);
 /**
@@ -135,8 +137,8 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
   const w = Array.isArray(st.weights) && st.weights.length >= 2 ? st.weights : null;
   if (w) {
     const parts = ko
-      ? [`기간 지출 순위 ${pct(w[0])}`, `위임 비율 순위 ${pct(w[1])}`, ...(w[2] > 0 ? [`프롬프트 수 순위 ${pct(w[2])}`] : [])]
-      : [`the spend rank (${pct(w[0])})`, `the delegation-share rank (${pct(w[1])})`, ...(w[2] > 0 ? [`the prompt-count rank (${pct(w[2])})`] : [])];
+      ? [`기간 지출 순위 ${pctW(w[0])}`, `위임 비율 순위 ${pctW(w[1])}`, ...(w[2] > 0 ? [`프롬프트 수 순위 ${pctW(w[2])}`] : [])]
+      : [`the spend rank (${pctW(w[0])})`, `the delegation-share rank (${pctW(w[1])})`, ...(w[2] > 0 ? [`the prompt-count rank (${pctW(w[2])})`] : [])];
     lines.push(ko
       ? `  종합 점수는 ${parts.slice(0, -1).join(', ')}${parts.length > 1 ? '와 ' : ''}${parts[parts.length - 1]}를 더한 값입니다.`
       : `  The overall score adds ${parts.slice(0, -1).join(', ')}${parts.length > 1 ? ' and ' : ''}${parts[parts.length - 1]}.`);
