@@ -43,6 +43,35 @@ export const SPECIES = {
 };
 
 /**
+ * The species ladder, best first: the overall-score percentile a species starts
+ * at (`minSr`), its tier, and whether it also needs the delegation share at or
+ * above the company median (`needDlg`). `gt` marks a strict floor. Copied from
+ * GRADES in site/assets/scene/office-scene.js, and test/office-species.test.js
+ * pins the two, so `sprag team status` and the office page show one ladder.
+ * The chick is the idle row (no spend in the period) and has no floor.
+ */
+const row = (key, minSr, tier, needDlg = false, gt = false) => ({ key, minSr, tier, needDlg, gt });
+export const GRADES = [
+  row('dragon', 0.98, 'power', true), row('unicorn', 0.95, 'power', true), row('lion', 0.92, 'power', true),
+  row('tiger', 0.89, 'power', true), row('eagle', 0.85, 'power', true), row('wolf', 0.8, 'power', true),
+  row('cheetah', 0.77, 'active'), row('fox', 0.74, 'active'), row('owl', 0.71, 'active'), row('husky', 0.68, 'active'),
+  row('panda', 0.65, 'active'), row('koala', 0.62, 'active'), row('penguin', 0.58, 'active'), row('raccoon', 0.54, 'active'),
+  row('cat', 0.5, 'active'),
+  row('dog', 0.47, 'normal'), row('bear', 0.44, 'normal'), row('monkey', 0.41, 'normal'), row('deer', 0.38, 'normal'),
+  row('elephant', 0.35, 'normal'), row('pig', 0.32, 'normal'), row('sheep', 0.29, 'normal'), row('rabbit', 0.25, 'normal', false, true),
+  row('duck', 0.22, 'low'), row('hedgehog', 0.19, 'low'), row('squirrel', 0.16, 'low'), row('hamster', 0.12, 'low'),
+  row('frog', 0.08, 'low'), row('mouse', 0.04, 'low'), row('chick', -1, 'low'),
+];
+
+/** Tier names as the office page shows them (`of.tier.<tier>` in site/team/index.html). */
+export const TIER_NAMES = {
+  power: { en: 'AI power user', ko: 'AI 파워 유저' },
+  active: { en: 'Active', ko: '활발' },
+  normal: { en: 'Normal', ko: '보통' },
+  low: { en: 'Getting started', ko: '활용 장려 필요' },
+};
+
+/**
  * `"<emoji> <name>"` for a grade key in the given language, or null for an unknown key.
  * `emoji: false` leaves just the name, for terminals whose font has no animal emoji (IntelliJ).
  */

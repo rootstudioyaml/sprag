@@ -37,3 +37,22 @@ test('speciesLabel puts the emoji before the name and rejects unknown keys', () 
   assert.equal(speciesLabel('toString', 'en'), null);
   for (const s of Object.values(SPECIES)) assert.ok(s.emoji && s.en && s.ko);
 });
+
+// The ladder `sprag team status` prints is a copy of the office page's GRADES:
+// same keys in the same order, same floors, tiers and delegation rule.
+test('the species ladder equals the office page GRADES', async () => {
+  const { GRADES: LADDER, TIER_NAMES } = await import('../src/office-species.js');
+  assert.deepEqual(
+    LADDER.map((g) => [g.key, g.minSr, g.tier, g.needDlg, g.gt]),
+    GRADES.map((g) => [g.k, g.minSr, g.tier, !!g.needDlg, !!g.gt]),
+  );
+  // Tier names equal the console strings (`of.tier.<tier>`).
+  const html = readFileSync(new URL('../site/team/index.html', import.meta.url), 'utf8');
+  for (const lang of ['en', 'ko']) {
+    const names = {};
+    for (const m of html.matchAll(new RegExp(`Object\\.assign\\(I18N\\.${lang}, (\\{.*?\\})\\);`, 'g'))) {
+      for (const [k, v] of Object.entries(JSON.parse(m[1]))) if (k.startsWith('of.tier.')) names[k.slice(8)] = v;
+    }
+    for (const [tier, t] of Object.entries(TIER_NAMES)) assert.equal(t[lang], names[tier], `${lang} ${tier}`);
+  }
+});

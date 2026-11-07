@@ -1,11 +1,13 @@
 /**
- * `sprag team status` standing block (src/team-standing.js): the rank, what the
- * overall score is made of, whether moving up takes more tokens or a larger
- * delegated share, the caller's own figures and the next species up.
+ * `sprag team status` standing block (src/team-standing.js): the rank and the
+ * people ahead, what the overall score is made of, whether moving up takes more
+ * tokens or a larger delegated share, the caller's own figures, the next species
+ * up and the field guide of all thirty.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { standingGuideLines } from '../src/team-standing.js';
+import { standingGuideLines, fieldGuideLines, nextGradeUp } from '../src/team-standing.js';
+import { GRADES, speciesLabel } from '../src/office-species.js';
 
 const guided = (extra = {}) => ({
   grade: 'fox', tier: 'active', rank: 3, ranked: 12, crown: false, fetchedAt: 1,
@@ -14,6 +16,7 @@ const guided = (extra = {}) => ({
   rangeFrom: '2026-10-09', rangeTo: '2026-11-07',
   ...extra,
 });
+const GUIDE_LINES = 5; // header and one line per tier
 
 test('nothing on record: no lines', () => {
   assert.deepEqual(standingGuideLines(null), []);
@@ -21,64 +24,114 @@ test('nothing on record: no lines', () => {
   assert.deepEqual(standingGuideLines({}), []);
 });
 
-test('the full block in Korean: rank, formula, how to move, own figures, next species', () => {
+test('the full block in Korean: rank and people ahead, formula, how to move, own figures, next species, field guide', () => {
   const lines = standingGuideLines(guided(), { lang: 'ko', org: 'acmeco' });
-  assert.deepEqual(lines, [
+  assert.deepEqual(lines.slice(0, 6), [
     '순위: acmeco 종합 점수 12명 중 3위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)',
+    '  앞에 2명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.',
     '  종합 점수는 기간 지출 순위 63%와 위임 비율 순위 38%를 더한 값입니다.',
     '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 같은 지출에서 싼 모델에 맡기는 몫을 늘려야 오릅니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
     '  이 컴퓨터: 지출 $481.20 · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%',
-    '  다음 등급: 2명을 더 앞지르면 🐆 치타',
+    '  다음 등급: 2명을 더 앞지르면 🐆 치타 (백분위 지금 75%, 77%부터)',
   ]);
+  assert.equal(lines.length, 6 + GUIDE_LINES);
+  assert.deepEqual(lines.slice(6), fieldGuideLines('fox', 'ko'));
 });
 
 test('the full block in English', () => {
   const lines = standingGuideLines(guided(), { lang: 'en', org: 'acmeco' });
   assert.equal(lines[0], 'Standing: acmeco overall score #3 of 12 · 🦊 Fox (2026-10-09 to 2026-11-07)');
-  assert.equal(lines[1], '  The overall score adds the spend rank (63%) and the delegation-share rank (38%).');
-  assert.match(lines[2], /^  The spend rank rises with more tokens; the delegation rank rises by handing a larger share of the same spend to cheaper models\. The six species from Wolf up also need a delegation share at or above the company median\.$/);
-  assert.equal(lines[3], '  This machine: spent $481.20 · delegation share 31% (company median 28%) · score percentile 75%');
-  assert.equal(lines[4], '  Next species: pass 2 more to become 🐆 Cheetah');
+  assert.equal(lines[1], '  2 ahead of you; reach #1 and you wear the crown 👑.');
+  assert.equal(lines[2], '  The overall score adds the spend rank (63%) and the delegation-share rank (38%).');
+  assert.match(lines[3], /^  The spend rank rises with more tokens; the delegation rank rises by handing a larger share of the same spend to cheaper models\. The six species from Wolf up also need a delegation share at or above the company median\.$/);
+  assert.equal(lines[4], '  This machine: spent $481.20 · delegation share 31% (company median 28%) · score percentile 75%');
+  assert.equal(lines[5], '  Next species: pass 2 more to become 🐆 Cheetah (percentile now 75%, 77% and up)');
+  assert.deepEqual(lines.slice(6), fieldGuideLines('fox', 'en'));
+});
+
+test('the field guide: every species by tier, best first, its starting percentile, and a marker on your own', () => {
+  const ko = fieldGuideLines('fox', 'ko');
+  assert.equal(ko[0], '동물 도감: 종합 점수 백분위로 30종을 나눕니다. 종 옆 숫자는 그 종이 시작되는 백분위이고 ▶ 가 지금 등급입니다.');
+  assert.equal(ko[1], '  AI 파워 유저 (위임 비율이 회사 중앙값 이상이어야 함): 🐉 용 98 · 🦄 유니콘 95 · 🦁 사자 92 · 🐯 호랑이 89 · 🦅 독수리 85 · 🐺 늑대 80');
+  assert.equal(ko[2], '  활발: 🐆 치타 77 · ▶ 🦊 여우 74 · 🦉 부엉이 71 · 🐕 허스키 68 · 🐼 판다 65 · 🐨 코알라 62 · 🐧 펭귄 58 · 🦝 너구리 54 · 🐱 고양이 50');
+  assert.equal(ko[3], '  보통: 🐶 강아지 47 · 🐻 곰 44 · 🐵 원숭이 41 · 🦌 사슴 38 · 🐘 코끼리 35 · 🐷 돼지 32 · 🐑 양 29 · 🐰 토끼 25');
+  assert.match(ko[4], /^  활용 장려 필요: 🦆 오리 22 · 🦔 고슴도치 19 · .* 다람쥐 16 · 🐹 햄스터 12 · 🐸 개구리 8 · 🐭 생쥐 4 · 🐤 병아리 \(지출 없음\)$/);
+  // Every species appears exactly once, in ladder order, and only one is marked.
+  const all = ko.slice(1).join(' · ');
+  for (const g of GRADES) assert.ok(all.includes(speciesLabel(g.key, 'ko')), g.key);
+  assert.equal((all.match(/▶ /g) || []).length, 1);
+  const en = fieldGuideLines('cat', 'en');
+  assert.equal(en[0], 'Field guide: 30 species by overall-score percentile. The number after a species is the percentile it starts at; ▶ marks yours.');
+  assert.match(en[1], /^  AI power user \(needs a delegation share at or above the company median\): 🐉 Dragon 98 · /);
+  assert.match(en[2], /· ▶ 🐱 Cat 50$/);
+  assert.match(en[4], /^  Getting started: 🦆 Duck 22 · .* 🐤 Chick \(no spend\)$/);
+  // No marker for a ghost, who is on no row (the header's own ▶ is the legend).
+  assert.equal((fieldGuideLines(null, 'en').slice(1).join('').match(/▶ /g) || []).length, 0);
+});
+
+test('where the rank puts you: the crown, alone in the standings, or people ahead', () => {
+  const ko = (extra) => standingGuideLines(guided(extra), { lang: 'ko' })[1];
+  assert.equal(ko({ rank: 1, crown: true }), '  이번 기간 회사 1위입니다 👑');
+  assert.equal(ko({ rank: 1, ranked: 1 }), '  지금은 순위에 혼자 올라 있습니다. 동료가 참여하면 경쟁이 시작됩니다.');
+  assert.equal(ko({ rank: 1 }), '  회사 1위입니다.');
+  assert.equal(ko({ rank: 12 }), '  앞에 11명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.');
+  const en = (extra) => standingGuideLines(guided(extra), { lang: 'en' })[1];
+  assert.equal(en({ rank: 1, crown: true }), '  #1 in the company this period 👑');
+  assert.equal(en({ rank: 1, ranked: 1 }), '  You are the only one in the standings so far; the race starts when a colleague joins.');
+  assert.equal(en({ rank: 12 }), '  11 ahead of you; reach #1 and you wear the crown 👑.');
 });
 
 test('the prompt-count rank joins the formula where prompt capture is on', () => {
   const lines = standingGuideLines(guided({ weights: [0.5, 0.3, 0.2], hasPrompts: true }), { lang: 'ko' });
-  assert.equal(lines[1], '  종합 점수는 기간 지출 순위 50%, 위임 비율 순위 30%와 프롬프트 수 순위 20%를 더한 값입니다.');
+  assert.equal(lines[2], '  종합 점수는 기간 지출 순위 50%, 위임 비율 순위 30%와 프롬프트 수 순위 20%를 더한 값입니다.');
   const en = standingGuideLines(guided({ weights: [0.5, 0.3, 0.2], hasPrompts: true }), { lang: 'en' });
-  assert.equal(en[1], '  The overall score adds the spend rank (50%), the delegation-share rank (30%) and the prompt-count rank (20%).');
+  assert.equal(en[2], '  The overall score adds the spend rank (50%), the delegation-share rank (30%) and the prompt-count rank (20%).');
 });
 
-test('the next species: the delegation rule alone, people and the rule, and the top row', () => {
-  const ko = (extra) => standingGuideLines(guided(extra), { lang: 'ko' }).at(-1);
-  assert.equal(ko({ next: { grade: 'wolf', pass: 0, needDlg: true } }), '  다음 등급: 위임 비율을 회사 중앙값(28%) 이상으로 올리면 🐺 늑대');
-  assert.equal(ko({ next: { grade: 'wolf', pass: 2, needDlg: true } }), '  다음 등급: 2명을 더 앞지르고 위임 비율이 회사 중앙값(28%) 이상이면 🐺 늑대');
+test('the next species: the delegation rule alone, people and the rule, the top row, and an idle period', () => {
+  const nextLine = (lang, extra) => standingGuideLines(guided(extra), { lang }).find((l) => /다음 등급|Next species/.test(l));
+  assert.equal(nextLine('ko', { next: { grade: 'wolf', pass: 0, needDlg: true } }), '  다음 등급: 위임 비율을 회사 중앙값(28%) 이상으로 올리면 🐺 늑대 (백분위 지금 75%, 80%부터)');
+  assert.equal(nextLine('ko', { next: { grade: 'wolf', pass: 2, needDlg: true } }), '  다음 등급: 2명을 더 앞지르고 위임 비율이 회사 중앙값(28%) 이상이면 🐺 늑대 (백분위 지금 75%, 80%부터)');
   // A percentile already past the floor still has one person to pass, as the office drawer says.
-  assert.equal(ko({ next: { grade: 'cheetah', pass: 0, needDlg: false } }), '  다음 등급: 1명을 더 앞지르면 🐆 치타');
-  assert.equal(ko({ next: null, idle: false }), '  다음 등급: 도감에서 가장 높은 종입니다.');
-  assert.equal(ko({ next: null, idle: true }), '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.');
-  const en = (extra) => standingGuideLines(guided(extra), { lang: 'en' }).at(-1);
-  assert.equal(en({ next: { grade: 'wolf', pass: 0, needDlg: true } }), '  Next species: raise the delegation share to the company median (28%) to become 🐺 Wolf');
-  assert.equal(en({ next: { grade: 'wolf', pass: 2, needDlg: true } }), '  Next species: pass 2 more and reach the company median delegation share (28%) to become 🐺 Wolf');
-  assert.equal(en({ next: null, idle: true }), '  Next species: spend in this period puts you in the standings.');
+  assert.equal(nextLine('ko', { next: { grade: 'cheetah', pass: 0, needDlg: false }, scorePct: null }), '  다음 등급: 1명을 더 앞지르면 🐆 치타 (백분위 77%부터)');
+  assert.equal(nextLine('ko', { grade: 'dragon', next: null, idle: false }), '  다음 등급: 도감에서 가장 높은 종입니다.');
+  assert.equal(nextLine('ko', { grade: 'chick', next: null, idle: true }), '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.');
+  assert.equal(nextLine('en', { next: { grade: 'wolf', pass: 0, needDlg: true } }), '  Next species: raise the delegation share to the company median (28%) to become 🐺 Wolf (percentile now 75%, 80% and up)');
+  assert.equal(nextLine('en', { next: { grade: 'wolf', pass: 2, needDlg: true } }), '  Next species: pass 2 more and reach the company median delegation share (28%) to become 🐺 Wolf (percentile now 75%, 80% and up)');
+  assert.equal(nextLine('en', { grade: 'chick', next: null, idle: true }), '  Next species: spend in this period puts you in the standings.');
 });
 
-test('an older server: the formula with both weight sets, and where the rest will come from', () => {
+test('an older server: people ahead, the formula with both weight sets, the next species from the ladder, the guide', () => {
   const old = { grade: 'fox', tier: 'active', rank: 3, ranked: 12, crown: false, fetchedAt: 1 };
   const lines = standingGuideLines(old, { lang: 'ko', org: 'acmeco' });
-  assert.deepEqual(lines, [
+  assert.deepEqual(lines.slice(0, 5), [
     '순위: acmeco 종합 점수 12명 중 3위 · 🦊 여우',
+    '  앞에 2명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.',
     '  종합 점수는 기간 지출 순위 62.5%와 위임 비율 순위 37.5%를 더한 값입니다. 프롬프트 수집을 켠 Enterprise 조직은 50%, 30%, 20%로 프롬프트 수 순위까지 더합니다.',
     '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 같은 지출에서 싼 모델에 맡기는 몫을 늘려야 오릅니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
-    '  이 컴퓨터의 수치와 다음 등급까지의 거리는 팀 서버가 갱신되면 나옵니다.',
+    '  다음 등급: 🐆 치타 (백분위 77%부터). 몇 명을 더 앞질러야 하는지는 팀 서버가 갱신되면 나옵니다.',
   ]);
+  assert.equal(lines.length, 5 + GUIDE_LINES);
   const en = standingGuideLines(old, { lang: 'en' });
   assert.equal(en[0], 'Standing: overall score #3 of 12 · 🦊 Fox');
-  assert.equal(en.at(-1), '  Your own figures and the distance to the next species appear once the team server is updated.');
+  assert.equal(en[4], '  Next species: 🐆 Cheetah (percentile 77% and up). How many people to pass appears once the team server is updated.');
+  // The top row and the idle row from the ladder alone.
+  assert.equal(standingGuideLines({ ...old, grade: 'dragon', rank: 1, crown: true }, { lang: 'ko' })[4], '  다음 등급: 도감에서 가장 높은 종입니다.');
+  assert.equal(standingGuideLines({ ...old, grade: 'chick' }, { lang: 'ko' })[4], '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.');
 });
 
-test('a ghost, or no rank: one line saying there is no rank yet', () => {
-  assert.deepEqual(standingGuideLines({ grade: 'ghost', rank: null, ranked: 0, rangeFrom: '2026-10-09', rangeTo: '2026-11-07' }, { lang: 'ko', org: 'acmeco' }),
-    ['순위: acmeco 👻 유령 (2026-10-09 ~ 2026-11-07). 이 기간에 올라온 사용 기록이 없어 순위 밖입니다.']);
-  assert.deepEqual(standingGuideLines({ grade: 'ghost', rank: null, ranked: 0 }, { lang: 'en' }),
-    ['Standing: 👻 Ghost. No usage uploaded in this period, so no rank yet.']);
+test('a ghost, or no rank: one line saying there is no rank yet, then the guide with no marker', () => {
+  const ko = standingGuideLines({ grade: 'ghost', rank: null, ranked: 0, rangeFrom: '2026-10-09', rangeTo: '2026-11-07' }, { lang: 'ko', org: 'acmeco' });
+  assert.equal(ko[0], '순위: acmeco 👻 유령 (2026-10-09 ~ 2026-11-07). 이 기간에 올라온 사용 기록이 없어 순위 밖입니다. 지출이 올라오면 아래 도감의 한 종이 됩니다.');
+  assert.equal(ko.length, 1 + GUIDE_LINES);
+  assert.ok(!ko.slice(2).join('').includes('▶'), 'no row is marked; the header keeps its legend');
+  const en = standingGuideLines({ grade: 'ghost', rank: null, ranked: 0 }, { lang: 'en' });
+  assert.equal(en[0], 'Standing: 👻 Ghost. No usage uploaded in this period, so no rank yet; once spend comes in you become one of the species below.');
+});
+
+test('nextGradeUp walks the ladder', () => {
+  assert.equal(nextGradeUp('fox').key, 'cheetah');
+  assert.equal(nextGradeUp('chick').key, 'mouse');
+  assert.equal(nextGradeUp('dragon'), null);
+  assert.equal(nextGradeUp('ghost'), null);
 });

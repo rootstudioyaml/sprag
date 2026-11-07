@@ -1,28 +1,36 @@
 /**
  * team-standing — the lines `sprag team status` prints about the member's
- * standing in the organization's virtual office, and what moving up takes.
+ * standing in the organization's virtual office, what moving up takes, and the
+ * field guide of species to climb through.
  *
  * The statusline chip says `Pro member-1a2b3c4d acmeco 종합 점수 12명 중 3위
- * 🦊 여우` and no more. This answers the question that chip raises: is the
- * rank earned by spending more tokens or by using them better? Both, in a
- * fixed ratio. The overall score adds the spend rank and the delegation-share
- * rank (and the prompt-count rank where prompt capture is on), so the spend
- * rank rises with more tokens and the delegation rank rises by handing a larger
- * share of the same spend to cheaper models. The species follow the score's
- * percentile, and the six species from the wolf up also need the delegation
- * share at or above the company median.
+ * 🦊 여우` and no more. This answers the questions that chip raises: how many
+ * people stand ahead, whether the rank is earned by spending more tokens or by
+ * using them better, which species is next and what the whole ladder looks
+ * like. The score adds the spend rank and the delegation-share rank (and the
+ * prompt-count rank where prompt capture is on), so the spend rank rises with
+ * more tokens and the delegation rank rises by handing a larger share of the
+ * same spend to cheaper models. The species follow the score's percentile
+ * (GRADES in office-species.js), and the six species from the wolf up also
+ * need the delegation share at or above the company median.
  *
- * The figures come from the server's member_standing (team-sync.js
+ * The personal figures come from the server's member_standing (team-sync.js
  * refreshStanding): `dlg`, `medianDlg`, `scorePct`, `spent`, `weights`, `idle`
- * and `next` ({ grade, pass, needDlg }). An older server sends none of them, and
- * the block then states the formula alone and says where the rest will come
- * from. Pure: no I/O, so the tests pin every wording.
+ * and `next` ({ grade, pass, needDlg }). An older server sends none of them;
+ * the block then names the next species from the ladder and says where the
+ * distance will come from. Pure: no I/O, so the tests pin every wording.
  */
 
-import { speciesLabel } from './office-species.js';
+import { GRADES, TIER_NAMES, speciesLabel } from './office-species.js';
 
 const pct = (v) => `${Math.round(Number(v) * 100)}%`;
 const money = (v) => `$${Number(v).toFixed(2)}`;
+const floorPct = (g) => Math.round(g.minSr * 100);
+/** The species one row up the ladder, or null on the top row and for unknown keys. */
+export function nextGradeUp(key) {
+  const i = GRADES.findIndex((g) => g.key === key);
+  return i > 0 ? GRADES[i - 1] : null;
+}
 
 /**
  * @param {object|null|undefined} st team.json `standing`
@@ -32,22 +40,40 @@ const money = (v) => `$${Number(v).toFixed(2)}`;
 export function standingGuideLines(st, { lang = 'en', org = null } = {}) {
   if (!st || typeof st !== 'object' || typeof st.grade !== 'string') return [];
   const ko = lang === 'ko';
-  const animal = speciesLabel(st.grade, lang, { emoji: true }) || st.grade;
+  const label = (k) => speciesLabel(k, lang, { emoji: true }) || k;
+  const animal = label(st.grade);
   const ranked = Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
   const period = st.rangeFrom && st.rangeTo ? ` (${st.rangeFrom} ${ko ? '~' : 'to'} ${st.rangeTo})` : '';
   const where = org ? `${org} ` : '';
+  const has = (v) => Number.isFinite(v);
   const lines = [];
 
   if (st.grade === 'ghost' || !ranked) {
     lines.push(ko
-      ? `순위: ${where}${animal}${period}. 이 기간에 올라온 사용 기록이 없어 순위 밖입니다.`
-      : `Standing: ${where}${animal}${period}. No usage uploaded in this period, so no rank yet.`);
+      ? `순위: ${where}${animal}${period}. 이 기간에 올라온 사용 기록이 없어 순위 밖입니다. 지출이 올라오면 아래 도감의 한 종이 됩니다.`
+      : `Standing: ${where}${animal}${period}. No usage uploaded in this period, so no rank yet; once spend comes in you become one of the species below.`);
+    lines.push(...fieldGuideLines(null, lang));
     return lines;
   }
 
   lines.push(ko
     ? `순위: ${where}종합 점수 ${st.ranked}명 중 ${st.rank}위 · ${animal}${period}`
     : `Standing: ${where}overall score #${st.rank} of ${st.ranked} · ${animal}${period}`);
+
+  // Where that rank puts you: the people ahead, or the crown.
+  if (st.crown) {
+    lines.push(ko ? '  이번 기간 회사 1위입니다 👑' : '  #1 in the company this period 👑');
+  } else if (st.rank === 1 && st.ranked === 1) {
+    lines.push(ko
+      ? '  지금은 순위에 혼자 올라 있습니다. 동료가 참여하면 경쟁이 시작됩니다.'
+      : '  You are the only one in the standings so far; the race starts when a colleague joins.');
+  } else if (st.rank === 1) {
+    lines.push(ko ? '  회사 1위입니다.' : '  #1 in the company.');
+  } else {
+    lines.push(ko
+      ? `  앞에 ${st.rank - 1}명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.`
+      : `  ${st.rank - 1} ahead of you; reach #1 and you wear the crown 👑.`);
+  }
 
   // What the score is made of. The weights are the server's when it sent them;
   // otherwise both known sets are stated.
@@ -69,7 +95,6 @@ export function standingGuideLines(st, { lang = 'en', org = null } = {}) {
     : `  The spend rank rises with more tokens; the delegation rank rises by handing a larger share of the same spend to cheaper models. The six species from ${speciesLabel('wolf', 'en', { emoji: false })} up also need a delegation share at or above the company median.`);
 
   // The caller's own figures, when the server sent them.
-  const has = (v) => Number.isFinite(v);
   if (has(st.dlg) || has(st.spent) || has(st.scorePct)) {
     const parts = [];
     if (has(st.spent)) parts.push(ko ? `지출 ${money(st.spent)}` : `spent ${money(st.spent)}`);
@@ -81,10 +106,17 @@ export function standingGuideLines(st, { lang = 'en', org = null } = {}) {
     lines.push(`  ${ko ? '이 컴퓨터' : 'This machine'}: ${parts.join(' · ')}`);
   }
 
-  // The next species up, as the office drawer says it.
+  // The next species up, as the office drawer says it, with the percentile it
+  // starts at; the ladder alone when the server sent no distance.
   const next = st.next && typeof st.next === 'object' && typeof st.next.grade === 'string' ? st.next : null;
+  const up = nextGradeUp(st.grade);
+  const floorNote = (g) => (g && g.minSr >= 0
+    ? (ko
+      ? ` (백분위 ${has(st.scorePct) ? `지금 ${pct(st.scorePct)}, ` : ''}${floorPct(g)}%부터)`
+      : ` (percentile ${has(st.scorePct) ? `now ${pct(st.scorePct)}, ` : ''}${floorPct(g)}% and up)`)
+    : '');
   if (next) {
-    const s = speciesLabel(next.grade, lang, { emoji: true }) || next.grade;
+    const s = label(next.grade);
     const x = Math.max(1, Number(next.pass) || 0);
     const c = has(st.medianDlg) ? pct(st.medianDlg) : (ko ? '알 수 없음' : 'unknown');
     let text;
@@ -95,16 +127,42 @@ export function standingGuideLines(st, { lang = 'en', org = null } = {}) {
     } else {
       text = ko ? `${x}명을 더 앞지르면 ${s}` : `pass ${x} more to become ${s}`;
     }
-    lines.push(`  ${ko ? '다음 등급' : 'Next species'}: ${text}`);
-  } else if (st.idle === true) {
+    lines.push(`  ${ko ? '다음 등급' : 'Next species'}: ${text}${floorNote(GRADES.find((g) => g.key === next.grade))}`);
+  } else if (st.idle === true || st.grade === 'chick') {
     lines.push(ko ? '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.' : '  Next species: spend in this period puts you in the standings.');
-  } else if (st.idle === false) {
+  } else if (!up) {
     lines.push(ko ? '  다음 등급: 도감에서 가장 높은 종입니다.' : '  Next species: the top species in the field guide.');
   } else {
-    // An older server: nothing personal came back.
+    // An older server: the ladder names the species, the distance is not known.
     lines.push(ko
-      ? '  이 컴퓨터의 수치와 다음 등급까지의 거리는 팀 서버가 갱신되면 나옵니다.'
-      : '  Your own figures and the distance to the next species appear once the team server is updated.');
+      ? `  다음 등급: ${label(up.key)}${floorNote(up)}. 몇 명을 더 앞질러야 하는지는 팀 서버가 갱신되면 나옵니다.`
+      : `  Next species: ${label(up.key)}${floorNote(up)}. How many people to pass appears once the team server is updated.`);
+  }
+
+  lines.push(...fieldGuideLines(st.grade, lang));
+  return lines;
+}
+
+/**
+ * The field guide: every species by tier, best first, with the percentile each
+ * one starts at and a marker on the caller's own. Shared by the ranked and the
+ * unranked block, so a newcomer sees what there is to climb.
+ */
+export function fieldGuideLines(grade, lang = 'en') {
+  const ko = lang === 'ko';
+  const lines = [ko
+    ? '동물 도감: 종합 점수 백분위로 30종을 나눕니다. 종 옆 숫자는 그 종이 시작되는 백분위이고 ▶ 가 지금 등급입니다.'
+    : 'Field guide: 30 species by overall-score percentile. The number after a species is the percentile it starts at; ▶ marks yours.'];
+  for (const tier of ['power', 'active', 'normal', 'low']) {
+    const items = GRADES.filter((g) => g.tier === tier).map((g) => {
+      const mark = g.key === grade ? '▶ ' : '';
+      const floor = g.minSr >= 0 ? ` ${floorPct(g)}` : (ko ? ' (지출 없음)' : ' (no spend)');
+      return `${mark}${speciesLabel(g.key, lang, { emoji: true })}${floor}`;
+    });
+    const rule = tier === 'power'
+      ? (ko ? ' (위임 비율이 회사 중앙값 이상이어야 함)' : ' (needs a delegation share at or above the company median)')
+      : '';
+    lines.push(`  ${TIER_NAMES[tier][lang]}${rule}: ${items.join(' · ')}`);
   }
   return lines;
 }
