@@ -5,6 +5,7 @@ import { PER_MILLION } from '../src/openai-prices.js';
 import {
   cmpVersion, sliceClaudeChangelog, pickCodexReleases, chunkText, buildPrompt,
   capNewest, versionLabel, buildParentMessage, parseEnvFile, verdictLine,
+  splitAnalysis, buildPosts,
   parseAnthropicPricing, parseOpenAIPricing, diffAnthropicPrices, diffOpenAIPrices, newModels, findingsDigest, buildPricingMessage,
 } from '../scripts/upstream-watch.mjs';
 
@@ -106,6 +107,34 @@ test('buildPrompt carries the contract text and every version heading', () => {
   assert.match(prompt, /## 2\.1\.318\n- Changed B/);
   assert.match(prompt, /Claude Code/);
   assert.match(buildPrompt({ product: 'codex', versions, contract: 'c' }), /Codex/);
+  // The parser in splitAnalysis looks for these exact tags, so the prompt must ask for them.
+  for (const tag of ['<변경 요약>', '</변경 요약>', '<sprag 영향>', '</sprag 영향>']) assert.ok(prompt.includes(tag), tag);
+});
+
+test('splitAnalysis reads both tagged parts and falls back to the whole text', () => {
+  const text = '<변경 요약>\n• /foo 명령을 추가했습니다.\n</변경 요약>\n\n<sprag 영향>\n*영향 없음*\n</sprag 영향>';
+  assert.deepEqual(splitAnalysis(text), { summary: '• /foo 명령을 추가했습니다.', impact: '*영향 없음*' });
+  assert.deepEqual(splitAnalysis('\n영향 있음 1건\n본문\n'), { summary: '', impact: '영향 있음 1건\n본문' });
+  // A missing close tag keeps what follows the open tag.
+  assert.equal(splitAnalysis('<sprag 영향>\n영향 없음').impact, '영향 없음');
+});
+
+test('buildPosts puts the summary in the parent and moves it to the thread when too long', () => {
+  const versions = [{ version: '2.1.319' }];
+  const analysis = '<변경 요약>\n• A를 바꿨습니다.\n</변경 요약>\n<sprag 영향>\n영향 있음 1건\n\n*변경 내용*: x\n</sprag 영향>';
+  const short = buildPosts({ product: 'claude', versions, analysis, links: ['<u|CHANGELOG>'] });
+  assert.match(short.parent, /\*변경 요약\*\n• A를 바꿨습니다\./);
+  assert.match(short.parent, /\*sprag 영향\*: 영향 있음 1건/);
+  assert.ok(short.parent.indexOf('*변경 요약*\n') < short.parent.indexOf('*sprag 영향*:'));
+  assert.deepEqual(short.replies, ['영향 있음 1건\n\n*변경 내용*: x']);
+
+  const long = `<변경 요약>\n${'• 긴 줄입니다.\n'.repeat(40)}</변경 요약>\n<sprag 영향>\n영향 없음\n</sprag 영향>`;
+  const moved = buildPosts({ product: 'claude', versions, analysis: long, limit: 300 });
+  assert.doesNotMatch(moved.parent, /긴 줄/);
+  assert.match(moved.parent, /영향 없음/);
+  assert.match(moved.replies[0], /^\*변경 요약\*/);
+  assert.equal(moved.replies[moved.replies.length - 1], '영향 없음');
+  assert.ok(moved.replies.every((r) => r.length <= 300));
 });
 
 test('message helpers: label, verdict, parent', () => {
@@ -114,7 +143,7 @@ test('message helpers: label, verdict, parent', () => {
   assert.equal(versionLabel([v[0]]), '2.1.319');
   assert.equal(verdictLine('\n\n*영향 없음*\n\n본문'), '*영향 없음*');
   const parent = buildParentMessage({ product: 'codex', versions: [v[0]], verdict: '영향 없음', skipped: 2, links: ['<u|0.1.0>'] });
-  assert.match(parent, /^\*Codex 2\.1\.319 출시: sprag 영향 분석\*/);
+  assert.match(parent, /^\*Codex 2\.1\.319 출시: 변경 요약과 sprag 영향\*/);
   assert.match(parent, /2개는 건너뛰었습니다/);
   assert.match(parent, /<u\|0\.1\.0>/);
 });
