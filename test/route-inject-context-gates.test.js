@@ -97,3 +97,18 @@ test('ratchet-model carries the open-research clause in Korean and English', asy
   assert.match(ko, /열린 조사는 위임하지 않습니다/);
   assert.match(en, /Do not delegate open research on the web/);
 });
+
+// Effort clauses measured in the 2026-11-07 delegation replays: open research
+// only at xhigh, multi-file lookups at high or above, and user-only context
+// written into the prompt because no effort level recovers it.
+test('ratchet-model carries the measured effort clauses in Korean and English', async () => {
+  const { renderModelRatchet } = await import('../src/model-rules.js');
+  const ko = renderModelRatchet([], 'ko', { root: null });
+  const en = renderModelRatchet([], 'en', { root: null });
+  assert.match(ko, /sonnet에 effort xhigh로 보냅니다/);
+  assert.match(ko, /effort high 이상에서 맡긴다/);
+  assert.match(ko, /사용자만 아는 맥락/);
+  assert.match(en, /send it to sonnet at effort xhigh/);
+  assert.match(en, /runs at effort high or\s+above/);
+  assert.match(en, /context only the user knows/);
+});
