@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta charset="utf-8" />
+<!-- Google tag (gtag.js): Google Ads conversion measurement, see /privacy/ -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18548782436"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'AW-18548782436');
+</script>
+<!-- Event snippet for 페이지 조회 conversion page: every public page counts, because Performance Max sends ad clicks to any sprag.io page -->
+<script>
+  gtag('event', 'conversion', {'send_to': 'AW-18548782436/cKBSCNv3vrIdEOTq34xF'});
+</script>
+<!-- Event snippets for 설치 명령 복사 and 문의 메일 클릭 conversions: a click on an install command copy button or an email link counts -->
+<script>
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest && e.target.closest('[data-copy], a[href^="mailto:"]');
+    if (!el) return;
+    var label = el.hasAttribute('data-copy') ? '3CnACPmE0bIdEOTq34xF' : 'rBY1CPyE0bIdEOTq34xF';
+    gtag('event', 'conversion', {'send_to': 'AW-18548782436/' + label});
+  });
+</script>
+<!-- Cloudflare Web Analytics: cookieless visit counts, see /privacy/ -->
+<script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "61e11587311d49608109159f4d3507f0"}'></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sprag Proof | Does delegating to a cheaper model hold up?</title>
+<meta name="description" content="Real delegated jobs, re-run on Haiku, Sonnet and Opus at different effort levels and graded blind. Click a case to watch sprag route it and see quality and cost." />
+<link rel="canonical" href="https://sprag.io/proof/" />
+<meta name="theme-color" content="#0a0a0c" />
+<link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="../assets/logo/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Sprag" />
+<meta property="og:title" content="Sprag Proof" />
+<meta property="og:description" content="Real delegated jobs re-run on cheaper models and graded blind. Quality and cost, case by case." />
+<meta property="og:url" content="https://sprag.io/proof/" />
+<meta property="og:image" content="https://sprag.io/assets/og-card.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="proof.css" />
+<link rel="stylesheet" href="/assets/site-header.css?v=2" />
+</head>
+<body>
+<header class="site-hdr">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path fill="currentColor" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/>
+        <path fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/>
+        <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
+      </svg>
+      Sprag
+    </a>
+    <nav>
+      <a class="hide-sm" href="/#how" data-k="nav.how">How it works</a>
+      <a class="hide-sm" href="/#routing" data-k="nav.routing">Routing</a>
+      <a class="hide-sm" href="/#features" data-k="nav.features">Features</a>
+      <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a href="/proof/" aria-current="page" data-k="nav.proof">Proof</a>
+      <a href="/license/" data-k="nav.license">License</a>
+      <a class="hide-sm" href="/team/" data-k="nav.teams">Team console</a>
+      <span class="lang" role="group" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="ko" aria-pressed="false">KO</button>
+      </span>
+      <a class="gh ic" href="https://github.com/rootstudioyaml/sprag" aria-label="GitHub" title="GitHub">
+        <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+      <a class="gh ic npmic" href="https://www.npmjs.com/package/sprag-cli" aria-label="npm" title="npm">
+        <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="#cb3837" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow" data-k="p.eyebrow">Proof</div>
+    <h1 data-k="p.h1">Easy jobs to a cheaper model. Harder ones with more effort.</h1>
+    <p class="lede" data-k="p.lede">We took real jobs that sprag had delegated, ran each one again on Haiku, Sonnet and Opus at different effort levels and had the answers graded blind. Click a case and watch where sprag sends it.</p>
+    <div class="stats" id="stats" aria-live="polite"></div>
+    <p class="note" id="stats-note"></p>
+  </div>
+
+  <section aria-labelledby="cases-h">
+    <div class="sec-head">
+      <h2 id="cases-h" data-k="c.h">Pick a case</h2>
+      <p data-k="c.sub">Each one is a request that was really delegated.</p>
+    </div>
+    <div class="pills" id="story-pills" role="group"></div>
+    <ul class="cases" id="cases"></ul>
+  </section>
+
+  <section id="stage-sec" aria-labelledby="stage-h">
+    <div class="stage" id="stage">
+      <div class="stage-top">
+        <div>
+          <h2 id="stage-h"></h2>
+          <p class="ask" id="stage-ask"></p>
+        </div>
+        <div class="badges"><span class="badge" id="stage-badge"></span><span class="badge" id="stage-story"></span></div>
+      </div>
+      <p class="story-note" id="stage-note"></p>
+      <div class="conds" id="conds" role="group" data-aria-k="s.conds" aria-label="Setup"></div>
+      <p class="notrun" id="notrun"></p>
+      <div class="actions" id="actions">
+        <button type="button" class="act primary" id="b-replay"></button>
+        <button type="button" class="act" id="b-skip"></button>
+        <button type="button" class="act race" id="b-race" aria-pressed="false"></button>
+      </div>
+      <div class="flow" id="flow" aria-live="polite">
+        <div class="node" data-n="req"><small id="n-req-l">Your request</small><b id="n-req"></b></div>
+        <i class="arr" aria-hidden="true"></i>
+        <div class="node" data-n="main"><small data-k="f.main">Main session</small><b>Opus</b></div>
+        <i class="arr" aria-hidden="true"></i>
+        <div class="node" data-n="router"><small data-k="f.router">sprag router</small><b data-k="f.router.b">Picks model and effort</b><em id="n-router"></em></div>
+        <i class="arr" aria-hidden="true"></i>
+        <div class="node lamps" data-n="lamps">
+          <div class="lamprow model" id="lamps-model"><span data-k="f.model">Model</span></div>
+          <div class="lamprow effort" id="lamps-effort"><span data-k="f.effort">Effort</span></div>
+        </div>
+        <i class="arr" aria-hidden="true"></i>
+        <div class="node" data-n="result"><small data-k="f.result">Result</small><span class="mark" id="n-mark">?</span></div>
+        <span class="packet" id="packet" aria-hidden="true"></span>
+      </div>
+      <div class="live" id="live">
+        <div class="term">
+          <div class="term-h"><i></i><i></i><i></i><span id="term-title"></span></div>
+          <div class="term-b" id="log" role="log"></div>
+        </div>
+        <div class="gauges">
+          <div class="counters" id="counters"></div>
+          <div class="cbars" id="cbars"></div>
+          <div class="stamp" id="stamp" aria-live="polite"></div>
+        </div>
+        <p class="cap" id="live-cap"></p>
+      </div>
+      <div class="racebox" id="racebox">
+        <div class="race-head"><h3 id="race-h"></h3><p id="race-cap"></p></div>
+        <div class="lanes" id="lanes"></div>
+        <p class="race-sum" id="race-sum"></p>
+      </div>
+      <div class="result">
+        <div class="rcard pending" id="rcard"></div>
+        <div class="side">
+          <div class="rcard" id="task-card"></div>
+          <div class="rcard truth" id="truth-card"></div>
+          <div class="rcard" id="lesson-card"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="eff-h">
+    <div class="sec-head">
+      <h2 id="eff-h" data-k="e.h">Repeats: does more effort hold steady?</h2>
+      <p data-k="e.sub">Same case, same Sonnet, several runs per effort level.</p>
+    </div>
+    <div class="rep" id="effort"></div>
+  </section>
+
+  <section aria-labelledby="m-h">
+    <details class="method" id="method">
+      <summary id="m-h" data-k="m.h">Method and limits</summary>
+      <ul id="method-list"></ul>
+    </details>
+  </section>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Apache-2.0</span>
+    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+  </div>
+</footer>
+
+<script src="proof.js"></script>
+<script src="/assets/lang-links.js"></script>
+</body>
+</html>

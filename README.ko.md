@@ -15,7 +15,7 @@
 
 [English](https://github.com/rootstudioyaml/sprag/blob/main/README.md) · [한국어](https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md)
 
-[sprag.io](https://sprag.io) · [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
+[sprag.io](https://sprag.io) · [벤치마크](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) · [검증 사례](https://sprag.io/proof/)
 
 <a href="https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md#팀"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-ko.gif" width="640" alt="팀원마다 동물 캐릭터로 앉아 있는 가상 사무실, 지출과 절감액, 좌석, 30일 차트가 있는 조직 대시보드, 한 번 승인하면 모든 컴퓨터에 적용되는 팀 규칙을 차례로 보여 줍니다."></a>
 
