@@ -11,7 +11,7 @@
  * File: <userDataDir>/delegation-ledger.json
  *   { "version": 3,
  *     "events": { "<run path>": { "ts", "usd", "cost", "rule", "from", "to",
- *                                 "basis", "priceSource", "baselineSource", "q" } } }
+ *                                 "basis", "priceSource", "baselineSource", "gw", "q" } } }
  *
  * Version 3 prices a run on the net-saving basis (src/net-saving.js), and each
  * event says how it was priced: `basis` 'v3' (cache re-reads and carried
@@ -22,17 +22,19 @@
  * their value and read as basis v2; a rescan reprices those still inside the
  * scan window as v3 and leaves the older ones alone.
  *
- * `q` holds the token quantities a list-priced run was priced from (#15):
+ * `q` holds the token quantities a run was priced from (#15):
  * `at` (when the run spent its tokens), `sub` (the run's own token totals) and,
  * on the v3 basis, `main` (cacheRead, write and output tokens of the main model,
  * from src/net-saving.js). The dollars of such an event are computed from `q`
  * every time the ledger is read, with the price in effect at `q.at`, so a
  * corrected price table fixes the past; `usd` and `cost` stored beside it are
  * only a cache of that figure. `q` is optional and the ledger stays version 3,
- * so older sprag versions ignore it. Events without `q` (written before it
- * existed and outside the scan window) keep their stored figure, and gateway
- * events are still stored as dollars until their quantities are priced the same
- * way (stage 3 of #15).
+ * so older sprag versions ignore it. A gateway event (`priceSource` 'gateway')
+ * also carries `gw`, the gateway address it went through, and is priced from
+ * that gateway's own price history (src/gateway-price-history.js) at `q.at`,
+ * never from the list table (stage 3 of #15). Events without `q` (written
+ * before it existed and outside the scan window), and gateway events without
+ * `gw`, keep their stored figure.
  *
  * `from`/`to` are the models the routing decision moved between, and `usd` is
  * the price difference between them for this run's tokens. `cost` is what the
@@ -54,6 +56,7 @@ import { userDataDir } from './paths.js';
 import { writeStateFile } from './state-file.js';
 import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 import { exactCost, unitRates, savingFromQuantities } from './net-saving.js';
+import { gatewayBase } from './gateway-auth.js';
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 const MONTH_MS = 30 * 24 * 3600 * 1000;
@@ -93,16 +96,26 @@ export function priceLedgerEvent(e) {
   try {
     const q = e?.q;
     if (!q || typeof q !== 'object' || !q.sub || typeof q.sub !== 'object') return null;
-    if (e.priceSource !== 'list' || !e.from || !e.to) return null;
+    if (!e.from || !e.to) return null;
+    // A list event is priced with an empty env so a gateway set in the current
+    // shell cannot leak in. A gateway event names its gateway (`gw`) and is
+    // priced from that gateway's price history only; without `gw` it keeps its
+    // stored dollars.
+    let env;
+    if (e.priceSource === 'list') env = {};
+    else if (e.priceSource === 'gateway' && typeof e.gw === 'string' && e.gw) env = { ANTHROPIC_BASE_URL: e.gw };
+    else return null;
+    if (e.priceSource === 'gateway' && !gatewayBase(env)) return null; // gw is the official endpoint, not a gateway
     const at = Number.isFinite(q.at) ? q.at : Number.isFinite(e.ts) ? e.ts : undefined;
-    const cost = exactCost(q.sub, e.to, { env: {}, at });
+    if (e.priceSource === 'gateway' && at === undefined) return null;
+    const cost = exactCost(q.sub, e.to, { env, at });
     if (!Number.isFinite(cost)) return null;
     let usd;
     if (q.main) {
-      const rates = unitRates(e.from, { env: {}, at });
+      const rates = unitRates(e.from, { env, at });
       usd = rates ? savingFromQuantities(q.main, rates, cost) : null;
     } else {
-      const base = exactCost(q.sub, e.from, { env: {}, at });
+      const base = exactCost(q.sub, e.from, { env, at });
       usd = Number.isFinite(base) ? base - cost : null;
     }
     if (!Number.isFinite(usd)) return null;
@@ -154,7 +167,7 @@ export function loadLedger({ priced = true } = {}) {
 
 /**
  * Upsert saving events. `events` is an array of
- * { key, ts, usd, cost, rule, from, to, basis, priceSource, baselineSource, q } where `key` is the run's transcript
+ * { key, ts, usd, cost, rule, from, to, basis, priceSource, baselineSource, gw, q } where `key` is the run's transcript
  * path (unique per subagent run) and `from`/`to` name the models the routing
  * decision moved between. `usd` is signed: a run on a pricier model is a loss
  * and is recorded as a negative amount so it reduces the totals. Only
@@ -186,6 +199,7 @@ export function recordDelegationEvents(events) {
     if (prev && prev.ts === e.ts && prev.usd === usd && prev.cost === cost
       && prev.basis === (e.basis || undefined) && prev.priceSource === (e.priceSource || undefined)
       && prev.baselineSource === (e.baselineSource || undefined)
+      && prev.gw === (e.gw || undefined)
       && JSON.stringify(prev.q) === JSON.stringify(e.q || undefined)) continue;
     earliest = Math.min(earliest, e.ts, Number.isFinite(prev?.ts) ? prev.ts : Infinity);
     if (prevKey !== e.key) delete data.events[prevKey];
@@ -200,6 +214,7 @@ export function recordDelegationEvents(events) {
       ...(e.basis ? { basis: e.basis } : {}),
       ...(e.priceSource ? { priceSource: e.priceSource } : {}),
       ...(e.baselineSource ? { baselineSource: e.baselineSource } : {}),
+      ...(e.gw ? { gw: e.gw } : {}),
       ...(e.q ? { q: e.q } : {}),
     };
     changed = true;

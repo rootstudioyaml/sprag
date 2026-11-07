@@ -29,6 +29,7 @@ import { loadProfileMap, updateProfileMap, resetModelAliasCache, profileIdFrom, 
 import { isRecognizedModelId } from './cost.js';
 import { deploymentPrice, mergePrices, PRICE_MAX_AGE_MS } from './gateway-prices.js';
 import { debug } from './debug.js';
+import { recordGatewayPrices, gatewayPriceAt } from './gateway-price-history.js';
 
 /** 게이트웨이 모델 맵의 신선도 기준. 배포 구성은 하루에 여러 번 바뀌지 않습니다. */
 export const MODEL_MAP_TTL_MS = 24 * 60 * 60 * 1000;
@@ -58,7 +59,7 @@ const PROVIDER_PREFIXES = ['bedrock/converse/', 'bedrock/', 'openai/', 'vertex_a
  * 줄이지 않으면 isRecognizedModelId()가 계열명을 품은 ARN 전체를 "인식됨"으로
  * 판정해(cost.js의 정규식 한 줄이므로) 계정 ID가 값 쪽으로도 새어 나갑니다.
  */
-function normalizeCandidate(id) {
+export function normalizeCandidate(id) {
   if (typeof id !== 'string' || !id) return '';
   let s = id;
   if (isGatewayModelId(s)) return profileIdFrom(s) || '';
@@ -180,9 +181,12 @@ export function deriveGatewayPrices(payload) {
 /**
  * LiteLLM 경로로 나간 호출의 모델 가격(토큰당 USD). 게이트웨이 표에 없거나,
  * 표가 PRICE_MAX_AGE_MS보다 오래됐거나, 키가 모호하면 null입니다. 정가표로
- * 대신 채우지 않습니다. 호출이 실제로 지난 경로의 가격만 씁니다.
+ * 대신 채우지 않습니다. 호출이 실제로 지난 경로의 가격만 씁니다. `at`(호출 시각)이
+ * 있으면 그 시각에 적용되던 표를 gateway-price-history.js에서 찾습니다.
  */
-export function gatewayPriceFor(model, env = process.env, now = Date.now()) {
+export function gatewayPriceFor(model, env = process.env, now = Date.now(), at) {
+  // With `at`, the price is the one in effect then, from the dated history (#15).
+  if (at !== undefined && at !== null) return gatewayPriceAt(model, gatewayBase(env), at);
   const gateway = readGatewayModelMap(env);
   if (!gateway?.prices || typeof gateway.prices !== 'object') return null;
   const fetchedAt = Date.parse(gateway.fetchedAt);
@@ -295,12 +299,16 @@ export async function refreshGatewayModelMap({ base, key, fetchImpl = fetch } = 
     // gateway 절만 갱신합니다. updateProfileMap이 쓰기 직전에 파일을 다시 읽어
     // 병합하므로, 이 네트워크 호출이 오가는 동안 route-scan의 학습 경로가
     // learned를 기록했더라도 그 결과를 지우지 않습니다. 반대 방향도 같습니다.
+    const fetchedAt = Date.now();
+    const prices = deriveGatewayPrices(payload);
+    // 날짜별 가격 이력에 먼저 남깁니다(옛 표가 아직 profile-map에 있을 때). 이력은 부가 기록이라 실패해도 갱신은 계속합니다.
+    try { recordGatewayPrices(base, prices, fetchedAt); } catch (e) { debug('litellm-models:price-history', e); }
     updateProfileMap({
       gateway: {
         base,
-        fetchedAt: new Date().toISOString(),
+        fetchedAt: new Date(fetchedAt).toISOString(),
         aliases: result.aliases,
-        prices: deriveGatewayPrices(payload),
+        prices,
         skipped: result.skipped,
         count: result.count,
       },
