@@ -57,7 +57,7 @@ Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase,
 
 ## Create a team from the CLI
 
-You can set up a team without the web dashboard, inside an organization you own or administer (the organization id is in the dashboard; Sprag opens organizations, see "Organizations and seats"). Signing in uses a 6-digit code emailed to you (valid 15 minutes) and then a code from your authenticator app; an account without an app enrolls one on sprag.io/team first. Sprag never stores the sign-in session.
+You can set up a team without the web dashboard, inside an organization you own or administer (the organization id is in the dashboard; Sprag opens organizations, see "Organizations and seats"). Signing in uses a 6-digit code emailed to you (valid 30 minutes) and then a code from your authenticator app; an account without an app enrolls one on sprag.io/team first. Sprag never stores the sign-in session.
 
 In a terminal, run one command and answer the prompts (email, code, team name, authenticator code). The command opens https://sprag.io/team/ for the code: enter your email there, because the code request passes a Cloudflare check that only a browser can run, and type the emailed code into the terminal.
 
