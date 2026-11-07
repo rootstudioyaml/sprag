@@ -50,7 +50,8 @@ const DIR = join(CFG, 'claude-token-saver');
 mkdirSync(DIR, { recursive: true });
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 
-const { tallyDelegatedRun, runRouteScan, runSaving, runCost } = await import('../src/route-scan.js');
+const { tallyDelegatedRun, runRouteScan, runSaving, runTotals, runTime } = await import('../src/route-scan.js');
+const { exactCost } = await import('../src/net-saving.js');
 const { loadLedger, delegationSavedTotals, roundUsd } = await import('../src/savings-ledger.js');
 const { refreshModelRules } = await import('../src/model-rules.js');
 const { collectSubagentRun } = await import('../src/subagent-records.js');
@@ -236,8 +237,13 @@ test("runRouteScan records each delegated run's cost beside its saving", async (
   clearMarks();
   writeRegistry();
   await runRouteScan({ days: 14 });
-  const costOld = runCost(await collectSubagentRun(join(sub, 'agent-old.jsonl')));
-  const costNew = runCost(await collectSubagentRun(join(sub, 'agent-new.jsonl')));
+  // The ledger prices from stored quantities to better than a cent (#15), so
+  // the expected figures are the exact ones, not the cent-rounded runCost.
+  const runOld = await collectSubagentRun(join(sub, 'agent-old.jsonl'));
+  const runNew = await collectSubagentRun(join(sub, 'agent-new.jsonl'));
+  const exact = (r, model) => exactCost(runTotals(r), model, { env: {}, at: runTime(r) });
+  const costOld = exact(runOld, runOld.model);
+  const costNew = exact(runNew, runNew.model);
   assert.ok(costOld > 0 && costNew > 0, `both runs are priced (${costOld}, ${costNew})`);
   assert.notEqual(roundUsd(costOld), roundUsd(costNew));
 
@@ -245,7 +251,8 @@ test("runRouteScan records each delegated run's cost beside its saving", async (
     .map(([key, e]) => [key.split(/[\\/]/).pop(), e]));
   assert.equal(byRun['agent-old.jsonl'].cost, roundUsd(costOld));
   assert.equal(byRun['agent-new.jsonl'].cost, roundUsd(costNew));
-  assert.equal(byRun['agent-new.jsonl'].usd, roundUsd(savedNew), 'the saving beside it is unchanged');
+  assert.equal(byRun['agent-new.jsonl'].usd, roundUsd(exact(runNew, MAIN) - costNew), 'the saving beside it is the exact repricing');
+  assert.ok(Math.abs(byRun['agent-new.jsonl'].usd - savedNew) < 0.01, 'and within a cent of the rounded one');
 
   const totals = delegationSavedTotals(Date.now(), DIR);
   assert.equal(roundUsd(totals.spent), roundUsd(costOld + costNew));
@@ -262,8 +269,8 @@ test("the ledger prices a saving against the episode's main model, not the rule'
   assert.equal(events.length, 2);
   for (const e of events) assert.equal(e.from, MAIN, 'priced from the main model');
   const byRun = Object.fromEntries(Object.entries(loadLedger().events).map(([key, e]) => [key.split(/[\\/]/).pop(), e]));
-  assert.equal(byRun['agent-new.jsonl'].usd, roundUsd(savedNew));
-  assert.equal(byRun['agent-old.jsonl'].usd, roundUsd(savedOld));
+  assert.ok(Math.abs(byRun['agent-new.jsonl'].usd - savedNew) < 0.01);
+  assert.ok(Math.abs(byRun['agent-old.jsonl'].usd - savedOld) < 0.01);
   writeRegistry();
   clearMarks();
 });
