@@ -149,6 +149,47 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
 }
 
 /**
+ * The short form for the statusline's team line: where the rank puts you and
+ * what the next species takes, as two or three phrases. The same facts as the
+ * block above, without the sentences.
+ *   ['1위까지 2명', '다음 🐆 치타: 2명 더 (77%부터)']
+ * `emoji: false` keeps the species names bare (narrow and text modes).
+ */
+export function standingFeedbackShort(st, lang = 'en', { emoji = true } = {}) {
+  if (!st || typeof st !== 'object' || typeof st.grade !== 'string') return [];
+  const ko = lang === 'ko';
+  const label = (k) => speciesLabel(k, lang, { emoji }) || k;
+  const has = (v) => Number.isFinite(v);
+  const ranked = Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
+  if (st.grade === 'ghost' || !ranked) return [ko ? '이 기간 업로드 없음' : 'no usage this period'];
+  const out = [];
+  if (st.crown) out.push(ko ? `${emoji ? '👑 ' : ''}회사 1위` : `${emoji ? '👑 ' : ''}#1 in the company`);
+  else if (st.rank === 1 && st.ranked === 1) out.push(ko ? '혼자 순위에 있음' : 'alone in the standings');
+  else if (st.rank === 1) out.push(ko ? '회사 1위' : '#1 in the company');
+  else out.push(ko ? `1위까지 ${st.rank - 1}명` : `${st.rank - 1} to pass for #1`);
+
+  const next = st.next && typeof st.next === 'object' && typeof st.next.grade === 'string' ? st.next : null;
+  const up = nextGradeUp(st.grade);
+  const floor = (g) => (g && g.minSr >= 0 ? (ko ? `${floorPct(g)}%부터` : `${floorPct(g)}% and up`) : '');
+  if (next) {
+    const s = label(next.grade);
+    const g = GRADES.find((x) => x.key === next.grade);
+    const x = Math.max(1, Number(next.pass) || 0);
+    const c = has(st.medianDlg) ? pct(st.medianDlg) : (ko ? '회사 중앙값' : 'the company median');
+    if (next.needDlg && !(Number(next.pass) > 0)) out.push(ko ? `다음 ${s}: 위임 비율 ${c} 이상` : `next ${s}: delegation share ${c} or more`);
+    else if (next.needDlg) out.push(ko ? `다음 ${s}: ${x}명 더, 위임 비율 ${c} 이상` : `next ${s}: ${x} more and delegation share ${c} or more`);
+    else out.push(ko ? `다음 ${s}: ${x}명 더${floor(g) ? ` (${floor(g)})` : ''}` : `next ${s}: ${x} more${floor(g) ? ` (${floor(g)})` : ''}`);
+  } else if (st.idle === true || st.grade === 'chick') {
+    out.push(ko ? '지출이 생기면 순위에 오름' : 'spend to enter the standings');
+  } else if (!up) {
+    out.push(ko ? '도감 최상위' : 'top of the field guide');
+  } else {
+    out.push(ko ? `다음 ${label(up.key)} (${floor(up)})` : `next ${label(up.key)} (${floor(up)})`);
+  }
+  return out;
+}
+
+/**
  * The field guide: every species by tier, best first, with the percentile each
  * one starts at and a marker on the caller's own. Shared by the ranked and the
  * unranked block, so a newcomer sees what there is to climb.

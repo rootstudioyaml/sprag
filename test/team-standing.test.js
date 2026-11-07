@@ -6,7 +6,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { standingGuideLines, fieldGuideLines, nextGradeUp } from '../src/team-standing.js';
+import { standingGuideLines, fieldGuideLines, nextGradeUp, standingFeedbackShort } from '../src/team-standing.js';
 import { GRADES, speciesLabel } from '../src/office-species.js';
 
 const guided = (extra = {}) => ({
@@ -143,4 +143,22 @@ test('the standing line adds the rank within the team when the team is a strict 
   // The local team name stands in for a server that sent none; one team in the organization says it once.
   assert.equal(standingGuideLines(guided({ teamRank: 2, teamRanked: 5 }), { lang: 'ko', team: 'platform' })[0], '순위: 종합 점수 12명 중 3위 · platform 팀 5명 중 2위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)');
   assert.equal(standingGuideLines(guided({ teamRank: 3, teamRanked: 12 }), { lang: 'ko', team: 'platform' })[0], '순위: 종합 점수 12명 중 3위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)');
+});
+
+test('standingFeedbackShort: the statusline phrases for where the rank puts you and the next species', () => {
+  const ko = (extra) => standingFeedbackShort(guided(extra), 'ko');
+  assert.deepEqual(ko({}), ['1위까지 2명', '다음 🐆 치타: 2명 더 (77%부터)']);
+  assert.deepEqual(ko({ rank: 1, crown: true }), ['👑 회사 1위', '다음 🐆 치타: 2명 더 (77%부터)']);
+  assert.deepEqual(ko({ rank: 1, ranked: 1 }), ['혼자 순위에 있음', '다음 🐆 치타: 2명 더 (77%부터)']);
+  assert.deepEqual(ko({ next: { grade: 'wolf', pass: 0, needDlg: true } }), ['1위까지 2명', '다음 🐺 늑대: 위임 비율 28% 이상']);
+  assert.deepEqual(ko({ next: { grade: 'wolf', pass: 3, needDlg: true } }), ['1위까지 2명', '다음 🐺 늑대: 3명 더, 위임 비율 28% 이상']);
+  assert.deepEqual(ko({ next: null, grade: 'dragon', idle: false }), ['1위까지 2명', '도감 최상위']);
+  assert.deepEqual(ko({ next: null, grade: 'chick', idle: true }), ['1위까지 2명', '지출이 생기면 순위에 오름']);
+  // An older server: the ladder names the next species, the distance is unknown.
+  assert.deepEqual(standingFeedbackShort({ grade: 'fox', rank: 3, ranked: 12 }, 'ko'), ['1위까지 2명', '다음 🐆 치타 (77%부터)']);
+  assert.deepEqual(standingFeedbackShort({ grade: 'ghost', rank: null, ranked: 0 }, 'ko'), ['이 기간 업로드 없음']);
+  // English, and bare names without emoji.
+  assert.deepEqual(standingFeedbackShort(guided(), 'en'), ['2 to pass for #1', 'next 🐆 Cheetah: 2 more (77% and up)']);
+  assert.deepEqual(standingFeedbackShort(guided({ rank: 1, crown: true }), 'en', { emoji: false }), ['#1 in the company', 'next Cheetah: 2 more (77% and up)']);
+  assert.deepEqual(standingFeedbackShort(null, 'en'), []);
 });
