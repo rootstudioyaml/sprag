@@ -9,8 +9,12 @@
  * statusline records the size it was given here, and the briefing reads it back
  * by session id before it falls back to guessing.
  *
+ * The payload's model id (`model.id`) is stored beside the size. The briefing
+ * reads it back to look up the session's own `modelSettings` entry, which a
+ * settings-only lookup cannot see when the model was picked with `/model`.
+ *
  * State: <stateDir>/ctx-window.json
- *   { sessions: { [session_id]: { size, ts } } }
+ *   { sessions: { [session_id]: { size, ts, model? } } }
  * Entries untouched for 7 days are pruned on write.
  */
 
@@ -40,12 +44,13 @@ function load() {
 const validSize = (size) => Number.isFinite(size) && size > 0;
 
 /** Record the window the statusline payload reported. Returns true when the file was written. */
-export function recordLiveWindow(sessionId, size, now = Date.now()) {
+export function recordLiveWindow(sessionId, size, now = Date.now(), model = null) {
   if (typeof sessionId !== 'string' || sessionId === '' || !validSize(size)) return false;
+  const m = typeof model === 'string' && model !== '' ? model : undefined;
   const state = load();
   const prev = state.sessions[sessionId];
-  if (prev && prev.size === size && now - prev.ts < REFRESH_MS) return false;
-  state.sessions[sessionId] = { size, ts: now };
+  if (prev && prev.size === size && prev.model === m && now - prev.ts < REFRESH_MS) return false;
+  state.sessions[sessionId] = m ? { size, ts: now, model: m } : { size, ts: now };
   for (const [id, s] of Object.entries(state.sessions)) {
     if (!s || !Number.isFinite(s.ts) || now - s.ts > PRUNE_MS) delete state.sessions[id];
   }
@@ -66,10 +71,28 @@ export function liveWindowFor(sessionId) {
  * judged by the settings model id alone, a bare `opus` (1M by default on Opus
  * 5.5, with no `[1m]` suffix) read as 200k while the statusline said 1M.
  */
-export function latestLiveWindow() {
+function latestEntry() {
   let best = null;
   for (const s of Object.values(load().sessions)) {
     if (s && validSize(s.size) && Number.isFinite(s.ts) && (!best || s.ts > best.ts)) best = s;
   }
+  return best;
+}
+
+export function latestLiveWindow() {
+  const best = latestEntry();
   return best ? best.size : null;
+}
+
+/** The model id a session's statusline payload reported, or null. */
+export function liveModelFor(sessionId) {
+  if (typeof sessionId !== 'string' || sessionId === '') return null;
+  const s = load().sessions[sessionId];
+  return s && typeof s.model === 'string' && s.model !== '' ? s.model : null;
+}
+
+/** The model id of the most recently reported session (same pick as latestLiveWindow), or null. */
+export function latestLiveModel() {
+  const best = latestEntry();
+  return best && typeof best.model === 'string' && best.model !== '' ? best.model : null;
 }

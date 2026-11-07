@@ -400,9 +400,9 @@ function buildTeamSeg(team, c, mode = 'icon', now = Date.now()) {
  * is the absence of news; the chip earns its place when it is short of 5/5, red,
  * or asked for.
  */
-function buildHarnessSeg(c, isIcon, g, liveWindow = null, explicit = false) {
+function buildHarnessSeg(c, isIcon, g, liveWindow = null, explicit = false, liveModel = null) {
   try {
-    const harnessInfo = harnessStatusForStatusline(loadConfig(), { liveWindow });
+    const harnessInfo = harnessStatusForStatusline(loadConfig(), { liveWindow, liveModel });
     if (!harnessInfo) return null;
     const icon = isIcon ? g.harness : 'H';
     if (harnessInfo.warning) {
@@ -1467,7 +1467,7 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v)
  * @param {number} [opts.maxLines=3] - most chip lines when `columns` is set; lower-priority tail chips collapse into a `+N` chip beyond that. Counts the chip lines only: the headline lines above them wrap at their own `|` and `·` joints and are not included. Cap, usage, ctx, spike chips are never dropped.
  */
 export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false, columns = 0, maxLines = 3 } = {}) {
-  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort } = data;
+  const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort, liveModel } = data;
 
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take
@@ -1534,7 +1534,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // silent at a full 5/5 with no warning unless `--segments` names it. Otherwise
     // 🅷 N/5 (yellow) so the user can spot a missing section at a glance and know
     // to run `harness init`, or the red warning chip.
-    harness: buildHarnessSeg(c, isIcon, g, ctxLive?.size ?? null, !!allow && allow.has('harness')),
+    harness: buildHarnessSeg(c, isIcon, g, ctxLive?.size ?? null, !!allow && allow.has('harness'), liveModel ?? null),
     // Korean-style chip — rendered only when named and the injection is on.
     korean: buildKoreanSeg(c, isIcon, verbose, g, !!allow && allow.has('korean')),
     // Version / upgrade chip. Read from a cache written by a detached background

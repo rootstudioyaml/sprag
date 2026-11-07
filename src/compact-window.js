@@ -2,9 +2,9 @@
  * compact-window — auto-compact window audit for 1M-context sessions.
  *
  * Claude Code compacts when context usage approaches
- * `min(settings.autoCompactWindow, model max context)`. On a 1M window the
- * default lets a session grow past 800k before compaction ever fires, so every
- * later request re-bills a context most sessions never needed. Pinning
+ * `min(settings.autoCompactWindow, model max context)`. A model with a native
+ * 1M window compacts at about 967k by default, so every request until then
+ * re-bills a context most sessions never needed. Pinning
  * `autoCompactWindow` somewhere in 400k–700k keeps 2–3.5x the headroom of a
  * 200k session for the genuinely large ones while capping the runaway tail.
  *
@@ -21,12 +21,60 @@
  *   2. <root>/.claude/settings.local.json
  *   3. <root>/.claude/settings.json
  *   4. ~/.claude/settings.json
+ * Within each settings file, `modelSettings[<canonical id>].autoCompactWindow`
+ * (what `/autocompact` writes since Claude Code 2.1.288; `"auto"` means the
+ * model default) beats the top-level `autoCompactWindow` for that model.
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { debug } from './debug.js';
+import { isNewer } from './update-check.js';
+
+// First Claude Code release that reads `modelSettings[<model>].autoCompactWindow`.
+// An older one ignores the entry, so a per-model `set` would silently do nothing.
+export const MODEL_SETTINGS_MIN_VERSION = '2.1.288';
+
+/** Installed Claude Code version (`2.1.302`), or null when it cannot be read. */
+export function claudeCodeVersion({ run = () => execFileSync('claude', ['--version'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }) } = {}) {
+  try {
+    const m = String(run()).match(/(\d+\.\d+\.\d+)/);
+    return m ? m[1] : null;
+  } catch (e) {
+    debug('compact-window:claude-version', e);
+    return null;
+  }
+}
+
+/** true / false against MODEL_SETTINGS_MIN_VERSION, or null when the version is unknown. */
+export function modelSettingsSupported(version) {
+  if (!version) return null;
+  return version === MODEL_SETTINGS_MIN_VERSION || isNewer(version, MODEL_SETTINGS_MIN_VERSION);
+}
+
+/**
+ * One line telling the user whether a per-model value will be used by their
+ * Claude Code. Shown wherever `--model` is offered or written.
+ */
+export function modelSettingsNotice(version, ko) {
+  const min = MODEL_SETTINGS_MIN_VERSION;
+  const ok = modelSettingsSupported(version);
+  if (ok === null) {
+    return ko
+      ? `모델별 값(--model)은 Claude Code ${min} 이상에서만 적용됩니다. 설치된 버전을 확인하지 못했습니다(claude --version).`
+      : `A per-model value (--model) is only used by Claude Code ${min} or later. The installed version could not be read (claude --version).`;
+  }
+  if (ok) {
+    return ko
+      ? `모델별 값(--model)은 Claude Code ${min} 이상에서만 적용됩니다. 설치된 버전(${version})에서는 적용됩니다.`
+      : `A per-model value (--model) is only used by Claude Code ${min} or later. You have ${version}, so it applies.`;
+  }
+  return ko
+    ? `모델별 값(--model)은 Claude Code ${min} 이상에서만 적용됩니다. 설치된 버전(${version})에서는 적용되지 않습니다. Claude Code를 업데이트하거나 --all-models를 쓰세요.`
+    : `A per-model value (--model) is only used by Claude Code ${min} or later. You have ${version}, so it is ignored. Update Claude Code or use --all-models.`;
+}
 
 // Claude Code clamps autoCompactWindow to [100k, 1M] (settings schema:
 // `.int().min(1e5).max(1e6)`), so anything outside that range is not a value
@@ -115,41 +163,111 @@ export function isOneMillionModel(model) {
 // Anything this large can only be the 1M window.
 export const LIVE_1M_MIN = 900_000;
 
-/** Effective autoCompactWindow, with the source that won. */
-export function effectiveWindow(root) {
+/**
+ * The canonical model name Claude Code keys `modelSettings` by. It matches a
+ * model's alias, date-suffixed, `[1m]`, Bedrock and Vertex spellings to the
+ * same entry, so every one of those spellings has to fold to one id here.
+ */
+export function canonicalModelId(model) {
+  if (typeof model !== 'string') return null;
+  let s = model.trim().toLowerCase();
+  if (!s) return null;
+  s = s.replace(/\[1m\]$/, '');
+  const slash = s.lastIndexOf('/');
+  if (slash !== -1) s = s.slice(slash + 1); // litellm / bedrock route prefixes
+  s = s.replace(/^(?:[a-z0-9-]+\.)*anthropic\./, ''); // us.anthropic., global.anthropic., anthropic.
+  s = s.replace(/-v\d+:\d+$/, ''); // Bedrock version suffix
+  s = s.replace(/@\d{8}$/, ''); // Vertex date suffix
+  s = s.replace(/-\d{8}$/, ''); // dated snapshot
+  return s || null;
+}
+
+const ALIAS_RE = /^(opus|sonnet|haiku|fable|mythos)$/;
+
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * The `modelSettings` entry that applies to `model` in one settings file, as
+ * `{ key, settings }`, or null.
+ *
+ * Only an exact match counts. A bare alias such as `opus` is never resolved
+ * here: which version it means lives inside Claude Code, and picking the
+ * highest-versioned key in the file is wrong whenever the file only holds an
+ * older model's entry. Callers pass the live model id from the statusline
+ * payload instead, and without one the per-model entries are skipped.
+ */
+export function modelSettingsEntry(json, model) {
+  const ms = json && json.modelSettings;
+  if (!isPlainObject(ms)) return null;
+  const want = canonicalModelId(model);
+  if (!want) return null;
+  const entries = Object.entries(ms).filter(([, v]) => v !== null && typeof v === 'object');
+  for (const [key, settings] of entries) {
+    if (canonicalModelId(key) === want) return { key, settings };
+  }
+  return null;
+}
+
+const isAuto = (v) => typeof v === 'string' && v.trim().toLowerCase() === 'auto';
+
+function windowFromFile(json, model, source, path) {
+  if (!json) return null;
+  const entry = modelSettingsEntry(json, model);
+  if (entry) {
+    if (isAuto(entry.settings.autoCompactWindow)) {
+      return { value: null, auto: true, source, path, modelKey: entry.key };
+    }
+    const v = parseWindow(entry.settings.autoCompactWindow);
+    if (v !== null) return { value: v, source, path, modelKey: entry.key };
+  }
+  const top = parseWindow(json.autoCompactWindow);
+  if (top !== null) return { value: top, source, path };
+  return null;
+}
+
+/**
+ * Effective autoCompactWindow for `model`, with the source that won. A
+ * per-model `"auto"` is an explicit setting (the model default), so it ends
+ * the search and wins over lower-precedence files, as in Claude Code.
+ */
+export function effectiveWindow(root, { model } = {}) {
   const env = process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
   if (env) {
     const v = parseWindow(env);
     if (v !== null) return { value: v, source: 'env' };
   }
+  const m = model === undefined ? resolveModelId(root).model : model;
   for (const p of projectSettingsPaths(root)) {
-    const j = readJson(p);
-    const v = j ? parseWindow(j.autoCompactWindow) : null;
-    if (v !== null) return { value: v, source: 'project', path: p };
+    const w = windowFromFile(readJson(p), m, 'project', p);
+    if (w) return w;
   }
   const gp = userSettingsPath();
-  const g = readJson(gp);
-  const gv = g ? parseWindow(g.autoCompactWindow) : null;
-  if (gv !== null) return { value: gv, source: 'global', path: gp };
+  const gw = windowFromFile(readJson(gp), m, 'global', gp);
+  if (gw) return gw;
   return { value: null, source: null };
 }
 
 /**
  * Full audit result. `ok` is true when there is nothing to warn about — either
- * the session is not on a 1M model (exempt), or the window is already pinned at
- * or below the top of the recommended band (700k).
+ * the session is not on a 1M model (exempt), the window is already pinned at
+ * or below the top of the recommended band (700k), or the user chose `"auto"`
+ * with `/autocompact auto` (reason 'auto'). `auto` hands the window back to the
+ * model default on purpose, so sprag respects that choice instead of nagging.
  *
  * `reason` names why it is not ok: 'unset' (no autoCompactWindow anywhere) or
  * 'too-large' (set, but above 700k — still lets context run away).
  *
  * `liveWindow` is the window Claude Code reported for the running session. The
  * model id alone misses every model that is 1M without a `[1m]` suffix, so a
- * reported size settles it whenever the caller has one.
+ * reported size settles it whenever the caller has one. `liveModel` is the
+ * model id the same payload carried; it picks the `modelSettings` entry.
  */
-export function compactWindowStatus({ root = process.cwd(), liveWindow = null } = {}) {
-  const { model, source: modelSource } = resolveModelId(root);
+export function compactWindowStatus({ root = process.cwd(), liveWindow = null, liveModel = null } = {}) {
+  const resolved = resolveModelId(root);
+  const model = liveModel || resolved.model;
+  const modelSource = liveModel ? 'live' : resolved.source;
   const is1m = isOneMillionModel(model) || (Number.isFinite(liveWindow) && liveWindow >= LIVE_1M_MIN);
-  const win = effectiveWindow(root);
+  const win = effectiveWindow(root, { model });
   const base = {
     model,
     modelSource,
@@ -157,24 +275,35 @@ export function compactWindowStatus({ root = process.cwd(), liveWindow = null } 
     window: win.value,
     windowSource: win.source,
     windowPath: win.path || null,
+    windowAuto: !!win.auto,
+    windowModelKey: win.modelKey || null,
     recommended: RECOMMENDED_WINDOW,
     recommendedMin: RECOMMENDED_MIN,
     recommendedMax: RECOMMENDED_MAX,
   };
   if (!is1m) return { ...base, ok: true, reason: 'not-1m' };
+  if (win.auto) return { ...base, ok: true, reason: 'auto' };
   if (win.value === null) return { ...base, ok: false, reason: 'unset' };
   if (win.value > RECOMMENDED_MAX) return { ...base, ok: false, reason: 'too-large' };
   return { ...base, ok: true, reason: 'configured' };
 }
 
 /**
+ * False once `sprag compact-window off` has switched the warning off. Read by
+ * the statusline chip and the session briefing alike.
+ */
+export function compactWindowWarningEnabled(cfg) {
+  return !(cfg && cfg.compactWindow && cfg.compactWindow.enabled === false);
+}
+
+/**
  * Statusline chip text, or null when there is nothing to say. Kept to the same
  * short shape as the other 🅷⚠ warnings so the line stays single-width.
  */
-export function compactWindowWarningForStatusline(root = process.cwd(), cfg = null, { liveWindow = null } = {}) {
-  if (cfg && cfg.compactWindow && cfg.compactWindow.enabled === false) return null;
+export function compactWindowWarningForStatusline(root = process.cwd(), cfg = null, { liveWindow = null, liveModel = null } = {}) {
+  if (!compactWindowWarningEnabled(cfg)) return null;
   try {
-    const s = compactWindowStatus({ root, liveWindow });
+    const s = compactWindowStatus({ root, liveWindow, liveModel });
     return s.ok ? null : 'compact-window?';
   } catch (e) {
     debug('compact-window:statusline', e);
@@ -187,12 +316,25 @@ export function compactWindowWarningForStatusline(root = process.cwd(), cfg = nu
  * Scope 'global' → ~/.claude/settings.json, 'project' → <root>/.claude/settings.json.
  * A `.bak` is written first whenever the file already exists.
  *
- * Returns { path, scope, value, previous, backup }.
+ * `models` picks which models the value covers, and the user has to choose it:
+ *   'all'  → the top-level key. A per-model entry in the same file beats the
+ *            top-level key for its model, so every per-model
+ *            `autoCompactWindow` in that file is removed (listed in `removed`)
+ *            and one value really applies to every model.
+ *   <id>   → `modelSettings[<id>].autoCompactWindow` only, the slot
+ *            `/autocompact` writes. The id is stored under its canonical name
+ *            (or the existing key that spells it). A bare alias such as `opus`
+ *            is refused, since sprag cannot tell which version it means.
+ *
+ * Returns { path, scope, value, previous, backup, models, modelKey, removed }.
  */
-export function setAutoCompactWindow({ root = process.cwd(), scope = 'global', value = RECOMMENDED_WINDOW } = {}) {
+export function setAutoCompactWindow({ root = process.cwd(), scope = 'global', value = RECOMMENDED_WINDOW, models = 'all' } = {}) {
   const v = parseWindow(value);
   if (v === null || v < MIN_WINDOW || v > MAX_WINDOW) {
     return { ok: false, error: `Invalid window: ${value} (expected ${MIN_WINDOW}–${MAX_WINDOW} tokens, e.g. 400000 or 400k)` };
+  }
+  if (typeof models !== 'string' || models.trim() === '') {
+    return { ok: false, error: 'Choose the models: all, or one model id such as claude-opus-5-5.' };
   }
   const path = scope === 'global' ? userSettingsPath() : join(root, '.claude', 'settings.json');
   let json = {};
@@ -207,13 +349,47 @@ export function setAutoCompactWindow({ root = process.cwd(), scope = 'global', v
       // malformed settings.json would drop every other setting in it.
       return { ok: false, error: `${path} is not valid JSON — fix it first (nothing was written).` };
     }
+    if (!isPlainObject(json)) {
+      return { ok: false, error: `${path} is not a JSON object — fix it first (nothing was written).` };
+    }
+  }
+
+  let modelKey = null;
+  if (models !== 'all') {
+    const want = canonicalModelId(models);
+    if (!want || ALIAS_RE.test(want)) {
+      return { ok: false, error: `"${models}" is an alias, so the model version is unknown. Use the full model id, e.g. claude-${want || 'opus'}-5-5.` };
+    }
+    const existing = modelSettingsEntry(json, models);
+    modelKey = existing ? existing.key : want;
+  }
+
+  if (existsSync(path)) {
     backup = `${path}.bak`;
-    writeFileSync(backup, raw);
+    writeFileSync(backup, readFileSync(path, 'utf8'));
   } else {
     mkdirSync(dirname(path), { recursive: true });
   }
-  const previous = parseWindow(json.autoCompactWindow);
-  json.autoCompactWindow = v;
+
+  const removed = [];
+  let previous;
+  if (modelKey) {
+    if (!isPlainObject(json.modelSettings)) json.modelSettings = {};
+    if (!isPlainObject(json.modelSettings[modelKey])) json.modelSettings[modelKey] = {};
+    previous = json.modelSettings[modelKey].autoCompactWindow ?? null;
+    json.modelSettings[modelKey].autoCompactWindow = v;
+  } else {
+    previous = parseWindow(json.autoCompactWindow);
+    json.autoCompactWindow = v;
+    if (isPlainObject(json.modelSettings)) {
+      for (const [key, ms] of Object.entries(json.modelSettings)) {
+        if (!isPlainObject(ms) || ms.autoCompactWindow === undefined) continue;
+        removed.push({ key, value: ms.autoCompactWindow });
+        delete ms.autoCompactWindow;
+        if (Object.keys(ms).length === 0) delete json.modelSettings[key];
+      }
+    }
+  }
   writeFileSync(path, JSON.stringify(json, null, 2) + '\n');
-  return { ok: true, path, scope, value: v, previous, backup };
+  return { ok: true, path, scope, value: v, previous, backup, models: modelKey ? 'model' : 'all', modelKey, removed };
 }
