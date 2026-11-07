@@ -62,3 +62,38 @@ test('the Codex prompt hint applies the same gates', () => {
   assert.equal(codexPromptCategory('영상 확인할 수 있는 링크 업로드해줘'), null);
   assert.ok(codexPromptCategory('지금 실행 중인 버전이 뭔지 확인해줘'));
 });
+
+// #16 follow-up review of 57 real hinted delegations: two of the three that lost
+// quality silently were open web research handed to a cheaper model.
+test('open web research gets no hint', () => {
+  for (const text of [
+    '레딧이나 해커뉴스에서 활용할 수 있는 캐릭터 오픈소스를 좀 살펴보자',
+    'cyber 관련 인터넷 소식 최근 발표된 내용 확인',
+    '좋을만한 오픈소스 확인해보자',
+    'blender 3d 모델링 프롬프트 팁을 인터넷으로 찾아보자',
+  ]) {
+    assert.equal(match(text), null, text);
+  }
+});
+
+// A subagent's report and a compaction summary arrive as user turns; a hint
+// there told the main model to delegate the checking of a subagent's result.
+test('subagent reports and compaction summaries are not requests', () => {
+  for (const text of [
+    'Another Claude session sent a message:\n<agent-message from="a1">\n찾아보고 확인한 결과를 보고합니다\n</agent-message>',
+    '<agent-message from="a1">확인 결과입니다</agent-message>',
+    'This session is being continued from a previous conversation that ran out of context. 확인해줘',
+  ]) {
+    assert.equal(match(text), null, text);
+  }
+});
+
+// The shared clause that tells the main model not to delegate open research is
+// written into ratchet-model.md in both languages.
+test('ratchet-model carries the open-research clause in Korean and English', async () => {
+  const { renderModelRatchet } = await import('../src/model-rules.js');
+  const ko = renderModelRatchet([], 'ko', { root: null });
+  const en = renderModelRatchet([], 'en', { root: null });
+  assert.match(ko, /열린 조사는 위임하지 않습니다/);
+  assert.match(en, /Do not delegate open research on the web/);
+});
