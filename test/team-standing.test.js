@@ -93,10 +93,15 @@ test('the next species: the delegation rule alone, people and the rule, the top 
   // The percentile already clears the wolf's floor (80%): only the delegation rule is left.
   assert.equal(nextLine('ko', { next: { grade: 'wolf', pass: 0, needDlg: true }, scorePct: 0.82 }), '  다음 등급: 🐺 늑대. 백분위는 이미 80%를 넘었고 위임 비율을 회사 중앙값(28%) 이상으로 올리면 됩니다.');
   assert.equal(nextLine('ko', { next: { grade: 'wolf', pass: 2, needDlg: true } }), '  다음 등급: 🐺 늑대. 지금 백분위 75%, 5%p 더 오르고(2명 앞지르기) 위임 비율이 회사 중앙값(28%) 이상이면 됩니다.');
-  // Without the percentile (an older server that still sends `next`), the people form.
-  assert.equal(nextLine('ko', { next: { grade: 'wolf', pass: 2, needDlg: true }, scorePct: null }), '  다음 등급: 2명을 더 앞지르고 위임 비율이 회사 중앙값(28%) 이상이면 🐺 늑대 (백분위 80%부터)');
+  // Without the server's percentile it is read off the rank: #4 of 13 is (13 − 4) / 12 = 75%.
+  assert.equal(nextLine('ko', { rank: 4, ranked: 13, next: { grade: 'wolf', pass: 2, needDlg: true }, scorePct: null }), '  다음 등급: 🐺 늑대. 지금 백분위 75%, 5%p 더 오르고(2명 앞지르기) 위임 비율이 회사 중앙값(28%) 이상이면 됩니다.');
   // A percentile already past the floor still has one person to pass, as the office drawer says.
-  assert.equal(nextLine('ko', { next: { grade: 'cheetah', pass: 0, needDlg: false }, scorePct: null }), '  다음 등급: 1명을 더 앞지르면 🐆 치타 (백분위 77%부터)');
+  assert.equal(nextLine('ko', { next: { grade: 'cheetah', pass: 0, needDlg: false }, scorePct: 0.78 }), '  다음 등급: 🐆 치타. 지금 백분위 78%, 1%p 더 오르면 됩니다 (1명 앞지르기).');
+  // No median from the server: the rule is named without the figure.
+  assert.equal(nextLine('ko', { next: { grade: 'wolf', pass: 0, needDlg: true }, scorePct: 0.82, medianDlg: null }), '  다음 등급: 🐺 늑대. 백분위는 이미 80%를 넘었고 위임 비율을 회사 중앙값 이상으로 올리면 됩니다.');
+  // Alone in the standings: the percentile is pinned at 50%, and the line says what would move it.
+  assert.equal(nextLine('ko', { grade: 'cat', rank: 1, ranked: 1 }), '  다음 등급: 혼자일 때는 백분위가 50%에 고정되어 🐱 고양이에 머뭅니다. 동료가 한 명이라도 참여하면 지출 순위와 위임 비율 순위로 등급이 갈립니다.');
+  assert.equal(nextLine('en', { grade: 'cat', rank: 1, ranked: 1 }), '  Next species: alone, the percentile stays at 50% and so does the 🐱 Cat. As soon as one colleague joins, the spend rank and the delegation-share rank decide the species.');
   assert.equal(nextLine('ko', { grade: 'dragon', next: null, idle: false }), '  다음 등급: 도감에서 가장 높은 종입니다.');
   assert.equal(nextLine('ko', { grade: 'chick', next: null, idle: true }), '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.');
   assert.equal(nextLine('en', { next: { grade: 'wolf', pass: 0, needDlg: true }, scorePct: 0.82 }), '  Next species: 🐺 Wolf. Your percentile already clears 80%; raise the delegation share to the company median (28%).');
@@ -104,20 +109,22 @@ test('the next species: the delegation rule alone, people and the rule, the top 
   assert.equal(nextLine('en', { grade: 'chick', next: null, idle: true }), '  Next species: spend in this period puts you in the standings.');
 });
 
-test('an older server: people ahead, the formula with both weight sets, the next species from the ladder, the guide', () => {
-  const old = { grade: 'fox', tier: 'active', rank: 3, ranked: 12, crown: false, fetchedAt: 1 };
+test('an older server: the percentile and the distance are read off the rank, the formula with both weight sets, the guide', () => {
+  const old = { grade: 'fox', tier: 'active', rank: 4, ranked: 13, crown: false, fetchedAt: 1 };
   const lines = standingGuideLines(old, { lang: 'ko', org: 'amazon' });
   assert.deepEqual(lines.slice(0, 5), [
-    '순위: amazon 종합 점수 12명 중 3위 · 🦊 여우',
-    '  앞에 2명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.',
+    '순위: amazon 종합 점수 13명 중 4위 · 🦊 여우',
+    '  앞에 3명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.',
     '  종합 점수는 기간 지출 순위 62.5%와 위임 비율 순위 37.5%를 더한 값입니다. 프롬프트 수집을 켠 Enterprise 조직은 50%, 30%, 20%로 프롬프트 수 순위까지 더합니다.',
     '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 같은 지출에서 싼 모델에 맡기는 몫을 늘려야 오릅니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
-    '  다음 등급: 🐆 치타 (백분위 77%부터). 몇 명을 더 앞질러야 하는지는 팀 서버가 갱신되면 나옵니다.',
+    '  다음 등급: 🐆 치타. 지금 백분위 75%, 2%p 더 오르면 됩니다 (1명 앞지르기).',
   ]);
   assert.equal(lines.length, 5 + GUIDE_LINES);
   const en = standingGuideLines(old, { lang: 'en' });
-  assert.equal(en[0], 'Standing: overall score #3 of 12 · 🦊 Fox');
-  assert.equal(en[4], '  Next species: 🐆 Cheetah (percentile 77% and up). How many people to pass appears once the team server is updated.');
+  assert.equal(en[0], 'Standing: overall score #4 of 13 · 🦊 Fox');
+  assert.equal(en[4], '  Next species: 🐆 Cheetah. Percentile now 75%; 2 pts more and you are there (pass 1).');
+  // A species with the delegation rule keeps it while the share is unknown: #1 of 12 as a cheetah sits at 100%.
+  assert.equal(standingGuideLines({ ...old, grade: 'cheetah', rank: 1, ranked: 12, crown: true }, { lang: 'ko' })[4], '  다음 등급: 🐺 늑대. 백분위는 이미 80%를 넘었고 위임 비율을 회사 중앙값 이상으로 올리면 됩니다.');
   // The top row and the idle row from the ladder alone.
   assert.equal(standingGuideLines({ ...old, grade: 'dragon', rank: 1, crown: true }, { lang: 'ko' })[4], '  다음 등급: 도감에서 가장 높은 종입니다.');
   assert.equal(standingGuideLines({ ...old, grade: 'chick' }, { lang: 'ko' })[4], '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.');
@@ -152,20 +159,25 @@ test('standingFeedbackShort: the statusline phrases for where the rank puts you 
   const ko = (extra) => standingFeedbackShort(guided(extra), 'ko');
   assert.deepEqual(ko({}), ['1위까지 2명', '지금 75%, 2%p 더 오르면 🐆 치타 (2명 앞지르기)']);
   assert.deepEqual(ko({ rank: 1, crown: true }), ['👑 회사 1위', '지금 75%, 2%p 더 오르면 🐆 치타 (2명 앞지르기)']);
-  assert.deepEqual(ko({ rank: 1, ranked: 1 }), ['혼자 순위에 있음', '지금 75%, 2%p 더 오르면 🐆 치타 (2명 앞지르기)']);
+  assert.deepEqual(ko({ rank: 1, ranked: 1 }), ['지금 50%, 혼자라 고정', '동료가 참여하면 순위 시작']);
   assert.deepEqual(ko({ next: { grade: 'wolf', pass: 0, needDlg: true }, scorePct: 0.82 }), ['1위까지 2명', '지금 82%, 위임 비율 28% 이상이면 🐺 늑대']);
   assert.deepEqual(ko({ next: { grade: 'wolf', pass: 3, needDlg: true } }), ['1위까지 2명', '지금 75%, 5%p 더 오르고 위임 비율 28% 이상이면 🐺 늑대']);
-  // Without the percentile (an older server that still sends `next`), the people form.
-  assert.deepEqual(ko({ scorePct: null }), ['1위까지 2명', '다음 🐆 치타: 2명 더 (77%부터)']);
-  assert.deepEqual(ko({ next: { grade: 'wolf', pass: 0, needDlg: true }, scorePct: null }), ['1위까지 2명', '다음 🐺 늑대: 위임 비율 28% 이상']);
+  // Without the server's percentile it is read off the rank (#4 of 13 = 75%, #3 of 12 = 82%).
+  assert.deepEqual(ko({ rank: 4, ranked: 13, scorePct: null }), ['1위까지 3명', '지금 75%, 2%p 더 오르면 🐆 치타 (2명 앞지르기)']);
+  assert.deepEqual(ko({ next: { grade: 'wolf', pass: 0, needDlg: true }, scorePct: null }), ['1위까지 2명', '지금 82%, 위임 비율 28% 이상이면 🐺 늑대']);
   assert.deepEqual(ko({ next: null, grade: 'dragon', idle: false }), ['1위까지 2명', '도감 최상위']);
   assert.deepEqual(ko({ next: null, grade: 'chick', idle: true }), ['1위까지 2명', '지출이 생기면 순위에 오름']);
-  // An older server: the ladder names the next species, the distance is unknown.
-  assert.deepEqual(standingFeedbackShort({ grade: 'fox', rank: 3, ranked: 12 }, 'ko'), ['1위까지 2명', '다음 🐆 치타 (77%부터)']);
+  // An older server that sends no figures at all: the percentile and the distance come from the rank.
+  assert.deepEqual(standingFeedbackShort({ grade: 'fox', rank: 4, ranked: 13 }, 'ko'), ['1위까지 3명', '지금 75%, 2%p 더 오르면 🐆 치타 (1명 앞지르기)']);
+  // A species with the delegation rule keeps it while the share is unknown.
+  assert.deepEqual(standingFeedbackShort({ grade: 'cheetah', rank: 1, ranked: 12, crown: true }, 'ko'), ['👑 회사 1위', '지금 100%, 위임 비율 회사 중앙값 이상이면 🐺 늑대']);
+  // Alone in the standings, in English too; an idle solo keeps the idle phrase.
+  assert.deepEqual(standingFeedbackShort({ grade: 'cat', rank: 1, ranked: 1 }, 'en'), ['now 50%, fixed while alone', 'standings start when a colleague joins']);
+  assert.deepEqual(standingFeedbackShort({ grade: 'chick', rank: 1, ranked: 1, idle: true }, 'ko'), ['혼자 순위에 있음', '지출이 생기면 순위에 오름']);
   assert.deepEqual(standingFeedbackShort({ grade: 'ghost', rank: null, ranked: 0 }, 'ko'), ['이 기간 업로드 없음']);
   // English, and bare names without emoji.
   assert.deepEqual(standingFeedbackShort(guided(), 'en'), ['2 to pass for #1', 'now 75%, 2 pts more for 🐆 Cheetah (pass 2)']);
   assert.deepEqual(standingFeedbackShort(guided({ rank: 1, crown: true }), 'en', { emoji: false }), ['#1 in the company', 'now 75%, 2 pts more for Cheetah (pass 2)']);
-  assert.deepEqual(standingFeedbackShort(guided({ scorePct: null }), 'en'), ['2 to pass for #1', 'next 🐆 Cheetah: 2 more (77% and up)']);
+  assert.deepEqual(standingFeedbackShort(guided({ scorePct: null, rank: 4, ranked: 13 }), 'en'), ['3 to pass for #1', 'now 75%, 2 pts more for 🐆 Cheetah (pass 2)']);
   assert.deepEqual(standingFeedbackShort(null, 'en'), []);
 });
