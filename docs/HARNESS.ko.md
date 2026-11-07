@@ -38,7 +38,7 @@ ratchet의 가치는 **한 방향 누적**에 있습니다. 룰을 가볍게 지
 
 ## 📦 compact-window: 1M 컨텍스트의 자동 압축 지점 고정
 
-Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 대화를 자동 압축합니다. 1M 창을 쓰면 이 값이 잡혀 있지 않은 한 80만 토큰 근처까지 가서야 압축이 걸리고, 그전까지 모든 요청이 전체 컨텍스트를 통째로 재과금합니다. **1M은 너무 크니 40만~70만 범위를 권장합니다.** 큰 붙여넣기용 여유는 200k 세션의 2~3.5배로 남기면서 꼬리만 잘라냅니다.
+Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 대화를 자동 압축합니다. 1M 창을 쓰면 이 값이 잡혀 있지 않은 한 약 97만 토큰(모델 기본값)까지 가서야 압축이 걸리고, 그전까지 모든 요청이 전체 컨텍스트를 통째로 재과금합니다. **1M은 너무 크니 40만~70만 범위를 권장합니다.** 큰 붙여넣기용 여유는 200k 세션의 2~3.5배로 남기면서 꼬리만 잘라냅니다.
 
 **권장 범위 안이면 경고하지 않습니다.** 40만은 절감이 압축 횟수를 이기는 하한이고, 긴 세션은 그보다 여유가 더 필요한 경우가 많습니다. 미설정이거나 70만을 넘을 때만 알립니다(그보다 낮게 잡은 건 더 공격적으로 아끼겠다는 선택이라 그냥 둡니다).
 
@@ -46,16 +46,19 @@ Claude Code는 `min(autoCompactWindow, 모델 최대 창)`에 가까워지면 �
 
 ```bash
 sprag compact-window                       # 현재 상태 (모델·창·설정값·출처)
-sprag compact-window set --global          # ~/.claude/settings.json 에 50만 고정 (범위 중간)
-sprag compact-window set --project         # <root>/.claude/settings.json 에 고정
-sprag compact-window set --global --value 600k    # 값 직접 지정 (10만~1M)
-sprag compact-window off | on              # 경고 표시 토글
+sprag compact-window set --global --all-models              # ~/.claude/settings.json 에 모든 모델 50만 고정 (범위 중간)
+sprag compact-window set --project --all-models             # <root>/.claude/settings.json 에 고정
+sprag compact-window set --global --model claude-opus-5-5   # 그 모델에만 고정
+sprag compact-window set --global --all-models --value 600k # 값 직접 지정 (10만~1M)
+sprag compact-window off | on              # 칩과 브리핑 토글
 ```
 
-- 1M 모델인데 미설정이거나 40만을 넘으면 statusline에 `🅷⚠ compact-window?`가 뜨고, 세션 브리핑이 등록 명령까지 알려줍니다.
-- 적용 범위(`--global` 또는 `--project`)는 `set`에서 **반드시 지정해야 합니다.** 글로벌 설정 파일을 사용자에게 묻지 않고 수정하는 일을 막기 위한 설계입니다.
+- 1M 모델인데 미설정이거나 70만을 넘으면 statusline에 `🅷⚠ compact-window?`가 뜨고, 세션 브리핑이 등록 명령까지 알려줍니다.
+- 적용 범위(`--global` 또는 `--project`)와 모델 범위(`--all-models` 또는 `--model <id>`)는 `set`에서 **반드시 지정해야 합니다.** 글로벌 설정 파일을 사용자에게 묻지 않고 수정하는 일을 막기 위한 설계입니다.
+- `--all-models`는 최상위 `autoCompactWindow`에 쓰고 같은 파일의 모델별 값은 지웁니다. 모델별 값이 남아 있으면 그 모델에는 최상위 값이 적용되지 않기 때문입니다. `--model <id>`는 `/autocompact`와 같은 자리인 `modelSettings.<id>.autoCompactWindow`에만 씁니다. `opus` 같은 별칭은 버전을 알 수 없어 받지 않으므로 정식 id를 적어야 합니다. 모델별 값은 Claude Code 2.1.288 이상에서만 쓰이므로 `set --model`과 그 옵션을 안내하는 곳에서 설치된 Claude Code 버전과 적용 여부를 함께 보여 줍니다.
 - 기존 `settings.json`의 다른 키는 그대로 보존하고 `.bak`을 남깁니다. JSON이 깨져 있으면 아무것도 쓰지 않고 중단합니다.
 - 셸에 `CLAUDE_CODE_AUTO_COMPACT_WINDOW`가 export돼 있으면 그쪽이 settings.json보다 우선합니다 (`set`이 이 경우를 감지해 알려줍니다).
+- Claude Code 2.1.288부터 `/autocompact`는 값을 `modelSettings.<모델 id>.autoCompactWindow`에 모델별로 저장합니다. sprag는 그 값을 먼저 읽고(같은 파일의 최상위 키보다 우선) `/autocompact auto`로 저장한 `auto`는 사용자가 모델 기본값을 직접 고른 것이므로 경고하지 않습니다. `off`는 상태줄 칩과 세션 브리핑을 함께 끕니다.
 
 ## 🌱 seed: 설치 직후부터 위임이 걸리게 하는 시작 룰
 

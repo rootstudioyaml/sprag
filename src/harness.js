@@ -597,7 +597,7 @@ export function harnessRmRule(n, { root = findProjectRoot(), scope = 'project', 
  * has explicitly disabled harness display, or when there's no CLAUDE.md and
  * no .claude/ at all (silent in non-init'd projects so we don't nag).
  */
-export function harnessStatusForStatusline(cfg, { root, liveWindow = null } = {}) {
+export function harnessStatusForStatusline(cfg, { root, liveWindow = null, liveModel = null } = {}) {
   if (cfg && cfg.harness && cfg.harness.enabled === false) return null;
   const projectRoot = root || findProjectRoot();
   const status = harnessStatus(projectRoot);
@@ -643,11 +643,11 @@ export function harnessStatusForStatusline(cfg, { root, liveWindow = null } = {}
   // One `harness init` re-run fixes it and the warning goes away for good.
   if (status.hasBlock && !(status.hasRatchetImport && status.hasModelRatchetImport)) warnings.push('ratchet-unloaded');
   // Same class of defect, one notch lower: the session runs on a 1M-context
-  // model with no `autoCompactWindow` cap, so compaction only fires past 800k
-  // and every request until then re-bills the whole context. 200k sessions are
-  // exempt — the setting cannot change anything for them.
+  // model with no `autoCompactWindow` cap, so compaction only fires at about
+  // 967k and every request until then re-bills the whole context. 200k
+  // sessions are exempt — the setting cannot change anything for them.
   try {
-    const w = compactWindowWarningForStatusline(projectRoot, cfg, { liveWindow });
+    const w = compactWindowWarningForStatusline(projectRoot, cfg, { liveWindow, liveModel });
     if (w) warnings.push(w);
   } catch { /* settings unreadable — stay silent */ }
   // Below session-quality warnings: a promoted delegation rule whose

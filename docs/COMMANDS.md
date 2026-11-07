@@ -49,7 +49,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team owner |
 | `sprag cowork [sync\|on\|off\|exclude <dir>\|include <dir>]` | Finds the folders connected to the Claude app's Cowork tab and keeps a copy of the three ratchet files in each folder's `.claude/rules/sprag-cowork-ratchet.md`, because Cowork does not follow the `~/.claude` imports. The copy is refreshed at every session start, and the Code tab skips it through the `claudeMdExcludes` setting |
 | `sprag saved [reset\|undo]` | Show the saved-money counters, or reset them to zero like a stopwatch (`routing`, `doc2md`, or `all`). Ledger data is kept; `undo` restores the previous counters. `--agent codex` targets the Codex counters |
-| `sprag compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 400k with `set` (below) |
+| `sprag compact-window` | Warn when a 1M-context session has no auto-compact cap → pin 500k with `set` (below) |
 | `sprag korean on\|off\|status` | Inject Korean writing guidance at session start and install the write-time check (below) |
 | `sprag cohesion on\|off\|status\|show` | Inject English cohesion guidance (sentence-connection rules) at session start |
 | `sprag korean lint block\|warn\|off` | How the write-time check handles findings |

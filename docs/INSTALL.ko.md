@@ -67,7 +67,7 @@ npm의 `postinstall`은 전역 npm 설치일 때만 설정을 실행합니다. �
 | compact-window 경고 칩 | 켜짐 | `compact-window off` |
 | 업데이트 안내 칩 | 켜짐 | `SPRAG_NO_UPDATE_CHECK=1` |
 | ⭐ 스타 안내 (라우팅·doc2md 절감이 $10 에 이르면 하루 동안 한 번만) | 켜짐 | `SPRAG_NO_NOTE=1` |
-| **compact-window 값 고정** (`autoCompactWindow` 500k) | **꺼짐 — 직접 실행해야 합니다** | `compact-window set --global` 또는 `--project` |
+| **compact-window 값 고정** (`autoCompactWindow` 500k) | **꺼짐 — 직접 실행해야 합니다** | `compact-window set --global` 또는 `--project`, 그리고 `--all-models` 또는 `--model <id>` |
 | **모델 피팅 룰 승인** (`ratchet-model.md` 위임 룰) | **후보만 제안합니다** | `route-scan rules` 로 확인하고 승인·삭제 |
 | `handoff` (한도 임박 시 작업 백업) | 필요할 때 직접 실행하는 명령입니다 | 해당 없습니다 |
 

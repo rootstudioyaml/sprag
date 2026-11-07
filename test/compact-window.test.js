@@ -9,7 +9,13 @@ import {
   compactWindowStatus,
   compactWindowWarningForStatusline,
   setAutoCompactWindow,
+  claudeCodeVersion,
+  modelSettingsSupported,
+  modelSettingsNotice,
+  MODEL_SETTINGS_MIN_VERSION,
   effectiveWindow,
+  canonicalModelId,
+  compactWindowWarningEnabled,
   RECOMMENDED_WINDOW,
   RECOMMENDED_MIN,
   RECOMMENDED_MAX,
@@ -320,4 +326,180 @@ test('an unset compaction window is flagged once the session reports 1M', () => 
     assert.equal(compactWindowWarningForStatusline(root, null, { liveWindow: 1_000_000 }), 'compact-window?');
     assert.equal(compactWindowWarningForStatusline(root, null, { liveWindow: 200_000 }), null);
   });
+});
+
+/**
+ * Since Claude Code 2.1.288 `/autocompact` writes
+ * `modelSettings[<canonical id>].autoCompactWindow` instead of the top-level
+ * key. Reading only the top-level key reported a pinned 500k as "unset" and
+ * kept warning about a setting the user had already made (issue #11).
+ */
+test('canonicalModelId folds every spelling of a model to one id', () => {
+  const cases = [
+    ['claude-opus-5-5[1m]', 'claude-opus-5-5'],
+    ['us.anthropic.claude-opus-5-5-20251101-v1:0', 'claude-opus-5-5'],
+    ['bedrock/anthropic.claude-haiku-4-5', 'claude-haiku-4-5'],
+    ['claude-opus-5-5@20251101', 'claude-opus-5-5'],
+    ['claude-haiku-4-5-20251001', 'claude-haiku-4-5'],
+    ['opus[1m]', 'opus'],
+    ['Opus', 'opus'],
+  ];
+  for (const [input, want] of cases) assert.equal(canonicalModelId(input), want, input);
+  assert.equal(canonicalModelId(''), null);
+  assert.equal(canonicalModelId(null), null);
+  assert.equal(canonicalModelId(42), null);
+});
+
+const NO_ENV = { ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined };
+
+function userHome(settings) {
+  const home = sandbox(settings);
+  const root = sandbox(null);
+  return { home, root, env: { ...NO_ENV, HOME: home, USERPROFILE: home } };
+}
+
+// A bare alias is never resolved to a version by guessing: the live model id
+// from the statusline payload decides, and without it the entries are skipped.
+test('a per-model window is read by the live model id, and a bare alias does not guess', () => {
+  const { root, env } = userHome({
+    model: 'opus[1m]',
+    modelSettings: { 'claude-opus-5': { autoCompactWindow: 900000 }, 'claude-opus-5-5': { autoCompactWindow: '500k' } },
+  });
+  withEnv(env, () => {
+    assert.equal(compactWindowStatus({ root }).reason, 'unset');
+    const s = compactWindowStatus({ root, liveWindow: 1_000_000, liveModel: 'claude-opus-5-5[1m]' });
+    assert.equal(s.window, 500000);
+    assert.equal(s.ok, true);
+    assert.equal(s.reason, 'configured');
+    assert.equal(s.windowModelKey, 'claude-opus-5-5');
+    assert.equal(s.windowSource, 'global');
+  });
+});
+
+// The user chose the model default on purpose, so it is not a defect to warn about.
+test('a per-model "auto" is reported as the model default and not warned', () => {
+  const { root, env } = userHome({ model: 'claude-opus-5-5[1m]', modelSettings: { 'claude-opus-5-5': { autoCompactWindow: 'auto' } } });
+  withEnv(env, () => {
+    const s = compactWindowStatus({ root });
+    assert.equal(s.ok, true);
+    assert.equal(s.reason, 'auto');
+    assert.equal(s.window, null);
+    assert.equal(s.windowAuto, true);
+    assert.equal(compactWindowWarningForStatusline(root), null);
+  });
+});
+
+test('a per-model value beats the top-level key in the same file', () => {
+  const { root, env } = userHome({
+    model: 'claude-opus-5-5[1m]',
+    autoCompactWindow: 500000,
+    modelSettings: { 'claude-opus-5-5': { autoCompactWindow: 900000 } },
+  });
+  withEnv(env, () => {
+    const s = compactWindowStatus({ root });
+    assert.equal(s.reason, 'too-large');
+    assert.equal(s.window, 900000);
+  });
+});
+
+test('a project top-level value beats a user per-model "auto"', () => {
+  const { root, env } = userHome({ model: 'claude-opus-5-5[1m]', modelSettings: { 'claude-opus-5-5': { autoCompactWindow: 'auto' } } });
+  writeFileSync(join(root, '.claude', 'settings.json'), JSON.stringify({ autoCompactWindow: 500000 }));
+  withEnv(env, () => {
+    const s = compactWindowStatus({ root });
+    assert.equal(s.reason, 'configured');
+    assert.equal(s.window, 500000);
+    assert.equal(s.windowSource, 'project');
+  });
+});
+
+test('an entry for another model is ignored', () => {
+  const { root, env } = userHome({ model: 'claude-opus-5-5[1m]', modelSettings: { 'claude-sonnet-5-5': { autoCompactWindow: 500000 } } });
+  withEnv(env, () => {
+    assert.equal(compactWindowStatus({ root }).reason, 'unset');
+  });
+});
+
+test('the live model id from a Bedrock session finds its modelSettings entry', () => {
+  const { root, env } = userHome({ modelSettings: { 'claude-opus-5-5': { autoCompactWindow: 600000 } } });
+  withEnv(env, () => {
+    const s = compactWindowStatus({ root, liveWindow: 1_000_000, liveModel: 'us.anthropic.claude-opus-5-5-20251101-v1:0' });
+    assert.equal(s.reason, 'configured');
+    assert.equal(s.window, 600000);
+    assert.equal(s.modelSource, 'live');
+  });
+});
+
+// The chip and the briefing judge the same session, so the chip takes the
+// payload model id too: a bare `opus` session on a 1M window must not warn
+// when its /autocompact value sits under modelSettings.
+test('the statusline chip looks up modelSettings with the live model id', () => {
+  const { root, env } = userHome({ model: 'opus', modelSettings: { 'claude-opus-5-5': { autoCompactWindow: '500k' } } });
+  withEnv(env, () => {
+    assert.equal(compactWindowWarningForStatusline(root, null, { liveWindow: 1_000_000, liveModel: 'claude-opus-5-5[1m]' }), null);
+    assert.equal(compactWindowWarningForStatusline(root, null, { liveWindow: 1_000_000, liveModel: 'claude-sonnet-5-5[1m]' }), 'compact-window?');
+  });
+});
+
+test('compactWindowWarningEnabled follows the config switch', () => {
+  assert.equal(compactWindowWarningEnabled({}), true);
+  assert.equal(compactWindowWarningEnabled(null), true);
+  assert.equal(compactWindowWarningEnabled({ compactWindow: { enabled: false } }), false);
+  assert.equal(compactWindowWarningEnabled({ compactWindow: { enabled: true } }), true);
+});
+
+test('set --all-models writes the top-level key and removes per-model values in that file', () => {
+  const root = sandbox({ modelSettings: {
+    'claude-opus-5-5': { autoCompactWindow: 'auto', effortLevel: 'high' },
+    'claude-sonnet-5-5': { autoCompactWindow: 900000 },
+  } });
+  const r = setAutoCompactWindow({ root, scope: 'project', value: '500k', models: 'all' });
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.removed, [{ key: 'claude-opus-5-5', value: 'auto' }, { key: 'claude-sonnet-5-5', value: 900000 }]);
+  const j = JSON.parse(readFileSync(join(root, '.claude', 'settings.json'), 'utf8'));
+  assert.equal(j.autoCompactWindow, 500000);
+  // Other per-model keys survive; an entry left empty is dropped.
+  assert.deepEqual(j.modelSettings, { 'claude-opus-5-5': { effortLevel: 'high' } });
+});
+
+test('set --model writes only that model entry, the slot /autocompact uses', () => {
+  const root = sandbox({ autoCompactWindow: 700000, modelSettings: { 'claude-opus-5-5': { effortLevel: 'high' } } });
+  const r = setAutoCompactWindow({ root, scope: 'project', value: '500k', models: 'claude-opus-5-5[1m]' });
+  assert.equal(r.ok, true);
+  assert.equal(r.modelKey, 'claude-opus-5-5');
+  const j = JSON.parse(readFileSync(join(root, '.claude', 'settings.json'), 'utf8'));
+  assert.equal(j.autoCompactWindow, 700000, 'top-level untouched');
+  assert.deepEqual(j.modelSettings['claude-opus-5-5'], { effortLevel: 'high', autoCompactWindow: 500000 });
+  // A model with no entry yet gets one under its canonical name.
+  setAutoCompactWindow({ root, scope: 'project', value: '600k', models: 'us.anthropic.claude-sonnet-5-5-20251101-v1:0' });
+  const j2 = JSON.parse(readFileSync(join(root, '.claude', 'settings.json'), 'utf8'));
+  assert.equal(j2.modelSettings['claude-sonnet-5-5'].autoCompactWindow, 600000);
+});
+
+test('set --model refuses a bare alias, since the version is unknown', () => {
+  for (const settings of [{}, { modelSettings: { 'claude-opus-5-5': { effortLevel: 'high' } } }]) {
+    const root = sandbox(settings);
+    const before = readFileSync(join(root, '.claude', 'settings.json'), 'utf8');
+    const r = setAutoCompactWindow({ root, scope: 'project', value: '500k', models: 'opus[1m]' });
+    assert.equal(r.ok, false);
+    assert.match(r.error, /full model id/);
+    assert.equal(readFileSync(join(root, '.claude', 'settings.json'), 'utf8'), before, 'nothing written');
+  }
+});
+
+// A Claude Code older than 2.1.288 ignores modelSettings, so a per-model value
+// would silently do nothing there. Every place that offers or writes --model
+// names the installed version against that floor.
+test('the per-model notice names the installed Claude Code version against 2.1.288', () => {
+  assert.equal(MODEL_SETTINGS_MIN_VERSION, '2.1.288');
+  assert.equal(claudeCodeVersion({ run: () => '2.1.302 (Claude Code)\n' }), '2.1.302');
+  assert.equal(claudeCodeVersion({ run: () => { throw new Error('ENOENT'); } }), null);
+  assert.equal(modelSettingsSupported('2.1.288'), true);
+  assert.equal(modelSettingsSupported('2.1.302'), true);
+  assert.equal(modelSettingsSupported('2.1.287'), false);
+  assert.equal(modelSettingsSupported(null), null);
+  assert.match(modelSettingsNotice('2.1.302', true), /2\.1\.288 이상.*설치된 버전\(2\.1\.302\)에서는 적용됩니다/);
+  assert.match(modelSettingsNotice('2.1.200', true), /설치된 버전\(2\.1\.200\)에서는 적용되지 않습니다/);
+  assert.match(modelSettingsNotice(null, true), /확인하지 못했습니다/);
+  assert.match(modelSettingsNotice('2.1.200', false), /ignored/);
 });

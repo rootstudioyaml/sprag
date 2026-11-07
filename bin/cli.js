@@ -63,6 +63,12 @@ import { readUpdateChip } from '../src/update-notice.js';
 import { readStarChip } from '../src/star-note.js';
 import { selectAgent } from '../src/agent.js';
 
+// The raw model id from the statusline payload (`claude-opus-5-5[1m]`, `opus`,
+// a Bedrock id ...), not extractModel()'s display name: the briefing matches it
+// against settings `modelSettings` keys.
+const liveModelIdOf = (j) =>
+  typeof j?.model?.id === 'string' ? j.model.id : (typeof j?.model === 'string' ? j.model : null);
+
 const selection = (() => {
   try { return selectAgent(process.argv.slice(2)); }
   catch (e) { console.error(`Error: ${e.message}`); process.exit(1); }
@@ -451,12 +457,12 @@ async function main() {
   }
 
   // Subcommand: compact-window — audit / pin Claude Code's autoCompactWindow.
-  // On a 1M-context model, compaction only fires near 800k unless the window is
-  // capped; 200k sessions are exempt.
-  //   sprag compact-window                  # status
-  //   sprag compact-window set --global     # pin 200k (~/.claude/settings.json)
-  //   sprag compact-window set --project    # pin 200k (<root>/.claude/settings.json)
-  //   sprag compact-window off | on         # toggle the statusline warning
+  // On a 1M-context model, compaction only fires at about 967k unless the
+  // window is capped; 200k sessions are exempt.
+  //   sprag compact-window                                  # status
+  //   sprag compact-window set --global --all-models        # pin 500k for every model (~/.claude/settings.json)
+  //   sprag compact-window set --project --model <id>       # pin 500k for one model (<root>/.claude/settings.json)
+  //   sprag compact-window off | on                         # toggle the chip and the briefing
   if (args[0] === 'compact-window') {
     return (await import('../src/commands/compact-window.js')).run({ args, hasFlag });
   }
@@ -703,7 +709,7 @@ async function main() {
       if (ctxLive?.size) {
         try {
           const { recordLiveWindow } = await import('../src/ctx-window-cache.js');
-          recordLiveWindow(extractSessionId(stdinJson), ctxLive.size);
+          recordLiveWindow(extractSessionId(stdinJson), ctxLive.size, Date.now(), liveModelIdOf(stdinJson));
         } catch (e) { debug('ctx-window-cache:record', e); }
       }
       if (caps || model) {
@@ -780,7 +786,7 @@ async function main() {
   if (isStatusline && ctxLive?.size) {
     try {
       const { recordLiveWindow } = await import('../src/ctx-window-cache.js');
-      recordLiveWindow(extractSessionId(stdinJson), ctxLive.size);
+      recordLiveWindow(extractSessionId(stdinJson), ctxLive.size, Date.now(), liveModelIdOf(stdinJson));
     } catch (e) {
       debug('ctx-window-cache:record', e);
     }
@@ -1060,6 +1066,8 @@ async function main() {
     spikeChip,
     caps,
     model,
+    // Raw payload model id for the compact-window chip's `modelSettings` lookup.
+    liveModel: isStatusline ? liveModelIdOf(stdinJson) : undefined,
     effort,
     delegationSaved,
     delegationTotals,

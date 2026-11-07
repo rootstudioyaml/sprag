@@ -38,7 +38,7 @@ An auto `.bak` is kept, but **the session context that earned the rule its place
 
 ## 📦 compact-window — pin where a 1M session compacts
 
-Claude Code compacts when usage approaches `min(autoCompactWindow, model max context)`. On a 1M window, with that value unset, compaction only fires near 800k — and until then every request re-bills the whole context. **1M is too large; the recommendation is a 400k–700k band** — 2–3.5x a 200k session's headroom for the genuinely large pastes, with the runaway tail cut off.
+Claude Code compacts when usage approaches `min(autoCompactWindow, model max context)`. On a 1M window, with that value unset, compaction only fires at about 967k (the model default) — and until then every request re-bills the whole context. **1M is too large; the recommendation is a 400k–700k band** — 2–3.5x a 200k session's headroom for the genuinely large pastes, with the runaway tail cut off.
 
 **Anything inside the band is left alone.** 400k is the floor where the saving beats the extra compactions, and long sessions often want more room than that. Only an unset window, or one above 700k, is warned about (a smaller one is a deliberate, more aggressive choice).
 
@@ -46,16 +46,19 @@ Claude Code compacts when usage approaches `min(autoCompactWindow, model max con
 
 ```bash
 sprag compact-window                       # status (model, window, value, source)
-sprag compact-window set --global          # pin 500k (mid-band) in ~/.claude/settings.json
-sprag compact-window set --project         # pin it in <root>/.claude/settings.json
-sprag compact-window set --global --value 600k   # explicit value (100k–1M)
-sprag compact-window off | on              # toggle the warning
+sprag compact-window set --global --all-models              # pin 500k (mid-band) for every model in ~/.claude/settings.json
+sprag compact-window set --project --all-models             # pin it in <root>/.claude/settings.json
+sprag compact-window set --global --model claude-opus-5-5   # pin it for that model only
+sprag compact-window set --global --all-models --value 600k # explicit value (100k–1M)
+sprag compact-window off | on              # toggle the chip and the briefing
 ```
 
 - On a 1M model with the value unset or above 700k, the statusline shows `🅷⚠ compact-window?` and the session briefing hands the model the exact registration command.
-- Scope (`--global`/`--project`) is **required** for `set` — a global settings file is never edited on a guess.
+- Scope (`--global`/`--project`) and models (`--all-models`/`--model <id>`) are **required** for `set` — a global settings file is never edited on a guess.
+- `--all-models` writes the top-level `autoCompactWindow` and removes the per-model values in that file, because a per-model value beats the top-level key for its model. `--model <id>` writes only `modelSettings.<id>.autoCompactWindow`, the slot `/autocompact` uses. A bare alias such as `opus` is refused because its version is unknown; give the full id. Per-model values are only read by Claude Code 2.1.288 or later, so `set --model` and the suggestions that offer it show the installed Claude Code version and whether the value will apply.
 - Every other key in `settings.json` is preserved and a `.bak` is written first. Malformed JSON aborts the write untouched.
 - An exported `CLAUDE_CODE_AUTO_COMPACT_WINDOW` beats settings.json; `set` detects that and says so.
+- Since Claude Code 2.1.288 `/autocompact` saves a per-model value under `modelSettings.<model id>.autoCompactWindow`; sprag reads that first (it beats the top-level key in the same file) and leaves a saved `auto` alone, since `/autocompact auto` is a deliberate choice of the model default. `off` silences both the statusline chip and the session briefing.
 
 ## 🌱 seed: delegation that works from the first session
 

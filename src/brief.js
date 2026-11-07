@@ -29,7 +29,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, openSync,
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { resolveModelId, isOneMillionModel, effectiveWindow } from './compact-window.js';
-import { liveWindowFor } from './ctx-window-cache.js';
+import { liveWindowFor, liveModelFor } from './ctx-window-cache.js';
 import { routingEnabled } from './routing-switch.js';
 
 // Context tiers as a fraction of the session's context window. Tier 1 warns
@@ -178,6 +178,7 @@ export function seedSessionBriefed(sessionId, signatures, now = Date.now()) {
 export async function runBrief({ sessionId, transcriptPath, root = process.cwd(), now = Date.now() }) {
   if (!sessionId) return null;
   const liveWindow = liveWindowFor(sessionId);
+  const liveModel = liveModelFor(sessionId);
   const state = loadState();
   const s = state.sessions[sessionId] || { ctxTier: 0, briefed: [] };
   const items = [];
@@ -244,20 +245,24 @@ export async function runBrief({ sessionId, transcriptPath, root = process.cwd()
   } catch { /* caches unreadable — ctx briefing above still applies */ }
 
   // ── auto-compact window misconfigured on a 1M model (once per session) ──
-  // Config defect, not a usage trend: on a 1M window compaction only fires
-  // past ~800k, so every request until then re-bills a context the session
+  // Config defect, not a usage trend: a native 1M model compacts at about
+  // 967k by default, so every request until then re-bills a context the session
   // never needed. 200k sessions are exempt (their window is already <= 200k).
+  // `sprag compact-window off` silences this as well as the statusline chip.
   try {
     const cw = await import('./compact-window.js');
-    const st = cw.compactWindowStatus({ root, liveWindow });
-    if (!st.ok) {
+    const { loadConfig } = await import('./config.js');
+    const st = cw.compactWindowWarningEnabled(loadConfig())
+      ? cw.compactWindowStatus({ root, liveWindow, liveModel })
+      : null;
+    if (st && !st.ok) {
       const sig = `compact-window|${st.reason}`;
       const briefed = new Set(s.briefed || []);
       if (!briefed.has(sig)) {
         briefed.add(sig);
         s.briefed = [...briefed];
         const now = st.window ? `현재 ${fmtK(st.window)}` : '현재 미설정';
-        items.push(`1M 컨텍스트 모델(${st.model || 'Claude Code 기본 모델'})인데 autoCompactWindow가 ${now}입니다 — 자동 압축이 80만 토큰 근처에서야 걸려 그전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 1M은 너무 크니 ${fmtK(st.recommendedMin)}~${fmtK(st.recommendedMax)} 범위를 권장합니다(그 범위 안이면 경고하지 않습니다). 1M 창 자체는 그대로 두고 압축 시점만 앞당깁니다. 등록: sprag compact-window set --global|--project [--value ${fmtK(st.recommendedMax)}] (기본 ${fmtK(st.recommended)}, 적용 범위는 사용자에게 확인) / 끄기: compact-window off`);
+        items.push(`1M 컨텍스트 모델(${st.model || 'Claude Code 기본 모델'})인데 autoCompactWindow가 ${now}입니다. 자동 압축이 약 97만 토큰(창이 거의 찰 때)에서야 걸려 그전까지 모든 요청이 전체 컨텍스트를 재과금합니다. 1M은 너무 크니 ${fmtK(st.recommendedMin)}~${fmtK(st.recommendedMax)} 범위를 권장합니다(그 범위 안이면 경고하지 않습니다). 1M 창 자체는 그대로 두고 압축 시점만 앞당깁니다. 등록: sprag compact-window set --global|--project --all-models|--model <모델 id> [--value ${fmtK(st.recommendedMax)}] (기본 ${fmtK(st.recommended)}, 적용 범위와 모든 모델에 같은 값을 쓸지 모델별로 쓸지는 사용자에게 확인). ${cw.modelSettingsNotice(cw.claudeCodeVersion(), true)} 끄기: sprag compact-window off`);
       }
     }
   } catch { /* settings unreadable — other briefings above still apply */ }
