@@ -535,7 +535,7 @@ function analyze(prompt) {
   return out;
 }
 
-function slackConfig(envFile) {
+export function slackConfig(envFile) {
   const file = envFile ? resolve(envFile) : resolve(ROOT, '..', 'yaml-sns-agent', '.env');
   let fromFile = {};
   if (existsSync(file)) {
@@ -548,7 +548,7 @@ function slackConfig(envFile) {
   return { token, channel };
 }
 
-async function slackPost({ token, channel }, text, threadTs) {
+export async function slackPost({ token, channel }, text, threadTs) {
   const body = { channel, text, unfurl_links: false, unfurl_media: false };
   if (threadTs) body.thread_ts = threadTs;
   const res = await fetch('https://slack.com/api/chat.postMessage', {

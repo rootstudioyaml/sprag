@@ -14,6 +14,7 @@
     "evals:replay": "node scripts/evals/replay.mjs",
     "evals:grade": "node scripts/evals/grade.mjs",
     "evals:publish": "node scripts/evals/publish.mjs",
+    "evals:weekly": "node scripts/evals/weekly.mjs",
     "deploy": "node scripts/deploy.mjs",
     "docs:statusline": "node scripts/docs-statusline.mjs",
     "postinstall": "node bin/postinstall.js || true",
