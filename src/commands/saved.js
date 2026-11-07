@@ -84,14 +84,18 @@ function printEffortRaises({ ko, money, totals, since }) {
   const keptRuns = Number(totals.keptRuns) || 0;
   const missing = Number(totals.costMissing) || 0;
   const unpriced = missing > 0 ? ` +${missing} unpriced` : '';
+  // The same shape as the routing line above it: the saving first, then what it
+  // is made of. A raise no rule routed has no saving to show and is counted apart.
+  const kept = keptRuns > 0 ? money(Number(totals.kept) || 0) : (ko ? '측정 없음' : 'none measured');
+  const unmatched = count - keptRuns;
   if (ko) {
-    const kept = keptRuns > 0 ? ` · 지켜낸 절감 ${money(Number(totals.kept) || 0)}` : '';
-    console.log(`effort 상향: ${count}회${kept} · 실행 비용 ${cost}${unpriced} (${since})`);
-    console.log('  effort 없이 Sonnet에 보낸 위임을 high로 올린 횟수입니다. 지켜낸 절감은 그 위임이 낸 라우팅 절감이라 위 금액에 이미 들어 있습니다.');
+    const runs = `상향 ${count}회${unmatched > 0 && keptRuns > 0 ? ` (룰 없는 ${unmatched}회는 절감 미측정)` : ''}`;
+    console.log(`effort 절감: ${kept} · ${runs} · 실행 비용 ${cost}${unpriced} (${since})`);
+    console.log('  effort 없이 Sonnet에 보낸 위임을 high로 올린 횟수와 그 위임이 낸 라우팅 절감입니다. 이 절감은 위 라우팅 절감에 이미 들어 있습니다.');
   } else {
-    const kept = keptRuns > 0 ? ` · saving kept ${money(Number(totals.kept) || 0)}` : '';
-    console.log(`Effort raised: ${count} runs${kept} · run cost ${cost}${unpriced} (${since})`);
-    console.log('  Sonnet delegations sent without an effort ran at high. The saving kept is what those runs saved by routing and is already inside the figure above.');
+    const runs = `${count} raised${unmatched > 0 && keptRuns > 0 ? ` (${unmatched} with no rule, saving not measured)` : ''}`;
+    console.log(`Effort saved: ${kept} · ${runs} · run cost ${cost}${unpriced} (${since})`);
+    console.log('  Sonnet delegations sent without an effort ran at high; the saving is what those runs saved by routing and is already inside the routing figure above.');
   }
 }
 

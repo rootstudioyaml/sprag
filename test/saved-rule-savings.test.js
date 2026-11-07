@@ -417,7 +417,7 @@ test('the scan counts raised-effort runs with their cost, and saved prints them 
     const lines = await captured(() => runSaved([]));
     const at = lines.findIndex((l) => /^(Routing saved|라우팅 절감):/.test(l));
     assert.ok(at >= 0, lines.join(' | '));
-    assert.match(lines[at + 1], /^(Effort raised: 1 runs · run cost|effort 상향: 1회 · 실행 비용) \$\d+\.\d\d \(/);
+    assert.match(lines[at + 1], /^(Effort saved: none measured · 1 raised · run cost|effort 절감: 측정 없음 · 상향 1회 · 실행 비용) \$\d+\.\d\d \(/);
     assert.ok(lines[at + 1].includes(`$${round2(cost).toFixed(2)}`), lines[at + 1]);
     assert.doesNotMatch(lines[at + 1], /saving kept|지켜낸 절감/);
     assert.match(lines[at + 2], /^  \S/, 'the explanation line follows');
@@ -429,7 +429,7 @@ test('the scan counts raised-effort runs with their cost, and saved prints them 
     assert.equal(totals.keptRuns, 1);
     const withKept = await captured(() => runSaved([]));
     const at2 = withKept.findIndex((l) => /^(Routing saved|라우팅 절감):/.test(l));
-    assert.match(withKept[at2 + 1], /saving kept \$4\.50|지켜낸 절감 \$4\.50/);
+    assert.match(withKept[at2 + 1], /^(Effort saved: \$4\.50 · 1 raised · run cost|effort 절감: \$4\.50 · 상향 1회 · 실행 비용) /);
 
     // A reset later than the run zeroes the count, as it zeroes the savings,
     // WITHOUT a rescan: the ledger is read live with the mark. The old cached
@@ -440,7 +440,7 @@ test('the scan counts raised-effort runs with their cost, and saved prints them 
       count: 0, cost: 0, costMissing: 0, kept: 0, keptRuns: 0, since: NOW,
     });
     const quiet = await captured(() => runSaved([]));
-    assert.ok(!quiet.some((l) => /Effort raised|effort 상향/.test(l)), quiet.join(' | '));
+    assert.ok(!quiet.some((l) => /Effort saved|effort 절감/.test(l)), quiet.join(' | '));
   } finally {
     rmSync(proj, { recursive: true, force: true });
     clearMarks();

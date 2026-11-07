@@ -1153,20 +1153,29 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
   const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
 
   // Sonnet delegations the guard ran at high effort because the call passed
-  // none. The count is gray because the raise is a cost. The amount beside it
-  // is the routing saving those raised runs produced: already inside Routing
-  // saved, not added to it. `sprag saved` prints what the runs cost.
-  //   icon: "🔬↑3 $12.4"  |  text: "effort↑3 $12.4"  |  verbose: "effort raised ×3 kept $12.4"
+  // none, in the shape of the other two savings: "Effort saved" is the routing
+  // saving those raised runs produced (a part of Routing saved, never added to
+  // it), and the raise count rides as the breakdown. A raise with no measured
+  // saving (no registered rule routed the run) keeps the gray count chip, as a
+  // bare document count does for Doc2md. `sprag saved` prints what the runs cost.
+  //   icon:  "🔬 $12.4"   verbose: "🔬 Effort saved $12.4 · 3 raised"
+  //   text:  "Effort saved $12.4"
+  //   no saving measured:  icon "🔬↑3"  |  text "effort↑3"  |  verbose "effort raised ×3"
   const raisedInfo = data.effortRaises;
   const raised = Number(raisedInfo && raisedInfo.count) || 0;
   const keptUsd = Number(raisedInfo && raisedInfo.kept) || 0;
   const keptRuns = Number(raisedInfo && raisedInfo.keptRuns) || 0;
-  const keptPart = raised > 0 && keptRuns > 0 && keptUsd !== 0
-    ? ` ${c(keptUsd > 0 ? GREEN : RED)}${formatMoney(keptUsd)}${c(RESET)}`
-    : '';
-  const raisedSeg = raised > 0
-    ? `${c(GRAY)}${verbose ? `effort raised ×${raised}${keptPart ? ' kept' : ''}` : isIcon ? `${g.effort}↑${raised}` : `effort↑${raised}`}${c(RESET)}${keptPart}`
-    : null;
+  const hasKept = raised > 0 && keptRuns > 0 && keptUsd !== 0;
+  const keptTone = keptUsd < 0 ? RED : GREEN;
+  const raisedSince = formatSince(raisedInfo && raisedInfo.since);
+  const effortLabel = isIcon ? (verbose ? `${g.effort} Effort saved` : g.effort) : 'Effort saved';
+  let raisedSeg = null;
+  if (hasKept) {
+    raisedSeg = `${c(keptTone)}${effortLabel}${c(RESET)} ${formatMoney(keptUsd)}${sinceInline(raisedSince)}`
+      + (verbose ? ` ${c(GRAY)}· ${raised} raised${c(RESET)}` : '');
+  } else if (raised > 0) {
+    raisedSeg = `${c(GRAY)}${verbose ? `effort raised ×${raised}` : isIcon ? `${g.effort}↑${raised}` : `effort↑${raised}`}${c(RESET)}`;
+  }
 
   // Routing-savings headline line (multi-line layout). The lifetime sum from
   // the delegation ledger — the number the whole tool exists to grow, so it
@@ -1211,26 +1220,25 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
       (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 
-  // The effort-raise line (multi-line layout), under the savings lines: the
-  // count, the saving those runs kept, the same reset mark as Routing saved,
-  // then what the raised runs cost. Built only beside a Routing saved line, so
-  // the layouts without one keep the chip.
-  //   icon:  "🔬 Effort raised ×3 kept $12.4 since 11/1  |  run cost $1.23"
-  //   text:  "Effort raised ×3 kept $12.4 since 11/1  |  run cost $1.23"
+  // The Effort saved line (multi-line layout), under the savings lines and in
+  // their anatomy: the figure, the same reset mark as Routing saved, then the
+  // breakdown, where the raise count sits as `medium→high ×N $X` (Claude
+  // Code's default effort to the one the guard set). Raises that no rule
+  // routed have no saving to show and are counted as `no rule ×N (n/a)`, as
+  // Doc2md counts a format with no baseline. Built only beside a Routing saved
+  // line and only with a measured saving; a bare count stays a chip.
+  //   icon:  "🔬 Effort saved $12.4 since 11/1  |  medium→high ×2 $12.4 · no rule ×1 (n/a)"
+  //   text:  "Effort saved $12.4 since 11/1  |  medium→high ×2 $12.4 · no rule ×1 (n/a)"
   let raisedLine = null;
-  if (totalsLine && raised > 0) {
-    const head = isIcon ? `${g.effort} Effort raised` : 'Effort raised';
-    const raisedSince = formatSince(raisedInfo && raisedInfo.since);
-    const runCost = Number(raisedInfo && raisedInfo.cost) || 0;
-    const costMissing = Number(raisedInfo && raisedInfo.costMissing) || 0;
-    const costText = runCost > 0 || costMissing > 0
-      ? `${c(GRAY)}run cost ${formatMoney(runCost)}${costMissing > 0 ? ` +${costMissing} unpriced` : ''}${c(RESET)}`
-      : '';
+  if (totalsLine && hasKept) {
+    const head = isIcon ? `${g.effort} Effort saved` : 'Effort saved';
+    const parts = [`${c(GRAY)}medium→high ×${keptRuns} ${formatMoney(keptUsd)}${c(RESET)}`];
+    if (raised > keptRuns) parts.push(`${c(GRAY)}no rule ×${raised - keptRuns} ${verbose ? '(no saving measured)' : '(n/a)'}${c(RESET)}`);
     raisedLine =
-      `${c(GRAY)}${c(BOLD)}${head}${c(RESET)} ${c(GRAY)}×${raised}${c(RESET)}` +
-      (keptPart ? ` ${c(GRAY)}kept${c(RESET)}${keptPart}` : '') +
+      `${c(keptTone)}${c(BOLD)}${head}${c(RESET)} ` +
+      `${c(keptTone)}${formatMoney(keptUsd)}${c(RESET)}` +
       sinceWord(raisedSince) +
-      (costText ? `  ${c(GRAY)}|${c(RESET)}  ${costText}` : '');
+      `  ${c(GRAY)}|${c(RESET)}  ${parts.join(` ${c(GRAY)}·${c(RESET)} `)}`;
   }
 
   return {
@@ -1238,9 +1246,9 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
     // would otherwise repeat it on line 2. The unresolved-runs chip survives the
     // headline when that headline is a dated zero, since a zero is exactly when
     // the dropped runs matter. The raise chip steps aside for its own line the
-    // same way, and stays on line 2 only where there is no line to carry it.
+    // same way, and stays on line 2 while there is no line to carry it.
     chips: totalsLine
-      ? (totalsNum === 0 ? [unresolvedSeg] : [])
+      ? (totalsNum === 0 ? [unresolvedSeg, raisedLine ? null : raisedSeg] : [raisedLine ? null : raisedSeg])
       : [delegateSeg, raisedSeg, delegateExtra],
     headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine } : null,
     raisedHeadline: raisedLine ? { usd: keptUsd, line: raisedLine } : null,
