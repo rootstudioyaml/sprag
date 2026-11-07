@@ -704,3 +704,22 @@ test('buildAppendix: an @ import shown inside a code fence or a code span does n
     rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
+
+test('buildAppendix: a prompt that states its own budget is not capped by the rule default', async () => {
+  /* A t1-worker handed an implementation with "about 90 tool calls" stopped
+     after 7 calls (2026-11-07) because the appended cap said 6,100 output
+     tokens and the bounds told it to obey the cap whatever the prompt said. */
+  const { statesOwnBudget } = await import('../src/delegation-guard.js');
+  for (const p of ['Budget: about 90 tool calls.', '예산은 도구 호출 40회입니다', 'Use at most 30 tool calls']) {
+    assert.equal(statesOwnBudget(p), true, p);
+  }
+  for (const p of ['find where the budget gauge is drawn', 'summarize this file', '']) {
+    assert.equal(statesOwnBudget(p), false, p);
+  }
+  const routeCaps = { T1: { calls: 20, out: 6100 } };
+  const own = await buildAppendix({ tool_name: 'Agent', tool_input: { prompt: 'Implement X. Budget: about 90 tool calls.', model: 'sonnet' } }, { cfg: ON, home: EMPTY_HOME, routeCaps });
+  assert.match(own, /the budget stated in your prompt above/);
+  assert.doesNotMatch(own, /6,100 output tokens/);
+  const none = await buildAppendix({ tool_name: 'Agent', tool_input: { prompt: 'Find the config loader.', model: 'sonnet' } }, { cfg: ON, home: EMPTY_HOME, routeCaps });
+  assert.match(none, /20 tool calls, 6,100 output tokens/);
+});

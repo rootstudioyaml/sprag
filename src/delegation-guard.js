@@ -146,6 +146,7 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
   const isHaiku = /haiku/i.test(modelHint);
   const isOpus = /opus/i.test(modelHint);
 
+  const prompt = payload?.tool_input?.prompt;
   const bounds = boundsText();
   if (bounds) {
     // Haiku delegations get a tighter leash (8 tool calls / 1,500 output
@@ -158,11 +159,18 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
     const matched = routeCaps?.[isHaiku ? 'T2' : isOpus ? 'T1H' : 'T1'];
     const calls = Number.isFinite(matched?.calls) && matched.calls > 0 ? matched.calls : fallback.calls;
     const out = Number.isFinite(matched?.out) && matched.out > 0 ? matched.out : fallback.out;
-    const capLine = `Cap for this delegation: ${calls} tool calls, ${out.toLocaleString('en-US')} output tokens.`;
+    // A caller that states its own budget has sized the work, and an
+    // implementation hand-off sized at 90 calls cannot finish inside a lookup
+    // rule's 6,100 output tokens. Before this the appended cap won: a t1-worker
+    // given "about 90 tool calls" stopped after 7 calls at the rule's cap
+    // (2026-11-07), because the bounds told it to obey the cap whatever the
+    // prompt said. The caller's number now replaces the default.
+    const capLine = statesOwnBudget(prompt)
+      ? 'Cap for this delegation: the budget stated in your prompt above. It replaces the default cap.'
+      : `Cap for this delegation: ${calls} tool calls, ${out.toLocaleString('en-US')} output tokens.`;
     sections.push(['## Bounds and output shape', bounds, capLine].join('\n\n'));
   }
 
-  const prompt = payload?.tool_input?.prompt;
   // koreanStyleInjection() runs to ~8k characters. Appending it to every
   // delegation regardless of language would multiply that cost by the number
   // of delegations in a session; gating it on the prompt actually containing
@@ -287,6 +295,17 @@ export async function decideForDelegation(payload, { cfg = loadConfig(), home = 
   const updatedInput = { ...toolInput, prompt: parts.join('\n\n') };
   if (raise) updatedInput.effort = RAISED_EFFORT;
   return { updatedInput };
+}
+
+/**
+ * True when the delegation prompt sets its own budget: the word budget (or
+ * 예산) next to a number, or a tool-call count. The rules require an
+ * implementation hand-off to state one, so this is the signal that the caller
+ * sized the work itself.
+ */
+export function statesOwnBudget(prompt) {
+  if (typeof prompt !== 'string') return false;
+  return /\bbudget\b[^\n]{0,40}\d|예산[^\n]{0,40}\d|\b\d+\s*tool calls?\b|도구 호출\s*\d+\s*회/i.test(prompt);
 }
 
 /** Effort a sonnet delegation runs at when the call passed none. */
