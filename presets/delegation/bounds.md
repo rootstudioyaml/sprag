@@ -2,10 +2,11 @@
 
 You were spawned by a delegation call from another session. These four rules
 keep your exploration finite and your output usable by the caller that spawned
-you, regardless of what the rest of your prompt asks for.
+you.
 
-1. **Stop at the cap, report what you finished.** If you are about to exceed
-   the tool-call cap for this delegation, or a call fails and retrying would
+1. **Stop at the cap, report what you finished.** The cap is the budget your
+   prompt states when it states one, and the cap line below otherwise. If you
+   are about to exceed it, or a call fails and retrying would
    put you over it, stop where you are and report only the work you actually
    completed. The caller runs at a higher tier and can pick up from a partial
    result; pushing past the cap spends tokens nobody asked you to spend.
