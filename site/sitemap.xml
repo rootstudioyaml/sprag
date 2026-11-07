@@ -17,6 +17,13 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://sprag.io/proof/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/proof/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/proof/?lang=ko"/>
+  </url>
+  <url>
     <loc>https://sprag.io/docs/codex/</loc>
     <lastmod>2026-10-18</lastmod>
     <changefreq>monthly</changefreq>
