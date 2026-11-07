@@ -1,0 +1,450 @@
+{
+  "id": "186",
+  "round": "r2",
+  "kind": "lookup",
+  "story": "cost-down",
+  "storyNote": {
+    "ko": "핵심 답은 Haiku low로 충분했습니다.",
+    "en": "Haiku low was enough for the core answer."
+  },
+  "title": {
+    "ko": "업로드 주기 찾기",
+    "en": "Find the upload intervals"
+  },
+  "userPrompt": {
+    "ko": "사용량이랑 프롬프트는 서버에 얼마나 자주 올라가?",
+    "en": "How often do usage data and prompts get uploaded?"
+  },
+  "task": {
+    "ko": "저장소에서 사용 데이터와 프롬프트 업로드의 주기와 계기를 file:line과 함께 찾는다.",
+    "en": "Find the interval and trigger of each upload in the repo, with file:line."
+  },
+  "truth": {
+    "ko": "사용 데이터는 6시간, 프롬프트는 30분 간격이고 두 경로가 같은 동기화 함수를 씁니다.",
+    "en": "Usage every 6 hours, prompts every 30 minutes, through one shared sync function."
+  },
+  "lesson": {
+    "ko": "핵심 수치는 Haiku도 맞혔고 비용은 Opus의 약 55분의 1이었습니다. 세션 시작 계기까지 빠짐없이 짚은 것은 Sonnet high와 Opus였습니다.",
+    "en": "Haiku got the key numbers at about one fifty-fifth of Opus's cost. Only Sonnet high and Opus also covered the session-start trigger."
+  },
+  "recommended": "haiku-low",
+  "lanes": [
+    "haiku-low",
+    "sonnet-medium",
+    "sonnet-high",
+    "opus-direct"
+  ],
+  "baseline": {
+    "run": "186-D",
+    "usd": 0.5527,
+    "tokens": 586435,
+    "seconds": 37
+  },
+  "screenshot": null,
+  "runs": [
+    {
+      "round": "r2",
+      "run": "186-A",
+      "condition": "haiku-low",
+      "model": "haiku",
+      "effort": "low",
+      "prompt": "original",
+      "verdict": "partial",
+      "score": 7,
+      "max": 8,
+      "keyMiss": "사용 데이터의 SessionStart 계기를 코드에서 확인하지 못하고 team-ratchet.js:222를 누가 부르는지 모른다며 문서 인용으로 미뤘다.",
+      "usd": 0.0098,
+      "tokens": 339036,
+      "seconds": 23,
+      "toolCalls": 6,
+      "webSearches": 0,
+      "excerpt": "Usage and prompts have separate intervals but share one spawn path.\n\n(1) Usage (daily ledger aggregates): every 6 hours after the last success.\n- TEAM_SYNC_INTERVAL_MS = 6*60*60*1000 at src/team-sync.js:49 (same value as SYNC_INTERVAL_MS at src/team-ratchet.js:34).\n- Gate: teamSyncDue() at src/team-sync.js:100-106, keyed on state.lastSyncAt (last success).\n- Failure backoff: LEDGER_RETRY_BASE_MS = 15 min, LEDGER_RETRY_MAX_MS = 60 min (src/team-sync.js:84-85), doubling per failure (ledgerRetryDelayMs, lines 88-92).\n- In-flight guard: IN_FLIGHT_MS = 2 min (src/team-sync.js:86).\n- Upload call: rpc('ledger_upsert') at src/team-sync.js:143-148. …",
+      "report": "Usage and prompts have separate intervals but share one spawn path.\n\n(1) Usage (daily ledger aggregates): every 6 hours after the last success.\n- TEAM_SYNC_INTERVAL_MS = 6*60*60*1000 at src/team-sync.js:49 (same value as SYNC_INTERVAL_MS at src/team-ratchet.js:34).\n- Gate: teamSyncDue() at src/team-sync.js:100-106, keyed on state.lastSyncAt (last success).\n- Failure backoff: LEDGER_RETRY_BASE_MS = 15 min, LEDGER_RETRY_MAX_MS = 60 min (src/team-sync.js:84-85), doubling per failure (ledgerRetryDelayMs, lines 88-92).\n- In-flight guard: IN_FLIGHT_MS = 2 min (src/team-sync.js:86).\n- Upload call: rpc('ledger_upsert') at src/team-sync.js:143-148.\n\n(2) Prompts: every 30 minutes, only while capture is on.\n- PROMPT_SYNC_INTERVAL_MS = 30*60*1000 at src/team-sync.js:39 (duplicate at src/team-ratchet.js:74).\n- Gate: promptSyncDue() at src/team-sync.js:79-82 (also src/team-ratchet.js:101-106). Requires joined, promptCapture === true, !pausedReported, and 30 min since lastPromptSyncAt.\n- Upload call: rpc('prompt_chunk_put') at src/team-sync.js:590, 30 s timeout.\n\nShared trigger path:\n- spawnTeamSyncOnPrompt() at src/team-ratchet.js:250-258 starts a detached `team sync` child: --background if the ledger sync is due, else --background --prompts-only if only prompts are due, else --rules-only if only the rules pull is due.\n- Callers: src/codex/hooks.js:234 and src/commands/brief.js:27. These run per prompt (hook side), not on a timer.\n- docs/INSTALL.ko.md:92-93 says SessionStart starts the child. I did not confirm which hook calls the function at src/team-ratchet.js:222.\n\nOther gates:\n- Rules pull: hourly (RULES_PULL_INTERVAL_MS = 60 min, src/team-ratchet.js:75).\n- SPRAG_NO_TEAM_SYNC=1 disables all of it (teamSyncDisabled, src/team-sync.js).\n- Both need the CLI joined. Prompt upload also needs promptCapture on, which comes from the team's enterprise policy.\n- No configurable interval env var found. The intervals are hard-coded.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 1.2,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 32360,
+          "usd": 0.0041
+        },
+        {
+          "t": 2.3,
+          "kind": "think",
+          "tok": 66340,
+          "usd": 0.0046
+        },
+        {
+          "t": 3.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rniE \"setInterval|throttle|debounc",
+          "tok": 66340,
+          "usd": 0.0046
+        },
+        {
+          "t": 4.9,
+          "kind": "think",
+          "tok": 104888,
+          "usd": 0.0055
+        },
+        {
+          "t": 5.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rnE \"ledger_upsert|prompt_chunk_pu",
+          "tok": 104888,
+          "usd": 0.0055
+        },
+        {
+          "t": 7.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 36,110p src/team-sync.js; echo --",
+          "tok": 146587,
+          "usd": 0.0063
+        },
+        {
+          "t": 9.5,
+          "kind": "think",
+          "tok": 192391,
+          "usd": 0.0073
+        },
+        {
+          "t": 10.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rnE \"promptSyncDue|teamSyncDue|syn",
+          "tok": 192391,
+          "usd": 0.0073
+        },
+        {
+          "t": 11.9,
+          "kind": "think",
+          "tok": 239904,
+          "usd": 0.0079
+        },
+        {
+          "t": 12.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "(hidden)",
+          "tok": 239904,
+          "usd": 0.0079
+        },
+        {
+          "t": 15.4,
+          "kind": "think",
+          "tok": 289432,
+          "usd": 0.0092
+        },
+        {
+          "t": 19.5,
+          "kind": "text",
+          "tok": 289432,
+          "usd": 0.0092
+        },
+        {
+          "t": 23.2,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 339036,
+          "usd": 0.0098
+        }
+      ],
+      "agent": "t2-explore",
+      "savingsPct": 98.2
+    },
+    {
+      "round": "r2",
+      "run": "186-B",
+      "condition": "sonnet-medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "prompt": "original",
+      "verdict": "partial",
+      "score": 6,
+      "max": 8,
+      "keyMiss": "사용 데이터 업로드를 띄우는 SessionStart 훅(route-scan.js:317의 spawnTeamSyncIfDue)을 빠뜨리고 두 업로드 모두 프롬프트 훅에서만 시작된다고 적었다.",
+      "usd": 0.2069,
+      "tokens": 326062,
+      "seconds": 30,
+      "toolCalls": 4,
+      "webSearches": 0,
+      "excerpt": "Both uploads share one trigger path. They differ in interval and in which upload runs. Every line is relative to the worktree at <scratch>/… I read line numbers off the grep and sed output, so check them before quoting.\n\n**Shared trigger**\n- Every per-prompt hook calls `spawnTeamSyncOnPrompt` (src/team-ratchet.js ~L240-260). Codex hooks call it at src/codex/hooks.js:234 and `brief` at src/commands/brief.js:27.\n- It does one small team.json read and no network. If something is due, it starts a detached child: `sprag team sync --background [--prompts-only | --rules-only]`. …",
+      "report": "Both uploads share one trigger path. They differ in interval and in which upload runs. Every line is relative to the worktree at <scratch>/… I read line numbers off the grep and sed output, so check them before quoting.\n\n**Shared trigger**\n- Every per-prompt hook calls `spawnTeamSyncOnPrompt` (src/team-ratchet.js ~L240-260). Codex hooks call it at src/codex/hooks.js:234 and `brief` at src/commands/brief.js:27.\n- It does one small team.json read and no network. If something is due, it starts a detached child: `sprag team sync --background [--prompts-only | --rules-only]`.\n- Priority is the ledger sync first, then the prompts-only upload, then the rules-only pull. Only one child is spawned per prompt.\n- There is no setInterval. Timing is checked on each prompt.\n\n**1. Usage data (daily aggregates, the \"ledger\")**\n- Interval: `TEAM_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000`, 6 hours after the last success (src/team-sync.js:49). The due check is `teamSyncDue` at team-sync.js:~99-106 and is mirrored in team-ratchet.js:60.\n- Failure backoff:\n  - `LEDGER_RETRY_BASE_MS` is 15 minutes (team-sync.js:84).\n  - `LEDGER_RETRY_MAX_MS` is 60 minutes (team-sync.js:85).\n  - The delay runs 15, 30, 60 minutes, then stays at 60.\n- In-flight guard: `IN_FLIGHT_MS = 2 min` (team-sync.js:86). An attempt started less than 2 minutes ago blocks a second spawn.\n- Window: `LEDGER_WINDOW_DAYS = 30` (team-sync.js:87). Rows are capped by `MAX_ROWS = 400` (team-sync.js:~54).\n- Manual `team sync --force` bypasses the timer (src/commands/team.js:307).\n\n**2. Prompt data**\n- Interval: `PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000`, 30 minutes (src/team-sync.js:39). The due check is `promptSyncDue` at team-sync.js:~79-81.\n- It runs only when `state.promptCapture === true`, the member is joined, and `pausedReported` is not set.\n- The slot is claimed before the upload by writing `lastPromptSyncAt` at team-sync.js:~545-547, so a concurrent hook finds nothing due.\n- The upload is incremental, sending bytes past stored offsets (`uploadPrompts` in src/team-prompts.js). The comment at team-sync.js:~541 calls it \"cheap\".\n- If the 6-hour ledger sync is also due, the full sync runs instead and the prompt upload follows in that run. The `syncTeam` branch at ~L541 shows the prompts-only path is taken when `promptsOnly` is set or the ledger is not due.\n\n**Configurable**\n- `SPRAG_NO_TEAM_SYNC=1` disables all team syncing. It is read via `envVar('NO_TEAM_SYNC')`, `teamSyncDisabled` at team-sync.js:~72.\n- No env var changes either interval.\n- Prompt capture is a per-member state flag (`promptCapture` in team.json), off unless enabled.\n- `SPRAG_TEAM_API_URL` and `SPRAG_TEAM_ANON_KEY` change the endpoint for local testing only (team-sync.js:46).\n\n**Also on a timer**\n- A rules-only pull (`rulesPullDue`, hourly per the comment in team-ratchet.js) is a separate third path. It uploads nothing.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 3.1,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 59013,
+          "usd": 0.1485
+        },
+        {
+          "t": 7.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rniE \"setInterval|_MS\\b|MIN_GAP|th",
+          "tok": 123010,
+          "usd": 0.1673
+        },
+        {
+          "t": 13.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE \"MS|INTERVAL|MIN|throttle|gap|e",
+          "tok": 187282,
+          "usd": 0.1745
+        },
+        {
+          "t": 17.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 30,110p src/team-sync.js; sed -n",
+          "tok": 254271,
+          "usd": 0.188
+        },
+        {
+          "t": 29.1,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 326062,
+          "usd": 0.2069
+        }
+      ],
+      "savingsPct": 62.6
+    },
+    {
+      "round": "r2",
+      "run": "186-C",
+      "condition": "sonnet-high",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 8,
+      "max": 8,
+      "keyMiss": "",
+      "usd": 0.2458,
+      "tokens": 556191,
+      "seconds": 44,
+      "toolCalls": 8,
+      "webSearches": 0,
+      "excerpt": "Usage and prompt uploads share one path but run on separate timers. The sync is a detached child (`sprag team sync --background`) spawned from hooks. Both gates read only a local `team.json` and make no network call. Paths are relative to the repo at .../scratchpad/wt/186.\n\n**1. Usage (daily spend/token aggregates and rules)**\n- Trigger: due at most once per `TEAM_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000` (6 h) after the last successful sync, `src/team-sync.js:49`. The gate is `teamSyncDue()` at `src/team-sync.js:98-107`. There is a duplicate `SYNC_INTERVAL_MS` at `src/team-ratchet.js:34`, used at line 71. …",
+      "report": "Usage and prompt uploads share one path but run on separate timers. The sync is a detached child (`sprag team sync --background`) spawned from hooks. Both gates read only a local `team.json` and make no network call. Paths are relative to the repo at .../scratchpad/wt/186.\n\n**1. Usage (daily spend/token aggregates and rules)**\n- Trigger: due at most once per `TEAM_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000` (6 h) after the last successful sync, `src/team-sync.js:49`. The gate is `teamSyncDue()` at `src/team-sync.js:98-107`. There is a duplicate `SYNC_INTERVAL_MS` at `src/team-ratchet.js:34`, used at line 71.\n- Failure backoff: `LEDGER_RETRY_BASE_MS` 15 min, `LEDGER_RETRY_MAX_MS` 60 min (`team-sync.js:84-85`). Retries come after 15, 30, then 60 min.\n- In-flight guard: `IN_FLIGHT_MS` is 2 min (`team-sync.js:86`, `team-ratchet.js:35`). An attempt started less than 2 min ago blocks a second spawn.\n- Upload window: it re-sends from the day before the watermark, `LEDGER_WINDOW_DAYS = 30` (`team-sync.js:87`), at most `MAX_ROWS = 400`.\n- Spawned by `spawnTeamSyncOnPrompt()` (`team-ratchet.js:240-262`), which the per-prompt hooks call (`src/commands/brief.js:27`, `src/codex/hooks.js:234`). `spawnTeamSyncIfDue()` (`team-ratchet.js:210`) is called at session start, `src/codex/hooks.js:193`, and from `src/commands/route-scan.js:317`.\n- Related: the rules-only pull is hourly (`RULES_PULL_INTERVAL_MS`, `team-ratchet.js:75`), with a 15 min retry gap.\n\n**2. Prompts (captured prompts)**\n- Trigger: a separate timer, `PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000` (30 min). It is defined in both `src/team-sync.js:39` and `src/team-ratchet.js:74`.\n- Gates: `promptSyncDue()` (`team-sync.js:79-82`, `team-ratchet.js:101-106`) requires the member to be joined, `promptCapture === true`, and not paused or disabled. It then needs `lastPromptSyncAt` to be at least 30 min old.\n- Spawned by the same per-prompt hook with `--background --prompts-only`, only when the 6 h usage sync is not due (`team-ratchet.js:254`). It is handled in `syncTeam()` at `team-sync.js:540-548`.\n- It claims the slot (`lastPromptSyncAt = now`) before uploading.\n- When the 6 h usage sync runs, it uploads prompts at the end of the same run (`syncPrompts`, `team-sync.js:567`, defined at 584).\n- Per-run caps: `MAX_RUN_PROMPTS = 2000`, `MAX_RUN_BYTES = 8 MiB`, `MAX_CHUNK_PROMPTS = 500` (`src/team-prompts.js:33-35`).\n\n**Configuration**\n- `SPRAG_NO_TEAM_SYNC=1` (legacy `CTS_NO_TEAM_SYNC`) stops all uploads (`team-sync.js:75`). Joined machines send one `member_set_sync` status call instead.\n- No env var changes the intervals. They are hardcoded.\n- `SPRAG_TEAM_API_URL` and `SPRAG_TEAM_ANON_KEY` change the server only (`team-sync.js:47-48`).\n- Prompt capture is switched by the server-side team setting (`promptCapture`), not locally.\n\n**Docs:** `docs/TEAM.md:25` states the 6 h and 15/30/60 min retry and the 30 min prompt timer. It also says the sync never runs on the statusline path.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 7.5,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 59013,
+          "usd": 0.1485
+        },
+        {
+          "t": 11,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "ls && grep -rniE \"setInterval|throttle|d",
+          "tok": 123010,
+          "usd": 0.1673
+        },
+        {
+          "t": 14.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "wc -l src/team-*.js && grep -nE \"INTERVA",
+          "tok": 187393,
+          "usd": 0.1748
+        },
+        {
+          "t": 15.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rnE \"team-sync|team-prompts|teamSy",
+          "tok": 187393,
+          "usd": 0.1748
+        },
+        {
+          "t": 18.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 30,110p src/team-sync.js; sed -n",
+          "tok": 253582,
+          "usd": 0.186
+        },
+        {
+          "t": 21.7,
+          "kind": "text",
+          "tok": 324325,
+          "usd": 0.2044
+        },
+        {
+          "t": 23.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 66,110p src/team-ratchet.js; sed",
+          "tok": 324325,
+          "usd": 0.2044
+        },
+        {
+          "t": 25.9,
+          "kind": "text",
+          "tok": 400539,
+          "usd": 0.2255
+        },
+        {
+          "t": 27.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"SYNC_INTERVAL_MS\\|IN_FLIGHT_MS\"",
+          "tok": 400539,
+          "usd": 0.2255
+        },
+        {
+          "t": 31.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rn \"spawnTeamSyncIfDue\" src bin |",
+          "tok": 478208,
+          "usd": 0.237
+        },
+        {
+          "t": 43.4,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 556191,
+          "usd": 0.2458
+        }
+      ],
+      "savingsPct": 55.5
+    },
+    {
+      "round": "r2",
+      "run": "186-D",
+      "condition": "opus-direct",
+      "model": "opus",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 8,
+      "max": 8,
+      "keyMiss": "",
+      "usd": 0.5527,
+      "tokens": 586435,
+      "seconds": 37,
+      "toolCalls": 7,
+      "webSearches": 0,
+      "excerpt": "Usage data and prompts go through the same CLI command (`sprag team sync` in a detached child) and the same function, `syncTeam` (src/team-sync.js:490). Each has its own timer. Every path below is relative to <scratch>/…\n\n**1. Usage (daily aggregates, the ledger)**\n- **Interval:** at most once every 6 hours after the last successful upload. `TEAM_SYNC_INTERVAL_MS = 6*60*60*1000` (src/team-sync.js:49). A copy, `SYNC_INTERVAL_MS`, is at src/team-ratchet.js:34. …",
+      "report": "Usage data and prompts go through the same CLI command (`sprag team sync` in a detached child) and the same function, `syncTeam` (src/team-sync.js:490). Each has its own timer. Every path below is relative to <scratch>/…\n\n**1. Usage (daily aggregates, the ledger)**\n- **Interval:** at most once every 6 hours after the last successful upload. `TEAM_SYNC_INTERVAL_MS = 6*60*60*1000` (src/team-sync.js:49). A copy, `SYNC_INTERVAL_MS`, is at src/team-ratchet.js:34.\n- **Trigger:** checked on SessionStart (`spawnTeamSyncIfDue`, called from src/commands/route-scan.js:317 and src/codex/hooks.js:193) and on every prompt (`spawnTeamSyncOnPrompt`, src/team-ratchet.js:248). The prompt hook does no network work. It only reads team.json and spawns the child if a sync is due.\n- **Retry after failure:** 15, 30, then 60 minutes (capped at 60). `LEDGER_RETRY_BASE_MS = 15 min` and `LEDGER_RETRY_MAX_MS = 60 min` (src/team-sync.js:84-92).\n- **Double-spawn guard:** `IN_FLIGHT_MS = 2 min` (src/team-sync.js:86, src/team-ratchet.js:35).\n- **Window:** each upload covers up to 30 days (`LEDGER_WINDOW_DAYS = 30`).\n\n**2. Prompts (captured prompts)**\n- **Interval:** every 30 minutes, and only while capture is on. `PROMPT_SYNC_INTERVAL_MS = 30*60*1000` is defined twice, at src/team-sync.js:39 and src/team-ratchet.js:74. The checks are `promptSyncDue` at src/team-sync.js:79 and src/team-ratchet.js:101-106.\n- **Trigger:** the prompt hook. On a prompt submit (src/commands/brief.js:27, src/codex/hooks.js:234), if 30 minutes have passed, it spawns `team sync --background --prompts-only` (src/team-ratchet.js:254). The 30-minute slot is claimed before the upload starts, so two hooks in the same minute don't both run (src/team-sync.js:542-549). A full 6-hour sync also uploads prompts at its end (src/team-sync.js:566). Each run sends at most 2,000 prompts or 8 MB (docs/TEAM.md:155).\n- **Mismatch with the docs:** the SessionStart path never checks `promptSyncDue` (src/team-ratchet.js:222-227). So at session start, prompts go up only when the full 6-hour sync is also due. docs/TEAM.md:155 and docs/INSTALL.md:96 say a session start always uploads prompts, which the code does not do.\n\n**Settings**\n- No env var or setting changes either interval.\n- `SPRAG_NO_TEAM_SYNC=1` stops both uploads. Its default is off.\n- `sprag team sync --force` skips the timers.\n- Prompt capture itself is a team policy switch (`state.promptCapture`).\n- `SPRAG_TEAM_API_URL` and `SPRAG_TEAM_ANON_KEY` only change which server the CLI talks to.\n\nI did not edit any files.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 2.1,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 59007,
+          "usd": 0.2969
+        },
+        {
+          "t": 4.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "ls src | grep -i -E 'team|upload|sync|pr",
+          "tok": 122998,
+          "usd": 0.3345
+        },
+        {
+          "t": 6.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 1,110p src/team-sync.js; echo ---",
+          "tok": 190153,
+          "usd": 0.3634
+        },
+        {
+          "t": 8.9,
+          "kind": "think",
+          "tok": 261697,
+          "usd": 0.399
+        },
+        {
+          "t": 10.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rn -E 'teamSyncDue|promptSyncDue|r",
+          "tok": 261697,
+          "usd": 0.399
+        },
+        {
+          "t": 12,
+          "kind": "text",
+          "tok": 337562,
+          "usd": 0.4357
+        },
+        {
+          "t": 14.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 200,275p src/team-ratchet.js; gre",
+          "tok": 337562,
+          "usd": 0.4357
+        },
+        {
+          "t": 18.6,
+          "kind": "think",
+          "tok": 418558,
+          "usd": 0.4768
+        },
+        {
+          "t": 20.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "(hidden)",
+          "tok": 418558,
+          "usd": 0.4768
+        },
+        {
+          "t": 22,
+          "kind": "think",
+          "tok": 501288,
+          "usd": 0.5018
+        },
+        {
+          "t": 23.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 15,30p src/commands/brief.js; sed",
+          "tok": 501288,
+          "usd": 0.5018
+        },
+        {
+          "t": 26.9,
+          "kind": "think",
+          "tok": 586435,
+          "usd": 0.5527
+        },
+        {
+          "t": 37.3,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 586435,
+          "usd": 0.5527
+        }
+      ],
+      "role": "baseline",
+      "savingsPct": 0
+    }
+  ]
+}

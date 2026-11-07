@@ -1,0 +1,224 @@
+{
+  "generatedFrom": "evals/",
+  "cases": 10,
+  "runs": 71,
+  "rounds": [
+    "r0",
+    "r1",
+    "r2"
+  ],
+  "latest": "2026-11-07",
+  "byStory": {
+    "quality-up": 5,
+    "cost-down": 5
+  },
+  "byKind": {
+    "research": 2,
+    "lookup": 5,
+    "run": 1,
+    "implement": 1,
+    "review": 1
+  },
+  "items": [
+    {
+      "id": "49",
+      "title": {
+        "ko": "최근 사이버 보안 뉴스 찾기",
+        "en": "Find this week's cybersecurity news"
+      },
+      "kind": "research",
+      "story": "quality-up",
+      "round": "r0",
+      "recommended": "sonnet-high",
+      "recommendedLabel": "Sonnet · high",
+      "recommendedVerdict": "ok",
+      "recommendedUsd": 0.4636,
+      "baselineUsd": 1.0367,
+      "savingsPct": 55.3,
+      "lesson": {
+        "ko": "Sonnet medium과 high는 여섯 번 중 한 번도 핵심 소식을 찾지 못했습니다. xhigh로 올리자 세 번 모두 찾았고 비용은 Opus의 약 80%였습니다.",
+        "en": "Sonnet at medium and high missed the main story in all six repeat runs. At xhigh it found it three times out of three, at about 80% of Opus's cost."
+      }
+    },
+    {
+      "id": "19",
+      "title": {
+        "ko": "무료 동물 캐릭터 에셋 찾기",
+        "en": "Find free animal character assets"
+      },
+      "kind": "research",
+      "story": "quality-up",
+      "round": "r0",
+      "recommended": "sonnet-high",
+      "recommendedLabel": "Sonnet · high",
+      "recommendedVerdict": "ok",
+      "recommendedUsd": 0.4806,
+      "baselineUsd": 1.0853,
+      "savingsPct": 55.7,
+      "lesson": {
+        "ko": "Haiku는 대표 팩을 놓쳤습니다. 등급을 올려도 일부 출처를 못 열고 '유일한 후보'라고 단정하는 버릇은 남았습니다.",
+        "en": "Haiku missed the main pack. Higher tiers still called one option 'the only candidate' after failing to open some sources."
+      }
+    },
+    {
+      "id": "0",
+      "title": {
+        "ko": "GeekNews 글쓰기 규칙 확인",
+        "en": "Check GeekNews posting rules"
+      },
+      "kind": "lookup",
+      "story": "cost-down",
+      "round": "r0",
+      "recommended": "haiku-low",
+      "recommendedLabel": "Haiku · low",
+      "recommendedVerdict": "ok",
+      "recommendedUsd": 0.0084,
+      "baselineUsd": 0.3895,
+      "savingsPct": 97.8,
+      "lesson": {
+        "ko": "페이지 몇 개만 읽으면 되는 일이라 Haiku도 같은 답을 냈고 비용은 Opus의 30분의 1이었습니다.",
+        "en": "A few pages to read: Haiku gave the same answer at about one thirtieth of Opus's cost."
+      }
+    },
+    {
+      "id": "44",
+      "title": {
+        "ko": "데모 화면에 타운이 보이는지 확인",
+        "en": "Check that the demo shows the town"
+      },
+      "kind": "lookup",
+      "story": "cost-down",
+      "round": "r0",
+      "recommended": "haiku-low",
+      "recommendedLabel": "Haiku · low",
+      "recommendedVerdict": "ok",
+      "recommendedUsd": 0.0055,
+      "baselineUsd": 0.2819,
+      "savingsPct": 98,
+      "lesson": {
+        "ko": "스크린샷 한 장을 판정하는 일이라 다섯 조건이 모두 맞혔습니다.",
+        "en": "Judging one screenshot: all five setups got it right."
+      }
+    },
+    {
+      "id": "4",
+      "title": {
+        "ko": "코드에서 함수 위치 찾기",
+        "en": "Locate functions in the codebase"
+      },
+      "kind": "lookup",
+      "story": "quality-up",
+      "round": "r0",
+      "recommended": "sonnet-high",
+      "recommendedLabel": "Sonnet · high",
+      "recommendedVerdict": "ok",
+      "recommendedUsd": 0.1414,
+      "baselineUsd": 0.4403,
+      "savingsPct": 67.9,
+      "lesson": {
+        "ko": "여러 파일을 뒤져야 하는 조회에서 Sonnet medium은 세 번 모두 일부를 놓쳤고 high로 올리면 세 번 중 두 번 모두 찾았습니다.",
+        "en": "Across many files, Sonnet medium missed part of the answer in all three repeats; at high it found everything in two of three."
+      }
+    },
+    {
+      "id": "404",
+      "title": {
+        "ko": "전체 테스트 실행 보고",
+        "en": "Run the full test suite"
+      },
+      "kind": "run",
+      "story": "cost-down",
+      "round": "r2",
+      "recommended": "haiku-low",
+      "recommendedLabel": "Haiku · low",
+      "recommendedVerdict": "ok",
+      "recommendedUsd": 0.0058,
+      "baselineUsd": 0.2819,
+      "savingsPct": 97.9,
+      "lesson": {
+        "ko": "명령 출력을 옮기는 일이라 네 조건이 모두 같은 점수를 받았습니다. Haiku는 Opus 비용의 약 28분의 1이었습니다.",
+        "en": "Relaying command output: all four setups scored the same, and Haiku cost about one twenty-eighth of Opus."
+      }
+    },
+    {
+      "id": "186",
+      "title": {
+        "ko": "업로드 주기 찾기",
+        "en": "Find the upload intervals"
+      },
+      "kind": "lookup",
+      "story": "cost-down",
+      "round": "r2",
+      "recommended": "haiku-low",
+      "recommendedLabel": "Haiku · low",
+      "recommendedVerdict": "partial",
+      "recommendedUsd": 0.0098,
+      "baselineUsd": 0.5527,
+      "savingsPct": 98.2,
+      "lesson": {
+        "ko": "핵심 수치는 Haiku도 맞혔고 비용은 Opus의 약 55분의 1이었습니다. 세션 시작 계기까지 빠짐없이 짚은 것은 Sonnet high와 Opus였습니다.",
+        "en": "Haiku got the key numbers at about one fifty-fifth of Opus's cost. Only Sonnet high and Opus also covered the session-start trigger."
+      }
+    },
+    {
+      "id": "476",
+      "title": {
+        "ko": "가격표 갱신 구현",
+        "en": "Implement a price table update"
+      },
+      "kind": "implement",
+      "story": "cost-down",
+      "round": "r2",
+      "recommended": "sonnet-high",
+      "recommendedLabel": "Sonnet · high",
+      "recommendedVerdict": "partial",
+      "recommendedUsd": 0.7112,
+      "baselineUsd": 2.1072,
+      "savingsPct": 66.2,
+      "lesson": {
+        "ko": "설계가 정해진 구현은 테스트가 품질을 지켜 주므로 Sonnet으로 충분했습니다. 구현 결과는 같았고 비용은 Opus의 3분의 1 수준이었습니다.",
+        "en": "With the design fixed, tests guard quality, so Sonnet was enough: same result at about a third of Opus's cost."
+      }
+    },
+    {
+      "id": "119",
+      "title": {
+        "ko": "프리셋 구조 파악",
+        "en": "Map the preset system"
+      },
+      "kind": "lookup",
+      "story": "quality-up",
+      "round": "r2",
+      "recommended": "sonnet-high",
+      "recommendedLabel": "Sonnet · high",
+      "recommendedVerdict": "ok",
+      "recommendedUsd": 0.3064,
+      "baselineUsd": 0.7838,
+      "savingsPct": 60.9,
+      "lesson": {
+        "ko": "Haiku는 지정된 시점 대신 최신 저장소를 읽어 다른 코드를 설명했습니다. 요금 페이지 문구까지 찾은 것은 Sonnet high뿐이었습니다.",
+        "en": "Haiku read the latest checkout instead of the pinned one. Only Sonnet high found the pricing page line."
+      }
+    },
+    {
+      "id": "492",
+      "title": {
+        "ko": "모델 이름 해석 검토",
+        "en": "Review model-name parsing"
+      },
+      "kind": "review",
+      "story": "quality-up",
+      "round": "r2",
+      "recommended": "sonnet-high",
+      "recommendedLabel": "Sonnet · high",
+      "recommendedVerdict": "ok",
+      "recommendedUsd": 0.4758,
+      "baselineUsd": 1.1678,
+      "savingsPct": 59.3,
+      "lesson": {
+        "ko": "Sonnet medium은 이 위험을 상위 3위에서 빠뜨렸고 Sonnet high와 Opus는 그대로 전달할 수 있는 검토를 냈습니다.",
+        "en": "Sonnet medium left that risk out of its top three. Sonnet high and Opus produced reviews ready to relay."
+      }
+    }
+  ]
+}

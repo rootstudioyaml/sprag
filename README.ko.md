@@ -5,7 +5,7 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**Claude Code와 Codex에 붙이는 모델 위임 라우터. 조회·확인·테스트 실행은 더 싼 모델에 보내고, 아낀 금액은 상태줄에 보여 줍니다.**
+**Claude Code와 Codex의 위임 계층입니다. 일마다 맞는 모델과 effort로 보냅니다. 조회는 Haiku로 내리고 싼 실행이 놓칠 일은 effort나 모델을 올립니다. 모든 규칙 뒤에는 직접 열어 볼 수 있는 재생 사례가 있습니다.**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
@@ -19,8 +19,8 @@
 
 <a href="https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md#팀"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-ko.gif" width="640" alt="팀원마다 동물 캐릭터로 앉아 있는 가상 사무실, 지출과 절감액, 좌석, 30일 차트가 있는 조직 대시보드, 한 번 승인하면 모든 컴퓨터에 적용되는 팀 규칙을 차례로 보여 줍니다."></a>
 
-**Sprag Pro · 팀이 함께 쓰는 Sprag**: 팀 전체의 AI 지출과 절감액을 한 화면에서 봅니다.<br>
-<sub>팀원마다 캐릭터가 앉아 있는 가상 사무실, 좌석 명단, 한 번 승인하면 모두에게 적용되는 팀 규칙을 담았습니다. <a href="https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md#팀">팀 기능 보기</a> · <a href="mailto:support@sprag.io">support@sprag.io</a></sub>
+**Sprag Pro와 Enterprise · 팀용**: 팀 전체가 같은 위임 규칙으로 일합니다. 규칙을 한 번 승인하면 모든 컴퓨터가 따릅니다.<br>
+<sub>지출과 절감액, 좌석을 한 화면에서 보고 Enterprise에서는 예산 게이지와 프롬프트 모니터링이 더해집니다. 팀원마다 캐릭터가 앉은 가상 사무실도 있습니다. <a href="https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md#팀">팀 기능 보기</a> · <a href="mailto:support@sprag.io">support@sprag.io</a></sub>
 
 <a href="https://sprag.io/assets/video/sprag-compare-ko.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-compare-ko.gif" width="760" alt="두 터미널에 같은 요청 12건을 넣습니다. sprag 를 적용한 쪽은 조회와 테스트 실행을 저렴한 모델에 넘기고 문서를 Markdown 으로 바꿔 넣어, 하루를 $6.68 대신 $1.83 로 마칩니다."></a>
 
@@ -35,7 +35,9 @@
 
 ---
 
-**Sprag는 일마다 그 일을 한 번도 틀린 적 없는 가장 싼 모델에게 보냅니다.** Claude Code와 Codex는 프롬프트마다 모델을 바꿀 수 없으므로, 통하는 방법 하나를 씁니다. 메인 세션의 규칙이 조회, 상태 확인, 빌드·테스트 실행, 일괄 수정을 더 싼 모델로 고정한 서브에이전트에 넘깁니다. 규칙은 사용자의 세션 기록에서 나오고 하나씩 승인을 받으며, 위임한 실행마다 가격 차액을 원장에 적습니다. `npm i -g sprag-cli` 하나로 설정이 끝나며, 프로젝트마다 따로 설정할 것은 없습니다.
+**Sprag는 일마다 그 일을 틀리지 않는 가장 싼 모델과 effort로 보냅니다.** Claude Code와 Codex는 프롬프트마다 모델을 바꿀 수 없어서 통하는 방법 하나를 씁니다. 메인 세션의 규칙이 모델과 effort를 고정한 서브에이전트에 일을 넘깁니다. 조회와 상태 확인, 빌드와 테스트 실행은 Haiku로 내려갑니다. 싼 실행이 티 없이 놓치는 일은 반대로 올라갑니다. 여러 파일을 뒤지는 조회는 Sonnet high로, 열린 웹 조사는 xhigh로 보냅니다. 재생 실험에서 기본값 medium이 두 경우를 모두 놓쳤기 때문입니다. 규칙은 사용자의 세션 기록에서 나오고 하나씩 승인을 받습니다. 위임한 실행마다 가격 차액은 원장에 남습니다. `npm i -g sprag-cli` 하나로 설정이 끝나고 프로젝트마다 따로 설정할 것은 없습니다.
+
+모든 규칙은 직접 열어 볼 수 있는 재생 사례로 확인합니다. [sprag.io/proof](https://sprag.io/proof/)는 실제 위임을 여러 모델과 effort 설정으로 다시 돌려 블라인드로 채점하고 새 사례를 분석할 때마다 늘어납니다. 같은 표가 npm 패키지에도 실려 있어서 `sprag proof`로 볼 수 있습니다.
 
 두 가지가 함께 따라옵니다. 문서는 가벼운 Markdown으로 바뀌어 컨텍스트에 들어가고(54만 토큰짜리 발표 자료가 2.3만 토큰이 됩니다), 상태줄은 세션마다 쓴 금액과 아낀 금액을 보여 주다가 캐시·컨텍스트·사용량 한도에 문제가 생기면 경고 칩을 맨 앞에 띄웁니다.
 
@@ -125,6 +127,25 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 실제 출력입니다. `sprag route-scan savings` 와 `sprag --days 30`, 그리고 doc2md 원장에서 그대로 가져왔습니다. 추정한 값은 없습니다.
 
 위임된 실행은 한 건마다 단가 차액을 기록하므로, `sprag route-scan savings` 가 어떤 금액이든 그 원인이 된 규칙까지 역추적해 보여 줍니다. 집계에서 무엇을 빼는지는 [명령 문서](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.ko.md)에 적어 두었습니다.
+
+<!-- sprag:evidence:start -->
+### 재생으로 검증한 위임
+
+위임 사례 10건을 라운드 3개에 걸쳐 실행 71회로 다시 돌렸고 가장 최근 재생은 2026-11-07입니다.
+
+| 사례 | 추천 설정 | 판정 | Opus 대비 비용 |
+| --- | --- | --- | --- |
+| 모델 이름 해석 검토 | Sonnet · high | 그대로 전달 | 59.3% 저렴 |
+| 프리셋 구조 파악 | Sonnet · high | 그대로 전달 | 60.9% 저렴 |
+| 가격표 갱신 구현 | Sonnet · high | 부분 | 66.2% 저렴 |
+| 업로드 주기 찾기 | Haiku · low | 부분 | 98.2% 저렴 |
+| 전체 테스트 실행 보고 | Haiku · low | 그대로 전달 | 97.9% 저렴 |
+| 코드에서 함수 위치 찾기 | Sonnet · high | 그대로 전달 | 67.9% 저렴 |
+| 데모 화면에 타운이 보이는지 확인 | Haiku · low | 그대로 전달 | 98.0% 저렴 |
+| GeekNews 글쓰기 규칙 확인 | Haiku · low | 그대로 전달 | 97.8% 저렴 |
+
+모든 실행 기록은 [sprag.io/proof](https://sprag.io/proof/)에서, 전체 표는 [evals/SUMMARY.md](https://github.com/rootstudioyaml/sprag/blob/main/evals/SUMMARY.md)에서 볼 수 있습니다.
+<!-- sprag:evidence:end -->
 
 ## 티어 기준의 근거가 된 연구
 

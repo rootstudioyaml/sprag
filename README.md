@@ -5,7 +5,7 @@
   <img alt="Sprag" src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/site/assets/logo/sprag-lockup-light.svg" width="220">
 </picture>
 
-**A model-delegation router for Claude Code and Codex: lookups, checks and test runs go to cheaper models, and the savings show up in your statusline.**
+**The delegation layer for Claude Code and Codex. Each task goes to the model and effort that fits it: down to Haiku for a lookup, up to higher effort or a stronger model when a cheaper run would miss. Every rule is backed by replayed cases you can open.**
 
 [![npm](https://img.shields.io/npm/v/sprag-cli.svg?label=sprag-cli)](https://www.npmjs.com/package/sprag-cli)
 [![downloads](https://img.shields.io/npm/dm/sprag-cli.svg)](https://www.npmjs.com/package/sprag-cli)
@@ -19,8 +19,8 @@
 
 <a href="https://github.com/rootstudioyaml/sprag#teams"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-en.gif" width="640" alt="A virtual office where every teammate sits as an animal character, then the organization dashboard with spend, savings, seats and a 30-day chart, then team rules approved once and picked up by every machine."></a>
 
-**Sprag Pro · for teams**: your whole team's AI spend and savings, on one screen.<br>
-<sub>A virtual office with a character for every teammate, a seat roster, and rules the team approves once. <a href="https://github.com/rootstudioyaml/sprag#teams">See the team features</a> · <a href="mailto:support@sprag.io">support@sprag.io</a></sub>
+**Sprag Pro and Enterprise · for teams**: one set of delegation rules for the whole team. Approve a rule once and every machine follows it.<br>
+<sub>Spend, savings and seats on one screen, budget gauges and prompt monitoring on Enterprise, and a virtual office with a character for every teammate. <a href="https://github.com/rootstudioyaml/sprag#teams">See the team features</a> · <a href="mailto:support@sprag.io">support@sprag.io</a></sub>
 
 <a href="https://sprag.io/assets/video/sprag-compare-en.mp4"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/sprag-compare-en.gif" width="760" alt="Two terminals receive the same twelve requests. With Sprag, lookups and test runs go to cheaper models and documents go in as Markdown; the day ends at $1.83 against $6.68 without Sprag."></a>
 
@@ -35,13 +35,22 @@ Same 12 requests, two terminals: **$6.68 → $1.83 (−72.6%)** with Sprag.<br>
 
 ---
 
-**Sprag routes each piece of work to the cheapest model that has never got it
-wrong.** Claude Code and Codex cannot switch models per prompt, so Sprag does it
-the one way that works: rules in the main session hand lookups, status checks,
-build and test runs and batch edits to sub-agents pinned to a cheaper model. The
-rules come from your own session logs, you approve each one, and every delegated
-run writes its price difference to a ledger. `npm i -g sprag-cli` sets it all
-up; nothing to configure per project.
+**Sprag sends each piece of work to the cheapest model and effort that does not
+get it wrong.** Claude Code and Codex cannot switch models per prompt, so Sprag
+does it the one way that works: rules in the main session hand work to
+sub-agents pinned to a model and an effort. Lookups, status checks, build and
+test runs go down to Haiku. Work that a cheaper run misses without saying so
+goes up instead: a lookup spread over many files runs on Sonnet at high effort,
+and open web research at xhigh, because replays showed the default medium
+effort missing both. The rules come from your own session logs, you approve
+each one, and every delegated run writes its price difference to a ledger.
+`npm i -g sprag-cli` sets it all up; nothing to configure per project.
+
+Every rule is checked against replays you can open.
+[sprag.io/proof](https://sprag.io/proof/) re-runs real delegations under
+several model and effort settings and grades them blind, and the set grows as
+new cases are analysed. The same table ships with the npm package: run
+`sprag proof`.
 
 Two more things ride along. Documents reach the context as compact Markdown (a
 540k-token deck becomes 23k tokens), and the statusline shows what each session
@@ -158,6 +167,25 @@ Real output, from `sprag route-scan savings`, `sprag --days 30`, and the doc2md
 ledger. Nothing here is a projection.
 
 Every delegated run records its own price difference, so `sprag route-scan savings` traces any amount back to the rule that caused it. What the ledger deliberately leaves out is written down in [the command reference](https://github.com/rootstudioyaml/sprag/blob/main/docs/COMMANDS.md).
+
+<!-- sprag:evidence:start -->
+### Replayed delegations
+
+10 real delegations were replayed across 3 rounds in 71 runs, the latest on 2026-11-07.
+
+| Case | Recommended setup | Verdict | Cost vs Opus |
+| --- | --- | --- | --- |
+| Review model-name parsing | Sonnet · high | Relayable | 59.3% cheaper |
+| Map the preset system | Sonnet · high | Relayable | 60.9% cheaper |
+| Implement a price table update | Sonnet · high | Partial | 66.2% cheaper |
+| Find the upload intervals | Haiku · low | Partial | 98.2% cheaper |
+| Run the full test suite | Haiku · low | Relayable | 97.9% cheaper |
+| Locate functions in the codebase | Sonnet · high | Relayable | 67.9% cheaper |
+| Check that the demo shows the town | Haiku · low | Relayable | 98.0% cheaper |
+| Check GeekNews posting rules | Haiku · low | Relayable | 97.8% cheaper |
+
+Every run is on [sprag.io/proof](https://sprag.io/proof/), and the full table is in [evals/SUMMARY.md](https://github.com/rootstudioyaml/sprag/blob/main/evals/SUMMARY.md).
+<!-- sprag:evidence:end -->
 
 ## Research behind the tier rules
 

@@ -1,0 +1,530 @@
+{
+  "id": "0",
+  "round": "r0",
+  "kind": "lookup",
+  "story": "cost-down",
+  "storyNote": {
+    "ko": "가장 싼 Haiku low로도 Opus와 같은 답이 나와 비용이 크게 줄었습니다.",
+    "en": "Even the cheapest Haiku low gave the same answer as Opus at a fraction of the cost."
+  },
+  "title": {
+    "ko": "GeekNews 글쓰기 규칙 확인",
+    "en": "Check GeekNews posting rules"
+  },
+  "userPrompt": {
+    "ko": "news.hada.io 여기 한국판 HN도 글 못 올리나 확인",
+    "en": "Check whether we can post on news.hada.io, the Korean HN"
+  },
+  "task": {
+    "ko": "GeekNews 이용 규칙 페이지를 읽고 자작 도구를 올릴 수 있는지와 조건을 보고한다.",
+    "en": "Read the GeekNews guideline pages and report whether and how a self-made tool can be posted."
+  },
+  "truth": {
+    "ko": "Show GN 게시판에 올려야 하고 신규 계정은 일정 기간 글을 쓸 수 없습니다.",
+    "en": "Self-made tools go to Show GN, and new accounts must wait before posting."
+  },
+  "lesson": {
+    "ko": "페이지 몇 개만 읽으면 되는 일이라 Haiku도 같은 답을 냈고 비용은 Opus의 30분의 1이었습니다.",
+    "en": "A few pages to read: Haiku gave the same answer at about one thirtieth of Opus's cost."
+  },
+  "recommended": "haiku-low",
+  "lanes": [
+    "haiku-low",
+    "sonnet-medium",
+    "sonnet-high",
+    "opus-direct",
+    "sonnet-high-improved"
+  ],
+  "baseline": {
+    "run": "0-D",
+    "usd": 0.3895,
+    "tokens": 484322,
+    "seconds": 53
+  },
+  "screenshot": null,
+  "runs": [
+    {
+      "round": "r0",
+      "run": "0-A",
+      "condition": "haiku-low",
+      "model": "haiku",
+      "effort": "low",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 7,
+      "max": 8,
+      "keyMiss": "Show GN 예시에 GeekNews topic URL이 없고 외부 링크만 있다.",
+      "usd": 0.0084,
+      "tokens": 176289,
+      "seconds": 28,
+      "toolCalls": 2,
+      "webSearches": 0,
+      "excerpt": "## GeekNews 자작 도구 소개 글 조사 결과\n\n**1. 글쓰기 가능 여부와 조건**\n- 가능하다. 다만 회원가입이 필요하다. `/guidelines`: \"뉴스를 보는데에는 가입이 필요없지만, 글을 등록하기 위해서는 회원 가입이 필요합니다.\"\n- 로그인은 아이디·암호 폼이다(`/write`: \"Username\", \"암호\", \"회원가입 / 비밀번호 찾기\"). OAuth 소셜 로그인 버튼은 확인하지 못했다.\n- 신규 계정 제한이 있다. `/guidelines`: \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 글 등록 화면 에서 확인하실 수 있습니다.\" 기간은 로그인 후에만 보인다.\n\n**2. 자작 도구 홍보에 맞는 게시판과 규칙**\n- 게시판은 Show GN(`/show`)이다. 메인 뉴스가 아니라 Show로 올려야 한다.\n- `/guidelines`: \"본인 또는 소속 조직이 만든 서비스, 제품, 앱, 오픈소스, 도구를 소개하는 글은 뉴스로 올리지 말고 반드시 Show를 선택해 등록해 주세요. 뉴스로 등록된 Show 대상 게시물은 삭제될 수 있습니다.\" …",
+      "report": "## GeekNews 자작 도구 소개 글 조사 결과\n\n**1. 글쓰기 가능 여부와 조건**\n- 가능하다. 다만 회원가입이 필요하다. `/guidelines`: \"뉴스를 보는데에는 가입이 필요없지만, 글을 등록하기 위해서는 회원 가입이 필요합니다.\"\n- 로그인은 아이디·암호 폼이다(`/write`: \"Username\", \"암호\", \"회원가입 / 비밀번호 찾기\"). OAuth 소셜 로그인 버튼은 확인하지 못했다.\n- 신규 계정 제한이 있다. `/guidelines`: \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 글 등록 화면 에서 확인하실 수 있습니다.\" 기간은 로그인 후에만 보인다.\n\n**2. 자작 도구 홍보에 맞는 게시판과 규칙**\n- 게시판은 Show GN(`/show`)이다. 메인 뉴스가 아니라 Show로 올려야 한다.\n- `/guidelines`: \"본인 또는 소속 조직이 만든 서비스, 제품, 앱, 오픈소스, 도구를 소개하는 글은 뉴스로 올리지 말고 반드시 Show를 선택해 등록해 주세요. 뉴스로 등록된 Show 대상 게시물은 삭제될 수 있습니다.\"\n- `/guidelines`: \"직접 사용해 볼 수 있는 작업물만 등록해 주세요. 블로그 글, 뉴스레터, 소개용 페이지처럼 실제로 체험할 수 없는 내용은 Show GN에 올리실 수 없습니다.\"\n- `/guidelines`: \"YouTube 링크는 Show GN에 등록할 수 없습니다.\"\n- `/guidelines`: \"같은 프로젝트는 일정 기간 내에 다시 등록할 수 없습니다.\"\n- `/guidelines`: \"여러 프로젝트나 저장소를 짧은 기간에 반복 등록하는 경우, GeekNews를 배포 채널처럼 사용하는 것으로 판단되어 등록이 제한될 수 있습니다.\"\n- `/guidelines`: \"원글이 영문이라면 한글 번역요약문을 직접 적어주시면 좋습니다.\"\n- 조사 전에 저장된 메모리(`geeknews-show-gn-2026-11-01.md`)에는 sprag가 2026-11-01에 topic 36372로 이미 올라가 있고 재등록 금지로 적혀 있다. 이번 조사에서는 검증하지 않은 내용이므로 현재 상태는 페이지로 확인해야 한다.\n\n**3. 최근 Show GN 예시 (`https://news.hada.io/show`, 조회 시점 상위 항목)**\n- \"Show GN: Heirmos – Claude Code와 Codex가 같은 기억을 쓰게 하는 플러그인\" (외부 링크 https://heirmos.com, 4시간 전)\n- \"Show GN: K-Humanizer - 한국 고객과 자연스럽게 소통하기 위한 한국어 Agent Skill\" (외부 링크 https://github.com/evergreentree97, 17시간 전)\n- \"Show GN: Cloudflare Tunnel 해외 우회로 300ms 이상 지연을 겪고 만든 Go 터널, Meerkat\" (외부 링크 https://github.com/lawnect, 1일 전)\n- 오픈소스·자작 도구 소개 글이 실제로 올라온다. GN 토픽의 상세 URL(`news.hada.io/topic?id=...`)은 목록 HTML에서 추출하지 못했다.\n\n**4. 확인하지 못한 항목과 이유**\n- 신규 계정의 구체적 글 등록 대기 기간: 로그인 후 글 등록 화면에서만 보여 미확인.\n- 소셜 로그인(OAuth) 지원 여부: 로그인 폼 HTML만 확인하고 인증 흐름은 추적하지 않음.\n- Show 글의 승인 방식(즉시 노출인지 검토 후 노출인지): 페이지에 명시가 없어 미확인.\n- 최근 Show 글 3개의 GN 상세 URL과 투표 수: 목록 HTML에서 topic ID를 뽑지 못함.\n- 방법: `curl`(브라우저 UA)로 `/`, `/write`, `/show`, `/guidelines`, `/about`, `/faq`를 받아 본문 텍스트만 추림. 계정 생성과 글 등록은 하지 않음.\n- 저장 파일: `<scratch>/…`, `gn_show.html`, `gn_write.html`",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 1.6,
+          "kind": "think",
+          "tok": 32625,
+          "usd": 0.0037
+        },
+        {
+          "t": 4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for p in \"\" write submit show guidelines",
+          "tok": 32625,
+          "usd": 0.0037
+        },
+        {
+          "t": 7.2,
+          "kind": "think",
+          "tok": 76527,
+          "usd": 0.0055
+        },
+        {
+          "t": 10,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "python3 -I -c \" import re,sys,html t=ope",
+          "tok": 76527,
+          "usd": 0.0055
+        },
+        {
+          "t": 14.8,
+          "kind": "think",
+          "tok": 126370,
+          "usd": 0.0076
+        },
+        {
+          "t": 21.7,
+          "kind": "text",
+          "tok": 126370,
+          "usd": 0.0076
+        },
+        {
+          "t": 27.7,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 176289,
+          "usd": 0.0084
+        }
+      ],
+      "agent": "t2-explore",
+      "savingsPct": 97.8
+    },
+    {
+      "round": "r0",
+      "run": "0-B",
+      "condition": "sonnet-medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 8,
+      "max": 8,
+      "keyMiss": "Meerkat 글 id를 36684로 추정했으나 다른 보고서들은 36696으로 적었다(추정 표시는 있음).",
+      "usd": 0.2153,
+      "tokens": 536565,
+      "seconds": 52,
+      "toolCalls": 6,
+      "webSearches": 0,
+      "excerpt": "조사 결과 (읽기 전용, curl 7회. 글 등록과 계정 생성은 하지 않았습니다.)\n\n**1. 글쓰기 가능 여부와 조건**\n- 가능합니다. 상단 메뉴에 \"글등록\"이 있고, Ask / Show GN⁺ / 아티클 / Cast / Weekly / Bots / Badge / 후원 메뉴가 있습니다. 비로그인 상태에서 /write 는 /login?code=101&return=/write 로 넘어갑니다. Show 전용 등록은 https://news.hada.io/write?type=show 입니다. /submit 은 404입니다.\n- 로그인 방식은 Username + 암호 폼이고, /signup 에서 회원가입을 합니다. 소셜 로그인 버튼은 확인되지 않았습니다. 글을 읽는 데는 가입이 필요 없고, 글 등록에는 가입이 필요합니다.\n- 신규 계정 제한이 있습니다. 가이드라인 원문: \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 글 등록 화면에서 확인하실 수 있습니다.\" 구체적인 대기 기간은 공개되지 않았습니다.\n- FAQ 기준으로 올린 글은 2시간 안에만 삭제할 수 있습니다.\n- 다중 계정이나 계정 공유는 이용약관상 제한됩니다.\n\n**2. 자작 도구 홍보에 맞는 게시판과 규칙** …",
+      "report": "조사 결과 (읽기 전용, curl 7회. 글 등록과 계정 생성은 하지 않았습니다.)\n\n**1. 글쓰기 가능 여부와 조건**\n- 가능합니다. 상단 메뉴에 \"글등록\"이 있고, Ask / Show GN⁺ / 아티클 / Cast / Weekly / Bots / Badge / 후원 메뉴가 있습니다. 비로그인 상태에서 /write 는 /login?code=101&return=/write 로 넘어갑니다. Show 전용 등록은 https://news.hada.io/write?type=show 입니다. /submit 은 404입니다.\n- 로그인 방식은 Username + 암호 폼이고, /signup 에서 회원가입을 합니다. 소셜 로그인 버튼은 확인되지 않았습니다. 글을 읽는 데는 가입이 필요 없고, 글 등록에는 가입이 필요합니다.\n- 신규 계정 제한이 있습니다. 가이드라인 원문: \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 글 등록 화면에서 확인하실 수 있습니다.\" 구체적인 대기 기간은 공개되지 않았습니다.\n- FAQ 기준으로 올린 글은 2시간 안에만 삭제할 수 있습니다.\n- 다중 계정이나 계정 공유는 이용약관상 제한됩니다.\n\n**2. 자작 도구 홍보에 맞는 게시판과 규칙**\n- 게시판은 Show GN(https://news.hada.io/show)입니다. 글 등록에서 타입을 Show로 고르면 제목 앞에 \"Show GN:\"이 자동으로 붙습니다.\n- 뉴스로 올리면 안 됩니다. 이용법 원문: \"본인 또는 소속 조직이 만든 서비스, 제품, 앱, 오픈소스, 도구를 소개하는 글은 뉴스로 올리지 말고 반드시 Show를 선택해 등록해 주세요. 뉴스로 등록된 Show 대상 게시물은 삭제될 수 있습니다.\"\n- 올릴 수 있는 것은 \"직접 만든 제품, 서비스, 오픈소스, 앱, 도구처럼 다른 사람이 실제로 사용해 볼 수 있는 작업물\"입니다. 초기 단계여도 됩니다. \"완성도가 높거나 … 잘 다듬어진 상태일 필요는 없습니다.\"\n- 올릴 수 없는 것은 블로그 글, 가입·사전 예약 페이지, 뉴스레터, 목록형 글, 소개만 있는 페이지, YouTube 링크입니다.\n- 작성자는 직접 만들었거나 제작에 참여한 사람이어야 하고, 질문과 피드백에 답할 수 있어야 합니다. 당사자임을 글에 분명히 밝히라고 합니다.\n- 제목은 \"서비스·프로젝트명 - 핵심 기능\" 형식입니다. \"제작 동기, 개인적인 경험, 성과 수치나 홍보성 표현은 제목이 아니라 상세 설명에\" 적습니다.\n- 상세 설명에 쓸 내용은 작업물이 무엇인지, 누가 어떻게 쓰는지, 기존 방식과 어떻게 다른지, 어떤 피드백을 원하는지입니다. \"마케팅이나 판매처럼 보이는 표현은 빼고 사실적이고 직접적인 언어\"를 쓰라고 합니다.\n- 가능하면 가입이나 이메일 입력 없이 바로 써볼 수 있어야 합니다.\n- 금지 사항:\n  - \"지인에게 Upvote나 댓글을 요청하지 마세요.\"\n  - 같은 설명을 댓글에 다시 올려 재홍보하는 것\n  - \"같은 프로젝트는 일정 기간 내에 다시 등록할 수 없습니다.\" 메이저 버전업이어도 같습니다. 재등록 제한 기간의 길이는 공개되지 않았습니다.\n  - \"짧은 기간에 여러 작업물을 연속으로 등록\"하는 것. 배포 채널처럼 쓰면 등록이 제한됩니다.\n  - 단축 URL(삭제 대상)\n  - 위반 시 글이 삭제되고 해당 사용자의 향후 글 등록이 차단될 수 있다는 경고\n- 이 도구가 유료 서비스라면 \"광고·홍보·트래픽 유도 성격이 큰 글\"로 보여 노출이 제한될 수 있습니다(About: \"특정 … 서비스나 프로젝트의 홍보 채널이 되지 않도록 운영합니다\"). 이 부분은 제 추측입니다.\n\n**3. 최근 Show GN 예시 (오픈소스·도구 자작 소개가 실제로 올라옵니다)**\n- Show GN: Cloudflare Tunnel 해외 우회로 300ms 이상 지연을 겪고 만든 Go 터널, Meerkat (github.com/lawnect), https://news.hada.io/topic?id=36684 추정. 목록에서 id를 확정하지 못했습니다. 목록 페이지 https://news.hada.io/show 에서 찾을 수 있습니다.\n- Show GN: K-Humanizer - 한국 고객과 자연스럽게 소통하기 위한 한국어 Agent Skill (github.com/evergreentree97), https://news.hada.io/topic?id=36707\n- Show GN: Heirmos – Claude Code와 Codex가 같은 기억을 쓰게 하는 플러그인 (heirmos.com), https://news.hada.io/topic?id=36737\n- 같은 목록에 Show GN: 게임 기획 실무에서 바로 쓰는 AI·클로드 코드 활용법 (github.com/eremes81), https://news.hada.io/topic?id=36579 도 있습니다. 위 첫 번째 항목의 URL만 확정하지 못했고, 나머지 id는 HTML에서 확인했습니다.\n- 에이전트·Claude Code 계열 Show 글이 여럿 있어서 주제 적합성은 높아 보입니다.\n\n**4. 확인하지 못한 항목과 이유**\n- 신규 계정의 정확한 대기 기간입니다. 로그인 후 /write 화면에만 표시되고, 계정을 만들지 않기로 했습니다.\n- 재등록 제한 기간과 Karma 기준 수치입니다. 문서에 숫자가 없습니다.\n- 가입 시 이메일 인증이나 외부 인증이 필요한지 여부입니다. /signup 은 열어보지 않았습니다(8회 제한 때문).\n- 이용약관 전문은 일부만 훑었고, Show 관련 조항은 위 문서(/guidelines, /blog/show)로 충분히 확인했습니다.\n- 위 규칙 인용은 모두 https://news.hada.io/guidelines 와 https://news.hada.io/blog/show 에서 가져왔습니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 5.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 59289,
+          "usd": 0.1055
+        },
+        {
+          "t": 10.6,
+          "kind": "think",
+          "tok": 133083,
+          "usd": 0.1477
+        },
+        {
+          "t": 13.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 133083,
+          "usd": 0.1477
+        },
+        {
+          "t": 19.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 211437,
+          "usd": 0.1666
+        },
+        {
+          "t": 24.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cd tmp/ python3 -I - <<'E' import re t=o",
+          "tok": 291132,
+          "usd": 0.178
+        },
+        {
+          "t": 28.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "i+=1 if i>14: break E",
+          "tok": 371068,
+          "usd": 0.1867
+        },
+        {
+          "t": 33.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 451795,
+          "usd": 0.1969
+        },
+        {
+          "t": 52,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 536565,
+          "usd": 0.2153
+        }
+      ],
+      "savingsPct": 44.7
+    },
+    {
+      "round": "r0",
+      "run": "0-C",
+      "condition": "sonnet-high",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 8,
+      "max": 8,
+      "keyMiss": "",
+      "usd": 0.2275,
+      "tokens": 526354,
+      "seconds": 48,
+      "toolCalls": 7,
+      "webSearches": 0,
+      "excerpt": "조사 결과 (읽기 전용, 글·계정 생성 없음. curl 5회 호출. 모든 페이지는 브라우저 UA로 정상 200 응답)\n\n1. 글쓰기 가능 여부와 조건\n- 글쓰기는 가능하지만 회원가입이 필요함. /write 는 /login?code=101&return=/write 로 리다이렉트됨. 이용법 원문: \"뉴스를 보는데에는 가입이 필요없지만, 글을 등록하기 위해서는 회원 가입이 필요합니다.\"\n- 로그인 방식은 자체 계정(Username + 암호)이고, 소셜 로그인 버튼은 없음. /signup 폼은 ID, 암호, 암호 확인, 이메일 4개 필드.\n- 신규 계정 제한이 있음. 원문: \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 /write 글 등록 화면에서 확인하실 수 있습니다.\" 구체적 대기 기간은 비공개이고, 로그인해야만 확인 가능.\n- 상단 메뉴: 최신, 예전, 쓰레드, 댓글, Ask, Show, GN⁺, 아티클, Cast, Weekly, Bots, Badge, 후원, 글등록. /submit 은 404 (글등록은 /write).\n- 다른 제재 근거: 사이트 운영방침 위배 시 \"해당 ID / IP / 도메인에 제재가 가해질 수 있습니다.\" …",
+      "report": "조사 결과 (읽기 전용, 글·계정 생성 없음. curl 5회 호출. 모든 페이지는 브라우저 UA로 정상 200 응답)\n\n1. 글쓰기 가능 여부와 조건\n- 글쓰기는 가능하지만 회원가입이 필요함. /write 는 /login?code=101&return=/write 로 리다이렉트됨. 이용법 원문: \"뉴스를 보는데에는 가입이 필요없지만, 글을 등록하기 위해서는 회원 가입이 필요합니다.\"\n- 로그인 방식은 자체 계정(Username + 암호)이고, 소셜 로그인 버튼은 없음. /signup 폼은 ID, 암호, 암호 확인, 이메일 4개 필드.\n- 신규 계정 제한이 있음. 원문: \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 /write 글 등록 화면에서 확인하실 수 있습니다.\" 구체적 대기 기간은 비공개이고, 로그인해야만 확인 가능.\n- 상단 메뉴: 최신, 예전, 쓰레드, 댓글, Ask, Show, GN⁺, 아티클, Cast, Weekly, Bots, Badge, 후원, 글등록. /submit 은 404 (글등록은 /write).\n- 다른 제재 근거: 사이트 운영방침 위배 시 \"해당 ID / IP / 도메인에 제재가 가해질 수 있습니다.\"\n\n2. 자작 도구 홍보에 맞는 게시판과 규칙 (출처: https://news.hada.io/guidelines)\n- 게시판은 Show(https://news.hada.io/show, 제목 접두사 \"Show GN:\"). 글 올릴 때 타입을 Show로 선택. 원문: \"본인 또는 소속 조직이 만든 서비스, 제품, 앱, 오픈소스, 도구를 소개하는 글은 뉴스로 올리지 말고 반드시 Show를 선택해 등록해 주세요. 뉴스로 등록된 Show 대상 게시물은 삭제될 수 있습니다.\"\n- Show 규칙 원문:\n  - \"다른 사람들이 핵심 기능을 실제로 사용해 볼 수 있도록 준비하고, 직접 충분히 사용·검토한 뒤 소개해 주세요.\"\n  - \"직접 사용해 볼 수 있는 작업물만 등록해 주세요. 블로그 글, 뉴스레터, 소개용 페이지처럼 실제로 체험할 수 없는 내용은 Show GN에 올리실 수 없습니다.\"\n  - \"YouTube 링크는 Show GN에 등록할 수 없습니다.\"\n  - \"가능하면 가입이나 이메일 입력 없이 사용자가 바로 시도해 볼 수 있게 준비해 주세요.\"\n  - \"여러 프로젝트나 저장소를 짧은 기간에 반복 등록하는 경우, GeekNews를 배포 채널처럼 사용하는 것으로 판단되어 등록이 제한될 수 있습니다.\"\n  - \"같은 프로젝트는 일정 기간 내에 다시 등록할 수 없습니다. 큰 기능 변경이나 메이저 버전업이 있어도 재등록 제한은 적용됩니다.\" (재등록 불가 기간의 구체적 일수는 비공개)\n- 일반 규칙: 광고·홍보·트래픽 유도 성격이 큰 글은 홈 노출·외부 공유 제한 대상(이용약관도 \"실질적인 정보 전달보다 광고·홍보·트래픽 유도 목적이 크다고 판단되는 게시물은 삭제, 비노출, 공유 제한\" 명시). 단축 URL·리다이렉트로 올린 글은 삭제. 정치·종교·사건사고·스포츠는 비대상. 내용에는 요약을 직접 적도록 권장(Show 글도 본문에 만든 이유와 기능을 적는 형식이 일반적).\n- 오픈소스 자작 도구는 대상에 명시적으로 포함됨(GitHub 저장소 링크로 올라온 사례 다수).\n\n3. 최근 Show GN 예시 (오픈소스 자작 도구가 실제로 올라옴, 2026-11-07 기준 /show 목록)\n- Show GN: dmx - 쓰지 않는 메모리를 macOS에 돌려주는 Docker 호환 엔진 (github.com/cothis) https://news.hada.io/topic?id=36695\n- Show GN: Cloudflare Tunnel 해외 우회로 300ms 이상 지연을 겪고 만든 Go 터널, Meerkat (github.com/lawnect) https://news.hada.io/topic?id=36696\n- Show GN: K-Humanizer - 한국 고객과 자연스럽게 소통하기 위한 한국어 Agent Skill (github.com/evergreentree97) https://news.hada.io/topic?id=36707\n- 참고: Show GN: raw-md - 서버 저장 없이 Markdown을 링크로 공유하는 도구 https://news.hada.io/topic?id=36709\n- 대부분 점수 1~3점, 반응이 큰 글도 10~20점대이며 오픈소스 도구 소개 글이 반응 없이 묻히는 경우가 많음. Claude Code 관련 도구(Heirmos, AI Office 등)도 올라와 있어 주제 적합성은 문제 없어 보임.\n\n4. 확인하지 못한 항목과 이유\n- 신규 계정의 구체적 대기 기간과 /write 폼의 실제 입력 항목: 로그인 필요, 계정을 만들지 않기로 했으므로 확인 불가.\n- \"Show GN 이용방법\" 상세 문서 링크: guidelines 페이지에 링크 텍스트만 있고 별도 URL을 추출하지 못함 (/show 의 \"Show는 무엇인가요?\" 링크일 가능성, 추측).\n- Show 재등록 제한 기간 일수, 계정 Karma 요구 수준: 공개 문서에 없음.\n- /about, /faq 는 200이지만 Show·홍보·신규계정 관련 추가 규칙 문구는 발견하지 못함(grep 기준). 이용약관(/terms)에서만 위 홍보 관련 문구 확인.\n- 추측: sprag 사례 기준으로, 이전에 GeekNews에 올린 글(topic 36372, 메모리 기록)이 있다면 \"같은 프로젝트 재등록 제한\"에 걸릴 가능성이 높음.\n\n작업 파일(임시): <scratch>/…",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for p in \"\" write submit show guidelines",
+          "tok": 59290,
+          "usd": 0.1055
+        },
+        {
+          "t": 8.9,
+          "kind": "think",
+          "tok": 129341,
+          "usd": 0.1384
+        },
+        {
+          "t": 12.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "python3 -I - <<'E' import re,html t=open",
+          "tok": 129341,
+          "usd": 0.1384
+        },
+        {
+          "t": 17.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -o 'href=\"[^\"]*topic[^\"]*\"' hada_sh",
+          "tok": 206321,
+          "usd": 0.1628
+        },
+        {
+          "t": 20.9,
+          "kind": "think",
+          "tok": 284809,
+          "usd": 0.1744
+        },
+        {
+          "t": 22.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -o 'Show GN[^<]\\{0,40\\}' hada_show.",
+          "tok": 284809,
+          "usd": 0.1744
+        },
+        {
+          "t": 23.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -B3 'Show GN: dmx' hada_show.html |",
+          "tok": 284809,
+          "usd": 0.1744
+        },
+        {
+          "t": 27.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -o \"topic'[^>]*><h1>[^<]\\{0,30\\}\" h",
+          "tok": 364058,
+          "usd": 0.1842
+        },
+        {
+          "t": 29.8,
+          "kind": "think",
+          "tok": 443768,
+          "usd": 0.1934
+        },
+        {
+          "t": 30.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cd tmp/ grep -o \"topic'[^>]*>[^<]\\{0,40\\",
+          "tok": 443768,
+          "usd": 0.1934
+        },
+        {
+          "t": 47.8,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 526354,
+          "usd": 0.2275
+        }
+      ],
+      "savingsPct": 41.6
+    },
+    {
+      "round": "r0",
+      "run": "0-D",
+      "condition": "opus-direct",
+      "model": "opus",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 8,
+      "max": 8,
+      "keyMiss": "",
+      "usd": 0.3895,
+      "tokens": 484322,
+      "seconds": 53,
+      "toolCalls": 6,
+      "webSearches": 0,
+      "excerpt": "GeekNews 조사 결과입니다. 읽기 전용으로 curl을 브라우저 UA로 6회 호출했고 차단은 없었습니다. 받은 원본은 <scratch>/… 에 있습니다.\n\n## 1. 글쓰기 가능 여부와 조건\n- 글을 쓰려면 가입해야 합니다. 로그인 없이 `/write`에 들어가면 `/login?code=101&return=/write`로 넘어갑니다. `/submit`은 404입니다.\n- 로그인은 아이디와 암호로 합니다. 가입 화면(`/signup`)에서 받는 항목은 ID, 암호, 암호 확인, 이메일 네 가지입니다. 로그인과 가입 HTML 어디에도 GitHub나 Kakao 같은 소셜 로그인 흔적이 없었습니다.\n- 신규 계정은 한동안 글을 못 씁니다. 이용법(/guidelines) 원문은 \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 글 등록 화면에서 확인하실 수 있습니다.\" 입니다. 대기 기간이 며칠인지는 공개돼 있지 않습니다.\n\n## 2. 자작 도구에 맞는 게시판과 규칙\n자작 도구는 상단 메뉴의 **Show**(Show GN, `/show`)에 올립니다. 글을 등록할 때 타입을 Show로 고르면 제목 앞에 \"Show GN:\"이 자동으로 붙습니다. …",
+      "report": "GeekNews 조사 결과입니다. 읽기 전용으로 curl을 브라우저 UA로 6회 호출했고 차단은 없었습니다. 받은 원본은 <scratch>/… 에 있습니다.\n\n## 1. 글쓰기 가능 여부와 조건\n- 글을 쓰려면 가입해야 합니다. 로그인 없이 `/write`에 들어가면 `/login?code=101&return=/write`로 넘어갑니다. `/submit`은 404입니다.\n- 로그인은 아이디와 암호로 합니다. 가입 화면(`/signup`)에서 받는 항목은 ID, 암호, 암호 확인, 이메일 네 가지입니다. 로그인과 가입 HTML 어디에도 GitHub나 Kakao 같은 소셜 로그인 흔적이 없었습니다.\n- 신규 계정은 한동안 글을 못 씁니다. 이용법(/guidelines) 원문은 \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 글 등록 화면에서 확인하실 수 있습니다.\" 입니다. 대기 기간이 며칠인지는 공개돼 있지 않습니다.\n\n## 2. 자작 도구에 맞는 게시판과 규칙\n자작 도구는 상단 메뉴의 **Show**(Show GN, `/show`)에 올립니다. 글을 등록할 때 타입을 Show로 고르면 제목 앞에 \"Show GN:\"이 자동으로 붙습니다.\n- 뉴스로 올리면 안 됩니다. 원문은 \"본인 또는 소속 조직이 만든 서비스, 제품, 앱, 오픈소스, 도구를 소개하는 글은 뉴스로 올리지 말고 반드시 Show를 선택해 등록해 주세요. 뉴스로 등록된 Show 대상 게시물은 삭제될 수 있습니다.\"\n- 실제로 써 볼 수 있어야 합니다. 원문은 \"직접 사용해 볼 수 있는 작업물만 등록해 주세요. 블로그 글, 뉴스레터, 소개용 페이지처럼 실제로 체험할 수 없는 내용은 Show GN에 올리실 수 없습니다.\" 이고, YouTube 링크도 받지 않습니다.\n- 제목 형식은 /blog/show에 정해져 있습니다. 원문은 \"제목은 서비스·프로젝트명 - 핵심 기능 형식으로 작성해 주세요. 제작 동기, 개인적인 경험, 성과 수치나 홍보성 표현은 제목이 아니라 상세 설명에 적어주세요.\" 입니다.\n- 올리는 사람은 그 프로젝트를 만들었거나 제작에 참여한 사람이어야 하고, 질문과 피드백에 답할 수 있어야 합니다.\n- 같은 프로젝트는 다시 올리기 어렵습니다. 원문은 \"같은 프로젝트는 일정 기간 내에 다시 등록할 수 없습니다. 큰 기능 변경이나 메이저 버전업이 있어도 재등록 제한은 적용되며...\" 이고, 제한 기간은 공개돼 있지 않습니다. \"여러 프로젝트나 저장소를 짧은 기간에 반복 등록하는 경우... 등록이 제한될 수 있습니다.\"라는 조항도 있습니다.\n- 가입 없이 바로 써 볼 수 있게 하라고 권합니다. 원문은 \"가능하면 가입이나 이메일 입력 없이 사용자가 바로 시도해 볼 수 있게 준비해 주세요.\"\n- 상세 설명에는 무엇인지, 누가 어떻게 쓰는지, 기존 방식과 무엇이 다른지, 어떤 피드백을 원하는지를 간결하게 적으라고 안내합니다.\n\n**중요:** 메모리 기록을 보면 이 사용자는 2026-11-01에 sprag를 이미 Show GN에 올렸습니다(topic 36372, 메모에 \"재등록 금지\"). 같은 도구라면 재등록 제한에 걸릴 가능성이 높습니다. 다른 도구라면 해당되지 않습니다.\n\n## 3. 최근 Show GN 예시\n자작 오픈소스나 도구 소개가 실제로 꾸준히 올라옵니다. Claude Code 관련 글도 많습니다.\n- Show GN: Heirmos – Claude Code와 Codex가 같은 기억을 쓰게 하는 플러그인 (https://news.hada.io/topic?id=36737)\n- Show GN: K-Humanizer - 한국 고객과 자연스럽게 소통하기 위한 한국어 Agent Skill (https://news.hada.io/topic?id=36707)\n- Show GN: Cloudflare Tunnel 해외 우회로 300ms 이상 지연을 겪고 만든 Go 터널, Meerkat (https://news.hada.io/topic?id=36696)\n\n## 4. 확인하지 못한 항목\n- 신규 계정의 실제 대기 기간: 로그인 후 글 등록 화면에서만 보인다고 안내돼 있습니다. 계정을 만들지 않았으므로 확인하지 못했습니다.\n- Show 재등록 제한 기간과 도메인 차단 기준: 문서가 공개하지 않는다고 적혀 있습니다.\n- 가입 때 이메일 인증을 하는지: 가입 폼에 이메일 칸이 있다는 것만 확인했고, 인증 절차 여부는 추측할 수밖에 없습니다.\n- `/faq`와 `/about`: 받기는 했지만 자기 홍보나 신규 계정에 관한 문장은 찾지 못했습니다. 관련 규칙은 /guidelines와 /blog/show에 모여 있습니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 1.7,
+          "kind": "think",
+          "tok": 59272,
+          "usd": 0.2107
+        },
+        {
+          "t": 3.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p $D; UA=\"Mozilla/5.0 (Macintosh;",
+          "tok": 59272,
+          "usd": 0.2107
+        },
+        {
+          "t": 10.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat > $D/../strip.py <<'EOF' import sys,",
+          "tok": 123656,
+          "usd": 0.2484
+        },
+        {
+          "t": 15.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "python3 -I $D/../strip.py $D/guidelines.",
+          "tok": 191542,
+          "usd": 0.2791
+        },
+        {
+          "t": 20.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "python3 -I $D/../strip.py $D/guidelines.",
+          "tok": 260762,
+          "usd": 0.2997
+        },
+        {
+          "t": 23.2,
+          "kind": "think",
+          "tok": 334319,
+          "usd": 0.344
+        },
+        {
+          "t": 26.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE \"href=['\\\"][^'\\\"]*(join|signup|",
+          "tok": 334319,
+          "usd": 0.344
+        },
+        {
+          "t": 28.6,
+          "kind": "think",
+          "tok": 408193,
+          "usd": 0.3633
+        },
+        {
+          "t": 31.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for p in signup blog/show; do n=$(echo $",
+          "tok": 408193,
+          "usd": 0.3633
+        },
+        {
+          "t": 34.9,
+          "kind": "think",
+          "tok": 484322,
+          "usd": 0.3895
+        },
+        {
+          "t": 52.6,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 484322,
+          "usd": 0.3895
+        }
+      ],
+      "role": "baseline",
+      "savingsPct": 0
+    },
+    {
+      "round": "r0",
+      "run": "0-E",
+      "condition": "sonnet-high-improved",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "improved",
+      "verdict": "ok",
+      "score": 8,
+      "max": 8,
+      "keyMiss": "",
+      "usd": 0.2349,
+      "tokens": 529016,
+      "seconds": 61,
+      "toolCalls": 7,
+      "webSearches": 0,
+      "excerpt": "GeekNews에는 자작 오픈소스 도구를 올릴 수 있는 Show GN 게시판이 있습니다. 다만 사용자가 이미 올렸습니다(Sprag, 11-01, topic 36372). 같은 프로젝트의 재등록은 제한됩니다. 글은 올리지 않았고 계정도 만들지 않았습니다. 읽기 전용으로만 확인했습니다.\n\n**1. 글쓰기 가능 여부와 조건**\n- 상단 메뉴에 `글등록 | 등록`, `Ask`, `Show`가 있습니다. `/write`는 비로그인이면 `/login?code=101&return=/write`로 넘어갑니다.\n- 로그인 방식은 자체 ID/암호뿐입니다(Username, 암호, 로그인 유지하기). 소셜 로그인 링크는 보이지 않았습니다.\n- 가입 폼(`/signup`)은 ID, 암호, 암호 확인, 이메일 네 칸입니다.\n- 글 등록에는 가입이 필요합니다. 사이트 이용법(/guidelines) 원문: \"글을 등록하기 위해서는 회원 가입이 필요합니다.\"\n- 신규 계정 제한은 있습니다. 같은 문서 원문: \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 글 등록 화면에서 확인하실 수 있습니다.\"\n- 대기 기간이 며칠인지는 비로그인 상태에서 알 수 없습니다.\n- 약관(/terms)은 1인 1계정을 원칙으로 합니다. 다중 계정 생성은 제한될 수 있습니다. …",
+      "report": "GeekNews에는 자작 오픈소스 도구를 올릴 수 있는 Show GN 게시판이 있습니다. 다만 사용자가 이미 올렸습니다(Sprag, 11-01, topic 36372). 같은 프로젝트의 재등록은 제한됩니다. 글은 올리지 않았고 계정도 만들지 않았습니다. 읽기 전용으로만 확인했습니다.\n\n**1. 글쓰기 가능 여부와 조건**\n- 상단 메뉴에 `글등록 | 등록`, `Ask`, `Show`가 있습니다. `/write`는 비로그인이면 `/login?code=101&return=/write`로 넘어갑니다.\n- 로그인 방식은 자체 ID/암호뿐입니다(Username, 암호, 로그인 유지하기). 소셜 로그인 링크는 보이지 않았습니다.\n- 가입 폼(`/signup`)은 ID, 암호, 암호 확인, 이메일 네 칸입니다.\n- 글 등록에는 가입이 필요합니다. 사이트 이용법(/guidelines) 원문: \"글을 등록하기 위해서는 회원 가입이 필요합니다.\"\n- 신규 계정 제한은 있습니다. 같은 문서 원문: \"스팸 방지를 위해 신규 계정은 일정 기간 글 등록이 제한됩니다. 대기기간은 가입 환경 등에 따라 다를 수 있으며, 해당 계정에 적용되는 안내는 로그인 후 글 등록 화면에서 확인하실 수 있습니다.\"\n- 대기 기간이 며칠인지는 비로그인 상태에서 알 수 없습니다.\n- 약관(/terms)은 1인 1계정을 원칙으로 합니다. 다중 계정 생성은 제한될 수 있습니다.\n- 글은 올리고 2시간 안에만 삭제할 수 있습니다(FAQ).\n\n**2. 자작 도구 홍보에 맞는 게시판과 규칙**\n- 게시판은 Show GN입니다. 등록 주소는 `https://news.hada.io/write?type=show`이고, 제목 앞에 `Show GN:`이 자동으로 붙습니다.\n- 이용법 원문: \"본인 또는 소속 조직이 만든 서비스, 제품, 앱, 오픈소스, 도구를 소개하는 글은 뉴스로 올리지 말고 반드시 Show를 선택해 등록해 주세요. 뉴스로 등록된 Show 대상 게시물은 삭제될 수 있습니다.\"\n- 올릴 수 있는 것은 직접 만든 제품, 서비스, 오픈소스, 앱, 도구처럼 다른 사람이 실제로 써 볼 수 있는 작업물입니다(/blog/show).\n- 올릴 수 없는 것은 블로그 글, 가입·사전 예약 페이지, 뉴스레터, 소개만 있는 페이지입니다. YouTube 링크도 안 됩니다.\n- 재등록과 연속 등록에 대한 원문입니다.\n  - \"같은 프로젝트는 일정 기간 내에 다시 등록할 수 없습니다. 큰 기능 변경이나 메이저 버전업이 있어도 재등록 제한은 적용됩니다.\"\n  - \"등록 유형이나 URL을 바꾸더라도 실질적으로 같은 대상은 같은 프로젝트로 봅니다.\"\n  - \"여러 프로젝트나 저장소를 짧은 기간에 반복 등록하는 경우, GeekNews를 배포 채널처럼 사용하는 것으로 판단되어 등록이 제한될 수 있습니다.\"\n  - 같은 서비스를 일반 뉴스로 다시 올려 Show 제한을 피하는 것도 막혀 있습니다.\n- 제목 형식은 `서비스·프로젝트명 - 핵심 기능`입니다. 제작 동기, 성과 수치, 홍보성 표현은 제목이 아니라 상세 설명에 쓰라고 합니다.\n- 등록자는 직접 만들었거나 제작에 참여한 사람이어야 하고, 질문과 피드백에 답할 수 있어야 합니다.\n- 금지 행위는 지인에게 upvote나 댓글을 요청하는 것, 같은 설명을 댓글로 다시 올려 재홍보하는 것, 단축 URL을 쓰는 것입니다. 단축 URL 글은 삭제됩니다.\n- 작성 팁은 가입이나 이메일 입력 없이 바로 써 볼 수 있게 하라는 것입니다. 상세 설명에는 무엇인지, 왜 만들었는지, 기존 방식과 무엇이 다른지, 어떤 피드백을 원하는지 쓰라고 합니다.\n\n**3. 최근 Show GN 예시 (2026-11-07 조회, 모두 `https://news.hada.io/topic?id=` 뒤에 번호를 붙인 주소)**\n- Meerkat, 오픈소스 Go 터널(Cloudflare Tunnel 대안): \"Show GN: Cloudflare Tunnel 해외 우회로 300ms 이상 지연을 겪고 만든 Go 터널, Meerkat\" (36696, github.com/lawnect)\n- dmx, 오픈소스 Docker 호환 엔진: \"Show GN: dmx - 쓰지 않는 메모리를 macOS에 돌려주는 Docker 호환 엔진\" (36695, github.com/cothis)\n- K-Humanizer, 오픈소스 Agent Skill: \"Show GN: K-Humanizer - 한국 고객과 자연스럽게 소통하기 위한 한국어 Agent Skill\" (36707, github.com/evergreentree97)\n- Claude Code/Codex 관련 도구도 올라옵니다. 예: \"Show GN: Heirmos – Claude Code와 Codex가 같은 기억을 쓰게 하는 플러그인\" (36737)\n- 점수는 대부분 1~3점이고, 높은 글은 12~20점이었습니다.\n\n**4. 이미 올린 글 (중요)**\n- topic 36372 \"Show GN: Sprag - Claude Code/Codex의 단순 작업을 싼 모델에 맡기는 오픈소스 CLI\" (github.com/rootstudioyaml)를 받아 봤습니다. 작성자는 rootstudioyaml, 2점이고 6일 전(2026-11-01) 글입니다.\n- 메모리에도 \"topic 36372, 재등록 금지\"로 적혀 있어 일치합니다.\n- 같은 Sprag를 다시 Show로 올리면 재등록 제한에 걸립니다. 일반 뉴스로 올리는 것도 우회 등록으로 보일 수 있습니다.\n- 재등록이 허용되는 \"일정 기간\"이 며칠인지는 문서에 없습니다.\n- 다른 프로젝트를 올린다면 위의 \"짧은 기간 반복 등록\" 제한을 조심해야 합니다.\n\n**5. 확인하지 못한 항목과 이유**\n- 신규 계정의 대기 기간 길이는 로그인 후 글 등록 화면에서만 보입니다. 계정을 만들지 않는 조건이라 확인하지 못했습니다.\n- 재등록 제한 기간의 일수는 공개 문서에 없습니다.\n- 사이트 이용법(/guidelines)에서 링크된 별도 \"Ask GN 이용방법\" 문서는 받지 않았습니다.\n- 추측입니다. 이메일 인증이나 karma 기준이 글쓰기에 걸려 있는지는 모릅니다. 약관에 이메일 인증 언급은 있지만 그것이 글쓰기 조건이라는 근거는 못 찾았습니다.\n\n**조사 범위**\n- 받아 본 URL(HTTP 200)\n  - https://news.hada.io/\n  - https://news.hada.io/write (로그인 페이지로 이동)\n  - https://news.hada.io/show\n  - https://news.hada.io/guidelines\n  - https://news.hada.io/about (받기만 함, 내용은 읽지 않음)\n  - https://news.hada.io/faq\n  - https://news.hada.io/new (받기만 함, 내용은 읽지 않음)\n  - https://news.hada.io/signup\n  - https://news.hada.io/blog/show (Show GN 공개 글과 규칙 전문)\n  - https://news.hada.io/terms\n  - https://news.hada.io/topic?id=36372\n- 받지 못한 URL\n  - https://news.hada.io/submit (404)\n  - https://news.hada.io/showgn (404)\n  - https://news.hada.io/show/about (404)\n  - 로그인 후 글 등록 화면: 계정이 없고 만들지 않아서 접근하지 않았습니다.\n  - Ask GN 이용방법 문서: 요청하지 않았습니다.\n- 임시 저장 파일은 `<scratch>/…`에 있습니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 5.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p gn && cd gn for p in \"\" write s",
+          "tok": 59351,
+          "usd": 0.1056
+        },
+        {
+          "t": 8.7,
+          "kind": "think",
+          "tok": 124001,
+          "usd": 0.1249
+        },
+        {
+          "t": 10.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "ls; cat > strip.py <<'EOF' import sys,re",
+          "tok": 124001,
+          "usd": 0.1249
+        },
+        {
+          "t": 16.8,
+          "kind": "think",
+          "tok": 195965,
+          "usd": 0.1497
+        },
+        {
+          "t": 20.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "echo \"## SHOW links\"; python3 -I - <<'EO",
+          "tok": 195965,
+          "usd": 0.1497
+        },
+        {
+          "t": 21.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE 'href=\"[^\"]*(show|Show|SHOW)[^\"",
+          "tok": 195965,
+          "usd": 0.1497
+        },
+        {
+          "t": 24.9,
+          "kind": "think",
+          "tok": 270907,
+          "usd": 0.1644
+        },
+        {
+          "t": 27.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE 'href=.(/topic\\\"'\"'\"' >]*|/ask[",
+          "tok": 270907,
+          "usd": 0.1644
+        },
+        {
+          "t": 30.9,
+          "kind": "text",
+          "tok": 347128,
+          "usd": 0.1754
+        },
+        {
+          "t": 32.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE \"href=['\\\"][^'\\\"]*['\\\"][^>]*>[^",
+          "tok": 347128,
+          "usd": 0.1754
+        },
+        {
+          "t": 36.3,
+          "kind": "think",
+          "tok": 435751,
+          "usd": 0.2142
+        },
+        {
+          "t": 38.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" -o blogshow.html -w \"b",
+          "tok": 435751,
+          "usd": 0.2142
+        },
+        {
+          "t": 60.5,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 529016,
+          "usd": 0.2349
+        }
+      ],
+      "savingsPct": 39.7
+    }
+  ]
+}
