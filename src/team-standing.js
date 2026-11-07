@@ -26,6 +26,17 @@ import { GRADES, TIER_NAMES, speciesLabel } from './office-species.js';
 const pct = (v) => `${Math.round(Number(v) * 100)}%`;
 const money = (v) => `$${Number(v).toFixed(2)}`;
 const floorPct = (g) => Math.round(g.minSr * 100);
+/**
+ * Percentage points from the score percentile `sr` up to the floor of species
+ * `g`, at least 1 while the floor is not cleared, 0 when it already is (then
+ * only the delegation rule stands in the way). Null without a percentile or a
+ * floor (the idle row has none).
+ */
+export function pointsTo(g, sr) {
+  if (!g || !(g.minSr >= 0) || !Number.isFinite(sr)) return null;
+  const pts = Math.ceil((g.minSr - sr) * 100 - 1e-9);
+  return pts <= 0 ? 0 : pts;
+}
 /** The species one row up the ladder, or null on the top row and for unknown keys. */
 export function nextGradeUp(key) {
   const i = GRADES.findIndex((g) => g.key === key);
@@ -122,17 +133,36 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
     : '');
   if (next) {
     const s = label(next.grade);
+    const g = GRADES.find((r) => r.key === next.grade);
     const x = Math.max(1, Number(next.pass) || 0);
     const c = has(st.medianDlg) ? pct(st.medianDlg) : (ko ? '알 수 없음' : 'unknown');
+    const pts = pointsTo(g, st.scorePct);
     let text;
-    if (next.needDlg && !(Number(next.pass) > 0)) {
-      text = ko ? `위임 비율을 회사 중앙값(${c}) 이상으로 올리면 ${s}` : `raise the delegation share to the company median (${c}) to become ${s}`;
+    if (pts !== null) {
+      // With the percentile on record: where you are, how many points more,
+      // and the people that amounts to.
+      const now = pct(st.scorePct);
+      if (next.needDlg && !(Number(next.pass) > 0)) {
+        text = ko
+          ? `${s}. 백분위는 이미 ${floorPct(g)}%를 넘었고 위임 비율을 회사 중앙값(${c}) 이상으로 올리면 됩니다.`
+          : `${s}. Your percentile already clears ${floorPct(g)}%; raise the delegation share to the company median (${c}).`;
+      } else if (next.needDlg) {
+        text = ko
+          ? `${s}. 지금 백분위 ${now}, ${pts}%p 더 오르고(${x}명 앞지르기) 위임 비율이 회사 중앙값(${c}) 이상이면 됩니다.`
+          : `${s}. Percentile now ${now}; ${pts} pts more (pass ${x}) and a delegation share at or above the company median (${c}).`;
+      } else {
+        text = ko
+          ? `${s}. 지금 백분위 ${now}, ${Math.max(1, pts)}%p 더 오르면 됩니다 (${x}명 앞지르기).`
+          : `${s}. Percentile now ${now}; ${Math.max(1, pts)} pts more and you are there (pass ${x}).`;
+      }
+    } else if (next.needDlg && !(Number(next.pass) > 0)) {
+      text = `${ko ? `위임 비율을 회사 중앙값(${c}) 이상으로 올리면 ${s}` : `raise the delegation share to the company median (${c}) to become ${s}`}${floorNote(g)}`;
     } else if (next.needDlg) {
-      text = ko ? `${x}명을 더 앞지르고 위임 비율이 회사 중앙값(${c}) 이상이면 ${s}` : `pass ${x} more and reach the company median delegation share (${c}) to become ${s}`;
+      text = `${ko ? `${x}명을 더 앞지르고 위임 비율이 회사 중앙값(${c}) 이상이면 ${s}` : `pass ${x} more and reach the company median delegation share (${c}) to become ${s}`}${floorNote(g)}`;
     } else {
-      text = ko ? `${x}명을 더 앞지르면 ${s}` : `pass ${x} more to become ${s}`;
+      text = `${ko ? `${x}명을 더 앞지르면 ${s}` : `pass ${x} more to become ${s}`}${floorNote(g)}`;
     }
-    lines.push(`  ${ko ? '다음 등급' : 'Next species'}: ${text}${floorNote(GRADES.find((g) => g.key === next.grade))}`);
+    lines.push(`  ${ko ? '다음 등급' : 'Next species'}: ${text}`);
   } else if (st.idle === true || st.grade === 'chick') {
     lines.push(ko ? '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.' : '  Next species: spend in this period puts you in the standings.');
   } else if (!up) {
@@ -176,9 +206,20 @@ export function standingFeedbackShort(st, lang = 'en', { emoji = true } = {}) {
     const g = GRADES.find((x) => x.key === next.grade);
     const x = Math.max(1, Number(next.pass) || 0);
     const c = has(st.medianDlg) ? pct(st.medianDlg) : (ko ? '회사 중앙값' : 'the company median');
-    if (next.needDlg && !(Number(next.pass) > 0)) out.push(ko ? `다음 ${s}: 위임 비율 ${c} 이상` : `next ${s}: delegation share ${c} or more`);
-    else if (next.needDlg) out.push(ko ? `다음 ${s}: ${x}명 더, 위임 비율 ${c} 이상` : `next ${s}: ${x} more and delegation share ${c} or more`);
-    else out.push(ko ? `다음 ${s}: ${x}명 더${floor(g) ? ` (${floor(g)})` : ''}` : `next ${s}: ${x} more${floor(g) ? ` (${floor(g)})` : ''}`);
+    const pts = pointsTo(g, st.scorePct);
+    if (pts !== null) {
+      // With the percentile on record: where you are and how many points more.
+      const now = pct(st.scorePct);
+      if (next.needDlg && !(Number(next.pass) > 0)) out.push(ko ? `지금 ${now}, 위임 비율 ${c} 이상이면 ${s}` : `now ${now}, delegation share ${c} or more for ${s}`);
+      else if (next.needDlg) out.push(ko ? `지금 ${now}, ${pts}%p 더 오르고 위임 비율 ${c} 이상이면 ${s}` : `now ${now}, ${pts} pts more and delegation share ${c} or more for ${s}`);
+      else out.push(ko ? `지금 ${now}, ${Math.max(1, pts)}%p 더 오르면 ${s} (${x}명 앞지르기)` : `now ${now}, ${Math.max(1, pts)} pts more for ${s} (pass ${x})`);
+    } else if (next.needDlg && !(Number(next.pass) > 0)) {
+      out.push(ko ? `다음 ${s}: 위임 비율 ${c} 이상` : `next ${s}: delegation share ${c} or more`);
+    } else if (next.needDlg) {
+      out.push(ko ? `다음 ${s}: ${x}명 더, 위임 비율 ${c} 이상` : `next ${s}: ${x} more and delegation share ${c} or more`);
+    } else {
+      out.push(ko ? `다음 ${s}: ${x}명 더${floor(g) ? ` (${floor(g)})` : ''}` : `next ${s}: ${x} more${floor(g) ? ` (${floor(g)})` : ''}`);
+    }
   } else if (st.idle === true || st.grade === 'chick') {
     out.push(ko ? '지출이 생기면 순위에 오름' : 'spend to enter the standings');
   } else if (!up) {
