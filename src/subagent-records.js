@@ -77,7 +77,10 @@ async function readRunEffort(jsonlPath) {
       try { entry = JSON.parse(line); } catch { continue; }
       if (effort === null && typeof entry.effort === 'string' && entry.effort) effort = entry.effort;
       if (raised === null && entry.type === 'user' && entry.message) {
-        raised = messageText(entry.message.content).includes(EFFORT_RAISE_MARKER);
+        // The guard appends the marker as the prompt's last line, so only a
+        // prompt that ends with it was raised. A prompt that merely quotes the
+        // line (a delegation about this very feature did) is not one.
+        raised = messageText(entry.message.content).trimEnd().endsWith(EFFORT_RAISE_MARKER);
       }
       if (raised !== null && effort !== null) break;
     }
