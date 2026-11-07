@@ -455,7 +455,7 @@ test('a full sync stores the member standing; an older server (PGRST202) is igno
   const r = await syncTeam({ dir, fetch: f, now, force: true });
   assert.ok(!r.error, r.error);
   // A server before migration 20261107000100 sends no guide fields: they read as null.
-  const noGuide = { dlg: null, medianDlg: null, scorePct: null, spent: null, idle: null, hasPrompts: null, weights: null, next: null, rangeFrom: null, rangeTo: null };
+  const noGuide = { dlg: null, medianDlg: null, scorePct: null, spent: null, idle: null, hasPrompts: null, weights: null, next: null, rangeFrom: null, rangeTo: null, teamRank: null, teamRanked: null, teamName: null };
   assert.deepEqual(loadTeamState(dir).standing, { grade: 'fox', tier: 'active', rank: 3, ranked: 9, crown: false, fetchedAt: now, ...noGuide });
   assert.equal(f.standingCalls[0].body.member_key, 'spk_secret');
 
@@ -467,6 +467,7 @@ test('a full sync stores the member standing; an older server (PGRST202) is igno
     dlg: 0.31, median_dlg: 0.28, score_pct: 0.75, spent: 481.2, idle: false, has_prompts: false,
     weights: [0.625, 0.375, 0], next: { grade: 'cheetah', pass: 2, need_dlg: false },
     range_from: '2026-10-09', range_to: '2026-11-07',
+    team_rank: 1, team_ranked: 4, team_name: 'platform',
   } });
   await syncTeam({ dir: dir3, fetch: guided, now, force: true });
   assert.deepEqual(loadTeamState(dir3).standing, {
@@ -474,6 +475,7 @@ test('a full sync stores the member standing; an older server (PGRST202) is igno
     dlg: 0.31, medianDlg: 0.28, scorePct: 0.75, spent: 481.2, idle: false, hasPrompts: false,
     weights: [0.625, 0.375, 0], next: { grade: 'cheetah', pass: 2, needDlg: false },
     rangeFrom: '2026-10-09', rangeTo: '2026-11-07',
+    teamRank: 1, teamRanked: 4, teamName: 'platform',
   });
 
   const dir2 = isolate(t);

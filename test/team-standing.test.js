@@ -135,3 +135,12 @@ test('nextGradeUp walks the ladder', () => {
   assert.equal(nextGradeUp('dragon'), null);
   assert.equal(nextGradeUp('ghost'), null);
 });
+
+test('the standing line adds the rank within the team when the team is a strict part of the ranked people', () => {
+  const inTeam = guided({ teamRank: 1, teamRanked: 4, teamName: 'AWS-FSI' });
+  assert.equal(standingGuideLines(inTeam, { lang: 'ko', org: 'amazon' })[0], '순위: amazon 종합 점수 12명 중 3위 · AWS-FSI 팀 4명 중 1위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)');
+  assert.equal(standingGuideLines(inTeam, { lang: 'en', org: 'amazon' })[0], 'Standing: amazon overall score #3 of 12 · team AWS-FSI #1 of 4 · 🦊 Fox (2026-10-09 to 2026-11-07)');
+  // The local team name stands in for a server that sent none; one team in the organization says it once.
+  assert.equal(standingGuideLines(guided({ teamRank: 2, teamRanked: 5 }), { lang: 'ko', team: 'platform' })[0], '순위: 종합 점수 12명 중 3위 · platform 팀 5명 중 2위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)');
+  assert.equal(standingGuideLines(guided({ teamRank: 3, teamRanked: 12 }), { lang: 'ko', team: 'platform' })[0], '순위: 종합 점수 12명 중 3위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)');
+});

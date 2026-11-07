@@ -78,7 +78,12 @@ test('readTeamChip: joined, left and never joined; reads only and creates nothin
   assert.equal(joined.label, 'member-1e500474');
   assert.equal(joined.org, 'amazon');
   assert.equal(joined.plan, 'pro');
-  assert.deepEqual(joined.standing, { grade: 'owl', rank: 2, ranked: 7, fetchedAt: 5 });
+  assert.equal(joined.team, null);
+  assert.deepEqual(joined.standing, { grade: 'owl', rank: 2, ranked: 7, teamRank: null, teamRanked: null, fetchedAt: 5 });
+  // The team name and the rank within it come along when stored.
+  saveTeamState({ memberKey: 'spk_x', displayName: 'member-1e500474', teamName: 'platform', standing: { grade: 'owl', rank: 2, ranked: 7, teamRank: 1, teamRanked: 3, fetchedAt: 5 } }, dir);
+  assert.equal(readTeamChip({ dir }).team, 'platform');
+  assert.deepEqual(readTeamChip({ dir }).standing, { grade: 'owl', rank: 2, ranked: 7, teamRank: 1, teamRanked: 3, fetchedAt: 5 });
   // Without an organization name the team name stands in, and no plan reads as none.
   saveTeamState({ memberKey: 'spk_x', displayName: 'member-1e500474', teamName: 'platform' }, dir);
   assert.equal(readTeamChip({ dir }).org, 'platform');
@@ -91,4 +96,15 @@ test('readTeamChip: joined, left and never joined; reads only and creates nothin
   assert.equal(readTeamChip({ dir }).label, 'member-abcdef01');
   saveTeamState({ left: true, displayName: 'member-1e500474' }, dir);
   assert.equal(readTeamChip({ dir }), null);
+});
+
+test('the rank within the team rides behind the organization rank, only when the team is a strict part of it', () => {
+  const inTeam = standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4 });
+  assert.equal(chip(pro({ team: 'AWS-FSI', lang: 'ko', standing: inTeam })), 'Pro member-1e500474 amazon 종합 점수 12명 중 3위, AWS-FSI 팀 4명 중 1위 🦊 여우');
+  assert.equal(chip(pro({ team: 'AWS-FSI', lang: 'en', standing: inTeam })), 'Pro member-1e500474 amazon overall score #3 of 12, team AWS-FSI #1 of 4 🦊 Fox');
+  // One team in the organization: the two ranks are the same number, said once.
+  assert.equal(chip(pro({ team: 'AWS-FSI', lang: 'ko', standing: standing({ rank: 3, ranked: 12, teamRank: 3, teamRanked: 12 }) })), 'Pro member-1e500474 amazon 종합 점수 12명 중 3위 🦊 여우');
+  // No team name, or an older server without the figures: the organization rank alone.
+  assert.equal(chip(pro({ lang: 'ko', standing: inTeam })), 'Pro member-1e500474 amazon 종합 점수 12명 중 3위 🦊 여우');
+  assert.equal(chip(pro({ team: 'AWS-FSI', lang: 'ko', standing: standing({ rank: 3, ranked: 12 }) })), 'Pro member-1e500474 amazon 종합 점수 12명 중 3위 🦊 여우');
 });

@@ -37,7 +37,7 @@ export function nextGradeUp(key) {
  * @param {{ lang?: 'ko'|'en', org?: string|null }} [opts]
  * @returns {string[]} lines; empty when there is no standing on record
  */
-export function standingGuideLines(st, { lang = 'en', org = null } = {}) {
+export function standingGuideLines(st, { lang = 'en', org = null, team = null } = {}) {
   if (!st || typeof st !== 'object' || typeof st.grade !== 'string') return [];
   const ko = lang === 'ko';
   const label = (k) => speciesLabel(k, lang, { emoji: true }) || k;
@@ -46,6 +46,11 @@ export function standingGuideLines(st, { lang = 'en', org = null } = {}) {
   const period = st.rangeFrom && st.rangeTo ? ` (${st.rangeFrom} ${ko ? '~' : 'to'} ${st.rangeTo})` : '';
   const where = org ? `${org} ` : '';
   const has = (v) => Number.isFinite(v);
+  // The rank within the team, when the team is a strict part of the ranked people.
+  const teamName = team || st.teamName || null;
+  const inTeam = ranked && Number.isInteger(st.teamRank) && Number.isInteger(st.teamRanked)
+    && st.teamRank >= 1 && st.teamRanked >= st.teamRank && st.teamRanked < st.ranked && teamName;
+  const teamPlace = inTeam ? (ko ? ` · ${teamName} 팀 ${st.teamRanked}명 중 ${st.teamRank}위` : ` · team ${teamName} #${st.teamRank} of ${st.teamRanked}`) : '';
   const lines = [];
 
   if (st.grade === 'ghost' || !ranked) {
@@ -57,8 +62,8 @@ export function standingGuideLines(st, { lang = 'en', org = null } = {}) {
   }
 
   lines.push(ko
-    ? `순위: ${where}종합 점수 ${st.ranked}명 중 ${st.rank}위 · ${animal}${period}`
-    : `Standing: ${where}overall score #${st.rank} of ${st.ranked} · ${animal}${period}`);
+    ? `순위: ${where}종합 점수 ${st.ranked}명 중 ${st.rank}위${teamPlace} · ${animal}${period}`
+    : `Standing: ${where}overall score #${st.rank} of ${st.ranked}${teamPlace} · ${animal}${period}`);
 
   // Where that rank puts you: the people ahead, or the crown.
   if (st.crown) {

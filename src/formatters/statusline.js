@@ -415,7 +415,13 @@ function buildTeamSeg(team, c, mode = 'icon', now = Date.now()) {
   const animal = fresh ? speciesLabel(st.grade, team.lang, { emoji: mode === 'icon' }) : null;
   // The rank among the ranked people, the same standing the office drawer shows; a ghost has none.
   const ranked = animal && Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
-  const place = ranked ? (team.lang === 'ko' ? ` 종합 점수 ${st.ranked}명 중 ${st.rank}위` : ` overall score #${st.rank} of ${st.ranked}`) : '';
+  // The rank within the person's own team rides behind the organization rank,
+  // only when the team is a strict part of the ranked people: in a one-team
+  // organization the two are the same number.
+  const inTeam = ranked && Number.isInteger(st.teamRank) && Number.isInteger(st.teamRanked)
+    && st.teamRank >= 1 && st.teamRanked >= st.teamRank && st.teamRanked < st.ranked && typeof team.team === 'string' && team.team;
+  const teamPlace = inTeam ? (team.lang === 'ko' ? `, ${team.team} 팀 ${st.teamRanked}명 중 ${st.teamRank}위` : `, team ${team.team} #${st.teamRank} of ${st.teamRanked}`) : '';
+  const place = ranked ? (team.lang === 'ko' ? ` 종합 점수 ${st.ranked}명 중 ${st.rank}위${teamPlace}` : ` overall score #${st.rank} of ${st.ranked}${teamPlace}`) : '';
   const org = typeof team.org === 'string' && team.org ? ` ${team.org}` : '';
   // The plan leads (`Pro`, `Enterprise`): the chip describes a licensed team, so
   // the license is the first thing it says, and the standing follows.

@@ -122,6 +122,9 @@ async function refreshStanding({ memberKey, dir, fetch, now }) {
         : null,
       rangeFrom: typeof r.range_from === 'string' ? r.range_from : null,
       rangeTo: typeof r.range_to === 'string' ? r.range_to : null,
+      // The same score counted within the member's own team.
+      teamRank: num(r.team_rank), teamRanked: num(r.team_ranked),
+      teamName: typeof r.team_name === 'string' && r.team_name ? r.team_name : null,
     };
     saveTeamState({
       ...cur,
@@ -149,9 +152,15 @@ export function readTeamChip({ dir = userDataDir() } = {}) {
       org: String(state.orgName || state.teamName || '').trim() || null,
       // The license the team runs under (`pro`, `enterprise`), which leads the chip.
       plan: typeof state.plan === 'string' && state.plan.trim() ? state.plan.trim() : null,
+      // The team, for the rank within it.
+      team: String(state.teamName || '').trim() || null,
       lang: userLanguage(),
       standing: st && typeof st.grade === 'string'
-        ? { grade: st.grade, rank: Number.isFinite(st.rank) ? st.rank : null, ranked: Number.isFinite(st.ranked) ? st.ranked : null, fetchedAt: Number(st.fetchedAt) || 0 }
+        ? {
+          grade: st.grade, rank: Number.isFinite(st.rank) ? st.rank : null, ranked: Number.isFinite(st.ranked) ? st.ranked : null,
+          teamRank: Number.isFinite(st.teamRank) ? st.teamRank : null, teamRanked: Number.isFinite(st.teamRanked) ? st.teamRanked : null,
+          fetchedAt: Number(st.fetchedAt) || 0,
+        }
         : null,
     };
   } catch (e) { debug('team-sync', e); return null; }

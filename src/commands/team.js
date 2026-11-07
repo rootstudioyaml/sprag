@@ -331,7 +331,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         if (MACHINE_NAME_RE.test(String(st.displayName || ''))) out(`  ${m.nameHint}`);
         // The standing behind the statusline chip, and what moving up takes
         // (src/team-standing.js). Nothing until the first sync has fetched one.
-        for (const l of standingGuideLines(st.standing, { lang: userLanguage(), org: st.orgName || st.teamName || null })) out(l);
+        for (const l of standingGuideLines(st.standing, { lang: userLanguage(), org: st.orgName || st.teamName || null, team: st.teamName || null })) out(l);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(isOrgExpiredError(st.lastError) ? m.orgExpired : `${m.lastError}: ${st.lastError}`);
         if (orgMinVersion(st)) out(m.orgMin(orgMinVersion(st), version));
