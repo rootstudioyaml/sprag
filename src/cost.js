@@ -16,125 +16,239 @@ import { priceForPrompt } from './gateway-prices.js';
 // `totals.long` (see parser.js) rather than relying on session-wide sums.
 export const LONG_PROMPT_THRESHOLD = 100_000;
 
-const PRICING = {
+// Each tier lists its rate cards oldest first, with the date each took effect
+// (`from`, a UTC YYYY-MM-DD; null = since the model launched). A price change
+// or a correction is a new row, never an edit of an old one, so a run is
+// always priced at the rate that applied when it happened (#15).
+const PRICE_HISTORY = {
   // Fable 5.1 / Mythos 5.1 — same prices as Fable 5 except cache reads, which
   // drop to $0.25.
-  'claude-fable-5-1': {
+  'claude-fable-5-1': [{
+    from: null,
     input: 10.0,
     cacheWrite5m: 12.5,
     cacheWrite1h: 20.0,
     cacheRead: 0.25,
     output: 50.0,
-  },
+  }],
   // Fable 5 / Mythos 5 — premium tier above Opus ($10/$50). Cache write
   // rates follow the standard multipliers (1.25x input for 5m, 2x for 1h),
   // cache read is 0.1x input.
-  'claude-fable-5': {
+  'claude-fable-5': [{
+    from: null,
     input: 10.0,
     cacheWrite5m: 12.5,
     cacheWrite1h: 20.0,
     cacheRead: 1.0,
     output: 50.0,
-  },
+  }],
   // Opus 5.5 — cheaper than the Opus 4.5-5 tier below.
-  'claude-opus-5-5': {
+  'claude-opus-5-5': [{
+    from: null,
     input: 4.0,
     cacheWrite5m: 5.0,
     cacheWrite1h: 8.0,
     cacheRead: 0.2,
     output: 20.0,
-  },
+  }],
   // Opus 4.5+ (new pricing tier — includes 4.5, 4.6, 4.7, 4.8, and future)
-  'claude-opus-new': {
+  'claude-opus-new': [{
+    from: null,
     input: 5.0,
     cacheWrite5m: 6.25,
     cacheWrite1h: 10.0,
     cacheRead: 0.5,
     output: 25.0,
-  },
+  }],
   // Opus 4 / 4.1 / Opus 3 (legacy premium pricing)
-  'claude-opus-legacy': {
+  'claude-opus-legacy': [{
+    from: null,
     input: 15.0,
     cacheWrite5m: 18.75,
     cacheWrite1h: 30.0,
     cacheRead: 1.5,
     output: 75.0,
-  },
+  }],
   // Sonnet 5 — standard price is $2/$10. The rise to $3/$15 planned for
   // 2026-09-01 was cancelled, so this is not an introductory rate.
-  'claude-sonnet-5': {
+  'claude-sonnet-5': [{
+    from: null,
     input: 2.0,
     cacheWrite5m: 2.5,
     cacheWrite1h: 4.0,
     cacheRead: 0.2,
     output: 10.0,
-  },
-  // Sonnet 5.5 — same as Sonnet 5 except cache reads at $0.10.
-  'claude-sonnet-5-5': {
+  }],
+  // Sonnet 5.5 — launched 2026-09-28 with Sonnet 5's prices. Cache reads were
+  // cut from $0.20 to $0.10 on 2026-10-07 ("We've lowered the price of prompt
+  // cache reads on Claude Sonnet 5.5 from $0.20 USD to $0.10 USD", platform
+  // release notes); every other rate is unchanged.
+  'claude-sonnet-5-5': [{
+    from: null,
+    input: 2.0,
+    cacheWrite5m: 2.5,
+    cacheWrite1h: 4.0,
+    cacheRead: 0.2,
+    output: 10.0,
+  }, {
+    from: '2026-10-07',
     input: 2.0,
     cacheWrite5m: 2.5,
     cacheWrite1h: 4.0,
     cacheRead: 0.1,
     output: 10.0,
-  },
+  }],
   // Sonnet 4 / 4.5 / 4.6 / 3.7
-  'claude-sonnet': {
+  'claude-sonnet': [{
+    from: null,
     input: 3.0,
     cacheWrite5m: 3.75,
     cacheWrite1h: 6.0,
     cacheRead: 0.3,
     output: 15.0,
-  },
+  }],
   // Haiku 5.5, prompt <= LONG_PROMPT_THRESHOLD tokens.
-  'claude-haiku-5-5': {
+  'claude-haiku-5-5': [{
+    from: null,
     input: 0.1,
     cacheWrite5m: 0.125,
     cacheWrite1h: 0.2,
     cacheRead: 0.01,
     output: 0.5,
-  },
+  }],
   // Haiku 5.5, prompt > LONG_PROMPT_THRESHOLD tokens. Not returned by
   // detectPricingTier: estimateCost applies it to `totals.long` only.
-  'claude-haiku-5-5-long': {
+  'claude-haiku-5-5-long': [{
+    from: null,
     input: 0.5,
     cacheWrite5m: 0.625,
     cacheWrite1h: 1.0,
     cacheRead: 0.05,
     output: 2.5,
-  },
+  }],
   // Haiku 4.5
-  'claude-haiku-4-5': {
+  'claude-haiku-4-5': [{
+    from: null,
     input: 1.0,
     cacheWrite5m: 1.25,
     cacheWrite1h: 2.0,
     cacheRead: 0.1,
     output: 5.0,
-  },
+  }],
   // Haiku 3.5
-  'claude-haiku-3-5': {
+  'claude-haiku-3-5': [{
+    from: null,
     input: 0.8,
     cacheWrite5m: 1.0,
     cacheWrite1h: 1.6,
     cacheRead: 0.08,
     output: 4.0,
-  },
+  }],
   // Haiku 3 (deprecated)
-  'claude-haiku-3': {
+  'claude-haiku-3': [{
+    from: null,
     input: 0.25,
     cacheWrite5m: 0.3,
     cacheWrite1h: 0.5,
     cacheRead: 0.03,
     output: 1.25,
-  },
+  }],
 };
+
+/** Milliseconds for a `from` date, or -Infinity for "since launch". */
+const fromMs = (from) => (from ? Date.parse(`${from}T00:00:00Z`) : -Infinity);
+
+const toMs = (at) => {
+  if (at === undefined || at === null) return Date.now();
+  const n = typeof at === 'number' ? at : Date.parse(at);
+  return Number.isFinite(n) ? n : Date.now();
+};
+
+/**
+ * The rate card of a tier in effect at `at` (ms or a date string; default
+ * now): the newest row whose `from` is not after it. A time before the first
+ * dated row gets the first row, since that is the earliest price known.
+ */
+export function ratesAt(tier, at) {
+  const rows = PRICE_HISTORY[tier];
+  if (!rows) return null;
+  const t = toMs(at);
+  let pick = rows[0];
+  for (const r of rows) if (fromMs(r.from) <= t) pick = r;
+  return pick;
+}
+
+/** Every dated row of a tier, oldest first (for audits and the upstream watch). */
+export function priceHistory(tier) {
+  return (PRICE_HISTORY[tier] || []).map((r) => ({ ...r }));
+}
+
+// What a bare alias meant over time: the model Claude Code sent for it from
+// each date on, oldest first. An alias moves to a new model on launch day, so
+// a run recorded as `opus` is priced as the Opus that was current then, not
+// the oldest Opus in the table (#13).
+// Dates are the launch days in the platform release notes
+// (https://platform.claude.com/docs/en/release-notes/overview); Claude Code
+// moved its aliases on or shortly after them. A time before the first row
+// resolves to the first row.
+const ALIAS_HISTORY = {
+  opus: [
+    { from: '2025-05-22', model: 'claude-opus-4-20250514' },
+    { from: '2025-08-05', model: 'claude-opus-4-1-20250805' },
+    { from: '2025-11-24', model: 'claude-opus-4-5-20251101' },
+    { from: '2026-02-05', model: 'claude-opus-4-6' },
+    { from: '2026-04-16', model: 'claude-opus-4-7' },
+    { from: '2026-05-28', model: 'claude-opus-4-8' },
+    { from: '2026-07-24', model: 'claude-opus-5' },
+    { from: '2026-09-22', model: 'claude-opus-5-5' },
+  ],
+  sonnet: [
+    { from: '2025-05-22', model: 'claude-sonnet-4-20250514' },
+    { from: '2025-09-29', model: 'claude-sonnet-4-5-20250929' },
+    { from: '2026-02-17', model: 'claude-sonnet-4-6' },
+    { from: '2026-06-30', model: 'claude-sonnet-5' },
+    { from: '2026-09-28', model: 'claude-sonnet-5-5' },
+  ],
+  haiku: [
+    { from: null, model: 'claude-3-5-haiku-20241022' },
+    { from: '2025-10-15', model: 'claude-haiku-4-5-20251001' },
+    { from: '2026-10-07', model: 'claude-haiku-5-5' },
+  ],
+  fable: [
+    { from: '2026-06-09', model: 'claude-fable-5' },
+    { from: '2026-09-01', model: 'claude-fable-5-1' },
+  ],
+};
+
+// Spellings that name an alias rather than a model: the bare family, its
+// `[1m]` form, and the Claude Code shorthands that resolve to a family.
+const ALIAS_OF = { opus: 'opus', opusplan: 'opus', sonnet: 'sonnet', haiku: 'haiku', fable: 'fable', best: 'fable' };
+
+/**
+ * The model a bare alias stood for at `at`, or null when `model` is not an
+ * alias (a full id passes through untouched at the call site).
+ */
+export function resolveAlias(model, at) {
+  if (typeof model !== 'string') return null;
+  const key = ALIAS_OF[model.trim().toLowerCase().replace(/\[1m\]$/, '')];
+  const rows = key && ALIAS_HISTORY[key];
+  if (!rows || rows.length === 0) return null;
+  const t = toMs(at);
+  let pick = null;
+  for (const r of rows) if (fromMs(r.from) <= t) pick = r;
+  return (pick || rows[0]).model;
+}
 
 /**
  * Detect pricing tier from Claude model identifier.
  * Examples: 'claude-opus-4-7', 'claude-sonnet-4-5', 'claude-haiku-4-5'.
+ * A bare alias (`opus`, `sonnet[1m]`) is first resolved to the model it meant
+ * at `at` (default now).
  */
-export function detectPricingTier(model) {
+export function detectPricingTier(model, { at } = {}) {
   if (!model) return 'claude-sonnet';
-  const m = model.toLowerCase();
+  const resolved = resolveAlias(model, at);
+  const m = (resolved || model).toLowerCase();
 
   // Fable 5 / Mythos 5 — must be checked before the generic fallback:
   // without this, 'claude-fable-5' fell through to the Sonnet tier and
@@ -283,10 +397,13 @@ function tokensToMillions(n) {
  *   ephemeral5m      — portion of cacheCreation billed at 5m rate (1.25x input)
  *   ephemeral1h      — portion of cacheCreation billed at 1h rate (2x input)
  *   output           — output tokens
+ *
+ * `at` (ms or a date string, default now) is when the tokens were spent: the
+ * list price is the one in effect then (see ratesAt).
  */
-export function estimateCost(totals, model, { price } = {}) {
+export function estimateCost(totals, model, { price, at } = {}) {
   if (price) return estimateCostAtPrice(totals, price);
-  const tier = detectPricingTier(model);
+  const tier = detectPricingTier(model, { at });
 
   // Haiku 5.5 prices each request by its own prompt length, so the long-prompt
   // part (`totals.long`, same shape) is priced at the long rates and the rest
@@ -294,8 +411,8 @@ export function estimateCost(totals, model, { price } = {}) {
   let c;
   if (tier === 'claude-haiku-5-5' && totals.long) {
     const short = subtractTotals(totals, totals.long);
-    const a = priceTotals(short, PRICING[tier]);
-    const b = priceTotals(totals.long, PRICING['claude-haiku-5-5-long']);
+    const a = priceTotals(short, ratesAt(tier, at));
+    const b = priceTotals(totals.long, ratesAt('claude-haiku-5-5-long', at));
     c = {
       actual: a.actual + b.actual,
       noCacheCost: a.noCacheCost + b.noCacheCost,
@@ -303,7 +420,7 @@ export function estimateCost(totals, model, { price } = {}) {
       write1h: a.write1h + b.write1h,
     };
   } else {
-    c = priceTotals(totals, PRICING[tier]);
+    c = priceTotals(totals, ratesAt(tier, at));
   }
   const { actual, noCacheCost, scenario5mCost, write1h } = c;
 

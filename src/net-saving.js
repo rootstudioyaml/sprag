@@ -49,11 +49,11 @@ export function priceSource(env = process.env) {
  * touches. Cache writes are taken at the 5-minute rate, the cheaper of the two.
  * null when any of them has no price.
  */
-export function unitRates(model, { env = process.env } = {}) {
+export function unitRates(model, { env = process.env, at } = {}) {
   if (!model) return null;
   const rate = (totals) => {
     let c;
-    try { c = sessionCost({ ...ZERO, ...totals }, model, { env }); } catch { return null; }
+    try { c = sessionCost({ ...ZERO, ...totals }, model, { env, at }); } catch { return null; }
     return c ? c.actual / RATE_SCALE : null;
   };
   const cacheRead = rate({ cacheRead: RATE_SCALE });
@@ -67,7 +67,7 @@ export function unitRates(model, { env = process.env } = {}) {
  * What a run's tokens cost on a model, in USD, to better than a cent. null when
  * the model has no price on this path.
  */
-export function exactCost(totals, model, { env = process.env } = {}) {
+export function exactCost(totals, model, { env = process.env, at } = {}) {
   if (!model) return null;
   const scale = (t) => {
     const out = {};
@@ -77,7 +77,7 @@ export function exactCost(totals, model, { env = process.env } = {}) {
   const scaled = scale(totals);
   if (totals.long) scaled.long = scale(totals.long);
   let c;
-  try { c = sessionCost(scaled, model, { env }); } catch { return null; }
+  try { c = sessionCost(scaled, model, { env, at }); } catch { return null; }
   return c ? c.actual / COST_SCALE : null;
 }
 

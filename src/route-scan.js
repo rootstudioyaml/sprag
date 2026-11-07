@@ -377,11 +377,17 @@ export function worthDelegating(tier, rank) {
  * negative. null means a side has no price (a gateway session whose /model/info
  * table lacks the model), which is unpriced, not zero.
  */
+/** When a run spent its tokens, for the dated price lookup; undefined means now. */
+const runTime = (run) => (Number.isFinite(run?.startedAt) ? run.startedAt : Number.isFinite(run?.endedAt) ? run.endedAt : undefined);
+
 export function runSaving(run, mainModel, { env = process.env } = {}) {
   if (!run.model || !mainModel) return null;
   const totals = runTotals(run);
-  const actual = sessionCost(totals, run.model, { env });
-  const counterfactual = sessionCost(totals, mainModel, { env });
+  // Priced at the rates in effect when the run happened, so a later price
+  // change does not rewrite a saving already earned (#15).
+  const at = runTime(run);
+  const actual = sessionCost(totals, run.model, { env, at });
+  const counterfactual = sessionCost(totals, mainModel, { env, at });
   if (!actual || !counterfactual) return null;
   return counterfactual.actual - actual.actual;
 }
@@ -403,8 +409,9 @@ export function runSavingDetail(run, mainModel, info, { env = process.env } = {}
   const v3 = (() => {
     if (!info || !Array.isArray(run.perCall) || run.perCall.length === 0) return null;
     if (!Number.isFinite(info.resultChars)) return null;
-    const rates = unitRates(mainModel, { env });
-    const subActual = exactCost(runTotals(run), run.model, { env });
+    const at = runTime(run);
+    const rates = unitRates(mainModel, { env, at });
+    const subActual = exactCost(runTotals(run), run.model, { env, at });
     if (!rates || subActual === null) return null;
     // A background launch returns only an acknowledgement; the report that
     // follows is the run's final message.
@@ -431,7 +438,7 @@ export function runSavingDetail(run, mainModel, info, { env = process.env } = {}
  */
 export function runCost(run) {
   if (!run.model) return null;
-  const actual = sessionCost(runTotals(run), run.model);
+  const actual = sessionCost(runTotals(run), run.model, { at: runTime(run) });
   return actual ? actual.actual : null;
 }
 
@@ -967,7 +974,7 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
           startedAt: e.run.startedAt ?? null,
           cfCarry: detail.cfCarry,
           overhead: detail.overhead,
-          firstWrite: detail.basis === 'v3' ? (e.run.perCall[0].newIn * (unitRates(baseline)?.write ?? 0)) : 0,
+          firstWrite: detail.basis === 'v3' ? (e.run.perCall[0].newIn * (unitRates(baseline, { at: runTime(e.run) })?.write ?? 0)) : 0,
           calls: e.run.calls,
           C: e.info?.C ?? null,
           N: e.info?.N ?? null,
