@@ -11,7 +11,7 @@
  * File: <userDataDir>/delegation-ledger.json
  *   { "version": 3,
  *     "events": { "<run path>": { "ts", "usd", "cost", "rule", "from", "to",
- *                                 "basis", "priceSource", "baselineSource" } } }
+ *                                 "basis", "priceSource", "baselineSource", "q" } } }
  *
  * Version 3 prices a run on the net-saving basis (src/net-saving.js), and each
  * event says how it was priced: `basis` 'v3' (cache re-reads and carried
@@ -21,6 +21,18 @@
  * rule's stored baseline, when that model had no price). Version 2 events keep
  * their value and read as basis v2; a rescan reprices those still inside the
  * scan window as v3 and leaves the older ones alone.
+ *
+ * `q` holds the token quantities a list-priced run was priced from (#15):
+ * `at` (when the run spent its tokens), `sub` (the run's own token totals) and,
+ * on the v3 basis, `main` (cacheRead, write and output tokens of the main model,
+ * from src/net-saving.js). The dollars of such an event are computed from `q`
+ * every time the ledger is read, with the price in effect at `q.at`, so a
+ * corrected price table fixes the past; `usd` and `cost` stored beside it are
+ * only a cache of that figure. `q` is optional and the ledger stays version 3,
+ * so older sprag versions ignore it. Events without `q` (written before it
+ * existed and outside the scan window) keep their stored figure, and gateway
+ * events are still stored as dollars until their quantities are priced the same
+ * way (stage 3 of #15).
  *
  * `from`/`to` are the models the routing decision moved between, and `usd` is
  * the price difference between them for this run's tokens. `cost` is what the
@@ -41,6 +53,7 @@ import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { writeStateFile } from './state-file.js';
 import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
+import { exactCost, unitRates, savingFromQuantities } from './net-saving.js';
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 const MONTH_MS = 30 * 24 * 3600 * 1000;
@@ -69,7 +82,42 @@ export function runIdentity(key) {
   return i > 0 ? parts.slice(i - 1).join('/') : String(key);
 }
 
-export function loadLedger() {
+/**
+ * What an event is worth, computed from its stored quantities `q` with the
+ * list price in effect at `q.at` (#15). { usd, cost } rounded like stored
+ * figures, or null when the event cannot be priced from quantities: no `q`, a
+ * gateway price, a missing model, or a model with no price. The empty env keeps
+ * a gateway set in the current shell from leaking into the list table.
+ */
+export function priceLedgerEvent(e) {
+  try {
+    const q = e?.q;
+    if (!q || typeof q !== 'object' || !q.sub || typeof q.sub !== 'object') return null;
+    if (e.priceSource !== 'list' || !e.from || !e.to) return null;
+    const at = Number.isFinite(q.at) ? q.at : Number.isFinite(e.ts) ? e.ts : undefined;
+    const cost = exactCost(q.sub, e.to, { env: {}, at });
+    if (!Number.isFinite(cost)) return null;
+    let usd;
+    if (q.main) {
+      const rates = unitRates(e.from, { env: {}, at });
+      usd = rates ? savingFromQuantities(q.main, rates, cost) : null;
+    } else {
+      const base = exactCost(q.sub, e.from, { env: {}, at });
+      usd = Number.isFinite(base) ? base - cost : null;
+    }
+    if (!Number.isFinite(usd)) return null;
+    return { usd: roundUsd(usd), cost: roundUsd(cost) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `priced: false` returns the stored figures untouched; the writers use it so
+ * a write does not turn the read-time figures into stored ones (that is
+ * repriceDelegationLedger's job, which also marks the change for the team sync).
+ */
+export function loadLedger({ priced = true } = {}) {
   try {
     const data = JSON.parse(readFileSync(ledgerPath(), 'utf8'));
     if (!data || typeof data.events !== 'object' || data.events === null) {
@@ -90,6 +138,14 @@ export function loadLedger() {
       if (seen.has(id)) delete data.events[key];
       else seen.add(id);
     }
+    // Dollars come from the stored quantities at the price in effect when each
+    // run happened, so every reader sees the current price table's figure.
+    if (priced) {
+      for (const e of Object.values(data.events)) {
+        const p = e && priceLedgerEvent(e);
+        if (p) { e.usd = p.usd; e.cost = p.cost; }
+      }
+    }
     return data;
   } catch {
     return { version: LEDGER_VERSION, events: {} };
@@ -98,7 +154,7 @@ export function loadLedger() {
 
 /**
  * Upsert saving events. `events` is an array of
- * { key, ts, usd, cost, rule, from, to, basis, priceSource, baselineSource } where `key` is the run's transcript
+ * { key, ts, usd, cost, rule, from, to, basis, priceSource, baselineSource, q } where `key` is the run's transcript
  * path (unique per subagent run) and `from`/`to` name the models the routing
  * decision moved between. `usd` is signed: a run on a pricier model is a loss
  * and is recorded as a negative amount so it reduces the totals. Only
@@ -107,7 +163,7 @@ export function loadLedger() {
  */
 export function recordDelegationEvents(events) {
   if (!Array.isArray(events) || events.length === 0) return;
-  const data = loadLedger();
+  const data = loadLedger({ priced: false });
   data.version = LEDGER_VERSION;
   let changed = false;
   // Earliest moment whose figures this call changed. A rescan that reprices or
@@ -129,7 +185,8 @@ export function recordDelegationEvents(events) {
     // The same goes for the basis fields: a v2 event rescanned as v3 differs.
     if (prev && prev.ts === e.ts && prev.usd === usd && prev.cost === cost
       && prev.basis === (e.basis || undefined) && prev.priceSource === (e.priceSource || undefined)
-      && prev.baselineSource === (e.baselineSource || undefined)) continue;
+      && prev.baselineSource === (e.baselineSource || undefined)
+      && JSON.stringify(prev.q) === JSON.stringify(e.q || undefined)) continue;
     earliest = Math.min(earliest, e.ts, Number.isFinite(prev?.ts) ? prev.ts : Infinity);
     if (prevKey !== e.key) delete data.events[prevKey];
     keyOf.set(id, e.key);
@@ -143,6 +200,7 @@ export function recordDelegationEvents(events) {
       ...(e.basis ? { basis: e.basis } : {}),
       ...(e.priceSource ? { priceSource: e.priceSource } : {}),
       ...(e.baselineSource ? { baselineSource: e.baselineSource } : {}),
+      ...(e.q ? { q: e.q } : {}),
     };
     changed = true;
   }
@@ -156,6 +214,45 @@ export function recordDelegationEvents(events) {
   } catch {
     // statusline totals just stay stale until the next successful scan
   }
+}
+
+/**
+ * Store the figures computed from quantities where they differ from the stored
+ * ones, and mark the change for the team sync. A price correction changes days
+ * the sync already uploaded, and nothing else would tell it to reach back that
+ * far. Reads the file as stored (not loadLedger's computed view), so it sees
+ * what was uploaded. Returns the number of events changed.
+ */
+export function repriceDelegationLedger() {
+  let data;
+  try {
+    data = JSON.parse(readFileSync(ledgerPath(), 'utf8'));
+  } catch {
+    return 0;
+  }
+  if (!data || typeof data.events !== 'object' || data.events === null || !READABLE_VERSIONS.has(data.version)) return 0;
+  let n = 0;
+  let earliest = Infinity;
+  for (const e of Object.values(data.events)) {
+    const p = e && priceLedgerEvent(e);
+    if (!p || (e.usd === p.usd && e.cost === p.cost)) continue;
+    e.usd = p.usd;
+    e.cost = p.cost;
+    n += 1;
+    if (Number.isFinite(e.ts)) earliest = Math.min(earliest, e.ts);
+  }
+  if (n === 0) return 0;
+  data.version = LEDGER_VERSION;
+  if (Number.isFinite(earliest)) {
+    data.changedSince = Math.min(Number.isFinite(data.changedSince) ? data.changedSince : Infinity, earliest);
+    data.changeSeq = (Number(data.changeSeq) || 0) + 1;
+  }
+  try {
+    writeStateFile(ledgerPath(), JSON.stringify(data) + '\n');
+  } catch {
+    return 0;
+  }
+  return n;
 }
 
 /**
@@ -183,7 +280,7 @@ export function changedSinceForSync() {
  * then kept, so the next sync covers that change too.
  */
 export function clearChangedSince(seq) {
-  const data = loadLedger();
+  const data = loadLedger({ priced: false });
   if ((Number(data.changeSeq) || 0) !== seq) return false;
   if (!Number.isFinite(data.changedSince) && data.changeTracking === 1) return false;
   delete data.changedSince;

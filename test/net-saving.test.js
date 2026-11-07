@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { netSavingV3, unitRates, exactCost, priceSource } from '../src/net-saving.js';
+import { netSavingV3, netSavingQuantities, savingFromQuantities, unitRates, exactCost, priceSource } from '../src/net-saving.js';
 import { runSaving, runSavingDetail } from '../src/route-scan.js';
 import { collectSessionRecords, delegationContexts, CARRY_CAP } from '../src/session-records.js';
 import { collectSubagentRun } from '../src/subagent-records.js';
@@ -47,6 +47,29 @@ test('a run whose context shrank is not credited a negative growth', () => {
   const r = netSavingV3({ ...BASE, calls });
   // g_2 = 0 and G = 100 (output only), not negative
   near(r.cfCarry, 100 * 10 * 1e-7);
+});
+
+test('savingFromQuantities of netSavingQuantities equals netSavingV3 (#15)', () => {
+  const cases = [
+    BASE,
+    { ...BASE, followUps: 0 },
+    { ...BASE, skipFirstWrite: true },
+    { ...BASE, skipFirstWrite: true, followUps: 0 },
+    { ...BASE, resultTokens: 1234.25, promptTokens: 77 },
+    { ...BASE, calls: [{ ctx: 30000, newIn: 30000, out: 50 }, { ctx: 25000, newIn: 10, out: 50 }, { ctx: 40000, newIn: 15000, out: 9 }] },
+    { ...BASE, rates: { cacheRead: 0.2e-6, write: 5e-6, output: 20e-6 }, subActual: 0.003 },
+  ];
+  for (const x of cases) {
+    const q = netSavingQuantities(x);
+    near(savingFromQuantities(q, x.rates, x.subActual), netSavingV3(x).usd, 1e-9);
+  }
+  // hand check on BASE: reads 100000+101000 + 1300*10 - 1000*10, writes 20900-1000, output 300-500
+  assert.deepEqual(netSavingQuantities(BASE), { cacheRead: 204000, write: 19900, output: -200 });
+  assert.equal(netSavingQuantities({ ...BASE, calls: [] }), null);
+  assert.equal(netSavingQuantities({ ...BASE, mainCtx: 0 }), null);
+  assert.equal(netSavingQuantities({ ...BASE, resultTokens: NaN }), null);
+  assert.equal(savingFromQuantities({ cacheRead: 1, write: 1, output: NaN }, RATES, 0), null);
+  assert.equal(savingFromQuantities({ cacheRead: 1, write: 1, output: 1 }, RATES, null), null);
 });
 
 test('netSavingV3 returns null when any input is missing or unusable', () => {

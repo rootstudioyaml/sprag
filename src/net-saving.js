@@ -131,3 +131,50 @@ export function netSavingV3({ calls, mainCtx, followUps, promptTokens, resultTok
   // input and output. Split out so the savings page can show each term.
   return { usd: cfWork + cfCarry - actual, cfWork, cfReread, cfCarry, overhead, actual, subActual };
 }
+
+/**
+ * The v3 saving is linear in the main model's three rates, so a run can be
+ * stored as three token quantities and priced later at whatever rates applied
+ * when it ran (#15). With G = grow_last + the run's output and N = followUps:
+ *   cacheRead = sum(mainCtx + grow_i) + G * N - R * N
+ *   write     = sum(newIn_i) (the first call's left out under skipFirstWrite) - R
+ *   output    = sum(out_i) - P
+ * and usd = cacheRead * rates.cacheRead + write * rates.write
+ *           + output * rates.output - subActual (see savingFromQuantities).
+ * Same inputs and validation as netSavingV3, minus rates and subActual.
+ *
+ * @returns {{cacheRead:number,write:number,output:number}|null}
+ */
+export function netSavingQuantities({ calls, mainCtx, followUps, promptTokens, resultTokens, skipFirstWrite = false }) {
+  if (!Array.isArray(calls) || calls.length === 0) return null;
+  if (!calls.every((c) => c && isNum(c.ctx) && isNum(c.newIn) && isNum(c.out))) return null;
+  if (!isNum(mainCtx) || mainCtx <= 0) return null;
+  if (!isNum(followUps) || followUps < 0) return null;
+  if (!isNum(promptTokens) || promptTokens < 0) return null;
+  if (!isNum(resultTokens) || resultTokens < 0) return null;
+
+  const ctx1 = calls[0].ctx;
+  const grow = (c) => Math.max(0, c.ctx - ctx1);
+  let reread = 0;
+  let newIn = 0;
+  let totalOut = 0;
+  calls.forEach((c, i) => {
+    reread += mainCtx + grow(c);
+    if (!(skipFirstWrite && i === 0)) newIn += c.newIn;
+    totalOut += c.out;
+  });
+  const G = grow(calls[calls.length - 1]) + totalOut;
+  return {
+    cacheRead: reread + G * followUps - resultTokens * followUps,
+    write: newIn - resultTokens,
+    output: totalOut - promptTokens,
+  };
+}
+
+/** The v3 saving in USD from stored quantities; null when any input is not finite. */
+export function savingFromQuantities(q, rates, subActual) {
+  if (!q || !isNum(q.cacheRead) || !isNum(q.write) || !isNum(q.output)) return null;
+  if (!rates || !isNum(rates.cacheRead) || !isNum(rates.write) || !isNum(rates.output)) return null;
+  if (!isNum(subActual)) return null;
+  return q.cacheRead * rates.cacheRead + q.write * rates.write + q.output * rates.output - subActual;
+}

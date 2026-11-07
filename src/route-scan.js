@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { discoverSessionFiles } from './parser.js';
 import { collectSessionRecords, delegationContexts } from './session-records.js';
-import { netSavingV3, unitRates, exactCost, priceSource } from './net-saving.js';
+import { netSavingV3, netSavingQuantities, unitRates, exactCost, priceSource } from './net-saving.js';
 import {
   collectSubagentRuns, indexRuns, exactRunsForEpisode, fallbackRunsForEpisode,
 } from './subagent-records.js';
@@ -378,7 +378,7 @@ export function worthDelegating(tier, rank) {
  * table lacks the model), which is unpriced, not zero.
  */
 /** When a run spent its tokens, for the dated price lookup; undefined means now. */
-const runTime = (run) => (Number.isFinite(run?.startedAt) ? run.startedAt : Number.isFinite(run?.endedAt) ? run.endedAt : undefined);
+export const runTime = (run) => (Number.isFinite(run?.startedAt) ? run.startedAt : Number.isFinite(run?.endedAt) ? run.endedAt : undefined);
 
 export function runSaving(run, mainModel, { env = process.env } = {}) {
   if (!run.model || !mainModel) return null;
@@ -402,7 +402,10 @@ export function runSaving(run, mainModel, { env = process.env } = {}) {
  * no price on either side) sends the run to the v2 formula instead, tagged
  * basis 'v2', so the figure is never invented. null still means unpriced.
  *
- * @returns {{usd:number, basis:'v3'|'v2', cfWork?:number, cfCarry?:number, overhead?:number}|null}
+ * On v3 the result also carries `main`, the main model's token quantities the
+ * saving is linear in (netSavingQuantities), which the ledger stores.
+ *
+ * @returns {{usd:number, basis:'v3'|'v2', main?:object, cfWork?:number, cfCarry?:number, overhead?:number}|null}
  */
 export function runSavingDetail(run, mainModel, info, { env = process.env } = {}) {
   if (!run.model || !mainModel) return null;
@@ -416,15 +419,16 @@ export function runSavingDetail(run, mainModel, info, { env = process.env } = {}
     // A background launch returns only an acknowledgement; the report that
     // follows is the run's final message.
     const chars = info.resultChars + (info.async ? (run.finalChars || 0) : 0);
-    return netSavingV3({
+    const inputs = {
       calls: run.perCall,
       mainCtx: info.C,
       followUps: info.N,
       promptTokens: info.P,
       resultTokens: chars / 4,
-      rates,
-      subActual,
-    });
+    };
+    const result = netSavingV3({ ...inputs, rates, subActual });
+    if (!result) return null;
+    return { ...result, main: netSavingQuantities(inputs) };
   })();
   if (v3) return { basis: 'v3', ...v3 };
   const v2 = runSaving(run, mainModel, { env });
@@ -442,7 +446,7 @@ export function runCost(run) {
   return actual ? actual.actual : null;
 }
 
-function runTotals(run) {
+export function runTotals(run) {
   return {
     input: run.input,
     cacheCreation: run.cacheCreation,
@@ -926,7 +930,7 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
   // to show up: the first wrote the new baseline but billed against the old
   // one, and the totals only settled on the second.
   try {
-    const { recordDelegationEvents } = await import('./savings-ledger.js');
+    const { recordDelegationEvents, repriceDelegationLedger, priceLedgerEvent } = await import('./savings-ledger.js');
     const { loadModelRules } = await import('./model-rules.js');
     const fresh = loadModelRules().rules;
     const priced = [];
@@ -947,9 +951,10 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
       const detail = runSavingDetail(e.run, baseline, e.info);
       // A loss is recorded too; only an unpriced run (null) has nothing to record.
       if (!detail || !Number.isFinite(detail.usd)) continue;
-      priced.push({
+      const ts = e.run.endedAt ?? e.run.startedAt ?? Date.now();
+      const event = {
         key: e.run.path,
-        ts: e.run.endedAt ?? e.run.startedAt ?? Date.now(),
+        ts,
         usd: detail.usd,
         cost: runCost(e.run),
         rule: rule.signature,
@@ -958,7 +963,22 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
         basis: detail.basis,
         priceSource: priceSource(),
         baselineSource: fromEpisode ? 'episode' : 'rule',
-      });
+      };
+      // A list-priced run is stored as token quantities, and its dollars come
+      // from them through the one function every reader uses (#15). Gateway
+      // runs keep the dollars priced just now, with no quantities.
+      if (event.priceSource === 'list') {
+        event.q = {
+          at: runTime(e.run) ?? ts,
+          sub: runTotals(e.run),
+          ...(detail.basis === 'v3' && detail.main ? { main: detail.main } : {}),
+        };
+        const p = priceLedgerEvent(event);
+        if (!p) continue;
+        event.usd = p.usd;
+        event.cost = p.cost;
+      }
+      priced.push(event);
       if (Array.isArray(trace)) {
         trace.push({
           key: e.run.path,
@@ -982,6 +1002,7 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
       }
     }
     recordDelegationEvents(priced);
+    repriceDelegationLedger();
   } catch {
     // ledger write failure only delays the statusline totals, never the scan
   }
