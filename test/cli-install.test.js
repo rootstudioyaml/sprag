@@ -58,6 +58,44 @@ test('install completes on a machine with no prior state', () => {
   }
 });
 
+test('install turns the delegation guard on by default and keeps an explicit off', () => {
+  /* The guard rewrites every Task/Agent prompt, so the install has to say what
+     it appends the first time it registers the hook, and an upgrade must never
+     re-enable it for a user who ran `delegate off`. */
+  const dir = mkdtempSync(join(tmpdir(), 'cts-install-dg-'));
+  const home = join(dir, 'home');
+  mkdirSync(home, { recursive: true });
+  const env = childEnv({ HOME: home, XDG_CONFIG_HOME: join(dir, 'cfg'), NO_COLOR: '1', SPRAG_LANG: 'en',
+    SPRAG_NO_DOC2MD: '1', SPRAG_NO_KOREAN: '1', SPRAG_NO_CODEX: '1' });
+  const guardEntries = () => {
+    const settings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    return (settings.hooks?.PreToolUse || []).filter((m) =>
+      (m.hooks || []).some((h) => /delegate --hook(?![\w-])/.test(h.command || '')));
+  };
+  const install = () => execFileSync(process.execPath, [CLI, 'install'], { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  try {
+    const first = install();
+    assert.match(first, /delegate: PreToolUse hook (created|updated)/);
+    assert.match(first, /runs at high/, 'the first registration explains the effort raise');
+    assert.match(first, /turn off: sprag delegate off/);
+    const entries = guardEntries();
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].matcher, 'Task|Agent');
+
+    const again = install();
+    assert.match(again, /delegate: PreToolUse hook exists/);
+    assert.doesNotMatch(again, /runs at high/, 'the notice is for the first registration only');
+    assert.equal(guardEntries().length, 1, 'a reinstall adds no second entry');
+
+    execFileSync(process.execPath, [CLI, 'delegate', 'off'], { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const upgraded = install();
+    assert.match(upgraded, /keeping your setting, delegation guard off/);
+    assert.equal(guardEntries().length, 0, 'an explicit off survives a reinstall');
+  } finally {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+});
+
 /**
  * The default install asks nothing and leaves the first session ready to save
  * tokens: presets registered for every project, and Codex wired up when it is

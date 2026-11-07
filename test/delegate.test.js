@@ -34,10 +34,16 @@ const ON = { delegate: { enabled: true } };
 const EMPTY_HOME = mkdtempSync(join(tmpdir(), 'sprag-home-'));
 after(() => rmSync(EMPTY_HOME, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
-test('decideForDelegation: disabled config returns null', async () => {
+test('decideForDelegation: only an explicit off disables it', async () => {
+  /* On by default since v3.104.0. A config with no `delegate` key, which is
+     every config written before the default changed, has to read as on, and
+     only the user's own `delegate off` turns the rewrite off. */
   const payload = { tool_name: 'Task', tool_input: { prompt: 'do the thing' } };
-  assert.equal(await decideForDelegation(payload, { cfg: {} }), null);
-  assert.equal(await decideForDelegation(payload, { cfg: { delegate: { enabled: false } } }), null);
+  assert.equal(await decideForDelegation(payload, { cfg: { delegate: { enabled: false } }, home: EMPTY_HOME }), null);
+  for (const cfg of [{}, { delegate: {} }, null]) {
+    const out = await decideForDelegation(payload, { cfg, home: EMPTY_HOME });
+    assert.ok(out?.updatedInput?.prompt.includes(DELEGATION_MARKER), `default must rewrite for ${JSON.stringify(cfg)}`);
+  }
 });
 
 test('decideForDelegation: a tool_name other than Task/Agent returns null', async () => {
@@ -468,7 +474,10 @@ test('delegate on: a settings.json it cannot use leaves the feature off, not hal
 
     const status = spawnSync(process.execPath, [CLI, 'delegate'], { encoding: 'utf8', env });
     assert.equal(status.status, 0, status.stderr);
-    assert.match(status.stdout, /^delegate: off/m, 'a failed install must not leave the flag on');
+    // On by default since v3.104.0, so the status still reads "on", but as the
+    // default with no hook behind it, never as a flag the failed command saved.
+    assert.match(status.stdout, /^delegate: on \((default|기본값)\), hook (not registered|미등록)/m,
+      'a failed install must not save the flag');
   } finally {
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }

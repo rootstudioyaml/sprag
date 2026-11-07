@@ -98,8 +98,8 @@ export async function run({ args, hasFlag }) {
     setDelegateEnabled(true);
     console.log(`✓ PreToolUse hook ${res.action} (${res.path})`);
     console.log(lang === 'ko'
-      ? '다음 서브에이전트 위임부터 프롬프트에 상한과 필요한 경우 한국어 지침, 최근에 읽은 경로가 덧붙습니다.'
-      : 'From the next delegation, prompts get bounds, Korean guidance when it applies, and already-touched paths appended.');
+      ? '다음 서브에이전트 위임부터 프롬프트에 상한과 필요한 경우 한국어 지침, 최근에 읽은 경로가 덧붙습니다. effort 없이 Sonnet에 보낸 위임은 high로 올립니다.'
+      : 'From the next delegation, prompts get bounds, Korean guidance when it applies, and already-touched paths appended. A Sonnet delegation sent without an effort runs at high.');
     return;
   }
 
@@ -116,26 +116,29 @@ export async function run({ args, hasFlag }) {
   }
 
   // status (default)
-  const { delegateEnabled, BOUNDS_PATH } = await import('../delegation-guard.js');
+  const { delegateEnabled, delegateDecided, BOUNDS_PATH } = await import('../delegation-guard.js');
   const { koreanStyleEnabled } = await import('../korean-style.js');
   const enabled = delegateEnabled();
+  const byDefault = enabled && !delegateDecided();
   const { registered: hookOn, reason } = await hookState();
   if (lang === 'ko') {
-    console.log(`delegate: ${enabled ? 'on' : 'off'}, hook ${hookOn ? '등록됨' : '미등록'}`);
+    console.log(`delegate: ${enabled ? 'on' : 'off'}${byDefault ? ' (기본값)' : ''}, hook ${hookOn ? '등록됨' : '미등록'}`);
     if (reason) console.log(`  settings.json: ${reason}`);
     console.log(`bounds 파일: ${BOUNDS_PATH}`);
     console.log(koreanStyleEnabled()
-      ? 'korean 지침이 켜져 있어, 한글이 들어간 위임 프롬프트에는 같은 지침이 함께 붙습니다.'
-      : 'korean 지침이 꺼져 있어, 위임 프롬프트에는 상한과 경로 안내만 붙습니다.');
-    console.log('켜기: sprag delegate on');
+      ? 'korean 지침이 켜져 있어서 한글이 들어간 위임 프롬프트에는 같은 지침이 함께 붙습니다.'
+      : 'korean 지침이 꺼져 있어서 위임 프롬프트에는 상한과 경로 안내만 붙습니다.');
+    if (enabled && !hookOn) console.log('훅을 등록하려면: sprag delegate on');
+    console.log(enabled ? '끄기: sprag delegate off' : '켜기: sprag delegate on');
   } else {
-    console.log(`delegate: ${enabled ? 'on' : 'off'}, hook ${hookOn ? 'registered' : 'not registered'}`);
+    console.log(`delegate: ${enabled ? 'on' : 'off'}${byDefault ? ' (default)' : ''}, hook ${hookOn ? 'registered' : 'not registered'}`);
     if (reason) console.log(`  settings.json: ${reason}`);
     console.log(`bounds file: ${BOUNDS_PATH}`);
     console.log(koreanStyleEnabled()
       ? 'Korean guidance is on, so a delegation prompt containing Hangul also gets that guidance appended.'
       : 'Korean guidance is off, so delegation prompts only get bounds and touched-path notes appended.');
-    console.log('Enable with: sprag delegate on');
+    if (enabled && !hookOn) console.log('Register the hook with: sprag delegate on');
+    console.log(enabled ? 'Disable with: sprag delegate off' : 'Enable with: sprag delegate on');
   }
 }
 

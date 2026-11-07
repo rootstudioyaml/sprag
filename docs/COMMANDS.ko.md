@@ -50,7 +50,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag korean reply on\|off` | 한국어 질문에 영어로 답했을 때 되돌려 보내는 Stop 훅을 켜고 끕니다 (기본값 켜짐, `korean off` 는 훅을 제거합니다) |
 | `sprag doc2md on\|off` | 첨부 문서를 모델이 읽기 전에 Markdown 으로 변환합니다 (아래 참고) |
 | `sprag doc2md <파일>` | 파일 하나를 직접 변환합니다. 진단 용도이며 실패 이유를 그대로 출력합니다 |
-| `sprag delegate on\|off\|status` | Task/Agent 위임 프롬프트마다 상한과 필요한 경우 한국어 지침, 세션이 이미 읽은 경로를 덧붙입니다 (아래 참고) |
+| `sprag delegate on\|off\|status` | 기본으로 켜져 있습니다. Task/Agent 위임 프롬프트마다 상한과 필요한 경우 한국어 지침, 세션이 이미 읽은 경로를 덧붙이고 effort 없는 Sonnet 위임을 high로 올립니다 (아래 참고) |
 | `sprag mode ttl=5m\|1h\|auto` | 캐시 TTL 버킷을 직접 지정합니다. 기본값 `auto`는 실측값을 먼저 보고, 실측값이 없으면 게이트웨이 여부로 판정합니다 |
 | `sprag --version` | 설치된 버전을 출력합니다 |
 | `sprag update-check` | 새 버전이 있는지 확인합니다 (`--refresh`로 즉시 조회, `--dismiss`로 그 버전 안내 끄기) |
@@ -63,7 +63,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 
 ## `sprag delegate`: 위임 프롬프트를 보내기 전에 고쳐 씁니다
 
-옵트인이고 기본값은 꺼짐입니다. `sprag delegate on` 을 실행하면 `Task`/`Agent` 호출에 PreToolUse 훅이 걸리고, 위임 프롬프트 뒤에 최대 네 섹션이 조건별로 붙습니다.
+v3.104.0부터 기본으로 켜져 있습니다. `sprag install` 이 `Task`/`Agent` 호출에 PreToolUse 훅을 걸고 처음 등록할 때 무엇을 덧붙이는지 알립니다. `sprag delegate off` 로 끄면 업그레이드 뒤에도 꺼진 채로 남고, 스크립트로 설치할 때는 `SPRAG_NO_DELEGATE=1` 로 건너뜁니다. 훅은 위임 프롬프트 뒤에 최대 네 섹션을 조건별로 붙입니다.
 
 | 섹션 | 붙는 조건 |
 |---|---|
@@ -77,4 +77,6 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 기대기 전에 알아야 할 한계가 두 가지 있습니다.
 
 - 상한은 프롬프트에 남기는 요청일 뿐이고 강제력을 갖지 않습니다. 서브에이전트가 상한을 넘겨도 그 실행을 막지 못합니다.
-- 위임 호출에 `model` 없이 `subagent_type` 만 있고, 그 에이전트 자체가 haiku 로 설정된 경우에는 호출값만으로 이를 구분할 수 없어 느슨한 20회·8,000 토큰 상한이 그대로 적용됩니다.
+- `subagent_type` 만 있는 위임은 에이전트 파일로 모델을 찾습니다. `t2-explore` 는 haiku로, `t1h-worker` 는 opus로 읽습니다. sprag가 모르는 에이전트 이름이면 20회와 8,000 토큰 상한을 씁니다.
+
+effort도 정합니다. `effort` 없이 `sonnet` 모델로 보낸 위임은 프리셋 에이전트가 아니면 Claude Code 기본값인 `medium` 대신 `high` 로 돕니다. 프롬프트 끝에 붙는 표식 줄로 route-scan이 상향 횟수를 세고 상태줄 `🔬↑N` 과 `sprag saved` 에 보여 줍니다. 2026-11-07 재생 실험에서 여러 파일 조회는 medium에서 3회 중 0회, high에서 3회 중 2회 그대로 전달할 수 있었고 비용은 약 25% 늘었습니다([sprag.io/proof](https://sprag.io/proof/)). 프리셋 에이전트는 파일에 고정된 effort를 따르고, 호출이 effort를 넘기면 그 값을 그대로 둡니다.

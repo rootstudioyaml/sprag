@@ -57,7 +57,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag korean reply on\|off` | Toggle the Stop hook that sends back an English reply to a Korean prompt (default on; `korean off` removes it) |
 | `sprag doc2md on\|off` | Convert attached documents to Markdown before the model reads them (below) |
 | `sprag doc2md <file>` | Convert one file by hand. Diagnostic: it prints the refusal reason instead of swallowing it |
-| `sprag delegate on\|off\|status` | Append bounds, Korean guidance when it applies, and already-read paths to every Task/Agent delegation prompt (below) |
+| `sprag delegate on\|off\|status` | On by default: append bounds, Korean guidance when it applies, and already-read paths to every Task/Agent delegation prompt, and run effort-less Sonnet delegations at high (below) |
 | `sprag mode ttl=5m\|1h\|auto` | Pin the cache TTL bucket. The default `auto` trusts the measured split, then falls back to gateway detection |
 | `sprag --version` | Print the installed version |
 | `sprag update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
@@ -70,7 +70,7 @@ The output language is decided once, at install time: a terminal install propose
 
 ## `sprag delegate` — rewrite Task/Agent prompts before they spawn
 
-Opt-in, default off. `sprag delegate on` registers a PreToolUse hook on `Task`/`Agent` that appends up to four sections to the delegation prompt, each conditional on its own:
+On by default since v3.104.0. `sprag install` registers a PreToolUse hook on `Task`/`Agent` and says what it appends the first time; `sprag delegate off` turns it off and that choice survives upgrades (`SPRAG_NO_DELEGATE=1` skips it during a scripted install). The hook appends up to four sections to the delegation prompt, each conditional on its own:
 
 | Section | Condition |
 |---|---|
@@ -84,7 +84,9 @@ The bounds section's tool-call cap depends on the target: 8 tool calls / 1,500 o
 Two limits worth knowing before relying on this:
 
 - The caps are a prompt-level request, not an enforced ceiling — a subagent that ignores them is not stopped from running longer or writing more.
-- When a delegation gives only `subagent_type` (no `model`) and that agent is itself configured to run on haiku, the guard has no way to see that from the call alone, so the looser 20/8,000 cap applies even though the work actually runs cheap.
+- A delegation that gives only `subagent_type` is matched to its model through the agent file (`t2-explore` reads as haiku, `t1h-worker` as opus). An agent name sprag does not know falls back to the 20/8,000 cap.
+
+It also sets an effort. A delegation to a `sonnet` model that passes no `effort` and names no preset agent runs at `high` instead of Claude Code's default `medium`, and a marker line in the prompt lets route-scan count those raises (statusline `🔬↑N`, `sprag saved`). In the 2026-11-07 replay a multi-file lookup at medium was relayable in 0 of 3 runs and at high in 2 of 3, for about 25% more cost ([sprag.io/proof](https://sprag.io/proof/)). Preset agents keep the effort their files pin, and a call that passes an effort keeps it.
 
 <details>
 <summary>All CLI options</summary>
