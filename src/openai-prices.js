@@ -5,7 +5,7 @@
 export const OPENAI_PRICES_CHECKED_AT = Date.parse('2026-10-01T00:00:00Z');
 
 // Per-1M-token numbers as listed on the page; null where the page shows "-".
-const PER_MILLION = {
+export const PER_MILLION = {
   'gpt-6-astra': [10, 1, 12.5, 50],
   'gpt-6.1-sol': [2, 0.1, 2.5, 10],
   'gpt-6-luna': [0.1, 0.01, 0.125, 0.5],
