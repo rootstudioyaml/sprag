@@ -10,8 +10,9 @@ import { estimateCost, estimateCostAcross } from './cost.js';
 import { gatewayPriceFor } from './litellm-models.js';
 import { gatewayBase } from './gateway-auth.js';
 
-export function sessionCost(totals, model, { env = process.env, now } = {}) {
-  if (!gatewayBase(env)) return estimateCost(totals, model);
+// `at` is when the tokens were spent; list prices are looked up for that time.
+export function sessionCost(totals, model, { env = process.env, now, at } = {}) {
+  if (!gatewayBase(env)) return estimateCost(totals, model, { at });
   const price = gatewayPriceFor(model, env, now);
   return price ? estimateCost(totals, model, { price }) : null;
 }
