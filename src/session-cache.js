@@ -40,7 +40,11 @@ const CACHE_PATH = join(userDataDir(), 'session-cache.json');
 // tokens from requests whose prompt exceeds 100k, which Haiku 5.5 prices at a
 // higher rate. A v4 entry lacks it, so a Haiku 5.5 session cached before the
 // bump would keep being priced at the short rate until its transcript changed.
-const CACHE_VERSION = 5;
+// 6: sessions spanning more than one UTC day carry `dayTotals` (totals per UTC
+// day and model), so cost can use each day's price row (#15). A v5 entry lacks
+// it, so a session crossing a price change would be priced at one day's rate
+// until its transcript changed.
+const CACHE_VERSION = 6;
 // Entries for transcripts this old are pruned on write. Keeps the file
 // bounded without an existence check per entry (which would cost the syscalls
 // the cache exists to avoid).
@@ -57,6 +61,7 @@ const PRUNE_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
  * @property {number} maxContextPerRequest
  * @property {string} model
  * @property {Record<string, object>} [modelTotals] totals per model, present only when more than one model spent tokens
+ * @property {Record<string, Record<string, object>>} [dayTotals] totals per UTC day and model, present only when the requests span more than one UTC day
  * @property {string} [projectDir]
  */
 
@@ -71,6 +76,7 @@ function serialize(session) {
     maxContextPerRequest: session.maxContextPerRequest,
     model: session.model,
     ...(session.modelTotals ? { modelTotals: session.modelTotals } : {}),
+    ...(session.dayTotals ? { dayTotals: session.dayTotals } : {}),
     gatewayObserved: !!session.gatewayObserved,
   };
 }
@@ -87,6 +93,7 @@ function deserialize(stored, filePath, projectDir) {
     maxContextPerRequest: stored.maxContextPerRequest || 0,
     model: stored.model || 'unknown',
     ...(stored.modelTotals && typeof stored.modelTotals === 'object' ? { modelTotals: stored.modelTotals } : {}),
+    ...(stored.dayTotals && typeof stored.dayTotals === 'object' ? { dayTotals: stored.dayTotals } : {}),
     gatewayObserved: !!stored.gatewayObserved,
   };
 }

@@ -5,7 +5,7 @@
  * "Same period" as `sprag saved`: the routing reset mark, or the start of the
  * calendar month when nothing was ever reset, capped at 90 days of parsing.
  */
-import { pricedParts, sessionCost } from './claude-price.js';
+import { pricedParts, partCost } from './claude-price.js';
 import { modelFamily } from './savings-ledger.js';
 import { readResetMarks } from './saved-reset.cjs';
 import { RESET, RED, GREEN, YELLOW, CYAN, MAGENTA, GRAY } from './formatters/statusline.js';
@@ -84,7 +84,7 @@ export function computeModelShare(sessions, { env = process.env } = {}) {
     for (const part of pricedParts(s)) {
       if (!part || !part.totals) continue;
       let cost = null;
-      try { cost = sessionCost(part.totals, part.model, { env }); } catch { cost = null; }
+      try { cost = partCost(part, { env }); } catch { cost = null; }
       if (!cost || !Number.isFinite(cost.actual)) { unpriced++; continue; }
       const family = modelFamily(part.model);
       all.set(family, (all.get(family) || 0) + cost.actual);

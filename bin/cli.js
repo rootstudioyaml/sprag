@@ -934,9 +934,16 @@ async function main() {
         : await parseAllSessions({ days: Math.max(1, Math.ceil(daysNeeded)), projectFilter, sinceMs: since });
       // 월 경계에 걸친 세션은 월초 이후 요청만 남긴다. 그러지 않으면 1일 자정을
       // 넘긴 세션의 전월분이 이번 달 지출에 그대로 들어온다.
-      monthSpendInfo = monthSpend(await sessionsSince(monthSessions, since));
+      monthSpendInfo = monthSpend(await sessionsSince(monthSessions, since), new Date(), { ledger: !projectFilter });
     } catch (e) {
       debug('month-spend', e);
+    }
+    // 사용량 장부: Claude Code 가 transcript 를 지운 뒤에도 월 지출이 줄지 않도록
+    // 토큰을 일자별로 남긴다(#15). 실패해도 통계선은 그대로 그린다.
+    try {
+      if (monthSessions) (await import('../src/usage-ledger.js')).recordUsage(monthSessions);
+    } catch (e) {
+      debug('usage-ledger', e);
     }
   }
 
