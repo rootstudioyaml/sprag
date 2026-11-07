@@ -15,7 +15,7 @@
 
 [English](https://github.com/rootstudioyaml/sprag/blob/main/README.md) · [한국어](https://github.com/rootstudioyaml/sprag/blob/main/README.ko.md)
 
-[sprag.io](https://sprag.io) · [Benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md)
+[sprag.io](https://sprag.io) · [Benchmark](https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md) · [Proof](https://sprag.io/proof/)
 
 <a href="https://github.com/rootstudioyaml/sprag#teams"><img src="https://raw.githubusercontent.com/rootstudioyaml/sprag/main/docs/plan-pro-en.gif" width="640" alt="A virtual office where every teammate sits as an animal character, then the organization dashboard with spend, savings, seats and a 30-day chart, then team rules approved once and picked up by every machine."></a>
 

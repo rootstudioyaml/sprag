@@ -9,6 +9,14 @@
     <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/?lang=ko"/>
   </url>
   <url>
+    <loc>https://sprag.io/proof/</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sprag.io/proof/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://sprag.io/proof/?lang=ko"/>
+  </url>
+  <url>
     <loc>https://sprag.io/docs/</loc>
     <priority>0.7</priority>
   </url>

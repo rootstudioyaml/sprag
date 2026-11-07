@@ -64,6 +64,8 @@
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
   .brand svg{width:20px;height:20px;display:block}
   header nav{display:flex;align-items:center;gap:2px;font-size:13px;font-weight:500;color:var(--dim)}
+  .navlink{padding:5px 10px;border-radius:var(--r)}
+  .navlink:hover{color:var(--ink)}
   .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px;margin-left:12px}
   .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   .lang button:hover{color:var(--dim)}
@@ -102,6 +104,7 @@
       Sprag
     </a>
     <nav>
+      <a class="navlink" href="/proof/" data-k="nav.proof">Proof</a>
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
         <button data-lang="ko" aria-pressed="false">KO</button>
@@ -148,8 +151,8 @@ const KO = {
  'bz.priv': "개인정보처리방침",
  'bz.refund': "환불정책",
  'bz.verify': "사업자정보확인",
- 't.h': 'Sprag 둘러보기', 't.sub': '타운 전체에서 한 사람의 카드까지, Sprag 팀 대시보드를 90초 동안 둘러봅니다.' };
-const EN = { 't.h': 'Sprag tour', 't.sub': document.querySelector('[data-k="t.sub"]').textContent };
+ 'nav.proof': '검증 사례', 't.h': 'Sprag 둘러보기', 't.sub': '타운 전체에서 한 사람의 카드까지, Sprag 팀 대시보드를 90초 동안 둘러봅니다.' };
+const EN = { 'nav.proof': 'Proof', 't.h': 'Sprag tour', 't.sub': document.querySelector('[data-k="t.sub"]').textContent };
 document.querySelectorAll('[data-k^="bz."]').forEach(el => { EN[el.dataset.k] = el.innerHTML; });
 const META = {
   en: { title: 'Sprag tour', desc: document.querySelector('meta[name=description]').content },
