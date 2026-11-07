@@ -52,7 +52,8 @@ const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 
 const { tallyDelegatedRun, runRouteScan, runSaving, runTotals, runTime } = await import('../src/route-scan.js');
 const { exactCost } = await import('../src/net-saving.js');
-const { loadLedger, delegationSavedTotals, roundUsd } = await import('../src/savings-ledger.js');
+const { loadLedger, delegationSavedTotals, roundUsd, recordDelegationEvents } = await import('../src/savings-ledger.js');
+const { effortRaiseTotals } = await import('../src/effort-raise-ledger.js');
 const { refreshModelRules } = await import('../src/model-rules.js');
 const { collectSubagentRun } = await import('../src/subagent-records.js');
 const { resetSaved, undoReset, readResetMarks, resetPath } = await import('../src/saved-reset.cjs');
@@ -402,23 +403,42 @@ test('the scan counts raised-effort runs with their cost, and saved prints them 
     const cost = exactCost(runTotals(run), run.model, { at: runTime(run) });
     assert.ok(cost > 0.01, `the run is priced (${cost})`);
 
-    const scan = await runRouteScan({ days: 14 });
-    assert.equal(scan.effortRaises.count, 1, 'only the marked run; the haiku runs above were not raised');
-    assert.equal(scan.effortRaises.cost, round2(cost));
-    assert.equal(scan.effortRaises.since, run.startedAt);
-    assert.deepEqual(readRouteScan().effortRaises, scan.effortRaises, 'the statusline reads it from the cache');
+    await runRouteScan({ days: 14 });
+    assert.equal(readRouteScan().effortRaises, undefined, 'the count no longer lives in the scan cache');
+    assert.deepEqual(effortRaiseTotals(Date.now(), DIR), {
+      count: 1, cost: round2(cost), costMissing: 0, kept: 0, keptRuns: 0, since: null,
+    });
+    const file = JSON.parse(readFileSync(join(DIR, 'effort-raise-ledger.json'), 'utf8'));
+    assert.deepEqual(Object.keys(file.events), [runPath]);
+    assert.equal(file.events[runPath].cost, roundUsd(cost));
+    assert.equal(file.events[runPath].model, run.model);
 
+    // No rule covered the run, so there is no kept saving and no kept part.
     const lines = await captured(() => runSaved([]));
     const at = lines.findIndex((l) => /^(Routing saved|라우팅 절감):/.test(l));
     assert.ok(at >= 0, lines.join(' | '));
-    assert.match(lines[at + 1], /^(Effort raised: 1 runs · run cost|effort 상향: 1회 · 실행 비용) \$\d+\.\d\d /);
+    assert.match(lines[at + 1], /^(Effort raised: 1 runs · run cost|effort 상향: 1회 · 실행 비용) \$\d+\.\d\d \(/);
     assert.ok(lines[at + 1].includes(`$${round2(cost).toFixed(2)}`), lines[at + 1]);
+    assert.doesNotMatch(lines[at + 1], /saving kept|지켜낸 절감/);
+    assert.match(lines[at + 2], /^  \S/, 'the explanation line follows');
+
+    // Once the delegation ledger holds a saving for the same run, it shows as kept.
+    recordDelegationEvents([{ key: runPath, ts: run.endedAt ?? run.startedAt, usd: 4.5, cost: 1 }]);
+    const totals = effortRaiseTotals(Date.now(), DIR);
+    assert.equal(totals.kept, 4.5);
+    assert.equal(totals.keptRuns, 1);
+    const withKept = await captured(() => runSaved([]));
+    const at2 = withKept.findIndex((l) => /^(Routing saved|라우팅 절감):/.test(l));
+    assert.match(withKept[at2 + 1], /saving kept \$4\.50|지켜낸 절감 \$4\.50/);
 
     // A reset later than the run zeroes the count, as it zeroes the savings,
-    // and the saved command then says nothing about it.
+    // WITHOUT a rescan: the ledger is read live with the mark. The old cached
+    // aggregate stayed at its pre-reset value until the next scan, which is
+    // what this change removes.
     resetSaved(['routing'], { dir: DIR, now: NOW });
-    const after = await runRouteScan({ days: 14 });
-    assert.deepEqual(after.effortRaises, { count: 0, cost: 0, since: null });
+    assert.deepEqual(effortRaiseTotals(Date.now(), DIR), {
+      count: 0, cost: 0, costMissing: 0, kept: 0, keptRuns: 0, since: NOW,
+    });
     const quiet = await captured(() => runSaved([]));
     assert.ok(!quiet.some((l) => /Effort raised|effort 상향/.test(l)), quiet.join(' | '));
   } finally {

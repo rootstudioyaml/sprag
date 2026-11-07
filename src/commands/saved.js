@@ -72,24 +72,27 @@ async function refreshRuleSavings(ko, rescan) {
 
 /**
  * Sonnet delegations the guard ran at high effort because the call passed none
- * (src/delegation-guard.js), from the last route-scan. The statusline shows only
- * the count; the cost is said here, along with the fact that the saving above
- * already paid for it. Silent when nothing was raised or the scan is unreadable.
+ * (src/delegation-guard.js), from the effort-raise ledger (`totals` is
+ * effortRaiseTotals, read with the same routing reset mark as the line above
+ * it). The statusline shows the count and the saving those runs kept; the cost
+ * is said here. Silent when nothing was raised.
  */
-function printEffortRaises({ ko, money, readScan }) {
-  let r;
-  try {
-    r = readScan()?.effortRaises;
-  } catch (e) {
-    debug('saved:effort-raises', e);
-    return;
-  }
-  const count = Number(r?.count) || 0;
+function printEffortRaises({ ko, money, totals, since }) {
+  const count = Number(totals?.count) || 0;
   if (count <= 0) return;
-  const cost = money(Number(r.cost) || 0);
-  console.log(ko
-    ? `effort 상향: ${count}회 · 실행 비용 ${cost} (effort 없이 Sonnet에 보낸 위임을 high로 올렸습니다. 절감액에는 이미 반영돼 있습니다)`
-    : `Effort raised: ${count} runs · run cost ${cost} (sonnet delegations sent without an effort were run at high; the saving above is already net of it)`);
+  const cost = money(Number(totals.cost) || 0);
+  const keptRuns = Number(totals.keptRuns) || 0;
+  const missing = Number(totals.costMissing) || 0;
+  const unpriced = missing > 0 ? ` +${missing} unpriced` : '';
+  if (ko) {
+    const kept = keptRuns > 0 ? ` · 지켜낸 절감 ${money(Number(totals.kept) || 0)}` : '';
+    console.log(`effort 상향: ${count}회${kept} · 실행 비용 ${cost}${unpriced} (${since})`);
+    console.log('  effort 없이 Sonnet에 보낸 위임을 high로 올린 횟수입니다. 지켜낸 절감은 그 위임이 낸 라우팅 절감이라 위 금액에 이미 들어 있습니다.');
+  } else {
+    const kept = keptRuns > 0 ? ` · saving kept ${money(Number(totals.kept) || 0)}` : '';
+    console.log(`Effort raised: ${count} runs${kept} · run cost ${cost}${unpriced} (${since})`);
+    console.log('  Sonnet delegations sent without an effort ran at high. The saving kept is what those runs saved by routing and is already inside the figure above.');
+  }
 }
 
 const FAMILY_NAMES = { opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku', fable: 'Fable', mythos: 'Mythos' };
@@ -140,7 +143,7 @@ async function printModelShare({ ko, dir, money }) {
   }
 }
 
-export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan, readScan: readScanArg }) {
+export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan }) {
   const { userLanguage } = await import('../config.js');
   const { userDataDir } = await import('../paths.js');
   const { readResetMarks, resetSaved, undoReset } = await import('../saved-reset.cjs');
@@ -172,14 +175,14 @@ export async function run({ args, hasFlag, agent = 'claude', dir: dirArg, rescan
 
   if (sub === undefined) {
     const marks = readResetMarks(dir);
-    const readScan = readScanArg || (await import('../route-scan.js')).readRouteScan;
+    const { effortRaiseTotals } = await import('../effort-raise-ledger.js');
     for (const s of scopes) {
       const t = await currentTotals(s, dir);
       const since = marks[s] === null
         ? (ko ? '초기화한 적 없음' : 'not reset')
         : (ko ? `${fmtTime(marks[s])} 이후` : `since ${fmtTime(marks[s])}`);
       console.log(`${label(s)}: ${fmtTotal(t)} (${since})`);
-      if (s === 'routing') printEffortRaises({ ko, money, readScan });
+      if (s === 'routing') printEffortRaises({ ko, money, totals: effortRaiseTotals(Date.now(), dir), since });
     }
     if (agent !== 'codex') {
       console.log(ko

@@ -1153,12 +1153,19 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
   const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
 
   // Sonnet delegations the guard ran at high effort because the call passed
-  // none. Gray, since it is a cost and not a saving: the savings beside it are
-  // already net of it, and `sprag saved` prints what the runs cost.
-  //   icon: "🔬↑3"  |  text: "effort↑3"  |  verbose: "effort raised ×3"
-  const raised = Number(data.effortRaises && data.effortRaises.count) || 0;
+  // none. The count is gray because the raise is a cost. The amount beside it
+  // is the routing saving those raised runs produced: already inside Routing
+  // saved, not added to it. `sprag saved` prints what the runs cost.
+  //   icon: "🔬↑3 $12.4"  |  text: "effort↑3 $12.4"  |  verbose: "effort raised ×3 kept $12.4"
+  const raisedInfo = data.effortRaises;
+  const raised = Number(raisedInfo && raisedInfo.count) || 0;
+  const keptUsd = Number(raisedInfo && raisedInfo.kept) || 0;
+  const keptRuns = Number(raisedInfo && raisedInfo.keptRuns) || 0;
+  const keptPart = raised > 0 && keptRuns > 0 && keptUsd !== 0
+    ? ` ${c(keptUsd > 0 ? GREEN : RED)}${formatMoney(keptUsd)}${c(RESET)}`
+    : '';
   const raisedSeg = raised > 0
-    ? `${c(GRAY)}${verbose ? `effort raised ×${raised}` : isIcon ? `${g.effort}↑${raised}` : `effort↑${raised}`}${c(RESET)}`
+    ? `${c(GRAY)}${verbose ? `effort raised ×${raised}${keptPart ? ' kept' : ''}` : isIcon ? `${g.effort}↑${raised}` : `effort↑${raised}`}${c(RESET)}${keptPart}`
     : null;
 
   // Routing-savings headline line (multi-line layout). The lifetime sum from
@@ -1204,16 +1211,39 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
       (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 
+  // The effort-raise line (multi-line layout), under the savings lines: the
+  // count, the saving those runs kept, the same reset mark as Routing saved,
+  // then what the raised runs cost. Built only beside a Routing saved line, so
+  // the layouts without one keep the chip.
+  //   icon:  "🔬 Effort raised ×3 kept $12.4 since 11/1  |  run cost $1.23"
+  //   text:  "Effort raised ×3 kept $12.4 since 11/1  |  run cost $1.23"
+  let raisedLine = null;
+  if (totalsLine && raised > 0) {
+    const head = isIcon ? `${g.effort} Effort raised` : 'Effort raised';
+    const raisedSince = formatSince(raisedInfo && raisedInfo.since);
+    const runCost = Number(raisedInfo && raisedInfo.cost) || 0;
+    const costMissing = Number(raisedInfo && raisedInfo.costMissing) || 0;
+    const costText = runCost > 0 || costMissing > 0
+      ? `${c(GRAY)}run cost ${formatMoney(runCost)}${costMissing > 0 ? ` +${costMissing} unpriced` : ''}${c(RESET)}`
+      : '';
+    raisedLine =
+      `${c(GRAY)}${c(BOLD)}${head}${c(RESET)} ${c(GRAY)}×${raised}${c(RESET)}` +
+      (keptPart ? ` ${c(GRAY)}kept${c(RESET)}${keptPart}` : '') +
+      sinceWord(raisedSince) +
+      (costText ? `  ${c(GRAY)}|${c(RESET)}  ${costText}` : '');
+  }
+
   return {
     // Dropped when the same story already owns a headline line above, which
     // would otherwise repeat it on line 2. The unresolved-runs chip survives the
     // headline when that headline is a dated zero, since a zero is exactly when
-    // the dropped runs matter.
-    // The raise count is not part of that story, so it stays on line 2 either way.
+    // the dropped runs matter. The raise chip steps aside for its own line the
+    // same way, and stays on line 2 only where there is no line to carry it.
     chips: totalsLine
-      ? (totalsNum === 0 ? [unresolvedSeg, raisedSeg] : [raisedSeg])
+      ? (totalsNum === 0 ? [unresolvedSeg] : [])
       : [delegateSeg, raisedSeg, delegateExtra],
     headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine } : null,
+    raisedHeadline: raisedLine ? { usd: keptUsd, line: raisedLine } : null,
   };
 }
 
@@ -1496,6 +1526,9 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v)
   if (delegated.headline && want('delegated')) headlines.push(delegated.headline);
   if (doc2md.headline && want('doc2md')) headlines.push(doc2md.headline);
   headlines.sort((a, b) => b.usd - a.usd);
+  // The effort-raise line closes the savings lines rather than competing with
+  // them: its figure is a part of Routing saved, not a saver of its own.
+  if (delegated.raisedHeadline && want('delegated')) headlines.push(delegated.raisedHeadline);
   const rows = columns
     ? headlines.flatMap((h) => wrapHeadline(h.line, availWidth(columns), c))
     : headlines.map((h) => h.line);

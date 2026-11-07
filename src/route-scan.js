@@ -725,11 +725,14 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
   let unresolvedRuns = 0;           // delegated runs dropped for an unpriceable model id
   const unresolvedModels = new Set();
   // Sonnet delegations the guard ran at high effort because the call passed
-  // none (src/delegation-guard.js). Counted whether or not a rule covers the
-  // run: the raise is sprag's own action, so its price is shown even where no
-  // saving is claimed. The figure is what those runs cost on their own model,
-  // priced the way the ledger prices `cost`; the savings already include it.
-  const effortRaises = { count: 0, cost: 0, since: null };
+  // none (src/delegation-guard.js). Collected whether or not a rule covers the
+  // run: the raise is sprag's own action, so its cost is shown even where no
+  // saving is claimed. Each run becomes an event in the effort-raise ledger
+  // (src/effort-raise-ledger.js), which is read live with the routing reset
+  // mark, like the savings ledger. The cost is what the run cost on its own
+  // model, priced the way the ledger prices `cost`; the savings already
+  // include it.
+  const raiseEvents = [];
   // `sprag saved reset routing` zeroes the money, not the rule-health sample:
   // see tallyDelegatedRun. readResetMarks never throws (no file = no reset).
   const routingMark = readResetMarks(userDataDir()).routing;
@@ -773,15 +776,17 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
   for (const [sessionPath, index] of runIndexBySession) {
     // Every run of the session, not only those joined to a categorized episode
     // and past the tier gate: a sonnet run under a sonnet main session saves
-    // nothing, yet the guard raised it all the same. The reset mark applies as
-    // it does to savings (tallyDelegatedRun).
+    // nothing, yet the guard raised it all the same. The reset mark is not
+    // applied here: the ledger is evidence, and the mark applies when it is read
+    // (as savings-ledger does), so a reset zeroes the count without a rescan.
     for (const run of index.all) {
-      if (!run.effortRaised || isBeforeReset(run.endedAt ?? run.startedAt, routingMark)) continue;
-      effortRaises.count += 1;
-      const cost = isRecognizedModelId(run.model) ? exactCost(runTotals(run), run.model, { at: runTime(run) }) : null;
-      if (Number.isFinite(cost)) effortRaises.cost += cost;
-      const at = run.startedAt ?? run.endedAt;
-      if (Number.isFinite(at) && (effortRaises.since === null || at < effortRaises.since)) effortRaises.since = at;
+      if (!run.effortRaised) continue;
+      raiseEvents.push({
+        key: run.path,
+        ts: run.endedAt ?? run.startedAt ?? null,
+        cost: isRecognizedModelId(run.model) ? exactCost(runTotals(run), run.model, { at: runTime(run) }) : null,
+        model: run.model,
+      });
     }
     const used = new Set();
     const eps = all.filter((x) => x.sessionPath === sessionPath);
@@ -927,8 +932,6 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
     resolved: [...resolved],
     unresolvedRuns,
     unresolvedModels: [...unresolvedModels].slice(0, 5),
-    // `since` is the earliest counted run (ms), so a reader can date the count.
-    effortRaises: { ...effortRaises, cost: Math.round(effortRaises.cost * 100) / 100 },
   };
   try {
     const dir = stateDir();
@@ -1026,6 +1029,13 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
     repriceDelegationLedger();
   } catch {
     // ledger write failure only delays the statusline totals, never the scan
+  }
+  // Its own try so a failure here never blocks the savings ledger above.
+  try {
+    const { recordEffortRaises } = await import('./effort-raise-ledger.js');
+    recordEffortRaises(raiseEvents);
+  } catch {
+    // the effort-raise chip just stays stale until the next scan
   }
 
   return cache;
