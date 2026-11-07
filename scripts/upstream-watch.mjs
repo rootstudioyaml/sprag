@@ -19,7 +19,7 @@
  *   node scripts/upstream-watch.mjs                 # check both, analyze new versions, post to Slack
  *   node scripts/upstream-watch.mjs --dry-run       # analyze and print, no Slack, state unchanged
  *   node scripts/upstream-watch.mjs --no-llm        # skip analysis, print the release-note excerpts only (implies --dry-run)
- *   node scripts/upstream-watch.mjs --only claude|codex
+ *   node scripts/upstream-watch.mjs --only claude|codex|pricing
  *   node scripts/upstream-watch.mjs --since 2.1.300 # treat this as the last seen Claude Code version (codex: --since-codex 0.160.0)
  *   node scripts/upstream-watch.mjs --env-file <path>  # where SLACK_BOT_TOKEN and SPRAG_SLACK_CHANNEL_ID live
  *
@@ -34,12 +34,20 @@
  * and moves forward only after Slack accepted the post for that product, so a
  * failed run is simply retried by the next one. With no state at all, the latest
  * release is the only one treated as new: the first run does not replay history.
+ *
+ * The `pricing` product compares both official pricing pages (Markdown) with
+ * src/cost.js and src/openai-prices.js. It makes no LLM call. It posts only when
+ * there is a difference that differs from the last posted one, so an unfixed
+ * difference is not repeated every day. `--dry-run --only pricing` prints the message.
  */
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { detectPricingTier, ratesAt } from '../src/cost.js';
+import { PER_MILLION } from '../src/openai-prices.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTRACT_PATH = join(ROOT, 'scripts', 'upstream-contract.md');
@@ -54,7 +62,12 @@ const LLM_TIMEOUT_MS = 10 * 60 * 1000;
 export const PRODUCTS = {
   claude: { key: 'claude', name: 'Claude Code' },
   codex: { key: 'codex', name: 'Codex' },
+  pricing: { key: 'pricing', name: 'Pricing' },
 };
+
+const ANTHROPIC_PRICING_URL = 'https://platform.claude.com/docs/en/about-claude/pricing.md';
+const OPENAI_PRICING_URL = 'https://developers.openai.com/api/docs/pricing.md';
+const PRICE_EPSILON = 1e-9;
 
 /** Numeric x.y.z comparison: negative when a < b, 0 when equal, positive when a > b. */
 export function cmpVersion(a, b) {
@@ -234,6 +247,217 @@ export function parseEnvFile(text) {
 }
 
 // ---------------------------------------------------------------------------
+// Price-table check: the two official pricing pages against src/cost.js and src/openai-prices.js.
+
+/** Cells of one Markdown table row, or null when the line is not a row. */
+function tableCells(line) {
+  const t = line.trim();
+  if (!t.startsWith('|')) return null;
+  return t.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+}
+
+/** Blocks of consecutive table lines: `{ header, rows }` with every row as a cell array. */
+function markdownTables(md) {
+  const tables = [];
+  let cur = null;
+  for (const line of String(md).split('\n')) {
+    const cells = tableCells(line);
+    if (!cells) { cur = null; continue; }
+    if (!cur) { cur = { header: cells, rows: [] }; tables.push(cur); continue; }
+    if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
+    cur.rows.push(cells);
+  }
+  return tables;
+}
+
+/** USD number in a price cell such as `$12.50 / MTok<sup>1</sup>`; null for `-` or no number. */
+function priceCell(cell) {
+  const m = /\$\s*([\d,]*\.?\d+)/.exec(String(cell ?? '').replace(/<sup>.*?<\/sup>/g, ''));
+  return m ? Number(m[1].replace(/,/g, '')) : null;
+}
+
+/** `Claude Opus 5.5` -> `claude-opus-5-5`; `Claude Opus 5` -> `claude-opus-5`. */
+function anthropicModelId(name) {
+  const m = /^Claude\s+([A-Za-z]+)\s+(\d+(?:\.\d+)?)$/.exec(name);
+  if (m) return `claude-${m[1].toLowerCase()}-${m[2].replace(/\./g, '-')}`;
+  return name.toLowerCase().replace(/[\s.]+/g, '-');
+}
+
+/**
+ * Rows of the model table on Anthropic's pricing page (USD per million tokens). The table is the first one
+ * whose header starts with `Model` and has a `Base input tokens` column; other tables are ignored.
+ */
+export function parseAnthropicPricing(md) {
+  const table = markdownTables(md).find((t) => /^model$/i.test(t.header[0]) && t.header.some((h) => /base input tokens/i.test(h)));
+  if (!table) return [];
+  const col = (re) => table.header.findIndex((h) => re.test(h));
+  const at = { input: col(/base input/i), cw5m: col(/5m cache/i), cw1h: col(/1h cache/i), cacheRead: col(/cache hits/i), output: col(/output/i) };
+  if (Object.values(at).some((i) => i < 0)) return [];
+  const rows = [];
+  for (const cells of table.rows) {
+    const cell = cells[0] || '';
+    const name = cell.replace(/\s*\(.*\)\s*$/, '').trim();
+    if (!name) continue;
+    rows.push({
+      name,
+      id: anthropicModelId(name),
+      long: /over 100,000 tokens/i.test(cell),
+      input: priceCell(cells[at.input]),
+      cw5m: priceCell(cells[at.cw5m]),
+      cw1h: priceCell(cells[at.cw1h]),
+      cacheRead: priceCell(cells[at.cacheRead]),
+      output: priceCell(cells[at.output]),
+    });
+  }
+  return rows;
+}
+
+/**
+ * Rows of the two "Standard" tables on OpenAI's pricing page: short-context rates, USD per million tokens.
+ * `cacheWrite` is the 30-minute write rate where the page has one.
+ */
+export function parseOpenAIPricing(md) {
+  const text = String(md);
+  const start = text.indexOf('### Standard pricing data');
+  if (start < 0) return [];
+  const after = text.slice(start + 1);
+  const next = after.search(/\n###\s/);
+  const section = next < 0 ? after : after.slice(0, next);
+  const rows = [];
+  for (const table of markdownTables(section)) {
+    if (!/^model$/i.test(table.header[0])) continue;
+    const col = (re) => table.header.findIndex((h) => re.test(h));
+    const at = {
+      input: col(/^(short context )?input$/i),
+      output: col(/^(short context )?output$/i),
+      cacheRead: col(/^(short context )?cached input$/i),
+      cacheWrite: col(/^short context 30m write$/i),
+    };
+    if (at.input < 0 || at.output < 0) continue;
+    for (const cells of table.rows) {
+      const id = (cells[0] || '').replace(/\s*\(.*\)\s*$/, '').trim();
+      if (!id) continue;
+      rows.push({
+        id,
+        input: priceCell(cells[at.input]),
+        cacheRead: at.cacheRead < 0 ? null : priceCell(cells[at.cacheRead]),
+        cacheWrite: at.cacheWrite < 0 ? null : priceCell(cells[at.cacheWrite]),
+        output: priceCell(cells[at.output]),
+      });
+    }
+  }
+  return rows;
+}
+
+const samePrice = (a, b) => (a === null || a === undefined || b === null || b === undefined ? (a ?? null) === (b ?? null) : Math.abs(a - b) <= PRICE_EPSILON);
+
+const ANTHROPIC_FIELDS = [['input', 'input'], ['cw5m', 'cacheWrite5m'], ['cw1h', 'cacheWrite1h'], ['cacheRead', 'cacheRead'], ['output', 'output']];
+
+/** Page rows that differ from the rate card sprag applies at `at`: `{ kind: 'price', id, field, table, page, tier }`. */
+export function diffAnthropicPrices(rows, { at } = {}) {
+  const findings = [];
+  for (const row of rows) {
+    const tier = row.long ? 'claude-haiku-5-5-long' : detectPricingTier(row.id, { at });
+    const card = ratesAt(tier, at);
+    if (!card) continue;
+    for (const [pageField, tableField] of ANTHROPIC_FIELDS) {
+      if (!samePrice(card[tableField], row[pageField])) {
+        findings.push({ kind: 'price', id: row.id, field: tableField, table: card[tableField], page: row[pageField], tier });
+      }
+    }
+  }
+  return findings;
+}
+
+const OPENAI_FIELDS = ['input', 'cacheRead', 'cacheWrite', 'output'];
+
+// sprag's OpenAI table prices Codex calls only, so only the GPT-5 and GPT-6
+// families count as missing; gpt-4.x, gpt-4o and o-series rows on the page
+// are not models Codex runs.
+const CODEX_FAMILY_RE = /^gpt-[56](?:\.\d+)?(?:-[a-z]+)?$/;
+
+/** Price differences for models in both lists, and `{ kind: 'missing', id, page }` for Codex-family page models sprag lacks. */
+export function diffOpenAIPrices(rows, table = PER_MILLION) {
+  const findings = [];
+  for (const row of rows) {
+    const known = table[row.id];
+    if (!known) {
+      if (!CODEX_FAMILY_RE.test(row.id)) continue;
+      findings.push({ kind: 'missing', id: row.id, page: { input: row.input, cacheRead: row.cacheRead, cacheWrite: row.cacheWrite, output: row.output } });
+      continue;
+    }
+    OPENAI_FIELDS.forEach((field, i) => {
+      if (!samePrice(known[i], row[field])) findings.push({ kind: 'price', id: row.id, field, table: known[i] ?? null, page: row[field] });
+    });
+  }
+  return findings;
+}
+
+/** Names that were not in the previous run's `seen` list. The first run (no `seen`) reports nothing. */
+export function newModels(names, seen) {
+  if (!Array.isArray(seen)) return [];
+  const known = new Set(seen);
+  return [...new Set(names)].filter((n) => !known.has(n));
+}
+
+/** Stable hash of a findings list: the order of findings does not matter. */
+export function findingsDigest(findings) {
+  const sorted = findings.map((f) => JSON.stringify(f)).sort();
+  return createHash('sha256').update(JSON.stringify(sorted)).digest('hex');
+}
+
+const FIELD_LABEL = {
+  input: '입력', output: '출력', cacheRead: '캐시 읽기', cacheWrite: '캐시 쓰기',
+  cacheWrite5m: '캐시 쓰기 5분', cacheWrite1h: '캐시 쓰기 1시간',
+};
+
+function usd(n) {
+  if (n === null || n === undefined) return '없음';
+  const s = String(n);
+  const decimals = s.includes('.') ? s.split('.')[1].length : 0;
+  return `$${decimals < 2 ? n.toFixed(2) : s}`;
+}
+
+function priceLine(f) {
+  const longNote = f.tier && f.tier.endsWith('-long') ? ' (100k 초과)' : '';
+  return `• ${f.id}${longNote} ${FIELD_LABEL[f.field] || f.field}: sprag ${usd(f.table)}, 공식 ${usd(f.page)}`;
+}
+
+function missingLine(f) {
+  const p = f.page || {};
+  return `• ${f.id}: 입력 ${usd(p.input)}, 출력 ${usd(p.output)}`;
+}
+
+function fetchLine(f) {
+  return `• ${f.source === 'openai' ? 'OpenAI' : 'Anthropic'} 가격 페이지를 읽지 못했습니다: ${f.reason}`;
+}
+
+/** Slack mrkdwn (Korean) for the daily price-table check. Empty sections are left out. */
+export function buildPricingMessage({ anthropic = [], openai = [], newAnthropic = [], newOpenAI = [], date }) {
+  const all = [...anthropic, ...openai];
+  const fresh = [...newAnthropic, ...newOpenAI];
+  const lines = [`*가격표 점검 (${date}): 차이 ${all.length + fresh.length}건*`];
+  const section = (title, items) => { if (items.length) lines.push('', `*${title}*`, ...items); };
+  section('Anthropic 가격 차이', anthropic.filter((f) => f.kind === 'price').map(priceLine));
+  section('OpenAI 가격 차이', openai.filter((f) => f.kind === 'price').map(priceLine));
+  section('sprag 표에 없는 OpenAI 모델', openai.filter((f) => f.kind === 'missing').map(missingLine));
+  section('가격 페이지 확인 실패', all.filter((f) => f.kind === 'fetch').map(fetchLine));
+  section('새로 올라온 모델', fresh.map((n) => `• ${n}`));
+  const howTo = [];
+  if (newAnthropic.length) {
+    howTo.push('새 Anthropic 모델은 src/cost.js 에서 별칭 이력(ALIAS_HISTORY)과 가격 등급에 출시일 행이 필요한지 확인합니다.');
+  }
+  if (anthropic.some((f) => f.kind === 'price')) {
+    howTo.push(`Anthropic 차이는 src/cost.js 의 PRICE_HISTORY 에서 해당 등급에 from: '${date}' 행을 새로 더해 고칩니다. 기존 행은 과거 실행의 가격이므로 고치지 않습니다.`);
+  }
+  if (openai.some((f) => f.kind === 'price' || f.kind === 'missing')) {
+    howTo.push('OpenAI 차이는 src/openai-prices.js 의 표를 고치고 확인 날짜(OPENAI_PRICES_CHECKED_AT)도 오늘로 바꿉니다.');
+  }
+  if (howTo.length) lines.push('', ...howTo);
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
 // Everything below touches the network, the disk or a child process.
 
 function stateFile() {
@@ -261,7 +485,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--dry-run') opts.dryRun = true;
     else if (a === '--no-llm') { opts.noLlm = true; opts.dryRun = true; }
-    else if (a === '--only') { opts.only = value(i, a); i++; if (!PRODUCTS[opts.only]) throw new Error('--only takes claude or codex'); }
+    else if (a === '--only') { opts.only = value(i, a); i++; if (!PRODUCTS[opts.only]) throw new Error('--only takes claude, codex or pricing'); }
     else if (a === '--since') { opts.since = value(i, a); i++; }
     else if (a === '--since-codex') { opts.sinceCodex = value(i, a); i++; }
     else if (a === '--env-file') { opts.envFile = value(i, a); i++; }
@@ -381,21 +605,89 @@ async function runProduct(product, opts, state, contract, slack) {
   return { ok: true };
 }
 
+/** One official page, parsed. A failed fetch or a parse with no rows becomes a `fetch` finding, never "no differences". */
+async function loadPricingPage(source, url, parse) {
+  try {
+    const rows = parse(await fetchText(url));
+    if (!rows.length) throw new Error('the page parsed to zero model rows');
+    return { rows, finding: null };
+  } catch (e) {
+    return { rows: null, finding: { kind: 'fetch', source, page: url, reason: e.message } };
+  }
+}
+
+async function runPricing(opts, state, getSlack) {
+  const date = new Date().toISOString().slice(0, 10);
+  const [a, o] = await Promise.all([
+    loadPricingPage('anthropic', ANTHROPIC_PRICING_URL, parseAnthropicPricing),
+    loadPricingPage('openai', OPENAI_PRICING_URL, parseOpenAIPricing),
+  ]);
+  const anthropic = a.rows ? diffAnthropicPrices(a.rows, { at: Date.now() }) : [a.finding];
+  const openai = o.rows ? diffOpenAIPrices(o.rows) : [o.finding];
+  const prev = state.pricing || {};
+  const anthropicNames = a.rows ? [...new Set(a.rows.map((r) => r.name))] : null;
+  const openaiIds = o.rows ? o.rows.map((r) => r.id) : null;
+  const newAnthropic = anthropicNames ? newModels(anthropicNames, prev.seenAnthropic) : [];
+  const newOpenAI = openaiIds ? newModels(openaiIds, prev.seenOpenAI) : [];
+  // A new model counts as a finding even when its prices match: its alias
+  // history and table row still need a look, and without this it would be
+  // folded into `seen` silently.
+  const findings = [...anthropic, ...openai, ...[...newAnthropic, ...newOpenAI].map((id) => ({ kind: 'new', id }))];
+  const digest = findingsDigest(findings);
+  const message = buildPricingMessage({ anthropic, openai, newAnthropic, newOpenAI, date });
+  // A page that failed to load keeps its previous seen list, so its models are not forgotten.
+  const nextState = () => ({
+    ...state,
+    pricing: {
+      seenAnthropic: anthropicNames ?? prev.seenAnthropic ?? [],
+      seenOpenAI: openaiIds ?? prev.seenOpenAI ?? [],
+      lastDigest: digest,
+    },
+  });
+
+  console.log(`Pricing: ${findings.length} finding(s), ${newAnthropic.length + newOpenAI.length} new model(s)`);
+  if (opts.dryRun) {
+    if (findings.length) { console.log('--- message ---'); console.log(message); }
+    return { ok: true };
+  }
+  if (!findings.length) {
+    writeState(nextState());
+    Object.assign(state, nextState());
+    return { ok: true };
+  }
+  if (digest === prev.lastDigest) {
+    console.log('Pricing: same findings as the last post, not posting again');
+    return { ok: true };
+  }
+  const slack = getSlack();
+  const chunks = chunkText(message, SLACK_CHUNK);
+  const ts = await slackPost(slack, chunks[0]);
+  for (const c of chunks.slice(1)) await slackPost(slack, c, ts);
+  writeState(nextState());
+  Object.assign(state, nextState());
+  console.log(`Pricing: posted ${findings.length} finding(s)`);
+  return { ok: true };
+}
+
 async function main(argv) {
   let opts;
   try { opts = parseArgs(argv); } catch (e) { console.error(`upstream-watch: ${e.message}`); return 1; }
   const state = readState();
   let contract = '';
   let slack = null;
+  const products = opts.only ? [opts.only] : ['claude', 'codex', 'pricing'];
+  const llmProducts = products.filter((p) => p !== 'pricing');
   try {
-    if (!opts.noLlm) contract = readFileSync(CONTRACT_PATH, 'utf8');
-    if (!opts.dryRun) slack = slackConfig(opts.envFile);
+    if (!opts.noLlm && llmProducts.length) contract = readFileSync(CONTRACT_PATH, 'utf8');
+    // The pricing check needs the Slack token only when it has something to post, so it loads it lazily.
+    if (!opts.dryRun && llmProducts.length) slack = slackConfig(opts.envFile);
   } catch (e) { console.error(`upstream-watch: ${e.message}`); return 1; }
 
   let failed = false;
-  for (const product of opts.only ? [opts.only] : ['claude', 'codex']) {
+  for (const product of products) {
     try {
-      await runProduct(product, opts, state, contract, slack);
+      if (product === 'pricing') await runPricing(opts, state, () => slack || slackConfig(opts.envFile));
+      else await runProduct(product, opts, state, contract, slack);
     } catch (e) {
       failed = true;
       console.error(`upstream-watch: ${PRODUCTS[product].name}: ${e.message}`);
