@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
 
-import { buildAppendix, decideForDelegation, formatHookOutput } from '../src/delegation-guard.js';
+import { buildAppendix, decideForDelegation, formatHookOutput, wantsEffortRaise, EFFORT_RAISE_MARKER } from '../src/delegation-guard.js';
 
 const DELEGATION_MARKER = '<!-- sprag:delegation -->';
 const ON = { delegate: { enabled: true } };
@@ -132,6 +132,46 @@ test('decideForDelegation: tier-named preset agents get the cap of the model the
   assert.equal(await capFor('t1h-worker'), 'Cap for this delegation: 20 tool calls, 30,000 output tokens.');
   assert.equal(await capFor('t1-worker'), 'Cap for this delegation: 20 tool calls, 8,000 output tokens.');
   assert.equal(await capFor('general-purpose'), 'Cap for this delegation: 20 tool calls, 8,000 output tokens.');
+});
+
+test('wantsEffortRaise: sonnet via general-purpose with no effort, and nothing else', () => {
+  assert.equal(wantsEffortRaise({ prompt: 'x', subagent_type: 'general-purpose', model: 'sonnet' }), true);
+  assert.equal(wantsEffortRaise({ prompt: 'x', model: 'claude-sonnet-5-5' }), true);
+  // The caller chose an effort, including the escalation step that passes the next level up.
+  assert.equal(wantsEffortRaise({ prompt: 'x', model: 'sonnet', effort: 'medium' }), false);
+  assert.equal(wantsEffortRaise({ prompt: 'x', model: 'sonnet', effort: 'xhigh' }), false);
+  // Preset agents pin their own effort in their files.
+  assert.equal(wantsEffortRaise({ prompt: 'x', subagent_type: 't1-worker' }), false);
+  assert.equal(wantsEffortRaise({ prompt: 'x', subagent_type: 't1-worker', model: 'sonnet' }), false);
+  assert.equal(wantsEffortRaise({ prompt: 'x', subagent_type: 't2-explore' }), false);
+  // No measurement backs a change for haiku or opus, or for a call that inherits the session model.
+  assert.equal(wantsEffortRaise({ prompt: 'x', model: 'haiku' }), false);
+  assert.equal(wantsEffortRaise({ prompt: 'x', model: 'opus' }), false);
+  assert.equal(wantsEffortRaise({ prompt: 'x', subagent_type: 'general-purpose' }), false);
+  assert.equal(wantsEffortRaise(null), false);
+});
+
+test('decideForDelegation: a sonnet delegation without effort gets high, and the prompt says so', async () => {
+  const raised = await decideForDelegation(
+    { tool_name: 'Agent', tool_input: { prompt: 'find every caller', subagent_type: 'general-purpose', model: 'sonnet' } },
+    { cfg: ON, home: EMPTY_HOME },
+  );
+  assert.equal(raised.updatedInput.effort, 'high');
+  assert.equal(raised.updatedInput.model, 'sonnet');
+  assert.ok(raised.updatedInput.prompt.endsWith(EFFORT_RAISE_MARKER));
+
+  const chosen = await decideForDelegation(
+    { tool_name: 'Agent', tool_input: { prompt: 'find every caller', model: 'sonnet', effort: 'medium' } },
+    { cfg: ON, home: EMPTY_HOME },
+  );
+  assert.equal(chosen.updatedInput.effort, 'medium');
+  assert.ok(!chosen.updatedInput.prompt.includes(EFFORT_RAISE_MARKER));
+
+  const haiku = await decideForDelegation(
+    { tool_name: 'Agent', tool_input: { prompt: 'find every caller', model: 'haiku' } },
+    { cfg: ON, home: EMPTY_HOME },
+  );
+  assert.equal(haiku.updatedInput.effort, undefined);
 });
 
 test('formatHookOutput: null in, null out; otherwise fixes hookEventName and sends no permissionDecision', () => {
