@@ -17,8 +17,11 @@
  * The personal figures come from the server's member_standing (team-sync.js
  * refreshStanding): `dlg`, `medianDlg`, `scorePct`, `spent`, `weights`, `idle`
  * and `next` ({ grade, pass, needDlg }). An older server sends none of them;
- * the block then names the next species from the ladder and says where the
- * distance will come from. Pure: no I/O, so the tests pin every wording.
+ * the percentile is then read off the rank and the distance computed the way
+ * the office drawer does (scorePctOf, nextOf), so the figures never wait for
+ * the server. Alone in the standings the percentile is 50% by definition and
+ * nothing moves it, and both blocks say so instead of naming a next species.
+ * Pure: no I/O, so the tests pin every wording.
  */
 
 import { GRADES, TIER_NAMES, speciesLabel } from './office-species.js';
@@ -41,6 +44,42 @@ export function pointsTo(g, sr) {
 export function nextGradeUp(key) {
   const i = GRADES.findIndex((g) => g.key === key);
   return i > 0 ? GRADES[i - 1] : null;
+}
+
+const isRanked = (st) => Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
+
+/**
+ * The score percentile the species follow (0 lowest, 1 highest). Alone in the
+ * standings it is 0.5 by definition (office-scene.js rank() below two people).
+ * Otherwise the server's `scorePct` when it sent one, else read off the rank:
+ * the office ranks a score as (people below + ties / 2) / (people − 1), so
+ * without ties rank r of n is (n − r) / (n − 1). Ties (two identical scores)
+ * would put the true value a little lower. Null when there is no rank.
+ */
+export function scorePctOf(st) {
+  if (!st || typeof st !== 'object' || !isRanked(st)) return null;
+  if (st.ranked < 2) return 0.5;
+  if (Number.isFinite(st.scorePct)) return st.scorePct;
+  return (st.ranked - st.rank) / (st.ranked - 1);
+}
+
+/**
+ * The next species up and the distance to it, { grade, pass, needDlg }: the
+ * server's `next` when it sent one, otherwise the office drawer's arithmetic on
+ * the percentile: people to pass = ceil((floor − percentile) × (people − 1)).
+ * Whether the delegation-share rule still stands in the way is known only with
+ * the share and the median; without them a species with the rule keeps it.
+ * Null when idle, alone, on the top row, or without a percentile.
+ */
+export function nextOf(st, sr = scorePctOf(st)) {
+  if (!st || typeof st !== 'object') return null;
+  const srv = st.next && typeof st.next === 'object' && typeof st.next.grade === 'string' ? st.next : null;
+  if (srv) return srv;
+  if (st.idle === true || st.grade === 'chick' || !Number.isFinite(sr) || !isRanked(st) || st.ranked < 2) return null;
+  const up = nextGradeUp(st.grade);
+  if (!up || !(up.minSr >= 0)) return null;
+  const dlgOk = Number.isFinite(st.dlg) && Number.isFinite(st.medianDlg) && st.dlg >= st.medianDlg;
+  return { grade: up.key, pass: Math.max(0, Math.ceil((up.minSr - sr) * (st.ranked - 1) - 1e-6)), needDlg: up.needDlg && !dlgOk };
 }
 
 /**
@@ -122,49 +161,57 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
     lines.push(`  ${ko ? '이 컴퓨터' : 'This machine'}: ${parts.join(' · ')}`);
   }
 
-  // The next species up, as the office drawer says it, with the percentile it
-  // starts at; the ladder alone when the server sent no distance.
-  const next = st.next && typeof st.next === 'object' && typeof st.next.grade === 'string' ? st.next : null;
+  // The next species up, as the office drawer says it. The percentile is the
+  // server's or read off the rank (scorePctOf), the distance the server's or
+  // the drawer's arithmetic (nextOf). Alone in the standings neither moves.
+  const sr = scorePctOf(st);
+  const solo = st.ranked === 1;
+  const next = solo ? null : nextOf(st, sr);
   const up = nextGradeUp(st.grade);
   const floorNote = (g) => (g && g.minSr >= 0
     ? (ko
-      ? ` (백분위 ${has(st.scorePct) ? `지금 ${pct(st.scorePct)}, ` : ''}${floorPct(g)}%부터)`
-      : ` (percentile ${has(st.scorePct) ? `now ${pct(st.scorePct)}, ` : ''}${floorPct(g)}% and up)`)
+      ? ` (백분위 ${has(sr) ? `지금 ${pct(sr)}, ` : ''}${floorPct(g)}%부터)`
+      : ` (percentile ${has(sr) ? `now ${pct(sr)}, ` : ''}${floorPct(g)}% and up)`)
     : '');
-  if (next) {
+  if (st.idle === true || st.grade === 'chick') {
+    lines.push(ko ? '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.' : '  Next species: spend in this period puts you in the standings.');
+  } else if (solo) {
+    lines.push(ko
+      ? `  다음 등급: 혼자일 때는 백분위가 50%에 고정되어 ${animal}에 머뭅니다. 동료가 한 명이라도 참여하면 지출 순위와 위임 비율 순위로 등급이 갈립니다.`
+      : `  Next species: alone, the percentile stays at 50% and so does the ${animal}. As soon as one colleague joins, the spend rank and the delegation-share rank decide the species.`);
+  } else if (next) {
     const s = label(next.grade);
     const g = GRADES.find((r) => r.key === next.grade);
     const x = Math.max(1, Number(next.pass) || 0);
-    const c = has(st.medianDlg) ? pct(st.medianDlg) : (ko ? '알 수 없음' : 'unknown');
-    const pts = pointsTo(g, st.scorePct);
+    // The median in brackets when the server sent it; the rule is named either way.
+    const c = has(st.medianDlg) ? `${ko ? '' : ' '}(${pct(st.medianDlg)})` : '';
+    const pts = pointsTo(g, sr);
     let text;
     if (pts !== null) {
-      // With the percentile on record: where you are, how many points more,
-      // and the people that amounts to.
-      const now = pct(st.scorePct);
+      // With the percentile: where you are, how many points more, and the
+      // people that amounts to.
+      const now = pct(sr);
       if (next.needDlg && !(Number(next.pass) > 0)) {
         text = ko
-          ? `${s}. 백분위는 이미 ${floorPct(g)}%를 넘었고 위임 비율을 회사 중앙값(${c}) 이상으로 올리면 됩니다.`
-          : `${s}. Your percentile already clears ${floorPct(g)}%; raise the delegation share to the company median (${c}).`;
+          ? `${s}. 백분위는 이미 ${floorPct(g)}%를 넘었고 위임 비율을 회사 중앙값${c} 이상으로 올리면 됩니다.`
+          : `${s}. Your percentile already clears ${floorPct(g)}%; raise the delegation share to the company median${c}.`;
       } else if (next.needDlg) {
         text = ko
-          ? `${s}. 지금 백분위 ${now}, ${pts}%p 더 오르고(${x}명 앞지르기) 위임 비율이 회사 중앙값(${c}) 이상이면 됩니다.`
-          : `${s}. Percentile now ${now}; ${pts} pts more (pass ${x}) and a delegation share at or above the company median (${c}).`;
+          ? `${s}. 지금 백분위 ${now}, ${pts}%p 더 오르고(${x}명 앞지르기) 위임 비율이 회사 중앙값${c} 이상이면 됩니다.`
+          : `${s}. Percentile now ${now}; ${pts} pts more (pass ${x}) and a delegation share at or above the company median${c}.`;
       } else {
         text = ko
           ? `${s}. 지금 백분위 ${now}, ${Math.max(1, pts)}%p 더 오르면 됩니다 (${x}명 앞지르기).`
           : `${s}. Percentile now ${now}; ${Math.max(1, pts)} pts more and you are there (pass ${x}).`;
       }
     } else if (next.needDlg && !(Number(next.pass) > 0)) {
-      text = `${ko ? `위임 비율을 회사 중앙값(${c}) 이상으로 올리면 ${s}` : `raise the delegation share to the company median (${c}) to become ${s}`}${floorNote(g)}`;
+      text = `${ko ? `위임 비율을 회사 중앙값${c} 이상으로 올리면 ${s}` : `raise the delegation share to the company median${c} to become ${s}`}${floorNote(g)}`;
     } else if (next.needDlg) {
-      text = `${ko ? `${x}명을 더 앞지르고 위임 비율이 회사 중앙값(${c}) 이상이면 ${s}` : `pass ${x} more and reach the company median delegation share (${c}) to become ${s}`}${floorNote(g)}`;
+      text = `${ko ? `${x}명을 더 앞지르고 위임 비율이 회사 중앙값${c} 이상이면 ${s}` : `pass ${x} more and reach the company median delegation share${c} to become ${s}`}${floorNote(g)}`;
     } else {
       text = `${ko ? `${x}명을 더 앞지르면 ${s}` : `pass ${x} more to become ${s}`}${floorNote(g)}`;
     }
     lines.push(`  ${ko ? '다음 등급' : 'Next species'}: ${text}`);
-  } else if (st.idle === true || st.grade === 'chick') {
-    lines.push(ko ? '  다음 등급: 이 기간에 지출이 생기면 순위에 오릅니다.' : '  Next species: spend in this period puts you in the standings.');
   } else if (!up) {
     lines.push(ko ? '  다음 등급: 도감에서 가장 높은 종입니다.' : '  Next species: the top species in the field guide.');
   } else {
@@ -192,13 +239,22 @@ export function standingFeedbackShort(st, lang = 'en', { emoji = true } = {}) {
   const has = (v) => Number.isFinite(v);
   const ranked = Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
   if (st.grade === 'ghost' || !ranked) return [ko ? '이 기간 업로드 없음' : 'no usage this period'];
+  const idle = st.idle === true || st.grade === 'chick';
+  // Alone in the standings the percentile is 50% by definition and nothing
+  // moves it, so the line says that and what would: a colleague joining.
+  if (st.ranked === 1 && !idle) {
+    return ko
+      ? ['지금 50%, 혼자라 고정', '동료가 참여하면 순위 시작']
+      : ['now 50%, fixed while alone', 'standings start when a colleague joins'];
+  }
   const out = [];
   if (st.crown) out.push(ko ? `${emoji ? '👑 ' : ''}회사 1위` : `${emoji ? '👑 ' : ''}#1 in the company`);
   else if (st.rank === 1 && st.ranked === 1) out.push(ko ? '혼자 순위에 있음' : 'alone in the standings');
   else if (st.rank === 1) out.push(ko ? '회사 1위' : '#1 in the company');
   else out.push(ko ? `1위까지 ${st.rank - 1}명` : `${st.rank - 1} to pass for #1`);
 
-  const next = st.next && typeof st.next === 'object' && typeof st.next.grade === 'string' ? st.next : null;
+  const sr = scorePctOf(st);
+  const next = nextOf(st, sr);
   const up = nextGradeUp(st.grade);
   const floor = (g) => (g && g.minSr >= 0 ? (ko ? `${floorPct(g)}%부터` : `${floorPct(g)}% and up`) : '');
   if (next) {
@@ -206,10 +262,10 @@ export function standingFeedbackShort(st, lang = 'en', { emoji = true } = {}) {
     const g = GRADES.find((x) => x.key === next.grade);
     const x = Math.max(1, Number(next.pass) || 0);
     const c = has(st.medianDlg) ? pct(st.medianDlg) : (ko ? '회사 중앙값' : 'the company median');
-    const pts = pointsTo(g, st.scorePct);
+    const pts = pointsTo(g, sr);
     if (pts !== null) {
-      // With the percentile on record: where you are and how many points more.
-      const now = pct(st.scorePct);
+      // With the percentile: where you are and how many points more.
+      const now = pct(sr);
       if (next.needDlg && !(Number(next.pass) > 0)) out.push(ko ? `지금 ${now}, 위임 비율 ${c} 이상이면 ${s}` : `now ${now}, delegation share ${c} or more for ${s}`);
       else if (next.needDlg) out.push(ko ? `지금 ${now}, ${pts}%p 더 오르고 위임 비율 ${c} 이상이면 ${s}` : `now ${now}, ${pts} pts more and delegation share ${c} or more for ${s}`);
       else out.push(ko ? `지금 ${now}, ${Math.max(1, pts)}%p 더 오르면 ${s} (${x}명 앞지르기)` : `now ${now}, ${Math.max(1, pts)} pts more for ${s} (pass ${x})`);
@@ -220,7 +276,7 @@ export function standingFeedbackShort(st, lang = 'en', { emoji = true } = {}) {
     } else {
       out.push(ko ? `다음 ${s}: ${x}명 더${floor(g) ? ` (${floor(g)})` : ''}` : `next ${s}: ${x} more${floor(g) ? ` (${floor(g)})` : ''}`);
     }
-  } else if (st.idle === true || st.grade === 'chick') {
+  } else if (idle) {
     out.push(ko ? '지출이 생기면 순위에 오름' : 'spend to enter the standings');
   } else if (!up) {
     out.push(ko ? '도감 최상위' : 'top of the field guide');

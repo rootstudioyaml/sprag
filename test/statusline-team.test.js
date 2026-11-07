@@ -45,21 +45,23 @@ test('chip: the rank within the team rides behind the organization rank, only wh
 });
 
 test('multi-line layout: the team gets a line of its own, last of the headlines, and the chip steps aside', () => {
-  const team = pro({ lang: 'ko', standing: standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4 }) });
+  const team = pro({ lang: 'ko', standing: standing({ rank: 4, ranked: 13, teamRank: 1, teamRanked: 4 }) });
   const lines = multi(team);
-  assert.equal(lines[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  종합 점수 12명 중 3위, 팀 4명 중 1위 🦊 여우 · 1위까지 2명 · 다음 🐆 치타 (77%부터)');
+  // No figures from the server: the percentile and the people to pass are read off the rank.
+  assert.equal(lines[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  종합 점수 13명 중 4위, 팀 4명 중 1위 🦊 여우 · 1위까지 3명 · 지금 75%, 2%p 더 오르면 🐆 치타 (1명 앞지르기)');
   assert.doesNotMatch(lines[lines.length - 1], /member-/, 'the chip line no longer carries the team');
   assert.doesNotMatch(lines[lines.length - 1], /· {2}·|· $|^ ·/, 'and leaves no empty slot behind');
   // With the server's distance to the next species, and in English.
-  const next = pro({ lang: 'en', standing: standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, next: { grade: 'cheetah', pass: 2, needDlg: false } }) });
-  assert.equal(multi(next)[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  overall score #3 of 12, team #1 of 4 🦊 Fox · 2 to pass for #1 · next 🐆 Cheetah: 2 more (77% and up)');
-  // The crown, and a ghost.
-  assert.match(multi(pro({ lang: 'ko', standing: standing({ rank: 1, ranked: 12, crown: true }) }))[0], /종합 점수 12명 중 1위 🦊 여우 · 👑 회사 1위 · 다음 🐆 치타 \(77%부터\)$/);
+  const next = pro({ lang: 'en', standing: standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, scorePct: 0.75, next: { grade: 'cheetah', pass: 2, needDlg: false } }) });
+  assert.equal(multi(next)[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  overall score #3 of 12, team #1 of 4 🦊 Fox · 2 to pass for #1 · now 75%, 2 pts more for 🐆 Cheetah (pass 2)');
+  // The crown (a cheetah at 100%: only the delegation rule separates it from the wolf), someone alone, and a ghost.
+  assert.match(multi(pro({ lang: 'ko', standing: standing({ grade: 'cheetah', rank: 1, ranked: 12, crown: true }) }))[0], /종합 점수 12명 중 1위 🐆 치타 · 👑 회사 1위 · 지금 100%, 위임 비율 회사 중앙값 이상이면 🐺 늑대$/);
+  assert.match(multi(pro({ lang: 'ko', standing: standing({ grade: 'cat', rank: 1, ranked: 1 }) }))[0], /member-1a2b3c4d  \|  종합 점수 1명 중 1위 🐱 고양이 · 지금 50%, 혼자라 고정 · 동료가 참여하면 순위 시작$/);
   assert.match(multi(pro({ lang: 'ko', standing: standing({ grade: 'ghost', rank: null, ranked: 12 }) }))[0], /member-1a2b3c4d  \|  👻 유령 · 이 기간 업로드 없음$/);
   // No standing yet: the identity alone, still on its own line.
   assert.equal(multi(pro({ lang: 'ko', standing: null }))[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d');
   // Text mode: no glyph, no emoji.
-  assert.equal(multi(team, { mode: 'text' })[0], 'Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  종합 점수 12명 중 3위, 팀 4명 중 1위 여우 · 1위까지 2명 · 다음 치타 (77%부터)');
+  assert.equal(multi(team, { mode: 'text' })[0], 'Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  종합 점수 13명 중 4위, 팀 4명 중 1위 여우 · 1위까지 3명 · 지금 75%, 2%p 더 오르면 치타 (1명 앞지르기)');
   // It sits after the savings lines when there are any.
   const totals = { week: 0, month: 0, total: 3.2, spent: 0, spentMissing: 0, pairs: [], since: null };
   const withSavings = formatReport({ ...base(), delegationSaved: 3.2, delegationTotals: totals, team }, { color: false, timer: false, mode: 'icon' }).split('\n');
