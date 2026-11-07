@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { PER_MILLION } from '../src/openai-prices.js';
 import {
   cmpVersion, sliceClaudeChangelog, pickCodexReleases, chunkText, buildPrompt,
   capNewest, versionLabel, buildParentMessage, parseEnvFile, verdictLine,
@@ -192,7 +193,11 @@ test('parseOpenAIPricing reads both Standard tables and nothing after them', () 
 
 test('diffOpenAIPrices reports page models missing from the table and only real price differences', () => {
   const rows = parseOpenAIPricing(OPENAI_MD);
-  const findings = diffOpenAIPrices(rows);
+  // The Codex table now matches the page, so the real table reports nothing.
+  assert.deepEqual(diffOpenAIPrices(rows), []);
+  // Without its row, gpt-6.1-terra is reported as missing with the page prices.
+  const { 'gpt-6.1-terra': _terra, ...withoutTerra } = PER_MILLION;
+  const findings = diffOpenAIPrices(rows, withoutTerra);
   const missing = findings.filter((f) => f.kind === 'missing');
   assert.ok(missing.some((f) => f.id === 'gpt-6.1-terra'));
   assert.deepEqual(missing.find((f) => f.id === 'gpt-6.1-terra').page, { input: 1, cacheRead: 0.05, cacheWrite: 1.25, output: 5 });

@@ -18,11 +18,12 @@ function home(t, toml) {
 }
 
 test('OpenAI list table carries per-token prices with null for missing rates', () => {
-  assert.equal(OPENAI_PRICES_CHECKED_AT, Date.parse('2026-10-01T00:00:00Z'));
+  assert.equal(OPENAI_PRICES_CHECKED_AT, Date.parse('2026-11-07T00:00:00Z'));
   assert.deepEqual(OPENAI_LIST_PRICES['gpt-6-luna'], { input: 1e-7, cacheRead: 1e-8, cacheWrite: 1.25e-7, output: 5e-7 });
   assert.deepEqual(OPENAI_LIST_PRICES['gpt-5.4'], { input: 2.5e-6, cacheRead: 2.5e-7, cacheWrite: null, output: 1.5e-5 });
   assert.deepEqual(OPENAI_LIST_PRICES['gpt-5.5-pro'], { input: 3e-5, cacheRead: null, cacheWrite: null, output: 1.8e-4 });
-  assert.equal(Object.keys(OPENAI_LIST_PRICES).length, 17);
+  assert.equal(Object.keys(OPENAI_LIST_PRICES).length, 21);
+  assert.deepEqual(OPENAI_LIST_PRICES['gpt-5-pro'], { input: 1.5e-5, cacheRead: null, cacheWrite: null, output: 1.2e-4 });
   assert.equal(OPENAI_LIST_PRICES['gpt-4o'], undefined);
 });
 
