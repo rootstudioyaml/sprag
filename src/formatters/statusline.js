@@ -31,6 +31,7 @@ import { modelFamily } from '../savings-ledger.js';
 import { shareLegend } from '../model-share.js';
 import { STAR_URL } from '../star-note.js';
 import { speciesLabel } from '../office-species.js';
+import { standingFeedbackShort } from '../team-standing.js';
 import { cellWidth } from '../cell-width.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
@@ -427,6 +428,48 @@ function buildTeamSeg(team, c, mode = 'icon', now = Date.now()) {
   // the license is the first thing it says, and the standing follows.
   const plan = typeof team.plan === 'string' && team.plan ? `${team.plan[0].toUpperCase()}${team.plan.slice(1)} ` : '';
   return `${c(GRAY)}${plan}${team.label}${org}${animal ? `${place} ${animal}` : ''}${c(RESET)}`;
+}
+
+/**
+ * The team line (multi-line layout): the licensed team this machine belongs
+ * to, on a line of its own so it never blends into the diagnostics chips, and
+ * what the standing asks of you. Head: plan, organization, team, member id.
+ * Breakdown: the rank with the animal, then the short feedback from
+ * src/team-standing.js (people to pass for #1, the next species and what it
+ * takes). Null for a machine that has not joined; the chip above stands in on
+ * the single-line layouts.
+ *   icon:  "👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  종합 점수 12명 중 3위, 팀 4명 중 1위 🦊 여우 · 1위까지 2명 · 다음 🐆 치타: 2명 더 (77%부터)"
+ *   text:  "Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  overall score #3 of 12, team #1 of 4 Fox · 2 to pass for #1 · next Cheetah: 2 more (77% and up)"
+ */
+function buildTeamLine(team, c, isIcon, g, mode = 'icon', now = Date.now()) {
+  if (!team || typeof team !== 'object' || !team.label) return null;
+  const ko = team.lang === 'ko';
+  const emoji = mode === 'icon';
+  const plan = typeof team.plan === 'string' && team.plan ? `${team.plan[0].toUpperCase()}${team.plan.slice(1)}` : null;
+  const org = typeof team.org === 'string' && team.org ? team.org : null;
+  const teamName = typeof team.team === 'string' && team.team && team.team !== org ? team.team : null;
+  // Narrow has no verified glyph for the team, so its head starts with the words.
+  const head = `${isIcon && g.team ? `${g.team} ` : ''}${[plan, org, teamName, team.label].filter(Boolean).join(' · ')}`;
+  const st = team.standing;
+  const fresh = st && Number.isFinite(st.fetchedAt) && now - st.fetchedAt <= TEAM_STANDING_MAX_AGE_MS;
+  const parts = [];
+  if (fresh) {
+    const animal = speciesLabel(st.grade, team.lang, { emoji });
+    const ranked = animal && Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
+    if (ranked) {
+      const inTeam = Number.isInteger(st.teamRank) && Number.isInteger(st.teamRanked)
+        && st.teamRank >= 1 && st.teamRanked >= st.teamRank && st.teamRanked < st.ranked;
+      const teamPlace = inTeam ? (ko ? `, 팀 ${st.teamRanked}명 중 ${st.teamRank}위` : `, team #${st.teamRank} of ${st.teamRanked}`) : '';
+      parts.push(ko ? `종합 점수 ${st.ranked}명 중 ${st.rank}위${teamPlace} ${animal}` : `overall score #${st.rank} of ${st.ranked}${teamPlace} ${animal}`);
+    } else if (animal) {
+      parts.push(animal);
+    }
+    parts.push(...standingFeedbackShort(st, team.lang, { emoji }));
+  }
+  const tail = parts.length
+    ? `  ${c(GRAY)}|${c(RESET)}  ${parts.map((p) => `${c(GRAY)}${p}${c(RESET)}`).join(` ${c(GRAY)}·${c(RESET)} `)}`
+    : '';
+  return { usd: 0, line: `${c(GRAY)}${c(BOLD)}${head}${c(RESET)}${tail}` };
 }
 
 /**
@@ -1531,7 +1574,7 @@ function arrangeSegments(order, s) {
 /**
  * The headline lines that sit above the chips, as one string of `line\n` pairs.
  */
-function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v) {
+function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v, teamLine = null) {
   // Each savings source that earned real money gets a headline line, ordered
   // biggest saver first — the top line is the one the eye lands on, so it
   // goes to whichever habit is actually paying for the tool. The diagnostics
@@ -1543,6 +1586,8 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v)
   // The effort-raise line closes the savings lines rather than competing with
   // them: its figure is a part of Routing saved, not a saver of its own.
   if (delegated.raisedHeadline && want('delegated')) headlines.push(delegated.raisedHeadline);
+  // The team line comes last: identity and standing, after the money.
+  if (teamLine && want('team')) headlines.push(teamLine);
   const rows = columns
     ? headlines.flatMap((h) => wrapHeadline(h.line, availWidth(columns), c))
     : headlines.map((h) => h.line);
@@ -1602,6 +1647,9 @@ export function formatReport(data, { color = true, verbose = false, timer = true
 
   // One slot per chip; segmentsNamed() maps the names in the segment list onto
   // these slots, so this is the only place that knows how each chip is built.
+  // The team gets a line of its own in the multi-line layout (buildTeamLine),
+  // and its chip steps aside; the single-line layout keeps the chip.
+  const teamLine = singleLine ? null : buildTeamLine(data.team, c, isIcon, g, mode);
   const built = {
     capWarn: buildCapWarnSeg(capWarn, c, isIcon, g, color, mode),
     spike: buildSpikeSeg(spikeChip, c),
@@ -1638,7 +1686,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     // check — this render path never touches the network.
     version: buildVersionSeg(options.version, data.update, c, isIcon, verbose, g),
     // Member id and office animal, from team.json; null unless this machine joined a team.
-    team: buildTeamSeg(data.team, c, mode),
+    // Null when the team line carries it (multi-line layout), so no empty slot is drawn.
+    team: teamLine ? null : buildTeamSeg(data.team, c, mode),
     // Delegation-rule registry (`rules 10 · ⚠1`), opt-in through `--segments`.
     rules: buildRulesSeg(data.ruleStats, c, g),
   };
@@ -1651,8 +1700,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
   // allowed — --no-color/NO_COLOR consumers expect escape-free output.
   const eol = color ? '\x1b[K' : '';
-  if (singleLine || !columns) return buildHeadlines(delegated, doc2md, want, eol) + segs.join(' · ') + eol;
-  const headlines = buildHeadlines(delegated, doc2md, want, eol, columns, c);
+  if (singleLine || !columns) return buildHeadlines(delegated, doc2md, want, eol, 0, c, teamLine) + segs.join(' · ') + eol;
+  const headlines = buildHeadlines(delegated, doc2md, want, eol, columns, c, teamLine);
 
   // The chips that stop the work: layoutChips drops from the tail when the
   // terminal is narrow, and these must survive that.

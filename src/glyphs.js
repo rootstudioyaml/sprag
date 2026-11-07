@@ -56,6 +56,8 @@ const ICON = {
   hit: '🧠',
   ttl: '⏳',
   month: '💵',
+  // Team: the people this machine is ranked among. U+1F465, East Asian Width W.
+  team: '👥',
   ctx: '📦',
   saved: '💰',
   used: '📊',
@@ -87,6 +89,7 @@ const NARROW = {
   hit: '◉',       // bullseye: a cache hit
   ttl: '◔',       // a partly elapsed dial
   month: '∑',     // a running total
+  team: '',       // no glyph verified in the font yet; the team line's own words lead it
   ctx: '◧',       // a box filling up
   saved: '✓',
   used: '◩',      // a split square: what the spend is made of

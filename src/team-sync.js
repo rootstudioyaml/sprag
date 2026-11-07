@@ -159,6 +159,13 @@ export function readTeamChip({ dir = userDataDir() } = {}) {
         ? {
           grade: st.grade, rank: Number.isFinite(st.rank) ? st.rank : null, ranked: Number.isFinite(st.ranked) ? st.ranked : null,
           teamRank: Number.isFinite(st.teamRank) ? st.teamRank : null, teamRanked: Number.isFinite(st.teamRanked) ? st.teamRanked : null,
+          // What the team line says about moving up (src/team-standing.js standingFeedbackShort).
+          crown: !!st.crown,
+          next: st.next && typeof st.next === 'object' && typeof st.next.grade === 'string'
+            ? { grade: st.next.grade, pass: Number.isFinite(st.next.pass) ? st.next.pass : 0, needDlg: !!st.next.needDlg }
+            : null,
+          idle: typeof st.idle === 'boolean' ? st.idle : null,
+          medianDlg: Number.isFinite(st.medianDlg) ? st.medianDlg : null,
           fetchedAt: Number(st.fetchedAt) || 0,
         }
         : null,
