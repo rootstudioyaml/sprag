@@ -86,6 +86,43 @@ export function isOpinionQuestion(text) {
 /** Shortest text worth classifying; below this a prompt is an ack, not a task. */
 const MIN_LEN = 8;
 
+// Gates added after the #16 calibration experiment (600 labelled prompts, of
+// which the rule hint had marked 47 test prompts for T2 and 43 of them needed
+// the main model). Each targets a shape of those misfires; tuned on the
+// calibration split only.
+
+/**
+ * A reply to the previous turn rather than a new task: an ack or a pointer
+ * ("응 블렌더로…", "그래 네가 돌려봐", "아니면 …", "아,, 뭐야 이게", "A로 더
+ * 다듬어서"). What it continues lives in the conversation, which the hook does
+ * not see, so a keyword in it says nothing about the work.
+ */
+const CONTINUATION_RE = /^(?:응|네|넵|그래|그럼|그러면|아니|아+\s*[,.~]|오케이|ok(?=[\s,.!]|$)|좋아|좋네|이건|이거|그건|그거|저건|저거|[A-Za-z]\s*로\s)/i;
+/** Feedback on what the model just made ("…가 아니야", "…게 아니라 …"). */
+const FEEDBACK_RE = /(?:가|이|게)\s*아니(?:야|라|고|에요|잖)/;
+/** The user says they will check, or that checking is needed: a statement, not a request. */
+const SELF_CHECK_RE = /확인(?:할게|해\s*볼게|하겠|해볼께|할께)|확인이?\s*필요/;
+/**
+ * Outward actions that ESCALATE_RE does not list: uploading, posting, sending,
+ * deleting, paying. A plain `git push` stays with the run category, as before.
+ */
+const OUTWARD_RE = /업로드|게시해|게시하|발송|올려\s*(?:줘|주|줄)|보내\s*(?:줘|주|줄)|삭제|지워\s*(?:줘|주)|결제/;
+/** Edit asks EDIT_RE misses: change, remove, set up, add, polish, generate. */
+const EDIT_MORE_RE = /변경해|변경하|바꾸고|없애|빼\s*(?:줘|주|고|자)|[셋세]팅하자|설정하자|구성해|구성하|추가해|다듬|넣고|처리해\s*(?:줘|주)|만들어\s*(?:줘|주|봐)|생성해|적용해|적용하자/;
+/**
+ * Above this length a request that is not a paste is a written spec: several
+ * asks and conditions in one turn. None of the long prompts the hint marked in
+ * the calibration split were a lookup or a command.
+ */
+const SPEC_LEN = 100;
+
+/** True when one of the #16 gates says the request is not the light work its keywords suggest. */
+export function looksLikeContextOrSpec(text) {
+  const t = String(text || '').trim();
+  return CONTINUATION_RE.test(t) || FEEDBACK_RE.test(t) || SELF_CHECK_RE.test(t)
+    || OUTWARD_RE.test(t) || EDIT_MORE_RE.test(t) || (t.length > SPEC_LEN && !looksPasted(t));
+}
+
 /**
  * A question that asks for an explanation ("어떻게 쓰이는거지?", "뭐야", "how
  * does it work"). "왜" is not here: ESCALATE_RE already routes it to the top
@@ -199,6 +236,8 @@ export function routeMatch(text, { rules, sessionRank = null, root, env = proces
   // "…하는게 좋은가?" asks what the model thinks. The answer is judgement, and a
   // hint to hand it to a cheaper model is wrong however light the keywords look.
   if (isOpinionQuestion(t)) return null;
+  // A reply, feedback, an outward action, an edit or a long spec (#16).
+  if (looksLikeContextOrSpec(t)) return null;
 
   const scored = categorizeScored(t, null);
   if (!scored) return null;
