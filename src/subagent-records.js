@@ -31,6 +31,8 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, dirname, basename } from 'node:path';
 import { collectSessionRecords, normalizeModelId } from './session-records.js';
 import { LONG_PROMPT_THRESHOLD } from './cost.js';
+import { transcriptLines } from './transcript-lines.js';
+import { EFFORT_RAISE_MARKER } from './delegation-guard.js';
 
 /** Directory holding a session's subagent transcripts (may not exist). */
 export function subagentDirFor(sessionPath) {
@@ -43,6 +45,44 @@ async function readMeta(metaPath) {
   } catch {
     return null;
   }
+}
+
+function messageText(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content.map((b) => (b && b.type === 'text' && typeof b.text === 'string' ? b.text : '')).join('\n');
+}
+
+/**
+ * What the run was told about its effort: whether the delegation guard raised
+ * it (the marker line it appends to the prompt), and the level the transcript
+ * records on its entries.
+ *
+ * collectSessionRecords runs with content off for subagent transcripts, since
+ * the text of every turn is never needed here, so the prompt is read on its own.
+ * Only the head of the file is: the prompt is the first user entry and the first
+ * assistant entry carries the effort, so the read stops after a few lines. A
+ * transcript that records no effort at all is read to the end, and the
+ * substring test keeps those lines from being parsed.
+ */
+async function readRunEffort(jsonlPath) {
+  let raised = null;
+  let effort = null;
+  try {
+    for await (const line of transcriptLines(jsonlPath)) {
+      const wantsPrompt = raised === null && line.includes('"type":"user"');
+      const wantsEffort = effort === null && line.includes('"effort"');
+      if (!wantsPrompt && !wantsEffort) continue;
+      let entry;
+      try { entry = JSON.parse(line); } catch { continue; }
+      if (effort === null && typeof entry.effort === 'string' && entry.effort) effort = entry.effort;
+      if (raised === null && entry.type === 'user' && entry.message) {
+        raised = messageText(entry.message.content).includes(EFFORT_RAISE_MARKER);
+      }
+      if (raised !== null && effort !== null) break;
+    }
+  } catch { /* unreadable here means unreadable above too; report no raise */ }
+  return { effortRaised: raised === true, effort };
 }
 
 /**
@@ -139,6 +179,9 @@ export async function collectSubagentRun(jsonlPath) {
     run.toolUseId = meta.toolUseId ?? null;
     run.spawnDepth = meta.spawnDepth ?? null;
   }
+  // A raise is sprag's own doing, so route-scan counts these runs and their
+  // cost apart from any rule (see effortRaises there).
+  Object.assign(run, await readRunEffort(jsonlPath));
   try {
     run.bytes = (await stat(jsonlPath)).size;
   } catch { /* size only feeds the rescan gate — 0 is a safe under-estimate */ }

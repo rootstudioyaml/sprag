@@ -371,3 +371,58 @@ test('CLI: reset routing zeroes the rule figures and the rendered file, undo bri
   assert.match(readFileSync(RATCHET_FILE, 'utf8'), /saved ~/, 'and the file lists it again');
   clearMarks();
 });
+
+// ── effort raises: sonnet runs the delegation guard ran at high ──────────
+
+test('the scan counts raised-effort runs with their cost, and saved prints them after the routing line', async () => {
+  clearMarks();
+  writeRegistry();
+  const { EFFORT_RAISE_MARKER } = await import('../src/delegation-guard.js');
+  const { readRouteScan } = await import('../src/route-scan.js');
+  // A separate project, so the fixtures above keep their counts. No T1 rule
+  // covers this run: the raise is counted all the same.
+  const proj = join(HOME, '.claude', 'projects', '-sandbox-raised');
+  const subDir = join(proj, 'sess2', 'subagents');
+  mkdirSync(subDir, { recursive: true });
+  writeFileSync(join(proj, 'sess2.jsonl'), [
+    userLine(T_NEW, '이 함수 고쳐줘'),
+    assistantLine({ model: MAIN, ms: T_NEW + 1000, out: 50, tools: [{ name: 'Agent', id: 'toolu_up' }] }),
+    toolResultLine(),
+    assistantLine({ model: MAIN, ms: T_NEW + 30000, out: 60 }),
+  ].join('\n') + '\n');
+  const runPath = join(subDir, 'agent-up.jsonl');
+  writeFileSync(runPath, [
+    userLine(T_NEW + 2000, `Fix the function.\n\n${EFFORT_RAISE_MARKER}`),
+    JSON.stringify({ ...JSON.parse(assistantLine({ model: 'claude-sonnet-4-5', ms: T_NEW + 5000, out: 40000 })), effort: 'high' }),
+  ].join('\n') + '\n');
+  writeFileSync(join(subDir, 'agent-up.meta.json'), JSON.stringify({ agentType: 'general-purpose', toolUseId: 'toolu_up', spawnDepth: 1 }));
+  try {
+    const run = await collectSubagentRun(runPath);
+    assert.equal(run.effortRaised, true);
+    const cost = exactCost(runTotals(run), run.model, { at: runTime(run) });
+    assert.ok(cost > 0.01, `the run is priced (${cost})`);
+
+    const scan = await runRouteScan({ days: 14 });
+    assert.equal(scan.effortRaises.count, 1, 'only the marked run; the haiku runs above were not raised');
+    assert.equal(scan.effortRaises.cost, round2(cost));
+    assert.equal(scan.effortRaises.since, run.startedAt);
+    assert.deepEqual(readRouteScan().effortRaises, scan.effortRaises, 'the statusline reads it from the cache');
+
+    const lines = await captured(() => runSaved([]));
+    const at = lines.findIndex((l) => /^(Routing saved|라우팅 절감):/.test(l));
+    assert.ok(at >= 0, lines.join(' | '));
+    assert.match(lines[at + 1], /^(Effort raised: 1 runs · run cost|effort 상향: 1회 · 실행 비용) \$\d+\.\d\d /);
+    assert.ok(lines[at + 1].includes(`$${round2(cost).toFixed(2)}`), lines[at + 1]);
+
+    // A reset later than the run zeroes the count, as it zeroes the savings,
+    // and the saved command then says nothing about it.
+    resetSaved(['routing'], { dir: DIR, now: NOW });
+    const after = await runRouteScan({ days: 14 });
+    assert.deepEqual(after.effortRaises, { count: 0, cost: 0, since: null });
+    const quiet = await captured(() => runSaved([]));
+    assert.ok(!quiet.some((l) => /Effort raised|effort 상향/.test(l)), quiet.join(' | '));
+  } finally {
+    rmSync(proj, { recursive: true, force: true });
+    clearMarks();
+  }
+});

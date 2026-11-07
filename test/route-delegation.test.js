@@ -160,6 +160,36 @@ test('environment constraints are not counted as task difficulty either', async 
   assert.equal(run.toolErrors, 1);
 });
 
+test('collectSubagentRun reads whether the guard raised the effort, and the recorded level', async () => {
+  const { EFFORT_RAISE_MARKER } = await import('../src/delegation-guard.js');
+  const root = tmpRoot();
+  const prompt = (text) => JSON.stringify({ type: 'user', message: { role: 'user', content: text } });
+  const withEffort = (line, effort) => JSON.stringify({ ...JSON.parse(line), effort });
+  const raisedPath = join(root, 'agent-up.jsonl');
+  writeFileSync(raisedPath, [
+    // The guard appends its line to the prompt; Claude Code may store the
+    // prompt as text blocks rather than a plain string.
+    JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text: `Fix the parser.\n\n${EFFORT_RAISE_MARKER}` }] } }),
+    withEffort(assistant({ model: 'claude-sonnet-4-5', out: 10, ts: '2026-08-01T00:00:01.000Z' }), 'high'),
+    // A later user entry leaves the answer as the prompt gave it.
+    prompt('unrelated follow-up'),
+  ].join('\n') + '\n');
+  const raised = await collectSubagentRun(raisedPath);
+  assert.equal(raised.effortRaised, true);
+  assert.equal(raised.effort, 'high');
+
+  const plainPath = join(root, 'agent-plain.jsonl');
+  writeFileSync(plainPath, [
+    prompt('Fix the parser.'),
+    assistant({ model: 'claude-sonnet-4-5', out: 10, ts: '2026-08-01T00:00:01.000Z' }),
+    // The marker in a later user entry is not the delegated prompt.
+    prompt(EFFORT_RAISE_MARKER),
+  ].join('\n') + '\n');
+  const plain = await collectSubagentRun(plainPath);
+  assert.equal(plain.effortRaised, false);
+  assert.equal(plain.effort, null, 'no effort recorded anywhere');
+});
+
 test('collectSubagentRuns returns [] when the session never delegated', async () => {
   const root = tmpRoot();
   const sessionPath = writeSession(root, 's-none', {
