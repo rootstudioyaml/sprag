@@ -59,7 +59,7 @@ Destination: `https://hiycfjwswtkixyoqkznm.supabase.co/rest/v1/rpc/*` (Supabase,
 
 You can set up a team without the web dashboard, inside an organization you own or administer (the organization id is in the dashboard; Sprag opens organizations, see "Organizations and seats"). Signing in uses a 6-digit code emailed to you (valid 15 minutes) and then a code from your authenticator app; an account without an app enrolls one on sprag.io/team first. Sprag never stores the sign-in session.
 
-In a terminal, run one command and answer the prompts (email, code, team name):
+In a terminal, run one command and answer the prompts (email, code, team name, authenticator code). The command opens https://sprag.io/team/ for the code: enter your email there, because the code request passes a Cloudflare check that only a browser can run, and type the emailed code into the terminal.
 
 ```bash
 sprag team create --org <org-id>
@@ -69,11 +69,11 @@ From an agent or any shell without a terminal, it takes two steps:
 
 ```bash
 sprag team create --org <org-id> --email you@example.com --name "Acme"
-# the code arrives by email, then:
+# request the code at https://sprag.io/team/ with that email, then:
 sprag team create --org <org-id> --email you@example.com --name "Acme" --code 123456 --app-code 654321
 ```
 
-The first step only sends the code. The second verifies it and creates the team. It then prints the invite token, the member command (`npm i -g sprag-cli@latest && sprag team join <token>`), the organization line (`export SPRAG_TEAM_TOKEN=<token>`) and the dashboard address. Sign in to https://sprag.io/team/ with the same email to manage the team.
+The first step only prints where to request the code. The second verifies it, asks for the authenticator code and creates the team. It then prints the invite token, the member command (`npm i -g sprag-cli@latest && sprag team join <token>`), the organization line (`export SPRAG_TEAM_TOKEN=<token>`) and the dashboard address. Sign in to https://sprag.io/team/ with the same email to manage the team.
 
 By default this machine joins as the first member and runs one sync. Pass `--no-join` to skip that. If this machine is already in a team, run `sprag team leave` first or pass `--no-join`.
 

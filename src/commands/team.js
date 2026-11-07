@@ -9,6 +9,7 @@
  */
 
 import { createInterface } from 'node:readline';
+import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { userLanguage } from '../config.js';
 import { pendingPrompts } from '../team-prompts.js';
@@ -18,7 +19,7 @@ import { ruleStatsSummary } from '../team-rule-stats.js';
 import { orgMinVersion, readOrgUpgrade, orgUpgradeInFlight } from '../org-upgrade.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
-  teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, listAuthenticators, verifyAuthenticatorCode, createTeam, isSeatLimitError, isOrgExpiredError,
+  teamRulesCachePath, teamSyncDisabled, verifySignInCode, listAuthenticators, verifyAuthenticatorCode, createTeam, isSeatLimitError, isOrgExpiredError,
   setDisplayName,
 } from '../team-sync.js';
 import { standingGuideLines } from '../team-standing.js';
@@ -93,7 +94,7 @@ const T = {
     needAppCode: (e, n) => `Missing --app-code. Run: sprag team create --email ${e} --name "${n}" --code <code> --app-code <authenticator code>`,
     noAuthenticator: 'This account has no authenticator app yet. Sign in once at https://sprag.io/team/ to enroll one (Google Authenticator or any app that makes 6-digit codes), then run this again.',
     askTeamName: (d) => `Team name [${d}]: `,
-    codeSent: (e) => `A 6-digit code was sent to ${e} (valid 15 minutes).`,
+    getCode: (e) => `Request your sign-in code at ${CODE_URL} : enter ${e} there and the 6-digit code arrives by mail (valid 15 minutes). The request runs in the browser because it passes a Cloudflare check.`,
     rerun: (e, n) => `Then run: sprag team create --email ${e} --name "${n}" --code <code> --app-code <authenticator code>`,
     created: (n) => `Created team "${n}".`,
     inviteToken: 'Invite token',
@@ -172,7 +173,7 @@ const T = {
     needAppCode: (e, n) => `--app-code 가 없습니다. 실행: sprag team create --email ${e} --name "${n}" --code <코드> --app-code <인증 앱 코드>`,
     noAuthenticator: '이 계정에는 아직 인증 앱이 없습니다. https://sprag.io/team/ 에 한 번 로그인해 인증 앱(Google Authenticator처럼 6자리 코드를 만드는 앱)을 등록한 뒤 다시 실행하세요',
     askTeamName: (d) => `팀 이름 [${d}]: `,
-    codeSent: (e) => `${e} 로 6자리 코드를 보냈습니다 (15분간 유효)`,
+    getCode: (e) => `로그인 코드는 ${CODE_URL} 에서 요청하세요. 거기에 ${e} 을 입력하면 6자리 코드가 메일로 옵니다(15분간 유효). Cloudflare 확인을 거치기 때문에 브라우저에서 요청합니다`,
     rerun: (e, n) => `받은 코드로 다시 실행하세요: sprag team create --email ${e} --name "${n}" --code <코드> --app-code <인증 앱 코드>`,
     created: (n) => `팀 "${n}" 을 만들었습니다`,
     inviteToken: '초대 토큰',
@@ -211,12 +212,25 @@ async function confirm(question) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Where the sign-in code is requested: the page runs the Cloudflare check the team server demands. */
+const CODE_URL = 'https://sprag.io/team/';
+/** Opens the URL in the default browser and never fails: the message already carries the address. */
+function openInBrowser(url) {
+  const win = process.platform === 'win32';
+  const cmd = process.platform === 'darwin' ? 'open' : win ? 'cmd' : 'xdg-open';
+  const args = win ? ['/c', 'start', '', url] : [url];
+  try {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    child.on('error', () => {});
+    child.unref();
+  } catch { /* no opener on this machine */ }
+}
 const CODE_RE = /^\d{6}$/;
 // The default display name is the machine id; `status` and `join` then point at `team name`.
 const MACHINE_NAME_RE = /^member-[0-9a-f]{8}$/;
 
 /** `sprag team create`: sign in by emailed code, insert the team, join as first member. */
-async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive, ask }) {
+async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive, ask, openUrl = openInBrowser }) {
   const noJoin = hasFlag('--no-join');
   const st0 = loadTeamState();
   if (isJoined(st0) && !noJoin) { console.error(m.alreadyJoined(st0.teamName || '')); return process.exit(1); }
@@ -235,14 +249,10 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
 
   let useCode = code;
   if (!useCode) {
-    if (!interactive) {
-      await requestSignInCode({ email, fetch });
-      out(m.codeSent(email));
-      out(m.rerun(email, name || defaultName));
-      return undefined;
-    }
-    await requestSignInCode({ email, fetch });
-    out(m.codeSent(email));
+    /* The code request passes Cloudflare Turnstile, so it happens on the sign-in page, not here. */
+    out(m.getCode(email));
+    if (!interactive) { out(m.rerun(email, name || defaultName)); return undefined; }
+    openUrl(CODE_URL);
     useCode = await ask(m.askCode);
     if (!CODE_RE.test(useCode)) { console.error(m.badCode); return process.exit(2); }
   }
@@ -288,7 +298,7 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   return undefined;
 }
 
-export async function run({ args, hasFlag, getArg, version, fetch, interactive, ask }) {
+export async function run({ args, hasFlag, getArg, version, fetch, interactive, ask, openUrl }) {
   const m = T[userLanguage()] || T.en;
   const verb = args[1];
   const out = (s) => console.log(s);
@@ -297,7 +307,7 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
     switch (verb) {
       case 'create': {
         const tty = interactive !== undefined ? interactive : !!(process.stdin.isTTY && process.stdout.isTTY);
-        return await createFlow({ m, out, hasFlag, getArg, version, fetch, interactive: tty, ask: ask || prompt });
+        return await createFlow({ m, out, hasFlag, getArg, version, fetch, interactive: tty, ask: ask || prompt, openUrl });
       }
       case 'join': {
         const token = (args[2] && !args[2].startsWith('--') ? args[2] : null) || process.env.SPRAG_TEAM_TOKEN;

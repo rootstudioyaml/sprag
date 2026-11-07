@@ -322,11 +322,6 @@ async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetc
   }
 }
 
-/** Email a 6-digit sign-in code (valid 15 minutes). Creates the user if new. */
-export async function requestSignInCode({ email, fetch } = {}) {
-  await apiJson('/auth/v1/otp', { body: { email, create_user: true }, label: 'sign-in', fetch });
-}
-
 /**
  * Exchange the emailed code for a session. Returns { accessToken, userId, factors }.
  * The session is aal1: the server refuses every owner and admin action until an
