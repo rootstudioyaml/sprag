@@ -2,7 +2,9 @@
 /**
  * upstream-watch — notice new Claude Code and Codex releases, have Claude read
  * their release notes against what sprag depends on, and post the result to a
- * Slack channel.
+ * Slack channel. The post opens with a Korean summary of what the release
+ * changed, so the channel reads as a release briefing even when sprag is not
+ * affected; the impact analysis follows in the thread.
  *
  * Why this exists: sprag reads settings.json keys, statusline and hook payloads,
  * transcript and rollout formats that Claude Code and Codex never promised to
@@ -58,6 +60,10 @@ const SLACK_CHUNK = 3500;
 const MAX_BODY_CHARS = 20000;
 const FETCH_TIMEOUT_MS = 20_000;
 const LLM_TIMEOUT_MS = 10 * 60 * 1000;
+const SUMMARY_OPEN = '<변경 요약>';
+const SUMMARY_CLOSE = '</변경 요약>';
+const IMPACT_OPEN = '<sprag 영향>';
+const IMPACT_CLOSE = '</sprag 영향>';
 
 export const PRODUCTS = {
   claude: { key: 'claude', name: 'Claude Code' },
@@ -189,7 +195,18 @@ export function buildPrompt({ product, versions, contract }) {
     '4. 해당하지 않는 줄은 언급하지 않습니다.',
     '',
     '출력은 한국어 Slack mrkdwn으로 씁니다. 표는 Slack에서 보이지 않으니 쓰지 않습니다. 굵게는 별표 하나로 감싸 씁니다.',
+    '출력은 두 부분이며 각각 아래 태그로 감쌉니다. 태그 바깥에는 아무것도 쓰지 않습니다.',
     '',
+    `${SUMMARY_OPEN}`,
+    `릴리스 노트 전체를 sprag와 상관없이 한국어로 요약합니다. ${name}을 쓰는 사람이 무엇이 바뀌었는지 한눈에 알 수 있게 씁니다.`,
+    '- 새 기능, 동작 변화, 고친 버그 순으로 중요한 변경부터 "• " 글머리 목록으로 씁니다. 한 버전에 많아야 8줄이고 한 줄은 한두 문장입니다.',
+    '- 버전이 여럿이면 버전마다 *버전 번호*를 한 줄 쓰고 그 아래에 목록을 둡니다.',
+    '- 8줄에 들지 못한 변경과 사소한 수정은 마지막 줄 하나에 "그 밖에 버그 수정 N건"처럼 묶습니다.',
+    '- 명령어, 설정 키, 플래그, 모델 이름은 원문 그대로 둡니다. 문장은 직역하지 말고 자연스러운 한국어로 풀고 "~했습니다"로 맺습니다.',
+    '- 연결어미와 접속부사 뒤에 쉼표를 찍지 않고 가운뎃점(·)으로 낱말을 나열하지 않습니다.',
+    `${SUMMARY_CLOSE}`,
+    '',
+    `${IMPACT_OPEN}`,
     '첫 줄은 한 줄 판정입니다. "영향 있음 N건" 또는 "영향 없음"으로 시작합니다.',
     '',
     '영향 있는 변경마다 아래 항목을 채웁니다.',
@@ -202,7 +219,27 @@ export function buildPrompt({ product, versions, contract }) {
     'sprag가 새로 활용할 수 있는 변경이 있으면 마지막에 짧은 목록으로 덧붙입니다. 없으면 이 목록은 쓰지 않습니다.',
     '',
     '영향이 없으면 그렇다고 한 줄로 쓰고 끝냅니다.',
+    `${IMPACT_CLOSE}`,
   ].join('\n');
+}
+
+/**
+ * The two tagged parts of the analysis. When the model left the tags out, the
+ * whole text counts as the impact part and the summary is empty, so a format
+ * slip still posts the analysis instead of dropping it.
+ */
+export function splitAnalysis(text) {
+  const raw = String(text);
+  const pick = (open, close) => {
+    const i = raw.indexOf(open);
+    if (i < 0) return null;
+    const j = raw.indexOf(close, i + open.length);
+    return (j < 0 ? raw.slice(i + open.length) : raw.slice(i + open.length, j)).trim();
+  };
+  const summary = pick(SUMMARY_OPEN, SUMMARY_CLOSE);
+  const impact = pick(IMPACT_OPEN, IMPACT_CLOSE);
+  if (summary == null && impact == null) return { summary: '', impact: raw.trim() };
+  return { summary: summary || '', impact: impact || '' };
 }
 
 /** "2.1.319" for one version, "2.1.317 ~ 2.1.319" for several (newest-first input). */
@@ -217,14 +254,31 @@ export function verdictLine(analysis) {
   return line || '판정을 읽지 못했습니다.';
 }
 
-/** The channel message that opens the thread. */
-export function buildParentMessage({ product, versions, verdict, skipped = 0, links = [] }) {
+/** The channel message that opens the thread: the change summary first, then the sprag verdict. */
+export function buildParentMessage({ product, versions, verdict, summary = '', skipped = 0, links = [] }) {
   const name = PRODUCTS[product]?.name || product;
-  const parts = [`*${name} ${versionLabel(versions)} 출시: sprag 영향 분석*`];
-  if (verdict) parts.push(verdict);
+  const parts = [`*${name} ${versionLabel(versions)} 출시: 변경 요약과 sprag 영향*`];
+  if (summary) parts.push('', '*변경 요약*', summary, '');
+  if (verdict) parts.push(summary ? `*sprag 영향*: ${verdict}` : verdict);
   if (skipped > 0) parts.push(`최신 ${versions.length}개만 분석했고 ${skipped}개는 건너뛰었습니다.`);
   if (links.length) parts.push(`릴리스 노트: ${links.join(' ')}`);
   return parts.join('\n');
+}
+
+/**
+ * The parent message and the thread replies. A summary too long for one Slack
+ * message leaves the parent and becomes the first replies, ahead of the impact part.
+ */
+export function buildPosts({ product, versions, analysis, skipped = 0, links = [], limit = SLACK_CHUNK }) {
+  const { summary, impact } = splitAnalysis(analysis);
+  const verdict = verdictLine(impact);
+  const impactChunks = impact ? chunkText(impact, limit) : [];
+  const parent = buildParentMessage({ product, versions, verdict, summary, skipped, links });
+  if (parent.length <= limit) return { parent, replies: impactChunks };
+  return {
+    parent: buildParentMessage({ product, versions, verdict, skipped, links }),
+    replies: [...chunkText(`*변경 요약*\n${summary}`, limit), ...impactChunks],
+  };
 }
 
 /** KEY=VALUE lines of an env file as an object. Quotes are stripped; comments and blanks are skipped. */
@@ -587,8 +641,7 @@ async function runProduct(product, opts, state, contract, slack) {
   }
 
   const analysis = analyze(buildPrompt({ product, versions, contract }));
-  const parent = buildParentMessage({ product, versions, verdict: verdictLine(analysis), skipped, links });
-  const chunks = chunkText(analysis, SLACK_CHUNK);
+  const { parent, replies: chunks } = buildPosts({ product, versions, analysis, skipped, links });
 
   if (opts.dryRun) {
     console.log('--- parent message ---');
