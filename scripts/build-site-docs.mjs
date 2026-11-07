@@ -754,6 +754,15 @@ function buildSitemap(entries) {
     <loc>${SITE_ORIGIN}/docs/ko/</loc>
     <priority>0.7</priority>
   </url>`);
+  // The replay evidence page. Hand-written HTML outside docs/, so the entry
+  // has to be listed here; without it every rebuild dropped /proof/.
+  urls.push(`  <url>
+    <loc>${SITE_ORIGIN}/proof/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="${SITE_ORIGIN}/proof/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="${SITE_ORIGIN}/proof/?lang=ko"/>
+  </url>`);
   // Legal pages (hand-written, bilingual in-page): payment providers and the
   // e-commerce act expect them to be discoverable.
   for (const slug of SHOW_BIZ ? ['terms', 'privacy', 'refund'] : []) {
