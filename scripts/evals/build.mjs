@@ -32,9 +32,45 @@ const REQUIRED_CASE_FIELDS = [
 ];
 const BILINGUAL_FIELDS = ['title', 'userPrompt', 'task', 'truth', 'lesson'];
 
-// Ported from the private builder that produced the first data.json.
-export const PRIVACY_RE =
-  /root[.\-]studio[.\-]yaml|seoyoung|xeoyoung|\/Users\/|\/private\/tmp|claude-\d{3}|sprag-team|[\w.+-]*@[A-Za-z0-9-]+\.[A-Za-z]/i;
+// What must never reach the public corpus: local home paths, scratch dirs,
+// session dirs, the private server repo and email addresses.
+const GENERIC_PRIVACY = String.raw`\/Users\/|\/private\/tmp|claude-\d{3}|sprag-team|[\w.+-]*@[A-Za-z0-9-]+\.[A-Za-z]`;
+
+/**
+ * Personal identifiers to block, read from the machine at run time and never
+ * written into this repository, not even as a pattern: one per line in
+ * `<evals work dir>/private-names.txt` (git-ignored, beside the raw rounds) and
+ * comma-separated in SPRAG_EVALS_PRIVATE_NAMES. Without either, only the
+ * generic patterns apply, which is the case in CI.
+ */
+export function privateNames(env = process.env) {
+  const names = new Set();
+  for (const n of String(env.SPRAG_EVALS_PRIVATE_NAMES || '').split(',')) if (n.trim()) names.add(n.trim());
+  const work = env.SPRAG_EVALS_WORK || join(DEFAULT_REPO_ROOT, 'handoff', 'evals-work');
+  const file = join(work, 'private-names.txt');
+  if (existsSync(file)) {
+    for (const line of readFileSync(file, 'utf8').split('\n')) {
+      const n = line.trim();
+      if (n && !n.startsWith('#')) names.add(n);
+    }
+  }
+  return [...names];
+}
+
+// A name written with separators also matches the other separators (a.b.c,
+// a-b-c, a_b_c), but never the joined form, which is the public GitHub owner.
+const namePattern = (name) => name.split(/[.\-_ ]+/).filter(Boolean)
+  .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[.\\-_ ]');
+
+/** Matches a private name, or null when none is configured. */
+export function nameRegex(names = privateNames(), flags = 'gi') {
+  return names.length ? new RegExp(names.map(namePattern).join('|'), flags) : null;
+}
+
+/** The full privacy check: private names plus the generic patterns. */
+export function privacyRe(names = privateNames()) {
+  return new RegExp([...names.map(namePattern), GENERIC_PRIVACY].join('|'), 'i');
+}
 
 const VERDICT_LABEL = {
   en: { ok: 'Relayable', partial: 'Partial', fail: 'Missed' },
@@ -181,10 +217,12 @@ export function validateCorpus(corpus) {
   }
 
   // Privacy: every string in every case file, plus the shared tables.
+  const re = privacyRe();
   const scan = (label, value) =>
     walk(value, (v, path) => {
-      if (typeof v === 'string' && PRIVACY_RE.test(v)) {
-        throw new Error(`evals: privacy check failed in ${label} at ${path || '(root)'}: matches ${PRIVACY_RE}`);
+      const hit = typeof v === 'string' && v.match(re);
+      if (hit) {
+        throw new Error(`evals: privacy check failed in ${label} at ${path || '(root)'}: matches "${hit[0]}"`);
       }
     });
   for (const id of index.cases) scan(`case ${id}`, byFile[id]);
@@ -362,14 +400,14 @@ export function generate({ repoRoot = DEFAULT_REPO_ROOT, evalsDir = join(repoRoo
     const path = join(repoRoot, t.file);
     if (!existsSync(path)) continue;
     const block = buildEvidenceBlock(summary, corpus.conditions, t.lang);
-    if (PRIVACY_RE.test(block)) throw new Error(`evals: privacy check failed in the ${t.file} evidence block: matches ${PRIVACY_RE}`);
+    if (privacyRe().test(block)) throw new Error(`evals: privacy check failed in the ${t.file} evidence block`);
     const next = applyEvidenceBlock(readFileSync(path, 'utf8'), block, t.anchor);
     files.set(path, next);
   }
 
   for (const [path, content] of files) {
     if (path.endsWith('README.md') || path.endsWith('README.ko.md')) continue;
-    if (PRIVACY_RE.test(content)) throw new Error(`evals: privacy check failed in generated ${path}: matches ${PRIVACY_RE}`);
+    if (privacyRe().test(content)) throw new Error(`evals: privacy check failed in generated ${path}`);
   }
   return { files, summary };
 }
