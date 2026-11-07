@@ -10,6 +10,12 @@ v3.47.0 까지 받으신 사본은 계속 MIT 조건을 따릅니다. 이미 받
 
 ## 전체 릴리스 노트
 
+### v3.103.0 (2026-11-07)
+- **effort 없이 Sonnet에 보낸 위임은 sprag가 high로 올립니다.** `general-purpose`에 `model: sonnet`으로 보내면서 effort를 적지 않은 호출은 Claude Code가 medium으로 돌렸고 조용한 품질 손실은 거기서 나왔습니다. 고정 사례를 블라인드 채점으로 다시 돌려 보니 여러 파일을 뒤지는 조회가 medium에서는 3회 중 0회, high에서는 3회 중 2회 그대로 전달할 수 있었고 비용은 약 25% 늘었습니다. 새 사례 6건에서 Sonnet high는 5건을 Opus 비용의 30~60%로 전달 가능하게 처리했습니다. 호출이 effort를 직접 적었거나 t1-worker처럼 파일에 effort가 고정된 에이전트, Haiku와 Opus 대상은 건드리지 않습니다.
+- **올린 횟수가 상태줄과 `sprag saved`에 보입니다.** Routing saved 칩 옆에 `🔬↑3`처럼 회색으로 붙고 `sprag saved`는 횟수와 그 실행 비용을 한 줄로 보여 줍니다. 상향은 돈을 더 쓰는 쪽이라 절감액과 합치지 않고 절감액은 이미 그 비용을 뺀 값입니다.
+- **이름으로 부른 에이전트도 제 모델의 상한을 받습니다([#12](https://github.com/rootstudioyaml/sprag/issues/12)).** `t2-explore`나 `t1h-worker`는 이름에 모델이 없어서 모두 Sonnet 기본값인 20회와 8,000토큰을 받았습니다. 이제 Haiku 에이전트는 8회와 1,500토큰, Opus 에이전트는 20회와 30,000토큰을 받습니다.
+- **위임 규칙 공통 조항에 effort 기준 세 가지가 들어갔습니다.** 열린 웹 조사를 그래도 위임하면 Sonnet xhigh로 보냅니다. 최근 뉴스 조사에서 medium과 high는 6회 중 0회, xhigh는 3회 중 3회 핵심 소식을 찾았고 비용은 Opus의 약 80%였습니다. 여러 파일을 뒤지는 조회는 high 이상에서 맡기고 사용자만 아는 맥락은 지시문에 적습니다. effort를 바꿔 9회 돌려도 그 맥락이 없으면 9회 모두 틀렸기 때문입니다. 실험 전체는 https://sprag.io/proof/ 에서 사례마다 실제 실행을 다시 재생해 볼 수 있습니다.
+
 ### v3.102.0 (2026-11-07)
 - **상태줄에 ultracode 전용 칩 `🐙 ultra on`이 생겼습니다.** Claude Code 2.1.302부터 ultracode는 effort 레벨과 따로 켜고 끄는 세션 토글이 되었습니다. 그래서 effort 칩은 `🔬 high`처럼 실제 레벨만 보여 주고, 바로 뒤의 새 칩이 ultracode 상태를 알려 줍니다. 켜져 있으면 굵은 무지개색으로, 꺼져 있으면 회색 `🐙 ultra off`로 그립니다. 예전에는 xhigh일 때만 ultracode를 확인해서 high에 ultracode를 켠 세션이 그냥 `high`로 보였습니다.
 - **2.1.302의 새 `/effort` 출력 문구를 읽습니다.** `Ultracode on (…)`, `Ultracode off.`, 조회 결과 끝의 ` · Ultracode on`을 보고 상태를 정합니다. 레벨만 바꾸는 명령은 ultracode 상태를 바꾸지 않는 것으로 처리하고, 이전 버전의 문구도 계속 읽습니다. `--segments`에서는 `ultra`라는 이름으로 칩 위치를 정합니다.
