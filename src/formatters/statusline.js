@@ -56,6 +56,7 @@ const RESET = '\x1b[0m';
 const RED = fg(251, 113, 133, '\x1b[31m');
 const GREEN = fg(52, 211, 153, '\x1b[32m');
 const YELLOW = fg(251, 191, 36, '\x1b[33m');
+const ORANGE = fg(251, 146, 60, '\x1b[33m'); // orange-400 #FB923C: the effort guard's flame tone
 const CYAN = fg(34, 211, 238, '\x1b[36m');
 const MAGENTA = fg(167, 139, 250, '\x1b[35m');
 const GRAY = fg(100, 116, 139, '\x1b[90m');
@@ -1201,30 +1202,20 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
   const delegateSeg = savingsChip || (delegationSaved === 0 ? unresolvedSeg : null);
   const delegateExtra = savingsChip && delegationSaved === 0 ? unresolvedSeg : null;
 
-  // Sonnet delegations the guard ran at high effort because the call passed
-  // none, in the shape of the other two savings: "Effort saved" is the routing
-  // saving those raised runs produced (a part of Routing saved, never added to
-  // it), and the raise count rides as the breakdown. A raise with no measured
-  // saving (no registered rule routed the run) keeps the gray count chip, as a
-  // bare document count does for Doc2md. `sprag saved` prints what the runs cost.
-  //   icon:  "🔬 $12.4"   verbose: "🔬 Effort saved $12.4 · 3 raised"
-  //   text:  "Effort saved $12.4"
-  //   no saving measured:  icon "🔬↑3"  |  text "effort↑3"  |  verbose "effort raised ×3"
+  // The effort guard: Sonnet delegations the guard ran at high effort because
+  // the call passed none (effort-raise-ledger's totals). It is a quality
+  // measure, not a saver. A raise costs tokens, and what it prevents is a
+  // silently wrong result that nobody would know to rerun, so no amount is
+  // claimed for it. The chip is the count alone, gray, as a bare document
+  // count is for Doc2md; the multi-line layout gives the guard the top line
+  // (guardLine below) and the chip steps aside.
+  //   icon "🔬↑3"  |  text "effort↑3"  |  verbose "effort guard ×3"
   const raisedInfo = data.effortRaises;
   const raised = Number(raisedInfo && raisedInfo.count) || 0;
-  const keptUsd = Number(raisedInfo && raisedInfo.kept) || 0;
-  const keptRuns = Number(raisedInfo && raisedInfo.keptRuns) || 0;
-  const hasKept = raised > 0 && keptRuns > 0 && keptUsd !== 0;
-  const keptTone = keptUsd < 0 ? RED : GREEN;
   const raisedSince = formatSince(raisedInfo && raisedInfo.since);
-  const effortLabel = isIcon ? (verbose ? `${g.effort} Effort saved` : g.effort) : 'Effort saved';
-  let raisedSeg = null;
-  if (hasKept) {
-    raisedSeg = `${c(keptTone)}${effortLabel}${c(RESET)} ${formatMoney(keptUsd)}${sinceInline(raisedSince)}`
-      + (verbose ? ` ${c(GRAY)}· ${raised} raised${c(RESET)}` : '');
-  } else if (raised > 0) {
-    raisedSeg = `${c(GRAY)}${verbose ? `effort raised ×${raised}` : isIcon ? `${g.effort}↑${raised}` : `effort↑${raised}`}${c(RESET)}`;
-  }
+  const raisedSeg = raised > 0
+    ? `${c(GRAY)}${verbose ? `effort guard ×${raised}` : isIcon ? `${g.effort}↑${raised}` : `effort↑${raised}`}${c(RESET)}`
+    : null;
 
   // Routing-savings headline line (multi-line layout). The lifetime sum from
   // the delegation ledger — the number the whole tool exists to grow, so it
@@ -1269,25 +1260,24 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
       (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
   }
 
-  // The Effort saved line (multi-line layout), under the savings lines and in
-  // their anatomy: the figure, the same reset mark as Routing saved, then the
-  // breakdown, where the raise count sits as `medium→high ×N $X` (Claude
-  // Code's default effort to the one the guard set). Raises that no rule
-  // routed have no saving to show and are counted as `no rule ×N (n/a)`, as
-  // Doc2md counts a format with no baseline. Built only beside a Routing saved
-  // line and only with a measured saving; a bare count stays a chip.
-  //   icon:  "🔬 Effort saved $12.4 since 11/1  |  medium→high ×2 $12.4 · no rule ×1 (n/a)"
-  //   text:  "Effort saved $12.4 since 11/1  |  medium→high ×2 $12.4 · no rule ×1 (n/a)"
-  let raisedLine = null;
-  if (totalsLine && hasKept) {
-    const head = isIcon ? `${g.effort} Effort saved` : 'Effort saved';
-    const parts = [`${c(GRAY)}medium→high ×${keptRuns} ${formatMoney(keptUsd)}${c(RESET)}`];
-    if (raised > keptRuns) parts.push(`${c(GRAY)}no rule ×${raised - keptRuns} ${verbose ? '(no saving measured)' : '(n/a)'}${c(RESET)}`);
-    raisedLine =
-      `${c(keptTone)}${c(BOLD)}${head}${c(RESET)} ` +
-      `${c(keptTone)}${formatMoney(keptUsd)}${c(RESET)}` +
+  // The effort guard line (multi-line layout): the top line of the statusline,
+  // above the savings, since what it stands for is the quality of the
+  // delegated work the savings rest on. The count, with the same reset mark as
+  // Routing saved, then the raise itself (`sonnet medium→high`, Claude Code's
+  // default effort to the one the guard set). No money: what a guarded run
+  // saved by routing is Routing saved's figure, and what the guard prevented
+  // (a silently wrong result) has no price anyone measured. Bold in the flame
+  // tone, with 🔥 after 🔬 where the font has it.
+  //   icon:  "🔬🔥 Effort guard ×3 since 11/1  |  sonnet medium→high"
+  //   text:  "Effort guard ×3 since 11/1  |  sonnet medium→high"
+  let guardLine = null;
+  if (!singleLine && raised > 0) {
+    const head = isIcon ? `${g.effort}${g.flame} Effort guard` : 'Effort guard';
+    guardLine =
+      `${c(ORANGE)}${c(BOLD)}${head}${c(RESET)} ` +
+      `${c(ORANGE)}×${raised}${c(RESET)}` +
       sinceWord(raisedSince) +
-      `  ${c(GRAY)}|${c(RESET)}  ${parts.join(` ${c(GRAY)}·${c(RESET)} `)}`;
+      `  ${c(GRAY)}|${c(RESET)}  ${c(GRAY)}sonnet medium→high${c(RESET)}`;
   }
 
   return {
@@ -1297,10 +1287,10 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
     // the dropped runs matter. The raise chip steps aside for its own line the
     // same way, and stays on line 2 while there is no line to carry it.
     chips: totalsLine
-      ? (totalsNum === 0 ? [unresolvedSeg, raisedLine ? null : raisedSeg] : [raisedLine ? null : raisedSeg])
-      : [delegateSeg, raisedSeg, delegateExtra],
+      ? (totalsNum === 0 ? [unresolvedSeg, guardLine ? null : raisedSeg] : [guardLine ? null : raisedSeg])
+      : [delegateSeg, guardLine ? null : raisedSeg, delegateExtra],
     headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine } : null,
-    raisedHeadline: raisedLine ? { usd: keptUsd, line: raisedLine } : null,
+    guardLine,
   };
 }
 
@@ -1583,9 +1573,9 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v,
   if (delegated.headline && want('delegated')) headlines.push(delegated.headline);
   if (doc2md.headline && want('doc2md')) headlines.push(doc2md.headline);
   headlines.sort((a, b) => b.usd - a.usd);
-  // The effort-raise line closes the savings lines rather than competing with
-  // them: its figure is a part of Routing saved, not a saver of its own.
-  if (delegated.raisedHeadline && want('delegated')) headlines.push(delegated.raisedHeadline);
+  // The effort guard line leads them all: it stands for the quality of the
+  // delegated work the savings rest on, and it claims no money of its own.
+  if (delegated.guardLine && want('delegated')) headlines.unshift({ usd: 0, line: delegated.guardLine });
   // The team line comes last: identity and standing, after the money.
   if (teamLine && want('team')) headlines.push(teamLine);
   const rows = columns

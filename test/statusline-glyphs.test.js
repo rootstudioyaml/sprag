@@ -81,7 +81,9 @@ test('both sets describe the same chips', () => {
 });
 
 test('narrow glyphs are distinct, so chips stay tellable apart without labels', () => {
-  const values = Object.values(NARROW_GLYPHS);
+  // An empty glyph draws nothing (team, flame: no font-verified character), so
+  // two of them cannot be mistaken for each other.
+  const values = Object.values(NARROW_GLYPHS).filter(Boolean);
   assert.equal(new Set(values).size, values.length);
 });
 
