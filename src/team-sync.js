@@ -108,9 +108,24 @@ async function refreshStanding({ memberKey, dir, fetch, now }) {
     if (!r || typeof r !== 'object' || typeof r.grade !== 'string') return;
     const cur = loadTeamState(dir);
     if (!isJoined(cur) || cur.memberKey !== memberKey) return;
+    const num = (v) => (Number.isFinite(v) ? v : null);
+    // What the rank is made of and what the next species takes (server migration
+    // 20261107000100). An older server sends none of it, and `sprag team status`
+    // then prints the formula alone.
+    const guide = {
+      dlg: num(r.dlg), medianDlg: num(r.median_dlg), scorePct: num(r.score_pct), spent: num(r.spent),
+      idle: typeof r.idle === 'boolean' ? r.idle : null,
+      hasPrompts: typeof r.has_prompts === 'boolean' ? r.has_prompts : null,
+      weights: Array.isArray(r.weights) && r.weights.every(Number.isFinite) ? r.weights : null,
+      next: r.next && typeof r.next === 'object' && typeof r.next.grade === 'string'
+        ? { grade: r.next.grade, pass: num(r.next.pass) ?? 0, needDlg: !!r.next.need_dlg }
+        : null,
+      rangeFrom: typeof r.range_from === 'string' ? r.range_from : null,
+      rangeTo: typeof r.range_to === 'string' ? r.range_to : null,
+    };
     saveTeamState({
       ...cur,
-      standing: { grade: r.grade, tier: r.tier ?? null, rank: Number.isFinite(r.rank) ? r.rank : null, ranked: Number.isFinite(r.ranked) ? r.ranked : null, crown: !!r.crown, fetchedAt: now },
+      standing: { grade: r.grade, tier: r.tier ?? null, rank: num(r.rank), ranked: num(r.ranked), crown: !!r.crown, fetchedAt: now, ...guide },
     }, dir);
   } catch (e) {
     debug('team-sync', e); // PGRST202 "Could not find the function": an older server, ignore
@@ -130,6 +145,10 @@ export function readTeamChip({ dir = userDataDir() } = {}) {
     const st = state.standing;
     return {
       label,
+      // The standing is ranked across the organization, so its name says whose standings these are.
+      org: String(state.orgName || state.teamName || '').trim() || null,
+      // The license the team runs under (`pro`, `enterprise`), which leads the chip.
+      plan: typeof state.plan === 'string' && state.plan.trim() ? state.plan.trim() : null,
       lang: userLanguage(),
       standing: st && typeof st.grade === 'string'
         ? { grade: st.grade, rank: Number.isFinite(st.rank) ? st.rank : null, ranked: Number.isFinite(st.ranked) ? st.ranked : null, fetchedAt: Number(st.fetchedAt) || 0 }

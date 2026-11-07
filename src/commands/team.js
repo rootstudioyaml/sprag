@@ -21,6 +21,7 @@ import {
   teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError, isOrgExpiredError,
   setDisplayName,
 } from '../team-sync.js';
+import { standingGuideLines } from '../team-standing.js';
 
 const T = {
   en: {
@@ -30,7 +31,7 @@ const T = {
       '  join [token] [--name <n>] [--yes]   join a team (token or SPRAG_TEAM_TOKEN)',
       '  name [<n>]                           show or change your display name',
       '  leave                                leave the team and stop uploading',
-      '  status [--show-payload]              membership, last sync, what is sent (daily aggregates and rule summary)',
+      '  status [--show-payload]              membership, standing and what the next species takes, last sync, what is sent (daily aggregates and rule summary)',
       '  sync [--force] [--rules-only]        upload aggregates, prompts (Enterprise capture) and pull rules now',
       '                                       (--rules-only: pull organization and team rules only, upload nothing)',
       '  rules                                show cached organization and team rules',
@@ -105,7 +106,7 @@ const T = {
       '  join [토큰] [--name <이름>] [--yes]   팀에 참여 (토큰 또는 SPRAG_TEAM_TOKEN)',
       '  name [<이름>]                          표시 이름 보기 또는 바꾸기',
       '  leave                                  팀에서 나가고 업로드 중단',
-      '  status [--show-payload]                참여 상태, 마지막 동기화, 보내는 내용(하루 집계와 룰 요약)',
+      '  status [--show-payload]                참여 상태, 순위와 다음 등급까지의 거리, 마지막 동기화, 보내는 내용(하루 집계와 룰 요약)',
       '  sync [--force] [--rules-only]          지금 집계를 올리고 규칙을 받기',
       '                                         (--rules-only: 조직·팀 규칙만 받고 아무것도 올리지 않음)',
       '  rules                                  받아 둔 조직·팀 규칙 보기',
@@ -328,6 +329,9 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         }
         out(`${m.name}: ${st.displayName}`);
         if (MACHINE_NAME_RE.test(String(st.displayName || ''))) out(`  ${m.nameHint}`);
+        // The standing behind the statusline chip, and what moving up takes
+        // (src/team-standing.js). Nothing until the first sync has fetched one.
+        for (const l of standingGuideLines(st.standing, { lang: userLanguage(), org: st.orgName || st.teamName || null })) out(l);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(isOrgExpiredError(st.lastError) ? m.orgExpired : `${m.lastError}: ${st.lastError}`);
         if (orgMinVersion(st)) out(m.orgMin(orgMinVersion(st), version));

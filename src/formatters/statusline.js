@@ -399,10 +399,12 @@ function buildVersionSeg(version, update, c, isIcon, verbose, g) {
 const TEAM_STANDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Team chip: the member id and, once the server has told us, the animal that
- * member is in the team's virtual office and the rank (`member-1e500474 🦊 Fox #3 of 12`). Renders only
+ * Team chip: the member id, the organization and, once the server has told us,
+ * the overall-score rank and the animal that member is in the team's virtual
+ * office (`member-1e500474 amazon overall score #3 of 12 🦊 Fox`). Renders only
  * for a joined machine. A missing, unknown or day-old standing leaves just the
- * member label. Gray like the other identity chips; the emoji brings its own colour.
+ * member label (and the organization, when known). The office page calls the
+ * ranked figure the overall score (spend rank, delegation rank, prompt rank). Gray like the other identity chips; the emoji brings its own colour.
  * The emoji draws only in icon mode: narrow (the IntelliJ default, whose font has
  * no animal emoji) and text keep the animal's name and the rank.
  */
@@ -413,8 +415,12 @@ function buildTeamSeg(team, c, mode = 'icon', now = Date.now()) {
   const animal = fresh ? speciesLabel(st.grade, team.lang, { emoji: mode === 'icon' }) : null;
   // The rank among the ranked people, the same standing the office drawer shows; a ghost has none.
   const ranked = animal && Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
-  const place = ranked ? (team.lang === 'ko' ? ` ${st.ranked}명 중 ${st.rank}위` : ` #${st.rank} of ${st.ranked}`) : '';
-  return `${c(GRAY)}${team.label}${animal ? ` ${animal}${place}` : ''}${c(RESET)}`;
+  const place = ranked ? (team.lang === 'ko' ? ` 종합 점수 ${st.ranked}명 중 ${st.rank}위` : ` overall score #${st.rank} of ${st.ranked}`) : '';
+  const org = typeof team.org === 'string' && team.org ? ` ${team.org}` : '';
+  // The plan leads (`Pro`, `Enterprise`): the chip describes a licensed team, so
+  // the license is the first thing it says, and the standing follows.
+  const plan = typeof team.plan === 'string' && team.plan ? `${team.plan[0].toUpperCase()}${team.plan.slice(1)} ` : '';
+  return `${c(GRAY)}${plan}${team.label}${org}${animal ? `${place} ${animal}` : ''}${c(RESET)}`;
 }
 
 /**

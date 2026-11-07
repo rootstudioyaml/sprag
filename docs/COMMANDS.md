@@ -43,7 +43,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag team join [token] [--name <n>] [--yes]` | Opt in to the team layer: shows what will be uploaded (daily aggregates and a per-category delegation rule summary, no rule text or paths), then enrolls. Without a token it reads `SPRAG_TEAM_TOKEN` ([Team layer](./TEAM.md)) |
 | `sprag team name [<n>]` | Show or change your display name after joining; the dashboard shows the new name at once |
 | `sprag team leave` | Leave the team, stop uploading, and remove the member key, the rules cache and the ratchet import |
-| `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name and last sync; `--show-payload` prints the exact rows that would be uploaded, including the delegation rule summary |
+| `sprag team status [--show-payload]` | Team, plan, prompt-capture flag, display name, your standing in the office (what the overall score is made of, whether moving up takes more tokens or a larger delegated share, and the next species) and last sync; `--show-payload` prints the exact rows that would be uploaded, including the delegation rule summary |
 | `sprag team sync [--force] [--rules-only]` | Upload the daily aggregates and pull approved organization and team rules now (`--force` ignores the 5-minute interval, `--rules-only` pulls rules and uploads nothing) |
 | `sprag team rules` | Show the cached organization and team rules |
 | `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team owner |

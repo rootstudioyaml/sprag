@@ -36,7 +36,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag team join [토큰] [--name <이름>] [--yes]` | 팀 기능을 켭니다. 올라갈 내용(하루 단위 집계와 카테고리별 위임 룰 요약뿐이며 룰 본문과 경로는 없습니다)을 보여 준 뒤 등록합니다. 토큰을 생략하면 `SPRAG_TEAM_TOKEN` 을 읽습니다 ([팀 기능](./TEAM.ko.md)) |
 | `sprag team name [<이름>]` | 참여한 뒤에 표시 이름을 보거나 바꿉니다. 대시보드에 새 이름이 바로 나옵니다 |
 | `sprag team leave` | 팀에서 나가고 업로드를 멈추며, 멤버 키, 룰 캐시, 래칫 import 를 지웁니다 |
-| `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 마지막 동기화를 보여 줍니다. `--show-payload` 는 올라갈 행과 위임 룰 요약을 그대로 출력합니다 |
+| `sprag team status [--show-payload]` | 팀, 플랜, 프롬프트 수집 설정, 표시 이름, 사무실 순위(종합 점수의 구성, 올라가려면 토큰을 더 써야 하는지 위임 몫을 늘려야 하는지, 다음 등급까지의 거리), 마지막 동기화를 보여 줍니다. `--show-payload` 는 올라갈 행과 위임 룰 요약을 그대로 출력합니다 |
 | `sprag team sync [--force] [--rules-only]` | 지금 하루 집계를 올리고 승인된 조직·팀 룰을 받습니다 (`--force` 는 5분 간격을 무시, `--rules-only` 는 룰만 받고 아무것도 올리지 않음) |
 | `sprag team rules` | 받아 둔 조직·팀 룰 보기 |
 | `sprag team propose "<내용>" [--scope ratchet\|model]` | 팀 소유자에게 룰 제안 |
