@@ -396,8 +396,8 @@ export async function run({ hasFlag }) {
             ? '            서브에이전트 위임 프롬프트에 룰이 정한 상한과 이미 읽은 경로를 덧붙입니다.'
             : '            appends the rule\'s caps and already-read paths to every subagent delegation prompt.');
           console.log(lang === 'ko'
-            ? '            effort 없이 Sonnet에 보낸 위임은 high로 올립니다(실측: 여러 파일 조회 medium 0/3, high 2/3). 상태줄 🔬↑N 이 횟수입니다.'
-            : '            a Sonnet delegation sent without an effort runs at high (measured: multi-file lookup 0/3 at medium, 2/3 at high). The statusline counts these as 🔬↑N.');
+            ? '            effort 없이 Sonnet에 보낸 위임은 high로 올립니다(실측: 여러 파일 조회 medium 0/3, high 2/3). 상태줄 🔬↑N 이 횟수이고 옆 금액은 그 위임이 지켜낸 절감입니다.'
+            : '            a Sonnet delegation sent without an effort runs at high (measured: multi-file lookup 0/3 at medium, 2/3 at high). The statusline counts these as 🔬↑N, with the saving those runs kept beside it.');
           console.log(lang === 'ko'
             ? '            근거: https://sprag.io/proof/  끄기: sprag delegate off'
             : '            evidence: https://sprag.io/proof/  turn off: sprag delegate off');

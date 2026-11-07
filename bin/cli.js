@@ -1012,17 +1012,23 @@ async function main() {
   // The same cached scan says how old the savings figures are: the ledger is
   // filled by route-scan, so a stale scan means a stale total.
   let routeScanAt = null;
-  // Sonnet delegations sprag ran at high effort (see buildDelegatedSeg).
-  let effortRaises = null;
   try {
     const { readRouteScan } = await import('../src/route-scan.js');
     const scan = readRouteScan();
     unresolvedRuns = Number(scan?.unresolvedRuns) || 0;
-    if (scan?.effortRaises && typeof scan.effortRaises === 'object') effortRaises = scan.effortRaises;
     const scannedAt = Date.parse(scan?.scannedAt);
     routeScanAt = Number.isFinite(scannedAt) ? scannedAt : null;
   } catch (e) {
     debug('route-scan:unresolved', e);
+  }
+  // Sonnet delegations sprag ran at high effort (see buildDelegatedSeg). A
+  // lookup in the effort-raise ledger with the routing reset mark, never a scan.
+  let effortRaises = null;
+  try {
+    const { effortRaiseTotals } = await import('../src/effort-raise-ledger.js');
+    effortRaises = effortRaiseTotals();
+  } catch (e) {
+    debug('effort-raise-ledger:totals', e);
   }
   // 'auto' unless the user pinned a bucket. Read here rather than in the
   // statusline branch below because the table and JSON formatters want the

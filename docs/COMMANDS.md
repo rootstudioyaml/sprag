@@ -87,7 +87,7 @@ Two limits worth knowing before relying on this:
 - The caps are a prompt-level request, not an enforced ceiling — a subagent that ignores them is not stopped from running longer or writing more.
 - A delegation that gives only `subagent_type` is matched to its model through the agent file (`t2-explore` reads as haiku, `t1h-worker` as opus). An agent name sprag does not know falls back to the 20/8,000 cap.
 
-It also sets an effort. A delegation to a `sonnet` model that passes no `effort` and names no preset agent runs at `high` instead of Claude Code's default `medium`, and a marker line in the prompt lets route-scan count those raises (statusline `🔬↑N`, `sprag saved`). In the 2026-11-07 replay a multi-file lookup at medium was relayable in 0 of 3 runs and at high in 2 of 3, for about 25% more cost ([sprag.io/proof](https://sprag.io/proof/)). Preset agents keep the effort their files pin, and a call that passes an effort keeps it.
+It also sets an effort. A delegation to a `sonnet` model that passes no `effort` and names no preset agent runs at `high` instead of Claude Code's default `medium`, and route-scan reads a marker line in the prompt into the effort-raise ledger. The statusline `🔬↑N` and `sprag saved` sum that ledger with the same reset mark as Routing saved (`sprag saved reset routing`), and the amount beside the count is the routing saving the raised runs produced, already part of Routing saved. In the 2026-11-07 replay a multi-file lookup at medium was relayable in 0 of 3 runs and at high in 2 of 3, for about 25% more cost ([sprag.io/proof](https://sprag.io/proof/)). Preset agents keep the effort their files pin, and a call that passes an effort keeps it.
 
 <details>
 <summary>All CLI options</summary>
