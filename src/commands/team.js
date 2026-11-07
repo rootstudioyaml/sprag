@@ -18,7 +18,7 @@ import { ruleStatsSummary } from '../team-rule-stats.js';
 import { orgMinVersion, readOrgUpgrade, orgUpgradeInFlight } from '../org-upgrade.js';
 import {
   loadTeamState, deviceInfo, isJoined, joinTeam, leaveTeam, syncTeam, autoJoin, aggregateDaily, rpc,
-  teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, createTeam, isSeatLimitError, isOrgExpiredError,
+  teamRulesCachePath, teamSyncDisabled, requestSignInCode, verifySignInCode, listAuthenticators, verifyAuthenticatorCode, createTeam, isSeatLimitError, isOrgExpiredError,
   setDisplayName,
 } from '../team-sync.js';
 import { standingGuideLines } from '../team-standing.js';
@@ -27,7 +27,7 @@ const T = {
   en: {
     usage: [
       'Usage: sprag team <command>',
-      '  create [--email <e>] [--name <n>] [--code <6 digits>] [--org <org-id>] [--no-join]   create a team (you become the owner)',
+      '  create [--email <e>] [--name <n>] [--code <6 digits>] [--app-code <6 digits>] [--org <org-id>] [--no-join]   create a team (you become the owner)',
       '  join [token] [--name <n>] [--yes]   join a team (token or SPRAG_TEAM_TOKEN)',
       '  name [<n>]                           show or change your display name',
       '  leave                                leave the team and stop uploading',
@@ -80,7 +80,7 @@ const T = {
     renamed: (n) => `Display name changed to "${n}". The dashboard shows it from now on.`,
     nameHint: 'Change it with: sprag team name "<new name>"',
     nameUnsupported: 'The team server does not support renaming yet. Try again after it is updated.',
-    createUsage: 'Usage: sprag team create --email <e> --name "<team name>" [--code <6 digits>] [--no-join]',
+    createUsage: 'Usage: sprag team create --email <e> --name "<team name>" [--code <6 digits>] [--app-code <6 digits>] [--no-join]',
     badEmail: 'That does not look like an email address.',
     badCode: 'The code is 6 digits, like 123456.',
     needEmail: 'Missing --email. Usage: sprag team create --email <e> --name "<team name>"',
@@ -88,9 +88,13 @@ const T = {
     alreadyJoined: (n) => `This machine is already in team "${n}". Run \`sprag team leave\` first, or pass --no-join.`,
     askEmail: 'Your email: ',
     askCode: 'Code from the email (6 digits): ',
+    askAppCode: 'Code from your authenticator app (6 digits): ',
+    badAppCode: 'The authenticator code is 6 digits, like 123456.',
+    needAppCode: (e, n) => `Missing --app-code. Run: sprag team create --email ${e} --name "${n}" --code <code> --app-code <authenticator code>`,
+    noAuthenticator: 'This account has no authenticator app yet. Sign in once at https://sprag.io/team/ to enroll one (Google Authenticator or any app that makes 6-digit codes), then run this again.',
     askTeamName: (d) => `Team name [${d}]: `,
     codeSent: (e) => `A 6-digit code was sent to ${e} (valid 15 minutes).`,
-    rerun: (e, n) => `Then run: sprag team create --email ${e} --name "${n}" --code <code>`,
+    rerun: (e, n) => `Then run: sprag team create --email ${e} --name "${n}" --code <code> --app-code <authenticator code>`,
     created: (n) => `Created team "${n}".`,
     inviteToken: 'Invite token',
     memberCmd: 'Member command',
@@ -102,7 +106,7 @@ const T = {
   ko: {
     usage: [
       '사용법: sprag team <명령>',
-      '  create [--email <e>] [--name <이름>] [--code <6자리>] [--org <조직 ID>] [--no-join]   팀 만들기 (만든 사람이 조직 오너)',
+      '  create [--email <e>] [--name <이름>] [--code <6자리>] [--app-code <6자리>] [--org <조직 ID>] [--no-join]   팀 만들기 (만든 사람이 조직 오너)',
       '  join [토큰] [--name <이름>] [--yes]   팀에 참여 (토큰 또는 SPRAG_TEAM_TOKEN)',
       '  name [<이름>]                          표시 이름 보기 또는 바꾸기',
       '  leave                                  팀에서 나가고 업로드 중단',
@@ -155,7 +159,7 @@ const T = {
     renamed: (n) => `표시 이름을 바꿨습니다: ${n}. 이제부터 대시보드에 이 이름이 나옵니다.`,
     nameHint: '바꾸려면: sprag team name "<새 이름>"',
     nameUnsupported: '팀 서버가 아직 이름 변경을 지원하지 않습니다. 서버가 갱신된 뒤 다시 시도하세요.',
-    createUsage: '사용법: sprag team create --email <e> --name "<팀 이름>" [--code <6자리>] [--no-join]',
+    createUsage: '사용법: sprag team create --email <e> --name "<팀 이름>" [--code <6자리>] [--app-code <6자리>] [--no-join]',
     badEmail: '이메일 주소 형식이 아닙니다',
     badCode: '코드는 123456 같은 6자리 숫자입니다',
     needEmail: '--email 이 없습니다. 사용법: sprag team create --email <e> --name "<팀 이름>"',
@@ -163,9 +167,13 @@ const T = {
     alreadyJoined: (n) => `이 PC는 이미 팀 "${n}" 에 참여 중입니다. 먼저 \`sprag team leave\` 를 실행하거나 --no-join 을 붙이세요`,
     askEmail: '이메일: ',
     askCode: '메일로 받은 코드 (6자리): ',
+    askAppCode: '인증 앱 코드 (6자리): ',
+    badAppCode: '인증 앱 코드는 123456 같은 6자리 숫자입니다',
+    needAppCode: (e, n) => `--app-code 가 없습니다. 실행: sprag team create --email ${e} --name "${n}" --code <코드> --app-code <인증 앱 코드>`,
+    noAuthenticator: '이 계정에는 아직 인증 앱이 없습니다. https://sprag.io/team/ 에 한 번 로그인해 인증 앱(Google Authenticator처럼 6자리 코드를 만드는 앱)을 등록한 뒤 다시 실행하세요',
     askTeamName: (d) => `팀 이름 [${d}]: `,
     codeSent: (e) => `${e} 로 6자리 코드를 보냈습니다 (15분간 유효)`,
-    rerun: (e, n) => `받은 코드로 다시 실행하세요: sprag team create --email ${e} --name "${n}" --code <코드>`,
+    rerun: (e, n) => `받은 코드로 다시 실행하세요: sprag team create --email ${e} --name "${n}" --code <코드> --app-code <인증 앱 코드>`,
     created: (n) => `팀 "${n}" 을 만들었습니다`,
     inviteToken: '초대 토큰',
     memberCmd: '멤버용 명령',
@@ -241,7 +249,19 @@ async function createFlow({ m, out, hasFlag, getArg, version, fetch, interactive
   if (!name && interactive) name = (await ask(m.askTeamName(defaultName))) || defaultName;
   if (!name) { console.error(m.needName); return process.exit(2); }
 
-  const { accessToken, userId } = await verifySignInCode({ email, code: useCode, fetch });
+  const first = await verifySignInCode({ email, code: useCode, fetch });
+  const userId = first.userId;
+  /* Second step: the authenticator app. The server refuses team_create below aal2 (sprag-team 20261108000100). */
+  const apps = await listAuthenticators({ accessToken: first.accessToken, factors: first.factors, fetch });
+  if (!apps.length) { console.error(m.noAuthenticator); return process.exit(1); }
+  let appCode = getArg('--app-code');
+  if (appCode !== undefined && appCode !== null && !CODE_RE.test(String(appCode))) { console.error(m.badAppCode); return process.exit(2); }
+  if (!appCode) {
+    if (!interactive) { console.error(m.needAppCode(email, name)); return process.exit(2); }
+    appCode = await ask(m.askAppCode);
+    if (!CODE_RE.test(appCode)) { console.error(m.badAppCode); return process.exit(2); }
+  }
+  const { accessToken } = await verifyAuthenticatorCode({ accessToken: first.accessToken, factorId: apps[0].id, code: appCode, fetch });
   let team;
   try {
     team = await createTeam({ name, accessToken, userId, orgId: org || null, fetch });

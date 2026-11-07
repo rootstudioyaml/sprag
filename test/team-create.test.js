@@ -44,7 +44,7 @@ function mockFetch(routes = {}) {
     const path = url.replace(TEAM_API_URL, '');
     // The standing lookup after a join is best effort and not part of these flows; kept out of calls.
     if (path.endsWith('/member_standing')) return { ok: false, status: 404, json: async () => ({ code: 'PGRST202', message: 'Could not find the function' }) };
-    calls.push({ path, headers: init.headers, body: JSON.parse(init.body) });
+    calls.push({ path, method: init.method || 'POST', headers: init.headers, body: init.body ? JSON.parse(init.body) : null });
     const key = Object.keys(routes).find((k) => path.startsWith(k));
     const r = key ? routes[key] : { status: 404, json: { message: 'no route' } };
     const status = r.status || 200;
@@ -54,9 +54,14 @@ function mockFetch(routes = {}) {
   return f;
 }
 
+// The sign-in answer carries the account's factors; one verified authenticator app means challenge + verify.
+const FACTORS = [{ id: 'f-1', friendly_name: 'Sprag Teams', factor_type: 'totp', status: 'verified' }];
+const ACCESS2 = 'access-token-aal2';
 const happy = () => mockFetch({
   '/auth/v1/otp': { json: {} },
-  '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1' } } },
+  '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1', factors: FACTORS } } },
+  '/auth/v1/factors/f-1/challenge': { json: { id: 'c-1', expires_at: 1 } },
+  '/auth/v1/factors/f-1/verify': { json: { access_token: ACCESS2, user: { id: 'u-1' } } },
   '/rest/v1/rpc/team_create': { json: { id: 't-1', name: 'Acme', org_id: 'o-1', org_name: 'Acme Org', invite_token: TOKEN, plan: 'team' } },
   '/rest/v1/rpc/team_join': { json: { member_key: 'spk_k', member_id: 'm1', team_id: 't-1', team_name: 'Acme', plan: 'team', prompt_capture: false, org_id: 'o-1', org_name: 'Acme Org', seats_used: 1, seat_limit: 5 } },
 });
@@ -93,7 +98,7 @@ test('requestSignInCode posts email + create_user with the anon key only', async
 test('verifySignInCode posts type/email/token and returns accessToken + userId', async () => {
   const f = mockFetch({ '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1' } } } });
   const r = await verifySignInCode({ email: 'a@b.co', code: '123456', fetch: f });
-  assert.deepEqual(r, { accessToken: ACCESS, userId: 'u-1' });
+  assert.deepEqual(r, { accessToken: ACCESS, userId: 'u-1', factors: null });
   assert.deepEqual(f.calls[0].body, { type: 'email', email: 'a@b.co', token: '123456' });
   assert.equal(f.calls[0].headers.Authorization, undefined);
 });
@@ -133,12 +138,15 @@ test('create without --code (no TTY) sends the code and prints the re-run hint',
   assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/otp']);
 });
 
-test('create with --code verifies, creates, joins, saves state and prints the token', async (t) => {
+test('create with --code and --app-code verifies both steps, creates with the aal2 token, joins, saves state and prints the token', async (t) => {
   isolate(t);
   const f = happy();
-  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456'], { fetch: f });
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--app-code', '654321'], { fetch: f });
   assert.equal(r.code, 0, r.err);
-  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/verify', '/rest/v1/rpc/team_create', '/rest/v1/rpc/team_join']);
+  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/verify', '/auth/v1/factors/f-1/challenge', '/auth/v1/factors/f-1/verify', '/rest/v1/rpc/team_create', '/rest/v1/rpc/team_join']);
+  assert.deepEqual(f.calls[2].body, { challenge_id: 'c-1', code: '654321' });
+  assert.equal(f.calls[2].headers.Authorization, `Bearer ${ACCESS}`);
+  assert.equal(f.calls[3].headers.Authorization, `Bearer ${ACCESS2}`, 'team_create uses the aal2 session');
   assert.ok(r.out.includes(TOKEN));
   assert.ok(r.out.includes(`npm i -g sprag-cli@latest && sprag team join ${TOKEN}`));
   assert.ok(r.out.includes(`export SPRAG_TEAM_TOKEN=${TOKEN}`));
@@ -152,7 +160,7 @@ test('create with --code verifies, creates, joins, saves state and prints the to
 test('--no-join creates the team but leaves this machine alone', async (t) => {
   isolate(t);
   const f = happy();
-  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--no-join'], { fetch: f });
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--app-code', '654321', '--no-join'], { fetch: f });
   assert.equal(r.code, 0);
   assert.ok(!f.calls.some((c) => c.path.includes('team_join')));
   assert.equal(loadTeamState().memberKey, undefined);
@@ -187,9 +195,58 @@ test('already joined exits 1 unless --no-join', async (t) => {
   assert.match(r.err, /sprag team leave/);
   assert.equal(f.calls.length, 0);
   f = happy();
-  const r2 = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--no-join'], { fetch: f });
+  const r2 = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--app-code', '654321', '--no-join'], { fetch: f });
   assert.equal(r2.code, 0);
   assert.equal(loadTeamState().memberKey, 'spk_old');
+});
+
+test('create with --code but no --app-code (no TTY) asks for the authenticator code, exit 2, nothing created', async (t) => {
+  isolate(t);
+  const f = happy();
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456'], { fetch: f });
+  assert.equal(r.code, 2);
+  assert.match(r.err, /--app-code/);
+  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/verify']);
+});
+
+test('create for an account without an authenticator app points at sprag.io/team, exit 1, nothing created', async (t) => {
+  isolate(t);
+  const f = mockFetch({
+    '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1', factors: [{ id: 'f-0', factor_type: 'totp', status: 'unverified' }] } } },
+  });
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--app-code', '654321'], { fetch: f });
+  assert.equal(r.code, 1);
+  assert.match(r.err, /sprag\.io\/team/);
+  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/verify']);
+});
+
+test('a sign-in answer without factors falls back to GET /auth/v1/user', async (t) => {
+  isolate(t);
+  const f = mockFetch({
+    '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1' } } },
+    '/auth/v1/user': { json: { id: 'u-1', factors: FACTORS } },
+    '/auth/v1/factors/f-1/challenge': { json: { id: 'c-1' } },
+    '/auth/v1/factors/f-1/verify': { json: { access_token: ACCESS2 } },
+    '/rest/v1/rpc/team_create': { json: { id: 't-1', name: 'Acme', org_id: 'o-1', org_name: 'Acme Org', invite_token: TOKEN, plan: 'team' } },
+  });
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--app-code', '654321', '--no-join'], { fetch: f });
+  assert.equal(r.code, 0, r.err);
+  assert.equal(f.calls[1].path, '/auth/v1/user');
+  assert.equal(f.calls[1].method, 'GET');
+  assert.equal(f.calls[1].body, null);
+});
+
+test('a wrong authenticator code surfaces the server message with exit 1', async (t) => {
+  isolate(t);
+  const f = mockFetch({
+    '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1', factors: FACTORS } } },
+    '/auth/v1/factors/f-1/challenge': { json: { id: 'c-1' } },
+    '/auth/v1/factors/f-1/verify': { status: 422, json: { msg: 'Invalid TOTP code entered' } },
+  });
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--app-code', '000000'], { fetch: f });
+  assert.equal(r.code, 1);
+  assert.match(r.err, /Invalid TOTP code entered/);
+  assert.ok(!f.calls.some((c) => c.path.includes('team_create')));
 });
 
 test('server error message is surfaced with exit 1', async (t) => {
@@ -203,34 +260,38 @@ test('server error message is surfaced with exit 1', async (t) => {
 test('create without --org on a server that keeps organizations to operators points at --org and sales, exit 1, no join', async (t) => {
   isolate(t);
   const f = mockFetch({
-    '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1' } } },
+    '/auth/v1/verify': { json: { access_token: ACCESS, user: { id: 'u-1', factors: FACTORS } } },
+    '/auth/v1/factors/f-1/challenge': { json: { id: 'c-1' } },
+    '/auth/v1/factors/f-1/verify': { json: { access_token: ACCESS2 } },
     '/rest/v1/rpc/team_create': { status: 403, json: { code: '42501', message: 'only Sprag operators can open an organization; pass an organization you administer' } },
   });
-  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456'], { fetch: f });
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--app-code', '654321'], { fetch: f });
   assert.equal(r.code, 1);
   assert.match(r.err, /--org/);
   assert.match(r.err, /support@sprag\.io/);
   assert.ok(!f.calls.some((c) => c.path.includes('team_join')));
 });
 
-test('interactive flow asks for email, code and name', async (t) => {
+test('interactive flow asks for email, code, name and the authenticator code', async (t) => {
   isolate(t);
   const f = happy();
-  const answers = ['a@b.co', '123456', 'Acme'];
-  const r = await runCreate([], { fetch: f, interactive: true, ask: async () => answers.shift() });
+  const answers = ['a@b.co', '123456', 'Acme', '654321'];
+  const asked = [];
+  const r = await runCreate([], { fetch: f, interactive: true, ask: async (q) => { asked.push(q); return answers.shift(); } });
   assert.equal(r.code, 0, r.err);
-  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/otp', '/auth/v1/verify', '/rest/v1/rpc/team_create', '/rest/v1/rpc/team_join']);
-  assert.equal(f.calls[2].body.p_name, 'Acme');
+  assert.deepEqual(f.calls.map((c) => c.path), ['/auth/v1/otp', '/auth/v1/verify', '/auth/v1/factors/f-1/challenge', '/auth/v1/factors/f-1/verify', '/rest/v1/rpc/team_create', '/rest/v1/rpc/team_join']);
+  assert.equal(f.calls[4].body.p_name, 'Acme');
+  assert.match(asked[3], /authenticator|인증 앱/);
 });
 
 test('create --org sends p_org_id to rpc/team_create with Bearer and prints org seats', async (t) => {
   isolate(t);
   const f = happy();
-  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--org', 'o-1'], { fetch: f });
+  const r = await runCreate(['--email', 'a@b.co', '--name', 'Acme', '--code', '123456', '--app-code', '654321', '--org', 'o-1'], { fetch: f });
   assert.equal(r.code, 0, r.err);
   const c = f.calls.find((x) => x.path === '/rest/v1/rpc/team_create');
   assert.deepEqual(c.body, { p_name: 'Acme', p_org_id: 'o-1' });
-  assert.equal(c.headers.Authorization, `Bearer ${ACCESS}`);
+  assert.equal(c.headers.Authorization, `Bearer ${ACCESS2}`);
   assert.ok(r.out.includes('Acme Org'));
   assert.match(r.out, /1\/5/);
   const st = loadTeamState();
