@@ -131,7 +131,7 @@ function columnsFromArgs({ useEnv = true } = {}) {
 
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
-  'doc2md', 'delegate', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
+  'doc2md', 'delegate', 'proof', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
   'seed', 'litellm-budget', 'oauth-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets', 'routing',
 ]);
 
@@ -233,6 +233,7 @@ Usage:
   sprag routing on|off|status   model delegation master switch (rules, hints, candidates)
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
   sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
+  sprag proof [--json]     replayed delegation cases behind the tier rules (https://sprag.io/proof/)
   sprag compact-window     audit or pin autoCompactWindow for 1M sessions
   sprag saved [reset|undo|keep] show, reset or restore the saved-money counters (--agent codex for Codex)
   sprag litellm-budget     LiteLLM gateway key budget and spend
@@ -428,6 +429,12 @@ async function main() {
   //   sprag delegate on | off | --hook
   if (args[0] === 'delegate') {
     return (await import('../src/commands/delegate.js')).run({ args, hasFlag });
+  }
+
+  // Subcommand: proof — list the replayed delegation cases from evals/summary.json.
+  //   sprag proof [--json]
+  if (args[0] === 'proof') {
+    return (await import('../src/commands/proof.js')).run({ args, hasFlag });
   }
 
   // Subcommand: seed — register the bundled starter rules (model-fitting

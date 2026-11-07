@@ -1,0 +1,714 @@
+{
+  "id": "119",
+  "round": "r2",
+  "kind": "lookup",
+  "story": "quality-up",
+  "storyNote": {
+    "ko": "Haiku에서 Sonnet high로 올리자 그대로 전달할 수 있는 답이 나왔습니다.",
+    "en": "Moving from Haiku to Sonnet high gave an answer ready to relay."
+  },
+  "title": {
+    "ko": "프리셋 구조 파악",
+    "en": "Map the preset system"
+  },
+  "userPrompt": {
+    "ko": "프리셋이랑 래칫이 지금 어떻게 돌아가는지 정리해줘",
+    "en": "Summarize how presets and rules work today"
+  },
+  "task": {
+    "ko": "여러 파일에 걸친 프리셋 구조와 네트워크 경로, 관련 문구 위치를 file:line으로 정리한다.",
+    "en": "Map the preset system, its network paths and related wording across many files, with file:line."
+  },
+  "truth": {
+    "ko": "\"Nothing leaves your machine\" 문구는 요금 페이지에 있습니다.",
+    "en": "The \"Nothing leaves your machine\" line lives on the pricing page."
+  },
+  "lesson": {
+    "ko": "Haiku는 지정된 시점 대신 최신 저장소를 읽어 다른 코드를 설명했습니다. 요금 페이지 문구까지 찾은 것은 Sonnet high뿐이었습니다.",
+    "en": "Haiku read the latest checkout instead of the pinned one. Only Sonnet high found the pricing page line."
+  },
+  "recommended": "sonnet-high",
+  "lanes": [
+    "haiku-low",
+    "sonnet-medium",
+    "sonnet-high",
+    "opus-direct"
+  ],
+  "baseline": {
+    "run": "119-D",
+    "usd": 0.7838,
+    "tokens": 1346321,
+    "seconds": 93
+  },
+  "screenshot": null,
+  "runs": [
+    {
+      "round": "r2",
+      "run": "119-A",
+      "condition": "haiku-low",
+      "model": "haiku",
+      "effort": "low",
+      "prompt": "original",
+      "verdict": "fail",
+      "score": 5,
+      "max": 12,
+      "keyMiss": "고정 커밋이 아니라 main 저장소를 읽어서 서버에서 프리셋을 받는다고 답했고 고정 커밋에는 그 경로(preset-sync.js)가 없습니다.",
+      "usd": 0.0138,
+      "tokens": 442661,
+      "seconds": 49,
+      "toolCalls": 11,
+      "webSearches": 0,
+      "excerpt": "## 보고: presets 및 원격 배포 경로 조사 (read-only)\n\n기준 저장소: `<repo>`\n\n**1. presets/ 디렉터리**\n- `presets/agents.json`: 위임 전용 서브에이전트 정의 (Claude Code agents로 설치됨)\n- `presets/model-rules.json`: 티어 위임 프리셋 (route-scan 후보를 익명화한 것)\n- `presets/ratchet-rules.json`: 큐레이션된 ratchet 룰 (id 포함)\n- `presets/cohesion/cohesion-en.md`, `presets/delegation/bounds.md`, `presets/korean-style/rules.md`, `presets/doc2md/convert.py`\n- ratchet 프리셋 id: `src/presets-source.js:169`에서 `` `fix-${createHash('sha1').update(ko).digest('hex').slice(0, 6)}` `` 로 파생. 항목 필드는 `id`, `ko`, `en`. 문구를 바꿔도 id는 유지된다.\n\n**2. src/preset-ratchet.js** …",
+      "report": "## 보고: presets 및 원격 배포 경로 조사 (read-only)\n\n기준 저장소: `<repo>`\n\n**1. presets/ 디렉터리**\n- `presets/agents.json`: 위임 전용 서브에이전트 정의 (Claude Code agents로 설치됨)\n- `presets/model-rules.json`: 티어 위임 프리셋 (route-scan 후보를 익명화한 것)\n- `presets/ratchet-rules.json`: 큐레이션된 ratchet 룰 (id 포함)\n- `presets/cohesion/cohesion-en.md`, `presets/delegation/bounds.md`, `presets/korean-style/rules.md`, `presets/doc2md/convert.py`\n- ratchet 프리셋 id: `src/presets-source.js:169`에서 `` `fix-${createHash('sha1').update(ko).digest('hex').slice(0, 6)}` `` 로 파생. 항목 필드는 `id`, `ko`, `en`. 문구를 바꿔도 id는 유지된다.\n\n**2. src/preset-ratchet.js**\n- `preparePresetRatchet()` (`:132-137`): `migrateLegacyPresetRules` → `syncPresetRatchet` → `ensurePresetImport` 순으로 실행.\n- 쓰는 파일: `presetRatchetPath()` (`:36-40`). Claude는 `~/.claude/ratchet-preset.md`, Codex는 `codexUserDir()/ratchet-preset.md`.\n- 적용 판정 `acceptedGlobalPresets` (`:57-65`): `decided[p.id]?.action === 'accepted' && scope === 'global'`인 항목만 남긴다. 라우팅이 꺼져 있으면 `DELEGATION_PRESET_IDS`는 제외한다.\n- `sprag seed skip <id>`: `src/seed-rules.js` `skipSeed` (`:267-276`)가 `recordDecision(id, 'skipped')` (`:181-183`)로 seed-state에 `decided[id] = { action, at, scope? }`를 기록한다. global로 accepted였던 항목은 `{ was: 'accepted' }`를 덧붙인다.\n- 호출자: `preparePresetRatchet`의 호출 지점(route-scan `--hook` 포함)은 grep으로 확인하지 않았다.\n\n**3. 위임 에이전트와 ratchet-model 렌더링**\n- 정의: `src/delegation-agents.js:46-48` `definitions()` → `presets-source.js`의 `agentDefinitions()`. 기본값은 `presets/agents.json`이고, 서명 검증된 원격 번들이 있으면 그것을 쓴다 (`:24-26`).\n- 설치: `~/.claude/agents/<name>.md` (`:66-67`, `:106-`). 소유 마커 `OWNER_MARK = 'sprag:delegation-agent'` (`:21-22`).\n- 버전 마커: 프리셋 자체에는 버전이 없다. 노티스 키는 `:198-199`에서 remote면 `src.version`, bundled면 `cliVersion()`.\n- 에이전트 이름 (`presets/agents.json`): `t2-explore` (`:19`), `t2-runner` (`:45`), `t1h-worker` (`:118`, 전체 model id 고정). `t1-worker`는 ratchet-model 룰 문장과 `model-rules.js` 템플릿에 등장한다.\n- ratchet-model 룰 템플릿 (`src/model-rules.js`):\n  - 한국어: `:178-184` (고난도 `:180`, 중간 `:184`)\n  - 영어: `:188-193` (`Heavy … in Fable/Mythos sessions only` `:189`)\n- 티어 상한 (`src/route-scan.js`):\n  - `T2_MAX_CALLS = 6` (`:45`), 렌더 시 +2 = 8회 (`:848`)\n  - 출력 기본값 `t2Out 1500 / t1Out 8000 / t1hOut 30000` (`:470`), 클램프 `:47`, `:50`, `:54`\n- 파일 렌더: `src/model-rules.js:267` 이하, 경로 `:542-543`.\n\n**4. 서버 배포와 업데이트 체크**\n- 서버에서 프리셋을 내려받는다. `src/preset-sync.js:87-110`: `presets_version`을 먼저 조회하고, 버전이 바뀌었을 때만 `presets_published`를 받는다. 대상은 `src/team-sync.js:68`의 Supabase (`TEAM_API_URL`)이며 익명 anon key를 쓴다. RPC 경로 `team-sync.js:232-239`. 서명 키는 `src/preset-sign.js:40`.\n- 주기: 24시간에 한 번, SessionStart에서 분리된 자식 프로세스로 실행 (`preset-sync.js` 머리 주석).\n- 업데이트 체크 (`src/update-check.js`):\n  - npm: `latestUrl()` `:374-384`, 기본 `https://registry.npmjs.org/` (`:346-365`, `npm_config_registry`로 변경 가능)\n  - GitHub 릴리스 본문: `RELEASES_API = 'https://api.github.com/repos/rootstudioyaml/sprag/releases/tags'` (`:213`)\n  - 주기: `CHECK_INTERVAL_MS = 24h` (`:61`), SessionStart 쪽 `3h` (`:67`)\n  - 끄기: `updateCheckDisabled()` (`:74-75`)는 `envVar('NO_UPDATE_CHECK') === '1'` 또는 `process.env.NO_UPDATE_NOTIFIER`. 주석 `:38-39`에는 `SPRAG_NO_UPDATE_CHECK=1`로 적혀 있다.\n\n**5. \"무료 티어는 아무것도 기기 밖으로 나가지 않는다\" 문구**\n- `README.md`, `README.ko.md`, `docs/`에서 해당 문구를 찾지 못했다 (grep 0건).\n- 관련 문구는 옵트인 팀 레이어 문서뿐이다: `docs/TEAM.md:33` (\"Not sent: prompts, transcripts, file paths, project names, rule text…\"), `docs/TEAM.md:217` (\"Rule text leaves your machine only through `sprag team propose`\"), `docs/TEAM.ko.md:56` (RPC 목록).\n- 코드 주석 `src/preset-sync.js:5-6`에는 \"the request is all that leaves the machine\"이라고 적혀 있다. 기본으로 켜진 update-check (`update-check.js:213`, `:374`)와 프리셋 동기화 (`preset-sync.js:87`)가 외부 요청을 보내므로, 무료 티어가 \"아무것도 나가지 않는다\"고 말하는 문구가 있다면 이 경로와 맞지 않는다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 1.3,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 32360,
+          "usd": 0.0041
+        },
+        {
+          "t": 2.5,
+          "kind": "think",
+          "tok": 66507,
+          "usd": 0.0047
+        },
+        {
+          "t": 3.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "ls -la presets/ && echo --- && ls preset",
+          "tok": 66507,
+          "usd": 0.0047
+        },
+        {
+          "t": 3.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n src/preset-ratchet.js | head -250",
+          "tok": 66507,
+          "usd": 0.0047
+        },
+        {
+          "t": 4.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rn -i \"nothing leaves\\|never leave",
+          "tok": 66507,
+          "usd": 0.0047
+        },
+        {
+          "t": 6.1,
+          "kind": "think",
+          "tok": 106303,
+          "usd": 0.0057
+        },
+        {
+          "t": 7.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "head -c 900 presets/ratchet-rules.json;",
+          "tok": 106303,
+          "usd": 0.0057
+        },
+        {
+          "t": 7.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n src/delegation-agents.js | head -",
+          "tok": 106303,
+          "usd": 0.0057
+        },
+        {
+          "t": 8.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n src/update-check.js | grep -n -i",
+          "tok": 106303,
+          "usd": 0.0057
+        },
+        {
+          "t": 10.5,
+          "kind": "think",
+          "tok": 155747,
+          "usd": 0.0073
+        },
+        {
+          "t": 11.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"https\\ function presetSource\\|e",
+          "tok": 155747,
+          "usd": 0.0073
+        },
+        {
+          "t": 14,
+          "kind": "think",
+          "tok": 207801,
+          "usd": 0.0081
+        },
+        {
+          "t": 15.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rn \"supabase.co\\|/functions/v1\\|pr",
+          "tok": 207801,
+          "usd": 0.0081
+        },
+        {
+          "t": 17.6,
+          "kind": "think",
+          "tok": 262581,
+          "usd": 0.009
+        },
+        {
+          "t": 18.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"https\\|BUNDLE_URL\\|ENDPOINT\\|rp",
+          "tok": 262581,
+          "usd": 0.009
+        },
+        {
+          "t": 20.4,
+          "kind": "think",
+          "tok": 319115,
+          "usd": 0.0098
+        },
+        {
+          "t": 21.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"call('\\|call(\\\"\\|presets_\\|pres",
+          "tok": 319115,
+          "usd": 0.0098
+        },
+        {
+          "t": 29.4,
+          "kind": "think",
+          "tok": 380850,
+          "usd": 0.0126
+        },
+        {
+          "t": 41.1,
+          "kind": "text",
+          "tok": 380850,
+          "usd": 0.0126
+        },
+        {
+          "t": 49.1,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 442661,
+          "usd": 0.0138
+        }
+      ],
+      "agent": "t2-explore",
+      "savingsPct": 98.2
+    },
+    {
+      "round": "r2",
+      "run": "119-B",
+      "condition": "sonnet-medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "prompt": "original",
+      "verdict": "partial",
+      "score": 11,
+      "max": 12,
+      "keyMiss": "무료 요금제의 Nothing leaves your machine 문구가 site/pricing/index.html:205 에 있는데 찾지 못하고 정확한 문구는 없다고 적었습니다.",
+      "usd": 0.2811,
+      "tokens": 682967,
+      "seconds": 75,
+      "toolCalls": 11,
+      "webSearches": 0,
+      "excerpt": "Inventory of worktree `<scratchpad>/wt/119`, as facts only. Several things that look like they should exist do not (see the notes after item 1 and under 3).\n\n**1. `presets/` (one level)**\n- `presets/ratchet-rules.json` (6686 B): mistake-rule presets, ko and en text per rule.\n- `presets/model-rules.json` (4882 B): tier-delegation presets.\n- `presets/cohesion/cohesion-en.md`: English sentence-cohesion guidance.\n- `presets/delegation/bounds.md`: delegation bounds. docs/COMMANDS.md:76 says it is always injected when present.\n- `presets/doc2md/convert.py`: document converter. …",
+      "report": "Inventory of worktree `<scratchpad>/wt/119`, as facts only. Several things that look like they should exist do not (see the notes after item 1 and under 3).\n\n**1. `presets/` (one level)**\n- `presets/ratchet-rules.json` (6686 B): mistake-rule presets, ko and en text per rule.\n- `presets/model-rules.json` (4882 B): tier-delegation presets.\n- `presets/cohesion/cohesion-en.md`: English sentence-cohesion guidance.\n- `presets/delegation/bounds.md`: delegation bounds. docs/COMMANDS.md:76 says it is always injected when present.\n- `presets/doc2md/convert.py`: document converter.\n- `presets/korean-style/`: `fluent-korean.md`, `supplement.md`, `LICENSE-fluent-korean`. This worktree has no `rules.md` yet, only the old fluent-korean and supplement files.\n- There is no `presets/agents/` directory.\n- Ratchet format (`ratchet-rules.json`): `{ note: [...], rules: [{ ko, en, agents? }] }`. The id is derived, not stored. `src/seed-rules.js:93` computes `fix-` plus the first 6 hex of `sha1(r.ko)`, so `fix-bd7836` is the hash of the Korean text. Hashing the ko text keeps a user's \"no\" valid when the English wording changes (comment at lines 90-92). An optional `agents` array limits a preset to claude or codex (`seed-rules.js:86-88`). Loader: `presetRuleEntries()` at `src/harness.js:443`.\n- Excerpt: `{\"ko\":\"웹 fetch/search에서 robots·UA 차단(...)이 발생하면 → curl에 브라우저 UA ...\",\"en\":\"When a web fetch/search is blocked by robots or user-agent checks ... → retry with curl carrying a browser UA header ...\"}`.\n- Model format (`model-rules.json`): `{ note, presets: [{ id:\"run-t2\", tier:\"T2\", category:\"run\", label, labelEn, agent:\"haiku-runner\", example, exampleEn, budget:{calls:8,out:1500} }] }`.\n\n**2. `src/preset-ratchet.js` (133 lines)**\n- `preparePresetRatchet()` (lines 128-133) does three things:\n  - `migrateLegacyPresetRules` (82-108) moves bundled-rule lines out of `~/.claude/ratchet.md`, backs up to `.bak-preset-migration`, and marks them accepted/global/migrated in seed-state.\n  - `syncPresetRatchet` (68-73) rewrites the whole file via `renderPresetRatchet` (`src/harness-templates.js:69`).\n  - `ensurePresetImport` (115-125) adds the `@` import line inside the marked harness block of `~/.claude/CLAUDE.md`, and skips if the block is absent.\n- Output paths (35-39): `~/.claude/ratchet-preset.md` for Claude, `<CODEX_HOME>/ratchet-preset.md` for Codex. The file is written only if its content changed (`writeIfChanged`, 45-53).\n- Which presets apply (56-61): `ratchetPresets(lang, {agent})` filtered to `decided[id].action==='accepted' && scope==='global'`. Project-scope acceptances go to that project's `ratchet.md` instead (comment, lines 16-17). A preset removed in a later release simply stops rendering, and its answer stays in seed-state (63-67).\n- Skip storage: `sprag seed skip <id>` calls `skipSeed` (`src/seed-rules.js:247-260`), which calls `recordDecision(id,'skipped',...)`. If the preset was already accepted globally, it records `{was:'accepted'}` and re-syncs the file, so the rule disappears.\n  - State file: `<userDataDir>/seed-state.json`, or `codex-seed-state.json` for Codex (`seed-rules.js:52-54`).\n  - Shape: `{decided:{\"<id>\":{action:'accepted'|'skipped',at,scope?,targetRoot?}}}`. `seed reset` empties it (263-269).\n- Callers:\n  - `src/commands/route-scan.js:305`, in the hook path.\n  - `src/commands/install.js:387-388` and `:478` (Codex).\n  - `src/commands/codex.js:425-426`.\n  - `src/codex/hooks.js:184`.\n\n**3. Delegation agents and `ratchet-model.md` rendering**\n- Agent definitions are in code, not in markdown files: the `DEFINITIONS` array at `src/delegation-agents.js:33-82`.\n  - Agents: haiku-explore (haiku, low), haiku-runner (haiku, low), haiku-translate (haiku, low), sonnet-worker (sonnet, medium), opus-worker (`claude-opus-5-5`, high).\n  - `render(def)` is at lines 82-98.\n- Installed to `<claudeUserDir>/agents/<name>.md` (line 100) by `syncDelegationAgents()` (125-147). It skips files that are unreadable or not owned. Removal is `removeDelegationAgents()` (113).\n- Version marker: there is none. Ownership is a marker line `# managed by sprag (sprag:delegation-agent); edits are overwritten` (`OWNER_MARK` at line 20, `MARK_LINE` at 21). `isOwned` checks that string in the frontmatter. `delegationAgentStatus()` (149) reports absent, installed-by-sprag, or user-file.\n- Sync is called from route-scan.js:299, before `mrHook.syncAllFiles()` at :300.\n- Rule templates are in `src/model-rules.js`:\n  - `modelRuleBaseText` is at 144-160. The Korean templates are at 147, 150 and 151. The English ones are at 155, 158 and 159. Tiers are T2 (\"Simple/단순 요청\"), T1 (\"Moderate/중간 난도 요청\") and T1H (\"Heavy/고난도 구현\", Fable and Mythos sessions only).\n  - `composeRuleText` (104-114) appends `(상한 <cap>)` or `(cap <cap>)` via `budgetCapPhrase`.\n  - Agent phrases come from `agentPhrase`, `agentPhraseEn` and `t1Target` in the same file.\n- Note: the `~/.claude/agents/t2-*` and `t1-worker` names in the user's ratchet-model.md are not in this worktree's DEFINITIONS. This worktree still uses haiku-*, sonnet-worker and opus-worker.\n\n**4. Server-side distribution and the update check**\n- Presets and agents are never downloaded. Both are read from the installed package: `presets/*.json` via `readFileSync` (`seed-rules.js:72`, `harness.js:448`), and agent definitions from the `DEFINITIONS` constant.\n- Every `fetch(` in src:\n  - `src/update-check.js:354`: the GitHub releases API.\n  - `src/update-check.js:379`: the npm registry.\n  - `src/team-sync.js:126` and `:160`: Supabase.\n- Team layer: `rpc()` (`team-sync.js:120`) POSTs to `${url}/rest/v1/rpc/<fn>`. `team_rules_get` (called at :459, in the sync after `ledger_upsert`) returns approved team ratchet rules. It runs only after `team join` or with `SPRAG_TEAM_TOKEN`. This is the only server-delivered rule text today.\n- Update check (`src/update-check.js`):\n  - URL: `https://registry.npmjs.org/sprag-cli/latest` (line 379, 5 s timeout, `FETCH_TIMEOUT_MS` at 60).\n  - Release highlights come from `https://api.github.com/repos/rootstudioyaml/sprag/releases/tags/<ver>` (`RELEASES_API`, line 205), fetched only when a newer version exists.\n  - Cadence: 24 h default (line 53). Statusline reads the cache and spawns a detached `update-check --refresh --quiet` child (~lines 170-195). SessionStart uses a 3 h interval (`SESSION_START_CHECK_INTERVAL_MS`, line 59).\n  - Cache: `<userDataDir>/update-check.json`.\n  - Disable: `SPRAG_NO_UPDATE_CHECK=1` or any `NO_UPDATE_NOTIFIER` (`updateCheckDisabled`, lines 66-68).\n\n**5. \"Nothing leaves your machine\" statements** (no exact phrase match; closest wording)\n- docs/INSTALL.md:83 (\"Everything Sprag measures comes from files on your machine. The list below is every place it talks to over the network\") plus the table at :85-95.\n- docs/INSTALL.md:97: \"No usage data, transcript content or project paths leave the machine, unless you join a team.\"\n- README.md:309 and README.ko.md:255: \"Sprag stays local unless you opt in.\"\n- docs/TEAM.md:5: \"Sprag is local-only by default.\" docs/TEAM.md:159: \"Rule text leaves your machine only through `sprag team propose`.\" docs/TEAM.ko.md:5 has the Korean version.\n- docs/GATEWAYS.md:72: \"Does it call an LLM or need an API key? No. Everything is post-hoc analysis of the session logs ... on your machine.\"\n- docs/CODEX.md:178 has a related \"No network\" line.\n- Any new download of presets or agents would need a new row in the INSTALL.md network table and a change to that INSTALL.md:97 sentence.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 5.2,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 59013,
+          "usd": 0.1485
+        },
+        {
+          "t": 10.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "ls presets presets/* | head -60; wc -l s",
+          "tok": 123175,
+          "usd": 0.1677
+        },
+        {
+          "t": 11.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rniE \"nothing leaves|never leaves|",
+          "tok": 123175,
+          "usd": 0.1677
+        },
+        {
+          "t": 14.4,
+          "kind": "think",
+          "tok": 188332,
+          "usd": 0.1767
+        },
+        {
+          "t": 15.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n src/preset-ratchet.js; head -c 15",
+          "tok": 188332,
+          "usd": 0.1767
+        },
+        {
+          "t": 16.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"\" src/seed-rules.js | head -150",
+          "tok": 188332,
+          "usd": 0.1767
+        },
+        {
+          "t": 20.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 295,310p src/commands/route-scan.",
+          "tok": 261537,
+          "usd": 0.2034
+        },
+        {
+          "t": 22.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n src/update-check.js | head -140;",
+          "tok": 261537,
+          "usd": 0.2034
+        },
+        {
+          "t": 30.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 140,260p src/update-check.js | gr",
+          "tok": 341520,
+          "usd": 0.2279
+        },
+        {
+          "t": 38.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE \"registry|https://\" src/update-",
+          "tok": 424304,
+          "usd": 0.2431
+        },
+        {
+          "t": 43.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rniE \"local.only|stays local|nothi",
+          "tok": 509516,
+          "usd": 0.2576
+        },
+        {
+          "t": 49.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 81,100p docs/INSTALL.md | cut -c1",
+          "tok": 595360,
+          "usd": 0.2679
+        },
+        {
+          "t": 74.6,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 682967,
+          "usd": 0.2811
+        }
+      ],
+      "savingsPct": 64.1
+    },
+    {
+      "round": "r2",
+      "run": "119-C",
+      "condition": "sonnet-high",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 11,
+      "max": 12,
+      "keyMiss": "",
+      "usd": 0.3064,
+      "tokens": 712347,
+      "seconds": 81,
+      "toolCalls": 13,
+      "webSearches": 0,
+      "excerpt": "Inventory of worktree `.../scratchpad/wt/119` (HEAD 77734d8). All paths below are relative to that worktree. This checkout is older than the installed rules: its agents are named haiku-explore, haiku-runner, haiku-translate, sonnet-worker and opus-worker, while the user's ratchet-model.md names t1-worker, t2-explore and so on.\n\n**1. presets/ (one level)**\n- `presets/ratchet-rules.json` (6686 B): ratchet seed data. Shape is `{note:[...], rules:[{ko, en, agents?}]}`. The `agents` field is optional and filters by agent (`claude`/`codex`) at src/seed-rules.js:87. `ratchetPresets()` at src/seed-rules.js:84-97 derives the id. …",
+      "report": "Inventory of worktree `.../scratchpad/wt/119` (HEAD 77734d8). All paths below are relative to that worktree. This checkout is older than the installed rules: its agents are named haiku-explore, haiku-runner, haiku-translate, sonnet-worker and opus-worker, while the user's ratchet-model.md names t1-worker, t2-explore and so on.\n\n**1. presets/ (one level)**\n- `presets/ratchet-rules.json` (6686 B): ratchet seed data. Shape is `{note:[...], rules:[{ko, en, agents?}]}`. The `agents` field is optional and filters by agent (`claude`/`codex`) at src/seed-rules.js:87. `ratchetPresets()` at src/seed-rules.js:84-97 derives the id.\n- `presets/model-rules.json` (4882 B): tier-delegation seeds. Shape is `{note, presets:[{id:\"run-t2\", tier, category, label, labelEn, agent:\"haiku-runner\", example, exampleEn, budget:{calls:8,out:1500}}]}`. Example ids are `run-t2` and `run-t1` (budget calls:null, out:6000). The `explore-t2` entry follows the same shape. Rule sentences are composed at accept time from `modelRuleBaseText()`.\n- `presets/korean-style/`: `fluent-korean.md`, `supplement.md` and `LICENSE-fluent-korean`. These are the older Korean style files, not the `rules.md` that CLAUDE.md describes.\n- `presets/cohesion/cohesion-en.md`: loaded by src/cohesion.js:26.\n- `presets/delegation/bounds.md`: loaded by src/delegation-guard.js:33. It holds the four bounds injected into spawned subagents.\n- `presets/doc2md/convert.py`: the document converter.\n- There is no `presets/agents/` directory. package.json:28 ships `presets/`.\n- Id derivation: `fix-` plus the first 6 hex characters of SHA-1 of the Korean text, `createHash('sha1').update(r.ko).digest('hex').slice(0,6)` (src/seed-rules.js:93). The id is hashed from `ko` so a reworded English copy keeps the user's earlier answer (comment at :90-92). Example: `fix-bd7836` is the web-fetch UA rule.\n\n**2. src/preset-ratchet.js (133 lines)**\n- `presetRatchetPath()` (:35-39) returns `~/.claude/ratchet-preset.md` for Claude and `<codexUserDir>/ratchet-preset.md` for Codex.\n- `acceptedGlobalPresets()` (:56-61) keeps a bundled preset only if `seed-state.decided[id].action==='accepted' && scope==='global'`.\n- `syncPresetRatchet()` (:68-73) regenerates the whole file through `renderPresetRatchet()` (src/harness-templates.js) and `writeIfChanged`. A preset that a newer release dropped simply stops rendering, and its answer stays in seed-state.\n- `migrateLegacyPresetRules()` (:82-108) moves bundled lines out of the old global `ratchet.md` and backs up to `ratchet.md.bak-preset-migration`.\n- `ensurePresetImport()` (:115-125) adds the `@~/.claude/ratchet-preset.md` import inside the marked harness block of `~/.claude/CLAUDE.md`.\n- `preparePresetRatchet()` (:128-133) runs migrate, then sync, then the import.\n- Skip storage: seed state lives at `userDataDir()/seed-state.json` (`codex-seed-state.json` for Codex), shaped `{decided:{\"<id>\":{action:'accepted'|'skipped',at,scope?}}}` (src/seed-rules.js:23, :52-54). `skipSeed()` (:247-260) records `{action:'skipped', was:'accepted'}` and then calls `syncPresetRatchet`, which removes the line from the file.\n- Callers of `preparePresetRatchet`:\n  - src/commands/route-scan.js:305, inside the `--hook` branch (SessionStart, begins at :276)\n  - src/commands/install.js:388 and :478\n  - src/commands/codex.js:426\n  - src/codex/hooks.js:184\n- Callers of `syncPresetRatchet`: src/seed-rules.js:188 (accept) and :258 and :269 (skip and reset).\n\n**3. Delegation agents and ratchet-model rendering**\n- src/delegation-agents.js:33-78 has `DEFINITIONS`. Each entry has model alias, effort and tools:\n\n| Agent | Model | Effort |\n|---|---|---|\n| haiku-explore | `haiku` | low |\n| haiku-runner | `haiku` | low |\n| haiku-translate | `haiku` | low |\n| sonnet-worker | `sonnet` | medium |\n| opus-worker | `claude-opus-5-5` | high |\n\n- Every definition is inline code. There are no `.md` templates in `presets/`.\n- `render()` (:80-97) writes the frontmatter and body.\n- Version marker: `OWNER_MARK='sprag:delegation-agent'` (:20) and `MARK_LINE` (:21). It is a YAML comment inside the frontmatter, and only files carrying it are overwritten or deleted (`isOwned` :103). There is no numeric version field.\n- Install path is `~/.claude/agents/<name>.md` (:99-100), written by `syncDelegationAgents()` (:125). It is skipped for Codex and when `config.delegationAgents===false`. Callers are src/commands/route-scan.js:300, src/commands/install.js:376 and src/commands/delegate.js:162.\n- src/agents.js:25-29 is the `AGENT_MODEL` map. :55 is `TIER_AGENT = {sonnet:'sonnet-worker', opus:'opus-worker', haiku:'haiku-explore'}`.\n- Rule rendering in src/model-rules.js:\n  - Header and common clauses for `renderModelRatchet()` are at :241-340 (ko) and :308+ (en). The ko title is at :246, the en title at :308.\n  - The tier-to-model map `TIER_MODEL = {T2:'haiku', T1:'sonnet', T1H:'opus'}` is at :406.\n  - Rule base text: `modelRuleBaseText()` at :144-160. The ko T2 template is `\"<label>\" 단순 요청(예: \"...\")은 <agentPhrase>에 위임` (:149-150). The T1 template reads `중간 난도 요청 ... 에 위임` (:151). The T1H template is at :147. The en templates are at :154-159.\n  - Default caps are at :75-76: T2 `{calls:8,out:1500}`, T1 `{calls:null,out:8000}`, T1H `{calls:null,out:30000}`.\n  - The cap clause comes from `budgetCapPhrase()` (:84-91, \"도구 호출 N회·출력 M 토큰\" or \"N tool calls / M output tokens\"). It is appended by `composeRuleText` (:105-112, \"상한 ...\" or \"cap ...\").\n- The user's installed ratchet-model.md differs from this worktree's code. It names t2-explore/t1-worker, uses `✇` where the code has `🔀`, and says \"model 인자 생략\".\n\n**4. Server-side distribution**\n- The CLI does not download presets or agents. Both come from the package files `presets/` and the `DEFINITIONS` constant.\n- The only Supabase traffic is src/team-sync.js:126, `${url}/rest/v1/rpc/${fn}`. The calls are `team_create` (:196), `ledger_upsert` (:458) and `team_rules_get` (:459). The `team_rules_get` response is cached as team rules and rendered to `~/.claude/ratchet-team.md` by src/team-ratchet.js (:9-10, :97-98). Those are team rules, not bundled presets.\n- Team sync only runs after `sprag team join` or with `SPRAG_TEAM_TOKEN` set. `SPRAG_NO_TEAM_SYNC=1` disables it (src/team-sync.js:14, :66).\n- Update check (src/update-check.js):\n  - It fetches `https://registry.npmjs.org/sprag-cli/latest` (:379). It then fetches the GitHub releases API for the three highlights (`RELEASES_API` at :205, fetch at :354).\n  - The foreground only reads the cache. When the cache is stale it spawns a detached, unref'd child (design at :1-12).\n  - Cadence is 24h from the statusline (`CHECK_INTERVAL_MS` :56) and 3h from the SessionStart hook (`SESSION_START_CHECK_INTERVAL_MS` :62). The cache is also treated as stale when the running version has moved past the cached `latest`.\n  - The cache file is `userDataDir()/update-check.json` (:65).\n  - It is disabled by `SPRAG_NO_UPDATE_CHECK=1` or `NO_UPDATE_NOTIFIER` (:67; documented at :32).\n  - The fetch timeout is 5000 ms (:63).\n  - docs/INSTALL.md:71 and :87 document it.\n\n**5. \"Nothing leaves your machine\" claims**\n- site/pricing/index.html:205 is `Nothing leaves your machine` under the Free tier. The Korean copy is at :398 (`어떤 데이터도 밖으로 나가지 않음`).\n- docs/INSTALL.ko.md:94 says usage data, transcripts and project paths do not leave the computer unless you join a team.\n- docs/GATEWAYS.md:72 says \"no telemetry leaves your c…\" (the line is cut off). The Korean version is docs/GATEWAYS.ko.md:43.\n- README.md:309 says \"Sprag stays local unless you opt in\" and then describes team upload.\n- docs/TEAM.md:22 lists what is not sent. docs/TEAM.md:159 says rule text leaves the machine only through `sprag team propose`.\n- docs/INSTALL.md:85-96 is the network destination table. It lists the npm registry (update check, no identifiers), the GitHub releases API, the LiteLLM gateway, `gh`/Google Form for feedback, the npm/pip installs and the Supabase RPC.\n- docs/releases/v3.69.0.md:16 and v3.70.0.md:14 are historical\n…",
+      "reportTruncated": true,
+      "trace": [
+        {
+          "t": 5.6,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 59013,
+          "usd": 0.1485
+        },
+        {
+          "t": 8.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "ls -la presets presets/* | head -80; wc",
+          "tok": 123175,
+          "usd": 0.1677
+        },
+        {
+          "t": 11.1,
+          "kind": "think",
+          "tok": 188666,
+          "usd": 0.1775
+        },
+        {
+          "t": 12.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git log --oneline -1; head -c 1500 prese",
+          "tok": 188666,
+          "usd": 0.1775
+        },
+        {
+          "t": 12.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n src/delegation-agents.js",
+          "tok": 188666,
+          "usd": 0.1775
+        },
+        {
+          "t": 22.5,
+          "kind": "think",
+          "tok": 262139,
+          "usd": 0.204
+        },
+        {
+          "t": 24.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"ratchetPresets\\|ruleId\\|createH",
+          "tok": 262139,
+          "usd": 0.204
+        },
+        {
+          "t": 25.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"modelRuleBaseText\\|ratchet-mode",
+          "tok": 262139,
+          "usd": 0.204
+        },
+        {
+          "t": 26.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 1,80p src/update-check.js; grep -",
+          "tok": 262139,
+          "usd": 0.204
+        },
+        {
+          "t": 35.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 84,106p src/seed-rules.js; sed -n",
+          "tok": 342762,
+          "usd": 0.2294
+        },
+        {
+          "t": 37.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "echo ---SERVER; grep -rniE \"team_rules_g",
+          "tok": 342762,
+          "usd": 0.2294
+        },
+        {
+          "t": 43.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rniE \"never leave|do not leave|doe",
+          "tok": 429846,
+          "usd": 0.2538
+        },
+        {
+          "t": 45.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"preset\\|ratchet\" src/team*.js 2",
+          "tok": 429846,
+          "usd": 0.2538
+        },
+        {
+          "t": 51.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"route-scan.*--hook\\|--hook\" src",
+          "tok": 521149,
+          "usd": 0.2732
+        },
+        {
+          "t": 54.7,
+          "kind": "think",
+          "tok": 615289,
+          "usd": 0.2895
+        },
+        {
+          "t": 56.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 66,92p src/model-rules.js; sed -n",
+          "tok": 615289,
+          "usd": 0.2895
+        },
+        {
+          "t": 80.7,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 712347,
+          "usd": 0.3064
+        }
+      ],
+      "savingsPct": 60.9
+    },
+    {
+      "round": "r2",
+      "run": "119-D",
+      "condition": "opus-direct",
+      "model": "opus",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "partial",
+      "score": 10,
+      "max": 12,
+      "keyMiss": "site/pricing/index.html:205 의 Nothing leaves your machine 을 놓치고 그 문구가 어디에도 없다고 단정했습니다.",
+      "usd": 0.7838,
+      "tokens": 1346321,
+      "seconds": 93,
+      "toolCalls": 17,
+      "webSearches": 0,
+      "excerpt": "Inventory of wt/119 (HEAD 77734d8). This worktree is older than the live install: it has `presets/korean-style/fluent-korean.md` and `supplement.md` instead of `rules.md`, and the agents are named haiku-*/sonnet-worker/opus-worker, not t1-worker/t2-explore. Every path below is relative to the worktree.\n\n**1. presets/ (one level)**\n- `ratchet-rules.json` holds the text ratchet presets. Its shape is `{note:[…], rules:[{ko, en, agents?}]}` with 8 rules, two of which carry `agents` (lines 36 and 47). Example: `{\"ko\":\"웹 fetch/search에서 robots·UA 차단…\",\"en\":\"When a web fetch/search is blocked by robots…\"}`. The ids are not stored in the file. …",
+      "report": "Inventory of wt/119 (HEAD 77734d8). This worktree is older than the live install: it has `presets/korean-style/fluent-korean.md` and `supplement.md` instead of `rules.md`, and the agents are named haiku-*/sonnet-worker/opus-worker, not t1-worker/t2-explore. Every path below is relative to the worktree.\n\n**1. presets/ (one level)**\n- `ratchet-rules.json` holds the text ratchet presets. Its shape is `{note:[…], rules:[{ko, en, agents?}]}` with 8 rules, two of which carry `agents` (lines 36 and 47). Example: `{\"ko\":\"웹 fetch/search에서 robots·UA 차단…\",\"en\":\"When a web fetch/search is blocked by robots…\"}`. The ids are not stored in the file. `src/seed-rules.js:93` builds them as `fix-${sha1(r.ko).hex.slice(0,6)}`, which is how ids like `fix-bd7836` arise. The note says the Korean text is hashed so the id survives English rewording. The file is loaded by `presetRuleEntries()` at `src/harness.js:443-456` and filtered by `agents` at `seed-rules.js:84-96`.\n- `model-rules.json` holds the tier-delegation presets: `{note, presets:[{id, tier, category, label, labelEn, agent, example, exampleEn, budget:{calls, out}}]}`. Here the ids are explicit (`run-t2`, `run-t1`, `explore-*`, `check-*`, `paste-*`, `read-*`, 10 in all). T2 entries use agent `haiku-runner` or `haiku-explore` with budget 8 calls and 1500 out (1900 for read). T1 entries use agent `sonnet` with calls null and out 6000 or 8000. It is loaded at `seed-rules.js:70-76`.\n- `korean-style/` contains the vendored fluent-korean.md (MIT, with its LICENSE file) and supplement.md.\n- `cohesion/cohesion-en.md` is the English cohesion guidance.\n- `delegation/bounds.md` is the \"Delegation bounds\" text given to spawned subagents (`src/delegation-guard.js:33`).\n- `doc2md/convert.py` is the Python converter run as a child by `src/doc2md.cjs`.\n- There is no `presets/agents/` directory.\n\n**2. src/preset-ratchet.js**\n- The output path is set at `:35-39`: `~/.claude/ratchet-preset.md`, or `<CODEX_HOME>/ratchet-preset.md` for Codex.\n- `acceptedGlobalPresets()` at `:56-61` selects the presets whose seed-state entry is `action==='accepted' && scope==='global'`, kept in bundled order and worded in this version's language.\n- `syncPresetRatchet()` at `:68-73` re-renders the file from those presets via `renderPresetRatchet` (`src/harness-templates.js:69`) and writes only if the content changed (`:45-53`).\n- `migrateLegacyPresetRules()` at `:82-108` moves lines in the global ratchet.md whose undated text matches a bundled rule in either language. Before doing so it writes a `.bak-preset-migration` backup, and it records each moved preset as `{accepted, scope:'global', migrated:true}`.\n- `ensurePresetImport()` at `:115-125` adds the `@` import inside the harness block of `~/.claude/CLAUDE.md`, and only if that block exists.\n- `preparePresetRatchet()` at `:128-133` runs migrate, then sync, then import (no import step for Codex).\n- Seed state lives at `<userDataDir>/seed-state.json`, or `codex-seed-state.json` for Codex (`seed-rules.js:52-54`). On macOS userDataDir is `~/Library/Application Support/claude-token-saver` (`src/paths.js:22-30`). The format is `{decided:{\"<id>\":{action:'accepted'|'skipped', at, scope?, targetRoot?, was?}}}` (`seed-rules.js:23` and `:163-167`).\n- `sprag seed skip <id>` is handled by `skipSeed()` at `seed-rules.js:247-260`. A pending id is recorded as `skipped`. An id already accepted globally is recorded as `skipped` with `was:'accepted'`, after which `syncPresetRatchet()` runs. `skip all` expands to every pending id (`src/commands/seed.js:46`).\n- Callers:\n  - `src/commands/route-scan.js:305`, in the `--hook` (SessionStart) path at `:273` onward. It runs after `syncDelegationAgents()` (`:300`) and `syncAllFiles()` (`:301`).\n  - `src/commands/install.js:387-388` and `:478` (Codex).\n  - `src/commands/codex.js:425-426`.\n  - `src/codex/hooks.js:184`.\n  - `syncPresetRatchet` alone is called from `seed-rules.js:188` (accept), `:257` (skip) and `:268` (reset).\n\n**3. Model-routing agents and the ratchet-model.md template**\n- The agents are defined in code at `src/delegation-agents.js:33-78` (`DEFINITIONS`). There are no preset files for them.\n\n  | Agent | Model | Effort | Tools |\n  |---|---|---|---|\n  | haiku-explore | haiku | low | Read, Grep, Glob, Bash |\n  | haiku-runner | haiku | low | Bash, Read, Grep, Glob |\n  | haiku-translate | haiku | low | Read, Grep, Glob, Edit, Write |\n  | sonnet-worker | sonnet | medium | Read, Grep, Glob, Bash, Edit, Write, NotebookEdit |\n  | opus-worker | claude-opus-5-5 | high | Read, Grep, Glob, Bash, Edit, Write, NotebookEdit |\n\n- `render()` at `:80-97` produces the frontmatter plus a fixed body.\n- The marker is `OWNER_MARK='sprag:delegation-agent'` at `:20`. It is written into the frontmatter as the YAML comment `# managed by sprag (…); edits are overwritten` (`:21`). There is no version number. A file is rewritten whenever its text differs from the render (`:138`), but only if the file carries the marker (`:137`).\n- Agents install to `~/.claude/agents/<name>.md` (`:99-100`). `config.delegationAgents===false` removes them (`:129`).\n- Callers of `syncDelegationAgents`: `install.js:376`, `route-scan.js:300` (hook) and `delegate.js:162`.\n- Agent name resolution is in `src/agents.js`. `AGENT_MODEL` is at `:23-36`. `TIER_AGENT={sonnet:'sonnet-worker', opus:'opus-worker', haiku:'haiku-explore'}` is at `:56`. `agentPhrase` (Korean) at `:79-84` renders `<name>(model 인자 생략. 이 에이전트가 없거나 MCP 도구가 필요하면 general-purpose에 model: <tier>)`, falling back to `model: <tier>` when the agent is absent. `agentPhraseEn` is at `:91-96`.\n- Template strings in `src/model-rules.js`:\n  - `DEFAULT_BUDGET` at `:75-76`: T2 8 calls / 1500 out, T1 8000 out, T1H 30000 out.\n  - `budgetCapPhrase` at `:84-90`: `도구 호출 N회·출력 M 토큰`.\n  - `composeRuleText` at `:104-114`: appends `(상한 …)` or `(cap …)`.\n  - `modelRuleBaseText` at `:144-158`: `\"<label>\" 단순 요청(예: …)은 <agent>에 위임`, the 중간 난도 form for T1, and the Fable·Mythos form for T1H.\n  - `renderModelRatchet` at `:243`: the header at `:246`, the display line at `:260`, the shared clauses from `:264`, and the escalation text around `:298`.\n  - Merged per-category lines at `:405-470`: `TIER_MODEL` at `:406`, `mergedBudget` at `:407`, the `기본` / `여러 단계·여러 파일이 얽히면` / `범위가 크면(Fable·Mythos 세션 한정)` wording at `:445-449`, and the `<!-- stats -->` comment at `:461`. A preset rule's stats render as `preset (curated), registered …` (`:388-390`).\n  - Output path is set at `:493-496`, and `syncAllFiles` is at `:511`.\n\n**4. Network and server-side distribution**\n- Only three source files call `fetch(`: `src/update-check.js`, `src/team-sync.js` and `src/commands/feedback.js:71` (a Google Form).\n- No code path downloads presets or agent definitions. They are always read from the package (`presets/*.json`, `DEFINITIONS`).\n- The one server-sourced rule path is the opt-in team layer. `team-sync.js:459` calls `rpc('team_rules_get', {member_key})` against `TEAM_API_URL` (Supabase, `:34`, RPC POST at `:126`) and caches the result in `team-rules.json` (`:461-464`). `src/team-ratchet.js` renders that cache to `~/.claude/ratchet-team.md` with no network access (`:2-10`, `:95`).\n- The team layer runs only after `team join` or with `SPRAG_TEAM_TOKEN` set. It syncs every 6h (`team-sync.js:40`). `SPRAG_NO_TEAM_SYNC=1` disables it (`:14`).\n- Update check:\n  - It sends `GET https://registry.npmjs.org/sprag-cli/latest` (`update-check.js:379`). If a newer version exists, it also fetches highlights from `https://api.github.com/repos/rootstudioyaml/sprag/releases/tags` (`:205`).\n  - The cadence is 24h from the statusline (`:53`) and 3h from SessionStart (`:59`), with a 5s timeout (`:60`).\n  - The foreground only reads the cache. A refresh spawns a detached `update-check --refresh --quiet` child (`:165-196`).\n  - It is disabled by `SPRAG_NO_UPDATE_CHECK=1`, the legacy `CTS_NO_UPDATE_CHECK=1`, or any non-empty `NO_UPDATE_NOTIFIER` (`:66-67`; prefixes at `src/env.js:17-18`).\n\n**5. Docs that promise data stays\n…",
+      "reportTruncated": true,
+      "trace": [
+        {
+          "t": 2,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 59007,
+          "usd": 0.2969
+        },
+        {
+          "t": 4.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "ls -la presets/ && ls presets/* | head -",
+          "tok": 123163,
+          "usd": 0.3353
+        },
+        {
+          "t": 5.7,
+          "kind": "think",
+          "tok": 188011,
+          "usd": 0.3517
+        },
+        {
+          "t": 7.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git log --oneline -1; head -c 1500 prese",
+          "tok": 188011,
+          "usd": 0.3517
+        },
+        {
+          "t": 9.7,
+          "kind": "think",
+          "tok": 255217,
+          "usd": 0.3766
+        },
+        {
+          "t": 10.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n src/preset-ratchet.js; grep -n \"p",
+          "tok": 255217,
+          "usd": 0.3766
+        },
+        {
+          "t": 13.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 1,30p src/seed-rules.js; sed -n 4",
+          "tok": 326678,
+          "usd": 0.4116
+        },
+        {
+          "t": 14.9,
+          "kind": "think",
+          "tok": 402265,
+          "usd": 0.4468
+        },
+        {
+          "t": 17.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "(hidden)",
+          "tok": 402265,
+          "usd": 0.4468
+        },
+        {
+          "t": 19,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n src/delegation-agents.js | sed -n",
+          "tok": 402265,
+          "usd": 0.4468
+        },
+        {
+          "t": 21.3,
+          "kind": "think",
+          "tok": 483387,
+          "usd": 0.4897
+        },
+        {
+          "t": 23.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "(hidden)",
+          "tok": 483387,
+          "usd": 0.4897
+        },
+        {
+          "t": 26.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 79,165p src/model-rules.js; sed -",
+          "tok": 566564,
+          "usd": 0.5165
+        },
+        {
+          "t": 29.5,
+          "kind": "think",
+          "tok": 656869,
+          "usd": 0.5776
+        },
+        {
+          "t": 31.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"DEFAULT_BUDGET =\" -A4 src/model",
+          "tok": 656869,
+          "usd": 0.5776
+        },
+        {
+          "t": 33.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 1,60p src/update-check.js; grep -",
+          "tok": 656869,
+          "usd": 0.5776
+        },
+        {
+          "t": 35.3,
+          "kind": "think",
+          "tok": 750090,
+          "usd": 0.6132
+        },
+        {
+          "t": 37.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"export function envVar\" -A6 src",
+          "tok": 750090,
+          "usd": 0.6132
+        },
+        {
+          "t": 40.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 1,40p src/team-sync.js | cut -c1-",
+          "tok": 843859,
+          "usd": 0.6349
+        },
+        {
+          "t": 43.3,
+          "kind": "think",
+          "tok": 940405,
+          "usd": 0.6677
+        },
+        {
+          "t": 45.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 1,30p src/team-ratchet.js | cut -",
+          "tok": 940405,
+          "usd": 0.6677
+        },
+        {
+          "t": 49.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rniE \"leave(s) (the|your) (machine",
+          "tok": 1038176,
+          "usd": 0.6935
+        },
+        {
+          "t": 51,
+          "kind": "think",
+          "tok": 1140057,
+          "usd": 0.7338
+        },
+        {
+          "t": 54,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"| Destination\\|^## \" docs/INSTA",
+          "tok": 1140057,
+          "usd": 0.7338
+        },
+        {
+          "t": 56,
+          "kind": "think",
+          "tok": 1242714,
+          "usd": 0.7581
+        },
+        {
+          "t": 58.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"export function renderPresetRat",
+          "tok": 1242714,
+          "usd": 0.7581
+        },
+        {
+          "t": 92.6,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 1346321,
+          "usd": 0.7838
+        }
+      ],
+      "role": "baseline",
+      "savingsPct": 0
+    }
+  ]
+}

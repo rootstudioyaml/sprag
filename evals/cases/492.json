@@ -1,0 +1,1056 @@
+{
+  "id": "492",
+  "round": "r2",
+  "kind": "review",
+  "story": "quality-up",
+  "storyNote": {
+    "ko": "effort를 medium에서 high로 올리자 전달 가능한 검토가 나왔습니다.",
+    "en": "Raising effort from medium to high gave a review ready to relay."
+  },
+  "title": {
+    "ko": "모델 이름 해석 검토",
+    "en": "Review model-name parsing"
+  },
+  "userPrompt": {
+    "ko": "모델 이름을 잘못 읽는 곳이 또 있는지 봐줘",
+    "en": "Check where else model names could be misread"
+  },
+  "task": {
+    "ko": "모델 이름을 해석하는 코드를 훑어 조용히 틀릴 수 있는 입력을 실제 실행으로 확인하고 위험 순위를 매긴다.",
+    "en": "Review code that parses model names, confirm silent misreads by running it, and rank the risks."
+  },
+  "truth": {
+    "ko": "가장 큰 위험은 위임 상한이 에이전트 이름을 못 읽어 느슨하게 걸리는 문제였습니다.",
+    "en": "The top risk was delegation caps applied too loosely because agent names were not recognized."
+  },
+  "lesson": {
+    "ko": "Sonnet medium은 이 위험을 상위 3위에서 빠뜨렸고 Sonnet high와 Opus는 그대로 전달할 수 있는 검토를 냈습니다.",
+    "en": "Sonnet medium left that risk out of its top three. Sonnet high and Opus produced reviews ready to relay."
+  },
+  "recommended": "sonnet-high",
+  "lanes": [
+    "haiku-low",
+    "sonnet-medium",
+    "sonnet-high",
+    "opus-direct"
+  ],
+  "baseline": {
+    "run": "492-D",
+    "usd": 1.1678,
+    "tokens": 2896057,
+    "seconds": 245
+  },
+  "screenshot": null,
+  "runs": [
+    {
+      "round": "r2",
+      "run": "492-A",
+      "condition": "haiku-low",
+      "model": "haiku",
+      "effort": "low",
+      "prompt": "original",
+      "verdict": "partial",
+      "score": 11,
+      "max": 12,
+      "keyMiss": "t2-explore 처럼 계열 이름이 없는 에이전트 위임이 delegation-guard 에서 20회 8000토큰 상한을 받는 오판을 놓쳤습니다.",
+      "usd": 0.0174,
+      "tokens": 668527,
+      "seconds": 69,
+      "toolCalls": 13,
+      "webSearches": 0,
+      "excerpt": "## 결론\n\nsprag 여러 곳이 모델 문자열을 부분 문자열 매칭으로 해석한다. 별칭(`opus`)과 표시 이름(`Opus 5.5`)이 들어오면 가격과 컨텍스트 창이 틀린 값으로 나온다. 가장 큰 문제는 `opus`류 별칭이 Opus 레거시 가격($15 입력)으로 잡히는 것이다.\n\n`modelSettingsEntry()`와 `canonicalModelId()`는 이 워크트리(HEAD 0a4333c)에 없다(`git grep` 0건). 그래서 이 둘은 검토하지 못했다. `compact-window.js`에는 `resolveModelId`(:99), `isOneMillionModel`(:110), `ONE_M_RE`(:47)만 있다.\n\n## 위치별 표\n\n| file:line | 판단 대상 | 방식 | 잘못 판단되는 입력 (실측 결과) | 영향 |\n|---|---|---|---|---|\n| src/cost.js:135-178 `detectPricingTier` | 가격 등급 | 부분 문자열 + 정규식 | `opus` → claude-opus-legacy (입력 $15). `opus[1m]`, `opusplan`, `Opus 5.5`, `Claude Opus 4.7 (1M context)` 도 같은 결과. 실측 | 비용 과대 (Opus 5.5 $4 대비 약 3.75배) | …",
+      "report": "## 결론\n\nsprag 여러 곳이 모델 문자열을 부분 문자열 매칭으로 해석한다. 별칭(`opus`)과 표시 이름(`Opus 5.5`)이 들어오면 가격과 컨텍스트 창이 틀린 값으로 나온다. 가장 큰 문제는 `opus`류 별칭이 Opus 레거시 가격($15 입력)으로 잡히는 것이다.\n\n`modelSettingsEntry()`와 `canonicalModelId()`는 이 워크트리(HEAD 0a4333c)에 없다(`git grep` 0건). 그래서 이 둘은 검토하지 못했다. `compact-window.js`에는 `resolveModelId`(:99), `isOneMillionModel`(:110), `ONE_M_RE`(:47)만 있다.\n\n## 위치별 표\n\n| file:line | 판단 대상 | 방식 | 잘못 판단되는 입력 (실측 결과) | 영향 |\n|---|---|---|---|---|\n| src/cost.js:135-178 `detectPricingTier` | 가격 등급 | 부분 문자열 + 정규식 | `opus` → claude-opus-legacy (입력 $15). `opus[1m]`, `opusplan`, `Opus 5.5`, `Claude Opus 4.7 (1M context)` 도 같은 결과. 실측 | 비용 과대 (Opus 5.5 $4 대비 약 3.75배) |\n| src/cost.js:136 | 값 없을 때 | 기본값 | `null`/빈 값 → claude-sonnet. `default` → claude-sonnet (실측) | 세션이 Opus여도 Sonnet 가격 |\n| src/cost.js:159-167 | haiku 가격 | 기본값 | `claude-haiku-5` → claude-haiku-4-5 (실측). haiku-5 항목 없음 | 신형 Haiku 비용 오차 |\n| src/cost.js:239 `isRecognizedModelId` | 인식 여부 | 정규식 | 판정 자체는 맞음 | 낮음 |\n| src/cost.js:189-200 `TIER_RANK` | 라우팅 순위 | 조회표 | 순위는 detectPricingTier 결과에 의존 (`opus` → 2) | 위임 판단 (간접) |\n| src/brief.js:94-112 `ctxWindowFor` | 컨텍스트 창 | isOneMillionModel + 관찰값 | `ANTHROPIC_MODEL=opus` → window 200000 (실측). `claude-opus-5-5` → 200000 (실측) | Opus 5.5는 기본 1M인데 200k로 계산, 경고 틀림 |\n| src/compact-window.js:47,110 | `[1m]` 여부 | 정규식 `\\[1m\\]\\|context-1m\\|1m-context` | `claude-opus-5-5` → false, `claude-opus-5-5[1m]` → true (실측). 접미사 없는 1M 모델은 전부 false | 자동 압축 경고 |\n| src/savings-ledger.js:210 `modelFamily` | 가족 이름 | includes 순서 검사 | `default` → 그대로 `default` (실측). 기록을 한 줄로 묶음 | 표시 (낮음) |\n| src/delegation-agents.js:162-165 `modelFamily` | 위임 가족 비교 | 정규식 | `opusplan` → opus. 별칭과 고정 id 비교용 | 위임 매칭 (낮음) |\n| src/formatters/statusline.js:~440-460 `shortModelName` | 표시 라벨 | bedrockDisplayFromId + 정규식 | `opus-4-7` → `opus-4-7` 그대로 (실측) | 표시만 틀림 |\n| src/stdin-payload.js:146-152 `bedrockDisplayFromId` | 표시 라벨 | 정규식, 마이너 1~2자리 | `claude-opus-4-20250514` → Opus 4 (정상), `anthropic.claude-opus-5-5-v1:0` → Opus 5.5 (정상) | 낮음 |\n| src/stdin-payload.js:184 `extractModel` | 표시 | 문자열이면 bedrock 변환 | `{model:'opus'}` → `opus`. `display_name` 만 있으면 `Opus` | 표시 |\n| src/agents.js:42-56 | 위임 대상 | 고정 조회표 | 값 고정, 잘못 판정 없음 | 낮음 |\n| src/route-inject.js:165 | 티어 별칭 환경변수 | 고정 조회표 | 값 고정 | 낮음 |\n| src/delegation-guard.js:125-126 | 위임 상한 | `/haiku/i`, `/opus/i` 부분 문자열 | 이름에 opus가 있으면 opus 상한. 실측은 안 함 (읽기) | 상한 잘못 적용 |\n| src/model-share.js:42-46 | 색과 가족 | modelFamily 결과로 색 고름 | `default` → 회색 (읽기). 실측은 안 함 | 표시 |\n| src/model-alias.js:10-32, 77-96 | 게이트웨이 ARN 복원 | 역할 투표와 env 조회 | 문서상 `unknown` 반환. 실측은 안 함 | 게이트웨이 세션 가격 |\n\n검증 방법: 표의 \"실측\" 표시는 `node --input-type=module -e`로 실제 함수를 호출해 확인했다. `ctxWindowFor`는 `ANTHROPIC_MODEL` env를 바꿔 가며 실행했다. 나머지는 코드를 읽어 판단했다.\n\n## 상위 리스크 3개\n\n1. **별칭 `opus`, `opus[1m]`, `opusplan`이 Opus 레거시 가격으로 잡힘.** 별칭은 지금 Opus 5.5를 가리키는데 cost.js:156이 레거시($15)로 떨어뜨린다. 비용 수치가 크게 부풀고 절감액 계산도 같이 틀어진다.\n2. **Opus 5.5를 `[1m]` 없이 쓰면 컨텍스트 창이 200k로 계산됨.** 기본 1M 모델인데 `ctxWindowFor`와 `isOneMillionModel`이 접미사만 본다. 경고와 사용률이 틀린다.\n3. **새 버전이 옛 등급으로 떨어짐.** `claude-haiku-5`는 haiku-4-5 가격, 표시 이름(`Opus 5.5`)은 레거시 가격으로 간다. 모델 이름이 바뀔 때마다 조회표를 손으로 고쳐야 한다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 1.3,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 32370,
+          "usd": 0.0037
+        },
+        {
+          "t": 2.3,
+          "kind": "think",
+          "tok": 67010,
+          "usd": 0.0044
+        },
+        {
+          "t": 3.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git status --short | head -5; grep -nE \"",
+          "tok": 67010,
+          "usd": 0.0044
+        },
+        {
+          "t": 5.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git status --short | head -5; grep -rnEi",
+          "tok": 101983,
+          "usd": 0.0047
+        },
+        {
+          "t": 7.3,
+          "kind": "think",
+          "tok": 145777,
+          "usd": 0.0062
+        },
+        {
+          "t": 8.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rnEi \"opus|sonnet|haiku|fable|myth",
+          "tok": 145777,
+          "usd": 0.0062
+        },
+        {
+          "t": 10.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "echo ==compact; sed -n 55,118p src/compa",
+          "tok": 193551,
+          "usd": 0.0074
+        },
+        {
+          "t": 11.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"modelSettingsEntry\" src/*.js |",
+          "tok": 193551,
+          "usd": 0.0074
+        },
+        {
+          "t": 13,
+          "kind": "think",
+          "tok": 241423,
+          "usd": 0.0079
+        },
+        {
+          "t": 14,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "echo \"--- compact\"; sed -n 55,118p src/c",
+          "tok": 241423,
+          "usd": 0.0079
+        },
+        {
+          "t": 15,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"modelSettingsEntry\" src/*.js |",
+          "tok": 241423,
+          "usd": 0.0079
+        },
+        {
+          "t": 18,
+          "kind": "think",
+          "tok": 295710,
+          "usd": 0.0092
+        },
+        {
+          "t": 19.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"ONE_M_RE\\|modelSettings\" src/co",
+          "tok": 295710,
+          "usd": 0.0092
+        },
+        {
+          "t": 21.6,
+          "kind": "think",
+          "tok": 352263,
+          "usd": 0.01
+        },
+        {
+          "t": 24.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git log --oneline -1; git grep -n \"model",
+          "tok": 352263,
+          "usd": 0.01
+        },
+        {
+          "t": 29.2,
+          "kind": "think",
+          "tok": 412039,
+          "usd": 0.0116
+        },
+        {
+          "t": 31.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "node --input-type=module -e \" import { d",
+          "tok": 412039,
+          "usd": 0.0116
+        },
+        {
+          "t": 35.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 20,25p src/cost.js; sed -n 40,42p",
+          "tok": 472166,
+          "usd": 0.0124
+        },
+        {
+          "t": 39,
+          "kind": "think",
+          "tok": 533625,
+          "usd": 0.0132
+        },
+        {
+          "t": 40.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 28,31p src/cost.js >/dev/null; gr",
+          "tok": 533625,
+          "usd": 0.0132
+        },
+        {
+          "t": 51.8,
+          "kind": "think",
+          "tok": 601038,
+          "usd": 0.0162
+        },
+        {
+          "t": 62.2,
+          "kind": "text",
+          "tok": 601038,
+          "usd": 0.0162
+        },
+        {
+          "t": 69.1,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 668527,
+          "usd": 0.0174
+        }
+      ],
+      "agent": "t2-explore",
+      "savingsPct": 98.5
+    },
+    {
+      "round": "r2",
+      "run": "492-B",
+      "condition": "sonnet-medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "prompt": "original",
+      "verdict": "partial",
+      "score": 10,
+      "max": 12,
+      "keyMiss": "위임 상한 오판을 표에는 적었지만 상위 위험에서 빠뜨리고 3위를 이 워크트리에 없는 modelSettingsEntry 추측에 썼습니다.",
+      "usd": 0.2065,
+      "tokens": 438841,
+      "seconds": 68,
+      "toolCalls": 6,
+      "webSearches": 0,
+      "excerpt": "## 모델명 해석 점검 보고\n\n먼저 알릴 점이 있습니다. 워크트리(wt/492)의 src/compact-window.js에는 canonicalModelId와 modelSettingsEntry가 없습니다. 전체 src와 test를 grep했지만 두 이름은 한 곳도 나오지 않았습니다. 커밋되지 않은 작업이거나 다른 경로에 있을 수 있어서, 이 두 함수는 점검하지 못했습니다. 아래 표는 실제로 존재하는 코드만 다룹니다.\n\n검증 방법은 두 가지입니다. 실행은 node 스니펫으로 실제 함수를 돌려 확인했고, 읽기는 코드만 읽고 판단했습니다.\n\n| 위치 | 결정 대상 | 방법 | 오판 입력 (잘못 vs 올바름) | 영향 | 검증 |\n|---|---|---|---|---|---|\n| compact-window.js:47,110 isOneMillionModel | 1M 창 여부 | 정규식 `[1m]`, `context-1m`, `1m-context` | `claude-opus-5-5`, `opus`: false vs 실제 1M. 기본이 1M인 모델은 접미사가 없어서 모두 false | 1M 세션인데 compact-window 경고가 안 뜸 (조용한 누락) | 실행 | …",
+      "report": "## 모델명 해석 점검 보고\n\n먼저 알릴 점이 있습니다. 워크트리(wt/492)의 src/compact-window.js에는 canonicalModelId와 modelSettingsEntry가 없습니다. 전체 src와 test를 grep했지만 두 이름은 한 곳도 나오지 않았습니다. 커밋되지 않은 작업이거나 다른 경로에 있을 수 있어서, 이 두 함수는 점검하지 못했습니다. 아래 표는 실제로 존재하는 코드만 다룹니다.\n\n검증 방법은 두 가지입니다. 실행은 node 스니펫으로 실제 함수를 돌려 확인했고, 읽기는 코드만 읽고 판단했습니다.\n\n| 위치 | 결정 대상 | 방법 | 오판 입력 (잘못 vs 올바름) | 영향 | 검증 |\n|---|---|---|---|---|---|\n| compact-window.js:47,110 isOneMillionModel | 1M 창 여부 | 정규식 `[1m]`, `context-1m`, `1m-context` | `claude-opus-5-5`, `opus`: false vs 실제 1M. 기본이 1M인 모델은 접미사가 없어서 모두 false | 1M 세션인데 compact-window 경고가 안 뜸 (조용한 누락) | 실행 |\n| compact-window.js:99 resolveModelId | 시작 모델 | env, 프로젝트, 전역 순서의 문자열 그대로 | `default`나 `opusplan`을 모델 id로 취급. 해석 없음 | 위와 같음. liveWindow가 있을 때만 보완됨 | 읽기 |\n| brief.js:97~ ctxWindowFor | 컨텍스트 창 크기 | liveWindow, 그다음 관측 입력 250k 초과, 그다음 isOneMillionModel | 1M 세션이 아직 250k 미만이고 liveWindow가 없으면 200k로 계산. 위 정규식과 같은 맹점 | 사용률이 5배까지 과대 표시됨. 경고가 일찍 뜸 | 읽기 |\n| cost.js:137 detectPricingTier | 가격 티어 | 부분 문자열과 정규식 조합 | 별칭 `opus`는 `claude-opus-legacy`로 나옴. 지금 opus는 5.5라서 `claude-opus-5-5`가 맞음. `haiku`는 `claude-haiku-4-5`로 나옴 (맞는 값은 5.5). `sonnet`은 4.x용 `claude-sonnet`으로 나옴 (맞는 값은 5.5) | 별칭이 들어오면 비용이 틀림. opus는 레거시 프리미엄 단가라 과대 계산 | 실행 |\n| cost.js:153~154 | Opus 신규 단가 | `opus[-_.]?[5-9]` 포괄 패턴 | `claude-opus-5-1`은 `claude-opus-new`로 나옴. 5.5 전용 단가를 못 받음 | 5.x 중간 버전의 단가 오차 | 실행 |\n| cost.js:160~167 | Haiku 티어 | 4.5, 3.5, 3만 인식하고 나머지는 4.5로 폴백 | `claude-haiku-5-1`, `claude-haiku-5`는 4.5 단가로 나옴 | 단가 오차 (조용함) | 실행 |\n| cost.js:142~145 | Fable 티어 | 5.1만 따로 구분 | `claude-fable-5-2`는 `claude-fable-5`로 나옴 | 다음 마이너 버전부터 단가 오차 | 실행 |\n| cost.js:170~176 | Sonnet 티어 | 정규식 후 기본값 | `claude-sonnet-5-1`은 `claude-sonnet-5` 단가 (5.5 구분 없음) | 소폭 오차 | 실행 |\n| cost.js:137 기본값 | 가시성 | 인식 못 하면 Sonnet 단가 | `prod-large`, `default`: Sonnet 취급 (의도된 폴백) | 비교 로직은 isRecognizedModelId로 막지만 비용 추정에는 그대로 반영 | 실행 |\n| cost.js:239 isRecognizedModelId | 인식 여부 | 부분 문자열 | `opusplan`, `default`: opusplan만 true | 가벼움 | 실행 |\n| cost.js:242 modelRank | 위임 가격 순위 | detectPricingTier를 거쳐 TIER_RANK 조회 | 별칭과 미등록 버전이 위 오류를 그대로 물려받음. 순위는 티어 단위라 실제 어긋남은 거의 없음 | 낮음 | 실행 |\n| savings-ledger.js:~210 modelFamily | 가족명 | 부분 문자열 | `claude-3-opus-20240229`는 opus로 맞게 나옴. 가족이 아닌 이름(`prod-large`)은 그대로 반환 | 표시용, 안전 | 실행 |\n| stdin-payload.js:151 bedrockDisplayFromId | 상태줄 표시 이름 | 정규식 `claude-<family>-<major>(-<minor 1~2자리>)` | `claude-3-opus-20240229`와 `claude-3-5-sonnet-...`처럼 버전이 앞에 오는 3.x id는 null. `us.anthropic.claude-opus-5-5-...-v1:0`은 `Opus 5.5`로 맞음 | 표시만 비어서 display_name으로 폴백. 미관 | 실행 |\n| agents.js:40~60 TIER_MODEL, AGENT_MODEL | 위임 대상 별칭 | 룩업 테이블 | 별칭을 그대로 Task model로 넘김. 별칭이 가리키는 모델은 Claude Code가 결정하고 sprag는 모름 | 룰 문구가 모델 세대를 단정하지 않으면 안전 | 읽기 |\n| route-inject.js:~165 unreachableTiers | 위임 가능 티어 | 환경변수 존재 여부 | 호스트 관리형이 아니면 항상 도달 가능으로 간주. 게이트웨이가 haiku를 다른 모델에 매핑해도 모름 | 위임 힌트가 헛수고가 될 수 있음 (비용 소폭) | 읽기 |\n| delegation-guard.js:125~137 | 위임 프롬프트 한도 | `/haiku/i`, `/opus/i` | 사용자가 haiku를 가리키는 하우스 별칭(`team-fast`)을 쓰면 sonnet 한도 8000 적용. 서브에이전트 타입명 `t2-explore`에는 haiku가 없어서 T1 한도로 처리됨 | haiku 에이전트에 8회·1500 토큰이 아니라 20회·8000 토큰이 걸림. 한도가 느슨해짐 | 읽기 |\n| model-alias.js:334 roleFromModelParam | Task 호출의 역할 | 부분 문자열 | `claude-haiku-4-5`, `haiku`는 맞음. `opusplan`은 opus. 하우스 별칭은 null | 학습 매핑에서 누락될 뿐 | 읽기 |\n| model-share.js:42 toneOf | 상태줄 색 | 가족 문자열 lookup | 인식 못 하면 회색 | 미관 | 읽기 |\n| caps-cache.js:95 | 가족 매칭 | `/opus\\|sonnet\\|haiku\\|fable/i`, 첫 매치 | mythos는 제외됨. `seven_day_mythos` 창이 있어도 세션 가족이 null이라 모든 창이 포함됨 | 압박도를 과대평가하는 쪽이라 안전 | 읽기 |\n\n## 상위 위험 3가지\n\n1. **1M 판정이 접미사에 의존합니다.** Opus 5.5는 접미사 없이 1M인데 isOneMillionModel이 `claude-opus-5-5`와 `opus`에 false를 돌려줍니다. liveWindow가 없는 경로(compact-window 감사, brief의 ctxWindowFor)는 조용히 200k로 간주해, 경고가 안 뜨거나 사용률이 크게 부풀려집니다. 새 모델이 나올 때마다 같은 일이 되풀이됩니다.\n2. **별칭과 새 마이너 버전의 단가가 틀립니다.** 별칭 `opus`는 레거시 프리미엄으로, `haiku`는 4.5로, `sonnet`은 4.x 단가로 계산됩니다. `claude-haiku-5-1`, `claude-fable-5-2`처럼 표에 없는 버전도 한 단계 아래 단가로 떨어집니다. 틀려도 에러 없이 숫자만 달라집니다. 별칭이 비용 경로에 실제로 들어오는지(transcript는 실제 id를 쓰는 것으로 보임)는 읽기만 했고 확인하지 못했습니다.\n3. **modelSettingsEntry의 최고 버전 선택은 별칭을 이 파일들과 다르게 풀 수 있습니다.** 별칭 해석 규칙이 cost.js, compact-window, brief에 따로 있어서 한 곳을 고치면 나머지가 어긋납니다. 해석 규칙은 한 모듈로 모으고, 세대 무관 판정은 liveWindow나 context_window_size 같은 Claude Code가 직접 알려 주는 값을 우선하는 것이 안전합니다. 단 modelSettingsEntry 자체는 이 워크트리에 없어서 직접 확인하지 못했습니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 9.1,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 59023,
+          "usd": 0.1056
+        },
+        {
+          "t": 13.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE \"opus|sonnet|haiku|fable|mythos",
+          "tok": 123681,
+          "usd": 0.126
+        },
+        {
+          "t": 18.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat -n compact-window.js | sed -n 1,219p",
+          "tok": 190222,
+          "usd": 0.1374
+        },
+        {
+          "t": 19.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 195,230p savings-ledger.js; sed -",
+          "tok": 190222,
+          "usd": 0.1374
+        },
+        {
+          "t": 25.7,
+          "kind": "think",
+          "tok": 270840,
+          "usd": 0.1793
+        },
+        {
+          "t": 26.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rn \"modelSettingsEntry\\|canonicalM",
+          "tok": 270840,
+          "usd": 0.1793
+        },
+        {
+          "t": 31.6,
+          "kind": "think",
+          "tok": 353928,
+          "usd": 0.1936
+        },
+        {
+          "t": 34.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "node --input-type=module -e \" import {de",
+          "tok": 353928,
+          "usd": 0.1936
+        },
+        {
+          "t": 42.6,
+          "kind": "think",
+          "tok": 438841,
+          "usd": 0.2065
+        },
+        {
+          "t": 68.4,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 438841,
+          "usd": 0.2065
+        }
+      ],
+      "savingsPct": 82.3
+    },
+    {
+      "round": "r2",
+      "run": "492-C",
+      "condition": "sonnet-high",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 11,
+      "max": 12,
+      "keyMiss": "",
+      "usd": 0.4758,
+      "tokens": 2024468,
+      "seconds": 165,
+      "toolCalls": 24,
+      "webSearches": 0,
+      "excerpt": "**전제 불일치.** 지정된 워크트리 wt/492는 3.99.0 시점(0a4333c)이라 canonicalModelId와 modelSettingsEntry가 아예 없습니다. 그래서 main HEAD(c6c7b29)의 <repo>/src를 읽고 실행했습니다. 그 HEAD의 modelSettingsEntry(src/compact-window.js:199)는 별칭을 최고 버전 키로 풀지 않고 정확 일치만 인정합니다. 실행 확인 결과 `opus`는 null이고 `claude-opus-5-5[1m]`과 Bedrock·Vertex 표기는 모두 `claude-opus-5-5` 키에 붙습니다. 최고 버전 선택 방식이 따로 있다면 이 보고서에 반영되지 않았습니다. 그 방식이 들어오면 파일에 구버전 키만 있을 때 `opus`가 5.5가 아니라 4.7의 창 크기를 받게 됩니다.\n\n검증 표기: [실행]은 node 스니펫으로 확인했고 [독해]는 코드를 읽어서만 확인했습니다.\n\n| 위치 | 판정 대상과 방식 | 오판 입력 (현재 결과 → 올바른 결과) | 영향 |\n|---|---|---|---| …",
+      "report": "**전제 불일치.** 지정된 워크트리 wt/492는 3.99.0 시점(0a4333c)이라 canonicalModelId와 modelSettingsEntry가 아예 없습니다. 그래서 main HEAD(c6c7b29)의 <repo>/src를 읽고 실행했습니다. 그 HEAD의 modelSettingsEntry(src/compact-window.js:199)는 별칭을 최고 버전 키로 풀지 않고 정확 일치만 인정합니다. 실행 확인 결과 `opus`는 null이고 `claude-opus-5-5[1m]`과 Bedrock·Vertex 표기는 모두 `claude-opus-5-5` 키에 붙습니다. 최고 버전 선택 방식이 따로 있다면 이 보고서에 반영되지 않았습니다. 그 방식이 들어오면 파일에 구버전 키만 있을 때 `opus`가 5.5가 아니라 4.7의 창 크기를 받게 됩니다.\n\n검증 표기: [실행]은 node 스니펫으로 확인했고 [독해]는 코드를 읽어서만 확인했습니다.\n\n| 위치 | 판정 대상과 방식 | 오판 입력 (현재 결과 → 올바른 결과) | 영향 |\n|---|---|---|---|\n| cost.js:248 detectPricingTier | 요금 등급. 별칭 이력표 후 substring과 정규식 [실행] | `claude-haiku-5-6`, `claude-haiku-5`, `claude-haiku-6` → haiku-4-5 ($1/$5). 5.x Haiku 요금($0.1/$0.5)의 10배 | 비용 수치 틀림 |\n| 같은 함수 | 버전 없는 family 이름 | `my-deployment-opus` → opus-legacy ($15/$75). 5.5는 $4/$20이라 3.75배 | 비용 과대 |\n| 같은 함수 | 마이너 버전 정규식 고정 | `claude-fable-5-2` → fable-5 (캐시 읽기 $1이고 5.1은 $0.25). `claude-sonnet-5-6` → sonnet-5 (캐시 읽기 $0.2이고 5.5는 $0.1). `claude-opus-5-6` → opus-new ($5/$25이고 5.5는 $4/$20) | 비용 수치 틀림 |\n| 같은 함수 | 별칭 | `default` → claude-sonnet (실제 해석 모델은 계정마다 다름). `opusplan` → Opus 요금만 적용 (계획 단계 밖은 Sonnet) [실행] | 비용 오차 |\n| cost.js:57 ALIAS_HISTORY | 별칭 해석용 날짜 하드코딩 표 [독해] | 새 모델이 나와도 표를 고치기 전까지 `opus`는 5.5로 계산 | 신모델 출시 후 비용 오차 |\n| cost.js:340 isRecognizedModelId, modelRank | substring 존재 여부, 등급 1 대체 [실행] | 별칭 `team-opus-lite`처럼 family 단어가 든 사내 이름은 인식됨. 없으면 등급 1(Sonnet)로 취급 | 위임 판단과 절감액 오류 |\n| compact-window.js:110 isOneMillionModel | 1M 창 여부. `[1m]` 정규식뿐 [실행] | `opus`, `claude-opus-5-5`, `fable`, Bedrock ID → false (Opus 5.5는 접미사 없이 1M). `opus[1m]-x` → true | 압축 창 경고 누락 |\n| brief.js:94 ctxWindowFor | 창 크기. 라이브 값 → 접미사 → 관측 최대 입력(250k 초과) 순 [실행] | 라이브 값 없고 `claude-opus-5-5`면 200k 반환 (1M이어야 함) | 80% 경고가 160k에서 조기 발화 |\n| compact-window.js:171 canonicalModelId | 키 정규화. 접두사·날짜·`[1m]`·`-v1:0` 제거 [실행] | `claude-opus-5-5-v1`(`:0` 없음) → 그대로 남음. 실제 Bedrock ID에는 `:0`이 있어 영향은 작음 | 대부분 정상 |\n| stdin-payload.js:151 bedrockDisplayFromId, extractModel | 표시 라벨. family-버전 정규식 [실행] | `claude-opus-5-5[1m]` → \"Opus 5.5\" (display_name의 \"(1M context)\"가 사라짐). `claude-3-5-haiku-…` → null이라 display_name으로 대체 | 표시만 달라짐 |\n| savings-ledger.js:322 modelFamily, delegation-agents.js:162, caps-cache.js:95 | family 이름 substring (먼저 일치하는 것) [실행] | `openai/gpt-4o-sonnet-compat` → sonnet. ARN과 `prod-large`는 원문 그대로, `default`는 delegation-agents에서 null | 점유율 표시와 한도 매칭 |\n| delegation-guard.js:124 | `tool_input.model` 없으면 subagent_type에서 /haiku/ 찾음 [독해] | `subagent_type: \"t2-explore\"`나 `t2-runner` → isHaiku false. 상한이 8회·1500토큰이 아니라 20회·8000토큰으로 나감. `t1h-worker`도 isOpus false | 위임 상한 오적용 |\n| agents.js:40 TIER_MODEL, AGENT_MODEL | 티어마다 별칭 고정 매핑 [독해] | 잘못 매핑되는 입력 없음. 단 `haiku` 별칭이 가리키는 모델은 Claude Code가 정함 | 문제 없음 |\n| route-inject.js:185 sessionModelRank | 인식된 ID만 등급 계산 [독해] | 위의 isRecognizedModelId 문제를 그대로 물려받음. 표시명 \"Haiku 5.5\"는 공백 때문에 4.5 요금으로 읽히지만 등급 0은 같음 | 거의 없음 |\n| model-alias.js | ARN → 별칭 복원. 사용자 표, 게이트웨이 선언, 학습 순. 못 풀면 'unknown' [독해] | 추측 대신 unknown을 돌려주므로 조용한 오판 없음 | 안전 |\n| model-share.js | 위 savings-ledger.modelFamily를 호출 [독해] | 같은 substring 한계 | 표시만 |\n\n**상위 위험 3가지**\n1. 요금 등급 판정(detectPricingTier)은 버전 외삽과 기본값이 조용히 틀립니다. 새 Haiku 마이너 버전은 요금이 10배로 계산되고 버전 없는 사내 Opus 이름은 3.75배로 계산되며 오류 신호가 전혀 없습니다. 비용과 절감액 숫자가 모두 이 함수에서 나옵니다.\n2. 1M 창 판정이 `[1m]` 접미사에만 의존합니다. Opus 5.5는 접미사가 없는 1M이라 `opus`나 `claude-opus-5-5`로 쓰는 사용자는 라이브 창 크기가 올 때까지 compact-window 경고가 꺼지고 브리핑의 80% 경고가 160k에서 울립니다. 라이브 값이 없는 첫 구간이 취약합니다.\n3. 위임 상한 판정(delegation-guard)은 프리셋 에이전트 이름 `t2-*`나 `t1h-worker`를 haiku나 opus로 읽지 못합니다. 그래서 주력 경로인 T2 위임이 8회·1500토큰 대신 20회·8000토큰 상한을 받습니다. 이 판정은 독해로만 확인했고 실제 실행 로그로는 보지 못했습니다.\n\n관련 파일은 모두 <repo>/src 아래의 cost.js, compact-window.js, brief.js, delegation-guard.js, stdin-payload.js, savings-ledger.js입니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 2.6,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 58914,
+          "usd": 0.1045
+        },
+        {
+          "t": 8.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git status --short | head; grep -n \"opus",
+          "tok": 123573,
+          "usd": 0.125
+        },
+        {
+          "t": 9.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"canonicalModelId\\|modelSettings",
+          "tok": 123573,
+          "usd": 0.125
+        },
+        {
+          "t": 15.4,
+          "kind": "think",
+          "tok": 188790,
+          "usd": 0.1329
+        },
+        {
+          "t": 16.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git log --oneline | head -3; git diff --",
+          "tok": 188790,
+          "usd": 0.1329
+        },
+        {
+          "t": 20.1,
+          "kind": "think",
+          "tok": 256336,
+          "usd": 0.1453
+        },
+        {
+          "t": 21.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rn \"modelSettingsEntry\\|canonicalM",
+          "tok": 256336,
+          "usd": 0.1453
+        },
+        {
+          "t": 29.3,
+          "kind": "think",
+          "tok": 325628,
+          "usd": 0.1565
+        },
+        {
+          "t": 29.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 150,230p src/compact-window.js; e",
+          "tok": 325628,
+          "usd": 0.1565
+        },
+        {
+          "t": 32.9,
+          "kind": "think",
+          "tok": 396232,
+          "usd": 0.1667
+        },
+        {
+          "t": 33.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git worktree list; git branch -a | head;",
+          "tok": 396232,
+          "usd": 0.1667
+        },
+        {
+          "t": 36.9,
+          "kind": "think",
+          "tok": 469703,
+          "usd": 0.181
+        },
+        {
+          "t": 37.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 80,120p src/brief.js; echo ---; w",
+          "tok": 469703,
+          "usd": 0.181
+        },
+        {
+          "t": 44.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"detectPricingTier\\|function .*[",
+          "tok": 547764,
+          "usd": 0.2
+        },
+        {
+          "t": 45.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n -i \"opus\\|sonnet\\|haiku\\|fable\\|",
+          "tok": 547764,
+          "usd": 0.2
+        },
+        {
+          "t": 50.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 150,300p src/cost.js",
+          "tok": 629588,
+          "usd": 0.2174
+        },
+        {
+          "t": 57.2,
+          "kind": "think",
+          "tok": 714495,
+          "usd": 0.2334
+        },
+        {
+          "t": 60.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat > tmp/t1.mjs 2>/dev/null <<'EOF' EOF",
+          "tok": 714495,
+          "usd": 0.2334
+        },
+        {
+          "t": 67.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "node --input-type=module -e \" import {de",
+          "tok": 800818,
+          "usd": 0.2456
+        },
+        {
+          "t": 72,
+          "kind": "think",
+          "tok": 888961,
+          "usd": 0.2588
+        },
+        {
+          "t": 72.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 20,135p src/cost.js | grep -v \"^\\",
+          "tok": 888961,
+          "usd": 0.2588
+        },
+        {
+          "t": 76.7,
+          "kind": "think",
+          "tok": 979668,
+          "usd": 0.2741
+        },
+        {
+          "t": 78,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "node --input-type=module -e \" import * a",
+          "tok": 979668,
+          "usd": 0.2741
+        },
+        {
+          "t": 81.4,
+          "kind": "think",
+          "tok": 1072202,
+          "usd": 0.2878
+        },
+        {
+          "t": 81.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 296,420p src/cost.js",
+          "tok": 1072202,
+          "usd": 0.2878
+        },
+        {
+          "t": 85.5,
+          "kind": "think",
+          "tok": 1167086,
+          "usd": 0.303
+        },
+        {
+          "t": 86.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE \"opus|sonnet|haiku|fable|mythos",
+          "tok": 1167086,
+          "usd": 0.303
+        },
+        {
+          "t": 90.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 120,200p src/stdin-payload.js; ec",
+          "tok": 1264938,
+          "usd": 0.3201
+        },
+        {
+          "t": 93.2,
+          "kind": "think",
+          "tok": 1367932,
+          "usd": 0.3428
+        },
+        {
+          "t": 94.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE \"opus|sonnet|haiku|fable|mythos",
+          "tok": 1367932,
+          "usd": 0.3428
+        },
+        {
+          "t": 97.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 310,335p src/savings-ledger.js; g",
+          "tok": 1472235,
+          "usd": 0.3566
+        },
+        {
+          "t": 102.4,
+          "kind": "think",
+          "tok": 1578119,
+          "usd": 0.3711
+        },
+        {
+          "t": 108.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "node --input-type=module -e \" import * a",
+          "tok": 1578119,
+          "usd": 0.3711
+        },
+        {
+          "t": 113.4,
+          "kind": "think",
+          "tok": 1687005,
+          "usd": 0.3892
+        },
+        {
+          "t": 115.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "-d); for M in opus claude-opus-5-5 'clau",
+          "tok": 1687005,
+          "usd": 0.3892
+        },
+        {
+          "t": 119,
+          "kind": "think",
+          "tok": 1796952,
+          "usd": 0.4028
+        },
+        {
+          "t": 120.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rn \"compactWindowStatus\\|ctxWindow",
+          "tok": 1796952,
+          "usd": 0.4028
+        },
+        {
+          "t": 129.3,
+          "kind": "think",
+          "tok": 1907801,
+          "usd": 0.4161
+        },
+        {
+          "t": 129.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"t2-\\|isHaiku\\|isOpus\\|modelHint",
+          "tok": 1907801,
+          "usd": 0.4161
+        },
+        {
+          "t": 144.2,
+          "kind": "think",
+          "tok": 2024468,
+          "usd": 0.4758
+        },
+        {
+          "t": 165.3,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 2024468,
+          "usd": 0.4758
+        }
+      ],
+      "savingsPct": 59.3
+    },
+    {
+      "round": "r2",
+      "run": "492-D",
+      "condition": "opus-direct",
+      "model": "opus",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 12,
+      "max": 12,
+      "keyMiss": "",
+      "usd": 1.1678,
+      "tokens": 2896057,
+      "seconds": 245,
+      "toolCalls": 30,
+      "webSearches": 0,
+      "excerpt": "## sprag 모델 이름 해석 검토 (wt/492, 읽기 전용)\n\n**전제:** 이 작업 트리(HEAD 0a4333c)에는 `canonicalModelId`와 `modelSettingsEntry`가 없습니다. `src/compact-window.js`에는 `resolveModelId`와 `isOneMillionModel`만 있어서 이 둘을 기준으로 검토했습니다. 파일은 고치지 않았습니다. 검증용 임시 파일은 <scratch>/… 에만 만들었습니다.\n\n| 위치 | 판정 대상 | 방식 | 오판 입력 (현재 → 정답) | 영향 | 확인 |\n|---|---|---|---|---|---|\n| src/delegation-guard.js:124-137 | 위임 상한과 routeCaps 티어 키 | `model`이 없으면 `subagent_type`에서 /haiku/, /opus/ 부분 문자열 | `subagent_type:\"t2-explore\"` → 20회, 8,000토큰 (정답 8회, 1,500). `t1h-worker` → 20회, 8,000 (정답 20회, 30,000). 룰에 맞춘 상한도 T1 키로 조회됨 | 하위 에이전트에 틀린 상한을 지시함 | 실행 | …",
+      "report": "## sprag 모델 이름 해석 검토 (wt/492, 읽기 전용)\n\n**전제:** 이 작업 트리(HEAD 0a4333c)에는 `canonicalModelId`와 `modelSettingsEntry`가 없습니다. `src/compact-window.js`에는 `resolveModelId`와 `isOneMillionModel`만 있어서 이 둘을 기준으로 검토했습니다. 파일은 고치지 않았습니다. 검증용 임시 파일은 <scratch>/… 에만 만들었습니다.\n\n| 위치 | 판정 대상 | 방식 | 오판 입력 (현재 → 정답) | 영향 | 확인 |\n|---|---|---|---|---|---|\n| src/delegation-guard.js:124-137 | 위임 상한과 routeCaps 티어 키 | `model`이 없으면 `subagent_type`에서 /haiku/, /opus/ 부분 문자열 | `subagent_type:\"t2-explore\"` → 20회, 8,000토큰 (정답 8회, 1,500). `t1h-worker` → 20회, 8,000 (정답 20회, 30,000). 룰에 맞춘 상한도 T1 키로 조회됨 | 하위 에이전트에 틀린 상한을 지시함 | 실행 |\n| src/compact-window.js:110 isOneMillionModel (brief.js:102, harness.js:650, commands/compact-window.js:65) | 1M 창 여부 | `[1m]`, context-1m 정규식 | `claude-opus-5-5`와 `opus` → 200k (정답 1M). 감사 결과가 `not-1m`이고 ctxWindowFor가 200,000을 써서 80% 경고가 160k에서 뜸 | liveWindow가 없으면 경고를 놓치거나 너무 일찍 냄 | 실행 |\n| src/model-alias.js:90-97 aliasForRole (resolveModelAlias:318) | 학습된 게이트웨이 프로파일의 모델 | env 폴백 체인 | `ANTHROPIC_MODEL=opus`이면 opus 역할이 `opus`가 되어 opus-legacy $15/$75로 계산됨 (정답 Opus 5.5 $4/$20). `ANTHROPIC_MODEL=claude-sonnet-5-5`에 DEFAULT_OPUS가 없으면 opus 프로파일이 Sonnet 5.5로 해석됨 | 비용과 절감액 3.75배 과대, 또는 계열 자체를 오판해 T1 위임이 집계에서 빠짐 | 실행 |\n| src/cost.js:135-178 detectPricingTier | 가격 티어와 modelRank | 계열 부분 문자열, 버전 정규식, 버전이 없으면 가장 오래된 티어 | `opus`, `opus[1m]`, `opusplan` → legacy. `haiku` → 4.5 ($1/$5, 정답 5.5 $0.1/$0.5). `sonnet` → $3/$15 (정답 5.5 $2/$10). `fable` → 5 (캐시 읽기 $1, 정답 5.1 $0.25). 표시명 `Opus 5.5`(공백) → legacy. `claude-haiku-6` → 4.5. `default` → Sonnet 기본값 | 직접 API 트랜스크립트는 정식 ID라 영향이 적음. 별칭이 들어오는 위 경로에서는 비용이 틀림. 계열만 맞으면 rank는 맞음 | 실행 |\n| src/route-inject.js:143, src/commands/route-scan.js:160 | 세션 모델 rank | aliasForRole('main') = ANTHROPIC_MODEL, DEFAULT_MODEL, DEFAULT_OPUS_MODEL 순서 | settings에서 sonnet을 쓰는데 env에 DEFAULT_OPUS만 있으면 rank 2 (정답 1). `opusplan`은 rank 2지만 실행 단계는 sonnet | 트랜스크립트가 아직 없는 첫 턴의 힌트와 `route-scan rules` 표기가 틀림 | 읽기 |\n| src/agents.js:109 modelLabel | 에이전트 라벨 | 고정 정규식 | `claude-sonnet-4-20250514` → \"Sonnet 4.20250514\" (정답 Sonnet 4). Bedrock과 Vertex ID는 원문 그대로 나옴. bedrockDisplayFromId는 이미 고친 버그 | 표시만 틀리지만 ratchet-model.md 문맥에 들어감 | 실행 |\n| src/savings-ledger.js:208 modelFamily (model-share.js, team-sync.js, statusline-data.js) | 계열 이름 | 첫 부분 문자열 | 정식 ID는 전부 맞음. `opusplan` → opus. 계열 이름이 없는 사내 별칭은 원문 유지 | 표시 | 실행 |\n| src/stdin-payload.js:146 bedrockDisplayFromId, extractModel | 상태줄 모델명 | 정규식 | `claude-opus-5-5[1m]` → \"Opus 5.5\" (1M 표시가 사라짐). `claude-3-5-sonnet-…`는 매칭되지 않아 display_name으로 넘어가며 이는 정상 | 표시 | 실행 |\n| src/caps-cache.js:95 | 계열별 주간 창 필터 | /opus\\|sonnet\\|haiku\\|fable/ | `claude-mythos-5-1` → null이라 seven_day_opus 창도 압박 계산에 들어감 | 위임 강도 문구가 과장됨 | 읽기 |\n| src/delegation-agents.js:162 | 에이전트 파일 드리프트 | 같은 정규식 (mythos 없음) | mythos로 고정한 파일은 null끼리 비교돼 같다고 판정됨 | 경미 | 읽기 |\n| src/litellm-models.js:86 pickAlias | 게이트웨이 별칭 | model_name부터 isRecognizedModelId로 검사 | model_name이 `opus` 같은 별칭이면 그 별칭이 저장됨. 가격은 게이트웨이 표에서 오므로 맞음 | rank와 표시만 별칭 기준. 경미 | 읽기 |\n\n### 위험 상위 3개\n\n1. **위임 상한 오판 (delegation-guard).** 에이전트 이름이 tier 기준(t2-explore, t1h-worker)으로 바뀐 뒤로 이름에 계열이 없습니다. 그래서 haiku 위임에 8,000토큰 상한이 전달됩니다. ratchet-model.md가 model 인자를 빼라고 지시하므로 대부분의 위임이 이 경로를 탑니다. 티어는 agents.js의 AGENT_MODEL과 LEGACY_AGENT_NAMES 매핑이나 에이전트 파일의 model 필드에서 읽어야 합니다.\n2. **1M 판정이 접미사에만 기댐.** Opus 5.5는 접미사 없이 1M입니다. liveWindow가 없는 경우가 있습니다. 상태줄 캐시가 없거나 첫 프롬프트일 때입니다. 그러면 compact-window 감사가 경고를 놓치고 brief는 160k에서 80% 경고를 냅니다. 정식 ID 표나 계열과 버전으로 판정해야 합니다.\n3. **버전 없는 별칭의 가격.** aliasForRole이 env에 든 별칭을 그대로 돌려주면 detectPricingTier가 가장 오래된 티어로 떨어집니다. 그 결과 Opus를 3.75배, Haiku를 10배 비싸게 계산합니다. opus 역할이 ANTHROPIC_MODEL로 폴백할 때는 다른 계열 모델이 나오기도 합니다. 별칭을 현재 모델로 바꾸는 표를 한 곳에 두고 역할 폴백은 같은 계열일 때만 받아야 합니다.\n\n### 검증 방법\n\n- **코드 실행으로 확인:** `node --input-type=module -e`로 실제 함수를 불렀습니다.\n  - detectPricingTier, modelRank, isRecognizedModelId, isOneMillionModel, modelFamily, modelLabel, bedrockDisplayFromId, shortModelName은 위 입력 23개로 돌렸습니다.\n  - estimateCost로 출력 1M 토큰의 비용을 냈습니다. opus $75, claude-opus-5-5 $20, haiku $5, claude-haiku-5-5 $0.5였습니다.\n  - resolveModelAlias는 XDG_CONFIG_HOME을 임시 profile-map.json으로 지정해 돌렸습니다.\n  - compactWindowStatus와 ctxWindowFor는 HOME과 프로젝트 settings를 임시로 만들어 돌렸습니다.\n  - buildAppendix는 subagent_type 4종으로 돌려 상한 문구를 확인했습니다.\n- **읽기로만 판단:** route-inject와 route-scan 명령의 env 폴백, caps-cache, delegation-agents, litellm-models pickAlias입니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 2.4,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 59017,
+          "usd": 0.2112
+        },
+        {
+          "t": 3.8,
+          "kind": "think",
+          "tok": 123657,
+          "usd": 0.2518
+        },
+        {
+          "t": 5.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE 'canonicalModelId|modelSettings",
+          "tok": 123657,
+          "usd": 0.2518
+        },
+        {
+          "t": 6.8,
+          "kind": "think",
+          "tok": 189009,
+          "usd": 0.2684
+        },
+        {
+          "t": 7.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "git log --oneline -3; git status --short",
+          "tok": 189009,
+          "usd": 0.2684
+        },
+        {
+          "t": 10.7,
+          "kind": "think",
+          "tok": 258428,
+          "usd": 0.302
+        },
+        {
+          "t": 12.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rn 'compactWindowStatus\\|compactWi",
+          "tok": 258428,
+          "usd": 0.302
+        },
+        {
+          "t": 14.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n 'liveWindow' src/brief.js src/ha",
+          "tok": 329532,
+          "usd": 0.3246
+        },
+        {
+          "t": 15.6,
+          "kind": "think",
+          "tok": 401523,
+          "usd": 0.3434
+        },
+        {
+          "t": 16.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE 'export function|^function|cons",
+          "tok": 401523,
+          "usd": 0.3434
+        },
+        {
+          "t": 19.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 1,115p src/model-alias.js; sed -n",
+          "tok": 475122,
+          "usd": 0.3661
+        },
+        {
+          "t": 25.2,
+          "kind": "think",
+          "tok": 553612,
+          "usd": 0.4054
+        },
+        {
+          "t": 26.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE 'opus|sonnet|haiku|fable|mythos",
+          "tok": 553612,
+          "usd": 0.4054
+        },
+        {
+          "t": 29.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 10,130p src/cost.js | grep -nE \"^",
+          "tok": 634597,
+          "usd": 0.4338
+        },
+        {
+          "t": 30.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 10,130p src/cost.js",
+          "tok": 634597,
+          "usd": 0.4338
+        },
+        {
+          "t": 49.1,
+          "kind": "think",
+          "tok": 722419,
+          "usd": 0.5129
+        },
+        {
+          "t": 50.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 180,258p src/savings-ledger.js; s",
+          "tok": 722419,
+          "usd": 0.5129
+        },
+        {
+          "t": 54.1,
+          "kind": "think",
+          "tok": 813314,
+          "usd": 0.5608
+        },
+        {
+          "t": 55.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 80,198p src/agents.js | grep -nE",
+          "tok": 813314,
+          "usd": 0.5608
+        },
+        {
+          "t": 60.7,
+          "kind": "think",
+          "tok": 906645,
+          "usd": 0.5932
+        },
+        {
+          "t": 62.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 100,140p src/route-inject.js; gre",
+          "tok": 906645,
+          "usd": 0.5932
+        },
+        {
+          "t": 65.4,
+          "kind": "think",
+          "tok": 1001496,
+          "usd": 0.6196
+        },
+        {
+          "t": 67.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cat src/model-share.js | sed -n 1,136p |",
+          "tok": 1001496,
+          "usd": 0.6196
+        },
+        {
+          "t": 73.4,
+          "kind": "think",
+          "tok": 1100201,
+          "usd": 0.658
+        },
+        {
+          "t": 76.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rnE \"includes\\('(opus|sonnet|haiku",
+          "tok": 1100201,
+          "usd": 0.658
+        },
+        {
+          "t": 80.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rnE \"(opus|sonnet|haiku|fable|myth",
+          "tok": 1199842,
+          "usd": 0.6827
+        },
+        {
+          "t": 82.8,
+          "kind": "think",
+          "tok": 1299928,
+          "usd": 0.705
+        },
+        {
+          "t": 86.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rlnE \"detectPricingTier|modelRank|",
+          "tok": 1299928,
+          "usd": 0.705
+        },
+        {
+          "t": 91.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for f in src/brief.js src/caps-cache.js",
+          "tok": 1400833,
+          "usd": 0.7295
+        },
+        {
+          "t": 93.4,
+          "kind": "think",
+          "tok": 1503672,
+          "usd": 0.7596
+        },
+        {
+          "t": 95.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 85,140p src/caps-cache.js; sed -n",
+          "tok": 1503672,
+          "usd": 0.7596
+        },
+        {
+          "t": 101.1,
+          "kind": "think",
+          "tok": 1609379,
+          "usd": 0.7946
+        },
+        {
+          "t": 103.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 140,200p src/delegation-guard.js;",
+          "tok": 1609379,
+          "usd": 0.7946
+        },
+        {
+          "t": 108.3,
+          "kind": "think",
+          "tok": 1718248,
+          "usd": 0.8478
+        },
+        {
+          "t": 114,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "node --input-type=module -e \" import {de",
+          "tok": 1718248,
+          "usd": 0.8478
+        },
+        {
+          "t": 117.5,
+          "kind": "think",
+          "tok": 1828382,
+          "usd": 0.8812
+        },
+        {
+          "t": 119.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rnE \"estimateCost\\(|sessionCost\\(|",
+          "tok": 1828382,
+          "usd": 0.8812
+        },
+        {
+          "t": 123.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 315,440p src/route-scan.js; sed -",
+          "tok": 1939945,
+          "usd": 0.913
+        },
+        {
+          "t": 124.9,
+          "kind": "think",
+          "tok": 2054766,
+          "usd": 0.9526
+        },
+        {
+          "t": 127,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -nE \"runSavingDetail\\(|runSaving\\(|",
+          "tok": 2054766,
+          "usd": 0.9526
+        },
+        {
+          "t": 130.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "sed -n 760,800p src/route-scan.js; grep",
+          "tok": 2170357,
+          "usd": 0.9797
+        },
+        {
+          "t": 135.5,
+          "kind": "think",
+          "tok": 2287108,
+          "usd": 1.0089
+        },
+        {
+          "t": 137.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -n \"export function userDataDir\" -A",
+          "tok": 2287108,
+          "usd": 1.0089
+        },
+        {
+          "t": 141.1,
+          "kind": "think",
+          "tok": 2405933,
+          "usd": 1.0428
+        },
+        {
+          "t": 148.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "(hidden)",
+          "tok": 2405933,
+          "usd": 1.0428
+        },
+        {
+          "t": 163.9,
+          "kind": "think",
+          "tok": 2526183,
+          "usd": 1.0738
+        },
+        {
+          "t": 168.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p $S/home/.claude $S/proj/.claude",
+          "tok": 2526183,
+          "usd": 1.0738
+        },
+        {
+          "t": 172,
+          "kind": "think",
+          "tok": 2648605,
+          "usd": 1.1089
+        },
+        {
+          "t": 175.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "node --input-type=module -e \" import {bu",
+          "tok": 2648605,
+          "usd": 1.1089
+        },
+        {
+          "t": 182.5,
+          "kind": "think",
+          "tok": 2771734,
+          "usd": 1.1371
+        },
+        {
+          "t": 184.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -rnE \"snap(shot)'main'\" src | head;",
+          "tok": 2771734,
+          "usd": 1.1371
+        },
+        {
+          "t": 217.9,
+          "kind": "think",
+          "tok": 2896057,
+          "usd": 1.1678
+        },
+        {
+          "t": 244.6,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 2896057,
+          "usd": 1.1678
+        }
+      ],
+      "role": "baseline",
+      "savingsPct": 0
+    }
+  ]
+}

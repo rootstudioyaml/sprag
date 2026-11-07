@@ -1,0 +1,34 @@
+[
+  {
+    "id": "haiku-low",
+    "model": "haiku",
+    "effort": "low",
+    "prompt": "original",
+    "agent": "t2-explore"
+  },
+  {
+    "id": "sonnet-medium",
+    "model": "sonnet",
+    "effort": "medium",
+    "prompt": "original"
+  },
+  {
+    "id": "sonnet-high",
+    "model": "sonnet",
+    "effort": "high",
+    "prompt": "original"
+  },
+  {
+    "id": "opus-direct",
+    "model": "opus",
+    "effort": "high",
+    "prompt": "original",
+    "role": "baseline"
+  },
+  {
+    "id": "sonnet-high-improved",
+    "model": "sonnet",
+    "effort": "high",
+    "prompt": "improved"
+  }
+]

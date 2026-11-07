@@ -1,13 +1,19 @@
 {
   "name": "sprag-cli",
   "version": "3.103.1",
-  "description": "Model-delegation router for Claude Code and Codex: lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and a live statusline shows spend and savings.",
+  "description": "The delegation layer for Claude Code and Codex: each task goes to the model and effort that fits it, down to cheaper models for lookups and up to higher effort when a cheaper run would miss, backed by public replay cases, with a live statusline and team rules for Pro and Enterprise.",
   "type": "module",
   "bin": {
     "sprag": "bin/cli.js",
     "claude-token-saver": "bin/cli.js"
   },
   "scripts": {
+    "evals:build": "node scripts/evals/build.mjs",
+    "evals:check": "node scripts/evals/build.mjs --check",
+    "evals:harvest": "node scripts/evals/harvest.mjs",
+    "evals:replay": "node scripts/evals/replay.mjs",
+    "evals:grade": "node scripts/evals/grade.mjs",
+    "evals:publish": "node scripts/evals/publish.mjs",
     "deploy": "node scripts/deploy.mjs",
     "docs:statusline": "node scripts/docs-statusline.mjs",
     "postinstall": "node bin/postinstall.js || true",
@@ -36,6 +42,8 @@
     "docs/TEAM.ko.md",
     "docs/DATA.md",
     "docs/DATA.ko.md",
+    "evals/summary.json",
+    "evals/SUMMARY.md",
     "LICENSE",
     "NOTICE"
   ],
@@ -57,6 +65,8 @@
     "model-routing",
     "model-router",
     "model-delegation",
+    "effort",
+    "subagents",
     "llm-router",
     "claude-code-router",
     "subagent",

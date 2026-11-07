@@ -1,0 +1,1988 @@
+{
+  "id": "19",
+  "round": "r0",
+  "kind": "research",
+  "story": "quality-up",
+  "storyNote": {
+    "ko": "Haiku가 놓친 대표 에셋 팩을 Sonnet으로 올리자 찾았습니다.",
+    "en": "Moving from Haiku up to Sonnet found the main asset pack Haiku had missed."
+  },
+  "title": {
+    "ko": "무료 동물 캐릭터 에셋 찾기",
+    "en": "Find free animal character assets"
+  },
+  "userPrompt": {
+    "ko": "레딧이나 해커뉴스에서 활용할 수 있는 캐릭터 오픈소스를 좀 살펴보자",
+    "en": "Look for open-source characters we could use, from Reddit or Hacker News"
+  },
+  "task": {
+    "ko": "웹 3D 사무실에 쓸 동물 30종을 같은 그림체로 채울 수 있는 무료 에셋을 라이선스와 함께 찾는다.",
+    "en": "Find free assets that cover 30 animal species in one style for a web 3D office, with licenses checked."
+  },
+  "truth": {
+    "ko": "Kenney Cube Pets(CC0) 같은 게임 캐릭터 팩이 가장 가까운 후보였습니다.",
+    "en": "Game character packs such as Kenney Cube Pets (CC0) were the closest fit."
+  },
+  "lesson": {
+    "ko": "Haiku는 대표 팩을 놓쳤습니다. 등급을 올려도 일부 출처를 못 열고 '유일한 후보'라고 단정하는 버릇은 남았습니다.",
+    "en": "Haiku missed the main pack. Higher tiers still called one option 'the only candidate' after failing to open some sources."
+  },
+  "recommended": "sonnet-high",
+  "lanes": [
+    "haiku-low",
+    "sonnet-medium",
+    "sonnet-high",
+    "opus-direct",
+    "sonnet-high-improved"
+  ],
+  "baseline": {
+    "run": "19-D",
+    "usd": 1.0853,
+    "tokens": 2663437,
+    "seconds": 266
+  },
+  "screenshot": null,
+  "runs": [
+    {
+      "round": "r0",
+      "run": "19-A",
+      "condition": "haiku-low",
+      "model": "haiku",
+      "effort": "low",
+      "prompt": "original",
+      "verdict": "fail",
+      "score": 10,
+      "max": 12,
+      "keyMiss": "Kenney Cube Pets를 놓쳤다. Ultimate Animated Animals의 12종 목록을 별개 'Animals Pack'으로 잘못 나눴고 2D 팩을 3D로 적었다.",
+      "usd": 0.0095,
+      "tokens": 414158,
+      "seconds": 68,
+      "toolCalls": 11,
+      "webSearches": 0,
+      "excerpt": "## 결론\n30종을 한 팩으로 채울 수 있는 CC0 팩은 확인하지 못했습니다. 찾은 것은 부분 커버 팩 두 개뿐입니다. 2D SVG/PNG 세트와 절차적 동물 생성기는 제대로 찾지 못했습니다(gh 검색 결과 없음, 2D 조사 미수행).\n\n## 후보\n\n**1. Quaternius Ultimate Animated Animals**\n- URL: https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: \"License CC0\" (페이지에서 확인)\n- 형식: FBX, OBJ, glTF, Blend\n- 리깅·애니메이션: 애니메이션 포함 (Attack, Death, Kicks, Gallops, Walk, Jump 등 명시)\n- 30종 중 포함 종: 페이지에서 종 목록을 확인하지 못함(미확인)\n- 스타일: 로우폴리 (Quaternius 공통 스타일, 치비 여부는 미확인)\n\n**2. Quaternius Farm Animal pack**\n- URL: https://quaternius.com/packs/farmanimal.html\n- 라이선스: \"License CC0\" (페이지에서 확인)\n- 형식: FBX, OBJ, Blend (glTF 표기 미확인)\n- 30종 중 포함 종: 미확인. 농장 동물 위주라 목록의 용·유니콘·사자 등과는 거의 겹치지 않을 것으로 보이나 확인은 못 함 …",
+      "report": "## 결론\n30종을 한 팩으로 채울 수 있는 CC0 팩은 확인하지 못했습니다. 찾은 것은 부분 커버 팩 두 개뿐입니다. 2D SVG/PNG 세트와 절차적 동물 생성기는 제대로 찾지 못했습니다(gh 검색 결과 없음, 2D 조사 미수행).\n\n## 후보\n\n**1. Quaternius Ultimate Animated Animals**\n- URL: https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: \"License CC0\" (페이지에서 확인)\n- 형식: FBX, OBJ, glTF, Blend\n- 리깅·애니메이션: 애니메이션 포함 (Attack, Death, Kicks, Gallops, Walk, Jump 등 명시)\n- 30종 중 포함 종: 페이지에서 종 목록을 확인하지 못함(미확인)\n- 스타일: 로우폴리 (Quaternius 공통 스타일, 치비 여부는 미확인)\n\n**2. Quaternius Farm Animal pack**\n- URL: https://quaternius.com/packs/farmanimal.html\n- 라이선스: \"License CC0\" (페이지에서 확인)\n- 형식: FBX, OBJ, Blend (glTF 표기 미확인)\n- 30종 중 포함 종: 미확인. 농장 동물 위주라 목록의 용·유니콘·사자 등과는 거의 겹치지 않을 것으로 보이나 확인은 못 함\n- 애니메이션: 표기에 \"animations\" 있음(세부 미확인)\n\n**3. Quaternius Animals Pack (무료, viewer 경유)**\n- 원본 페이지: https://quaternius.com/packs/animals.html 은 미확인. 대신 뷰어 https://quaternius.trebeljahr.com/animals_pack 을 확인함 (페이지에 \"models © Quaternius\"라고만 표기, 라이선스 문구는 뷰어에서 찾지 못함)\n- 포함 모델(뷰어 JSON에서 추출): Alpaca, Bull, Cow, Deer, Donkey, Fox, Horse, Horse_White, Husky, ShibaInu, Stag, Wolf\n- 30종 매핑: 여우, 늑대, 허스키, 사슴(Deer/Stag), 강아지(ShibaInu는 개 품종이라 근사치) 정도. 나머지 25종은 없음\n- 형식: glb, gltf\n- 리깅·애니메이션: 미확인\n\n**4. Kenney Animal Pack Remastered**\n- URL: https://kenney.nl/assets/animal-pack-redux\n- 라이선스: \"Creative Commons CC0\" (페이지에서 확인)\n- 파일 수: 240 (페이지 표기)\n- 형식: 3D 태그 있음. 정확한 포맷(glb 등)과 종 목록은 미확인\n- 30종 매핑: 미확인. 페이지 태그는 \"animal pet\"\n\n**5. trebeljahr/quaternius-showcase (GitHub)**\n- URL: https://github.com/trebeljahr/quaternius-showcase\n- 라이선스: MIT (에셋이 아니라 뷰어 코드. 에셋 라이선스는 별도로 CC0 Quaternius)\n- 설명: Quaternius 팩을 보는 뷰어. 에셋 자체는 아님\n\n## HN 평판\n- Show HN: Viewer for 3D Models by Quaternius, https://news.ycombinator.com/item?id=34051127 (3 points, 댓글 1개). trebeljahr가 만든 뷰어이며 평판 정보는 적음.\n- Kenney.nl: Free Game Assets, https://news.ycombinator.com/item?id=42671472 (621 points, 댓글 수 미확인). Kenney 에셋 전반에 대한 평판이 좋다는 점만 확인.\n- 동물 캐릭터 에셋 관련 HN 글은 Algolia 검색 6개 질의에서 직접 해당하는 것이 없었음.\n\n## 우리 용도에 맞는 상위 3개\n1. Quaternius Ultimate Animated Animals: CC0 확인, 리깅·애니메이션 있음, glTF 제공. 종 목록만 확인하면 가장 유력 (종 목록 미확인이 최대 공백)\n2. Quaternius Animals Pack: CC0 여부는 뷰어에서 미확인이지만 glb 제공. 30종 중 4~5종 정도 맞음\n3. Kenney Animal Pack Remastered: CC0 확인, 240 파일. 종 목록과 3D 포맷을 확인하면 후보가 됨\n\n## 30종을 한 팩으로 채울 수 없는 이유\n- 확인된 팩 중 30종을 한 팩으로 채우는 것은 없음. 확인된 종 매칭은 많아야 4~5종(여우, 늑대, 허스키, 사슴, 근사치로 강아지)\n- 용, 유니콘, 사자, 호랑이, 독수리, 치타, 부엉이, 판다, 코알라, 펭귄, 너구리, 고양이, 곰, 원숭이, 코끼리, 돼지, 양, 토끼, 오리, 고슴도치, 다람쥐, 햄스터, 개구리, 생쥐, 병아리 등은 확인된 팩에서 찾지 못함(미확인). Ultimate Animated Animals와 Kenney 팩은 종 목록을 확인하지 않아 실제 포함 여부가 남아 있음\n- 조사 한계: 2D 일러스트 세트, Poly Pizza, OpenGameArt, itch.io는 확인하지 않았음\n\n## 조사 기록\n- HN Algolia: low poly animals, CC0 3D models, Quaternius, Kenney assets, animal avatar, three.js characters (story 태그)\n- gh search repos: low poly animals glb, animal avatars svg, procedural animal character three.js, quaternius animals, kenney animals, cute animal 3D glb. 대부분 결과 없음 또는 무관. gh JSON 필드는 license를 써야 함(licenseInfo 아님)\n- 다운로드·실행은 하지 않음. 라이선스·종 목록 판정은 원 배포 페이지 HTML에서만 확인함",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 1.8,
+          "kind": "think",
+          "tok": 33411,
+          "usd": 0.0042
+        },
+        {
+          "t": 3.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"low%20poly%20animals\" \"CC0%203",
+          "tok": 33411,
+          "usd": 0.0042
+        },
+        {
+          "t": 3.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"low poly animals glb\" \"animal",
+          "tok": 33411,
+          "usd": 0.0042
+        },
+        {
+          "t": 11.1,
+          "kind": "think",
+          "tok": 71521,
+          "usd": 0.0051
+        },
+        {
+          "t": 12.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -s -A \"$UA\" \"https://hn.algolia.com",
+          "tok": 71521,
+          "usd": 0.0051
+        },
+        {
+          "t": 15,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -s -L -A \"$UA\" \"https://quaternius.",
+          "tok": 110421,
+          "usd": 0.0056
+        },
+        {
+          "t": 15.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"Quaternius\" \"low poly animal p",
+          "tok": 110421,
+          "usd": 0.0056
+        },
+        {
+          "t": 19.9,
+          "kind": "think",
+          "tok": 150614,
+          "usd": 0.0061
+        },
+        {
+          "t": 21.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://quaternius.com/\" \"http",
+          "tok": 150614,
+          "usd": 0.0061
+        },
+        {
+          "t": 33.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://quaternius.com/\" \"http",
+          "tok": 191675,
+          "usd": 0.0067
+        },
+        {
+          "t": 38.7,
+          "kind": "think",
+          "tok": 234567,
+          "usd": 0.0073
+        },
+        {
+          "t": 40.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -s -L -A \"$UA\" \"https://quaternius.",
+          "tok": 234567,
+          "usd": 0.0073
+        },
+        {
+          "t": 43.4,
+          "kind": "think",
+          "tok": 278237,
+          "usd": 0.0078
+        },
+        {
+          "t": 44.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -s -L -A \"$UA\" \"https://kenney.nl/a",
+          "tok": 278237,
+          "usd": 0.0078
+        },
+        {
+          "t": 47.6,
+          "kind": "think",
+          "tok": 322792,
+          "usd": 0.0084
+        },
+        {
+          "t": 49.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -s -L -A \"$UA\" \"https://quaternius.",
+          "tok": 322792,
+          "usd": 0.0084
+        },
+        {
+          "t": 52.7,
+          "kind": "think",
+          "tok": 368140,
+          "usd": 0.0089
+        },
+        {
+          "t": 53.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "(hidden)",
+          "tok": 368140,
+          "usd": 0.0089
+        },
+        {
+          "t": 57.8,
+          "kind": "think",
+          "tok": 414158,
+          "usd": 0.0095
+        },
+        {
+          "t": 67.5,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 414158,
+          "usd": 0.0095
+        }
+      ],
+      "agent": "t2-explore",
+      "savingsPct": 99.1
+    },
+    {
+      "round": "r0",
+      "run": "19-B",
+      "condition": "sonnet-medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 12,
+      "max": 12,
+      "keyMiss": "",
+      "usd": 0.569,
+      "tokens": 2637161,
+      "seconds": 268,
+      "toolCalls": 32,
+      "webSearches": 0,
+      "excerpt": "## 조사 요약 (HN + GitHub + 원본 배포 페이지 직접 확인, 파일 수정·실행 없음)\n\n핵심: 30종을 한 그림체로 채우는 3D 팩은 못 찾았습니다. 가장 가까운 것은 Kenney Cube Pets 2.0(약 15종)이고, 2D로는 Fluent Emoji가 30종 전부를 덮습니다. 아래 \"미확인\"은 페이지에서 확인하지 못한 항목입니다.\n\n### 후보 1. Kenney Cube Pets (3D 치비 큐브 동물)\n- URL: https://kenney.nl/assets/cube-pets\n- 라이선스: 페이지 표기 \"License Creative Commons CC0\", 미리보기 이미지에 \"CC0 1.0 ... free to use in personal, educational and commercial projects. Written permission not required\" (kenney.nl 해당 페이지에서 확인)\n- 규모: 에셋 24개, 3D, 태그 \"Animation\" 표시. 버전 2.0 \"Complete remake, added animals & animations\" …",
+      "report": "## 조사 요약 (HN + GitHub + 원본 배포 페이지 직접 확인, 파일 수정·실행 없음)\n\n핵심: 30종을 한 그림체로 채우는 3D 팩은 못 찾았습니다. 가장 가까운 것은 Kenney Cube Pets 2.0(약 15종)이고, 2D로는 Fluent Emoji가 30종 전부를 덮습니다. 아래 \"미확인\"은 페이지에서 확인하지 못한 항목입니다.\n\n### 후보 1. Kenney Cube Pets (3D 치비 큐브 동물)\n- URL: https://kenney.nl/assets/cube-pets\n- 라이선스: 페이지 표기 \"License Creative Commons CC0\", 미리보기 이미지에 \"CC0 1.0 ... free to use in personal, educational and commercial projects. Written permission not required\" (kenney.nl 해당 페이지에서 확인)\n- 규모: 에셋 24개, 3D, 태그 \"Animation\" 표시. 버전 2.0 \"Complete remake, added animals & animations\"\n- 미리보기 이미지를 직접 보고 판독한 종(공식 목록 아님): 호랑이, 사자, 원숭이, 돼지, 토끼, 고양이, 강아지(추정), 코끼리, 사슴, 펭귄, 여우, 판다, 코알라, 곰, 병아리(노란 새), 용(초록 공룡형, 추정). 30종 중 약 14~16종. 그 외 소, 기린, 꿀벌, 게, 흰곰, 흰색 광대물고기, 앵무새 같은 새로 보이는 것이 있음. 갈색 얼굴 마스크 동물(너구리/햄스터 가능성)은 판독 불가.\n- 형식: 미확인(Kenney 3D 팩은 보통 GLB/FBX/OBJ지만 이 팩은 확인 못 함). 리깅·애니메이션은 \"Animation\" 태그만 확인, 앉기 동작 여부는 미확인. 큐브 몸통이라 앉은 포즈는 정적 자세로도 무리 없을 것으로 보임(추측).\n- HN: https://news.ycombinator.com/item?id=42671472 (Kenney.nl Free Game Assets, 621점). 댓글 \"all assets are CC0\", 평판 매우 좋음(HN 다수 글에서 Kenney/Quaternius를 CC0 무료 에셋 1순위로 추천: id=40168519, 46769606). 단 Cube Pets 자체에 대한 언급은 못 찾음.\n\n### 후보 2. Fluent Emoji (Microsoft), 2D 동물 세트\n- URL: https://github.com/microsoft/fluentui-emoji\n- 라이선스: GitHub 메타 MIT, LICENSE 파일 첫 줄 \"MIT License / Copyright (c) Microsoft Corporation.\" (확인함). 마이크로소프트 상표·디자인 고지 별도 여부는 미확인.\n- 종: assets/ 폴더 목록(git tree)에서 확인. 30종 거의 전부 있음: Dragon, Unicorn, Lion, Tiger, Eagle, Wolf, Fox, Owl, Panda, Koala, Penguin, Raccoon, Cat, Dog, Bear, Monkey, Deer, Elephant, Pig, Ewe(양), Rabbit, Duck, Hedgehog, Chipmunk(다람쥐), Hamster, Frog, Mouse, Baby chick. 허스키는 따로 없고 Dog로 대체, 치타는 Leopard(표범)로 대체. 즉 사실상 30/30 (치타, 허스키는 근사).\n- 형식: 종마다 3D 폴더에 PNG 1장(예: Fox 41,966바이트, 해상도는 미확인)과 Flat 폴더에 SVG 1장, Color/High Contrast 폴더가 있는 종도 있음. 3D는 정면 한 방향뿐이라 빌보드용입니다. 리깅·애니메이션 없음.\n- HN: https://news.ycombinator.com/item?id=39588892 (2점), https://news.ycombinator.com/item?id=32424083 (2점). 댓글 거의 없음, 평판 정보 미미.\n- 비고: 같은 계열 대안으로 jdecked/twemoji(MIT 표기, 그래픽 라이선스는 미확인), googlefonts/noto-emoji(저장소 OFL-1.1, 이미지 라이선스 미확인), OpenMoji(CC-BY-SA-4.0, 동일조건 공유 조항이라 상업 사용 부담 큼).\n\n### 후보 3. Quaternius Ultimate Animated Animals Pack (3D 로우폴리)\n- URL: https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: 이 팩 페이지에는 \"License CC0\". 그런데 https://quaternius.com/license.html 이 \"Quaternius Asset License (QAL) v1.0, Last updated: 8/28/2026\"로 바뀌어 있음. 요지: 개인·교육·상업 사용 무료, 크레딧 불필요, 에셋 자체를 단독·팩으로 재판매·재배포 금지, 완성된 제품에 포함해 배포하는 것은 허용, 변경 전 버전은 소급 적용 안 됨(받은 시점의 버전이 적용). 이후 받는 에셋은 QAL이 적용될 수 있으니 받을 때 페이지 표기를 캡처해 둘 것. 웹에서 GLB를 서빙하는 것이 \"재배포\"에 해당하는지는 문구상 완성 제품에 포함이라 허용으로 읽히나 법적 판정은 미확인.\n- 종 12개(GLB 파일명 기준, Show HN 뷰어에서 확인): Alpaca, Bull, Cow, Deer, Donkey, Fox, Horse, Horse_White, Husky, ShibaInu, Stag, Wolf. 30종 중 겹치는 것: 여우, 늑대, 허스키, 사슴 (+개 비슷한 시바견). 약 4~5종.\n- 형식: FBX, OBJ, Blend, glTF. 종마다 12개 이상 애니메이션(Attack, Death, Gallop, Walk, Jump 등), 리깅됨. 앉기 애니메이션은 미확인. 사족보행 사실적 로우폴리라 치비 느낌 아님.\n- 관련 Quaternius 팩(모두 페이지상 CC0 표기, 위와 같은 라이선스 변경 주의): Farm Animal Pack(https://quaternius.com/packs/farmanimal.html, 7종, 이미지로 확인한 것: 말, 소, 돼지, 양, 알파카, 퍼그. FBX/OBJ/Blend, glTF 없음 표기), Cube World Kit(https://quaternius.com/packs/cubeworldkit.html, 동물 포함, 종 목록 미확인), OpenGameArt 5 Low poly animals(https://opengameart.org/content/5-low-poly-animals) / Animated Animales Low Poly(https://opengameart.org/content/animated-animales-low-poly, 늑대·독수리·개·고양이·피라냐, 둘 다 CC0 표기).\n- HN: https://news.ycombinator.com/item?id=34051127 (Show HN 뷰어, 3점), https://news.ycombinator.com/item?id=40168519 (\"Quaternius and Kenney also has lovely low-poly 3D models, all under CC0\"), https://news.ycombinator.com/item?id=45693325. 평판 좋음.\n\n### 기타 후보 (낮은 우선순위)\n- Kenney Animal Pack Remastered (2D): https://kenney.nl/assets/animal-pack-redux, 페이지 표기 \"Creative Commons CC0\", 240개 파일, 미리보기에서 보이는 종 약 30종(원형 얼굴 아이콘: 판다, 펭귄, 원숭이, 돼지, 코끼리, 토끼, 개구리, 부엉이, 곰, 늑대 등), \"Each animal in 8 styles\". 얼굴만 있어서 몸통 포즈 없음, 사자·호랑이·고양이·여우 등은 미리보기에서 못 봄(미확인). HN은 위 Kenney 글(id=42671472)과 동일.\n- OpenGameArt Low Poly Animated Unicorn: https://opengameart.org/content/low-poly-animated-unicorn, 라이선스 \"CC-BY 4.0\"(크레딧 필요), 리깅·애니메이션(Idle, Walk 등) 있음. 유니콘 1종 보충용.\n- roma-lukashik/animal-avatar-generator: https://github.com/roma-lukashik/animal-avatar-generator, MIT, 시드 문자열로 SVG 동물 얼굴 생성(src에 ears/eyes/muzzles 등 모양 모듈). 종 선택이 아니라 무작위 조합으로 보여 30종 지정 용도에는 부적합(코드로 확인하지 못함, 추정). 마지막 푸시 2023-10.\n- Poly Pizza(https://poly.pizza, HN id=27909371, 모델별로 CC0/CC-BY 혼재, 검색 결과에서 Horse, Bat, Squirrel monkey 등 확인): 팩 단위가 아니라 그림체가 제각각.\n- KayKit(Kay Lousberg, HN id=42671472 댓글 추천): GitHub 저장소 목록은 던전·캐릭터·도시 팩 위주이고 동물 팩은 못 찾음.\n- GitHub 검색(low poly animals glb, animal avatars 등)에서는 쓸 만한 상업 가능 동물 3D 팩 저장소를 못 찾음. cozy-creatures는 GLB가 저장소에 없음(README에서 확인).\n- itch.io는 Cloudflare 차단으로 접근 못 함(브라우저 UA로도 \"Just a moment\"). itch 전용 CC0 동물 팩은 미조사.\n- HN에서 \"cute avatar generator\" 계열은 사람 얼굴 위주였고 동물 3D 캐릭터 생성기는 못 찾음. DiceBear(MIT)에 동물 스타일이 있는지는 미확인.\n\n### 우리 용도 상위 3개\n1. **Kenney Cube Pets 2.0 (3D)**: 같은 그림체 한 팩, CC0, 치비 큐브라 귀엽고 앉은 모양을 내기 쉬우며 아이소메트릭 사무실에 어울림. 약 15종을 바로 채우고 애니메이션 태그 있음. 다운로드 후 파일 형식(GLB 여부)과 정확한 종 목록을 먼저 확인할 것.\n2. **Fluent Emoji (2D, 빌보드)**: MIT, 30종 거의 전부, 한 그림체. 3D 스타일 PNG는 한 방향 고정이라 아이소메트릭에서 정면 빌보드로만 가능. 1번이 못 채우는 종의 보충 또는 전체 대체 안전망.\n3. **Quaternius Ultimate Animated Animals (3D)**: 리깅·애니메이션이 충실하지만 겹치는 종이 4~5개뿐이고 그림체가 달라 보충용. 라이선스가 CC0에서 QAL로 바뀌는 중이라 받을 때 표기를 기록해 둘 것.\n\n### 30종이 한 팩으로 안 채워질 때 빠지는 것\n- Cube Pets 기준 빠질 가능성이 큰 종(판독 기준, 팩 목록 확인 전): 유니콘, 독수리, 늑대, 치타, 부엉이, 허스키, 너구리, 양, 오리, 고슴도치, 다람쥐, 햄스터, 개구리, 생쥐. 약 14~15종. 용·병아리·강아지는 판독이 불확실.\n- 보충 경로: 빠진 종을 Fluent Emoji 3D PNG 빌보드로 채우면 그림체가 섞이므로, 일관성이 중요하면 전체를 Fluent로 통일하거나 Cube Pets 스타일로 직접 모델링(큐브 몸통에 귀·꼬리 부품 조합)해 보충하는 방식이 현실적. 독수리·치타·허스키·너구리 등은 어느 3D 팩에도 없어서 자작이 필요합니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 3.3,
+          "kind": "think",
+          "tok": 60064,
+          "usd": 0.1502
+        },
+        {
+          "t": 4.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"Quaternius\" \"low poly animals\"",
+          "tok": 60064,
+          "usd": 0.1502
+        },
+        {
+          "t": 16.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for id in 42671472 34051127 27909371 467",
+          "tok": 127647,
+          "usd": 0.1751
+        },
+        {
+          "t": 22.8,
+          "kind": "think",
+          "tok": 198374,
+          "usd": 0.1898
+        },
+        {
+          "t": 25.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"quaternius animals\" \"low poly",
+          "tok": 198374,
+          "usd": 0.1898
+        },
+        {
+          "t": 31.7,
+          "kind": "think",
+          "tok": 272387,
+          "usd": 0.2052
+        },
+        {
+          "t": 34,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p tmp/r; cd tmp/r; cat > t.py <<'",
+          "tok": 272387,
+          "usd": 0.2052
+        },
+        {
+          "t": 38.7,
+          "kind": "think",
+          "tok": 347870,
+          "usd": 0.2164
+        },
+        {
+          "t": 40,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "(hidden)",
+          "tok": 347870,
+          "usd": 0.2164
+        },
+        {
+          "t": 45.6,
+          "kind": "think",
+          "tok": 425380,
+          "usd": 0.2291
+        },
+        {
+          "t": 46,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "python3 t.py https://quaternius.com/lice",
+          "tok": 425380,
+          "usd": 0.2291
+        },
+        {
+          "t": 47.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "python3 t.py https://quaternius.com/pack",
+          "tok": 425380,
+          "usd": 0.2291
+        },
+        {
+          "t": 54.5,
+          "kind": "think",
+          "tok": 504491,
+          "usd": 0.2409
+        },
+        {
+          "t": 56.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "python3 t.py https://quaternius.trebelja",
+          "tok": 504491,
+          "usd": 0.2409
+        },
+        {
+          "t": 70,
+          "kind": "think",
+          "tok": 584441,
+          "usd": 0.2509
+        },
+        {
+          "t": 71.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://quaternius.com",
+          "tok": 584441,
+          "usd": 0.2509
+        },
+        {
+          "t": 95.1,
+          "kind": "think",
+          "tok": 665638,
+          "usd": 0.2621
+        },
+        {
+          "t": 96.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p img; cd img; UA='Mozilla/5.0 (M",
+          "tok": 665638,
+          "usd": 0.2621
+        },
+        {
+          "t": 101.1,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 747647,
+          "usd": 0.2724
+        },
+        {
+          "t": 102.8,
+          "kind": "think",
+          "tok": 832480,
+          "usd": 0.2878
+        },
+        {
+          "t": 104.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in https://kenney.nl/assets/animal",
+          "tok": 832480,
+          "usd": 0.2878
+        },
+        {
+          "t": 113.6,
+          "kind": "think",
+          "tok": 919430,
+          "usd": 0.3016
+        },
+        {
+          "t": 115.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for s in cube-pets animal-pack-redux; do",
+          "tok": 919430,
+          "usd": 0.3016
+        },
+        {
+          "t": 121.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" -o cubepets.png https:",
+          "tok": 1006781,
+          "usd": 0.3115
+        },
+        {
+          "t": 128.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"Mozilla/5.0\" -o animalrem.p",
+          "tok": 1095079,
+          "usd": 0.3259
+        },
+        {
+          "t": 129.3,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 1095079,
+          "usd": 0.3259
+        },
+        {
+          "t": 130,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 1095079,
+          "usd": 0.3259
+        },
+        {
+          "t": 135.9,
+          "kind": "think",
+          "tok": 1184766,
+          "usd": 0.3393
+        },
+        {
+          "t": 136.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"Mozilla/5.0\" https://kenney",
+          "tok": 1184766,
+          "usd": 0.3393
+        },
+        {
+          "t": 141.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"Mozilla/5.0\" https://kenney",
+          "tok": 1275057,
+          "usd": 0.3499
+        },
+        {
+          "t": 150.6,
+          "kind": "think",
+          "tok": 1365582,
+          "usd": 0.3597
+        },
+        {
+          "t": 153.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for r in microsoft/fluentui-emoji google",
+          "tok": 1365582,
+          "usd": 0.3597
+        },
+        {
+          "t": 160.2,
+          "kind": "think",
+          "tok": 1457526,
+          "usd": 0.3723
+        },
+        {
+          "t": 162.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api 'repos/microsoft/fluentui-emoji/g",
+          "tok": 1457526,
+          "usd": 0.3723
+        },
+        {
+          "t": 166.1,
+          "kind": "think",
+          "tok": 1550517,
+          "usd": 0.3842
+        },
+        {
+          "t": 168.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api repos/microsoft/fluentui-emoji/co",
+          "tok": 1550517,
+          "usd": 0.3842
+        },
+        {
+          "t": 173.7,
+          "kind": "think",
+          "tok": 1644185,
+          "usd": 0.3952
+        },
+        {
+          "t": 174.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"low-poly animals\" \"animals glb",
+          "tok": 1644185,
+          "usd": 0.3952
+        },
+        {
+          "t": 181.5,
+          "kind": "think",
+          "tok": 1739425,
+          "usd": 0.4086
+        },
+        {
+          "t": 182.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api repos/roma-lukashik/animal-avatar",
+          "tok": 1739425,
+          "usd": 0.4086
+        },
+        {
+          "t": 185.5,
+          "kind": "think",
+          "tok": 1835676,
+          "usd": 0.4207
+        },
+        {
+          "t": 186.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api 'repos/roma-lukashik/animal-avata",
+          "tok": 1835676,
+          "usd": 0.4207
+        },
+        {
+          "t": 190.4,
+          "kind": "think",
+          "tok": 1933027,
+          "usd": 0.4331
+        },
+        {
+          "t": 192.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -m25 -A \"$UA\" \"https://itch.io/",
+          "tok": 1933027,
+          "usd": 0.4331
+        },
+        {
+          "t": 196.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -m25 -A \"$UA\" \"https://itch.io/",
+          "tok": 2031002,
+          "usd": 0.4445
+        },
+        {
+          "t": 201.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "head -c 600 itch.html; echo; for u in \"h",
+          "tok": 2129348,
+          "usd": 0.4555
+        },
+        {
+          "t": 204.4,
+          "kind": "think",
+          "tok": 2228268,
+          "usd": 0.4668
+        },
+        {
+          "t": 205.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://opengameart.org/art-se",
+          "tok": 2228268,
+          "usd": 0.4668
+        },
+        {
+          "t": 210.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -m25 -A \"Mozilla/5.0 (Macintosh",
+          "tok": 2327570,
+          "usd": 0.4778
+        },
+        {
+          "t": 214.2,
+          "kind": "think",
+          "tok": 2427941,
+          "usd": 0.4944
+        },
+        {
+          "t": 216.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for s in low-poly-animal-pack-wip animal",
+          "tok": 2427941,
+          "usd": 0.4944
+        },
+        {
+          "t": 229.5,
+          "kind": "think",
+          "tok": 2529023,
+          "usd": 0.5075
+        },
+        {
+          "t": 232,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"Fluent Emoji\" \"Quaternius\" ; d",
+          "tok": 2529023,
+          "usd": 0.5075
+        },
+        {
+          "t": 267.4,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 2637161,
+          "usd": 0.569
+        }
+      ],
+      "savingsPct": 47.6
+    },
+    {
+      "round": "r0",
+      "run": "19-C",
+      "condition": "sonnet-high",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 12,
+      "max": 12,
+      "keyMiss": "",
+      "usd": 0.4806,
+      "tokens": 1855427,
+      "seconds": 224,
+      "toolCalls": 23,
+      "webSearches": 0,
+      "excerpt": "# 동물 캐릭터 에셋 조사 보고 (HN·GitHub, 2026-11-07 기준. 파일 수정·다운로드 실행 없음)\n\n조사 범위: Hacker News Algolia(스토리·댓글), GitHub 검색, Kenney·Quaternius 공식 페이지 직접 확인. itch.io와 OpenGameArt는 페이지가 제대로 열리지 않아 못 봤고, Poly Pizza는 모델별 라이선스를 확인하지 못했습니다(미확인). 아래 종 목록 중 \"미리보기 판독\"은 공식 미리보기 이미지를 눈으로 읽은 것이라 종 이름이 정확하지 않을 수 있습니다.\n\n## 후보\n\n### 1. Kenney Cube Pets (3D) — 30종 중 약 15종\n- URL: https://kenney.nl/assets/cube-pets\n- 라이선스: \"Creative Commons CC0\"(공식 페이지 표기). 미리보기 이미지에는 \"CC0 1.0 / free to use in personal, educational and commercial projects. Written permission not required, support us by crediting or donating (voluntary)\"라고 적혀 있습니다. 확인한 페이지는 위 URL입니다. …",
+      "report": "# 동물 캐릭터 에셋 조사 보고 (HN·GitHub, 2026-11-07 기준. 파일 수정·다운로드 실행 없음)\n\n조사 범위: Hacker News Algolia(스토리·댓글), GitHub 검색, Kenney·Quaternius 공식 페이지 직접 확인. itch.io와 OpenGameArt는 페이지가 제대로 열리지 않아 못 봤고, Poly Pizza는 모델별 라이선스를 확인하지 못했습니다(미확인). 아래 종 목록 중 \"미리보기 판독\"은 공식 미리보기 이미지를 눈으로 읽은 것이라 종 이름이 정확하지 않을 수 있습니다.\n\n## 후보\n\n### 1. Kenney Cube Pets (3D) — 30종 중 약 15종\n- URL: https://kenney.nl/assets/cube-pets\n- 라이선스: \"Creative Commons CC0\"(공식 페이지 표기). 미리보기 이미지에는 \"CC0 1.0 / free to use in personal, educational and commercial projects. Written permission not required, support us by crediting or donating (voluntary)\"라고 적혀 있습니다. 확인한 페이지는 위 URL입니다.\n- 규모: 24개 에셋. 페이지 버전 기록은 \"2.0 Complete remake, added animals & animations / 1.0 Released in 2026\". 페이지의 Features에 \"Animation\" 표시가 있습니다.\n- 종 (미리보기 판독, 24종): 흰동가리, 기린, 원숭이, 돼지, 갈색 동물(정체 불명), 북극곰, 호랑이, 사자, 토끼, 앵무, 병아리 또는 오리(노란 새), 벌, 초록 공룡(용일 수도 있으나 미확인), 소, 강아지, 고양이, 코끼리, 사슴, 펭귄, 여우, 게, 판다, 코알라, 곰.\n- 우리 30종과 겹침(15종): 호랑이, 사자, 여우, 판다, 코알라, 펭귄, 고양이, 강아지, 곰, 원숭이, 사슴, 코끼리, 돼지, 토끼, 병아리. 오리는 노란 새가 병아리인지 오리인지 불분명합니다.\n- 스타일: 정육면체 몸통에 큰 눈의 치비·큐브 스타일이고 24종이 한 그림체입니다.\n- 형식·리깅: 파일 형식(glTF/FBX/OBJ), 리그 구조, 앉은 자세 클립 여부는 미확인입니다. zip을 받지 않았습니다.\n- HN: Kenney 에셋 전반은 https://news.ycombinator.com/item?id=42671472 (621점, 댓글 50). 평판은 \"CC0이고 수년째 유지되는 에셋의 정석, 후원 권유\"입니다. Cube Pets 단독 언급은 못 찾았습니다.\n\n### 2. Kenney Animal Pack Remastered (2D) — 30종 중 약 12종\n- URL: https://kenney.nl/assets/animal-pack-remastered (구 주소 animal-pack-redux로 연결)\n- 라이선스: \"Creative Commons CC0\"(위 페이지). 미리보기에 \"CC0 1.0\"이 적혀 있습니다.\n- 규모: 240개 에셋. 미리보기에 \"Each animal in 8 styles!\"가 있어 30종 × 8스타일로 보입니다(제 추정).\n- 종 (미리보기 판독, 30종): 뱀, 기린, 펭귄, 판다, 앵무, 바다코끼리, 원숭이, 하마, 돼지, 코끼리, 토끼, 코뿔소, 범고래, 닭, 병아리, 말, 무스, 들소, 일각고래, 개구리, 소, 고릴라, 오리, 스컹크, 곰, 얼룩말, 부엉이, 악어, 나무늘보, 회색 늑대로 보이는 동물.\n- 우리 30종과 겹침(약 12종): 판다, 펭귄, 원숭이, 돼지, 코끼리, 토끼, 병아리, 개구리, 오리, 곰, 부엉이, 늑대(추정).\n- 스타일: 둥근 얼굴 아이콘 스타일입니다. 형식은 미확인이고(Kenney 2D 팩은 보통 PNG·SVG를 함께 주지만 이번에 확인하지 못했습니다), 3D가 아니라 빌보드용입니다.\n- HN: 전용 글은 못 찾았고, 위 Kenney 글(item 42671472)과 같은 평판입니다.\n- 참고: 위 1번(Cube Pets)과 그림체가 달라, 한 장면에 섞으면 이질적입니다.\n\n### 3. Quaternius Ultimate Animated Animal Pack (3D) — 30종 중 5종\n- URL: https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: 팩 페이지에 \"License CC0\"과 CC0 1.0 링크(https://creativecommons.org/publicdomain/zero/1.0/)가 있습니다. 주의: quaternius.com/license.html에는 \"Quaternius Asset License (QAL) v1.0\"이 따로 있고, 개인·교육·상업 사용은 크레딧 없이 허용되지만 에셋 자체를 재배포·재판매하면 안 된다고 적혀 있습니다. 이 팩은 CC0로 표기되어 있으나 QAL이 어느 팩에 적용되는지는 미확인입니다.\n- 규모: 12종. 설명문에 \"each with more than 12 unique animations (Attack, Death, Kicks, Gallops, Walk, Jump and many more!)\", \"FBX, OBJ, glTF and Blend\"라고 적혀 있습니다.\n- 종(GitHub trebeljahr/quaternius-showcase의 glb 파일명으로 확인): 알파카, 황소, 소, 사슴, 당나귀, 여우, 말, 흰 말, 허스키, 시바견, 수사슴, 늑대.\n- 겹침(5종): 사슴, 여우, 허스키, 늑대, 강아지(시바견).\n- 스타일: 로우폴리 리얼 계열이고 치비는 아닙니다. 리깅·애니메이션은 있습니다. 앉은 자세 클립은 미확인입니다.\n- HN: https://news.ycombinator.com/item?id=34051127 (3점, Quaternius 모델을 glb로 바꾼 뷰어), https://news.ycombinator.com/item?id=46019806 (WorldGen 글의 댓글, \"Quaternius 같은 이에게 돈을 쓰라\"), https://news.ycombinator.com/item?id=45695363 (Mesh2Motion 글의 댓글, \"Quaternius의 훌륭한 무료·저가 모델\"). 평판은 \"믿을 만한 CC0 로우폴리 출처\"입니다.\n\n### 4. Quaternius Farm Animal Pack / Cute Animated Monsters Pack (3D)\n- URL: https://quaternius.com/packs/farmanimal.html, https://quaternius.com/packs/cutemonsters.html\n- 라이선스: 두 팩 모두 페이지에 \"License CC0\"로 표기되어 있습니다.\n- Farm Animal: 7종, 각자 애니메이션 있음, FBX·OBJ·Blend(glTF 표기는 없음). 종 목록은 미확인입니다. 양과 돼지가 있을 가능성이 있지만 추측이라 확인이 필요합니다.\n- Cute Animated Monsters: 21종, 몬스터이고 동물이 아니라서 우리 용도에 맞는 종은 확인하지 못했습니다.\n- HN: 팩 단독 언급은 못 찾았고 Quaternius 일반 평판은 3번과 같습니다.\n\n### 5. Mesh2Motion (오픈소스 자동 리깅·애니메이션 도구)\n- URL: https://github.com/Mesh2Motion/mesh2motion-app (3,647별, 2026-11-06 갱신)\n- 라이선스: README에 \"code and platform … MIT … art assets (3d models, rigs, animations) … CC0\"라고 적혀 있고, 저장소에 LICENSE-MIT.MD와 LICENSE-CC0.MD가 있습니다. GitHub API의 license 필드는 NOASSERTION입니다.\n- 기능: 3D 모델을 불러와 스켈레톤을 고르고 맞춘 뒤 애니메이션을 입혀 내보냅니다. 지원 스켈레톤 종류(네발 동물 포함 여부)는 README에서 확인하지 못했습니다(미확인).\n- 용도: 팩의 정적 모델에 리그를 입힐 때 쓸 수 있는지 가늠해 볼 도구이고, 에셋 자체는 아닙니다.\n- HN: https://news.ycombinator.com/item?id=45693325 (Mesh2Motion – Open-source web application to animate...). 평판은 \"Mixamo 대안, Quaternius 모션 라이브러리 사용\"입니다.\n\n### 6. roma-lukashik/animal-avatar-generator (SVG 생성기)\n- URL: https://github.com/roma-lukashik/animal-avatar-generator\n- 라이선스: MIT(README와 LICENSE). 108별, 마지막 푸시 2023-10-18.\n- 내용: 문자열 시드로 SVG 동물 아바타를 만듭니다. src/shapes에 귀·눈·주둥이·무늬 조합이 있어 종이 아니라 얼굴 변형을 조합하는 방식입니다. 30종 구분은 불가능합니다. 3D가 아니고 빌보드로 쓸 수 있는 2D라 활용도는 낮습니다.\n- HN: 언급 못 찾았습니다.\n\n### 그 외 확인한 것\n- DiceBear (https://github.com/dicebear/dicebear, MIT, 10,040별): 스타일별로 에셋 라이선스가 달라 확인하지 않았고, 동물 종 세트가 있는지도 미확인입니다.\n- xcatliu/xzoo: 동물 아바타지만 개별 유료·구매자 전용 권리 조건이라 사용 불가입니다.\n- JMRussas/cozy-creatures (MIT): 동물 6종 R3F 데모로, 상업 에셋은 제외되어 있어 에셋을 얻을 수 없습니다.\n- Poly Pizza (https://poly.pizza/): 홈에 \"10,700+ free models\"라고 적혀 있습니다. 모델별 라이선스(CC0·CC-BY 혼재 여부)와 동물 세트는 확인하지 못했습니다. HN 글은 https://news.ycombinator.com/item?id=27909371 (2점)입니다.\n- Kay Lousberg(kaylousberg.com): HN 댓글(https://news.ycombinator.com/item?id=42672503)에서 추천받았지만 동물 팩은 못 찾았습니다.\n\n## 용도별 상위 3개\n\n1. **Kenney Cube Pets (3D)**: 한 그림체로 우리 30종 중 15종을 바로 채웁니다. 큐브형 치비라 앉은 자세를 만들기 쉬워 보이고, CC0라 상업 SaaS에 쓰기 가장 안전합니다. 다만 glTF 제공 여부와 리그·앉기 클립은 zip을 열어 봐야 알 수 있습니다.\n2. **Kenney Animal Pack Remastered (2D)**: 같은 Kenney 계열이지만 얼굴 아이콘 스타일이라 3D와 그림체가 다릅니다. 3D를 포기하고 전체를 빌보드로 가는 안일 때만 의미가 있고, 겹침이 약 12종이라 단독으로는 부족합니다.\n3. **Quaternius Ultimate Animated Animal Pack (3D)**: 늑대·허스키·강아지 등 Cube Pets에 없는 종을 보충할 수 있고, 리깅·애니메이션이 있는 glTF라 기술적으로 검증된 출처입니다. 그림체가 Cube Pets와 달라 섞으면 어색하고, 단독으로는 겹침이 5종뿐입니다.\n\n## 30종을 한 팩으로 채울 수 없는 부분\n한 팩으로 30종을 채우는 후보는 못 찾았습니다. Cube Pets 단독으로 빠지는 종은 다음과 같습니다.\n- 용(초록 공룡이 대체 후보인지 미확인), 유니콘, 독수리, 늑대, 치타, 부엉이, 허스키, 너구리, 양, 오리(병아리와 구분 여부 미확인), 고슴도치, 다람쥐, 햄스터, 개구리, 생쥐.\n- 늑대·허스키는 Quaternius로 채울 수 있지만 그림체가 다릅니다.\n- 나머지는 Cube Pets 스타일로 직접 모델링하거나 기존 모델을 다시 칠해야 할 가능성이 큽니다. 치타는 사자나 호랑이, 허스키·늑대는 강아지, 오리는 병아리, 햄스터·생쥐·다람쥐는 토끼나 고양이를 바꿔 쓰는 식입니다. 이건 제 제안이고 실제 모델을 열어 본 결과는 아닙니다.\n- 큐브 형태는 Blender에서 새로 만들기 쉬운 편이라 판단하지만, 이것도 추측입니다.\n\n## 미확인 요약\n- Cube Pets의 파일 형식, 리깅, 앉기 클립, 종 정확 목록(이미지 판독뿐)\n- Quaternius Farm Animal Pack의 종 목록, QAL과 CC0의 적용 범위\n- Animal Pack Remastered의 파일 형식(SVG 여부)\n- Poly Pizza 모델별 라이선스, itch.io·OpenGameArt 후보, DiceBear 스타일별 라이선스\n- Mesh2Motion의 지원 스켈레톤 종류",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 3.1,
+          "kind": "think",
+          "tok": 60064,
+          "usd": 0.1502
+        },
+        {
+          "t": 5.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"Quaternius\" \"Kenney assets\" \"C",
+          "tok": 60064,
+          "usd": 0.1502
+        },
+        {
+          "t": 6.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"animals glb low poly\" \"animal",
+          "tok": 60064,
+          "usd": 0.1502
+        },
+        {
+          "t": 18.1,
+          "kind": "think",
+          "tok": 128165,
+          "usd": 0.1764
+        },
+        {
+          "t": 19.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for id in 42671472 34051127 27909371; do",
+          "tok": 128165,
+          "usd": 0.1764
+        },
+        {
+          "t": 20.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://quaternius.com",
+          "tok": 128165,
+          "usd": 0.1764
+        },
+        {
+          "t": 27.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://quaternius.com",
+          "tok": 202164,
+          "usd": 0.1981
+        },
+        {
+          "t": 32.7,
+          "kind": "think",
+          "tok": 278254,
+          "usd": 0.2108
+        },
+        {
+          "t": 35,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "(hidden)",
+          "tok": 278254,
+          "usd": 0.2108
+        },
+        {
+          "t": 39.6,
+          "kind": "think",
+          "tok": 357554,
+          "usd": 0.2265
+        },
+        {
+          "t": 42.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://quaternius.com",
+          "tok": 357554,
+          "usd": 0.2265
+        },
+        {
+          "t": 48.6,
+          "kind": "think",
+          "tok": 439152,
+          "usd": 0.2403
+        },
+        {
+          "t": 51.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for p in cube-pets animal-pack-redux ani",
+          "tok": 439152,
+          "usd": 0.2403
+        },
+        {
+          "t": 58.7,
+          "kind": "think",
+          "tok": 524230,
+          "usd": 0.2572
+        },
+        {
+          "t": 61.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://kenney.nl/asse",
+          "tok": 524230,
+          "usd": 0.2572
+        },
+        {
+          "t": 65.8,
+          "kind": "think",
+          "tok": 610858,
+          "usd": 0.2696
+        },
+        {
+          "t": 67.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p $S/img; curl -sL -A \"$UA\" \"http",
+          "tok": 610858,
+          "usd": 0.2696
+        },
+        {
+          "t": 75.1,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 698212,
+          "usd": 0.2802
+        },
+        {
+          "t": 75.7,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 698212,
+          "usd": 0.2802
+        },
+        {
+          "t": 83.7,
+          "kind": "think",
+          "tok": 786610,
+          "usd": 0.2917
+        },
+        {
+          "t": 87.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for p in animal-pack-redux cube-pets; do",
+          "tok": 786610,
+          "usd": 0.2917
+        },
+        {
+          "t": 98.8,
+          "kind": "think",
+          "tok": 876839,
+          "usd": 0.3052
+        },
+        {
+          "t": 100,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"low-poly animals\" \"animal mode",
+          "tok": 876839,
+          "usd": 0.3052
+        },
+        {
+          "t": 107.8,
+          "kind": "think",
+          "tok": 968255,
+          "usd": 0.3173
+        },
+        {
+          "t": 109.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api repos/roma-lukashik/animal-avatar",
+          "tok": 968255,
+          "usd": 0.3173
+        },
+        {
+          "t": 113.2,
+          "kind": "think",
+          "tok": 1061739,
+          "usd": 0.3316
+        },
+        {
+          "t": 114.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api 'repos/roma-lukashik/animal-avata",
+          "tok": 1061739,
+          "usd": 0.3316
+        },
+        {
+          "t": 119.1,
+          "kind": "think",
+          "tok": 1156655,
+          "usd": 0.3447
+        },
+        {
+          "t": 121.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"quaternius\" \"kenney.nl 3d\" \"po",
+          "tok": 1156655,
+          "usd": 0.3447
+        },
+        {
+          "t": 129.7,
+          "kind": "think",
+          "tok": 1256787,
+          "usd": 0.3672
+        },
+        {
+          "t": 132.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api 'repos/trebeljahr/quaternius-show",
+          "tok": 1256787,
+          "usd": 0.3672
+        },
+        {
+          "t": 134.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in https://poly.pizza/ https://pol",
+          "tok": 1256787,
+          "usd": 0.3672
+        },
+        {
+          "t": 146.5,
+          "kind": "think",
+          "tok": 1374502,
+          "usd": 0.4213
+        },
+        {
+          "t": 149.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" \"https://kenney.nl/med",
+          "tok": 1374502,
+          "usd": 0.4213
+        },
+        {
+          "t": 154.9,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 1493271,
+          "usd": 0.4366
+        },
+        {
+          "t": 161.5,
+          "kind": "think",
+          "tok": 1612691,
+          "usd": 0.4505
+        },
+        {
+          "t": 164.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh search repos mesh2motion --limit 3 --",
+          "tok": 1612691,
+          "usd": 0.4505
+        },
+        {
+          "t": 169.5,
+          "kind": "think",
+          "tok": 1733626,
+          "usd": 0.4663
+        },
+        {
+          "t": 171.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api repos/Mesh2Motion/mesh2motion-app",
+          "tok": 1733626,
+          "usd": 0.4663
+        },
+        {
+          "t": 189.5,
+          "kind": "think",
+          "tok": 1855427,
+          "usd": 0.4806
+        },
+        {
+          "t": 224.4,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 1855427,
+          "usd": 0.4806
+        }
+      ],
+      "savingsPct": 55.7
+    },
+    {
+      "round": "r0",
+      "run": "19-D",
+      "condition": "opus-direct",
+      "model": "opus",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 11,
+      "max": 12,
+      "keyMiss": "itch.io를 못 본 상태에서 Fluent Emoji를 '유일한 세트', Cube Pets를 '하나뿐인 치비 3D 팩'으로 단정했다.",
+      "usd": 1.0853,
+      "tokens": 2663437,
+      "seconds": 266,
+      "toolCalls": 29,
+      "webSearches": 0,
+      "excerpt": "## 웹 3D 사무실용 무료 동물 캐릭터 에셋 조사 (HN, GitHub)\n\n30종을 같은 그림체로 다 채우는 3D 팩은 찾지 못했습니다. 3D로는 Kenney Cube Pets가 가장 가깝고 30종 중 약 15종이 들어 있습니다. 같은 그림체로 30종 중 29종을 덮는 것은 2D인 Microsoft Fluent Emoji 3D PNG뿐입니다.\n\n코드와 파일은 고치지 않았습니다. 미리보기 PNG/JPG만 받아 종을 눈으로 셌고, 실행한 파일은 없습니다.\n\n### 1. 3D 팩\n\n**Kenney Cube Pets** https://kenney.nl/assets/cube-pets\n- 라이선스: \"Creative Commons CC0\". 이 페이지와 미리보기 이미지 하단의 \"CC0 1.0\" 표기로 확인했습니다.\n- 버전과 규모: 2026년 1.0, 2.0에서 전면 재제작(동물과 애니메이션 추가). 파일 24개.\n- 30종 중 포함(미리보기 육안 판독, 약 15종): 사자, 호랑이, 여우, 판다, 코알라, 펭귄, 고양이, 강아지, 곰(북극곰 모양), 원숭이, 사슴, 코끼리, 돼지, 토끼(귀가 긴 동물), 병아리 또는 오리. 초록 가시 캐릭터는 용인지 공룡인지 미확인입니다. 그 밖에 기린, 앵무새, 게, 벌, 흰동가리, 비버 등이 있습니다.\n- 스타일: 정육면체 몸통에 큰 눈을 단 치비 스타일이고 아이소메트릭 화면과 잘 맞습니다. …",
+      "report": "## 웹 3D 사무실용 무료 동물 캐릭터 에셋 조사 (HN, GitHub)\n\n30종을 같은 그림체로 다 채우는 3D 팩은 찾지 못했습니다. 3D로는 Kenney Cube Pets가 가장 가깝고 30종 중 약 15종이 들어 있습니다. 같은 그림체로 30종 중 29종을 덮는 것은 2D인 Microsoft Fluent Emoji 3D PNG뿐입니다.\n\n코드와 파일은 고치지 않았습니다. 미리보기 PNG/JPG만 받아 종을 눈으로 셌고, 실행한 파일은 없습니다.\n\n### 1. 3D 팩\n\n**Kenney Cube Pets** https://kenney.nl/assets/cube-pets\n- 라이선스: \"Creative Commons CC0\". 이 페이지와 미리보기 이미지 하단의 \"CC0 1.0\" 표기로 확인했습니다.\n- 버전과 규모: 2026년 1.0, 2.0에서 전면 재제작(동물과 애니메이션 추가). 파일 24개.\n- 30종 중 포함(미리보기 육안 판독, 약 15종): 사자, 호랑이, 여우, 판다, 코알라, 펭귄, 고양이, 강아지, 곰(북극곰 모양), 원숭이, 사슴, 코끼리, 돼지, 토끼(귀가 긴 동물), 병아리 또는 오리. 초록 가시 캐릭터는 용인지 공룡인지 미확인입니다. 그 밖에 기린, 앵무새, 게, 벌, 흰동가리, 비버 등이 있습니다.\n- 스타일: 정육면체 몸통에 큰 눈을 단 치비 스타일이고 아이소메트릭 화면과 잘 맞습니다.\n- 애니메이션: 페이지에 Animation 표시가 있습니다. 파일 형식(GLB/FBX), 리깅 구조, 앉은 자세 가능 여부는 미확인입니다.\n- HN: 이 팩을 직접 다룬 글은 없습니다. Kenney 전체로는 https://news.ycombinator.com/item?id=42671472 (621점)가 있고, \"전부 CC0, 가치가 엄청나다\"는 호평이 주류입니다.\n\n**Quaternius Ultimate Animated Animal Pack** https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: 팩 페이지에는 \"License CC0\"이라고 적혀 있습니다. 그런데 https://quaternius.com/license.html 은 \"Quaternius Asset License (QAL) v1.0, Last updated: 8/28/2026\"입니다. QAL은 상업 사용과 무표기 사용을 허용하지만 에셋 자체의 재배포는 금지합니다. 7조는 \"얻은 시점의 버전이 적용\"되며 소급하지 않는다고 적고 있습니다. 지금 내려받을 때 CC0과 QAL 중 무엇이 적용되는지는 미확인입니다. 웹앱에 포함해 서비스하는 것은 QAL에서도 허용 범위로 읽히지만, 확정하려면 법무 확인이 필요합니다.\n- 30종 중 포함: 여우, 늑대, 허스키, 사슴(Deer, Stag) 정도로 4종쯤입니다. 전체 12종은 Alpaca, Bull, Cow, Deer, Donkey, Fox, Horse, Horse_White, Husky, ShibaInu, Stag, Wolf이고, HN 뷰어 페이지의 GLB 파일명으로 확인했습니다.\n- 스타일과 형식: 실사 비율의 로우폴리이고 치비가 아닙니다. FBX, OBJ, glTF, Blend로 제공됩니다. 동물마다 애니메이션이 12개 이상이며 걷기, 질주, 공격, 죽음 등이 있습니다. 앉은 자세는 미확인입니다.\n- HN: https://news.ycombinator.com/item?id=34051127 (이 팩 뷰어 Show HN). https://news.ycombinator.com/item?id=40178135 에서는 \"Quaternius와 Kenney가 좋은 로우폴리, 모두 CC0\"이라는 평이 나왔고, 다른 글에서도 반복 추천됩니다.\n\n**Quaternius 구형 팩 (OpenGameArt CC0 사본)**\n- 팩:\n  - https://opengameart.org/content/animated-animales-low-poly\n  - https://opengameart.org/content/5-low-poly-animals\n- 라이선스: 두 페이지 모두 \"License(s): CC0\"이고 업로더는 quaternius입니다. CC0이 명확하게 남은 사본입니다.\n- 종: 태그로 확인한 것은 wolf, dog, cat, piranha, eagle입니다. 30종 중 늑대, 강아지, 고양이, 독수리 4종이 해당합니다. 정확한 목록은 미확인이고, 스타일은 플랫 셰이딩 로우폴리에 애니메이션이 있습니다.\n\n**Quaternius Farm Animal Pack** https://quaternius.com/packs/farmanimal.html\n- 라이선스와 형식: 페이지 표기는 CC0이지만 위 QAL 문제가 똑같이 걸립니다. 7종에 애니메이션이 있고 FBX, OBJ, Blend로 제공되며 glTF는 없습니다.\n- 종: 미리보기에 보이는 6종은 말, 소, 돼지, 양, 라마, 퍼그입니다. 30종 중에는 돼지, 양, 강아지 3종이 해당합니다.\n\n**Poly Pizza** http://poly.pizza/\n- 작가와 라이선스가 모델마다 다릅니다. Quaternius와 \"Poly by Google\" 등이 섞여 있습니다. 그림체가 통일되지 않아 30종 세트로 쓰기 어렵고, 모델별 라이선스는 미확인입니다.\n- HN: https://news.ycombinator.com/item?id=27909371 (2점, 반응 거의 없음).\n\n### 2. 2D 세트 (빌보드용)\n\n**Microsoft Fluent Emoji (3D 스타일)** https://github.com/microsoft/fluentui-emoji\n- 라이선스: \"MIT License, Copyright (c) Microsoft Corporation\". GitHub API의 license 값과 LICENSE 원문으로 확인했습니다. 별 10201개이고 2026-08 푸시가 있습니다.\n- 형식: 종마다 `3D/*_3d.png`, Color, Flat, High Contrast SVG가 함께 있습니다.\n- 30종 중 포함(29종): 용(Dragon, Dragon face), 유니콘, 사자, 호랑이, 독수리, 늑대, 여우, 부엉이, 판다, 코알라, 펭귄, 너구리, 고양이, 강아지, 곰, 원숭이, 사슴, 코끼리, 돼지, 양(Ewe, Ram), 토끼, 오리, 고슴도치, 다람쥐(Chipmunk), 햄스터, 개구리, 생쥐, 병아리, 그리고 허스키 대용으로 Dog 또는 Wolf. assets 디렉터리 이름으로 확인했습니다.\n- 빠지는 종: 치타. Leopard(표범)로 대체할 수 있습니다.\n- 주의: 이모지 원형 그대로라 얼굴만 있는 종(Lion, Panda, Koala 등)과 전신인 종(Penguin, Duck, Elephant 등)이 섞여 있습니다. 책상에 앉은 몸 연출은 직접 해야 합니다.\n- HN: https://news.ycombinator.com/item?id=48951890 (스레드 48949184, 72점). 2D와 3D 버전이 있고 아름답다는 평입니다.\n\n**Kenney Animal Pack Remastered** https://kenney.nl/assets/animal-pack-remastered\n- 라이선스와 규모: \"Creative Commons CC0\", 파일 240개. 30종을 8가지 스타일로 그렸고, 형식은 둥근 얼굴 아이콘입니다.\n- 30종 중 포함(약 12종): 곰, 병아리, 강아지, 오리, 코끼리, 개구리, 원숭이, 부엉이, 판다, 펭귄, 돼지, 토끼. 미리보기로 판독했습니다.\n- 빠지는 종: 사자, 호랑이, 여우, 고양이 등. 나머지는 하마, 기린, 고래 같은 동물원 동물입니다.\n\n**기타 이모지 세트 (라이선스만 확인)**\n- Noto Emoji: 이미지는 Apache 2.0, 폰트는 OFL 1.1입니다. README로 확인했습니다.\n- Twemoji(jdecked): 그래픽은 CC BY 4.0이라 출처 표기가 필요합니다.\n- OpenMoji: CC BY-SA 4.0이라 동일조건 변경허락 조건 때문에 상업 SaaS에는 부담이 있습니다.\n- 세 세트 모두 종 목록은 미확인이지만 Unicode 동물 이모지라 Fluent와 비슷할 것으로 보입니다.\n\n### 3. 코드로 만드는 생성기\n\n**animal-avatar-generator** https://github.com/roma-lukashik/animal-avatar-generator\n- MIT(LICENSE 원문 확인), 별 108개. 시드 문자열을 넣으면 SVG 동물 얼굴이 결정적으로 나옵니다. Rust 포트로 luizvbo/animatar가 있습니다.\n- 사자, 호랑이처럼 특정 종을 지정할 수 있는지는 미확인입니다. 랜덤 조합이라 30종 매핑에는 맞지 않아 보입니다. HN 언급은 없습니다.\n\nGitHub에서 \"low poly animals glb\", \"procedural animal character three.js\"로 찾았지만 쓸 만한 3D 생성기는 나오지 않았습니다. JMRussas/cozy-creatures는 상용 GLB를 빼고 공개해서 에셋이 없습니다.\n\n### 우리 용도 기준 상위 3개\n\n1. **Kenney Cube Pets**: 하나뿐인 치비 3D 팩이고 CC0이라 상업 리스크가 없습니다. 애니메이션이 있고, 정육면체 몸통이라 아이소메트릭 책상 장면에 바로 앉혀도 어색하지 않습니다. 약 15종을 채웁니다.\n2. **Fluent Emoji 3D PNG**: MIT이고 29종을 한 그림체로 덮는 유일한 세트입니다. 빌보드로 세우거나, Cube Pets에 없는 종만 같은 크기의 이모지 머리로 채우는 보완용으로 쓸 수 있습니다. 얼굴형과 전신형이 섞인 점은 감안해야 합니다.\n3. **Quaternius (OpenGameArt CC0 사본 우선)**: 늑대, 허스키, 여우, 사슴, 독수리, 고양이처럼 애니메이션이 있는 glTF가 필요할 때 씁니다. 실사 비율이라 Cube Pets와 그림체가 맞지 않습니다. quaternius.com 에서 새로 받으면 CC0과 QAL 중 무엇이 적용되는지 확인이 필요합니다.\n\n### 한 팩으로 채울 때 빠지는 종\n\nCube Pets 기준으로 빠지는 종(약 15종)은 유니콘, 독수리, 늑대, 치타, 부엉이, 허스키, 너구리, 양, 고슴도치, 다람쥐, 햄스터, 개구리, 생쥐이고, 용과 오리, 병아리는 판독이 불확실합니다. Fluent를 함께 써도 치타는 빠지고 표범으로 대체해야 합니다.\n\n### 확인하지 못한 것\n\n- Cube Pets 2.0의 정확한 종 이름, 파일 형식, 앉은 자세 애니메이션 여부는 미확인입니다. zip을 열어 봐야 알 수 있습니다.\n- itch.io는 Cloudflare 차단이 두 번 나서 조사를 중단했습니다. 그래서 KayKit과 itch의 CC0 동물 팩은 미확인입니다.\n- GitHub 검색은 API 한도에 걸려 일부 질의 결과를 받지 못했습니다.\n\n보조 파일은 미리보기 이미지와 HN JSON뿐이며 <scratch>/… 에 있습니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 8.6,
+          "kind": "think",
+          "tok": 60060,
+          "usd": 0.3004
+        },
+        {
+          "t": 12.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "do echo \"=== $q\" curl -s \"https://hn.alg",
+          "tok": 60060,
+          "usd": 0.3004
+        },
+        {
+          "t": 20.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "do echo \"=== $q\" curl -s \"https://hn.alg",
+          "tok": 128040,
+          "usd": 0.3523
+        },
+        {
+          "t": 27.8,
+          "kind": "think",
+          "tok": 201936,
+          "usd": 0.3957
+        },
+        {
+          "t": 31.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "do curl -s \"https://hn.algolia.com/api/v",
+          "tok": 201936,
+          "usd": 0.3957
+        },
+        {
+          "t": 36.6,
+          "kind": "think",
+          "tok": 277419,
+          "usd": 0.4185
+        },
+        {
+          "t": 38.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 277419,
+          "usd": 0.4185
+        },
+        {
+          "t": 43.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 354707,
+          "usd": 0.4429
+        },
+        {
+          "t": 45.8,
+          "kind": "think",
+          "tok": 434152,
+          "usd": 0.4693
+        },
+        {
+          "t": 49.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 434152,
+          "usd": 0.4693
+        },
+        {
+          "t": 52.3,
+          "kind": "think",
+          "tok": 514955,
+          "usd": 0.4921
+        },
+        {
+          "t": 55.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 514955,
+          "usd": 0.4921
+        },
+        {
+          "t": 60.6,
+          "kind": "think",
+          "tok": 597178,
+          "usd": 0.5155
+        },
+        {
+          "t": 63.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 597178,
+          "usd": 0.5155
+        },
+        {
+          "t": 66.7,
+          "kind": "think",
+          "tok": 680128,
+          "usd": 0.5358
+        },
+        {
+          "t": 69.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 680128,
+          "usd": 0.5358
+        },
+        {
+          "t": 76.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 763726,
+          "usd": 0.5559
+        },
+        {
+          "t": 81.6,
+          "kind": "think",
+          "tok": 848507,
+          "usd": 0.5787
+        },
+        {
+          "t": 85,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 848507,
+          "usd": 0.5787
+        },
+        {
+          "t": 90.9,
+          "kind": "think",
+          "tok": 934091,
+          "usd": 0.5998
+        },
+        {
+          "t": 93.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 934091,
+          "usd": 0.5998
+        },
+        {
+          "t": 97.7,
+          "kind": "think",
+          "tok": 1020738,
+          "usd": 0.6224
+        },
+        {
+          "t": 101.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p img UA='Mozilla/5.0 (Macintosh;",
+          "tok": 1020738,
+          "usd": 0.6224
+        },
+        {
+          "t": 107.5,
+          "kind": "think",
+          "tok": 1108527,
+          "usd": 0.648
+        },
+        {
+          "t": 108.5,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 1108527,
+          "usd": 0.648
+        },
+        {
+          "t": 112.9,
+          "kind": "think",
+          "tok": 1197407,
+          "usd": 0.6784
+        },
+        {
+          "t": 114,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 1197407,
+          "usd": 0.6784
+        },
+        {
+          "t": 120.2,
+          "kind": "think",
+          "tok": 1286434,
+          "usd": 0.6992
+        },
+        {
+          "t": 125,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "wc -l fluent.txt for a in Dragon Unicorn",
+          "tok": 1286434,
+          "usd": 0.6992
+        },
+        {
+          "t": 128.8,
+          "kind": "think",
+          "tok": 1377552,
+          "usd": 0.7359
+        },
+        {
+          "t": 132.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "wc -l < fluent.txt for a in Unicorn Tige",
+          "tok": 1377552,
+          "usd": 0.7359
+        },
+        {
+          "t": 137.6,
+          "kind": "think",
+          "tok": 1468886,
+          "usd": 0.758
+        },
+        {
+          "t": 140.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "do echo \"=== $q\"; gh search repos \"$q\" -",
+          "tok": 1468886,
+          "usd": 0.758
+        },
+        {
+          "t": 147.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "do echo \"=== $q\"; gh search repos \"$q\" -",
+          "tok": 1561107,
+          "usd": 0.781
+        },
+        {
+          "t": 158,
+          "kind": "think",
+          "tok": 1655241,
+          "usd": 0.8092
+        },
+        {
+          "t": 161.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "print(d['title'],d['points'],d.get('url'",
+          "tok": 1655241,
+          "usd": 0.8092
+        },
+        {
+          "t": 163.9,
+          "kind": "think",
+          "tok": 1751654,
+          "usd": 0.8395
+        },
+        {
+          "t": 166.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "cd tmp/ curl -s https://raw.githubuserco",
+          "tok": 1751654,
+          "usd": 0.8395
+        },
+        {
+          "t": 172.8,
+          "kind": "think",
+          "tok": 1849189,
+          "usd": 0.8646
+        },
+        {
+          "t": 176.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 1849189,
+          "usd": 0.8646
+        },
+        {
+          "t": 181.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 1947631,
+          "usd": 0.8889
+        },
+        {
+          "t": 183.6,
+          "kind": "think",
+          "tok": 2046481,
+          "usd": 0.9108
+        },
+        {
+          "t": 187,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "print(re.sub(r'\\s+',' ',re.sub('<[^>]+>'",
+          "tok": 2046481,
+          "usd": 0.9108
+        },
+        {
+          "t": 192.2,
+          "kind": "think",
+          "tok": 2145814,
+          "usd": 0.9331
+        },
+        {
+          "t": 196.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "Intel Mac OS X 10_15_7) AppleWebKit/537.",
+          "tok": 2145814,
+          "usd": 0.9331
+        },
+        {
+          "t": 199.4,
+          "kind": "think",
+          "tok": 2246901,
+          "usd": 0.9618
+        },
+        {
+          "t": 202.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -s https://raw.githubusercontent.co",
+          "tok": 2246901,
+          "usd": 0.9618
+        },
+        {
+          "t": 210,
+          "kind": "think",
+          "tok": 2350011,
+          "usd": 0.9982
+        },
+        {
+          "t": 210.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api rate_limit --jq '.resources.searc",
+          "tok": 2350011,
+          "usd": 0.9982
+        },
+        {
+          "t": 213.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"cute animal avatars\" \"animal e",
+          "tok": 2453170,
+          "usd": 1.0213
+        },
+        {
+          "t": 219.1,
+          "kind": "think",
+          "tok": 2556947,
+          "usd": 1.0495
+        },
+        {
+          "t": 220.6,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 2556947,
+          "usd": 1.0495
+        },
+        {
+          "t": 223.3,
+          "kind": "think",
+          "tok": 2663437,
+          "usd": 1.0853
+        },
+        {
+          "t": 265.8,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 2663437,
+          "usd": 1.0853
+        }
+      ],
+      "role": "baseline",
+      "savingsPct": 0
+    },
+    {
+      "round": "r0",
+      "run": "19-E",
+      "condition": "sonnet-high-improved",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "improved",
+      "verdict": "ok",
+      "score": 11,
+      "max": 12,
+      "keyMiss": "itch.io 미조사를 밝히고도 Fluent Emoji를 '30종을 채우는 유일한 후보'라고 적어 스스로 모순된다.",
+      "usd": 0.6525,
+      "tokens": 3470493,
+      "seconds": 383,
+      "toolCalls": 37,
+      "webSearches": 0,
+      "excerpt": "# 동물 캐릭터 에셋 조사 보고\n\n결론부터 적습니다. 30종을 한 팩으로 채우는 후보는 3D에서는 없습니다. 같은 그림체로 가장 많이 겹치는 3D는 Kenney Cube Pets 2.0입니다. 30종을 전부 채우는 것은 2D 이모지 세트(Microsoft Fluent Emoji)뿐입니다. 파일은 하나도 받아 실행하지 않았고, Cube Pets 1.0 zip 한 개를 격리 디렉터리에 받아 목록만 `unzip -Z1`로 봤습니다.\n\n## 후보별 정리\n\n### 1. Kenney Cube Pets (3D, 최우선)\n- URL: https://kenney.nl/assets/cube-pets (미러: https://opengameart.org/content/cube-pets)\n- 라이선스: kenney.nl 페이지에 \"License Creative Commons CC0\"로 표기돼 있습니다. https://kenney.nl/support 에도 \"all game assets on the asset pages are public domain licensed (CC0)\"라고 적혀 있습니다. OGA 미러 v1.0은 \"License(s): CC0\"이고 zip 안 License.txt도 \"Creative Commons Zero, CC0\"입니다. …",
+      "report": "# 동물 캐릭터 에셋 조사 보고\n\n결론부터 적습니다. 30종을 한 팩으로 채우는 후보는 3D에서는 없습니다. 같은 그림체로 가장 많이 겹치는 3D는 Kenney Cube Pets 2.0입니다. 30종을 전부 채우는 것은 2D 이모지 세트(Microsoft Fluent Emoji)뿐입니다. 파일은 하나도 받아 실행하지 않았고, Cube Pets 1.0 zip 한 개를 격리 디렉터리에 받아 목록만 `unzip -Z1`로 봤습니다.\n\n## 후보별 정리\n\n### 1. Kenney Cube Pets (3D, 최우선)\n- URL: https://kenney.nl/assets/cube-pets (미러: https://opengameart.org/content/cube-pets)\n- 라이선스: kenney.nl 페이지에 \"License Creative Commons CC0\"로 표기돼 있습니다. https://kenney.nl/support 에도 \"all game assets on the asset pages are public domain licensed (CC0)\"라고 적혀 있습니다. OGA 미러 v1.0은 \"License(s): CC0\"이고 zip 안 License.txt도 \"Creative Commons Zero, CC0\"입니다.\n- 형식: kenney.nl 페이지에 \"Animation\", \"Files 24x\"로 표기돼 있습니다. v1.0 zip에는 FBX, GLB, OBJ 폴더가 있습니다. v2.0의 형식은 미확인입니다(내려받는 버튼이 JS 흐름이라 열지 못했습니다).\n- 버전: 페이지에 \"2.0 Complete remake, added animals & animations / 1.0 Released in 2026\"이라고 적혀 있습니다.\n- 스타일: 둥근 큐브 몸통에 큰 눈을 단 치비 스타일입니다. 모든 동물이 한 그림체입니다.\n- 종 목록\n  - v1.0 zip 미리보기 파일명(확인): bunny, cat, caterpillar, chick, cow, dog, elephant, fish, giraffe, hog, lion, monkey, parrot, pig, tiger (15종). OGA 설명문은 \"16 cubic pets\"입니다.\n  - v2.0은 24종으로 보입니다. 미리보기 PNG를 육안으로 판독한 결과이며 종 이름은 미확인입니다. 보이는 것은 호랑이, 사자, 원숭이, 돼지, 토끼, 고양이, 개, 코끼리, 곰, 사슴, 펭귄, 여우, 판다, 코알라 또는 생쥐로 보이는 회색 동물, 병아리 또는 오리로 보이는 노란 동물, 기린, 소, 앵무새, 벌, 게, 흰곰, 클라운피시, 초록색 동물(용 또는 개구리로 추정)입니다.\n- 30종 중 겹치는 것은 약 13~15종입니다. 호랑이, 사자, 원숭이, 돼지, 토끼, 고양이, 개, 코끼리, 곰, 사슴, 펭귄, 여우, 판다는 확실해 보입니다. 코알라, 병아리, 용은 불확실합니다.\n- 리깅과 앉은 자세: 애니메이션이 있다는 것까지만 확인했습니다. 클립 이름과 앉은 자세는 미확인입니다.\n- HN: Kenney 일반 스레드 https://news.ycombinator.com/item?id=42671472 (621점)에서 CC0를 확인하는 댓글과 후원 권유가 많았습니다. Cube Pets 개별 언급은 미확인입니다.\n\n### 2. Microsoft Fluent Emoji (2D, 30종 전부 커버)\n- URL: https://github.com/microsoft/fluentui-emoji\n- 라이선스: 저장소 LICENSE 원문이 \"MIT License / Copyright (c) Microsoft Corporation\"입니다. GitHub API에서도 MIT로 나옵니다.\n- 형식: 각 이모지 폴더에 `3D`(PNG), `Color`(SVG), `Flat`(SVG), `High Contrast`(SVG)가 있습니다. 3D 스타일은 PNG뿐이고 SVG가 아닙니다. 빌보드에 쓰는 이미지이고 리깅은 해당이 없습니다.\n- 종 목록: 저장소 파일 트리에서 폴더 존재를 확인했습니다. 용, 유니콘, 사자, 호랑이(Tiger / Tiger face), 독수리, 늑대, 여우, 부엉이, 개(Dog / Dog face), 판다, 코알라, 펭귄, 너구리, 고양이, 곰, 원숭이, 사슴, 코끼리, 돼지(Pig face), 양(Ewe), 토끼, 오리, 고슴도치, 다람쥐(Chipmunk), 햄스터, 개구리, 생쥐, 병아리(Baby chick, Hatching chick)가 있습니다. 치타는 없고 Leopard가 있습니다. 허스키는 별도 폴더가 없어 Dog로 대체해야 합니다. 결과적으로 28종 직접 커버, 2종 대체입니다.\n- 스타일: 모든 동물이 한 그림체로 통일돼 있습니다. 앉은 자세는 불가능합니다(정면 얼굴 아이콘).\n- HN 언급: 미확인.\n- 참고: Twemoji(jdecked 포크, 그래픽 CC-BY 4.0, 코드 MIT)와 Noto Emoji(이미지 대부분 Apache 2.0, 폰트 OFL 1.1)도 라이선스 원문까지 확인했습니다. OpenMoji는 CC BY-SA 4.0이라 상용 SaaS에는 동일조건 변경 조항 때문에 부담이 큽니다. 세 곳 모두 종 목록은 확인하지 않았습니다.\n\n### 3. Quaternius Ultimate Animated Animal Pack (3D)\n- URL: https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: 팩 페이지에 \"License CC0\"로 표기돼 있고 FAQ에도 \"All models are under the CC0 License\"라고 적혀 있습니다. 다만 https://quaternius.com/license.html 에는 새 \"Quaternius Asset License (QAL) v1.0, Last updated 8/28/2026\"이 올라와 있습니다. 상업 사용과 크레딧 불필요는 허용하고 에셋 자체의 재배포·재판매만 금지합니다. 조항 7은 \"변경은 이미 받은 에셋에 소급 적용되지 않고, 받은 시점의 버전이 적용된다\"고 합니다. 이 팩에 어느 쪽이 적용되는지는 받는 시점에 다시 확인해야 하고, 지금은 팩 페이지 기준 CC0입니다.\n- 형식: FBX, OBJ, Blend, glTF. 12종 모델이 애니메이션 12개 이상을 가집니다(공식 설명 \"12 different animals, each with more than 12 unique animations\"). 리깅은 포함입니다.\n- 종 목록(GitHub의 GLB 파일명으로 확인): Alpaca, Bull, Cow, Deer, Donkey, Fox, Horse, Horse_White, Husky, ShibaInu, Stag, Wolf.\n- 30종 중 겹치는 것은 여우, 늑대, 허스키, 사슴 4종입니다. 개는 시바견으로 대체할 수 있습니다.\n- 스타일: 로우폴리 사실형 쪽이고 치비가 아닙니다.\n- 관련 Quaternius 팩: Farm Animal Pack(7종, 종 이름은 페이지에 없어 미확인, FBX/OBJ/Blend이고 glTF 없음, 2018년), Animal Pack Vol.2와 Animals Pack은 OGA에서 CC0로 확인했지만 종 목록은 미확인입니다.\n- HN: 뷰어 Show HN https://news.ycombinator.com/item?id=34051127 (3점). 댓글 평판은 \"Quaternius의 CC0 로우폴리 에셋이 좋다\"로 일관됩니다(https://news.ycombinator.com/item?id=46828636, 46019806, 45695363, 40178135).\n\n### 4. Kenney Animal Pack Remastered (2D)\n- URL: https://kenney.nl/assets/animal-pack-redux (제목 \"Animal Pack Remastered\")\n- 라이선스: 페이지에 \"Creative Commons CC0\"로 표기돼 있습니다.\n- 형식과 개수: 2D PNG, 240개 파일이고 미리보기에 \"Each animal in 8 styles!\"라고 적혀 있습니다. 약 30종 x 8스타일로 보입니다(산술 추정).\n- 스타일: 둥근 얼굴 아이콘이고 빌보드용입니다. 육안으로 판독한 종은 펭귄, 판다, 원숭이, 돼지, 코끼리, 토끼, 곰, 부엉이, 개구리, 오리, 병아리 등입니다.\n- 30종 중 겹치는 것은 약 10~12종입니다. 종 이름 목록은 확인하지 않았습니다. 형제 팩인 Animal Pack(2015, https://kenney.nl/assets/animal-pack, 80개 파일, CC0)도 있습니다.\n- HN: Kenney 스레드 id=42671472 외에 개별 언급은 미확인입니다.\n\n### 5. Poly Pizza의 \"Poly by Google\" 로우폴리 동물 (3D, 낱개)\n- URL 예: https://poly.pizza/m/a27MA0rXyyj (코끼리), https://poly.pizza/m/3XAJojWxSWz (사자)\n- 라이선스: 모델 페이지에 \"Creative Commons Attribution\"으로 표기돼 있고 버전 번호는 페이지에 없습니다(미확인). 크레딧이 필요합니다.\n- 형식: OBJ/GLTF. 리깅은 미확인(정적일 가능성이 높지만 확정 못 함).\n- 종: 검색 결과에서 코끼리, 사자, 너구리, 펭귄, 다람쥐, 오리, 비글, 소, 코뿔소를 보았습니다. 유니콘과 용은 \"Thomas DR\" 업로더의 낱개 모델입니다.\n- Poly Pizza 전체는 종마다 업로더와 그림체가 다 달라 한 팩이 아닙니다. 30종 검색에서 각 종당 후보는 여럿 나왔지만 통일된 세트는 아닙니다. 라이선스는 모델마다 다릅니다(CC0와 CC-BY가 혼재).\n- HN: Poly Pizza가 언급된 댓글 https://news.ycombinator.com/item?id=46712791 (무료 에셋 모음 글)이 있으나 평판은 미확인입니다.\n\n### 6. OpenGameArt의 낱개 CC0 모델\n- https://opengameart.org/content/low-poly-animal-pack-wip : CC0, 개 머리 위주로 개수가 적음.\n- https://opengameart.org/content/low-poly-animated-unicorn : CC-BY 4.0, 애니메이션된 유니콘. 이 유니콘은 그림체가 다른 별도 에셋입니다.\n- https://opengameart.org/content/5-low-poly-animals : CC0, Quaternius, 종 목록 미확인.\n- HN 평판: 오래된 스레드(https://news.ycombinator.com/item?id=7891996 등)에서 OGA는 \"재사용 가능한 무료 에셋의 표준 출처\"로 언급됩니다.\n\n### 7. 코드로 만드는 도구\n- animal-avatar-generator (https://github.com/roma-lukashik/animal-avatar-generator, MIT, 별 108): 문자열 시드로 SVG 아바타를 만드는 클라이언트 라이브러리입니다. 종 구분 옵션은 README에서 못 찾았고, 소스에 눈·귀·무늬·주둥이 모양 모듈이 있는 것으로 보아 개 얼굴 계열로 추정됩니다. 30종 구분은 불가능해 보입니다(미확인). HN 언급은 미확인입니다.\n- cozy-creatures (https://github.com/JMRussas/cozy-creatures, MIT, R3F): 수달, 레서판다, 나무늘보, 줄무늬다람쥐, 주머니쥐, 천산갑 6종을 다루고, 상용 크리처 에셋은 저장소에서 제외했다고 README에 적혀 있습니다. 모델 파일을 얻을 수 없어 참고용입니다.\n- 그 밖에 xcatliu/xzoo는 라이선스가 유료 개인 전용이라 부적합합니다. facebookresearch/AnimalAvatar는 논문 코드입니다. 두 곳 모두 용도에 맞지 않아 자세히 보지 않았습니다.\n- 질의 \"procedural animal character three.js\"와 \"animal 3d models glb\"는 GitHub에서 결과가 없었습니다. \"만들어 주는 절차적 동물 캐릭터 라이브러리\"는 찾지 못했습니다.\n\n## 용도에 맞는 상위 3개\n\n1. Kenney Cube Pets 2.0 (CC0, 3D 치비, 애니메이션 있음): 우리 요구(귀여운 치비, 한 그림체, 3D, 상업 사용, 크레딧 불필요)에 가장 가깝습니다. 단점은 30종 중 약 13~15종만 겹친다는 점입니다.\n2. Microsoft Fluent Emoji 3D/Color (MIT, 2D): 30종 전부를 한 그림체로 채울 수 있는 유일한 후보입니다. 빌보드로 쓰면 되지만 앉은 자세와 애니메이션이 없고, 3D PNG는 SVG가 아닙니다. Cube Pets와 그림체가 달라 섞어 쓰면 어색할 수 있습니다.\n3. Kenney Animal Pack Remastered (CC0, 2D 얼굴 아이콘) 또는 Quaternius Ultimate Animated Animal Pack (CC0, 3D 리깅): 앞의 둘이 못 채우는 부분을 메우는 보조입니다. 전자는 Cube Pets와 같은 Kenney 계열이라 이질감이 덜하고, 후자는 늑대·허스키·여우·사슴만 쓸모가 있지만 사실형이라 그림체가 어긋납니다.\n\n## 한 팩으로 채울 수 없는 부분\n- Cube Pets v2.0에서 빠지는 종(육안 기준이며 확정은 미확인): 유니콘, 독수리(앵무새만 있음), 늑대, 치타, 부엉이, 허스키, 너구리, 양, 오리, 고슴도치, 다람쥐, 햄스터, 생쥐, 개구리. 용, 코알라, 병아리는 있을 수도 있습니다.\n- 3D로 같은 그림체를 맞추려면 빠진 종을 Cube Pets 형식에 맞춰 직접 만들어야 합니다. 이 판단은 추측이고, 에셋 확인은 하지 않았습니다.\n- 어떤 3D 팩도 앉은 자세 클립 존재는 확인하지 못했습니다. 책상에 앉히려면 정적 포즈로 앉히는 변형이 필요할 수 있습니다.\n\n## 조사 범위\n- 실제로 연 곳\n  - HN Algolia: stories 질의 10개(low poly animals, Quaternius, Kenney assets, CC0 3D models, free game assets, cute avatar generator, animal avatars, three.js characters, open source illustrations animals, low poly animal pack), comments 질의 10개(Quaternius, Kenney CC0, poly pizza, low poly animals, CC0 animals 3d, free 3d models animals glb, opengameart, cute animal avatars svg, openpeeps, DiceBear). 스레드 items 3개(45693325, 50187585, 42671472)를 읽었습니다.\n  - GitHub(gh CLI): 저장소 검색 약 15회(animal avatar, low poly animals, quaternius, kenney assets, cute animals gltf 등), 저장소 README·라이선스·파일 트리 조회(animal-avatar-generator, xzoo, cozy-creatures, quaternius-showcase, fluentui-emoji, noto-emoji, twemoji, openmoji).\n  - 직접 열기: quaternius.com(팩 목록, 팩 페이지 4개, license.html, faq.html), quaternius.trebeljahr.com 뷰어, kenney.nl(cube-pets, animal-pack, animal-pack-redux, support, 3D 카테고리 검색), OpenGameArt(검색 2건, 콘텐츠 페이지 5개), poly.pizza(30종 검색, 모델 페이지 4개). Kenney 미리보기 PNG 2장은 격리 디렉터리에 받아 육안으로 판독했습니다.\n- 막힌 곳\n  - itch.io는 curl이 403이고 헤드리스 Chrome도 Cloudflare 확인 화면(\"잠시만 기다리십시오\")에 막혀 목록을 하나도 못 읽었습니다. 우회는 시도하지 않았습니다. 따라서 itch.io의 무료/CC0 동물 팩은 전부 미조사이며, 위 후보 중 어느 것도 \"유일한 후보\"가 아닙\n…",
+      "reportTruncated": true,
+      "trace": [
+        {
+          "t": 3,
+          "kind": "think",
+          "tok": 60310,
+          "usd": 0.1508
+        },
+        {
+          "t": 4.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"low poly animals\" \"Quaternius\"",
+          "tok": 60310,
+          "usd": 0.1508
+        },
+        {
+          "t": 6.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"low poly animals glb\" \"animal",
+          "tok": 60310,
+          "usd": 0.1508
+        },
+        {
+          "t": 16.6,
+          "kind": "think",
+          "tok": 128476,
+          "usd": 0.1765
+        },
+        {
+          "t": 18.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for q in \"Quaternius\" \"Kenney CC0\" \"poly",
+          "tok": 128476,
+          "usd": 0.1765
+        },
+        {
+          "t": 25.8,
+          "kind": "think",
+          "tok": 202194,
+          "usd": 0.1973
+        },
+        {
+          "t": 27.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://quaternius.com",
+          "tok": 202194,
+          "usd": 0.1973
+        },
+        {
+          "t": 33.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE 'href=\"/packs/[^\"]*\"' tmp/q_ind",
+          "tok": 276498,
+          "usd": 0.2062
+        },
+        {
+          "t": 39.5,
+          "kind": "think",
+          "tok": 354789,
+          "usd": 0.2237
+        },
+        {
+          "t": 42.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://quaternius.tre",
+          "tok": 354789,
+          "usd": 0.2237
+        },
+        {
+          "t": 48.2,
+          "kind": "think",
+          "tok": 434572,
+          "usd": 0.2354
+        },
+        {
+          "t": 50.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://quaternius.com",
+          "tok": 434572,
+          "usd": 0.2354
+        },
+        {
+          "t": 53.6,
+          "kind": "think",
+          "tok": 516366,
+          "usd": 0.2485
+        },
+        {
+          "t": 55.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://poly.pizza/search/anim",
+          "tok": 516366,
+          "usd": 0.2485
+        },
+        {
+          "t": 63.4,
+          "kind": "think",
+          "tok": 599670,
+          "usd": 0.2605
+        },
+        {
+          "t": 63.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE '<a[^>]*href=\"/m/[^\"]*\"[^>]*>'",
+          "tok": 599670,
+          "usd": 0.2605
+        },
+        {
+          "t": 69.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p tmp/ppx; cat > tmp/pp_scan.py <",
+          "tok": 683570,
+          "usd": 0.2705
+        },
+        {
+          "t": 144.4,
+          "kind": "think",
+          "tok": 775788,
+          "usd": 0.2997
+        },
+        {
+          "t": 146.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://kenney.nl/assets/cube-",
+          "tok": 775788,
+          "usd": 0.2997
+        },
+        {
+          "t": 156.5,
+          "kind": "think",
+          "tok": 870555,
+          "usd": 0.3154
+        },
+        {
+          "t": 158.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://kenney.nl/asse",
+          "tok": 870555,
+          "usd": 0.3154
+        },
+        {
+          "t": 163.8,
+          "kind": "think",
+          "tok": 966070,
+          "usd": 0.3268
+        },
+        {
+          "t": 164.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE '(https\"'\"'\"' )]+' tmp/cp.html",
+          "tok": 966070,
+          "usd": 0.3268
+        },
+        {
+          "t": 168.9,
+          "kind": "think",
+          "tok": 1062496,
+          "usd": 0.3387
+        },
+        {
+          "t": 170.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "curl -sL -A \"$UA\" https://kenney.nl/medi",
+          "tok": 1062496,
+          "usd": 0.3387
+        },
+        {
+          "t": 170.5,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/ppx/cubepets.png",
+          "tok": 1062496,
+          "usd": 0.3387
+        },
+        {
+          "t": 180.1,
+          "kind": "think",
+          "tok": 1160177,
+          "usd": 0.3515
+        },
+        {
+          "t": 180.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE '[^\"'\"'\"' ]*\\.zip[^\"'\"'\"' ]*' t",
+          "tok": 1160177,
+          "usd": 0.3515
+        },
+        {
+          "t": 182.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "grep -oE '<a[^>]*>' tmp/cp.html | grep -",
+          "tok": 1258602,
+          "usd": 0.3633
+        },
+        {
+          "t": 186.4,
+          "kind": "think",
+          "tok": 1357746,
+          "usd": 0.3774
+        },
+        {
+          "t": 186.6,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/ppx/ap.png",
+          "tok": 1357746,
+          "usd": 0.3774
+        },
+        {
+          "t": 190.8,
+          "kind": "think",
+          "tok": 1457037,
+          "usd": 0.3885
+        },
+        {
+          "t": 194,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://itch.io/game-assets/fr",
+          "tok": 1457037,
+          "usd": 0.3885
+        },
+        {
+          "t": 197.7,
+          "kind": "think",
+          "tok": 1557592,
+          "usd": 0.4017
+        },
+        {
+          "t": 200,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://itch.io/game-assets/fr",
+          "tok": 1557592,
+          "usd": 0.4017
+        },
+        {
+          "t": 203.3,
+          "kind": "think",
+          "tok": 1658768,
+          "usd": 0.4134
+        },
+        {
+          "t": 205.2,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://itch.io/game-assets/fr",
+          "tok": 1658768,
+          "usd": 0.4134
+        },
+        {
+          "t": 216.7,
+          "kind": "think",
+          "tok": 1760838,
+          "usd": 0.4259
+        },
+        {
+          "t": 219.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for u in \"https://opengameart.org/art-se",
+          "tok": 1760838,
+          "usd": 0.4259
+        },
+        {
+          "t": 223.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "python3 - <<'E' import re,html t=open('t",
+          "tok": 1863695,
+          "usd": 0.4382
+        },
+        {
+          "t": 227.3,
+          "kind": "think",
+          "tok": 1967100,
+          "usd": 0.4499
+        },
+        {
+          "t": 229.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for p in cube-pets animated-animales-low",
+          "tok": 1967100,
+          "usd": 0.4499
+        },
+        {
+          "t": 238.2,
+          "kind": "think",
+          "tok": 2074075,
+          "usd": 0.4693
+        },
+        {
+          "t": 239.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p tmp/ppx/cp1 && cd tmp/ppx/cp1;",
+          "tok": 2074075,
+          "usd": 0.4693
+        },
+        {
+          "t": 244.1,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "unzip -Z1 cp.zip | grep -iE 'GLB/.*\\.glb",
+          "tok": 2182063,
+          "usd": 0.4827
+        },
+        {
+          "t": 251.5,
+          "kind": "think",
+          "tok": 2290517,
+          "usd": 0.4948
+        },
+        {
+          "t": 253.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "run(){ echo \"== $1\"; gh search repos \"$1",
+          "tok": 2290517,
+          "usd": 0.4948
+        },
+        {
+          "t": 261.4,
+          "kind": "think",
+          "tok": 2401385,
+          "usd": 0.5117
+        },
+        {
+          "t": 262.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for r in roma-lukashik/animal-avatar-gen",
+          "tok": 2401385,
+          "usd": 0.5117
+        },
+        {
+          "t": 268.8,
+          "kind": "think",
+          "tok": 2515343,
+          "usd": 0.5306
+        },
+        {
+          "t": 270.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api repos/roma-lukashik/animal-avatar",
+          "tok": 2515343,
+          "usd": 0.5306
+        },
+        {
+          "t": 275.3,
+          "kind": "think",
+          "tok": 2630380,
+          "usd": 0.5448
+        },
+        {
+          "t": 277.3,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api 'repos/roma-lukashik/animal-avata",
+          "tok": 2630380,
+          "usd": 0.5448
+        },
+        {
+          "t": 281.1,
+          "kind": "think",
+          "tok": 2746388,
+          "usd": 0.5588
+        },
+        {
+          "t": 283.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api 'repos/microsoft/fluentui-emoji/c",
+          "tok": 2746388,
+          "usd": 0.5588
+        },
+        {
+          "t": 287.5,
+          "kind": "think",
+          "tok": 2863103,
+          "usd": 0.5722
+        },
+        {
+          "t": 289.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api 'repos/microsoft/fluentui-emoji/g",
+          "tok": 2863103,
+          "usd": 0.5722
+        },
+        {
+          "t": 295.7,
+          "kind": "think",
+          "tok": 2980808,
+          "usd": 0.5864
+        },
+        {
+          "t": 297.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api repos/microsoft/fluentui-emoji/co",
+          "tok": 2980808,
+          "usd": 0.5864
+        },
+        {
+          "t": 302.3,
+          "kind": "think",
+          "tok": 3099934,
+          "usd": 0.6018
+        },
+        {
+          "t": 305.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for id in a27MA0rXyyj 3XAJojWxSWz cx0-Ti",
+          "tok": 3099934,
+          "usd": 0.6018
+        },
+        {
+          "t": 307.6,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "for id in 45693325 50187585 42671472; do",
+          "tok": 3099934,
+          "usd": 0.6018
+        },
+        {
+          "t": 318.2,
+          "kind": "think",
+          "tok": 3221879,
+          "usd": 0.6208
+        },
+        {
+          "t": 318.9,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "gh api 'repos/trebeljahr/quaternius-show",
+          "tok": 3221879,
+          "usd": 0.6208
+        },
+        {
+          "t": 325.2,
+          "kind": "think",
+          "tok": 3345746,
+          "usd": 0.6379
+        },
+        {
+          "t": 326.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "run(){ echo \"== $1\"; gh search repos \"$1",
+          "tok": 3345746,
+          "usd": 0.6379
+        },
+        {
+          "t": 339.1,
+          "kind": "think",
+          "tok": 3470493,
+          "usd": 0.6525
+        },
+        {
+          "t": 383.1,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 3470493,
+          "usd": 0.6525
+        }
+      ],
+      "savingsPct": 39.9
+    }
+  ],
+  "repeats": [
+    {
+      "effort": "medium",
+      "rep": 1,
+      "total": 12,
+      "max": 12,
+      "relay": "부분",
+      "verdict": "partial",
+      "usd": 0.2523,
+      "seconds": 97,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "본문은 없이 위 보고 본문과 같다는 요약만 남아 후보별 HN 평판과 종 근거가 대부분 빠졌습니다.",
+      "excerpt": "위 보고 본문과 동일 (아래 요약). 조사만 수행, 파일 수정 없음. GitHub 검색 API rate limit(403)으로 GitHub 쪽은 얕음.\n\n후보와 라이선스(페이지 확인):\n1) Quaternius Ultimate Animated Animal Pack https://quaternius.com/packs/ultimateanimatedanimals.html - \"License CC0\", FAQ에 \"All models are under the CC0 License\", 상업 이용·표기 불필요. 12종 중 30종과 겹치는 것은 여우·늑대·허스키·사슴(Deer/Stag) 약 4~5종 (나머지 알파카·황소·소·당나귀·말·시바견; 종 목록은 서드파티 뷰어 https://quaternius.trebeljahr.com/animals_pack 에서 확인). 로우폴리, FBX/OBJ/glTF/Blend, 리깅+동물당 12개 이상 애니메이션. 앉은 자세 미확인. HN https://news.ycombinator.com/item?id=34051127 (Show HN 뷰어, 3점, 평판 판단 불가). trebeljahr/quaternius-showcase LICENSES.md 가 이 팩을 CC0-1.0 으로 표기.\n2) Quaternius Cute Animated Monsters https://quaternius.com/packs/cutemonsters.html - CC0, 21종 애니메이션, FBX/OBJ/Blend/glTF. 30종과의 겹침 미확인.\n3) Quaternius Farm Animal Pack https://quaternius.com/packs/farmanimal.html - CC0, 7종 애니메이션, FBX/OBJ/Blend (glTF 표기 없음). 종 목록 미확인.\n4) Kenney Cube Pets (3D) https://kenney.nl/assets/cube-pets - \"Creative Commons CC0\", 2026 리메이크, 애니메이션 파일 24개, 태그 pet/animal/dog/cat. 종 목록·형식 미확인. HN https://news.ycombinator.com/item?id=42671472 (Kenney.nl, 621점, 댓글 호평). …"
+    },
+    {
+      "effort": "medium",
+      "rep": 2,
+      "total": 11,
+      "max": 12,
+      "relay": "부분",
+      "verdict": "partial",
+      "usd": 0.2903,
+      "seconds": 122,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "Quaternius를 유일하게 CC0가 확인된 후보라고 추천했지만 같은 보고서에서 Kenney 두 팩과 Farm 팩도 CC0로 확인해 근거가 어긋납니다.",
+      "excerpt": "## 조사 결과 (HN + 원 배포 페이지, 수정·다운로드 없음)\n\n중간 중단: GitHub 검색 API가 rate limit(403)에 걸렸고, 그 전에 `gh search repos`도 대부분 0건이었습니다. GitHub 쪽 조사는 불완전합니다. 3번 항목(라이브러리)은 DiceBear 위주로만 확인했습니다.\n\n### 후보별 정리\n\n**1. Quaternius, Ultimate Animated Animal Pack (3D)**\n- URL: https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: 페이지에 \"License CC0\", 설명에 \"free to use in personal and commercial projects\" (확인 페이지: 위 URL)\n- 포함 종: 12개 모델. Alpaca, Bull, Cow, Deer, Donkey, Fox, Horse, Horse_White, Husky, ShibaInu, Stag, Wolf. 이 목록은 서드파티 뷰어(https://quaternius.trebeljahr.com/animals_pack)의 파일명에서 읽은 것이고, 배포 페이지에는 종 목록이 없습니다.\n- 30종과 겹침: 여우, 늑대, 허스키, 사슴, 강아지(시바견) = 4~5종\n- 스타일: 로우폴리, 텍스처 있음. 형식: FBX, OBJ, Blend, glTF. 리깅과 애니메이션: 있음. 모델당 12개 이상(공격, 죽음, 걷기, 달리기, 점프 등). 앉은 자세 애니메이션은 미확인.\n- HN: 직접 스레드는 약함. \"Show HN: Viewer for 3D Models by Quaternius\" https://news.ycombinator.com/item?id=34051127 (3점, 댓글 1개). 기타 호평 댓글은 https://news.ycombinator.com/item?id=42671472 (Kenney 스레드, 621점)에서 \"also worth mentioning\" 정도, 그리고 id=46018380에서 \"supporting Quaternius\" 추천. 평판은 좋지만 상세 근거는 약합니다. …"
+    },
+    {
+      "effort": "medium",
+      "rep": 3,
+      "total": 11,
+      "max": 12,
+      "relay": "예",
+      "verdict": "ok",
+      "usd": 0.2713,
+      "seconds": 155,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "itch.io와 OpenGameArt를 열었는지, 막힌 곳이 있었는지 밝히지 않았습니다.",
+      "excerpt": "조사만 했고 파일은 수정하지 않았습니다. 라이선스와 종 목록은 각 배포 페이지에서 읽었고, Kenney 미리보기 PNG 두 장만 받아 눈으로 확인했습니다. 30종을 한 팩으로 채우는 후보는 없습니다.\n\n## 후보\n\n**1. Kenney Cube Pets (3D)**\n- URL: https://kenney.nl/assets/cube-pets\n- 라이선스: 페이지에 \"Creative Commons CC0\"로 표기돼 있습니다. 미리보기 이미지에는 CC0 1.0, 상업 사용 가능, 크레딧은 자발적이라고 적혀 있습니다.\n- 종: 페이지에 목록은 없고 \"Files 24×\"만 있습니다. 미리보기 그림에서 본 것은 아래와 같으며, 모두 시각 판독이라 근사치입니다.\n  - 우리 30종과 겹치는 것(약 15종): 원숭이, 돼지, 호랑이, 사자, 토끼, 강아지, 사슴, 펭귄, 여우, 고양이, 코끼리, 판다, 코알라, 곰, 노란 병아리 또는 오리.\n  - 우리 목록 밖: 흰동가리, 기린, 벌, 게, 소, 앵무.\n  - 뿔 달린 초록 생물 하나는 용인지 공룡인지 미확인.\n- 스타일: 귀여운 큐브 치비. 애니메이션은 페이지에 \"🎞️ Animation\"으로 표시됩니다(클립 내용 미확인). 리깅, 앉은 자세, 파일 형식은 미확인.\n- HN: Kenney 사이트 글 https://news.ycombinator.com/item?id=42671472 (621점). 댓글은 가치 높은 CC0 자산이니 후원하라는 평입니다. Cube Pets 단독 글은 없습니다.\n\n**2. Kenney Animal Pack Remastered (2D)**\n- URL: https://kenney.nl/assets/animal-pack-redux\n- 라이선스: Kenney 페이지에 \"Creative Commons CC0\"로 표기. \"Files 240×\"는 미리보기 문구(\"Each animal in 8 styles\")와 맞춰 보면 30종 × 8스타일입니다.\n- 종: 미리보기에서 약 30종이 보입니다. 우리 목록과 겹치는 것은 판다, 펭귄, 돼지, 토끼, 코끼리, 원숭이, 개구리, 곰, 부엉이, 병아리입니다. 오리와 늑대·허스키는 비슷한 그림이 있으나 확실하지 않습니다. 목록 밖은 기린, 뱀, 바다코끼리, 코뿔소, 얼룩말, 악어 등입니다.\n- 스타일: 납작한 둥근 얼굴 아이콘이라 빌보드로 쓸 수 있습니다. 파일 형식(PNG/SVG)은 미확인. …"
+    },
+    {
+      "effort": "high",
+      "rep": 1,
+      "total": 11,
+      "max": 12,
+      "relay": "예",
+      "verdict": "ok",
+      "usd": 0.4856,
+      "seconds": 300,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "막힌 곳이 있었는지, itch.io와 OpenGameArt를 확인했는지 밝히지 않았습니다.",
+      "excerpt": "웹 3D 동물 캐릭터 에셋 조사 결과입니다. 파일은 수정하지 않았고, 다운로드해 실행한 것도 없습니다. 미리보기 PNG 2장만 저장해 눈으로 봤습니다(스크래치패드의 ap.png, cp.png). Reddit은 다루지 않았습니다.\n\n## 후보별 정리\n\n### 1. Kenney \"Cube Pets\" (3D)\n- URL: https://kenney.nl/assets/cube-pets\n- 라이선스: \"Creative Commons CC0\" (kenney.nl 에셋 페이지 표기). kenney.nl/support 에도 \"all game assets ... public domain licensed (CC0)... even in commercial projects\", 출처 표기 불필요라고 적혀 있습니다.\n- 포함 종: 파일 24개이고, 미리보기 이미지에 24마리가 보입니다. 파일명 목록은 확인하지 못했고 아래는 이미지 판독이라 일부 불확실합니다.\n  - 30종 중 약 15~16종이 겹칩니다: 용(초록, 뿔), 호랑이, 사자, 여우, 판다, 펭귄, 고양이, 강아지, 곰, 원숭이, 사슴, 코끼리, 돼지, 토끼, 병아리. 코알라는 회색 둥근 귀 캐릭터라 맞는지 불확실합니다.\n  - 겹치지 않는 것은 소, 북극곰, 기린, 앵무, 벌, 게, 흰동가리입니다.\n- 스타일·형식: 큐브형 치비. 페이지에 \"Animation\" 기능 표기가 있습니다. 파일 형식(GLB/FBX 등), 리깅 방식, 앉은 자세 가능 여부는 미확인입니다.\n- 버전: 2.0 \"Complete remake, added animals & animations\", 1.0은 2026년 출시입니다.\n- HN: Cube Pets 단독 언급은 못 찾았습니다. Kenney 전반은 https://news.ycombinator.com/item?id=42671472 (621점, 댓글 50개)에서 평이 좋고, 한 댓글이 CC0임을 확인합니다. 같은 스레드에 assethunts 라이선스는 CC0가 아니라는 경고가 있습니다.\n\n### 2. Kenney \"Animal Pack Remastered\" (2D, 빌보드용)\n- URL: https://kenney.nl/assets/animal-pack-redux …"
+    },
+    {
+      "effort": "high",
+      "rep": 2,
+      "total": 12,
+      "max": 12,
+      "relay": "부분",
+      "verdict": "partial",
+      "usd": 0.4237,
+      "seconds": 220,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "2D 이모지인 Fluent Emoji를 1위로 올려 게임 캐릭터 팩을 원한 요구와 어긋날 수 있습니다.",
+      "excerpt": "# 웹 3D 동물 캐릭터 에셋 조사 (HN + GitHub)\n\n파일·코드는 수정하지 않았고 에셋도 실행하지 않았습니다. Kenney 미리보기 PNG 2장만 받아 눈으로 확인했습니다. Reddit은 다루지 않았습니다.\n\n## 먼저 알아둘 점\n- 30종 전체를 3D 한 팩으로 채우는 오픈소스·무료 팩은 못 찾았습니다.\n- 같은 그림체로 30종 중 28종을 채우는 것은 2D 쪽 Fluent Emoji 3D가 유일했습니다.\n- HN에서 동물 에셋만 따로 다룬 글은 거의 없었습니다. 평판은 대부분 Kenney·Quaternius 일반 평판입니다.\n\n## 후보\n\n### 1. Fluent Emoji 3D (Microsoft), 2D 빌보드용\n- URL: https://github.com/microsoft/fluentui-emoji\n- 라이선스: 저장소 LICENSE 원문이 \"MIT License, Copyright (c) Microsoft Corporation\". 확인한 곳은 GitHub API로 읽은 LICENSE 파일입니다. GitHub 메타데이터도 MIT, 별 약 10.2k, 마지막 푸시 2026-08-24입니다.\n- 30종 중 포함: 폴더 트리(27,127개 경로)에서 `assets/<이름>/3D/*.png` 존재를 확인했습니다. 용, 유니콘, 사자, 호랑이, 독수리, 늑대, 여우, 부엉이, 판다, 코알라, 펭귄, 너구리, 고양이, 강아지, 곰, 원숭이, 사슴, 코끼리, 돼지, 양(Ewe/Ram/Goat), 토끼, 오리, 고슴도치, 다람쥐(Chipmunk), 햄스터, 개구리, 생쥐, 병아리, 총 28종입니다.\n  - 허스키는 Dog로 대체해야 합니다. 치타는 Leopard가 있는지 확인하지 못했습니다. 미확인입니다.\n- 스타일·형식: 3D 렌더 느낌의 정면 PNG, 모두 한 그림체입니다. `Color`·`Flat` 폴더에는 SVG도 있습니다. 예로 Fox 3D PNG 하나는 약 42KB였습니다. 해상도는 미확인입니다. 정지 이미지라 리깅·애니메이션은 없고, 앉은 자세는 해당이 없습니다.\n- HN: https://news.ycombinator.com/item?id=39588892 (2점, 댓글 0). 평판은 없고 소개 글 수준입니다.\n- 주의: 이모지라 정면 얼굴 위주입니다. 아이소메트릭 책상 장면에 쓰려면 몸통 전체 그림이 아닌 점을 감수해야 합니다.\n\n### 2. Kenney Cube Pets, 3D 치비 …"
+    },
+    {
+      "effort": "high",
+      "rep": 3,
+      "total": 12,
+      "max": 12,
+      "relay": "예",
+      "verdict": "ok",
+      "usd": 0.3283,
+      "seconds": 172,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "",
+      "excerpt": "## 조사 결과 (Hacker News + GitHub, Reddit 제외, 수정·다운로드·실행 없음)\n\n**제약 메모**\n- GitHub 검색 API가 한 번 레이트리밋(403)에 걸렸다가 복구된 뒤 이어서 조사했습니다. 일부 검색어(\"low poly animals glb\", \"cute animals gltf\")는 결과 0건이었습니다.\n- 종 목록은 대부분 공식 미리보기 이미지를 눈으로 판독한 것이라 \"추정\"으로 적었습니다.\n- 파일 목록(zip 내부)은 열어 보지 않았습니다.\n\n### 후보별 정리\n\n**1. Kenney Cube Pets (3D)**\n- URL: https://kenney.nl/assets/cube-pets\n- 라이선스: \"Creative Commons CC0\" (kenney.nl 해당 페이지 확인)\n- 포함 종: 파일 24개, 미리보기에 약 24종이 보입니다. 30종 중 겹치는 것은 약 15종(추정)입니다: 용(초록), 사자, 호랑이, 여우, 판다, 코알라, 펭귄, 고양이, 강아지, 곰, 원숭이, 사슴, 코끼리, 돼지, 토끼. 병아리·오리 쪽 노란 새도 있습니다.\n- 스타일: 큐브형 치비. 형식은 페이지에 \"Animation\" 기능 표시만 있고 glTF/FBX 여부, 리깅·앉은 자세는 미확인입니다. 업데이트 \"2.0 Complete remake, added animals & animations\"로 표기되어 있습니다.\n- HN: Kenney 사이트 글 https://news.ycombinator.com/item?id=42671472 (621점). 평판은 \"CC0, 오래 유지된 신뢰 자원, 후원 권장\"입니다. Cube Pets 자체 언급은 미확인입니다.\n\n**2. Quaternius Ultimate Animated Animals (3D)**\n- URL: https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: 팩 페이지에 \"License CC0\". 단 https://quaternius.com/license.html 은 현재 \"Quaternius Asset License (QAL) v1.0, Last updated 8/28/2026\"입니다. 상업적 사용·크레딧 불필요, 에셋 재판매·재배포만 금지입니다. 이미 받은 에셋은 받은 시점의 버전이 적용됩니다(§7). 두 표기가 어긋나 있어서 상업 사용 전 재확인이 필요합니다. …"
+    },
+    {
+      "effort": "xhigh",
+      "rep": 1,
+      "total": 12,
+      "max": 12,
+      "relay": "예",
+      "verdict": "ok",
+      "usd": 0.5148,
+      "seconds": 324,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "",
+      "excerpt": "# 웹 3D 동물 캐릭터 에셋 조사 (HN + GitHub)\n\n파일 수정이나 에셋 실행은 하지 않았고 조사만 했습니다. 확인 못 한 항목은 \"미확인\"으로 적었습니다. GitHub 검색 API가 한 번 분당 한도(30회)에 걸려 간격을 두고 재시도했고, 이후 정상이었습니다.\n\n## 핵심 요약\n- 30종을 채우는 단일 팩은 없습니다. 가장 가까운 것은 Kenney Cube Pets(3D)와 Kenney Animal Pack Remastered(2D)입니다.\n- Quaternius는 2026-08-28자로 새 라이선스(QAL v1.0)를 게시했고, 구 팩 페이지는 아직 \"CC0\"로 표기합니다. 계약 판단은 이 불일치를 알고 해야 합니다.\n\n## 3D 팩 (우선순위 1)\n\n### 1. Kenney Cube Pets 2.0\n- URL: https://kenney.nl/assets/cube-pets\n- 라이선스: \"Creative Commons CC0\" (위 페이지에서 확인). 미리보기 이미지에는 \"CC0 1.0\"과 \"free to use in personal, educational and commercial projects\"가 적혀 있습니다.\n- 파일 24개, 3D, 태그 \"Animation\" 있음 (페이지 확인). 2.0은 \"Complete remake, added animals & animations\"이고 2026년 공개입니다.\n- 포함 종: 페이지에 목록이 없어 미리보기 이미지를 육안으로 본 추정입니다. 호랑이, 사자, 원숭이, 돼지, 토끼, 사슴, 펭귄, 여우, 판다, 코알라, 코끼리, 고양이, 곰, 병아리(또는 오리)로 보이고, 30종 중 약 13~15종이 겹칩니다. 개 계열 1종은 있어 보이나 허스키/강아지 구분은 미확인입니다. 파일명은 zip을 받지 않아 미확인입니다.\n- 스타일: 큐브형 치비. 형식: 미확인(Kenney 3D 팩은 보통 GLB/FBX/OBJ를 같이 담지만 이 팩은 확인 못 함). 리깅과 앉은 자세는 미확인.\n- HN: 이 팩 자체의 언급은 못 찾았습니다. Kenney 전반은 https://news.ycombinator.com/item?id=42671472 (621점)에서 호평입니다. 한 댓글(42672546)은 \"all assets are CC0\", 다른 댓글(42672766)은 Quaternius를 함께 추천합니다. …"
+    },
+    {
+      "effort": "xhigh",
+      "rep": 2,
+      "total": 11,
+      "max": 12,
+      "relay": "예",
+      "verdict": "ok",
+      "usd": 0.7708,
+      "seconds": 573,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "Cube Pets 미리보기를 보지 않아 귀여운 3D 팩을 상위 3개에서 뺐고, Fluent Emoji는 29종이라 적었지만 나열한 종은 28종입니다.",
+      "excerpt": "## 조사 결과 요약\n\n30종을 한 팩으로 채우는 단일 오픈소스 3D 팩은 찾지 못했습니다. 3D 리깅 팩 중에서는 Quaternius(CC0)가 가장 낫지만 16종만 채워집니다. 2D 빌보드는 Microsoft Fluent Emoji(MIT)가 29종을 같은 그림체로 채웁니다. 코드와 파일은 수정하지 않았고, 페이지 조회와 API 조회만 했으며 에셋은 다운로드하지 않았습니다. 임시 HTML은 scratchpad에만 저장했습니다.\n\n## 가장 중요한 주의: Quaternius 라이선스 변경\n\n- https://quaternius.com/license.html 은 현재 \"Quaternius Asset License (QAL) v1.0, Last updated: 8/28/2026\"입니다.\n- 내용은 개인, 교육, 상업 사용 허용, 크레딧 불필요, 에셋 자체의 재판매와 재배포 금지입니다. 완성된 제품에 에셋을 넣는 것은 제한하지 않는다고 적혀 있습니다.\n- 제7조는 새 버전을 이후 릴리스에만 적용한다고 하고, 이미 받은 에셋에는 받은 시점의 버전을 적용한다고 합니다.\n- 2026-08 팩(Bestiary - Dungeon Monsters Kit, https://quaternius.com/packs/bestiarydungeonmonsterskit.html)은 \"License QAL\"로 표기됩니다.\n- 이전 팩 페이지는 \"License CC0\"로 표기됩니다. Ultimate Animated Animals(2021-07), Farm Animal(2018-06), Cube World Kit(2023-08), Ultimate Monsters(2022-10)에서 확인했습니다.\n- 웹 클라이언트가 GLB를 그대로 내려보내는 것이 QAL의 \"재배포\"에 해당하는지는 법률 판단이라 미확인입니다. CC0로 표기된 옛 팩만 쓰고, 받은 날짜와 페이지 캡처를 보관하는 편이 안전합니다.\n\n## 후보별 상세\n\n### 1. Quaternius 동물 팩 (3D)\n- URL: https://quaternius.com/ 와 아래 팩 페이지\n  - https://quaternius.com/packs/ultimateanimatedanimals.html\n  - https://quaternius.com/packs/farmanimal.html\n  - https://quaternius.com/packs/cubeworldkit.html …"
+    },
+    {
+      "effort": "xhigh",
+      "rep": 3,
+      "total": 10,
+      "max": 12,
+      "relay": "부분",
+      "verdict": "partial",
+      "usd": 0.3655,
+      "seconds": 390,
+      "webSearches": 0,
+      "blockedPartial": false,
+      "keyMiss": "Fluent Emoji를 확인된 유일한 일관 그림체 세트로 내세워 원래 손실과 같은 쪽으로 기울었고, 1위 Cube Pets는 종과 그림체를 확인하지 않았습니다.",
+      "excerpt": "# 동물 캐릭터 에셋 조사 보고 (HN + GitHub, 2026-11-07)\n\n코드와 프로젝트 파일은 수정하지 않았고 다운로드한 파일도 실행하지 않았습니다. 조회용 임시 HTML과 목록 파일은 /tmp 에 남아 있습니다.\n\n## 핵심 결론\n- 30종을 한 그림체로 채우는 3D 팩은 찾지 못했습니다. HN에도 \"귀여운 다종 동물 3D 팩\"을 다룬 글은 없었고, Quaternius·Kenney 추천 댓글이 전부입니다.\n- 라이선스와 종 커버리지를 함께 확인한 것은 Microsoft Fluent Emoji 하나입니다. 2D 빌보드용이며 28종을 덮습니다.\n- 3D 후보(Quaternius, Kenney Cube Pets)는 종 수가 적거나 종 목록을 확인하지 못했습니다.\n- 어느 후보도 \"책상에 앉은 자세\" 포함 여부는 확인하지 못했습니다(전부 미확인).\n\n## 후보별 정리\n\n### 1. Quaternius, Ultimate Animated Animal Pack\n- URL: https://quaternius.com/packs/ultimateanimatedanimals.html\n- 라이선스: 팩 페이지에 \"License CC0\"로 표기되어 있습니다.\n- 주의: quaternius.com/license.html 은 신규 배포분에 \"Quaternius Asset License (QAL) v1.0, 2026-08-28 개정\"을 적용합니다. 상업 사용 가능, 크레딧 불필요, 에셋 자체를 재배포·재판매하는 것은 금지입니다. 이전에 받은 에셋은 받은 시점의 버전이 적용됩니다(7조). 이 팩은 2021년 7월 배포분이라 CC0 표기가 유효해 보이지만, 2026-08-28 이후 다시 올렸는지는 미확인입니다.\n- 포함 종 12개: Alpaca, Bull, Cow, Deer, Donkey, Fox, Horse, Horse_White, Husky, ShibaInu, Stag, Wolf. 이 목록은 제3자 뷰어 저장소(trebeljahr/quaternius-showcase)의 GLB 파일명에서 얻었고 공식 페이지에는 없습니다.\n- 30종과 겹치는 것은 여우, 늑대, 허스키, 사슴 4종입니다. 시바견은 강아지의 근사치입니다. …"
+    }
+  ]
+}

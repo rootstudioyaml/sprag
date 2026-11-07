@@ -26,8 +26,8 @@
 <!-- Cloudflare Web Analytics: cookieless visit counts, see /privacy/ -->
 <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "61e11587311d49608109159f4d3507f0"}'></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag | A model-delegation router for Claude Code and Codex</title>
-<meta name="description" content="Sprag is a model-delegation router for Claude Code and Codex: lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and the statusline shows spend and savings as you work." />
+<title>Sprag | The delegation layer for Claude Code and Codex</title>
+<meta name="description" content="Sprag picks the model and effort for every Claude Code and Codex delegation: down to Haiku for a lookup, up to higher effort or a stronger model when a cheaper run would miss. Every rule is backed by public replay cases, and Pro and Enterprise give the whole team one set of rules." />
 <link rel="canonical" href="https://sprag.io/" />
 <link rel="alternate" hreflang="en" href="https://sprag.io/?lang=en" />
 <link rel="alternate" hreflang="ko" href="https://sprag.io/?lang=ko" />
@@ -40,8 +40,8 @@
 <link rel="apple-touch-icon" href="assets/logo/apple-touch-icon.png" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Sprag" />
-<meta property="og:title" content="Sprag | A model-delegation router for Claude Code and Codex" />
-<meta property="og:description" content="Lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and the statusline shows spend and savings live in Claude Code and Codex." />
+<meta property="og:title" content="Sprag | The delegation layer for Claude Code and Codex" />
+<meta property="og:description" content="Every task goes to the model and effort that fits it, down for a lookup and up when a cheaper run would miss, with public replay evidence and team rules for Pro and Enterprise." />
 <meta property="og:url" content="https://sprag.io/" />
 <meta property="og:image" content="https://sprag.io/assets/og-card.png" />
 <meta property="og:image:type" content="image/png" />
@@ -676,9 +676,9 @@
 
 <div class="hero">
   <div class="wrap">
-    <h1 data-k="hero.h1">A model-delegation router for Claude Code and Codex</h1>
+    <h1 data-k="hero.h1">The delegation layer for Claude Code and Codex</h1>
     <p class="support-line" data-k="hero.support">Sprag for Claude Code + Codex</p>
-    <p class="sub" data-k="hero.sub">Lookups, checks and test runs go to cheaper models, documents go in as compact Markdown, and the statusline shows what you spent and saved.</p>
+    <p class="sub" data-k="hero.sub">Every task goes to the model and effort that fits it: down to Haiku for a lookup, up to higher effort or a stronger model when a cheaper run would miss. Each rule is backed by <a href="proof/">replayed cases</a> you can open, and the statusline shows what you spent and saved.</p>
     <div class="actions">
       <div class="install"><code><span class="p">$</span> <span id="hero-install-command">npm i -g sprag-cli</span></code><button type="button" data-copy="hero-install-command"><span data-k="hero.copy">Copy</span></button></div>
       <a class="btn" href="#install" data-k="hero.cta">Install Sprag</a>
@@ -690,9 +690,9 @@
         <source src="assets/video/plan-pro-en.mp4" type="video/mp4" />
       </video>
       <span class="tb-text">
-        <span class="tb-eyebrow" data-k="tb.eyebrow">Sprag Pro · for teams</span>
-        <b id="tb-h" data-k="tb.h">Your whole team's AI spend and savings, on one screen</b>
-        <span class="tb-p" data-k="tb.p">A virtual office with a character for every teammate, a seat roster, and rules the team approves once.</span>
+        <span class="tb-eyebrow" data-k="tb.eyebrow">Sprag Pro · Enterprise · for teams</span>
+        <b id="tb-h" data-k="tb.h">One set of delegation rules for the whole team</b>
+        <span class="tb-p" data-k="tb.p">Approve a rule once and every machine follows it. Spend, savings and seats on one screen, budget gauges and prompt monitoring on Enterprise, and a virtual office with a character for every teammate.</span>
         <span class="tb-cta" data-k="tb.cta">See the team features</span>
       </span>
     </a>
@@ -1367,16 +1367,16 @@ const KO = {
   'pop.4e':'비용',
   'pop.4p':'캐시 적중률과 만료까지 남은 시간, 컨텍스트 사용량, 5시간·7일 사용량 한도를 매 턴 읽어서, 그중 하나라도 바로 확인해야 하면 경고 칩이 줄 맨 앞으로 올라옵니다.',
  'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능', 'nav.docs':'문서', 'nav.teams':'팀 콘솔', 'nav.pricing':'요금', 'nav.license':'라이선스', 'nav.proof':'검증 사례',
-  'hero.h1':'Claude Code와 Codex에 붙이는 모델 위임 라우터',
+  'hero.h1':'Claude Code와 Codex의 위임 계층',
   'hero.support':'Claude Code와 Codex용 Sprag',
-  'hero.sub':'조회·확인·테스트 실행은 더 싼 모델에 보내고, 문서는 가벼운 Markdown으로 바꿔 넣으며, 쓴 금액과 아낀 금액은 상태줄에서 바로 보여 줍니다.',
+  'hero.sub':'일마다 맞는 모델과 effort로 보냅니다. 조회는 Haiku로 내립니다. 싼 실행이 놓칠 일은 effort나 모델을 올립니다. 규칙마다 직접 열어 볼 수 있는 <a href="proof/">재생 사례</a>가 있고 쓴 금액과 아낀 금액은 상태줄에 나옵니다.',
   'hero.copy':'복사', 'hero.copied':'복사됨', 'hero.enlarge':'탭하면 크게 봅니다',
   'hero.cta':'Sprag 설치',
   'hero.how':'작동 방식',
   'hero.capture':'CLI 캡처 · 예제 세션',
-  'tb.eyebrow':'Sprag Pro · 팀을 위한 Sprag',
-  'tb.h':'팀 전체의 AI 지출과 절감액을 한 화면에서',
-  'tb.p':'팀원마다 캐릭터가 앉아 있는 가상 사무실, 좌석 명단, 한 번 승인하면 모두에게 적용되는 팀 규칙.',
+  'tb.eyebrow':'Sprag Pro · Enterprise · 팀용',
+  'tb.h':'팀 전체가 같은 위임 규칙으로 일합니다',
+  'tb.p':'규칙을 한 번 승인하면 모든 컴퓨터가 따릅니다. 지출과 절감액, 좌석을 한 화면에서 보고 Enterprise에서는 예산 게이지와 프롬프트 모니터링이 더해집니다. 팀원마다 캐릭터가 앉은 가상 사무실도 있습니다.',
   'tb.cta':'팀 기능 보기',
   'ex.a.h':'한도가 찰수록 더 많이 위임합니다',
   'ex.a.p':'5시간·7일 구독 한도와 LiteLLM 예산 중 가장 많이 찬 쪽을 기준으로 합니다',
@@ -1452,10 +1452,10 @@ document.querySelectorAll('[data-k]').forEach(el => EN[el.dataset.k] = el.innerH
 EN['hero.copied'] = 'Copied';
 
 const META = {
-  en: {title: 'Sprag | A model-delegation router for Claude Code and Codex',
+  en: {title: 'Sprag | The delegation layer for Claude Code and Codex',
        desc: document.querySelector('meta[name=description]').content},
-  ko: {title: 'Sprag · Claude Code와 Codex에 붙이는 모델 위임 라우터',
-       desc: 'Sprag는 Claude Code와 Codex에 붙이는 모델 위임 라우터입니다. 조회·확인·테스트 실행은 더 싼 모델에 보내고, 문서는 Markdown으로 바꿔 넣으며, 쓴 금액과 아낀 금액을 작업 중에 보여 줍니다.'},
+  ko: {title: 'Sprag | Claude Code와 Codex의 위임 계층',
+       desc: 'Sprag는 Claude Code와 Codex의 위임마다 모델과 effort를 고릅니다. 조회는 Haiku로 내리고 싼 실행이 놓칠 일은 effort나 모델을 올립니다. 규칙마다 공개된 재생 사례가 있고 Pro와 Enterprise에서는 팀 전체가 같은 규칙을 씁니다.'},
 };
 
 let lang = 'en';

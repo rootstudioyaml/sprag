@@ -1,0 +1,296 @@
+{
+  "id": "44",
+  "round": "r0",
+  "kind": "lookup",
+  "story": "cost-down",
+  "storyNote": {
+    "ko": "다섯 조건이 모두 맞혔으므로 가장 싼 Haiku low로 충분했습니다.",
+    "en": "All five setups got it right, so the cheapest, Haiku low, was enough."
+  },
+  "title": {
+    "ko": "데모 화면에 타운이 보이는지 확인",
+    "en": "Check that the demo shows the town"
+  },
+  "userPrompt": {
+    "ko": "현재 데모 페이지에서 타운이 보이나?",
+    "en": "Does the demo page show the town right now?"
+  },
+  "task": {
+    "ko": "sprag.io 팀 데모 페이지를 헤드리스 Chrome으로 찍고 타운 화면이 렌더링됐는지 판정한다.",
+    "en": "Screenshot the sprag.io team demo with headless Chrome and judge whether the town renders."
+  },
+  "truth": {
+    "ko": "타운이 정상으로 보였습니다.",
+    "en": "The town rendered correctly."
+  },
+  "lesson": {
+    "ko": "스크린샷 한 장을 판정하는 일이라 다섯 조건이 모두 맞혔습니다.",
+    "en": "Judging one screenshot: all five setups got it right."
+  },
+  "recommended": "haiku-low",
+  "lanes": [
+    "haiku-low",
+    "sonnet-medium",
+    "sonnet-high",
+    "opus-direct",
+    "sonnet-high-improved"
+  ],
+  "baseline": {
+    "run": "44-D",
+    "usd": 0.2819,
+    "tokens": 190115,
+    "seconds": 22
+  },
+  "screenshot": "assets/44-demo.png",
+  "runs": [
+    {
+      "round": "r0",
+      "run": "44-A",
+      "condition": "haiku-low",
+      "model": "haiku",
+      "effort": "low",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 6,
+      "max": 6,
+      "keyMiss": "",
+      "usd": 0.0055,
+      "tokens": 139885,
+      "seconds": 18,
+      "toolCalls": 2,
+      "webSearches": 0,
+      "excerpt": "예, 타운이 보입니다. 첫 번째 URL만 시도했고 두 번째 URL(&view=town)은 필요하지 않아 열지 않았습니다.\n\n- URL: https://sprag.io/team/?demo=1&lang=ko\n- 스크린샷: <scratch>/…\n- 상단 탭: \"타운\"이 선택된 상태입니다.\n- 화면: 3D 아이소메트릭 사무실에 동물 캐릭터들이 책상에 앉아 있고, 구역 라벨(Apps, Platform, Data)과 \"빈 좌석 4개\" 표시가 렌더링되어 있습니다. 로딩 중이거나 오류 화면은 아닙니다.",
+      "report": "예, 타운이 보입니다. 첫 번째 URL만 시도했고 두 번째 URL(&view=town)은 필요하지 않아 열지 않았습니다.\n\n- URL: https://sprag.io/team/?demo=1&lang=ko\n- 스크린샷: <scratch>/…\n- 상단 탭: \"타운\"이 선택된 상태입니다.\n- 화면: 3D 아이소메트릭 사무실에 동물 캐릭터들이 책상에 앉아 있고, 구역 라벨(Apps, Platform, Data)과 \"빈 좌석 4개\" 표시가 렌더링되어 있습니다. 로딩 중이거나 오류 화면은 아닙니다.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 2.4,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p tmp/ && \"/Applications/Google C",
+          "tok": 32386,
+          "usd": 0.0037
+        },
+        {
+          "t": 12.8,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 66813,
+          "usd": 0.0043
+        },
+        {
+          "t": 13.8,
+          "kind": "think",
+          "tok": 103311,
+          "usd": 0.0051
+        },
+        {
+          "t": 15,
+          "kind": "text",
+          "tok": 103311,
+          "usd": 0.0051
+        },
+        {
+          "t": 16.6,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 139885,
+          "usd": 0.0055
+        }
+      ],
+      "agent": "t2-explore",
+      "savingsPct": 98
+    },
+    {
+      "round": "r0",
+      "run": "44-B",
+      "condition": "sonnet-medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 6,
+      "max": 6,
+      "keyMiss": "",
+      "usd": 0.1359,
+      "tokens": 189176,
+      "seconds": 20,
+      "toolCalls": 2,
+      "webSearches": 0,
+      "excerpt": "Yes, the town is visible.\n\nURL tried: https://sprag.io/team/?demo=1&lang=ko. The fallback URL with &view=town was not needed.\nScreenshot: <scratch>/…\n\nThe \"타운\" tab is selected in the top nav (the others are 좌석, 팀, 규칙, 프롬프트). The page shows a demo-mode banner saying no real data is saved. The main panel is titled \"Northwind Labs Sprag 타운 · 10.9–11.7\" and renders a 3D isometric office. It has wooden floors and four zones labeled Apps, Platform, Data and \"빈 좌석 4개\". Animal characters sit at desks with monitors. A tooltip reads \"Sprag 서버 · 전체 사용량 $1,134 · 절감 $322\". …",
+      "report": "Yes, the town is visible.\n\nURL tried: https://sprag.io/team/?demo=1&lang=ko. The fallback URL with &view=town was not needed.\nScreenshot: <scratch>/…\n\nThe \"타운\" tab is selected in the top nav (the others are 좌석, 팀, 규칙, 프롬프트). The page shows a demo-mode banner saying no real data is saved. The main panel is titled \"Northwind Labs Sprag 타운 · 10.9–11.7\" and renders a 3D isometric office. It has wooden floors and four zones labeled Apps, Platform, Data and \"빈 좌석 4개\". Animal characters sit at desks with monitors. A tooltip reads \"Sprag 서버 · 전체 사용량 $1,134 · 절감 $322\". An animal legend (\"동물 도감 16/30종\") runs along the bottom of the panel, and a KPI row below shows spend $2,033.62, savings $965.16 and seats 20/24. Nothing is blank, stuck loading, or showing an error.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 3.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p tmp/ && \"/Applications/Google C",
+          "tok": 59039,
+          "usd": 0.1048
+        },
+        {
+          "t": 15.6,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 123228,
+          "usd": 0.1246
+        },
+        {
+          "t": 20,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 189176,
+          "usd": 0.1359
+        }
+      ],
+      "savingsPct": 51.8
+    },
+    {
+      "round": "r0",
+      "run": "44-C",
+      "condition": "sonnet-high",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 6,
+      "max": 6,
+      "keyMiss": "",
+      "usd": 0.1359,
+      "tokens": 189178,
+      "seconds": 18,
+      "toolCalls": 2,
+      "webSearches": 0,
+      "excerpt": "Yes, the town is visible.\n\nURL tried: https://sprag.io/team/?demo=1&lang=ko. The fallback &view=town URL was not needed.\nScreenshot: <scratch>/…\n\nSelected tab: 타운 is highlighted in the top nav (the others are 좌석, 팀, 규칙, 프롬프트).\n\nWhat is shown:\n- A yellow demo banner says no real data is saved.\n- A usage-period filter has 30일 selected, with the range 10.9-11.7.\n- The \"Northwind Labs Sprag 타운\" panel renders a 3D isometric office on a cream background. The panel says 20 of 24 seats are in use.\n- Animal characters sit at desks in four colored zones labeled Apps, Platform, Data and \"빈 좌석 4개\". A server-rack label reads \"Sprag 서버 · 전체 사용량 $1,134 · 절감 $322\". …",
+      "report": "Yes, the town is visible.\n\nURL tried: https://sprag.io/team/?demo=1&lang=ko. The fallback &view=town URL was not needed.\nScreenshot: <scratch>/…\n\nSelected tab: 타운 is highlighted in the top nav (the others are 좌석, 팀, 규칙, 프롬프트).\n\nWhat is shown:\n- A yellow demo banner says no real data is saved.\n- A usage-period filter has 30일 selected, with the range 10.9-11.7.\n- The \"Northwind Labs Sprag 타운\" panel renders a 3D isometric office on a cream background. The panel says 20 of 24 seats are in use.\n- Animal characters sit at desks in four colored zones labeled Apps, Platform, Data and \"빈 좌석 4개\". A server-rack label reads \"Sprag 서버 · 전체 사용량 $1,134 · 절감 $322\".\n- Rotate, zoom and fullscreen controls are in the top right of the panel, and an animal-collection legend (16/30종) runs along the bottom.\n- KPI cards below the panel show 지출 $2,033.62, 절감 $965.16, 위임 실행 8,943, 위임 비율 1.9%, 위임 비용 $38.84 and 사용 중인 좌석 20/24.\n\nThe area is not blank, loading or showing an error.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 3.7,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p tmp/ && \"/Applications/Google C",
+          "tok": 59039,
+          "usd": 0.1048
+        },
+        {
+          "t": 13,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 123228,
+          "usd": 0.1246
+        },
+        {
+          "t": 17.7,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 189178,
+          "usd": 0.1359
+        }
+      ],
+      "savingsPct": 51.8
+    },
+    {
+      "round": "r0",
+      "run": "44-D",
+      "condition": "opus-direct",
+      "model": "opus",
+      "effort": "high",
+      "prompt": "original",
+      "verdict": "ok",
+      "score": 6,
+      "max": 6,
+      "keyMiss": "",
+      "usd": 0.2819,
+      "tokens": 190115,
+      "seconds": 22,
+      "toolCalls": 2,
+      "webSearches": 0,
+      "excerpt": "Result: **yes**, the town is visible on the first URL, so I skipped the `&view=town` fallback.\n\n- URL tried: https://sprag.io/team/?demo=1&lang=ko (headless system Chrome, 1440x900, 8 s virtual time budget)\n- Screenshot: <scratch>/… (353,617 bytes)\n\nWhat the screenshot shows:\n- **Nav:** \"타운\" is the selected tab. The other tabs (좌석, 팀, 규칙, 프롬프트) are not highlighted. A yellow banner says demo data is not saved.\n- **Town:** The 3D isometric office renders fully. It is titled \"Northwind Labs Sprag 타운 · 10.9–11.7\" and has zones for Apps, Platform and Data, plus an empty-seat area labeled \"빈 좌석 4개\". …",
+      "report": "Result: **yes**, the town is visible on the first URL, so I skipped the `&view=town` fallback.\n\n- URL tried: https://sprag.io/team/?demo=1&lang=ko (headless system Chrome, 1440x900, 8 s virtual time budget)\n- Screenshot: <scratch>/… (353,617 bytes)\n\nWhat the screenshot shows:\n- **Nav:** \"타운\" is the selected tab. The other tabs (좌석, 팀, 규칙, 프롬프트) are not highlighted. A yellow banner says demo data is not saved.\n- **Town:** The 3D isometric office renders fully. It is titled \"Northwind Labs Sprag 타운 · 10.9–11.7\" and has zones for Apps, Platform and Data, plus an empty-seat area labeled \"빈 좌석 4개\". Animal characters sit at desks with monitors, and a server-rack label reads \"Sprag 서버 · 전체 사용량 $1,134 · 절감 $322\".\n- **Controls and legend:** Rotate, zoom and fullscreen controls appear at the top right. The animal guide legend reads \"동물 도감 16/30종\" and shows the haiku, sonnet and opus colors.\n- **Below the town:** The KPI cards show 지출 $2,033.62, 절감 $965.16, 위임 실행 8,943, 위임 비율 1.9%, 위임 비용 $38.84 and 좌석 20 / 24.\n\nThe page showed no blank area, loading state or error. I did not edit any files.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 3.8,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p tmp/ && \"/Applications/Google C",
+          "tok": 59470,
+          "usd": 0.2184
+        },
+        {
+          "t": 14.9,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 123913,
+          "usd": 0.2592
+        },
+        {
+          "t": 21.5,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 190115,
+          "usd": 0.2819
+        }
+      ],
+      "role": "baseline",
+      "savingsPct": 0
+    },
+    {
+      "round": "r0",
+      "run": "44-E",
+      "condition": "sonnet-high-improved",
+      "model": "sonnet",
+      "effort": "high",
+      "prompt": "improved",
+      "verdict": "ok",
+      "score": 6,
+      "max": 6,
+      "keyMiss": "",
+      "usd": 0.1366,
+      "tokens": 189764,
+      "seconds": 23,
+      "toolCalls": 2,
+      "webSearches": 0,
+      "excerpt": "Yes, the town is visible.\n\nWhat I opened: I ran system Chrome headless (1440x900, virtual-time-budget=8000) on `https://sprag.io/team/?demo=1&lang=ko`. The screenshot is `<scratch>/…` (PNG, 1440 x 900, 352,843 bytes). I read the image directly. The only other output was unrelated Chrome noise (allocator warning, GCM DEPRECATED_ENDPOINT). I did not need the second URL (`&view=town`), so I did not try it.\n\nWhat is shown: the top nav has the \"타운\" tab highlighted, next to 좌석, 팀, 규칙 and 프롬프트. Under it is a demo banner saying no real data is saved. …",
+      "report": "Yes, the town is visible.\n\nWhat I opened: I ran system Chrome headless (1440x900, virtual-time-budget=8000) on `https://sprag.io/team/?demo=1&lang=ko`. The screenshot is `<scratch>/…` (PNG, 1440 x 900, 352,843 bytes). I read the image directly. The only other output was unrelated Chrome noise (allocator warning, GCM DEPRECATED_ENDPOINT). I did not need the second URL (`&view=town`), so I did not try it.\n\nWhat is shown: the top nav has the \"타운\" tab highlighted, next to 좌석, 팀, 규칙 and 프롬프트. Under it is a demo banner saying no real data is saved. The main panel, titled \"Northwind Labs Sprag 타운 · 10.9–11.7\", holds a rendered 3D isometric office with four colored zones labeled Apps, Platform, Data and 빈 좌석 4개. Animal characters (cat, fox, tiger and others) sit at desks with monitors, and there are plants and a tooltip reading \"Sprag 서버 · 전체 사용량 $1,134 · 절감 $322\". At the bottom of the panel is an animal-collection legend (\"동물 도감 16/30종\") and a row of KPI cards (spend $2,033.62, savings $965.16, delegation runs 8,943, and so on). The panel was not blank, loading or showing an error.\n\nCould not verify: this is a single static frame taken after 8s of virtual time. I did not check interactivity (rotate, zoom, fullscreen), animation or the other tabs. I did not check the console for errors, and I did not check the page without `lang=ko`.",
+      "reportTruncated": false,
+      "trace": [
+        {
+          "t": 3.5,
+          "kind": "tool",
+          "tool": "Bash",
+          "arg": "mkdir -p tmp/ && \"/Applications/Google C",
+          "tok": 59084,
+          "usd": 0.105
+        },
+        {
+          "t": 17,
+          "kind": "tool",
+          "tool": "Read",
+          "arg": "tmp/",
+          "tok": 123544,
+          "usd": 0.1253
+        },
+        {
+          "t": 23,
+          "kind": "tool",
+          "tool": "SubagentHandback",
+          "arg": "",
+          "tok": 189764,
+          "usd": 0.1366
+        }
+      ],
+      "savingsPct": 51.5
+    }
+  ]
+}
