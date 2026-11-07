@@ -28,6 +28,7 @@ import {
 } from './subagent-records.js';
 import { modelRank, isRecognizedModelId, TIER_TARGET_RANK, tierForRank } from './cost.js';
 import { sessionCost } from './claude-price.js';
+import { gatewayBase } from './gateway-auth.js';
 import { learnProfileMapping, resetModelAliasCache } from './model-alias.js';
 import { modelRuleBaseText } from './model-rules.js';
 import { RULE_CATEGORY_LABELS } from './rule-categories.js';
@@ -964,20 +965,20 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
         priceSource: priceSource(),
         baselineSource: fromEpisode ? 'episode' : 'rule',
       };
-      // A list-priced run is stored as token quantities, and its dollars come
-      // from them through the one function every reader uses (#15). Gateway
-      // runs keep the dollars priced just now, with no quantities.
-      if (event.priceSource === 'list') {
-        event.q = {
-          at: runTime(e.run) ?? ts,
-          sub: runTotals(e.run),
-          ...(detail.basis === 'v3' && detail.main ? { main: detail.main } : {}),
-        };
-        const p = priceLedgerEvent(event);
-        if (!p) continue;
-        event.usd = p.usd;
-        event.cost = p.cost;
-      }
+      // Every run is stored as token quantities, and its dollars come from
+      // them through the one function every reader uses (#15): a list run from
+      // the list table, a gateway run from that gateway's price history, with
+      // the gateway recorded so a later shell cannot change the path.
+      if (event.priceSource === 'gateway') event.gw = gatewayBase();
+      event.q = {
+        at: runTime(e.run) ?? ts,
+        sub: runTotals(e.run),
+        ...(detail.basis === 'v3' && detail.main ? { main: detail.main } : {}),
+      };
+      const p = priceLedgerEvent(event);
+      if (!p) continue;
+      event.usd = p.usd;
+      event.cost = p.cost;
       priced.push(event);
       if (Array.isArray(trace)) {
         trace.push({
