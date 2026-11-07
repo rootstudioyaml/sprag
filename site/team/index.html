@@ -503,7 +503,9 @@
         <button type="button" class="acct-b" id="acct-b" aria-haspopup="true" aria-expanded="false" aria-controls="acct-menu" data-aria="acct.aria" aria-label="Account"><span id="acct-i">?</span></button>
         <div class="menu" id="acct-menu" hidden>
           <div class="who"><span data-k="si.as">Signed in as</span><b id="who-email"></b></div>
+          <button type="button" class="mi" id="btn-mfa" data-k="si.mfareset">Replace authenticator app</button>
           <button type="button" class="mi" id="btn-out" data-k="si.out">Sign out</button>
+          <div class="who" id="acct-msg" hidden></div>
         </div>
       </div>
     </div>
@@ -562,8 +564,9 @@
         <button class="btn" type="button" id="btn-back" data-k="si.back">Use a different email</button>
       </div>
     </form>
+    <div id="mfa"></div>
     <p class="err" id="auth-err" role="alert"></p>
-    <p class="note" data-k="si.note">This console is for owners and admins. To start a new organization, write to <a href="mailto:support@sprag.io">support@sprag.io</a>. An email registered as an owner or admin signs in here with an email code.<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.</p>
+    <p class="note" data-k="si.note">This console is for owners and admins. To start a new organization, write to <a href="mailto:support@sprag.io">support@sprag.io</a>. An email registered as an owner or admin signs in here with an email code and an authenticator app (Google Authenticator or any app that makes 6-digit codes).<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.</p>
   </section>
 
   <!-- signed in -->
@@ -768,8 +771,9 @@
   </div>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" integrity="sha384-YieCqqg9gQufX7+5HcFvCEg/n3KUEdl8/Jb+A6J0npf1mB740VayvwKjTrtCeUoy" crossorigin="anonymous"></script>
 <script src="/assets/admin-ux.js?v=3.105.0"></script>
+<script src="/assets/admin-mfa.js?v=3.105.0"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -856,9 +860,10 @@ const I18N = {
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
     'si.sent':'We sent a code to {email}.',
     'si.notreg':'This email is not registered. Ask your organization\'s owner to add it.',
-    'si.note':'This console is for owners and admins. To start a new organization, write to <a href="mailto:support@sprag.io">support@sprag.io</a>. An email registered as an owner or admin signs in here with an email code.<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.',
+    'si.note':'This console is for owners and admins. To start a new organization, write to <a href="mailto:support@sprag.io">support@sprag.io</a>. An email registered as an owner or admin signs in here with an email code and an authenticator app (Google Authenticator or any app that makes 6-digit codes).<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.',
     'si.as':'Signed in as','si.out':'Sign out',
     'si.otponly':'Password sign-in has been turned off. Sign in with an email code.',
+    'si.expired':'Your session is older than seven days. Sign in again.','si.mfareset':'Replace authenticator app','si.mfaerr':'Could not replace the authenticator app: {msg}',
     'si.bademail':'Enter a valid email address.','si.badcode':'Enter the 6-digit code from the email.',
     'err.lib':'Could not load the sign-in library. Check your connection and reload.',
     'err.generic':'Something went wrong: {msg}',
@@ -889,7 +894,7 @@ const I18N = {
     'o.role':'You are {role} here','role.owner':'Owner','role.admin':'Admin',
     'o.term':'Term: until {date}','o.term.ending':'Your term ends on {date}. To extend it, contact support@sprag.io.','o.term.grace':'Your term ended on {date}. New uploads stop from {stop}.','o.term.expired':'Your term has ended, so new uploads and joins are not accepted. The dashboard stays available.',
     'o.seats':'Seats: {used} / {limit}','o.seatnote':'A seat is one machine active in the last 30 days, or one that paused uploads. Joins past the limit are refused until Sprag raises it. Sprag sets the plan and the limit.','o.addseats':'To add seats, contact <a href="mailto:support@sprag.io">support@sprag.io</a>.',
-    'o.admins':'Admins','o.admin.ph':'Email','o.admin.add':'Add','o.admin.remove':'Remove','o.admin.added':'{email} was added.','o.admin.invited':'{email} was invited. They become {role} when they first sign in.','o.admin.pending':'Invited, waiting for first sign-in','o.admin.cancel':'Cancel invite','o.admin.cancelconfirm':'Cancel the invite for {email}?',
+    'o.admins':'Admins','o.admin.ph':'Email','o.admin.add':'Add','o.admin.remove':'Remove','o.admin.added':'{email} was added.','o.admin.invited':'{email} was invited. They become {role} when they first sign in.','o.admin.pending':'Invited, waiting for first sign-in','o.admin.cancel':'Cancel invite','o.admin.cancelconfirm':'Cancel the invite for {email}?','o.admin.mfa':'Authenticator on','o.admin.nomfa':'No authenticator yet','o.admin.mfareset':'Reset authenticator','o.admin.mfaresetconfirm':'Remove the authenticator app of {email} and end their sessions? They enroll a new one at the next sign-in.','o.admin.mfaresetok':'Reset the authenticator app of {email}.',
     'o.admin.confirm':'Remove {email} from this organization?','o.admin.empty':'Enter an email address.',
     'o.teams':'Teams in this organization','o.teams.none':'No teams yet.','o.team.members':'{n} active · {s} seats',
     'o.team.open':'Open',
@@ -972,9 +977,10 @@ const I18N = {
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
     'si.sent':'{email}로 코드를 보냈습니다.',
     'si.notreg':'등록되지 않은 이메일입니다. 조직 오너에게 추가를 요청하세요.',
-    'si.note':'오너와 어드민이 쓰는 콘솔입니다. 새 조직이 필요하면 <a href="mailto:support@sprag.io">support@sprag.io</a>로 문의해 주세요. 오너나 어드민으로 등록된 이메일은 여기서 이메일 코드로 로그인합니다.<br>멤버는 로그인하지 않습니다. 오너나 어드민에게 팀 초대 토큰을 받아 <code>sprag team join &lt;token&gt;</code>을 실행하거나 <code>SPRAG_TEAM_TOKEN</code>을 설정하면 됩니다.',
+    'si.note':'오너와 어드민이 쓰는 콘솔입니다. 새 조직이 필요하면 <a href="mailto:support@sprag.io">support@sprag.io</a>로 문의해 주세요. 오너나 어드민으로 등록된 이메일은 여기서 이메일 코드와 인증 앱(Google Authenticator처럼 6자리 코드를 만드는 앱) 코드로 로그인합니다.<br>멤버는 로그인하지 않습니다. 오너나 어드민에게 팀 초대 토큰을 받아 <code>sprag team join &lt;token&gt;</code>을 실행하거나 <code>SPRAG_TEAM_TOKEN</code>을 설정하면 됩니다.',
     'si.as':'로그인 계정','si.out':'로그아웃',
     'si.otponly':'비밀번호 로그인은 사용하지 않습니다. 이메일 코드로 로그인해 주세요.',
+    'si.expired':'로그인한 지 7일이 지났습니다. 다시 로그인해 주세요.','si.mfareset':'인증 앱 교체','si.mfaerr':'인증 앱을 교체하지 못했습니다: {msg}',
     'si.bademail':'올바른 이메일 주소를 입력해 주세요.','si.badcode':'메일에 적힌 6자리 코드를 입력해 주세요.',
     'err.lib':'로그인 라이브러리를 불러오지 못했습니다. 연결을 확인하고 새로 고침해 주세요.',
     'err.generic':'문제가 생겼습니다: {msg}',
@@ -1005,7 +1011,7 @@ const I18N = {
     'o.role':'이 조직에서 {role} 권한입니다','role.owner':'오너','role.admin':'어드민',
     'o.term':'이용 기간: ~ {date}','o.term.ending':'이용 기간이 {date}에 끝납니다. 연장은 support@sprag.io로 문의해 주세요.','o.term.grace':'이용 기간이 {date}에 끝났습니다. {stop}부터 새 업로드가 멈춥니다.','o.term.expired':'이용 기간이 끝나 새 업로드와 참여를 받지 않습니다. 대시보드는 계속 볼 수 있습니다.',
     'o.seats':'좌석: {used} / {limit}','o.seatnote':'좌석 하나는 최근 30일 안에 활동했거나 업로드를 중지한 컴퓨터 한 대입니다. 한도를 넘으면 Sprag가 한도를 올릴 때까지 새 참여가 거절됩니다. 요금제와 한도는 Sprag가 정합니다.','o.addseats':'좌석을 늘리려면 <a href="mailto:support@sprag.io">support@sprag.io</a>로 문의해 주세요.',
-    'o.admins':'어드민','o.admin.ph':'이메일','o.admin.add':'추가','o.admin.remove':'제거','o.admin.added':'{email}님을 추가했습니다.','o.admin.invited':'{email}님을 초대했습니다. 처음 로그인하면 {role} 권한이 부여됩니다.','o.admin.pending':'초대됨 · 첫 로그인 대기','o.admin.cancel':'초대 취소','o.admin.cancelconfirm':'{email}님의 초대를 취소할까요?',
+    'o.admins':'어드민','o.admin.ph':'이메일','o.admin.add':'추가','o.admin.remove':'제거','o.admin.added':'{email}님을 추가했습니다.','o.admin.invited':'{email}님을 초대했습니다. 처음 로그인하면 {role} 권한이 부여됩니다.','o.admin.pending':'초대됨 · 첫 로그인 대기','o.admin.cancel':'초대 취소','o.admin.cancelconfirm':'{email}님의 초대를 취소할까요?','o.admin.mfa':'인증 앱 등록됨','o.admin.nomfa':'인증 앱 미등록','o.admin.mfareset':'인증 앱 초기화','o.admin.mfaresetconfirm':'{email}님의 인증 앱을 지우고 세션을 모두 끝낼까요? 다음 로그인 때 새 앱을 등록하게 됩니다.','o.admin.mfaresetok':'{email}님의 인증 앱을 초기화했습니다.',
     'o.admin.confirm':'{email}님을 이 조직에서 제거할까요?','o.admin.empty':'이메일 주소를 입력해 주세요.',
     'o.teams':'이 조직의 팀','o.teams.none':'아직 팀이 없습니다.','o.team.members':'활동 멤버 {n}명 · 좌석 {s}개',
     'o.team.open':'열기',
@@ -1247,6 +1253,7 @@ document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click
 
 /* ── auth ─────────────────────────────────────────────────────────────── */
 let pendingEmail = '';
+let mfaNote = '';
 function showAuthErr(msg){ $('auth-err').textContent = msg || ''; }
 /* A session proves its mailbox only when it was opened with an email code (JWT amr otp or magiclink). The
    database refuses admin work to any other session, so a leftover password session is signed out here. */
@@ -1302,6 +1309,17 @@ $('btn-out').addEventListener('click', async () => {
   try{ await sb.auth.signOut(); }catch(e){}
   await onSession(null);
 });
+/* Replace the authenticator app: the verified factor is removed and the session drops to aal1, so onSession shows the enrollment again. */
+$('btn-mfa').addEventListener('click', async () => {
+  closeMenu(); $('acct-msg').hidden = true;
+  if(DEMO || !window.SpragMFA) return;
+  try{
+    const s = await SpragMFA.reset(sb);
+    if(!s) return;
+    mfaNote = SpragMFA.text('resetDone');
+    await onSession(s);
+  }catch(e){ $('acct-msg').textContent = t('si.mfaerr', {msg: errMsg(e)}, true); $('acct-msg').hidden = false; openMenu(); }
+});
 
 
 /* ── account menu ───────────────────────────────────────────────────── */
@@ -1325,6 +1343,25 @@ async function onSession(session){
   if(session && !DEMO && !sessionProven(session)){
     try{ await sb.auth.signOut(); }catch(e){}
     session = null; showAuthErr(t('si.otponly'));
+  }
+  /* The database refuses a session older than seven days (migration 20261108000100); drop it here instead of filling the page with errors. */
+  if(session && !DEMO && window.SpragMFA && !SpragMFA.sessionFresh(session)){
+    try{ await sb.auth.signOut(); }catch(e){}
+    session = null; showAuthErr(t('si.expired'));
+  }
+  /* Second step: the authenticator app. Enrollment on the first sign-in, a code afterwards. The gate resolves with the aal2 session, or null after sign-out. */
+  if(session && !DEMO && !(window.SpragMFA && SpragMFA.verified(session))){
+    if(!window.SpragMFA){
+      try{ await sb.auth.signOut(); }catch(e){}
+      session = null; showAuthErr(t('err.lib'));
+    }else{
+      user = null; document.body.classList.remove('authed');
+      $('auth').hidden = false; $('app').hidden = true; $('acct').hidden = true; closeMenu();
+      $('form-email').hidden = true; $('form-code').hidden = true; otpStage = false; showAuthErr('');
+      const next = await SpragMFA.gate(sb, session, { mount: $('mfa'), note: mfaNote }); mfaNote = '';
+      $('form-email').hidden = false;
+      return onSession(next);
+    }
   }
   user = session ? session.user : null;
   document.body.classList.toggle('authed', !!user);
@@ -1403,6 +1440,19 @@ async function cancelInvite(email){
     await loadOrgSummary();
   }catch(e){ $('org-err').textContent = errMsg(e); }
 }
+/* An owner removes an admin's authenticator app (lost phone): factors and sessions go, the admin enrolls again at the next sign-in. */
+async function resetAdminMfa(uid){
+  const a = ((orgSum && orgSum.admins) || []).find(x => x.user_id === uid); if(!a) return;
+  const email = a.email || uid;
+  if(!confirm(t('o.admin.mfaresetconfirm', {email}, true))) return;
+  $('org-err').textContent = ''; $('admin-ok').textContent = '';
+  try{
+    const { error } = await sb.rpc('admin_mfa_reset', { p_org_id: org.id, p_user_id: uid });
+    if(error) throw error;
+    $('admin-ok').textContent = t('o.admin.mfaresetok', {email}, true);
+    await loadOrgSummary();
+  }catch(e){ $('org-err').textContent = errMsg(e); }
+}
 async function removeAdmin(uid){
   const a = ((orgSum && orgSum.admins) || []).find(x => x.user_id === uid); if(!a) return;
   if(!confirm(t('o.admin.confirm', {email: a.email || uid}, true))) return;
@@ -1440,9 +1490,10 @@ function renderOrg(){
   $('org-admins').innerHTML = admins.map(a => a.pending
     ? `<div class="arow"><span class="em">${esc(a.email)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span> <span class="badge warn">${esc(t('o.admin.pending'))}</span></span>
     ${isOwner() ? `<button type="button" class="btn sm danger" data-ri="${esc(a.email)}">${esc(t('o.admin.cancel'))}</button>` : ''}</div>`
-    : `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span></span>
-    ${isOwner() ? `<button type="button" class="btn sm danger" data-ra="${esc(a.user_id)}">${esc(t('o.admin.remove'))}</button>` : ''}</div>`).join('');
+    : `<div class="arow"><span class="em">${esc(a.email || a.user_id)} <span class="badge">${esc(t('role.' + (a.role === 'owner' ? 'owner' : 'admin')))}</span>${a.mfa == null ? '' : ` <span class="badge${a.mfa ? '' : ' warn'}">${esc(t(a.mfa ? 'o.admin.mfa' : 'o.admin.nomfa'))}</span>`}</span>
+    ${isOwner() && a.role !== 'owner' && user && a.user_id !== user.id ? `<button type="button" class="btn sm" data-rm="${esc(a.user_id)}">${esc(t('o.admin.mfareset'))}</button>` : ''}${isOwner() ? `<button type="button" class="btn sm danger" data-ra="${esc(a.user_id)}">${esc(t('o.admin.remove'))}</button>` : ''}</div>`).join('');
   $('org-admins').querySelectorAll('[data-ra]').forEach(b => b.addEventListener('click', () => removeAdmin(b.dataset.ra)));
+  $('org-admins').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => resetAdminMfa(b.dataset.rm)));
   $('org-admins').querySelectorAll('[data-ri]').forEach(b => b.addEventListener('click', () => cancelInvite(b.dataset.ri)));
   const ts = (orgSum && orgSum.teams) || [];
   $('org-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>

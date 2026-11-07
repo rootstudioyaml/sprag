@@ -298,7 +298,7 @@ export async function rpc(fn, params, {
  * as rpc(). Errors carry the server's own message. The access token only ever
  * lives in memory: it is never written to disk or printed.
  */
-async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetch, timeoutMs = 8000, url = teamApiUrl(), key = teamAnonKey(), prefer } = {}) {
+async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetch, timeoutMs = 8000, url = teamApiUrl(), key = teamAnonKey(), prefer, method = 'POST' } = {}) {
   trustSystemCA();
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
@@ -306,7 +306,7 @@ async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetc
     const headers = { apikey: key, 'Content-Type': 'application/json' };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     if (prefer) headers.Prefer = prefer;
-    const res = await fetch(`${url}${path}`, { method: 'POST', headers, body: JSON.stringify(body || {}), signal: ctl.signal });
+    const res = await fetch(`${url}${path}`, { method, headers, body: method === 'GET' ? undefined : JSON.stringify(body || {}), signal: ctl.signal });
     let data = null;
     try { data = await res.json(); } catch { /* empty or non-JSON body */ }
     if (!res.ok) {
@@ -327,11 +327,41 @@ export async function requestSignInCode({ email, fetch } = {}) {
   await apiJson('/auth/v1/otp', { body: { email, create_user: true }, label: 'sign-in', fetch });
 }
 
-/** Exchange the emailed code for a session. Returns { accessToken, userId }. */
+/**
+ * Exchange the emailed code for a session. Returns { accessToken, userId, factors }.
+ * The session is aal1: the server refuses every owner and admin action until an
+ * authenticator code is verified too (verifyAuthenticatorCode).
+ */
 export async function verifySignInCode({ email, code, fetch } = {}) {
   const r = await apiJson('/auth/v1/verify', { body: { type: 'email', email, token: code }, label: 'verify', fetch });
   if (!r || !r.access_token || !r.user || !r.user.id) throw new Error('verify: no session returned');
-  return { accessToken: r.access_token, userId: r.user.id };
+  return { accessToken: r.access_token, userId: r.user.id, factors: Array.isArray(r.user.factors) ? r.user.factors : null };
+}
+
+/**
+ * The verified authenticator apps (TOTP factors) of the signed-in account, from the
+ * sign-in answer when it carried them, otherwise from GET /auth/v1/user. Empty when
+ * the person has not enrolled one yet (that happens on sprag.io/team).
+ */
+export async function listAuthenticators({ accessToken, factors = null, fetch } = {}) {
+  let all = factors;
+  if (!Array.isArray(all)) {
+    const u = await apiJson('/auth/v1/user', { method: 'GET', accessToken, label: 'authenticators', fetch });
+    all = (u && Array.isArray(u.factors)) ? u.factors : [];
+  }
+  return all.filter((f) => f && f.factor_type === 'totp' && f.status === 'verified').map((f) => ({ id: f.id, name: f.friendly_name || '' }));
+}
+
+/**
+ * The second sign-in step: challenge one authenticator factor and verify the 6-digit
+ * code from the app. Returns { accessToken } for the aal2 session the server accepts.
+ */
+export async function verifyAuthenticatorCode({ accessToken, factorId, code, fetch } = {}) {
+  const ch = await apiJson(`/auth/v1/factors/${encodeURIComponent(factorId)}/challenge`, { accessToken, label: 'authenticator', fetch });
+  if (!ch || !ch.id) throw new Error('authenticator: no challenge returned');
+  const r = await apiJson(`/auth/v1/factors/${encodeURIComponent(factorId)}/verify`, { body: { challenge_id: ch.id, code }, accessToken, label: 'authenticator', fetch });
+  if (!r || !r.access_token) throw new Error('authenticator: no session returned');
+  return { accessToken: r.access_token };
 }
 
 /**
