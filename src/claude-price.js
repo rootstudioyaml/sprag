@@ -17,10 +17,46 @@ export function sessionCost(totals, model, { env = process.env, now, at } = {}) 
   return price ? estimateCost(totals, model, { price }) : null;
 }
 
-/** One priced part per model that spent tokens, or the whole at its one model. */
+/**
+ * Several totals folded into one, `long` included. Returns the entry itself
+ * for a list of one.
+ */
+export function sumTotals(list) {
+  if (list.length === 1) return list[0];
+  const out = {};
+  for (const t of list) {
+    for (const [k, v] of Object.entries(t)) {
+      if (k === 'long') {
+        out.long = out.long || {};
+        for (const [lk, lv] of Object.entries(v)) out.long[lk] = (out.long[lk] || 0) + lv;
+      } else out[k] = (out[k] || 0) + v;
+    }
+  }
+  return out;
+}
+
+/**
+ * One priced part per model that spent tokens, or the whole at its one model.
+ * `at` is when the tokens were spent (the start of the session or run) and
+ * `byDay` holds that model's totals per UTC day, present only when the
+ * session or run crossed a UTC midnight. Price rows change at UTC midnight,
+ * so partCost prices each day at its own row instead of one row for all (#15).
+ */
 function partsByModel(x) {
-  if (!x.modelTotals) return [{ totals: x.totals, model: x.model }];
-  return Object.entries(x.modelTotals).map(([model, totals]) => ({ totals, model }));
+  const t = x.startTime || x.endTime;
+  const at = t ? new Date(t).getTime() : undefined;
+  const dayTotals = x.dayTotals;
+  const dayParts = (model, only) => {
+    if (!dayTotals) return {};
+    const byDay = {};
+    for (const [day, models] of Object.entries(dayTotals)) {
+      const hit = only ? models[model] : sumTotals(Object.values(models));
+      if (hit) byDay[day] = hit;
+    }
+    return Object.keys(byDay).length ? { byDay } : {};
+  };
+  if (!x.modelTotals) return [{ totals: x.totals, model: x.model, at, ...dayParts(x.model, false) }];
+  return Object.entries(x.modelTotals).map(([model, totals]) => ({ totals, model, at, ...dayParts(model, true) }));
 }
 
 /**
@@ -38,11 +74,30 @@ export function pricedParts(session) {
   ];
 }
 
+/**
+ * Cost of one priced part. A part that crossed UTC midnights is priced day by
+ * day, each day at the price row in effect then; the figures are summed. One
+ * unpriced day makes the whole part unpriced (null), as for a single price.
+ * Without `byDay` the part is priced at its start time.
+ */
+export function partCost(part, { env = process.env, now } = {}) {
+  if (!part.byDay) return sessionCost(part.totals, part.model, { env, now, at: part.at });
+  const acc = { actual: 0, noCacheCost: 0, savings: 0, scenario5mCost: 0, extraCostIf5m: 0, extraCostIf5mApplicable: false, tier: null };
+  for (const day of Object.keys(part.byDay).sort()) {
+    const c = sessionCost(part.byDay[day], part.model, { env, now, at: `${day}T12:00:00Z` });
+    if (!c) return null;
+    for (const k of ['actual', 'noCacheCost', 'savings', 'scenario5mCost', 'extraCostIf5m']) acc[k] += c[k];
+    acc.extraCostIf5mApplicable = acc.extraCostIf5mApplicable || c.extraCostIf5mApplicable;
+    acc.tier = c.tier;
+  }
+  return { ...acc, savingsRate: acc.noCacheCost > 0 ? acc.savings / acc.noCacheCost : 0 };
+}
+
 /** Like estimateCostAcross, plus how many priced parts (a session, a subagent run, or one model's share of either) had no price and were left out. */
 export function sessionCostAcross(sessions, opts = {}) {
   let unpriced = 0;
-  const total = estimateCostAcross((sessions || []).flatMap(pricedParts), (totals, model) => {
-    const c = sessionCost(totals, model, opts);
+  const total = estimateCostAcross((sessions || []).flatMap(pricedParts), (totals, model, part) => {
+    const c = partCost(part, opts);
     if (!c) unpriced++;
     return c;
   });

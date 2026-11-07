@@ -566,13 +566,13 @@ function estimateCostAtPrice(totals, price) {
  * Sessions whose model has no known rate are skipped, as month-spend does.
  * `estimate` lets a caller price by path (see claude-price.js); null skips a session.
  */
-export function estimateCostAcross(sessions, estimate = estimateCost) {
+export function estimateCostAcross(sessions, estimate = (totals, model) => estimateCost(totals, model)) {
   const acc = { actual: 0, noCacheCost: 0, scenario5mCost: 0, extraCostIf5mApplicable: false };
   const tiers = new Map();
   for (const s of sessions || []) {
     if (!s?.totals) continue;
     let c;
-    try { c = estimate(s.totals, s.model); } catch { continue; }
+    try { c = estimate(s.totals, s.model, s); } catch { continue; }
     if (!c) continue;
     acc.actual += c.actual;
     acc.noCacheCost += c.noCacheCost;

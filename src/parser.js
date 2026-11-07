@@ -105,7 +105,7 @@ export async function parseSessionFile(filePath) {
     if (n > best) { best = n; model = m; }
   }
   if (best === 0 && reqs.length > 0) model = reqs[0].model || 'unknown';
-  const { totals, maxContextPerRequest, modelTotals } = sumRequests(reqs);
+  const { totals, maxContextPerRequest, modelTotals, dayTotals } = sumRequests(reqs);
 
   return {
     sessionId,
@@ -118,6 +118,7 @@ export async function parseSessionFile(filePath) {
     maxContextPerRequest,
     model,
     ...(modelTotals ? { modelTotals } : {}),
+    ...(dayTotals ? { dayTotals } : {}),
     gatewayObserved,
   };
 }
@@ -147,6 +148,8 @@ function addRequest(acc, r) {
   }
 }
 
+const utcDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+
 /**
  * Totals of a set of requests, plus the same totals split by model when more
  * than one model spent tokens.
@@ -156,10 +159,20 @@ function addRequest(acc, r) {
  * model's rate billed a Haiku stretch at the Fable rate, or the reverse. The
  * split lets the cost side price each model's tokens at its own rate. It is
  * left out for the usual single-model session, so those keep their old shape.
+ *
+ * `dayTotals` is the same split by UTC day and then model:
+ * `{ 'YYYY-MM-DD': { [model]: totals } }`. Price rows change at UTC midnight,
+ * so a session that runs across one must be priced day by day or a price
+ * change rewrites the part spent before it (#15). Like `modelTotals` it is
+ * left out for the usual case, here a set of requests inside one UTC day. A
+ * request without a timestamp is put on the earliest day known; with no
+ * timestamp anywhere there is no day to name and `dayTotals` is left out.
  */
 function sumRequests(reqs) {
   const totals = emptyTotals();
   const byModel = new Map();
+  const timed = [];
+  const untimed = [];
   let maxContextPerRequest = 0;
   for (const r of reqs) {
     addRequest(totals, r);
@@ -169,8 +182,26 @@ function sumRequests(reqs) {
     const key = r.model || 'unknown';
     if (!byModel.has(key)) byModel.set(key, emptyTotals());
     addRequest(byModel.get(key), r);
+    (r.ts == null ? untimed : timed).push(r);
   }
-  return { totals, maxContextPerRequest, modelTotals: byModel.size > 1 ? Object.fromEntries(byModel) : null };
+  let dayTotals = null;
+  if (timed.length) {
+    const days = new Map();
+    const firstDay = utcDay(timed.reduce((m, r) => Math.min(m, r.ts), Infinity));
+    for (const r of [...timed, ...untimed]) {
+      const day = r.ts == null ? firstDay : utcDay(r.ts);
+      if (!days.has(day)) days.set(day, new Map());
+      const models = days.get(day);
+      const key = r.model || 'unknown';
+      if (!models.has(key)) models.set(key, emptyTotals());
+      addRequest(models.get(key), r);
+    }
+    if (days.size > 1) {
+      dayTotals = {};
+      for (const day of [...days.keys()].sort()) dayTotals[day] = Object.fromEntries(days.get(day));
+    }
+  }
+  return { totals, maxContextPerRequest, modelTotals: byModel.size > 1 ? Object.fromEntries(byModel) : null, dayTotals };
 }
 
 /**
@@ -429,7 +460,7 @@ function trimToCutoff(session, cutoffMs) {
     if (firstTs === null || r.ts < firstTs) firstTs = r.ts;
     if (lastTs === null || r.ts > lastTs) lastTs = r.ts;
   }
-  const { totals, maxContextPerRequest, modelTotals } = sumRequests(reqs);
+  const { totals, maxContextPerRequest, modelTotals, dayTotals } = sumRequests(reqs);
   return {
     sessionId: session.sessionId,
     filePath: session.filePath,
@@ -441,6 +472,7 @@ function trimToCutoff(session, cutoffMs) {
     maxContextPerRequest,
     model: session.model,
     ...(modelTotals ? { modelTotals } : {}),
+    ...(dayTotals ? { dayTotals } : {}),
     gatewayObserved: session.gatewayObserved,
   };
 }
@@ -520,8 +552,12 @@ export async function parseAllSessions(options = {}) {
           }
         }
         if (!run.requestCount || !run.endTime || run.endTime.getTime() < cutoffMs) continue;
+        // `agent` names the run for the usage ledger; `startTime` and `dayTotals`
+        // let the cost side price it at the rates of the days it ran (#15).
         runs.push({ model: run.model, totals: run.totals, requestCount: run.requestCount, endTime: run.endTime,
-          ...(run.modelTotals ? { modelTotals: run.modelTotals } : {}) });
+          agent: basename(a.path, '.jsonl'), startTime: run.startTime,
+          ...(run.modelTotals ? { modelTotals: run.modelTotals } : {}),
+          ...(run.dayTotals ? { dayTotals: run.dayTotals } : {}) });
       } catch {
         continue;
       }

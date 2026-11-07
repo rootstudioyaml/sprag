@@ -208,7 +208,7 @@ test('subagent runs are priced at their own model and added to cost, without bec
     assert.ok(Math.abs(sessionCostAcross(all).actual - (main + haiku + sonnet)) < 0.011);
 
     // This month: the request and the run that happened after the month began.
-    const month = monthSpend(await parser.sessionsSince(all, since, { noCache }), new Date(since));
+    const month = monthSpend(await parser.sessionsSince(all, since, { noCache }), new Date(since), { ledger: false });
     assert.ok(Math.abs(month.usd - (cost({ input: 1000, output: 100 }, 'claude-opus-5') + sonnet)) < 1e-9);
     assert.equal(month.sessions, 1);
   }
@@ -245,7 +245,8 @@ test('a session that switched model is priced model by model, through the cache 
     const total = sessionCostAcross(all).actual;
     assert.ok(Math.abs(total - (haiku + fable)) < 0.011, `priced ${total}, expected ${haiku + fable}`);
     assert.ok(Math.abs(total - atOneRate) > 1, 'not the whole session at the representative rate');
-    const month = monthSpend(all, new Date(now));
+    // Transcript pricing only: the statusline run above left a usage ledger in this sandbox.
+    const month = monthSpend(all, new Date(now), { ledger: false });
     assert.ok(Math.abs(month.usd - (haiku + fable)) < 1e-9);
     assert.equal(month.sessions, 1, 'two priced parts are still one session');
   }

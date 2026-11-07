@@ -29,7 +29,10 @@ test('session cache round-trips gatewayObserved', async () => {
   // serialize, read back by deserialize, and old entries discarded.
   assert.match(src, /session\.modelTotals \? \{ modelTotals: session\.modelTotals \}/);
   assert.match(src, /stored\.modelTotals && typeof stored\.modelTotals === 'object' \? \{ modelTotals: stored\.modelTotals \}/);
-  assert.match(src, /const CACHE_VERSION = 5/);
+  // And for the per-UTC-day split added in version 6 (#15).
+  assert.match(src, /session\.dayTotals \? \{ dayTotals: session\.dayTotals \}/);
+  assert.match(src, /stored\.dayTotals && typeof stored\.dayTotals === 'object' \? \{ dayTotals: stored\.dayTotals \}/);
+  assert.match(src, /const CACHE_VERSION = 6/);
 });
 
 test('parseSessionFile picks the majority model and skips <synthetic>', async () => {

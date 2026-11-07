@@ -47,7 +47,7 @@ import { userLanguage } from './config.js';
 import { debug } from './debug.js';
 import { trustSystemCA } from './system-ca.js';
 import { loadLedger, modelFamily, roundUsd, changedSinceForSync, clearChangedSince } from './savings-ledger.js';
-import { sessionCost, pricedParts } from './claude-price.js';
+import { partCost, pricedParts } from './claude-price.js';
 import { uploadPrompts, dropOffsets, promptOffsetsExist } from './team-prompts.js';
 import { ruleStatsSummary } from './team-rule-stats.js';
 import { rulesPullDue, syncTeamRatchet, ensureTeamImport } from './team-ratchet.js';
@@ -476,7 +476,7 @@ export async function aggregateDaily({
       const d = get(dayKey(t));
       for (const part of pricedParts(s)) {
         try {
-          const c = sessionCost(part.totals, part.model, { env });
+          const c = partCost(part, { env });
           if (!c) { d.unpriced += 1; continue; }
           d.spent += c.actual;
           if (!part.own) d.subagent += c.actual;
