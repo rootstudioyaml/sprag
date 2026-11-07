@@ -752,3 +752,47 @@ test('readReport accepts plain text and {"message"} JSON, scrubbed and trimmed',
     assert.equal(readReport(join(dir, 'c.md')), '{not json at all');
   } finally { cleanup(dir); }
 });
+
+test('weekly digest: new candidates only, corrected turns listed once, replay sessions dropped', async () => {
+  const { weeklyDigest, formatDigest } = await import('../scripts/evals/weekly.mjs');
+  const c = (id, extra) => ({ id, session: 's1', project: '-p-proj', userPrompt: 'find the loader', subagentType: 't2-explore', effort: null, nextUserPrompt: 'thanks', ...extra });
+  const cands = [
+    c('a1', { nextUserPrompt: '아니야 다른 파일이야' }),
+    c('a2', { nextUserPrompt: '아니야 다른 파일이야' }),
+    // The one contrastive '아니라' is the input under test: it must not count as a correction.
+    c('b1', { session: 's2', userPrompt: 'B로 해줘', nextUserPrompt: 'A가 아니라 B로 바꿔' }),
+    c('old'),
+    c('r1', { project: '-x-handoff-evals-work-rounds-r3-wt', nextUserPrompt: 'wrong' }),
+  ];
+  const d = weeklyDigest(cands, new Set(['old']));
+  assert.deepEqual(d.fresh.map((x) => x.id), ['a1', 'a2', 'b1']);
+  assert.equal(d.suspects.length, 1, '"아니라" alone is not a correction, and one turn is listed once');
+  assert.equal(d.suspects[0].count, 2);
+  const text = formatDigest(d, { days: 7 });
+  assert.match(text, /새 위임 3건/);
+  assert.match(text, /a1 외 1건/);
+  assert.match(formatDigest(weeklyDigest([], new Set()), { days: 7 }), /새 위임이 없습니다/);
+});
+
+test('weekly main: --dry-run posts nothing; a post moves the state forward', async () => {
+  const { main } = await import('../scripts/evals/weekly.mjs');
+  const work = tmp('weekly');
+  const root = tmp('weekly-root');
+  const prev = process.env.SPRAG_EVALS_WORK;
+  process.env.SPRAG_EVALS_WORK = work;
+  try {
+    const posts = [];
+    const log = console.log; console.log = () => {};
+    try {
+      await main(['--dry-run'], { post: (t) => posts.push(t), root });
+      assert.equal(posts.length, 0);
+      await main([], { post: (t) => posts.push(t), root });
+    } finally { console.log = log; }
+    assert.equal(posts.length, 1);
+    const state = JSON.parse(readFileSync(join(work, 'weekly-state.json'), 'utf8'));
+    assert.ok(state.lastRun);
+  } finally {
+    if (prev === undefined) delete process.env.SPRAG_EVALS_WORK; else process.env.SPRAG_EVALS_WORK = prev;
+    cleanup(work, root);
+  }
+});

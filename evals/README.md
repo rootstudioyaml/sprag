@@ -93,3 +93,9 @@ For a new round, nothing else is needed: replay runs it, and publish adds `sonne
 ## Where replay sessions show up
 
 Replay runs `claude` with the worktree as its working directory, so the sessions are written under `~/.claude/projects/` in a folder named after the worktree path (every character that is not a letter or digit becomes `-`). Replay copies each transcript into the round directory and reads cost from it. Those sessions also appear in sprag's own session stats under that project name; they are replays, not your work. Graders run in a temporary directory, so their sessions have their own folder.
+
+## Weekly candidates
+
+`npm run evals:weekly` harvests the delegations made since its last run, drops replay sessions, and flags the turns the user corrected right after (a narrow keyword match on the next prompt, so it under-reports; the 2026-11-07 review of 57 delegations found 4 silent losses by reading every turn). It posts the list to the sprag Slack channel with the same `SLACK_BOT_TOKEN` and `SPRAG_SLACK_CHANNEL_ID` lookup as `scripts/upstream-watch.mjs`, and moves `<work>/weekly-state.json` forward only after Slack accepts the post. `--dry-run` prints the message instead. It makes no model call.
+
+On the maintainer's Mac a launchd job (`com.rootstudioyaml.sprag-evals-weekly`, Mondays 06:30) runs it; the log is `~/Library/Logs/sprag-evals-weekly.log`. Picking cases from the list, writing rubrics and approving a replay stay with a person and the main session.
