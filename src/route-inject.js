@@ -64,6 +64,11 @@ export function looksPasted(text) {
 const SYSTEM_PROMPT_PREFIXES = [
   '<task-notification>', '<system-reminder>', '<command-name>', '<command-message>', '<command-args>',
   '<local-command-', '<bash-input>', '<bash-stdout>', '<bash-stderr>', '[Request interrupted',
+  // A background subagent's report and the summary that opens a compacted
+  // session arrive as user turns too. A hint there told the main model to
+  // delegate the checking of a subagent's own result (#16 follow-up).
+  'Another Claude session sent a message', '<agent-message', '[SYSTEM NOTIFICATION',
+  'This session is being continued from a previous conversation',
 ];
 
 /** True for a message the harness wrote rather than the user (see SYSTEM_PROMPT_PREFIXES). */
@@ -107,6 +112,16 @@ const SELF_CHECK_RE = /확인(?:할게|해\s*볼게|하겠|해볼께|할께)|확
  * deleting, paying. A plain `git push` stays with the run category, as before.
  */
 const OUTWARD_RE = /업로드|게시해|게시하|발송|올려\s*(?:줘|주|줄)|보내\s*(?:줘|주|줄)|삭제|지워\s*(?:줘|주)|결제/;
+/**
+ * Open research on the web: news, communities, alternatives, candidates,
+ * trends. A cheaper model stops after a few searches and nothing shows what it
+ * missed. In the #16 follow-up review, two of the three hinted delegations
+ * that lost quality without anyone noticing were of this kind (a news roundup
+ * that missed the week's main story, an asset search that never opened the
+ * main marketplace), and neither prompt tripped any other gate.
+ */
+const OPEN_RESEARCH_RE = /인터넷|웹\s*(?:에서|으로|검색)|뉴스|소식|레딧|reddit|해커뉴스|hacker\s*news|오픈\s*소스|대안|후보|사례|트렌드|동향/i;
+
 /** Edit asks EDIT_RE misses: change, remove, set up, add, polish, generate. */
 const EDIT_MORE_RE = /변경해|변경하|바꾸고|없애|빼\s*(?:줘|주|고|자)|[셋세]팅하자|설정하자|구성해|구성하|추가해|다듬|넣고|처리해\s*(?:줘|주)|만들어\s*(?:줘|주|봐)|생성해|적용해|적용하자/;
 /**
@@ -120,7 +135,8 @@ const SPEC_LEN = 100;
 export function looksLikeContextOrSpec(text) {
   const t = String(text || '').trim();
   return CONTINUATION_RE.test(t) || FEEDBACK_RE.test(t) || SELF_CHECK_RE.test(t)
-    || OUTWARD_RE.test(t) || EDIT_MORE_RE.test(t) || (t.length > SPEC_LEN && !looksPasted(t));
+    || OUTWARD_RE.test(t) || EDIT_MORE_RE.test(t) || OPEN_RESEARCH_RE.test(t)
+    || (t.length > SPEC_LEN && !looksPasted(t));
 }
 
 /**
