@@ -124,6 +124,14 @@
   .gh.ic svg{display:block}
   .gh.npmic{width:44px}
   .gh.npmic:hover{border-color:#5a3236}
+  .lab-bar{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;padding:9px 16px;
+    background:linear-gradient(90deg,rgba(94,106,210,.22),rgba(53,214,168,.14));border-bottom:1px solid rgba(94,106,210,.35);
+    color:#e6e7ea;text-decoration:none;font-size:13px;line-height:1.4;transition:background .2s}
+  .lab-bar:hover{background:linear-gradient(90deg,rgba(94,106,210,.32),rgba(53,214,168,.22))}
+  .lab-tag{font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:3px 8px;border-radius:999px;background:rgba(94,106,210,.3);color:#c7ccff;white-space:nowrap}
+  .lab-txt{color:#e6e7ea}
+  .lab-go{color:#c7ccff;font-weight:600;transition:transform .2s}
+  .lab-bar:hover .lab-go{transform:translateX(3px)}
   .lang{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
   .lang button{border:0;background:transparent;color:var(--faint);padding:5px 9px;
     font-family:var(--mono);font-size:11.5px;letter-spacing:.04em}
@@ -640,6 +648,38 @@
   <symbol id="i-style" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 11h10"/><path d="M4 16h13"/><path d="M17.5 9.5l3 3-5 5-3 .5.5-3z"/></symbol>
 </svg>
 
+<a class="lab-bar" id="lab-bar" href="proof/">
+  <span class="lab-tag" data-k="lab.tag">Proof lab</span>
+  <span class="lab-txt" id="lab-txt">10 real delegations replayed. Without sprag $8.13, with sprag $2.61 (32%), 0 wrong. See every decision</span>
+  <span class="lab-go" aria-hidden="true">&rarr;</span>
+</a>
+<script>
+(function(){
+  var txt = document.getElementById('lab-txt');
+  if (!txt) return;
+  var D = { n: 10, a: '$8.13', b: '$2.61', pct: 32, f: 0 };
+  function usd(v){ return '$' + v.toFixed(2); }
+  window.__fillLab = function(){
+    var ko = document.documentElement.lang === 'ko';
+    txt.textContent = ko
+      ? '실제 위임 ' + D.n + '건을 다시 돌려 봤습니다. sprag 없이 ' + D.a + ', sprag와 함께 ' + D.b + ' (' + D.pct + '%), 오답 ' + D.f + '건. 판단 하나하나 보기'
+      : D.n + ' real delegations replayed. Without sprag ' + D.a + ', with sprag ' + D.b + ' (' + D.pct + '%), ' + D.f + ' wrong. See every decision';
+  };
+  fetch('proof/data.json', { cache: 'no-cache' }).then(function(r){ return r.json(); }).then(function(d){
+    var A = 0, B = 0, F = 0;
+    d.cases.forEach(function(c){
+      var o = c.runs.filter(function(r){ return r.condition === 'opus-direct'; })[0];
+      var s = c.runs.filter(function(r){ return r.condition === c.recommended; })[0];
+      if (!o || !s) return;
+      A += o.usd; B += s.usd; if (s.verdict === 'fail') F++;
+    });
+    var n = d.cases.length, bt = d.bulk && d.bulk.totals;
+    if (bt && bt.n) { n += bt.n; A += bt.opusUsd; B += bt.pickUsd; F += bt.fail; }
+    if (A > 0) D = { n: n, a: usd(A), b: usd(B), pct: Math.round(B / A * 100), f: F };
+  }).catch(function(){}).then(window.__fillLab);
+})();
+</script>
+
 <header class="site-hdr">
   <div class="wrap">
     <a class="brand" href="index.html">
@@ -655,7 +695,7 @@
       <a class="hide-sm" href="#routing" data-k="nav.routing">Routing</a>
       <a class="hide-sm" href="#features" data-k="nav.features">Features</a>
       <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
-      <a class="hide-sm" href="/proof/" data-k="nav.proof">Proof</a>
+      <a class="hide-sm" href="/proof/" data-k="nav.proof">Proof lab</a>
       <a href="/license/" data-k="nav.license">License</a>
       <a class="hide-sm" href="/team/" data-k="nav.teams">Team console</a>
       <span class="lang" role="group" aria-label="Language">
@@ -1366,7 +1406,8 @@ const KO = {
   'pop.3p':'이 기능은 statusline에 별도 칩으로 나타나지 않습니다. 검사는 글을 쓰는 바로 그 순간에 실행되고, 규칙을 어기면 statusline에서 확인하기도 전에 해당 파일에서 세션이 멈춥니다.',
   'pop.4e':'비용',
   'pop.4p':'캐시 적중률과 만료까지 남은 시간, 컨텍스트 사용량, 5시간·7일 사용량 한도를 매 턴 읽어서, 그중 하나라도 바로 확인해야 하면 경고 칩이 줄 맨 앞으로 올라옵니다.',
- 'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능', 'nav.docs':'문서', 'nav.teams':'팀 콘솔', 'nav.pricing':'요금', 'nav.license':'라이선스', 'nav.proof':'검증 사례',
+ 'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능', 'nav.docs':'문서', 'nav.teams':'팀 콘솔', 'nav.pricing':'요금', 'nav.license':'라이선스', 'nav.proof':'검증 Lab',
+ 'lab.tag':'검증 Lab',
   'hero.h1':'Claude Code와 Codex의 위임 계층',
   'hero.support':'Claude Code와 Codex용 Sprag',
   'hero.sub':'일마다 맞는 모델과 effort로 보냅니다. 조회는 Haiku로 내립니다. 싼 실행이 놓칠 일은 effort나 모델을 올립니다. 규칙마다 직접 열어 볼 수 있는 <a href="proof/">재생 사례</a>가 있고 쓴 금액과 아낀 금액은 상태줄에 나옵니다.',
@@ -1461,6 +1502,7 @@ const META = {
 let lang = 'en';
 function setLang(next, remember){
   lang = (next === 'ko') ? 'ko' : 'en';
+  if (window.__fillLab) setTimeout(window.__fillLab, 0);
   const dict = lang === 'ko' ? KO : EN;
   document.querySelectorAll('[data-k]').forEach(el => {
     const v = dict[el.dataset.k];

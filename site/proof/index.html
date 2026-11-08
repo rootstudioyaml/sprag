@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta charset="utf-8" />
 <!-- Google tag (gtag.js): Google Ads conversion measurement, see /privacy/ -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18548782436"></script>
 <script>
@@ -27,8 +26,8 @@
 <!-- Cloudflare Web Analytics: cookieless visit counts, see /privacy/ -->
 <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "61e11587311d49608109159f4d3507f0"}'></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag Proof | Does delegating to a cheaper model hold up?</title>
-<meta name="description" content="Real delegated jobs, re-run on Haiku, Sonnet and Opus at different effort levels and graded blind. Click a case to watch sprag route it and see quality and cost." />
+<title>Sprag Proof Lab | sprag picks the model, job by job</title>
+<meta name="description" content="Real delegations run cheapest-only, as sprag chose, and always on Opus, graded blind. See where sprag went down to Haiku, where it went up to Sonnet, and what it cost." />
 <link rel="canonical" href="https://sprag.io/proof/" />
 <meta name="theme-color" content="#0a0a0c" />
 <link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
@@ -36,14 +35,14 @@
 <link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Sprag" />
-<meta property="og:title" content="Sprag Proof" />
-<meta property="og:description" content="Real delegated jobs re-run on cheaper models and graded blind. Quality and cost, case by case." />
+<meta property="og:title" content="Sprag Proof Lab" />
+<meta property="og:description" content="Real delegations run three ways, cheapest only, as sprag chose, and always on Opus, graded blind." />
 <meta property="og:url" content="https://sprag.io/proof/" />
 <meta property="og:image" content="https://sprag.io/assets/og-card.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="proof.css" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="proof.css?v=12" />
 <link rel="stylesheet" href="/assets/site-header.css?v=2" />
 </head>
 <body>
@@ -62,7 +61,7 @@
       <a class="hide-sm" href="/#routing" data-k="nav.routing">Routing</a>
       <a class="hide-sm" href="/#features" data-k="nav.features">Features</a>
       <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
-      <a href="/proof/" aria-current="page" data-k="nav.proof">Proof</a>
+      <a href="/proof/" aria-current="page" data-k="nav.proof">Proof lab</a>
       <a href="/license/" data-k="nav.license">License</a>
       <a class="hide-sm" href="/team/" data-k="nav.teams">Team console</a>
       <span class="lang" role="group" aria-label="Language">
@@ -82,88 +81,26 @@
 <main>
 <div class="wrap">
   <div class="hero">
-    <div class="eyebrow" data-k="p.eyebrow">Proof</div>
-    <h1 data-k="p.h1">Easy jobs to a cheaper model. Harder ones with more effort.</h1>
-    <p class="lede" data-k="p.lede">We took real jobs that sprag had delegated, ran each one again on Haiku, Sonnet and Opus at different effort levels and had the answers graded blind. Click a case and watch where sprag sends it.</p>
-    <div class="stats" id="stats" aria-live="polite"></div>
-    <p class="note" id="stats-note"></p>
+    <div class="eyebrow" data-k="p.eyebrow">Proof lab</div>
+    <h1 data-k="p.h1">Which model gets the job? sprag decides, job by job.</h1>
+    <p class="lede" id="lede"></p>
+    <p class="lede lede2" id="lede2"></p>
+    <ul class="pills" id="pills"></ul>
+    <div class="diagram" id="diagram"></div>
+    <div class="policies" id="policies" aria-live="polite"></div>
+    <p class="verdict" id="verdict"></p>
+    <section class="live" id="live" aria-labelledby="live-h" hidden></section>
+    <section class="live bulk" id="bulk" aria-labelledby="bulk-h" hidden></section>
   </div>
 
-  <section aria-labelledby="cases-h">
+  <section aria-labelledby="k-h">
     <div class="sec-head">
-      <h2 id="cases-h" data-k="c.h">Pick a case</h2>
-      <p data-k="c.sub">Each one is a request that was really delegated.</p>
+      <h2 id="k-h"></h2>
+      <p id="k-sub"></p>
     </div>
-    <div class="pills" id="story-pills" role="group"></div>
-    <ul class="cases" id="cases"></ul>
-  </section>
-
-  <section id="stage-sec" aria-labelledby="stage-h">
-    <div class="stage" id="stage">
-      <div class="stage-top">
-        <div>
-          <h2 id="stage-h"></h2>
-          <p class="ask" id="stage-ask"></p>
-        </div>
-        <div class="badges"><span class="badge" id="stage-badge"></span><span class="badge" id="stage-story"></span></div>
-      </div>
-      <p class="story-note" id="stage-note"></p>
-      <div class="conds" id="conds" role="group" data-aria-k="s.conds" aria-label="Setup"></div>
-      <p class="notrun" id="notrun"></p>
-      <div class="actions" id="actions">
-        <button type="button" class="act primary" id="b-replay"></button>
-        <button type="button" class="act" id="b-skip"></button>
-        <button type="button" class="act race" id="b-race" aria-pressed="false"></button>
-      </div>
-      <div class="flow" id="flow" aria-live="polite">
-        <div class="node" data-n="req"><small id="n-req-l">Your request</small><b id="n-req"></b></div>
-        <i class="arr" aria-hidden="true"></i>
-        <div class="node" data-n="main"><small data-k="f.main">Main session</small><b>Opus</b></div>
-        <i class="arr" aria-hidden="true"></i>
-        <div class="node" data-n="router"><small data-k="f.router">sprag router</small><b data-k="f.router.b">Picks model and effort</b><em id="n-router"></em></div>
-        <i class="arr" aria-hidden="true"></i>
-        <div class="node lamps" data-n="lamps">
-          <div class="lamprow model" id="lamps-model"><span data-k="f.model">Model</span></div>
-          <div class="lamprow effort" id="lamps-effort"><span data-k="f.effort">Effort</span></div>
-        </div>
-        <i class="arr" aria-hidden="true"></i>
-        <div class="node" data-n="result"><small data-k="f.result">Result</small><span class="mark" id="n-mark">?</span></div>
-        <span class="packet" id="packet" aria-hidden="true"></span>
-      </div>
-      <div class="live" id="live">
-        <div class="term">
-          <div class="term-h"><i></i><i></i><i></i><span id="term-title"></span></div>
-          <div class="term-b" id="log" role="log"></div>
-        </div>
-        <div class="gauges">
-          <div class="counters" id="counters"></div>
-          <div class="cbars" id="cbars"></div>
-          <div class="stamp" id="stamp" aria-live="polite"></div>
-        </div>
-        <p class="cap" id="live-cap"></p>
-      </div>
-      <div class="racebox" id="racebox">
-        <div class="race-head"><h3 id="race-h"></h3><p id="race-cap"></p></div>
-        <div class="lanes" id="lanes"></div>
-        <p class="race-sum" id="race-sum"></p>
-      </div>
-      <div class="result">
-        <div class="rcard pending" id="rcard"></div>
-        <div class="side">
-          <div class="rcard" id="task-card"></div>
-          <div class="rcard truth" id="truth-card"></div>
-          <div class="rcard" id="lesson-card"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section aria-labelledby="eff-h">
-    <div class="sec-head">
-      <h2 id="eff-h" data-k="e.h">Repeats: does more effort hold steady?</h2>
-      <p data-k="e.sub">Same case, same Sonnet, several runs per effort level.</p>
-    </div>
-    <div class="rep" id="effort"></div>
+    <div class="legend" id="legend" aria-label="Legend"></div>
+    <div class="cases" id="cases"></div>
+    <p class="note" id="k-note"></p>
   </section>
 
   <section aria-labelledby="m-h">
@@ -182,7 +119,7 @@
   </div>
 </footer>
 
-<script src="proof.js"></script>
+<script src="proof.js?v=13"></script>
 <script src="/assets/lang-links.js"></script>
 </body>
 </html>
