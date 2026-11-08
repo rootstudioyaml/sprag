@@ -132,7 +132,7 @@ function columnsFromArgs({ useEnv = true } = {}) {
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'proof', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
-  'seed', 'litellm-budget', 'oauth-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets', 'routing',
+  'seed', 'litellm-budget', 'oauth-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets', 'routing', 'secrets',
 ]);
 
 // Flags each entry path reads, collected from the hasFlag/getArg/numArg calls in
@@ -227,6 +227,7 @@ Usage:
   sprag mode [keywords]    statusline preferences (icon/text, en/ko, window, ttl)
   sprag seed               register the bundled starter rules, one answer at a time
   sprag presets [status|sync|show]   centrally published presets: source, fetch now, effective list
+  sprag secrets [fix]      find (and remove) secrets saved in Claude Code approval lists
   sprag cowork [sync|on|off|exclude <dir>|include <dir>]   copy the ratchet rules into Cowork tab folders
   sprag korean on|off|status     Korean writing guidance + write-time check
   sprag cohesion on|off|status   English sentence-connection guidance
@@ -415,6 +416,11 @@ async function main() {
   // rules, prompt hints, route-scan candidates).
   //   sprag routing on | off | status | relax [off]
   if (args[0] === 'routing') return (await import('../src/commands/routing.js')).run({ args, hasFlag });
+
+  // Subcommand: secrets — find (and remove) secrets that "don't ask again" saved
+  // in the permission lists of Claude Code settings files.
+  //   sprag secrets | secrets fix [--yes] | secrets off | on
+  if (args[0] === 'secrets') return (await import('../src/commands/secrets.js')).run({ args, hasFlag });
 
   // Subcommand: doc2md — convert pptx/xlsx/pdf/docx to Markdown before the
   // model reads them, so an unreadable binary never enters the context window.

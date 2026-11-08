@@ -31,6 +31,7 @@ import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { debug } from './debug.js';
+import { writePrivateFile } from './private-file.js';
 import { isNewer } from './update-check.js';
 
 // First Claude Code release that reads `modelSettings[<model>].autoCompactWindow`.
@@ -366,7 +367,7 @@ export function setAutoCompactWindow({ root = process.cwd(), scope = 'global', v
 
   if (existsSync(path)) {
     backup = `${path}.bak`;
-    writeFileSync(backup, readFileSync(path, 'utf8'));
+    writePrivateFile(backup, readFileSync(path, 'utf8'));
   } else {
     mkdirSync(dirname(path), { recursive: true });
   }

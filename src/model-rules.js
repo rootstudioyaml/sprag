@@ -36,6 +36,7 @@ import { userDataDir } from './paths.js';
 import { userLanguage } from './config.js';
 import { agentPhrase, agentPhraseEn, resolveAgentName, agentForRule, TIER_MODEL } from './agents.js';
 import { writeStateFile } from './state-file.js';
+import { safeExcerpt } from './redact.js';
 import { signedUsd } from './money.js';
 import { implementationDelegationRule } from './implementation-delegation.js';
 import { routingEnabled, routingOffRatchetText, delegationGrade, normalizeDelegationGrade, gradeKeepsRule, relaxUntil, relaxClock } from './routing-switch.js';
@@ -154,7 +155,9 @@ export function composeRuleText(baseText, rule, lang = userLanguage()) {
  */
 const EXAMPLE_MAX = 30;
 function shortExample(text) {
-  const one = String(text || '').replace(/\s+/g, ' ').trim();
+  // Masked first, because a registry written by an older version may still hold
+  // a raw prompt excerpt, and this is the point where it reaches ratchet-model.md.
+  const one = safeExcerpt(text, Infinity).trim();
   return one.length <= EXAMPLE_MAX ? one : `${one.slice(0, EXAMPLE_MAX - 1)}…`;
 }
 
@@ -235,7 +238,18 @@ export function ruleForProject(rules, tier, category, projectDir) {
   return promotedHere || firstGlobal;
 }
 
+/** The registry keeps the user's own words as rule examples; secrets and personal data never go to disk. */
+function maskExamples(data) {
+  for (const r of data?.rules || []) {
+    for (const key of ['example', 'exampleEn']) {
+      if (typeof r?.[key] === 'string' && r[key]) r[key] = safeExcerpt(r[key], 80);
+    }
+  }
+  return data;
+}
+
 export function saveModelRules(data) {
+  maskExamples(data);
   writeStateFile(modelRulesPath(), JSON.stringify(data, null, 2) + '\n');
 }
 

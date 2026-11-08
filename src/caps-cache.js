@@ -12,7 +12,7 @@
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
-import { writeViaTmp } from './state-file.js';
+import { writeViaTmp, runHousekeeping, sweepStaleTmp } from './state-file.js';
 
 const CACHE_PATH = join(userDataDir(), 'last-caps.json');
 
@@ -42,9 +42,17 @@ export function persistSnapshot(snapshot) {
     // tmp + rename: the statusline reads this every tick and must never see a
     // half-written file.
     const tmp = `${CACHE_PATH}.${process.pid}.tmp`;
-    writeViaTmp(tmp, CACHE_PATH, JSON.stringify(payload) + '\n');
+    writeViaTmp(tmp, CACHE_PATH, JSON.stringify(payload) + '\n'); // removes tmp itself when the write or rename fails
   } catch {
     // best-effort cache, never blocks the statusline
+  }
+  // A killed statusline leaves `last-caps.json.<pid>.tmp` behind (hundreds had
+  // piled up). This runs on every render, so the sweep is limited to once a day.
+  try {
+    const dir = userDataDir();
+    runHousekeeping(dir, { 'stale-tmp': () => sweepStaleTmp(dir) });
+  } catch {
+    // clean-up never blocks the statusline
   }
 }
 

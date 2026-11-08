@@ -34,6 +34,7 @@ import { modelRuleBaseText } from './model-rules.js';
 import { RULE_CATEGORY_LABELS } from './rule-categories.js';
 import { readResetMarks, isBeforeReset } from './saved-reset.cjs';
 import { agentForRule } from './agents.js';
+import { safeExcerpt } from './redact.js';
 
 // ── Tier bands (docs/TIER_CRITERIA.md §3) ────────────────────────────────
 // T2 (haiku): finished in few calls, tiny output, near-zero mutation, no
@@ -729,7 +730,8 @@ export async function runRouteScan({ days = 14, trace = null } = {}) {
     const usable = ep.text.length > 10;
     if ((!g.example && (usable || !g.exampleUsable))
       || (usable && (!g.exampleUsable || ep.text.length < g.example.length))) {
-      g.example = ep.text.slice(0, 80).replace(/\s+/g, ' ');
+      // Mask before cutting so a token cut in half at char 80 cannot slip through.
+      g.example = safeExcerpt(ep.text, 80);
       g.exampleUsable = usable;
     }
     groups.set(key, g);

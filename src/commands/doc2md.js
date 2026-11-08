@@ -55,6 +55,13 @@ export async function run({ args, hasFlag }) {
       return;
     }
     if (out) console.log(out);
+    // After the answer is out: a converted copy keeps the document's whole text,
+    // so copies untouched for 30 days are removed, at most once a day.
+    try {
+      const { runHousekeeping } = await import('../state-file.js');
+      const { userDataDir } = await import('../paths.js');
+      runHousekeeping(userDataDir(), { 'doc2md-cache': () => doc2md.pruneCache() });
+    } catch { /* clean-up is best effort and never touches the Read */ }
     return;
   }
 

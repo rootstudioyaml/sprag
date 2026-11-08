@@ -390,6 +390,19 @@ export async function run({ args, hasFlag, numArg }) {
         if (doc2mdHookRegistered()) doc2mdBlock = require('../doc2md.cjs').sessionNote(lang);
       } catch (e) { debug('route-scan:doc2md-note', e); /* the note is optional */ }
 
+      // Secrets that "don't ask again" saved in an approval list. One line per
+      // settings file, once per modification time (see permission-secrets.js);
+      // `sprag secrets off` switches it off.
+      let secretsBlock = null;
+      try {
+        const { loadConfig } = await import('../config.js');
+        if (loadConfig().secretScan !== false) {
+          const { secretsNotice } = await import('../permission-secrets.js');
+          const { findProjectRoot } = await import('../harness.js');
+          secretsBlock = secretsNotice({ root: findProjectRoot(hookCtx.cwd || process.cwd()), lang });
+        }
+      } catch (e) { debug('route-scan:secrets-notice', e); /* the notice is optional */ }
+
       // Starter rules that the user has not answered yet (bundled presets, both
       // model-fitting and ratchet). A fresh install has an empty model ratchet
       // and an empty ratchet.md, so without this the tool delegates nothing
@@ -430,6 +443,7 @@ export async function run({ args, hasFlag, numArg }) {
       } catch (e) { debug('route-scan:monthly-reset', e); /* the offer is optional */ }
 
       if (open.length === 0 && reviewRules.length === 0) {
+        if (secretsBlock) console.log(secretsBlock);
         if (teamBlock) console.log(teamBlock);
         if (updateBlock) console.log(updateBlock);
         if (monthlyResetBlock) console.log(monthlyResetBlock);
@@ -440,6 +454,7 @@ export async function run({ args, hasFlag, numArg }) {
         if (cohesionBlock) console.log(cohesionBlock);
         return; // nothing else to inject
       }
+      if (secretsBlock) console.log(secretsBlock);
       if (teamBlock) console.log(teamBlock);
       if (updateBlock) console.log(updateBlock);
       if (monthlyResetBlock) console.log(monthlyResetBlock);

@@ -26,6 +26,7 @@ import { routeWarningForStatusline } from './route-scan.js';
 import { ruleHealthWarningForStatusline, modelRatchetPathFor, renderModelRatchet } from './model-rules.js';
 import { compactWindowWarningForStatusline } from './compact-window.js';
 import { userLanguage } from './config.js';
+import { writePrivateFile } from './private-file.js';
 import { routingEnabled, routingOffRatchetText } from './routing-switch.js';
 import { codexUserDir } from './agent.js';
 import { ratchetPresetEntries } from './presets-source.js';
@@ -241,7 +242,7 @@ export function harnessInit({ root = findProjectRoot(), force = false, scope = '
         if (force) {
           const stamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
           const bak = `${cmPath}.bak-${stamp}`;
-          writeFileSync(bak, existing);
+          writePrivateFile(bak, existing);
           result.backedUp.push(bak);
         }
         writeFileSync(cmPath, next);
@@ -254,7 +255,7 @@ export function harnessInit({ root = findProjectRoot(), force = false, scope = '
       // via the BEGIN/END markers.
       const stamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15); // YYYYMMDDTHHMMSS
       const bak = `${cmPath}.bak-${stamp}`;
-      writeFileSync(bak, existing);
+      writePrivateFile(bak, existing);
       const sep = existing.endsWith('\n') ? '\n' : '\n\n';
       writeFileSync(cmPath, existing + sep + block);
       result.backedUp.push(bak);
@@ -330,7 +331,7 @@ export function harnessUninit({ root = findProjectRoot(), purgeRatchet = false, 
     } else if (beginIdx !== -1) {
       const stamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
       const bak = `${cmPath}.bak-${stamp}`;
-      writeFileSync(bak, existing);
+      writePrivateFile(bak, existing);
       const re = new RegExp(
         `\\n*${escapeRe(HARNESS_BLOCK_BEGIN)}[\\s\\S]*?${escapeRe(HARNESS_BLOCK_END)}\\n?`,
         'm',
@@ -349,7 +350,7 @@ export function harnessUninit({ root = findProjectRoot(), purgeRatchet = false, 
   if (purgeRatchet && existsSync(rmPath)) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
     const bak = `${rmPath}.bak-${stamp}`;
-    writeFileSync(bak, readFileSync(rmPath, 'utf8'));
+    writePrivateFile(bak, readFileSync(rmPath, 'utf8'));
     result.backedUp.push(bak);
     // Replace with empty initial template rather than delete (preserves dir).
     writeFileSync(rmPath, harnessRatchetMdInitial());
@@ -554,7 +555,7 @@ export function harnessPrune({ root = findProjectRoot(), scope = 'project', agen
   });
   if (dryRun || doomed.length === 0) return { ok: true, path: rmPath, pruned: doomed, dryRun: true };
   const content = readFileSync(rmPath, 'utf8');
-  writeFileSync(rmPath + '.bak', content);
+  writePrivateFile(rmPath + '.bak', content);
   const drop = new Set(doomed.map((r) => r.lineNo));
   const kept = content.split('\n').filter((_, i) => !drop.has(i));
   writeFileSync(rmPath, kept.join('\n'));
@@ -585,7 +586,7 @@ export function harnessRmRule(n, { root = findProjectRoot(), scope = 'project', 
     return { ok: false, error: `No rule #${n} (have ${rules.length})`, rules };
   }
   const content = readFileSync(rmPath, 'utf8');
-  writeFileSync(rmPath + '.bak', content);
+  writePrivateFile(rmPath + '.bak', content);
   const lines = content.split('\n');
   lines.splice(target.lineNo, 1);
   writeFileSync(rmPath, lines.join('\n'));

@@ -125,6 +125,42 @@ function metaPathFor(cacheFile) {
   return cacheFile.replace(/\.md$/, '.meta.json');
 }
 
+/** A converted copy keeps a document's whole text, so one nobody has touched for this long goes. */
+const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Delete cached conversions (the .md and its .meta.json) not modified for
+ * `maxAgeMs`, plus a .meta.json whose .md is gone and that is just as old.
+ * The caller decides how often this runs; a file that cannot be removed is skipped.
+ *
+ * @returns {number} how many conversions were removed
+ */
+function pruneCache({ now = Date.now(), maxAgeMs = CACHE_MAX_AGE_MS } = {}) {
+  const dir = cacheDir();
+  let names;
+  try { names = fs.readdirSync(dir); } catch { return 0; }
+  const old = (file) => {
+    try {
+      const st = fs.lstatSync(file);
+      return st.isFile() && now - st.mtimeMs > maxAgeMs;
+    } catch { return false; }
+  };
+  let removed = 0;
+  for (const name of names) {
+    const file = path.join(dir, name);
+    if (name.endsWith('.md')) {
+      if (!old(file)) continue;
+      try { fs.rmSync(file, { force: true }); fs.rmSync(metaPathFor(file), { force: true }); removed += 1; } catch { /* skip it */ }
+    } else if (name.endsWith('.meta.json')) {
+      const md = file.replace(/\.meta\.json$/, '.md');
+      if (!fs.existsSync(md) && old(file)) {
+        try { fs.rmSync(file, { force: true }); } catch { /* skip it */ }
+      }
+    }
+  }
+  return removed;
+}
+
 /** A cached conversion still matching the source's mtime and size, or null. */
 function readCache(filePath) {
   const cacheFile = cachePathFor(filePath);
@@ -1043,6 +1079,8 @@ module.exports = {
   interpreterParts,
   clearNotice,
   cacheDir,
+  pruneCache,
+  CACHE_MAX_AGE_MS,
   cachePathFor,
   metaPathFor,
   isTargetPath,
