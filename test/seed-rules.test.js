@@ -5,6 +5,7 @@
  * the result land in the files the model reads.
  */
 
+import { gradeKeys } from './helpers/grade-config.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -24,7 +25,7 @@ function sandbox(lang = 'en') {
   const state = join(dir, 'state');
   mkdirSync(join(home, '.claude'), { recursive: true });
   mkdirSync(join(state, 'claude-token-saver'), { recursive: true });
-  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: lang, delegationGrade: 'cost' }) + '\n');
+  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: lang, ...gradeKeys('cost') }) + '\n');
   const env = childEnv({
     HOME: home,
     XDG_CONFIG_HOME: state,

@@ -151,7 +151,7 @@ test('brief --hook: an Opus session at effort medium gets the effort line once',
   const first = hook('hk-opus', 'claude-opus-4-8', ASK);
   assert.equal(first.status, 0, first.stderr);
   assert.match(first.stdout, /the session runs at effort medium/);
-  assert.doesNotMatch(first.stdout, /ends in a judgement\. At delegation grade/);
+  assert.doesNotMatch(first.stdout, /ends in a judgement\. sprag recommends Opus/);
   assert.doesNotMatch(hook('hk-opus', 'claude-opus-4-8', ASK).stdout, /session runs at effort/, 'second time in the session');
 });
 
@@ -164,7 +164,7 @@ test('brief --hook: effort high and an unrecorded session stay quiet', () => {
 test('brief --hook: a Sonnet session at effort low gets the model line only, the effort line stays unclaimed', () => {
   recordSessionEffort('hk-sonnet', 'low', { dir: dataDir });
   const out = hook('hk-sonnet', 'claude-sonnet-5-5', ASK);
-  assert.match(out.stdout, /ends in a judgement\. At delegation grade/);
+  assert.match(out.stdout, /ends in a judgement\. sprag recommends Opus/);
   assert.doesNotMatch(out.stdout, /session runs at effort/);
   assert.equal(existsSync(join(dataDir, 'route-follow', 'hk-sonnet.effort')), false);
   assert.ok(existsSync(join(dataDir, 'route-follow', 'hk-sonnet.escalated')));

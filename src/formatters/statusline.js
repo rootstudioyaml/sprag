@@ -1227,10 +1227,13 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
   const modelUpSeg = modelUp > 0
     ? `${c(GRAY)}${verbose ? `model guard ×${modelUp}` : isIcon ? `${g.model}↑${modelUp}` : `model↑${modelUp}`}${c(RESET)}`
     : null;
-  // The grade itself, only for 'cost': quality is what an install does without
-  // being asked, and a chip for it would be noise.
-  const gradeSeg = data.delegationGrade === 'cost'
-    ? `${c(GRAY)}${verbose ? 'grade cost' : 'grade C'}${c(RESET)}`
+  // The relax window, only while one is open: the default behaviour gets no
+  // chip. data.relaxUntil is the deadline in epoch ms (null when closed).
+  //   text "relax →21:30"  |  verbose "relax until 21:30"
+  const relaxMs = Number(data.relaxUntil);
+  const relaxClockText = Number.isFinite(relaxMs) && relaxMs > Date.now() ? formatResetClock(relaxMs / 1000) : null;
+  const gradeSeg = relaxClockText
+    ? `${c(GRAY)}${verbose ? `relax until ${relaxClockText}` : `relax →${relaxClockText}`}${c(RESET)}`
     : null;
 
   // Routing-savings headline line (multi-line layout). The lifetime sum from

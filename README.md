@@ -300,7 +300,7 @@ The ratchet presets, model-routing presets and delegation agents in `presets/` a
 | `sprag route-scan` | Find delegation candidates in your own history (0 LLM calls) |
 | `sprag route-scan savings` | The routing-savings ledger |
 | `sprag routing on\|off` | Turn model delegation (rules, hints, candidates) on or off |
-| `sprag routing grade [quality\|cost]` | Show or set the delegation grade: how much work is handed to cheaper models, and when to recommend Opus |
+| `sprag routing relax [off]` | Widen delegation until the busiest usage window resets (it switches back by itself), or end that early. `sprag routing status` shows `relax: off` or `relax: until HH:MM` |
 | `sprag harness check` | Current 🅷 harness score |
 | `sprag doc2md <file>` | Convert one document to Markdown |
 

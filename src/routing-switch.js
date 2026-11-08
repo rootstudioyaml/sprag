@@ -9,6 +9,7 @@
  */
 
 import { loadConfig, saveConfig } from './config.js';
+import { formatResetClock } from './format-time.js';
 
 export function routingEnabled(cfg = loadConfig()) {
   try {
@@ -34,60 +35,83 @@ export function effortHintEnabled(cfg = loadConfig()) {
 export function setEffortHint(on) {
   const cfg = loadConfig();
   cfg.effortHint = on !== false;
+  pruneExpiredRelax(cfg);
   saveConfig(cfg);
 }
 
 export function setRoutingEnabled(on) {
   const cfg = loadConfig();
   cfg.routing = on !== false;
+  pruneExpiredRelax(cfg);
   saveConfig(cfg);
 }
 
 /**
  * How far delegation goes while routing is on. 'quality' hands off only work
  * whose answer comes straight from tool output and sends judgement work up to
- * Opus; 'cost' hands off as much as the rules allow. A missing or unknown
- * value reads as 'quality'. Routing off still wins over any grade.
+ * Opus; 'cost' hands off as much as the rules allow. Routing off still wins
+ * over any grade.
  *
- * Earlier versions stored three grades. A stored 'balanced' reads as 'quality'
- * and a stored 'saving' as 'cost', so a config written then keeps meaning
- * what it meant (LEGACY_GRADES).
+ * The grade is not a setting. It is 'quality' unless a relax window is open:
+ * `relaxUntil` in config.json holds an epoch-ms deadline, and until then the
+ * grade reads 'cost'. `sprag routing relax` opens the window up to the reset
+ * of the busiest usage window, and once the deadline passes the grade goes
+ * back to 'quality' by itself, with no write needed.
  */
 export const DELEGATION_GRADES = ['quality', 'cost'];
 export const DEFAULT_DELEGATION_GRADE = 'quality';
-export const LEGACY_GRADES = { balanced: 'quality', saving: 'cost' };
 
-/** A grade name, or an old one mapped to its successor; null for anything else. */
+/** A grade name; null for anything else. */
 export function normalizeDelegationGrade(value) {
-  if (DELEGATION_GRADES.includes(value)) return value;
-  return Object.hasOwn(LEGACY_GRADES, value) ? LEGACY_GRADES[value] : null;
+  return DELEGATION_GRADES.includes(value) ? value : null;
 }
 
-export function delegationGrade(cfg = loadConfig()) {
+/** The stored relax deadline in epoch ms, or null when none is stored. It may already be past. */
+export function relaxUntil(cfg = loadConfig()) {
   try {
-    return normalizeDelegationGrade(cfg?.delegationGrade) ?? DEFAULT_DELEGATION_GRADE;
+    const v = cfg?.relaxUntil;
+    return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** True while the relax deadline is still ahead of `now`. */
+export function isRelaxed(cfg = loadConfig(), now = Date.now()) {
+  const until = relaxUntil(cfg);
+  return until !== null && until > now;
+}
+
+export function delegationGrade(cfg = loadConfig(), now = Date.now()) {
+  try {
+    return isRelaxed(cfg, now) ? 'cost' : DEFAULT_DELEGATION_GRADE;
   } catch {
     return DEFAULT_DELEGATION_GRADE;
   }
 }
 
-/** Stores the grade; an old name is stored as the grade that replaced it. */
-export function setDelegationGrade(grade) {
-  const g = normalizeDelegationGrade(grade);
-  if (g === null) throw new Error(`unknown delegation grade: ${grade}`);
+/**
+ * Stores the relax deadline (epoch ms), or clears it with null. A deadline
+ * that has passed is dropped from the config on any write that goes through
+ * here or through the other setters in this file.
+ */
+export function setRelaxUntil(ms) {
   const cfg = loadConfig();
-  cfg.delegationGrade = g;
+  if (typeof ms === 'number' && Number.isFinite(ms)) cfg.relaxUntil = ms;
+  else delete cfg.relaxUntil;
   saveConfig(cfg);
 }
 
-/** The grade as the user reads it: ko 품질 우선/비용 우선, en quality/cost. */
-const GRADE_LABELS = {
-  ko: { quality: '품질 우선', cost: '비용 우선' },
-  en: { quality: 'quality', cost: 'cost' },
-};
-export function gradeLabel(grade, lang = 'en') {
-  const g = normalizeDelegationGrade(grade) ?? grade;
-  return (GRADE_LABELS[lang] || GRADE_LABELS.en)[g] ?? grade;
+/** Drops an expired relaxUntil from a config object about to be saved. */
+function pruneExpiredRelax(cfg) {
+  const until = relaxUntil(cfg);
+  if (until !== null && until <= Date.now()) delete cfg.relaxUntil;
+  else if (cfg && 'relaxUntil' in cfg && until === null) delete cfg.relaxUntil;
+}
+
+/** The deadline as the user reads it: HH:MM, with the weekday ahead of it when it is not today. */
+export function relaxClock(ms, now = new Date()) {
+  return formatResetClock(ms / 1000, now);
 }
 
 /**
@@ -101,7 +125,7 @@ export const QUALITY_T2_CATEGORIES = new Set(['paste', 'read', 'translate']);
 
 /** False when this grade drops the rule (see QUALITY_T2_CATEGORIES). */
 export function gradeKeepsRule(grade, rule) {
-  if (normalizeDelegationGrade(grade) !== 'quality') return true;
+  if ((normalizeDelegationGrade(grade) ?? DEFAULT_DELEGATION_GRADE) !== 'quality') return true;
   return rule?.tier !== 'T2' || QUALITY_T2_CATEGORIES.has(rule.category);
 }
 

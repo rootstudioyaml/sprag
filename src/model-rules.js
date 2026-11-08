@@ -38,7 +38,7 @@ import { agentPhrase, agentPhraseEn, resolveAgentName, agentForRule, TIER_MODEL 
 import { writeStateFile } from './state-file.js';
 import { signedUsd } from './money.js';
 import { implementationDelegationRule } from './implementation-delegation.js';
-import { routingEnabled, routingOffRatchetText, delegationGrade, gradeKeepsRule, gradeLabel } from './routing-switch.js';
+import { routingEnabled, routingOffRatchetText, delegationGrade, normalizeDelegationGrade, gradeKeepsRule, relaxUntil, relaxClock } from './routing-switch.js';
 
 // Post-promotion delegated-category error rate above this flags the rule
 // for review (rule-health). Calibrated against local T0 avg error incidence.
@@ -274,18 +274,22 @@ export function removeModelRule(index1) {
  * to, or null for the global file, which may only name agents the user
  * directory holds (see agentExists). Left out, it is the current directory.
  */
-export function renderModelRatchet(rules, lang = userLanguage(), { root, grade = delegationGrade() } = {}) {
+export function renderModelRatchet(rules, lang = userLanguage(), { root, grade = delegationGrade(), relaxUntilMs = relaxUntil() } = {}) {
   const ko = lang === 'ko';
   // The same T2 filter the prompt hook applies (routeMatch), so the file and
   // the hook do not tell the model different things. At grade 'quality' a T2
   // rule survives only for paste, read and translate.
   rules = rules.filter((r) => gradeKeepsRule(grade, r));
-  const gradeName = gradeLabel(grade, lang);
+  // Only a relaxed window gets a line. The default behaviour is not described.
+  const relaxed = normalizeDelegationGrade(grade) === 'cost';
+  const clock = relaxed && typeof relaxUntilMs === 'number' ? relaxClock(relaxUntilMs) : null;
+  const relaxLine = !relaxed ? [] : lang === 'ko'
+    ? [`이번 한도 창${clock ? `(${clock}까지)` : ''}은 위임 범위를 넓혀 둔 상태입니다. 판단형 일도 원인 진단, 감사, 보안이 아니면 위임할 수 있습니다.`, '']
+    : [`This limit window${clock ? ` (until ${clock})` : ''} is widened for delegation. Judgement work may be delegated too unless it is root-cause diagnosis, an audit, or security.`, ''];
   const lines = ko ? [
     '# Model-Fitting Ratchet (sprag 자동 관리)',
     '',
-    `현재 위임 등급: ${gradeName}. 바꾸려면 \`sprag routing grade <quality|cost>\`.`,
-    '',
+    ...relaxLine,
     '로그 기반 티어 위임 룰. 이 파일은 route-scan이 매 스캔마다 통째로 재생성하므로',
     '직접 수정하지 마세요 — 목록/제거: `sprag route-scan rules [rm <N>]`.',
     '',
@@ -370,8 +374,7 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root, grade =
   ] : [
     '# Model-Fitting Ratchet (managed by sprag)',
     '',
-    `Current delegation grade: ${gradeName}. Change it with sprag routing grade <quality|cost>.`,
-    '',
+    ...relaxLine,
     'Log-derived tier delegation rules. route-scan regenerates this file in full',
     'on every scan — do not edit it by hand. List / remove with:',
     '`sprag route-scan rules [rm <N>]`.',

@@ -178,14 +178,41 @@ test('routingOffRatchetText passes the Korean lint and carries no approval wordi
   assert.ok(!/approved/i.test(en));
 });
 
-test('delegationGrade reads quality or cost, maps the old names and falls back to quality', () => {
-  assert.equal(sw.delegationGrade({}), 'quality');
-  assert.equal(sw.delegationGrade({ delegationGrade: 'quality' }), 'quality');
-  assert.equal(sw.delegationGrade({ delegationGrade: 'cost' }), 'cost');
-  assert.equal(sw.delegationGrade({ delegationGrade: 'balanced' }), 'quality', 'old balanced reads as quality');
-  assert.equal(sw.delegationGrade({ delegationGrade: 'saving' }), 'cost', 'old saving reads as cost');
-  assert.equal(sw.delegationGrade({ delegationGrade: 'max' }), 'quality');
-  assert.equal(sw.delegationGrade(null), 'quality');
+test('delegationGrade is cost only while relaxUntil is ahead of now, quality otherwise', () => {
+  const now = 1_800_000_000_000;
+  assert.equal(sw.delegationGrade({}, now), 'quality');
+  assert.equal(sw.delegationGrade(null, now), 'quality');
+  assert.equal(sw.delegationGrade({ relaxUntil: now + 1 }, now), 'cost');
+  assert.equal(sw.delegationGrade({ relaxUntil: now }, now), 'quality', 'the deadline itself is already over');
+  assert.equal(sw.delegationGrade({ relaxUntil: now - 1000 }, now), 'quality', 'expired');
+  assert.equal(sw.delegationGrade({ relaxUntil: String(now + 1000) }, now), 'quality', 'not a number');
+  assert.equal(sw.delegationGrade({ relaxUntil: NaN }, now), 'quality');
+  // the stored grade key of the unreleased builds is not read
+  for (const g of ['cost', 'saving', 'balanced', 'quality']) assert.equal(sw.delegationGrade({ delegationGrade: g }, now), 'quality', g);
   assert.deepEqual(sw.DELEGATION_GRADES, ['quality', 'cost']);
   assert.equal(sw.DEFAULT_DELEGATION_GRADE, 'quality');
+});
+
+test('relaxUntil and isRelaxed read the stored deadline', () => {
+  assert.equal(sw.relaxUntil({}), null);
+  assert.equal(sw.relaxUntil({ relaxUntil: 5 }), 5);
+  assert.equal(sw.relaxUntil({ relaxUntil: 'x' }), null);
+  assert.equal(sw.isRelaxed({ relaxUntil: 100 }, 99), true);
+  assert.equal(sw.isRelaxed({ relaxUntil: 100 }, 100), false);
+  assert.equal(sw.isRelaxed({}, 100), false);
+});
+
+test('setRelaxUntil stores and clears the deadline, and other writes drop an expired one', () => {
+  const ahead = Date.now() + 3600 * 1000;
+  sw.setRelaxUntil(ahead);
+  assert.equal(sw.relaxUntil(), ahead);
+  assert.equal(sw.isRelaxed(), true);
+  sw.setRoutingEnabled(true);
+  assert.equal(sw.relaxUntil(), ahead, 'a live deadline survives another write');
+  sw.setRelaxUntil(null);
+  assert.equal(sw.relaxUntil(), null);
+  sw.setRelaxUntil(Date.now() - 1000);
+  assert.equal(sw.isRelaxed(), false);
+  sw.setEffortHint(true);
+  assert.equal(sw.relaxUntil(), null, 'an expired deadline is dropped at the next write');
 });

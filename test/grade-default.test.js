@@ -1,5 +1,5 @@
 /**
- * The delegation grade with nothing configured, and the once-per-session limit
+ * The delegation grade with nothing configured (no relax window), and the once-per-session limit
  * on the Opus recommendation.
  *
  * HOME and XDG_CONFIG_HOME point at an empty throwaway directory before any
@@ -40,7 +40,7 @@ test('with no config the grade is quality', () => {
   assert.equal(DEFAULT_DELEGATION_GRADE, 'quality');
   assert.equal(delegationGrade(), 'quality');
   assert.equal(delegationGrade({}), 'quality');
-  assert.equal(delegationGrade({ delegationGrade: 'unknown' }), 'quality');
+  assert.equal(delegationGrade({ delegationGrade: 'cost' }), 'quality', 'the old stored key is not read');
 });
 
 test('with no grade given, routeMatch applies the JUDGE gate and the T2 filter', () => {
@@ -59,7 +59,7 @@ test('with no grade given, routeMatch applies the JUDGE gate and the T2 filter',
 test('with no grade given, the rules file drops the T2 rule of a lookup category', () => {
   const md = renderModelRatchet([{ ...rule('T2', 'check'), rule: 'r2' }], 'en', { root: null });
   assert.doesNotMatch(md, /model: haiku/);
-  assert.match(md, /Current delegation grade: quality/);
+  assert.doesNotMatch(md, /delegation grade|limit window/i, 'no line unless a relax window is open');
   assert.match(renderModelRatchet([{ ...rule('T2', 'check'), rule: 'r2' }], 'en', { root: null, grade: 'cost' }), /model: haiku/);
 });
 

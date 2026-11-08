@@ -3,7 +3,7 @@
  *
  *   sprag routing            # status
  *   sprag routing on|off     # turn every delegation path on or off
- *   sprag routing grade [quality|cost]   # show or set the delegation grade
+ *   sprag routing relax [off]            # widen delegation until the busiest usage window resets, or end that early
  *   sprag routing effort-hint on|off     # the effort line for low/medium sessions on judgement requests
  *
  * Off removes the delegation rules from ratchet-model.md and the preset
@@ -15,7 +15,21 @@ export async function run({ args }) {
   const sub = args[1];
   const { userLanguage } = await import('../config.js');
   const ko = userLanguage() === 'ko';
-  const { routingEnabled, setRoutingEnabled, delegationGrade, setDelegationGrade, normalizeDelegationGrade, gradeLabel, DELEGATION_GRADES, effortHintEnabled, setEffortHint } = await import('../routing-switch.js');
+  const { routingEnabled, setRoutingEnabled, isRelaxed, relaxUntil, setRelaxUntil, relaxClock, effortHintEnabled, setEffortHint } = await import('../routing-switch.js');
+
+  // The reset of the busiest usage window in the statusline snapshot, in epoch
+  // ms; five hours from now when the snapshot is missing, stale or has no reset.
+  const relaxDeadline = async () => {
+    const fallback = Date.now() + 5 * 60 * 60 * 1000;
+    try {
+      const { capPressure } = await import('../caps-cache.js');
+      const p = capPressure();
+      const ms = p && p.resetsAt ? p.resetsAt * 1000 : null;
+      return ms !== null && ms > Date.now() ? ms : fallback;
+    } catch {
+      return fallback;
+    }
+  };
 
   const rules = async () => (await import('../model-rules.js')).loadModelRules().rules.length;
   // Re-render the files that carry delegation text so the change shows without
@@ -55,32 +69,26 @@ export async function run({ args }) {
     return;
   }
 
-  if (sub === 'grade') {
+  if (sub === 'relax') {
     const want = args[2];
-    if (want === undefined) {
-      const g = delegationGrade();
-      console.log(`grade: ${g} (${gradeLabel(g, ko ? 'ko' : 'en')})`);
-      return;
-    }
-    const stored = normalizeDelegationGrade(want);
-    if (stored === null) {
-      console.error(`Usage: sprag routing grade [${DELEGATION_GRADES.join('|')}]`);
+    if (want !== undefined && want !== 'off') {
+      console.error('Usage: sprag routing relax [off]');
       process.exitCode = 2;
       return;
     }
-    // balanced and saving were grades of an earlier version; they are accepted
-    // and stored as the grade that replaced them.
-    if (stored !== want) {
-      console.error(ko
-        ? `경고: ${want} 등급은 없어졌습니다. ${gradeLabel(stored, 'ko')}(${stored})으로 저장합니다.`
-        : `Warning: the ${want} grade no longer exists; storing ${stored}.`);
+    if (want === 'off') {
+      setRelaxUntil(null);
+      await resync();
+      console.log(ko ? '✓ 위임 범위를 원래대로 돌렸습니다.' : '✓ Delegation is back to its usual range.');
+      return;
     }
-    setDelegationGrade(stored);
+    const until = await relaxDeadline();
+    setRelaxUntil(until);
     await resync();
-    console.log(ko ? `✓ 위임 등급을 ${gradeLabel(stored, 'ko')}(${stored})으로 바꿨습니다.` : `✓ Delegation grade is now ${stored}.`);
+    const clock = relaxClock(until);
     console.log(ko
-      ? '프롬프트 힌트는 바로, ratchet-model.md는 방금 다시 썼습니다.'
-      : 'Prompt hints change at once; ratchet-model.md was just rewritten.');
+      ? `이번 한도 창이 끝나는 ${clock}까지 위임을 넓힙니다. 그 뒤에는 자동으로 돌아옵니다.`
+      : `Delegation is widened until ${clock}, when this limit window ends. It switches back by itself after that.`);
     return;
   }
 
@@ -104,8 +112,7 @@ export async function run({ args }) {
     let agentsOn = true;
     try { agentsOn = (await import('../delegation-agents.js')).delegationAgentStatus().enabled; } catch { /* default on */ }
     console.log(`routing: ${on ? 'on' : 'off'}`);
-    const grade = delegationGrade();
-    console.log(`grade: ${grade} (${gradeLabel(grade, ko ? 'ko' : 'en')})`);
+    console.log(isRelaxed() ? `relax: until ${relaxClock(relaxUntil())}` : 'relax: off');
     console.log(`effort hint: ${effortHintEnabled() ? 'on' : 'off'}`);
     console.log(ko ? `등록된 룰: ${n}건` : `registered rules: ${n}`);
     console.log(`delegate agents: ${agentsOn ? 'on' : 'off'}`);
@@ -115,6 +122,6 @@ export async function run({ args }) {
     return;
   }
 
-  console.log('Usage: sprag routing on|off|status|grade [quality|cost]|effort-hint on|off');
+  console.log('Usage: sprag routing on|off|status|relax [off]|effort-hint on|off');
   process.exitCode = 1;
 }

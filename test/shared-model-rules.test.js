@@ -9,7 +9,7 @@ import { loadSharedModelRules, sharedModelRulesForProject } from '../src/shared-
 import { codexRouteHint, codexDelegationTool, sharedCodexModelRules, codexSharedTargets, autoCodexSharedTargets, codexTierTargets } from '../src/codex/delegation.js';
 import { routeMatch } from '../src/route-inject.js';
 import { childEnv } from './helpers/child-env.js';
-import { writeGradeConfig } from './helpers/grade-config.js';
+import { writeGradeConfig, gradeKeys } from './helpers/grade-config.js';
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const policy = (tier = 'T2', extra = {}) => ({ status: 'active', category: 'explore', tier, scope: 'global',
@@ -28,7 +28,7 @@ function fixture(t) {
   const save = (rules) => writeFileSync(file, JSON.stringify({ rules }));
   save([policy('T1'), policy('T2')]);
   // Grade 'cost' keeps the T2 policy in the offer; 'quality' drops it for this category.
-  const cfg = { delegationGrade: 'cost', codex: { delegate: true, sharedRules: { targets: [target('T2'), target('T1')] } } };
+  const cfg = { ...gradeKeys('cost'), codex: { delegate: true, sharedRules: { targets: [target('T2'), target('T1')] } } };
   const payload = { model: 'parent-model', model_provider: 'gateway', cwd: root, prompt: 'Find the parser files', session_id: 'parent' };
   const recorded = [];
   const opts = { dir, root, home, cfg, rules: [], contextTokens: 60000, record: (r) => recorded.push(r) };
@@ -268,7 +268,7 @@ test('Codex-first user can approve bundled policies, map a model and route witho
   assert.doesNotMatch(f.run(['seed']).stdout, /\[explore-t2\]/);
   assert.equal(f.run(['delegate', 'shared', 'map', 'T2', '--from', 'parent-model', '--model', 'small-model']).status, 0);
   assert.equal(f.run(['delegate', 'on']).status, 0);
-  const cfg = { ...JSON.parse(readFileSync(join(f.dir, 'config.json'), 'utf8')), delegationGrade: 'cost' };
+  const cfg = { ...JSON.parse(readFileSync(join(f.dir, 'config.json'), 'utf8')), ...gradeKeys('cost') };
   assert.match(codexRouteHint(f.payload, { ...f.opts, cfg }), /T2: model small-model/);
   assert.equal(existsSync(join(f.base, '.claude')), false);
 
@@ -356,7 +356,7 @@ test('status checks mappings for the configured parent model, and the context ga
     assert.notEqual(f.run(['delegate', 'shared', 'min-context', ...bad]).status, 0, bad.join(' '));
     assert.equal(readFileSync(config, 'utf8'), before);
   }
-  const cfg = { ...JSON.parse(before), delegationGrade: 'cost' };
+  const cfg = { ...JSON.parse(before), ...gradeKeys('cost') };
   assert.ok(codexRouteHint(f.payload, { ...f.opts, cfg, contextTokens: 30000 }));
   assert.equal(codexRouteHint(f.payload, { ...f.opts, contextTokens: 30000 }), null);
   assert.equal(f.run(['delegate', 'shared', 'min-context', 'default']).status, 0);
@@ -398,7 +398,7 @@ test('unmapped tiers resolve to cheaper priced models already run in Codex, the 
   writeFileSync(join(f.home, 'config.toml'), 'model_provider="openai"\nmodel="gpt-6-astra"\n');
   writeFileSync(join(f.dir, 'codex-route-scan.json'), JSON.stringify({ version: 1, candidates: [], observedModels: [
     'openai|gpt-6-astra', 'openai|gpt-6-sol', 'openai|gpt-6-luna', 'openai|gpt-5.6-terra', 'openai|unpriced-model', 'other|gpt-5.4-nano'] }));
-  const opts = { ...f.opts, cfg: { delegationGrade: 'cost', codex: { delegate: true } } };
+  const opts = { ...f.opts, cfg: { ...gradeKeys('cost'), codex: { delegate: true } } };
   const payload = { ...f.payload, model: 'gpt-6-astra', model_provider: 'openai' };
   const hint = codexRouteHint(payload, opts);
   assert.match(hint, /T2: model gpt-6-luna/);

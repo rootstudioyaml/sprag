@@ -1,7 +1,7 @@
 /**
  * Delegation grade, prompt side: the judgement gate (JUDGE_RE), the grade's
  * effect on routeMatch, judgementMatch, the Opus recommendation, the grade line
- * and the judgement clause in ratchet-model.md, and `sprag routing grade`.
+ * and the relax line and the judgement clause in ratchet-model.md, and `sprag routing relax`.
  *
  * HOME and XDG_CONFIG_HOME point at a throwaway directory before any sprag
  * module loads, because config.js fixes its path at import. Every example text
@@ -68,8 +68,8 @@ test('JUDGE_RE leaves ESCALATE_RE untouched: the old gate still decides the old 
 test('routeMatch: cost gates on ESCALATE_RE alone, quality on JUDGE_RE too', () => {
   const absence = '로그에 에러가 없는지 확인해줘';
   assert.ok(routeMatch(absence, { rules, grade: 'cost' }), 'cost still hands an absence check off');
-  assert.ok(routeMatch(absence, { rules, grade: 'saving' }), 'an old saving value reads as cost');
-  assert.equal(routeMatch(absence, { rules, grade: 'balanced' }), null, 'an old balanced value reads as quality');
+  assert.equal(routeMatch(absence, { rules, grade: 'saving' }), null, 'a name from an earlier version reads as quality');
+  assert.equal(routeMatch(absence, { rules, grade: 'balanced' }), null, 'an unknown value reads as quality');
   assert.equal(routeMatch(absence, { rules, grade: 'quality' }), null);
   // an ESCALATE_RE word closes every grade
   assert.equal(routeMatch('로그가 왜 이렇게 나오는지 확인해줘', { rules, grade: 'cost' }), null);
@@ -93,8 +93,8 @@ test('gradeKeepsRule keeps T2 only for paste, read and translate at quality', ()
   for (const c of ['explore', 'check', 'run']) assert.ok(!sw.gradeKeepsRule('quality', rule('T2', c)), c);
   for (const c of ['explore', 'check', 'run']) assert.ok(sw.gradeKeepsRule('quality', rule('T1', c)), c);
   assert.ok(sw.gradeKeepsRule('cost', rule('T2', 'run')));
-  assert.ok(sw.gradeKeepsRule('saving', rule('T2', 'run')), 'an old saving value reads as cost');
-  assert.ok(!sw.gradeKeepsRule('balanced', rule('T2', 'run')), 'an old balanced value reads as quality');
+  assert.ok(!sw.gradeKeepsRule('saving', rule('T2', 'run')), 'a name from an earlier version reads as quality');
+  assert.ok(!sw.gradeKeepsRule('balanced', rule('T2', 'run')), 'an unknown value reads as quality');
 });
 
 test('judgementMatch says which gate held the request back', () => {
@@ -114,7 +114,7 @@ test('escalationNotice: Sonnet is told to move up, Opus and an unknown model are
   for (const grade of ['quality', 'cost']) {
     const out = escalationNotice(ask, { sessionRank: 1, grade, lang: 'ko' });
     assert.match(out, /^✇ \[sprag\] 이 요청은 판단이 결론인 일입니다\./, grade);
-    assert.ok(out.includes(`위임 등급(${sw.gradeLabel(grade, 'ko')})`), grade);
+    assert.ok(!out.includes('위임 등급'), `${grade}: no grade wording`);
     assert.equal(escalationNotice(ask, { sessionRank: 2, grade, lang: 'ko' }), null, `${grade}: Opus session`);
     assert.equal(escalationNotice(ask, { sessionRank: 3, grade, lang: 'ko' }), null, `${grade}: Fable session`);
     assert.equal(escalationNotice(ask, { sessionRank: null, grade, lang: 'ko' }), null, `${grade}: unknown model`);
@@ -142,25 +142,33 @@ test('escalationNotice wording: Korean passes the lint, both languages recommend
   const ko = escalationNotice('보안 취약점이 없는지 확인해줘', { sessionRank: 1, grade: 'quality', lang: 'ko' });
   assert.deepEqual(lint.lintKoreanText(ko, { maxFindings: 100 }), []);
   assert.ok(ko.includes('Opus(effort high)') && ko.includes('t1h-worker') && ko.includes('/model opus') && ko.includes('sprag.io/proof'));
-  assert.ok(ko.includes('위임 등급(품질 우선)'));
+  assert.ok(!ko.includes('위임 등급'));
   const en = escalationNotice('보안 취약점이 없는지 확인해줘', { sessionRank: 1, grade: 'cost', lang: 'en' });
-  assert.ok(en.startsWith('✇ [sprag] This request ends in a judgement. At delegation grade cost,'));
+  assert.ok(en.startsWith('✇ [sprag] This request ends in a judgement. sprag recommends'));
   assert.ok(en.includes('Opus at effort high') && en.includes('/model opus'));
   assert.ok(!/xhigh/.test(ko + en));
 });
 
-test('renderModelRatchet: the grade line, the judgement clause and the quality T2 filter', () => {
+test('renderModelRatchet: the relax line, the judgement clause and the quality T2 filter', () => {
   const sample = [rule('T2', 'check'), rule('T1', 'check'), rule('T2', 'read')];
+  const until = new Date(2030, 0, 15, 21, 30).getTime();
+  const clock = sw.relaxClock(until);
   for (const grade of sw.DELEGATION_GRADES) {
-    const ko = renderModelRatchet(sample, 'ko', { root: null, grade });
-    assert.ok(ko.includes(`현재 위임 등급: ${sw.gradeLabel(grade, 'ko')}. 바꾸려면 \`sprag routing grade <quality|cost>\`.`), grade);
+    const ko = renderModelRatchet(sample, 'ko', { root: null, grade, relaxUntilMs: until });
+    const en = renderModelRatchet(sample, 'en', { root: null, grade, relaxUntilMs: until });
+    const koLine = `이번 한도 창(${clock}까지)은 위임 범위를 넓혀 둔 상태입니다. 판단형 일도 원인 진단, 감사, 보안이 아니면 위임할 수 있습니다.`;
+    const enLine = `This limit window (until ${clock}) is widened for delegation. Judgement work may be delegated too unless it is root-cause diagnosis, an audit, or security.`;
+    assert.equal(ko.includes(koLine), grade === 'cost', `ko relax line at ${grade}`);
+    assert.equal(en.includes(enLine), grade === 'cost', `en relax line at ${grade}`);
+    assert.ok(!/위임 등급|delegation grade|routing grade/i.test(ko + en), `${grade}: the old grade line is gone`);
     assert.ok(ko.includes('결론이 판단입니다'), 'judgement clause (ko)');
     assert.ok(ko.includes('effort xhigh는 권하지 않습니다'));
-    const en = renderModelRatchet(sample, 'en', { root: null, grade });
-    assert.ok(en.includes(`Current delegation grade: ${grade}. Change it with sprag routing grade <quality|cost>.`), grade);
     assert.ok(en.replace(/\s+/g, ' ').includes('all end in a judgement'), 'judgement clause (en)');
     assert.ok(en.replace(/\s+/g, ' ').includes('Do not recommend effort xhigh'));
   }
+  // not relaxed: the file starts straight with the generic text
+  const plain = renderModelRatchet([], 'ko', { root: null, grade: 'quality' });
+  assert.match(plain, /^# Model-Fitting Ratchet \(sprag 자동 관리\)\n\n로그 기반 티어 위임 룰\./);
   const body = (t) => t.split('## Rules')[1];
   const bal = body(renderModelRatchet(sample, 'ko', { root: null, grade: 'cost' }));
   const q = body(renderModelRatchet(sample, 'ko', { root: null, grade: 'quality' }));
@@ -169,38 +177,37 @@ test('renderModelRatchet: the grade line, the judgement clause and the quality T
   assert.equal((q.match(/^- /gm) || []).length, 2, 'the T1 check line and the T2 read line remain');
   // the generated Korean text passes the lint at every grade
   for (const grade of sw.DELEGATION_GRADES) {
-    const head = renderModelRatchet([], 'ko', { root: null, grade }).split('## Rules')[0];
-    // The header predates this change and carries findings of its own, so only the two added passages are held to the lint.
-    const added = head.split('\n').filter((l) => /현재 위임 등급/.test(l)).join('\n')
+    const head = renderModelRatchet([], 'ko', { root: null, grade, relaxUntilMs: until }).split('## Rules')[0];
+    // The header predates this change and carries findings of its own, so only the added passages are held to the lint.
+    const added = head.split('\n').filter((l) => /^이번 한도 창/.test(l)).join('\n')
       + head.slice(head.indexOf('- 개선점이나'), head.indexOf('## 티어 판별'));
     assert.deepEqual(lint.lintKoreanText(added, { maxFindings: 100 }), [], grade);
   }
 });
 
-test('syncAllFiles rewrites ratchet-model.md when the grade changes', () => {
+test('syncAllFiles rewrites ratchet-model.md when the relax window opens and closes', () => {
   const mr = join(home, '.claude', 'ratchet-model.md');
   const data = { rules: [rule('T2', 'check'), rule('T1', 'check')] };
   mkdirSync(join(dir, 'cfg', 'claude-token-saver'), { recursive: true });
   // the registry lives under the state directory; write it where model-rules reads it
   return import('../src/model-rules.js').then(({ saveModelRules }) => {
     saveModelRules(data);
-    sw.setDelegationGrade('cost');
+    sw.setRelaxUntil(Date.now() + 3600 * 1000);
     syncAllFiles();
     const before = readFileSync(mr, 'utf8');
-    assert.match(before, /현재 위임 등급: 비용 우선|Current delegation grade: cost/);
-    assert.deepEqual(syncAllFiles(), [], 'unchanged grade writes nothing');
-    sw.setDelegationGrade('quality');
+    assert.match(before, /이번 한도 창\(.+까지\)은 위임 범위를 넓혀 둔 상태입니다|This limit window \(until .+\) is widened/);
+    assert.deepEqual(syncAllFiles(), [], 'an unchanged window writes nothing');
+    sw.setRelaxUntil(null);
     assert.deepEqual(syncAllFiles(), [mr]);
     const after = readFileSync(mr, 'utf8');
-    assert.match(after, /현재 위임 등급: 품질 우선|Current delegation grade: quality/);
+    assert.doesNotMatch(after, /한도 창|limit window/);
     assert.notEqual(after, before);
-    sw.setDelegationGrade('quality');
   });
 });
 
 test('codexPromptCategory follows the grade gate; the Opus notice is not ported', () => {
   assert.ok(codexPromptCategory('로그에 에러가 없는지 확인해줘', { grade: 'cost' }));
-  assert.equal(codexPromptCategory('로그에 에러가 없는지 확인해줘', { grade: 'balanced' }), null, 'an old balanced value reads as quality');
+  assert.equal(codexPromptCategory('로그에 에러가 없는지 확인해줘', { grade: 'balanced' }), null, 'an unknown grade reads as quality');
   assert.equal(codexPromptCategory('로그에 에러가 없는지 확인해줘', { grade: 'quality' }), null);
   assert.ok(codexPromptCategory(CHECK, { grade: 'quality' }));
 });
@@ -212,32 +219,58 @@ function cli(args) {
   });
 }
 
-test('sprag routing grade: shows, sets, refuses a bad value with exit 2, and status carries the line', () => {
-  const show = cli(['grade']);
-  assert.equal(show.status, 0, show.stderr);
-  assert.match(show.stdout, /^grade: quality \(quality\)/, 'quality is the default');
-  const set = cli(['grade', 'cost']);
+test('sprag routing relax: sets the deadline from the busiest window, relax off clears it, status carries the line', () => {
+  const stateDir = join(dir, 'cfg', 'claude-token-saver');
+  const configPath = join(stateDir, 'config.json');
+  const stored = () => JSON.parse(readFileSync(configPath, 'utf8')).relaxUntil;
+  mkdirSync(stateDir, { recursive: true });
+  const clockOf = (ms) => sw.relaxClock(ms);
+  assert.match(cli(['status']).stdout, /^relax: off$/m, 'closed by default');
+  assert.match(cli([]).stdout, /^relax: off$/m);
+
+  // no snapshot: five hours from now
+  const t0 = Date.now();
+  const none = cli(['relax']);
+  assert.equal(none.status, 0, none.stderr);
+  assert.ok(stored() >= t0 + 5 * 3600 * 1000 - 1000 && stored() <= Date.now() + 5 * 3600 * 1000 + 1000, 'five hours without caps');
+  assert.match(none.stdout, new RegExp(`Delegation is widened until ${clockOf(stored())}`));
+  assert.match(cli(['status']).stdout, new RegExp(`^relax: until ${clockOf(stored())}$`, 'm'));
+  assert.equal(cli(['relax', 'off']).status, 0);
+  assert.equal(stored(), undefined, 'relax off removes the key');
+  assert.match(cli(['status']).stdout, /^relax: off$/m);
+
+  // a fresh snapshot: the reset of the busiest window
+  const sevenDayReset = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
+  writeFileSync(join(stateDir, 'last-caps.json'), JSON.stringify({
+    capturedAt: Date.now(), model: null,
+    caps: { windows: [
+      { key: 'five_hour', usedPct: 40, resetsAt: Math.floor(Date.now() / 1000) + 3600 },
+      { key: 'seven_day', usedPct: 82, resetsAt: sevenDayReset },
+    ] },
+  }) + '\n');
+  const set = cli(['relax']);
   assert.equal(set.status, 0, set.stderr);
-  assert.match(set.stdout, /Delegation grade is now cost/);
-  assert.equal(set.stderr, '');
-  assert.match(cli(['grade']).stdout, /^grade: cost \(cost\)/);
-  assert.match(cli(['status']).stdout, /^grade: cost \(cost\)/m);
-  assert.match(cli([]).stdout, /^grade: cost/m);
-  const bad = cli(['grade', 'max']);
+  assert.equal(stored(), sevenDayReset * 1000, 'follows the window with the highest use');
+  assert.match(cli(['status']).stdout, /^relax: until /m);
+  writeFileSync(configPath, JSON.stringify({ ...JSON.parse(readFileSync(configPath, 'utf8')), language: 'ko' }) + '\n');
+  const ko = spawnSync(process.execPath, [CLI, 'routing', 'relax'], {
+    cwd: dir, encoding: 'utf8', timeout: 15000,
+    env: childEnv({ HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(dir, 'cfg'), SPRAG_LANG: 'ko', SPRAG_NO_UPDATE_CHECK: '1' }),
+  });
+  assert.match(ko.stdout, new RegExp(`^이번 한도 창이 끝나는 ${clockOf(stored())}까지 위임을 넓힙니다\\. 그 뒤에는 자동으로 돌아옵니다\\.$`, 'm'));
+  writeFileSync(configPath, JSON.stringify({ ...JSON.parse(readFileSync(configPath, 'utf8')), language: 'en' }) + '\n');
+  const bad = cli(['relax', 'maybe']);
   assert.equal(bad.status, 2);
-  assert.match(bad.stderr, /Usage: sprag routing grade \[quality\|cost\]/);
-  const configPath = join(dir, 'cfg', 'claude-token-saver', 'config.json');
-  assert.equal(JSON.parse(readFileSync(configPath, 'utf8')).delegationGrade, 'cost', 'a bad value changes nothing');
-  // an old name is accepted, stored as its replacement, and warned about once
-  const old = cli(['grade', 'balanced']);
-  assert.equal(old.status, 0, old.stderr);
-  assert.match(old.stderr, /Warning: the balanced grade no longer exists; storing quality\./);
-  assert.equal(old.stderr.trim().split('\n').length, 1);
-  assert.equal(JSON.parse(readFileSync(configPath, 'utf8')).delegationGrade, 'quality');
-  const oldSaving = cli(['grade', 'saving']);
-  assert.match(oldSaving.stderr, /storing cost/);
-  assert.equal(JSON.parse(readFileSync(configPath, 'utf8')).delegationGrade, 'cost');
-  cli(['grade', 'quality']);
+  assert.match(bad.stderr, /Usage: sprag routing relax \[off\]/);
+  assert.equal(stored(), sevenDayReset * 1000, 'a bad argument changes nothing');
+  cli(['relax', 'off']);
+  rmSync(join(stateDir, 'last-caps.json'), { force: true });
+});
+
+test('sprag routing grade is gone', () => {
+  const r = cli(['grade']);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /Usage: sprag routing on\|off\|status\|relax \[off\]/);
 });
 
 test('brief --hook adds the Opus recommendation in a Sonnet session and stays quiet in an Opus one', () => {

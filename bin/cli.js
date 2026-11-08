@@ -230,7 +230,7 @@ Usage:
   sprag cowork [sync|on|off|exclude <dir>|include <dir>]   copy the ratchet rules into Cowork tab folders
   sprag korean on|off|status     Korean writing guidance + write-time check
   sprag cohesion on|off|status   English sentence-connection guidance
-  sprag routing on|off|status|grade [quality|cost]|effort-hint on|off   model delegation master switch (rules, hints, candidates)
+  sprag routing on|off|status|relax [off]|effort-hint on|off   model delegation master switch (rules, hints, candidates); relax widens it until the usage window resets
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
   sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
   sprag proof [--json]     replayed delegation cases behind the tier rules (https://sprag.io/proof/)
@@ -413,7 +413,7 @@ async function main() {
 
   // Subcommand: routing — master switch for model delegation (ratchet-model.md
   // rules, prompt hints, route-scan candidates).
-  //   sprag routing on | off | status
+  //   sprag routing on | off | status | relax [off]
   if (args[0] === 'routing') return (await import('../src/commands/routing.js')).run({ args, hasFlag });
 
   // Subcommand: doc2md — convert pptx/xlsx/pdf/docx to Markdown before the
@@ -1045,15 +1045,15 @@ async function main() {
     debug('effort-raise-ledger:totals', e);
   }
   // What the delegation grade did (judgement delegations raised to Opus) and
-  // which grade is set. Both are lookups, and the grade stays out of
+  // whether a relax window is open. Both are lookups, and the relax deadline stays out of
   // the data while routing is off, since it does nothing then.
   let gradeActions = null;
-  let delegationGradeNow = null;
+  let relaxUntilNow = null;
   try {
     const { gradeActionTotals } = await import('../src/grade-counts.js');
     gradeActions = gradeActionTotals();
-    const { routingEnabled, delegationGrade } = await import('../src/routing-switch.js');
-    if (routingEnabled()) delegationGradeNow = delegationGrade();
+    const { routingEnabled, isRelaxed, relaxUntil } = await import('../src/routing-switch.js');
+    if (routingEnabled() && isRelaxed()) relaxUntilNow = relaxUntil();
   } catch (e) {
     debug('grade-counts:totals', e);
   }
@@ -1137,7 +1137,7 @@ async function main() {
     routeScanAt: isStatusline ? routeScanAt : undefined,
     effortRaises: isStatusline ? effortRaises : undefined,
     gradeActions: isStatusline ? gradeActions : undefined,
-    delegationGrade: isStatusline ? delegationGradeNow : undefined,
+    relaxUntil: isStatusline ? relaxUntilNow : undefined,
     sessionDelegation,
     ruleStats,
     ttlBucket,
