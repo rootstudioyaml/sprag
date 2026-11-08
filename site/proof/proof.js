@@ -119,6 +119,7 @@
       'live.saved': 'less than the main model would have cost (estimate)',
       'bulk.h': 'Bulk replay, counted only', 'bulk.title': 'Numbers-only case', 'bulk.key': 'answer key', 'bulk.tipsum': 'The prompt stays private. Graded blind against the Opus answer.',
       'bulk.sub': function (n) { return n + ' more real delegations, replayed in the state the repository was in at the time. Read-only jobs only. A blind grader compares each sprag pick with the same job run on Opus and says whether it reached the same conclusion. The prompts stay private, so only the counts are shown. This bar is stricter than the cases above: the reference is the whole Opus report, so a pick that misses one key fact Opus found counts as incomplete.'; },
+      'bulk.kept': function (k) { return 'The current rule keeps ' + k + ' of these on the main Opus instead of handing them off. Those answers are the reference itself, so they count as the same conclusion.'; },
       'bulk.n': 'cases replayed', 'bulk.same': 'same conclusion as Opus',
       'bulk.sameV': function (ok, p, f) { return ok + ' same, ' + p + ' partial, ' + f + ' unusable'; },
       'bulk.cost': 'cost, sprag pick vs Opus direct',
@@ -243,6 +244,7 @@
       'live.saved': '메인 모델이 그대로 받았을 때보다 적게 쓴 금액 (추정)',
       'bulk.h': '대량 재생, 수치만', 'bulk.title': '수치만 공개한 사례', 'bulk.key': '기준 답', 'bulk.tipsum': '프롬프트는 비공개입니다. Opus 답을 기준으로 가린 채 채점했습니다.',
       'bulk.sub': function (n) { return '실제 위임 ' + n + '건을 당시 저장소 상태 그대로 다시 돌렸습니다. 파일을 고치지 않는 읽기 전용 일만 골랐습니다. 같은 일을 Opus가 직접 한 답을 기준으로 두고, 채점자가 어느 쪽인지 모른 채 sprag가 고른 모델의 답이 같은 결론에 닿았는지 가립니다. 프롬프트는 비공개라 수치만 보여 줍니다. 위의 상세 사례보다 기준이 엄격합니다. Opus 답 전체가 기준이라 Opus가 찾은 핵심 사실을 하나만 빠뜨려도 부족으로 셉니다.'; },
+      'bulk.kept': function (k) { return '지금 규칙은 이 중 ' + k + '건을 넘기지 않고 메인 Opus가 직접 하게 합니다. 그 답이 곧 기준이므로 같은 결론으로 셉니다.'; },
       'bulk.n': '다시 돌린 사례', 'bulk.same': 'Opus와 같은 결론',
       'bulk.sameV': function (ok, p, f) { return '같음 ' + ok + ', 부분 ' + p + ', 못 씀 ' + f; },
       'bulk.cost': '비용, sprag 선택 대 Opus 직접',
@@ -412,6 +414,7 @@
     var pct = tot.opusUsd ? Math.round((1 - tot.pickUsd / tot.opusUsd) * 100) : 0;
     box.appendChild(el('h2', { id: 'bulk-h', text: t('bulk.h') }));
     box.appendChild(el('p', { class: 'lv-sub', text: t('bulk.sub')(tot.n) }));
+    if (tot.keptMain) box.appendChild(el('p', { class: 'lv-sub', text: t('bulk.kept')(tot.keptMain) }));
     box.appendChild(el('div', { class: 'lv-grid lv-3' }, [
       tile(String(tot.n), t('bulk.n')),
       tile(t('bulk.sameV')(tot.ok, tot.partial, tot.fail), t('bulk.same'), 'sm'),
