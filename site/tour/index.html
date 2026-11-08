@@ -104,7 +104,7 @@
       Sprag
     </a>
     <nav>
-      <a class="navlink" href="/proof/" data-k="nav.proof">Proof</a>
+      <a class="navlink" href="/proof/" data-k="nav.proof">Proof lab</a>
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
         <button data-lang="ko" aria-pressed="false">KO</button>
@@ -151,8 +151,8 @@ const KO = {
  'bz.priv': "개인정보처리방침",
  'bz.refund': "환불정책",
  'bz.verify': "사업자정보확인",
- 'nav.proof': '검증 사례', 't.h': 'Sprag 둘러보기', 't.sub': '타운 전체에서 한 사람의 카드까지, Sprag 팀 대시보드를 90초 동안 둘러봅니다.' };
-const EN = { 'nav.proof': 'Proof', 't.h': 'Sprag tour', 't.sub': document.querySelector('[data-k="t.sub"]').textContent };
+ 'nav.proof': '검증 Lab', 't.h': 'Sprag 둘러보기', 't.sub': '타운 전체에서 한 사람의 카드까지, Sprag 팀 대시보드를 90초 동안 둘러봅니다.' };
+const EN = { 'nav.proof': 'Proof lab', 't.h': 'Sprag tour', 't.sub': document.querySelector('[data-k="t.sub"]').textContent };
 document.querySelectorAll('[data-k^="bz."]').forEach(el => { EN[el.dataset.k] = el.innerHTML; });
 const META = {
   en: { title: 'Sprag tour', desc: document.querySelector('meta[name=description]').content },
