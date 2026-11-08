@@ -5,6 +5,7 @@
  *   evals/index.json, conditions.json, rounds.json, cases/<id>.json   source of truth
  *   evals/live.json (optional)      real-usage aggregates from scripts/evals/live.mjs
  *   evals/bulk.json (optional)      graded bulk-round aggregates from scripts/evals/bulk.mjs
+ *   evals/bulk-notes.json (optional) method and partial-mark notes shown with the bulk block
  *     -> site/proof/data.json        the /proof/ page
  *     -> evals/summary.json          compact summary shipped in the npm package
  *     -> evals/SUMMARY.md            table for GitHub readers
@@ -398,6 +399,8 @@ export function generate({ repoRoot = DEFAULT_REPO_ROOT, evalsDir = join(repoRoo
   if (existsSync(livePath)) siteData.live = readJson(livePath);
   const bulkPath = join(evalsDir, 'bulk.json');
   if (existsSync(bulkPath)) siteData.bulk = readJson(bulkPath);
+  const bulkNotesPath = join(evalsDir, 'bulk-notes.json');
+  if (siteData.bulk && existsSync(bulkNotesPath)) siteData.bulk.notes = readJson(bulkNotesPath);
   files.set(join(repoRoot, 'site', 'proof', 'data.json'), serializeSite(siteData));
   files.set(join(evalsDir, 'summary.json'), serializePretty(summary));
   files.set(join(evalsDir, 'SUMMARY.md'), buildSummaryMd(summary, corpus.conditions));

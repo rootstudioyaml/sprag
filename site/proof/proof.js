@@ -126,6 +126,17 @@
       'bulk.noise': function (o) { return 'Noise floor: Opus run a second time on ' + o.n + ' of these cases and graded against its own first answer gives same conclusion ' + o.ok + ', partial ' + o.partial + ', unusable ' + o.fail + '. Partial marks below that line are run-to-run variance, not a weaker model.'; },
       'bulk.cmp': function (o) { return 'The same ' + o.n + ' cases, replayed as the rules were narrowed (' + o.rules + '): same conclusion ' + o.ok + ', partial ' + o.partial + ', unusable ' + o.fail + ', cost ' + o.usd + ' against ' + o.opus + ' on Opus.'; },
       'bulk.kind': { run: 'command runs', check: 'status checks', paste: 'pasted screens and logs', explore: 'lookups', read: 'reading and summaries' },
+      'bulk.method': function (b) { return 'On 8 November two measurement fixes went in. ' + b.replayed + ' cases were replayed again because an absolute path left in the prompt let the reference read today\'s code instead of the code at the time. The grading rule was changed so that facts from investigation the task forbade or did not ask for do not count as missing, and every case was graded again. The rule changed after the results were seen, so the earlier figures stay on record: same conclusion ' + b.ok + ', partial ' + b.partial + ', unusable ' + b.fail + '.'; },
+      'bulk.pt.h': function (n, kind) { return 'Reading each of the ' + n + ' partial marks in ' + kind; },
+      'bulk.pt.th': ['cause', 'cases', 'what happened'],
+      'bulk.pt.cause': { rule: 'rule defect', gap: 'real model gap', measure: 'measurement limit', scope: 'judgement call on scope' },
+      'bulk.pt.why': { rule: 'Work that should not have been handed off was handed off: improvement reviews, web research that needs searching, lookups that must conclude something does not exist, and checks that decide from the output what to open next. The new rule keeps these on the main model.', gap: 'The work was fine to hand off, and the delegated model missed a key fact.', measure: 'The job reads another repository as it is today, so the state at the time cannot be replayed. Opus against Opus was partial here too.', scope: 'The task forbade root-cause analysis, while the reference explained the cause. The grader counted the missing "these results are unusable" conclusion.' },
+      'up.h': 'When to go up',
+      'up.sub': function (n) { return n + ' jobs whose conclusion is a judgement, run on Sonnet high, Opus high and Opus xhigh: improvement reviews, audits, root-cause diagnosis, lookups that must conclude something does not exist, and web research. Here the Opus answer is not the key. The grader gets the three reports unlabelled, checks the claims they disagree on against the repository and the web, and then rules.'; },
+      'up.th': ['run', 'same', 'partial', 'unusable', 'wrong claims', 'missed facts', 'cost', 'time'],
+      'up.cond': { 'sonnet-high': 'Sonnet high', 'opus-direct': 'Opus high', 'opus-xhigh': 'Opus xhigh' },
+      'up.take': function (o) { return 'Moving these jobs from Sonnet to Opus high takes same conclusions from ' + o.sOk + ' to ' + o.bOk + ' and wrong claims from ' + o.sWrong + ' to ' + o.bWrong + ', for ' + o.costX + 'x the cost. Raising effort to xhigh on top made wrong claims ' + o.hWrong + ' and took ' + o.timeX + 'x the time, so sprag recommends high.'; },
+      'up.limit': 'Ten cases is a small sample, and the grader is Opus too. Hiding the labels and making it check claims with tools reduces any pull toward its own model; it does not rule it out.',
       loadFail: 'Could not load the data. Please reload the page.'
     },
     ko: {
@@ -234,6 +245,17 @@
       'bulk.noise': function (o) { return '잡음 바닥: 이 중 ' + o.n + '건은 Opus가 한 번 더 풀고 자기 첫 답을 기준으로 같은 채점을 받았습니다. 같음 ' + o.ok + ', 부분 ' + o.partial + ', 못 씀 ' + o.fail + '. 이 수준의 부분은 모델 차이가 아니라 실행마다 생기는 편차입니다.'; },
       'bulk.cmp': function (o) { return '같은 ' + o.n + '건을 룰을 좁혀 가며 다시 돌린 결과(' + o.rules + '). 같음 ' + o.ok + ', 부분 ' + o.partial + ', 못 씀 ' + o.fail + ', 비용 ' + o.usd + ', Opus 직접은 ' + o.opus + '.'; },
       'bulk.kind': { run: '명령 실행', check: '상태 확인', paste: '붙여넣은 화면과 로그', explore: '탐색과 조회', read: '읽기와 요약' },
+      'bulk.method': function (b) { return '11월 8일에 측정 방법 두 가지를 고쳤습니다. 프롬프트에 남은 절대 경로 때문에 기준 답이 당시 코드가 아니라 현재 코드를 읽은 ' + b.replayed + '건은 다시 돌렸습니다. 작업 지시가 금지했거나 요구하지 않은 조사에서 나온 사실은 누락으로 세지 않도록 채점 기준을 고친 뒤 모든 사례를 다시 채점했습니다. 결과를 본 뒤에 기준을 바꿨으므로 바꾸기 전 수치도 남깁니다. 그때는 같음 ' + b.ok + ', 부분 ' + b.partial + ', 못 씀 ' + b.fail + '이었습니다.'; },
+      'bulk.pt.h': function (n, kind) { return kind + '의 부분 ' + n + '건을 하나씩 읽은 결과'; },
+      'bulk.pt.th': ['원인', '건수', '내용'],
+      'bulk.pt.cause': { rule: '룰 결함', gap: '실제 모델 격차', measure: '측정 한계', scope: '판정 경계' },
+      'bulk.pt.why': { rule: '넘기면 안 되는 일을 넘겼습니다. 개선점 검토, 검색이 필요한 웹 조사, "없다"를 단정하는 조회, 출력을 보고 더 볼 곳을 정하는 점검입니다. 새 룰은 이런 일을 메인에 남깁니다.', gap: '넘겨도 되는 일인데 위임받은 모델이 핵심 사실을 놓쳤습니다.', measure: '다른 저장소를 현재 상태로 읽는 일이라 당시 상태를 재현할 수 없습니다. Opus끼리 비교해도 부분이 나왔습니다.', scope: '지시가 원인 분석을 금지했는데 기준 답은 원인을 밝혔습니다. 채점자는 결과를 쓸 수 없다는 결론이 빠졌다고 봤습니다.' },
+      'up.h': '올려야 할 때',
+      'up.sub': function (n) { return '판단이 결론인 일 ' + n + '건을 Sonnet high, Opus high, Opus xhigh로 각각 돌렸습니다. 개선점 검토, 감사, 원인 진단, "없다"를 단정하는 조회, 웹 조사가 섞여 있습니다. 여기서는 Opus 답을 정답으로 쓰지 않습니다. 채점자가 세 보고서를 가린 채 받아 서로 엇갈리는 주장을 저장소와 웹에서 직접 확인하고 판정합니다.'; },
+      'up.th': ['실행', '같음', '부분', '못 씀', '틀린 주장', '놓친 사실', '비용', '시간'],
+      'up.cond': { 'sonnet-high': 'Sonnet high', 'opus-direct': 'Opus high', 'opus-xhigh': 'Opus xhigh' },
+      'up.take': function (o) { return '이런 일을 Sonnet에서 Opus high로 올리면 같음이 ' + o.sOk + '건에서 ' + o.bOk + '건으로 늘고 틀린 주장은 ' + o.sWrong + '개에서 ' + o.bWrong + '개로 줄며 비용은 ' + o.costX + '배입니다. 여기서 effort를 xhigh로 더 올리면 틀린 주장이 ' + o.hWrong + '개가 되고 시간이 ' + o.timeX + '배 걸려 sprag는 high를 권합니다.'; },
+      'up.limit': '10건이라 표본이 작고 채점자도 Opus입니다. 이름을 가리고 도구로 주장을 확인하게 해 같은 모델을 편드는 효과를 줄였지만 없앴다고 단정하지는 않습니다.',
       loadFail: '데이터를 불러오지 못했습니다. 페이지를 새로 고쳐 주십시오.'
     }
   };
@@ -391,6 +413,9 @@
     }
     var nz = v.noise;
     if (nz && nz.n) box.appendChild(el('p', { class: 'bk-cmp bk-noise', text: t('bulk.noise')({ n: nz.n, ok: nz.ok, partial: nz.partial, fail: nz.fail }) }));
+    var nt = v.notes;
+    /* the method note joins the figures from before the grading fix with the replay count */
+    if (nt && nt.method) box.appendChild(el('p', { class: 'bk-cmp bk-method', text: t('bulk.method')({ replayed: nt.method.replayed, ok: nt.method.before.ok, partial: nt.method.before.partial, fail: nt.method.before.fail }) }));
     var th = t('bulk.th'), names = t('bulk.kind');
     var kinds = Object.keys(v.byKind).sort(function (a, b) { return v.byKind[b].n - v.byKind[a].n; });
     var rows = kinds.map(function (k) {
@@ -401,6 +426,43 @@
       el('thead', null, [el('tr', null, th.map(function (h, i) { return el('th', { class: i ? 'num' : '', text: h }); }))]),
       el('tbody', null, rows)
     ]));
+    var pt = nt && nt.partials;
+    if (pt && pt.causes && pt.causes.length) {
+      var pth = t('bulk.pt.th'), pcause = t('bulk.pt.cause'), pwhy = t('bulk.pt.why');
+      box.appendChild(el('h3', { class: 'bk-h3', text: t('bulk.pt.h')(pt.n, names[pt.kind] || pt.kind) }));
+      box.appendChild(el('table', { class: 'bk bk-pt' }, [
+        el('thead', null, [el('tr', null, pth.map(function (h, i) { return el('th', { class: i === 1 ? 'num' : '', text: h }); }))]),
+        el('tbody', null, pt.causes.map(function (c) {
+          return el('tr', null, [el('td', { text: pcause[c.k] || c.k }), el('td', { class: 'num', text: String(c.n) }), el('td', { text: pwhy[c.k] || '' })]);
+        }))
+      ]));
+    }
+  }
+
+  function renderUp() {
+    var box = $('up'); if (!box) return;
+    var u = data.bulk && data.bulk.up;
+    box.textContent = '';
+    if (!u || !u.n || !u.conditions) { box.hidden = true; return; }
+    var by = {};
+    u.conditions.forEach(function (c) { by[c.id] = c; });
+    var s = by['sonnet-high'], b = by['opus-direct'], h = by['opus-xhigh'];
+    if (!s || !b || !h) { box.hidden = true; return; }
+    box.hidden = false;
+    var th = t('up.th'), names = t('up.cond');
+    var rows = ['sonnet-high', 'opus-direct', 'opus-xhigh'].map(function (id) {
+      var c = by[id];
+      return el('tr', null, [names[id] || id, c.ok, c.partial, c.fail, c.wrong, c.missed, usd(c.usd), secs(c.sec)].map(function (x, i) { return el('td', { class: i ? 'num' : '', text: String(x) }); }));
+    });
+    var o = { sOk: s.ok, bOk: b.ok, sWrong: s.wrong, bWrong: b.wrong, hWrong: h.wrong, costX: (b.usd / s.usd).toFixed(1), timeX: (h.sec / b.sec).toFixed(1) };
+    box.appendChild(el('h2', { id: 'up-h', text: t('up.h') }));
+    box.appendChild(el('p', { class: 'lv-sub', text: t('up.sub')(u.n) }));
+    box.appendChild(el('table', { class: 'bk' }, [
+      el('thead', null, [el('tr', null, th.map(function (x, i) { return el('th', { class: i ? 'num' : '', text: x }); }))]),
+      el('tbody', null, rows)
+    ]));
+    box.appendChild(el('p', { class: 'bk-cmp', text: t('up.take')(o) }));
+    box.appendChild(el('p', { class: 'bk-cmp bk-noise', text: t('up.limit') }));
   }
 
   function renderLegend() {
@@ -1174,6 +1236,7 @@
     renderDiagram();
     renderLive();
     renderBulk();
+    renderUp();
     renderLegend();
     renderCases();
     renderMethod();

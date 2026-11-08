@@ -150,6 +150,9 @@ h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
 .lv-grid.lv-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .bk-cmp{margin-top:14px;padding:10px 12px;border-left:2px solid var(--accent2);background:var(--accent-bg);color:var(--ink);font-size:13px;line-height:1.6}
 .bk-noise{border-left-color:var(--dim);background:rgba(255,255,255,.03);margin-top:8px}
+.bk-method{border-left-color:var(--dim);background:rgba(255,255,255,.03);margin-top:8px}
+.bk-h3{margin-top:20px;font-size:13px;font-weight:600;color:var(--ink)}
+.bk-pt td:nth-child(3){white-space:normal;min-width:240px;line-height:1.55}
 .bk{width:100%;margin-top:14px;border-collapse:collapse;font-size:13px}
 .bk th,.bk td{padding:7px 8px;border-top:1px solid var(--line);text-align:left;white-space:nowrap}
 .bk th{color:var(--dim);font-weight:500;font-size:12px}
