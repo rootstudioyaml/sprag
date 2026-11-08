@@ -24,6 +24,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
+import { writeGradeConfig } from './helpers/grade-config.js';
 
 const SANDBOX = mkdtempSync(join(tmpdir(), 'sprag-rule-saved-'));
 const HOME = join(SANDBOX, 'home');
@@ -48,6 +49,8 @@ process.once('exit', () => rmSync(SANDBOX, { recursive: true, force: true, maxRe
 
 const DIR = join(CFG, 'claude-token-saver');
 mkdirSync(DIR, { recursive: true });
+// The rendered file below lists the T2 rule, which grade 'quality' would drop.
+writeGradeConfig(DIR, 'cost');
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 
 const { tallyDelegatedRun, runRouteScan, runSaving, runTotals, runTime } = await import('../src/route-scan.js');

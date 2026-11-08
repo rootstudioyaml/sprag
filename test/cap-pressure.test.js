@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
+import { writeGradeConfig } from './helpers/grade-config.js';
 
 // caps-cache resolves its file when it loads, so the sandbox comes first.
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'cts-cap-pressure-')));
@@ -23,6 +24,7 @@ process.env.APPDATA = join(home, 'config');
 delete process.env.ANTHROPIC_BASE_URL;
 const stateDir = join(home, 'config', 'claude-token-saver');
 mkdirSync(stateDir, { recursive: true });
+writeGradeConfig(stateDir, 'cost'); // the hints below are the T2 ones grade 'quality' drops
 
 const { capPressure, loadRecentSnapshot, CAP_PRESSURE_HIGH, CAP_PRESSURE_CRITICAL } = await import('../src/caps-cache.js');
 const { routeHint, pressureLine } = await import('../src/route-inject.js');
@@ -142,7 +144,7 @@ test('the brief hook appends the line from a fresh snapshot, and without one pri
   const sdir = join(state, 'claude-token-saver');
   const project = join(dir, 'project');
   for (const d of [join(hHome, '.claude'), sdir, project]) mkdirSync(d, { recursive: true });
-  writeFileSync(join(sdir, 'config.json'), JSON.stringify({ language: 'ko' }) + '\n');
+  writeFileSync(join(sdir, 'config.json'), JSON.stringify({ language: 'ko', delegationGrade: 'cost' }) + '\n');
   writeFileSync(join(sdir, 'model-rules.json'), JSON.stringify({ rules }) + '\n');
 
   const run = (prompt) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {

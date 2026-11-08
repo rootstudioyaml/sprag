@@ -35,6 +35,10 @@ import { loadConfig, saveConfig } from './config.js';
 import { recentToolPaths } from './session-paths.js';
 import { routeCapsFor } from './route-caps.js';
 import { modelOf } from './agents.js';
+import { routingEnabled, delegationGrade, normalizeDelegationGrade } from './routing-switch.js';
+import { isJudgementDelegation, SAVING_GRADE_KINDS } from './judgement-prompt.js';
+import { recordGradeAction } from './grade-counts.js';
+import { userDataDir } from './paths.js';
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -266,11 +270,18 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
 
 /**
  * Decide whether to rewrite a Task/Agent call's prompt, and with what.
- * Returns `{ updatedInput }` or null — null on any reason not to touch the
+ * Returns `{ updatedInput }` or null. Null is any reason not to touch the
  * call, so the caller's contract stays "print nothing, let the tool run
  * exactly as given" for every one of them.
+ *
+ * The delegation grade (see gradeAction) can send a judgement delegation to
+ * Opus. It never stops a call, and it needs the guard on and routing on, like
+ * every other grade effect.
  */
-export async function decideForDelegation(payload, { cfg = loadConfig(), home = homedir(), routeCaps = routeCapsFor(payload?.session_id) } = {}) {
+export async function decideForDelegation(payload, {
+  cfg = loadConfig(), home = homedir(), routeCaps = routeCapsFor(payload?.session_id),
+  countsDir = userDataDir(),
+} = {}) {
   if (!delegateEnabled(cfg)) return null;
   if (payload?.tool_name !== 'Task' && payload?.tool_name !== 'Agent') return null;
 
@@ -282,9 +293,15 @@ export async function decideForDelegation(payload, { cfg = loadConfig(), home = 
   // same tool_name, must not stack the appendix onto itself.
   if (prompt.includes(DELEGATION_MARKER)) return null;
 
-  const raise = wantsEffortRaise(toolInput);
-  const appendix = await buildAppendix(payload, { cfg, home, routeCaps });
-  if (!appendix && !raise) return null;
+  const act = routingEnabled(cfg) ? gradeAction(toolInput, delegationGrade(cfg)) : null;
+  const modelRaise = act?.type === 'raise' && !prompt.includes(MODEL_RAISE_MARKER);
+
+  // The model raise wins over the effort raise: it sets the effort itself, and
+  // a second marker would count one run twice in the effort ledger.
+  const raise = !modelRaise && wantsEffortRaise(toolInput);
+  const seen = modelRaise ? { ...payload, tool_input: { ...toolInput, model: RAISED_MODEL } } : payload;
+  const appendix = await buildAppendix(seen, { cfg, home, routeCaps });
+  if (!appendix && !raise && !modelRaise) return null;
 
   const parts = [prompt];
   if (appendix) parts.push(appendix);
@@ -292,9 +309,61 @@ export async function decideForDelegation(payload, { cfg = loadConfig(), home = 
   // what the subagent transcript keeps, so route-scan can later tell a raise
   // this hook made from an effort the caller chose (see src/route-scan.js).
   if (raise) parts.push(EFFORT_RAISE_MARKER);
+  if (modelRaise) parts.push(MODEL_RAISE_MARKER);
   const updatedInput = { ...toolInput, prompt: parts.join('\n\n') };
   if (raise) updatedInput.effort = RAISED_EFFORT;
+  if (modelRaise) {
+    updatedInput.model = RAISED_MODEL;
+    // A caller that already asked for more than high keeps it: the replay
+    // that set this grade found xhigh no better on judgement work, but
+    // lowering a level somebody chose on purpose is not this hook's call.
+    if (!HIGHER_THAN_RAISED.has(String(toolInput.effort || '').toLowerCase())) updatedInput.effort = RAISED_EFFORT;
+    recordGradeAction('raised', { dir: countsDir });
+  }
   return { updatedInput };
+}
+
+/** Model a judgement delegation is raised to. Opus, not a higher effort on the cheaper model. */
+export const RAISED_MODEL = 'opus';
+const HIGHER_THAN_RAISED = new Set(['xhigh', 'max']);
+
+/**
+ * Line appended to the prompt of a delegation whose model this hook raised.
+ * Like EFFORT_RAISE_MARKER, a later scan can grep subagent transcripts for it.
+ */
+export const MODEL_RAISE_MARKER = '[sprag: raised to Opus for judgement work]';
+
+/** Model family a call targets: the `model` argument wins over the agent's own pin. */
+export function targetFamily(toolInput) {
+  const named = String(toolInput?.model || '');
+  for (const fam of ['opus', 'sonnet', 'haiku']) if (new RegExp(fam, 'i').test(named)) return fam;
+  if (named) return null; // some other model: no measurement says what it does with this work
+  return modelOf(String(toolInput?.subagent_type || '')) || null;
+}
+
+/**
+ * What the delegation grade does to a call, or null for nothing.
+ *
+ * Only a haiku or sonnet target is touched, and only when the prompt asks for
+ * work whose conclusion is a judgement (judgement-prompt.js). Opus targets,
+ * unknown models, and a call that names no model and no known agent (it runs
+ * on whatever the session runs on) pass.
+ *
+ *   quality   -> raise: same call, run on Opus at high effort
+ *   cost      -> raise, but only diagnosis and audit work; the rest passes
+ *
+ * Opus at high, never xhigh: on ten judgement cases the Opus high runs made 3
+ * wrong claims and xhigh made 11.
+ */
+export function gradeAction(toolInput, grade) {
+  const fam = targetFamily(toolInput);
+  if (fam !== 'haiku' && fam !== 'sonnet') return null;
+  const { judgement, kind } = isJudgementDelegation(toolInput?.prompt);
+  if (!judgement) return null;
+  const g = normalizeDelegationGrade(grade) ?? 'quality';
+  if (g === 'quality') return { type: 'raise', kind };
+  if (SAVING_GRADE_KINDS.has(kind)) return { type: 'raise', kind };
+  return null;
 }
 
 /**

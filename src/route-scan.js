@@ -82,6 +82,28 @@ export const MIN_DELEGABLE_OUT = 100;
 // out: "승인된 룰" is a product noun in sprag's own ratchet flow.
 export const ESCALATE_RE = /운영\s*(?:db|디비|데이터베이스|서버|환경)|프로덕션|\bprod(?:uction)?\s*(?:db|database|server|env)|승인\s*(?:할게|했어|했으니|했습니다|합니다|해줄게|완료)|\bapproved?\b|설계|아키텍처|리팩토링|원인\s*(?:분석|파악|확인|규명|조사)|원인을?\s*찾|버그|개선할|개선점|개선\s*(?:사항|방안)|검토해보|검수|코드\s*리뷰|리뷰\s*해|취약|보안\s*(?:점검|검토|감사|리뷰|이슈)|비교|왜(?=[\s?]|$)|이유|제출|배포|출시|퍼블리시|릴리[스즈](?!\s*노트)|(?<!나)머지|analyze|compare|evaluate|architect|refactor|submit|deploy|release|publish|merge|root cause|code review|security (?:review|audit)|vulnerabilit/i;
 
+// Requests that end in a judgement but that ESCALATE_RE does not list: audits,
+// recommendations, rankings, "is there none / is there any" absence checks,
+// and research that needs searching. In the validation Lab (r8) the answer to
+// ten such jobs was a judgement, and Sonnet at effort high reached the same
+// conclusion as Opus in 1 of 10 against 5 of 10 for Opus at high. Request-shaped
+// forms only: "감사합니다" is thanks and "audit log", "추천 위임 룰" (a product
+// noun) and "<name>-research-summary.md" (a file name) are not requests.
+//
+// Measured 2026-11-08 on 1,351 distinct local prompts (type=user, text only,
+// harness messages and sidechains removed, last 90 days): JUDGE_RE matches 351,
+// of which ESCALATE_RE already gated 343, so it newly gates 8 (6 distinct
+// texts, three of them repeats of one eval prompt). The first draft gated 23;
+// the 15 it lost were file names holding "research" (<name>-research-summary.md,
+// 6), "할 수 없는지" read as absence (1), a code-lookup question "is there a
+// function that …" (5, one prompt) and "조사해" in the
+// sense of reading a git stash (3, one prompt). All 8 that remain are a
+// research or absence-check request (precision 8/8; 6/6 distinct), but the sample
+// is small, so the figure says "no false positive seen", not "none exist".
+// The pattern was not asked to catch "있는지" alone: "실행되고 있는지" and the
+// like are ordinary checks, so only "없는지", "있는지 없는지" and "존재하는지" count.
+export const JUDGE_RE = /감사\s*(?:해\s*(?:줘|봐|주|보|라|볼)|좀|를\s*(?:해|돌|진행)|하자|요청|부탁)|\baudit(?!\s*(?:log|trail))|추천\s*(?:해\s*(?:줘|주|봐|달)|좀|부탁)|추천해|\brecommend(?!ation\s*(?:letter|engine))|우선\s*순위|순위\s*(?:를|을)\s*(?:매기|매겨|정해|정하)|\bprioriti[sz]e|(?<![수순]\s*)없는지|있는지\s*없는지|존재하는지|조사\s*해\s*(?:보|줘|주|봐|달|라)|조사\s*(?:좀|부탁)|리서치|(?<![\w./-])research(?![\w./-])|\bfind\s+(?:me\s+)?(?:alternatives?|options|candidates)|\bis there (?:any|an?)\b(?!\s+(?:exported\s+|existing\s+)?(?:function|file|method|class|module|variable|constant|test|script|helper|field|key|line))[^?\n]{0,60}\b(?:that|which)\b/i;
+
 // Implementation asks phrased around a run/check verb ("설치와 동시에 설정되도록
 // 하자", "피드백 확인해주고 아이콘도 만들자"). Editing is not delegable, and at
 // prompt time there is no tool mix to reveal it, so the wording has to. Offline

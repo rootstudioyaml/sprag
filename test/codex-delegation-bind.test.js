@@ -194,7 +194,7 @@ test('a shared policy records each offered tier; SubagentStart binds the chosen 
   const now = Date.now();
   writeFileSync(join(f.dir, 'model-rules.json'), JSON.stringify({ rules: ['T2', 'T1'].map((tier) => ({ status: 'active',
     category: 'explore', tier, scope: 'global', targetRoot: null, signature: `${tier}|explore|preset` })) }));
-  const cfg = { codex: { sharedRules: { targets: [
+  const cfg = { delegationGrade: 'cost', codex: { sharedRules: { targets: [
     { tier: 'T2', from: 'gpt-6-astra', model: 'child-model', provider: 'current-gateway' },
     { tier: 'T1', from: 'gpt-6-astra', model: 'medium-model', provider: 'current-gateway' }] } } };
   const payload = { prompt: 'Find the parser files', model: 'gpt-6-astra', model_provider: 'current-gateway',
@@ -224,7 +224,7 @@ test('tiers mapped to one model are not bound by model alone; the child route ma
   const now = Date.now();
   writeFileSync(join(f.dir, 'model-rules.json'), JSON.stringify({ rules: ['T2', 'T1'].map((tier) => ({ status: 'active',
     category: 'explore', tier, scope: 'global', targetRoot: null, signature: `${tier}|explore|preset` })) }));
-  const cfg = { codex: { sharedRules: { targets: [
+  const cfg = { delegationGrade: 'cost', codex: { sharedRules: { targets: [
     { tier: 'T2', from: 'gpt-6-astra', model: 'child-model', effort: 'low', provider: 'current-gateway' },
     { tier: 'T1', from: 'gpt-6-astra', model: 'child-model', effort: 'high', provider: 'current-gateway' }] } } };
   const payload = { prompt: 'Find the parser files', model: 'gpt-6-astra', model_provider: 'current-gateway',

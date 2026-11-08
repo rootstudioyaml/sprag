@@ -38,7 +38,7 @@ import { agentPhrase, agentPhraseEn, resolveAgentName, agentForRule, TIER_MODEL 
 import { writeStateFile } from './state-file.js';
 import { signedUsd } from './money.js';
 import { implementationDelegationRule } from './implementation-delegation.js';
-import { routingEnabled, routingOffRatchetText } from './routing-switch.js';
+import { routingEnabled, routingOffRatchetText, delegationGrade, gradeKeepsRule, gradeLabel } from './routing-switch.js';
 
 // Post-promotion delegated-category error rate above this flags the rule
 // for review (rule-health). Calibrated against local T0 avg error incidence.
@@ -274,10 +274,17 @@ export function removeModelRule(index1) {
  * to, or null for the global file, which may only name agents the user
  * directory holds (see agentExists). Left out, it is the current directory.
  */
-export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) {
+export function renderModelRatchet(rules, lang = userLanguage(), { root, grade = delegationGrade() } = {}) {
   const ko = lang === 'ko';
+  // The same T2 filter the prompt hook applies (routeMatch), so the file and
+  // the hook do not tell the model different things. At grade 'quality' a T2
+  // rule survives only for paste, read and translate.
+  rules = rules.filter((r) => gradeKeepsRule(grade, r));
+  const gradeName = gradeLabel(grade, lang);
   const lines = ko ? [
     '# Model-Fitting Ratchet (sprag 자동 관리)',
+    '',
+    `현재 위임 등급: ${gradeName}. 바꾸려면 \`sprag routing grade <quality|cost>\`.`,
     '',
     '로그 기반 티어 위임 룰. 이 파일은 route-scan이 매 스캔마다 통째로 재생성하므로',
     '직접 수정하지 마세요 — 목록/제거: `sprag route-scan rules [rm <N>]`.',
@@ -314,6 +321,11 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
     '- 사용자만 아는 맥락(이미 반려된 후보, 앞서 정한 조건)은 위임 지시문에 적습니다.',
     '  서브에이전트는 그 맥락을 볼 수 없어서 effort를 올려도 찾지 못합니다(실측: effort를',
     '  바꿔 9회 돌렸고 9회 모두 반려된 후보를 다시 추천했습니다).',
+    '- 개선점이나 권고를 내는 검토, 감사, 원인 진단, 검색이 필요한 조사, 무엇이 "없다"고',
+    '  단정해야 하는 조회, 출력을 보고 더 볼 곳을 정해야 하는 점검은 결론이 판단입니다.',
+    '  이런 일은 위임하지 않고 메인이 맡습니다. 세션이 Sonnet이면 Opus(effort high)로',
+    '  올립니다. effort xhigh는 권하지 않습니다(판단형 10건 실측에서 틀린 주장이 3개에서',
+    '  11개로 늘었습니다).',
     '',
     '## 티어 판별 기준 (모든 룰에 공통 적용)',
     '',
@@ -357,6 +369,8 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
   ] : [
     '# Model-Fitting Ratchet (managed by sprag)',
     '',
+    `Current delegation grade: ${gradeName}. Change it with sprag routing grade <quality|cost>.`,
+    '',
     'Log-derived tier delegation rules. route-scan regenerates this file in full',
     'on every scan — do not edit it by hand. List / remove with:',
     '`sprag route-scan rules [rm <N>]`.',
@@ -395,6 +409,13 @@ export function renderModelRatchet(rules, lang = userLanguage(), { root } = {}) 
     '  settled earlier) into the delegation prompt. The subagent cannot see it, and',
     '  no effort level makes up for that (measured: 9 runs across efforts, all 9',
     '  recommended the rejected candidate again).',
+    '- A review that ends in improvements or recommendations, an audit, a root-cause',
+    '  diagnosis, research that needs searching, a lookup that has to conclude that',
+    '  something does "not exist", and a check where the output decides where to',
+    '  look next all end in a judgement. Do not delegate them; the main model does',
+    '  them. If the session is on Sonnet, move up to Opus at effort high. Do not',
+    '  recommend effort xhigh (measured on 10 judgement jobs: wrong claims rose from',
+    '  3 to 11).',
     '',
     '## Tier criteria (apply to every rule below)',
     '',

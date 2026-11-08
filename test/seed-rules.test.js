@@ -24,7 +24,7 @@ function sandbox(lang = 'en') {
   const state = join(dir, 'state');
   mkdirSync(join(home, '.claude'), { recursive: true });
   mkdirSync(join(state, 'claude-token-saver'), { recursive: true });
-  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: lang }) + '\n');
+  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: lang, delegationGrade: 'cost' }) + '\n');
   const env = childEnv({
     HOME: home,
     XDG_CONFIG_HOME: state,

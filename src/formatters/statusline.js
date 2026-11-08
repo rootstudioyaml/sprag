@@ -1217,6 +1217,22 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
     ? `${c(GRAY)}${verbose ? `effort guard ×${raised}` : isIcon ? `${g.effort}↑${raised}` : `effort↑${raised}`}${c(RESET)}`
     : null;
 
+  // The delegation grade's own count (grade-counts.js): judgement delegations
+  // the guard sent to Opus (`model↑N`). Same gray count chip as the effort
+  // guard, same reset mark, hidden at zero. It always stays a chip: the guard
+  // line above is about effort, and this one has no line of its own.
+  //   icon "🤖↑2"  |  text "model↑2"  |  verbose "model guard ×2"
+  const gradeInfo = data.gradeActions;
+  const modelUp = Number(gradeInfo && gradeInfo.raised) || 0;
+  const modelUpSeg = modelUp > 0
+    ? `${c(GRAY)}${verbose ? `model guard ×${modelUp}` : isIcon ? `${g.model}↑${modelUp}` : `model↑${modelUp}`}${c(RESET)}`
+    : null;
+  // The grade itself, only for 'cost': quality is what an install does without
+  // being asked, and a chip for it would be noise.
+  const gradeSeg = data.delegationGrade === 'cost'
+    ? `${c(GRAY)}${verbose ? 'grade cost' : 'grade C'}${c(RESET)}`
+    : null;
+
   // Routing-savings headline line (multi-line layout). The lifetime sum from
   // the delegation ledger — the number the whole tool exists to grow, so it
   // gets line 1 to itself while the diagnostics move to line 2.
@@ -1287,8 +1303,10 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
     // the dropped runs matter. The raise chip steps aside for its own line the
     // same way, and stays on line 2 while there is no line to carry it.
     chips: totalsLine
-      ? (totalsNum === 0 ? [unresolvedSeg, guardLine ? null : raisedSeg] : [guardLine ? null : raisedSeg])
-      : [delegateSeg, guardLine ? null : raisedSeg, delegateExtra],
+      ? (totalsNum === 0
+        ? [unresolvedSeg, guardLine ? null : raisedSeg, modelUpSeg, gradeSeg]
+        : [guardLine ? null : raisedSeg, modelUpSeg, gradeSeg])
+      : [delegateSeg, guardLine ? null : raisedSeg, modelUpSeg, gradeSeg, delegateExtra],
     headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine } : null,
     guardLine,
   };
@@ -1426,6 +1444,8 @@ export const DEFAULT_SEGMENT_ORDER = [
   //
   // Lifetime, from the savings ledgers. Delegation stays ahead of the cache
   // figure: routing is what the tool is for, the cache number is a brag stat.
+  // `delegated` also carries the guard chips (effort↑N, model↑N) and the
+  // grade chip (C), so one name in `--segments` shows or hides all of them.
   'delegated', 'doc2md',
   // Same period as the routing counter, so it sits after the lifetime routing
   // figures but carries its own since date.
@@ -1591,7 +1611,7 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v,
  * @param {boolean} [opts.verbose=false] - longer layout with labels
  * @param {boolean} [opts.timer=true] - show TTL countdown segment
  * @param {'text'|'icon'} [opts.mode='text'] - label style. 'icon' uses 🧠 ⏳ 💰 instead of word labels.
- * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), team (member id and office animal; joined machines only), model, effort, ultra (ultracode on/off; live statusline only), hit, ttl, month, saved, delegated, doc2md, share (Model used by family, dated), star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
+ * @param {string[]|null} [opts.segments] - segments to render, in the order given. Names: cap-warn, spike, version, harness (a full score with no warning draws only when named here), korean (draws only when named here), team (member id and office animal; joined machines only), model, effort, ultra (ultracode on/off; live statusline only), hit, ttl, month, saved, delegated (Routing saved plus the effort↑N, model↑N and grade chips), doc2md, share (Model used by family, dated), star, ctx, period, `subagents` (this session's subagent runs; also rides with `delegated`), `rules` (only when named here), `usage` (every rate-limit window), plus per-window keys (`five_hour`, `seven_day`, …). `5h`/`7d` are kept as aliases for back-compat. cap-warn and spike keep the lead regardless of where they appear. Null/undefined = all, in the default order.
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line). It also ignores `columns`.
  * @param {number} [opts.columns=0] - terminal width in cells (Claude Code exports it as COLUMNS). When set, the chips wrap at chip boundaries instead of being truncated by the terminal; 0 keeps one unbounded line. A verbose layout that would need chips dropped is re-rendered once in the compact layout first.
  * @param {number} [opts.maxLines=3] - most chip lines when `columns` is set; lower-priority tail chips collapse into a `+N` chip beyond that. Counts the chip lines only: the headline lines above them wrap at their own `|` and `·` joints and are not included. Cap, usage, ctx, spike chips are never dropped.

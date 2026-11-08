@@ -230,7 +230,7 @@ Usage:
   sprag cowork [sync|on|off|exclude <dir>|include <dir>]   copy the ratchet rules into Cowork tab folders
   sprag korean on|off|status     Korean writing guidance + write-time check
   sprag cohesion on|off|status   English sentence-connection guidance
-  sprag routing on|off|status   model delegation master switch (rules, hints, candidates)
+  sprag routing on|off|status|grade [quality|cost]   model delegation master switch (rules, hints, candidates)
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
   sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
   sprag proof [--json]     replayed delegation cases behind the tier rules (https://sprag.io/proof/)
@@ -1030,6 +1030,19 @@ async function main() {
   } catch (e) {
     debug('effort-raise-ledger:totals', e);
   }
+  // What the delegation grade did (judgement delegations raised to Opus) and
+  // which grade is set. Both are lookups, and the grade stays out of
+  // the data while routing is off, since it does nothing then.
+  let gradeActions = null;
+  let delegationGradeNow = null;
+  try {
+    const { gradeActionTotals } = await import('../src/grade-counts.js');
+    gradeActions = gradeActionTotals();
+    const { routingEnabled, delegationGrade } = await import('../src/routing-switch.js');
+    if (routingEnabled()) delegationGradeNow = delegationGrade();
+  } catch (e) {
+    debug('grade-counts:totals', e);
+  }
   // 'auto' unless the user pinned a bucket. Read here rather than in the
   // statusline branch below because the table and JSON formatters want the
   // same answer.
@@ -1109,6 +1122,8 @@ async function main() {
     // Statusline-only; left undefined elsewhere so --format json keeps its shape.
     routeScanAt: isStatusline ? routeScanAt : undefined,
     effortRaises: isStatusline ? effortRaises : undefined,
+    gradeActions: isStatusline ? gradeActions : undefined,
+    delegationGrade: isStatusline ? delegationGradeNow : undefined,
     sessionDelegation,
     ruleStats,
     ttlBucket,

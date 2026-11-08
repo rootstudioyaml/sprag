@@ -177,3 +177,15 @@ test('routingOffRatchetText passes the Korean lint and carries no approval wordi
   assert.ok(en.includes('sprag routing on'));
   assert.ok(!/approved/i.test(en));
 });
+
+test('delegationGrade reads quality or cost, maps the old names and falls back to quality', () => {
+  assert.equal(sw.delegationGrade({}), 'quality');
+  assert.equal(sw.delegationGrade({ delegationGrade: 'quality' }), 'quality');
+  assert.equal(sw.delegationGrade({ delegationGrade: 'cost' }), 'cost');
+  assert.equal(sw.delegationGrade({ delegationGrade: 'balanced' }), 'quality', 'old balanced reads as quality');
+  assert.equal(sw.delegationGrade({ delegationGrade: 'saving' }), 'cost', 'old saving reads as cost');
+  assert.equal(sw.delegationGrade({ delegationGrade: 'max' }), 'quality');
+  assert.equal(sw.delegationGrade(null), 'quality');
+  assert.deepEqual(sw.DELEGATION_GRADES, ['quality', 'cost']);
+  assert.equal(sw.DEFAULT_DELEGATION_GRADE, 'quality');
+});

@@ -38,13 +38,14 @@
  * A hint that fires on the wrong request costs more than one that stays quiet.
  */
 
-import { categorizeScored, ESCALATE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
+import { categorizeScored, ESCALATE_RE, JUDGE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
+import { delegationGrade, normalizeDelegationGrade, gradeKeepsRule, gradeLabel } from './routing-switch.js';
 import { loadModelRules, budgetCapPhrase, ruleBudget } from './model-rules.js';
 import { sharedProjectRoots, realProjectRoot, scopeRank } from './shared-model-rules.js';
 import { agentPhrase, agentPhraseEn, resolveAgentName, agentForRule, TIER_MODEL } from './agents.js';
 import { userLanguage } from './config.js';
 import { aliasForRole, resolveModelAlias } from './model-alias.js';
-import { isRecognizedModelId, modelRank } from './cost.js';
+import { isRecognizedModelId, modelRank, TIER_TARGET_RANK } from './cost.js';
 import { loadRecentSnapshot } from './caps-cache.js';
 import { getSessionModel } from './parser.js';
 import { labelForKey } from './window-labels.js';
@@ -233,11 +234,15 @@ export function unreachableTiers(env = process.env) {
  *   model filters nothing.
  * @param {object} [opts.env] environment to read tier aliases from (see
  *   unreachableTiers)
+ * @param {string} [opts.grade] delegation grade (routing-switch.js), the user's
+ *   setting by default. 'cost' gates on ESCALATE_RE alone; 'quality' also
+ *   gates on JUDGE_RE and drops the T2 rules of every category but paste,
+ *   read and translate.
  * @returns {{cat: object, t2: object|undefined, t1: object|undefined, unreachable?: string[]}|null}
  *   `unreachable` is set, with neither t2 nor t1, when every matching tier is
  *   one this session cannot reach
  */
-export function routeMatch(text, { rules, sessionRank = null, root, env = process.env } = {}) {
+export function routeMatch(text, { rules, sessionRank = null, root, env = process.env, grade = delegationGrade() } = {}) {
   const t = String(text || '').trim();
   if (t.length < MIN_LEN) return null;
   // A task notification or command echo is not a request, whatever words it holds.
@@ -246,6 +251,9 @@ export function routeMatch(text, { rules, sessionRank = null, root, env = proces
   // before classification because such a request often looks like a light
   // "run" or "check" in its wording.
   if (ESCALATE_RE.test(t)) return null;
+  // At grade 'quality' the gate is wider: audits, recommendations, absence
+  // checks and research end in a judgement as well (JUDGE_RE).
+  if (isQualityGrade(grade) && JUDGE_RE.test(t)) return null;
   // Same for implementation work dressed as a run or a check: an edit is not
   // delegable, and with no tool calls yet only the wording can say so.
   if (EDIT_RE.test(t)) return null;
@@ -277,7 +285,7 @@ export function routeMatch(text, { rules, sessionRank = null, root, env = proces
   const roots = root ? sharedProjectRoots(root) : [];
   const inScope = (r) => r.scope !== 'project' ||
     (typeof r.targetRoot === 'string' && roots.includes(realProjectRoot(r.targetRoot)));
-  const matched = all.filter((r) => r && r.category === cat.id && inScope(r));
+  const matched = all.filter((r) => r && r.category === cat.id && inScope(r) && gradeKeepsRule(grade, r));
   if (!matched.length) return null;
   // A rule only saves anything when its target tier is cheaper than the model
   // reading the hint. A T1 rule states "delegate to model: sonnet", which in a
@@ -302,6 +310,87 @@ export function routeMatch(text, { rules, sessionRank = null, root, env = proces
   const t1 = nearest.find((r) => r.tier === 'T1');
   const t1h = nearest.find((r) => r.tier === 'T1H');
   return t2 || t1 || t1h ? { cat, t2, t1, t1h } : null;
+}
+
+/** True for 'quality'. An old stored name is read through its replacement, and an unknown one as the default. */
+function isQualityGrade(grade) {
+  return (normalizeDelegationGrade(grade) ?? 'quality') === 'quality';
+}
+
+/**
+ * ESCALATE_RE terms that name an action rather than a question: store
+ * submission, deploy, release, merge, production access, a go-ahead. They keep
+ * the delegation quiet (an irreversible step stays on the main model) but
+ * "this request ends in a judgement" would be wrong for "배포해줘".
+ */
+const ACTION_RE = new RegExp(
+  /운영\s*(?:db|디비|데이터베이스|서버|환경)|프로덕션|\bprod(?:uction)?\s*(?:db|database|server|env)|승인\s*(?:할게|했어|했으니|했습니다|합니다|해줄게|완료)|\bapproved?\b|제출|배포|출시|퍼블리시|릴리[스즈](?!\s*노트)|(?<!나)머지|submit|deploy|release|publish|merge/.source, 'gi');
+
+/**
+ * Why a request is kept off the delegation path, for the grades that gate on
+ * judgement. routeMatch returns null for all of these; this says which gate it
+ * was so the caller can recommend a stronger model instead of staying silent.
+ *
+ * @returns {{judgement: true, kind: 'escalate'|'judge'|'action', cat: null}|null}
+ *   'escalate' is a design, diagnosis or comparison word (ESCALATE_RE), 'judge'
+ *   an audit, recommendation, absence check or research (JUDGE_RE, only below
+ *   grade 'quality'), 'action' an irreversible step with no judgement word.
+ */
+export function judgementMatch(text, { grade = delegationGrade() } = {}) {
+  const t = String(text || '').trim();
+  if (t.length < MIN_LEN || isSystemPrompt(t)) return null;
+  if (ESCALATE_RE.test(t)) {
+    const kind = ESCALATE_RE.test(t.replace(ACTION_RE, ' ')) ? 'escalate' : 'action';
+    return { judgement: true, kind, cat: null };
+  }
+  if (isQualityGrade(grade) && JUDGE_RE.test(t)) return { judgement: true, kind: 'judge', cat: null };
+  return null;
+}
+
+/**
+ * What grade 'cost' still sends up: diagnosis, audit and security asks. The
+ * other judgement words stay quiet there because that grade is the one the user
+ * picked to spend less.
+ */
+const COST_UP_RE = /원인\s*(?:분석|파악|확인|규명|조사)|원인을?\s*찾|root cause|버그|취약|vulnerabilit|보안\s*(?:점검|검토|감사|리뷰|이슈)|security (?:review|audit)|감사\s*(?:해\s*(?:줘|봐|주|보|라|볼)|좀|를\s*(?:해|돌|진행)|하자|요청|부탁)|\baudit(?!\s*(?:log|trail))/i;
+
+/** Price rank of Opus: a session at or above it needs no recommendation to move up. */
+const OPUS_RANK = TIER_TARGET_RANK.T1H;
+
+/**
+ * The line that recommends Opus at effort high for a request that ends in a
+ * judgement, or null when none applies.
+ *
+ * Measured in the validation Lab (r8) on ten jobs whose result is a judgement:
+ * Sonnet at high reached the same conclusion as the reference 1 time, Opus at
+ * high 5 times, Opus at xhigh 6 times with 11 wrong claims against 3. So the
+ * line names high and never xhigh.
+ *
+ * Silent when the session already runs Opus or better, and when the session
+ * model is unknown (a guess could tell an Opus session to switch to itself).
+ * Grade 'quality' speaks for every judgement request; 'cost'
+ * only for diagnosis, audit and security (COST_UP_RE).
+ *
+ * @param {string} text the prompt just submitted
+ * @param {object} [opts]
+ * @param {number|null} [opts.sessionRank] see sessionModelRank
+ * @param {string} [opts.grade] delegation grade
+ * @param {string} [opts.lang] 'ko' | 'en'
+ * @param {object|null} [opts.judgement] a judgementMatch result the caller already has
+ */
+export function escalationNotice(text, { sessionRank = null, grade = delegationGrade(), lang = userLanguage(), judgement } = {}) {
+  if (sessionRank === null || sessionRank >= OPUS_RANK) return null;
+  const j = judgement === undefined ? judgementMatch(text, { grade }) : judgement;
+  if (!j || j.kind === 'action') return null;
+  if (!isQualityGrade(grade) && !COST_UP_RE.test(String(text || ''))) return null;
+  const label = gradeLabel(grade, lang);
+  return lang === 'ko'
+    ? `✇ [sprag] 이 요청은 판단이 결론인 일입니다. 위임 등급(${label})에서는 Sonnet보다 Opus(effort high)가 맡도록 권합니다. `
+      + 'Opus 서브에이전트(t1h-worker)로 넘기거나 /model opus로 바꾸십시오. '
+      + '근거는 판단형 10건에서 Sonnet high가 같은 결론 1건, Opus high가 5건이었던 측정입니다(sprag.io/proof).'
+    : `✇ [sprag] This request ends in a judgement. At delegation grade ${label}, sprag recommends Opus at effort high over Sonnet: `
+      + 'hand it to an Opus subagent (t1h-worker) or switch with /model opus. '
+      + 'On 10 judgement jobs Sonnet high reached the same conclusion once and Opus high five times (sprag.io/proof).';
 }
 
 /** The budgets a match states, by tier: what the delegation guard repeats to the subagent. */
