@@ -3424,6 +3424,62 @@
       "n": 1
      }
     ]
+   },
+   "variance": {
+    "n": 78,
+    "agree": 75,
+    "changed": 3,
+    "crossOkPartial": 1
+   },
+   "v3": {
+    "n": 15,
+    "ok": 12,
+    "partial": 3,
+    "fail": 0,
+    "pickUsd": 2.9827,
+    "opusUsd": 8.3987,
+    "delegated": 16,
+    "pool": 54
+   },
+   "effort": {
+    "n": 10,
+    "round": "r10-effort-2026-11-09",
+    "conditions": [
+     {
+      "id": "opus-high",
+      "ok": 8,
+      "partial": 1,
+      "fail": 1,
+      "wrong": 5,
+      "missed": 4,
+      "usd": 9.7842,
+      "sec": 886
+     },
+     {
+      "id": "opus-medium",
+      "ok": 4,
+      "partial": 6,
+      "fail": 0,
+      "wrong": 4,
+      "missed": 10,
+      "usd": 8.6251,
+      "sec": 699
+     },
+     {
+      "id": "opus-low",
+      "ok": 3,
+      "partial": 6,
+      "fail": 1,
+      "wrong": 8,
+      "missed": 17,
+      "usd": 5.1202,
+      "sec": 527
+     }
+    ],
+    "take": {
+     "ko": "판단형 일에서 effort를 high에서 medium으로 낮추면 같은 결론이 8건에서 4건으로, low로 낮추면 3건으로 줄었습니다. 놓친 사실은 4개에서 10개와 17개로 늘었습니다. 비용은 medium이 12%, low가 48% 적습니다. 그래서 sprag는 메인 effort가 낮은 세션에서 판단 부분을 Opus high에 맡기라고 안내합니다.",
+     "en": "On judgement work, dropping effort from high to medium cut same conclusions from 8 to 4, and low cut them to 3. Missed facts rose from 4 to 10 and 17. Medium cost 12% less and low 48% less. So when the main session runs at a low effort, sprag suggests handing the judgement part to Opus at high."
+    }
    }
   }
  }
