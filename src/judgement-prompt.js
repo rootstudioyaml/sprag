@@ -43,6 +43,11 @@
  * investigation" describe the purpose, not the job). Over the 240 prompts of
  * the delegation-ledger snapshot the pass flags 52, about 22%. Both samples
  * come from one user.
+ *
+ * Added 2026-11-09 after the v4 replay (23 delegations, verify-graded): a
+ * question asking which file implements a behaviour that no file implements
+ * came back unanswered from Sonnet. The new absence pattern flags 2 of the 309
+ * snapshot prompts, both of that shape.
  */
 
 const MARKER = '<!-- sprag:delegation -->';
@@ -70,6 +75,9 @@ const PATTERNS = {
   ],
   absence: [
     /없다는 (?:결론|사실)|없다고 (?:단정|판단|보고)|없음을 (?:확인|단정)|(?:is|are) there any\b|does (?:it|the page|the doc|the docs|any page|this) (?:say|mention|describe)|any mention\b|if the page does not answer|read-only search\b/,
+    // Asking which code does a behaviour presumes some code does. When none does, or it happens another way
+    // (an @ import rather than a hook), the honest answer is that absence, which a cheaper model misses.
+    /which (?:source )?(?:file|function|module|code)s? (?:implements|injects|handles|is responsible for)\b|어디서 어떻게 구현|어느 (?:파일|함수|모듈)(?:이|가) [^\n]{0,30}(?:구현|주입|처리)하/,
   ],
   conditional: [
     /출력에 따라|결과에 따라|보고 (?:나서 )?(?:더 |어느 )|필요하면 (?:소스|코드|파일|로그)|depending on (?:what|the output|the result)|decide (?:which|what) to (?:open|read|look)|follow (?:the )?leads|(?:무엇|뭔)(?:인지)?(?:는|은)? 아직 모(?:른다|릅니다)|구현 (?:상태|여부)[^\n]{0,10}(?:조사|확인)|(?:막히면|실패하면|안 되면|if (?:it is blocked|that fails|blocked))[^\n]{0,80}(?:다음|대체|우회|fall ?back|시도|instead|try)/,
