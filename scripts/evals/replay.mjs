@@ -37,6 +37,13 @@ export function planRuns(round, only = null) {
   return runs;
 }
 /** Arguments for one replayed run. The prompt goes in on stdin, so the variadic tool lists can come last. */
+/** The child environment: API keys removed, plus the string values a condition sets in `env` (e.g. a compact window). */
+export function runEnv(round, r, base = cleanEnv()) {
+  const cond = round.conditions.find((c) => c.id === r.condition);
+  const extra = Object.fromEntries(Object.entries(cond?.env || {}).filter(([k, v]) => /^[A-Z][A-Z0-9_]*$/.test(k) && typeof v === 'string'));
+  return { ...base, ...extra };
+}
+
 export function claudeArgs(cond, sessionId, { write = false, agent = cond.agent, allowedTools = [] } = {}) {
   const a = ['-p', '--model', cond.model, '--effort', cond.effort];
   if (agent) a.push('--agent', agent);
@@ -176,7 +183,7 @@ export async function replay(roundDir, {
   const spawnOnce = (r, wt, sessionId, prompt) => new Promise((res) => {
     let out = '', err = '', settled = false;
     const end = (code) => { if (!settled) { settled = true; res({ code, out, err }); } };
-    const child = spawn('claude', runArgs(round, r, sessionId), { cwd: wt, env: cleanEnv(), stdio: ['pipe', 'pipe', 'pipe'], shell: false, timeout: timeoutMs });
+    const child = spawn('claude', runArgs(round, r, sessionId), { cwd: wt, env: runEnv(round, r), stdio: ['pipe', 'pipe', 'pipe'], shell: false, timeout: timeoutMs });
     child.stdout.on('data', (d) => { out += d; });
     child.stderr?.on('data', (d) => { err += d; });
     child.on('error', (e) => { err += e.message; end(-1); });
