@@ -608,6 +608,28 @@ function buildSessionDelegationSeg(sd, c, isIcon, verbose, g) {
 }
 
 /**
+ * Subagents running right now: `⏳ 서브에이전트 2개 실행 중 (sonnet 1, opus 1)`
+ * (English: `⏳ 2 subagents running (sonnet 1, opus 1)`). It leads the first
+ * line and exists only while something is running, so its appearance is the
+ * signal. The session chip further down counts every run the session started;
+ * this one answers "is anything working for me at this moment". The model split
+ * covers the runs whose model could be read, and is left off when none could.
+ * Icon modes draw the hourglass; text mode and the narrow set use words alone.
+ */
+function buildRunningSeg(rs, c, isIcon, g) {
+  const n = Number(rs && rs.count);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const ko = rs.lang === 'ko';
+  const words = ko ? `서브에이전트 ${n}개 실행 중` : `${n} ${n === 1 ? 'subagent' : 'subagents'} running`;
+  const glyph = isIcon && g.running ? `${g.running} ` : '';
+  const families = Array.isArray(rs.families)
+    ? rs.families.filter((f) => f && Number(f.runs) > 0).map((f) => `${f.family} ${f.runs}`)
+    : [];
+  const split = families.length ? ` ${c(GRAY)}(${families.join(', ')})${c(RESET)}` : '';
+  return `${c(BOLD)}${c(CYAN)}${glyph}${words}${c(RESET)}${split}`;
+}
+
+/**
  * Cap-warn chip builder — shared by the full report and the no-session
  * fallback line. At 90%+ the user wants to know "when can I send again", so
  * the wall-clock reset time rides along in the same `🔄 HH:MM` shape as the
@@ -643,6 +665,54 @@ const HEADLINE_INDENT = '  ';
 
 const availWidth = (columns) => Math.max(20, columns - STATUSLINE_MARGIN);
 
+/** Width assumed for the statusline when neither `--columns` nor COLUMNS says. */
+export const DEFAULT_COLUMNS = 120;
+/** Model pairs the routing headline keeps when it has to shorten itself. */
+const HEADLINE_PAIRS_SHORT = 2;
+
+/**
+ * A headline split at its joints: sections joined by a gray `|`, items by a
+ * gray `·`. Each piece carries the separator that precedes it.
+ */
+function splitHeadline(line, c) {
+  const bar = `  ${c(GRAY)}|${c(RESET)}  `;
+  const dot = ` ${c(GRAY)}·${c(RESET)} `;
+  const pieces = [];
+  line.split(bar).forEach((section, i) => {
+    section.split(dot).forEach((text, j) => pieces.push({ text, sep: j ? dot : i ? bar : '' }));
+  });
+  return pieces;
+}
+
+/**
+ * One headline on one row. A headline that is too wide gives up its tail items,
+ * lowest priority first (they are listed biggest first), and ends in `…`; it is
+ * not wrapped onto more rows. The routing headline tries its short form (top
+ * pairs plus `+N`) before anything is cut. The first piece always stays.
+ *
+ * @param {{ line: string, short?: string|null }} h
+ * @param {number} avail cells available for the row
+ * @param {(v: string) => string} c
+ * @param {string} [lead] text that will sit in front of the row (width only)
+ */
+function fitHeadline(h, avail, c, lead = '') {
+  const room = avail - cellWidth(lead);
+  if (cellWidth(h.line) <= room) return h.line;
+  const body = h.short && cellWidth(h.short) <= room ? h.short : (h.short || h.line);
+  if (cellWidth(body) <= room) return body;
+  const marker = ` ${c(GRAY)}…${c(RESET)}`;
+  const markerW = 2;
+  const kept = [];
+  let used = 0;
+  for (const { text, sep } of splitHeadline(body, c)) {
+    const w = cellWidth(text) + (kept.length ? cellWidth(sep) : 0);
+    if (kept.length && used + w + markerW > room) break;
+    used += w;
+    kept.push(kept.length ? sep + text : text);
+  }
+  return kept.join('') + marker;
+}
+
 /**
  * Wrap one headline line to `avail` cells. A headline is sections joined by a
  * gray `|`, and a section is items joined by a gray `·` (see buildDelegatedSeg
@@ -653,12 +723,7 @@ const availWidth = (columns) => Math.max(20, columns - STATUSLINE_MARGIN);
  */
 function wrapHeadline(line, avail, c) {
   if (cellWidth(line) <= avail) return [line];
-  const bar = `  ${c(GRAY)}|${c(RESET)}  `;
-  const dot = ` ${c(GRAY)}·${c(RESET)} `;
-  const pieces = [];
-  line.split(bar).forEach((section, i) => {
-    section.split(dot).forEach((text, j) => pieces.push({ text, sep: j ? dot : i ? bar : '' }));
-  });
+  const pieces = splitHeadline(line, c);
   const rows = [];
   let row = '';
   let used = 0;
@@ -1248,6 +1313,7 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
   //   icon:  "🔀 Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4"
   //   text:  "Routing saved $9.8 | opus→haiku ×2 $6.4 · fable→sonnet ×1 $3.4"
   let totalsLine = null;
+  let totalsShort = null;
   const totalsNum = Number(totals && totals.total);
   // A zero total gets its line only when a reset mark explains it; see the
   // note above `routingSince`.
@@ -1272,11 +1338,22 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
       .join(` ${c(GRAY)}·${c(RESET)} `);
     // A net loss must not read as a win, and a zero is neither.
     const tone = totalsNum < 0 ? RED : totalsNum > 0 ? GREEN : GRAY;
-    totalsLine =
+    const compose = (text) =>
       `${c(tone)}${c(BOLD)}${head}${c(RESET)} ` +
       `${c(tone)}${formatMoney(totalsNum)}${c(RESET)}` +
       sinceWord(routingSince) + scanTag +
-      (pairText ? `  ${c(GRAY)}|${c(RESET)}  ${pairText}` : '');
+      (text ? `  ${c(GRAY)}|${c(RESET)}  ${text}` : '');
+    totalsLine = compose(pairText);
+    // The short form for a line that is too wide: the two biggest moves (the
+    // ledger lists them biggest first) and the count of the rest. The full list
+    // stays the default whenever it fits, and a user who named `delegated` in
+    // `--segments` always gets it (see buildHeadlines).
+    if (pairs.length > HEADLINE_PAIRS_SHORT) {
+      const top = pairs.slice(0, HEADLINE_PAIRS_SHORT)
+        .map((p) => `${c(GRAY)}${p.from}→${p.to} ×${p.runs} ${formatMoney(p.usd)}${c(RESET)}`)
+        .join(` ${c(GRAY)}·${c(RESET)} `);
+      totalsShort = compose(`${top} ${c(GRAY)}·${c(RESET)} ${c(GRAY)}+${pairs.length - HEADLINE_PAIRS_SHORT}${c(RESET)}`);
+    }
   }
 
   // The effort guard line (multi-line layout): the top line of the statusline,
@@ -1310,7 +1387,7 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
         ? [unresolvedSeg, guardLine ? null : raisedSeg, modelUpSeg, gradeSeg]
         : [guardLine ? null : raisedSeg, modelUpSeg, gradeSeg])
       : [delegateSeg, guardLine ? null : raisedSeg, modelUpSeg, gradeSeg, delegateExtra],
-    headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine } : null,
+    headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine, short: totalsShort } : null,
     guardLine,
   };
 }
@@ -1587,7 +1664,7 @@ function arrangeSegments(order, s) {
 /**
  * The headline lines that sit above the chips, as one string of `line\n` pairs.
  */
-function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v, teamLine = null) {
+function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v, teamLine = null, { trim = false, lead = null } = {}) {
   // Each savings source that earned real money gets a headline line, ordered
   // biggest saver first — the top line is the one the eye lands on, so it
   // goes to whichever habit is actually paying for the tool. The diagnostics
@@ -1601,9 +1678,18 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v,
   if (delegated.guardLine && want('delegated')) headlines.unshift({ usd: 0, line: delegated.guardLine });
   // The team line comes last: identity and standing, after the money.
   if (teamLine && want('team')) headlines.push(teamLine);
+  // The running-subagents chip leads the first row. It is joined before the
+  // row is fitted so its width counts, and it is never the part that is cut.
+  const join = lead && headlines.length ? `${lead}${CHIP_SEP}` : '';
   const rows = columns
-    ? headlines.flatMap((h) => wrapHeadline(h.line, availWidth(columns), c))
-    : headlines.map((h) => h.line);
+    ? headlines.flatMap((h, i) => {
+      const prefix = i === 0 ? join : '';
+      // `trim` is the default layout: one row per headline, tail given up with
+      // `…`. A user who picked the segments gets every item, wrapped instead.
+      if (trim) return [prefix + fitHeadline(h, availWidth(columns), c, prefix)];
+      return wrapHeadline(prefix + h.line, availWidth(columns), c);
+    })
+    : headlines.map((h, i) => (i === 0 ? join : '') + h.line);
   return rows.map((row) => row + eol + '\n').join('');
 }
 
@@ -1708,17 +1794,36 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const order = resolveSegmentOrder(segments, caps, updateAvailable);
   const segs = arrangeSegments(order, built);
 
+  // Leads the first line, ahead of every segment. A caller's `--segments` list
+  // is a filter, so the chip needs a name in it too: `running`, or the
+  // subagent names it belongs with.
+  const runningSeg = !allow || ['running', 'subagents', 'delegated'].some((n) => allow.has(n))
+    ? buildRunningSeg(data.runningSubagents, c, isIcon, g)
+    : null;
+  // Items the user picked are never given up for width: only the default layout
+  // trims a headline to one row with `…`; an explicit list wraps instead.
+  const trim = !allow;
+
   // Trailing erase-to-end-of-line so any leftover characters from a previous
   // (longer) statusline render don't bleed into ours. \x1b[K is the standard
   // "erase from cursor to EOL" CSI. Only emitted when color (i.e. ANSI) is
   // allowed — --no-color/NO_COLOR consumers expect escape-free output.
   const eol = color ? '\x1b[K' : '';
-  if (singleLine || !columns) return buildHeadlines(delegated, doc2md, want, eol, 0, c, teamLine) + segs.join(' · ') + eol;
-  const headlines = buildHeadlines(delegated, doc2md, want, eol, columns, c, teamLine);
+  // With a headline row the chip joins that row; without one it is the first chip.
+  const hasHeadline = !!((delegated.headline && want('delegated')) || (delegated.guardLine && want('delegated'))
+    || (doc2md.headline && want('doc2md')) || (teamLine && want('team')));
+  const lead = runningSeg && hasHeadline ? runningSeg : null;
+  if (runningSeg && !lead) segs.unshift(runningSeg);
+  if (singleLine || !columns) return buildHeadlines(delegated, doc2md, want, eol, 0, c, teamLine, { lead }) + segs.join(' · ') + eol;
+  const headlines = buildHeadlines(delegated, doc2md, want, eol, columns, c, teamLine, { trim, lead });
 
   // The chips that stop the work: layoutChips drops from the tail when the
   // terminal is narrow, and these must survive that.
   const protectedSegs = new Set([built.capWarn, built.spike, built.ctx, ...built.usage.map((u) => u.seg)].filter(Boolean));
+  // The running chip, and everything the user named in `--segments`, is kept
+  // whatever the width: the chip budget gives up the default tail instead.
+  if (runningSeg && !lead) protectedSegs.add(runningSeg);
+  if (allow) for (const seg of segs) protectedSegs.add(seg);
   const fitted = fitChips(segs, { columns, maxLines, eol, protectedSegs, color });
   // Verbose labels are the first thing to give up: if they only fit by dropping
   // chips, the compact layout (same chips, shorter text) may keep all of them.

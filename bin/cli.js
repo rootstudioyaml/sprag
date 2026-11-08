@@ -118,7 +118,8 @@ function segmentsFromArgs() {
 
 /**
  * Terminal width for the statusline wrap: `--columns N`, else the COLUMNS that
- * Claude Code exports to the statusline process, else 0 (no wrapping). The demo
+ * Claude Code exports to the statusline process, else 0 (the caller decides; the
+ * live statusline then assumes 120). The demo
  * passes `useEnv: false` so recordings do not change with the shell they run in.
  */
 function columnsFromArgs({ useEnv = true } = {}) {
@@ -249,7 +250,7 @@ Usage:
   sprag --uninstall-hook   remove that hook
   sprag --statusline       one-line output for Claude Code statusline
       --verbose / --no-color / --icon / --no-timer / --single-line
-      --columns N   wrap chips to N cells (default: $COLUMNS, which Claude Code sets)
+      --columns N   fit lines to N cells (default: $COLUMNS, which Claude Code sets, else 120)
 
 Run any subcommand with --help for its own options where available.
 Bug reports & feature requests: https://github.com/rootstudioyaml/sprag/issues
@@ -1081,6 +1082,7 @@ async function main() {
   // This session's subagent runs, matched to the session Claude Code is
   // drawing for by the transcript path / session id in its payload.
   let sessionDelegation;
+  let runningNow = null;
   // Delegation-rule counts, read only when `--segments` names `rules`: the
   // chip is opt-in, so nothing else would look at them.
   let ruleStats;
@@ -1094,6 +1096,18 @@ async function main() {
       });
     } catch (e) {
       debug('statusline-data:session-delegation', e);
+    }
+    // Subagents working right now, from the session's subagent transcripts: one
+    // readdir and a stat per file, never a parse of a whole transcript.
+    try {
+      const { runningSubagents } = await import('../src/statusline-running.js');
+      const running = runningSubagents(extractTranscriptPath(stdinJson));
+      if (running) {
+        const { userLanguage } = await import('../src/config.js');
+        runningNow = { ...running, lang: userLanguage() };
+      }
+    } catch (e) {
+      debug('statusline-running', e);
     }
     if (rulesRequested) {
       try {
@@ -1145,6 +1159,7 @@ async function main() {
     gradeActions: isStatusline ? gradeActions : undefined,
     relaxUntil: isStatusline ? relaxUntilNow : undefined,
     sessionDelegation,
+    runningSubagents: runningNow,
     ruleStats,
     ttlBucket,
   };
@@ -1157,7 +1172,7 @@ async function main() {
     const { formatReport } = await import('../src/formatters/csv.js');
     output = formatReport(data);
   } else if (format === 'statusline') {
-    const { formatReport } = await import('../src/formatters/statusline.js');
+    const { formatReport, DEFAULT_COLUMNS } = await import('../src/formatters/statusline.js');
     const { statuslineDefaults } = await import('../src/config.js');
     const cfg = statuslineDefaults();
 
@@ -1184,7 +1199,10 @@ async function main() {
       // multi-line statusline in some versions (anthropics/claude-code#35176)
       // — --single-line restores the legacy one-line layout in that case.
       singleLine: hasFlag('--single-line'),
-      columns: columnsFromArgs(),
+      // `--columns`, else the COLUMNS Claude Code exports, else a 120 cell
+      // terminal: an unknown width must not mean "no limit", since the lines
+      // are then cut or folded by the terminal in the middle of a chip.
+      columns: columnsFromArgs() || DEFAULT_COLUMNS,
     });
   } else {
     // The first screen is the pitch: what share of recent work a cheaper model
