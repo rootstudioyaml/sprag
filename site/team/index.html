@@ -774,9 +774,9 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" integrity="sha384-YieCqqg9gQufX7+5HcFvCEg/n3KUEdl8/Jb+A6J0npf1mB740VayvwKjTrtCeUoy" crossorigin="anonymous"></script>
-<script src="/assets/admin-ux.js?v=3.106.0"></script>
-<script src="/assets/admin-mfa.js?v=3.106.0"></script>
-<script src="/assets/sign-in-captcha.js?v=3.106.0"></script>
+<script src="/assets/admin-ux.js?v=3.106.1"></script>
+<script src="/assets/admin-mfa.js?v=3.106.1"></script>
+<script src="/assets/sign-in-captcha.js?v=3.106.1"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -2875,7 +2875,7 @@ const SceneHost = (function(){
       const [u, pr] = await Promise.all([fetchUsage(ids), fetchPrompts()]); if(my !== seq) return;
       usage = u; promptRows = pr; ukey = uk;
     }
-    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.106.0'); }catch(e){ return fail(); } if(my !== seq) return; }
+    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.106.1'); }catch(e){ return fail(); } if(my !== seq) return; }
     const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: org.seats_used, limit: org.seat_limit, orgName: org.name, rangeLabel: Range.label(), closed: false, t, rel, os: osLabel, events: Seats.events(),
       demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
     if(ctl && mounted !== org.id){ ctl.destroy(); ctl = null; }
