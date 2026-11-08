@@ -25,6 +25,7 @@
       'p.h1': 'The main session itself, or handed off by sprag',
       'p.h1n': function (o) { return 'The main session itself: ' + o.a + '. Handed off by sprag: ' + o.b + '. ' + (o.fa === 0 && o.fb === 0 ? 'Wrong answers: none either way.' : 'Wrong answers: ' + o.fa + ' vs ' + o.fb + '.'); },
       lede: function (n) { return 'Doing everything in the main session is the default, and you can keep doing that. "Without sprag" in this lab is exactly that: the same ' + n + ' requests done by the main session (Opus) itself and handed to subagents by sprag, graded without knowing which was which. For lookups and runs, where the answer sits in the code or a command output, the main session re-reads its whole context on every tool call, so it costs more and the context fills up. Handed off, the main context stays light.'; },
+      'hero.fit': 'sprag picks the model and effort each job needs. Work whose answer shows in tool output goes down to a cheaper model; work that ends in a judgement goes up to Opus.',
       lede2: 'sprag never changes the model or effort of your main session. It only picks the model and effort for each job handed off: down to Haiku when cheap is enough, up in effort when cheap would miss.',
       pills: ['Main session model and effort untouched', 'Rules are listed and can be switched off one by one', 'Every delegation shows where it went, in the statusline', 'All of it off in one line: sprag routing off'],
       title: 'Sprag Proof Lab | the main session itself vs handed off by sprag',
@@ -124,6 +125,10 @@
       'bulk.costV': function (a, b, pct) { return a + ' vs ' + b + ' (' + pct + '% less)'; },
       'bulk.th': ['kind of job', 'cases', 'same', 'partial', 'unusable', 'sprag pick', 'Opus direct'],
       'bulk.noise': function (o) { return 'Noise floor: Opus run a second time on ' + o.n + ' of these cases and graded against its own first answer gives same conclusion ' + o.ok + ', partial ' + o.partial + ', unusable ' + o.fail + '. Partial marks below that line are run-to-run variance, not a weaker model.'; },
+      'bulk.var': function (o) { return 'Grader variance: graded a second time, ' + o.agree + ' of ' + o.n + ' reports (' + o.pct + '%) got the same verdict.' + (o.cross ? ' Most of the ' + o.changed + ' that changed moved between same and partial.' : ''); },
+      'bulk.v3.h': 'Only the work the new rule hands off',
+      'bulk.v3': function (o) { return 'The new rule hands off ' + o.delegated + ' of ' + o.pool + ' jobs and keeps the rest on the main model. The ' + o.n + ' it handed off came out same ' + o.ok + ', partial ' + o.partial + ', unusable ' + o.fail + ', at ' + o.pick + ' against ' + o.opus + ' on Opus.'; },
+      'up.eff.h': 'With the main effort turned down',
       'bulk.cmp': function (o) { return 'The same ' + o.n + ' cases, replayed as the rules were narrowed (' + o.rules + '): same conclusion ' + o.ok + ', partial ' + o.partial + ', unusable ' + o.fail + ', cost ' + o.usd + ' against ' + o.opus + ' on Opus.'; },
       'bulk.kind': { run: 'command runs', check: 'status checks', paste: 'pasted screens and logs', explore: 'lookups', read: 'reading and summaries' },
       'bulk.method': function (b) { return 'On 8 November two measurement fixes went in. ' + b.replayed + ' cases were replayed again because an absolute path left in the prompt let the reference read today\'s code instead of the code at the time. The grading rule was changed so that facts from investigation the task forbade or did not ask for do not count as missing, and every case was graded again. The rule changed after the results were seen, so the earlier figures stay on record: same conclusion ' + b.ok + ', partial ' + b.partial + ', unusable ' + b.fail + '.'; },
@@ -134,7 +139,7 @@
       'up.h': 'When to go up',
       'up.sub': function (n) { return n + ' jobs whose conclusion is a judgement, run on Sonnet high, Opus high and Opus xhigh: improvement reviews, audits, root-cause diagnosis, lookups that must conclude something does not exist, and web research. Here the Opus answer is not the key. The grader gets the three reports unlabelled, checks the claims they disagree on against the repository and the web, and then rules.'; },
       'up.th': ['run', 'same', 'partial', 'unusable', 'wrong claims', 'missed facts', 'cost', 'time'],
-      'up.cond': { 'sonnet-high': 'Sonnet high', 'opus-direct': 'Opus high', 'opus-xhigh': 'Opus xhigh' },
+      'up.cond': { 'sonnet-high': 'Sonnet high', 'opus-direct': 'Opus high', 'opus-xhigh': 'Opus xhigh', 'opus-high': 'Opus high', 'opus-medium': 'Opus medium', 'opus-low': 'Opus low' },
       'up.take': function (o) { return 'Moving these jobs from Sonnet to Opus high takes same conclusions from ' + o.sOk + ' to ' + o.bOk + ' and wrong claims from ' + o.sWrong + ' to ' + o.bWrong + ', for ' + o.costX + 'x the cost. Raising effort to xhigh on top made wrong claims ' + o.hWrong + ' and took ' + o.timeX + 'x the time, so sprag recommends high.'; },
       'up.limit': 'Ten cases is a small sample, and the grader is Opus too. Hiding the labels and making it check claims with tools reduces any pull toward its own model; it does not rule it out.',
       loadFail: 'Could not load the data. Please reload the page.'
@@ -144,6 +149,7 @@
       'p.h1': '메인이 직접 할 때와 sprag가 넘길 때',
       'p.h1n': function (o) { return '메인이 직접 하면 ' + o.a + ', sprag가 넘기면 ' + o.b + '. ' + (o.fa === 0 && o.fb === 0 ? '오답은 둘 다 0' : '오답은 ' + o.fa + '건 대 ' + o.fb + '건'); },
       lede: function (n) { return '메인 세션에서 전부 직접 하는 게 기본값이고 그래도 됩니다. 이 Lab의 "sprag 없이"가 바로 그 방식이라서, 같은 요청 ' + n + '건을 메인인 Opus가 직접 한 실행과 sprag가 서브에이전트로 넘긴 실행을 가린 채 채점해 비교했습니다. 조회나 실행처럼 답이 코드와 명령 출력에서 나오는 일은 메인이 직접 하면 도구 호출마다 문맥 전체를 다시 읽어 비싸고 문맥도 그만큼 찹니다. 넘기면 메인 문맥은 가볍게 남습니다.'; },
+      'hero.fit': 'sprag는 일마다 맞는 모델과 effort를 고릅니다. 도구 출력으로 확인되는 일은 싼 모델로 내리고, 판단이 결론인 일은 Opus로 올립니다.',
       lede2: 'sprag는 메인 세션의 모델과 effort를 바꾸지 않습니다. 넘기는 일마다 어느 모델과 effort가 맞는지만 고릅니다. 싸게 될 일은 Haiku로 내리고 놓칠 일은 effort를 올립니다.',
       pills: ['메인 세션의 모델과 effort는 건드리지 않음', '룰은 목록으로 보이고 한 줄씩 끌 수 있음', '위임마다 어디로 보냈는지 상태줄에 표시', '전부 끄기는 sprag routing off 한 줄'],
       title: 'Sprag 검증 Lab | 메인이 직접 할 때와 sprag가 넘길 때',
@@ -243,6 +249,10 @@
       'bulk.costV': function (a, b, pct) { return a + ' 대 ' + b + ' (' + pct + '% 절감)'; },
       'bulk.th': ['일의 종류', '건수', '같음', '부분', '못 씀', 'sprag 선택', 'Opus 직접'],
       'bulk.noise': function (o) { return '잡음 바닥: 이 중 ' + o.n + '건은 Opus가 한 번 더 풀고 자기 첫 답을 기준으로 같은 채점을 받았습니다. 같음 ' + o.ok + ', 부분 ' + o.partial + ', 못 씀 ' + o.fail + '. 이 수준의 부분은 모델 차이가 아니라 실행마다 생기는 편차입니다.'; },
+      'bulk.var': function (o) { return '채점자 편차: 같은 보고서 ' + o.n + '건을 한 번 더 채점하자 ' + o.agree + '건(' + o.pct + '%)이 같은 판정을 받았습니다.' + (o.cross ? ' 판정이 바뀐 ' + o.changed + '건은 대부분 같음과 부분 사이를 오갔습니다.' : ''); },
+      'bulk.v3.h': '새 룰로 넘기는 일만 따로 본 결과',
+      'bulk.v3': function (o) { return '새 룰은 풀 ' + o.pool + '건 가운데 ' + o.delegated + '건만 넘기고 나머지는 메인에 남깁니다. 넘긴 ' + o.n + '건은 같음 ' + o.ok + ', 부분 ' + o.partial + ', 못 씀 ' + o.fail + '이었고 비용은 ' + o.pick + ' 대 Opus ' + o.opus + '입니다.'; },
+      'up.eff.h': '메인 effort를 낮췄을 때',
       'bulk.cmp': function (o) { return '같은 ' + o.n + '건을 룰을 좁혀 가며 다시 돌린 결과(' + o.rules + '). 같음 ' + o.ok + ', 부분 ' + o.partial + ', 못 씀 ' + o.fail + ', 비용 ' + o.usd + ', Opus 직접은 ' + o.opus + '.'; },
       'bulk.kind': { run: '명령 실행', check: '상태 확인', paste: '붙여넣은 화면과 로그', explore: '탐색과 조회', read: '읽기와 요약' },
       'bulk.method': function (b) { return '11월 8일에 측정 방법 두 가지를 고쳤습니다. 프롬프트에 남은 절대 경로 때문에 기준 답이 당시 코드가 아니라 현재 코드를 읽은 ' + b.replayed + '건은 다시 돌렸습니다. 작업 지시가 금지했거나 요구하지 않은 조사에서 나온 사실은 누락으로 세지 않도록 채점 기준을 고친 뒤 모든 사례를 다시 채점했습니다. 결과를 본 뒤에 기준을 바꿨으므로 바꾸기 전 수치도 남깁니다. 그때는 같음 ' + b.ok + ', 부분 ' + b.partial + ', 못 씀 ' + b.fail + '이었습니다.'; },
@@ -253,7 +263,7 @@
       'up.h': '올려야 할 때',
       'up.sub': function (n) { return '판단이 결론인 일 ' + n + '건을 Sonnet high, Opus high, Opus xhigh로 각각 돌렸습니다. 개선점 검토, 감사, 원인 진단, "없다"를 단정하는 조회, 웹 조사가 섞여 있습니다. 여기서는 Opus 답을 정답으로 쓰지 않습니다. 채점자가 세 보고서를 가린 채 받아 서로 엇갈리는 주장을 저장소와 웹에서 직접 확인하고 판정합니다.'; },
       'up.th': ['실행', '같음', '부분', '못 씀', '틀린 주장', '놓친 사실', '비용', '시간'],
-      'up.cond': { 'sonnet-high': 'Sonnet high', 'opus-direct': 'Opus high', 'opus-xhigh': 'Opus xhigh' },
+      'up.cond': { 'sonnet-high': 'Sonnet high', 'opus-direct': 'Opus high', 'opus-xhigh': 'Opus xhigh', 'opus-high': 'Opus high', 'opus-medium': 'Opus medium', 'opus-low': 'Opus low' },
       'up.take': function (o) { return '이런 일을 Sonnet에서 Opus high로 올리면 같음이 ' + o.sOk + '건에서 ' + o.bOk + '건으로 늘고 틀린 주장은 ' + o.sWrong + '개에서 ' + o.bWrong + '개로 줄며 비용은 ' + o.costX + '배입니다. 여기서 effort를 xhigh로 더 올리면 틀린 주장이 ' + o.hWrong + '개가 되고 시간이 ' + o.timeX + '배 걸려 sprag는 high를 권합니다.'; },
       'up.limit': '10건이라 표본이 작고 채점자도 Opus입니다. 이름을 가리고 도구로 주장을 확인하게 해 같은 모델을 편드는 효과를 줄였지만 없앴다고 단정하지는 않습니다.',
       loadFail: '데이터를 불러오지 못했습니다. 페이지를 새로 고쳐 주십시오.'
@@ -348,6 +358,7 @@
   function renderHero() {
     var cs0 = heroCases(), hA = 0, hB = 0, fA = 0, fB = 0;
     $('lede').textContent = t('lede')(cs0.length);
+    $('fit').textContent = t('hero.fit');
     $('lede2').textContent = t('lede2');
     cs0.forEach(function (c) { var a = policyRun(c, 'opus'), b = policyRun(c, 'sprag'); hA += a.usd; hB += b.usd; if (a.verdict === 'fail') fA++; if (b.verdict === 'fail') fB++; });
     document.querySelector('h1[data-k="p.h1"]').textContent = t('p.h1n')({ a: usd(hA), b: usd(hB), fa: fA, fb: fB });
@@ -414,6 +425,8 @@
     var nz = v.noise;
     if (nz && nz.n) box.appendChild(el('p', { class: 'bk-cmp bk-noise', text: t('bulk.noise')({ n: nz.n, ok: nz.ok, partial: nz.partial, fail: nz.fail }) }));
     var nt = v.notes;
+    var vr = nt && nt.variance;
+    if (vr && vr.n) box.appendChild(el('p', { class: 'bk-cmp bk-noise', text: t('bulk.var')({ n: vr.n, agree: vr.agree, changed: vr.changed, pct: Math.round(vr.agree / vr.n * 100), cross: vr.changed > 0 && vr.crossOkPartial / vr.changed >= 0.5 }) }));
     /* the method note joins the figures from before the grading fix with the replay count */
     if (nt && nt.method) box.appendChild(el('p', { class: 'bk-cmp bk-method', text: t('bulk.method')({ replayed: nt.method.replayed, ok: nt.method.before.ok, partial: nt.method.before.partial, fail: nt.method.before.fail }) }));
     var th = t('bulk.th'), names = t('bulk.kind');
@@ -426,6 +439,11 @@
       el('thead', null, [el('tr', null, th.map(function (h, i) { return el('th', { class: i ? 'num' : '', text: h }); }))]),
       el('tbody', null, rows)
     ]));
+    var v3 = nt && nt.v3;
+    if (v3 && v3.n) {
+      box.appendChild(el('h3', { class: 'bk-h3', text: t('bulk.v3.h') }));
+      box.appendChild(el('p', { class: 'bk-cmp', text: t('bulk.v3')({ n: v3.n, ok: v3.ok, partial: v3.partial, fail: v3.fail, pool: v3.pool, delegated: v3.delegated, pick: usd(v3.pickUsd), opus: usd(v3.opusUsd) }) }));
+    }
     var pt = nt && nt.partials;
     if (pt && pt.causes && pt.causes.length) {
       var pth = t('bulk.pt.th'), pcause = t('bulk.pt.cause'), pwhy = t('bulk.pt.why');
@@ -450,19 +468,27 @@
     if (!s || !b || !h) { box.hidden = true; return; }
     box.hidden = false;
     var th = t('up.th'), names = t('up.cond');
-    var rows = ['sonnet-high', 'opus-direct', 'opus-xhigh'].map(function (id) {
-      var c = by[id];
-      return el('tr', null, [names[id] || id, c.ok, c.partial, c.fail, c.wrong, c.missed, usd(c.usd), secs(c.sec)].map(function (x, i) { return el('td', { class: i ? 'num' : '', text: String(x) }); }));
-    });
+    var upTable = function (list) {
+      return el('table', { class: 'bk' }, [
+        el('thead', null, [el('tr', null, th.map(function (x, i) { return el('th', { class: i ? 'num' : '', text: x }); }))]),
+        el('tbody', null, list.map(function (c) {
+          return el('tr', null, [names[c.id] || c.id, c.ok, c.partial, c.fail, c.wrong, c.missed, usd(c.usd), secs(c.sec)].map(function (x, i) { return el('td', { class: i ? 'num' : '', text: String(x) }); }));
+        }))
+      ]);
+    };
     var o = { sOk: s.ok, bOk: b.ok, sWrong: s.wrong, bWrong: b.wrong, hWrong: h.wrong, costX: (b.usd / s.usd).toFixed(1), timeX: (h.sec / b.sec).toFixed(1) };
     box.appendChild(el('h2', { id: 'up-h', text: t('up.h') }));
     box.appendChild(el('p', { class: 'lv-sub', text: t('up.sub')(u.n) }));
-    box.appendChild(el('table', { class: 'bk' }, [
-      el('thead', null, [el('tr', null, th.map(function (x, i) { return el('th', { class: i ? 'num' : '', text: x }); }))]),
-      el('tbody', null, rows)
-    ]));
+    box.appendChild(upTable(['sonnet-high', 'opus-direct', 'opus-xhigh'].map(function (id) { return by[id]; })));
     box.appendChild(el('p', { class: 'bk-cmp', text: t('up.take')(o) }));
     box.appendChild(el('p', { class: 'bk-cmp bk-noise', text: t('up.limit') }));
+    var ef = data.bulk.notes && data.bulk.notes.effort;
+    if (ef && ef.conditions && ef.conditions.length) {
+      box.appendChild(el('h3', { class: 'bk-h3', text: t('up.eff.h') }));
+      box.appendChild(upTable(ef.conditions));
+      var tk = ef.take && (ef.take[lang] || ef.take.en);
+      if (tk) box.appendChild(el('p', { class: 'bk-cmp', text: tk }));
+    }
   }
 
   function renderLegend() {
