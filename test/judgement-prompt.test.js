@@ -37,6 +37,9 @@ test('searching the web for candidates is judgement', () => {
 test('a lookup where "there is none" can be the answer is judgement', () => {
   assert.equal(kindOf('Is there any setting that disables telemetry? Say so if there is none.').kind, 'absence');
   assert.equal(kindOf('Read-only search in ./docs for the refund policy document.').kind, 'absence');
+  assert.equal(kindOf('1. Which source file implements the SessionStart hook that injects ratchet rules? Give file:line.').kind, 'absence');
+  assert.equal(kindOf('슈퍼유저 판별이 이미 어디서 어떻게 구현돼 있는지 찾아 주십시오.').kind, 'absence');
+  assert.equal(kindOf('Read src/a.js and list which functions it exports.').judgement, false);
 });
 
 test('a check where the output decides what to open next is judgement', () => {
