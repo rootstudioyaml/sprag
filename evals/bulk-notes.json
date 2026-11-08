@@ -1,0 +1,17 @@
+{
+ "method": {
+  "date": "2026-11-08",
+  "replayed": 3,
+  "before": { "ok": 15, "partial": 11, "fail": 1 }
+ },
+ "partials": {
+  "kind": "run",
+  "n": 8,
+  "causes": [
+   { "k": "rule", "n": 5 },
+   { "k": "gap", "n": 1 },
+   { "k": "measure", "n": 1 },
+   { "k": "scope", "n": 1 }
+  ]
+ }
+}
