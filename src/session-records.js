@@ -74,6 +74,15 @@ const NO_SIGNAL_RE = /^\s*(Command failed with no output|Exit code \d+)\s*$/;
 // curl's transport-timeout exit, never a generic non-zero exit.
 const ENVIRONMENT_RE = /command not found|curl: \(28\)|Operation timed out after|ETIMEDOUT|ENOTFOUND|getaddrinfo/i;
 
+// The shell refusing the command line before it runs, and a call to a tool the
+// agent does not have, say nothing about the task either. On a zsh machine
+// `echo ====` as a separator fails with "(eval):3: ==== not found" after the
+// real output was already collected, and an unquoted URL with "?" fails with
+// "no matches found". In 2026-11-09's review of the run rule's 34 "failed"
+// delegations, these made 53 of 101 counted errors (sprag sessions, 14 days),
+// and 32 of the 34 runs had finished with a full report anyway.
+const SHELL_SYNTAX_RE = /\(eval\):\d+: (?:=\S* not found|no matches found:|parse error near)|No such tool available|is not among the tools available here/;
+
 function toolResultText(content) {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
@@ -84,7 +93,7 @@ function isRealToolError(block) {
   if (!block || block.type !== 'tool_result' || !block.is_error) return false;
   const txt = toolResultText(block.content);
   return !REJECTION_RE.test(txt) && !SELF_CORRECTED_RE.test(txt)
-    && !ENVIRONMENT_RE.test(txt) && !NO_SIGNAL_RE.test(txt);
+    && !ENVIRONMENT_RE.test(txt) && !NO_SIGNAL_RE.test(txt) && !SHELL_SYNTAX_RE.test(txt);
 }
 
 export async function collectSessionRecords(filePath, { includeContent = true } = {}) {

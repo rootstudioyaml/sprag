@@ -161,6 +161,24 @@ test('environment constraints are not counted as task difficulty either', async 
   assert.equal(run.toolErrors, 1);
 });
 
+test('shell syntax refusals and calls to a missing tool are not task difficulty', async () => {
+  const root = tmpRoot();
+  const p = join(root, 'agent-shell.jsonl');
+  writeFileSync(p, [
+    assistant({ model: 'claude-sonnet-4-5', out: 10, ts: '2026-08-01T00:00:01.000Z' }),
+    toolError('Exit code 1\nresult: 42\n(eval):3: ==== not found'),
+    assistant({ model: 'claude-sonnet-4-5', out: 10, ts: '2026-08-01T00:00:02.000Z' }),
+    toolError('Exit code 1\n(eval):10: no matches found: https://example.com/api?keys=a'),
+    assistant({ model: 'claude-sonnet-4-5', out: 10, ts: '2026-08-01T00:00:03.000Z' }),
+    toolError('<tool_use_error>Error: No such tool available: bash</tool_use_error>'),
+    assistant({ model: 'claude-sonnet-4-5', out: 10, ts: '2026-08-01T00:00:04.000Z' }),
+    toolError('Exit code 2\nnpm ERR! Test failed. See above for more details.'),
+  ].join('\n') + '\n');
+  const run = await collectSubagentRun(p);
+  // The separator, the unquoted URL and the misnamed tool go; a failing test run stays.
+  assert.equal(run.toolErrors, 1);
+});
+
 test('collectSubagentRun reads whether the guard raised the effort, and the recorded level', async () => {
   const { EFFORT_RAISE_MARKER } = await import('../src/delegation-guard.js');
   const root = tmpRoot();
