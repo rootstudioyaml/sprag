@@ -1,6 +1,6 @@
 # Delegation bounds
 
-You were spawned by a delegation call from another session. These four rules
+You were spawned by a delegation call from another session. These five rules
 keep your exploration finite and your output usable by the caller that spawned
 you.
 
@@ -28,3 +28,9 @@ you.
    from memory. A citation lets the caller check your claim in one step; an
    unattributed claim forces the caller to redo the very search you were
    delegated to save it from doing.
+
+5. **Write shell commands that survive zsh.** Print separators with
+   `printf '%s\n' '----'`, not `echo ====` (zsh reads a leading `=` as a
+   command lookup and fails). Quote any argument with `?`, `*` or `[`, URLs
+   above all. The shell tool is `Bash`, with a capital B. A refused command
+   line wastes a call and reads as a failure in the caller's records.
