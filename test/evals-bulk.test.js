@@ -240,6 +240,14 @@ test('filterSnapshot drops Bash-writing transcripts and excluded case ids, and c
   assert.equal(dropped.excluded, 1);
 });
 
+test('filterSnapshot counts a transcript that is gone as noTranscript when only transcriptEntries is given', () => {
+  const { kept, dropped } = filterSnapshot([line(1), line(2)], {
+    transcriptEntries: (k) => (k === '/t/agent-1.jsonl' ? null : [bashEntry('ls')]), exists: () => true,
+  });
+  assert.deepEqual(kept.map((e) => e.ts), [1002]);
+  assert.equal(dropped.noTranscript, 1);
+});
+
 const caps200 = (body) => async () => ({ status: 200, json: async () => body });
 const usageBody = { five_hour: { utilization: 42.5, resets_at: '2026-11-08T12:00:00Z' }, seven_day: { utilization: 61, resets_at: '2026-11-12T00:00:00Z' } };
 const capsFile = (windows) => { const d = mkdtempSync(join(tmpdir(), 'caps-')); const f = join(d, 'last-caps.json'); writeFileSync(f, JSON.stringify({ capturedAt: 'x', caps: { windows } })); return f; };
