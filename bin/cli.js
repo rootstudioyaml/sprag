@@ -230,7 +230,7 @@ Usage:
   sprag cowork [sync|on|off|exclude <dir>|include <dir>]   copy the ratchet rules into Cowork tab folders
   sprag korean on|off|status     Korean writing guidance + write-time check
   sprag cohesion on|off|status   English sentence-connection guidance
-  sprag routing on|off|status|grade [quality|cost]   model delegation master switch (rules, hints, candidates)
+  sprag routing on|off|status|grade [quality|cost]|effort-hint on|off   model delegation master switch (rules, hints, candidates)
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
   sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
   sprag proof [--json]     replayed delegation cases behind the tier rules (https://sprag.io/proof/)
@@ -721,6 +721,11 @@ async function main() {
       // not change their minds when the analysis window empties.
       const effort = extractEffort(stdinJson);
       const ultra = ultraChipFor(stdinJson);
+
+      try {
+        const sid = extractSessionId(stdinJson);
+        if (sid && effort) (await import('../src/session-effort.js')).recordSessionEffort(sid, effort);
+      } catch (e) { debug('session-effort:record', e); }
       // Recorded here too: a fresh session can render before it has any request
       // in the analysis window, and its first prompt is briefed from this.
       const ctxLive = extractContextUsage(stdinJson);
@@ -796,6 +801,15 @@ async function main() {
   // handed a transcript path asks; every other caller gets no ultra chip.
   const effort = extractEffort(stdinJson);
   const ultra = isStatusline ? ultraChipFor(stdinJson) : null;
+  // The prompt hook gets no effort in its payload; it reads back what this render saw.
+  if (isStatusline && effort) {
+    try {
+      const sid = extractSessionId(stdinJson);
+      if (sid) (await import('../src/session-effort.js')).recordSessionEffort(sid, effort);
+    } catch (e) {
+      debug('session-effort:record', e);
+    }
+  }
   const ctxLive = extractContextUsage(stdinJson);
   // The prompt-submit briefing has no payload field for the window, so it reads
   // back what this render was told (see src/ctx-window-cache.js).

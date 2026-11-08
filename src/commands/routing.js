@@ -4,6 +4,7 @@
  *   sprag routing            # status
  *   sprag routing on|off     # turn every delegation path on or off
  *   sprag routing grade [quality|cost]   # show or set the delegation grade
+ *   sprag routing effort-hint on|off     # the effort line for low/medium sessions on judgement requests
  *
  * Off removes the delegation rules from ratchet-model.md and the preset
  * ratchet, the per-prompt route hint, and the route-scan candidate and
@@ -14,7 +15,7 @@ export async function run({ args }) {
   const sub = args[1];
   const { userLanguage } = await import('../config.js');
   const ko = userLanguage() === 'ko';
-  const { routingEnabled, setRoutingEnabled, delegationGrade, setDelegationGrade, normalizeDelegationGrade, gradeLabel, DELEGATION_GRADES } = await import('../routing-switch.js');
+  const { routingEnabled, setRoutingEnabled, delegationGrade, setDelegationGrade, normalizeDelegationGrade, gradeLabel, DELEGATION_GRADES, effortHintEnabled, setEffortHint } = await import('../routing-switch.js');
 
   const rules = async () => (await import('../model-rules.js')).loadModelRules().rules.length;
   // Re-render the files that carry delegation text so the change shows without
@@ -83,6 +84,20 @@ export async function run({ args }) {
     return;
   }
 
+  if (sub === 'effort-hint') {
+    const want = args[2];
+    if (want !== 'on' && want !== 'off') {
+      console.error('Usage: sprag routing effort-hint on|off');
+      process.exitCode = 2;
+      return;
+    }
+    setEffortHint(want === 'on');
+    console.log(want === 'on'
+      ? (ko ? '✓ effort 안내를 켰습니다. 판단형 요청에서 세션 effort가 low나 medium이면 한 번 안내합니다.' : '✓ Effort hint is on. A low or medium effort session is told once on a judgement request.')
+      : (ko ? '✓ effort 안내를 껐습니다.' : '✓ Effort hint is off.'));
+    return;
+  }
+
   if (sub === undefined || sub === 'status') {
     const on = routingEnabled();
     const n = await rules().catch(() => 0);
@@ -91,6 +106,7 @@ export async function run({ args }) {
     console.log(`routing: ${on ? 'on' : 'off'}`);
     const grade = delegationGrade();
     console.log(`grade: ${grade} (${gradeLabel(grade, ko ? 'ko' : 'en')})`);
+    console.log(`effort hint: ${effortHintEnabled() ? 'on' : 'off'}`);
     console.log(ko ? `등록된 룰: ${n}건` : `registered rules: ${n}`);
     console.log(`delegate agents: ${agentsOn ? 'on' : 'off'}`);
     console.log(ko
@@ -99,6 +115,6 @@ export async function run({ args }) {
     return;
   }
 
-  console.log('Usage: sprag routing on|off|status|grade [quality|cost]');
+  console.log('Usage: sprag routing on|off|status|grade [quality|cost]|effort-hint on|off');
   process.exitCode = 1;
 }

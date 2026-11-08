@@ -148,6 +148,25 @@ export function claimEscalationNotice(sessionId, { dir } = {}) {
   }
 }
 
+/**
+ * Claim the one "raise the main session's effort" line a session gets, the same
+ * way claimEscalationNotice claims the model one. The two claims are separate
+ * files, so a session that was told to move up to Opus can still be told about
+ * its effort later.
+ */
+export function claimEffortNotice(sessionId, { dir } = {}) {
+  if (typeof sessionId !== 'string' || !SESSION_ID_RE.test(sessionId)) return false;
+  try {
+    const d = stateDir(dir);
+    mkdirSync(d, { recursive: true });
+    closeSync(openSync(join(d, `${sessionId}.effort`), 'wx'));
+    return true;
+  } catch (e) {
+    if (e?.code !== 'EEXIST') debug('route-follow:effort', e);
+    return false;
+  }
+}
+
 /** Forget the session's hinted turn: the prompt that just arrived has no hint. */
 export function clearFollow(sessionId, { dir } = {}) {
   if (typeof sessionId !== 'string' || !SESSION_ID_RE.test(sessionId)) return false;

@@ -393,6 +393,37 @@ export function escalationNotice(text, { sessionRank = null, grade = delegationG
       + 'On 10 judgement jobs Sonnet high reached the same conclusion once and Opus high five times (sprag.io/proof).';
 }
 
+/**
+ * The line for a main session at effort low or medium that gets a request
+ * ending in a judgement. A hook cannot change the session's effort, so the line
+ * has the model hand the judgement part to an Opus subagent at effort high and
+ * tell the user about /effort high in one line. Null when no line applies.
+ *
+ * Same request gate as escalationNotice: a judgement request that is not an
+ * irreversible action, and at grade 'cost' only diagnosis, audit and security.
+ *
+ * @param {string} text the prompt just submitted
+ * @param {object} [opts]
+ * @param {string|null} [opts.sessionEffort] the level the statusline recorded (readSessionEffort)
+ * @param {string} [opts.grade] delegation grade
+ * @param {string} [opts.lang] 'ko' | 'en'
+ * @param {object|null} [opts.judgement] a judgementMatch result the caller already has
+ */
+export function effortNotice(text, { sessionEffort = null, grade = delegationGrade(), lang = userLanguage(), judgement } = {}) {
+  const level = typeof sessionEffort === 'string' ? sessionEffort.trim().toLowerCase() : '';
+  if (level !== 'low' && level !== 'medium') return null;
+  const j = judgement === undefined ? judgementMatch(text, { grade }) : judgement;
+  if (!j || j.kind === 'action') return null;
+  if (!isQualityGrade(grade) && !COST_UP_RE.test(String(text || ''))) return null;
+  return lang === 'ko'
+    ? `✇ [sprag] 이 요청은 판단이 결론인 일인데 지금 세션의 effort가 ${level}입니다. `
+      + '판단이 필요한 부분은 Opus effort high 서브에이전트(t1h-worker)에 맡기고, '
+      + '답 끝에 "/effort high로 올리면 메인도 같은 수준으로 답합니다"를 한 줄 덧붙이십시오.'
+    : `✇ [sprag] This request ends in a judgement and the session runs at effort ${level}. `
+      + 'Hand the part that needs judgement to an Opus subagent at effort high (t1h-worker), '
+      + 'and end your answer with one line: "Raise the main session with /effort high to get the same level here."';
+}
+
 /** The budgets a match states, by tier: what the delegation guard repeats to the subagent. */
 export function matchCaps(match) {
   if (!match) return null;
