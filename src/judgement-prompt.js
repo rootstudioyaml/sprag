@@ -27,19 +27,22 @@
  * out, which leaves 32 positives and 16 negatives:
  *
  *            flagged   not flagged
- *   main        23          9        recall    0.72 (23/32)
- *   other        0         16        precision 1.00 (23/23)
+ *   main        25          7        recall    0.78 (25/32)
+ *   other        1         15        precision 0.96 (25/26)
  *
  * The patterns were tuned on these same 54 prompts, so the figures are
- * in-sample; with 16 negatives, a precision of 1.00 only rules out a false
- * positive rate above about 19%. The 9 misses are mostly page reads whose
- * questions end in "does the page say X": the assignment labels six of them
- * 'main' and four near-identical ones 'web', and no pattern separates the two,
- * so they stay unflagged. Run over the 240 prompts of the delegation-ledger
- * snapshot (every one sent to haiku, sonnet or opus by the rules) the pass
- * flags 51, about 21%, and the ones read by eye were web research, reviews and
- * repository investigations. Both samples come from one user, so take them as
- * an order of magnitude.
+ * in-sample; with 16 negatives they are an order of magnitude, not a rate.
+ * The misses are mostly page reads whose questions end in "does the page say
+ * X": the assignment labels some 'main' and near-identical ones 'web', and no
+ * pattern separates the two. The one false positive is such a page read.
+ *
+ * Re-measured 2026-11-09 after a live session missed a review: paths now
+ * shrink to one token before matching (see judgementEvidence), which moved
+ * recall from 0.72 to 0.78, and the bare words "audit" and "읽기 전용 조사"
+ * left the audit pattern ("it feeds a security audit" and "read-only
+ * investigation" describe the purpose, not the job). Over the 240 prompts of
+ * the delegation-ledger snapshot the pass flags 52, about 22%. Both samples
+ * come from one user.
  */
 
 const MARKER = '<!-- sprag:delegation -->';
@@ -52,7 +55,7 @@ const PATTERNS = {
     /원인(?:을|이|은)? ?(?:진단|분석|찾|파악|조사|가 (?:뭐|무엇))|원인 진단|근본 ?원인|root[- ]?cause|\bdiagnos(?:e|es|is)\b|왜 (?:실패|느|안 ?되|안 ?돼|죽|멈|깨|오류|에러)|why (?:does|is|did|are|do|it|the)\b[^\n]{0,60}(?:fail|slow|crash|break|broken|not work|wrong|hang|stuck|0 impressions)|무엇이 문제|what(?:'s| is) (?:wrong|causing)|troubleshoot/,
   ],
   audit: [
-    /감사(?:해|하|를|\s|$)|\baudit\b|security review|보안 (?:점검|검토|허점|감사)|허점|취약(?:점|성)[^\n]{0,12}(?:찾|점검|분석|있는지)|vulnerabilit[^\n]{0,20}(?:find|audit|review|look for)|문제(?:점|를|가)? ?(?:찾|발견)|find (?:the )?(?:problems|issues|bugs|gaps|weak)|훑어|읽기 전용 조사|read-only (?:research|investigation)\b/,
+    /감사(?:해|하|를|\s|$)|\baudit (?:the|this|my|our|for|of|it)\b|security review|보안 (?:점검|검토|허점|감사)|허점|취약(?:점|성)[^\n]{0,12}(?:찾|점검|분석|있는지)|vulnerabilit[^\n]{0,20}(?:find|audit|review|look for)|문제(?:점|를|가)? ?(?:찾|발견)|find (?:the )?(?:problems|issues|bugs|gaps|weak)|훑어/,
   ],
   review: [
     /개선점|개선 ?방안|권고|우선순위|improvements?\b|\brecommendations\b|\brecommend (?:which|the (?:best|top)|one|a (?:top|best))\b|prioriti[sz]|순위를 (?:매기|내)|상위 \d+\s*(?:개|건)[^\n]{0,30}(?:추천|고르|선정)|추천(?:해|까지|을)/,
@@ -121,7 +124,13 @@ export function judgementEvidence(prompt) {
   if (typeof prompt !== 'string' || prompt === '') return { judgement: false, kind: null, match: null };
   // The guard's own appendix is not part of what the caller asked for.
   const cut = prompt.indexOf(MARKER);
-  const text = (cut === -1 ? prompt : prompt.slice(0, cut)).toLowerCase();
+  // Paths shrink to one token first. The patterns keep their words within a
+  // short distance, and a real delegation names its directory in full: "review
+  // the file app.js in /private/tmp/…/project for security problems" put 70
+  // characters between the verb and its object and passed as not judgement in a
+  // live session, while the same prompt with a short path was caught.
+  const text = (cut === -1 ? prompt : prompt.slice(0, cut)).toLowerCase()
+    .replace(/(?:~|\.{0,2})?\/[^\s`'"()<>,;]+/g, '<path>');
   if (IMPLEMENTATION_BRIEF.test(text) || SOURCE_IS_GIVEN.test(text) || isPageRead(text)) return { judgement: false, kind: null, match: null };
   for (const [kind, res] of Object.entries(PATTERNS)) {
     for (const re of res) {

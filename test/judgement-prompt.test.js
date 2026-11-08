@@ -18,7 +18,9 @@ test('review work that ends in improvements or priorities is judgement', () => {
 test('an audit or a security pass is judgement, in both languages', () => {
   assert.equal(kindOf('Audit the login flow and report anything unsafe.').kind, 'audit');
   assert.equal(kindOf('로그인 흐름을 감사하고 허점을 정리하십시오.').kind, 'audit');
-  assert.equal(kindOf('Read-only investigation in the repo: how does retry work across modules?').kind, 'audit');
+  // "Read-only investigation" and "it feeds an audit" name the purpose, not the job.
+  assert.equal(kindOf('Read-only investigation in the repo: how does retry work across modules?').judgement, false);
+  assert.equal(kindOf('Read the RLS docs page and quote the policy section. Report concisely; it feeds a security audit.').kind, null);
 });
 
 test('root-cause work is diagnosis', () => {
@@ -89,10 +91,17 @@ test('empty and non-string input is not judgement', () => {
 test('judgementEvidence names the text that triggered the answer', () => {
   const r = judgementEvidence('Audit the billing module.');
   assert.equal(r.judgement, true);
-  assert.equal(r.match, 'audit');
+  assert.equal(r.match, 'audit the');
   assert.equal(judgementEvidence('List the files.').match, null);
 });
 
 test('the saving grade acts on diagnosis and audit only', () => {
   assert.deepEqual([...SAVING_GRADE_KINDS].sort(), ['audit', 'diagnosis']);
+});
+
+test('a long absolute path between the verb and its object does not hide a review', () => {
+  const dir = '/private/tmp/some-session-0123456789abcdef/scratchpad/project-under-review';
+  const p = `Review the file app.js in ${dir} for security problems. Read it fully. List the security issues found, then recommend the single most important fix. Do not modify any files.`;
+  assert.equal(isJudgementDelegation(p).judgement, true);
+  assert.equal(isJudgementDelegation(`Read ${dir}/README.md and quote the install section.`).judgement, false);
 });
