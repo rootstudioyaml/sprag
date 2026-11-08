@@ -133,10 +133,10 @@
       'bulk.cmp': function (o) { return 'The same ' + o.n + ' cases, replayed as the rules were narrowed (' + o.rules + '): same conclusion ' + o.ok + ', partial ' + o.partial + ', unusable ' + o.fail + ', cost ' + o.usd + ' against ' + o.opus + ' on Opus.'; },
       'bulk.kind': { run: 'command runs', check: 'status checks', paste: 'pasted screens and logs', explore: 'lookups', read: 'reading and summaries' },
       'bulk.method': function (b) { return 'On 8 November two measurement fixes went in. ' + b.replayed + ' cases were replayed again because an absolute path left in the prompt let the reference read today\'s code instead of the code at the time. The grading rule was changed so that facts from investigation the task forbade or did not ask for do not count as missing, and every case was graded again. The rule changed after the results were seen, so the earlier figures stay on record: same conclusion ' + b.ok + ', partial ' + b.partial + ', unusable ' + b.fail + '.'; },
-      'bulk.pt.h': function (n, kind) { return 'Reading each of the ' + n + ' partial marks in ' + kind; },
+      'bulk.pt.h': function (n, kind) { return kind ? 'Reading each of the ' + n + ' partial marks in ' + kind : 'Checking the ' + n + ' partial or unusable marks with tools'; },
       'bulk.pt.th': ['cause', 'cases', 'what happened'],
-      'bulk.pt.cause': { rule: 'rule defect', gap: 'real model gap', measure: 'measurement limit', scope: 'judgement call on scope' },
-      'bulk.pt.why': { rule: 'Work that should not have been handed off was handed off: improvement reviews, web research that needs searching, lookups that must conclude something does not exist, and checks that decide from the output what to open next. The new rule keeps these on the main model.', gap: 'The work was fine to hand off, and the delegated model missed a key fact.', measure: 'The job reads another repository as it is today, so the state at the time cannot be replayed. Opus against Opus was partial here too.', scope: 'The task forbade root-cause analysis, while the reference explained the cause. The grader counted the missing "these results are unusable" conclusion.' },
+      'bulk.pt.cause': { rule: 'rule defect', gap: 'real model gap', measure: 'measurement limit', scope: 'judgement call on scope', ref: 'reference was wrong', image: 'fixed in the delegation appendix' },
+      'bulk.pt.why': { rule: 'Work that should not have been handed off was handed off: improvement reviews, web research that needs searching, lookups that must conclude something does not exist, and checks that decide from the output what to open next. The new rule keeps these on the main model.', gap: 'The work was fine to hand off, and the delegated model missed a key fact.', measure: 'The job reads another repository as it is today, so the state at the time cannot be replayed. Opus against Opus was partial here too.', scope: 'The task forbade root-cause analysis, while the reference explained the cause. The grader counted the missing "these results are unusable" conclusion.', ref: 'The Opus reference could not reach the vendor page and concluded that nothing was stated. Sonnet found the answers in an archived snapshot. A grader with tools checked them and Sonnet was right. The table keeps the reference verdict as it was.', image: 'The key content sat in screenshots on the page and the report never opened them. A new rule in the delegation appendix says to open images before calling something unverifiable, and the rerun with it reached the same conclusion (one run).' },
       'up.h': 'When to go up',
       'up.sub': function (n) { return n + ' jobs whose conclusion is a judgement, run on Sonnet high, Opus high and Opus xhigh: improvement reviews, audits, root-cause diagnosis, lookups that must conclude something does not exist, and web research. Here the Opus answer is not the key. The grader gets the three reports unlabelled, checks the claims they disagree on against the repository and the web, and then rules.'; },
       'up.th': ['run', 'same', 'partial', 'unusable', 'wrong claims', 'missed facts', 'cost', 'time'],
@@ -258,10 +258,10 @@
       'bulk.cmp': function (o) { return '같은 ' + o.n + '건을 룰을 좁혀 가며 다시 돌린 결과(' + o.rules + '). 같음 ' + o.ok + ', 부분 ' + o.partial + ', 못 씀 ' + o.fail + ', 비용 ' + o.usd + ', Opus 직접은 ' + o.opus + '.'; },
       'bulk.kind': { run: '명령 실행', check: '상태 확인', paste: '붙여넣은 화면과 로그', explore: '탐색과 조회', read: '읽기와 요약' },
       'bulk.method': function (b) { return '11월 8일에 측정 방법 두 가지를 고쳤습니다. 프롬프트에 남은 절대 경로 때문에 기준 답이 당시 코드가 아니라 현재 코드를 읽은 ' + b.replayed + '건은 다시 돌렸습니다. 작업 지시가 금지했거나 요구하지 않은 조사에서 나온 사실은 누락으로 세지 않도록 채점 기준을 고친 뒤 모든 사례를 다시 채점했습니다. 결과를 본 뒤에 기준을 바꿨으므로 바꾸기 전 수치도 남깁니다. 그때는 같음 ' + b.ok + ', 부분 ' + b.partial + ', 못 씀 ' + b.fail + '이었습니다.'; },
-      'bulk.pt.h': function (n, kind) { return kind + '의 부분 ' + n + '건을 하나씩 읽은 결과'; },
+      'bulk.pt.h': function (n, kind) { return kind ? kind + '의 부분 ' + n + '건을 하나씩 읽은 결과' : '부분과 못 씀 ' + n + '건을 도구로 다시 확인한 결과'; },
       'bulk.pt.th': ['원인', '건수', '내용'],
-      'bulk.pt.cause': { rule: '룰 결함', gap: '실제 모델 격차', measure: '측정 한계', scope: '판정 경계' },
-      'bulk.pt.why': { rule: '넘기면 안 되는 일을 넘겼습니다. 개선점 검토, 검색이 필요한 웹 조사, "없다"를 단정하는 조회, 출력을 보고 더 볼 곳을 정하는 점검입니다. 새 룰은 이런 일을 메인에 남깁니다.', gap: '넘겨도 되는 일인데 위임받은 모델이 핵심 사실을 놓쳤습니다.', measure: '다른 저장소를 현재 상태로 읽는 일이라 당시 상태를 재현할 수 없습니다. Opus끼리 비교해도 부분이 나왔습니다.', scope: '지시가 원인 분석을 금지했는데 기준 답은 원인을 밝혔습니다. 채점자는 결과를 쓸 수 없다는 결론이 빠졌다고 봤습니다.' },
+      'bulk.pt.cause': { rule: '룰 결함', gap: '실제 모델 격차', measure: '측정 한계', scope: '판정 경계', ref: '기준 답 오류', image: '위임 부록 보강' },
+      'bulk.pt.why': { rule: '넘기면 안 되는 일을 넘겼습니다. 개선점 검토, 검색이 필요한 웹 조사, "없다"를 단정하는 조회, 출력을 보고 더 볼 곳을 정하는 점검입니다. 새 룰은 이런 일을 메인에 남깁니다.', gap: '넘겨도 되는 일인데 위임받은 모델이 핵심 사실을 놓쳤습니다.', measure: '다른 저장소를 현재 상태로 읽는 일이라 당시 상태를 재현할 수 없습니다. Opus끼리 비교해도 부분이 나왔습니다.', scope: '지시가 원인 분석을 금지했는데 기준 답은 원인을 밝혔습니다. 채점자는 결과를 쓸 수 없다는 결론이 빠졌다고 봤습니다.', ref: 'Opus 기준 답은 업체 페이지에 닿지 못해 아무것도 적혀 있지 않다고 결론냈습니다. Sonnet은 보관된 스냅숏에서 답을 찾았습니다. 도구를 쓰는 채점자가 확인해 보니 Sonnet이 맞았습니다. 표에는 기준 채점 결과를 그대로 두었습니다.', image: '핵심 내용이 페이지의 스크린샷에 있었는데 보고서는 이미지를 열지 않았습니다. 확인할 수 없다고 쓰기 전에 이미지를 열라는 규칙을 위임 부록에 더해 다시 돌리니 같은 결론이 나왔습니다(1회).' },
       'up.h': '올려야 할 때',
       'up.sub': function (n) { return '판단이 결론인 일 ' + n + '건을 Sonnet high, Opus high, Opus xhigh로 각각 돌렸습니다. 개선점 검토, 감사, 원인 진단, "없다"를 단정하는 조회, 웹 조사가 섞여 있습니다. 여기서는 Opus 답을 정답으로 쓰지 않습니다. 채점자가 세 보고서를 가린 채 받아 서로 엇갈리는 주장을 저장소와 웹에서 직접 확인하고 판정합니다.'; },
       'up.th': ['실행', '같음', '부분', '못 씀', '틀린 주장', '놓친 사실', '비용', '시간'],
@@ -450,7 +450,7 @@
     var pt = nt && nt.partials;
     if (pt && pt.causes && pt.causes.length) {
       var pth = t('bulk.pt.th'), pcause = t('bulk.pt.cause'), pwhy = t('bulk.pt.why');
-      box.appendChild(el('h3', { class: 'bk-h3', text: t('bulk.pt.h')(pt.n, names[pt.kind] || pt.kind) }));
+      box.appendChild(el('h3', { class: 'bk-h3', text: t('bulk.pt.h')(pt.n, pt.kind ? (names[pt.kind] || pt.kind) : null) }));
       box.appendChild(el('table', { class: 'bk bk-pt' }, [
         el('thead', null, [el('tr', null, pth.map(function (h, i) { return el('th', { class: i === 1 ? 'num' : '', text: h }); }))]),
         el('tbody', null, pt.causes.map(function (c) {
