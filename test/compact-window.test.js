@@ -191,6 +191,32 @@ test('autoCompactWindow lowers the briefing window to where compaction fires', a
   });
 });
 
+// #14: a model Claude Code runs at 1M by default carries no `[1m]` (Opus 5.5
+// as `opus` or `claude-opus-5-5`). Before its own statusline reports, the
+// session borrows the window another session reported for the same model, and
+// a bare alias matches the newest report of its family.
+test('without a report of its own, the window comes from another session of the same model', async () => {
+  const { ctxWindowFor } = await import('../src/brief.js');
+  const { recordLiveWindow } = await import('../src/ctx-window-cache.js');
+  for (const model of ['claude-opus-5-5', 'opus']) {
+    const root = sandbox({ model });
+    const dir = mkdtempSync(join(tmpdir(), 'cts-ctxwin-'));
+    withEnv({ XDG_CONFIG_HOME: dir, ANTHROPIC_MODEL: undefined, CLAUDE_CODE_AUTO_COMPACT_WINDOW: undefined, HOME: root, USERPROFILE: root }, () => {
+      // Nothing reported yet: the observed-size guess.
+      assert.equal(ctxWindowFor(160_000, root).window, 200_000, model);
+      // Another model's report does not count.
+      recordLiveWindow('other', 1_000_000, Date.now(), 'claude-sonnet-5-5');
+      assert.equal(ctxWindowFor(160_000, root).window, 200_000, model);
+      recordLiveWindow('earlier', 1_000_000, Date.now(), 'claude-opus-5-5[1m]');
+      const w = ctxWindowFor(160_000, root);
+      assert.equal(w.window, 1_000_000, model);
+      assert.equal(w.modelWindow, 1_000_000, model);
+      // The session's own report still wins.
+      assert.equal(ctxWindowFor(160_000, root, { liveWindow: 200_000 }).window, 200_000, model);
+    });
+  }
+});
+
 test('a huge observed request still proves 1M when the model id is unreadable', async () => {
   const { ctxWindowFor } = await import('../src/brief.js');
   const root = sandbox(null);

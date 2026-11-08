@@ -28,8 +28,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
-import { resolveModelId, isOneMillionModel, effectiveWindow } from './compact-window.js';
-import { liveWindowFor, liveModelFor } from './ctx-window-cache.js';
+import { resolveModelId, isOneMillionModel, effectiveWindow, canonicalModelId } from './compact-window.js';
+import { liveWindowFor, liveModelFor, liveWindowsByModel } from './ctx-window-cache.js';
 import { routingEnabled } from './routing-switch.js';
 
 // Context tiers as a fraction of the session's context window. Tier 1 warns
@@ -100,6 +100,24 @@ export function ctxWindowFor(observedMax = 0, root = process.cwd(), { liveWindow
   try {
     const { model } = resolveModelId(root);
     if (!reported && isOneMillionModel(model)) modelWindow = window = 1_000_000;
+    // No report for this session yet and no `[1m]` in the id: a model Claude
+    // Code runs at 1M by default (Opus 5.5 as `opus`) read as 200k until its
+    // biggest request passed 250k, so the 80% briefing fired at ~160k (#14).
+    // The window another session's statusline reported for the same model is
+    // the best evidence there is; the observed-size guess stays the last resort.
+    else if (!reported) {
+      // A bare alias (`opus`) names whichever version Claude Code resolves it
+      // to today, and the statusline records the full id, so an alias matches
+      // the newest report of its family.
+      const key = canonicalModelId(model);
+      const alias = key && /^(opus|sonnet|haiku|fable|mythos)$/.test(key) ? key : null;
+      const same = (id) => {
+        const c = canonicalModelId(id);
+        return c === key || (alias !== null && (c === `claude-${alias}` || (c || '').startsWith(`claude-${alias}-`)));
+      };
+      const seen = key ? liveWindowsByModel().find((e) => same(e.model)) : null;
+      if (seen) modelWindow = window = Math.max(seen.size, modelWindow);
+    }
     const cap = effectiveWindow(root).value;
     if (cap !== null && cap < window) {
       window = cap;
