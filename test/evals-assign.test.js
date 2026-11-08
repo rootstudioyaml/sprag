@@ -199,3 +199,17 @@ test('reference grading skips a main-only case and scores its baseline report as
     assert.deepEqual(planReferenceOnly(dir, round), [], 'already recorded');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('derive refuses a case with no baseline run unless runBaseline, which leaves the baseline to replay', () => {
+  const root = mkdtempSync(join(tmpdir(), 'sprag-derive-nb-'));
+  try {
+    const src = join(root, 'src'); mkdirSync(src); writeSource(src);
+    const runs = JSON.parse(readFileSync(join(src, 'runs.json'), 'utf8')); delete runs['c1-B'];
+    writeFileSync(join(src, 'runs.json'), JSON.stringify(runs));
+    const asg = join(root, 'v.json'); writeFileSync(asg, JSON.stringify({ byCase: { c1: { lane: 'sonnet-xhigh', reason: '' } } }));
+    assert.throws(() => derive(src, asg, { id: 'nb1', root: join(root, 'rounds'), log() {}, cases: ['c1'] }), /run-baseline/);
+    assert.ok(!existsSync(join(root, 'rounds', 'nb1')), 'a refused round leaves no directory');
+    const out = derive(src, asg, { id: 'nb2', root: join(root, 'rounds'), log() {}, cases: ['c1'], runBaseline: true });
+    assert.equal(out.planned, 2, 'the lane run and the missing baseline are both left to replay');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

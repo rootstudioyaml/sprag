@@ -51,7 +51,7 @@ export function derivedRound(srcRound, cases, { id, date, rule }) {
   return round;
 }
 
-export function derive(sourceDir, assignFile, { id, rule = null, cases = null, root = join(workDir(), 'rounds'), date = new Date().toISOString().slice(0, 10), log = console.log } = {}) {
+export function derive(sourceDir, assignFile, { id, rule = null, cases = null, runBaseline = false, root = join(workDir(), 'rounds'), date = new Date().toISOString().slice(0, 10), log = console.log } = {}) {
   sourceDir = resolve(sourceDir);
   const srcRound = readJson(join(sourceDir, 'round.json'));
   const errs0 = validateRound(srcRound);
@@ -97,7 +97,8 @@ export function derive(sourceDir, assignFile, { id, rule = null, cases = null, r
       copy(`reports/${k}.md`, `reports/${nk}.md`); copy(`transcripts/${k}.jsonl`, `transcripts/${nk}.jsonl`);
     }
   }
-  if (missing.length) { rmSync(outDir, { recursive: true, force: true }); throw new Error(`no baseline run in the source for case(s): ${missing.join(', ')}`); }
+  // --run-baseline lets replay run the missing baseline instead of refusing the round.
+  if (missing.length && !runBaseline) { rmSync(outDir, { recursive: true, force: true }); throw new Error(`no baseline run in the source for case(s): ${missing.join(', ')} (pass --run-baseline to replay them)`); }
   writeFileSync(join(outDir, 'round.json'), JSON.stringify(round, null, 2) + '\n');
   writeFileSync(join(outDir, 'runs.json'), JSON.stringify(runs, null, 1));
   writeFileSync(join(outDir, 'cost.json'), JSON.stringify(cost, null, 1));
@@ -112,11 +113,11 @@ export function derive(sourceDir, assignFile, { id, rule = null, cases = null, r
 export function main(argv = []) {
   const opt = (n) => (argv.includes(n) ? argv[argv.indexOf(n) + 1] : null);
   if (!argv[0] || argv[0].startsWith('--') || !opt('--assign') || !opt('--id')) {
-    console.error('usage: derive.mjs <source-round-dir> --assign <assignments.json> --id <new-round-id> [--cases id,...] [--rule <tag>]');
+    console.error('usage: derive.mjs <source-round-dir> --assign <assignments.json> --id <new-round-id> [--cases id,...] [--rule <tag>] [--run-baseline]');
     return 2;
   }
   try {
-    derive(argv[0], opt('--assign'), { id: opt('--id'), rule: opt('--rule'), cases: opt('--cases') ? opt('--cases').split(',').map((s) => s.trim()).filter(Boolean) : null });
+    derive(argv[0], opt('--assign'), { id: opt('--id'), rule: opt('--rule'), runBaseline: argv.includes('--run-baseline'), cases: opt('--cases') ? opt('--cases').split(',').map((s) => s.trim()).filter(Boolean) : null });
     return 0;
   } catch (e) { console.error(e.message); return 1; }
 }
