@@ -84,6 +84,20 @@ export function latestLiveWindow() {
   return best ? best.size : null;
 }
 
+/**
+ * Every recorded window with the model its session reported, newest first.
+ * A session that has not rendered a statusline yet borrows the window another
+ * session reported for the same model (brief.js ctxWindowFor): Claude Code
+ * runs some models at 1M by default with no `[1m]` in the id, and only its
+ * own report says so.
+ */
+export function liveWindowsByModel() {
+  return Object.values(load().sessions)
+    .filter((s) => s && validSize(s.size) && Number.isFinite(s.ts) && typeof s.model === 'string' && s.model !== '')
+    .sort((a, b) => b.ts - a.ts)
+    .map((s) => ({ model: s.model, size: s.size, ts: s.ts }));
+}
+
 /** The model id a session's statusline payload reported, or null. */
 export function liveModelFor(sessionId) {
   if (typeof sessionId !== 'string' || sessionId === '') return null;
