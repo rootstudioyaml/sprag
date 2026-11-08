@@ -86,7 +86,8 @@ export function filterSnapshot(lines, { transcriptToolNames, transcriptEntries, 
     if (!e.cwd || !exists(e.cwd)) { dropped.missingCwd++; continue; }
     if (e.toFamily !== 'haiku' && e.toFamily !== 'sonnet') { dropped.model++; continue; }
     const entries = transcriptEntries ? transcriptEntries(e.key) : null;
-    const tools = entries ? toolNamesFromEntries(entries) : transcriptToolNames(e.key);
+    // transcriptEntries returns null for a transcript that is gone; that entry counts as noTranscript.
+    const tools = entries ? toolNamesFromEntries(entries) : (transcriptToolNames ? transcriptToolNames(e.key) : null);
     if (!tools) { dropped.noTranscript++; continue; }
     if (tools.some((t) => WRITE_TOOLS.has(t))) { dropped.writeTools++; continue; }
     if (entries && bashWriteCount(entries) > 0) { dropped.bashWrites++; continue; }
