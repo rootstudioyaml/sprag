@@ -58,6 +58,10 @@ const ICON = {
   doc: '📄',
   hit: '🧠',
   ttl: '⏳',
+  // Subagents running right now (the statusline's leading chip). The same hourglass
+  // as the cache timer: both say "time is passing", and the words beside it tell
+  // them apart.
+  running: '⏳',
   month: '💵',
   // Team: the people this machine is ranked among. U+1F465, East Asian Width W.
   team: '👥',
@@ -92,6 +96,7 @@ const NARROW = {
   doc: '≣',       // stacked lines: a page of text
   hit: '◉',       // bullseye: a cache hit
   ttl: '◔',       // a partly elapsed dial
+  running: '',    // no second font-verified dial; the chip's words lead it
   month: '∑',     // a running total
   team: '',       // no glyph verified in the font yet; the team line's own words lead it
   ctx: '◧',       // a box filling up

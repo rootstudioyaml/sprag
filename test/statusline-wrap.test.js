@@ -164,9 +164,10 @@ function withRouting(extra = {}) {
   };
 }
 
-test('formatReport wraps the routing headline at its joints', () => {
+test('formatReport wraps the routing headline at its joints when the user picked the segment', () => {
   const columns = 60;
-  const out = formatReport(withRouting(), { color: true, mode: 'icon', columns });
+  // A segment named in `--segments` is never given up for width, so it wraps.
+  const out = formatReport(withRouting(), { color: true, mode: 'icon', columns, segments: ['delegated'] });
   const lines = out.split('\n');
   for (const line of lines) assert.ok(cellWidth(line) <= columns - 4, `too wide: ${line}`);
   // Every pair is still there, none cut in half.
