@@ -1,0 +1,45 @@
+{
+  "since": "2026-08-10",
+  "until": "2026-11-07",
+  "runs": 353,
+  "to": {
+    "haiku": 69,
+    "sonnet": 282,
+    "opus": 2
+  },
+  "pairs": [
+    {
+      "from": "opus",
+      "to": "sonnet",
+      "n": 232
+    },
+    {
+      "from": "fable",
+      "to": "sonnet",
+      "n": 50
+    },
+    {
+      "from": "opus",
+      "to": "haiku",
+      "n": 49
+    },
+    {
+      "from": "fable",
+      "to": "haiku",
+      "n": 19
+    },
+    {
+      "from": "fable",
+      "to": "opus",
+      "n": 2
+    },
+    {
+      "from": "sonnet",
+      "to": "haiku",
+      "n": 1
+    }
+  ],
+  "costUsd": 122.91,
+  "costRuns": 253,
+  "savedUsd": 634.49
+}
