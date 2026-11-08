@@ -13,6 +13,7 @@
  * The "still fires" cases pin the other direction: a request verb next to an
  * opinion ending, or a plain check request, must keep its hint.
  */
+import './helpers/grade-cost.js'; // grade 'cost', set before any src module loads
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { routeMatch, isSystemPrompt, isOpinionQuestion } from '../src/route-inject.js';

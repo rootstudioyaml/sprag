@@ -17,7 +17,7 @@
 
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
-import { routingEnabled } from '../routing-switch.js';
+import { routingEnabled, delegationGrade } from '../routing-switch.js';
 
 export async function run({ hasFlag }) {
     if (hasFlag('--hook-tool')) {
@@ -67,7 +67,7 @@ export async function run({ hasFlag }) {
       } catch (e) { debug('brief:routing-off', e); }
     }
     if (routingOn) try {
-      const { routeHint, routeMatch, matchCaps, sessionModelRank, hintTarget, hintLabel } = await import('../route-inject.js');
+      const { routeHint, routeMatch, matchCaps, sessionModelRank, hintTarget, hintLabel, escalationNotice } = await import('../route-inject.js');
       // The payload names the session but not its model, so the rank comes from
       // the transcript: without it a Sonnet session is told to delegate to
       // Sonnet, which saves nothing.
@@ -79,7 +79,8 @@ export async function run({ hasFlag }) {
       // differ. Claude Code sends `cwd` for that reason and the PreToolUse hook
       // already reads it (src/delegation-guard.js). A payload without the field
       // leaves root undefined, which is the behaviour this had before.
-      const match = routeMatch(ctx.prompt, { sessionRank, root: ctx.cwd });
+      const grade = delegationGrade();
+      const match = routeMatch(ctx.prompt, { sessionRank, root: ctx.cwd, grade });
       // How near the usage limit is, from the statusline snapshot. Read only when
       // a hint will be written, and only the file: no network in a prompt hook.
       let pressure = null;
@@ -92,6 +93,20 @@ export async function run({ hasFlag }) {
       }
       const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd, match, pressure });
       if (hint) parts.push(hint);
+      // A request that ends in a judgement gets no delegation hint (routeMatch is
+      // null for it). In a session below Opus it gets the recommendation to move
+      // up instead; the grade decides which requests count (escalationNotice).
+      // Once per session: the second judgement request of a session gets no
+      // line, since the first one already said it (claimEscalationNotice).
+      if (!match) {
+        try {
+          const notice = escalationNotice(ctx.prompt, { sessionRank, grade });
+          if (notice) {
+            const { claimEscalationNotice } = await import('../route-follow.js');
+            if (claimEscalationNotice(ctx.session_id)) parts.push(notice);
+          }
+        } catch (e) { debug('brief:escalation-notice', e); }
+      }
       // Remember that this turn carried a delegation hint, so the PostToolUse
       // hook can nudge when the model looks things up itself instead. The
       // unreachable-only notice tells the model NOT to delegate, so it starts

@@ -5,6 +5,7 @@
  * written specs. These gates keep the hint quiet on those shapes while the
  * lookups and commands it was right about keep firing.
  */
+import './helpers/grade-cost.js'; // grade 'cost', set before any src module loads
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { routeMatch, looksLikeContextOrSpec } from '../src/route-inject.js';

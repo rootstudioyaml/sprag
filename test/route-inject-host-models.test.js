@@ -7,6 +7,7 @@
  * "haiku 로 위임하십시오"라고 안내했고, Task(model: "haiku") 는 세션 모델인 opus 로
  * 실행되어 절감 없이 서브에이전트 비용만 들었습니다.
  */
+import './helpers/grade-cost.js'; // grade 'cost', set before any src module loads
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -75,7 +76,7 @@ test('brief 훅은 자기 프로세스 환경으로 등록되지 않은 등급�
   const state = join(dir, 'state');
   const project = join(dir, 'project');
   for (const d of [join(home, '.claude'), join(state, 'claude-token-saver'), project]) mkdirSync(d, { recursive: true });
-  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko' }) + '\n');
+  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko', delegationGrade: 'cost' }) + '\n');
   writeFileSync(join(state, 'claude-token-saver', 'model-rules.json'), JSON.stringify({ rules }) + '\n');
 
   const run = (extra) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {

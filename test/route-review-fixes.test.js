@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { writeGradeConfig } from './helpers/grade-config.js';
 
 // parser.js, the rule registry and the caps record resolve their directories
 // from the environment, some of them when they load, so the sandbox is set
@@ -15,6 +16,8 @@ process.env.USERPROFILE = home;
 process.env.XDG_CONFIG_HOME = join(home, 'config');
 process.env.APPDATA = join(home, 'config');
 delete process.env.ANTHROPIC_BASE_URL;
+// These cases pin the T2 hints and the unfiltered rules file of grade 'cost'.
+writeGradeConfig(join(home, 'config', 'claude-token-saver'), 'cost');
 
 const rs = await import('../src/route-scan.js');
 const rules = await import('../src/model-rules.js');

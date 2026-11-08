@@ -24,6 +24,68 @@ export function setRoutingEnabled(on) {
   saveConfig(cfg);
 }
 
+/**
+ * How far delegation goes while routing is on. 'quality' hands off only work
+ * whose answer comes straight from tool output and sends judgement work up to
+ * Opus; 'cost' hands off as much as the rules allow. A missing or unknown
+ * value reads as 'quality'. Routing off still wins over any grade.
+ *
+ * Earlier versions stored three grades. A stored 'balanced' reads as 'quality'
+ * and a stored 'saving' as 'cost', so a config written then keeps meaning
+ * what it meant (LEGACY_GRADES).
+ */
+export const DELEGATION_GRADES = ['quality', 'cost'];
+export const DEFAULT_DELEGATION_GRADE = 'quality';
+export const LEGACY_GRADES = { balanced: 'quality', saving: 'cost' };
+
+/** A grade name, or an old one mapped to its successor; null for anything else. */
+export function normalizeDelegationGrade(value) {
+  if (DELEGATION_GRADES.includes(value)) return value;
+  return Object.hasOwn(LEGACY_GRADES, value) ? LEGACY_GRADES[value] : null;
+}
+
+export function delegationGrade(cfg = loadConfig()) {
+  try {
+    return normalizeDelegationGrade(cfg?.delegationGrade) ?? DEFAULT_DELEGATION_GRADE;
+  } catch {
+    return DEFAULT_DELEGATION_GRADE;
+  }
+}
+
+/** Stores the grade; an old name is stored as the grade that replaced it. */
+export function setDelegationGrade(grade) {
+  const g = normalizeDelegationGrade(grade);
+  if (g === null) throw new Error(`unknown delegation grade: ${grade}`);
+  const cfg = loadConfig();
+  cfg.delegationGrade = g;
+  saveConfig(cfg);
+}
+
+/** The grade as the user reads it: ko 품질 우선/비용 우선, en quality/cost. */
+const GRADE_LABELS = {
+  ko: { quality: '품질 우선', cost: '비용 우선' },
+  en: { quality: 'quality', cost: 'cost' },
+};
+export function gradeLabel(grade, lang = 'en') {
+  const g = normalizeDelegationGrade(grade) ?? grade;
+  return (GRADE_LABELS[lang] || GRADE_LABELS.en)[g] ?? grade;
+}
+
+/**
+ * At grade 'quality' a T2 (haiku) rule survives only for the categories whose
+ * answer is copied out of text the model is handed: pasted logs, reading and
+ * translating. A lookup, check or command run goes to T1 or stays on the main
+ * model, because a lookup that stops early is wrong without saying so. T1 and
+ * T1H rules are untouched, and so is grade 'cost'.
+ */
+export const QUALITY_T2_CATEGORIES = new Set(['paste', 'read', 'translate']);
+
+/** False when this grade drops the rule (see QUALITY_T2_CATEGORIES). */
+export function gradeKeepsRule(grade, rule) {
+  if (normalizeDelegationGrade(grade) !== 'quality') return true;
+  return rule?.tier !== 'T2' || QUALITY_T2_CATEGORIES.has(rule.category);
+}
+
 // Preset ratchet rules (presets/ratchet-rules.json) whose text tells the model
 // to delegate: fix-f558f9 sends simple lookups and commands to T2 agents and
 // fix-777a15 sends multi-file implementation to the T1 worker. The other

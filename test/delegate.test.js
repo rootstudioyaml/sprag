@@ -20,7 +20,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
 
-import { buildAppendix, decideForDelegation, formatHookOutput, wantsEffortRaise, EFFORT_RAISE_MARKER } from '../src/delegation-guard.js';
+import {
+  buildAppendix, decideForDelegation, formatHookOutput, wantsEffortRaise, EFFORT_RAISE_MARKER,
+  MODEL_RAISE_MARKER, gradeAction, targetFamily,
+} from '../src/delegation-guard.js';
+import { gradeActionTotals } from '../src/grade-counts.js';
 
 const DELEGATION_MARKER = '<!-- sprag:delegation -->';
 const ON = { delegate: { enabled: true } };
@@ -722,4 +726,153 @@ test('buildAppendix: a prompt that states its own budget is not capped by the ru
   assert.doesNotMatch(own, /6,100 output tokens/);
   const none = await buildAppendix({ tool_name: 'Agent', tool_input: { prompt: 'Find the config loader.', model: 'sonnet' } }, { cfg: ON, home: EMPTY_HOME, routeCaps });
   assert.match(none, /20 tool calls, 6,100 output tokens/);
+});
+
+/* The delegation grade (routing-switch.js) acts on a judgement prompt sent to a
+   haiku or sonnet target. Counts go to a throwaway directory, never the real one. */
+const JUDGE = 'Audit the login flow and list what is unsafe, with a recommendation for each.';
+const LOOKUP = 'Run exactly this command and relay its stdout: npm test';
+const gradeCfg = (grade, extra = {}) => ({ delegate: { enabled: true }, delegationGrade: grade, ...extra });
+const gradeRun = async (toolInput, cfg) => {
+  const countsDir = mkdtempSync(join(tmpdir(), 'sprag-grade-'));
+  try {
+    const decision = await decideForDelegation({ tool_name: 'Agent', tool_input: toolInput }, { cfg, home: EMPTY_HOME, routeCaps: null, countsDir });
+    return { decision, counts: gradeActionTotals(countsDir) };
+  } finally {
+    rmSync(countsDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+};
+
+test('grade quality: opus targets, unknown targets and plain lookups pass without a model raise', async () => {
+  for (const toolInput of [
+    { prompt: JUDGE, model: 'opus' },
+    { prompt: JUDGE, subagent_type: 't1h-worker' },
+    { prompt: JUDGE, subagent_type: 't1-worker', model: 'opus' }, // the argument beats the agent's own pin
+    { prompt: JUDGE }, // no model and no known agent: it runs on the session's model
+    { prompt: JUDGE, model: 'some-other-model' },
+  ]) {
+    const { decision, counts } = await gradeRun(toolInput, gradeCfg('quality'));
+    assert.equal(decision?.deny, undefined, JSON.stringify(toolInput));
+    assert.ok(!decision?.updatedInput.prompt.includes(MODEL_RAISE_MARKER), JSON.stringify(toolInput));
+    assert.equal(counts.raised, 0);
+  }
+  const lookup = await gradeRun({ prompt: LOOKUP, model: 'haiku' }, gradeCfg('quality'));
+  assert.equal(lookup.decision.updatedInput.model, 'haiku');
+});
+
+test('grade quality: the call is rewritten to opus at high effort with the marker', async () => {
+  const { decision, counts } = await gradeRun({ prompt: JUDGE, model: 'sonnet', description: 'login audit' }, gradeCfg('quality'));
+  assert.equal(decision.deny, undefined);
+  assert.equal(decision.updatedInput.model, 'opus');
+  assert.equal(decision.updatedInput.effort, 'high');
+  assert.equal(decision.updatedInput.description, 'login audit');
+  assert.ok(decision.updatedInput.prompt.startsWith(JUDGE));
+  assert.ok(decision.updatedInput.prompt.trimEnd().endsWith(MODEL_RAISE_MARKER), 'the marker closes the prompt');
+  assert.match(decision.updatedInput.prompt, /Cap for this delegation: 20 tool calls, 30,000 output tokens\./, 'the cap follows the new model');
+  assert.equal(counts.raised, 1);
+  // A preset agent's model is overridden through the argument.
+  const agent = await gradeRun({ prompt: JUDGE, subagent_type: 't2-explore' }, gradeCfg('quality'));
+  assert.equal(agent.decision.updatedInput.model, 'opus');
+  assert.equal(agent.decision.updatedInput.subagent_type, 't2-explore');
+  // The default grade is quality.
+  const dflt = await gradeRun({ prompt: JUDGE, model: 'sonnet' }, { delegate: { enabled: true } });
+  assert.equal(dflt.decision.updatedInput.model, 'opus');
+});
+
+test('grade quality: the model raise wins over the effort raise, and never writes the effort marker', async () => {
+  // Sonnet with no effort is exactly what the effort raise targets.
+  assert.equal(wantsEffortRaise({ prompt: JUDGE, model: 'sonnet' }), true);
+  const { decision } = await gradeRun({ prompt: JUDGE, model: 'sonnet' }, gradeCfg('quality'));
+  assert.ok(!decision.updatedInput.prompt.includes(EFFORT_RAISE_MARKER));
+  assert.ok(decision.updatedInput.prompt.includes(MODEL_RAISE_MARKER));
+  assert.equal(decision.updatedInput.effort, 'high');
+  // Work that is not judgement keeps the effort raise.
+  const plain = await gradeRun({ prompt: LOOKUP, model: 'sonnet' }, gradeCfg('quality'));
+  assert.equal(plain.decision.updatedInput.model, 'sonnet');
+  assert.equal(plain.decision.updatedInput.effort, 'high');
+  assert.ok(plain.decision.updatedInput.prompt.includes(EFFORT_RAISE_MARKER));
+  assert.ok(!plain.decision.updatedInput.prompt.includes(MODEL_RAISE_MARKER));
+});
+
+test('grade quality: an opus call is left alone, and a higher effort the caller chose is kept', async () => {
+  const opus = await gradeRun({ prompt: JUDGE, model: 'opus' }, gradeCfg('quality'));
+  assert.ok(!opus.decision?.updatedInput.prompt.includes(MODEL_RAISE_MARKER));
+  assert.equal(opus.counts.raised, 0);
+  for (const effort of ['xhigh', 'max']) {
+    const kept = await gradeRun({ prompt: JUDGE, model: 'sonnet', effort }, gradeCfg('quality'));
+    assert.equal(kept.decision.updatedInput.model, 'opus');
+    assert.equal(kept.decision.updatedInput.effort, effort);
+  }
+  const low = await gradeRun({ prompt: JUDGE, model: 'haiku', effort: 'low' }, gradeCfg('quality'));
+  assert.equal(low.decision.updatedInput.effort, 'high', 'a lower effort is raised with the model');
+});
+
+test('grade quality: a prompt that already carries the raise marker is not raised twice', async () => {
+  const marked = { prompt: `${JUDGE}\n\n${MODEL_RAISE_MARKER}`, model: 'sonnet' };
+  const { decision, counts } = await gradeRun(marked, gradeCfg('quality'));
+  assert.equal(decision.updatedInput.model, 'sonnet');
+  assert.equal(counts.raised, 0);
+});
+
+test('grade cost: only diagnosis and audit work is raised, the rest passes', async () => {
+  const audit = await gradeRun({ prompt: 'Audit the login flow for unsafe paths.', model: 'sonnet' }, gradeCfg('cost'));
+  assert.equal(audit.decision.updatedInput.model, 'opus');
+  const diagnosis = await gradeRun({ prompt: 'Find the root cause of the flaky upload test.', model: 'haiku' }, gradeCfg('cost'));
+  assert.equal(diagnosis.decision.updatedInput.model, 'opus');
+  for (const prompt of [
+    'Research task: use WebSearch to find three chart libraries.', // search
+    'Review the repo and list improvements by priority.', // review
+    'Read-only search in ./docs for the refund policy.', // absence
+  ]) {
+    const r = await gradeRun({ prompt, model: 'sonnet' }, gradeCfg('cost'));
+    assert.equal(r.decision.updatedInput.model, 'sonnet', prompt);
+    assert.equal(r.counts.raised, 0);
+  }
+});
+
+test('the grade does nothing while routing is off, or while the guard itself is off', async () => {
+  const off = await gradeRun({ prompt: JUDGE, model: 'sonnet' }, gradeCfg('quality', { routing: false }));
+  assert.equal(off.decision.updatedInput.model, 'sonnet', 'only the older effort raise remains');
+  assert.equal(off.counts.raised, 0);
+  const guardOff = await gradeRun({ prompt: JUDGE, model: 'sonnet' }, gradeCfg('quality', { delegate: { enabled: false } }));
+  assert.equal(guardOff.decision, null);
+});
+
+test('formatHookOutput renders a rewrite with no permission decision', () => {
+  const rewritten = JSON.parse(formatHookOutput({ updatedInput: { prompt: 'x' } }));
+  assert.equal(rewritten.hookSpecificOutput.permissionDecision, undefined);
+  assert.deepEqual(rewritten.hookSpecificOutput.updatedInput, { prompt: 'x' });
+  assert.equal(formatHookOutput(null), null);
+});
+
+test('targetFamily and gradeAction: the model argument beats the agent pin, and grades map as designed', () => {
+  assert.equal(targetFamily({ subagent_type: 't1-worker', model: 'opus' }), 'opus');
+  assert.equal(targetFamily({ subagent_type: 't1-worker' }), 'sonnet');
+  assert.equal(targetFamily({ subagent_type: 'general-purpose' }), null);
+  assert.equal(gradeAction({ prompt: JUDGE, model: 'sonnet' }, 'quality').type, 'raise');
+  assert.equal(gradeAction({ prompt: JUDGE, model: 'sonnet' }, 'cost').type, 'raise', 'an audit is raised at grade cost too');
+  assert.equal(gradeAction({ prompt: 'Review the repo and list improvements by priority.', model: 'sonnet' }, 'cost'), null);
+  assert.equal(gradeAction({ prompt: LOOKUP, model: 'sonnet' }, 'quality'), null);
+  // A grade stored by an earlier version reads through its successor.
+  assert.equal(gradeAction({ prompt: JUDGE, model: 'sonnet' }, 'balanced').type, 'raise');
+});
+
+test('the hook entry point rewrites a judgement call to opus and never prints a deny', () => {
+  const home = mkdtempSync(join(tmpdir(), 'sprag-grade-home-'));
+  try {
+    const cfgDir = join(home, 'cfg', 'claude-token-saver');
+    mkdirSync(cfgDir, { recursive: true });
+    writeFileSync(join(cfgDir, 'config.json'), JSON.stringify({ delegationGrade: 'quality', language: 'ko' }));
+    const r = spawnSync(process.execPath, [join(fileURLToPath(new URL('..', import.meta.url)), 'bin', 'cli.js'), 'delegate', '--hook'], {
+      input: JSON.stringify({ tool_name: 'Agent', tool_input: { prompt: JUDGE, model: 'sonnet' } }),
+      encoding: 'utf8',
+      env: childEnv({ HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(home, 'cfg') }),
+    });
+    const out = JSON.parse(r.stdout);
+    assert.equal(out.hookSpecificOutput.permissionDecision, undefined);
+    assert.equal(out.hookSpecificOutput.updatedInput.model, 'opus');
+    assert.equal(out.hookSpecificOutput.updatedInput.effort, 'high');
+  } finally {
+    rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
 });

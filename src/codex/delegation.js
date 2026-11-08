@@ -5,7 +5,8 @@ import { parse } from 'smol-toml';
 import { userDataDir } from '../paths.js';
 import { writeViaTmp } from '../state-file.js';
 import { codexUserDir, codexProviderName } from '../agent.js';
-import { categorize, ESCALATE_RE, EDIT_RE } from '../route-scan.js';
+import { categorize, ESCALATE_RE, JUDGE_RE, EDIT_RE } from '../route-scan.js';
+import { delegationGrade, normalizeDelegationGrade, gradeKeepsRule } from '../routing-switch.js';
 import { looksPasted, isSystemPrompt, isOpinionQuestion, looksLikeContextOrSpec } from '../route-inject.js';
 import { newRouteId, recordCodexDelegation } from './ledger.js';
 import { readCodexTailLines } from './parser.js';
@@ -223,22 +224,32 @@ export function removeCodexModelRule(index, { dir = userDataDir() } = {}) {
  * The category a prompt can be routed under at runtime, or null. The route
  * scan counts episodes with this same gate, so a rule it proposes is one the
  * prompt hook can actually match.
+ *
+ * The gate follows the delegation grade like the Claude Code hint does:
+ * at grade 'quality' a JUDGE_RE request (audit, recommendation, absence check,
+ * research) is kept off the delegation path too.
+ *
+ * Not ported: the recommendation to move a Sonnet session up to Opus
+ * (escalationNotice in route-inject.js). Codex names its models differently
+ * and the Lab measurement behind the advice was run on Claude models, so there
+ * is nothing to say there yet.
  */
-export function codexPromptCategory(text) {
+export function codexPromptCategory(text, { grade = delegationGrade() } = {}) {
   const prompt = typeof text === 'string' ? text.trim() : '';
   // Same two gates as the Claude Code hint (routeMatch): a harness message is
   // not a request, and an opinion question is judgement rather than a lookup.
   if (isSystemPrompt(prompt) || isOpinionQuestion(prompt)) return null;
   // The #16 gates: a reply, feedback, an outward action, an edit or a long spec.
   if (looksLikeContextOrSpec(prompt)) return null;
+  if ((normalizeDelegationGrade(grade) ?? 'quality') === 'quality' && JUDGE_RE.test(prompt)) return null;
   if (prompt.length < 8 || ESCALATE_RE.test(prompt) || EDIT_RE.test(prompt) || /\b(?:implement|modify|fix|delete|push|commit)\b/i.test(prompt)) return null;
   const category = categorize(prompt, null);
   if (!category || (category.id === 'paste' && !looksPasted(prompt))) return null;
   return category;
 }
 
-export function matchCodexModelRule(text, { model, root, provider = codexProviderName(), rules = loadCodexModelRules() } = {}) {
-  const category = codexPromptCategory(text);
+export function matchCodexModelRule(text, { model, root, provider = codexProviderName(), rules = loadCodexModelRules(), grade } = {}) {
+  const category = codexPromptCategory(text, { grade });
   if (!category) return null;
   const usable = rules.filter((r) => r?.status === 'active' && r.category === category.id && r.from === model &&
     (!r.provider || r.provider === provider) &&
@@ -250,9 +261,12 @@ export function matchCodexModelRule(text, { model, root, provider = codexProvide
 function matchingRoutes(text, opts) {
   const own = matchCodexModelRule(text, { ...opts, rules: opts.rules ?? loadCodexModelRules({ dir: opts.dir }) });
   if (own) return [own];
-  const category = codexPromptCategory(text);
+  const category = codexPromptCategory(text, { grade: opts.grade });
   if (!category) return [];
-  return sharedCodexModelRules(opts).filter((r) => r.category === category.id)
+  // Grade 'quality' drops the T2 policies of every category but paste, read
+  // and translate, as the Claude Code hint does (gradeKeepsRule).
+  const grade = normalizeDelegationGrade(opts.grade) ?? delegationGrade();
+  return sharedCodexModelRules(opts).filter((r) => r.category === category.id && gradeKeepsRule(grade, r))
     .sort((a, b) => SHARED_RULE_TIERS.indexOf(a.tier) - SHARED_RULE_TIERS.indexOf(b.tier));
 }
 
@@ -338,7 +352,9 @@ export function codexRouteHint(payload, opts = {}) {
   // user's real config by accident.
   const cfg = opts.cfg ?? {};
   const provider = payload?.model_provider || codexProviderName();
-  const routes = matchingRoutes(payload?.prompt, { cfg, provider, ...opts, model: payload?.model,
+  // The grade comes from that same config, so the gate and the config the hook
+  // loaded cannot disagree; a caller may still pass `grade` itself.
+  const routes = matchingRoutes(payload?.prompt, { cfg, provider, grade: delegationGrade(cfg), ...opts, model: payload?.model,
     root: opts.root || payload?.cwd, start: payload?.cwd });
   const rule = routes[0];
   if (!rule) return null;
@@ -414,7 +430,7 @@ export function codexDelegationTool(payload, { cfg = {}, root = payload?.cwd || 
   let rules = given;
   if (!rules) { try { rules = loadCodexModelRules({ dir }); } catch { rules = []; } }
   const provider = payload.model_provider || codexProviderName({ home });
-  const routes = explicit ? [] : matchingRoutes(input.message, { model: payload.model, provider, root, start: payload.cwd, rules, cfg, dir, home });
+  const routes = explicit ? [] : matchingRoutes(input.message, { model: payload.model, provider, root, start: payload.cwd, rules, cfg, dir, home, grade: delegationGrade(cfg) });
   // Only the caller can choose a shared policy's tier. A shared match without a
   // model goes back to the caller with the mapped choices instead of a guessed
   // downgrade, or a default target that ignores the tier.

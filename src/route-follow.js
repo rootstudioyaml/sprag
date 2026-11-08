@@ -22,6 +22,9 @@
  *   <sid>.calls   one appended line per counted call (`c` or `g`); an append of
  *                 a single short line is atomic enough that no count is lost
  *   <sid>.stop    the counting for this turn is over
+ *   <sid>.escalated  created with the `wx` flag the first time the session gets
+ *                 the "move up to Opus" recommendation (claimEscalationNotice);
+ *                 no turn start or clear removes it, so it holds for the session
  *   <sid>.nudged  created with the `wx` flag, so of several processes that all
  *                 see "two lookups" exactly one wins and speaks
  * All of it lives under <dir>/route-follow/. Events go to a separate JSONL
@@ -123,6 +126,26 @@ export function startFollow(sessionId, { agent = 'claude', category, label, targ
   trimEvents(dir, now);
   logEvent(dir, { at: now, agent, sessionId, turn, category, event: 'hint' });
   return true;
+}
+
+/**
+ * Claim the one "move up to Opus" recommendation a session gets. True the first
+ * time for a session id, false after that, so the second judgement request of a
+ * session passes without the line. A missing or malformed id, or a state
+ * directory that cannot be written, also reads as false: no line is better than
+ * the same line on every prompt.
+ */
+export function claimEscalationNotice(sessionId, { dir } = {}) {
+  if (typeof sessionId !== 'string' || !SESSION_ID_RE.test(sessionId)) return false;
+  try {
+    const d = stateDir(dir);
+    mkdirSync(d, { recursive: true });
+    closeSync(openSync(join(d, `${sessionId}.escalated`), 'wx'));
+    return true;
+  } catch (e) {
+    if (e?.code !== 'EEXIST') debug('route-follow:escalated', e);
+    return false;
+  }
 }
 
 /** Forget the session's hinted turn: the prompt that just arrived has no hint. */

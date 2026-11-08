@@ -151,7 +151,7 @@ test('the prompt hook emits the route hint without a delegate setting and stays 
   const payload = { model: 'parent-model', model_provider: 'gateway', cwd: f.cwd, prompt: 'Find the parser files',
     session_id: 'parent', turn_id: 't1', transcript_path: transcript };
   const run = (codex) => codexHookOutput('prompt', payload,
-    { cfg: { codex: { doc2md: false, brief: false, ...codex, sharedRules: { targets } } }, refreshLedger: () => {} });
+    { cfg: { delegationGrade: 'cost', codex: { doc2md: false, brief: false, ...codex, sharedRules: { targets } } }, refreshLedger: () => {} });
   assert.match((await run({}))?.hookSpecificOutput?.additionalContext ?? '', /T2: model small-model/);
   assert.equal(await run({ delegate: false }), null);
 });

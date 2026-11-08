@@ -8,6 +8,7 @@
  * The risk runs the other way now: a hint on the wrong request costs more than no
  * hint at all, so these tests pin what keeps it quiet.
  */
+import './helpers/grade-cost.js'; // grade 'cost', set before any src module loads
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -251,7 +252,7 @@ test('the brief hook hands the session cwd to the hint, so a project agent is na
     mkdirSync(d, { recursive: true });
   }
   writeFileSync(join(project, '.claude', 'agents', 't2-explore.md'), '# t2-explore\n');
-  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko' }) + '\n');
+  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko', delegationGrade: 'cost' }) + '\n');
   writeFileSync(join(state, 'claude-token-saver', 'model-rules.json'), JSON.stringify({ rules }) + '\n');
 
   const run = (payload) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {

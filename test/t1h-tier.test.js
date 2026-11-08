@@ -211,7 +211,7 @@ test('a category with T2, T1 and T1H renders one line with three branches and ca
     { ...base, tier: 'T1', agent: 'sonnet', rule: 'r1', budget: { calls: null, out: 8000 } },
     { ...base, tier: 'T1H', agent: 'opus', rule: 'rh', budget: { calls: null, out: 30000 } },
   ];
-  const md = renderModelRatchet(rules, 'ko', { root: null });
+  const md = renderModelRatchet(rules, 'ko', { root: null, grade: 'cost' });
   const line = md.split('\n').find((l) => l.startsWith('- "상태 확인·검증"'));
   assert.ok(line, md);
   assert.match(line, /기본 .*haiku.*, 여러 단계·여러 파일이 얽히면 .*sonnet.*, 범위가 크면\(Fable·Mythos 세션 한정\) .*opus/);
@@ -225,7 +225,7 @@ test('a category with T2, T1 and T1H renders one line with three branches and ca
   assert.deepEqual(segs, ['T2', 'T1', 'T1H']);
   assert.ok(!line.slice(0, m.index).includes('<!--'));
 
-  const en = renderModelRatchet(rules, 'en', { root: null });
+  const en = renderModelRatchet(rules, 'en', { root: null, grade: 'cost' });
   assert.match(en, /cap haiku .* \/ sonnet .* \/ opus 30000 output tokens/);
   assert.match(en, /for large scope \(Fable\/Mythos sessions only\)/);
 });

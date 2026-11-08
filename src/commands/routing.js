@@ -3,6 +3,7 @@
  *
  *   sprag routing            # status
  *   sprag routing on|off     # turn every delegation path on or off
+ *   sprag routing grade [quality|cost]   # show or set the delegation grade
  *
  * Off removes the delegation rules from ratchet-model.md and the preset
  * ratchet, the per-prompt route hint, and the route-scan candidate and
@@ -13,7 +14,7 @@ export async function run({ args }) {
   const sub = args[1];
   const { userLanguage } = await import('../config.js');
   const ko = userLanguage() === 'ko';
-  const { routingEnabled, setRoutingEnabled } = await import('../routing-switch.js');
+  const { routingEnabled, setRoutingEnabled, delegationGrade, setDelegationGrade, normalizeDelegationGrade, gradeLabel, DELEGATION_GRADES } = await import('../routing-switch.js');
 
   const rules = async () => (await import('../model-rules.js')).loadModelRules().rules.length;
   // Re-render the files that carry delegation text so the change shows without
@@ -53,12 +54,43 @@ export async function run({ args }) {
     return;
   }
 
+  if (sub === 'grade') {
+    const want = args[2];
+    if (want === undefined) {
+      const g = delegationGrade();
+      console.log(`grade: ${g} (${gradeLabel(g, ko ? 'ko' : 'en')})`);
+      return;
+    }
+    const stored = normalizeDelegationGrade(want);
+    if (stored === null) {
+      console.error(`Usage: sprag routing grade [${DELEGATION_GRADES.join('|')}]`);
+      process.exitCode = 2;
+      return;
+    }
+    // balanced and saving were grades of an earlier version; they are accepted
+    // and stored as the grade that replaced them.
+    if (stored !== want) {
+      console.error(ko
+        ? `경고: ${want} 등급은 없어졌습니다. ${gradeLabel(stored, 'ko')}(${stored})으로 저장합니다.`
+        : `Warning: the ${want} grade no longer exists; storing ${stored}.`);
+    }
+    setDelegationGrade(stored);
+    await resync();
+    console.log(ko ? `✓ 위임 등급을 ${gradeLabel(stored, 'ko')}(${stored})으로 바꿨습니다.` : `✓ Delegation grade is now ${stored}.`);
+    console.log(ko
+      ? '프롬프트 힌트는 바로, ratchet-model.md는 방금 다시 썼습니다.'
+      : 'Prompt hints change at once; ratchet-model.md was just rewritten.');
+    return;
+  }
+
   if (sub === undefined || sub === 'status') {
     const on = routingEnabled();
     const n = await rules().catch(() => 0);
     let agentsOn = true;
     try { agentsOn = (await import('../delegation-agents.js')).delegationAgentStatus().enabled; } catch { /* default on */ }
     console.log(`routing: ${on ? 'on' : 'off'}`);
+    const grade = delegationGrade();
+    console.log(`grade: ${grade} (${gradeLabel(grade, ko ? 'ko' : 'en')})`);
     console.log(ko ? `등록된 룰: ${n}건` : `registered rules: ${n}`);
     console.log(`delegate agents: ${agentsOn ? 'on' : 'off'}`);
     console.log(ko
@@ -67,6 +99,6 @@ export async function run({ args }) {
     return;
   }
 
-  console.log('Usage: sprag routing on|off|status');
+  console.log('Usage: sprag routing on|off|status|grade [quality|cost]');
   process.exitCode = 1;
 }
