@@ -537,3 +537,10 @@ test('bulk --up adds the up field next to the usual aggregate and rejects a roun
     assert.ok(!existsSync(join(root, 'no.json')));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('runEnv adds the string env a condition sets and nothing else', async () => {
+  const { runEnv } = await import('../scripts/evals/replay.mjs');
+  const round = { conditions: [{ id: 'c', env: { CLAUDE_CODE_AUTO_COMPACT_WINDOW: '60000', bad: 'x', N: 5 } }, { id: 'd' }] };
+  assert.deepEqual(runEnv(round, { condition: 'c' }, { A: '1' }), { A: '1', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '60000' });
+  assert.deepEqual(runEnv(round, { condition: 'd' }, { A: '1' }), { A: '1' });
+});
