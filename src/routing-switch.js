@@ -18,6 +18,25 @@ export function routingEnabled(cfg = loadConfig()) {
   }
 }
 
+/**
+ * Whether the prompt hook may tell a low or medium effort session to hand its
+ * judgement work to an Opus subagent (effortNotice). Only an explicit `false`
+ * in `effortHint` is off; routing off silences it too.
+ */
+export function effortHintEnabled(cfg = loadConfig()) {
+  try {
+    return routingEnabled(cfg) && cfg?.effortHint !== false;
+  } catch {
+    return true;
+  }
+}
+
+export function setEffortHint(on) {
+  const cfg = loadConfig();
+  cfg.effortHint = on !== false;
+  saveConfig(cfg);
+}
+
 export function setRoutingEnabled(on) {
   const cfg = loadConfig();
   cfg.routing = on !== false;

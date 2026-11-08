@@ -98,14 +98,33 @@ export async function run({ hasFlag }) {
       // up instead; the grade decides which requests count (escalationNotice).
       // Once per session: the second judgement request of a session gets no
       // line, since the first one already said it (claimEscalationNotice).
+      let escalationSaid = false;
       if (!match) {
         try {
           const notice = escalationNotice(ctx.prompt, { sessionRank, grade });
           if (notice) {
             const { claimEscalationNotice } = await import('../route-follow.js');
-            if (claimEscalationNotice(ctx.session_id)) parts.push(notice);
+            if (claimEscalationNotice(ctx.session_id)) { parts.push(notice); escalationSaid = true; }
           }
         } catch (e) { debug('brief:escalation-notice', e); }
+      }
+      // A main session at effort low or medium gets the effort line for the same
+      // kind of request. The model line goes first: when the Sonnet session was
+      // just told to move up to Opus, this turn carries that line alone (the
+      // effort claim stays free for a later turn).
+      if (!match && !escalationSaid) {
+        try {
+          const { effortHintEnabled } = await import('../routing-switch.js');
+          if (effortHintEnabled()) {
+            const { effortNotice } = await import('../route-inject.js');
+            const { readSessionEffort } = await import('../session-effort.js');
+            const notice = effortNotice(ctx.prompt, { sessionEffort: readSessionEffort(ctx.session_id), grade });
+            if (notice) {
+              const { claimEffortNotice } = await import('../route-follow.js');
+              if (claimEffortNotice(ctx.session_id)) parts.push(notice);
+            }
+          }
+        } catch (e) { debug('brief:effort-notice', e); }
       }
       // Remember that this turn carried a delegation hint, so the PostToolUse
       // hook can nudge when the model looks things up itself instead. The
