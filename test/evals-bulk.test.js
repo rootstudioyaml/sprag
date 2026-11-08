@@ -96,8 +96,8 @@ test('planRuns honours case.conditions; worktreeFor picks the case worktree when
   const keys = planRuns(r).map((x) => x.key);
   const [h, s] = r.cases;
   assert.deepEqual(keys, [`${h.id}-A`, `${h.id}-B`, `${s.id}-S`, `${s.id}-B`, 'plain-A', 'plain-S', 'plain-B']);
-  assert.deepEqual(worktreeFor('/rd', r, h), { wt: `/rd/wt/${h.id}`, repo: '/r/a', commit: 'abc1234' });
-  assert.deepEqual(worktreeFor('/rd', r, r.cases[2]), { wt: '/rd/wt', repo: r.repo, commit: r.commit });
+  assert.deepEqual(worktreeFor('/rd', r, h), { wt: join('/rd', 'wt', h.id), repo: '/r/a', commit: 'abc1234' });
+  assert.deepEqual(worktreeFor('/rd', r, r.cases[2]), { wt: join('/rd', 'wt'), repo: r.repo, commit: r.commit });
 });
 
 test('capDecision stops on the seven-day window and waits out a full five-hour window', () => {
