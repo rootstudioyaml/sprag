@@ -10,6 +10,7 @@
  * drives the hook itself. A test on the regex alone could not notice the call
  * site dropping the check, which is the failure that matters here.
  */
+import { gradeKeys } from './helpers/grade-config.js';
 import './helpers/grade-cost.js'; // grade 'cost', set before any src module loads
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -167,7 +168,7 @@ test('the prompt hook stays quiet for the reproduced question and still hints a 
   for (const d of [join(home, '.claude'), join(state, 'claude-token-saver'), project]) {
     mkdirSync(d, { recursive: true });
   }
-  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko', delegationGrade: 'cost' }) + '\n');
+  writeFileSync(join(state, 'claude-token-saver', 'config.json'), JSON.stringify({ language: 'ko', ...gradeKeys('cost') }) + '\n');
   writeFileSync(join(state, 'claude-token-saver', 'model-rules.json'), JSON.stringify({ rules }) + '\n');
 
   const run = (prompt) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {

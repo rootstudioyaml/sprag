@@ -239,7 +239,7 @@ Codex에는 기본 훅과 `AGENTS.md` 하네스, 범위별 래칫 규칙, 한국
 | `sprag route-scan` | 내 기록에서 위임 후보 찾기 (LLM 호출 0회) |
 | `sprag route-scan savings` | 라우팅 절감 원장 조회 |
 | `sprag routing on\|off` | 모델 위임(룰과 힌트와 후보 안내) 켜기와 끄기 |
-| `sprag routing grade [quality\|cost]` | 위임 등급 확인과 설정: 값싼 모델에 맡기는 범위와 Opus를 권하는 때를 정합니다 |
+| `sprag routing relax [off]` | 가장 바쁜 사용량 창이 초기화될 때까지 위임 범위를 넓히거나(그 뒤에는 자동으로 돌아옵니다) 일찍 끝냅니다. `sprag routing status`에 `relax: off` 또는 `relax: until HH:MM`이 나옵니다 |
 | `sprag harness check` | 🅷 하네스 점수 확인 |
 | `sprag doc2md <파일>` | 문서 한 건을 Markdown 으로 변환 |
 

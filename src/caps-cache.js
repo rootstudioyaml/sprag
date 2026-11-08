@@ -113,6 +113,7 @@ function modelFamily(text) {
  * @param {{caps?: object|null}|null} [opts.snapshot] defaults to the recent snapshot
  * @param {string|null} [opts.sessionModel] model id or display name of the session
  * @returns {{ level: 'normal'|'high'|'critical', pct: number, key: string,
+ *             resetsAt: number|null (epoch seconds, when the busiest window resets),
  *             source: 'subscription'|'litellm' }|null}
  *   null when there is no fresh snapshot or no window with a usable percentage
  */
@@ -134,6 +135,7 @@ export function capPressure({ snapshot = loadRecentSnapshot(), sessionModel } = 
     level,
     pct: top.usedPct,
     key: top.key,
+    resetsAt: typeof top.resetsAt === 'number' && Number.isFinite(top.resetsAt) && top.resetsAt > 0 ? top.resetsAt : null,
     source: top.key === 'litellm_budget' ? 'litellm' : 'subscription',
   };
 }

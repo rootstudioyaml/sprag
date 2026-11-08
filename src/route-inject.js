@@ -39,7 +39,7 @@
  */
 
 import { categorizeScored, ESCALATE_RE, JUDGE_RE, EDIT_RE, worthDelegating } from './route-scan.js';
-import { delegationGrade, normalizeDelegationGrade, gradeKeepsRule, gradeLabel } from './routing-switch.js';
+import { delegationGrade, normalizeDelegationGrade, gradeKeepsRule } from './routing-switch.js';
 import { loadModelRules, budgetCapPhrase, ruleBudget } from './model-rules.js';
 import { sharedProjectRoots, realProjectRoot, scopeRank } from './shared-model-rules.js';
 import { agentPhrase, agentPhraseEn, resolveAgentName, agentForRule, TIER_MODEL } from './agents.js';
@@ -234,8 +234,8 @@ export function unreachableTiers(env = process.env) {
  *   model filters nothing.
  * @param {object} [opts.env] environment to read tier aliases from (see
  *   unreachableTiers)
- * @param {string} [opts.grade] delegation grade (routing-switch.js), the user's
- *   setting by default. 'cost' gates on ESCALATE_RE alone; 'quality' also
+ * @param {string} [opts.grade] delegation grade (routing-switch.js), 'quality'
+ *   unless a relax window is open. 'cost' gates on ESCALATE_RE alone; 'quality' also
  *   gates on JUDGE_RE and drops the T2 rules of every category but paste,
  *   read and translate.
  * @returns {{cat: object, t2: object|undefined, t1: object|undefined, unreachable?: string[]}|null}
@@ -312,7 +312,7 @@ export function routeMatch(text, { rules, sessionRank = null, root, env = proces
   return t2 || t1 || t1h ? { cat, t2, t1, t1h } : null;
 }
 
-/** True for 'quality'. An old stored name is read through its replacement, and an unknown one as the default. */
+/** True for 'quality'; an unknown grade reads as the default. */
 function isQualityGrade(grade) {
   return (normalizeDelegationGrade(grade) ?? 'quality') === 'quality';
 }
@@ -349,8 +349,8 @@ export function judgementMatch(text, { grade = delegationGrade() } = {}) {
 
 /**
  * What grade 'cost' still sends up: diagnosis, audit and security asks. The
- * other judgement words stay quiet there because that grade is the one the user
- * picked to spend less.
+ * other judgement words stay quiet there because that grade is the relax window, where
+ * the user chose to spend less.
  */
 const COST_UP_RE = /원인\s*(?:분석|파악|확인|규명|조사)|원인을?\s*찾|root cause|버그|취약|vulnerabilit|보안\s*(?:점검|검토|감사|리뷰|이슈)|security (?:review|audit)|감사\s*(?:해\s*(?:줘|봐|주|보|라|볼)|좀|를\s*(?:해|돌|진행)|하자|요청|부탁)|\baudit(?!\s*(?:log|trail))/i;
 
@@ -383,12 +383,11 @@ export function escalationNotice(text, { sessionRank = null, grade = delegationG
   const j = judgement === undefined ? judgementMatch(text, { grade }) : judgement;
   if (!j || j.kind === 'action') return null;
   if (!isQualityGrade(grade) && !COST_UP_RE.test(String(text || ''))) return null;
-  const label = gradeLabel(grade, lang);
   return lang === 'ko'
-    ? `✇ [sprag] 이 요청은 판단이 결론인 일입니다. 위임 등급(${label})에서는 Sonnet보다 Opus(effort high)가 맡도록 권합니다. `
+    ? '✇ [sprag] 이 요청은 판단이 결론인 일입니다. Sonnet보다 Opus(effort high)가 맡도록 권합니다. '
       + 'Opus 서브에이전트(t1h-worker)로 넘기거나 /model opus로 바꾸십시오. '
       + '근거는 판단형 10건에서 Sonnet high가 같은 결론 1건, Opus high가 5건이었던 측정입니다(sprag.io/proof).'
-    : `✇ [sprag] This request ends in a judgement. At delegation grade ${label}, sprag recommends Opus at effort high over Sonnet: `
+    : '✇ [sprag] This request ends in a judgement. sprag recommends Opus at effort high over Sonnet: '
       + 'hand it to an Opus subagent (t1h-worker) or switch with /model opus. '
       + 'On 10 judgement jobs Sonnet high reached the same conclusion once and Opus high five times (sprag.io/proof).';
 }
@@ -518,6 +517,9 @@ export function pressureLine(pressure, { lang = userLanguage() } = {}) {
   const label = labelForKey(pressure.key).short;
   const pct = Math.round(pressure.pct);
   const ko = lang === 'ko';
+  // The caller sets `offer` once per limit window when delegation is not
+  // relaxed (claimRelaxOffer). The offer stands in for the usual line.
+  if (pressure.offer) return relaxOfferLine(label, pct, lang);
   if (pressure.level === 'critical') {
     return ko
       ? `한도 위험: ${label} ${pct}%. 여러 단계 작업도 위임 대상으로 보고, 메인 모델을 바꾸는 것(/model)도 사용자에게 제안하십시오.`
@@ -526,6 +528,13 @@ export function pressureLine(pressure, { lang = userLanguage() } = {}) {
   return ko
     ? `한도 압박: ${label} ${pct}%. 판단이 애매하면 위임하십시오.`
     : `Usage limit pressure: ${label} ${pct}%. When in doubt, delegate.`;
+}
+
+/** The one-time offer to widen delegation until the limit window resets. */
+export function relaxOfferLine(label, pct, lang = userLanguage()) {
+  return lang === 'ko'
+    ? `✇ [sprag] ${label} 사용량이 ${pct}%입니다. 이번 한도 창이 끝날 때까지 위임 범위를 넓히면 사용량을 아낄 수 있습니다. 사용자에게 한 줄로 물어보고, 동의하면 sprag routing relax 를 실행하십시오. 창이 초기화되면 자동으로 원래대로 돌아옵니다.`
+    : `✇ [sprag] ${label} usage is at ${pct}%. Widening delegation until this limit window resets would save usage. Ask the user in one line, and if they agree run sprag routing relax. It switches back by itself when the window resets.`;
 }
 
 /**

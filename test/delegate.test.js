@@ -732,7 +732,8 @@ test('buildAppendix: a prompt that states its own budget is not capped by the ru
    haiku or sonnet target. Counts go to a throwaway directory, never the real one. */
 const JUDGE = 'Audit the login flow and list what is unsafe, with a recommendation for each.';
 const LOOKUP = 'Run exactly this command and relay its stdout: npm test';
-const gradeCfg = (grade, extra = {}) => ({ delegate: { enabled: true }, delegationGrade: grade, ...extra });
+// 'cost' is the relax window: a deadline far in the future.
+const gradeCfg = (grade, extra = {}) => ({ delegate: { enabled: true }, ...(grade === 'cost' ? { relaxUntil: Date.now() + 10 * 365 * 24 * 3600 * 1000 } : {}), ...extra });
 const gradeRun = async (toolInput, cfg) => {
   const countsDir = mkdtempSync(join(tmpdir(), 'sprag-grade-'));
   try {
@@ -853,7 +854,7 @@ test('targetFamily and gradeAction: the model argument beats the agent pin, and 
   assert.equal(gradeAction({ prompt: JUDGE, model: 'sonnet' }, 'cost').type, 'raise', 'an audit is raised at grade cost too');
   assert.equal(gradeAction({ prompt: 'Review the repo and list improvements by priority.', model: 'sonnet' }, 'cost'), null);
   assert.equal(gradeAction({ prompt: LOOKUP, model: 'sonnet' }, 'quality'), null);
-  // A grade stored by an earlier version reads through its successor.
+  // An unknown grade reads as quality.
   assert.equal(gradeAction({ prompt: JUDGE, model: 'sonnet' }, 'balanced').type, 'raise');
 });
 
@@ -862,7 +863,7 @@ test('the hook entry point rewrites a judgement call to opus and never prints a 
   try {
     const cfgDir = join(home, 'cfg', 'claude-token-saver');
     mkdirSync(cfgDir, { recursive: true });
-    writeFileSync(join(cfgDir, 'config.json'), JSON.stringify({ delegationGrade: 'quality', language: 'ko' }));
+    writeFileSync(join(cfgDir, 'config.json'), JSON.stringify({ language: 'ko' }));
     const r = spawnSync(process.execPath, [join(fileURLToPath(new URL('..', import.meta.url)), 'bin', 'cli.js'), 'delegate', '--hook'], {
       input: JSON.stringify({ tool_name: 'Agent', tool_input: { prompt: JUDGE, model: 'sonnet' } }),
       encoding: 'utf8',

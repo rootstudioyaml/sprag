@@ -17,7 +17,7 @@
 
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
-import { routingEnabled, delegationGrade } from '../routing-switch.js';
+import { routingEnabled, delegationGrade, isRelaxed } from '../routing-switch.js';
 
 export async function run({ hasFlag }) {
     if (hasFlag('--hook-tool')) {
@@ -89,6 +89,14 @@ export async function run({ hasFlag }) {
           const { capPressure } = await import('../caps-cache.js');
           const { getSessionModel } = await import('../parser.js');
           pressure = capPressure({ sessionModel: getSessionModel(ctx.transcript_path) });
+          // High usage while delegation is not widened: the hint offers
+          // `sprag routing relax` once per limit window instead of the plain
+          // pressure line. Relaxed, or already offered for this window, the
+          // plain line stays.
+          if (pressure && (pressure.level === 'high' || pressure.level === 'critical') && (match.t2 || match.t1 || match.t1h) && !isRelaxed()) {
+            const { claimRelaxOffer } = await import('../relax-offer.js');
+            if (claimRelaxOffer(pressure.resetsAt)) pressure = { ...pressure, offer: true };
+          }
         } catch (e) { debug('brief:cap-pressure', e); }
       }
       const hint = routeHint(ctx.prompt, { sessionRank, root: ctx.cwd, match, pressure });

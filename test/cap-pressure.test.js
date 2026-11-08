@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
-import { writeGradeConfig } from './helpers/grade-config.js';
+import { writeGradeConfig, gradeKeys } from './helpers/grade-config.js';
 
 // caps-cache resolves its file when it loads, so the sandbox comes first.
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'cts-cap-pressure-')));
@@ -52,7 +52,7 @@ test('thresholds are 70 and 90, and the boundaries fall on the higher side', () 
 
 test('the busiest window decides, and its key and source are reported', () => {
   const p = capPressure({ snapshot: snap(win('five_hour', 20), win('seven_day', 93), win('x_window', 50)) });
-  assert.deepEqual(p, { level: 'critical', pct: 93, key: 'seven_day', source: 'subscription' });
+  assert.deepEqual(p, { level: 'critical', pct: 93, key: 'seven_day', resetsAt: null, source: 'subscription' });
 });
 
 test('no snapshot, no windows, or no usable percentage gives null', () => {
@@ -86,7 +86,7 @@ test('a per-model window counts only for that model family, and for every sessio
 
 test('the LiteLLM budget is an ordinary window with source litellm', () => {
   const p = capPressure({ snapshot: snap({ key: 'litellm_budget', usedPct: 72, spend: 72, maxBudget: 100 }) });
-  assert.deepEqual(p, { level: 'high', pct: 72, key: 'litellm_budget', source: 'litellm' });
+  assert.deepEqual(p, { level: 'high', pct: 72, key: 'litellm_budget', resetsAt: null, source: 'litellm' });
   const both = capPressure({ snapshot: snap(win('seven_day', 30), { key: 'litellm_budget', usedPct: 96 }) });
   assert.equal(both.source, 'litellm');
 });
@@ -144,7 +144,7 @@ test('the brief hook appends the line from a fresh snapshot, and without one pri
   const sdir = join(state, 'claude-token-saver');
   const project = join(dir, 'project');
   for (const d of [join(hHome, '.claude'), sdir, project]) mkdirSync(d, { recursive: true });
-  writeFileSync(join(sdir, 'config.json'), JSON.stringify({ language: 'ko', delegationGrade: 'cost' }) + '\n');
+  writeFileSync(join(sdir, 'config.json'), JSON.stringify({ language: 'ko', ...gradeKeys('cost') }) + '\n');
   writeFileSync(join(sdir, 'model-rules.json'), JSON.stringify({ rules }) + '\n');
 
   const run = (prompt) => execFileSync(process.execPath, [CLI, 'brief', '--hook'], {
@@ -199,5 +199,5 @@ test('the statusline writes the LiteLLM budget into last-caps.json, which is whe
   const w = saved.caps && saved.caps.windows.find((x) => x.key === 'litellm_budget');
   assert.ok(w, 'the budget window is in the snapshot');
   assert.equal(Math.round(w.usedPct), 85);
-  assert.deepEqual(capPressure({ snapshot: { caps: saved.caps } }), { level: 'high', pct: w.usedPct, key: 'litellm_budget', source: 'litellm' });
+  assert.deepEqual(capPressure({ snapshot: { caps: saved.caps } }), { level: 'high', pct: w.usedPct, key: 'litellm_budget', resetsAt: null, source: 'litellm' });
 });
