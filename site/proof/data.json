@@ -2937,5 +2937,461 @@
     }
    ]
   }
- ]
+ ],
+ "live": {
+  "since": "2026-08-10",
+  "until": "2026-11-07",
+  "runs": 353,
+  "to": {
+   "haiku": 69,
+   "sonnet": 282,
+   "opus": 2
+  },
+  "pairs": [
+   {
+    "from": "opus",
+    "to": "sonnet",
+    "n": 232
+   },
+   {
+    "from": "fable",
+    "to": "sonnet",
+    "n": 50
+   },
+   {
+    "from": "opus",
+    "to": "haiku",
+    "n": 49
+   },
+   {
+    "from": "fable",
+    "to": "haiku",
+    "n": 19
+   },
+   {
+    "from": "fable",
+    "to": "opus",
+    "n": 2
+   },
+   {
+    "from": "sonnet",
+    "to": "haiku",
+    "n": 1
+   }
+  ],
+  "costUsd": 122.91,
+  "costRuns": 253,
+  "savedUsd": 634.49
+ },
+ "bulk": {
+  "rounds": [
+   "r3-bulk-2026-11-08",
+   "r6-narrow-v2-2026-11-08"
+  ],
+  "n": 27,
+  "byKind": {
+   "check": {
+    "n": 4,
+    "ok": 3,
+    "partial": 0,
+    "fail": 1,
+    "pickUsd": 2.3681,
+    "opusUsd": 4.3095,
+    "pickSec": 1285,
+    "opusSec": 599
+   },
+   "explore": {
+    "n": 3,
+    "ok": 2,
+    "partial": 1,
+    "fail": 0,
+    "pickUsd": 1.5688,
+    "opusUsd": 3.0952,
+    "pickSec": 763,
+    "opusSec": 407
+   },
+   "paste": {
+    "n": 3,
+    "ok": 3,
+    "partial": 0,
+    "fail": 0,
+    "pickUsd": 0.255,
+    "opusUsd": 1.6914,
+    "pickSec": 87,
+    "opusSec": 60
+   },
+   "read": {
+    "n": 2,
+    "ok": 2,
+    "partial": 0,
+    "fail": 0,
+    "pickUsd": 0.3382,
+    "opusUsd": 1.0904,
+    "pickSec": 186,
+    "opusSec": 74
+   },
+   "run": {
+    "n": 15,
+    "ok": 7,
+    "partial": 8,
+    "fail": 0,
+    "pickUsd": 5.029,
+    "opusUsd": 10.2492,
+    "pickSec": 1975,
+    "opusSec": 1501,
+    "keptMain": 1
+   }
+  },
+  "totals": {
+   "n": 27,
+   "ok": 17,
+   "partial": 9,
+   "fail": 1,
+   "pickUsd": 9.559,
+   "opusUsd": 20.4357,
+   "pickSec": 4297,
+   "opusSec": 2641,
+   "keptMain": 1
+  },
+  "pickModels": {
+   "haiku": 10,
+   "sonnet": 16,
+   "opus": 1
+  },
+  "cases": [
+   {
+    "kind": "check",
+    "lane": "haiku-low",
+    "verdict": "ok",
+    "pickUsd": 0.012,
+    "opusUsd": 0.5902,
+    "pickSec": 8,
+    "opusSec": 20
+   },
+   {
+    "kind": "paste",
+    "lane": "haiku-low",
+    "verdict": "ok",
+    "pickUsd": 0.0154,
+    "opusUsd": 0.6478,
+    "pickSec": 24,
+    "opusSec": 27
+   },
+   {
+    "kind": "run",
+    "lane": "haiku-low",
+    "verdict": "ok",
+    "pickUsd": 0.0099,
+    "opusUsd": 0.606,
+    "pickSec": 8,
+    "opusSec": 49
+   },
+   {
+    "kind": "explore",
+    "lane": "haiku-low",
+    "verdict": "ok",
+    "pickUsd": 0.0086,
+    "opusUsd": 0.4688,
+    "pickSec": 18,
+    "opusSec": 28
+   },
+   {
+    "kind": "read",
+    "lane": "haiku-low",
+    "verdict": "ok",
+    "pickUsd": 0.0095,
+    "opusUsd": 0.5364,
+    "pickSec": 11,
+    "opusSec": 41
+   },
+   {
+    "kind": "check",
+    "lane": "sonnet-high",
+    "verdict": "ok",
+    "pickUsd": 0.4559,
+    "opusUsd": 1.314,
+    "pickSec": 76,
+    "opusSec": 116
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-high",
+    "verdict": "partial",
+    "pickUsd": 0.3194,
+    "opusUsd": 0.7239,
+    "pickSec": 72,
+    "opusSec": 87
+   },
+   {
+    "kind": "run",
+    "lane": "haiku-low",
+    "verdict": "ok",
+    "pickUsd": 0.0105,
+    "opusUsd": 0.5678,
+    "pickSec": 16,
+    "opusSec": 33
+   },
+   {
+    "kind": "check",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "ok",
+    "pickUsd": 0.7584,
+    "opusUsd": 1.2863,
+    "pickSec": 310,
+    "opusSec": 139
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh",
+    "verdict": "partial",
+    "pickUsd": 0.4011,
+    "opusUsd": 0.7798,
+    "pickSec": 304,
+    "opusSec": 92
+   },
+   {
+    "kind": "paste",
+    "lane": "haiku-low",
+    "verdict": "ok",
+    "pickUsd": 0.0083,
+    "opusUsd": 0.4507,
+    "pickSec": 4,
+    "opusSec": 11
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh",
+    "verdict": "ok",
+    "pickUsd": 0.2328,
+    "opusUsd": 0.5697,
+    "pickSec": 22,
+    "opusSec": 29
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh",
+    "verdict": "partial",
+    "pickUsd": 0.3208,
+    "opusUsd": 0.7324,
+    "pickSec": 57,
+    "opusSec": 49
+   },
+   {
+    "kind": "run",
+    "lane": "haiku-low",
+    "verdict": "partial",
+    "pickUsd": 0.0147,
+    "opusUsd": 0.6642,
+    "pickSec": 20,
+    "opusSec": 45
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh",
+    "verdict": "partial",
+    "pickUsd": 1.4584,
+    "opusUsd": 0.8096,
+    "pickSec": 419,
+    "opusSec": 417
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 0.5497,
+    "opusUsd": 0.5497,
+    "pickSec": 27,
+    "opusSec": 27
+   },
+   {
+    "kind": "paste",
+    "lane": "sonnet-xhigh",
+    "verdict": "ok",
+    "pickUsd": 0.2313,
+    "opusUsd": 0.5929,
+    "pickSec": 58,
+    "opusSec": 22
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh",
+    "verdict": "partial",
+    "pickUsd": 0.1817,
+    "opusUsd": 0.6521,
+    "pickSec": 420,
+    "opusSec": 272
+   },
+   {
+    "kind": "run",
+    "lane": "haiku-low",
+    "verdict": "ok",
+    "pickUsd": 0.0082,
+    "opusUsd": 0.4489,
+    "pickSec": 5,
+    "opusSec": 39
+   },
+   {
+    "kind": "run",
+    "lane": "haiku-low",
+    "verdict": "partial",
+    "pickUsd": 0.0109,
+    "opusUsd": 0.5064,
+    "pickSec": 48,
+    "opusSec": 101
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh",
+    "verdict": "ok",
+    "pickUsd": 0.8267,
+    "opusUsd": 1.3184,
+    "pickSec": 265,
+    "opusSec": 115
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "ok",
+    "pickUsd": 0.276,
+    "opusUsd": 0.5317,
+    "pickSec": 41,
+    "opusSec": 17
+   },
+   {
+    "kind": "explore",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "partial",
+    "pickUsd": 0.9357,
+    "opusUsd": 1.9221,
+    "pickSec": 497,
+    "opusSec": 323
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "partial",
+    "pickUsd": 0.4083,
+    "opusUsd": 0.7885,
+    "pickSec": 252,
+    "opusSec": 129
+   },
+   {
+    "kind": "read",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "ok",
+    "pickUsd": 0.3286,
+    "opusUsd": 0.554,
+    "pickSec": 176,
+    "opusSec": 33
+   },
+   {
+    "kind": "explore",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "ok",
+    "pickUsd": 0.6245,
+    "opusUsd": 0.7043,
+    "pickSec": 248,
+    "opusSec": 56
+   },
+   {
+    "kind": "check",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "fail",
+    "pickUsd": 1.1419,
+    "opusUsd": 1.119,
+    "pickSec": 891,
+    "opusSec": 325
+   }
+  ],
+  "compare": {
+   "n": 20,
+   "opusUsd": 15.5484,
+   "steps": [
+    {
+     "round": "r4-bulk-2026-11-08",
+     "rule": "v0",
+     "ok": 7,
+     "partial": 10,
+     "fail": 3,
+     "pickUsd": 5.2548,
+     "pickSec": 1537
+    },
+    {
+     "round": "r5-narrow-v1-2026-11-08",
+     "rule": "v1",
+     "ok": 11,
+     "partial": 5,
+     "fail": 4,
+     "pickUsd": 7.7057,
+     "pickSec": 3762
+    },
+    {
+     "round": "r6-narrow-v2-2026-11-08",
+     "rule": "v2",
+     "ok": 11,
+     "partial": 8,
+     "fail": 1,
+     "pickUsd": 8.7283,
+     "pickSec": 4079
+    }
+   ]
+  },
+  "noise": {
+   "round": "r7-opus-noise-2026-11-08",
+   "n": 10,
+   "ok": 8,
+   "partial": 2,
+   "fail": 0,
+   "pickUsd": 6.7616,
+   "opusUsd": 6.8749
+  },
+  "up": {
+   "round": "r8-up-2026-11-08",
+   "n": 10,
+   "conditions": [
+    {
+     "id": "sonnet-high",
+     "model": "sonnet",
+     "effort": "high",
+     "n": 10,
+     "ok": 1,
+     "partial": 7,
+     "fail": 2,
+     "verified": 78,
+     "wrong": 15,
+     "missed": 24,
+     "usd": 4.5915,
+     "sec": 813
+    },
+    {
+     "id": "opus-direct",
+     "model": "opus",
+     "effort": "high",
+     "n": 10,
+     "ok": 5,
+     "partial": 5,
+     "fail": 0,
+     "verified": 112,
+     "wrong": 3,
+     "missed": 7,
+     "usd": 9.7842,
+     "sec": 886
+    },
+    {
+     "id": "opus-xhigh",
+     "model": "opus",
+     "effort": "xhigh",
+     "n": 10,
+     "ok": 6,
+     "partial": 3,
+     "fail": 1,
+     "verified": 113,
+     "wrong": 11,
+     "missed": 5,
+     "usd": 10.5322,
+     "sec": 1290
+    }
+   ]
+  }
+ }
 }

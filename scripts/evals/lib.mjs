@@ -1,8 +1,8 @@
 // Shared helpers for the evals pipeline. Pure functions are exported for tests.
 import { createHash } from 'node:crypto';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, copyFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ratesAt, detectPricingTier } from '../../src/cost.js';
 import { nameRegex, privacyRe } from './build.mjs';
@@ -10,6 +10,32 @@ import { nameRegex, privacyRe } from './build.mjs';
 export const workDir = () => process.env.SPRAG_EVALS_WORK || new URL('../../handoff/evals-work/', import.meta.url).pathname;
 export const sha10 = (s) => createHash('sha1').update(s).digest('hex').slice(0, 10);
 export const readJson = (p, d) => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : d);
+export const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Copies sourceDir/rel to outDir/rel2 (default rel), making the folder. False when the source file is missing. */
+export function copyRel(sourceDir, outDir, rel, rel2 = rel) {
+  if (!existsSync(join(sourceDir, rel))) return false;
+  mkdirSync(dirname(join(outDir, rel2)), { recursive: true });
+  copyFileSync(join(sourceDir, rel), join(outDir, rel2));
+  return true;
+}
+/**
+ * Copies the source round's runs of one case under source condition key `srcKey` into a new round as key `newKey`
+ * (<id>-<srcKey> or <id>-<srcKey>-<rep> become <id>-<newKey>...): the runs.json and cost.json entries into the
+ * `runs` and `cost` objects, plus report and transcript files. The source score entry goes into `scores` only
+ * when that object is given. Returns the new run keys; none means the source never ran that condition.
+ */
+export function copyRuns({ sourceDir, outDir, caseId, srcKey, newKey, srcRuns, srcCost, srcScores = {}, runs, cost, scores = null }) {
+  const rx = new RegExp(`^${escRe(caseId)}-${escRe(srcKey)}(-\\d+)?$`);
+  const out = [];
+  for (const k of Object.keys(srcRuns).filter((x) => rx.test(x))) {
+    const nk = `${caseId}-${newKey}${k.match(rx)[1] || ''}`;
+    runs[nk] = srcRuns[k]; if (srcCost[k]) cost[nk] = srcCost[k];
+    if (scores && srcScores[k]) scores[nk] = srcScores[k];
+    copyRel(sourceDir, outDir, `reports/${k}.md`, `reports/${nk}.md`); copyRel(sourceDir, outDir, `transcripts/${k}.jsonl`, `transcripts/${nk}.jsonl`);
+    out.push(nk);
+  }
+  return out;
+}
 export const projectSlug = (abs) => abs.replace(/[^A-Za-z0-9]/g, '-');
 export const claudeProjects = () => join(homedir(), '.claude', 'projects');
 /**
@@ -128,6 +154,24 @@ export function excerptOf(text, limit = 700) {
 }
 export function capped(text, cap = 8000) {
   return cpLen(text) <= cap ? [text, false] : [cpSlice(text, cap).trimEnd() + '\n…', true];
+}
+
+/**
+ * Runs `claude <args>` with the prompt on stdin and resolves { code, out, err } (never rejects).
+ * `spawn` is injected so tests can fake the child. Used by the grader and the lane classifier.
+ */
+export function runClaude({ spawn, args, prompt, cwd, timeoutMs }) {
+  return new Promise((res) => {
+    let out = '', err = '', settled = false;
+    const done = (v) => { if (!settled) { settled = true; res(v); } };
+    const child = spawn('claude', args, { cwd, env: cleanEnv(), stdio: ['pipe', 'pipe', 'pipe'], shell: false, timeout: timeoutMs });
+    child.stdout.on('data', (d) => { out += d; });
+    child.stderr?.on('data', (d) => { err += d; });
+    child.on('error', (e) => done({ code: -1, out, err: err + e.message }));
+    child.on('close', (code) => done({ code, out, err }));
+    child.stdin.on('error', () => { /* the close handler reports an early exit */ });
+    child.stdin.end(prompt);
+  });
 }
 
 // ---- transcripts ----
@@ -260,7 +304,18 @@ export function validateRound(r) {
     need(c.write === undefined || typeof c.write === 'boolean', `case ${c.id}: write must be a boolean`);
     need(c.agents === undefined || (c.agents && typeof c.agents === 'object' && !Array.isArray(c.agents)
       && Object.keys(c.agents).every((k) => keys.has(k))), `case ${c.id}: agents must map condition keys to agent names`);
+    need(c.repo === undefined || (typeof c.repo === 'string' && c.repo.startsWith('/')), `case ${c.id}: repo must be an absolute path`);
+    need(c.commit === undefined || /^[0-9a-f]{7,40}$/.test(c.commit), `case ${c.id}: commit must be a hex sha`);
+    need((c.repo === undefined) === (c.commit === undefined), `case ${c.id}: repo and commit go together`);
+    need(c.conditions === undefined || (Array.isArray(c.conditions) && c.conditions.length > 0 && c.conditions.every((k) => keys.has(k))),
+      `case ${c.id}: conditions must be a non-empty array of condition keys`);
+    need(c.meta === undefined || (c.meta && typeof c.meta === 'object' && !Array.isArray(c.meta)), `case ${c.id}: meta must be an object`);
   }
+  need(r.grading === undefined || ['rubric', 'reference', 'verify'].includes(r.grading), 'grading must be "rubric", "reference" or "verify"');
+  need(r.capStopPct === undefined || (Number.isInteger(r.capStopPct) && r.capStopPct >= 50 && r.capStopPct <= 100), 'capStopPct must be an integer from 50 to 100');
+  need(r.baselineFrom === undefined || (typeof r.baselineFrom === 'string' && r.baselineFrom), 'baselineFrom must be a round id string');
+  need(r.rule === undefined || (typeof r.rule === 'string' && r.rule), 'rule must be a non-empty string');
+  need(r.tier === undefined || ['detail', 'numbers'].includes(r.tier), 'tier must be "detail" or "numbers"');
   need(r.allowedTools === undefined || (Array.isArray(r.allowedTools) && r.allowedTools.every((t) => typeof t === 'string')), 'allowedTools must be an array of strings');
   const baselines = (r.conditions || []).filter((c) => c.role === 'baseline').length;
   if (r.kind === 'effort') need(baselines <= 1, 'at most one condition may have role "baseline"');
