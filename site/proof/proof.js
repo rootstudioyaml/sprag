@@ -141,7 +141,7 @@
       'up.th': ['run', 'same', 'partial', 'unusable', 'wrong claims', 'missed facts', 'cost', 'time'],
       'up.cond': { 'sonnet-high': 'Sonnet high', 'opus-direct': 'Opus high', 'opus-xhigh': 'Opus xhigh', 'opus-high': 'Opus high', 'opus-medium': 'Opus medium', 'opus-low': 'Opus low' },
       'up.take': function (o) { return 'Moving these jobs from Sonnet to Opus high takes same conclusions from ' + o.sOk + ' to ' + o.bOk + ' and wrong claims from ' + o.sWrong + ' to ' + o.bWrong + ', for ' + o.costX + 'x the cost. Raising effort to xhigh on top made wrong claims ' + o.hWrong + ' and took ' + o.timeX + 'x the time, so sprag recommends high.'; },
-      'up.limit': 'Ten cases is a small sample, and the grader is Opus too. Hiding the labels and making it check claims with tools reduces any pull toward its own model; it does not rule it out.',
+      'up.limit': 'Ten cases is a small sample, and the grader is Opus too. Two runs of the same Opus high, graded this way, split 4 and 8 on same conclusions, because each report is judged against the best answer in its round. Read these tables as direction only; a larger sample is being measured.',
       loadFail: 'Could not load the data. Please reload the page.'
     },
     ko: {
@@ -265,7 +265,7 @@
       'up.th': ['실행', '같음', '부분', '못 씀', '틀린 주장', '놓친 사실', '비용', '시간'],
       'up.cond': { 'sonnet-high': 'Sonnet high', 'opus-direct': 'Opus high', 'opus-xhigh': 'Opus xhigh', 'opus-high': 'Opus high', 'opus-medium': 'Opus medium', 'opus-low': 'Opus low' },
       'up.take': function (o) { return '이런 일을 Sonnet에서 Opus high로 올리면 같음이 ' + o.sOk + '건에서 ' + o.bOk + '건으로 늘고 틀린 주장은 ' + o.sWrong + '개에서 ' + o.bWrong + '개로 줄며 비용은 ' + o.costX + '배입니다. 여기서 effort를 xhigh로 더 올리면 틀린 주장이 ' + o.hWrong + '개가 되고 시간이 ' + o.timeX + '배 걸려 sprag는 high를 권합니다.'; },
-      'up.limit': '10건이라 표본이 작고 채점자도 Opus입니다. 이름을 가리고 도구로 주장을 확인하게 해 같은 모델을 편드는 효과를 줄였지만 없앴다고 단정하지는 않습니다.',
+      'up.limit': '10건이라 표본이 작고 채점자도 Opus입니다. 같은 Opus high를 두 번 돌려 이 방식으로 채점하자 같은 결론이 4건과 8건으로 갈렸습니다. 보고서마다 같은 라운드에서 가장 좋은 답을 기준으로 판정하기 때문입니다. 그러니 이 표들은 방향만 보여 주며 표본을 늘려 다시 재고 있습니다.',
       loadFail: '데이터를 불러오지 못했습니다. 페이지를 새로 고쳐 주십시오.'
     }
   };
