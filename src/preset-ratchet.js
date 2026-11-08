@@ -22,6 +22,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { codexUserDir } from './agent.js';
 import { userLanguage } from './config.js';
+import { writePrivateFile } from './private-file.js';
 import { routingEnabled, DELEGATION_PRESET_IDS } from './routing-switch.js';
 import {
   HARNESS_BLOCK_BEGIN,
@@ -102,7 +103,7 @@ export function migrateLegacyPresetRules({ agent = 'claude' } = {}) {
     return false;
   });
   if (!moved.length) return { file, moved: 0 };
-  writeFileSync(`${file}.bak-preset-migration`, original);
+  writePrivateFile(`${file}.bak-preset-migration`, original);
   writeIfChanged(file, kept.join('\n'));
   const state = loadSeedState({ agent });
   const today = new Date().toISOString().slice(0, 10);

@@ -12,6 +12,7 @@ import { codexPromptCategory, loadCodexModelRules, sharedCodexModelRules, codexS
 import { codexRunCost, codexPriceBook, isDirectOpenAI, readCodexPrices } from './cache-policy.js';
 import { OPENAI_PRICES_CHECKED_AT } from '../openai-prices.js';
 import { refreshCodexLedger } from './ledger.js';
+import { safeExcerpt } from '../redact.js';
 
 /*
  * Codex route-scan: recurring easy turns become delegation-rule candidates.
@@ -172,7 +173,7 @@ export async function runCodexRouteScan({ days = 14, now = Date.now(), home, dir
     .sort((a, b) => b.count - a.count || b.lastSeen - a.lastSeen)
     .slice(0, MAX_CANDIDATES)
     .map((g, i) => ({ id: i + 1, signature: g.signature, category: g.category, label: g.label, labelEn: g.labelEn,
-      from: g.from, provider: g.provider, projectRoot: g.projectRoot, count: g.count, tiers: g.tiers, example: g.example.slice(0, 160),
+      from: g.from, provider: g.provider, projectRoot: g.projectRoot, count: g.count, tiers: g.tiers, example: safeExcerpt(g.example, 160), // masked before the cut, so no half-token survives
       lastSeen: g.lastSeen || null, suggestedScope: 'project', ...pickTarget(g, { prices, known, home }) }));
   const priceCheckedAt = prices?.checkedAt ?? ([...groups.values()].some((g) => isDirectOpenAI(g.provider, { home })) ? OPENAI_PRICES_CHECKED_AT : null);
   const data = { version: 1, scannedAt: new Date(now).toISOString(), days, dataBytes, totalEpisodes: episodes.length,

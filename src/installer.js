@@ -15,6 +15,7 @@
 
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync, rmSync, copyFileSync, renameSync, realpathSync, statSync } from 'node:fs';
 import { loadConfig, saveConfig } from './config.js';
+import { restrictFile } from './private-file.js';
 import { CLI_NAME, LEGACY_CLI_NAME } from './cli-name.js';
 import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -163,6 +164,7 @@ export function writeSettings(file, settings) {
       target = realpathSync(file);
       mode = statSync(target).mode & 0o777;
       copyFileSync(target, `${target}.sprag-bak`);
+      restrictFile(`${target}.sprag-bak`);
     }
     const tmpPath = target === file ? tmp : `${target}.sprag-tmp-${process.pid}`;
     try {
