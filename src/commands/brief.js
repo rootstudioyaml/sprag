@@ -12,7 +12,8 @@
  * briefing of state the statusline can only chip (ctx tier crossings,
  * mid-session route/rule-health changes). Silent when nothing changed.
  * brief --hook-tool — PostToolUse hook mode: counts the direct lookups of a
- * turn that carried a delegation hint and nudges once (src/route-follow.js).
+ * turn that carried a delegation hint and nudges once (src/route-follow.js),
+ * and reminds once about delegating after three files edited directly (src/impl-follow.js).
  */
 
 import { readStdinJson } from '../stdin-payload.js';
@@ -23,13 +24,23 @@ export async function run({ hasFlag }) {
     if (hasFlag('--hook-tool')) {
       // PostToolUse: a nudge is context for the model, so it goes out as
       // hookSpecificOutput; nothing is printed when there is nothing to say.
+      // Two followers see the same payload (lookups after a hint, edits without
+      // a delegation); their notices go out as one context block.
+      const payload = readStdinJson() || {};
+      const notes = [];
       try {
         const { followToolUse } = await import('../route-follow.js');
-        const nudge = followToolUse(readStdinJson() || {});
-        if (nudge) {
-          console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: nudge } }));
-        }
+        const nudge = followToolUse(payload);
+        if (nudge) notes.push(nudge);
       } catch (e) { debug('brief:hook-tool', e); }
+      try {
+        const { implFollowToolUse } = await import('../impl-follow.js');
+        const nudge = implFollowToolUse(payload);
+        if (nudge) notes.push(nudge);
+      } catch (e) { debug('brief:hook-tool-impl', e); }
+      if (notes.length) {
+        console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: notes.join('\n\n') } }));
+      }
       return;
     }
     if (!hasFlag('--hook')) {

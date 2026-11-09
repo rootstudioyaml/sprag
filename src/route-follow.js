@@ -87,7 +87,7 @@ const rmQuiet = (file) => {
   try { rmSync(file, { force: true }); } catch (e) { debug('route-follow:rm', e); }
 };
 
-function logEvent(dir, entry) {
+export function logEvent(dir, entry) {
   try {
     const file = eventsPath(dir);
     mkdirSync(baseDir(dir), { recursive: true });
