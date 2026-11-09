@@ -416,10 +416,28 @@ function detectStatuslineWrapper(command) {
   return { script, name, deprecatedFallback: body.includes(`${LEGACY_CLI}@latest`) };
 }
 
+/**
+ * Whether a statusLine command is the one Orca installs for itself.
+ *
+ * Orca (stablyai/orca) runs Claude Code in a real terminal and, when the slot is
+ * empty, writes a statusLine that runs `~/.orca/agent-hooks/claude-statusline.sh`
+ * (`.cmd` on Windows) inside a shell wrapper. That script prints nothing: it only
+ * forwards the payload's rate limits to the Orca app. Left in place it blanks the
+ * statusline, and Orca never replaces a statusLine it did not write, so whichever
+ * tool installs first keeps the slot. Treating it as someone's own statusline made
+ * a machine that had Orca first skip ours on every install, with nothing drawn in
+ * any terminal.
+ */
+export function isOrcaStatusline(command) {
+  return typeof command === 'string' && /\.orca[\\/]agent-hooks[\\/]claude-statusline\b/.test(command);
+}
+
 // Registers/repairs the Claude Code statusLine entry in ~/.claude/settings.json.
 // - No statusLine yet: insert ours with refreshInterval:STATUSLINE_REFRESH_INTERVAL.
 // - statusLine already points at sprag: ensure that refreshInterval
 //   (this is the bit that makes the TTL countdown tick every second while idle).
+// - statusLine is Orca's usage feed: merge without asking. It draws nothing, and
+//   running it as the base keeps Orca's rate-limit display fed.
 // - statusLine points at a different command: leave it alone unless --force,
 //   or `merge`, which keeps their command running underneath ours (the original
 //   object is saved as config `statuslineBase` so uninstall can restore it).
@@ -460,6 +478,8 @@ export function installStatusline({ force = false, merge = false } = {}) {
     return { path: file, action: 'updated', reason: `set refreshInterval=${STATUSLINE_REFRESH_INTERVAL}` };
   }
 
+  if (!force && isOrcaStatusline(cur.command)) merge = true;
+
   if (!force && !merge) {
     // `conflict` lets the interactive install distinguish "someone else's
     // statusline is here" (worth asking about) from other skip reasons
@@ -498,7 +518,10 @@ export function installStatusline({ force = false, merge = false } = {}) {
   if (merge) {
     cfg.statuslineBase = base;
     saveConfig(cfg);
-    return { path: file, action: 'updated', reason: 'merged with previous statusLine', merged: true };
+    const reason = isOrcaStatusline(base.command)
+      ? "merged with Orca's statusLine, which keeps running underneath"
+      : 'merged with previous statusLine';
+    return { path: file, action: 'updated', reason, merged: true };
   }
   // Replace means the old one is gone for good; a stale base would resurrect it
   // (or keep running it) later.

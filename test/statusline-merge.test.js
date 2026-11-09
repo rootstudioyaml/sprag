@@ -17,7 +17,7 @@ process.env.USERPROFILE = HOME;
 process.env.XDG_CONFIG_HOME = join(SANDBOX, 'cfg');
 after(() => rmSync(SANDBOX, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
-const { installStatusline, uninstallAll, isOurCommand } = await import('../src/installer.js');
+const { installStatusline, uninstallAll, isOurCommand, isOrcaStatusline } = await import('../src/installer.js');
 const { loadConfig, saveConfig } = await import('../src/config.js');
 const { withBaseStatusline } = await import('../src/statusline-base.js');
 
@@ -58,6 +58,43 @@ test('without merge or force a foreign statusLine is left alone', () => {
   const r = installStatusline();
   assert.equal(r.action, 'skipped');
   assert.deepEqual(settings().statusLine, ORIGINAL);
+});
+
+// Orca's entry as its installer writes it on macOS and Linux: a shell wrapper
+// around ~/.orca/agent-hooks/claude-statusline.sh that drains stdin when the
+// script is missing. The script prints nothing; it only feeds the Orca app.
+const ORCA = {
+  type: 'command',
+  command: `/bin/sh -c 'if [ -f "\${HOME-}/.orca/agent-hooks/claude-statusline.sh" ]; then exec /bin/sh "\${HOME-}/.orca/agent-hooks/claude-statusline.sh"; else cat >/dev/null; fi'`,
+};
+
+test("Orca's statusLine is merged without asking, and uninstall gives it back", () => {
+  writeFileSync(SETTINGS, JSON.stringify({ statusLine: ORCA }));
+  const r = installStatusline();
+  assert.equal(r.action, 'updated');
+  assert.equal(r.merged, true);
+  assert.match(r.reason, /Orca/);
+  assert.ok(isOurCommand(settings().statusLine.command));
+  assert.deepEqual(loadConfig().statuslineBase, ORCA);
+
+  uninstallAll();
+  assert.deepEqual(settings().statusLine, ORCA);
+  assert.equal(loadConfig().statuslineBase, undefined);
+});
+
+test("force still replaces Orca's statusLine outright", () => {
+  writeFileSync(SETTINGS, JSON.stringify({ statusLine: ORCA }));
+  installStatusline({ force: true });
+  assert.ok(isOurCommand(settings().statusLine.command));
+  assert.equal(loadConfig().statuslineBase, undefined);
+});
+
+test('isOrcaStatusline matches the POSIX and Windows scripts only', () => {
+  assert.ok(isOrcaStatusline(ORCA.command));
+  assert.ok(isOrcaStatusline('cmd /c "%USERPROFILE%\\.orca\\agent-hooks\\claude-statusline.cmd"'));
+  assert.ok(!isOrcaStatusline('bash ~/x.sh'));
+  assert.ok(!isOrcaStatusline('bash ~/.orca/agent-hooks/claude-hook.sh'));
+  assert.ok(!isOrcaStatusline(undefined));
 });
 
 test('withBaseStatusline puts the base output first', () => {
