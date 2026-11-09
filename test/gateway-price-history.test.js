@@ -170,3 +170,62 @@ test('the list path is untouched by a recorded gateway history', () => {
   // A gw on a list event is ignored.
   assert.deepEqual(priceLedgerEvent({ ...e, gw: BASE }), p);
 });
+
+test('gatewayPriceMissReason names why a gateway price is missing; gatewayPriceKeys lists the row', () => {
+  const miss = (model, at = D1 + 1000, base = BASE) => history.gatewayPriceMissReason(model, base, at);
+  assert.equal(miss('claude-opus-5'), 'no-history');
+  history.recordGatewayPrices(BASE, { ...table(1e-6, 2e-6), 'claude-haiku-4-5': null, zeta: price(1, 1) }, D1);
+  assert.equal(miss('claude-opus-5'), null); // priced
+  assert.equal(miss('claude-sonnet-5-5'), 'not-listed');
+  assert.equal(miss('claude-haiku-4-5'), 'ambiguous');
+  assert.equal(miss('claude-opus-5', D1 + 8 * DAY), 'stale');
+  assert.equal(miss('claude-opus-5', 'not a date'), 'bad-time');
+  assert.equal(miss('claude-opus-5', D1, 'https://other.example.com'), 'no-history');
+  assert.deepEqual(history.gatewayPriceKeys('claude-sonnet-5-5', BASE, D1 + 1000), ['claude-haiku-4-5', 'claude-opus-5', 'zeta']);
+  assert.deepEqual(history.gatewayPriceKeys('x', BASE, D1 + 8 * DAY), ['claude-haiku-4-5', 'claude-opus-5', 'zeta']); // keys of the row that would be used, stale or not
+  assert.deepEqual(history.gatewayPriceKeys('x', 'https://other.example.com', D1), []);
+  const many = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`m${String(i).padStart(2, '0')}`, price(1, 1)]));
+  history.recordGatewayPrices(BASE, many, D2);
+  assert.deepEqual(history.gatewayPriceKeys('x', BASE, D2 + 1000), ['m00', 'm01', 'm02', 'm03', 'm04', 'm05', 'm06', 'm07']);
+});
+
+test('gatewayPriceMiss without `at` reads the profile-map table: no-table, stale, ambiguous, not-listed', async () => {
+  const { gatewayPriceMiss } = await import('../src/litellm-models.js');
+  const { updateProfileMap } = await import('../src/model-alias.js');
+  const now = Date.parse('2026-10-05T00:00:00Z');
+  assert.deepEqual(gatewayPriceMiss('claude-opus-5', ENV, now), { reason: 'no-table', keys: [] });
+  updateProfileMap({ gateway: { base: BASE, fetchedAt: new Date(D1).toISOString(), aliases: {}, prices: { b: price(1, 1), a: null }, skipped: [], count: 2 } });
+  assert.deepEqual(gatewayPriceMiss('claude-opus-5', ENV, now), { reason: 'not-listed', keys: ['a', 'b'] });
+  assert.equal(gatewayPriceMiss('a', ENV, now).reason, 'ambiguous');
+  assert.equal(gatewayPriceMiss('b', ENV, D1 + 8 * DAY).reason, 'stale');
+});
+
+test('an unpriced gateway part is logged once per distinct message, without the time', async () => {
+  const { diagPath, readDiag, _resetDiagForTest } = await import('../src/diag-log.js');
+  const { userDataDir } = await import('../src/paths.js');
+  const dir = userDataDir();
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'team.json'), JSON.stringify({ memberKey: 'spk_secret' }));
+  rmSync(diagPath(dir), { force: true });
+  _resetDiagForTest();
+  try {
+    history.recordGatewayPrices(BASE, table(1e-6, 2e-6), D1);
+    const totals = { ...ZERO, input: 10, output: 10 };
+    for (let i = 0; i < 20; i++) assert.equal(sessionCost(totals, 'claude-sonnet-5-5', { env: ENV, at: D1 + 1000 + i * 60_000 }), null);
+    assert.notEqual(sessionCost(totals, 'claude-opus-5', { env: ENV, at: D1 + 1000 }), null); // priced: nothing logged
+    sessionCost(totals, 'claude-opus-5', { env: {}, at: D1 }); // not a gateway: nothing logged
+    const entries = readDiag({ dir });
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].scope, 'price:unpriced');
+    assert.match(entries[0].msg, /^model=claude-sonnet-5-5 reason=not-listed known=claude-opus-5 @ src\/claude-price\.js:\d+$/);
+    assert.equal(entries[0].count, 1);
+    // other reason, other message
+    sessionCost(totals, 'claude-opus-5', { env: ENV, at: D1 + 30 * DAY });
+    assert.equal(readDiag({ dir }).length, 2);
+    assert.ok(readDiag({ dir }).some((e) => /reason=stale/.test(e.msg)));
+  } finally {
+    rmSync(join(dir, 'team.json'), { force: true });
+    rmSync(diagPath(dir), { force: true });
+    _resetDiagForTest();
+  }
+});

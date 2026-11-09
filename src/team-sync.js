@@ -40,7 +40,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { release as osRelease } from 'node:os';
 import { createRequire } from 'node:module';
-import { userDataDir } from './paths.js';
+import { userDataDir, claudeUserDir } from './paths.js';
 import { writeStateFile } from './state-file.js';
 import { memberId, readMemberId } from './member-id.js';
 import { userLanguage } from './config.js';
@@ -59,7 +59,8 @@ import { codexPriceBook, readCodexPrices, refreshCodexPrices, codexRunCost, CODE
 import { codexRequestCost } from './gateway-prices.js';
 import { codexBudgetProvider } from './codex/budget.js';
 import { fetchGatewayDailySpend, gatewayDayValue, gatewayEnv } from './gateway-spend.js';
-import { withClaudeSettingsEnv } from './gateway-auth.js';
+import { withClaudeSettingsEnv, gatewayBase } from './gateway-auth.js';
+import { recordDiag, readDiag, ackDiag } from './diag-log.js';
 
 export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -528,6 +529,7 @@ export async function aggregateDaily({
 
   // Claude Code and Cowork sessions are priced alike; Cowork transcripts live
   // outside ~/.claude/projects (see cowork-sessions.js).
+  const seen = { claude: 0, cowork: 0, codex: 0 }; // sessions parsed (or passed in), for the no-rows diagnostic
   const addClaudeSessions = (list) => {
     for (const s of list || []) {
       if (!s || !s.startTime || !s.totals) continue;
@@ -552,6 +554,7 @@ export async function aggregateDaily({
       const { parseAllSessions } = await import('./parser.js');
       list = await parseAllSessions({ days });
     }
+    seen.claude = (list || []).length;
     addClaudeSessions(list);
   } catch (e) { debug('team-sync', e); }
 
@@ -561,6 +564,7 @@ export async function aggregateDaily({
       const { parseCoworkSessions } = await import('./cowork-sessions.js');
       list = await parseCoworkSessions({ days });
     }
+    seen.cowork = (list || []).length;
     addClaudeSessions(list);
   } catch (e) { debug('team-sync', e); }
 
@@ -572,6 +576,7 @@ export async function aggregateDaily({
       const { parseAllCodexSessions } = await import('./codex/parser.js');
       list = await parseAllCodexSessions({ days, compressed: true, keepRequests: true });
     }
+    seen.codex = (list || []).length;
     const prices = codexPrices === undefined ? readCodexPrices({ now, dir }) : codexPrices;
     for (const s of list || []) {
       if (!s || !s.startTime || !s.totals) continue;
@@ -598,7 +603,7 @@ export async function aggregateDaily({
     }
   }
 
-  return [...byDay.entries()]
+  const rows = [...byDay.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([day, d]) => {
       const claude = round4(d.spent), codex = round4(d.codex);
@@ -629,6 +634,21 @@ export async function aggregateDaily({
       };
     })
     .filter((r) => r.spent_usd || r.codex_spent_usd || r.gateway_spent_usd || r.saved_usd || r.delegated_runs || r.delegated_cost_usd || r.subagent_cost_usd || r.unpriced_parts);
+  if (!rows.length) noteNoRows({ seen, env, dir });
+  return rows;
+}
+
+// A machine whose sync uploads nothing: say how many sessions each parser saw and
+// whether the Claude projects directory is even there. The counts are small
+// integers and yes/no flags, so the message dedupes to a handful per machine.
+function noteNoRows({ seen, env, dir }) {
+  try {
+    const projectsDir = existsSync(join(claudeUserDir(), 'projects'));
+    const configDir = (process.env.CLAUDE_CONFIG_DIR || (env && env.CLAUDE_CONFIG_DIR)) ? 'set' : 'unset';
+    recordDiag('team-sync:no-rows', new Error(
+      `claude=${seen.claude} cowork=${seen.cowork} codex=${seen.codex} projectsDir=${projectsDir} configDir=${configDir} gateway=${gatewayBase(env) ? 'yes' : 'no'}`,
+    ), { dir, env });
+  } catch { /* diagnostics only */ }
 }
 
 // After a failed refresh the gateway is left alone for this long; syncs run every 5 minutes.
@@ -873,6 +893,47 @@ async function reportRuleStats({ state, dir, fetch, now }) {
   }
 }
 
+export const DIAG_UPLOAD_INTERVAL_MS = 30 * 60 * 1000;
+const DIAG_UPLOAD_MAX = 100;
+
+/**
+ * Upload the local diagnostics log (diag-log.js) to diag_upload: error text
+ * only, newest 100 entries, at most once per DIAG_UPLOAD_INTERVAL_MS unless
+ * `force`. Returns `{ diag, lastDiagAt }` after an upload, `{ lastDiagError }`
+ * after a failed one, and null when nothing was due. A server without the
+ * function (not migrated yet) is silent. It never throws, never fails the sync,
+ * and does not call debug() on its own failure: that would put the upload error
+ * into the log it is trying to send.
+ */
+async function uploadDiag({ state, dir, fetch, version, now, force = false, env = process.env }) {
+  try {
+    if (envVar('NO_DIAG', env) === '1') return null;
+    if (!force && Number.isFinite(state.lastDiagAt) && now - state.lastDiagAt >= 0 && now - state.lastDiagAt < DIAG_UPLOAD_INTERVAL_MS) return null;
+    const entries = readDiag({ dir });
+    if (!entries.length) return null;
+    const sent = [...entries].sort((a, b) => (a.last < b.last ? 1 : a.last > b.last ? -1 : 0)).slice(0, DIAG_UPLOAD_MAX);
+    try {
+      const n = await rpc('diag_upload', { member_key: state.memberKey, entries: sent, sprag_version: version || '' }, { fetch });
+      ackDiag(sent, { dir });
+      return { diag: Number.isFinite(n) ? n : sent.length, lastDiagAt: now };
+    } catch (e) {
+      if (/Could not find the function|PGRST202/.test(String(e && e.message))) return null;
+      return { lastDiagError: String((e && e.message) || e).slice(0, 200) };
+    }
+  } catch {
+    return null;
+  }
+}
+
+/** The team.json fields an uploadDiag result changes. */
+function withDiagMeta(state, d) {
+  if (!d) return state;
+  const next = { ...state };
+  if (d.lastDiagAt) { next.lastDiagAt = d.lastDiagAt; delete next.lastDiagError; }
+  if (d.lastDiagError) next.lastDiagError = d.lastDiagError;
+  return next;
+}
+
 /**
  * `gatewayFetch` is the fetch the gateway calls use (the team server's `fetch`
  * is injected separately so tests can fake each side). `coworkSessions`, `codexSessions`,
@@ -955,6 +1016,8 @@ export async function syncTeam({
     // price Claude the same way and both see the gateway figure.
     env = withClaudeSettingsEnv(env);
     const hasGateway = !!gatewayEnv(env);
+    // A gateway address without a usable key: no daily figure can be fetched. (Not `key=no`: the secret masker reads `KEY=value` as a secret.)
+    if (!hasGateway && gatewayBase(env)) recordDiag('team-sync:gateway-env', new Error('base=yes daily=no missing=key'), { dir, env });
     // Days the delegation ledger changed after they were uploaded (a rescan
     // repriced them) go up again from the earliest one.
     let change = null;
@@ -964,6 +1027,7 @@ export async function syncTeam({
     let gatewayDaily = null;
     if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now, from: win.startKey });
     const gatewayOk = !!(gatewayDaily && !gatewayDaily.error);
+    if (gatewayDaily && gatewayDaily.error) recordDiag('team-sync:gateway-daily', new Error(String(gatewayDaily.error)), { dir, env });
     let prices = codexPrices;
     if (prices === undefined) {
       const r = await codexPricesForSync({ dir, now, fetchImpl: gatewayFetch, attemptedAt: state.codexPricesAttemptAt });
@@ -976,7 +1040,8 @@ export async function syncTeam({
     await ledgerUpsert({ memberKey: state.memberKey, rows, version, dir, fetch });
     const { r, rules } = await pullRules({ memberKey: state.memberKey, dir, fetch, now });
     const ruleStats = await reportRuleStats({ state, dir, fetch, now });
-    const next = withRulesMeta({ ...state, ...ruleStats, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, r, now);
+    const diag = await uploadDiag({ state, dir, fetch, version, now, force, env });
+    const next = withRulesMeta(withDiagMeta({ ...state, ...ruleStats, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, diag), r, now);
     if (gatewayOk) next.gatewaySyncedThrough = dayKey(now);
     else if (gatewayDaily && gatewayDaily.error) next.lastGatewayError = gatewayDaily.error;
     if (gatewayOk || !hasGateway) delete next.lastGatewayError;
@@ -997,6 +1062,11 @@ export async function syncTeam({
     try {
       saveTeamState({ ...state, lastSyncAttemptAt: now, syncFailures: (Number(state.syncFailures) || 0) + 1, lastError: e.message }, dir);
     } catch (e2) { debug('team-sync', e2); }
+    // The failure that just happened is exactly what the operator needs to see.
+    try {
+      const diag = await uploadDiag({ state, dir, fetch, version, now, force: true, env });
+      if (diag) saveTeamState(withDiagMeta(loadTeamState(dir), diag), dir);
+    } catch { /* best effort */ }
     return { error: e.message };
   }
 }
