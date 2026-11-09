@@ -238,7 +238,7 @@ Usage:
   sprag cowork [sync|on|off|exclude <dir>|include <dir>]   copy the ratchet rules into Cowork tab folders
   sprag korean on|off|status     Korean writing guidance + write-time check
   sprag cohesion on|off|status   English sentence-connection guidance
-  sprag routing on|off|status|relax [off]|effort-hint on|off   model delegation master switch (rules, hints, candidates); relax widens it until the usage window resets
+  sprag routing on|off|status|relax [off]|effort-hint on|off|impl on|off   model delegation master switch (rules, hints, candidates); relax widens it until the usage window resets
   sprag doc2md on|off|<file>     convert documents to Markdown before the model reads them
   sprag delegate on|off|status   add bounds and context to Task/Agent delegation prompts
   sprag proof [--json]     replayed delegation cases behind the tier rules (https://sprag.io/proof/)

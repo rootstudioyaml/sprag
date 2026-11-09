@@ -13,7 +13,8 @@
  * mid-session route/rule-health changes). Silent when nothing changed.
  * brief --hook-tool — PostToolUse hook mode: counts the direct lookups of a
  * turn that carried a delegation hint and nudges once (src/route-follow.js),
- * and reminds once about delegating after three files edited directly (src/impl-follow.js).
+ * and reminds once about delegating after two code files edited directly, and once on
+ * a prompt that reads as an implementation request (src/impl-follow.js).
  */
 
 import { readStdinJson } from '../stdin-payload.js';
@@ -144,6 +145,17 @@ export async function run({ hasFlag }) {
             }
           }
         } catch (e) { debug('brief:effort-notice', e); }
+      }
+      // An implementation request gets no delegation hint (routeMatch is null for
+      // an edit ask), so it gets the implementation split reminder instead, once
+      // until the next delegation (src/impl-follow.js). Only when no hint went out
+      // this turn.
+      if (!hint) {
+        try {
+          const { implementationReminder } = await import('../impl-follow.js');
+          const reminder = implementationReminder(ctx.prompt, { sessionId: ctx.session_id, sessionRank });
+          if (reminder) parts.push(reminder);
+        } catch (e) { debug('brief:impl-reminder', e); }
       }
       // Remember that this turn carried a delegation hint, so the PostToolUse
       // hook can nudge when the model looks things up itself instead. The

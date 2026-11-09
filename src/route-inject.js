@@ -141,6 +141,20 @@ export function looksLikeContextOrSpec(text) {
 }
 
 /**
+ * True when a prompt reads as a request to write or change code: an edit ask
+ * (EDIT_RE, EDIT_MORE_RE) or a written spec (long and not a paste), minus
+ * outward actions and open web research. routeMatch never hints for such a
+ * request, so src/impl-follow.js uses this to remind about the implementation
+ * split at prompt time. Harness-written messages and acks are not requests.
+ */
+export function looksLikeImplementation(text) {
+  const t = String(text || '').trim();
+  if (t.length < MIN_LEN || isSystemPrompt(t)) return false;
+  if (OUTWARD_RE.test(t) || OPEN_RESEARCH_RE.test(t)) return false;
+  return EDIT_RE.test(t) || EDIT_MORE_RE.test(t) || (t.length > SPEC_LEN && !looksPasted(t));
+}
+
+/**
  * A question that asks for an explanation ("어떻게 쓰이는거지?", "뭐야", "how
  * does it work"). "왜" is not here: ESCALATE_RE already routes it to the top
  * tier. Kept to the shapes that ask HOW or WHAT something is — a bare "?" or a

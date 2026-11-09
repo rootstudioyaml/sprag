@@ -5,6 +5,7 @@
  *   sprag routing on|off     # turn every delegation path on or off
  *   sprag routing relax [off]            # widen delegation until the busiest usage window resets, or end that early
  *   sprag routing effort-hint on|off     # the effort line for low/medium sessions on judgement requests
+ *   sprag routing impl on|off            # the reminder to hand multi-file implementation to a worker
  *
  * Off removes the delegation rules from ratchet-model.md and the preset
  * ratchet, the per-prompt route hint, and the route-scan candidate and
@@ -15,7 +16,7 @@ export async function run({ args }) {
   const sub = args[1];
   const { userLanguage } = await import('../config.js');
   const ko = userLanguage() === 'ko';
-  const { routingEnabled, setRoutingEnabled, isRelaxed, relaxUntil, setRelaxUntil, relaxClock, effortHintEnabled, setEffortHint } = await import('../routing-switch.js');
+  const { routingEnabled, setRoutingEnabled, isRelaxed, relaxUntil, setRelaxUntil, relaxClock, effortHintEnabled, setEffortHint, implementationFollowUpEnabled, setImplementationFollowUp } = await import('../routing-switch.js');
 
   // The reset of the busiest usage window in the statusline snapshot, in epoch
   // ms; five hours from now when the snapshot is missing, stale or has no reset.
@@ -106,6 +107,20 @@ export async function run({ args }) {
     return;
   }
 
+  if (sub === 'impl') {
+    const want = args[2];
+    if (want !== 'on' && want !== 'off') {
+      console.error('Usage: sprag routing impl on|off');
+      process.exitCode = 2;
+      return;
+    }
+    setImplementationFollowUp(want === 'on');
+    console.log(want === 'on'
+      ? (ko ? '✓ 구현 분업 상기를 켰습니다. 구현 요청과 파일 두 개 직접 수정 때 한 번씩 안내합니다.' : '✓ Implementation reminder is on. It speaks once on an implementation request and once after two files edited directly.')
+      : (ko ? '✓ 구현 분업 상기를 껐습니다.' : '✓ Implementation reminder is off.'));
+    return;
+  }
+
   if (sub === undefined || sub === 'status') {
     const on = routingEnabled();
     const n = await rules().catch(() => 0);
@@ -114,6 +129,7 @@ export async function run({ args }) {
     console.log(`routing: ${on ? 'on' : 'off'}`);
     console.log(isRelaxed() ? `relax: until ${relaxClock(relaxUntil())}` : 'relax: off');
     console.log(`effort hint: ${effortHintEnabled() ? 'on' : 'off'}`);
+    console.log(ko ? `구현 분업 상기: ${implementationFollowUpEnabled() ? '켜짐' : '꺼짐'}` : `Implementation reminder: ${implementationFollowUpEnabled() ? 'on' : 'off'}`);
     console.log(ko ? `등록된 룰: ${n}건` : `registered rules: ${n}`);
     console.log(`delegate agents: ${agentsOn ? 'on' : 'off'}`);
     console.log(ko
@@ -122,6 +138,6 @@ export async function run({ args }) {
     return;
   }
 
-  console.log('Usage: sprag routing on|off|status|relax [off]|effort-hint on|off');
+  console.log('Usage: sprag routing on|off|status|relax [off]|effort-hint on|off|impl on|off');
   process.exitCode = 1;
 }

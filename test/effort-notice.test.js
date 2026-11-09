@@ -30,7 +30,7 @@ test.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retr
 const { effortNotice } = await import('../src/route-inject.js');
 const { claimEffortNotice, claimEscalationNotice } = await import('../src/route-follow.js');
 const { recordSessionEffort, readSessionEffort, pruneSessionEffort, sessionEffortDir } = await import('../src/session-effort.js');
-const { effortHintEnabled } = await import('../src/routing-switch.js');
+const { effortHintEnabled, implementationFollowUpEnabled } = await import('../src/routing-switch.js');
 const lint = (await import('../src/korean-lint.cjs')).default;
 
 const CLI = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
@@ -193,6 +193,28 @@ test('sprag routing effort-hint: sets the key, refuses a bad value, status shows
   const bad = run('effort-hint', 'maybe');
   assert.equal(bad.status, 2);
   assert.match(bad.stderr, /Usage: sprag routing effort-hint on\|off/);
+});
+
+test('sprag routing impl: sets implementationFollowUp, refuses a bad value, status shows the line', () => {
+  const run = (...args) => spawnSync(process.execPath, [CLI, 'routing', ...args], { cwd: dir, encoding: 'utf8', timeout: 15000, env: envFor() });
+  const cfgPath = join(dataDir, 'config.json');
+  assert.equal(run('impl', 'off').status, 0);
+  assert.equal(JSON.parse(readFileSync(cfgPath, 'utf8')).implementationFollowUp, false);
+  assert.match(run('status').stdout, /^Implementation reminder: off$/m);
+  assert.equal(implementationFollowUpEnabled(JSON.parse(readFileSync(cfgPath, 'utf8'))), false);
+  assert.equal(run('impl', 'on').status, 0);
+  assert.equal(JSON.parse(readFileSync(cfgPath, 'utf8')).implementationFollowUp, true);
+  assert.match(run('status').stdout, /^Implementation reminder: on$/m);
+  assert.equal(implementationFollowUpEnabled({}), true);
+  assert.equal(implementationFollowUpEnabled({ routing: false }), false);
+  const bad = run('impl', 'maybe');
+  assert.equal(bad.status, 2);
+  assert.match(bad.stderr, /Usage: sprag routing impl on\|off/);
+  const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+  writeFileSync(cfgPath, JSON.stringify({ ...cfg, language: 'ko' }));
+  const ko = run('status');
+  assert.match(ko.stdout, /^구현 분업 상기: 켜짐$/m);
+  writeFileSync(cfgPath, JSON.stringify(cfg));
 });
 
 test('the statusline records the payload effort per session and not for a bad id', () => {
