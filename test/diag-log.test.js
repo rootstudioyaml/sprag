@@ -39,6 +39,9 @@ test('sanitizeDiag masks home, URL hosts, secrets and e-mail, collapses whitespa
   assert.equal(sanitizeDiag(`ENOENT: no such file, open '${home}/work/secret-app/notes.md'`), "ENOENT: no such file, open '~/…/notes.md'");
   assert.equal(sanitizeDiag(`read ${home}/.claude/projects/-Users-x-secret-app/abc.jsonl`), 'read ~/.claude/projects/…/abc.jsonl');
   assert.equal(sanitizeDiag('EACCES /usr/local/lib/node_modules/sprag-cli/x.js'), 'EACCES /…/x.js');
+  // API paths stay whole: they name the failing call, not a project
+  assert.equal(sanitizeDiag('LiteLLM /spend/logs/v2 responded 403'), 'LiteLLM /spend/logs/v2 responded 403');
+  assert.equal(sanitizeDiag('GET https://gw.corp.example/key/info failed'), 'GET <host>/key/info failed');
   assert.equal(sanitizeDiag('open C:\\Work\\secret-app\\a.json'), 'open C:\\…\\a.json');
   assert.equal(sanitizeDiag('model=claude-sonnet-4-5 reason=not-listed known=a/b,c'), 'model=claude-sonnet-4-5 reason=not-listed known=a/b,c');
   assert.equal(sanitizeDiag('GET https://llm.corp.example:4000/model/info failed'), 'GET <host>/model/info failed');

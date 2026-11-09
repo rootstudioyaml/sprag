@@ -53,6 +53,7 @@ const EMAIL_RE =/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2
 // A file path after the start, a space, a quote, `(` or `=`. `<host>/path` is not
 // matched (the `>` before it), so a URL keeps its path.
 const PATH_RE = /(^|[\s'"(=])((?:~|[A-Za-z]:)?[\\/][^\s'"():,]+)/g;
+const FS_ROOT_RE = /^\/(?:Users|home|root|private|var|tmp|opt|usr|Volumes|mnt|media|srv|etc|Library|Applications|System|nix|snap|workspace|workspaces|data|app)(?:\/|$)/;
 
 /**
  * A path without the directories that could name a project: the last segment
@@ -62,6 +63,9 @@ const PATH_RE = /(^|[\s'"(=])((?:~|[A-Za-z]:)?[\\/][^\s'"():,]+)/g;
  */
 function shortPath(p) {
   const root = p.startsWith('~') ? '~' : /^[A-Za-z]:/.test(p) ? p.slice(0, 2) : '';
+  // An API path (`/key/info`, `/spend/logs/v2`) names no project and is what tells
+  // the failing call apart: only paths under a filesystem root are cut.
+  if (!root && !FS_ROOT_RE.test(p)) return p;
   const sep = p.includes('\\') && !p.includes('/') ? '\\' : '/';
   const parts = p.slice(root.length).split(/[\\/]/).filter(Boolean);
   const keep = root === '~' && parts[0]?.startsWith('.') ? Math.min(2, parts.length) : 0;
