@@ -19,10 +19,17 @@ export async function run({ hasFlag }) {
       // 호출 횟수도 그만큼 늘어납니다.
       const key = resolveKey();
       let next = null;
+      if (!key) debug('litellm-budget:no-key', new Error('gateway set but no ANTHROPIC_AUTH_TOKEN, ANTHROPIC_API_KEY or apiKeyHelper key'));
       if (key) {
-        next = await refreshBudgetState(process.env, fetch, key);
-        const { maybeRefreshGatewayModelMap } = await import('../litellm-models.js');
-        await maybeRefreshGatewayModelMap({ base: gatewayBase(), key });
+        // The price table does not depend on the budget: a gateway whose /key/info and
+        // /user/info both fail (custom auth, a timeout) still has to get its prices,
+        // or every Claude call there stays unpriced.
+        try {
+          next = await refreshBudgetState(process.env, fetch, key);
+        } finally {
+          const { maybeRefreshGatewayModelMap } = await import('../litellm-models.js');
+          await maybeRefreshGatewayModelMap({ base: gatewayBase(), key });
+        }
       }
       if (!quiet) console.log(JSON.stringify(next, null, 2));
     } catch (e) {

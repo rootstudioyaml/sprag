@@ -801,6 +801,36 @@ test('a gateway address without a key records team-sync:gateway-env', async (t) 
   assert.match(sent.msg, /^base=yes daily=no missing=key @ src\/team-sync\.js:\d+$/);
 });
 
+const dayKeyLocal = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+test('the sync fetches the gateway price table itself, once while it is fresh', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  const now = Date.now();
+  saveTeamState({ ...joinedState(), ledgerSyncedThrough: dayKeyLocal(now), gatewaySyncedThrough: dayKeyLocal(now) }, dir);
+  const env = { ANTHROPIC_BASE_URL: 'https://gw.corp.example:4000', ANTHROPIC_AUTH_TOKEN: 'tok' };
+  const paths = [];
+  const gatewayFetch = async (url) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/model/info') {
+      return { ok: true, status: 200, json: async () => ({ data: [{ model_name: 'claude-opus-5-5', litellm_params: { model: 'anthropic/claude-opus-5-5' }, model_info: { mode: 'chat', input_cost_per_token: 0.000005, output_cost_per_token: 0.000025 } }] }) };
+    }
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  const { readGatewayModelMap } = await import('../src/litellm-models.js');
+  assert.equal(readGatewayModelMap(env), null);
+  const f = fakeFetch({ ...SYNC_OK, diag_upload: 1 });
+  const r = await syncTeam({ dir, fetch: f, now, sessions: [], gatewayFetch, env });
+  assert.equal(r.error, undefined);
+  assert.ok(paths.includes('/model/info'), paths.join(','));
+  assert.ok(readGatewayModelMap(env)?.prices?.['claude-opus-5-5']);
+  // a second sync does not fetch again: the table is fresh
+  paths.length = 0;
+  await syncTeam({ dir, fetch: fakeFetch({ ...SYNC_OK, diag_upload: 1 }), now: now + 10 * 60000, sessions: [], gatewayFetch, env, force: true });
+  assert.ok(!paths.includes('/model/info'));
+});
+
 test('a failed gateway daily call records team-sync:gateway-daily with the host masked', async (t) => {
   const dir = isolate(t);
   _resetDiagForTest();

@@ -60,6 +60,7 @@ import { codexRequestCost } from './gateway-prices.js';
 import { codexBudgetProvider } from './codex/budget.js';
 import { fetchGatewayDailySpend, gatewayDayValue, gatewayEnv } from './gateway-spend.js';
 import { withClaudeSettingsEnv, gatewayBase } from './gateway-auth.js';
+import { maybeRefreshGatewayModelMap, readGatewayModelMap } from './litellm-models.js';
 import { recordDiag, readDiag, ackDiag } from './diag-log.js';
 
 export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
@@ -1022,7 +1023,20 @@ export async function syncTeam({
     // repriced them) go up again from the earliest one.
     let change = null;
     try { change = changedSinceForSync(); } catch (e) { debug('team-sync', e); }
-    const win = ledgerWindow(state, now, { gateway: hasGateway, changedSince: change?.since });
+    // The gateway's price table. Until it is fetched every Claude call on this
+    // gateway is unpriced; the statusline's budget child fetched it only when the
+    // budget calls succeeded. The first table ever re-sends the whole window, so
+    // the days already uploaded as unpriced get their spend.
+    let firstTable = false;
+    if (hasGateway) {
+      try {
+        const g = gatewayEnv(env);
+        const hadTable = !!readGatewayModelMap(env);
+        const fetched = await maybeRefreshGatewayModelMap({ base: g.base, key: g.key, fetchImpl: gatewayFetch, now });
+        firstTable = !hadTable && !!fetched;
+      } catch (e) { debug('team-sync:prices', e); }
+    }
+    const win = ledgerWindow(firstTable ? { ...state, ledgerSyncedThrough: null } : state, now, { gateway: hasGateway, changedSince: change?.since });
     // The gateway's request log is read only from the first day going up.
     let gatewayDaily = null;
     if (hasGateway) gatewayDaily = await fetchGatewayDailySpend({ env, fetchImpl: gatewayFetch, now, from: win.startKey });
