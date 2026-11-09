@@ -239,6 +239,8 @@ When something is wrong the warning chip leads the line: `🚨 5H/7D NN%`, `⚠ 
 
 Inside a JetBrains IDE terminal the chips render as single-cell glyphs instead of emoji (`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). The IDE's default font has no emoji glyphs, so emoji leave characters from the previous frame on screen, like `Cache expires 4:545`. [Label modes](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.md#label-modes) covers the detail, plus `sprag mode narrow` and `mode icon-force`.
 
+Hosts that run Claude Code through the Agent SDK, such as T3 Code, never run the `statusLine` command, so the line does not appear there. Run `sprag panel` in the host's integrated terminal to get a live copy that follows the newest session of that project (`--once` prints a single frame). Orca runs Claude Code in a real terminal, so the normal statusline shows there and needs no panel. When Orca wrote its own statusLine first, `sprag install` keeps it running underneath sprag's, which keeps Orca's usage display fed.
+
 ## The cheap tier on the same prompts
 
 The benchmark uses public data. This asks the same question of my own work: eight
