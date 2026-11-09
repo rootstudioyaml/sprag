@@ -14,7 +14,8 @@
  * transcript_path) and the "already briefed" markers are keyed by session_id.
  *
  * State: <stateDir>/brief-state.json
- *   { sessions: { [session_id]: { ts, ctxTier, briefed: [signature] } } }
+ *   { sessions: { [session_id]: { ts, ctxTier, startedAt, briefed: [signature] } } }
+ * startedAt caches the transcript's first timestamp for the session-age warning.
  * Sessions untouched for 7 days are pruned on every write.
  *
  * Division of labor with the SessionStart hook: SessionStart prints the
@@ -169,6 +170,49 @@ function ctxTierOf(pct) {
 
 const fmtK = (n) => `${Math.round(n / 1000)}k`;
 
+// A session left open for days re-reads everything it ever loaded on every
+// request, and each auto-compaction blurs the decisions made early on. Past a
+// day the briefing asks the model to write a handoff and send the user to a
+// new session, once per whole day of age.
+export const SESSION_AGE_DAY_MS = 24 * 60 * 60 * 1000;
+const HEAD_BYTES = 64 * 1024;
+
+/**
+ * When THIS session started: the first `timestamp` in the transcript head.
+ * A resumed session keeps its original messages, so the age counts from the
+ * first request rather than from the resume. Falls back to the file's birth
+ * time; null when neither is readable.
+ */
+export function sessionStartedAt(transcriptPath) {
+  let fd;
+  try {
+    fd = openSync(transcriptPath, 'r');
+    const buf = Buffer.alloc(HEAD_BYTES);
+    const n = readSync(fd, buf, 0, HEAD_BYTES, 0);
+    for (const m of buf.toString('utf8', 0, n).matchAll(/"timestamp"\s*:\s*"([^"]+)"/g)) {
+      const t = Date.parse(m[1]);
+      if (Number.isFinite(t)) return t;
+    }
+  } catch {
+    return null;
+  } finally {
+    if (fd !== undefined) try { closeSync(fd); } catch { /* already closed */ }
+  }
+  try {
+    const b = statSync(transcriptPath).birthtimeMs;
+    return b > 0 ? b : null;
+  } catch {
+    return null;
+  }
+}
+
+const pad2 = (n) => String(n).padStart(2, '0');
+const fmtLocal = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+
+export function sessionAgeMessage(days, startedAt) {
+  return `이 세션을 시작한 지 ${days}일이 넘었습니다(시작 ${fmtLocal(startedAt)}). 오래 켜 둔 세션은 요청마다 그동안 쌓인 대화를 다시 읽어 비용이 커집니다. 자동 압축을 거칠 때마다 앞서 정한 내용도 흐려집니다. 사용자에게 이 사실을 알리고 지금 하던 일을 마무리한 뒤 \`sprag handoff\`로 핸드오프 파일을 만들어 빈 칸(한 일, 남은 일, 이어갈 지점, 주의할 점)을 채우십시오. 그다음 사용자에게 새 세션을 열어 "<만든 핸드오프 파일 경로> 핸드오프 이어서 해줘"라고 입력하라고 파일 경로를 넣은 문장 그대로 안내하십시오.`;
+}
+
 /**
  * Called by the SessionStart hook after it prints the session-start snapshot:
  * records the signatures it actually briefed so runBrief suppresses exactly
@@ -230,6 +274,19 @@ export async function runBrief({ sessionId, transcriptPath, root = process.cwd()
             ? `이 세션의 컨텍스트가 자동 압축 창(${winLabel})의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}${capNote}). 설정해 둔 압축 지점이 가까워졌습니다 — 압축은 알아서 돌아가니 새 세션을 서두를 필요는 없고, 여기까지의 결정과 다음 할 일만 파일에 남겨두면 됩니다.`
             : `이 세션의 컨텍스트가 ${winLabel} 창의 80%를 넘었습니다(직전 요청 입력 ${fmtK(ctx.input)}). 이후 요청은 비용이 커지는 구간입니다 — 작업이 일단락되면 새 세션 시작을 권합니다.`));
       s.ctxTier = tier;
+    }
+  }
+
+  // ── session age (per-session, once per whole day) ──
+  if (s.startedAt == null && transcriptPath) s.startedAt = sessionStartedAt(transcriptPath);
+  const ageDays = s.startedAt ? Math.floor((now - s.startedAt) / SESSION_AGE_DAY_MS) : 0;
+  if (ageDays >= 1) {
+    const sig = `age|${ageDays}`;
+    const briefed = new Set(s.briefed || []);
+    if (!briefed.has(sig)) {
+      briefed.add(sig);
+      s.briefed = [...briefed];
+      items.push(sessionAgeMessage(ageDays, s.startedAt));
     }
   }
 
