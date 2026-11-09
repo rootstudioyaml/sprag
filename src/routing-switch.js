@@ -39,6 +39,26 @@ export function setEffortHint(on) {
   saveConfig(cfg);
 }
 
+/**
+ * Whether the implementation-split reminders (prompt time and after two edited
+ * files, src/impl-follow.js) may speak. Only an explicit `false` in
+ * `implementationFollowUp` is off; routing off silences them too.
+ */
+export function implementationFollowUpEnabled(cfg = loadConfig()) {
+  try {
+    return routingEnabled(cfg) && cfg?.implementationFollowUp !== false;
+  } catch {
+    return true;
+  }
+}
+
+export function setImplementationFollowUp(on) {
+  const cfg = loadConfig();
+  cfg.implementationFollowUp = on !== false;
+  pruneExpiredRelax(cfg);
+  saveConfig(cfg);
+}
+
 export function setRoutingEnabled(on) {
   const cfg = loadConfig();
   cfg.routing = on !== false;
