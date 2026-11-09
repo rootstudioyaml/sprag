@@ -2,7 +2,8 @@
  * Cost impact estimation based on Anthropic pricing.
  * Source: https://platform.claude.com/docs/en/about-claude/pricing
  * Prices per million tokens (USD). Updated 2026-10 for Fable 5.1, Opus 5.5,
- * Sonnet 5 / 5.5 and Haiku 5.5 (checked against the pricing page 2026-10-09).
+ * Sonnet 5 / 5.5 and Haiku 5.5 (checked against the pricing page 2026-10-09),
+ * and 2026-11 for Fable 5.2 (from the Claude Code release notes).
  *
  * Note: Opus 4.5/4.6/4.7 use reduced pricing ($5/$25) vs. older Opus 4/4.1 ($15/$75).
  * Cache writes are now tracked separately for 5m and 1h TTLs, each with their own rate.
@@ -21,6 +22,17 @@ export const LONG_PROMPT_THRESHOLD = 100_000;
 // or a correction is a new row, never an edit of an old one, so a run is
 // always priced at the rate that applied when it happened (#15).
 const PRICE_HISTORY = {
+  // Fable 5.2 — $8/$40 with $0.20 cache reads (Claude Code 2.1.321 release
+  // notes, 2026-11-09). The notes give no cache write rates, so the 5m/1h
+  // rows assume the standard multipliers (1.25x and 2x input).
+  'claude-fable-5-2': [{
+    from: null,
+    input: 8.0,
+    cacheWrite5m: 10.0,
+    cacheWrite1h: 16.0,
+    cacheRead: 0.2,
+    output: 40.0,
+  }],
   // Fable 5.1 / Mythos 5.1 — same prices as Fable 5 except cache reads, which
   // drop to $0.25.
   'claude-fable-5-1': [{
@@ -217,6 +229,7 @@ const ALIAS_HISTORY = {
   fable: [
     { from: '2026-06-09', model: 'claude-fable-5' },
     { from: '2026-09-01', model: 'claude-fable-5-1' },
+    { from: '2026-11-09', model: 'claude-fable-5-2' },
   ],
 };
 
@@ -255,6 +268,7 @@ export function detectPricingTier(model, { at } = {}) {
   // under-estimated costs ~3x ($3/$15 vs the real $10/$50).
   if (m.includes('fable') || m.includes('mythos')) {
     // `(?!\d)` keeps a date suffix (`fable-5-20261001`) from reading as 5.1.
+    if (/(fable|mythos)[-_.]?5[-_.]2(?!\d)/.test(m)) return 'claude-fable-5-2';
     if (/(fable|mythos)[-_.]?5[-_.]1(?!\d)/.test(m)) return 'claude-fable-5-1';
     return 'claude-fable-5';
   }
@@ -302,6 +316,7 @@ export function detectPricingTier(model, { at } = {}) {
 const TIER_RANK = {
   'claude-fable-5': 3,
   'claude-fable-5-1': 3,
+  'claude-fable-5-2': 3,
   'claude-opus-5-5': 2,
   'claude-opus-legacy': 2,
   'claude-opus-new': 2,

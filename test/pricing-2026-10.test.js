@@ -48,6 +48,8 @@ const SHAPES = (fam, ver) => [
 ];
 
 const CASES = [
+  ['fable', '5-2', card(8, 10, 16, 0.2, 40), 'claude-fable-5-2'],
+  ['mythos', '5-2', card(8, 10, 16, 0.2, 40), 'claude-fable-5-2'],
   ['fable', '5-1', card(10, 12.5, 20, 0.25, 50), 'claude-fable-5-1'],
   ['mythos', '5-1', card(10, 12.5, 20, 0.25, 50), 'claude-fable-5-1'],
   ['opus', '5-5', card(4, 5, 8, 0.2, 20), 'claude-opus-5-5'],
@@ -128,6 +130,7 @@ test('`long` is ignored by every tier other than Haiku 5.5', () => {
 
 test('modelRank orders the new ids with their families', () => {
   assert.equal(modelRank('claude-fable-5-1'), 3);
+  assert.equal(modelRank('claude-fable-5-2'), 3);
   assert.equal(modelRank('claude-opus-5-5'), 2);
   assert.equal(modelRank('claude-sonnet-5'), 1);
   assert.equal(modelRank('claude-sonnet-5-5'), 1);
