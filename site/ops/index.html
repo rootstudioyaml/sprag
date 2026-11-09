@@ -1614,6 +1614,8 @@ function sumUsage(list){
   Object.entries(dayGw).forEach(([gk, g]) => { o.byDay[gk.slice(0, gk.indexOf('|'))].tot += g; });
   return o;
 }
+/* a member name that copies itself on click; plain text when a cached admin-ux.js predates copyId */
+const cpId = (v, shown) => AdminUX.copyId ? AdminUX.copyId(v, shown) : esc(shown ?? v);
 async function loadOrgs(){
   orgsErr = '';
   try{ const d = await rpc('ops_orgs', Range.args()); orgs = Array.isArray(d) ? d : []; }catch(e){ orgs = []; orgsErr = errMsg(e); }
@@ -2230,7 +2232,7 @@ const Seats = (function(){
       rowClass: r => (goneOf(r) ? 'gone' : '') + (st.hl && (st.hl.id === r.member_id || (st.hl.team && st.hl.team === r.team_id)) ? ' hl' : ''),
       columns: [
         { key:'name', label:t('sr.c.name'), cls:'sn', tdAttr: r => `title="${esc(NAME(r))}"`, val: NAME,
-          cell: r => { const host = r.seat_of ? st.rows.find(x => x.member_id === r.seat_of) : null; return esc(NAME(r)) + (r.seat_of ? `<span class="share">${t('sr.shares', { name: host ? NAME(host) : '?' })}</span>` : ''); } },
+          cell: r => { const host = r.seat_of ? st.rows.find(x => x.member_id === r.seat_of) : null; return cpId(NAME(r)) + (r.seat_of ? `<span class="share">${t('sr.shares', { name: host ? NAME(host) : '?' })}</span>` : ''); } },
         { key:'team', label:t('sr.c.team'), cls:'tm', tdAttr: tm, val: r => r.team_name || '' },
         { key:'switch', label:t('sr.c.switch'), val: r => goneOf(r) ? '' : (r.switch === 'off' ? t('sr.sw.off') : t('sr.sw.on')),
           cell: r => goneOf(r) ? '' : `<span class="badge ${r.switch === 'off' ? 'warn' : 'good'}" title="${esc(t('sr.tip.switch.' + (r.switch === 'off' ? 'off' : 'on')))}">${esc(t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')))}</span>` },
