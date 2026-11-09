@@ -7,15 +7,28 @@
  * litellm-models.js imports cost.js, and this needs both.
  */
 import { estimateCost, estimateCostAcross } from './cost.js';
-import { gatewayPriceFor } from './litellm-models.js';
+import { gatewayPriceFor, gatewayPriceMiss } from './litellm-models.js';
 import { gatewayBase } from './gateway-auth.js';
+import { diagActive, recordDiag } from './diag-log.js';
 
 // `at` is when the tokens were spent; list prices and gateway prices (from the
 // gateway's dated price history) are looked up for that time.
 export function sessionCost(totals, model, { env = process.env, now, at } = {}) {
   if (!gatewayBase(env)) return estimateCost(totals, model, { at });
   const price = gatewayPriceFor(model, env, now, at);
+  if (!price) noteUnpriced(model, env, now, at);
   return price ? estimateCost(totals, model, { price }) : null;
+}
+
+// A gateway session with no price is invisible otherwise: the figure just reads
+// as unpriced. The diagnostics log records why, once per distinct message per
+// process (recordDiag dedupes), so the message must not carry `at`.
+function noteUnpriced(model, env, now, at) {
+  try {
+    if (!diagActive({ env })) return;
+    const { reason, keys } = gatewayPriceMiss(model, env, now, at);
+    recordDiag('price:unpriced', new Error(`model=${model} reason=${reason} known=${keys.join(',')}`), { env });
+  } catch { /* diagnostics only */ }
 }
 
 /**

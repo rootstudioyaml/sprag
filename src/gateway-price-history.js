@@ -110,19 +110,48 @@ export function recordGatewayPrices(base, prices, fetchedAtMs = Date.now()) {
  * limit, or that row lacks the model (or lists it as ambiguous).
  */
 export function gatewayPriceAt(model, base, at) {
-  if (!base || typeof model !== 'string' || !model) return null;
+  return resolveAt(model, base, at).price;
+}
+
+/**
+ * Why `gatewayPriceAt` returned null, as a short label for the diagnostics log:
+ * `no-history` (no entry or rows for `base`), `stale` (`at` is later than the
+ * freshness limit), `ambiguous` (the key is listed with a null value),
+ * `not-listed` (the key is absent) or `bad-time`. null when the model is priced.
+ */
+export function gatewayPriceMissReason(model, base, at) {
+  return resolveAt(model, base, at).reason;
+}
+
+/**
+ * The model keys of the price row that `gatewayPriceAt` would use, sorted and
+ * cut to `max` (8 by default). Empty when there is no such row. Shows whether
+ * the gateway's table lists the model under another name.
+ */
+export function gatewayPriceKeys(model, base, at, max = 8) {
+  const prices = resolveAt(model, base, at).prices;
+  return prices ? Object.keys(prices).sort().slice(0, max) : [];
+}
+
+function resolveAt(model, base, at) {
+  const miss = (reason, prices = null) => ({ price: null, reason, prices });
+  if (!base) return miss('no-history');
   const t = typeof at === 'number' ? at : Date.parse(at);
-  if (!Number.isFinite(t)) return null;
+  if (!Number.isFinite(t)) return miss('bad-time');
   const entry = readHistory().gateways[base] ?? seedEntry(base);
-  if (!entry || !Array.isArray(entry.rows) || entry.rows.length === 0) return null;
-  if (!Number.isFinite(entry.checkedAt) || t > entry.checkedAt + PRICE_MAX_AGE_MS) return null;
+  if (!entry || !Array.isArray(entry.rows) || entry.rows.length === 0) return miss('no-history');
   const day = dayOf(t);
   let row = entry.rows[0];
   for (const r of entry.rows) if (r.from <= day) row = r;
   const prices = row?.prices;
-  if (!prices || typeof prices !== 'object') return null;
+  if (!prices || typeof prices !== 'object') return miss('no-history');
+  // The row is chosen before the freshness check so a stale miss still shows what the table held.
+  if (!Number.isFinite(entry.checkedAt) || t > entry.checkedAt + PRICE_MAX_AGE_MS) return miss('stale', prices);
+  if (typeof model !== 'string' || !model) return miss('not-listed', prices);
   for (const key of [model, normalizeCandidate(model)]) {
-    if (key && Object.hasOwn(prices, key)) return prices[key] || null;
+    if (key && Object.hasOwn(prices, key)) {
+      return prices[key] ? { price: prices[key], reason: null, prices } : miss('ambiguous', prices);
+    }
   }
-  return null;
+  return miss('not-listed', prices);
 }

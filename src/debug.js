@@ -13,13 +13,19 @@
  */
 
 import { envVar } from './env.js';
+import { recordDiag } from './diag-log.js';
 const ENABLED = !!envVar('DEBUG');
 
 /**
+ * Every swallowed error is also noted in the local diagnostics log (diag-log.js)
+ * when this machine is joined to a team, whether or not SPRAG_DEBUG is set.
+ * recordDiag never throws.
+ *
  * @param {string} scope short label for where the failure happened
  * @param {unknown} err the swallowed error
  */
 export function debug(scope, err) {
+  recordDiag(scope, err);
   if (!ENABLED) return;
   const msg = err && err.stack ? err.stack : String(err);
   process.stderr.write(`[cts:${scope}] ${msg}\n`);

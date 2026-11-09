@@ -29,7 +29,7 @@ import { loadProfileMap, updateProfileMap, resetModelAliasCache, profileIdFrom, 
 import { isRecognizedModelId } from './cost.js';
 import { deploymentPrice, mergePrices, PRICE_MAX_AGE_MS } from './gateway-prices.js';
 import { debug } from './debug.js';
-import { recordGatewayPrices, gatewayPriceAt } from './gateway-price-history.js';
+import { recordGatewayPrices, gatewayPriceAt, gatewayPriceMissReason, gatewayPriceKeys } from './gateway-price-history.js';
 
 /** 게이트웨이 모델 맵의 신선도 기준. 배포 구성은 하루에 여러 번 바뀌지 않습니다. */
 export const MODEL_MAP_TTL_MS = 24 * 60 * 60 * 1000;
@@ -196,6 +196,34 @@ export function gatewayPriceFor(model, env = process.env, now = Date.now(), at) 
     if (key && Object.hasOwn(gateway.prices, key)) return gateway.prices[key] || null;
   }
   return null;
+}
+
+/**
+ * gatewayPriceFor 가 null 을 돌려준 까닭을 진단 로그용 짧은 라벨로 돌려줍니다.
+ * `at` 이 있으면 날짜별 이력(no-history · stale · ambiguous · not-listed ·
+ * bad-time), 없으면 profile-map 의 표(no-table · stale · ambiguous · not-listed).
+ * `keys` 는 조회에 쓰인 표의 모델 키(정렬, 최대 8개)입니다. 가격표를 읽을 뿐
+ * 네트워크는 쓰지 않습니다.
+ *
+ * @returns {{reason: string, keys: string[]}}
+ */
+export function gatewayPriceMiss(model, env = process.env, now = Date.now(), at) {
+  const base = gatewayBase(env);
+  if (at !== undefined && at !== null) {
+    return { reason: gatewayPriceMissReason(model, base, at) || 'unknown', keys: gatewayPriceKeys(model, base, at) };
+  }
+  const gateway = readGatewayModelMap(env);
+  if (!gateway?.prices || typeof gateway.prices !== 'object') return { reason: 'no-table', keys: [] };
+  const keys = Object.keys(gateway.prices).sort().slice(0, 8);
+  const fetchedAt = Date.parse(gateway.fetchedAt);
+  if (!Number.isFinite(fetchedAt)) return { reason: 'no-table', keys };
+  if (fetchedAt > now || now - fetchedAt > PRICE_MAX_AGE_MS) return { reason: 'stale', keys };
+  if (typeof model === 'string' && model) {
+    for (const key of [model, normalizeCandidate(model)]) {
+      if (key && Object.hasOwn(gateway.prices, key)) return { reason: gateway.prices[key] ? 'unknown' : 'ambiguous', keys };
+    }
+  }
+  return { reason: 'not-listed', keys };
 }
 
 /**

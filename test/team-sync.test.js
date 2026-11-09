@@ -10,10 +10,11 @@ import { tmpdir, hostname, userInfo } from 'node:os';
 import { join } from 'node:path';
 import {
   aggregateDaily, syncTeam, autoJoin, joinTeam, leaveTeam, rpc, loadTeamState, saveTeamState,
-  teamStatePath, teamRulesCachePath, autoJoinNotice, TEAM_SYNC_INTERVAL_MS, deviceInfo, RULE_STATS_RESEND_MS,
+  teamStatePath, teamRulesCachePath, autoJoinNotice, TEAM_SYNC_INTERVAL_MS, deviceInfo, RULE_STATS_RESEND_MS, DIAG_UPLOAD_INTERVAL_MS,
 } from '../src/team-sync.js';
 import { autoJoinNoticeBlock } from '../src/team-ratchet.js';
 import { userDataDir } from '../src/paths.js';
+import { recordDiag, readDiag, _resetDiagForTest } from '../src/diag-log.js';
 
 const TOKEN = 'spt_' + 'a'.repeat(32);
 
@@ -43,14 +44,18 @@ function isolate(t) {
 function fakeFetch(handlers = {}) {
   const calls = [];
   const standingCalls = [];
+  const diagCalls = [];
   const f = async (url, init) => {
     const fn = url.split('/rpc/')[1];
     const body = JSON.parse(init.body);
-    // member_standing is best effort and answers like an older server unless a test gives it a handler;
-    // its calls are kept apart so the call lists below describe the sync itself.
+    // member_standing and diag_upload are best effort and answer like an older server unless a test gives them a handler;
+    // their calls are kept apart so the call lists below describe the sync itself.
     if (fn === 'member_standing') {
       standingCalls.push({ fn, body });
       if (!handlers.member_standing) return { ok: false, status: 404, json: async () => ({ code: 'PGRST202', message: 'Could not find the function public.member_standing' }) };
+    } else if (fn === 'diag_upload') {
+      diagCalls.push({ fn, body });
+      if (!handlers.diag_upload) return { ok: false, status: 404, json: async () => ({ code: 'PGRST202', message: 'Could not find the function public.diag_upload' }) };
     } else calls.push({ fn, body, headers: init.headers });
     const h = handlers[fn];
     const r = typeof h === 'function' ? h(body) : h;
@@ -59,6 +64,7 @@ function fakeFetch(handlers = {}) {
   };
   f.calls = calls;
   f.standingCalls = standingCalls;
+  f.diagCalls = diagCalls;
   return f;
 }
 
@@ -622,4 +628,192 @@ test('the rules-only pull, the prompts-only path and a disabled switch never rep
   await syncTeam({ dir, fetch: f, now, env: {}, promptsOnly: true, force: true });
   await syncTeam({ dir, fetch: f, now, env: { SPRAG_NO_TEAM_SYNC: '1' }, force: true });
   assert.equal(reportCalls(f).length, 0);
+});
+
+// ---- diagnostics log: the named conditions and the diag_upload step ----
+
+const diagMsgs = (dir) => readDiag({ dir }).map((e) => `${e.scope}: ${e.msg}`);
+
+test('aggregateDaily with no rows records team-sync:no-rows with the session counts', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  saveTeamState(joinedState(), dir);
+  const rows = await aggregateDaily({ dir, env: {}, sessions: [], coworkSessions: [], codexSessions: [] });
+  assert.deepEqual(rows, []);
+  const [e] = readDiag({ dir });
+  assert.equal(e.scope, 'team-sync:no-rows');
+  assert.match(e.msg, /^claude=0 cowork=0 codex=0 projectsDir=false configDir=unset gateway=no @ src\/team-sync\.js:\d+$/);
+});
+
+test('aggregateDaily counts the sessions it was given when it still has no rows, and says when CLAUDE_CONFIG_DIR and a gateway are set', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  saveTeamState(joinedState(), dir);
+  mkdirSync(join(process.env.HOME, '.claude', 'projects'), { recursive: true });
+  const old = { startTime: '2020-01-01T00:00:00Z', totals: { input: 1, output: 1 }, model: 'claude-opus-5' }; // outside the 30-day window
+  const rows = await aggregateDaily({
+    dir, now: Date.now(), env: { CLAUDE_CONFIG_DIR: '/somewhere', ANTHROPIC_BASE_URL: 'https://gw.example' },
+    sessions: [old, old], coworkSessions: [old], codexSessions: [],
+  });
+  assert.deepEqual(rows, []);
+  assert.match(diagMsgs(dir)[0], /^team-sync:no-rows: claude=2 cowork=1 codex=0 projectsDir=true configDir=set gateway=yes /);
+});
+
+test('aggregateDaily with rows, or on a machine that is not joined, records nothing', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  await aggregateDaily({ dir, env: {}, sessions: [], coworkSessions: [], codexSessions: [] });
+  assert.equal(existsSync(join(dir, 'diag-log.json')), false); // not joined
+  saveTeamState(joinedState(), dir);
+  writeFileSync(join(dir, 'doc2md-ledger.json'), JSON.stringify({ version: 1, events: { a: { ts: Date.now() - 1000, usd: 1 } } }));
+  const rows = await aggregateDaily({ dir, env: {}, sessions: [], coworkSessions: [], codexSessions: [] });
+  assert.equal(rows.length, 1);
+  assert.deepEqual(readDiag({ dir }), []);
+});
+
+test('syncTeam uploads the diagnostics log to diag_upload and acks what it sent', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  const now = Date.now();
+  saveTeamState(joinedState(), dir);
+  recordDiag('probe', new Error('earlier failure'), { dir, env: {} });
+  const f = fakeFetch({ ...SYNC_OK, diag_upload: 2, member_standing: {} });
+  const r = await syncTeam({ dir, fetch: f, now, env: {}, sessions: [], version: '9.9.9' });
+  assert.equal(r.error, undefined);
+  assert.equal(f.diagCalls.length, 1);
+  const body = f.diagCalls[0].body;
+  assert.deepEqual(Object.keys(body).sort(), ['entries', 'member_key', 'sprag_version']);
+  assert.equal(body.member_key, 'spk_secret');
+  assert.equal(body.sprag_version, '9.9.9');
+  assert.ok(body.entries.some((e) => e.scope === 'probe' && e.msg === 'earlier failure' && e.count === 1));
+  assert.ok(body.entries.some((e) => e.scope === 'team-sync:no-rows'));
+  for (const e of body.entries) assert.deepEqual(Object.keys(e).sort(), ['count', 'first', 'last', 'msg', 'scope']);
+  assert.deepEqual(readDiag({ dir }), []);
+  assert.equal(loadTeamState(dir).lastDiagAt, now);
+  assert.equal(loadTeamState(dir).lastDiagError, undefined);
+});
+
+test('diagnostics upload waits 30 minutes between uploads unless forced', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  const now = Date.now();
+  saveTeamState(joinedState({ lastDiagAt: now - 10 * 60 * 1000 }), dir);
+  recordDiag('probe', new Error('one'), { dir, env: {} });
+  const f = fakeFetch({ ...SYNC_OK, diag_upload: 1 });
+  await syncTeam({ dir, fetch: f, now, env: {}, sessions: [] });
+  assert.equal(f.diagCalls.length, 0);
+  assert.ok(readDiag({ dir }).length >= 1);
+  await syncTeam({ dir, fetch: f, now: now + DIAG_UPLOAD_INTERVAL_MS, env: {}, sessions: [] });
+  assert.equal(f.diagCalls.length, 1);
+  assert.deepEqual(readDiag({ dir }), []);
+  recordDiag('probe', new Error('two'), { dir, env: {} });
+  await syncTeam({ dir, fetch: f, now: now + DIAG_UPLOAD_INTERVAL_MS + TEAM_SYNC_INTERVAL_MS + 1000, env: {}, sessions: [] });
+  assert.equal(f.diagCalls.length, 1); // 6 minutes after the last upload
+  await syncTeam({ dir, fetch: f, force: true, now: now + DIAG_UPLOAD_INTERVAL_MS + TEAM_SYNC_INTERVAL_MS + 2000, env: {}, sessions: [] });
+  assert.equal(f.diagCalls.length, 2);
+});
+
+test('at most 100 entries go up, newest first', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  saveTeamState(joinedState(), dir);
+  const entries = Array.from({ length: 120 }, (_, i) => ({ scope: 's', msg: `m${i}`, count: 1, first: new Date(1e12 + i * 1000).toISOString(), last: new Date(1e12 + i * 1000).toISOString() }));
+  writeFileSync(join(dir, 'diag-log.json'), JSON.stringify({ version: 1, entries }));
+  writeFileSync(join(dir, 'doc2md-ledger.json'), JSON.stringify({ version: 1, events: { a: { ts: Date.now() - 1000, usd: 1 } } })); // a row, so no-rows adds nothing
+  const f = fakeFetch({ ...SYNC_OK, diag_upload: 100, member_standing: {} });
+  await syncTeam({ dir, fetch: f, now: Date.now(), env: {}, sessions: [] });
+  const sent = f.diagCalls[0].body.entries;
+  assert.equal(sent.length, 100);
+  assert.equal(sent[0].msg, 'm119');
+  assert.equal(readDiag({ dir }).length, 20);
+  assert.ok(readDiag({ dir }).every((e) => Number(e.msg.slice(1)) < 20));
+});
+
+test('a server without diag_upload (PGRST202) is silent: the sync succeeds, nothing is acked, no error is stored', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  saveTeamState(joinedState(), dir);
+  recordDiag('probe', new Error('kept'), { dir, env: {} });
+  const f = fakeFetch(SYNC_OK); // no diag_upload handler: answers PGRST202
+  const r = await syncTeam({ dir, fetch: f, now: Date.now(), env: {}, sessions: [] });
+  assert.equal(r.error, undefined);
+  assert.equal(f.diagCalls.length, 1);
+  assert.ok(readDiag({ dir }).some((e) => e.msg === 'kept'));
+  const st = loadTeamState(dir);
+  assert.equal(st.lastDiagError, undefined);
+  assert.equal(st.lastDiagAt, undefined);
+  assert.equal(st.lastError, undefined);
+  assert.ok(st.lastSyncAt);
+});
+
+test('another diag_upload failure never fails the sync and does not enter the log it was sending', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  saveTeamState(joinedState(), dir);
+  recordDiag('probe', new Error('kept'), { dir, env: {} });
+  const f = fakeFetch({ ...SYNC_OK, diag_upload: { status: 500, json: { message: 'db down' } } });
+  const r = await syncTeam({ dir, fetch: f, now: Date.now(), env: {}, sessions: [] });
+  assert.equal(r.error, undefined);
+  assert.match(loadTeamState(dir).lastDiagError, /db down/);
+  assert.ok(readDiag({ dir }).some((e) => e.msg === 'kept'));
+  assert.ok(!diagMsgs(dir).some((m) => /diag_upload|db down/.test(m)));
+  assert.equal(loadTeamState(dir).lastError, undefined);
+});
+
+test('a failed sync still uploads the diagnostics, including the failure that just happened', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  const now = Date.now();
+  saveTeamState(joinedState({ lastDiagAt: now - 1000 }), dir); // inside the 30-minute window: only force gets through
+  const f = fakeFetch({ ledger_upsert: { status: 500, json: { message: 'ledger broke' } }, diag_upload: 1 });
+  const r = await syncTeam({ dir, fetch: f, now, env: {}, sessions: [] });
+  assert.match(r.error, /ledger broke/);
+  assert.equal(f.diagCalls.length, 1);
+  const sent = f.diagCalls[0].body.entries;
+  assert.ok(sent.some((e) => e.scope === 'team-sync' && /^ledger_upsert: ledger broke @ src\/team-sync\.js:\d+$/.test(e.msg)), JSON.stringify(sent));
+  const st = loadTeamState(dir);
+  assert.match(st.lastError, /ledger broke/);
+  assert.equal(st.syncFailures, 1);
+  assert.equal(st.lastDiagAt, now);
+  assert.deepEqual(readDiag({ dir }), []);
+});
+
+test('SPRAG_NO_DIAG=1 stops both the recording and the upload', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  saveTeamState(joinedState(), dir);
+  recordDiag('probe', new Error('kept'), { dir, env: {} });
+  const f = fakeFetch({ ...SYNC_OK, diag_upload: 1, member_standing: {} });
+  const r = await syncTeam({ dir, fetch: f, now: Date.now(), env: { SPRAG_NO_DIAG: '1' }, sessions: [] });
+  assert.equal(r.error, undefined);
+  assert.equal(f.diagCalls.length, 0);
+  assert.deepEqual(diagMsgs(dir), ['probe: kept']); // no-rows was not added either
+});
+
+test('a gateway address without a key records team-sync:gateway-env', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ ...SYNC_OK, diag_upload: 1 });
+  await syncTeam({ dir, fetch: f, now: Date.now(), env: { ANTHROPIC_BASE_URL: 'https://gw.example:4000' }, sessions: [] });
+  const sent = f.diagCalls[0].body.entries.find((e) => e.scope === 'team-sync:gateway-env');
+  assert.ok(sent);
+  assert.match(sent.msg, /^base=yes daily=no missing=key @ src\/team-sync\.js:\d+$/);
+});
+
+test('a failed gateway daily call records team-sync:gateway-daily with the host masked', async (t) => {
+  const dir = isolate(t);
+  _resetDiagForTest();
+  saveTeamState(joinedState(), dir);
+  const f = fakeFetch({ ...SYNC_OK, diag_upload: 1 });
+  const gatewayFetch = async () => { throw new Error('connect ECONNREFUSED https://gw.corp.example:4000/user/info'); };
+  const r = await syncTeam({
+    dir, fetch: f, now: Date.now(), sessions: [], gatewayFetch,
+    env: { ANTHROPIC_BASE_URL: 'https://gw.corp.example:4000', ANTHROPIC_AUTH_TOKEN: 'tok' },
+  });
+  assert.equal(r.error, undefined);
+  const e = f.diagCalls[0].body.entries.find((x) => x.scope === 'team-sync:gateway-daily');
+  assert.ok(e, JSON.stringify(f.diagCalls[0].body.entries));
+  assert.ok(!e.msg.includes('corp.example'));
+  assert.match(e.msg, /<host>/);
 });
