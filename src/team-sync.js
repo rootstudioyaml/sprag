@@ -127,6 +127,9 @@ async function refreshStanding({ memberKey, dir, fetch, now }) {
       // The same score counted within the member's own team.
       teamRank: num(r.team_rank), teamRanked: num(r.team_ranked),
       teamName: typeof r.team_name === 'string' && r.team_name ? r.team_name : null,
+      // The two (three, with prompt capture) ranks the overall score adds, each out
+      // of `ranked` (server migration 20261109000200). An older server omits them.
+      spendRank: num(r.spend_rank), dlgRank: num(r.dlg_rank), promptRank: num(r.prompt_rank),
     };
     saveTeamState({
       ...cur,
@@ -161,13 +164,17 @@ export function readTeamChip({ dir = userDataDir() } = {}) {
         ? {
           grade: st.grade, rank: Number.isFinite(st.rank) ? st.rank : null, ranked: Number.isFinite(st.ranked) ? st.ranked : null,
           teamRank: Number.isFinite(st.teamRank) ? st.teamRank : null, teamRanked: Number.isFinite(st.teamRanked) ? st.teamRanked : null,
-          // What the team line says about moving up (src/team-standing.js standingFeedbackShort).
+          // What the team line shows: the gauge, the next species and the axis ranks (statusline.js buildTeamLine).
           crown: !!st.crown,
           next: st.next && typeof st.next === 'object' && typeof st.next.grade === 'string'
             ? { grade: st.next.grade, pass: Number.isFinite(st.next.pass) ? st.next.pass : 0, needDlg: !!st.next.needDlg }
             : null,
           idle: typeof st.idle === 'boolean' ? st.idle : null,
           medianDlg: Number.isFinite(st.medianDlg) ? st.medianDlg : null,
+          scorePct: Number.isFinite(st.scorePct) ? st.scorePct : null,
+          spendRank: Number.isFinite(st.spendRank) ? st.spendRank : null,
+          dlgRank: Number.isFinite(st.dlgRank) ? st.dlgRank : null,
+          promptRank: Number.isFinite(st.promptRank) ? st.promptRank : null,
           fetchedAt: Number(st.fetchedAt) || 0,
         }
         : null,

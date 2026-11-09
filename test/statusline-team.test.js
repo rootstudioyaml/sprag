@@ -47,21 +47,14 @@ test('chip: the rank within the team rides behind the organization rank, only wh
 test('multi-line layout: the team gets a line of its own, last of the headlines, and the chip steps aside', () => {
   const team = pro({ lang: 'ko', standing: standing({ rank: 4, ranked: 13, teamRank: 1, teamRanked: 4 }) });
   const lines = multi(team);
-  // No figures from the server: the percentile and the people to pass are read off the rank.
-  assert.equal(lines[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  종합 점수 13명 중 4위, 팀 4명 중 1위 🦊 여우 · 1위까지 3명 · 지금 75%, 2%p 더 오르면 🐆 치타 (1명 앞지르기)');
+  // No figures from the server: the percentile (75%) and the next species are read off the rank; no axis ranks yet.
+  assert.equal(lines[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  🦊 여우 ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 치타 77%  |  종합 4/13위 · 팀 1/4위');
   assert.doesNotMatch(lines[lines.length - 1], /member-/, 'the chip line no longer carries the team');
   assert.doesNotMatch(lines[lines.length - 1], /· {2}·|· $|^ ·/, 'and leaves no empty slot behind');
-  // With the server's distance to the next species, and in English.
-  const next = pro({ lang: 'en', standing: standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, scorePct: 0.75, next: { grade: 'cheetah', pass: 2, needDlg: false } }) });
-  assert.equal(multi(next)[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  overall score #3 of 12, team #1 of 4 🦊 Fox · 2 to pass for #1 · now 75%, 2 pts more for 🐆 Cheetah (pass 2)');
-  // The crown (a cheetah at 100%: only the delegation rule separates it from the wolf), someone alone, and a ghost.
-  assert.match(multi(pro({ lang: 'ko', standing: standing({ grade: 'cheetah', rank: 1, ranked: 12, crown: true }) }))[0], /종합 점수 12명 중 1위 🐆 치타 · 👑 회사 1위 · 지금 100%, 위임 비율 회사 중앙값 이상이면 🐺 늑대$/);
-  assert.match(multi(pro({ lang: 'ko', standing: standing({ grade: 'cat', rank: 1, ranked: 1 }) }))[0], /member-1a2b3c4d  \|  종합 점수 1명 중 1위 🐱 고양이 · 지금 50%, 혼자라 고정 · 동료가 참여하면 순위 시작$/);
-  assert.match(multi(pro({ lang: 'ko', standing: standing({ grade: 'ghost', rank: null, ranked: 12 }) }))[0], /member-1a2b3c4d  \|  👻 유령 · 이 기간 업로드 없음$/);
+  // No chatty phrases from the old tail.
+  assert.doesNotMatch(lines[0], /1위까지|지금 75%|앞지르기/);
   // No standing yet: the identity alone, still on its own line.
   assert.equal(multi(pro({ lang: 'ko', standing: null }))[0], '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d');
-  // Text mode: no glyph, no emoji.
-  assert.equal(multi(team, { mode: 'text' })[0], 'Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  종합 점수 13명 중 4위, 팀 4명 중 1위 여우 · 1위까지 3명 · 지금 75%, 2%p 더 오르면 치타 (1명 앞지르기)');
   // It sits after the savings lines when there are any.
   const totals = { week: 0, month: 0, total: 3.2, spent: 0, spentMissing: 0, pairs: [], since: null };
   const withSavings = formatReport({ ...base(), delegationSaved: 3.2, delegationTotals: totals, team }, { color: false, timer: false, mode: 'icon' }).split('\n');
@@ -69,6 +62,69 @@ test('multi-line layout: the team gets a line of its own, last of the headlines,
   assert.match(withSavings[1], /^👥 Pro · acmeco/);
   // `--segments` without team draws neither the line nor the chip.
   assert.doesNotMatch(formatReport({ ...base(), team }, { color: false, timer: false, mode: 'icon', segments: ['saved'] }), /member-/);
+});
+
+const HEAD = '👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  ';
+const AXES = { spendRank: 2, dlgRank: 5 };
+
+test('team line: gauge, the next species and the ranks the score is made of (ko and en)', () => {
+  const st = standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, scorePct: 0.75, next: { grade: 'cheetah', pass: 2, needDlg: false }, ...AXES });
+  assert.equal(multi(pro({ lang: 'ko', standing: st }))[0], `${HEAD}🦊 여우 ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 치타 77%  |  종합 3/12위 · 팀 1/4위 · 사용량 2/12위 · 위임률 5/12위`);
+  assert.equal(multi(pro({ lang: 'en', standing: st }))[0], `${HEAD}🦊 Fox ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 Cheetah 77%  |  overall #3/12 · team #1/4 · spend #2/12 · delegation #5/12`);
+  // The only percentages on the line are the gauge value and the next species' starting percentile.
+  const pcts = multi(pro({ lang: 'ko', standing: st }))[0].match(/\d+%/g);
+  assert.deepEqual(pcts, ['75%', '77%']);
+  // The team rank shows only when the team is a strict part of the ranked people.
+  const one = standing({ rank: 3, ranked: 12, teamRank: 3, teamRanked: 12, scorePct: 0.75, ...AXES });
+  assert.doesNotMatch(multi(pro({ lang: 'ko', standing: one }))[0], /팀 3\/12위/);
+});
+
+test('team line: an older server sends no axis ranks, so only the overall (and team) rank follows', () => {
+  const st = standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, scorePct: 0.75, next: { grade: 'cheetah', pass: 2, needDlg: false } });
+  assert.equal(multi(pro({ lang: 'ko', standing: st }))[0], `${HEAD}🦊 여우 ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 치타 77%  |  종합 3/12위 · 팀 1/4위`);
+  assert.equal(multi(pro({ lang: 'en', standing: { ...st, spendRank: 2 } }))[0], `${HEAD}🦊 Fox ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 Cheetah 77%  |  overall #3/12 · team #1/4 · spend #2/12`);
+});
+
+test('team line: a next species behind the delegation rule says so, and the top row says it is the top', () => {
+  const wolf = standing({ rank: 3, ranked: 12, scorePct: 0.75, next: { grade: 'wolf', pass: 3, needDlg: true }, ...AXES });
+  assert.equal(multi(pro({ lang: 'ko', standing: wolf }))[0], `${HEAD}🦊 여우 ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐺 늑대 80% (위임률 중앙값 이상 필요)  |  종합 3/12위 · 사용량 2/12위 · 위임률 5/12위`);
+  assert.equal(multi(pro({ lang: 'en', standing: wolf }))[0], `${HEAD}🦊 Fox ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐺 Wolf 80% (needs median delegation or more)  |  overall #3/12 · spend #2/12 · delegation #5/12`);
+  // Without the server's `next` the ladder names it: a cheetah keeps the rule for the wolf while the share is unknown.
+  assert.match(multi(pro({ lang: 'ko', standing: standing({ grade: 'cheetah', rank: 2, ranked: 12 }) }))[0], /→ 🐺 늑대 80% \(위임률 중앙값 이상 필요\)/);
+  const top = standing({ grade: 'dragon', rank: 2, ranked: 12, scorePct: 0.99, next: null, ...AXES });
+  assert.equal(multi(pro({ lang: 'ko', standing: top }))[0], `${HEAD}🐉 용 ▰▰▰▰▰▰▰▰▰▰▰▱ 99% · 도감 최상위  |  종합 2/12위 · 사용량 2/12위 · 위임률 5/12위`);
+  assert.match(multi(pro({ lang: 'en', standing: top }))[0], /Dragon .* 99% · top of the field guide {2}\| {2}overall #2\/12/);
+});
+
+test('team line: the crown, someone alone, an idle period, and a ghost', () => {
+  const crown = standing({ grade: 'cheetah', rank: 1, ranked: 12, crown: true, scorePct: 1, next: { grade: 'wolf', pass: 0, needDlg: true }, ...AXES });
+  assert.equal(multi(pro({ lang: 'ko', standing: crown }))[0], `${HEAD}🐆 치타 ▰▰▰▰▰▰▰▰▰▰▰▰ 100% → 🐺 늑대 80% (위임률 중앙값 이상 필요)  |  👑 종합 1/12위 · 사용량 2/12위 · 위임률 5/12위`);
+  assert.equal(multi(pro({ lang: 'ko', standing: standing({ grade: 'cat', rank: 1, ranked: 1 }) }))[0], `${HEAD}🐱 고양이 ▰▰▰▰▰▰▱▱▱▱▱▱ 50% 혼자라 고정  |  동료가 참여하면 사용량과 위임률 순위로 등급이 갈림`);
+  assert.equal(multi(pro({ lang: 'en', standing: standing({ grade: 'cat', rank: 1, ranked: 1 }) }))[0], `${HEAD}🐱 Cat ▰▰▰▰▰▰▱▱▱▱▱▱ 50% fixed while alone  |  once a colleague joins, the spend and delegation ranks decide the species`);
+  // Idle, ranked (also when alone): no gauge, only what to do.
+  assert.equal(multi(pro({ lang: 'ko', standing: standing({ grade: 'chick', rank: 5, ranked: 12, idle: true }) }))[0], `${HEAD}🐤 병아리  |  지출이 생기면 순위에 오름`);
+  assert.equal(multi(pro({ lang: 'en', standing: standing({ grade: 'chick', rank: 1, ranked: 1, idle: true }) }))[0], `${HEAD}🐤 Chick  |  spend to enter the standings`);
+  // A ghost has no rank: unchanged.
+  assert.equal(multi(pro({ lang: 'ko', standing: standing({ grade: 'ghost', rank: null, ranked: 12 }) }))[0], `${HEAD}👻 유령 · 이 기간 업로드 없음`);
+});
+
+test('team line: an Enterprise organization with prompt capture adds the prompt rank', () => {
+  const st = standing({ rank: 3, ranked: 12, scorePct: 0.75, next: { grade: 'cheetah', pass: 2, needDlg: false }, ...AXES, promptRank: 2 });
+  assert.equal(multi({ ...pro({ lang: 'ko', plan: 'enterprise', standing: st }) })[0], '👥 Enterprise · acmeco · DEV-OPS · member-1a2b3c4d  |  🦊 여우 ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 치타 77%  |  종합 3/12위 · 사용량 2/12위 · 위임률 5/12위 · 프롬프트 2/12위');
+  assert.match(multi(pro({ lang: 'en', standing: st }))[0], /overall #3\/12 · spend #2\/12 · delegation #5\/12 · prompts #2\/12$/);
+  // Without prompt capture the rank is null and the item is absent.
+  assert.doesNotMatch(multi(pro({ lang: 'ko', standing: { ...st, promptRank: null } }))[0], /프롬프트/);
+});
+
+test('team line: narrow keeps the verified gauge ticks, text mode draws no gauge, neither draws an emoji', () => {
+  const st = standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, scorePct: 0.75, next: { grade: 'cheetah', pass: 2, needDlg: false }, ...AXES });
+  const text = multi(pro({ lang: 'ko', standing: st }), { mode: 'text' })[0];
+  assert.equal(text, 'Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  여우 75% → 치타 77%  |  종합 3/12위 · 팀 1/4위 · 사용량 2/12위 · 위임률 5/12위');
+  const en = multi(pro({ lang: 'en', standing: st }), { mode: 'text' })[0];
+  assert.equal(en, 'Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  Fox 75% → Cheetah 77%  |  overall #3/12 · team #1/4 · spend #2/12 · delegation #5/12');
+  const narrow = multi(pro({ lang: 'ko', standing: { ...st, crown: true, rank: 1 } }), { mode: 'narrow' })[0];
+  assert.match(narrow, /여우 ■■■■■■■■■□□□ 75% → 치타 77%  \|  종합 1\/12위/);
+  for (const out of [text, en, narrow]) assert.doesNotMatch(out, /[\u{1F300}-\u{1FAFF}]/u, 'no emoji');
 });
 
 test('IntelliJ (narrow) and text mode drop the animal emoji but keep the name and rank', () => {
@@ -120,11 +176,11 @@ test('readTeamChip: joined, left and never joined; reads only and creates nothin
   assert.equal(joined.org, 'acmeco');
   assert.equal(joined.plan, 'pro');
   assert.equal(joined.team, null);
-  assert.deepEqual(joined.standing, { grade: 'owl', rank: 2, ranked: 7, teamRank: null, teamRanked: null, crown: false, next: null, idle: null, medianDlg: null, fetchedAt: 5 });
+  assert.deepEqual(joined.standing, { grade: 'owl', rank: 2, ranked: 7, teamRank: null, teamRanked: null, crown: false, next: null, idle: null, medianDlg: null, scorePct: null, spendRank: null, dlgRank: null, promptRank: null, fetchedAt: 5 });
   // The team name, the rank within it and the feedback fields come along when stored.
-  saveTeamState({ memberKey: 'spk_x', displayName: 'member-1a2b3c4d', teamName: 'platform', standing: { grade: 'owl', rank: 2, ranked: 7, teamRank: 1, teamRanked: 3, crown: false, next: { grade: 'husky', pass: 1, needDlg: false }, idle: false, medianDlg: 0.28, fetchedAt: 5 } }, dir);
+  saveTeamState({ memberKey: 'spk_x', displayName: 'member-1a2b3c4d', teamName: 'platform', standing: { grade: 'owl', rank: 2, ranked: 7, teamRank: 1, teamRanked: 3, crown: false, next: { grade: 'husky', pass: 1, needDlg: false }, idle: false, medianDlg: 0.28, scorePct: 0.7, spendRank: 2, dlgRank: 5, promptRank: 1, fetchedAt: 5 } }, dir);
   assert.equal(readTeamChip({ dir }).team, 'platform');
-  assert.deepEqual(readTeamChip({ dir }).standing, { grade: 'owl', rank: 2, ranked: 7, teamRank: 1, teamRanked: 3, crown: false, next: { grade: 'husky', pass: 1, needDlg: false }, idle: false, medianDlg: 0.28, fetchedAt: 5 });
+  assert.deepEqual(readTeamChip({ dir }).standing, { grade: 'owl', rank: 2, ranked: 7, teamRank: 1, teamRanked: 3, crown: false, next: { grade: 'husky', pass: 1, needDlg: false }, idle: false, medianDlg: 0.28, scorePct: 0.7, spendRank: 2, dlgRank: 5, promptRank: 1, fetchedAt: 5 });
   // No display name and no member-id file: nothing to show, and no file appears.
   saveTeamState({ memberKey: 'spk_x' }, dir);
   assert.equal(readTeamChip({ dir }), null);
