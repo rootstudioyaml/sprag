@@ -21,6 +21,7 @@ const TXT = {
     mvJoined:'Joined', mvRestored:'Restored', mvLeft:'Left', mvRemoved:'Removed', mvPaused:'Paused',
     mvTrunc:'Based on the latest {n} events; older changes are not shown',
     mvAria:'Seat movement: {joined} joined, {restored} restored, {left} left, {removed} removed, {paused} paused',
+    cpTip:'Click to copy', cpDone:'Copied', cpFail:'Could not copy',
     svDay:'Daily', svWeek:'Weekly', svMonth:'Monthly', svPer:'Per period', svCum:'Cumulative', svMode:'Chart mode',
     svSaved:'Savings this period', svAvg:'Daily average', svTrend:'Daily trend', svTrendSub:'First half {a} → second half {b}',
     svRate:'Savings per spend', svBest:'Top saving team', svNone:'No savings were recorded in this range',
@@ -41,6 +42,7 @@ const TXT = {
     mvJoined:'참여', mvRestored:'복원', mvLeft:'나감', mvRemoved:'제거', mvPaused:'중지',
     mvTrunc:'최근 기록 {n}건만 반영했습니다. 이보다 오래된 변동은 보이지 않습니다',
     mvAria:'좌석 변동: 참여 {joined}, 복원 {restored}, 나감 {left}, 제거 {removed}, 중지 {paused}',
+    cpTip:'눌러서 복사', cpDone:'복사함', cpFail:'복사하지 못했습니다',
     svDay:'일별', svWeek:'주별', svMonth:'월별', svPer:'구간별', svCum:'누적', svMode:'차트 보기 방식',
     svSaved:'기간 절감', svAvg:'일평균 절감', svTrend:'일평균 추세', svTrendSub:'전반 {a} → 후반 {b}',
     svRate:'지출 대비 절감', svBest:'최다 절감 팀', svNone:'이 기간에는 기록된 절감이 없습니다',
@@ -202,6 +204,13 @@ html[lang=ko] .pal li.pal-g{text-transform:none;letter-spacing:0}
 .mv-tip b{display:block;font-weight:600}
 .mv-tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 .mv-note{margin-top:var(--s2);font-size:12px;color:var(--faint)}
+
+/* copyable member name */
+.cp-id{all:unset;cursor:copy;border-radius:3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+.cp-id:hover{color:var(--ink);text-decoration:underline dotted var(--faint);text-underline-offset:3px}
+.cp-id:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+.cp-id.on::after{content:attr(data-cp);margin-left:6px;font:500 11px var(--sans);color:var(--ok)}
+.cp-id.on.bad::after{color:var(--bad)}
 
 /* savings breakdown */
 .svx{margin-top:var(--s4)}
@@ -835,5 +844,17 @@ function savings(host, o){
   });
 }
 
-window.AdminUX = { u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, savings, savingsModel, ymd, esc };
+/* copyId: a member name that copies itself on click. One document listener serves every table, so a re-rendered row needs no wiring;
+   the tables' row handlers already ignore clicks on buttons */
+function copyId(text, shown){ return `<button type="button" class="cp-id" data-copy-id="${esc(text)}" title="${esc(u('cpTip'))}">${esc(shown ?? text)}</button>`; }
+doc.addEventListener('click', async ev => {
+  const b = ev.target.closest && ev.target.closest('.cp-id'); if(!b) return;
+  const v = b.dataset.copyId; let ok = false;
+  try{ await navigator.clipboard.writeText(v); ok = true; }
+  catch(e){ const ta = doc.createElement('textarea'); ta.value = v; ta.style.cssText = 'position:fixed;opacity:0'; doc.body.appendChild(ta); ta.select(); try{ ok = doc.execCommand('copy'); }catch(e2){} ta.remove(); }
+  b.dataset.cp = u(ok ? 'cpDone' : 'cpFail'); b.classList.toggle('bad', !ok); b.classList.add('on');
+  clearTimeout(b._cpT); b._cpT = setTimeout(() => b.classList.remove('on', 'bad'), 1400);
+});
+
+window.AdminUX = { copyId, u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, savings, savingsModel, ymd, esc };
 })();
