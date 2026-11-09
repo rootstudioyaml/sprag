@@ -98,11 +98,13 @@ function hasMarker(file) {
 }
 
 export function excludedPath(file) {
-  if (file.includes('/.claude/')) return true;
-  if (DOC_EXT_RE.test(file)) return true;
-  const tmp = tmpdir();
-  if (tmp && (file === tmp || file.startsWith(tmp.endsWith('/') ? tmp : `${tmp}/`))) return true;
-  return EXCLUDED_PREFIXES.some((p) => file.startsWith(p));
+  // Windows paths arrive with backslashes; compare with forward slashes only.
+  const f = file.replace(/\\/g, '/');
+  if (f.includes('/.claude/')) return true;
+  if (DOC_EXT_RE.test(f)) return true;
+  const tmp = (tmpdir() || '').replace(/\\/g, '/');
+  if (tmp && (f === tmp || f.startsWith(tmp.endsWith('/') ? tmp : `${tmp}/`))) return true;
+  return EXCLUDED_PREFIXES.some((p) => f.startsWith(p));
 }
 
 /** True when this tool call hands implementation work to another agent. */
