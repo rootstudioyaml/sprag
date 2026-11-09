@@ -78,6 +78,27 @@ export function isSystemPrompt(text) {
   return SYSTEM_PROMPT_PREFIXES.some((p) => t.startsWith(p));
 }
 
+/**
+ * A paragraph that opens with a short bracketed label ("[운영 규칙] …",
+ * "[리마인더] …") is a standing instruction a wrapper adds to every message,
+ * such as a Slack bot's prompt suffix.
+ */
+const STANDING_PARA_RE = /^\[[^\]\n]{1,24}\][ \t]/;
+
+/**
+ * The user's request without the standing-instruction paragraphs a wrapper puts
+ * before or after it. A 130-character "[운영 규칙]" suffix on every Slack message
+ * made each prompt read as a long spec: over 260 such prompts the delegation hint
+ * fired 0 times instead of 24, and the implementation reminder 236 times instead
+ * of 21. A prompt that is nothing but such a paragraph is kept as it is.
+ */
+export function stripStandingInstructions(text) {
+  const paras = String(text || '').trim().split(/\n[ \t]*\n/);
+  while (paras.length > 1 && STANDING_PARA_RE.test(paras[paras.length - 1].trim())) paras.pop();
+  while (paras.length > 1 && STANDING_PARA_RE.test(paras[0].trim())) paras.shift();
+  return paras.join('\n\n').trim();
+}
+
 /** Endings that ask what the model thinks ("좋은가", "괜찮지 않을까", "should we"). */
 const OPINION_RE = /(?:좋은가|좋을까|좋겠지|좋지\s*않|낫겠|낫지\s*않|나을까|나을\s*듯|괜찮(?:을까|은가|겠|지\s*않)|어때|어떨까|어떤가|맞(?:을까|는\s*건가|는가)|아닐까|아닌가|싶은데|듯\s*한데|생각(?:해|이)|의견|\bshould\s+(?:we|i)\b|\bwhat do you think\b|\bis it (?:better|worth)\b)/i;
 /** A request verb in the same text turns the opinion ending back into a task ("…아닐까 확인해줘"). */
@@ -148,7 +169,7 @@ export function looksLikeContextOrSpec(text) {
  * split at prompt time. Harness-written messages and acks are not requests.
  */
 export function looksLikeImplementation(text) {
-  const t = String(text || '').trim();
+  const t = stripStandingInstructions(text);
   if (t.length < MIN_LEN || isSystemPrompt(t)) return false;
   if (OUTWARD_RE.test(t) || OPEN_RESEARCH_RE.test(t)) return false;
   return EDIT_RE.test(t) || EDIT_MORE_RE.test(t) || (t.length > SPEC_LEN && !looksPasted(t));
@@ -257,7 +278,7 @@ export function unreachableTiers(env = process.env) {
  *   one this session cannot reach
  */
 export function routeMatch(text, { rules, sessionRank = null, root, env = process.env, grade = delegationGrade() } = {}) {
-  const t = String(text || '').trim();
+  const t = stripStandingInstructions(text);
   if (t.length < MIN_LEN) return null;
   // A task notification or command echo is not a request, whatever words it holds.
   if (isSystemPrompt(t)) return null;
@@ -351,7 +372,7 @@ const ACTION_RE = new RegExp(
  *   grade 'quality'), 'action' an irreversible step with no judgement word.
  */
 export function judgementMatch(text, { grade = delegationGrade() } = {}) {
-  const t = String(text || '').trim();
+  const t = stripStandingInstructions(text);
   if (t.length < MIN_LEN || isSystemPrompt(t)) return null;
   if (ESCALATE_RE.test(t)) {
     const kind = ESCALATE_RE.test(t.replace(ACTION_RE, ' ')) ? 'escalate' : 'action';
