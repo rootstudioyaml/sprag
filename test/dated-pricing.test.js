@@ -30,7 +30,7 @@ test('without a time the current price applies, as before', () => {
 });
 
 test('every tier keeps its rows oldest first with no duplicate dates', () => {
-  for (const tier of ['claude-fable-5-1', 'claude-fable-5', 'claude-opus-5-5', 'claude-opus-new', 'claude-opus-legacy',
+  for (const tier of ['claude-fable-5-2', 'claude-fable-5-1', 'claude-fable-5', 'claude-opus-5-5', 'claude-opus-new', 'claude-opus-legacy',
     'claude-sonnet-5', 'claude-sonnet-5-5', 'claude-sonnet', 'claude-haiku-5-5', 'claude-haiku-5-5-long',
     'claude-haiku-4-5', 'claude-haiku-3-5', 'claude-haiku-3']) {
     const rows = priceHistory(tier);
@@ -57,12 +57,19 @@ test('a bare alias is priced as the model it meant on that date (#13)', () => {
     ['haiku', '2026-10-08', 'claude-haiku-5-5'],
     ['fable', '2026-07-01', 'claude-fable-5'],
     ['best', '2026-10-01', 'claude-fable-5-1'],
+    // Fable 5.2 became the `fable` default with Claude Code 2.1.321 (2026-11-09),
+    // which also moved saved 5.1 picks to the alias.
+    ['fable', '2026-11-08', 'claude-fable-5-1'],
+    ['fable', '2026-11-09', 'claude-fable-5-2'],
+    ['fable[1m]', '2026-11-10', 'claude-fable-5-2'],
+    ['best', '2026-11-10', 'claude-fable-5-2'],
   ];
   for (const [alias, at, tier] of cases) assert.equal(detectPricingTier(alias, { at }), tier, `${alias} @ ${at}`);
   // Today the aliases mean the newest models, not the legacy tiers they used to fall to.
   assert.equal(detectPricingTier('opus'), 'claude-opus-5-5');
   assert.equal(detectPricingTier('haiku'), 'claude-haiku-5-5');
   assert.equal(detectPricingTier('sonnet'), 'claude-sonnet-5-5');
+  assert.equal(detectPricingTier('fable'), 'claude-fable-5-2');
 });
 
 test('full ids and house names are not treated as aliases', () => {
