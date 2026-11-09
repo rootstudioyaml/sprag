@@ -183,3 +183,101 @@ test('both pages mount the shared component in its container', () => {
   assert.ok(ops.includes('id="d-sv"'), 'ops page has #d-sv');
   assert.match(ux, /window\.AdminUX = \{[^}]*\bsavings\b[^}]*\bsavingsModel\b/, 'AdminUX exports savings and savingsModel');
 });
+
+test('recent7Avg, prior7Avg and recentPct compare the last 7 days with the 7 before', () => {
+  const days = range(14);
+  const m = savingsModel({ days, teams: [team1('a', days, i => (i < 7 ? 2 : 3))] });
+  close(m.org.recent7Avg, 3);
+  close(m.org.prior7Avg, 2);
+  close(m.org.recentPct, .5);
+  const down = savingsModel({ days, teams: [team1('a', days, i => (i < 7 ? 4 : 1))] });
+  close(down.org.recentPct, -.75);
+  const short = range(10);
+  const s = savingsModel({ days: short, teams: [team1('a', short, () => 2)] });
+  close(s.org.recent7Avg, 2);
+  assert.equal(s.org.prior7Avg, null, 'fewer than 14 days');
+  assert.equal(s.org.recentPct, null);
+  const zero = savingsModel({ days, teams: [team1('a', days, i => (i < 7 ? 0 : 3))] });
+  assert.equal(zero.org.prior7Avg, 0);
+  assert.equal(zero.org.recentPct, null, 'a zero prior makes the change unknown');
+});
+
+test('per-team recentPct uses that team daily values', () => {
+  const days = range(14);
+  const m = savingsModel({ days, teams: [team1('a', days, i => (i < 7 ? 1 : 2)), team1('b', days, i => (i < 7 ? 4 : 2)), team1('c', days, () => 0)] });
+  const by = id => m.teams.find(r => r.id === id);
+  close(by('a').recentPct, 1);
+  close(by('b').recentPct, -.5);
+  assert.equal(by('c').recentPct, null);
+  const short = range(9);
+  assert.equal(savingsModel({ days: short, teams: [team1('a', short, () => 1)] }).teams[0].recentPct, null);
+});
+
+test('projection runs a current-month range on to the month end from the recent daily average', () => {
+  const days = range(10, '2026-11-01');
+  const teams = [team1('a', days, i => (i < 3 ? 1 : 2)), team1('b', days, () => 1)];
+  const m = savingsModel({ days, teams, today: '2026-11-10' });
+  const p = m.org.projection;
+  assert.ok(p, 'projection exists');
+  assert.equal(p.to, '2026-11-30');
+  assert.equal(p.days, 20);
+  const cum = m.buckets[m.buckets.length - 1].cum;
+  // last 7 days (index 3..9): a saves 2, b saves 1 -> 3 a day
+  close(m.org.recent7Avg, 3);
+  close(p.total, cum + 3 * 20);
+
+  assert.equal(savingsModel({ days, teams, today: '2026-11-12' }).org.projection, null, 'range does not end today');
+  const mid = range(10, '2026-11-02');
+  assert.equal(savingsModel({ days: mid, teams: [team1('a', mid, () => 1)], today: '2026-11-11' }).org.projection, null, 'range does not start on the 1st');
+  const cross = range(10, '2026-10-25');
+  assert.equal(savingsModel({ days: cross, teams: [team1('a', cross, () => 1)], today: '2026-11-03' }).org.projection, null, 'range spans two months');
+  const full = range(30, '2026-11-01');
+  assert.equal(savingsModel({ days: full, teams: [team1('a', full, () => 1)], today: '2026-11-30' }).org.projection, null, 'nothing remains on the last day');
+  const feb = range(5, '2026-02-01');
+  assert.equal(savingsModel({ days: feb, teams: [team1('a', feb, () => 2)], today: '2026-02-05' }).org.projection.to, '2026-02-28');
+});
+
+test('moving average: 7 day buckets from index 6, 3 week buckets from index 2, null when too few buckets', () => {
+  const days = range(10);
+  const m = savingsModel({ days, teams: [team1('a', days, i => i + 1)] });
+  for (let i = 0; i < 6; i++) assert.equal(m.buckets[i].ma, null, 'bucket ' + i);
+  close(m.buckets[6].ma, 4);
+  close(m.buckets[9].ma, 7);
+  const six = range(6);
+  assert.ok(savingsModel({ days: six, teams: [team1('a', six, () => 1)] }).buckets.every(b => b.ma === null), 'fewer than 7 days');
+  const wk = range(60);
+  const w = savingsModel({ days: wk, teams: [team1('a', wk, () => 1)] });
+  assert.equal(w.gran, 'week');
+  assert.equal(w.buckets[0].ma, null);
+  assert.equal(w.buckets[1].ma, null);
+  close(w.buckets[2].ma, 7);
+  const two = range(50);
+  const tw = savingsModel({ days: two, teams: [team1('a', two, () => 1)] });
+  assert.equal(tw.buckets.length, 8);
+  assert.ok(tw.buckets[2].ma != null);
+});
+
+test('peakDay is the single best day, null when nothing was saved', () => {
+  const days = range(8);
+  const m = savingsModel({ days, teams: [team1('a', days, i => (i === 5 ? 7 : 1)), team1('b', days, i => (i === 2 ? 5 : 0))] });
+  assert.equal(m.org.peakDay.day, days[5]);
+  close(m.org.peakDay.sv, 7);
+  assert.equal(savingsModel({ days, teams: [team1('a', days, () => 0)] }).org.peakDay, null);
+});
+
+test('the savings panel has no mode toggle and draws two charts, an insights list and the average legend', () => {
+  assert.ok(!/svMode|svx-seg/.test(ux.replace(/\/\* [^*]*\*\//g, '')), 'no toggle memory or segment buttons remain');
+  assert.ok(ux.includes('svx-chart2'), 'second chart container');
+  assert.ok(ux.includes('class="svx-ins"'), 'insights list');
+  assert.ok(ux.includes('stroke-dasharray="4 4"'), 'dashed projection line');
+});
+
+test('the ops spend and savings cards of the org detail are clickable and jump to the savings card', () => {
+  const at = (id) => { const i = ops.indexOf(`{ id:'${id}', label:t('c.${id}') + rl`); assert.ok(i > 0, id + ' card'); return ops.slice(i, ops.indexOf('\n', i)); };
+  for (const id of ['sp', 'sv']) {
+    const line = at(id);
+    assert.ok(!line.includes('static:true'), id + ' is not static');
+    assert.ok(line.includes('onClick: toSv'), id + ' has an onClick');
+  }
+  assert.match(ops, /const toSv = \(\) => \{[^\n]*d-sv-card/, 'toSv jumps to d-sv-card');
+});

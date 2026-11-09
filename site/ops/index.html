@@ -1986,6 +1986,8 @@ function renderDetail(){
   const days = Range.list(), pa = Range.prevArgs(), pLab = Range.label(pa.p_from, pa.p_to), prow = prevOrgs && prevOrgs.find(o => o.id === sel.id), dsp = Det.byDay;
   const sr = Seats.loaded() ? AdminUX.seatSeries(Seats.events(), days, used, 200) : null, n0 = v => Number(v) || 0, int = n => Math.round(n).toLocaleString('en-US');
   const S = it => ({ static:true, noChip:true, ...it }), rl = ' · ' + Range.label();
+  /* the spend and savings cards lead to the savings breakdown, which lives on the overview tab */
+  const toSv = () => { if(curTab !== 'overview'){ go('#org/' + encodeURIComponent(sel.id)); setTimeout(() => AdminUX.jump('d-sv-card'), 150); } else AdminUX.jump('d-sv-card'); };
   AdminUX.kpis($('d-stats'), [
     { id:'seats', label:t('c.seats'), value:used, fmt: n => Math.round(n) + ' / ' + lim, prev: sr ? sr.start : null, delta:'abs', judge:'neutral', prevLabel:pLab, series: sr ? sr.series : null,
       sub: `<span class="bar${full ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></span>`, onClick: () => go('#org/' + encodeURIComponent(sel.id) + '/seats') },
@@ -1993,8 +1995,8 @@ function renderDetail(){
     S({ id:'late', label:t('c.late'), tone: n0(sel.seats_late) ? 'lt' : '', value:n0(sel.seats_late), fmt:int }),
     S({ id:'teams', label:t('c.teams'), value:n0(sel.teams), fmt:int }),
     S({ id:'members', label:t('c.members'), value:n0(sel.members_total), fmt:int }),
-    { id:'sp', label:t('c.sp') + rl, tone:'sp', static:true, value:n0(sel.total_spent ?? sel.spent ?? sel.spent_30d), fmt:money, prev: prow ? n0(prow.total_spent ?? prow.spent ?? prow.spent_30d) : null, judge:'neutral', prevLabel:pLab, series: dsp ? days.map(d => { const x = dsp[d] || { sp:0 }; return x.tot ?? x.sp; }) : null },
-    { id:'sv', label:t('c.sv') + rl, tone:'sv', static:true, value:n0(sel.saved ?? sel.saved_30d), fmt:money, prev: prow ? n0(prow.saved ?? prow.saved_30d) : null, judge:'good', prevLabel:pLab, series: dsp ? days.map(d => (dsp[d] || { sv:0 }).sv) : null },
+    { id:'sp', label:t('c.sp') + rl, tone:'sp', value:n0(sel.total_spent ?? sel.spent ?? sel.spent_30d), fmt:money, prev: prow ? n0(prow.total_spent ?? prow.spent ?? prow.spent_30d) : null, judge:'neutral', prevLabel:pLab, series: dsp ? days.map(d => { const x = dsp[d] || { sp:0 }; return x.tot ?? x.sp; }) : null, onClick: toSv },
+    { id:'sv', label:t('c.sv') + rl, tone:'sv', value:n0(sel.saved ?? sel.saved_30d), fmt:money, prev: prow ? n0(prow.saved ?? prow.saved_30d) : null, judge:'good', prevLabel:pLab, series: dsp ? days.map(d => (dsp[d] || { sv:0 }).sv) : null, onClick: toSv },
     S({ id:'rev', label:t('c.rev'), tone:'sv', value:orgRevenue(sel), fmt:money }),
     S({ id:'seen', label:t('c.seen'), text:rel(sel.last_seen) }),
     S({ id:'until', label:t('c.until'), text: sel.paid_until ? fmtDay(sel.paid_until) + ' · ' + t('ts.' + (TERM_CLS[sel.term_state] ? sel.term_state : 'none')) : t('ts.none') }),
