@@ -20,7 +20,13 @@ const TXT = {
     mvTitle:'Seat movement', mvDay:'per day', mvWeek:'per week', mvNone:'No seat changes in this range',
     mvJoined:'Joined', mvRestored:'Restored', mvLeft:'Left', mvRemoved:'Removed', mvPaused:'Paused',
     mvTrunc:'Based on the latest {n} events; older changes are not shown',
-    mvAria:'Seat movement: {joined} joined, {restored} restored, {left} left, {removed} removed, {paused} paused'
+    mvAria:'Seat movement: {joined} joined, {restored} restored, {left} left, {removed} removed, {paused} paused',
+    svDay:'Daily', svWeek:'Weekly', svMonth:'Monthly', svPer:'Per period', svCum:'Cumulative', svMode:'Chart mode',
+    svSaved:'Savings this period', svAvg:'Daily average', svTrend:'Daily trend', svTrendSub:'First half {a} → second half {b}',
+    svRate:'Savings per spend', svBest:'Top saving team', svNone:'No savings were recorded in this range',
+    svOther:'Other ({n} teams)', svMore:'+{n} more', svTot:'Total', svCumTo:'Cumulative', svAria:'Savings by team over time',
+    svcRank:'Rank', svcTeam:'Team', svcSv:'Saved', svcShare:'Share', svcDelta:'Vs previous period', svcTrend:'Trend',
+    svcSpend:'Spent', svcRate:'Saved per spend', svcMem:'Saved per member', svcDeleg:'Delegated runs'
   },
   ko: {
     noprior:'비교할 이전 기간 데이터가 없습니다', vs:'이전 기간', new:'신규',
@@ -34,7 +40,13 @@ const TXT = {
     mvTitle:'좌석 변동', mvDay:'일별', mvWeek:'주별', mvNone:'이 기간에는 좌석 변동이 없습니다',
     mvJoined:'참여', mvRestored:'복원', mvLeft:'나감', mvRemoved:'제거', mvPaused:'중지',
     mvTrunc:'최근 기록 {n}건만 반영했습니다. 이보다 오래된 변동은 보이지 않습니다',
-    mvAria:'좌석 변동: 참여 {joined}, 복원 {restored}, 나감 {left}, 제거 {removed}, 중지 {paused}'
+    mvAria:'좌석 변동: 참여 {joined}, 복원 {restored}, 나감 {left}, 제거 {removed}, 중지 {paused}',
+    svDay:'일별', svWeek:'주별', svMonth:'월별', svPer:'구간별', svCum:'누적', svMode:'차트 보기 방식',
+    svSaved:'기간 절감', svAvg:'일평균 절감', svTrend:'일평균 추세', svTrendSub:'전반 {a} → 후반 {b}',
+    svRate:'지출 대비 절감', svBest:'최다 절감 팀', svNone:'이 기간에는 기록된 절감이 없습니다',
+    svOther:'기타 ({n}개 팀)', svMore:'외 {n}개 팀', svTot:'합계', svCumTo:'누적', svAria:'팀별 절감 추이',
+    svcRank:'순위', svcTeam:'팀', svcSv:'절감', svcShare:'비중', svcDelta:'이전 기간 대비', svcTrend:'추세',
+    svcSpend:'지출', svcRate:'지출 대비 절감', svcMem:'1인당 절감', svcDeleg:'위임 실행'
   }
 };
 const u = (k, v) => {
@@ -190,6 +202,44 @@ html[lang=ko] .pal li.pal-g{text-transform:none;letter-spacing:0}
 .mv-tip b{display:block;font-weight:600}
 .mv-tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 .mv-note{margin-top:var(--s2);font-size:12px;color:var(--faint)}
+
+/* savings breakdown */
+.svx{margin-top:var(--s4)}
+.svx > .mv-h{align-items:center}
+.svx-hl{display:flex;align-items:baseline;gap:var(--s3);flex-wrap:wrap;min-width:0}
+.svx-hl h3{font-size:13px}
+.svx-hl span{font-size:12px;color:var(--faint)}
+.svx-seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;flex:0 0 auto}
+.svx-seg button{height:26px;padding:0 12px;border:0;border-radius:0;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap;transition:background .15s var(--ease),color .15s var(--ease)}
+.svx-seg button + button{border-left:1px solid var(--line2)}
+.svx-seg button:hover{color:var(--ink)}
+.svx-seg button[aria-pressed=true]{background:var(--accent-bg);color:var(--ink)}
+.svx-sum{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s3) var(--s4);margin-top:var(--s3);padding:var(--s3) 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.svx-c{display:flex;flex-direction:column;gap:2px;min-width:0}
+.svx-c .l{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.svx-c b{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:18px;font-weight:600;letter-spacing:-.02em;line-height:1.3;font-variant-numeric:tabular-nums;min-width:0}
+.svx-c b.nm{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svx-c small{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.svx-c .up{color:var(--ok)} .svx-c .down{color:var(--bad)}
+.svx-c b .kchip{font-weight:500}
+.svx-chart text.lab{fill:var(--dim)}
+.svx-chart .hv{fill:rgba(255,255,255,.05)}
+.mv-tip .svx-tr{display:flex;justify-content:space-between;gap:16px}
+.mv-tip .svx-tr span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mv-tip .svx-tr span:last-child{font-variant-numeric:tabular-nums}
+.mv-tip .svx-tt{margin-top:2px;padding-top:2px;border-top:1px solid var(--line2);font-weight:600}
+.mv-tip .svx-tc{color:var(--dim)}
+.svx-t{margin-top:var(--s4)}
+.svx-dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;vertical-align:-1px}
+.svx-t .bar{display:inline-block;width:56px;height:4px;margin:0 0 0 8px;vertical-align:middle}
+.svx-t .kchip{margin-left:6px}
+.svx-sp{display:inline-block;vertical-align:middle}
+.svx-sp .kspark{display:block;width:88px;height:22px;margin:0}
+@media(max-width:600px){
+  .svx-sum{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .svx-c:last-child{grid-column:1/-1}
+  .svx > .mv-h{align-items:flex-start}
+}
 `;
 (function(){ const s = doc.createElement('style'); s.id = 'admin-ux-css'; s.textContent = css; doc.head.appendChild(s); })();
 
@@ -604,5 +654,186 @@ function seatSeries(events, days, nowCount, limit){
   return { series: out, net: inRange, start: Math.max(0, nowCount - inRange) };
 }
 
-window.AdminUX = { u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, ymd, esc };
+/* ── savings breakdown: how savings move over the range and which team saves most ─ */
+/* savings model */
+function savingsModel(o){
+  const days = ((o && o.days) || []).slice(), tms = (o && o.teams) || [], n = days.length;
+  const num = v => { const x = Number(v); return isFinite(x) ? x : 0; };
+  const gran = n <= 45 ? 'day' : n <= 180 ? 'week' : 'month';
+  const groups = [];
+  if(gran === 'day') days.forEach(d => groups.push([d]));
+  else if(gran === 'week'){ for(let i = 0; i < n; i += 7) groups.push(days.slice(i, i + 7)); }
+  else { let mo = null; days.forEach(d => { const k = d.slice(0, 7); if(mo !== k){ mo = k; groups.push([]); } groups[groups.length - 1].push(d); }); }
+  const dayOf = (t, d) => { const x = t.cur && t.cur.byDay && t.cur.byDay[d]; return x ? num(x.sv) : 0; };
+  const teamSv = t => (t.cur && t.cur.sv != null && isFinite(Number(t.cur.sv))) ? Number(t.cur.sv) : days.reduce((s, d) => s + dayOf(t, d), 0);
+  let run = 0;
+  const buckets = groups.map(ds => {
+    const byTeam = {}; let total = 0;
+    tms.forEach(t => { const v = ds.reduce((s, d) => s + dayOf(t, d), 0); byTeam[t.id] = v; total += v; });
+    run += total;
+    return { a: ds[0], z: ds[ds.length - 1], byTeam, total, cum: run };
+  });
+  const change = (cur, prev) => prev == null ? null : prev === 0 ? (cur > 0 ? 'new' : 0) : (cur - prev) / prev;
+  const orgSv = tms.reduce((s, t) => s + teamSv(t), 0);
+  const rows = tms.map((t, i) => {
+    const sv = teamSv(t), tot = t.cur ? num(t.cur.tot) : 0, prevSv = t.prev ? num(t.prev.sv) : null;
+    return { id: t.id, name: t.name, slot: i < 7 ? i : (i === 7 && tms.length === 8 ? 7 : 'other'), sv, tot, dl: t.cur ? num(t.cur.dl) : 0,
+      prevSv, delta: prevSv == null ? null : sv - prevSv, deltaPct: change(sv, prevSv),
+      share: orgSv > 0 ? sv / orgSv : 0, rate: tot > 0 ? sv / tot : null,
+      perMember: t.members ? sv / t.members : null, series: buckets.map(b => b.byTeam[t.id]), rank: 0 };
+  });
+  const ranked = rows.map((r, i) => [r, i]).sort((x, y) => y[0].sv - x[0].sv || x[1] - y[1]).map(x => x[0]);
+  ranked.forEach((r, i) => { r.rank = i + 1; });
+  const h = Math.floor(n / 2), dayTot = d => tms.reduce((s, t) => s + dayOf(t, d), 0);
+  const firstAvg = h ? days.slice(0, h).reduce((s, d) => s + dayTot(d), 0) / h : 0;
+  const secondAvg = h ? days.slice(n - h).reduce((s, d) => s + dayTot(d), 0) / h : 0;
+  const orgPrev = tms.length && tms.every(t => t.prev) ? tms.reduce((s, t) => s + num(t.prev.sv), 0) : null;
+  const orgTot = rows.reduce((s, r) => s + r.tot, 0);
+  let peak = null; buckets.forEach(b => { if(b.total > 0 && (!peak || b.total > peak.total)) peak = b; });
+  return { gran, buckets, teams: rows, ranked, org: {
+    sv: orgSv, prevSv: orgPrev, deltaPct: change(orgSv, orgPrev), tot: orgTot, rate: orgTot > 0 ? orgSv / orgTot : null,
+    dailyAvg: n ? orgSv / n : 0, firstAvg, secondAvg, trendPct: (n < 4 || !firstAvg) ? null : (secondAvg - firstAvg) / firstAvg,
+    best: orgSv > 0 ? ranked[0] : null, peak } };
+}
+/* end of savings model */
+
+const SV_PAL = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'], SV_OTHER = '#6b6d76';
+const svColor = s => s === 'other' ? SV_OTHER : SV_PAL[s];
+const svMode = {};
+function svNice(mx){
+  if(!(mx > 0)) return { step: .25, top: 1, n: 4 };
+  const raw = mx / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = [1, 2, 2.5, 5, 10].find(k => k * p >= raw - 1e-12), step = f * p;
+  /* the top gridline is the first step at or above the peak, so a $491 series stops at $600 rather than $800 */
+  const n = Math.max(1, Math.ceil(mx / step - 1e-9));
+  return { step, top: step * n, n };
+}
+const svAx = v => '$' + (v >= 1000 ? Number((v / 1000).toFixed(1)) + 'k' : Number(v.toFixed(2)));
+const svPct = p => (p * 100).toFixed(1) + '%';
+const svSigned = p => { const a = Math.abs(p * 100), r = a < 10 ? Number(a.toFixed(1)) : Math.round(a); return (r === 0 ? '' : p > 0 ? '+' : '-') + r + '%'; };
+const svChip = c => `<span class="kchip ${c.cls}" title="${esc(c.title)}">${c.dir === 'up' ? '<span class="ar">&#9650;</span>' : c.dir === 'down' ? '<span class="ar">&#9660;</span>' : ''}${esc(c.text)}</span>`;
+const svTop = (x, y, w, h, r) => { r = Math.min(r, h, w / 2); return `M${x.toFixed(1)},${(y + h).toFixed(1)}V${(y + r).toFixed(1)}Q${x.toFixed(1)},${y.toFixed(1)} ${(x + r).toFixed(1)},${y.toFixed(1)}H${(x + w - r).toFixed(1)}Q${(x + w).toFixed(1)},${y.toFixed(1)} ${(x + w).toFixed(1)},${(y + r).toFixed(1)}V${(y + h).toFixed(1)}Z`; };
+
+/* savings(host, o): o = { title, days, teams, money, prevLabel, onTeam, key }; see savingsModel for the team shape */
+function savings(host, o){
+  const m = savingsModel(o), key = o.key || 'sv', money = o.money || (v => '$' + (Number(v) || 0).toFixed(2)), days = o.days || [], nb = m.buckets.length, org = m.org;
+  const gname = u(m.gran === 'day' ? 'svDay' : m.gran === 'week' ? 'svWeek' : 'svMonth');
+  const empty = !(org.sv > 0) && !m.buckets.some(b => b.total > 0);
+  const mode0 = svMode[key] === 'cum' ? 'cum' : 'per';
+  const seg = empty ? '' : `<div class="svx-seg" role="group" aria-label="${esc(u('svMode'))}">${['per', 'cum'].map(k => `<button type="button" data-m="${k}" aria-pressed="${k === mode0}">${esc(u(k === 'per' ? 'svPer' : 'svCum'))}</button>`).join('')}</div>`;
+  const head = `<div class="mv-h"><div class="svx-hl"><h3>${esc(o.title || '')}</h3><span>${esc(gname)}</span></div>${seg}</div>`;
+  if(empty){ host.innerHTML = `<div class="svx">${head}</div>`; host.firstChild.appendChild(state('empty', u('svNone'))); return; }
+
+  /* summary strip */
+  const chip = chipOf({ cur: org.sv, prev: org.prevSv, judge: 'good', fmt: money, prevLabel: o.prevLabel });
+  const tp = org.trendPct, tcls = tp == null || Math.round(tp * 1000) === 0 ? '' : tp > 0 ? 'up' : 'down';
+  const best = org.best;
+  const cell = (label, val, sub) => `<div class="svx-c"><span class="l">${esc(label)}</span>${val}${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const sumHtml = '<div class="svx-sum">' +
+    cell(u('svSaved'), `<b>${esc(money(org.sv))}${svChip(chip)}</b>`) +
+    cell(u('svAvg'), `<b>${esc(money(org.dailyAvg))}</b>`) +
+    cell(u('svTrend'), `<b class="${tcls}">${tp == null ? '-' : esc(svSigned(tp))}</b>`, tp == null ? '' : esc(u('svTrendSub', { a: money(org.firstAvg), b: money(org.secondAvg) }))) +
+    cell(u('svRate'), `<b>${org.rate == null ? '-' : esc(svPct(org.rate))}</b>`) +
+    cell(u('svBest'), `<b class="nm" title="${esc(best ? best.name : '')}">${best ? esc(best.name) : '-'}</b>`, best ? esc(money(best.sv) + ' (' + svPct(best.share) + ')') : '') + '</div>';
+
+  /* legend: one entry per color slot in input order, folded teams as one */
+  const slots = []; m.teams.forEach(r => { if(!slots.includes(r.slot)) slots.push(r.slot); });
+  const nOther = m.teams.filter(r => r.slot === 'other').length;
+  const sser = slots.map(s => m.teams.reduce((a, r) => r.slot === s ? a.map((v, i) => v + r.series[i]) : a, new Array(nb).fill(0)));
+  const legend = '<div class="mv-sum">' + slots.map(s => {
+    const rs = m.teams.filter(r => r.slot === s), v = rs.reduce((a, r) => a + r.sv, 0);
+    return `<span><i style="background:${svColor(s)}"></i>${esc(s === 'other' ? u('svOther', { n: nOther }) : rs[0].name)}<b>${esc(money(v))}</b></span>`;
+  }).join('') + '</div>';
+
+  host.innerHTML = `<div class="svx">${head}${sumHtml}<div class="mv-chart svx-chart"></div>${legend}<div class="svx-t"></div></div>`;
+  const chartEl = host.querySelector('.svx-chart');
+
+  /* chart */
+  const W = 1080, H = 240, L = 54, R = 8, T = 24, B = 24, ch = H - T - B, slotW = (W - L - R) / nb;
+  const scum = sser.map(a => { let c = 0; return a.map(v => (c += v)); });
+  const stk = scum.map((_, k) => scum[0].map((__, i) => { let s = 0; for(let j = 0; j <= k; j++) s += scum[j][i]; return s; }));
+  function draw(){
+    const cum = (svMode[key] === 'cum');
+    const mx = cum ? m.buckets[nb - 1].cum : Math.max(...m.buckets.map(b => b.total)), nz = svNice(mx), top = nz.top;
+    const y = v => T + ch - v / top * ch;
+    const cx = i => L + slotW * (i + .5);
+    let g = '';
+    for(let k = 1; k <= nz.n; k++){ const yy = y(nz.step * k); g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}"/><text x="${L - 6}" y="${(yy + 3.5).toFixed(1)}" text-anchor="end">${svAx(nz.step * k)}</text>`; }
+    g += `<line class="zl" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/><text x="${L - 6}" y="${(y(0) + 3.5).toFixed(1)}" text-anchor="end">$0</text>`;
+    const lab = (x, yy, txt) => { const end = x > W - 72, start = x < L + 36; return `<text class="lab" x="${(end ? Math.min(x + 14, W - R) : start ? Math.max(x - 14, L) : x).toFixed(1)}" y="${(yy - 6).toFixed(1)}" text-anchor="${end ? 'end' : start ? 'start' : 'middle'}">${esc(txt)}</text>`; };
+    if(!cum){
+      m.buckets.forEach((b, i) => {
+        const bw = Math.max(2, Math.min(30, slotW * .62)), bx = cx(i) - bw / 2, parts = [];
+        slots.forEach((s, k) => { if(sser[k][i] > 0) parts.push([s, sser[k][i]]); });
+        let acc = 0;
+        parts.forEach(([s, v], pi) => {
+          const y1 = y(acc + v) + 1, hh = Math.max(1, y(acc) - y(acc + v) - 2); acc += v;
+          g += pi === parts.length - 1 ? `<path d="${svTop(bx, y1, bw, hh, 3)}" fill="${svColor(s)}"/>` : `<rect x="${bx.toFixed(1)}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" fill="${svColor(s)}"/>`;
+        });
+      });
+      const pk = org.peak ? m.buckets.indexOf(org.peak) : -1, last = nb - 1;
+      /* a label pulled sideways at the right edge rides above the bars it spans, so a taller neighbor cannot cover it */
+      const over = i => { const n = cx(i) > W - 72 ? Math.ceil(64 / slotW) : 0; return Math.max(...m.buckets.slice(Math.max(0, i - n), i + 1).map(b => b.total)); };
+      if(m.buckets[last].total > 0) g += lab(cx(last), y(over(last)), money(m.buckets[last].total));
+      if(pk >= 0 && pk !== last && (last - pk) * slotW > 70) g += lab(cx(pk), y(over(pk)), money(m.buckets[pk].total));
+    } else {
+      const ix = nb === 1 ? [0, 0] : m.buckets.map((_, i) => i), xs = nb === 1 ? [L + slotW * .3, L + slotW * .7] : ix.map(cx);
+      slots.forEach((s, k) => {
+        if(!(scum[k][nb - 1] > 0)) return;
+        const hi = ix.map((i, p) => `${xs[p].toFixed(1)},${y(stk[k][i]).toFixed(1)}`), lo = ix.map((i, p) => `${xs[p].toFixed(1)},${y(k ? stk[k - 1][i] : 0).toFixed(1)}`).reverse();
+        g += `<path d="M${hi.join('L')}L${lo.join('L')}Z" fill="${svColor(s)}" fill-opacity=".35"/><polyline points="${hi.join(' ')}" fill="none" stroke="${svColor(s)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      });
+      g += lab(xs[xs.length - 1], y(m.buckets[nb - 1].cum), money(m.buckets[nb - 1].cum));
+    }
+    const every = Math.max(1, Math.ceil(nb / 8));
+    m.buckets.forEach((b, i) => { if(i % every === 0) g += `<text x="${cx(i).toFixed(1)}" y="${H - 7}" text-anchor="middle">${esc(dlabel(b.a))}</text>`; });
+    const hits = m.buckets.map((b, i) => `<rect class="mv-hit" data-i="${i}" x="${(L + slotW * i).toFixed(1)}" y="0" width="${slotW.toFixed(1)}" height="${H - B}" fill="transparent"/>`).join('');
+    chartEl.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(u('svAria'))}">${g}<rect class="hv" id="svx-hv" width="${slotW.toFixed(1)}" y="${T}" height="${ch}" hidden/>${hits}</svg><div class="mv-tip" hidden></div>`;
+    const tip = chartEl.querySelector('.mv-tip'), hv = chartEl.querySelector('#svx-hv');
+    const hide = () => { tip.hidden = true; hv.setAttribute('hidden', ''); };
+    const show = ev => {
+      const r = ev.target.closest && ev.target.closest('.mv-hit'); if(!r) return hide();
+      const i = +r.dataset.i, b = m.buckets[i], x = (L + slotW * (i + .5)) / W * chartEl.clientWidth;
+      hv.removeAttribute('hidden'); hv.setAttribute('x', r.getAttribute('x'));
+      const list = m.teams.map(t => ({ t, v: t.series[i] })).filter(e => e.v > 0).sort((p, q) => q.v - p.v), shown = list.slice(0, 10), more = list.length - shown.length;
+      tip.innerHTML = `<b>${esc(b.a === b.z ? dlabel(b.a) : dlabel(b.a) + '-' + dlabel(b.z))}</b>` +
+        shown.map(e => `<div class="svx-tr"><span><i style="background:${svColor(e.t.slot)}"></i>${esc(e.t.name)}</span><span>${esc(money(e.v))}</span></div>`).join('') +
+        (more > 0 ? `<div class="svx-tr svx-tc"><span>${esc(u('svMore', { n: more }))}</span></div>` : '') +
+        `<div class="svx-tr svx-tt"><span>${esc(u('svTot'))}</span><span>${esc(money(b.total))}</span></div>` +
+        `<div class="svx-tr svx-tc"><span>${esc(u('svCumTo'))}</span><span>${esc(money(b.cum))}</span></div>`;
+      tip.hidden = false;
+      const tw = tip.offsetWidth;
+      tip.style.left = Math.max(0, Math.min(chartEl.clientWidth - tw, x + 12 > chartEl.clientWidth - tw ? x - tw - 12 : x + 12)) + 'px';
+    };
+    chartEl.addEventListener('pointermove', show); chartEl.addEventListener('pointerdown', show); chartEl.addEventListener('pointerleave', hide);
+  }
+  draw();
+  host.querySelectorAll('.svx-seg button').forEach(b => b.addEventListener('click', () => {
+    svMode[key] = b.dataset.m;
+    host.querySelectorAll('.svx-seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    draw();
+  }));
+
+  /* team table */
+  const r4 = v => v == null ? null : Math.round(v * 1e4) / 1e4, int = v => Math.round(v).toLocaleString('en-US');
+  const dChip = r => chipOf({ cur: r.sv, prev: r.prevSv, judge: 'good', fmt: money, prevLabel: o.prevLabel });
+  table('svx:' + key).render(host.querySelector('.svx-t'), {
+    rows: m.teams, sort: { col: 'sv', dir: -1 }, csvName: 'team-savings', pageSize: 15,
+    onRow: o.onTeam ? r => o.onTeam(r.id) : undefined,
+    columns: [
+      { key:'rank', label:() => u('svcRank'), cls:'n', val: r => r.rank, cell: r => esc(r.rank) },
+      { key:'team', label:() => u('svcTeam'), val: r => r.name, cell: r => `<i class="svx-dot" style="background:${svColor(r.slot)}"></i>${esc(r.name)}` },
+      { key:'sv', label:() => u('svcSv'), cls:'n', first:-1, val: r => r.sv, cell: r => esc(money(r.sv)), csv: r => r4(r.sv) },
+      { key:'share', label:() => u('svcShare'), cls:'n', first:-1, val: r => r.share, cell: r => `${esc(svPct(r.share))}<span class="bar"><i style="width:${Math.min(100, r.share * 100).toFixed(1)}%"></i></span>`, csv: r => r4(r.share) },
+      { key:'delta', label:() => u('svcDelta'), cls:'n', first:-1, val: r => r.delta, csv: r => r4(r.delta),
+        cell: r => { if(r.delta == null) return '-'; const c = dChip(r); return esc((r.delta > 0 ? '+' : r.delta < 0 ? '-' : '') + money(Math.abs(r.delta))) + svChip(c); } },
+      { key:'trend', label:() => u('svcTrend'), noSort:true, noCsv:true, cell: r => r.series.length > 1 && r.sv > 0 ? `<span class="svx-sp" style="color:${svColor(r.slot)}">${sparkSvg(r.series)}</span>` : '-' },
+      { key:'spend', label:() => u('svcSpend'), cls:'n', first:-1, val: r => r.tot, cell: r => esc(money(r.tot)), csv: r => r4(r.tot) },
+      { key:'rate', label:() => u('svcRate'), cls:'n', first:-1, val: r => r.rate, cell: r => r.rate == null ? '-' : esc(svPct(r.rate)), csv: r => r4(r.rate) },
+      { key:'mem', label:() => u('svcMem'), cls:'n', first:-1, val: r => r.perMember, cell: r => r.perMember == null ? '-' : esc(money(r.perMember)), csv: r => r4(r.perMember) },
+      { key:'dl', label:() => u('svcDeleg'), cls:'n', first:-1, val: r => r.dl, cell: r => esc(int(r.dl)) }
+    ]
+  });
+}
+
+window.AdminUX = { u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, savings, savingsModel, ymd, esc };
 })();

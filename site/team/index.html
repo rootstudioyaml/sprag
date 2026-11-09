@@ -586,6 +586,7 @@
         <div id="ou-rail"></div>
         <p class="err" id="ou-err" role="alert"></p>
       </section>
+      <section class="card" id="sv-card" style="margin-top:var(--s4)"><div id="sv-box"></div></section>
     </div>
     <section class="card" id="org-card" aria-labelledby="org-h" hidden>
       <div class="org-top">
@@ -1044,7 +1045,9 @@ Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"3
 Object.assign(I18N.en, {"of.d.models":"Spend by model","of.d.models.none":"No per-model figures yet. Machines send them from sprag 3.84.0 on.","mem.models":"Spend by model"});
 Object.assign(I18N.ko, {"of.d.models":"모델별 지출","of.d.models.none":"아직 모델별 수치가 없습니다. sprag 3.84.0 이상을 쓰는 컴퓨터부터 보냅니다.","mem.models":"모델별 지출"});
 Object.assign(I18N.en, {"ux.seats":"Seats in use","ux.deleg":"Delegated runs","ux.ou.h":"Usage across the organization","ux.rail.sp":"Spent over recent ranges","ux.rail.saved":"saved {v}","ux.copyinvite":"Copy invite link","ux.nomachines":"No machines have joined yet","ux.noledger":"No usage recorded in this range","ux.g.nav":"Pages","ux.g.sections":"Team sections","ux.g.teams":"Teams","ux.g.people":"People","ux.scene.err":"The office view could not be drawn","ux.fail.usage":"Could not load usage","sr.empty":"No machines have joined yet","ux.active":"Active","ux.tabs.hint":"Open"});
+Object.assign(I18N.en, {"ux.sv.h":"Savings by team"});
 Object.assign(I18N.ko, {"ux.seats":"사용 중인 좌석","ux.deleg":"위임 실행","ux.ou.h":"조직 전체 사용량","ux.rail.sp":"최근 기간별 지출","ux.rail.saved":"절감 {v}","ux.copyinvite":"초대 링크 복사","ux.nomachines":"아직 참여한 컴퓨터가 없습니다","ux.noledger":"이 기간에 기록된 사용량이 없습니다","ux.g.nav":"페이지","ux.g.sections":"팀 구역","ux.g.teams":"팀","ux.g.people":"사람","ux.scene.err":"사무실 화면을 그리지 못했습니다","ux.fail.usage":"사용량을 불러오지 못했습니다","sr.empty":"아직 참여한 컴퓨터가 없습니다","ux.active":"활동 중","ux.tabs.hint":"열기"});
+Object.assign(I18N.ko, {"ux.sv.h":"팀별 절감 상세"});
 /* Rules tab (organization rules + every team's rules) */
 Object.assign(I18N.en, {"v.rules":"Rules","rl.sum.aria":"Rules summary","rl.sum.org":"organization rules","rl.sum.team":"team rules","rl.sum.pending":"pending proposals",
   "rl.when":"Machines in use pick up approved rules within an hour and apply them at their next session start.",
@@ -2899,6 +2902,8 @@ const OvUsage = (function(){
   let key = '', data = null, err = '', seq = 0;
   const dayStr = n => fmtDay(new Date(Date.now() - n * 864e5));
   const fetchAll = (ids, a) => Promise.all(ids.map(id => teamUsage(id, a))).then(sumUsage);
+  /* per-team usage lists, kept so the savings breakdown can split the totals by team */
+  const fetchEach = (ids, a) => Promise.all(ids.map(id => teamUsage(id, a)));
   async function sync(){
     const on = !!(user && org && isAdmin() && view === 'overview');
     $('ou-wrap').hidden = !on;
@@ -2908,14 +2913,15 @@ const OvUsage = (function(){
     if(k !== key){
       key = k; data = null; err = ''; const my = ++seq;
       paint();
-      if(!ids.length){ data = { cur: sumUsage([]), prev: null, yr: null }; return paint(); }
+      if(!ids.length){ data = { cur: sumUsage([]), prev: null, yr: null, teams: [] }; return paint(); }
       try{
-        const [cur, prev, yr] = await Promise.all([
-          fetchAll(ids, Range.args()),
-          fetchAll(ids, Range.prevArgs()).catch(() => null),
+        const [curList, prevList, yr] = await Promise.all([
+          fetchEach(ids, Range.args()),
+          fetchEach(ids, Range.prevArgs()).catch(() => null),
           fetchAll(ids, { p_from: dayStr(364), p_to: dayStr(0) }).catch(() => null)]);
         if(my !== seq) return;
-        data = { cur, prev, yr };
+        data = { cur: sumUsage(curList), prev: prevList ? sumUsage(prevList) : null, yr,
+          teams: tl.map((x, i) => ({ id: x.id, name: x.name, members: x.members_active ?? null, cur: sumUsage([curList[i]]), prev: prevList ? sumUsage([prevList[i]]) : null })) };
       }catch(e){ if(my !== seq) return; err = errMsg(e); }
     }
     paint();
@@ -2923,7 +2929,8 @@ const OvUsage = (function(){
   function paint(){
     if($('ou-wrap').hidden) return;
     $('ou-h').textContent = t('ux.ou.h') + ' · ' + Range.label();
-    const chart = $('ou-chart');
+    const chart = $('ou-chart'), svc = $('sv-card'), svb = $('sv-box');
+    svc.hidden = true;
     if(err){
       $('ou-kpis').innerHTML = ''; $('ou-rail').innerHTML = '';
       chart.replaceChildren(AdminUX.state('error', err, { label: AdminUX.u('retry'), run: () => { key = ''; sync(); } }));
@@ -2949,6 +2956,10 @@ const OvUsage = (function(){
     } else {
       const agg = Object.fromEntries(days.map(d => [d, { sp: at('tot', d), sv: at('sv', d) }]));
       chart.innerHTML = usageChartSvg(days, agg, t('ux.ou.h'));
+    }
+    if(AdminUX.savings && data.teams && data.teams.length){
+      svc.hidden = false;
+      AdminUX.savings(svb, { title: t('ux.sv.h') + ' · ' + Range.label(), days, teams: data.teams, money, prevLabel: pLab, onTeam: id => go('teams', id, 'usage', true), key: 'ou:' + org.id });
     }
     if(yr){
       const items = [7, 30, 90, 365].map(n => {
@@ -2976,7 +2987,7 @@ function demoSb(){
   const summary = () => store().rows.map((r, i) => ({ member_id:r.member_id, team_id:r.team_id, display_name:r.display_name, agent:r.agent, sprag_version:r.sprag_version, os:r.os, os_version:r.os_version, arch:r.arch,
     auto_joined:r.auto_joined, joined_at:r.joined_at, last_seen:r.last_seen, left_at:r.left_at, seat_of:r.seat_of, org_id:'demo-org',
     spent_30d:(i + 1) * 31.4, saved_30d:(i + 1) * 12.7, delegated_30d:(i + 1) * 9, errors_30d:0, spent_today:i === 0 ? 24.5 : (i % 4) * 1.3, saved_today:i * 0.4, delegated_today:i === 0 ? 31 : (i % 4) * 3 }));
-  const ledger = () => { const out = []; store().rows.forEach((r, i) => { if(r.left_at) return; for(let d = 0; d < 400; d++) out.push({member_id:r.member_id, day:ago(d).slice(0, 10), spent_usd:(1 + (d % 6) * .5) * DEMO_SPEND[i % 15] * .6 * (.75 + .5 * Math.max(0, 1 - d / 90)), saved_usd:(1 + (d % 4) * .4) * DEMO_SPEND[i % 15] * .6 * DEMO_DLG[i % 15] * (1.3 - .6 * Math.max(0, 1 - d / 90))}); }); return out; };
+  const ledger = () => { const out = []; store().rows.forEach((r, i) => { if(r.left_at) return; for(let d = 0; d < 400; d++) out.push({member_id:r.member_id, day:ago(d).slice(0, 10), spent_usd:(1 + (d % 6) * .5) * DEMO_SPEND[i % 15] * .6 * (.75 + .5 * Math.max(0, 1 - d / 90)), saved_usd:(1 + (d % 4) * .4) * DEMO_SPEND[i % 15] * .6 * DEMO_DLG[i % 15] * (.7 + (.2 + (i % 3) * .3) * Math.max(0, 1 - d / 90))}); }); return out; };
   /* an update patches the in-memory rows it matched, so switches such as prompt capture stay on in the demo */
   const q = rows => { let data = rows, patch = null; const o = {};
     ['select', 'order', 'gte', 'range', 'limit', 'insert'].forEach(k => { o[k] = () => o; });
@@ -3108,7 +3119,7 @@ function demoSb(){
               delegated_cost: nodc ? null : q4(sp * 0.015), codex_delegated: i % 3 === 0 ? 1 : 0, codex_delegated_cost:q4(sp * 0.002), subagent_cost:q4(sp * 0.05), unpriced: i === 2 ? 2 : 0,
               total_spent_today:q4((Number(o.spent_today) || 0) * k),
               series:o.series.map(x => ({ ...x, total:q4(x.spent * k), gateway: gw ? q4(x.spent * k) : null, delegated_cost: nodc ? null : q4(x.spent * 0.015) })) }; };
-          return {data:{ from:a.p_from, to:a.p_to, members: summary().map((m, i) => { const r = rows.filter(x => x.member_id === m.member_id && days.has(x.day)), sum = k => r.reduce((n, x) => n + x[k], 0);
+          return {data:{ from:a.p_from, to:a.p_to, members: summary().map((m, i) => [m, i]).filter(([m]) => m.team_id === a.p_team_id).map(([m, i]) => { const r = rows.filter(x => x.member_id === m.member_id && days.has(x.day)), sum = k => r.reduce((n, x) => n + x[k], 0);
             return cost({ member_id:m.member_id, spent:sum('spent_usd'), saved:sum('saved_usd'), delegated:Math.round(sum('spent_usd') * 3.4), families:((pf, dg) => ({haiku:Math.round(dg * pf[0]), sonnet:Math.round(dg * pf[1]), opus:Math.round(dg * pf[2])}))([[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]][Math.round(m.spent_30d / 31.4) % 4], Math.round(sum('spent_usd') * 3.4)), models:((s, pf) => { const q = x => Math.round(x * 1e4) / 1e4, o = q(s * (pf[2] * 0.6 + 0.25)), n = q(s * pf[1] * 0.6), h = q(s * pf[0] * 0.15); return {opus:o, sonnet:n, haiku:h, fable:q(Math.max(0, s - o - n - h))}; })(sum('spent_usd'), [[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]][Math.round(m.spent_30d / 31.4) % 4]), errors:0, spent_today:m.spent_today, saved_today:m.saved_today, delegated_today:m.delegated_today, series:r.map(x => ({day:x.day, spent:x.spent_usd, saved:x.saved_usd})) }, i); }) }, error:null};
         }
         if(name === 'org_summary') return {data:{...org(), teams:tm.map((x, i) => ({id:x.id, name:x.name, members_active:4 + i, seats:3 + i})),
