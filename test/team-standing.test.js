@@ -6,7 +6,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { standingGuideLines, fieldGuideLines, nextGradeUp, standingFeedbackShort } from '../src/team-standing.js';
+import { standingGuideLines, fieldGuideLines, nextGradeUp } from '../src/team-standing.js';
 import { GRADES, speciesLabel } from '../src/office-species.js';
 
 const guided = (extra = {}) => ({
@@ -155,29 +155,11 @@ test('the standing line adds the rank within the team when the team is a strict 
   assert.equal(standingGuideLines(guided({ teamRank: 3, teamRanked: 12 }), { lang: 'ko', team: 'platform' })[0], '순위: 종합 점수 12명 중 3위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)');
 });
 
-test('standingFeedbackShort: the statusline phrases for where the rank puts you and the next species', () => {
-  const ko = (extra) => standingFeedbackShort(guided(extra), 'ko');
-  assert.deepEqual(ko({}), ['1위까지 2명', '지금 75%, 2%p 더 오르면 🐆 치타 (2명 앞지르기)']);
-  assert.deepEqual(ko({ rank: 1, crown: true }), ['👑 회사 1위', '지금 75%, 2%p 더 오르면 🐆 치타 (2명 앞지르기)']);
-  assert.deepEqual(ko({ rank: 1, ranked: 1 }), ['지금 50%, 혼자라 고정', '동료가 참여하면 순위 시작']);
-  assert.deepEqual(ko({ next: { grade: 'wolf', pass: 0, needDlg: true }, scorePct: 0.82 }), ['1위까지 2명', '지금 82%, 위임 비율 28% 이상이면 🐺 늑대']);
-  assert.deepEqual(ko({ next: { grade: 'wolf', pass: 3, needDlg: true } }), ['1위까지 2명', '지금 75%, 5%p 더 오르고 위임 비율 28% 이상이면 🐺 늑대']);
-  // Without the server's percentile it is read off the rank (#4 of 13 = 75%, #3 of 12 = 82%).
-  assert.deepEqual(ko({ rank: 4, ranked: 13, scorePct: null }), ['1위까지 3명', '지금 75%, 2%p 더 오르면 🐆 치타 (2명 앞지르기)']);
-  assert.deepEqual(ko({ next: { grade: 'wolf', pass: 0, needDlg: true }, scorePct: null }), ['1위까지 2명', '지금 82%, 위임 비율 28% 이상이면 🐺 늑대']);
-  assert.deepEqual(ko({ next: null, grade: 'dragon', idle: false }), ['1위까지 2명', '도감 최상위']);
-  assert.deepEqual(ko({ next: null, grade: 'chick', idle: true }), ['1위까지 2명', '지출이 생기면 순위에 오름']);
-  // An older server that sends no figures at all: the percentile and the distance come from the rank.
-  assert.deepEqual(standingFeedbackShort({ grade: 'fox', rank: 4, ranked: 13 }, 'ko'), ['1위까지 3명', '지금 75%, 2%p 더 오르면 🐆 치타 (1명 앞지르기)']);
-  // A species with the delegation rule keeps it while the share is unknown.
-  assert.deepEqual(standingFeedbackShort({ grade: 'cheetah', rank: 1, ranked: 12, crown: true }, 'ko'), ['👑 회사 1위', '지금 100%, 위임 비율 회사 중앙값 이상이면 🐺 늑대']);
-  // Alone in the standings, in English too; an idle solo keeps the idle phrase.
-  assert.deepEqual(standingFeedbackShort({ grade: 'cat', rank: 1, ranked: 1 }, 'en'), ['now 50%, fixed while alone', 'standings start when a colleague joins']);
-  assert.deepEqual(standingFeedbackShort({ grade: 'chick', rank: 1, ranked: 1, idle: true }, 'ko'), ['혼자 순위에 있음', '지출이 생기면 순위에 오름']);
-  assert.deepEqual(standingFeedbackShort({ grade: 'ghost', rank: null, ranked: 0 }, 'ko'), ['이 기간 업로드 없음']);
-  // English, and bare names without emoji.
-  assert.deepEqual(standingFeedbackShort(guided(), 'en'), ['2 to pass for #1', 'now 75%, 2 pts more for 🐆 Cheetah (pass 2)']);
-  assert.deepEqual(standingFeedbackShort(guided({ rank: 1, crown: true }), 'en', { emoji: false }), ['#1 in the company', 'now 75%, 2 pts more for Cheetah (pass 2)']);
-  assert.deepEqual(standingFeedbackShort(guided({ scorePct: null, rank: 4, ranked: 13 }), 'en'), ['3 to pass for #1', 'now 75%, 2 pts more for 🐆 Cheetah (pass 2)']);
-  assert.deepEqual(standingFeedbackShort(null, 'en'), []);
+test('this machine line adds the rank on each axis when the server sent them', () => {
+  const ranked = guided({ spendRank: 2, dlgRank: 5 });
+  assert.equal(standingGuideLines(ranked, { lang: 'ko' })[4], '  이 컴퓨터: 지출 $481.20 (2/12위) · 위임 비율 31% (5/12위, 회사 중앙값 28%) · 점수 백분위 75%');
+  assert.equal(standingGuideLines(ranked, { lang: 'en' })[4], '  This machine: spent $481.20 (#2/12) · delegation share 31% (#5/12, company median 28%) · score percentile 75%');
+  // Without the median, or with only one axis rank, the brackets stay balanced.
+  assert.equal(standingGuideLines(guided({ dlgRank: 5, medianDlg: null }), { lang: 'ko' })[4], '  이 컴퓨터: 지출 $481.20 · 위임 비율 31% (5/12위) · 점수 백분위 75%');
+  assert.equal(standingGuideLines(guided({ spendRank: 2 }), { lang: 'ko' })[4], '  이 컴퓨터: 지출 $481.20 (2/12위) · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%');
 });

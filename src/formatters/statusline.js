@@ -30,8 +30,8 @@ import { bedrockDisplayFromId } from '../stdin-payload.js';
 import { modelFamily } from '../savings-ledger.js';
 import { shareLegend } from '../model-share.js';
 import { STAR_URL } from '../star-note.js';
-import { speciesLabel } from '../office-species.js';
-import { standingFeedbackShort } from '../team-standing.js';
+import { GRADES, speciesLabel } from '../office-species.js';
+import { scorePctOf, nextOf, nextGradeUp, floorPct } from '../team-standing.js';
 import { cellWidth } from '../cell-width.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
@@ -434,15 +434,19 @@ function buildTeamSeg(team, c, mode = 'icon', now = Date.now()) {
 /**
  * The team line (multi-line layout): the licensed team this machine belongs
  * to, on a line of its own so it never blends into the diagnostics chips, and
- * what the standing asks of you. Head: plan, organization, team, member id.
- * Breakdown: the rank with the animal, then the short feedback from
- * src/team-standing.js (people to pass for #1, the next species and what it
- * takes). Null for a machine that has not joined; the chip above stands in on
- * the single-line layouts.
- *   icon:  "👥 Pro · amazon · AWS-FSI · member-1e500474  |  종합 점수 12명 중 3위, 팀 4명 중 1위 🦊 여우 · 1위까지 2명 · 다음 🐆 치타: 2명 더 (77%부터)"
- *   text:  "Pro · amazon · AWS-FSI · member-1e500474  |  overall score #3 of 12, team #1 of 4 Fox · 2 to pass for #1 · next Cheetah: 2 more (77% and up)"
+ * where the standing comes from. Head: plan, organization, team, member id.
+ * Tail, two groups apart by a gray pipe: the species with a gauge of the score
+ * percentile and the species one row up, then the ranks the score is made of
+ * (overall, team, spend, delegation, and prompts where capture is on). The only
+ * percentages on the line are score percentiles (the gauge and the next
+ * species' starting percentile); the two axes are ranks. Null for a machine
+ * that has not joined; the chip above stands in on the single-line layouts.
+ *   icon:  "👥 Pro · amazon · AWS-FSI · member-1e500474  |  🦊 여우 ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 치타 77%  |  종합 3/12위 · 팀 1/4위 · 사용량 2/12위 · 위임률 5/12위"
+ *   text:  "Pro · amazon · AWS-FSI · member-1e500474  |  Fox 75% → Cheetah 77%  |  overall #3/12 · team #1/4 · spend #2/12 · delegation #5/12"
+ * Text mode draws no gauge, as the other gauges do not. An older server sends no
+ * axis ranks, and the second group then holds the overall rank (and the team's).
  */
-function buildTeamLine(team, c, isIcon, g, mode = 'icon', now = Date.now()) {
+function buildTeamLine(team, c, isIcon, g, mode = 'icon', now = Date.now(), color = true) {
   if (!team || typeof team !== 'object' || !team.label) return null;
   const ko = team.lang === 'ko';
   const emoji = mode === 'icon';
@@ -453,22 +457,58 @@ function buildTeamLine(team, c, isIcon, g, mode = 'icon', now = Date.now()) {
   const head = `${isIcon && g.team ? `${g.team} ` : ''}${[plan, org, teamName, team.label].filter(Boolean).join(' · ')}`;
   const st = team.standing;
   const fresh = st && Number.isFinite(st.fetchedAt) && now - st.fetchedAt <= TEAM_STANDING_MAX_AGE_MS;
-  const parts = [];
-  if (fresh) {
-    const animal = speciesLabel(st.grade, team.lang, { emoji });
-    const ranked = animal && Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
-    if (ranked) {
-      const inTeam = Number.isInteger(st.teamRank) && Number.isInteger(st.teamRanked)
-        && st.teamRank >= 1 && st.teamRanked >= st.teamRank && st.teamRanked < st.ranked;
-      const teamPlace = inTeam ? (ko ? `, 팀 ${st.teamRanked}명 중 ${st.teamRank}위` : `, team #${st.teamRank} of ${st.teamRanked}`) : '';
-      parts.push(ko ? `종합 점수 ${st.ranked}명 중 ${st.rank}위${teamPlace} ${animal}` : `overall score #${st.rank} of ${st.ranked}${teamPlace} ${animal}`);
-    } else if (animal) {
-      parts.push(animal);
+  // Groups of items: ' · ' inside a group, '  |  ' between groups.
+  const groups = [];
+  const animal = fresh ? speciesLabel(st.grade, team.lang, { emoji }) : null;
+  if (animal) {
+    const ranked = Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
+    if (st.grade === 'ghost' || !ranked) {
+      groups.push([animal, ko ? '이 기간 업로드 없음' : 'no usage this period']);
+    } else if (st.idle === true || st.grade === 'chick') {
+      groups.push([animal], [ko ? '지출이 생기면 순위에 오름' : 'spend to enter the standings']);
+    } else {
+      const sr = scorePctOf(st);
+      const pctNow = Math.round(sr * 100);
+      // Text mode has no gauge glyph (like every other gauge on the line).
+      const bar = isIcon ? `${gaugeColored(sr * 100, c, GRAY, color, mode)} ` : '';
+      if (st.ranked === 1) {
+        groups.push(
+          [`${animal} ${bar}${pctNow}% ${ko ? '혼자라 고정' : 'fixed while alone'}`],
+          [ko ? '동료가 참여하면 사용량과 위임률 순위로 등급이 갈림' : 'once a colleague joins, the spend and delegation ranks decide the species'],
+        );
+      } else {
+        const next = nextOf(st, sr);
+        const nextRow = next ? GRADES.find((r) => r.key === next.grade) : null;
+        const up = nextRow || nextGradeUp(st.grade);
+        const first = [];
+        let tail = '';
+        if (up) {
+          const label = speciesLabel(up.key, team.lang, { emoji }) || up.key;
+          const floor = up.minSr >= 0 ? ` ${floorPct(up)}%` : '';
+          const needDlg = nextRow ? next.needDlg : up.needDlg;
+          const rule = needDlg ? (ko ? ' (위임률 중앙값 이상 필요)' : ' (needs median delegation or more)') : '';
+          tail = ` → ${label}${floor}${rule}`;
+        }
+        first.push(`${animal} ${bar}${pctNow}%${tail}`);
+        if (!up) first.push(ko ? '도감 최상위' : 'top of the field guide');
+        groups.push(first);
+
+        const inTeam = Number.isInteger(st.teamRank) && Number.isInteger(st.teamRanked)
+          && st.teamRank >= 1 && st.teamRanked >= st.teamRank && st.teamRanked < st.ranked;
+        const has = (v) => Number.isFinite(v);
+        const rk = (koName, enName, r, n) => (ko ? `${koName} ${r}/${n}위` : `${enName} #${r}/${n}`);
+        const ranks = [`${st.crown && emoji ? '👑 ' : ''}${rk('종합', 'overall', st.rank, st.ranked)}`];
+        if (inTeam) ranks.push(rk('팀', 'team', st.teamRank, st.teamRanked));
+        if (has(st.spendRank)) ranks.push(rk('사용량', 'spend', st.spendRank, st.ranked));
+        if (has(st.dlgRank)) ranks.push(rk('위임률', 'delegation', st.dlgRank, st.ranked));
+        if (has(st.promptRank)) ranks.push(rk('프롬프트', 'prompts', st.promptRank, st.ranked));
+        groups.push(ranks);
+      }
     }
-    parts.push(...standingFeedbackShort(st, team.lang, { emoji }));
   }
-  const tail = parts.length
-    ? `  ${c(GRAY)}|${c(RESET)}  ${parts.map((p) => `${c(GRAY)}${p}${c(RESET)}`).join(` ${c(GRAY)}·${c(RESET)} `)}`
+  const dot = ` ${c(GRAY)}·${c(RESET)} `;
+  const tail = groups.length
+    ? `  ${c(GRAY)}|${c(RESET)}  ${groups.map((items) => items.map((p) => `${c(GRAY)}${p}${c(RESET)}`).join(dot)).join(`  ${c(GRAY)}|${c(RESET)}  `)}`
     : '';
   return { usd: 0, line: `${c(GRAY)}${c(BOLD)}${head}${c(RESET)}${tail}` };
 }
@@ -1748,7 +1788,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // these slots, so this is the only place that knows how each chip is built.
   // The team gets a line of its own in the multi-line layout (buildTeamLine),
   // and its chip steps aside; the single-line layout keeps the chip.
-  const teamLine = singleLine ? null : buildTeamLine(data.team, c, isIcon, g, mode);
+  const teamLine = singleLine ? null : buildTeamLine(data.team, c, isIcon, g, mode, Date.now(), color);
   const built = {
     capWarn: buildCapWarnSeg(capWarn, c, isIcon, g, color, mode),
     spike: buildSpikeSeg(spikeChip, c),

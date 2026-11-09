@@ -30,7 +30,7 @@ const pct = (v) => `${Math.round(Number(v) * 100)}%`;
 /** A weight as a percentage with one decimal where it has one: 0.625 → 62.5%, 0.5 → 50%. */
 const pctW = (v) => `${Math.round(Number(v) * 1000) / 10}%`;
 const money = (v) => `$${Number(v).toFixed(2)}`;
-const floorPct = (g) => Math.round(g.minSr * 100);
+export const floorPct = (g) => Math.round(g.minSr * 100);
 /**
  * Percentage points from the score percentile `sr` up to the floor of species
  * `g`, at least 1 while the floor is not cleared, 0 when it already is (then
@@ -154,10 +154,16 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
   // The caller's own figures, when the server sent them.
   if (has(st.dlg) || has(st.spent) || has(st.scorePct)) {
     const parts = [];
-    if (has(st.spent)) parts.push(ko ? `지출 ${money(st.spent)}` : `spent ${money(st.spent)}`);
+    // The rank on each axis (server migration 20261109000200), out of the ranked people.
+    const axis = (r) => (has(r) ? (ko ? `${r}/${st.ranked}위` : `#${r}/${st.ranked}`) : '');
+    if (has(st.spent)) {
+      const rk = axis(st.spendRank);
+      parts.push(ko ? `지출 ${money(st.spent)}${rk ? ` (${rk})` : ''}` : `spent ${money(st.spent)}${rk ? ` (${rk})` : ''}`);
+    }
     if (has(st.dlg)) {
-      const med = has(st.medianDlg) ? (ko ? ` (회사 중앙값 ${pct(st.medianDlg)})` : ` (company median ${pct(st.medianDlg)})`) : '';
-      parts.push(ko ? `위임 비율 ${pct(st.dlg)}${med}` : `delegation share ${pct(st.dlg)}${med}`);
+      const rk = axis(st.dlgRank);
+      const med = has(st.medianDlg) ? (ko ? `${rk ? ', ' : ' ('}회사 중앙값 ${pct(st.medianDlg)})` : `${rk ? ', ' : ' ('}company median ${pct(st.medianDlg)})`) : (rk ? ')' : '');
+      parts.push(ko ? `위임 비율 ${pct(st.dlg)}${rk ? ` (${rk}` : ''}${med}` : `delegation share ${pct(st.dlg)}${rk ? ` (${rk}` : ''}${med}`);
     }
     if (has(st.scorePct)) parts.push(ko ? `점수 백분위 ${pct(st.scorePct)}` : `score percentile ${pct(st.scorePct)}`);
     lines.push(`  ${ko ? '이 컴퓨터' : 'This machine'}: ${parts.join(' · ')}`);
@@ -225,67 +231,6 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
 
   lines.push(...fieldGuideLines(st.grade, lang));
   return lines;
-}
-
-/**
- * The short form for the statusline's team line: where the rank puts you and
- * what the next species takes, as two or three phrases. The same facts as the
- * block above, without the sentences.
- *   ['1위까지 2명', '다음 🐆 치타: 2명 더 (77%부터)']
- * `emoji: false` keeps the species names bare (narrow and text modes).
- */
-export function standingFeedbackShort(st, lang = 'en', { emoji = true } = {}) {
-  if (!st || typeof st !== 'object' || typeof st.grade !== 'string') return [];
-  const ko = lang === 'ko';
-  const label = (k) => speciesLabel(k, lang, { emoji }) || k;
-  const has = (v) => Number.isFinite(v);
-  const ranked = Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
-  if (st.grade === 'ghost' || !ranked) return [ko ? '이 기간 업로드 없음' : 'no usage this period'];
-  const idle = st.idle === true || st.grade === 'chick';
-  // Alone in the standings the percentile is 50% by definition and nothing
-  // moves it, so the line says that and what would: a colleague joining.
-  if (st.ranked === 1 && !idle) {
-    return ko
-      ? ['지금 50%, 혼자라 고정', '동료가 참여하면 순위 시작']
-      : ['now 50%, fixed while alone', 'standings start when a colleague joins'];
-  }
-  const out = [];
-  if (st.crown) out.push(ko ? `${emoji ? '👑 ' : ''}회사 1위` : `${emoji ? '👑 ' : ''}#1 in the company`);
-  else if (st.rank === 1 && st.ranked === 1) out.push(ko ? '혼자 순위에 있음' : 'alone in the standings');
-  else if (st.rank === 1) out.push(ko ? '회사 1위' : '#1 in the company');
-  else out.push(ko ? `1위까지 ${st.rank - 1}명` : `${st.rank - 1} to pass for #1`);
-
-  const sr = scorePctOf(st);
-  const next = nextOf(st, sr);
-  const up = nextGradeUp(st.grade);
-  const floor = (g) => (g && g.minSr >= 0 ? (ko ? `${floorPct(g)}%부터` : `${floorPct(g)}% and up`) : '');
-  if (next) {
-    const s = label(next.grade);
-    const g = GRADES.find((x) => x.key === next.grade);
-    const x = Math.max(1, Number(next.pass) || 0);
-    const c = has(st.medianDlg) ? pct(st.medianDlg) : (ko ? '회사 중앙값' : 'the company median');
-    const pts = pointsTo(g, sr);
-    if (pts !== null) {
-      // With the percentile: where you are and how many points more.
-      const now = pct(sr);
-      if (next.needDlg && !(Number(next.pass) > 0)) out.push(ko ? `지금 ${now}, 위임 비율 ${c} 이상이면 ${s}` : `now ${now}, delegation share ${c} or more for ${s}`);
-      else if (next.needDlg) out.push(ko ? `지금 ${now}, ${pts}%p 더 오르고 위임 비율 ${c} 이상이면 ${s}` : `now ${now}, ${pts} pts more and delegation share ${c} or more for ${s}`);
-      else out.push(ko ? `지금 ${now}, ${Math.max(1, pts)}%p 더 오르면 ${s} (${x}명 앞지르기)` : `now ${now}, ${Math.max(1, pts)} pts more for ${s} (pass ${x})`);
-    } else if (next.needDlg && !(Number(next.pass) > 0)) {
-      out.push(ko ? `다음 ${s}: 위임 비율 ${c} 이상` : `next ${s}: delegation share ${c} or more`);
-    } else if (next.needDlg) {
-      out.push(ko ? `다음 ${s}: ${x}명 더, 위임 비율 ${c} 이상` : `next ${s}: ${x} more and delegation share ${c} or more`);
-    } else {
-      out.push(ko ? `다음 ${s}: ${x}명 더${floor(g) ? ` (${floor(g)})` : ''}` : `next ${s}: ${x} more${floor(g) ? ` (${floor(g)})` : ''}`);
-    }
-  } else if (idle) {
-    out.push(ko ? '지출이 생기면 순위에 오름' : 'spend to enter the standings');
-  } else if (!up) {
-    out.push(ko ? '도감 최상위' : 'top of the field guide');
-  } else {
-    out.push(ko ? `다음 ${label(up.key)} (${floor(up)})` : `next ${label(up.key)} (${floor(up)})`);
-  }
-  return out;
 }
 
 /**
