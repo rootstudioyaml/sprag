@@ -190,6 +190,8 @@ LLMRouterBench(Findings of ACL 2026)에서 오프라인으로 측정했습니다
 
 JetBrains IDE 내장 터미널에서는 이모지 대신 한 칸 글리프로 표시합니다(`◉ Cache hit 98.8% · ◧ Ctx 47% of 1M`). IDE 기본 폰트에 이모지 글리프가 없어서, 이모지를 그대로 두면 `Cache expires 4:545` 처럼 이전 프레임 문자가 화면에 남습니다. 모드 종류와 `sprag mode narrow` · `mode icon-force` 사용법은 [statusline 문서의 라벨 모드](https://github.com/rootstudioyaml/sprag/blob/main/docs/STATUSLINE.ko.md#라벨-모드)에 있습니다.
 
+Agent SDK로 Claude Code를 실행하는 호스트(T3 Code 등)는 `statusLine` 명령을 실행하지 않아서 이 줄이 보이지 않습니다. 그 호스트의 내장 터미널에서 `sprag panel` 을 실행하면 해당 프로젝트의 가장 최근 세션을 따라가는 실시간 사본이 뜹니다(`--once` 는 한 프레임만 출력합니다). Orca는 Claude Code를 실제 터미널에서 실행하므로 기본 statusline이 그대로 보이고 패널이 필요하지 않습니다. Orca가 자기 statusLine을 먼저 넣어 두었다면 `sprag install` 이 그 명령을 sprag 아래에서 계속 실행해 Orca의 사용량 표시도 유지합니다.
+
 ## 같은 프롬프트를 저가 등급에 돌리면
 
 벤치마크는 공개 데이터를 씁니다. 이 절은 같은 질문을 제 작업에 던진 결과입니다. 이 저장소의 실제 세션에서 질문 여덟 개를 골라 두 등급에 보내고, 실행 전에 적어 둔 정답과 맞춰 봤습니다(2026-09-17, 원자료 `video/out/measure2.json`).

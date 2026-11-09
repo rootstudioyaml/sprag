@@ -134,6 +134,7 @@ const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'proof', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
   'seed', 'litellm-budget', 'oauth-budget', 'profile-map', 'feedback', 'saved', 'cowork', 'team', 'presets', 'routing', 'secrets',
+  'panel',
 ]);
 
 // Flags each entry path reads, collected from the hasFlag/getArg/numArg calls in
@@ -156,6 +157,11 @@ const FLAG_SPECS = {
   // --yes and --no-input are the explicit spelling of "do not ask", and
   // uninstall never asks, so they are accepted as no-ops.
   uninstall: { value: [], bool: ['--purge', '--yes', '--no-input', '--help', '-h'] },
+  // The Claude-side panel. The Codex panel is routed away before any spec applies.
+  panel: {
+    value: ['--project', '--session', '--interval'],
+    bool: ['--once', '--no-color', '--icon', '--verbose', '--single-line', '--help', '-h'],
+  },
 };
 
 /** Which spec applies to this invocation, or null for a subcommand that parses its own arguments. */
@@ -248,6 +254,8 @@ Usage:
   sprag upgrade            install the latest release
   sprag --install-hook     install cache-monitor PostToolUse hook
   sprag --uninstall-hook   remove that hook
+  sprag panel              live statusline in a terminal pane, for hosts that do not draw it (T3 Code, Agent SDK)
+      --once / --interval <sec> / --project <dir> / --session <id> / --no-color
   sprag --statusline       one-line output for Claude Code statusline
       --verbose / --no-color / --icon / --no-timer / --single-line
       --columns N   fit lines to N cells (default: $COLUMNS, which Claude Code sets, else 120)
@@ -304,6 +312,12 @@ async function main() {
       process.exitCode = 2;
       return;
     }
+  }
+
+  // Subcommand: panel — live statusline for hosts that never run the statusLine
+  // command (T3 Code and other Agent SDK hosts). The Codex panel is handled above.
+  if (args[0] === 'panel') {
+    return (await import('../src/commands/panel.js')).run({ getArg, hasFlag });
   }
 
   // Subcommand: last — print the most recent warning + how to handle it.
