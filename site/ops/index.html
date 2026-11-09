@@ -662,6 +662,7 @@
 
         <div id="p-overview" class="stack" role="tabpanel">
           <section class="card of-card" id="scene-card" hidden><div id="scene-box"></div></section>
+        <section class="card" id="d-sv-card"><div id="d-sv"></div></section>
           <div class="cols2">
             <section class="card">
               <h3 data-k="s.teams">Teams</h3>
@@ -1137,6 +1138,8 @@ Object.assign(I18N.ko, {
  "or.r.h":"반영 결과","or.r.org":"조직","or.r.until":"이용 기간","or.r.owner":"오너","or.r.admins":"관리자","or.r.teams":"팀은 오너가 첫 로그인 뒤 만듭니다: {names}",
  "or.r.st.added":"추가됨","or.r.st.invited":"초대함","c.until":"이용 기간","ts.none":"기간 없음","ts.active":"이용 중","ts.ending":"곧 종료","ts.grace":"유예 기간","ts.expired":"종료"
 });
+Object.assign(I18N.en, {"d.sv.h":"Savings by team"});
+Object.assign(I18N.ko, {"d.sv.h":"팀별 절감 상세"});
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
@@ -1321,7 +1324,9 @@ const demo = (function(){
           series:m.series.map(x => ({ ...x, total:q4(x.spent * k), gateway: gw ? q4(x.spent * k) : null, delegated_cost: nodc ? null : q4(x.spent * 0.015) })) }; };
       return {from:a.p_from, to:a.p_to, days:n, members: rowsOf(o).filter(r => r.team_id === a.p_team_id).map((r, j) => {
         const i = (+r.member_id.split('-m')[1] || 0) + (DEMO_OFF[o.id] || 0), spent = DEMO_SPEND[i % 15] * (o.spent_30d / 20) * n / 30, dg = spent > 0 ? Math.max(1, Math.round(Math.sqrt(spent) * 1.2)) : 0, pf = DEMO_FAM[i % 4];
-        return cost({member_id:r.member_id, spent, saved:spent * DEMO_DLG[i % 15], delegated:dg, families:{haiku:Math.round(dg * pf[0]), sonnet:Math.round(dg * pf[1]), opus:Math.round(dg * pf[2])}, models:((s, pf) => { const q = x => Math.round(x * 1e4) / 1e4, o = q(s * (pf[2] * 0.6 + 0.25)), n = q(s * pf[1] * 0.6), h = q(s * pf[0] * 0.15); return {opus:o, sonnet:n, haiku:h, fable:q(Math.max(0, s - o - n - h))}; })(spent, pf), errors:0, spent_today:spent / n * (0.5 + (i % 5) * 0.12), saved_today:spent / n * (0.5 + (i % 5) * 0.12) * DEMO_DLG[i % 15] * 1.4, delegated_today:dg > 0 ? Math.max(1, Math.round(dg / n * (0.6 + (i % 4) * 0.25))) : 0, series:Range.list(a.p_from, a.p_to).map((d, k) => ({day:d, spent:spent / n * (0.5 + ((k * 7 + i * 3) % 10) / 10), saved:0}))}, j);
+        /* savings rise toward today: each day's saved = that day's spend x the member's delegation share x a ramp over the last 60 days whose slope varies by member, so the previous period and the teams differ */
+        const ser = Range.list(a.p_from, a.p_to).map((d, k) => { const sp = spent / n * (0.5 + ((k * 7 + i * 3) % 10) / 10); return {day:d, spent:sp, saved:sp * DEMO_DLG[i % 15] * (0.6 + (0.2 + (i % 3) * 0.4) * Math.max(0, 1 - (Date.now() - Date.parse(d + 'T00:00:00')) / 864e5 / 60))}; }), saved = ser.reduce((x, r) => x + r.saved, 0);
+        return cost({member_id:r.member_id, spent, saved, delegated:dg, families:{haiku:Math.round(dg * pf[0]), sonnet:Math.round(dg * pf[1]), opus:Math.round(dg * pf[2])}, models:((s, pf) => { const q = x => Math.round(x * 1e4) / 1e4, o = q(s * (pf[2] * 0.6 + 0.25)), n = q(s * pf[1] * 0.6), h = q(s * pf[0] * 0.15); return {opus:o, sonnet:n, haiku:h, fable:q(Math.max(0, s - o - n - h))}; })(spent, pf), errors:0, spent_today:spent / n * (0.5 + (i % 5) * 0.12), saved_today:spent / n * (0.5 + (i % 5) * 0.12) * DEMO_DLG[i % 15] * 1.4, delegated_today:dg > 0 ? Math.max(1, Math.round(dg / n * (0.6 + (i % 4) * 0.25))) : 0, series:ser}, j);
       })};
     }
     if(name === 'ops_attention'){
@@ -1945,16 +1950,23 @@ function fillForm(){
 }
 /* daily spend and savings of the open organization, for the sparklines in its cards (team_member_usage per team) */
 const Det = (function(){
-  let key = '', byDay = null, seq = 0;
+  let key = '', byDay = null, teams = null, seq = 0;
   async function ensure(){
     if(!sel || !sum) return;
-    const ids = (sum.teams || []).map(x => x.id), k = sel.id + '|' + JSON.stringify(Range.args()) + '|' + ids.join();
+    const tl = sum.teams || [], ids = tl.map(x => x.id), k = sel.id + '|' + JSON.stringify(Range.args()) + '|' + ids.join();
     if(k === key) return;
-    key = k; byDay = null; const my = ++seq;
-    try{ const list = await Promise.all(ids.map(id => teamUsage(id, Range.args()))); if(my !== seq) return; byDay = sumUsage(list).byDay; }catch(e){ byDay = null; }
+    key = k; byDay = null; teams = null; const my = ++seq;
+    try{
+      const [curList, prevList] = await Promise.all([
+        Promise.all(ids.map(id => teamUsage(id, Range.args()))),
+        Promise.all(ids.map(id => teamUsage(id, Range.prevArgs()))).catch(() => null)]);
+      if(my !== seq) return;
+      byDay = sumUsage(curList).byDay;
+      teams = tl.map((x, i) => ({ id: x.id, name: x.name, members: x.members_active ?? null, cur: sumUsage([curList[i]]), prev: prevList ? sumUsage([prevList[i]]) : null }));
+    }catch(e){ if(my !== seq) return; byDay = null; teams = []; }
     renderDetail();
   }
-  return { ensure, get byDay(){ return byDay; } };
+  return { ensure, get byDay(){ return byDay; }, get teams(){ return teams; } };
 })();
 function renderDetail(){
   const r = parseHash();
@@ -1987,6 +1999,13 @@ function renderDetail(){
     S({ id:'created', label:t('c.created'), text:fmtDay(sel.created_at) })
   ], { id:'d:' + sel.id, cols:'k5' });
   Det.ensure();
+  const svc = $('d-sv-card');
+  if(!AdminUX.savings || (Det.teams && !Det.teams.length)){ svc.hidden = true; }
+  else {
+    svc.hidden = false;
+    if(Det.teams) AdminUX.savings($('d-sv'), { title: t('d.sv.h') + ' · ' + Range.label(), days, teams: Det.teams, money, prevLabel: pLab, onTeam: null, key: 'd:' + sel.id });
+    else $('d-sv').innerHTML = '<p class="msg loading">' + esc(t('loading')) + '</p>';
+  }
   const ts = (sum && sum.teams) || [], ad = (sum && sum.admins) || [], owners = ad.filter(a => !a.pending && a.role === 'owner').length;
   $('side-teams').innerHTML = ts.length ? ts.map(x => `<div class="arow"><span class="em"><b style="font-weight:500">${esc(x.name)}</b>
     <span class="share">${esc(t('s.team', {n: x.members_active ?? 0, s: x.seats ?? 0}, true))}</span></span><button type="button" class="btn sm danger" data-rt="${esc(x.id)}">${esc(t('s.teamdel'))}</button></div>`).join('') : `<p class="msg">${esc(t('s.none'))}</p>`;
