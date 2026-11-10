@@ -56,3 +56,11 @@ test('the species ladder equals the office page GRADES', async () => {
     for (const [tier, t] of Object.entries(TIER_NAMES)) assert.equal(t[lang], names[tier], `${lang} ${tier}`);
   }
 });
+
+// The squeeze for small teams is a copy too: same constants, same results.
+test('the small-team squeeze equals the office page copy', async () => {
+  const scene = await import('../site/assets/scene/office-scene.js');
+  const copy = await import('../src/office-species.js');
+  assert.deepEqual(copy.SMALL_TEAM, scene.SMALL_TEAM);
+  for (const n of [1, 2, 3, 4, 5, 6, 50]) for (const sr of [0, 0.1, 0.25, 0.5, 0.9, 1]) assert.equal(copy.squeezeSr(sr, n), scene.squeezeSr(sr, n), `n ${n} sr ${sr}`);
+});

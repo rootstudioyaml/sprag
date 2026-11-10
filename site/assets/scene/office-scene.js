@@ -50,6 +50,10 @@ export const GRADES = [
   G('sheep', 0.29, 'normal'), G('rabbit', 0.25, 'normal', { gt: true }),
   G('duck', 0.22, 'low'), G('hedgehog', 0.19, 'low'), G('squirrel', 0.16, 'low'), G('hamster', 0.12, 'low'), G('frog', 0.08, 'low'), G('mouse', 0.04, 'low'), G('chick', -1, 'low')
 ];
+/* Below SMALL_TEAM.n ranked people the score percentile is squeezed into [lo, hi]: with two people the bottom one would otherwise get 0, the chick, whatever it spent.
+ * Copied to src/office-species.js (pinned by test/office-species.test.js). */
+export const SMALL_TEAM = { n: 5, lo: 0.3, hi: 0.7 };
+export function squeezeSr(sr, n){ return n < SMALL_TEAM.n ? SMALL_TEAM.lo + (SMALL_TEAM.hi - SMALL_TEAM.lo) * sr : sr; }
 export const GHOST_GRADE = { k: 'ghost', tier: 'nodata' };
 export const TIERS = ['power', 'active', 'normal', 'low'];
 const SR_EPS = 1e-9, TIER_GRADE = { power: 'lion', active: 'fox', normal: 'bear', low: 'chick', nodata: 'ghost' };
@@ -777,7 +781,7 @@ export function mountOfficeScene(container, data, opts = {}){
       rows += `<button type="button" class="bkr${r.n ? '' : ' z'}" data-bk="${esc(r.k)}">${iconSvg(r.k)}<span class="nm">${r.no ? `<small class="no">${esc(r.no)}</small>` : ''}${esc(r.name)}${b.tiers ? '' : `<small>${esc(r.role)}</small>`}</span><span class="ct2">${esc(r.nText != null ? r.nText : r.n)}</span><span class="rg">${esc(r.range)}</span></button>`;
     });
     chrome.setHtml(`<div class="hd">${BOOK_ICON}<div><b>${esc(b.title)}</b><small>${esc(b.range)}${b.found ? ' · ' + esc(b.found) : ''}</small></div><button type="button" class="x" data-a="close" aria-label="${esc((cur.ui || {}).close)}">×</button></div>`
-      + `<div class="bd">${top}${rows}<p class="bknote">${esc(b.note)}</p></div>`);
+      + `<div class="bd">${top}${rows}<p class="bknote">${esc(b.note)}</p>${b.small ? `<p class="bknote">${esc(b.small)}</p>` : ''}</div>`);
   }
   function openBook(){
     if(!cur.book) return;
@@ -1508,6 +1512,8 @@ export function mountOfficeScene(container, data, opts = {}){
  * Grades (see GRADES): percentile score = .5 spend + .3 delegation share (delegated_cost / total usage) + .2 prompts (renormalized without prompts, W_NOPR);
  *   a person none of whose machines sent delegated_cost has an unknown share: it ranks as 0, never meets the delegation rule, and is left out of the medians.
  *   The tier follows the grade: power = top 20% with delegation >= median, active = top half, normal = above the bottom 25%, low = bottom 25% or no spend and no prompts.
+ *   With fewer than SMALL_TEAM.n ranked people the score percentile is squeezed into [0.3, 0.7] (squeezeSr), so only the normal and active tiers are reachable and only an idle person is low;
+ *   the ranking, the score and the crown stay as they are, and the full ladder opens at SMALL_TEAM.n people. Grading and the drawer's company median are one value: median() of the known delegation shares.
  * No data: a person without a machine in signal ok (paused, late, silent) is 'nodata' and stays out of the ranking. */
 export function officeSceneData(o){
   const money = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(2));
@@ -1573,17 +1579,16 @@ export function officeSceneData(o){
   /* an unknown delegation share ranks as 0 but stays out of the medians */
   const sp = ranked.map(p => p.spent), dl = ranked.map(p => p.dlg ?? 0), pm = ranked.map(p => p.prompts), w = pr ? W_FULL : W_NOPR;
   const dlKnown = ranked.map(p => p.dlg).filter(x => x != null);
+  const median = a => { if(!a.length) return 0; const q = [...a].sort((x, y) => x - y), m = Math.floor(q.length / 2); return q.length % 2 ? q[m] : (q[m - 1] + q[m]) / 2; };
   ranked.forEach(p => { p.score = w[0] * rank(sp, p.spent) + w[1] * rank(dl, p.dlg ?? 0) + (pr ? w[2] * rank(pm, p.prompts) : 0); });
-  const sc = ranked.map(p => p.score), med = [...dlKnown].sort((a, b) => a - b)[Math.floor(dlKnown.length / 2)] || 0;
-  ranked.forEach(p => { p.sr = rank(sc, p.score); p.idle = p.spent < 0.01 && (!pr || !p.prompts); p.grade = gradeOf(p.sr, p.dlg, med, p.idle); p.tier = tierOfGrade(p.grade); });
+  const sc = ranked.map(p => p.score), med = median(dlKnown);
+  ranked.forEach(p => { p.sr = squeezeSr(rank(sc, p.score), n); p.idle = p.spent < 0.01 && (!pr || !p.prompts); p.grade = gradeOf(p.sr, p.dlg, med, p.idle); p.tier = tierOfGrade(p.grade); });
   /* standings: rank 1 is the highest score (ties share a rank); the crown goes to rank 1 when at least two people are ranked and they spent something */
   ranked.forEach(p => { p.rank = 1 + ranked.filter(q => q.score > p.score + 1e-12).length; p.crown = n >= 2 && p.rank === 1 && !p.idle; });
   const pc = x => Math.round(x * 100) + '%', pcN = x => (x == null ? t('of.unknown') : pc(x)), mixTot = Object.values(orgMix).reduce((a, b) => a + b, 0);
   const famOf = m => { const s = m ? Object.entries(m).sort((a, b) => b[1] - a[1]) : []; return s[0] && s[0][1] > 0 ? s[0][0] : null; };
   const botsFor = p => {
-    const cap = p.tier === 'power' ? 3 : p.tier === 'active' ? 1 : 0;
-    let k = p.runs <= 0 ? 0 : p.runs < 5 ? 1 : p.runs < 20 ? 2 : 3;
-    k = p.tier === 'power' ? Math.max(2, Math.min(3, k)) : Math.min(cap, k);
+    const k = p.runs <= 0 ? 0 : p.runs < 5 ? 1 : p.runs < 20 ? 2 : 3;
     const m = p.mix || (mixTot ? orgMix : null), tot = m ? Object.values(m).reduce((a, b) => a + b, 0) : 0;
     return Array.from({ length: k }, (_, j) => {
       if(!tot) return 'any';
@@ -1592,7 +1597,6 @@ export function officeSceneData(o){
       return 'any';
     });
   };
-  const median = a => { if(!a.length) return 0; const q = [...a].sort((x, y) => x - y), m = Math.floor(q.length / 2); return q.length % 2 ? q[m] : (q[m - 1] + q[m]) / 2; };
   const orgM = { spent: median(sp), dlg: median(dlKnown), prompts: median(pm) }, teamM = {};
   teams.forEach(tm => { const r = ranked.filter(x => x.host.team_id === tm.id); teamM[tm.id] = { spent: median(r.map(x => x.spent)), dlg: median(r.map(x => x.dlg).filter(x => x != null)), prompts: median(r.map(x => x.prompts)) }; });
   const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' };
@@ -1605,7 +1609,9 @@ export function officeSceneData(o){
     if(p.crown) out.push(t('of.d.crown'));
     if(p.idle){ out.push(t('of.d.next.idle')); return out; }
     if(gi === 0){ out.push(t('of.d.top')); return out; }
-    const g = GRADES[gi - 1], x = Math.max(0, Math.ceil((g.minSr - p.sr) * (n - 1) - 1e-6)), dl = g.needDlg && !(p.dlg != null && p.dlg >= med), v = { x: Math.max(1, x), s: gn(g.k), c: pc(med) };
+    const g = GRADES[gi - 1], small = n < SMALL_TEAM.n, span = small ? SMALL_TEAM.hi - SMALL_TEAM.lo : 1;
+    if(small && g.minSr > SMALL_TEAM.hi + SR_EPS){ out.push(t('of.d.next.small', { k: SMALL_TEAM.n }, true)); return out; }
+    const x = Math.max(0, Math.ceil((g.minSr - p.sr) / span * (n - 1) - 1e-6)), dl = g.needDlg && !(p.dlg != null && p.dlg >= med), v = { x: Math.max(1, x), s: gn(g.k), c: pc(med) };
     out.push(t(dl ? (x ? 'of.d.next.xd' : 'of.d.next.d') : 'of.d.next', v, true));
     return out;
   };
@@ -1636,8 +1642,8 @@ export function officeSceneData(o){
         const hasData = !nodata && !closed;
         const pRows = [[t('of.total'), money(p.spent) + (p.unpriced > 0 ? ' · ' + t('of.unpriced') : '')]]
           .concat([[t('of.dcost'), p.dcost == null ? t('of.unknown') : money(p.dcost)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pcN(p.dlg)], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]])
-          .concat(pr ? [[t('of.prompts'), String(p.prompts)], [t('of.d.days'), String(pd.length)], [t('of.d.avg'), p.prompts ? t('pu.chars', { n: Math.round(p.chars / p.prompts) }, true) : '—'], [t('of.d.lastp'), lastP]] : []);
-        const tRows = [[t('of.d.today'), money(p.today)], [t('of.d.today.s'), money(p.savedToday)], [t('of.d.today.r'), p.delToday == null ? '—' : String(p.delToday)]];
+          .concat(pr ? [[t('of.prompts'), String(p.prompts)], [t('of.d.days'), String(pd.length)], [t('of.d.avg'), p.prompts ? t('pu.chars', { n: Math.round(p.chars / p.prompts) }, true) : t('of.unknown')], [t('of.d.lastp'), lastP]] : []);
+        const tRows = [[t('of.d.today'), money(p.today)], [t('of.d.today.s'), money(p.savedToday)], [t('of.d.today.r'), p.delToday == null ? t('of.unknown') : String(p.delToday)]];
         const groups = hasData ? [{ title: t('of.d.period', { x: o.rangeLabel }, true), rows: pRows }, { title: t('of.d.today.h'), rows: tRows }] : [], grid = hasData ? pRows.concat(tRows) : [];
         const mk3 = (v1, v2, v3, f, nm) => [{ name: t('of.d.me'), v: v1, txt: f(v1), color: '#7c6cf0' }, { name: t('of.d.team'), v: v2, txt: f(v2), color: '#8ec5fb' }, { name: t('of.d.org'), v: v3, txt: f(v3), color: '#d4c7a8' }];
         const dlgMe = mk3(p.dlg ?? 0, tm.dlg, orgM.dlg, pc); if(p.dlg == null) dlgMe[0].txt = t('of.unknown');
@@ -1653,8 +1659,10 @@ export function officeSceneData(o){
   });
   const cnt = k => people.filter(m => m.tier === k).length, used = Number(o.used) || 0, limit = Number(o.limit) || 0, free = limit > used ? limit - used : 0;
   const active = people.length - cnt('nodata'), act = ranked.length ? (cnt('power') + 0.6 * cnt('active') + 0.25 * cnt('normal')) / ranked.length : 0;
+  const dRows = ranked.filter(p => p.dcost != null), dSpent = dRows.reduce((a, p) => a + p.spent, 0);
+  const orgDlg = dRows.length && dSpent > 0 ? pc(dRows.reduce((a, p) => a + p.dcost, 0) / dSpent) : t('of.unknown');
   const stats = closed ? t('of.hud.closed', { u: used, limit }, true)
-    : t('of.hud', { n: active, p: cnt('power'), l: cnt('low'), o: cnt('nodata'), u: used, limit }, true);
+    : t('of.hud', { s: money(totSaved), d: orgDlg, n: active, p: cnt('power'), l: cnt('low'), o: cnt('nodata'), u: used, limit }, true);
   const fam = mixTot > 0 || people.some(p => p.bots.some(b => b !== 'any'));
   const gl = k => t('of.g.' + k), cntG = k => people.filter(m => m.grade === k).length, fw = v => String(Math.round(v * 1000) / 10);
   /* the legend has two rows: the field-guide strip (all thirty species by tier, the ones nobody holds greyed out; a click opens the guide) and the symbol keys */
@@ -1662,14 +1670,15 @@ export function officeSceneData(o){
   const strip = closed ? null : { title: t('of.lg.strip', { f: found, n: GRADES.length }, true),
     tiers: TIERS.map(tr => ({ tier: tr, label: t('of.tier.' + tr), items: bands.filter(b => b.tier === tr).map(b => ({ k: b.k, name: gl(b.k), n: cntG(b.k) })) })) };
   const legend = closed ? [] : (people.some(m => m.crown) ? [{ k: 'crown', label: t('of.lg.crown') }] : []).concat([{ k: 'ghost', label: t('of.lg.ghost') },
-    { bots: true, label: '', fams: fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: f })) : [] }, { label: t('of.lg.screen') }]);
+    { bots: true, label: t('of.lg.bots'), fams: fam ? ['haiku', 'sonnet', 'opus'].map(f => ({ c: FAMC[f], label: f })) : [] }, { label: t('of.lg.screen') }]);
   const book = closed ? null : { title: t('of.book'), range: o.rangeLabel, found: t('of.book.found', { f: found, n: GRADES.length }, true),
     tiers: Object.fromEntries(TIERS.map(tr => [tr, t('of.book.tier', { t: t('of.tier.' + tr), n: tierN(tr) }, true)]).concat([['nodata', t('of.tier.nodata')]])),
     top: { title: t('of.book.top'), rows: people.filter(m => m.rank).sort((a, b) => a.rank - b.rank).slice(0, 5)
       .map(m => ({ id: m.id, name: m.name, k: m.grade, gname: gl(m.grade), team: m.teamName, crown: m.crown, rk: t('of.book.rank', { r: m.rank }, true) })) },
     rows: bands.map(b => ({ k: b.k, tier: b.tier, no: t('of.g.no', { n: String(b.no).padStart(2, '0') }, true), name: gl(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.rk, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
       .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
-    note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true) };
+    note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true),
+    small: n >= 2 && n < SMALL_TEAM.n ? t('of.book.small', { k: SMALL_TEAM.n }, true) : '' };
   const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', back: 'of.back', runs: 'of.runs', models: 'of.d.models', modelsNone: 'of.d.models.none', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.total', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book' }).map(([k, v]) => [k, t(v)]));
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.total') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },

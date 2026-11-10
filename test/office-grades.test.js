@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const { GRADES, TIERS, gradeOf, gradeBands, gradeIndex, tierOfGrade, speciesArt, officeSceneData, W_FULL, W_NOPR } = await import('../site/assets/scene/office-scene.js');
+const { GRADES, TIERS, SMALL_TEAM, squeezeSr, gradeOf, gradeBands, gradeIndex, tierOfGrade, speciesArt, officeSceneData, W_FULL, W_NOPR } = await import('../site/assets/scene/office-scene.js');
 
 /* the tier rule the scene used before species existed */
 const legacyTier = (sr, dlg, med, idle) => (sr <= 0.25 || idle ? 'low' : sr >= 0.8 && dlg >= med ? 'power' : sr >= 0.5 ? 'active' : 'normal');
@@ -114,6 +114,109 @@ test('officeSceneData assigns grades, standings, book rows and day/today groups'
   }
   const p3 = d.people.find(p => p.id === 'm3');
   assert.equal(p3.detail.groups.length, 2);
-  assert.equal(p3.detail.groups[1].rows[2][1], '—');
+  assert.equal(p3.detail.groups[1].rows[2][1], 'of.unknown');
   assert.equal(d.people.find(p => p.id === 'm4').detail.groups[1].rows[2][1], '4');
+});
+
+/* a small fixture: person i spends 10 * (i + 1), a share list gives each one a delegation share, runs gives the delegated runs */
+function fixture(shares, { runs = null, noShare = false, spend = null } = {}){
+  const rows = [], usage = {};
+  shares.forEach((sh, i) => {
+    const id = 'm' + i, spent = spend ? spend[i] : 10 * (i + 1);
+    rows.push({ member_id: id, display_name: 'P' + i, team_id: 't1', team_name: 'T', signal: 'ok' });
+    usage[id] = { spent, delegated: runs ? runs[i] : i, saved: 0, ...(noShare ? {} : { delegated_cost: spent * sh }) };
+  });
+  const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
+  return officeSceneData({ rows, usage, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: shares.length, limit: 30, orgName: 'O', rangeLabel: '30d', t: tt, rel: x => x, os: () => '' });
+}
+const byId = d => Object.fromEntries(d.people.map(p => [p.id, p]));
+
+test('squeezeSr: untouched from five people, [0.3, 0.7] below', () => {
+  assert.deepEqual(SMALL_TEAM, { n: 5, lo: 0.3, hi: 0.7 });
+  for(const sr of [0, 0.25, 0.5, 1]) assert.equal(squeezeSr(sr, 5), sr);
+  assert.equal(squeezeSr(0, 2), 0.3);
+  assert.equal(squeezeSr(1, 4), 0.7);
+  assert.equal(squeezeSr(0.5, 1), 0.5);
+});
+
+test('small team: two people are the husky and the sheep, never the chick', () => {
+  const d = byId(fixture([0.5, 0.5]));
+  assert.equal(d.m1.grade, 'husky'); assert.equal(d.m0.grade, 'sheep');
+  assert.equal(d.m1.rank, 1); assert.equal(d.m1.crown, true); assert.equal(d.m0.crown, false);
+  assert.equal(d.m0.tier, 'normal'); assert.equal(d.m1.tier, 'active');
+});
+
+test('small team: one person is the cat, three are sheep, cat and husky, four never reach power or low', () => {
+  assert.equal(fixture([0.5]).people[0].grade, 'cat');
+  assert.deepEqual(fixture([0.5, 0.5, 0.5]).people.map(p => p.grade).sort(), ['cat', 'husky', 'sheep']);
+  const four = fixture([0.9, 0.1, 0.5, 0.3]).people;
+  assert.equal(four.length, 4);
+  for(const p of four) assert.ok(p.tier === 'normal' || p.tier === 'active', p.id + ' ' + p.tier);
+  /* five people open the full ladder: the lowest score is the chick again */
+  const five = fixture([0.5, 0.5, 0.5, 0.5, 0.5]).people;
+  assert.ok(five.some(p => p.grade === 'chick'));
+});
+
+test('small team: a person with no spend is still the chick', () => {
+  const d = fixture([0.5, 0.5], { spend: [0, 20] }), q = byId(d);
+  assert.equal(q.m0.grade, 'chick'); assert.equal(q.m1.grade, 'husky');
+});
+
+test('small team: the drawer counts people on the squeezed span and says when the ladder is closed', () => {
+  const d = byId(fixture([0.5, 0.5]));
+  assert.equal(d.m1.detail.next[d.m1.detail.next.length - 1], 'of.d.next.small{"k":5}');
+  const sheep = d.m0.detail.next[d.m0.detail.next.length - 1];
+  assert.ok(sheep.startsWith('of.d.next{"x":1,"s":"of.g.pig"'), sheep);
+  /* four people: ranks 4..1 sit at 0.3, 0.433, 0.567, 0.7; the 0.567 raccoon needs 0.7 for the husky */
+  const q = byId(fixture([0.5, 0.5, 0.5, 0.5]));
+  assert.equal(q.m2.grade, 'raccoon');
+  assert.ok(q.m2.detail.next[q.m2.detail.next.length - 1].startsWith('of.d.next{"x":1,"s":"of.g.penguin"'), q.m2.detail.next.join('|'));
+  assert.equal(q.m3.detail.next[q.m3.detail.next.length - 1], 'of.d.next.small{"k":5}');
+});
+
+test('small team: the field guide explains the narrowing only with two to four ranked people', () => {
+  assert.equal(fixture([0.5]).book.small, '');
+  assert.equal(fixture([0.5, 0.5]).book.small, 'of.book.small{"k":5}');
+  assert.equal(fixture([0.5, 0.5, 0.5, 0.5]).book.small, 'of.book.small{"k":5}');
+  assert.equal(fixture([0.5, 0.5, 0.5, 0.5, 0.5]).book.small, '');
+});
+
+test('one median: the drawer shows the same company median that grading uses (even number of known shares)', () => {
+  const d = fixture([0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6, 0.5, 0.05]);
+  /* sorted shares 0.05 .. 0.9: the middle pair is 0.4 and 0.5, so the median is 45%, not the upper 50% */
+  let checked = 0;
+  for(const p of d.people){
+    const why = p.detail.why.match(/"c":"(\d+%)"/)[1], last = p.detail.next[p.detail.next.length - 1], m = last.match(/"c":"(\d+%)"/);
+    assert.equal(why, '45%');
+    if(m){ assert.equal(m[1], why, p.id); checked++; }
+  }
+  assert.ok(checked >= 5);
+  /* 70% clears the 45% median and the cheetah is not held back by the delegation rule */
+  const cheetah = d.people.find(p => p.grade === 'cheetah');
+  assert.ok(cheetah.detail.next[cheetah.detail.next.length - 1].startsWith('of.d.next{'), cheetah.detail.next.join('|'));
+});
+
+test('HUD: savings and the company delegation share lead the stats; unknown without a known share', () => {
+  const d = fixture([0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6, 0.5, 0.05]);
+  /* sum of dcost / sum of spent: 10 * (0.1 + 2 * 0.9 + 3 * 0.2 + ...) / 550 */
+  const spent = [...Array(10)].map((_, i) => 10 * (i + 1)), sh = [0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6, 0.5, 0.05];
+  const want = Math.round(spent.reduce((a, s, i) => a + s * sh[i], 0) / spent.reduce((a, s) => a + s, 0) * 100) + '%';
+  assert.match(d.hud.stats, /^of\.hud\{"s":"\$0\.00","d":"/);
+  assert.equal(JSON.parse(d.hud.stats.slice('of.hud'.length)).d, want);
+  assert.equal(JSON.parse(fixture([0.5, 0.5], { noShare: true }).hud.stats.slice('of.hud'.length)).d, 'of.unknown');
+});
+
+test('bots follow delegated runs only, at any tier; the legend names them', () => {
+  const d = fixture([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], { runs: [20, 1, 4, 5, 19, 0], spend: [1, 2, 3, 4, 5, 600] }), q = byId(d);
+  assert.equal(q.m0.tier, 'low');
+  assert.deepEqual(['m0', 'm1', 'm2', 'm3', 'm4', 'm5'].map(id => q[id].bots.length), [3, 1, 1, 2, 2, 0]);
+  assert.equal(d.legend.find(l => l.bots).label, 'of.lg.bots');
+});
+
+test('the drawer prints no em dash placeholder', () => {
+  const rows = [{ member_id: 'a', display_name: 'A', team_id: 't1', team_name: 'T', signal: 'ok' }];
+  const d = officeSceneData({ rows, usage: { a: { spent: 5, delegated: 0 } }, promptRows: [{ member_id: 'a', prompts: 0, chars: 0 }], teams: [{ id: 't1', name: 'T' }], used: 1, limit: 3, orgName: 'O', rangeLabel: '30d', t: (k, v) => k + (v ? JSON.stringify(v) : ''), rel: x => x, os: () => '' });
+  const cells = d.people[0].detail.grid.map(r => r[1]);
+  assert.ok(!cells.includes('\u2014'));
+  assert.ok(cells.includes('of.unknown'));
 });

@@ -6,8 +6,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { standingGuideLines, fieldGuideLines, nextGradeUp } from '../src/team-standing.js';
-import { GRADES, speciesLabel } from '../src/office-species.js';
+import { standingGuideLines, fieldGuideLines, nextGradeUp, scorePctOf, nextOf } from '../src/team-standing.js';
+import { GRADES, SMALL_TEAM, squeezeSr, speciesLabel } from '../src/office-species.js';
 
 const guided = (extra = {}) => ({
   grade: 'fox', tier: 'active', rank: 3, ranked: 12, crown: false, fetchedAt: 1,
@@ -162,4 +162,42 @@ test('this machine line adds the rank on each axis when the server sent them', (
   // Without the median, or with only one axis rank, the brackets stay balanced.
   assert.equal(standingGuideLines(guided({ dlgRank: 5, medianDlg: null }), { lang: 'ko' })[4], '  이 컴퓨터: 지출 $481.20 · 위임 비율 31% (5/12위) · 점수 백분위 75%');
   assert.equal(standingGuideLines(guided({ spendRank: 2 }), { lang: 'ko' })[4], '  이 컴퓨터: 지출 $481.20 (2/12위) · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%');
+});
+
+// Fewer than five ranked people: the office squeezes the percentile into [0.3, 0.7], so two people are the sheep and the husky.
+test('small team: the percentile read off the rank is squeezed, the server scorePct is used as it is', () => {
+  const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} vs ${b}`);
+  near(scorePctOf({ rank: 2, ranked: 2 }), 0.3);
+  near(scorePctOf({ rank: 1, ranked: 2 }), 0.7);
+  near(scorePctOf({ rank: 2, ranked: 4 }), squeezeSr(2 / 3, 4));
+  assert.equal(scorePctOf({ rank: 1, ranked: 1 }), 0.5);
+  near(scorePctOf({ rank: 5, ranked: 5 }), 0);
+  assert.equal(scorePctOf({ rank: 3, ranked: 3, scorePct: 0.3 }), 0.3);
+  assert.equal(SMALL_TEAM.n, 5);
+});
+
+test('small team: the bottom of two is read as the sheep, one person away from the pig, and the husky has nothing above it', () => {
+  const sheep = { grade: 'sheep', tier: 'normal', rank: 2, ranked: 2, crown: false, fetchedAt: 1 };
+  assert.deepEqual(nextOf(sheep), { grade: 'pig', pass: 1, needDlg: false });
+  const ko = standingGuideLines(sheep, { lang: 'ko' });
+  assert.equal(ko[0], '순위: 종합 점수 2명 중 2위 · 🐑 양');
+  assert.equal(ko[4], '  다음 등급: 🐷 돼지. 지금 백분위 30%, 2%p 더 오르면 됩니다 (1명 앞지르기).');
+  const husky = { grade: 'husky', tier: 'active', rank: 1, ranked: 2, crown: true, fetchedAt: 1 };
+  assert.equal(nextOf(husky), null);
+  assert.equal(standingGuideLines(husky, { lang: 'ko' })[4], '  다음 등급: 순위에 오른 사람이 5명이 되면 더 높은 등급이 열립니다. 지금은 인원이 적어 등급이 보통과 활발 사이에서만 갈립니다.');
+  assert.equal(standingGuideLines(husky, { lang: 'en' })[4], '  Next species: higher species open once 5 people are ranked. With fewer, species stay between Normal and Active.');
+});
+
+test('small team: a server that sent next: null gets the same line, and four ranked people count on the squeezed span', () => {
+  const srv = { grade: 'husky', tier: 'active', rank: 1, ranked: 3, crown: true, scorePct: 0.7, next: null, fetchedAt: 1 };
+  const line = (st, lang) => standingGuideLines(st, { lang }).find((l) => /다음 등급|Next species/.test(l));
+  assert.equal(line(srv, 'en'), '  Next species: higher species open once 5 people are ranked. With fewer, species stay between Normal and Active.');
+  assert.match(line(srv, 'ko'), /^  다음 등급: 순위에 오른 사람이 5명이 되면 더 높은 등급이 열립니다\./);
+  // 2nd of 4: squeezed percentile 57%, the penguin (58%) is one person up.
+  assert.deepEqual(nextOf({ grade: 'raccoon', rank: 2, ranked: 4 }), { grade: 'penguin', pass: 1, needDlg: false });
+  // 5 ranked people are the full ladder again: no small-team line.
+  const five = { grade: 'chick', tier: 'low', rank: 5, ranked: 5, crown: false, fetchedAt: 1 };
+  assert.ok(!standingGuideLines({ ...five, grade: 'fox', rank: 2 }, { lang: 'en' }).join('\n').includes('higher species open'));
+  // Alone: the solo line is unchanged.
+  assert.match(line({ grade: 'cat', rank: 1, ranked: 1 }, 'en'), /^ {2}Next species: alone, the percentile stays at 50%/);
 });
