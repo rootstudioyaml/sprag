@@ -63,6 +63,17 @@ export const GRADES = [
   row('frog', 0.08, 'low'), row('mouse', 0.04, 'low'), row('chick', -1, 'low'),
 ];
 
+/**
+ * Below `n` ranked people the score percentile is squeezed into [lo, hi], so two
+ * people never land on the chick by percentile alone. Copied from SMALL_TEAM and
+ * squeezeSr in site/assets/scene/office-scene.js; test/office-species.test.js
+ * pins the two.
+ */
+export const SMALL_TEAM = { n: 5, lo: 0.3, hi: 0.7 };
+export function squeezeSr(sr, n) {
+  return n < SMALL_TEAM.n ? SMALL_TEAM.lo + (SMALL_TEAM.hi - SMALL_TEAM.lo) * sr : sr;
+}
+
 /** Tier names as the office page shows them (`of.tier.<tier>` in site/team/index.html). */
 export const TIER_NAMES = {
   power: { en: 'AI power user', ko: 'AI 파워 유저' },

@@ -24,7 +24,7 @@
  * Pure: no I/O, so the tests pin every wording.
  */
 
-import { GRADES, TIER_NAMES, speciesLabel } from './office-species.js';
+import { GRADES, SMALL_TEAM, squeezeSr, TIER_NAMES, speciesLabel } from './office-species.js';
 
 const pct = (v) => `${Math.round(Number(v) * 100)}%`;
 /** A weight as a percentage with one decimal where it has one: 0.625 → 62.5%, 0.5 → 50%. */
@@ -48,6 +48,9 @@ export function nextGradeUp(key) {
   return i > 0 ? GRADES[i - 1] : null;
 }
 
+// 2 to 4 ranked people: the office squeezes the percentile into [lo, hi] (SMALL_TEAM).
+const isSmall = (st) => st.ranked >= 2 && st.ranked < SMALL_TEAM.n;
+
 const isRanked = (st) => Number.isInteger(st.rank) && Number.isInteger(st.ranked) && st.rank >= 1 && st.ranked >= st.rank;
 
 /**
@@ -56,13 +59,16 @@ const isRanked = (st) => Number.isInteger(st.rank) && Number.isInteger(st.ranked
  * Otherwise the server's `scorePct` when it sent one, else read off the rank:
  * the office ranks a score as (people below + ties / 2) / (people − 1), so
  * without ties rank r of n is (n − r) / (n − 1). Ties (two identical scores)
- * would put the true value a little lower. Null when there is no rank.
+ * would put the true value a little lower. With 2 to 4 ranked people the rank
+ * reading is squeezed the way the office does (squeezeSr); the server's
+ * `scorePct` is used as it is, since the server sends the squeezed value.
+ * Null when there is no rank.
  */
 export function scorePctOf(st) {
   if (!st || typeof st !== 'object' || !isRanked(st)) return null;
   if (st.ranked < 2) return 0.5;
   if (Number.isFinite(st.scorePct)) return st.scorePct;
-  return (st.ranked - st.rank) / (st.ranked - 1);
+  return squeezeSr((st.ranked - st.rank) / (st.ranked - 1), st.ranked);
 }
 
 /**
@@ -71,6 +77,8 @@ export function scorePctOf(st) {
  * the percentile: people to pass = ceil((floor − percentile) × (people − 1)).
  * Whether the delegation-share rule still stands in the way is known only with
  * the share and the median; without them a species with the rule keeps it.
+ * With 2 to 4 ranked people the pass count uses the squeezed span, and the
+ * result is null when the next species starts above SMALL_TEAM.hi.
  * Null when idle, alone, on the top row, or without a percentile.
  */
 export function nextOf(st, sr = scorePctOf(st)) {
@@ -80,8 +88,11 @@ export function nextOf(st, sr = scorePctOf(st)) {
   if (st.idle === true || st.grade === 'chick' || !Number.isFinite(sr) || !isRanked(st) || st.ranked < 2) return null;
   const up = nextGradeUp(st.grade);
   if (!up || !(up.minSr >= 0)) return null;
+  // Few people ranked: the percentile only reaches SMALL_TEAM.hi, so a higher species is closed.
+  if (isSmall(st) && up.minSr > SMALL_TEAM.hi) return null;
+  const span = isSmall(st) ? SMALL_TEAM.hi - SMALL_TEAM.lo : 1;
   const dlgOk = Number.isFinite(st.dlg) && Number.isFinite(st.medianDlg) && st.dlg >= st.medianDlg;
-  return { grade: up.key, pass: Math.max(0, Math.ceil((up.minSr - sr) * (st.ranked - 1) - 1e-6)), needDlg: up.needDlg && !dlgOk };
+  return { grade: up.key, pass: Math.max(0, Math.ceil((up.minSr - sr) / span * (st.ranked - 1) - 1e-6)), needDlg: up.needDlg && !dlgOk };
 }
 
 /**
@@ -220,6 +231,12 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
       text = `${ko ? `${x}명을 더 앞지르면 ${s}` : `pass ${x} more to become ${s}`}${floorNote(g)}`;
     }
     lines.push(`  ${ko ? '다음 등급' : 'Next species'}: ${text}`);
+  } else if (up && isSmall(st) && up.minSr > SMALL_TEAM.hi) {
+    // Few people ranked: the next species sits above the squeezed range. The
+    // same line when the server sent no `next` for this reason.
+    lines.push(ko
+      ? `  다음 등급: 순위에 오른 사람이 ${SMALL_TEAM.n}명이 되면 더 높은 등급이 열립니다. 지금은 인원이 적어 등급이 보통과 활발 사이에서만 갈립니다.`
+      : `  Next species: higher species open once ${SMALL_TEAM.n} people are ranked. With fewer, species stay between Normal and Active.`);
   } else if (!up) {
     lines.push(ko ? '  다음 등급: 도감에서 가장 높은 종입니다.' : '  Next species: the top species in the field guide.');
   } else {
