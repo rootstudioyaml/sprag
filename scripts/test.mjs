@@ -10,5 +10,10 @@ import { fileURLToPath } from 'node:url';
 
 const dir = fileURLToPath(new URL('../test/', import.meta.url));
 const files = readdirSync(dir).filter((f) => /\.test\.[cm]?js$/.test(f)).sort().map((f) => join(dir, f));
-const r = spawnSync(process.execPath, ['--test', ...process.argv.slice(2), ...files], { stdio: 'inherit' });
+// Some tests run the CLI against the real ~/.claude/projects. The request store
+// (src/request-store.js) would then write sidecars for the developer's own large
+// transcripts into the real data directory, so it is off for the run;
+// test/request-store.test.js turns it back on inside a temp data directory.
+const env = { ...process.env, SPRAG_NO_REQUEST_STORE: '1' };
+const r = spawnSync(process.execPath, ['--test', ...process.argv.slice(2), ...files], { stdio: 'inherit', env });
 process.exit(r.status ?? 1);

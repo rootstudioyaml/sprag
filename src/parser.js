@@ -1,4 +1,5 @@
-import { openSync, readSync, closeSync, fstatSync } from 'node:fs';
+import { openSync, readSync, closeSync, fstatSync, statSync, createReadStream } from 'node:fs';
+import { once } from 'node:events';
 import { readdir, stat } from 'node:fs/promises';
 import { transcriptLines } from './transcript-lines.js';
 import { join, isAbsolute, basename } from 'node:path';
@@ -6,6 +7,8 @@ import { homedir } from 'node:os';
 import { loadCache, getCached, putCached, saveCache, getCachedSince, putCachedSince } from './session-cache.js';
 import { resolveModelAlias, isGatewayModelId } from './model-alias.js';
 import { LONG_PROMPT_THRESHOLD } from './cost.js';
+import { storeEligible, readStore, writeStore, hashBefore } from './request-store.js';
+import { debug } from './debug.js';
 
 const CLAUDE_DIR = join(homedir(), '.claude', 'projects');
 
@@ -22,73 +25,237 @@ function usageLooksGatewayShaped(usage) {
   return GATEWAY_USAGE_KEYS.some((k) => Object.prototype.hasOwnProperty.call(usage, k));
 }
 
+// How often a long parse run writes its progress to the session cache, so that a
+// render killed by the statusline time budget keeps what it already parsed.
+const PROGRESS_SAVE_MS = 1000;
+
+// Counters of the parse work done by this process. The statusline records them
+// when its time budget runs out, which says whether the render was slow because
+// of whole-file parses or because of the number of files.
+const stats = { full: 0, resumed: 0, bytes: 0 };
+
+/** @returns {{full:number, resumed:number, bytes:number}} files parsed whole, files resumed from the request store, bytes read */
+export function parseStats() {
+  return { ...stats };
+}
+
+export function resetParseStats() {
+  stats.full = 0;
+  stats.resumed = 0;
+  stats.bytes = 0;
+}
+
+// The session cache a parseAllSessions run is filling right now, so a caller
+// that is about to exit (the statusline deadline) can persist the progress.
+let pendingCache = null;
+
+/** Save the in-flight parse run's cache when it holds entries not written yet. */
+export function flushPendingSessionCache() {
+  const p = pendingCache;
+  if (!p || !(p.misses > p.saved)) return;
+  p.saved = p.misses;
+  saveCache(p.cache, p.path);
+}
+
+function newParseState(track) {
+  return {
+    requests: new Map(),
+    // Raw model id per request, kept only when a request store is being written.
+    raw: track ? new Map() : null,
+    sessionId: null,
+    firstTimestamp: null,
+    lastTimestamp: null,
+    gatewayObserved: false,
+  };
+}
+
+/** Fold one transcript line into the parse state. Shared by the whole-file and the resumed read. */
+function consumeLine(st, line) {
+  let entry;
+  try {
+    entry = JSON.parse(line);
+  } catch {
+    return;
+  }
+
+  const ts = entry.timestamp;
+  if (ts) {
+    if (!st.firstTimestamp || ts < st.firstTimestamp) st.firstTimestamp = ts;
+    if (!st.lastTimestamp || ts > st.lastTimestamp) st.lastTimestamp = ts;
+  }
+
+  if (!st.sessionId && entry.sessionId) {
+    st.sessionId = entry.sessionId;
+  }
+
+  const msg = entry.message;
+  if (!msg?.usage || !msg.id) return;
+
+  const usage = msg.usage;
+  // "<synthetic>" marks a stub Claude Code wrote locally, such as an error or
+  // an interrupt notice. No API call was made and no token was billed, so it
+  // is not a request, and a transcript holding nothing else is not a session.
+  // Counted, they put hundreds of calls that never happened into the report.
+  if (msg.model === '<synthetic>' && !(usage.input_tokens || usage.output_tokens ||
+      usage.cache_creation_input_tokens || usage.cache_read_input_tokens)) return;
+  const cc = usage.cache_creation || {};
+  const reqId = entry.requestId || msg.id;
+
+  // Recorded from the RAW id, before resolveModelAlias() turns the ARN into
+  // a plain model name. Downstream this is the only thing that distinguishes
+  // "no cache writes yet" from "a gateway that never reports the TTL split",
+  // and those two states want opposite countdown defaults.
+  if (!st.gatewayObserved && (isGatewayModelId(msg.model) || usageLooksGatewayShaped(usage))) {
+    st.gatewayObserved = true;
+  }
+
+  st.requests.set(reqId, {
+    requestId: reqId,
+    // Per-request timestamp so callers can filter by time window — the
+    // mtime-based file filter alone lets a long-lived session drag
+    // months-old requests into a narrow --days window.
+    ts: ts ? Date.parse(ts) : null,
+    model: resolveModelAlias(msg.model),
+    inputTokens: usage.input_tokens || 0,
+    cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+    cacheReadTokens: usage.cache_read_input_tokens || 0,
+    ephemeral5mTokens: cc.ephemeral_5m_input_tokens || 0,
+    ephemeral1hTokens: cc.ephemeral_1h_input_tokens || 0,
+    outputTokens: usage.output_tokens || 0,
+  });
+  if (st.raw) st.raw.set(reqId, msg.model ?? null);
+}
+
+/** The request store's view of the parse state as of `offset`. */
+function snapshotStore(st, offset, filePath) {
+  const tailHash = hashBefore(filePath, offset);
+  if (!tailHash) return null;
+  const reqs = [];
+  for (const [id, r] of st.requests) {
+    // A timestamp that does not parse is NaN, which JSON would turn into null.
+    reqs.push([id, Number.isNaN(r.ts) ? 'NaN' : r.ts, st.raw.get(id) ?? null, r.inputTokens, r.cacheCreationTokens,
+      r.cacheReadTokens, r.ephemeral5mTokens, r.ephemeral1hTokens, r.outputTokens]);
+  }
+  return {
+    offset, tailHash, sessionId: st.sessionId, firstTs: st.firstTimestamp, lastTs: st.lastTimestamp,
+    gatewayObserved: !!st.gatewayObserved, reqs,
+  };
+}
+
+function restoreState(st, stored) {
+  st.sessionId = stored.sessionId ?? null;
+  st.firstTimestamp = stored.firstTs ?? null;
+  st.lastTimestamp = stored.lastTs ?? null;
+  st.gatewayObserved = !!stored.gatewayObserved;
+  for (const row of stored.reqs) {
+    if (!Array.isArray(row) || row.length < 9) throw new Error('malformed request row');
+    const [id, ts, rawModel, input, cacheCreation, cacheRead, e5m, e1h, output] = row;
+    st.requests.set(id, {
+      requestId: id,
+      ts: ts === 'NaN' ? NaN : ts,
+      model: resolveModelAlias(rawModel),
+      inputTokens: input,
+      cacheCreationTokens: cacheCreation,
+      cacheReadTokens: cacheRead,
+      ephemeral5mTokens: e5m,
+      ephemeral1hTokens: e1h,
+      outputTokens: output,
+    });
+    st.raw.set(id, rawModel);
+  }
+}
+
+/**
+ * Read a transcript from byte `start`, feeding each complete line to the state.
+ * A final line without its newline may still be growing, so it is not consumed:
+ * it is returned as `tail` and `consumed` stops before it.
+ */
+async function readFromOffset(filePath, start, st) {
+  let consumed = start;
+  let bytes = 0;
+  let pending = [];
+  let pendingLen = 0;
+  const stream = createReadStream(filePath, { start });
+  try {
+    for await (const chunk of stream) {
+      bytes += chunk.length;
+      let from = 0;
+      let nl;
+      while ((nl = chunk.indexOf(0x0a, from)) !== -1) {
+        let lineBuf = chunk.subarray(from, nl);
+        if (pendingLen) {
+          lineBuf = Buffer.concat([...pending, lineBuf]);
+          pending = [];
+          pendingLen = 0;
+        }
+        consumed += lineBuf.length + 1;
+        consumeLine(st, lineBuf.toString('utf8'));
+        from = nl + 1;
+      }
+      if (from < chunk.length) {
+        const rest = chunk.subarray(from);
+        pending.push(rest);
+        pendingLen += rest.length;
+      }
+    }
+  } finally {
+    stream.destroy();
+    if (!stream.closed) await once(stream, 'close').catch(() => {});
+  }
+  return { consumed, bytes, tail: pendingLen ? Buffer.concat(pending).toString('utf8') : null };
+}
+
 /**
  * Parse a single session JSONL file.
  * Deduplicates by requestId (last-write-wins for streaming chunks).
+ *
+ * A transcript of `STORE_MIN_BYTES` or more is parsed incrementally from its
+ * request store (see request-store.js): only the bytes appended since the last
+ * parse are read. The result is identical to a whole-file parse.
+ *
+ * @param {string} filePath
+ * @param {{ store?: boolean, minBytes?: number }} [options] `store: false` parses the
+ *   whole file and neither reads nor writes the request store; `minBytes` replaces
+ *   the size from which a transcript gets a store.
  */
-export async function parseSessionFile(filePath) {
-  const requests = new Map();
-  let sessionId = null;
-  let firstTimestamp = null;
-  let lastTimestamp = null;
-  let gatewayObserved = false;
+export async function parseSessionFile(filePath, { store = true, minBytes } = {}) {
+  let size = 0;
+  try { size = statSync(filePath).size; } catch { /* the read below reports the problem */ }
+  let st = newParseState(false);
 
-  for await (const line of transcriptLines(filePath)) {
-    let entry;
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
+  if (!(store && storeEligible(filePath, size, minBytes))) {
+    for await (const line of transcriptLines(filePath)) consumeLine(st, line);
+    stats.full++;
+    stats.bytes += size;
+  } else {
+    st = newParseState(true);
+    let prior = readStore(filePath, size);
+    let start = 0;
+    if (prior) {
+      try {
+        restoreState(st, prior);
+        start = prior.offset;
+      } catch (e) {
+        debug('request-store:restore', e);
+        st = newParseState(true);
+        prior = null;
+      }
     }
-
-    const ts = entry.timestamp;
-    if (ts) {
-      if (!firstTimestamp || ts < firstTimestamp) firstTimestamp = ts;
-      if (!lastTimestamp || ts > lastTimestamp) lastTimestamp = ts;
+    let consumed = start;
+    let bytes = 0;
+    let tail = null;
+    if (start < size) ({ consumed, bytes, tail } = await readFromOffset(filePath, start, st));
+    if (prior) stats.resumed++; else stats.full++;
+    stats.bytes += bytes;
+    if (consumed > 0 && (!prior || consumed !== prior.offset)) {
+      const snap = snapshotStore(st, consumed, filePath);
+      if (snap) writeStore(filePath, snap);
     }
-
-    if (!sessionId && entry.sessionId) {
-      sessionId = entry.sessionId;
-    }
-
-    const msg = entry.message;
-    if (!msg?.usage || !msg.id) continue;
-
-    const usage = msg.usage;
-    // "<synthetic>" marks a stub Claude Code wrote locally, such as an error or
-    // an interrupt notice. No API call was made and no token was billed, so it
-    // is not a request, and a transcript holding nothing else is not a session.
-    // Counted, they put hundreds of calls that never happened into the report.
-    if (msg.model === '<synthetic>' && !(usage.input_tokens || usage.output_tokens ||
-        usage.cache_creation_input_tokens || usage.cache_read_input_tokens)) continue;
-    const cc = usage.cache_creation || {};
-    const reqId = entry.requestId || msg.id;
-
-    // Recorded from the RAW id, before resolveModelAlias() turns the ARN into
-    // a plain model name. Downstream this is the only thing that distinguishes
-    // "no cache writes yet" from "a gateway that never reports the TTL split",
-    // and those two states want opposite countdown defaults.
-    if (!gatewayObserved && (isGatewayModelId(msg.model) || usageLooksGatewayShaped(usage))) {
-      gatewayObserved = true;
-    }
-
-    requests.set(reqId, {
-      requestId: reqId,
-      // Per-request timestamp so callers can filter by time window — the
-      // mtime-based file filter alone lets a long-lived session drag
-      // months-old requests into a narrow --days window.
-      ts: ts ? Date.parse(ts) : null,
-      model: resolveModelAlias(msg.model),
-      inputTokens: usage.input_tokens || 0,
-      cacheCreationTokens: usage.cache_creation_input_tokens || 0,
-      cacheReadTokens: usage.cache_read_input_tokens || 0,
-      ephemeral5mTokens: cc.ephemeral_5m_input_tokens || 0,
-      ephemeral1hTokens: cc.ephemeral_1h_input_tokens || 0,
-      outputTokens: usage.output_tokens || 0,
-    });
+    // The unterminated last line counts for this result but not for the store.
+    if (tail) consumeLine(st, tail);
   }
 
-  const reqs = [...requests.values()];
+  const reqs = [...st.requests.values()];
   // Representative model: the one that handled the most requests, skipping
   // "<synthetic>" (Claude Code's local error-stub placeholder — no real API
   // call). Taking reqs[0] blindly let an error stub at session start
@@ -108,10 +275,10 @@ export async function parseSessionFile(filePath) {
   const { totals, maxContextPerRequest, modelTotals, dayTotals } = sumRequests(reqs);
 
   return {
-    sessionId,
+    sessionId: st.sessionId,
     filePath,
-    startTime: firstTimestamp ? new Date(firstTimestamp) : null,
-    endTime: lastTimestamp ? new Date(lastTimestamp) : null,
+    startTime: st.firstTimestamp ? new Date(st.firstTimestamp) : null,
+    endTime: st.lastTimestamp ? new Date(st.lastTimestamp) : null,
     requestCount: reqs.length,
     requests: reqs,
     totals,
@@ -119,7 +286,7 @@ export async function parseSessionFile(filePath) {
     model,
     ...(modelTotals ? { modelTotals } : {}),
     ...(dayTotals ? { dayTotals } : {}),
-    gatewayObserved,
+    gatewayObserved: st.gatewayObserved,
   };
 }
 
@@ -494,7 +661,10 @@ export async function parseAllSessions(options = {}) {
   const results = [];
   const useCache = !options.noCache;
   const cache = useCache ? loadCache(options.cachePath) : { entries: {} };
-  let misses = 0;
+  // `misses` counts entries added to the cache; `saved` is how many of them are on disk.
+  const prog = { cache, path: options.cachePath, misses: 0, saved: 0 };
+  let lastSaveAt = Date.now();
+  if (useCache) pendingCache = prog;
   // The file-level mtime filter (discoverSessionFiles) is only a cheap
   // pre-selection: a session started months ago but touched today passes it,
   // and its old requests would pollute every aggregate in the window. Any
@@ -526,9 +696,20 @@ export async function parseAllSessions(options = {}) {
       }),
     );
     results.push(...parsed.filter(Boolean));
+    // A cold machine can spend longer than the statusline budget here; saving
+    // as it goes keeps the progress when the process is cut off.
+    if (useCache && prog.misses > prog.saved && Date.now() - lastSaveAt >= PROGRESS_SAVE_MS) {
+      prog.saved = prog.misses;
+      lastSaveAt = Date.now();
+      saveCache(cache, options.cachePath);
+    }
   }
 
-  if (useCache && misses > 0) saveCache(cache, options.cachePath);
+  if (useCache && prog.misses > prog.saved) {
+    prog.saved = prog.misses;
+    saveCache(cache, options.cachePath);
+  }
+  if (pendingCache === prog) pendingCache = null;
 
   return results.filter((s) => s.requestCount > 0);
 
@@ -548,7 +729,7 @@ export async function parseAllSessions(options = {}) {
           run = await parseSessionFile(a.path);
           if (useCache) {
             putCached(cache, a, run);
-            misses++;
+            prog.misses++;
           }
         }
         if (!run.requestCount || !run.endTime || run.endTime.getTime() < cutoffMs) continue;
@@ -585,7 +766,7 @@ export async function parseAllSessions(options = {}) {
     session.projectDir = f.projectDir;
     if (useCache) {
       putCached(cache, f, session);
-      misses++;
+      prog.misses++;
     }
     const { requests, ...whole } = session;
     const summary = spansCutoff(session, cutoffMs) ? trimToCutoff(session, cutoffMs) : whole;
