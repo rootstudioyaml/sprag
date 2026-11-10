@@ -35,7 +35,7 @@ export function castCrown(T){
   g.position.set(0, 1.04, -0.02); g.rotation.x = -0.12; return g;
 }
 export const W_FULL = [0.5, 0.3, 0.2], W_NOPR = [0.625, 0.375, 0];   /* spend, delegation, prompts rank weights (second set: prompt collection off) */
-const MAXP = 60, FAMC = { haiku: '#7fe0b8', sonnet: '#8ec5fb', opus: '#f9a8d4' };
+const MAXP = 500, FAMC = { haiku: '#7fe0b8', sonnet: '#8ec5fb', opus: '#f9a8d4' };
 /* spend per model: fixed colours for the known families, grey for any other raw name; known ones first in this order, the rest by value */
 export const MODELC = { fable: '#fcd34d', mythos: '#c4b5fd', opus: '#f9a8d4', sonnet: '#8ec5fb', haiku: '#7fe0b8' };
 export function modelParts(models){
