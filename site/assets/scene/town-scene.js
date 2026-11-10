@@ -6,13 +6,14 @@
  * every window is a seat (warm lit = in use, dark = unused), delivery bots fly to HQ, suspended companies are shuttered and grey.
  * Shared pieces (loader, WebGL check, styles, fullscreen button and drawer) come from office-scene.js.
  *
- * Day/night follows the viewer's local clock (dawn 5-7, day 7-17, dusk 17-19, night 19-5, smooth blends, re-evaluated every minute).
- * Weather comes from Open-Meteo for Seoul (fixed coordinates, no key, no geolocation, cached 30 min, 4 s timeout, silent fallback to clear).
- * Debug overrides for screenshots only (also honoured in ?demo=1):  ?tod=night|dawn|dusk|day   ?wx=clear|clouds|fog|rain|snow|storm
+ * Day/night and weather come from sky.js, shared with the office scene: the viewer's local clock (dawn 5-7, day 7-17, dusk 17-19, night 19-5, smooth blends,
+ * re-evaluated every minute) and Open-Meteo for Seoul (fixed coordinates, no key, no geolocation, cached 30 min, 4 s timeout, silent fallback to clear).
+ * Debug overrides for screenshots only (also honoured in ?demo=1):  ?tod=night|dawn|dusk|day or an hour like 21.5   ?wx=clear|clouds|fog|rain|snow|storm
  * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
 import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts } from './office-scene.js';
+import { WX_CLEAR, fetchWeather, weatherFromCode, parseOverrides, clampN, todBlend, chipText } from './sky.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#5f6a88';
 const PASTEL = ['#f9d9c4', '#d7ecd9', '#e6dcf8', '#d3e8f7', '#fbe9b9', '#f7d6e4'];
@@ -26,21 +27,22 @@ export function townSceneData(o){
     return { id: g.id, name: g.name, ent: g.plan === 'enterprise', closed, used, limit, spent, saved, paused, late, rev, members: Number(g.members_total) || 0, created: g.created_at, teams: Number(g.teams) || 0 };
   }).sort((a, b) => b.rev - a.rev || b.limit - a.limit);
   const maxSpend = Math.max(1, ...rows.map(r => r.spent)), shown = rows.slice(0, MAXC), more = rows.length - shown.length;
-  const pc = x => Math.round(x * 100) + '%', day = d => (d ? String(d).slice(0, 10) : '—');
+  const pc = x => Math.round(x * 100) + '%', day = d => (d ? String(d).slice(0, 10) : t('never'));
   const list = shown.map(r => {
     const util = r.limit ? r.used / r.limit : 0, bad = r.used + r.paused + r.late ? (r.paused + r.late) / (r.used + r.paused + r.late) : 0, act = r.closed ? 0 : Math.min(1, r.spent / maxSpend * 0.6 + util * 0.4);
     const bots = r.closed ? 0 : bad > 0.4 ? 1 : Math.max(1, Math.min(4, Math.round(1 + 3 * act))), full = r.limit > 0 && r.used >= r.limit;
     const plan = t(r.ent ? 'plan.enterprise' : 'plan.pro');
     return { ...r, util, act, bots, full, plan,
-      sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late },
+      sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), saved: r.closed ? '' : t('tn.saved', { v: o.money(r.saved) }, true), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late },
       detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit + ' · ' + pc(util)], [t('tn.revm'), o.money(r.rev), 'rev'], [t('of.total') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
         [t('tn.members'), String(r.members)], [t('tn.teams'), String(r.teams)], [t('tn.paused'), String(r.paused)], [t('tn.late'), String(r.late)], [t('tn.created'), day(r.created)]], status: r.closed ? t('of.tag.closed') : '',
         utilTip: t('tn.d.utilTip', { u: r.used, l: r.limit, p: pc(util) }, true), freeTip: t('tn.d.freeTip', { n: Math.max(0, r.limit - r.used) }, true) } };
   });
   const all = o.orgs || [], sum = k => all.reduce((a, g) => a + (Number(g[k]) || 0), 0), pro = all.filter(g => g.plan !== 'enterprise').length, ent = all.length - pro;
-  const rev = all.reduce((a, g) => a + o.revenue(g), 0), stats = t('tn.hud', { n: all.length, p: pro, e: ent, r: o.money(rev), u: sum('seats_used'), l: sum('seat_limit') }, true);
+  const rev = all.reduce((a, g) => a + o.revenue(g), 0), savedAll = all.reduce((a, g) => a + (Number(g.saved ?? g.saved_30d) || 0), 0), REV = '\u0001REV\u0001';
+  const marked = t('tn.hud', { n: all.length, p: pro, e: ent, s: o.money(savedAll), r: REV, u: sum('seats_used'), l: sum('seat_limit') }, true), stats = marked.split(REV).join(o.money(rev));
   return { companies: list, more: Math.max(0, more), moreLabel: more > 0 ? t('tn.more', { n: more }, true) : '',
-    hud: { title: t('tn.title'), stats, statsNoRev: stats.split(' · ').filter(x => x.indexOf(o.money(rev)) < 0).join(' · ') },
+    hud: { title: t('tn.title'), stats, statsNoRev: marked.split(' · ').filter(x => x.indexOf(REV) < 0).join(' · ') },
     legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
     ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', total: 'of.d.total', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.total', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
       dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dModels: 'tn.d.models', dModelsNone: 'tn.d.models.none', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
@@ -73,52 +75,6 @@ const STY = {
 STY.podium = STY.glass;
 
 const rng = seed => { let s = Math.floor(hash(seed) * 4294967296) >>> 0 || 1; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
-const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-const smooth = u => u * u * (3 - 2 * u);
-
-/* ── day / night + weather ───────────────────────────────────────────── */
-const ANC = {
-  night: { c0: '#2b3a78', c1: '#0b1030', sc: '#8fa8ff', si: 0.62, sp: [16, 32, 18], hs: '#4a5c9c', hg: '#232a50', hi: 0.7, fi: 0.1, ex: 1.05, n: 1 },
-  dawn:  { c0: '#ffe0cf', c1: '#f0bfae', sc: '#ffb58a', si: 1.5, sp: [-28, 20, 14], hs: '#ffe2d0', hg: '#e8c4a6', hi: 0.95, fi: 0.25, ex: 1.08, n: 0.3 },
-  day:   { c0: '#fffaf0', c1: '#f6ead2', sc: '#fff0d4', si: 2.0, sp: [-12, 34, 16], hs: '#eaf3ff', hg: '#f0e2c8', hi: 1.0, fi: 0.4, ex: 1.1, n: 0 },
-  dusk:  { c0: '#ffd5b0', c1: '#e5a186', sc: '#ff9460', si: 1.6, sp: [30, 17, 10], hs: '#ffd9c0', hg: '#d9b0a0', hi: 0.9, fi: 0.2, ex: 1.05, n: 0.45 }
-};
-const TL = [[0, 'night'], [4.5, 'night'], [6, 'dawn'], [7.5, 'day'], [16.5, 'day'], [18, 'dusk'], [19.5, 'night'], [24, 'night']];
-const WXK = { clear: ['맑음', 'Clear', '☀'], clouds: ['흐림', 'Cloudy', '☁'], fog: ['안개', 'Fog', '🌫'], rain: ['비', 'Rain', '🌧'], snow: ['눈', 'Snow', '❄'], storm: ['뇌우', 'Storm', '⛈'] };
-const WX_URL = 'https://api.open-meteo.com/v1/forecast?latitude=37.57&longitude=126.98&current=weather_code,cloud_cover,precipitation,wind_speed_10m,is_day,temperature_2m';
-let wxMem = null, wxPromise = null;
-function wxLoad(){
-  const now = Date.now();
-  if(wxMem && now - wxMem.t < 1800e3) return Promise.resolve(wxMem.d);
-  try{ const s = JSON.parse(sessionStorage.getItem('sprag-town-wx') || 'null'); if(s && s.d && now - s.t < 1800e3){ wxMem = s; return Promise.resolve(s.d); } }catch(e){}
-  if(wxPromise) return wxPromise;
-  wxPromise = new Promise(res => {
-    let to = 0;
-    try{
-      const ac = new AbortController(); to = setTimeout(() => ac.abort(), 4000);
-      fetch(WX_URL, { signal: ac.signal, credentials: 'omit', referrerPolicy: 'no-referrer' }).then(r => (r.ok ? r.json() : null)).then(j => {
-        const c = j && j.current; if(!c) return res(null);
-        const d = { code: Number(c.weather_code) || 0, cloud: Number(c.cloud_cover) || 0, precip: Number(c.precipitation) || 0, wind: Number(c.wind_speed_10m) || 0, temp: c.temperature_2m == null ? null : Number(c.temperature_2m) };
-        wxMem = { t: Date.now(), d }; try{ sessionStorage.setItem('sprag-town-wx', JSON.stringify(wxMem)); }catch(e){} res(d);
-      }).catch(() => res(null)).finally(() => { clearTimeout(to); wxPromise = null; });
-    }catch(e){ clearTimeout(to); wxPromise = null; res(null); }
-  });
-  return wxPromise;
-}
-/* WMO weather_code to a scene state. cloud 0..1, wind km/h, rain 0..1 */
-function wxClass(d){
-  if(!d) return { kind: 'clear', cloud: 0.12, wind: 6, temp: null, rain: 0 };
-  const c = d.code, cv = clampN(d.cloud / 100, 0, 1), w = d.wind || 0, ra = clampN(d.precip / 4, 0.25, 1);
-  if(c >= 95) return { kind: 'storm', cloud: Math.max(cv, 0.95), wind: w, temp: d.temp, rain: 1 };
-  if((c >= 71 && c <= 77) || c === 85 || c === 86) return { kind: 'snow', cloud: Math.max(cv, 0.8), wind: w, temp: d.temp, rain: ra };
-  if((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return { kind: 'rain', cloud: Math.max(cv, 0.85), wind: w, temp: d.temp, rain: c >= 61 || c >= 80 ? Math.max(ra, 0.6) : 0.4 };
-  if(c === 45 || c === 48) return { kind: 'fog', cloud: Math.max(cv, 0.5), wind: w, temp: d.temp, rain: 0 };
-  if(c === 2 || c === 3) return { kind: 'clouds', cloud: Math.max(cv, c === 3 ? 0.85 : 0.5), wind: w, temp: d.temp, rain: 0 };
-  return { kind: 'clear', cloud: Math.min(cv, 0.3), wind: w, temp: d.temp, rain: 0 };
-}
-const WX_DBG = { clear: { kind: 'clear', cloud: 0.12, wind: 6, temp: 22, rain: 0 }, clouds: { kind: 'clouds', cloud: 0.75, wind: 14, temp: 18, rain: 0 }, fog: { kind: 'fog', cloud: 0.55, wind: 3, temp: 8, rain: 0 },
-  rain: { kind: 'rain', cloud: 0.9, wind: 16, temp: 12, rain: 0.8 }, snow: { kind: 'snow', cloud: 0.85, wind: 8, temp: -2, rain: 0.7 }, storm: { kind: 'storm', cloud: 1, wind: 34, temp: 20, rain: 1 } };
-const TOD_DBG = { dawn: 6, day: 12, dusk: 18, night: 0 };
 
 /* ── geometry buffers: everything static is merged per material key ──── */
 function boxG(T, sx, sy, sz, r){
@@ -148,7 +104,7 @@ export function mountTownScene(container, data, opts = {}){
   if(!document.getElementById('of-style')){ const s = document.createElement('style'); s.id = 'of-style'; s.textContent = OF_CSS; document.head.appendChild(s); }
   if(!document.getElementById('tw-style')){ const s = document.createElement('style'); s.id = 'tw-style'; s.textContent = TW_CSS; document.head.appendChild(s); }
   const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), showRev = opts.showRevenue !== false;
-  const qs = new URLSearchParams(location.search), DBG_TOD = qs.get('tod'), DBG_WX = qs.get('wx');
+  const OVR = parseOverrides();
   container.innerHTML = '<div class="of-stage"><div class="of-hud"></div><div class="of-legend"></div></div>';
   const stage = container.querySelector('.of-stage'), elHud = stage.querySelector('.of-hud'), elLegend = stage.querySelector('.of-legend');
   const elLabels = document.createElement('div'); stage.appendChild(elLabels);
@@ -157,7 +113,7 @@ export function mountTownScene(container, data, opts = {}){
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0, scale = 10, hover = null, view = null, cache = new Map();
   let boardW = 5, bld = [], bots = [], hq = { x: 0, z: 0, top: 9.2 }, bb = { pts: [[-9, 0, -9], [9, 12, 9]], x1: 9, z1: 9, h: 8 }, sel = null, selId = null, ring = null, moreLbl = null, hqFlash = 0, meshes = {}, dyn = [];
   let TX = {}, MT = {}, envTex = null, GB = {}, WL = [], SH = [], billboards = [], peds = [], clouds = [], parts = null, stars = null, tick = 0, minuteT = 0;
-  let wx = DBG_WX && WX_DBG[DBG_WX] ? WX_DBG[DBG_WX] : { kind: 'clear', cloud: 0.12, wind: 6, temp: null, rain: 0 }, wxDbg = !!(DBG_WX && WX_DBG[DBG_WX]), night = 0, flash = 0, lightT = 6, baseHemi = 1, baseEx = 1, extent = 40, builtSnow = false;
+  let wx = OVR.weather || { ...WX_CLEAR }, wxDbg = !!OVR.weather, night = 0, flash = 0, lightT = 6, baseHemi = 1, baseEx = 1, extent = 40, builtSnow = false;
   const mobile = () => W < 520, v3 = () => new T.Vector3(), C = h => new T.Color(h), track = o => { dyn.push(o); return o; };
   const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
     onAction: a => { if(a === 'org' && sel && opts.onOpenOrg) opts.onOpenOrg(sel.c.id); } });
@@ -246,19 +202,27 @@ export function mountTownScene(container, data, opts = {}){
 
   /* ── company signboard (3D board on a post, text on a canvas) ── */
   function board(sg, w, closed){
-    const cw = 900, ch = 400, c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = ch;
+    /* bottom lines: revenue (operator only) and savings each get their own row, the board grows by one row when both show */
+    const sv = !closed && sg.saved ? sg.saved : '', low = [showRev ? sg.rev : '', sv].filter(Boolean);
+    const cw = 900, ch = low.length > 1 ? 500 : 400, c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = ch;
     const F = '"Noto Sans KR","Geist",-apple-system,"Segoe UI",sans-serif', rr2 = (px, py, pw, ph, r) => { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + pw, py, px + pw, py + ph, r); x.arcTo(px + pw, py + ph, px, py + ph, r); x.arcTo(px, py + ph, px, py, r); x.arcTo(px, py, px + pw, py, r); x.closePath(); };
     x.fillStyle = closed ? '#d9d6de' : '#f6e2bb'; rr2(6, 6, cw - 12, ch - 12, 44); x.fill(); x.lineWidth = 10; x.strokeStyle = closed ? '#9d9aa8' : '#b98b5a'; x.stroke();
     x.fillStyle = '#4a3a2a'; x.textBaseline = 'middle'; let px = 108; x.font = `800 ${px}px ${F}`; let nm = sg.name;
+    while(px > 72 && x.measureText(nm).width > cw - 80){ px -= 4; x.font = `800 ${px}px ${F}`; }
     if(x.measureText(nm).width > cw - 80){ while(nm.length > 1 && x.measureText(nm + '…').width > cw - 80) nm = nm.slice(0, -1); nm += '…'; }
     x.fillText(nm, 40, 100);
     x.font = `700 92px ${F}`; x.fillStyle = closed ? '#b4443f' : '#4a3a2a'; x.fillText(sg.seats, 40, 215);
     let cx = 40 + x.measureText(sg.seats).width + 28;
     if(sg.full){ x.font = `800 60px ${F}`; const tw = x.measureText(sg.full).width; x.fillStyle = '#4caf82'; rr2(cx, 172, tw + 44, 86, 43); x.fill(); x.fillStyle = '#fff'; x.fillText(sg.full, cx + 22, 217); cx += tw + 72; }
     if(sg.warn){ x.fillStyle = '#b4443f'; x.fillRect(cx, 180, 16, 70); x.fillRect(cx + 28, 180, 16, 70); x.font = `800 80px ${F}`; x.fillText(String(sg.warn), cx + 62, 217); }
-    if(showRev){ x.font = `700 80px ${F}`; x.fillStyle = closed ? '#8a8794' : '#2f7a56'; x.fillText(sg.rev, 40, 320); }
+    low.forEach((s, i) => {
+      let sp = 80; x.font = `700 ${sp}px ${F}`; x.fillStyle = closed ? '#8a8794' : s === sv ? '#2f7a56' : '#7a5a3a';
+      while(sp > 56 && x.measureText(s).width > cw - 80){ sp -= 4; x.font = `700 ${sp}px ${F}`; }
+      x.fillText(s, 40, 320 + i * 100);
+    });
     const g = track(new T.PlaneGeometry(w, w * ch / cw)), m = track(new T.Mesh(g, track(new T.MeshBasicMaterial({ map: tex(c), toneMapped: false, transparent: true, depthTest: false }))));
     m.renderOrder = 10;   /* signs stay readable even when a taller building stands in front */
+    m.userData.h = w * ch / cw;
     return m;
   }
   /* small lit rooftop sign for the full-seats badge */
@@ -662,9 +626,9 @@ export function mountTownScene(container, data, opts = {}){
     }
 
     /* ── signboards, rooftop signs, HQ sign ── */
-    const sw = boardW = Math.max(4.2, Math.min(7.5, gu * 0.15));
+    const sw = boardW = Math.max(6, Math.min(10.5, gu * 0.21));
     bld.forEach(b => {
-      const m = board(b.c.sign, sw, b.c.closed); m.rotation.y = Math.PI / 4; const hgt = sw * 400 / 900; m.position.set(b.x + b.w * 0.5 + 0.9, 1.2 + hgt / 2, b.z + b.w * 0.5 + 1.9); world.add(m);
+      const m = board(b.c.sign, sw, b.c.closed); m.rotation.y = Math.PI / 4; const hgt = m.userData.h; m.position.set(b.x + b.w * 0.5 + 0.9, 1.2 + hgt / 2, b.z + b.w * 0.5 + 1.9); world.add(m);
       b.board = m; billboards.push(m);
       const sb2 = track(new T.Mesh(meshes.box, std({ color: '#b98b5a' }))); sb2.scale.set(0.16, 1.4, 0.16); sb2.position.set(m.position.x, 0.7, m.position.z); sb2.castShadow = true; world.add(sb2);
     });
@@ -694,12 +658,8 @@ export function mountTownScene(container, data, opts = {}){
   }
 
   /* ── day / night and weather ── */
-  const todHour = () => { if(DBG_TOD && DBG_TOD in TOD_DBG) return TOD_DBG[DBG_TOD]; const d = new Date(); return d.getHours() + d.getMinutes() / 60; };
-  function todAt(h){
-    let i = 0; while(i < TL.length - 2 && h >= TL[i + 1][0]) i++;
-    const a = TL[i], b = TL[i + 1], k = smooth(clampN((h - a[0]) / (b[0] - a[0]), 0, 1)), A = ANC[a[1]], Bn = ANC[b[1]], col = f => C(A[f]).lerp(C(Bn[f]), k), num = f => A[f] + (Bn[f] - A[f]) * k;
-    return { c0: col('c0'), c1: col('c1'), sc: col('sc'), hs: col('hs'), hg: col('hg'), si: num('si'), hi: num('hi'), fi: num('fi'), ex: num('ex'), n: num('n'), sp: A.sp.map((v, j) => v + (Bn.sp[j] - v) * k) };
-  }
+  const todHour = () => { if(OVR.hour != null) return OVR.hour; const d = new Date(); return d.getHours() + d.getMinutes() / 60; };
+  const todAt = h => todBlend(h, T);
   function applyEnv(){
     if(!renderer || !sun) return;
     const P = todAt(todHour()), cl = wx.cloud, st = wx.kind, wet = st === 'rain' || st === 'storm', snow = st === 'snow';
@@ -718,12 +678,13 @@ export function mountTownScene(container, data, opts = {}){
     MT.cloud.color.copy(C('#ffffff')).lerp(C('#6d7aa8'), night * 0.85).lerp(C('#c9ced8'), wet ? 0.5 : 0);
     MT.bulb.color.copy(C('#d9d3c0')).lerp(C('#ffe8a6'), night); MT.pool.opacity = night * 0.55; if(meshes.pool) meshes.pool.visible = night > 0.03;
     MT.halo.opacity = 0.26 + 0.5 * night; MT.signHalo.opacity = 0.1 + 0.6 * night;
-    renderer.shadowMap.needsUpdate = true; request();
+    renderChip(); renderer.shadowMap.needsUpdate = true; request();
   }
   function renderChip(){
     if(wx.temp == null){ elChip.hidden = true; return; }
-    const ko = /[가-힣]/.test((cur && cur.hud && cur.hud.title) || ''), k = WXK[wx.kind];
-    elChip.hidden = false; elChip.textContent = `${ko ? '서울' : 'Seoul'} · ${k[2]} ${Math.round(wx.temp)}°C`; elChip.title = k[ko ? 0 : 1];
+    const ko = /[가-힣]/.test((cur && cur.hud && cur.hud.title) || ''), ch = chipText(wx, ko ? 'ko' : 'en', night > 0.5);
+    if(!ch){ elChip.hidden = true; return; }
+    elChip.hidden = false; elChip.textContent = ch.text; elChip.title = ch.title;
   }
   let wxObjs = [];
   function buildWeather(){
@@ -907,8 +868,8 @@ export function mountTownScene(container, data, opts = {}){
   const onVis = () => { if(!document.hidden) request(); }; document.addEventListener('visibilitychange', onVis);
   elHud.innerHTML = `<b>${esc(data.hud.title)}</b>`; chrome.syncFs();
   /* real weather once on mount (Seoul, no key); any failure leaves the clear default */
-  if(!wxDbg) wxLoad().then(d => {
-    if(destroyed || !d) return; wx = wxClass(d);
+  if(!wxDbg) fetchWeather().then(d => {
+    if(destroyed || !d) return; wx = weatherFromCode(d);
     if(started === true){ if((wx.kind === 'snow') !== builtSnow) build(cur); else { buildWeather(); applyEnv(); renderChip(); request(); } }
   });
   return {
