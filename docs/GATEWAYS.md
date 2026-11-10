@@ -50,12 +50,13 @@ One related non-bug: if your session model is already sonnet, a sonnet-delegatio
 
 Behind a LiteLLM gateway, `sprag profile-map --refresh` reads model aliases straight from the gateway's own `GET /model/info`, so route-scan no longer needs to wait on learned votes or a hand-edited `profile-map.json`. The refresh uses the same 5-minute check and 24-hour cache as the LiteLLM budget gauge. It never stores your auth token: each refresh reads it from `apiKeyHelper` at call time and lets it expire on the helper's own schedule. The three-step resolution order and the manual `profile-map.json` format are in [route-scan](./ROUTE_SCAN.md).
 
-## Pricing (Jul 2026)
+## Pricing (Nov 2026)
 
 Per million tokens (USD), as used by the cost estimator:
 
 | Tier | Models | Input | 5m Write | 1h Write | Read | Output |
 |---|---|---|---|---|---|---|
+| `claude-fable-5-2` | Fable 5.2 | $8 | $10 | $16 | $0.20 | $40 |
 | `claude-fable-5-1` | Fable 5.1 / Mythos 5.1 | $10 | $12.50 | $20 | $0.25 | $50 |
 | `claude-fable-5` | Fable 5 / Mythos 5 | $10 | $12.50 | $20 | $1 | $50 |
 | `claude-opus-5-5` | Opus 5.5 | $4 | $5 | $8 | $0.20 | $20 |

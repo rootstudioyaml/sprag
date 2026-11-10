@@ -382,7 +382,9 @@ export function modelRank(model) {
 
 /**
  * Price rank each delegation tier targets: T2 → haiku, T1 → sonnet, T1H → opus.
- * T1H is worth it only from a rank-3 (Fable/Mythos) session.
+ * T1H is worth it only from a rank-3 (Fable/Mythos) session. Fable 5.2
+ * ($8/$40) still costs twice Opus 5.5 ($4/$20), so it keeps rank 3 and a
+ * Fable 5.2 session still saves about half by handing heavy work to opus.
  */
 export const TIER_TARGET_RANK = { T2: 0, T1: 1, T1H: 2 };
 
