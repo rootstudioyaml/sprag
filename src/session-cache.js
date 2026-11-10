@@ -23,6 +23,7 @@ import { join } from 'node:path';
 import { userDataDir } from './paths.js';
 import { writeViaTmp, runHousekeeping, sweepStaleTmp } from './state-file.js';
 import { debug } from './debug.js';
+import { pruneRequestStore } from './request-store.js';
 
 const CACHE_PATH = join(userDataDir(), 'session-cache.json');
 // Bump when the cached summary's shape changes — old entries are dropped
@@ -205,7 +206,10 @@ export function saveCache(cache, path = CACHE_PATH) {
   // sweep itself runs at most once a day (see runHousekeeping).
   try {
     const dir = userDataDir();
-    runHousekeeping(dir, { 'stale-tmp': () => sweepStaleTmp(dir) });
+    runHousekeeping(dir, {
+      'stale-tmp': () => sweepStaleTmp(dir),
+      'request-store': () => pruneRequestStore(),
+    });
   } catch (e) {
     debug('session-cache:housekeeping', e);
   }

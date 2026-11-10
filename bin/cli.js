@@ -44,7 +44,7 @@ import {
 
 import { ultracodeChipState } from '../src/ultracode.js';
 
-import { parseAllSessions, sessionsSince, getLastUserMessageTime } from '../src/parser.js';
+import { parseAllSessions, sessionsSince, getLastUserMessageTime, flushPendingSessionCache, parseStats } from '../src/parser.js';
 import {
   dailyTrend,
   ttlBreakdown,
@@ -83,6 +83,22 @@ const PKG_VERSION = (() => {
     return '';
   }
 })();
+
+/**
+ * A session that was already open when the organisation raised its minimum
+ * version never runs SessionStart again, so the statusline starts the upgrade.
+ * maybeStartOrgUpgrade does the in-flight, cooldown and dev-checkout checks, and
+ * returns after one team.json read when there is no target. Called after the
+ * render is out, so it cannot eat into the statusline time budget.
+ */
+async function startOrgUpgradeFromStatusline() {
+  try {
+    const { maybeStartOrgUpgrade } = await import('../src/org-upgrade.js');
+    maybeStartOrgUpgrade(PKG_VERSION, { agent: 'claude' });
+  } catch (e) {
+    debug('statusline:org-upgrade', e);
+  }
+}
 
 const { getArg, hasFlag, numArg } = createArgs(args);
 
@@ -658,9 +674,15 @@ async function main() {
       if (last !== null) console.log(last);
       return;
     }
+    const budgetMs = g.statuslineBudgetMs();
     const timer = g.armStatuslineDeadline({
-      budgetMs: g.statuslineBudgetMs(),
+      budgetMs,
       onExpire: () => {
+        // Keep what the parse got through, so the next render starts further along.
+        try { flushPendingSessionCache(); } catch (e) { debug('statusline:flush', e); }
+        try {
+          debug('statusline:budget', new Error('render over ' + budgetMs + 'ms: ' + JSON.stringify(parseStats())));
+        } catch { /* a diagnostic never breaks the statusline */ }
         const last = g.readLastRender({ key });
         if (last !== null) console.log(last);
         lock.release();
@@ -769,6 +791,7 @@ async function main() {
       ), { input: readStdinRaw() });
       if (guard) guard.finish(noSessionOut);
       console.log(noSessionOut);
+      if (!demoArg) await startOrgUpgradeFromStatusline();
       return;
     }
     // JSON mode stays JSON. A caller that asked for machine-readable output
@@ -1251,6 +1274,7 @@ async function main() {
     if (guard) guard.finish(output);
   }
   console.log(output);
+  if (format === 'statusline' && !demoArg) await startOrgUpgradeFromStatusline();
 }
 
 main().catch((err) => {

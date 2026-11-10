@@ -65,6 +65,7 @@ export const SCRUBBED = [
   'CTS_NO_KOREAN',
   'CTS_NO_NOTE',
   'CTS_NO_PRESET_SYNC',
+  'CTS_NO_REQUEST_STORE',
   'CTS_NO_ROUTE_SCAN',
   'CTS_NO_TEAM_SYNC',
   'CTS_NO_TMUX',
@@ -111,6 +112,7 @@ export const SCRUBBED = [
   'SPRAG_NO_KOREAN',
   'SPRAG_NO_NOTE',
   'SPRAG_NO_PRESET_SYNC',
+  'SPRAG_NO_REQUEST_STORE',
   'SPRAG_NO_ROUTE_SCAN',
   'SPRAG_NO_TEAM_SYNC',
   'SPRAG_NO_TMUX',
@@ -181,6 +183,11 @@ export function childEnv(overrides = {}) {
      gauge is on by default, so every statusline case would do that. A case
      about that refresh passes `undefined`. */
   env.SPRAG_OAUTH_BUDGET = '0';
+  /* A transcript of 4MB or more gets a request-store sidecar in the data
+     directory (src/request-store.js). A case whose HOME points at real
+     transcripts would write sidecars into the real data directory. A case
+     about the store passes `undefined`. */
+  env.SPRAG_NO_REQUEST_STORE = '1';
   /* Windows resolves the home through USERPROFILE, so a case that names only
      HOME means the same directory on both platforms. */
   env.USERPROFILE = overrides.HOME;
