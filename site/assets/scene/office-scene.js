@@ -14,7 +14,26 @@
  * glowing screens take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
-const CAST_URL = new URL('./cast/', import.meta.url).href, CAST_DRACO = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/';
+export const CAST_URL = new URL('./cast/', import.meta.url).href;
+const CAST_DRACO = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/';
+/* One glTF loader with the Draco decoder for the cast models, shared by the office and the town (same three build as THREE_URL).
+ * A failed import is forgotten, so the next mount tries again. */
+let castLoaderP = null;
+export function castLoader(){
+  if(castLoaderP) return castLoaderP;
+  const p = castLoaderP = Promise.all([import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js/+esm')])
+    .then(([{ GLTFLoader }, { DRACOLoader }]) => { const l = new GLTFLoader(), dr = new DRACOLoader(); dr.setDecoderPath(CAST_DRACO); l.setDRACOLoader(dr); return l; });
+  p.catch(() => { if(castLoaderP === p) castLoaderP = null; });
+  return p;
+}
+/* a small gold crown on top of a cast model's head, in model units (the model is scaled after) */
+export function castCrown(T){
+  const g = new T.Group(), gold = new T.MeshStandardMaterial({ color: '#f2c14e', roughness: 0.3, metalness: 0.6 }), gem = new T.MeshStandardMaterial({ color: '#ff6f91', roughness: 0.25 });
+  const band = new T.Mesh(new T.CylinderGeometry(0.13, 0.14, 0.07, 20, 1, true), gold); band.material.side = T.DoubleSide; g.add(band);
+  for(let i = 0; i < 5; i++){ const a = i / 5 * Math.PI * 2, c = new T.Mesh(new T.ConeGeometry(0.032, 0.075, 8), gold); c.position.set(Math.sin(a) * 0.125, 0.07, Math.cos(a) * 0.125); g.add(c);
+    const b = new T.Mesh(new T.SphereGeometry(0.014, 8, 6), gem); b.position.set(Math.sin(a) * 0.137, 0.0, Math.cos(a) * 0.137); g.add(b); }
+  g.position.set(0, 1.04, -0.02); g.rotation.x = -0.12; return g;
+}
 export const W_FULL = [0.5, 0.3, 0.2], W_NOPR = [0.625, 0.375, 0];   /* spend, delegation, prompts rank weights (second set: prompt collection off) */
 const MAXP = 60, FAMC = { haiku: '#7fe0b8', sonnet: '#8ec5fb', opus: '#f9a8d4' };
 /* spend per model: fixed colours for the known families, grey for any other raw name; known ones first in this order, the rest by value */
@@ -263,7 +282,7 @@ const HEAD_YAW = -1.75;   /* heads glance toward the room so the faces show to t
 const HS = 1.3, HEAD_Y = 1.84;   /* heads are drawn 1.3 times bigger than the body (chibi proportions), so ears, horns and manes stay readable at the default zoom */
 const BOT_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2v2" stroke="#8b7cf0" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="2" r="1.1" fill="#8b7cf0"/><circle cx="8" cy="9.4" r="5.4" fill="#c4b5fd"/><circle cx="6.1" cy="9" r="1" fill="#fff"/><circle cx="9.9" cy="9" r="1" fill="#fff"/></svg>';
 const BOOK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2c2-.8 3.9-.6 5.5.6v9c-1.6-1.2-3.5-1.4-5.5-.6zM13.5 3.2c-2-.8-3.9-.6-5.5.6v9c1.6-1.2 3.5-1.4 5.5-.6z"/></svg>';
-const iconSvg = k => (k === 'crown' ? CROWN_ICON : (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon);
+export const iconSvg = k => (k === 'crown' ? CROWN_ICON : (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon);
 
 export const OF_CSS = `
 .of-card{padding:0!important;overflow:hidden;margin-bottom:var(--s4,16px)}
@@ -1169,19 +1188,11 @@ export function mountOfficeScene(container, data, opts = {}){
      figures stay on screen until every model has loaded and come back if any fails, so the office never shows an empty chair. */
   let castOn = false, castGen = 0, castLoad = null; const CAST_SC = 1.6, POSE_Z = -0.38, POSE_Y = 1.06;   /* the picked one jumps up onto its own desk, in front of the monitor: behind the chair it would stand in the next row's desk */   /* castGen: a rebuild (weather, range, data) while models load must not let the older build add its set too */
   const castCache = {};
-  function castCrown(T){   /* a small gold crown on top of the head, in model units (the model is scaled after) */
-    const g = new T.Group(), gold = new T.MeshStandardMaterial({ color: '#f2c14e', roughness: 0.3, metalness: 0.6 }), gem = new T.MeshStandardMaterial({ color: '#ff6f91', roughness: 0.25 });
-    const band = new T.Mesh(new T.CylinderGeometry(0.13, 0.14, 0.07, 20, 1, true), gold); band.material.side = T.DoubleSide; g.add(band);
-    for(let i = 0; i < 5; i++){ const a = i / 5 * Math.PI * 2, c = new T.Mesh(new T.ConeGeometry(0.032, 0.075, 8), gold); c.position.set(Math.sin(a) * 0.125, 0.07, Math.cos(a) * 0.125); g.add(c);
-      const b = new T.Mesh(new T.SphereGeometry(0.014, 8, 6), gem); b.position.set(Math.sin(a) * 0.137, 0.0, Math.cos(a) * 0.137); g.add(b); }
-    g.position.set(0, 1.04, -0.02); g.rotation.x = -0.12; return g;
-  }
   async function placeCast(solids, ghosts){
     const gen = ++castGen; castOn = false;
     const all = solids.concat(ghosts); if(!all.length) return;
     try{
-      castLoad = castLoad || Promise.all([import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm'), import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js/+esm')])
-        .then(([{ GLTFLoader }, { DRACOLoader }]) => { const l = new GLTFLoader(), dr = new DRACOLoader(); dr.setDecoderPath(CAST_DRACO); l.setDRACOLoader(dr); return l; });
+      castLoad = castLoad || castLoader();
       const loader = await castLoad, load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '.glb'));   /* one download per species for the page's lifetime */
       const SC = CAST_SC;   /* big enough that the head clears the monitor; every model is built at one body size, so one scale keeps bodies equal while ears, horns and manes stick out */
       const ms = await Promise.all(all.map(async o => {
@@ -1503,6 +1514,25 @@ export function mountOfficeScene(container, data, opts = {}){
   };
 }
 
+const numOrNaN = v => (v == null ? NaN : Number(v));
+/* Total usage over a set of machines (team_member_usage rows): per day, the gateway figure once per hash, plus total (else spent) of the rest;
+ * a machine without series adds its own total once. Returns { total, days: { day: [spend, saved] } }. The office mapper and the town's team table share it. */
+export function usageTotal(us){
+  const acc = {}; let total = 0;
+  us.forEach(u => {
+    const ser = Array.isArray(u.series) ? u.series : [], h = u.gateway_user_hash || null;
+    if(!ser.length){ total += Number(u.total_spent ?? u.spent) || 0; return; }
+    ser.forEach(q => {
+      const d = acc[q.day] || (acc[q.day] = { plain: 0, gw: {}, saved: 0 }), g = numOrNaN(q.gateway);
+      d.saved += Number(q.saved) || 0;
+      if(h && Number.isFinite(g)) d.gw[h] = Math.max(d.gw[h] ?? 0, g); else d.plain += Number(q.total ?? q.spent) || 0;
+    });
+  });
+  const days = {};
+  Object.entries(acc).forEach(([d, x]) => { const v = x.plain + Object.values(x.gw).reduce((a, b) => a + b, 0); days[d] = [v, x.saved]; total += v; });
+  return { total, days };
+}
+
 /* Shared data mapper for both pages: one person per seat host (a host plus the machines merged into it), over the page's date range.
  * o: { rows (org_seats), usage ({machine member_id: {spent, saved, delegated, families?, total_spent?, local_spent?, gateway_spent?, gateway_user_hash?,
  *      delegated_cost?, codex_delegated?, unpriced?, series?}}), promptRows (org_prompt_usage members, or null),
@@ -1528,23 +1558,7 @@ export function officeSceneData(o){
     groups.get(key).push(r);
   });
   const orgMix = { haiku: 0, sonnet: 0, opus: 0 };
-  const num = v => (v == null ? NaN : Number(v));
-  /* total usage over a set of machines: per day, the gateway figure once per hash, plus total (else spent) of the rest; a machine without series adds its own total once */
-  const usageTotal = us => {
-    const acc = {}; let total = 0;
-    us.forEach(u => {
-      const ser = Array.isArray(u.series) ? u.series : [], h = u.gateway_user_hash || null;
-      if(!ser.length){ total += Number(u.total_spent ?? u.spent) || 0; return; }
-      ser.forEach(q => {
-        const d = acc[q.day] || (acc[q.day] = { plain: 0, gw: {}, saved: 0 }), g = num(q.gateway);
-        d.saved += Number(q.saved) || 0;
-        if(h && Number.isFinite(g)) d.gw[h] = Math.max(d.gw[h] ?? 0, g); else d.plain += Number(q.total ?? q.spent) || 0;
-      });
-    });
-    const days = {};
-    Object.entries(acc).forEach(([d, x]) => { const v = x.plain + Object.values(x.gw).reduce((a, b) => a + b, 0); days[d] = [v, x.saved]; total += v; });
-    return { total, days };
-  };
+  const num = numOrNaN;
   let totSaved = 0;
   Object.values(usage).forEach(u => { totSaved += Number(u.saved) || 0; });
   const totSpent = usageTotal(Object.values(usage)).total;

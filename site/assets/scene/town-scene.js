@@ -4,7 +4,11 @@
  *
  * Sprag HQ in the middle, one office building per company on a ring around it. Footprint and height follow the contracted seats,
  * every window is a seat (warm lit = in use, dark = unused), delivery bots fly to HQ, suspended companies are shuttered and grey.
- * Shared pieces (loader, WebGL check, styles, fullscreen button and drawer) come from office-scene.js.
+ * Utilisation (seats_used / seat_limit) and the savings rate (saved / total_spent) show on every signboard as two small gauges, in the HUD for
+ * the whole town, and on the roof: a mast on the right-hand roof corner carries a green flag whose height is the savings rate (mast top = 100%).
+ * A picked company also shows its people: the drawer lists the animals (the office scene's species, from officeSceneData, so both screens agree)
+ * and a per-team table, and up to twelve cast models stand in a half circle under its signboard.
+ * Shared pieces (loader, WebGL check, styles, fullscreen button and drawer, the cast loader) come from office-scene.js.
  *
  * Day/night and weather come from sky.js, shared with the office scene: the viewer's local clock (dawn 5-7, day 7-17, dusk 17-19, night 19-5, smooth blends,
  * re-evaluated every minute) and Open-Meteo for Seoul (fixed coordinates, no key, no geolocation, cached 30 min, 4 s timeout, silent fallback to clear).
@@ -12,45 +16,99 @@
  * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
-import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts } from './office-scene.js';
+import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, speciesArt, iconSvg, castLoader, castCrown, CAST_URL } from './office-scene.js';
 import { WX_CLEAR, fetchWeather, weatherFromCode, parseOverrides, clampN, todBlend, chipText } from './sky.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#5f6a88';
+const UTILC = '#7c6cf0', RATEC = '#2f9e6f', TRACKC = '#e2d8c2', MAXCAST = 12;
+/* the two ratios every surface of the town prints the same way (as the admin pages do): utilisation as a whole percent, the savings rate with one decimal, '-' without spend */
+export const pctInt = x => Math.round(x * 100) + '%';
+export const pctRate = x => (x == null ? '-' : (x * 100).toFixed(1) + '%');
+const ratio = (a, b) => (b > 0 ? a / b : null), clamp01 = x => Math.max(0, Math.min(1, Number(x) || 0));
+const spentOf = g => Number(g.total_spent ?? g.spent ?? g.spent_30d) || 0, savedOf = g => Number(g.saved ?? g.saved_30d) || 0;
 const PASTEL = ['#f9d9c4', '#d7ecd9', '#e6dcf8', '#d3e8f7', '#fbe9b9', '#f7d6e4'];
 
 /* o: { orgs (ops_orgs rows), attention ({paused, late} rows), totals, rangeLabel, t(key, vars, raw), money(n), revenue(org), rel(iso) } */
 export function townSceneData(o){
   const t = o.t, att = o.attention || {}, cnt = (list, id) => (list || []).filter(r => r.org_id === id).length;
   const rows = (o.orgs || []).map(g => {
-    const closed = g.status === 'suspended', used = Number(g.seats_used) || 0, limit = Number(g.seat_limit) || 0, spent = Number(g.total_spent ?? g.spent ?? g.spent_30d) || 0, saved = Number(g.saved ?? g.saved_30d) || 0;
-    const paused = g.seats_paused ?? cnt(att.paused, g.id), late = g.seats_late ?? cnt(att.late, g.id), rev = o.revenue(g);
-    return { id: g.id, name: g.name, ent: g.plan === 'enterprise', closed, used, limit, spent, saved, paused, late, rev, members: Number(g.members_total) || 0, created: g.created_at, teams: Number(g.teams) || 0 };
+    const closed = g.status === 'suspended', used = Number(g.seats_used) || 0, limit = Number(g.seat_limit) || 0, spent = spentOf(g), saved = savedOf(g);
+    const paused = g.seats_paused ?? cnt(att.paused, g.id), late = g.seats_late ?? cnt(att.late, g.id), rev = o.revenue(g), dc = g.delegated_cost == null ? NaN : Number(g.delegated_cost);
+    /* rate = saved / total_spent (null without spend), dlg = delegated_cost / total_spent (null when the cost is unknown) */
+    return { id: g.id, name: g.name, ent: g.plan === 'enterprise', closed, used, limit, spent, saved, paused, late, rev, members: Number(g.members_total) || 0, created: g.created_at, teams: Number(g.teams) || 0,
+      rate: ratio(saved, spent), dlg: Number.isFinite(dc) ? ratio(dc, spent) : null };
   }).sort((a, b) => b.rev - a.rev || b.limit - a.limit);
   const maxSpend = Math.max(1, ...rows.map(r => r.spent)), shown = rows.slice(0, MAXC), more = rows.length - shown.length;
-  const pc = x => Math.round(x * 100) + '%', day = d => (d ? String(d).slice(0, 10) : t('never'));
+  const pc = pctInt, day = d => (d ? String(d).slice(0, 10) : t('never')), dlgText = x => (x == null ? t('of.unknown') : pc(x));
   const list = shown.map(r => {
     const util = r.limit ? r.used / r.limit : 0, bad = r.used + r.paused + r.late ? (r.paused + r.late) / (r.used + r.paused + r.late) : 0, act = r.closed ? 0 : Math.min(1, r.spent / maxSpend * 0.6 + util * 0.4);
     const bots = r.closed ? 0 : bad > 0.4 ? 1 : Math.max(1, Math.min(4, Math.round(1 + 3 * act))), full = r.limit > 0 && r.used >= r.limit;
     const plan = t(r.ent ? 'plan.enterprise' : 'plan.pro');
     return { ...r, util, act, bots, full, plan,
-      sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), saved: r.closed ? '' : t('tn.saved', { v: o.money(r.saved) }, true), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late },
-      detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit + ' · ' + pc(util)], [t('tn.revm'), o.money(r.rev), 'rev'], [t('of.total') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
+      sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), saved: r.closed ? '' : t('tn.saved', { v: o.money(r.saved) }, true), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late,
+        /* the gauge row (not drawn for a suspended company): text and 0..1 fill for each of the two bars */
+        gauges: r.closed ? null : [{ text: t('tn.util', { v: pc(util) }, true), v: clamp01(util), color: UTILC }, { text: t('tn.rate', { v: pctRate(r.rate) }, true), v: clamp01(r.rate), color: RATEC }] },
+      detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit], [t('tn.k.util'), pc(util)], [t('tn.k.rate'), pctRate(r.rate)], [t('of.deleg'), dlgText(r.dlg)], [t('tn.revm'), o.money(r.rev), 'rev'], [t('of.total') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
         [t('tn.members'), String(r.members)], [t('tn.teams'), String(r.teams)], [t('tn.paused'), String(r.paused)], [t('tn.late'), String(r.late)], [t('tn.created'), day(r.created)]], status: r.closed ? t('of.tag.closed') : '',
         utilTip: t('tn.d.utilTip', { u: r.used, l: r.limit, p: pc(util) }, true), freeTip: t('tn.d.freeTip', { n: Math.max(0, r.limit - r.used) }, true) } };
   });
   const all = o.orgs || [], sum = k => all.reduce((a, g) => a + (Number(g[k]) || 0), 0), pro = all.filter(g => g.plan !== 'enterprise').length, ent = all.length - pro;
-  const rev = all.reduce((a, g) => a + o.revenue(g), 0), savedAll = all.reduce((a, g) => a + (Number(g.saved ?? g.saved_30d) || 0), 0), REV = '\u0001REV\u0001';
-  const marked = t('tn.hud', { n: all.length, p: pro, e: ent, s: o.money(savedAll), r: REV, u: sum('seats_used'), l: sum('seat_limit') }, true), stats = marked.split(REV).join(o.money(rev));
+  const rev = all.reduce((a, g) => a + o.revenue(g), 0), savedAll = all.reduce((a, g) => a + savedOf(g), 0), spentAll = all.reduce((a, g) => a + spentOf(g), 0), REV = '\u0001REV\u0001';
+  /* town-wide ratios: seats in use over contracted seats, savings over total spend */
+  const usedAll = sum('seats_used'), limitAll = sum('seat_limit'), utilAll = ratio(usedAll, limitAll), rateAll = ratio(savedAll, spentAll);
+  const marked = t('tn.hud', { n: all.length, p: pro, e: ent, s: o.money(savedAll), r: REV, u: usedAll, l: limitAll, up: utilAll == null ? '-' : pc(utilAll), sr: pctRate(rateAll) }, true), stats = marked.split(REV).join(o.money(rev));
   return { companies: list, more: Math.max(0, more), moreLabel: more > 0 ? t('tn.more', { n: more }, true) : '',
     hud: { title: t('tn.title'), stats, statsNoRev: marked.split(' · ').filter(x => x.indexOf(REV) < 0).join(' · ') },
-    legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
+    util: utilAll, rate: rateAll,
+    legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: RATEC, label: t('tn.lg.flag') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
     ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', total: 'of.d.total', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.total', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
-      dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dModels: 'tn.d.models', dModelsNone: 'tn.d.models.none', dUtil: 'tn.d.util' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
+      dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dModels: 'tn.d.models', dModelsNone: 'tn.d.models.none', dUtil: 'tn.d.util',
+      dZoo: 'tn.d.zoo', dZooNone: 'tn.d.zoo.none', dTeamUse: 'tn.d.teamuse', kUtil: 'tn.k.util', kRate: 'tn.k.rate', kDlg: 'of.deleg' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
 }
 
-/* Lazy per-company details for the drawer, built from existing superuser RPCs: o: { rows (org_seats), summary (org_summary), usage ({member_id: team_member_usage row}), t, money, rel } */
+/* The town's view of one company's people: the species come from the office scene's own mapper (officeSceneData), called with the arguments the
+ * office screen passes, so a person is the same animal on both screens (pinned by test/town-detail.test.js).
+ * o: { rows, usage, promptRows, teams, org ({ name, seats_used, seat_limit, status }), rangeLabel, t, rel, os } */
+export function townOfficeData(o){
+  const org = o.org || {};
+  return officeSceneData({ rows: o.rows || [], usage: o.usage || {}, promptRows: Array.isArray(o.promptRows) ? o.promptRows : null, teams: o.teams || [], used: org.seats_used, limit: org.seat_limit,
+    orgName: org.name || '', rangeLabel: o.rangeLabel || '', closed: org.status === 'suspended', t: o.t, rel: o.rel || (x => String(x ?? '')), os: o.os || (() => ''), events: [], demoBubbles: null });
+}
+
+/* Per team: people (seat hosts by their host row's team; active = a machine in signal ok), spend, savings, savings rate and delegation share.
+ * Machines are grouped by their own org_seats team_id; spend goes through usageTotal, so a gateway figure counts once per hash, as in the office.
+ * People are the live seats only (as in the office); money counts every machine that has usage in the period, a removed one too, so the teams add up to the company. */
+export function townTeamRows(o){
+  const usage = o.usage || {}, closed = !!o.closed, live = (o.rows || []).filter(r => ['ok', 'late', 'paused', 'silent'].includes(r.signal));
+  const ids = new Set((o.rows || []).map(r => r.member_id)), by = new Map(), order = [];
+  const team = (id, name) => { const k = id || ''; if(!by.has(k)){ by.set(k, { id: id || null, name: name || '', machines: [], hosts: new Map() }); order.push(k); } const x = by.get(k); if(!x.name && name) x.name = name; return x; };
+  (o.teams || []).forEach(x => team(x.id, x.name));
+  const groups = new Map();   /* one person per seat host, as in officeSceneData: the host row names the person's team */
+  (o.rows || []).forEach(r => { if(live.includes(r) || usage[r.member_id]) team(r.team_id, r.team_name).machines.push(r); });
+  live.forEach(r => { const key = r.seat_of && ids.has(r.seat_of) ? r.seat_of : r.member_id; if(!groups.has(key)) groups.set(key, []); groups.get(key).push(r); });
+  groups.forEach((rs, key) => { const h = rs.find(r => r.member_id === key) || rs[0]; team(h.team_id, h.team_name).hosts.set(key, rs.some(r => r.signal === 'ok')); });
+  return order.map(k => by.get(k)).filter(x => x.machines.length || x.hosts.size || x.id).map(x => {
+    const us = x.machines.map(r => usage[r.member_id] || {}), spent = usageTotal(us).total; let saved = 0, dc = null;
+    us.forEach(u => { saved += Number(u.saved) || 0; const c = u.delegated_cost == null ? NaN : Number(u.delegated_cost); if(Number.isFinite(c)) dc = (dc || 0) + c; });
+    const people = x.hosts.size, active = closed ? 0 : [...x.hosts.values()].filter(Boolean).length;
+    return { id: x.id, name: x.name || '-', people, active, util: ratio(active, people), spent, saved, rate: ratio(saved, spent), dlg: dc == null ? null : ratio(dc, spent) };
+  });
+}
+
+/* Lazy per-company details for the drawer, built from existing superuser RPCs:
+ * o: { rows (org_seats), summary (org_summary), usage ({member_id: team_member_usage row}), promptRows (org_prompt_usage members, or null), teams (default summary.teams),
+ *      org (the ops_orgs row), rangeLabel, os(row), t, money, rel }
+ * Adds people (every person's grade, tier, team, crown and rank), cast (the top MAXCAST by rank, for the models under the signboard), zoo (animals by tier) and teamUse. */
 export function townDetailData(o){
   const t = o.t, money = o.money, rows = (o.rows || []).filter(r => ['ok', 'late', 'paused', 'silent'].includes(r.signal)), usage = o.usage || {};
+  const teamList = o.teams || (o.summary && o.summary.teams) || [], office = townOfficeData({ ...o, teams: teamList });
+  const folk = office.people.map(p => ({ id: p.id, name: p.name, grade: p.grade, gradeText: p.gradeText, tier: p.tier, teamId: p.teamId, crown: p.crown, rank: p.rank }));
+  const cast = folk.filter(p => p.rank > 0).sort((a, b) => a.rank - b.rank).slice(0, MAXCAST);
+  const zoo = { tiers: ((office.strip && office.strip.tiers) || []).map(g => ({ tier: g.tier, label: g.label, n: g.items.reduce((a, q) => a + q.n, 0), items: g.items.filter(q => q.n > 0) })).filter(g => g.n > 0),
+    ghosts: folk.filter(p => p.grade === 'ghost').length, ghostLabel: t('of.g.ghost'), crowns: folk.filter(p => p.crown).map(p => ({ name: p.name, k: p.grade, gname: p.gradeText })), crownLabel: t('of.lg.crown') };
+  const pcU = x => (x == null ? '-' : pctInt(x)), pcD = x => (x == null ? t('of.unknown') : pctInt(x));
+  const teamUse = townTeamRows({ rows: o.rows, usage, teams: teamList, closed: office.closed }).map(x => ({ ...x, head: t('tn.d.act', { a: x.active, n: x.people }, true),
+    sub: t('of.total') + ' ' + money(x.spent) + ' · ' + t('of.saved') + ' ' + money(x.saved), utilText: pcU(x.util), rateText: pctRate(x.rate), dlgText: pcD(x.dlg) }));
   const SIG = { ok: '#2f9e6f', late: '#d89212', paused: '#5b6bd6', silent: '#8a8794' }, cnt = { ok: 0, late: 0, paused: 0, silent: 0 }; rows.forEach(r => { cnt[r.signal]++; });
   const sig = Object.keys(cnt).map(k => ({ v: cnt[k], color: SIG[k], label: t('sr.s.' + k), tip: t('sr.s.' + k) + ' · ' + cnt[k] }));
   const ids = new Set((o.rows || []).map(r => r.member_id)), people = new Map();
@@ -61,7 +119,7 @@ export function townDetailData(o){
   const days = {}; Object.values(usage).forEach(u => (u.series || []).forEach(q => { const d = days[q.day] || (days[q.day] = [0, 0]); d[0] += Number(q.total ?? q.spent) || 0; d[1] += Number(q.saved) || 0; }));
   const dd = Object.keys(days).sort(), tm = ((o.summary && o.summary.teams) || []).map(x => ({ name: x.name, v: Number(x.members_active) || 0, txt: String(Number(x.members_active) || 0), color: '#8ec5fb' }));
   const models = [...people.values()].filter(p => p.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 10).map(p => ({ name: p.name, total: p.spent, txt: money(p.spent), parts: modelParts(p.models) }));
-  return { sig, top, models, modelsAny: models.some(m => m.parts.length > 0), teams: tm, days: dd, spent: dd.map(d => days[d][0]), saved: dd.map(d => days[d][1]), fmt: money };
+  return { sig, top, models, modelsAny: models.some(m => m.parts.length > 0), teams: tm, days: dd, spent: dd.map(d => days[d][0]), saved: dd.map(d => days[d][1]), fmt: money, people: folk, cast, zoo, teamUse };
 }
 
 /* ── building styles ─────────────────────────────────────────────────── */
@@ -95,7 +153,15 @@ const TW_CSS = `.tw-chip{display:block;width:fit-content;margin-top:6px;line-hei
 .tw-chip[hidden]{display:none}
 .tw-stars{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.2s;background-repeat:no-repeat,repeat-x;background-position:0 0,0 0;background-size:100% 100%,640px 420px}
 .of-stage.tw-night .of-hud,.of-stage.tw-night .of-hud b{color:#e8ecff}
-.of-stage.tw-night .tw-chip{background:rgba(30,38,80,.7);border-color:rgba(160,180,255,.3);color:#dfe5ff}`;
+.of-stage.tw-night .tw-chip{background:rgba(30,38,80,.7);border-color:rgba(160,180,255,.3);color:#dfe5ff}
+.tw-zoo .zr{display:flex;align-items:flex-start;gap:8px;margin:0 0 6px}
+.tw-zoo .zr em{flex:none;width:104px;font-style:normal;font-size:11px;font-weight:600;padding-top:3px;color:#6a5a4a}.tw-zoo .zr em b{margin-left:5px;font-variant-numeric:tabular-nums;color:#3a2f27}
+.tw-zoo .t-power em{color:#b7791f}.tw-zoo .t-active em{color:#1d6fb8}.tw-zoo .t-normal em{color:#7a6c58}.tw-zoo .t-low em{color:#c2410c}
+.tw-zoo .zs{display:flex;flex-wrap:wrap;gap:3px 10px;min-width:0}.tw-zoo .zi{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.tw-zoo svg{width:20px;height:20px;flex:none}
+.tw-zoo .zc{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0 0 8px;padding:6px 10px;border-radius:10px;background:#fff4d6;color:#5a3d0a;font-size:12px}.tw-zoo .zc b{font-weight:600}
+.tw-team .th{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.tw-team .th b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tw-team .th span{flex:none;font-size:11px;color:#6a5a4a;font-variant-numeric:tabular-nums}
+.tw-team small{margin:0 0 3px;font-variant-numeric:tabular-nums}`;
 
 export function mountTownScene(container, data, opts = {}){
   const noop = { update(){}, destroy(){} };
@@ -114,8 +180,10 @@ export function mountTownScene(container, data, opts = {}){
   let boardW = 5, bld = [], bots = [], hq = { x: 0, z: 0, top: 9.2 }, bb = { pts: [[-9, 0, -9], [9, 12, 9]], x1: 9, z1: 9, h: 8 }, sel = null, selId = null, ring = null, moreLbl = null, hqFlash = 0, meshes = {}, dyn = [];
   let TX = {}, MT = {}, envTex = null, GB = {}, WL = [], SH = [], billboards = [], peds = [], clouds = [], parts = null, stars = null, tick = 0, minuteT = 0;
   let wx = OVR.weather || { ...WX_CLEAR }, wxDbg = !!OVR.weather, night = 0, flash = 0, lightT = 6, baseHemi = 1, baseEx = 1, extent = 40, builtSnow = false;
+  /* the picked company's cast: castGen guards late loads (a load that ends after the selection changed adds nothing), castCache holds one download per species for this mount */
+  let castGen = 0, castSet = null, lotsAll = [], hidden = []; const castCache = {}, castGltf = {}, CAST_SC = 0.66;
   const mobile = () => W < 520, v3 = () => new T.Vector3(), C = h => new T.Color(h), track = o => { dyn.push(o); return o; };
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; },
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; clearCast(); },
     onAction: a => { if(a === 'org' && sel && opts.onOpenOrg) opts.onOpenOrg(sel.c.id); } });
   kit.bind(chrome.el);
 
@@ -204,7 +272,9 @@ export function mountTownScene(container, data, opts = {}){
   function board(sg, w, closed){
     /* bottom lines: revenue (operator only) and savings each get their own row, the board grows by one row when both show */
     const sv = !closed && sg.saved ? sg.saved : '', low = [showRev ? sg.rev : '', sv].filter(Boolean);
-    const cw = 900, ch = low.length > 1 ? 500 : 400, c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = ch;
+    /* the gauge row sits between the seats and the money lines and adds its own height; a suspended company has none */
+    const gz = !closed && sg.gauges ? sg.gauges : null, GH = gz ? 130 : 0;
+    const cw = 900, ch = (low.length > 1 ? 500 : 400) + GH, c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = ch;
     const F = '"Noto Sans KR","Geist",-apple-system,"Segoe UI",sans-serif', rr2 = (px, py, pw, ph, r) => { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + pw, py, px + pw, py + ph, r); x.arcTo(px + pw, py + ph, px, py + ph, r); x.arcTo(px, py + ph, px, py, r); x.arcTo(px, py, px + pw, py, r); x.closePath(); };
     x.fillStyle = closed ? '#d9d6de' : '#f6e2bb'; rr2(6, 6, cw - 12, ch - 12, 44); x.fill(); x.lineWidth = 10; x.strokeStyle = closed ? '#9d9aa8' : '#b98b5a'; x.stroke();
     x.fillStyle = '#4a3a2a'; x.textBaseline = 'middle'; let px = 108; x.font = `800 ${px}px ${F}`; let nm = sg.name;
@@ -215,10 +285,18 @@ export function mountTownScene(container, data, opts = {}){
     let cx = 40 + x.measureText(sg.seats).width + 28;
     if(sg.full){ x.font = `800 60px ${F}`; const tw = x.measureText(sg.full).width; x.fillStyle = '#4caf82'; rr2(cx, 172, tw + 44, 86, 43); x.fill(); x.fillStyle = '#fff'; x.fillText(sg.full, cx + 22, 217); cx += tw + 72; }
     if(sg.warn){ x.fillStyle = '#b4443f'; x.fillRect(cx, 180, 16, 70); x.fillRect(cx + 28, 180, 16, 70); x.font = `800 80px ${F}`; x.fillText(String(sg.warn), cx + 62, 217); }
+    if(gz){   /* two columns, each a label ("Used 52%") over a small bar; the columns share the row in proportion to their labels, the type never goes under 64px */
+      let gp = 80, ws; const GAP = 40, room = cw - 80 - GAP, fit = () => { x.font = `700 ${gp}px ${F}`; ws = gz.map(q => x.measureText(q.text).width); };
+      fit(); while(gp > 64 && ws[0] + ws[1] > room){ gp -= 2; fit(); }
+      const w0 = Math.max(ws[0], Math.min(room - ws[1], room * ws[0] / (ws[0] + ws[1]))), cols = [[40, w0], [40 + w0 + GAP, room - w0]];
+      gz.forEach((q, i) => { const [gx, gw] = cols[i]; x.fillStyle = '#4a3a2a'; x.fillText(q.text, gx, 318);
+        x.fillStyle = TRACKC; rr2(gx, 362, gw, 24, 12); x.fill(); x.lineWidth = 3; x.strokeStyle = '#cdbb98'; x.stroke();
+        if(q.v > 0){ x.fillStyle = q.color; rr2(gx, 362, Math.max(24, gw * q.v), 24, 12); x.fill(); } });
+    }
     low.forEach((s, i) => {
       let sp = 80; x.font = `700 ${sp}px ${F}`; x.fillStyle = closed ? '#8a8794' : s === sv ? '#2f7a56' : '#7a5a3a';
       while(sp > 56 && x.measureText(s).width > cw - 80){ sp -= 4; x.font = `700 ${sp}px ${F}`; }
-      x.fillText(s, 40, 320 + i * 100);
+      x.fillText(s, 40, 320 + GH + i * 100);
     });
     const g = track(new T.PlaneGeometry(w, w * ch / cw)), m = track(new T.Mesh(g, track(new T.MeshBasicMaterial({ map: tex(c), toneMapped: false, transparent: true, depthTest: false }))));
     m.renderOrder = 10;   /* signs stay readable even when a taller building stands in front */
@@ -235,7 +313,7 @@ export function mountTownScene(container, data, opts = {}){
   }
 
   function build(d){
-    cur = d; clear(); cache.clear(); bb.h = 8; GB = {}; WL = []; SH = []; builtSnow = wx.kind === 'snow';
+    clearCast(); hidden = []; cur = d; clear(); cache.clear(); bb.h = 8; GB = {}; WL = []; SH = []; builtSnow = wx.kind === 'snow';
     const cs = d.companies || [];
     elHud.innerHTML = `<b>${esc(d.hud.title)}</b>${esc(showRev ? d.hud.stats : d.hud.statsNoRev ?? '')}`; elHud.appendChild(elChip); renderChip();
     elLegend.innerHTML = (d.legend || []).map(l => `<span><i style="background:${l.c}"></i>${esc(l.label)}</span>`).join('');
@@ -251,7 +329,7 @@ export function mountTownScene(container, data, opts = {}){
       for(let k = 0; k < n; k++){ const a = Math.PI / 2 + (k + 0.5) / n * Math.PI * 2 + ri * 0.4, u = Math.cos(a) * R * 1.75, v = Math.sin(a) * R * 0.85; pos.push({ x: (u + v) * 0.7071, z: (v - u) * 0.7071, a, ring: ri }); }   /* ellipse stretched along the screen-horizontal diagonal */
       k0 += n; ri++;
     }
-    const lots = [], signs = [], fulls = [];
+    const lots = lotsAll = [], signs = [], fulls = [];
 
     /* ── buildings ── */
     function roofGear(bx, bz, w, y, R, K, acc){
@@ -361,6 +439,13 @@ export function mountTownScene(container, data, opts = {}){
         const mx = bx + wvt * 0.36, mz = bz + wvt * 0.36;
         Cy('m', mx, cy + 1.9, mz, 0.03, 0.03, 1.8, 6, K('#f2f4f8')); B('p', mx + 0.3, cy + 2.55, mz, 0.6, 0.36, 0.02, accC); B('p', mx + 0.12, cy + 2.55, mz, 0.2, 0.36, 0.025, K('#ffffff')); B('p', mx + 0.68, cy + 2.52, mz, 0.2, 0.3, 0.02, accC, 0, 0.3);
         H = cy + 3.2;
+      }
+      /* savings mast on the right-hand roof corner (+x, -z): clear of the signboard, the roof gear and the glass towers' spire, and a silhouette from the default camera.
+         The pole is the 0..100% scale; the lit green column and the flag on top of it stand at the savings rate. No savings, no flag; a suspended company has no mast. */
+      if(!grey){
+        const rw = isG ? wvTop : w, off = isG ? 0.16 : 0.24, px2 = bx + rw / 2 - off, pz2 = bz - rw / 2 + off, y0 = top + (isG ? 0.08 : 0.23), MH = 3.2, fr = clamp01(c.rate), GRN = C(RATEC), POLE = C('#b9c0cc');
+        Cy('m', px2, y0 + MH / 2, pz2, 0.055, 0.07, MH, 8, POLE); Sph('m', px2, y0 + MH + 0.06, pz2, 0.11, 0.11, 0.11, POLE);
+        if(fr > 0){ const fh = Math.max(0.74, fr * MH); Cy('glow', px2, y0 + fh / 2, pz2, 0.12, 0.12, fh, 8, GRN); B('glow', px2 + 0.57, y0 + fh - 0.36, pz2 - 0.57, 1.5, 0.72, 0.04, GRN, 0, Math.PI / 4); }
       }
       const lg = isG ? 1.1 : 0;   /* rooftop sign legs */
       if(c.full && !grey) fulls.push({ x: bx, y: (isG ? top + 2.6 : top + 1.5 + 0.9), z: bz, base: isG ? top + 1.4 : top + 0.23, c });
@@ -576,22 +661,24 @@ export function mountTownScene(container, data, opts = {}){
     }
     const tint = hex => (snowy ? C(hex).lerp(SNOWC, 0.45) : C(hex));
     const treeCol = () => { const r = R2(); return r < 0.06 ? '#f4b3c8' : r < 0.14 ? '#e5a24a' : greens[Math.floor(R2() * greens.length)]; };
-    const trk = [];
-    TR.forEach(([x, z, r]) => {
-      const kind = r < 0.5 ? 0 : r < 0.75 ? 1 : 2, s = 0.85 + R2() * 0.5, col = treeCol();
-      if(kind === 0){ trk.push([x, z, 1.1 * s, 0.13]); CAN.push(['s', x, 1.5 * s + 0.4, z, 1.0 * s, 0.9 * s, 1.0 * s, col], ['s', x + 0.35 * s, 1.2 * s + 0.4, z - 0.2 * s, 0.62 * s, 0.6 * s, 0.62 * s, col]); }
-      else if(kind === 1){ trk.push([x, z, 0.7 * s, 0.1]); CAN.push(['c', x, 1.1 * s + 0.2, z, 1.0 * s, 1.5 * s, 1.0 * s, '#4f9a62'], ['c', x, 2.0 * s + 0.2, z, 0.72 * s, 1.2 * s, 0.72 * s, '#5fae70']); }
-      else CAN.push(['s', x, 0.42 * s, z, 0.7 * s, 0.55 * s, 0.7 * s, col]);
+    const trk = [], treeIx = [];   /* treeIx[i]: where tree i lives in the instanced meshes (trunk, canopy spheres, canopy cones), so a picked company can clear the view of its cast */
+    TR.forEach(([x, z, r], ti) => {
+      const kind = r < 0.5 ? 0 : r < 0.75 ? 1 : 2, s = 0.85 + R2() * 0.5, col = treeCol(), tp = { x, z, trunk: -1, s: [], c: [] }; treeIx.push(tp);
+      if(kind === 0){ tp.trunk = trk.length; trk.push([x, z, 1.1 * s, 0.13]); CAN.push(['s', x, 1.5 * s + 0.4, z, 1.0 * s, 0.9 * s, 1.0 * s, col, ti], ['s', x + 0.35 * s, 1.2 * s + 0.4, z - 0.2 * s, 0.62 * s, 0.6 * s, 0.62 * s, col, ti]); }
+      else if(kind === 1){ tp.trunk = trk.length; trk.push([x, z, 0.7 * s, 0.1]); CAN.push(['c', x, 1.1 * s + 0.2, z, 1.0 * s, 1.5 * s, 1.0 * s, '#4f9a62', ti], ['c', x, 2.0 * s + 0.2, z, 0.72 * s, 1.2 * s, 0.72 * s, '#5fae70', ti]); }
+      else CAN.push(['s', x, 0.42 * s, z, 0.7 * s, 0.55 * s, 0.7 * s, col, ti]);
     });
     for(let q = 0; q < Math.floor(Math.PI * (gu + gv) / 3.6); q++){ const a = q / Math.floor(Math.PI * (gu + gv) / 3.6) * Math.PI * 2, u = Math.cos(a) * (gu - 1.1), v = Math.sin(a) * (gv - 1.1); SH.push([(u + v) * 0.7071, 0.45 + R2() * 0.1, (v - u) * 0.7071, 0.6 + R2() * 0.35, ['#9fd49a', '#b5e0a0', '#8fcf9b'][q % 3]]); }
     SH.forEach(s => CAN.push(['s', s[0], s[1], s[2], s[3], s[3] * 0.85, s[3], s[4]]));
     if(GB.cs){ const cc3 = cs.find(c => c.closed), cvs = document.createElement('canvas'), x3 = cvs.getContext('2d'); cvs.width = 260; cvs.height = 104; x3.fillStyle = '#f3ecd9'; x3.fillRect(0, 0, 260, 104); x3.lineWidth = 8; x3.strokeStyle = '#b4443f'; x3.strokeRect(6, 6, 248, 92); x3.fillStyle = '#b4443f'; x3.font = '800 54px "Noto Sans KR","Geist",sans-serif'; x3.textAlign = 'center'; x3.textBaseline = 'middle'; x3.fillText(cc3 ? cc3.sign.seats : 'Closed', 130, 56);
       meshes.csMat = track(new T.MeshBasicMaterial({ map: tex(cvs), toneMapped: false })); }
     flushGB();
-    { const tr = mk(meshes.cyl, MT.inst, trk.length, true); trk.forEach((t, i) => { setM(tr, i, t[0], t[2] / 2, t[1], 0, 0, t[3], t[2], t[3]); tr.setColorAt(i, C('#8a6a4a')); }); tr.instanceMatrix.needsUpdate = true; if(tr.instanceColor) tr.instanceColor.needsUpdate = true; }
+    const trunkM = mk(meshes.cyl, MT.inst, trk.length, true);
+    { const tr = trunkM; trk.forEach((t, i) => { setM(tr, i, t[0], t[2] / 2, t[1], 0, 0, t[3], t[2], t[3]); tr.setColorAt(i, C('#8a6a4a')); }); tr.instanceMatrix.needsUpdate = true; if(tr.instanceColor) tr.instanceColor.needsUpdate = true; }
     { const cs2 = CAN.filter(q => q[0] === 's'), cc2 = CAN.filter(q => q[0] === 'c');
-      const a = mk(meshes.ico, MT.inst, cs2.length, true); cs2.forEach((q, i) => setM(a, i, q[1], q[2], q[3], 0, i * 0.7, q[4], q[5], q[6])); colorAll(a, cs2.map(q => tint(q[7])));
-      const b2 = mk(meshes.cone, MT.inst, cc2.length, true); cc2.forEach((q, i) => setM(b2, i, q[1], q[2], q[3], 0, i, q[4], q[5], q[6])); colorAll(b2, cc2.map(q => tint(q[7]))); }
+      const a = mk(meshes.ico, MT.inst, cs2.length, true); cs2.forEach((q, i) => { setM(a, i, q[1], q[2], q[3], 0, i * 0.7, q[4], q[5], q[6]); if(q[8] != null) treeIx[q[8]].s.push(i); }); colorAll(a, cs2.map(q => tint(q[7])));
+      const b2 = mk(meshes.cone, MT.inst, cc2.length, true); cc2.forEach((q, i) => { setM(b2, i, q[1], q[2], q[3], 0, i, q[4], q[5], q[6]); if(q[8] != null) treeIx[q[8]].c.push(i); }); colorAll(b2, cc2.map(q => tint(q[7])));
+      meshes.trees = { list: treeIx, trunk: trunkM, ico: a, cone: b2 }; }
     /* lamps */
     { const lp = lampPts; const pole = mk(meshes.cyl, MT.inst, lp.length, true), head = mk(meshes.sph, MT.bulb, lp.length, false, false), pool = mk(meshes.plane, MT.pool, lp.length, false, false);
       lp.forEach(([x, z], i) => { setM(pole, i, x, 1.1, z, 0, 0, 0.07, 2.2, 0.07); pole.setColorAt(i, C('#5b5668')); setM(head, i, x, 2.28, z, 0, 0, 0.19, 0.19, 0.19); setM(pool, i, x, 0.092, z, -Math.PI / 2, 0, 6.5, 6.5, 1); });
@@ -653,8 +740,9 @@ export function mountTownScene(container, data, opts = {}){
     ring = track(new T.Group()); { const rg = track(new T.RingGeometry(1, 1.25, 48)); rg.rotateX(-Math.PI / 2); const m1 = track(new T.Mesh(rg, track(new T.MeshBasicMaterial({ color: '#7c6cf0', transparent: true, opacity: 0.85, depthWrite: false })))); ring.add(m1); ring.visible = false; world.add(ring); }
     if(d.more){ moreLbl = document.createElement('div'); moreLbl.className = 'of-lbl'; moreLbl.textContent = d.moreLabel; elLabels.appendChild(moreLbl); }
     buildWeather();
-    sel = selId ? bld.find(b => b.c.id === selId) || null : null; if(sel){ renderDrawer(); ring.visible = true; } else if(selId) chrome.close();
+    sel = selId ? bld.find(b => b.c.id === selId) || null : null;
     applyEnv(); fit(); frames = 0; renderer.shadowMap.needsUpdate = true; chrome.syncFs(); step(0); request();
+    if(sel) select(sel); else if(selId) chrome.close();   /* the new building objects carry no details yet: load them again for the picked company, with its cast */
   }
 
   /* ── day / night and weather ── */
@@ -730,7 +818,15 @@ export function mountTownScene(container, data, opts = {}){
     const util = kit.stack([{ v: c.used, color: '#7c6cf0', tip: c.detail.utilTip }, { v: Math.max(0, c.limit - c.used), color: '#e2d8c2', tip: c.detail.freeTip }]);
     let more = `<div class="ld">${esc(d === false ? ui.dFail : ui.dLoading)}</div>`;
     if(d){
-      more = sec(ui.dSignals, kit.stack(d.sig) + `<div class="famt">${d.sig.filter(q => q.v).map(q => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${q.color}"></i>${esc(q.label)} ${q.v}</span>`).join('')}</div>`)
+      const pic = k => (k === 'ghost' ? iconSvg('ghost') : (speciesArt(k) || {}).icon || ''), z = d.zoo;
+      /* animals: one row per tier with each species held and its head count, the ghosts (no data), and who wears the crown */
+      const zoo = z && (z.tiers.length || z.ghosts) ? `<div class="tw-zoo">${z.crowns.map(q => `<div class="zc" title="${esc(z.crownLabel)}">${iconSvg('crown')}<b>${esc(q.name)}</b>${pic(q.k)}<span>${esc(q.gname)}</span></div>`).join('')}`
+        + z.tiers.map(g => `<div class="zr t-${esc(g.tier)}"><em>${esc(g.label)}<b>${g.n}</b></em><div class="zs">${g.items.map(q => `<span class="zi" title="${esc(q.name)}">${pic(q.k)}${q.n}</span>`).join('')}</div></div>`).join('')
+        + (z.ghosts ? `<div class="zr"><em>${esc(z.ghostLabel)}<b>${z.ghosts}</b></em><div class="zs"><span class="zi">${pic('ghost')}${z.ghosts}</span></div></div>` : '') + '</div>' : `<div class="famt">${esc(ui.dZooNone)}</div>`;
+      /* teams: active people over all people, spend and savings, then three small bars (utilisation, savings rate, delegation share) */
+      const bar = (label, v, txt, color) => `<div class="cr" tabindex="0" data-tip="${esc(label + ' · ' + txt)}"><em style="font-style:normal">${esc(label)}</em><div class="tr"><i style="width:${(Math.max(0, Math.min(1, v || 0)) * 100).toFixed(1)}%;background:${color}"></i></div><span>${esc(txt)}</span></div>`;
+      const teamUse = (d.teamUse || []).map(q => `<div class="mrow tw-team"><div class="th"><b title="${esc(q.name)}">${esc(q.name)}</b><span>${esc(q.head)}</span></div><small>${esc(q.sub)}</small>${bar(ui.kUtil, q.util, q.utilText, UTILC)}${bar(ui.kRate, q.rate, q.rateText, RATEC)}${bar(ui.kDlg, q.dlg, q.dlgText, '#8ec5fb')}</div>`).join('');
+      more = sec(ui.dZoo, zoo) + sec(ui.dTeamUse, teamUse) + sec(ui.dSignals, kit.stack(d.sig) + `<div class="famt">${d.sig.filter(q => q.v).map(q => `<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:${q.color}"></i>${esc(q.label)} ${q.v}</span>`).join('')}</div>`)
         + sec(ui.daily, d.days.length ? kit.chart(id + '-d', d.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: d.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: d.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '')
         + sec(ui.dTeams, kit.cmp([{ label: '', items: d.teams }])) + sec(ui.dTop, kit.cmp([{ label: '', items: d.top }]));
       if(d.models && d.models.length){
@@ -780,6 +876,7 @@ export function mountTownScene(container, data, opts = {}){
     if(!reduced || time === 0){ placeClouds(reduced ? 0 : dt); }
     if(!reduced) stepWx(dt);
     if(sel && ring){ const s = sel.w * 0.62 + 0.9 + (reduced ? 0 : 0.05 * Math.sin(time * 3)); ring.position.set(sel.x, 0.2, sel.z); ring.scale.set(s, 1, s); }
+    if(castSet) castSet.items.forEach(it => { it.m.rotation.y = az; it.m.position.y = it.y0 + (reduced ? 0 : Math.abs(Math.sin(time * 3.1 + it.ph)) * 0.07); });   /* the cast faces the camera like the signboards and bobs a little */
     world.updateMatrixWorld(true);
   }
   function proj(v, out){ out.copy(v).applyMatrix4(world.matrixWorld).project(camera); return [(out.x * 0.5 + 0.5) * W, (-out.y * 0.5 + 0.5) * H]; }
@@ -820,10 +917,71 @@ export function mountTownScene(container, data, opts = {}){
     return best;
   }
   function select(b){
-    sel = b; selId = b.c.id; renderDrawer(); chrome.open(); ring.visible = true;
+    clearCast(); sel = b; selId = b.c.id; renderDrawer(); chrome.open(); ring.visible = true;
     if(!opts.loadDetail) return;
     let pr = cache.get(b.c.id); if(!pr){ pr = Promise.resolve(opts.loadDetail(b.c.id)).catch(() => null); cache.set(b.c.id, pr); }
-    pr.then(d => { b.det = d || false; if(sel === b) renderDrawer(); });
+    pr.then(d => { b.det = d || false; if(sel === b && !destroyed){ renderDrawer(); placeCast(b, d && d.cast); } });
+  }
+  /* ── the picked company's animals: up to MAXCAST standing cast models (office-scene's cast/<grade>-pose.glb) in a half circle in front of the building ──
+     The half circle opens toward the default camera and rank 1 stands in the middle. Where it stands is chosen per building: first choice is under the
+     company's own signboard (the board is drawn over everything, so the yard right at the door is usually hidden behind it), then the pavement in
+     front of the entrance, then the other sides of the lot. A place counts by how many of its animals the default camera sees: not behind a building
+     or the HQ tower, not under any signboard, not inside a building, not off the island. The best count wins, earlier choices win ties. */
+  const CAM_D = Math.SQRT1_2, CAM_COS = Math.sin(Math.atan2(Math.hypot(30, 30), 24)), CAM_SIN = Math.cos(Math.atan2(Math.hypot(30, 30), 24));   /* default camera: ground axes toward the camera (d, d) and screen right (d, -d), elevation cos/sin */
+  function castSeen(x, z, y){
+    for(const yy of [y + 0.25, y + 0.9]){   /* body and head */
+      const X = (x - z) * CAM_D, Y = yy * CAM_COS - (x + z) * CAM_D * CAM_SIN;
+      for(const o of bld){ const p = o.board.position, Xc = (p.x - p.z) * CAM_D, Y0 = 1.2 * CAM_COS - (p.x + p.z) * CAM_D * CAM_SIN; if(Math.abs(X - Xc) < boardW / 2 + 0.25 && Y > Y0 - 0.12 && Y < Y0 + o.board.userData.h * CAM_COS + 0.1) return false; }
+    }
+    /* a box hides the point when the sight line toward the camera enters its footprint below its top (or the point is inside it) */
+    const boxes = bld.map(o => [o.x, o.z, o.w / 2 + 0.25, o.H]).concat([[0, 0, 3.9, 13], [-4.4, 4.4, 1.3, 6.6]]);
+    for(const [cx, cz, h, top] of boxes){ const s0 = Math.max((cx - h - x) / CAM_D, (cz - h - z) / CAM_D, 0), s1 = Math.min((cx + h - x) / CAM_D, (cz + h - z) / CAM_D); if(s1 > s0 && y + 0.5 + s0 * CAM_SIN / CAM_COS < top) return false; }
+    const u = (x - z) * CAM_D, v = (x + z) * CAM_D; return (u / (bb.gu - 1)) ** 2 + (v / (bb.gv - 1)) ** 2 <= 1;
+  }
+  function castSpots(b, n){
+    const r = clampN(0.8 * (n - 1) / Math.PI, 1.1, 2.9), mid = (n - 1) / 2, order = Array.from({ length: n }, (_, i) => i).sort((p, q) => Math.abs(p - mid) - Math.abs(q - mid) || p - q), h = b.w / 2 + 1.25;
+    const at = (P, v0) => { const spots = order.map(i => { const a = n < 2 ? Math.PI / 2 : Math.PI * i / (n - 1), u = r * Math.cos(a), v = v0 + r * Math.sin(a), x = P.x + (u + v) * CAM_D, z = P.z + (v - u) * CAM_D;
+        return { x, z, y: lotsAll.some(l => Math.abs(x - l.x) <= l.h && Math.abs(z - l.z) <= l.h) ? 0.1 : 0.05 }; });
+      return { spots, r, P, seen: spots.filter(q => castSeen(q.x, q.z, q.y)).length }; };
+    const cands = [at({ x: b.board.position.x, z: b.board.position.z }, 0.6)];
+    for(const out of [0, 2.2]) for(const deg of [90, 60, 120, 45, 30, 150, 0, 180, 330, 210, 300, 240, 270]){ const a = deg * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), m = Math.max(Math.abs(ca), Math.abs(sa)); cands.push(at({ x: b.x + (h + out) * ca / m, z: b.z + (h + out) * sa / m }, 0.3)); }   /* on the lot's edge first, then a step further out */
+    return cands.reduce((best, c) => (c.seen > best.seen ? c : best));
+  }
+  /* trees between the cast and the default camera would cover it: their instances are scaled to nothing while the company is picked and put back after */
+  function hideTrees(P, r){
+    const tz = meshes.trees; if(!tz) return; const ZERO = new T.Matrix4().makeScale(0, 0, 0);
+    tz.list.forEach(tp => { const dx = tp.x - P.x, dz = tp.z - P.z, X = (dx - dz) * CAM_D, S = (dx + dz) * CAM_D; if(Math.abs(X) > r + 1.3 || S < -1.2 || S > r + 6.1) return;
+      (tp.trunk >= 0 ? [[tz.trunk, tp.trunk]] : []).concat(tp.s.map(i => [tz.ico, i]), tp.c.map(i => [tz.cone, i])).forEach(([m, i]) => { const keep = new T.Matrix4(); m.getMatrixAt(i, keep); hidden.push([m, i, keep]); m.setMatrixAt(i, ZERO); m.instanceMatrix.needsUpdate = true; }); });
+  }
+  function showTrees(){ hidden.forEach(([m, i, keep]) => { m.setMatrixAt(i, keep); m.instanceMatrix.needsUpdate = true; }); hidden = []; }
+  function clearCast(){
+    castGen++; showTrees();
+    if(castSet){ castSet.items.forEach(it => { if(it.m.parent) it.m.parent.remove(it.m); if(it.crown) it.crown.traverse(q => { if(q.isMesh){ q.geometry.dispose(); q.material.dispose(); } }); }); castSet = null; }
+    /* the parsed species stay cached for the next pick; their GPU buffers, programs and textures are released here (three uploads them again when they are next drawn) */
+    Object.values(castGltf).forEach(g => g.scene.traverse(c => { if(!c.isMesh) return; c.geometry.dispose();
+      (Array.isArray(c.material) ? c.material : [c.material]).forEach(mt => { Object.values(mt).forEach(v => { if(v && v.isTexture) v.dispose(); }); mt.dispose(); }); }));
+    if(renderer && started === true){ renderer.shadowMap.needsUpdate = true; request(); }
+  }
+  async function placeCast(b, list){
+    clearCast(); const gen = castGen;
+    if(!list || !list.length || !b.board) return;
+    try{
+      const loader = await castLoader();
+      const load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '-pose.glb').then(g => (castGltf[k] = g), e => { delete castCache[k]; throw e; }));
+      const got = await Promise.allSettled(list.map(p => load(p.grade)));
+      if(gen !== castGen || destroyed || sel !== b) return;   /* the selection moved on (or the town was rebuilt) while the models loaded */
+      const { spots, r, P } = castSpots(b, list.length), items = [];
+      got.forEach((res, i) => {
+        if(res.status !== 'fulfilled') return;   /* a species that failed to load is left out; the drawer does not depend on the models */
+        const p = list[i], sp = spots[i], m = res.value.scene.clone(true), box = new T.Box3().setFromObject(m), y0 = sp.y - box.min.y * CAST_SC, crown = p.crown ? castCrown(T) : null;
+        m.scale.setScalar(CAST_SC); m.position.set(sp.x, y0, sp.z); m.rotation.y = view.azimuth();
+        m.traverse(c => { if(c.isMesh){ c.castShadow = true; c.receiveShadow = true; } });
+        if(crown) m.add(crown);
+        world.add(m); items.push({ m, y0, lift: y0 - sp.y, crown, ph: hash(p.id) * 6.28, id: p.id, grade: p.grade });
+      });
+      if(!items.length) return;
+      castSet = { b, items }; hideTrees(P, r); renderer.shadowMap.needsUpdate = true; request();
+    }catch(e){ /* no loader (offline, blocked CDN): the town stays as it is, without the models */ }
   }
   function bindView(){
     view = makeView({ T, canvas, stage, camera, target0: [0, 2, 0], theta0: Math.PI / 4, phi0: Math.atan2(Math.hypot(30, 30), 24), dist: Math.hypot(30, 24, 30), reduced,
@@ -877,11 +1035,13 @@ export function mountTownScene(container, data, opts = {}){
     get view(){ return view; },
     ready: () => started === true && !!view,
     orgs: () => bld.map(b => ({ id: b.c.id, name: b.c.name, x: b.x, z: b.z, w: b.w, h: b.H })),
+    cast: () => (castSet ? castSet.items.map(it => ({ id: it.id, grade: it.grade, x: it.m.position.x, z: it.m.position.z, seen: castSeen(it.m.position.x, it.m.position.z, it.y0 - it.lift) })) : []),   /* the models on stage, for recordings and checks */
     selectOrg(id){ const b = bld.find(q => q.c.id === id); if(b) select(b); return !!b; },
     closeDrawer: () => chrome.close(),
     destroy(){
       destroyed = true; if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); if(io) io.disconnect(); if(ro) ro.disconnect(); clearInterval(minuteTimer);
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
+      clearCast(); Object.keys(castCache).forEach(k => { delete castCache[k]; delete castGltf[k]; });
       if(started === true){ clear(); wxObjs.forEach(o => { if(o.isInstancedMesh) o.dispose(); }); Object.values(meshes).forEach(o => o && o.dispose && o.dispose()); Object.values(MT).forEach(m => m && m.dispose && m.dispose()); Object.values(TX).forEach(x => x && x.dispose && x.dispose()); if(envTex) envTex.dispose();
         renderer.dispose(); const x = renderer.getContext().getExtension('WEBGL_lose_context'); if(x) x.loseContext(); if(canvas.parentNode) canvas.parentNode.removeChild(canvas); }
       container.innerHTML = '';
