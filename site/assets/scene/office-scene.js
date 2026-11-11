@@ -1533,6 +1533,21 @@ export function usageTotal(us){
   return { total, days };
 }
 
+/* One machine's usage cut to the days since install (u.since, from team_member_usage). Savings only exist after install, so a rate over the
+ * whole range is diluted by spend from before it. Money shown to users stays on the full figures; only rate denominators (and the delegation
+ * cost beside them) use this. An old server sends no since: the row comes back unchanged. admin-ux.js keeps an identical copy (pinned by test/usage-since.test.js). */
+export function sinceUsage(u){
+  if(!u || !u.since || !Array.isArray(u.series)) return u;
+  const cut = String(u.since).slice(0, 10), kept = u.series.filter(q => String(q.day).slice(0, 10) >= cut), fin = v => v != null && Number.isFinite(Number(v));
+  let spent = 0, saved = 0, total = 0, gw = null, dc = null;
+  kept.forEach(q => {
+    spent += Number(q.spent) || 0; saved += Number(q.saved) || 0; total += Number(q.total ?? q.spent) || 0;
+    if(fin(q.gateway)) gw = (gw || 0) + Number(q.gateway);
+    if(fin(q.delegated_cost)) dc = (dc || 0) + Number(q.delegated_cost);
+  });
+  return { ...u, series: kept, spent, saved, total_spent: total, gateway_spent: gw, delegated_cost: dc };
+}
+
 /* Shared data mapper for both pages: one person per seat host (a host plus the machines merged into it), over the page's date range.
  * o: { rows (org_seats), usage ({machine member_id: {spent, saved, delegated, families?, total_spent?, local_spent?, gateway_spent?, gateway_user_hash?,
  *      delegated_cost?, codex_delegated?, unpriced?, series?}}), promptRows (org_prompt_usage members, or null),
@@ -1583,7 +1598,10 @@ export function officeSceneData(o){
     if(pr) rs.forEach(r => { const p = pr.find(x => x.member_id === r.member_id) || pr.find(x => x.display_name && x.display_name === r.display_name); if(p){ prompts += Number(p.prompts) || 0; chars += Number(p.chars) || 0; promptId = promptId || p.member_id;
       if(p.last_prompt_at && (!lastPrompt || p.last_prompt_at > lastPrompt)) lastPrompt = p.last_prompt_at; (p.by_day || []).forEach(q => { pdays[q.day] = (pdays[q.day] || 0) + (Number(q.prompts) || 0); }); } });
     today += Object.values(todayGw).reduce((a, b) => a + b, 0);
-    return { id: key, host, rs, spent, local, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
+    /* since-install basis for the HUD's org delegation share only; p.dlg, ranks and grades keep the full-range figures */
+    const sinceUs = rs.map(r => sinceUsage(usage[r.member_id] || {})), spentSince = usageTotal(sinceUs).total;
+    let dcostSince = null; sinceUs.forEach(u => { const c = num(u.delegated_cost); if(Number.isFinite(c)) dcostSince = (dcostSince || 0) + c; });
+    return { id: key, host, rs, spent, spentSince, dcostSince, local, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
       mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: dcost != null && spent > 0 ? dcost / spent : null };
   });
   all.sort((a, b) => b.spent - a.spent);
@@ -1673,8 +1691,9 @@ export function officeSceneData(o){
   });
   const cnt = k => people.filter(m => m.tier === k).length, used = Number(o.used) || 0, limit = Number(o.limit) || 0, free = limit > used ? limit - used : 0;
   const active = people.length - cnt('nodata'), act = ranked.length ? (cnt('power') + 0.6 * cnt('active') + 0.25 * cnt('normal')) / ranked.length : 0;
-  const dRows = ranked.filter(p => p.dcost != null), dSpent = dRows.reduce((a, p) => a + p.spent, 0);
-  const orgDlg = dRows.length && dSpent > 0 ? pc(dRows.reduce((a, p) => a + p.dcost, 0) / dSpent) : t('of.unknown');
+  /* the HUD's org delegation share is on spend since install (sinceUsage), so pre-install days do not dilute it; the person's own dlg stays full-range */
+  const dRows = ranked.filter(p => p.dcostSince != null), dSpent = dRows.reduce((a, p) => a + p.spentSince, 0);
+  const orgDlg = dRows.length && dSpent > 0 ? pc(dRows.reduce((a, p) => a + p.dcostSince, 0) / dSpent) : t('of.unknown');
   const stats = closed ? t('of.hud.closed', { u: used, limit }, true)
     : t('of.hud', { s: money(totSaved), d: orgDlg, n: active, p: cnt('power'), l: cnt('low'), o: cnt('nodata'), u: used, limit }, true);
   const fam = mixTot > 0 || people.some(p => p.bots.some(b => b !== 'any'));
