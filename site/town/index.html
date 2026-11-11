@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sprag Town | Member view</title>
+<meta name="description" content="Your team as a small 3D town. Opened from the terminal with sprag team town." />
+<link rel="canonical" href="https://sprag.io/town/" />
+<meta name="robots" content="noindex,nofollow" />
+<meta name="theme-color" content="#0a0a0c" />
+<link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="../assets/logo/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="../assets/logo/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* Member town: a read-only page, no admin shell. Same dark palette and type as /team/. */
+  :root{
+    --bg:#0a0a0c; --surface:#0f0f12; --line:#1f2024; --line2:#2c2d34;
+    --ink:#ececef; --dim:#9b9da6; --faint:#686a74;
+    --accent:#5e6ad2; --accent2:#8a94f2; --accent-bg:rgba(94,106,210,.14); --warn:#e8ab3c;
+    --sans:"Geist","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r:6px; --rl:10px; --gut:24px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg)}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;min-height:100dvh}
+  html[lang=ko] body{word-break:keep-all;line-height:1.6}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+  code{font-family:var(--mono);font-size:.9em;background:rgba(255,255,255,.06);border-radius:4px;padding:1px 6px}
+  [hidden]{display:none!important}
+  :focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:4px}
+  header{border-bottom:1px solid var(--line);background:rgba(10,10,12,.88)}
+  header .wrap{max-width:1440px;margin:0 auto;padding:0 var(--gut);min-height:52px;display:flex;align-items:center;gap:16px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em;color:inherit;text-decoration:none}
+  .brand svg{width:20px;height:20px;display:block}
+  .sp{flex:1}
+  .localbadge{font:500 10.5px/1 var(--mono);letter-spacing:.06em;color:var(--warn);border:1px solid rgba(232,171,60,.4);background:rgba(232,171,60,.08);border-radius:4px;padding:4px 6px;white-space:nowrap}
+  .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px}
+  .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+  .lang button:hover{color:var(--dim)}
+  .lang button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent2)}
+  @media(hover:none) and (pointer:coarse){.lang button{padding:8px 10px}}
+  main{max-width:1440px;margin:0 auto;padding:20px var(--gut) 32px}
+  .head{margin-bottom:14px}
+  .head h1{font-size:17px;font-weight:600;letter-spacing:-.01em;overflow-wrap:anywhere}
+  .head p{color:var(--dim);font-size:13px;margin-top:2px}
+  .head .exp{color:var(--faint);font-size:12px}
+  .card{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface)}
+  .msg{padding:28px 24px;max-width:640px;line-height:1.65;color:var(--dim)}
+  .msg p+p{margin-top:10px}
+  .btn{margin-top:14px;border:1px solid var(--line2);background:transparent;color:var(--ink);border-radius:var(--r);padding:7px 14px}
+  .btn:hover{border-color:var(--accent2);color:var(--accent2)}
+  #box .of-stage{height:min(78dvh,880px);min-height:520px}
+  @media(max-width:520px){main{padding:14px 12px 24px}#box .of-stage{height:70dvh;min-height:420px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Sprag">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path fill="currentColor" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/>
+        <path fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/>
+        <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
+      </svg>
+      <span>Sprag</span>
+    </a>
+    <span class="sp"></span>
+    <span class="lang" role="group" aria-label="Language">
+      <button data-lang="en" aria-pressed="true">EN</button>
+      <button data-lang="ko" aria-pressed="false">KO</button>
+    </span>
+  </div>
+</header>
+<main>
+  <div class="head" id="head" hidden>
+    <h1 id="h-org"></h1>
+    <p id="h-only"></p>
+    <p class="exp" id="h-exp"></p>
+  </div>
+  <section class="card msg" id="msg" role="status"></section>
+  <section class="card of-card" id="scene-card" hidden><div id="box"></div></section>
+</main>
+
+<script src="/assets/scene/office-i18n.js?v=3.120.0"></script>
+<script>
+// Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
+// Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
+const LOCAL_API = ['localhost', '127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).get('api') === 'local';
+const SUPABASE_URL = LOCAL_API ? 'http://127.0.0.1:55321' : 'https://hiycfjwswtkixyoqkznm.supabase.co';
+const SUPABASE_ANON_KEY = LOCAL_API
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpeWNmandzd3RraXh5b3Frem5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNTc4MzYsImV4cCI6MjEwNzgzMzgzNn0.gyYcvGD70CEX64aGV-dsmZgmmOBdvhJlzIpx9Qo2l3w';
+if(LOCAL_API){
+  const hw = document.querySelector('header .wrap'), b = document.createElement('span');
+  b.textContent = 'LOCAL API'; b.title = 'Talking to http://127.0.0.1:55321, not production'; b.className = 'localbadge';
+  hw.querySelector('.brand').after(b);
+}
+
+/* ── strings: the page's own, plus the office scene's (office-i18n.js, shared with /team/) ── */
+const PAGE = {
+  en: {
+    'pg.title': 'Sprag Town | Member view',
+    'pg.loading': 'Loading the town',
+    'pg.notoken': 'This page opens from the terminal. Run <code>sprag team town</code> and a fresh link opens here.',
+    'pg.invalid': 'This link expired or is not valid. Run <code>sprag team town</code> in the terminal to get a new one.',
+    'pg.net': 'Could not reach the server. Check your connection and try again.',
+    'pg.retry': 'Try again',
+    'pg.nowebgl': 'This browser could not start the 3D scene. Open the page in a current Chrome, Safari, Edge or Firefox with hardware acceleration on.',
+    'pg.only': 'Read only. You see your own numbers in full. Other people appear as characters, with no figures.',
+    'pg.exp': 'Link valid until {when}',
+  },
+  ko: {
+    'pg.title': 'Sprag 타운, 멤버 보기',
+    'pg.loading': '타운을 불러오는 중',
+    'pg.notoken': '이 페이지는 터미널에서 엽니다. 터미널에서 <code>sprag team town</code>을 실행하면 새 링크가 열립니다.',
+    'pg.invalid': '링크가 만료됐거나 올바르지 않습니다. 터미널에서 <code>sprag team town</code>을 다시 실행해 새 링크를 받으세요.',
+    'pg.net': '서버에 연결하지 못했습니다. 네트워크를 확인하고 다시 시도하세요.',
+    'pg.retry': '다시 시도',
+    'pg.nowebgl': '이 브라우저에서 3D 장면을 시작하지 못했습니다. 하드웨어 가속이 켜진 최신 Chrome, Safari, Edge, Firefox로 열어 보세요.',
+    'pg.only': '읽기 전용입니다. 내 수치는 자세히 보이고 다른 사람은 수치 없이 캐릭터로만 나옵니다.',
+    'pg.exp': '링크 유효 시간: {when}까지',
+  },
+};
+const I18N = { en: { ...PAGE.en, ...window.SPRAG_OFFICE_I18N.en }, ko: { ...PAGE.ko, ...window.SPRAG_OFFICE_I18N.ko } };
+let lang = 'en';
+/* same placeholder syntax as the team page: {name}; values are HTML-escaped unless raw */
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function t(k, vars, raw){
+  let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;
+  if(vars) for(const key in vars) s = s.split('{' + key + '}').join(raw ? vars[key] : esc(vars[key]));
+  return s;
+}
+const $ = id => document.getElementById(id);
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+function ssGet(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
+function ssSet(k, v){ try{ if(v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); }catch(e){} }
+
+function rel(d){
+  if(!d) return t('never');
+  const sec = (new Date(d).getTime() - Date.now()) / 1000, a = Math.abs(sec);
+  const f = new Intl.RelativeTimeFormat(lang === 'ko' ? 'ko' : 'en', { numeric: 'auto' });
+  if(a < 60) return f.format(0, 'second');
+  if(a < 3600) return f.format(Math.round(sec / 60), 'minute');
+  if(a < 86400) return f.format(Math.round(sec / 3600), 'hour');
+  return f.format(Math.round(sec / 86400), 'day');
+}
+const osLabel = r => { const a = [[r.os, r.os_version].filter(Boolean).join(' '), r.arch].filter(Boolean); return a.length ? a.join(' · ') : '—'; };
+/* "Nov 3–Nov 9" / "11.3–11.9", with the year only when it is not this one */
+function rangeLabel(r){
+  if(!r || !r.from || !r.to) return '';
+  const a = new Date(r.from + 'T00:00:00'), b = new Date(r.to + 'T00:00:00'), y = new Date().getFullYear(), yr = a.getFullYear() !== y || b.getFullYear() !== y;
+  const one = d => lang === 'ko' ? (yr ? d.getFullYear() + '.' : '') + (d.getMonth() + 1) + '.' + d.getDate()
+    : d.toLocaleDateString('en-US', yr ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' });
+  return one(a) + '–' + one(b);
+}
+
+/* ── the link: #t=<token> arrives once, is kept for the tab only and leaves the address bar ── */
+const TOKEN_KEY = 'sprag.town.t', TOKEN_RE = /^stv_[0-9a-f]{64}$/;
+function takeToken(){
+  const m = /(?:^#|&)t=([^&]+)/.exec(location.hash);
+  if(m){
+    let tok = ''; try{ tok = decodeURIComponent(m[1]); }catch(e){}
+    if(TOKEN_RE.test(tok)) ssSet(TOKEN_KEY, tok);
+    try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){}
+  }
+  const have = ssGet(TOKEN_KEY);
+  return have && TOKEN_RE.test(have) ? have : null;
+}
+
+/* ── state ── */
+let view = null, mod = null, ctl = null, shown = '';   /* view: the town_view reply; shown: which language the mounted scene was built for */
+let msgKey = '', msgBtn = false, failed = false;
+
+function showMsg(key, retry){
+  msgKey = key; msgBtn = !!retry; failed = false;
+  $('scene-card').hidden = true; $('head').hidden = true; $('msg').hidden = false;
+  const m = $('msg'); m.innerHTML = '<p>' + t(key) + '</p>';
+  if(retry){ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.textContent = t('pg.retry'); b.addEventListener('click', retry); m.appendChild(b); }
+}
+function paintHead(){
+  if(!view) return;
+  $('head').hidden = false;
+  const o = view.org || {};
+  $('h-org').textContent = [o.name, rangeLabel(view.range)].filter(Boolean).join(' · ');
+  $('h-only').textContent = t('pg.only');
+  const when = view.expires_at ? new Date(view.expires_at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US') : '';
+  $('h-exp').textContent = when ? t('pg.exp', { when }, true) : '';
+}
+function sceneData(){ return mod.memberTownData(view, { t, rel, os: osLabel, rangeLabel: rangeLabel(view.range) }); }
+
+async function show(){
+  if(!view) return;
+  paintHead();
+  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.120.0-2'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
+  $('msg').hidden = true; $('scene-card').hidden = false;
+  const data = sceneData();
+  if(ctl){ ctl.update(data); shown = lang; return; }
+  $('box').textContent = '';
+  ctl = mod.mountOfficeScene($('box'), data, { readOnly: true, onFail: () => { failed = true; if(ctl){ ctl.destroy(); ctl = null; } showMsg('pg.nowebgl'); failed = true; } });
+  shown = lang;
+  /* open the viewer's own drawer once the scene is up (the selection ring is the existing "you" marker); small screens stay on the whole room */
+  const self = view.self && view.self.id, start = Date.now();
+  if(self && innerWidth >= 900){
+    const iv = setInterval(() => { if(!ctl || Date.now() - start > 30000){ clearInterval(iv); return; } if(ctl.ready()){ clearInterval(iv); ctl.selectPerson(self); } }, 300);
+  }
+}
+
+async function load(){
+  const tok = takeToken();
+  if(!tok) return showMsg('pg.notoken');
+  showMsg('pg.loading');
+  let res;
+  try{
+    res = await fetch(SUPABASE_URL + '/rest/v1/rpc/town_view', {
+      method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_token: tok }),
+    });
+  }catch(e){ return showMsg('pg.net', load); }
+  let body = null; try{ body = await res.json(); }catch(e){}
+  if(!res.ok || !body || typeof body !== 'object' || !Array.isArray(body.people)){
+    if(res.status >= 500) return showMsg('pg.net', load);
+    ssSet(TOKEN_KEY, null);
+    return showMsg('pg.invalid');
+  }
+  view = body;
+  show();
+}
+
+/* ── language ── */
+function setLang(next, remember){
+  lang = next === 'ko' ? 'ko' : 'en';
+  document.documentElement.lang = lang;
+  document.title = t('pg.title');
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  if(remember) lsSet('sprag.lang', lang);
+  if(view && !failed && mod && ctl && shown !== lang) show();
+  else if(view) paintHead();
+  else if(msgKey) showMsg(msgKey, msgBtn ? load : null);
+}
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+(function(){
+  const q = new URLSearchParams(location.search).get('lang');
+  const nav = (navigator.languages || [navigator.language || 'en']).join(',');
+  setLang(q || lsGet('sprag.lang') || (/\bko\b|ko-/i.test(nav) ? 'ko' : 'en'), false);
+  load();
+})();
+</script>
+</body>
+</html>

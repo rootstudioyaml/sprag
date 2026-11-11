@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /town/
 
 Sitemap: https://sprag.io/sitemap.xml

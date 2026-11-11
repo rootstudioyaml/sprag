@@ -136,7 +136,26 @@ Sprag writes the rules to `~/.claude/ratchet-team.md` (Codex: `<CODEX_HOME>/ratc
 | `sprag team sync [--force] [--rules-only]` | Upload now and pull rules. `--force` ignores the 5-minute interval; `--rules-only` pulls the organization and team rules and uploads nothing |
 | `sprag team rules` | Show the cached organization and team rules |
 | `sprag team propose "<text>" [--scope ratchet\|model]` | Propose a rule to the team |
+| `sprag team town [--no-open]` | Open the read-only town in your browser (see "Town for members") |
 | `sprag team leave` | Leave the team and stop uploading |
+
+## Town for members
+
+Members never sign in to the dashboard, but they can see the team as a small 3D town. Run:
+
+```bash
+sprag team town            # prints the link and opens it in your browser
+sprag team town --no-open  # prints the link only
+```
+
+The command asks the team server for a link with `town_view_link` (it sends your member key and nothing else) and opens `https://sprag.io/town/#t=<token>`. The token is valid for 12 hours and the command prints the expiry in your local time. Asking for links too often is refused for a while ("too many town links"). The token sits in the part of the address after `#`, so the web server never receives it, and the page removes it from the address bar after reading it. When it expires, or after you leave the team, the page asks you to run the command again. `SPRAG_TOWN_URL` points the link at another page (for local tests).
+
+What the town shows:
+
+- You: your own numbers in full, as an owner sees them in the dashboard's town (spend, savings, delegation, your machines, prompt counts when capture is on), plus your rank and what the next species takes.
+- Everyone else in the organization: only the character. That is the name, the species and tier, the crown, the team, the OS and whether uploads are on, late or paused.
+
+What it never shows about other people: any figure (spend, savings, delegation share, rank), their machines, their prompts or their activity. The server enforces this. `town_view` returns no numbers for anyone but the token's owner, so a modified page or a copied link cannot reveal them. The page has no admin action and no link to the dashboard, and it is excluded from search engines (`robots.txt` and a `noindex` tag).
 
 ## Organizations and seats
 
@@ -227,4 +246,5 @@ Owners and admins of an Enterprise organization get a Prompts tab on sprag.io/te
 | `~/.claude/ratchet-team.md` | Approved organization and team rules for Claude Code, imported from `~/.claude/CLAUDE.md` |
 | `<CODEX_HOME>/ratchet-team.md` | The same rules for Codex |
 | `SPRAG_TEAM_TOKEN` | Invite token; enrolls the machine at the next session start |
+| `SPRAG_TOWN_URL` | Page that `sprag team town` opens (default `https://sprag.io/town/`); for local tests only |
 | `SPRAG_NO_TEAM_SYNC=1` | Stops every usage upload. A joined machine sends only one status-only call when it first sees the switch on and when it is off again (old name `CTS_NO_TEAM_SYNC` still read) |
