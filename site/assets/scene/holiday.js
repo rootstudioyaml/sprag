@@ -13,9 +13,9 @@ export function seoulMonthDay(now){
   const d = new Date(t + SEOUL_MS);
   return { month: d.getUTCMonth() + 1, day: d.getUTCDate() };
 }
-/* Nov 15 through Jan 6, both ends included */
+/* Nov 1 through Jan 6, both ends included */
 export function inHolidaySeason(month, day){
-  return (month === 11 && day >= 15) || month === 12 || (month === 1 && day <= 6);
+  return month === 11 || month === 12 || (month === 1 && day <= 6);
 }
 /* ?season=xmas forces the dressing on and ?season=off forces it off. Otherwise the Seoul calendar decides. */
 export function holidayOn(now = new Date(), search){
@@ -94,7 +94,7 @@ export function makeTree(T){
   const sh = new T.Shape(), OUT = 0.23, INN = 0.105;
   for(let i = 0; i < 10; i++){ const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? INN : OUT; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
   sh.closePath();
-  const sg = new T.ExtrudeGeometry(sh, { depth: 0.07, bevelEnabled: true, bevelSize: 0.018, bevelThickness: 0.018, bevelSegments: 1 }); sg.center();
+  const sg = new T.ExtrudeGeometry(sh, { depth: 0.1, bevelEnabled: true, bevelSize: 0.018, bevelThickness: 0.018, bevelSegments: 1 }); sg.center();
   const starMat = K.std('#ffd35a', { roughness: 0.3, metalness: 0.5, emissive: '#ffb938', emissiveIntensity: 0.5 });
   const star = K.mesh(sg, starMat); star.position.y = 3.1; star.castShadow = true; g.add(star);
   /* ornaments: golden-angle spread over the tiers, weighted by tier size */
@@ -121,6 +121,8 @@ export function makeTree(T){
     [0.55, 0.42, 0.5, -0.85, 0.75, 0.3, '#f08a9b', '#fffaf0'], [0.4, 0.34, 0.4, -0.35, 1.05, -0.2, '#7fb7e6', '#f5c542'],
     [0.5, 0.3, 0.7, 0.55, 0.95, 0.15, '#f6d36b', '#e8505b'], [0.3, 0.3, 0.3, 1.05, 0.5, -0.4, '#9bd6a8', '#fffaf0'],
     [0.36, 0.5, 0.36, -1.15, 0.1, 0.5, '#c4a6ee', '#f5c542'], [0.28, 0.22, 0.28, 0.12, 1.35, 0.1, '#ff9d76', '#fffaf0'],
+    [0.4, 0.36, 0.4, 0.95, 1.1, 0.5, '#f9a8d4', '#f5c542'], [0.3, 0.24, 0.5, -0.65, 1.45, -0.15, '#a8dba0', '#e8505b'],
+    [0.26, 0.26, 0.26, 1.5, 0.15, 0.2, '#fcd34d', '#5aa9e6'], [0.42, 0.3, 0.34, -1.55, 0.7, -0.35, '#8ec5fb', '#fffaf0'],
   ];
   const ribMats = {};
   PRES.forEach(([w, h, d, x, z, ry, body, rib]) => {
@@ -144,7 +146,7 @@ export function makeTree(T){
     bulbMat.emissiveIntensity = 0.9 + 0.7 * n;
     const pulse = Math.sin(t * 1.4);
     starMat.emissiveIntensity = (0.45 + 0.9 * n) * (1 + 0.25 * pulse);
-    star.scale.setScalar(1 + 0.04 * pulse); star.rotation.y = 0.35 * Math.sin(t * 0.6);
+    star.scale.setScalar(1 + 0.04 * pulse); star.rotation.y = t * 0.7;   /* turns slowly so it shows a face from any camera angle */
   };
   g.userData.dispose = K.dispose;
   return g;
@@ -236,6 +238,56 @@ export function santaHat(T){
   });
   const ball = K.mesh(new T.SphereGeometry(0.048, 10, 8), fur); ball.position.y = SEG[2].h + 0.01; parent.add(ball);
   g.position.set(0, 1.03, -0.02); g.rotation.x = -0.12;
+  g.userData.dispose = K.dispose;
+  return g;
+}
+
+/* ---------- Rudolph set ---------- */
+/* A headband with two brown antlers, in the same model space as castCrown() and santaHat(). Branches are tube curves with round tips. */
+export function reindeerAntlers(T){
+  const K = kit(T), g = new T.Group(), brown = K.std('#8a5a3c', { roughness: 0.85 }), band = K.std('#d9534f', { roughness: 0.6 });
+  /* the band arcs over the top of the head from ear to ear, a little tilted back */
+  const arc = K.mesh(new T.TorusGeometry(0.345, 0.02, 8, 24, Math.PI * 0.78), band); arc.rotation.z = Math.PI * 0.11; g.add(arc);
+  const stem = (pts, r) => { const m = K.mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p))), 10, r, 7, false), brown); g.add(m);
+    const e = pts[pts.length - 1], c = K.mesh(new T.SphereGeometry(r * 1.15, 8, 6), brown); c.position.set(...e); g.add(c); };
+  for(const s of [-1, 1]){
+    const root = [s * 0.19, 0.285, 0];   /* where the antler leaves the band */
+    const at = (x, y, z = 0) => [root[0] + s * x, root[1] + y, root[2] + z];
+    stem([at(0, -0.02), at(0.03, 0.08), at(0.07, 0.17), at(0.06, 0.26)], 0.021);
+    stem([at(0.035, 0.1), at(0.09, 0.15), at(0.14, 0.2)], 0.016);
+    stem([at(0.065, 0.2), at(0.0, 0.25), at(-0.03, 0.31)], 0.014);
+    const bell = K.mesh(new T.SphereGeometry(0.026, 10, 8), K.std('#f5c542', { roughness: 0.3, metalness: 0.5 })); bell.position.set(s * 0.335, 0.075, 0.05); g.add(bell);
+  }
+  /* a holly leaf with a berry at the front of the band */
+  const leafM = K.std('#2f7d4f', { roughness: 0.8 }), leafG = K.geo(new T.SphereGeometry(0.04, 8, 6));
+  for(const s of [-1, 1]){ const l = new T.Mesh(leafG, leafM); l.scale.set(1.6, 0.35, 0.8); l.position.set(s * 0.045, 0.365, 0.07); l.rotation.set(0.35, 0, s * 0.45); g.add(l); }
+  const berry = K.mesh(new T.SphereGeometry(0.022, 8, 6), K.std('#e8505b', { roughness: 0.3 })); berry.position.set(0, 0.37, 0.085); g.add(berry);
+  g.position.set(0, 0.69, -0.02); g.rotation.x = -0.1;
+  g.userData.dispose = K.dispose;
+  return g;
+}
+
+/* The nose tip of a loaded cast model in the model's own space (front is +z), or null for species without a nose material.
+ * The tip is the middle of the nose mesh sideways and up, and its front edge. Beaks count as noses too. */
+const NOSE_MAT = /^(nose|nos|nose_disc|beak)$/;
+export function noseTipOf(T, root){
+  root.updateMatrixWorld(true);
+  const inv = new T.Matrix4().copy(root.matrixWorld).invert(), box = new T.Box3(), m4 = new T.Matrix4();
+  let found = false;
+  root.traverse(o => {
+    if(!o.isMesh || !o.material || !NOSE_MAT.test(o.material.name || '')) return;
+    if(!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    box.union(o.geometry.boundingBox.clone().applyMatrix4(m4.multiplyMatrices(inv, o.matrixWorld))); found = true;
+  });
+  return found ? { x: (box.min.x + box.max.x) / 2, y: (box.min.y + box.max.y) / 2, z: box.max.z } : null;
+}
+/* A glossy red ball on the nose tip. It pulses slowly and glows at night through the same emissive path as the lights. */
+export function rudolphNose(T, tip){
+  const K = kit(T), mat = K.std('#ff3b3b', { roughness: 0.18, emissive: '#ff2a2a', emissiveIntensity: 0.5 });
+  const g = new T.Group(), ball = K.mesh(new T.SphereGeometry(0.05, 14, 10), mat); g.add(ball);
+  g.position.set(tip.x, tip.y, tip.z - 0.004);
+  const ph = (tip.x * 7.3 + tip.y * 3.1 + tip.z * 5.7) % 6.283;
+  g.userData.tick = (t, night) => { const n = nightOf(night); mat.emissiveIntensity = (0.35 + 1.1 * n) * (1 + 0.3 * Math.sin(t * 1.8 + ph)); };
   g.userData.dispose = K.dispose;
   return g;
 }
