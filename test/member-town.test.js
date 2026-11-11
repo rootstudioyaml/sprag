@@ -233,3 +233,10 @@ test('opaque server ids: the viewer keeps the id of the people list, not a machi
   assert.ok(JSON.stringify(me[0].detail).includes('$'), 'own spend is shown');
   assert.ok(!d.people.some(p => p.id === 'a' || p.id === 'a2'), 'no raw machine id becomes a person id');
 });
+
+test('the town page selects the viewer on entry, whatever the screen width', () => {
+  /* the page waits for ctl.ready() and then calls ctl.selectPerson(self.id); a width gate would leave phones on the whole room */
+  const block = TOWN.slice(TOWN.indexOf('const self = view.self'), TOWN.indexOf('ctl.selectPerson(self)') + 30);
+  assert.ok(block.includes('ctl.selectPerson(self)'), 'the page selects the viewer');
+  assert.ok(!/innerWidth|matchMedia/.test(block), 'no screen-width condition before selecting');
+});
