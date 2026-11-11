@@ -316,14 +316,15 @@ export function rudolphNose(T, tip){
 }
 
 /* ---------- ginkgo ---------- */
-/* A huge old ginkgo in the style of the 800-year-old Banggye-ri tree: a short, very thick trunk that splits low into a few big limbs, and a wide, low, round dome
- * of golden blobs. About 16 across and 12 tall, origin at the middle of the trunk's foot. Warm-white and gold twinkle lights and a few small baubles dress the crown.
+/* A huge old ginkgo in the style of the 800-year-old Banggye-ri tree: a short, very thick trunk that splits low into a few big limbs, and a wide, low dome
+ * of real ginkgo leaves. About 16 across and 12 tall, origin at the middle of the trunk's foot. The crown is one InstancedMesh of fan leaves laid on the skin of
+ * about 60 overlapping leaf clumps (each clump is 2 or 3 flattened lobes), so the outline is a ragged pile of clumps and not one round ball. A few gaps show thinner
+ * branches inside. Warm-white and gold twinkle lights and a few small baubles sit on the clumps.
  * opt.carpet and opt.fall are lists of { x0, x1, z0, z1, y, n }: rectangles in the tree's own space (y is the ground height there). Leaves lie on the ground in
  * carpet and drift down in fall. tick(t, night) moves the falling ones from t alone, so a frozen t (reduced motion) freezes them. */
-const GINKGO = ['#f5cf3a', '#eebb24', '#f8dc63', '#e5a91c'];
 export function makeGinkgo(T, o = {}){
-  const opt = { lights: 200, baubles: 12, carpet: [], fall: [], carpetR: 8.5, ...o };
-  const K = kit(T), rand = rng(800), g = new T.Group(), M = new T.Matrix4(), C = new T.Color(), Q = new T.Quaternion(), E = new T.Euler(), P = new T.Vector3(), S = new T.Vector3();
+  const opt = { lights: 200, baubles: 12, carpet: [], fall: [], carpetR: 8.5, leaves: 7000, clumps: 58, ...o };
+  const K = kit(T), rand = rng(800), cr = rng(1291), g = new T.Group(), M = new T.Matrix4(), C = new T.Color(), Q = new T.Quaternion(), Q2 = new T.Quaternion(), E = new T.Euler(), P = new T.Vector3(), S = new T.Vector3(), V = new T.Vector3(), ZAX = new T.Vector3(0, 0, 1);
   const bark = K.std('#6f5a48', { roughness: 1, flatShading: true }), bark2 = K.std('#7a644f', { roughness: 1, flatShading: true });
   /* trunk: a fat lathe with a flared foot, a knuckle where the limbs leave it, and roots creeping over the ground */
   const prof = [[0, 0], [1.3, 0], [1.05, 0.45], [0.88, 1.3], [0.82, 2.6], [0.95, 3.5], [0.7, 4.0], [0, 4.0]].map(([r, y]) => new T.Vector2(r, y));
@@ -332,62 +333,117 @@ export function makeGinkgo(T, o = {}){
     const a = i * Math.PI / 3 + 0.3, ca = Math.cos(a), sa = Math.sin(a), L = 2.4 - 1.2 * Math.max(0, sa);   /* roots toward +z are shorter: that side faces the room wall */
     const root = K.mesh(new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(ca * 0.7, 0.5, sa * 0.7), new T.Vector3(ca * L * 0.65, 0.18, sa * L * 0.65), new T.Vector3(ca * L, 0.05, sa * L)]), 8, 0.3, 6, false), bark2); g.add(root);
   }
-  /* five thick limbs fanning up and out into the crown */
-  const CY = 6.7, A = 6.2, BU = 3.0, BD = 2.2;   /* crown centre height and the radii of the blob shell: sideways, up, down (a wide low dome, about 16 across and 12 tall) */
+  const CY = 6.7, A = 6.2, BU = 3.0, BD = 2.2;   /* crown centre height and the radii of the clump shell: sideways, up, down (a wide low dome, about 16 across and 12 tall) */
+  /* the radius of the shell along a unit direction from the crown centre */
+  const shellR = (dx, dy, dz) => 1 / Math.sqrt((dx * dx + dz * dz) / (A * A) + dy * dy / ((dy > 0 ? BU : BD) ** 2));
+  /* five thick limbs fanning up and out into the crown. The limb that points at the back wall (+z) stops short so it never pokes out sideways. */
+  const limbs = [];
   for(let i = 0; i < 5; i++){
-    const a = i * Math.PI * 2 / 5 + 0.5, ca = Math.cos(a), sa = Math.sin(a);
-    const limb = K.mesh(new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(ca * 0.3, 3.4, sa * 0.3), new T.Vector3(ca * 1.4, 4.3, sa * 1.4), new T.Vector3(ca * 3.0, 5.4, sa * 3.0), new T.Vector3(ca * 4.0, 6.8, sa * 4.0)]), 14, 0.52, 7, false), bark2); g.add(limb);
+    const a = i * Math.PI * 2 / 5 + 0.5, ca = Math.cos(a), sa = Math.sin(a), kz = 1 - 0.38 * Math.max(0, sa);
+    const curve = new T.CatmullRomCurve3([new T.Vector3(ca * 0.3, 3.4, sa * 0.3), new T.Vector3(ca * 1.3 * kz, 4.4, sa * 1.3 * kz), new T.Vector3(ca * 2.6 * kz, 5.7, sa * 2.6 * kz), new T.Vector3(ca * 3.3 * kz, 7.2, sa * 3.3 * kz)]);
+    limbs.push(curve); g.add(K.mesh(new T.TubeGeometry(curve, 14, 0.52, 7, false), bark2));
   }
-  /* crown: a few big smooth puffs, many middle ones, and lots of small ones scattered along the rim so the outline is ragged like a cloud */
-  const blobs = [];
-  const put = (n, rLo, rHi, fLo, fHi) => { for(let i = 0; i < n; i++){
-    const u = rand() * 2 - 1, ph = rand() * Math.PI * 2, rr = Math.sqrt(1 - u * u), f = fLo + rand() * (fHi - fLo);
-    blobs.push({ x: rr * Math.cos(ph) * A * f, y: (u > 0 ? u * BU : u * BD) * f, z: rr * Math.sin(ph) * A * f, r: rLo + rand() * (rHi - rLo) });
-  } };
-  put(12, 2.1, 2.9, 0.1, 0.4);    /* fill the middle so no hole shows */
-  put(14, 1.8, 2.6, 0.5, 0.8);    /* the big puffs */
-  put(70, 1.0, 1.7, 0.75, 0.98);  /* middle ones on the shell */
-  put(150, 0.45, 0.95, 0.85, 1.12);   /* small ones along the edge */
-  const NB = blobs.length, crown = K.instanced(new T.SphereGeometry(1, 14, 10), K.std('#ffffff', { roughness: 0.95, flatShading: false, emissive: '#b08400', emissiveIntensity: 0.14 }), NB);   /* a little warm self light keeps the shaded side yellow and not brown */
-  blobs.forEach((b, i) => {
-    E.set(rand() * 6, rand() * 6, rand() * 6); Q.setFromEuler(E); P.set(b.x, CY + b.y, b.z); S.set(b.r, b.r * (0.8 + rand() * 0.2), b.r);
-    crown.setMatrixAt(i, M.compose(P, Q, S));
-    const k = Math.max(0, Math.min(1, (b.y + BD + 1) / (BU + BD + 2)));   /* 0 at the bottom, 1 at the top */
-    /* mostly yellow; the golden shades only where the crown is in its own shade */
-    const pick = k < 0.4 ? (rand() < 0.6 ? '#eebb24' : '#e5a91c') : rand() < 0.5 ? '#f5cf3a' : rand() < 0.75 ? '#f8dc63' : '#eebb24';
-    crown.setColorAt(i, C.set(pick).multiplyScalar(0.84 + 0.16 * k));
+  /* gaps: a few directions with no leaves, and a thinner branch from a limb reaching toward each one */
+  const holes = [];
+  for(let i = 0; i < 7; i++){
+    const a = i * 2.39996 + 0.4, u = 0.05 + 0.55 * ((i * 0.618) % 1), rr = Math.sqrt(1 - u * u);
+    holes.push({ x: rr * Math.cos(a), y: u, z: rr * Math.sin(a), c: Math.cos(0.13 + 0.04 * (i % 3)) });
+  }
+  holes.forEach((h, i) => {
+    const R = shellR(h.x, h.y, h.z) * 0.86, p0 = limbs[i % 5].getPoint(0.62 + 0.3 * ((i * 0.37) % 1)), end = new T.Vector3(h.x * R, CY + h.y * R, h.z * R), mid = p0.clone().lerp(end, 0.5); mid.y += 0.5;
+    g.add(K.mesh(new T.TubeGeometry(new T.CatmullRomCurve3([p0, mid, end]), 10, 0.12, 5, false), bark2));
   });
-  crown.instanceMatrix.needsUpdate = true; crown.instanceColor.needsUpdate = true; g.add(crown);
-  /* the outer surface of the blob union along a direction from the crown centre, so lights and baubles sit on the crown and not in it */
-  const surf = (dx, dy, dz) => {
-    let t = 0;
-    for(const b of blobs){ const cd = b.x * dx + b.y * dy + b.z * dz, d2 = cd * cd - (b.x * b.x + b.y * b.y + b.z * b.z) + b.r ** 2; if(d2 > 0) t = Math.max(t, cd + Math.sqrt(d2)); }
-    return t;
+  /* clumps: part of them in the middle, the rest scattered over a lumpy dome shell. The rim sags and bulges so the lowest ones hang like skirts in two or three layers. */
+  const lobes = [], clumpTint = [];
+  const addClump = (x, y, z, rc, ci) => {
+    const nl = 2 + (cr() < 0.55 ? 1 : 0);
+    for(let j = 0; j < nl; j++){
+      const k = j === 0 ? 1 : 0.55 + cr() * 0.25, ang = cr() * 6.283, off = j === 0 ? 0 : rc * (0.55 + cr() * 0.35);
+      const l = { x: x + Math.cos(ang) * off, y: y + (cr() - 0.5) * rc * 0.5, z: z + Math.sin(ang) * off, rx: rc * k * (1.05 + cr() * 0.3), ry: rc * k * (0.65 + cr() * 0.2), rz: rc * k * (1.05 + cr() * 0.3), c: ci };
+      l.y = Math.max(l.y, 3.55 - CY + l.ry);   /* nothing hangs lower than the animals' heads */
+      lobes.push(l);
+    }
   };
-  /* twinkle lights, spread evenly with a Fibonacci sphere, skipping the deep underside */
-  const NL = opt.lights, bulbMat = K.glow(0.85), bulbs = K.instanced(new T.SphereGeometry(0.12, 8, 6), bulbMat, NL), lcol = [], lph = [], lsp = [], WARM = ['#fff0c4', '#ffd45a', '#fff0c4', '#ffe28a'];
-  let li = 0;
-  for(let k = 0; li < NL && k < NL * 3; k++){
-    const u = 1 - 2 * (k + 0.5) / (NL * 1.5), rr = Math.sqrt(1 - u * u), a = k * 2.39996;
-    if(u < -0.35) continue;
-    const dx = rr * Math.cos(a), dz = rr * Math.sin(a), t = surf(dx, u, dz) + 0.02;
-    M.makeTranslation(dx * t, CY + u * t, dz * t); bulbs.setMatrixAt(li, M);
-    lcol.push(new T.Color(WARM[li % 4])); lph.push(rand() * 6.283); lsp.push(1.2 + (li % 7) * 0.25); bulbs.setColorAt(li, lcol[li]); li++;
+  const NCL = opt.clumps, NIN = Math.round(NCL * 0.17);
+  for(let i = 0; i < NCL; i++){
+    clumpTint.push(0.9 + cr() * 0.14);
+    if(i < NIN){ const a = cr() * 6.283, rr = 0.1 + cr() * 0.45; addClump(Math.cos(a) * A * 0.84 * rr, (cr() * 0.9 - 0.2) * BU, Math.sin(a) * A * 0.84 * rr, 1.6 + cr() * 0.7, i); continue; }
+    const m = i - NIN, nm = NCL - NIN, u = 1 - 1.85 * (m + 0.5) / nm, rr = Math.sqrt(1 - u * u), a = m * 2.39996 + cr() * 0.5, f = 0.66 + cr() * 0.28;
+    const rim = 1 + 0.09 * Math.sin(a * 3 + 1) + 0.06 * Math.sin(a * 5 + 2);   /* the dome bulges and pinches around the edge */
+    const AC = A * 0.84; let x = rr * Math.cos(a) * AC * f * rim, z = rr * Math.sin(a) * AC * f * rim, y = (u > 0 ? u * BU : u * BD) * f;
+    y -= 1.1 * rr * rr * rr * (0.4 + cr() * 0.6);   /* sagging skirt */
+    addClump(x, y, z, 1.25 + cr() * 0.85, i);
   }
-  bulbs.count = li; bulbs.instanceMatrix.needsUpdate = true; bulbs.instanceColor.needsUpdate = true; g.add(bulbs);
-  /* a few small baubles, gold and white with some red, mostly buried in the crown: hardly visible by day, glints at night */
-  const NR = opt.baubles, bau = K.instanced(new T.SphereGeometry(0.12, 10, 8), K.std('#ffffff', { roughness: 0.25, metalness: 0.3 }), NR);
-  for(let i = 0; i < NR; i++){
-    const u = 0.05 + rand() * 0.9, rr = Math.sqrt(1 - u * u), a = rand() * Math.PI * 2, dx = rr * Math.cos(a), dz = rr * Math.sin(a), t = surf(dx, u, dz) + 0.02;
-    M.makeTranslation(dx * t, CY + u * t, dz * t); bau.setMatrixAt(i, M); bau.setColorAt(i, C.set(['#f5c542', '#fffaf0', '#e8505b', '#f5c542', '#fffaf0'][i % 5]));
-  }
-  bau.instanceMatrix.needsUpdate = true; bau.instanceColor.needsUpdate = true; g.add(bau);
+  const NLB = lobes.length, wsum = [];
+  lobes.reduce((s, l, i) => (wsum[i] = s + l.rx * l.rz), 0);
+  const pickLobe = () => { const r = cr() * wsum[NLB - 1]; let a = 0, b = NLB - 1; while(a < b){ const m = (a + b) >> 1; if(wsum[m] < r) a = m + 1; else b = m; } return a; };
+  /* a point on the skin of the clump union, with its outward normal, or null when it falls inside a neighbour or in a gap */
+  const skin = (minY = -9) => {
+    const li = pickLobe(), l = lobes[li], u = cr() * 2 - 1, ph = cr() * 6.283, rr = Math.sqrt(1 - u * u), dx = rr * Math.cos(ph), dy = u, dz = rr * Math.sin(ph), s = 0.9 + cr() * 0.1;
+    const x = l.x + dx * l.rx * s, y = l.y + dy * l.ry * s, z = l.z + dz * l.rz * s;
+    for(let j = 0; j < NLB; j++){ if(j === li) continue; const q = lobes[j], ex = (x - q.x) / q.rx, ey = (y - q.y) / q.ry, ez = (z - q.z) / q.rz; if(ex * ex + ey * ey + ez * ez < 0.8) return null; }
+    const len = Math.hypot(x, y, z) || 1, ux = x / len, uy = y / len, uz = z / len;
+    if(len > 2.2) for(const h of holes) if(ux * h.x + uy * h.y + uz * h.z > h.c) return null;
+    let nx = dx / l.rx, ny = dy / l.ry, nz = dz / l.rz; const nl = Math.hypot(nx, ny, nz) || 1;
+    return { x, y, z, nx: nx / nl, ny: ny / nl, nz: nz / nl, li, len };
+  };
   /* ginkgo leaves: a small fan with a notch in the middle of its edge, seen from both sides */
   const lf = new T.Shape(); lf.moveTo(0, 0);
   for(let i = 0; i <= 26; i++){ const a = Math.PI * (0.17 + 0.66 * i / 26), r = 1 - 0.22 * Math.exp(-(((a - Math.PI / 2) / 0.1) ** 2)); lf.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
   lf.closePath();
   const leafG = K.geo(new T.ShapeGeometry(lf)), leafM = K.std('#ffffff', { roughness: 0.9, side: T.DoubleSide });
   const LEAF = ['#f5cf3a', '#eebb24', '#f8dc63', '#f2c230'];
+  /* crown leaves. A small warm self light keeps the shaded side yellow and not brown. The wind is a sine on each leaf's position in the vertex shader, driven by one uniform. */
+  const windU = { value: 0 };
+  const crownMat = K.std('#ffffff', { roughness: 0.92, side: T.DoubleSide, emissive: '#b08400', emissiveIntensity: 0.16 });
+  crownMat.onBeforeCompile = s => {
+    s.uniforms.uWind = windU;
+    s.vertexShader = 'uniform float uWind;\n' + s.vertexShader.replace('#include <project_vertex>', `
+      vec4 mvPosition = vec4( transformed, 1.0 );
+      #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+      #endif
+      float wv = sin( uWind * 1.1 + mvPosition.x * 0.42 + mvPosition.z * 0.36 ) * 0.07 + sin( uWind * 2.3 + mvPosition.y * 0.9 + mvPosition.x * 0.5 ) * 0.035;
+      mvPosition.xz += vec2( wv, wv * 0.6 ); mvPosition.y += wv * 0.25;
+      mvPosition = modelViewMatrix * mvPosition;
+      gl_Position = projectionMatrix * mvPosition;`);
+  };
+  crownMat.customProgramCacheKey = () => 'sprag-ginkgo-wind';
+  const NLF = opt.leaves, crown = K.instanced(leafG, crownMat, NLF), leafPts = [];
+  const GOLD = ['#eebb24', '#e5a91c'], YEL = ['#f5cf3a', '#f8dc63', '#fbe27a'];
+  for(let n = 0, tries = 0; n < NLF && tries < NLF * 30; tries++){
+    const s = skin(); if(!s) continue;
+    /* tilt the leaf toward the sky a little and scatter its direction so the clump reads as a pile of leaves, not a smooth shell */
+    V.set(s.nx + (cr() - 0.5) * 0.9, s.ny + 0.3 + (cr() - 0.5) * 0.9, s.nz + (cr() - 0.5) * 0.9).normalize();
+    Q.setFromUnitVectors(ZAX, V); Q.multiply(Q2.setFromAxisAngle(ZAX, cr() * 6.283));
+    const sc = 0.3 + cr() * 0.17;
+    P.set(s.x - V.x * 0.04, CY + s.y - V.y * 0.04, s.z - V.z * 0.04);
+    crown.setMatrixAt(n, M.compose(P, Q, S.set(sc, sc, sc)));
+    /* mostly yellow, some gold, rarely a leaf that is still green. Low and inner leaves are darker, high ones brighter. */
+    const k = Math.max(0, Math.min(1, (s.y + BD + 0.8) / (BU + BD + 1.6))), depth = Math.max(0, Math.min(1, s.len / (shellR(s.x / s.len, s.y / s.len, s.z / s.len) * 0.95))), r = cr();
+    const pick = r < 0.03 ? '#c9c85a' : r < 0.03 + (k < 0.4 ? 0.4 : 0.22) ? GOLD[cr() < 0.5 ? 0 : 1] : YEL[(cr() * 3) | 0];
+    crown.setColorAt(n, C.set(pick).multiplyScalar((0.7 + 0.3 * k) * (0.82 + 0.18 * depth) * clumpTint[lobes[s.li].c] * (0.92 + cr() * 0.1) * (0.86 + 0.14 * (s.ny * 0.5 + 0.5))));
+    leafPts.push(s); n++;
+  }
+  crown.count = leafPts.length; crown.instanceMatrix.needsUpdate = true; crown.instanceColor.needsUpdate = true; crown.castShadow = false; crown.receiveShadow = false; crown.frustumCulled = false; g.add(crown);
+  /* twinkle lights sit on the outer leaf skin, spread apart, skipping the deep underside */
+  const placed = [], spot = (n, minD, minNy, lift) => {
+    const out = [];
+    for(let tries = 0; out.length < n && tries < 40000; tries++){
+      const s = leafPts[(cr() * leafPts.length) | 0]; if(s.ny < minNy || s.len < 3.5) continue;
+      if(placed.some(q => (q.x - s.x) ** 2 + (q.y - s.y) ** 2 + (q.z - s.z) ** 2 < minD * minD)) continue;
+      const q = { x: s.x + s.nx * lift, y: s.y + s.ny * lift, z: s.z + s.nz * lift }; placed.push(q); out.push(q);
+    }
+    return out;
+  };
+  const NL = opt.lights, bulbMat = K.glow(0.8), bulbs = K.instanced(new T.SphereGeometry(0.11, 8, 6), bulbMat, NL), lcol = [], lph = [], lsp = [], WARM = ['#fff0c4', '#ffd45a', '#fff0c4', '#ffe28a'];
+  const bp = spot(NL, 0.95, -0.25, 0.14); let li = 0;
+  bp.forEach(q => { M.makeTranslation(q.x, CY + q.y, q.z); bulbs.setMatrixAt(li, M); lcol.push(new T.Color(WARM[li % 4])); lph.push(rand() * 6.283); lsp.push(1.2 + (li % 7) * 0.25); bulbs.setColorAt(li, lcol[li]); li++; });
+  bulbs.count = li; bulbs.instanceMatrix.needsUpdate = true; bulbs.instanceColor.needsUpdate = true; bulbs.frustumCulled = false; g.add(bulbs);
+  /* a few small baubles, gold and white with some red, sitting in the leaves: hardly visible by day, glints at night */
+  const NR = opt.baubles, bau = K.instanced(new T.SphereGeometry(0.12, 10, 8), K.std('#ffffff', { roughness: 0.25, metalness: 0.3 }), NR);
+  spot(NR, 1.6, 0.0, 0.05).forEach((q, i) => { M.makeTranslation(q.x, CY + q.y, q.z); bau.setMatrixAt(i, M); bau.setColorAt(i, C.set(['#f5c542', '#fffaf0', '#e8505b', '#f5c542', '#fffaf0'][i % 5])); });
+  bau.instanceMatrix.needsUpdate = true; bau.instanceColor.needsUpdate = true; bau.frustumCulled = false; g.add(bau);
   /* fall leaves: anywhere in a rectangle. carpet leaves: thickest right under the middle of the crown and thinning toward the edge (radius carpetR), kept inside the rectangles */
   const spots = list => list.flatMap(a => Array.from({ length: a.n }, () => ({ x: a.x0 + (a.x1 - a.x0) * rand(), z: a.z0 + (a.z1 - a.z0) * rand(), y: a.y, k: rand() })));
   const dense = list => list.flatMap(a => { const out = []; for(let tries = 0; out.length < a.n && tries < a.n * 60; tries++){
@@ -403,6 +459,7 @@ export function makeGinkgo(T, o = {}){
   if(fall){ fl.forEach((l, i) => { l.ph = rand(); l.v = 0.35 + rand() * 0.35; l.sc = 0.2 + rand() * 0.1; fall.setColorAt(i, C.set(LEAF[i % 4])); }); fall.instanceColor.needsUpdate = true; g.add(fall); }
   const col = new T.Color(), TOP = 7.5;
   g.userData.tick = (t, night) => {
+    windU.value = t;   /* the leaves sway from t alone, so a frozen t (reduced motion) holds them still */
     const n = nightOf(night), glow = 1 + n * 0.25;
     for(let i = 0; i < li; i++){ const f = 0.5 + 0.5 * Math.sin(t * lsp[i] + lph[i]); bulbs.setColorAt(i, col.copy(lcol[i]).multiplyScalar((0.35 + 0.65 * f) * glow)); }
     bulbs.instanceColor.needsUpdate = true; bulbMat.emissiveIntensity = 0.85 + 0.3 * n;   /* small night boost: the bloom pass spreads bright bulbs */
