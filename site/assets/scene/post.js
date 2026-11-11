@@ -79,24 +79,32 @@ export async function makePost(T, renderer, scene, camera, opts = {}){
   ao.enabled = o.ao > 0; composer.addPass(ao);
 
   const bloom = new UnrealBloomPass(new T.Vector2(size.x, size.y), o.bloom, 0.55, 0.82);
+  /* the blur mips are written with alpha 1, so the stock additive blend turned the transparent sky opaque black at night:
+   * add the glow to rgb only and keep the frame's alpha (glow over the sky composites additively on the page) */
+  Object.assign(bloom.blendMaterial, { blending: T.CustomBlending, blendEquation: T.AddEquation, blendSrc: T.OneFactor, blendDst: T.OneFactor, blendSrcAlpha: T.ZeroFactor, blendDstAlpha: T.OneFactor });
   bloom.enabled = false; composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const th = new ShaderPass(TILT), tv = new ShaderPass(TILT);
   composer.addPass(th); composer.addPass(tv);
   const grade = new ShaderPass(GRADE); grade.uniforms.sat.value = o.sat; composer.addPass(grade);
 
-  let W = size.x, H = size.y, last = 0, slow = 0, dead = false;
+  let W = size.x, H = size.y, last = 0, slow = 0, dead = false, zm = 1;
+  /* zoomed in, the world-space AO radius covers many screen pixels and its sampling noise shows as grain on walls and desk legs,
+   * and the tilt-shift starts blurring the very desks being looked at: both shrink with the zoom factor */
+  const zk = () => Math.max(1, zm);
+  function tilt(){
+    const amt = 0.9 * o.tilt / Math.sqrt(zk());
+    th.uniforms.dir.value = [amt / W, 0]; tv.uniforms.dir.value = [0, amt / H];
+    th.enabled = tv.enabled = o.tilt > 0;
+  }
   const api = {
     on: true,
-    setSize(w, h){
-      W = w; H = h; composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h);
-      const pr = renderer.getPixelRatio(), amt = 0.9 * o.tilt;
-      th.uniforms.dir.value = [amt / (w * pr) * pr, 0]; tv.uniforms.dir.value = [0, amt / (h * pr) * pr];
-      th.enabled = tv.enabled = o.tilt > 0;
-    },
+    setSize(w, h){ W = w; H = h; composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); tilt(); },
     /* n: 0 day .. 1 night. Bloom only runs when there is something to glow (lit windows, lamps). */
     setNight(n){ bloom.enabled = n > 0.08; bloom.strength = o.bloom * n; grade.uniforms.warm.value = 0.025 * (1 - n) - 0.01 * n; grade.uniforms.sat.value = o.sat + 0.06 * n; },
-    setLook(l){ Object.assign(o, l); ao.blendIntensity = o.ao; ao.updateGtaoMaterial({ radius: o.aoRadius }); grade.uniforms.sat.value = o.sat; api.setSize(W, H); },
+    setLook(l){ Object.assign(o, l); ao.blendIntensity = o.ao / Math.sqrt(zk()); ao.updateGtaoMaterial({ radius: o.aoRadius / zk() }); grade.uniforms.sat.value = o.sat; api.setSize(W, H); },
+    /* camera zoom (1 = the fitted overview); cheap to call every frame, it only acts on a real change */
+    setZoom(z){ if(!(z > 0) || Math.abs(z - zm) < 0.02 * zm) return; zm = z; ao.updateGtaoMaterial({ radius: o.aoRadius / zk() }); ao.blendIntensity = o.ao / Math.sqrt(zk()); tilt(); },
     render(){
       if(!api.on){ camera.layers.mask = 3; renderer.render(scene, camera); return; }
       const t = performance.now();
@@ -106,7 +114,8 @@ export async function makePost(T, renderer, scene, camera, opts = {}){
       const ov = opts.overlay ? opts.overlay() : [];
       ov.forEach(m => { if(m && !m.userData.ovl){ m.userData.ovl = 1; m.traverse(c => c.layers.set(1)); } });
       camera.layers.set(0); composer.render();
-      if(ov.length){ camera.layers.set(1); const ac = renderer.autoClear; renderer.autoClear = false; renderer.render(scene, camera); renderer.autoClear = ac; }
+      /* the full-screen passes leave depth 0 behind, so clear it first: overlays are depth-tested only against each other */
+      if(ov.length){ camera.layers.set(1); const ac = renderer.autoClear; renderer.autoClear = false; renderer.clearDepth(); renderer.render(scene, camera); renderer.autoClear = ac; }
       camera.layers.mask = 3;
     },
     /* call when the loop stops (a still scene renders on request), so the gap is not counted as a slow frame */
