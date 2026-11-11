@@ -17,6 +17,7 @@
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
 import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, workShareOf, iconSvg, speciesThumb, castLoader, castCrown, castLook, CAST_URL } from './office-scene.js';
+import { makePost } from './post.js';
 import { WX_CLEAR, fetchWeather, weatherFromCode, parseOverrides, clampN, todBlend, chipText } from './sky.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#5f6a88';
@@ -201,7 +202,7 @@ export function mountTownScene(container, data, opts = {}){
   let wx = OVR.weather || { ...WX_CLEAR }, wxDbg = !!OVR.weather, night = 0, flash = 0, lightT = 6, baseHemi = 1, baseEx = 1, extent = 40, builtSnow = false;
   /* the picked company's cast: castGen guards late loads (a load that ends after the selection changed adds nothing), castCache holds one download per species for this mount */
   let castGen = 0, castSet = null, lotsAll = [], hidden = []; const castCache = {}, castGltf = {}, CAST_SC = 1.0;   /* 0.66 left the animals about 25 CSS px tall at the default zoom */
-  let homePose = null;   /* the camera before a click flew in to a company; closing the drawer glides back to it */
+  let homePose = null, post = null;   /* post: the post-processing chain (post.js), null until it loads or when effects are off */   /* the camera before a click flew in to a company; closing the drawer glides back to it */
   const mobile = () => W < 520, v3 = () => new T.Vector3(), C = h => new T.Color(h), track = o => { dyn.push(o); return o; };
   const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; clearCast(); if(homePose && view){ const h = homePose; homePose = null; view.flyTo(h); } },
     onAction: a => { if(a === 'org' && sel && opts.onOpenOrg) opts.onOpenOrg(sel.c.id); } });
@@ -786,6 +787,7 @@ export function mountTownScene(container, data, opts = {}){
     MT.cloud.color.copy(C('#ffffff')).lerp(C('#6d7aa8'), night * 0.85).lerp(C('#c9ced8'), wet ? 0.5 : 0);
     MT.bulb.color.copy(C('#d9d3c0')).lerp(C('#ffe8a6'), night); MT.pool.opacity = night * 0.55; if(meshes.pool) meshes.pool.visible = night > 0.03;
     MT.halo.opacity = 0.26 + 0.5 * night; MT.signHalo.opacity = 0.1 + 0.6 * night;
+    if(post) post.setNight(night);
     bld.forEach(b => { if(b.board) b.board.material.color.copy(C('#ffffff')).lerp(C('#9aa3d6'), 0.85 * night); });   /* the company boards dim at night (lit windows stay the brightest thing) */
     renderChip(); renderer.shadowMap.needsUpdate = true; request();
   }
@@ -902,7 +904,7 @@ export function mountTownScene(container, data, opts = {}){
   }
   function proj(v, out){ out.copy(v).applyMatrix4(world.matrixWorld).project(camera); return [(out.x * 0.5 + 0.5) * W, (-out.y * 0.5 + 0.5) * H]; }
   function render(){
-    renderer.render(scene, camera);
+    if(post && post.on) post.render(); else renderer.render(scene, camera);
     if(moreLbl){ const [x, y] = proj(V1.set(bb.x1 - 2, 0.3, bb.z1 - 1), TMP); const off = x < -30 || x > W + 30 || y < -30 || y > H + 30; moreLbl.style.display = off ? 'none' : ''; moreLbl.style.transform = `translate(${Math.round(Math.min(W - moreLbl.offsetWidth - 4, Math.max(4, x)))}px,${Math.round(Math.min(H - 40, y))}px)`; }
   }
   function frame(now){
@@ -928,7 +930,7 @@ export function mountTownScene(container, data, opts = {}){
   }
   function resize(){
     const w = stage.clientWidth, h = (canvas && canvas.clientHeight) || stage.clientHeight;   /* the canvas keeps its height when a phone drawer grows the stage */ if(!w || !h || !renderer) return;
-    const was = mobile(); W = w; H = h; renderer.setSize(w, h, false); if(was !== mobile() && cur) return build(cur); fit(); request();
+    const was = mobile(); W = w; H = h; renderer.setSize(w, h, false); if(post) post.setSize(w, h); if(was !== mobile() && cur) return build(cur); fit(); request();
   }
   /* pointer: drag rotates; a click on a building or its sign opens the drawer, a click on empty ground closes it */
   function nearest(px, py){
@@ -1045,6 +1047,7 @@ export function mountTownScene(container, data, opts = {}){
       frame: merge(fg), cross: merge([bxg(0.07, 1, 1, 0, 0, 0), bxg(1, 0.07, 1, 0, 0, 0)]) };
     started = true; bindView(); ro = new ResizeObserver(resize); ro.observe(stage);
     W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false); build(cur); request();
+    makePost(T, renderer, scene, camera, { mobile, overlay: () => meshes.hqSign ? billboards.concat(meshes.hqSign) : billboards }).then(p => { if(destroyed){ if(p) p.dispose(); return; } post = p; if(post){ post.setSize(W, H); post.setNight(night); request(); } }).catch(() => {});
     if(opts.probe) opts.probe({ T, renderer, camera, scene, view, bld: () => bld, info: () => renderer.info });
     minuteTimer = setInterval(() => { if(started === true && !destroyed) applyEnv(); }, 60000);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if(started === true && !destroyed) build(cur); });
@@ -1071,7 +1074,7 @@ export function mountTownScene(container, data, opts = {}){
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
       clearCast(); Object.keys(castCache).forEach(k => { delete castCache[k]; delete castGltf[k]; });
       if(started === true){ clear(); wxObjs.forEach(o => { if(o.isInstancedMesh) o.dispose(); }); Object.values(meshes).forEach(o => o && o.dispose && o.dispose()); Object.values(MT).forEach(m => m && m.dispose && m.dispose()); Object.values(TX).forEach(x => x && x.dispose && x.dispose()); if(envTex) envTex.dispose();
-        renderer.dispose(); const x = renderer.getContext().getExtension('WEBGL_lose_context'); if(x) x.loseContext(); if(canvas.parentNode) canvas.parentNode.removeChild(canvas); }
+        if(post) post.dispose(); renderer.dispose(); const x = renderer.getContext().getExtension('WEBGL_lose_context'); if(x) x.loseContext(); if(canvas.parentNode) canvas.parentNode.removeChild(canvas); }
       container.innerHTML = '';
     }
   };
