@@ -204,9 +204,9 @@ async function show(){
   $('box').textContent = '';
   ctl = mod.mountOfficeScene($('box'), data, { readOnly: true, onFail: () => { failed = true; if(ctl){ ctl.destroy(); ctl = null; } showMsg('pg.nowebgl'); failed = true; } });
   shown = lang;
-  /* open the viewer's own drawer once the scene is up (the selection ring is the existing "you" marker); small screens stay on the whole room */
+  /* select the viewer's own character once the scene is up, on every screen size: the camera flies to them and their drawer opens (the selection ring is the "you" marker) */
   const self = view.self && view.self.id, start = Date.now();
-  if(self && innerWidth >= 900){
+  if(self){
     const iv = setInterval(() => { if(!ctl || Date.now() - start > 30000){ clearInterval(iv); return; } if(ctl.ready()){ clearInterval(iv); ctl.selectPerson(self); } }, 300);
   }
 }
