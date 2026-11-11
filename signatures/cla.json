@@ -1,3 +1,12 @@
 {
-   "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "rootstudioyaml",
+      "id": 275496454,
+      "comment_id": 6810011627,
+      "created_at": "2026-11-11T23:47:58Z",
+      "repoId": 1208678666,
+      "pullRequestNo": 18
+    }
+  ]
 }
