@@ -6,15 +6,15 @@ const { holidayOn, inHolidaySeason, seoulMonthDay } = await import('../site/asse
 /* Seoul wall clock to an instant: UTC+9, so subtract nine hours */
 const seoul = (y, mo, d, h = 0, mi = 0) => new Date(Date.UTC(y, mo - 1, d, h - 9, mi));
 
-test('holidayOn: the season opens at Nov 1 00:00 Seoul and closes after Jan 6', () => {
+test('holidayOn: the season opens at Nov 1 00:00 Seoul and closes after Dec 30', () => {
   assert.equal(holidayOn(seoul(2026, 10, 31, 23, 59), ''), false);
   assert.equal(holidayOn(seoul(2026, 11, 1, 0, 0), ''), true);
   assert.equal(holidayOn(seoul(2026, 11, 11, 12), ''), true);
   assert.equal(holidayOn(seoul(2026, 12, 25, 12), ''), true);
-  assert.equal(holidayOn(seoul(2026, 12, 31, 23, 59), ''), true);
-  assert.equal(holidayOn(seoul(2027, 1, 1, 0, 0), ''), true, 'the season crosses the new year');
-  assert.equal(holidayOn(seoul(2027, 1, 6, 23, 59), ''), true);
-  assert.equal(holidayOn(seoul(2027, 1, 7, 0, 0), ''), false);
+  assert.equal(holidayOn(seoul(2026, 12, 30, 23, 59), ''), true);
+  assert.equal(holidayOn(seoul(2026, 12, 31, 0, 0), ''), false, 'it goes off at Dec 31 00:00');
+  assert.equal(holidayOn(seoul(2027, 1, 1, 0, 0), ''), false);
+  assert.equal(holidayOn(seoul(2027, 1, 6, 12), ''), false);
   assert.equal(holidayOn(seoul(2026, 7, 4, 12), ''), false);
   assert.equal(holidayOn(seoul(2026, 10, 15, 12), ''), false);
 });
@@ -23,9 +23,9 @@ test('holidayOn: the date is read on the Seoul clock, not UTC', () => {
   /* 2026-10-31 15:00 UTC is already Nov 1 00:00 in Seoul */
   assert.equal(holidayOn(new Date('2026-10-31T15:00:00Z'), ''), true);
   assert.equal(holidayOn(new Date('2026-10-31T14:59:59Z'), ''), false);
-  /* 2027-01-06 15:00 UTC is Jan 7 00:00 in Seoul */
-  assert.equal(holidayOn(new Date('2027-01-06T14:59:59Z'), ''), true);
-  assert.equal(holidayOn(new Date('2027-01-06T15:00:00Z'), ''), false);
+  /* 2026-12-30 15:00 UTC is Dec 31 00:00 in Seoul */
+  assert.equal(holidayOn(new Date('2026-12-30T14:59:59Z'), ''), true);
+  assert.equal(holidayOn(new Date('2026-12-30T15:00:00Z'), ''), false);
   assert.deepEqual(seoulMonthDay(new Date('2026-12-31T15:00:00Z')), { month: 1, day: 1 });
 });
 
@@ -46,16 +46,16 @@ test('holidayOn: without a browser location it uses the calendar only, and a bad
 });
 
 test('inHolidaySeason: month and day edges', () => {
-  for(const [m, d] of [[11, 1], [11, 15], [11, 30], [12, 1], [12, 31], [1, 1], [1, 6]]) assert.equal(inHolidaySeason(m, d), true, m + '-' + d);
-  for(const [m, d] of [[10, 31], [10, 1], [1, 7], [2, 1], [7, 4]]) assert.equal(inHolidaySeason(m, d), false, m + '-' + d);
+  for(const [m, d] of [[11, 1], [11, 15], [11, 30], [12, 1], [12, 30]]) assert.equal(inHolidaySeason(m, d), true, m + '-' + d);
+  for(const [m, d] of [[10, 31], [10, 1], [12, 31], [1, 1], [1, 6], [1, 7], [2, 1], [7, 4]]) assert.equal(inHolidaySeason(m, d), false, m + '-' + d);
 });
 
 test('office-scene wires the holiday dressing behind holidayOn and frees it on every rebuild', async () => {
   const { readFile } = await import('node:fs/promises');
   const src = await readFile(new URL('../site/assets/scene/office-scene.js', import.meta.url), 'utf8');
-  assert.match(src, /import \{[^}]*holidayOn[^}]*makeTree[^}]*makeGarland[^}]*makeWreath[^}]*santaHat[^}]*\} from '\.\/holiday\.js'/);
+  assert.match(src, /import \{[^}]*holidayOn[^}]*makeGinkgo[^}]*makeGarland[^}]*makeWreath[^}]*santaHat[^}]*\} from '\.\/holiday\.js'/);
   assert.match(src, /xmas = holidayOn\(\)/, 'one flag per build, from the calendar or ?season=');
-  for(const fn of ['makeTree', 'makeGarland', 'makeWreath', 'santaHat', 'reindeerAntlers', 'rudolphNose']) assert.ok(src.includes(fn + '(T'), fn + ' is called');
+  for(const fn of ['makeGinkgo', 'makeGarland', 'makeWreath', 'santaHat', 'reindeerAntlers', 'rudolphNose']) assert.ok(src.includes(fn + '(T'), fn + ' is called');
   assert.match(src, /hol\.forEach\(h => \{ if\(h\.parent\) h\.parent\.remove\(h\); h\.userData\.dispose\(\); \}\)/, 'clear() disposes everything');
   assert.match(src, /h\.userData\.tick\(time, envN\)/, 'step() ticks the lights with the night amount');
   assert.match(src, /holWall\.visible = !wallHid\.z/, 'the wall decorations fold away with the back wall');
@@ -63,7 +63,7 @@ test('office-scene wires the holiday dressing behind holidayOn and frees it on e
   assert.match(src, /ANTLER_SKIP = new Set\(\[[^\]]*'deer'/, 'species with horns or antlers of their own keep the nose only');
   assert.match(src, /hash\(o\.p\.id \+ ':xmas'\) < 0\.5 \? 'santa' : 'rudolph'/, 'the same person always gets the same set');
   assert.match(src, /noseTipOf\(T, m\)/, 'the nose tip is read off each loaded model');
-  assert.match(src, /makeTree\(T, \{ orn: 80, bulbs: 150, bands: 2, pot: false, presents: false, star: 1\.9, shadow: false \}\)/, 'the giant tree stands outside the back wall');
+  assert.match(src, /makeGinkgo\(T, \{ carpet: \[[^\]]*\], fall: \[[^\]]*\] \}\)/, 'the giant ginkgo stands outside the back wall with leaves on the ground and in the air');
   assert.match(src, /makePresents\(T\)/, 'the present pile keeps the room corner');
   assert.match(src, /if\(holFit\)\{[^]*?holFit\.x, y, holFit\.z/, 'fit() keeps the tree in frame');
 });
