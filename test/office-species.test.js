@@ -1,17 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const { GRADES } = await import('../site/assets/scene/office-scene.js');
 const { SPECIES, speciesLabel } = await import('../src/office-species.js');
 
-// The console's I18N tables are Object.assign(I18N.<lang>, {...}) blocks of JSON.
+// The office scene's strings (the species names among them) live in site/assets/scene/office-i18n.js, shared by the team page and the member town.
+function officeStrings(lang) {
+  const src = readFileSync(new URL('../site/assets/scene/office-i18n.js', import.meta.url), 'utf8');
+  return vm.runInNewContext('var window = {};\n' + src + '\n;window.SPRAG_OFFICE_I18N')[lang];
+}
 function consoleNames(lang) {
-  const html = readFileSync(new URL('../site/team/index.html', import.meta.url), 'utf8');
   const out = {};
-  for (const m of html.matchAll(new RegExp(`Object\\.assign\\(I18N\\.${lang}, (\\{.*?\\})\\);`, 'g'))) {
-    for (const [k, v] of Object.entries(JSON.parse(m[1]))) if (k.startsWith('of.g.') && k !== 'of.g.no') out[k.slice(5)] = v;
-  }
+  for (const [k, v] of Object.entries(officeStrings(lang))) if (k.startsWith('of.g.') && k !== 'of.g.no') out[k.slice(5)] = v;
   return out;
 }
 
@@ -47,12 +49,9 @@ test('the species ladder equals the office page GRADES', async () => {
     GRADES.map((g) => [g.k, g.minSr, g.tier, !!g.needDlg, !!g.gt]),
   );
   // Tier names equal the console strings (`of.tier.<tier>`).
-  const html = readFileSync(new URL('../site/team/index.html', import.meta.url), 'utf8');
   for (const lang of ['en', 'ko']) {
     const names = {};
-    for (const m of html.matchAll(new RegExp(`Object\\.assign\\(I18N\\.${lang}, (\\{.*?\\})\\);`, 'g'))) {
-      for (const [k, v] of Object.entries(JSON.parse(m[1]))) if (k.startsWith('of.tier.')) names[k.slice(8)] = v;
-    }
+    for (const [k, v] of Object.entries(officeStrings(lang))) if (k.startsWith('of.tier.')) names[k.slice(8)] = v;
     for (const [tier, t] of Object.entries(TIER_NAMES)) assert.equal(t[lang], names[tier], `${lang} ${tier}`);
   }
 });

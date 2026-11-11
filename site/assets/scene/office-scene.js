@@ -8,7 +8,9 @@
  *   { teams:[{id,name}], people:[{id,name,teamId,teamName,tier:'power'|'active'|'normal'|'low'|'nodata',grade,gradeText,gradeLabel,rank,crown,tag,tierText,tip:[[k,v]],bots:['haiku'|'sonnet'|'opus'|'any'],bubbles:[{text,ai}],promptId,spent,os}],
  *     free, freeLabel, more, moreLabel, server:{label}, activity:0..1, closed, hud:{title,stats,closed}, legend:[{k:grade|'ghost'|'crown',label}|{c,label}|{label}], book:{title,range,found,tiers,top:{title,rows:[{id,name,k,gname,team,crown,rk}]},rows:[{k,tier,no,name,role,range,n}],note}|null, aria }
  * people[].os is the OS name of the person's most recently seen machine; it picks the lid colour and logo (see laptopKind).
- * people[].detail feeds the side drawer (click a person); data.ui holds its strings. opts: { onSeats(id), onPrompts(id), onTeam(id), onServer(), onFail(reason) }
+ * people[].detail feeds the side drawer (click a person); data.ui holds its strings. opts: { onSeats(id), onPrompts(id), onTeam(id), onServer(), onFail(reason), readOnly }
+ * readOnly (the member town, see memberTownData): no Seats / Prompts buttons and no team or server clicks. A person whose detail.redacted is true gets a drawer with a note
+ * (ui.redacted) and nothing else, because the server never sent that person's figures.
  * The scene keeps its own bright palette in both page themes. three.js is imported lazily the first time the container scrolls into view.
  * The returned handle also carries view, ready(), people(), server() and selectPerson(id) / closeDrawer() for scripted recordings (video/tour).
  * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
@@ -679,7 +681,7 @@ export function mountOfficeScene(container, data, opts = {}){
   let wx = ov.weather || { ...WX_CLEAR }, builtSnow = false, envN = 0, flash = 0, lightT = 4, baseHemi = 1, minuteTimer = 0, lamps = [], wxs = null, flakeG = null;
   let sel = null, selId = null, ring = null, bookOpen = false, pulse = null;
   const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), request: () => request(), onClose: () => { unpose(sel); sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; hidePortrait(); if(homePose && view){ const h = homePose; homePose = null; view.flyTo(h); } },   /* back to the view before the pick */ onBook: () => openBook(),
-    onAction: a => { if(!sel) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
+    onAction: a => { if(!sel || opts.readOnly) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
   const syncFs = () => chrome.syncFs();
   kit.bind(chrome.el);
   chrome.el.addEventListener('click', ev => {
@@ -854,15 +856,17 @@ export function mountOfficeScene(container, data, opts = {}){
       : dt.modelsMissing ? `<div class="famt">${esc(ui.modelsNone)}</div>` : '';
     const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '';
     const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }], undefined, undefined, { total: ui.total }) : '';
-    chrome.setHtml(`<div class="hd">${speciesThumb(sel.gk, '--tc:' + (sel.tv ? sel.tv.body : '#d9cdb8'))}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div><div class="bkbar"><button type="button" class="bk" data-a="close">← ${esc(ui.back || ui.close)}</button></div>`
-      + `<div class="bd"><div class="why">${esc(dt.why)}</div>`
+    const hdr = `<div class="hd">${speciesThumb(sel.gk, '--tc:' + (sel.tv ? sel.tv.body : '#d9cdb8'))}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div><div class="bkbar"><button type="button" class="bk" data-a="close">← ${esc(ui.back || ui.close)}</button></div>`;
+    if(dt.redacted){ chrome.setHtml(hdr + `<div class="bd">${dt.why ? `<div class="why">${esc(dt.why)}</div>` : ''}<div class="why">${esc(ui.redacted || '')}</div></div>`); return; }
+    chrome.setHtml(hdr
+      + `<div class="bd">${dt.why ? `<div class="why">${esc(dt.why)}</div>` : ''}`
       + ((dt.next || []).length ? `<div class="nx">${dt.next.map((l, i) => `<div${i ? '' : ' class="h"'}>${esc(l)}</div>`).join('')}</div>` : '')
       + (dt.groups && dt.groups.length ? `<div class="sec">${dt.groups.map(g => `<div class="grp"><h4>${esc(g.title)}</h4>${kvGrid(g.rows)}</div>`).join('')}</div>`
         : dt.grid && dt.grid.length ? `<div class="sec">${kvGrid(dt.grid)}</div>` : '')
       + sec(ui.models, modelsHtml) + sec(ui.runs, famHtml) + sec(ui.cmp, kit.cmp(dt.cmp || [])) + sec(ui.daily, daily) + sec(ui.pdaily, pdaily)
       + sec(ui.machines, (dt.machines || []).map(m => `<div class="mrow"><b>${esc(m.name)}</b><span class="sig" style="background:${m.color}">${esc(m.sig)}</span><small>${esc(m.os)}${m.ver ? ' · ' + esc(m.ver) : ''} · ${esc(m.sw)}</small><small>${esc(ui.up)} ${esc(m.up)} · ${esc(ui.seen)} ${esc(m.seen)}</small></div>`).join(''))
       + sec(ui.events, (dt.events || []).map(e => `<div class="evr"><span>${esc(e.text)}</span><span>${esc(e.when)}</span></div>`).join('')) + `</div>`
-      + `<div class="ft"><button type="button" class="of-dbtn pri" data-a="seats">${esc(ui.seats)}</button>${dt.canPrompts ? `<button type="button" class="of-dbtn" data-a="prompts">${esc(ui.prompts)}</button>` : ''}</div>`);
+      + (opts.readOnly ? '' : `<div class="ft"><button type="button" class="of-dbtn pri" data-a="seats">${esc(ui.seats)}</button>${dt.canPrompts ? `<button type="button" class="of-dbtn" data-a="prompts">${esc(ui.prompts)}</button>` : ''}</div>`));
   }
   /* the field guide: the same drawer, one row per species, a click blinks a ring under everyone of that species */
   function renderBook(){
@@ -1115,7 +1119,7 @@ export function mountOfficeScene(container, data, opts = {}){
 
     /* HTML anchors: server label, "+N more", suspended sign. Ghosts get no pill: the faded figure says it, the hover tip and drawer say why. */
     if(srv){
-      const b = label('of-btn srv', d.server.label, 'button'); b.title = d.server.label; b.addEventListener('click', () => opts.onServer && opts.onServer());
+      const b = label('of-btn srv', d.server.label, 'button'); b.title = d.server.label; b.addEventListener('click', () => !opts.readOnly && opts.onServer && opts.onServer());
       lab.server = { el: b, pos: v3().set(srv.x, 4.2, srv.z) };
     }
     if(d.more){ lab.more = { el: label('of-lbl', d.moreLabel), pos: v3().set(FW / 2 - 2.2, 0.2, FD / 2 - 0.6) }; }
@@ -1570,8 +1574,8 @@ export function mountOfficeScene(container, data, opts = {}){
       onTap: (px, py) => {
         const h = nearest(px, py);
         if(!h){ setHover(null); if(sel) closeDrawer(); return; }
-        if(h.server){ if(opts.onServer) opts.onServer(); return; }
-        if(h.team){ if(opts.onTeam) opts.onTeam(h.team.id); return; }
+        if(h.server){ if(!opts.readOnly && opts.onServer) opts.onServer(); return; }
+        if(h.team){ if(!opts.readOnly && opts.onTeam) opts.onTeam(h.team.id); return; }
         setHover(null); if(sel === h.person) closeDrawer(); else openDrawer(h.person);
       } });
   }
@@ -1860,5 +1864,105 @@ export function officeSceneData(o){
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.total') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
     activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,
+    aria: t('of.aria', { n: people.length, teams: teams.length, used, limit }, true) };
+}
+
+/* The member town: the same scene for someone who is not an admin, from the town_view reply (the server has already cut every other person's figures).
+ * v: { org:{name,closed,seats_used,seat_limit}, range:{from,to}, teams:[{id,name}], people:[{id,name,os,team_id,team_name,grade,tier,crown,state,self}],
+ *      self:{id, standing, machines, usage, prompts}, has_prompts }.  o: { t(key, vars, raw), rel(iso), os(machine row), rangeLabel? }.
+ * Returns what officeSceneData returns, so mountOfficeScene(box, data, { readOnly: true }) draws it.
+ * The viewer is computed by officeSceneData from their own machines and usage (so their drawer shows everything an owner would see), then grade, tier, rank, crown and the
+ * "what is next" lines are replaced by the server's standing: a one-person computation would rank them first of one. The team and company medians (detail.cmp) are dropped,
+ * since in a small team a median is one person's figure. Everyone else is a character only: name, species, tier, crown, team, OS and state. They carry rank 0, no spend,
+ * no robots, no bubbles and a detail flagged redacted, so the scene has no number to draw for them. Nothing here adds up or estimates anyone's figures.
+ * The species number in a label ("No.07") is the position in the field guide, not a figure. The HUD, the legend and the server label carry counts and names, never money. */
+export function memberTownData(v, o){
+  const t = o.t, org = v.org || {}, closed = !!org.closed, sf = v.self || {}, st = sf.standing || {};
+  const used = Number(org.seats_used) || 0, limit = Number(org.seat_limit) || 0, free = limit > used ? limit - used : 0;
+  const teams = (v.teams || []).map(x => ({ id: x.id, name: x.name }));
+  const rangeLabel = o.rangeLabel || (v.range && v.range.from ? v.range.from + ' ~ ' + v.range.to : '');
+  const list = v.people || [], selfP = list.find(p => p.self) || list.find(p => p.id === sf.id) || null;
+  const pc = x => Math.round(x * 100) + '%', fin = x => (x != null && Number.isFinite(Number(x)) ? Number(x) : null);
+  const gn = k => t('of.g.' + k);
+  const noText = k => { const i = gradeIndex(k) + 1; return i ? t('of.g.no', { n: String(i).padStart(2, '0') }, true) + ' ' : ''; };
+  const labelOf = (grade, tier) => (closed ? t('of.tag.closed') : noText(grade) + gn(grade) + ' · ' + t('of.tier.' + tier));
+  const tagOf = (tier, state) => (closed ? '' : tier === 'nodata' ? t(state === 'late' ? 'of.tag.late' : 'of.tag.off') : '');
+  const stateText = s => t('sr.s.' + (s === 'late' || s === 'paused' ? s : 'ok'));
+  const tierOf = p => (closed || !p.tier || p.tier === 'nodata' || p.grade === 'ghost' ? 'nodata' : p.tier);
+  /* anyone but the viewer: a character with no figures */
+  const mini = p => {
+    const tier = tierOf(p), grade = tier === 'nodata' ? 'ghost' : p.grade;
+    return { id: p.id, name: p.name || p.id, self: false, os: p.os || '', teamId: p.team_id, teamName: p.team_name || '', tier, grade, gradeText: gn(grade), gradeLabel: labelOf(grade, tier),
+      rank: 0, crown: !closed && tier !== 'nodata' && !!p.crown, spent: 0, promptId: null,
+      tip: closed ? [[t('of.team'), p.team_name || '']] : [[t('of.team'), p.team_name || ''], [t('of.state'), stateText(p.state)]],
+      detail: { next: [], why: '', grid: [], groups: [], cmp: [], fam: null, models: null, modelsMissing: false, fmt: String, days: [], spent: [], saved: [], pdays: [], pvals: [], machines: [], events: [], canPrompts: false, redacted: true },
+      tierText: closed ? t('of.tag.closed') : t('of.tier.' + tier), tag: tagOf(tier, p.state), bots: [], bubbles: [] };
+  };
+  /* the viewer: their own machines and usage through the shared mapper, merged into one person (the seat host's id is self.id) */
+  const LIVE = ['ok', 'late', 'paused', 'silent'], you = ' (' + t('of.you') + ')';   /* the scene has no highlight of its own: the name carries the marker, and the page opens the viewer's drawer (selection ring) */
+  const ms = (sf.machines || []).map(r => ({ ...r, team_id: selfP && selfP.team_id, team_name: selfP && selfP.team_name }));
+  const hostM = ms.find(r => r.member_id === sf.id) || ms[0];
+  ms.forEach(r => { if(hostM && r !== hostM) r.seat_of = hostM.member_id; });
+  const usage = {}; (sf.usage || []).forEach(u => { usage[u.member_id] = u; });
+  let promptRows = null;
+  if(v.has_prompts || sf.prompts){
+    const pm = ms.filter(r => LIVE.includes(r.signal)).sort((a, b) => (a === hostM ? -1 : 0) - (b === hostM ? -1 : 0))[0], q = sf.prompts || {};
+    promptRows = pm ? [{ member_id: pm.member_id, prompts: q.prompts || 0, chars: q.chars || 0, last_prompt_at: q.last_prompt_at || null, by_day: q.by_day || [] }] : [];
+  }
+  const base = officeSceneData({ rows: ms, usage, promptRows, teams, used, limit, orgName: org.name || '', rangeLabel, closed, demoBubbles: null, events: [], t, rel: o.rel, os: o.os });
+  let me = null;
+  if(selfP){
+    const own = base.people.find(p => p.id === sf.id) || base.people[0] || null, tier = tierOf({ tier: st.tier || selfP.tier, grade: st.grade || selfP.grade });
+    const grade = tier === 'nodata' ? 'ghost' : (st.grade || selfP.grade), rank = tier === 'nodata' ? 0 : Number(st.rank) || 0, ranked = Number(st.ranked) || 0;
+    const crown = !closed && tier !== 'nodata' && !!(selfP.crown ?? st.crown), med = fin(st.median_dlg), dlg = fin(st.dlg), medTxt = med == null ? t('of.unknown') : pc(med);
+    const lines = [];
+    if(tier !== 'nodata' && !closed){
+      if(rank && ranked) lines.push(t('of.d.rank', { r: rank, n: ranked }, true));
+      if(crown) lines.push(t('of.d.crown'));
+      const nx = st.next && typeof st.next === 'object' && st.next.grade ? st.next : null;
+      if(st.idle === true) lines.push(t('of.d.next.idle'));
+      else if(nx){ const x = Math.max(0, Number(nx.pass) || 0); lines.push(t(nx.need_dlg ? (x ? 'of.d.next.xd' : 'of.d.next.d') : 'of.d.next', { x: Math.max(1, x), s: gn(nx.grade), c: medTxt }, true)); }
+      else if(gradeIndex(grade) === 0) lines.push(t('of.d.top'));
+      else if(ranked < SMALL_TEAM.n) lines.push(t('of.d.next.small', { k: SMALL_TEAM.n }, true));
+    }
+    const sr = Number(st.spend_rank) || 0;
+    const why = tier !== 'nodata' && !closed && sr >= 1 && ranked >= 1 ? t('of.d.why', { a: Math.max(1, Math.round((sr - 1) / Math.max(1, ranked - 1) * 100)), b: dlg == null ? t('of.unknown') : pc(dlg), c: medTxt }, true) : '';
+    if(own){
+      /* the server's ids are opaque (not member ids), so the viewer takes the id the people list uses for them */
+      me = { ...own, id: selfP.id, name: (selfP.name || own.name) + you, self: true, tier, grade, gradeText: gn(grade), gradeLabel: labelOf(grade, tier), rank, crown, promptId: null,
+        tierText: closed ? t('of.tag.closed') : t('of.tier.' + tier), tag: tagOf(tier, selfP.state), os: own.os || selfP.os || '',
+        tip: own.tip.filter(r => r[0] !== t('of.d.rankk')).concat(rank && ranked ? [[t('of.d.rankk'), t('of.book.rank', { r: rank }, true) + ' / ' + ranked]] : []),
+        detail: { ...own.detail, cmp: [], canPrompts: false, redacted: false, next: lines, why: tier === 'nodata' || closed ? own.detail.why : why } };
+    } else {
+      const m0 = mini(selfP);
+      me = { ...m0, name: m0.name + you, self: true, detail: { ...m0.detail, why: t('of.d.none'), redacted: false } };
+    }
+  }
+  let people = list.map(p => (p === selfP && me ? me : mini(p)));
+  if(selfP && !list.includes(selfP) && me) people.push(me);
+  let more = 0;
+  if(people.length > MAXP){ const rest = people.filter(p => !p.self).slice(0, MAXP - 1); more = people.length - MAXP; people = people.filter(p => p.self).concat(rest); }
+  const cnt = k => people.filter(m => m.tier === k).length, active = people.length - cnt('nodata');
+  const act = active ? (cnt('power') + 0.6 * cnt('active') + 0.25 * cnt('normal')) / active : 0;
+  const stats = closed ? t('of.hud.closed', { u: used, limit }, true) : t('of.hud.town', { n: active, p: cnt('power'), l: cnt('low'), o: cnt('nodata'), u: used, limit }, true);
+  const cntG = k => people.filter(m => m.grade === k).length, fw = x => String(Math.round(x * 1000) / 10);
+  const bands = gradeBands(), tierN = tr => bands.filter(b => b.tier === tr).length, found = bands.filter(b => cntG(b.k)).length;
+  const strip = closed ? null : { title: t('of.lg.strip', { f: found, n: GRADES.length }, true),
+    tiers: TIERS.map(tr => ({ tier: tr, label: t('of.tier.' + tr), items: bands.filter(b => b.tier === tr).map(b => ({ k: b.k, name: gn(b.k), n: cntG(b.k) })) })) };
+  const botsKey = (base.legend || []).find(l => l.bots);
+  const legend = closed ? [] : (people.some(m => m.crown) ? [{ k: 'crown', label: t('of.lg.crown') }] : []).concat([{ k: 'ghost', label: t('of.lg.ghost') },
+    { bots: true, label: t('of.lg.bots'), fams: botsKey ? botsKey.fams : [] }, { label: t('of.lg.screen') }]);
+  const rk = me && me.rank ? [{ id: me.id, name: me.name, k: me.grade, gname: gn(me.grade), team: me.teamName, crown: me.crown, rk: t('of.book.rank', { r: me.rank }, true) }] : [];
+  const rankedN = Number(st.ranked) || 0;
+  const book = closed ? null : { title: t('of.book'), range: rangeLabel, found: t('of.book.found', { f: found, n: GRADES.length }, true),
+    tiers: Object.fromEntries(TIERS.map(tr => [tr, t('of.book.tier', { t: t('of.tier.' + tr), n: tierN(tr) }, true)]).concat([['nodata', t('of.tier.nodata')]])),
+    top: { title: t('of.book.top'), rows: rk },
+    rows: bands.map(b => ({ k: b.k, tier: b.tier, no: t('of.g.no', { n: String(b.no).padStart(2, '0') }, true), name: gn(b.k), role: t('of.tier.' + b.tier), range: t('of.gr.' + b.rk, { a: b.a, b: b.b, c: b.c, d: b.d }, true), n: cntG(b.k) }))
+      .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gn('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
+    note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true),
+    small: rankedN >= 2 && rankedN < SMALL_TEAM.n ? t('of.book.small', { k: SMALL_TEAM.n }, true) : '' };
+  return { ui: { ...base.ui, redacted: t('of.redacted') }, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more, moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
+    server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') }, activity: act, book,
+    hud: { title: (org.name || '') + ' ' + t('of.town') + ' · ' + rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,
     aria: t('of.aria', { n: people.length, teams: teams.length, used, limit }, true) };
 }

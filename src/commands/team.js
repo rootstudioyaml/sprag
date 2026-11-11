@@ -1,5 +1,5 @@
 /**
- * team — `sprag team <create|join|name|leave|status|sync|rules|propose>`.
+ * team — `sprag team <create|join|name|leave|status|sync|rules|propose|town>`.
  *
  * The opt-in team layer. `join` shows exactly what will be uploaded (daily
  * aggregates and a delegation rule summary) and asks before enrolling. `sync --background` is what the
@@ -24,6 +24,7 @@ import {
 } from '../team-sync.js';
 import { standingGuideLines } from '../team-standing.js';
 import { readDiag } from '../diag-log.js';
+import { envVar } from '../env.js';
 
 const T = {
   en: {
@@ -38,6 +39,7 @@ const T = {
       '                                       (--rules-only: pull organization and team rules only, upload nothing)',
       '  rules                                show cached organization and team rules',
       '  propose <text> [--scope ratchet|model]   propose a rule to the team',
+      '  town [--no-open]                     open the read-only town in your browser (link valid 12 hours)',
     ].join('\n'),
     willSend: 'Joining uploads aggregates only. Per local day:\n  - spend (USD)\n  - savings (USD)\n  - delegation run counts\n  - model-family share\nAnd one summary of your delegation rules, per category and tier:\n  - category, tier, delegation count, failure rate, savings (USD)\nError messages from sprag itself (to fix problems on your machine). Home paths, host names and secrets are masked.\nNo prompts, rule text, examples, file paths or transcripts are sent.',
     rulesPayload: 'delegation rule summary (member_rules_report)',
@@ -107,6 +109,11 @@ const T = {
     dashboard: (e) => `Dashboard: https://sprag.io/team/ (sign in with ${e})`,
     noJoinNote: 'This machine did not join (--no-join).',
     syncFailed: (e) => `Team created, but the first sync failed: ${e}`,
+    townLink: (u) => `Town link: ${u}`,
+    townExpiry: (when) => `Valid until ${when} (12 hours). It shows your own numbers in full; other people appear only as characters, with no figures.`,
+    townRate: 'Too many town links in a short time. Wait a few minutes and try again.',
+    townBadReply: 'The team server sent no usable town link. Try again later.',
+    townUnsupported: 'The team server does not support the member town yet. Try again after it is updated.',
   },
   ko: {
     usage: [
@@ -120,6 +127,7 @@ const T = {
       '                                         (--rules-only: 조직·팀 규칙만 받고 아무것도 올리지 않음)',
       '  rules                                  받아 둔 조직·팀 규칙 보기',
       '  propose <내용> [--scope ratchet|model]   팀에 규칙 제안',
+      '  town [--no-open]                       읽기 전용 타운을 브라우저로 열기 (링크 12시간 유효)',
     ].join('\n'),
     willSend: '참여하면 집계만 올라갑니다. 로컬 날짜별로는 다음과 같습니다.\n  - 지출(USD)\n  - 절감(USD)\n  - 위임 실행 횟수\n  - 모델 계열 비중\n위임 룰은 카테고리와 티어별 요약 한 벌이 올라갑니다.\n  - 카테고리, 티어, 위임 횟수, 실패율, 절감액(USD)\nsprag 자체의 오류 메시지(이 기기의 문제를 고치는 데 씁니다). 홈 경로, 호스트 이름, 비밀 값은 가려서 보냅니다.\n프롬프트, 룰 본문, 예시, 파일 경로, 대화 기록은 보내지 않습니다.',
     rulesPayload: '위임 룰 요약 (member_rules_report)',
@@ -189,6 +197,11 @@ const T = {
     dashboard: (e) => `대시보드: https://sprag.io/team/ (${e} 로 로그인)`,
     noJoinNote: '이 PC는 참여하지 않았습니다 (--no-join)',
     syncFailed: (e) => `팀은 만들어졌지만 첫 동기화에 실패했습니다: ${e}`,
+    townLink: (u) => `타운 링크: ${u}`,
+    townExpiry: (when) => `${when}까지 유효합니다(12시간). 내 수치는 자세히 보이고 다른 사람은 수치 없이 캐릭터로만 나옵니다.`,
+    townRate: '타운 링크를 짧은 시간에 너무 많이 만들었습니다. 몇 분 뒤에 다시 시도하세요.',
+    townBadReply: '팀 서버가 쓸 수 있는 타운 링크를 주지 않았습니다. 잠시 뒤에 다시 시도하세요.',
+    townUnsupported: '팀 서버가 아직 멤버 타운을 지원하지 않습니다. 서버가 갱신된 뒤 다시 시도하세요.',
   },
 };
 
@@ -233,6 +246,10 @@ function openInBrowser(url) {
   } catch { /* no opener on this machine */ }
 }
 const CODE_RE = /^\d{6}$/;
+/** Where the member town lives. SPRAG_TOWN_URL points it at a local server (site/ served by scripts/serve-site.mjs). */
+export const TOWN_URL = 'https://sprag.io/town/';
+export const townUrl = (env = process.env) => envVar('TOWN_URL', env) || TOWN_URL;
+const TOWN_TOKEN_RE = /^stv_[0-9a-f]{64}$/;
 // The default display name is the machine id; `status` and `join` then point at `team name`.
 const MACHINE_NAME_RE = /^member-[0-9a-f]{8}$/;
 
@@ -429,6 +446,29 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         if (teamSyncDisabled()) { out(m.disabled); return undefined; }
         const id = await rpc('team_rule_propose', { member_key: st.memberKey, rule_text: text, scope });
         out(m.proposed(id));
+        return undefined;
+      }
+      case 'town': {
+        const st = loadTeamState();
+        if (!isJoined(st)) { console.error(m.needJoin); return process.exit(1); }
+        if (teamSyncDisabled()) { out(m.disabled); return undefined; }
+        let reply;
+        try {
+          reply = await rpc('town_view_link', { member_key: st.memberKey }, { fetch });
+        } catch (e) {
+          const msg = String(e && e.message);
+          if (/too many town links/i.test(msg)) { console.error(m.townRate); return process.exit(1); }
+          if (/Could not find the function|PGRST202/i.test(msg)) { console.error(m.townUnsupported); return process.exit(1); }
+          throw e;
+        }
+        const token = reply && typeof reply.token === 'string' ? reply.token : '';
+        if (!TOWN_TOKEN_RE.test(token)) { console.error(m.townBadReply); return process.exit(1); }
+        // The token rides in the fragment: the browser never sends it to the web server, and the page strips it from the address bar.
+        const url = `${townUrl()}#t=${token}`;
+        const when = new Date(reply.expires_at);
+        out(m.townLink(url));
+        if (!Number.isNaN(when.getTime())) out(m.townExpiry(when.toLocaleString()));
+        if (!hasFlag('--no-open')) (openUrl || openInBrowser)(url);
         return undefined;
       }
       default:

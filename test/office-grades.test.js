@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const { GRADES, TIERS, SMALL_TEAM, squeezeSr, gradeOf, gradeBands, gradeIndex, tierOfGrade, speciesArt, officeSceneData, W_FULL, W_NOPR } = await import('../site/assets/scene/office-scene.js');
 
@@ -72,8 +73,13 @@ test('team and ops pages carry the species names and range texts in en and ko', 
   for(const f of ['site/team/index.html', 'site/ops/index.html']){
     const src = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
     for(const lang of ['en', 'ko']){
-      const line = src.split('\n').find(l => l.startsWith(`Object.assign(I18N.${lang}, {"of.g.`)); assert.ok(line, f + ' ' + lang);
-      const o = JSON.parse(line.replace(/^Object\.assign\(I18N\.\w+, /, '').replace(/\);\s*$/, ''));
+      /* the team page reads the strings from office-i18n.js (shared with the member town); the ops page still carries its own copy */
+      let o;
+      if(f.includes('/team/')){ o = vm.runInNewContext('var window = {};\n' + readFileSync(new URL('../site/assets/scene/office-i18n.js', import.meta.url), 'utf8') + '\n;window.SPRAG_OFFICE_I18N')[lang]; }
+      else {
+        const line = src.split('\n').find(l => l.startsWith(`Object.assign(I18N.${lang}, {"of.g.`)); assert.ok(line, f + ' ' + lang);
+        o = JSON.parse(line.replace(/^Object\.assign\(I18N\.\w+, /, '').replace(/\);\s*$/, ''));
+      }
       for(const g of GRADES.concat({ k: 'ghost' })) assert.ok(o['of.g.' + g.k], `${f} ${lang} of.g.${g.k}`);
       for(const rk of rks) assert.ok(o['of.gr.' + rk], `${f} ${lang} of.gr.${rk}`);
       for(const k of ['of.lg.strip', 'of.lg.bots', 'of.lg.ghost', 'of.g.no', 'of.book.found', 'of.book.tier', 'of.book.top', 'of.book.rank', 'of.lg.crown', 'of.d.rank', 'of.d.rankk', 'of.d.crown', 'of.d.top', 'of.d.next', 'of.d.next.d', 'of.d.next.xd', 'of.d.next.idle'])
