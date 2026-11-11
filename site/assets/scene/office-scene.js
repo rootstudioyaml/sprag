@@ -14,6 +14,7 @@
  * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
  * glowing laptop logos take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { makePost } from './post.js';
+import { holidayOn, makeTree, makeGarland, makeWreath, santaHat } from './holiday.js';
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
@@ -693,6 +694,8 @@ export function mountOfficeScene(container, data, opts = {}){
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
   let TMP2 = null, M4 = null, S = null, TMP = null, PT = null, HP = null, Mh = null, Mp = null, Q1 = null, E1 = null, V1 = null, V2 = null, ONE = null;
   const v3 = () => new T.Vector3();
+  let xmas = false, hol = [], holWall = null;   /* year-end dressing (holiday.js): on from Nov 15 to Jan 6 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
+  const HAT_SKIP = new Set(['panda', 'raccoon', 'squirrel']);   /* these already wear a brim hat, a cap or a beanie, and a second hat on top reads as a pile */
   const track = o => { dyn.push(o); return o; };
   const mobile = () => W < 520;
   const C = h => new T.Color(h);
@@ -729,6 +732,7 @@ export function mountOfficeScene(container, data, opts = {}){
 
   /* ── scene construction (re-run on every update) ── */
   function clear(){
+    hol.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); hol = []; holWall = null;
     dyn.forEach(o => { if(o.isObject3D){ if(o.parent) o.parent.remove(o); if(o.isInstancedMesh) o.dispose(); } else if(o.dispose) o.dispose(); });
     world.clear(); dyn = []; decals = []; signs = []; decFlip = false; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
     lab = { zones: [], tags: [], server: null, more: null, sign: null };
@@ -913,7 +917,7 @@ export function mountOfficeScene(container, data, opts = {}){
   const closeDrawer = () => chrome.close();
 
   function build(d){
-    cur = d; clear();
+    cur = d; clear(); xmas = holidayOn();
     const closed = !!d.closed, pl = d.people || [];
     elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
     elLegend.innerHTML = (d.strip ? `<div class="of-strip"><button type="button" class="sbk" aria-label="${esc(d.strip.title)}"><b>${BOOK_ICON}${esc(d.strip.title)}</b></button>${d.strip.tiers.map(g => `<span class="tg t-${g.tier}"><em>${esc(g.label)}</em>${g.items.map(q => q.n ? `<button type="button" class="sp" data-k="${esc(q.k)}" title="${esc(q.name + ' · ' + q.n)}" aria-label="${esc(q.name + ' · ' + q.n)}">${speciesThumb(q.k)}</button>` : `<span class="sp z" title="${esc(q.name)}">${speciesThumb(q.k)}</span>`).join('')}</span>`).join('')}</div>` : '')
@@ -956,6 +960,11 @@ export function mountOfficeScene(container, data, opts = {}){
     };
     ws = 'z'; for(let x = -FW / 2 + 3.5; x < FW / 2 - 1.5; x += 6.5) win(x, -FD / 2 + 0.15, true);
     ws = 'x'; for(let z = -FD / 2 + 3.5; z < FD / 2 - 1.5; z += 6.5) win(-FW / 2 + 0.15, z, false); ws = null;
+    if(xmas){   /* a light string under the back wall's trim and wreaths between its windows; the group hides with the wall in updateWalls() */
+      holWall = new T.Group(); world.add(holWall);
+      const gz = -FD / 2 + 0.24, gar = makeGarland(T, [[-FW / 2 + 0.3, 2.15, gz], [0, 2.15, gz], [FW / 2 - 0.3, 2.15, gz]], 0.14); holWall.add(gar); hol.push(gar);
+      for(let x = -FW / 2 + 3.5 + 3.25, k = 0; x < FW / 2 - 1.2 && k < 3; x += 6.5, k++){ const w = makeWreath(T); w.position.set(x, 1.3, -FD / 2 + 0.28); holWall.add(w); hol.push(w); }
+    }
     const RUG = ['#ffd6c9', '#c9ecd6', '#e3d7fa', '#cde8f8', '#fde9b8', '#f9d4e4'], CH = ['#f7a98f', '#8fd6ac', '#b7a2ee', '#8cc7ee', '#f3cd7a', '#f0a8c8'];
     let zi = 0; const zi2 = []; const screens = [], ghosts = [], solids = [];
     zones.forEach(zn => {
@@ -1012,7 +1021,17 @@ export function mountOfficeScene(container, data, opts = {}){
     { const xp = -FW / 2 + 4.4 * (Math.max(0, Math.round(FW / 2 / 4.4 - 0.5)) + 0.5); [0.42, 1.02, 1.62].forEach((dz, i) => W0.stones.push([xp + (i % 2 ? 0.12 : -0.08), FD / 2 + dz, i])); }
     for(let x = -FW / 2; x <= FW / 2; x += 4.4){ bush(x, FD / 2 + 1.1, bk++); bush(x + 1.4, -FD / 2 - 1.1, bk++); }
     for(let z = -FD / 2 + 2; z <= FD / 2 - 1; z += 4.4){ bush(FW / 2 + 1.1, z, bk++); bush(-FW / 2 - 1.1, z + 1.2, bk++); }
+    let treeAt = null;   /* the tree takes the first free corner (the back-left one is the server's), full size if it fits and smaller if not; if none fits the plants stay */
+    if(xmas){
+      const seats = zones.flatMap(zn => zn.seats), srvZ = zones.find(zn => zn.kind === 'server');
+      find: for(const k of [1, 0.85, 0.7]) for(const [sx, sz] of [[1, -1], [-1, 1], [1, 1]]){
+        const x = sx * (FW / 2 - 1.3 * k), z = sz * (FD / 2 - 1.3 * k);
+        if(seats.some(q => Math.hypot(q.x - x, q.z - z) < 1.2 * k + 1.0) || (srvZ && Math.hypot(srvZ.cx - x, srvZ.cz - z) < 1.2 * k + 1.5)) continue;
+        const tr = makeTree(T); tr.scale.setScalar(k); tr.position.set(x, 0, z); world.add(tr); hol.push(tr); treeAt = [sx, sz]; break find;
+      }
+    }
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
+      if(treeAt && Math.sign(x) === treeAt[0] && Math.sign(z) === treeAt[1]) return;
       B('#e8a77f', 0.7, 0.6, 0.7, x, 0.3, z); Sp('#8fcf9b', 0.6, x, 1.2, z); Sp('#a8dba0', 0.45, x + 0.3, 1.6, z - 0.1); Sp('#9fd49a', 0.42, x - 0.3, 1.5, z + 0.1);
     });
     people.forEach(o => {   /* the nearest desk in the same row: whom to glance at */
@@ -1261,6 +1280,7 @@ export function mountOfficeScene(container, data, opts = {}){
     if(!sets.sm || !view) return; const a = view.azimuth(), want = { z: Math.cos(a) < -0.05, x: Math.sin(a) < -0.05 };
     ['z', 'x'].forEach(k => { if(want[k] === wallHid[k]) return; wallHid[k] = want[k];
       wallIdx[k].forEach(i => { const b = sets.sb[i]; setM(sets.sm, i, b[4], b[5], b[6], 0, 0, b[1], want[k] ? 0.001 : b[2], b[3]); }); sets.sm.instanceMatrix.needsUpdate = true; });
+    if(holWall) holWall.visible = !wallHid.z;
   }
   /* The cast: one sculpted glTF character per species (site/assets/scene/cast/<grade>.glb, made in Blender, Draco-compressed). The primitive
      figures stay on screen until every model has loaded and come back if any fails, so the office never shows an empty chair. */
@@ -1279,6 +1299,7 @@ export function mountOfficeScene(container, data, opts = {}){
         o.yj = (hash(o.p.id + ':yaw') * 2 - 1) * 0.22;   /* a small fixed turn per person, so a row of backs does not look stamped */
         castLook(m, o.ghost);
         if(!o.ghost && o.p.crown) m.add(castCrown(T));   /* the primitive crown is hidden with the primitive figures */
+        else holHat(m, o);
         return [o, m];
       }));
       if(gen !== castGen) return;   /* a newer build owns the scene now */
@@ -1300,11 +1321,16 @@ export function mountOfficeScene(container, data, opts = {}){
       m.scale.setScalar(CAST_SC); m.position.set(o.x + POSE_X, POSE_Y - box.min.y * CAST_SC, o.z + POSE_Z); m.userData.y0 = m.position.y;
       castLook(m, o.ghost);
       if(!o.ghost && o.p.crown) m.add(castCrown(T));
+      else holHat(m, o);
       m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
       world.add(m); o.pose = m; o.glb.visible = false; portrait(o); request();
     }).catch(() => { o.poseLoading = false; });   /* no standing model: the seated one stays in its chair */
   }
-  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; }
+  function holHat(m, o){   /* a Santa hat for everyone without a crown, in the same model space as castCrown() */
+    if(!xmas || o.ghost || HAT_SKIP.has(o.gk)) return;
+    const h = santaHat(T); m.add(h); m.userData.hat = h; hol.push(h);
+  }
+  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ const h = o.pose.userData.hat; if(h){ hol = hol.filter(q => q !== h); h.userData.dispose(); } world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; }
   function flapAt(m, t){ const f = m.userData.flaps; if(!f) return; const a = reduced ? 0.25 : 0.32 + 0.38 * Math.sin(t * 13); if(f[0]) f[0].rotation.z = -a; if(f[1]) f[1].rotation.z = a; }
   function stepCast(dt){
     if(!castOn) return;
@@ -1315,7 +1341,7 @@ export function mountOfficeScene(container, data, opts = {}){
       m.position.y = o.y0 + (o.dy || 0) + breathe; m.rotation.y = (o.turn || 0) * 0.45 + (o.yj || 0); });   /* the head turn (o.turn) becomes a small body turn */
   }
   function step(dt){
-    time += dt;
+    time += dt; if(hol.length) hol.forEach(h => { if(h.userData.tick) h.userData.tick(time, envN); });
     view.update(dt, time); updateWalls();
     { const az = view.azimuth(), flip = Math.cos(az) < 0;   /* floor text flips 180 degrees when the camera is on the far side, signs face the camera */
       if(flip !== decFlip){ decFlip = flip; decals.forEach(m => { m.rotation.y = flip ? Math.PI : 0; }); } signs.forEach(m => { m.rotation.y = az; }); }
