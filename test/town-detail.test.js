@@ -150,8 +150,8 @@ test('townSceneData: utilisation, savings rate and delegation share per company'
   assert.equal(by.b.rate, 0.25); assert.equal(by.b.dlg, null);   /* no delegated_cost: unknown */
   assert.equal(by.c.rate, null); assert.equal(by.c.dlg, null);   /* no spend */
   const row = (c, k) => c.detail.rows.find(r => r[0] === k)[1];
-  assert.deepEqual([row(by.a, 'tn.k.util'), row(by.a, 'tn.k.rate'), row(by.a, 'of.deleg')], ['52%', '12.5%', '25%']);
-  assert.deepEqual([row(by.b, 'tn.k.util'), row(by.b, 'tn.k.rate'), row(by.b, 'of.deleg')], ['75%', '25.0%', 'of.unknown']);
+  assert.deepEqual([row(by.a, 'tn.k.util'), row(by.a, 'tn.k.rate'), row(by.a, 'of.ws')], ['52%', '12.5%', '25%']);
+  assert.deepEqual([row(by.b, 'tn.k.util'), row(by.b, 'tn.k.rate'), row(by.b, 'of.ws')], ['75%', '25.0%', 'of.unknown']);
   assert.deepEqual([row(by.c, 'tn.k.util'), row(by.c, 'tn.k.rate')], ['0%', '-']);
   assert.equal(pctRate(null), '-'); assert.equal(pctRate(0.5), '50.0%');
 });

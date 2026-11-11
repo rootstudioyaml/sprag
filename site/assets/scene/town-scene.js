@@ -16,7 +16,7 @@
  * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
-import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, speciesArt, iconSvg, castLoader, castCrown, CAST_URL } from './office-scene.js';
+import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, workShareOf, speciesArt, iconSvg, castLoader, castCrown, CAST_URL } from './office-scene.js';
 import { WX_CLEAR, fetchWeather, weatherFromCode, parseOverrides, clampN, todBlend, chipText } from './sky.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#5f6a88';
@@ -28,6 +28,19 @@ const ratio = (a, b) => (b > 0 ? a / b : null), clamp01 = x => Math.max(0, Math.
 const spentOf = g => Number(g.total_spent ?? g.spent ?? g.spent_30d) || 0, savedOf = g => Number(g.saved ?? g.saved_30d) || 0;
 const PASTEL = ['#f9d9c4', '#d7ecd9', '#e6dcf8', '#d3e8f7', '#fbe9b9', '#f7d6e4'];
 
+/* Trailing-week savings of a company (ops_orgs saved_7d / saved_prev_7d), null when the server sends no such fields or last week is under $20.
+ * change is the fraction against last week; arrow is set only when |change| >= 10%. Also the rule of the decline list on the ops overview. */
+export const TREND_MIN_PREV = 20, TREND_MIN_MOVE = 0.1, DECLINE_RATIO = 0.8;
+export function savedTrend(g){
+  if(!g || g.saved_7d == null || g.saved_prev_7d == null) return null;
+  const cur = Number(g.saved_7d), prev = Number(g.saved_prev_7d);
+  if(!Number.isFinite(cur) || !Number.isFinite(prev) || prev < TREND_MIN_PREV) return null;
+  const change = (cur - prev) / prev;
+  return { cur, prev, change, arrow: Math.abs(change) >= TREND_MIN_MOVE ? (change > 0 ? '\u25B2' : '\u25BC') + Math.round(Math.abs(change) * 100) + '%' : '' };
+}
+/* a company whose trailing-week savings fell under 80% of the week before (last week at least $20) */
+export const isDeclining = g => { const tr = savedTrend(g); return !!tr && tr.cur < DECLINE_RATIO * tr.prev; };
+
 /* o: { orgs (ops_orgs rows), attention ({paused, late} rows), totals, rangeLabel, t(key, vars, raw), money(n), revenue(org), rel(iso) } */
 export function townSceneData(o){
   const t = o.t, att = o.attention || {}, cnt = (list, id) => (list || []).filter(r => r.org_id === id).length;
@@ -38,7 +51,8 @@ export function townSceneData(o){
        The *_since fields count spend since install; an old server sends only the full-range ones. spent (shown) stays the full figure. */
     const base = Number(g.total_spent_since ?? g.total_spent ?? g.spent ?? g.spent_30d) || 0;
     return { id: g.id, name: g.name, ent: g.plan === 'enterprise', closed, used, limit, spent, base, saved, paused, late, rev, members: Number(g.members_total) || 0, created: g.created_at, teams: Number(g.teams) || 0,
-      rate: ratio(saved, base), dlg: Number.isFinite(dc) ? ratio(dc, base) : null };
+      rate: ratio(saved, base), dlg: workShareOf(dc, saved, base, g.total_spent_since != null), trend: savedTrend(g),
+      mActive: g.machines_active == null ? null : Number(g.machines_active), mDeleg: g.machines_delegating == null ? null : Number(g.machines_delegating) };
   }).sort((a, b) => b.rev - a.rev || b.limit - a.limit);
   const maxSpend = Math.max(1, ...rows.map(r => r.spent)), shown = rows.slice(0, MAXC), more = rows.length - shown.length;
   const pc = pctInt, day = d => (d ? String(d).slice(0, 10) : t('never')), dlgText = x => (x == null ? t('of.unknown') : pc(x));
@@ -47,11 +61,11 @@ export function townSceneData(o){
     const bots = r.closed ? 0 : bad > 0.4 ? 1 : Math.max(1, Math.min(4, Math.round(1 + 3 * act))), full = r.limit > 0 && r.used >= r.limit;
     const plan = t(r.ent ? 'plan.enterprise' : 'plan.pro');
     return { ...r, util, act, bots, full, plan,
-      sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), saved: r.closed ? '' : t('tn.saved', { v: o.money(r.saved) }, true), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late,
+      sign: { name: r.name, seats: r.closed ? t('of.tag.closed') : r.used + ' / ' + r.limit, rev: t('tn.rev', { v: o.money(r.rev) }, true), saved: r.closed ? '' : t('tn.saved', { v: o.money(r.saved) }, true) + (r.trend && r.trend.arrow ? ' ' + r.trend.arrow : ''), full: full && !r.closed ? t('tn.full') : '', warn: r.closed ? 0 : r.paused + r.late,
         /* the gauge row (not drawn for a suspended company): text and 0..1 fill for each of the two bars */
         gauges: r.closed ? null : [{ text: t('tn.util', { v: pc(util) }, true), v: clamp01(util), color: UTILC }, { text: t('tn.rate', { v: pctRate(r.rate) }, true), v: clamp01(r.rate), color: RATEC }] },
-      detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit], [t('tn.k.util'), pc(util)], [t('tn.k.rate'), pctRate(r.rate)], [t('of.deleg'), dlgText(r.dlg)], [t('tn.revm'), o.money(r.rev), 'rev'], [t('of.total') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
-        [t('tn.members'), String(r.members)], [t('tn.teams'), String(r.teams)], [t('tn.paused'), String(r.paused)], [t('tn.late'), String(r.late)], [t('tn.created'), day(r.created)]], status: r.closed ? t('of.tag.closed') : '',
+      detail: { rows: [[t('tn.plan'), plan], [t('tn.seats'), r.used + ' / ' + r.limit], [t('tn.k.util'), pc(util)], [t('tn.k.rate'), pctRate(r.rate)], [t('of.ws'), dlgText(r.dlg)]].concat(r.mActive != null && r.mDeleg != null ? [[t('ux.dm'), r.mDeleg + ' / ' + r.mActive]] : []).concat([[t('tn.revm'), o.money(r.rev), 'rev'], [t('of.total') + ' · ' + o.rangeLabel, o.money(r.spent)], [t('of.saved') + ' · ' + o.rangeLabel, o.money(r.saved)],
+        [t('tn.members'), String(r.members)], [t('tn.teams'), String(r.teams)], [t('tn.paused'), String(r.paused)], [t('tn.late'), String(r.late)], [t('tn.created'), day(r.created)]]), status: r.closed ? t('of.tag.closed') : '',
         utilTip: t('tn.d.utilTip', { u: r.used, l: r.limit, p: pc(util) }, true), freeTip: t('tn.d.freeTip', { n: Math.max(0, r.limit - r.used) }, true) } };
   });
   const all = o.orgs || [], sum = k => all.reduce((a, g) => a + (Number(g[k]) || 0), 0), pro = all.filter(g => g.plan !== 'enterprise').length, ent = all.length - pro;
@@ -65,7 +79,7 @@ export function townSceneData(o){
     legend: [{ c: LIT, label: t('tn.lg.lit') }, { c: DARK, label: t('tn.lg.dark') }, { c: RATEC, label: t('tn.lg.flag') }, { c: '#c4b5fd', label: t('tn.lg.bot') }, { c: '#aaa8b6', label: t('tn.lg.shut') }],
     ui: Object.assign(Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', total: 'of.d.total', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', spent: 'of.total', saved: 'of.saved', daily: 'of.d.daily', org: 'tn.open',
       dFail: 'tn.d.fail', dLoading: 'tn.d.loading', dSignals: 'tn.d.signals', dTeams: 'tn.d.teams', dTop: 'tn.d.top', dModels: 'tn.d.models', dModelsNone: 'tn.d.models.none', dUtil: 'tn.d.util',
-      dZoo: 'tn.d.zoo', dZooNone: 'tn.d.zoo.none', dTeamUse: 'tn.d.teamuse', kUtil: 'tn.k.util', kRate: 'tn.k.rate', kDlg: 'of.deleg' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
+      dZoo: 'tn.d.zoo', dZooNone: 'tn.d.zoo.none', dTeamUse: 'tn.d.teamuse', kUtil: 'tn.k.util', kRate: 'tn.k.rate', kDlg: 'of.ws' }).map(([k, v]) => [k, t(v)]))), aria: t('tn.aria', { n: all.length }, true) };
 }
 
 /* The town's view of one company's people: the species come from the office scene's own mapper (officeSceneData), called with the arguments the
@@ -90,13 +104,13 @@ export function townTeamRows(o){
   live.forEach(r => { const key = r.seat_of && ids.has(r.seat_of) ? r.seat_of : r.member_id; if(!groups.has(key)) groups.set(key, []); groups.get(key).push(r); });
   groups.forEach((rs, key) => { const h = rs.find(r => r.member_id === key) || rs[0]; team(h.team_id, h.team_name).hosts.set(key, rs.some(r => r.signal === 'ok')); });
   return order.map(k => by.get(k)).filter(x => x.machines.length || x.hosts.size || x.id).map(x => {
-    const us = x.machines.map(r => usage[r.member_id] || {}), spent = usageTotal(us).total; let saved = 0, dc = null;
+    const us = x.machines.map(r => usage[r.member_id] || {}), spent = usageTotal(us).total, hasSince = us.some(u => u && u.since && Array.isArray(u.series)); let saved = 0, dc = null;
     /* rate and dlg run on spend since install (sinceUsage); the shown spent stays the full figure */
     const usSince = us.map(sinceUsage), base = usageTotal(usSince).total;
     us.forEach(u => { saved += Number(u.saved) || 0; });
     usSince.forEach(u => { const c = u.delegated_cost == null ? NaN : Number(u.delegated_cost); if(Number.isFinite(c)) dc = (dc || 0) + c; });
     const people = x.hosts.size, active = closed ? 0 : [...x.hosts.values()].filter(Boolean).length;
-    return { id: x.id, name: x.name || '-', people, active, util: ratio(active, people), spent, saved, rate: ratio(saved, base), dlg: dc == null ? null : ratio(dc, base) };
+    return { id: x.id, name: x.name || '-', people, active, util: ratio(active, people), spent, saved, rate: ratio(saved, base), dlg: dc == null ? null : workShareOf(dc, saved, base, hasSince) };
   });
 }
 

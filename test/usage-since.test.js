@@ -15,14 +15,15 @@ const { sinceUsage: sinceOffice, usageTotal } = await import('../site/assets/sce
 const { townSceneData, townTeamRows } = await import('../site/assets/scene/town-scene.js');
 
 const ux = readFileSync(new URL('../site/assets/admin-ux.js', import.meta.url), 'utf8');
-function extract(startMark, endMark, name) {
-  const start = ux.indexOf(startMark);
+function extract(startMark, endMark, name, from = startMark) {
+  const start = ux.indexOf(from);
   const end = ux.indexOf(endMark, start);
   assert.ok(start > 0 && end > start, `${startMark} block not found in site/assets/admin-ux.js`);
-  return new Function(`${ux.slice(start, end)}\nreturn ${name};`)();
+  return new Function('esc', `${ux.slice(start, end)}\nreturn ${name};`)((v) => String(v));
 }
 const sinceUx = extract('/* sinceUsage */', '/* end of sinceUsage */', 'sinceUsage');
-const savingsModel = extract('/* savings model */', '/* end of savings model */', 'savingsModel');
+/* savingsModel calls prePrev, which sits in the usage helpers block, so the block is read from sinceUsage on */
+const savingsModel = extract('/* savings model */', '/* end of savings model */', 'savingsModel', '/* sinceUsage */');
 
 const days = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04'];
 /** a machine installed on the 3rd: spend on all four days, savings and delegation only from then on */
@@ -132,7 +133,7 @@ test('town org rate and delegation use total_spent_since when present', () => {
   const t = townOf([org({ total_spent_since: 250, delegated_cost_since: 10 })]);
   const c = t.companies[0];
   assert.equal(c.rate, 20 / 250);
-  assert.equal(c.dlg, 10 / 250);
+  assert.equal(c.dlg, (10 + 20) / (250 + 20), 'work share: (delegation cost + saved) / (spend since install + saved)');
   assert.equal(c.spent, 1000, 'the shown spend stays the full figure');
   assert.equal(t.rate, 20 / 250, 'the HUD rate is on the since basis');
 });
@@ -152,7 +153,7 @@ test('town team rows rate on spend since install and keep the shown spend full',
   assert.equal(x.spent, 20);
   assert.equal(x.saved, 4);
   assert.equal(x.rate, 4 / 10);
-  assert.equal(x.dlg, 3 / 10);
+  assert.equal(x.dlg, (3 + 4) / (10 + 4));
   const [old] = townTeamRows({ rows, usage: { m1: machine({ since: undefined }) }, teams });
   assert.equal(old.rate, 4 / 20);
   assert.equal(old.dlg, 3 / 20);

@@ -1548,6 +1548,16 @@ export function sinceUsage(u){
   return { ...u, series: kept, spent, saved, total_spent: total, gateway_spent: gw, delegated_cost: dc };
 }
 
+/* Work share of an organization or a team: the share of the work sprag handled, (delegation cost + saved) over (spend + saved), because
+ * delegation cost plus savings is what the delegated work would have cost without sprag. With since-install figures (since = true) base is spend
+ * since install; without them (an old server) it is the plain delegation cost over spend. null when the cost is unknown or the denominator is 0.
+ * admin-ux.js keeps the same rule in workShare (pinned by test/dashboard-followups.test.js). */
+export function workShareOf(dc, saved, base, since){
+  if(!Number.isFinite(dc)) return null;
+  const sv = since ? (Number(saved) || 0) : 0, den = (Number(base) || 0) + sv;
+  return den > 0 ? (dc + sv) / den : null;
+}
+
 /* Shared data mapper for both pages: one person per seat host (a host plus the machines merged into it), over the page's date range.
  * o: { rows (org_seats), usage ({machine member_id: {spent, saved, delegated, families?, total_spent?, local_spent?, gateway_spent?, gateway_user_hash?,
  *      delegated_cost?, codex_delegated?, unpriced?, series?}}), promptRows (org_prompt_usage members, or null),
@@ -1600,8 +1610,9 @@ export function officeSceneData(o){
     today += Object.values(todayGw).reduce((a, b) => a + b, 0);
     /* since-install basis for the HUD's org delegation share only; p.dlg, ranks and grades keep the full-range figures */
     const sinceUs = rs.map(r => sinceUsage(usage[r.member_id] || {})), spentSince = usageTotal(sinceUs).total;
-    let dcostSince = null; sinceUs.forEach(u => { const c = num(u.delegated_cost); if(Number.isFinite(c)) dcostSince = (dcostSince || 0) + c; });
-    return { id: key, host, rs, spent, spentSince, dcostSince, local, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
+    let dcostSince = null, savedSince = 0; sinceUs.forEach(u => { const c = num(u.delegated_cost); if(Number.isFinite(c)) dcostSince = (dcostSince || 0) + c; savedSince += Number(u.saved) || 0; });
+    const hasSince = rs.some(r => { const u0 = usage[r.member_id]; return !!(u0 && u0.since && Array.isArray(u0.series)); });
+    return { id: key, host, rs, spent, spentSince, dcostSince, savedSince, hasSince, local, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
       mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: dcost != null && spent > 0 ? dcost / spent : null };
   });
   all.sort((a, b) => b.spent - a.spent);
@@ -1673,7 +1684,7 @@ export function officeSceneData(o){
         const lastP = p.lastPrompt ? o.rel(p.lastPrompt) : t('never');
         const hasData = !nodata && !closed;
         const pRows = [[t('of.total'), money(p.spent) + (p.unpriced > 0 ? ' · ' + t('of.unpriced') : '')]]
-          .concat([[t('of.dcost'), p.dcost == null ? t('of.unknown') : money(p.dcost)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pcN(p.dlg)], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]])
+          .concat([[t('of.dcost'), p.dcost == null ? t('of.unknown') : money(p.dcost)], [t('of.saved'), money(p.saved)], [t('of.deleg'), pcN(p.dlg) + (p.dlg != null ? ' (' + t('of.d.dlgall') + ')' : '')], [t('of.runs'), String(p.runs)], [t('of.d.errors'), String(p.errors)]])
           .concat(pr ? [[t('of.prompts'), String(p.prompts)], [t('of.d.days'), String(pd.length)], [t('of.d.avg'), p.prompts ? t('pu.chars', { n: Math.round(p.chars / p.prompts) }, true) : t('of.unknown')], [t('of.d.lastp'), lastP]] : []);
         const tRows = [[t('of.d.today'), money(p.today)], [t('of.d.today.s'), money(p.savedToday)], [t('of.d.today.r'), p.delToday == null ? t('of.unknown') : String(p.delToday)]];
         const groups = hasData ? [{ title: t('of.d.period', { x: o.rangeLabel }, true), rows: pRows }, { title: t('of.d.today.h'), rows: tRows }] : [], grid = hasData ? pRows.concat(tRows) : [];
@@ -1691,9 +1702,10 @@ export function officeSceneData(o){
   });
   const cnt = k => people.filter(m => m.tier === k).length, used = Number(o.used) || 0, limit = Number(o.limit) || 0, free = limit > used ? limit - used : 0;
   const active = people.length - cnt('nodata'), act = ranked.length ? (cnt('power') + 0.6 * cnt('active') + 0.25 * cnt('normal')) / ranked.length : 0;
-  /* the HUD's org delegation share is on spend since install (sinceUsage), so pre-install days do not dilute it; the person's own dlg stays full-range */
-  const dRows = ranked.filter(p => p.dcostSince != null), dSpent = dRows.reduce((a, p) => a + p.spentSince, 0);
-  const orgDlg = dRows.length && dSpent > 0 ? pc(dRows.reduce((a, p) => a + p.dcostSince, 0) / dSpent) : t('of.unknown');
+  /* the HUD's org figure is the work share (workShareOf) on spend since install (sinceUsage), so pre-install days do not dilute it; the person's own dlg stays full-range */
+  const dRows = ranked.filter(p => p.dcostSince != null), dSince = dRows.some(p => p.hasSince);
+  const orgWs = dRows.length ? workShareOf(dRows.reduce((a, p) => a + p.dcostSince, 0), dRows.reduce((a, p) => a + p.savedSince, 0), dRows.reduce((a, p) => a + p.spentSince, 0), dSince) : null;
+  const orgDlg = orgWs == null ? t('of.unknown') : pc(orgWs);
   const stats = closed ? t('of.hud.closed', { u: used, limit }, true)
     : t('of.hud', { s: money(totSaved), d: orgDlg, n: active, p: cnt('power'), l: cnt('low'), o: cnt('nodata'), u: used, limit }, true);
   const fam = mixTot > 0 || people.some(p => p.bots.some(b => b !== 'any'));

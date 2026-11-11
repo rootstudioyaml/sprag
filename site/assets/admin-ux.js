@@ -9,7 +9,7 @@ const doc = document;
 const lang = () => doc.documentElement.lang === 'ko' ? 'ko' : 'en';
 const TXT = {
   en: {
-    noprior:'No data for the previous period', vs:'Previous period', new:'new',
+    noprior:'No data for the previous period', vs:'Previous period', new:'new', prepre:'vs. pre-install period',
     search:'Search this list', all:'All', n:'{n} rows', nf:'{n} of {total} rows', csv:'Export CSV',
     prev:'Previous page', next:'Next page', pg:'{a}-{b} of {n}',
     nomatch:'Nothing matches these filters', clear:'Clear filters', retry:'Retry', failed:'Could not load this section',
@@ -40,7 +40,7 @@ const TXT = {
     svcSpend:'Spent', svcRate:'Savings rate (since install)', svcMem:'Saved per member', svcDeleg:'Delegated runs'
   },
   ko: {
-    noprior:'비교할 이전 기간 데이터가 없습니다', vs:'이전 기간', new:'신규',
+    noprior:'비교할 이전 기간 데이터가 없습니다', vs:'이전 기간', new:'신규', prepre:'이전 기간은 설치 전',
     search:'이 목록에서 검색', all:'전체', n:'{n}개', nf:'{total}개 중 {n}개', csv:'CSV 내보내기',
     prev:'이전 페이지', next:'다음 페이지', pg:'{n}개 중 {a}-{b}',
     nomatch:'조건에 맞는 항목이 없습니다', clear:'필터 지우기', retry:'다시 시도', failed:'이 영역을 불러오지 못했습니다',
@@ -331,6 +331,8 @@ function sparkSvg(series){
   return `<svg class="kspark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="ka" d="M0,${H} L${pts.join(' L')} L${W},${H}Z"/><polyline points="${pts.join(' ')}"/></svg>`;
 }
 function chipOf(it){
+  /* the previous period is mostly before install: a neutral chip with no percentage (item.prevPre, from prePrev) */
+  if(it.prevPre) return { cls:'none', text:u('prepre'), title:u('prepre') };
   const ok = it.prev != null && it.cur != null && isFinite(it.prev) && isFinite(it.cur);
   if(!ok) return { cls:'none', text:'-', title:u('noprior') };
   const d = it.cur - it.prev, dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
@@ -354,7 +356,7 @@ function countUp(el, to, fmt){
   requestAnimationFrame(step);
 }
 /* items: {id, label, tone:'sp'|'sv'|'lt'|'', value, fmt(n), cur, prev, delta:'pct'|'abs', judge:'good'|'neutral', prevLabel,
-           series:[n] | null, sub:html, text (plain string, no count-up), static, onClick} */
+           series:[n] | null, sub:html, text (plain string, no count-up), static, prevPre (neutral chip, see prePrev), onClick} */
 function kpis(host, items, o){
   o = o || {};
   const hid = o.id || host.id || 'k', tones = {};
@@ -705,6 +707,84 @@ function sinceUsage(u){
 }
 /* end of sinceUsage */
 
+/* usage helpers */
+/* Sum of team_member_usage payloads (list of {members}). sp = local (Claude) spend, sv = saved, dl = delegated runs,
+   tot = total usage: machines with a daily series add the sum of their per-day totals, the gateway figure counted once per (day, gateway_user_hash)
+   (the same rule as byDay and the server's usage_totals); machines without a series keep the range figure with the gateway counted once per hash.
+   dc = delegation cost (null when no machine sent it), unp = unpriced parts, byDay = {day: {sp, sv, tot, dc}}.
+   rtot / rdc / rByDay: the same over each machine's days since install (sinceUsage). mach = machines with spend or delegation in the range,
+   dmach = machines that delegated (Claude or Codex). */
+function sumUsageBasis(list){
+  const o = { sp:0, sv:0, dl:0, tot:0, dc:null, unp:0, byDay:{} }, gwMax = {}, dayGw = {};
+  let flat = 0;
+  const fin = v => v != null && Number.isFinite(Number(v));
+  list.forEach(d => ((d && d.members) || []).forEach(m => {
+    o.sp += Number(m.spent) || 0; o.sv += Number(m.saved) || 0; o.dl += Number(m.delegated) || 0;
+    const h = m.gateway_user_hash || null, hasSeries = Array.isArray(m.series) && m.series.length > 0;
+    if(!hasSeries){
+      const tot = Number(m.total_spent ?? m.spent) || 0;
+      if(h && fin(m.gateway_spent)){ const g = Number(m.gateway_spent); flat += tot - g; gwMax[h] = Math.max(gwMax[h] ?? 0, g); } else flat += tot;
+    }
+    if(fin(m.delegated_cost)) o.dc = (o.dc || 0) + Number(m.delegated_cost);
+    o.unp += Number(m.unpriced) || 0;
+    (m.series || []).forEach(r => { const k = String(r.day).slice(0, 10), x = o.byDay[k] || (o.byDay[k] = { sp:0, sv:0, tot:0, dc:null }); x.sp += Number(r.spent) || 0; x.sv += Number(r.saved) || 0;
+      const rt = Number(r.total ?? r.spent) || 0;
+      if(h && fin(r.gateway)){ const g = Number(r.gateway), gk = k + '|' + h; x.tot += rt - g; dayGw[gk] = Math.max(dayGw[gk] ?? 0, g); } else x.tot += rt;
+      if(fin(r.delegated_cost)) x.dc = (x.dc || 0) + Number(r.delegated_cost); });
+  }));
+  Object.entries(dayGw).forEach(([gk, g]) => { o.byDay[gk.slice(0, gk.indexOf('|'))].tot += g; });
+  o.tot = flat + Object.values(gwMax).reduce((a, b) => a + b, 0) + Object.values(o.byDay).reduce((a, x) => a + x.tot, 0);
+  return o;
+}
+function sumUsage(list){
+  const o = sumUsageBasis(list), s = sumUsageBasis(list.map(d => (d && d.members ? { ...d, members: d.members.map(sinceUsage) } : d)));
+  o.rtot = s.tot; o.rdc = s.dc; o.rByDay = Object.fromEntries(Object.entries(s.byDay).map(([k, x]) => [k, x.tot]));
+  o.mach = 0; o.dmach = 0;
+  list.forEach(d => ((d && d.members) || []).forEach(m => {
+    const del = Number(m.delegated) || 0, cdel = Number(m.codex_delegated) || 0;
+    if((Number(m.total_spent ?? m.spent) || 0) > 0 || del > 0) o.mach++;
+    if(del + cdel > 0) o.dmach++;
+  }));
+  return o;
+}
+/* The previous period is mostly before install when its since-install spend is under half of its spend; a result without since fields is never */
+function prePrev(p){
+  return !!(p && p.rtot != null && Number(p.tot) > 0 && p.rtot / p.tot < 0.5);
+}
+/* savings rate: saved over spend since install (the plain total on an old server); null without spend */
+function rateOf(s){ const d = s ? (s.rtot ?? s.tot) : 0; return d > 0 ? s.sv / d : null; }
+/* Work share: what share of the work sprag handled, delegation cost plus what it saved (the cost without sprag) over spend plus savings.
+   Since-install fields when present, else delegation cost over total spend; null when the cost is unknown or the denominator is 0. */
+function workShare(s){
+  if(!s) return null;
+  const since = s.rtot != null, dc = since ? s.rdc : s.dc, sv = Number(s.sv) || 0;
+  if(dc == null) return null;
+  if(since){ const den = s.rtot + sv; return den > 0 ? (dc + sv) / den : null; }
+  return s.tot > 0 ? dc / s.tot : null;
+}
+/* the KPI items shared by the organization overview and the team tab. cur/prev are sumUsage results; o = { t (page translator), money, prevLabel,
+   series ({sp, sv} arrays or null), unpriced (bool), go ({sp, sv, dl, dm, dr, dc} click handlers) }. Returns {id: item}. */
+function usageKpis(cur, prev, o){
+  const t = (k, v) => o.t(k, v, true), money = o.money, go = o.go || {}, ser = o.series || {};
+  const pct1 = v => (v * 100).toFixed(1) + '%', int = n => Math.round(n).toLocaleString('en-US');
+  const pc = prePrev(prev) ? { prevPre: true } : {}, base = { prevLabel: o.prevLabel, ...pc };
+  const rtot = cur.rtot ?? cur.tot, rate = rateOf(cur), ws = workShare(cur);
+  const sinceSub = cur.rtot != null && cur.rtot < cur.tot ? esc(t('ux.sp.since', { v: money(cur.rtot) })) : '';
+  const lines = [sinceSub, o.unpriced ? esc(t('of.unpriced')) : ''].filter(Boolean).join('<br>');
+  const mach = cur.mach || 0;
+  return {
+    sp: { id:'sp', label:t('ch.sp'), tone:'sp', value:cur.tot, fmt:money, prev: prev ? prev.tot : null, judge:'neutral', series: ser.sp || null, onClick: go.sp, sub: lines, ...base },
+    sv: { id:'sv', label:t('ch.sv'), tone:'sv', value:cur.sv, fmt:money, prev: prev ? prev.sv : null, judge:'good', series: ser.sv || null, onClick: go.sv,
+      sub: cur.sv > 0 ? esc(t('ux.sv.without', { v: money(rtot + cur.sv) })) : '', ...base },
+    sr: { id:'sr', label:t('ux.sr'), value:rate, text: rate == null ? t('of.unknown') : undefined, fmt:pct1, prev:rateOf(prev), judge:'good', sub: esc(t('ux.sr.sub', { v: money(rtot) })), ...base },
+    dl: { id:'dl', label:t('ux.deleg'), value:cur.dl, fmt:int, prev: prev ? prev.dl : null, judge:'good', onClick: go.dl, ...base },
+    dm: { id:'dm', label:t('ux.dm'), value:cur.dmach || 0, fmt: n => Math.round(n) + ' / ' + mach, prev: prev ? prev.dmach ?? null : null, judge:'good', onClick: go.dm, ...base },
+    dr: { id:'dr', label:t('ch.ws'), value:ws, text: ws == null ? t('of.unknown') : undefined, fmt:pct1, prev:workShare(prev), judge:'good', onClick: go.dr, ...base },
+    dc: { id:'dc', label:t('ch.dc'), value:cur.dc, text: cur.dc == null ? t('of.unknown') : undefined, fmt:money, prev: prev ? prev.dc : null, judge:'neutral', onClick: go.dc, ...base }
+  };
+}
+/* end of usage helpers */
+
 /* ── savings breakdown: how savings move over the range and which team saves most ─ */
 /* savings model */
 function savingsModel(o){
@@ -728,9 +808,10 @@ function savingsModel(o){
   const orgSv = tms.reduce((s, t) => s + teamSv(t), 0);
   const rows = tms.map((t, i) => {
     /* tot is the spend column (full range); rtot is the rate denominator (spend since install, absent on an old server) */
-    const sv = teamSv(t), tot = t.cur ? num(t.cur.tot) : 0, rtot = t.cur ? num(t.cur.rtot ?? t.cur.tot) : 0, prevSv = t.prev ? num(t.prev.sv) : null;
+    /* a previous period that is mostly before install says nothing about a change: no previous figure, no delta (prePrev) */
+    const sv = teamSv(t), tot = t.cur ? num(t.cur.tot) : 0, rtot = t.cur ? num(t.cur.rtot ?? t.cur.tot) : 0, pre = prePrev(t.prev), prevSv = t.prev && !pre ? num(t.prev.sv) : null;
     return { id: t.id, name: t.name, slot: i < 7 ? i : (i === 7 && tms.length === 8 ? 7 : 'other'), sv, tot, rtot, dl: t.cur ? num(t.cur.dl) : 0,
-      prevSv, delta: prevSv == null ? null : sv - prevSv, deltaPct: change(sv, prevSv),
+      prevSv, prePrev: pre, delta: prevSv == null ? null : sv - prevSv, deltaPct: change(sv, prevSv),
       share: orgSv > 0 ? sv / orgSv : 0, rate: rtot > 0 ? sv / rtot : null,
       perMember: t.members ? sv / t.members : null, series: buckets.map(b => b.byTeam[t.id]), rank: 0 };
   });
@@ -739,7 +820,8 @@ function savingsModel(o){
   const h = Math.floor(n / 2), dayTot = d => tms.reduce((s, t) => s + dayOf(t, d), 0);
   const firstAvg = h ? days.slice(0, h).reduce((s, d) => s + dayTot(d), 0) / h : 0;
   const secondAvg = h ? days.slice(n - h).reduce((s, d) => s + dayTot(d), 0) / h : 0;
-  const orgPrev = tms.length && tms.every(t => t.prev) ? tms.reduce((s, t) => s + num(t.prev.sv), 0) : null;
+  const orgPrePrev = tms.length > 0 && tms.every(t => t.prev) && prePrev({ tot: tms.reduce((s, t) => s + num(t.prev.tot), 0), rtot: tms.some(t => t.prev.rtot != null) ? tms.reduce((s, t) => s + num(t.prev.rtot ?? t.prev.tot), 0) : null });
+  const orgPrev = tms.length && tms.every(t => t.prev) && !orgPrePrev ? tms.reduce((s, t) => s + num(t.prev.sv), 0) : null;
   const orgTot = rows.reduce((s, r) => s + r.tot, 0), orgRtot = rows.reduce((s, r) => s + r.rtot, 0);
   let peak = null; buckets.forEach(b => { if(b.total > 0 && (!peak || b.total > peak.total)) peak = b; });
   /* moving average of the bucket totals: 7 buckets for days, 3 for weeks and months; null until the window is full */
@@ -766,7 +848,7 @@ function savingsModel(o){
     }
   }
   return { gran, buckets, teams: rows, ranked, org: {
-    sv: orgSv, prevSv: orgPrev, deltaPct: change(orgSv, orgPrev), tot: orgTot, rtot: orgRtot, rate: orgRtot > 0 ? orgSv / orgRtot : null,
+    sv: orgSv, prevSv: orgPrev, prePrev: orgPrePrev, deltaPct: change(orgSv, orgPrev), tot: orgTot, rtot: orgRtot, rate: orgRtot > 0 ? orgSv / orgRtot : null,
     dailyAvg: n ? orgSv / n : 0, firstAvg, secondAvg, trendPct: (n < 4 || !firstAvg) ? null : (secondAvg - firstAvg) / firstAvg,
     best: orgSv > 0 ? ranked[0] : null, peak, recent7Avg: rc.recent, prior7Avg: rc.prior, recentPct: rc.pct, projection, peakDay } };
 }
@@ -973,5 +1055,5 @@ doc.addEventListener('click', async ev => {
   clearTimeout(b._cpT); b._cpT = setTimeout(() => b.classList.remove('on', 'bad'), 1400);
 });
 
-window.AdminUX = { copyId, u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, savings, savingsModel, sinceUsage, ymd, esc };
+window.AdminUX = { copyId, u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, savings, savingsModel, sinceUsage, sumUsage, prePrev, rateOf, workShare, usageKpis, ymd, esc };
 })();
