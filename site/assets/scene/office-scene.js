@@ -14,7 +14,7 @@
  * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
  * glowing laptop logos take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { makePost } from './post.js';
-import { holidayOn, makeTree, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js';
+import { holidayOn, makeTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js';
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
@@ -694,7 +694,7 @@ export function mountOfficeScene(container, data, opts = {}){
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
   let TMP2 = null, M4 = null, S = null, TMP = null, PT = null, HP = null, Mh = null, Mp = null, Q1 = null, E1 = null, V1 = null, V2 = null, ONE = null;
   const v3 = () => new T.Vector3();
-  let xmas = false, hol = [], holWall = null;   /* year-end dressing (holiday.js): on from Nov 1 to Jan 6 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
+  let xmas = false, hol = [], holWall = null, holFit = null;   /* year-end dressing (holiday.js): on from Nov 1 to Jan 6 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
   /* Who wears what: a crown gets only the red nose, a person without one gets a Santa hat or the Rudolph set (antlers band and red nose) by a hash of the id.
    * HAT_SKIP: species that already wear a hat, so they always take the Rudolph set. ANTLER_SKIP: the band would tangle with a hat, horns or antlers of their own, so the nose goes on alone.
    * NO_NOSE: species where a red ball on the nose looks wrong (the eagle's hooked beak). Species with no nose or beak mesh (frog, elephant) get no ball anyway. */
@@ -735,7 +735,7 @@ export function mountOfficeScene(container, data, opts = {}){
 
   /* ── scene construction (re-run on every update) ── */
   function clear(){
-    hol.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); hol = []; holWall = null;
+    hol.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); hol = []; holWall = null; holFit = null;
     dyn.forEach(o => { if(o.isObject3D){ if(o.parent) o.parent.remove(o); if(o.isInstancedMesh) o.dispose(); } else if(o.dispose) o.dispose(); });
     world.clear(); dyn = []; decals = []; signs = []; decFlip = false; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
     lab = { zones: [], tags: [], server: null, more: null, sign: null };
@@ -1024,17 +1024,21 @@ export function mountOfficeScene(container, data, opts = {}){
     { const xp = -FW / 2 + 4.4 * (Math.max(0, Math.round(FW / 2 / 4.4 - 0.5)) + 0.5); [0.42, 1.02, 1.62].forEach((dz, i) => W0.stones.push([xp + (i % 2 ? 0.12 : -0.08), FD / 2 + dz, i])); }
     for(let x = -FW / 2; x <= FW / 2; x += 4.4){ bush(x, FD / 2 + 1.1, bk++); bush(x + 1.4, -FD / 2 - 1.1, bk++); }
     for(let z = -FD / 2 + 2; z <= FD / 2 - 1; z += 4.4){ bush(FW / 2 + 1.1, z, bk++); bush(-FW / 2 - 1.1, z + 1.2, bk++); }
-    let treeAt = null;   /* the tree takes the first free corner (the back-left one is the server's), full size if it fits and smaller if not; if none fits the plants stay */
+    let pileAt = null;   /* the corner that holds the present pile instead of a plant */
     if(xmas){
-      const seats = zones.flatMap(zn => zn.seats), srvZ = zones.find(zn => zn.kind === 'server');
-      find: for(const S of [1.6, 1.36, 1.12]) for(const [sx, sz] of [[1, -1], [-1, 1], [1, 1]]){   /* S: tree scale, 1.6 is about 5.3 tall and 3.5 across at the lowest tier */
-        const x = sx * (FW / 2 - 1.25 * S), z = sz * (FD / 2 - 1.25 * S);
-        if(seats.some(q => Math.hypot(q.x - x, q.z - z) < 1.1 * S + 0.8) || (srvZ && Math.hypot(srvZ.cx - x, srvZ.cz - z) < 1.1 * S + 1.5)) continue;
-        const tr = makeTree(T); tr.scale.setScalar(S); tr.rotation.y = Math.atan2(-sx, -sz); tr.position.set(x, 0, z);   /* turned so the presents lie on the room side */ world.add(tr); hol.push(tr); treeAt = [sx, sz]; break find;
+      /* The giant tree stands on the lawn behind the back wall, near the corner opposite the server. The wall hides its trunk and the foliage rises above the roof line.
+       * It is 3.6 times the small tree in height and 3 times in width (about 13 tall, 7 across), casts no shadow, and holFit tells fit() to keep its star in frame. */
+      const gx = FW / 2 - 4.2, gz = -FD / 2 - 1.7, SX = 3, SY = 3.6;
+      const tr = makeTree(T, { orn: 80, bulbs: 150, bands: 2, pot: false, presents: false, star: 1.9, shadow: false });
+      tr.scale.set(SX, SY, SX); tr.position.set(gx, 0, gz); world.add(tr); hol.push(tr); holFit = { x: gx, z: gz, r: 1.1 * SX, h: 3.66 * SY };
+      /* the present pile keeps the room's back-right corner when no seat is near enough to bump into it */
+      const seats = zones.flatMap(zn => zn.seats), px = FW / 2 - 2.0, pz = -FD / 2 + 2.0;
+      if(!seats.some(q => Math.hypot(q.x - px, q.z - pz) < 2.4)){
+        const pl = makePresents(T); pl.scale.setScalar(1.3); pl.rotation.y = Math.atan2(-1, 1); pl.position.set(px, 0, pz); world.add(pl); hol.push(pl); pileAt = [1, -1];
       }
     }
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
-      if(treeAt && Math.sign(x) === treeAt[0] && Math.sign(z) === treeAt[1]) return;
+      if(pileAt && Math.sign(x) === pileAt[0] && Math.sign(z) === pileAt[1]) return;
       B('#e8a77f', 0.7, 0.6, 0.7, x, 0.3, z); Sp('#8fcf9b', 0.6, x, 1.2, z); Sp('#a8dba0', 0.45, x + 0.3, 1.6, z - 0.1); Sp('#9fd49a', 0.42, x - 0.3, 1.5, z + 0.1);
     });
     people.forEach(o => {   /* the nearest desk in the same row: whom to glance at */
@@ -1512,6 +1516,9 @@ export function mountOfficeScene(container, data, opts = {}){
     for(const yw of [-0.1, 0, 0.1]) for(const x of xs) for(const y of [-0.2, 4.6]) for(const z of zs2){
       v.set(x * Math.cos(yw) + z * Math.sin(yw), y, -x * Math.sin(yw) + z * Math.cos(yw)).applyMatrix4(inv);
       x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+    }
+    if(holFit){   /* the giant tree: its base ring and its star must stay in view */
+      for(const [y, rr] of [[0, holFit.r], [holFit.h, 0.3]]){ v.set(holFit.x, y, holFit.z).applyMatrix4(inv); x0 = Math.min(x0, v.x - rr); x1 = Math.max(x1, v.x + rr); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
     }
     { const rg = document.createRange(); rg.selectNodeContents(elHud); const hb = rg.getBoundingClientRect(), sb = stage.getBoundingClientRect(); hudBox = hb.width ? [hb.left - sb.left, hb.top - sb.top, hb.width, hb.height] : null; }
     const padT = Math.round(elHud.offsetHeight * 0.4) + 6, padB = elLegend.offsetHeight + 4, padX = mobile() ? 4 : 16;

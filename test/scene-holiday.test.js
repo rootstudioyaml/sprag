@@ -63,4 +63,7 @@ test('office-scene wires the holiday dressing behind holidayOn and frees it on e
   assert.match(src, /ANTLER_SKIP = new Set\(\[[^\]]*'deer'/, 'species with horns or antlers of their own keep the nose only');
   assert.match(src, /hash\(o\.p\.id \+ ':xmas'\) < 0\.5 \? 'santa' : 'rudolph'/, 'the same person always gets the same set');
   assert.match(src, /noseTipOf\(T, m\)/, 'the nose tip is read off each loaded model');
+  assert.match(src, /makeTree\(T, \{ orn: 80, bulbs: 150, bands: 2, pot: false, presents: false, star: 1\.9, shadow: false \}\)/, 'the giant tree stands outside the back wall');
+  assert.match(src, /makePresents\(T\)/, 'the present pile keeps the room corner');
+  assert.match(src, /if\(holFit\)\{[^]*?holFit\.x, y, holFit\.z/, 'fit() keeps the tree in frame');
 });

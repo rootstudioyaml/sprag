@@ -77,46 +77,8 @@ const GREENS = ['#2f7d4f', '#357f50', '#2b7449', '#3b8856'];
 const ORN = ['#e8505b', '#f5c542', '#5aa9e6', '#fffaf0'];
 const BULB = ['#ffe2a0', '#ff5a5f', '#5aa9ff', '#ffe2a0', '#5fd38d', '#ffb347', '#ff8fc4', '#b69cff'];
 
-export function makeTree(T){
-  const K = kit(T), rand = rng(1225), g = new T.Group();
-  /* pot and trunk */
-  const pot = K.mesh(new T.CylinderGeometry(0.5, 0.38, 0.5, 18), K.std('#d9534f', { roughness: 0.6 })); pot.position.y = 0.25; g.add(pot);
-  const rim = K.mesh(new T.CylinderGeometry(0.54, 0.54, 0.09, 18), K.std('#f5c542', { roughness: 0.35, metalness: 0.4 })); rim.position.y = 0.5; g.add(rim);
-  const soil = K.mesh(new T.CylinderGeometry(0.46, 0.46, 0.03, 18), K.std('#6b4a35', { roughness: 1 })); soil.position.y = 0.53; g.add(soil);
-  const trunk = K.mesh(new T.CylinderGeometry(0.13, 0.17, 0.8, 10), K.std('#8a5a3c', { roughness: 0.95 })); trunk.position.y = 0.85; g.add(trunk);
-  /* foliage: lathe tiers, faceted and rough so the light breaks up like a low-poly tree */
-  TIERS.forEach((t, i) => {
-    const prof = tierProfile(t).map(([r, y]) => new T.Vector2(r, y));
-    const m = K.mesh(new T.LatheGeometry([new T.Vector2(0, 0), ...prof], 11), K.std(GREENS[i], { roughness: 1, flatShading: true }));
-    m.position.y = t.y; m.rotation.y = i * 0.45; m.castShadow = true; m.receiveShadow = true; g.add(m);
-  });
-  /* star on top */
-  const sh = new T.Shape(), OUT = 0.23, INN = 0.105;
-  for(let i = 0; i < 10; i++){ const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? INN : OUT; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
-  sh.closePath();
-  const sg = new T.ExtrudeGeometry(sh, { depth: 0.1, bevelEnabled: true, bevelSize: 0.018, bevelThickness: 0.018, bevelSegments: 1 }); sg.center();
-  const starMat = K.std('#ffd35a', { roughness: 0.3, metalness: 0.5, emissive: '#ffb938', emissiveIntensity: 0.5 });
-  const star = K.mesh(sg, starMat); star.position.y = 3.1; star.castShadow = true; g.add(star);
-  /* ornaments: golden-angle spread over the tiers, weighted by tier size */
-  const NO = 30, orn = K.instanced(new T.SphereGeometry(0.075, 10, 8), K.std('#ffffff', { roughness: 0.22, metalness: 0.35 }), NO);
-  const wsum = TIERS.reduce((s, t) => s + t.r * t.h, 0), M = new T.Matrix4(), C = new T.Color();
-  for(let i = 0; i < NO; i++){
-    let w = rand() * wsum, ti = 0; while(ti < TIERS.length - 1 && w > TIERS[ti].r * TIERS[ti].h){ w -= TIERS[ti].r * TIERS[ti].h; ti++; }
-    const t = TIERS[ti], yl = t.h * (0.16 + 0.48 * rand()), a = i * 2.39996 + rand() * 0.5, r = tierRadius(t, yl) + 0.03;
-    M.makeTranslation(Math.cos(a) * r, t.y + yl, Math.sin(a) * r); orn.setMatrixAt(i, M);
-    orn.setColorAt(i, C.set(ORN[(i + (rand() < 0.2 ? 1 : 0)) % 4]));
-  }
-  orn.instanceMatrix.needsUpdate = true; orn.instanceColor.needsUpdate = true; g.add(orn);
-  /* string lights spiralling up */
-  const NL = 48, bulbMat = K.glow(0.9), bulbs = K.instanced(new T.SphereGeometry(0.045, 8, 6), bulbMat, NL), lph = [], lsp = [], lcol = [];
-  for(let i = 0; i < NL; i++){
-    const s = i / (NL - 1), y = 0.8 + s * 2.0, a = s * Math.PI * 2 * 5, r = (surfaceRadius(y) || 0.1) + 0.05;
-    M.makeTranslation(Math.cos(a) * r, y, Math.sin(a) * r); bulbs.setMatrixAt(i, M);
-    lcol.push(new T.Color(BULB[i % BULB.length])); lph.push(rand() * 6.283); lsp.push(1.3 + (i % 7) * 0.22);
-    bulbs.setColorAt(i, lcol[i]);
-  }
-  bulbs.instanceMatrix.needsUpdate = true; bulbs.instanceColor.needsUpdate = true; g.add(bulbs);
-  /* presents */
+/* the present pile: ten boxes with ribbon crosses, spread over the front half around the origin */
+function addPresents(T, K, g){
   const PRES = [
     [0.55, 0.42, 0.5, -0.85, 0.75, 0.3, '#f08a9b', '#fffaf0'], [0.4, 0.34, 0.4, -0.35, 1.05, -0.2, '#7fb7e6', '#f5c542'],
     [0.5, 0.3, 0.7, 0.55, 0.95, 0.15, '#f6d36b', '#e8505b'], [0.3, 0.3, 0.3, 1.05, 0.5, -0.4, '#9bd6a8', '#fffaf0'],
@@ -133,20 +95,81 @@ export function makeTree(T){
     for(const sgn of [-1, 1]){ const lp = K.mesh(new T.SphereGeometry(0.05, 8, 6), rm); lp.scale.set(1.3, 0.8, 0.8); lp.position.set(sgn * 0.045, h + 0.025, 0); lp.rotation.z = sgn * 0.5; p.add(lp); }
     p.position.set(x, 0, z); p.rotation.y = ry; p.traverse(o => { if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } }); g.add(p);
   });
-  pot.castShadow = true; rim.castShadow = true; trunk.castShadow = true; pot.receiveShadow = true;
+}
+/* A pile of presents on its own, for a corner of the room. The front is +z. */
+export function makePresents(T){
+  const K = kit(T), g = new T.Group();
+  addPresents(T, K, g);
+  g.userData.dispose = K.dispose;
+  return g;
+}
+
+/* opt: orn and bulbs are the counts, bands the number of spiral ribbons, pot false stands the trunk straight on the ground,
+ * star scales the star, presents false leaves the pile out, shadow false keeps the tree from casting shadows. The defaults make the small tree. */
+export function makeTree(T, o = {}){
+  const opt = { orn: 30, bulbs: 48, bands: 0, pot: true, presents: true, star: 1, shadow: true, ...o };
+  const K = kit(T), rand = rng(1225), g = new T.Group();
+  /* pot and trunk */
+  let pot = null, rim = null;
+  if(opt.pot){
+    pot = K.mesh(new T.CylinderGeometry(0.5, 0.38, 0.5, 18), K.std('#d9534f', { roughness: 0.6 })); pot.position.y = 0.25; g.add(pot);
+    rim = K.mesh(new T.CylinderGeometry(0.54, 0.54, 0.09, 18), K.std('#f5c542', { roughness: 0.35, metalness: 0.4 })); rim.position.y = 0.5; g.add(rim);
+    const soil = K.mesh(new T.CylinderGeometry(0.46, 0.46, 0.03, 18), K.std('#6b4a35', { roughness: 1 })); soil.position.y = 0.53; g.add(soil);
+  }
+  const trunk = K.mesh(new T.CylinderGeometry(0.13, 0.17, opt.pot ? 0.8 : 1.3, 10), K.std('#8a5a3c', { roughness: 0.95 })); trunk.position.y = opt.pot ? 0.85 : 0.65; g.add(trunk);
+  /* foliage: lathe tiers, faceted and rough so the light breaks up like a low-poly tree */
+  TIERS.forEach((t, i) => {
+    const prof = tierProfile(t).map(([r, y]) => new T.Vector2(r, y));
+    const m = K.mesh(new T.LatheGeometry([new T.Vector2(0, 0), ...prof], 11), K.std(GREENS[i], { roughness: 1, flatShading: true }));
+    m.position.y = t.y; m.rotation.y = i * 0.45; m.castShadow = opt.shadow; m.receiveShadow = true; g.add(m);
+  });
+  /* star on top */
+  const sh = new T.Shape(), OUT = 0.23, INN = 0.105;
+  for(let i = 0; i < 10; i++){ const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? INN : OUT; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  sh.closePath();
+  const sg = new T.ExtrudeGeometry(sh, { depth: 0.16, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1 }); sg.center();
+  const starMat = K.std('#ffd35a', { roughness: 0.3, metalness: 0.5, emissive: '#ffb938', emissiveIntensity: 0.5 });
+  const star = K.mesh(sg, starMat); star.position.y = 2.95 + 0.14 * opt.star; star.scale.setScalar(opt.star); star.castShadow = opt.shadow; g.add(star);
+  /* ornaments: golden-angle spread over the tiers, weighted by tier size */
+  const NO = opt.orn, orn = K.instanced(new T.SphereGeometry(0.075, 10, 8), K.std('#ffffff', { roughness: 0.22, metalness: 0.35 }), NO);
+  const wsum = TIERS.reduce((s, t) => s + t.r * t.h, 0), M = new T.Matrix4(), C = new T.Color();
+  for(let i = 0; i < NO; i++){
+    let w = rand() * wsum, ti = 0; while(ti < TIERS.length - 1 && w > TIERS[ti].r * TIERS[ti].h){ w -= TIERS[ti].r * TIERS[ti].h; ti++; }
+    const t = TIERS[ti], yl = t.h * (0.16 + 0.48 * rand()), a = i * 2.39996 + rand() * 0.5, r = tierRadius(t, yl) + 0.03;
+    M.makeTranslation(Math.cos(a) * r, t.y + yl, Math.sin(a) * r); orn.setMatrixAt(i, M);
+    orn.setColorAt(i, C.set(ORN[(i + (rand() < 0.2 ? 1 : 0)) % 4]));
+  }
+  orn.instanceMatrix.needsUpdate = true; orn.instanceColor.needsUpdate = true; g.add(orn);
+  /* string lights spiralling up */
+  const NL = opt.bulbs, bulbMat = K.glow(0.9), bulbs = K.instanced(new T.SphereGeometry(0.045, 8, 6), bulbMat, NL), lph = [], lsp = [], lcol = [];
+  for(let i = 0; i < NL; i++){
+    const s = i / (NL - 1), y = 0.8 + s * 2.0, a = s * Math.PI * 2 * Math.round(NL / 9.6), r = (surfaceRadius(y) || 0.1) + 0.05;
+    M.makeTranslation(Math.cos(a) * r, y, Math.sin(a) * r); bulbs.setMatrixAt(i, M);
+    lcol.push(new T.Color(BULB[i % BULB.length])); lph.push(rand() * 6.283); lsp.push(1.3 + (i % 7) * 0.22);
+    bulbs.setColorAt(i, lcol[i]);
+  }
+  bulbs.instanceMatrix.needsUpdate = true; bulbs.instanceColor.needsUpdate = true; g.add(bulbs);
+  if(opt.presents) addPresents(T, K, g);
+  /* ribbons winding up the foliage: gold first, then red */
+  for(let b = 0; b < opt.bands; b++){
+    const pts = [];
+    for(let i = 0; i <= 220; i++){ const s = i / 220, y = 0.72 + s * 2.1, a = s * Math.PI * 2 * 3.5 + b * Math.PI, r = (surfaceRadius(y) || 0.05) + 0.035; pts.push(new T.Vector3(Math.cos(a) * r, y, Math.sin(a) * r)); }
+    const band = K.mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts), 440, 0.034, 5, false), K.std(b ? '#e8505b' : '#f5c542', b ? { roughness: 0.5 } : { roughness: 0.3, metalness: 0.5 })); band.castShadow = opt.shadow; g.add(band);
+  }
+  trunk.castShadow = opt.shadow; if(pot){ pot.castShadow = opt.shadow; rim.castShadow = opt.shadow; pot.receiveShadow = true; }
 
   const col = new T.Color();
   g.userData.tick = (t, night) => {
-    const n = nightOf(night), glow = 1 + n * 0.6;
+    const n = nightOf(night), glow = 1 + n * 0.25;
     for(let i = 0; i < NL; i++){
       const f = 0.5 + 0.5 * Math.sin(t * lsp[i] + lph[i]);
       bulbs.setColorAt(i, col.copy(lcol[i]).multiplyScalar((0.3 + 0.7 * f) * glow));
     }
     bulbs.instanceColor.needsUpdate = true;
-    bulbMat.emissiveIntensity = 0.9 + 0.7 * n;
+    bulbMat.emissiveIntensity = 0.85 + 0.3 * n;   /* the bloom pass spreads bright bulbs, so the night boost stays small and a crowd of bulbs does not wash out to white */
     const pulse = Math.sin(t * 1.4);
-    starMat.emissiveIntensity = (0.45 + 0.9 * n) * (1 + 0.25 * pulse);
-    star.scale.setScalar(1 + 0.04 * pulse); star.rotation.y = t * 0.7;   /* turns slowly so it shows a face from any camera angle */
+    starMat.emissiveIntensity = (0.45 + 0.6 * n) * (1 + 0.2 * pulse);
+    star.scale.setScalar(opt.star * (1 + 0.04 * pulse)); star.rotation.y = Math.PI / 4 + 0.12 * Math.sin(t * 0.6);   /* it faces the default camera (which looks from +x +z) and is thick enough to read from the sides */
   };
   g.userData.dispose = K.dispose;
   return g;
