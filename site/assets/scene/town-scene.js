@@ -16,7 +16,7 @@
  * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
-import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, workShareOf, speciesArt, iconSvg, castLoader, castCrown, CAST_URL } from './office-scene.js';
+import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, workShareOf, iconSvg, speciesThumb, castLoader, castCrown, castLook, CAST_URL } from './office-scene.js';
 import { WX_CLEAR, fetchWeather, weatherFromCode, parseOverrides, clampN, todBlend, chipText } from './sky.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#5f6a88';
@@ -177,7 +177,7 @@ const TW_CSS = `.tw-chip{display:block;width:fit-content;margin-top:6px;line-hei
 .tw-zoo .zr em{flex:none;width:104px;font-style:normal;font-size:11px;font-weight:600;padding-top:3px;color:#6a5a4a}.tw-zoo .zr em b{margin-left:5px;font-variant-numeric:tabular-nums;color:#3a2f27}
 .tw-zoo .t-power em{color:#b7791f}.tw-zoo .t-active em{color:#1d6fb8}.tw-zoo .t-normal em{color:#7a6c58}.tw-zoo .t-low em{color:#c2410c}
 .tw-zoo .zs{display:flex;flex-wrap:wrap;gap:3px 10px;min-width:0}.tw-zoo .zi{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
-.tw-zoo svg{width:20px;height:20px;flex:none}
+.tw-zoo svg{width:20px;height:20px;flex:none}.tw-zoo .of-th{--px:30px;margin:-3px 0}.tw-zoo .zc .of-th{--px:26px}
 .tw-zoo .zc{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0 0 8px;padding:6px 10px;border-radius:10px;background:#fff4d6;color:#5a3d0a;font-size:12px}.tw-zoo .zc b{font-weight:600}
 .tw-team .th{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.tw-team .th b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tw-team .th span{flex:none;font-size:11px;color:#6a5a4a;font-variant-numeric:tabular-nums}
 .tw-team small{margin:0 0 3px;font-variant-numeric:tabular-nums}`;
@@ -200,9 +200,10 @@ export function mountTownScene(container, data, opts = {}){
   let TX = {}, MT = {}, envTex = null, GB = {}, WL = [], SH = [], billboards = [], peds = [], clouds = [], parts = null, stars = null, tick = 0, minuteT = 0;
   let wx = OVR.weather || { ...WX_CLEAR }, wxDbg = !!OVR.weather, night = 0, flash = 0, lightT = 6, baseHemi = 1, baseEx = 1, extent = 40, builtSnow = false;
   /* the picked company's cast: castGen guards late loads (a load that ends after the selection changed adds nothing), castCache holds one download per species for this mount */
-  let castGen = 0, castSet = null, lotsAll = [], hidden = []; const castCache = {}, castGltf = {}, CAST_SC = 0.66;
+  let castGen = 0, castSet = null, lotsAll = [], hidden = []; const castCache = {}, castGltf = {}, CAST_SC = 1.0;   /* 0.66 left the animals about 25 CSS px tall at the default zoom */
+  let homePose = null;   /* the camera before a click flew in to a company; closing the drawer glides back to it */
   const mobile = () => W < 520, v3 = () => new T.Vector3(), C = h => new T.Color(h), track = o => { dyn.push(o); return o; };
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; clearCast(); },
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, request: () => request(), onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), onClose: () => { sel = null; selId = null; if(ring) ring.visible = false; clearCast(); if(homePose && view){ const h = homePose; homePose = null; view.flyTo(h); } },
     onAction: a => { if(a === 'org' && sel && opts.onOpenOrg) opts.onOpenOrg(sel.c.id); } });
   kit.bind(chrome.el);
 
@@ -756,7 +757,7 @@ export function mountTownScene(container, data, opts = {}){
       bots.push({ i, b: q.b, j: q.j, a0: hash(q.b.c.id + q.j) * 6.28, st: 0, t: 0, next: 1 + hash(q.b.c.id + 'n' + q.j) * 8 / (0.6 + q.b.c.act), per: 5 + 7 * (1 - q.b.c.act), pos: v3(), p0: v3() }); });
     if(bl.length){ bm.instanceColor.needsUpdate = gl2.instanceColor.needsUpdate = true; }
     meshes.bm = bm; meshes.gl = gl2;
-    ring = track(new T.Group()); { const rg = track(new T.RingGeometry(1, 1.25, 48)); rg.rotateX(-Math.PI / 2); const m1 = track(new T.Mesh(rg, track(new T.MeshBasicMaterial({ color: '#7c6cf0', transparent: true, opacity: 0.85, depthWrite: false })))); ring.add(m1); ring.visible = false; world.add(ring); }
+    ring = track(new T.Group()); { const rg = track(new T.RingGeometry(1, 1.04, 64));   /* scaled by about 7 in step(): a thin outline, not a filled purple band */ rg.rotateX(-Math.PI / 2); const m1 = track(new T.Mesh(rg, track(new T.MeshBasicMaterial({ color: '#7c6cf0', transparent: true, opacity: 0.85, depthWrite: false })))); ring.add(m1); ring.visible = false; world.add(ring); }
     if(d.more){ moreLbl = document.createElement('div'); moreLbl.className = 'of-lbl'; moreLbl.textContent = d.moreLabel; elLabels.appendChild(moreLbl); }
     buildWeather();
     sel = selId ? bld.find(b => b.c.id === selId) || null : null;
@@ -785,6 +786,7 @@ export function mountTownScene(container, data, opts = {}){
     MT.cloud.color.copy(C('#ffffff')).lerp(C('#6d7aa8'), night * 0.85).lerp(C('#c9ced8'), wet ? 0.5 : 0);
     MT.bulb.color.copy(C('#d9d3c0')).lerp(C('#ffe8a6'), night); MT.pool.opacity = night * 0.55; if(meshes.pool) meshes.pool.visible = night > 0.03;
     MT.halo.opacity = 0.26 + 0.5 * night; MT.signHalo.opacity = 0.1 + 0.6 * night;
+    bld.forEach(b => { if(b.board) b.board.material.color.copy(C('#ffffff')).lerp(C('#9aa3d6'), 0.85 * night); });   /* the company boards dim at night (lit windows stay the brightest thing) */
     renderChip(); renderer.shadowMap.needsUpdate = true; request();
   }
   function renderChip(){
@@ -837,7 +839,7 @@ export function mountTownScene(container, data, opts = {}){
     const util = kit.stack([{ v: c.used, color: '#7c6cf0', tip: c.detail.utilTip }, { v: Math.max(0, c.limit - c.used), color: '#e2d8c2', tip: c.detail.freeTip }]);
     let more = `<div class="ld">${esc(d === false ? ui.dFail : ui.dLoading)}</div>`;
     if(d){
-      const pic = k => (k === 'ghost' ? iconSvg('ghost') : (speciesArt(k) || {}).icon || ''), z = d.zoo;
+      const pic = k => speciesThumb(k), z = d.zoo;   /* the cast atlas cell (the SVG icon inside it is the fallback) */
       /* animals: one row per tier with each species held and its head count, the ghosts (no data), and who wears the crown */
       const zoo = z && (z.tiers.length || z.ghosts) ? `<div class="tw-zoo">${z.crowns.map(q => `<div class="zc" title="${esc(z.crownLabel)}">${iconSvg('crown')}<b>${esc(q.name)}</b>${pic(q.k)}<span>${esc(q.gname)}</span></div>`).join('')}`
         + z.tiers.map(g => `<div class="zr t-${esc(g.tier)}"><em>${esc(g.label)}<b>${g.n}</b></em><div class="zs">${g.items.map(q => `<span class="zi" title="${esc(q.name)}">${pic(q.k)}${q.n}</span>`).join('')}</div></div>`).join('')
@@ -935,8 +937,12 @@ export function mountTownScene(container, data, opts = {}){
       const [x, y] = proj(pt, TMP), d = Math.hypot(x - px, y - py); if(d < r && d < bd){ bd = d; best = b; } } });
     return best;
   }
-  function select(b){
+  /* fly: true (a click) glides the camera in on the building and the yard where its animals stand, leaving room for the drawer on the right;
+     scripted picks (selectOrg without opts, the video recorder) keep the camera where the script put it */
+  function select(b, o){
     clearCast(); sel = b; selId = b.c.id; renderDrawer(); chrome.open(); ring.visible = true;
+    b.flyPick = !!(o && o.fly && view);
+    if(b.flyPick){ const ps = view.getPose(); if(!homePose) homePose = ps; flyNear(b.x, b.z, ps); }
     if(!opts.loadDetail) return;
     let pr = cache.get(b.c.id); if(!pr){ pr = Promise.resolve(opts.loadDetail(b.c.id)).catch(() => null); cache.set(b.c.id, pr); }
     pr.then(d => { b.det = d || false; if(sel === b && !destroyed){ renderDrawer(); placeCast(b, d && d.cast); } });
@@ -948,7 +954,7 @@ export function mountTownScene(container, data, opts = {}){
      or the HQ tower, not under any signboard, not inside a building, not off the island. The best count wins, earlier choices win ties. */
   const CAM_D = Math.SQRT1_2, CAM_COS = Math.sin(Math.atan2(Math.hypot(30, 30), 24)), CAM_SIN = Math.cos(Math.atan2(Math.hypot(30, 30), 24));   /* default camera: ground axes toward the camera (d, d) and screen right (d, -d), elevation cos/sin */
   function castSeen(x, z, y){
-    for(const yy of [y + 0.25, y + 0.9]){   /* body and head */
+    for(const yy of [y + 0.38 * CAST_SC / 0.66, y + 1.36 * CAST_SC / 0.66]){   /* body and head */
       const X = (x - z) * CAM_D, Y = yy * CAM_COS - (x + z) * CAM_D * CAM_SIN;
       for(const o of bld){ const p = o.board.position, Xc = (p.x - p.z) * CAM_D, Y0 = 1.2 * CAM_COS - (p.x + p.z) * CAM_D * CAM_SIN; if(Math.abs(X - Xc) < boardW / 2 + 0.25 && Y > Y0 - 0.12 && Y < Y0 + o.board.userData.h * CAM_COS + 0.1) return false; }
     }
@@ -957,8 +963,10 @@ export function mountTownScene(container, data, opts = {}){
     for(const [cx, cz, h, top] of boxes){ const s0 = Math.max((cx - h - x) / CAM_D, (cz - h - z) / CAM_D, 0), s1 = Math.min((cx + h - x) / CAM_D, (cz + h - z) / CAM_D); if(s1 > s0 && y + 0.5 + s0 * CAM_SIN / CAM_COS < top) return false; }
     const u = (x - z) * CAM_D, v = (x + z) * CAM_D; return (u / (bb.gu - 1)) ** 2 + (v / (bb.gv - 1)) ** 2 <= 1;
   }
+  /* glide to ground point (x, z) at the current turn and tilt, close enough that the animals read, with room for the drawer on a wide stage */
+  function flyNear(x, z, ps){ ps = ps || view.getPose(); view.flyTo({ x, z, th: ps.th, ph: ps.ph, zoom: Math.max(ps.zoom, 1.7), ox: stage.clientWidth >= 900 ? 210 : 0 }); }
   function castSpots(b, n){
-    const r = clampN(0.8 * (n - 1) / Math.PI, 1.1, 2.9), mid = (n - 1) / 2, order = Array.from({ length: n }, (_, i) => i).sort((p, q) => Math.abs(p - mid) - Math.abs(q - mid) || p - q), h = b.w / 2 + 1.25;
+    const r = clampN(0.8 * CAST_SC / 0.66 * (n - 1) / Math.PI, 1.1 * CAST_SC / 0.66, 2.9 * CAST_SC / 0.66), mid = (n - 1) / 2, order = Array.from({ length: n }, (_, i) => i).sort((p, q) => Math.abs(p - mid) - Math.abs(q - mid) || p - q), h = b.w / 2 + 1.25;
     const at = (P, v0) => { const spots = order.map(i => { const a = n < 2 ? Math.PI / 2 : Math.PI * i / (n - 1), u = r * Math.cos(a), v = v0 + r * Math.sin(a), x = P.x + (u + v) * CAM_D, z = P.z + (v - u) * CAM_D;
         return { x, z, y: lotsAll.some(l => Math.abs(x - l.x) <= l.h && Math.abs(z - l.z) <= l.h) ? 0.1 : 0.05 }; });
       return { spots, r, P, seen: spots.filter(q => castSeen(q.x, q.z, q.y)).length }; };
@@ -994,12 +1002,13 @@ export function mountTownScene(container, data, opts = {}){
         if(res.status !== 'fulfilled') return;   /* a species that failed to load is left out; the drawer does not depend on the models */
         const p = list[i], sp = spots[i], m = res.value.scene.clone(true), box = new T.Box3().setFromObject(m), y0 = sp.y - box.min.y * CAST_SC, crown = p.crown ? castCrown(T) : null;
         m.scale.setScalar(CAST_SC); m.position.set(sp.x, y0, sp.z); m.rotation.y = view.azimuth();
-        m.traverse(c => { if(c.isMesh){ c.castShadow = true; c.receiveShadow = true; } });
+        castLook(m, false);
         if(crown) m.add(crown);
         world.add(m); items.push({ m, y0, lift: y0 - sp.y, crown, ph: hash(p.id) * 6.28, id: p.id, grade: p.grade });
       });
       if(!items.length) return;
       castSet = { b, items }; hideTrees(P, r); renderer.shadowMap.needsUpdate = true; request();
+      if(b.flyPick) flyNear((b.x + P.x) / 2, (b.z + P.z) / 2);   /* a click: once the animals stand, frame the building and its yard together */
     }catch(e){ /* no loader (offline, blocked CDN): the town stays as it is, without the models */ }
   }
   function bindView(){
@@ -1008,7 +1017,7 @@ export function mountTownScene(container, data, opts = {}){
       onFocus: () => chrome.hideHint(), onEnter: () => chrome.showHint(),
       onMove: (px, py) => { const h = nearest(px, py); if(hover !== h){ hover = h; canvas.classList.toggle('hit', !!h); } },
       onLeave: () => { hover = null; canvas.classList.remove('hit'); },
-      onTap: (px, py) => { const b = nearest(px, py); if(!b || sel === b){ chrome.close(); return; } select(b); } });
+      onTap: (px, py) => { const b = nearest(px, py); if(!b || sel === b){ chrome.close(); return; } select(b, { fly: true }); } });
   }
   let minuteTimer = 0, shared = [];
   async function init(){
@@ -1055,7 +1064,7 @@ export function mountTownScene(container, data, opts = {}){
     ready: () => started === true && !!view,
     orgs: () => bld.map(b => ({ id: b.c.id, name: b.c.name, x: b.x, z: b.z, w: b.w, h: b.H })),
     cast: () => (castSet ? castSet.items.map(it => ({ id: it.id, grade: it.grade, x: it.m.position.x, z: it.m.position.z, seen: castSeen(it.m.position.x, it.m.position.z, it.y0 - it.lift) })) : []),   /* the models on stage, for recordings and checks */
-    selectOrg(id){ const b = bld.find(q => q.c.id === id); if(b) select(b); return !!b; },
+    selectOrg(id, o){ const b = bld.find(q => q.c.id === id); if(b) select(b, o); return !!b; },   /* o = { fly: true } glides in as a click does */
     closeDrawer: () => chrome.close(),
     destroy(){
       destroyed = true; if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); if(io) io.disconnect(); if(ro) ro.disconnect(); clearInterval(minuteTimer);
