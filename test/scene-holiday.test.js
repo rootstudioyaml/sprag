@@ -53,7 +53,7 @@ test('inHolidaySeason: month and day edges', () => {
 test('office-scene wires the holiday dressing behind holidayOn and frees it on every rebuild', async () => {
   const { readFile } = await import('node:fs/promises');
   const src = await readFile(new URL('../site/assets/scene/office-scene.js', import.meta.url), 'utf8');
-  assert.match(src, /import \{[^}]*holidayOn[^}]*makeGinkgo[^}]*makeGarland[^}]*makeWreath[^}]*santaHat[^}]*\} from '\.\/holiday\.js'/);
+  assert.match(src, /import \{[^}]*holidayOn[^}]*makeGinkgo[^}]*makeGarland[^}]*makeWreath[^}]*santaHat[^}]*\} from '\.\/holiday\.js(\?v=[^']+)?'/);
   assert.match(src, /xmas = holidayOn\(\)/, 'one flag per build, from the calendar or ?season=');
   for(const fn of ['makeGinkgo', 'makeGarland', 'makeWreath', 'santaHat', 'reindeerAntlers', 'rudolphNose']) assert.ok(src.includes(fn + '(T'), fn + ' is called');
   assert.match(src, /hol\.forEach\(h => \{ if\(h\.parent\) h\.parent\.remove\(h\); h\.userData\.dispose\(\); \}\)/, 'clear() disposes everything');
