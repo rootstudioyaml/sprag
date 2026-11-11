@@ -12,6 +12,7 @@
  * The returned handle also carries view, ready(), people(), server() and selectPerson(id) / closeDrawer() for scripted recordings (video/tour).
  * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
  * glowing screens take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
+import { makePost } from './post.js';
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
@@ -661,6 +662,7 @@ export function mountOfficeScene(container, data, opts = {}){
   });
 
   let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null, rim = null;
+  let post = null;   /* post-processing chain (post.js): null until it loads, on phones and with ?fx=0 */
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0;
   let statics = [], dyn = [], hover = null, scale = 10, view = null, wallIdx = { z: [], x: [] }, wallHid = { z: false, x: false }, decals = [], signs = [], decFlip = false;
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
@@ -1134,7 +1136,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const dull = clampN((wx.cloud - 0.15) * 0.95 + (fog ? 0.2 : 0), 0, 1), gr = c => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return c.clone().lerp(new T.Color(l * 0.9, l * 0.93, l), dull * (0.35 + 0.65 * dayK)).multiplyScalar(1 - 0.1 * dull * dayK); };
     const dark = st === 'storm' ? 0.76 : wet ? 0.9 : 1, s0 = gr(P.c0).multiplyScalar(dark), s1 = gr(P.c1).multiplyScalar(dark);
     stage.style.background = `radial-gradient(ellipse at 50% 35%, #${s0.getHexString()} 0, #${s1.getHexString()} 80%)`;
-    stage.classList.toggle('sk-night', n > 0.55); renderChip();
+    stage.classList.toggle('sk-night', n > 0.55); renderChip(); if(post) post.setNight(n);
     elStars.style.opacity = String(clampN((n - 0.5) * 2.2, 0, 1) * (1 - clampN((wx.cloud - 0.25) / 0.5, 0, 1)));   /* overcast skies hide the stars and the moon */
     const fogC = s0.clone().lerp(s1, 0.4).lerp(C('#e9edf2'), 0.55 * dayK), rgb = fogC.getStyle().replace(/^rgb\(|\)$/g, '');
     elHaze.style.background = `radial-gradient(ellipse at 50% 52%, rgba(${rgb},0) 26%, rgba(${rgb},.72) 74%, rgba(${rgb},.9) 100%)`;
@@ -1419,7 +1421,7 @@ export function mountOfficeScene(container, data, opts = {}){
     lab.tags.forEach(l => place(l.el, l.pos, 0, -12, false, l.dyn ? l.dyn.dy * scale * 0.7 * -1 : 0));
     bubs.forEach(b => { if(!b.o) return; HP.set(b.o.x, 3.7, b.o.z); place(b.el, HP, 0, -20); });
   }
-  function render(){ if(stage.clientWidth !== W) resize(); renderer.render(scene, camera); labels(); }   /* a drawer that just opened shrinks the stage before the ResizeObserver runs; without this one frame is drawn stretched */
+  function render(){ if(stage.clientWidth !== W) resize(); if(post && post.on){ post.setZoom(view.zoom()); post.render(); } else renderer.render(scene, camera); labels(); }   /* a drawer that just opened shrinks the stage before the ResizeObserver runs; without this one frame is drawn stretched */
   function frame(now){
     raf = 0; if(started !== true || destroyed || !visible || document.hidden) return;
     const t = now || performance.now(), dt = Math.min(0.05, (t - last) / 1000); last = t;
@@ -1449,7 +1451,7 @@ export function mountOfficeScene(container, data, opts = {}){
   function resize(){
     const w = stage.clientWidth, h = (canvas && canvas.clientHeight) || stage.clientHeight;   /* the canvas keeps its height when a phone drawer grows the stage */
     if(!w || !h || !renderer) return;
-    const was = mobile(); W = w; H = h; renderer.setSize(w, h, false);
+    const was = mobile(); W = w; H = h; renderer.setSize(w, h, false); if(post) post.setSize(w, h);
     if(was !== mobile() && cur) return build(cur);
     fit(); request();
   }
@@ -1522,6 +1524,8 @@ export function mountOfficeScene(container, data, opts = {}){
     ro = new ResizeObserver(resize); ro.observe(stage);
     W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false);
     build(cur); request();
+    /* team signboards skip the passes so their names stay sharp (post.js draws them on top afterwards) */
+    makePost(T, renderer, scene, camera, { mobile, look: OFFICE_LOOK, overlay: () => signs }).then(p => { if(destroyed){ if(p) p.dispose(); return; } post = p; if(post){ post.setSize(W, H); post.setNight(envN); request(); } }).catch(() => {});
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if(started === true && !destroyed) build(cur); });
   }
   io = new IntersectionObserver(es => {
@@ -1548,7 +1552,7 @@ export function mountOfficeScene(container, data, opts = {}){
       if(io) io.disconnect(); if(ro) ro.disconnect();
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
       if(started === true){
-        clear(); wxs = null; lamps.forEach(L => { scene.remove(L); L.dispose(); }); lamps = []; statics.forEach(o => o.dispose && o.dispose()); renderer.dispose();
+        clear(); wxs = null; lamps.forEach(L => { scene.remove(L); L.dispose(); }); lamps = []; statics.forEach(o => o.dispose && o.dispose()); if(post) post.dispose(); renderer.dispose();
         const x = renderer.getContext().getExtension('WEBGL_lose_context'); if(x) x.loseContext();
         if(canvas.parentNode) canvas.parentNode.removeChild(canvas);
       }
@@ -1556,6 +1560,9 @@ export function mountOfficeScene(container, data, opts = {}){
     }
   };
 }
+
+/* the office is seen closer than the town: lighter tilt-shift so the desks at the top and bottom edges stay readable */
+const OFFICE_LOOK = { tilt: 0.55 };
 
 const numOrNaN = v => (v == null ? NaN : Number(v));
 /* Total usage over a set of machines (team_member_usage rows): per day, the gateway figure once per hash, plus total (else spent) of the rest;
