@@ -13,9 +13,9 @@ export function seoulMonthDay(now){
   const d = new Date(t + SEOUL_MS);
   return { month: d.getUTCMonth() + 1, day: d.getUTCDate() };
 }
-/* Nov 1 through Jan 6, both ends included */
+/* Nov 1 through Dec 30, both ends included (it goes off at Dec 31 00:00 Seoul time) */
 export function inHolidaySeason(month, day){
-  return month === 11 || month === 12 || (month === 1 && day <= 6);
+  return month === 11 || (month === 12 && day <= 30);
 }
 /* ?season=xmas forces the dressing on and ?season=off forces it off. Otherwise the Seoul calendar decides. */
 export function holidayOn(now = new Date(), search){
@@ -311,6 +311,109 @@ export function rudolphNose(T, tip){
   g.position.set(tip.x, tip.y, tip.z - 0.004);
   const ph = (tip.x * 7.3 + tip.y * 3.1 + tip.z * 5.7) % 6.283;
   g.userData.tick = (t, night) => { const n = nightOf(night); mat.emissiveIntensity = (0.35 + 1.1 * n) * (1 + 0.3 * Math.sin(t * 1.8 + ph)); };
+  g.userData.dispose = K.dispose;
+  return g;
+}
+
+/* ---------- ginkgo ---------- */
+/* A huge old ginkgo in the style of the 800-year-old Banggye-ri tree: a short, very thick trunk that splits low into a few big limbs, and a wide, low, round dome
+ * of golden blobs. About 16 across and 12 tall, origin at the middle of the trunk's foot. Warm-white and gold twinkle lights and a few small baubles dress the crown.
+ * opt.carpet and opt.fall are lists of { x0, x1, z0, z1, y, n }: rectangles in the tree's own space (y is the ground height there). Leaves lie on the ground in
+ * carpet and drift down in fall. tick(t, night) moves the falling ones from t alone, so a frozen t (reduced motion) freezes them. */
+const GINKGO = ['#f5cf3a', '#eebb24', '#f8dc63', '#e5a91c'];
+export function makeGinkgo(T, o = {}){
+  const opt = { lights: 200, baubles: 12, carpet: [], fall: [], carpetR: 8.5, ...o };
+  const K = kit(T), rand = rng(800), g = new T.Group(), M = new T.Matrix4(), C = new T.Color(), Q = new T.Quaternion(), E = new T.Euler(), P = new T.Vector3(), S = new T.Vector3();
+  const bark = K.std('#6f5a48', { roughness: 1, flatShading: true }), bark2 = K.std('#7a644f', { roughness: 1, flatShading: true });
+  /* trunk: a fat lathe with a flared foot, a knuckle where the limbs leave it, and roots creeping over the ground */
+  const prof = [[0, 0], [1.3, 0], [1.05, 0.45], [0.88, 1.3], [0.82, 2.6], [0.95, 3.5], [0.7, 4.0], [0, 4.0]].map(([r, y]) => new T.Vector2(r, y));
+  g.add(K.mesh(new T.LatheGeometry(prof, 9), bark));
+  for(let i = 0; i < 6; i++){
+    const a = i * Math.PI / 3 + 0.3, ca = Math.cos(a), sa = Math.sin(a), L = 2.4 - 1.2 * Math.max(0, sa);   /* roots toward +z are shorter: that side faces the room wall */
+    const root = K.mesh(new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(ca * 0.7, 0.5, sa * 0.7), new T.Vector3(ca * L * 0.65, 0.18, sa * L * 0.65), new T.Vector3(ca * L, 0.05, sa * L)]), 8, 0.3, 6, false), bark2); g.add(root);
+  }
+  /* five thick limbs fanning up and out into the crown */
+  const CY = 6.7, A = 6.2, BU = 3.0, BD = 2.2;   /* crown centre height and the radii of the blob shell: sideways, up, down (a wide low dome, about 16 across and 12 tall) */
+  for(let i = 0; i < 5; i++){
+    const a = i * Math.PI * 2 / 5 + 0.5, ca = Math.cos(a), sa = Math.sin(a);
+    const limb = K.mesh(new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(ca * 0.3, 3.4, sa * 0.3), new T.Vector3(ca * 1.4, 4.3, sa * 1.4), new T.Vector3(ca * 3.0, 5.4, sa * 3.0), new T.Vector3(ca * 4.0, 6.8, sa * 4.0)]), 14, 0.52, 7, false), bark2); g.add(limb);
+  }
+  /* crown: a few big smooth puffs, many middle ones, and lots of small ones scattered along the rim so the outline is ragged like a cloud */
+  const blobs = [];
+  const put = (n, rLo, rHi, fLo, fHi) => { for(let i = 0; i < n; i++){
+    const u = rand() * 2 - 1, ph = rand() * Math.PI * 2, rr = Math.sqrt(1 - u * u), f = fLo + rand() * (fHi - fLo);
+    blobs.push({ x: rr * Math.cos(ph) * A * f, y: (u > 0 ? u * BU : u * BD) * f, z: rr * Math.sin(ph) * A * f, r: rLo + rand() * (rHi - rLo) });
+  } };
+  put(12, 2.1, 2.9, 0.1, 0.4);    /* fill the middle so no hole shows */
+  put(14, 1.8, 2.6, 0.5, 0.8);    /* the big puffs */
+  put(70, 1.0, 1.7, 0.75, 0.98);  /* middle ones on the shell */
+  put(150, 0.45, 0.95, 0.85, 1.12);   /* small ones along the edge */
+  const NB = blobs.length, crown = K.instanced(new T.SphereGeometry(1, 14, 10), K.std('#ffffff', { roughness: 0.95, flatShading: false, emissive: '#b08400', emissiveIntensity: 0.14 }), NB);   /* a little warm self light keeps the shaded side yellow and not brown */
+  blobs.forEach((b, i) => {
+    E.set(rand() * 6, rand() * 6, rand() * 6); Q.setFromEuler(E); P.set(b.x, CY + b.y, b.z); S.set(b.r, b.r * (0.8 + rand() * 0.2), b.r);
+    crown.setMatrixAt(i, M.compose(P, Q, S));
+    const k = Math.max(0, Math.min(1, (b.y + BD + 1) / (BU + BD + 2)));   /* 0 at the bottom, 1 at the top */
+    /* mostly yellow; the golden shades only where the crown is in its own shade */
+    const pick = k < 0.4 ? (rand() < 0.6 ? '#eebb24' : '#e5a91c') : rand() < 0.5 ? '#f5cf3a' : rand() < 0.75 ? '#f8dc63' : '#eebb24';
+    crown.setColorAt(i, C.set(pick).multiplyScalar(0.84 + 0.16 * k));
+  });
+  crown.instanceMatrix.needsUpdate = true; crown.instanceColor.needsUpdate = true; g.add(crown);
+  /* the outer surface of the blob union along a direction from the crown centre, so lights and baubles sit on the crown and not in it */
+  const surf = (dx, dy, dz) => {
+    let t = 0;
+    for(const b of blobs){ const cd = b.x * dx + b.y * dy + b.z * dz, d2 = cd * cd - (b.x * b.x + b.y * b.y + b.z * b.z) + b.r ** 2; if(d2 > 0) t = Math.max(t, cd + Math.sqrt(d2)); }
+    return t;
+  };
+  /* twinkle lights, spread evenly with a Fibonacci sphere, skipping the deep underside */
+  const NL = opt.lights, bulbMat = K.glow(0.85), bulbs = K.instanced(new T.SphereGeometry(0.12, 8, 6), bulbMat, NL), lcol = [], lph = [], lsp = [], WARM = ['#fff0c4', '#ffd45a', '#fff0c4', '#ffe28a'];
+  let li = 0;
+  for(let k = 0; li < NL && k < NL * 3; k++){
+    const u = 1 - 2 * (k + 0.5) / (NL * 1.5), rr = Math.sqrt(1 - u * u), a = k * 2.39996;
+    if(u < -0.35) continue;
+    const dx = rr * Math.cos(a), dz = rr * Math.sin(a), t = surf(dx, u, dz) + 0.02;
+    M.makeTranslation(dx * t, CY + u * t, dz * t); bulbs.setMatrixAt(li, M);
+    lcol.push(new T.Color(WARM[li % 4])); lph.push(rand() * 6.283); lsp.push(1.2 + (li % 7) * 0.25); bulbs.setColorAt(li, lcol[li]); li++;
+  }
+  bulbs.count = li; bulbs.instanceMatrix.needsUpdate = true; bulbs.instanceColor.needsUpdate = true; g.add(bulbs);
+  /* a few small baubles, gold and white with some red, mostly buried in the crown: hardly visible by day, glints at night */
+  const NR = opt.baubles, bau = K.instanced(new T.SphereGeometry(0.12, 10, 8), K.std('#ffffff', { roughness: 0.25, metalness: 0.3 }), NR);
+  for(let i = 0; i < NR; i++){
+    const u = 0.05 + rand() * 0.9, rr = Math.sqrt(1 - u * u), a = rand() * Math.PI * 2, dx = rr * Math.cos(a), dz = rr * Math.sin(a), t = surf(dx, u, dz) + 0.02;
+    M.makeTranslation(dx * t, CY + u * t, dz * t); bau.setMatrixAt(i, M); bau.setColorAt(i, C.set(['#f5c542', '#fffaf0', '#e8505b', '#f5c542', '#fffaf0'][i % 5]));
+  }
+  bau.instanceMatrix.needsUpdate = true; bau.instanceColor.needsUpdate = true; g.add(bau);
+  /* ginkgo leaves: a small fan with a notch in the middle of its edge, seen from both sides */
+  const lf = new T.Shape(); lf.moveTo(0, 0);
+  for(let i = 0; i <= 26; i++){ const a = Math.PI * (0.17 + 0.66 * i / 26), r = 1 - 0.22 * Math.exp(-(((a - Math.PI / 2) / 0.1) ** 2)); lf.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+  lf.closePath();
+  const leafG = K.geo(new T.ShapeGeometry(lf)), leafM = K.std('#ffffff', { roughness: 0.9, side: T.DoubleSide });
+  const LEAF = ['#f5cf3a', '#eebb24', '#f8dc63', '#f2c230'];
+  /* fall leaves: anywhere in a rectangle. carpet leaves: thickest right under the middle of the crown and thinning toward the edge (radius carpetR), kept inside the rectangles */
+  const spots = list => list.flatMap(a => Array.from({ length: a.n }, () => ({ x: a.x0 + (a.x1 - a.x0) * rand(), z: a.z0 + (a.z1 - a.z0) * rand(), y: a.y, k: rand() })));
+  const dense = list => list.flatMap(a => { const out = []; for(let tries = 0; out.length < a.n && tries < a.n * 60; tries++){
+    const rho = opt.carpetR * Math.pow(rand(), 1.4), th = rand() * 6.283, x = Math.cos(th) * rho, z = Math.sin(th) * rho;
+    if(x >= a.x0 && x <= a.x1 && z >= a.z0 && z <= a.z1) out.push({ x, z, y: a.y, k: rand() }); } return out; });
+  const flat = dense(opt.carpet), carpet = flat.length ? K.instanced(leafG, leafM, flat.length) : null;
+  if(carpet){
+    flat.forEach((l, i) => { const sc = 0.18 + rand() * 0.12; E.set(-Math.PI / 2 + (rand() - 0.5) * 0.15, rand() * 6.283, 0, 'YXZ'); Q.setFromEuler(E);
+      carpet.setMatrixAt(i, M.compose(P.set(l.x, l.y + i * 0.0003, l.z), Q, S.set(sc, sc, sc))); carpet.setColorAt(i, C.set(LEAF[i % 4]).multiplyScalar(0.92 + rand() * 0.1)); });
+    carpet.instanceMatrix.needsUpdate = true; carpet.instanceColor.needsUpdate = true; carpet.receiveShadow = false; g.add(carpet);
+  }
+  const fl = spots(opt.fall), fall = fl.length ? K.instanced(leafG, leafM, fl.length) : null;
+  if(fall){ fl.forEach((l, i) => { l.ph = rand(); l.v = 0.35 + rand() * 0.35; l.sc = 0.2 + rand() * 0.1; fall.setColorAt(i, C.set(LEAF[i % 4])); }); fall.instanceColor.needsUpdate = true; g.add(fall); }
+  const col = new T.Color(), TOP = 7.5;
+  g.userData.tick = (t, night) => {
+    const n = nightOf(night), glow = 1 + n * 0.25;
+    for(let i = 0; i < li; i++){ const f = 0.5 + 0.5 * Math.sin(t * lsp[i] + lph[i]); bulbs.setColorAt(i, col.copy(lcol[i]).multiplyScalar((0.35 + 0.65 * f) * glow)); }
+    bulbs.instanceColor.needsUpdate = true; bulbMat.emissiveIntensity = 0.85 + 0.3 * n;   /* small night boost: the bloom pass spreads bright bulbs */
+    if(!fall) return;
+    for(let i = 0; i < fl.length; i++){
+      const l = fl[i], H = TOP - l.y, d = (t * l.v + l.ph * H) % H, y = TOP - d, q = l.ph * 6.283;
+      E.set(0.9 * Math.sin(t * 1.3 + q * 3), q + t * 0.5, 0.6 * Math.sin(t * 0.9 + q), 'YXZ'); Q.setFromEuler(E);
+      fall.setMatrixAt(i, M.compose(P.set(l.x + 0.7 * Math.sin(t * 0.8 + q), Math.max(l.y, y), l.z + 0.2 * Math.sin(t * 0.6 + q * 2)), Q, S.set(l.sc, l.sc, l.sc)));
+    }
+    fall.instanceMatrix.needsUpdate = true;
+  };
   g.userData.dispose = K.dispose;
   return g;
 }
