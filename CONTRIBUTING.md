@@ -39,18 +39,6 @@ both together or the suite fails.
 to the newest `### vX.Y.Z` entry in `CHANGELOG.md`. Maintainers handle version
 bumps, tags and publishing; see `docs/RELEASING.md` if you want the details.
 
-## Contributor License Agreement
-
-Before your first pull request can be merged, sign the
-[Contributor License Agreement](./CLA.md). A bot comments on the pull request
-with the exact sentence to post; post it once and every later pull request is
-covered. You keep the copyright in your work. The agreement lets the maintainer
-decide the licence of future releases for the whole codebase, including code
-you contributed. Releases already published under Apache-2.0 stay under it.
-
-If you are contributing on behalf of an employer, make sure you have their
-permission first.
-
 ## Commits and pull requests
 
 - Keep each commit to one logical change, with a message that says what changed
