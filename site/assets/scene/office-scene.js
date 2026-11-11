@@ -14,7 +14,7 @@
  * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
  * glowing laptop logos take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { makePost } from './post.js';
-import { holidayOn, makeTree, makeGarland, makeWreath, santaHat } from './holiday.js';
+import { holidayOn, makeTree, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js';
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
@@ -694,8 +694,11 @@ export function mountOfficeScene(container, data, opts = {}){
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
   let TMP2 = null, M4 = null, S = null, TMP = null, PT = null, HP = null, Mh = null, Mp = null, Q1 = null, E1 = null, V1 = null, V2 = null, ONE = null;
   const v3 = () => new T.Vector3();
-  let xmas = false, hol = [], holWall = null;   /* year-end dressing (holiday.js): on from Nov 15 to Jan 6 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
-  const HAT_SKIP = new Set(['panda', 'raccoon', 'squirrel']);   /* these already wear a brim hat, a cap or a beanie, and a second hat on top reads as a pile */
+  let xmas = false, hol = [], holWall = null;   /* year-end dressing (holiday.js): on from Nov 1 to Jan 6 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
+  /* Who wears what: a crown gets only the red nose, a person without one gets a Santa hat or the Rudolph set (antlers band and red nose) by a hash of the id.
+   * HAT_SKIP: species that already wear a hat, so they always take the Rudolph set. ANTLER_SKIP: the band would tangle with a hat, horns or antlers of their own, so the nose goes on alone.
+   * NO_NOSE: species where a red ball on the nose looks wrong (the eagle's hooked beak). Species with no nose or beak mesh (frog, elephant) get no ball anyway. */
+  const HAT_SKIP = new Set(['panda', 'raccoon', 'squirrel']), ANTLER_SKIP = new Set(['panda', 'raccoon', 'squirrel', 'deer', 'unicorn', 'husky']), NO_NOSE = new Set(['eagle']), noseTips = {};
   const track = o => { dyn.push(o); return o; };
   const mobile = () => W < 520;
   const C = h => new T.Color(h);
@@ -1024,10 +1027,10 @@ export function mountOfficeScene(container, data, opts = {}){
     let treeAt = null;   /* the tree takes the first free corner (the back-left one is the server's), full size if it fits and smaller if not; if none fits the plants stay */
     if(xmas){
       const seats = zones.flatMap(zn => zn.seats), srvZ = zones.find(zn => zn.kind === 'server');
-      find: for(const k of [1, 0.85, 0.7]) for(const [sx, sz] of [[1, -1], [-1, 1], [1, 1]]){
-        const x = sx * (FW / 2 - 1.3 * k), z = sz * (FD / 2 - 1.3 * k);
-        if(seats.some(q => Math.hypot(q.x - x, q.z - z) < 1.2 * k + 1.0) || (srvZ && Math.hypot(srvZ.cx - x, srvZ.cz - z) < 1.2 * k + 1.5)) continue;
-        const tr = makeTree(T); tr.scale.setScalar(k); tr.position.set(x, 0, z); world.add(tr); hol.push(tr); treeAt = [sx, sz]; break find;
+      find: for(const S of [1.6, 1.36, 1.12]) for(const [sx, sz] of [[1, -1], [-1, 1], [1, 1]]){   /* S: tree scale, 1.6 is about 5.3 tall and 3.5 across at the lowest tier */
+        const x = sx * (FW / 2 - 1.25 * S), z = sz * (FD / 2 - 1.25 * S);
+        if(seats.some(q => Math.hypot(q.x - x, q.z - z) < 1.1 * S + 0.8) || (srvZ && Math.hypot(srvZ.cx - x, srvZ.cz - z) < 1.1 * S + 1.5)) continue;
+        const tr = makeTree(T); tr.scale.setScalar(S); tr.rotation.y = Math.atan2(-sx, -sz); tr.position.set(x, 0, z);   /* turned so the presents lie on the room side */ world.add(tr); hol.push(tr); treeAt = [sx, sz]; break find;
       }
     }
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
@@ -1299,7 +1302,7 @@ export function mountOfficeScene(container, data, opts = {}){
         o.yj = (hash(o.p.id + ':yaw') * 2 - 1) * 0.22;   /* a small fixed turn per person, so a row of backs does not look stamped */
         castLook(m, o.ghost);
         if(!o.ghost && o.p.crown) m.add(castCrown(T));   /* the primitive crown is hidden with the primitive figures */
-        else holHat(m, o);
+        holDress(m, o, '');
         return [o, m];
       }));
       if(gen !== castGen) return;   /* a newer build owns the scene now */
@@ -1321,16 +1324,22 @@ export function mountOfficeScene(container, data, opts = {}){
       m.scale.setScalar(CAST_SC); m.position.set(o.x + POSE_X, POSE_Y - box.min.y * CAST_SC, o.z + POSE_Z); m.userData.y0 = m.position.y;
       castLook(m, o.ghost);
       if(!o.ghost && o.p.crown) m.add(castCrown(T));
-      else holHat(m, o);
+      holDress(m, o, 'pose-');
       m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
       world.add(m); o.pose = m; o.glb.visible = false; portrait(o); request();
     }).catch(() => { o.poseLoading = false; });   /* no standing model: the seated one stays in its chair */
   }
-  function holHat(m, o){   /* a Santa hat for everyone without a crown, in the same model space as castCrown() */
-    if(!xmas || o.ghost || HAT_SKIP.has(o.gk)) return;
-    const h = santaHat(T); m.add(h); m.userData.hat = h; hol.push(h);
+  function holDress(m, o, pose){   /* in the same model space as castCrown(); what goes on is remembered in m.userData.hol so unpose() can free it */
+    if(!xmas || o.ghost) return;
+    const add = h => { m.add(h); hol.push(h); (m.userData.hol = m.userData.hol || []).push(h); };
+    const kind = o.p.crown ? 'crown' : HAT_SKIP.has(o.gk) ? 'rudolph' : hash(o.p.id + ':xmas') < 0.5 ? 'santa' : 'rudolph';
+    if(kind === 'santa') return add(santaHat(T));
+    if(kind === 'rudolph' && !ANTLER_SKIP.has(o.gk)) add(reindeerAntlers(T));
+    if(NO_NOSE.has(o.gk)) return;
+    const key = pose + o.gk, tip = key in noseTips ? noseTips[key] : (noseTips[key] = noseTipOf(T, m));   /* the nose tip differs by species, so it is read off the loaded model once */
+    if(tip) add(rudolphNose(T, tip));
   }
-  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ const h = o.pose.userData.hat; if(h){ hol = hol.filter(q => q !== h); h.userData.dispose(); } world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; }
+  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ (o.pose.userData.hol || []).forEach(h => { hol = hol.filter(q => q !== h); h.userData.dispose(); }); world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; }
   function flapAt(m, t){ const f = m.userData.flaps; if(!f) return; const a = reduced ? 0.25 : 0.32 + 0.38 * Math.sin(t * 13); if(f[0]) f[0].rotation.z = -a; if(f[1]) f[1].rotation.z = a; }
   function stepCast(dt){
     if(!castOn) return;
