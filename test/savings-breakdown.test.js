@@ -13,10 +13,11 @@ const team = readFileSync(new URL('../site/team/index.html', import.meta.url), '
 const ops = readFileSync(new URL('../site/ops/index.html', import.meta.url), 'utf8');
 
 function model() {
-  const start = ux.indexOf('/* savings model */');
+  /* read from the sinceUsage block on: the model calls prePrev from the usage helpers that sit between */
+  const start = ux.indexOf('/* sinceUsage */');
   const end = ux.indexOf('/* end of savings model */', start);
   assert.ok(start > 0 && end > start, 'savings model block not found in site/assets/admin-ux.js');
-  return new Function(`${ux.slice(start, end)}\nreturn savingsModel;`)();
+  return new Function('esc', `${ux.slice(start, end)}\nreturn savingsModel;`)(v => String(v));
 }
 
 const savingsModel = model();
