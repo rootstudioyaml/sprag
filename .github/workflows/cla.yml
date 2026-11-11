@@ -39,4 +39,4 @@ jobs:
           path-to-document: https://github.com/rootstudioyaml/sprag/blob/main/CLA.md
           path-to-signatures: signatures/cla.json
           branch: cla-signatures
-          allowlist: rootstudioyaml,dependabot[bot],github-actions[bot]
+          allowlist: dependabot[bot],github-actions[bot]
