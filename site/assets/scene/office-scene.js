@@ -34,6 +34,19 @@ export function castCrown(T){
     const b = new T.Mesh(new T.SphereGeometry(0.014, 8, 6), gem); b.position.set(Math.sin(a) * 0.137, 0.0, Math.cos(a) * 0.137); g.add(b); }
   g.position.set(0, 1.04, -0.02); g.rotation.x = -0.12; return g;
 }
+/* Shared look for every placed cast model (office desks, the picked pose, the town crowd): shadows on, the baked normal map softened
+ * (at full strength its noise read as sandy grain on pale fur), and the ghost turned into a pale see-through spirit instead of grey clay.
+ * Materials are shared by every clone of a species, so each one is adjusted once (userData.looked). */
+export function castLook(m, ghost){
+  m.traverse(c => {
+    if(!c.isMesh) return;
+    c.castShadow = !ghost; c.receiveShadow = true;
+    const mt = c.material; if(!mt || mt.userData.looked) return; mt.userData.looked = true;
+    if(mt.normalMap) mt.normalScale.set(0.55, 0.55);
+    if(ghost && mt.map){ mt.normalMap = null; mt.color.set('#eef1ff'); mt.emissive.set('#b9c4ff'); mt.emissiveIntensity = 0.25; mt.transparent = true; mt.opacity = 0.72; mt.needsUpdate = true; }
+  });
+  return m;
+}
 export const W_FULL = [0.5, 0.3, 0.2], W_NOPR = [0.625, 0.375, 0];   /* spend, delegation, prompts rank weights (second set: prompt collection off) */
 const MAXP = 500, FAMC = { haiku: '#7fe0b8', sonnet: '#8ec5fb', opus: '#f9a8d4' };
 /* spend per model: fixed colours for the known families, grey for any other raw name; known ones first in this order, the rest by value */
@@ -271,20 +284,39 @@ const GHOST = { name: 'ghost', icon: SVG('<path d="M3 14V8a5 5 0 0110 0v6l-1.7-1
   parts: () => [P('sph', '#ffffff', [0, 0, 0], [0.36, 0.36, 0.36]), ...eyes(-0.33, 0.045, '#8a8f9c')] };
 /* office light per time of day (blended by sky.js): hemisphere sky/ground/intensity, sun colour/intensity/position, backdrop c0/c1,
  * outside tint for the lawn and shrubs, warm interior lamps 0..1, night amount. The day row is the original cozy daylight; hi never drops
- * low enough to lose the faces (applyEnv also clamps it). Exposure is folded into the intensities (the renderer has no tone mapping). */
+ * low enough to lose the faces (applyEnv also clamps it). Exposure is folded into the intensities (the renderer has no tone mapping).
+ * 2026-11-11: the sun now outweighs the sky (it used to be the other way round, so a shadow was only about a third darker than the lit side and the
+ * room looked flat); the sky is a touch cooler than the sun, and a shadowless rim light from behind the default camera outlines heads and desks. */
 const OANC = {
-  night: { hs: '#a3acd8', hg: '#6a6585', hi: 1.1, sc: '#aebfff', si: 0.3, sp: [6, 18, 10], c0: '#2b3a78', c1: '#0b1030', out: '#b4bde0', lamp: 1, n: 1 },
-  dawn:  { hs: '#ffe6d6', hg: '#e8cdb0', hi: 1.15, sc: '#ffb58a', si: 0.72, sp: [2, 10, 14], c0: '#ffe0cf', c1: '#f0bfae', out: '#fbeee6', lamp: 0.3, n: 0.3 },
-  day:   { hs: '#fff7e6', hg: '#e8dcc4', hi: 1.25, sc: '#fff0d4', si: 0.85, sp: [8, 18, 6], c0: '#fffaf0', c1: '#f6ead2', out: '#ffffff', lamp: 0, n: 0 },
-  dusk:  { hs: '#ffd9c0', hg: '#d9b0a0', hi: 1.1, sc: '#ff9460', si: 0.8, sp: [14, 10, 2], c0: '#ffd5b0', c1: '#e5a186', out: '#f0d6cc', lamp: 0.65, n: 0.45 }
+  night: { hs: '#a3acd8', hg: '#6a6585', hi: 0.86, sc: '#aebfff', si: 0.48, sp: [6, 18, 10], c0: '#2b3a78', c1: '#0b1030', out: '#b4bde0', lamp: 1, n: 1 },
+  dawn:  { hs: '#f6e8f0', hg: '#e8cdb0', hi: 0.88, sc: '#ffb58a', si: 1.15, sp: [2, 10, 14], c0: '#ffe0cf', c1: '#f0bfae', out: '#fbeee6', lamp: 0.3, n: 0.3 },
+  day:   { hs: '#f3f1ff', hg: '#e8dcc4', hi: 0.95, sc: '#fff0d4', si: 1.35, sp: [8, 18, 6], c0: '#fffaf0', c1: '#f6ead2', out: '#ffffff', lamp: 0, n: 0 },
+  dusk:  { hs: '#f2dcd6', hg: '#d9b0a0', hi: 0.86, sc: '#ff9460', si: 1.28, sp: [14, 10, 2], c0: '#ffd5b0', c1: '#e5a186', out: '#f0d6cc', lamp: 0.65, n: 0.45 }
 };
 const HEAD_YAW = -1.75;   /* heads glance toward the room so the faces show to the isometric camera */
 const HS = 1.3, HEAD_Y = 1.84;   /* heads are drawn 1.3 times bigger than the body (chibi proportions), so ears, horns and manes stay readable at the default zoom */
 const BOT_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2v2" stroke="#8b7cf0" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="2" r="1.1" fill="#8b7cf0"/><circle cx="8" cy="9.4" r="5.4" fill="#c4b5fd"/><circle cx="6.1" cy="9" r="1" fill="#fff"/><circle cx="9.9" cy="9" r="1" fill="#fff"/></svg>';
 const BOOK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2c2-.8 3.9-.6 5.5.6v9c-1.6-1.2-3.5-1.4-5.5-.6zM13.5 3.2c-2-.8-3.9-.6-5.5.6v9c1.6-1.2 3.5-1.4 5.5-.6z"/></svg>';
 export const iconSvg = k => (k === 'crown' ? CROWN_ICON : (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon);
+/* 3D thumbnails of the cast: one atlas rendered in Blender from the standing models (tools/blender/render_thumbs.py), 8 columns x 4 rows of
+ * 160 px cells in GRADES order, then the ghost. speciesThumb(k) is a span showing that cell; each place sets its size with --px in CSS.
+ * The SVG icon inside it shows only when the atlas fails to load (class of-noatlas on <html>), so a blocked file never leaves blanks. */
+export const ATLAS_URL = CAST_URL + 'atlas.webp', ATLAS_KEYS = GRADES.map(g => g.k).concat('ghost');
+let atlasProbe = false;
+export function speciesThumb(k, style = ''){
+  if(!atlasProbe && typeof Image !== 'undefined'){ atlasProbe = true; const im = new Image(); im.onerror = () => document.documentElement.classList.add('of-noatlas'); im.src = ATLAS_URL; }
+  const i = ATLAS_KEYS.indexOf(k); if(i < 0) return iconSvg(k);
+  return `<span class="of-th" style="--c:${i % 8};--r:${Math.floor(i / 8)}${style ? ';' + style : ''}" aria-hidden="true">${iconSvg(k)}</span>`;
+}
 
 export const OF_CSS = `
+.of-th{--px:24px;display:inline-block;flex:none;width:var(--px);height:var(--px);vertical-align:middle;background:url("${ATLAS_URL}") no-repeat;background-size:calc(var(--px) * 8) calc(var(--px) * 4);background-position:calc(var(--px) * var(--c) * -1) calc(var(--px) * var(--r) * -1)}
+.of-th svg{display:none}.of-noatlas .of-th{background-image:none}.of-noatlas .of-th svg{display:block;width:100%;height:100%}
+.of-strip .sp .of-th{--px:24px;margin:-3px 0;vertical-align:-7px}.of-strip .sp.z .of-th{filter:brightness(0);opacity:.16}
+.of-legend .keys .of-th{--px:18px;margin-right:5px;vertical-align:-4px}
+.of-drawer .hd .of-th{--px:48px;border-radius:50%;background-color:#f7f1e4;box-shadow:0 0 0 2px #fffdf8,0 0 0 4px var(--tc,#d9cdb8)}
+.of-drawer .bkp .of-th{--px:30px;border-radius:50%;background-color:#f7f1e4}
+.of-drawer .bkr .of-th{--px:46px;grid-area:i;border-radius:12px;background-color:rgba(255,255,255,.75)}.of-drawer .bkr.z .of-th{filter:brightness(0);opacity:.14}
 .of-card{padding:0!important;overflow:hidden;margin-bottom:var(--s4,16px)}
 .of-stage{position:relative;height:520px;overflow:hidden;contain:layout paint;background:radial-gradient(ellipse at 50% 35%,#fffaf0 0,#f6ead2 80%);color:#6a5a4a}
 .of-stage canvas{display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab}
@@ -360,14 +392,14 @@ export const OF_CSS = `
 .of-dbtn{flex:1;min-width:120px;font:inherit;font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;border:1px solid #cfc3f7;background:#f1ebff;color:#4c1d95}
 .of-dbtn.pri{background:#6d5ce7;border-color:#6d5ce7;color:#fff}.of-dbtn:hover{filter:brightness(.96)}
 .of-stage.has-drawer .of-tools{right:430px}
-.of-stage .of-portrait{position:absolute;right:430px;top:50%;width:240px;height:320px;transform:translate(16px,-50%);opacity:0;z-index:4;pointer-events:none;border-radius:18px;background:radial-gradient(ellipse at 50% 58%,rgba(255,253,248,.95) 0,rgba(255,253,248,.8) 45%,rgba(255,253,248,0) 72%);transition:opacity .3s,transform .3s cubic-bezier(.23,1,.32,1)}
+.of-stage .of-portrait{position:absolute;right:430px;top:50%;width:240px;height:320px;transform:translate(16px,-50%);opacity:0;z-index:4;pointer-events:none;border-radius:20px;--tc:#d9cdb8;background:linear-gradient(165deg,color-mix(in srgb,var(--tc) 34%,#fffdf8) 0,#fffdf8 78%);border:2px solid color-mix(in srgb,var(--tc) 60%,#fff);box-shadow:0 10px 28px rgba(90,60,30,.18),inset 0 1px 0 rgba(255,255,255,.8);transition:opacity .3s,transform .3s cubic-bezier(.23,1,.32,1)}
 .of-stage .of-portrait.on{opacity:1;transform:translate(0,-50%)}
 @media (max-width:899px){.of-stage .of-portrait{display:none}}
 @media (max-width:480px){.of-drawer{top:auto;left:0;right:0;width:auto;height:72%;border-left:0;border-top:1px solid rgba(120,90,60,.16);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(90,60,30,.18);transform:translateY(100%)}.of-stage.has-drawer .of-tools{right:10px}}
 @media (max-width:480px){.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer{height:640px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer canvas{height:300px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer .of-drawer{height:calc(100% - 300px)}}
 /* field guide */
 .of-drawer .bkn{margin:0 0 10px;font-size:12px;color:#6a5a4a}
-.of-drawer .bkr{display:grid;grid-template-columns:28px 1fr auto;grid-template-areas:'i n c' 'i r r';gap:1px 10px;align-items:center;width:100%;text-align:left;font:inherit;color:#3a2f27;background:#f7f1e4;border:1px solid transparent;border-radius:12px;padding:8px 10px;margin:0 0 6px;cursor:pointer}
+.of-drawer .bkr{display:grid;grid-template-columns:46px 1fr auto;grid-template-areas:'i n c' 'i r r';gap:1px 10px;align-items:center;width:100%;text-align:left;font:inherit;color:#3a2f27;background:#f7f1e4;border:1px solid transparent;border-radius:12px;padding:8px 10px;margin:0 0 6px;cursor:pointer}
 .of-drawer .bkr:hover,.of-drawer .bkr:focus-visible{border-color:#8b7cf0}
 .of-drawer .bkr svg{grid-area:i;width:26px;height:26px}.of-drawer .bkr .nm{grid-area:n;font-weight:600;font-size:13px}.of-drawer .bkr .nm small{font-weight:400;font-size:11.5px;color:#6a5a4a;margin-left:6px}
 .of-drawer .bkr .rg{grid-area:r;font-size:11.5px;color:#6a5a4a}.of-drawer .bkr .ct2{grid-area:c;font-weight:600;font-variant-numeric:tabular-nums;font-size:13px}
@@ -375,7 +407,7 @@ export const OF_CSS = `
 .of-drawer .bkr .no{display:inline-block;min-width:40px;margin:0 6px 0 0;font-weight:600;font-size:11px;color:#8b7cf0;font-variant-numeric:tabular-nums}
 .of-drawer .bkh{margin:14px 0 6px;font-size:11.5px;color:#3a2f27}
 .of-drawer .bkt{margin:0 0 6px;padding:8px 10px 4px;border-radius:12px;background:linear-gradient(135deg,#fff4d6,#f1ebff)}.of-drawer .bkt h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
-.of-drawer .bkp{display:grid;grid-template-columns:30px 24px 1fr auto;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;color:#3a2f27;background:rgba(255,255,255,.7);border:1px solid transparent;border-radius:10px;padding:5px 8px;margin:0 0 4px;cursor:pointer}
+.of-drawer .bkp{display:grid;grid-template-columns:30px 30px 1fr auto;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;color:#3a2f27;background:rgba(255,255,255,.7);border:1px solid transparent;border-radius:10px;padding:5px 8px;margin:0 0 4px;cursor:pointer}
 .of-drawer .bkp:hover,.of-drawer .bkp:focus-visible{border-color:#8b7cf0}.of-drawer .bkp svg{width:22px;height:22px}.of-drawer .bkp .rk{font-weight:700;font-size:12.5px;font-variant-numeric:tabular-nums;color:#6d28d9}
 .of-drawer .bkp .nm{min-width:0;font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.of-drawer .bkp .nm small{display:block;font-weight:400;font-size:11px;color:#6a5a4a}
 .of-drawer .nx{margin:-4px 0 12px;padding:8px 10px;border-radius:10px;background:#fff4d6;color:#5a3d0a;font-size:12px}.of-drawer .nx .h{font-weight:600}
@@ -383,6 +415,7 @@ export const OF_CSS = `
 .of-drawer .bknote{margin:12px 0 0;padding:8px 10px;border-radius:10px;background:#f1ebff;color:#3b2a78;font-size:12px}
 .of-drawer .grp{margin:0 0 14px}.of-drawer .grp+.grp{margin-top:18px;padding-top:12px;border-top:1px dashed rgba(120,90,60,.22)}.of-drawer .grp>h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
+@media (max-width:640px){.of-strip .sp .of-th{--px:15px;margin:0;vertical-align:-3px}}
 @media (max-width:640px){.of-legend .keys,.of-strip .tg em,.of-strip b{display:none}.of-strip .sp svg{width:12px;height:12px}.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:200px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
 `;
 
@@ -627,7 +660,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const pp = ev.target.closest && ev.target.closest('[data-pp]'); if(pp){ const o = people.find(q => q.p.id === pp.dataset.pp); if(o) openDrawer(o); }   /* leaderboard row opens that person */
   });
 
-  let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null;
+  let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null, rim = null;
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0;
   let statics = [], dyn = [], hover = null, scale = 10, view = null, wallIdx = { z: [], x: [] }, wallHid = { z: false, x: false }, decals = [], signs = [], decFlip = false;
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
@@ -780,7 +813,7 @@ export function mountOfficeScene(container, data, opts = {}){
       : dt.modelsMissing ? `<div class="famt">${esc(ui.modelsNone)}</div>` : '';
     const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '';
     const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }], undefined, undefined, { total: ui.total }) : '';
-    chrome.setHtml(`<div class="hd">${iconSvg(sel.gk)}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div><div class="bkbar"><button type="button" class="bk" data-a="close">← ${esc(ui.back || ui.close)}</button></div>`
+    chrome.setHtml(`<div class="hd">${speciesThumb(sel.gk, '--tc:' + (sel.tv ? sel.tv.body : '#d9cdb8'))}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span></b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div><div class="bkbar"><button type="button" class="bk" data-a="close">← ${esc(ui.back || ui.close)}</button></div>`
       + `<div class="bd"><div class="why">${esc(dt.why)}</div>`
       + ((dt.next || []).length ? `<div class="nx">${dt.next.map((l, i) => `<div${i ? '' : ' class="h"'}>${esc(l)}</div>`).join('')}</div>` : '')
       + (dt.groups && dt.groups.length ? `<div class="sec">${dt.groups.map(g => `<div class="grp"><h4>${esc(g.title)}</h4>${kvGrid(g.rows)}</div>`).join('')}</div>`
@@ -793,11 +826,11 @@ export function mountOfficeScene(container, data, opts = {}){
   /* the field guide: the same drawer, one row per species, a click blinks a ring under everyone of that species */
   function renderBook(){
     const b = cur.book; if(!b) return;
-    const top = b.top && b.top.rows.length ? `<div class="bkt"><h4>${esc(b.top.title)}</h4>${b.top.rows.map(r => `<button type="button" class="bkp" data-pp="${esc(r.id)}"><span class="rk">${esc(r.rk)}</span>${iconSvg(r.k)}<span class="nm">${esc(r.name)}<small>${esc(r.gname)}${r.team ? ' · ' + esc(r.team) : ''}</small></span>${r.crown ? CROWN_ICON : ''}</button>`).join('')}</div>` : '';
+    const top = b.top && b.top.rows.length ? `<div class="bkt"><h4>${esc(b.top.title)}</h4>${b.top.rows.map(r => `<button type="button" class="bkp" data-pp="${esc(r.id)}"><span class="rk">${esc(r.rk)}</span>${speciesThumb(r.k)}<span class="nm">${esc(r.name)}<small>${esc(r.gname)}${r.team ? ' · ' + esc(r.team) : ''}</small></span>${r.crown ? CROWN_ICON : ''}</button>`).join('')}</div>` : '';
     let tier = null, rows = '';
     b.rows.forEach(r => {
       if(b.tiers && r.tier !== tier){ tier = r.tier; rows += `<h4 class="bkh">${esc(b.tiers[r.tier] || r.role)}</h4>`; }
-      rows += `<button type="button" class="bkr${r.n ? '' : ' z'}" data-bk="${esc(r.k)}">${iconSvg(r.k)}<span class="nm">${r.no ? `<small class="no">${esc(r.no)}</small>` : ''}${esc(r.name)}${b.tiers ? '' : `<small>${esc(r.role)}</small>`}</span><span class="ct2">${esc(r.nText != null ? r.nText : r.n)}</span><span class="rg">${esc(r.range)}</span></button>`;
+      rows += `<button type="button" class="bkr${r.n ? '' : ' z'}" data-bk="${esc(r.k)}">${speciesThumb(r.k)}<span class="nm">${r.no ? `<small class="no">${esc(r.no)}</small>` : ''}${esc(r.name)}${b.tiers ? '' : `<small>${esc(r.role)}</small>`}</span><span class="ct2">${esc(r.nText != null ? r.nText : r.n)}</span><span class="rg">${esc(r.range)}</span></button>`;
     });
     chrome.setHtml(`<div class="hd">${BOOK_ICON}<div><b>${esc(b.title)}</b><small>${esc(b.range)}${b.found ? ' · ' + esc(b.found) : ''}</small></div><button type="button" class="x" data-a="close" aria-label="${esc((cur.ui || {}).close)}">×</button></div>`
       + `<div class="bd">${top}${rows}<p class="bknote">${esc(b.note)}</p>${b.small ? `<p class="bknote">${esc(b.small)}</p>` : ''}</div>`);
@@ -820,7 +853,8 @@ export function mountOfficeScene(container, data, opts = {}){
     const W = stage.clientWidth, side = W > 480 ? 420 + (pr && pr.on ? PR_W + 10 : 0) : 0;
     view.flyTo({ x: o.x, z: o.z + POSE_Z + 0.6, th: 0, ph: 1.05, zoom: 3.4, ox: side / 2 });
   }
-  /* The selected character, full body, turning a little in a small panel left of the drawer: its own renderer and scene, a clone of the loaded model */
+  /* The selected character as a framed head-and-shoulders card left of the drawer, turned a quarter towards the drawer so it never repeats the
+     front view of the model on the desk: its own renderer, scene and three-point light, a clone of the loaded model, the card tinted by tier */
   const PR_W = 240, PR_H = 320; let pr = null, homePose = null;
   function portrait(o){
     if(!castOn || !o.glb || stage.clientWidth < 900){ hidePortrait(); return; }
@@ -828,17 +862,17 @@ export function mountOfficeScene(container, data, opts = {}){
       const c = document.createElement('canvas'); c.className = 'of-portrait'; c.setAttribute('aria-hidden', 'true'); stage.appendChild(c);
       let r; try{ r = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true }); }catch(e){ c.remove(); return; }
       r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); r.setSize(PR_W, PR_H, false); r.setClearColor(0x000000, 0);
-      const sc = new T.Scene(), dl = new T.DirectionalLight('#fff0d4', 1.2); dl.position.set(1.5, 3, 4); sc.add(new T.HemisphereLight('#fff7e6', '#e8dcc4', 1.6), dl);
+      const sc = new T.Scene(), key = new T.DirectionalLight('#fff0d4', 2.0), rl = new T.DirectionalLight('#e6ecff', 1.0); key.position.set(-2, 3, 4); rl.position.set(2.5, 2, -3); sc.add(new T.HemisphereLight('#f3f1ff', '#e8dcc4', 0.9), key, rl);
       pr = { c, r, sc, cam: new T.PerspectiveCamera(26, PR_W / PR_H, 0.1, 50), m: null, raf: 0, on: false };
     }
     if(pr.m) pr.sc.remove(pr.m);
     const m = pr.m = (o.pose || o.glb).clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); pr.sc.add(m);
     m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
-    const box = new T.Box3().setFromObject(m), cy = (box.min.y + box.max.y) / 2, hgt = box.max.y - box.min.y;
-    pr.cam.position.set(0, cy + hgt * 0.08, hgt * 2.5); pr.cam.lookAt(0, cy, 0);
-    pr.on = true; pr.c.classList.add('on');
+    const box = new T.Box3().setFromObject(m), hgt = box.max.y - box.min.y, cy = box.min.y + hgt * 0.64;
+    pr.cam.position.set(0, cy + hgt * 0.1, hgt * 1.75); pr.cam.lookAt(0, cy, 0);
+    pr.c.style.setProperty('--tc', o.tv ? o.tv.body : '#d9cdb8'); pr.on = true; pr.c.classList.add('on');
     if(!pr.raf){ const t0 = performance.now(), loop = () => { if(!pr || !pr.on || destroyed){ if(pr) pr.raf = 0; return; }
-      const ts = (performance.now() - t0) / 1000; if(pr.m){ pr.m.rotation.y = reduced ? 0 : Math.sin(ts * 0.7) * 0.5; flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
+      const ts = (performance.now() - t0) / 1000; if(pr.m){ pr.m.rotation.y = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
       loop(); }
   }
   function hidePortrait(){ if(!pr) return; pr.on = false; pr.c.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }
@@ -848,8 +882,8 @@ export function mountOfficeScene(container, data, opts = {}){
     cur = d; clear();
     const closed = !!d.closed, pl = d.people || [];
     elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
-    elLegend.innerHTML = (d.strip ? `<div class="of-strip"><button type="button" class="sbk" aria-label="${esc(d.strip.title)}"><b>${BOOK_ICON}${esc(d.strip.title)}</b></button>${d.strip.tiers.map(g => `<span class="tg t-${g.tier}"><em>${esc(g.label)}</em>${g.items.map(q => q.n ? `<button type="button" class="sp" data-k="${esc(q.k)}" title="${esc(q.name + ' · ' + q.n)}" aria-label="${esc(q.name + ' · ' + q.n)}">${iconSvg(q.k)}</button>` : `<span class="sp z" title="${esc(q.name)}">${iconSvg(q.k)}</span>`).join('')}</span>`).join('')}</div>` : '')
-      + `<div class="keys">${(d.legend || []).map(l => `<span>${l.k ? iconSvg(l.k) : l.bots ? '' : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}${(l.fams || []).map(f => `<i class="fm" style="background:${f.c}"></i>${esc(f.label)}`).join('')}</span>`).join('')}</div>`;
+    elLegend.innerHTML = (d.strip ? `<div class="of-strip"><button type="button" class="sbk" aria-label="${esc(d.strip.title)}"><b>${BOOK_ICON}${esc(d.strip.title)}</b></button>${d.strip.tiers.map(g => `<span class="tg t-${g.tier}"><em>${esc(g.label)}</em>${g.items.map(q => q.n ? `<button type="button" class="sp" data-k="${esc(q.k)}" title="${esc(q.name + ' · ' + q.n)}" aria-label="${esc(q.name + ' · ' + q.n)}">${speciesThumb(q.k)}</button>` : `<span class="sp z" title="${esc(q.name)}">${speciesThumb(q.k)}</span>`).join('')}</span>`).join('')}</div>` : '')
+      + `<div class="keys">${(d.legend || []).map(l => `<span>${l.k ? (l.k === 'crown' ? iconSvg(l.k) : speciesThumb(l.k)) : l.bots ? '' : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}${(l.fams || []).map(f => `<i class="fm" style="background:${f.c}"></i>${esc(f.label)}`).join('')}</span>`).join('')}</div>`;
     { const sb = elLegend.querySelector('.of-strip .sbk'); if(sb) sb.addEventListener('click', () => openBook());
       /* a species in the strip flies to a person of that species; clicking it again moves on to the next one, best ranked first */
       elLegend.querySelectorAll('.of-strip .sp[data-k]').forEach(el => el.addEventListener('click', () => {
@@ -864,7 +898,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const R = Math.hypot(FW, FD) / 2 + 4; Object.assign(sun.shadow.camera, { left: -R, right: R, top: R, bottom: -R }); sun.shadow.camera.updateProjectionMatrix();
     const grey = C('#dcdce2'), col = c => closed ? C(c).lerp(grey, 0.5) : C(c);
     const snowy = builtSnow = wx.kind === 'snow', SNOW = '#f7faff';
-    const W0 = wxs = { outB: [], outS: [], glass: [], patch: [], wins: [], lamps: [], stones: [], glassBase: [] };
+    const W0 = wxs = { outB: [], outS: [], glass: [], patch: [], wins: [], lamps: [], stones: [], glassBase: [], ao: [] };
 
     let ws = null; wallIdx = { z: [], x: [] }; wallHid = { z: false, x: false };
     const sb = [], B = (c, w, h, dd, x, y, z) => { sb.push([c, w, h, dd, x, y, z]); if(ws) wallIdx[ws].push(sb.length - 1); };       /* static boxes */
@@ -906,6 +940,7 @@ export function mountOfficeScene(container, data, opts = {}){
         B('#f3d9ae', 2.2, 0.12, 1.2, x, 1.0, z - 0.55); B('#e0bd8a', 0.1, 1.0, 1.0, x - 0.95, 0.5, z - 0.55); B('#e0bd8a', 0.1, 1.0, 1.0, x + 0.95, 0.5, z - 0.55);
         B('#f2efe9', 1.2, 0.8, 0.05, x, 1.55, z - 1.0); B('#d6cfc4', 0.12, 0.3, 0.12, x, 1.2, z - 0.95);
         B(chair, 0.8, 0.12, 0.8, x, 0.6, z + 0.35); B(chair, 0.8, 0.8, 0.12, x, 1.0, z + 0.78); B('#d6cfc4', 0.1, 0.6, 0.1, x, 0.3, z + 0.35);
+        W0.ao.push([x, z - 0.55, 2.6, 1.5], [x, z + 0.4, 1.05, 1.05]);   /* contact shadows under the desk and the chair (drawn in buildEnv) */
         if(!p){ screens.push([x, 1.55, z - 0.95, 'off', 0]); return; }
         B('#fbf6ec', 0.9, 0.04, 0.3, x, 1.08, z - 0.3);
         const ghost = closed || p.tier === 'nodata', key = ghost ? 'nodata' : p.tier, gk = ghost ? 'ghost' : gradeKey(p);
@@ -1047,6 +1082,10 @@ export function mountOfficeScene(container, data, opts = {}){
       W0.poolM = mk(sets.disc, bas({ color: '#ffb35c', map: sets.soft, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending }), LP.length, false);
       LP.forEach((l, i) => { setM(W0.lampM, i, l.x, 2.52, l.z, 0, 0, 0.3, 0.24, 0.3); setM(W0.haloM, i, l.x, 2.52, l.z, 0, 0, 0.42, 0.42, 0.42); setM(W0.poolM, i, l.cx, 0.1, l.cz, 0, 0, l.r * 2.2, 1, l.r * 2.2); });
     }
+    if(W0.ao.length){   /* soft contact shadows: one instanced decal per desk and chair, so furniture sits on the floor even where the sun's shadow map is coarse */
+      const A = W0.ao, m = mk(sets.disc, bas({ color: '#3a2a20', map: sets.soft, transparent: true, opacity: cur.closed ? 0.24 : 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), A.length, false);
+      A.forEach(([x, z, sx, sz], i) => setM(m, i, x, 0.075, z, 0, 0, sx, 1, sz)); m.renderOrder = 1; W0.aoM = m;
+    }
     W0.lit = [...LP].sort((a, b) => b.n - a.n).slice(0, lamps.length);   /* the biggest teams get a real warm point light */
     W0.path = mk(sets.box, std({ roughness: 0.9 }), S.length, false); W0.path.receiveShadow = true;
     W0.pud = mk(sets.disc, bas({ map: sets.soft, transparent: true, opacity: 0.5, depthWrite: false }), S.length, false); W0.pud.visible = wet || snow;
@@ -1085,7 +1124,7 @@ export function mountOfficeScene(container, data, opts = {}){
     hemi.color.copy(P.hs); hemi.groundColor.copy(P.hg); sun.color.copy(P.sc);
     let hi = P.hi * (1 - 0.1 * ovc), si = P.si * (1 - 0.5 * ovc - (st === 'storm' ? 0.15 : 0));
     if(closed){ hemi.color.lerp(C('#e6e7ec'), 0.7); hemi.groundColor.lerp(C('#d2d3da'), 0.7); sun.color.lerp(C('#e8e8ee'), 0.7); hi *= 0.92; si *= 0.53; }
-    baseHemi = hemi.intensity = Math.max(0.85, hi); sun.intensity = si; sun.position.set(P.sp[0], P.sp[1], P.sp[2]).normalize().multiplyScalar(w.R);
+    baseHemi = hemi.intensity = Math.max(0.85, hi); sun.intensity = si; if(rim) rim.intensity = 0.5 * (1 - 0.4 * (P.n || 0)) * (closed ? 0.6 : 1); sun.position.set(P.sp[0], P.sp[1], P.sp[2]).normalize().multiplyScalar(w.R);
     lamps.forEach((L, i) => { const q = w.lit[i]; L.intensity = q ? lamp * LAMP_I : 0; if(q) L.position.set(q.cx, 3.4, q.cz); });
     if(w.lampM){
       w.lampM.material.color.set('#f1e6d0').lerp(C('#ffd98c'), lamp).multiplyScalar(1 - 0.55 * n * (1 - lamp));
@@ -1198,7 +1237,8 @@ export function mountOfficeScene(container, data, opts = {}){
       const ms = await Promise.all(all.map(async o => {
         const g = await load(o.ghost ? 'ghost' : o.gk), m = g.scene.clone(true), box = new T.Box3().setFromObject(m);
         m.scale.setScalar(SC); o.y0 = 0.42 - box.min.y * SC; m.position.set(o.x, o.y0, o.z + 0.3); m.rotation.y = Math.PI;
-        m.traverse(c => { if(c.isMesh){ c.castShadow = true; c.receiveShadow = true; } });
+        o.yj = (hash(o.p.id + ':yaw') * 2 - 1) * 0.22;   /* a small fixed turn per person, so a row of backs does not look stamped */
+        castLook(m, o.ghost);
         if(!o.ghost && o.p.crown) m.add(castCrown(T));   /* the primitive crown is hidden with the primitive figures */
         return [o, m];
       }));
@@ -1219,7 +1259,7 @@ export function mountOfficeScene(container, data, opts = {}){
       o.poseLoading = false; if(sel !== o || destroyed || !o.glb) return;
       const m = g.scene.clone(true), box = new T.Box3().setFromObject(m);
       m.scale.setScalar(CAST_SC); m.position.set(o.x, POSE_Y - box.min.y * CAST_SC, o.z + POSE_Z); m.userData.y0 = m.position.y;
-      m.traverse(c => { if(c.isMesh){ c.castShadow = true; c.receiveShadow = true; } });
+      castLook(m, o.ghost);
       if(!o.ghost && o.p.crown) m.add(castCrown(T));
       m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
       world.add(m); o.pose = m; o.glb.visible = false; portrait(o); request();
@@ -1234,7 +1274,7 @@ export function mountOfficeScene(container, data, opts = {}){
       o.spin = reduced ? want : (o.spin || 0) + (want - (o.spin || 0)) * Math.min(1, dt * 4);   /* the selected one swivels round in its chair to face the camera behind it */
       if(o.pose){ const pm = o.pose, hop = reduced ? 0 : Math.abs(Math.sin(time * 4.2)); pm.position.y = pm.userData.y0 + hop * 0.16;
         pm.rotation.z = reduced ? 0 : Math.sin(time * 2.1) * 0.07; pm.scale.set(CAST_SC * (1 + 0.04 * (1 - hop)), CAST_SC * (1 - 0.05 * (1 - hop)), CAST_SC * (1 + 0.04 * (1 - hop))); flapAt(pm, time); }
-      m.position.y = o.y0 + (o.dy || 0) + breathe + o.spin * 0.32; m.rotation.y = (Math.PI + (o.turn || 0) * 0.45) * (1 - o.spin); });   /* and pops up over the chair back */
+      m.position.y = o.y0 + (o.dy || 0) + breathe + o.spin * 0.32; m.rotation.y = (Math.PI + (o.turn || 0) * 0.45 + (o.yj || 0)) * (1 - o.spin); });   /* and pops up over the chair back */
   }
   function step(dt){
     time += dt;
@@ -1465,8 +1505,11 @@ export function mountOfficeScene(container, data, opts = {}){
     scene = new T.Scene(); world = new T.Group(); scene.add(world); rcast = new T.Raycaster(); rplane = new T.Plane(new T.Vector3(0, 1, 0), -0.07);
     M4 = new T.Object3D(); S = v3(); TMP = v3(); PT = v3(); HP = v3(); Mh = new T.Matrix4(); Mp = new T.Matrix4(); Q1 = new T.Quaternion(); E1 = new T.Euler(0, 0, 0, 'YXZ'); V1 = v3(); V2 = v3(); ONE = v3().set(1, 1, 1);
     camera = new T.OrthographicCamera(-10, 10, 10, -10, 0.1, 400);
-    hemi = new T.HemisphereLight('#fff7e6', '#e8dcc4', 1.25); sun = new T.DirectionalLight('#fff0d4', 0.85); sun.position.set(8, 18, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
-    scene.add(hemi, sun, sun.target);
+    hemi = new T.HemisphereLight('#f3f1ff', '#e8dcc4', 0.95); sun = new T.DirectionalLight('#fff0d4', 1.35); sun.position.set(8, 18, 6); sun.castShadow = true;
+    { const ms = (window.innerWidth || 1024) < 520 ? 1024 : 2048; sun.shadow.mapSize.set(ms, ms); }   /* the shadow camera spans the whole floor, so 1024 left no contact shadow under a desk */
+    rim = new T.DirectionalLight('#e6ecff', 0.5); rim.position.set(-10, 10, -10);   /* rim light from behind the default camera (theta0 = pi/4), 35 degrees up, no shadow */
+    sun.shadow.bias = -0.0008; sun.shadow.radius = 4;
+    scene.add(hemi, sun, sun.target, rim);
     for(let i = 0; i < 4; i++){ const L = new T.PointLight('#ffc98a', 0, 0, 2); scene.add(L); lamps.push(L); }   /* evening lamps: a fixed count, so no shader recompiles */
     sets = { box: new T.BoxGeometry(1, 1, 1), sph: new T.SphereGeometry(1, 16, 12), cone: new T.ConeGeometry(1, 2, 10), torso: new T.CapsuleGeometry(0.3, 0.32, 6, 16), arm: new T.CapsuleGeometry(0.1, 0.26, 4, 10), sphHi: new T.SphereGeometry(1, 20, 14), coneHi: new T.ConeGeometry(1, 2, 16), disc: new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2) };
     { const c = document.createElement('canvas'), x = c.getContext('2d'); c.width = c.height = 64; const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);   /* soft round blob for pools, puddles and cloud shadows */
