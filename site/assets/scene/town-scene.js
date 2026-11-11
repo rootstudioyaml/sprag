@@ -16,7 +16,7 @@
  * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
-import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, speciesArt, iconSvg, castLoader, castCrown, CAST_URL } from './office-scene.js';
+import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, speciesArt, iconSvg, castLoader, castCrown, CAST_URL } from './office-scene.js';
 import { WX_CLEAR, fetchWeather, weatherFromCode, parseOverrides, clampN, todBlend, chipText } from './sky.js';
 
 const MAXC = 40, LIT = '#ffd37a', DARK = '#5f6a88';
@@ -33,10 +33,12 @@ export function townSceneData(o){
   const t = o.t, att = o.attention || {}, cnt = (list, id) => (list || []).filter(r => r.org_id === id).length;
   const rows = (o.orgs || []).map(g => {
     const closed = g.status === 'suspended', used = Number(g.seats_used) || 0, limit = Number(g.seat_limit) || 0, spent = spentOf(g), saved = savedOf(g);
-    const paused = g.seats_paused ?? cnt(att.paused, g.id), late = g.seats_late ?? cnt(att.late, g.id), rev = o.revenue(g), dc = g.delegated_cost == null ? NaN : Number(g.delegated_cost);
-    /* rate = saved / total_spent (null without spend), dlg = delegated_cost / total_spent (null when the cost is unknown) */
-    return { id: g.id, name: g.name, ent: g.plan === 'enterprise', closed, used, limit, spent, saved, paused, late, rev, members: Number(g.members_total) || 0, created: g.created_at, teams: Number(g.teams) || 0,
-      rate: ratio(saved, spent), dlg: Number.isFinite(dc) ? ratio(dc, spent) : null };
+    const paused = g.seats_paused ?? cnt(att.paused, g.id), late = g.seats_late ?? cnt(att.late, g.id), rev = o.revenue(g), dcRaw = g.delegated_cost_since ?? g.delegated_cost, dc = dcRaw == null ? NaN : Number(dcRaw);
+    /* rate = saved / total_spent_since (null without spend), dlg = delegated_cost_since / total_spent_since (null when the cost is unknown).
+       The *_since fields count spend since install; an old server sends only the full-range ones. spent (shown) stays the full figure. */
+    const base = Number(g.total_spent_since ?? g.total_spent ?? g.spent ?? g.spent_30d) || 0;
+    return { id: g.id, name: g.name, ent: g.plan === 'enterprise', closed, used, limit, spent, base, saved, paused, late, rev, members: Number(g.members_total) || 0, created: g.created_at, teams: Number(g.teams) || 0,
+      rate: ratio(saved, base), dlg: Number.isFinite(dc) ? ratio(dc, base) : null };
   }).sort((a, b) => b.rev - a.rev || b.limit - a.limit);
   const maxSpend = Math.max(1, ...rows.map(r => r.spent)), shown = rows.slice(0, MAXC), more = rows.length - shown.length;
   const pc = pctInt, day = d => (d ? String(d).slice(0, 10) : t('never')), dlgText = x => (x == null ? t('of.unknown') : pc(x));
@@ -53,9 +55,9 @@ export function townSceneData(o){
         utilTip: t('tn.d.utilTip', { u: r.used, l: r.limit, p: pc(util) }, true), freeTip: t('tn.d.freeTip', { n: Math.max(0, r.limit - r.used) }, true) } };
   });
   const all = o.orgs || [], sum = k => all.reduce((a, g) => a + (Number(g[k]) || 0), 0), pro = all.filter(g => g.plan !== 'enterprise').length, ent = all.length - pro;
-  const rev = all.reduce((a, g) => a + o.revenue(g), 0), savedAll = all.reduce((a, g) => a + savedOf(g), 0), spentAll = all.reduce((a, g) => a + spentOf(g), 0), REV = '\u0001REV\u0001';
+  const rev = all.reduce((a, g) => a + o.revenue(g), 0), savedAll = all.reduce((a, g) => a + savedOf(g), 0), baseAll = all.reduce((a, g) => a + (Number(g.total_spent_since ?? g.total_spent ?? g.spent ?? g.spent_30d) || 0), 0), REV = '\u0001REV\u0001';
   /* town-wide ratios: seats in use over contracted seats, savings over total spend */
-  const usedAll = sum('seats_used'), limitAll = sum('seat_limit'), utilAll = ratio(usedAll, limitAll), rateAll = ratio(savedAll, spentAll);
+  const usedAll = sum('seats_used'), limitAll = sum('seat_limit'), utilAll = ratio(usedAll, limitAll), rateAll = ratio(savedAll, baseAll);
   const marked = t('tn.hud', { n: all.length, p: pro, e: ent, s: o.money(savedAll), r: REV, u: usedAll, l: limitAll, up: utilAll == null ? '-' : pc(utilAll), sr: pctRate(rateAll) }, true), stats = marked.split(REV).join(o.money(rev));
   return { companies: list, more: Math.max(0, more), moreLabel: more > 0 ? t('tn.more', { n: more }, true) : '',
     hud: { title: t('tn.title'), stats, statsNoRev: marked.split(' · ').filter(x => x.indexOf(REV) < 0).join(' · ') },
@@ -89,9 +91,12 @@ export function townTeamRows(o){
   groups.forEach((rs, key) => { const h = rs.find(r => r.member_id === key) || rs[0]; team(h.team_id, h.team_name).hosts.set(key, rs.some(r => r.signal === 'ok')); });
   return order.map(k => by.get(k)).filter(x => x.machines.length || x.hosts.size || x.id).map(x => {
     const us = x.machines.map(r => usage[r.member_id] || {}), spent = usageTotal(us).total; let saved = 0, dc = null;
-    us.forEach(u => { saved += Number(u.saved) || 0; const c = u.delegated_cost == null ? NaN : Number(u.delegated_cost); if(Number.isFinite(c)) dc = (dc || 0) + c; });
+    /* rate and dlg run on spend since install (sinceUsage); the shown spent stays the full figure */
+    const usSince = us.map(sinceUsage), base = usageTotal(usSince).total;
+    us.forEach(u => { saved += Number(u.saved) || 0; });
+    usSince.forEach(u => { const c = u.delegated_cost == null ? NaN : Number(u.delegated_cost); if(Number.isFinite(c)) dc = (dc || 0) + c; });
     const people = x.hosts.size, active = closed ? 0 : [...x.hosts.values()].filter(Boolean).length;
-    return { id: x.id, name: x.name || '-', people, active, util: ratio(active, people), spent, saved, rate: ratio(saved, spent), dlg: dc == null ? null : ratio(dc, spent) };
+    return { id: x.id, name: x.name || '-', people, active, util: ratio(active, people), spent, saved, rate: ratio(saved, base), dlg: dc == null ? null : ratio(dc, base) };
   });
 }
 

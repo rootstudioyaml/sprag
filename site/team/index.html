@@ -887,7 +887,7 @@ const I18N = {
     'mem.sp':'Spent','mem.sv':'Saved','mem.dc':'Delegation cost','mem.dr':'Delegation ratio','mem.dl':'Delegated','mem.today':'Today','mem.today.sp':'Spent today','mem.today.sv':'Saved today','mem.today.dl':'Delegated today',
     'mem.none':'No members yet. Share the invite token from the Invite & enroll tab.','mem.left':'left','mem.never':'never','mem.remove':'Remove','mem.delete':'Delete',
     'mem.confirm':'Remove {name} from this team? Their history stays, and they no longer count as an active seat.',
-    'ch.h':'Usage','ch.sp':'Spent','ch.sv':'Saved','ch.dr':'Delegation ratio','ch.dc':'Delegation cost','ch.none':'No ledger rows yet.',
+    'ch.h':'Usage','ch.sp':'Spent','ch.sv':'Saved','ch.dr':'Delegation ratio','ux.sr':'Savings rate','ux.sr.sub':'of {v} spent since install','ch.dc':'Delegation cost','ch.none':'No ledger rows yet.',
     'ru.h':'Team rules','ru.desc':'Approved rules are pushed to every member at session start.',
     'ru.approved':'Approved','ru.proposed':'Proposed','ru.removed':'Removed','ru.none':'None',
     'ru.ph':'Rule text','ru.add':'Add rule','ru.approve':'Approve','ru.remove':'Remove','ru.empty':'Enter the rule text.',
@@ -1004,7 +1004,7 @@ const I18N = {
     'mem.sp':'지출','mem.sv':'절감','mem.dc':'위임 비용','mem.dr':'위임 비율','mem.dl':'위임','mem.today':'오늘','mem.today.sp':'오늘 지출','mem.today.sv':'오늘 절감','mem.today.dl':'오늘 위임',
     'mem.none':'아직 멤버가 없습니다. 초대·등록 탭의 초대 토큰을 공유해 주세요.','mem.left':'탈퇴','mem.never':'없음','mem.remove':'제거','mem.delete':'삭제',
     'mem.confirm':'{name}님을 이 팀에서 제거할까요? 기록은 남고, 활동 좌석으로 세지 않습니다.',
-    'ch.h':'사용량','ch.sp':'지출','ch.sv':'절감','ch.dr':'위임 비율','ch.dc':'위임 비용','ch.none':'아직 기록이 없습니다.',
+    'ch.h':'사용량','ch.sp':'지출','ch.sv':'절감','ch.dr':'위임 비율','ux.sr':'절감률','ux.sr.sub':'설치 이후 지출 {v} 기준','ch.dc':'위임 비용','ch.none':'아직 기록이 없습니다.',
     'ru.h':'팀 규칙','ru.desc':'승인한 규칙은 모든 멤버의 세션 시작 때 적용됩니다.',
     'ru.approved':'승인됨','ru.proposed':'제안됨','ru.removed':'제거됨','ru.none':'없음',
     'ru.ph':'규칙 내용','ru.add':'규칙 추가','ru.approve':'승인','ru.remove':'제거','ru.empty':'규칙 내용을 입력해 주세요.',
@@ -1681,6 +1681,12 @@ function teamUsage(id, a){
 /* sp = local (Claude) spend, tot = total usage (total_spent, else spent) with the gateway figure counted once per gateway_user_hash
    (two machines of one person share it; per day in byDay), dc = delegation cost (null when no member sent it), unp = unpriced parts */
 function sumUsage(list){
+  /* rtot / rdc: the same totals over each machine's days since install (AdminUX.sinceUsage), the denominator and numerator of the rates */
+  const o = sumUsageBasis(list), s = sumUsageBasis(list.map(d => (d && d.members ? { ...d, members: d.members.map(m => (AdminUX.sinceUsage || (u => u))(m)) } : d)));
+  o.rtot = s.tot; o.rdc = s.dc;
+  return o;
+}
+function sumUsageBasis(list){
   const o = { sp:0, sv:0, dl:0, tot:0, dc:null, unp:0, byDay:{} }, gwMax = {}, dayGw = {};
   const fin = v => v != null && Number.isFinite(Number(v));
   list.forEach(d => ((d && d.members) || []).forEach(m => {
@@ -1701,7 +1707,7 @@ function sumUsage(list){
 /* delegation ratio = delegation cost / total usage; null (unknown) when the cost is unknown or there is no usage */
 /* a member name that copies itself on click; plain text when a cached admin-ux.js predates copyId */
 const cpId = (v, shown) => AdminUX.copyId ? AdminUX.copyId(v, shown) : esc(shown ?? v);
-const ratioOf = s => (s && s.dc != null && s.tot > 0 ? s.dc / s.tot : null), pct1 = v => (v * 100).toFixed(1) + '%';
+const ratioOf = s => (s && (s.rdc ?? s.dc) != null && (s.rtot ?? s.tot) > 0 ? (s.rdc ?? s.dc) / (s.rtot ?? s.tot) : null), pct1 = v => (v * 100).toFixed(1) + '%';
 function inviteCmd(){ const tm = team && team.invite_token ? team : visibleTeams().find(x => x.invite_token); return tm ? joinCmd(tm.invite_token) : ''; }
 function inviteAction(){
   const c = inviteCmd(); if(!c) return null;
@@ -1956,7 +1962,8 @@ function renderChart(){
         sub: curTot && curTot.unp > 0 ? esc(t('of.unpriced')) : '' },
       { id:'sv', label:t('ch.sv'), tone:'sv', value:totSv, fmt:money, prev: prevTot ? prevTot.sv : null, judge:'good', prevLabel:pLab, series: days.map(d => agg[d].sv), onClick: () => AdminUX.jump('chart') },
       { id:'dl', label:t('ux.deleg'), value:dl, fmt:int, prev: prevTot ? prevTot.dl : null, judge:'good', prevLabel:pLab, onClick: () => go('teams', team.id, 'members', false) },
-      { id:'dr', label:t('ch.dr'), value:dr, text: dr == null ? t('of.unknown') : undefined, fmt:pct1, prev: ratioOf(prevTot), judge:'good', prevLabel:pLab, onClick: () => go('teams', team.id, 'members', false) },
+      { id:'dr', label:t('ch.dr'), value:dr, text: dr == null ? t('of.unknown') : undefined, fmt:pct1, prev: ratioOf(prevTot), judge:'good', prevLabel:pLab, onClick: () => go('teams', team.id, 'members', false),
+        sub: curTot ? esc(t('ux.sr.sub', { v: money(curTot.rtot ?? curTot.tot) }, true)) : '' },
       { id:'dc', label:t('ch.dc'), value:dcv, text: dcv == null ? t('of.unknown') : undefined, fmt:money, prev: prevTot ? prevTot.dc : null, judge:'neutral', prevLabel:pLab, onClick: () => go('teams', team.id, 'members', false) }
     ], { id:'tu:' + team.id, cols:'' });
   } else $('tu-kpis').innerHTML = '';
@@ -2943,12 +2950,15 @@ const OvUsage = (function(){
     const used = Number(org.seats_used) || 0, lim = Number(org.seat_limit) || 0, ids = (((orgSum && orgSum.teams) || []).map(x => x.id));
     const sr = Seats.loaded() ? AdminUX.seatSeries(Seats.events(), days, used, 200) : null;
     const int = n => Math.round(n).toLocaleString('en-US'), at = (k, d) => (cur.byDay[d] || { sp:0, sv:0, tot:0 })[k], dr = ratioOf(cur);
+    /* savings rate on spend since install (rtot; the plain total on an old server) */
+    const rateOf = s => { const d = s ? (s.rtot ?? s.tot) : 0; return d > 0 ? s.sv / d : null; }, rate = rateOf(cur), prevRate = rateOf(prev), sinceSub = esc(t('ux.sr.sub', { v: money(cur.rtot ?? cur.tot) }, true));
     AdminUX.kpis($('ou-kpis'), [
       { id:'sp', label:t('ch.sp'), tone:'sp', value:cur.tot, fmt:money, prev: prev ? prev.tot : null, judge:'neutral', prevLabel:pLab, series: days.map(d => at('tot', d)), onClick: () => AdminUX.jump('ou-card'),
         sub: cur.unp > 0 ? esc(t('of.unpriced')) : '' },
       { id:'sv', label:t('ch.sv'), tone:'sv', value:cur.sv, fmt:money, prev: prev ? prev.sv : null, judge:'good', prevLabel:pLab, series: days.map(d => at('sv', d)), onClick: () => AdminUX.jump('ou-card') },
+      { id:'sr', label:t('ux.sr'), value:rate, text: rate == null ? t('of.unknown') : undefined, fmt:pct1, prev:prevRate, judge:'good', prevLabel:pLab, sub:sinceSub },
       { id:'dl', label:t('ux.deleg'), value:cur.dl, fmt:int, prev: prev ? prev.dl : null, judge:'good', prevLabel:pLab, onClick: ids[0] ? () => go('teams', ids[0], 'members', true) : null },
-      { id:'dr', label:t('ch.dr'), value:dr, text: dr == null ? t('of.unknown') : undefined, fmt:pct1, prev: ratioOf(prev), judge:'good', prevLabel:pLab, onClick: ids[0] ? () => go('teams', ids[0], 'members', true) : null },
+      { id:'dr', label:t('ch.dr'), value:dr, text: dr == null ? t('of.unknown') : undefined, fmt:pct1, prev: ratioOf(prev), judge:'good', prevLabel:pLab, onClick: ids[0] ? () => go('teams', ids[0], 'members', true) : null, sub:sinceSub },
       { id:'dc', label:t('ch.dc'), value:cur.dc, text: cur.dc == null ? t('of.unknown') : undefined, fmt:money, prev: prev ? prev.dc : null, judge:'neutral', prevLabel:pLab, onClick: ids[0] ? () => go('teams', ids[0], 'members', true) : null },
       { id:'seats', label:t('ux.seats'), value:used, fmt: n => Math.round(n) + ' / ' + lim, prev: sr ? sr.start : null, delta:'abs', judge:'neutral', prevLabel:pLab, series: sr ? sr.series : null,
         sub: `<span class="bar${lim && used >= lim ? ' full' : ''}"><i style="width:${lim ? Math.min(100, Math.round(used / lim * 100)) : 0}%"></i></span>`, onClick: () => go('seats', null, null, true) }

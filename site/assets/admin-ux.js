@@ -34,10 +34,10 @@ const TXT = {
     svInLow:'Team {t} saves {x} of its spend against an organization average of {y}. Review its delegation rules together',
     svInPeak:'The biggest savings day was {d} with {x}',
     svSaved:'Savings this period', svAvg:'Daily average', svTrend:'Daily trend', svTrendSub:'First half {a} → second half {b}',
-    svRate:'Savings per spend', svBest:'Top saving team', svNone:'No savings were recorded in this range',
+    svRate:'Savings rate (since install)', svBest:'Top saving team', svNone:'No savings were recorded in this range',
     svOther:'Other ({n} teams)', svMore:'+{n} more', svTot:'Total', svCumTo:'Cumulative', svAria:'Savings by team over time',
     svcRank:'Rank', svcTeam:'Team', svcSv:'Saved', svcShare:'Share', svcDelta:'Vs previous period', svcTrend:'Trend',
-    svcSpend:'Spent', svcRate:'Saved per spend', svcMem:'Saved per member', svcDeleg:'Delegated runs'
+    svcSpend:'Spent', svcRate:'Savings rate (since install)', svcMem:'Saved per member', svcDeleg:'Delegated runs'
   },
   ko: {
     noprior:'비교할 이전 기간 데이터가 없습니다', vs:'이전 기간', new:'신규',
@@ -65,10 +65,10 @@ const TXT = {
     svInLow:'{t} 팀은 지출 대비 절감이 {x}로 조직 평균 {y}보다 낮습니다. 위임 룰을 함께 보는 것이 좋습니다',
     svInPeak:'절감이 가장 많았던 날은 {d}이며 절감액은 {x}입니다',
     svSaved:'기간 절감', svAvg:'일평균 절감', svTrend:'일평균 추세', svTrendSub:'전반 {a} → 후반 {b}',
-    svRate:'지출 대비 절감', svBest:'최다 절감 팀', svNone:'이 기간에는 기록된 절감이 없습니다',
+    svRate:'절감률(설치 후)', svBest:'최다 절감 팀', svNone:'이 기간에는 기록된 절감이 없습니다',
     svOther:'기타 ({n}개 팀)', svMore:'외 {n}개 팀', svTot:'합계', svCumTo:'누적', svAria:'팀별 절감 추이',
     svcRank:'순위', svcTeam:'팀', svcSv:'절감', svcShare:'비중', svcDelta:'이전 기간 대비', svcTrend:'추세',
-    svcSpend:'지출', svcRate:'지출 대비 절감', svcMem:'1인당 절감', svcDeleg:'위임 실행'
+    svcSpend:'지출', svcRate:'절감률(설치 후)', svcMem:'1인당 절감', svcDeleg:'위임 실행'
   }
 };
 const u = (k, v) => {
@@ -689,6 +689,22 @@ function seatSeries(events, days, nowCount, limit){
   return { series: out, net: inRange, start: Math.max(0, nowCount - inRange) };
 }
 
+/* sinceUsage */
+/* One machine's usage cut to the days since install (u.since, from team_member_usage); an old server sends no since and the row comes back unchanged.
+   An identical copy lives in scene/office-scene.js (pinned by test/usage-since.test.js). */
+function sinceUsage(u){
+  if(!u || !u.since || !Array.isArray(u.series)) return u;
+  const cut = String(u.since).slice(0, 10), kept = u.series.filter(q => String(q.day).slice(0, 10) >= cut), fin = v => v != null && Number.isFinite(Number(v));
+  let spent = 0, saved = 0, total = 0, gw = null, dc = null;
+  kept.forEach(q => {
+    spent += Number(q.spent) || 0; saved += Number(q.saved) || 0; total += Number(q.total ?? q.spent) || 0;
+    if(fin(q.gateway)) gw = (gw || 0) + Number(q.gateway);
+    if(fin(q.delegated_cost)) dc = (dc || 0) + Number(q.delegated_cost);
+  });
+  return { ...u, series: kept, spent, saved, total_spent: total, gateway_spent: gw, delegated_cost: dc };
+}
+/* end of sinceUsage */
+
 /* ── savings breakdown: how savings move over the range and which team saves most ─ */
 /* savings model */
 function savingsModel(o){
@@ -711,10 +727,11 @@ function savingsModel(o){
   const change = (cur, prev) => prev == null ? null : prev === 0 ? (cur > 0 ? 'new' : 0) : (cur - prev) / prev;
   const orgSv = tms.reduce((s, t) => s + teamSv(t), 0);
   const rows = tms.map((t, i) => {
-    const sv = teamSv(t), tot = t.cur ? num(t.cur.tot) : 0, prevSv = t.prev ? num(t.prev.sv) : null;
-    return { id: t.id, name: t.name, slot: i < 7 ? i : (i === 7 && tms.length === 8 ? 7 : 'other'), sv, tot, dl: t.cur ? num(t.cur.dl) : 0,
+    /* tot is the spend column (full range); rtot is the rate denominator (spend since install, absent on an old server) */
+    const sv = teamSv(t), tot = t.cur ? num(t.cur.tot) : 0, rtot = t.cur ? num(t.cur.rtot ?? t.cur.tot) : 0, prevSv = t.prev ? num(t.prev.sv) : null;
+    return { id: t.id, name: t.name, slot: i < 7 ? i : (i === 7 && tms.length === 8 ? 7 : 'other'), sv, tot, rtot, dl: t.cur ? num(t.cur.dl) : 0,
       prevSv, delta: prevSv == null ? null : sv - prevSv, deltaPct: change(sv, prevSv),
-      share: orgSv > 0 ? sv / orgSv : 0, rate: tot > 0 ? sv / tot : null,
+      share: orgSv > 0 ? sv / orgSv : 0, rate: rtot > 0 ? sv / rtot : null,
       perMember: t.members ? sv / t.members : null, series: buckets.map(b => b.byTeam[t.id]), rank: 0 };
   });
   const ranked = rows.map((r, i) => [r, i]).sort((x, y) => y[0].sv - x[0].sv || x[1] - y[1]).map(x => x[0]);
@@ -723,7 +740,7 @@ function savingsModel(o){
   const firstAvg = h ? days.slice(0, h).reduce((s, d) => s + dayTot(d), 0) / h : 0;
   const secondAvg = h ? days.slice(n - h).reduce((s, d) => s + dayTot(d), 0) / h : 0;
   const orgPrev = tms.length && tms.every(t => t.prev) ? tms.reduce((s, t) => s + num(t.prev.sv), 0) : null;
-  const orgTot = rows.reduce((s, r) => s + r.tot, 0);
+  const orgTot = rows.reduce((s, r) => s + r.tot, 0), orgRtot = rows.reduce((s, r) => s + r.rtot, 0);
   let peak = null; buckets.forEach(b => { if(b.total > 0 && (!peak || b.total > peak.total)) peak = b; });
   /* moving average of the bucket totals: 7 buckets for days, 3 for weeks and months; null until the window is full */
   const win = gran === 'day' ? 7 : 3;
@@ -749,7 +766,7 @@ function savingsModel(o){
     }
   }
   return { gran, buckets, teams: rows, ranked, org: {
-    sv: orgSv, prevSv: orgPrev, deltaPct: change(orgSv, orgPrev), tot: orgTot, rate: orgTot > 0 ? orgSv / orgTot : null,
+    sv: orgSv, prevSv: orgPrev, deltaPct: change(orgSv, orgPrev), tot: orgTot, rtot: orgRtot, rate: orgRtot > 0 ? orgSv / orgRtot : null,
     dailyAvg: n ? orgSv / n : 0, firstAvg, secondAvg, trendPct: (n < 4 || !firstAvg) ? null : (secondAvg - firstAvg) / firstAvg,
     best: orgSv > 0 ? ranked[0] : null, peak, recent7Avg: rc.recent, prior7Avg: rc.prior, recentPct: rc.pct, projection, peakDay } };
 }
@@ -956,5 +973,5 @@ doc.addEventListener('click', async ev => {
   clearTimeout(b._cpT); b._cpT = setTimeout(() => b.classList.remove('on', 'bad'), 1400);
 });
 
-window.AdminUX = { copyId, u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, savings, savingsModel, ymd, esc };
+window.AdminUX = { copyId, u, state, err, jump, kpis, rail, table, palette, hint, refreshHint, movement, seatSeries, savings, savingsModel, sinceUsage, ymd, esc };
 })();
