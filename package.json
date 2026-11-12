@@ -1,6 +1,6 @@
 {
   "name": "sprag-cli",
-  "version": "3.120.0",
+  "version": "3.121.0",
   "description": "The delegation layer for Claude Code and Codex: each task goes to the model and effort that fits it, down to cheaper models for lookups and up to higher effort when a cheaper run would miss, backed by public replay cases, with a live statusline and team rules for Pro and Enterprise.",
   "type": "module",
   "bin": {
