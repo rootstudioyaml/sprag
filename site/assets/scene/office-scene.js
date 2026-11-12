@@ -959,7 +959,7 @@ export function mountOfficeScene(container, data, opts = {}){
     pr.cam.updateProjectionMatrix();
     pr.c.style.setProperty('--tc', o.tv ? o.tv.body : '#d9cdb8'); pr.on = true; pr.c.classList.add('on');
     if(!pr.raf){ const t0 = performance.now(), loop = () => { if(!pr || !pr.on || destroyed){ if(pr) pr.raf = 0; return; }
-      const ts = (performance.now() - t0) / 1000; if(pr.m){ const yaw = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); pr.m.rotation.y = yaw; if(pr.card) pr.q.blend(yaw); else flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
+      const ts = (performance.now() - t0) / 1000; if(pr.m){ const yaw = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); pr.m.rotation.y = pr.card ? pr.q.blend(yaw) : yaw; if(!pr.card) flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
       loop(); }
   }
   function hidePortrait(){ if(!pr) return; pr.on = false; pr.c.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }

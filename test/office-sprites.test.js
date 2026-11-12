@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { wrapPi, relAzimuth, pickCell, elevOk, wantVariant, parseManifest, pickVariant, sheetUrl, planeSpec, cellUv, nightTint, zoomOk, cardBlend, cardOf, cardUrl, SPRITE_MIN_ZOOM, SPRITE_ZOOM_HYST } from '../site/assets/scene/sprites.js';
+import { wrapPi, relAzimuth, pickCell, elevOk, wantVariant, parseManifest, pickVariant, sheetUrl, planeSpec, cellUv, nightTint, zoomOk, cardBlend, cardShow, cardOf, cardUrl, SPRITE_MIN_ZOOM, SPRITE_ZOOM_HYST } from '../site/assets/scene/sprites.js';
 
 const D = Math.PI / 180, COLS = [-34, -17, 0, 17, 34];
 const RAW = { v: 7, cell: [384, 448], cols: COLS, elev: 30.4, unitsPerPx: 0.004,
@@ -159,4 +159,13 @@ test('wiring: office-scene.js loads sprites.js, honours ?sprite=0, keeps the cro
   const v = read('assets/scene/town-scene.js').match(ver)[1];
   for(const f of ['team', 'ops', 'town']) assert.equal(read(`${f}/index.html`).match(ver)[1], v, f);
   assert.match(v, /^3\.121\.0-([4-9]|\d\d)$/);
+});
+
+test('cardShow: a frame holds most of its interval, the accessories follow the shown yaw', () => {
+  const Y = [0.22, 0.33, 0.44, 0.55, 0.66];
+  const a = cardShow(0.25, Y); assert.equal(a.s, 0); assert.ok(Math.abs(a.y - 0.22) < 1e-9);   /* early in the interval: frame i alone, crisp */
+  const b = cardShow(0.385, Y); assert.ok(Math.abs(b.s - 0.5) < 1e-9); assert.ok(Math.abs(b.y - 0.385) < 1e-9);   /* the midpoint is the only half mix */
+  const c = cardShow(0.32, Y); assert.equal(c.s, 1); assert.ok(Math.abs(c.y - 0.33) < 1e-9);
+  assert.ok(Math.abs(cardShow(0.44, Y).y - 0.44) < 1e-9);   /* reduced motion: frame 2 exactly */
+  assert.ok(Math.abs(cardShow(0.9, Y).y - 0.66) < 1e-9);
 });
