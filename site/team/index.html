@@ -284,7 +284,7 @@
   #pu-box tr.pu-row{cursor:pointer} #pu-box tr.pu-row:hover td{background:var(--hover)}
   .pu-open{all:unset;cursor:pointer;color:var(--ink);font-weight:500;overflow-wrap:anywhere;text-align:left}
   .pu-open:hover{color:var(--accent2)} .pu-open:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:3px}
-  .pu-spark{display:block;width:96px;height:24px;color:#8a94f2}
+  .pu-spark{display:block;width:96px;height:24px;color:var(--ch-spend)}
   .pu-lock{display:flex;gap:var(--s4);align-items:flex-start;padding:var(--s2) 0}
   .pu-lock svg{flex:0 0 auto;width:28px;height:28px;color:var(--accent2);margin-top:2px}
   .pu-lock h3{margin:0 0 6px} .pu-lock p{color:var(--dim);font-size:13px;max-width:62ch;margin:0 0 var(--s3)}
@@ -593,7 +593,7 @@
       <section class="card" id="ou-card" aria-labelledby="ou-h" style="margin-top:var(--s4)">
         <div class="sec-h"><h2 id="ou-h"></h2></div>
         <div class="chart" id="ou-chart"></div>
-        <div class="legend" id="ou-legend"><span><i style="background:#8a94f2"></i><span data-k="ch.sp">Spent</span></span><span><i style="background:#3fd48f"></i><span data-k="ch.sv">Saved</span></span></div>
+        <div class="legend" id="ou-legend"><span><i style="background:var(--ch-spend)"></i><span data-k="ch.sp">Spent</span></span><span><i style="background:var(--ch-saved)"></i><span data-k="ch.sv">Saved</span></span></div>
         <div id="ou-rail"></div>
         <p class="err" id="ou-err" role="alert"></p>
       </section>
@@ -745,7 +745,7 @@
         <h2 id="ch-h">Usage</h2>
         <div class="kpis" style="margin-top:var(--s3)"><div id="tu-kpis" class="kcards"></div></div>
         <div class="chart" id="chart"></div>
-        <div class="legend"><span><i style="background:#8a94f2"></i><span data-k="ch.sp">Spent</span></span><span><i style="background:#3fd48f"></i><span data-k="ch.sv">Saved</span></span></div>
+        <div class="legend"><span><i style="background:var(--ch-spend)"></i><span data-k="ch.sp">Spent</span></span><span><i style="background:var(--ch-saved)"></i><span data-k="ch.sv">Saved</span></span></div>
         <p class="err" id="ch-err" role="alert"></p>
       </section>
 
@@ -1845,13 +1845,13 @@ function renderPanel(){
 function thr(){ const v = parseFloat($('thr').value); return isFinite(v) ? v : 20; }
 const U = m => usageById[m.member_id] || {};
 const memRatio = u => { const c = u.delegated_cost, tot = Number(u.total_spent ?? u.spent) || 0; return c != null && Number.isFinite(Number(c)) && tot > 0 ? Number(c) / tot : null; };
-/* spend per model, same colour/order rule as the office drawer */
-const MODELC = { fable:'#fcd34d', mythos:'#c4b5fd', opus:'#f9a8d4', sonnet:'#8ec5fb', haiku:'#7fe0b8' };
+/* spend per model, same order as the office drawer; the colors come from the --ch-m-* palette in admin-ux.js, which keeps the drawer colors in dark mode and darkens them for the white ground */
+const MODELC = { fable:'var(--ch-m-fable)', mythos:'var(--ch-m-mythos)', opus:'var(--ch-m-opus)', sonnet:'var(--ch-m-sonnet)', haiku:'var(--ch-m-haiku)' };
 function modelParts(models){
   if(!models || typeof models !== 'object') return [];
   const ord = Object.keys(MODELC), ents = Object.entries(models).map(([k, v]) => [k, Number(v)]).filter(([, v]) => isFinite(v) && v > 0);
   const known = ord.map(k => ents.find(e => e[0] === k)).filter(Boolean), rest = ents.filter(e => ord.indexOf(e[0]) < 0).sort((a, b) => b[1] - a[1]);
-  return known.concat(rest).map(([k, v]) => ({ k, v, color: MODELC[k] || '#cbd5e1' }));
+  return known.concat(rest).map(([k, v]) => ({ k, v, color: MODELC[k] || 'var(--ch-m-other)' }));
 }
 function renderMembers(){
   if(!team) return;
@@ -1913,19 +1913,19 @@ function usageChartSvg(days, agg, label){
   days.forEach((d, i) => {
     const x = L + slot * i + slot / 2, a = agg[d];
     const hs = plotH * a.sp / nice, hv = plotH * a.sv / nice;
-    if(every){ if(a.sp > 0) g += vtxt(x - bw / 2 - 0.5, T + plotH - hs, a.sp, '#a9b1ff'); if(a.sv > 0) g += vtxt(x + bw / 2 + 0.5, T + plotH - hv, a.sv, '#5fe0bb'); }
-    else if(a.sp > 0 && (i % step === 0 || i === pk || i === days.length - 1)) g += vtxt(x, T + plotH - Math.max(hs, hv), a.sp, '#a9b1ff', i === days.length - 1 ? 'end' : i === 0 ? 'start' : 'middle');
+    if(every){ if(a.sp > 0) g += vtxt(x - bw / 2 - 0.5, T + plotH - hs, a.sp, 'var(--ch-spend-txt)'); if(a.sv > 0) g += vtxt(x + bw / 2 + 0.5, T + plotH - hv, a.sv, 'var(--ch-saved-txt)'); }
+    else if(a.sp > 0 && (i % step === 0 || i === pk || i === days.length - 1)) g += vtxt(x, T + plotH - Math.max(hs, hv), a.sp, 'var(--ch-spend-txt)', i === days.length - 1 ? 'end' : i === 0 ? 'start' : 'middle');
     const pre = Math.min(a.sp, Math.max(0, a.pre || 0)), hpre = plotH * pre / nice, hsince = hs - hpre, tip = `<title>${esc(d)} · ${esc(t('ch.sp'))} ${money(a.sp)}${pre > 0 ? ' (' + esc(t('ch.pre')) + ' ' + money(pre) + ')' : ''}</title>`;
     if(pre > 0){
       anyPre = true;
-      g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hsince}" width="${bw}" height="${hsince}" fill="#828fff">${tip}</rect>`;
-      g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hpre}" fill="#828fff" fill-opacity=".35">${tip}</rect>`;
-    } else g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hs}" fill="#828fff">${tip}</rect>`;
-    g += `<rect x="${x + 0.5}" y="${T + plotH - hv}" width="${bw}" height="${hv}" fill="#35d6a8"><title>${esc(d)} · ${esc(t('ch.sv'))} ${money(a.sv)}</title></rect>`;
+      g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hsince}" width="${bw}" height="${hsince}" fill="var(--ch-spend-bar)">${tip}</rect>`;
+      g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hpre}" fill="var(--ch-spend-bar)" fill-opacity=".35">${tip}</rect>`;
+    } else g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hs}" fill="var(--ch-spend-bar)">${tip}</rect>`;
+    g += `<rect x="${x + 0.5}" y="${T + plotH - hv}" width="${bw}" height="${hv}" fill="var(--ch-saved-bar)"><title>${esc(d)} · ${esc(t('ch.sv'))} ${money(a.sv)}</title></rect>`;
     if(i % Math.ceil(days.length / 7) === 0 || i === days.length - 1)
       g += `<text x="${x}" y="${H - 7}" text-anchor="middle" fill="var(--faint)" font-size="10" font-family="Geist Mono,monospace">${esc(d.slice(5))}</text>`;
   });
-  if(anyPre) g += `<rect x="${W - R - 112}" y="2" width="8" height="8" fill="#828fff" fill-opacity=".35"/><text x="${W - R - 100}" y="10" fill="var(--faint)" font-size="10" font-family="Geist Mono,monospace">${esc(t('ch.pre'))}</text>`;
+  if(anyPre) g += `<rect x="${W - R - 112}" y="2" width="8" height="8" fill="var(--ch-spend-bar)" fill-opacity=".35"/><text x="${W - R - 100}" y="10" fill="var(--faint)" font-size="10" font-family="Geist Mono,monospace">${esc(t('ch.pre'))}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">${g}</svg>`;
 }
 function renderChart(){

@@ -85,6 +85,17 @@ const dlabel = s => { const d = new Date(s + 'T00:00:00'); return lang() === 'ko
 /* ── styles ─────────────────────────────────────────────────────────────── */
 const css = `
 html{scroll-padding-top:68px}
+/* chart data colors for the team console and ops. Dark mode keeps the exact colors the charts had before the redesign
+   (owner, 2026-11-12). Light mode is the default since the redesign, and those colors were picked for a dark ground
+   (the mint for restored seats came to 1.42:1 on white), so light mode takes the same hue in oklch with the lightness lowered until
+   each mark reaches 3:1 against white (WCAG 1.4.11) and each value label 4.5:1. Pairs drawn side by side are kept
+   at least 0.08 apart in oklab lightness (joined/restored, left/removed, pro/ent). test/chart-colors.test.js checks it. */
+:root{--ch-spend:#767fdb;--ch-spend-bar:#717cea;--ch-spend-txt:#686db6;--ch-saved:#0a9f65;--ch-saved-bar:#089d79;--ch-saved-txt:#088368;
+  --ch-joined:#04774b;--ch-restored:#54a081;--ch-left:#e76363;--ch-removed:#a13537;--ch-paused:#c08704;--ch-warn:#bd8506;--ch-bad:#e76363;
+  --ch-pro:#4d56bd;--ch-ent:#818ae7;--ch-m-fable:#b08e07;--ch-m-mythos:#9788cd;--ch-m-opus:#c77aa5;--ch-m-sonnet:#6196ca;--ch-m-haiku:#40a37e;--ch-m-other:#8a939e}
+:root[data-theme=dark]{--ch-spend:#8a94f2;--ch-spend-bar:#828fff;--ch-spend-txt:#a9b1ff;--ch-saved:#3fd48f;--ch-saved-bar:#35d6a8;--ch-saved-txt:#5fe0bb;
+  --ch-joined:#3fd48f;--ch-restored:#9be8c6;--ch-left:#f06b6b;--ch-removed:#b84a4a;--ch-paused:rgba(232,171,60,.55);--ch-warn:#e8ab3c;--ch-bad:#f06b6b;
+  --ch-pro:rgba(94,106,210,.62);--ch-ent:rgba(138,148,242,.34);--ch-m-fable:#fcd34d;--ch-m-mythos:#c4b5fd;--ch-m-opus:#f9a8d4;--ch-m-sonnet:#8ec5fb;--ch-m-haiku:#7fe0b8;--ch-m-other:#cbd5e1}
 .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 @keyframes uxflash{0%{box-shadow:0 0 0 2px var(--accent2)}100%{box-shadow:0 0 0 2px transparent}}
 .ux-flash{animation:uxflash 1.3s var(--ease) 1}
@@ -96,10 +107,10 @@ html{scroll-padding-top:68px}
 @media(max-width:600px){.mv-chart,.chart{overflow-x:auto}.mv-chart svg,.chart svg{min-width:640px}.mv-chart svg text,.chart svg text{font-size:20px}}   /* 20 user units come to about 12px at 640px wide */
 /* eight figures sit as two rows of four instead of seven and one left over */
 @media(min-width:1000px){.kcards:not([class*=" k"]):has(> :nth-child(8):last-child){grid-template-columns:repeat(4,minmax(0,1fr))}}
-.kc{--sc:#8a94f2;position:relative;display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;background:none;border:0;border-radius:0;color:inherit;padding:12px 16px 10px;box-shadow:inset -1px 0 0 var(--line),inset 0 -1px 0 var(--line);transition:background .12s var(--ease)}
+.kc{--sc:var(--ch-spend);position:relative;display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;background:none;border:0;border-radius:0;color:inherit;padding:12px 16px 10px;box-shadow:inset -1px 0 0 var(--line),inset 0 -1px 0 var(--line);transition:background .12s var(--ease)}
 button.kc:hover{background:var(--hover)}
 button.kc:focus-visible{outline-offset:-2px}
-.kc.sv{--sc:#3fd48f} .kc.lt{--sc:#e8ab3c}
+.kc.sv{--sc:var(--ch-saved)} .kc.lt{--sc:var(--ch-warn)}
 .kc .kl{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kc .kv{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .kc .kv b{font-size:20px;font-weight:600;letter-spacing:-.02em;line-height:1.25;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -627,7 +638,7 @@ function hint(parent, before, onOpen){
 const refreshHint = () => doc.querySelectorAll('.kbd-hint').forEach(b => { b.setAttribute('aria-label', u('palHint')); b.title = u('palHint'); });
 
 /* ── seat movement ──────────────────────────────────────────────────────── */
-const MV = { joined:'#3fd48f', restored:'#9be8c6', left:'#f06b6b', removed:'#b84a4a', paused:'rgba(232,171,60,.55)' };
+const MV = { joined:'var(--ch-joined)', restored:'var(--ch-restored)', left:'var(--ch-left)', removed:'var(--ch-removed)', paused:'var(--ch-paused)' };
 function movement(host, o){
   const days = o.days || [], per = days.length <= 31 ? 1 : 7, nb = Math.max(1, Math.ceil(days.length / per));
   const kinds = ['joined', 'restored', 'left', 'removed', 'paused'];

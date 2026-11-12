@@ -213,7 +213,7 @@
   .ov-track{position:relative;height:8px;margin-top:8px;border-radius:2px;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line2);display:flex;overflow:visible}
   .ov-track i{display:block;height:100%}
   .ov-track i:first-child{border-radius:2px 0 0 2px}
-  .ov-track .mk{position:absolute;right:-2px;top:-3px;bottom:-3px;width:2px;background:#f06b6b;border-radius:1px}
+  .ov-track .mk{position:absolute;right:-2px;top:-3px;bottom:-3px;width:2px;background:var(--ch-bad);border-radius:1px}
   @media(max-width:1000px){.ov{grid-template-columns:minmax(0,1fr)}.ov-list{max-height:none}}
   @media(max-width:600px){.ov-big b{font-size:24px}.ov-row .nm{max-width:none}}
 
@@ -311,7 +311,7 @@
   #pu-box tr.pu-row{cursor:pointer} #pu-box tr.pu-row:hover td{background:var(--hover)}
   .pu-open{all:unset;cursor:pointer;color:var(--ink);font-weight:500;overflow-wrap:anywhere;text-align:left}
   .pu-open:hover{color:var(--accent2)} .pu-open:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:3px}
-  .pu-spark{display:block;width:96px;height:24px;color:#8a94f2}
+  .pu-spark{display:block;width:96px;height:24px;color:var(--ch-spend)}
   .pu-lock{display:flex;gap:var(--s4);align-items:flex-start;padding:var(--s2) 0}
   .pu-lock svg{flex:0 0 auto;width:28px;height:28px;color:var(--accent2);margin-top:2px}
   .pu-lock h3{margin:0 0 6px} .pu-lock p{color:var(--dim);font-size:13px;max-width:62ch;margin:0 0 var(--s3)}
@@ -1849,7 +1849,7 @@ function renderOverview(){
   $('ov-delta-l').textContent = t('ov.vs');
 
   // revenue: stacked Pro (bottom) + Enterprise (top) step areas
-  const COL_PRO = 'rgba(94,106,210,.62)', COL_ENT = 'rgba(138,148,242,.34)', LINE_ENT = '#8a94f2';
+  const COL_PRO = 'var(--ch-pro)', COL_ENT = 'var(--ch-ent)', LINE_ENT = 'var(--ch-spend)';
   const yMax = niceMax(Math.max(...days.map(d => Number(d.revenue) || 0)) * 1.05);
   chartFrame(rev, days, 168, yMax, compact,
     d => `<b>${esc(dayFull(d.day))}</b><i style="background:${LINE_ENT}"></i>${esc(t('ov.total'))} ${esc(money(d.revenue))}<br><i style="background:${COL_PRO}"></i>${esc(t('plan.pro'))} ${esc(money(d.revenue_pro))}<br><i style="background:${COL_ENT}"></i>${esc(t('plan.enterprise'))} ${esc(money(d.revenue_enterprise))}`,
@@ -1873,7 +1873,7 @@ function renderOverview(){
     (x, y) => {
       const lim = stepPath(days.map((d, i) => [i, Number(d.seats_limit) || 0]), x, y);
       let runs = '', cur = [], curEst = null;
-      const flush = () => { if(cur.length > 1) runs += `<path d="${cur.map(([i, v], k) => (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join('')}" fill="none" stroke="#8a94f2" stroke-width="1.6" stroke-linejoin="round" opacity="${curEst ? .4 : 1}"/>`; cur = []; };
+      const flush = () => { if(cur.length > 1) runs += `<path d="${cur.map(([i, v], k) => (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join('')}" fill="none" stroke="var(--ch-spend)" stroke-width="1.6" stroke-linejoin="round" opacity="${curEst ? .4 : 1}"/>`; cur = []; };
       days.forEach((d, i) => {
         if(val[i] == null){ flush(); curEst = null; return; }
         const est = !!d.estimated;
@@ -1891,14 +1891,14 @@ function renderOvSeats(){
   const maxL = Math.max(1, ...rows.map(o => Number(o.seat_limit) || 0));
   $('ov-org-n').textContent = orgsLoaded ? String(rows.length) : '';
   $('ov-org-empty').hidden = !orgsLoaded || rows.length > 0;
-  $('ov-org-leg').innerHTML = `<span><i style="background:#3fd48f"></i>${esc(t('ov.ok'))}</span><span><i style="background:#8a94f2"></i>${esc(t('ov.paused'))}</span><span><i style="background:#e8ab3c"></i>${esc(t('ov.late'))}</span><span><i style="background:#f06b6b;width:3px"></i>${esc(t('ov.full'))}</span>`;
+  $('ov-org-leg').innerHTML = `<span><i style="background:var(--ch-saved)"></i>${esc(t('ov.ok'))}</span><span><i style="background:var(--ch-spend)"></i>${esc(t('ov.paused'))}</span><span><i style="background:var(--ch-warn)"></i>${esc(t('ov.late'))}</span><span><i style="background:var(--ch-bad);width:3px"></i>${esc(t('ov.full'))}</span>`;
   $('ov-orgs').innerHTML = rows.map(o => {
     const used = Number(o.seats_used) || 0, lim = Number(o.seat_limit) || 0, pa = Math.min(used, Number(o.seats_paused) || 0), la = Math.min(used - pa, Number(o.seats_late) || 0), ok = Math.max(0, used - pa - la);
     const full = lim > 0 && used >= lim, off = o.status === 'suspended', pct = v => (lim ? Math.min(100, v / lim * 100) : 0).toFixed(2) + '%';
     const label = `${o.name}: ${used} / ${lim}${full ? ', ' + t('ov.full', null, true) : ''}${off ? ', ' + t('st.suspended', null, true) : ''}`;
     return `<button type="button" class="ov-row${off ? ' off' : ''}" data-id="${esc(o.id)}" aria-label="${esc(label)}">
       <span class="l1"><span class="nm" title="${esc(o.name)}">${esc(o.name)}</span>${off ? `<span class="badge bad">${esc(t('st.suspended'))}</span>` : ''}<span class="tag${o.plan === 'enterprise' ? ' plus' : ''}">${esc(t('plan.' + (o.plan === 'enterprise' ? 'enterprise' : 'pro')))}</span><span class="ct${full ? ' full' : ''}">${used} / ${lim}</span></span>
-      <span class="ov-track" style="width:${(lim / maxL * 100).toFixed(2)}%;min-width:28px"><i style="width:${pct(ok)};background:#3fd48f"></i><i style="width:${pct(pa)};background:#8a94f2"></i><i style="width:${pct(la)};background:#e8ab3c"></i>${full ? '<span class="mk"></span>' : ''}</span></button>`;
+      <span class="ov-track" style="width:${(lim / maxL * 100).toFixed(2)}%;min-width:28px"><i style="width:${pct(ok)};background:var(--ch-saved)"></i><i style="width:${pct(pa)};background:var(--ch-spend)"></i><i style="width:${pct(la)};background:var(--ch-warn)"></i>${full ? '<span class="mk"></span>' : ''}</span></button>`;
   }).join('');
   $('ov-orgs').querySelectorAll('.ov-row').forEach(b => b.addEventListener('click', () => go('#org/' + encodeURIComponent(b.dataset.id) + '/seats')));
 }
