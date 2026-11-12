@@ -973,10 +973,12 @@ export function mountOfficeScene(container, data, opts = {}){
     m.traverse(c => { if(c.userData && c.userData.fur) c.visible = false; });   /* the card is a close-up: shell fur read as tangled noise there, the plush texture alone stays clean */
     m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
     /* A baked Cycles image replaces the model's colours when the manifest has a card for the species and the standing model is in (the card was baked from it).
-     * Until the sheet is loaded, or when it fails, or for a ghost, the live 3D model below is what shows. */
-    const cd = !o.ghost && o.pose && sprOn && sprKit && sprMan ? cardOf(sprMan, o.gk) : null, cs = cd ? sprKit.card(o.gk) : null;
-    /* Until the sheet arrives the card frame stays empty: showing the live model first and swapping in the baked image a moment later read as a cheap pop */
-    if(cs && !cs.t && !cs.bad){ const pk = o; m.visible = false; cs.p.then(() => { if(sel === pk && pr && pr.on && !destroyed) portrait(pk); }); }
+     * For a ghost, or when the sheet or the standing model fails, the live 3D model below is what shows. */
+    const ca = !o.ghost && sprOn && sprKit && sprMan ? cardOf(sprMan, o.gk) : null, cs = ca ? sprKit.card(o.gk) : null, cd = ca && o.pose ? ca : null;
+    /* While the sheet or the standing model is still on its way the art window stays empty. Showing the seated model first and swapping in the baked
+     * image a moment later read as 3D turning into 2D. The sheet is asked for here, at the click, so it downloads alongside the standing model;
+     * posePerson() calls portrait() again when the model is in, and the sheet's promise does the same. */
+    if(cs && !cs.bad && (!cs.t || (!o.pose && !o.poseFailed))){ m.visible = false; if(!cs.t){ const pk = o; cs.p.then(() => { if(sel === pk && pr && pr.on && !destroyed) portrait(pk); }); } }
     pr.card = null;
     if(cd && cs.t){
       m.traverse(c => { if(c.userData && c.userData.holPiece) c.userData.keepLook = true; });
@@ -1457,7 +1459,7 @@ export function mountOfficeScene(container, data, opts = {}){
       holDress(m, o, 'pose-');
       m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
       world.add(m); o.pose = m; o.glb.visible = false; portrait(o); request();
-    }).catch(() => { o.poseLoading = false; });   /* no standing model: the seated one stays in its chair */
+    }).catch(() => { o.poseLoading = false; o.poseFailed = true; if(sel === o && pr && pr.on && !destroyed) portrait(o); });   /* no standing model: the seated one stays in its chair and the card shows it live */
   }
   function holDress(m, o, pose){   /* in the same model space as castCrown(); what goes on is remembered in m.userData.hol so unpose() can free it */
     if(!xmas || o.ghost) return;
@@ -1674,6 +1676,7 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   function showTip(h, px, py){
     if(!h || !(h.person || h.team)){ elTip.hidden = true; return; }
+    { const o = h.person; if(o && !o.ghost && sprOn && sprKit && sprMan && cardOf(sprMan, o.gk)) sprKit.card(o.gk); }   /* hovering fetches the card sheet, so a click usually finds it loaded */
     const p = h.person && h.person.p;
     elTip.innerHTML = h.team ? `<b>${esc(h.team.name)}</b>` + (h.team.gh ? `<div><span>⏸</span><span>${h.team.gh}</span></div>` : '') : `<b>${esc(p.name)}</b>` + (p.tip || []).map(r => `<div><span>${esc(r[0])}</span><span>${esc(r[1])}</span></div>`).join('') + `<div class="tier t-${p.tier}"><span>${esc(p.gradeLabel || p.tierText)}</span></div>`;
     elTip.hidden = false;
