@@ -923,6 +923,7 @@ export function mountOfficeScene(container, data, opts = {}){
     }
     if(pr.m) pr.sc.remove(pr.m);
     const m = pr.m = (o.pose || o.glb).clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); pr.sc.add(m);
+    m.traverse(c => { if(c.userData && c.userData.fur) c.visible = false; });   /* the card is a close-up: shell fur read as tangled noise there, the plush texture alone stays clean */
     m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
     const box = new T.Box3().setFromObject(m), hgt = box.max.y - box.min.y, cy = box.min.y + hgt * 0.64;
     pr.cam.position.set(0, cy + hgt * 0.1, hgt * 1.75); pr.cam.lookAt(0, cy, 0);
