@@ -16,7 +16,7 @@
  * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
  * glowing laptop logos take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { makePost } from './post.js';
-import { holidayOn, makeGinkgo, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g2';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
+import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g3';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
@@ -1028,24 +1028,21 @@ export function mountOfficeScene(container, data, opts = {}){
     { const xp = -FW / 2 + 4.4 * (Math.max(0, Math.round(FW / 2 / 4.4 - 0.5)) + 0.5); [0.42, 1.02, 1.62].forEach((dz, i) => W0.stones.push([xp + (i % 2 ? 0.12 : -0.08), FD / 2 + dz, i])); }
     for(let x = -FW / 2; x <= FW / 2; x += 4.4){ bush(x, FD / 2 + 1.1, bk++); bush(x + 1.4, -FD / 2 - 1.1, bk++); }
     for(let z = -FD / 2 + 2; z <= FD / 2 - 1; z += 4.4){ bush(FW / 2 + 1.1, z, bk++); bush(-FW / 2 - 1.1, z + 1.2, bk++); }
-    let pileAt = null;   /* the corner that holds the present pile instead of a plant */
-    if(xmas){
-      /* The giant ginkgo (after the old Banggye-ri tree) stands on the lawn behind the back wall near the corner opposite the server. The wall hides its foot,
-       * the thick limbs and the golden dome (about 12 across and 12 tall) rise above the roof line, and no part of the crown comes lower than the animals' heads.
-       * It casts no shadow. holFit tells fit() which heights and half widths to keep in frame. Leaves lie on the lawn strip and on the room's back margin, and some drift down. */
-      const gx = FW / 2 - 11, gz = -FD / 2 - 2.0, lx = [Math.max(-FW / 2 - 1.7, gx - 8.5) - gx, Math.min(FW / 2 + 1.7, gx + 8.5) - gx], rx = [Math.max(-FW / 2 + 0.5, gx - 8) - gx, Math.min(FW / 2 - 0.5, gx + 8) - gx];
-      const lawn = (n, y) => ({ x0: lx[0], x1: lx[1], z0: -FD / 2 - 3.45 - gz, z1: -FD / 2 - 0.4 - gz, y, n }), room = (n, y) => ({ x0: rx[0], x1: rx[1], z0: -FD / 2 + 0.4 - gz, z1: -FD / 2 + 1.1 - gz, y, n });
-      OB('lawn', '#cfe8b5', FW + 4, 0.5, 1.8, 0, -0.45, -FD / 2 - 2.9); OB('soil', '#b99a73', FW + 3.4, 0.3, 1.8, 0, -0.85, -FD / 2 - 2.6);   /* the garden island grows deeper along its whole back edge, so its outline stays a clean rectangle */
-      const tr = makeGinkgo(T, { carpet: [lawn(400, -0.17), room(20, 0.03)], fall: [lawn(40, -0.17), room(20, 0.03)] });
-      tr.position.set(gx, 0, gz); world.add(tr); hol.push(tr); holFit = { x: gx, z: gz, pts: [[11.9, 2.5], [8.8, 5.6], [6.3, 5.6], [3.5, 2]] };
-      /* the present pile keeps the room's back-right corner when no seat is near enough to bump into it */
-      const seats = zones.flatMap(zn => zn.seats), px = FW / 2 - 2.0, pz = -FD / 2 + 2.0;
-      if(!seats.some(q => Math.hypot(q.x - px, q.z - pz) < 2.4)){
-        const pl = makePresents(T); pl.scale.setScalar(1.3); pl.rotation.y = Math.atan2(-1, 1); pl.position.set(px, 0, pz); world.add(pl); hol.push(pl); pileAt = [1, -1];
-      }
+    if(xmas && srv){
+      /* The world tree (a fantasy giant grown from the old Banggye-ri ginkgo) stands on the lawn just outside the back corner, so the Sprag server is at its foot. Its trunk rises past the roof line
+       * and leans a little toward the room, two thick roots arch over the corner wall and come down on both sides of the kiosk, and the crown starts at height 9 so nothing comes down to the animals
+       * or the server label. It casts no shadow. The kiosk gets twinkle lights, a pile of presents, mushrooms, moss and gathered fireflies. Ginkgo leaves lie on the lawn and the floor round the kiosk.
+       * holFit tells fit() to keep only the trunk and the lowest crown in frame, so the upper crown may leave the top of the screen. The garden island grows deeper along its back edge and wider along its left edge. */
+      const CN = 2.2, gx = -FW / 2 - CN, gz = -FD / 2 - CN, srvAt = { x: srv.x - gx, z: srv.z - gz };
+      const lawnR = (nb, nl, y) => [{ x0: -FW / 2 - 5.3 - gx, x1: Math.min(FW / 2 + 1.7, gx + 12) - gx, z0: -FD / 2 - 8.2 - gz, z1: -FD / 2 - 0.4 - gz, y, n: nb }, { x0: -FW / 2 - 5.3 - gx, x1: -FW / 2 - 0.4 - gx, z0: -FD / 2 - 0.4 - gz, z1: Math.min(FD / 2 + 1.7, gz + 12) - gz, y, n: nl }];
+      const srvFloor = { x0: srvAt.x - 2.4, x1: srvAt.x + 2.4, z0: srvAt.z - 1.9, z1: srvAt.z + 2.4, y: 0.03, n: 20 }, srvFall = { ...srvFloor, n: 12 };
+      OB('lawn', '#cfe8b5', FW + 7.5, 0.5, 6.5, -1.75, -0.45, -FD / 2 - 5.25); OB('soil', '#b99a73', FW + 6.9, 0.3, 6.5, -1.75, -0.85, -FD / 2 - 4.95);
+      OB('lawn', '#cfe8b5', 3.5, 0.5, FD + 4, -FW / 2 - 3.75, -0.45, 0); OB('soil', '#b99a73', 3.5, 0.3, FD + 3.4, -FW / 2 - 3.45, -0.85, 0);
+      const tr = makeWorldTree(T, { carpet: lawnR(460, 110, -0.17), fall: [...lawnR(40, 10, -0.17), srvFall], floor: [srvFloor], srv: srvAt, corner: CN });
+      tr.position.set(gx, 0, gz); world.add(tr); hol.push(tr); holFit = { x: gx, z: gz, pts: [[3.0, 2.4], [6.1, 3.0]] };
+      const pl = makePresents(T); pl.scale.setScalar(0.75); pl.rotation.y = -0.35; pl.position.set(srv.x + 1.9, 0, srv.z + 1.3); world.add(pl); hol.push(pl);   /* the present pile stands in front of the kiosk */
     }
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
-      if(pileAt && Math.sign(x) === pileAt[0] && Math.sign(z) === pileAt[1]) return;
       B('#e8a77f', 0.7, 0.6, 0.7, x, 0.3, z); Sp('#8fcf9b', 0.6, x, 1.2, z); Sp('#a8dba0', 0.45, x + 0.3, 1.6, z - 0.1); Sp('#9fd49a', 0.42, x - 0.3, 1.5, z + 0.1);
     });
     people.forEach(o => {   /* the nearest desk in the same row: whom to glance at */
@@ -1524,7 +1521,7 @@ export function mountOfficeScene(container, data, opts = {}){
       v.set(x * Math.cos(yw) + z * Math.sin(yw), y, -x * Math.sin(yw) + z * Math.cos(yw)).applyMatrix4(inv);
       x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
     }
-    if(holFit){   /* the giant tree: the top and the widest part of its crown must stay in view */
+    if(holFit){   /* the world tree: its trunk and the lowest layer of its crown must stay in view (the upper crown may leave the top of the screen) */
       for(const [y, rr] of holFit.pts){ v.set(holFit.x, y, holFit.z).applyMatrix4(inv); x0 = Math.min(x0, v.x - rr); x1 = Math.max(x1, v.x + rr); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
     }
     { const rg = document.createRange(); rg.selectNodeContents(elHud); const hb = rg.getBoundingClientRect(), sb = stage.getBoundingClientRect(); hudBox = hb.width ? [hb.left - sb.left, hb.top - sb.top, hb.width, hb.height] : null; }
