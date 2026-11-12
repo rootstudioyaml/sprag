@@ -442,9 +442,31 @@ export const OF_CSS = `
 .of-dbtn{flex:1;min-width:120px;font:inherit;font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;border:1px solid #cfc3f7;background:#f1ebff;color:#4c1d95}
 .of-dbtn.pri{background:#6d5ce7;border-color:#6d5ce7;color:#fff}.of-dbtn:hover{filter:brightness(.96)}
 .of-stage.has-drawer .of-tools{right:430px}
-.of-stage .of-portrait{position:absolute;right:430px;top:50%;width:240px;height:320px;transform:translate(16px,-50%);opacity:0;z-index:4;pointer-events:none;border-radius:20px;--tc:#d9cdb8;background:linear-gradient(165deg,color-mix(in srgb,var(--tc) 34%,#fffdf8) 0,#fffdf8 78%);border:2px solid color-mix(in srgb,var(--tc) 60%,#fff);box-shadow:0 10px 28px rgba(90,60,30,.18),inset 0 1px 0 rgba(255,255,255,.8);transition:opacity .3s,transform .3s cubic-bezier(.23,1,.32,1)}
-.of-stage .of-portrait.on{opacity:1;transform:translate(0,-50%)}
-@media (max-width:899px){.of-stage .of-portrait{display:none}}
+.of-stage .of-pcard{position:absolute;right:430px;top:50%;width:252px;height:352px;box-sizing:border-box;padding:7px;transform:translate(16px,-50%);opacity:0;z-index:4;pointer-events:none;border-radius:16px;--tc:#d9cdb8;--rx:0deg;--ry:0deg;--mx:50%;--my:50%;background:linear-gradient(145deg,color-mix(in srgb,var(--tc) 50%,#fff) 0,color-mix(in srgb,var(--tc) 80%,#5a4630) 50%,color-mix(in srgb,var(--tc) 45%,#fff) 100%);box-shadow:0 14px 34px rgba(60,40,20,.28),0 0 0 1px rgba(60,40,20,.28),inset 0 0 0 1px rgba(255,255,255,.6);transition:opacity .3s,transform .3s cubic-bezier(.23,1,.32,1);color:#2e241c;font-size:11px;line-height:1.3}
+.of-stage .of-pcard.on{opacity:1;pointer-events:auto;transform:translate(0,-50%) perspective(900px) rotateX(var(--rx)) rotateY(var(--ry))}
+.of-stage .of-pcard.tilt{transition:opacity .3s,transform .08s linear}
+.of-pcard.t-power,.of-pcard.crown{background:linear-gradient(125deg,#f3cf6e 0,#fff4c8 22%,#d9b8ff 45%,#9fdcff 62%,#fff1b8 80%,#e2b452 100%)}
+.of-pcard .pc-in{position:relative;height:100%;box-sizing:border-box;border-radius:10px;padding:6px 8px 5px;display:flex;flex-direction:column;gap:4px;overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,var(--tc) 28%,#fffdf6) 0,#fffaf0 55%,color-mix(in srgb,var(--tc) 18%,#fffaf0) 100%)}
+.of-pcard .pc-hd{display:flex;align-items:center;gap:6px;min-height:20px}
+.of-pcard .pc-hd b{flex:1;min-width:0;font-size:14.5px;font-weight:800;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.of-pcard .rk{flex:none;display:flex;align-items:center;gap:1px;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;color:color-mix(in srgb,var(--tc) 35%,#3a1f10)}.of-pcard .rk small{font-size:11px;font-weight:700;opacity:.7}.of-pcard .rk svg{width:15px;height:15px;margin-right:2px}
+.of-pcard .pc-art{position:relative;height:196px;flex:none;border-radius:4px;overflow:hidden;background:radial-gradient(ellipse 70% 62% at 50% 44%,#fffef8 0,color-mix(in srgb,var(--tc) 42%,#fff6e6) 68%,color-mix(in srgb,var(--tc) 72%,#8a6a48) 100%)}
+.of-pcard .pc-art::before{content:"";position:absolute;inset:-40%;background:repeating-conic-gradient(from 0deg at 50% 46%,rgba(255,255,255,.26) 0 5deg,transparent 5deg 15deg)}
+.of-pcard .pc-art::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--tc) 60%,#8a6a48),inset 0 0 0 3px rgba(255,255,255,.6),inset 0 8px 16px rgba(60,40,20,.16)}
+.of-pcard .pc-holo{position:absolute;inset:0;display:none;background:repeating-linear-gradient(115deg,#ff9ad5 0,#ffe28a 6%,#9dffb5 12%,#8fd8ff 18%,#c8a2ff 24%,#ff9ad5 30%);background-size:300% 300%;background-position:var(--mx) var(--my);mix-blend-mode:multiply;opacity:.32;animation:pc-holo 9s linear infinite}
+.of-pcard.t-power .pc-holo,.of-pcard.crown .pc-holo{display:block}.of-pcard.tilt .pc-holo{animation:none}
+@keyframes pc-holo{from{background-position:0 50%}to{background-position:300% 50%}}
+.of-pcard .pc-floor{position:absolute;left:50%;bottom:6px;width:130px;height:20px;margin-left:-65px;border-radius:50%;background:radial-gradient(closest-side,rgba(60,40,20,.3),transparent)}
+.of-pcard canvas{position:absolute;left:27px;top:-16px;width:168px;height:224px}
+.of-pcard .pc-sp{display:flex;gap:8px;justify-content:center;font-size:9.5px;font-style:italic;font-weight:600;color:#6a5a4a;white-space:nowrap;overflow:hidden;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--tc) 40%,#fff3dc),transparent)}
+.of-pcard .pc-mv{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
+.of-pcard .pc-mv div{display:flex;align-items:center;gap:7px;padding:3px 2px;border-bottom:1px solid rgba(90,60,30,.14)}.of-pcard .pc-mv div:last-child{border-bottom:0}
+.of-pcard .pc-mv i{flex:none;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0,var(--tc) 55%,color-mix(in srgb,var(--tc) 60%,#3a2410) 100%);box-shadow:0 0 0 1px rgba(60,40,20,.3)}
+.of-pcard .pc-mv span{flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.of-pcard .pc-mv b{flex:none;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.of-pcard .pc-ft{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:9px;font-weight:600;color:#7a6a5a;white-space:nowrap}.of-pcard .rar{font-size:10px;letter-spacing:1px;color:color-mix(in srgb,var(--tc) 45%,#3a2410)}
+.of-pcard .pc-glare{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;mix-blend-mode:soft-light;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.7) 0,rgba(255,255,255,0) 50%)}.of-pcard.tilt .pc-glare{opacity:1}
+@media (prefers-reduced-motion:reduce){.of-pcard .pc-holo{animation:none}}
+@media (max-width:899px){.of-stage .of-pcard{display:none}}
 @media (max-width:480px){.of-drawer{top:auto;left:0;right:0;width:auto;height:72%;border-left:0;border-top:1px solid rgba(120,90,60,.16);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(90,60,30,.18);transform:translateY(100%)}.of-stage.has-drawer .of-tools{right:10px}}
 @media (max-width:480px){.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer{height:640px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer canvas{height:300px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer .of-drawer{height:calc(100% - 300px)}}
 /* field guide */
@@ -917,20 +939,32 @@ export function mountOfficeScene(container, data, opts = {}){
      zoomed in and centred in the room the drawer and the portrait leave */
   function focusOn(o){
     if(!view) return; if(!homePose) homePose = view.getPose();   /* where to fly back to when the drawer closes */
-    const W = stage.clientWidth, side = W > 480 ? 420 + (pr && pr.on ? PR_W + 10 : 0) : 0;
+    const W = stage.clientWidth, side = W > 480 ? 420 + (pr && pr.on ? PC_W + 10 : 0) : 0;
     view.flyTo({ x: o.x + POSE_X, z: o.z + POSE_Z + 0.6, th: 0, ph: 1.05, zoom: 3.4, ox: side / 2 });
   }
-  /* The selected character as a framed head-and-shoulders card left of the drawer, turned a quarter towards the drawer so it never repeats the
-     front view of the model on the desk: its own renderer, scene and three-point light, a clone of the loaded model, the card tinted by tier */
-  const PR_W = 240, PR_H = 320; let pr = null, homePose = null;
+  /* The selected character as a collectible card left of the drawer: a tier-coloured frame, the name and rank on top, the character in an art window
+     (its own renderer, scene and three-point light, turned a quarter towards the drawer), the species line, up to three rows of the person's tip and a
+     footer with the tier, rarity stars and the field guide number. The power tier and the crown get a holographic art background. PR_W x PR_H is the
+     drawing buffer, the same 3:4 as the baked card frames; CSS shows it at 168 x 224 so the whole animal fits the 196 px art window. */
+  const PR_W = 240, PR_H = 320, PC_W = 252; let pr = null, homePose = null;
+  const pad3 = n => String(n).padStart(3, '0');
   function portrait(o){
     if(!castOn || !o.glb || stage.clientWidth < 900){ hidePortrait(); return; }
     if(!pr){
-      const c = document.createElement('canvas'); c.className = 'of-portrait'; c.setAttribute('aria-hidden', 'true'); stage.appendChild(c);
-      let r; try{ r = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true }); }catch(e){ c.remove(); return; }
+      const el = document.createElement('div'); el.className = 'of-pcard'; el.setAttribute('aria-hidden', 'true');
+      el.innerHTML = '<div class="pc-in"><div class="pc-hd"></div><div class="pc-art"><i class="pc-holo"></i><i class="pc-floor"></i><canvas></canvas></div><div class="pc-sp"></div><div class="pc-mv"></div><div class="pc-ft"></div></div><i class="pc-glare"></i>';
+      const c = el.querySelector('canvas'); stage.appendChild(el);
+      let r; try{ r = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true }); }catch(e){ el.remove(); return; }
+      /* the pointer tilts the card a few degrees and moves the glare and the foil; the card swallows its own presses so they do not orbit the room */
+      ['pointerdown', 'wheel', 'click'].forEach(ev => el.addEventListener(ev, e => e.stopPropagation()));
+      if(!reduced){
+        el.addEventListener('pointermove', e => { const b = el.getBoundingClientRect(), x = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)), y = Math.max(0, Math.min(1, (e.clientY - b.top) / b.height));
+          el.classList.add('tilt'); el.style.setProperty('--ry', ((x - 0.5) * 16).toFixed(2) + 'deg'); el.style.setProperty('--rx', ((0.5 - y) * 16).toFixed(2) + 'deg'); el.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); el.style.setProperty('--my', (y * 100).toFixed(1) + '%'); });
+        el.addEventListener('pointerleave', () => { el.classList.remove('tilt'); ['--rx', '--ry', '--mx', '--my'].forEach(k => el.style.removeProperty(k)); });
+      }
       r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); r.setSize(PR_W, PR_H, false); r.setClearColor(0x000000, 0);
       const sc = new T.Scene(), key = new T.DirectionalLight('#fff0d4', 2.0), rl = new T.DirectionalLight('#e6ecff', 1.0); key.position.set(-2, 3, 4); rl.position.set(2.5, 2, -3); sc.add(new T.HemisphereLight('#f3f1ff', '#e8dcc4', 0.9), key, rl);
-      pr = { c, r, sc, cam: new T.PerspectiveCamera(26, PR_W / PR_H, 0.1, 50), m: null, q: null, card: null, raf: 0, on: false };
+      pr = { el, c, r, sc, cam: new T.PerspectiveCamera(26, PR_W / PR_H, 0.1, 50), m: null, q: null, card: null, raf: 0, on: false };
     }
     if(pr.m) pr.sc.remove(pr.m);
     if(pr.q) pr.sc.remove(pr.q.mesh);
@@ -960,12 +994,21 @@ export function mountOfficeScene(container, data, opts = {}){
       pr.cam.position.set(0, cy + hgt * 0.12, dist); pr.cam.lookAt(0, cy, 0);
     }
     pr.cam.updateProjectionMatrix();
-    pr.c.style.setProperty('--tc', o.tv ? o.tv.body : '#d9cdb8'); pr.on = true; pr.c.classList.add('on');
+    pcFill(o); pr.on = true; pr.el.classList.add('on');
     if(!pr.raf){ const t0 = performance.now(), loop = () => { if(!pr || !pr.on || destroyed){ if(pr) pr.raf = 0; return; }
       const ts = (performance.now() - t0) / 1000; if(pr.m && !pr.card){ pr.m.rotation.y = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced || pr.card ? 0 : requestAnimationFrame(loop); };
       loop(); }
   }
-  function hidePortrait(){ if(!pr) return; pr.on = false; pr.c.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }
+  /* the card's text: rows that repeat the team (the member town's tip for others) are left out, the field guide number is the species' place in GRADES */
+  function pcFill(o){
+    const p = o.p || {}, el = pr.el, tier = o.ghost ? 'nodata' : p.tier, ti = TIERS.indexOf(tier), no = o.ghost ? 0 : gradeIndex(o.gk) + 1, on = el.classList.contains('on');
+    el.className = 'of-pcard t-' + (tier || 'nodata') + (p.crown ? ' crown' : '') + (on ? ' on' : ''); el.style.setProperty('--tc', o.tv ? o.tv.body : '#d9cdb8');
+    el.querySelector('.pc-hd').innerHTML = `<b>${esc(p.name || '')}</b>` + (p.rank ? `<span class="rk">${p.crown ? CROWN_ICON : ''}<small>#</small>${p.rank}</span>` : '');
+    el.querySelector('.pc-sp').innerHTML = (no > 0 ? `<span>No.${pad3(no)}</span>` : '') + `<span>${esc(p.gradeText || '')}</span>` + (p.teamName ? `<span>${esc(p.teamName)}</span>` : '');
+    el.querySelector('.pc-mv').innerHTML = (p.tip || []).filter(r => r[1] !== p.teamName).slice(0, 3).map(r => `<div><i></i><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('');
+    el.querySelector('.pc-ft').innerHTML = `<span>${esc(p.tierText || '')}</span><span class="rar">${ti >= 0 ? '★'.repeat(TIERS.length - ti) : ''}</span><span>${no > 0 ? pad3(no) + '/' + pad3(GRADES.length) : ''}</span>`;
+  }
+  function hidePortrait(){ if(!pr) return; pr.on = false; pr.el.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }
   const closeDrawer = () => chrome.close();
 
   function build(d){
@@ -1714,7 +1757,7 @@ export function mountOfficeScene(container, data, opts = {}){
     selectPerson(id, opts){ const o = people.find(q => q.p.id === id); if(o) openDrawer(o, !(opts && opts.fly === false)); return !!o; },   /* fly:false keeps a scripted camera where the script put it */
     closeDrawer: () => chrome.close(),
     destroy(){
-      destroyed = true; if(sprKit){ sprKit.dispose(); sprKit = null; } if(pr){ hidePortrait(); pr.r.dispose(); pr.c.remove(); pr = null; } if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
+      destroyed = true; if(sprKit){ sprKit.dispose(); sprKit = null; } if(pr){ hidePortrait(); pr.r.dispose(); pr.el.remove(); pr = null; } if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
       if(io) io.disconnect(); if(ro) ro.disconnect();
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
       if(started === true){
