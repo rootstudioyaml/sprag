@@ -18,7 +18,7 @@
 import { makePost } from './post.js';
 import { makeFur, softNight } from './fur.js?v=f1';
 import { parseManifest, pickVariant, pickCell, relAzimuth, elevOk, nightTint, wantVariant, makeSpriteKit, zoomOk, cardOf } from './sprites.js?v=s2';   /* Blender fur sprites of the seated animals; the query keeps the module in step with this file */
-import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g4';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
+import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g5';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
@@ -372,7 +372,8 @@ export const OF_CSS = `
 .of-stage canvas{display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab}
 .of-stage canvas:focus:not(:focus-visible){outline:none}
 .of-stage canvas.drag{cursor:grabbing}.of-stage canvas.hit{cursor:pointer}
-.of-hud{position:absolute;left:16px;top:12px;right:16px;pointer-events:none;font-size:12px;line-height:1.45;z-index:2;color:#6a5a4a}
+.of-hud{position:absolute;left:16px;top:12px;right:16px;pointer-events:none;font-size:12px;line-height:1.45;z-index:2;color:#6a5a4a;text-shadow:0 0 3px #fffaf0,0 0 9px #fffaf0}
+.of-stage.sk-night .of-hud{text-shadow:0 0 3px #10142e,0 0 9px #10142e}
 .of-hud b{display:block;font-size:15px;font-weight:600;color:#3a2f27;letter-spacing:-.01em}
 .of-hud em{font-style:normal;margin-left:8px;font-size:11px;font-weight:600;color:#b4443f;border:1px solid currentColor;border-radius:999px;padding:1px 8px;vertical-align:2px;background:#fff}
 .of-legend{position:absolute;left:12px;right:auto;max-width:calc(100% - 24px);bottom:8px;display:flex;flex-direction:column;align-items:flex-start;background:rgba(255,248,235,.85);border-radius:12px;padding:4px 10px;flex-wrap:wrap;gap:2px 16px;font-size:11.5px;line-height:1.5;color:#6a5a4a;pointer-events:none;z-index:2}
@@ -1126,10 +1127,13 @@ export function mountOfficeScene(container, data, opts = {}){
       const CN = 2.2, gx = -FW / 2 - CN, gz = -FD / 2 - CN, srvAt = { x: srv.x - gx, z: srv.z - gz };
       const lawnR = (nb, nl, y) => [{ x0: -FW / 2 - 5.3 - gx, x1: Math.min(FW / 2 + 1.7, gx + 12) - gx, z0: -FD / 2 - 8.2 - gz, z1: -FD / 2 - 0.4 - gz, y, n: nb }, { x0: -FW / 2 - 5.3 - gx, x1: -FW / 2 - 0.4 - gx, z0: -FD / 2 - 0.4 - gz, z1: Math.min(FD / 2 + 1.7, gz + 12) - gz, y, n: nl }];
       const srvFloor = { x0: srvAt.x - 2.4, x1: srvAt.x + 2.4, z0: srvAt.z - 1.9, z1: srvAt.z + 2.4, y: 0.03, n: 20 }, srvFall = { ...srvFloor, n: 12 };
+      /* the crown roofs the back of the room, so leaves drift down from it onto the office floor and a few lie there; the strip runs along both back walls and halfway into the room */
+      const rx = Math.min(FW * 0.7, 15), rz = Math.min(FD * 0.7, 15), roomA = { x0: CN + 0.4, x1: CN + rx, z0: CN + 0.4, z1: CN + 4.5, y: 0.06 }, roomB = { x0: CN + 0.4, x1: CN + 4.5, z0: CN + 4.5, z1: CN + rz, y: 0.06 }, roomC = { x0: CN + 4.5, x1: CN + rx * 0.8, z0: CN + 4.5, z1: CN + rz * 0.8, y: 0.06 };
+      const roomFall = [{ ...roomA, n: 26, top: 15 }, { ...roomB, n: 26, top: 15 }, { ...roomC, n: 34, top: 15 }], roomFloor = [{ ...roomA, n: 30 }, { ...roomB, n: 30 }, { ...roomC, n: 16 }];
       OB('lawn', '#cfe8b5', FW + 7.5, 0.5, 6.5, -1.75, -0.45, -FD / 2 - 5.25); OB('soil', '#b99a73', FW + 6.9, 0.3, 6.5, -1.75, -0.85, -FD / 2 - 4.95);
       OB('lawn', '#cfe8b5', 3.5, 0.5, FD + 4, -FW / 2 - 3.75, -0.45, 0); OB('soil', '#b99a73', 3.5, 0.3, FD + 3.4, -FW / 2 - 3.45, -0.85, 0);
-      const tr = makeWorldTree(T, { carpet: lawnR(460, 110, -0.17), fall: [...lawnR(40, 10, -0.17), srvFall], floor: [srvFloor], srv: srvAt, corner: CN });
-      tr.position.set(gx, 0, gz); world.add(tr); hol.push(tr); holFit = { x: gx, z: gz, pts: [[3.0, 2.4], [6.1, 3.0]] };
+      const tr = makeWorldTree(T, { carpet: lawnR(460, 110, -0.17), fall: [...lawnR(60, 14, -0.17), srvFall, ...roomFall], floor: [srvFloor, ...roomFloor], srv: srvAt, corner: CN });
+      tr.position.set(gx, 0, gz); world.add(tr); hol.push(tr); holFit = { x: gx, z: gz, pts: [[3.0, 3.2], [7.4, 4.0]] };
       const pl = makePresents(T); pl.scale.setScalar(0.75); pl.rotation.y = -0.35; pl.position.set(srv.x + 1.9, 0, srv.z + 1.3); world.add(pl); hol.push(pl);   /* the present pile stands in front of the kiosk */
     }
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
