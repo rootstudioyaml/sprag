@@ -17,11 +17,21 @@
  * glowing laptop logos take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { makePost } from './post.js';
 import { makeFur, softNight } from './fur.js?v=f1';
+import { parseManifest, pickVariant, pickCell, relAzimuth, elevOk, nightTint, wantVariant, makeSpriteKit, zoomOk, cardOf } from './sprites.js?v=s1';   /* Blender fur sprites of the seated animals; the query keeps the module in step with this file */
 import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g4';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
 export const CAST_Q = '?v=3.121.0-2';   /* the model files change in place and the CDN keeps them 4 h: bump this with the files */
+const SPRITE_URL = new URL('./sprites/', import.meta.url).href, SPRITE_Q = new URL(import.meta.url).searchParams.get('v') || '0';   /* the page's query for this file doubles as the manifest's, whose own v is only known after reading it */
+let spriteManP = null;
+function spriteManifest(){   /* sprites/manifest.json, read once per page; a missing or broken one resolves null and every animal stays a glb */
+  if(!spriteManP){
+    const p = spriteManP = fetch(SPRITE_URL + 'manifest.json?v=' + SPRITE_Q).then(r => (r.ok ? r.json() : null)).then(j => parseManifest(j, SPRITE_URL)).catch(() => null);
+    p.then(m => { if(!m && spriteManP === p) spriteManP = null; });
+  }
+  return spriteManP;
+}
 const CAST_DRACO = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/';
 /* One glTF loader with the Draco decoder for the cast models, shared by the office and the town (same three build as THREE_URL).
  * A failed import is forgotten, so the next mount tries again. */
@@ -39,7 +49,7 @@ export function castCrown(T){
   const band = new T.Mesh(new T.CylinderGeometry(0.13, 0.14, 0.07, 20, 1, true), gold); band.material.side = T.DoubleSide; g.add(band);
   for(let i = 0; i < 5; i++){ const a = i / 5 * Math.PI * 2, c = new T.Mesh(new T.ConeGeometry(0.032, 0.075, 8), gold); c.position.set(Math.sin(a) * 0.125, 0.07, Math.cos(a) * 0.125); g.add(c);
     const b = new T.Mesh(new T.SphereGeometry(0.014, 8, 6), gem); b.position.set(Math.sin(a) * 0.137, 0.0, Math.cos(a) * 0.137); g.add(b); }
-  g.position.set(0, 1.04, -0.02); g.rotation.x = -0.12; return g;
+  g.position.set(0, 1.04, -0.02); g.rotation.x = -0.12; g.userData.keepLook = true; return g;   /* keepLook: stays drawn in 3D over a sprite (sprites.js shadowOnly) */
 }
 /* Shared look for every placed cast model (office desks, the picked pose, the town crowd): shadows on, the baked normal map softened
  * (at full strength its noise read as sandy grain on pale fur), and the ghost turned into a pale see-through spirit instead of grey clay.
@@ -707,6 +717,7 @@ export function mountOfficeScene(container, data, opts = {}){
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
   let TMP2 = null, M4 = null, S = null, TMP = null, PT = null, HP = null, Mh = null, Mp = null, Q1 = null, E1 = null, V1 = null, V2 = null, ONE = null;
   const v3 = () => new T.Vector3();
+  let sprOn = opts.sprite !== false && !(typeof location !== 'undefined' && /[?&]sprite=0(?:&|$)/.test(location.search || '')), sprMan = null, sprKit = null, sprZoom = false;   /* sprites.js: ?sprite=0 keeps the glb (and the live 3D profile card) for everyone; sprZoom: the zoom gate's state, shared so its hysteresis is one decision per frame */
   let xmas = false, hol = [], holWall = null, holFit = null;   /* year-end dressing (holiday.js): on from Nov 1 to Dec 30 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
   /* Who wears what: a crown gets only the red nose, a person without one gets a Santa hat or the Rudolph set (antlers band and red nose) by a hash of the id.
    * HAT_SKIP: species that already wear a hat, so they always take the Rudolph set. ANTLER_SKIP: the band would tangle with a hat, horns or antlers of their own, so the nose goes on alone.
@@ -919,20 +930,36 @@ export function mountOfficeScene(container, data, opts = {}){
       let r; try{ r = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true }); }catch(e){ c.remove(); return; }
       r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); r.setSize(PR_W, PR_H, false); r.setClearColor(0x000000, 0);
       const sc = new T.Scene(), key = new T.DirectionalLight('#fff0d4', 2.0), rl = new T.DirectionalLight('#e6ecff', 1.0); key.position.set(-2, 3, 4); rl.position.set(2.5, 2, -3); sc.add(new T.HemisphereLight('#f3f1ff', '#e8dcc4', 0.9), key, rl);
-      pr = { c, r, sc, cam: new T.PerspectiveCamera(26, PR_W / PR_H, 0.1, 50), m: null, raf: 0, on: false };
+      pr = { c, r, sc, cam: new T.PerspectiveCamera(26, PR_W / PR_H, 0.1, 50), m: null, q: null, card: null, raf: 0, on: false };
     }
     if(pr.m) pr.sc.remove(pr.m);
+    if(pr.q) pr.sc.remove(pr.q.mesh);
+    sprReveal(o);
     const m = pr.m = (o.pose || o.glb).clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); pr.sc.add(m);
     m.traverse(c => { if(c.userData && c.userData.fur) c.visible = false; });   /* the card is a close-up: shell fur read as tangled noise there, the plush texture alone stays clean */
     m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
-    /* whole body in the card: fit the height and the turning width (the model sways about y) with a small margin */
-    const box = new T.Box3().setFromObject(m), sz = box.getSize(new T.Vector3()), hgt = sz.y, cy = box.min.y + hgt * 0.5;
-    const tn = Math.tan(pr.cam.fov * Math.PI / 360), rw = Math.hypot(sz.x, sz.z) / 2;
-    const dist = Math.max(hgt * 0.56 / tn, rw * 1.08 / (tn * pr.cam.aspect)) + rw;
-    pr.cam.position.set(0, cy + hgt * 0.12, dist); pr.cam.lookAt(0, cy, 0);
+    /* A baked Cycles image replaces the model's colours when the manifest has a card for the species and the standing model is in (the card was baked from it).
+     * Until the sheet is loaded, or when it fails, or for a ghost, the live 3D model below is what shows. */
+    const cd = !o.ghost && o.pose && sprOn && sprKit && sprMan ? cardOf(sprMan, o.gk) : null, cs = cd ? sprKit.card(o.gk) : null;
+    if(cs && !cs.t && !cs.bad){ const pk = o; cs.p.then(() => { if(sel === pk && pr && pr.on && !destroyed) portrait(pk); }); }   /* shows the card as soon as it is loaded */
+    pr.card = null;
+    if(cd && cs.t){
+      m.traverse(c => { if(c.userData && c.userData.holPiece) c.userData.keepLook = true; });
+      sprKit.depthOnly(m);   /* depth only: the accessories stay 3D on top of the image and the body hides them where it should */
+      pr.q = pr.q || sprKit.cardQuad(); pr.q.show(cs.t, cd); pr.sc.add(pr.q.mesh); pr.card = cd;
+      pr.cam.fov = cd.fov; pr.cam.position.set(cd.cam[0], cd.cam[1], cd.cam[2]); pr.cam.lookAt(cd.at[0], cd.at[1], cd.at[2]);
+    }else{
+      /* whole body in the card: fit the height and the turning width (the model sways about y) with a small margin */
+      const box = new T.Box3().setFromObject(m), sz = box.getSize(new T.Vector3()), hgt = sz.y, cy = box.min.y + hgt * 0.5;
+      pr.cam.fov = 26;
+      const tn = Math.tan(pr.cam.fov * Math.PI / 360), rw = Math.hypot(sz.x, sz.z) / 2;
+      const dist = Math.max(hgt * 0.56 / tn, rw * 1.08 / (tn * pr.cam.aspect)) + rw;
+      pr.cam.position.set(0, cy + hgt * 0.12, dist); pr.cam.lookAt(0, cy, 0);
+    }
+    pr.cam.updateProjectionMatrix();
     pr.c.style.setProperty('--tc', o.tv ? o.tv.body : '#d9cdb8'); pr.on = true; pr.c.classList.add('on');
     if(!pr.raf){ const t0 = performance.now(), loop = () => { if(!pr || !pr.on || destroyed){ if(pr) pr.raf = 0; return; }
-      const ts = (performance.now() - t0) / 1000; if(pr.m){ pr.m.rotation.y = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
+      const ts = (performance.now() - t0) / 1000; if(pr.m){ const yaw = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); pr.m.rotation.y = yaw; if(pr.card) pr.q.blend(yaw); else flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
       loop(); }
   }
   function hidePortrait(){ if(!pr) return; pr.on = false; pr.c.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }
@@ -1240,6 +1267,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const dk = 1 - 0.42 * n * (1 - 0.35 * lamp);
     decals.forEach(m => { m.material.color.setScalar(dk); m.children.forEach(c => c.material && c.material.color.setScalar(dk)); }); signs.forEach(m => m.material.color.setScalar(Math.max(dk, 0.82)));
     if(sets.gl) sets.gl.material.opacity = 0.22 + 0.3 * n;
+    sprTint = nightTint(n, lamp, ovc); if(sprKit) sprKit.setTint(sprTint);   /* sprites are unlit: the night and the lamps reach them as a colour factor */
     renderer.shadowMap.needsUpdate = true; request();
   }
   function paintGlass(f){
@@ -1316,6 +1344,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const gen = ++castGen; castOn = false;
     const all = solids.concat(ghosts); if(!all.length) return;
     try{
+      const manP = sprOn ? spriteManifest() : Promise.resolve(null);   /* started now, read after the glbs are in: the sprites never delay the models */
       castLoad = castLoad || castLoader();
       const loader = await castLoad, load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '.glb' + CAST_Q));   /* one download per species for the page's lifetime */
       const SC = CAST_SC;   /* big enough that the head clears the laptop lid; every model is built at one body size, so one scale keeps bodies equal while ears, horns and manes stick out */
@@ -1333,7 +1362,37 @@ export function mountOfficeScene(container, data, opts = {}){
       sets.f.forEach(f => { [f.torso, f.arm, f.scarf, f.sph, f.cone, f.rimH, f.rimT].forEach(m => { if(m) m.visible = false; }); });
       if(sets.mug) sets.mug.visible = false;
       castOn = true; request(); if(sel){ if(!(pr && pr.on)) portrait(sel); posePerson(sel); }   /* a person picked while the models were loading gets the portrait now */
+      const man = await manP; if(gen !== castGen || destroyed || !man) return;
+      sprMan = man; if(!sprKit) sprKit = makeSpriteKit(T, man); sprKit.setTint(sprTint);
+      sprPend = { gen, ms: ms.filter(([o]) => !o.ghost) }; request();   /* the sheets download on the first zoom-in (stepCast), so the overview never pays for them */
+      if(sel && pr && pr.on) portrait(sel);   /* a card whose manifest arrived after the pick */
     }catch(e){ if(gen === castGen) castOn = false; }
+  }
+  /* ── sprites: a seated animal drawn as a camera-facing plane with its Blender fur sheet (sprites.js) ──
+   * The glb stays in the scene for its shadow only while the plane shows. In the overview (zoom under SPRITE_MIN_ZOOM), past SPRITE_MAX_REL_DEG of turn or off the sheets' elevation the glb (with shell fur) is drawn instead. */
+  let sprTint = [1, 1, 1], sprPend = null;   /* sprPend: the seated models waiting for their sheets until the camera first comes close */
+  const SPR_PREFETCH_ZOOM = 1.5;   /* under SPRITE_MIN_ZOOM, so the sheets are usually in by the time the gate opens */
+  function holKindOf(o){ return !xmas || o.ghost ? null : o.p.crown ? 'crown' : HAT_SKIP.has(o.gk) ? 'rudolph' : hash(o.p.id + ':xmas') < 0.5 ? 'santa' : 'rudolph'; }   /* the same choice holDress makes in 3D */
+  function sprAttach(o, m, gen){
+    const pv = pickVariant(sprMan, o.gk, wantVariant(holKindOf(o), o.gk, ANTLER_SKIP, NO_NOSE)); if(!pv) return;
+    const go = mat => {
+      if(!mat || gen !== castGen || destroyed || o.spr || o.glb !== m) return;
+      if(!pv.exact) (m.userData.hol || []).forEach(h => { h.userData.keepLook = true; });   /* no sheet for this accessory: the 3D one stays drawn over the plain sprite */
+      const mesh = new T.Mesh(sprKit.geometry(o.gk, 2, CAST_SC), mat); mesh.userData.noAO = true; mesh.frustumCulled = false; mesh.visible = false; world.add(mesh);
+      o.spr = { mesh, k: -1, on: false, pick: null }; request();
+    };
+    const hit = sprKit.cached(o.gk, pv.variant);
+    if(hit) go(hit); else sprKit.material(o.gk, pv.variant).then(go);   /* sheets already loaded (a rebuild) attach at once, so nothing flashes */
+  }
+  function sprReveal(o){ const s = o && o.spr; if(s && s.on){ s.on = false; s.mesh.visible = false; sprKit.shadowOnly(o.glb, false); } }   /* a clone of the glb (the profile card) must be whole */
+  function stepSprite(o, m, sv){
+    const s = o.spr, pk = pickCell(relAzimuth(sv.az, m.rotation.y), sprMan.cols, undefined, s.pick); s.pick = pk;
+    const show = sv.eok && sv.zok && !pk.glb && sel !== o && !o.pose && !o.poseLoading;   /* a picked person keeps the standing glb on the desk */
+    if(show !== s.on){ s.on = show; s.mesh.visible = show; sprKit.shadowOnly(m, show); }
+    if(!show) return;
+    if(pk.k !== s.k){ s.k = pk.k; s.mesh.geometry = sprKit.geometry(o.gk, pk.k, CAST_SC); }
+    s.mesh.position.copy(m.position); s.mesh.rotation.set(-sv.tilt, sv.az, 0, 'YXZ');   /* faces the camera; a higher or lower camera leans the plane back so the image keeps its height */
+    s.mesh.scale.y = reduced ? 1 : 1 + 0.015 * Math.sin(time * 2.1 + o.ph);   /* breathing: the glb's y offset plus a slight stretch */
   }
   /* Picked: the seated model gives way to a standing one (cast/<key>-pose.glb, fetched on the first pick) on its desk beside the laptop, facing the
      camera that flies in from the front; it hops and sways, and a winged one flaps (its wings are the nodes flap_L and flap_R) */
@@ -1354,8 +1413,8 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   function holDress(m, o, pose){   /* in the same model space as castCrown(); what goes on is remembered in m.userData.hol so unpose() can free it */
     if(!xmas || o.ghost) return;
-    const add = h => { m.add(h); hol.push(h); (m.userData.hol = m.userData.hol || []).push(h); };
-    const kind = o.p.crown ? 'crown' : HAT_SKIP.has(o.gk) ? 'rudolph' : hash(o.p.id + ':xmas') < 0.5 ? 'santa' : 'rudolph';
+    const add = h => { h.userData.holPiece = true; if(pose) h.userData.keepLook = true; m.add(h); hol.push(h); (m.userData.hol = m.userData.hol || []).push(h); };   /* the standing model is never a sprite, so its pieces always stay drawn; a seated one gets keepLook from sprAttach only when its sheet lacks the piece. holPiece lets the profile card keep them either way */
+    const kind = holKindOf(o);
     if(kind === 'santa') return add(santaHat(T));
     if(kind === 'rudolph' && !ANTLER_SKIP.has(o.gk)) add(reindeerAntlers(T));
     if(NO_NOSE.has(o.gk)) return;
@@ -1366,11 +1425,13 @@ export function mountOfficeScene(container, data, opts = {}){
   function flapAt(m, t){ const f = m.userData.flaps; if(!f) return; const a = reduced ? 0.25 : 0.32 + 0.38 * Math.sin(t * 13); if(f[0]) f[0].rotation.z = -a; if(f[1]) f[1].rotation.z = a; }
   function stepCast(dt){
     if(!castOn) return;
+    const sv = sprMan && sprKit && view ? (() => { const ce = Math.PI / 2 - view.getPose().ph; return { az: view.azimuth(), tilt: ce - sprMan.elev * Math.PI / 180, eok: elevOk(ce, sprMan.elev), zok: (sprZoom = zoomOk(view.zoom(), sprZoom)) }; })() : null;
+    if(sv && sprPend && Math.max(view.zoom(), view.getPose().zoom) >= SPR_PREFETCH_ZOOM){ const p = sprPend; sprPend = null; if(p.gen === castGen) p.ms.forEach(([o, m]) => sprAttach(o, m, p.gen)); }   /* getPose().zoom is the target, so a fly-in starts the downloads as it sets off */
     people.forEach(o => { const m = o.glb; if(!m) return;
       const breathe = reduced ? 0 : Math.sin(time * 2.1 + o.ph) * 0.012;
       if(o.pose){ const pm = o.pose, hop = reduced ? 0 : Math.abs(Math.sin(time * 4.2)); pm.position.y = pm.userData.y0 + hop * 0.16;
         pm.rotation.z = reduced ? 0 : Math.sin(time * 2.1) * 0.07; pm.scale.set(CAST_SC * (1 + 0.04 * (1 - hop)), CAST_SC * (1 - 0.05 * (1 - hop)), CAST_SC * (1 + 0.04 * (1 - hop))); flapAt(pm, time); }
-      m.position.y = o.y0 + (o.dy || 0) + breathe; m.rotation.y = (o.turn || 0) * 0.45 + (o.yj || 0); });   /* the head turn (o.turn) becomes a small body turn */
+      m.position.y = o.y0 + (o.dy || 0) + breathe; m.rotation.y = (o.turn || 0) * 0.45 + (o.yj || 0); if(sv && o.spr) stepSprite(o, m, sv); });   /* the head turn (o.turn) becomes a small body turn */
   }
   function step(dt){
     time += dt; if(hol.length) hol.forEach(h => { if(h.userData.tick) h.userData.tick(time, envN); });
@@ -1642,12 +1703,13 @@ export function mountOfficeScene(container, data, opts = {}){
     get view(){ return view; },
     ready: () => started === true && !!view,
     bench(n = 60){ const gl = renderer.getContext(), b = new Uint8Array(4); let t = 0; for(let i = 0; i < n; i++){ const s0 = performance.now(); render(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, b); t += performance.now() - s0; } return t / n; },   /* GPU-synced ms per frame, for measurements */
-    people: () => people.map(o => ({ id: o.p.id, name: o.p.name, tier: o.p.tier, ghost: o.ghost, x: o.x, z: o.z })),
+    portraitInfo: () => ({ species: sel ? sel.gk : null, card: !!(pr && pr.on && pr.card) }),   /* card: the profile card shows the baked image */
+    people: () => people.map(o => ({ id: o.p.id, name: o.p.name, tier: o.p.tier, ghost: o.ghost, x: o.x, z: o.z, species: o.gk, sprite: !!(o.spr && o.spr.on) })),   /* sprite: this person is drawn as a sprite right now */
     server: () => (srv ? { x: srv.x, z: srv.z } : null),
     selectPerson(id, opts){ const o = people.find(q => q.p.id === id); if(o) openDrawer(o, !(opts && opts.fly === false)); return !!o; },   /* fly:false keeps a scripted camera where the script put it */
     closeDrawer: () => chrome.close(),
     destroy(){
-      destroyed = true; if(pr){ hidePortrait(); pr.r.dispose(); pr.c.remove(); pr = null; } if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
+      destroyed = true; if(sprKit){ sprKit.dispose(); sprKit = null; } if(pr){ hidePortrait(); pr.r.dispose(); pr.c.remove(); pr = null; } if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
       if(io) io.disconnect(); if(ro) ro.disconnect();
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
       if(started === true){

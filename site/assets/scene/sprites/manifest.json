@@ -1,0 +1,300 @@
+{
+ "v": 1,
+ "cell": [
+  384,
+  448
+ ],
+ "cols": [
+  -34,
+  -17,
+  0,
+  17,
+  34
+ ],
+ "elev": 30.409,
+ "unitsPerPx": 0.004243,
+ "species": {
+  "bear": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "cat": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain",
+    "santa",
+    "reindeer",
+    "nose"
+   ]
+  },
+  "cheetah": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "chick": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "deer": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "dog": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "dragon": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "duck": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "eagle": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "elephant": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "fox": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "frog": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "ghost": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "hamster": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "hedgehog": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "husky": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "koala": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "lion": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "monkey": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "mouse": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "owl": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "panda": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "penguin": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "pig": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "rabbit": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "raccoon": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "sheep": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "squirrel": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "tiger": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "unicorn": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  },
+  "wolf": {
+   "anchor": [
+    192.0,
+    356.45
+   ],
+   "variants": [
+    "plain"
+   ]
+  }
+ }
+}
