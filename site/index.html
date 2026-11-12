@@ -363,11 +363,15 @@
     .flow .card[data-pop]{transition:none}
     .popover{transition:none}
   }
+  .flow-hint{display:none;margin:10px 0 0;font-family:var(--sans);font-size:13px;color:var(--dim);text-align:right}
   @media(max-width:760px){
     .popover{position:fixed;left:16px;right:16px;bottom:16px;top:auto;width:auto;max-width:none;
       max-height:70vh;overflow-y:auto;transform:translateY(8px)}
     .popover.is-open{transform:none}
     .popover::before,.popover::after{display:none}
+    /* the diagram keeps its 1000px layout and scrolls sideways; the hint says so */
+    .flow-hint{display:block}
+    #features .card .vis code{white-space:pre-wrap;overflow-wrap:anywhere}
   }
   .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:40px}
   @media(max-width:860px){.steps{grid-template-columns:1fr}}
@@ -1404,6 +1408,7 @@ sprag harness check</pre><button class="icon-button" data-copy="claude-install-c
         <div class="pop-sample warn">🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94% 🔄 12:36 · 🤖 Opus 4.8 · 🧠 Cache hit 72.1% · ⚠ Cache miss · 📅 weekly ▰▱▱▱▱▱▱▱▱▱▱▱ 12% 🔄 Sun 14:26 · 📦 Ctx 200k · last 1d</div>
       </div>
     </div>
+    <p class="flow-hint" data-k="how.hint" aria-hidden="true">Swipe to see the whole diagram →</p>
     <p class="lede" data-k="how.lede">Sprag installs once, reads the sessions you already run, and does not ask you to change how you prompt.</p>
     <!-- the three steps play one at a time while the stage is pinned (assets/scroll-story.js); without motion they read as a list -->
     <div class="steps-track">
@@ -1777,6 +1782,7 @@ const KO = {
 
   'how.eyebrow':'작동 방식',
   'how.h2':'지난 세션 기록에서 다음 세션 규칙으로',
+  'how.hint':'옆으로 밀면 전체 그림이 보입니다 →',
   'how.lede':'Claude Code와 Codex가 남기는 세션 로그를 읽으므로, 프롬프트를 쓰는 방식은 바꾸지 않아도 됩니다.',
   'how.s1h':'되풀이된 실패는 규칙으로',
   'how.s1p':'처음 겪는 실패는 그냥 지나가지만, 같은 실패가 두 번째로 나타나면 Sprag가 규칙 후보로 알려 줍니다. 적용 범위를 승인하고 나면 세션을 시작할 때마다 그 규칙이 함께 올라옵니다.',
