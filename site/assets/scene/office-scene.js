@@ -1389,7 +1389,9 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   function sprReveal(o){ const s = o && o.spr; if(s && s.on){ s.on = false; s.mesh.visible = false; sprKit.shadowOnly(o.glb, false); } }   /* a clone of the glb (the profile card) must be whole */
   function stepSprite(o, m, sv){
-    const s = o.spr, pk = pickCell(relAzimuth(sv.az, m.rotation.y), sprMan.cols, undefined, s.pick); s.pick = pk;
+    /* The cell follows the camera and the fixed per-person yaw (o.yj) only. The head turn also turns the glb's body by up to about 25 degrees, and feeding
+     * that in made a turning person jump between cells 17 degrees apart and past SPRITE_MAX_REL_DEG back to the glb, so the figure flipped between 2D and 3D. */
+    const s = o.spr, pk = pickCell(relAzimuth(sv.az, o.yj || 0), sprMan.cols, undefined, s.pick); s.pick = pk;
     const show = sv.eok && sv.zok && !pk.glb && sel !== o && !o.pose && !o.poseLoading;   /* a picked person keeps the standing glb on the desk */
     if(show !== s.on){ s.on = show; s.mesh.visible = show; sprKit.shadowOnly(m, show); }
     if(!show) return;
