@@ -93,7 +93,7 @@ html{scroll-padding-top:68px}
 .kcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));margin:0 -1px -1px 0}
 @media(min-width:1000px){.kcards.k5{grid-template-columns:repeat(5,minmax(0,1fr))}}
 /* phones: wide charts scroll sideways at a readable size instead of shrinking their labels to 3px */
-@media(max-width:600px){.mv-chart,.chart{overflow-x:auto}.mv-chart svg,.chart svg{min-width:640px}}
+@media(max-width:600px){.mv-chart,.chart{overflow-x:auto}.mv-chart svg,.chart svg{min-width:640px}.mv-chart svg text,.chart svg text{font-size:20px}}   /* 20 user units come to about 12px at 640px wide */
 /* eight figures sit as two rows of four instead of seven and one left over */
 @media(min-width:1000px){.kcards:not([class*=" k"]):has(> :nth-child(8):last-child){grid-template-columns:repeat(4,minmax(0,1fr))}}
 .kc{--sc:var(--accent2);position:relative;display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;background:none;border:0;border-radius:0;color:inherit;padding:12px 16px 10px;box-shadow:inset -1px 0 0 var(--line),inset 0 -1px 0 var(--line);transition:background .12s var(--ease)}
@@ -111,7 +111,7 @@ html[lang=ko] .kchip{font-family:var(--sans);font-size:11.5px}
 .kchip.up{color:var(--ok);background:transparent;border-color:color-mix(in oklab,var(--accent) 30%,transparent)}
 .kchip.down{color:var(--bad);background:transparent;border-color:color-mix(in oklab,var(--ink) 30%,transparent)}
 .kchip.dir.up,.kchip.dir.down{color:var(--accent2);background:var(--accent-bg);border-color:color-mix(in oklab,var(--accent) 35%,transparent)}
-.kchip .ar{font-size:8px;line-height:1}
+.kchip .ar{font-size:10px;line-height:1}
 .kspark{display:block;width:100%;height:24px;margin-top:8px;color:var(--sc);overflow:visible}
 .kspark .ka{fill:currentColor;opacity:.12}
 .kspark polyline{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
@@ -627,7 +627,8 @@ function hint(parent, before, onOpen){
 const refreshHint = () => doc.querySelectorAll('.kbd-hint').forEach(b => { b.setAttribute('aria-label', u('palHint')); b.title = u('palHint'); });
 
 /* ── seat movement ──────────────────────────────────────────────────────── */
-const MV = { joined:'var(--acc2)', restored:'var(--acc-pale)', left:'var(--ink)', removed:'var(--ink)', paused:'color-mix(in oklab,var(--acc2) 55%,transparent)' };
+/* seats coming in are accent tones, seats going out are ink tones: five series, five distinct steps */
+const MV = { joined:'var(--accent)', restored:'color-mix(in oklab,var(--accent) 45%,var(--base))', left:'var(--ink)', removed:'color-mix(in oklab,var(--ink) 55%,var(--base))', paused:'color-mix(in oklab,var(--ink) 25%,var(--base))' };
 function movement(host, o){
   const days = o.days || [], per = days.length <= 31 ? 1 : 7, nb = Math.max(1, Math.ceil(days.length / per));
   const kinds = ['joined', 'restored', 'left', 'removed', 'paused'];

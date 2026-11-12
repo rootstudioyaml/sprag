@@ -155,6 +155,10 @@
   .badge.good::before,.badge.warn::before,.badge.bad::before,.badge.dim::before,.badge.plus::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok);flex:0 0 auto}
   .badge.warn::before{background:var(--warn)} .badge.bad::before{background:var(--bad)} .badge.dim::before{background:var(--line3)} .badge.plus::before{background:var(--accent2)}
   .badge.dim{color:var(--faint)}
+  /* the palette has one accent, so signals also differ by shape: ok is a filled accent square, late an accent outline,
+     paused an ink outline, silent a grey square */
+  .badge.warn::before{background:none;box-shadow:inset 0 0 0 1.5px var(--accent-fg)}
+  .badge.plus::before{background:none;box-shadow:inset 0 0 0 1.5px var(--ink)}
   .tag{display:inline-flex;align-items:center;font:500 11px/1.3 var(--mono);letter-spacing:.02em;color:var(--dim);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;white-space:nowrap}
   .tag.plus{color:var(--accent2);border-color:color-mix(in oklab,var(--accent) 50%,transparent);background:var(--accent-bg)}
   html[lang=ko] .tag{font-family:var(--sans)}

@@ -155,7 +155,11 @@
   .lic .scope{margin-top:6px;color:var(--accent2);font-size:13px}
   .fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:24px}
   .fcard{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:22px;display:flex;flex-direction:column}
-  .fcard > :last-child{margin-top:auto}   /* the video buttons line up along the card bottoms */
+  /* the card is a flex column: the tag, button and link keep their own width, and the video buttons line up along
+     the card bottoms (the first card has no contact link under its button, so it keeps that link's room) */
+  .fcard .tag,.fcard .fvid,.fcard .fcta{align-self:flex-start}
+  .fcard .fvid{margin-top:auto}
+  .fcard .fvid:last-child{margin-bottom:38px}
   .fcard h3{font-size:14.5px;font-weight:600}.fcard .for{margin-top:6px;color:var(--dim);font-size:13px}
   .fcard ul{list-style:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:grid;gap:8px;font-size:13px;color:var(--dim)}
   .fcard .note{margin-top:14px;color:var(--faint);font-size:12.5px}
@@ -529,7 +533,7 @@ document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click
 </script>
 <script src="/assets/lang-links.js"></script>
 <script src="/assets/theme-toggle.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" integrity="sha384-B2WBjDzEjJpYvhmi2UyEn7rektqkf5suS6sNoyyrf0EBAwBHdkiXxIlU0V5Ru2ed" crossorigin="anonymous" defer></script>
 <script src="/assets/scroll-story.js" defer></script>
 </body>
 </html>

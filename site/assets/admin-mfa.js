@@ -131,7 +131,7 @@ function render(mount, mode, enrollment, note){
   }
   if(!doc.getElementById('mfa-style')){
     const st = doc.createElement('style'); st.id = 'mfa-style';
-    st.textContent = '.mfa-h{margin:0 0 8px;font-size:18px}.mfa-qr{margin:12px 0 8px}.mfa-qr img{display:block;background:var(--ink);padding:8px;border-radius:8px;box-sizing:content-box}' +
+    st.textContent = '.mfa-h{margin:0 0 8px;font-size:18px}.mfa-qr{margin:12px 0 8px}.mfa-qr img{display:block;background:#fff;padding:8px;border-radius:8px;box-sizing:content-box}' +
       '.mfa-secret{display:inline-block;margin:0 0 14px;padding:8px 10px;border-radius:6px;background:transparent;font-size:14px;letter-spacing:.06em;word-break:break-all;user-select:all}' +
       '.mfa-secret-l{margin-bottom:4px}.mfa-note{color:var(--ok,var(--acc2))}.mfa-lost{padding:0;margin-top:14px}';
     doc.head.appendChild(st);
