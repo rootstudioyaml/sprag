@@ -30,6 +30,13 @@ export function cardBlend(yaw, yaws){
   let i = 0; while(i + 2 < n && yaw >= yaws[i + 1]) i++;
   return { i, j: i + 1, t: (yaw - yaws[i]) / (yaws[i + 1] - yaws[i]) };
 }
+/* What the card shows for a yaw: two frames 6 degrees apart mixed half and half read as a double image (two sets of eyes), so each frame
+ * holds for most of its interval and the change is a short cross-fade (s). y is the yaw that picture stands for: the 3D accessories on top
+ * turn to it, so they step with the image instead of sliding over it. */
+export function cardShow(yaw, yaws){
+  const b = cardBlend(yaw, yaws), e = Math.max(0, Math.min(1, (b.t - 0.4) / 0.2)), s = e * e * (3 - 2 * e);
+  return { i: b.i, j: b.j, s, y: yaws.length ? yaws[b.i] + (yaws[b.j] - yaws[b.i]) * s : yaw };
+}
 
 /* The sheet variant a person wants. kind is the year-end choice of the office ('crown', 'santa', 'rudolph' or null outside the season), antlerSkip and noNose are the
  * species sets of office-scene.js. A crown keeps its 3D crown and takes only the red nose, so it wants the nose sheet. */
@@ -140,7 +147,7 @@ export function makeSpriteKit(T, man){
       const q = {
         mesh, yaws: null,
         show(t, card){ m.uniforms.uMap.value = t; m.uniforms.uN.value = card.yaws.length; m.uniforms.uHalf.value = 0.5 / card.cell[0]; q.yaws = card.yaws; q.blend(card.yaws[Math.min(2, card.yaws.length - 1)]); },
-        blend(yaw){ const b = cardBlend(yaw, q.yaws), u = m.uniforms; u.uI.value = b.i; u.uJ.value = b.j; u.uT.value = b.t; },
+        blend(yaw){ const b = cardShow(yaw, q.yaws), u = m.uniforms; u.uI.value = b.i; u.uJ.value = b.j; u.uT.value = b.s; return b.y; },   /* returns the yaw the picture stands for */
         dispose(){ g.dispose(); m.dispose(); },
       };
       cardQuads.push(q); return q;
