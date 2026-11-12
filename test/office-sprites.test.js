@@ -143,7 +143,7 @@ test('parseManifest: the optional card block, a broken one means no cards and th
 
 test('wiring: office-scene.js loads sprites.js, honours ?sprite=0, keeps the crown and the profile card in 3D, and the pages carry the cache-busting queries', () => {
   const src = read('assets/scene/office-scene.js');
-  assert.match(src, /from '\.\/sprites\.js\?v=s1'/);
+  assert.match(src, /from '\.\/sprites\.js\?v=s2'/);
   assert.match(src, /sprite=0/);
   assert.match(src, /g\.userData\.keepLook = true/);   /* the crown is drawn in 3D over the sprite */
   assert.match(src, /sprReveal\(o\);\s*\n\s*const m = pr\.m = /);   /* the card clones a whole glb, never the shadow-only one */
