@@ -150,6 +150,8 @@ sprag team town --no-open  # prints the link only
 
 The command asks the team server for a link with `town_view_link` (it sends your member key and nothing else) and opens `https://sprag.io/town/#t=<token>`. The token is valid for 12 hours and the command prints the expiry in your local time. Asking for links too often is refused for a while ("too many town links"). The token sits in the part of the address after `#`, so the web server never receives it, and the page removes it from the address bar after reading it. When it expires, or after you leave the team, the page asks you to run the command again. `SPRAG_TOWN_URL` points the link at another page (for local tests).
 
+The page opens on this month (Asia/Seoul calendar month start to today). A period picker in the page head switches between this month, last month and the last 7, 30 or 90 days. The page sends the range to `town_view(p_token, p_from, p_to)`, which applies the same validation as the dashboard (both dates or neither, from not after to, at most 366 days), and the choice is kept for that tab only.
+
 What the town shows:
 
 - You: your own numbers in full, as an owner sees them in the dashboard's town (spend, savings, delegation, your machines, prompt counts when capture is on), plus your rank and what the next species takes.
