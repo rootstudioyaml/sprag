@@ -219,6 +219,34 @@ test('the town page is standalone, noindex, keeps the token out of the address b
   assert.ok(!read('../site/sitemap.xml').includes('/town'), 'not in the sitemap');
 });
 
+test('the town page has a period picker that calls the same RPC with a range and updates the scene in place', () => {
+  assert.match(TOWN, /<select class="per" id="period">/);
+  for(const k of ['month', 'last', 'd7', 'd30', 'd90']) for(const lang of ['en', 'ko']) assert.match(TOWN, new RegExp(`'pg\\.p\\.${k}': '`), `${lang} label for ${k}`);
+  assert.match(TOWN, /\{ p_token: tok, p_from: r\.from, p_to: r\.to \}/, 'the first load sends the range too');
+  assert.match(TOWN, /res\.status === 404 && body && body\.code === 'PGRST202'/, 'a server without the period arguments falls back to the token-only call');
+  assert.match(TOWN, /sel\.hidden = fixedPeriod/, 'and the picker hides there');
+  assert.match(TOWN, /ctl\.update\(sceneData\(\)\)/, 'a new period updates the scene without a remount');
+  assert.match(TOWN, /sessionStorage/); assert.ok(!/localStorage\.(set|get)Item\(PERIOD_KEY/.test(TOWN), 'the choice is kept for the tab only');
+  // the page's own strings exist in both languages
+  const lines = TOWN.split('\n'), s = lines.findIndex(l => l.startsWith('const PAGE = {')), e = lines.findIndex(l => l.startsWith('const I18N = {'));
+  const page = vm.runInNewContext(lines.slice(s, e).join('\n').replace('const PAGE', 'var PAGE') + '\n;PAGE');
+  assert.deepEqual(Object.keys(page.en).sort(), Object.keys(page.ko).sort());
+  assert.equal(page.ko['pg.only'], '보기 전용 화면입니다. 숫자는 내 기록만 보이고 동료는 캐릭터로만 나옵니다.');
+  assert.equal(page.en['pg.only'], 'View only. Numbers show for you alone; teammates appear as characters.');
+  // the preset arithmetic, run in a sandbox with a fixed clock (2026-11-12 local)
+  const a = TOWN.indexOf('const PERIODS'), b = TOWN.indexOf('let period =');
+  const Real = Date; const fixed = new Real(2026, 10, 12, 15, 0, 0);
+  class FakeDate extends Real { constructor(...x){ super(...(x.length ? x : [fixed.getTime()])); } }
+  const rng = vm.runInNewContext(TOWN.slice(a, b) + ';(k => periodRange(k))', { Date: FakeDate, String, Number });
+  assert.deepEqual(['month', 'last', 'd7', 'd30', 'd90'].map(k => { const r = rng(k); return r.from + '..' + r.to; }),
+    ['2026-11-01..2026-11-12', '2026-10-01..2026-10-31', '2026-11-06..2026-11-12', '2026-10-14..2026-11-12', '2026-08-15..2026-11-12']);
+});
+
+test('the member town says nothing about the period being fixed', () => {
+  for(const lang of ['en', 'ko']) for(const [k, v] of Object.entries(OFFICE[lang])) assert.ok(!/기간 고정|변경할 수 없|바꿀 수 없|fixed period|cannot be changed|can't be changed/i.test(v), `${lang} ${k}: ${v}`);
+  assert.ok(!/fixed period|기간 고정/i.test(TOWN));
+});
+
 test('opaque server ids: the viewer keeps the id of the people list, not a machine member id', () => {
   /* town_view sends _town_pid() hashes for people[].id and self.id; machines and usage still carry raw member ids */
   const v = town();

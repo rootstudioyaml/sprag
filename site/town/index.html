@@ -46,7 +46,15 @@
   @media(hover:none) and (pointer:coarse){.lang button{padding:8px 10px}}
   main{max-width:1440px;margin:0 auto;padding:20px var(--gut) 32px}
   .head{margin-bottom:14px}
+  .head .hrow{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px}
   .head h1{font-size:17px;font-weight:600;letter-spacing:-.01em;overflow-wrap:anywhere}
+  .head .per{border:1px solid var(--line2);background:var(--surface);color:var(--ink);border-radius:var(--r);padding:4px 8px;font:500 12.5px/1.4 var(--sans)}
+  .head .per:hover:not(:disabled){border-color:var(--accent2)}
+  .head .per:disabled{opacity:.6;cursor:progress}
+  .head .busy,.head .perr{font-size:12px}
+  .head .busy{color:var(--faint)}
+  .head .perr{color:var(--warn)}
+  .head[aria-busy=true] h1{opacity:.6}
   .head p{color:var(--dim);font-size:13px;margin-top:2px}
   .head .exp{color:var(--faint);font-size:12px}
   .card{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface)}
@@ -78,7 +86,12 @@
 </header>
 <main>
   <div class="head" id="head" hidden>
-    <h1 id="h-org"></h1>
+    <div class="hrow">
+      <h1 id="h-org"></h1>
+      <select class="per" id="period"></select>
+      <span class="busy" id="h-busy" role="status" hidden></span>
+    </div>
+    <p class="perr" id="h-err" role="alert" hidden></p>
     <p id="h-only"></p>
     <p class="exp" id="h-exp"></p>
   </div>
@@ -111,7 +124,15 @@ const PAGE = {
     'pg.net': 'Could not reach the server. Check your connection and try again.',
     'pg.retry': 'Try again',
     'pg.nowebgl': 'This browser could not start the 3D scene. Open the page in a current Chrome, Safari, Edge or Firefox with hardware acceleration on.',
-    'pg.only': 'Read only. You see your own numbers in full. Other people appear as characters, with no figures.',
+    'pg.only': 'View only. Numbers show for you alone; teammates appear as characters.',
+    'pg.period': 'Period',
+    'pg.p.month': 'This month',
+    'pg.p.last': 'Last month',
+    'pg.p.d7': 'Last 7 days',
+    'pg.p.d30': 'Last 30 days',
+    'pg.p.d90': 'Last 90 days',
+    'pg.busy': 'Updating',
+    'pg.pnet': 'Could not load that period. Showing the previous one.',
     'pg.exp': 'Link valid until {when}',
   },
   ko: {
@@ -122,7 +143,15 @@ const PAGE = {
     'pg.net': '서버에 연결하지 못했습니다. 네트워크를 확인하고 다시 시도하세요.',
     'pg.retry': '다시 시도',
     'pg.nowebgl': '이 브라우저에서 3D 장면을 시작하지 못했습니다. 하드웨어 가속이 켜진 최신 Chrome, Safari, Edge, Firefox로 열어 보세요.',
-    'pg.only': '읽기 전용입니다. 내 수치는 자세히 보이고 다른 사람은 수치 없이 캐릭터로만 나옵니다.',
+    'pg.only': '보기 전용 화면입니다. 숫자는 내 기록만 보이고 동료는 캐릭터로만 나옵니다.',
+    'pg.period': '기간',
+    'pg.p.month': '이번 달',
+    'pg.p.last': '지난 달',
+    'pg.p.d7': '최근 7일',
+    'pg.p.d30': '최근 30일',
+    'pg.p.d90': '최근 90일',
+    'pg.busy': '불러오는 중',
+    'pg.pnet': '이 기간을 불러오지 못했습니다. 이전 기간을 그대로 보여 줍니다.',
     'pg.exp': '링크 유효 시간: {when}까지',
   },
 };
@@ -173,6 +202,20 @@ function takeToken(){
   return have && TOKEN_RE.test(have) ? have : null;
 }
 
+/* ── period: presets computed in the browser in local dates (YYYY-MM-DD); the choice lives in this tab only ── */
+const PERIODS = ['month', 'last', 'd7', 'd30', 'd90'], PERIOD_KEY = 'sprag.town.p';
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function periodRange(k){
+  const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate();
+  const back = days => ({ from: ymd(new Date(y, m, d - days + 1)), to: ymd(new Date(y, m, d)) });
+  if(k === 'last') return { from: ymd(new Date(y, m - 1, 1)), to: ymd(new Date(y, m, 0)) };
+  if(k === 'd7') return back(7);
+  if(k === 'd30') return back(30);
+  if(k === 'd90') return back(90);
+  return { from: ymd(new Date(y, m, 1)), to: ymd(new Date(y, m, d)) };
+}
+let period = (p => PERIODS.includes(p) ? p : 'month')(ssGet(PERIOD_KEY)), busy = false;
+
 /* ── state ── */
 let view = null, mod = null, ctl = null, shown = '';   /* view: the town_view reply; shown: which language the mounted scene was built for */
 let msgKey = '', msgBtn = false, failed = false;
@@ -189,6 +232,12 @@ function paintHead(){
   const o = view.org || {};
   $('h-org').textContent = [o.name, rangeLabel(view.range)].filter(Boolean).join(' · ');
   $('h-only').textContent = t('pg.only');
+  const sel = $('period');
+  if(!sel.options.length) PERIODS.forEach(k => { const o = document.createElement('option'); o.value = k; sel.appendChild(o); });
+  [...sel.options].forEach(o => { o.textContent = t('pg.p.' + o.value); });
+  sel.value = period; sel.disabled = busy; sel.hidden = fixedPeriod; sel.setAttribute('aria-label', t('pg.period'));
+  $('head').setAttribute('aria-busy', String(busy));
+  $('h-busy').hidden = !busy; $('h-busy').textContent = busy ? t('pg.busy') : '';
   const when = view.expires_at ? new Date(view.expires_at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US') : '';
   $('h-exp').textContent = when ? t('pg.exp', { when }, true) : '';
 }
@@ -197,7 +246,7 @@ function sceneData(){ return mod.memberTownData(view, { t, rel, os: osLabel, ran
 async function show(){
   if(!view) return;
   paintHead();
-  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.121.0-6'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
+  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.121.0-7'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
   $('msg').hidden = true; $('scene-card').hidden = false;
   const data = sceneData();
   if(ctl){ ctl.update(data); shown = lang; return; }
@@ -211,26 +260,61 @@ async function show(){
   }
 }
 
+/* one town_view call for a period: { net: true } when the request did not get through, else { status, ok, body } with ok meaning a usable reply */
+let fixedPeriod = false;   /* the server predates the period arguments (PostgREST answers PGRST202): the town shows its default range and the picker hides */
+async function fetchTown(tok, k){
+  const r = periodRange(k);
+  let res, body = null;
+  const call = async args => {
+    res = await fetch(SUPABASE_URL + '/rest/v1/rpc/town_view', {
+      method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+    });
+    body = null; try{ body = await res.json(); }catch(e){}
+  };
+  try{
+    await call(fixedPeriod ? { p_token: tok } : { p_token: tok, p_from: r.from, p_to: r.to });
+    if(!fixedPeriod && res.status === 404 && body && body.code === 'PGRST202'){ fixedPeriod = true; await call({ p_token: tok }); }
+  }catch(e){ return { net: true }; }
+  return { status: res.status, ok: res.ok && !!body && typeof body === 'object' && Array.isArray(body.people), body };
+}
+
 async function load(){
   const tok = takeToken();
   if(!tok) return showMsg('pg.notoken');
   showMsg('pg.loading');
-  let res;
-  try{
-    res = await fetch(SUPABASE_URL + '/rest/v1/rpc/town_view', {
-      method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_token: tok }),
-    });
-  }catch(e){ return showMsg('pg.net', load); }
-  let body = null; try{ body = await res.json(); }catch(e){}
-  if(!res.ok || !body || typeof body !== 'object' || !Array.isArray(body.people)){
-    if(res.status >= 500) return showMsg('pg.net', load);
+  const r = await fetchTown(tok, period);
+  if(r.net) return showMsg('pg.net', load);
+  if(!r.ok){
+    if(r.status >= 500) return showMsg('pg.net', load);
     ssSet(TOKEN_KEY, null);
     return showMsg('pg.invalid');
   }
-  view = body;
+  view = r.body;
   show();
 }
+
+/* a new period: same scene, new numbers (ctl.update, no remount). A network or server error keeps the old view and says so; an invalid link ends the page like a first load would. */
+async function changePeriod(next){
+  const tok = ssGet(TOKEN_KEY);
+  if(!view || busy || next === period || !PERIODS.includes(next)) return paintHead();
+  if(!tok || !TOKEN_RE.test(tok)) return showMsg('pg.invalid');
+  busy = true; $('h-err').hidden = true; paintHead();
+  const r = await fetchTown(tok, next);
+  busy = false;
+  if(r.ok){
+    period = next; ssSet(PERIOD_KEY, period); view = r.body;
+    if(mod && ctl && !failed){ paintHead(); ctl.update(sceneData()); shown = lang; } else show();
+    return;
+  }
+  if(!r.net && (r.status === 401 || r.status === 403 || (r.status >= 400 && r.status < 500 && r.body && r.body.code === '28000'))){
+    ssSet(TOKEN_KEY, null); view = null; if(ctl){ ctl.destroy(); ctl = null; }
+    return showMsg('pg.invalid');
+  }
+  paintHead();
+  $('h-err').textContent = t('pg.pnet'); $('h-err').hidden = false;
+}
+$('period').addEventListener('change', e => changePeriod(e.target.value));
 
 /* ── language ── */
 function setLang(next, remember){
@@ -241,7 +325,8 @@ function setLang(next, remember){
   if(remember) lsSet('sprag.lang', lang);
   if(view && !failed && mod && ctl && shown !== lang) show();
   else if(view) paintHead();
-  else if(msgKey) showMsg(msgKey, msgBtn ? load : null);
+  if(!$('h-err').hidden) $('h-err').textContent = t('pg.pnet');
+  if(!view && msgKey) showMsg(msgKey, msgBtn ? load : null);
 }
 document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
 (function(){
