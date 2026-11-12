@@ -96,10 +96,10 @@ html{scroll-padding-top:68px}
 @media(max-width:600px){.mv-chart,.chart{overflow-x:auto}.mv-chart svg,.chart svg{min-width:640px}.mv-chart svg text,.chart svg text{font-size:20px}}   /* 20 user units come to about 12px at 640px wide */
 /* eight figures sit as two rows of four instead of seven and one left over */
 @media(min-width:1000px){.kcards:not([class*=" k"]):has(> :nth-child(8):last-child){grid-template-columns:repeat(4,minmax(0,1fr))}}
-.kc{--sc:var(--accent2);position:relative;display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;background:none;border:0;border-radius:0;color:inherit;padding:12px 16px 10px;box-shadow:inset -1px 0 0 var(--line),inset 0 -1px 0 var(--line);transition:background .12s var(--ease)}
+.kc{--sc:#8a94f2;position:relative;display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;background:none;border:0;border-radius:0;color:inherit;padding:12px 16px 10px;box-shadow:inset -1px 0 0 var(--line),inset 0 -1px 0 var(--line);transition:background .12s var(--ease)}
 button.kc:hover{background:var(--hover)}
 button.kc:focus-visible{outline-offset:-2px}
-.kc.sv{--sc:var(--ok)} .kc.lt{--sc:var(--warn)}
+.kc.sv{--sc:#3fd48f} .kc.lt{--sc:#e8ab3c}
 .kc .kl{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kc .kv{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .kc .kv b{font-size:20px;font-weight:600;letter-spacing:-.02em;line-height:1.25;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -627,9 +627,7 @@ function hint(parent, before, onOpen){
 const refreshHint = () => doc.querySelectorAll('.kbd-hint').forEach(b => { b.setAttribute('aria-label', u('palHint')); b.title = u('palHint'); });
 
 /* ── seat movement ──────────────────────────────────────────────────────── */
-/* seats coming in are accent tones, seats going out are ink tones: five distinct steps, each 3:1 or more against the
-   ground in both modes (WCAG 1.4.11) */
-const MV = { joined:'var(--accent)', restored:'var(--acc2)', left:'var(--ink)', removed:'var(--faint)', paused:'var(--mute)' };
+const MV = { joined:'#3fd48f', restored:'#9be8c6', left:'#f06b6b', removed:'#b84a4a', paused:'rgba(232,171,60,.55)' };
 function movement(host, o){
   const days = o.days || [], per = days.length <= 31 ? 1 : 7, nb = Math.max(1, Math.ceil(days.length / per));
   const kinds = ['joined', 'restored', 'left', 'removed', 'paused'];
@@ -860,7 +858,7 @@ function savingsModel(o){
 }
 /* end of savings model */
 
-const SV_PAL = ['var(--cat1)', 'var(--cat2)', 'var(--cat3)', 'var(--cat4)', 'var(--cat5)', 'var(--cat6)', 'var(--cat7)', 'var(--cat8)'], SV_OTHER = 'var(--mute)';
+const SV_PAL = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'], SV_OTHER = '#6b6d76';
 const svColor = s => s === 'other' ? SV_OTHER : SV_PAL[s];
 function svNice(mx){
   if(!(mx > 0)) return { step: .25, top: 1, n: 4 };

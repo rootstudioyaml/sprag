@@ -46,22 +46,17 @@
   --surface:var(--panel); --surface2:var(--panel2); --hover:transparent;
   --accent2:var(--acc2); --accent-bg:transparent;
   --ok:var(--accent-fg); --warn:var(--acc2); --bad:var(--ink); --violet:var(--acc2);
-  --haiku:var(--cat1); --sonnet:var(--cat5); --opus:var(--ink);
+  --haiku:var(--accent-fg); --sonnet:color-mix(in oklab,var(--accent) 50%,var(--ink)); --opus:var(--ink);
   --green:var(--accent-fg); --accent-col:transparent;
-  /* categorical series (charts): accent and ink steps, so eight series stay inside three colors */
-  --cat1:var(--accent-fg); --cat2:var(--soft); --cat3:color-mix(in oklab,var(--accent) 55%,var(--base));
-  --cat4:var(--dim); --cat5:color-mix(in oklab,var(--accent) 50%,var(--ink)); --cat6:var(--faint);
-  --cat7:color-mix(in oklab,var(--accent) 30%,var(--base)); --cat8:var(--mute);
+  /* the team console and ops charts keep their own data colors from before the redesign and draw them as literals,
+     so the aliases above do not recolor them (owner, 2026-11-12) */
   /* shared header (assets/site-header.css) */
   --hdr-bg:var(--base); --hdr-line:var(--line); --hdr-line2:var(--line2);
   --hdr-hover:var(--line3); --hdr-ink:var(--ink); --hdr-dim:var(--dim); --hdr-faint:var(--faint);
   --hdr-pill:var(--panel2); --hdr-accent:var(--accent-fg); --hdr-accent-bg:transparent;
 }
 [data-theme=dark]{--base:var(--dark);--ink:var(--light);--accent-fg:var(--accent-fg-d);color-scheme:dark;
-  --faint:color-mix(in oklab,var(--ink) 62%,var(--base));--dim:color-mix(in oklab,var(--ink) 70%,var(--base));
-  /* the light series steps mix the accent toward the page; on the dark ground that sinks them into it, so here they
-     mix toward the ink instead and keep 3:1 or more against the ground (WCAG 1.4.11) */
-  --cat3:color-mix(in oklab,var(--accent) 55%,var(--ink)); --cat7:color-mix(in oklab,var(--accent) 30%,var(--ink));}
+  --faint:color-mix(in oklab,var(--ink) 62%,var(--base));--dim:color-mix(in oklab,var(--ink) 70%,var(--base));}
 html{scrollbar-color:var(--line2) transparent}
 
 body{background:var(--base)}
