@@ -108,3 +108,22 @@ npm run blender:props
 
 - 수관 하나는 삼각형 1,200개 이하이고 줄기와 기둥은 300개 이하이며 덤불은 600개 이하입니다. 넘으면 스크립트가 오류로 멈춥니다.
 - 노멀은 스무스이고 파일 크기는 200KB 이하입니다. `test/scene-props.test.js`가 이름, `COLOR_0`, 파일 크기를 검사합니다.
+
+## Sprag 회전체 (`sprag_rotor.py`)
+
+홈 첫 화면과 "작동 방식" 단계, 위임 흐름도에서 도는 회전체 그림을 렌더합니다. Sprag 마크(`site/assets/logo/sprag-mark.svg`)를 한 덩어리의 가공 부품으로 모델링했습니다. 바깥 링과 허브는 단면을 360도 돌려 만들고 모따기와 홈을 넣었습니다. 두 링 사이에 기울어진 스프래그 3개와 코일 스프링 3개가 있습니다. 링 사이는 마크처럼 비워 두고 바닥과 그림자는 넣지 않습니다. 사이트가 그라데이션과 퍼지는 그림자를 쓰지 않기 때문입니다.
+
+카메라는 정면 위에서 내려다보고 조명은 모든 방향에서 같습니다. 그래서 페이지가 그림을 돌려도 하이라이트가 따라 돌지 않습니다.
+
+```sh
+blender -b --factory-startup --python tools/blender/sprag_rotor.py -- /tmp/rotor 1400 256
+```
+
+결과는 두 장입니다. `sprag-rotor-xl.png`는 밝은 화면용 짙은 금속이고 `sprag-rotor-light-xl.png`는 어두운 화면용 은색입니다. 사이트에는 WebP로 넣습니다. 1400px 원본은 `-xl`로, 512px로 줄인 것은 접미사 없이 씁니다.
+
+```sh
+ffmpeg -i /tmp/rotor/sprag-rotor-xl.png -c:v libwebp -quality 88 -pix_fmt yuva420p site/assets/sprag-rotor-xl.webp
+ffmpeg -i /tmp/rotor/sprag-rotor-xl.png -vf scale=512:512:flags=lanczos -c:v libwebp -quality 88 -pix_fmt yuva420p site/assets/sprag-rotor.webp
+```
+
+Windows의 Blender 4.5 Cycles CPU에서 두 장을 렌더하는 데 약 6분이 걸립니다.

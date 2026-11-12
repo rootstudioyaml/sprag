@@ -362,13 +362,13 @@ export function speciesThumb(k, style = ''){
 export const OF_CSS = `
 .of-th{--px:24px;display:inline-block;flex:none;width:var(--px);height:var(--px);vertical-align:middle;background:url("${ATLAS_URL}") no-repeat;background-size:calc(var(--px) * 8) calc(var(--px) * 4);background-position:calc(var(--px) * var(--c) * -1) calc(var(--px) * var(--r) * -1)}
 .of-th svg{display:none}.of-noatlas .of-th{background-image:none}.of-noatlas .of-th svg{display:block;width:100%;height:100%}
-.of-strip .sp .of-th{--px:24px;margin:-3px 0;vertical-align:-7px}.of-strip .sp.z .of-th{filter:brightness(0);opacity:.16}
+.of-strip .sp .of-th{--px:24px;margin:-3px 0;vertical-align:-7px}.of-strip .sp.z .of-th{filter:brightness(0);opacity:.34}
 .of-legend .keys .of-th{--px:18px;margin-right:5px;vertical-align:-4px}
 .of-drawer .hd .of-th{--px:48px;border-radius:50%;background-color:#f7f1e4;box-shadow:0 0 0 2px #fffdf8,0 0 0 4px var(--tc,#d9cdb8)}
 .of-drawer .bkp .of-th{--px:30px;border-radius:50%;background-color:#f7f1e4}
 .of-drawer .bkr .of-th{--px:46px;grid-area:i;border-radius:12px;background-color:rgba(255,255,255,.75)}.of-drawer .bkr.z .of-th{filter:brightness(0);opacity:.14}
 .of-card{padding:0!important;overflow:hidden;margin-bottom:var(--s4,16px)}
-.of-stage{position:relative;height:520px;overflow:hidden;contain:layout paint;background:radial-gradient(ellipse at 50% 35%,#fffaf0 0,#f6ead2 80%);color:#6a5a4a}
+.of-stage{position:relative;height:520px;overflow:hidden;contain:layout paint;background:#fffaf0;color:#6a5a4a}
 .of-stage canvas{display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab}
 .of-stage canvas:focus:not(:focus-visible){outline:none}
 .of-stage canvas.drag{cursor:grabbing}.of-stage canvas.hit{cursor:pointer}
@@ -376,40 +376,43 @@ export const OF_CSS = `
 .of-stage.sk-night .of-hud{text-shadow:0 0 3px #10142e,0 0 9px #10142e}
 .of-hud b{display:block;font-size:15px;font-weight:600;color:#3a2f27;letter-spacing:-.01em}
 .of-hud em{font-style:normal;margin-left:8px;font-size:11px;font-weight:600;color:#b4443f;border:1px solid currentColor;border-radius:999px;padding:1px 8px;vertical-align:2px;background:#fff}
-.of-legend{position:absolute;left:12px;right:auto;max-width:calc(100% - 24px);bottom:8px;display:flex;flex-direction:column;align-items:flex-start;background:rgba(255,248,235,.85);border-radius:12px;padding:4px 10px;flex-wrap:wrap;gap:2px 16px;font-size:11.5px;line-height:1.5;color:#6a5a4a;pointer-events:none;z-index:2}
-.of-legend:empty{display:none}
+.of-legend{position:absolute;left:12px;right:auto;max-width:calc(100% - 24px);bottom:8px;display:flex;flex-direction:column;align-items:flex-start;background:#fff;border:1px solid rgba(16,24,32,.18);border-radius:12px;padding:5px 12px;flex-wrap:wrap;gap:3px 16px;font-size:12.5px;line-height:1.5;color:#3a2f27;pointer-events:none;z-index:2}
+.of-legend:empty,.of-legend:has(>.keys:empty:only-child){display:none}
+.of-stage.sk-night .of-legend.of-legend{background:#1e2650;border-color:rgba(160,180,255,.3);color:#e8ecff}.of-stage.sk-night .of-strip b{color:#f2f4ff}.of-stage.sk-night .of-strip{border-bottom-color:rgba(160,180,255,.28)}
+.of-stage.sk-night .of-strip .t-power em{color:#ffd27a}.of-stage.sk-night .of-strip .t-active em{color:#9fd0ff}.of-stage.sk-night .of-strip .t-normal em{color:#ddd3c4}.of-stage.sk-night .of-strip .t-low em{color:#ffb08a}
+.of-stage.sk-night .of-strip .sp.z .of-th{filter:brightness(0) invert(1);opacity:.42}
 .of-legend .keys{display:flex;flex-wrap:wrap;gap:2px 14px}.of-legend .keys .fm{margin:0 3px 0 8px}
-.of-strip{pointer-events:auto;display:flex;flex-wrap:wrap;align-items:center;gap:3px 12px;font:inherit;color:inherit;background:none;border:0;padding:2px 0 4px;margin:0;cursor:pointer;text-align:left;border-bottom:1px dashed rgba(120,90,60,.22)}
+.of-strip{pointer-events:auto;display:flex;flex-wrap:wrap;align-items:center;gap:3px 12px;font:inherit;color:inherit;background:none;border:0;padding:2px 0 4px;margin:0;cursor:pointer;text-align:left;border-bottom:1px solid rgba(120,90,60,.22)}
 .of-strip .sbk,.of-strip button.sp{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;border-radius:6px}.of-strip button.sp:hover,.of-strip button.sp:focus-visible{background:rgba(124,108,240,.16);outline:none}.of-strip button.sp:hover svg{transform:scale(1.18)}.of-strip .sp svg{transition:transform .15s}
 .of-strip .sbk:hover b,.of-strip .sbk:focus-visible b{color:#6d28d9}.of-strip b{font-weight:600;color:#3a2f27;white-space:nowrap}.of-strip b svg{width:14px;height:14px;margin-right:4px;vertical-align:-2px}
-.of-strip .tg{display:inline-flex;align-items:center;gap:1px;white-space:nowrap}.of-strip .tg em{font-style:normal;font-weight:600;font-size:10.5px;margin-right:4px}
-.of-strip .t-power em{color:#b7791f}.of-strip .t-active em{color:#1d6fb8}.of-strip .t-normal em{color:#7a6c58}.of-strip .t-low em{color:#c2410c}
-.of-strip .sp svg{width:17px;height:17px;margin:0;vertical-align:-4px}.of-strip .sp.z svg{filter:grayscale(1);opacity:.32}
+.of-strip .tg{display:inline-flex;align-items:center;gap:1px;white-space:nowrap}.of-strip .tg em{font-style:normal;font-weight:700;font-size:12px;margin-right:5px}
+.of-strip .t-power em{color:#8f5a0b}.of-strip .t-active em{color:#14599a}.of-strip .t-normal em{color:#5a4d3d}.of-strip .t-low em{color:#a8360a}
+.of-strip .sp svg{width:17px;height:17px;margin:0;vertical-align:-4px}.of-strip .sp.z svg{filter:grayscale(1);opacity:.5}
 .of-legend span{white-space:nowrap}
 .of-legend svg{width:16px;height:16px;vertical-align:-4px;margin-right:5px}
 .of-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
 .of-lbl,.of-btn,.of-bub,.of-tag{position:absolute;left:0;top:0;white-space:nowrap;will-change:transform;z-index:1}
-.of-lbl,.of-btn,.of-tag{font:inherit;font-size:12px;font-weight:600;line-height:1;color:#3a2f27;padding:5px 10px;border-radius:999px;border:1px solid rgba(120,90,60,.16);background:rgba(255,255,255,.94);box-shadow:0 2px 6px rgba(90,60,30,.16)}
-.of-lbl{pointer-events:none;background:none;border:0;box-shadow:none;padding:2px 4px;color:#6a5a4a;text-shadow:0 0 4px #fff7e6,0 0 2px #fff7e6}
-.of-btn:hover,.of-btn:focus-visible{border-color:#8b7cf0;box-shadow:0 2px 8px rgba(120,100,240,.3)}
-.of-btn{max-width:240px;overflow:hidden;text-overflow:ellipsis;z-index:2}.of-btn.srv{max-width:none;background:#5a5270;color:#fff;border-radius:9px;border-color:rgba(255,255,255,.35)}
+.of-lbl,.of-btn,.of-tag{font:inherit;font-size:12px;font-weight:600;line-height:1;color:#3a2f27;padding:5px 10px;border-radius:999px;border:1px solid rgba(120,90,60,.16);background:rgba(255,255,255,.94);box-shadow:none}
+.of-lbl{pointer-events:none;background:none;border:0;box-shadow:none;padding:2px 4px;color:#6a5a4a;}
+.of-btn:hover,.of-btn:focus-visible{border-color:#8b7cf0;box-shadow:none}
+.of-btn{max-width:240px;overflow:hidden;text-overflow:ellipsis;z-index:2}.of-btn.srv{max-width:none;background:var(--accent,#6667AB);color:#fff;border-radius:9px;border-color:rgba(255,255,255,.35)}
 .of-sign{color:#b4443f;font-size:14px}
-.of-bub{pointer-events:none;font-size:11px;line-height:1;color:#3a2f27;background:#fff;padding:5px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(90,60,30,.22);opacity:0;transition:opacity .35s ease}
+.of-bub{pointer-events:none;font-size:11px;line-height:1;color:#3a2f27;background:#fff;padding:5px 10px;border-radius:999px;box-shadow:none;opacity:0;transition:opacity .35s ease}
 .of-bub.ai{background:#f1ebff;color:#4c1d95}.of-bub.on{opacity:1}
-.of-tip{position:absolute;left:0;top:0;z-index:4;pointer-events:none;min-width:170px;max-width:260px;padding:10px 12px;border-radius:12px;font-size:12px;line-height:1.55;background:#fff;border:1px solid rgba(120,90,60,.16);color:#3a2f27;box-shadow:0 8px 24px rgba(90,60,30,.22)}
+.of-tip{position:absolute;left:0;top:0;z-index:4;pointer-events:none;min-width:170px;max-width:260px;padding:10px 12px;border-radius:12px;font-size:12px;line-height:1.55;background:#fff;border:1px solid rgba(120,90,60,.16);color:#3a2f27;box-shadow:none}
 .of-tip b{display:block;font-weight:600;overflow-wrap:anywhere}
 .of-tip div{display:flex;justify-content:space-between;gap:12px;color:#6a5a4a}
 .of-tip div span:last-child{color:#3a2f27;text-align:right}
 .of-tip .tier{margin-top:2px;font-weight:600}
 .of-tip .t-power{color:#6d28d9}.of-tip .t-active{color:#1d6fb8}.of-tip .t-normal{color:#6b6256}.of-tip .t-low{color:#b45309}.of-tip .t-nodata{color:#6b7280}
 .of-tools{position:absolute;top:10px;right:10px;z-index:6;display:flex;gap:6px;transition:right .28s cubic-bezier(.23,1,.32,1)}
-.of-tb{width:32px;height:32px;border-radius:50%;border:1px solid rgba(120,90,60,.18);background:rgba(255,255,255,.94);color:#3a2f27;box-shadow:0 2px 6px rgba(90,60,30,.16);display:grid;place-items:center;padding:0;font:600 17px/1 inherit}
+.of-tb{width:32px;height:32px;border-radius:50%;border:1px solid rgba(120,90,60,.18);background:rgba(255,255,255,.94);color:#3a2f27;box-shadow:none;display:grid;place-items:center;padding:0;font:600 17px/1 inherit}
 .of-tb:hover,.of-tb:focus-visible{border-color:#8b7cf0}.of-tb svg{width:16px;height:16px}
-.of-hint{position:absolute;left:50%;bottom:46px;transform:translateX(-50%);z-index:6;background:rgba(58,47,39,.88);color:#fff;font-size:12px;padding:5px 12px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .4s;white-space:nowrap}.of-hint.on{opacity:1}
+.of-hint{position:absolute;left:50%;bottom:46px;transform:translateX(-50%);z-index:6;background:#101820;color:#fff;font-size:12px;padding:5px 12px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .4s;white-space:nowrap}.of-hint.on{opacity:1}
 .of-card:fullscreen,.of-card:-webkit-full-screen{width:100%;height:100%;margin:0;border-radius:0;background:#f6ead2}
 .of-card:fullscreen .of-stage,.of-card:-webkit-full-screen .of-stage,.of-card.of-fsx .of-stage{height:100vh;height:100dvh}
 .of-card.of-fsx{position:fixed;inset:0;z-index:1000;margin:0;border-radius:0;border:0;background:#f6ead2}
-.of-drawer{position:absolute;top:0;right:0;bottom:0;width:420px;max-width:100%;z-index:5;display:flex;flex-direction:column;background:#fffdf8;border-left:1px solid rgba(120,90,60,.16);box-shadow:-8px 0 24px rgba(90,60,30,.16);color:#3a2f27;font-size:12.5px;line-height:1.5;transform:translateX(100%);visibility:hidden;transition:transform .28s cubic-bezier(.23,1,.32,1),visibility 0s .28s}
+.of-drawer{position:absolute;top:0;right:0;bottom:0;width:420px;max-width:100%;z-index:5;display:flex;flex-direction:column;background:#fffdf8;border-left:1px solid rgba(120,90,60,.16);box-shadow:none;color:#3a2f27;font-size:12.5px;line-height:1.5;transform:translateX(100%);visibility:hidden;transition:transform .28s cubic-bezier(.23,1,.32,1),visibility 0s .28s}
 .of-drawer.open{transform:none;visibility:visible;transition:transform .28s cubic-bezier(.23,1,.32,1)}
 .of-drawer .hd{display:flex;align-items:center;gap:10px;padding:14px 14px 10px;border-bottom:1px solid rgba(120,90,60,.12)}
 .of-drawer .hd svg{width:30px;height:30px;flex:none}.of-drawer .hd div{min-width:0;flex:1}
@@ -468,7 +471,7 @@ export const OF_CSS = `
 .of-pcard .pc-glare{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;mix-blend-mode:soft-light;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.7) 0,rgba(255,255,255,0) 50%)}.of-pcard.tilt .pc-glare{opacity:1}
 @media (prefers-reduced-motion:reduce){.of-pcard .pc-holo{animation:none}}
 @media (max-width:899px){.of-stage .of-pcard{display:none}}
-@media (max-width:480px){.of-drawer{top:auto;left:0;right:0;width:auto;height:72%;border-left:0;border-top:1px solid rgba(120,90,60,.16);border-radius:16px 16px 0 0;box-shadow:0 -8px 24px rgba(90,60,30,.18);transform:translateY(100%)}.of-stage.has-drawer .of-tools{right:10px}}
+@media (max-width:480px){.of-drawer{top:auto;left:0;right:0;width:auto;height:72%;border-left:0;border-top:1px solid rgba(120,90,60,.16);border-radius:16px 16px 0 0;box-shadow:none;transform:translateY(100%)}.of-stage.has-drawer .of-tools{right:10px}}
 @media (max-width:480px){.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer{height:640px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer canvas{height:300px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer .of-drawer{height:calc(100% - 300px)}}
 /* field guide */
 .of-drawer .bkn{margin:0 0 10px;font-size:12px;color:#6a5a4a}
@@ -479,7 +482,7 @@ export const OF_CSS = `
 .of-drawer .bkr.z{opacity:.5}.of-drawer .bkr.z svg{filter:grayscale(1) brightness(.6) contrast(.6)}
 .of-drawer .bkr .no{display:inline-block;min-width:40px;margin:0 6px 0 0;font-weight:600;font-size:11px;color:#8b7cf0;font-variant-numeric:tabular-nums}
 .of-drawer .bkh{margin:14px 0 6px;font-size:11.5px;color:#3a2f27}
-.of-drawer .bkt{margin:0 0 6px;padding:8px 10px 4px;border-radius:12px;background:linear-gradient(135deg,#fff4d6,#f1ebff)}.of-drawer .bkt h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
+.of-drawer .bkt{margin:0 0 6px;padding:8px 10px 4px;border-radius:12px;background:#fff4d6}.of-drawer .bkt h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
 .of-drawer .bkp{display:grid;grid-template-columns:30px 30px 1fr auto;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;color:#3a2f27;background:rgba(255,255,255,.7);border:1px solid transparent;border-radius:10px;padding:5px 8px;margin:0 0 4px;cursor:pointer}
 .of-drawer .bkp:hover,.of-drawer .bkp:focus-visible{border-color:#8b7cf0}.of-drawer .bkp svg{width:22px;height:22px}.of-drawer .bkp .rk{font-weight:700;font-size:12.5px;font-variant-numeric:tabular-nums;color:#6d28d9}
 .of-drawer .bkp .nm{min-width:0;font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.of-drawer .bkp .nm small{display:block;font-weight:400;font-size:11px;color:#6a5a4a}
@@ -489,7 +492,7 @@ export const OF_CSS = `
 .of-drawer .grp{margin:0 0 14px}.of-drawer .grp+.grp{margin-top:18px;padding-top:12px;border-top:1px dashed rgba(120,90,60,.22)}.of-drawer .grp>h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
 @media (max-width:640px){.of-strip .sp .of-th{--px:15px;margin:0;vertical-align:-3px}}
-@media (max-width:640px){.of-legend .keys,.of-strip .tg em,.of-strip b{display:none}.of-strip .sp svg{width:12px;height:12px}.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:200px;top:8px;font-size:11px}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:10px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
+@media (max-width:640px){.of-legend .keys,.of-strip .tg em,.of-strip b{display:none}.of-strip .sp svg{width:12px;height:12px}.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:12px;top:46px;font-size:11px;background:#fff;padding:5px 8px;border:1px solid rgba(16,24,32,.14)}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:11px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
 `;
 
 export function webglOk(){
@@ -1036,22 +1039,44 @@ export function mountOfficeScene(container, data, opts = {}){
     const snowy = builtSnow = wx.kind === 'snow', SNOW = '#f7faff';
     const W0 = wxs = { outB: [], outS: [], glass: [], patch: [], wins: [], lamps: [], stones: [], glassBase: [], ao: [] };
 
-    let ws = null; wallIdx = { z: [], x: [] }; wallHid = { z: false, x: false };
-    const sb = [], B = (c, w, h, dd, x, y, z) => { sb.push([c, w, h, dd, x, y, z]); if(ws) wallIdx[ws].push(sb.length - 1); };       /* static boxes */
+    let ws = null, wd = false; wallIdx = { z: [], x: [] }; wallHid = { z: false, x: false };   /* wd: trim on a wall (wainscot, rails, window bars, sills) is stored as ~index and vanishes with its wall instead of leaving a strip */
+    const sb = [], B = (c, w, h, dd, x, y, z) => { sb.push([c, w, h, dd, x, y, z]); if(ws) wallIdx[ws].push(wd ? ~(sb.length - 1) : sb.length - 1); };       /* static boxes */
     const sp = [], Sp = (c, r, x, y, z, sx = 1, sy = 1, sz = 1) => sp.push([c, r, x, y, z, sx, sy, sz]);   /* static spheres */
     const OB = (kind, ...a) => { B(...a); W0.outB.push([sb.length - 1, col(a[0]), kind]); }, OS = (kind, ...a) => { Sp(...a); W0.outS.push([sp.length - 1, col(a[0]), kind]); };   /* outdoors: tinted by applyEnv */
     const IW = FW + 4, ID = FD + 4;
     OB('lawn', '#cfe8b5', IW, 0.5, ID, 0, -0.45, 0);                                  /* garden island */
     OB('soil', '#b99a73', IW - 0.6, 0.3, ID - 0.6, 0, -0.85, 0);
-    B('#e9c99a', FW, 0.4, FD, 0, -0.2, 0);                                            /* wood floor, plank stripes */
-    for(let k = 0; k * 1.2 < FD - 0.2; k++) B(k % 2 ? '#e2bf8c' : '#f0d2a6', FW, 0.03, 1.2, 0, 0.015, -FD / 2 + 0.6 + k * 1.2);
+    B('#e9c99a', FW, 0.4, FD, 0, -0.2, 0);                                            /* wood floor slab */
+    B('#b48a5a', FW - 0.04, 0.008, FD - 0.04, 0, 0.004, 0);                           /* dark underlay: it shows only in the seams between the planks */
+    { /* planks 0.6 wide running along x, butt joints staggered row by row, a hashed tone per plank and 0.03 seams; the outer edges stay flush with the slab, and a row never ends in a sliver */
+      const PT = ['#f0d2a6', '#e9c999', '#f4dab3', '#e5c290', '#eecfa2', '#f2d6ac'], PW = 0.6, h2 = 0.015;
+      for(let r = 0, z0 = -FD / 2; z0 < FD / 2 - 0.05; r++, z0 += PW){
+        const z1 = FD / 2 - (z0 + PW) < 0.3 ? FD / 2 : z0 + PW, za = z0 + (r ? h2 : 0), zb = z1 - (z1 < FD / 2 ? h2 : 0);
+        let k = 0, x0 = -FW / 2, x1 = x0 + 0.8 + hash('pr' + r) * 2.6;
+        while(x0 < FW / 2 - 0.01){
+          if(FW / 2 - x1 < 0.8) x1 = FW / 2;
+          const xa = x0 + (k ? h2 : 0), xb = x1 - (x1 < FW / 2 ? h2 : 0);
+          B(PT[Math.floor(hash('pc' + r + ':' + k) * PT.length)], xb - xa, 0.03, zb - za, (xa + xb) / 2, 0.015, (za + zb) / 2);
+          k++; x0 = x1; x1 = x0 + 2.6 + hash('pl' + r + ':' + k) * 1.8;
+        }
+        if(z1 >= FD / 2) break;
+      }
+    }
+    /* walls: a wainscot in a deeper shade below a white rail, a wooden baseboard, and the cap on top */
     ws = 'z'; B('#f6ecd6', FW, 2.2, 0.3, 0, 1.1, -FD / 2); B('#fffaf0', FW, 0.12, 0.4, 0, 2.26, -FD / 2); if(snowy) B(SNOW, FW + 0.06, 0.1, 0.46, 0, 2.37, -FD / 2);
-    ws = 'x'; B('#d3ecdc', 0.3, 2.2, FD, -FW / 2, 1.1, 0); B('#fffaf0', 0.4, 0.12, FD, -FW / 2, 2.26, 0); if(snowy) B(SNOW, 0.46, 0.1, FD + 0.06, -FW / 2, 2.37, 0); ws = null;   /* walls that end up between the camera and the room are flattened in updateWalls() */
+    wd = true; B('#ecdcbc', FW, 0.86, 0.03, 0, 0.47, -FD / 2 + 0.165); B('#fffaf0', FW, 0.06, 0.06, 0, 0.92, -FD / 2 + 0.18); B('#cfa877', FW, 0.18, 0.05, 0, 0.09, -FD / 2 + 0.175); wd = false;
+    ws = 'x'; B('#d3ecdc', 0.3, 2.2, FD, -FW / 2, 1.1, 0); B('#fffaf0', 0.4, 0.12, FD, -FW / 2, 2.26, 0); if(snowy) B(SNOW, 0.46, 0.1, FD + 0.06, -FW / 2, 2.37, 0);
+    wd = true; B('#b5dcc3', 0.03, 0.86, FD, -FW / 2 + 0.165, 0.47, 0); B('#fffaf0', 0.06, 0.06, FD, -FW / 2 + 0.18, 0.92, 0); B('#cfa877', 0.05, 0.18, FD, -FW / 2 + 0.175, 0.09, 0); wd = false; ws = null;   /* walls that end up between the camera and the room are flattened in updateWalls() */
     const win = (x, z, alongX) => {                                                    /* window with blinds (closed) or glass (open) and a light patch */
       const gx = alongX ? 2.2 : 0.1, gz = alongX ? 0.1 : 2.2, fx = alongX ? 2.5 : 0.08, fz = alongX ? 0.08 : 2.5, ox = alongX ? 0 : 0.2, oz = alongX ? 0.2 : 0;
       B('#ffffff', fx, 1.3, fz, x + ox - (alongX ? 0 : 0.02), 1.3, z + oz - (alongX ? 0.02 : 0));
       B(closed ? '#d6d6dc' : '#bfe3f5', gx, 1.0, gz, x + ox + (alongX ? 0 : 0.04), 1.3, z + oz + (alongX ? 0.04 : 0)); if(!closed) W0.glass.push(sb.length - 1);
       W0.wins.push({ x: x + ox + (alongX ? 0 : 0.11), z: z + oz + (alongX ? 0.11 : 0), alongX, ws });   /* inner glass face, for raindrops */
+      /* the glass sits inside a white frame with a mullion cross and a deep sill under it (u runs along the wall, v out from it into the room) */
+      const F = (c, u, y, v, su, sy, sv) => { wd = true; B(c, alongX ? su : sv, sy, alongX ? sv : su, alongX ? x + u : x + v, y, alongX ? z + v : z + u); wd = false; };
+      F('#ffffff', 0, 1.82, 0.31, 2.36, 0.09, 0.05); F('#ffffff', 0, 0.78, 0.31, 2.36, 0.09, 0.05); F('#ffffff', -1.14, 1.3, 0.31, 0.09, 1.0, 0.05); F('#ffffff', 1.14, 1.3, 0.31, 0.09, 1.0, 0.05);
+      F('#ffffff', 0, 1.3, 0.31, 0.06, 0.98, 0.04); F('#ffffff', 0, 1.5, 0.31, 2.2, 0.05, 0.04);
+      F('#fffaf0', 0, 0.63, 0.3, 2.72, 0.06, 0.3); F('#e6d6b8', 0, 0.58, 0.22, 2.4, 0.05, 0.12);
       if(snowy) B(SNOW, alongX ? 2.5 : 0.34, 0.07, alongX ? 0.34 : 2.5, x + ox + (alongX ? 0 : 0.06), 0.68, z + oz + (alongX ? 0.06 : 0));   /* snow on the sill */
       if(closed) for(let q = 0; q < 4; q++) B('#b7b7c2', alongX ? 2.2 : 0.12, 0.04, alongX ? 0.12 : 2.2, x + ox + (alongX ? 0 : 0.05), 1.02 + q * 0.25, z + oz + (alongX ? 0.05 : 0));
       else { B('#f8e2b0', alongX ? 2.2 : 2.6, 0.02, alongX ? 2.6 : 2.2, alongX ? x : x + 1.5, 0.04, alongX ? z + 1.6 : z); W0.patch.push(sb.length - 1); }
@@ -1069,6 +1094,12 @@ export function mountOfficeScene(container, data, opts = {}){
       if(zn.kind === 'server'){                                                         /* cute rounded kiosk */
         B('#f4ecff', 2.4, 3.0, 1.4, zn.cx, 1.5, zn.cz); Sp('#f4ecff', 1, zn.cx, 3.0, zn.cz, 1.2, 0.55, 0.7); B('#5a5270', 1.9, 2.4, 0.1, zn.cx, 1.65, zn.cz + 0.72);
         B('#e0d4f5', 2.6, 0.2, 1.6, zn.cx, 0.1, zn.cz); Sp('#ffffff', 1, zn.cx - 0.45, 3.1, zn.cz + 0.5, 0.12, 0.12, 0.12); Sp('#ffffff', 1, zn.cx + 0.45, 3.1, zn.cz + 0.5, 0.12, 0.12, 0.12);
+        { /* rack detail: a pale bezel round the dark front, a divider between each row of lights, vent slats on the sides, a top band and a kick plate */
+          const cx = zn.cx, cz = zn.cz;
+          B('#e6dcf7', 2.04, 2.54, 0.06, cx, 1.65, cz + 0.71); B('#d9cdef', 2.46, 0.1, 1.46, cx, 2.92, cz); B('#cfc2ea', 2.3, 0.16, 0.04, cx, 0.28, cz + 0.71);
+          for(let i = 0; i < 6; i++) B('#6b6385', 1.8, 0.025, 0.02, cx, 0.915 + i * 0.33, cz + 0.78);
+          for(const sx of [-1, 1]) for(let i = 0; i < 8; i++) B(i % 4 === 3 ? '#cfc2ea' : '#d9cdef', 0.03, 0.06, 0.9, cx + sx * 1.215, 0.62 + i * 0.22 + (i > 3 ? 0.18 : 0), cz - 0.05);
+        }
         srv = { x: zn.cx, z: zn.cz };
         for(let i = 0; i < 7; i++) for(let j = 0; j < 4; j++) srvLights.push({ x: zn.cx - 0.66 + j * 0.44, y: 0.75 + i * 0.33, z: zn.cz + 0.8, c: C(['#7fe0b8', '#c4b5fd', '#8ec5fb', '#fcd34d', '#f9a8d4'][(i * 2 + j) % 5]), ph: hash(i * 7 + j), per: 0.6 + hash(i * 3 + j * 11) * 1.4 });
         return;
@@ -1076,12 +1107,29 @@ export function mountOfficeScene(container, data, opts = {}){
       const rc = zn.kind === 'free' ? '#efe6d6' : RUG[zi % RUG.length], chair = zn.kind === 'free' ? '#d9cdb8' : CH[zi % CH.length];
       if(zn.kind !== 'free') zi++;
       zn.rugIdx = sb.length; zn.rugCol = rc; B(rc, zn.w, 0.04, zn.d, zn.cx, 0.05, zn.cz);
+      { /* a woven border: a band in a deeper shade of the rug and a thin line inside it, flat on the pile so the hover tint (rugIdx) still reads on the field */
+        const hs = {}; C(rc).getHSL(hs); const bc = '#' + C().setHSL(hs.h, Math.min(1, hs.s * 0.85 + 0.05), Math.max(0, hs.l - 0.12)).getHexString();
+        const band = (ins, bw) => { const w = zn.w - 2 * ins, dd = zn.d - 2 * ins;
+          B(bc, w, 0.004, bw, zn.cx, 0.072, zn.cz - dd / 2 + bw / 2); B(bc, w, 0.004, bw, zn.cx, 0.072, zn.cz + dd / 2 - bw / 2);
+          B(bc, bw, 0.004, dd - 2 * bw, zn.cx - w / 2 + bw / 2, 0.072, zn.cz); B(bc, bw, 0.004, dd - 2 * bw, zn.cx + w / 2 - bw / 2, 0.072, zn.cz); };
+        band(0.22, 0.13); band(0.45, 0.035);
+      }
       zn.seats.forEach(s => {
         const x = s.x, z = s.z, p = s.p, mz = v => 2 * (z + 0.3) - v;   /* the person sits at z + 0.3 facing the camera (+z); desk, chair and shadows mirror around that line, so the desk is in front and the chair behind */
-        const lc = LAPTOP_COL[laptopKind(p && p.os)];
-        B('#f3d9ae', 2.2, 0.12, 1.2, x, 1.0, mz(z - 0.55)); B('#e0bd8a', 0.1, 1.0, 1.0, x - 0.95, 0.5, mz(z - 0.55)); B('#e0bd8a', 0.1, 1.0, 1.0, x + 0.95, 0.5, mz(z - 0.55));
+        const lc = LAPTOP_COL[laptopKind(p && p.os)], dz = mz(z - 0.55), cz = mz(z + 0.35);
+        B('#f3d9ae', 2.2, 0.12, 1.2, x, 1.0, dz); B('#e0bd8a', 0.1, 1.0, 1.0, x - 0.95, 0.5, dz); B('#e0bd8a', 0.1, 1.0, 1.0, x + 0.95, 0.5, dz);
+        B('#e3c08d', 1.8, 0.13, 0.04, x, 0.875, dz + 0.5);   /* apron under the front edge */
+        B('#ecca98', 0.5, 0.86, 0.9, x - 0.65, 0.5, dz); B('#c79b66', 0.22, 0.03, 0.03, x - 0.65, 0.78, dz + 0.46); B('#c79b66', 0.22, 0.03, 0.03, x - 0.65, 0.42, dz + 0.46); B('#dcb886', 0.46, 0.012, 0.02, x - 0.65, 0.6, dz + 0.451);   /* drawer pedestal on the left, two handles */
+        { /* a little still life on the free left end of the desk (the right end is where the picked one stands and the mug goes) */
+          const kd = Math.floor(hash('dk' + x.toFixed(2) + ',' + z.toFixed(2)) * 3), NB = ['#7aa6d6', '#e98a7a', '#8cc79a', '#b49be6', '#f0c060'], nb = NB[Math.floor(hash('nb' + x.toFixed(2) + z.toFixed(2)) * NB.length)];
+          if(kd === 0){ B(nb, 0.36, 0.035, 0.27, x - 0.7, 1.078, dz - 0.05); B('#fffaf0', 0.33, 0.012, 0.25, x - 0.7, 1.1, dz - 0.05); B('#6f7a92', 0.1, 0.15, 0.1, x - 0.97, 1.135, dz + 0.3); B('#f3c14b', 0.02, 0.1, 0.02, x - 0.99, 1.24, dz + 0.29); B('#e46f5f', 0.02, 0.08, 0.02, x - 0.95, 1.23, dz + 0.31); }
+          else if(kd === 1){ B('#e8a77f', 0.2, 0.15, 0.2, x - 0.8, 1.135, dz + 0.15); B('#6e5038', 0.17, 0.02, 0.17, x - 0.8, 1.21, dz + 0.15); Sp('#7cc48a', 0.11, x - 0.8, 1.27, dz + 0.15, 1, 0.8, 1); Sp('#9bd49a', 0.08, x - 0.74, 1.33, dz + 0.11); Sp('#6fb67d', 0.07, x - 0.86, 1.31, dz + 0.19); }
+          else { B('#fffaf0', 0.34, 0.025, 0.26, x - 0.72, 1.072, dz); B('#f1ece0', 0.32, 0.025, 0.25, x - 0.69, 1.097, dz - 0.03); B(nb, 0.3, 0.05, 0.22, x - 0.72, 1.135, dz + 0.02); }
+        }
         B(lc, 0.95, 0.04, 0.6, x, 1.08, z + 0.95); B(lc, 0.95, 0.5, 0.04, x, 1.35, z + 1.27);   /* laptop: base on the desk, lid standing behind it with its back to the camera */
-        B(chair, 0.8, 0.12, 0.8, x, 0.6, mz(z + 0.35)); B(chair, 0.8, 0.8, 0.12, x, 1.0, mz(z + 0.78)); B('#d6cfc4', 0.1, 0.6, 0.1, x, 0.3, mz(z + 0.35));
+        B(chair, 0.8, 0.12, 0.8, x, 0.6, cz); B(chair, 0.8, 0.8, 0.12, x, 1.0, mz(z + 0.78)); B('#d6cfc4', 0.1, 0.6, 0.1, x, 0.3, cz);
+        B('#9a94a8', 0.84, 0.05, 0.08, x, 0.075, cz); B('#9a94a8', 0.08, 0.05, 0.84, x, 0.075, cz);   /* star base on four castors */
+        [[0.42, 0], [-0.42, 0], [0, 0.42], [0, -0.42]].forEach(([ax, az]) => B('#5f5a6e', 0.1, 0.07, 0.1, x + ax, 0.035, cz + az));   /* boxes, not spheres: at this size a sphere costs 30 times the triangles for nothing visible */
         W0.ao.push([x, mz(z - 0.55), 2.6, 1.5], [x, mz(z + 0.4), 1.05, 1.05]);   /* contact shadows under the desk and the chair (drawn in buildEnv) */
         const LY = 1.36, LZ = z + 1.27 + 0.02 + 0.025;   /* the logo floats 0.025 off the lid back */
         if(!p){ screens.push([x, LY, LZ, 'off', 0, 'other', 0]); return; }
@@ -1109,16 +1157,19 @@ export function mountOfficeScene(container, data, opts = {}){
       }
     });
     /* garden: round bushes with little flowers around the building, bushy plants inside the corners */
-    const GR = ['#9fd49a', '#b5e0a0', '#8fcf9b'], FL = ['#ffb3c7', '#fff08a', '#ffffff'], bush = (x, z, k) => {
-      const r = 0.55 + hash(k) * 0.35; OS('bush', GR[k % 3], r, x, r * 0.8, z, 1, 0.85, 1); OS('bush', GR[(k + 1) % 3], r * 0.7, x + r * 0.8, r * 0.55, z + 0.2, 1, 0.85, 1);
-      if(snowy){ OS('snow', SNOW, r * 0.86, x, r * 1.22, z, 1, 0.42, 1); OS('snow', SNOW, r * 0.6, x + r * 0.8, r * 0.86, z + 0.2, 1, 0.42, 1); return; }   /* white caps hide the flowers */
-      OS('flower', FL[k % 3], 0.1, x + 0.15, r * 1.5, z + 0.3); OS('flower', FL[(k + 1) % 3], 0.1, x - 0.3, r * 1.35, z + 0.2); OS('flower', FL[(k + 2) % 3], 0.09, x + 0.4, r * 1.2, z - 0.2);
+    /* each shrub is four overlapping puffs in three greens laid along its row (a along the row, b across it), so a row reads as a clipped hedge, not a string of balls */
+    const GR = ['#9fd49a', '#b5e0a0', '#8fcf9b', '#84c48f'], FL = ['#ffb3c7', '#fff08a', '#ffffff'], bush = (x, z, k, alongX) => {
+      const r = 0.55 + hash(k) * 0.35, A = (a, b) => (alongX ? [x + a, z + b] : [x + b, z + a]);
+      const puffs = [[0, 0, r, 0.8, GR[k % 3]], [r * 0.8, 0.2, r * 0.7, 0.55, GR[(k + 1) % 3]], [-r * 0.78, -0.08, r * 0.62, 0.5, GR[3]], [r * 0.15, -0.3, r * 0.55, 1.12, GR[(k + 2) % 3]]];
+      puffs.forEach(([a, b, pr, py, c]) => { const [px, pz] = A(a, b); OS('bush', c, pr, px, py * r, pz, 1, 0.85, 1); });
+      if(snowy){ puffs.forEach(([a, b, pr, py]) => { const [px, pz] = A(a, b); OS('snow', SNOW, pr * 0.86, px, py * r + 0.43 * pr, pz, 1, 0.42, 1); }); return; }   /* white caps hide the flowers */
+      [[0.15, 0.3, r * 1.5, 0.1], [-0.3, 0.2, r * 1.35, 0.1], [0.4, -0.2, r * 1.2, 0.09], [-r * 0.7, 0.22, r * 0.95, 0.08]].forEach(([a, b, y, fr], j) => { const [px, pz] = A(a, b); OS('flower', FL[(k + j) % 3], fr, px, y, pz); });
     };
     let bk = 0;
     /* stepping stones from the open front edge to the lawn edge, between two shrubs; they go dark and glossy in the rain */
     { const xp = -FW / 2 + 4.4 * (Math.max(0, Math.round(FW / 2 / 4.4 - 0.5)) + 0.5); [0.42, 1.02, 1.62].forEach((dz, i) => W0.stones.push([xp + (i % 2 ? 0.12 : -0.08), FD / 2 + dz, i])); }
-    for(let x = -FW / 2; x <= FW / 2; x += 4.4){ bush(x, FD / 2 + 1.1, bk++); bush(x + 1.4, -FD / 2 - 1.1, bk++); }
-    for(let z = -FD / 2 + 2; z <= FD / 2 - 1; z += 4.4){ bush(FW / 2 + 1.1, z, bk++); bush(-FW / 2 - 1.1, z + 1.2, bk++); }
+    for(let x = -FW / 2; x <= FW / 2; x += 4.4){ bush(x, FD / 2 + 1.1, bk++, true); bush(x + 1.4, -FD / 2 - 1.1, bk++, true); }
+    for(let z = -FD / 2 + 2; z <= FD / 2 - 1; z += 4.4){ bush(FW / 2 + 1.1, z, bk++, false); bush(-FW / 2 - 1.1, z + 1.2, bk++, false); }
     if(xmas && srv){
       /* The world tree (a fantasy giant grown from the old Banggye-ri ginkgo) stands on the lawn just outside the back corner, so the Sprag server is at its foot. Its trunk rises past the roof line
        * and leans a little toward the room, two thick roots arch over the corner wall and come down on both sides of the kiosk, and the crown starts at height 9 so nothing comes down to the animals
@@ -1136,9 +1187,46 @@ export function mountOfficeScene(container, data, opts = {}){
       tr.position.set(gx, 0, gz); world.add(tr); hol.push(tr); holFit = { x: gx, z: gz, pts: [[3.0, 3.2], [7.4, 4.0]] };
       const pl = makePresents(T); pl.scale.setScalar(0.75); pl.rotation.y = -0.35; pl.position.set(srv.x + 1.9, 0, srv.z + 1.3); world.add(pl); hol.push(pl);   /* the present pile stands in front of the kiosk */
     }
+    /* potted plants in three corners: a terracotta pot with a rolled rim round dark soil, and a different plant in each (a bushy fern, a tall fiddle-leaf fig, a snake plant) */
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
-      B('#e8a77f', 0.7, 0.6, 0.7, x, 0.3, z); Sp('#8fcf9b', 0.6, x, 1.2, z); Sp('#a8dba0', 0.45, x + 0.3, 1.6, z - 0.1); Sp('#9fd49a', 0.42, x - 0.3, 1.5, z + 0.1);
+      B('#d98f68', 0.6, 0.5, 0.6, x, 0.25, z); B('#c27a56', 0.74, 0.04, 0.74, x, 0.02, z); B('#5e4330', 0.58, 0.04, 0.58, x, 0.58, z);   /* pot, saucer, soil */
+      [[0, 0.33, 0.74, 0.08], [0, -0.33, 0.74, 0.08], [0.33, 0, 0.08, 0.58], [-0.33, 0, 0.08, 0.58]].forEach(([ox, oz, sx, sz]) => B('#eaa983', sx, 0.14, sz, x + ox, 0.55, z + oz));
+      if(i === 0){
+        Sp('#8fcf9b', 0.5, x, 0.95, z, 1, 0.72, 1); Sp('#7fc08c', 0.36, x + 0.3, 1.05, z - 0.12); Sp('#a8dba0', 0.34, x - 0.28, 1.08, z + 0.15);
+        Sp('#9fd49a', 0.3, x + 0.05, 1.32, z - 0.06); Sp('#7fc08c', 0.24, x + 0.22, 1.4, z + 0.2); Sp('#b9e4ad', 0.2, x - 0.1, 1.55, z + 0.05);
+      } else if(i === 1){
+        B('#7a5a3a', 0.06, 1.35, 0.06, x, 1.25, z);
+        [[0.2, 1.15, 0.06, 0.27, '#6fb67d'], [-0.2, 1.42, -0.08, 0.3, '#8fcf9b'], [0.12, 1.7, 0.1, 0.32, '#7cc48a'], [-0.1, 1.96, -0.03, 0.27, '#a8dba0'], [0.06, 2.2, 0.02, 0.18, '#9fd49a']]
+          .forEach(([ox, y, oz, r, c]) => Sp(c, r, x + ox, y, z + oz, 1, 0.72, 0.85));
+      } else {
+        [[0, 0, 0.82, '#5f9e6e'], [0.12, 0.06, 0.66, '#79b77f'], [-0.12, 0.04, 0.72, '#6aa874'], [0.05, -0.12, 0.58, '#a9c96a'], [-0.06, 0.14, 0.52, '#79b77f'], [0.16, -0.08, 0.46, '#5f9e6e'], [-0.15, -0.1, 0.62, '#8cbf6e']]
+          .forEach(([ox, oz, h, c], j) => Sp(c, 1, x + ox, 0.58 + h * 0.45, z + oz, j % 2 ? 0.05 : 0.085, h * 0.5, j % 2 ? 0.085 : 0.05));
+      }
     });
+    { /* low bookshelves against the back and left walls, in the gaps between windows clear of the server corner and the floor lamps; under the year-end wreaths they stay below the ring */
+      const BK = ['#d9604f', '#4f86c6', '#e8b04a', '#5aa77a', '#8a6fc4', '#f1ece0', '#c45a7a', '#3f6f8a', '#e98a5a'], W = 1.9, Hh = 0.62, D = 0.42, v0 = 0.06;
+      const free = (au, alongX) => (alongX ? !(srv && Math.abs(au - srv.x) < 4.6) && !W0.lamps.some(l => Math.abs(l.x - au) < 1.3 && l.z < -FD / 2 + 1.0)
+        : !(srv && Math.abs(au - srv.z) < 4.4) && !W0.lamps.some(l => Math.abs(l.z - au) < 1.3 && l.x < -FW / 2 + 1.0));
+      const shelf = (au, alongX, seed) => {
+        const P = (c, u, y, v, su, sy, sv) => (alongX ? B(c, su, sy, sv, au + u, y, -FD / 2 + 0.15 + v) : B(c, sv, sy, su, -FW / 2 + 0.15 + v, y, au + u)), vc = v0 + D / 2;
+        P('#8a6448', 0, Hh / 2, v0 + 0.02, W, Hh, 0.04); P('#c99a66', -W / 2 + 0.025, Hh / 2, vc, 0.05, Hh, D); P('#c99a66', W / 2 - 0.025, Hh / 2, vc, 0.05, Hh, D); P('#c99a66', 0, Hh / 2, vc, 0.04, Hh - 0.06, D);
+        P('#b98a58', 0, 0.03, vc, W, 0.06, D); P('#c99a66', 0, 0.33, vc, W - 0.1, 0.035, D); P('#ddb07c', 0, Hh + 0.02, vc + 0.01, W + 0.06, 0.04, D + 0.04);
+        [[0.06, 0.24], [0.3475, 0.25]].forEach(([yb, hm], lv) => {
+          let u = -W / 2 + 0.06, n = 0;
+          while(u < W / 2 - 0.1 && n < 60){
+            const q = seed + ':' + lv + ':' + n++, r = hash(q), w = 0.045 + r * 0.05, h = hm * (0.68 + 0.32 * hash(q + 'h'));
+            if(r < 0.1){ u += 0.1; continue; }   /* a gap now and then */
+            if(u + w > W / 2 - 0.055) break;
+            if(u + w > -0.025 && u < 0.025){ u = 0.025; continue; }   /* the middle divider */
+            P(BK[Math.floor(hash(q + 'c') * BK.length)], u + w / 2, yb + h / 2, 0.27, w - 0.006, h, 0.32); u += w;
+          }
+        });
+        P('#e8a77f', 0.76, Hh + 0.11, vc, 0.16, 0.14, 0.16); Sp('#8fcf9b', 0.12, ...(alongX ? [au + 0.76, Hh + 0.24, -FD / 2 + 0.15 + vc] : [-FW / 2 + 0.15 + vc, Hh + 0.24, au + 0.76]), 1, 0.85, 1);   /* a small plant and a lying stack on top */
+        P(BK[Math.floor(hash(seed + 'a') * BK.length)], -0.74, Hh + 0.065, vc, 0.3, 0.05, 0.22); P(BK[Math.floor(hash(seed + 'b') * BK.length)], -0.72, Hh + 0.11, vc + 0.01, 0.26, 0.04, 0.2);
+      };
+      for(let x = -FW / 2 + 3.5; x + 6.5 < FW / 2 - 1.5; x += 6.5){ const u = x + 3.25; if(free(u, true)) shelf(u, true, 'bz' + u.toFixed(1)); }
+      for(let z = -FD / 2 + 3.5; z + 6.5 < FD / 2 - 1.5; z += 6.5){ const u = z + 3.25; if(free(u, false)) shelf(u, false, 'bx' + u.toFixed(1)); }
+    }
     people.forEach(o => {   /* the nearest desk in the same row: whom to glance at */
       let best = null, bd = 4; people.forEach(q => { if(q !== o && Math.abs(q.z - o.z) < 0.5 && Math.abs(q.x - o.x) < bd){ bd = Math.abs(q.x - o.x); best = q; } });
       o.nb = best ? Math.sign(best.x - o.x) : hash(o.p.id + 'nb') < 0.5 ? -1 : 1;
@@ -1296,7 +1384,7 @@ export function mountOfficeScene(container, data, opts = {}){
     /* backdrop, stars and haze */
     const dull = clampN((wx.cloud - 0.15) * 0.95 + (fog ? 0.2 : 0), 0, 1), gr = c => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return c.clone().lerp(new T.Color(l * 0.9, l * 0.93, l), dull * (0.35 + 0.65 * dayK)).multiplyScalar(1 - 0.1 * dull * dayK); };
     const dark = st === 'storm' ? 0.76 : wet ? 0.9 : 1, s0 = gr(P.c0).multiplyScalar(dark), s1 = gr(P.c1).multiplyScalar(dark);
-    stage.style.background = `radial-gradient(ellipse at 50% 35%, #${s0.getHexString()} 0, #${s1.getHexString()} 80%)`;
+    stage.style.background = `#${s0.getHexString()}`;   /* a flat sky behind the island: the site uses no gradients */
     stage.classList.toggle('sk-night', n > 0.55); renderChip(); if(post) post.setNight(n);
     elStars.style.opacity = String(clampN((n - 0.5) * 2.2, 0, 1) * (1 - clampN((wx.cloud - 0.25) / 0.5, 0, 1)));   /* overcast skies hide the stars and the moon */
     const fogC = s0.clone().lerp(s1, 0.4).lerp(C('#e9edf2'), 0.55 * dayK), rgb = fogC.getStyle().replace(/^rgb\(|\)$/g, '');
@@ -1385,7 +1473,7 @@ export function mountOfficeScene(container, data, opts = {}){
   function updateWalls(){
     if(!sets.sm || !view) return; const a = view.azimuth(), want = { z: Math.cos(a) < -0.05, x: Math.sin(a) < -0.05 };
     ['z', 'x'].forEach(k => { if(want[k] === wallHid[k]) return; wallHid[k] = want[k];
-      wallIdx[k].forEach(i => { const b = sets.sb[i]; setM(sets.sm, i, b[4], b[5], b[6], 0, 0, b[1], want[k] ? 0.001 : b[2], b[3]); }); sets.sm.instanceMatrix.needsUpdate = true; });
+      wallIdx[k].forEach(i => { const j = i < 0 ? ~i : i, b = sets.sb[j]; if(i < 0 && want[k]) setM(sets.sm, j, b[4], b[5], b[6], 0, 0, 0.0001, 0.0001, 0.0001); else setM(sets.sm, j, b[4], b[5], b[6], 0, 0, b[1], want[k] ? 0.001 : b[2], b[3]); }); sets.sm.instanceMatrix.needsUpdate = true; });
     if(holWall) holWall.visible = !wallHid.z;
   }
   /* The cast: one sculpted glTF character per species (site/assets/scene/cast/<grade>.glb, made in Blender, Draco-compressed). The primitive

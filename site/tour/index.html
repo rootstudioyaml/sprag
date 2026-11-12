@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<script>try{var t=localStorage.getItem('sprag-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <!-- Google tag (gtag.js): Google Ads conversion measurement, see /privacy/ -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18548782436"></script>
 <script>
@@ -56,10 +57,10 @@
   a{color:inherit;text-decoration:none}
   button{font-family:inherit;font-size:inherit;cursor:pointer}
   :focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:4px}
-  ::selection{background:rgba(94,106,210,.4)}
+  ::selection{background:color-mix(in oklab,var(--accent) 40%,transparent)}
   .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
 
-  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(10,10,12,.88);backdrop-filter:blur(14px)}
+  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:var(--bg);}
   header .wrap{display:flex;align-items:center;justify-content:space-between;min-height:var(--bar-h)}
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
   .brand svg{width:20px;height:20px;display:block}
@@ -69,7 +70,7 @@
   .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px;margin-left:12px}
   .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   .lang button:hover{color:var(--dim)}
-  .lang button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent2)}
+  .lang button[aria-pressed=true]{background:var(--ink);color:var(--base)}
   @media(hover:none) and (pointer:coarse){.lang button{padding:8px 10px}}
 
   main{padding:56px 0 72px}
@@ -78,8 +79,8 @@
   .sub{color:var(--dim);font-size:15px;margin-top:8px;max-width:56ch}
   .site{font:500 13px/1 var(--mono);color:var(--accent2);border:1px solid var(--line2);border-radius:var(--r);padding:9px 12px;white-space:nowrap}
   .site:hover{border-color:var(--line3);color:var(--ink)}
-  .player{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--rl);overflow:hidden;border:1px solid var(--line);background:#000;box-shadow:0 24px 60px rgba(0,0,0,.45)}
-  .player video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
+  .player{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--rl);overflow:hidden;border:1px solid var(--line);background:var(--bg);box-shadow:none}
+  .player video{display:block;width:100%;height:100%;object-fit:contain;background:var(--bg)}
 
   footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
   footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -91,6 +92,7 @@
   footer .biz a.strong{font-weight:700;color:var(--dim)}
   @media(max-width:520px){.wrap{padding:0 16px}main{padding:32px 0 48px}h1{font-size:26px}.sub{font-size:14px}}
 </style>
+<link rel="stylesheet" href="/assets/tokens.css" />
 </head>
 <body>
 <header>
@@ -187,5 +189,6 @@ function setLang(next, remember){
 document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
 </script>
 <script src="/assets/lang-links.js"></script>
+<script src="/assets/theme-toggle.js" defer></script>
 </body>
 </html>
