@@ -234,7 +234,14 @@ const SHOTS = {
 };
 
 async function record(browser, name, shot){
-  const page = await browser.newPage();
+  /* every attempt gets its own browser context: the office scene opened as the second page of a shared context
+     stalled virtual time with no request pending (2026-11-12, office-intro hung 50 min after the town shots) */
+  const ctx = await browser.createBrowserContext();
+  try{ return await recordIn(ctx, name, shot); } finally{ await ctx.close().catch(() => {}); }
+}
+
+async function recordIn(ctx, name, shot){
+  const page = await ctx.newPage();
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1.5 });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -254,7 +261,13 @@ async function record(browser, name, shot){
       if(gl){ gl.clearColor((n++ % 2) * 0.01, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); } requestAnimationFrame(glLoop); })();
   });
   const cdp = await page.createCDPSession();
-  const advance = ms => new Promise((res, rej) => { cdp.once('Emulation.virtualTimeBudgetExpired', res); cdp.send('Emulation.setVirtualTimePolicy', { policy: 'pauseIfNetworkFetchesPending', budget: ms }).catch(rej); });
+  /* a step takes well under a second; if the budget never expires, fail the attempt instead of waiting forever */
+  const advance = ms => new Promise((res, rej) => {
+    const stall = setTimeout(() => { cdp.off('Emulation.virtualTimeBudgetExpired', done); rej(new Error(`${name}: virtual time stalled for 60 s`)); }, 60000);
+    const done = () => { clearTimeout(stall); res(); };
+    cdp.once('Emulation.virtualTimeBudgetExpired', done);
+    cdp.send('Emulation.setVirtualTimePolicy', { policy: 'pauseIfNetworkFetchesPending', budget: ms }).catch(e => { clearTimeout(stall); rej(e); });
+  });
   await cdp.send('Emulation.setVirtualTimePolicy', { policy: 'pause', initialVirtualTime: T0 });
   const c = { page, name,
     eval: js => page.evaluate(js),
@@ -282,20 +295,21 @@ async function record(browser, name, shot){
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '12', '-pix_fmt', 'yuv420p', '-r', String(FPS), file], { stdio: ['pipe', 'inherit', 'inherit'] });
   const done = new Promise(res => ff.on('close', res));
   const t1 = Date.now();
-  for(let i = 0; i < N; i++){
-    const t = i / FPS;
-    if(shot.frame) await shot.frame(c, t, i);
-    await page.evaluate(() => window.__damage && window.__damage());
-    await advance(F);
-    const buf = await page.screenshot({ type: 'png', optimizeForSpeed: true, captureBeyondViewport: false });
-    if(!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));
-  }
+  try{
+    for(let i = 0; i < N; i++){
+      const t = i / FPS;
+      if(shot.frame) await shot.frame(c, t, i);
+      await page.evaluate(() => window.__damage && window.__damage());
+      await advance(F);
+      const buf = await page.screenshot({ type: 'png', optimizeForSpeed: true, captureBeyondViewport: false });
+      if(!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));
+    }
+  }catch(e){ ff.kill('SIGKILL'); await done; throw e; }
   ff.stdin.end(); const code = await done;
   const sec = (Date.now() - t1) / 1000;
   console.log(`${LANG}/${name}: ${N} frames in ${sec.toFixed(1)} s (${(N / sec).toFixed(1)} fps) -> ${file}${code ? ' FFMPEG EXIT ' + code : ''}`);
   const bad = errors.filter(e => !/open-meteo|ERR_FAILED|net::/i.test(e));
   if(bad.length) console.log(`  page errors: ${bad.slice(0, 5).join(' | ')}`);
-  await page.close();
   return code === 0;
 }
 
@@ -319,7 +333,8 @@ for(const n of names){
   try{
     let good = false;
     for(let k = 1; k <= 3 && !good; k++){
-      good = await record(browser, n, SHOTS[n]);
+      try{ good = await record(browser, n, SHOTS[n]); }
+      catch(e){ if(k === 3) throw e; console.log(`  ${LANG}/${n}: ${e.message}, recording again`); continue; }
       const g = good ? glitches(path.join(OUT, LANG, n + '.mp4')) : [];
       if(g.length){ good = false; if(k < 3) console.log(`  ${LANG}/${n}: one-frame glitch at ${g.join(', ')} s, recording again`); else console.error(`${LANG}/${n}: still glitched after 3 tries at ${g.join(', ')} s`); }
     }
