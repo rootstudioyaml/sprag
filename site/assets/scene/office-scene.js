@@ -22,7 +22,7 @@ import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaH
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
-export const CAST_Q = '?v=3.121.0-2';   /* the model files change in place and the CDN keeps them 4 h: bump this with the files */
+export const CAST_Q = '?v=3.121.0-3';   /* the model files change in place and the CDN keeps them 4 h: bump this with the files */
 const SPRITE_URL = new URL('./sprites/', import.meta.url).href, SPRITE_Q = new URL(import.meta.url).searchParams.get('v') || '0';   /* the page's query for this file doubles as the manifest's, whose own v is only known after reading it */
 let spriteManP = null;
 function spriteManifest(){   /* sprites/manifest.json, read once per page; a missing or broken one resolves null and every animal stays a glb */
