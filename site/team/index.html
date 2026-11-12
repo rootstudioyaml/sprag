@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<script>try{var t=localStorage.getItem('sprag-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sprag Teams | Owner dashboard</title>
 <meta name="description" content="The Sprag team owner dashboard: spend and savings per member, team-approved rules and enrollment tokens." />
@@ -15,9 +16,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
-.mmix{display:inline-flex;width:84px;height:8px;border-radius:4px;overflow:hidden;vertical-align:middle;background:rgba(128,128,128,.15)}
+.mmix{display:inline-flex;width:84px;height:8px;border-radius:4px;overflow:hidden;vertical-align:middle;background:transparent}
 .mmix i{display:block;height:100%}
-.mmix-t{margin-left:6px;font-size:12px;color:var(--dim,#8a8794);white-space:nowrap}
+.mmix-t{margin-left:6px;font-size:12px;color:var(--dim,var(--faint));white-space:nowrap}
   /* Sprag admin shell. Dense dark UI: hairline borders, Geist + Geist Mono, one accent (#5e6ad2). */
   :root{
     --bg:#0a0a0c; --surface:#0f0f12; --surface2:#141418; --hover:rgba(255,255,255,.035);
@@ -44,19 +45,19 @@
   code{font-family:var(--mono);font-size:.9em}
   [hidden]{display:none!important}
   :focus-visible{outline:2px solid var(--accent2);outline-offset:2px;border-radius:4px}
-  ::selection{background:rgba(94,106,210,.4)}
+  ::selection{background:color-mix(in oklab,var(--accent) 40%,transparent)}
 
   /* ── top bar ───────────────────────────────────────────────────────────── */
-  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(10,10,12,.88);backdrop-filter:blur(14px)}
+  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:var(--bg);}
   /* demo only: the banner sits inside the sticky header, so .tside offsets by its height too */
-  .demobar{min-height:var(--demo-h);display:flex;align-items:center;justify-content:center;padding:6px var(--gut);font-size:12.5px;line-height:1.45;text-align:center;color:var(--warn);background:rgba(232,171,60,.1);border-top:1px solid rgba(232,171,60,.28)}
+  .demobar{min-height:var(--demo-h);display:flex;align-items:center;justify-content:center;padding:6px var(--gut);font-size:12.5px;line-height:1.45;text-align:center;color:var(--ink);background:var(--bg);border-bottom:1px solid var(--line2)}
   .demobar[hidden]{display:none}
   body:not(.authed) header.app-hdr,body.authed header.site-hdr{display:none}
   body.demo{--demo-h:32px}
   header .wrap{max-width:1440px;margin:0 auto;padding:0 var(--gut);min-height:var(--bar-h);display:flex;align-items:center;gap:var(--s4);flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em;flex:0 0 auto}
   .brand svg{width:20px;height:20px;display:block}
-  .localbadge{font:500 10.5px/1 var(--mono);letter-spacing:.06em;color:var(--warn);border:1px solid rgba(232,171,60,.4);background:rgba(232,171,60,.08);border-radius:4px;padding:4px 6px;white-space:nowrap}
+  .localbadge{font:500 10.5px/1 var(--mono);letter-spacing:.06em;color:var(--warn);border:1px solid color-mix(in oklab,var(--acc2) 40%,transparent);background:transparent;border-radius:4px;padding:4px 6px;white-space:nowrap}
   .topnav{display:flex;align-items:center;gap:2px;margin-left:var(--s2);min-width:0;overflow-x:auto;scrollbar-width:none}
   .topnav a,.topnav button,.topnav .vtab{background:none;border:0;color:var(--dim);font-size:13px;font-weight:500;padding:6px 10px;border-radius:var(--r);white-space:nowrap;transition:color .15s var(--ease),background .15s var(--ease)}
   .topnav a:hover,.topnav button:hover{color:var(--ink);background:var(--hover)}
@@ -67,11 +68,11 @@
   .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px}
   .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   .lang button:hover{color:var(--dim)}
-  .lang button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent2)}
+  .lang button[aria-pressed=true]{background:var(--ink);color:var(--base)}
   .acct{position:relative}
   .acct-b{width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);background:var(--surface2);color:var(--ink);font-size:12px;font-weight:600;display:grid;place-items:center;padding:0;transition:border-color .15s var(--ease)}
-  .acct-b:hover,.acct-b[aria-expanded=true]{border-color:var(--accent)}
-  .menu{position:absolute;right:0;top:calc(100% + 8px);width:300px;max-width:calc(100vw - 32px);background:var(--surface2);border:1px solid var(--line2);border-radius:var(--rl);padding:var(--s2);box-shadow:0 12px 32px rgba(0,0,0,.45);z-index:60}
+  .acct-b:hover,.acct-b[aria-expanded=true]{border-color:var(--accent-fg)}
+  .menu{position:absolute;right:0;top:calc(100% + 8px);width:300px;max-width:calc(100vw - 32px);background:var(--surface2);border:1px solid var(--line2);border-radius:var(--rl);padding:var(--s2);box-shadow:none;z-index:60}
   .menu .who{padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:var(--s2);display:grid;gap:2px}
   .menu .who span{font-size:11.5px;color:var(--faint)}
   .menu .who b{font-weight:500;font-size:13px;overflow-wrap:anywhere}
@@ -97,7 +98,7 @@
   .sub{color:var(--dim);font-size:13px;margin-top:6px}
   .row{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
   .row.grow > input{flex:1 1 220px}
-  .err{color:var(--bad);font-size:13px;margin-top:var(--s3);border:1px solid rgba(240,107,107,.3);background:rgba(240,107,107,.06);border-radius:var(--r);padding:8px 12px}
+  .err{color:var(--bad);font-size:13px;margin-top:var(--s3);border:1px solid color-mix(in oklab,var(--ink) 30%,transparent);background:transparent;border-radius:var(--r);padding:8px 12px}
   .err:empty{display:none}
   .card.flush .err{margin:var(--s3) 20px 0}
   .ok{color:var(--ok);font-size:13px}
@@ -127,18 +128,18 @@
   textarea{height:auto;padding:8px 10px;min-height:84px;resize:vertical;width:100%;line-height:1.5}
   input::placeholder{color:var(--faint)}
   input:hover,select:hover,textarea:hover{border-color:var(--line3)}
-  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,106,210,.22);outline:0}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent-fg);box-shadow:0 0 0 3px color-mix(in oklab,var(--accent) 22%,transparent);outline:0}
   select{-webkit-appearance:none;appearance:none;padding-right:28px;cursor:pointer;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%239b9da6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;background-size:11px}
-  select option{background:#141418;color:var(--ink)}
+  select option{background:var(--panel2);color:var(--ink)}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--line2);border-radius:var(--r);font-size:13px;font-weight:500;line-height:1;white-space:nowrap;color:var(--ink);background:var(--surface2);transition:border-color .15s var(--ease),background .15s var(--ease),color .15s var(--ease),transform .12s var(--ease)}
-  .btn:hover:not(:disabled){border-color:var(--line3);background:#1a1a20}
+  .btn:hover:not(:disabled){border-color:var(--line3);background:var(--panel2)}
   .btn:active:not(:disabled){transform:scale(.98)}
   .btn:disabled{opacity:.5;cursor:default}
-  .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
-  .btn.pri:hover:not(:disabled){background:#6d79e0;border-color:#6d79e0}
+  .btn.pri{background:var(--accent);border-color:var(--accent-fg);color:var(--on-accent)}
+  .btn.pri:hover:not(:disabled){background:var(--accent);border-color:var(--accent-fg)}
   .btn.sm{height:26px;padding:0 9px;font-size:12px}
   .btn.danger{color:var(--dim)}
-  .btn.danger:hover:not(:disabled){border-color:rgba(240,107,107,.5);color:var(--bad);background:rgba(240,107,107,.06)}
+  .btn.danger:hover:not(:disabled){border-color:color-mix(in oklab,var(--ink) 50%,transparent);color:var(--bad);background:transparent}
   .tbl-wrap .btn,.arow .btn,.rule .btn{height:26px;padding:0 9px;font-size:12px}
   .tbl-wrap select{height:26px;font-size:12px;padding-right:24px;background-position:right 7px center;width:112px}
   @media(hover:none) and (pointer:coarse){.btn,input,select{min-height:40px}.btn.sm,.tbl-wrap .btn{min-height:34px}.lang button{padding:8px 10px}.acct-b{width:36px;height:36px}}
@@ -155,7 +156,7 @@
   .tabs{display:flex;gap:var(--s4);margin-top:var(--s4);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
   .tab{background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:8px 2px;margin-bottom:-1px;font-size:13px;font-weight:500;white-space:nowrap;transition:color .15s var(--ease),border-color .15s var(--ease)}
   .tab:hover{color:var(--ink)}
-  .tab[aria-selected=true]{color:var(--ink);border-color:var(--accent)}
+  .tab[aria-selected=true]{color:var(--ink);border-color:var(--accent-fg)}
 
   /* status: dot + label. plan / role: flat tag */
   .badge{display:inline-flex;align-items:center;font-size:11.5px;font-weight:500;line-height:1.3;color:var(--dim);background:var(--surface2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;white-space:nowrap}
@@ -164,7 +165,7 @@
   .badge.warn::before{background:var(--warn)} .badge.bad::before{background:var(--bad)} .badge.dim::before{background:var(--line3)} .badge.plus::before{background:var(--accent2)}
   .badge.dim{color:var(--faint)}
   .tag{display:inline-flex;align-items:center;font:500 11px/1.3 var(--mono);letter-spacing:.02em;color:var(--dim);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;white-space:nowrap}
-  .tag.plus{color:var(--accent2);border-color:rgba(94,106,210,.5);background:var(--accent-bg)}
+  .tag.plus{color:var(--accent2);border-color:color-mix(in oklab,var(--accent) 50%,transparent);background:var(--accent-bg)}
   html[lang=ko] .tag{font-family:var(--sans)}
 
   .bar{height:4px;border-radius:2px;background:var(--line2);overflow:hidden;margin-top:var(--s3);max-width:420px}
@@ -192,12 +193,14 @@
   td.n,th.n{text-align:right}
   tbody tr{transition:background .12s var(--ease)}
   tbody tr:hover td{background:var(--hover)}
-  tr.hot td{background:rgba(232,171,60,.07)}
+  tr.hot td{background:transparent}
+  tr.hot td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
   tr.hot td.today{color:var(--warn);font-weight:600}
   /* today's three columns sit apart from the range totals */
   th.t0,td.t0{border-left:1px solid var(--line2)}
   tr.gone td{color:var(--faint)}
   tr.hl td{background:var(--accent-bg)}
+  tr.hl td:first-child{box-shadow:inset 2px 0 0 var(--accent)}   /* the highlighted row reads by a line, not a wash */
   td.lt{color:var(--warn);font-weight:600}
   td .badge,td .tag{vertical-align:middle}
   td.nm{font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis}
@@ -291,8 +294,8 @@
   .pu-m time{color:var(--dim)} .pu-m .pr-proj{font-family:var(--mono);font-size:11.5px}
   .pu-t{margin:0;font:inherit;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
   .pu-t.mono{font-family:var(--mono);font-size:12px;line-height:1.55;color:var(--dim);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
-  mark.rd{background:rgba(245,180,60,.18);color:#f3b54a;border:1px solid rgba(245,180,60,.45);border-radius:4px;padding:0 5px;font-size:.92em;font-style:normal;white-space:nowrap}
-  .pu-t.clamp{max-height:4.6em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 60%,transparent);mask-image:linear-gradient(#000 60%,transparent)}
+  mark.rd{background:transparent;color:var(--acc2);border:1px solid color-mix(in oklab,var(--acc2) 45%,transparent);border-radius:4px;padding:0 5px;font-size:.92em;font-style:normal;white-space:nowrap}
+  .pu-t.clamp{max-height:4.6em;overflow:hidden;}
   .pu-t.mono.clamp{max-height:8.2em}
   .pu-x{margin-top:6px;padding:0;height:auto;border:0;background:none;color:var(--accent2);font-size:12px}
   .pu-more{margin-top:var(--s3)}
@@ -340,13 +343,13 @@
   .tok code{flex:1;padding:8px 12px;overflow-x:auto;white-space:nowrap;font-size:12.5px;color:var(--ink);scrollbar-width:thin;line-height:1.6}
   .snip .tok code{white-space:pre}
   .tok button{border:0;border-left:1px solid var(--line2);background:var(--surface2);color:var(--dim);padding:0 14px;font-size:12px;font-weight:500}
-  .tok button:hover{background:#1a1a20;color:var(--ink)}
+  .tok button:hover{background:var(--panel2);color:var(--ink)}
   .sent{margin-top:var(--s4);border-left:2px solid var(--ok);padding:2px 0 2px var(--s3);font-size:13px;color:var(--dim);max-width:72ch}
   .switch{display:flex;align-items:center;gap:var(--s3);margin-top:var(--s3);flex-wrap:wrap}
   .sw{position:relative;width:36px;height:20px;border-radius:99px;border:1px solid var(--line2);background:var(--surface2);padding:0;transition:background .18s var(--ease)}
   .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:transform .18s var(--ease),background .18s var(--ease)}
-  .sw[aria-checked=true]{background:rgba(94,106,210,.45);border-color:var(--accent)}
-  .sw[aria-checked=true]::after{transform:translateX(16px);background:#fff}
+  .sw[aria-checked=true]{background:color-mix(in oklab,var(--accent) 45%,transparent);border-color:var(--accent-fg)}
+  .sw[aria-checked=true]::after{transform:translateX(16px);background:var(--ink)}
   .sw:disabled{opacity:.45;cursor:not-allowed}
   .planlink{font-size:12.5px;color:var(--accent2);text-decoration:underline;text-underline-offset:3px}
   .chart{margin-top:var(--s3);width:100%}
@@ -413,7 +416,7 @@
   .pm details{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);margin-top:var(--s2)}
   .pm summary{cursor:pointer;padding:9px 14px;font-weight:500;font-size:13px}
   .days{display:flex;flex-wrap:wrap;gap:var(--s2);padding:0 14px 14px}
-  .day[aria-pressed=true]{border-color:var(--accent);color:var(--ink)}
+  .day[aria-pressed=true]{border-color:var(--accent-fg);color:var(--ink)}
   .plist{margin-top:var(--s3);display:grid;gap:var(--s2)}
   .pr{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--bg)}
   .pr .m{font-size:11.5px;color:var(--faint);font-family:var(--mono);display:flex;gap:10px;flex-wrap:wrap}
@@ -464,13 +467,14 @@
   .range-bar .rg-lab{font:500 12.5px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
   .range-bar .rg-c{display:inline-flex;align-items:center;gap:6px;color:var(--faint)}
   .range-bar input[type=date]{font:inherit;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--surface);border:1px solid var(--line2);border-radius:var(--r);padding:3px 8px;color-scheme:inherit}
-  .range-bar .rg-err{color:var(--bad,#e5484d);font-size:12.5px}
+  .range-bar .rg-err{color:var(--bad,var(--ink));font-size:12.5px}
   .range-bar .rg-err:empty{display:none}
   .range-bar .seg{max-width:100%;flex-wrap:wrap}
   .totals b,.stat b{font-variant-numeric:tabular-nums}
   .stat b{white-space:normal;overflow-wrap:anywhere}
   .stat span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 </style>
+<link rel="stylesheet" href="/assets/tokens.css" />
 <link rel="stylesheet" href="/assets/site-header.css" />
 </head>
 <body>
@@ -538,7 +542,7 @@
         <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
       </a>
       <a class="gh ic npmic" href="https://www.npmjs.com/package/sprag-cli" aria-label="npm" title="npm">
-        <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="#cb3837" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
+        <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="currentColor" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
       </a>
     </nav>
   </div>
@@ -567,6 +571,9 @@
       </div>
     </form>
     <div id="mfa"></div>
+    <!-- local server only: the demo needs no sign-in, no network and stores nothing (see demoAuth) -->
+    <div class="row" id="local-demo" hidden><a class="btn" href="?demo=1">로컬 전용: 로그인 없이 데모 데이터로 열기</a></div>
+    <script>if(['localhost','127.0.0.1','[::1]'].includes(location.hostname))document.getElementById('local-demo').hidden=false</script>
     <p class="err" id="auth-err" role="alert"></p>
     <p class="note" data-k="si.note">This console is for owners and admins. To start a new organization, write to <a href="mailto:support@sprag.io">support@sprag.io</a>. An email registered as an owner or admin signs in here with an email code and an authenticator app (Google Authenticator or any app that makes 6-digit codes).<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.</p>
   </section>
@@ -582,7 +589,7 @@
       <section class="card" id="ou-card" aria-labelledby="ou-h" style="margin-top:var(--s4)">
         <div class="sec-h"><h2 id="ou-h"></h2></div>
         <div class="chart" id="ou-chart"></div>
-        <div class="legend" id="ou-legend"><span><i style="background:var(--amber2)"></i><span data-k="ch.sp">Spent</span></span><span><i style="background:var(--teal)"></i><span data-k="ch.sv">Saved</span></span></div>
+        <div class="legend" id="ou-legend"><span><i style="background:var(--ink)"></i><span data-k="ch.sp">Spent</span></span><span><i style="background:var(--accent)"></i><span data-k="ch.sv">Saved</span></span></div>
         <div id="ou-rail"></div>
         <p class="err" id="ou-err" role="alert"></p>
       </section>
@@ -734,7 +741,7 @@
         <h2 id="ch-h">Usage</h2>
         <div class="kpis" style="margin-top:var(--s3)"><div id="tu-kpis" class="kcards"></div></div>
         <div class="chart" id="chart"></div>
-        <div class="legend"><span><i style="background:var(--amber2)"></i><span data-k="ch.sp">Spent</span></span><span><i style="background:var(--teal)"></i><span data-k="ch.sv">Saved</span></span></div>
+        <div class="legend"><span><i style="background:var(--ink)"></i><span data-k="ch.sp">Spent</span></span><span><i style="background:var(--accent)"></i><span data-k="ch.sv">Saved</span></span></div>
         <p class="err" id="ch-err" role="alert"></p>
       </section>
 
@@ -1835,12 +1842,12 @@ function thr(){ const v = parseFloat($('thr').value); return isFinite(v) ? v : 2
 const U = m => usageById[m.member_id] || {};
 const memRatio = u => { const c = u.delegated_cost, tot = Number(u.total_spent ?? u.spent) || 0; return c != null && Number.isFinite(Number(c)) && tot > 0 ? Number(c) / tot : null; };
 /* spend per model, same colour/order rule as the office drawer */
-const MODELC = { fable:'#fcd34d', mythos:'#c4b5fd', opus:'#f9a8d4', sonnet:'#8ec5fb', haiku:'#7fe0b8' };
+const MODELC = { fable:'var(--cat4)', mythos:'var(--cat5)', opus:'var(--ink)', sonnet:'var(--cat2)', haiku:'var(--cat1)' };
 function modelParts(models){
   if(!models || typeof models !== 'object') return [];
   const ord = Object.keys(MODELC), ents = Object.entries(models).map(([k, v]) => [k, Number(v)]).filter(([, v]) => isFinite(v) && v > 0);
   const known = ord.map(k => ents.find(e => e[0] === k)).filter(Boolean), rest = ents.filter(e => ord.indexOf(e[0]) < 0).sort((a, b) => b[1] - a[1]);
-  return known.concat(rest).map(([k, v]) => ({ k, v, color: MODELC[k] || '#cbd5e1' }));
+  return known.concat(rest).map(([k, v]) => ({ k, v, color: MODELC[k] || 'var(--soft)' }));
 }
 function renderMembers(){
   if(!team) return;
@@ -1892,7 +1899,7 @@ function usageChartSvg(days, agg, label){
   let g = '';
   for(let i = 0; i <= 4; i++){
     const v = nice * i / 4, y = T + plotH - plotH * i / 4;
-    g += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="#1f2024"/><text x="${L - 6}" y="${y + 4}" text-anchor="end" fill="#686a74" font-size="10" font-family="Geist Mono,monospace">${v >= 10 ? '$' + Math.round(v) : '$' + v.toFixed(2)}</text>`;
+    g += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L - 6}" y="${y + 4}" text-anchor="end" fill="var(--faint)" font-size="10" font-family="Geist Mono,monospace">${v >= 10 ? '$' + Math.round(v) : '$' + v.toFixed(2)}</text>`;
   }
   /* values on the bars, so the numbers read without hovering: every bar when the days are wide enough, otherwise the spend on about
      ten evenly spaced days plus the peak and the latest day */
@@ -1902,19 +1909,19 @@ function usageChartSvg(days, agg, label){
   days.forEach((d, i) => {
     const x = L + slot * i + slot / 2, a = agg[d];
     const hs = plotH * a.sp / nice, hv = plotH * a.sv / nice;
-    if(every){ if(a.sp > 0) g += vtxt(x - bw / 2 - 0.5, T + plotH - hs, a.sp, '#a9b1ff'); if(a.sv > 0) g += vtxt(x + bw / 2 + 0.5, T + plotH - hv, a.sv, '#5fe0bb'); }
-    else if(a.sp > 0 && (i % step === 0 || i === pk || i === days.length - 1)) g += vtxt(x, T + plotH - Math.max(hs, hv), a.sp, '#a9b1ff', i === days.length - 1 ? 'end' : i === 0 ? 'start' : 'middle');
+    if(every){ if(a.sp > 0) g += vtxt(x - bw / 2 - 0.5, T + plotH - hs, a.sp, 'var(--ink)'); if(a.sv > 0) g += vtxt(x + bw / 2 + 0.5, T + plotH - hv, a.sv, 'var(--accent-fg)'); }
+    else if(a.sp > 0 && (i % step === 0 || i === pk || i === days.length - 1)) g += vtxt(x, T + plotH - Math.max(hs, hv), a.sp, 'var(--ink)', i === days.length - 1 ? 'end' : i === 0 ? 'start' : 'middle');
     const pre = Math.min(a.sp, Math.max(0, a.pre || 0)), hpre = plotH * pre / nice, hsince = hs - hpre, tip = `<title>${esc(d)} · ${esc(t('ch.sp'))} ${money(a.sp)}${pre > 0 ? ' (' + esc(t('ch.pre')) + ' ' + money(pre) + ')' : ''}</title>`;
     if(pre > 0){
       anyPre = true;
-      g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hsince}" width="${bw}" height="${hsince}" fill="#828fff">${tip}</rect>`;
-      g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hpre}" rx="1.5" fill="#828fff" fill-opacity=".35">${tip}</rect>`;
-    } else g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hs}" rx="1.5" fill="#828fff">${tip}</rect>`;
-    g += `<rect x="${x + 0.5}" y="${T + plotH - hv}" width="${bw}" height="${hv}" rx="1.5" fill="#35d6a8"><title>${esc(d)} · ${esc(t('ch.sv'))} ${money(a.sv)}</title></rect>`;
+      g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hsince}" width="${bw}" height="${hsince}" fill="var(--ink)">${tip}</rect>`;
+      g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hpre}" fill="var(--ink)" fill-opacity=".3">${tip}</rect>`;
+    } else g += `<rect x="${x - bw - 0.5}" y="${T + plotH - hs}" width="${bw}" height="${hs}" fill="var(--ink)">${tip}</rect>`;
+    g += `<rect x="${x + 0.5}" y="${T + plotH - hv}" width="${bw}" height="${hv}" fill="var(--accent)"><title>${esc(d)} · ${esc(t('ch.sv'))} ${money(a.sv)}</title></rect>`;
     if(i % Math.ceil(days.length / 7) === 0 || i === days.length - 1)
-      g += `<text x="${x}" y="${H - 7}" text-anchor="middle" fill="#686a74" font-size="10" font-family="Geist Mono,monospace">${esc(d.slice(5))}</text>`;
+      g += `<text x="${x}" y="${H - 7}" text-anchor="middle" fill="var(--faint)" font-size="10" font-family="Geist Mono,monospace">${esc(d.slice(5))}</text>`;
   });
-  if(anyPre) g += `<rect x="${W - R - 112}" y="2" width="8" height="8" rx="1.5" fill="#828fff" fill-opacity=".35"/><text x="${W - R - 100}" y="10" fill="#686a74" font-size="10" font-family="Geist Mono,monospace">${esc(t('ch.pre'))}</text>`;
+  if(anyPre) g += `<rect x="${W - R - 112}" y="2" width="8" height="8" fill="var(--ink)" fill-opacity=".3"/><text x="${W - R - 100}" y="10" fill="var(--faint)" font-size="10" font-family="Geist Mono,monospace">${esc(t('ch.pre'))}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">${g}</svg>`;
 }
 function renderChart(){
@@ -3158,5 +3165,6 @@ function demoSb(){
 if(window.SpragCaptcha && $('captcha')) SpragCaptcha.mount($('captcha')).catch(() => {});
 </script>
 <script src="/assets/lang-links.js"></script>
+<script src="/assets/theme-toggle.js" defer></script>
 </body>
 </html>

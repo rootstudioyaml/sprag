@@ -1,0 +1,95 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap");
+@import url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+/* Design system shared by every page: ink on a clean white ground, one Very Peri accent. The structure follows
+ * heronaiapp.com without its paper: no texture, no noise and no grey or beige grounds (owner, 2026-11-12).
+ * Only --dark, --light and --accent are chosen; every other color is mixed from them.
+ * Light is the default mode; dark is the same system inverted and only applies when chosen.
+ * --on-accent is the label color on accent fills. --accent-fg-d / --accent-fg-l are the accent nudged
+ * toward the ink until text reaches 5:1 in each mode (the draft panel recomputes them).
+ * Link this after a page's own <style> so these values win over the page's older :root tokens. */
+:root{
+  --dark:#101820; --light:#FFFFFF; --accent:#6667AB;   /* PANTONE Black 6 C, white, 17-3938 Very Peri (owner's pick, 2026-11-12) */
+  --on-accent:var(--light);   /* white on Very Peri is 5.1:1, ink on it only 3.5:1 */
+  --accent-fg-d:color-mix(in oklab,var(--accent) 78%,var(--light)); --accent-fg-l:var(--accent);   /* 5:1 or better on each ground */
+  /* Type: Geist carries Latin text, Pretendard picks up Hangul, Geist Mono sets labels and figures. */
+  --font-display:"Geist","Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --display-weight:600;
+  --font-body:"Geist","Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+  --font-mono:"Geist Mono","JetBrains Mono","Pretendard Variable",Pretendard,ui-monospace,SFMono-Regular,Menlo,monospace;   /* Hangul in mono labels falls to Pretendard, not a wide system monospace */
+  --disp:var(--font-display); --sans:var(--font-body); --mono:var(--font-mono);
+  /* square corners everywhere: drawings have no rounded boxes */
+  --r:0px; --rc:0px; --rp:0px; --rl:0px;
+}
+:where(h1,h2){font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:-.02em}
+:root:not([lang|=ko]) :where(h1,h2){text-transform:uppercase;line-height:1.02;letter-spacing:-.01em}   /* caps need looser tracking than sentence case */
+:root[lang|=ko] :where(h1,h2){letter-spacing:-.035em;line-height:1.16}
+/* [data-theme] on any element re-derives the tokens there, so a subtree (or a probe) can carry the other mode. */
+:root,[data-theme]{
+  --base:var(--light); --ink:var(--dark); --accent-fg:var(--accent-fg-l); color-scheme:light;
+  --shade:var(--dark);
+  --bg:var(--base);
+  /* surfaces stay on the ground: every box is drawn with lines, never a grey or tinted fill (owner, 2026-11-12) */
+  --deep:var(--base);
+  --panel:var(--base); --panel2:var(--base);
+  --line:color-mix(in oklab,var(--ink) 13%,var(--base)); --line2:color-mix(in oklab,var(--ink) 22%,var(--base));
+  --line3:color-mix(in oklab,var(--ink) 32%,var(--base)); --mute:color-mix(in oklab,var(--ink) 42%,var(--base));
+  /* contrast on white drops faster than the same step on the dark ground, so the quiet text tones sit closer to the ink */
+  --faint:color-mix(in oklab,var(--ink) 72%,var(--base)); --dim:color-mix(in oklab,var(--ink) 80%,var(--base));
+  --soft:color-mix(in oklab,var(--ink) 90%,var(--base));
+  --acc-deep:color-mix(in oklab,var(--accent) 40%,var(--base)); --acc-pale:color-mix(in oklab,var(--accent) 35%,var(--ink));
+  --acc2:color-mix(in oklab,var(--accent-fg) 70%,var(--ink));
+
+  /* home page names */
+  --amber:var(--accent-fg); --amber2:var(--acc2);
+  --teal:var(--accent-fg); --blue:var(--accent-fg); --red:var(--ink);
+  /* pricing, order, team, ops, legal and proof names */
+  --surface:var(--panel); --surface2:var(--panel2); --hover:transparent;
+  --accent2:var(--acc2); --accent-bg:transparent;
+  --ok:var(--accent-fg); --warn:var(--acc2); --bad:var(--ink); --violet:var(--acc2);
+  --haiku:var(--cat1); --sonnet:var(--cat5); --opus:var(--ink);
+  --green:var(--accent-fg); --accent-col:transparent;
+  /* categorical series (charts): accent and ink steps, so eight series stay inside three colors */
+  --cat1:var(--accent-fg); --cat2:var(--soft); --cat3:color-mix(in oklab,var(--accent) 55%,var(--base));
+  --cat4:var(--dim); --cat5:color-mix(in oklab,var(--accent) 50%,var(--ink)); --cat6:var(--faint);
+  --cat7:color-mix(in oklab,var(--accent) 30%,var(--base)); --cat8:var(--mute);
+  /* shared header (assets/site-header.css) */
+  --hdr-bg:var(--base); --hdr-line:var(--line); --hdr-line2:var(--line2);
+  --hdr-hover:var(--line3); --hdr-ink:var(--ink); --hdr-dim:var(--dim); --hdr-faint:var(--faint);
+  --hdr-pill:var(--panel2); --hdr-accent:var(--accent-fg); --hdr-accent-bg:transparent;
+}
+[data-theme=dark]{--base:var(--dark);--ink:var(--light);--accent-fg:var(--accent-fg-d);color-scheme:dark;
+  --faint:color-mix(in oklab,var(--ink) 62%,var(--base));--dim:color-mix(in oklab,var(--ink) 70%,var(--base));}
+html{scrollbar-color:var(--line2) transparent}
+
+body{background:var(--base)}
+/* figures and their captions read like plate labels */
+.fig-label{font:500 11.5px/1.4 var(--font-mono);letter-spacing:.02em;text-transform:uppercase;color:var(--faint)}
+/* mono labels set Latin caps with tracking; Hangul in the same label reads best untracked */
+:root[lang|=ko] :is(.fig-label,.eyebrow,.intro-kicker,.btn.pri,.btn.link,.support-line){letter-spacing:0}
+
+/* ---- Scroll story, shared by the pages that load assets/scroll-story.js (the head script adds html.story only when
+   motion is allowed). Words rise or fill with ink, blocks slide up once, a 2px accent line tracks the page. ---- */
+/* words rise into place; spaces stay real so lines break where they would anyway */
+.story [data-split] .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.1em;margin-bottom:-.1em}
+.story [data-split]:not([data-fill]) .w>span{display:inline-block;transform:translateY(108%);transition:transform 1.05s cubic-bezier(.16,.84,.24,1);
+  transition-delay:calc(var(--i,0)*42ms)}
+.story [data-split]:not([data-fill]).in .w>span{transform:none}
+/* blocks slide up once as they enter */
+.story .rv{opacity:0;transform:translateY(26px);transition:opacity .9s cubic-bezier(.16,.84,.24,1),transform .9s cubic-bezier(.16,.84,.24,1);
+  transition-delay:calc(var(--i,0)*80ms)}
+.story .rv.in{opacity:1;transform:none}
+/* page progress: a 2px accent line along the top edge */
+.page-progress{position:fixed;left:0;top:0;width:100%;height:2px;background:var(--accent);transform-origin:0 50%;
+  transform:scaleX(var(--pp,0));z-index:70;pointer-events:none}
+/* headings fill with ink as they are read (the words start at a light ink and darken in reading order) */
+.story [data-fill] .w>span{color:color-mix(in oklab,var(--ink) calc(var(--o,1)*100%),var(--base))}
+.story [data-split]:not(.is-split){visibility:hidden}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+
+/* ---- One corner language: square. Media keep their own shape; a spinner stays round. ---- */
+*:not(video):not(img):not(canvas):not(iframe),*::before,*::after{border-radius:0!important}
+.loading::before,.spin,.spinner{border-radius:50%!important}
+/* selected and hover states read by line and ink, not by a tinted fill */
+:where(button,[role=tab])[aria-selected=true]{box-shadow:inset 0 -2px 0 var(--accent)}

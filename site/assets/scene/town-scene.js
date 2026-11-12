@@ -502,7 +502,7 @@ export function mountTownScene(container, data, opts = {}){
     cs.forEach((c, i) => { building(c, pos[i]); ext = Math.max(ext, Math.hypot(pos[i].x, pos[i].z) + bld[i].w); });
 
     /* ── streets: each building hangs off the nearest building one ring closer (ring 1 hangs off the HQ plaza) ── */
-    const edges = [], ASPH = C('#a9a7b4'), SIDE = C('#efe7d6'), CURB = C('#f8f3e8'), LINE = C('#ffffff');
+    const edges = [], ASPH = C('#a9a7b4'), SIDE = C('#efe7d6'), CURB = C('#f8f3e8'), LINE = C('#ffffff'), JOINT = C('#dccfb6'), BENCH = C('#c9976a'), IRON = C('#5b5668'), BIN = C('#5f8a74'), BIN2 = C('#4d7360');
     bld.forEach((b, i) => {
       let par = null, bd2 = 1e9;
       if(b.ring > 1) bld.forEach(o => { if(o.ring === b.ring - 1){ const dd = Math.hypot(o.x - b.x, o.z - b.z); if(dd < bd2){ bd2 = dd; par = o; } } });
@@ -520,8 +520,19 @@ export function mountTownScene(container, data, opts = {}){
       const entry = e.b.w / 2 + LOT, ent = entry / Math.max(Math.abs(ux), Math.abs(uz)) + 1.4;
       for(const s of [s0 + 1.5, L - ent]) if(s > s0 + 0.5 && s < L - 1) for(let j = -2; j <= 2; j++) B('road', e.ax + ux * s + px * j * 0.42, 0.046, e.az + uz * s + pz * j * 0.42, 1.0, 0.012, 0.24, LINE, 0, ry);
       e.end = L - ent - 1.2;
-      for(let s = s0 + 3.2, k = 0; s < L - ent - 1.5; s += 6.8, k++){ const side = k % 2 ? 1 : -1, lx = e.ax + ux * s + px * side * 1.95, lz = e.az + uz * s + pz * side * 1.95;
-        if(lots.some(l => Math.abs(lx - l.x) < l.h + 0.4 && Math.abs(lz - l.z) < l.h + 0.4)) continue; lampPts.push([lx, lz]); }
+      for(const sg of [-1, 1]) for(let s = s0 + 0.9; s < L - 0.3; s += 0.9) B('road', e.ax + ux * s + px * sg * 1.5, 0.082, e.az + uz * s + pz * sg * 1.5, 0.04, 0.005, 0.78, JOINT, 0, ry);   /* paving joints on the sidewalks */
+      const offLot = (x, z, m) => !lots.some(l => Math.abs(x - l.x) < l.h + m && Math.abs(z - l.z) < l.h + m), at = (s, d) => [e.ax + ux * s + px * d, e.az + uz * s + pz * d];
+      for(let s = s0 + 3.2, k = 0; s < L - ent - 1.5; s += 6.8, k++){ const side = k % 2 ? 1 : -1, [lx, lz] = at(s, side * 1.95);
+        if(!offLot(lx, lz, 0.4)) continue; lampPts.push([lx, lz]);
+        /* street furniture on the outer edge of the sidewalk (people walk at 1.5): a bench beside every lamp with its back to the grass, a litter bin by every other one */
+        const [bx, bz] = at(s + 1.35, side * 1.8);
+        if(s + 1.35 < L - ent - 0.9 && offLot(bx, bz, 0.7)){
+          const [ox, oz] = rot(0, side * 0.17, ry); B('wood', bx, 0.42, bz, 1.1, 0.07, 0.36, BENCH, 0.02, ry, 0, 2.1); B('wood', bx + ox, 0.65, bz + oz, 1.1, 0.3, 0.05, BENCH, 0.02, ry, 0, 2.1);
+          for(const sx of [-0.45, 0.45]){ const [qx, qz] = rot(sx, 0, ry); B('m', bx + qx, 0.2, bz + qz, 0.06, 0.4, 0.34, IRON, 0, ry); }
+        }
+        const [nx, nz] = at(s - 0.95, side * 1.78);
+        if(k % 2 === 0 && offLot(nx, nz, 0.6)){ Cy('m', nx, 0.36, nz, 0.16, 0.14, 0.56, 10, BIN); Cy('m', nx, 0.66, nz, 0.18, 0.18, 0.05, 10, BIN2); }
+      }
     });
 
     /* ── HQ landmark and plaza ── */
@@ -684,13 +695,28 @@ export function mountTownScene(container, data, opts = {}){
     const tint = hex => (snowy ? C(hex).lerp(SNOWC, 0.45) : C(hex));
     const treeCol = () => { const r = R2(); return r < 0.06 ? '#f4b3c8' : r < 0.14 ? '#e5a24a' : greens[Math.floor(R2() * greens.length)]; };
     const trk = [], treeIx = [];   /* treeIx[i]: where tree i lives in the instanced meshes (trunk, canopy spheres, canopy cones), so a picked company can clear the view of its cast */
+    /* canopies are built from several puffs: the main one, a darker one low on the shaded side (the sun comes from -x, +z), a fuller one on the lit side and a lighter crown on top; pines get a third tier */
+    const shade = (hex, dl) => '#' + C(hex).offsetHSL(0, 0, dl).getHexString();
     TR.forEach(([x, z, r], ti) => {
       const kind = r < 0.5 ? 0 : r < 0.75 ? 1 : 2, s = 0.85 + R2() * 0.5, col = treeCol(), tp = { x, z, trunk: -1, s: [], c: [] }; treeIx.push(tp);
-      if(kind === 0){ tp.trunk = trk.length; trk.push([x, z, 1.1 * s, 0.13]); CAN.push(['s', x, 1.5 * s + 0.4, z, 1.0 * s, 0.9 * s, 1.0 * s, col, ti], ['s', x + 0.35 * s, 1.2 * s + 0.4, z - 0.2 * s, 0.62 * s, 0.6 * s, 0.62 * s, col, ti]); }
-      else if(kind === 1){ tp.trunk = trk.length; trk.push([x, z, 0.7 * s, 0.1]); CAN.push(['c', x, 1.1 * s + 0.2, z, 1.0 * s, 1.5 * s, 1.0 * s, '#4f9a62', ti], ['c', x, 2.0 * s + 0.2, z, 0.72 * s, 1.2 * s, 0.72 * s, '#5fae70', ti]); }
-      else CAN.push(['s', x, 0.42 * s, z, 0.7 * s, 0.55 * s, 0.7 * s, col, ti]);
+      if(kind === 0){ tp.trunk = trk.length; trk.push([x, z, 1.1 * s, 0.13]); CAN.push(['s', x, 1.5 * s + 0.4, z, 1.0 * s, 0.9 * s, 1.0 * s, col, ti], ['s', x + 0.35 * s, 1.2 * s + 0.4, z - 0.2 * s, 0.62 * s, 0.6 * s, 0.62 * s, shade(col, -0.06), ti],
+        ['s', x - 0.4 * s, 1.22 * s + 0.4, z + 0.26 * s, 0.6 * s, 0.56 * s, 0.6 * s, col, ti], ['s', x - 0.1 * s, 2.02 * s + 0.4, z + 0.04 * s, 0.56 * s, 0.5 * s, 0.56 * s, shade(col, 0.06), ti]); }
+      else if(kind === 1){ tp.trunk = trk.length; trk.push([x, z, 0.7 * s, 0.1]); CAN.push(['c', x, 1.1 * s + 0.2, z, 1.0 * s, 1.5 * s, 1.0 * s, '#4f9a62', ti], ['c', x, 2.0 * s + 0.2, z, 0.72 * s, 1.2 * s, 0.72 * s, '#5fae70', ti], ['c', x, 2.75 * s + 0.2, z, 0.46 * s, 0.9 * s, 0.46 * s, '#6dbd7c', ti]); }
+      else CAN.push(['s', x, 0.42 * s, z, 0.7 * s, 0.55 * s, 0.7 * s, col, ti], ['s', x - 0.34 * s, 0.34 * s, z + 0.16 * s, 0.46 * s, 0.4 * s, 0.46 * s, shade(col, 0.05), ti]);
     });
     for(let q = 0; q < Math.floor(Math.PI * (gu + gv) / 3.6); q++){ const a = q / Math.floor(Math.PI * (gu + gv) / 3.6) * Math.PI * 2, u = Math.cos(a) * (gu - 1.1), v = Math.sin(a) * (gv - 1.1); SH.push([(u + v) * 0.7071, 0.45 + R2() * 0.1, (v - u) * 0.7071, 0.6 + R2() * 0.35, ['#9fd49a', '#b5e0a0', '#8fcf9b'][q % 3]]); }
+    { /* flower clumps scattered over the open lawn, clear of the lots, streets, signboards and trees: a low leafy mound with four blooms */
+      const R3 = rng('flowers'), FLC = ['#ffb3c7', '#fff08a', '#ffffff', '#f6a6d0', '#ffd27a'], n = Math.min(60, Math.floor(Math.PI * gu * gv / 60)), fl = [];
+      for(let tries = 0; tries < 700 && fl.length < n; tries++){
+        const u = (R3() * 2 - 1) * gu, v = (R3() * 2 - 1) * gv; if((u / (gu - 1.8)) ** 2 + (v / (gv - 1.8)) ** 2 > 1) continue;
+        const x = (u + v) * 0.7071, z = (v - u) * 0.7071;
+        if(Math.hypot(x, z) < PLAZA + 0.8 || lots.some(l => Math.abs(x - l.x) < l.h + 0.5 && Math.abs(z - l.z) < l.h + 0.5) || edges.some(e => segDist(x, z, e) < 2.3)) continue;
+        if(sgPos.some(q => Math.hypot(x - q[0], z - q[1]) < 1.8) || TR.some(q => Math.hypot(x - q[0], z - q[1]) < 1.1) || fl.some(q => Math.hypot(x - q[0], z - q[1]) < 1.6)) continue;
+        fl.push([x, z]); const c = FLC[Math.floor(R3() * FLC.length)];
+        SH.push([x, 0.08, z, 0.24, '#86c47a']);
+        for(let j = 0; j < 4; j++){ const a = j * 1.57 + R3() * 0.8, rr = 0.1 + R3() * 0.08; SH.push([x + Math.cos(a) * rr, 0.24 + R3() * 0.05, z + Math.sin(a) * rr, 0.065, c]); }
+      }
+    }
     SH.forEach(s => CAN.push(['s', s[0], s[1], s[2], s[3], s[3] * 0.85, s[3], s[4]]));
     if(GB.cs){ const cc3 = cs.find(c => c.closed), cvs = document.createElement('canvas'), x3 = cvs.getContext('2d'); cvs.width = 260; cvs.height = 104; x3.fillStyle = '#f3ecd9'; x3.fillRect(0, 0, 260, 104); x3.lineWidth = 8; x3.strokeStyle = '#b4443f'; x3.strokeRect(6, 6, 248, 92); x3.fillStyle = '#b4443f'; x3.font = '800 54px "Noto Sans KR","Geist",sans-serif'; x3.textAlign = 'center'; x3.textBaseline = 'middle'; x3.fillText(cc3 ? cc3.sign.seats : 'Closed', 130, 56);
       meshes.csMat = track(new T.MeshBasicMaterial({ map: tex(cvs), toneMapped: false })); }
@@ -702,9 +728,11 @@ export function mountTownScene(container, data, opts = {}){
       const b2 = mk(meshes.cone, MT.inst, cc2.length, true); cc2.forEach((q, i) => { setM(b2, i, q[1], q[2], q[3], 0, i, q[4], q[5], q[6]); if(q[8] != null) treeIx[q[8]].c.push(i); }); colorAll(b2, cc2.map(q => tint(q[7])));
       meshes.trees = { list: treeIx, trunk: trunkM, ico: a, cone: b2 }; softLook(T, MT.inst); }
     /* lamps */
-    { const lp = lampPts; const pole = mk(meshes.cyl, MT.inst, lp.length, true), head = mk(meshes.sph, MT.bulb, lp.length, false, false), pool = mk(meshes.plane, MT.pool, lp.length, false, false);
-      lp.forEach(([x, z], i) => { setM(pole, i, x, 1.1, z, 0, 0, 0.07, 2.2, 0.07); pole.setColorAt(i, C('#5b5668')); setM(head, i, x, 2.28, z, 0, 0, 0.19, 0.19, 0.19); setM(pool, i, x, 0.092, z, -Math.PI / 2, 0, 6.5, 6.5, 1); });
-      pole.instanceMatrix.needsUpdate = head.instanceMatrix.needsUpdate = pool.instanceMatrix.needsUpdate = true; if(pole.instanceColor) pole.instanceColor.needsUpdate = true; meshes.pool = pool; }
+    { /* each lamp: a post on a plinth, a collar under the globe and a cap over it (pole, plinth and collar share one instanced cylinder mesh, the caps one cone mesh) */
+      const lp = lampPts, n = lp.length, PC = C('#5b5668'); const pole = mk(meshes.cyl, MT.inst, n * 3, true), cap = mk(meshes.cone, MT.inst, n, true), head = mk(meshes.sph, MT.bulb, n, false, false), pool = mk(meshes.plane, MT.pool, n, false, false);
+      lp.forEach(([x, z], i) => { setM(pole, i, x, 1.1, z, 0, 0, 0.07, 2.2, 0.07); setM(pole, n + i, x, 0.13, z, 0, 0, 0.14, 0.26, 0.14); setM(pole, 2 * n + i, x, 2.12, z, 0, 0, 0.12, 0.08, 0.12); [0, n, 2 * n].forEach(o => pole.setColorAt(o + i, PC));
+        setM(cap, i, x, 2.52, z, 0, 0, 0.27, 0.18, 0.27); cap.setColorAt(i, PC); setM(head, i, x, 2.28, z, 0, 0, 0.19, 0.19, 0.19); setM(pool, i, x, 0.092, z, -Math.PI / 2, 0, 6.5, 6.5, 1); });
+      pole.instanceMatrix.needsUpdate = cap.instanceMatrix.needsUpdate = head.instanceMatrix.needsUpdate = pool.instanceMatrix.needsUpdate = true; if(pole.instanceColor) pole.instanceColor.needsUpdate = true; if(cap.instanceColor) cap.instanceColor.needsUpdate = true; meshes.pool = pool; }
     /* people (static low poly, gentle idle sway and a slow stroll) */
     { const R = rng('peds'), n = Math.min(14, 3 + Math.floor(bld.length * 0.8)), pc = ['#e4574f', '#4f8fe4', '#f2c04b', '#5cb98a', '#8a6fd9', '#f2f0ea'];
       for(let i = 0; i < n; i++){ const e = edges[Math.floor(R() * edges.length)], side = R() < 0.5 ? -1 : 1; peds.push({ e, side, ph: R() * 6.28, sp: 0.03 + R() * 0.04, s0: e.s0 + 2 + R() * Math.max(0.1, e.end - e.s0 - 3), col: pc[i % pc.length] }); }
@@ -778,7 +806,7 @@ export function mountTownScene(container, data, opts = {}){
     fill.intensity = P.fi * dim; hemi.color.copy(P.hs); hemi.groundColor.copy(P.hg); baseHemi = hemi.intensity = P.hi * (1 + 0.25 * cl) * (st === 'storm' ? 0.78 : 1); baseEx = renderer.toneMappingExposure = P.ex * (1 - 0.05 * cl);
     const dull = clampN(cl * 0.8 + (st === 'fog' ? 0.2 : 0), 0, 1), gr = c => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return c.clone().lerp(new T.Color(l * 0.9, l * 0.93, l), dull * (0.35 + 0.65 * dayK)).multiplyScalar(1 - 0.1 * dull * dayK); };
     const s0 = gr(P.c0), s1 = gr(P.c1);
-    stage.style.background = `radial-gradient(ellipse at 50% 35%, #${s0.getHexString()} 0, #${s1.getHexString()} 80%)`;
+    stage.style.background = `#${s0.getHexString()}`;   /* a flat sky behind the island: the site uses no gradients */
     stage.classList.toggle('tw-night', night > 0.55);
     if(stars) stars.style.opacity = String(clampN((night - 0.5) * 2.2, 0, 1) * (1 - cl * 0.75));
     scene.fog.color.copy(s0).lerp(s1, 0.5); scene.fog.density = st === 'fog' ? 0.013 : wet ? 0.0045 : 0.0012;
