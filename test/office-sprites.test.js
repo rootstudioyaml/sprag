@@ -153,12 +153,11 @@ test('wiring: office-scene.js loads sprites.js, honours ?sprite=0, keeps the cro
   assert.match(src, /portraitInfo:/);
   assert.match(src, /sprKit\.depthOnly\(m\)/);   /* the card clone keeps only the accessories in colour */
   assert.match(src, /h\.userData\.holPiece = true; if\(pose\) h\.userData\.keepLook = true/);   /* the standing model's holiday pieces stay drawn; every piece is marked for the card */
-  const ver = /office-scene\.js\?v=(3\.121\.0-\d+)/;
+  const ver = /office-scene\.js\?v=(\d+\.\d+\.\d+(?:-\d+)?)/;   /* any version: the release rewrites the queries to the new version, so a pinned one broke after every release */
   const want = src.match(/import \{[^}]*\} from '\.\/holiday\.js\?v=(g\d+)'/)[1];   /* the import query of holiday.js is unchanged by sprites */
   assert.ok(want);
   const v = read('assets/scene/town-scene.js').match(ver)[1];
   for(const f of ['team', 'ops', 'town']) assert.equal(read(`${f}/index.html`).match(ver)[1], v, f);
-  assert.match(v, /^3\.121\.0-([4-9]|\d\d)$/);
 });
 
 test('cardShow: a frame holds most of its interval, the accessories follow the shown yaw', () => {
