@@ -53,9 +53,9 @@ test('inHolidaySeason: month and day edges', () => {
 test('office-scene wires the holiday dressing behind holidayOn and frees it on every rebuild', async () => {
   const { readFile } = await import('node:fs/promises');
   const src = await readFile(new URL('../site/assets/scene/office-scene.js', import.meta.url), 'utf8');
-  assert.match(src, /import \{[^}]*holidayOn[^}]*makeGinkgo[^}]*makeGarland[^}]*makeWreath[^}]*santaHat[^}]*\} from '\.\/holiday\.js(\?v=[^']+)?'/);
+  assert.match(src, /import \{[^}]*holidayOn[^}]*makeWorldTree[^}]*makeGarland[^}]*makeWreath[^}]*santaHat[^}]*\} from '\.\/holiday\.js(\?v=[^']+)?'/);
   assert.match(src, /xmas = holidayOn\(\)/, 'one flag per build, from the calendar or ?season=');
-  for(const fn of ['makeGinkgo', 'makeGarland', 'makeWreath', 'santaHat', 'reindeerAntlers', 'rudolphNose']) assert.ok(src.includes(fn + '(T'), fn + ' is called');
+  for(const fn of ['makeWorldTree', 'makeGarland', 'makeWreath', 'santaHat', 'reindeerAntlers', 'rudolphNose']) assert.ok(src.includes(fn + '(T'), fn + ' is called');
   assert.match(src, /hol\.forEach\(h => \{ if\(h\.parent\) h\.parent\.remove\(h\); h\.userData\.dispose\(\); \}\)/, 'clear() disposes everything');
   assert.match(src, /h\.userData\.tick\(time, envN\)/, 'step() ticks the lights with the night amount');
   assert.match(src, /holWall\.visible = !wallHid\.z/, 'the wall decorations fold away with the back wall');
@@ -63,7 +63,13 @@ test('office-scene wires the holiday dressing behind holidayOn and frees it on e
   assert.match(src, /ANTLER_SKIP = new Set\(\[[^\]]*'deer'/, 'species with horns or antlers of their own keep the nose only');
   assert.match(src, /hash\(o\.p\.id \+ ':xmas'\) < 0\.5 \? 'santa' : 'rudolph'/, 'the same person always gets the same set');
   assert.match(src, /noseTipOf\(T, m\)/, 'the nose tip is read off each loaded model');
-  assert.match(src, /makeGinkgo\(T, \{ carpet: \[[^\]]*\], fall: \[[^\]]*\] \}\)/, 'the giant ginkgo stands outside the back wall with leaves on the ground and in the air');
-  assert.match(src, /makePresents\(T\)/, 'the present pile keeps the room corner');
+  assert.match(src, /makeWorldTree\(T, \{[^}]*carpet:[^}]*fall:[^}]*srv: srvAt[^}]*\}\)/, 'the world tree stands outside the back corner with the server at its foot, with leaves on the ground and in the air');
+  assert.match(src, /makePresents\(T\)[^]*?pl\.position\.set\(srv\.x/, 'the present pile stands in front of the server kiosk');
   assert.match(src, /if\(holFit\)\{[^]*?holFit\.x, y, holFit\.z/, 'fit() keeps the tree in frame');
+});
+
+test('holiday.js keeps makeGinkgo next to makeWorldTree', async () => {
+  const m = await import('../site/assets/scene/holiday.js');
+  assert.equal(typeof m.makeGinkgo, 'function');
+  assert.equal(typeof m.makeWorldTree, 'function');
 });
