@@ -941,12 +941,15 @@ export function mountOfficeScene(container, data, opts = {}){
     /* A baked Cycles image replaces the model's colours when the manifest has a card for the species and the standing model is in (the card was baked from it).
      * Until the sheet is loaded, or when it fails, or for a ghost, the live 3D model below is what shows. */
     const cd = !o.ghost && o.pose && sprOn && sprKit && sprMan ? cardOf(sprMan, o.gk) : null, cs = cd ? sprKit.card(o.gk) : null;
-    if(cs && !cs.t && !cs.bad){ const pk = o; cs.p.then(() => { if(sel === pk && pr && pr.on && !destroyed) portrait(pk); }); }   /* shows the card as soon as it is loaded */
+    /* Until the sheet arrives the card frame stays empty: showing the live model first and swapping in the baked image a moment later read as a cheap pop */
+    if(cs && !cs.t && !cs.bad){ const pk = o; m.visible = false; cs.p.then(() => { if(sel === pk && pr && pr.on && !destroyed) portrait(pk); }); }
     pr.card = null;
     if(cd && cs.t){
       m.traverse(c => { if(c.userData && c.userData.holPiece) c.userData.keepLook = true; });
       sprKit.depthOnly(m);   /* depth only: the accessories stay 3D on top of the image and the body hides them where it should */
       pr.q = pr.q || sprKit.cardQuad(); pr.q.show(cs.t, cd); pr.sc.add(pr.q.mesh); pr.card = cd;
+      /* The card holds its middle frame: five frames 6 degrees apart swaying back and forth stepped visibly from one to the next */
+      m.rotation.y = pr.q.blend(cd.yaws[Math.min(2, cd.yaws.length - 1)]);
       pr.cam.fov = cd.fov; pr.cam.position.set(cd.cam[0], cd.cam[1], cd.cam[2]); pr.cam.lookAt(cd.at[0], cd.at[1], cd.at[2]);
     }else{
       /* whole body in the card: fit the height and the turning width (the model sways about y) with a small margin */
@@ -959,7 +962,7 @@ export function mountOfficeScene(container, data, opts = {}){
     pr.cam.updateProjectionMatrix();
     pr.c.style.setProperty('--tc', o.tv ? o.tv.body : '#d9cdb8'); pr.on = true; pr.c.classList.add('on');
     if(!pr.raf){ const t0 = performance.now(), loop = () => { if(!pr || !pr.on || destroyed){ if(pr) pr.raf = 0; return; }
-      const ts = (performance.now() - t0) / 1000; if(pr.m){ const yaw = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); pr.m.rotation.y = pr.card ? pr.q.blend(yaw) : yaw; if(!pr.card) flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
+      const ts = (performance.now() - t0) / 1000; if(pr.m && !pr.card){ pr.m.rotation.y = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced || pr.card ? 0 : requestAnimationFrame(loop); };
       loop(); }
   }
   function hidePortrait(){ if(!pr) return; pr.on = false; pr.c.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }
