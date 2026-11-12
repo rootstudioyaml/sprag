@@ -58,7 +58,10 @@
   --hdr-pill:var(--panel2); --hdr-accent:var(--accent-fg); --hdr-accent-bg:transparent;
 }
 [data-theme=dark]{--base:var(--dark);--ink:var(--light);--accent-fg:var(--accent-fg-d);color-scheme:dark;
-  --faint:color-mix(in oklab,var(--ink) 62%,var(--base));--dim:color-mix(in oklab,var(--ink) 70%,var(--base));}
+  --faint:color-mix(in oklab,var(--ink) 62%,var(--base));--dim:color-mix(in oklab,var(--ink) 70%,var(--base));
+  /* the light series steps mix the accent toward the page; on the dark ground that sinks them into it, so here they
+     mix toward the ink instead and keep 3:1 or more against the ground (WCAG 1.4.11) */
+  --cat3:color-mix(in oklab,var(--accent) 55%,var(--ink)); --cat7:color-mix(in oklab,var(--accent) 30%,var(--ink));}
 html{scrollbar-color:var(--line2) transparent}
 
 body{background:var(--base)}

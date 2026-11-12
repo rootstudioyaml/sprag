@@ -770,9 +770,13 @@
      the terminal comparison opening to full width, figures that count up and the diagram stepping with the text.
      Flat fills and 1px lines only: no gradients, glows, blur or soft shadows. assets/scroll-story.js drives it and does
      nothing under prefers-reduced-motion, where everything below stays in its finished state. ---- */
-  .intro{position:relative;height:300vh;padding:0;margin:0;border:0;text-align:left}
+  /* the tall track and the pinned stage only exist while the scroll story runs (html.story); under reduced motion, or
+     when scroll-story.js does not load, the intro is one screen and the next section follows right under it */
+  .intro{position:relative;height:auto;padding:0;margin:0;border:0;text-align:left}
+  .story .intro{height:300vh}
   /* pinned just under the sticky header (57px), so the header never covers the stage and the first screen fits */
-  .intro-stage{position:sticky;top:57px;height:calc(100vh - 57px);height:calc(100svh - 57px);overflow:hidden;display:flex}
+  .intro-stage{position:relative;min-height:calc(100vh - 57px);min-height:calc(100svh - 57px);display:flex}
+  .story .intro-stage{position:sticky;top:57px;height:calc(100vh - 57px);height:calc(100svh - 57px);overflow:hidden}
   .intro-grid{width:100%;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;
     grid-template-rows:auto minmax(0,1fr) auto auto auto;row-gap:0;padding-top:28px;padding-bottom:60px}
   .intro-kicker{grid-column:1/-1;grid-row:1;display:flex;gap:24px;align-items:baseline;margin:0 0 20px;padding-bottom:12px;
@@ -824,8 +828,8 @@
   .story .explain .ex-bar i.ex-c2{transition-delay:.25s}.story .explain .ex-bar i.ex-c3{transition-delay:.5s}
   .story .explain.in .ex-bar i{transform:none}
   @media(max-width:900px){
-    .intro{height:auto}
-    .intro-stage{position:relative;height:auto;overflow:visible}
+    .intro,.story .intro{height:auto}
+    .intro-stage,.story .intro-stage{position:relative;height:auto;min-height:0;overflow:visible}
     .intro-grid{grid-template-columns:minmax(0,1fr);grid-template-rows:none;padding-top:28px;padding-bottom:28px}
     .intro-grid > *{grid-column:1!important;grid-row:auto!important}
     .intro-mark{width:min(56vw,300px);justify-self:start;margin:28px 0 8px}

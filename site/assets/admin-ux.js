@@ -627,8 +627,9 @@ function hint(parent, before, onOpen){
 const refreshHint = () => doc.querySelectorAll('.kbd-hint').forEach(b => { b.setAttribute('aria-label', u('palHint')); b.title = u('palHint'); });
 
 /* ── seat movement ──────────────────────────────────────────────────────── */
-/* seats coming in are accent tones, seats going out are ink tones: five series, five distinct steps */
-const MV = { joined:'var(--accent)', restored:'color-mix(in oklab,var(--accent) 45%,var(--base))', left:'var(--ink)', removed:'color-mix(in oklab,var(--ink) 55%,var(--base))', paused:'color-mix(in oklab,var(--ink) 25%,var(--base))' };
+/* seats coming in are accent tones, seats going out are ink tones: five distinct steps, each 3:1 or more against the
+   ground in both modes (WCAG 1.4.11) */
+const MV = { joined:'var(--accent)', restored:'var(--acc2)', left:'var(--ink)', removed:'var(--faint)', paused:'var(--mute)' };
 function movement(host, o){
   const days = o.days || [], per = days.length <= 31 ? 1 : 7, nb = Math.max(1, Math.ceil(days.length / per));
   const kinds = ['joined', 'restored', 'left', 'removed', 'paused'];
