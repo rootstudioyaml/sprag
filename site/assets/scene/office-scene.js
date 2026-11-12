@@ -16,10 +16,12 @@
  * Day/night and Seoul weather come from sky.js (shared with the town): the light, the backdrop and the lawn follow the local clock, warm lamps and
  * glowing laptop logos take over in the evening, rain/snow/fog/storm play outside the walls, and the HUD chip shows the weather. ?tod= and ?wx= override both. */
 import { makePost } from './post.js';
-import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g3';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
+import { makeFur, softNight } from './fur.js?v=f1';
+import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g4';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
+export const CAST_Q = '?v=3.121.0-2';   /* the model files change in place and the CDN keeps them 4 h: bump this with the files */
 const CAST_DRACO = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/';
 /* One glTF loader with the Draco decoder for the cast models, shared by the office and the town (same three build as THREE_URL).
  * A failed import is forgotten, so the next mount tries again. */
@@ -42,6 +44,14 @@ export function castCrown(T){
 /* Shared look for every placed cast model (office desks, the picked pose, the town crowd): shadows on, the baked normal map softened
  * (at full strength its noise read as sandy grain on pale fur), and the ghost turned into a pale see-through spirit instead of grey clay.
  * Materials are shared by every clone of a species, so each one is adjusted once (userData.looked). */
+/* Shared cast lighting and fur (fur.js): castFxInit runs once three is loaded, then castLook gives every placed model the soft lighting and,
+ * where shells are on, the fur. Shells are off on phones and with ?fx=0 (the lighting stays). */
+let castFx = null;
+export const castFurShells = () => typeof window !== 'undefined' && window.innerWidth >= 520 && !/[?&](fx|fur)=0(&|$)/.test(location.search) ? 16 : 0;
+export function castFxInit(T, shells){ if(!castFx || castFx.T !== T || castFx.shells !== shells) castFx = { T, shells, fur: makeFur(T, { shells }) }; return castFx.fur; }
+export function castFxNight(n){ if(castFx) castFx.fur.setNight(n); softNight(n); }
+export function castFxRelease(root){ if(castFx && root) castFx.fur.release(root); }
+export function castFxLod(px){ return castFx ? castFx.fur.lod(px) : 0; }
 export function castLook(m, ghost){
   m.traverse(c => {
     if(!c.isMesh) return;
@@ -50,6 +60,7 @@ export function castLook(m, ghost){
     if(mt.normalMap) mt.normalScale.set(0.55, 0.55);
     if(ghost && mt.map){ mt.normalMap = null; mt.color.set('#eef1ff'); mt.emissive.set('#b9c4ff'); mt.emissiveIntensity = 0.25; mt.transparent = true; mt.opacity = 0.72; mt.needsUpdate = true; }
   });
+  if(!ghost && castFx) castFx.fur.apply(m);
   return m;
 }
 export const W_FULL = [0.5, 0.3, 0.2], W_NOPR = [0.625, 0.375, 0];   /* spend, delegation, prompts rank weights (second set: prompt collection off) */
@@ -330,7 +341,7 @@ export const iconSvg = k => (k === 'crown' ? CROWN_ICON : (k === 'ghost' ? GHOST
 /* 3D thumbnails of the cast: one atlas rendered in Blender from the standing models (tools/blender/render_thumbs.py), 8 columns x 4 rows of
  * 160 px cells in GRADES order, then the ghost. speciesThumb(k) is a span showing that cell; each place sets its size with --px in CSS.
  * The SVG icon inside it shows only when the atlas fails to load (class of-noatlas on <html>), so a blocked file never leaves blanks. */
-export const ATLAS_URL = CAST_URL + 'atlas.webp', ATLAS_KEYS = GRADES.map(g => g.k).concat('ghost');
+export const ATLAS_URL = CAST_URL + 'atlas.webp' + CAST_Q, ATLAS_KEYS = GRADES.map(g => g.k).concat('ghost');
 let atlasProbe = false;
 export function speciesThumb(k, style = ''){
   if(!atlasProbe && typeof Image !== 'undefined'){ atlasProbe = true; const im = new Image(); im.onerror = () => document.documentElement.classList.add('of-noatlas'); im.src = ATLAS_URL; }
@@ -739,7 +750,7 @@ export function mountOfficeScene(container, data, opts = {}){
   function clear(){
     hol.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); hol = []; holWall = null; holFit = null;
     dyn.forEach(o => { if(o.isObject3D){ if(o.parent) o.parent.remove(o); if(o.isInstancedMesh) o.dispose(); } else if(o.dispose) o.dispose(); });
-    world.clear(); dyn = []; decals = []; signs = []; decFlip = false; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
+    castFxRelease(world); world.clear(); dyn = []; decals = []; signs = []; decFlip = false; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
     lab = { zones: [], tags: [], server: null, more: null, sign: null };
   }
   function mk(geo, mat, n, shadow = true){
@@ -1188,7 +1199,7 @@ export function mountOfficeScene(container, data, opts = {}){
   function applyEnv(){
     const w = wxs; if(!renderer || !w || !sets || !sets.sm) return;
     const P = blendAnchors(OANC, ov.hour != null ? ov.hour : hourOf(), T), closed = !!cur.closed, st = wx.kind, wet = st === 'rain' || st === 'storm', snow = st === 'snow', fog = st === 'fog';
-    const n = envN = P.n, dayK = 1 - n, ovc = clampN((wx.cloud - 0.15) / 0.85, 0, 1), lamp = closed ? 0 : P.lamp;
+    const n = envN = P.n; castFxNight(n); const dayK = 1 - n, ovc = clampN((wx.cloud - 0.15) / 0.85, 0, 1), lamp = closed ? 0 : P.lamp;
     /* sky and sun: dimmer under cloud and storm, the hemisphere never drops below the floor that keeps the faces readable */
     hemi.color.copy(P.hs); hemi.groundColor.copy(P.hg); sun.color.copy(P.sc);
     let hi = P.hi * (1 - 0.1 * ovc), si = P.si * (1 - 0.5 * ovc - (st === 'storm' ? 0.15 : 0));
@@ -1302,7 +1313,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const all = solids.concat(ghosts); if(!all.length) return;
     try{
       castLoad = castLoad || castLoader();
-      const loader = await castLoad, load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '.glb'));   /* one download per species for the page's lifetime */
+      const loader = await castLoad, load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '.glb' + CAST_Q));   /* one download per species for the page's lifetime */
       const SC = CAST_SC;   /* big enough that the head clears the laptop lid; every model is built at one body size, so one scale keeps bodies equal while ears, horns and manes stick out */
       const ms = await Promise.all(all.map(async o => {
         const g = await load(o.ghost ? 'ghost' : o.gk), m = g.scene.clone(true), box = new T.Box3().setFromObject(m);
@@ -1326,7 +1337,7 @@ export function mountOfficeScene(container, data, opts = {}){
   function posePerson(o){
     if(!castOn || !o || !o.glb || o.pose || o.poseLoading) return;
     const key = o.ghost ? 'ghost' : o.gk; o.poseLoading = true;
-    (poseCache[key] = poseCache[key] || castLoad.then(l => l.loadAsync(CAST_URL + key + '-pose.glb'))).then(g => {
+    (poseCache[key] = poseCache[key] || castLoad.then(l => l.loadAsync(CAST_URL + key + '-pose.glb' + CAST_Q))).then(g => {
       o.poseLoading = false; if(sel !== o || destroyed || !o.glb) return;
       const m = g.scene.clone(true), box = new T.Box3().setFromObject(m);
       m.scale.setScalar(CAST_SC); m.position.set(o.x + POSE_X, POSE_Y - box.min.y * CAST_SC, o.z + POSE_Z); m.userData.y0 = m.position.y;
@@ -1347,7 +1358,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const key = pose + o.gk, tip = key in noseTips ? noseTips[key] : (noseTips[key] = noseTipOf(T, m));   /* the nose tip differs by species, so it is read off the loaded model once */
     if(tip) add(rudolphNose(T, tip));
   }
-  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ (o.pose.userData.hol || []).forEach(h => { hol = hol.filter(q => q !== h); h.userData.dispose(); }); world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; }
+  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ (o.pose.userData.hol || []).forEach(h => { hol = hol.filter(q => q !== h); h.userData.dispose(); }); castFxRelease(o.pose); world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; }
   function flapAt(m, t){ const f = m.userData.flaps; if(!f) return; const a = reduced ? 0.25 : 0.32 + 0.38 * Math.sin(t * 13); if(f[0]) f[0].rotation.z = -a; if(f[1]) f[1].rotation.z = a; }
   function stepCast(dt){
     if(!castOn) return;
@@ -1500,7 +1511,7 @@ export function mountOfficeScene(container, data, opts = {}){
     lab.tags.forEach(l => place(l.el, l.pos, 0, -12, false, l.dyn ? l.dyn.dy * scale * 0.7 * -1 : 0));
     bubs.forEach(b => { if(!b.o) return; HP.set(b.o.x, 3.7, b.o.z); place(b.el, HP, 0, -20); });
   }
-  function render(){ if(stage.clientWidth !== W) resize(); if(post && post.on){ post.setZoom(view.zoom()); post.render(); } else renderer.render(scene, camera); labels(); }   /* a drawer that just opened shrinks the stage before the ResizeObserver runs; without this one frame is drawn stretched */
+  function render(){ if(stage.clientWidth !== W) resize(); if(view) castFxLod(scale * view.zoom() * CAST_SC); if(post && post.on){ post.setZoom(view.zoom()); post.render(); } else renderer.render(scene, camera); labels(); }   /* a drawer that just opened shrinks the stage before the ResizeObserver runs; without this one frame is drawn stretched */
   function frame(now){
     raf = 0; if(started !== true || destroyed || !visible || document.hidden) return;
     const t = now || performance.now(), dt = Math.min(0.05, (t - last) / 1000); last = t;
@@ -1584,6 +1595,7 @@ export function mountOfficeScene(container, data, opts = {}){
     try{ renderer = new T.WebGLRenderer({ antialias: true, alpha: true }); }
     catch(e){ started = false; if(opts.onFail) opts.onFail('webgl'); return; }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setClearColor(0x000000, 0);
+    castFxInit(T, castFurShells());
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false; renderer.localClippingEnabled = true;
     canvas = renderer.domElement; canvas.setAttribute('role', 'img'); stage.insertBefore(canvas, stage.firstChild);
     scene = new T.Scene(); world = new T.Group(); scene.add(world); rcast = new T.Raycaster(); rplane = new T.Plane(new T.Vector3(0, 1, 0), -0.07);
@@ -1625,6 +1637,7 @@ export function mountOfficeScene(container, data, opts = {}){
     update(d){ cur = d; if(started === true) build(d); },
     get view(){ return view; },
     ready: () => started === true && !!view,
+    bench(n = 60){ const gl = renderer.getContext(), b = new Uint8Array(4); let t = 0; for(let i = 0; i < n; i++){ const s0 = performance.now(); render(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, b); t += performance.now() - s0; } return t / n; },   /* GPU-synced ms per frame, for measurements */
     people: () => people.map(o => ({ id: o.p.id, name: o.p.name, tier: o.p.tier, ghost: o.ghost, x: o.x, z: o.z })),
     server: () => (srv ? { x: srv.x, z: srv.z } : null),
     selectPerson(id, opts){ const o = people.find(q => q.p.id === id); if(o) openDrawer(o, !(opts && opts.fly === false)); return !!o; },   /* fly:false keeps a scripted camera where the script put it */
