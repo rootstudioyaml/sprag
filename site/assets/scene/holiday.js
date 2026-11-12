@@ -1,5 +1,5 @@
 /* Holiday dressing for the team office: a Christmas tree with presents, a string of lights, a wreath and a Santa hat.
- * Every maker takes the three instance T (the same three@0.160.0 build office-scene.js imports) so this file needs no import of its own,
+ * Every maker takes the three instance T (the same three@0.160.0 build office-scene.js imports) so this file imports only fur.js (the soft light),
  * and holidayOn() is a pure function that Node can load without three.
  * Each returned Group carries userData.dispose() (geometries, materials and instanced meshes) and, for the animated ones, userData.tick(t, night):
  * t is seconds, night is 0..1 (a boolean works too). */
@@ -484,6 +484,7 @@ export function makeGinkgo(T, o = {}){
  * in vertex shaders from one time uniform. Two rings of lights go round the kiosk and a few mushrooms and moss patches sit between the roots.
  * opt.carpet and opt.fall are lists of { x0, x1, z0, z1, y, n } in the tree's own space as in makeGinkgo. opt.floor is the same kind of list for leaves lying on the floor
  * (placed evenly, not by distance from the trunk). tick(t, night) only sets uniforms (and moves the few falling leaves), so a frozen t (reduced motion) freezes the whole tree. */
+import { softLook } from './fur.js?v=f1';
 export function makeWorldTree(T, o = {}){
   const opt = { leaves: 7000, lights: 220, baubles: 16, flies: 150, lanterns: 14, carpet: [], fall: [], floor: [], carpetR: 12, srv: { x: 5.8, z: 5.6 }, corner: 2.2, ...o };
   const sv = opt.srv, cn = opt.corner;
@@ -596,6 +597,7 @@ export function makeWorldTree(T, o = {}){
       gl_Position = projectionMatrix * mvPosition;`);
   };
   crownMat.customProgramCacheKey = () => 'sprag-worldtree-wind';
+  softLook(T, crownMat);   /* wrap light, warm underside bounce and a faint rim, chained after the wind patch above */
   const NLF = opt.leaves, crown = K.instanced(leafG, crownMat, NLF), leafPts = [];
   for(let n = 0, tries = 0; n < NLF && tries < NLF * 30; tries++){
     const s = skin(); if(!s) continue;

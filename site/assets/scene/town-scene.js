@@ -16,7 +16,8 @@
  * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
-import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, workShareOf, iconSvg, speciesThumb, castLoader, castCrown, castLook, CAST_URL } from './office-scene.js';
+import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, workShareOf, iconSvg, speciesThumb, castLoader, castCrown, castLook, CAST_URL, CAST_Q, castFxInit, castFurShells, castFxNight, castFxLod, castFxRelease } from './office-scene.js?v=3.121.0-2';
+import { softLook } from './fur.js?v=f1';
 import { makePost } from './post.js';
 import { WX_CLEAR, fetchWeather, weatherFromCode, parseOverrides, clampN, todBlend, chipText } from './sky.js';
 
@@ -699,7 +700,7 @@ export function mountTownScene(container, data, opts = {}){
     { const cs2 = CAN.filter(q => q[0] === 's'), cc2 = CAN.filter(q => q[0] === 'c');
       const a = mk(meshes.ico, MT.inst, cs2.length, true); cs2.forEach((q, i) => { setM(a, i, q[1], q[2], q[3], 0, i * 0.7, q[4], q[5], q[6]); if(q[8] != null) treeIx[q[8]].s.push(i); }); colorAll(a, cs2.map(q => tint(q[7])));
       const b2 = mk(meshes.cone, MT.inst, cc2.length, true); cc2.forEach((q, i) => { setM(b2, i, q[1], q[2], q[3], 0, i, q[4], q[5], q[6]); if(q[8] != null) treeIx[q[8]].c.push(i); }); colorAll(b2, cc2.map(q => tint(q[7])));
-      meshes.trees = { list: treeIx, trunk: trunkM, ico: a, cone: b2 }; }
+      meshes.trees = { list: treeIx, trunk: trunkM, ico: a, cone: b2 }; softLook(T, MT.inst); }
     /* lamps */
     { const lp = lampPts; const pole = mk(meshes.cyl, MT.inst, lp.length, true), head = mk(meshes.sph, MT.bulb, lp.length, false, false), pool = mk(meshes.plane, MT.pool, lp.length, false, false);
       lp.forEach(([x, z], i) => { setM(pole, i, x, 1.1, z, 0, 0, 0.07, 2.2, 0.07); pole.setColorAt(i, C('#5b5668')); setM(head, i, x, 2.28, z, 0, 0, 0.19, 0.19, 0.19); setM(pool, i, x, 0.092, z, -Math.PI / 2, 0, 6.5, 6.5, 1); });
@@ -787,7 +788,7 @@ export function mountTownScene(container, data, opts = {}){
     MT.cloud.color.copy(C('#ffffff')).lerp(C('#6d7aa8'), night * 0.85).lerp(C('#c9ced8'), wet ? 0.5 : 0);
     MT.bulb.color.copy(C('#d9d3c0')).lerp(C('#ffe8a6'), night); MT.pool.opacity = night * 0.55; if(meshes.pool) meshes.pool.visible = night > 0.03;
     MT.halo.opacity = 0.26 + 0.5 * night; MT.signHalo.opacity = 0.1 + 0.6 * night;
-    if(post) post.setNight(night);
+    castFxNight(night); if(post) post.setNight(night);
     bld.forEach(b => { if(b.board) b.board.material.color.copy(C('#ffffff')).lerp(C('#9aa3d6'), 0.85 * night); });   /* the company boards dim at night (lit windows stay the brightest thing) */
     renderChip(); renderer.shadowMap.needsUpdate = true; request();
   }
@@ -904,6 +905,7 @@ export function mountTownScene(container, data, opts = {}){
   }
   function proj(v, out){ out.copy(v).applyMatrix4(world.matrixWorld).project(camera); return [(out.x * 0.5 + 0.5) * W, (-out.y * 0.5 + 0.5) * H]; }
   function render(){
+    if(view) castFxLod(scale * view.zoom() * CAST_SC);
     if(post && post.on) post.render(); else renderer.render(scene, camera);
     if(moreLbl){ const [x, y] = proj(V1.set(bb.x1 - 2, 0.3, bb.z1 - 1), TMP); const off = x < -30 || x > W + 30 || y < -30 || y > H + 30; moreLbl.style.display = off ? 'none' : ''; moreLbl.style.transform = `translate(${Math.round(Math.min(W - moreLbl.offsetWidth - 4, Math.max(4, x)))}px,${Math.round(Math.min(H - 40, y))}px)`; }
   }
@@ -985,7 +987,7 @@ export function mountTownScene(container, data, opts = {}){
   function showTrees(){ hidden.forEach(([m, i, keep]) => { m.setMatrixAt(i, keep); m.instanceMatrix.needsUpdate = true; }); hidden = []; }
   function clearCast(){
     castGen++; showTrees();
-    if(castSet){ castSet.items.forEach(it => { if(it.m.parent) it.m.parent.remove(it.m); if(it.crown) it.crown.traverse(q => { if(q.isMesh){ q.geometry.dispose(); q.material.dispose(); } }); }); castSet = null; }
+    if(castSet){ castSet.items.forEach(it => { castFxRelease(it.m); if(it.m.parent) it.m.parent.remove(it.m); if(it.crown) it.crown.traverse(q => { if(q.isMesh){ q.geometry.dispose(); q.material.dispose(); } }); }); castSet = null; }
     /* the parsed species stay cached for the next pick; their GPU buffers, programs and textures are released here (three uploads them again when they are next drawn) */
     Object.values(castGltf).forEach(g => g.scene.traverse(c => { if(!c.isMesh) return; c.geometry.dispose();
       (Array.isArray(c.material) ? c.material : [c.material]).forEach(mt => { Object.values(mt).forEach(v => { if(v && v.isTexture) v.dispose(); }); mt.dispose(); }); }));
@@ -996,7 +998,7 @@ export function mountTownScene(container, data, opts = {}){
     if(!list || !list.length || !b.board) return;
     try{
       const loader = await castLoader();
-      const load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '-pose.glb').then(g => (castGltf[k] = g), e => { delete castCache[k]; throw e; }));
+      const load = k => castCache[k] || (castCache[k] = loader.loadAsync(CAST_URL + k + '-pose.glb' + CAST_Q).then(g => (castGltf[k] = g), e => { delete castCache[k]; throw e; }));
       const got = await Promise.allSettled(list.map(p => load(p.grade)));
       if(gen !== castGen || destroyed || sel !== b) return;   /* the selection moved on (or the town was rebuilt) while the models loaded */
       const { spots, r, P } = castSpots(b, list.length), items = [];
@@ -1028,6 +1030,7 @@ export function mountTownScene(container, data, opts = {}){
     if(destroyed) return;
     try{ renderer = new T.WebGLRenderer({ antialias: true, alpha: true }); }catch(e){ started = false; if(opts.onFail) opts.onFail('webgl'); return; }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setClearColor(0x000000, 0);
+    castFxInit(T, castFurShells());
     renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1; renderer.outputColorSpace = T.SRGBColorSpace;
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
     canvas = renderer.domElement; canvas.setAttribute('role', 'img'); stage.insertBefore(canvas, stage.firstChild);
@@ -1065,6 +1068,7 @@ export function mountTownScene(container, data, opts = {}){
     update(d){ cur = d; if(started === true) build(d); },
     get view(){ return view; },
     ready: () => started === true && !!view,
+    bench(n = 60){ const gl = renderer.getContext(), b = new Uint8Array(4); let t = 0; for(let i = 0; i < n; i++){ const s0 = performance.now(); render(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, b); t += performance.now() - s0; } return t / n; },   /* GPU-synced ms per frame, for measurements */
     orgs: () => bld.map(b => ({ id: b.c.id, name: b.c.name, x: b.x, z: b.z, w: b.w, h: b.H })),
     cast: () => (castSet ? castSet.items.map(it => ({ id: it.id, grade: it.grade, x: it.m.position.x, z: it.m.position.z, seen: castSeen(it.m.position.x, it.m.position.z, it.y0 - it.lift) })) : []),   /* the models on stage, for recordings and checks */
     selectOrg(id, o){ const b = bld.find(q => q.c.id === id); if(b) select(b, o); return !!b; },   /* o = { fly: true } glides in as a click does */
