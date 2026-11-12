@@ -925,8 +925,11 @@ export function mountOfficeScene(container, data, opts = {}){
     const m = pr.m = (o.pose || o.glb).clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); pr.sc.add(m);
     m.traverse(c => { if(c.userData && c.userData.fur) c.visible = false; });   /* the card is a close-up: shell fur read as tangled noise there, the plush texture alone stays clean */
     m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
-    const box = new T.Box3().setFromObject(m), hgt = box.max.y - box.min.y, cy = box.min.y + hgt * 0.64;
-    pr.cam.position.set(0, cy + hgt * 0.1, hgt * 1.75); pr.cam.lookAt(0, cy, 0);
+    /* whole body in the card: fit the height and the turning width (the model sways about y) with a small margin */
+    const box = new T.Box3().setFromObject(m), sz = box.getSize(new T.Vector3()), hgt = sz.y, cy = box.min.y + hgt * 0.5;
+    const tn = Math.tan(pr.cam.fov * Math.PI / 360), rw = Math.hypot(sz.x, sz.z) / 2;
+    const dist = Math.max(hgt * 0.56 / tn, rw * 1.08 / (tn * pr.cam.aspect)) + rw;
+    pr.cam.position.set(0, cy + hgt * 0.12, dist); pr.cam.lookAt(0, cy, 0);
     pr.c.style.setProperty('--tc', o.tv ? o.tv.body : '#d9cdb8'); pr.on = true; pr.c.classList.add('on');
     if(!pr.raf){ const t0 = performance.now(), loop = () => { if(!pr || !pr.on || destroyed){ if(pr) pr.raf = 0; return; }
       const ts = (performance.now() - t0) / 1000; if(pr.m){ pr.m.rotation.y = 0.44 + (reduced ? 0 : Math.sin(ts * 0.7) * 0.22); flapAt(pr.m, ts); } pr.r.render(pr.sc, pr.cam); pr.raf = reduced ? 0 : requestAnimationFrame(loop); };
