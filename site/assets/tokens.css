@@ -91,7 +91,8 @@ html.lenis,html.lenis body{height:auto}
 .lenis.lenis-smooth{scroll-behavior:auto!important}
 
 /* ---- One corner language: square. Media keep their own shape; a spinner stays round. ---- */
-*:not(video):not(img):not(canvas):not(iframe),*::before,*::after{border-radius:0!important}
+/* the collectible profile card in the office scene (.of-pcard) is card art and keeps its own corners */
+*:not(video,img,canvas,iframe,.of-pcard,.of-pcard *),:not(.of-pcard,.of-pcard *)::before,:not(.of-pcard,.of-pcard *)::after{border-radius:0!important}
 .loading::before,.spin,.spinner{border-radius:50%!important}
 /* selected and hover states read by line and ink, not by a tinted fill */
 :where(button,[role=tab])[aria-selected=true]{box-shadow:inset 0 -2px 0 var(--accent)}
