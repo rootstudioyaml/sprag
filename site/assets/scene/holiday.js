@@ -486,8 +486,8 @@ export function makeGinkgo(T, o = {}){
  * (placed evenly, not by distance from the trunk). tick(t, night) only sets uniforms (and moves the few falling leaves), so a frozen t (reduced motion) freezes the whole tree. */
 import { softLook } from './fur.js?v=f1';
 export function makeWorldTree(T, o = {}){
-  const opt = { leaves: 7000, lights: 220, baubles: 16, flies: 150, lanterns: 14, carpet: [], fall: [], floor: [], carpetR: 12, srv: { x: 5.8, z: 5.6 }, corner: 2.2, ...o };
-  const sv = opt.srv, cn = opt.corner;
+  const opt = { leaves: 15000, lights: 320, baubles: 22, flies: 190, lanterns: 20, carpet: [], fall: [], floor: [], carpetR: 14, srv: { x: 5.8, z: 5.6 }, corner: 2.2, scale: 1.45, ...o };
+  const sv = opt.srv, cn = opt.corner, Z = opt.scale, ZR = Math.pow(Z, 0.8);   /* Z scales the heights and the crown, ZR (a little less) the girth of the trunk and roots */
   const K = kit(T), rand = rng(4242), cr = rng(9001), g = new T.Group(), M = new T.Matrix4(), C = new T.Color(), Q = new T.Quaternion(), Q2 = new T.Quaternion(), E = new T.Euler(), P = new T.Vector3(), S = new T.Vector3(), V = new T.Vector3(), ZAX = new T.Vector3(0, 0, 1);
   const tU = { value: 0 };   /* seconds: the one clock that the wind, the fireflies and the lanterns read in their shaders */
   const clamp01 = x => Math.max(0, Math.min(1, x)), smooth = t => t * t * (3 - 2 * t), lerp = (a, b, t) => a + (b - a) * t;
@@ -526,27 +526,30 @@ export function makeWorldTree(T, o = {}){
     }
   };
   /* trunk: the axis leans toward the room as it climbs (smooth step, so the foot and the top are upright). Five strands wind round a core and flare at the foot. */
-  const T0 = new T.Vector3(2.0, 8.6, 1.8), axis = t => new T.Vector3(T0.x * smooth(t), -0.5 + (T0.y + 0.5) * t, T0.z * smooth(t));
+  const T0 = new T.Vector3(2.0 * Z, 8.6 * Z, 1.8 * Z), axis = t => new T.Vector3(T0.x * smooth(t), -0.5 + (T0.y + 0.5) * t, T0.z * smooth(t));
   const NS = 5;
   for(let j = 0; j < NS; j++){
-    const pts = []; for(let i = 0; i <= 16; i++){ const t = i / 16, a = j * 6.2832 / NS + 6.2832 * 1.15 * t, rs = 0.95 - 0.4 * t, c = axis(t); pts.push(new T.Vector3(c.x + Math.cos(a) * rs, c.y, c.z + Math.sin(a) * rs)); }
-    tube(new T.CatmullRomCurve3(pts), 60, 10, t => 0.85 - 0.4 * t + 0.4 * (1 - t) ** 6, { ph: j * 1.3 });
+    const pts = []; for(let i = 0; i <= 16; i++){ const t = i / 16, a = j * 6.2832 / NS + 6.2832 * 1.15 * t, rs = (0.95 - 0.4 * t) * ZR, c = axis(t); pts.push(new T.Vector3(c.x + Math.cos(a) * rs, c.y, c.z + Math.sin(a) * rs)); }
+    tube(new T.CatmullRomCurve3(pts), 72, 10, t => (0.85 - 0.4 * t + 0.5 * (1 - t) ** 6) * ZR, { ph: j * 1.3 });
   }
-  { const pts = []; for(let i = 0; i <= 8; i++) pts.push(axis(i / 8)); tube(new T.CatmullRomCurve3(pts), 40, 10, t => 0.8 - 0.4 * t + 0.4 * (1 - t) ** 6, { ph: 4 }); }
+  { const pts = []; for(let i = 0; i <= 8; i++) pts.push(axis(i / 8)); tube(new T.CatmullRomCurve3(pts), 48, 10, t => (0.8 - 0.4 * t + 0.4 * (1 - t) ** 6) * ZR, { ph: 4 }); }
   /* roots. Outside the walls: [direction in degrees, reach, arch], clipped to the lawn (it ends 3.1 beyond the room's left wall and 6 beyond its back wall). Two thick arches climb the trunk,
    * cross the wall corner above the wall top (2.4) and come down on both sides of the kiosk, wrapped in twinkle lights. Nothing reaches the seats. */
   [[190, 3.0, 0], [222, 4.2, 1], [255, 5.4, 0], [285, 5.6, 1], [318, 4.8, 0], [348, 5.2, 0], [105, 5.0, 0], [12, 5.2, 0]].forEach(([deg, L0, arch]) => {
     const a = deg * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a); let L = L0;
     if(ca < -0.01) L = Math.min(L, 3.0 / -ca); if(sa < -0.01) L = Math.min(L, 5.8 / -sa);
     const at = (r, y) => new T.Vector3(ca * r, y, sa * r);
-    const pts = arch ? [at(1.2, 3.0), at(L * 0.34, 2.5), at(L * 0.62, 1.5), at(L * 0.86, 0.3), at(L, -0.3)] : [at(1.0, 3.6), at(L * 0.2 + 0.8, 1.6), at(L * 0.45, 0.5), at(L * 0.75, 0.05), at(L, -0.3)];
-    tube(new T.CatmullRomCurve3(pts), 26, 8, t => (arch ? 0.62 : 0.85) * (1 - t) + 0.28, { ph: deg });
+    const pts = arch ? [at(1.2, 3.0 * Z), at(L * 0.34, 2.5 * Z), at(L * 0.62, 1.5), at(L * 0.86, 0.3), at(L, -0.3)] : [at(1.0, 3.6 * Z), at(L * 0.2 + 0.8, 1.6 * Z), at(L * 0.45, 0.5), at(L * 0.75, 0.05), at(L, -0.3)];
+    tube(new T.CatmullRomCurve3(pts), 26, 8, t => (arch ? 0.62 : 0.85) * ZR * (1 - t) + 0.28, { ph: deg });
   });
   { const Vr = (x, y, z) => new T.Vector3(x, y, z), lx = sv.x - 2.2, rx = sv.x + 2.3, wrap = { n: 26, t0: 0.22, t1: 0.98, turns: 5 };
-    tube(new T.CatmullRomCurve3([Vr(0.9, 3.5, 0.9), Vr(cn + 1.3, 3.9, cn - 0.1), Vr(cn + 2.9, 3.4, cn + 1.1), Vr(rx - 1.4, 2.0, sv.z - 1.2), Vr(rx - 0.3, 0.7, sv.z - 0.5), Vr(rx, -0.15, sv.z - 0.1), Vr(rx - 0.1, -0.25, sv.z + 0.8)]), 44, 9, t => 0.78 * (1 - t) + 0.3, { ph: 11, wrap });
-    tube(new T.CatmullRomCurve3([Vr(0.9, 3.5, 0.9), Vr(cn - 0.1, 3.9, cn + 1.3), Vr(cn + 0.9, 3.2, cn + 2.5), Vr(lx - 0.1, 1.8, sv.z - 0.4), Vr(lx, 0.5, sv.z + 0.2), Vr(lx + 0.1, -0.2, sv.z + 0.9)]), 44, 9, t => 0.78 * (1 - t) + 0.3, { ph: 12, wrap }); }
-  /* crown plan: [direction in degrees from the trunk top, distance, base height, radius of the lowest disc, number of discs]. Discs are 2.1 apart and 20 percent smaller each. */
-  const PADS = [[0, 0, 13.0, 2.7, 3], [20, 5.6, 9.8, 3.4, 4], [85, 5.8, 9.4, 3.1, 3], [150, 6.0, 10.4, 3.5, 4], [215, 5.4, 11.2, 3.1, 3], [275, 5.2, 10.0, 3.2, 3], [330, 5.8, 10.8, 3.3, 4], [120, 3.0, 12.2, 2.3, 2]];
+    tube(new T.CatmullRomCurve3([Vr(0.9, 3.5 * Z, 0.9), Vr(cn + 1.3, 4.3, cn - 0.1), Vr(cn + 2.9, 3.4, cn + 1.1), Vr(rx - 1.4, 2.0, sv.z - 1.2), Vr(rx - 0.3, 0.7, sv.z - 0.5), Vr(rx, -0.15, sv.z - 0.1), Vr(rx - 0.1, -0.25, sv.z + 0.8)]), 44, 9, t => 0.78 * ZR * (1 - t) + 0.3, { ph: 11, wrap });
+    tube(new T.CatmullRomCurve3([Vr(0.9, 3.5 * Z, 0.9), Vr(cn - 0.1, 4.3, cn + 1.3), Vr(cn + 0.9, 3.2, cn + 2.5), Vr(lx - 0.1, 1.8, sv.z - 0.4), Vr(lx, 0.5, sv.z + 0.2), Vr(lx + 0.1, -0.2, sv.z + 0.9)]), 44, 9, t => 0.78 * ZR * (1 - t) + 0.3, { ph: 12, wrap }); }
+  /* crown plan: [direction in degrees from the trunk top, distance, base height, radius of the lowest disc, number of discs], written for Z = 1 and scaled by Z. Discs are 2.1 Z apart and 20 percent smaller each.
+   * The room lies toward 45 degrees. The last seven pads reach out on long limbs: low ones over the lawn just outside both back walls (about -8 to 2 and 88 to 98 degrees), so the crown sweeps across the top of the screen,
+   * and two higher ones over the back half of the room (high enough to clear the seats in a turned view), so the crown roofs the back of the office and its leaves fall onto the floor. */
+  const PADS = [[0, 0, 13.0, 2.7, 3], [20, 5.6, 9.8, 3.4, 4], [85, 5.8, 9.4, 3.1, 3], [150, 6.0, 10.4, 3.5, 4], [215, 5.4, 11.2, 3.1, 3], [275, 5.2, 10.0, 3.2, 3], [330, 5.8, 10.8, 3.3, 4], [120, 3.0, 12.2, 2.3, 2],
+    [45, 8.6, 10.6, 3.4, 3], [2, 9.4, 8.8, 3.3, 2], [88, 9.4, 8.6, 3.3, 2], [-8, 13.6, 8.0, 3.0, 2], [98, 13.6, 7.9, 3.0, 2], [30, 12.6, 10.4, 2.8, 2], [45, 4.4, 11.6, 2.8, 3]].map(([d, r, y, q, n]) => [d, r * Z, y * Z, q * Z, n]);
   const limbs = [], lobes = [], padTint = [];
   PADS.forEach(([deg, rho, y0, r0, nt], k) => {
     const a = deg * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), px = T0.x + ca * rho, pz = T0.z + sa * rho, bend = (k % 2 ? 1 : -1) * 0.9, e = new T.Vector3(px, y0 - 0.2, pz), V3 = (x, y, z) => new T.Vector3(x, y, z);
@@ -555,12 +558,12 @@ export function makeWorldTree(T, o = {}){
       V3(T0.x + ca * rho * 0.3 - sa * bend * 0.4, T0.y + 0.9, T0.z + sa * rho * 0.3 + ca * bend * 0.4),
       V3(T0.x + ca * rho * 0.68 - sa * bend, T0.y + (y0 - T0.y) * 0.5 + 0.9, T0.z + sa * rho * 0.68 + ca * bend), e];
     const curve = new T.CatmullRomCurve3(pts); if(rho >= 0.5) limbs.push(curve);
-    tube(curve, 30, 8, t => (rho < 0.5 ? 0.62 : 0.78) * (1 - t) + 0.2, { ph: k });
-    const top = y0 + (nt - 1) * 2.1 - 0.1;
+    tube(curve, 34, 8, t => (rho < 0.5 ? 0.62 : 0.78) * ZR * (1 - t) + 0.2, { ph: k });
+    const top = y0 + (nt - 1) * 2.1 * Z - 0.1;
     tube(new T.CatmullRomCurve3([e, V3(px + 0.15, (e.y + top) / 2, pz - 0.1), V3(px, top, pz)]), 12, 6, t => 0.27 - 0.12 * t, { ph: k + 3, groove: 0.04 });   /* the stalk that shows between the discs */
     padTint.push(0.9 + cr() * 0.14);
     for(let j = 0; j < nt; j++){
-      const rj = r0 * (1 - 0.2 * j), ry = 0.22 * rj + 0.12, cy = y0 + j * 2.1, cx = px + Math.sin(k * 2 + j * 1.7) * 0.35, cz = pz + Math.cos(k * 3 + j * 2.1) * 0.35;
+      const rj = r0 * (1 - 0.2 * j), ry = 0.22 * rj + 0.12, cy = y0 + j * 2.1 * Z, cx = px + Math.sin(k * 2 + j * 1.7) * 0.35, cz = pz + Math.cos(k * 3 + j * 2.1) * 0.35;
       lobes.push({ x: cx, y: cy, z: cz, rx: rj, ry, rz: rj, pad: k });
       for(let s = 0; s < 4; s++){ const an = (s + cr() * 0.6) * 1.5708, off = rj * (0.5 + cr() * 0.2), q = rj * (0.5 + cr() * 0.15); lobes.push({ x: cx + Math.cos(an) * off, y: cy + (cr() - 0.5) * 0.3, z: cz + Math.sin(an) * off, rx: q, ry: ry * 0.85, rz: q, pad: k }); }
     }
@@ -579,7 +582,7 @@ export function makeWorldTree(T, o = {}){
     return { x, y, z, nx: nx / nl, ny: ny / nl, nz: nz / nl, li };
   };
   const lf = new T.Shape(); lf.moveTo(0, 0);
-  for(let i = 0; i <= 26; i++){ const a = Math.PI * (0.17 + 0.66 * i / 26), r = 1 - 0.22 * Math.exp(-(((a - Math.PI / 2) / 0.1) ** 2)); lf.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+  for(let i = 0; i <= 14; i++){ const a = Math.PI * (0.17 + 0.66 * i / 14), r = 1 - 0.22 * Math.exp(-(((a - Math.PI / 2) / 0.1) ** 2)); lf.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
   lf.closePath();
   const leafG = K.geo(new T.ShapeGeometry(lf)), leafM = K.std('#ffffff', { roughness: 0.9, side: T.DoubleSide });
   const LEAF = ['#f5cf3a', '#eebb24', '#f8dc63', '#f2c230'], GOLD = ['#eebb24', '#e5a91c'], YEL = ['#f5cf3a', '#f8dc63', '#fbe27a'];
@@ -603,10 +606,10 @@ export function makeWorldTree(T, o = {}){
     const s = skin(); if(!s) continue;
     V.set(s.nx + (cr() - 0.5) * 0.9, s.ny + 0.3 + (cr() - 0.5) * 0.9, s.nz + (cr() - 0.5) * 0.9).normalize();
     Q.setFromUnitVectors(ZAX, V); Q.multiply(Q2.setFromAxisAngle(ZAX, cr() * 6.283));
-    const sc = 0.42 + cr() * 0.22;
+    const sc = (0.42 + cr() * 0.22) * 1.25;
     P.set(s.x - V.x * 0.05, s.y - V.y * 0.05, s.z - V.z * 0.05);
     crown.setMatrixAt(n, M.compose(P, Q, S.set(sc, sc, sc)));
-    const yk = clamp01((s.y - 8.5) / 9), r = cr(), pick = r < 0.03 ? '#c9c85a' : r < 0.03 + (yk < 0.4 ? 0.4 : 0.22) ? GOLD[cr() < 0.5 ? 0 : 1] : YEL[(cr() * 3) | 0];
+    const yk = clamp01((s.y - 8.5 * Z) / (9 * Z)), r = cr(), pick = r < 0.03 ? '#c9c85a' : r < 0.03 + (yk < 0.4 ? 0.4 : 0.22) ? GOLD[cr() < 0.5 ? 0 : 1] : YEL[(cr() * 3) | 0];
     crown.setColorAt(n, C.set(pick).multiplyScalar((0.72 + 0.28 * yk) * (0.8 + 0.2 * (s.ny * 0.5 + 0.5)) * padTint[lobes[s.li].pad] * (0.92 + cr() * 0.1)));
     leafPts.push(s); n++;
   }
@@ -703,9 +706,9 @@ export function makeWorldTree(T, o = {}){
       carpet.setMatrixAt(i, M.compose(P.set(l.x, l.y + i * 0.0003, l.z), Q, S.set(sc, sc, sc))); carpet.setColorAt(i, C.set(LEAF[i % 4]).multiplyScalar(0.92 + rand() * 0.1)); });
     carpet.instanceMatrix.needsUpdate = true; carpet.instanceColor.needsUpdate = true; carpet.receiveShadow = false; g.add(carpet);
   }
-  const fl = spots(opt.fall), fall = fl.length ? K.instanced(leafG, leafM, fl.length) : null;
+  const TOP = Math.min(...PADS.map(p => p[2])), fl = opt.fall.flatMap(a => spots([a]).map(l => ({ ...l, top: a.top || TOP }))), fall = fl.length ? K.instanced(leafG, leafM, fl.length) : null;
   if(fall){ fl.forEach((l, i) => { l.ph = rand(); l.v = 0.35 + rand() * 0.35; l.sc = 0.3 + rand() * 0.15; fall.setColorAt(i, C.set(LEAF[i % 4])); }); fall.instanceColor.needsUpdate = true; g.add(fall); }
-  const col2 = new T.Color(), TOP = 10.5;
+  const col2 = new T.Color();
   g.userData.tick = (t, night) => {
     tU.value = t;   /* wind, fireflies and lanterns all follow this one number */
     const n = nightOf(night), glow = 1 + n * 0.25;
@@ -716,9 +719,9 @@ export function makeWorldTree(T, o = {}){
     bulbs.instanceColor.needsUpdate = true; bulbMat.emissiveIntensity = 0.85 + 0.3 * n;
     if(!fall) return;
     for(let i = 0; i < fl.length; i++){
-      const l = fl[i], H = TOP - l.y, d = (t * l.v + l.ph * H) % H, y = TOP - d, q = l.ph * 6.283;
+      const l = fl[i], H = l.top - l.y, d = (t * l.v + l.ph * H) % H, y = l.top - d, q = l.ph * 6.283, sk = l.sc * Math.min(1, (y - l.y) / 0.5);   /* shrinks away as it lands, then starts again inside the crown */
       E.set(0.9 * Math.sin(t * 1.3 + q * 3), q + t * 0.5, 0.6 * Math.sin(t * 0.9 + q), 'YXZ'); Q.setFromEuler(E);
-      fall.setMatrixAt(i, M.compose(P.set(l.x + 0.7 * Math.sin(t * 0.8 + q), Math.max(l.y, y), l.z + 0.2 * Math.sin(t * 0.6 + q * 2)), Q, S.set(l.sc, l.sc, l.sc)));
+      fall.setMatrixAt(i, M.compose(P.set(l.x + 0.7 * Math.sin(t * 0.8 + q), Math.max(l.y, y), l.z + 0.2 * Math.sin(t * 0.6 + q * 2)), Q, S.set(sk, sk, sk)));
     }
     fall.instanceMatrix.needsUpdate = true;
   };
