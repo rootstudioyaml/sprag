@@ -10,6 +10,9 @@ v3.47.0 까지 받으신 사본은 계속 MIT 조건을 따릅니다. 이미 받
 
 ## 전체 릴리스 노트
 
+### v3.124.1 (2026-11-13)
+- **모델이 unknown으로 남은 가격 누락의 토큰 규모가 가려지지 않습니다.** 3.124.0에서 처음 올라온 진단 로그는 `tokens=[redacted]`였습니다. 진단 로그를 올리기 전에 도는 비밀값 마스커가 `tokens=0`과 `tokens=100k+`를 비밀값으로 읽었기 때문입니다. 라벨을 `size=`로 바꿨고 네 구간이 모두 마스커를 그대로 통과하는지 테스트로 확인합니다.
+
 ### v3.124.0 (2026-11-13)
 - **상태줄에 보이는 양을 compact 레벨로 줄일 수 있습니다.** `sprag mode compact=2`는 Routing saved와 팀 같은 헤드라인 줄을 칩으로 접고 경고, 사용량, Ctx, TTL, 모델, 라우팅 칩만 두 줄 안에 남깁니다. `compact=3`은 경고, 사용량, Ctx, TTL 칩만 한 줄에 남깁니다. `compact=0`과 `compact=1`은 지금의 긴 라벨과 짧은 라벨이고 `--compact-level N`으로 한 번만 바꿔 볼 수 있습니다.
 - **BOM이 붙은 settings.json도 읽습니다.** Windows PowerShell은 settings.json 앞에 BOM을 붙여 저장하는데 sprag는 이 파일을 읽지 못해 훅 등록을 건너뛰었습니다. 이제 settings.json을 읽을 때마다 앞의 BOM 하나를 떼어 냅니다. `~/.npmrc`가 없거나 훅 PATH에 claude가 없는 흔한 경우는 진단 로그에 더 남기지 않습니다.
