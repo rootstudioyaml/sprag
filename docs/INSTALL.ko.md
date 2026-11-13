@@ -1,4 +1,4 @@
-# Install and what it turns on (한국어)
+# 설치와 켜지는 기능
 
 [← README](../README.ko.md) · [English](./INSTALL.md)
 

@@ -1,4 +1,4 @@
-# Not a router (한국어)
+# 라우터가 아닙니다
 
 [← README](../README.ko.md) · [English](./NOT-A-ROUTER.md)
 

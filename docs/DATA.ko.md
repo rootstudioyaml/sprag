@@ -1,4 +1,4 @@
-# Sprag 이 보내는 데이터
+# Sprag가 보내는 데이터
 
 [← README](../README.ko.md) · [English](./DATA.md)
 

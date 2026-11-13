@@ -1,4 +1,4 @@
-# Korean writing guidance (한국어)
+# 한국어 문체 지침
 
 [← README](../README.ko.md) · [English](./KOREAN-STYLE.md)
 

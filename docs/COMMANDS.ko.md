@@ -1,4 +1,4 @@
-# Command reference (한국어)
+# 명령어 모음
 
 [← README](../README.ko.md) · [English](./COMMANDS.md)
 

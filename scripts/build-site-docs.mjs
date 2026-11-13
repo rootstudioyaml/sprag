@@ -338,10 +338,13 @@ const FAVICON_LINKS = `<link rel="icon" href="/assets/logo/favicon.svg" type="im
 <link rel="icon" href="/assets/logo/favicon-16.png" sizes="16x16" type="image/png" />
 <link rel="apple-touch-icon" href="/assets/logo/apple-touch-icon.png" />`;
 
+// Fonts come from tokens.css (@import), so the page only preconnects. The inline snippet applies the
+// saved light/dark choice before first paint, same key as assets/theme-toggle.js.
 const FONT_LINKS = `<link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/assets/site-header.css?v=3" />`;
+<script>try{var t=localStorage.getItem('sprag-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="stylesheet" href="/assets/tokens.css" />
+<link rel="stylesheet" href="/assets/site-header.css?v=4" />`;
 
 const BRAND_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true">
         <path fill="currentColor" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/>
@@ -353,112 +356,71 @@ const GH_ICONS = `<a class="gh ic" href="${REPO}" aria-label="GitHub" title="Git
         <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
       </a>
       <a class="gh ic npmic" href="https://www.npmjs.com/package/sprag-cli" aria-label="npm" title="npm">
-        <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="#cb3837" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
+        <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="currentColor" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
       </a>`;
 
 function styleBlock() {
+  // Colors, fonts and the light/dark switch come from assets/tokens.css; the header from site-header.css.
+  // Only the document body, footer and index cards are styled here.
   return `<style>
-  :root{
-    --bg:#010102; --panel:#0f1011; --panel2:#141516;
-    --line:#23252a; --line2:#34343a;
-    --ink:#f7f8f8; --dim:#8a8f98; --faint:#62666d;
-    --amber:#5e6ad2; --amber2:#828fff;
-    --teal:#35d6a8; --blue:#6a9bff; --red:#ff6b6b;
-    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-    --disp:"Inter",-apple-system,BlinkMacSystemFont,sans-serif;
-    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    --r:8px; --rc:8px; --rp:8px;
-    --ease:cubic-bezier(.23,1,.32,1);
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
+  *{box-sizing:border-box;margin:0;padding:0;letter-spacing:0!important}
   html{scroll-behavior:smooth}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+  body{background:var(--bg);color:var(--ink);font-family:var(--font-body);
        -webkit-font-smoothing:antialiased;line-height:1.55}
   a{color:inherit;text-decoration:none}
-  ::selection{background:rgba(94,106,210,.25)}
-  a:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:4px}
+  ::selection{background:color-mix(in oklab,var(--accent) 28%,transparent)}
+  a:focus-visible{outline:2px solid var(--accent-fg);outline-offset:2px}
   .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
-
-  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);
-         background:rgba(1,1,2,.8);backdrop-filter:blur(12px)}
-  header .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
-  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15.5px;letter-spacing:.01em;font-family:var(--disp)}
-  .brand svg{width:20px;height:20px;display:block}
-  header nav{display:flex;align-items:center;gap:22px;font-size:13.5px;color:var(--dim)}
-  header nav a:hover{color:var(--ink)}
-  header nav > a[aria-current]{color:var(--ink);background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line);border-radius:6px;padding:5px 10px}
-  .gh{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);
-      border-radius:6px;padding:5px 10px;font-size:12.5px;color:var(--dim)}
-  .gh:hover{border-color:#3a3d47;color:var(--ink)}
-  .gh.ic{padding:0;width:34px;height:30px;justify-content:center;color:var(--dim)}
-  .gh.ic svg{display:block}
-  .gh.npmic{width:44px}
-  .gh.npmic:hover{border-color:#5a3236}
-  .lang{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
-  .lang button{border:0;background:transparent;color:var(--faint);padding:5px 9px;
-    font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;cursor:pointer;text-decoration:none;display:inline-flex}
-  .lang a{border:0;background:transparent;color:var(--faint);padding:5px 9px;
-    font-family:var(--mono);font-size:11.5px;letter-spacing:.04em}
-  .lang a+a{border-left:1px solid var(--line2)}
-  .lang a:hover{color:var(--dim)}
-  .lang a[aria-pressed=true]{background:rgba(94,106,210,.12);color:var(--amber)}
   html[lang=ko] body{word-break:keep-all;line-height:1.7}
-  @media(hover:none) and (pointer:coarse){
-    .gh{min-height:40px;padding:8px 12px}
-    .gh.ic{width:40px;height:40px}
-    .gh.npmic{width:50px}
-    .lang a{padding:10px 12px}
-  }
 
-  footer{border-top:1px solid var(--line);padding:36px 0 56px;color:var(--faint);font-size:13px}
-  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
+  footer{border-top:1px solid var(--line);padding:32px 0 56px;color:var(--faint);font-size:13px}
+  footer .frow{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px 28px;align-items:center}
+  footer .frow + .frow{margin-top:12px}
+  footer .fl{display:flex;flex-wrap:wrap;gap:6px 22px}
   footer a:hover{color:var(--ink)}
   footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
   footer .wrap.biz[hidden]{display:none}
-  footer .biz p+p{margin-top:4px}
-  footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
-  footer .biz a.strong{font-weight:700;color:var(--dim)}
+  footer .biz p{display:flex;flex-wrap:wrap;gap:4px 16px}
+  footer .biz a{text-decoration:underline;text-underline-offset:4px}
 
-  main.doc{max-width:78ch;margin:0 auto;padding:48px 24px 96px}
-  main.doc h1,main.doc h2,main.doc h3,main.doc h4{scroll-margin-top:72px}
-  .crumbs{font-size:13px;color:var(--faint);margin-bottom:22px}
+  main.doc{max-width:78ch;margin:0 auto;padding:48px 24px 96px;min-width:0;overflow-wrap:break-word}
+  main.doc h1,main.doc h2,main.doc h3,main.doc h4{scroll-margin-top:72px;text-transform:none}
+  .crumbs{font:500 11.5px/1.4 var(--font-mono);letter-spacing:.02em!important;text-transform:uppercase;color:var(--faint);margin-bottom:22px}
   .crumbs a:hover{color:var(--ink)}
-  main.doc h1{font-family:var(--disp);font-size:34px;line-height:1.2;overflow-wrap:anywhere}
-  main.doc h2{font-family:var(--disp);font-size:24px;margin:40px 0 12px;line-height:1.3}
-  main.doc h3{font-family:var(--disp);font-size:18px;margin:28px 0 10px;line-height:1.35}
+  main.doc h1{font-family:var(--font-display);font-size:clamp(30px,3.2vw,40px);line-height:1.15;overflow-wrap:anywhere}
+  main.doc h2{font-family:var(--font-display);font-size:24px;margin:40px 0 12px;line-height:1.3}
+  main.doc h3{font-family:var(--font-display);font-size:18px;margin:28px 0 10px;line-height:1.35}
   main.doc h4{font-size:15px;margin:20px 0 8px}
   main.doc p{color:var(--dim);line-height:1.7;margin:14px 0}
   main.doc .lede{color:var(--ink);font-size:16.5px;margin-top:14px}
-  main.doc a{color:var(--amber2);text-decoration:underline;text-underline-offset:3px}
-  main.doc pre{background:var(--panel);border:1px solid var(--line);border-radius:var(--rc);
-    padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;margin:16px 0}
+  main.doc .inst{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin-top:18px;font-size:14px}
+  main.doc a{color:var(--accent-fg);text-decoration:underline;text-underline-offset:4px}
+  main.doc pre{background:var(--panel);border:1px solid var(--line);border-radius:0;max-width:100%;
+    padding:16px 18px;overflow-x:auto;font-family:var(--font-mono);font-size:13px;line-height:1.6;margin:16px 0}
   main.doc pre code{background:none;border:0;padding:0;font-size:inherit}
-  main.doc code{font-family:var(--mono);font-size:.92em;background:var(--panel2);
-    border:1px solid var(--line);border-radius:5px;padding:1px 5px}
-  main.doc .tbl{overflow-x:auto;margin:18px 0}
-  main.doc table{border-collapse:collapse;width:100%;font-size:14px}
-  main.doc th,main.doc td{border:1px solid var(--line);padding:8px 10px;vertical-align:top;text-align:left}
-  main.doc th{background:var(--panel)}
-  main.doc blockquote{border-left:3px solid var(--line2);padding:2px 16px;color:var(--dim);margin:16px 0}
-  main.doc blockquote.warning{border-color:var(--red)}
-  main.doc blockquote.note{border-color:var(--blue)}
-  main.doc img{max-width:100%;height:auto;border-radius:var(--r)}
+  main.doc code{font-family:var(--font-mono);font-size:.92em;background:var(--panel);
+    border:1px solid var(--line);border-radius:0;padding:1px 5px}
+  main.doc .tbl{overflow-x:auto;margin:18px 0;-webkit-overflow-scrolling:touch}
+  main.doc table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+  main.doc th,main.doc td{border:1px solid var(--line);padding:8px 10px;vertical-align:top;text-align:left;overflow-wrap:normal}
+  main.doc td a{overflow-wrap:anywhere}
+  main.doc th{font:500 11.5px/1.4 var(--font-mono);letter-spacing:.02em!important;text-transform:uppercase;color:var(--dim)}
+  main.doc blockquote{border-left:2px solid var(--line2);padding:2px 16px;color:var(--dim);margin:16px 0}
+  main.doc blockquote.warning{border-color:var(--ink)}
+  main.doc blockquote.note{border-color:var(--accent-fg)}
+  main.doc img{max-width:100%;height:auto;border-radius:0}
   main.doc hr{border:0;border-top:1px solid var(--line);margin:32px 0}
   main.doc ul,main.doc ol{padding-left:1.4em;color:var(--dim);line-height:1.7;margin:14px 0}
   main.doc li{margin:4px 0}
-  main.doc details{border:1px solid var(--line);border-radius:var(--rc);padding:12px 16px;margin:16px 0;background:var(--panel)}
+  main.doc details{border-top:1px solid var(--line);padding:12px 0;margin:16px 0}
   main.doc summary{cursor:pointer;color:var(--ink);font-weight:500}
-  main.doc kbd{font-family:var(--mono);font-size:.85em;background:var(--panel2);border:1px solid var(--line2);
-    border-radius:4px;padding:1px 6px}
+  main.doc kbd{font-family:var(--font-mono);font-size:.85em;background:var(--panel);border:1px solid var(--line2);
+    border-radius:0;padding:1px 6px}
   .more{margin-top:56px;padding-top:24px;border-top:1px solid var(--line)}
-  .more h2{font-family:var(--disp);font-size:16px;margin-bottom:12px}
+  .more h2{font:500 11.5px/1.4 var(--font-mono);letter-spacing:.02em!important;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
   .more ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px}
-  .more a{color:var(--amber2);text-decoration:underline;text-underline-offset:3px;font-size:14px}
-  html[lang=ko] main.doc{word-break:keep-all;line-height:1.7}
-  main.doc{min-width:0;overflow-wrap:anywhere}
-  main.doc pre{max-width:100%}
-  *{letter-spacing:0!important}
-  @media(max-width:480px){main.doc{padding:28px 18px 64px}main.doc h1{font-size:28px}.wrap{padding:0 18px}header nav{gap:12px}}
+  .more a{color:var(--accent-fg);text-decoration:underline;text-underline-offset:4px;font-size:14px}
+  @media(max-width:480px){main.doc{padding:28px 18px 64px}.wrap{padding:0 18px}}
 </style>`;
 }
 
@@ -541,6 +503,18 @@ function escapeAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+const NAV_LABELS = {
+  en: ['How it works', 'Routing', 'Features', 'Docs', 'Proof lab', 'License', 'Team console'],
+  ko: ['작동 방식', '라우팅', '기능', '문서', '검증 Lab', '라이선스', '팀 콘솔'],
+};
+
+const THEME_TOGGLE = `<button class="theme-tg" type="button" aria-label="Light / dark theme" title="Light / dark theme">
+        <svg class="i-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z"/></svg>
+        <svg class="i-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+      </button>`;
+
+// Same markup and link order as the home header (site/index.html). The language toggle is two links here
+// because each language is its own page.
 function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
   let langSwitch = '';
   if (hasKo) {
@@ -551,6 +525,7 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
   }
   // The site pages pick their language from ?lang= first, so a Korean doc keeps the reader in Korean.
   const q = lang === 'ko' ? '?lang=ko' : '';
+  const [how, routing, features, docs, proof, license, team] = NAV_LABELS[lang === 'ko' ? 'ko' : 'en'];
   return `<header class="site-hdr">
   <div class="wrap">
     <a class="brand" href="/${q}">
@@ -558,13 +533,15 @@ function headerHtml({ lang, docsHref, hasKo, enUrl, koUrl }) {
       Sprag
     </a>
     <nav>
-      <a class="hide-sm" href="/${q}#how">${lang === 'ko' ? '작동 방식' : 'How it works'}</a>
-      <a class="hide-sm" href="/${q}#routing">${lang === 'ko' ? '라우팅' : 'Routing'}</a>
-      <a class="hide-sm" href="/${q}#features">${lang === 'ko' ? '기능' : 'Features'}</a>
-      <a href="${docsHref}" aria-current="page">${lang === 'ko' ? '문서' : 'Docs'}</a>
-      <a href="/license/${q}">${lang === 'ko' ? '라이선스' : 'License'}</a>
-      <a class="hide-sm" href="/team/${q}">${lang === 'ko' ? '팀 콘솔' : 'Team console'}</a>
+      <a class="hide-sm" href="/${q}#how">${how}</a>
+      <a class="hide-sm" href="/${q}#routing">${routing}</a>
+      <a class="hide-sm" href="/${q}#features">${features}</a>
+      <a class="hide-sm" href="${docsHref}" aria-current="page">${docs}</a>
+      <a class="hide-sm" href="/proof/${q}">${proof}</a>
+      <a href="/license/${q}">${license}</a>
+      <a class="hide-sm" href="/team/${q}">${team}</a>
       ${langSwitch}
+      ${THEME_TOGGLE}
       ${GH_ICONS}
     </nav>
   </div>
@@ -606,19 +583,28 @@ const BIZ_LINKS = {
   ko: ['이용약관', '개인정보처리방침', '환불정책', '사업자정보확인'],
 };
 
+const FOOT_LABELS = {
+  en: { docs: 'Docs', benchmark: 'Benchmark', sends: 'What Sprag sends' },
+  ko: { docs: '문서', benchmark: '벤치마크', sends: 'Sprag가 보내는 데이터' },
+};
+
 function footerHtml(lang = 'en') {
   const l = lang === 'ko' ? 'ko' : 'en';
-  const info = BIZ_INFO[l].map((t) => `<span>${t}</span>`).join(' · ');
+  const f = FOOT_LABELS[l];
+  const info = BIZ_INFO[l].map((t) => `<span>${t}</span>`).join('');
   const [terms, privacy, refund, verify] = BIZ_LINKS[l];
   const q = l === 'ko' ? '?lang=ko' : '';
+  const dataHref = l === 'ko' ? '/docs/ko/data/' : '/docs/data/';
   return `<footer>
-  <div class="wrap">
+  <div class="wrap frow">
     <span>Apache-2.0</span>
-    <span><a href="${l === 'ko' ? '/docs/ko/' : '/docs/'}">Docs</a> · <a href="${REPO}">GitHub</a> · <a href="https://www.npmjs.com/package/sprag-cli">npm</a> · <a href="${REPO}/blob/main/docs/BENCHMARK.md">Benchmark</a></span>
+    <span class="fl"><a href="${l === 'ko' ? '/docs/ko/' : '/docs/'}">${f.docs}</a><a href="${REPO}">GitHub</a><a href="https://www.npmjs.com/package/sprag-cli">npm</a><a href="${REPO}/blob/main/docs/BENCHMARK.md">${f.benchmark}</a></span>
+  </div>
+  <div class="wrap frow">
+    <span class="fl"><a href="/terms/${q}">${terms}</a><a href="/privacy/${q}">${privacy}</a><a href="/refund/${q}">${refund}</a><a href="${dataHref}">${f.sends}</a></span>
   </div>
   <div class="wrap biz"${SHOW_BIZ ? '' : ' hidden'}>
-    <p>${info}</p>
-    <p><a href="/terms/${q}">${terms}</a> · <a href="/privacy/${q}" class="strong">${privacy}</a> · <a href="/refund/${q}">${refund}</a>${SHOW_FTC ? ` · <a href="${BIZ_FTC}" target="_blank" rel="noopener">${verify}</a>` : ''}</p>
+    <p>${info}</p>${SHOW_FTC ? `\n    <p><a href="${BIZ_FTC}" target="_blank" rel="noopener">${verify}</a></p>` : ''}
   </div>
 </footer>`;
 }
@@ -676,10 +662,16 @@ ${headerHtml({ lang, docsHref, hasKo, enUrl, koUrl })}
   </section>
 </main>
 ${footerHtml(lang)}
+<script src="/assets/theme-toggle.js" defer></script>
 </body>
 </html>
 `;
 }
+
+const INSTALL_LINE = {
+  en: { label: 'Install docs', href: '/docs/install/' },
+  ko: { label: '설치 문서', href: '/docs/ko/install/' },
+};
 
 function indexPageHtml({ lang, entries }) {
   const canonical = lang === 'ko' ? `${SITE_ORIGIN}/docs/ko/` : `${SITE_ORIGIN}/docs/`;
@@ -712,10 +704,10 @@ function indexPageHtml({ lang, entries }) {
 <head>
 ${head}
 <style>
-  .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:32px}
-  .dcard{display:block;background:var(--panel);border:1px solid var(--line);border-radius:var(--rc);padding:18px}
-  .dcard:hover{border-color:var(--line2)}
-  .dcard b{display:block;font-family:var(--disp);font-size:15px}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0 32px;margin-top:32px}
+  main.doc a.dcard{display:block;color:var(--ink);text-decoration:none;border-top:1px solid var(--line);padding:18px 0 22px}
+  .dcard:hover{border-top-color:var(--ink)}
+  .dcard b{display:block;font-family:var(--font-display);font-size:15px}
   .dcard span{display:block;margin-top:8px;font-size:13px;color:var(--dim);line-height:1.6}
 </style>
 </head>
@@ -724,12 +716,14 @@ ${headerHtml({ lang, docsHref, hasKo: true, enUrl: `${SITE_ORIGIN}/docs/`, koUrl
 <main class="doc">
   <nav class="crumbs"><a href="/${lang === 'ko' ? '?lang=ko' : ''}">Sprag</a> / ${title}</nav>
   <h1>${title}</h1>
+  <p class="inst"><code>npm i -g sprag-cli</code><a href="${INSTALL_LINE[lang].href}">${INSTALL_LINE[lang].label}</a></p>
   <p class="lede">${escapeHtml(description)}</p>
   <div class="dgrid">
       ${cards}
   </div>
 </main>
 ${footerHtml(lang)}
+<script src="/assets/theme-toggle.js" defer></script>
 </body>
 </html>
 `;

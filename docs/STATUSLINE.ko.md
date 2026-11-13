@@ -1,4 +1,4 @@
-# Statusline reference (한국어)
+# 상태줄 읽는 법
 
 [← README](../README.ko.md) · [English](./STATUSLINE.md)
 
