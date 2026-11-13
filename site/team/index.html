@@ -913,7 +913,7 @@ const I18N = {
     'pm.none':'No captured days yet.','pm.day':'{day} · {prompts} prompts · {kb} KB','pm.loading':'Loading…','pm.empty':'No prompts on this day.',
     'pm.fail':'Could not load this day. Prompt capture may not be enabled on this server yet.',
     'o.h':'Organization','o.switch':'Switch','o.switch.aria':'Organization',
-    'o.role':'You are {role} here','role.owner':'Owner','role.admin':'Admin',
+    'o.role':'You are {role} here','role.owner':'Owner','role.admin':'Admin','role.superuser':'Superuser',
     'o.term':'Term: until {date}','o.term.ending':'Your term ends on {date}. To extend it, contact support@sprag.io.','o.term.grace':'Your term ended on {date}. New uploads stop from {stop}.','o.term.expired':'Your term has ended, so new uploads and joins are not accepted. The dashboard stays available.',
     'o.seats':'Seats: {used} / {limit}','o.seatnote':'A seat is one machine active in the last 30 days, or one that paused uploads. Joins past the limit are refused until Sprag raises it. Sprag sets the plan and the limit.','o.addseats':'To add seats, contact <a href="mailto:support@sprag.io">support@sprag.io</a>.',
     'o.admins':'Admins','o.admin.ph':'Email','o.admin.add':'Add','o.admin.remove':'Remove','o.admin.added':'{email} was added.','o.admin.invited':'{email} was invited. They become {role} when they first sign in.','o.admin.pending':'Invited, waiting for first sign-in','o.admin.cancel':'Cancel invite','o.admin.cancelconfirm':'Cancel the invite for {email}?','o.admin.mfa':'Authenticator on','o.admin.nomfa':'No authenticator yet','o.admin.mfareset':'Reset authenticator','o.admin.mfaresetconfirm':'Remove the authenticator app of {email} and end their sessions? They enroll a new one at the next sign-in.','o.admin.mfaresetok':'Reset the authenticator app of {email}.',
@@ -1023,7 +1023,7 @@ const I18N = {
     'pm.none':'수집된 날짜가 아직 없습니다.','pm.day':'{day} · 프롬프트 {prompts}개 · {kb}KB','pm.loading':'불러오는 중…','pm.empty':'이 날짜에는 프롬프트가 없습니다.',
     'pm.fail':'이 날짜를 불러오지 못했습니다. 이 서버에서 프롬프트 수집이 아직 켜지지 않았을 수 있습니다.',
     'o.h':'조직','o.switch':'전환','o.switch.aria':'조직',
-    'o.role':'이 조직에서 {role} 권한입니다','role.owner':'오너','role.admin':'어드민',
+    'o.role':'이 조직에서 {role} 권한입니다','role.owner':'오너','role.admin':'어드민','role.superuser':'슈퍼유저',
     'o.term':'이용 기간: ~ {date}','o.term.ending':'이용 기간이 {date}에 끝납니다. 연장은 support@sprag.io로 문의해 주세요.','o.term.grace':'이용 기간이 {date}에 끝났습니다. {stop}부터 새 업로드가 멈춥니다.','o.term.expired':'이용 기간이 끝나 새 업로드와 참여를 받지 않습니다. 대시보드는 계속 볼 수 있습니다.',
     'o.seats':'좌석: {used} / {limit}','o.seatnote':'좌석 하나는 최근 30일 안에 활동했거나 업로드를 중지한 컴퓨터 한 대입니다. 한도를 넘으면 Sprag가 한도를 올릴 때까지 새 참여가 거절됩니다. 요금제와 한도는 Sprag가 정합니다.','o.addseats':'좌석을 늘리려면 <a href="mailto:support@sprag.io">support@sprag.io</a>로 문의해 주세요.',
     'o.admins':'어드민','o.admin.ph':'이메일','o.admin.add':'추가','o.admin.remove':'제거','o.admin.added':'{email}님을 추가했습니다.','o.admin.invited':'{email}님을 초대했습니다. 처음 로그인하면 {role} 권한이 부여됩니다.','o.admin.pending':'초대됨 · 첫 로그인 대기','o.admin.cancel':'초대 취소','o.admin.cancelconfirm':'{email}님의 초대를 취소할까요?','o.admin.mfa':'인증 앱 등록됨','o.admin.nomfa':'인증 앱 미등록','o.admin.mfareset':'인증 앱 초기화','o.admin.mfaresetconfirm':'{email}님의 인증 앱을 지우고 세션을 모두 끝낼까요? 다음 로그인 때 새 앱을 등록하게 됩니다.','o.admin.mfaresetok':'{email}님의 인증 앱을 초기화했습니다.',
@@ -1415,9 +1415,13 @@ async function onSession(session){
 /* ── teams ────────────────────────────────────────────────────────────── */
 /* ── organizations ────────────────────────────────────────────────────── */
 const planOf = x => { const o = orgs.find(y => y.id === (x && x.org_id)); return (o && o.plan) || (x && x.plan) || 'pro'; };
-const isAdmin = () => !!org && (org.role === 'owner' || org.role === 'admin');
-const isOwner = () => !!org && org.role === 'owner';
+/* The superuser has an owner's rights in every organization (server: is_platform_admin in every check), so the
+   console treats the role 'superuser' that org_summary reports like 'owner'. */
+const isAdmin = () => !!org && (org.role === 'owner' || org.role === 'admin' || org.role === 'superuser');
+const isOwner = () => !!org && (org.role === 'owner' || org.role === 'superuser');
 const visibleTeams = () => org ? teams.filter(x => x.org_id === org.id) : teams;
+/* /ops links here with ?org=<id>; it picks the organization once, on the first load */
+let orgFromUrl = new URLSearchParams(location.search).get('org');
 
 async function loadOrgs(keepId){
   AdminUX.err($('org-err'), '');
@@ -1426,7 +1430,23 @@ async function loadOrgs(keepId){
     if(error) throw error;
     orgs = Array.isArray(data) ? data : [];
   }catch(e){ orgs = []; AdminUX.err($('org-err'), errMsg(e), () => loadOrgs(keepId)); }
-  const want = keepId || (org && org.id) || lsGet('sprag.org.last');
+  /* The superuser also sees every other organization, as the superuser. Fails soft for everyone else. */
+  try{
+    const pa = await sb.rpc('is_platform_admin');
+    if(!pa.error && pa.data === true){
+      const all = await sb.rpc('ops_orgs');
+      if(!all.error && Array.isArray(all.data)){
+        const mine = new Set(orgs.map(o => o.id));
+        const rest = all.data.filter(o => !mine.has(o.id))
+          .map(o => ({ id: o.id, name: o.name, plan: o.plan, seat_limit: o.seat_limit, seats_used: o.seats_used, role: 'superuser', paid_until: o.paid_until, term_state: o.term_state }))
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+        orgs = orgs.concat(rest);
+      }
+    }
+  }catch(e){}
+  const urlId = orgFromUrl; orgFromUrl = null;
+  if(urlId && orgs.some(o => o.id === urlId)) lsSet('sprag.org.last', urlId);
+  const want = keepId || (urlId && orgs.some(o => o.id === urlId) ? urlId : null) || (org && org.id) || lsGet('sprag.org.last');
   org = orgs.find(o => o.id === want) || orgs[0] || null;
   await loadOrgSummary();
 }
@@ -1512,7 +1532,7 @@ function renderOrg(){
   const plan = org.plan === 'enterprise' ? 'enterprise' : 'pro';
   $('org-plan').textContent = t('plan.' + plan);
   $('org-plan').className = 'tag' + (plan === 'enterprise' ? ' plus' : '');
-  $('org-role').textContent = t('o.role', {role: t('role.' + (org.role === 'owner' ? 'owner' : 'admin'))}, true);
+  $('org-role').textContent = t('o.role', {role: t('role.' + (org.role === 'owner' || org.role === 'superuser' ? org.role : 'admin'))}, true);
   const used = Number(org.seats_used) || 0, lim = Number(org.seat_limit) || 0;
   $('org-seats').textContent = t('o.seats', {used, limit: lim}, true) + (org.paid_until ? ' · ' + t('o.term', {date: fmtDay(org.paid_until)}, true) : '');
   const termEl = $('org-term'), ts0 = org.term_state, pu = org.paid_until ? new Date(org.paid_until + 'T00:00:00') : null;
