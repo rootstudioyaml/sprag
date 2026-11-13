@@ -475,10 +475,13 @@ test('a server without the routing argument (PGRST202) gets the call again witho
   assert.deepEqual(s1.deviceInfo, deviceInfo());
   assert.equal(s1.routing, undefined, 'nothing was recorded as sent');
   assert.ok(s1.routingRetryAt > Date.now());
+  assert.ok(s1.routingRetryAt <= Date.now() + 3600 * 1000, 'waits an hour, not a day');
   await reportDeviceInfo({ state: s1, dir, fetch: f, env: {}, routing: r1 });
   assert.equal(f.calls.length, 2, 'not retried on every sync');
   await reportDeviceInfo({ state: { ...s1, routingRetryAt: Date.now() - 1 }, dir, fetch: f, env: {}, routing: r1 });
   assert.equal(f.calls.length, 4, 'after the wait it tries the new argument again');
+  await reportDeviceInfo({ state: { ...s1, routingRetryAt: Date.now() + 23 * 3600 * 1000 }, dir, fetch: f, env: {}, routing: r1 });
+  assert.equal(f.calls.length, 6, 'a day-long wait stored by 3.124.1 is cut to the hour');
 });
 
 test('a failed device info report is soft: join succeeds and the next sync retries', async (t) => {

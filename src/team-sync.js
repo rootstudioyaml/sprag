@@ -730,6 +730,7 @@ export function deviceInfo({
 // optional `routing` argument, so the dashboard can tell why a PC does not
 // delegate. A server from before that argument answers PGRST202 ("Could not find
 // the function"): the call is repeated once without it.
+const ROUTING_RETRY_MS = 3600 * 1000;
 export async function reportDeviceInfo({ state, dir = userDataDir(), fetch, env = process.env, routing } = {}) {
   if (teamSyncDisabled(env) || !isJoined(state)) return state;
   const info = deviceInfo();
@@ -738,8 +739,10 @@ export async function reportDeviceInfo({ state, dir = userDataDir(), fetch, env 
     try { route = routingState(); } catch (e) { debug('team-sync', e); route = null; }
   }
   const same = state.deviceInfo && JSON.stringify(state.deviceInfo) === JSON.stringify(info);
-  // After a fallback the server cannot take the argument yet: look again after a day, not on every sync.
-  const waiting = Number(state.routingRetryAt) > Date.now();
+  // After a fallback the server cannot take the argument yet: look again after an hour, not on every sync.
+  // A wait stored by 3.124.1 (a day) is cut to the hour, so PCs that upgraded before the server did report soon.
+  const retryAt = Number(state.routingRetryAt), now = Date.now();
+  const waiting = retryAt > now && retryAt <= now + ROUTING_RETRY_MS;
   const routeSame = !route || waiting || JSON.stringify(state.routing || null) === JSON.stringify(route);
   if (same && routeSame) return state;
   try {
@@ -758,7 +761,7 @@ export async function reportDeviceInfo({ state, dir = userDataDir(), fetch, env 
     }
     const next = { ...state, deviceInfo: info };
     if (route && !unsupported) next.routing = route; else delete next.routing;
-    if (unsupported) next.routingRetryAt = Date.now() + 24 * 3600 * 1000; else delete next.routingRetryAt;
+    if (unsupported) next.routingRetryAt = Date.now() + ROUTING_RETRY_MS; else delete next.routingRetryAt;
     saveTeamState(next, dir);
     return next;
   } catch (e) {
