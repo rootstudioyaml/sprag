@@ -92,7 +92,7 @@
   .hero{padding:72px 0 0;display:flex;align-items:flex-end;justify-content:space-between;gap:24px 40px;flex-wrap:wrap}
   .eyebrow{font:500 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent2)}
   html[lang=ko] .eyebrow{font-family:var(--sans);letter-spacing:.02em;text-transform:none;font-size:12.5px}
-  h1{margin-top:16px;font-size:clamp(32px,5vw,50px);font-weight:600;letter-spacing:-.035em;line-height:1.1;max-width:18ch}
+  h1{margin-top:16px;font-size:clamp(30px,3.2vw,40px);font-weight:600;letter-spacing:-.035em;line-height:1.1;max-width:18ch}
   .lede{margin-top:16px;color:var(--dim);font-size:16px;max-width:52ch;text-wrap:balance}
   .chip{font:500 11px/1.4 var(--mono);color:var(--ok);padding:0 5px;border:1px solid color-mix(in oklab,var(--accent) 35%,transparent);border-radius:4px}
 
@@ -134,7 +134,7 @@
   @media(max-width:520px){.wrap{padding:0 16px}.hero{padding-top:48px}section.blk{padding-top:64px}}
   @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
     .doc{max-width:78ch;padding:56px 0 24px;counter-reset:sec}
-  .doc h1{margin-top:12px;font-size:clamp(28px,4.4vw,40px);max-width:none}
+  .doc h1{margin-top:12px;font-size:clamp(30px,3.2vw,40px);max-width:none}
   .doc .eff{margin-top:12px;font:500 12.5px/1.4 var(--mono);color:var(--faint)}
   html[lang=ko] .doc .eff{font-family:var(--sans)}
   .doc .lede{max-width:none}
@@ -156,7 +156,7 @@
 </style>
 <link rel="stylesheet" href="/assets/tokens.css" />
 
-<link rel="stylesheet" href="/assets/site-header.css?v=3" />
+<link rel="stylesheet" href="/assets/site-header.css?v=4" />
 </head>
 <body>
 <header class="site-hdr">
@@ -174,18 +174,24 @@
       <a class="hide-sm" href="/#routing" data-k="nav.routing">Routing</a>
       <a class="hide-sm" href="/#features" data-k="nav.features">Features</a>
       <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a class="hide-sm" href="/proof/" data-k="nav.proof">Proof lab</a>
       <a href="/license/" data-k="nav.license">License</a>
       <a class="hide-sm" href="/team/" data-k="nav.teams">Team console</a>
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
         <button data-lang="ko" aria-pressed="false">KO</button>
       </span>
+      <button class="theme-tg" type="button" aria-label="Light / dark theme" title="Light / dark theme">
+        <svg class="i-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z"/></svg>
+        <svg class="i-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+      </button>
       <a class="gh ic" href="https://github.com/rootstudioyaml/sprag" aria-label="GitHub" title="GitHub">
         <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
       </a>
       <a class="gh ic npmic" href="https://www.npmjs.com/package/sprag-cli" aria-label="npm" title="npm">
         <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="currentColor" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
       </a>
+      <a class="hdr-install" href="/#install" data-k="nav.install">Install</a>
     </nav>
   </div>
 </header>
@@ -262,9 +268,12 @@
 </main>
 
 <footer>
-  <div class="wrap">
+  <div class="wrap ft-row">
     <span>Apache-2.0</span>
-    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+    <span class="ft-links"><a href="/docs/" data-k="ft.docs">Docs</a><a href="https://github.com/rootstudioyaml/sprag" data-k="ft.github">GitHub</a><a href="https://www.npmjs.com/package/sprag-cli" data-k="ft.npm">npm</a><a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md" data-k="ft.bench">Benchmark</a></span>
+  </div>
+  <div class="wrap ft-row">
+    <span class="ft-links"><a href="/terms/" data-k="ft.terms">Terms</a><a href="/privacy/" data-k="ft.priv">Privacy</a><a href="/refund/" data-k="ft.refund">Refunds</a><a href="/docs/data/" data-k="ft.data">What Sprag sends</a></span>
   </div>
   <div class="wrap biz" hidden>
     <p><span data-k="bz.name">YAML Studio ((상호 비공개))</span> · <span data-k="bz.rep">Representative: 홍길동</span> · <span data-k="bz.brn">Business registration no. 000-00-00000</span> · <span data-k="bz.mo">Mail-order business registration 0000-00-0000</span> · <span data-k="bz.addr">(address withheld)</span> · <span data-k="bz.mail">Email: <a href="mailto:support@sprag.io">support@sprag.io</a></span></p>
@@ -275,6 +284,7 @@
 <script>
 /* Legal page: English is the markup, Korean lives in KO. Same language switch as the license page. */
 const KO = {
+ "nav.proof": "검증 Lab", "nav.install": "설치", "ft.docs": "문서", "ft.github": "GitHub", "ft.npm": "npm", "ft.bench": "벤치마크", "ft.terms": "이용약관", "ft.priv": "개인정보처리방침", "ft.refund": "환불정책", "ft.data": "Sprag가 보내는 데이터",
  "nav.how": "작동 방식",
  "nav.routing": "라우팅",
  "nav.features": "기능",

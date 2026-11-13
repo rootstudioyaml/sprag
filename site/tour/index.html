@@ -60,28 +60,21 @@
   ::selection{background:color-mix(in oklab,var(--accent) 40%,transparent)}
   .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
 
-  header{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:var(--bg);}
-  header .wrap{display:flex;align-items:center;justify-content:space-between;min-height:var(--bar-h)}
-  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
-  .brand svg{width:20px;height:20px;display:block}
-  header nav{display:flex;align-items:center;gap:2px;font-size:13px;font-weight:500;color:var(--dim)}
-  .navlink{padding:5px 10px;border-radius:var(--r)}
-  .navlink:hover{color:var(--ink)}
-  .lang{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;gap:2px;margin-left:12px}
-  .lang button{border:0;background:transparent;color:var(--faint);padding:3px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
-  .lang button:hover{color:var(--dim)}
-  .lang button[aria-pressed=true]{background:var(--ink);color:var(--base)}
-  @media(hover:none) and (pointer:coarse){.lang button{padding:8px 10px}}
 
   main{padding:56px 0 72px}
   .head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 32px;flex-wrap:wrap;margin-bottom:24px}
-  h1{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1.15}
+  h1{font-size:clamp(30px,3.2vw,40px);font-weight:600;letter-spacing:-.03em;line-height:1.15}
   .sub{color:var(--dim);font-size:15px;margin-top:8px;max-width:56ch}
   .site{font:500 13px/1 var(--mono);color:var(--accent2);border:1px solid var(--line2);border-radius:var(--r);padding:9px 12px;white-space:nowrap}
   .site:hover{border-color:var(--line3);color:var(--ink)}
   .player{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--rl);overflow:hidden;border:1px solid var(--line);background:var(--bg);box-shadow:none}
   .player video{display:block;width:100%;height:100%;object-fit:contain;background:var(--bg)}
 
+  .install-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;margin-top:16px;font-size:13.5px}
+  .install-row code{font:500 13px/1 var(--mono);color:var(--ink);border:1px solid var(--line2);padding:9px 12px}
+  .install-row .cp{font:500 11.5px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line2);background:transparent;color:var(--dim);padding:9px 12px}
+  .install-row .cp:hover{color:var(--ink);border-color:var(--line3)}
+  .install-row a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
   footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--faint);font-size:12.5px}
   footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
   footer a:hover{color:var(--ink)}
@@ -90,12 +83,13 @@
   footer .biz p+p{margin-top:4px}
   footer .biz a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line3)}
   footer .biz a.strong{font-weight:700;color:var(--dim)}
-  @media(max-width:520px){.wrap{padding:0 16px}main{padding:32px 0 48px}h1{font-size:26px}.sub{font-size:14px}}
+  @media(max-width:520px){.wrap{padding:0 16px}main{padding:32px 0 48px}h1{font-size:clamp(30px,3.2vw,40px)}.sub{font-size:14px}}
 </style>
 <link rel="stylesheet" href="/assets/tokens.css" />
+<link rel="stylesheet" href="/assets/site-header.css?v=4" />
 </head>
 <body>
-<header>
+<header class="site-hdr">
   <div class="wrap">
     <a class="brand" href="/">
       <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -106,11 +100,28 @@
       Sprag
     </a>
     <nav>
-      <a class="navlink" href="/proof/" data-k="nav.proof">Proof lab</a>
+      <a class="hide-sm" href="/#how" data-k="nav.how">How it works</a>
+      <a class="hide-sm" href="/#routing" data-k="nav.routing">Routing</a>
+      <a class="hide-sm" href="/#features" data-k="nav.features">Features</a>
+      <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a class="hide-sm" href="/proof/" data-k="nav.proof">Proof lab</a>
+      <a href="/license/" data-k="nav.license">License</a>
+      <a class="hide-sm" href="/team/" data-k="nav.teams">Team console</a>
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
         <button data-lang="ko" aria-pressed="false">KO</button>
       </span>
+      <button class="theme-tg" type="button" aria-label="Light / dark theme" title="Light / dark theme">
+        <svg class="i-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z"/></svg>
+        <svg class="i-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+      </button>
+      <a class="gh ic" href="https://github.com/rootstudioyaml/sprag" aria-label="GitHub" title="GitHub">
+        <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+      <a class="gh ic npmic" href="https://www.npmjs.com/package/sprag-cli" aria-label="npm" title="npm">
+        <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="currentColor" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
+      </a>
+      <a class="hdr-install" href="/#install" data-k="nav.install">Install</a>
     </nav>
   </div>
 </header>
@@ -125,15 +136,24 @@
     <a class="site" href="https://sprag.io/">sprag.io</a>
   </div>
   <div class="player">
-    <video id="tour" controls playsinline preload="metadata" poster="poster-en.jpg" src="sprag-tour-en.mp4"></video>
+    <video id="tour" controls playsinline preload="metadata"></video>
+  </div>
+  <div class="install-row">
+    <code>npm i -g sprag-cli</code>
+    <button type="button" class="cp" data-cp="npm i -g sprag-cli" data-k="t.copy">Copy</button>
+    <a href="/#install" data-k="t.guide">Install guide</a>
+    <a href="/license/" data-k="t.team">See team features</a>
   </div>
 </div>
 </main>
 
 <footer>
-  <div class="wrap">
+  <div class="wrap ft-row">
     <span>Apache-2.0</span>
-    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/team/">Teams</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+    <span class="ft-links"><a href="/docs/" data-k="ft.docs">Docs</a><a href="https://github.com/rootstudioyaml/sprag" data-k="ft.github">GitHub</a><a href="https://www.npmjs.com/package/sprag-cli" data-k="ft.npm">npm</a><a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md" data-k="ft.bench">Benchmark</a></span>
+  </div>
+  <div class="wrap ft-row">
+    <span class="ft-links"><a href="/terms/" data-k="ft.terms">Terms</a><a href="/privacy/" data-k="ft.priv">Privacy</a><a href="/refund/" data-k="ft.refund">Refunds</a><a href="/docs/data/" data-k="ft.data">What Sprag sends</a></span>
   </div>
   <div class="wrap biz" hidden>
     <p><span data-k="bz.name">YAML Studio ((상호 비공개))</span> · <span data-k="bz.rep">Representative: 홍길동</span> · <span data-k="bz.brn">Business registration no. 000-00-00000</span> · <span data-k="bz.mo">Mail-order business registration 0000-00-0000</span> · <span data-k="bz.addr">(address withheld)</span> · <span data-k="bz.mail">Email: <a href="mailto:support@sprag.io">support@sprag.io</a></span></p>
@@ -143,6 +163,8 @@
 
 <script>
 const KO = {
+ 'nav.how': '작동 방식', 'nav.routing': '라우팅', 'nav.features': '기능', 'nav.docs': '문서', 'nav.license': '라이선스', 'nav.teams': '팀 콘솔',
+ 'nav.proof': '검증 Lab', 'nav.install': '설치', 'ft.docs': '문서', 'ft.github': 'GitHub', 'ft.npm': 'npm', 'ft.bench': '벤치마크', 'ft.terms': '이용약관', 'ft.priv': '개인정보처리방침', 'ft.refund': '환불정책', 'ft.data': 'Sprag가 보내는 데이터',
  'bz.name': "상호 (상호 비공개) (브랜드 YAML Studio)",
  'bz.rep': "대표 홍길동",
  'bz.brn': "사업자등록번호 000-00-00000",
@@ -154,7 +176,10 @@ const KO = {
  'bz.refund': "환불정책",
  'bz.verify': "사업자정보확인",
  'nav.proof': '검증 Lab', 't.h': 'Sprag 둘러보기', 't.sub': '타운 전체에서 한 사람의 카드까지, Sprag 팀 대시보드를 90초 동안 둘러봅니다.' };
-const EN = { 'nav.proof': 'Proof lab', 't.h': 'Sprag tour', 't.sub': document.querySelector('[data-k="t.sub"]').textContent };
+const EN = { 'nav.proof': 'Proof lab', 't.h': 'Sprag tour', 't.sub': document.querySelector('[data-k="t.sub"]').textContent, 't.copied': 'Copied' };
+document.querySelectorAll('header [data-k], footer [data-k], .install-row [data-k]').forEach(el => { if(!(el.dataset.k in EN)) EN[el.dataset.k] = el.innerHTML; });
+Object.assign(KO, { 't.copy': '복사', 't.copied': '복사됨', 't.guide': '설치 안내', 't.team': '팀 기능 보기' });
+document.querySelector('.cp').addEventListener('click', e => { const b = e.currentTarget; try{ navigator.clipboard.writeText(b.dataset.cp); }catch(x){} const d = () => (lang === 'ko' ? KO : EN); b.textContent = d()['t.copied']; setTimeout(() => { b.innerHTML = d()['t.copy']; }, 1500); });
 document.querySelectorAll('[data-k^="bz."]').forEach(el => { EN[el.dataset.k] = el.innerHTML; });
 const META = {
   en: { title: 'Sprag tour', desc: document.querySelector('meta[name=description]').content },
@@ -166,6 +191,7 @@ function syncVideo(){
   const v = document.getElementById('tour'), src = 'sprag-tour-' + lang + '.mp4';
   if(v.getAttribute('src') === src) return;
   const at = v.currentTime || 0, playing = !v.paused && !v.ended;
+  /* no src in the markup: the file is chosen here, once per language, so a KO visitor never starts the EN download */
   v.poster = 'poster-' + lang + '.jpg'; v.setAttribute('src', src); v.load();
   if(at > 0) v.addEventListener('loadedmetadata', () => { v.currentTime = Math.min(at, v.duration || at); if(playing) v.play().catch(() => {}); }, { once: true });
 }

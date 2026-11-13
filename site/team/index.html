@@ -113,6 +113,9 @@
   @media(prefers-reduced-motion:reduce){.loading::before{animation:none}*{transition:none!important}}
 
   /* auth */
+  .auth-foot{max-width:400px;margin:16px auto 0;text-align:center;font-size:13px;color:var(--dim)}
+  .auth-foot a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;margin-left:6px}
+  #auth[hidden] ~ #auth-foot{display:none}
   .auth{max-width:400px;margin:clamp(24px,10vh,96px) auto 0;padding:24px}
   .auth h2{font-size:17px;letter-spacing:-.015em}
   .auth form{margin-top:var(--s4);display:grid;gap:var(--s3)}
@@ -479,7 +482,7 @@
   .stat span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 </style>
 <link rel="stylesheet" href="/assets/tokens.css" />
-<link rel="stylesheet" href="/assets/site-header.css" />
+<link rel="stylesheet" href="/assets/site-header.css?v=4" />
 </head>
 <body>
 <header class="app-hdr">
@@ -523,31 +526,37 @@
 <!-- signed out: the same header as the rest of the site -->
 <header class="site-hdr">
   <div class="wrap">
-    <a class="brand" href="/" aria-label="Sprag">
+    <a class="brand" href="/">
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <path fill="currentColor" fill-rule="evenodd" d="M3 32a29 29 0 1 0 58 0a29 29 0 1 0 -58 0ZM9 32a23 23 0 1 0 46 0a23 23 0 1 0 -46 0ZM21.5 32a10.5 10.5 0 1 0 21 0a10.5 10.5 0 1 0 -21 0ZM25.5 32a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0Z"/>
         <path fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round" d="M25.54 13.8L32.46 9.8L38.46 20.2L31.54 24.2ZM50.99 35.5L50.99 43.5L38.99 43.5L38.99 35.5ZM19.47 46.7L12.55 42.7L18.55 32.3L25.47 36.3Z"/>
         <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12.74 24.99A20.5 20.5 0 0 1 24.99 12.74M47.7 18.82A20.5 20.5 0 0 1 52.19 35.56M35.56 52.19A20.5 20.5 0 0 1 18.82 47.7"/>
       </svg>
-      <span class="bn">Sprag</span>
+      Sprag
     </a>
     <nav>
       <a class="hide-sm" href="/#how" data-k="nav.how">How it works</a>
       <a class="hide-sm" href="/#routing" data-k="nav.routing">Routing</a>
       <a class="hide-sm" href="/#features" data-k="nav.features">Features</a>
       <a class="hide-sm" href="/docs/" data-k="nav.docs">Docs</a>
+      <a class="hide-sm" href="/proof/" data-k="nav.proof">Proof lab</a>
       <a href="/license/" data-k="nav.license">License</a>
       <a class="hide-sm" href="/team/" aria-current="page" data-k="nav.teams">Team console</a>
       <span class="lang" role="group" aria-label="Language">
         <button data-lang="en" aria-pressed="true">EN</button>
         <button data-lang="ko" aria-pressed="false">KO</button>
       </span>
+      <button class="theme-tg" type="button" aria-label="Light / dark theme" title="Light / dark theme">
+        <svg class="i-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z"/></svg>
+        <svg class="i-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+      </button>
       <a class="gh ic" href="https://github.com/rootstudioyaml/sprag" aria-label="GitHub" title="GitHub">
         <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
       </a>
       <a class="gh ic npmic" href="https://www.npmjs.com/package/sprag-cli" aria-label="npm" title="npm">
         <svg viewBox="0 0 18 7" width="26" height="10" aria-hidden="true"><path fill="currentColor" d="M0 0h18v6H9v1H5V6H0Zm1 5h2V2h1v3h1V1H1Zm5-4v5h2V5h2V1Zm2 1h1v2H8Zm3-1v4h2V2h1v3h1V2h1v3h1V1Z"/></svg>
       </a>
+      <a class="hdr-install" href="/#install" data-k="nav.install">Install</a>
     </nav>
   </div>
 </header>
@@ -581,6 +590,7 @@
     <p class="err" id="auth-err" role="alert"></p>
     <p class="note" data-k="si.note">This console is for owners and admins. To start a new organization, write to <a href="mailto:support@sprag.io">support@sprag.io</a>. An email registered as an owner or admin signs in here with an email code and an authenticator app (Google Authenticator or any app that makes 6-digit codes).<br>Members never sign in. They get the team invite token from an owner or admin, then run <code>sprag team join &lt;token&gt;</code> or set <code>SPRAG_TEAM_TOKEN</code>.</p>
   </section>
+  <p class="auth-foot" id="auth-foot"><span data-k="si.foot">No team yet?</span> <a href="/license/" data-k="si.foot.link">See team features</a></p>
 
   <!-- signed in -->
   <div id="app" hidden>
@@ -775,9 +785,12 @@
 </main>
 
 <footer>
-  <div class="wrap">
+  <div class="wrap ft-row">
     <span>Apache-2.0</span>
-    <span><a href="/">Sprag</a> · <a href="/docs/">Docs</a> · <a href="/license/">License</a> · <a href="https://github.com/rootstudioyaml/sprag">GitHub</a></span>
+    <span class="ft-links"><a href="/docs/" data-k="ft.docs">Docs</a><a href="https://github.com/rootstudioyaml/sprag" data-k="ft.github">GitHub</a><a href="https://www.npmjs.com/package/sprag-cli" data-k="ft.npm">npm</a><a href="https://github.com/rootstudioyaml/sprag/blob/main/docs/BENCHMARK.md" data-k="ft.bench">Benchmark</a></span>
+  </div>
+  <div class="wrap ft-row">
+    <span class="ft-links"><a href="/terms/" data-k="ft.terms">Terms</a><a href="/privacy/" data-k="ft.priv">Privacy</a><a href="/refund/" data-k="ft.refund">Refunds</a><a href="/docs/data/" data-k="ft.data">What Sprag sends</a></span>
   </div>
   <div class="wrap biz" hidden>
     <p><span data-k="bz.name">YAML Studio ((상호 비공개))</span> · <span data-k="bz.rep">Representative: 홍길동</span> · <span data-k="bz.brn">Business registration no. 000-00-00000</span> · <span data-k="bz.mo">Mail-order business registration 0000-00-0000</span> · <span data-k="bz.addr">(address withheld)</span> · <span data-k="bz.mail">Email: <a href="mailto:support@sprag.io">support@sprag.io</a></span></p>
@@ -864,7 +877,7 @@ const I18N = {
     "sr.tip.removed":"An owner, admin or the superuser removed this machine.",
     "sr.tip.switch.on":"Uploads allowed",
     "sr.tip.switch.off":"Uploads switched off by the member",
-    'nav.docs':'Docs','nav.pricing':'Pricing','nav.how':'How it works','nav.routing':'Routing','nav.features':'Features','nav.license':'License','nav.teams':'Team console',
+    'nav.docs':'Docs','nav.proof':'Proof lab','nav.install':'Install','ft.docs':'Docs','ft.github':'GitHub','ft.npm':'npm','ft.bench':'Benchmark','ft.terms':'Terms','ft.priv':'Privacy','ft.refund':'Refunds','ft.data':'What Sprag sends','si.foot':'No team yet?','si.foot.link':'See team features','nav.pricing':'Pricing','nav.how':'How it works','nav.routing':'Routing','nav.features':'Features','nav.license':'License','nav.teams':'Team console',
     'demo.bar':'This is a demo, so nothing you change here is saved. Feel free to try anything.',
     'si.h':'Sign in','si.email':'Email','si.send':'Send code','si.code':'6-digit code','si.verify':'Verify','si.back':'Use a different email',
     'si.sent':'We sent a code to {email}.','si.captcha':'The security check has not finished yet. Wait a moment and press Send code again.','si.ratelimit':'Too many sign-in attempts from this network. Wait 5 minutes and try again. An office that shares one address counts together.','si.toosoon':'A code went to this address moments ago. Wait {s} seconds and request again. Only the newest code works.','si.codebad':'That code is not valid any more. A code lasts 30 minutes and requesting a new one cancels the old one, so enter the code from the newest mail or request another.','si.sendfail':'The mail could not be sent right now. Wait a minute and request the code again.','si.mailrate':'The hourly mail quota is used up. Try again in an hour or write to support@sprag.io.','si.captchafail':'The security check did not pass. Reload the page and try again.','si.mailnote':'Company mail servers sometimes hold the first mail from a new sender for a few minutes. The code lasts 30 minutes. Requesting a new code cancels the previous one, so use the newest mail.',
@@ -974,7 +987,7 @@ const I18N = {
     "sr.tip.removed":"오너, 어드민 또는 슈퍼유저가 이 컴퓨터를 제거했습니다.",
     "sr.tip.switch.on":"업로드 허용",
     "sr.tip.switch.off":"멤버가 업로드를 끈 상태",
-    'nav.docs':'문서','nav.pricing':'요금','nav.how':'작동 방식','nav.routing':'라우팅','nav.features':'기능','nav.license':'라이선스','nav.teams':'팀 콘솔',
+    'nav.docs':'문서','nav.proof':'검증 Lab','nav.install':'설치','ft.docs':'문서','ft.github':'GitHub','ft.npm':'npm','ft.bench':'벤치마크','ft.terms':'이용약관','ft.priv':'개인정보처리방침','ft.refund':'환불정책','ft.data':'Sprag가 보내는 데이터','si.foot':'아직 조직이 없다면','si.foot.link':'팀 기능 보기','nav.pricing':'요금','nav.how':'작동 방식','nav.routing':'라우팅','nav.features':'기능','nav.license':'라이선스','nav.teams':'팀 콘솔',
     'demo.bar':'데모에서는 실제 데이터가 저장되지 않습니다. 편하게 테스트해 보시면 됩니다.',
     'si.h':'로그인','si.email':'이메일','si.send':'코드 보내기','si.code':'6자리 코드','si.verify':'확인','si.back':'다른 이메일 사용',
     'si.sent':'{email}로 코드를 보냈습니다.','si.captcha':'보안 확인이 아직 끝나지 않았습니다. 잠시 뒤 다시 눌러 주세요.','si.ratelimit':'이 네트워크에서 로그인 시도가 너무 많습니다. 5분 뒤 다시 해 주세요. 한 사무실에서 주소 하나를 같이 쓰면 함께 집계됩니다.','si.toosoon':'이 주소로 방금 코드를 보냈습니다. {s}초 뒤에 다시 요청해 주세요. 가장 최근 코드만 유효합니다.','si.codebad':'이 코드는 더 이상 유효하지 않습니다. 코드는 30분 동안 쓸 수 있고 새로 요청하면 이전 코드는 무효가 되니 가장 최근 메일의 코드를 넣거나 새로 요청해 주세요.','si.sendfail':'지금은 메일을 보내지 못했습니다. 1분 뒤 코드를 다시 요청해 주세요.','si.mailrate':'이번 시간의 메일 발송 한도를 다 썼습니다. 한 시간 뒤 다시 하거나 support@sprag.io 로 알려 주세요.','si.captchafail':'보안 확인을 통과하지 못했습니다. 페이지를 새로 고친 뒤 다시 해 주세요.','si.mailnote':'회사 메일 서버는 처음 받는 발신자의 메일을 몇 분 붙잡아 두기도 합니다. 코드는 30분 동안 유효합니다. 새로 요청하면 이전 코드는 무효가 되니 가장 최근 메일의 코드를 쓰세요.',

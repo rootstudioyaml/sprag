@@ -39,23 +39,24 @@ header.site-hdr .theme-tg:hover{border-color:var(--hdr-hover,#3a3d47);color:var(
 header.site-hdr .theme-tg svg{width:16px;height:16px;display:block}
 header.site-hdr .theme-tg .i-moon,:root[data-theme=dark] header.site-hdr .theme-tg .i-sun{display:none}
 :root[data-theme=dark] header.site-hdr .theme-tg .i-moon{display:block}
-/* Phones: the nav drops to its own row and scrolls sideways, so every link stays reachable. */
+/* Install button: phones only (the home page carries its own install section on desktop) */
+header.site-hdr nav > a.hdr-install{display:none}
+/* Phones: one row. Of the text links only Docs stays; the rest live in the footer and on the home page. */
 @media(max-width:720px){
-  header.site-hdr .wrap{height:auto;flex-wrap:wrap;row-gap:0;padding-top:8px}
-  header.site-hdr nav{order:2;width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
-    padding:6px 0 8px;white-space:nowrap}
-  header.site-hdr nav::-webkit-scrollbar{display:none}
-  /* the row scrolls sideways: language and theme lead it so they are always in view, and a solid chevron
-     pinned to the right edge says there is more (no fade: the site uses no gradients) */
-  header.site-hdr nav .lang,header.site-hdr nav .theme-tg{order:-1}
-  header.site-hdr nav .theme-tg{margin-right:10px}
-  header.site-hdr nav::after{content:"\203A";position:sticky;right:0;flex:0 0 auto;margin-left:auto;padding:0 2px 0 10px;
-    background:var(--hdr-bg,var(--base));color:var(--hdr-faint,var(--faint));font-size:16px;line-height:1}
-  header.site-hdr nav > *{flex:0 0 auto}
-  header.site-hdr nav .hide-sm{display:inline-block}
-  header.site-hdr nav > a:first-child{padding-left:0}
+  header.site-hdr .wrap{height:56px;padding:0 16px;gap:8px;flex-wrap:nowrap}
+  header.site-hdr nav{gap:0;min-width:0;flex:0 1 auto}
+  header.site-hdr nav > a:not([href^="/docs/"]):not(.hdr-install){display:none}
+  header.site-hdr nav > a[href^="/docs/"]{display:inline-block;padding:5px 8px}
+  header.site-hdr nav .lang{margin-left:6px}
+  header.site-hdr nav .theme-tg{margin-left:8px}
+  header.site-hdr nav > a.hdr-install{display:inline-flex;align-items:center;margin-left:8px;height:30px;padding:0 10px;
+    border:1px solid var(--hdr-ink,#f7f8f8);color:var(--hdr-ink,#f7f8f8);white-space:nowrap;
+    font-family:var(--font-mono,"JetBrains Mono",monospace);font-size:11.5px}
 }
-@media(max-width:480px){header.site-hdr .wrap{padding:0 16px}header.site-hdr nav > a.gh{margin-left:8px}}
+@media(max-width:360px){header.site-hdr nav > a[href^="/docs/"]{padding:5px 4px}header.site-hdr .lang button,header.site-hdr .lang a{padding:5px 7px}}
+/* One footer for every public page: two rows of links spaced by gap, no separator characters */
+footer .ft-links{display:flex;flex-wrap:wrap;gap:6px 20px}
+footer .ft-row+.ft-row{margin-top:10px}
 @media(hover:none) and (pointer:coarse){
   header.site-hdr nav > a.gh{width:40px;height:40px}
   header.site-hdr nav > a.gh.npmic{width:50px}

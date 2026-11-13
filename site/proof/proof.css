@@ -23,7 +23,7 @@ button{font-family:inherit;font-size:inherit;cursor:pointer;color:inherit}
 .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
 main{padding:48px 0 72px;overflow-x:clip}
 section{margin-top:48px}
-h1{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1.15}
+h1{font-size:clamp(30px,3.2vw,40px);font-weight:600;letter-spacing:-.03em;line-height:1.15}
 h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
 .eyebrow{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);margin-bottom:14px}
 .lede{color:var(--ink);font-size:15.5px;margin-top:14px;text-wrap:pretty}
@@ -159,7 +159,10 @@ h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
 .bk th{color:var(--dim);font-weight:500;font-size:12px}
 .bk .num{text-align:right;font-family:var(--mono)}
 .bk td.num{color:var(--ink)}
-@media(max-width:600px){.lv-grid.lv-3{grid-template-columns:1fr}.bk{display:block;overflow-x:auto}}
+@media(max-width:600px){.lv-grid.lv-3{grid-template-columns:1fr}}
+.scroll-hint{display:none}
+.kor-orig{font:400 11px/1.2 var(--mono);color:var(--faint);white-space:nowrap}
+@media(max-width:720px){.bk{display:block;overflow-x:auto}.scroll-hint{display:block;margin-top:14px;font:500 11px/1.2 var(--mono);letter-spacing:.06em;color:var(--faint)}.scroll-hint+.bk{margin-top:6px}}
 
 /* section head and legend */
 .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px 24px;flex-wrap:wrap}
@@ -320,7 +323,7 @@ footer a:hover{color:var(--ink)}
   .diagram{display:none}
 }
 @media(max-width:720px){
-  h1{font-size:26px}
+  h1{font-size:clamp(30px,3.2vw,40px)}
   .wrap{padding:0 16px}
   main{padding-top:32px}
   .kase{padding:14px}
@@ -338,3 +341,4 @@ footer a:hover{color:var(--ink)}
   .dg-tip{transform:translateY(-50%)}
   .dg-tip.left{transform:translate(-100%,-50%)}
 }
+.rep pre .kor-orig,pre>.kor-orig{display:block;margin-top:8px}

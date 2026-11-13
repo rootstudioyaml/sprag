@@ -22,7 +22,7 @@
   var STR = {
     en: {
       'p.eyebrow': 'Proof lab',
-      'p.h1': 'The main session itself, or handed off by sprag',
+      'p.h1': 'Proof lab', 'scroll.hint': 'Scroll sideways', 'korean.orig': '(Korean original)', 'nav.install': 'Install', 'ft.docs': 'Docs', 'ft.github': 'GitHub', 'ft.npm': 'npm', 'ft.bench': 'Benchmark', 'ft.terms': 'Terms', 'ft.priv': 'Privacy', 'ft.refund': 'Refunds', 'ft.data': 'What Sprag sends',
       'p.h1n': function (o) { return 'The main session itself: ' + o.a + '. Handed off by sprag: ' + o.b + '. ' + (o.fa === 0 && o.fb === 0 ? 'Wrong answers: none either way.' : 'Wrong answers: ' + o.fa + ' vs ' + o.fb + '.'); },
       lede: function (n) { return 'Doing everything in the main session is the default, and you can keep doing that. "Without sprag" in this lab is exactly that: the same ' + n + ' requests done by the main session (Opus) itself and handed to subagents by sprag, graded without knowing which was which. For lookups and runs, where the answer sits in the code or a command output, the main session re-reads its whole context on every tool call, so it costs more and the context fills up. Handed off, the main context stays light.'; },
       'hero.fit': 'sprag picks the model and effort each job needs. Work whose answer shows in tool output goes down to a cheaper model; work that ends in a judgement goes up to Opus.',
@@ -147,7 +147,7 @@
     },
     ko: {
       'p.eyebrow': '검증 Lab',
-      'p.h1': '메인이 직접 할 때와 sprag가 넘길 때',
+      'p.h1': '검증 Lab', 'scroll.hint': '← 옆으로 밀어 보기', 'korean.orig': '(Korean original)', 'nav.install': '설치', 'ft.docs': '문서', 'ft.github': 'GitHub', 'ft.npm': 'npm', 'ft.bench': '벤치마크', 'ft.terms': '이용약관', 'ft.priv': '개인정보처리방침', 'ft.refund': '환불정책', 'ft.data': 'Sprag가 보내는 데이터',
       'p.h1n': function (o) { return '메인이 직접 하면 ' + o.a + ', sprag가 넘기면 ' + o.b + '. ' + (o.fa === 0 && o.fb === 0 ? '오답은 둘 다 0' : '오답은 ' + o.fa + '건 대 ' + o.fb + '건'); },
       lede: function (n) { return '메인 세션에서 전부 직접 하는 게 기본값이고 그래도 됩니다. 이 Lab의 "sprag 없이"가 바로 그 방식이라서, 같은 요청 ' + n + '건을 메인인 Opus가 직접 한 실행과 sprag가 서브에이전트로 넘긴 실행을 가린 채 채점해 비교했습니다. 조회나 실행처럼 답이 코드와 명령 출력에서 나오는 일은 메인이 직접 하면 도구 호출마다 문맥 전체를 다시 읽어 비싸고 문맥도 그만큼 찹니다. 넘기면 메인 문맥은 가볍게 남습니다.'; },
       'hero.fit': 'sprag는 일마다 맞는 모델과 effort를 고릅니다. 도구 출력으로 확인되는 일은 싼 모델로 내리고 판단이 결론인 일은 Opus로 올립니다.',
@@ -281,6 +281,17 @@
   function t(key) { var v = STR[lang][key]; return v === undefined ? STR.en[key] : v; }
   function L(obj) { return obj && (obj[lang] || obj.en || obj.ko) || ''; }
 
+  /* the case notes in data.json are Korean only: in EN mode they stay as written and carry a small label */
+  function korStr(node, s) {
+    if (lang === 'en' && /[가-힣]/.test(s || '')) node.appendChild(el('span', { class: 'kor-orig', text: ' ' + t('korean.orig') }));
+    return node;
+  }
+  function kor(node, obj) {
+    var s = L(obj);
+    if (lang === 'en' && /[가-힣]/.test(s)) node.appendChild(el('span', { class: 'kor-orig', text: ' ' + t('korean.orig') }));
+    return node;
+  }
+
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);
     if (attrs) Object.keys(attrs).forEach(function (k) {
@@ -363,7 +374,7 @@
     $('fit').textContent = t('hero.fit');
     $('lede2').textContent = t('lede2');
     cs0.forEach(function (c) { var a = policyRun(c, 'opus'), b = policyRun(c, 'sprag'); hA += a.usd; hB += b.usd; if (a.verdict === 'fail') fA++; if (b.verdict === 'fail') fB++; });
-    document.querySelector('h1[data-k="p.h1"]').textContent = t('p.h1n')({ a: usd(hA), b: usd(hB), fa: fA, fb: fB });
+    $('h1n').textContent = t('p.h1n')({ a: usd(hA), b: usd(hB), fa: fA, fb: fB });
     var pills = $('pills'); pills.textContent = '';
     t('pills').forEach(function (s) { pills.appendChild(el('li', { text: s })); });
     var box = $('policies'); box.textContent = '';
@@ -741,15 +752,15 @@
       el('span', { class: 'vl ' + run.verdict, text: t('v.' + run.verdict) }),
       el('span', { class: 'cost', text: costText })
     ]);
-    var miss = el('p', { class: 'miss' + (run.keyMiss ? '' : ' none') }, [el('small', { text: t('d.miss') }), document.createTextNode(' ' + (run.keyMiss || t('d.missNone')))]);
+    var miss = korStr(el('p', { class: 'miss' + (run.keyMiss ? '' : ' none') }, [el('small', { text: t('d.miss') }), document.createTextNode(' ' + (run.keyMiss || t('d.missNone')))]), run.keyMiss);
     var rep = el('details', { class: 'rep' }, [
       el('summary', { text: t('d.report')(run.score, run.max, tokens(run.tokens), run.toolCalls, secs(run.seconds)) }),
-      el('pre', { text: run.excerpt })
+      korStr(el('pre', { text: run.excerpt }), run.excerpt)
     ]);
     if (run.report && run.report.length > run.excerpt.length) {
       rep.appendChild(el('details', { class: 'full' }, [
         el('summary', { text: t('d.full') }),
-        el('pre', { text: run.report + (run.reportTruncated ? '\n\n' + t('d.trunc') : '') })
+        korStr(el('pre', { text: run.report + (run.reportTruncated ? '\n\n' + t('d.trunc') : '') }), run.report)
       ]));
     }
     return el('li', { class: 'su ' + run.verdict + (isRec ? ' is-rec' : ''), 'data-cond': cd.id }, [
@@ -787,8 +798,8 @@
   function renderDetail(c) {
     var box = el('div', { class: 'detail' });
     box.appendChild(el('dl', { class: 'facts' }, [
-      el('dt', { text: t('d.task') }), el('dd', { text: L(c.task) }),
-      el('dt', { text: t('d.truth') }), el('dd', { class: 'truth', text: L(c.truth) })
+      el('dt', { text: t('d.task') }), kor(el('dd', { text: L(c.task) }), c.task),
+      el('dt', { text: t('d.truth') }), kor(el('dd', { class: 'truth', text: L(c.truth) }), c.truth)
     ]));
     box.appendChild(el('ol', { class: 'setups' }, data.conditions.filter(function (cd) {
       return runOf(c, cd.id) || (c.lanes || []).indexOf(cd.id) >= 0;
@@ -801,7 +812,7 @@
         el('figcaption', { text: t('d.shot') })
       ]));
     }
-    box.appendChild(el('p', { class: 'lesson' }, [el('small', { text: t('d.lesson') }), document.createTextNode(' ' + L(c.lesson))]));
+    box.appendChild(kor(el('p', { class: 'lesson' }, [el('small', { text: t('d.lesson') }), document.createTextNode(' ' + L(c.lesson))]), c.lesson));
     return box;
   }
 
@@ -1290,6 +1301,15 @@
     b.addEventListener('click', function () { setLang(b.dataset.lang, true); });
   });
 
+  /* a caption above every table that scrolls sideways on phones (the CSS shows it at 720px and below) */
+  function addHints() {
+    document.querySelectorAll('table.bk').forEach(function (tb) {
+      var p = tb.previousElementSibling;
+      if (p && p.classList.contains('scroll-hint')) return;
+      tb.parentNode.insertBefore(el('p', { class: 'scroll-hint', 'data-k': 'scroll.hint', text: t('scroll.hint') }), tb);
+    });
+  }
+  new MutationObserver(addHints).observe(document.body, { childList: true, subtree: true });
   fetch('data.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
     data = d;
     renderAll();
