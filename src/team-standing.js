@@ -177,7 +177,7 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
       parts.push(ko ? `위임 비율 ${pct(st.dlg)}${rk ? ` (${rk}` : ''}${med}` : `delegation share ${pct(st.dlg)}${rk ? ` (${rk}` : ''}${med}`);
     }
     if (has(st.scorePct)) parts.push(ko ? `점수 백분위 ${pct(st.scorePct)}` : `score percentile ${pct(st.scorePct)}`);
-    lines.push(`  ${ko ? '이 컴퓨터' : 'This machine'}: ${parts.join(' · ')}`);
+    lines.push(`  ${ko ? '이 PC' : 'This machine'}: ${parts.join(' · ')}`);
   }
 
   // The next species up, as the office drawer says it. The percentile is the

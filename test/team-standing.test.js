@@ -31,7 +31,7 @@ test('the full block in Korean: rank and people ahead, formula, how to move, own
     '  앞에 2명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.',
     '  종합 점수는 기간 지출 순위 62.5%와 위임 비율 순위 37.5%를 더한 값입니다.',
     '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 같은 지출에서 싼 모델에 맡기는 몫을 늘려야 오릅니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
-    '  이 컴퓨터: 지출 $481.20 · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%',
+    '  이 PC: 지출 $481.20 · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%',
     '  다음 등급: 🐆 치타. 지금 백분위 75%, 2%p 더 오르면 됩니다 (2명 앞지르기).',
   ]);
   assert.equal(lines.length, 6 + GUIDE_LINES);
@@ -157,11 +157,11 @@ test('the standing line adds the rank within the team when the team is a strict 
 
 test('this machine line adds the rank on each axis when the server sent them', () => {
   const ranked = guided({ spendRank: 2, dlgRank: 5 });
-  assert.equal(standingGuideLines(ranked, { lang: 'ko' })[4], '  이 컴퓨터: 지출 $481.20 (2/12위) · 위임 비율 31% (5/12위, 회사 중앙값 28%) · 점수 백분위 75%');
+  assert.equal(standingGuideLines(ranked, { lang: 'ko' })[4], '  이 PC: 지출 $481.20 (2/12위) · 위임 비율 31% (5/12위, 회사 중앙값 28%) · 점수 백분위 75%');
   assert.equal(standingGuideLines(ranked, { lang: 'en' })[4], '  This machine: spent $481.20 (#2/12) · delegation share 31% (#5/12, company median 28%) · score percentile 75%');
   // Without the median, or with only one axis rank, the brackets stay balanced.
-  assert.equal(standingGuideLines(guided({ dlgRank: 5, medianDlg: null }), { lang: 'ko' })[4], '  이 컴퓨터: 지출 $481.20 · 위임 비율 31% (5/12위) · 점수 백분위 75%');
-  assert.equal(standingGuideLines(guided({ spendRank: 2 }), { lang: 'ko' })[4], '  이 컴퓨터: 지출 $481.20 (2/12위) · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%');
+  assert.equal(standingGuideLines(guided({ dlgRank: 5, medianDlg: null }), { lang: 'ko' })[4], '  이 PC: 지출 $481.20 · 위임 비율 31% (5/12위) · 점수 백분위 75%');
+  assert.equal(standingGuideLines(guided({ spendRank: 2 }), { lang: 'ko' })[4], '  이 PC: 지출 $481.20 (2/12위) · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%');
 });
 
 // Fewer than five ranked people: the office squeezes the percentile into [0.3, 0.7], so two people are the sheep and the husky.
