@@ -101,7 +101,7 @@
   <section class="card of-card" id="scene-card" hidden><div id="box"></div></section>
 </main>
 
-<script src="/assets/scene/office-i18n.js?v=3.123.2"></script>
+<script src="/assets/scene/office-i18n.js?v=3.124.0"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -248,7 +248,7 @@ function sceneData(){ return mod.memberTownData(view, { t, rel, os: osLabel, ran
 async function show(){
   if(!view) return;
   paintHead();
-  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.123.2'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
+  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.124.0'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
   $('msg').hidden = true; $('scene-card').hidden = false;
   const data = sceneData();
   if(ctl){ ctl.update(data); shown = lang; return; }
