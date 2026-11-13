@@ -355,3 +355,11 @@ test('C5: a begin marker with no end marker is left alone and reported as skippe
     assert.equal(r.brokenBlock, true);
   }
 });
+
+test('a settings.json saved with a UTF-8 BOM (Windows PowerShell) reads as ok', () => {
+  put('﻿{"theme":"dark"}');
+  assert.deepEqual(readSettings(SETTINGS), { state: 'ok', settings: { theme: 'dark' } });
+  // A BOM in front of broken JSON is still unusable.
+  put('﻿{"theme":');
+  assert.equal(readSettings(SETTINGS).state, 'unusable');
+});

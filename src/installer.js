@@ -21,6 +21,7 @@ import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { claudeUserDir, userDataDir } from './paths.js';
+import { parseJsonText } from './json-text.js';
 
 /**
  * The command every entry we write invokes.
@@ -135,7 +136,7 @@ export function readSettings(file) {
   }
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    parsed = parseJsonText(raw);
   } catch (e) {
     return { state: 'unusable', reason: `unreadable JSON (${e.message})` };
   }

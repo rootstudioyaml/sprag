@@ -24,6 +24,7 @@ import { execSync } from 'node:child_process';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { debug } from './debug.js';
+import { parseJsonText } from './json-text.js';
 
 export const HELPER_TIMEOUT_MS = 10000;
 
@@ -92,7 +93,7 @@ export function keyFromApiKeyHelper(cwd = process.cwd()) {
   for (const p of candidates) {
     let helper;
     try {
-      helper = JSON.parse(readFileSync(p, 'utf8'))?.apiKeyHelper;
+      helper = parseJsonText(readFileSync(p, 'utf8'))?.apiKeyHelper;
     } catch {
       continue;
     }
@@ -133,7 +134,7 @@ export function withClaudeSettingsEnv(env = process.env, { home = homedir() } = 
   if ((env.ANTHROPIC_BASE_URL || '').trim()) return env;
   let fromSettings;
   try {
-    fromSettings = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'))?.env;
+    fromSettings = parseJsonText(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'))?.env;
   } catch {
     return env;
   }

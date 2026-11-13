@@ -33,6 +33,7 @@ import { execFileSync } from 'node:child_process';
 import { debug } from './debug.js';
 import { writePrivateFile } from './private-file.js';
 import { isNewer } from './update-check.js';
+import { parseJsonText } from './json-text.js';
 
 // First Claude Code release that reads `modelSettings[<model>].autoCompactWindow`.
 // An older one ignores the entry, so a per-model `set` would silently do nothing.
@@ -44,7 +45,8 @@ export function claudeCodeVersion({ run = () => execFileSync('claude', ['--versi
     const m = String(run()).match(/(\d+\.\d+\.\d+)/);
     return m ? m[1] : null;
   } catch (e) {
-    debug('compact-window:claude-version', e);
+    // claude missing from a hook's PATH is normal there, not worth a log line.
+    if (e?.code !== 'ENOENT') debug('compact-window:claude-version', e);
     return null;
   }
 }
@@ -109,7 +111,7 @@ export function projectSettingsPaths(root) {
 function readJson(path) {
   try {
     if (!existsSync(path)) return null;
-    return JSON.parse(readFileSync(path, 'utf8'));
+    return parseJsonText(readFileSync(path, 'utf8'));
   } catch (e) {
     debug('compact-window:read', e);
     return null; // malformed settings — treat as "nothing configured"
@@ -343,7 +345,7 @@ export function setAutoCompactWindow({ root = process.cwd(), scope = 'global', v
   if (existsSync(path)) {
     const raw = readFileSync(path, 'utf8');
     try {
-      json = JSON.parse(raw);
+      json = parseJsonText(raw);
     } catch (e) {
       debug('compact-window:parse', e);
       // Refuse to overwrite a file we cannot parse — silently replacing a

@@ -361,7 +361,10 @@ export function npmRegistry({
       const m = line.match(/^registry\s*=\s*(.+)$/);
       if (m && unquote(m[1])) return unquote(m[1]);
     }
-  } catch (e) { debug('update-check:npmrc', e); }
+  } catch (e) {
+    // No ~/.npmrc is the common case, not a fault.
+    if (e?.code !== 'ENOENT') debug('update-check:npmrc', e);
+  }
   return 'https://registry.npmjs.org/';
 }
 

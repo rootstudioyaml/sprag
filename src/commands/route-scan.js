@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 import { readStdinJson } from '../stdin-payload.js';
 import { debug } from '../debug.js';
+import { parseJsonText } from '../json-text.js';
 import { routingEnabled } from '../routing-switch.js';
 import { signedUsd } from '../money.js';
 import { agentForRule, TIER_MODEL } from '../agents.js';
@@ -24,7 +25,7 @@ import { agentForRule, TIER_MODEL } from '../agents.js';
 function doc2mdHookRegistered() {
   try {
     const { homedir } = require('node:os');
-    const settings = JSON.parse(readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'));
+    const settings = parseJsonText(readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'));
     return Object.values(settings?.hooks || {}).some((matchers) =>
       (matchers || []).some((m) =>
         (m.hooks || []).some((h) => typeof h.command === 'string' && h.command.includes('doc2md --hook')),
