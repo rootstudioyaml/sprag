@@ -117,7 +117,16 @@ test('noteUnpriced: an unknown model logs tokens bucket and caller, without a kn
   assert.equal(sessionCost(totals, 'unknown', { env: ENV, now: NOW, at: NOW }), null);
   const entries = readDiag({ dir }).filter((e) => e.scope === 'price:unpriced');
   assert.equal(entries.length, 1);
-  assert.match(entries[0].msg, /^model=unknown tokens=<100k via=(\?|src\/\S+:\d+)/);
+  assert.match(entries[0].msg, /^model=unknown size=<100k via=(\?|src\/\S+:\d+)/);
   assert.ok(!entries[0].msg.includes('known='));
   assert.ok(!entries[0].msg.includes('reason='));
+});
+
+test('the unknown-model size bucket survives the secret masker for every bucket', async () => {
+  // `tokens=0` and `tokens=100k+` read as KEY=value secrets and were uploaded as [redacted].
+  const { sanitizeDiag } = await import('../src/diag-log.js');
+  for (const b of ['0', '<1k', '<100k', '100k+']) {
+    const msg = `model=unknown size=${b} via=src/month-spend.js:52`;
+    assert.equal(sanitizeDiag(msg), msg);
+  }
 });

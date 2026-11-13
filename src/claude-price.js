@@ -49,7 +49,7 @@ function noteUnpriced(model, env, now, at, totals) {
     if (isUnknownModel(model)) {
       const t = totals || {};
       const sum = (t.input || 0) + (t.cacheCreation || 0) + (t.cacheRead || 0) + (t.output || 0);
-      recordDiag('price:unpriced', new Error(`model=unknown tokens=${tokenBucket(sum)} via=${callerFrame(new Error().stack)}`), { env });
+      recordDiag('price:unpriced', new Error(`model=unknown size=${tokenBucket(sum)} via=${callerFrame(new Error().stack)}`), { env });
       return;
     }
     const { reason, keys } = gatewayPriceMiss(model, env, now, at);
