@@ -381,6 +381,26 @@ const README_TARGETS = [
 ];
 
 /**
+ * Totals for the home page banner: replayed cases plus the bulk set, Opus-direct cost against the
+ * recommended condition's cost, and how many recommended runs failed. Mirrors what the banner script
+ * on site/index.html used to compute from data.json in the browser.
+ */
+export function buildBanner(siteData) {
+  let n = 0, opusUsd = 0, pickUsd = 0, fail = 0;
+  for (const c of siteData.cases) {
+    const o = c.runs.find((r) => r.condition === 'opus-direct');
+    const s = c.runs.find((r) => r.condition === c.recommended);
+    n++;
+    if (!o || !s) continue;
+    opusUsd += o.usd; pickUsd += s.usd; if (s.verdict === 'fail') fail++;
+  }
+  const bt = siteData.bulk && siteData.bulk.totals;
+  if (bt && bt.n) { n += bt.n; opusUsd += bt.opusUsd; pickUsd += bt.pickUsd; fail += bt.fail; }
+  const round = (v) => Math.round(v * 100) / 100;
+  return { n, opusUsd: round(opusUsd), pickUsd: round(pickUsd), pct: opusUsd > 0 ? Math.round(pickUsd / opusUsd * 100) : 0, fail };
+}
+
+/**
  * Compute every generated file in memory.
  * Returns { files: Map<absolute path, content>, summary }.
  */
@@ -402,6 +422,8 @@ export function generate({ repoRoot = DEFAULT_REPO_ROOT, evalsDir = join(repoRoo
   const bulkNotesPath = join(evalsDir, 'bulk-notes.json');
   if (siteData.bulk && existsSync(bulkNotesPath)) siteData.bulk.notes = readJson(bulkNotesPath);
   files.set(join(repoRoot, 'site', 'proof', 'data.json'), serializeSite(siteData));
+  // The home page banner needs five totals, not the whole 480 KB data.json.
+  files.set(join(repoRoot, 'site', 'proof', 'banner.json'), serializePretty(buildBanner(siteData)));
   files.set(join(evalsDir, 'summary.json'), serializePretty(summary));
   files.set(join(evalsDir, 'SUMMARY.md'), buildSummaryMd(summary, corpus.conditions));
 
