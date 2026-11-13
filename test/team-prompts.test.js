@@ -5,15 +5,16 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readFileSync, truncateSync, renameSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readFileSync, truncateSync, renameSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   redactSecrets, claudePromptFromLine, codexPromptFromLine, uploadPrompts, pendingPrompts, loadOffsets,
-  promptOffsetsPath, MAX_CHUNK_PROMPTS,
+  promptOffsetsPath, MAX_CHUNK_PROMPTS, projectAlias, aliasKeyPath,
 } from '../src/team-prompts.js';
 import { syncTeam, saveTeamState, loadTeamState, deviceInfo } from '../src/team-sync.js';
 import { userDataDir } from '../src/paths.js';
+import { redactUpload, redactPaths, maskUrls } from '../src/redact.js';
 
 const ENV_KEYS = ['XDG_CONFIG_HOME', 'HOME', 'USERPROFILE', 'APPDATA', 'CODEX_HOME', 'SPRAG_NO_TEAM_SYNC', 'CTS_NO_TEAM_SYNC', 'SPRAG_TEAM_TOKEN'];
 
@@ -246,7 +247,7 @@ test('codex sessions: project from session_meta, one prompt per turn, subagent s
   assert.equal(r.uploaded, 2);
   assert.equal(put.calls.length, 1);
   assert.equal(put.calls[0].source, 'codex');
-  assert.deepEqual(put.calls[0].prompts.map((p) => [p.project, p.text]), [['cx-proj', 'ask codex'], ['cx-proj', 'second ask']]);
+  assert.deepEqual(put.calls[0].prompts.map((p) => [p.project, p.text]), [[projectAlias('cx-proj', { dir: sb.dir }), 'ask codex'], [projectAlias('cx-proj', { dir: sb.dir }), 'second ask']]);
 });
 
 // -- caps --------------------------------------------------------------------
@@ -304,7 +305,8 @@ test('pendingPrompts counts and shows one example cut to 80 characters', async (
   const p = await pendingPrompts({ dir: sb.dir, claudeDir: sb.claudeDir, codexDir: sb.codexDir });
   assert.equal(p.count, 2);
   assert.equal(p.example.text.length, 80);
-  assert.equal(p.example.project, 'app');
+  assert.equal(p.example.project, projectAlias('app', { dir: sb.dir }));
+  assert.notEqual(p.example.project, 'app');
   assert.equal(loadOffsets(sb.dir)[sb.session].offset, 0, 'looking does not advance anything');
 });
 
@@ -650,4 +652,66 @@ test('a failed sync does not move the watermark', async (t) => {
   const st = loadTeamState(sb.dir);
   assert.equal(st.ledgerSyncedThrough, '2026-10-15');
   assert.equal(st.lastSyncAt, now - 7 * 3600_000);
+});
+
+// -- masking before upload ---------------------------------------------------
+
+test('redactUpload: network address, home path, absolute path and internal URL are masked', () => {
+  const home = '/Users/dev';
+  const out = redactPaths(redactUpload('proxy 10.20.30.40:3128 and db.corp.local, open /Users/dev/work/secret-app/src/a.js and C:\\Users\\dev\\win-app\\x.ts, see https://wiki.corp.example.com/pages/42?x=1 ok'), { home });
+  assert.ok(!/10\.20\.30\.40|corp\.local|secret-app|win-app|wiki\.corp/.test(out), out);
+  assert.match(out, /proxy <host> and <host>/);
+  assert.match(out, /open <path> and <path>/);
+  assert.match(out, /see <url> ok/);
+});
+
+test('redactUpload: home directory becomes ~ and then a path; public URLs and API paths stay', () => {
+  assert.equal(redactPaths('cd /Users/dev/proj/app && ls ~/notes', { home: '/Users/dev' }), 'cd <path> && ls <path>');
+  assert.equal(redactPaths('edit /Users/dev now', { home: '/Users/dev' }), 'edit ~ now');
+  assert.equal(redactPaths('call /rest/v1/rpc/prompt_chunk_put and /key/info', { home: '/Users/dev' }), 'call /rest/v1/rpc/prompt_chunk_put and /key/info');
+  assert.equal(redactPaths('see https://example.com/Users/x/y', { home: '/Users/dev' }), 'see https://example.com/Users/x/y');
+  assert.equal(redactPaths('ends with /tmp/out.log.', { home: '/Users/dev' }), 'ends with <path>.');
+  assert.equal(maskUrls('docs https://sprag.io/docs/team/ and https://github.com/org/repo, but https://10.1.2.3:8080/x.'), 'docs https://sprag.io/docs/team/ and <url>, but <url>.');
+  assert.equal(maskUrls('file:///Users/dev/a.txt'), '<url>');
+});
+
+test('redactUpload: still masks secrets and personal data', () => {
+  assert.equal(redactUpload('mail a.kim@example.co.kr key sk-ant-api03-abcdefghijklmnopqrstuvwx'), 'mail [redacted:email] key [redacted]');
+});
+
+test('prompts from a transcript are masked in the text and carry only the alias as project', async (t) => {
+  const sb = sandbox(t);
+  writeFileSync(sb.session, '');
+  await uploadPrompts({ put: recorder(), dir: sb.dir, claudeDir: sb.claudeDir, codexDir: sb.codexDir });
+  appendFileSync(sb.session, cl('look at 192.168.0.7 and /Users/dev/work/app/src/x.js via https://git.internal.corp/app/pr/1', 1));
+  const put = recorder();
+  await uploadPrompts({ put, dir: sb.dir, claudeDir: sb.claudeDir, codexDir: sb.codexDir });
+  const [pr] = put.calls[0].prompts;
+  assert.equal(pr.text, 'look at <host> and <path> via <url>');
+  assert.match(pr.project, /^p-[0-9a-f]{10}$/);
+  assert.notEqual(pr.project, 'app');
+  assert.ok(!JSON.stringify(put.calls).includes('"app"'), 'the raw project name is not in the payload');
+});
+
+test('projectAlias: stable per machine, p- plus 10 hex, differs from the name, key file is 0600', (t) => {
+  const sb = sandbox(t);
+  const a = projectAlias('partner-project', { dir: sb.dir });
+  assert.match(a, /^p-[0-9a-f]{10}$/);
+  assert.notEqual(a, 'partner-project');
+  assert.equal(projectAlias('partner-project', { dir: sb.dir }), a);
+  assert.notEqual(projectAlias('other-project', { dir: sb.dir }), a);
+  assert.equal(projectAlias('', { dir: sb.dir }), '');
+  const key = readFileSync(aliasKeyPath(sb.dir), 'utf8').trim();
+  assert.match(key, /^[0-9a-f]{64}$/);
+  if (process.platform !== 'win32') assert.equal(statSync(aliasKeyPath(sb.dir)).mode & 0o777, 0o600);
+  assert.ok(!a.includes(key.slice(0, 10)), 'the alias does not expose the key');
+  // another machine (another key) gives another alias
+  const other = join(sb.root, 'other-data');
+  assert.notEqual(projectAlias('partner-project', { dir: other }), a);
+});
+
+test('redactUpload masks a customer GitHub org and a customer Supabase project, keeps sprag and docs hosts', () => {
+  assert.equal(redactUpload('see https://github.com/acme-corp/billing/pull/3'), 'see <url>');
+  assert.equal(redactUpload('getaddrinfo ENOTFOUND custproj.supabase.co'), 'getaddrinfo ENOTFOUND <host>');
+  assert.equal(redactUpload('docs https://sprag.io/docs and https://docs.anthropic.com/x'), 'docs https://sprag.io/docs and https://docs.anthropic.com/x');
 });

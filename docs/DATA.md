@@ -32,8 +32,8 @@ Organization owners and admins see only each member's daily totals.
 
 The same totals as Pro. Only when an organization owner or admin turns prompt capture on for a team, these are added:
 
-- the text of prompts typed in main sessions (up to 20,000 characters), the time, and the project folder name
-- API keys, tokens, passwords, emails, phone numbers, Korean resident registration numbers and card numbers are masked as `[redacted]` on your computer before upload
+- the text of prompts typed in main sessions (up to 20,000 characters), the time, and a per-machine alias of the project (`p-` plus 10 hex characters), not its name
+- API keys, tokens, passwords, emails, phone numbers, Korean resident registration numbers and card numbers are masked as `[redacted]`, network addresses as `<host>`, URLs as `<url>` and file paths as `<path>`, all on your computer before upload
 - nothing written before capture was turned on is uploaded
 - assistant replies, tool output and file contents are not uploaded
 

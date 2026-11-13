@@ -16,6 +16,8 @@
  * token is not. Prose such as "token budget is 8000" must stay untouched.
  */
 
+import { homedir } from 'node:os';
+
 const REDACTED = '[redacted]';
 
 const PRIVATE_KEY_BLOCK = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gd;
@@ -171,6 +173,95 @@ function luhnOk(digits) {
     sum += d;
   }
   return sum % 10 === 0;
+}
+
+// ---------------------------------------------------------------------------
+// Network addresses, URLs and file paths. Text that leaves the machine (diagnostics, Enterprise prompt capture)
+// must not map a customer's internal network or directory layout.
+// ---------------------------------------------------------------------------
+
+// Network addresses without a scheme. A network error's cause names the proxy or
+// host it could not reach ("connect ECONNREFUSED 10.20.30.40:3128", "getaddrinfo
+// ENOTFOUND proxy.corp.local"), and that maps a customer's internal network. None
+// of it leaves the machine: addresses, hosts after a network error code, hosts in
+// a certificate mismatch and hosts under a private suffix all become `<host>`.
+// sprag's own public endpoints stay, so a failing team sync is still readable.
+const IPV4_RE = /(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?(?![\w.])/g;
+const IPV6_BRACKET_RE = /\[[0-9a-f:.]*:[0-9a-f:.]*\](?::\d{1,5})?/gi;
+const IPV6_FULL_RE = /(?<![\w:])(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}(?![\w:])/gi;
+const IPV6_SHORT_RE = /(?<![\w:])(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?(?![\w:])/gi;
+const NET_CODE_HOST_RE = /\b(getaddrinfo\s+[A-Z_]+|ENOTFOUND|EAI_AGAIN|EAI_NONAME|EAI_FAIL|ECONNREFUSED|ECONNRESET|ECONNABORTED|ETIMEDOUT|EHOSTUNREACH|EHOSTDOWN|ENETUNREACH|EPIPE)(\s+)([^\s,;)'"]+)/g;
+const CERT_HOST_RE = /\b(Host|DNS|IP Address|servername)(:\s*)([^\s,;)'"]+)/g;
+const ATTEMPTED_RE = /(attempted address(?:es)?:\s*)([^,;)]+)/gi;
+// Only a host-shaped token: oauth-budget writes "fetch failed (TypeError)", an error name to keep.
+const FETCH_HOST_RE = /(fetch failed \()((?:[a-z0-9-]+\.)+[a-z0-9-]+(?::\d{1,5})?|localhost(?::\d{1,5})?)(?=[,)])/gi;
+const PRIVATE_HOST_RE = /(?<![\w.-])(?:[a-z0-9-]+\.)+(?:local|localdomain|internal|intranet|corp|lan|home\.arpa|private)(?::\d{1,5})?(?![\w-])/gi;
+// sprag's own public endpoints: naming them reveals nothing about the customer.
+// Only sprag's own endpoints and fixed public services. A wildcard such as *.supabase.co or github.com
+// would let a customer's own project ref or `github.com/<org>/<repo>` through.
+const PUBLIC_HOST_RE = /^(?:hiycfjwswtkixyoqkznm\.supabase\.co|(?:www\.)?sprag\.io|registry\.npmjs\.org|(?:www\.)?npmjs\.com|(?:api|docs|www)\.anthropic\.com|(?:docs\.)?claude\.com)(?::\d{1,5})?$/i;
+const maskHost = (h) => (PUBLIC_HOST_RE.test(h) ? h : '<host>');
+
+/** Every network address in `s` as `<host>`, sprag's public endpoints kept. */
+export function maskNetwork(s) {
+  return String(s ?? '')
+    .replace(NET_CODE_HOST_RE, (_, code, sp, h) => code + sp + maskHost(h.replace(/[.:]+$/, '')))
+    .replace(CERT_HOST_RE, (_, k, sep, h) => k + sep + maskHost(h.replace(/\.$/, '')))
+    .replace(ATTEMPTED_RE, (_, lead) => `${lead}<host>`)
+    .replace(FETCH_HOST_RE, (_, lead, h) => lead + maskHost(h))
+    .replace(PRIVATE_HOST_RE, '<host>')
+    .replace(IPV6_BRACKET_RE, '<host>')
+    .replace(IPV4_RE, '<host>')
+    .replace(IPV6_FULL_RE, '<host>')
+    .replace(IPV6_SHORT_RE, (m) => (m === '::' ? m : '<host>'));
+}
+
+/** An absolute path starts under one of these: an API path such as `/rest/v1/rpc` names no directory and stays. */
+export const FS_ROOT_RE = /^\/(?:Users|home|root|private|var|tmp|opt|usr|Volumes|mnt|media|srv|etc|Library|Applications|System|nix|snap|workspace|workspaces|data|app)(?:\/|$)/;
+
+// A path after the start, whitespace, a quote, a bracket, `=` or `,`. `<url>/x` and `https://h/x` are not
+// matched (the char before the slash is `>` or `:`), so a URL is left to maskUrls.
+const ABS_PATH_RE = /(^|[\s'"`(\[{=,])((?:~|[A-Za-z]:)?[\\/][^\s'"`():,<>]+)/g;
+const TRAILING_PUNCT_RE = /[.;!?]+$/;
+
+/**
+ * Home directory -> `~`, then every absolute filesystem path (POSIX under a known root, `~/...`,
+ * Windows `C:\...`) -> `<path>`. URLs and API-looking paths stay.
+ */
+export function redactPaths(text, { home } = {}) {
+  let s = String(text ?? '');
+  let h = home;
+  if (h === undefined) { try { h = homedir(); } catch { h = ''; } }
+  if (h && h.length > 1) {
+    const base = h.replace(/[\\/]+$/, '');
+    if (base.length > 1) s = s.replace(new RegExp(`${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`, 'g'), '~');
+  }
+  return s.replace(ABS_PATH_RE, (m, lead, p) => {
+    const root = p.startsWith('~') || /^[A-Za-z]:/.test(p);
+    if (!root && !FS_ROOT_RE.test(p)) return m;
+    const tail = TRAILING_PUNCT_RE.exec(p)?.[0] ?? '';
+    return `${lead}<path>${tail}`;
+  });
+}
+
+const ANY_URL_RE = /\b([a-z][a-z0-9+.-]*):\/\/([^\s/?#'"`<>]*)[^\s'"`<>]*/gi;
+
+/** Every scheme://... URL whose host is not sprag's, Anthropic's, GitHub's, npm's or Supabase's -> `<url>`. */
+export function maskUrls(text) {
+  return String(text ?? '').replace(ANY_URL_RE, (m, scheme, authority) => {
+    const tail = /[.,;:!?)\]}]+$/.exec(m)?.[0] ?? '';
+    const host = authority.slice(authority.lastIndexOf('@') + 1);
+    if (scheme.toLowerCase() !== 'file' && host && PUBLIC_HOST_RE.test(host.replace(/[.,;:!?)\]}]+$/, ''))) return m;
+    return `<url>${tail}`;
+  });
+}
+
+/**
+ * Text that may leave the machine in an Enterprise prompt upload: secrets, personal data, URLs, network
+ * addresses and file paths masked, in that order. Pattern matching only, not a guarantee.
+ */
+export function redactUpload(text) {
+  return redactPaths(maskNetwork(maskUrls(redactPersonal(redactSecrets(text)))));
 }
 
 /** Mask email addresses, Korean phone numbers, resident registration numbers and card numbers with typed markers. */

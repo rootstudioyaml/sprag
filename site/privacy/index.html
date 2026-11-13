@@ -213,7 +213,7 @@
     <li data-k="k5">Orders: organization name, owner and admin emails, the payer's name and email, and business details for a tax invoice (for bank deposit payments). Card numbers and other payment details are handled by the payment provider, and Sprag does not store them.</li>
     <li data-k="k6">Sign-in: the owner or admin email.</li>
     <li data-k="k7">Team sync, from computers that joined a team: display name, OS name and version, CPU architecture, Sprag version, daily totals of spend, savings and delegated runs, and the share of each model family. Host names, user names and file paths are not sent.</li>
-    <li data-k="k8">Prompt capture, only on Enterprise and only when the organization turns it on: for prompts a person typed themselves, the time, the project folder name and the text (up to 20,000 characters, with values that look like tokens or keys masked).</li>
+    <li data-k="k8">Prompt capture, only on Enterprise and only when the organization turns it on: for prompts a person typed themselves, the time, a per-machine alias instead of the project folder name, and the text (up to 20,000 characters, with secrets, personal data, network addresses, URLs and file paths masked).</li>
     <li data-k="k8a">Ad measurement: when you visit the public pages at sprag.io, Google Ads receives the page visited, your IP address, browser information and advertising cookie identifiers. If you copy the install command or click an email link, Google Ads also receives that click.</li>
   </ul>
   <h2 data-k="k9">Why we use it</h2>
@@ -299,7 +299,7 @@ const KO = {
  "k5": "주문: 조직명, 오너·관리자 이메일, 결제자 이름과 이메일, 세금계산서에 쓸 사업자 정보(계좌 입금 결제 시). 카드 번호 같은 결제 수단 정보는 결제사가 처리하며 Sprag은 저장하지 않습니다.",
  "k6": "로그인: 오너·관리자 이메일.",
  "k7": "팀 동기화(팀에 참여한 PC): 표시 이름, OS 이름과 버전, CPU 아키텍처, Sprag 버전, 하루 단위 지출·절감·위임 집계, 모델 계열별 비중. 호스트 이름, 사용자 이름, 파일 경로는 보내지 않습니다.",
- "k8": "프롬프트 수집(Enterprise에서 조직이 켠 경우에만): 직접 입력한 프롬프트의 시각, 프로젝트 폴더 이름, 본문(최대 20,000자, 토큰이나 키처럼 보이는 값은 가림).",
+ "k8": "프롬프트 수집(Enterprise에서 조직이 켠 경우에만): 직접 입력한 프롬프트의 시각, 프로젝트 폴더 이름 대신 PC마다 다른 별칭, 본문(최대 20,000자이며 비밀값, 개인정보, 네트워크 주소, URL, 파일 경로는 가림).",
  "k8a": "광고 측정: sprag.io의 공개 페이지를 열면 Google Ads가 방문한 페이지, IP 주소, 브라우저 정보, 광고 쿠키 식별자를 받습니다. 설치 명령을 복사하거나 이메일 링크를 누르면 그 클릭도 함께 받습니다.",
  "k9": "이용 목적",
  "k10": "주문을 받아 이행하고, 결제와 세금계산서 발행을 처리합니다.",

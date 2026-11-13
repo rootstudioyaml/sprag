@@ -6,10 +6,11 @@
  * What leaves the machine: the prompts the user typed in their own main
  * sessions (Claude Code transcripts and Codex sessions), including the ones
  * typed while the assistant was still working (queued), each as
- * { at, project (a directory basename), text }, with obvious secrets replaced
- * by "[redacted]" and personal data (email, Korean phone, resident registration
- * and card numbers) by "[redacted:email|phone|rrn|card]", all on this machine
- * before upload. Never sent: assistant replies, tool output, file contents,
+ * { at, project (a per-machine alias of the directory basename), text }, with
+ * obvious secrets replaced by "[redacted]", personal data (email, Korean phone,
+ * resident registration and card numbers) by "[redacted:email|phone|rrn|card]",
+ * network addresses by "<host>", URLs by "<url>" and absolute file paths by
+ * "<path>", all on this machine before upload (redactUpload). Never sent: assistant replies, tool output, file contents,
  * subagent transcripts, slash-command wrappers, system reminders, local paths,
  * background-task notifications, messages from other agents, and `!` shell
  * commands with their output.
@@ -26,15 +27,15 @@
  * 16 hex chars of sha256(path).
  */
 
-import { createHash } from 'node:crypto';
-import { openSync, readSync, closeSync, fstatSync, readdirSync, statSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { openSync, readSync, closeSync, fstatSync, readdirSync, statSync, readFileSync, rmSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { claudeUserDir, userDataDir } from './paths.js';
 import { codexUserDir } from './agent.js';
 import { discoverCodexSessionFiles } from './codex/parser.js';
 import { writeStateFile } from './state-file.js';
 import { debug } from './debug.js';
-import { redactSecrets, redactPersonal } from './redact.js';
+import { redactSecrets, redactPersonal, redactUpload } from './redact.js';
 
 export const MAX_RUN_PROMPTS = 2000;
 export const MAX_RUN_BYTES = 8 * 1024 * 1024;
@@ -54,6 +55,45 @@ export { redactSecrets, redactPersonal };
 // Prompt extraction
 // ---------------------------------------------------------------------------
 
+/**
+ * The project as the server sees it: 'p-' + first 10 hex of HMAC-SHA256(key, name). The key is 32 random bytes
+ * created once at <userDataDir>/prompt-alias.key (mode 0600), never uploaded and never printed, so the same
+ * name maps to the same alias on this machine and a customer's project name cannot be read back or guessed
+ * from the alias. An empty name stays empty.
+ */
+export const aliasKeyPath = (dir = userDataDir()) => join(dir, 'prompt-alias.key');
+const aliasKeys = new Map(); // dir -> Buffer, read once per process
+
+function aliasKey(dir) {
+  if (aliasKeys.has(dir)) return aliasKeys.get(dir);
+  const file = aliasKeyPath(dir);
+  const read = () => {
+    const hex = readFileSync(file, 'utf8').trim();
+    return /^[0-9a-f]{64}$/.test(hex) ? Buffer.from(hex, 'hex') : null;
+  };
+  let key = null; let existed = true;
+  try { key = read(); } catch { existed = false; /* not created yet */ }
+  if (!key) {
+    key = randomBytes(32);
+    try {
+      mkdirSync(dir, { recursive: true });
+      // 'wx' so two processes starting together cannot overwrite each other's key; a damaged file is replaced
+      writeFileSync(file, key.toString('hex') + '\n', { mode: 0o600, flag: existed ? 'w' : 'wx' });
+    } catch (e) {
+      if (e.code === 'EEXIST') { try { key = read() || key; } catch { /* keep the fresh key */ } }
+      else debug('team-prompts', e); // unwritable dir: the alias holds for this process only, the name is still never sent
+    }
+  }
+  aliasKeys.set(dir, key);
+  return key;
+}
+
+export function projectAlias(name, { dir = userDataDir() } = {}) {
+  const n = String(name ?? '');
+  if (!n) return '';
+  return 'p-' + createHmac('sha256', aliasKey(dir)).update(n).digest('hex').slice(0, 10);
+}
+
 const basenameOf = (p) => {
   const s = String(p ?? '').replace(/[\\/]+$/, '');
   return s.slice(Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\')) + 1).slice(0, 80);
@@ -72,7 +112,7 @@ function cleanPrompt(raw) {
   if (MACHINE_RE.test(text)) return null;
   if (!text) return null;
   if (text.startsWith('[Request interrupted by user')) return null;
-  return redactPersonal(redactSecrets(text)).slice(0, MAX_TEXT);
+  return redactUpload(text).slice(0, MAX_TEXT);
 }
 
 const textParts = (content) => (Array.isArray(content) ? content : [])
@@ -298,7 +338,7 @@ export async function uploadPrompts({
       try {
         r = await put({
           source: f.source, file_key: key, start_offset: c.start, end_offset: c.end,
-          prompts: c.prompts.map((p) => ({ at: p.at, project: p.project, text: p.text })),
+          prompts: c.prompts.map((p) => ({ at: p.at, project: projectAlias(p.project, { dir }), text: p.text })),
         });
       } catch (e) {
         if (/prompt capture is off/.test(String(e.message))) { res.off = true; return res; }
@@ -339,7 +379,7 @@ export async function pendingPrompts({ dir = userDataDir(), claudeDir, codexDir 
       count += c.prompts.length;
       if (!example && c.prompts.length) {
         const p = c.prompts[0];
-        example = { at: p.at, project: p.project, text: p.text.slice(0, 80) };
+        example = { at: p.at, project: projectAlias(p.project, { dir }), text: p.text.slice(0, 80) };
       }
     }
   }
