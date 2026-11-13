@@ -100,6 +100,7 @@ export const VALID_KEYWORDS = Object.keys(KEYWORDS)
     '<N>d (e.g. 1d, 7d, 30d)',
     'lang=en | lang=ko',
     'ttl=5m | ttl=1h | ttl=auto',
+    'compact=0..3 (0 verbose, 1 short labels, 2 fewer chips, 3 only alarms)',
     'reset',
     'default',
   ]);
@@ -147,6 +148,18 @@ export function applyMode(words) {
       applied.push(`ttl=${ttlMatch[1]}`);
       continue;
     }
+    // `compact=0..3` is one setting with four values. 0 and 1 are the verbose
+    // and short-label layouts; 2 and 3 also fold the headline lines and trim the
+    // chips, so only those two store a level.
+    const compactMatch = lower.match(/^compact=([0-3])$/);
+    if (compactMatch) {
+      const n = Number(compactMatch[1]);
+      cfg.statusline.verbose = n === 0;
+      if (n >= 2) cfg.statusline.compactLevel = n;
+      else delete cfg.statusline.compactLevel;
+      applied.push(`compact=${n}`);
+      continue;
+    }
     const hours = parseWindow(lower);
     if (hours !== null && hours > 0) {
       cfg.statusline.windowHours = hours;
@@ -161,6 +174,9 @@ export function applyMode(words) {
       continue;
     }
     cfg.statusline[kw.key] = kw.value;
+    // `verbose` and `compact` pick the label length outright, so a stored
+    // compact level (2 or 3) would contradict them.
+    if (kw.key === 'verbose') delete cfg.statusline.compactLevel;
     applied.push(lower);
   }
 
@@ -192,6 +208,10 @@ export function statuslineDefaults() {
   // written before it existed. labelPreference() owns that fallback so the
   // resolver and this function cannot disagree about what an old config means.
   const labels = labelPreference(s);
+  // Stored only for 2 and 3; 0 and 1 are what `verbose` already says.
+  const compactLevel = s.compactLevel === 2 || s.compactLevel === 3
+    ? s.compactLevel
+    : (s.verbose !== false ? 0 : 1);
   return {
     labels,
     // Kept for callers that only ask "emoji or not".
@@ -199,7 +219,8 @@ export function statuslineDefaults() {
     // Off unless asked for: narrow labels are the IntelliJ default now, and only
     // the user knows whether they would rather have garbled emoji than glyphs.
     iconForce:   s.iconForce === true,
-    verbose:     s.verbose !== false,
+    verbose:     compactLevel === 0,
+    compactLevel,
     timer:       s.timer   !== false,
     color:       s.color   !== false,
     modelShare:  s.modelShare !== false,

@@ -53,6 +53,7 @@ Codex에서는 `--agent codex`를 붙입니다. 아래 표에서 Codex 명령을
 | `sprag delegate on\|off\|status` | 기본으로 켜져 있습니다. Task/Agent 위임 프롬프트마다 상한과 필요한 경우 한국어 지침, 세션이 이미 읽은 경로를 덧붙이고 effort 없는 Sonnet 위임을 high로 올립니다 (아래 참고) |
 | `sprag proof [--json]` | 티어 규칙의 근거가 된 위임 재생 사례를 보여 줍니다. 사례 수와 사례별 추천 설정, 판정, Opus 기준선 대비 비용이 나옵니다. `--json` 은 요약 원본을 출력합니다. 전체 실행 기록은 https://sprag.io/proof/ 에 있습니다 |
 | `sprag mode ttl=5m\|1h\|auto` | 캐시 TTL 버킷을 직접 지정합니다. 기본값 `auto`는 실측값을 먼저 보고, 실측값이 없으면 게이트웨이 여부로 판정합니다 |
+| `sprag mode compact=0..3` | 상태줄에 보이는 양을 고릅니다. `0`은 기본 긴 라벨, `1`은 짧은 라벨(`compact`와 같음), `2`는 헤드라인 줄(Routing saved와 팀 줄)을 칩으로 접고 경고, 사용량, Ctx, TTL, 모델, 라우팅 칩만 두 줄 안에 남깁니다. `3`은 경고, 사용량, Ctx, TTL 칩만 한 줄에 남깁니다. `--segments`로 이름을 고르면 그 목록이 우선합니다. `--compact-level N`은 한 번만 덮어씁니다 |
 | `sprag --version` | 설치된 버전을 출력합니다 |
 | `sprag update-check` | 새 버전이 있는지 확인합니다 (`--refresh`로 즉시 조회, `--dismiss`로 그 버전 안내 끄기) |
 | `sprag upgrade` | 설치 경로에 맞는 명령으로 최신 버전을 설치합니다 (`--print`로 실행 없이 명령만 확인) |

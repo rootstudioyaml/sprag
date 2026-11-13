@@ -60,6 +60,7 @@ Run these in your shell (inside Claude Code, the `/claude-token-saver` Skill is 
 | `sprag delegate on\|off\|status` | On by default: append bounds, Korean guidance when it applies, and already-read paths to every Task/Agent delegation prompt, and run effort-less Sonnet delegations at high (below) |
 | `sprag proof [--json]` | List the replayed delegation cases behind the tier rules: counts, the recommended setup per case, the verdict, and the cost against the Opus baseline. `--json` prints the raw summary. Full runs are at https://sprag.io/proof/ |
 | `sprag mode ttl=5m\|1h\|auto` | Pin the cache TTL bucket. The default `auto` trusts the measured split, then falls back to gateway detection |
+| `sprag mode compact=0..3` | How much the statusline shows. `0` is the default verbose labels, `1` short labels (same as `compact`), `2` also folds the headline lines (Routing saved, team) and keeps only the warning, rate-limit, Ctx, TTL, model and routing chips on at most 2 lines, `3` keeps only the warning, rate-limit, Ctx and TTL chips on 1 line. `--segments` still picks chips by name. `--compact-level N` overrides it for one run |
 | `sprag --version` | Print the installed version |
 | `sprag update-check` | Is a newer version out? (`--refresh` to ask now, `--dismiss` to mute this version's offer) |
 | `sprag upgrade` | Install the latest release with the package manager that installed this copy (`--print` shows the command only) |
@@ -102,6 +103,7 @@ It also sets an effort. A delegation to a `sonnet` model that passes no `effort`
 | `--statusline` | One-line statusline output | – |
 | `--icon` | Use 🧠 / ⏳ / 💰 / 📦 icons | text |
 | `--verbose` | Longer labels | – |
+| `--compact-level` | 0–3, how much the statusline shows (see `sprag mode compact=0..3`) | saved mode |
 | `--no-timer` | Hide TTL countdown | show |
 | `--no-color` | Strip ANSI codes | – |
 | `--segments=…` | Limit statusline segments (e.g. `model,five_hour,seven_day,saved`) | all |

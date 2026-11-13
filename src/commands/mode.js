@@ -3,6 +3,7 @@
  * them up without flags or wrapper edits.
  *   sprag mode                    # show current config
  *   sprag mode icon verbose       # set icon + verbose
+ *   sprag mode compact=2          # short labels, folded headlines, fewer chips
  *   sprag mode reset              # clear back to defaults
  */
 
@@ -33,6 +34,7 @@ export async function run({ args }) {
       }
       console.log(`  icon-force: ${eff.iconForce}`);
       console.log(`  verbose: ${eff.verbose}`);
+      console.log(`  compact: ${eff.compactLevel}`);
       console.log(`  timer:   ${eff.timer}`);
       console.log(`  color:   ${eff.color}`);
       console.log(`  window:  ${eff.windowLabel} (${eff.windowHours}h)`);
@@ -56,7 +58,7 @@ export async function run({ args }) {
     }
     const eff = statuslineDefaults();
     console.log(`Updated: ${applied.join(', ')}`);
-    console.log(`Now: labels=${eff.labels} icon-force=${eff.iconForce} verbose=${eff.verbose} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
+    console.log(`Now: labels=${eff.labels} icon-force=${eff.iconForce} verbose=${eff.verbose} compact=${eff.compactLevel} timer=${eff.timer} color=${eff.color} window=${eff.windowLabel} language=${userLanguage()}`);
     const { mode: renders } = resolveLabelMode({ cfg: eff });
     if (renders !== eff.labels) {
       console.log(`Renders as: ${renders}${isJetBrainsTerminal() ? ' (IntelliJ detected)' : ''}`);

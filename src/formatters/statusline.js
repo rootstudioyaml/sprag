@@ -886,35 +886,47 @@ function fitChips(segs, { columns, maxLines = 3, eol = '', protectedSegs = new S
  * note. With `columns` the chips wrap onto at most `maxLines` lines (see
  * layoutChips).
  */
-export function formatNoSession({ caps = null, model = null, effort = null, ultra = null, windowLabel = '', version = '', update = null, team = null } = {}, { color = true, mode = 'icon', segments = null, columns = 0, maxLines = 3 } = {}) {
+export function formatNoSession({ caps = null, model = null, effort = null, ultra = null, windowLabel = '', version = '', update = null, team = null } = {}, { color = true, mode = 'icon', segments = null, columns = 0, maxLines: maxLinesOpt = 3, compactLevel = 0 } = {}) {
   const c = (v) => (color ? v : '');
   // narrow shares the icon layout and swaps only the glyphs, so both modes take
   // the same branches from here on.
   const isIcon = mode === 'icon' || mode === 'narrow';
   const g = glyphsFor(mode);
+  // Compact level, as in formatReport. The chip trim is skipped when the caller
+  // named `segments`, which keeps this line's existing behaviour for them.
+  const level = normalizeCompactLevel(compactLevel);
+  const maxLines = level >= 3 ? 1 : level >= 2 ? Math.min(maxLinesOpt, 2) : maxLinesOpt;
+  const trim = !(segments && segments.length);
+  const dropUnder2 = trim && level >= 2;
+  const onlyCore = trim && level >= 3;
   const segs = [];
   const capSeg = buildCapWarnSeg(pickCapWarn(caps), c, isIcon, g, color, mode);
   if (capSeg) segs.push(capSeg);
   const versionSeg = buildVersionSeg(version, update, c, isIcon, false, g);
-  if (versionSeg && update && update.available) segs.push(versionSeg);
+  if (versionSeg && update && update.available && !onlyCore) segs.push(versionSeg);
   // Same rule as the full report: a healthy 🅷 stays off the line unless
   // `--segments` named it. This line has no other opt-in, so `segments` is only
   // read for that one name.
   const named = (name) => !!(segments && segments.some((s) => String(s).toLowerCase() === name));
-  const harnessSeg = buildHarnessSeg(c, isIcon, g, null, named('harness'));
+  const harnessSeg = dropUnder2 ? null : buildHarnessSeg(c, isIcon, g, null, named('harness'));
   if (harnessSeg) segs.push(harnessSeg);
-  const modelSeg = buildModelSeg(model, c, isIcon, g);
+  const modelSeg = onlyCore ? null : buildModelSeg(model, c, isIcon, g);
   if (modelSeg) segs.push(modelSeg);
-  const effortSeg = buildEffortSeg(effort, c, isIcon, g);
+  const effortSeg = onlyCore ? null : buildEffortSeg(effort, c, isIcon, g);
   if (effortSeg) segs.push(effortSeg);
-  const ultraSeg = buildUltraSeg(ultra, c, isIcon, g);
+  const ultraSeg = onlyCore ? null : buildUltraSeg(ultra, c, isIcon, g);
   if (ultraSeg) segs.push(ultraSeg);
-  segs.push(`${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`);
-  const teamSeg = buildTeamSeg(team, c, mode);
+  const noSessionSeg = `${c(GRAY)}${g.hit} no session data${windowLabel ? ` · ${windowLabel}` : ''}${c(RESET)}`;
+  segs.push(noSessionSeg);
+  const teamSeg = dropUnder2 ? null : buildTeamSeg(team, c, mode);
   if (teamSeg) segs.push(teamSeg);
-  if (versionSeg && !(update && update.available)) segs.push(versionSeg);
+  if (versionSeg && !(update && update.available) && !dropUnder2) segs.push(versionSeg);
+  // At level 3 the line is these two chips only, so the second must survive the
+  // one-line budget.
+  const protectedSegs = new Set(capSeg ? [capSeg] : []);
+  if (onlyCore) protectedSegs.add(noSessionSeg);
   return layoutChips(segs, {
-    columns, maxLines, eol: color ? '\x1b[K' : '', protectedSegs: new Set(capSeg ? [capSeg] : []), color,
+    columns, maxLines, eol: color ? '\x1b[K' : '', protectedSegs, color,
   });
 }
 
@@ -1650,9 +1662,31 @@ function segmentsNamed(name, s, usageByKey) {
 }
 
 /**
+ * `compactLevel` as an integer 0..3; anything else reads as 0.
+ * 0 = verbose labels, 1 = short labels, 2 = also fewer chips and no headline
+ * lines, 3 = only the chips that stop the work.
+ */
+function normalizeCompactLevel(level) {
+  const n = Math.trunc(Number(level));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 3) : 0;
+}
+
+// Names kept in the default order at compact level 2 and 3. `usage` stands for
+// every rate-limit window; `version` joins only while an upgrade is available.
+const COMPACT_KEEP_3 = ['cap-warn', 'spike', 'usage', 'ctx', 'ttl'];
+const COMPACT_KEEP_2 = [...COMPACT_KEEP_3, 'model', 'effort', 'ultra', 'delegated'];
+
+/** The default-order names a compact level keeps, or null when it keeps all. */
+function compactKeepNames(level, updateAvailable) {
+  if (level >= 3) return new Set(COMPACT_KEEP_3);
+  if (level >= 2) return new Set(updateAvailable ? [...COMPACT_KEEP_2, 'version'] : COMPACT_KEEP_2);
+  return null;
+}
+
+/**
  * The names to render, in order: the default sequence, or the caller's list.
  */
-function resolveSegmentOrder(segments, caps, updateAvailable) {
+function resolveSegmentOrder(segments, caps, updateAvailable, compactLevel = 0) {
   // An available upgrade is an "act on this" chip, so it moves up behind the
   // warning chips. With nothing to upgrade to it stays pure identity, at the
   // tail position DEFAULT_SEGMENT_ORDER gives it.
@@ -1671,6 +1705,11 @@ function resolveSegmentOrder(segments, caps, updateAvailable) {
   const hasGatewayBudget = !!(caps && Array.isArray(caps.windows)
     && caps.windows.some((w) => w && (w.key === 'litellm_budget' || w.key === 'spend_limit')));
   if (hasGatewayBudget) defaultOrder = defaultOrder.filter((n) => n !== 'month');
+
+  // The compact level trims the default chip set. A caller-supplied list below
+  // replaces the default order, so it is never filtered by the level.
+  const levelKeep = compactKeepNames(compactLevel, updateAvailable);
+  if (levelKeep) defaultOrder = defaultOrder.filter((n) => levelKeep.has(n));
 
   // A caller-supplied list sets the filter AND the order. Warning chips keep
   // the lead wherever they were written: being seen first is their whole job,
@@ -1760,8 +1799,17 @@ function buildHeadlines(delegated, doc2md, want, eol, columns = 0, c = (v) => v,
  * @param {boolean} [opts.singleLine=false] - force the legacy one-line layout. By default, when the delegation ledger has lifetime savings, the routing totals lead on their own first line and everything else moves to line 2 (Claude Code renders multi-line statuslines; `--single-line` is the escape hatch for terminals that only show the first line). It also ignores `columns`.
  * @param {number} [opts.columns=0] - terminal width in cells (Claude Code exports it as COLUMNS). When set, the chips wrap at chip boundaries instead of being truncated by the terminal; 0 keeps one unbounded line. A verbose layout that would need chips dropped is re-rendered once in the compact layout first.
  * @param {number} [opts.maxLines=3] - most chip lines when `columns` is set; lower-priority tail chips collapse into a `+N` chip beyond that. Counts the chip lines only: the headline lines above them wrap at their own `|` and `·` joints and are not included. Cap, usage, ctx, spike chips are never dropped.
+ * @param {number} [opts.compactLevel=0] - 0 keeps `verbose` as given, 1 forces short labels, 2 adds folded headline lines (chips instead), the default chip set cut to cap-warn, spike, usage, ctx, ttl, model, effort, ultra, delegated (plus version while an upgrade is available) and at most 2 chip lines, 3 keeps cap-warn, spike, usage, ctx, ttl on one line. An explicit `segments` list is never filtered by the level.
  */
-export function formatReport(data, { color = true, verbose = false, timer = true, mode = 'text', segments = null, singleLine = false, columns = 0, maxLines = 3 } = {}) {
+export function formatReport(data, { color = true, verbose: verboseOpt = false, timer = true, mode = 'text', segments = null, singleLine = false, columns = 0, maxLines: maxLinesOpt = 3, compactLevel = 0 } = {}) {
+  // Compact level: 1+ means short labels, 2+ folds the headline lines and trims
+  // the default chips, 3 keeps only the chips that stop the work. `foldHeadlines`
+  // is separate from `singleLine` on purpose: it makes the headline builders hand
+  // back chips, but the columns-based wrap below still applies.
+  const level = normalizeCompactLevel(compactLevel);
+  const verbose = verboseOpt && level === 0;
+  const foldHeadlines = level >= 2;
+  const maxLines = level >= 3 ? 1 : level >= 2 ? Math.min(maxLinesOpt, 2) : maxLinesOpt;
   const { summary, ttl, cost, options, lastActivity, contextWindow, ctxLive, spikeChip, caps, model, effort, ultra, liveModel } = data;
 
   const c = (v) => (color ? v : '');
@@ -1794,8 +1842,8 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   const capWarn = pickCapWarn(caps);
 
   // Routing and doc2md each return a chip and, for real money, a headline line.
-  const delegated = buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g);
-  const doc2md = buildDoc2mdSeg(data.doc2mdTotals, singleLine, c, isIcon, verbose, g);
+  const delegated = buildDelegatedSeg(data, singleLine || foldHeadlines, c, isIcon, verbose, g);
+  const doc2md = buildDoc2mdSeg(data.doc2mdTotals, singleLine || foldHeadlines, c, isIcon, verbose, g);
 
   // An available upgrade moves the version chip forward (see resolveSegmentOrder).
   const updateAvailable = !!(data.update && data.update.available);
@@ -1804,7 +1852,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // these slots, so this is the only place that knows how each chip is built.
   // The team gets a line of its own in the multi-line layout (buildTeamLine),
   // and its chip steps aside; the single-line layout keeps the chip.
-  const teamLine = singleLine ? null : buildTeamLine(data.team, c, isIcon, g, mode, Date.now(), color);
+  const teamLine = singleLine || foldHeadlines ? null : buildTeamLine(data.team, c, isIcon, g, mode, Date.now(), color);
   const built = {
     capWarn: buildCapWarnSeg(capWarn, c, isIcon, g, color, mode),
     spike: buildSpikeSeg(spikeChip, c),
@@ -1847,13 +1895,13 @@ export function formatReport(data, { color = true, verbose = false, timer = true
     rules: buildRulesSeg(data.ruleStats, c, g),
   };
 
-  const order = resolveSegmentOrder(segments, caps, updateAvailable);
+  const order = resolveSegmentOrder(segments, caps, updateAvailable, level);
   const segs = arrangeSegments(order, built);
 
   // Leads the first line, ahead of every segment. A caller's `--segments` list
   // is a filter, so the chip needs a name in it too: `running`, or the
   // subagent names it belongs with.
-  const runningSeg = !allow || ['running', 'subagents', 'delegated'].some((n) => allow.has(n))
+  const runningSeg = (allow ? ['running', 'subagents', 'delegated'].some((n) => allow.has(n)) : level < 3)
     ? buildRunningSeg(data.runningSubagents, c, isIcon, g)
     : null;
   // Items the user picked are never given up for width: only the default layout
@@ -1884,7 +1932,7 @@ export function formatReport(data, { color = true, verbose = false, timer = true
   // Verbose labels are the first thing to give up: if they only fit by dropping
   // chips, the compact layout (same chips, shorter text) may keep all of them.
   if (verbose && fitted.dropped) {
-    return formatReport(data, { color, verbose: false, timer, mode, segments, singleLine, columns, maxLines });
+    return formatReport(data, { color, verbose: false, timer, mode, segments, singleLine, columns, maxLines: maxLinesOpt, compactLevel });
   }
   return headlines + fitted.text;
 }

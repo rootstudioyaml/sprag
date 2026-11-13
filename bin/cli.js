@@ -146,6 +146,24 @@ function columnsFromArgs({ useEnv = true } = {}) {
   return positive(getArg('--columns')) || (useEnv ? positive(process.env.COLUMNS) : 0);
 }
 
+/**
+ * Label length and compact level for a statusline render. `--compact-level N`
+ * (0-3) wins; 0 means verbose labels and 1+ short ones. Without it the older
+ * `--verbose` / `--no-verbose` / `--compact` flags decide the labels, and the
+ * stored level (`sprag mode compact=2`) applies unless those flags asked for
+ * verbose. A bad `--compact-level` value is ignored rather than thrown: the
+ * statusline runs from a fixed command and must not go blank over a typo.
+ */
+function compactFromArgs(cfg) {
+  const raw = getArg('--compact-level');
+  const n = raw === undefined ? NaN : Number(raw);
+  if (Number.isInteger(n) && n >= 0 && n <= 3) return { level: n, verbose: n === 0 };
+  const verbose = hasFlag('--verbose')
+    ? true
+    : (hasFlag('--no-verbose') || hasFlag('--compact') ? false : cfg.verbose);
+  return { level: verbose ? 0 : Math.max(1, cfg.compactLevel || 0), verbose };
+}
+
 const KNOWN_SUBCOMMANDS = new Set([
   'last', 'brief', 'history', 'handoff', 'install', 'uninstall', 'mode', 'korean', 'cohesion',
   'doc2md', 'delegate', 'proof', 'harness', 'route-scan', 'compact-window', 'update-check', 'upgrade',
@@ -164,7 +182,7 @@ const KNOWN_SUBCOMMANDS = new Set([
 const FLAG_SPECS = {
   report: {
     value: ['--format', '-f', '--project', '-p', '--days', '-d', '--hours', '--demo',
-      '--demo-cycle-sec', '--segments', '--exclude-session', '--threshold', '--columns'],
+      '--demo-cycle-sec', '--segments', '--exclude-session', '--threshold', '--columns', '--compact-level'],
     bool: ['--statusline', '--verbose', '--no-verbose', '--compact', '--no-color', '--icon',
       '--no-icon', '--text', '--narrow', '--no-timer', '--single-line', '--demo-label',
       '--version', '-v', '--help', '-h', '--hook', '--hook-run', '--install-hook', '--uninstall-hook'],
@@ -635,15 +653,14 @@ async function main() {
     // where the real line would not is worse than no demo at all.
     const { resolveLabelMode } = await import('../src/statusline-mode.js');
     const { mode: labelMode } = resolveLabelMode({ hasFlag, cfg });
-    const isVerbose = hasFlag('--verbose')
-      ? true
-      : (hasFlag('--no-verbose') || hasFlag('--compact') ? false : cfg.verbose);
+    const { level: compactLevel, verbose: isVerbose } = compactFromArgs(cfg);
     const showTimer = hasFlag('--no-timer') ? false : cfg.timer;
     const colorOk = !hasFlag('--no-color') && !process.env.NO_COLOR && cfg.color;
     const segments = segmentsFromArgs();
     const out = formatReport(data, {
       color: colorOk,
       verbose: isVerbose,
+      compactLevel,
       timer: showTimer,
       mode: labelMode,
       segments,
@@ -787,7 +804,7 @@ async function main() {
       const { withBaseStatusline } = await import('../src/statusline-base.js');
       const noSessionOut = withBaseStatusline(formatNoSession(
         { caps, model, effort, ultra, windowLabel, version: PKG_VERSION, update: readUpdateChip(PKG_VERSION), team: (await import('../src/team-sync.js')).readTeamChip() },
-        { color: colorOk, mode: labelMode, segments: segmentsFromArgs(), columns: columnsFromArgs() },
+        { color: colorOk, mode: labelMode, segments: segmentsFromArgs(), columns: columnsFromArgs(), compactLevel: compactFromArgs(cfg).level },
       ), { input: readStdinRaw() });
       if (guard) guard.finish(noSessionOut);
       console.log(noSessionOut);
@@ -1218,9 +1235,7 @@ async function main() {
     // the escape hatch out of it (SPRAG_ICON=force / `sprag mode icon-force`).
     const { resolveLabelMode } = await import('../src/statusline-mode.js');
     const { mode: labelMode } = resolveLabelMode({ hasFlag, cfg });
-    const isVerbose = hasFlag('--verbose')
-      ? true
-      : (hasFlag('--no-verbose') || hasFlag('--compact') ? false : cfg.verbose);
+    const { level: compactLevel, verbose: isVerbose } = compactFromArgs(cfg);
     const showTimer = hasFlag('--no-timer') ? false : cfg.timer;
     const colorOk =
       !hasFlag('--no-color') && !process.env.NO_COLOR && cfg.color;
@@ -1229,6 +1244,7 @@ async function main() {
     output = formatReport(data, {
       color: colorOk,
       verbose: isVerbose,
+      compactLevel,
       timer: showTimer,
       mode: labelMode,
       segments,
