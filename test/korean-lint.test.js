@@ -311,6 +311,34 @@ test('opt-out marker exempts a file that must quote the banned forms', () => {
  */
 const rules = (text, rule) => lint.lintKoreanText(text).filter((f) => f.rule === rule);
 
+test('Obsidian wikilinks: the | inside [[note|label]] is link syntax, not a separator', () => {
+  const sep = (text) => rules(text, '구분자');
+  assert.equal(lint.lintKoreanText('이전 회의: [[2026-W45 회의|지난 회의]]').length, 0);
+  assert.equal(lint.lintKoreanText('  - "[[사람/홍길동|홍길동님]]"').length, 0);
+  assert.equal(lint.lintKoreanText('![[그림.png|300]] 첨부').length, 0);
+  assert.equal(sep('파일 a | b 를 본다').length, 1);
+  assert.equal(sep('같은 문장 — 대시').length, 1);
+  const text = '[[노트|직급·처우]] 입니다';
+  assert.equal(sep(text).length, 0);
+  assert.equal(rules(text, '가운뎃점').length, 1);
+});
+
+test('writtenPathsOfBash: redirects of dump commands are not new writing', () => {
+  const paths = (c) => lint.writtenPathsOfBash(c);
+  assert.deepEqual(paths('cat note.md > dump.txt'), []);
+  assert.deepEqual(paths('grep -n 회의 a.md | sort > out.txt'), []);
+  assert.deepEqual(paths('git log > log.txt'), []);
+  assert.deepEqual(paths('FOO=1 sudo cat a.md > dump.txt'), []);
+  assert.deepEqual(paths("cat <<'EOF' > memo.md"), ['memo.md']);
+  assert.deepEqual(paths('echo "안녕" > a.md'), ['a.md']);
+  assert.deepEqual(paths('node gen.js > out.md'), ['out.md']);
+  assert.deepEqual(paths('cd x && cat a > b.md; echo hi > c.md'), ['c.md']);
+  // sed -i, tee and perl -i keep their old handling.
+  assert.deepEqual(paths('sed -i s/a/b/ f.md'), ['f.md']);
+  assert.deepEqual(paths('cat a.md | tee out.md'), ['out.md']);
+});
+
+
 test('past-tense double passives are caught', () => {
   for (const text of ['값이 화면에 보여졌다', '그렇게 쓰여졌습니다', '결정이 되어졌다', '이미 되어진 결과입니다', '오래 잊혀졌던 이름입니다']) {
     assert.equal(rules(text, '번역체').length, 1, `should flag: ${text}`);

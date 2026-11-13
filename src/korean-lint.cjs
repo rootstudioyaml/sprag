@@ -247,7 +247,11 @@ function stripCode(text) {
       out.push('');
       continue;
     }
-    out.push(fenced ? '' : line.replace(/`[^`]*`/g, ' '));
+    // An Obsidian wikilink `[[note|label]]` keeps its `|` for the link syntax;
+    // the reader sees only the label, so that is what gets linted.
+    out.push(fenced ? '' : line
+      .replace(/`[^`]*`/g, ' ')
+      .replace(/!?\[\[([^\]|\n]*)(?:\|([^\]\n]*))?\]\]/g, (_, t, a) => a ?? t));
   }
   return out;
 }
@@ -435,6 +439,72 @@ function writtenTextOf(toolName, toolInput) {
 }
 
 /**
+ * Commands that only copy, filter or list text that already exists. Their
+ * redirect target holds a dump, not something a person or model just wrote.
+ * echo, printf, node and python are absent on purpose: they author text.
+ */
+const DUMP_COMMANDS = new Set([
+  'cat', 'grep', 'rg', 'egrep', 'fgrep', 'head', 'tail', 'sort', 'uniq', 'cut', 'tr', 'wc',
+  'jq', 'yq', 'awk', 'sed', 'curl', 'wget', 'git', 'ls', 'find', 'diff', 'pbpaste', 'column',
+  'xxd', 'strings', 'iconv',
+]);
+
+/** [start, end) ranges of the command parts split by `;`, `&&`, `||`, `&` and newlines outside quotes. */
+function commandSegments(command) {
+  const segs = [];
+  let start = 0;
+  let quote = null;
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i];
+    if (quote) {
+      if (c === '\\' && quote === '"') i++;
+      else if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '\\') { i++; continue; }
+    if (c === '"' || c === "'") { quote = c; continue; }
+    let len = 0;
+    if (c === ';' || c === '\n') len = 1;
+    else if ((c === '&' || c === '|') && command[i + 1] === c) len = 2;
+    else if (c === '&' && command[i + 1] !== '>' && command[i - 1] !== '>' && command[i - 1] !== '<') len = 1;
+    if (!len) continue;
+    segs.push([start, i]);
+    start = i + len;
+    i += len - 1;
+  }
+  segs.push([start, command.length]);
+  return segs;
+}
+
+/** First command word of a pipeline: `VAR=x`, sudo, command and env are looked through. */
+function firstCommandWord(text) {
+  const stage = text.split(/(?<!\|)\|(?!\|)/)[0];
+  const words = stage.trim().replace(/^[({\s]+/, '').split(/\s+/);
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i].replace(/^["']|["']$/g, '');
+    if (!w || /^[A-Za-z_][A-Za-z0-9_]*=/.test(w)) continue;
+    if (w === 'sudo' || w === 'command' || w === 'env') {
+      while (i + 1 < words.length && words[i + 1].startsWith('-')) i++;
+      continue;
+    }
+    return { word: w.split('/').pop(), stage };
+  }
+  return null;
+}
+
+/** True when the redirect at `index` belongs to a command that dumps existing text. */
+function redirectsDump(command, segments, index) {
+  const seg = segments.find(([a, b]) => index >= a && index <= b);
+  if (!seg) return false;
+  const text = command.slice(seg[0], seg[1]);
+  if (text.includes('<<')) return false;
+  const first = firstCommandWord(text);
+  if (!first || !DUMP_COMMANDS.has(first.word)) return false;
+  if (first.word === 'sed' && /\s(?:-\w*i\w*|--in-place)(?:\s|=|$)/.test(first.stage)) return false;
+  return true;
+}
+
+/**
  * Files a shell command just wrote.
  *
  * Write is not the only way Korean reaches disk. A heredoc, a `tee`, a `sed -i`
@@ -457,7 +527,13 @@ function writtenPathsOfBash(command) {
     if (clean && !clean.startsWith('/dev/') && !/[*?]/.test(clean)) out.add(clean);
   };
   // `> file`, `>> file` — the redirection that covers heredocs and echo alike.
-  for (const m of command.matchAll(/(?<![0-9&])>>?\s*("[^"]+"|'[^']+'|[^\s|&;<>()]+)/g)) add(m[1]);
+  // A redirect whose command only moves existing text (`cat a.md > dump.txt`)
+  // wrote nothing new, so it is skipped; see redirectsDump.
+  const segments = commandSegments(command);
+  for (const m of command.matchAll(/(?<![0-9&])>>?\s*("[^"]+"|'[^']+'|[^\s|&;<>()]+)/g)) {
+    if (redirectsDump(command, segments, m.index)) continue;
+    add(m[1]);
+  }
   // `tee file`, `tee -a file`
   for (const m of command.matchAll(/\btee\b(?:\s+-\w+)*\s+("[^"]+"|'[^']+'|[^\s|&;<>()]+)/g)) add(m[1]);
   // In-place edits name their target at the end of the argument list.
