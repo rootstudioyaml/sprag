@@ -39,7 +39,8 @@ test('limits and savings are separate sections, limits first, each with its own 
   const b = site.match(/<div class="explain">[\s\S]*?\n    <\/div>\n/)[0];
   const secs = [...b.matchAll(/<section class="ex-card ex-(\w+)" data-part="(\w+)">\s*<h3 /g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(secs, [['limits', 'limits'], ['savings', 'savings']]);
-  assert.match(b, /<div class="ex-col">[\s\S]*<div class="ex-col ex-val">/);
+  // the savings card: scope line, one comparison bar, group A, group B, then the result
+  assert.match(b, /class="ex-scope">[\s\S]*class="ex-cmp"[\s\S]*class="ex-group">[\s\S]*class="ex-group">[\s\S]*class="ex-result"/);
 });
 
 test('no separators, no mono font on Korean card text, no animation', () => {
@@ -57,10 +58,14 @@ const enDate = (iso) => `${MON[+iso.slice(5, 7) - 1]} ${+iso.slice(8)}`;
 
 test('the savings figures shown match docs/explain/savings-snapshot.json', () => {
   const t = snap.terms;
-  const amounts = [['+', t.rereadConversation], ['+', t.rereadPiledUp], ['+', t.newInputOutput], ['−', t.subagentCost], ['−', t.delegatingCost], ['=', snap.saving]];
+  const groupA = t.rereadConversation + t.rereadPiledUp + t.newInputOutput;
+  const groupB = t.subagentCost + t.delegatingCost;
+  // in page order: the comparison bar (A, B), group A (subtotal and three rows), group B (subtotal and two rows), the result
+  const amounts = [groupA, groupB, groupA, t.rereadConversation, t.rereadPiledUp, t.newInputOutput, groupB, t.subagentCost, t.delegatingCost, snap.saving];
   for (const [name, html] of [['site', site], ['explain.html', page]]) {
-    const shown = [...html.matchAll(/<span class="ex-amt"><i>(.)<\/i><b>([^<]*)<\/b>/g)].map((m) => [m[1], m[2]]);
-    assert.deepEqual(shown, amounts.map(([sg, v]) => [sg, money(v)]), name);
+    const card = html.match(/<section class="ex-card ex-savings"[\s\S]*?<\/section>/)[0];
+    const shown = [...card.matchAll(/<b>(\$[\d.,]+)<\/b>/g)].map((m) => m[1]);
+    assert.deepEqual(shown, amounts.map(money), name);
     const en = Object.fromEntries(keysOf(html));
     const ko = koOf(html);
     const y = snap.to.slice(0, 4);

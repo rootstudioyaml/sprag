@@ -533,33 +533,36 @@
   .ex-lock div{display:flex;gap:.7em;align-items:flex-start;border-top:1px solid var(--line);padding-top:1em;margin-top:1.3em;
     color:var(--dim);font-size:.9em;line-height:1.5}
   .ex-lock svg{flex:none;width:1.25em;height:1.25em;margin-top:.05em;color:var(--teal)}
-  /* savings: two columns on one row grid (subgrid), so each formula row and its measured amount share a height */
-  .ex-cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);column-gap:1.15em;margin-top:1.3em}
-  .ex-col{display:grid;grid-row:span 7;grid-template-rows:subgrid;border:1px solid var(--line);border-radius:.5em;overflow:hidden;background:var(--deep);min-width:0}
-  .ex-colhead{display:flex;flex-direction:column;justify-content:center;padding:.7em .95em;background:transparent;border-bottom:1px solid var(--line)}
-  .ex-ct{font-weight:600;font-size:.93em;color:var(--ink);line-height:1.4}
-  .ex-colhead small{display:block;margin-top:.15em;font-size:.78em;color:var(--faint);line-height:1.45}
-  .ex-row{display:grid;grid-template-columns:2.8em minmax(0,1fr);border-top:1px solid var(--line)}
-  .ex-colhead + .ex-row{border-top:0}
-  .ex-op{display:flex;align-items:center;justify-content:center;font-size:1.15em;font-weight:600;color:var(--dim);
-    background:transparent;border-right:1px solid var(--line)}
-  .ex-row.plus .ex-op{color:var(--teal)}.ex-row.minus .ex-op{color:var(--red)}
-  .ex-item{padding:.7em .95em;min-width:0}
+  /* savings: scope line, one comparison bar, then A, B and the result, each amount on the same line as its item */
+  .ex-scope{margin:1.2em 0 0;padding:.6em 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--dim);font-size:.9em;line-height:1.5}
+  .ex-scope b{font-weight:600;color:var(--ink)}
+  .ex-cmp{display:grid;gap:.85em;margin-top:1.4em}
+  .ex-cl{display:flex;align-items:baseline;justify-content:space-between;gap:1em;font-size:.93em;color:var(--dim);margin-bottom:.35em}
+  .ex-cl b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ex-track{display:flex;height:1.9em;background:var(--deep);border:1px solid var(--line)}
+  .ex-track i{display:flex;align-items:center;justify-content:flex-end;padding:0 .7em;font-style:normal;font-size:.82em;white-space:nowrap;overflow:hidden}
+  .ex-track .ex-full{width:100%;background:color-mix(in oklab,var(--dim) 38%,transparent)}
+  .ex-track .ex-cost{background:var(--amber2);flex:none}
+  .ex-track .ex-gain{flex:1;justify-content:center;background:color-mix(in oklab,var(--teal) 26%,transparent);color:var(--ink);font-weight:600}
+  .ex-groups{margin-top:1.5em;display:grid;gap:1.1em}
+  .ex-group{border:1px solid var(--line);background:var(--deep);min-width:0}
+  .ex-gh,.ex-r{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:1.2em;padding:.7em .95em}
+  .ex-gh{border-bottom:1px solid var(--line2);font-weight:600;color:var(--ink)}
+  .ex-gh > span:first-child{display:flex;gap:.7em;align-items:baseline;min-width:0}
+  .ex-gh em{font-style:normal;font-size:.85em;color:var(--faint)}
+  .ex-r + .ex-r{border-top:1px solid var(--line)}
+  .ex-item{min-width:0}
   .ex-item b{display:block;font-weight:500;color:var(--ink);line-height:1.4}
   .ex-item small{display:block;margin-top:.2em;font-size:.84em;color:var(--faint);line-height:1.45}
-  .ex-val .ex-row{grid-template-columns:minmax(0,1fr)}
-  .ex-amt{display:flex;align-items:center;justify-content:flex-end;gap:.7em;padding:.7em .95em;font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
-  .ex-amt i{font-style:normal;font-weight:600;color:var(--dim)}
-  .ex-amt b{min-width:7em;text-align:right;font-weight:500;color:var(--ink)}
-  .ex-row.plus .ex-amt i{color:var(--teal)}.ex-row.minus .ex-amt i{color:var(--red)}
-  .ex-row.total{background:transparent;border-top-color:var(--line2)}
-  .ex-row.total .ex-op{color:var(--amber2);background:transparent}
-  .ex-row.total .ex-item b{font-weight:700;font-size:1.12em}
-  .ex-row.total .ex-amt i{color:var(--amber2)}
-  .ex-row.total .ex-amt b{font-weight:700;font-size:1.12em;min-width:6.25em}
-  .ex-notes{grid-column:1 / -1;padding-top:.9em;display:grid;gap:.4em;font-size:.82em;color:var(--faint);line-height:1.5;text-wrap:pretty}
+  .ex-gh > b,.ex-r > b{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";text-align:right;white-space:nowrap}
+  .ex-r > b{font-weight:500;color:var(--ink)}
+  .ex-gh > b{font-weight:700}
+  .ex-result{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:1.2em;padding:.9em .95em;border-top:2px solid var(--amber2);border-bottom:1px solid var(--line)}
+  .ex-result > span{font-size:1.12em;font-weight:700;color:var(--ink)}
+  .ex-result > b{font-size:1.5em;font-weight:700;color:var(--amber2);font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap}
+  .ex-notes{padding-top:1em;display:grid;gap:.4em;font-size:.82em;color:var(--faint);line-height:1.5;text-wrap:pretty}
   html[lang=ko] .explain{word-break:keep-all}
-  @media(max-width:720px){.ex-card{padding:1.25em}.ex-cols{grid-template-columns:minmax(0,1fr);row-gap:.9em}.ex-col{grid-row:span 7}.ex-notes{grid-column:1}}
+  @media(max-width:720px){.ex-card{padding:1.25em}.ex-gh,.ex-r,.ex-result{column-gap:.8em}.ex-result > b{font-size:1.3em}}
   @media(max-width:600px){
     .wrap{padding:0 18px}header nav{gap:10px}
     .hero{padding-top:28px}h1{font-size:36px}h2{font-size:26px}
@@ -643,6 +646,13 @@
   .ex-limits > .ex-zones{grid-column:1;grid-row:3}
   .ex-limits > .ex-lock{grid-column:1;grid-row:4}
   .ex-savings > .ex-lede{max-width:46ch}
+  .ex-savings{max-width:820px}
+  /* wide screens: the claim and the bars on the left, the itemized A − B on the right */
+  @media(min-width:1100px){
+    .ex-savings{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);column-gap:56px;align-items:start}
+    .ex-savings > :not(.ex-groups){grid-column:1}
+    .ex-savings > .ex-groups{grid-column:2;grid-row:1 / span 6;margin-top:0}
+  }
 
   /* statusline capture: claim left, capture right */
   .hero .demo{margin:80px 0 0;max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);column-gap:48px;align-items:start}
@@ -892,21 +902,41 @@
   /* tidy: one corner language (square), one line weight, labels without pills */
   .eyebrow{border:0!important;border-radius:0!important;padding:0!important;background:none!important}
   .eyebrow::before{width:auto!important;height:auto!important;background:none!important;border-radius:0!important}
-  .explain .ex-card,.explain .ex-col,.explain .ex-bar,.explain .ex-lock,.explain .ex-lock > div,.agent-switch,.agent-switch button,
+  .explain .ex-card,.explain .ex-group,.explain .ex-track,.explain .ex-bar,.explain .ex-lock,.explain .ex-lock > div,.agent-switch,.agent-switch button,
   .command-block,.command-block pre,.icon-button,.flow,.demo,.demo .term,.demo .tabs button,.setup-panel,.step pre,.faq details,
   .lang,.lang button,.btn,.cta .btn{border-radius:0!important}
   .numbers .nwrap{align-items:stretch}
   .numbers .num{display:flex;flex-direction:column;justify-content:flex-end}
   .hero .teamband{margin-top:72px}
-  /* the statusline the product prints, set faintly behind the first screen so the space carries what Sprag shows */
-  .intro-hud{position:absolute;inset:0;z-index:0;display:flex;flex-direction:column;justify-content:center;gap:14px;
-    padding:56px 0 56px max(24px,calc(50vw - 640px));overflow:hidden;pointer-events:none;user-select:none;
-    font:500 15px/1.5 var(--font-mono);letter-spacing:.01em;color:var(--ink);opacity:.075;filter:grayscale(1);white-space:pre}
-  .intro-hud p{margin:0}
-  .intro-hud p:nth-child(even){padding-left:12ch}
-  .intro-hud p:nth-child(3n){padding-left:28ch}
-  :root[data-theme=dark] .intro-hud{opacity:.1}
-  @media(max-width:900px){.intro-hud{font-size:12px;gap:10px;opacity:.06}}
+  /* the statusline the product prints, as a sharp dark panel under the first screen (generated by scripts/site-statusline.mjs) */
+  .sl-panel{grid-column:1/-1;grid-row:6;justify-self:center;width:min(1280px,calc(100vw - 48px));margin-top:56px;
+    background:#13151a;border:1px solid #2b303a;color:#e6e8ec;text-align:left}
+  .sl-head{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid #2b303a;
+    font:500 11px/1 var(--font-mono);letter-spacing:.04em;text-transform:uppercase;color:#8d9aae}
+  .sl-head::before{content:"";width:7px;height:7px;border-radius:50%;background:#34d399;flex:none}
+  html[lang=ko] .sl-head{letter-spacing:0;text-transform:none;font-size:12px}
+  pre.sl-out{margin:0;padding:18px 20px 20px;background:none;border:0;border-radius:0;overflow-x:auto;
+    font:400 13px/1.8 var(--font-mono);letter-spacing:0;white-space:pre;color:#e6e8ec;tab-size:4;word-break:normal;-webkit-overflow-scrolling:touch}
+  html[lang=ko] .sl-en,html:not([lang=ko]) .sl-ko{display:none}
+  .sl-b{font-weight:700}
+  .sl-c-red{color:#fb7185}.sl-c-green{color:#34d399}.sl-c-yellow{color:#fbbf24}.sl-c-orange{color:#fb923c}
+  .sl-c-cyan{color:#22d3ee}.sl-c-violet{color:#a78bfa}.sl-c-blue{color:#b1b9f9}.sl-c-gray{color:#8d9aae}
+  /* the demo section holds the same block inside the capture frame */
+  .hero .demo .term{aspect-ratio:auto}
+  /* the Claude Code sample is 150+ cells wide: while it is showing, the frame drops under the captions at full width */
+  @media(min-width:901px){
+    .hero .demo:has(#capture-claude:not([hidden])){grid-template-columns:minmax(0,1fr)}
+    .hero .demo:has(#capture-claude:not([hidden])) :is(.titlebar,.tabs,.caption){grid-column:1}
+    .hero .demo:has(#capture-claude:not([hidden])) .caption{grid-row:3;max-width:60ch}
+    .hero .demo:has(#capture-claude:not([hidden])) .term{grid-column:1;grid-row:4;margin-top:28px;justify-self:center;width:min(1280px,calc(100vw - 48px));max-width:none}
+  }
+  .shot-sl{height:auto;background:#13151a}
+  .demo pre.sl-out{padding:16px 18px 18px;font-size:12.5px}
+  @media(max-width:900px){.sl-panel{grid-column:1!important;grid-row:auto!important;width:auto;justify-self:stretch;margin-top:36px}pre.sl-out,.demo pre.sl-out{font-size:12px}}
+  /* hero text: wide enough that Korean breaks at phrase boundaries instead of orphaning two syllables */
+  @media(min-width:901px){.intro .hero-spec{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:14px}.intro .hero-spec div{grid-template-columns:8ch minmax(0,1fr);gap:6px}}
+  .intro p.sub{grid-column:1/8;max-width:38em;text-wrap:pretty}
+  html[lang=ko] .hero-spec dd{text-transform:none}
   /* footer: product links, then the legal ones, spaced without separator characters */
   footer .ft-links,footer .ft-legal{display:flex;flex-wrap:wrap;gap:6px 18px}
   footer .wrap.ft-legal{margin-top:10px;justify-content:flex-start;font-size:12px}
@@ -1044,18 +1074,6 @@
      (assets/scroll-story.js); without motion it is a plain first screen. -->
 <section class="intro" aria-labelledby="intro-h">
   <div class="intro-stage">
-    <div class="intro-hud" aria-hidden="true">
-      <p>✇ sprag   Routing saved $136.02 since 10/17   opus→sonnet ×52   fable→haiku ×18   $1.40 avg</p>
-      <p>🤖 Opus 5.5   🧠 Cache hit 98.8%   ⏳ Cache expires 59:46   📦 Ctx 18% of 1M   ✦ 5/5</p>
-      <p>✦ current ▰▰▰▰▰▰▰▱▱▱▱▱ 62%  🔄 21:33   📅 weekly ▰▰▰▰▰▱▱▱▱▱▱▱ 38%  🔄 Tue 19:33</p>
-      <p>📄 Doc2md saved $4.03   q3-review.pptx  540,429 tok → 22,610 tok   −95.8% before the model reads it</p>
-      <p>⇢ t2-explore   Haiku 5.5 · low   "where is the retry config"   2 calls   $0.002</p>
-      <p>⇢ t1-worker    Sonnet 5.5 · high   "run the tests, fix the import"   pass   $0.41</p>
-      <p>🚨 5H ▰▰▰▰▰▰▰▰▰▰▰▱ 94%  🔄 12:36   ⚠ Cache miss   ⚠ Input spike   → sprag handoff</p>
-      <p>🅷 5/5   ratchet · evidence · plan-verify · structured · safe-path   +1 rule proposed</p>
-      <p>↺ ratchet  2026-08-01  appending to .env  → check the trailing newline first (tail -c1)</p>
-      <p>✇ sprag   Routing saved $0.81   Doc2md saved $4.03   Korean style ✓   1 agent running</p>
-    </div>
     <div class="wrap intro-grid">
       <p class="intro-kicker"><span>Sprag</span><span data-k="intro.k">Model and effort routing</span></p>
       <h1 id="intro-h" data-k="hero.h1" data-split>The delegation router for coding agents</h1>
@@ -1071,7 +1089,7 @@
         <dl class="hero-spec">
           <div><dt data-k="spec.type">Type</dt><dd data-k="spec.typev">Delegation router, CLI</dd></div>
           <div><dt data-k="spec.runs">Runs in</dt><dd>Claude Code, Codex</dd></div>
-          <div><dt data-k="spec.routes">Routes to</dt><dd data-k="spec.routesv">Haiku, Sonnet, effort levels</dd></div>
+          <div><dt data-k="spec.routes">Picks</dt><dd data-k="spec.routesv">Model and effort</dd></div>
           <div><dt data-k="spec.license">License</dt><dd>Apache-2.0</dd></div>
         </dl>
         <ol class="hero-log">
@@ -1082,6 +1100,21 @@
           <li><b>005</b><span data-k="log.5">Print spend and savings</span></li>
         </ol>
       </div>
+      <figure class="sl-panel" aria-labelledby="sl-hero-label">
+        <figcaption class="sl-head" id="sl-hero-label" data-k="sl.label">Statusline, sample session</figcaption>
+<!-- statusline-sample:hero:start -->
+<pre class="sl-out sl-en" lang="en"><span class="sl-b sl-c-green">🔀 Routing saved</span> <span class="sl-c-green">$136</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">opus→sonnet ×52 $88.4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→haiku ×18 $31.2</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">opus→haiku ×9 $11.1</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→sonnet ×4 $5.32</span>
+<span class="sl-b sl-c-green">📄 Doc2md saved</span> <span class="sl-c-green">$4.03</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">pptx ×1 $3.10</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">pdf ×2 $0.93</span>
+<span class="sl-b sl-c-gray">👥 Pro · northwind · Platform · member-1a2b3c4d</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">🦊 Fox ▰▰▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱</span><span class="sl-c-gray"> 75% → 🐆 Cheetah 77%</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">overall #3/12</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">team #1/4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">spend #2/12</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">delegation #5/12</span>
+<span class="sl-c-green">✦ current ▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱</span><span class="sl-c-green"> 62% 🔄 16:33</span> · <span class="sl-c-green">📅 weekly ▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱▱▱</span><span class="sl-c-green"> 38% 🔄 Tue 19:00</span> · <span class="sl-c-green">📦 Ctx 18% of 1M</span> · <span class="sl-c-green">⏳ Cache expires 59:12</span> · <span class="sl-c-violet">🤖 Opus 5.5</span> · <span class="sl-c-blue">🔬 high</span>
+<span class="sl-b">🧠 Cache hit</span> <span class="sl-c-green">98.8%</span> <span class="sl-c-cyan">💰 Cache saved</span> $1.5K <span class="sl-c-gray">(last 7d)</span> · <span class="sl-c-gray">💵 Nov $413</span> · <span class="sl-c-gray">v3.124.0 ✓5m ago</span></pre>
+<pre class="sl-out sl-ko" lang="ko"><span class="sl-b sl-c-green">🔀 Routing saved</span> <span class="sl-c-green">$136</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">opus→sonnet ×52 $88.4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→haiku ×18 $31.2</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">opus→haiku ×9 $11.1</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→sonnet ×4 $5.32</span>
+<span class="sl-b sl-c-green">📄 Doc2md saved</span> <span class="sl-c-green">$4.03</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">pptx ×1 $3.10</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">pdf ×2 $0.93</span>
+<span class="sl-b sl-c-gray">👥 Pro · northwind · Platform · member-1a2b3c4d</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">🦊 여우 ▰▰▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱</span><span class="sl-c-gray"> 75% → 🐆 치타 77%</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">종합 3/12위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">팀 1/4위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">사용량 2/12위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">위임률 5/12위</span>
+<span class="sl-c-green">✦ current ▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱</span><span class="sl-c-green"> 62% 🔄 16:33</span> · <span class="sl-c-green">📅 weekly ▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱▱▱</span><span class="sl-c-green"> 38% 🔄 Tue 19:00</span> · <span class="sl-c-green">📦 Ctx 18% of 1M</span> · <span class="sl-c-green">⏳ Cache expires 59:12</span> · <span class="sl-c-violet">🤖 Opus 5.5</span> · <span class="sl-c-blue">🔬 high</span>
+<span class="sl-b">🧠 Cache hit</span> <span class="sl-c-green">98.8%</span> <span class="sl-c-cyan">💰 Cache saved</span> $1.5K <span class="sl-c-gray">(last 7d)</span> · <span class="sl-c-gray">💵 Nov $413</span> · <span class="sl-c-gray">v3.124.0 ✓5m ago</span></pre>
+<!-- statusline-sample:hero:end -->
+      </figure>
     </div>
   </div>
 </section>
@@ -1127,30 +1160,35 @@
       <section class="ex-card ex-savings" data-part="savings">
         <h3 data-k="ex.b.h">How savings are counted</h3>
         <p class="ex-lede" data-k="ex.b.p">What the main model would have paid to do the delegated work, minus what it actually cost</p>
-        <div class="ex-cols">
-          <div class="ex-col">
-            <div class="ex-colhead"><b class="ex-ct" data-k="ex.b.f">Formula</b></div>
-            <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r1">Re-reading the whole conversation on every call</b><small data-k="ex.b.s1">actual conversation size at delegation × main model's cache-read rate</small></span></div>
-            <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r2">Re-reading the files and output that piled up</b><small data-k="ex.b.s2">until the next compaction, at most 50 calls</small></span></div>
-            <div class="ex-row plus"><span class="ex-op" aria-hidden="true">+</span><span class="ex-item"><b data-k="ex.b.r3">New input and output</b><small data-k="ex.b.s3">main model's cache-write and output rates</small></span></div>
-            <div class="ex-row minus"><span class="ex-op" aria-hidden="true">−</span><span class="ex-item"><b data-k="ex.b.r4">What the subagent actually cost</b></span></div>
-            <div class="ex-row minus"><span class="ex-op" aria-hidden="true">−</span><span class="ex-item"><b data-k="ex.b.r5">The cost of delegating</b><small data-k="ex.b.s5">writing the instruction, reading the result</small></span></div>
-            <div class="ex-row total"><span class="ex-op" aria-hidden="true">=</span><span class="ex-item"><b data-k="ex.b.r6">Saving</b></span></div>
+        <p class="ex-scope"><b data-k="ex.b.m">Last 14 days, measured</b><span data-k="ex.b.sep">: </span><span data-k="ex.b.d">Oct 17 to Oct 31, 2026, one dev machine, 83 delegations</span></p>
+        <div class="ex-cmp" aria-hidden="true">
+          <div>
+            <div class="ex-cl"><span data-k="ex.b.bar1">If the main model had done it</span><b>$273.75</b></div>
+            <div class="ex-track"><i class="ex-full"></i></div>
           </div>
-          <div class="ex-col ex-val">
-            <div class="ex-colhead"><b class="ex-ct" data-k="ex.b.m">Last 14 days, measured</b><small data-k="ex.b.d">Oct 17 to Oct 31, 2026, one dev machine, 83 delegations</small></div>
-            <div class="ex-row plus"><span class="ex-amt"><i>+</i><b>$136.02</b></span></div>
-            <div class="ex-row plus"><span class="ex-amt"><i>+</i><b>$56.26</b></span></div>
-            <div class="ex-row plus"><span class="ex-amt"><i>+</i><b>$81.47</b></span></div>
-            <div class="ex-row minus"><span class="ex-amt"><i>−</i><b>$48.19</b></span></div>
-            <div class="ex-row minus"><span class="ex-amt"><i>−</i><b>$9.18</b></span></div>
-            <div class="ex-row total"><span class="ex-amt"><i>=</i><b>$216.38</b></span></div>
+          <div>
+            <div class="ex-cl"><span data-k="ex.b.bar2">What it actually cost</span><b>$57.37</b></div>
+            <div class="ex-track"><i class="ex-cost" style="width:20.96%"></i><i class="ex-gain"><span data-k="ex.b.bar3">Saved 79%</span></i></div>
           </div>
-          <div class="ex-notes">
-            <p data-k="ex.b.n1">Conversation size at delegation: 266k tokens on average, 236k median</p>
-            <p data-k="ex.b.n2">No delegation counted as a loss</p>
-            <p data-k="ex.b.n3">Assumes the main model would have made as many calls, so the real saving can be smaller</p>
+        </div>
+        <div class="ex-groups">
+          <div class="ex-group">
+            <div class="ex-gh"><span><em>A</em><span data-k="ex.b.ga">If the main model had done it</span></span><b>$273.75</b></div>
+            <div class="ex-r"><span class="ex-item"><b data-k="ex.b.r1">Re-reading the whole conversation on every call</b><small data-k="ex.b.s1">actual conversation size at delegation × main model's cache-read rate</small></span><b>$136.02</b></div>
+            <div class="ex-r"><span class="ex-item"><b data-k="ex.b.r2">Re-reading the files and output that piled up</b><small data-k="ex.b.s2">until the next compaction, at most 50 calls</small></span><b>$56.26</b></div>
+            <div class="ex-r"><span class="ex-item"><b data-k="ex.b.r3">New input and output</b><small data-k="ex.b.s3">main model's cache-write and output rates</small></span><b>$81.47</b></div>
           </div>
+          <div class="ex-group">
+            <div class="ex-gh"><span><em>B</em><span data-k="ex.b.gb">What it actually cost</span></span><b>$57.37</b></div>
+            <div class="ex-r"><span class="ex-item"><b data-k="ex.b.r4">What the subagent actually cost</b></span><b>$48.19</b></div>
+            <div class="ex-r"><span class="ex-item"><b data-k="ex.b.r5">The cost of delegating</b><small data-k="ex.b.s5">writing the instruction, reading the result</small></span><b>$9.18</b></div>
+          </div>
+          <div class="ex-result"><span data-k="ex.b.gt">Saving (A − B)</span><b>$216.38</b></div>
+        </div>
+        <div class="ex-notes">
+          <p data-k="ex.b.n1">Conversation size at delegation: 266k tokens on average, 236k median</p>
+          <p data-k="ex.b.n2">No delegation counted as a loss</p>
+          <p data-k="ex.b.n3">Assumes the main model would have made as many calls, so the real saving can be smaller</p>
         </div>
       </section>
     </div>
@@ -1169,9 +1207,19 @@
           <a href="assets/codex-panel.png" target="_blank" rel="noopener"><img class="terminal-shot" src="assets/codex-panel.png" width="1200" height="330" alt="Codex panel showing context, cached input, model, and rules in an example session" /></a>
           <span class="shot-hint" data-k="hero.enlarge">Tap to enlarge</span>
         </div>
-        <div id="capture-claude" class="shot" role="tabpanel" aria-labelledby="demo-claude">
-          <a href="assets/statusline-claude.png" target="_blank" rel="noopener"><img class="terminal-shot" src="assets/statusline-claude.png" width="1200" height="290" alt="Claude Code statusline with routing savings, spend by model, and document accounting" /></a>
-          <span class="shot-hint" data-k="hero.enlarge">Tap to enlarge</span>
+        <div id="capture-claude" class="shot shot-sl" role="tabpanel" aria-labelledby="demo-claude">
+<!-- statusline-sample:demo:start -->
+<pre class="sl-out sl-en" lang="en"><span class="sl-b sl-c-green">🔀 Routing saved</span> <span class="sl-c-green">$136</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">opus→sonnet ×52 $88.4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→haiku ×18 $31.2</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">opus→haiku ×9 $11.1</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→sonnet ×4 $5.32</span>
+<span class="sl-b sl-c-green">📄 Doc2md saved</span> <span class="sl-c-green">$4.03</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">pptx ×1 $3.10</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">pdf ×2 $0.93</span>
+<span class="sl-b sl-c-gray">👥 Pro · northwind · Platform · member-1a2b3c4d</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">🦊 Fox ▰▰▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱</span><span class="sl-c-gray"> 75% → 🐆 Cheetah 77%</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">overall #3/12</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">team #1/4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">spend #2/12</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">delegation #5/12</span>
+<span class="sl-c-green">✦ current ▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱</span><span class="sl-c-green"> 62% 🔄 16:33</span> · <span class="sl-c-green">📅 weekly ▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱▱▱</span><span class="sl-c-green"> 38% 🔄 Tue 19:00</span> · <span class="sl-c-green">📦 Ctx 18% of 1M</span> · <span class="sl-c-green">⏳ Cache expires 59:12</span> · <span class="sl-c-violet">🤖 Opus 5.5</span> · <span class="sl-c-blue">🔬 high</span>
+<span class="sl-b">🧠 Cache hit</span> <span class="sl-c-green">98.8%</span> <span class="sl-c-cyan">💰 Cache saved</span> $1.5K <span class="sl-c-gray">(last 7d)</span> · <span class="sl-c-gray">💵 Nov $413</span> · <span class="sl-c-gray">v3.124.0 ✓5m ago</span></pre>
+<pre class="sl-out sl-ko" lang="ko"><span class="sl-b sl-c-green">🔀 Routing saved</span> <span class="sl-c-green">$136</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">opus→sonnet ×52 $88.4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→haiku ×18 $31.2</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">opus→haiku ×9 $11.1</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→sonnet ×4 $5.32</span>
+<span class="sl-b sl-c-green">📄 Doc2md saved</span> <span class="sl-c-green">$4.03</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">pptx ×1 $3.10</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">pdf ×2 $0.93</span>
+<span class="sl-b sl-c-gray">👥 Pro · northwind · Platform · member-1a2b3c4d</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">🦊 여우 ▰▰▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱</span><span class="sl-c-gray"> 75% → 🐆 치타 77%</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">종합 3/12위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">팀 1/4위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">사용량 2/12위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">위임률 5/12위</span>
+<span class="sl-c-green">✦ current ▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱</span><span class="sl-c-green"> 62% 🔄 16:33</span> · <span class="sl-c-green">📅 weekly ▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱▱▱</span><span class="sl-c-green"> 38% 🔄 Tue 19:00</span> · <span class="sl-c-green">📦 Ctx 18% of 1M</span> · <span class="sl-c-green">⏳ Cache expires 59:12</span> · <span class="sl-c-violet">🤖 Opus 5.5</span> · <span class="sl-c-blue">🔬 high</span>
+<span class="sl-b">🧠 Cache hit</span> <span class="sl-c-green">98.8%</span> <span class="sl-c-cyan">💰 Cache saved</span> $1.5K <span class="sl-c-gray">(last 7d)</span> · <span class="sl-c-gray">💵 Nov $413</span> · <span class="sl-c-gray">v3.124.0 ✓5m ago</span></pre>
+<!-- statusline-sample:demo:end -->
         </div>
       </div>
       <p class="caption" data-k="hero.caption">Separate agent records. Shared writing and document tools. Unknown prices stay unknown.</p>
@@ -1734,11 +1782,12 @@ const KO = {
   'pop.4p':'캐시 적중률과 만료까지 남은 시간, 컨텍스트 사용량, 5시간·7일 사용량 한도를 매 턴 읽어서, 그중 하나라도 바로 확인해야 하면 경고 칩이 줄 맨 앞으로 올라옵니다.',
  'nav.how':'작동 방식', 'nav.routing':'라우팅', 'nav.features':'기능', 'nav.docs':'문서', 'nav.teams':'팀 콘솔', 'nav.pricing':'요금', 'nav.license':'라이선스', 'nav.proof':'검증 Lab',
  'lab.tag':'검증 Lab',
-  'spec.type':'유형','spec.typev':'위임 라우터 CLI','spec.runs':'실행 환경','spec.routes':'보내는 곳','spec.routesv':'Haiku, Sonnet, effort 단계','spec.license':'라이선스',
+  'spec.type':'유형','spec.typev':'위임 라우터 CLI','spec.runs':'실행 환경','spec.routes':'고르는 것','spec.routesv':'모델과 effort','spec.license':'라이선스',
   'log.1':'세션 기록을 읽습니다','log.2':'되풀이된 실패를 찾습니다','log.3':'ratchet 규칙을 제안합니다','log.4':'안전한 작업을 하위 에이전트에 맡깁니다','log.5':'지출과 절감액을 표시합니다',
   'hero.h1':'코딩 에이전트를 위한 위임 라우터',
   'hero.support':'Claude Code와 Codex용 Sprag',
   'hero.sub':'일마다 맞는 모델과 effort로 보냅니다. 조회는 Haiku로 내립니다. 싼 실행이 놓칠 일은 effort나 모델을 올립니다. 규칙마다 직접 열어 볼 수 있는 <a href="proof/">재생 사례</a>가 있고 쓴 금액과 아낀 금액은 상태줄에 나옵니다.',
+  'sl.label':'상태줄 출력 예시',
   'hero.copy':'복사', 'hero.copied':'복사됨', 'hero.enlarge':'탭하면 크게 봅니다',
   'hero.cta':'Sprag 설치',
   'hero.how':'작동 방식',
@@ -1765,8 +1814,13 @@ const KO = {
   'ex.b.r4':'서브에이전트가 실제로 쓴 비용',
   'ex.b.r5':'위임 비용',
   'ex.b.s5':'위임 지시 작성, 결과 읽기',
-  'ex.b.r6':'절감액',
-  'ex.b.f':'계산식',
+  'ex.b.ga':'메인 모델이 직접 했다면',
+  'ex.b.gb':'실제로 쓴 비용',
+  'ex.b.gt':'절감액 (A − B)',
+  'ex.b.bar1':'메인 모델이 직접 했다면',
+  'ex.b.bar2':'실제로 쓴 비용',
+  'ex.b.bar3':'절감 79%',
+  'ex.b.sep':', ',
   'ex.b.m':'최근 14일 실측',
   'ex.b.d':'2026-10-17 ~ 2026-10-31, 개발 PC 1대, 위임 83건',
   'ex.b.n1':'위임 시점 대화 크기: 평균 26.6만 토큰, 중앙값 23.6만 토큰',
