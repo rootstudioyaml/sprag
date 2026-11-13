@@ -6,7 +6,7 @@
 // in v3.54.0 left `softwareVersion` at 3.53.0 and test/site-md.test.js failed
 // on every CI runner. The script stages the page itself, because npm commits
 // only package.json and the lockfile on its own.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +46,18 @@ for (const file of scenePages) {
   const bumped = text.replace(sceneRe, `$1${version}`);
   if (bumped !== text) writeFileSync(file, bumped);
   staged.push(file.slice(ROOT.length + 1));
+}
+// Scene modules also import each other by relative path (town-scene.js pulls
+// './office-scene.js?v=<version>'). The page regex above needs '/assets/', so
+// that import stayed at 3.122.1-1 after v3.123.0 and the wiring test failed.
+// Only release-shaped queries are rewritten; content keys like ?v=s2 stay.
+const sceneDir = join(ROOT, 'site', 'assets', 'scene');
+const relRe = /(\.\/[a-z0-9-]+\.js\?v=)\d+\.\d+\.\d+(?:-\d+)?/g;
+for (const name of readdirSync(sceneDir).filter((n) => n.endsWith('.js'))) {
+  const file = join(sceneDir, name);
+  const text = readFileSync(file, 'utf8');
+  const bumped = text.replace(relRe, `$1${version}`);
+  if (bumped !== text) { writeFileSync(file, bumped); staged.push(file.slice(ROOT.length + 1)); }
 }
 if (!process.argv.includes('--no-stage')) {
   execFileSync('git', ['add', ...staged], { cwd: ROOT, stdio: 'inherit' });
