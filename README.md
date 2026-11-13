@@ -389,7 +389,7 @@ Prompt capture is off unless an organization owner or admin turns it on.
 
 ### What a machine sends
 
-Sprag stays local unless you opt in. With `sprag team join <token>` (or `SPRAG_TEAM_TOKEN` for a whole organization), each machine uploads one row per day: spend, savings, delegated-run count and model-family share. Transcripts, file paths and project names are never sent. Prompts are not sent either, unless an Enterprise organization turns on prompt capture, and `sprag team status --show-payload` prints exactly what would go up. In return the team owner sees per-member totals in a dashboard and can approve ratchet rules that every member picks up automatically.
+Sprag stays local unless you opt in. With `sprag team join <token>` (or `SPRAG_TEAM_TOKEN` for a whole organization), each machine uploads one row per day: spend, savings, delegated-run count and model-family share. Transcripts, file paths, project names and sprag's own error messages are never sent. Prompts are not sent either, unless an Enterprise organization turns on prompt capture, and `sprag team status --show-payload` prints exactly what would go up. In return the team owner sees per-member totals in a dashboard and can approve ratchet rules that every member picks up automatically.
 
 `SPRAG_NO_TEAM_SYNC=1` turns all team traffic off, and `sprag team leave` removes the membership.
 

@@ -1,4 +1,4 @@
-// diag-log: the local log of swallowed errors on a joined machine (uploaded by the team sync).
+// diag-log: the local log of swallowed errors on a joined machine (local only, never uploaded).
 // Temp dirs only; XDG_CONFIG_HOME points at one so debug() and the default paths never see the real data dir.
 
 import test, { beforeEach, after } from 'node:test';

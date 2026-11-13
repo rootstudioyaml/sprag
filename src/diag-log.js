@@ -3,9 +3,9 @@
  *
  * Why: a joined machine can show $0 spend, upload zero ledger rows or price
  * every Claude call as "unpriced", and the cause sits in a catch block that was
- * silent on purpose (see debug.js). The operator needs the error text from that
- * machine, so `debug()` also lands here and the team sync uploads the log to
- * `diag_upload`. Only error text goes up: never a prompt or a transcript.
+ * silent on purpose (see debug.js). The operator can read the error text on that
+ * machine, so `debug()` also lands here. The log is local only (mode 0600) and
+ * never leaves the machine: the team sync does not upload it.
  *
  * File: <userDataDir>/diag-log.json
  *   { "version": 1, "entries": [ { scope, msg, count, first, last } ] }
@@ -247,9 +247,9 @@ export function recordDiag(scope, err, { dir = userDataDir(), now = Date.now(), 
 }
 
 /**
- * After a successful upload: take the sent counts off the log. The file is read
- * again first, so entries that arrived during the upload stay. An entry whose
- * count drops to zero or below is removed.
+ * Take the given counts off the local log. The file is read again first, so
+ * entries that arrived meanwhile stay. An entry whose count drops to zero or
+ * below is removed. Nothing in sprag sends the log anywhere.
  */
 export function ackDiag(sent, { dir = userDataDir() } = {}) {
   try {
@@ -266,5 +266,5 @@ export function ackDiag(sent, { dir = userDataDir() } = {}) {
       if (e.count - n > 0) kept.push({ ...e, count: e.count - n });
     }
     writeDiag(dir, kept);
-  } catch { /* the next upload sends them again */ }
+  } catch { /* the entries stay in the local log */ }
 }

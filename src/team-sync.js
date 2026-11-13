@@ -62,7 +62,7 @@ import { codexBudgetProvider } from './codex/budget.js';
 import { fetchGatewayDailySpend, gatewayDayValue, gatewayEnv } from './gateway-spend.js';
 import { withClaudeSettingsEnv, gatewayBase } from './gateway-auth.js';
 import { maybeRefreshGatewayModelMap, readGatewayModelMap } from './litellm-models.js';
-import { recordDiag, readDiag, ackDiag } from './diag-log.js';
+import { recordDiag } from './diag-log.js';
 
 export const PROMPT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -952,47 +952,6 @@ async function reportRuleStats({ state, dir, fetch, now }) {
   }
 }
 
-export const DIAG_UPLOAD_INTERVAL_MS = 30 * 60 * 1000;
-const DIAG_UPLOAD_MAX = 100;
-
-/**
- * Upload the local diagnostics log (diag-log.js) to diag_upload: error text
- * only, newest 100 entries, at most once per DIAG_UPLOAD_INTERVAL_MS unless
- * `force`. Returns `{ diag, lastDiagAt }` after an upload, `{ lastDiagError }`
- * after a failed one, and null when nothing was due. A server without the
- * function (not migrated yet) is silent. It never throws, never fails the sync,
- * and does not call debug() on its own failure: that would put the upload error
- * into the log it is trying to send.
- */
-async function uploadDiag({ state, dir, fetch, version, now, force = false, env = process.env }) {
-  try {
-    if (envVar('NO_DIAG', env) === '1') return null;
-    if (!force && Number.isFinite(state.lastDiagAt) && now - state.lastDiagAt >= 0 && now - state.lastDiagAt < DIAG_UPLOAD_INTERVAL_MS) return null;
-    const entries = readDiag({ dir });
-    if (!entries.length) return null;
-    const sent = [...entries].sort((a, b) => (a.last < b.last ? 1 : a.last > b.last ? -1 : 0)).slice(0, DIAG_UPLOAD_MAX);
-    try {
-      const n = await rpc('diag_upload', { member_key: state.memberKey, entries: sent, sprag_version: version || '' }, { fetch });
-      ackDiag(sent, { dir });
-      return { diag: Number.isFinite(n) ? n : sent.length, lastDiagAt: now };
-    } catch (e) {
-      if (/Could not find the function|PGRST202/.test(String(e && e.message))) return null;
-      return { lastDiagError: String((e && e.message) || e).slice(0, 200) };
-    }
-  } catch {
-    return null;
-  }
-}
-
-/** The team.json fields an uploadDiag result changes. */
-function withDiagMeta(state, d) {
-  if (!d) return state;
-  const next = { ...state };
-  if (d.lastDiagAt) { next.lastDiagAt = d.lastDiagAt; delete next.lastDiagError; }
-  if (d.lastDiagError) next.lastDiagError = d.lastDiagError;
-  return next;
-}
-
 /**
  * `gatewayFetch` is the fetch the gateway calls use (the team server's `fetch`
  * is injected separately so tests can fake each side). `coworkSessions`, `codexSessions`,
@@ -1112,8 +1071,7 @@ export async function syncTeam({
     await ledgerUpsert({ memberKey: state.memberKey, rows, version, dir, fetch });
     const { r, rules } = await pullRules({ memberKey: state.memberKey, dir, fetch, now });
     const ruleStats = await reportRuleStats({ state, dir, fetch, now });
-    const diag = await uploadDiag({ state, dir, fetch, version, now, force, env });
-    const next = withRulesMeta(withDiagMeta({ ...state, ...ruleStats, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, diag), r, now);
+    const next = withRulesMeta({ ...state, ...ruleStats, lastSyncAt: now, lastSyncAttemptAt: now, lastSyncRows: rows.length, ledgerSyncedThrough: dayKey(now) }, r, now);
     if (gatewayOk) next.gatewaySyncedThrough = dayKey(now);
     else if (gatewayDaily && gatewayDaily.error) next.lastGatewayError = gatewayDaily.error;
     if (gatewayOk || !hasGateway) delete next.lastGatewayError;
@@ -1134,11 +1092,6 @@ export async function syncTeam({
     try {
       saveTeamState({ ...state, lastSyncAttemptAt: now, syncFailures: (Number(state.syncFailures) || 0) + 1, lastError: e.message }, dir);
     } catch (e2) { debug('team-sync', e2); }
-    // The failure that just happened is exactly what the operator needs to see.
-    try {
-      const diag = await uploadDiag({ state, dir, fetch, version, now, force: true, env });
-      if (diag) saveTeamState(withDiagMeta(loadTeamState(dir), diag), dir);
-    } catch { /* best effort */ }
     return { error: e.message };
   }
 }

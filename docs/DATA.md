@@ -24,7 +24,7 @@ Only computers that ran `sprag team join` or got `SPRAG_TEAM_TOKEN` from their o
 - OS name and version, Sprag version, display name (a random ID such as `member-3f9a2c71` by default)
 - delegation rule summary: numbers only, such as counts, failure rate and savings per category
 
-**Not uploaded**: prompts, conversations, code, file paths, project names, rule text, API keys, hostnames
+**Not uploaded**: prompts, conversations, code, file paths, project names, rule text, API keys, hostnames, error messages
 
 Organization owners and admins see only each member's daily totals.
 

@@ -30,7 +30,7 @@ After you join, Sprag uploads one row per local calendar day:
 | Machine ID | the same random member ID, sent at join even when you choose another display name, so that a machine joining again reuses its seat in the organization instead of taking a second one |
 | Operating system | OS name and version (for example macOS 26, Windows 11, Ubuntu 24.04); sent once after joining and again only if it changes. Nothing that identifies the machine by name: no hostname, no user name, no path |
 
-Not sent: prompts, transcripts, file paths, project names, rule text, rule examples, API keys. The one exception is the opt-in prompt upload of an Enterprise team with prompt capture on, described under "Prompt usage (Enterprise)". A rule's text leaves your machine only when you run `sprag team propose` yourself.
+Not sent: prompts, transcripts, file paths, project names, rule text, rule examples, API keys, sprag's own error messages. The one exception is the opt-in prompt upload of an Enterprise team with prompt capture on, described under "Prompt usage (Enterprise)". A rule's text leaves your machine only when you run `sprag team propose` yourself.
 
 ### Delegation rule summary
 

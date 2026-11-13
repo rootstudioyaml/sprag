@@ -23,7 +23,6 @@ import {
   setDisplayName,
 } from '../team-sync.js';
 import { standingGuideLines } from '../team-standing.js';
-import { readDiag } from '../diag-log.js';
 import { envVar } from '../env.js';
 
 const T = {
@@ -41,7 +40,7 @@ const T = {
       '  propose <text> [--scope ratchet|model]   propose a rule to the team',
       '  town [--no-open]                     open the read-only town in your browser (link valid 12 hours)',
     ].join('\n'),
-    willSend: 'Joining uploads aggregates only. Per local day:\n  - spend (USD)\n  - savings (USD)\n  - delegation run counts\n  - model-family share\nAnd one summary of your delegation rules, per category and tier:\n  - category, tier, delegation count, failure rate, savings (USD)\nError messages from sprag itself (to fix problems on your machine). Home paths, host names and secrets are masked.\nNo prompts, rule text, examples, file paths or transcripts are sent.',
+    willSend: 'Joining uploads aggregates only. Per local day:\n  - spend (USD)\n  - savings (USD)\n  - delegation run counts\n  - model-family share\nAnd one summary of your delegation rules, per category and tier:\n  - category, tier, delegation count, failure rate, savings (USD)\nNo prompts, rule text, examples, file paths, transcripts or error messages are sent.',
     rulesPayload: 'delegation rule summary (member_rules_report)',
     asName: (n) => `Display name: ${n}`,
     asDevice: (d) => `Machine ID: ${d} (lets the organization count this machine once if it joins again)`,
@@ -71,9 +70,6 @@ const T = {
     lastPrompts: (t, n) => `Last prompt upload: ${t} (${n} prompts)`,
     noPrompts: 'Last prompt upload: never',
     pendingPrompts: (n) => `Prompts waiting to upload: ${n}`,
-    diagWaiting: (n, last) => `Diagnostics waiting to upload: ${n} (last upload: ${last})`,
-    diagNever: 'never',
-    diagPayload: 'diagnostics (diag_upload)',
     pendingExample: (e) => `Example (redacted): ${e.at} · ${e.project || '-'} · ${e.text}`,
     disabled: 'Team sync is disabled (SPRAG_NO_TEAM_SYNC=1).',
     skipped: (s) => `Skipped: ${s}`,
@@ -129,7 +125,7 @@ const T = {
       '  propose <내용> [--scope ratchet|model]   팀에 규칙 제안',
       '  town [--no-open]                       읽기 전용 타운을 브라우저로 열기 (링크 12시간 유효)',
     ].join('\n'),
-    willSend: '참여하면 집계만 올라갑니다. 로컬 날짜별로는 다음과 같습니다.\n  - 지출(USD)\n  - 절감(USD)\n  - 위임 실행 횟수\n  - 모델 계열 비중\n위임 룰은 카테고리와 티어별 요약 한 벌이 올라갑니다.\n  - 카테고리, 티어, 위임 횟수, 실패율, 절감액(USD)\nsprag 자체의 오류 메시지(이 기기의 문제를 고치는 데 씁니다). 홈 경로, 호스트 이름, 비밀 값은 가려서 보냅니다.\n프롬프트, 룰 본문, 예시, 파일 경로, 대화 기록은 보내지 않습니다.',
+    willSend: '참여하면 집계만 올라갑니다. 로컬 날짜별로는 다음과 같습니다.\n  - 지출(USD)\n  - 절감(USD)\n  - 위임 실행 횟수\n  - 모델 계열 비중\n위임 룰은 카테고리와 티어별 요약 한 벌이 올라갑니다.\n  - 카테고리, 티어, 위임 횟수, 실패율, 절감액(USD)\n프롬프트, 룰 본문, 예시, 파일 경로, 대화 기록, 오류 메시지는 보내지 않습니다.',
     rulesPayload: '위임 룰 요약 (member_rules_report)',
     asName: (n) => `표시 이름: ${n}`,
     asDevice: (d) => `기기 ID: ${d} (다시 참여해도 조직이 이 PC를 한 좌석으로 셉니다)`,
@@ -159,9 +155,6 @@ const T = {
     lastPrompts: (t, n) => `마지막 프롬프트 업로드: ${t} (${n}건)`,
     noPrompts: '마지막 프롬프트 업로드: 아직 없음',
     pendingPrompts: (n) => `업로드 대기 중인 프롬프트: ${n}건`,
-    diagWaiting: (n, last) => `업로드 대기 중인 진단 기록: ${n}건 (마지막 업로드: ${last})`,
-    diagNever: '아직 없음',
-    diagPayload: '진단 기록 (diag_upload)',
     pendingExample: (e) => `예시 (비밀값 가림): ${e.at} · ${e.project || '-'} · ${e.text}`,
     disabled: '팀 동기화가 꺼져 있습니다 (SPRAG_NO_TEAM_SYNC=1).',
     skipped: (s) => `건너뜀: ${s}`,
@@ -388,7 +381,6 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
         for (const l of standingGuideLines(st.standing, { lang: userLanguage(), org: st.orgName || st.teamName || null, team: st.teamName || null })) out(l);
         out(st.lastSyncAt ? m.lastSync(new Date(st.lastSyncAt).toLocaleString(), st.lastSyncRows || 0) : m.neverSynced);
         if (st.lastError) out(isOrgExpiredError(st.lastError) ? m.orgExpired : `${m.lastError}: ${st.lastError}`);
-        out(m.diagWaiting(readDiag().length, st.lastDiagAt ? new Date(st.lastDiagAt).toLocaleString() : m.diagNever));
         if (orgMinVersion(st)) out(m.orgMin(orgMinVersion(st), version));
         {
           const up = readOrgUpgrade();
@@ -404,7 +396,6 @@ export async function run({ args, hasFlag, getArg, version, fetch, interactive, 
           out(`device: ${JSON.stringify(st.deviceInfo || deviceInfo())}`);
           out(JSON.stringify(await aggregateDaily(), null, 2));
           out(`${m.rulesPayload}: ${JSON.stringify(ruleStatsSummary(), null, 2)}`);
-          out(`${m.diagPayload}: ${JSON.stringify(readDiag(), null, 2)}`);
           if (st.promptCapture) {
             const pend = await pendingPrompts();
             out(m.pendingPrompts(pend.count));
