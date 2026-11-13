@@ -47,6 +47,40 @@ export const diagSrcDir = dirname(fileURLToPath(import.meta.url));
 const SRC_URL = pathToFileURL(diagSrcDir).href;
 
 const URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^\s/@?#]*@)?[^\s/?#]+/gi;
+
+// Network addresses without a scheme. A network error's cause names the proxy or
+// host it could not reach ("connect ECONNREFUSED 10.20.30.40:3128", "getaddrinfo
+// ENOTFOUND proxy.corp.local"), and that maps a customer's internal network. None
+// of it leaves the machine: addresses, hosts after a network error code, hosts in
+// a certificate mismatch and hosts under a private suffix all become `<host>`.
+// sprag's own public endpoints stay, so a failing team sync is still readable.
+const IPV4_RE = /(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?(?![\w.])/g;
+const IPV6_BRACKET_RE = /\[[0-9a-f:.]*:[0-9a-f:.]*\](?::\d{1,5})?/gi;
+const IPV6_FULL_RE = /(?<![\w:])(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}(?![\w:])/gi;
+const IPV6_SHORT_RE = /(?<![\w:])(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?(?![\w:])/gi;
+const NET_CODE_HOST_RE = /\b(getaddrinfo\s+[A-Z_]+|ENOTFOUND|EAI_AGAIN|EAI_NONAME|EAI_FAIL|ECONNREFUSED|ECONNRESET|ECONNABORTED|ETIMEDOUT|EHOSTUNREACH|EHOSTDOWN|ENETUNREACH|EPIPE)(\s+)([^\s,;)'"]+)/g;
+const CERT_HOST_RE = /\b(Host|DNS|IP Address|servername)(:\s*)([^\s,;)'"]+)/g;
+const ATTEMPTED_RE = /(attempted address(?:es)?:\s*)([^,;)]+)/gi;
+// Only a host-shaped token: oauth-budget writes "fetch failed (TypeError)", an error name to keep.
+const FETCH_HOST_RE = /(fetch failed \()((?:[a-z0-9-]+\.)+[a-z0-9-]+(?::\d{1,5})?|localhost(?::\d{1,5})?)(?=[,)])/gi;
+const PRIVATE_HOST_RE = /(?<![\w.-])(?:[a-z0-9-]+\.)+(?:local|localdomain|internal|intranet|corp|lan|home\.arpa|private)(?::\d{1,5})?(?![\w-])/gi;
+// sprag's own public endpoints: naming them reveals nothing about the customer.
+const PUBLIC_HOST_RE = /^(?:[a-z0-9-]+\.)*(?:supabase\.co|sprag\.io|npmjs\.org|anthropic\.com|github\.com)(?::\d{1,5})?$/i;
+const maskHost = (h) => (PUBLIC_HOST_RE.test(h) ? h : '<host>');
+
+/** Every network address in `s` as `<host>`, sprag's public endpoints kept. */
+export function maskNetwork(s) {
+  return String(s ?? '')
+    .replace(NET_CODE_HOST_RE, (_, code, sp, h) => code + sp + maskHost(h.replace(/[.:]+$/, '')))
+    .replace(CERT_HOST_RE, (_, k, sep, h) => k + sep + maskHost(h.replace(/\.$/, '')))
+    .replace(ATTEMPTED_RE, (_, lead) => `${lead}<host>`)
+    .replace(FETCH_HOST_RE, (_, lead, h) => lead + maskHost(h))
+    .replace(PRIVATE_HOST_RE, '<host>')
+    .replace(IPV6_BRACKET_RE, '<host>')
+    .replace(IPV4_RE, '<host>')
+    .replace(IPV6_FULL_RE, '<host>')
+    .replace(IPV6_SHORT_RE, (m) => (m === '::' ? m : '<host>'));
+}
 const ARN_ACCOUNT_RE = /(arn:aws[\w-]*:[\w-]*:[\w-]*:)\d{12}(:)/g;
 const EMAIL_RE =/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
 
@@ -86,6 +120,7 @@ export function sanitizeDiag(text, max = MAX_MSG) {
     if (home && home.length > 1) s = s.split(home).join('~');
   } catch { /* no home directory to mask */ }
   s = s.replace(URL_RE, '<host>');
+  s = maskNetwork(s);
   s = s.replace(PATH_RE, (_, lead, p) => lead + shortPath(p));
   s = s.replace(ARN_ACCOUNT_RE, '$1<acct>$2'); // a model id can be an ARN, and an ARN holds the AWS account id
   s = redactSecrets(s);

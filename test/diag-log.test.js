@@ -179,3 +179,46 @@ test('debug() records on a joined machine even without SPRAG_DEBUG', () => {
   assert.equal(entries[0].scope, 'some-scope');
   assert.match(entries[0].msg, /^swallowed/);
 });
+
+test('sanitizeDiag masks network addresses a fetch cause carries, keeping sprag endpoints', () => {
+  const cases = [
+    // proxy refused: IPv4 and port
+    ['team_join: fetch failed (hiycfjwswtkixyoqkznm.supabase.co, ECONNREFUSED: connect ECONNREFUSED 10.20.30.40:3128)',
+      'team_join: fetch failed (hiycfjwswtkixyoqkznm.supabase.co, ECONNREFUSED: connect ECONNREFUSED <host>)'],
+    // internal DNS name after a network code
+    ['member_set_info: fetch failed (hiycfjwswtkixyoqkznm.supabase.co, ENOTFOUND: getaddrinfo ENOTFOUND proxy.acme-corp.com)',
+      'member_set_info: fetch failed (hiycfjwswtkixyoqkznm.supabase.co, ENOTFOUND: getaddrinfo ENOTFOUND <host>)'],
+    // an overridden server host that is not sprag's
+    ['team_join: fetch failed (litellm.acme.co.kr:4000, ETIMEDOUT: connect ETIMEDOUT 172.16.0.9:4000)',
+      'team_join: fetch failed (<host>, ETIMEDOUT: connect ETIMEDOUT <host>)'],
+    // undici connect timeout
+    ['Connect Timeout Error (attempted address: gw.acme.example:443, timeout: 10000ms)',
+      'Connect Timeout Error (attempted address: <host>, timeout: 10000ms)'],
+    // certificate mismatch lists hosts the proxy's certificate covers
+    ["Hostname/IP does not match certificate's altnames: Host: api.acme.com. is not in the cert's altnames: DNS:proxy.acme.com, DNS:*.acme.com",
+      "Hostname/IP does not match certificate's altnames: Host: <host> is not in the cert's altnames: DNS:<host>, DNS:<host>"],
+    // private suffixes with no code before them
+    ['proxy at squid.corp.local:3128 refused', 'proxy at <host> refused'],
+    // IPv6, bare, compressed and bracketed
+    ['connect ECONNREFUSED fd00:1:2:3::10', 'connect ECONNREFUSED <host>'],
+    ['via fe80::1ff:fe23:4567:890a and [2001:db8::7]:8080', 'via <host> and <host>'],
+    // MAC-like groups are identifiers too
+    ['iface aa:bb:cc:dd:ee:ff down', 'iface <host> down'],
+  ];
+  for (const [input, want] of cases) assert.equal(sanitizeDiag(input), want, input);
+});
+
+test('sanitizeDiag network masking leaves versions, times, files and namespaces alone', () => {
+  const keep = [
+    'sprag v3.124.2 on Node v24.19.0',
+    'at 2026-11-13T07:24:50.407Z after 12:34:56',
+    'cannot parse team-sync.js line 4: unexpected ::',
+    'std::string overflow',
+    'ledger_upsert: HTTP 500',
+    'fetch failed (sprag.io, ECONNRESET: socket hang up)',
+    'getaddrinfo ENOTFOUND registry.npmjs.org',
+    // oauth-budget names the error class, not a host
+    'fetch failed (TypeError)',
+  ];
+  for (const s of keep) assert.equal(sanitizeDiag(s), s, s);
+});
