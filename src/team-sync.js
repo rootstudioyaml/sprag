@@ -274,6 +274,25 @@ async function ledgerUpsert({ memberKey, rows, version, dir, fetch }) {
   }
 }
 
+/**
+ * Node's fetch reports every network failure as a bare "fetch failed" and keeps
+ * the reason in `cause` (ENOTFOUND, ECONNREFUSED, UNABLE_TO_GET_ISSUER_CERT_LOCALLY...).
+ * Printing only e.message hid it, so a member behind a corporate proxy or a
+ * firewall saw "fetch failed" with nothing to act on. This names the step,
+ * the host and the cause code.
+ */
+export function networkError(label, e, url) {
+  const c = e && e.cause;
+  const code = (c && (c.code || c.name)) || '';
+  const detail = c && c.message && c.message !== code ? c.message : '';
+  let host = '';
+  try { host = new URL(url).host; } catch { /* no usable url */ }
+  const parts = [host, [code, detail].filter(Boolean).join(': ')].filter(Boolean).join(', ');
+  const err = new Error(`${label}: fetch failed${parts ? ` (${parts})` : ''}`);
+  err.cause = c || e;
+  return err;
+}
+
 export async function rpc(fn, params, {
   fetch = globalThis.fetch, timeoutMs = 8000, url = teamApiUrl(), key = teamAnonKey(),
 } = {}) {
@@ -296,6 +315,7 @@ export async function rpc(fn, params, {
     return body;
   } catch (e) {
     if (e && e.name === 'AbortError') throw new Error(`${fn}: timeout`);
+    if (e instanceof TypeError && /fetch failed/i.test(e.message)) throw networkError(fn, e, url);
     throw e;
   } finally {
     clearTimeout(timer);
@@ -326,6 +346,7 @@ async function apiJson(path, { body, accessToken, label, fetch = globalThis.fetc
     return data;
   } catch (e) {
     if (e && e.name === 'AbortError') throw new Error(`${label}: timeout`);
+    if (e instanceof TypeError && /fetch failed/i.test(e.message)) throw networkError(label, e, url);
     throw e;
   } finally {
     clearTimeout(timer);

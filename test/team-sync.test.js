@@ -897,3 +897,27 @@ test('a failed gateway daily call records team-sync:gateway-daily with the host 
   assert.ok(!e.msg.includes('corp.example'));
   assert.match(e.msg, /<host>/);
 });
+
+test('rpc names the host and the cause code when fetch fails at the network level', async () => {
+  const cause = Object.assign(new Error('getaddrinfo ENOTFOUND example.supabase.co'), { code: 'ENOTFOUND' });
+  const fetch = async () => { throw new TypeError('fetch failed', { cause }); };
+  await assert.rejects(
+    rpc('team_join', {}, { fetch, url: 'https://example.supabase.co', key: 'k' }),
+    (e) => {
+      assert.equal(e.message, 'team_join: fetch failed (example.supabase.co, ENOTFOUND: getaddrinfo ENOTFOUND example.supabase.co)');
+      assert.equal(e.cause, cause);
+      return true;
+    },
+  );
+  // a TLS failure carries only a code
+  const tls = Object.assign(new Error('unable to get local issuer certificate'), { code: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY' });
+  await assert.rejects(
+    rpc('team_join', {}, { fetch: async () => { throw new TypeError('fetch failed', { cause: tls }); }, url: 'https://example.supabase.co', key: 'k' }),
+    /team_join: fetch failed \(example\.supabase\.co, UNABLE_TO_GET_ISSUER_CERT_LOCALLY: unable to get local issuer certificate\)/,
+  );
+  // other errors pass through unchanged
+  await assert.rejects(
+    rpc('team_join', {}, { fetch: async () => { throw new RangeError('boom'); }, url: 'https://example.supabase.co', key: 'k' }),
+    /^RangeError: boom$/,
+  );
+});
