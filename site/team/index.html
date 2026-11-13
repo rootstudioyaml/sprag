@@ -836,6 +836,16 @@ const I18N = {
     "sr.filter":"Status",
     "sr.c.name":"Machine",
     "sr.c.team":"Team",
+    "sr.c.routing":"Routing",
+    "sr.rt.on":"On",
+    "sr.rt.off":"Off",
+    "sr.rt.not":"Not loaded",
+    "sr.rt.unknown":"Unknown",
+    "sr.tip.rt.on":"Routing is on, the rules are loaded and the delegation agents are installed",
+    "sr.tip.rt.off":"Routing is switched off on this PC",
+    "sr.tip.rt.rules":"Rules not loaded into the session",
+    "sr.tip.rt.agents":"Delegation agents missing",
+    "sr.tip.rt.unknown":"Not reported yet (older sprag)",
     "sr.c.ver":"Version",
     "sr.c.seen":"Last contact",
     "sr.c.since":"Paused since",
@@ -946,6 +956,16 @@ const I18N = {
     "sr.filter":"상태",
     "sr.c.name":"PC",
     "sr.c.team":"팀",
+    "sr.c.routing":"라우팅",
+    "sr.rt.on":"켜짐",
+    "sr.rt.off":"꺼짐",
+    "sr.rt.not":"미적용",
+    "sr.rt.unknown":"미확인",
+    "sr.tip.rt.on":"라우팅이 켜져 있고 룰과 위임 에이전트가 모두 갖춰짐",
+    "sr.tip.rt.off":"이 PC에서 라우팅이 꺼진 상태",
+    "sr.tip.rt.rules":"룰이 세션에 로드되지 않음",
+    "sr.tip.rt.agents":"위임 에이전트 없음",
+    "sr.tip.rt.unknown":"아직 보고되지 않음 (이전 버전 sprag)",
     "sr.c.ver":"버전",
     "sr.c.seen":"마지막 접속",
     "sr.c.since":"중지 시작",
@@ -1050,7 +1070,9 @@ const I18N = {
 Object.assign(I18N.en, {"v.prompts": "Prompts", "d.tab.prompts": "Prompts", "pu.loading": "Loading", "pu.lock.plan.h": "Available on Enterprise", "pu.lock.plan.p": "Prompt capture and per-user prompt usage are part of the Enterprise plan. Pro organizations keep the spend and savings dashboard, seats and team rules.", "pu.lock.plan.cta": "See plans", "pu.lock.cap.h": "Prompt capture is off", "pu.lock.cap.p": "Switch it on for a team in Teams, Policy. Only prompts captured after that appear here.", "pu.lock.cap.ops": "An owner of this organization can switch it on for each team. Only prompts captured after that appear here.", "pu.t.prompts": "Prompts", "pu.t.chars": "Characters", "pu.t.users": "Users", "pu.c.user": "Machine", "pu.c.team": "Team", "pu.c.os": "OS", "pu.c.prompts": "Prompts", "pu.c.chars": "Characters", "pu.c.avg": "Avg length", "pu.c.days": "Active days", "pu.c.last": "Last prompt", "pu.c.trend": "{d} days", "pu.none": "No prompts captured in this range ({r}).", "pu.note": "{r}, teams with prompt capture on. Select a machine to read its prompts.", "pu.spark": "{n} prompts, {r}", "pu.back": "← All users", "pu.search": "Search prompts", "pu.more": "Load more", "pu.expand": "Show all", "pu.collapse": "Collapse", "pu.noprompts": "No prompts match."});
 Object.assign(I18N.ko, {"v.prompts": "프롬프트", "d.tab.prompts": "프롬프트", "pu.loading": "불러오는 중", "pu.lock.plan.h": "엔터프라이즈 요금제에서 쓸 수 있습니다", "pu.lock.plan.p": "프롬프트 수집과 사용자별 프롬프트 사용량은 엔터프라이즈 요금제에 포함됩니다. 프로 요금제에서는 비용·절감 대시보드, 좌석, 팀 룰을 그대로 쓸 수 있습니다", "pu.lock.plan.cta": "요금제 보기", "pu.lock.cap.h": "프롬프트 수집이 꺼져 있습니다", "pu.lock.cap.p": "팀 탭의 정책에서 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.lock.cap.ops": "이 조직의 오너가 팀별로 켤 수 있습니다. 켠 뒤에 수집된 프롬프트만 여기에 나옵니다", "pu.t.prompts": "프롬프트", "pu.t.chars": "글자 수", "pu.t.users": "사용자", "pu.c.user": "PC", "pu.c.team": "팀", "pu.c.os": "OS", "pu.c.prompts": "프롬프트", "pu.c.chars": "글자 수", "pu.c.avg": "평균 길이", "pu.c.days": "활동 일수", "pu.c.last": "마지막 프롬프트", "pu.c.trend": "{d}일", "pu.none": "이 기간({r}) 동안 수집된 프롬프트가 없습니다", "pu.note": "{r}, 프롬프트 수집을 켠 팀 기준입니다. PC를 누르면 프롬프트를 읽을 수 있습니다", "pu.spark": "{r} 프롬프트 {n}개", "pu.back": "← 전체 사용자", "pu.search": "프롬프트 검색", "pu.more": "더 보기", "pu.expand": "전체 보기", "pu.collapse": "접기", "pu.noprompts": "조건에 맞는 프롬프트가 없습니다"});
 Object.assign(I18N.en, {"ux.dm": "Machines delegating"});
+Object.assign(I18N.en, {"ux.dm.of": "{n} / {of} active PCs", "ux.dm.sub": "Counts PCs with spend or delegation in the range, which can differ from seats."});
 Object.assign(I18N.ko, {"ux.dm": "위임 사용 PC"});
+Object.assign(I18N.ko, {"ux.dm.of": "{n} / 활동 PC {of}", "ux.dm.sub": "기간 안에 지출이나 위임이 있었던 PC 기준입니다. 좌석 수와 다를 수 있습니다."});
 Object.assign(I18N.en, {"rg.title":"Usage range","rg.7d":"7d","rg.30d":"30d","rg.90d":"90d","rg.this":"This month","rg.last":"Last month","rg.custom":"Custom","rg.from":"From","rg.to":"To","rg.bad":"Enter both dates","rg.order":"The start date must not be after the end date","rg.max":"The range can be 365 days at most"});
 Object.assign(I18N.ko, {"rg.title":"사용량 기간","rg.7d":"7일","rg.30d":"30일","rg.90d":"90일","rg.this":"이번 달","rg.last":"지난 달","rg.custom":"직접 선택","rg.from":"시작일","rg.to":"종료일","rg.bad":"날짜를 둘 다 입력하세요","rg.order":"시작일이 종료일보다 늦을 수 없습니다","rg.max":"기간은 최대 365일입니다"});
 Object.assign(I18N.en, {"mem.models":"Spend by model"});
@@ -2458,6 +2480,16 @@ const Seats = (function(){
   const ms = v => { const x = v ? new Date(v).getTime() : NaN; return isFinite(x) ? x : null; };
   const iso = v => v ? new Date(v).toISOString() : '';
   const goneOf = r => r.signal === 'left' || r.signal === 'removed';
+  /* Why a PC may not delegate: routing switched off, rules not loaded into the session, or delegation agents missing.
+     Older sprag versions report nothing (all three null): unknown. */
+  const routingOf = r => {
+    const on = r.routing_on, ld = r.routing_loaded, ag = r.routing_agents;
+    if(on == null && ld == null && ag == null) return { k:'unknown', badge:'dim', tip:t('sr.tip.rt.unknown') };
+    if(on === false) return { k:'off', badge:'warn', tip:t('sr.tip.rt.off') };
+    if(ld === false || ag === false) return { k:'not', badge:'warn', tip:[ld === false ? t('sr.tip.rt.rules') : '', ag === false ? t('sr.tip.rt.agents') : ''].filter(Boolean).join('\n') };
+    if(on === true && ld === true && ag === true) return { k:'on', badge:'good', tip:t('sr.tip.rt.on') };
+    return { k:'unknown', badge:'dim', tip:t('sr.tip.rt.unknown') };
+  };
   function init(c){
     cfg = c; box = $(c.box);
     box.addEventListener('click', onClick);
@@ -2538,6 +2570,8 @@ const Seats = (function(){
         { key:'team', label:t('sr.c.team'), cls:'tm', tdAttr: tm, val: r => r.team_name || '' },
         { key:'switch', label:t('sr.c.switch'), val: r => goneOf(r) ? '' : (r.switch === 'off' ? t('sr.sw.off') : t('sr.sw.on')),
           cell: r => goneOf(r) ? '' : `<span class="badge ${r.switch === 'off' ? 'warn' : 'good'}" title="${esc(t('sr.tip.switch.' + (r.switch === 'off' ? 'off' : 'on')))}">${esc(t('sr.sw.' + (r.switch === 'off' ? 'off' : 'on')))}</span>` },
+        { key:'routing', label:t('sr.c.routing'), val: r => goneOf(r) ? '' : t('sr.rt.' + routingOf(r).k),
+          cell: r => { if(goneOf(r)) return ''; const o = routingOf(r); return `<span class="badge ${o.badge}" title="${esc(o.tip)}">${esc(t('sr.rt.' + o.k))}</span>`; } },
         { key:'signal', label:t('sr.c.signal'), val: r => SIGS.indexOf(r.signal), csv: r => t('sr.s.' + r.signal),
           cell: r => `<span class="badge ${BADGE[r.signal] || 'dim'}" title="${esc(t('sr.tip.' + r.signal))}">${esc(t('sr.s.' + r.signal))}</span>` },
         { key:'upload', label:t('sr.c.upload'), first:-1, val: r => goneOf(r) ? null : ms(r.last_upload_at), csv: r => goneOf(r) ? '' : iso(r.last_upload_at),

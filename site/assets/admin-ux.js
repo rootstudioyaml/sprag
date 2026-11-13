@@ -793,7 +793,7 @@ function usageKpis(cur, prev, o){
       sub: cur.sv > 0 ? esc(t('ux.sv.without', { v: money(rtot + cur.sv) })) : '', ...base },
     sr: { id:'sr', label:t('ux.sr'), value:rate, text: rate == null ? t('of.unknown') : undefined, fmt:pct1, prev:rateOf(prev), judge:'good', sub: esc(t('ux.sr.sub', { v: money(rtot) })), ...base },
     dl: { id:'dl', label:t('ux.deleg'), value:cur.dl, fmt:int, prev: prev ? prev.dl : null, judge:'good', onClick: go.dl, ...base },
-    dm: { id:'dm', label:t('ux.dm'), value:cur.dmach || 0, fmt: n => Math.round(n) + ' / ' + mach, prev: prev ? prev.dmach ?? null : null, judge:'good', onClick: go.dm, ...base },
+    dm: { id:'dm', label:t('ux.dm'), value:cur.dmach || 0, fmt: n => t('ux.dm.of', { n: Math.round(n), of: mach }), sub: esc(t('ux.dm.sub')), prev: prev ? prev.dmach ?? null : null, judge:'good', onClick: go.dm, ...base },
     dr: { id:'dr', label:t('ch.ws'), value:ws, text: ws == null ? t('of.unknown') : undefined, fmt:pct1, prev:workShare(prev), judge:'good', onClick: go.dr, ...base },
     dc: { id:'dc', label:t('ch.dc'), value:cur.dc, text: cur.dc == null ? t('of.unknown') : undefined, fmt:money, prev: prev ? prev.dc : null, judge:'neutral', onClick: go.dc, ...base }
   };

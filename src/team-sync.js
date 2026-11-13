@@ -45,6 +45,7 @@ import { writeStateFile } from './state-file.js';
 import { memberId, readMemberId } from './member-id.js';
 import { userLanguage } from './config.js';
 import { debug } from './debug.js';
+import { routingState } from './routing-state.js';
 import { trustSystemCA } from './system-ca.js';
 import { loadLedger, modelFamily, roundUsd, changedSinceForSync, clearChangedSince } from './savings-ledger.js';
 import { partCost, pricedParts } from './claude-price.js';
@@ -725,13 +726,39 @@ export function deviceInfo({
 
 // Reports device info once after a join and again only when it changes. Fails
 // soft: the next sync retries. Never runs while uploads are switched off.
-export async function reportDeviceInfo({ state, dir = userDataDir(), fetch, env = process.env } = {}) {
+// The routing state (routing on, rules loaded, agents present) rides along as the
+// optional `routing` argument, so the dashboard can tell why a PC does not
+// delegate. A server from before that argument answers PGRST202 ("Could not find
+// the function"): the call is repeated once without it.
+export async function reportDeviceInfo({ state, dir = userDataDir(), fetch, env = process.env, routing } = {}) {
   if (teamSyncDisabled(env) || !isJoined(state)) return state;
   const info = deviceInfo();
-  if (state.deviceInfo && JSON.stringify(state.deviceInfo) === JSON.stringify(info)) return state;
+  let route = routing;
+  if (route === undefined) {
+    try { route = routingState(); } catch (e) { debug('team-sync', e); route = null; }
+  }
+  const same = state.deviceInfo && JSON.stringify(state.deviceInfo) === JSON.stringify(info);
+  // After a fallback the server cannot take the argument yet: look again after a day, not on every sync.
+  const waiting = Number(state.routingRetryAt) > Date.now();
+  const routeSame = !route || waiting || JSON.stringify(state.routing || null) === JSON.stringify(route);
+  if (same && routeSame) return state;
   try {
-    await rpc('member_set_info', { member_key: state.memberKey, ...info }, { fetch });
+    const params = { member_key: state.memberKey, ...info };
+    let unsupported = false;
+    if (route) {
+      try {
+        await rpc('member_set_info', { ...params, routing: route }, { fetch });
+      } catch (e) {
+        if (!/routing|Could not find the function|PGRST202/i.test(String(e && e.message))) throw e;
+        unsupported = true;
+        await rpc('member_set_info', params, { fetch });
+      }
+    } else {
+      await rpc('member_set_info', params, { fetch });
+    }
     const next = { ...state, deviceInfo: info };
+    if (route && !unsupported) next.routing = route; else delete next.routing;
+    if (unsupported) next.routingRetryAt = Date.now() + 24 * 3600 * 1000; else delete next.routingRetryAt;
     saveTeamState(next, dir);
     return next;
   } catch (e) {

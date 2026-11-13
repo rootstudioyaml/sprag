@@ -10,8 +10,9 @@ import { tmpdir, hostname, userInfo } from 'node:os';
 import { join } from 'node:path';
 import {
   aggregateDaily, syncTeam, autoJoin, joinTeam, leaveTeam, rpc, loadTeamState, saveTeamState,
-  teamStatePath, teamRulesCachePath, autoJoinNotice, readTeamChip, TEAM_SYNC_INTERVAL_MS, deviceInfo, RULE_STATS_RESEND_MS, DIAG_UPLOAD_INTERVAL_MS,
+  teamStatePath, teamRulesCachePath, autoJoinNotice, readTeamChip, TEAM_SYNC_INTERVAL_MS, deviceInfo, reportDeviceInfo, RULE_STATS_RESEND_MS, DIAG_UPLOAD_INTERVAL_MS,
 } from '../src/team-sync.js';
+import { routingState } from '../src/routing-state.js';
 import { autoJoinNoticeBlock } from '../src/team-ratchet.js';
 import { userDataDir } from '../src/paths.js';
 import { recordDiag, readDiag, _resetDiagForTest } from '../src/diag-log.js';
@@ -72,7 +73,7 @@ const JOINED = {
   member_key: 'spk_secret', member_id: 'm1', team_id: 't1', team_name: 'Acme', plan: 'free', prompt_capture: false,
 };
 const joinedState = (extra = {}) => ({
-  version: 1, memberKey: 'spk_secret', teamName: 'Acme', displayName: 'me', lastSyncAt: null, deviceInfo: deviceInfo(), ...extra,
+  version: 1, memberKey: 'spk_secret', teamName: 'Acme', displayName: 'me', lastSyncAt: null, deviceInfo: deviceInfo(), routing: routingState(), ...extra,
 });
 
 test('aggregateDaily buckets by local day, sums savings, counts runs, shares families, adds session spend', async (t) => {
@@ -419,7 +420,8 @@ test('device info is sent once after join, not resent when unchanged, resent whe
   const st = await joinTeam({ token: TOKEN, displayName: 'me', fetch: f, dir, env: {} });
   assert.deepEqual(f.calls.map((c) => c.fn), ['team_join', 'member_set_info']);
   assert.equal(f.calls[1].body.member_key, 'spk_secret');
-  assert.deepEqual(Object.keys(f.calls[1].body).sort(), ['arch', 'member_key', 'os', 'os_version']);
+  assert.deepEqual(Object.keys(f.calls[1].body).sort(), ['arch', 'member_key', 'os', 'os_version', 'routing']);
+  assert.deepEqual(Object.keys(f.calls[1].body.routing).sort(), ['agents', 'loaded', 'on']);
   assert.deepEqual(st.deviceInfo, deviceInfo());
   assert.deepEqual(loadTeamState(dir).deviceInfo, deviceInfo());
 
@@ -440,6 +442,43 @@ test('device info is sent once after join, not resent when unchanged, resent whe
   saveTeamState({ ...loadTeamState(dir2), deviceInfo: undefined }, dir2);
   await syncTeam({ dir: dir2, fetch: g, env: { SPRAG_NO_TEAM_SYNC: '1' } });
   assert.deepEqual(g.calls.map((c) => c.fn), ['team_join', 'member_set_sync']);
+});
+
+test('the routing state is uploaded with the device info and resent only when it changes', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({ member_set_info: null });
+  const state = joinedState({ routing: undefined });
+  const r1 = { on: true, loaded: false, agents: true };
+  const s1 = await reportDeviceInfo({ state, dir, fetch: f, env: {}, routing: r1 });
+  assert.deepEqual(f.calls.map((c) => c.fn), ['member_set_info']);
+  assert.deepEqual(f.calls[0].body.routing, r1);
+  assert.deepEqual(s1.routing, r1);
+  await reportDeviceInfo({ state: s1, dir, fetch: f, env: {}, routing: r1 });
+  assert.equal(f.calls.length, 1, 'unchanged routing is not resent');
+  await reportDeviceInfo({ state: s1, dir, fetch: f, env: {}, routing: { ...r1, loaded: true } });
+  assert.equal(f.calls.length, 2);
+  assert.equal(f.calls[1].body.routing.loaded, true);
+});
+
+test('a server without the routing argument (PGRST202) gets the call again without it, and is asked again after a day', async (t) => {
+  const dir = isolate(t);
+  const f = fakeFetch({
+    member_set_info: (b) => ('routing' in b
+      ? { status: 404, json: { code: 'PGRST202', message: 'Could not find the function public.member_set_info(arch, member_key, os, os_version, routing)' } }
+      : null),
+  });
+  const r1 = { on: false, loaded: null, agents: null };
+  const s1 = await reportDeviceInfo({ state: joinedState({ routing: undefined }), dir, fetch: f, env: {}, routing: r1 });
+  assert.equal(f.calls.length, 2);
+  assert.ok('routing' in f.calls[0].body);
+  assert.ok(!('routing' in f.calls[1].body), 'the retry leaves the argument out');
+  assert.deepEqual(s1.deviceInfo, deviceInfo());
+  assert.equal(s1.routing, undefined, 'nothing was recorded as sent');
+  assert.ok(s1.routingRetryAt > Date.now());
+  await reportDeviceInfo({ state: s1, dir, fetch: f, env: {}, routing: r1 });
+  assert.equal(f.calls.length, 2, 'not retried on every sync');
+  await reportDeviceInfo({ state: { ...s1, routingRetryAt: Date.now() - 1 }, dir, fetch: f, env: {}, routing: r1 });
+  assert.equal(f.calls.length, 4, 'after the wait it tries the new argument again');
 });
 
 test('a failed device info report is soft: join succeeds and the next sync retries', async (t) => {

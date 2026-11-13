@@ -113,9 +113,10 @@ test('mach counts machines with spend or delegation, dmach those that delegated 
   ] }]);
   assert.equal(s.mach, 4);
   assert.equal(s.dmach, 2);
-  const kp = usageKpis(s, null, { t: (k) => k, money: (v) => v });
+  const kp = usageKpis(s, null, { t: (k, v) => (v ? k + JSON.stringify(v) : k), money: (v) => v });
   assert.equal(kp.dm.value, 2);
-  assert.equal(kp.dm.fmt(2), '2 / 4');
+  assert.equal(kp.dm.fmt(2), 'ux.dm.of{"n":2,"of":4}', 'the denominator is the active PCs, named by the ux.dm.of key');
+  assert.equal(kp.dm.sub, 'ux.dm.sub', 'a sub line says it is not the seat count');
 });
 
 test('workShare: (rdc + sv) / (rtot + sv) with since fields, dc / tot without, null when unknown', () => {
