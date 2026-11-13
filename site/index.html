@@ -629,10 +629,10 @@
   /* the two-terminal film, proof left and the claim right */
   .hero .compare{margin:112px 0 0;max-width:none;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);column-gap:48px;align-items:end}
   .hero .compare video{border-radius:12px}
-  .hero .compare figcaption{margin:0;font-family:var(--font-display);font-size:clamp(19px,1.8vw,24px);line-height:1.45;color:var(--ink);text-wrap:pretty}
+  .hero .compare figcaption{margin:0;font-family:var(--font-display);font-size:clamp(16px,1.3vw,18px);line-height:1.5;color:var(--ink);text-wrap:pretty}
 
   /* limits and savings: no card shells */
-  .hero .explain{margin:112px 0 0;max-width:none;gap:96px}
+  .hero .explain{margin:80px 0 0;max-width:none;gap:64px}
   .ex-card{background:none;border:0;border-radius:0;padding:0}
   .ex-card h3{font-size:clamp(22px,2.2vw,28px);letter-spacing:-.015em}
   .ex-limits{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);column-gap:56px;align-items:start}
@@ -645,7 +645,7 @@
   .ex-savings > .ex-lede{max-width:46ch}
 
   /* statusline capture: claim left, capture right */
-  .hero .demo{margin:112px 0 0;max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);column-gap:48px;align-items:start}
+  .hero .demo{margin:80px 0 0;max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);column-gap:48px;align-items:start}
   .demo .titlebar{grid-column:1;grid-row:1;border:0;background:none;padding:0;flex-direction:column;align-items:flex-start;gap:6px}
   .demo .titlebar .path{font-family:var(--font-display);font-size:22px;color:var(--ink)}
   .demo .tabs{grid-column:1;grid-row:2;margin-top:18px;border:0;background:none;padding:0;justify-self:start}
@@ -656,7 +656,7 @@
   .numbers{background:none;border-block:0;padding:72px 0 24px}
   .numbers .nwrap{grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr));gap:0 32px;align-items:end;padding:0 24px}
   .num{border-left:0;border-top:1px solid var(--line2);padding:18px 0 0}
-  .num:first-child b{font-size:clamp(48px,6vw,80px);line-height:1;letter-spacing:-.03em;color:var(--accent-fg)}
+  .num:first-child b{font-size:clamp(40px,4.4vw,56px);line-height:1;letter-spacing:-.03em;color:var(--accent-fg)}
   .num b{font-family:var(--font-display);font-size:30px}
 
   /* install: heading and switch left, commands right */
@@ -668,7 +668,7 @@
   .setup .copy-status{grid-column:2}
 
   /* how: the steps read as rows, claim beside its log line */
-  #how{padding-top:128px}
+  #how{padding-top:96px}
   .steps{grid-template-columns:minmax(0,1fr);gap:0;margin-top:56px}
   .step{border:0;border-top:1px solid var(--line);border-radius:0;background:none;padding:30px 0;
         display:grid;grid-template-columns:72px minmax(0,1fr) minmax(0,1.15fr);column-gap:32px;align-items:start}
@@ -705,8 +705,8 @@
   .dcard b{font-size:17px}
 
   /* closing line */
-  .cta{text-align:left;padding:120px 0 128px}
-  .cta h2{margin:0;max-width:18ch;font-size:clamp(34px,4.4vw,56px)}
+  .cta{text-align:left;padding:88px 0 96px}
+  .cta h2{margin:0;max-width:18ch;font-size:clamp(28px,3vw,40px)}
   .cta .actions{justify-content:flex-start;margin-top:32px}
 
   @media(max-width:860px){
@@ -749,7 +749,7 @@
   .hero-log{list-style:none;margin:0;padding:0;color:var(--dim)}
   .hero-log li{display:flex;gap:12px;padding:1px 0}.hero-log b{font-weight:500;color:var(--accent-fg)}
   /* the terminal comparison runs wider than the text column so both terminals read at a glance */
-  .hero .compare{display:block;position:relative;left:50%;width:min(1240px,calc(100vw - 48px));transform:translateX(-50%);margin-top:112px}
+  .hero .compare{display:block;position:relative;left:50%;width:min(1040px,calc(100vw - 48px));transform:translateX(-50%);margin-top:80px}
   .hero .compare video{width:100%;border-radius:4px;box-shadow:0 0 0 1px var(--line2)}
   .hero .compare figcaption{max-width:62ch;margin:18px auto 0;text-align:center}
   .hero .teamband{grid-row:auto;grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:center;margin:104px 0 0;padding-top:28px;border-top:1px solid var(--line2)}
@@ -777,7 +777,7 @@
   /* the tall track and the pinned stage only exist while the scroll story runs (html.story); under reduced motion, or
      when scroll-story.js does not load, the intro is one screen and the next section follows right under it */
   .intro{position:relative;height:auto;padding:0;margin:0;border:0;text-align:left}
-  .story .intro{height:300vh}
+  .story .intro{height:200vh}
   /* pinned just under the sticky header (57px), so the header never covers the stage and the first screen fits */
   .intro-stage{position:relative;min-height:calc(100vh - 57px);min-height:calc(100svh - 57px);display:flex}
   .story .intro-stage{position:sticky;top:57px;height:calc(100vh - 57px);height:calc(100svh - 57px);overflow:hidden}
@@ -788,9 +788,9 @@
   .intro-kicker span:first-child{color:var(--ink)}
   .intro-count{margin-left:auto;font-variant-numeric:tabular-nums}.intro-count b{font-weight:500;color:var(--accent-fg)}
   .intro h1{grid-column:1/9;grid-row:2;align-self:center;margin:0;max-width:none;
-    font-size:min(5vw,7.8vh,88px);line-height:.98;letter-spacing:-.04em;text-wrap:balance}
-  :root[lang|=ko] .intro h1{font-size:min(4.8vw,7.6vh,80px);line-height:1.12;letter-spacing:-.035em;word-break:keep-all}
-  .intro-mark{grid-column:9/13;grid-row:2;align-self:center;justify-self:center;margin:0;width:min(36vh,28vw);aspect-ratio:1;position:relative}
+    font-size:min(4.2vw,6.6vh,68px);line-height:.98;letter-spacing:-.04em;text-wrap:balance}
+  :root[lang|=ko] .intro h1{font-size:min(4vw,6.4vh,62px);line-height:1.12;letter-spacing:-.035em;word-break:keep-all}
+  .intro-mark{grid-column:9/13;grid-row:2;align-self:center;justify-self:center;margin:0;width:min(28vh,22vw);aspect-ratio:1;position:relative}
   .intro-mark img{position:absolute;inset:0;width:100%;height:100%;transform:rotate(var(--rot,0deg));will-change:transform}
   .intro-mark .pm-l{display:none}
   :root[data-theme=dark] .intro-mark .pm-d{display:none}
@@ -836,7 +836,7 @@
     .intro-stage,.story .intro-stage{position:relative;height:auto;min-height:0;overflow:visible}
     .intro-grid{grid-template-columns:minmax(0,1fr);grid-template-rows:none;padding-top:28px;padding-bottom:28px}
     .intro-grid > *{grid-column:1!important;grid-row:auto!important}
-    .intro-mark{width:min(56vw,300px);justify-self:start;margin:28px 0 8px}
+    .intro-mark{width:min(40vw,180px);justify-self:start;margin:24px 0 4px}
     .intro h1{font-size:clamp(38px,10.5vw,60px)}
     :root[lang|=ko] .intro h1{font-size:clamp(34px,9vw,52px)}
     .intro .support-line{margin-top:22px}
@@ -872,7 +872,7 @@
   .story.story-past .intro.booted .intro-cue{opacity:0;transition-delay:0s}
   .steps-rail,.steps-mark{display:none}
   @media(min-width:901px){
-    .story .steps-track{position:relative;height:280vh;margin-top:72px}
+    .story .steps-track{position:relative;height:210vh;margin-top:48px}
     .story .steps-stage{position:sticky;top:57px;height:calc(100svh - 57px);display:grid;align-items:center;
       grid-template-columns:minmax(0,2fr) minmax(0,7fr) minmax(0,3fr);column-gap:40px;border-top:1px solid var(--line2)}
     .story .steps-rail{display:block;grid-column:1;align-self:center;font:500 12px/1 var(--font-mono);letter-spacing:.04em;color:var(--faint)}
@@ -886,13 +886,13 @@
     .story .steps-stage .step.on{opacity:1;transform:none;pointer-events:auto;
       transition:opacity .5s .2s cubic-bezier(.16,.84,.24,1),transform .8s .2s cubic-bezier(.16,.84,.24,1)}
     .story .steps-stage .step .n{display:none}
-    .story .steps-stage .step h3{margin:0;font-family:var(--font-display);font-weight:var(--display-weight);font-size:clamp(30px,3.6vw,52px);
+    .story .steps-stage .step h3{margin:0;font-family:var(--font-display);font-weight:var(--display-weight);font-size:clamp(26px,2.6vw,38px);
       line-height:1.08;letter-spacing:-.03em;max-width:18ch}
     :root[lang|=ko] .story .steps-stage .step h3{line-height:1.2;letter-spacing:-.025em;word-break:keep-all}
-    .story .steps-stage .step p{margin-top:22px;max-width:52ch;font-size:17px;line-height:1.65;color:var(--dim)}
+    .story .steps-stage .step p{margin-top:18px;max-width:52ch;font-size:16px;line-height:1.65;color:var(--dim)}
     .story .steps-stage .step pre{margin-top:28px;padding:14px 0 0;border:0;border-top:1px solid var(--line2);background:none;
       font-size:13px;line-height:1.8;color:var(--faint);max-width:52ch}
-    .story .steps-mark{display:block;grid-column:3;justify-self:center;margin:0;width:min(30vh,18vw);aspect-ratio:1;position:relative}
+    .story .steps-mark{display:block;grid-column:3;justify-self:center;margin:0;width:min(22vh,14vw);aspect-ratio:1;position:relative}
     .story .steps-mark img{position:absolute;inset:0;width:100%;height:100%;transform:rotate(var(--rot,0deg))}
     .story .steps-mark .pm-l{display:none}
     :root[data-theme=dark] .story .steps-mark .pm-d{display:none}
