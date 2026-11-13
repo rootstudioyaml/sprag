@@ -680,18 +680,41 @@ function buildCapWarnSeg(capWarn, c, isIcon, g, color, mode) {
   // unused ticks are dimmed, the second which pair of tick glyphs to draw.
   if (!capWarn) return null;
   const pct = Math.round(capWarn.usedPct);
-  const clock = formatResetClock(capWarn.resetsAt);
-  // Text mode has no glyph vocabulary, so it names the thing instead of
-  // borrowing an emoji it otherwise avoids.
-  const clockTail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
+  // The chip replaces the window's always-on segment, so it carries the same
+  // facts: a budget window keeps its `$used/$limit`, its `(user)` source mark
+  // and its countdown reset. Without them a 94% budget chip showed neither the
+  // money nor a usable reset ("Sun 10:55" for a reset nine days out).
+  const { tail, money, src } = windowSegParts(labelForKey(capWarn.key), capWarn, isIcon, g);
   if (isIcon) {
     // Gauge keeps shape parity with the always-on usage segment — the
     // cap-warn is just the same gauge "filled to alarm". Visual continuity
     // helps the eye understand "this is the 5H bar I was watching, just red now."
     const bar = gaugeColored(pct, c, RED, color, mode);
-    return `${c(BOLD)}${c(RED)}${g.capWarn} ${capWarn.label} ${bar} ${pct}%${clockTail}${c(RESET)}`;
+    return `${c(BOLD)}${c(RED)}${g.capWarn} ${capWarn.label}${src} ${bar} ${pct}%${money}${tail}${c(RESET)}`;
   }
-  return `${c(BOLD)}${c(RED)}${capWarn.label} cap ${pct}%${clockTail}${c(RESET)}`;
+  return `${c(BOLD)}${c(RED)}${capWarn.label}${src} cap ${pct}%${money}${tail}${c(RESET)}`;
+}
+
+/**
+ * What a rate-limit window shows next to its percent, shared by the always-on
+ * segment and the cap-warn chip so the two never drift apart.
+ * - `tail`: the reset, as a wall-clock time or, for windows whose labels ask
+ *   for it (budgets), the time left. Text mode names it instead of using 🔄.
+ * - `money`: ` $used/$limit` when the window carries dollar amounts.
+ * - `src`: ` (user)` when a LiteLLM gauge is drawn from the internal user
+ *   limit, which is not the limit that blocks requests.
+ */
+function windowSegParts(labels, info, isIcon, g) {
+  const clock = labels.resetStyle === 'countdown'
+    ? formatResetIn(info.resetsAt)
+    : formatResetClock(info.resetsAt);
+  const tail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
+  const money =
+    Number.isFinite(info.maxBudget) && info.maxBudget > 0
+      ? ` ${formatMoney(Number(info.spend) || 0)}/${formatMoney(info.maxBudget)}`
+      : '';
+  const src = info.source === 'user' ? ' (user)' : '';
+  return { tail, money, src };
 }
 
 // Room Claude Code keeps for its own padding around the statusline. A guess
@@ -1156,10 +1179,6 @@ function buildUsageSeg({ labels, info, tone, suppressed }, c, isIcon, verbose, g
   // nothing ("Thu 00:00" — which Thursday?). Those windows report how long is
   // left instead. Short windows keep the clock, which is the more useful form
   // when the reset is later today.
-  const clock = labels.resetStyle === 'countdown'
-    ? formatResetIn(info.resetsAt)
-    : formatResetClock(info.resetsAt);
-  const tail = clock ? (isIcon ? ` ${g.reset} ${clock}` : ` resets ${clock}`) : '';
   // `cap` reads as a rate-limit ceiling rather than a duration. Icon mode
   // leans on the icon to identify the window (✦ = session/now, 📅 = week),
   // so the 5H label is empty while the 7D label spells out "weekly". Text and
@@ -1169,14 +1188,11 @@ function buildUsageSeg({ labels, info, tone, suppressed }, c, isIcon, verbose, g
   // and the gauge stays the same width as the percent climbs.
   // LiteLLM 예산 윈도우는 퍼센트만으로는 감이 안 오므로(예산 크기를 모름)
   // 금액을 함께 보여 준다: `💳 budget ▰▱ 34% $34/$100`.
-  const money =
-    Number.isFinite(info.maxBudget) && info.maxBudget > 0
-      ? ` ${formatMoney(Number(info.spend) || 0)}/${formatMoney(info.maxBudget)}`
-      : '';
   // LiteLLM 의 internal user 한도는 차단 판정에 쓰이는 값이 아니라서, 팀
   // 멤버십 한도와 수백 배 어긋나는 배포가 있습니다. 그 한도로 그린 게이지는
   // 출처를 밝혀 두어야 사용자가 정확한 값으로 오해하지 않습니다.
-  const src = info.source === 'user' ? ' (user)' : '';
+  // 리셋 시각, 금액, 출처는 cap-warn 칩과 같은 함수로 만듭니다.
+  const { tail, money, src } = windowSegParts(labels, info, isIcon, g);
   if (isIcon) {
     const labelPart = labels.usageLabel ? `${labels.usageLabel}${src} ` : '';
     const bar = gaugeColored(pct, c, tone, color, mode);

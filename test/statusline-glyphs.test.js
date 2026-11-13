@@ -257,3 +257,27 @@ test('a full gauge has no unused ticks to dim', () => {
   assert.match(out, /▰{12}/);
   assert.doesNotMatch(out, /▱/, 'no hollow ticks at 100%');
 });
+
+test('a budget promoted to the cap-warn chip keeps its money, source mark and countdown', () => {
+  // The chip replaces the always-on budget gauge, so it has to carry the same
+  // facts. It used to drop `$used/$limit` and `(user)`, and printed a reset
+  // nine days out as a bare weekday clock ("Sun 10:55").
+  const now = Math.floor(Date.now() / 1000);
+  const win = { key: 'litellm_budget', usedPct: 95, spend: 95, maxBudget: 100, resetsAt: now + 9 * 86400 + 600, source: 'user' };
+  const withBudget = { ...data(), caps: { windows: [win] } };
+  for (const mode of ['icon', 'text']) {
+    const chip = formatReport(withBudget, { color: false, mode, verbose: false, segments: ['cap-warn'] });
+    assert.match(chip, /BUDGET \(user\)/, `${mode}: ${chip}`);
+    assert.match(chip, /95% \$95\.0\/\$100/, `${mode}: ${chip}`);
+    assert.match(chip, /9d 0h/, `${mode}: ${chip}`);
+    assert.doesNotMatch(chip, /(Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d/, `${mode}: ${chip}`);
+    // Below 90% the same window renders as the always-on gauge with the same tail
+    const calm = formatReport({ ...data(), caps: { windows: [{ ...win, usedPct: 50, spend: 50 }] } }, { color: false, mode, verbose: false, segments: ['usage'] });
+    assert.match(calm, /\$50\.0\/\$100/, `${mode}: ${calm}`);
+    assert.match(calm, /9d 0h/, `${mode}: ${calm}`);
+  }
+  // An OAuth spend limit has no reset time: money still rides along, no tail
+  const oauth = { ...data(), caps: { windows: [{ key: 'spend_limit', usedPct: 94, spend: 470, maxBudget: 500, resetsAt: null, source: 'oauth' }] } };
+  const chip = formatReport(oauth, { color: false, mode: 'icon', verbose: false, segments: ['cap-warn'] });
+  assert.match(chip, /94% \$470\/\$500$/, chip);
+});
