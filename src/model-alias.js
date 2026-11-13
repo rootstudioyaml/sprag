@@ -319,6 +319,41 @@ export function resolveModelAlias(rawModel, { env = process.env } = {}) {
   return UNKNOWN_MODEL;
 }
 
+/** Why the gateway table did not answer: none, base-mismatch, stale-<n>d or no-key. */
+function gatewayTableState(map, env, now) {
+  const gw = map.gateway;
+  if (!gw || !gw.aliases) return 'gw=none';
+  if (gw.base !== gatewayBase(env)) return 'gw=base-mismatch';
+  const fetchedAt = Date.parse(gw.fetchedAt);
+  if (!Number.isFinite(fetchedAt)) return 'gw=stale-?d';
+  if (now - fetchedAt > MODEL_MAP_GRACE_MS) return `gw=stale-${Math.floor((now - fetchedAt) / 86400000)}d`;
+  return 'gw=no-key';
+}
+
+/**
+ * Diagnostic twin of resolveModelAlias: follows the same steps in the same
+ * order and says why the result is 'unknown', e.g. `not-learned gw=no-key`.
+ * Returns null when resolveModelAlias would produce anything but 'unknown'.
+ * Reasons: empty, no-profile-id, not-learned, learned-no-role, role-no-alias.
+ */
+export function explainUnresolved(rawModel, { env = process.env, now = Date.now() } = {}) {
+  const map = loadProfileMap();
+  const gw = gatewayTableState(map, env, now);
+  if (!rawModel) return `empty ${gw}`;
+  const model = String(rawModel);
+  if (overrideAlias(model, map)) return null;
+  if (gatewayAlias(model, map, env, now)) return null;
+  if (!isGatewayModelId(model)) return null;
+  const pid = profileIdFrom(model);
+  if (!pid) return `no-profile-id ${gw}`;
+  if (/claude/i.test(pid)) return null;
+  const entry = map.learned?.[pid];
+  if (!entry) return `not-learned ${gw}`;
+  if (!entry.role) return `learned-no-role ${gw}`;
+  if (aliasForRole(entry.role, env)) return null;
+  return `role-no-alias ${gw}`;
+}
+
 // ── learning ─────────────────────────────────────────────────────────────
 
 // A single observation can be wrong: the time-adjacent parent records leak

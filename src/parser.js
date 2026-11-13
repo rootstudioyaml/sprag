@@ -5,7 +5,8 @@ import { transcriptLines } from './transcript-lines.js';
 import { join, isAbsolute, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { loadCache, getCached, putCached, saveCache, getCachedSince, putCachedSince } from './session-cache.js';
-import { resolveModelAlias, isGatewayModelId } from './model-alias.js';
+import { resolveModelAlias, isGatewayModelId, explainUnresolved, UNKNOWN_MODEL } from './model-alias.js';
+import { diagActive, recordDiag } from './diag-log.js';
 import { LONG_PROMPT_THRESHOLD } from './cost.js';
 import { storeEligible, readStore, writeStore, hashBefore } from './request-store.js';
 import { debug } from './debug.js';
@@ -62,11 +63,44 @@ function newParseState(track) {
     requests: new Map(),
     // Raw model id per request, kept only when a request store is being written.
     raw: track ? new Map() : null,
+    // Raw model id of each request that resolved to 'unknown' (diagnostics only).
+    unresolved: new Map(),
     sessionId: null,
     firstTimestamp: null,
     lastTimestamp: null,
     gatewayObserved: false,
   };
+}
+
+/** Remember the raw id of a request that resolved to 'unknown'; last write wins like the request itself. */
+function trackUnresolved(st, id, model, raw) {
+  if (model === UNKNOWN_MODEL) st.unresolved.set(id, raw ?? null);
+  else st.unresolved.delete(id);
+}
+
+const reqBucket = (n) => (n <= 1 ? '1' : n < 10 ? '2-9' : '10+');
+
+/**
+ * Log, per raw model id, the billed requests whose model stayed 'unknown' and
+ * why (see explainUnresolved). The bucketed count keeps the message, which is
+ * the dedupe key, from changing on every request. Never throws.
+ */
+function recordUnresolved(st, reqs) {
+  try {
+    if (!st.unresolved.size || !diagActive()) return;
+    const byRaw = new Map();
+    for (const r of reqs) {
+      if (r.model !== UNKNOWN_MODEL || !st.unresolved.has(r.requestId)) continue;
+      if (!(r.inputTokens + r.cacheCreationTokens + r.cacheReadTokens + r.outputTokens > 0)) continue;
+      const raw = st.unresolved.get(r.requestId);
+      byRaw.set(raw, (byRaw.get(raw) || 0) + 1);
+    }
+    for (const [raw, n] of byRaw) {
+      const shown = String(raw ?? '').replace(/\d{12}/g, '<acct>').slice(0, 120);
+      const why = explainUnresolved(raw) || '?';
+      recordDiag('model:unresolved', new Error(`raw=${shown} why=${why} reqs=${reqBucket(n)}`));
+    }
+  } catch { /* diagnostics must never break parsing */ }
 }
 
 /** Fold one transcript line into the parse state. Shared by the whole-file and the resumed read. */
@@ -109,13 +143,15 @@ function consumeLine(st, line) {
     st.gatewayObserved = true;
   }
 
+  const model = resolveModelAlias(msg.model);
+  trackUnresolved(st, reqId, model, msg.model);
   st.requests.set(reqId, {
     requestId: reqId,
     // Per-request timestamp so callers can filter by time window — the
     // mtime-based file filter alone lets a long-lived session drag
     // months-old requests into a narrow --days window.
     ts: ts ? Date.parse(ts) : null,
-    model: resolveModelAlias(msg.model),
+    model,
     inputTokens: usage.input_tokens || 0,
     cacheCreationTokens: usage.cache_creation_input_tokens || 0,
     cacheReadTokens: usage.cache_read_input_tokens || 0,
@@ -150,10 +186,12 @@ function restoreState(st, stored) {
   for (const row of stored.reqs) {
     if (!Array.isArray(row) || row.length < 9) throw new Error('malformed request row');
     const [id, ts, rawModel, input, cacheCreation, cacheRead, e5m, e1h, output] = row;
+    const model = resolveModelAlias(rawModel);
+    trackUnresolved(st, id, model, rawModel);
     st.requests.set(id, {
       requestId: id,
       ts: ts === 'NaN' ? NaN : ts,
-      model: resolveModelAlias(rawModel),
+      model,
       inputTokens: input,
       cacheCreationTokens: cacheCreation,
       cacheReadTokens: cacheRead,
@@ -256,6 +294,7 @@ export async function parseSessionFile(filePath, { store = true, minBytes } = {}
   }
 
   const reqs = [...st.requests.values()];
+  recordUnresolved(st, reqs);
   // Representative model: the one that handled the most requests, skipping
   // "<synthetic>" (Claude Code's local error-stub placeholder — no real API
   // call). Taking reqs[0] blindly let an error stub at session start

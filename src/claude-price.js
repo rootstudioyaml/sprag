@@ -6,26 +6,52 @@
  * direct call and uses the list table. Kept apart from cost.js because
  * litellm-models.js imports cost.js, and this needs both.
  */
-import { estimateCost, estimateCostAcross } from './cost.js';
+import { pathToFileURL } from 'node:url';
+import { estimateCost, estimateCostAcross, isUnknownModel } from './cost.js';
 import { gatewayPriceFor, gatewayPriceMiss } from './litellm-models.js';
 import { gatewayBase } from './gateway-auth.js';
-import { diagActive, recordDiag } from './diag-log.js';
+import { diagActive, recordDiag, diagSrcDir } from './diag-log.js';
 
 // `at` is when the tokens were spent; list prices and gateway prices (from the
 // gateway's dated price history) are looked up for that time.
 export function sessionCost(totals, model, { env = process.env, now, at } = {}) {
   if (!gatewayBase(env)) return estimateCost(totals, model, { at });
   const price = gatewayPriceFor(model, env, now, at);
-  if (!price) noteUnpriced(model, env, now, at);
+  if (!price) noteUnpriced(model, env, now, at, totals);
   return price ? estimateCost(totals, model, { price }) : null;
+}
+
+const tokenBucket = (n) => (n <= 0 ? '0' : n < 1000 ? '<1k' : n < 100000 ? '<100k' : '100k+');
+
+/** `src/<file>.js:<line>` of the first stack frame outside this file, or '?'. */
+function callerFrame(stack) {
+  if (typeof stack !== 'string') return '?';
+  for (const line of stack.split('\n').slice(1)) {
+    if (line.includes('claude-price.js')) continue;
+    for (const needle of [diagSrcDir, pathToFileURL(diagSrcDir).href]) {
+      const at = line.indexOf(needle);
+      if (at < 0) continue;
+      const m = /^[\\/]([^\s():]+?\.c?js):(\d+)/.exec(line.slice(at + needle.length));
+      if (m) return `src/${m[1].replace(/\\/g, '/')}:${m[2]}`;
+    }
+  }
+  return '?';
 }
 
 // A gateway session with no price is invisible otherwise: the figure just reads
 // as unpriced. The diagnostics log records why, once per distinct message per
 // process (recordDiag dedupes), so the message must not carry `at`.
-function noteUnpriced(model, env, now, at) {
+// An unknown model has nothing to list, so its message names the size of the
+// spend and the caller instead; both are bucketed to keep the message stable.
+function noteUnpriced(model, env, now, at, totals) {
   try {
     if (!diagActive({ env })) return;
+    if (isUnknownModel(model)) {
+      const t = totals || {};
+      const sum = (t.input || 0) + (t.cacheCreation || 0) + (t.cacheRead || 0) + (t.output || 0);
+      recordDiag('price:unpriced', new Error(`model=unknown tokens=${tokenBucket(sum)} via=${callerFrame(new Error().stack)}`), { env });
+      return;
+    }
     const { reason, keys } = gatewayPriceMiss(model, env, now, at);
     recordDiag('price:unpriced', new Error(`model=${model} reason=${reason} known=${keys.join(',')}`), { env });
   } catch { /* diagnostics only */ }
