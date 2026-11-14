@@ -4,18 +4,18 @@
   "pickUsd": 26.95,
   "pct": 70,
   "savedPct": 30,
-  "ok": 49,
+  "ok": 50,
   "partial": 3,
-  "fail": 1,
-  "opusOk": 52,
+  "fail": 0,
+  "opusOk": 51,
   "handed": {
     "n": 31,
     "opusUsd": 20.45,
     "pickUsd": 8.68,
     "savedPct": 58,
-    "ok": 27,
+    "ok": 28,
     "partial": 3,
-    "fail": 1
+    "fail": 0
   },
   "kept": {
     "n": 22

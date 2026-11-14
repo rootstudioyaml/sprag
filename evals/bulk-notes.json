@@ -29,9 +29,9 @@
   },
   "v3": {
     "n": 21,
-    "ok": 19,
+    "ok": 20,
     "partial": 1,
-    "fail": 1,
+    "fail": 0,
     "pickUsd": 6.0684,
     "opusUsd": 12.3257,
     "delegated": 21,

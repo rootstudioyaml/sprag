@@ -170,6 +170,38 @@ test('aggregateBulk counts cases with a graded lane and baseline, by kind, with 
   assert.ok(!/\/r\/a|proj|task number/.test(JSON.stringify(agg)), 'no paths, rule names or prompts');
 });
 
+test('a hand-set meta.recheck replaces the blind verdict in every count and keeps the first grade on the row', () => {
+  const r = roundFor('r3', [
+    caseFor(line(1, { rule: 'T2|run|p' }), { repo: '/r/a', commit: 'abc1234' }),
+    caseFor(line(2, { rule: 'T2|run|p' }), { repo: '/r/a', commit: 'abc1234' }),
+  ], '2026-11-08');
+  const [a, b] = r.cases.map((x) => x.id);
+  const runs = {
+    [`${a}-A`]: { case: a, condition: 'haiku-low' }, [`${a}-B`]: { case: a, condition: 'opus-direct' },
+    [`${b}-A`]: { case: b, condition: 'haiku-low' }, [`${b}-B`]: { case: b, condition: 'opus-direct' },
+  };
+  const cost = { [`${a}-A`]: { usd: 1, ms: 1000 }, [`${a}-B`]: { usd: 2, ms: 1000 }, [`${b}-A`]: { usd: 1, ms: 1000 }, [`${b}-B`]: { usd: 2, ms: 1000 } };
+  const scores = {
+    [`${a}-A`]: { relay: '아니오', total: 0, max: 2 }, [`${a}-B`]: referenceScore(a, 2),
+    [`${b}-A`]: { relay: '아니오', total: 0, max: 2 }, [`${b}-B`]: referenceScore(b, 2),
+  };
+  const before = aggregateBulk([{ round: r, runs, cost, scores }]);
+  assert.deepEqual([before.totals.ok, before.totals.fail, before.totals.rechecked], [0, 2, undefined]);
+  assert.ok(before.cases.every((x) => !('graded' in x) && !('opusVerdict' in x)), 'rows gain no keys without a recheck');
+
+  r.cases[0].meta.recheck = { verdict: 'ok', baseline: 'fail', cause: 'ref' };
+  r.cases[1].meta.recheck = { verdict: 'maybe' }; // not a verdict: ignored
+  const loaded = { round: r, runs, cost, scores };
+  const agg = aggregateBulk([loaded]);
+  assert.deepEqual([agg.totals.ok, agg.totals.partial, agg.totals.fail, agg.totals.rechecked], [1, 0, 1, 1]);
+  assert.equal(agg.byKind.run.rechecked, 1);
+  assert.deepEqual(agg.cases.map((x) => [x.verdict, x.graded, x.opusVerdict, x.recheck]), [['ok', 'fail', 'fail', 'ref'], ['fail', undefined, undefined, undefined]]);
+  // the same correction reaches the rule comparison and the noise floor, which read cases through caseOutcome
+  assert.deepEqual([noiseRound(loaded).ok, noiseRound(loaded).fail], [1, 1]);
+  const cmp = compareRounds([loaded, loaded]);
+  assert.deepEqual(cmp.steps.map((s) => [s.ok, s.fail]), [[1, 1], [1, 1]]);
+});
+
 test('replay --yes: per-case worktree, one retry after a rate limit, --max-runs, cap stop and caps.jsonl', async () => {
   const { EventEmitter } = await import('node:events');
   const { readFileSync, existsSync } = await import('node:fs');

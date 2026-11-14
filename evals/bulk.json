@@ -49,26 +49,28 @@
     },
     "run": {
       "n": 24,
-      "ok": 23,
+      "ok": 24,
       "partial": 0,
-      "fail": 1,
+      "fail": 0,
       "pickUsd": 12.9436,
       "opusUsd": 15.9286,
       "pickSec": 1879,
       "opusSec": 1741,
-      "keptMain": 13
+      "keptMain": 13,
+      "rechecked": 1
     }
   },
   "totals": {
     "n": 43,
-    "ok": 41,
+    "ok": 42,
     "partial": 1,
-    "fail": 1,
+    "fail": 0,
     "pickUsd": 24.3396,
     "opusUsd": 30.5972,
     "pickSec": 3319,
     "opusSec": 3201,
-    "keptMain": 22
+    "keptMain": 22,
+    "rechecked": 1
   },
   "pickModels": {
     "haiku": 1,
@@ -376,11 +378,14 @@
     {
       "kind": "run",
       "lane": "sonnet-xhigh-web",
-      "verdict": "fail",
+      "verdict": "ok",
       "pickUsd": 0.4991,
       "opusUsd": 0.606,
       "pickSec": 158,
-      "opusSec": 49
+      "opusSec": 49,
+      "graded": "fail",
+      "opusVerdict": "fail",
+      "recheck": "ref"
     },
     {
       "kind": "explore",

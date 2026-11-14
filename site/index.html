@@ -1041,14 +1041,14 @@
 
 <a class="lab-bar" id="lab-bar" href="proof/">
   <span class="lab-tag" data-k="lab.tag">Proof lab</span>
-  <span class="lab-txt" id="lab-txt">53 real delegations replayed. The 31 sprag hands off cost 58% less, all 53 cost 30% less, 1 wrong. See every decision</span>
+  <span class="lab-txt" id="lab-txt">53 real delegations replayed. The 31 sprag hands off cost 58% less, all 53 cost 30% less, 0 wrong. See every decision</span>
   <span class="lab-go" aria-hidden="true">&rarr;</span>
 </a>
 <script>
 (function(){
   var txt = document.getElementById('lab-txt');
   if (!txt) return;
-  var D = { n: 53, hn: 31, hp: 58, sp: 30, f: 1 };
+  var D = { n: 53, hn: 31, hp: 58, sp: 30, f: 0 };
   window.__fillLab = function(){
     var ko = document.documentElement.lang === 'ko';
     txt.textContent = ko

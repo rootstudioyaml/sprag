@@ -235,6 +235,20 @@ test('buildBanner splits the jobs sprag handed off from the ones it kept on the 
   assert.deepEqual(Object.keys(b.handed), ['n', 'opusUsd', 'pickUsd', 'savedPct', 'ok', 'partial', 'fail']);
 });
 
+test('buildBanner counts a rechecked bulk row as corrected and takes the wrong reference off the Opus side', () => {
+  const b = buildBanner({
+    cases: [],
+    bulk: {
+      totals: { n: 2, ok: 2, partial: 0, fail: 0, pickUsd: 4, opusUsd: 8 },
+      cases: [
+        { lane: 'sonnet-high', verdict: 'ok', graded: 'fail', opusVerdict: 'fail', recheck: 'ref', pickUsd: 3, opusUsd: 6 },
+        { lane: 'haiku-low', verdict: 'ok', pickUsd: 1, opusUsd: 2 },
+      ],
+    },
+  });
+  assert.deepEqual([b.ok, b.fail, b.opusOk, b.handed.ok, b.handed.fail], [2, 0, 1, 2, 0]);
+});
+
 test('buildBanner without bulk rows adds the bulk totals to the overall numbers only', () => {
   const b = buildBanner({
     cases: [bannerCase('haiku-low', 10, 2), bannerCase('opus-direct', 10, 10)],

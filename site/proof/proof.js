@@ -129,6 +129,7 @@
       'live.pair': function (o) { return 'On the ' + o.n + ' runs with a recorded cost: ' + o.cost + ' spent, against an estimated ' + o.base + ' had the main model done them itself.'; },
       'live.why': 'The estimate counts what the main session would pay to re-read its accumulated context on every call, and to keep re-reading the tool output that stays in that context. The replays above start from an empty session, so they leave that cost out and show a lower saving rate.',
       'bulk.more': 'Measurement detail: how the rule was narrowed, noise floor, grader variance',
+      'bulk.recheck': function (o) { return 'After blind grading, ' + (o.n === 1 ? '1 case was' : o.n + ' cases were') + ' checked again with tools: the Opus reference was wrong and the model sprag picked was right. ' + (o.n === 1 ? 'That case counts' : 'Those cases count') + ' as the same conclusion for sprag and as wrong for Opus. As first graded: ' + o.ok + ' same, ' + o.partial + ' partial, ' + o.fail + ' unusable.'; },
       'cta.h': 'Check it on your own sessions',
       'cta.sub': 'Once installed, the statusline shows where each delegation went and what it saved. One line, sprag routing off, turns it all off.',
       'cta.copy': 'Copy', 'cta.copied': 'Copied', 'cta.guide': 'Setup guide',
@@ -151,7 +152,7 @@
       'bulk.pt.h': function (n, kind) { return kind ? 'Reading each of the ' + n + ' partial marks in ' + kind : 'Checking the ' + n + ' partial or unusable marks with tools'; },
       'bulk.pt.th': ['cause', 'cases', 'what happened'],
       'bulk.pt.cause': { rule: 'rule defect', gap: 'real model gap', measure: 'measurement limit', scope: 'judgement call on scope', ref: 'reference was wrong', image: 'fixed in the delegation appendix' },
-      'bulk.pt.why': { rule: 'Work that should not have been handed off was handed off: improvement reviews, web research that needs searching, lookups that must conclude something does not exist, and checks that decide from the output what to open next. The new rule keeps these on the main model.', gap: 'The work was fine to hand off, and the delegated model missed a key fact.', measure: 'The job reads another repository as it is today, so the state at the time cannot be replayed. Opus against Opus was partial here too.', scope: 'The task forbade root-cause analysis, while the reference explained the cause. The grader counted the missing "these results are unusable" conclusion.', ref: 'The Opus reference could not reach the vendor page and concluded that nothing was stated. Sonnet found the answers in an archived snapshot. A grader with tools checked them and Sonnet was right. The table keeps the reference verdict as it was.', image: 'The key content sat in screenshots on the page and the report never opened them. A new rule in the delegation appendix says to open images before calling something unverifiable, and the rerun with it reached the same conclusion (one run).' },
+      'bulk.pt.why': { rule: 'Work that should not have been handed off was handed off: improvement reviews, web research that needs searching, lookups that must conclude something does not exist, and checks that decide from the output what to open next. The new rule keeps these on the main model.', gap: 'The work was fine to hand off, and the delegated model missed a key fact.', measure: 'The job reads another repository as it is today, so the state at the time cannot be replayed. Opus against Opus was partial here too.', scope: 'The task forbade root-cause analysis, while the reference explained the cause. The grader counted the missing "these results are unusable" conclusion.', ref: 'The Opus reference could not reach the vendor page and concluded that nothing was stated. Sonnet found the answers in an archived snapshot. A grader with tools checked them and Sonnet was right. That case is now counted as the same conclusion for sprag and as wrong for Opus.', image: 'The key content sat in screenshots on the page and the report never opened them. A new rule in the delegation appendix says to open images before calling something unverifiable, and the rerun with it reached the same conclusion (one run).' },
       'up.h': 'When to go up',
       'up.sub': function (n) { return n + ' jobs whose conclusion is a judgement, run on Sonnet high, Opus high and Opus xhigh: improvement reviews, audits, root-cause diagnosis, lookups that must conclude something does not exist, and web research. Here the Opus answer is not the key. The grader gets the three reports unlabelled, checks the claims they disagree on against the repository and the web, and then rules.'; },
       'up.th': ['run', 'same', 'partial', 'unusable', 'wrong claims', 'missed facts', 'cost', 'time'],
@@ -269,6 +270,7 @@
       'live.pair': function (o) { return '비용이 기록된 ' + o.n + '건만 보면 실제 비용 ' + o.cost + ' 대 메인 모델이 직접 했을 때의 추정 비용 ' + o.base + '입니다.'; },
       'live.why': '이 추정은 메인 세션이 쌓인 문맥을 호출마다 다시 읽는 비용과 도구 출력이 문맥에 남아 이후 호출에서 다시 읽히는 비용까지 셉니다. 위의 재생은 빈 세션에서 시작해 그 비용이 빠지므로 절감률이 더 낮게 나옵니다.',
       'bulk.more': '측정 세부: 룰을 좁혀 온 이력, 잡음 바닥, 채점자 편차',
+      'bulk.recheck': function (o) { return '블라인드 채점 뒤 ' + o.n + '건을 도구로 다시 확인했더니 기준인 Opus 답이 틀렸고 sprag가 고른 모델의 답이 맞았습니다. 이 ' + o.n + '건은 sprag 쪽을 같음으로, Opus 쪽을 오답으로 고쳐 셉니다. 고치기 전 채점은 같음 ' + o.ok + ', 부분 ' + o.partial + ', 못 씀 ' + o.fail + '이었습니다.'; },
       'cta.h': '내 세션에서 확인하기',
       'cta.sub': '설치하면 위임마다 어느 모델로 보냈는지와 아낀 금액이 상태줄에 나옵니다. sprag routing off 한 줄로 전부 끌 수 있습니다.',
       'cta.copy': '복사', 'cta.copied': '복사됨', 'cta.guide': '설치 안내 보기',
@@ -291,7 +293,7 @@
       'bulk.pt.h': function (n, kind) { return kind ? kind + '의 부분 ' + n + '건을 하나씩 읽은 결과' : '부분과 못 씀 ' + n + '건을 도구로 다시 확인한 결과'; },
       'bulk.pt.th': ['원인', '건수', '내용'],
       'bulk.pt.cause': { rule: '룰 결함', gap: '실제 모델 격차', measure: '측정 한계', scope: '판정 경계', ref: '기준 답 오류', image: '위임 부록 보강' },
-      'bulk.pt.why': { rule: '넘기면 안 되는 일을 넘겼습니다. 개선점 검토, 검색이 필요한 웹 조사, "없다"를 단정하는 조회, 출력을 보고 더 볼 곳을 정하는 점검입니다. 새 룰은 이런 일을 메인에 남깁니다.', gap: '넘겨도 되는 일인데 위임받은 모델이 핵심 사실을 놓쳤습니다.', measure: '다른 저장소를 현재 상태로 읽는 일이라 당시 상태를 재현할 수 없습니다. Opus끼리 비교해도 부분이 나왔습니다.', scope: '지시가 원인 분석을 금지했는데 기준 답은 원인을 밝혔습니다. 채점자는 결과를 쓸 수 없다는 결론이 빠졌다고 봤습니다.', ref: 'Opus 기준 답은 업체 페이지에 닿지 못해 아무것도 적혀 있지 않다고 결론냈습니다. Sonnet은 보관된 스냅숏에서 답을 찾았습니다. 도구를 쓰는 채점자가 확인해 보니 Sonnet이 맞았습니다. 표에는 기준 채점 결과를 그대로 두었습니다.', image: '핵심 내용이 페이지의 스크린샷에 있었는데 보고서는 이미지를 열지 않았습니다. 확인할 수 없다고 쓰기 전에 이미지를 열라는 규칙을 위임 부록에 더해 다시 돌리니 같은 결론이 나왔습니다(1회).' },
+      'bulk.pt.why': { rule: '넘기면 안 되는 일을 넘겼습니다. 개선점 검토, 검색이 필요한 웹 조사, "없다"를 단정하는 조회, 출력을 보고 더 볼 곳을 정하는 점검입니다. 새 룰은 이런 일을 메인에 남깁니다.', gap: '넘겨도 되는 일인데 위임받은 모델이 핵심 사실을 놓쳤습니다.', measure: '다른 저장소를 현재 상태로 읽는 일이라 당시 상태를 재현할 수 없습니다. Opus끼리 비교해도 부분이 나왔습니다.', scope: '지시가 원인 분석을 금지했는데 기준 답은 원인을 밝혔습니다. 채점자는 결과를 쓸 수 없다는 결론이 빠졌다고 봤습니다.', ref: 'Opus 기준 답은 업체 페이지에 닿지 못해 아무것도 적혀 있지 않다고 결론냈습니다. Sonnet은 보관된 스냅숏에서 답을 찾았습니다. 도구를 쓰는 채점자가 확인해 보니 Sonnet이 맞았습니다. 이 건은 sprag 쪽을 같음으로, Opus 쪽을 오답으로 고쳐 셌습니다.', image: '핵심 내용이 페이지의 스크린샷에 있었는데 보고서는 이미지를 열지 않았습니다. 확인할 수 없다고 쓰기 전에 이미지를 열라는 규칙을 위임 부록에 더해 다시 돌리니 같은 결론이 나왔습니다(1회).' },
       'up.h': '올려야 할 때',
       'up.sub': function (n) { return '판단이 결론인 일 ' + n + '건을 Sonnet high, Opus high, Opus xhigh로 각각 돌렸습니다. 개선점 검토, 감사, 원인 진단, "없다"를 단정하는 조회, 웹 조사가 섞여 있습니다. 여기서는 Opus 답을 정답으로 쓰지 않습니다. 채점자가 세 보고서를 가린 채 받아 서로 엇갈리는 주장을 저장소와 웹에서 직접 확인하고 판정합니다.'; },
       'up.th': ['실행', '같음', '부분', '못 씀', '틀린 주장', '놓친 사실', '비용', '시간'],
@@ -377,7 +379,7 @@
       var lane = r.lane === 'sonnet-xhigh-web' ? 'sonnet-xhigh' : r.lane;
       return { id: 'bulk-' + i, bulk: true, kind: BULK_KIND[r.kind] || 'lookup', story: 'bulk', recommended: lane, web: r.lane === 'sonnet-xhigh-web',
         runs: [{ condition: lane, verdict: r.verdict, usd: r.pickUsd, seconds: r.pickSec, prompt: 'original' },
-          { condition: 'opus-direct', verdict: 'ok', ref: true, usd: r.opusUsd, seconds: r.opusSec, prompt: 'original' }] };
+          { condition: 'opus-direct', verdict: r.opusVerdict || 'ok', ref: true, usd: r.opusUsd, seconds: r.opusSec, prompt: 'original' }] };
     });
   }
   function heroCases() { return orderedCases().concat(bulkCases()); }
@@ -477,6 +479,12 @@
     box.appendChild(el('h2', { id: 'bulk-h', text: t('bulk.h') }));
     box.appendChild(el('p', { class: 'lv-sub', text: t('bulk.sub')(tot.n) }));
     if (tot.keptMain) box.appendChild(el('p', { class: 'lv-sub', text: t('bulk.kept')(tot.keptMain) }));
+    if (tot.rechecked) {
+      /* a verdict overturned after the blind grade is counted as corrected, and the first grade stays on the page */
+      var graded = { ok: 0, partial: 0, fail: 0 };
+      (v.cases || []).forEach(function (r) { graded[r.graded || r.verdict]++; });
+      box.appendChild(el('p', { class: 'lv-sub', text: t('bulk.recheck')({ n: tot.rechecked, ok: graded.ok, partial: graded.partial, fail: graded.fail }) }));
+    }
     box.appendChild(el('div', { class: 'lv-grid lv-3' }, [
       tile(String(tot.n), t('bulk.n')),
       tile(t('bulk.sameV')(tot.ok, tot.partial, tot.fail), t('bulk.same'), 'sm'),

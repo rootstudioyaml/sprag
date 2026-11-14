@@ -408,7 +408,8 @@ export function buildBanner(siteData) {
   const bulk = siteData.bulk;
   if (bulk && Array.isArray(bulk.cases) && bulk.cases.length) {
     for (const r of bulk.cases) {
-      all.n++; all.opusUsd += r.opusUsd; all.pickUsd += r.pickUsd; tally(all, r.verdict); all.opusOk++;
+      all.n++; all.opusUsd += r.opusUsd; all.pickUsd += r.pickUsd; tally(all, r.verdict);
+      if ((r.opusVerdict || 'ok') === 'ok') all.opusOk++; // a rechecked row can say the reference itself was wrong
       if (r.lane !== 'opus-direct') { hd.n++; hd.opusUsd += r.opusUsd; hd.pickUsd += r.pickUsd; tally(hd, r.verdict); }
       else keptN++;
     }

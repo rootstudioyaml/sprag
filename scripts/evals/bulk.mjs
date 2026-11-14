@@ -13,7 +13,11 @@
  * baseline dollars. The positional rounds still form the main aggregate.
  *
  * A case counts when both its routed lane (A or S) and its opus baseline have a graded score. A case kept on
- * main (conditions hold only the baseline) counts as ok with the baseline run as its pick; see totals.keptMain. Only counts,
+ * main (conditions hold only the baseline) counts as ok with the baseline run as its pick; see totals.keptMain.
+ * A case whose blind verdict was overturned by a later check carries meta.recheck in round.json, set by hand:
+ * { verdict, baseline, cause }. `verdict` replaces the lane's graded verdict in every count, `baseline` (default ok)
+ * is what the reference itself turned out to be, and the row keeps the blind grade as `graded` so the page can
+ * show both. totals.rechecked and byKind[kind].rechecked count such cases. Only counts,
  * dollars and seconds leave the machine: no prompts, no paths, no rule names. The `cases` array holds one
  * numbers-only row per case (kind, lane, verdict, dollars, seconds). build.mjs attaches the file as siteData.bulk.
  */
@@ -28,6 +32,13 @@ const usdOf = (c) => {
   return Number(c?.usd) || 0;
 };
 const verdictOf = (s) => s?.verdict || VERDICT[s?.relay];
+const VERDICTS = ['ok', 'partial', 'fail'];
+/** The hand-set correction of a case's blind verdict (meta.recheck), or null. */
+const recheckOf = (c) => {
+  const r = c.meta?.recheck;
+  if (!r || !VERDICTS.includes(r.verdict)) return null;
+  return { verdict: r.verdict, baseline: VERDICTS.includes(r.baseline) ? r.baseline : 'ok', cause: typeof r.cause === 'string' ? r.cause : '' };
+};
 
 /** Pure: rounds = [{ round, runs, cost, scores }] -> the bulk aggregate. */
 export function aggregateBulk(rounds) {
@@ -49,9 +60,12 @@ export function aggregateBulk(rounds) {
       const v = keptMain ? 'ok' : verdictOf(scores[pk]);
       if (!['ok', 'partial', 'fail'].includes(v)) continue;
       const kind = c.meta?.kind || 'other';
+      const rc = keptMain ? null : recheckOf(c);
+      const pv = rc ? rc.verdict : v; // the verdict that is published
       for (const row of [byKind[kind] ||= emptyRow(), totals]) {
-        row.n++; row[v]++;
+        row.n++; row[pv]++;
         if (keptMain) row.keptMain = (row.keptMain || 0) + 1; // absent when no case stayed on main
+        if (rc) row.rechecked = (row.rechecked || 0) + 1; // absent when no verdict was overturned
         row.pickUsd += usdOf(cost[pk]); row.opusUsd += usdOf(cost[bk]);
         row.pickSec += (cost[pk]?.ms || 0) / 1000; row.opusSec += (cost[bk]?.ms || 0) / 1000;
       }
@@ -59,8 +73,9 @@ export function aggregateBulk(rounds) {
       const fam = shortModel(pickCond.model);
       if (fam in pickModels) pickModels[fam]++; else if (keptMain) pickModels[fam] = (pickModels[fam] || 0) + 1;
       // One numbers-only row per case, so the page can flow it through the diagram like a graded case.
-      cases.push({ kind, lane: pickCond.id, verdict: v, pickUsd: pyRound(usdOf(cost[pk]), 4), opusUsd: pyRound(usdOf(cost[bk]), 4),
-        pickSec: Math.round((cost[pk]?.ms || 0) / 1000), opusSec: Math.round((cost[bk]?.ms || 0) / 1000) });
+      cases.push({ kind, lane: pickCond.id, verdict: pv, pickUsd: pyRound(usdOf(cost[pk]), 4), opusUsd: pyRound(usdOf(cost[bk]), 4),
+        pickSec: Math.round((cost[pk]?.ms || 0) / 1000), opusSec: Math.round((cost[bk]?.ms || 0) / 1000),
+        ...(rc ? { graded: v, opusVerdict: rc.baseline, recheck: rc.cause } : {}) });
     }
   }
   const fin = (r) => ({ ...r, pickUsd: pyRound(r.pickUsd, 4), opusUsd: pyRound(r.opusUsd, 4), pickSec: Math.round(r.pickSec), opusSec: Math.round(r.opusSec) });
@@ -83,7 +98,8 @@ function caseOutcome({ round, runs, cost, scores }, c) {
   if (!pk || !bk) return null;
   const v = keptMain ? 'ok' : verdictOf(scores[pk]);
   if (!['ok', 'partial', 'fail'].includes(v)) return null;
-  return { verdict: v, pickUsd: usdOf(cost[pk]), opusUsd: usdOf(cost[bk]), pickSec: (cost[pk]?.ms || 0) / 1000 };
+  const rc = keptMain ? null : recheckOf(c);
+  return { verdict: rc ? rc.verdict : v, pickUsd: usdOf(cost[pk]), opusUsd: usdOf(cost[bk]), pickSec: (cost[pk]?.ms || 0) / 1000 };
 }
 
 /** Pure: loaded rounds in order -> { n, opusUsd, steps } over the cases graded in every round. */
