@@ -32,6 +32,13 @@ Recording takes a few minutes per language, the render about as long. Run one bu
   `window.__sprag = { town, office }`; each handle has `view.setPose({th, ph, zoom, x, z})`, `ready()`,
   `orgs()` / `people()` / `server()` and `selectOrg(id)` / `selectPerson(id)` / `closeDrawer()`.
   In the team console `rec=1` also keeps rules added through the form for the session, so the Rules shot is the real form.
+- Web fonts and CDN modules (Google Fonts, jsDelivr) are fetched by the recorder itself and answered from a cache in
+  the system temp directory (`sprag-tour-fonts`), so a recording does not wait on a CDN. Requests to Open-Meteo and
+  to the Cloudflare challenge widget are blocked.
+- Scene pages get their animation frames only when the page clock has moved. A scene redraws on every frame, and with
+  the clock paused the main thread never went idle once a redraw cost more than a display frame (the night office with
+  the year-end dressing). Virtual time moves only when the thread is idle, so the shot stopped with
+  `virtual time stalled for 60 s`. The stall message names the phase and the requests still pending.
 - Time is CDP virtual time: each frame advances the page clock by exactly 1/30 s and then takes a screenshot, so
   animation runs at a true 30 fps however slow the capture is. `Math.random` is seeded and the clock starts at
   2026-10-18 12:00 KST. A 1 px WebGL canvas cleared every frame keeps Chrome producing compositor frames on still pages
@@ -69,6 +76,8 @@ The music (`deeppulse-main.mp3`, the owner's track) starts at 15.05 s because th
 Two 30 second videos for the pricing page, in both languages, built by `build-plans.sh` into
 `site/assets/video/plan-<pro|ent>-<lang>.{mp4,jpg}`. They are recorded from the customer's team console demo
 (`/team/?demo=1&rec=1`, the Northwind Labs sample organization), not from `/ops`.
+The office shots open the page with `tod=night&season=xmas`: the town at night with the year-end dressing, and the
+first shot starts wide enough to show the whole tree behind the server kiosk.
 
 ```sh
 node scripts/serve-site.mjs 8788      # the site server, from the repo root
@@ -94,6 +103,12 @@ The README GIFs (`docs/plan-<pro|ent>-<lang>.gif`, 640x360, 6 fps, 64 colours, a
 videos and must be rebuilt whenever they are: `ffmpeg -i site/assets/video/plan-pro-en.mp4 -vf
 "fps=6,scale=640:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=64:stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle"
 -loop 0 docs/plan-pro-en.gif`, once per plan and language.
+
+The files the build copies to `site/assets/video/` are about 6 MB each. Before a commit they are encoded once more for
+the page (`-vf scale=-2:900:flags=lanczos -c:v libx264 -preset slow -crf 27 -c:a aac -b:a 96k -movflags +faststart`;
+720 for `plan-all-ko`, `plan-pro2-ko` and `plan-pro-en`, and `plan-pro-en` without audio because the home page plays it
+muted), which brings the seven to about 18 MB in total. The posters of `plan-all-ko`, `plan-pro2-ko` and `plan-ent2-ko`
+are taken from a filled frame (13 s, 9 s and 9 s) because those videos open on a nearly empty card.
 
 The music is the same track, from 15.05 s, 0.5 under the opening shot, 0.3 under the body, 0.5 for the close, -14 LUFS.
 Video is 2-pass 1400 kbit/s, so each file is about 6 MB; the build fails over 8 MB or on a one-frame luma drop.

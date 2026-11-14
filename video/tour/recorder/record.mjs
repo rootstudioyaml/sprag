@@ -13,6 +13,8 @@
  * Sprag revenue is drawn. Scene shots put the scene card in its full-window overlay and hide the zoom buttons.
  * Output: <out>/<lang>/<shot>.mp4 (1920x1080, 30 fps, H.264 CRF 12, an intermediate for the HyperFrames comp). */
 import fs from 'node:fs';
+import os from 'node:os';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -45,6 +47,7 @@ function poseAt(keys, t){
 const at = (t, t0) => t >= t0 && t < t0 + 0.5 / FPS * 2;   /* true on the one frame that crosses t0 */
 
 const ops = (q, hash = '') => `${BASE}/ops/?demo=1&lang=${LANG}&rec=1&norev=1${q ? '&' + q : ''}${hash}`;
+const NIGHT = 'tod=night&season=xmas';
 const team = (q = '', hash = '') => `${BASE}/team/?demo=1&lang=${LANG}&rec=1${q ? '&' + q : ''}${hash}`;
 
 /* ── page-side helpers (strings run in the page) ── */
@@ -137,11 +140,14 @@ const SHOTS = {
       if(at(t, 5.6)) await c.eval(`document.querySelector(${JSON.stringify(RF + ' button[type=submit]')}).click()`);
     } },
   /* ── plan promos (build-plans.sh): 30 s each, recorded from the customer's team console, not /ops ── */
+  /* The plan promos and the ads show the town at night with the year-end dressing on (the tree, the lights, the hats).
+     season=xmas forces it because the recorder's clock is fixed in October. */
   /* Pro 0-7 s: the company's office in the team console, slow push in */
-  'pro-office': { url: team(), scene: 'office', dur: 7.6,
-    frame: async (c, t) => c.eval(setPose('office', poseAt([[0, { th: 0.70, ph: 1.04, zoom: 0.95, x: 0, z: 0 }], [7.6, { th: 1.0, ph: 0.98, zoom: 1.3, x: 0, z: 0 }]], t))) },
+  /* opens wide enough for the whole tree and the moon, then comes down to the lit trunk behind the server */
+  'pro-office': { url: team(NIGHT), scene: 'office', dur: 7.6,
+    frame: async (c, t) => c.eval(setPose('office', poseAt([[0, { th: 0.72, ph: 1.06, zoom: 0.8, x: -4, z: -5 }], [7.6, { th: 0.92, ph: 1.25, zoom: 1.15, x: -8, z: -10 }]], t))) },
   /* Pro 7-13 s: a power user's card opens, the model mix bar is hovered part by part */
-  'pro-person': { url: team(), scene: 'office', dur: 6.6,
+  'pro-person': { url: team(NIGHT), scene: 'office', dur: 6.6,
     prepare: async c => { const ps = await c.eval(`window.__sprag.office.people()`); c.L = ps.find(p => p.id === PRO_P) || ps.find(p => p.tier === 'power'); },
     frame: async (c, t) => {
       const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 1.0, ph: 0.98, zoom: 1.6, x: L.x + 2.2, z: L.z + 0.3 }], [6.6, { th: 1.12, ph: 0.95, zoom: 1.9, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
@@ -152,10 +158,10 @@ const SHOTS = {
       }
     } },
   /* Enterprise 0-7 s: the office, the top prompter's card shows prompt counts, then the "see prompts" button */
-  'ent-office': { url: team(), scene: 'office', dur: 7.6,
+  'ent-office': { url: team(NIGHT), scene: 'office', dur: 7.6,
     prepare: async c => { const ps = await c.eval(`window.__sprag.office.people()`); c.L = ps.find(p => p.id === ENT_P) || ps.find(p => p.tier === 'power'); },
     frame: async (c, t) => {
-      const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.75, ph: 1.03, zoom: 1.0, x: 0, z: 0 }], [2.0, { th: 0.95, ph: 0.98, zoom: 1.55, x: L.x + 2.2, z: L.z + 0.3 }], [7.6, { th: 1.08, ph: 0.95, zoom: 1.75, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
+      const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.72, ph: 1.06, zoom: 0.8, x: -4, z: -5 }], [2.0, { th: 0.95, ph: 0.98, zoom: 1.55, x: L.x + 2.2, z: L.z + 0.3 }], [7.6, { th: 1.08, ph: 0.95, zoom: 1.75, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
       if(at(t, 2.1)) await c.eval(`window.__sprag.office.selectPerson('${L.id}', { fly: false })`);
       if(t >= 4.6 && t < 5.6) await c.moveTo('.of-drawer [data-a=prompts]', ease((t - 4.6) / 1.0), [0.2, -6], [0.5, 0.5]);
     } },
@@ -197,19 +203,19 @@ const SHOTS = {
     };
     return {
       /* fly from the whole office down to the apex predator, half an orbit around it */
-      'ad-predator': { url: team(), scene: 'office', dur: 5.6, prepare: apex,
+      'ad-predator': { url: team(NIGHT), scene: 'office', dur: 5.6, prepare: apex,
         frame: async (c, t) => { const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.85, ph: 1.0, zoom: 1.1, x: 0, z: 0 }], [2.6, { th: 1.05, ph: 0.9, zoom: 2.9, x: L.x, z: L.z + 0.3 }], [5.6, { th: 1.75, ph: 0.86, zoom: 3.1, x: L.x, z: L.z + 0.3 }]], t))); } },
       /* the field guide (동물 도감) opened from the legend strip, held still for the ad's left-hand card */
-      'ad-book': { url: team(), scene: 'office', dur: 2.1,
+      'ad-book': { url: team(NIGHT), scene: 'office', dur: 2.1,
         prepare: async c => { await c.eval(`document.querySelector('.of-strip .sbk').click()`); await c.run(0.8); } },
       /* ad2: one continuous move, the whole office turning slowly, then a single flight down to the apex predator */
-      'ad-town2': { url: team(), scene: 'office', dur: 9.6, prepare: apex,
+      'ad-town2': { url: team(NIGHT), scene: 'office', dur: 9.6, prepare: apex,
         frame: async (c, t) => { const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 0.62, ph: 1.04, zoom: 0.98, x: 0, z: 0 }], [3.6, { th: 0.92, ph: 1.0, zoom: 1.12, x: 0, z: 0 }], [6.4, { th: 1.05, ph: 0.9, zoom: 2.9, x: L.x, z: L.z + 0.3 }], [9.6, { th: 1.55, ph: 0.87, zoom: 3.1, x: L.x, z: L.z + 0.3 }]], t))); } },
       /* low over the desks at night, so lit screens glow: from the apex person's bright screen across to a dark one */
-      'ad-monitors': { url: team('tod=night'), scene: 'office', dur: 5.1, prepare: apex,
+      'ad-monitors': { url: team(NIGHT), scene: 'office', dur: 5.1, prepare: apex,
         frame: async (c, t) => { const L = c.L, D = c.Lo; await c.eval(setPose('office', poseAt([[0, { th: 1.0, ph: 0.82, zoom: 2.6, x: L.x, z: L.z }], [5.1, { th: 1.15, ph: 0.82, zoom: 2.6, x: D.x, z: D.z }]], t))); } },
       /* the apex person's card: the period figures held for the zoom inset, then down to the daily chart and across it */
-      'ad-drawer': { url: team(), scene: 'office', dur: 9.1, prepare: apex,
+      'ad-drawer': { url: team(NIGHT), scene: 'office', dur: 9.1, prepare: apex,
         frame: async (c, t) => {
           const L = c.L; await c.eval(setPose('office', poseAt([[0, { th: 1.0, ph: 0.96, zoom: 1.8, x: L.x + 2.2, z: L.z + 0.3 }], [9.1, { th: 1.15, ph: 0.94, zoom: 2.0, x: L.x + 2.2, z: L.z + 0.3 }]], t)));
           if(at(t, 0.4)) await c.eval(`window.__sprag.office.selectPerson('${L.id}', { fly: false })`);
@@ -233,6 +239,26 @@ const SHOTS = {
   'town-snow': dnClip('night', 'snow', 6.0),
 };
 
+/* Web fonts and the CDN modules are fetched here, in real time, and handed to the page from a disk cache, so a
+   recording does not wait on a CDN while the page clock is paused and a second run needs no network for them. */
+const FONT_HOST = /^https:\/\/(fonts\.gstatic\.com|fonts\.googleapis\.com|cdn\.jsdelivr\.net)\//;
+const FONT_DIR = path.join(os.tmpdir(), 'sprag-tour-fonts');
+async function serveFont(r){
+  const url = r.url(), key = crypto.createHash('sha1').update(url).digest('hex'), f = path.join(FONT_DIR, key);
+  try{
+    if(!fs.existsSync(f + '.json')){
+      let res = null;
+      for(let k = 0; k < 3 && !(res && res.ok); k++) res = await fetch(url, { headers: { 'user-agent': r.headers()['user-agent'] || 'Mozilla/5.0' }, signal: AbortSignal.timeout(20000) }).catch(() => null);
+      if(!res || !res.ok) return r.abort();
+      fs.mkdirSync(FONT_DIR, { recursive: true });
+      fs.writeFileSync(f + '.bin', Buffer.from(await res.arrayBuffer()));
+      fs.writeFileSync(f + '.json', JSON.stringify({ type: res.headers.get('content-type') || 'application/octet-stream' }));
+    }
+    const meta = JSON.parse(fs.readFileSync(f + '.json', 'utf8'));
+    return r.respond({ status: 200, contentType: meta.type, headers: { 'access-control-allow-origin': '*', 'cache-control': 'max-age=31536000' }, body: fs.readFileSync(f + '.bin') });
+  }catch(e){ return r.abort().catch(() => {}); }
+}
+
 async function record(browser, name, shot){
   /* every attempt gets its own browser context: the office scene opened as the second page of a shared context
      stalled virtual time with no request pending (2026-11-12, office-intro hung 50 min after the town shots) */
@@ -248,29 +274,46 @@ async function recordIn(ctx, name, shot){
   page.on('console', m => { if(m.type() === 'error') errors.push(m.text()); });
   /* a request to Open-Meteo would mean the weather override failed: block it */
   await page.setRequestInterception(true);
-  page.on('request', r => (/open-meteo/.test(r.url()) ? r.abort() : r.continue()));
-  await page.evaluateOnNewDocument(() => {
+  const pending = new Map();
+  page.on('request', r => { pending.set(r, r.url()); if(/open-meteo|challenges\.cloudflare\.com/.test(r.url())) return r.abort(); if(FONT_HOST.test(r.url()) && r.method() === 'GET') return serveFont(r); return r.continue(); });
+  page.on('requestfinished', r => pending.delete(r)); page.on('requestfailed', r => pending.delete(r));
+  let phase = 'load';
+  await page.evaluateOnNewDocument(scene => {
+    /* A scene redraws on every animation frame, and with the clock paused each of those frames is the same picture.
+       At night with the year-end dressing one redraw costs more than a display frame, so the main thread never went
+       idle, and virtual time only moves when it is idle: the step then never finished (2026-11-15, "virtual time
+       stalled" in the warm-up with nothing pending). Scene pages therefore get their animation frames only when the
+       page clock has moved, or after __rafKick(). The office shots also record about seven times faster this way. */
+    const __nraf = window.requestAnimationFrame.bind(window);
+    if(scene){
+      let q = [], seq = 0, last = -1;
+      window.requestAnimationFrame = cb => { q.push([++seq, cb]); return seq; };
+      window.cancelAnimationFrame = id => { q = q.filter(e => e[0] !== id); };
+      window.__rafKick = () => { last = -1; };
+      (function master(){ __nraf(master); const now = performance.now(); if(now === last) return; last = now; const run = q; q = [];
+        for(const [, cb] of run){ try{ cb(now); }catch(e){ setTimeout(() => { throw e; }); } } })();
+    }
     let s = 20261018; Math.random = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     try{ localStorage.clear(); sessionStorage.clear(); }catch(e){}
     /* a screenshot waits for a compositor frame with damage; pages that sit still (no WebGL loop) would hang it,
        so every frame toggles an invisible 1 px dot */
     let k = 0; window.__damage = () => { let d = document.getElementById('__dmg'); if(!d && document.body){ d = document.createElement('div'); d.id = '__dmg'; d.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;pointer-events:none;z-index:2147483647;background:#000'; document.body.appendChild(d); } if(d) d.style.opacity = (k++ % 2) ? '0.01' : '0.02'; };
-    (function loop(){ window.__damage(); requestAnimationFrame(loop); })();
+    (function loop(){ window.__damage(); __nraf(loop); })();
     /* a tiny WebGL canvas cleared every frame keeps the compositor producing frames under paused virtual time */
     let gl = null, n = 0; (function glLoop(){ if(!gl && document.body){ const c = document.createElement('canvas'); c.width = c.height = 1; c.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:2147483647'; document.body.appendChild(c); gl = c.getContext('webgl'); }
-      if(gl){ gl.clearColor((n++ % 2) * 0.01, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); } requestAnimationFrame(glLoop); })();
-  });
+      if(gl){ gl.clearColor((n++ % 2) * 0.01, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); } __nraf(glLoop); })();
+  }, !!shot.scene);
   const cdp = await page.createCDPSession();
   /* a step takes well under a second; if the budget never expires, fail the attempt instead of waiting forever */
   const advance = ms => new Promise((res, rej) => {
-    const stall = setTimeout(() => { cdp.off('Emulation.virtualTimeBudgetExpired', done); rej(new Error(`${name}: virtual time stalled for 60 s`)); }, 60000);
+    const stall = setTimeout(() => { cdp.off('Emulation.virtualTimeBudgetExpired', done); rej(new Error(`${name}: virtual time stalled for 60 s (phase ${phase}; pending ${[...pending.values()].slice(0, 4).join(' , ') || 'none'})`)); }, 60000);
     const done = () => { clearTimeout(stall); res(); };
     cdp.once('Emulation.virtualTimeBudgetExpired', done);
     cdp.send('Emulation.setVirtualTimePolicy', { policy: 'pauseIfNetworkFetchesPending', budget: ms }).catch(e => { clearTimeout(stall); rej(e); });
   });
   await cdp.send('Emulation.setVirtualTimePolicy', { policy: 'pause', initialVirtualTime: T0 });
   const c = { page, name,
-    eval: js => page.evaluate(js),
+    eval: async js => { const v = await page.evaluate(js); await page.evaluate('window.__rafKick && window.__rafKick()'); return v; },   /* a scripted change is drawn on the next frame */
     run: async sec => { for(let i = 0; i < Math.round(sec * FPS); i++) await advance(F); },
     async waitFor(js, maxSec = 40, step = 100){ for(let i = 0; i < maxSec * 1000 / step; i++){ if(await page.evaluate(js).catch(() => false)) return; await advance(step); } throw new Error(`${name}: timed out waiting for ${js} :: ` + await page.evaluate(() => location.href + " " + document.body.innerText.slice(0, 300).replace(/\s+/g, " ")).catch(e => e.message) + " :: " + errors.slice(0, 3).join(" / ")); },
     /* move the (invisible) mouse from a point relative to `from` (or to `sel`) toward `to` on `sel`; fractions of the element box */
@@ -285,9 +328,9 @@ async function recordIn(ctx, name, shot){
   await c.waitFor(shot.scene ? ready(shot.scene) : shot.waitFor, 40, shot.waitStep || 100);
   /* no mouse pointer; extra room under dashboard pages so a shot can scroll its subject above the caption band */
   await page.addStyleTag({ content: '*{cursor:none!important}' + (shot.scene ? SCENE_CSS : 'body{padding-bottom:420px}') });
-  if(shot.scene){ await c.eval(fsx(shot.scene)); await c.run(1.5); }   /* fonts.ready rebuild and the overlay resize settle */
+  phase = 'warm'; if(shot.scene){ await c.eval(fsx(shot.scene)); await c.run(1.5); }   /* fonts.ready rebuild and the overlay resize settle */
   else if(!shot.noWarm) await c.run(0.6);
-  if(shot.prepare) await shot.prepare(c);
+  phase = 'prepare'; if(shot.prepare) await shot.prepare(c);
 
   const dir = path.join(OUT, LANG); fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, name + '.mp4'), N = Math.round(shot.dur * FPS);
@@ -298,7 +341,7 @@ async function recordIn(ctx, name, shot){
   try{
     for(let i = 0; i < N; i++){
       const t = i / FPS;
-      if(shot.frame) await shot.frame(c, t, i);
+      phase = 'frame ' + i; if(shot.frame) await shot.frame(c, t, i);
       await page.evaluate(() => window.__damage && window.__damage());
       await advance(F);
       const buf = await page.screenshot({ type: 'png', optimizeForSpeed: true, captureBeyondViewport: false });
