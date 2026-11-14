@@ -584,3 +584,27 @@ test('runEnv adds the string env a condition sets and nothing else', async () =>
   assert.deepEqual(runEnv(round, { condition: 'c' }, { A: '1' }), { A: '1', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '60000' });
   assert.deepEqual(runEnv(round, { condition: 'd' }, { A: '1' }), { A: '1' });
 });
+
+// The proof page keeps two string tables; every impl.* key must exist in both with the same shape.
+test('proof.js impl.* strings exist in en and ko with matching types', async () => {
+  const { runInNewContext } = await import('node:vm');
+  const ROOT = join(new URL('.', import.meta.url).pathname, '..');
+  const src = readFileSync(join(ROOT, 'site', 'proof', 'proof.js'), 'utf8');
+  const start = src.indexOf('var STR = {'); assert.ok(start > 0);
+  const end = src.indexOf('\n  };', start); assert.ok(end > start);
+  const STR = runInNewContext('(' + src.slice(start + 'var STR = '.length, end + 4) + ')');
+  const shape = (v) => (Array.isArray(v) ? `array:${v.length}` : v && typeof v === 'object' ? `object:${Object.keys(v).sort().join(',')}` : typeof v);
+  const keys = (l) => Object.keys(STR[l]).filter((k) => k.startsWith('impl.')).sort();
+  assert.ok(keys('en').length >= 12);
+  assert.deepEqual(keys('ko'), keys('en'));
+  for (const k of keys('en')) assert.equal(shape(STR.ko[k]), shape(STR.en[k]), k);
+  assert.equal(STR.en['impl.th'].length, 8);
+  // every impl key used by renderImpl is defined
+  const body = src.slice(src.indexOf('function renderImpl()'), src.indexOf('function renderLegend()'));
+  const used = [...body.matchAll(/t\('(impl\.[a-z.]+)'\)/g)].map((m) => m[1]);
+  assert.ok(used.length >= 10);
+  for (const k of used) assert.ok(k in STR.en && k in STR.ko, k);
+  const html = readFileSync(join(ROOT, 'site', 'proof', 'index.html'), 'utf8');
+  assert.ok(html.indexOf('id="impl"') > html.indexOf('id="up"'));
+  assert.match(html, /proof\.js\?v=23/);
+});

@@ -1,23 +1,23 @@
 {
-  "n": 53,
-  "opusUsd": 38.72,
-  "pickUsd": 26.95,
-  "pct": 70,
-  "savedPct": 30,
-  "ok": 50,
+  "n": 68,
+  "opusUsd": 60.08,
+  "pickUsd": 46.93,
+  "pct": 78,
+  "savedPct": 22,
+  "ok": 65,
   "partial": 3,
   "fail": 0,
-  "opusOk": 51,
+  "opusOk": 66,
   "handed": {
-    "n": 31,
-    "opusUsd": 20.45,
-    "pickUsd": 8.68,
-    "savedPct": 58,
-    "ok": 28,
+    "n": 34,
+    "opusUsd": 23.43,
+    "pickUsd": 10.27,
+    "savedPct": 56,
+    "ok": 31,
     "partial": 3,
     "fail": 0
   },
   "kept": {
-    "n": 22
+    "n": 34
   }
 }

@@ -28,14 +28,14 @@
     "crossOkPartial": 1
   },
   "v3": {
-    "n": 21,
-    "ok": 20,
+    "n": 24,
+    "ok": 23,
     "partial": 1,
     "fail": 0,
-    "pickUsd": 6.0684,
-    "opusUsd": 12.3257,
-    "delegated": 21,
-    "pool": 83,
+    "pickUsd": 7.6653,
+    "opusUsd": 15.2566,
+    "delegated": 24,
+    "pool": 96,
     "rule": "v5"
   },
   "effort": {

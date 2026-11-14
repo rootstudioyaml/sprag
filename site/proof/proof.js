@@ -117,8 +117,8 @@
       'dg.fl': { a: 'without', b: 'with' },
       'dg.split': function (h, k) { return h + ' handed off, ' + k + ' kept'; },
       'dg.delta.h': 'Difference',
-      'dg.delta.usd': function (u) { return u + ' saved'; },
-      'dg.delta.handed': function (n, p) { return 'the ' + n + ' handed off: −' + p + '%'; },
+      'dg.delta.handed': function (n) { return 'cost of the ' + n + ' handed off'; },
+      'dg.delta.all': function (n, p, u) { return 'all ' + n + ': −' + p + '%, ' + u; },
       'dg.tip.click': 'Click to open the case', 'dg.more': function (k) { return '+' + k + ' more'; },
       'live.h': 'Real usage, counted only',
       'live.sub': function (s, u) { return 'Delegations a sprag rule sent in real sessions from ' + s + ' to ' + u + '. Not replayed and not graded, so only the count and the cost are shown. The graded replays are above.'; },
@@ -153,6 +153,18 @@
       'bulk.pt.th': ['cause', 'cases', 'what happened'],
       'bulk.pt.cause': { rule: 'rule defect', gap: 'real model gap', measure: 'measurement limit', scope: 'judgement call on scope', ref: 'reference was wrong', image: 'fixed in the delegation appendix' },
       'bulk.pt.why': { rule: 'Work that should not have been handed off was handed off: improvement reviews, web research that needs searching, lookups that must conclude something does not exist, and checks that decide from the output what to open next. The new rule keeps these on the main model.', gap: 'The work was fine to hand off, and the delegated model missed a key fact.', measure: 'The job reads another repository as it is today, so the state at the time cannot be replayed. Opus against Opus was partial here too.', scope: 'The task forbade root-cause analysis, while the reference explained the cause. The grader counted the missing "these results are unusable" conclusion.', ref: 'The Opus reference could not reach the vendor page and concluded that nothing was stated. Sonnet found the answers in an archived snapshot. A grader with tools checked them and Sonnet was right. That case is now counted as the same conclusion for sprag and as wrong for Opus.', image: 'The key content sat in screenshots on the page and the report never opened them. A new rule in the delegation appendix says to open images before calling something unverifiable, and the rerun with it reached the same conclusion (one run).' },
+      'impl.h': 'When the code writing is handed off',
+      'impl.sub': 'Writing code is a different job from lookups and command runs, so it was measured on its own. Every condition implemented the same task in a fresh copy of the repository, and the grader checked each copy and ran its tests. It was measured twice and the two rounds disagree, so both are here.',
+      'impl.th': ['run', 'usable as is', 'partial', 'unusable', 'tests pass', 'wrong claims', 'missed items', 'cost'],
+      'impl.cond': { 'sonnet-next': 'Sonnet worker', 'haiku-next': 'Haiku worker', 'opus-direct': 'Opus direct', 'sonnet-spec': 'Rewritten spec + Sonnet', 'sonnet-high': 'Original draft + Sonnet' },
+      'impl.large.h': function (n) { return n + ' larger implementations'; },
+      'impl.large.sub': 'Implementations with a lot of output, run with the worker instructions that ship today. Opus direct could not call a sub-agent.',
+      'impl.large.take': function (o) { return 'Sonnet was usable as is in ' + o.sOk + ' of ' + o.n + ' and Opus direct in ' + o.bOk + ', at ' + o.pct + '% of the Opus cost.' + (o.hOk == null ? '' : ' Haiku was usable in ' + o.hOk + ' and its tests passed in ' + o.hPass + ', so sprag does not hand implementation to Haiku.'); },
+      'impl.spec.h': function (n) { return n + ' implementations, with the hand-off rewritten as a specification'; },
+      'impl.spec.sub': 'The earlier round. Opus first rewrote each hand-off draft as a detailed specification, then Sonnet implemented from it.',
+      'impl.spec.cost': function (spec, impl) { return 'The rewritten-spec path costs ' + spec + ' for writing the specifications plus ' + impl + ' for the implementation. Each specification was written in an empty session, which overstates what it costs in a session that has already read the code.'; },
+      'impl.spec.take': function (o) { return 'Here Opus direct was usable as is in all ' + o.bOk + ' of ' + o.n + '. Sonnet was usable in ' + o.oldOk + ' from the original draft and ' + o.newOk + ' from the rewritten specification.'; },
+      'impl.limit': 'Both rounds are small and graded once. Most marks were lost in the report and not in the code: evidence the task asked for was missing, or a claim did not match the diff. That happened to every model, which is why the main model checks the diff and the test results itself whoever wrote the code. In the first round one Opus direct run handed its work to a sub-agent; later rounds block that.',
       'up.h': 'When to go up',
       'up.sub': function (n) { return n + ' jobs whose conclusion is a judgement, run on Sonnet high, Opus high and Opus xhigh: improvement reviews, audits, root-cause diagnosis, lookups that must conclude something does not exist, and web research. Here the Opus answer is not the key. The grader gets the three reports unlabelled, checks the claims they disagree on against the repository and the web, and then rules.'; },
       'up.th': ['run', 'same', 'partial', 'unusable', 'wrong claims', 'missed facts', 'cost', 'time'],
@@ -258,8 +270,8 @@
       'dg.fl': { a: '없이', b: '함께' },
       'dg.split': function (h, k) { return '넘김 ' + h + '건, 남김 ' + k + '건'; },
       'dg.delta.h': '차이',
-      'dg.delta.usd': function (u) { return u + ' 절감'; },
-      'dg.delta.handed': function (n, p) { return '넘긴 ' + n + '건만 보면 −' + p + '%'; },
+      'dg.delta.handed': function (n) { return '넘긴 ' + n + '건의 비용'; },
+      'dg.delta.all': function (n, p, u) { return '전체 ' + n + '건 −' + p + '%, ' + u; },
       'dg.tip.click': '클릭하면 사례로 이동합니다', 'dg.more': function (k) { return '외 ' + k + '건'; },
       'live.h': '실제 사용 기록, 수치만',
       'live.sub': function (s, u) { return s + '부터 ' + u + '까지 sprag 룰이 실제 세션에서 보낸 위임입니다. 다시 돌리지도 채점하지도 않은 집계라서 건수와 비용만 보여 줍니다. 채점한 재생은 위에 있습니다.'; },
@@ -294,6 +306,18 @@
       'bulk.pt.th': ['원인', '건수', '내용'],
       'bulk.pt.cause': { rule: '룰 결함', gap: '실제 모델 격차', measure: '측정 한계', scope: '판정 경계', ref: '기준 답 오류', image: '위임 부록 보강' },
       'bulk.pt.why': { rule: '넘기면 안 되는 일을 넘겼습니다. 개선점 검토, 검색이 필요한 웹 조사, "없다"를 단정하는 조회, 출력을 보고 더 볼 곳을 정하는 점검입니다. 새 룰은 이런 일을 메인에 남깁니다.', gap: '넘겨도 되는 일인데 위임받은 모델이 핵심 사실을 놓쳤습니다.', measure: '다른 저장소를 현재 상태로 읽는 일이라 당시 상태를 재현할 수 없습니다. Opus끼리 비교해도 부분이 나왔습니다.', scope: '지시가 원인 분석을 금지했는데 기준 답은 원인을 밝혔습니다. 채점자는 결과를 쓸 수 없다는 결론이 빠졌다고 봤습니다.', ref: 'Opus 기준 답은 업체 페이지에 닿지 못해 아무것도 적혀 있지 않다고 결론냈습니다. Sonnet은 보관된 스냅숏에서 답을 찾았습니다. 도구를 쓰는 채점자가 확인해 보니 Sonnet이 맞았습니다. 이 건은 sprag 쪽을 같음으로, Opus 쪽을 오답으로 고쳐 셌습니다.', image: '핵심 내용이 페이지의 스크린샷에 있었는데 보고서는 이미지를 열지 않았습니다. 확인할 수 없다고 쓰기 전에 이미지를 열라는 규칙을 위임 부록에 더해 다시 돌리니 같은 결론이 나왔습니다(1회).' },
+      'impl.h': '코드 작성을 넘기면',
+      'impl.sub': '코드 작성은 조회나 명령 실행과 다른 일이라 따로 쟀습니다. 조건마다 같은 과제를 새 저장소 사본에서 구현하게 했고 채점기가 사본마다 테스트를 돌려 대조했습니다. 두 번 쟀는데 결과가 서로 달라서 둘 다 싣습니다.',
+      'impl.th': ['실행', '그대로 씀', '부분', '못 씀', '테스트 통과', '틀린 주장', '놓친 항목', '비용'],
+      'impl.cond': { 'sonnet-next': 'Sonnet 워커', 'haiku-next': 'Haiku 워커', 'opus-direct': 'Opus 직접', 'sonnet-spec': '새 설계서 + Sonnet', 'sonnet-high': '기존 초안 + Sonnet' },
+      'impl.large.h': function (n) { return '큰 구현 ' + n + '건'; },
+      'impl.large.sub': '출력이 많은 구현을 지금 배포되는 워커 지침으로 돌렸습니다. Opus 직접은 하위 에이전트를 부르지 못하게 막았습니다.',
+      'impl.large.take': function (o) { return o.n + '건 중 Sonnet은 ' + o.sOk + '건, Opus 직접은 ' + o.bOk + '건을 그대로 쓸 수 있었습니다. Sonnet 비용은 Opus의 ' + o.pct + '%였습니다.' + (o.hOk == null ? '' : ' Haiku는 ' + o.hOk + '건이었고 테스트 통과가 ' + o.hPass + '건에 그쳐 sprag는 구현을 Haiku에 넘기지 않습니다.'); },
+      'impl.spec.h': function (n) { return '설계서를 다시 썼을 때 ' + n + '건'; },
+      'impl.spec.sub': '먼저 잰 라운드입니다. Opus가 위임 초안을 상세 설계서로 다시 썼고 Sonnet이 그 설계서로 구현했습니다.',
+      'impl.spec.cost': function (spec, impl) { return '새 설계서 경로의 비용은 설계서 작성분(' + spec + ')과 구현분(' + impl + ')을 합친 값입니다. 설계서는 빈 세션에서 썼기 때문에 코드를 이미 읽은 실제 세션보다 비용이 크게 잡힙니다.'; },
+      'impl.spec.take': function (o) { return '이 라운드에서는 Opus 직접이 ' + o.n + '건 중 ' + o.bOk + '건을 그대로 쓸 수 있었습니다. Sonnet은 기존 초안으로 ' + o.oldOk + '건, 새 설계서로 ' + o.newOk + '건이었습니다.'; },
+      'impl.limit': '두 라운드 모두 표본이 작고 채점은 한 번입니다. 감점은 대부분 코드보다 보고에서 나왔습니다. 과제가 요구한 증거를 빠뜨렸거나 주장이 diff와 달랐습니다. 어느 모델에서나 생긴 일이라 누가 구현하든 메인 모델이 diff와 테스트 결과를 직접 확인합니다. 첫 라운드에서는 Opus 직접 1건이 스스로 하위 에이전트에 일을 넘겼고 그 뒤 측정부터 막았습니다.',
       'up.h': '올려야 할 때',
       'up.sub': function (n) { return '판단이 결론인 일 ' + n + '건을 Sonnet high, Opus high, Opus xhigh로 각각 돌렸습니다. 개선점 검토, 감사, 원인 진단, "없다"를 단정하는 조회, 웹 조사가 섞여 있습니다. 여기서는 Opus 답을 정답으로 쓰지 않습니다. 채점자가 세 보고서를 가린 채 받아 서로 엇갈리는 주장을 저장소와 웹에서 직접 확인하고 판정합니다.'; },
       'up.th': ['실행', '같음', '부분', '못 씀', '틀린 주장', '놓친 사실', '비용', '시간'],
@@ -565,6 +589,55 @@
       var tk = ef.take && (ef.take[lang] || ef.take.en);
       if (tk) box.appendChild(el('p', { class: 'bk-cmp', text: tk }));
     }
+  }
+
+  function renderImpl() {
+    var box = $('impl'); if (!box) return;
+    var L = data.bulk && data.bulk.implLarge, S = data.bulk && data.bulk.implSpec;
+    var usable = function (r) { return !!(r && r.n && r.conditions && r.conditions.length); };
+    box.textContent = '';
+    if (!usable(L) && !usable(S)) { box.hidden = true; return; }
+    box.hidden = false;
+    var th = t('impl.th'), names = t('impl.cond');
+    var rowsOf = function (r, ids) {
+      var by = {};
+      r.conditions.forEach(function (c) { by[c.id] = c; });
+      return { by: by, list: ids.filter(function (id) { return by[id]; }).map(function (id) { return by[id]; }) };
+    };
+    var implTable = function (r, list, extra) {
+      return el('table', { class: 'bk' }, [
+        el('thead', null, [el('tr', null, th.map(function (x, i) { return el('th', { class: i ? 'num' : '', text: x }); }))]),
+        el('tbody', null, list.map(function (c) {
+          var tt = r.tests && r.tests[c.id];
+          var cost = c.usd + (extra && extra[c.id] || 0);
+          return el('tr', null, [names[c.id] || c.id, c.ok, c.partial, c.fail, tt ? tt.pass + ' / ' + c.n : '-', c.wrong, c.missed, usd(cost)].map(function (x, i) { return el('td', { class: i ? 'num' : '', text: String(x) }); }));
+        }))
+      ]);
+    };
+    box.appendChild(el('h2', { id: 'impl-h', text: t('impl.h') }));
+    box.appendChild(el('p', { class: 'lv-sub', text: t('impl.sub') }));
+    if (usable(L)) {
+      var lr = rowsOf(L, ['sonnet-next', 'haiku-next', 'opus-direct']);
+      box.appendChild(el('h3', { class: 'bk-h3', text: t('impl.large.h')(L.n) }));
+      box.appendChild(el('p', { class: 'lv-sub', text: t('impl.large.sub') }));
+      box.appendChild(implTable(L, lr.list));
+      var ls = lr.by['sonnet-next'], lb = lr.by['opus-direct'], lh = lr.by['haiku-next'];
+      if (ls && lb) {
+        var lo = { n: L.n, sOk: ls.ok, bOk: lb.ok, pct: Math.round(ls.usd / lb.usd * 100), hOk: lh ? lh.ok : null, hPass: lh && L.tests && L.tests['haiku-next'] ? L.tests['haiku-next'].pass : null };
+        box.appendChild(el('p', { class: 'bk-cmp', text: t('impl.large.take')(lo) }));
+      }
+    }
+    if (usable(S)) {
+      var sr = rowsOf(S, ['sonnet-spec', 'sonnet-high', 'opus-direct']);
+      var extra = S.spec ? { 'sonnet-spec': S.spec.usd } : null;
+      box.appendChild(el('h3', { class: 'bk-h3', text: t('impl.spec.h')(S.n) }));
+      box.appendChild(el('p', { class: 'lv-sub', text: t('impl.spec.sub') }));
+      box.appendChild(implTable(S, sr.list, extra));
+      var ss = sr.by['sonnet-spec'], so = sr.by['sonnet-high'], sb = sr.by['opus-direct'];
+      if (S.spec && ss) box.appendChild(el('p', { class: 'bk-cmp', text: t('impl.spec.cost')(usd(S.spec.usd), usd(ss.usd)) }));
+      if (ss && so && sb) box.appendChild(el('p', { class: 'bk-cmp', text: t('impl.spec.take')({ n: S.n, bOk: sb.ok, oldOk: so.ok, newOk: ss.ok }) }));
+    }
+    box.appendChild(el('p', { class: 'bk-cmp bk-noise', text: t('impl.limit') }));
   }
 
   function renderLegend() {
@@ -1142,9 +1215,10 @@
     /* the difference: shown only once every dot of flow b has arrived. The amount is taken from the two rounded totals shown above it, so the reader's own subtraction matches */
     var deltaG = sv('g', { class: 'delta', style: 'display:none' }, [
       sv('text', { class: 'dl-h', x: DG.out.x, y: dY + 12, text: t('dg.delta.h') }),
-      sv('text', { class: 'dl-big', x: DG.out.x, y: dY + 38, text: '−' + deltaPct + '%' }),
-      sv('text', { class: 'dl-sub', x: DG.out.x, y: dY + 55, text: t('dg.delta.usd')(usd(Math.round(opusTotal * 100) / 100 - Math.round(sprTotal * 100) / 100)) }),
-      sv('text', { class: 'dl-sub dl-handed', x: DG.out.x, y: dY + 70, text: t('dg.delta.handed')(handedN, handedPct) })
+      /* the big figure is the one the page leads with: the jobs handed off. The line under it ties back to the two totals above */
+      sv('text', { class: 'dl-big', x: DG.out.x, y: dY + 38, text: '−' + (handedN ? handedPct : deltaPct) + '%' }),
+      sv('text', { class: 'dl-sub dl-handed', x: DG.out.x, y: dY + 55, text: handedN ? t('dg.delta.handed')(handedN) : '' }),
+      sv('text', { class: 'dl-sub', x: DG.out.x, y: dY + 70, text: t('dg.delta.all')(n, deltaPct, usd(Math.round(opusTotal * 100) / 100 - Math.round(sprTotal * 100) / 100)) })
     ]);
     stages.out.appendChild(deltaG);
 
@@ -1373,6 +1447,7 @@
     renderLive();
     renderBulk();
     renderUp();
+    renderImpl();
     renderLegend();
     renderCases();
     renderMethod();

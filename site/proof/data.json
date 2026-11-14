@@ -2986,9 +2986,11 @@
  },
  "bulk": {
   "rounds": [
-   "r18-v5-2026-11-09"
+   "r18-v5-2026-11-09",
+   "r21-new-v5-2026-11-14",
+   "r22-new13-v5-2026-11-14"
   ],
-  "n": 43,
+  "n": 58,
   "byKind": {
    "check": {
     "n": 7,
@@ -3013,55 +3015,56 @@
     "keptMain": 3
    },
    "paste": {
-    "n": 6,
-    "ok": 5,
+    "n": 7,
+    "ok": 6,
     "partial": 1,
     "fail": 0,
-    "pickUsd": 2.2834,
-    "opusUsd": 3.8804,
-    "pickSec": 189,
-    "opusSec": 193,
-    "keptMain": 2
+    "pickUsd": 3.8677,
+    "opusUsd": 5.4647,
+    "pickSec": 304,
+    "opusSec": 309,
+    "keptMain": 3
    },
    "read": {
-    "n": 2,
-    "ok": 2,
+    "n": 3,
+    "ok": 3,
     "partial": 0,
     "fail": 0,
-    "pickUsd": 0.5092,
-    "opusUsd": 1.0904,
-    "pickSec": 69,
-    "opusSec": 74
+    "pickUsd": 1.2725,
+    "opusUsd": 1.9034,
+    "pickSec": 119,
+    "opusSec": 136,
+    "keptMain": 1
    },
    "run": {
-    "n": 24,
-    "ok": 24,
+    "n": 37,
+    "ok": 37,
     "partial": 0,
     "fail": 0,
-    "pickUsd": 12.9436,
-    "opusUsd": 15.9286,
-    "pickSec": 1879,
-    "opusSec": 1741,
-    "keptMain": 13,
+    "pickUsd": 30.575,
+    "opusUsd": 34.8887,
+    "pickSec": 3711,
+    "opusSec": 3537,
+    "keptMain": 23,
     "rechecked": 1
    }
   },
   "totals": {
-   "n": 43,
-   "ok": 42,
+   "n": 58,
+   "ok": 57,
    "partial": 1,
    "fail": 0,
-   "pickUsd": 24.3396,
-   "opusUsd": 30.5972,
-   "pickSec": 3319,
-   "opusSec": 3201,
-   "keptMain": 22,
+   "pickUsd": 44.3186,
+   "opusUsd": 51.9546,
+   "pickSec": 5315,
+   "opusSec": 5174,
+   "keptMain": 34,
    "rechecked": 1
   },
   "pickModels": {
    "haiku": 1,
-   "sonnet": 20,
-   "opus": 22
+   "sonnet": 23,
+   "opus": 34
   },
   "cases": [
    {
@@ -3131,10 +3134,10 @@
     "kind": "run",
     "lane": "opus-direct",
     "verdict": "ok",
-    "pickUsd": 0.8096,
-    "opusUsd": 0.8096,
-    "pickSec": 417,
-    "opusSec": 417
+    "pickUsd": 2.9533,
+    "opusUsd": 2.9533,
+    "pickSec": 297,
+    "opusSec": 297
    },
    {
     "kind": "run",
@@ -3159,18 +3162,18 @@
     "lane": "sonnet-high",
     "verdict": "ok",
     "pickUsd": 0.1705,
-    "opusUsd": 0.4489,
+    "opusUsd": 0.4437,
     "pickSec": 4,
-    "opusSec": 39
+    "opusSec": 11
    },
    {
     "kind": "run",
     "lane": "opus-direct",
     "verdict": "ok",
-    "pickUsd": 0.5064,
-    "opusUsd": 0.5064,
-    "pickSec": 101,
-    "opusSec": 101
+    "pickUsd": 0.5986,
+    "opusUsd": 0.5986,
+    "pickSec": 30,
+    "opusSec": 30
    },
    {
     "kind": "run",
@@ -3387,9 +3390,9 @@
     "lane": "sonnet-high",
     "verdict": "ok",
     "pickUsd": 0.1835,
-    "opusUsd": 0.5364,
+    "opusUsd": 0.5861,
     "pickSec": 16,
-    "opusSec": 41
+    "opusSec": 54
    },
    {
     "kind": "check",
@@ -3453,6 +3456,141 @@
     "opusUsd": 0.8209,
     "pickSec": 93,
     "opusSec": 85
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 2.1434,
+    "opusUsd": 2.1434,
+    "pickSec": 408,
+    "opusSec": 408
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 0.8085,
+    "opusUsd": 0.8085,
+    "pickSec": 57,
+    "opusSec": 57
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "ok",
+    "pickUsd": 0.5722,
+    "opusUsd": 1.0991,
+    "pickSec": 120,
+    "opusSec": 96
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 1.0684,
+    "opusUsd": 1.0684,
+    "pickSec": 127,
+    "opusSec": 127
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "ok",
+    "pickUsd": 0.5351,
+    "opusUsd": 1.0004,
+    "pickSec": 61,
+    "opusSec": 78
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 1.1681,
+    "opusUsd": 1.1681,
+    "pickSec": 110,
+    "opusSec": 110
+   },
+   {
+    "kind": "run",
+    "lane": "sonnet-xhigh-web",
+    "verdict": "ok",
+    "pickUsd": 0.4896,
+    "opusUsd": 0.8314,
+    "pickSec": 47,
+    "opusSec": 46
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 0.7542,
+    "opusUsd": 0.7542,
+    "pickSec": 41,
+    "opusSec": 41
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 1.4785,
+    "opusUsd": 1.4785,
+    "pickSec": 149,
+    "opusSec": 149
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 2.2109,
+    "opusUsd": 2.2109,
+    "pickSec": 442,
+    "opusSec": 442
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 1.3596,
+    "opusUsd": 1.3596,
+    "pickSec": 188,
+    "opusSec": 188
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 0.7557,
+    "opusUsd": 0.7557,
+    "pickSec": 58,
+    "opusSec": 58
+   },
+   {
+    "kind": "read",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 0.7633,
+    "opusUsd": 0.7633,
+    "pickSec": 50,
+    "opusSec": 50
+   },
+   {
+    "kind": "paste",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 1.5843,
+    "opusUsd": 1.5843,
+    "pickSec": 115,
+    "opusSec": 115
+   },
+   {
+    "kind": "run",
+    "lane": "opus-direct",
+    "verdict": "ok",
+    "pickUsd": 2.0513,
+    "opusUsd": 2.0513,
+    "pickSec": 215,
+    "opusSec": 215
    }
   ],
   "compare": {
@@ -3501,8 +3639,8 @@
      "ok": 19,
      "partial": 0,
      "fail": 0,
-     "pickUsd": 13.8101,
-     "pickSec": 1975
+     "pickUsd": 16.046,
+     "pickSec": 1784
     }
    ]
   },
@@ -3563,6 +3701,296 @@
     }
    ]
   },
+  "impl": {
+   "round": "r23-impl-2026-11-14",
+   "n": 10,
+   "conditions": [
+    {
+     "id": "sonnet-high",
+     "model": "sonnet",
+     "effort": "high",
+     "n": 10,
+     "ok": 4,
+     "partial": 6,
+     "fail": 0,
+     "verified": 85,
+     "wrong": 6,
+     "missed": 7,
+     "usd": 9.5233,
+     "sec": 2125
+    },
+    {
+     "id": "opus-direct",
+     "model": "opus",
+     "effort": "high",
+     "n": 10,
+     "ok": 10,
+     "partial": 0,
+     "fail": 0,
+     "verified": 103,
+     "wrong": 0,
+     "missed": 0,
+     "usd": 20.8108,
+     "sec": 2920
+    }
+   ],
+   "tests": {
+    "sonnet-high": {
+     "pass": 9,
+     "fail": 1,
+     "none": 0
+    },
+    "opus-direct": {
+     "pass": 10,
+     "fail": 0,
+     "none": 0
+    }
+   },
+   "diff": {
+    "sonnet-high": {
+     "files": 122,
+     "insertions": 13773,
+     "deletions": 558
+    },
+    "opus-direct": {
+     "files": 124,
+     "insertions": 13566,
+     "deletions": 519
+    }
+   }
+  },
+  "implReview": {
+   "round": "r24-impl-review-2026-11-14",
+   "n": 10,
+   "conditions": [
+    {
+     "id": "opus-review",
+     "model": "opus",
+     "effort": "high",
+     "n": 10,
+     "ok": 5,
+     "partial": 5,
+     "fail": 0,
+     "verified": 95,
+     "wrong": 4,
+     "missed": 6,
+     "usd": 12.4349,
+     "sec": 1294
+    },
+    {
+     "id": "opus-direct",
+     "model": "opus",
+     "effort": "high",
+     "n": 10,
+     "ok": 10,
+     "partial": 0,
+     "fail": 0,
+     "verified": 94,
+     "wrong": 2,
+     "missed": 8,
+     "usd": 20.8108,
+     "sec": 2920
+    }
+   ],
+   "tests": {
+    "opus-review": {
+     "pass": 10,
+     "fail": 0,
+     "none": 0
+    },
+    "opus-direct": {
+     "pass": 10,
+     "fail": 0,
+     "none": 0
+    }
+   },
+   "diff": {
+    "opus-review": {
+     "files": 126,
+     "insertions": 14014,
+     "deletions": 560
+    },
+    "opus-direct": {
+     "files": 124,
+     "insertions": 13566,
+     "deletions": 519
+    }
+   }
+  },
+  "implLarge": {
+   "round": "r27-impl-large-2026-11-14",
+   "n": 7,
+   "conditions": [
+    {
+     "id": "sonnet-next",
+     "model": "sonnet",
+     "effort": "high",
+     "n": 7,
+     "ok": 5,
+     "partial": 2,
+     "fail": 0,
+     "verified": 58,
+     "wrong": 2,
+     "missed": 2,
+     "usd": 9.5288,
+     "sec": 2242
+    },
+    {
+     "id": "haiku-next",
+     "model": "haiku",
+     "effort": "high",
+     "n": 7,
+     "ok": 3,
+     "partial": 4,
+     "fail": 0,
+     "verified": 58,
+     "wrong": 4,
+     "missed": 4,
+     "usd": 1.3528,
+     "sec": 4056
+    },
+    {
+     "id": "opus-direct",
+     "model": "opus",
+     "effort": "high",
+     "n": 7,
+     "ok": 4,
+     "partial": 3,
+     "fail": 0,
+     "verified": 53,
+     "wrong": 3,
+     "missed": 8,
+     "usd": 24.3526,
+     "sec": 5346
+    }
+   ],
+   "tests": {
+    "sonnet-next": {
+     "pass": 6,
+     "fail": 1,
+     "none": 0
+    },
+    "haiku-next": {
+     "pass": 4,
+     "fail": 3,
+     "none": 0
+    },
+    "opus-direct": {
+     "pass": 6,
+     "fail": 1,
+     "none": 0
+    }
+   },
+   "diff": {
+    "sonnet-next": {
+     "files": 47,
+     "insertions": 2806,
+     "deletions": 743
+    },
+    "haiku-next": {
+     "files": 45,
+     "insertions": 2627,
+     "deletions": 684
+    },
+    "opus-direct": {
+     "files": 48,
+     "insertions": 2685,
+     "deletions": 744
+    }
+   }
+  },
+  "implSpec": {
+   "round": "r26-impl-spec-2026-11-14",
+   "n": 10,
+   "conditions": [
+    {
+     "id": "sonnet-spec",
+     "model": "sonnet",
+     "effort": "high",
+     "n": 10,
+     "ok": 7,
+     "partial": 3,
+     "fail": 0,
+     "verified": 83,
+     "wrong": 6,
+     "missed": 5,
+     "usd": 10.0227,
+     "sec": 2244
+    },
+    {
+     "id": "sonnet-high",
+     "model": "sonnet",
+     "effort": "high",
+     "n": 10,
+     "ok": 5,
+     "partial": 5,
+     "fail": 0,
+     "verified": 77,
+     "wrong": 8,
+     "missed": 9,
+     "usd": 9.5233,
+     "sec": 2125
+    },
+    {
+     "id": "opus-direct",
+     "model": "opus",
+     "effort": "high",
+     "n": 10,
+     "ok": 10,
+     "partial": 0,
+     "fail": 0,
+     "verified": 87,
+     "wrong": 0,
+     "missed": 2,
+     "usd": 20.8108,
+     "sec": 2920
+    }
+   ],
+   "tests": {
+    "sonnet-spec": {
+     "pass": 9,
+     "fail": 1,
+     "none": 0
+    },
+    "sonnet-high": {
+     "pass": 9,
+     "fail": 1,
+     "none": 0
+    },
+    "opus-direct": {
+     "pass": 10,
+     "fail": 0,
+     "none": 0
+    }
+   },
+   "diff": {
+    "sonnet-spec": {
+     "files": 147,
+     "insertions": 14241,
+     "deletions": 593
+    },
+    "sonnet-high": {
+     "files": 122,
+     "insertions": 13773,
+     "deletions": 558
+    },
+    "opus-direct": {
+     "files": 124,
+     "insertions": 13566,
+     "deletions": 519
+    }
+   },
+   "spec": {
+    "n": 10,
+    "usd": 21.2656,
+    "sec": 2786
+   },
+   "capLines": {
+    "implementation": 8,
+    "own": 1,
+    "numeric": 1
+   }
+  },
   "notes": {
    "method": {
     "date": "2026-11-08",
@@ -3593,14 +4021,14 @@
     "crossOkPartial": 1
    },
    "v3": {
-    "n": 21,
-    "ok": 20,
+    "n": 24,
+    "ok": 23,
     "partial": 1,
     "fail": 0,
-    "pickUsd": 6.0684,
-    "opusUsd": 12.3257,
-    "delegated": 21,
-    "pool": 83,
+    "pickUsd": 7.6653,
+    "opusUsd": 15.2566,
+    "delegated": 24,
+    "pool": 96,
     "rule": "v5"
    },
    "effort": {
