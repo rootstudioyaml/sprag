@@ -616,12 +616,13 @@ test('proof.js result, fold, docs and impl strings exist in en and ko with match
   for (const k of used) assert.ok(k in STR.en && k in STR.ko, k);
   const html = readFileSync(join(ROOT, 'site', 'proof', 'index.html'), 'utf8');
   const at = (id) => html.indexOf(`id="${id}"`);
-  const order = ['stats', 'live', 'd-docs', 'd-impl', 'd-route', 'd-up', 'method'].map(at);
+  const order = ['stats', 'diagram', 'live', 'd-docs', 'd-impl', 'd-route', 'd-up', 'method'].map(at);
   assert.ok(order.every((i) => i > 0), 'every id exists');
   assert.deepEqual([...order].sort((x, y) => x - y), order, 'stats, live, then the folds in order, then method');
-  for (const inner of ['diagram', 'cases', 'bulk']) assert.ok(at(inner) > at('d-route') && at(inner) < at('d-up'), `${inner} sits inside d-route`);
+  // The path animation stays in view under the tiles; only the case list and the tables fold.
+  for (const inner of ['cases', 'bulk']) assert.ok(at(inner) > at('d-route') && at(inner) < at('d-up'), `${inner} sits inside d-route`);
   assert.ok(at('docs') > at('d-docs') && at('docs') < at('d-impl'));
   assert.ok(at('impl') > at('d-impl') && at('impl') < at('d-route'));
   assert.ok(at('up') > at('d-up') && at('up') < at('method'));
-  assert.match(html, /proof\.js\?v=26/);
+  assert.match(html, /proof\.js\?v=27/);
 });

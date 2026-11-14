@@ -133,6 +133,10 @@
       'dg.split': function (h, k) { return h + ' handed off, ' + k + ' kept'; },
       'dg.delta.h': 'Difference',
       'dg.delta.saved': function (u) { return u + ' saved'; },
+      'dg.delta.kept': function (k) { return 'the ' + k + ' kept cost the same'; },
+      'dg.head.handed': function (n) { return 'The ' + n + ' jobs sprag hands off, two ways at once'; },
+      'dg.scope.all': function (n) { return 'Show all ' + n; }, 'dg.scope.handed': function (n) { return 'Only the ' + n + ' handed off'; },
+      'dg.split0': function (h) { return h + ' handed off'; },
       'dg.delta.handed': function (n, p) { return 'the ' + n + ' handed off alone: −' + p + '%'; },
       'dg.tip.click': 'Click to open the case', 'dg.more': function (k) { return '+' + k + ' more'; },
       'live.h': 'Real usage, counted only',
@@ -310,6 +314,10 @@
       'dg.split': function (h, k) { return '넘김 ' + h + '건, 남김 ' + k + '건'; },
       'dg.delta.h': '차이',
       'dg.delta.saved': function (u) { return u + ' 절감'; },
+      'dg.delta.kept': function (k) { return '남긴 ' + k + '건은 비용이 같습니다'; },
+      'dg.head.handed': function (n) { return 'sprag가 넘긴 ' + n + '건을 두 방식으로 동시에 돌리면'; },
+      'dg.scope.all': function (n) { return '전체 ' + n + '건 보기'; }, 'dg.scope.handed': function (n) { return '넘긴 ' + n + '건만 보기'; },
+      'dg.split0': function (h) { return '넘김 ' + h + '건'; },
       'dg.delta.handed': function (n, p) { return '넘긴 ' + n + '건만 보면 −' + p + '%'; },
       'dg.tip.click': '클릭하면 사례로 이동합니다', 'dg.more': function (k) { return '외 ' + k + '건'; },
       'live.h': '실제 사용 기록, 수치만',
@@ -1125,7 +1133,7 @@
     lane: { x: 432, w: 224, h: 50, pitch: 80 }, grade: { x: 706, w: 126, h: 64 },
     out: { x: 882 }
   };
-  var dg = { cmp: 'sprag', raf: 0, timers: [], played: false, io: null, items: {} };
+  var dg = { cmp: 'sprag', scope: 'handed', raf: 0, timers: [], played: false, io: null, items: {} };
 
   function sv(tag, attrs, kids) {
     var n = document.createElementNS(SVGNS, tag);
@@ -1159,7 +1167,11 @@
     dgStop();
     dg.items = {};
     if (dg.io) { dg.io.disconnect(); dg.io = null; }
-    var cases = heroCases(), n = cases.length, hasBulk = cases.some(function (c) { return c.bulk; });
+    /* the animation leads with the jobs sprag hands off, where the two flows differ; the jobs it keeps on the main model cost the same both ways and are one click away */
+    var allCases = heroCases();
+    var handedCases = allCases.filter(function (c) { return policyRun(c, 'sprag').condition !== 'opus-direct'; });
+    var scoped = dg.scope !== 'all' && handedCases.length > 0 && handedCases.length < allCases.length;
+    var cases = scoped ? handedCases : allCases, n = cases.length, hasBulk = cases.some(function (c) { return c.bulk; });
     var MID = (DG.top + DG.bot) / 2;
     var opusTotal = cases.reduce(function (s, c) { return s + policyRun(c, 'opus').usd; }, 0);
     var FLOWS = ['a', 'b'];                      /* a: without sprag (Opus itself), b: the compared policy */
@@ -1190,7 +1202,7 @@
       LN[id] = { id: id, model: condObj(id).model, x: DG.lane.x, y: ly0 + j * lp, w: DG.lane.w, h: DG.lane.h, cy: ly0 + j * lp + DG.lane.h / 2 };
     });
     /* two result blocks, one per flow */
-    var cols = n <= 10 ? 5 : n <= 40 ? 8 : 14, cell = n <= 10 ? 24 : n <= 40 ? 16 : 8, cs = cell + 2, rows = Math.ceil(n / cols), tiny = cell < 12;
+    var cols = n <= 10 ? 5 : n <= 20 ? 8 : n <= 40 ? 12 : 14, cell = n <= 10 ? 24 : n <= 20 ? 16 : n <= 40 ? 10 : 8, cs = cell + 2, rows = Math.ceil(n / cols), tiny = cell < 12;
     var outW = cols * cs - 2, blockH = 14 + rows * cs + 18 + 30 + 16, bgap = 12;
     var blocks = FLOWS.map(function (f, k) {
       var y = DG.top + 18 + k * (blockH + bgap), sy = y + 18;
@@ -1213,9 +1225,14 @@
     /* controls: without sprag is always the top flow, the bottom one is a choice */
     var replay = el('button', { type: 'button', class: 'replay', text: t('replay') });
     replay.addEventListener('click', function () { dg.played = true; if (!REDUCED) dgPlay(); });
+    var scopeBtn = null;
+    if (handedCases.length > 0 && handedCases.length < allCases.length) {
+      scopeBtn = el('button', { type: 'button', class: 'replay', text: scoped ? t('dg.scope.all')(allCases.length) : t('dg.scope.handed')(handedCases.length) });
+      scopeBtn.addEventListener('click', function () { dg.scope = scoped ? 'all' : 'handed'; dg.played = true; renderDiagram(); });
+    }
     box.appendChild(el('div', { class: 'dg-head' }, [
-      el('span', { text: t('dg.head')(n) }),
-      el('div', { class: 'dg-ctl' }, [el('span', { class: 'fa-chip', text: t('pol.opus') }), el('span', { class: 'vs', text: t('dg.vs') }), el('span', { class: 'fb-chip', text: t('pol.sprag') }), replay])
+      el('span', { text: scoped ? t('dg.head.handed')(n) : t('dg.head')(n) }),
+      el('div', { class: 'dg-ctl' }, [el('span', { class: 'fa-chip', text: t('pol.opus') }), el('span', { class: 'vs', text: t('dg.vs') }), el('span', { class: 'fb-chip', text: t('pol.sprag') }), replay, scopeBtn])
     ]));
 
     var svg = sv('svg', { class: 'dg c-' + dg.cmp + (tiny ? ' tiny' : ''), viewBox: '0 0 ' + DG.W + ' ' + DG.H, role: 'group', 'aria-label': t('dg.aria')(n) });
@@ -1375,7 +1392,7 @@
       /* the big figure and the amount under it come from the two totals right above, so the reader's own arithmetic matches. The saving on the handed-off jobs alone, which the page leads with, is the third line */
       sv('text', { class: 'dl-big', x: DG.out.x, y: dY + 38, text: '−' + deltaPct + '%' }),
       sv('text', { class: 'dl-sub', x: DG.out.x, y: dY + 55, text: t('dg.delta.saved')(usd(Math.round(opusTotal * 100) / 100 - Math.round(sprTotal * 100) / 100)) }),
-      sv('text', { class: 'dl-sub dl-handed', x: DG.out.x, y: dY + 70, text: handedN ? t('dg.delta.handed')(handedN, handedPct) : '' })
+      sv('text', { class: 'dl-sub dl-handed', x: DG.out.x, y: dY + 70, text: scoped ? t('dg.delta.kept')(allCases.length - n) : (handedN ? t('dg.delta.handed')(handedN, handedPct) : '') })
     ]);
     stages.out.appendChild(deltaG);
 
@@ -1487,7 +1504,7 @@
           else if (k > 0) { var s = stageAt(it.path.getPointAtLength(k * it.len).x); if (s) inside[s] = 1; }
         });
         bigT[f].textContent = usd(total);
-        pctT[f].textContent = f === 'a' ? t('dg.base') : (total > 0 ? t('dg.split')(handedN, keptN) : '');
+        pctT[f].textContent = f === 'a' ? t('dg.base') : (total > 0 ? (keptN ? t('dg.split')(handedN, keptN) : t('dg.split0')(handedN)) : '');
         fitText(pctT[f], DG.W - DG.out.x - 4);
         ['ok', 'partial', 'fail'].forEach(function (v) { cntN[f][v].textContent = String(cnt[v]); });
         gradeCnt[f].style.display = graded ? '' : 'none';
