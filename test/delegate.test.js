@@ -721,11 +721,65 @@ test('buildAppendix: a prompt that states its own budget is not capped by the ru
     assert.equal(statesOwnBudget(p), false, p);
   }
   const routeCaps = { T1: { calls: 20, out: 6100 } };
-  const own = await buildAppendix({ tool_name: 'Agent', tool_input: { prompt: 'Implement X. Budget: about 90 tool calls.', model: 'sonnet' } }, { cfg: ON, home: EMPTY_HOME, routeCaps });
+  const own = await buildAppendix({ tool_name: 'Agent', tool_input: { prompt: 'Find the loader of the config. Budget: about 90 tool calls.', model: 'sonnet' } }, { cfg: ON, home: EMPTY_HOME, routeCaps });
   assert.match(own, /the budget stated in your prompt above/);
   assert.doesNotMatch(own, /6,100 output tokens/);
+  // A prompt that reads as an implementation specification gets the
+  // implementation line instead, which keeps the tool-call budget too.
+  const impl = await buildAppendix({ tool_name: 'Agent', tool_input: { prompt: 'Implement X. Budget: about 90 tool calls.', model: 'sonnet' } }, { cfg: ON, home: EMPTY_HOME, routeCaps });
+  assert.match(impl, /no output-token cap/);
+  assert.doesNotMatch(impl, /6,100 output tokens/);
   const none = await buildAppendix({ tool_name: 'Agent', tool_input: { prompt: 'Find the config loader.', model: 'sonnet' } }, { cfg: ON, home: EMPTY_HOME, routeCaps });
   assert.match(none, /20 tool calls, 6,100 output tokens/);
+});
+
+test('buildAppendix: an implementation hand-off gets no output-token cap, a lookup keeps its cap', async () => {
+  /* Replay of ten implementation hand-offs: the workers wrote 13,000 to 39,000
+     output tokens, and the one held to 8,000 stopped before writing its tests. */
+  const { isImplementationHandOff, IMPLEMENTATION_CAP_LINE } = await import('../src/delegation-guard.js');
+  const capOf = async (tool_input, routeCaps = null) => (await buildAppendix(
+    { tool_name: 'Agent', tool_input }, { cfg: ON, home: EMPTY_HOME, routeCaps },
+  )).match(/Cap for this delegation: [^\n]+/)[0];
+  const impl = [
+    { subagent_type: 't1-worker', prompt: 'Implement the parser change. Files to change: src/a.js, src/b.js.' },
+    { subagent_type: 't1h-worker', prompt: '설계는 확정이다. 아래대로 구현한다' },
+    { subagent_type: 'general-purpose', model: 'sonnet', prompt: 'Implement the retry helper as designed.' },
+    { subagent_type: 't1-worker', prompt: 'Implement the parser change. Cap yourself at 8,000 output tokens.' },
+    { prompt: 'Refactor the loader. Files to change: src/load.js' },
+  ];
+  for (const input of impl) {
+    assert.equal(isImplementationHandOff(input), true, JSON.stringify(input));
+    assert.equal(await capOf(input), IMPLEMENTATION_CAP_LINE, JSON.stringify(input));
+  }
+  assert.match(IMPLEMENTATION_CAP_LINE, /no output-token cap/);
+  assert.match(IMPLEMENTATION_CAP_LINE, /tool-call budget/);
+
+  const lookups = [
+    { model: 'haiku', subagent_type: 'general-purpose', prompt: 'Implement the parser change. Files to change: src/a.js' },
+    { subagent_type: 't2-explore', prompt: 'Implement the parser change. Files to change: src/a.js' },
+    { subagent_type: 'Explore', prompt: 'Implement the parser change. Files to change: src/a.js' },
+    { subagent_type: 't1-worker', prompt: 'run the tests' },
+    { subagent_type: 't1-worker', prompt: 'Research task, no code changes. Collect implementation ideas for the loader.' },
+    { subagent_type: 't1-worker', prompt: '읽기 전용 조사입니다. 구현 방법을 정리하십시오.' },
+  ];
+  for (const input of lookups) {
+    assert.equal(isImplementationHandOff(input), false, JSON.stringify(input));
+    assert.doesNotMatch(await capOf(input), /no output-token cap/, JSON.stringify(input));
+  }
+  assert.equal(await capOf({ subagent_type: 't1-worker', prompt: 'run the tests' }), 'Cap for this delegation: 20 tool calls, 8,000 output tokens.');
+  assert.equal(await capOf({ subagent_type: 't2-explore', prompt: 'Implement it. Files to change: x' }), 'Cap for this delegation: 8 tool calls, 1,500 output tokens.');
+  assert.equal(isImplementationHandOff(undefined), false);
+  assert.equal(isImplementationHandOff({ prompt: 42, subagent_type: 't1-worker' }), false);
+});
+
+test('buildAppendix: a matched route cap does not apply to an implementation hand-off', async () => {
+  const { IMPLEMENTATION_CAP_LINE } = await import('../src/delegation-guard.js');
+  const routeCaps = { T1: { calls: 20, out: 6100 }, T1H: { calls: 20, out: 26729 } };
+  const line = async (tool_input) => (await buildAppendix({ tool_name: 'Agent', tool_input }, { cfg: ON, home: EMPTY_HOME, routeCaps }))
+    .match(/Cap for this delegation: [^\n]+/)[0];
+  assert.equal(await line({ subagent_type: 't1-worker', prompt: 'Implement X. Files to change: src/x.js' }), IMPLEMENTATION_CAP_LINE);
+  assert.equal(await line({ subagent_type: 't1h-worker', prompt: 'Implement X. Files to change: src/x.js' }), IMPLEMENTATION_CAP_LINE);
+  assert.equal(await line({ subagent_type: 't1-worker', prompt: 'run the tests' }), 'Cap for this delegation: 20 tool calls, 6,100 output tokens.');
 });
 
 /* The delegation grade (routing-switch.js) acts on a judgement prompt sent to a

@@ -318,8 +318,10 @@ export function codexImplementationHint({ model, provider, sessionId, cfg = load
     from: model, to: target.model, provider, effort: target.effort ?? null }, { dir });
   return `[Sprag implementation delegation] The user-approved implementation-split policy keeps design and specification on the main agent. `
     + `Delegate only the implementation of that completed design to model ${target.model}${target.effort ? `, reasoning_effort ${target.effort}` : ''}, with fork_turns "none".${asRole} `
-    + 'Never delegate design judgement or irreversible actions. Give one child a self-contained specification, owned files, constraints, test commands, completion criteria and the reason for this model choice. '
-    + 'Cap: 8000 output tokens. Stop and report partial work before exceeding it. Do not recursively delegate. '
+    + 'Never delegate design judgement or irreversible actions. Give one child a self-contained specification: the goal and its reason, the settled design, owned files and what must stay untouched, other callers and copies that must change with it, the repository conventions that apply, checkable completion criteria, the targeted and full test commands, the report format, and the reason for this model choice. '
+    + 'Find the other callers and the conventions yourself before delegating. State no output-token cap: scope is the owned files and the completion criteria. '
+    + 'Tell the child to stop and report, not to implement a different design, when the design does not fit the code. '
+    + 'Do not recursively delegate. '
     + WAIT_TEXT + `\nEnd the child task message with this route line only:\n<!-- sprag:codex:route id=${id} -->`;
 }
 

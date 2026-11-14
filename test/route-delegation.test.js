@@ -388,7 +388,10 @@ test('a review flag names the measured evidence when that is what tripped it', (
     healthSource: 'delegated', delegatedRuns: 8, delegatedErrRate: 0.5, errRate: 0.01,
   }], 'en');
   assert.match(md, /50% error rate across 8 measured delegations/);
-  assert.doesNotMatch(md, /shape/i);
+  // Only the flag line: the implementation-split text in the same header
+  // legitimately says "data shapes".
+  const flagLine = md.split('\n').filter((l) => /measured delegations/.test(l)).join('\n');
+  assert.doesNotMatch(flagLine, /shape/i);
 });
 
 test('a review flag falls back to the proxy wording without measured runs', () => {

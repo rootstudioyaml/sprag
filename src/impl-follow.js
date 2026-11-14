@@ -57,7 +57,7 @@ import { routingEnabled } from './routing-switch.js';
 import { logEvent } from './route-follow.js';
 import { sessionModelRank, looksLikeImplementation } from './route-inject.js';
 import { worthDelegating } from './route-scan.js';
-import { resolveAgentName } from './agents.js';
+import { resolveAgentName, isImplementingAgent } from './agents.js';
 import { debug } from './debug.js';
 
 const SESSION_ID_RE = /^[A-Za-z0-9_-]{1,100}$/;
@@ -70,9 +70,6 @@ const DELEGATE_TOOLS = new Set(['Task', 'Agent', 'spawn_agent']);
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const EXCLUDED_PREFIXES = ['/tmp/', '/private/tmp/', '/var/folders/', '/private/var/folders/'];
 const DOC_EXT_RE = /\.(md|mdx|markdown|txt|rst|adoc)$/i;
-/** Subagent types that carry implementation work (no type means general-purpose). */
-const IMPL_AGENTS = new Set(['t1-worker', 't1h-worker', 'general-purpose', 'claude']);
-const IMPL_AGENT_RE = /(?:^|[:-])(?:builder|worker)$/;
 
 const baseDir = (dir) => dir || userDataDir();
 
@@ -110,9 +107,7 @@ export function excludedPath(file) {
 /** True when this tool call hands implementation work to another agent. */
 export function countsAsDelegation(tool, input) {
   if (tool === 'spawn_agent') return true;
-  const type = typeof input?.subagent_type === 'string' ? input.subagent_type.trim() : '';
-  if (!type) return true;
-  return IMPL_AGENTS.has(type) || IMPL_AGENT_RE.test(type);
+  return isImplementingAgent(input?.subagent_type);
 }
 
 function readEdits(file) {
@@ -135,13 +130,14 @@ function nudgeText({ n, files, target, lang }) {
   if (lang === 'ko') {
     const list = more > 0 ? `${shown} 외 ${more}개` : shown;
     return `✇ [sprag] 위임 없이 파일 ${n}개를 직접 고쳤습니다(${list}). `
-      + `남은 구현이 여러 파일에 걸치면 구현 분업 조항대로 설계와 수정할 파일, 완료 기준, 테스트 명령을 정리해 ${target}에 넘기십시오. `
+      + `남은 구현이 여러 파일에 걸치면 구현 분업 조항대로 설계와 수정할 파일, 함께 고칠 곳, 저장소 규약, 완료 기준, 테스트 명령을 설계서로 정리해 ${target}에 넘기십시오. `
+      + '출력 토큰 상한은 적지 않습니다. '
       + '남은 변경이 이미 읽은 파일의 약 50줄 이하이거나 설계를 아직 정하지 못했다면 그 이유를 답변에 한 줄로 밝히고 계속하십시오. '
       + '이 안내는 다음 위임 전까지 다시 나가지 않습니다.';
   }
   const list = more > 0 ? `${shown} and ${more} more` : shown;
   return `✇ [sprag] You have edited ${n} files yourself without delegating (${list}). `
-    + 'If the remaining implementation spans several files, follow the implementation split: write down the design, files to change, completion criteria and test commands, '
+    + 'If the remaining implementation spans several files, follow the implementation split: write the specification (design, files to change, other callers and copies that change with them, repository conventions, completion criteria, test commands, and no output-token cap), '
     + `and hand it to ${target}. `
     + 'If what remains is roughly 50 lines in files already read, or the design is not settled yet, say so in one line in your reply and continue. '
     + 'This notice does not repeat until the next delegation.';

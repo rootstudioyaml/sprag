@@ -34,7 +34,7 @@ import { homedir } from 'node:os';
 import { loadConfig, saveConfig } from './config.js';
 import { recentToolPaths } from './session-paths.js';
 import { routeCapsFor } from './route-caps.js';
-import { modelOf } from './agents.js';
+import { modelOf, isImplementingAgent } from './agents.js';
 import { routingEnabled, delegationGrade, normalizeDelegationGrade } from './routing-switch.js';
 import { isJudgementDelegation, SAVING_GRADE_KINDS } from './judgement-prompt.js';
 import { recordGradeAction } from './grade-counts.js';
@@ -169,9 +169,19 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
     // given "about 90 tool calls" stopped after 7 calls at the rule's cap
     // (2026-11-07), because the bounds told it to obey the cap whatever the
     // prompt said. The caller's number now replaces the default.
-    const capLine = statesOwnBudget(prompt)
-      ? 'Cap for this delegation: the budget stated in your prompt above. It replaces the default cap.'
-      : `Cap for this delegation: ${calls} tool calls, ${out.toLocaleString('en-US')} output tokens.`;
+    //
+    // An implementation hand-off gets no output-token cap at all, and a matched
+    // route cap does not apply to it either. Those caps are calibrated on
+    // lookups. In a replay of ten real implementation hand-offs the workers
+    // wrote 13,000 to 39,000 output tokens, and the one held to 8,000 stopped
+    // before it wrote its tests. This is checked before the own-budget line, so
+    // a figure like "8,000 output tokens" inside the prompt is not a stop line
+    // either; a tool-call budget or a scope limit in the prompt still holds.
+    const capLine = isImplementationHandOff(payload?.tool_input)
+      ? IMPLEMENTATION_CAP_LINE
+      : statesOwnBudget(prompt)
+        ? 'Cap for this delegation: the budget stated in your prompt above. It replaces the default cap.'
+        : `Cap for this delegation: ${calls} tool calls, ${out.toLocaleString('en-US')} output tokens.`;
     sections.push(['## Bounds and output shape', bounds, capLine].join('\n\n'));
   }
 
@@ -375,6 +385,35 @@ export function gradeAction(toolInput, grade) {
 export function statesOwnBudget(prompt) {
   if (typeof prompt !== 'string') return false;
   return /\bbudget\b[^\n]{0,40}\d|예산[^\n]{0,40}\d|\b\d+\s*tool calls?\b|도구 호출\s*\d+\s*회/i.test(prompt);
+}
+
+/** Prompt wording that reads as an implementation specification. */
+const IMPLEMENTATION_SPEC_RE = /수정할 파일|구현(?!하지\s*(?:마|말))|\bimplement|files? to (?:change|edit|modify|touch)|owned files|\brefactor|리팩터|설계는[^\n]{0,12}확정|design is (?:fixed|settled|final)|as designed|테스트를?\s*(?:추가|작성)|add (?:a |the |new )?(?:regression )?tests?\b/i;
+/**
+ * Prompt wording that declares the work read-only. Broad on purpose: a wrong
+ * "false" keeps today's cap, which is the safe direction.
+ */
+const READ_ONLY_RE = /읽기 전용|read[- ]only|research task|web research only|no code changes|do not (?:edit|modify|change) any|(?:코드|파일)[는를은을]?\s*(?:수정|변경)하지 (?:마|말)|조사만|수정 금지/i;
+
+export const IMPLEMENTATION_CAP_LINE = 'Cap for this delegation: no output-token cap. This is an implementation hand-off, and the code you write to files is the work itself. A tool-call budget or a scope limit stated in your prompt still holds; an output-token figure there is an estimate, not a stop line. Stop and report when the completion criteria hold, when the same failure repeats twice, or when the design does not fit the code.';
+
+/**
+ * True when a delegation hands implementation work to a target that can do it:
+ * not a haiku target, a subagent type that implements, and a prompt that reads
+ * as an implementation specification without declaring itself read-only.
+ */
+export function isImplementationHandOff(toolInput) {
+  try {
+    const agentName = String(toolInput?.subagent_type || '');
+    const modelHint = String(toolInput?.model || modelOf(agentName) || agentName);
+    if (/haiku/i.test(modelHint)) return false;
+    if (!isImplementingAgent(agentName)) return false;
+    const prompt = toolInput?.prompt;
+    if (typeof prompt !== 'string') return false;
+    return IMPLEMENTATION_SPEC_RE.test(prompt) && !READ_ONLY_RE.test(prompt);
+  } catch {
+    return false;
+  }
 }
 
 /** Effort a sonnet delegation runs at when the call passed none. */

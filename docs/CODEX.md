@@ -390,13 +390,16 @@ equal model capability. It never falls back to T2. Disabled delegation or an
 unresolved T1 leaves the work on the main agent. Small edits of roughly 50 lines
 in already-read files also stay on the main agent.
 
-The child receives a self-contained specification, owned files, constraints,
-tests, completion criteria, the model-selection reason and an 8,000-output-token
-cap. Use `fork_turns "none"` and end the child message with the returned route
-line. Wait with `wait_agent` (at least 120 seconds per wait), then inspect its
+The child receives a self-contained specification: the goal and its reason, the
+settled design, the owned files and what must stay untouched, the other callers
+and copies that must change with it, the repository conventions that apply,
+checkable completion criteria, the targeted and full test commands, the report
+format and the model-selection reason. The hint states no output-token cap:
+scope is the owned files and the completion criteria. Use `fork_turns "none"`
+and end the child message with the returned route line. Wait with `wait_agent` (at least 120 seconds per wait), then inspect its
 diff and actual test results. Without native subagent tools, skip the resolver
 and report the limitation; do not launch a second Codex CLI as a substitute.
-The cap is guidance, not runtime enforcement. Accounting requires a child of
+Accounting requires a child of
 the recorded parent on the selected model/provider; an unused hint earns no
 savings. Implementation requests are not automatically classified as cheap work.
 

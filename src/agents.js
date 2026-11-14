@@ -99,6 +99,22 @@ export function agentForRule(rule, { agents = agentDefinitions() } = {}) {
 /** Model alias an agent (or a legacy agent name) is pinned to, or undefined. */
 export const modelOf = (name) => AGENT_MODEL[Object.hasOwn(LEGACY_AGENT_NAMES, name) ? LEGACY_AGENT_NAMES[name] : name];
 
+/** Subagent types that carry implementation work (no type means general-purpose). */
+const IMPL_AGENTS = new Set(['t1-worker', 't1h-worker', 'general-purpose', 'claude']);
+const IMPL_AGENT_RE = /(?:^|[:-])(?:builder|worker)$/;
+
+/**
+ * True when a delegation target can implement: no type (general-purpose), one
+ * of the known implementing agents, or a name that ends in builder or worker.
+ * Lives here, not in impl-follow.js, because delegation-guard.js needs it too
+ * and impl-follow.js already reaches delegation-guard.js through its imports.
+ */
+export function isImplementingAgent(type) {
+  const t = typeof type === 'string' ? type.trim() : '';
+  if (!t) return true;
+  return IMPL_AGENTS.has(t) || IMPL_AGENT_RE.test(t);
+}
+
 /** Agent a bare tier name stands for when that agent's file exists. */
 const TIER_AGENT = { sonnet: 't1-worker', opus: 't1h-worker', haiku: 't2-explore' };
 
