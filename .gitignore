@@ -6,6 +6,10 @@ node_modules/
 HANDOFF.md
 HANDOFF-*.md
 
+# Per-machine Claude Code state and the maintainer's own ratchet rules
+.claude/
+CLAUDE.local.md
+
 # Local credentials — never commit
 .env
 .env.*
