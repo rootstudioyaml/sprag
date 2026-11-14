@@ -4,8 +4,8 @@
  *
  * Three signals (precedence: ratchet? > no-evidence > PEV-skip):
  *
- * 1. Ratchet candidate — same is_error tool_use_result appears 2+ times in
- *    the last 30 turns. Suggests the user codify a rule so it doesn't repeat.
+ * 1. Ratchet candidate — same is_error tool_use_result (grouped by
+ *    normalizeError) appears 2+ times in the last 30 turns. Suggests the user codify a rule so it doesn't repeat.
  *
  * 2. Evidence rate — fraction of recent assistant messages that ship proof
  *    (code blocks, tool_use_result, "test"/"output"/"diff"/"screenshot"
@@ -29,6 +29,7 @@ const os = require('node:os');
 
 const STATE_DIR = stateDir();
 const STATE_PATH = path.join(STATE_DIR, 'harness-state.json');
+const CANDIDATES_PATH = path.join(STATE_DIR, 'ratchet-candidates.json');
 
 const RECENT_TURNS = 15;        // PEV / evidence window (assistant turns)
 const RATCHET_TURNS = 30;       // ratchet-candidate window
@@ -70,6 +71,81 @@ function readJsonl(file) {
     } catch {
       // ignore corrupt line
     }
+  }
+  return out;
+}
+
+/**
+ * The entries in the last `maxBytes` of a transcript. Every signal here looks
+ * at the recent end of the session only, and the tool hook calls this on each
+ * tool use, so the cost has to stay flat while the transcript grows (a long
+ * session reaches tens of megabytes). The first line of the slice is dropped
+ * when the read started mid-file, because it is cut.
+ */
+function readTailEntries(file, maxBytes) {
+  const limit = maxBytes > 0 ? maxBytes : 1024 * 1024;
+  let raw = '';
+  let cut = false;
+  let fd = null;
+  try {
+    fd = fs.openSync(file, 'r');
+    const size = fs.fstatSync(fd).size;
+    const start = Math.max(0, size - limit);
+    const buf = Buffer.alloc(size - start);
+    let read = 0;
+    while (read < buf.length) {
+      const n = fs.readSync(fd, buf, read, buf.length - read, start + read);
+      if (n <= 0) break;
+      read += n;
+    }
+    raw = buf.toString('utf8', 0, read);
+    cut = start > 0;
+  } catch {
+    return [];
+  } finally {
+    if (fd !== null) { try { fs.closeSync(fd); } catch { /* already closed */ } }
+  }
+  const lines = raw.split('\n');
+  if (cut) lines.shift();
+  const out = [];
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    try {
+      out.push(JSON.parse(line));
+    } catch {
+      // ignore corrupt line
+    }
+  }
+  return out;
+}
+
+/**
+ * The conversation itself: user and assistant messages in order, one entry per
+ * message.
+ *
+ * A transcript is more than that. Claude Code writes hook results, API request
+ * records, mode and title changes between the messages, and stores each content
+ * block of one assistant message (thinking, text, tool_use) as its own line.
+ * Reading the raw lines as turns broke two signals: the tool result was no
+ * longer the entry right after its tool call (a hook record sat between them),
+ * so no assistant message ever counted as showing its work, and a window of 15
+ * "assistant turns" covered a handful of real ones. Subagent lines kept in the
+ * parent transcript (`isSidechain`) are not this session's conversation.
+ */
+function conversation(entries) {
+  const out = [];
+  for (const e of entries) {
+    if (!e || !e.message || e.isSidechain === true) continue;
+    if (e.type !== 'user' && e.type !== 'assistant') continue;
+    const prev = out[out.length - 1];
+    const id = e.message.id;
+    if (e.type === 'assistant' && id && prev && prev.type === 'assistant' && prev.message.id === id
+      && Array.isArray(prev.message.content) && Array.isArray(e.message.content)) {
+      prev.message = { ...prev.message, content: prev.message.content.concat(e.message.content) };
+      prev.timestamp = e.timestamp || prev.timestamp;
+      continue;
+    }
+    out.push({ type: e.type, timestamp: e.timestamp, message: e.message });
   }
   return out;
 }
@@ -127,7 +203,28 @@ function looksLikePlanSignal(text, toolUses) {
   return planWords.some((w) => lower.includes(w));
 }
 
-function errorSignature(toolResult) {
+// A tool call the user turned down comes back as an error result too. Two of
+// those in a row are the user's decision, twice, and no rule would have
+// prevented them. In 14 days of transcripts on one machine these were the most
+// common "repeated error" (9 of 51 sessions that had one). An interrupted call
+// is the same kind of result.
+const USER_DECISION_RE = /^(?:<tool_use_error>\s*)?(?:The user doesn't want to (?:proceed|take this action)|\[Request interrupted by user|\[Tool call interrupted|Permission (?:for this action|to use \S+) (?:was|has been) denied|Claude requested permissions? to|The user (?:rejected|denied|declined))/i;
+
+/**
+ * The grouping key of an error text: volatile parts (paths, hashes, numbers)
+ * are replaced so two runs of the same failure land in one group.
+ */
+function normalizeError(text) {
+  return String(text)
+    .replace(/^<tool_use_error>\s*/i, '')
+    .replace(/(?:[A-Za-z]:)?(?:\/[\w.@~+-]+){2,}\/?/g, '<path>')
+    .replace(/\b[0-9a-f]{7,}\b/gi, '<id>')
+    .replace(/\d+/g, '#')
+    .slice(0, 60);
+}
+
+/** `{ key, pattern }` of an is_error tool_result, or null when it is not a signal. */
+function errorInfo(toolResult) {
   if (!toolResult || toolResult.is_error !== true) return null;
   const c = toolResult.content;
   let txt = '';
@@ -137,39 +234,45 @@ function errorSignature(toolResult) {
   }
   txt = txt.replace(/\s+/g, ' ').trim();
   if (!txt) return null;
-  // First 80 chars is enough to dedupe most repeated errors without overfitting
-  // to volatile bits like timestamps or pids.
-  return txt.slice(0, 80);
+  if (USER_DECISION_RE.test(txt)) return null;
+  const key = normalizeError(txt);
+  // A bare exit status says nothing about what failed; "Exit code 1" alone
+  // would group every failed command in the session.
+  if (key.replace(/^Exit code #/, '').trim().length < 12) return null;
+  return { key, pattern: txt.slice(0, 80) };
 }
 
 /**
- * Walk the last `RATCHET_TURNS` turns and surface error signatures that
- * appear 2+ times. Returns the top candidate (or null).
+ * The error groups in the last `RATCHET_TURNS` messages of the conversation:
+ * `{ key, pattern, count, lastAt }`, `pattern` being the first original text
+ * seen (80 chars). Takes raw transcript entries.
  */
-function findRatchetCandidates(entries) {
-  const counts = new Map();
-  const recent = entries.slice(-RATCHET_TURNS);
+function recentErrors(rawEntries) {
+  const groups = new Map();
+  const recent = conversation(rawEntries).slice(-RATCHET_TURNS);
   for (const e of recent) {
-    const msg = e && e.message;
-    if (!msg) continue;
-    for (const tr of toolResultsIn(msg)) {
-      const sig = errorSignature(tr);
-      if (!sig) continue;
-      const cur = counts.get(sig) || { count: 0, lastAt: e.timestamp };
+    for (const tr of toolResultsIn(e.message)) {
+      const info = errorInfo(tr);
+      if (!info) continue;
+      const cur = groups.get(info.key) || { key: info.key, pattern: info.pattern, count: 0, lastAt: e.timestamp };
       cur.count += 1;
       cur.lastAt = e.timestamp || cur.lastAt;
-      counts.set(sig, cur);
+      groups.set(info.key, cur);
     }
   }
-  const list = [];
-  for (const [sig, info] of counts.entries()) {
-    if (info.count < 2) continue;
-    list.push({ pattern: sig, count: info.count, lastAt: info.lastAt });
-  }
+  return [...groups.values()];
+}
+
+/**
+ * Error groups that appear 2+ times in the last `RATCHET_TURNS` messages.
+ * Takes raw transcript entries.
+ */
+function findRatchetCandidates(rawEntries) {
+  const list = recentErrors(rawEntries).filter((g) => g.count >= 2);
   // Top 5 by count, ID assigned in rank order so `harness promote 1` always
   // targets the most-repeated error — stable even as new candidates appear.
   list.sort((a, b) => b.count - a.count);
-  return list.slice(0, 5).map((c, i) => ({ id: i + 1, ...c }));
+  return list.slice(0, 5).map((g, i) => ({ id: i + 1, pattern: g.pattern, count: g.count, lastAt: g.lastAt, key: g.key }));
 }
 
 /**
@@ -220,11 +323,15 @@ function analyzeTranscript(transcriptPath, opts) {
   opts = opts || {};
   // The hook has already parsed the transcript for its own totals; reading a
   // 65MB session a second time per tool call is the one avoidable cost here.
-  const entries = Array.isArray(opts.entries) ? opts.entries : readJsonl(transcriptPath);
-  if (entries.length === 0) return null;
+  // The tool hook has no parsed transcript at hand and passes `tailBytes`.
+  const raw = Array.isArray(opts.entries) ? opts.entries
+    : opts.tailBytes ? readTailEntries(transcriptPath, opts.tailBytes)
+      : readJsonl(transcriptPath);
+  if (raw.length === 0) return null;
+  const entries = conversation(raw);
   const evidenceRate = computeEvidenceRate(entries);
   const pevSkip = computePevSkip(entries);
-  const ratchetCandidates = findRatchetCandidates(entries);
+  const ratchetCandidates = findRatchetCandidates(raw);
   return {
     sessionId: opts.sessionId || null,
     cwd: opts.cwd || null,
@@ -238,15 +345,14 @@ function analyzeTranscript(transcriptPath, opts) {
   };
 }
 
-function writeState(state) {
-  if (!state) return;
+function writeJsonAtomic(dir, file, obj) {
   try {
-    if (!fs.existsSync(STATE_DIR)) fs.mkdirSync(STATE_DIR, { recursive: true });
-    // tmp + rename so the statusline never reads a half-written state file.
-    const tmp = STATE_PATH + '.' + process.pid + '.tmp';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    // tmp + rename so the statusline never reads a half-written file.
+    const tmp = file + '.' + process.pid + '.tmp';
     try {
-      fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
-      fs.renameSync(tmp, STATE_PATH);
+      fs.writeFileSync(tmp, JSON.stringify(obj, null, 2) + '\n');
+      fs.renameSync(tmp, file);
     } catch (e) {
       // A failed write or rename must not leave the temp file behind.
       try { fs.rmSync(tmp, { force: true }); } catch { /* nothing to clean */ }
@@ -254,6 +360,33 @@ function writeState(state) {
     }
   } catch {
     // best-effort
+  }
+}
+
+function writeState(state) {
+  if (!state) return;
+  writeJsonAtomic(STATE_DIR, STATE_PATH, state);
+}
+
+/**
+ * The ratchet candidates the tool hook found, kept apart from the state file:
+ * the state file is the analyzer's (evidence, PEV), this one is the follower's.
+ * `dir` replaces the state dir (tests).
+ */
+function candidatesFile(dir) {
+  return dir ? path.join(dir, 'ratchet-candidates.json') : CANDIDATES_PATH;
+}
+
+function writeCandidates(obj, dir) {
+  if (!obj) return;
+  writeJsonAtomic(dir || STATE_DIR, candidatesFile(dir), obj);
+}
+
+function readCandidates(dir) {
+  try {
+    return JSON.parse(fs.readFileSync(candidatesFile(dir), 'utf8'));
+  } catch {
+    return null;
   }
 }
 
@@ -268,8 +401,16 @@ function readState() {
 
 module.exports = {
   analyzeTranscript,
+  readTailEntries,
+  conversation,
+  normalizeError,
+  recentErrors,
+  findRatchetCandidates,
   writeState,
   readState,
+  readCandidates,
+  writeCandidates,
   STATE_PATH,
+  CANDIDATES_PATH,
   EVIDENCE_THRESHOLD,
 };

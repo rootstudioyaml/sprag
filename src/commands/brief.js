@@ -14,7 +14,9 @@
  * brief --hook-tool — PostToolUse hook mode: counts the direct lookups of a
  * turn that carried a delegation hint and nudges once (src/route-follow.js),
  * and reminds once about delegating after two code files edited directly, and once on
- * a prompt that reads as an implementation request (src/impl-follow.js).
+ * a prompt that reads as an implementation request (src/impl-follow.js), and
+ * suggests once a ratchet rule for an error that keeps coming back, in this
+ * session or across sessions (src/ratchet-follow.js).
  */
 
 import { readStdinJson } from '../stdin-payload.js';
@@ -25,8 +27,8 @@ export async function run({ hasFlag }) {
     if (hasFlag('--hook-tool')) {
       // PostToolUse: a nudge is context for the model, so it goes out as
       // hookSpecificOutput; nothing is printed when there is nothing to say.
-      // Two followers see the same payload (lookups after a hint, edits without
-      // a delegation); their notices go out as one context block.
+      // Three followers see the same payload (lookups after a hint, edits without
+      // a delegation, errors that recur); their notices go out as one context block.
       const payload = readStdinJson() || {};
       const notes = [];
       try {
@@ -39,6 +41,11 @@ export async function run({ hasFlag }) {
         const nudge = implFollowToolUse(payload);
         if (nudge) notes.push(nudge);
       } catch (e) { debug('brief:hook-tool-impl', e); }
+      try {
+        const { ratchetFollowToolUse } = await import('../ratchet-follow.js');
+        const nudge = await ratchetFollowToolUse(payload);
+        if (nudge) notes.push(nudge);
+      } catch (e) { debug('brief:hook-tool-ratchet', e); }
       if (notes.length) {
         console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: notes.join('\n\n') } }));
       }

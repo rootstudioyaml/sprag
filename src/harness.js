@@ -41,6 +41,14 @@ function readHarnessState() {
   }
 }
 
+function readHarnessCandidates() {
+  try {
+    return require('./harness-analyzer.cjs').readCandidates();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Walk up from `start` looking for a project root marker (CLAUDE.md, .git,
  * or package.json). Falls back to `start` itself so harness commands always
@@ -626,12 +634,26 @@ export function harnessStatusForStatusline(cfg, { root, liveWindow = null, liveM
   const WARNING_TTL_MS = 30 * 60 * 1000;
   const state = readHarnessState();
   const warnings = [];
+  // The tool hook's candidate file (src/ratchet-follow.js) comes first: it also
+  // sees errors that recur across sessions. The analyzer state's own
+  // candidate is the fallback, and the chip is added once either way.
+  let ratchetChip = false;
+  try {
+    const cand = readHarnessCandidates();
+    const ts = cand && cand.timestamp ? Date.parse(cand.timestamp) : NaN;
+    const first = cand && Array.isArray(cand.candidates) ? cand.candidates[0] : null;
+    if (first && first.count >= 2 && Number.isFinite(ts) && Date.now() - ts <= WARNING_TTL_MS
+      && cand.cwd && findProjectRoot(cand.cwd) === projectRoot) {
+      warnings.push(`ratchet? #${first.id || 1}`);
+      ratchetChip = true;
+    }
+  } catch { /* candidate file unreadable — fall back to the state */ }
   if (state) {
     const ts = state.timestamp ? Date.parse(state.timestamp) : NaN;
     const fresh = Number.isFinite(ts) && Date.now() - ts <= WARNING_TTL_MS;
     const matches = !!state.cwd && findProjectRoot(state.cwd) === projectRoot;
     if (fresh && matches) {
-      if (state.ratchetCandidate && state.ratchetCandidate.count >= 2) {
+      if (!ratchetChip && state.ratchetCandidate && state.ratchetCandidate.count >= 2) {
         const id = state.ratchetCandidate.id || 1;
         warnings.push(`ratchet? #${id}`);
       }

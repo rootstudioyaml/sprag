@@ -244,3 +244,35 @@ test('the CLI renders the hidden count on the populated line', () => {
     home.cleanup();
   }
 });
+
+// The tool hook's candidate file (src/ratchet-follow.js) drives the same chip.
+const candPath = join(DATA, 'ratchet-candidates.json');
+const writeCand = (over = {}) => writeFileSync(candPath, JSON.stringify({
+  sessionId: 's',
+  cwd: PROJ,
+  timestamp: new Date().toISOString(),
+  candidates: [{ id: 1, count: 2, sessions: 2, pattern: 'p', key: 'k' }],
+  ...over,
+}));
+
+test('a fresh candidate file for this project puts ratchet? first, once', () => {
+  arrange({ state: { ratchetCandidate: { count: 2, id: 3 }, pevSkip: true } });
+  writeCand();
+  try {
+    const s = status();
+    assert.equal(s.warning, 'ratchet? #1');
+    assert.deepEqual(s.warnings, ['ratchet? #1', 'PEV-skip']);
+  } finally { rmSync(candPath, { force: true }); }
+});
+
+test('a stale candidate file or another project shows no chip', () => {
+  arrange();
+  try {
+    writeCand({ timestamp: new Date(Date.now() - 31 * 60 * 1000).toISOString() });
+    assert.equal(status().warning, null);
+    writeCand({ cwd: join(SANDBOX, 'elsewhere') });
+    assert.equal(status().warning, null);
+    writeCand({ candidates: [{ id: 1, count: 1 }] });
+    assert.equal(status().warning, null);
+  } finally { rmSync(candPath, { force: true }); }
+});

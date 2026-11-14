@@ -156,8 +156,11 @@ export async function run({ args, hasFlag }) {
         const n = parseInt(raw, 10);
         const analyzer = await import('../harness-analyzer.cjs');
         const a = analyzer.default || analyzer;
+        // The tool hook's candidate file wins when it has any; the analyzer
+        // state is the fallback.
+        const hookList = a.readCandidates()?.candidates;
         const state = a.readState();
-        const list = (state && state.ratchetCandidates) || [];
+        const list = Array.isArray(hookList) && hookList.length ? hookList : (state && state.ratchetCandidates) || [];
         const cand = list.find((c) => c.id === n);
         if (!cand) {
           console.error(`No ratchet candidate #${n} in state. Run \`harness analyze\` or wait for the hook to populate it.`);
