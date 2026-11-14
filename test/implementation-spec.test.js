@@ -39,6 +39,9 @@ function codexHint() {
 }
 
 const KO_MARKERS = ['함께 고칠 곳', '저장소 규약', '완료 기준', '보고 형식', '출력 토큰 상한'];
+// The main model's check after a hand-off: passing tests are not the end of it.
+const KO_CHECK = '숨은 결합';
+const EN_CHECK = 'hidden couplings';
 const EN_MARKERS = ['other callers', 'conventions', 'completion criteria', 'report format', 'output-token cap'];
 
 test('Korean copies of the implementation specification carry the same markers', () => {
@@ -107,4 +110,22 @@ test('t1-worker and t1h-worker carry the file-changing block in both languages, 
 test('the bundled preset still has the shape a published bundle needs', () => {
   const bundle = bundledBundle({ version: 5, minCli: '3.74.0' });
   assert.equal(bundleShapeError(bundle), null);
+});
+
+test('the check after a hand-off is stated in the rule and in the preset, in both languages', async () => {
+  const { implementationDelegationRule } = await import('../src/implementation-delegation.js');
+  const preset = JSON.parse(readFileSync(new URL('../presets/ratchet-rules.json', import.meta.url), 'utf8')).rules.find((r) => r.id === 'fix-777a15');
+  assert.ok(implementationDelegationRule('claude', 'ko').includes(KO_CHECK));
+  assert.ok(preset.ko.includes(KO_CHECK));
+  for (const text of [implementationDelegationRule('claude', 'en'), implementationDelegationRule('codex', 'en'), preset.en]) assert.ok(text.includes(EN_CHECK));
+});
+
+test('the worker bodies tell the worker to run every named command and to give the evidence asked for', () => {
+  const agents = JSON.parse(readFileSync(new URL('../presets/agents.json', import.meta.url), 'utf8')).agents;
+  for (const name of ['t1-worker', 't1h-worker']) {
+    const a = agents.find((x) => x.name === name);
+    assert.match(a.body.en, /run every command the task names/, name);
+    assert.match(a.body.en, /every piece of evidence the task asks for/, name);
+    assert.ok(a.body.ko.includes('작업이 요구한 증거'), name);
+  }
 });
