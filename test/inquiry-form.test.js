@@ -96,6 +96,7 @@ test('the Korean copy matches the agreed wording', () => {
 
 const pricing = read('../site/pricing/index.html');
 const license = read('../site/license/index.html');
+const home = read('../site/index.html');
 
 const anchors = html => [...html.matchAll(/<a\b[^>]*\bdata-inquiry="([^"]*)"[^>]*>/g)].map(m => ({ value: m[1], tag: m[0] }));
 
@@ -111,8 +112,16 @@ test('license has two inquiry buttons that keep their mailto fallback', () => {
   for (const x of a) assert.match(x.tag, /href="mailto:/);
 });
 
-test('both pages load the captcha wrapper before the form and skip inquiry buttons in the click conversion', () => {
-  for (const html of [pricing, license]) {
+// The ad lands on the home page, so the form has to be one click away there too.
+test('home has two team inquiry buttons that keep their mailto fallback, with a Korean label', () => {
+  const a = anchors(home);
+  assert.deepEqual(a.map(x => x.value), ['general', 'general']);
+  for (const x of a) { assert.match(x.tag, /href="mailto:/); assert.match(x.tag, /data-k="hero\.team"/); }
+  assert.match(home, /'hero\.team':'[^']+'/);
+});
+
+test('the pages load the captcha wrapper before the form and skip inquiry buttons in the click conversion', () => {
+  for (const html of [pricing, license, home]) {
     const cap = html.indexOf('<script src="/assets/sign-in-captcha.js" defer></script>');
     const inq = html.indexOf('<script src="/assets/inquiry-form.js" defer></script>');
     assert.ok(cap > 0 && inq > cap, 'captcha script before inquiry script');
