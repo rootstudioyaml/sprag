@@ -606,5 +606,5 @@ test('proof.js impl.* strings exist in en and ko with matching types', async () 
   for (const k of used) assert.ok(k in STR.en && k in STR.ko, k);
   const html = readFileSync(join(ROOT, 'site', 'proof', 'index.html'), 'utf8');
   assert.ok(html.indexOf('id="impl"') > html.indexOf('id="up"'));
-  assert.match(html, /proof\.js\?v=24/);
+  assert.match(html, /proof\.js\?v=25/);
 });

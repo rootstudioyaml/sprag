@@ -117,8 +117,8 @@
       'dg.fl': { a: 'without', b: 'with' },
       'dg.split': function (h, k) { return h + ' handed off, ' + k + ' kept'; },
       'dg.delta.h': 'Difference',
-      'dg.delta.handed': function (n) { return 'cost of the ' + n + ' handed off'; },
-      'dg.delta.all': function (n, p, u) { return 'all ' + n + ': −' + p + '%, ' + u; },
+      'dg.delta.saved': function (u) { return u + ' saved'; },
+      'dg.delta.handed': function (n, p) { return 'the ' + n + ' handed off alone: −' + p + '%'; },
       'dg.tip.click': 'Click to open the case', 'dg.more': function (k) { return '+' + k + ' more'; },
       'live.h': 'Real usage, counted only',
       'live.sub': function (s, u) { return 'Delegations a sprag rule sent in real sessions from ' + s + ' to ' + u + '. Not replayed and not graded, so only the count and the cost are shown. The graded replays are above.'; },
@@ -275,8 +275,8 @@
       'dg.fl': { a: '없이', b: '함께' },
       'dg.split': function (h, k) { return '넘김 ' + h + '건, 남김 ' + k + '건'; },
       'dg.delta.h': '차이',
-      'dg.delta.handed': function (n) { return '넘긴 ' + n + '건의 비용'; },
-      'dg.delta.all': function (n, p, u) { return '전체 ' + n + '건 −' + p + '%, ' + u; },
+      'dg.delta.saved': function (u) { return u + ' 절감'; },
+      'dg.delta.handed': function (n, p) { return '넘긴 ' + n + '건만 보면 −' + p + '%'; },
       'dg.tip.click': '클릭하면 사례로 이동합니다', 'dg.more': function (k) { return '외 ' + k + '건'; },
       'live.h': '실제 사용 기록, 수치만',
       'live.sub': function (s, u) { return s + '부터 ' + u + '까지 sprag 룰이 실제 세션에서 보낸 위임입니다. 다시 돌리지도 채점하지도 않은 집계라서 건수와 비용만 보여 줍니다. 채점한 재생은 위에 있습니다.'; },
@@ -1252,10 +1252,10 @@
     /* the difference: shown only once every dot of flow b has arrived. The amount is taken from the two rounded totals shown above it, so the reader's own subtraction matches */
     var deltaG = sv('g', { class: 'delta', style: 'display:none' }, [
       sv('text', { class: 'dl-h', x: DG.out.x, y: dY + 12, text: t('dg.delta.h') }),
-      /* the big figure is the one the page leads with: the jobs handed off. The line under it ties back to the two totals above */
-      sv('text', { class: 'dl-big', x: DG.out.x, y: dY + 38, text: '−' + (handedN ? handedPct : deltaPct) + '%' }),
-      sv('text', { class: 'dl-sub dl-handed', x: DG.out.x, y: dY + 55, text: handedN ? t('dg.delta.handed')(handedN) : '' }),
-      sv('text', { class: 'dl-sub', x: DG.out.x, y: dY + 70, text: t('dg.delta.all')(n, deltaPct, usd(Math.round(opusTotal * 100) / 100 - Math.round(sprTotal * 100) / 100)) })
+      /* the big figure and the amount under it come from the two totals right above, so the reader's own arithmetic matches. The saving on the handed-off jobs alone, which the page leads with, is the third line */
+      sv('text', { class: 'dl-big', x: DG.out.x, y: dY + 38, text: '−' + deltaPct + '%' }),
+      sv('text', { class: 'dl-sub', x: DG.out.x, y: dY + 55, text: t('dg.delta.saved')(usd(Math.round(opusTotal * 100) / 100 - Math.round(sprTotal * 100) / 100)) }),
+      sv('text', { class: 'dl-sub dl-handed', x: DG.out.x, y: dY + 70, text: handedN ? t('dg.delta.handed')(handedN, handedPct) : '' })
     ]);
     stages.out.appendChild(deltaG);
 
