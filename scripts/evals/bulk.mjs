@@ -10,6 +10,7 @@
  * the cases graded under every condition, to show what moving up a tier or an effort level buys.
  * --impl <round-dir> adds `impl`: an implementation round (scripts/evals/implround.mjs) summarised like --up, plus per
  * condition the grader's test outcomes { pass, fail, none } and the summed diff size { files, insertions, deletions }.
+ * Cases that carry meta.segment ('fe' or 'be') also give `bySegment` { fe|be: { n, conditions: { id: { ok, partial, fail, usd, pass } } } }.
  * --impl-large <round-dir> adds `implLarge`: the --impl summary over a round of larger implementations.
  * --impl-spec <round-B-dir> --spec <round-A-dir> adds `implSpec` (scripts/evals/specround.mjs): the --impl summary over the
  * round where a worker implements from a specification the main model wrote under the current standard, plus
@@ -170,14 +171,32 @@ export function implRound(loaded) {
   const { round, cost, scores } = loaded;
   const tests = Object.fromEntries(round.conditions.map((c) => [c.id, { pass: 0, fail: 0, none: 0 }]));
   const diff = Object.fromEntries(round.conditions.map((c) => [c.id, { files: 0, insertions: 0, deletions: 0 }]));
+  const caseById = new Map(round.cases.map((c) => [c.id, c]));
+  const seg = {};
   for (const keys of gradedUnderAll(loaded)) {
     keys.forEach((k, i) => {
       const id = round.conditions[i].id; const t = scores[k]?.tests;
       tests[id][t === 'pass' || t === 'fail' ? t : 'none']++;
       for (const f of ['files', 'insertions', 'deletions']) diff[id][f] += Number(cost[k]?.diff?.[f]) || 0;
     });
+    // meta.segment ('fe' or 'be') splits the same graded cases by the kind of code; absent when no case carries one.
+    const sg = caseById.get(loaded.runs[keys[0]]?.case)?.meta?.segment;
+    if (sg !== 'fe' && sg !== 'be') continue;
+    const row = seg[sg] ||= { n: 0, conditions: Object.fromEntries(round.conditions.map((c) => [c.id, { ok: 0, partial: 0, fail: 0, usd: 0, pass: 0 }])) };
+    row.n++;
+    keys.forEach((k, i) => {
+      const cell = row.conditions[round.conditions[i].id];
+      cell[verdictOf(scores[k])]++;
+      cell.usd += usdOf(cost[k]);
+      if (scores[k]?.tests === 'pass') cell.pass++;
+    });
   }
-  return { ...up, tests, diff };
+  const out = { ...up, tests, diff };
+  const segKeys = ['fe', 'be'].filter((k) => seg[k]);
+  if (segKeys.length) {
+    out.bySegment = Object.fromEntries(segKeys.map((k) => [k, { n: seg[k].n, conditions: Object.fromEntries(Object.entries(seg[k].conditions).map(([id, c]) => [id, { ...c, usd: pyRound(c.usd, 4) }])) }]));
+  }
+  return out;
 }
 
 /**

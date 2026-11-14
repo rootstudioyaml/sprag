@@ -2984,6 +2984,44 @@
   "savedCostUsd": 718.48,
   "savedUsd": 869.24
  },
+ "doc2md": {
+  "since": "2026-09-06",
+  "until": "2026-11-06",
+  "n": 29,
+  "baseline": 1107110,
+  "tokens": 125153,
+  "pct": 89,
+  "byExt": [
+   {
+    "ext": "pptx",
+    "n": 1,
+    "baseline": 540429,
+    "tokens": 22610,
+    "x": 23.9
+   },
+   {
+    "ext": "docx",
+    "n": 3,
+    "baseline": 248681,
+    "tokens": 14799,
+    "x": 16.8
+   },
+   {
+    "ext": "fig",
+    "n": 2,
+    "baseline": 88000,
+    "tokens": 18497,
+    "x": 4.8
+   },
+   {
+    "ext": "pdf",
+    "n": 23,
+    "baseline": 230000,
+    "tokens": 69247,
+    "x": 3.3
+   }
+  ]
+ },
  "bulk": {
   "rounds": [
    "r18-v5-2026-11-09",
@@ -3757,6 +3795,27 @@
      "insertions": 13566,
      "deletions": 519
     }
+   },
+   "bySegment": {
+    "be": {
+     "n": 10,
+     "conditions": {
+      "sonnet-high": {
+       "ok": 4,
+       "partial": 6,
+       "fail": 0,
+       "usd": 9.5233,
+       "pass": 9
+      },
+      "opus-direct": {
+       "ok": 10,
+       "partial": 0,
+       "fail": 0,
+       "usd": 20.8108,
+       "pass": 10
+      }
+     }
+    }
    }
   },
   "implReview": {
@@ -3897,6 +3956,60 @@
      "insertions": 2685,
      "deletions": 744
     }
+   },
+   "bySegment": {
+    "fe": {
+     "n": 5,
+     "conditions": {
+      "sonnet-next": {
+       "ok": 4,
+       "partial": 1,
+       "fail": 0,
+       "usd": 6.8302,
+       "pass": 4
+      },
+      "haiku-next": {
+       "ok": 2,
+       "partial": 3,
+       "fail": 0,
+       "usd": 0.9019,
+       "pass": 3
+      },
+      "opus-direct": {
+       "ok": 2,
+       "partial": 3,
+       "fail": 0,
+       "usd": 18.7328,
+       "pass": 4
+      }
+     }
+    },
+    "be": {
+     "n": 2,
+     "conditions": {
+      "sonnet-next": {
+       "ok": 1,
+       "partial": 1,
+       "fail": 0,
+       "usd": 2.6985,
+       "pass": 2
+      },
+      "haiku-next": {
+       "ok": 1,
+       "partial": 1,
+       "fail": 0,
+       "usd": 0.4509,
+       "pass": 1
+      },
+      "opus-direct": {
+       "ok": 2,
+       "partial": 0,
+       "fail": 0,
+       "usd": 5.6198,
+       "pass": 2
+      }
+     }
+    }
    }
   },
   "implSpec": {
@@ -3978,6 +4091,34 @@
      "files": 124,
      "insertions": 13566,
      "deletions": 519
+    }
+   },
+   "bySegment": {
+    "be": {
+     "n": 10,
+     "conditions": {
+      "sonnet-spec": {
+       "ok": 7,
+       "partial": 3,
+       "fail": 0,
+       "usd": 10.0227,
+       "pass": 9
+      },
+      "sonnet-high": {
+       "ok": 5,
+       "partial": 5,
+       "fail": 0,
+       "usd": 9.5233,
+       "pass": 9
+      },
+      "opus-direct": {
+       "ok": 10,
+       "partial": 0,
+       "fail": 0,
+       "usd": 20.8108,
+       "pass": 10
+      }
+     }
     }
    },
    "spec": {

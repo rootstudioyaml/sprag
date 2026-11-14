@@ -585,8 +585,8 @@ test('runEnv adds the string env a condition sets and nothing else', async () =>
   assert.deepEqual(runEnv(round, { condition: 'd' }, { A: '1' }), { A: '1' });
 });
 
-// The proof page keeps two string tables; every impl.* key must exist in both with the same shape.
-test('proof.js impl.* strings exist in en and ko with matching types', async () => {
+// The proof page keeps two string tables; every key group the result tiles, folds and tables use must exist in both with the same shape.
+test('proof.js result, fold, docs and impl strings exist in en and ko with matching types', async () => {
   const { runInNewContext } = await import('node:vm');
   const ROOT = join(new URL('.', import.meta.url).pathname, '..');
   const src = readFileSync(join(ROOT, 'site', 'proof', 'proof.js'), 'utf8');
@@ -594,17 +594,34 @@ test('proof.js impl.* strings exist in en and ko with matching types', async () 
   const end = src.indexOf('\n  };', start); assert.ok(end > start);
   const STR = runInNewContext('(' + src.slice(start + 'var STR = '.length, end + 4) + ')');
   const shape = (v) => (Array.isArray(v) ? `array:${v.length}` : v && typeof v === 'object' ? `object:${Object.keys(v).sort().join(',')}` : typeof v);
-  const keys = (l) => Object.keys(STR[l]).filter((k) => k.startsWith('impl.')).sort();
-  assert.ok(keys('en').length >= 12);
-  assert.deepEqual(keys('ko'), keys('en'));
-  for (const k of keys('en')) assert.equal(shape(STR.ko[k]), shape(STR.en[k]), k);
+  const groups = [['impl.', 12], ['t.', 7], ['more.', 2], ['d.docs', 1], ['d.impl', 1], ['d.route', 1], ['d.up', 1], ['docs.', 6], ['impl.seg.', 4], ['p.h1n', 1]];
+  for (const [prefix, min] of groups) {
+    const keys = (l) => Object.keys(STR[l]).filter((k) => k.startsWith(prefix)).sort();
+    assert.ok(keys('en').length >= min, prefix);
+    assert.deepEqual(keys('ko'), keys('en'), prefix);
+    for (const k of keys('en')) assert.equal(shape(STR.ko[k]), shape(STR.en[k]), k);
+  }
   assert.equal(STR.en['impl.th'].length, 8);
-  // every impl key used by renderImpl is defined
-  const body = src.slice(src.indexOf('function renderImpl()'), src.indexOf('function renderLegend()'));
-  const used = [...body.matchAll(/t\('(impl\.[a-z.]+)'\)/g)].map((m) => m[1]);
-  assert.ok(used.length >= 10);
+  assert.equal(typeof STR.en['p.h1n'], 'string');
+  assert.equal(typeof STR.ko['p.h1n'], 'string');
+  assert.equal(STR.en['docs.th'].length, 5);
+  assert.equal(STR.en['impl.seg.th'].length, 5);
+  // the strings only the old tiles used are gone from both languages
+  for (const k of ['s.handed', 's.all', 's.ok', 'p.h1n0']) { assert.ok(!(k in STR.en) && !(k in STR.ko), k); }
+  // every key the new render functions use is defined in both languages
+  const slice = (from, to) => src.slice(src.indexOf(from), src.indexOf(to));
+  const bodies = [slice('function renderImpl()', 'function renderLegend()'), slice('function renderBanner()', 'function renderHero()'), slice('function renderDocs()', 'function renderImpl()'), slice('function renderStatic()', 'function syncFolds()')];
+  const used = bodies.flatMap((b) => [...b.matchAll(/t\('((?:impl|t|more|d|docs)\.[a-z.]+)'\)/g)].map((m) => m[1]));
+  assert.ok(used.length >= 25);
   for (const k of used) assert.ok(k in STR.en && k in STR.ko, k);
   const html = readFileSync(join(ROOT, 'site', 'proof', 'index.html'), 'utf8');
-  assert.ok(html.indexOf('id="impl"') > html.indexOf('id="up"'));
-  assert.match(html, /proof\.js\?v=25/);
+  const at = (id) => html.indexOf(`id="${id}"`);
+  const order = ['stats', 'live', 'd-docs', 'd-impl', 'd-route', 'd-up', 'method'].map(at);
+  assert.ok(order.every((i) => i > 0), 'every id exists');
+  assert.deepEqual([...order].sort((x, y) => x - y), order, 'stats, live, then the folds in order, then method');
+  for (const inner of ['diagram', 'cases', 'bulk']) assert.ok(at(inner) > at('d-route') && at(inner) < at('d-up'), `${inner} sits inside d-route`);
+  assert.ok(at('docs') > at('d-docs') && at('docs') < at('d-impl'));
+  assert.ok(at('impl') > at('d-impl') && at('impl') < at('d-route'));
+  assert.ok(at('up') > at('d-up') && at('up') < at('method'));
+  assert.match(html, /proof\.js\?v=26/);
 });

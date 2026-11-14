@@ -44,7 +44,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
 <meta name="robots" content="index, follow" />
-<link rel="stylesheet" href="proof.css?v=17" />
+<link rel="stylesheet" href="proof.css?v=18" />
 <link rel="stylesheet" href="/assets/tokens.css" />
 <link rel="stylesheet" href="/assets/site-header.css?v=4" />
 </head>
@@ -90,33 +90,51 @@
 <div class="wrap">
   <div class="hero">
     <h1 data-k="p.h1">Proof lab</h1>
-    <p class="lede lede-h" id="h1n">Which model gets the job? sprag decides, job by job.</p>
+    <p class="lede lede-h" id="h1n"></p>
     <div class="hero-stats" id="stats"></div>
-    <p class="lede fit" id="fit"></p>
-    <p class="lede" id="lede"></p>
-    <p class="lede lede2" id="lede2"></p>
-    <ul class="pills" id="pills"></ul>
-    <div class="diagram" id="diagram"></div>
-    <div class="policies" id="policies" aria-live="polite"></div>
-    <p class="verdict" id="verdict"></p>
     <section class="live" id="live" aria-labelledby="live-h" hidden></section>
   </div>
 
-  <section aria-labelledby="k-h">
+  <section class="more" aria-labelledby="more-h">
     <div class="sec-head">
-      <h2 id="k-h"></h2>
-      <p id="k-sub"></p>
+      <h2 id="more-h"></h2>
+      <p id="more-sub"></p>
     </div>
-    <div class="legend" id="legend" aria-label="Legend"></div>
-    <div class="cases" id="cases"></div>
-    <p class="note" id="k-note"></p>
-  </section>
 
-  <section class="live bulk" id="bulk" aria-labelledby="bulk-h" hidden></section>
-  <section class="live bulk" id="up" aria-labelledby="up-h" hidden></section>
-  <section class="live bulk" id="impl" aria-labelledby="impl-h" hidden></section>
+    <details class="sec-more" id="d-docs">
+      <summary id="d-docs-h"></summary>
+      <div class="live bulk" id="docs"></div>
+    </details>
 
-  <section aria-labelledby="m-h">
+    <details class="sec-more" id="d-impl">
+      <summary id="d-impl-h"></summary>
+      <section class="live bulk" id="impl" aria-labelledby="impl-h" hidden></section>
+    </details>
+
+    <details class="sec-more" id="d-route">
+      <summary id="d-route-h"></summary>
+      <p class="lede fit" id="fit"></p>
+      <p class="lede" id="lede"></p>
+      <p class="lede lede2" id="lede2"></p>
+      <ul class="pills" id="pills"></ul>
+      <div class="diagram" id="diagram"></div>
+      <div class="policies" id="policies" aria-live="polite"></div>
+      <p class="verdict" id="verdict"></p>
+      <div class="sec-head">
+        <h2 id="k-h"></h2>
+        <p id="k-sub"></p>
+      </div>
+      <div class="legend" id="legend" aria-label="Legend"></div>
+      <div class="cases" id="cases"></div>
+      <p class="note" id="k-note"></p>
+      <section class="live bulk" id="bulk" aria-labelledby="bulk-h" hidden></section>
+    </details>
+
+    <details class="sec-more" id="d-up">
+      <summary id="d-up-h"></summary>
+      <section class="live bulk" id="up" aria-labelledby="up-h" hidden></section>
+    </details>
+
     <details class="method" id="method">
       <summary id="m-h" data-k="m.h">Method and limits</summary>
       <ul id="method-list"></ul>
@@ -145,7 +163,7 @@
   </div>
 </footer>
 
-<script src="proof.js?v=25"></script>
+<script src="proof.js?v=26"></script>
 <script src="/assets/lang-links.js"></script>
 <script src="/assets/theme-toggle.js" defer></script>
 </body>

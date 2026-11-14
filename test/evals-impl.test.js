@@ -232,6 +232,88 @@ test('bulk --impl adds verdicts, tests and diff totals per condition; without it
   } finally { rm(root); }
 });
 
+test('implRound adds bySegment only when a graded case carries meta.segment', () => {
+  const mkCase = (id, segment) => ({ ...W1, id, ...(segment ? { meta: { segment } } : {}) });
+  const run = (cases, extra = {}) => {
+    const round = implRoundObj(cases);
+    const runs = {}, cost = {}, scores = {};
+    for (const c of cases) {
+      for (const [k, usd, verdict, tests] of [['S', 1.5, c.id === 'p' ? 'partial' : 'ok', 'pass'], ['B', 3, 'ok', c.id === 'q' ? 'fail' : 'pass']]) {
+        const key = `${c.id}-${k}`;
+        runs[key] = { case: c.id, condition: CONDS.find((x) => x.key === k).id };
+        cost[key] = { usd, ms: 1000 };
+        scores[key] = { verdict, verified: 1, wrong: 0, missed: 0, tests, mode: 'verify' };
+      }
+    }
+    Object.assign(scores, extra);
+    return implRound({ round, runs, cost, scores });
+  };
+  const without = run([mkCase('a'), mkCase('b')]);
+  assert.ok(!('bySegment' in without), 'no segment, no key');
+  const one = run([mkCase('a', 'fe'), mkCase('p', 'fe'), mkCase('q', 'be'), mkCase('z')]);
+  assert.deepEqual(Object.keys(one.bySegment), ['fe', 'be']);
+  assert.equal(one.n, 4, 'the unsegmented case still counts in the pooled summary');
+  assert.deepEqual(one.bySegment.fe, { n: 2, conditions: {
+    'sonnet-high': { ok: 1, partial: 1, fail: 0, usd: 3, pass: 2 },
+    'opus-direct': { ok: 2, partial: 0, fail: 0, usd: 6, pass: 2 },
+  } });
+  assert.deepEqual(one.bySegment.be.conditions['opus-direct'], { ok: 1, partial: 0, fail: 0, usd: 3, pass: 0 });
+  const feOnly = run([mkCase('a', 'fe'), mkCase('b')]);
+  assert.deepEqual(Object.keys(feOnly.bySegment), ['fe'], 'a segment key is present only when it has cases');
+  // a segmented case that is not graded under every condition is left out, like the rest of the summary
+  const ungraded = run([mkCase('a', 'fe'), mkCase('c', 'be')], { 'c-B': undefined });
+  assert.deepEqual(Object.keys(ungraded.bySegment), ['fe']);
+});
+
+test('summariseDoc2md counts countable events only and writes aggregates', async () => {
+  const { summariseDoc2md } = await import('../scripts/evals/doc2md.mjs');
+  const T1 = Date.parse('2026-09-06T10:00:00Z'), T2 = Date.parse('2026-10-01T10:00:00Z');
+  const ev = (over) => ({ ts: T1, usd: 1, ext: '.pdf', tokens: 100, baseline: 400, ...over });
+  const out = summariseDoc2md([
+    ev({}), ev({ ts: T2, tokens: 300, baseline: 600 }),
+    ev({ ext: '.PPTX', tokens: 10, baseline: 250 }),
+    ev({ ext: '.pa/th', tokens: 1, baseline: 999 }), // bad extension
+    ev({ ext: '', tokens: 1, baseline: 999 }),
+    ev({ baseline: 0 }), ev({ tokens: -1 }), ev({ tokens: NaN }), ev({ ts: 0 }), ev({ baseline: Infinity }),
+  ]);
+  assert.equal(out.n, 3);
+  assert.equal(out.baseline, 1250);
+  assert.equal(out.tokens, 410);
+  assert.equal(out.pct, Math.round((1 - 410 / 1250) * 100));
+  assert.equal(out.since, '2026-09-06');
+  assert.equal(out.until, '2026-10-01');
+  assert.deepEqual(out.byExt, [
+    { ext: 'pptx', n: 1, baseline: 250, tokens: 10, x: 25 },
+    { ext: 'pdf', n: 2, baseline: 1000, tokens: 400, x: 2.5 },
+  ]);
+  assert.deepEqual(Object.keys(out), ['since', 'until', 'n', 'baseline', 'tokens', 'pct', 'byExt']);
+  assert.ok(!/usd|path|\//.test(JSON.stringify(Object.keys(out.byExt[0]))));
+  assert.equal(summariseDoc2md([ev({ baseline: 0 })]), null);
+  assert.equal(summariseDoc2md([]), null);
+  // zero tokens: the ratio divides by one
+  assert.equal(summariseDoc2md([ev({ tokens: 0, baseline: 50 })]).byExt[0].x, 50);
+  // a tie on the ratio sorts by extension
+  const tie = summariseDoc2md([ev({ ext: 'zz', tokens: 10, baseline: 20 }), ev({ ext: 'aa', tokens: 10, baseline: 20 })]);
+  assert.deepEqual(tie.byExt.map((r) => r.ext), ['aa', 'zz']);
+});
+
+test('doc2md main writes the file and refuses an empty ledger without writing', async () => {
+  const { main } = await import('../scripts/evals/doc2md.mjs');
+  const root = tmp('doc2md');
+  try {
+    const out = join(root, 'doc2md.json');
+    const logs = [];
+    assert.equal(main({ out, log: (m) => logs.push(m), events: [{ ts: Date.parse('2026-09-06T00:00:00Z'), ext: '.docx', tokens: 5, baseline: 50, usd: 0.1 }] }), 0);
+    const j = JSON.parse(readFileSync(out, 'utf8'));
+    assert.equal(j.n, 1);
+    assert.equal(j.pct, 90);
+    assert.ok(logs.some((m) => /doc2md: 1 documents/.test(m)));
+    const none = join(root, 'none.json');
+    assert.equal(main({ out: none, log: quiet, events: [{ ext: '.pdf', tokens: 1, baseline: 0, ts: 1 }] }), 1);
+    assert.ok(!existsSync(none));
+  } finally { rm(root); }
+});
+
 test('bulk --impl-large adds implLarge like --impl and the flag without a value is a usage error', () => {
   const root = tmp('large');
   try {

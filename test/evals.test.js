@@ -277,3 +277,33 @@ test('live.json carries savedCostUsd between costRuns and savedUsd', () => {
   assert.deepEqual(keys.slice(keys.indexOf('costUsd')), ['costUsd', 'costRuns', 'savedCostUsd', 'savedUsd']);
   assert.ok(live.savedCostUsd > 0 && live.savedCostUsd <= live.savedUsd);
 });
+
+test('doc2md.json, when present in the evals directory, ends up as doc2md in the site data and its absence changes nothing', () => {
+  withTemp((dir) => {
+    const siteFile = join(dir, 'site', 'proof', 'data.json');
+    const read = () => JSON.parse(readFileSync(siteFile, 'utf8'));
+    const doc = { since: '2026-09-06', until: '2026-10-01', n: 2, baseline: 1000, tokens: 100, pct: 90, byExt: [{ ext: 'pdf', n: 2, baseline: 1000, tokens: 100, x: 10 }] };
+    writeFileSync(join(dir, 'evals', 'doc2md.json'), JSON.stringify(doc, null, 2) + '\n');
+    writeAll({ repoRoot: dir });
+    assert.deepEqual(read().doc2md, doc);
+    const withDoc = read();
+    rmSync(join(dir, 'evals', 'doc2md.json'));
+    writeAll({ repoRoot: dir });
+    const without = read();
+    assert.ok(!('doc2md' in without));
+    delete withDoc.doc2md;
+    assert.deepEqual(without, withDoc, 'nothing else in the site data moves');
+  });
+});
+
+test('the committed doc2md.json holds aggregates only and matches the site data', () => {
+  const doc = JSON.parse(readFileSync(join(ROOT, 'evals', 'doc2md.json'), 'utf8'));
+  assert.deepEqual(Object.keys(doc), ['since', 'until', 'n', 'baseline', 'tokens', 'pct', 'byExt']);
+  for (const r of doc.byExt) {
+    assert.deepEqual(Object.keys(r), ['ext', 'n', 'baseline', 'tokens', 'x']);
+    assert.match(r.ext, /^[a-z0-9]{1,6}$/);
+  }
+  assert.equal(doc.n, doc.byExt.reduce((t, r) => t + r.n, 0));
+  const site = JSON.parse(readFileSync(join(ROOT, 'site', 'proof', 'data.json'), 'utf8'));
+  assert.deepEqual(site.doc2md, doc);
+});

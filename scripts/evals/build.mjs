@@ -4,6 +4,7 @@
  *
  *   evals/index.json, conditions.json, rounds.json, cases/<id>.json   source of truth
  *   evals/live.json (optional)      real-usage aggregates from scripts/evals/live.mjs
+ *   evals/doc2md.json (optional)    document-conversion aggregates from scripts/evals/doc2md.mjs
  *   evals/bulk.json (optional)      graded bulk-round aggregates from scripts/evals/bulk.mjs
  *   evals/bulk-notes.json (optional) method and partial-mark notes shown with the bulk block
  *     -> site/proof/data.json        the /proof/ page
@@ -444,6 +445,8 @@ export function generate({ repoRoot = DEFAULT_REPO_ROOT, evalsDir = join(repoRoo
   };
   const livePath = join(evalsDir, 'live.json');
   if (existsSync(livePath)) siteData.live = readJson(livePath);
+  const doc2mdPath = join(evalsDir, 'doc2md.json');
+  if (existsSync(doc2mdPath)) siteData.doc2md = readJson(doc2mdPath);
   const bulkPath = join(evalsDir, 'bulk.json');
   if (existsSync(bulkPath)) siteData.bulk = readJson(bulkPath);
   const bulkNotesPath = join(evalsDir, 'bulk-notes.json');

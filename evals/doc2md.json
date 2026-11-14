@@ -1,0 +1,38 @@
+{
+  "since": "2026-09-06",
+  "until": "2026-11-06",
+  "n": 29,
+  "baseline": 1107110,
+  "tokens": 125153,
+  "pct": 89,
+  "byExt": [
+    {
+      "ext": "pptx",
+      "n": 1,
+      "baseline": 540429,
+      "tokens": 22610,
+      "x": 23.9
+    },
+    {
+      "ext": "docx",
+      "n": 3,
+      "baseline": 248681,
+      "tokens": 14799,
+      "x": 16.8
+    },
+    {
+      "ext": "fig",
+      "n": 2,
+      "baseline": 88000,
+      "tokens": 18497,
+      "x": 4.8
+    },
+    {
+      "ext": "pdf",
+      "n": 23,
+      "baseline": 230000,
+      "tokens": 69247,
+      "x": 3.3
+    }
+  ]
+}

@@ -23,11 +23,26 @@
     en: {
       'p.eyebrow': 'Proof lab',
       'p.h1': 'Proof lab', 'scroll.hint': 'Scroll sideways', 'korean.orig': '(Korean original)', 'nav.install': 'Install', 'ft.docs': 'Docs', 'ft.github': 'GitHub', 'ft.npm': 'npm', 'ft.bench': 'Benchmark', 'ft.terms': 'Terms', 'ft.priv': 'Privacy', 'ft.refund': 'Refunds', 'ft.data': 'What Sprag sends',
-      'p.h1n0': 'Which model gets the job? sprag decides, job by job.',
-      'p.h1n': function (b) { return 'Of ' + b.n + ' real requests, the ' + b.handed.n + ' that sprag handed off cost ' + b.handed.savedPct + '% less.'; },
-      's.handed': function (n, a, c) { return 'cost of the ' + n + ' jobs handed off (' + a + ' without sprag, ' + c + ' with)'; },
-      's.all': function (n, k, a, c) { return 'all ' + n + ' jobs, including the ' + k + ' kept on the main model (' + a + ' without sprag, ' + c + ' with)'; },
-      's.ok': function (p, f, o, n) { return 'answers usable as they are (' + p + ' incomplete, ' + f + ' wrong; ' + o + ' / ' + n + ' when the main session does everything)'; },
+      'p.h1n': 'The same work for less. Measured by running real jobs again.',
+      't.docs.l': 'tokens to read a document',
+      't.docs.s': function (n) { return n + ' documents (pptx, docx, pdf and others) read as Markdown instead of as they came'; },
+      't.code.l': 'cost of handed-off code writing',
+      't.code.s': function (o) { return o.n + ' implementations. Tests pass in ' + o.sPass + ', against ' + o.bPass + ' when Opus writes the code itself'; },
+      't.look.l': 'cost of handed-off lookups and command runs',
+      't.look.s': function (o) { return o.ok + ' of the ' + o.n + ' handed-off jobs were used as they came back'; },
+      't.more': 'See the data',
+      'more.h': 'The data behind these numbers',
+      'more.sub': 'Each result above opens into its cases, tables and limits.',
+      'd.docs': 'Document conversion: tokens by format',
+      'd.impl': 'Code writing: each round, and where screen code and server code differ',
+      'd.route': 'Lookups and command runs: the path of every job, case by case',
+      'd.up': 'When to go up: jobs that need judgement',
+      'docs.h': function (p) { return 'Reading a document as Markdown takes ' + p + '% fewer tokens'; },
+      'docs.sub': function (n, a, b) { return n + ' documents that came up in real work between ' + a + ' and ' + b + '. sprag converted each one before the model read it.'; },
+      'docs.th': ['format', 'documents', 'as it came', 'converted', 'smaller by'],
+      'docs.x': '×',
+      'docs.total': 'all',
+      'docs.note': 'What a document costs without conversion was measured per format. A PDF is the file attached as it is. pptx and docx are the body XML inside the archive, because Claude Code cannot read those formats directly: without conversion they are either unreadable or too large for the context window.',
       lede: function (n) { return 'Doing everything in the main session is the default, and you can keep doing that. "Without sprag" in this lab is exactly that: the same ' + n + ' requests done by the main session (Opus) itself and handed to subagents by sprag, graded without knowing which was which. For lookups and runs, where the answer sits in the code or a command output, the main session re-reads its whole context on every tool call, so it costs more and the context fills up. Handed off, the main context stays light.'; },
       'hero.fit': 'sprag picks the model and effort each job needs. Work whose answer shows in tool output goes down to a cheaper model; work that ends in a judgement goes up to Opus.',
       lede2: 'sprag never changes the model or effort of your main session. It only picks the model and effort for each job handed off: down to Haiku when cheap is enough, up in effort when cheap would miss.',
@@ -121,13 +136,13 @@
       'dg.delta.handed': function (n, p) { return 'the ' + n + ' handed off alone: −' + p + '%'; },
       'dg.tip.click': 'Click to open the case', 'dg.more': function (k) { return '+' + k + ' more'; },
       'live.h': 'Real usage, counted only',
-      'live.sub': function (s, u) { return 'Delegations a sprag rule sent in real sessions from ' + s + ' to ' + u + '. Not replayed and not graded, so only the count and the cost are shown. The graded replays are above.'; },
+      'live.sub': function (s, u) { return 'Delegations a sprag rule sent in real sessions from ' + s + ' to ' + u + '. Not replayed and not graded, so only the count and the cost are shown. The graded replays are in the data below.'; },
       'live.runs': 'delegations sent', 'live.to': 'where they went',
       'live.toV': function (h, s, o) { return 'Haiku ' + h + ', Sonnet ' + s + ', Opus ' + o; },
       'live.cost': function (n) { return 'what those runs cost (' + n + ' priced)'; },
       'live.saved': 'less than the main model would have cost (estimate)',
       'live.pair': function (o) { return 'On the ' + o.n + ' runs with a recorded cost: ' + o.cost + ' spent, against an estimated ' + o.base + ' had the main model done them itself.'; },
-      'live.why': 'The estimate counts what the main session would pay to re-read its accumulated context on every call, and to keep re-reading the tool output that stays in that context. The replays above start from an empty session, so they leave that cost out and show a lower saving rate.',
+      'live.why': 'The estimate counts what the main session would pay to re-read its accumulated context on every call, and to keep re-reading the tool output that stays in that context. The replays on this page start from an empty session, so they leave that cost out and show a lower saving rate.',
       'bulk.more': 'Measurement detail: how the rule was narrowed, noise floor, grader variance',
       'bulk.recheck': function (o) { return 'After blind grading, ' + (o.n === 1 ? '1 case was' : o.n + ' cases were') + ' checked again with tools: the Opus reference was wrong and the model sprag picked was right. ' + (o.n === 1 ? 'That case counts' : 'Those cases count') + ' as the same conclusion for sprag and as wrong for Opus. As first graded: ' + o.ok + ' same, ' + o.partial + ' partial, ' + o.fail + ' unusable.'; },
       'cta.h': 'Check it on your own sessions',
@@ -170,6 +185,10 @@
       'impl.spec.cost': function (spec, impl) { return 'The rewritten-spec path costs ' + spec + ' for writing the specifications plus ' + impl + ' for the implementation. Each specification was written in an empty session, which overstates what it costs in a session that has already read the code.'; },
       'impl.spec.take': function (o) { return 'Here Opus direct was usable as is in all ' + o.bOk + ' of ' + o.n + '. Sonnet was usable in ' + o.oldOk + ' from the original draft and ' + o.newOk + ' from the rewritten specification.'; },
       'impl.limit': 'Both rounds are small and graded once. Most marks were lost in the report and not in the code: evidence the task asked for was missing, or a claim did not match the diff. That happened to every model, which is why the main model checks the diff and the test results itself whoever wrote the code. In the first round one Opus direct run handed its work to a sub-agent; later rounds block that.',
+      'impl.seg.h': 'Screen code and server code came out differently',
+      'impl.seg.th': ['', 'tasks', 'Sonnet usable untouched', 'Opus usable untouched', 'cost'],
+      'impl.seg.rows': { fe: 'Front end (pages and screens)', be: 'Back end (CLI and server)' },
+      'impl.seg.take': 'For screen code the handed-off result was usable as it came more often than Opus direct. In server code Sonnet missed hidden couplings, such as a list that a test enforces. That is why sprag has the main model check handed-off server code against the diff.',
       'up.h': 'When to go up',
       'up.sub': function (n) { return n + ' jobs whose conclusion is a judgement, run on Sonnet high, Opus high and Opus xhigh: improvement reviews, audits, root-cause diagnosis, lookups that must conclude something does not exist, and web research. Here the Opus answer is not the key. The grader gets the three reports unlabelled, checks the claims they disagree on against the repository and the web, and then rules.'; },
       'up.th': ['run', 'same', 'partial', 'unusable', 'wrong claims', 'missed facts', 'cost', 'time'],
@@ -181,11 +200,26 @@
     ko: {
       'p.eyebrow': '검증 Lab',
       'p.h1': '검증 Lab', 'scroll.hint': '← 옆으로 밀어 보기', 'korean.orig': '(Korean original)', 'nav.install': '설치', 'ft.docs': '문서', 'ft.github': 'GitHub', 'ft.npm': 'npm', 'ft.bench': '벤치마크', 'ft.terms': '이용약관', 'ft.priv': '개인정보처리방침', 'ft.refund': '환불정책', 'ft.data': 'Sprag가 보내는 데이터',
-      'p.h1n0': '일마다 어느 모델에 맡길지 sprag가 고릅니다.',
-      'p.h1n': function (b) { return '실제 요청 ' + b.n + '건 중 sprag가 넘긴 ' + b.handed.n + '건은 비용이 ' + b.handed.savedPct + '% 적게 들었습니다.'; },
-      's.handed': function (n, a, c) { return '넘긴 ' + n + '건의 비용 (sprag 없이 ' + a + ', sprag와 함께 ' + c + ')'; },
-      's.all': function (n, k, a, c) { return '메인에 남긴 ' + k + '건까지 합친 ' + n + '건 전체 (sprag 없이 ' + a + ', sprag와 함께 ' + c + ')'; },
-      's.ok': function (p, f, o, n) { return '그대로 쓸 수 있는 답 (부족 ' + p + '건, 오답 ' + f + '건, 메인이 전부 직접 하면 ' + o + ' / ' + n + ')'; },
+      'p.h1n': '같은 일을 더 적은 비용으로 합니다. 실제 작업을 다시 돌려 쟀습니다.',
+      't.docs.l': '문서를 읽는 토큰',
+      't.docs.s': function (n) { return 'pptx, docx, pdf 같은 문서 ' + n + '건을 Markdown으로 바꿔 읽었을 때'; },
+      't.code.l': '코드 작성을 넘긴 비용',
+      't.code.s': function (o) { return '구현 ' + o.n + '건입니다. 테스트 통과는 ' + o.sPass + '건이고 Opus가 직접 짜면 ' + o.bPass + '건입니다'; },
+      't.look.l': '조회와 실행을 넘긴 비용',
+      't.look.s': function (o) { return '넘긴 ' + o.n + '건 중 ' + o.ok + '건을 고치지 않고 그대로 썼습니다'; },
+      't.more': '데이터 보기',
+      'more.h': '이 숫자들의 근거',
+      'more.sub': '위 결과마다 사례와 표, 한계를 펼쳐 볼 수 있습니다.',
+      'd.docs': '문서 변환: 형식별 토큰',
+      'd.impl': '코드 작성: 라운드별 결과와 화면 코드, 서버 코드의 차이',
+      'd.route': '조회와 실행: 모든 일의 경로와 사례별 결과',
+      'd.up': '올려야 할 때: 판단이 필요한 일',
+      'docs.h': function (p) { return '문서를 Markdown으로 읽으면 토큰이 ' + p + '% 줄어듭니다'; },
+      'docs.sub': function (n, a, b) { return a + '부터 ' + b + '까지 실제 작업에 나온 문서 ' + n + '건입니다. 모델이 읽기 전에 sprag가 변환했습니다.'; },
+      'docs.th': ['형식', '문서', '그대로 읽을 때', '변환해서 읽을 때', '줄어든 배율'],
+      'docs.x': '배',
+      'docs.total': '합계',
+      'docs.note': '변환 없이 읽는 비용은 형식마다 따로 쟀습니다. PDF는 파일을 그대로 첨부한 값입니다. pptx와 docx는 압축 안의 본문 XML을 읽은 값입니다. Claude Code가 이 형식을 직접 읽지 못하기 때문입니다. 변환하지 않으면 읽지 못하거나 컨텍스트 창에 들어가지 않습니다.',
       lede: function (n) { return '메인 세션에서 전부 직접 하는 게 기본값이고 그래도 됩니다. 이 Lab의 "sprag 없이"가 바로 그 방식이라서, 같은 요청 ' + n + '건을 메인인 Opus가 직접 한 실행과 sprag가 서브에이전트로 넘긴 실행을 가린 채 채점해 비교했습니다. 조회나 실행처럼 답이 코드와 명령 출력에서 나오는 일은 메인이 직접 하면 도구 호출마다 문맥 전체를 다시 읽어 비싸고 문맥도 그만큼 찹니다. 넘기면 메인 문맥은 가볍게 남습니다.'; },
       'hero.fit': 'sprag는 일마다 맞는 모델과 effort를 고릅니다. 도구 출력으로 확인되는 일은 싼 모델로 내리고 판단이 결론인 일은 Opus로 올립니다.',
       lede2: 'sprag는 메인 세션의 모델과 effort를 바꾸지 않습니다. 넘기는 일마다 어느 모델과 effort가 맞는지만 고릅니다. 싸게 될 일은 Haiku로 내리고 놓칠 일은 effort를 올립니다.',
@@ -279,13 +313,13 @@
       'dg.delta.handed': function (n, p) { return '넘긴 ' + n + '건만 보면 −' + p + '%'; },
       'dg.tip.click': '클릭하면 사례로 이동합니다', 'dg.more': function (k) { return '외 ' + k + '건'; },
       'live.h': '실제 사용 기록, 수치만',
-      'live.sub': function (s, u) { return s + '부터 ' + u + '까지 sprag 룰이 실제 세션에서 보낸 위임입니다. 다시 돌리지도 채점하지도 않은 집계라서 건수와 비용만 보여 줍니다. 채점한 재생은 위에 있습니다.'; },
+      'live.sub': function (s, u) { return s + '부터 ' + u + '까지 sprag 룰이 실제 세션에서 보낸 위임입니다. 다시 돌리지도 채점하지도 않은 집계라서 건수와 비용만 보여 줍니다. 채점한 재생은 아래 근거에 있습니다.'; },
       'live.runs': '보낸 위임', 'live.to': '어디로 보냈나',
       'live.toV': function (h, s, o) { return 'Haiku ' + h + '건, Sonnet ' + s + '건, Opus ' + o + '건'; },
       'live.cost': function (n) { return '그 실행에 든 비용 (' + n + '건 기준)'; },
       'live.saved': '메인 모델이 그대로 받았을 때보다 적게 쓴 금액 (추정)',
       'live.pair': function (o) { return '비용이 기록된 ' + o.n + '건만 보면 실제 비용 ' + o.cost + ' 대 메인 모델이 직접 했을 때의 추정 비용 ' + o.base + '입니다.'; },
-      'live.why': '이 추정은 메인 세션이 쌓인 문맥을 호출마다 다시 읽는 비용과 도구 출력이 문맥에 남아 이후 호출에서 다시 읽히는 비용까지 셉니다. 위의 재생은 빈 세션에서 시작해 그 비용이 빠지므로 절감률이 더 낮게 나옵니다.',
+      'live.why': '이 추정은 메인 세션이 쌓인 문맥을 호출마다 다시 읽는 비용과 도구 출력이 문맥에 남아 이후 호출에서 다시 읽히는 비용까지 셉니다. 이 페이지의 재생은 빈 세션에서 시작해 그 비용이 빠지므로 절감률이 더 낮게 나옵니다.',
       'bulk.more': '측정 세부: 룰을 좁혀 온 이력, 잡음 바닥, 채점자 편차',
       'bulk.recheck': function (o) { return '블라인드 채점 뒤 ' + o.n + '건을 도구로 다시 확인했더니 기준인 Opus 답이 틀렸고 sprag가 고른 모델의 답이 맞았습니다. 이 ' + o.n + '건은 sprag 쪽을 같음으로, Opus 쪽을 오답으로 고쳐 셉니다. 고치기 전 채점은 같음 ' + o.ok + ', 부분 ' + o.partial + ', 못 씀 ' + o.fail + '이었습니다.'; },
       'cta.h': '내 세션에서 확인하기',
@@ -328,6 +362,10 @@
       'impl.spec.cost': function (spec, impl) { return '새 설계서 경로의 비용은 설계서 작성분(' + spec + ')과 구현분(' + impl + ')을 합친 값입니다. 설계서는 빈 세션에서 썼기 때문에 코드를 이미 읽은 실제 세션보다 비용이 크게 잡힙니다.'; },
       'impl.spec.take': function (o) { return '이 라운드에서는 Opus 직접이 ' + o.n + '건 중 ' + o.bOk + '건을 그대로 쓸 수 있었습니다. Sonnet은 기존 초안으로 ' + o.oldOk + '건, 새 설계서로 ' + o.newOk + '건이었습니다.'; },
       'impl.limit': '두 라운드 모두 표본이 작고 채점은 한 번입니다. 감점은 대부분 코드보다 보고에서 나왔습니다. 과제가 요구한 증거를 빠뜨렸거나 주장이 diff와 달랐습니다. 어느 모델에서나 생긴 일이라 누가 구현하든 메인 모델이 diff와 테스트 결과를 직접 확인합니다. 첫 라운드에서는 Opus 직접 1건이 스스로 하위 에이전트에 일을 넘겼고 그 뒤 측정부터 막았습니다.',
+      'impl.seg.h': '화면 코드와 서버 코드는 결과가 달랐습니다',
+      'impl.seg.th': ['', '사례', 'Sonnet 그대로 씀', 'Opus 그대로 씀', '비용'],
+      'impl.seg.rows': { fe: 'F/E (화면과 페이지)', be: 'B/E (CLI와 서버)' },
+      'impl.seg.take': '화면 코드는 넘긴 결과를 그대로 쓴 경우가 Opus 직접보다 많았습니다. 서버 코드에서는 Sonnet이 테스트가 강제하는 목록 같은 숨은 결합을 놓쳤습니다. 그래서 sprag는 넘긴 서버 코드를 메인 모델이 diff로 확인하게 합니다.',
       'up.h': '올려야 할 때',
       'up.sub': function (n) { return '판단이 결론인 일 ' + n + '건을 Sonnet high, Opus high, Opus xhigh로 각각 돌렸습니다. 개선점 검토, 감사, 원인 진단, "없다"를 단정하는 조회, 웹 조사가 섞여 있습니다. 여기서는 Opus 답을 정답으로 쓰지 않습니다. 채점자가 세 보고서를 가린 채 받아 서로 엇갈리는 주장을 저장소와 웹에서 직접 확인하고 판정합니다.'; },
       'up.th': ['실행', '같음', '부분', '못 씀', '틀린 주장', '놓친 사실', '비용', '시간'],
@@ -433,23 +471,101 @@
     document.querySelectorAll('.lang button').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.lang === lang));
     });
+    [['more-h', 'more.h'], ['more-sub', 'more.sub'], ['d-docs-h', 'd.docs'], ['d-impl-h', 'd.impl'], ['d-route-h', 'd.route'], ['d-up-h', 'd.up']].forEach(function (p) {
+      var n = $(p[0]); if (n) n.textContent = t(p[1]);
+    });
+    syncFolds();
     renderBanner();
   }
 
-  /* headline and stat tiles: only banner.json feeds them, so the page and the home banner agree */
+  /* a fold with nothing to show is hidden whole; before data.json arrives all four are hidden */
+  function syncFolds() {
+    var hide = function (id, yes) { var n = $(id); if (n) n.hidden = !!yes; };
+    var hasDocs = !!(data && data.doc2md && data.doc2md.n && data.doc2md.baseline);
+    hide('d-docs', !hasDocs);
+    hide('d-impl', !data || !$('impl') || $('impl').hidden);
+    hide('d-route', !data);
+    hide('d-up', !data || !$('up') || $('up').hidden);
+    /* the last visible fold carries the closing hairline */
+    var shown = [].filter.call(document.querySelectorAll('details.sec-more'), function (d) { return !d.hidden; });
+    document.querySelectorAll('details.sec-more').forEach(function (d) { d.classList.toggle('last', d === shown[shown.length - 1]); });
+  }
+
+  /* headline and the three result tiles. Docs and code come from data.json, lookups from banner.json, so the page and the home banner agree on the last one.
+   * A tile whose source is missing is not drawn. */
   function renderBanner() {
     var h = $('h1n'), st = $('stats');
     if (!h) return;
-    var b = banner;
-    if (st) st.textContent = '';
-    if (!b || !b.handed) { h.textContent = t('p.h1n0'); return; }
-    h.textContent = t('p.h1n')(b);
+    h.textContent = t('p.h1n');
     if (!st) return;
-    var tile = function (big, label, cls) { return el('div', { class: 'hs' + (cls ? ' ' + cls : '') }, [el('b', { text: big }), el('span', { text: label })]); };
-    var kept = (b.kept && b.kept.n) || 0;
-    st.appendChild(tile('−' + b.handed.savedPct + '%', t('s.handed')(b.handed.n, usd(b.handed.opusUsd), usd(b.handed.pickUsd)), 'hs-main'));
-    st.appendChild(tile('−' + b.savedPct + '%', t('s.all')(b.n, kept, usd(b.opusUsd), usd(b.pickUsd))));
-    st.appendChild(tile(b.ok + ' / ' + b.n, t('s.ok')(b.partial, b.fail, b.opusOk, b.n)));
+    st.textContent = '';
+    var tile = function (big, label, sub, href, cls) {
+      return el('a', { class: 'hs' + (cls ? ' ' + cls : ''), href: href }, [el('b', { text: big }), el('span', { text: label }), el('small', { text: sub }), el('em', { text: t('t.more') })]);
+    };
+    var d = data && data.doc2md;
+    if (d && d.n && d.baseline) st.appendChild(tile('−' + d.pct + '%', t('t.docs.l'), t('t.docs.s')(d.n), '#d-docs', 'hs-main'));
+    var sum = implSum();
+    if (sum) {
+      var pct = Math.round((1 - sum.s.usd / sum.b.usd) * 100);
+      st.appendChild(tile('−' + pct + '%', t('t.code.l'), t('t.code.s')({ n: sum.n, sPass: sum.s.pass, bPass: sum.b.pass }), '#d-impl'));
+    }
+    var hd = banner && banner.handed;
+    if (hd) st.appendChild(tile('−' + hd.savedPct + '%', t('t.look.l'), t('t.look.s')({ n: hd.n, ok: hd.ok }), '#d-route'));
+  }
+
+  /* what the implementation rounds say in total: the draft handed to Sonnet against Opus doing it, summed over the rounds that have both rows */
+  function implUsable(r) { return !!(r && r.n && r.conditions && r.conditions.length); }
+  function implSum() {
+    var b = data && data.bulk; if (!b) return null;
+    var sum = { n: 0, s: { usd: 0, ok: 0, pass: 0 }, b: { usd: 0, ok: 0, pass: 0 } };
+    [[b.implLarge, 'sonnet-next'], [b.implSpec, 'sonnet-high']].forEach(function (p) {
+      var r = p[0]; if (!implUsable(r)) return;
+      var by = {}; r.conditions.forEach(function (c) { by[c.id] = c; });
+      var sc = by[p[1]], bc = by['opus-direct']; if (!sc || !bc) return;
+      sum.n += r.n;
+      [['s', sc], ['b', bc]].forEach(function (q) {
+        var tt = r.tests && r.tests[q[1].id];
+        sum[q[0]].usd += q[1].usd; sum[q[0]].ok += q[1].ok; sum[q[0]].pass += tt ? tt.pass : 0;
+      });
+    });
+    return sum.n && sum.b.usd ? sum : null;
+  }
+  /* the same two arms by kind of code (meta.segment), pooled over the rounds that carry it; null when no round has any */
+  function implSegments() {
+    var b = data && data.bulk; if (!b) return null;
+    var out = { fe: { n: 0, sOk: 0, sUsd: 0, bOk: 0, bUsd: 0 }, be: { n: 0, sOk: 0, sUsd: 0, bOk: 0, bUsd: 0 } };
+    [[b.implLarge, 'sonnet-next'], [b.implSpec, 'sonnet-high']].forEach(function (p) {
+      var r = p[0]; if (!implUsable(r) || !r.bySegment) return;
+      ['fe', 'be'].forEach(function (k) {
+        var g = r.bySegment[k], cs = g && g.conditions;
+        var sc = cs && cs[p[1]], bc = cs && cs['opus-direct']; if (!sc || !bc) return;
+        out[k].n += g.n; out[k].sOk += sc.ok; out[k].sUsd += sc.usd; out[k].bOk += bc.ok; out[k].bUsd += bc.usd;
+      });
+    });
+    return out.fe.n || out.be.n ? out : null;
+  }
+
+  function renderDocs() {
+    var box = $('docs'); if (!box) return;
+    var d = data && data.doc2md;
+    var fold = $('d-docs');
+    box.textContent = '';
+    var has = !!(d && d.n && d.baseline);
+    if (fold) fold.hidden = !has;
+    if (!has) return;
+    var fmt = function (v) { return Number(v).toLocaleString('en-US'); };
+    var x = t('docs.x'), th = t('docs.th');
+    var ratio = function (base, tok) { return Math.round(base / Math.max(1, tok) * 10) / 10; };
+    var cells = function (list) { return el('tr', null, list.map(function (c, i) { return el('td', { class: i ? 'num' : '', text: String(c) }); })); };
+    box.appendChild(el('h2', { id: 'docs-h', text: t('docs.h')(d.pct) }));
+    box.appendChild(el('p', { class: 'lv-sub', text: t('docs.sub')(d.n, d.since, d.until) }));
+    var rows = (d.byExt || []).map(function (r) { return cells([r.ext, r.n, fmt(r.baseline), fmt(r.tokens), r.x + x]); });
+    rows.push(cells([t('docs.total'), d.n, fmt(d.baseline), fmt(d.tokens), ratio(d.baseline, d.tokens) + x]));
+    box.appendChild(el('table', { class: 'bk' }, [
+      el('thead', null, [el('tr', null, th.map(function (c, i) { return el('th', { class: i ? 'num' : '', text: c }); }))]),
+      el('tbody', null, rows)
+    ]));
+    box.appendChild(el('p', { class: 'bk-cmp', text: t('docs.note') }));
   }
 
   function renderHero() {
@@ -604,24 +720,14 @@
   function renderImpl() {
     var box = $('impl'); if (!box) return;
     var L = data.bulk && data.bulk.implLarge, S = data.bulk && data.bulk.implSpec;
-    var usable = function (r) { return !!(r && r.n && r.conditions && r.conditions.length); };
+    var usable = implUsable;
     var wasOpen = !!box.querySelector('details.bk-more[open]');
     box.textContent = '';
     if (!usable(L) && !usable(S)) { box.hidden = true; return; }
     box.hidden = false;
     var th = t('impl.th'), names = t('impl.cond');
     // Headline: the draft handed to Sonnet against Opus doing it, summed over the rounds that have both rows.
-    var sum = { n: 0, s: { usd: 0, ok: 0, pass: 0 }, b: { usd: 0, ok: 0, pass: 0 } };
-    [[L, 'sonnet-next'], [S, 'sonnet-high']].forEach(function (p) {
-      var r = p[0]; if (!usable(r)) return;
-      var by = {}; r.conditions.forEach(function (c) { by[c.id] = c; });
-      var sc = by[p[1]], bc = by['opus-direct']; if (!sc || !bc) return;
-      sum.n += r.n;
-      [['s', sc], ['b', bc]].forEach(function (q) {
-        var tt = r.tests && r.tests[q[1].id];
-        sum[q[0]].usd += q[1].usd; sum[q[0]].ok += q[1].ok; sum[q[0]].pass += tt ? tt.pass : 0;
-      });
-    });
+    var sum = implSum();
     var rowsOf = function (r, ids) {
       var by = {};
       r.conditions.forEach(function (c) { by[c.id] = c; });
@@ -637,7 +743,7 @@
         }))
       ]);
     };
-    if (!sum.n || !sum.b.usd) { box.hidden = true; return; }
+    if (!sum) { box.hidden = true; return; }
     var sth = t('impl.sum.th'), srow = t('impl.sum.rows');
     box.appendChild(el('h2', { id: 'impl-h', text: t('impl.h')(Math.round((1 - sum.s.usd / sum.b.usd) * 100)) }));
     box.appendChild(el('p', { class: 'lv-sub', text: t('impl.sub')(sum.n) }));
@@ -648,6 +754,20 @@
       }))
     ]));
     box.appendChild(el('p', { class: 'bk-cmp', text: t('impl.take')({ n: sum.n, sPass: sum.s.pass, bPass: sum.b.pass }) }));
+    var seg = implSegments();
+    if (seg) {
+      var gth = t('impl.seg.th'), grow = t('impl.seg.rows');
+      box.appendChild(el('h3', { class: 'bk-h3', text: t('impl.seg.h') }));
+      box.appendChild(el('table', { class: 'bk' }, [
+        el('thead', null, [el('tr', null, gth.map(function (x, i) { return el('th', { class: i ? 'num' : '', text: x }); }))]),
+        el('tbody', null, ['fe', 'be'].filter(function (k) { return seg[k].n; }).map(function (k) {
+          var g = seg[k];
+          var cost = g.bUsd ? '−' + Math.round((1 - g.sUsd / g.bUsd) * 100) + '%' : '-';
+          return el('tr', null, [grow[k], g.n, g.sOk + ' / ' + g.n, g.bOk + ' / ' + g.n, cost].map(function (x, i) { return el('td', { class: i ? 'num' : '', text: String(x) }); }));
+        }))
+      ]));
+      box.appendChild(el('p', { class: 'bk-cmp', text: t('impl.seg.take') }));
+    }
     var top = box;
     box = el('details', { class: 'bk-more' }, [el('summary', { text: t('impl.more') })]);
     if (wasOpen) box.open = true;
@@ -1484,10 +1604,49 @@
     renderLive();
     renderBulk();
     renderUp();
+    renderDocs();
     renderImpl();
     renderLegend();
     renderCases();
     renderMethod();
+    syncFolds();
+    markFolds();
+  }
+
+  /* ---------- folds: the details that hold everything below the three results ---------- */
+  /* ids of the folds whose content was drawn while they were open; a fold opened for the first time is drawn once more so
+   * the diagram and the card players start from a laid-out box instead of a collapsed one */
+  var drawn = {};
+  function markFolds() {
+    document.querySelectorAll('details.sec-more').forEach(function (d) { if (d.open) drawn[d.id] = true; });
+  }
+  function openFold(d) {
+    if (d.open) return;
+    d.open = true;
+    if (data && !drawn[d.id]) renderAll();
+  }
+  /* open every closed details around the element a hash names (a case card, a fold, anything inside one); true when one opened */
+  function hashId() {
+    var h = parseHash();
+    if (h) return 'case-' + h.id;
+    try { return decodeURIComponent((location.hash || '').slice(1)); } catch (e) { return ''; }
+  }
+  function openAround() {
+    var id = hashId();
+    var node = id ? $(id) : null, opened = false;
+    for (var n = node; n; n = n.parentElement) {
+      if (n.tagName === 'DETAILS' && !n.open) { n.open = true; opened = true; }
+    }
+    return opened ? node : null;
+  }
+  function followHash(scroll) {
+    var node = openAround();
+    if (node && data) renderAll();
+    var h = parseHash();
+    if (h && data && caseById(h.id)) { goTo(h); return; }
+    if (h || !(scroll || node)) return;
+    var tg = hashId() ? $(hashId()) : null;
+    if (tg) tg.scrollIntoView({ block: 'start' });
   }
 
   function setLang(next, remember) {
@@ -1505,6 +1664,23 @@
 
   initLang();
   renderStatic();
+  openAround(); /* a hash that names a static fold or the method opens it before the browser has to scroll */
+  document.querySelectorAll('details.sec-more').forEach(function (d) {
+    d.addEventListener('toggle', function () { if (d.open && data && !drawn[d.id]) renderAll(); });
+  });
+  /* a click on a result tile opens the fold that holds its data and scrolls there */
+  (function () {
+    var st = $('stats'); if (!st) return;
+    st.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href^="#"]'); if (!a) return;
+      var d = document.getElementById(a.getAttribute('href').slice(1));
+      if (!d || d.tagName !== 'DETAILS') return;
+      e.preventDefault();
+      openFold(d);
+      d.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
+    });
+  })();
+  window.addEventListener('hashchange', function () { followHash(false); });
   document.querySelectorAll('.lang button').forEach(function (b) {
     b.addEventListener('click', function () { setLang(b.dataset.lang, true); });
   });
@@ -1542,12 +1718,7 @@
   fetch('data.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
     data = d;
     renderAll();
-    var h = parseHash();
-    if (h && caseById(h.id)) goTo(h);
-    window.addEventListener('hashchange', function () {
-      var p = parseHash();
-      if (p && caseById(p.id)) goTo(p);
-    });
+    followHash(true);
   }).catch(function () {
     var n = $('policies'); if (n) n.textContent = t('loadFail');
   });

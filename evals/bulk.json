@@ -771,6 +771,27 @@
         "insertions": 13566,
         "deletions": 519
       }
+    },
+    "bySegment": {
+      "be": {
+        "n": 10,
+        "conditions": {
+          "sonnet-high": {
+            "ok": 4,
+            "partial": 6,
+            "fail": 0,
+            "usd": 9.5233,
+            "pass": 9
+          },
+          "opus-direct": {
+            "ok": 10,
+            "partial": 0,
+            "fail": 0,
+            "usd": 20.8108,
+            "pass": 10
+          }
+        }
+      }
     }
   },
   "implReview": {
@@ -911,6 +932,60 @@
         "insertions": 2685,
         "deletions": 744
       }
+    },
+    "bySegment": {
+      "fe": {
+        "n": 5,
+        "conditions": {
+          "sonnet-next": {
+            "ok": 4,
+            "partial": 1,
+            "fail": 0,
+            "usd": 6.8302,
+            "pass": 4
+          },
+          "haiku-next": {
+            "ok": 2,
+            "partial": 3,
+            "fail": 0,
+            "usd": 0.9019,
+            "pass": 3
+          },
+          "opus-direct": {
+            "ok": 2,
+            "partial": 3,
+            "fail": 0,
+            "usd": 18.7328,
+            "pass": 4
+          }
+        }
+      },
+      "be": {
+        "n": 2,
+        "conditions": {
+          "sonnet-next": {
+            "ok": 1,
+            "partial": 1,
+            "fail": 0,
+            "usd": 2.6985,
+            "pass": 2
+          },
+          "haiku-next": {
+            "ok": 1,
+            "partial": 1,
+            "fail": 0,
+            "usd": 0.4509,
+            "pass": 1
+          },
+          "opus-direct": {
+            "ok": 2,
+            "partial": 0,
+            "fail": 0,
+            "usd": 5.6198,
+            "pass": 2
+          }
+        }
+      }
     }
   },
   "implSpec": {
@@ -992,6 +1067,34 @@
         "files": 124,
         "insertions": 13566,
         "deletions": 519
+      }
+    },
+    "bySegment": {
+      "be": {
+        "n": 10,
+        "conditions": {
+          "sonnet-spec": {
+            "ok": 7,
+            "partial": 3,
+            "fail": 0,
+            "usd": 10.0227,
+            "pass": 9
+          },
+          "sonnet-high": {
+            "ok": 5,
+            "partial": 5,
+            "fail": 0,
+            "usd": 9.5233,
+            "pass": 9
+          },
+          "opus-direct": {
+            "ok": 10,
+            "partial": 0,
+            "fail": 0,
+            "usd": 20.8108,
+            "pass": 10
+          }
+        }
       }
     },
     "spec": {
