@@ -88,7 +88,10 @@ function runSpawn() {
   return spawn;
 }
 
-test('replay gives each write run its own guarded worktree, deny list and saved diff; other cases run as before', async () => {
+// The replay harness is run by a maintainer on macOS or Linux: it prints POSIX shell lines and builds worktree paths
+// with forward slashes, so the two tests that compare those strings are skipped on Windows.
+const POSIX_ONLY = { skip: process.platform === 'win32' && 'the replay harness builds POSIX shell lines and paths' };
+test('replay gives each write run its own guarded worktree, deny list and saved diff; other cases run as before', POSIX_ONLY, async () => {
   const wtRoot = tmp('wt'); const prevWt = process.env.SPRAG_EVALS_WT; process.env.SPRAG_EVALS_WT = wtRoot;
   process.env.SPRAG_TEST_GH_TOKEN = 'x'; process.env.SPRAG_TEST_API_KEY = 'y';
   const round = implRoundObj([W1, R1]); const dir = roundDir(round);
@@ -578,7 +581,7 @@ test('claudeArgs puts --agents right after --agent only when a file is given; va
   assert.ok(validateRound({ ...r, conditions: [{ ...CONDS[0], agentsFile: 'a b.json' }, CONDS[1]] }).some((e) => /agentsFile/.test(e)));
 });
 
-test('replay passes the condition agents file in the dry run and refuses a round that lacks it', async () => {
+test('replay passes the condition agents file in the dry run and refuses a round that lacks it', POSIX_ONLY, async () => {
   const round = { ...implRoundObj([W1]), conditions: [{ ...CONDS[0], agentsFile: 'agents.json' }, CONDS[1]] };
   const dir = roundDir(round); const lines = [];
   try {

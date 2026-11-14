@@ -588,7 +588,8 @@ test('runEnv adds the string env a condition sets and nothing else', async () =>
 // The proof page keeps two string tables; every key group the result tiles, folds and tables use must exist in both with the same shape.
 test('proof.js result, fold, docs and impl strings exist in en and ko with matching types', async () => {
   const { runInNewContext } = await import('node:vm');
-  const ROOT = join(new URL('.', import.meta.url).pathname, '..');
+  const { fileURLToPath } = await import('node:url');
+  const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');   // .pathname is /D:/... on Windows
   const src = readFileSync(join(ROOT, 'site', 'proof', 'proof.js'), 'utf8');
   const start = src.indexOf('var STR = {'); assert.ok(start > 0);
   const end = src.indexOf('\n  };', start); assert.ok(end > start);
