@@ -2940,28 +2940,33 @@
  ],
  "live": {
   "since": "2026-08-10",
-  "until": "2026-11-07",
-  "runs": 353,
+  "until": "2026-11-14",
+  "runs": 489,
   "to": {
-   "haiku": 69,
-   "sonnet": 282,
-   "opus": 2
+   "haiku": 134,
+   "sonnet": 352,
+   "opus": 3
   },
   "pairs": [
    {
     "from": "opus",
     "to": "sonnet",
-    "n": 232
-   },
-   {
-    "from": "fable",
-    "to": "sonnet",
-    "n": 50
+    "n": 295
    },
    {
     "from": "opus",
     "to": "haiku",
-    "n": 49
+    "n": 95
+   },
+   {
+    "from": "fable",
+    "to": "sonnet",
+    "n": 57
+   },
+   {
+    "from": "sonnet",
+    "to": "haiku",
+    "n": 20
    },
    {
     "from": "fable",
@@ -2971,17 +2976,13 @@
    {
     "from": "fable",
     "to": "opus",
-    "n": 2
-   },
-   {
-    "from": "sonnet",
-    "to": "haiku",
-    "n": 1
+    "n": 3
    }
   ],
-  "costUsd": 122.91,
-  "costRuns": 253,
-  "savedUsd": 634.49
+  "costUsd": 184.88,
+  "costRuns": 389,
+  "savedCostUsd": 718.48,
+  "savedUsd": 869.24
  },
  "bulk": {
   "rounds": [

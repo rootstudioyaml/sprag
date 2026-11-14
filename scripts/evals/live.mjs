@@ -28,14 +28,14 @@ const day = (ts) => new Date(ts).toISOString().slice(0, 10);
 const r2 = (v) => Math.round(v * 100) / 100;
 const pairs = new Map();
 const to = { haiku: 0, sonnet: 0, opus: 0 };
-let cost = 0, costRuns = 0, saved = 0;
+let cost = 0, costRuns = 0, savedCost = 0, saved = 0;
 for (const e of events) {
   const f = modelFamily(e.from), t = modelFamily(e.to);
   const k = `${f}>${t}`;
   pairs.set(k, (pairs.get(k) || 0) + 1);
   if (t in to) to[t]++;
   saved += e.usd;
-  if (Number.isFinite(e.cost)) { cost += e.cost; costRuns++; }
+  if (Number.isFinite(e.cost)) { cost += e.cost; costRuns++; savedCost += e.usd; }
 }
 const ts = events.map((e) => e.ts);
 const live = {
@@ -46,6 +46,7 @@ const live = {
   pairs: [...pairs].map(([k, n]) => ({ from: k.split('>')[0], to: k.split('>')[1], n })).sort((a, b) => b.n - a.n || a.from.localeCompare(b.from)),
   costUsd: r2(cost),
   costRuns,
+  savedCostUsd: r2(savedCost),
   savedUsd: r2(saved),
 };
 writeFileSync(out, JSON.stringify(live, null, 2) + '\n');

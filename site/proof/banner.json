@@ -3,5 +3,21 @@
   "opusUsd": 38.72,
   "pickUsd": 26.95,
   "pct": 70,
-  "fail": 1
+  "savedPct": 30,
+  "ok": 49,
+  "partial": 3,
+  "fail": 1,
+  "opusOk": 52,
+  "handed": {
+    "n": 31,
+    "opusUsd": 20.45,
+    "pickUsd": 8.68,
+    "savedPct": 58,
+    "ok": 27,
+    "partial": 3,
+    "fail": 1
+  },
+  "kept": {
+    "n": 22
+  }
 }

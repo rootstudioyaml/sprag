@@ -381,23 +381,49 @@ const README_TARGETS = [
 ];
 
 /**
- * Totals for the home page banner: replayed cases plus the bulk set, Opus-direct cost against the
- * recommended condition's cost, and how many recommended runs failed. Mirrors what the banner script
- * on site/index.html used to compute from data.json in the browser.
+ * Totals for the proof page headline and the home page banner: replayed cases plus the bulk set,
+ * Opus-direct cost against the recommended condition's cost, and how the recommended runs were graded.
+ * `handed` covers only the jobs sprag handed off (recommended or lane is not opus-direct), `kept` counts
+ * the jobs it left on the main model, where both sides cost the same. Opus is the grading reference for
+ * bulk rows, so they count as ok on the Opus side. Without bulk.cases the bulk totals are added to the
+ * overall numbers only, and handed and kept come from the graded cases alone.
  */
 export function buildBanner(siteData) {
-  let n = 0, opusUsd = 0, pickUsd = 0, fail = 0;
+  const round = (v) => Math.round(v * 100) / 100;
+  const savedOf = (opus, pick) => (opus > 0 ? 100 - Math.round(pick / opus * 100) : 0);
+  const all = { n: 0, opusUsd: 0, pickUsd: 0, ok: 0, partial: 0, fail: 0, opusOk: 0 };
+  const hd = { n: 0, opusUsd: 0, pickUsd: 0, ok: 0, partial: 0, fail: 0 };
+  let keptN = 0;
+  const tally = (t, verdict) => { if (verdict === 'ok' || verdict === 'partial' || verdict === 'fail') t[verdict]++; };
   for (const c of siteData.cases) {
     const o = c.runs.find((r) => r.condition === 'opus-direct');
     const s = c.runs.find((r) => r.condition === c.recommended);
-    n++;
+    all.n++;
+    if (c.recommended === 'opus-direct') keptN++; else hd.n++;
     if (!o || !s) continue;
-    opusUsd += o.usd; pickUsd += s.usd; if (s.verdict === 'fail') fail++;
+    all.opusUsd += o.usd; all.pickUsd += s.usd; tally(all, s.verdict);
+    if (o.verdict === 'ok') all.opusOk++;
+    if (c.recommended !== 'opus-direct') { hd.opusUsd += o.usd; hd.pickUsd += s.usd; tally(hd, s.verdict); }
   }
-  const bt = siteData.bulk && siteData.bulk.totals;
-  if (bt && bt.n) { n += bt.n; opusUsd += bt.opusUsd; pickUsd += bt.pickUsd; fail += bt.fail; }
-  const round = (v) => Math.round(v * 100) / 100;
-  return { n, opusUsd: round(opusUsd), pickUsd: round(pickUsd), pct: opusUsd > 0 ? Math.round(pickUsd / opusUsd * 100) : 0, fail };
+  const bulk = siteData.bulk;
+  if (bulk && Array.isArray(bulk.cases) && bulk.cases.length) {
+    for (const r of bulk.cases) {
+      all.n++; all.opusUsd += r.opusUsd; all.pickUsd += r.pickUsd; tally(all, r.verdict); all.opusOk++;
+      if (r.lane !== 'opus-direct') { hd.n++; hd.opusUsd += r.opusUsd; hd.pickUsd += r.pickUsd; tally(hd, r.verdict); }
+      else keptN++;
+    }
+  } else if (bulk && bulk.totals && bulk.totals.n) {
+    const bt = bulk.totals;
+    all.n += bt.n; all.opusUsd += bt.opusUsd; all.pickUsd += bt.pickUsd;
+    all.ok += bt.ok || 0; all.partial += bt.partial || 0; all.fail += bt.fail || 0; all.opusOk += bt.n;
+  }
+  const pct = all.opusUsd > 0 ? Math.round(all.pickUsd / all.opusUsd * 100) : 0;
+  return {
+    n: all.n, opusUsd: round(all.opusUsd), pickUsd: round(all.pickUsd), pct, savedPct: 100 - pct,
+    ok: all.ok, partial: all.partial, fail: all.fail, opusOk: all.opusOk,
+    handed: { n: hd.n, opusUsd: round(hd.opusUsd), pickUsd: round(hd.pickUsd), savedPct: savedOf(hd.opusUsd, hd.pickUsd), ok: hd.ok, partial: hd.partial, fail: hd.fail },
+    kept: { n: keptN },
+  };
 }
 
 /**

@@ -28,6 +28,14 @@ h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
 .eyebrow{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);margin-bottom:14px}
 .lede{color:var(--ink);font-size:15.5px;margin-top:14px;text-wrap:pretty}
 .lede2{color:var(--dim);font-size:14px;margin-top:8px}
+.lede.lede-h{font-size:26px;font-weight:600;line-height:1.35;letter-spacing:-.02em}
+.hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+.hero-stats:empty,#stats:empty{display:none}
+.hs{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:12px 14px;min-width:0}
+.hs b{display:block;font:600 40px/1.15 var(--mono);color:var(--ink);overflow-wrap:anywhere}
+.hs span{display:block;margin-top:6px;font-size:12px;color:var(--dim)}
+.hs.hs-main{border-color:var(--accent)}
+.hs.hs-main b{color:var(--accent2)}
 .lede.fit{font-size:17.5px;font-weight:600;line-height:1.55;margin-top:16px}
 .pills{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .pills li{font:500 12px/1 var(--mono);color:var(--teal);background:transparent;border:1px solid color-mix(in oklab,var(--accent) 30%,transparent);border-radius:999px;padding:7px 11px}
@@ -119,6 +127,11 @@ h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
 .cell.ok text{fill:var(--ok);opacity:1}.cell.partial text{fill:var(--warn);opacity:1}.cell.fail text{fill:var(--bad);opacity:1}
 .dg.tiny .cell text{display:none}
 .dg.tiny .cell.ok rect{fill:var(--ok)}.dg.tiny .cell.partial rect{fill:var(--warn)}.dg.tiny .cell.fail rect{fill:var(--bad)}
+/* jobs sprag left on the main model: outline only, so the handed-off ones are the filled blocks */
+.cell.kept rect,.dg.tiny .cell.kept rect{stroke-width:1.2;fill:color-mix(in oklab,var(--ink) 3%,transparent)}
+.cell.kept.ok rect,.dg.tiny .cell.kept.ok rect{stroke:var(--ok)}
+.cell.kept.partial rect,.dg.tiny .cell.kept.partial rect{stroke:var(--warn)}
+.cell.kept.fail rect,.dg.tiny .cell.kept.fail rect{stroke:var(--bad)}
 .qmore{fill:var(--dim)}
 .cell.in text{animation:land .4s var(--pop)}
 @keyframes land{from{transform:scale(1.8);opacity:0}}
@@ -127,6 +140,10 @@ h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
 .blk-l .mk{font-size:9px}
 .blk .big{font:600 24px var(--mono);fill:var(--ink)}
 .blk .pct{font:400 11px var(--mono);fill:var(--dim)}
+.delta .dl-h{font:500 11px var(--mono);fill:var(--dim);letter-spacing:.04em}
+.delta .dl-big{font:600 24px var(--mono);fill:var(--accent2)}
+.delta .dl-sub{font:400 11px var(--sans);fill:var(--dim)}
+.delta .dl-handed{fill:var(--ink)}
 .blk.fb .pct{fill:var(--accent2)}.c-cheapest .blk.fb .pct{fill:var(--teal)}
 .cnt{font:500 12px var(--mono)}
 .cnt .g{font-size:13px}
@@ -146,6 +163,9 @@ h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
 .lv{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:12px 14px;min-width:0}
 .lv b{display:block;font:600 22px/1.2 var(--mono);color:var(--ink);overflow-wrap:anywhere}
 .lv span{display:block;margin-top:6px;font-size:12px;color:var(--dim)}
+.lv.lv-hl{border-color:var(--accent)}
+.lv.lv-hl b{color:var(--accent2)}
+.lv-note{margin-top:12px;color:var(--dim);font-size:13px;line-height:1.6;max-width:80ch}
 .lv.sm b{font-size:14px;line-height:1.6;padding-top:4px}
 @media(max-width:900px){.lv-grid{grid-template-columns:1fr 1fr}}
 .lv-grid.lv-3{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -299,6 +319,25 @@ h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
 .shot figcaption{margin-top:6px;font-size:12px;color:var(--faint)}
 .lesson{overflow-wrap:anywhere;margin-top:16px;font-size:13.5px;color:var(--ink);padding-top:12px;border-top:1px solid var(--line2)}
 
+/* bulk: the measurement history folds away */
+.bk-more{margin-top:20px;border-top:1px solid var(--line);padding-top:10px}
+.bk-more>summary{cursor:pointer;font-size:12.5px;color:var(--dim);list-style:none;display:inline-flex;align-items:center;gap:8px}
+.bk-more>summary::-webkit-details-marker{display:none}
+.bk-more>summary::before{content:"";width:6px;height:6px;border-right:1.5px solid var(--faint);border-bottom:1.5px solid var(--faint);transform:rotate(-45deg);transition:transform .18s var(--ease)}
+.bk-more[open]>summary::before{transform:rotate(45deg)}
+.bk-more>summary:hover{color:var(--ink)}
+
+/* call to action, after the method */
+.cta{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:22px 24px}
+.cta h2{font-size:18px}
+.cta-sub{margin-top:8px;color:var(--dim);font-size:13.5px;max-width:70ch}
+.cta-cmd{display:flex;align-items:stretch;gap:0;margin-top:16px;max-width:420px;border:1px solid var(--line2);border-radius:var(--r);background:var(--bg);overflow:hidden}
+.cta-cmd code{flex:1;min-width:0;padding:10px 14px;font:500 13.5px/1.4 var(--mono);color:var(--ink);overflow-x:auto;white-space:nowrap}
+.cta-cmd button{flex:0 0 auto;border:0;border-left:1px solid var(--line2);background:var(--accent-bg);color:var(--accent2);font:500 12.5px/1 var(--sans);padding:0 16px}
+.cta-cmd button:hover{color:var(--ink)}
+.cta-guide{display:inline-block;margin-top:14px;font-size:13px;color:var(--accent2);text-decoration:underline;text-underline-offset:3px}
+.cta-guide:hover{color:var(--ink)}
+
 /* method */
 .method{border:1px solid var(--line);border-radius:var(--rl);background:var(--surface);padding:0}
 .method summary{cursor:pointer;padding:14px 18px;font-weight:600;font-size:14.5px;list-style:none;display:flex;align-items:center;gap:10px}
@@ -324,6 +363,10 @@ footer a:hover{color:var(--ink)}
 }
 @media(max-width:720px){
   h1{font-size:clamp(30px,3.2vw,40px)}
+  .lede.lede-h{font-size:20px}
+  .hero-stats{grid-template-columns:1fr}
+  .hs b{font-size:30px}
+  .cta{padding:18px}
   .wrap{padding:0 16px}
   main{padding-top:32px}
   .kase{padding:14px}

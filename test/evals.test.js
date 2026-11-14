@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { childEnv } from './helpers/child-env.js';
 import {
-  generate, staleFiles, writeAll, applyEvidenceBlock, serializeSite, EVIDENCE_START, EVIDENCE_END,
+  generate, staleFiles, writeAll, applyEvidenceBlock, serializeSite, buildBanner, EVIDENCE_START, EVIDENCE_END,
 } from '../scripts/evals/build.mjs';
 import { formatProof, run as runProof } from '../src/commands/proof.js';
 
@@ -207,4 +207,59 @@ test('sprag proof with no summary file prints one line and does not throw', asyn
   }
   assert.equal(lines.length, 1);
   assert.ok(lines[0].includes('https://sprag.io/proof/'));
+});
+
+const bannerCase = (recommended, opus, pick, pickVerdict = 'ok', opusVerdict = 'ok') => ({
+  recommended,
+  runs: [{ condition: 'opus-direct', usd: opus, verdict: opusVerdict }, { condition: recommended, usd: pick, verdict: pickVerdict }],
+});
+
+test('buildBanner splits the jobs sprag handed off from the ones it kept on the main model', () => {
+  const b = buildBanner({
+    cases: [bannerCase('haiku-low', 10, 2), bannerCase('sonnet-high', 10, 5, 'partial'), bannerCase('opus-direct', 10, 10)],
+    bulk: {
+      totals: { n: 99, ok: 99, partial: 0, fail: 0, pickUsd: 1, opusUsd: 1 },
+      cases: [
+        { lane: 'opus-direct', verdict: 'ok', pickUsd: 4, opusUsd: 4 },
+        { lane: 'sonnet-high', verdict: 'fail', pickUsd: 3, opusUsd: 6 },
+        { lane: 'haiku-low', verdict: 'ok', pickUsd: 1, opusUsd: 2 },
+      ],
+    },
+  });
+  assert.deepEqual(Object.keys(b), ['n', 'opusUsd', 'pickUsd', 'pct', 'savedPct', 'ok', 'partial', 'fail', 'opusOk', 'handed', 'kept']);
+  assert.deepEqual(b, {
+    n: 6, opusUsd: 42, pickUsd: 25, pct: 60, savedPct: 40, ok: 4, partial: 1, fail: 1, opusOk: 6,
+    handed: { n: 4, opusUsd: 28, pickUsd: 11, savedPct: 61, ok: 2, partial: 1, fail: 1 },
+    kept: { n: 2 },
+  });
+  assert.deepEqual(Object.keys(b.handed), ['n', 'opusUsd', 'pickUsd', 'savedPct', 'ok', 'partial', 'fail']);
+});
+
+test('buildBanner without bulk rows adds the bulk totals to the overall numbers only', () => {
+  const b = buildBanner({
+    cases: [bannerCase('haiku-low', 10, 2), bannerCase('opus-direct', 10, 10)],
+    bulk: { totals: { n: 5, ok: 3, partial: 1, fail: 1, pickUsd: 8, opusUsd: 20 } },
+  });
+  assert.equal(b.n, 7);
+  assert.equal(b.opusUsd, 40);
+  assert.equal(b.pickUsd, 20);
+  assert.equal(b.pct, 50);
+  assert.equal(b.savedPct, 50);
+  assert.deepEqual([b.ok, b.partial, b.fail, b.opusOk], [5, 1, 1, 7]);
+  assert.deepEqual(b.handed, { n: 1, opusUsd: 10, pickUsd: 2, savedPct: 80, ok: 1, partial: 0, fail: 0 });
+  assert.deepEqual(b.kept, { n: 1 });
+});
+
+test('the committed banner.json is what buildBanner makes from the committed data.json', () => {
+  const data = JSON.parse(readFileSync(join(ROOT, 'site', 'proof', 'data.json'), 'utf8'));
+  const committed = JSON.parse(readFileSync(join(ROOT, 'site', 'proof', 'banner.json'), 'utf8'));
+  assert.deepEqual(buildBanner(data), committed);
+  assert.equal(committed.handed.n + committed.kept.n, committed.n);
+});
+
+test('live.json carries savedCostUsd between costRuns and savedUsd', () => {
+  const live = JSON.parse(readFileSync(join(ROOT, 'evals', 'live.json'), 'utf8'));
+  const keys = Object.keys(live);
+  assert.deepEqual(keys.slice(keys.indexOf('costUsd')), ['costUsd', 'costRuns', 'savedCostUsd', 'savedUsd']);
+  assert.ok(live.savedCostUsd > 0 && live.savedCostUsd <= live.savedUsd);
 });

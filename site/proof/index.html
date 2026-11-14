@@ -27,8 +27,8 @@
 <!-- Cloudflare Web Analytics: cookieless visit counts, see /privacy/ -->
 <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "61e11587311d49608109159f4d3507f0"}'></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sprag Proof Lab | sprag picks the model, job by job</title>
-<meta name="description" content="Real delegations run cheapest-only, as sprag chose, and always on Opus, graded blind. See where sprag went down to Haiku, where it went up to Sonnet, and what it cost." />
+<title>Sprag Proof Lab | real requests replayed with and without sprag</title>
+<meta name="description" content="Real requests run twice, by the main Opus session itself and handed off by sprag to the model and effort that fits, then graded blind. See what was handed off, what stayed on the main model, what each cost and where the answers differed." />
 <link rel="canonical" href="https://sprag.io/proof/" />
 <meta name="theme-color" content="#0a0a0c" />
 <link rel="icon" href="../assets/logo/favicon.svg" type="image/svg+xml" />
@@ -37,14 +37,14 @@
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Sprag" />
 <meta property="og:title" content="Sprag Proof Lab" />
-<meta property="og:description" content="Real delegations run three ways, cheapest only, as sprag chose, and always on Opus, graded blind." />
+<meta property="og:description" content="Real requests run two ways, by the main session itself and handed off by sprag, graded blind." />
 <meta property="og:url" content="https://sprag.io/proof/" />
 <meta property="og:image" content="https://sprag.io/assets/og-card.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet" />
 <meta name="robots" content="index, follow" />
-<link rel="stylesheet" href="proof.css?v=16" />
+<link rel="stylesheet" href="proof.css?v=17" />
 <link rel="stylesheet" href="/assets/tokens.css" />
 <link rel="stylesheet" href="/assets/site-header.css?v=4" />
 </head>
@@ -91,6 +91,7 @@
   <div class="hero">
     <h1 data-k="p.h1">Proof lab</h1>
     <p class="lede lede-h" id="h1n">Which model gets the job? sprag decides, job by job.</p>
+    <div class="hero-stats" id="stats"></div>
     <p class="lede fit" id="fit"></p>
     <p class="lede" id="lede"></p>
     <p class="lede lede2" id="lede2"></p>
@@ -99,8 +100,6 @@
     <div class="policies" id="policies" aria-live="polite"></div>
     <p class="verdict" id="verdict"></p>
     <section class="live" id="live" aria-labelledby="live-h" hidden></section>
-    <section class="live bulk" id="bulk" aria-labelledby="bulk-h" hidden></section>
-    <section class="live bulk" id="up" aria-labelledby="up-h" hidden></section>
   </div>
 
   <section aria-labelledby="k-h">
@@ -113,11 +112,24 @@
     <p class="note" id="k-note"></p>
   </section>
 
+  <section class="live bulk" id="bulk" aria-labelledby="bulk-h" hidden></section>
+  <section class="live bulk" id="up" aria-labelledby="up-h" hidden></section>
+
   <section aria-labelledby="m-h">
     <details class="method" id="method">
       <summary id="m-h" data-k="m.h">Method and limits</summary>
       <ul id="method-list"></ul>
     </details>
+  </section>
+
+  <section class="cta" aria-labelledby="cta-h">
+    <h2 id="cta-h" data-k="cta.h">Check it on your own sessions</h2>
+    <p class="cta-sub" data-k="cta.sub">Once installed, the statusline shows where each delegation went and what it saved. One line, sprag routing off, turns it all off.</p>
+    <div class="cta-cmd">
+      <code id="proof-install-command">npm i -g sprag-cli</code>
+      <button type="button" data-copy="proof-install-command"><span data-k="cta.copy">Copy</span></button>
+    </div>
+    <a class="cta-guide" href="/#install" data-k="cta.guide">Setup guide</a>
   </section>
 </div>
 </main>
@@ -132,7 +144,7 @@
   </div>
 </footer>
 
-<script src="proof.js?v=19"></script>
+<script src="proof.js?v=20"></script>
 <script src="/assets/lang-links.js"></script>
 <script src="/assets/theme-toggle.js" defer></script>
 </body>
