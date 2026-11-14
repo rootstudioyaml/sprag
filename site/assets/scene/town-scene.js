@@ -16,7 +16,7 @@
  * opts.probe(api) is a test hook that receives { T, renderer, camera, scene, view, bld(), info() } once the scene is built.
  * opts.showRevenue (default true): false hides Sprag revenue on the signboards, the HUD line and the drawer (video recordings for customers).
  * The returned handle also carries view, ready(), orgs() and selectOrg(id) / closeDrawer() for scripted recordings (video/tour). */
-import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, workShareOf, iconSvg, speciesThumb, castLoader, castCrown, castLook, CAST_URL, CAST_Q, castFxInit, castFurShells, castFxNight, castFxLod, castFxRelease } from './office-scene.js?v=3.125.0';
+import { THREE_LIB, OF_CSS, webglOk, esc, hash, makeChrome, makeView, kit, modelParts, officeSceneData, usageTotal, sinceUsage, workShareOf, iconSvg, speciesThumb, castLoader, castCrown, castLook, CAST_URL, CAST_Q, castFxInit, castFurShells, castFxNight, castFxLod, castFxRelease } from './office-scene.js?v=3.126.0';
 import { softLook } from './fur.js?v=f1';
 import { makePost } from './post.js';
 import { WX_CLEAR, fetchWeather, weatherFromCode, parseOverrides, clampN, todBlend, chipText } from './sky.js';
