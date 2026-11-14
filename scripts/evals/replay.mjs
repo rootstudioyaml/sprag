@@ -9,16 +9,24 @@
 // Without --yes nothing runs: the plan, an estimate and (with --dry-run) the full command lines are printed.
 // Each run is `claude -p` in a detached git worktree at the round's commit, with API keys removed from the
 // environment so the Max subscription pays. Edit/Write/NotebookEdit are denied unless the case sets "write": true.
+// A write case (implround.mjs) instead gets one worktree per run outside the repo (writeWorktreeFor), a child env
+// without secret-named variables and with git/gh/npm pushes blocked (writeGuardEnv), a deny list that keeps the real
+// checkout and the web out of reach (writeDenyRules), and its staged diff saved to <round>/diffs/<run>.patch.
+// round.timeoutMin, when set, replaces the per-run timeout.
+// round.noDelegation true denies the sub-agent types in NO_DELEGATION_DENY, so every condition does its own work.
+// A condition may carry `agentsFile` (a path inside the round folder, e.g. "agents.json"): it is passed as `--agents <file>`
+// right after `--agent`, so the run uses agent definitions the round brings (specround.mjs) instead of the installed ones.
 import { spawn as nodeSpawn, execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, appendFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { userDataDir } from '../../src/paths.js';
 import { readOauthToken } from '../../src/oauth-budget.js';
 import { fileURLToPath } from 'node:url';
 import {
   cleanEnv, validateRound, readJson, readJsonl, projectSlug, claudeProjects, costOfTranscript, countWebSearches,
-  workDir, tokensOf, agentFor, isMain,
+  workDir, tokensOf, agentFor, isMain, sha10,
 } from './lib.mjs';
 
 const FALLBACK_TOKENS = { haiku: 3e5, sonnet: 6e5, opus: 2e6 };
@@ -44,21 +52,79 @@ export function runEnv(round, r, base = cleanEnv()) {
   return { ...base, ...extra };
 }
 
-export function claudeArgs(cond, sessionId, { write = false, agent = cond.agent, allowedTools = [] } = {}) {
+/**
+ * Sub-agent types a replayed run may not hand its work to (round.noDelegation). The child session loads the same hooks
+ * and rules as a real one, so without this an "Opus direct" baseline sometimes delegates: 5 of 46 baseline runs in one
+ * round did, and a transcript's cost does not include its sub-agents. The web-fetch stand-in stays allowed.
+ */
+export const NO_DELEGATION_DENY = ['general-purpose', 'claude', 'Explore', 'Plan', 't1-worker', 't1h-worker', 't2-explore', 't2-runner', 't2-translate'].map((n) => `Agent(${n})`);
+export function claudeArgs(cond, sessionId, { write = false, agent = cond.agent, allowedTools = [], deny = [], agentsFile = null, noDelegation = false } = {}) {
   const a = ['-p', '--model', cond.model, '--effort', cond.effort];
   if (agent) a.push('--agent', agent);
+  if (agentsFile) a.push('--agents', agentsFile);
   a.push('--session-id', sessionId, '--output-format', 'json', '--permission-mode', 'dontAsk');
   // dontAsk denies whatever is not allowed, so a case that writes needs Edit and Write on an explicit list.
   const allow = allowedTools.length && write ? [...new Set([...allowedTools, 'Edit', 'Write'])] : allowedTools;
   if (allow.length) a.push('--allowedTools', ...allow);
-  if (!write) a.push('--disallowedTools', 'Edit', 'Write', 'NotebookEdit');
+  const denied = [...(write ? deny : ['Edit', 'Write', 'NotebookEdit']), ...(noDelegation ? NO_DELEGATION_DENY : [])];
+  if (denied.length) a.push('--disallowedTools', ...denied);
   return a;
 }
-const runArgs = (round, r, sessionId) => claudeArgs(r.cond, sessionId, { write: r.case.write === true, agent: agentFor(r.case, r.cond), allowedTools: round.allowedTools || [] });
+const isWrite = (r) => r.case.write === true;
+const runArgs = (round, r, sessionId, roundDir = null) => claudeArgs(r.cond, sessionId, {
+  write: isWrite(r), agent: agentFor(r.case, r.cond), allowedTools: round.allowedTools || [], noDelegation: round.noDelegation === true, deny: isWrite(r) ? writeDenyRules(r.case.repo || round.repo) : [],
+  agentsFile: r.cond.agentsFile && roundDir ? join(roundDir, r.cond.agentsFile) : null,
+});
 /** The worktree a case runs in: its own when it carries repo/commit, the round's otherwise. */
 export const worktreeFor = (roundDir, round, c) => (c.repo && c.commit
   ? { wt: join(roundDir, 'wt', c.id), repo: c.repo, commit: c.commit }
   : { wt: join(roundDir, 'wt'), repo: round.repo, commit: round.commit });
+
+/** Root of the per-run worktrees of write cases: outside every repo, SPRAG_EVALS_WT overrides it (tests). */
+export const writeWorktreeRoot = () => process.env.SPRAG_EVALS_WT || join(homedir(), '.cache', 'sprag-evals-wt');
+/**
+ * The worktree one run of a write case uses. The folder name carries a token of the run key instead of the
+ * condition letter, so a grader reading the path cannot tell which condition made the copy. grade.mjs uses this too.
+ */
+export const writeWorktreeFor = (round, c, runKey) => ({
+  wt: join(writeWorktreeRoot(), round.id, `${c.id}-${sha10(`${round.id}:${runKey}`).slice(0, 6)}`),
+  repo: c.repo || round.repo, commit: c.commit || round.commit,
+});
+export const SECRET_ENV_RE = /TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|ACCESS_KEY|PRIVATE_KEY|CREDENTIAL/i;
+/** Pure: the child env of a write run or its grader. Secret-named variables go; git, gh and npm cannot push or log in. */
+export function writeGuardEnv(base, { roundDir }) {
+  const e = Object.fromEntries(Object.entries(base).filter(([k]) => !SECRET_ENV_RE.test(k)));
+  return {
+    ...e,
+    GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '/usr/bin/false', SSH_ASKPASS: '/usr/bin/false',
+    GIT_CONFIG_COUNT: '3',
+    GIT_CONFIG_KEY_0: 'url./dev/null/push-blocked/.pushInsteadOf', GIT_CONFIG_VALUE_0: 'https://',
+    GIT_CONFIG_KEY_1: 'url./dev/null/push-blocked-ssh/.pushInsteadOf', GIT_CONFIG_VALUE_1: 'git@',
+    GIT_CONFIG_KEY_2: 'credential.helper', GIT_CONFIG_VALUE_2: '',
+    GH_CONFIG_DIR: join(roundDir, '.guard', 'gh'), NPM_CONFIG_USERCONFIG: join(roundDir, '.guard', 'npmrc'),
+  };
+}
+/** Creates the empty gh config folder, the empty npmrc and the grader's empty cwd that writeGuardEnv points at. */
+export function ensureGuard(roundDir) {
+  mkdirSync(join(roundDir, '.guard', 'gh'), { recursive: true }); mkdirSync(join(roundDir, '.guard', 'grade-cwd'), { recursive: true });
+  const npmrc = join(roundDir, '.guard', 'npmrc');
+  if (!existsSync(npmrc)) writeFileSync(npmrc, '');
+}
+/** Deny rules of a write run: no web, no publishing, no stash (the stash list is shared with the real checkout), and no Edit/Write under the real checkout (`//` is an absolute path). */
+export function writeDenyRules(repo) {
+  const abs = resolve(repo).replace(/^\/+/, '').replace(/\/+$/, '');
+  return ['NotebookEdit', 'WebFetch', 'WebSearch', 'Bash(git push:*)', 'Bash(git stash:*)', 'Bash(npm publish:*)', 'Bash(npm run deploy:*)', 'Bash(gh:*)', 'Bash(supabase:*)', 'Bash(curl:*)', 'Bash(wget:*)',
+    `Edit(//${abs}/**)`, `Write(//${abs}/**)`];
+}
+/** Pure: `git diff --numstat` output -> { files, insertions, deletions } (a binary file counts as a file only). */
+export function diffStat(numstat) {
+  const out = { files: 0, insertions: 0, deletions: 0 };
+  for (const l of String(numstat || '').split('\n').filter(Boolean)) {
+    const [a, d] = l.split('\t'); out.files++; out.insertions += Number(a) || 0; out.deletions += Number(d) || 0;
+  }
+  return out;
+}
+const guardShown = (roundDir) => Object.entries(writeGuardEnv({}, { roundDir })).map(([k, v]) => `${k}=${shellQuote(v)}`).join(' ');
 const promptFile = (r) => (r.cond.prompt === 'improved' ? r.case.improvedPrompt : r.case.prompt);
 
 export function estimateTokens(runs, costFiles) {
@@ -142,11 +208,14 @@ export async function replay(roundDir, {
   only = null, dryRun = false, yes = false, spawn = nodeSpawn, log = console.log, timeoutMs = 20 * 60e3, costFilesList = null,
   maxRuns = null, caps = () => readCaps(), sleep = defaultSleep, now = Date.now, pollMs = 60e3, retryWaitMs = 10 * 60e3,
   git = (args) => execFileSync('git', args, { stdio: 'inherit' }),
+  gitOut = (args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 }),
 } = {}) {
   roundDir = resolve(roundDir);
   const round = readJson(join(roundDir, 'round.json'));
   const errs = validateRound(round);
   if (errs.length) throw new Error('round.json invalid:\n- ' + errs.join('\n- '));
+  const runTimeoutMs = round.timeoutMin ? round.timeoutMin * 60e3 : timeoutMs;
+  for (const cond of round.conditions) if (cond.agentsFile && !existsSync(join(roundDir, cond.agentsFile))) throw new Error(`agents file missing for condition ${cond.key}: ${cond.agentsFile}`);
   for (const c of round.cases) {
     if (!existsSync(join(roundDir, c.rubric))) throw new Error(`rubric missing for case ${c.id}: ${c.rubric} (write rubrics before running)`);
     for (const f of [c.prompt, c.improvedPrompt].filter(Boolean)) if (!existsSync(join(roundDir, f))) throw new Error(`prompt file missing for case ${c.id}: ${f}`);
@@ -161,11 +230,13 @@ export async function replay(roundDir, {
   log('billing: uses the Max subscription (no API charge, counts toward weekly limits); ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN are removed from the child env');
   if (dryRun) {
     const seen = new Set();
+    if (todo.some(isWrite)) log(`write runs: one worktree per run under ${writeWorktreeRoot()}; variables named like ${SECRET_ENV_RE.source} are also removed from their env`);
     for (const r of todo) {
-      const w = worktreeFor(roundDir, round, r.case);
+      const w = isWrite(r) ? writeWorktreeFor(round, r.case, r.key) : worktreeFor(roundDir, round, r.case);
       if (!seen.has(w.wt)) { seen.add(w.wt); log(`worktree: git -C ${shellQuote(w.repo)} worktree add --detach ${shellQuote(w.wt)} ${w.commit}`); }
-      const argv = runArgs(round, r, '<uuid>').map(shellQuote).join(' ');
-      log(`  [${r.key}] (cd ${shellQuote(w.wt)} && env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude ${argv} < ${shellQuote(join(roundDir, promptFile(r)))})`);
+      const argv = runArgs(round, r, '<uuid>', roundDir).map(shellQuote).join(' ');
+      const guard = isWrite(r) ? `${guardShown(roundDir)} ` : '';
+      log(`  [${r.key}] (cd ${shellQuote(w.wt)} && ${guard}env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude ${argv} < ${shellQuote(join(roundDir, promptFile(r)))})`);
     }
   }
   if (dryRun || !yes || !todo.length) { if (!yes && !dryRun) log('stopped before running: pass --yes to start'); return { started: 0 }; }
@@ -179,11 +250,28 @@ export async function replay(roundDir, {
       JSON.stringify({ at: new Date(now()).toISOString(), fiveHour: c.fiveHour?.usedPct ?? null, sevenDay: c.sevenDay?.usedPct ?? null, source: c.source ?? null, event }) + '\n');
   };
   // Synchronous on purpose: two runs of one case starting together must not both try to add its worktree.
-  const ensureWorktree = (w) => { if (!existsSync(w.wt)) git(['-C', w.repo, 'worktree', 'add', '--detach', w.wt, w.commit]); };
+  // Returns true when the copy was just made, so a seed patch is applied to it exactly once.
+  const ensureWorktree = (w, write = false) => {
+    if (existsSync(w.wt)) return false;
+    if (write) mkdirSync(dirname(w.wt), { recursive: true });
+    git(['-C', w.repo, 'worktree', 'add', '--detach', w.wt, w.commit]);
+    return true;
+  };
+
+  /** Stages everything in a write run's worktree, saves the binary diff against HEAD and returns its numstat totals. */
+  // The diff is taken against the commit the run started on, not HEAD: a run that commits despite its instructions
+  // would otherwise leave an empty diff.
+  const saveDiff = (key, wt, base = 'HEAD') => {
+    gitOut(['-C', wt, 'add', '-A']);
+    mkdirSync(join(roundDir, 'diffs'), { recursive: true });
+    writeFileSync(join(roundDir, 'diffs', `${key}.patch`), gitOut(['-C', wt, 'diff', '--cached', '--binary', base]));
+    return diffStat(gitOut(['-C', wt, 'diff', '--cached', '--numstat', base]));
+  };
   const spawnOnce = (r, wt, sessionId, prompt) => new Promise((res) => {
     let out = '', err = '', settled = false;
     const end = (code) => { if (!settled) { settled = true; res({ code, out, err }); } };
-    const child = spawn('claude', runArgs(round, r, sessionId), { cwd: wt, env: runEnv(round, r), stdio: ['pipe', 'pipe', 'pipe'], shell: false, timeout: timeoutMs });
+    const env = isWrite(r) ? runEnv(round, { ...r, condition: r.cond.id }, writeGuardEnv(cleanEnv(), { roundDir })) : runEnv(round, r);
+    const child = spawn('claude', runArgs(round, r, sessionId, roundDir), { cwd: wt, env, stdio: ['pipe', 'pipe', 'pipe'], shell: false, timeout: runTimeoutMs });
     child.stdout.on('data', (d) => { out += d; });
     child.stderr?.on('data', (d) => { err += d; });
     child.on('error', (e) => { err += e.message; end(-1); });
@@ -194,8 +282,14 @@ export async function replay(roundDir, {
   // A zero exit whose JSON envelope is an error counts as failed too, so a limit message is never saved as a report.
   const failedText = ({ code, out }) => { if (code !== 0) return true; try { return JSON.parse(out).is_error === true; } catch { return false; } };
   const runOne = async (r) => {
-    const w = worktreeFor(roundDir, round, r.case);
-    ensureWorktree(w);
+    const w = isWrite(r) ? writeWorktreeFor(round, r.case, r.key) : worktreeFor(roundDir, round, r.case);
+    const created = ensureWorktree(w, isWrite(r));
+    // A write case can start a condition from another run's change (reviewround.mjs): case.seedPatch[<condition key>]
+    // names a patch that is staged in the fresh copy before the run, so the saved diff holds that change plus the run's own.
+    const seed = isWrite(r) ? r.case.seedPatch?.[r.cond.key] : null;
+    if (created && seed) {
+      try { gitOut(['-C', w.wt, 'apply', '--index', join(roundDir, seed)]); } catch (e) { log(`failed ${r.key}: seed patch ${seed} did not apply; not recorded: ${String(e.message).slice(-200)}`); return; }
+    }
     const prompt = readFileSync(join(roundDir, promptFile(r)), 'utf8').replaceAll('{{REPO}}', w.wt);
     let sessionId = randomUUID(); let startedAt = new Date(now()).toISOString();
     let res = await spawnOnce(r, w.wt, sessionId, prompt);
@@ -216,6 +310,9 @@ export async function replay(roundDir, {
       const entries = readJsonl(src); const c = costOfTranscript(entries, r.cond.model);
       cost[r.key] = { model: c.model, totals: c.totals, usd: c.usd, ms: c.ms, calls: c.calls, at: c.startedAt }; blocked[r.key] = countWebSearches(entries);
     } else log(`warning: transcript not found for ${r.key} at ${src}`);
+    if (isWrite(r)) {
+      try { cost[r.key] = { ...(cost[r.key] || {}), diff: saveDiff(r.key, w.wt, w.commit || 'HEAD') }; } catch (e) { log(`warning: diff not saved for ${r.key}: ${e.message}`); }
+    }
     done[r.key] = { case: r.case.id, condition: r.cond.id, rep: r.rep, sessionId, startedAt, exitCode: res.code };
     save(); log(`done ${r.key} exit=${res.code}`);
   };
@@ -233,6 +330,7 @@ export async function replay(roundDir, {
       await sleep(Math.min(pollMs, Math.max(1000, d.untilMs - now())));
     }
   };
+  if (todo.some(isWrite)) ensureGuard(roundDir);
   await capsLog('start');
   const limit = Math.max(1, round.concurrency || 2); const queue = [...todo]; let started = 0;
   const worker = async () => { while (queue.length) { if (!(await gate())) return; const r = queue.shift(); if (!r) return; started++; await runOne(r); } };

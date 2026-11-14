@@ -410,7 +410,7 @@ test('replay without --yes spawns nothing; --dry-run prints every full command',
     assert.match(byKey['t1-B'], /--agent t2-runner/);
     assert.match(byKey['t1-B'], /--disallowedTools Edit Write NotebookEdit/);
     assert.ok(!/--agent/.test(byKey['t1-D']));
-    assert.ok(!/--disallowedTools/.test(byKey['t2-B']) && /Edit Write/.test(byKey['t2-B']), 'a write case is not denied Edit/Write');
+    assert.ok(!/--disallowedTools Edit Write NotebookEdit/.test(byKey['t2-B']) && /--allowedTools Read Bash Edit Write/.test(byKey['t2-B']), 'a write case is not denied Edit/Write');
     assert.ok(lines.some((l) => /git -C .* worktree add --detach .* abc1234/.test(l)));
     await assert.rejects(replay(dir, { spawn, log, only: 'nope', costFilesList: [] }), /no case nope/);
   } finally { cleanup(dir); }

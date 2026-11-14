@@ -161,10 +161,11 @@ export function roundFor(id, cases, date) {
 }
 
 const git = (args) => { try { return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return ''; } };
-function locate(e) {
-  const root = git(['-C', e.cwd, 'rev-parse', '--show-toplevel']);
+/** The repo root of a snapshot line's cwd and the commit current when it ran (HEAD when none is older). `run` returns '' on failure. */
+export function locate(e, run = git) {
+  const root = run(['-C', e.cwd, 'rev-parse', '--show-toplevel']);
   if (!root) return null;
-  const commit = git(['-C', root, 'rev-list', '-1', `--before=${new Date(e.ts).toISOString()}`, '--all']) || git(['-C', root, 'rev-parse', 'HEAD']);
+  const commit = run(['-C', root, 'rev-list', '-1', `--before=${new Date(e.ts).toISOString()}`, '--all']) || run(['-C', root, 'rev-parse', 'HEAD']);
   return commit ? { root, commit } : null;
 }
 function entriesOf(key) {

@@ -160,11 +160,11 @@ export function capped(text, cap = 8000) {
  * Runs `claude <args>` with the prompt on stdin and resolves { code, out, err } (never rejects).
  * `spawn` is injected so tests can fake the child. Used by the grader and the lane classifier.
  */
-export function runClaude({ spawn, args, prompt, cwd, timeoutMs }) {
+export function runClaude({ spawn, args, prompt, cwd, timeoutMs, env = cleanEnv() }) {
   return new Promise((res) => {
     let out = '', err = '', settled = false;
     const done = (v) => { if (!settled) { settled = true; res(v); } };
-    const child = spawn('claude', args, { cwd, env: cleanEnv(), stdio: ['pipe', 'pipe', 'pipe'], shell: false, timeout: timeoutMs });
+    const child = spawn('claude', args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'], shell: false, timeout: timeoutMs });
     child.stdout.on('data', (d) => { out += d; });
     child.stderr?.on('data', (d) => { err += d; });
     child.on('error', (e) => done({ code: -1, out, err: err + e.message }));
@@ -296,6 +296,7 @@ export function validateRound(r) {
     need(!keys.has(c.key), `duplicate condition key ${c.key}`); keys.add(c.key);
     need(c.id && c.model && c.effort, `condition ${c.key} needs id, model, effort`);
     need(['original', 'improved'].includes(c.prompt), `condition ${c.key} prompt must be original or improved`);
+    need(c.agentsFile === undefined || (typeof c.agentsFile === 'string' && /^[\w./-]+$/.test(c.agentsFile) && !c.agentsFile.includes('..')), `condition ${c.key}: agentsFile must be a relative path without ..`);
   }
   need(Array.isArray(r.cases) && r.cases.length > 0, 'cases must be a non-empty array');
   for (const c of r.cases || []) {
@@ -316,6 +317,8 @@ export function validateRound(r) {
   need(r.baselineFrom === undefined || (typeof r.baselineFrom === 'string' && r.baselineFrom), 'baselineFrom must be a round id string');
   need(r.rule === undefined || (typeof r.rule === 'string' && r.rule), 'rule must be a non-empty string');
   need(r.tier === undefined || ['detail', 'numbers'].includes(r.tier), 'tier must be "detail" or "numbers"');
+  need(r.timeoutMin === undefined || (Number.isFinite(r.timeoutMin) && r.timeoutMin > 0), 'timeoutMin must be a positive number of minutes');
+  need(r.noDelegation === undefined || typeof r.noDelegation === 'boolean', 'noDelegation must be a boolean');
   need(r.allowedTools === undefined || (Array.isArray(r.allowedTools) && r.allowedTools.every((t) => typeof t === 'string')), 'allowedTools must be an array of strings');
   const baselines = (r.conditions || []).filter((c) => c.role === 'baseline').length;
   if (r.kind === 'effort') need(baselines <= 1, 'at most one condition may have role "baseline"');

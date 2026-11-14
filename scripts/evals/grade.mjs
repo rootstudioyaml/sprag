@@ -7,6 +7,9 @@
 // With round.grading "verify" there is no answer key: one grader per case sees every report (baseline included, blind
 // labels), checks the claims they disagree on with read-only tools in the case's replay worktree and gives each report
 // a verdict plus verified/wrong/missed counts. Those graders do use tools, so they cost far more than the others.
+// A write case (implround.mjs) is graded in verify mode too, against every run's own worktree (writeWorktreeFor):
+// the grader reads the staged diffs, runs the tests in each copy and adds "tests" per report. It runs from an empty
+// folder with --add-dir on the copies, no web tools, and the guarded env of the replay (writeGuardEnv).
 // With round.grading "reference" the baseline condition's report is the answer key: graders see it under
 // "# 기준 보고서" and grade the other reports against it; the baseline run is recorded as the reference.
 import { spawn as nodeSpawn } from 'node:child_process';
@@ -15,9 +18,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
   validateRound, readJson, readReport, blindOrder, stripModelLines, extractJsonObject, validateGrades,
-  normalizeGrades, isMain, ratesFor, runClaude, VERDICT,
+  normalizeGrades, isMain, ratesFor, runClaude, VERDICT, cleanEnv,
 } from './lib.mjs';
-import { worktreeFor } from './replay.mjs';
+import { worktreeFor, writeWorktreeFor, writeGuardEnv, ensureGuard } from './replay.mjs';
 
 export const GRADER_MODEL = 'claude-opus-5-5';
 export const MAX_GRADERS = 3;
@@ -27,6 +30,9 @@ export const gradeArgs = () => ['-p', '--model', GRADER_MODEL, '--effort', 'high
 /** Verify graders read the case's worktree and the web; every write tool is denied. */
 export const verifyArgs = () => ['-p', '--model', GRADER_MODEL, '--effort', 'high', '--output-format', 'json', '--permission-mode', 'dontAsk',
   '--allowedTools', 'Read', 'Grep', 'Glob', 'Bash', 'WebFetch', 'WebSearch', '--disallowedTools', 'Edit', 'Write', 'NotebookEdit'];
+
+/** Implementation verify graders: no web tools, and every run's copy added as a working directory. */
+export const implVerifyArgs = (wts) => [...verifyArgs().filter((a) => a !== 'WebFetch' && a !== 'WebSearch'), '--add-dir', ...wts];
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const OUTPUT_RULES = (labels) => `# Output
@@ -87,6 +93,41 @@ Answer with ONLY one JSON object: no code fence, no prose before or after. The k
   ].join('\n\n') + '\n';
 }
 
+/**
+ * Pure: verify mode for a write case. Each report comes with the copy of the repo its run worked in (`wt`);
+ * the grader checks the staged diff of every copy and runs the tests there.
+ */
+export function buildImplVerifyPrompt({ task, reports, base = 'HEAD' }) {
+  const labels = reports.map((r) => r.label);
+  return [
+    'You are verifying anonymous reports of the same implementation task. Each report comes from its own copy of the repository, where the task was carried out from the same starting commit. There is no answer key: you establish the facts yourself.',
+    `# Copies
+${reports.map((r) => `- Report ${r.label}: ${r.wt}`).join('\n')}
+
+"<repo>" in the task and in a report means that report's copy. The changes in each copy are staged: see them with \`git -C <copy> diff --cached ${base}\` (${base === 'HEAD' ? 'HEAD' : 'the commit every copy started from'}).`,
+    '# Task the reports answer', stripModelLines(task).trim(),
+    '# Reports',
+    ...reports.map((r) => `## Report ${r.label}\n\n${stripModelLines(r.text).trim()}`),
+    `# What to do
+1. For each copy, check item by item whether its changes carry out the instructions of the task.
+2. In each copy run the test command the task names, or the repository's own test command when the task names none, and record the result.
+3. Check whether each copy did what the task forbade (changing files outside the allowed scope, committing and the like) and whether it broke something that worked.
+4. Count the claims in each report that are false.
+5. For every report count: verified (key findings confirmed true), wrong (claims confirmed false), missed (key facts that another report gave, that you confirmed true and that this report lacks). A fact found by an investigation the task forbade or did not ask for does not count as missed.
+6. Give each report a verdict:
+   - "ok": everything the task asked for is done, the tests pass and nothing forbidden was done.
+   - "partial": the main part is done, but an instructed item is missing, some tests fail or something forbidden was done.
+   - "fail": the task was not done or the result is broken.
+   When the starting commit lacks what the task presupposes, so that no copy could do it, give every report "fail" and start its key_miss with "task not reproducible at this commit".
+7. Never edit files and never commit in any copy. Judge each report on its own. Do not guess who wrote a report.`,
+    `# Output
+Answer with ONLY one JSON object: no code fence, no prose before or after. The keys under "reports" are the report labels (${labels.join(', ')}).
+{"checks": [{"claim": "<the claim>", "result": "true" | "false" | "unverified", "evidence": "<what you read or ran, and what it showed>"}, ...],
+ "reports": {"${labels[0]}": {"verdict": "ok" | "partial" | "fail", "verified": <int>, "wrong": <int>, "missed": <int>, "tests": "pass" | "fail" | "none", "key_miss": "<one sentence naming the most important thing this report missed or got wrong, empty string if none>"}, ...}}
+"tests" is "pass" when the test command passed in that report's copy, "fail" when it failed and "none" when there was no test command to run.`,
+  ].join('\n\n') + '\n';
+}
+
 /** The score recorded for the reference run itself: full marks on the scale the grader used. */
 export const referenceScore = (caseId, max) => ({ verdict: 'ok', score: max, max, total: max, relay: '예', reference: true, label: `${caseId}-ref` });
 const keptOnBaseline = (c, bk) => Array.isArray(c.conditions) && c.conditions.length > 0 && c.conditions.every((k) => k === bk);
@@ -114,6 +155,11 @@ export function planGrading(roundDir, round, { only = null, regrade = false } = 
     if (round.grading === 'verify') {
       if (keys.length < 2) continue; // nothing to compare yet
       const labels = blindOrder(round.id, c.id, keys); // every report, baseline included, role ignored
+      if (c.write === true) {
+        const reports = Object.entries(labels).map(([label, key]) => ({ label, key, text: readOne(key), wt: writeWorktreeFor(round, c, key).wt }));
+        plan.push({ caseId: c.id, caseObj: c, labels, prompt: buildImplVerifyPrompt({ task, reports, base: c.commit || round.commit || 'HEAD' }), reports, verify: true, impl: true });
+        continue;
+      }
       const reports = Object.entries(labels).map(([label, key]) => ({ label, key, text: readOne(key) }));
       plan.push({ caseId: c.id, caseObj: c, labels, prompt: buildVerifyPrompt({ task, reports }), reports, verify: true });
       continue;
@@ -184,6 +230,7 @@ export function parseGraderReply(stdout, labels) {
 }
 
 const VERDICTS = ['ok', 'partial', 'fail'];
+const TESTS = ['pass', 'fail', 'none'];
 const RELAY = Object.fromEntries(Object.entries(VERDICT).map(([k, v]) => [v, k]));
 /** Parses one verify reply and returns { reports, checks } keyed by label, or { errors }. */
 export function parseVerify(stdout, labels) {
@@ -200,11 +247,15 @@ export function parseVerify(stdout, labels) {
     if (!VERDICTS.includes(g.verdict)) errors.push(`${l}: verdict invalid`);
     for (const k of ['verified', 'wrong', 'missed']) if (!Number.isInteger(g[k]) || g[k] < 0) errors.push(`${l}: ${k} invalid`);
     reports[l] = { verdict: g.verdict, verified: g.verified, wrong: g.wrong, missed: g.missed, key_miss: typeof g.key_miss === 'string' ? g.key_miss : '' };
+    if (g.tests !== undefined) { if (TESTS.includes(g.tests)) reports[l].tests = g.tests; else errors.push(`${l}: tests invalid`); }
   }
   return errors.length ? { errors } : { reports, checks: Array.isArray(obj.checks) ? obj.checks : [] };
 }
 /** The scores_by_run.json entry of one verify-graded run. */
-export const verifyScore = (g, label) => ({ verdict: g.verdict, relay: RELAY[g.verdict], verified: g.verified, wrong: g.wrong, missed: g.missed, key_miss: g.key_miss, label, mode: 'verify' });
+export const verifyScore = (g, label) => ({
+  verdict: g.verdict, relay: RELAY[g.verdict], verified: g.verified, wrong: g.wrong, missed: g.missed, key_miss: g.key_miss,
+  ...(g.tests !== undefined ? { tests: g.tests } : {}), label, mode: 'verify',
+});
 
 export async function grade(roundDir, { only = null, regrade = false, yes = false, spawn = nodeSpawn, log = console.log, timeoutMs = 30 * 60e3, concurrency = MAX_GRADERS, cwd = join(tmpdir(), 'sprag-evals-grader') } = {}) {
   roundDir = resolve(roundDir);
@@ -218,6 +269,11 @@ export async function grade(roundDir, { only = null, regrade = false, yes = fals
   const plan = planGrading(roundDir, round, { only, regrade });
   for (const p of plan) {
     if (!p.verify) continue;
+    if (p.impl) {
+      for (const r of p.reports) if (!existsSync(r.wt)) throw new Error(`worktree missing for run ${r.key}: ${r.wt} (replay the round first)`);
+      p.cwd = join(roundDir, '.guard', 'grade-cwd');
+      continue;
+    }
     p.cwd = worktreeFor(roundDir, round, p.caseObj).wt;
     if (!existsSync(p.cwd)) throw new Error(`worktree missing for case ${p.caseId}: ${p.cwd} (replay the round first)`);
   }
@@ -230,7 +286,8 @@ export async function grade(roundDir, { only = null, regrade = false, yes = fals
   log('billing: uses the Max subscription; ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN are removed from the child env');
   if (plan.some((p) => p.verify)) log('verify graders run tools in the case worktree: the estimate below counts the prompt and one answer only, so the real cost is higher');
   const shown = (args) => args.map((a) => (a === '' ? '""' : /\s/.test(a) ? `'${a}'` : a)).join(' ');
-  if (plan.some((p) => p.verify)) log(`command per verify case: (cd <case worktree> && env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude ${shown(verifyArgs())} < blind/<case>.md)`);
+  if (plan.some((p) => p.verify && !p.impl)) log(`command per verify case: (cd <case worktree> && env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude ${shown(verifyArgs())} < blind/<case>.md)`);
+  if (plan.some((p) => p.impl)) log(`command per write case: (cd ${join(roundDir, '.guard', 'grade-cwd')} && <guarded env> claude ${shown(implVerifyArgs(['<copy>...']))} < blind/<case>.md)`);
   if (!plan.length || plan.some((p) => !p.verify)) log(`command per case: (cd ${cwd} && env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude ${shown(gradeArgs())} < blind/<case>.md)`);
   if (!yes) { log('stopped before grading: pass --yes to start'); return { graded: 0, failed: [] }; }
 
@@ -244,13 +301,16 @@ export async function grade(roundDir, { only = null, regrade = false, yes = fals
   }
   writeFileSync(keyPath, JSON.stringify(blindKey, null, 1));
 
+  if (plan.some((p) => p.impl)) ensureGuard(roundDir);
   const scores = readJson(scoresPath, {}); const failed = []; let graded = 0;
   for (const r of refOnly) scores[r.refKey] = referenceScore(r.caseId, referenceMax(scores));
   if (refOnly.length) writeFileSync(scoresPath, JSON.stringify(scores, null, 1));
   const queue = [...plan];
   const worker = async () => {
     for (let p; (p = queue.shift()); ) {
-      const r = p.verify ? await runClaude({ spawn, args: verifyArgs(), prompt: p.prompt, cwd: p.cwd, timeoutMs }) : await runGrader({ spawn, prompt: p.prompt, cwd, timeoutMs });
+      const r = p.impl
+        ? await runClaude({ spawn, args: implVerifyArgs(p.reports.map((x) => x.wt)), prompt: p.prompt, cwd: p.cwd, timeoutMs, env: writeGuardEnv(cleanEnv(), { roundDir }) })
+        : p.verify ? await runClaude({ spawn, args: verifyArgs(), prompt: p.prompt, cwd: p.cwd, timeoutMs }) : await runGrader({ spawn, prompt: p.prompt, cwd, timeoutMs });
       writeFileSync(join(roundDir, 'grading', `${p.caseId}.out.json`), r.out);
       if (p.verify) {
         const v = r.code === 0 ? parseVerify(r.out, Object.keys(p.labels)) : { errors: [`claude exited ${r.code}: ${r.err.slice(0, 200)}`] };

@@ -8,6 +8,13 @@
  * page can show how often Opus agrees with itself under the same grader.
  * --up <round-dir> adds `up`: a verify round (grading "verify", scripts/evals/upround.mjs) summarised per condition over
  * the cases graded under every condition, to show what moving up a tier or an effort level buys.
+ * --impl <round-dir> adds `impl`: an implementation round (scripts/evals/implround.mjs) summarised like --up, plus per
+ * condition the grader's test outcomes { pass, fail, none } and the summed diff size { files, insertions, deletions }.
+ * --impl-large <round-dir> adds `implLarge`: the --impl summary over a round of larger implementations.
+ * --impl-spec <round-B-dir> --spec <round-A-dir> adds `implSpec` (scripts/evals/specround.mjs): the --impl summary over the
+ * round where a worker implements from a specification the main model wrote under the current standard, plus
+ * `spec` { n, usd, sec } (what round A, the specification step, cost over the cases that reached round B) and
+ * `capLines` { implementation, own, numeric } (which cap line each specification got). The two flags go together.
  * --compare lists two or more rounds in order and adds `compare` to the output: over the cases graded in all of
  * them, one step per round with its rule tag and verdict counts, pick dollars and seconds, plus the first round's
  * baseline dollars. The positional rounds still form the main aggregate.
@@ -126,15 +133,23 @@ export function noiseRound(loaded) {
  * Pure: a verify round -> one row per condition over the cases graded under every condition (excluded cases skipped).
  * model is the family name (haiku/sonnet/opus), as in every public figure.
  */
+/** Pure: per case graded under every condition (excluded cases skipped), the run key of each condition in round order. */
+function gradedUnderAll({ round, runs, scores }) {
+  const out = [];
+  for (const c of round.cases) {
+    if (typeof c.meta?.excluded === 'string' && c.meta.excluded) continue;
+    const keys = round.conditions.map((cond) => Object.keys(runs).find((k) => runs[k].case === c.id && runs[k].condition === cond.id && !scores[k]?.reference && ['ok', 'partial', 'fail'].includes(verdictOf(scores[k]))));
+    if (!keys.some((k) => !k)) out.push(keys);
+  }
+  return out;
+}
+
 export function upRound(loaded) {
   const { round, runs, cost, scores } = loaded;
   if (round.grading !== 'verify') throw new Error(`round ${round.id} is not a verify round`);
   const rows = round.conditions.map((c) => ({ id: c.id, model: shortModel(c.model), effort: c.effort, n: 0, ok: 0, partial: 0, fail: 0, verified: 0, wrong: 0, missed: 0, usd: 0, sec: 0 }));
   let n = 0;
-  for (const c of round.cases) {
-    if (typeof c.meta?.excluded === 'string' && c.meta.excluded) continue;
-    const keys = round.conditions.map((cond) => Object.keys(runs).find((k) => runs[k].case === c.id && runs[k].condition === cond.id && !scores[k]?.reference && ['ok', 'partial', 'fail'].includes(verdictOf(scores[k]))));
-    if (keys.some((k) => !k)) continue;
+  for (const keys of gradedUnderAll(loaded)) {
     n++;
     keys.forEach((k, i) => {
       const r = rows[i], s = scores[k];
@@ -144,6 +159,40 @@ export function upRound(loaded) {
     });
   }
   return { round: round.id, n, conditions: rows.map((r) => ({ ...r, usd: pyRound(r.usd, 4), sec: Math.round(r.sec) })) };
+}
+
+/**
+ * Pure: an implementation round -> upRound's rows plus, over the same cases, the test outcomes and the summed diff size
+ * per condition id. A score without a valid "tests" value counts as none; the diff comes from cost.json (replay.mjs).
+ */
+export function implRound(loaded) {
+  const up = upRound(loaded);
+  const { round, cost, scores } = loaded;
+  const tests = Object.fromEntries(round.conditions.map((c) => [c.id, { pass: 0, fail: 0, none: 0 }]));
+  const diff = Object.fromEntries(round.conditions.map((c) => [c.id, { files: 0, insertions: 0, deletions: 0 }]));
+  for (const keys of gradedUnderAll(loaded)) {
+    keys.forEach((k, i) => {
+      const id = round.conditions[i].id; const t = scores[k]?.tests;
+      tests[id][t === 'pass' || t === 'fail' ? t : 'none']++;
+      for (const f of ['files', 'insertions', 'deletions']) diff[id][f] += Number(cost[k]?.diff?.[f]) || 0;
+    });
+  }
+  return { ...up, tests, diff };
+}
+
+/**
+ * Pure: the specification round (B: a worker implements from a written specification) -> implRound's summary plus what
+ * the specification step (round A) cost over the cases present in B, and how many specifications got each cap line.
+ */
+export function implSpecRound(loaded, specLoaded) {
+  const spec = { n: 0, usd: 0, sec: 0 }; const capLines = { implementation: 0, own: 0, numeric: 0 };
+  for (const c of loaded.round.cases) {
+    if (c.meta?.capLine in capLines) capLines[c.meta.capLine]++;
+    const k = Object.keys(specLoaded.runs).find((x) => specLoaded.runs[x].case === c.id);
+    if (!k) continue;
+    spec.n++; spec.usd += usdOf(specLoaded.cost[k]); spec.sec += (specLoaded.cost[k]?.ms || 0) / 1000;
+  }
+  return { ...implRound(loaded), spec: { n: spec.n, usd: pyRound(spec.usd, 4), sec: Math.round(spec.sec) }, capLines };
 }
 
 export function loadRound(dir) {
@@ -159,18 +208,38 @@ export function main(argv = [], { out = new URL('../../evals/bulk.json', import.
   if (ni >= 0) argv = argv.slice(0, ni).concat(argv.slice(ni + 2));
   const ui = argv.indexOf('--up'); const up = ui >= 0 ? argv[ui + 1] : null;
   if (ui >= 0) argv = argv.slice(0, ui).concat(argv.slice(ui + 2));
+  // --impl-review <round-dir> (reviewround.mjs): the same summary over the round where the main model checks and
+  // fixes each sub-agent change. It is parsed first so that --impl does not match its prefix by position.
+  const li = argv.indexOf('--impl-large'); const implLarge = li >= 0 ? argv[li + 1] : null;
+  if (li >= 0) argv = argv.slice(0, li).concat(argv.slice(li + 2));
+  const si = argv.indexOf('--impl-spec'); const implSpec = si >= 0 ? argv[si + 1] : null;
+  if (si >= 0) argv = argv.slice(0, si).concat(argv.slice(si + 2));
+  const pi = argv.indexOf('--spec'); const specDir = pi >= 0 ? argv[pi + 1] : null;
+  if (pi >= 0) argv = argv.slice(0, pi).concat(argv.slice(pi + 2));
+  const ri = argv.indexOf('--impl-review'); const implReview = ri >= 0 ? argv[ri + 1] : null;
+  if (ri >= 0) argv = argv.slice(0, ri).concat(argv.slice(ri + 2));
+  const ii = argv.indexOf('--impl'); const impl = ii >= 0 ? argv[ii + 1] : null;
+  if (ii >= 0) argv = argv.slice(0, ii).concat(argv.slice(ii + 2));
   const ci = argv.indexOf('--compare');
   const dirs = ci < 0 ? argv : argv.slice(0, ci); const cmp = ci < 0 ? [] : argv.slice(ci + 1);
-  if (!dirs.length || (ci >= 0 && cmp.length < 2) || (ni >= 0 && !noise) || (ui >= 0 && !up)) { console.error('usage: bulk.mjs <round-dir> [...more round dirs] [--compare <round-dir> <round-dir> ...] [--noise <round-dir>] [--up <round-dir>]'); return 2; }
+  if (!dirs.length || (ci >= 0 && cmp.length < 2) || (ni >= 0 && !noise) || (ui >= 0 && !up) || (ii >= 0 && !impl) || (li >= 0 && !implLarge)
+    || (si >= 0) !== (pi >= 0) || (si >= 0 && (!implSpec || !specDir))) {
+    console.error('usage: bulk.mjs <round-dir> [...more round dirs] [--compare <round-dir> <round-dir> ...] [--noise <round-dir>] [--up <round-dir>] [--impl <round-dir>] [--impl-large <round-dir>] [--impl-spec <round-B-dir> --spec <round-A-dir>]'); return 2;
+  }
   const agg = aggregateBulk(dirs.map(loadRound));
   if (cmp.length) agg.compare = compareRounds(cmp.map(loadRound));
   if (noise) agg.noise = noiseRound(loadRound(noise));
   if (up) { try { agg.up = upRound(loadRound(up)); } catch (e) { console.error(`bulk: ${e.message}`); return 1; } }
+  if (impl) { try { agg.impl = implRound(loadRound(impl)); } catch (e) { console.error(`bulk: ${e.message}`); return 1; } }
+  if (implReview) { try { agg.implReview = implRound(loadRound(implReview)); } catch (e) { console.error(`bulk: ${e.message}`); return 1; } }
+  if (implLarge) { try { agg.implLarge = implRound(loadRound(implLarge)); } catch (e) { console.error(`bulk: ${e.message}`); return 1; } }
+  if (implSpec) { try { agg.implSpec = implSpecRound(loadRound(implSpec), loadRound(specDir)); } catch (e) { console.error(`bulk: ${e.message}`); return 1; } }
   if (!agg.rounds.length) { console.error('bulk: no round with tier "numbers", nothing written'); return 1; }
   writeFileSync(out, JSON.stringify(agg, null, 2) + '\n');
   if (agg.noise) log(`bulk: noise floor over ${agg.noise.n} cases: Opus vs Opus ok ${agg.noise.ok}/partial ${agg.noise.partial}/fail ${agg.noise.fail}`);
   if (agg.compare) log(`bulk: compare over ${agg.compare.n} common cases: ${agg.compare.steps.map((t) => `${t.rule} ok ${t.ok}/partial ${t.partial}/fail ${t.fail} $${t.pickUsd}`).join(' -> ')}`);
   if (agg.up) log(`bulk: up over ${agg.up.n} cases: ${agg.up.conditions.map((t) => `${t.id} ok ${t.ok}/partial ${t.partial}/fail ${t.fail} $${t.usd}`).join(' | ')}`);
+  if (agg.impl) log(`bulk: impl over ${agg.impl.n} cases: ${agg.impl.conditions.map((t) => `${t.id} ok ${t.ok}/partial ${t.partial}/fail ${t.fail} tests pass ${agg.impl.tests[t.id].pass} $${t.usd}`).join(' | ')}`);
   log(`bulk: ${agg.n} cases from ${agg.rounds.join(', ')}; ok ${agg.totals.ok}, partial ${agg.totals.partial}, fail ${agg.totals.fail} -> ${out}`);
   return 0;
 }
