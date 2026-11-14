@@ -153,8 +153,13 @@
       'bulk.pt.th': ['cause', 'cases', 'what happened'],
       'bulk.pt.cause': { rule: 'rule defect', gap: 'real model gap', measure: 'measurement limit', scope: 'judgement call on scope', ref: 'reference was wrong', image: 'fixed in the delegation appendix' },
       'bulk.pt.why': { rule: 'Work that should not have been handed off was handed off: improvement reviews, web research that needs searching, lookups that must conclude something does not exist, and checks that decide from the output what to open next. The new rule keeps these on the main model.', gap: 'The work was fine to hand off, and the delegated model missed a key fact.', measure: 'The job reads another repository as it is today, so the state at the time cannot be replayed. Opus against Opus was partial here too.', scope: 'The task forbade root-cause analysis, while the reference explained the cause. The grader counted the missing "these results are unusable" conclusion.', ref: 'The Opus reference could not reach the vendor page and concluded that nothing was stated. Sonnet found the answers in an archived snapshot. A grader with tools checked them and Sonnet was right. That case is now counted as the same conclusion for sprag and as wrong for Opus.', image: 'The key content sat in screenshots on the page and the report never opened them. A new rule in the delegation appendix says to open images before calling something unverifiable, and the rerun with it reached the same conclusion (one run).' },
-      'impl.h': 'When the code writing is handed off',
-      'impl.sub': 'Writing code is a different job from lookups and command runs, so it was measured on its own. Every condition implemented the same task in a fresh copy of the repository, and the grader checked each copy and ran its tests. It was measured twice and the two rounds disagree, so both are here.',
+      'impl.h': function (p) { return 'Handing off the code writing cuts its cost by ' + p + '%'; },
+      'impl.sum.th': ['', 'cost', 'tests pass', 'usable untouched'],
+      'impl.sum.rows': { s: 'Handed to Sonnet', b: 'Opus direct' },
+      'impl.take': function (o) { return 'Tests pass about as often: ' + o.sPass + ' and ' + o.bPass + ' of ' + o.n + '. The gap is in the finish. Missing evidence and report claims that did not match the diff were more common on the Sonnet side, which is why sprag has the main model check a handed-off implementation against the diff and the tests. That check is not in the numbers above.'; },
+      'impl.more': 'Measurement detail: each round, the rewritten-specification run, Haiku, limits',
+      'impl.detail.sub': 'It was measured twice and the two rounds disagree, so both are here. Every condition implemented the same task in a fresh copy of the repository, and the grader checked each copy and ran its tests.',
+      'impl.sub': function (n) { return n + ' implementation tasks, each done two ways: handed to Sonnet, and done by Opus itself.'; },
       'impl.th': ['run', 'usable as is', 'partial', 'unusable', 'tests pass', 'wrong claims', 'missed items', 'cost'],
       'impl.cond': { 'sonnet-next': 'Sonnet worker', 'haiku-next': 'Haiku worker', 'opus-direct': 'Opus direct', 'sonnet-spec': 'Rewritten spec + Sonnet', 'sonnet-high': 'Original draft + Sonnet' },
       'impl.large.h': function (n) { return n + ' larger implementations'; },
@@ -306,8 +311,13 @@
       'bulk.pt.th': ['원인', '건수', '내용'],
       'bulk.pt.cause': { rule: '룰 결함', gap: '실제 모델 격차', measure: '측정 한계', scope: '판정 경계', ref: '기준 답 오류', image: '위임 부록 보강' },
       'bulk.pt.why': { rule: '넘기면 안 되는 일을 넘겼습니다. 개선점 검토, 검색이 필요한 웹 조사, "없다"를 단정하는 조회, 출력을 보고 더 볼 곳을 정하는 점검입니다. 새 룰은 이런 일을 메인에 남깁니다.', gap: '넘겨도 되는 일인데 위임받은 모델이 핵심 사실을 놓쳤습니다.', measure: '다른 저장소를 현재 상태로 읽는 일이라 당시 상태를 재현할 수 없습니다. Opus끼리 비교해도 부분이 나왔습니다.', scope: '지시가 원인 분석을 금지했는데 기준 답은 원인을 밝혔습니다. 채점자는 결과를 쓸 수 없다는 결론이 빠졌다고 봤습니다.', ref: 'Opus 기준 답은 업체 페이지에 닿지 못해 아무것도 적혀 있지 않다고 결론냈습니다. Sonnet은 보관된 스냅숏에서 답을 찾았습니다. 도구를 쓰는 채점자가 확인해 보니 Sonnet이 맞았습니다. 이 건은 sprag 쪽을 같음으로, Opus 쪽을 오답으로 고쳐 셌습니다.', image: '핵심 내용이 페이지의 스크린샷에 있었는데 보고서는 이미지를 열지 않았습니다. 확인할 수 없다고 쓰기 전에 이미지를 열라는 규칙을 위임 부록에 더해 다시 돌리니 같은 결론이 나왔습니다(1회).' },
-      'impl.h': '코드 작성을 넘기면',
-      'impl.sub': '코드 작성은 조회나 명령 실행과 다른 일이라 따로 쟀습니다. 조건마다 같은 과제를 새 저장소 사본에서 구현하게 했고 채점기가 사본마다 테스트를 돌려 대조했습니다. 두 번 쟀는데 결과가 서로 달라서 둘 다 싣습니다.',
+      'impl.h': function (p) { return '코드 작성을 넘기면 구현비가 ' + p + '% 줄어듭니다'; },
+      'impl.sum.th': ['', '비용', '테스트 통과', '손보지 않고 씀'],
+      'impl.sum.rows': { s: 'Sonnet에 넘김', b: 'Opus 직접' },
+      'impl.take': function (o) { return '테스트 통과는 ' + o.n + '건 중 ' + o.sPass + '건과 ' + o.bPass + '건으로 거의 같습니다. 차이는 마무리에서 납니다. 요구한 증거를 빠뜨리거나 보고가 실제와 다른 경우가 Sonnet 쪽에 더 많았습니다. 그래서 sprag는 넘긴 구현을 메인 모델이 diff와 테스트로 확인하게 합니다. 이 확인 비용은 위 숫자에 들어 있지 않습니다.'; },
+      'impl.more': '측정 세부: 라운드별 결과, 설계서를 다시 쓴 경우, Haiku, 한계',
+      'impl.detail.sub': '두 번 쟀는데 결과가 서로 달라서 둘 다 싣습니다. 조건마다 같은 과제를 새 저장소 사본에서 구현하게 했고 채점기가 사본마다 테스트를 돌려 대조했습니다.',
+      'impl.sub': function (n) { return '구현 과제 ' + n + '건을 Sonnet에 넘겼을 때와 Opus가 직접 했을 때를 같은 과제로 비교했습니다.'; },
       'impl.th': ['실행', '그대로 씀', '부분', '못 씀', '테스트 통과', '틀린 주장', '놓친 항목', '비용'],
       'impl.cond': { 'sonnet-next': 'Sonnet 워커', 'haiku-next': 'Haiku 워커', 'opus-direct': 'Opus 직접', 'sonnet-spec': '새 설계서 + Sonnet', 'sonnet-high': '기존 초안 + Sonnet' },
       'impl.large.h': function (n) { return '큰 구현 ' + n + '건'; },
@@ -595,10 +605,23 @@
     var box = $('impl'); if (!box) return;
     var L = data.bulk && data.bulk.implLarge, S = data.bulk && data.bulk.implSpec;
     var usable = function (r) { return !!(r && r.n && r.conditions && r.conditions.length); };
+    var wasOpen = !!box.querySelector('details.bk-more[open]');
     box.textContent = '';
     if (!usable(L) && !usable(S)) { box.hidden = true; return; }
     box.hidden = false;
     var th = t('impl.th'), names = t('impl.cond');
+    // Headline: the draft handed to Sonnet against Opus doing it, summed over the rounds that have both rows.
+    var sum = { n: 0, s: { usd: 0, ok: 0, pass: 0 }, b: { usd: 0, ok: 0, pass: 0 } };
+    [[L, 'sonnet-next'], [S, 'sonnet-high']].forEach(function (p) {
+      var r = p[0]; if (!usable(r)) return;
+      var by = {}; r.conditions.forEach(function (c) { by[c.id] = c; });
+      var sc = by[p[1]], bc = by['opus-direct']; if (!sc || !bc) return;
+      sum.n += r.n;
+      [['s', sc], ['b', bc]].forEach(function (q) {
+        var tt = r.tests && r.tests[q[1].id];
+        sum[q[0]].usd += q[1].usd; sum[q[0]].ok += q[1].ok; sum[q[0]].pass += tt ? tt.pass : 0;
+      });
+    });
     var rowsOf = function (r, ids) {
       var by = {};
       r.conditions.forEach(function (c) { by[c.id] = c; });
@@ -614,8 +637,22 @@
         }))
       ]);
     };
-    box.appendChild(el('h2', { id: 'impl-h', text: t('impl.h') }));
-    box.appendChild(el('p', { class: 'lv-sub', text: t('impl.sub') }));
+    if (!sum.n || !sum.b.usd) { box.hidden = true; return; }
+    var sth = t('impl.sum.th'), srow = t('impl.sum.rows');
+    box.appendChild(el('h2', { id: 'impl-h', text: t('impl.h')(Math.round((1 - sum.s.usd / sum.b.usd) * 100)) }));
+    box.appendChild(el('p', { class: 'lv-sub', text: t('impl.sub')(sum.n) }));
+    box.appendChild(el('table', { class: 'bk' }, [
+      el('thead', null, [el('tr', null, sth.map(function (x, i) { return el('th', { class: i ? 'num' : '', text: x }); }))]),
+      el('tbody', null, ['s', 'b'].map(function (k) {
+        return el('tr', null, [srow[k], usd(sum[k].usd), sum[k].pass + ' / ' + sum.n, sum[k].ok + ' / ' + sum.n].map(function (x, i) { return el('td', { class: i ? 'num' : '', text: String(x) }); }));
+      }))
+    ]));
+    box.appendChild(el('p', { class: 'bk-cmp', text: t('impl.take')({ n: sum.n, sPass: sum.s.pass, bPass: sum.b.pass }) }));
+    var top = box;
+    box = el('details', { class: 'bk-more' }, [el('summary', { text: t('impl.more') })]);
+    if (wasOpen) box.open = true;
+    top.appendChild(box);
+    box.appendChild(el('p', { class: 'lv-sub', text: t('impl.detail.sub') }));
     if (usable(L)) {
       var lr = rowsOf(L, ['sonnet-next', 'haiku-next', 'opus-direct']);
       box.appendChild(el('h3', { class: 'bk-h3', text: t('impl.large.h')(L.n) }));
