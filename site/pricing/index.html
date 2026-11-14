@@ -15,10 +15,10 @@
 <script>
   gtag('event', 'conversion', {'send_to': 'AW-18548782436/cKBSCNv3vrIdEOTq34xF'});
 </script>
-<!-- Event snippets for 설치 명령 복사 and 문의 메일 클릭 conversions: a click on an install command copy button or an email link counts -->
+<!-- Event snippets for 설치 명령 복사 and 문의 메일 클릭 conversions: a click on an install command copy button or an email link counts. Buttons that open the inquiry form (data-inquiry) are skipped: opening the form is not a conversion, a successful submit is (assets/inquiry-form.js fires it) -->
 <script>
   document.addEventListener('click', function (e) {
-    var el = e.target.closest && e.target.closest('[data-copy], a[href^="mailto:"]');
+    var el = e.target.closest && e.target.closest('[data-copy], a[href^="mailto:"]:not([data-inquiry])');
     if (!el) return;
     var label = el.hasAttribute('data-copy') ? '3CnACPmE0bIdEOTq34xF' : 'rBY1CPyE0bIdEOTq34xF';
     gtag('event', 'conversion', {'send_to': 'AW-18548782436/' + label});
@@ -286,7 +286,7 @@
       <div class="price"><b data-price="pro">$5</b><span data-k="p.per">per seat / month</span></div>
       <p class="fine" data-fine="pro">Billed monthly</p>
       <p class="fine krw" data-krw="pro" hidden></p>
-      <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag%20Pro" data-k="p.ask">Contact us</a>
+      <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag%20Pro" data-inquiry="pro" data-k="p.ask">Contact us</a>
       <p class="inc" data-k="p.pro.inc">Everything in Free, plus</p>
       <ul>
         <li data-k="p.pro.1">Team dashboard with a 30-day chart</li>
@@ -304,7 +304,7 @@
       <div class="price"><b data-price="enterprise">$10</b><span data-k="p.per">per seat / month</span></div>
       <p class="fine" data-fine="enterprise">Billed monthly</p>
       <p class="fine krw" data-krw="enterprise" hidden></p>
-      <a class="btn" href="mailto:support@sprag.io?subject=Sprag%20Enterprise" data-k="p.ask">Contact us</a>
+      <a class="btn" href="mailto:support@sprag.io?subject=Sprag%20Enterprise" data-inquiry="enterprise" data-k="p.ask">Contact us</a>
       <p class="inc" data-k="p.ent.inc">Everything in Pro, plus</p>
       <ul>
         <li data-k="p.ent.1">Prompt capture, secrets and personal data masked on each machine</li>
@@ -321,7 +321,7 @@
       <h2 data-k="p.cus">Custom</h2>
       <p data-k="p.cus.p">Volume or annual invoicing, a security review, data retention terms.</p>
     </div>
-    <a class="btn" href="mailto:support@sprag.io" data-k="p.cus.cta">Contact sales</a>
+    <a class="btn" href="mailto:support@sprag.io" data-inquiry="custom" data-k="p.cus.cta">Contact sales</a>
   </div>
 
   <section class="blk" aria-labelledby="vid-h">
@@ -406,7 +406,7 @@
   <div class="cta">
     <h2 data-k="p.cta">Tell us your organization and seat count, and we will send you an order link.</h2>
     <div class="actions">
-      <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag%20Team" data-k="p.ask">Contact us</a>
+      <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag%20Team" data-inquiry="general" data-k="p.ask">Contact us</a>
       <a class="btn" href="/docs/team/" data-k="p.docs">Read the team guide</a>
     </div>
   </div>
@@ -659,6 +659,8 @@ document.querySelectorAll('.cycle button').forEach(b => b.addEventListener('clic
 </script>
 <script src="/assets/lang-links.js"></script>
 <script src="/assets/theme-toggle.js" defer></script>
+<script src="/assets/sign-in-captcha.js" defer></script>
+<script src="/assets/inquiry-form.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" integrity="sha384-B2WBjDzEjJpYvhmi2UyEn7rektqkf5suS6sNoyyrf0EBAwBHdkiXxIlU0V5Ru2ed" crossorigin="anonymous" defer></script>
 <script src="/assets/scroll-story.js" defer></script>
 </body>

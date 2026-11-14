@@ -15,10 +15,10 @@
 <script>
   gtag('event', 'conversion', {'send_to': 'AW-18548782436/cKBSCNv3vrIdEOTq34xF'});
 </script>
-<!-- Event snippets for 설치 명령 복사 and 문의 메일 클릭 conversions: a click on an install command copy button or an email link counts -->
+<!-- Event snippets for 설치 명령 복사 and 문의 메일 클릭 conversions: a click on an install command copy button or an email link counts. Buttons that open the inquiry form (data-inquiry) are skipped: opening the form is not a conversion, a successful submit is (assets/inquiry-form.js fires it) -->
 <script>
   document.addEventListener('click', function (e) {
-    var el = e.target.closest && e.target.closest('[data-copy], a[href^="mailto:"]');
+    var el = e.target.closest && e.target.closest('[data-copy], a[href^="mailto:"]:not([data-inquiry])');
     if (!el) return;
     var label = el.hasAttribute('data-copy') ? '3CnACPmE0bIdEOTq34xF' : 'rBY1CPyE0bIdEOTq34xF';
     gtag('event', 'conversion', {'send_to': 'AW-18548782436/' + label});
@@ -235,7 +235,7 @@
       <h1 data-k="p.h1">The Sprag CLI is open source, and free.</h1>
       <p class="lede" data-k="p.lede">The CLI is released under Apache-2.0.<br />It runs on your machine, needs no account and sends nothing anywhere.<br />For the team features, get in touch.</p>
       <div class="actions">
-        <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag" data-k="p.contact">Get in touch</a>
+        <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag" data-inquiry="general" data-k="p.contact">Get in touch</a>
       </div>
     </div>
   </div>
@@ -373,7 +373,7 @@
   <div class="cta">
     <h2 data-k="p.cta">Questions, or want the team features for your organization?</h2>
     <div class="actions">
-      <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag" data-k="p.contact">Get in touch</a>
+      <a class="btn pri" href="mailto:support@sprag.io?subject=Sprag" data-inquiry="general" data-k="p.contact">Get in touch</a>
       <a class="btn" href="/docs/team/" data-k="p.docs">Read the team guide</a>
     </div>
   </div>
@@ -543,6 +543,8 @@ document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click
 </script>
 <script src="/assets/lang-links.js"></script>
 <script src="/assets/theme-toggle.js" defer></script>
+<script src="/assets/sign-in-captcha.js" defer></script>
+<script src="/assets/inquiry-form.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" integrity="sha384-B2WBjDzEjJpYvhmi2UyEn7rektqkf5suS6sNoyyrf0EBAwBHdkiXxIlU0V5Ru2ed" crossorigin="anonymous" defer></script>
 <script src="/assets/scroll-story.js" defer></script>
 </body>
