@@ -101,7 +101,7 @@
   <section class="card of-card" id="scene-card" hidden><div id="box"></div></section>
 </main>
 
-<script src="/assets/scene/office-i18n.js?v=3.127.0"></script>
+<script src="/assets/scene/office-i18n.js?v=3.127.0-1"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -243,18 +243,115 @@ function paintHead(){
   const when = view.expires_at ? new Date(view.expires_at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US') : '';
   $('h-exp').textContent = when ? t('pg.exp', { when }, true) : '';
 }
-function sceneData(){ return mod.memberTownData(view, { t, rel, os: osLabel, rangeLabel: rangeLabel(view.range) }); }
+/* the pet photo the member picked in the shop: kept in this browser only (a downscaled JPEG data URL), never sent anywhere */
+const PHOTO_KEY = 'sprag.town.petphoto';
+function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+let noShop = false;   /* the server predates the shop (town_cosmetics_set answers PGRST202): the shop hides for this session */
+function sceneData(){
+  const d = mod.memberTownData(view, { t, rel, os: osLabel, rangeLabel: rangeLabel(view.range), petPhoto: lsGet(PHOTO_KEY) });
+  if(noShop) d.shop = null;
+  return d;
+}
+
+/* ── cosmetics: the shop in the viewer's drawer saves through town_cosmetics_set; errors come back as { code, message } for the scene to word ── */
+function applyCosmetics(r, change, extra){
+  const sf = view.self || (view.self = {}), me = (view.people || []).find(p => p.self) || (view.people || []).find(p => p.id === sf.id);
+  const lvl = r && Number.isFinite(Number(r.level)) ? Number(r.level) : null;
+  if(lvl != null && sf.unlock) sf.unlock.level = lvl;
+  sf.gear = (r && r.gear) || null; sf.pet = (r && r.pet) || null;
+  if(me){ me.gear = sf.gear; me.pet = sf.pet; if(lvl != null) me.lvl = lvl; }
+  if(change.petClear) lsDel(PHOTO_KEY);
+  else if(change.pet && extra && typeof extra.photo === 'string' && /^data:image\/jpeg;base64,/.test(extra.photo)) lsSet(PHOTO_KEY, extra.photo);
+  if(mod && ctl && !failed) ctl.update(sceneData());
+}
+async function saveCosmetics(change, extra){
+  if(DEMO) return demoSave(change, extra);
+  const tok = ssGet(TOKEN_KEY);
+  if(!tok || !TOKEN_RE.test(tok)) throw { code: '28000', message: 'invalid link' };
+  const args = { p_token: tok };
+  if(change.gear) args.p_gear = change.gear;
+  if(change.pet) args.p_pet = change.pet;
+  if(change.petClear) args.p_pet_clear = true;
+  let res, body = null;
+  try{
+    res = await fetch(SUPABASE_URL + '/rest/v1/rpc/town_cosmetics_set', {
+      method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+    });
+    try{ body = await res.json(); }catch(e){}
+  }catch(e){ throw { code: 'net', message: 'network' }; }
+  if(!res.ok){
+    const code = (body && body.code) || String(res.status), message = (body && body.message) || '';
+    if(res.status === 404 && code === 'PGRST202') noShop = true;
+    throw { code, message };
+  }
+  applyCosmetics(body || {}, change, extra);
+  return { level: body && body.level, gear: body && body.gear, pet: body && body.pet };
+}
+
+/* ── demo (?demo=1): a made-up town_view reply with the admin demo's names and teams, no token and no network; saving only changes this tab ── */
+const DEMO = new URLSearchParams(location.search).get('demo') === '1';
+function demoTown(){
+  const day = 864e5, iso = d => new Date(Date.now() - d * day).toISOString(), ymd = d => iso(d).slice(0, 10);
+  const teams = [{ id: 'demo-t1', name: 'Platform' }, { id: 'demo-t2', name: 'Apps' }, { id: 'demo-t3', name: 'Data' }];
+  const tm = i => teams[i % 3];
+  const P = (i, name, os, grade, tier, lvl, gear, pet, extra) => ({ id: 'demo-p' + i, name, os, team_id: tm(i).id, team_name: tm(i).name, grade, tier, crown: false, state: 'ok', self: false, lvl, gear, pet, ...extra });
+  const pets = {
+    me: { kind: 'dog', coat: ['#e0a25a', '#f4e3c6'], pattern: 'solid', ear: 'flop', tail: 'fluff', size: 'm', fluff: 0.8, name: 'Bori' },
+    cat: { kind: 'cat', coat: ['#e39a5c', '#b0683a', '#f3e2cc'], pattern: 'tabby', ear: 'up', tail: 'long', size: 'm', fluff: 0.4, name: 'Mandu' },
+    tux: { kind: 'cat', coat: ['#45434a', '#ece8e1'], pattern: 'tuxedo', ear: 'up', tail: 'long', size: 'm', fluff: 0.3, name: 'Kong' } };
+  const people = [
+    P(0, 'ana-macbook', 'macOS', 'fox', 'active', 3, { head: 'tophat', desk: 'lamp' }, pets.me, { self: true }),
+    P(1, 'studio-mac', 'Windows', 'tiger', 'power', 4, { head: 'wizard', desk: 'aquarium' }, pets.cat, { crown: true }),
+    P(2, 'dev-linux-02', 'Linux', 'bear', 'normal', 1, { head: 'cap', desk: null }, null),
+    P(3, 'jun-air', 'macOS', 'owl', 'active', 2, { head: 'headphones', desk: 'plant' }, pets.tux),
+    P(4, 'mia-pro', 'Windows', 'chick', 'low', 0, null, null),
+    P(5, 'pat-thinkpad', 'Linux', 'wolf', 'power', 4, { head: 'halo', desk: 'neon' }, null),
+    P(6, 'kim-studio', 'macOS', 'panda', 'normal', 2, { head: 'flower', desk: 'snowglobe' }, null),
+    P(7, 'qa-mac', 'macOS', 'ghost', 'nodata', 0, null, null, { state: 'late' }),
+    P(8, 'rina-air', 'macOS', 'rabbit', 'active', 3, { head: 'party', desk: 'trophy' }, null),
+  ];
+  const DAY = ymd(2), m = (id, name, extra) => ({ member_id: id, display_name: name, os: 'macOS', os_version: '26.1', arch: 'arm64', sprag_version: '3.126.0', signal: 'ok', switch: 'on', last_upload_at: iso(0.05), last_seen: iso(0.02), sync_state_at: null, ...extra });
+  const items = [['cap', 'head', 1], ['beanie', 'head', 1], ['ribbon', 'head', 1], ['flower', 'head', 2], ['party', 'head', 2], ['headphones', 'head', 2], ['tophat', 'head', 3], ['wizard', 'head', 4], ['halo', 'head', 4],
+    ['plant', 'desk', 1], ['lamp', 'desk', 1], ['figurine', 'desk', 2], ['snowglobe', 'desk', 2], ['trophy', 'desk', 3], ['lavalamp', 'desk', 3], ['aquarium', 'desk', 4], ['neon', 'desk', 4]].map(([id, slot, lvl]) => ({ id, slot, lvl }));
+  return {
+    org: { name: 'Northwind Labs', closed: false, seats_used: 9, seat_limit: 24 }, range: { from: ymd(29), to: ymd(0) }, has_prompts: false, expires_at: iso(-0.5),
+    teams, people,
+    self: {
+      id: 'demo-p0',
+      standing: { grade: 'fox', tier: 'active', rank: 3, ranked: 8, crown: false, dlg: 0.21, median_dlg: 0.18, spent: 412.5, idle: false, next: { grade: 'tiger', pass: 1, need_dlg: false }, spend_rank: 3 },
+      machines: [m('demo-m0', 'ana-macbook')],
+      usage: [{ member_id: 'demo-m0', spent: 412.5, total_spent: 412.5, saved: 96.2, delegated: 57, errors: 1, delegated_cost: 88.4, spent_today: 12.4, saved_today: 3.1, delegated_today: 4, total_spent_today: 12.4,
+        families: { haiku: 21, sonnet: 30, opus: 6 }, models: { sonnet: 260, opus: 152.5 }, series: Array.from({ length: 14 }, (_, i) => ({ day: ymd(13 - i), spent: 18 + (i * 7) % 23, total: 18 + (i * 7) % 23, saved: 4 + (i * 3) % 7 })) }],
+      /* the unlock figures run since joining, so they differ from this period's ($412.50, 21%): spend is past level 4 and the delegation share is not yet,
+         which shows that a level needs both. The thresholds are the server's table. */
+      unlock: { level: 3, spent: 1240, saved: 268.4, dlg: 0.086, runs: 412, pet_lvl: 2, toys_lvl: 3, items,
+        levels: [{ lvl: 1, min_spent: 10, min_dlg: 0 }, { lvl: 2, min_spent: 50, min_dlg: 0.01 }, { lvl: 3, min_spent: 200, min_dlg: 0.05 }, { lvl: 4, min_spent: 1000, min_dlg: 0.1 }] },
+      gear: { head: 'tophat', desk: 'lamp' }, pet: pets.me,
+    },
+  };
+}
+async function demoSave(change, extra){
+  await new Promise(r => setTimeout(r, 450));
+  const u = view.self.unlock, lvOfItem = id => { const i = u.items.find(x => x.id === id); return i ? i.lvl : 99; };
+  if(change.gear && [change.gear.head, change.gear.desk].some(id => id && lvOfItem(id) > u.level)) throw { code: 'P0001', message: 'locked' };
+  if(change.pet && u.level < u.pet_lvl) throw { code: 'P0001', message: 'locked' };
+  const r = { level: u.level, gear: change.gear ? { head: change.gear.head || null, desk: change.gear.desk || null } : view.self.gear, pet: change.petClear ? null : change.pet ? change.pet : view.self.pet };
+  applyCosmetics(r, change, extra);
+  return r;
+}
 
 async function show(){
   if(!view) return;
   paintHead();
-  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.127.0'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
+  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.127.0-1'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
   $('msg').hidden = true; $('scene-card').hidden = false;
   const data = sceneData();
   if(ctl){ ctl.update(data); shown = lang; return; }
   $('box').textContent = '';
-  ctl = mod.mountOfficeScene($('box'), data, { readOnly: true, onFail: () => { failed = true; if(ctl){ ctl.destroy(); ctl = null; } showMsg('pg.nowebgl'); failed = true; } });
+  ctl = mod.mountOfficeScene($('box'), data, { readOnly: true, shop: { save: saveCosmetics }, onFail: () => { failed = true; if(ctl){ ctl.destroy(); ctl = null; } showMsg('pg.nowebgl'); failed = true; } });
   shown = lang;
+  if(DEMO && new URLSearchParams(location.search).get('rec') === '1') window.__sprag = { town: null, office: ctl };   /* screenshots and recordings (demo only) */
   /* select the viewer's own character once the scene is up, on every screen size: the camera flies to them and their drawer opens (the selection ring is the "you" marker) */
   const self = view.self && view.self.id, start = Date.now();
   if(self){
@@ -282,6 +379,7 @@ async function fetchTown(tok, k){
 }
 
 async function load(){
+  if(DEMO){ fixedPeriod = true; view = demoTown(); return show(); }
   const tok = takeToken();
   if(!tok) return showMsg('pg.notoken');
   showMsg('pg.loading');

@@ -804,7 +804,7 @@
 <script src="/assets/admin-ux.js?v=3.127.0"></script>
 <script src="/assets/admin-mfa.js?v=3.127.0"></script>
 <script src="/assets/sign-in-captcha.js?v=3.127.0"></script>
-<script src="/assets/scene/office-i18n.js?v=3.127.0"></script>
+<script src="/assets/scene/office-i18n.js?v=3.127.0-1"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -2842,6 +2842,21 @@ const demoSeatStores = {};
 /* demo spend per machine index and saved-to-spend ratio, so the adoption map shows every tier */
 const DEMO_SPEND = [1.6, 0.05, 0.9, 0.3, 0.3, 0.1, 0.2, 0, 0, 2.2, 0.08, 3.0, 1.8, 0.4, 4.2], DEMO_DLG = [0.3, 0.2, 0.5, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.9, 0.4, 1.1, 0.5, 0.4, 1.3];
 const DEMO_ACTOR = 'owner';
+/* demo pets (pets.js looks, no photos) for a few live machines, so the office shows them without sign-in */
+const DEMO_PETS = {
+  0: { kind: 'dog', coat: ['#d9a35f', '#f1dcb8'], pattern: 'solid', ear: 'flop', tail: 'fluff', size: 'l', fluff: 0.8, name: 'Bori' },
+  2: { kind: 'cat', coat: ['#e39a5c', '#b0683a', '#f3e2cc'], pattern: 'tabby', ear: 'up', tail: 'long', size: 'm', fluff: 0.4, name: 'Mandu' },
+  9: { kind: 'cat', coat: ['#45434a', '#ece8e1'], pattern: 'tuxedo', ear: 'up', tail: 'long', size: 'm', fluff: 0.3, name: 'Kong' },
+  11: { kind: 'dog', coat: ['#f1ede6'], pattern: 'solid', ear: 'flop', tail: 'fluff', size: 's', fluff: 0.9, name: 'Dubu' },
+  14: { kind: 'dog', coat: ['#d98b4e', '#f5ead9'], pattern: 'patch', ear: 'up', tail: 'curl', size: 'm', fluff: 0.5, name: 'Hodu' } };
+/* demo cosmetics (org_cosmetics shape): unlock levels 0 to 4 spread over the demo machines, a few head and desk items, and the demo pets, which play with toys.
+   [level, head, desk] by machine index; the server sends this list for real, keyed by the seat group's member id */
+const DEMO_GEAR = { 0: [4, 'wizard', 'aquarium'], 1: [1, 'cap', null], 2: [3, 'tophat', 'lavalamp'], 3: [1, null, 'plant'], 4: [2, 'headphones', 'plant'], 5: [0, null, null],
+  9: [4, 'halo', 'neon'], 10: [2, 'ribbon', 'figurine'], 11: [3, 'party', 'trophy'], 12: [1, 'beanie', 'lamp'], 13: [0, null, null], 14: [2, 'flower', 'snowglobe'] };
+/* the delegation share of the demo machines that hold the higher levels (cost delegated over total), so a Lv.4 card never shows 1 %: the server's table asks for
+   1 % at level 2, 5 % at level 3 and 10 % at level 4. Everyone else delegates 1.5 % of their spend. */
+const DEMO_SHARE = { 0: 0.17, 9: 0.15, 2: 0.08, 11: 0.07 };
+function demoCosmetics(orgId){ return Object.entries(DEMO_GEAR).map(([i, [lvl, head, desk]]) => ({ member_id: orgId + '-m' + i, lvl, gear: { head, desk }, pet: DEMO_PETS[i] || null, toys: true })); }
 function demoSeatStore(orgId, teams){
   if(demoSeatStores[orgId]) return demoSeatStores[orgId];
   const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
@@ -2859,7 +2874,7 @@ function demoSeatStore(orgId, teams){
       sync_state: sg === 'paused' ? 'paused' : 'active', sync_state_at: sg === 'paused' ? ago(s[3]) : null,
       switch: sg === 'paused' ? 'off' : 'on', signal: sg,
       left_at: gone ? ago(s[1]) : null, removed: sg === 'removed', seat_of: i === 6 ? orgId + '-m0' : null,
-      holds_seat: !gone && sg !== 'silent', status: sg === 'ok' || sg === 'late' ? 'active' : sg === 'silent' ? 'idle' : sg };
+      holds_seat: !gone && sg !== 'silent', status: sg === 'ok' || sg === 'late' ? 'active' : sg === 'silent' ? 'idle' : sg, pet: DEMO_PETS[i] || null };
   });
   const events = [];
   rows.forEach(r => {
@@ -2901,7 +2916,7 @@ Range.onChange(() => { if(team) loadLedger(); Prompts.rangeChanged(); SceneHost.
 
 /* ── seat field: three.js hero scene on the Overview tab (admins only; machines from org_seats, spend from team_member_usage) ── */
 const SceneHost = (function(){
-  let ctl = null, mod = null, dead = false, sig = '', lastRows = null, mounted = '', usage = {}, curData = null, promptRows = null, ukey = '', seq = 0;
+  let ctl = null, mod = null, dead = false, sig = '', lastRows = null, mounted = '', usage = {}, curData = null, promptRows = null, cosmetics = [], ukey = '', seq = 0;
   function drop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } mounted = ''; sig = ''; lastRows = null; }
   function stop(){ drop(); $('scene-card').hidden = true; }
   function showState(kind, msg, action){ drop(); $('scene-card').hidden = false; $('scene-box').replaceChildren(AdminUX.state(kind, msg, action)); }
@@ -2916,6 +2931,11 @@ const SceneHost = (function(){
     if(org.plan !== 'enterprise') return null;
     try{ const { data, error } = await sb.rpc('org_prompt_usage', { p_org_id: org.id, p_days: 30, ...Range.args() }); return error ? null : ((data && data.members) || []); }catch(e){ return null; }
   }
+  /* members' unlock levels and cosmetics (org_cosmetics); an older server has no such call, which reads as nobody wearing anything */
+  async function fetchCosmetics(){
+    if(DEMO) return demoCosmetics(org.id);
+    try{ const { data, error } = await sb.rpc('org_cosmetics', { p_org_id: org.id }); return error || !Array.isArray(data) ? [] : data; }catch(e){ return []; }
+  }
   function fail(){ dead = true; showState('error', t('ux.scene.err'), { label: AdminUX.u('retry'), run: () => { dead = false; sync(); } }); }
   async function sync(){
     if(!(user && org && isAdmin() && view === 'overview')) return stop();
@@ -2929,11 +2949,11 @@ const SceneHost = (function(){
     $('scene-card').hidden = false;
     if(ukey !== uk){
       const ids = [...new Set([...tl.map(x => x.id), ...rows.map(r => r.team_id)])].filter(Boolean);
-      const [u, pr] = await Promise.all([fetchUsage(ids), fetchPrompts()]); if(my !== seq) return;
-      usage = u; promptRows = pr; ukey = uk;
+      const [u, pr, cm] = await Promise.all([fetchUsage(ids), fetchPrompts(), fetchCosmetics()]); if(my !== seq) return;
+      usage = u; promptRows = pr; cosmetics = cm; ukey = uk;
     }
-    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.127.0'); }catch(e){ return fail(); } if(my !== seq) return; }
-    const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: org.seats_used, limit: org.seat_limit, orgName: org.name, rangeLabel: Range.label(), closed: false, t, rel, os: osLabel, events: Seats.events(),
+    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.127.0-1'); }catch(e){ return fail(); } if(my !== seq) return; }
+    const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: org.seats_used, limit: org.seat_limit, orgName: org.name, rangeLabel: Range.label(), closed: false, t, rel, os: osLabel, events: Seats.events(), cosmetics,
       demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
     if(ctl && mounted !== org.id){ ctl.destroy(); ctl = null; }
     if(ctl){ ctl.update(data); return; }
@@ -3165,11 +3185,11 @@ function demoSb(){
           const days = new Set(Range.list(a.p_from, a.p_to)), td = fmtDay(new Date()), rows = ledger();
           /* new total-usage keys: every other member has a gateway (total = spent * 1.6, counted once per hash), member 3 sent no delegation cost (unknown path), member 2 has unpriced parts */
           const q4 = x => Math.round(x * 1e4) / 1e4;
-          const cost = (o, i) => { const gw = i % 2 === 1, k = gw ? 1.6 : 1, nodc = i === 3, sp = o.spent, tot = q4(sp * k);
+          const cost = (o, i) => { const gw = i % 2 === 1, k = gw ? 1.6 : 1, nodc = i === 3, sp = o.spent, tot = q4(sp * k), dr = DEMO_SHARE[String(o.member_id).replace(/^.*-m/, '')] * k || 0.015;
             return { ...o, total_spent:tot, local_spent:sp, codex_spent:q4(sp * 0.05), gateway_spent: gw ? tot : null, gateway_user_hash: gw ? ('000000000000000' + i.toString(16)).slice(-16) : null,
-              delegated_cost: nodc ? null : q4(sp * 0.015), codex_delegated: i % 3 === 0 ? 1 : 0, codex_delegated_cost:q4(sp * 0.002), subagent_cost:q4(sp * 0.05), unpriced: i === 2 ? 2 : 0,
+              delegated_cost: nodc ? null : q4(sp * dr), codex_delegated: i % 3 === 0 ? 1 : 0, codex_delegated_cost:q4(sp * 0.002), subagent_cost:q4(sp * 0.05), unpriced: i === 2 ? 2 : 0,
               total_spent_today:q4((Number(o.spent_today) || 0) * k),
-              series:o.series.map(x => ({ ...x, total:q4(x.spent * k), gateway: gw ? q4(x.spent * k) : null, delegated_cost: nodc ? null : q4(x.spent * 0.015) })) }; };
+              series:o.series.map(x => ({ ...x, total:q4(x.spent * k), gateway: gw ? q4(x.spent * k) : null, delegated_cost: nodc ? null : q4(x.spent * dr) })) }; };
           return {data:{ from:a.p_from, to:a.p_to, members: summary().map((m, i) => [m, i]).filter(([m]) => m.team_id === a.p_team_id).map(([m, i]) => { const r = rows.filter(x => x.member_id === m.member_id && days.has(x.day)), sum = k => r.reduce((n, x) => n + x[k], 0);
             return cost({ member_id:m.member_id, spent:sum('spent_usd'), saved:sum('saved_usd'), delegated:Math.round(sum('spent_usd') * 3.4), families:((pf, dg) => ({haiku:Math.round(dg * pf[0]), sonnet:Math.round(dg * pf[1]), opus:Math.round(dg * pf[2])}))([[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]][Math.round(m.spent_30d / 31.4) % 4], Math.round(sum('spent_usd') * 3.4)), models:((s, pf) => { const q = x => Math.round(x * 1e4) / 1e4, o = q(s * (pf[2] * 0.6 + 0.25)), n = q(s * pf[1] * 0.6), h = q(s * pf[0] * 0.15); return {opus:o, sonnet:n, haiku:h, fable:q(Math.max(0, s - o - n - h))}; })(sum('spent_usd'), [[0.7, 0.2, 0.1], [0.2, 0.6, 0.2], [0.1, 0.3, 0.6], [0.4, 0.4, 0.2]][Math.round(m.spent_30d / 31.4) % 4]), errors:0, spent_today:m.spent_today, saved_today:m.saved_today, delegated_today:m.delegated_today, series:r.map(x => ({day:x.day, spent:x.spent_usd, saved:x.saved_usd})) }, i); }) }, error:null};
         }

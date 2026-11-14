@@ -61,7 +61,8 @@ test('office-scene wires the holiday dressing behind holidayOn and frees it on e
   assert.match(src, /holWall\.visible = !wallHid\.z/, 'the wall decorations fold away with the back wall');
   assert.match(src, /HAT_SKIP = new Set\(\['panda', 'raccoon', 'squirrel'\]\)/, 'species that already wear a hat skip the Santa hat');
   assert.match(src, /ANTLER_SKIP = new Set\(\[[^\]]*'deer'/, 'species with horns or antlers of their own keep the nose only');
-  assert.match(src, /hash\(o\.p\.id \+ ':xmas'\) < 0\.5 \? 'santa' : 'rudolph'/, 'the same person always gets the same set');
+  assert.match(src, /coin: hash\(o\.p\.id \+ ':xmas'\)/, 'the same person always gets the same set');
+  assert.match(src, /o\.coin < 0\.5 \? 'santa' : 'rudolph'/, 'by a hash of the id (headDress)');
   assert.match(src, /noseTipOf\(T, m\)/, 'the nose tip is read off each loaded model');
   assert.match(src, /makeWorldTree\(T, \{[^}]*carpet:[^}]*fall:[^}]*srv: srvAt[^}]*\}\)/, 'the world tree stands outside the back corner with the server at its foot, with leaves on the ground and in the air');
   assert.match(src, /makePresents\(T\)[^]*?pl\.position\.set\(srv\.x/, 'the present pile stands in front of the server kiosk');

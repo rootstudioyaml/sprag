@@ -268,3 +268,33 @@ test('the town page selects the viewer on entry, whatever the screen width', () 
   assert.ok(block.includes('ctl.selectPerson(self)'), 'the page selects the viewer');
   assert.ok(!/innerWidth|matchMedia/.test(block), 'no screen-width condition before selecting');
 });
+
+test('cosmetics: other people carry only their level, gear ids and pet look, never a photo or a figure behind the level', () => {
+  const v = town();
+  const cos = { a: { lvl: 3, gear: { head: 'cap', desk: 'lamp' } }, b: { lvl: 4, gear: { head: 'halo', desk: 'neon' }, pet: { kind: 'cat', coat: ['#45434a', '#ece8e1'], pattern: 'tuxedo', fluff: 0.3, name: 'Kong', photo: 'data:image/jpeg;base64,AA==' } },
+    c: { lvl: 2, gear: { head: 'nope', desk: 'cap' } }, d: { lvl: 4, gear: { head: 'cap' }, pet: { coat: ['#ffffff'] } } };
+  v.people.forEach(p => Object.assign(p, cos[p.id] || {}));
+  v.self.unlock = { level: 3, spent: 412.5, saved: 96.2, dlg: 0.214, runs: 57, pet_lvl: 2, toys_lvl: 4, levels: [{ lvl: 1, min_spent: 0, min_dlg: 0 }, { lvl: 4, min_spent: 600, min_dlg: 0.25 }], items: [{ id: 'cap', slot: 'head', lvl: 1 }] };
+  for(const lang of ['en', 'ko']){
+    const d = run(v, lang), by = id => d.people.find(p => p.id === id);
+    for(const p of d.people.filter(q => !q.self)){
+      const { lvl, gear, pet, petToys, ...rest } = p;
+      assert.ok(numbers(rest).every(n => n === 0), `${lang} ${p.id}: a number other than 0 outside the cosmetics`);
+      assert.ok(Number.isInteger(lvl) && lvl >= 0 && lvl <= 4);
+      assert.deepEqual(Object.keys(gear).sort(), ['desk', 'head']);
+      assert.equal(typeof petToys, 'boolean');
+      if(pet) assert.ok(!('photo' in pet), `${p.id}: a coworker's pet carries no photo`);
+      assert.ok(!JSON.stringify(p).includes('412') && !JSON.stringify(p).includes('0.214'), 'the viewer\'s unlock figures stay out of other people');
+    }
+    assert.deepEqual(by('b').gear, { head: 'halo', desk: 'neon' }); assert.equal(by('b').lvl, 4); assert.equal(by('b').pet.name, 'Kong'); assert.equal(by('b').petToys, true);
+    assert.deepEqual(by('c').gear, { head: null, desk: null }, 'unknown ids and ids in the wrong slot are dropped');
+    assert.equal(by('d').lvl, 0); assert.equal(by('d').pet, null); assert.deepEqual(by('d').gear, { head: null, desk: null }, 'a ghost wears nothing and has no pet');
+    assert.equal(d.shop.level, 3); assert.equal(d.shop.spent, 412.5);
+  }
+});
+
+test('cosmetics: an old server (no lvl, gear, pet or unlock) gives level 0, nothing worn, no pet and no shop', () => {
+  const d = run(town());
+  assert.equal(d.shop, null);
+  for(const p of d.people){ assert.equal(p.lvl, 0); assert.deepEqual(p.gear, { head: null, desk: null }); assert.equal(p.pet, null); assert.equal(p.petToys, false); }
+});
