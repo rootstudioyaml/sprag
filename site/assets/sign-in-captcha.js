@@ -42,7 +42,7 @@ async function mount(el){
   if(widgetId != null || !mountEl) return;
   widgetId = window.turnstile.render(mountEl, {
     sitekey: siteKey(),
-    theme: 'dark',
+    theme: doc.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',   /* the pages are light unless the visitor chose dark */
     language: doc.documentElement.lang === 'ko' ? 'ko' : 'en',
     callback: t => { token = t || ''; },
     'expired-callback': () => { token = ''; },

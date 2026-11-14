@@ -119,6 +119,10 @@
   var rails = track ? Array.prototype.slice.call(track.querySelectorAll('.steps-rail i')) : [];
   var stepCount = track && track.querySelector('.steps-count b');
   var stepMark = track && track.querySelector('.steps-mark');
+  /* the stage sets its own height and sticky offset in CSS; both are read here so the steps follow whatever it is given */
+  var stage = track && track.querySelector('.steps-stage'), pinTop = 57;
+  function measureStage() { if (stage) { var v = parseFloat(getComputedStyle(stage).top); pinTop = isFinite(v) ? v : 57; } }
+  measureStage(); addEventListener('resize', measureStage);
   var bar = document.createElement('div'); bar.className = 'page-progress'; bar.setAttribute('aria-hidden', 'true'); document.body.appendChild(bar);
 
   var lastY = scrollY, last = performance.now(), target = 0, rot = 0, step = -1, sIdx = -1, sTarget = 0, sRot = 0;
@@ -154,9 +158,9 @@
     }
 
     if (track && stepEls.length) {
-      var t = track.getBoundingClientRect(), stageH = H - 57, run = t.height - stageH;
+      var t = track.getBoundingClientRect(), stageH = stage ? stage.offsetHeight : H - 57, run = t.height - stageH;
       if (run > 40 && t.top < H && t.bottom > 0) {
-        var q = clamp((57 - t.top) / run, 0, 0.9999), k3 = Math.floor(q * 3);
+        var q = clamp((pinTop - t.top) / run, 0, 0.9999), k3 = Math.floor(q * 3);
         if (k3 !== sIdx) {
           if (sIdx >= 0) sTarget += 60 * Math.abs(k3 - sIdx);
           sIdx = k3;

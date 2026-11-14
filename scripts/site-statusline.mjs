@@ -9,11 +9,11 @@
  * writes the result between marker comments in site/index.html:
  *
  *   <!-- statusline-sample:hero:start --> ... <!-- statusline-sample:hero:end -->
- *   <!-- statusline-sample:demo:start --> ... <!-- statusline-sample:demo:end -->
  *
- * Both places get the same block: an English <pre class="sl-out sl-en"> and a
- * Korean <pre class="sl-out sl-ko"> (only the team line differs), and the page
- * CSS shows the one that matches <html lang>.
+ * The block holds an English <pre class="sl-out sl-en"> and a Korean
+ * <pre class="sl-out sl-ko"> (only the team line differs), and the page CSS shows
+ * the one that matches <html lang>. The page printed the same sample a second
+ * time in the capture section until 2026-11-14; that copy is gone.
  *
  * Deterministic: the clock is pinned (global Date), the timezone is UTC and HOME
  * points at an empty directory, so the user's own config, theme and Claude
@@ -178,7 +178,7 @@ const block = ['en', 'ko']
 
 // ---- write between the markers ----
 let page = readFileSync(pagePath, 'utf8');
-for (const name of ['hero', 'demo']) {
+for (const name of ['hero']) {
   const start = `<!-- statusline-sample:${name}:start -->`;
   const end = `<!-- statusline-sample:${name}:end -->`;
   const a = page.indexOf(start);

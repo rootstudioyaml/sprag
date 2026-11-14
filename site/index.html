@@ -872,9 +872,11 @@
   .story.story-past .intro.booted .intro-cue{opacity:0;transition-delay:0s}
   .steps-rail,.steps-mark{display:none}
   @media(min-width:901px){
-    .story .steps-track{position:relative;height:210vh;margin-top:48px}
-    .story .steps-stage{position:sticky;top:57px;height:calc(100svh - 57px);display:grid;align-items:center;
-      grid-template-columns:minmax(0,2fr) minmax(0,7fr) minmax(0,3fr);column-gap:40px;border-top:1px solid var(--line2)}
+    /* the stage is as tall as its content needs and pins in the middle of the screen (assets/scroll-story.js reads its
+       height and its sticky offset), so a screen-high blank no longer opens before the first step and after the last */
+    .story .steps-track{--stage-h:clamp(440px,64svh,620px);position:relative;height:calc(var(--stage-h) + 110vh);margin-top:48px}
+    .story .steps-stage{position:sticky;top:calc(57px + (100svh - 57px - var(--stage-h))/2);height:var(--stage-h);display:grid;align-items:center;
+      grid-template-columns:minmax(0,2fr) minmax(0,7fr) minmax(0,3fr);column-gap:40px;border-block:1px solid var(--line2)}
     .story .steps-rail{display:block;grid-column:1;align-self:center;font:500 12px/1 var(--font-mono);letter-spacing:.04em;color:var(--faint)}
     .story .steps-count{display:block;margin-bottom:16px;font-variant-numeric:tabular-nums}.story .steps-count b{font-weight:500;color:var(--accent-fg)}
     .story .steps-rail i{display:block;height:1px;margin-top:8px;background:var(--line2);position:relative}
@@ -921,18 +923,9 @@
   .sl-b{font-weight:700}
   .sl-c-red{color:#fb7185}.sl-c-green{color:#34d399}.sl-c-yellow{color:#fbbf24}.sl-c-orange{color:#fb923c}
   .sl-c-cyan{color:#22d3ee}.sl-c-violet{color:#a78bfa}.sl-c-blue{color:#b1b9f9}.sl-c-gray{color:#8d9aae}
-  /* the demo section holds the same block inside the capture frame */
+  /* the Codex panel capture keeps its own proportions */
   .hero .demo .term{aspect-ratio:auto}
-  /* the Claude Code sample is 150+ cells wide: while it is showing, the frame drops under the captions at full width */
-  @media(min-width:901px){
-    .hero .demo:has(#capture-claude:not([hidden])){grid-template-columns:minmax(0,1fr)}
-    .hero .demo:has(#capture-claude:not([hidden])) :is(.titlebar,.tabs,.caption){grid-column:1}
-    .hero .demo:has(#capture-claude:not([hidden])) .caption{grid-row:3;max-width:60ch}
-    .hero .demo:has(#capture-claude:not([hidden])) .term{grid-column:1;grid-row:4;margin-top:28px;justify-self:center;width:min(1280px,calc(100vw - 48px));max-width:none}
-  }
-  .shot-sl{height:auto;background:#13151a}
-  .demo pre.sl-out{padding:16px 18px 18px;font-size:12.5px}
-  @media(max-width:900px){.sl-panel{grid-column:1!important;grid-row:auto!important;width:auto;justify-self:stretch;margin-top:36px}pre.sl-out,.demo pre.sl-out{font-size:12px}}
+  @media(max-width:900px){.sl-panel{grid-column:1!important;grid-row:auto!important;width:auto;justify-self:stretch;margin-top:36px}pre.sl-out{font-size:12px}}
   /* hero text: wide enough that Korean breaks at phrase boundaries instead of orphaning two syllables */
   @media(min-width:901px){.intro .hero-spec{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:14px}.intro .hero-spec div{grid-template-columns:8ch minmax(0,1fr);gap:6px}}
   .intro p.sub{grid-column:1/8;max-width:38em;text-wrap:pretty}
@@ -940,6 +933,43 @@
   /* footer: product links, then the legal ones, spaced without separator characters */
   footer .ft-links,footer .ft-legal{display:flex;flex-wrap:wrap;gap:6px 18px}
   footer .wrap.ft-legal{margin-top:10px;justify-content:flex-start;font-size:12px}
+  /* ---- White-ground polish (2026-11-14). The pieces that predate the white ground sat off the grid or kept grey fills. ---- */
+  /* the statusline sample is 150+ cells wide. Its text starts on the column edge like everything else and runs right;
+     the dark ground spans the page as one band, so no panel edge hangs outside the column */
+  @media(min-width:901px){
+    .sl-panel{justify-self:start;width:min(1280px,calc(100% + (100vw - 100%)/2 - 24px));max-width:none;
+      background:#13151a;border:0;box-shadow:0 0 0 100vmax #13151a;clip-path:inset(0 -100vmax)}
+    .sl-head{padding-inline:0}
+    pre.sl-out{padding-inline:0}
+  }
+  .hero .teamband{margin-top:88px;padding-top:0;border-top:0}
+  /* media take the page's square corner and a hairline, so a pale frame does not float on white */
+  .hero .teamband video,.hero .compare video{border-radius:0;box-shadow:0 0 0 1px var(--line2)}
+  .teamband .tb-eyebrow{font:500 12px/1.4 var(--font-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--accent-fg)}
+  :root[lang|=ko] .teamband .tb-eyebrow{letter-spacing:0}
+  /* the comparison sits on the column and its caption reads from the left edge like every other caption */
+  .hero .compare{width:min(1032px,calc(100vw - 48px))}
+  .hero .compare figcaption{max-width:62ch;margin:18px 0 0;text-align:left}
+  /* the opening clip belongs to the video alone: on the figure it also cut the first letters of the left-aligned caption */
+  .story .hero .compare{clip-path:none}
+  .story .hero .compare video{clip-path:inset(-1px calc(var(--cl,0)*1% - 1px))}
+  /* data marks use the three colors: pale accent, accent, ink */
+  .ex-c1{background:color-mix(in oklab,var(--accent) 32%,var(--base))}
+  .ex-track .ex-full{background:color-mix(in oklab,var(--ink) 88%,var(--base))}
+  @media(min-width:861px){
+    /* the guarantee joins the statement side, so the right column is not a heading over an empty field */
+    .ex-limits > .ex-lock{grid-column:2;grid-row:3;align-self:end;margin-top:0;padding-top:0}
+    .ex-limits > .ex-lede{grid-row:3}
+    /* four figures on one baseline, captions starting on one line */
+    .numbers .num{justify-content:flex-start}
+    .numbers .num b{display:flex;align-items:flex-end;min-height:clamp(40px,4.4vw,56px);line-height:1}
+    .numbers .num:not(:first-child) b{padding-bottom:calc((clamp(40px,4.4vw,56px) - 30px)*.2)}
+  }
+  .demo .titlebar .path{font-weight:600;font-size:clamp(22px,2.2vw,28px);letter-spacing:-.015em}
+  /* the agent switch reads like the capture tabs: ink and an accent underline, no box and no grey fill */
+  .agent-switch{padding:0;border:0;background:none;gap:2px}
+  .agent-switch button{color:var(--faint);padding:9px 14px}
+  .agent-switch button[aria-selected=true]{background:none;color:var(--ink)}
 </style>
 <link rel="stylesheet" href="/assets/tokens.css" />
 <script type="application/ld+json">
@@ -1011,23 +1041,22 @@
 
 <a class="lab-bar" id="lab-bar" href="proof/">
   <span class="lab-tag" data-k="lab.tag">Proof lab</span>
-  <span class="lab-txt" id="lab-txt">10 real delegations replayed. Without sprag $8.13, with sprag $2.61 (32%), 0 wrong. See every decision</span>
+  <span class="lab-txt" id="lab-txt">53 real delegations replayed. The 31 sprag hands off cost 58% less, all 53 cost 30% less, 1 wrong. See every decision</span>
   <span class="lab-go" aria-hidden="true">&rarr;</span>
 </a>
 <script>
 (function(){
   var txt = document.getElementById('lab-txt');
   if (!txt) return;
-  var D = { n: 10, a: '$8.13', b: '$2.61', pct: 32, f: 0 };
-  function usd(v){ return '$' + v.toFixed(2); }
+  var D = { n: 53, hn: 31, hp: 58, sp: 30, f: 1 };
   window.__fillLab = function(){
     var ko = document.documentElement.lang === 'ko';
     txt.textContent = ko
-      ? '실제 위임 ' + D.n + '건을 다시 돌려 봤습니다. sprag 없이 ' + D.a + ', sprag와 함께 ' + D.b + ' (' + D.pct + '%), 오답 ' + D.f + '건. 판단 하나하나 보기'
-      : D.n + ' real delegations replayed. Without sprag ' + D.a + ', with sprag ' + D.b + ' (' + D.pct + '%), ' + D.f + ' wrong. See every decision';
+      ? '실제 위임 ' + D.n + '건을 다시 돌려 봤습니다. 넘긴 ' + D.hn + '건은 ' + D.hp + '% 절감, 전체는 ' + D.sp + '% 절감, 오답 ' + D.f + '건. 판단 하나하나 보기'
+      : D.n + ' real delegations replayed. The ' + D.hn + ' sprag hands off cost ' + D.hp + '% less, all ' + D.n + ' cost ' + D.sp + '% less, ' + D.f + ' wrong. See every decision';
   };
   fetch('proof/banner.json', { cache: 'no-cache' }).then(function(r){ return r.json(); }).then(function(d){
-    if (d && d.opusUsd > 0) D = { n: d.n, a: usd(d.opusUsd), b: usd(d.pickUsd), pct: d.pct, f: d.fail };
+    if (d && d.handed) D = { n: d.n, hn: d.handed.n, hp: d.handed.savedPct, sp: d.savedPct, f: d.fail };
   }).catch(function(){}).then(window.__fillLab);
 })();
 </script>
@@ -1195,31 +1224,13 @@
 
     <div class="demo">
       <div class="titlebar">
-        <span class="path">sprag --statusline</span>
+        <span class="path">sprag --statusline --agent codex</span>
         <span class="snapshot-label" data-k="hero.capture">CLI capture · example session</span>
       </div>
-      <div class="tabs" role="tablist">
-        <button id="demo-claude" role="tab" aria-selected="true" aria-controls="capture-claude" data-tab="claude">Claude Code</button>
-        <button id="demo-codex" role="tab" aria-selected="false" aria-controls="capture-codex" tabindex="-1" data-tab="codex">Codex</button>
-      </div>
       <div class="term">
-        <div id="capture-codex" class="shot" role="tabpanel" aria-labelledby="demo-codex" hidden>
+        <div id="capture-codex" class="shot">
           <a href="assets/codex-panel.png" target="_blank" rel="noopener"><img class="terminal-shot" src="assets/codex-panel.png" width="1200" height="330" alt="Codex panel showing context, cached input, model, and rules in an example session" /></a>
           <span class="shot-hint" data-k="hero.enlarge">Tap to enlarge</span>
-        </div>
-        <div id="capture-claude" class="shot shot-sl" role="tabpanel" aria-labelledby="demo-claude">
-<!-- statusline-sample:demo:start -->
-<pre class="sl-out sl-en" lang="en"><span class="sl-b sl-c-green">🔀 Routing saved</span> <span class="sl-c-green">$136</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">opus→sonnet ×52 $88.4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→haiku ×18 $31.2</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">opus→haiku ×9 $11.1</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→sonnet ×4 $5.32</span>
-<span class="sl-b sl-c-green">📄 Doc2md saved</span> <span class="sl-c-green">$4.03</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">pptx ×1 $3.10</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">pdf ×2 $0.93</span>
-<span class="sl-b sl-c-gray">👥 Pro · northwind · Platform · member-1a2b3c4d</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">🦊 Fox ▰▰▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱</span><span class="sl-c-gray"> 75% → 🐆 Cheetah 77%</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">overall #3/12</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">team #1/4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">spend #2/12</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">delegation #5/12</span>
-<span class="sl-c-green">✦ current ▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱</span><span class="sl-c-green"> 62% 🔄 16:33</span> · <span class="sl-c-green">📅 weekly ▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱▱▱</span><span class="sl-c-green"> 38% 🔄 Tue 19:00</span> · <span class="sl-c-green">📦 Ctx 18% of 1M</span> · <span class="sl-c-green">⏳ Cache expires 59:12</span> · <span class="sl-c-violet">🤖 Opus 5.5</span> · <span class="sl-c-blue">🔬 high</span>
-<span class="sl-b">🧠 Cache hit</span> <span class="sl-c-green">98.8%</span> <span class="sl-c-cyan">💰 Cache saved</span> $1.5K <span class="sl-c-gray">(last 7d)</span> · <span class="sl-c-gray">💵 Nov $413</span> · <span class="sl-c-gray">v3.124.0 ✓5m ago</span></pre>
-<pre class="sl-out sl-ko" lang="ko"><span class="sl-b sl-c-green">🔀 Routing saved</span> <span class="sl-c-green">$136</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">opus→sonnet ×52 $88.4</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→haiku ×18 $31.2</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">opus→haiku ×9 $11.1</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">fable→sonnet ×4 $5.32</span>
-<span class="sl-b sl-c-green">📄 Doc2md saved</span> <span class="sl-c-green">$4.03</span> <span class="sl-c-gray">since 10/17</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">pptx ×1 $3.10</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">pdf ×2 $0.93</span>
-<span class="sl-b sl-c-gray">👥 Pro · northwind · Platform · member-1a2b3c4d</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">🦊 여우 ▰▰▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱</span><span class="sl-c-gray"> 75% → 🐆 치타 77%</span>  <span class="sl-c-gray">|</span>  <span class="sl-c-gray">종합 3/12위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">팀 1/4위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">사용량 2/12위</span> <span class="sl-c-gray">·</span> <span class="sl-c-gray">위임률 5/12위</span>
-<span class="sl-c-green">✦ current ▰▰▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱</span><span class="sl-c-green"> 62% 🔄 16:33</span> · <span class="sl-c-green">📅 weekly ▰▰▰▰▰</span><span class="sl-c-gray">▱▱▱▱▱▱▱</span><span class="sl-c-green"> 38% 🔄 Tue 19:00</span> · <span class="sl-c-green">📦 Ctx 18% of 1M</span> · <span class="sl-c-green">⏳ Cache expires 59:12</span> · <span class="sl-c-violet">🤖 Opus 5.5</span> · <span class="sl-c-blue">🔬 high</span>
-<span class="sl-b">🧠 Cache hit</span> <span class="sl-c-green">98.8%</span> <span class="sl-c-cyan">💰 Cache saved</span> $1.5K <span class="sl-c-gray">(last 7d)</span> · <span class="sl-c-gray">💵 Nov $413</span> · <span class="sl-c-gray">v3.124.0 ✓5m ago</span></pre>
-<!-- statusline-sample:demo:end -->
         </div>
       </div>
       <p class="caption" data-k="hero.caption">Separate agent records. Shared writing and document tools. Unknown prices stay unknown.</p>
@@ -1244,13 +1255,13 @@
       <button id="setup-codex-tab" role="tab" aria-selected="false" aria-controls="setup-codex" tabindex="-1" data-agent="codex">Codex</button>
     </div>
     <div class="setup-panel" id="setup-codex" role="tabpanel" aria-labelledby="setup-codex-tab" hidden>
-      <div class="command-block"><pre id="codex-install-command">npm i -g sprag-cli</pre><button class="icon-button" data-copy="codex-install-command" aria-label="Copy Codex install commands" title="Copy Codex install commands"><svg><use href="assets/icons/copy.svg#copy" /></svg></button></div>
+      <div class="command-block"><pre id="codex-install-command">npm i -g sprag-cli</pre><button class="icon-button" data-copy="codex-install-command" aria-label="Copy Codex install commands" title="Copy Codex install commands"><svg viewBox="0 0 24 24"><use href="assets/icons/copy.svg#copy" /></svg></button></div>
       <p class="setup-note" data-k="setup.codex">One command sets up Codex too when it is installed, with the rule presets registered globally. Then trust the Sprag hooks in Codex <code>/hooks</code>; Codex requires that step. Codex only: <code>npm i -g sprag-cli --ignore-scripts</code> then <code>sprag install --agent codex</code>.</p>
       <div class="setup-links"><a href="docs/codex/" data-k="setup.guide">Codex setup and limits</a><a href="docs/codex/#route-discovery-and-presets" data-k="setup.rules" data-anchor-en="route-discovery-and-presets" data-anchor-ko="위임-후보와-프리셋">Routing and presets</a></div>
     </div>
     <div class="setup-panel" id="setup-claude" role="tabpanel" aria-labelledby="setup-claude-tab">
       <div class="command-block"><pre id="claude-install-command">npm i -g sprag-cli
-sprag harness check</pre><button class="icon-button" data-copy="claude-install-command" aria-label="Copy Claude install commands" title="Copy Claude install commands"><svg><use href="assets/icons/copy.svg#copy" /></svg></button></div>
+sprag harness check</pre><button class="icon-button" data-copy="claude-install-command" aria-label="Copy Claude install commands" title="Copy Claude install commands"><svg viewBox="0 0 24 24"><use href="assets/icons/copy.svg#copy" /></svg></button></div>
       <p class="setup-note" data-k="setup.claude">The default install registers Claude Code hooks, its statusline and the rule presets. The only question comes when you already have a statusline: show both, replace yours, or keep yours. Add <code>--manual</code> to <code>sprag install</code> to confirm each step.</p>
       <div class="setup-links"><a href="docs/install/" data-k="setup.claudeguide">Claude Code setup</a><a href="docs/statusline/" data-k="setup.statusline">Statusline reference</a></div>
     </div>
@@ -1989,8 +2000,6 @@ document.querySelectorAll('[role=tablist]').forEach(list => {
       b.tabIndex = active ? 0 : -1;
       document.getElementById(b.getAttribute('aria-controls')).hidden = !active;
     });
-    if(tab.dataset.tab) document.querySelector('.demo .path').textContent =
-      tab.dataset.tab === 'codex' ? 'sprag --statusline --agent codex' : 'sprag --statusline';
   }
   tabs.forEach((tab, i) => {
     tab.addEventListener('click', () => select(tab));

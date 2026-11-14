@@ -431,6 +431,8 @@
 
   footer{border-top:1px solid var(--line);padding:var(--s4) 0 var(--s5);color:var(--faint);font-size:12px}
   footer .wrap{display:flex;justify-content:space-between;gap:var(--s3);flex-wrap:wrap}
+  /* signed out, the page wears the site header (1080px), so the footer keeps the same column */
+  body:not(.authed) footer .wrap{max-width:1080px;padding-inline:24px}
   footer a:hover{color:var(--ink)}
   footer .wrap.biz{display:block;margin:16px auto 0;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
   footer .wrap.biz[hidden]{display:none}
