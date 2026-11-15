@@ -655,7 +655,9 @@ export const hash = s => { let h = 2166136261; for(const c of String(s)) h = Mat
  * cfg: { T, canvas, stage, camera, target0:[x,y,z], theta0, phi0, dist, bounds(), size():[W,H], ppu(), isFs(), reduced, request(), onTap(px,py,ev), onMove(px,py,ev), onLeave(), onDrag(bool), onFocus(), onEnter() } */
 export function makeView(cfg){
   const T = cfg.T, cam = cfg.camera, tgt = new T.Vector3(...cfg.target0), tgt0 = tgt.clone(), rc = new T.Raycaster(), plane = new T.Plane(new T.Vector3(0, 1, 0), 0), V = new T.Vector3(), V2 = new T.Vector3(), N = new T.Vector2();
-  const PMIN = 0.35, PMAX = 1.22, ZMIN = 0.6, ZMAX = 4, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const PMIN = 0.35, PMAX = 1.22, ZMIN = 0.6, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  /* the closest zoom: 4, or closer when cfg.near (world units) is given, until that span fills the shorter side of the canvas (one desk for the office) */
+  const ZMAX = () => { const [W, H] = cfg.size(), u = cfg.near > 0 ? Math.min(W, H) / (cfg.near * cfg.ppu()) : 0; return Math.max(4, Number.isFinite(u) ? u : 0); };
   let th = cfg.theta0, ph = cfg.phi0, zoom = 1, zT = 1, vth = 0, vph = 0, last = -99, now = 0, swayAmp = 1, focused = false, g = null, anchor = null, thEff = th;
   const ptrs = new Map();
   const pick = (px, py, out) => { const [W, H] = cfg.size(); plane.constant = -tgt.y; N.set(px / W * 2 - 1, -(py / H) * 2 + 1); rc.setFromCamera(N, cam); return rc.ray.intersectPlane(plane, out); };
@@ -675,7 +677,7 @@ export function makeView(cfg){
     const u = 1 / (cfg.ppu() * zoom), sp = Math.sin(th), cp = Math.cos(th), k = 1 / Math.max(0.3, Math.cos(ph));
     tgt.x += -cp * dx * u - sp * dy * u * k; tgt.z += sp * dx * u - cp * dy * u * k; clampT();
   }
-  function zoomAt(f, px, py){ zT = clamp(zT * f, ZMIN, ZMAX); anchor = px == null ? null : [px, py]; mark(); cfg.request(); }
+  function zoomAt(f, px, py){ zT = clamp(zT * f, ZMIN, ZMAX()); anchor = px == null ? null : [px, py]; mark(); cfg.request(); }
   function update(dt, time){
     now = time; const idle = time - last > 20;
     swayAmp += ((idle && !cfg.reduced ? 1 : 0) - swayAmp) * Math.min(1, dt * 1.5);
@@ -698,7 +700,7 @@ export function makeView(cfg){
     if(g.mode === 'pinch'){ if(ptrs.size < 2) return; const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), r = rect(), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
       panBy(mx - g.mx, my - g.my); g.mx = mx; g.my = my;   /* the two fingers' midpoint drags the floor while their spread zooms */
       const an = Math.atan2(b[1] - a[1], b[0] - a[0]); let da = an - g.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); th -= da; g.ang = an;   /* and a twist turns */
-      zT = clamp(g.z0 * d / g.d0, ZMIN, ZMAX); anchor = [mx - r.left, my - r.top]; mark(); cfg.request(); return; }
+      zT = clamp(g.z0 * d / g.d0, ZMIN, ZMAX()); anchor = [mx - r.left, my - r.top]; mark(); cfg.request(); return; }
     const dx = ev.clientX - g.lx, dy = ev.clientY - g.ly;
     if(!g.moved && Math.hypot(ev.clientX - g.sx, ev.clientY - g.sy) > 5){ g.moved = true; cfg.canvas.classList.add('drag'); if(cfg.onDrag) cfg.onDrag(true); }
     if(!g.moved) return;
@@ -734,14 +736,14 @@ export function makeView(cfg){
   /* programmatic pose for tests and screenshots: { th, ph, zoom, x, z } (all optional) */
   function setPose(o){
     fly = null;   /* a scripted pose (tests, the video recorder) wins over a glide in progress */
-    if(o.th != null){ th = o.th; thEff = th; } if(o.ph != null) ph = clamp(o.ph, PMIN, PMAX); if(o.zoom != null) zoom = zT = clamp(o.zoom, ZMIN, ZMAX);
+    if(o.th != null){ th = o.th; thEff = th; } if(o.ph != null) ph = clamp(o.ph, PMIN, PMAX); if(o.zoom != null) zoom = zT = clamp(o.zoom, ZMIN, ZMAX());
     if(o.x != null) tgt.x = o.x; if(o.z != null) tgt.z = o.z; vth = vph = 0; mark(); pose(); cfg.request();
   }
   function turnBy(a){ fly = null; if(cfg.reduced) th += a; else vth += a * 3; mark(); cfg.request(); }
   /* glide to look at ground point (x, z) from azimuth th (the nearest turn of it), polar ph and zoom; ox shifts the point ox pixels left of centre (room for a side panel) */
   let fly = null;
   function flyTo(o){
-    const zt = clamp(o.zoom ?? zT, ZMIN, ZMAX), th1 = th + Math.atan2(Math.sin(o.th - th), Math.cos(o.th - th)), u = 1 / (cfg.ppu() * zt), ox = o.ox || 0;
+    const zt = clamp(o.zoom ?? zT, ZMIN, ZMAX()), th1 = th + Math.atan2(Math.sin(o.th - th), Math.cos(o.th - th)), u = 1 / (cfg.ppu() * zt), ox = o.ox || 0;
     const to = { x: o.x + Math.cos(th1) * ox * u, z: o.z - Math.sin(th1) * ox * u, th: th1, ph: clamp(o.ph ?? ph, PMIN, PMAX), zoom: zt };
     fly = { t: cfg.reduced ? 1 : 0, f: { x: tgt.x, z: tgt.z, th, ph, zoom }, to }; vth = vph = 0; anchor = null; mark(); cfg.request();
   }
@@ -750,7 +752,7 @@ export function makeView(cfg){
     tgt.x = L(f.x, q.x); tgt.z = L(f.z, q.z); th = L(f.th, q.th); ph = L(f.ph, q.ph); zoom = zT = L(f.zoom, q.zoom); thEff = th;
     if(fly.t >= 1) fly = null; mark();
   }   /* inertia decays as e^-3t, so a 3a kick turns by a */
-  return { update, reset, setPose, zoomBy: f => zoomAt(f), turnBy, flyTo, flying: () => !!fly, getPose: () => ({ x: tgt.x, z: tgt.z, th, ph, zoom: zT }), azimuth: () => thEff, zoom: () => zoom, apply: pose,
+  return { update, reset, setPose, zoomBy: f => zoomAt(f), turnBy, flyTo, flying: () => !!fly, getPose: () => ({ x: tgt.x, z: tgt.z, th, ph, zoom: zT }), azimuth: () => thEff, zoom: () => zoom, zoomMax: () => ZMAX(), apply: pose,
     defaultCam(far){ const c = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, far || 400), sp = Math.sin(cfg.phi0); c.position.set(tgt0.x + cfg.dist * sp * Math.sin(cfg.theta0), tgt0.y + cfg.dist * Math.cos(cfg.phi0), tgt0.z + cfg.dist * sp * Math.cos(cfg.theta0)); c.lookAt(tgt0); c.updateMatrixWorld(); return c; } };
 }
 
@@ -883,7 +885,7 @@ export function mountOfficeScene(container, data, opts = {}){
   let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null, rim = null;
   let post = null;   /* post-processing chain (post.js): null until it loads, on phones and with ?fx=0 */
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0;
-  let statics = [], dyn = [], hover = null, scale = 10, view = null, wallIdx = { z: [], x: [] }, wallHid = { z: false, x: false }, decals = [], signs = [], decFlip = false;
+  let statics = [], dyn = [], hover = null, scale = 10, view = null, wallIdx = { z: [], x: [] }, wallHid = { z: false, x: false }, decals = [], decFlip = false;
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
   let TMP2 = null, M4 = null, S = null, TMP = null, PT = null, HP = null, Mh = null, Mp = null, Q1 = null, E1 = null, V1 = null, V2 = null, ONE = null;
   const v3 = () => new T.Vector3();
@@ -893,7 +895,7 @@ export function mountOfficeScene(container, data, opts = {}){
   const lvText = n => String((cur && cur.ui && cur.ui.lv) || 'Lv.{n}').split('{n}').join(String(n));
   let pets = [], petBits = [], petNav = null, petCtx = null, petFurCalls = 0;   /* pets (pets.js): pets holds each pet's state, petBits every Group to dispose, petNav the floor grid they walk on */
   let xmas = false, hol = [], holWall = null, holFit = null;   /* year-end dressing (holiday.js): on from Nov 1 to Dec 30 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
-  /* Who wears what: a crown gets only the red nose, a person without one gets a Santa hat or the Rudolph set (antlers band and red nose) by a hash of the id.
+  /* Who wears what, only while HOL_HEADS is on (off by default): a crown gets only the red nose, a person without one gets a Santa hat or the Rudolph set (antlers band and red nose) by a hash of the id.
    * HOL_HAT_SKIP (module level, used by headDress): species that always take the Rudolph set instead of a Santa hat; empty since the cast lost its built-in hats. ANTLER_SKIP: the band would tangle with horns or antlers of their own, so the nose goes on alone.
    * NO_NOSE: species where a red ball on the nose looks wrong (the eagle's hooked beak). Species with no nose or beak mesh (frog, elephant) get no ball anyway. */
   const ANTLER_SKIP = new Set(['deer', 'unicorn']), NO_NOSE = new Set(['eagle']), noseTips = {};
@@ -937,7 +939,7 @@ export function mountOfficeScene(container, data, opts = {}){
     pets.forEach(pt => { if(pt.blobMat) pt.blobMat.dispose(); }); petBits.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); petBits = []; pets = []; petNav = null; petCtx = null;
     gearBits.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); gearBits = [];
     dyn.forEach(o => { if(o.isObject3D){ if(o.parent) o.parent.remove(o); if(o.isInstancedMesh) o.dispose(); } else if(o.dispose) o.dispose(); });
-    castFxRelease(world); world.clear(); dyn = []; decals = []; signs = []; decFlip = false; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
+    castFxRelease(world); world.clear(); dyn = []; decals = []; decFlip = false; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
     lab = { zones: [], tags: [], server: null, more: null, sign: null };
   }
   function mk(geo, mat, n, shadow = true){
@@ -986,46 +988,31 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   const setK = (m, i, o, x, y, z, rx, sx = 1, sy = 1, sz = 1) => { fpt(o, x, y, z, TMP); setM(m, i, TMP.x, TMP.y, TMP.z, rx, 0, sx * K, sy * K, sz * K); faceCam(m, i, o); };
 
-  /* ── 3D text: one upright board per zone, a canvas texture that always faces the camera. The zone name used to be painted on the
-     floor, where a long name was cut to "…" and the rest read skewed and faint at this viewing angle; the board carries the whole name
-     on up to two lines, and for a team a small ghost badge with the number of people who have no data. ── */
-  function teamSign(name, gh, ink){
-    const cw = 1024, chh = 400, c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = chh;
-    const rr = (X, Y, Wd, Hh, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + Wd, Y, X + Wd, Y + Hh, r); x.arcTo(X + Wd, Y + Hh, X, Y + Hh, r); x.arcTo(X, Y + Hh, X, Y, r); x.arcTo(X, Y, X + Wd, Y, r); x.closePath(); };
-    x.fillStyle = '#f7e9cc'; rr(0, 0, cw, chh, 44); x.fill(); x.lineWidth = 14; x.strokeStyle = '#c9a26a'; rr(7, 7, cw - 14, chh - 14, 40); x.stroke();
-    const fam = '"Noto Sans KR","Geist",-apple-system,"Segoe UI",sans-serif', maxW = cw - 120 - (gh ? 200 : 0);
-    const wrap = (txt, fs) => {
-      x.font = `800 ${fs}px ${fam}`;
-      const lines = []; let cur = '';
-      for(const w of String(txt).split(/\s+/).filter(Boolean)){
-        const tr = cur ? cur + ' ' + w : w;
-        if(x.measureText(tr).width <= maxW){ cur = tr; continue; }
-        if(cur) lines.push(cur);
-        cur = w;
-        while(x.measureText(cur).width > maxW && cur.length > 1){ let k = cur.length; while(k > 1 && x.measureText(cur.slice(0, k)).width > maxW) k--; lines.push(cur.slice(0, k)); cur = cur.slice(k); }
-      }
-      if(cur) lines.push(cur);
-      return lines;
-    };
-    const words = String(name).split(/\s+/).filter(Boolean);
-    const longest = f => { x.font = `800 ${f}px ${fam}`; return Math.max(0, ...words.map(w => x.measureText(w).width)); };
-    let fs = 176, lines = wrap(name, fs);
-    /* shrink the type before a word gets broken in two, but never below 112px: a board nobody can read is no board */
-    while((lines.length > 2 || longest(fs) > maxW) && fs > 112){ fs -= 8; lines = wrap(name, fs); }
-    if(lines.length > 2){ lines = lines.slice(0, 2); lines[1] = lines[1].slice(0, -1) + '…'; }
-    x.fillStyle = ink; x.textBaseline = 'middle'; x.textAlign = 'left'; x.font = `800 ${fs}px ${fam}`;
-    const lh = fs * 1.1, y0 = chh / 2 - (lines.length - 1) * lh / 2;
-    lines.forEach((l, i) => x.fillText(l, 60, y0 + i * lh));
-    if(gh){
-      const bx = cw - 60 - 170, by = chh / 2;
-      x.fillStyle = '#ffffff'; rr(bx, by - 54, 170, 108, 54); x.fill(); x.lineWidth = 4; x.strokeStyle = '#d6d0c4'; x.stroke();
-      x.fillStyle = '#ffffff'; x.strokeStyle = '#b8b2a6'; x.lineWidth = 5;
-      x.beginPath(); x.arc(bx + 46, by - 4, 24, Math.PI, 0); x.lineTo(bx + 70, by + 24); x.lineTo(bx + 60, by + 15); x.lineTo(bx + 50, by + 24); x.lineTo(bx + 40, by + 15); x.lineTo(bx + 30, by + 24); x.lineTo(bx + 22, by + 15); x.lineTo(bx + 22, by - 4); x.closePath(); x.fill(); x.stroke();
-      x.fillStyle = '#8a8f9c'; x.beginPath(); x.arc(bx + 38, by - 8, 4.5, 0, 6.3); x.fill(); x.beginPath(); x.arc(bx + 54, by - 8, 4.5, 0, 6.3); x.fill();
-      x.fillStyle = '#5a4630'; x.font = `800 66px ${fam}`; x.fillText(String(gh), bx + 86, by);
+  /* ── 3D text: each zone's name is painted on the floor strip (LANE) in front of its rug. An upright board on a post used to carry it (2026-10-20 to
+     2026-11-15), but the board stood over the front desks and hid them. The type shrinks before the name is cut (down to 0.45 of the strip, then "…"),
+     a team with ghosts gets a small ghost badge with their number after the name, and a faint copy drawn without depth keeps the name readable where a
+     desk or a person stands in front of it. ── */
+  function decal(text, width, height, color, gh){
+    const cw = 2048, ch = Math.round(cw * height / width), c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = ch;
+    const fam = '"Noto Sans KR","Geist",-apple-system,"Segoe UI",sans-serif', pad = 32, bw = gh ? Math.round(ch * 1.25) : 0, maxW = cw - 2 * pad - (gh ? bw + pad : 0);
+    let fs = Math.round(ch * 0.7); x.font = `800 ${fs}px ${fam}`;
+    const fit = () => x.measureText(String(text)).width <= maxW;
+    while(!fit() && fs > ch * 0.45){ fs -= 4; x.font = `800 ${fs}px ${fam}`; }
+    let tx = String(text); if(!fit()){ while(tx.length > 1 && x.measureText(tx + '…').width > maxW) tx = tx.slice(0, -1); tx += '…'; }
+    x.textBaseline = 'middle'; x.fillStyle = color; x.fillText(tx, pad, ch * 0.54);
+    if(gh){   /* the ghost badge: a white pill with a small ghost and the count, right after the name */
+      const bh = ch * 0.62, bx = Math.min(cw - pad - bw, pad + x.measureText(tx).width + pad), by = ch / 2, r = bh / 2, gs = bh / 108;
+      x.fillStyle = 'rgba(255,255,255,0.92)'; x.beginPath(); x.moveTo(bx + r, by - r); x.arcTo(bx + bw, by - r, bx + bw, by + r, r); x.arcTo(bx + bw, by + r, bx, by + r, r); x.arcTo(bx, by + r, bx, by - r, r); x.arcTo(bx, by - r, bx + bw, by - r, r); x.closePath(); x.fill();
+      const gx = bx + 22 * gs, gy = by; x.fillStyle = '#ffffff'; x.strokeStyle = '#b8b2a6'; x.lineWidth = 5 * gs;
+      x.beginPath(); x.arc(gx + 24 * gs, gy - 4 * gs, 24 * gs, Math.PI, 0); x.lineTo(gx + 48 * gs, gy + 24 * gs); x.lineTo(gx + 38 * gs, gy + 15 * gs); x.lineTo(gx + 28 * gs, gy + 24 * gs); x.lineTo(gx + 18 * gs, gy + 15 * gs); x.lineTo(gx + 8 * gs, gy + 24 * gs); x.lineTo(gx, gy + 15 * gs); x.lineTo(gx, gy - 4 * gs); x.closePath(); x.fill(); x.stroke();
+      x.fillStyle = '#8a8f9c'; x.beginPath(); x.arc(gx + 16 * gs, gy - 8 * gs, 4.5 * gs, 0, 6.3); x.fill(); x.beginPath(); x.arc(gx + 32 * gs, gy - 8 * gs, 4.5 * gs, 0, 6.3); x.fill();
+      x.fillStyle = '#5a4630'; x.font = `800 ${Math.round(66 * gs)}px ${fam}`; x.fillText(String(gh), gx + 64 * gs, gy);
     }
     const tex = track(new T.CanvasTexture(c)); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    return track(new T.Mesh(track(new T.PlaneGeometry(4.1, 1.6)), track(new T.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: true }))));
+    const g = track(new T.PlaneGeometry(width, height)); g.rotateX(-Math.PI / 2);
+    const m = track(new T.Mesh(g, track(new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false })))); world.add(m);
+    const see = track(new T.Mesh(g, track(new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.32, depthWrite: false, depthTest: false, toneMapped: false })))); see.renderOrder = 5; m.add(see);
+    return m;
   }
   let tintZ = null, rcast = null, rplane = null;
   function floorPt(px, py){
@@ -1096,12 +1083,12 @@ export function mountOfficeScene(container, data, opts = {}){
     if(reduced) setTimeout(() => { pulse = null; request(); }, 2500);
   }
   function openDrawer(o, fly = true){ if(sel && sel !== o){ shopReset(); unpose(sel); } bookOpen = false; sel = o; selId = o.p.id; renderDrawer(); chrome.open(); if(ring) ring.visible = true; portrait(o); if(fly) focusOn(o); posePerson(o); }
-  /* Look at the selected person's desk from the camera side, where the standing model faces us beside the laptop,
-     zoomed in and centred in the room the drawer and the portrait leave */
+  /* Look at the selected person's desk from the camera side, where the standing model faces us beside the laptop, at the closest zoom
+     (view.zoomMax: the desk fills the view) and centred in the room the drawer and the portrait leave */
   function focusOn(o){
     if(!view) return; if(!homePose) homePose = view.getPose();   /* where to fly back to when the drawer closes */
     const W = stage.clientWidth, side = W > 480 ? 420 + (pr && pr.on ? PC_W + 10 : 0) : 0;
-    view.flyTo({ x: o.x + POSE_X, z: o.z + POSE_Z + 0.6, th: 0, ph: 1.05, zoom: 3.4, ox: side / 2 });
+    view.flyTo({ x: o.x + POSE_X / 2, z: o.z + POSE_Z + 0.6, th: 0, ph: 1.05, zoom: view.zoomMax(), ox: side / 2 });
   }
   /* The selected character as a collectible card left of the drawer: a tier-coloured frame, the name and rank on top, the character in an art window
      (its own renderer, scene and three-point light, turned a quarter towards the drawer), the species line, up to three rows of the person's tip and a
@@ -1424,7 +1411,7 @@ export function mountOfficeScene(container, data, opts = {}){
       + grp('shape', sel1('ear', PET_EARS, 'ear.') + rng('earsize') + sel1('tail', PET_TAILS, 'tail.') + rng('snout') + rng('legs') + rng('length') + rng('build'))
       + grp('face', auto('eye') + auto('nose') + collar) + rm
       + `</div><div class="pet-pvc"><div class="pet-pv" role="button" tabindex="0" data-sh="pvopen" aria-label="${esc(ui['pet.zoom'])}" title="${esc(ui['pet.zoom'])}"></div>${toys}</div></div>`,
-      shopFoot(P.dirty, P.dirty || !P.had)];
+      shopFoot(P.dirty, P.dirty)];   /* save needs an edit: with no pet the form shows the default dog, and saving it untouched put a pet back right after it was taken out */
   }
   function shopHtml(){
     const ui = cur.shop.ui, tab = shop.tab, [body, foot] = tab === 'pet' ? petHtml() : gearHtml(tab);
@@ -1584,7 +1571,7 @@ export function mountOfficeScene(container, data, opts = {}){
     if(a === 'cancel'){ shop.msg = null; if(shop.tab === 'pet') shop.pet = petState(); else { shop.draft = { ...shop.base }; previewGear(); } rerender(); petPreviewSet(); return; }
     /* a pet save tells the page about the photo: this browser's photo (fresh when picked in this visit), the visibility choice and whether the server has a
        copy; the page uploads, clears or leaves the shared copy (petPhotoPlan) */
-    if(a === 'save'){ if(shop.tab === 'pet'){ const P = shop.pet, look = normalizePetLook(P.look); if(look) shopSave({ pet: look }, { photo: P.photo || P.shown || null, fresh: !!P.photo, share: !!P.share, shared: cur.shop.photoShared === true }); } else if(gearDirty()) shopSave({ gear: { ...shop.draft } }); return; }
+    if(a === 'save'){ if(shop.tab === 'pet'){ const P = shop.pet, look = normalizePetLook(P.look); if(look && P.dirty) shopSave({ pet: look }, { photo: P.photo || P.shown || null, fresh: !!P.photo, share: !!P.share, shared: cur.shop.photoShared === true }); } else if(gearDirty()) shopSave({ gear: { ...shop.draft } }); return; }
     if(a === 'petask' || a === 'petkeep'){ shop.pet.ask = a === 'petask'; rerender(); const f = chrome.el.querySelector(a === 'petask' ? '[data-sh="petkeep"]' : '[data-sh="petask"]'); if(f) f.focus(); return; }   /* removing asks once */
     if(a === 'petclear'){ shopSave({ petClear: true }); return; }
   });
@@ -1605,7 +1592,7 @@ export function mountOfficeScene(container, data, opts = {}){
   /* ── pets (pets.js): a member's own dog or cat lives round their desk. The bowls stand in the gap left of the desk (see buildPets), the photo frame on
      the desk's left end (the still life gives way to it), and the pet follows petPlan: it roams the aisle, sits and looks up at its owner, eats or drinks at
      the bowls, hops onto the desk to sleep beside the laptop, or fetches a toy from the presents pile by the server kiosk (a toy basket out of season), plays
-     there and carries the toy home. Walking uses a coarse floor grid (desks, chairs with their sitters, the kiosk and the pile, plants, lamps, sign posts and
+     there and carries the toy home. Walking uses a coarse floor grid (desks, chairs with their sitters, the kiosk and the pile, plants, lamps and
      walls keep a margin for the shelves) searched with A*, and each pet keeps a small lane offset by a hash so two pets rarely overlap.
      Reduced motion: every pet sits by its desk. Per pet: 15 or 16 meshes for the animal (no shadow-map shadow: the shadow map is redrawn only now and then,
      so a walking pet's shadow would step) and one contact blob that follows it every frame; shell fur adds 6 or 7 draw calls a pet (body, head, legs, tail) when it is large on screen
@@ -1732,7 +1719,6 @@ export function mountOfficeScene(container, data, opts = {}){
     rects.push([srv.x - 1.3, srv.z - 0.8, srv.x + 1.3, srv.z + 0.85], ...pr); block.push([srv.x - 1.3, srv.z - 0.8, srv.x + 1.3, srv.z + 0.85]);
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z]) => rects.push([x - 0.4, z - 0.4, x + 0.4, z + 0.4]));   /* potted plants */
     lampList.forEach(l => rects.push([l.x - 0.22, l.z - 0.22, l.x + 0.22, l.z + 0.22]));
-    zones.forEach(zn => { if(zn.sign) rects.push([zn.sign.x - 0.1, zn.sign.z - 0.1, zn.sign.x + 0.1, zn.sign.z + 0.1]); });
     owners.forEach(o => { const b = petBowlAt(o); rects.push([b.x - 0.2, b.z - 0.35, b.x + 0.2, b.z + 0.35, 0.1]); });   /* the bowls, with a small margin so the pet still reaches them */
     petNav = petNavGrid(rects);
     /* rays start from the middle of the boxes (the pile's own origin is at its back edge) */
@@ -2162,13 +2148,11 @@ export function mountOfficeScene(container, data, opts = {}){
         if(p.tier === 'low' && !ghost){ fpt(o, x + 0.55, 1.04, mz(z + 0.04), TMP); B('#fffaf0', 0.22, 0.28, 0.22, TMP.x, TMP.y + 0.02, TMP.z); }   /* the coffee mug of the lowest tier, on the desk beside the laptop */
       });
       if(zn.kind === 'team' || zn.kind === 'free'){
-        /* the zone's name board on a post at the front-right corner, ink in a darker shade of the rug colour; a team's board also counts its ghosts */
+        /* the zone's name painted on the floor strip in front of the rug (decal), ink in a darker shade of the rug colour; a team's also counts its ghosts */
         const hsl = {}; C(rc).getHSL(hsl); const ink = zn.kind === 'free' ? C('#8a7a66') : C().setHSL(hsl.h, Math.min(0.62, hsl.s + 0.2), 0.3);
-        zn.dw = 0;
         zn.gh = zn.kind === 'team' ? zn.ps.filter(q => q.tag).length : 0;
-        const sx = zn.cx + zn.w / 2 - 0.9, sz = zn.cz + zn.d / 2 - 0.6; zn.sign = { x: sx, z: sz };
-        B('#b98b5a', 0.14, 1.6, 0.14, sx, 0.8, sz); B(CH[(zi + 5) % CH.length], 0.14, 0.3, 0.15, sx, 1.2, sz);
-        const sm2 = teamSign(zn.name, zn.gh, (closed ? ink.clone().lerp(grey, 0.5) : ink).getStyle()); sm2.position.set(sx, 2.35, sz); world.add(sm2); signs.push(sm2);
+        zn.dw = Math.min(zn.w - 0.8, 9); zn.dx = zn.cx - zn.w / 2 + 0.4;
+        const dm = decal(zn.name, zn.dw, LANE - 0.3, (closed ? ink.clone().lerp(grey, 0.5) : ink).getStyle(), zn.gh); dm.position.set(zn.dx + zn.dw / 2, 0.085, zn.cz + zn.d / 2 - LANE / 2); decals.push(dm);
         if(zn.kind === 'team'){
           zi2.push(zn);
           /* floor lamp in the aisle at the back-left corner of the rug; lit in the evening with a warm pool over the team */
@@ -2427,9 +2411,9 @@ export function mountOfficeScene(container, data, opts = {}){
     }
     if(w.parts && !w.parts.snow) w.parts.m.material.color.set('#6f819e').lerp(C('#cfdcf2'), n);   /* streaks stay visible against a pale day sky */
     if(w.cs) w.cs.m.material.opacity = (0.07 + 0.1 * wx.cloud) * (1 - 0.75 * n);
-    /* painted floor text and signs are unlit, so they dim with the room; helper bots glow stronger at night */
+    /* painted floor text is unlit, so they dim with the room; helper bots glow stronger at night */
     const dk = 1 - 0.42 * n * (1 - 0.35 * lamp);
-    decals.forEach(m => { m.material.color.setScalar(dk); m.children.forEach(c => c.material && c.material.color.setScalar(dk)); }); signs.forEach(m => m.material.color.setScalar(Math.max(dk, 0.82)));
+    decals.forEach(m => { m.material.color.setScalar(dk); m.children.forEach(c => c.material && c.material.color.setScalar(dk)); });
     if(sets.gl) sets.gl.material.opacity = 0.22 + 0.3 * n;
     sprTint = nightTint(n, lamp, ovc); if(sprKit) sprKit.setTint(sprTint);   /* sprites are unlit: the night and the lamps reach them as a colour factor */
     renderer.shadowMap.needsUpdate = true; request();
@@ -2537,7 +2521,7 @@ export function mountOfficeScene(container, data, opts = {}){
   let sprTint = [1, 1, 1], sprPend = null;   /* sprPend: the seated models waiting for their sheets until the camera first comes close */
   const SPR_PREFETCH_ZOOM = 1.5;   /* under SPRITE_MIN_ZOOM, so the sheets are usually in by the time the gate opens */
   /* what the head wears (headDress): the crown, a head gear (gear.js) or nothing, and the season's piece; holKindOf is the same choice for the sprite sheet */
-  function dressOf(o){ const id = o.p.gear && o.p.gear.head, f = id ? headGearFit(id, o.gk) : null; return headDress({ ghost: o.ghost, crown: o.p.crown, head: id || null, skip: !f || !!f.skip, xmas, species: o.gk, coin: hash(o.p.id + ':xmas') }); }
+  function dressOf(o){ const id = o.p.gear && o.p.gear.head, f = id ? headGearFit(id, o.gk) : null; return headDress({ ghost: o.ghost, crown: o.p.crown, head: id || null, skip: !f || !!f.skip, xmas, holHeads: HOL_HEADS, species: o.gk, coin: hash(o.p.id + ':xmas') }); }
   function holKindOf(o){ return dressOf(o).hol; }
   function sprAttach(o, m, gen){
     const hk = holKindOf(o), pv = pickVariant(sprMan, o.gk, wantVariant(hk === 'nose' ? 'crown' : hk, o.gk, ANTLER_SKIP, NO_NOSE)); if(!pv) return;   /* 'nose' (crown or head gear in the season) uses the crown's sheet: the nose alone */
@@ -2622,8 +2606,8 @@ export function mountOfficeScene(container, data, opts = {}){
     if(pets.length) stepPets(dt);
     if(pets.length) hoverRefresh(dt);   /* a still pointer over a walking pet */
     view.update(dt, time); updateWalls();
-    { const az = view.azimuth(), flip = Math.cos(az) < 0;   /* floor text flips 180 degrees when the camera is on the far side, signs face the camera */
-      if(flip !== decFlip){ decFlip = flip; decals.forEach(m => { m.rotation.y = flip ? Math.PI : 0; }); } signs.forEach(m => { m.rotation.y = az; }); }
+    { const az = view.azimuth(), flip = Math.cos(az) < 0;   /* floor text flips 180 degrees when the camera is on the far side */
+      if(flip !== decFlip){ decFlip = flip; decals.forEach(m => { m.rotation.y = flip ? Math.PI : 0; }); } }
     const closed = !!cur.closed;
     /* people: typing arms, the head turns toward the room now and then, and one scheduled action at a time (see planAct) */
     sets.f.forEach(f => {
@@ -2808,7 +2792,7 @@ export function mountOfficeScene(container, data, opts = {}){
     people.forEach(o => { const [x, y] = proj(HP.set(o.x, 2.0, o.z + 0.2), PT), dd = Math.hypot(x - px, y - py); if(dd < rad && dd < bd){ bd = dd; best = o; } });
     if(best) return { person: best };
     const f = zoneAt(px, py), q = f && f.q;
-    if(q){ const z = zones.find(z => z.dw && q.x >= z.dx && q.x <= z.dx + z.dw && q.z >= z.cz + z.d / 2 - LANE && q.z <= z.cz + z.d / 2) || zones.find(z => z.sign && Math.hypot(q.x - z.sign.x, q.z - z.sign.z) < 1.1); if(z && z.kind === 'team') return { team: z }; }
+    if(q){ const z = zones.find(z => z.dw && q.x >= z.dx && q.x <= z.dx + z.dw && q.z >= z.cz + z.d / 2 - LANE && q.z <= z.cz + z.d / 2); if(z && z.kind === 'team') return { team: z }; }
     if(srv){ const [x, y] = proj(HP.set(srv.x, 1.8, srv.z), PT); if(Math.hypot(x - px, y - py) < Math.max(26, scale * view.zoom() * 1.8)) return { server: true }; }
     return null;
   }
@@ -2834,12 +2818,12 @@ export function mountOfficeScene(container, data, opts = {}){
   function hoverRefresh(dt){ if(!ptrAt || (vw && vw.on)) return; hoverT += dt; if(hoverT < 0.15) return; hoverT = 0; setHover(nearest(ptrAt[0], ptrAt[1]), ptrAt[0], ptrAt[1]); }
   function bindView(){
     view = makeView({ T, canvas, stage, camera, target0: [0, 0.9, 0], theta0: Math.PI / 4, phi0: Math.atan2(Math.hypot(20, 20), 16.6), dist: Math.hypot(20, 16.6, 20), reduced,
-      bounds: () => ({ x0: BB.x0, x1: BB.x1, z0: BB.z0, z1: BB.z1 }), size: () => [W, H], ppu: () => scale, isFs: () => chrome.fsOn(), request,
+      bounds: () => ({ x0: BB.x0, x1: BB.x1, z0: BB.z0, z1: BB.z1 }), size: () => [W, H], ppu: () => scale, near: 6, isFs: () => chrome.fsOn(), request,
       onFocus: () => chrome.hideHint(), onEnter: () => chrome.showHint(), onDrag: on => { if(on){ setHover(null); ptrAt = null; } },
       onMove: (px, py) => { ptrAt = [px, py]; const h = nearest(px, py); setHover(h, px, py); const f = zoneAt(px, py); setTint(f && f.zn && f.zn.kind === 'team' ? f.zn : null); },
       onLeave: () => { ptrAt = null; setHover(null); setTint(null); },
       /* an object (desk item, frame, pet) is taken at the press and opens at the release only while the pointer is still near it (objTap); a press that began on
-         one never falls through to the person behind it or closes the drawer. People, team signs and the server pick at the release as before. */
+         one never falls through to the person behind it or closes the drawer. People, team names on the floor and the server pick at the release as before. */
       onDown: (px, py, ev) => { const mr = pickMinR(ev && ev.pointerType), ob = objPick(px, py, objList(), mr); downObj = ob ? { kind: ob.kind, o: ob.o, mr } : null; },
       onTap: (px, py) => {
         const d = downObj; downObj = null;
@@ -2884,8 +2868,8 @@ export function mountOfficeScene(container, data, opts = {}){
     ro = new ResizeObserver(resize); ro.observe(stage);
     W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false);
     build(cur); request();
-    /* team signboards skip the passes so their names stay sharp (post.js draws them on top afterwards) */
-    makePost(T, renderer, scene, camera, { mobile, look: OFFICE_LOOK, overlay: () => signs }).then(p => { if(destroyed){ if(p) p.dispose(); return; } post = p; if(post){ post.setSize(W, H); post.setNight(envN); request(); } }).catch(() => {});
+    /* post-processing passes (post.js); the team names are floor decals, so nothing is drawn on top afterwards */
+    makePost(T, renderer, scene, camera, { mobile, look: OFFICE_LOOK }).then(p => { if(destroyed){ if(p) p.dispose(); return; } post = p; if(post){ post.setSize(W, H); post.setNight(envN); request(); } }).catch(() => {});
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if(started === true && !destroyed) build(cur); });
   }
   io = new IntersectionObserver(es => {
@@ -2951,13 +2935,16 @@ const GEAR_SLOT = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, g.slot]));
 /* { head, desk } with known ids in the right slot, anything else null */
 export function gearOf(g){ const ok = (id, slot) => (typeof id === 'string' && GEAR_SLOT[id] === slot ? id : null); return { head: ok(g && g.head, 'head'), desk: ok(g && g.desk, 'desk') }; }
 export const HOL_HAT_SKIP = new Set([]);   /* species that already wear a hat take the Rudolph set in the season; since the cast models lost their built-in accessories (3.127.0-2) none does */
-/* What goes on a head. o: { ghost, crown, head (gear id or null), skip (headGearFit says the species cannot wear it), xmas, species, coin (0..1 hash) }.
- * The crown wins over head gear. In the year-end season a chosen head gear replaces the Santa hat or the antlers and the red nose stays ('nose').
- * hol is null, 'santa', 'rudolph' (antlers where the species takes them, and the nose) or 'nose'. */
+/* HOL_HEADS: whether the year-end season puts a Santa hat, antlers or a red nose on heads. Off since 2026-11-15: by default a head wears only what the member
+   chose (the crown or a head gear); the season still dresses the room (tree, presents, garland, wreaths). */
+export const HOL_HEADS = false;
+/* What goes on a head. o: { ghost, crown, head (gear id or null), skip (headGearFit says the species cannot wear it), xmas, holHeads (HOL_HEADS), species,
+ * coin (0..1 hash) }. The crown wins over head gear. With holHeads in the year-end season a chosen head gear replaces the Santa hat or the antlers and the
+ * red nose stays ('nose'). hol is null, 'santa', 'rudolph' (antlers where the species takes them, and the nose) or 'nose'. */
 export function headDress(o){
   if(!o || o.ghost) return { crown: false, head: null, hol: null };
   const crown = !!o.crown, head = !crown && o.head && !o.skip ? o.head : null;
-  const hol = !o.xmas ? null : crown || head ? 'nose' : HOL_HAT_SKIP.has(o.species) ? 'rudolph' : o.coin < 0.5 ? 'santa' : 'rudolph';
+  const hol = !o.xmas || !o.holHeads ? null : crown || head ? 'nose' : HOL_HAT_SKIP.has(o.species) ? 'rudolph' : o.coin < 0.5 ? 'santa' : 'rudolph';
   return { crown, head, hol };
 }
 /* A person's cosmetics for the scene. p: { lvl, gear, pet, toys?, photo? } as the server sends them; o: { off (closed organization or a ghost: nothing),

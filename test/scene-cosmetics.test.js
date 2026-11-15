@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const S = await import('../site/assets/scene/office-scene.js');
-const { headDress, cosmeticsOf, gearOf, lvOf, unlockNext, shopTiles, shopUi, SHOP_KEYS, officeSceneData, HOL_HAT_SKIP } = S;
+const { headDress, HOL_HEADS, cosmeticsOf, gearOf, lvOf, unlockNext, shopTiles, shopUi, SHOP_KEYS, officeSceneData, HOL_HAT_SKIP } = S;
 const { GEAR_ITEMS } = await import('../site/assets/scene/gear.js');
 const { PET_KINDS, PET_PATTERNS, PET_EARS, PET_TAILS, PET_SIZES } = await import('../site/assets/scene/pets.js');
 const read = p => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -18,17 +18,17 @@ const TOWNSCENE = read('../site/assets/scene/town-scene.js');
 const OFFICE = vm.runInNewContext('var window = {};\n' + read('../site/assets/scene/office-i18n.js') + '\n;window.SPRAG_OFFICE_I18N');
 
 test('headDress: the crown wins over head gear, and in the season a head gear replaces the Santa hat or the antlers while the nose stays', () => {
-  assert.deepEqual(headDress({ crown: true, head: 'cap', xmas: false }), { crown: true, head: null, hol: null }, 'a crowned person shows the crown, not the gear');
-  assert.deepEqual(headDress({ crown: true, head: 'cap', xmas: true }), { crown: true, head: null, hol: 'nose' });
-  assert.deepEqual(headDress({ head: 'cap', xmas: false }), { crown: false, head: 'cap', hol: null });
-  assert.deepEqual(headDress({ head: 'cap', xmas: true, species: 'fox', coin: 0.1 }), { crown: false, head: 'cap', hol: 'nose' }, 'gear replaces the Santa hat');
-  assert.deepEqual(headDress({ head: 'cap', xmas: true, species: 'panda', coin: 0.9 }), { crown: false, head: 'cap', hol: 'nose' }, 'gear replaces the antlers');
-  assert.equal(headDress({ xmas: true, species: 'fox', coin: 0.1 }).hol, 'santa');
-  assert.equal(headDress({ xmas: true, species: 'fox', coin: 0.9 }).hol, 'rudolph');
+  assert.deepEqual(headDress({ crown: true, head: 'cap', xmas: false, holHeads: true }), { crown: true, head: null, hol: null }, 'a crowned person shows the crown, not the gear');
+  assert.deepEqual(headDress({ crown: true, head: 'cap', xmas: true, holHeads: true }), { crown: true, head: null, hol: 'nose' });
+  assert.deepEqual(headDress({ head: 'cap', xmas: false, holHeads: true }), { crown: false, head: 'cap', hol: null });
+  assert.deepEqual(headDress({ head: 'cap', xmas: true, holHeads: true, species: 'fox', coin: 0.1 }), { crown: false, head: 'cap', hol: 'nose' }, 'gear replaces the Santa hat');
+  assert.deepEqual(headDress({ head: 'cap', xmas: true, holHeads: true, species: 'panda', coin: 0.9 }), { crown: false, head: 'cap', hol: 'nose' }, 'gear replaces the antlers');
+  assert.equal(headDress({ xmas: true, holHeads: true, species: 'fox', coin: 0.1 }).hol, 'santa');
+  assert.equal(headDress({ xmas: true, holHeads: true, species: 'fox', coin: 0.9 }).hol, 'rudolph');
   assert.equal(HOL_HAT_SKIP.size, 0, 'the cast models lost their built-in hats (3.127.0-2), so no species is held to the Rudolph set');
-  assert.equal(headDress({ xmas: true, species: 'panda', coin: 0.1 }).hol, 'santa', 'a species that used to wear a hat now takes the coin like everyone');
-  assert.deepEqual(headDress({ head: 'cap', skip: true, xmas: true, species: 'fox', coin: 0.1 }), { crown: false, head: null, hol: 'santa' }, 'a piece the fit skips is not drawn and the season piece stays');
-  assert.deepEqual(headDress({ ghost: true, crown: true, head: 'cap', xmas: true }), { crown: false, head: null, hol: null });
+  assert.equal(headDress({ xmas: true, holHeads: true, species: 'panda', coin: 0.1 }).hol, 'santa', 'a species that used to wear a hat now takes the coin like everyone');
+  assert.deepEqual(headDress({ head: 'cap', skip: true, xmas: true, holHeads: true, species: 'fox', coin: 0.1 }), { crown: false, head: null, hol: 'santa' }, 'a piece the fit skips is not drawn and the season piece stays');
+  assert.deepEqual(headDress({ ghost: true, crown: true, head: 'cap', xmas: true, holHeads: true }), { crown: false, head: null, hol: null });
 });
 
 test('cosmeticsOf: level clamped, unknown gear dropped, no pet without a valid look, toys from the toys level, nothing for ghosts and closed organizations', () => {
@@ -448,4 +448,26 @@ test('the scene follows the pets contract with fallbacks: legK in the gait, play
   assert.match(SCENE, /const toyCarry = t => \{ const v = t\.userData && t\.userData\.carryYaw; return Number\.isFinite\(v\) \? v : Math\.PI \/ 2; \};/);
   assert.match(SCENE, /const airL = Number\.isFinite\(g\.userData\.air\)/); assert.match(SCENE, /pt\.blobMat\.opacity = 0\.34 \* \(0\.3 \+ 0\.7 \* k\)/);
   assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p5';/, 'newer exports are read off the namespace, so an older pets.js still links');
+});
+
+test('an untouched pet form never saves: after the pet is taken out the form shows the default dog, and Save stays off until a field changes', () => {
+  assert.match(SCENE, /shopFoot\(P\.dirty, P\.dirty\)\]/, 'the pet tab enables Save only on an edit');
+  assert.doesNotMatch(SCENE, /P\.dirty \|\| !P\.had/, 'no pet is no reason to save the default look');
+  assert.match(SCENE, /if\(look && P\.dirty\) shopSave\(\{ pet: look \}/, 'the save handler checks the edit too');
+});
+
+test('by default a head wears nothing in the season: no Santa hat, antlers or red nose unless HOL_HEADS is turned on', () => {
+  assert.equal(HOL_HEADS, false);
+  for(const coin of [0.1, 0.9]) assert.deepEqual(headDress({ xmas: true, species: 'fox', coin }), { crown: false, head: null, hol: null });
+  assert.deepEqual(headDress({ crown: true, xmas: true }), { crown: true, head: null, hol: null }, 'the crown gets no red nose');
+  assert.deepEqual(headDress({ head: 'cap', xmas: true, species: 'fox', coin: 0.1 }), { crown: false, head: 'cap', hol: null }, 'a chosen gear gets no red nose');
+  assert.match(SCENE, /function dressOf\(o\)\{[^\n]*xmas, holHeads: HOL_HEADS,/, 'the scene passes the flag');
+});
+
+test('team names lie on the floor strip in front of each rug, and picking a person flies to the closest zoom that still shows the desk', () => {
+  assert.match(SCENE, /const dm = decal\(zn\.name, zn\.dw, LANE - 0\.3, [^\n]*zn\.gh\); dm\.position\.set\(zn\.dx \+ zn\.dw \/ 2, 0\.085, zn\.cz \+ zn\.d \/ 2 - LANE \/ 2\); decals\.push\(dm\);/);
+  assert.doesNotMatch(SCENE, /teamSign\(|signs\.push|overlay: \(\) => signs/, 'no upright board stands over the front desks');
+  assert.match(SCENE, /const ZMAX = \(\) => \{[^\n]*Math\.max\(4, /, 'never closer-limited than before');
+  assert.match(SCENE, /ppu: \(\) => scale, near: 6,/, 'the office lets one desk with its sitter fill the view');
+  assert.match(SCENE, /zoom: view\.zoomMax\(\), ox: side \/ 2 \}\)/, 'a pick flies to that zoom');
 });
