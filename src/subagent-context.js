@@ -16,13 +16,17 @@
  * Several Agent calls in one response start several hook processes at once, so
  * the queue needs no lock: each entry is its own file in
  * `<dir>/subagent-context/`, written as a temp file and renamed into place, and
- * a take claims an entry by renaming it away, which only one process can win.
- * An entry is therefore delivered at most once, and one process's write cannot
- * drop another's entry. The hook paths must never fail a delegation, so every
+ * a take claims an entry by creating `<entry>.claim` with the exclusive flag
+ * ('wx'), which only one process can win. Claiming by renaming the entry away
+ * delivered one entry twice on Windows CI (2026-11-15), while an exclusive
+ * create is atomic on every platform. The claim file stays until the TTL prune,
+ * so a process that read the entry before it was deleted still loses. An entry
+ * is therefore delivered at most once, and one process's write cannot drop
+ * another's entry. The hook paths must never fail a delegation, so every
  * function swallows its errors.
  */
 
-import { readFileSync, readdirSync, mkdirSync, renameSync, unlinkSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync, openSync, closeSync, unlinkSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { userDataDir } from './paths.js';
@@ -37,13 +41,13 @@ const DIR_NAME = 'subagent-context';
 /** The single-file queue an older version kept; nothing reads it any more. */
 const OLD_FILE_NAME = 'subagent-context.json';
 const ENTRY_NAME = /^(\d{15})-\d+-[0-9a-f]{8}\.json$/;
-const TAKEN_MARK = '.taken-';
+const CLAIM_MARK = '.claim';
 
 const queueDir = (dir) => join(dir, DIR_NAME);
 const rand = () => randomBytes(4).toString('hex');
 const rmQuiet = (file) => { try { unlinkSync(file); } catch { /* already gone */ } };
 
-/** The `at` encoded in a queue file name (entry or claimed), or null when the name does not parse. */
+/** The `at` encoded in a queue file name (entry, temp or claim file), or null when the name does not parse. */
 function nameAt(name) {
   const m = /^(\d{15})-/.exec(name);
   return m ? Number(m[1]) : null;
@@ -59,8 +63,8 @@ const list = (dir) => {
 };
 
 /**
- * Delete expired files (a name that does not parse counts as expired, claimed
- * leftovers included), then the oldest entries beyond the cap.
+ * Delete expired files (a name that does not parse counts as expired, claim
+ * files included), then the oldest entries beyond the cap.
  */
 function prune(dir, now) {
   const base = queueDir(dir);
@@ -121,12 +125,14 @@ export function takeSubagentContext({ session, type }, { dir = userDataDir(), no
       if (expired(name, now)) { rmQuiet(file); continue; }
       const entry = readEntry(file);
       if (!entry || entry.session !== session || entry.type !== type) continue;
-      // The rename is the claim: of two processes after the same file, one gets
-      // ENOENT and moves on to the next candidate.
-      const claimed = `${file}${TAKEN_MARK}${process.pid}-${rand()}`;
-      try { renameSync(file, claimed); } catch { continue; }
-      const mine = readEntry(claimed) || entry;
-      rmQuiet(claimed);
+      // The exclusive create is the claim: of two processes after the same
+      // entry, one gets EEXIST and moves on to the next candidate. The claim
+      // file is left for the prune, so a late reader of this entry loses too.
+      try { closeSync(openSync(`${file}${CLAIM_MARK}`, 'wx')); } catch { continue; }
+      const mine = readEntry(file);
+      // Gone between the read and the claim: an old process deleted it. Not ours.
+      if (!mine) continue;
+      rmQuiet(file);
       return mine;
     }
     return null;

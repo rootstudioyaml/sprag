@@ -159,21 +159,21 @@ test('queue: a corrupt entry file is skipped by take and pruned once it has expi
   }
 });
 
-test('queue: a claimed (renamed away) entry is not delivered again, and its leftover is pruned after the TTL', () => {
+test('queue: a claimed entry is not delivered again, and the claim file is pruned after the TTL', () => {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-sc-'));
   try {
     const now = 7_000_000;
     assert.ok(enqueueSubagentContext({ session: 's', type: 'a', at: now, text: 'only' }, { dir, now }));
     const [name] = queueNames(dir);
     const base = join(dir, QUEUE);
-    // Another process won the claim: the file is gone under its entry name.
-    renameSync(join(base, name), join(base, `${name}.taken-4242-cafebabe`));
+    // Another process won the claim but has not deleted the entry yet.
+    writeFileSync(join(base, `${name}.claim`), '');
     assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now }), null);
-    assert.equal(queueNames(dir).length, 1, 'the claimed file is left to its owner');
+    assert.equal(queueNames(dir).length, 2, 'the claimed entry is left to its owner');
     const later = now + SUBAGENT_CONTEXT_TTL_MS + 1;
     assert.ok(enqueueSubagentContext({ session: 's', type: 'a', at: later, text: 'new' }, { dir, now: later }));
     assert.deepEqual(queued(dir).map((e) => e.text), ['new']);
-    assert.equal(queueNames(dir).length, 1, 'the expired claimed leftover was pruned');
+    assert.equal(queueNames(dir).length, 1, 'the expired entry and its claim file were pruned');
   } finally {
     rm(dir);
   }
@@ -243,7 +243,8 @@ test('queue: parallel processes enqueue and take with nothing lost and nothing d
     const got = await runAll(() => `const e = takeSubagentContext({ session: 'S', type: 'T' }, { dir }); console.log(e ? e.text : '');`);
     for (const r of got) assert.equal(r.code, 0, r.err);
     assert.deepEqual(got.map((r) => r.out).sort(), expected, 'each appendix delivered exactly once');
-    assert.deepEqual(queueNames(dir), [], 'nothing left, no claimed file either');
+    assert.deepEqual(queued(dir), [], 'no entry left');
+    assert.ok(queueNames(dir).every((n) => n.endsWith('.claim')), 'only claim files remain until the TTL prune');
   } finally {
     rm(dir);
   }
