@@ -810,7 +810,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" integrity="sha384-YieCqqg9gQufX7+5HcFvCEg/n3KUEdl8/Jb+A6J0npf1mB740VayvwKjTrtCeUoy" crossorigin="anonymous"></script>
 <script src="/assets/admin-ux.js?v=3.127.0"></script>
 <script src="/assets/admin-mfa.js?v=3.127.0"></script>
-<script src="/assets/sign-in-captcha.js?v=3.127.0"></script>
+<script src="/assets/sign-in-captcha.js?v=3.127.0-6"></script>
 <script src="/assets/preset-sign.js?v=3.127.0"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
@@ -3468,8 +3468,11 @@ const presetDemo = (function(){
   sb.auth.onAuthStateChange((evt) => {
     if(evt === 'SIGNED_OUT' && user) onSession(null);
   });
-})();
-if(window.SpragCaptcha && $('captcha')) SpragCaptcha.mount($('captcha')).catch(() => {});
+})().finally(captchaWhenAuth);
+/* Turnstile runs only while the sign-in card is on screen: after the session check, and again whenever the card comes back (sign-out). Mounting it on
+   every load ran Cloudflare's iframe for signed-in visitors too, and its own CSP and font warnings filled their console. */
+function captchaWhenAuth(){ if(window.SpragCaptcha && $('captcha') && !$('auth').hidden) SpragCaptcha.mount($('captcha')).catch(() => {}); }
+new MutationObserver(captchaWhenAuth).observe($('auth'), { attributes: true, attributeFilter: ['hidden'] });
 </script>
 <script src="/assets/theme-toggle.js" defer></script>
 </body>

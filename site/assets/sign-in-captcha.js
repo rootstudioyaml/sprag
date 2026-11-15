@@ -3,7 +3,7 @@
    request codes for a known owner address until the project's hourly mail quota is gone, and
    cannot create accounts for arbitrary addresses. Nothing else needs the token: code
    verification, the authenticator step and the data calls run as before.
-   The page calls SpragCaptcha.mount(el) once, SpragCaptcha.token() right before signInWithOtp
+   The page calls SpragCaptcha.mount(el) once the sign-in card is on screen (never for a signed-in visitor), SpragCaptcha.token() right before signInWithOtp
    and SpragCaptcha.reset() afterwards (a token is good for one request). The widget renders in
    the page's language from <html lang>. On any host but sprag.io the always-passing test key
    is used, matched by the test secret the local stack starts with (see sprag-team LOCAL-TESTING). */
@@ -53,7 +53,7 @@ async function mount(el){
 /* The current token, waiting up to `waitMs` for the widget to finish. Empty when it has not. */
 async function take(waitMs){
   const until = Date.now() + (waitMs || 8000);
-  try{ await mount(mountEl); }catch(e){ return ''; }
+  try{ await mount(mountEl || doc.getElementById('captcha')); }catch(e){ return ''; }   /* the page mounts it when the sign-in card shows; this covers a send before that */
   while(!token && Date.now() < until) await new Promise(r => setTimeout(r, 150));
   return token;
 }
