@@ -217,8 +217,21 @@ export function dropOffsets(dir = userDataDir()) {
   try { rmSync(promptOffsetsPath(dir), { force: true }); } catch (e) { debug('team-prompts', e); }
 }
 
+// ino as a decimal string from a bigint stat. On Windows the NTFS file id keeps a
+// sequence number in its top 16 bits, so the plain number stat rounds it past
+// 2^53 and two files can share one ino; a rotated log then looked unchanged.
 function statOf(path) {
-  try { const s = statSync(path); return { size: s.size, ino: s.ino }; } catch { return null; }
+  try {
+    const s = statSync(path, { bigint: true });
+    return { size: Number(s.size), ino: s.ino ? s.ino.toString() : null };
+  } catch { return null; }
+}
+
+/** Offsets written before 3.128 hold ino as a rounded number: compare those the same rounded way. */
+export function inoChanged(stored, current) {
+  if (!stored || !current) return false;
+  if (typeof stored === 'number') return stored !== Number(BigInt(current));
+  return String(stored) !== current;
 }
 
 /** First sight of capture = on: pin every existing file at its current size. */
@@ -241,7 +254,7 @@ function scanFile(file, entry, { maxPrompts, maxBytes }) {
   const s = statOf(file.path);
   if (!s) return null;
   let offset = entry ? entry.offset : 0;
-  if (entry && (s.size < entry.offset || (entry.ino && s.ino && entry.ino !== s.ino))) offset = 0; // shrank or rotated
+  if (entry && (s.size < entry.offset || inoChanged(entry.ino, s.ino))) offset = 0; // shrank or rotated
   if (s.size <= offset) return { chunks: [], end: offset, size: s.size, ino: s.ino };
   let fd;
   try {
@@ -330,7 +343,7 @@ export async function uploadPrompts({
     const entry = offsets[f.path];
     const scan = scanFile(f, entry, { maxPrompts: promptsLeft, maxBytes: bytesLeft });
     if (!scan) continue;
-    const restart = entry && (scan.size < entry.offset || (entry.ino && scan.ino && entry.ino !== scan.ino));
+    const restart = entry && (scan.size < entry.offset || inoChanged(entry.ino, scan.ino));
     if (restart) { offsets[f.path] = { offset: 0, size: scan.size, ino: scan.ino }; }
     const key = fileKey(f.path);
     for (const c of scan.chunks) {

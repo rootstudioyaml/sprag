@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   redactSecrets, claudePromptFromLine, codexPromptFromLine, uploadPrompts, pendingPrompts, loadOffsets,
-  promptOffsetsPath, MAX_CHUNK_PROMPTS, projectAlias, aliasKeyPath,
+  promptOffsetsPath, MAX_CHUNK_PROMPTS, projectAlias, aliasKeyPath, inoChanged,
 } from '../src/team-prompts.js';
 import { syncTeam, saveTeamState, loadTeamState, deviceInfo } from '../src/team-sync.js';
 import { userDataDir } from '../src/paths.js';
@@ -201,6 +201,39 @@ test('a shrunk file or a new inode restarts at 0', async (t) => {
   r = await uploadPrompts({ put, dir: sb.dir, claudeDir: sb.claudeDir, codexDir: sb.codexDir });
   assert.equal(r.uploaded, 3);
   assert.equal(put.calls[1].start_offset, 0);
+});
+
+test('ino is stored exactly: NTFS ids past 2^53 that round to one number still count as different files', () => {
+  // NTFS file id: sequence number in the top 16 bits, MFT index below. Neighbouring
+  // files with a high sequence number collapse to one double.
+  const a = (0x40n << 48n) + 1000n;
+  const b = a + 1n;
+  assert.equal(Number(a), Number(b));
+  assert.equal(inoChanged(a.toString(), b.toString()), true);
+  assert.equal(inoChanged(a.toString(), a.toString()), false);
+  // offsets written by older versions hold the rounded number: no restart for the same file
+  assert.equal(inoChanged(Number(a), a.toString()), false);
+  assert.equal(inoChanged(12345, '12346'), true);
+  assert.equal(inoChanged(undefined, '5'), false);
+  assert.equal(inoChanged('5', null), false);
+});
+
+test('an offsets file from an older version (numeric ino) keeps its place', async (t) => {
+  const sb = sandbox(t);
+  writeFileSync(sb.session, '');
+  await uploadPrompts({ put: recorder(), dir: sb.dir, claudeDir: sb.claudeDir, codexDir: sb.codexDir });
+  appendFileSync(sb.session, cl('first', 1));
+  const put = recorder();
+  await uploadPrompts({ put, dir: sb.dir, claudeDir: sb.claudeDir, codexDir: sb.codexDir });
+  const saved = loadOffsets(sb.dir);
+  assert.equal(typeof saved[sb.session].ino, 'string');
+  saved[sb.session].ino = Number(saved[sb.session].ino);
+  writeFileSync(promptOffsetsPath(sb.dir), JSON.stringify(saved) + '\n');
+  appendFileSync(sb.session, cl('second', 2));
+  const r = await uploadPrompts({ put, dir: sb.dir, claudeDir: sb.claudeDir, codexDir: sb.codexDir });
+  assert.equal(r.uploaded, 1);
+  assert.deepEqual(put.calls[1].prompts.map((p) => p.text), ['second']);
+  assert.equal(put.calls[1].start_offset, put.calls[0].end_offset);
 });
 
 test('offsets advance only after the server accepts; a failure keeps them and retries the same range', async (t) => {
