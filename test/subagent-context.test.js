@@ -11,8 +11,8 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync, renameSync } from 'node:fs';
+import { spawnSync, spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +33,15 @@ const rm = (p) => rmSync(p, { recursive: true, force: true, maxRetries: 5, retry
 
 const EMPTY_HOME = mkdtempSync(join(tmpdir(), 'sprag-home-'));
 after(() => rm(EMPTY_HOME));
+
+/** The parked entry files of a queue directory, parsed, oldest first. */
+const QUEUE = 'subagent-context';
+const queueNames = (dir) => {
+  try { return readdirSync(join(dir, QUEUE)).sort(); } catch { return []; }
+};
+const queued = (dir) => queueNames(dir)
+  .filter((n) => /^\d{15}-\d+-[0-9a-f]{8}\.json$/.test(n))
+  .map((n) => JSON.parse(readFileSync(join(dir, QUEUE, n), 'utf8')));
 
 const tempEnv = (home) => childEnv({
   HOME: home,
@@ -84,8 +93,7 @@ test('queue: an entry older than the TTL is not delivered, one at the limit stil
     // A write drops what expired in the meantime.
     enqueueSubagentContext({ session: 's', type: 'a', at: now, text: 'fresh' }, { dir, now });
     enqueueSubagentContext({ session: 's', type: 'b', at: now + 200_000, text: 'later' }, { dir, now: now + 200_000 });
-    const left = JSON.parse(readFileSync(join(dir, 'subagent-context.json'), 'utf8')).entries;
-    assert.deepEqual(left.map((e) => e.text), ['later'], 'the 200-second-old entry went with the write');
+    assert.deepEqual(queued(dir).map((e) => e.text), ['later'], 'the 200-second-old entry went with the write');
   } finally {
     rm(dir);
   }
@@ -99,7 +107,7 @@ test('queue: at most the 20 newest entries are kept', () => {
     for (let i = 0; i < 25; i += 1) {
       enqueueSubagentContext({ session: 's', type: 'a', at: now + i, text: `e${i}` }, { dir, now: now + i });
     }
-    const left = JSON.parse(readFileSync(join(dir, 'subagent-context.json'), 'utf8')).entries;
+    const left = queued(dir);
     assert.equal(left.length, 20);
     assert.equal(left[0].text, 'e5');
     assert.equal(left[19].text, 'e24');
@@ -108,19 +116,64 @@ test('queue: at most the 20 newest entries are kept', () => {
   }
 });
 
-test('queue: a missing, corrupt or wrongly shaped file reads as empty, and a write recovers it', () => {
+test('queue: a missing directory, corrupt entries and wrongly shaped bodies read as empty, and a write recovers', () => {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-sc-'));
   try {
     const now = 1_000_000;
-    const file = join(dir, 'subagent-context.json');
-    assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now }), null, 'no file');
-    for (const body of ['{not json', '[]', '{"entries":"nope"}', '{"entries":[null,1,{"session":"s"}]}']) {
-      writeFileSync(file, body);
-      assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now }), null, body);
-    }
-    writeFileSync(file, '{not json');
+    assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now }), null, 'no directory');
+    const base = join(dir, QUEUE);
+    mkdirSync(base);
+    const bodies = ['{not json', '[]', '{"session":"s"}', 'null', '{"session":"s","type":"a","at":"x","text":"t"}'];
+    bodies.forEach((body, i) => {
+      writeFileSync(join(base, `${String(now - i).padStart(15, '0')}-1-0000000${i}.json`), body);
+    });
+    assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now }), null);
     assert.ok(enqueueSubagentContext({ session: 's', type: 'a', at: now, text: 'x' }, { dir, now }));
     assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now })?.text, 'x');
+  } finally {
+    rm(dir);
+  }
+});
+
+test('queue: a corrupt entry file is skipped by take and pruned once it has expired', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-sc-'));
+  try {
+    const now = 9_000_000;
+    const base = join(dir, QUEUE);
+    mkdirSync(base);
+    const corrupt = `${String(now - 10).padStart(15, '0')}-1-deadbeef.json`;
+    const junkName = 'not-an-entry.json';
+    writeFileSync(join(base, corrupt), '{half a fi');
+    writeFileSync(join(base, junkName), '{}');
+    assert.ok(enqueueSubagentContext({ session: 's', type: 'a', at: now, text: 'good' }, { dir, now }));
+    // The corrupt file is older than the good one, so take meets it first and moves on.
+    assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now })?.text, 'good');
+    assert.ok(queueNames(dir).includes(corrupt), 'a fresh corrupt file is only skipped');
+    assert.equal(queueNames(dir).includes(junkName), false, 'a name that does not parse counts as expired');
+    const later = now + SUBAGENT_CONTEXT_TTL_MS + 5;
+    assert.ok(enqueueSubagentContext({ session: 's', type: 'a', at: later, text: 'next' }, { dir, now: later }));
+    assert.equal(queueNames(dir).includes(corrupt), false, 'pruned once expired');
+    assert.equal(queueNames(dir).length, 1);
+  } finally {
+    rm(dir);
+  }
+});
+
+test('queue: a claimed (renamed away) entry is not delivered again, and its leftover is pruned after the TTL', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-sc-'));
+  try {
+    const now = 7_000_000;
+    assert.ok(enqueueSubagentContext({ session: 's', type: 'a', at: now, text: 'only' }, { dir, now }));
+    const [name] = queueNames(dir);
+    const base = join(dir, QUEUE);
+    // Another process won the claim: the file is gone under its entry name.
+    renameSync(join(base, name), join(base, `${name}.taken-4242-cafebabe`));
+    assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now }), null);
+    assert.equal(queueNames(dir).length, 1, 'the claimed file is left to its owner');
+    const later = now + SUBAGENT_CONTEXT_TTL_MS + 1;
+    assert.ok(enqueueSubagentContext({ session: 's', type: 'a', at: later, text: 'new' }, { dir, now: later }));
+    assert.deepEqual(queued(dir).map((e) => e.text), ['new']);
+    assert.equal(queueNames(dir).length, 1, 'the expired claimed leftover was pruned');
   } finally {
     rm(dir);
   }
@@ -130,15 +183,67 @@ test('queue: the write goes through a temp file that is renamed away, and bad in
   const dir = mkdtempSync(join(tmpdir(), 'sprag-sc-'));
   try {
     assert.ok(enqueueSubagentContext({ session: 's', type: 'a', text: 'x' }, { dir }));
-    assert.deepEqual(readdirSync(dir), ['subagent-context.json'], 'no .tmp file left behind');
+    assert.deepEqual(readdirSync(dir), [QUEUE], 'only the queue directory');
+    const names = queueNames(dir);
+    assert.equal(names.length, 1);
+    assert.match(names[0], /^\d{15}-\d+-[0-9a-f]{8}\.json$/, 'no .tmp file left behind');
     assert.equal(enqueueSubagentContext(null, { dir }), false);
     assert.equal(enqueueSubagentContext({ session: '', type: 'a', text: 'x' }, { dir }), false);
     assert.equal(enqueueSubagentContext({ session: 's', type: 'a', text: '' }, { dir }), false);
+    assert.equal(queueNames(dir).length, 1, 'rejected input wrote nothing');
     // A directory that cannot be created (a file is in the way) is a quiet false.
     const blocker = join(dir, 'blocker');
     writeFileSync(blocker, '');
     assert.equal(enqueueSubagentContext({ session: 's', type: 'a', text: 'x' }, { dir: join(blocker, 'sub') }), false);
     assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir: join(blocker, 'sub') }), null);
+  } finally {
+    rm(dir);
+  }
+});
+
+test('queue: an old single-file queue is removed on the next write and never read', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-sc-'));
+  try {
+    const now = 1_000_000;
+    const old = join(dir, 'subagent-context.json');
+    writeFileSync(old, JSON.stringify({ entries: [{ session: 's', type: 'a', at: now, text: 'old' }] }));
+    assert.equal(takeSubagentContext({ session: 's', type: 'a' }, { dir, now }), null, 'not read any more');
+    assert.ok(enqueueSubagentContext({ session: 's', type: 'a', at: now, text: 'new' }, { dir, now }));
+    assert.equal(existsSync(old), false);
+  } finally {
+    rm(dir);
+  }
+});
+
+test('queue: parallel processes enqueue and take with nothing lost and nothing delivered twice', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-sc-'));
+  try {
+    const moduleUrl = JSON.stringify(new URL('../src/subagent-context.js', import.meta.url).href);
+    const N = 8;
+    const spawnAsync = (body) => new Promise((resolve) => {
+      const script = `
+        import { enqueueSubagentContext, takeSubagentContext } from ${moduleUrl};
+        const dir = ${JSON.stringify(dir)};
+        ${body}
+      `;
+      const child = spawn(process.execPath, ['--input-type=module', '-e', script], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '';
+      let err = '';
+      child.stdout.on('data', (c) => { out += c; });
+      child.stderr.on('data', (c) => { err += c; });
+      child.on('close', (code) => resolve({ code, out: out.trim(), err }));
+    });
+    const runAll = (bodyFor) => Promise.all(Array.from({ length: N }, (_, i) => spawnAsync(bodyFor(i))));
+    const expected = Array.from({ length: N }, (_, i) => `e${i}`);
+
+    const put = await runAll((i) => `console.log(enqueueSubagentContext({ session: 'S', type: 'T', text: 'e${i}' }, { dir }));`);
+    for (const r of put) assert.deepEqual([r.code, r.out], [0, 'true'], r.err);
+    assert.deepEqual(queued(dir).map((e) => e.text).sort(), expected, 'every enqueue left its file');
+
+    const got = await runAll(() => `const e = takeSubagentContext({ session: 'S', type: 'T' }, { dir }); console.log(e ? e.text : '');`);
+    for (const r of got) assert.equal(r.code, 0, r.err);
+    assert.deepEqual(got.map((r) => r.out).sort(), expected, 'each appendix delivered exactly once');
+    assert.deepEqual(queueNames(dir), [], 'nothing left, no claimed file either');
   } finally {
     rm(dir);
   }
@@ -160,9 +265,7 @@ async function decide(payload, { registered = true } = {}) {
     const decision = await decideForDelegation(payload, {
       cfg: ON, home: EMPTY_HOME, routeCaps: null, queueDir, subagentStartRegistered: () => registered,
     });
-    const file = join(queueDir, 'subagent-context.json');
-    const queued = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).entries : [];
-    return { decision, queued };
+    return { decision, queued: queued(queueDir) };
   } finally {
     rm(queueDir);
   }
@@ -220,7 +323,7 @@ test('auto mode: a model raise keeps the rewrite as well', async () => {
     });
     assert.equal(decision.queued, undefined);
     assert.equal(decision.updatedInput.model, 'opus');
-    assert.equal(existsSync(join(queueDir, 'subagent-context.json')), false, 'nothing was queued');
+    assert.equal(queueNames(queueDir).length, 0, 'nothing was queued');
   } finally {
     rm(countsDir);
     rm(queueDir);

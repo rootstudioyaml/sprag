@@ -1,7 +1,8 @@
 /**
  * The offer to widen delegation when a usage window runs high: once per limit
- * window (not per session), instead of the plain pressure line, and only while
- * delegation is not already relaxed.
+ * window and session (the offer rides on the model relaying it, so every
+ * session gets its own chance), instead of the plain pressure line, and only
+ * while delegation is not already relaxed.
  *
  * The hook cases run bin/cli.js against a throwaway HOME and XDG_CONFIG_HOME.
  */
@@ -53,6 +54,71 @@ test('claimRelaxOffer is true once per window and again after the window resets'
   assert.notEqual(offerWindowId(null, t0), offerWindowId(null, t0 + 6 * 3600 * 1000));
 });
 
+const tmpDir = (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sprag-relax-offer-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+  return dir;
+};
+const offerFile = (dir) => join(dir, 'relax-offer.json');
+
+test('claimRelaxOffer: two sessions in one window are each offered once', (t) => {
+  const dir = tmpDir(t);
+  const reset = 1_800_000_000;
+  assert.equal(claimRelaxOffer(reset, { dir, session: 'a' }), true);
+  assert.equal(claimRelaxOffer(reset + 2, { dir, session: 'b' }), true, 'a new session, same window');
+  assert.equal(claimRelaxOffer(reset, { dir, session: 'a' }), false, 'a third call for the first session');
+  assert.equal(claimRelaxOffer(reset, { dir, session: 'b' }), false);
+  const saved = JSON.parse(readFileSync(offerFile(dir), 'utf8'));
+  assert.deepEqual(saved.sessions, ['a', 'b']);
+  assert.equal(saved.resetsAt, reset, 'the window id does not creep with the jitter');
+  assert.equal(typeof saved.offeredAt, 'number');
+});
+
+test('claimRelaxOffer: a new window resets the session list', (t) => {
+  const dir = tmpDir(t);
+  const reset = 1_800_000_000;
+  claimRelaxOffer(reset, { dir, session: 'a' });
+  claimRelaxOffer(reset, { dir, session: 'b' });
+  assert.equal(claimRelaxOffer(reset + 5 * 3600, { dir, session: 'a' }), true, 'offered again in the next window');
+  assert.deepEqual(JSON.parse(readFileSync(offerFile(dir), 'utf8')).sessions, ['a']);
+  assert.equal(claimRelaxOffer(reset + 5 * 3600, { dir, session: 'b' }), true);
+});
+
+test('claimRelaxOffer: no session id keeps once per window under one shared key', (t) => {
+  const dir = tmpDir(t);
+  const reset = 1_800_000_000;
+  assert.equal(claimRelaxOffer(reset, { dir }), true);
+  assert.equal(claimRelaxOffer(reset, { dir, session: '' }), false, 'empty counts as no session');
+  assert.equal(claimRelaxOffer(reset, { dir, session: undefined }), false);
+  assert.deepEqual(JSON.parse(readFileSync(offerFile(dir), 'utf8')).sessions, ['']);
+  assert.equal(claimRelaxOffer(reset, { dir, session: 'a' }), true, 'a named session is still offered');
+});
+
+test('claimRelaxOffer: a file in the old shape is the same window with no sessions', (t) => {
+  const dir = tmpDir(t);
+  const reset = 1_800_000_000;
+  writeFileSync(offerFile(dir), JSON.stringify({ resetsAt: reset, offeredAt: 1 }) + '\n');
+  assert.equal(claimRelaxOffer(reset + 5, { dir }), true, 'the shared key was not offered yet');
+  assert.equal(claimRelaxOffer(reset + 5, { dir }), false);
+  writeFileSync(offerFile(dir), JSON.stringify({ resetsAt: reset, offeredAt: 1 }) + '\n');
+  assert.equal(claimRelaxOffer(reset, { dir, session: 'a' }), true, 'same window, a session is added');
+  assert.equal(claimRelaxOffer(reset, { dir, session: 'a' }), false);
+  writeFileSync(offerFile(dir), '{not json');
+  assert.equal(claimRelaxOffer(reset, { dir, session: 'a' }), true, 'unreadable reads as never offered');
+});
+
+test('claimRelaxOffer: the session list keeps the 50 most recent ids', (t) => {
+  const dir = tmpDir(t);
+  const reset = 1_800_000_000;
+  for (let i = 0; i < 55; i += 1) assert.equal(claimRelaxOffer(reset, { dir, session: `s${i}` }), true);
+  const saved = JSON.parse(readFileSync(offerFile(dir), 'utf8')).sessions;
+  assert.equal(saved.length, 50);
+  assert.equal(saved[0], 's5');
+  assert.equal(saved[49], 's54');
+  assert.equal(claimRelaxOffer(reset, { dir, session: 's54' }), false, 'a recent id is still remembered');
+  assert.equal(claimRelaxOffer(reset, { dir, session: 's0' }), true, 'an id past the cap is offered again');
+});
+
 function setup(t, config) {
   const dir = mkdtempSync(join(tmpdir(), 'sprag-relax-hook-'));
   t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
@@ -75,7 +141,7 @@ function setup(t, config) {
   return { caps, run, sdir };
 }
 
-test('the hook offers once per window, across sessions, then falls back to the plain line', (t) => {
+test('the hook offers once per window and session, then falls back to the plain line', (t) => {
   const { caps, run } = setup(t, {});
   const reset = Math.floor(Date.now() / 1000) + 3 * 24 * 3600;
   const plain = run();
@@ -91,7 +157,10 @@ test('the hook offers once per window, across sessions, then falls back to the p
   const second = run('s1');
   assert.match(second, /\n한도 압박: 7D 82%\. 판단이 애매하면 위임하십시오\./, 'same window, same session');
   assert.doesNotMatch(second, /사용량이/);
-  assert.match(run('s2'), /한도 압박: 7D 82%/, 'a new session in the same window is not offered again');
+  const other = run('s2');
+  assert.ok(other.includes('✇ [sprag] 7D 사용량이 82%입니다.'), 'a new session in the same window is offered once itself');
+  assert.match(run('s2'), /\n한도 압박: 7D 82%\./, 'and not again');
+  assert.match(run('s1'), /\n한도 압박: 7D 82%\./, 'the first session stays offered');
 
   caps(83, reset + 7 * 24 * 3600);
   assert.ok(run('s3').includes('7D 사용량이 83%입니다.'), 'a new window is offered once more');

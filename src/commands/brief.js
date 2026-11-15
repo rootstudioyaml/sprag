@@ -109,12 +109,13 @@ export async function run({ hasFlag }) {
           const { getSessionModel } = await import('../parser.js');
           pressure = capPressure({ sessionModel: getSessionModel(ctx.transcript_path) });
           // High usage while delegation is not widened: the hint offers
-          // `sprag routing relax` once per limit window instead of the plain
-          // pressure line. Relaxed, or already offered for this window, the
-          // plain line stays.
+          // `sprag routing relax` once per limit window and session instead of
+          // the plain pressure line. The offer rides on the model relaying it,
+          // so every session gets its own chance. Relaxed, or already offered
+          // to this session in this window, the plain line stays.
           if (pressure && (pressure.level === 'high' || pressure.level === 'critical') && (match.t2 || match.t1 || match.t1h) && !isRelaxed()) {
             const { claimRelaxOffer } = await import('../relax-offer.js');
-            if (claimRelaxOffer(pressure.resetsAt)) pressure = { ...pressure, offer: true };
+            if (claimRelaxOffer(pressure.resetsAt, { session: ctx.session_id })) pressure = { ...pressure, offer: true };
           }
         } catch (e) { debug('brief:cap-pressure', e); }
       }
