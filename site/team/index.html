@@ -2403,17 +2403,12 @@ const RulesView = (function(){
 })();
 
 /* ── prompt capture (Enterprise). Every call fails soft. ───────────────── */
+/* The per-team day list read a prompt_days view the server never shipped (its prompt storage is prompt_chunks and prompts, read through
+   org_prompt_usage and member_prompts), so every load logged a 404 and the section fell back to its "not available" note. It shows that
+   note directly now, without the request. */
 async function loadPromptDays(){
   if(!team || !team.prompt_capture) return;
-  const ids = members.map(m => m.member_id);
-  promptsState.off = false; promptsState.days = [];
-  try{
-    if(ids.length){
-      const { data, error } = await sb.from('prompt_days').select('*').in('member_id', ids).order('day', {ascending:false}).limit(1000);
-      if(error) throw error;
-      promptsState.days = data || [];
-    }
-  }catch(e){ promptsState.off = true; }
+  promptsState.days = []; promptsState.off = true;
   renderPrompts();
 }
 function renderPrompts(){
