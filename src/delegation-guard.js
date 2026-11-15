@@ -39,6 +39,7 @@ import { routingEnabled, delegationGrade, normalizeDelegationGrade } from './rou
 import { isJudgementDelegation, SAVING_GRADE_KINDS } from './judgement-prompt.js';
 import { recordGradeAction } from './grade-counts.js';
 import { userDataDir } from './paths.js';
+import { enqueueSubagentContext } from './subagent-context.js';
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -48,6 +49,22 @@ export const BOUNDS_PATH = join(packageRoot, 'presets', 'delegation', 'bounds.md
 // running on the same call (or a retried call) never appends the appendix
 // twice. Doubles as the first line of the appendix itself.
 const DELEGATION_MARKER = '<!-- sprag:delegation -->';
+
+/**
+ * Share of Hangul among the letters (Hangul plus Latin) of a text, 0 to 1.
+ * Digits, punctuation, whitespace and other scripts are not counted, so a path
+ * or a code block does not dilute the share and a number does not inflate it.
+ * 0 for a text with no letters.
+ */
+export function hangulShare(text) {
+  if (typeof text !== 'string' || !text) return 0;
+  const hangul = (text.match(/[가-힣ㄱ-ㅎㅏ-ㅣ]/g) || []).length;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  return hangul + latin === 0 ? 0 : hangul / (hangul + latin);
+}
+
+/** Hangul share from which a prompt counts as Korean (see the gate in buildAppendix). */
+export const KOREAN_SHARE_MIN = 0.1;
 
 /** The rules file the ratchet section points at. One place, two readers. */
 const ratchetPath = (home = homedir()) => join(home, '.claude', 'ratchet.md');
@@ -187,18 +204,24 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
 
   // koreanStyleInjection() runs to ~8k characters. Appending it to every
   // delegation regardless of language would multiply that cost by the number
-  // of delegations in a session; gating it on the prompt actually containing
-  // Hangul means an English-only delegation — the common case — never pays
-  // for guidance it has no use for.
-  // Two cases the plain syllable range misses. A prompt written in English can
-  // still ask for Korean output, and this repository keeps `.ko.md` documents
-  // beside their English originals, so that ask is routine rather than rare.
-  // Compatibility jamo (ㄱ-ㅎ, ㅏ-ㅣ) are Korean too and live outside 가-힣.
-  // A third signal for an English instruction that names the language, and it
-  // has to be `in Korean` rather than the bare word. The bare word was tried
-  // first and an existing test caught it immediately: "Investigate the failing
-  // build, no Korean here" matched, and at ~7,000 tokens a false positive here
-  // is expensive. `in Korean` asks for Korean output, while `from Korean` or
+  // of delegations in a session, so it is gated on the prompt being Korean.
+  //
+  // "Contains any Hangul" was the first gate and it was too loose. Measured on
+  // 212 real Agent prompts with Hangul from one machine, 49 had a Hangul share
+  // under 0.05 (English prompts quoting a few Korean strings or paths) and only
+  // 4 more fell between 0.05 and 0.3, so a share cut at KOREAN_SHARE_MIN keeps
+  // the Korean prompts and drops the ~7,000-token section from the quoting ones.
+  // The share counts letters only (see hangulShare), so paths and code in a
+  // Korean prompt do not push it under the line.
+  //
+  // Two cases the Hangul share misses. A prompt written in English can still
+  // ask for Korean output, and this repository keeps `.ko.md` documents beside
+  // their English originals, so that ask is routine rather than rare. A third
+  // signal for an English instruction that names the language, and it has to be
+  // `in Korean` rather than the bare word. The bare word was tried first and an
+  // existing test caught it immediately: "Investigate the failing build, no
+  // Korean here" matched, and at ~7,000 tokens a false positive here is
+  // expensive. `in Korean` asks for Korean output, while `from Korean` or
   // `no Korean here` does not.
   //
   // This does not close the gap entirely. An English prompt naming a file that
@@ -206,7 +229,7 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
   // nothing a prompt-level test can see, and guessing from paths would be
   // repository-specific.
   const wantsKorean = typeof prompt === 'string'
-    && (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(prompt)
+    && (hangulShare(prompt) >= KOREAN_SHARE_MIN
       || /\.ko\.[a-z]+\b/i.test(prompt)
       || /\bin korean\b/i.test(prompt));
   if (wantsKorean) {
@@ -280,9 +303,15 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
 
 /**
  * Decide whether to rewrite a Task/Agent call's prompt, and with what.
- * Returns `{ updatedInput }` or null. Null is any reason not to touch the
- * call, so the caller's contract stays "print nothing, let the tool run
- * exactly as given" for every one of them.
+ * Returns `{ updatedInput }`, `{ queued: true }` or null. Null is any reason
+ * not to touch the call, so the caller's contract stays "print nothing, let the
+ * tool run exactly as given" for every one of them.
+ *
+ * `{ queued: true }` is the auto-mode answer: the appendix was parked for the
+ * SubagentStart hook and the input is left alone (see subagent-context.js for
+ * why a changed input cannot be used there). It only happens when nothing needs
+ * `updatedInput`, i.e. no effort or model raise, and when the SubagentStart
+ * hook is registered to deliver the text.
  *
  * The delegation grade (see gradeAction) can send a judgement delegation to
  * Opus. It never stops a call, and it needs the guard on and routing on, like
@@ -290,7 +319,8 @@ export async function buildAppendix(payload, { cfg = loadConfig(), home = homedi
  */
 export async function decideForDelegation(payload, {
   cfg = loadConfig(), home = homedir(), routeCaps = routeCapsFor(payload?.session_id),
-  countsDir = userDataDir(),
+  countsDir = userDataDir(), queueDir = userDataDir(),
+  subagentStartRegistered = defaultSubagentStartRegistered,
 } = {}) {
   if (!delegateEnabled(cfg)) return null;
   if (payload?.tool_name !== 'Task' && payload?.tool_name !== 'Agent') return null;
@@ -313,6 +343,22 @@ export async function decideForDelegation(payload, {
   const appendix = await buildAppendix(seen, { cfg, home, routeCaps });
   if (!appendix && !raise && !modelRaise) return null;
 
+  // Auto mode denies a call whose input a hook changed, so the appendix goes
+  // through the SubagentStart hook instead. A raise needs updatedInput.model or
+  // .effort and keeps the old path. Without a session id there is nothing for
+  // the SubagentStart side to match on, so that case also keeps the old path.
+  if (payload?.permission_mode === 'auto' && !raise && !modelRaise && appendix
+    && typeof payload?.session_id === 'string' && payload.session_id
+    && await subagentStartRegistered()
+    && enqueueSubagentContext({
+      session: payload.session_id,
+      type: String(toolInput.subagent_type || 'general-purpose'),
+      at: Date.now(),
+      text: appendix,
+    }, { dir: queueDir })) {
+    return { queued: true };
+  }
+
   const parts = [prompt];
   if (appendix) parts.push(appendix);
   // The marker line goes into the prompt as well as the input: the prompt is
@@ -331,6 +377,16 @@ export async function decideForDelegation(payload, {
     recordGradeAction('raised', { dir: countsDir });
   }
   return { updatedInput };
+}
+
+/** Whether the SubagentStart hook that delivers a queued appendix is in settings.json. */
+async function defaultSubagentStartRegistered() {
+  try {
+    const { subagentStartHookRegistered } = await import('./installer.js');
+    return subagentStartHookRegistered();
+  } catch {
+    return false;
+  }
 }
 
 /** Model a judgement delegation is raised to. Opus, not a higher effort on the cheaper model. */
@@ -453,7 +509,9 @@ export function wantsEffortRaise(toolInput) {
 }
 
 /**
- * The decision rendered as the JSON Claude Code expects on stdout.
+ * The decision rendered as the JSON Claude Code expects on stdout, or null
+ * when there is nothing to print: no decision, or a `{ queued: true }` one
+ * whose text travels through the SubagentStart hook instead.
  *
  * `updatedInput` sits directly under `hookSpecificOutput`, which is the shape a
  * live session actually honours: with the hook registered on Task|Agent, a
@@ -468,7 +526,7 @@ export function wantsEffortRaise(toolInput) {
  * hook states its opinion on the input and stays silent on the decision.
  */
 export function formatHookOutput(decision) {
-  if (!decision) return null;
+  if (!decision || !decision.updatedInput) return null;
   return JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',

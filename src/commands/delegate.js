@@ -4,13 +4,14 @@
  * a ratchet pointer, and paths the session already read.
  *
  *   sprag delegate            # status
- *   sprag delegate on|off     # register / remove the PreToolUse hook
+ *   sprag delegate on|off     # register / remove the PreToolUse and SubagentStart hooks
  *   sprag delegate --hook     # PreToolUse entry point
+ *   sprag delegate --subagent-start  # SubagentStart entry point (auto mode delivery)
  */
 
 
 /**
- * Whether the PreToolUse hook is actually in settings.json, and why not when
+ * Whether the PreToolUse hook (and its SubagentStart partner) is actually in settings.json, and why not when
  * it is not.
  *
  * Reporting "on" from config alone while the hook itself is missing would tell
@@ -25,7 +26,7 @@ async function hookState() {
     const { delegationGuardHookState } = await import('../installer.js');
     return delegationGuardHookState();
   } catch {
-    return { registered: false };
+    return { registered: false, subagentStart: false };
   }
 }
 
@@ -53,6 +54,27 @@ export async function run({ args, hasFlag }) {
       return;
     }
     if (out) console.log(out);
+    return;
+  }
+
+  // SubagentStart path, same rules as above: cheap, quiet on every failure.
+  // It hands over the appendix the PreToolUse side parked for this subagent
+  // (auto mode cannot change the call's input, see subagent-context.js). No
+  // match prints nothing, which is right for a resumed subagent.
+  if (hasFlag?.('--subagent-start') || sub === '--subagent-start') {
+    let out = null;
+    try {
+      const { readStdinJson } = await import('../stdin-payload.js');
+      const payload = readStdinJson();
+      if (!payload) return;
+      const { takeSubagentContext } = await import('../subagent-context.js');
+      const entry = takeSubagentContext({ session: payload.session_id, type: payload.agent_type });
+      if (!entry) return;
+      out = JSON.stringify({ hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: entry.text } });
+    } catch {
+      return;
+    }
+    console.log(out);
     return;
   }
 
@@ -97,6 +119,7 @@ export async function run({ args, hasFlag }) {
     const { setDelegateEnabled } = await import('../delegation-guard.js');
     setDelegateEnabled(true);
     console.log(`✓ PreToolUse hook ${res.action} (${res.path})`);
+    console.log(lang === 'ko' ? '  SubagentStart 훅도 함께 등록했습니다 (auto 모드 전달용).' : '  SubagentStart hook registered too (delivery in auto mode).');
     console.log(lang === 'ko'
       ? '다음 서브에이전트 위임부터 프롬프트에 상한과 필요한 경우 한국어 지침, 최근에 읽은 경로가 덧붙습니다. effort 없이 Sonnet에 보낸 위임은 high로 올립니다.'
       : 'From the next delegation, prompts get bounds, Korean guidance when it applies, and already-touched paths appended. A Sonnet delegation sent without an effort runs at high.');
@@ -120,24 +143,26 @@ export async function run({ args, hasFlag }) {
   const { koreanStyleEnabled } = await import('../korean-style.js');
   const enabled = delegateEnabled();
   const byDefault = enabled && !delegateDecided();
-  const { registered: hookOn, reason } = await hookState();
+  const { registered: hookOn, subagentStart, reason } = await hookState();
   if (lang === 'ko') {
     console.log(`delegate: ${enabled ? 'on' : 'off'}${byDefault ? ' (기본값)' : ''}, hook ${hookOn ? '등록됨' : '미등록'}`);
     if (reason) console.log(`  settings.json: ${reason}`);
+    console.log(`SubagentStart 훅: ${subagentStart ? '등록됨' : '미등록 (auto 모드에서 덧붙임이 전달되지 않습니다)'}`);
     console.log(`bounds 파일: ${BOUNDS_PATH}`);
     console.log(koreanStyleEnabled()
       ? 'korean 지침이 켜져 있어서 한글이 들어간 위임 프롬프트에는 같은 지침이 함께 붙습니다.'
       : 'korean 지침이 꺼져 있어서 위임 프롬프트에는 상한과 경로 안내만 붙습니다.');
-    if (enabled && !hookOn) console.log('훅을 등록하려면: sprag delegate on');
+    if (enabled && (!hookOn || !subagentStart)) console.log('훅을 등록하려면: sprag delegate on');
     console.log(enabled ? '끄기: sprag delegate off' : '켜기: sprag delegate on');
   } else {
     console.log(`delegate: ${enabled ? 'on' : 'off'}${byDefault ? ' (default)' : ''}, hook ${hookOn ? 'registered' : 'not registered'}`);
     if (reason) console.log(`  settings.json: ${reason}`);
+    console.log(`SubagentStart hook: ${subagentStart ? 'registered' : 'not registered (auto mode will not deliver the appendix)'}`);
     console.log(`bounds file: ${BOUNDS_PATH}`);
     console.log(koreanStyleEnabled()
       ? 'Korean guidance is on, so a delegation prompt containing Hangul also gets that guidance appended.'
       : 'Korean guidance is off, so delegation prompts only get bounds and touched-path notes appended.');
-    if (enabled && !hookOn) console.log('Register the hook with: sprag delegate on');
+    if (enabled && (!hookOn || !subagentStart)) console.log('Register the hooks with: sprag delegate on');
     console.log(enabled ? 'Disable with: sprag delegate off' : 'Enable with: sprag delegate on');
   }
 }

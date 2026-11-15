@@ -1132,6 +1132,22 @@ const DELEGATION_GUARD_HOOK_COMMAND = `${CLI} delegate --hook`;
 // Install, remove and the status readout all judge a command through
 // isDelegationGuardHookCommand() below, which compares whole tokens.
 
+// The SubagentStart hook that delivers the appendix in auto mode, where a
+// PreToolUse hook may not change the call's input (see subagent-context.js).
+// No matcher, so it fires for every agent type, and installed together with the
+// PreToolUse entry because the guard only queues text when this one is there.
+const SUBAGENT_START_HOOK_COMMAND = `${CLI} delegate --subagent-start`;
+
+/**
+ * Whether a settings.json hook command is the SubagentStart half of the guard.
+ * Whole-token comparison like isDelegationGuardHookCommand, so `--hook` and
+ * `--subagent-start` never read as each other.
+ */
+export function isSubagentStartHookCommand(command) {
+  return typeof command === 'string'
+    && isOurSubcommand(command, 'delegate', '--subagent-start');
+}
+
 /**
  * Whether a settings.json hook command is THIS hook: both our executable in
  * the command position and our flag.
@@ -1177,8 +1193,32 @@ export function delegationGuardHookState() {
   }
   return {
     registered: list.some((m) => Array.isArray(m?.hooks) && m.hooks.some((h) => isDelegationGuardHookCommand(h?.command))),
+    // The SubagentStart half is reported beside it: without that entry, auto
+    // mode falls back to the rewrite it denies, so a status that only looked at
+    // PreToolUse would call a half-installed guard healthy.
+    subagentStart: subagentStartHookRegistered(),
     path: file,
   };
+}
+
+/**
+ * Whether our SubagentStart hook is in ~/.claude/settings.json. The guard asks
+ * this before it parks an appendix for that hook: queuing text nobody will
+ * deliver would drop the appendix from the delegation altogether. Any unusable
+ * file reads as not registered.
+ */
+export function subagentStartHookRegistered() {
+  try {
+    const file = join(claudeUserDir(), 'settings.json');
+    if (!existsSync(file)) return false;
+    const read = readSettings(file);
+    if (read.state !== 'ok') return false;
+    const list = read.settings?.hooks?.SubagentStart;
+    if (!Array.isArray(list)) return false;
+    return list.some((m) => Array.isArray(m?.hooks) && m.hooks.some((h) => isSubagentStartHookCommand(h?.command)));
+  } catch {
+    return false;
+  }
 }
 
 export function installDelegationGuardHook() {
@@ -1199,17 +1239,32 @@ export function installDelegationGuardHook() {
   if (settings.hooks.PreToolUse !== undefined && !Array.isArray(settings.hooks.PreToolUse)) {
     return { path: file, action: 'skipped', reason: 'hooks.PreToolUse is not an array — fix settings.json manually' };
   }
+  if (settings.hooks.SubagentStart !== undefined && !Array.isArray(settings.hooks.SubagentStart)) {
+    return { path: file, action: 'skipped', reason: 'hooks.SubagentStart is not an array — fix settings.json manually' };
+  }
   const list = Array.isArray(settings.hooks.PreToolUse) ? settings.hooks.PreToolUse : [];
   const already = list.some((m) =>
     Array.isArray(m?.hooks) && m.hooks.some((h) => isDelegationGuardHookCommand(h?.command)),
   );
-  if (already) return { path: file, action: 'exists' };
+  const startList = Array.isArray(settings.hooks.SubagentStart) ? settings.hooks.SubagentStart : [];
+  const startAlready = startList.some((m) =>
+    Array.isArray(m?.hooks) && m.hooks.some((h) => isSubagentStartHookCommand(h?.command)),
+  );
+  if (already && startAlready) return { path: file, action: 'exists' };
 
-  list.push({
-    matcher: 'Task|Agent',
-    hooks: [{ type: 'command', command: DELEGATION_GUARD_HOOK_COMMAND, timeout: 10 }],
-  });
-  settings.hooks.PreToolUse = list;
+  if (!already) {
+    list.push({
+      matcher: 'Task|Agent',
+      hooks: [{ type: 'command', command: DELEGATION_GUARD_HOOK_COMMAND, timeout: 10 }],
+    });
+    settings.hooks.PreToolUse = list;
+  }
+  if (!startAlready) {
+    startList.push({
+      hooks: [{ type: 'command', command: SUBAGENT_START_HOOK_COMMAND, timeout: 10 }],
+    });
+    settings.hooks.SubagentStart = startList;
+  }
   {
     const writeProblem = writeSettings(file, settings);
     if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };
@@ -1223,26 +1278,26 @@ export function removeDelegationGuardHook() {
   const read = readSettings(file);
   if (read.state === 'unusable') return { path: file, action: 'skipped', reason: read.reason };
   const settings = read.settings;
-  const list = settings?.hooks?.PreToolUse;
-  if (!Array.isArray(list)) return { path: file, action: 'absent' };
-  // Per hook, not per matcher group — the same correction uninstallAll() above
+  // Per hook, not per matcher group — the same correction uninstallAll() below
   // carries, for the same reason. Claude Code merges entries that share a
   // matcher into one group, so filtering whole groups took the other tool's
   // hook with ours whenever we were installed second. v3.46.1 and v3.51.0 both
   // record that failure; a group survives here as long as something of
-  // somebody else's is left in it.
+  // somebody else's is left in it. The SubagentStart entry goes the same way.
   let touched = false;
-  const kept = [];
-  for (const m of list) {
-    if (!Array.isArray(m?.hooks)) { kept.push(m); continue; }
-    const hooks = m.hooks.filter((h) => !isDelegationGuardHookCommand(h?.command));
-    if (hooks.length === m.hooks.length) { kept.push(m); continue; }
+  for (const [event, isOurs] of [
+    ['PreToolUse', isDelegationGuardHookCommand],
+    ['SubagentStart', isSubagentStartHookCommand],
+  ]) {
+    const list = settings?.hooks?.[event];
+    if (!Array.isArray(list)) continue;
+    const res = removeHooksWhere(list, (h) => isOurs(h?.command));
+    if (!res.touched) continue;
     touched = true;
-    if (hooks.length) kept.push({ ...m, hooks });
+    if (res.kept.length === 0) delete settings.hooks[event];
+    else settings.hooks[event] = res.kept;
   }
   if (!touched) return { path: file, action: 'absent' };
-  if (kept.length === 0) delete settings.hooks.PreToolUse;
-  else settings.hooks.PreToolUse = kept;
   {
     const writeProblem = writeSettings(file, settings);
     if (writeProblem) return { path: file, action: 'skipped', reason: writeProblem };

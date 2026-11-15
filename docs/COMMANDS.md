@@ -72,16 +72,18 @@ The output language is decided once, at install time: a terminal install propose
 
 ## `sprag delegate` — rewrite Task/Agent prompts before they spawn
 
-On by default since v3.104.0. `sprag install` registers a PreToolUse hook on `Task`/`Agent` and says what it appends the first time; `sprag delegate off` turns it off and that choice survives upgrades (`SPRAG_NO_DELEGATE=1` skips it during a scripted install). The hook appends up to four sections to the delegation prompt, each conditional on its own:
+On by default since v3.104.0. `sprag install` registers a PreToolUse hook on `Task`/`Agent` (plus a SubagentStart hook, see below) and says what it appends the first time; `sprag delegate off` turns it off and that choice survives upgrades (`SPRAG_NO_DELEGATE=1` skips it during a scripted install). The hook appends up to four sections to the delegation prompt, each conditional on its own:
 
 | Section | Condition |
 |---|---|
 | Bounds and output shape | Always, whenever `presets/delegation/bounds.md` is present (it ships with the package) |
-| Korean style guidance | The prompt contains Hangul, names a `.ko.*` target, or says `in Korean`, **and** `korean` is on — off skips this section even for a Korean prompt |
+| Korean style guidance | Hangul makes up at least 10% of the prompt's letters (Hangul plus Latin; an English prompt quoting a few Korean strings stays below that), it names a `.ko.*` target, or says `in Korean`, **and** `korean` is on — off skips this section even for a Korean prompt |
 | Ratchet rules | `~/.claude/ratchet.md` exists **and** `~/.claude/CLAUDE.md` does not already `@`-import it |
 | Already-touched paths | The calling session's transcript tail has at least one `Read`/`Edit`/`MultiEdit`/`Write`/`NotebookEdit`/`Grep`/`Glob` path inside the current working directory. Files only: a `Grep`/`Glob` argument that turns out to be a directory is dropped, since a directory offered as something to read costs the subagent one capped tool call. Paths are dropped when they hold anything that could break the rendered line (control characters, Unicode line separators, a backtick), since the list is one path per line inside a prompt. At most 15, most recent first |
 
 The bounds section's tool-call cap depends on the target: 8 tool calls / 1,500 output tokens when `model` (or, absent that, `subagent_type`) matches `haiku`, otherwise 20 tool calls / 8,000 output tokens. When the prompt of the current turn matched a delegation rule, that rule's own calibrated cap for the tier replaces the default, so the subagent is given the same limit the routing hint stated to the main model. An implementation hand-off (an implementing target whose prompt reads as an implementation specification and does not declare itself read-only) gets no output-token cap, and a tool-call budget stated in the prompt still holds.
+
+In Claude Code's auto mode a PreToolUse hook that changes a call's input without a permission decision gets the call denied, and the model has to send the same delegation again. There the appendix is not added to the prompt. The PreToolUse hook parks it in `subagent-context.json` in the state directory (entries expire after 120 seconds, at most 20 kept), and the SubagentStart hook (`sprag delegate --subagent-start`, registered by the same `delegate on` or install) hands it to the subagent as additional context. A delegation that also needs an effort or model raise still rewrites the input, because those fields can only travel that way, and without the SubagentStart hook registered the guard keeps the rewrite. `sprag delegate` status shows whether the SubagentStart hook is registered.
 
 Two limits worth knowing before relying on this:
 

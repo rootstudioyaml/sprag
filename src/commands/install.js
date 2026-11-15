@@ -391,6 +391,12 @@ export async function run({ hasFlag }) {
         console.log(res.action === 'skipped'
           ? `  delegate: ${res.reason}`
           : `  delegate: PreToolUse hook ${res.action} (${res.path})`);
+        if (res.action !== 'skipped') {
+          // The partner entry, so the user sees both hooks the guard registers.
+          console.log(lang === 'ko'
+            ? '            SubagentStart 훅도 함께 등록합니다. auto 모드에서는 입력을 고치면 호출이 거부되므로 이 훅이 같은 덧붙임을 전달합니다.'
+            : '            plus a SubagentStart hook: auto mode denies a call whose input was changed, so that hook delivers the same appendix instead.');
+        }
         if (res.action !== 'skipped' && res.action !== 'exists') {
           console.log(lang === 'ko'
             ? '            서브에이전트 위임 프롬프트에 룰이 정한 상한과 이미 읽은 경로를 덧붙입니다.'
