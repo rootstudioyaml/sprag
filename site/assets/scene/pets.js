@@ -7,18 +7,30 @@
 
 /* ---------- look: the data contract shared with the server ---------- */
 export const PET_KINDS = ['dog', 'cat'];
-export const PET_PATTERNS = ['solid', 'patch', 'tabby', 'tuxedo', 'point'];
-export const PET_EARS = ['up', 'flop', 'fold'];
+/* the enum lists are mirrored by the server's _pet_clean: new values go at the end, in the same order on both sides */
+export const PET_PATTERNS = ['solid', 'patch', 'tabby', 'tuxedo', 'point', 'bicolor', 'saddle', 'spots', 'calico'];
+export const PET_EARS = ['up', 'flop', 'fold', 'half'];
 export const PET_TAILS = ['long', 'short', 'curl', 'fluff'];
 export const PET_SIZES = ['s', 'm', 'l'];
 export const PET_DEFAULTS = { kind: 'dog', pattern: 'solid', ear: 'up', tail: 'long', size: 'm', fluff: 0.5 };
 export const PET_NAME_MAX = 20, PET_COAT_MAX = 3, PET_MAX = 16;
+/* look v2, all optional: marks painted over the pattern (in this order), shape numbers 0..1 where an absent key means 0.5 (today's proportion),
+   colours for the iris, the nose, a collar (none when absent) and the marks (near-white when absent), and the breed the look came from */
+export const PET_MARKS = ['socks', 'chest', 'blaze', 'tip'];
+export const PET_NUMS = ['snout', 'earsize', 'legs', 'length', 'build'];
+export const PET_HEX_KEYS = ['eye', 'nose', 'collar', 'mark'];
+export const PET_BREED_RE = /^[a-z0-9_]{1,32}$/;
+/* look v3: the coat's texture. 'plush' is the standard short coat and is never stored (an absent key means plush), so only the other two are kept */
+export const PET_FURS = ['plush', 'curly', 'silky'];
 
 const HEX6 = /^#[0-9a-f]{6}$/;
 export function normHex(c){ if(typeof c !== 'string') return null; const h = c.trim().toLowerCase(); return HEX6.test(h) ? h : null; }
 const pick = (v, list, def) => list.includes(v) ? v : def;
+const petName = v => { if(typeof v !== 'string') return ''; return Array.from(v.replace(/[\u0000-\u001f\u007f]/g, '').trim()).slice(0, PET_NAME_MAX).join('').trim(); };
 
-/* a valid look or null: unknown enum values fall back to the defaults, bad colours are dropped, an empty coat gives null */
+/* a valid look or null: unknown enum values fall back to the defaults, bad colours are dropped, an empty coat gives null. The v2 keys are written only
+   when present and valid (numbers only when finite, clamped to 0..1 and rounded to 2 decimals), never filled with defaults, so a round 1 look comes
+   back exactly as it went in and stays small in storage */
 export function normalizePetLook(raw){
   if(!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const coat = (Array.isArray(raw.coat) ? raw.coat : [raw.coat]).map(normHex).filter(Boolean).slice(0, PET_COAT_MAX);
@@ -26,8 +38,24 @@ export function normalizePetLook(raw){
   const D = PET_DEFAULTS, f = Number(raw.fluff);
   const look = { kind: pick(raw.kind, PET_KINDS, D.kind), coat, pattern: pick(raw.pattern, PET_PATTERNS, D.pattern), ear: pick(raw.ear, PET_EARS, D.ear),
     tail: pick(raw.tail, PET_TAILS, D.tail), size: pick(raw.size, PET_SIZES, D.size), fluff: Number.isFinite(f) ? Math.min(1, Math.max(0, f)) : D.fluff };
-  if(typeof raw.name === 'string'){ const n = Array.from(raw.name.replace(/[\u0000-\u001f\u007f]/g, '').trim()).slice(0, PET_NAME_MAX).join('').trim(); if(n) look.name = n; }
+  for(const k of PET_NUMS){ const v = raw[k]; if(typeof v === 'number' && Number.isFinite(v)) look[k] = Math.round(100 * Math.min(1, Math.max(0, v))) / 100; }
+  for(const k of PET_HEX_KEYS){ const h = normHex(raw[k]); if(h) look[k] = h; }
+  if(Array.isArray(raw.marks)){ const m = PET_MARKS.filter(x => raw.marks.includes(x)); if(m.length) look.marks = m; }
+  if(typeof raw.breed === 'string' && PET_BREED_RE.test(raw.breed)) look.breed = raw.breed;
+  if(raw.fur === 'curly' || raw.fur === 'silky') look.fur = raw.fur;
+  const n = petName(raw.name); if(n) look.name = n;
   return look;
+}
+/* the coat colours a pattern reads, by position (no sorting by lightness): the UI labels each colour input with of.pet.role.<key>. An optional role
+   falls back to a colour derived from coat[0] when it is missing */
+const ROLES = { solid: ['coat'], patch: ['base', 'patch', 'ear?'], tabby: ['base', 'stripe', 'muzzle?'], tuxedo: ['main', 'white'], point: ['body', 'points'],
+  bicolor: ['top', 'under'], saddle: ['body', 'saddle'], spots: ['base', 'spot'], calico: ['base', 'patch1', 'patch2'] };
+export const petCoatRoles = pattern => ROLES[pick(pattern, PET_PATTERNS, PET_DEFAULTS.pattern)].map(r => ({ key: r.replace('?', ''), optional: r.endsWith('?') }));
+/* picking a breed: every field comes from the breed's look, only the pet's name stays (a breed look carries no name of its own) */
+export function petApplyBreed(look, breedLook){
+  const b = normalizePetLook(breedLook); if(!b) return normalizePetLook(look);
+  delete b.name; const n = petName(look && look.name); if(n) b.name = n;
+  return b;
 }
 
 /* ---------- colour: sRGB <-> OKLab ---------- */
@@ -207,7 +235,9 @@ export const PET_BLEND = 0.2;
 /* the gait is driven by distance: one full leg cycle per PET_STRIDE of travel in the pet's own units (times its scale in the world), so a small pet takes
    quicker steps than a large one and no pet's feet slide. With a leg swing of 0.55 rad on a 0.2 leg the foot travels about 0.21 per half cycle. */
 export const PET_STRIDE = 0.42;
-export const petGait = (phase, dist, scale) => phase + dist / (PET_STRIDE * Math.max(1e-3, scale));
+/* legK is the pet's leg length factor (userData.legK, 1 at the default): the foot's sweep is proportional to the leg, so the stride is too, and a
+   short-legged pet takes more, shorter steps instead of sliding its feet (at legs 0 the old fixed stride slid them by about 45 %) */
+export const petGait = (phase, dist, scale, legK = 1) => phase + dist / (PET_STRIDE * Math.max(0.05, +legK || 1) * Math.max(1e-3, scale));
 /* walking speed for one frame: speeds up and slows down at accel A (about 0.2 s from rest to V), slows so it stops exactly at the end of the path
    (rem is the distance left), and does not move at all while the heading is more than about 30 degrees off (err in radians), so the pet turns first */
 export function petSpeedStep(v, rem, err, dt, V = 1.1, A = 5){
@@ -227,28 +257,31 @@ function twitch(t, per, salt, len = 0.07){
    (tx across, tz ahead, in the pet's own units, the toy always ahead of the chest) and its roll. Positions only change inside a move, eased between the
    move's start and end, so the toy and the body never jump; the poses of consecutive moves are mixed by posePet's blend. */
 export const PET_PLAY_Z = 0.42;
-export function petPlaySeq(seed, total){
-  const h = k => petHash(seed + ':pl' + k), out = [];
-  let t = 0, i = 0, since = 0, st = { bz: 0, tx: 0, tz: PET_PLAY_Z, roll: 0 };
+/* z0 is the toy's distance at rest (the pet's userData.playZ, at least PET_PLAY_Z): every toy distance is measured from it, so a long muzzle never
+   covers the toy. The pounce carries the body 0.14 forward, far enough that it reads as a leap and not as a jump on the spot. */
+export const PET_POUNCE = 0.14;
+export function petPlaySeq(seed, total, z0 = PET_PLAY_Z){
+  const h = k => petHash(seed + ':pl' + k), out = [], Z = Math.max(PET_PLAY_Z, +z0 || PET_PLAY_Z);
+  let t = 0, i = 0, since = 0, st = { bz: 0, tx: 0, tz: Z, roll: 0 };
   const push = (k, dur, b, side = 0) => { out.push({ k, t0: t, t1: t + dur, a: st, b, side }); t += dur; st = b; };
   const sideOf = r => st.tx > 0.006 ? 1 : st.tx < -0.006 ? -1 : r < 0.5 ? 1 : -1;
   while((t < total || st.bz > 1e-4) && out.length < 400){
     const r = h(i + 'a'), r2 = h(i + 'b'), r3 = h(i + 'c'); i++;
     if(st.bz > 1e-4){
       if(since >= 2 || r < 0.3){ push('back', 0.45 + 0.15 * r2, { ...st, bz: 0 }); since = 0; }
-      else if(r < 0.72){ const s = sideOf(r3); push('bat', 0.7 + 0.2 * r2, { ...st, tx: -s * (0.025 + 0.035 * r3), tz: st.bz + PET_PLAY_Z + 0.01 * r2, roll: st.roll + 2.6 * s }, s); since++; }
+      else if(r < 0.72){ const s = sideOf(r3); push('bat', 0.7 + 0.2 * r2, { ...st, tx: -s * (0.025 + 0.035 * r3), tz: st.bz + Z + 0.01 * r2, roll: st.roll + 2.6 * s }, s); since++; }
       else { push('look', 0.5 + 0.8 * r2, { ...st }, r3 < 0.5 ? 1 : -1); since++; }
     }else if(r < 0.45){
       push('crouch', 0.7 + 1.0 * r2, { ...st });
-      push('pounce', 0.62, { bz: 0.08, tx: Math.max(-0.07, Math.min(0.07, st.tx + (r3 - 0.5) * 0.09)), tz: PET_PLAY_Z + 0.1 + 0.04 * r3, roll: st.roll + 4 }); since = 0;
-    }else if(r < 0.78){ const s = sideOf(r3); push('bat', 0.7 + 0.2 * r2, { ...st, tx: -s * (0.025 + 0.035 * r3), tz: PET_PLAY_Z + 0.015 * r2, roll: st.roll + 2.6 * s }, s); }
+      push('pounce', 0.76, { bz: PET_POUNCE, tx: Math.max(-0.07, Math.min(0.07, st.tx + (r3 - 0.5) * 0.09)), tz: Z + PET_POUNCE + 0.03 + 0.04 * r3, roll: st.roll + 5.5 }); since = 0;
+    }else if(r < 0.78){ const s = sideOf(r3); push('bat', 0.7 + 0.2 * r2, { ...st, tx: -s * (0.025 + 0.035 * r3), tz: Z + 0.015 * r2, roll: st.roll + 2.6 * s }, s); }
     else push('look', 0.5 + 0.8 * r2, { ...st }, r3 < 0.5 ? 1 : -1);
   }
   return out;
 }
 /* the play state at time t (seconds from the start of the act): { k, u, side, bz, tx, tz, roll } */
-export function petPlayAt(seq, t){
-  if(!seq.length) return { k: 'look', u: 0, side: 1, bz: 0, tx: 0, tz: PET_PLAY_Z, roll: 0 };
+export function petPlayAt(seq, t, z0 = PET_PLAY_Z){
+  if(!seq.length) return { k: 'look', u: 0, side: 1, bz: 0, tx: 0, tz: Math.max(PET_PLAY_Z, +z0 || PET_PLAY_Z), roll: 0 };
   let m = seq[seq.length - 1]; for(const q of seq) if(t < q.t1){ m = q; break; }
   const u = Math.min(1, Math.max(0, (t - m.t0) / (m.t1 - m.t0))), A = m.a, B = m.b;
   const win = (a, b) => easeIO((u - a) / (b - a));
@@ -270,6 +303,13 @@ function bendY(geo, b){
     p.setXYZ(i, p.getX(i), R * Math.sin(th) - z * Math.sin(th), R * (1 - Math.cos(th)) + z * Math.cos(th)); }
   if(p) p.needsUpdate = true; if(geo.computeVertexNormals) geo.computeVertexNormals(); return geo;
 }
+/* fold the part of a unit geometry above y = h0 forward (toward +z) by a radians about the line y = h0, z = 0 */
+function foldTop(geo, h0, a){
+  const p = geo.getAttribute('position');
+  if(p) for(let i = 0; i < p.count; i++){ const y = p.getY(i); if(y <= h0 + 1e-6) continue; const dy = y - h0, z = p.getZ(i);
+    p.setXYZ(i, p.getX(i), h0 + dy * Math.cos(a) - z * Math.sin(a), dy * Math.sin(a) + z * Math.cos(a)); }
+  if(p) p.needsUpdate = true; if(geo.computeVertexNormals) geo.computeVertexNormals(); return geo;
+}
 const lathe = (T, prof, seg = 18) => new T.LatheGeometry(prof.map(([r, y]) => new T.Vector2(r, y)), seg);
 const SHARED = new WeakMap();
 function shared(T){
@@ -282,43 +322,96 @@ function shared(T){
     /* a hanging ear: narrow where it joins the head, rounded and full at the bottom */
     drop: lathe(T, [[0, -0.52], [0.6, -0.47], [0.9, -0.32], [0.96, -0.1], [0.78, 0.2], [0.48, 0.42], [0, 0.5]], 16),
     /* closed eyes: a thin arc (drawn as a smile-shaped curve when turned upside down) */
-    arc: new T.TorusGeometry(1, 0.2, 6, 14, Math.PI) }; SHARED.set(T, s); }
+    arc: new T.TorusGeometry(1, 0.2, 6, 14, Math.PI),
+    /* the half-pricked ear: an upright cone whose top third folds forward over a crease */
+    half: foldTop(new T.ConeGeometry(1, 1, 14, 6), 1 / 6, 2.1),
+    /* the collar: a flat band round the y axis (unit radius, unit width, a little thickness and rounded edges), so it reads as a strap, not a hoop */
+    band: lathe(T, [[0.97, -0.5], [1.04, -0.47], [1.07, -0.36], [1.07, 0.36], [1.04, 0.47], [0.97, 0.5]], 36) }; SHARED.set(T, s); }
   return s;
 }
 export function disposePetShared(T){ const s = SHARED.get(T); if(s){ Object.values(s).forEach(g => g.dispose()); SHARED.delete(T); } }
 
 /* one material per part: colour c0, and c1 where the pattern says. mode 0 plain, 1 patches (value noise), 2 stripes across dir, 3 region
    facing dir (dot of the unit-sphere position with dir above th). Positions are the mesh's own unit-geometry coordinates. */
-const FRAG_HEAD = `uniform vec3 uPetC0; uniform vec3 uPetC1; uniform int uPetMode; uniform vec3 uPetDir; uniform float uPetTh; uniform float uPetFreq; uniform vec3 uPetOff; uniform float uPetPlush; varying vec3 vPetPos;
+const FRAG_HEAD = `uniform vec3 uPetC0; uniform vec3 uPetC1; uniform vec3 uPetC2; uniform int uPetMode; uniform vec3 uPetDir; uniform float uPetTh; uniform float uPetFreq; uniform vec3 uPetOff; uniform float uPetPlush; uniform vec3 uPetAsp;
+uniform vec3 uPetCM; uniform int uPetMkK; uniform vec3 uPetMkD; uniform float uPetMkT; uniform float uPetFurK; uniform vec3 uPetEye; varying vec3 vPetPos;
 #ifdef PET_SHELL
-uniform vec3 uPetScale; uniform float uPetFurF; varying float vPetH;
+uniform vec3 uPetScale; uniform float uPetFurF; uniform float uPetLen; uniform vec3 uPetGrav; varying float vPetH;
 #endif
 float petH(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float petN(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(petH(i), petH(i + vec3(1, 0, 0)), f.x), mix(petH(i + vec3(0, 1, 0)), petH(i + vec3(1, 1, 0)), f.x), f.y),
              mix(mix(petH(i + vec3(0, 0, 1)), petH(i + vec3(1, 0, 1)), f.x), mix(petH(i + vec3(0, 1, 1)), petH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+/* distance to the nearest jittered cell point (one point per unit cell, kept off the cell walls so neighbouring spots do not merge); cells whose
+   hash is below skip hold no point, so the spots are irregular instead of an even pepper */
+float petCell(vec3 x, float skip){ vec3 i = floor(x), f = fract(x); float d = 9.0;
+  for(int a = -1; a <= 1; a++) for(int b = -1; b <= 1; b++) for(int c = -1; c <= 1; c++){ vec3 g = vec3(float(a), float(b), float(c)), k = i + g;
+    if(petH(k + 5.7) < skip) continue;
+    vec3 r = g + 0.2 + 0.6 * vec3(petH(k), petH(k + 17.3), petH(k + 31.7)) - f; d = min(d, dot(r, r)); }
+  return sqrt(d); }
+/* 0..1 round the eyes on the head (uPetEye: the left eye's direction on the head's unit sphere, zero on every other part), between cosines a and b */
+float petEyeZ(vec3 p, float a, float b){ if(dot(uPetEye, uPetEye) < 1e-4) return 0.0; vec3 n = normalize(p + vec3(1e-5)); return smoothstep(a, b, dot(vec3(abs(n.x), n.y, n.z), uPetEye)); }
 `;
 const FRAG_BODY = `#include <color_fragment>
 float petFz = 0.5, petFd = 0.0;   /* strand noise and its strength (0 where a tuft is under a pixel) */
-{ vec3 q = vPetPos; float m = 0.0;
-  if(uPetMode == 1){ float n = petN(q * uPetFreq + uPetOff) * 0.65 + petN(q * uPetFreq * 2.3 + uPetOff.zxy) * 0.35; m = smoothstep(0.5, 0.56, n); }
+{ vec3 q = vPetPos; float m = 0.0, m2 = 0.0;
+#ifdef PET_SHELL
+  /* a strand takes its colour from a point a little off its root (about its own length), so a pattern edge breaks up into strands instead of
+     stepping from shell to shell like low-resolution hatching */
+  { vec3 jq = vPetPos * uPetScale * 38.0; q += (vec3(petN(jq), petN(jq + 9.1), petN(jq + 17.7)) - 0.5) * (1.1 * uPetLen) / uPetScale; }
+#endif
+  /* patches and spots keep clear of the eyes, so the colour under an eye is the head's own and the eye rule in paints() can know it */
+  float eyeZ = petEyeZ(q, 0.82, 0.9);
+  if(uPetMode == 1 || uPetMode == 6){ float n = petN(q * uPetFreq + uPetOff) * 0.65 + petN(q * uPetFreq * 2.3 + uPetOff.zxy) * 0.35; m = smoothstep(0.49, 0.57, n) * (1.0 - eyeZ);
+    /* calico: a second, independent noise field gives the other colour's patches where the first has none */
+    if(uPetMode == 6){ float n2 = petN(q * uPetFreq * 1.15 + uPetOff.yzx + 5.3) * 0.65 + petN(q * uPetFreq * 2.6 + uPetOff.zyx + 2.1) * 0.35; m2 = smoothstep(0.49, 0.57, n2) * (1.0 - m) * (1.0 - eyeZ); } }
   else if(uPetMode == 2){ float s = sin(dot(q, uPetDir) * uPetFreq + petN(q * 2.5 + uPetOff) * 3.0); m = smoothstep(0.15, 0.55, s) * smoothstep(uPetTh, uPetTh + 0.15, normalize(q + vec3(1e-5)).y); }
   else if(uPetMode == 3){ m = smoothstep(uPetTh - 0.06, uPetTh + 0.06, dot(normalize(q + vec3(1e-5)), uPetDir)); }
+  /* a half-space on the unnormalized position, the plane bent by freq * y^2 so it follows a curved tail (the top of the tail for the saddle) */
+  else if(uPetMode == 5){ m = smoothstep(uPetTh - 0.08, uPetTh + 0.08, dot(q, uPetDir) - uPetFreq * q.y * q.y); }
+  /* spots: round in the pet's own units (uPetAsp is the mesh scale), so a stretched body sphere does not stretch them into stripes */
+  /* th above 0.5 draws rosettes (a broken dark ring round a part-dark middle, a bengal's coat), otherwise solid round spots */
+  else if(uPetMode == 7){ vec3 sq2 = q * uPetAsp * uPetFreq + uPetOff; float d = petCell(sq2, 0.15);
+    if(uPetTh > 0.5) m = max((smoothstep(0.12, 0.16, d) - smoothstep(0.29, 0.34, d)) * smoothstep(0.3, 0.42, petN(sq2 * 3.1)), 0.4 * (1.0 - smoothstep(0.12, 0.16, d)));
+    else m = 1.0 - smoothstep(0.24, 0.29, d);
+    m *= 1.0 - eyeZ; }
+  /* an eye: pupil c0 facing +z beyond th, the iris c1 round it, the outer rim c2 below freq (c2 is the iris itself unless the eye sits on dark
+     paint, where it is a light ring), and a white highlight toward dir */
   if(uPetMode == 4){ vec3 n = normalize(q + vec3(1e-5)); vec3 c = mix(uPetC1, uPetC0, smoothstep(uPetTh - 0.05, uPetTh + 0.05, n.z));
+    c = mix(uPetC2, c, smoothstep(uPetFreq - 0.05, uPetFreq + 0.05, n.z));
     diffuseColor.rgb = mix(c, vec3(1.0), smoothstep(0.84, 0.88, dot(n, uPetDir))); }
-  else diffuseColor.rgb = mix(uPetC0, uPetC1, m);
+  else diffuseColor.rgb = mix(mix(uPetC0, uPetC1, m), uPetC2, m2);
+  /* marks over the pattern: 1 the region facing dir (unit sphere), 2 a half-space on the raw position (socks, a tail tip), 3 the blaze (a narrow band
+     down the middle of the face, wider below the eyes, the eyes left clear), 4 the whole part (the muzzle under a blaze) */
+  if(uPetMkK > 0){ vec3 nn = normalize(q + vec3(1e-5)); float k = 1.0;
+    if(uPetMkK == 1) k = smoothstep(uPetMkT - 0.05, uPetMkT + 0.05, dot(nn, uPetMkD));
+    else if(uPetMkK == 2) k = smoothstep(uPetMkT - 0.05, uPetMkT + 0.05, dot(q, uPetMkD));
+    else if(uPetMkK == 3) k = (1.0 - smoothstep(-0.02, 0.02, abs(nn.x) - uPetMkT - 0.16 * smoothstep(0.02, -0.3, nn.y))) * smoothstep(0.15, 0.35, nn.z) * (1.0 - smoothstep(0.72, 0.84, nn.y));
+    diffuseColor.rgb = mix(diffuseColor.rgb, uPetCM, k); }
   /* plush: a fine two-octave strand noise in object space darkens the fur between tufts; it fades out where a tuft is smaller than a pixel. The cast's warm
      daylight gain (fur.js GAIN_DAY) is applied too, so a pet beside its owner is not the duller of the two, but not on near-black fur, where a warm gain
      under the warm room light turns charcoal olive or brown. */
-  if(uPetPlush > 0.0){ vec3 fq = q * 16.0 + uPetOff; petFz = petN(fq) * 0.7 + petN(fq * 2.1 + 7.1) * 0.3; petFd = uPetPlush * (1.0 - smoothstep(0.3, 1.4, length(fwidth(fq))));
+  /* bare skin (uPetFurK -1, a sphynx) gets no strand tint at all */
+  if(uPetPlush > 0.0){ vec3 fq = q * 16.0 + uPetOff; petFz = petN(fq) * 0.7 + petN(fq * 2.1 + 7.1) * 0.3; petFd = uPetFurK < -0.5 ? 0.0 : uPetPlush * (1.0 - smoothstep(0.3, 1.4, length(fwidth(fq))));
     float petL = dot(diffuseColor.rgb, vec3(0.3, 0.6, 0.1));
     diffuseColor.rgb *= (1.0 + 0.08 * petFd * (petFz - 0.5)) * mix(vec3(0.97, 0.985, 1.03), mix(vec3(1.0), vec3(1.12, 1.09, 1.03), uPetPlush), smoothstep(0.025, 0.12, petL)); }
 #ifdef PET_SHELL
-  /* shell fur: strands are columns of a two-octave noise in the pet's own units (vPetPos is the surface point before the shell was pushed out, so a strand
-     stays put from shell to shell); a strand thins toward its tip, and the roots sit a little darker */
-  { vec3 sq = vPetPos * uPetScale * uPetFurF; float sn = petN(sq) * 0.62 + petN(sq * 2.37 + 3.1) * 0.38;
-    if(sn < 0.3 + 0.6 * vPetH) discard;
-    diffuseColor.rgb *= mix(0.84, 1.05, vPetH); }
+  /* shell fur: strands are columns of a noise in the pet's own units (vPetPos is the surface point before the shell was pushed out, so a strand stays
+     put from shell to shell), thinning toward the tip, the roots a little darker. The texture is a uniform, so the three coats share one program:
+     plush (0) fine short straight strands; curly (1) a dome over each point of a cell noise, so the coat is packed round ringlets; silky (2)
+     the noise is stretched along the hang direction (uPetGrav), so strands read as long straight locks. No shell crosses an eye. */
+  { if(petEyeZ(vPetPos, 0.93, 0.95) > 0.5) discard;
+    vec3 sp = vPetPos * uPetScale * uPetFurF; float h = vPetH, sn, thr;
+    if(uPetFurK > 1.5){ vec3 gd = normalize(uPetGrav + vec3(0.0, -1e-4, 0.0)); vec3 a = sp - gd * dot(sp, gd) * 0.85;
+      sn = petN(a) * 0.6 + petN(a * 2.3 + 3.1) * 0.4; thr = 0.26 + 0.36 * h; }
+    else if(uPetFurK > 0.5){ float d = petCell(sp, 0.0) + 0.12 * petN(sp * 3.0); sn = 1.0; thr = 0.0;
+      if(d > 0.62 * sqrt(max(0.0, 1.0 - h * h))) discard;   /* a dome over each cell point: packed round ringlets, dark in the gaps between them */
+      diffuseColor.rgb *= mix(0.8, 1.06, smoothstep(0.0, 0.6, h + 0.5 * (0.5 - d))); }
+    else { sn = petN(sp) * 0.72 + petN(sp * 2.1 + 5.3) * 0.28; thr = 0.3 + 0.5 * h; }
+    /* strands finer than a pixel fill in toward the root instead of sparkling */
+    thr -= 0.16 * smoothstep(0.6, 1.4, length(fwidth(sp))) * (1.0 - h);
+    if(sn < thr) discard;
+    diffuseColor.rgb *= mix(0.86, 1.04, h); }
 #endif
 }
 `;
@@ -329,120 +422,225 @@ const FRAG_SHEEN = `{ float sh = pow(1.0 - saturate(dot(normal, geometryViewDir)
 #include <opaque_fragment>`;
 const DIFFUSE = 'reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );';
 /* a shell is pushed out along the surface normal of the scaled mesh by uPetLen (in the units of the mesh's parent, the pet's own units), as far as
-   its layer: layer i of n reaches (i + 1) / n of the length */
+   its layer: layer i of n reaches (i + 1) / n of the length. A silky coat also sags along uPetGrav (down and back, in the same units) with the square
+   of the layer, so its strands hang. The length tapers to zero round the eyes (uPetEye), so fur never grows over an eye. */
 const SHELL_V = `
 #ifdef PET_SHELL
   vPetH = (float(gl_InstanceID) + 1.0) / uPetShells;
-  { vec3 sn = normalize(objectNormal * uPetInvS); transformed += sn * uPetInvS * (uPetLen * vPetH); }
+  { vec3 sn = normalize(objectNormal * uPetInvS), pn = normalize(position + vec3(1e-5));
+    float ez = dot(uPetEye, uPetEye) < 1e-4 ? 0.0 : smoothstep(0.86, 0.93, dot(vec3(abs(pn.x), pn.y, pn.z), uPetEye)), L = uPetLen * vPetH * (1.0 - ez);
+    transformed += uPetInvS * (sn * L + uPetGrav * L * vPetH); }
 #endif`;
 /* mode 2 stripes fade out below y = th on the unit sphere (th -2 keeps them everywhere); mode 4 is an eye: pupil c0 facing +z beyond th,
    an iris ring c1 round it, and a white highlight toward dir. sh: { u, len, inv, scale } turns the material into the shell layers of a part,
    sharing the part's colour uniforms so a recolour reaches both. */
 function coatMat(T, pt, rough, seed, plush = 0, sh = null){
   const m = new T.MeshStandardMaterial({ color: pt ? pt.c0 : '#ffffff', roughness: rough, metalness: 0 });
-  const u = sh ? sh.u : { uPetC0: { value: new T.Color(pt.c0) }, uPetC1: { value: new T.Color(pt.c1) }, uPetMode: { value: pt.mode }, uPetDir: { value: new T.Vector3(...pt.dir).normalize() },
-    uPetTh: { value: pt.th }, uPetFreq: { value: pt.freq }, uPetOff: { value: new T.Vector3(hash(seed + 'x') * 40, hash(seed + 'y') * 40, hash(seed + 'z') * 40) }, uPetPlush: { value: plush } };
-  const su = sh ? { uPetLen: { value: sh.len }, uPetShells: sh.shells, uPetInvS: { value: sh.inv }, uPetScale: { value: sh.scale }, uPetFurF: { value: 95 } } : {};
+  const mk = (pt && pt.mk) || MK0;
+  const u = sh ? sh.u : { uPetC0: { value: new T.Color(pt.c0) }, uPetC1: { value: new T.Color(pt.c1) }, uPetC2: { value: new T.Color(pt.c2 || pt.c0) }, uPetMode: { value: pt.mode }, uPetDir: { value: new T.Vector3(...pt.dir).normalize() },
+    uPetTh: { value: pt.th }, uPetFreq: { value: pt.freq }, uPetOff: { value: new T.Vector3(hash(seed + 'x') * 40, hash(seed + 'y') * 40, hash(seed + 'z') * 40) }, uPetPlush: { value: plush },
+    uPetAsp: { value: new T.Vector3(1, 1, 1) }, uPetCM: { value: new T.Color(pt.cm || WHITE) }, uPetMkK: { value: mk.k }, uPetMkD: { value: new T.Vector3(...mk.d).normalize() }, uPetMkT: { value: mk.th },
+    uPetFurK: { value: pt.fk || 0 }, uPetEye: { value: new T.Vector3(...(pt.eye || [0, 0, 0])) } };
+  const su = sh ? { uPetLen: { value: sh.len }, uPetShells: sh.shells, uPetInvS: { value: sh.inv }, uPetScale: { value: sh.scale }, uPetFurF: { value: sh.freq || 95 }, uPetGrav: { value: sh.grav || new T.Vector3(0, 0, 0) } } : {};
   m.userData.pet = u;
   if(sh) m.defines = { PET_SHELL: '' };
   m.onBeforeCompile = shd => {
     Object.assign(shd.uniforms, u, su);
-    shd.vertexShader = 'varying vec3 vPetPos;\n#ifdef PET_SHELL\nvarying float vPetH; uniform float uPetLen; uniform float uPetShells; uniform vec3 uPetInvS;\n#endif\n'
+    shd.vertexShader = 'varying vec3 vPetPos;\n#ifdef PET_SHELL\nvarying float vPetH; uniform float uPetLen; uniform float uPetShells; uniform vec3 uPetInvS; uniform vec3 uPetGrav; uniform vec3 uPetEye;\n#endif\n'
       + shd.vertexShader.replace('#include <begin_vertex>', () => '#include <begin_vertex>\nvPetPos = position;' + SHELL_V);
     /* function replacements, so the dollar signs in the chunks are not read as patterns */
     shd.fragmentShader = FRAG_HEAD + shd.fragmentShader.replace('#include <color_fragment>', () => FRAG_BODY)
       .replace('#include <lights_physical_pars_fragment>', () => T.ShaderChunk.lights_physical_pars_fragment.replace(DIFFUSE, () => 'reflectedLight.directDiffuse += mix( saturate( dot( geometryNormal, directLight.direction ) ), saturate( ( dot( geometryNormal, directLight.direction ) + 0.45 ) / 1.45 ), uPetPlush ) * directLight.color * BRDF_Lambert( material.diffuseColor );'))
       .replace('#include <opaque_fragment>', () => FRAG_SHEEN);
   };
-  m.customProgramCacheKey = () => 'petcoat1';
-  if(sh) m.customProgramCacheKey = () => 'petcoat1shell';
+  m.customProgramCacheKey = () => 'petcoat3';
+  if(sh) m.customProgramCacheKey = () => 'petcoat3shell';
   return m;
 }
-const WHITE = '#f3efe8';
-/* role -> paint for the chosen pattern; with fewer coat colours than a pattern needs, the missing one is derived from the first */
+const WHITE = '#f3efe8', MK0 = { k: 0, d: [0, 1, 0], th: 0 };
+/* the tail tip mark: the last quarter of a tail bent by b (bendY): the half-space past the point at 3/4 of the length, across the tangent there */
+const tipMk = (b, s = 0.75) => ({ k: 2, d: [0, Math.cos(b * s), Math.sin(b * s)], th: Math.sin(b * s) / b });
+const TIP = { long: tipMk(0.95), fluff: tipMk(0.6), short: { k: 1, d: [0, 1, 0], th: 0.15 }, curl: { k: 1, d: [-0.556, -0.831, 0], th: 0.83 } };
+/* role -> paint for the chosen pattern. Coat colours are read by position (petCoatRoles), never sorted by lightness, so the colour a member picks for a
+   role is the colour that role gets; with fewer coat colours than a pattern needs, the missing one is derived from the first */
 function paints(look){
-  const cat = look.kind === 'cat', coat = look.coat.map(neutralDark), [c0, c1, c2] = coat, byL = coat.slice().sort((a, b) => lum(a) - lum(b));
-  const dark = byL[0], light = byL[byL.length - 1], p = (a, b = a, mode = 0, dir = [0, 0, 1], th = 0, freq = 3.5) => ({ c0: a, c1: b, mode, dir, th, freq });
+  const cat = look.kind === 'cat', coat = look.coat.map(neutralDark), [c0, c1, c2] = coat, pat = look.pattern;
+  const p = (a, b = a, mode = 0, dir = [0, 0, 1], th = 0, freq = 3.5, c = a) => ({ c0: a, c1: b, c2: c, mode, dir, th, freq });
   let r;
-  if(look.pattern === 'patch'){ const b = c1 || shadeHex(c0, lum(c0) > 0.6 ? -0.28 : 0.3);
+  if(pat === 'patch'){ const b = c1 || shadeHex(c0, lum(c0) > 0.6 ? -0.28 : 0.3);
     r = { body: p(c0, b, 1, [0, 0, 1], 0, 1.3), head: p(c0, b, 1, [0, 0, 1], 0, 1.1), leg: p(c0, b, 1, [0, 0, 1], 0, 0.7), ear: p(c2 || b), tail: p(b), muzzle: p(mixHex(c0, WHITE, 0.5)) };
-  }else if(look.pattern === 'tabby'){ const two = c1 ? [c0, c1].sort((a, b) => lum(b) - lum(a)) : [c0, shadeHex(c0, -0.2)], base = two[0], st = two[1];
+  }else if(pat === 'tabby'){ const base = c0, st = c1 || shadeHex(c0, -0.2);
     /* stripes on the back, the sides, the tail and the crown only: the body's rings fade out toward the belly, the legs stay plain (striped legs read as a
        caterpillar at this size) and the head keeps its lines on the crown, so the eyes, cheeks and muzzle stay plain and the face reads */
     r = { body: p(base, st, 2, [0, 0, 1], -0.28, 13), head: p(base, st, 2, [1, 0, 0], 0.38, 15), leg: p(base), ear: p(base), tail: p(base, st, 2, [0, 1, 0], -2, 7), muzzle: p(c2 || mixHex(base, WHITE, 0.55)) };
-  }else if(look.pattern === 'tuxedo'){ const d = lum(dark) < 0.6 ? dark : '#47464a', w = lum(light) - lum(d) > 0.3 ? light : WHITE;
-    r = { body: p(d, w, 3, [0, -0.55, 1], 0.45), head: p(d, w, 3, [0, -0.75, 1], 0.62), leg: p(d, w, 3, [0, -1, 0], 0.7), ear: p(d), tail: p(d), muzzle: p(w) };
-  }else if(look.pattern === 'point'){ const pale = light, pt = lum(light) - lum(dark) > 0.25 ? dark : shadeHex(light, -0.35);
-    r = { body: p(pale), head: p(pale, pt, 3, [0, 0, 1], 0.3), leg: p(pale, pt, 3, [0, -1, 0], -0.1), ear: p(pt), tail: p(pt), muzzle: p(pt) };
+  }else if(pat === 'tuxedo'){ const d = (c1 || lum(c0) < 0.6) ? c0 : '#47464a', w = c1 || WHITE;   /* one light colour alone cannot be the dark main coat: charcoal stands in, as before */
+    r = { body: p(d, w, 3, [0, -0.55, 1], 0.45), head: p(d, w, 3, [0, -0.75, 1], 0.7), leg: p(d, w, 3, [0, -1, 0], 0.7), ear: p(d), tail: p(d), muzzle: p(w) };
+  }else if(pat === 'point'){ const pale = c0, pt = c1 || shadeHex(c0, -0.35);
+    /* the mask is the middle of the face (muzzle, nose bridge, round the eyes), not the front half of the head: seen from the side the cheeks and the crown
+       stay pale, which is what tells a Siamese or a pug from a dark-headed animal; the legs darken toward the feet only */
+    r = { body: p(pale), head: p(pale, pt, 3, [0, -0.22, 1], 0.74), leg: p(pale, pt, 3, [0, -1, 0], 0.35), ear: p(pt), tail: p(pt), muzzle: p(pt) };
+  }else if(pat === 'bicolor'){ const top = c0, und = c1 || mixHex(c0, WHITE, 0.7);
+    /* the under colour on the belly and chest (the region facing down and a little forward), the cheeks and the lower face, every leg and the muzzle */
+    r = { body: p(top, und, 3, [0, -1, 0.55], 0.02), head: p(top, und, 3, [0, -1, 0.6], 0.36), leg: p(und), ear: p(top), tail: p(top), muzzle: p(und) };
+  }else if(pat === 'saddle'){ const sd = c1 || shadeHex(c0, -0.3);
+    /* a blanket over the back toward the rump, and the upper side of the tail (its local +z, bent like the tail geometry) */
+    r = { body: p(c0, sd, 3, [0, 1, -0.12], 0.12), head: p(c0), leg: p(c0), ear: p(c0), tail: p(c0, sd, 5, [0, 0, 1], -0.02, look.tail === 'fluff' ? 0.3 : look.tail === 'long' ? 0.475 : 0), muzzle: p(mixHex(c0, WHITE, 0.2)) };
+    if(look.tail === 'short' || look.tail === 'curl') r.tail = p(sd);
+  }else if(pat === 'spots'){ const sp = c1 || shadeHex(c0, lum(c0) > 0.6 ? -0.42 : 0.3), S = (f) => p(c0, sp, 7, [0, 0, 1], cat ? 1 : 0, f);
+    /* bold spots sized in the pet's own units, a little smaller on the face and the legs: clear round spots on a dog (a dalmatian), rosettes on a
+       cat (a bengal). Three times the size of the first version, which read as pepper */
+    r = { body: S(10), head: S(12.5), leg: S(13), ear: S(10), tail: S(13), muzzle: p(mixHex(c0, WHITE, 0.25)) };
+  }else if(pat === 'calico'){ const a = c1 || shadeHex(c0, lum(c0) > 0.6 ? -0.25 : 0.25), b = c2 || shadeHex(c0, lum(c0) > 0.6 ? -0.5 : 0.4), C = (f) => p(c0, a, 6, [0, 0, 1], 0, f, b);
+    r = { body: C(1.3), head: C(1.1), leg: C(0.7), ear: C(1.6), tail: C(1.2), muzzle: p(mixHex(c0, WHITE, 0.5)) };
   }else r = { body: p(c0), head: p(c0), leg: p(c0), ear: p(c0), tail: p(c0), muzzle: p(mixHex(c0, WHITE, cat ? 0.5 : 0.35)) };
-  r.nose = p(cat && look.pattern !== 'tuxedo' ? '#e79aa8' : '#3b3036');
-  /* eyes: a dark pupil with an iris ring, so they still read on a dark head (amber for cats, brown for dogs, lighter when the face is dark) */
-  const faceDark = lum(r.head.c0) < 0.55;
-  r.eye = p('#241d2a', cat ? (faceDark ? '#f0c95a' : '#b9a14a') : (faceDark ? '#c49a72' : '#6e4c3a'), 4, [0.35, 0.5, 0.8], cat ? 0.45 : 0.3);
-  r.lid = p(faceDark ? '#b9aeb4' : '#3b3036');
+  r.nose = p(look.nose || (cat && pat !== 'tuxedo' ? '#e79aa8' : '#3b3036'));
+  /* eyes: a dark pupil with an iris round it. Whether the eye sits on dark paint is decided by the colour the head's pattern actually paints at the
+     eye (a pug's or a siamese's mask, a tuxedo's dark crown), not by coat[0]: there the iris widens, turns light, and a pale rim rings the eye, and the
+     closed-eye arc is light, so both eyes still read on a 30 px head. Patches and spots keep clear of the eyes in the shader, so only the region
+     patterns (mode 3) can darken the paint at the eye. */
+  const e = petEyeDir(look), hp = r.head, dk = hp.mode === 3 ? sstep(hp.th - 0.06, hp.th + 0.06, (e[0] * hp.dir[0] + e[1] * hp.dir[1] + e[2] * hp.dir[2]) / Math.hypot(...hp.dir)) : 0;
+  const atEye = dk > 0 ? mixHex(hp.c0, hp.c1, dk) : hp.c0, dark = lum(atEye) < 0.55;
+  const iris = look.eye || (cat ? (dark ? '#f0c95a' : '#b9a14a') : (dark ? '#d6ab7e' : '#6e4c3a'));
+  r.eye = p('#241d2a', iris, 4, [0.35, 0.5, 0.8], dark ? (cat ? 0.66 : 0.62) : (cat ? 0.45 : 0.3), dark ? 0.5 : -2, dark ? '#f2ece6' : iris);
+  r.lid = p(dark ? '#efe8e1' : '#3b3036');
+  r.head.eye = e;
+  r.collar = p(look.collar || '#e0685f'); r.tag = p('#e8c56a');
+  /* marks: socks on the lower 45 % of each leg capsule (y below -0.15 of its -1.5..1.5), a chest patch, the blaze (head band plus the whole muzzle), the tip */
+  const has = k => !!(look.marks && look.marks.includes(k)), cm = look.mark || WHITE;
+  if(has('socks')) r.leg.mk = { k: 2, d: [0, -1, 0], th: 0.15 };
+  if(has('chest')) r.body.mk = { k: 1, d: [0, -0.35, 1], th: 0.72 };
+  if(has('blaze')){ r.head.mk = { k: 3, d: [0, 0, 1], th: 0.07 }; r.muzzle.mk = { k: 4, d: [0, 0, 1], th: 0 }; }
+  if(has('tip')) r.tail.mk = TIP[look.tail] || TIP.long;
+  const fk = petFurK(look);
+  for(const k in r){ r[k].cm = cm; r[k].fk = fk; if(!r[k].mk) r[k].mk = MK0; }
   return r;
+}
+/* the shader's coat texture: -1 bare skin (fluff 0.05 or less: no shells, no strand tint), 0 plush, 1 curly, 2 silky */
+const petFurK = look => (look.fluff <= 0.05 ? -1 : look.fur === 'silky' ? 2 : look.fur === 'curly' ? 1 : 0);
+/* the left eye's direction on the head's unit sphere (the eye mesh's place in makePet, in the head mesh's own coordinates), for the eye rule and the
+   shader's clear zone round the eyes */
+function petEyeDir(look){
+  const cat = look.kind === 'cat', kh = 1 + 0.5 * (petShape(look).build - 1), hr = (cat ? 0.15 : 0.145) * (1 + 0.08 * look.fluff) * kh;
+  const v = [0.43 / (cat ? 1.1 : 1), 0.025 * kh / (hr * (cat ? 0.93 : 1)), 0.86], l = Math.hypot(...v);
+  return v.map(x => x / l);
 }
 const SIZE = { s: 0.82, m: 1, l: 1.2 };
 /* the parts of a look that change the model's shape; anything else (colours, pattern, name) is repainted in place by petRecolor */
-export const petShapeKey = look => { const l = normalizePetLook(look); return l ? [l.kind, l.ear, l.tail, l.size, l.fluff].join('|') : ''; };
+export const petShapeKey = look => { const l = normalizePetLook(look); return l ? [l.kind, l.ear, l.tail, l.size, l.fluff, ...PET_NUMS.map(k => l[k] == null ? 0.5 : l[k]), (l.marks || []).join(','), l.collar ? 'c' : '', l.fur || 'plush'].join('|') : ''; };
+/* the shape numbers as part scales: 0.5 is 1 (today), piecewise linear to the ends */
+const lerp2 = (v, lo, hi) => v == null ? 1 : v < 0.5 ? lo + (1 - lo) * v / 0.5 : 1 + (hi - 1) * (v - 0.5) / 0.5;
+export const petShape = look => ({ snout: lerp2(look.snout, 0.15, 1.8), ear: lerp2(look.earsize, 0.6, 1.5), legs: lerp2(look.legs, 0.55, 1.35), length: lerp2(look.length, 0.85, 1.4), build: lerp2(look.build, 0.85, 1.25) });
 /* fur length in the pet's own units, from fluff */
 export const petFurLen = fluff => 0.009 + 0.021 * Math.min(1, Math.max(0, +fluff || 0));
 /* the shell count for a pet seen at px screen pixels per unit of its own size: about one shell per pixel of fur, 3 to 5, none below 1.5 pixels of fur */
 export const PET_SHELLS = 5;
 export const petShellCount = (len, px) => { const f = len * px; return f < 1.5 ? 0 : Math.max(3, Math.min(PET_SHELLS, Math.round(f * 1.1))); };
+/* per coat texture: the strand frequency in the pet's own units (plush clearly finer than the old wool), the drawn length factor, and how far a
+   silky strand sags (times its length). The LOD reads the plush length capped at fluff 1, so a long silky coat switches its shells on no earlier and
+   draws no more of them than the longest plush coat. */
+const FUR_TEX = { 0: { freq: 230, len: 1, sag: 0 }, 1: { freq: 70, len: 1.1, sag: 0 }, 2: { freq: 150, len: 1.55, sag: 1.25 } };
 
 /* the pet: Group 'pet' > 'rig' > named joints (body, head with eyeL eyeR lidL lidR mouth, earL earR, legFL legFR legBL legBR, tail). 15 or 16 meshes,
    and shell fur on the body, the head, the four legs and the tail (6 or 7 instanced meshes of up to PET_SHELLS layers each) that userData.fur(px) switches on when the pet
    is large on screen. No part casts a shadow-map shadow: the scene draws a contact shadow under the pet, which follows it every frame. */
 export function makePet(T, raw){
   const look = normalizePetLook(raw) || normalizePetLook({ coat: ['#d9b48f'] }), G = shared(T), cat = look.kind === 'cat', f = look.fluff, K = kit(), P = paints(look), seed = look.coat.join('') + look.pattern;
-  const mats = [], shells = [], shellN = { value: PET_SHELLS }, furLen = petFurLen(f);
+  const mats = [], shells = [], shellN = { value: PET_SHELLS }, furLen = petFurLen(f), fk = petFurK(look), FT = FUR_TEX[Math.max(0, fk)];
+  /* shape: every part scales around today's proportions. Longer legs lift everything above the hips by dh so the feet stay on y = 0; build widens the
+     body, the legs a little, and the head by half as much (kh), the face parts following the head through hy and hr */
+  const sh = petShape(look), kl = sh.legs, LL = 0.2 * kl, dh = LL - 0.2, kb = sh.build, kh = 1 + 0.5 * (kb - 1), kg = 1 + 0.6 * (kb - 1), ks = sh.snout;
+  const hy = y => kh === 1 ? y : 0.1 + (y - 0.1) * kh, hz = z => kh === 1 ? z : 0.04 + (z - 0.04) * kh;
   /* fur parts are plush (rough, tufted, wrapped light, a rim sheen); the eyes and the nose keep their own roughness and stay smooth and wet */
   const mat = (role, rough) => { const m = K.mat(rough == null ? coatMat(T, P[role], 1, seed + role + K.n++, 0.75 + 0.25 * f) : coatMat(T, P[role], rough, seed + role + K.n++, 0)); mats.push({ m, role }); return m; }; K.n = 0;
   const root = new T.Group(); root.name = 'pet'; const rig = new T.Group(); rig.name = 'rig'; root.add(rig);
   const nodes = { rig };
   const node = (name, parent, x, y, z) => { const g = new T.Group(); g.name = name; g.position.set(x, y, z); parent.add(g); nodes[name] = g; return g; };
-  const mesh = (geo, m, parent, x, y, z, sx, sy, sz) => { const o = new T.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); o.castShadow = false; o.receiveShadow = true; parent.add(o); return o; };
-  /* shell fur over a part: the part's own material settings, a few instanced layers pushed out along the normal, alpha-tested strands */
-  const fur = (o, len = furLen) => {
-    const sm = K.mat(coatMat(T, null, 1, '', 0, { u: o.material.userData.pet, len, shells: shellN, inv: new T.Vector3(1 / o.scale.x, 1 / o.scale.y, 1 / o.scale.z), scale: o.scale.clone() }));
+  const mesh = (geo, m, parent, x, y, z, sx, sy, sz) => { const o = new T.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); o.castShadow = false; o.receiveShadow = true; parent.add(o);
+    const u = m.userData.pet; if(u && u.uPetAsp) u.uPetAsp.value.set(sx, sy, sz); return o; };   /* spots are sized in the pet's own units */
+  /* shell fur over a part: the part's own material settings, a few instanced layers pushed out along the normal, alpha-tested strands. grav is the
+     direction a silky strand hangs in the part's joint space (down and back on the body and head, down the leg, off the underside of the tail).
+     Bare skin (fluff 0.05 or less) gets no shells at all. */
+  const fur = (o, len = furLen, grav = [0, -1, -0.3]) => {
+    if(fk < 0) return null;
+    const gv = new T.Vector3(...grav).normalize().multiplyScalar(FT.sag);
+    const sm = K.mat(coatMat(T, null, 1, '', 0, { u: o.material.userData.pet, len: len * FT.len, shells: shellN, inv: new T.Vector3(1 / o.scale.x, 1 / o.scale.y, 1 / o.scale.z), scale: o.scale.clone(), freq: FT.freq, grav: gv }));
     const im = K.im(new T.InstancedMesh(o.geometry, sm, PET_SHELLS)); im.name = 'petFur'; im.castShadow = false; im.receiveShadow = true; im.frustumCulled = false; im.count = 0; im.visible = false; im.raycast = () => {};
     o.add(im); shells.push(im); return im;
   };
-  const puff = 1 + 0.08 * f, bl = cat ? 0.165 : 0.175, bw = cat ? 0.105 : 0.125;
-  const body = node('body', rig, 0, 0.25, 0);
-  fur(mesh(G.sph, mat('body'), body, 0, 0, 0, bw * puff, 0.115 * puff, bl));
+  const puff = 1 + 0.08 * f, bl = (cat ? 0.165 : 0.175) * sh.length, bw = (cat ? 0.105 : 0.125) * kb;
+  const body = node('body', rig, 0, 0.25 + dh, 0);
+  fur(mesh(G.sph, mat('body'), body, 0, 0, 0, bw * puff, 0.115 * kb * puff, bl));
   for(const [nm, sx, sz] of [['legFL', 1, 1], ['legFR', -1, 1], ['legBL', 1, -1], ['legBR', -1, -1]]){
-    const lg = node(nm, rig, sx * bw * 0.58, 0.2, sz * bl * 0.55); fur(mesh(G.cap, mat('leg'), lg, 0, -0.1, 0, 0.05, 0.2 / 3, 0.052), furLen * 0.55);   /* short fur on the legs, so they do not read as smooth pegs under a fluffy body */
+    const lg = node(nm, rig, sx * bw * 0.58, LL, sz * bl * 0.55); fur(mesh(G.cap, mat('leg'), lg, 0, -LL / 2, 0, 0.05 * kg, LL / 3, 0.052 * kg), furLen * (fk === 2 ? 0.75 : 0.55), [0, -1, -0.2]);   /* short fur on the legs, so they do not read as smooth pegs under a fluffy body; a silky coat feathers them */
   }
-  const head = node('head', rig, 0, 0.33, bl * 0.72), hr = (cat ? 0.15 : 0.145) * puff, fz = 0.04 + hr;   /* hr already carries the fluff, so the face parts sit on the puffed surface */
-  fur(mesh(G.sph, mat('head'), head, 0, 0.1, 0.04, hr * (cat ? 1.1 : 1), hr * (cat ? 0.93 : 1), hr), furLen * 0.8);
-  if(cat){ mesh(G.sph, mat('muzzle'), head, 0, 0.05, fz - 0.025, 0.06, 0.038, 0.04); mesh(G.sph, mat('nose', 0.5), head, 0, 0.07, fz + 0.012, 0.018, 0.013, 0.012); }
-  else{ mesh(G.sph, mat('muzzle'), head, 0, 0.045, fz - 0.02, 0.075, 0.058, 0.075); mesh(G.sph, mat('nose', 0.4), head, 0, 0.075, fz + 0.05, 0.026, 0.02, 0.02); }
+  const head = node('head', rig, 0, 0.33 + dh, bl * 0.72), hr = (cat ? 0.15 : 0.145) * puff * kh, fz = 0.04 + hr;   /* hr already carries the fluff, so the face parts sit on the puffed surface */
+  fur(mesh(G.sph, mat('head'), head, 0, 0.1, 0.04, hr * (cat ? 1.1 : 1), hr * (cat ? 0.93 : 1), hr), furLen * 0.8, [0, -1, -0.45]);
+  const headFur = fk < 0 ? 0 : furLen * 0.8 * FT.len;   /* how far the head's fur stands out, for the parts that must sit on top of it */
+  /* the snout: how far the muzzle's front stands out of the face (ks 1 today, 0.15 nearly flat, 1.8 long) and its depth, which shrinks less, so a flat
+     face keeps a round muzzle pad; the nose sits on the front and the mouth just ahead of it */
+  const front = fz + kh * (cat ? (ks <= 1 ? 0.015 * ks : 0.015 + 0.03 * (ks - 1)) : 0.055 * ks), mdep = kh * (cat ? 0.04 * (0.6 + 0.4 * ks) : 0.075 * (0.55 + 0.45 * ks));
+  if(cat){ mesh(G.sph, mat('muzzle'), head, 0, hy(0.05), front - mdep, 0.06 * kh, 0.038 * kh, mdep); mesh(G.sph, mat('nose', 0.5), head, 0, hy(0.07), front - 0.003 * kh, 0.018 * kh, 0.013 * kh, 0.012 * kh); }
+  else{ mesh(G.sph, mat('muzzle'), head, 0, hy(0.045), front - mdep, 0.075 * kh, 0.058 * kh, mdep); mesh(G.sph, mat('nose', 0.4), head, 0, hy(0.075), front - 0.005 * kh, 0.026 * kh, 0.02 * kh, 0.02 * kh); }
   const lidM = mat('lid', 0.6);
   for(const s of [1, -1]){
-    const e = mesh(G.sph, mat('eye', 0.3), head, s * hr * 0.43, 0.125, 0.04 + hr * 0.86, hr * 0.24, hr * 0.255, hr * 0.13); e.rotation.y = s * 0.35;   /* eye size follows the head, the same for both kinds */ e.name = s > 0 ? 'eyeL' : 'eyeR'; nodes[e.name] = e;
+    const e = mesh(G.sph, mat('eye', 0.3), head, s * hr * 0.43, hy(0.125), 0.04 + hr * 0.86, hr * 0.24, hr * 0.255, hr * 0.13); e.rotation.y = s * 0.35;   /* eye size follows the head, the same for both kinds */ e.name = s > 0 ? 'eyeL' : 'eyeR'; nodes[e.name] = e;
     /* the closed eye: a thin downward arc, shown instead of the eye when the eye is squeezed shut (asleep, a blink) */
-    const l = mesh(G.arc, lidM, head, s * hr * 0.43, 0.132, 0.04 + hr * 0.975, hr * 0.2, hr * 0.17, hr * 0.12); l.rotation.set(0, s * 0.35, Math.PI); l.visible = false; l.name = s > 0 ? 'lidL' : 'lidR'; nodes[l.name] = l;
+    const l = mesh(G.arc, lidM, head, s * hr * 0.43, hy(0.132), 0.04 + hr * 0.975, hr * 0.2, hr * 0.17, hr * 0.12); l.rotation.set(0, s * 0.35, Math.PI); l.visible = false; l.name = s > 0 ? 'lidL' : 'lidR'; nodes[l.name] = l;
   }
-  const mouth = node('mouth', head, 0, 0.03, fz + 0.05);
+  const mouth = node('mouth', head, 0, hy(0.03), front + (cat ? 0.035 : -0.005) * kh);
   for(const s of [1, -1]){
-    const nm = s > 0 ? 'earL' : 'earR';
+    const nm = s > 0 ? 'earL' : 'earR', en = (x, y, z) => { const g = node(nm, head, x * kh, hy(y), hz(z)); g.scale.setScalar(sh.ear); return g; };   /* the root follows the head's size, the ear scales about its root */
     /* a floppy ear hangs as a soft teardrop with some thickness, narrow at the root and full at the tip */
-    if(look.ear === 'flop'){ const g = node(nm, head, s * 0.11, 0.17, 0.03); g.rotation.set(0.12, 0, s * 0.22); const o = mesh(G.drop, mat('ear'), g, s * 0.016, -0.062, 0, 0.026, 0.105, 0.066); o.rotation.z = s * 0.06; }
-    else if(look.ear === 'fold'){ const g = node(nm, head, s * 0.075, 0.215, 0.05); g.rotation.set(0.4, 0, -s * 0.15); mesh(G.sph, mat('ear'), g, s * 0.01, 0.01, 0.02, 0.055, 0.028, 0.05); }
-    else{ const g = node(nm, head, s * 0.085, 0.2, 0.03); g.rotation.set(cat ? 0.1 : 0, 0, -s * (cat ? 0.25 : 0.35)); if(cat) mesh(G.cone, mat('ear'), g, 0, 0.05, 0, 0.06, 0.11, 0.035); else { g.rotation.z = -s * 0.5; mesh(G.cone, mat('ear'), g, 0, 0.035, 0, 0.068, 0.075, 0.034); } }   /* cats get tall pointed cones; a dog's pricked ear is a short wide triangle tipped outward (shiba, corgi) */
+    /* it hangs from the side of the puffed head, outside the head's fur and tipped out a little, so it breaks the silhouette at any fluff (inside the
+       fur a maltese or a golden read as earless) */
+    if(look.ear === 'flop'){ const g = node(nm, head, s * (hr * (cat ? 1.1 : 1) * 0.8 + headFur * 0.85), 0.1 + hr * (cat ? 0.93 : 1) * 0.5, 0.04 + 0.03 * hr); g.scale.setScalar(sh.ear);
+      g.rotation.set(0.12, 0, s * 0.26); const o = mesh(G.drop, mat('ear'), g, s * 0.012, -0.06, 0, 0.026, 0.105, 0.066); o.rotation.z = s * 0.04; }
+    else if(look.ear === 'fold'){ const g = en(s * 0.075, 0.215, 0.05); g.rotation.set(0.4, 0, -s * 0.15); mesh(G.sph, mat('ear'), g, s * 0.01, 0.01, 0.02, 0.055, 0.028, 0.05); }
+    /* half: pricked like 'up' but taller so the folded top third shows (schnauzer, collie), tipped out less than a dog's full prick ear */
+    else if(look.ear === 'half'){ const g = en(s * 0.085, 0.2, 0.03); g.rotation.set(0.05, 0, -s * (cat ? 0.25 : 0.3)); mesh(G.half, mat('ear'), g, 0, cat ? 0.055 : 0.05, 0, cat ? 0.06 : 0.066, cat ? 0.12 : 0.105, cat ? 0.035 : 0.034); }
+    else{ const g = en(s * 0.085, 0.2, 0.03); g.rotation.set(cat ? 0.1 : 0, 0, -s * (cat ? 0.25 : 0.35)); if(cat) mesh(G.cone, mat('ear'), g, 0, 0.05, 0, 0.06, 0.11, 0.035); else { g.rotation.z = -s * 0.5; mesh(G.cone, mat('ear'), g, 0, 0.035, 0, 0.068, 0.075, 0.034); } }   /* cats get tall pointed cones; a dog's pricked ear is a short wide triangle tipped outward (shiba, corgi) */
   }
-  const tail = node('tail', rig, 0, 0.29, -bl * 0.92), tm = mat('tail');
+  /* the collar: a flat band round the neck where the head meets the body, on the axis from the head's centre toward the body's, deep enough on that
+     axis that its girth is the neck's (it follows build and fluff through hr and the fur length), sitting on the fur, and a round tag under the chin.
+     It hangs on its own joint at the neck pivot (the head node's origin), which posePet turns half as far as the head about all three axes, so the band
+     stays round the neck when the head dips to a bowl, turns or tilts. 2 meshes */
+  if(look.collar){
+    const ay0 = (0.25 + dh) - (0.33 + dh) - 0.1, az0 = -bl * 0.72 - 0.04, al = Math.hypot(ay0, az0), t = 0.8 * hr, cy = 0.1 + ay0 / al * t, cz = 0.04 + az0 / al * t;
+    /* the band's axis leans further back than the head-to-body axis, so its front rides low on the chest under the chin, where the camera above and
+       in front can see it, and its back sits on the nape */
+    const bl2 = Math.hypot(0.55 * ay0, az0), ay = 0.55 * ay0 / bl2, az = az0 / bl2;
+    const cn = node('collar', head, 0, 0, 0), rc = 0.6 * hr + (fk < 0 ? 0 : furLen * FT.len * 1.05) + 0.006, w = 0.05 * kh, band = mesh(G.band, mat('collar', 0.5), cn, 0, cy, cz, rc, w, rc); band.rotation.x = Math.atan2(-az, -ay);
+    const tr = rc * 1.07 + 0.011; mesh(G.sph, mat('tag', 0.3), cn, 0, cy + tr * az - 0.01, cz - tr * ay, 0.02, 0.022, 0.007);
+  }
+  const tail = node('tail', rig, 0, 0.29 + dh, -bl * 0.92), tm = mat('tail');
   if(look.tail === 'short'){ tail.rotation.x = -0.9; mesh(G.sph, tm, tail, 0, 0.03, 0, 0.045, 0.045, 0.045); }
   else if(look.tail === 'curl'){ const o = mesh(G.tor, tm, tail, 0, 0.07, 0.01, 0.055, 0.055, 0.055); o.rotation.set(0, Math.PI / 2, -0.4); }
-  else if(look.tail === 'fluff'){ tail.rotation.x = -0.95; const r = 0.05 + 0.02 * f; fur(mesh(G.plume, tm, tail, 0, -0.01, 0, r, 0.21, r), furLen * 1.3); }
+  else if(look.tail === 'fluff'){ tail.rotation.x = -0.95; const r = 0.05 + 0.02 * f; fur(mesh(G.plume, tm, tail, 0, -0.01, 0, r, 0.21, r), furLen * 1.3, [0, 0.3, -1]); }
   /* a tapered tail with a slight curve toward the tip: a cat holds it up like a question mark, a dog carries it out behind */
-  else{ tail.rotation.x = cat ? -0.3 : -0.85; const r = cat ? 0.03 : 0.034; fur(mesh(G.tail, tm, tail, 0, -0.01, 0, r, cat ? 0.25 : 0.2, r), furLen * 0.7); }
+  else{ tail.rotation.x = cat ? -0.3 : -0.85; const r = cat ? 0.03 : 0.034; fur(mesh(G.tail, tm, tail, 0, -0.01, 0, r, cat ? 0.25 : 0.2, r), furLen * 0.7, [0, 0.3, -1]); }
   root.scale.setScalar(SIZE[look.size]);
+  /* eating and drinking: the head pitch that brings the mouth to the height today's proportions reach (the bowls do not change with the shape), within
+     a natural range; what the pitch cannot cover moves the head a little */
+  const eatY = (Hy, Hz, my, mz, th) => (Hy - 0.04) * Math.cos(0.12) - Hz * Math.sin(0.12) + my * Math.cos(th + 0.12) - mz * Math.sin(th + 0.12);
+  const bl0 = cat ? 0.165 : 0.175, fz0 = 0.04 + (cat ? 0.15 : 0.145) * puff, want = eatY(0.33, bl0 * 0.72, 0.03, fz0 + 0.05, 0.75);
+  const my = mouth.position.y, mz = mouth.position.z, R = Math.hypot(my, mz), base = eatY(0.33 + dh, bl * 0.72, 0, 0, 0);
+  let eatP = Math.acos(Math.min(1, Math.max(-1, (want - base) / R))) - Math.atan2(mz, my) - 0.12;
+  if(!(Math.abs(eatP - 0.75) > 1e-9)) eatP = 0.75; eatP = Math.min(1.25, Math.max(0.35, eatP));
+  const eatDy = Math.min(0.04, Math.max(-0.04, want - eatY(0.33 + dh, bl * 0.72, my, mz, eatP)));
   const rest = {}; for(const k in nodes) rest[k] = { p: nodes[k].position.clone(), r: nodes[k].rotation.clone(), s: nodes[k].scale.clone() };
   const keys = Object.keys(nodes);
-  root.userData = { look, nodes, rest, keys, mats, shells, height: 0.62 * SIZE[look.size], mouth, shown: new Float32Array(keys.length * 9), from: new Float32Array(keys.length * 9), bkey: null, bon: false, bt0: 0, bdur: 0,
+  /* how far a crouch may lower the body: today's offsets scaled by the leg length, but never more than the belly's clearance allows (short legs
+     under a chubby body leave almost none) */
+  const kv = Math.min(kl, Math.max(0, (0.25 + dh - 0.115 * kb * puff) / (0.25 - 0.115 * puff)));
+  /* playZ: the head's front extent (the nose tip) in the play stance and at the bottom of a crouch (posePet's rig and head pitches and drops), plus a
+     margin of a toy's radius and a little more, so a long muzzle on short legs never covers the toy; never nearer than PET_PLAY_Z. The bat's lean is left out: it swipes the toy aside. */
+  const noseY = hy(cat ? 0.07 : 0.075), noseZ = front + 0.015 * kh, Hy = 0.33 + dh, Hz = bl * 0.72;
+  const reach = (rp, hp, dy) => { const y = Hy + dy + noseY * Math.cos(hp) - noseZ * Math.sin(hp), z = Hz + noseY * Math.sin(hp) + noseZ * Math.cos(hp); return y * Math.sin(rp) + z * Math.cos(rp); };
+  const playZ = Math.round(1000 * Math.max(PET_PLAY_Z, Math.max(reach(0.1, 0.36, -0.015 * kv), reach(0.22, 0.44, -0.06 * kv)) + 0.085)) / 1000;
+  root.userData = { look, nodes, rest, keys, mats, shells, height: (0.62 + dh) * SIZE[look.size], mouth, legL: LL, legK: kl, playZ, air: 0, eatP, eatDy: Math.abs(eatDy) < 1e-9 ? 0 : eatDy,
+    sleepLift: Math.max(0, 0.115 * puff * (kb - 1)),
+    /* kv (above), and how much the sitting hips rise for a fuller body */
+    kv, hipLift: 0.115 * puff * Math.max(0, kb - 1), shown: new Float32Array(keys.length * 9), from: new Float32Array(keys.length * 9), bkey: null, bon: false, bt0: 0, bdur: 0,
     pose: (kind, u, t, o) => posePet(root, kind, u, t, o),
     /* shell fur for the on-screen size: px is screen pixels per world unit at the pet; returns the draw calls the shells add */
     fur: px => { const n = petShellCount(furLen, px * root.scale.x); if(n) shellN.value = n; shells.forEach(im => { im.count = n; im.visible = n > 0; }); return n ? shells.length : 0; },
@@ -453,7 +651,9 @@ export function makePet(T, raw){
 export function petRecolor(g, raw){
   const look = normalizePetLook(raw), ud = g && g.userData; if(!look || !ud || !ud.mats || petShapeKey(look) !== petShapeKey(ud.look)) return false;
   const P = paints(look);
-  ud.mats.forEach(({ m, role }) => { const pt = P[role], u = m.userData.pet; if(!pt || !u) return; u.uPetC0.value.set(pt.c0); u.uPetC1.value.set(pt.c1); u.uPetMode.value = pt.mode; u.uPetDir.value.set(pt.dir[0], pt.dir[1], pt.dir[2]).normalize(); u.uPetTh.value = pt.th; u.uPetFreq.value = pt.freq; m.color.set(pt.c0); });
+  ud.mats.forEach(({ m, role }) => { const pt = P[role], u = m.userData.pet; if(!pt || !u) return; u.uPetC0.value.set(pt.c0); u.uPetC1.value.set(pt.c1); u.uPetC2.value.set(pt.c2 || pt.c0); u.uPetMode.value = pt.mode;
+    u.uPetDir.value.set(pt.dir[0], pt.dir[1], pt.dir[2]).normalize(); u.uPetTh.value = pt.th; u.uPetFreq.value = pt.freq; u.uPetCM.value.set(pt.cm || WHITE);
+    const mk = pt.mk || MK0; u.uPetMkK.value = mk.k; u.uPetMkD.value.set(mk.d[0], mk.d[1], mk.d[2]).normalize(); u.uPetMkT.value = mk.th; m.color.set(pt.c0); });
   ud.look = look; return true;
 }
 
@@ -462,7 +662,7 @@ export function petRecolor(g, raw){
    from petPlayAt, blend: seconds to mix a change of pose (PET_BLEND by default, 0 snaps; pass 0 when t does not advance, as under reduced motion) }.
    Every change of pose, and every change of move within play, starts from what was on screen and eases into the new pose, so nothing cuts. */
 export function posePet(g, kind, u = 0, t = 0, o = {}){
-  const ud = g.userData, n = ud.nodes, R = ud.rest, s = Math.sin, pl = o.play || null;
+  const ud = g.userData, n = ud.nodes, R = ud.rest, s = Math.sin, pl = o.play || null, LL = ud.legL || 0.2, kl = LL / 0.2, kv = ud.kv == null ? kl : ud.kv;   /* vertical pose offsets scale with the leg length */
   for(const k in n){ n[k].position.copy(R[k].p); n[k].rotation.copy(R[k].r); n[k].scale.copy(R[k].s); }
   const legs = (fl, fr, bl, br) => { n.legFL.rotation.x = fl; n.legFR.rotation.x = fr; n.legBL.rotation.x = bl; n.legBR.rotation.x = br; };
   const wag = (sp, a) => { n.tail.rotation.z = s(t * sp) * a; }, shut = k => { n.eyeL.scale.y *= k; n.eyeR.scale.y *= k; };
@@ -471,29 +671,39 @@ export function posePet(g, kind, u = 0, t = 0, o = {}){
   if(kind !== 'sleep') n.body.scale.y *= 1 + 0.025 * s(t * 2.4);
   if(kind === 'walk' || kind === 'carry'){
     const a = 0.55 * amp; legs(s(ph) * a, -s(ph) * a, -s(ph) * a, s(ph) * a);
-    n.rig.position.y += Math.abs(s(ph)) * 0.014 * amp; n.head.rotation.x += s(2 * ph) * 0.05 * amp + (kind === 'carry' ? -0.15 : 0); wag(12, kind === 'carry' ? 0.6 : 0.35); blink();
+    n.rig.position.y += Math.abs(s(ph)) * 0.014 * amp * kv; n.head.rotation.x += s(2 * ph) * 0.05 * amp + (kind === 'carry' ? -0.15 : 0); wag(12, kind === 'carry' ? 0.6 : 0.35); blink();
   }else if(kind === 'sit'){
     /* on its haunches: the body pitched up about the back hips, which stay low; the front legs straight down, the back legs folded forward along the floor,
        the head level and looking up a little, the tail lying on the floor round the feet */
-    const hz = n.legBL.position.z;
-    n.rig.rotation.x = -0.6; n.rig.position.set(0, 0.075 - (0.2 * Math.cos(0.6) + hz * Math.sin(0.6)), hz - (-0.2 * Math.sin(0.6) + hz * Math.cos(0.6)) + 0.01);
-    legs(0.6, 0.6, -0.72, -0.72); n.legBL.rotation.z = 0.12; n.legBR.rotation.z = -0.12;
-    n.head.rotation.x = 0.42 + 0.04 * s(t * 1.3); n.tail.position.y -= 0.03; n.tail.rotation.set(0.6, -0.95, -1.5); n.tail.rotation.y += 0.12 * s(t * 1.7); blink();   /* laid on the floor and curled round the left side toward the front paws */
+    /* today (legs 0.2) the back hips sit at 0.075 and the body pitches 0.6; for other proportions the pitch is solved so the straight front legs reach
+       the floor as they do today (e0: today's front foot height, scaled), the hips rise with longer legs, and the back legs fold so their ends lie
+       where today's do (f0) */
+    const hz = n.legBL.position.z, D = n.legFL.position.z - hz, D0 = 1.1 * (ud.look && ud.look.kind === 'cat' ? 0.165 : 0.175), hip = 0.075 + (LL > 0.2 ? 0.6 : 0.25) * (LL - 0.2) + (ud.hipLift || 0);
+    const e0 = 0.075 + D0 * Math.sin(0.6) - 0.2, f0 = 0.075 - 0.2 * Math.cos(1.32);
+    let pit = Math.asin(Math.min(0.95, Math.max(0.2, (LL + e0 * kl - hip) / D))); if(Math.abs(pit - 0.6) < 1e-9) pit = 0.6;
+    let rb = Math.acos(Math.min(1, Math.max(-1, (hip - f0 * kl) / LL))) - pit; rb = Math.abs(rb - 0.72) < 1e-9 ? 0.72 : Math.min(1.5, Math.max(0.2, rb));
+    n.rig.rotation.x = -pit; n.rig.position.set(0, hip - (LL * Math.cos(pit) + hz * Math.sin(pit)), hz - (-LL * Math.sin(pit) + hz * Math.cos(pit)) + 0.01);
+    legs(pit, pit, -rb, -rb); n.legBL.rotation.z = 0.12; n.legBR.rotation.z = -0.12;
+    n.head.rotation.x = 0.42 + (pit - 0.6) + 0.04 * s(t * 1.3); n.tail.position.y -= 0.03; n.tail.rotation.set(0.6, -0.95, -1.5); n.tail.rotation.y += 0.12 * s(t * 1.7); blink();   /* laid on the floor and curled round the left side toward the front paws */
   }else if(kind === 'eat' || kind === 'drink'){
-    n.rig.rotation.x = 0.12; legs(-0.15, -0.15, 0.1, 0.1); n.head.position.y -= 0.04; n.head.rotation.x += 0.75 + 0.07 * s(t * (kind === 'eat' ? 7 : 11)); wag(6, 0.3);
+    n.rig.rotation.x = 0.12; legs(-0.15, -0.15, 0.1, 0.1); n.head.position.y -= 0.04 - (ud.eatDy || 0); n.head.rotation.x += (ud.eatP == null ? 0.75 : ud.eatP) + 0.07 * s(t * (kind === 'eat' ? 7 : 11)); wag(6, 0.3);
   }else if(kind === 'sniff'){
     /* digging at the presents: head over the pile, the front paws taking turns */
     n.rig.rotation.x = 0.1; n.head.position.z += 0.03; n.head.rotation.x += 0.45 + 0.05 * s(t * 8); legs(-0.3 - 0.4 * Math.max(0, s(t * 9)), -0.3 - 0.4 * Math.max(0, -s(t * 9)), 0.12, 0.12); wag(10, 0.45);
   }else if(kind === 'crouch'){
-    /* gathering for a jump: the rear sinks onto the loaded back legs, the head comes up toward the target */
-    n.rig.position.y = -0.05; n.rig.rotation.x = -0.14; legs(0.2, 0.2, -0.6, -0.6); n.head.rotation.x = -0.2; n.tail.rotation.x -= 0.2; wag(18, 0.1);
+    /* gathering for a jump: the rear sinks onto the loaded back legs, the head comes up toward the target; never frozen: the rump wiggles, the tail
+       twitches and the head cocks a little */
+    n.rig.position.y = -0.05 * kv; n.rig.rotation.x = -0.14; legs(0.2, 0.2, -0.6, -0.6); n.head.rotation.x = -0.2; n.tail.rotation.x -= 0.2; wag(13, 0.3);
+    n.rig.rotation.z = s(t * 10) * 0.045; n.rig.rotation.y = s(t * 10 + 1) * 0.05; n.head.rotation.z = 0.12 * s(t * 1.9);
   }else if(kind === 'leap'){
     n.rig.rotation.x = 0.02; legs(-1.05, -0.95, 0.95, 0.85); n.head.rotation.x = -0.1; n.tail.rotation.x -= 0.45; n.earL.rotation.x -= 0.25; n.earR.rotation.x -= 0.25;
   }else if(kind === 'sleep'){
     /* lying down facing forward, chin on the front paws: the body low and round, the front legs stretched forward along the floor, the back legs tucked,
        the tail laid round the left side toward the front. One slow clear breath (about 4 s), and now and then an ear twitch or a flick of the tail. */
     const br = s(t * 1.5);
-    n.rig.position.y = -0.135; legs(-1.5, -1.5, -1.25, -1.25); n.legFL.position.x *= 0.62; n.legFR.position.x *= 0.62; n.legFL.position.y -= 0.01; n.legFR.position.y -= 0.01;
+    /* the body drops by the leg length less the leg's thickness, so the stretched legs lie on the floor; a chubby body is lifted by its extra girth and
+       the legs lowered by the same, so neither the belly nor the paws sink */
+    const lift = ud.sleepLift || 0; n.rig.position.y = -(LL - 0.065) + lift; legs(-1.5, -1.5, -1.25, -1.25); for(const k of ['legFL', 'legFR', 'legBL', 'legBR']) n[k].position.y -= lift; n.legFL.position.x *= 0.62; n.legFR.position.x *= 0.62; n.legFL.position.y -= 0.01; n.legFR.position.y -= 0.01;
     n.legBL.position.z *= 0.78; n.legBR.position.z *= 0.78; n.legBL.rotation.z = 0.15; n.legBR.rotation.z = -0.15;
     n.body.scale.z *= 0.9; n.body.scale.x *= 1.06 * (1 + 0.022 * br); n.body.scale.y *= 1 + 0.055 * br; n.body.position.y += 0.004 * br;
     n.head.position.y -= 0.055 - 0.005 * br; n.head.position.z += 0.03; n.head.rotation.set(0.14, 0.32, 0.1);   /* turned a little more toward the camera's side, so the face reads */
@@ -507,15 +717,18 @@ export function posePet(g, kind, u = 0, t = 0, o = {}){
     /* the ready stance every move starts from: front low, rear up, eyes on the toy (the head follows it), tail up and busy */
     n.rig.position.z = pl.bz; n.rig.rotation.x = 0.1; n.rig.position.y = -0.015; legs(-0.3, -0.3, 0.2, 0.2);
     n.head.rotation.x = 0.36; n.head.rotation.y = Math.max(-0.6, Math.min(0.6, Math.atan2(pl.tx, Math.max(0.05, pl.tz - pl.bz)) * 0.9)); wag(14, 0.5);
-    const U = pl.u, side = pl.side || 1;
+    const U = pl.u, side = pl.side || 1; let lift = 0;
+    /* a front paw taps toward the toy now and then (about every 1.1 s, alternating paws), so a long crouch or look is never a still frame */
+    const tap = (gain) => { const ph2 = t * 0.9 + 0.3, k2 = Math.floor(ph2), f2 = ph2 - k2; if(f2 > 0.32) return; const pw = k2 % 2 ? n.legFL : n.legFR; pw.rotation.x -= gain * s(Math.PI * f2 / 0.32); };
     if(pl.k === 'crouch'){
       const d = easeIO(U / 0.3), w = d * (0.4 + 0.6 * easeIO((U - 0.3) / 0.5));
       n.rig.position.y -= 0.045 * d; n.rig.rotation.x += 0.12 * d; legs(-0.3 - 0.35 * d, -0.3 - 0.35 * d, 0.2 + 0.35 * d, 0.2 + 0.35 * d);
       n.rig.rotation.z = s(t * 17) * 0.07 * w; n.rig.position.x = s(t * 17) * 0.008 * w; n.tail.rotation.x -= 0.5 * d; n.tail.rotation.z = s(t * 9) * 0.35 * d; n.head.rotation.x += 0.08 * d;
+      n.rig.rotation.y = s(t * 8.5 + 0.7) * 0.05 * w; n.head.rotation.z = 0.1 * s(t * 2.3) * d; if(U < 0.55) tap(0.45 * d);   /* the rump wiggles side to side, the head cocks */
     }else if(pl.k === 'pounce'){
       const f = easeIO((U - 0.12) / 0.6), air = s(Math.PI * Math.min(1, Math.max(0, (U - 0.12) / 0.6))), land = easeIO((U - 0.62) / 0.2) * (1 - easeIO((U - 0.85) / 0.15));
       const pre = 1 - easeIO(U / 0.15);
-      n.rig.position.y += 0.085 * air - 0.045 * pre * (1 - f); n.rig.rotation.x += -0.3 * air + 0.22 * land + 0.12 * pre * (1 - f);
+      lift = 0.1 * air; n.rig.position.y -= 0.045 * pre * (1 - f); n.rig.rotation.x += -0.3 * air + 0.22 * land + 0.12 * pre * (1 - f);
       legs(-0.3 - 0.75 * air - 0.3 * land, -0.3 - 0.75 * air - 0.3 * land, 0.2 + 0.6 * air, 0.2 + 0.6 * air); n.head.rotation.x += 0.25 * land - 0.15 * air; n.tail.rotation.x -= 0.4 * air;
     }else if(pl.k === 'bat'){
       const a = Math.min(1, U / 0.85), lift = s(Math.PI * a), lean = s(Math.PI * Math.min(1, U));
@@ -523,12 +736,15 @@ export function posePet(g, kind, u = 0, t = 0, o = {}){
       n.rig.position.z += 0.05 * lean; n.rig.rotation.x += 0.1 * lean; n.rig.rotation.z = -side * 0.06 * lift; n.head.rotation.z = side * 0.12 * lift;
     }else if(pl.k === 'look'){
       const e = easeIO(U / 0.22) * easeIO((1 - U) / 0.22);
-      n.head.rotation.z = side * 0.3 * e; n.head.rotation.x -= 0.1 * e; n.earL.rotation.x -= 0.18 * e; n.earR.rotation.x -= 0.18 * e; n.rig.rotation.x -= 0.06 * e; wag(5, 0.35);
+      n.head.rotation.z = side * (0.3 + 0.06 * s(t * 3.1)) * e; n.head.rotation.x -= 0.1 * e; n.earL.rotation.x -= 0.18 * e; n.earR.rotation.x -= 0.18 * e; n.rig.rotation.x -= 0.06 * e; wag(9, 0.45);
+      n.rig.rotation.z = 0.03 * s(t * 4.3); tap(0.4);   /* the tail keeps wagging, the body sways, a paw taps toward the toy */
     }else if(pl.k === 'back'){
-      const hop = s(Math.PI * U); n.rig.position.y += 0.045 * hop; legs(-0.3 + 0.35 * hop, -0.3 + 0.35 * hop, 0.2 - 0.3 * hop, 0.2 - 0.3 * hop); n.rig.rotation.x -= 0.1 * hop;
+      const hop = s(Math.PI * U); lift = 0.045 * hop; legs(-0.3 + 0.35 * hop, -0.3 + 0.35 * hop, 0.2 - 0.3 * hop, 0.2 - 0.3 * hop); n.rig.rotation.x -= 0.1 * hop;
     }
-    blink();
+    /* lowering is limited by the belly's clearance (kv); a leap scales with the legs that push it */
+    n.rig.position.y = n.rig.position.y * kv + lift * kl; blink();
   }else{ wag(4, 0.2); blink(); }
+  if(n.collar){ n.collar.rotation.x = R.collar.r.x - 0.5 * (n.head.rotation.x - R.head.r.x); n.collar.rotation.y = R.collar.r.y - 0.5 * (n.head.rotation.y - R.head.r.y); n.collar.rotation.z = R.collar.r.z - 0.5 * (n.head.rotation.z - R.head.r.z); }
   /* the blend: mix from the last pose on screen into this one when the pose (or the play move) changed */
   const keys = ud.keys, S = ud.shown, F = ud.from, key = kind + (pl ? ':' + pl.k : ''), dur = o.blend == null ? (pl && ud.bkey && ud.bkey.startsWith('play:') ? 0.16 : PET_BLEND) : o.blend;
   if(ud.bkey !== key){ if(ud.bkey != null && dur > 0){ F.set(S); ud.bt0 = t; ud.bdur = dur; ud.bon = true; } else ud.bon = false; ud.bkey = key; }
@@ -540,6 +756,9 @@ export function posePet(g, kind, u = 0, t = 0, o = {}){
       Rr.x = F[j + 3] + (Rr.x - F[j + 3]) * k; Rr.y = F[j + 4] + (Rr.y - F[j + 4]) * k; Rr.z = F[j + 5] + (Rr.z - F[j + 5]) * k;
       Sc.x = F[j + 6] + (Sc.x - F[j + 6]) * k; Sc.y = F[j + 7] + (Sc.y - F[j + 7]) * k; Sc.z = F[j + 8] + (Sc.z - F[j + 8]) * k; }
     S[j] = P.x; S[j + 1] = P.y; S[j + 2] = P.z; S[j + 3] = Rr.x; S[j + 4] = Rr.y; S[j + 5] = Rr.z; S[j + 6] = Sc.x; S[j + 7] = Sc.y; S[j + 8] = Sc.z; });
+  /* air: how far the pose lifts the body off the floor (the leap of a pounce and the hop back), from what is on screen; the scene shrinks the contact
+     shadow with it. Standing, walking and every grounded pose give 0. */
+  ud.air = kind === 'play' && pl && (pl.k === 'pounce' || pl.k === 'back') ? Math.max(0, n.rig.position.y) : 0;
   /* eyes squeezed below 40 % of their height show the closed-eye arc instead */
   for(const [a, b] of [['eyeL', 'lidL'], ['eyeR', 'lidR']]){ const c = n[a].scale.y < R[a].s.y * 0.4; n[a].visible = !c; n[b].visible = c; }
 }
@@ -557,18 +776,28 @@ export function makeBowls(T){
   return g;
 }
 
-/* toys stand on y = 0: 'ball', 'bone', 'yarn', 'mouse' */
+/* toys: 'ball', 'bone', 'yarn', 'mouse'. The group's origin is on the floor; the parts that roll sit in an inner group userData.spin whose origin is the
+   toy's centre, userData.r above the floor, so turning spin about any axis keeps a round toy (userData.round: ball, yarn) on the floor instead of
+   swinging its centre under it. A bone or a mouse is flat: the scene turns it about the vertical only. The yarn's loose strand lies outside spin. */
 export const PET_TOYS = ['ball', 'bone', 'yarn', 'mouse'];
 export function makeToy(T, kind = 'ball'){
   const K = kit(), g = new T.Group(); g.name = 'petToy';
+  const r = kind === 'bone' ? 0.019 : kind === 'mouse' ? 0.034 : 0.045, spin = new T.Group(); spin.name = 'petToySpin'; spin.position.set(0, r, 0); g.add(spin);
   const std = c => K.mat(new T.MeshStandardMaterial({ color: c, roughness: 0.75 })), sph = K.geo(new T.SphereGeometry(1, 16, 12));
-  const add = (geo, m, x, y, z, sx, sy = sx, sz = sx) => { const o = new T.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); o.castShadow = false; o.receiveShadow = true; g.add(o); return o; };   /* a toy moves, so it casts no shadow-map shadow (the scene gives it a contact disc) */
+  /* y is the height above the floor, as before; parts in spin are placed relative to its centre */
+  const add = (geo, m, x, y, z, sx, sy = sx, sz = sx, parent = spin) => { const o = new T.Mesh(geo, m); o.position.set(x, parent === spin ? y - r : y, z); o.scale.set(sx, sy, sz); o.castShadow = false; o.receiveShadow = true; parent.add(o); return o; };   /* a toy moves, so it casts no shadow-map shadow (the scene gives it a contact disc) */
   const striped = (a, b, dir, freq) => K.mat(coatMat(T, { c0: a, c1: b, mode: 2, dir, th: 0, freq }, 0.7, kind));
-  if(kind === 'bone'){ const m = std('#fdf2e0'); add(K.geo(new T.CapsuleGeometry(1, 1, 4, 10)), m, 0, 0.024, 0, 0.02, 0.04, 0.02).rotation.z = Math.PI / 2; for(const x of [-0.07, 0.07]) for(const z of [-0.018, 0.018]) add(sph, m, x, 0.026, z, 0.026); }
-  else if(kind === 'yarn'){ add(sph, striped('#c4b5fd', '#a78bfa', [1, 1, 0.3], 26), 0, 0.045, 0, 0.045); add(K.geo(new T.CapsuleGeometry(1, 1, 4, 8)), std('#c4b5fd'), 0.07, 0.006, 0.02, 0.006, 0.02, 0.006).rotation.z = Math.PI / 2; }
-  else if(kind === 'mouse'){ const m = std('#b8b2c4'); add(sph, m, 0, 0.03, 0, 0.032, 0.03, 0.055); for(const x of [-0.02, 0.02]) add(sph, std('#f4b8c4'), x, 0.058, 0.03, 0.016, 0.016, 0.006); add(K.geo(new T.CapsuleGeometry(1, 1, 4, 8)), m, 0, 0.012, -0.08, 0.005, 0.03, 0.005).rotation.x = Math.PI / 2; }
+  /* the bone: a slim shaft with a knob of two merged lobes at each end, lying flat, in a rubber-toy blue that separates from the pale floor (the
+     cream bone of the first version read as four eggs the floor's colour) */
+  if(kind === 'bone'){ const m = std('#5b9fe3'); add(K.geo(new T.CapsuleGeometry(1, 1, 4, 10)), m, 0, 0.017, 0, 0.0105, 0.04, 0.0105).rotation.z = Math.PI / 2; for(const x of [-0.066, 0.066]) for(const z of [-0.012, 0.012]) add(sph, m, x, 0.019, z, 0.019); }
+  else if(kind === 'yarn'){ add(sph, striped('#c4b5fd', '#a78bfa', [1, 1, 0.3], 26), 0, 0.045, 0, 0.045); add(K.geo(new T.CapsuleGeometry(1, 1, 4, 8)), std('#c4b5fd'), 0.07, 0.006, 0.02, 0.006, 0.02, 0.006, g).rotation.z = Math.PI / 2; }
+  /* the mouse: a darker grey body with two large round pink ears standing up and a long tail on the floor, so it reads as a mouse and not a grey blur */
+  else if(kind === 'mouse'){ const m = std('#8b8597'); add(sph, m, 0, 0.034, 0, 0.038, 0.034, 0.064); for(const x of [-0.026, 0.026]){ const e = add(sph, std('#f29db2'), x, 0.07, 0.03, 0.022, 0.022, 0.007); e.rotation.y = x > 0 ? -0.35 : 0.35; }
+    add(K.geo(new T.CapsuleGeometry(1, 1, 4, 8)), m, 0, 0.0055, -0.105, 0.0055, 0.03, 0.0055).rotation.x = Math.PI / 2; }
   else add(sph, striped('#fb7185', '#fde68a', [0, 1, 0], 9), 0, 0.045, 0, 0.045);
-  g.userData = { kind, dispose: K.dispose };
+  /* carryYaw: the turn about the vertical, relative to the pet's heading, at which the toy is held in the mouth: a bone crosswise (its long axis, x,
+     across the muzzle), the rest a quarter turn as before (the mouse held across the middle of its body) */
+  g.userData = { kind, spin, r, round: kind === 'ball' || kind === 'yarn', carryYaw: kind === 'bone' ? 0 : Math.PI / 2, dispose: K.dispose };
   return g;
 }
 /* a small wicker basket with toys peeking out, where the presents pile stands when the year-end dressing is off */

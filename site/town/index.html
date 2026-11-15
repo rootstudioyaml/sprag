@@ -101,7 +101,7 @@
   <section class="card of-card" id="scene-card" hidden><div id="box"></div></section>
 </main>
 
-<script src="/assets/scene/office-i18n.js?v=3.127.0-1"></script>
+<script src="/assets/scene/office-i18n.js?v=3.127.0-3"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -126,7 +126,7 @@ const PAGE = {
     'pg.net': 'Could not reach the server. Check your connection and try again.',
     'pg.retry': 'Try again',
     'pg.nowebgl': 'This browser could not start the 3D scene. Open the page in a current Chrome, Safari, Edge or Firefox with hardware acceleration on.',
-    'pg.only': 'View only. Numbers show for you alone; teammates appear as characters.',
+    'pg.only': 'Numbers show for you alone. What you decorate is saved and coworkers see it, and your pet\'s photo only when you share it.',
     'pg.period': 'Period',
     'pg.p.month': 'This month',
     'pg.p.last': 'Last month',
@@ -145,7 +145,7 @@ const PAGE = {
     'pg.net': '서버에 연결하지 못했습니다. 네트워크를 확인하고 다시 시도하세요.',
     'pg.retry': '다시 시도',
     'pg.nowebgl': '이 브라우저에서 3D 장면을 시작하지 못했습니다. 하드웨어 가속이 켜진 최신 Chrome, Safari, Edge, Firefox로 열어 보세요.',
-    'pg.only': '보기 전용 화면입니다. 숫자는 내 기록만 보이고 동료는 캐릭터로만 나옵니다.',
+    'pg.only': '숫자는 나만 봅니다. 내가 꾸민 것은 저장되어 동료에게도 보이고 반려동물 사진은 공유할 때만 보입니다.',
     'pg.period': '기간',
     'pg.p.month': '이번 달',
     'pg.p.last': '지난 달',
@@ -243,7 +243,8 @@ function paintHead(){
   const when = view.expires_at ? new Date(view.expires_at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US') : '';
   $('h-exp').textContent = when ? t('pg.exp', { when }, true) : '';
 }
-/* the pet photo the member picked in the shop: kept in this browser only (a downscaled JPEG data URL), never sent anywhere */
+/* the pet photo the member picked in the shop: kept in this browser (a downscaled JPEG data URL) whether or not it is shared. Sharing uploads a separate
+   copy (shrinkPhoto) that the server keeps and coworkers see in the frame on the member's desk; choosing Only me deletes it there. */
 const PHOTO_KEY = 'sprag.town.petphoto';
 function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
 let noShop = false;   /* the server predates the shop (town_cosmetics_set answers PGRST202): the shop hides for this session */
@@ -258,20 +259,26 @@ function applyCosmetics(r, change, extra){
   const sf = view.self || (view.self = {}), me = (view.people || []).find(p => p.self) || (view.people || []).find(p => p.id === sf.id);
   const lvl = r && Number.isFinite(Number(r.level)) ? Number(r.level) : null;
   if(lvl != null && sf.unlock) sf.unlock.level = lvl;
-  sf.gear = (r && r.gear) || null; sf.pet = (r && r.pet) || null;
-  if(me){ me.gear = sf.gear; me.pet = sf.pet; if(lvl != null) me.lvl = lvl; }
+  sf.gear = (r && r.gear) || null; sf.pet = (r && r.pet) || null; sf.photo = !!(r && r.photo === true);   /* photo: the server keeps a shared copy */
+  if(me){ me.gear = sf.gear; me.pet = sf.pet; me.photo = sf.photo; if(lvl != null) me.lvl = lvl; }
   if(change.petClear) lsDel(PHOTO_KEY);
   else if(change.pet && extra && typeof extra.photo === 'string' && /^data:image\/jpeg;base64,/.test(extra.photo)) lsSet(PHOTO_KEY, extra.photo);
   if(mod && ctl && !failed) ctl.update(sceneData());
 }
+/* the shared copy: the photo redrawn on a canvas (longest side 256 px, which also drops EXIF) and re-encoded as JPEG, lowering the quality until it fits */
+function shrinkPhoto(src){
+  return new Promise(ok => { const im = new Image(); im.onload = () => { const w = im.naturalWidth, h = im.naturalHeight; if(!w || !h) return ok(null);
+    const k = Math.min(1, 256 / Math.max(w, h)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(mod.fitJpeg(q => c.toDataURL('image/jpeg', q))); }; im.onerror = () => ok(null); im.src = src; });
+}
 async function saveCosmetics(change, extra){
-  if(DEMO) return demoSave(change, extra);
+  const plan = mod.petPhotoPlan(change, extra);   /* 'upload', 'clear' or null: see office-scene.js */
+  const up = plan === 'upload' ? await shrinkPhoto(extra.photo) : null;
+  if(plan === 'upload' && !up) throw { code: 'photo', message: 'photo' };
+  if(DEMO) return demoSave(change, extra, mod.cosmeticsArgs('demo', change, plan, up));
   const tok = ssGet(TOKEN_KEY);
   if(!tok || !TOKEN_RE.test(tok)) throw { code: '28000', message: 'invalid link' };
-  const args = { p_token: tok };
-  if(change.gear) args.p_gear = change.gear;
-  if(change.pet) args.p_pet = change.pet;
-  if(change.petClear) args.p_pet_clear = true;
+  const args = mod.cosmeticsArgs(tok, change, plan, up);
   let res, body = null;
   try{
     res = await fetch(SUPABASE_URL + '/rest/v1/rpc/town_cosmetics_set', {
@@ -286,7 +293,24 @@ async function saveCosmetics(change, extra){
     throw { code, message };
   }
   applyCosmetics(body || {}, change, extra);
-  return { level: body && body.level, gear: body && body.gear, pet: body && body.pet };
+  return { level: body && body.level, gear: body && body.gear, pet: body && body.pet, photo: body && body.photo };
+}
+/* coworkers' shared photos for the desk frames: { id: dataUrl } for the ids asked; the scene checks every value, and any error reads as no photos */
+async function petPhotos(ids){
+  if(DEMO) return demoPhotos(ids);
+  const tok = ssGet(TOKEN_KEY); if(!tok || !TOKEN_RE.test(tok) || !ids.length) return {};
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/town_pet_photos', { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_token: tok, p_ids: ids.slice(0, 16) }) });
+    const body = res.ok ? await res.json() : null; return body && typeof body === 'object' ? body : {};
+  }catch(e){ return {}; }
+}
+/* breed presets (pet_breeds: static public data, the anon key only), read once per page; an error or an empty list hides the breed select */
+let breedsP = null;
+function petBreeds(){
+  if(DEMO) return Promise.resolve(DEMO_BREEDS);
+  return breedsP || (breedsP = fetch(SUPABASE_URL + '/rest/v1/rpc/pet_breeds', { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, body: '{}' })
+    .then(r => (r.ok ? r.json() : []), () => []).then(b => (Array.isArray(b) ? b : []), () => []));
 }
 
 /* ── demo (?demo=1): a made-up town_view reply with the admin demo's names and teams, no token and no network; saving only changes this tab ── */
@@ -298,13 +322,13 @@ function demoTown(){
   const P = (i, name, os, grade, tier, lvl, gear, pet, extra) => ({ id: 'demo-p' + i, name, os, team_id: tm(i).id, team_name: tm(i).name, grade, tier, crown: false, state: 'ok', self: false, lvl, gear, pet, ...extra });
   const pets = {
     me: { kind: 'dog', coat: ['#e0a25a', '#f4e3c6'], pattern: 'solid', ear: 'flop', tail: 'fluff', size: 'm', fluff: 0.8, name: 'Bori' },
-    cat: { kind: 'cat', coat: ['#e39a5c', '#b0683a', '#f3e2cc'], pattern: 'tabby', ear: 'up', tail: 'long', size: 'm', fluff: 0.4, name: 'Mandu' },
+    cat: { kind: 'cat', coat: ['#e39a5c', '#b0683a', '#f3e2cc'], pattern: 'tabby', ear: 'up', tail: 'long', size: 'm', fluff: 0.4, name: 'Mandu', breed: 'korean_cheese' },
     tux: { kind: 'cat', coat: ['#45434a', '#ece8e1'], pattern: 'tuxedo', ear: 'up', tail: 'long', size: 'm', fluff: 0.3, name: 'Kong' } };
   const people = [
     P(0, 'ana-macbook', 'macOS', 'fox', 'active', 3, { head: 'tophat', desk: 'lamp' }, pets.me, { self: true }),
-    P(1, 'studio-mac', 'Windows', 'tiger', 'power', 4, { head: 'wizard', desk: 'aquarium' }, pets.cat, { crown: true }),
+    P(1, 'studio-mac', 'Windows', 'tiger', 'power', 4, { head: 'wizard', desk: 'aquarium' }, pets.cat, { crown: true, photo: true }),
     P(2, 'dev-linux-02', 'Linux', 'bear', 'normal', 1, { head: 'cap', desk: null }, null),
-    P(3, 'jun-air', 'macOS', 'owl', 'active', 2, { head: 'headphones', desk: 'plant' }, pets.tux),
+    P(3, 'jun-air', 'macOS', 'owl', 'active', 2, { head: 'headphones', desk: 'plant' }, pets.tux, { photo: true }),
     P(4, 'mia-pro', 'Windows', 'chick', 'low', 0, null, null),
     P(5, 'pat-thinkpad', 'Linux', 'wolf', 'power', 4, { head: 'halo', desk: 'neon' }, null),
     P(6, 'kim-studio', 'macOS', 'panda', 'normal', 2, { head: 'flower', desk: 'snowglobe' }, null),
@@ -331,25 +355,43 @@ function demoTown(){
     },
   };
 }
-async function demoSave(change, extra){
+/* the demo answers like the server: the shared copy follows the arguments (p_photo stores it, p_photo_clear and p_pet_clear delete it); every request is logged */
+const demoShared = {}, demoLog = [];
+async function demoSave(change, extra, args){
   await new Promise(r => setTimeout(r, 450));
   const u = view.self.unlock, lvOfItem = id => { const i = u.items.find(x => x.id === id); return i ? i.lvl : 99; };
+  demoLog.push({ ...args, p_photo: args.p_photo ? 'data:image/jpeg;base64,… (' + args.p_photo.length + ' chars)' : undefined }); console.info('[demo] town_cosmetics_set', JSON.stringify(demoLog[demoLog.length - 1]));
   if(change.gear && [change.gear.head, change.gear.desk].some(id => id && lvOfItem(id) > u.level)) throw { code: 'P0001', message: 'locked' };
   if(change.pet && u.level < u.pet_lvl) throw { code: 'P0001', message: 'locked' };
-  const r = { level: u.level, gear: change.gear ? { head: change.gear.head || null, desk: change.gear.desk || null } : view.self.gear, pet: change.petClear ? null : change.pet ? change.pet : view.self.pet };
+  const me = view.self.id;
+  if(args.p_pet_clear || args.p_photo_clear) delete demoShared[me]; else if(args.p_photo) demoShared[me] = args.p_photo;
+  const r = { level: u.level, gear: change.gear ? { head: change.gear.head || null, desk: change.gear.desk || null } : view.self.gear, pet: change.petClear ? null : change.pet ? change.pet : view.self.pet, photo: !!demoShared[me] };
   applyCosmetics(r, change, extra);
   return r;
 }
+/* two demo coworkers share a photo, drawn on a canvas from their pet's colours (no real photographs) */
+function demoPhotos(ids){
+  const out = {}; ids.forEach((id, i) => { const p = view.people.find(x => x.id === id); if(demoShared[id]) out[id] = demoShared[id]; else if(p && p.photo && p.pet) out[id] = mod.demoPetPhoto(p.pet, i); });
+  return new Promise(r => setTimeout(() => r(out), 300));
+}
+const DEMO_BREEDS = [
+  {"key": "maltese", "kind": "dog", "en": "Maltese", "ko": "말티즈", "look": {"coat": ["#f6f1ea"], "pattern": "solid", "ear": "flop", "tail": "fluff", "size": "s", "fluff": 0.9, "snout": 0.35, "legs": 0.35, "kind": "dog", "breed": "maltese"}},
+  {"key": "poodle", "kind": "dog", "en": "Poodle", "ko": "푸들", "look": {"coat": ["#b9793f"], "pattern": "solid", "ear": "flop", "tail": "short", "size": "s", "fluff": 1, "snout": 0.55, "legs": 0.6, "kind": "dog", "breed": "poodle"}},
+  {"key": "pomeranian", "kind": "dog", "en": "Pomeranian", "ko": "포메라니안", "look": {"coat": ["#e9a55c"], "pattern": "solid", "ear": "up", "tail": "fluff", "size": "s", "fluff": 1, "snout": 0.3, "earsize": 0.3, "legs": 0.3, "kind": "dog", "breed": "pomeranian"}},
+  {"key": "korean_cheese", "kind": "cat", "en": "Korean Shorthair, orange tabby", "ko": "코리안 숏헤어 치즈", "look": {"coat": ["#f0b46a", "#d98a3c"], "pattern": "tabby", "ear": "up", "tail": "long", "size": "m", "fluff": 0.3, "marks": ["chest"], "kind": "cat", "breed": "korean_cheese"}},
+  {"key": "korean_mackerel", "kind": "cat", "en": "Korean Shorthair, mackerel tabby", "ko": "코리안 숏헤어 고등어", "look": {"coat": ["#9a958c", "#4c4a48"], "pattern": "tabby", "ear": "up", "tail": "long", "size": "m", "fluff": 0.3, "eye": "#a9c96a", "kind": "cat", "breed": "korean_mackerel"}},
+  {"key": "korean_calico", "kind": "cat", "en": "Korean Shorthair, calico", "ko": "코리안 숏헤어 삼색", "look": {"coat": ["#f7f3ec", "#e59a4a", "#3b3839"], "pattern": "calico", "ear": "up", "tail": "long", "size": "m", "fluff": 0.3, "kind": "cat", "breed": "korean_calico"}}];
+if(DEMO) window.__spragDemoLog = demoLog;
 
 async function show(){
   if(!view) return;
   paintHead();
-  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.127.0-1'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
+  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.127.0-3'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
   $('msg').hidden = true; $('scene-card').hidden = false;
   const data = sceneData();
   if(ctl){ ctl.update(data); shown = lang; return; }
   $('box').textContent = '';
-  ctl = mod.mountOfficeScene($('box'), data, { readOnly: true, shop: { save: saveCosmetics }, onFail: () => { failed = true; if(ctl){ ctl.destroy(); ctl = null; } showMsg('pg.nowebgl'); failed = true; } });
+  ctl = mod.mountOfficeScene($('box'), data, { readOnly: true, shop: { save: saveCosmetics, breeds: petBreeds }, petPhotos, onFail: () => { failed = true; if(ctl){ ctl.destroy(); ctl = null; } showMsg('pg.nowebgl'); failed = true; } });
   shown = lang;
   if(DEMO && new URLSearchParams(location.search).get('rec') === '1') window.__sprag = { town: null, office: ctl };   /* screenshots and recordings (demo only) */
   /* select the viewer's own character once the scene is up, on every screen size: the camera flies to them and their drawer opens (the selection ring is the "you" marker) */

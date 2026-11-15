@@ -231,8 +231,8 @@ test('the town page has a period picker that calls the same RPC with a range and
   const lines = TOWN.split('\n'), s = lines.findIndex(l => l.startsWith('const PAGE = {')), e = lines.findIndex(l => l.startsWith('const I18N = {'));
   const page = vm.runInNewContext(lines.slice(s, e).join('\n').replace('const PAGE', 'var PAGE') + '\n;PAGE');
   assert.deepEqual(Object.keys(page.en).sort(), Object.keys(page.ko).sort());
-  assert.equal(page.ko['pg.only'], '보기 전용 화면입니다. 숫자는 내 기록만 보이고 동료는 캐릭터로만 나옵니다.');
-  assert.equal(page.en['pg.only'], 'View only. Numbers show for you alone; teammates appear as characters.');
+  assert.equal(page.ko['pg.only'], '숫자는 나만 봅니다. 내가 꾸민 것은 저장되어 동료에게도 보이고 반려동물 사진은 공유할 때만 보입니다.', 'the shop saves what you decorate: the page is no longer view only');
+  assert.match(page.en['pg.only'], /^Numbers show for you alone\. What you decorate is saved and coworkers see it, and your pet's photo only when you share it\.$/);
   // the preset arithmetic, run in a sandbox with a fixed clock (2026-11-12 local)
   const a = TOWN.indexOf('const PERIODS'), b = TOWN.indexOf('let period =');
   const Real = Date; const fixed = new Real(2026, 10, 12, 15, 0, 0);
@@ -293,8 +293,32 @@ test('cosmetics: other people carry only their level, gear ids and pet look, nev
   }
 });
 
+test('cosmetics: a paused viewer is drawn as a ghost with nothing on, but the shop still holds the stored gear and pet', () => {
+  const v = town(); v.people[0] = { ...v.people[0], grade: 'ghost', tier: 'nodata', state: 'paused' }; v.self.standing = { grade: 'ghost', tier: 'nodata', rank: null, ranked: 4 };
+  v.self.machines = [machine('a', 'Mina Mac', { signal: 'paused' })];
+  v.self.unlock = { level: 3, spent: 1, saved: 0, dlg: 0.2, runs: 3, pet_lvl: 2, toys_lvl: 3, levels: [], items: [{ id: 'cap', slot: 'head', lvl: 1 }] };
+  v.self.gear = { head: 'cap' }; v.self.pet = { kind: 'dog', coat: ['#e19f53', '#f8efe4'], pattern: 'bicolor', breed: 'shiba', name: 'Bori' }; v.self.photo = true;
+  const d = run(v), me = d.people.find(p => p.self);
+  assert.equal(me.tier, 'nodata'); assert.equal(me.pet, null, 'a ghost shows no pet'); assert.equal(me.gear.head, null, 'a ghost wears nothing');
+  /* opening the shop with empty choices and saving would overwrite what is stored (seen end to end on 2026-11-15) */
+  assert.equal(d.shop.gear.head, 'cap'); assert.equal(d.shop.pet.breed, 'shiba'); assert.equal(d.shop.pet.name, 'Bori'); assert.equal(d.shop.pet.pattern, 'bicolor'); assert.equal(d.shop.photoShared, true);
+});
+
 test('cosmetics: an old server (no lvl, gear, pet or unlock) gives level 0, nothing worn, no pet and no shop', () => {
   const d = run(town());
   assert.equal(d.shop, null);
   for(const p of d.people){ assert.equal(p.lvl, 0); assert.deepEqual(p.gear, { head: null, desk: null }); assert.equal(p.pet, null); assert.equal(p.petToys, false); }
+});
+
+test('cosmetics: a shared photo is a flag only; coworkers with photo true carry pet.shared and the viewer\'s self.photo reaches the shop', () => {
+  const v = town(), other = v.people.find(p => !p.self && p.tier && p.tier !== 'nodata') || v.people.find(p => !p.self);
+  v.people.forEach(p => { p.lvl = 3; p.pet = { kind: 'dog', coat: ['#d9a35f'] }; });
+  other.photo = true; v.self.photo = true; v.self.pet = { kind: 'cat', coat: ['#45434a'] };
+  v.self.unlock = { level: 3, spent: 1, saved: 0, dlg: 0.2, runs: 3, pet_lvl: 2, levels: [], items: [] };
+  const d = run(v), me = d.people.find(p => p.self), co = d.people.find(p => p.id === other.id);
+  assert.equal(d.shop.photoShared, true);
+  if(co.pet) assert.equal(co.pet.shared, true);
+  assert.ok(!JSON.stringify(d.people).includes('data:image'), 'no photo travels with the town data');
+  assert.equal(me.pet.shared, true);
+  v.self.photo = false; assert.equal(run(v).shop.photoShared, false);
 });

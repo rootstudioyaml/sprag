@@ -245,10 +245,23 @@ export function makeWreath(T){
   return g;
 }
 
+/* ---------- head pieces: per-species lift ---------- */
+/* The Santa hat and the antler band were drawn on the dog's head. HOL_LIFT[species] = [santa, antlers] lifts them (model units) where a crown sits
+ * higher or lower than the dog's. Measured on the cast models after they lost their own hats (3.127.0-2): the fur height under the hat's rim ring
+ * (radius 0.19, tilt included, median over the ring) and under the band's arc (95th percentile across the crown, inside the ears), each minus the
+ * dog's, seated and standing averaged. Only crowns that differ by more than about 0.015 are listed; the rest wear the pieces as drawn. */
+const HOL_LIFT = {
+  raccoon: [0.024, 0.023],   /* the crown is a little fuller than the dog's */
+  bear: [-0.016, -0.021], squirrel: [-0.028, -0.03],   /* lower, rounder crowns: the drawn height left the rim floating */
+  sheep: [0.05, 0.045],   /* the wool curls stand about 0.07 proud of the skull; the rim sinks part way into them, as a hat pushed onto wool would */
+  lion: [0.13, 0],   /* the mane stands well above the skull: the rim rests on it instead of sinking to the crown */
+};
+export const holLift = (piece, species) => { const l = HOL_LIFT[species]; return l ? l[piece === 'antlers' ? 1 : 0] : 0; };
+
 /* ---------- Santa hat ---------- */
-/* In cast model units, like castCrown() in office-scene.js: add it to the model and it sits on the head at (0, 1.04, -0.02).
- * The rim is wider than the crown band (0.13) so it covers a head of any species. */
-export function santaHat(T){
+/* In cast model units, like castCrown() in office-scene.js: add it to the model and it sits on the head at (0, 1.04, -0.02), lifted by HOL_LIFT for the
+ * species when one is given. The rim is wider than the crown band (0.13) so it covers a head of any species. */
+export function santaHat(T, species){
   const K = kit(T), g = new T.Group(), red = K.std('#e8505b', { roughness: 0.75 }), fur = K.std('#fffaf0', { roughness: 1 });
   const rim = K.mesh(new T.TorusGeometry(0.19, 0.05, 8, 20), fur); rim.rotation.x = Math.PI / 2; rim.position.y = 0.025; g.add(rim);
   /* three cone sections, each bent a little further than the last, so the tip flops to the side */
@@ -260,14 +273,15 @@ export function santaHat(T){
     parent = j; y = s.h;
   });
   const ball = K.mesh(new T.SphereGeometry(0.048, 10, 8), fur); ball.position.y = SEG[2].h + 0.01; parent.add(ball);
-  g.position.set(0, 1.03, -0.02); g.rotation.x = -0.12;
+  g.position.set(0, 1.03 + holLift('santa', species), -0.02); g.rotation.x = -0.12;
   g.userData.dispose = K.dispose;
   return g;
 }
 
 /* ---------- Rudolph set ---------- */
-/* A headband with two brown antlers, in the same model space as castCrown() and santaHat(). Branches are tube curves with round tips. */
-export function reindeerAntlers(T){
+/* A headband with two brown antlers, in the same model space as castCrown() and santaHat() (lifted by HOL_LIFT for a given species). Branches are
+ * tube curves with round tips. */
+export function reindeerAntlers(T, species){
   const K = kit(T), g = new T.Group(), brown = K.std('#8a5a3c', { roughness: 0.85 }), band = K.std('#d9534f', { roughness: 0.6 });
   /* the band arcs over the top of the head from ear to ear, a little tilted back */
   const arc = K.mesh(new T.TorusGeometry(0.345, 0.02, 8, 24, Math.PI * 0.78), band); arc.rotation.z = Math.PI * 0.11; g.add(arc);
@@ -285,7 +299,7 @@ export function reindeerAntlers(T){
   const leafM = K.std('#2f7d4f', { roughness: 0.8 }), leafG = K.geo(new T.SphereGeometry(0.04, 8, 6));
   for(const s of [-1, 1]){ const l = new T.Mesh(leafG, leafM); l.scale.set(1.6, 0.35, 0.8); l.position.set(s * 0.045, 0.365, 0.07); l.rotation.set(0.35, 0, s * 0.45); g.add(l); }
   const berry = K.mesh(new T.SphereGeometry(0.022, 8, 6), K.std('#e8505b', { roughness: 0.3 })); berry.position.set(0, 0.37, 0.085); g.add(berry);
-  g.position.set(0, 0.69, -0.02); g.rotation.x = -0.1;
+  g.position.set(0, 0.69 + holLift('antlers', species), -0.02); g.rotation.x = -0.1;
   g.userData.dispose = K.dispose;
   return g;
 }

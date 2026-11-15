@@ -24,14 +24,15 @@
 import { makePost } from './post.js';
 import { makeFur, softNight } from './fur.js?v=f1';
 import { parseManifest, pickVariant, pickCell, relAzimuth, elevOk, nightTint, wantVariant, makeSpriteKit, zoomOk, cardOf } from './sprites.js?v=s2';   /* Blender fur sprites of the seated animals; the query keeps the module in step with this file */
-import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g5';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
+import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g6';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { normalizePetLook, pickPets, petPlan, petHash, makePet, makeBowls, makeToy, makeToyBasket, makePhotoFrame, disposePetShared, PET_MAX, petLookFromPixels, PET_KINDS, PET_PATTERNS, PET_EARS, PET_TAILS, PET_SIZES, PET_NAME_MAX, PET_COAT_MAX, PET_DEFAULTS,
-  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z } from './pets.js?v=p3';   /* members' pets; the query keeps the module in step with this file */
-import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeDeskItem, disposeGearShared } from './gear.js?v=g1';   /* unlockable head and desk gear; the query keeps the module in step with this file */
+  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed } from './pets.js?v=p5';
+import * as PETS_NS from './pets.js?v=p5';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
+import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeDeskItem, disposeGearShared } from './gear.js?v=g2';   /* unlockable head and desk gear; the query keeps the module in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
-export const CAST_Q = '?v=3.121.0-3';   /* the model files change in place and the CDN keeps them 4 h: bump this with the files */
+export const CAST_Q = '?v=3.127.0-2';   /* the model files change in place and the CDN keeps them 4 h: bump this with the files */
 const SPRITE_URL = new URL('./sprites/', import.meta.url).href, SPRITE_Q = new URL(import.meta.url).searchParams.get('v') || '0';   /* the page's query for this file doubles as the manifest's, whose own v is only known after reading it */
 let spriteManP = null;
 function spriteManifest(){   /* sprites/manifest.json, read once per page; a missing or broken one resolves null and every animal stays a glb */
@@ -355,6 +356,7 @@ function paneShapes(T){
 function dotShape(T){ const c = new T.Shape(); c.absarc(0, 0, 0.5, 0, Math.PI * 2, false); return [c]; }
 const HS = 1.3, HEAD_Y = 1.84;   /* heads are drawn 1.3 times bigger than the body (chibi proportions), so ears, horns and manes stay readable at the default zoom */
 const BOT_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2v2" stroke="#8b7cf0" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="2" r="1.1" fill="#8b7cf0"/><circle cx="8" cy="9.4" r="5.4" fill="#c4b5fd"/><circle cx="6.1" cy="9" r="1" fill="#fff"/><circle cx="9.9" cy="9" r="1" fill="#fff"/></svg>';
+const PAW_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><ellipse cx="8" cy="10.6" rx="3.4" ry="2.8" fill="currentColor"/><circle cx="3.6" cy="7" r="1.5" fill="currentColor"/><circle cx="6.1" cy="4.4" r="1.5" fill="currentColor"/><circle cx="9.9" cy="4.4" r="1.5" fill="currentColor"/><circle cx="12.4" cy="7" r="1.5" fill="currentColor"/></svg>';
 const BOOK_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2c2-.8 3.9-.6 5.5.6v9c-1.6-1.2-3.5-1.4-5.5-.6zM13.5 3.2c-2-.8-3.9-.6-5.5.6v9c1.6-1.2 3.5-1.4 5.5-.6z"/></svg>';
 export const iconSvg = k => (k === 'crown' ? CROWN_ICON : (k === 'ghost' ? GHOST : ANIMALS[k] || { icon: '' }).icon);
 /* 3D thumbnails of the cast: one atlas rendered in Blender from the standing models (tools/blender/render_thumbs.py), 8 columns x 4 rows of
@@ -553,9 +555,10 @@ export const OF_CSS = `
 .of-drawer .of-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .of-drawer .sh-foot{flex:none;padding:6px 14px 12px;border-top:1px solid rgba(120,90,60,.12);background:#fffdf8}   /* Save and Cancel stay on the drawer's bottom edge while the panel scrolls */
 .of-drawer .sh-msg{min-height:18px;margin:0;font-size:12px;color:#2f6b4f}.of-drawer .sh-msg:empty{min-height:0}.of-drawer .sh-msg.err{color:#b42318}
-.of-drawer .sh-act{display:flex;gap:8px;margin-top:6px}.of-drawer .sh-act .of-dbtn{min-width:90px}.of-drawer .of-dbtn:disabled{opacity:.55;cursor:default}
+.of-drawer .sh-act{display:flex;gap:8px;margin-top:6px}.of-drawer .sh-act .of-dbtn{min-width:90px}.of-drawer .of-dbtn:disabled{opacity:1;cursor:default;background:#f1ede6;border-color:#e2d9cb;color:#9a8c7c;filter:none}
 .of-drawer .sh-note{margin:6px 0 0;font-size:11.5px;color:#5a4a3c}.of-drawer .sh-note.pv{padding:7px 9px;border-radius:10px;background:#eef7f1;color:#25553c}.of-drawer .sh-note.sk{padding:7px 9px;border-radius:10px;background:#fff4d6;color:#5a3d0a;margin-top:10px}
-.of-drawer .pet-top{display:grid;grid-template-columns:1fr 132px;gap:8px;align-items:start}
+.of-drawer .pet-wrap{display:grid;grid-template-columns:minmax(0,1fr) 132px;gap:10px;align-items:start}
+.of-drawer .pet-wrap>.pet-pvc{position:sticky;top:0;z-index:1}   /* the preview stays in view while the form scrolls (.bd scrolls, the grid spans the form) */
 .of-drawer .pet-ph{display:flex;flex-direction:column;gap:6px;min-width:0}
 .of-drawer .pet-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:132px;box-sizing:border-box;padding:8px;border:2px dashed #cdbfa6;border-radius:12px;text-align:center;font-size:11.5px;color:#5a4a3c;background:#fffaf0}
 .of-drawer .pet-ph.on .pet-drop{border-color:#6d5ce7;background-color:#f1ebff}.of-drawer .pet-ph.on .pet-img{box-shadow:inset 0 0 0 3px #6d5ce7}.of-drawer .pet-drop p{margin:0}
@@ -567,8 +570,41 @@ export const OF_CSS = `
 .of-drawer .pet-pvc{display:flex;flex-direction:column;gap:4px}
 .of-drawer .pet-pv{width:132px;height:132px;border-radius:12px;background:radial-gradient(ellipse 70% 60% at 50% 45%,#fffef8,#efe4cf);overflow:hidden}.of-stage .of-drawer .pet-pv canvas{width:100% !important;height:100% !important;display:block}   /* the phone rule for the scene canvas (.of-stage canvas) must not reach the preview */
 .of-drawer .pet-toy{display:flex;align-items:flex-start;gap:4px;font-size:11px;line-height:1.35;color:#5a4a3c}.of-drawer .pet-toy svg{flex:none;width:12px;height:12px;margin-top:1px;color:#b0802a}.of-drawer .pet-toy.off{color:#6a5a4a}.of-drawer .pet-toy.off svg{color:#9a8a7a}
-.of-drawer .pet-f{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:10px;font-size:12px}
-.of-drawer .pet-f>label,.of-drawer .pet-f>span{color:#5a4a3c}
+.of-drawer .pet-f{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:12px}
+.of-drawer .pet-row{display:flex;flex-direction:column;gap:3px;min-width:0}.of-drawer .pet-row>label,.of-drawer .pet-row>span{color:#5a4a3c;font-weight:600;font-size:11.5px}
+.of-drawer .pet-g{border:1px solid #eadfcb;border-radius:12px;background:#fffaf2}.of-drawer .pet-g>summary{cursor:pointer;font-weight:700;font-size:12.5px;color:#3a2f27;padding:8px 10px;border-radius:12px}
+.of-drawer .pet-g>summary:focus-visible{outline:2px solid #6d5ce7;outline-offset:-2px}.of-drawer .pet-g[open]>summary{border-bottom:1px solid #f0e6d4;border-radius:12px 12px 0 0}
+.of-drawer .pet-gb{display:flex;flex-direction:column;gap:9px;padding:8px 10px 10px}
+.of-drawer .pet-rng{display:grid;grid-template-columns:1fr 1fr;font-size:10.5px;color:#6a5a4a}.of-drawer .pet-rng input{grid-column:1/-1;margin:0}.of-drawer .pet-rng span:last-child{text-align:right}
+.of-drawer .pet-vis,.of-drawer .pet-mk{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:4px}.of-drawer .pet-vis legend,.of-drawer .pet-mk legend{padding:0;margin:0 0 3px;font-weight:600;font-size:11.5px;color:#5a4a3c}
+.of-drawer .pet-vis .vd{margin:-2px 0 2px 20px;font-size:11px;line-height:1.4;color:#5a4a3c}
+.of-drawer .pet-ex{display:flex;align-items:center;gap:8px;margin:0 0 2px 20px;font-size:11px;color:#5a4a3c}.of-drawer .pet-ex i{flex:none;width:34px;height:42px;box-sizing:border-box;border:4px solid #f5e6d3;box-shadow:0 0 0 1px rgba(60,40,20,.25),0 2px 4px rgba(60,40,20,.18);background:#efe4cf center/cover no-repeat}
+.of-drawer .pet-rng{position:relative}.of-drawer .pet-rng::before{content:"";position:absolute;left:50%;top:17px;width:1px;height:5px;margin-left:-.5px;background:#a8987f;pointer-events:none}   /* the default, 0.5 */
+.of-drawer .pet-pv{cursor:zoom-in}.of-drawer .sh-note.bn{margin:0;font-size:11px;color:#5a4a3c}
+.of-drawer .ck{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#3a2f27}.of-drawer input[type=radio],.of-drawer .ck input[type=checkbox]{accent-color:#6d5ce7;width:14px;height:14px;margin:0;flex:none}
+.of-drawer .ck:has(input:disabled){cursor:default;color:#8a7a6a}
+.of-drawer .pet-cks{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px}.of-drawer .pet-c.in{margin-top:4px}
+.of-drawer .pet-inl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.of-drawer .pet-inl input[type=color]{width:44px;height:26px;padding:2px;box-sizing:border-box;border:1px solid #d9cdb8;border-radius:8px;background:#fff;cursor:pointer}.of-drawer .pet-inl input[type=color]:disabled{opacity:.35;cursor:default}
+.of-drawer .pet-mk input[type=color]{width:44px;height:26px;padding:2px;box-sizing:border-box;border:1px solid #d9cdb8;border-radius:8px;background:#fff;cursor:pointer}
+.of-drawer .petln{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 10px;padding:7px 10px;border-radius:10px;background:#f7f1e4;font-size:12px}.of-drawer .petln svg{width:14px;height:14px;color:#b0802a;flex:none}.of-drawer .petln span{color:#6a5a4a}
+.of-tip.one{min-width:0;padding:6px 10px;white-space:nowrap}.of-tip.one small{display:block;font-size:11px;color:#6a5a4a}
+.of-vwb{position:absolute;inset:0;z-index:7;background:rgba(40,28,18,.3);opacity:0;pointer-events:none;transition:opacity .18s ease-out}.of-vwb.on{opacity:1;pointer-events:auto}
+.of-view{position:absolute;left:50%;top:50%;z-index:8;--vw:420px;width:calc(var(--vw) + 28px);max-width:calc(100% - 12px);box-sizing:border-box;padding:12px 14px 10px;border-radius:18px;background:#fffdf8;border:1px solid rgba(120,90,60,.2);color:#3a2f27;
+  transform:translate(-50%,-48%) scale(.97);opacity:0;visibility:hidden;transition:opacity .18s ease-out,transform .22s cubic-bezier(.23,1,.32,1),visibility 0s .22s}
+.of-view.on{opacity:1;visibility:visible;transform:translate(-50%,-50%);transition:opacity .18s ease-out,transform .22s cubic-bezier(.23,1,.32,1)}
+.of-view .vw-hd{display:flex;align-items:flex-start;gap:8px;margin:0 0 8px}.of-view .vw-tt{flex:1;min-width:0}.of-view .vw-tt b{display:block;font-size:15px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.of-view .vw-tt small{display:flex;flex-wrap:wrap;gap:0 10px;color:#6a5a4a;font-size:12px}
+.of-view .x{flex:none;width:32px;height:32px;display:grid;place-items:center;padding:0;border:1px solid rgba(120,90,60,.18);background:rgba(255,255,255,.94);font:600 20px/1 inherit;color:#3a2f27;cursor:pointer}
+.of-view .x:hover{border-color:#8b7cf0}.of-view .x:focus-visible{outline:2px solid #6d5ce7;outline-offset:1px}
+.of-stage .of-view{border-radius:16px!important}.of-stage .of-view .vw-art{border-radius:10px!important}
+.of-view .vw-art{position:relative;width:var(--vw);height:var(--vw);max-width:100%;background:radial-gradient(ellipse 70% 60% at 50% 45%,#fffef8,#efe4cf);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.of-view .vw-pin{position:absolute;left:12px;bottom:12px;width:26%;max-width:110px;aspect-ratio:4/5;object-fit:cover;box-sizing:border-box;border:6px solid #f5e6d3;box-shadow:0 1px 0 #c9b391,0 4px 10px rgba(60,40,20,.22),inset 0 0 0 1px rgba(60,40,20,.18);background:#efe4cf;display:none!important}
+.of-view.pin .vw-pin{display:block!important}
+.of-stage .of-view canvas{width:100% !important;height:100% !important;display:block;cursor:grab;touch-action:none}.of-stage .of-view canvas.drag{cursor:grabbing}   /* the phone rule for the scene canvas (.of-stage canvas) must not reach the viewer */
+.of-view .vw-main{display:none}.of-view.photo canvas{display:none !important}
+.of-view.photo .vw-main{display:block;border:12px solid #f5e6d3;border-radius:4px;box-shadow:0 1px 0 #c9b391,0 6px 14px rgba(60,40,20,.22),inset 0 0 0 1px rgba(60,40,20,.18);background:#efe4cf}
+.of-view .vw-drag{margin:6px 0 0;font-size:11.5px;color:#6a5a4a;text-align:center;min-height:1.4em}   /* always there, so the three kinds share one height */
+@media (prefers-reduced-motion:reduce){.of-view,.of-view.on,.of-vwb{transition:none}}
 .of-drawer .pet-f select,.of-drawer .pet-f input[type=text]{font:inherit;font-size:12px;height:30px;box-sizing:border-box;padding:4px 8px;border:1px solid #d9cdb8;border-radius:8px;background:#fff;color:#3a2f27;min-width:0}
 .of-drawer .pet-f select{-webkit-appearance:none;appearance:none;padding-right:26px;cursor:pointer;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236d5ce7' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 9px center/10px 6px no-repeat}
 .of-drawer .pet-f select:hover,.of-drawer .pet-f input[type=text]:hover{border-color:#bfb2f2}
@@ -579,11 +615,22 @@ export const OF_CSS = `
 .of-drawer .sh-rm{margin-top:14px;padding-top:10px;border-top:1px dashed rgba(120,90,60,.22);font-size:12px;color:#5a4a3c}
 .of-drawer .lnk{font:inherit;font-size:12px;font-weight:600;background:none;border:0;padding:2px 0;cursor:pointer;color:#9b2c1f;text-decoration:underline;text-underline-offset:2px}.of-drawer .lnk:disabled{opacity:.55;cursor:default}
 .of-drawer .sh-rm .row{display:flex;gap:8px;margin-top:6px}.of-drawer .sh-rm .of-dbtn{flex:none;min-width:0}.of-drawer .of-dbtn.warn{background:#fff;border-color:#e3b4ad;color:#9b2c1f}
-.of-drawer.shop .bd{padding-bottom:12px}
-@media (max-width:480px){.of-drawer .hd b{white-space:normal}.of-drawer .hd b .badge{margin:2px 4px 0 0}.of-drawer .pet-top{grid-template-columns:1fr 104px}.of-drawer .pet-pv{width:104px;height:104px}.of-drawer .pet-drop{min-height:104px}.of-drawer .pet-img{height:78px}.of-drawer .sh-grid{grid-template-columns:repeat(3,1fr)}
+.of-drawer.shop .bd{padding-bottom:12px}.of-drawer.shop .bkbar{flex:none;padding-bottom:8px;background:#fffdf8;border-bottom:1px solid rgba(120,90,60,.12)}
+@media (max-width:480px){.of-drawer .hd b{white-space:normal}.of-drawer .hd b .badge{margin:2px 4px 0 0}.of-drawer .pet-wrap{grid-template-columns:minmax(0,1fr) 104px}.of-drawer .pet-pv{width:104px;height:104px}.of-drawer .pet-drop{min-height:104px}.of-drawer .pet-img{height:78px}.of-drawer .sh-grid{grid-template-columns:repeat(3,1fr)}
   .of-drawer.shop .hd{padding:8px 12px 7px;gap:8px}.of-drawer.shop .hd .of-th{--px:30px;box-shadow:0 0 0 2px #fffdf8,0 0 0 3px var(--tc,#d9cdb8)}.of-drawer.shop .hd small,.of-drawer.shop .hd b .badge:not(.lvb){display:none}.of-drawer.shop .hd b{white-space:nowrap}.of-drawer.shop .hd b .badge{margin:0 0 0 6px}
   .of-drawer.shop .bkbar{padding:6px 12px 0}.of-drawer.shop .bk{padding:3px 10px}.of-drawer.shop .bd{padding:8px 12px}.of-drawer.shop .sh-tabs{margin-bottom:8px}.of-drawer.shop .sh-foot{padding:6px 12px 10px}
-  .of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer.of-shop canvas{height:190px}.of-card:not(:fullscreen):not(.of-fsx) .of-stage.has-drawer.of-shop .of-drawer{height:calc(100% - 190px)}}   /* the shop on a phone: a one line header, a short room and the panel scrolling inside, Save pinned */
+}
+/* the shop under 520 px is a sheet over the whole page (of-sheet, see sheetSync): the stage underneath keeps the size it had with the profile drawer, so closing
+   the sheet returns to that page as it was. contain is lifted while it is open because contain makes the stage the containing block of fixed children.
+   Pinned rows (Back, the preview, Save) are opaque with a border, so the scrolling form never shows through them. */
+.of-stage.of-sheet{contain:none}html.of-sheet-on,html.of-sheet-on body{overflow:hidden}
+.of-card .of-stage.of-sheet .of-drawer.shop{position:fixed;inset:0;top:0;width:auto;max-width:none;height:auto!important;z-index:1001;border:0;border-radius:0!important;transform:none;padding-top:env(safe-area-inset-top)}
+.of-card .of-stage.of-sheet .of-drawer.shop:not(.open){transform:translateY(100%)}
+.of-stage.of-sheet .of-drawer.shop .bd{padding-top:0}.of-stage.of-sheet .of-drawer.shop .sh-tabs{margin-top:8px}
+.of-stage.of-sheet .of-drawer.shop .sh-foot{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+.of-stage.of-sheet .of-drawer .pet-wrap{display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.of-stage.of-sheet .of-drawer .pet-wrap>.pet-pvc{order:-1;position:sticky;top:0;z-index:2;margin:0 -12px;padding:8px 12px;background:#fffdf8;border-bottom:1px solid rgba(120,90,60,.16);flex-direction:row;align-items:center;gap:12px}
+.of-stage.of-sheet .of-drawer .pet-pv{width:124px;height:124px;flex:none}.of-stage.of-sheet .of-drawer .pet-toy{flex:1}
 @media (prefers-reduced-motion:reduce){.of-drawer .ulk-bar i{animation:none}}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
 @media (max-width:640px){.of-strip .sp .of-th{--px:15px;margin:0;vertical-align:-3px}}
@@ -642,6 +689,7 @@ export function makeView(cfg){
     fly = null; cfg.canvas.setPointerCapture(ev.pointerId); ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]); focused = true; if(cfg.onFocus) cfg.onFocus(); mark();
     if(ptrs.size === 2){ const [a, b] = [...ptrs.values()]; g = { mode: 'pinch', d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z0: zT, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, ang: Math.atan2(b[1] - a[1], b[0] - a[0]), moved: true }; vth = vph = 0; }
     else g = { mode: ev.button === 2 || ev.shiftKey || ev.altKey ? 'orbit' : 'pan', lx: ev.clientX, ly: ev.clientY, sx: ev.clientX, sy: ev.clientY, moved: false, t: performance.now() };
+    if(ptrs.size === 1 && cfg.onDown) cfg.onDown(...pt(ev), ev);   /* what is under the press (the office takes its object candidate here) */
   });
   cfg.canvas.addEventListener('contextmenu', ev => ev.preventDefault());
   cfg.canvas.addEventListener('pointermove', ev => {
@@ -770,7 +818,8 @@ export function makeChrome(stage, container, o){
   const fs = mkBtn('of-fs', '', () => toggleFs());
   const hint = document.createElement('div'); hint.className = 'of-hint'; stage.appendChild(hint); let hintT = 0;
   const hideHint = () => { clearTimeout(hintT); hint.classList.remove('on'); };
-  const showHint = () => { if(fsOn()) return; hint.textContent = (o.ui() || {}).hint || ''; hint.classList.add('on'); clearTimeout(hintT); hintT = setTimeout(hideHint, 2600); };
+  const showHint = () => { if(fsOn()) return; hint.textContent = (o.ui() || {}).hint || '';
+    { const lg = stage.querySelector('.of-legend'), lh = lg && lg.offsetParent ? lg.offsetHeight : 0; hint.style.bottom = (lh ? lh + 16 : 46) + 'px'; }   /* above the legend row, however many lines it wraps to */ hint.classList.add('on'); clearTimeout(hintT); hintT = setTimeout(hideHint, 2600); };
   const card = container.closest('.of-card') || container;
   let fsX = false;
   const nativeFs = () => document.fullscreenElement || document.webkitFullscreenElement;
@@ -822,7 +871,7 @@ export function mountOfficeScene(container, data, opts = {}){
   const elChip = document.createElement('div'); elChip.className = 'sk-chip'; elChip.hidden = true;
   let wx = ov.weather || { ...WX_CLEAR }, builtSnow = false, envN = 0, flash = 0, lightT = 4, baseHemi = 1, minuteTimer = 0, lamps = [], wxs = null, flakeG = null;
   let sel = null, selId = null, ring = null, bookOpen = false, pulse = null;
-  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), request: () => request(), onClose: () => { shopReset(); unpose(sel); sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; hidePortrait(); if(homePose && view){ const h = homePose; homePose = null; view.flyTo(h); } },   /* back to the view before the pick */ onBook: () => openBook(),
+  const chrome = makeChrome(stage, container, { ui: () => cur.ui, onZoom: f => view && view.zoomBy(f), onTurn: a => view && view.turnBy(a), onReset: () => view && view.reset(), request: () => request(), onClose: () => { shopReset(); sheetSync(false); unpose(sel); sel = null; selId = null; bookOpen = false; if(ring) ring.visible = false; hidePortrait(); if(homePose && view){ const h = homePose; homePose = null; view.flyTo(h); } },   /* back to the view before the pick */ onBook: () => openBook(),
     onAction: a => { if(!sel || opts.readOnly) return; const id = sel.p.id; if(a === 'seats' && opts.onSeats) opts.onSeats(id); else if(a === 'prompts' && opts.onPrompts) opts.onPrompts(id); } });
   const syncFs = () => chrome.syncFs();
   kit.bind(chrome.el);
@@ -845,9 +894,9 @@ export function mountOfficeScene(container, data, opts = {}){
   let pets = [], petBits = [], petNav = null, petCtx = null, petFurCalls = 0;   /* pets (pets.js): pets holds each pet's state, petBits every Group to dispose, petNav the floor grid they walk on */
   let xmas = false, hol = [], holWall = null, holFit = null;   /* year-end dressing (holiday.js): on from Nov 1 to Dec 30 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
   /* Who wears what: a crown gets only the red nose, a person without one gets a Santa hat or the Rudolph set (antlers band and red nose) by a hash of the id.
-   * HOL_HAT_SKIP (module level, used by headDress): species that already wear a hat, so they always take the Rudolph set. ANTLER_SKIP: the band would tangle with a hat, horns or antlers of their own, so the nose goes on alone.
+   * HOL_HAT_SKIP (module level, used by headDress): species that always take the Rudolph set instead of a Santa hat; empty since the cast lost its built-in hats. ANTLER_SKIP: the band would tangle with horns or antlers of their own, so the nose goes on alone.
    * NO_NOSE: species where a red ball on the nose looks wrong (the eagle's hooked beak). Species with no nose or beak mesh (frog, elephant) get no ball anyway. */
-  const ANTLER_SKIP = new Set(['panda', 'raccoon', 'squirrel', 'deer', 'unicorn', 'husky']), NO_NOSE = new Set(['eagle']), noseTips = {};
+  const ANTLER_SKIP = new Set(['deer', 'unicorn']), NO_NOSE = new Set(['eagle']), noseTips = {};
   const track = o => { dyn.push(o); return o; };
   const mobile = () => W < 520;
   const C = h => new T.Color(h);
@@ -885,7 +934,7 @@ export function mountOfficeScene(container, data, opts = {}){
   /* ── scene construction (re-run on every update) ── */
   function clear(){
     hol.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); hol = []; holWall = null; holFit = null;
-    petBits.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); petBits = []; pets = []; petNav = null; petCtx = null;
+    pets.forEach(pt => { if(pt.blobMat) pt.blobMat.dispose(); }); petBits.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); petBits = []; pets = []; petNav = null; petCtx = null;
     gearBits.forEach(h => { if(h.parent) h.parent.remove(h); h.userData.dispose(); }); gearBits = [];
     dyn.forEach(o => { if(o.isObject3D){ if(o.parent) o.parent.remove(o); if(o.isInstancedMesh) o.dispose(); } else if(o.dispose) o.dispose(); });
     castFxRelease(world); world.clear(); dyn = []; decals = []; signs = []; decFlip = false; elLabels.innerHTML = ''; people = []; bots = []; trails = []; srvLights = []; bubs = []; sparks = []; hover = null; elTip.hidden = true;
@@ -1006,12 +1055,16 @@ export function mountOfficeScene(container, data, opts = {}){
     const daily = dt.days && dt.days.length ? kit.chart(id + '-d', dt.days, [{ name: ui.spent, color: '#8b7cf0', kind: 'bar', vals: dt.spent, fmt: fm }, { name: ui.saved, color: '#2f9e6f', kind: 'line', vals: dt.saved, fmt: fm }], undefined, undefined, { total: ui.total }) : '';
     const pdaily = dt.pdays && dt.pdays.length ? kit.chart(id + '-p', dt.pdays, [{ name: ui.pname || '', color: '#e0a23c', kind: 'bar', vals: dt.pvals, fmt: v => String(Math.round(v)) }], undefined, undefined, { total: ui.total }) : '';
     const hdr = `<div class="hd">${speciesThumb(sel.gk, '--tc:' + (sel.tv ? sel.tv.body : '#d9cdb8'))}<div><b title="${esc(p.name)}">${p.crown ? CROWN_ICON : ''}${esc(p.name)}<span class="badge">${esc(p.gradeLabel || p.tierText)}</span>${lvOf(p.lvl) && !sel.ghost ? `<span class="badge lvb">${esc(lvText(lvOf(p.lvl)))}</span>` : ''}</b><small>${esc(p.teamName)}</small></div><button type="button" class="x" data-a="close" aria-label="${esc(ui.close)}">×</button></div><div class="bkbar"><button type="button" class="bk" data-a="close">← ${esc(ui.back || ui.close)}</button></div>`;
-    const inShop = shopFor(sel) && shop && shop.open; chrome.el.classList.toggle('shop', !!inShop); stage.classList.toggle('of-shop', !!inShop);   /* a phone gives the shop a one line header and more height */
+    const inShop = shopFor(sel) && shop && shop.open; chrome.el.classList.toggle('shop', !!inShop); stage.classList.toggle('of-shop', !!inShop); sheetSync(inShop);   /* a phone gives the shop a one line header, under 520 px a sheet */
     if(inShop){ chrome.setHtml(hdr.replace(/<div class="bkbar">[\s\S]*$/, '') + shopHtml()); shopAfter(); return; }
     const ulk = shopFor(sel) ? unlockHtml() : naNote && p.self ? `<div class="why">${esc(((cur.shop || {}).ui || {})['err.na'] || '')}</div>` : '';
-    if(dt.redacted){ chrome.setHtml(hdr + `<div class="bd">${dt.why ? `<div class="why">${esc(dt.why)}</div>` : ''}<div class="why">${esc(ui.redacted || '')}</div></div>`); return; }
+    /* someone else's pet: its name, and its breed once the breed list is in (asked for here when the look names one) */
+    const pl = !p.self && !sel.ghost ? normalizePetLook(p.pet) : null, bn = pl && pl.breed ? breedOf(pl.breed) : '';
+    if(pl && pl.breed && !breedRows) breedsLoad();
+    const petLn = pl ? `<div class="petln">${PAW_SVG}<b>${esc(petTitle(pl))}</b>${bn ? `<span>${esc(bn)}</span>` : ''}</div>` : '';
+    if(dt.redacted){ chrome.setHtml(hdr + `<div class="bd">${petLn}${dt.why ? `<div class="why">${esc(dt.why)}</div>` : ''}<div class="why">${esc(ui.redacted || '')}</div></div>`); return; }
     chrome.setHtml(hdr
-      + `<div class="bd">${ulk}${dt.why ? `<div class="why">${esc(dt.why)}</div>` : ''}`
+      + `<div class="bd">${ulk}${petLn}${dt.why ? `<div class="why">${esc(dt.why)}</div>` : ''}`
       + ((dt.next || []).length ? `<div class="nx">${dt.next.map((l, i) => `<div${i ? '' : ' class="h"'}>${esc(l)}</div>`).join('')}</div>` : '')
       + (dt.groups && dt.groups.length ? `<div class="sec">${dt.groups.map(g => `<div class="grp"><h4>${esc(g.title)}</h4>${kvGrid(g.rows)}</div>`).join('')}</div>`
         : dt.grid && dt.grid.length ? `<div class="sec">${kvGrid(dt.grid)}</div>` : '')
@@ -1122,6 +1175,131 @@ export function mountOfficeScene(container, data, opts = {}){
   function hidePortrait(){ if(!pr) return; pr.on = false; pr.el.classList.remove('on'); if(pr.raf){ cancelAnimationFrame(pr.raf); pr.raf = 0; } }
   const closeDrawer = () => chrome.close();
 
+  /* ── the object viewer: a desk item, a photo frame or a pet seen large over the stage (an art area up to VW_MAX px, larger than the profile card, and also
+     under 900 px where the card is hidden). A backdrop over the stage takes the click outside and every press and wheel, so the room neither orbits nor picks
+     while it is open. Desk items and pets are fresh instances (never the scene's own objects) in a renderer of its own, made on first use and freed on
+     destroy like the card's; they turn slowly (not under reduced motion) and by drag, and animated items keep ticking. The frame shows the photo itself.
+     Opening it leaves the drawer and the camera alone. Keyboard: the close button takes focus, Escape closes, focus goes back to the stage. ── */
+  const VW_MAX = 420, VW_ROT0 = -0.45; let vw = null;   /* VW_ROT0: the front three-quarter view every piece opens at */
+  const photoSafe = s => typeof s === 'string' && s.length < 400000 && PET_PHOTO_RE.test(s);   /* the browser's own photo may be larger than a shared one; the pattern is the safety part */
+  const vwUi = () => (cur && cur.ui && cur.ui.view) || {};
+  const petTitle = look => (look && look.name) || (vwUi().kind || {})[look && look.kind] || '';
+  /* what the viewer shows: one layout for the three kinds (title, a sub line naming the owner the same way, the art, a hint line that is always there). over: a
+     look to show instead of the pet's own (the shop's preview opens the edited look). A pet with a photo here (own) or shared shows it beside the model. */
+  function objInfo(kind, o, over){
+    const pt = pets.find(q => q.o === o), ui = vwUi(), owner = (o && o.p && o.p.name) || '', of = k => fillT(ui[k], { n: owner });
+    if(kind === 'desk'){ const id = o.desk && o.p.gear && o.p.gear.desk; return id ? { kind, o, title: (ui.gear || {})[id] || id, sub: [of('ownDesk')], hint: ui.drag, make: () => makeDeskItem(T, id) } : null; }
+    if(kind === 'pet'){ const L = (over && over.look) || (pt && pt.look); if(!L) return null; const ph = over && over.pin !== undefined ? over.pin : petPhotoSrc(o);
+      return { kind, o, title: petTitle(L), sub: [of('ownPet'), breedOf(L.breed)].filter(Boolean), hint: ui.drag, pin: photoSafe(ph) ? ph : null, make: () => makePet(T, L) }; }
+    if(!pt) return null;
+    if(kind === 'frame' && pt.frame && pt.photo) return { kind, o, title: fillT(ui.photo, { n: petTitle(pt.look) }), sub: [of('ownDesk')], photo: pt.photo,
+      hint: o.p.self ? ui[cur.shop && cur.shop.photoShared === true ? 'mineShared' : 'mine'] : of('shared') };
+    return null;
+  }
+  const vwSize = () => Math.round(Math.max(150, Math.min(VW_MAX, stage.clientWidth - 44, stage.clientHeight - 104)));
+  const vwKey = e => { if(!vw || !vw.on) return; if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); viewClose(); } else if(e.key === 'Tab' && vw.el.contains(e.target)){ e.preventDefault(); vw.x.focus(); } };   /* the close button is the dialog's one stop */
+  function vwMake(){
+    const bg = document.createElement('div'), el = document.createElement('div'); bg.className = 'of-vwb'; el.className = 'of-view';
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'o-vw-t'); el.setAttribute('aria-describedby', 'o-vw-s');
+    el.innerHTML = '<div class="vw-hd"><div class="vw-tt"><b id="o-vw-t"></b><small id="o-vw-s"></small></div><button type="button" class="x">×</button></div><div class="vw-art"><canvas aria-hidden="true"></canvas><img class="vw-main" alt=""><img class="vw-pin" alt=""></div><p class="vw-drag"></p>';
+    stage.append(bg, el);
+    ['pointerdown', 'pointermove', 'pointerup', 'click', 'dblclick', 'contextmenu'].forEach(ev => [bg, el].forEach(n => n.addEventListener(ev, e => e.stopPropagation())));
+    [bg, el].forEach(n => n.addEventListener('wheel', e => { e.stopPropagation(); e.preventDefault(); }, { passive: false }));
+    bg.addEventListener('click', () => viewClose());
+    const c = el.querySelector('canvas'); let r = null;
+    try{ r = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true }); r.setClearColor(0x000000, 0); }catch(e){ r = null; }
+    const sc = new T.Scene(), key = new T.DirectionalLight('#fff0d4', 2.0), rl = new T.DirectionalLight('#e6ecff', 1.0); key.position.set(-2, 3, 4); rl.position.set(2.5, 2, -3); sc.add(new T.HemisphereLight('#f3f1ff', '#e8dcc4', 0.95), key, rl);
+    const pivot = new T.Group(); sc.add(pivot);
+    /* a soft contact shadow on y = 0 under the piece (round, so it is not turned with it) */
+    const cs = document.createElement('canvas'); cs.width = cs.height = 64; { const x = cs.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(60,40,20,.38)'); gr.addColorStop(0.55, 'rgba(60,40,20,.15)'); gr.addColorStop(1, 'rgba(60,40,20,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); }
+    const shade = new T.Mesh(new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ map: new T.CanvasTexture(cs), transparent: true, depthWrite: false })); shade.renderOrder = -1; shade.position.y = 0.002; sc.add(shade);
+    vw = { bg, el, c, r, sc, pivot, shade, cam: new T.PerspectiveCamera(30, 1, 0.01, 50), img: el.querySelector('.vw-main'), pin: el.querySelector('.vw-pin'), x: el.querySelector('.x'), tt: el.querySelector('#o-vw-t'), st: el.querySelector('#o-vw-s'), hint: el.querySelector('.vw-drag'),
+      g: null, info: null, on: false, raf: 0, rot: VW_ROT0, sp: 0, hold: 0, clr: 0, drag: null, t0: 0, last: 0, ppu: 0, s: 0 };
+    vw.x.addEventListener('click', () => viewClose());
+    /* drag turns the piece; the pointer is captured so a drag that leaves the art area keeps turning it */
+    c.addEventListener('pointerdown', e => { if(!vw.g) return; vw.drag = { x: e.clientX, r: vw.rot }; try{ c.setPointerCapture(e.pointerId); }catch(er){} c.classList.add('drag'); });
+    c.addEventListener('pointermove', e => { if(!vw.drag) return; vw.rot = vw.drag.r + (e.clientX - vw.drag.x) * 0.012; if(reduced) vwDraw(); });
+    const up = () => { if(vw.drag){ vw.sp = 0; vw.hold = performance.now() + 2000; } vw.drag = null; c.classList.remove('drag'); vw.last = performance.now(); }; c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);   /* after a drag the auto-turn waits 2 s, then eases back in */
+    window.addEventListener('keydown', vwKey, true);   /* capture: Escape closes the viewer before the drawer's own Escape handler sees it */
+  }
+  function vwFit(){
+    const s = vw.s = vwSize(); vw.el.style.setProperty('--vw', s + 'px');
+    if(vw.info && vw.info.photo){ const im = vw.img, w = im.naturalWidth, h = im.naturalHeight, m = s - 52; if(w && h){ const k = Math.min(m / w, m / h); im.style.width = Math.round(w * k) + 'px'; im.style.height = Math.round(h * k) + 'px'; } return; }
+    if(!vw.g || !vw.r) return;
+    const pr = Math.min(window.devicePixelRatio || 1, 2); vw.r.setPixelRatio(pr); vw.r.setSize(s, s, false);
+    const g = vw.g; vw.pivot.rotation.y = 0; g.position.set(0, 0, 0); g.updateMatrixWorld(true);
+    const b = new T.Box3().setFromObject(g, true), c = b.getCenter(new T.Vector3()), R = Math.max(1e-3, b.getBoundingSphere(new T.Sphere()).radius), h = b.max.y - b.min.y;
+    g.position.set(-c.x, -b.min.y, -c.z);   /* turns about its own middle, standing on y = 0 */
+    { const sz = b.getSize(new T.Vector3()), f = Math.max(sz.x, sz.z) * 1.15; vw.shade.scale.set(f, 1, f); }
+    const fov = vw.cam.fov * Math.PI / 180, d = R / Math.sin(fov / 2) * 1.04;   /* the bounding sphere fits, so no turn crops it */
+    vw.cam.aspect = 1; vw.cam.near = d / 50; vw.cam.far = d * 4; vw.cam.position.set(0, h / 2 + d * 0.3, d * 0.954); vw.cam.lookAt(0, h / 2, 0); vw.cam.updateProjectionMatrix();
+    vw.ppu = s * pr / (2 * d * Math.tan(fov / 2));
+    if(reduced && vw.on) requestAnimationFrame(() => vwDraw());   /* reduced motion has no loop: a resize redraws once */
+  }
+  /* opening starts the panel's transition first and builds the model on the next frame, so the fade is not held up by the build */
+  function viewOpen(kind, o, over){
+    const info = o && T ? objInfo(kind, o, over) : null; if(!info) return false;
+    if(!vw) vwMake();
+    if(!info.photo && !vw.r) return false;
+    clearTimeout(vw.clr); vw.clr = 0; if(vw.raf){ cancelAnimationFrame(vw.raf); vw.raf = 0; }
+    viewClear(); vw.info = info;
+    const ui = vwUi(); vw.tt.textContent = info.title; vw.st.innerHTML = info.sub.map(x => `<span>${esc(x)}</span>`).join(''); vw.x.setAttribute('aria-label', ui.close || 'Close'); vw.hint.textContent = info.hint || '';
+    vw.el.classList.toggle('photo', !!info.photo); vw.el.classList.toggle('pin', !!info.pin); if(info.pin){ vw.pin.alt = fillT(ui.photo, { n: info.title }); vw.pin.src = info.pin; }
+    if(info.photo){ vw.img.alt = info.title; vw.img.onload = () => { if(vw && vw.info === info) vwFit(); }; vw.img.src = info.photo; }
+    vwFit(); setHover(null);
+    vw.on = true; vw.bg.classList.add('on'); vw.el.classList.add('on'); vw.x.focus({ preventScroll: true });
+    if(!info.photo) vw.raf = requestAnimationFrame(() => {
+      vw.raf = 0; if(!vw || !vw.on || vw.info !== info || destroyed) return;
+      const g = info.make(); vw.g = g; vw.pivot.add(g); vw.rot = VW_ROT0; vw.sp = 0; vw.hold = performance.now() + 1200;   /* front three-quarter, held a moment before it turns */
+      if(kind === 'pet') g.userData.pose(reduced ? 'sit' : 'stand', 0, 0, { blend: 0 }); else if(g.userData.tick) g.userData.tick(0, envN, true);
+      vwFit(); vw.t0 = vw.last = performance.now();
+      const loop = now => { vw.raf = 0; if(!vw || !vw.on || destroyed) return; vwDraw(now); if(!reduced) vw.raf = requestAnimationFrame(loop); }; loop(performance.now());
+    });
+    return true;
+  }
+  function vwDraw(now = performance.now()){
+    if(!vw || !vw.on || !vw.g || !vw.r) return;
+    const dt = Math.min(0.05, Math.max(0, (now - vw.last) / 1000)), ts = (now - vw.t0) / 1000, u = vw.g.userData; vw.last = now;
+    if(!reduced && !vw.drag){ vw.sp += ((now >= vw.hold ? 0.45 : 0) - vw.sp) * Math.min(1, dt * 1.6); vw.rot += vw.sp * dt; }   /* eases in, never jumps to speed */
+    vw.pivot.rotation.y = vw.rot;
+    if(vw.info.kind === 'pet'){ u.pose(reduced ? 'sit' : 'stand', 0, reduced ? 0 : ts, { blend: reduced ? 0 : undefined }); u.fur(vw.ppu); }   /* fur stays on under reduced motion: it is a still look, not motion */
+    else if(u.tick) u.tick(ts, envN, reduced);
+    vw.r.render(vw.sc, vw.cam);
+  }
+  function viewClear(){ if(!vw) return; if(vw.g){ vw.pivot.remove(vw.g); vw.g.userData.dispose(); vw.g = null; } vw.img.onload = null; vw.img.removeAttribute('src'); vw.pin.removeAttribute('src'); vw.img.style.width = vw.img.style.height = ''; vw.drag = null; }
+  /* closing fades the panel with its content and clears it after the fade (0.22 s), unless it was opened again meanwhile */
+  function viewClose(focus = true){
+    if(!vw || !vw.on) return;
+    vw.on = false; vw.el.classList.remove('on'); vw.bg.classList.remove('on'); if(vw.raf){ cancelAnimationFrame(vw.raf); vw.raf = 0; }
+    clearTimeout(vw.clr); vw.clr = setTimeout(() => { if(vw && !vw.on){ vw.clr = 0; viewClear(); vw.info = null; } }, reduced ? 0 : 240);
+    if(focus && canvas) canvas.focus({ preventScroll: true });
+  }
+  function viewKill(){ if(!vw) return; viewClose(false); clearTimeout(vw.clr); viewClear(); window.removeEventListener('keydown', vwKey, true); if(vw.r){ vw.r.dispose(); vw.r.forceContextLoss(); } vw.shade.geometry.dispose(); vw.shade.material.map.dispose(); vw.shade.material.dispose(); vw.el.remove(); vw.bg.remove(); vw = null; }
+  /* the clickable objects with their projected centre and pick radius (OBJ_R of the bounding sphere, close to the silhouette, so a passing pet does not take a
+     click meant for the person behind it). Desk items and frames stand still, so their sphere is kept; a pet's centre comes from where it is and its
+     standing height (pt.bs, petModel), never from a bounding box per pointer move. */
+  function objList(){
+    if(!view || !T) return [];
+    const k = scale * view.zoom(), out = [], b = new T.Box3();
+    const add = (kind, o, g) => { if(!g || !g.visible || !g.parent) return; let sp = g.userData.vbs;
+      if(!sp){ g.updateMatrixWorld(true); sp = g.userData.vbs = b.setFromObject(g).getBoundingSphere(new T.Sphere()); }
+      const [x, y] = proj(HP.copy(sp.center), PT); out.push({ kind, o, x, y, r: sp.radius * k * OBJ_R }); };
+    people.forEach(o => { if(o.desk && !o.ghost) add('desk', o, o.desk); });
+    pets.forEach(pt => { if(pt.frame) add('frame', pt.o, pt.frame); if(!pt.g.visible) return;
+      const s = pt.g.scale.y, bs = pt.bs || { h: 0.5, r: 0.4 }, [x, y] = proj(HP.set(pt.x, pt.y + bs.h * s * 0.5, pt.z), PT); out.push({ kind: 'pet', o: pt.o, x, y, r: bs.r * s * k * OBJ_R }); });
+    return out;
+  }
+
+  /* ── breeds (opts.shop.breeds, else opts.breeds: an async function the page supplies, read once): the shop's breed select and the breed name under a pet ── */
+  let breedRows = null, breedP = null;
+  function breedsLoad(){
+    const fn = (opts.shop && typeof opts.shop.breeds === 'function' && opts.shop.breeds) || (typeof opts.breeds === 'function' && opts.breeds) || null;
+    if(breedP || !fn) return breedP || Promise.resolve([]);
+    return (breedP = Promise.resolve().then(fn).then(r => breedList(r), () => []).then(list => { breedRows = list; if(destroyed) return list;
+      if(shop && shop.tab === 'pet') rerender(); else if(sel && chrome.isOpen() && !shop) renderDrawer(); return list; }));
+  }
+  const breedOf = key => { const b = key && breedRows ? breedRows.find(r => r.key === key) : null; return breedName(b, document.documentElement.lang || 'en'); };
+
   /* ── the shop (member page, the viewer's own drawer only): an unlock block above the usage sections, and a panel that replaces the drawer's body
      with three tabs. Head and desk tiles preview on the viewer's character at once (o.p.gear is swapped and the standing model, the desk item and
      the card are redressed); Save calls opts.shop.save, Cancel and a failure put the saved choice back. The pet tab reads a photo in this browser
@@ -1134,8 +1312,13 @@ export function mountOfficeScene(container, data, opts = {}){
   const PET_SPARE = ['#d9b48f', '#f3efe8', '#5a4a3c'];
   function petState(){
     const u = cur.shop || {}, look = normalizePetLook(u.pet);
-    return { look: look || { ...PET_DEFAULTS, coat: [PET_SPARE[0]] }, had: !!look, photo: null, shown: (u.pet && typeof u.pet.photo === 'string' && u.pet.photo) || null, read: false, dirty: false };
+    /* share: the photo visibility choice (the server's state to begin with); mem: the last colour per coat position, so a pattern switched back gets it again;
+       open: which form groups are expanded (kept across re-renders) */
+    return { look: look || { ...PET_DEFAULTS, coat: [PET_SPARE[0]] }, had: !!look, photo: null, shown: (u.pet && typeof u.pet.photo === 'string' && u.pet.photo) || null, read: false, dirty: false,
+      share: u.photoShared === true, mem: (look ? look.coat : [PET_SPARE[0]]).slice(), hex: {}, open: (shop && shop.pet && shop.pet.open) || { basic: true, coat: true, shape: false, face: false } };
   }
+  /* under 520 px the open shop is a sheet over the page (CSS .of-sheet): the page under it stops scrolling until it closes */
+  function sheetSync(on){ const s = !!on && window.innerWidth < 520; stage.classList.toggle('of-sheet', s); document.documentElement.classList.toggle('of-sheet-on', s); }
   function shopStart(){ const g = gearOf(cur.shop.gear); shop = { open: true, tab: 'head', base: g, draft: { ...g }, pet: petState(), busy: false, msg: null }; }
   const gearDirty = () => !!shop && (shop.draft.head !== shop.base.head || shop.draft.desk !== shop.base.desk);
   function previewGear(){
@@ -1177,7 +1360,7 @@ export function mountOfficeScene(container, data, opts = {}){
   const HIDE_SVG = SV('0 0 16 16', '<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M2.5 13.5l11-11" stroke="#fff" stroke-width="3"/><path d="M2.5 13.5l11-11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>');
   const TOY_SVG = SV('0 0 12 12', '<circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2 4.6c2.6 1 5.4 1 8 0M2 7.4c2.6-1 5.4-1 8 0" fill="none" stroke="currentColor" stroke-width="1"/>');
   const shopFoot = (dirty, saveOk) => `<div class="sh-foot">${msgHtml()}<div class="sh-act"><button type="button" class="of-dbtn plain" data-sh="cancel"${dirty && !shop.busy ? '' : ' disabled'}>${esc(cur.shop.ui.cancel)}</button><button type="button" class="of-dbtn pri" data-sh="save"${saveOk && !shop.busy ? '' : ' disabled'}>${esc(cur.shop.ui.save)}</button></div></div>`;
-  /* one slot's tiles and the bar under the panel. Head items the viewer's present animal does not draw (its model has headwear of its own, gear.js headGearSkips)
+  /* one slot's tiles and the bar under the panel. Head items the viewer's present animal does not draw (its horns, antlers or ears leave no room for it, gear.js headGearSkips)
      stay selectable, since the animal changes with rank; the tile and a note under the grid say so */
   function gearHtml(slot){
     const u = cur.shop, ui = u.ui, now = shop.draft[slot], dirty = gearDirty(), skips = slot === 'head' && sel ? headGearSkips(sel.gk) : [];
@@ -1189,28 +1372,58 @@ export function mountOfficeScene(container, data, opts = {}){
     const note = now && skips.includes(now) ? `<p class="sh-note sk" role="status">${esc(ui.skip)}</p>` : '';
     return [`<div class="sh-grid" role="group" aria-label="${esc(ui['tab.' + slot])}">${tile(null, ui.none, true, 0)}${shopTiles(u, slot).map(t => tile(t.id, ui.gear[t.id] || t.id, t.open, t.lvl)).join('')}</div>` + note, shopFoot(dirty, dirty)];
   }
+  /* The pet tab (SPEC E): breed, the photo and who sees it, then four collapsible groups (basics, coat, shape, face and extras) left of a preview that stays in
+     view while the form scrolls. Every colour input says what it paints (the pattern's coat roles, pets.js petCoatRoles); sliders carry captions at both ends. */
+  const PET_RANGES = ['fluff', ...PET_NUMS], HEX_DEF = { eye: { dog: '#5a3d22', cat: '#8fae3c' }, nose: { dog: '#2d2323', cat: '#d98a8a' }, collar: '#d9534f', mark: '#f3efe8' };
   function petHtml(){
-    const u = cur.shop, ui = u.ui, lv = lvOf(u.level), pl = u.petLvl, tl = u.toysLvl, toyOn = tl != null && lv >= tl;
+    const u = cur.shop, ui = u.ui, lv = lvOf(u.level), pl = u.petLvl, tl = u.toysLvl, toyOn = tl != null && lv >= tl, op = ui.opt || {};
     const toys = tl == null ? '' : `<p class="pet-toy${toyOn ? '' : ' off'}">${TOY_SVG}<span>${esc(toyOn ? ui['pet.toysOn'] : fillT(ui['pet.toys'], { n: tl }))}</span></p>`;
     if(pl == null || lv < pl) return [`<p class="sh-note">${esc(fillT(ui['pet.locked'], { n: pl == null ? LV_MAX : pl }))}</p>` + toys, ''];
-    const P = shop.pet, L = P.look, dis = shop.busy ? ' disabled' : '';
+    const P = shop.pet, L = P.look, dis = shop.busy ? ' disabled' : '', lang = document.documentElement.lang || 'en';
     const file = (cls, text) => `<label class="of-dbtn ${cls}">${esc(text)}<input type="file" accept="image/*" data-pf="file"${dis}></label>`;
     /* with a photo in, the photo shows clean and a small button under it changes it; without one, a drop area (touch screens say choose, never drop) */
     const photo = P.shown ? `<div class="pet-ph" data-drop><div class="pet-img" role="img" aria-label="${esc(ui['pet.photo'])}" style="background-image:url('${esc(P.shown)}')"></div>${file('plain sm', ui['pet.change'])}</div>`
       : `<div class="pet-ph" data-drop><div class="pet-drop"><p><span class="dk">${esc(ui['pet.drop'])}</span><span class="tc">${esc(ui['pet.add'])}</span></p>${file('out', ui['pet.file'])}</div></div>`;
-    const sel1 = (k, list, pre) => `<label for="o-pf-${k}">${esc(ui['pet.' + k])}</label><select id="o-pf-${k}" data-pf="${k}"${dis}>${list.map(v => `<option value="${v}"${L[k] === v ? ' selected' : ''}>${esc(ui.opt[pre + v] || v)}</option>`).join('')}</select>`;
-    /* coat colours: the main one always, the second and third each with a checkbox that turns it on; the third only after the second */
-    const cols = [0, 1, 2].map(i => { const c = L.coat[i], nm = ui['pet.c' + i], on = !i || !!c, cbOff = i === 2 && !L.coat[1];
-      return `<div class="pet-c"><input type="color" id="o-pf-c${i}" data-pf="c${i}" aria-label="${esc(nm)}" value="${esc(c || PET_SPARE[i])}"${on ? dis : ' disabled'}>`
-        + (i ? `<label><input type="checkbox" data-pf="use${i}" aria-label="${esc(fillT(ui['pet.use'], { x: nm }))}"${c ? ' checked' : ''}${cbOff ? ' disabled' : dis}>${esc(nm)}</label>` : `<label for="o-pf-c0">${esc(nm)}</label>`) + '</div>'; }).join('');
+    /* one line under the photo: what choosing one does (before), or what was read from it (after: with a breed only the colours, the breed keeps its pattern) */
+    const phNote = !P.shown ? ui['pet.pick'] : P.read === 'coat' ? ui['pet.readBreed'] : P.read ? ui['pet.read'] : '';
+    const row = (id, label, ctl, after = '') => `<div class="pet-row"><label for="${id}">${esc(label)}</label>${ctl}${after}</div>`;
+    const sel1 = (k, list, pre) => row('o-pf-' + k, ui['pet.' + k], `<select id="o-pf-${k}" data-pf="${k}"${dis}>${list.map(v => `<option value="${v}"${(L[k] || (k === 'fur' ? 'plush' : null)) === v ? ' selected' : ''}>${esc(op[pre + v] || v)}</option>`).join('')}</select>`);
+    const rng = k => row('o-pf-' + k, ui['pet.' + k], `<div class="pet-rng"><input type="range" id="o-pf-${k}" data-pf="${k}" min="0" max="1" step="0.05" value="${L[k] == null ? 0.5 : L[k]}" aria-describedby="o-pf-${k}-lo o-pf-${k}-hi"${dis}>`
+      + `<span id="o-pf-${k}-lo">${esc(ui['pet.' + k + '.lo'])}</span><span id="o-pf-${k}-hi">${esc(ui['pet.' + k + '.hi'])}</span></div>`);
+    /* breeds: grouped by kind, Custom when the look names no known breed; no list (an error or none) hides the select. One line under it says what picking does. */
+    const bl = breedRows || [], known = !!L.breed && bl.some(b => b.key === L.breed);
+    const breed = bl.length ? row('o-pf-breed', ui['pet.breed'], `<select id="o-pf-breed" data-pf="breed" aria-describedby="o-pf-breed-n"${dis}><option value=""${known ? '' : ' selected'}>${esc(ui['pet.custom'])}</option>`
+      + PET_KINDS.map(k => { const rs = bl.filter(b => b.kind === k); return rs.length ? `<optgroup label="${esc(ui[k === 'cat' ? 'pet.cats' : 'pet.dogs'])}">${rs.map(b => `<option value="${esc(b.key)}"${L.breed === b.key ? ' selected' : ''}>${esc(breedName(b, lang))}</option>`).join('')}</optgroup>` : ''; }).join('') + '</select>',
+      `<p class="sh-note bn" id="o-pf-breed-n">${esc(ui['pet.breedNote'])}</p>`) : '';
+    /* who sees the photo, shown only once there is a photo here or a shared copy on the server (so it can be taken back): only me (the default) or coworkers,
+       each with its own line; beside the share choice a small frame shows what coworkers would see */
+    const can = !!(P.shown || u.photoShared);
+    const ex = P.shown && photoSafe(P.shown) ? `<p class="pet-ex" aria-hidden="true"><i style="background-image:url('${esc(P.shown)}')"></i><span>${esc(ui['pet.visEx'])}</span></p>` : '';
+    const rd = (v, text, on, desc) => `<label class="ck"><input type="radio" name="o-pf-vis" id="o-pf-vis-${v}" data-pf="vis" value="${v}" aria-describedby="o-pf-vd-${v}"${on ? ' checked' : ''}${dis}>${esc(text)}</label><p class="vd" id="o-pf-vd-${v}">${esc(desc)}</p>`;
+    const vis = can ? `<fieldset class="pet-vis"><legend>${esc(ui['pet.vis'])}</legend>${rd('me', ui['pet.visMe'], !P.share, ui['pet.visMeNote'])}${rd('share', ui['pet.visShare'], P.share, ui['pet.visShareNote'])}${ex}</fieldset>` : '';
+    /* coat colours by role: a required role always has its input, an optional one (the last) has a checkbox that turns it on, then its swatch, dimmed while off */
+    const cols = petCoatRoles(L.pattern).map((r, i) => { const c = L.coat[i], nm = op['role.' + r.key] || r.key, on = !r.optional || !!c;
+      return `<div class="pet-c">` + (r.optional ? `<label><input type="checkbox" data-pf="use${i}" id="o-pf-use${i}" aria-label="${esc(fillT(ui['pet.use'], { x: nm }))}"${c ? ' checked' : ''}${dis}>${esc(nm)}</label>` : `<label for="o-pf-c${i}">${esc(nm)}</label>`)
+        + `<input type="color" id="o-pf-c${i}" data-pf="c${i}" aria-label="${esc(nm)}" value="${esc(c || P.mem[i] || PET_SPARE[i] || PET_SPARE[0])}"${on ? dis : ' disabled'}></div>`; }).join('');
+    const mk = L.marks || [];
+    const marks = `<fieldset class="pet-mk"><legend>${esc(ui['pet.marks'])}</legend><div class="pet-cks">${PET_MARKS.map(m => `<label class="ck"><input type="checkbox" id="o-pf-mark-${m}" data-pf="mark-${m}"${mk.includes(m) ? ' checked' : ''}${dis}>${esc(op['mark.' + m] || m)}</label>`).join('')}</div>`
+      + (mk.length ? `<div class="pet-c in"><label for="o-pf-mark">${esc(ui['pet.markColor'])}</label><input type="color" id="o-pf-mark" data-pf="mark" value="${esc(L.mark || HEX_DEF.mark)}"${dis}></div>` : '') + '</fieldset>';
+    /* eye and nose: Match the coat (the key absent, pets.js picks one) or a colour; checkbox first, then the swatch, dimmed while the checkbox is on */
+    const hexDef = k => (typeof HEX_DEF[k] === 'object' ? HEX_DEF[k][L.kind] : HEX_DEF[k]);
+    const auto = k => `<div class="pet-row" role="group" aria-labelledby="o-pf-${k}-l"><span id="o-pf-${k}-l">${esc(ui['pet.' + k])}</span><div class="pet-inl"><label class="ck"><input type="checkbox" id="o-pf-auto-${k}" data-pf="auto-${k}"${L[k] ? '' : ' checked'}${dis}>${esc(ui['pet.auto'])}</label>`
+      + `<input type="color" id="o-pf-${k}" data-pf="${k}" aria-labelledby="o-pf-${k}-l" value="${esc(L[k] || P.hex[k] || hexDef(k))}"${L[k] ? dis : ' disabled'}></div></div>`;
+    const collar = `<div class="pet-row" role="group" aria-labelledby="o-pf-collar-l"><span id="o-pf-collar-l">${esc(ui['pet.collar'])}</span><div class="pet-inl"><label class="ck"><input type="checkbox" id="o-pf-use-collar" data-pf="use-collar"${L.collar ? ' checked' : ''}${dis}>${esc(ui['pet.collarOn'])}</label>`
+      + `<input type="color" id="o-pf-collar" data-pf="collar" aria-label="${esc(ui['pet.collarColor'])}" value="${esc(L.collar || P.hex.collar || HEX_DEF.collar)}"${L.collar ? dis : ' disabled'}></div></div>`;
+    const grp = (k, body) => `<details class="pet-g" data-g="${k}"${P.open[k] ? ' open' : ''}><summary>${esc(ui['pet.g.' + k])}</summary><div class="pet-gb">${body}</div></details>`;
     const rm = !u.pet ? '' : `<div class="sh-rm">${P.ask ? `<p class="sh-note" role="alert">${esc(ui['pet.ask'])}</p><div class="row"><button type="button" class="of-dbtn warn" data-sh="petclear"${dis}>${esc(ui['pet.remove'])}</button><button type="button" class="of-dbtn plain" data-sh="petkeep"${dis}>${esc(ui['pet.keep'])}</button></div>`
       : `<button type="button" class="lnk" data-sh="petask"${dis}>${esc(ui['pet.remove'])}</button>`}</div>`;
-    return [`<div class="pet-top">${photo}<div class="pet-pvc"><div class="pet-pv" role="img" aria-label="${esc(ui['pet.preview'])}"></div>${toys}</div></div>`
-      + `<p class="sh-note pv">${esc(ui['pet.private'])}</p>${P.read || !P.shown ? `<p class="sh-note">${esc(P.read ? ui['pet.read'] : ui['pet.hand'])}</p>` : ''}`
-      + `<div class="pet-f">${sel1('kind', PET_KINDS, '')}${sel1('pattern', PET_PATTERNS, 'pat.')}${sel1('ear', PET_EARS, 'ear.')}${sel1('tail', PET_TAILS, 'tail.')}${sel1('size', PET_SIZES, 'size.')}`
-      + `<label for="o-pf-fluff">${esc(ui['pet.fluff'])}</label><input type="range" id="o-pf-fluff" data-pf="fluff" min="0" max="1" step="0.05" value="${L.fluff}"${dis}>`
-      + `<span>${esc(ui['pet.colors'])}</span><div class="pet-cols" role="group" aria-label="${esc(ui['pet.colors'])}">${cols}</div>`
-      + `<label for="o-pf-name">${esc(ui['pet.name'])}</label><input type="text" id="o-pf-name" data-pf="name" maxlength="${PET_NAME_MAX}" autocomplete="off" value="${esc(L.name || '')}"${dis}></div>` + rm,
+    /* kind right above the breed (a breed belongs to one kind), then the photo; the preview opens the large viewer with the look being edited */
+    return [`<div class="pet-wrap"><div class="pet-f">${sel1('kind', PET_KINDS, '')}${breed}${photo}${phNote ? `<p class="sh-note">${esc(phNote)}</p>` : ''}${vis}`
+      + grp('basic', sel1('size', PET_SIZES, 'size.') + row('o-pf-name', ui['pet.name'], `<input type="text" id="o-pf-name" data-pf="name" maxlength="${PET_NAME_MAX}" autocomplete="off" value="${esc(L.name || '')}"${dis}>`))
+      + grp('coat', sel1('pattern', PET_PATTERNS, 'pat.') + `<div class="pet-cols" role="group" aria-label="${esc(ui['pet.colors'])}">${cols}</div>` + sel1('fur', PET_FUR_LIST, 'fur.') + rng('fluff') + marks)
+      + grp('shape', sel1('ear', PET_EARS, 'ear.') + rng('earsize') + sel1('tail', PET_TAILS, 'tail.') + rng('snout') + rng('legs') + rng('length') + rng('build'))
+      + grp('face', auto('eye') + auto('nose') + collar) + rm
+      + `</div><div class="pet-pvc"><div class="pet-pv" role="button" tabindex="0" data-sh="pvopen" aria-label="${esc(ui['pet.zoom'])}" title="${esc(ui['pet.zoom'])}"></div>${toys}</div></div>`,
       shopFoot(P.dirty, P.dirty || !P.had)];
   }
   function shopHtml(){
@@ -1219,7 +1432,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const ghost = sel && sel.ghost ? `<p class="ulk-g">${esc(ui.ghost)}</p>` : '';
     return `<div class="bkbar"><button type="button" class="bk" data-sh="back">← ${esc(ui.back)}</button></div><div class="bd">${ghost}${tl}<div role="tabpanel" id="o-sh-p" aria-labelledby="o-sh-t-${tab}">${body}</div></div>${foot}`;
   }
-  function shopAfter(){ if(shop.tab === 'pet') petPreview(); else { pvStop(); fillThumbs(); } }
+  function shopAfter(){ if(shop.tab === 'pet'){ breedsLoad(); petPreview(); } else { pvStop(); fillThumbs(); } }
   /* item thumbnails: each item rendered once by a small renderer of its own into a data URL, one per frame; the renderer goes once all are cached */
   function thumbOf(id){
     if(thumbs[id] !== undefined) return thumbs[id];
@@ -1259,32 +1472,44 @@ export function mountOfficeScene(container, data, opts = {}){
       try{
         const r = new T.WebGLRenderer({ antialias: true, alpha: true }); r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); r.setSize(132, 132, false); r.setClearColor(0x000000, 0);
         const sc = new T.Scene(), key = new T.DirectionalLight('#fff0d4', 2.0), rl = new T.DirectionalLight('#e6ecff', 1.0); key.position.set(-2, 3, 4); rl.position.set(2.5, 2, -3); sc.add(new T.HemisphereLight('#f3f1ff', '#e8dcc4', 0.9), key, rl);
-        const cam = new T.PerspectiveCamera(30, 1, 0.05, 20); cam.position.set(0, 0.74, 2.15); cam.lookAt(0, 0.26, 0);   /* a large dog turning stays inside the frame */
-        pv = { r, sc, cam, g: null, key: '', raf: 0, t0: performance.now() }; r.domElement.setAttribute('aria-hidden', 'true');
+        const cam = new T.PerspectiveCamera(30, 1, 0.05, 20); cam.position.set(0, 0.74, 2.15); cam.lookAt(0, 0.26, 0);   /* refitted to each model (pvFit) */
+        pv = { r, sc, cam, g: null, key: '', raf: 0, t0: performance.now(), chg: 0, yaw: PV_YAW, last: performance.now() }; r.domElement.setAttribute('aria-hidden', 'true');
       }catch(e){ return; }
     }
     host.appendChild(pv.r.domElement); petPreviewSet(); pvLoop();
+  }
+  /* the camera fits the standing pet's bounding sphere, so a small cat fills the box as a large dog does */
+  const PV_YAW = 0.5;
+  function pvFit(){
+    const g = pv.g; g.rotation.y = 0; g.userData.pose('stand', 0, 0, { blend: 0 }); g.updateMatrixWorld(true);
+    const b = new T.Box3(); g.traverse(c => { if(c.isMesh && !c.isInstancedMesh && c.visible) b.expandByObject(c, true); }); if(b.isEmpty()) return;
+    const c = b.getCenter(new T.Vector3()), R = b.getBoundingSphere(new T.Sphere()).radius, d = R / Math.sin(pv.cam.fov * Math.PI / 360) * 0.9;
+    pv.cam.position.set(c.x, c.y + d * 0.3, c.z + d * 0.954); pv.cam.near = d / 40; pv.cam.far = d * 4; pv.cam.lookAt(c); pv.cam.updateProjectionMatrix();
   }
   function petPreviewSet(){
     if(!shop) return; const P = shop.pet, look = P.look, key = JSON.stringify(look);
     petLive(P.dirty || P.had ? look : null);
     if(!pv || key === pv.key) return;
+    pv.chg = performance.now();   /* any change: the pet turns front three-quarter and holds there awake for 2 s */
     if(pv.g && petRecolor(pv.g, look)){ pv.key = key; if(reduced) pvLoop(true); return; }
     const make = () => { pv.tm = 0; if(!pv || !shop) return; const L = shop.pet.look, k = JSON.stringify(L); if(k === pv.key) return; pv.key = k;
-      if(pv.g){ pv.sc.remove(pv.g); pv.g.userData.dispose(); } pv.g = makePet(T, L); pv.sc.add(pv.g); if(reduced) pvLoop(true); };
+      if(pv.g){ pv.sc.remove(pv.g); pv.g.userData.dispose(); } pv.g = makePet(T, L); pv.sc.add(pv.g); pvFit(); pv.chg = performance.now(); if(reduced) pvLoop(true); };
     clearTimeout(pv.tm); if(pv.g) pv.tm = setTimeout(make, 160); else make();
   }
   function pvLoop(once){
     if(!pv || (pv.raf && !once)) return;
     const loop = () => { pv.raf = 0; if(!pv || !shop || shop.tab !== 'pet' || !chrome.isOpen() || !pv.r.domElement.isConnected || destroyed) return;
-      const t = (performance.now() - pv.t0) / 1000; if(pv.g){ pv.g.rotation.y = 0.35 + (reduced ? 0 : 0.61 * Math.sin(t * 0.75)); pv.g.userData.pose(reduced ? 'sit' : 'stand', 0, reduced ? 0 : t, { blend: reduced ? 0 : undefined }); pv.g.userData.fur(reduced ? 0 : 112 * pv.r.getPixelRatio()); }
+      const now = performance.now(), t = (now - pv.t0) / 1000, dt = Math.min(0.05, (now - pv.last) / 1000); pv.last = now;
+      if(pv.g){ const held = now - pv.chg < 2000, yT = PV_YAW + (reduced || held ? 0 : 0.3 * Math.sin((now - pv.chg - 2000) / 1000 * 0.6));   /* sways 0.2 to 0.8 rad: never faces away */
+        pv.yaw = reduced ? yT : pv.yaw + (yT - pv.yaw) * Math.min(1, dt * 5); pv.g.rotation.y = pv.yaw;
+        pv.g.userData.pose('stand', 0, reduced ? 0 : t, { blend: reduced ? 0 : undefined }); pv.g.userData.fur(124 * pv.r.getPixelRatio()); }
       pv.r.render(pv.sc, pv.cam); if(!reduced) pv.raf = requestAnimationFrame(loop); };
     if(once && pv.raf){ cancelAnimationFrame(pv.raf); pv.raf = 0; }
     loop();
   }
   function pvStop(){ if(pv && pv.raf){ cancelAnimationFrame(pv.raf); pv.raf = 0; } if(pv && pv.tm){ clearTimeout(pv.tm); pv.tm = 0; } }
   function shopKill(){ if(thumbRaf) cancelAnimationFrame(thumbRaf); thumbRaf = 0; thumbKill(); if(pv){ pvStop(); if(pv.g) pv.g.userData.dispose(); pv.r.dispose(); pv.r.forceContextLoss(); pv.r.domElement.remove(); pv = null; } }
-  const errKey = e => { const c = e && e.code, m = String((e && e.message) || ''); return c === 'PGRST202' ? 'err.na' : c === '28000' ? 'err.link' : c === '22023' ? 'err.input' : c === 'P0001' ? (/locked/i.test(m) ? 'err.locked' : /too many/i.test(m) ? 'err.many' : 'err.org') : 'err'; };
+  const errKey = e => { const c = e && e.code, m = String((e && e.message) || ''); return c === 'photo' ? 'err.photo' : c === 'PGRST202' ? 'err.na' : c === '28000' ? 'err.link' : c === '22023' ? 'err.input' : c === 'P0001' ? (/locked/i.test(m) ? 'err.locked' : /too many/i.test(m) ? 'err.many' : 'err.org') : 'err'; };
   async function shopSave(change, extra){
     if(!shop || shop.busy) return;
     const ui = cur.shop.ui; shop.busy = true; shop.msg = null; rerender();
@@ -1293,7 +1518,7 @@ export function mountOfficeScene(container, data, opts = {}){
       if(!shop) return;
       shop.busy = false;
       if(change.gear){ const g = gearOf((r && r.gear) || change.gear); shop.base = g; shop.draft = { ...g }; if(sel && sel.p.self) sel.p.gear = { ...g }; shop.msg = { text: ui.saved }; }
-      else { shop.pet = petState(); shop.msg = { text: change.petClear ? ui['pet.removed'] : ui.saved }; }
+      else { shop.pet = petState(); shop.msg = { text: ui[saveMsgKey(change, extra)] || ui.saved }; }   /* petState reads the page's new data (photoShared included); the message says who sees the photo */
     }catch(e){
       if(!shop) return;
       shop.busy = false; const k = errKey(e);
@@ -1314,48 +1539,65 @@ export function mountOfficeScene(container, data, opts = {}){
     let res = null, photo = null;
     try{ const a = draw(480); res = petLookFromPixels(a.x.getImageData(0, 0, a.c.width, a.c.height).data, a.c.width, a.c.height); photo = draw(256, true).c.toDataURL('image/jpeg', 0.85); }catch(e){ return bad(); }
     if(!shop) return;
-    const P = shop.pet; P.photo = photo; P.shown = photo; P.read = !!res; P.dirty = true; shop.msg = null;
-    if(res) P.look = normalizePetLook({ ...P.look, coat: res.coat, pattern: res.pattern }) || P.look;
+    const P = shop.pet; P.photo = photo; P.shown = photo; P.read = res ? (P.look.breed ? 'coat' : 'all') : false; P.dirty = true; shop.msg = null;
+    /* with a breed chosen the breed keeps its pattern and the photo only recolours it, colour by colour in the pattern's order (a Shiba stays two-toned in the
+       photo's own orange and cream); without one the photo also suggests the pattern */
+    if(res) P.look = normalizePetLook(P.look.breed ? { ...P.look, coat: P.look.coat.map((c, i) => res.coat[i] || c) } : { ...P.look, coat: res.coat, pattern: res.pattern }) || P.look;
     rerender(); petPreviewSet();
   }
   function petField(el){
     const P = shop && shop.pet; if(!P || shop.busy) return;
-    const k = el.dataset.pf, L = { ...P.look, coat: P.look.coat.slice() };
+    const k = el.dataset.pf, cv = h => { const c = chrome.el.querySelector(`[data-pf="${h}"]`); return c && c.value; };
+    let L = { ...P.look, coat: P.look.coat.slice(), marks: (P.look.marks || []).slice() }, re = false;
     if(k === 'file') return readPhoto(el.files && el.files[0]);
-    if(/^c\d$/.test(k)){ const i = +k[1]; L.coat[i] = el.value; }
-    else if(/^use\d$/.test(k)){ const i = +k[3]; if(el.checked){ const ci = chrome.el.querySelector(`[data-pf="c${i}"]`); L.coat[i] = (ci && ci.value) || PET_SPARE[i]; } else L.coat.splice(i, 1); }
-    else if(k === 'fluff') L.fluff = Number(el.value);
+    if(k === 'vis'){ if(!el.checked) return; P.share = el.value === 'share'; P.dirty = true; shop.msg = null; rerender(); return; }
+    if(k === 'breed'){ const b = (breedRows || []).find(r => r.key === el.value); if(b) L = { ...petApplyBreed(L, b.look) }; else delete L.breed; L.marks = (L.marks || []).slice(); if(b) P.mem = L.coat.slice(); re = true; }
+    else if(/^c\d$/.test(k)){ const i = +k[1]; L.coat[i] = el.value; P.mem[i] = el.value; }
+    else if(/^use\d$/.test(k)){ const i = +k[3]; if(el.checked) L.coat[i] = cv('c' + i) || P.mem[i] || PET_SPARE[i]; else L.coat.length = Math.min(L.coat.length, i); re = true; }
+    else if(k === 'pattern'){ L.pattern = el.value; L.coat = petCoatFor(L.coat, petCoatRoles(el.value), P.mem); re = true; }   /* colours stay by position, a newly required one is filled */
+    else if(PET_RANGES.includes(k)) L[k] = Math.round(Number(el.value) * 100) / 100;
     else if(k === 'name') L.name = el.value;
-    else L[k] = el.value;
+    else if(k === 'fur'){ if(PET_FUR_LIST.includes(el.value) && el.value !== PET_FUR_LIST[0]) L.fur = el.value; else delete L.fur; }   /* the standard coat writes no key */
+    else if(/^mark-/.test(k)){ const m = k.slice(5); L.marks = PET_MARKS.filter(x => (x === m ? el.checked : L.marks.includes(x))); re = true; }
+    else if(/^auto-/.test(k)){ const h = k.slice(5); if(el.checked){ if(L[h]) P.hex[h] = L[h]; delete L[h]; } else L[h] = cv(h) || P.hex[h]; re = true; }
+    else if(k === 'use-collar'){ if(el.checked) L.collar = cv('collar') || P.hex.collar || HEX_DEF.collar; else { if(L.collar) P.hex.collar = L.collar; delete L.collar; } re = true; }
+    else{ L[k] = el.value; if(k === 'kind') re = true; }   /* kind, size, ear, tail and the eye, nose, collar and mark colours */
+    if(L.breed && !(breedRows || []).some(b => b.key === L.breed && b.kind === L.kind)) delete L.breed;   /* another kind is no longer that breed */
+    if(!L.marks.length) delete L.marks;
     L.coat = L.coat.filter(Boolean).slice(0, PET_COAT_MAX);
     const n = normalizePetLook(L); if(!n) return;
     P.look = n; P.dirty = true; shop.msg = null; petPreviewSet();
-    if(/^use\d$/.test(k)) rerender();
-    else { const sv = chrome.el.querySelector('[data-sh="save"]'), cv = chrome.el.querySelector('[data-sh="cancel"]'); if(sv) sv.disabled = false; if(cv) cv.disabled = false; const m = chrome.el.querySelector('.sh-msg'); if(m){ m.textContent = ''; m.classList.remove('err'); } }
+    if(re) rerender();
+    else { const sv = chrome.el.querySelector('[data-sh="save"]'), cn = chrome.el.querySelector('[data-sh="cancel"]'); if(sv) sv.disabled = false; if(cn) cn.disabled = false; const m = chrome.el.querySelector('.sh-msg'); if(m){ m.textContent = ''; m.classList.remove('err'); } }
   }
   chrome.el.addEventListener('click', ev => {
     const b = ev.target.closest && ev.target.closest('[data-sh]'); if(!b || !sel || !shopFor(sel)) return;
     const a = b.dataset.sh, v = b.dataset.v;
     if(a === 'open'){ shopStart(); renderDrawer(); const t = chrome.el.querySelector('[role="tab"][aria-selected="true"]'); if(t) t.focus({ preventScroll: true });
-      if(stage.clientWidth <= 480) requestAnimationFrame(() => { const r = chrome.el.getBoundingClientRect(); if(r.bottom > innerHeight || r.top < 0) chrome.el.scrollIntoView({ block: 'end', behavior: reduced ? 'auto' : 'smooth' }); });   /* a phone: Save on screen without scrolling the page */
       return; }
     if(!shop) return;
+    if(a === 'pvopen'){ if(sel) viewOpen('pet', sel, { look: normalizePetLook(shop.pet.look) || shop.pet.look, pin: photoSafe(shop.pet.shown) ? shop.pet.shown : null }); return; }   /* the preview opens the large viewer with the look being edited */
     if(a === 'back'){ shopReset(); renderDrawer(); const o2 = chrome.el.querySelector('[data-sh="open"]'); if(o2) o2.focus(); return; }
     if(shop.busy) return;
     if(a === 'tab'){ if(v !== shop.tab){ if(gearDirty()){ shop.draft = { ...shop.base }; previewGear(); } shop.tab = v; shop.msg = null; rerender(); } return; }
     if(a === 'pick'){ if(b.getAttribute('aria-disabled') === 'true') return; const slot = shop.tab; if(slot !== 'head' && slot !== 'desk') return; shop.draft[slot] = v || null; shop.msg = null; previewGear(); rerender(); return; }
     if(a === 'cancel'){ shop.msg = null; if(shop.tab === 'pet') shop.pet = petState(); else { shop.draft = { ...shop.base }; previewGear(); } rerender(); petPreviewSet(); return; }
-    if(a === 'save'){ if(shop.tab === 'pet'){ const P = shop.pet, look = normalizePetLook(P.look); if(look) shopSave({ pet: look }, P.photo ? { photo: P.photo } : {}); } else if(gearDirty()) shopSave({ gear: { ...shop.draft } }); return; }
+    /* a pet save tells the page about the photo: this browser's photo (fresh when picked in this visit), the visibility choice and whether the server has a
+       copy; the page uploads, clears or leaves the shared copy (petPhotoPlan) */
+    if(a === 'save'){ if(shop.tab === 'pet'){ const P = shop.pet, look = normalizePetLook(P.look); if(look) shopSave({ pet: look }, { photo: P.photo || P.shown || null, fresh: !!P.photo, share: !!P.share, shared: cur.shop.photoShared === true }); } else if(gearDirty()) shopSave({ gear: { ...shop.draft } }); return; }
     if(a === 'petask' || a === 'petkeep'){ shop.pet.ask = a === 'petask'; rerender(); const f = chrome.el.querySelector(a === 'petask' ? '[data-sh="petkeep"]' : '[data-sh="petask"]'); if(f) f.focus(); return; }   /* removing asks once */
     if(a === 'petclear'){ shopSave({ petClear: true }); return; }
   });
-  chrome.el.addEventListener('input', ev => { const el = ev.target; if(el && el.dataset && el.dataset.pf && el.dataset.pf !== 'file' && el.type !== 'checkbox' && el.tagName !== 'SELECT') petField(el); });
-  chrome.el.addEventListener('change', ev => { const el = ev.target; if(el && el.dataset && el.dataset.pf && (el.dataset.pf === 'file' || el.type === 'checkbox' || el.tagName === 'SELECT')) petField(el); });
+  const pfDiscrete = el => el.dataset.pf === 'file' || el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT';   /* these act on change; text, colours and sliders on every input */
+  chrome.el.addEventListener('input', ev => { const el = ev.target; if(el && el.dataset && el.dataset.pf && !pfDiscrete(el)) petField(el); });
+  chrome.el.addEventListener('change', ev => { const el = ev.target; if(el && el.dataset && el.dataset.pf && pfDiscrete(el)) petField(el); });
+  chrome.el.addEventListener('toggle', ev => { const d = ev.target; if(shop && shop.pet && d && d.dataset && d.dataset.g) shop.pet.open[d.dataset.g] = d.open; }, true);   /* toggle does not bubble */
   chrome.el.addEventListener('keydown', ev => {
     const t = ev.target; if(!shop || !t || !t.getAttribute || t.getAttribute('role') !== 'tab') return;
     const ks = ['head', 'desk', 'pet'], i = ks.indexOf(t.dataset.v), j = ev.key === 'ArrowRight' ? (i + 1) % 3 : ev.key === 'ArrowLeft' ? (i + 2) % 3 : ev.key === 'Home' ? 0 : ev.key === 'End' ? 2 : -1; if(j < 0) return;
     ev.preventDefault(); if(shop.busy) return; if(gearDirty()){ shop.draft = { ...shop.base }; previewGear(); } shop.tab = ks[j]; shop.msg = null; renderDrawer(); const n = chrome.el.querySelector('#o-sh-t-' + ks[j]); if(n) n.focus();
   });
+  chrome.el.addEventListener('keydown', ev => { const t = ev.target; if((ev.key === 'Enter' || ev.key === ' ') && t && t.dataset && t.dataset.sh === 'pvopen'){ ev.preventDefault(); t.click(); } });
   chrome.el.addEventListener('dragover', ev => { const d = ev.target.closest && ev.target.closest('[data-drop]'); if(!d || !shop) return; ev.preventDefault(); d.classList.add('on'); });
   chrome.el.addEventListener('dragleave', ev => { const d = ev.target.closest && ev.target.closest('[data-drop]'); if(d) d.classList.remove('on'); });
   chrome.el.addEventListener('drop', ev => { const d = ev.target.closest && ev.target.closest('[data-drop]'); if(!d || !shop) return; ev.preventDefault(); d.classList.remove('on'); if(!shop.busy) readPhoto(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]); });
@@ -1447,6 +1689,12 @@ export function mountOfficeScene(container, data, opts = {}){
     parts.forEach(c => { const b = new T.Box3().setFromObject(c); if(!b.isEmpty()) out.push([b.min.x, b.min.z, b.max.x, b.max.z]); });
     return out;
   }
+  /* the top of each present in the pile (or of the basket): where a toy comes out and goes back in (stepToy) */
+  function pileTops(){
+    const g = hol.find(h => h.userData.pile) || petBits.find(h => h.name === 'petBasket'); if(!g) return [];
+    g.updateMatrixWorld(true);
+    return (g.name === 'petBasket' ? [g] : g.children).map(c => { const b = new T.Box3().setFromObject(c); return b.isEmpty() ? null : { x: (b.min.x + b.max.x) / 2, z: (b.min.z + b.max.z) / 2, y: b.max.y, x0: b.min.x, z0: b.min.z, x1: b.max.x, z1: b.max.z }; }).filter(Boolean);
+  }
   const rectDist = (rs, x, z) => Math.min(...rs.map(([a, b, c, d]) => Math.hypot(Math.max(a - x, 0, x - c), Math.max(b - z, 0, z - d))));
   const navFree = (x, z) => { const N = petNav; if(!N) return true; const i = Math.floor((x - N.x0) / NAV_R), j = Math.floor((z - N.z0) / NAV_R); return i >= 0 && j >= 0 && i < N.nx && j < N.nz && !N.g[j * N.nx + i]; };
   /* the toy's places round the pile: slots on rays out of the pile on the camera's side. Per pet and slot, the fetch spot is where its head just reaches
@@ -1457,9 +1705,12 @@ export function mountOfficeScene(container, data, opts = {}){
     let fetch = null, play = null;
     for(let r = 0.2; r < 4.5 && !fetch; r += 0.04){ const p = at(r); if(rectDist(C.rects, p.x, p.z) >= 0.2 * gs) fetch = { ...p, yaw: a + Math.PI }; }
     if(!fetch) return null;
-    const yaw = Math.PI / 4 + Math.max(-0.7, Math.min(0.7, angTo(Math.PI / 4, a) * 0.6));   /* it plays facing the camera's side, turned a little the way the ray points */
-    for(let r = 0.5; r < 5 && !play; r += 0.05){ const p = at(r), ty = { x: p.x + Math.sin(yaw) * 0.55 * gs, z: p.z + Math.cos(yaw) * 0.55 * gs };
-      if(rectDist(C.rects, p.x, p.z) >= 0.5 * gs && rectDist(C.rects, ty.x, ty.z) >= 0.12 * gs && navFree(p.x, p.z) && navFree(ty.x, ty.z) && rectDist(C.block, p.x, p.z) > 0.3 * gs) play = { ...p, yaw }; }
+    const yaw = Math.PI / 4 + Math.max(-0.7, Math.min(0.7, angTo(Math.PI / 4, a) * 0.6)), Z = pz(pt);   /* it plays facing the camera's side, turned a little the way the ray points */
+    /* the toy's area (pet units: from Z ahead to Z + 0.3 where a bat sends it, a little to each side) must be in clear view of the home camera (playSeen) */
+    const area = [[0, Z], [0, Z + 0.3], [-0.1, Z + 0.15], [0.1, Z + 0.15]], cy = Math.cos(yaw), sy = Math.sin(yaw);
+    for(let r = 0.5; r < 5 && !play; r += 0.05){ const p = at(r), ty = { x: p.x + sy * (Z + 0.05) * gs, z: p.z + cy * (Z + 0.05) * gs };
+      if(rectDist(C.rects, p.x, p.z) >= 0.5 * gs && rectDist(C.rects, ty.x, ty.z) >= 0.12 * gs && navFree(p.x, p.z) && navFree(ty.x, ty.z) && rectDist(C.block, p.x, p.z) > 0.3 * gs
+        && playSeen(area.map(([tx, tz]) => [p.x + (tx * cy + tz * sy) * gs, p.z + (-tx * sy + tz * cy) * gs]), C.occ || [])) play = { ...p, yaw }; }
     return play ? { k, fetch, play } : null;
   }
   /* a free slot for this pet, starting from its own by hash; null when all are taken (it roams instead) */
@@ -1486,8 +1737,13 @@ export function mountOfficeScene(container, data, opts = {}){
     petNav = petNavGrid(rects);
     /* rays start from the middle of the boxes (the pile's own origin is at its back edge) */
     const pc = { x: (Math.min(...pr.map(r => r[0])) + Math.max(...pr.map(r => r[2]))) / 2, z: (Math.min(...pr.map(r => r[1])) + Math.max(...pr.map(r => r[3]))) / 2 };
-    petCtx = { pile: pc, rects: pr, block, taken: new Map(), blobM: bas({ color: '#3a2a20', map: sets.soft, transparent: true, opacity: 0.34, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }) };
+    /* occluders between the floor and the home camera (playSeen): desks with what stands on them, the chairs with their sitters, the kiosk, the plants and the pile */
+    const occ = []; zones.forEach(zn => zn.seats.forEach(s => occ.push([s.x - 1.1, s.z + 0.55, s.x + 1.1, s.z + 1.75, 1.62], [s.x - 0.5, s.z - 0.22, s.x + 0.5, s.z + 0.72, 2.3])));
+    occ.push([srv.x - 1.3, srv.z - 0.8, srv.x + 1.3, srv.z + 0.85, 2.4]); [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z]) => occ.push([x - 0.4, z - 0.4, x + 0.4, z + 0.4, 1.8]));
+    const tops = pileTops(); tops.forEach(t => occ.push([t.x0, t.z0, t.x1, t.z1, t.y]));
+    petCtx = { pile: pc, rects: pr, block, occ, tops, taken: new Map(), blobM: bas({ color: '#3a2a20', map: sets.soft, transparent: true, opacity: 0.34, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }) };
     owners.forEach(o => petAdd(o, normalizePetLook(o.p.pet), true));
+    petPhotosAsk(); if(owners.some(o => o.p.pet && o.p.pet.breed)) breedsLoad();
   }
   /* the bowls: on the floor at the right front corner of the desk, against its front edge. From the default camera that corner is in the clear (the next
      row's sitter is further left), and it is off the pets' strolling line along the aisle. The mat runs front to back with the food in front. */
@@ -1496,6 +1752,10 @@ export function mountOfficeScene(container, data, opts = {}){
   /* The left end is narrow (the laptop and the desk item take the rest), so the pet lies lengthwise, facing the front edge: the camera then sees its face three
      quarters on, and a large dog fits at 0.95 of its size with its chin at the very front edge. The back of the box stops short of the photo frame. */
   const DESK_FIT = { x0: -1.1, x1: -0.42, z0: 0.72, z1: 1.93 }, DESK_YAW = 0;
+  /* The home camera looks along -x and -z, so the desk's front (+z) faces it: the pet takes off from the floor in front of the left end (DESK_HOP, facing -z) and
+     lands on its sleeping spot, never behind the desk or past its owner. The photo frame stands in the back right corner (DESK_FRAME): seen from that camera
+     nothing on the desk lies in front of it, while the sleeping pet on the left end lies across its line of sight. */
+  const DESK_HOP = { x: (DESK_FIT.x0 + DESK_FIT.x1) / 2, z: 2.3 }, DESK_FRAME = { x: 0.98, z: 0.64 };
   function petFit(pt){
     const g = pt.g, o = pt.o, ud = g.userData, sc = g.scale.x, keep = [g.position.clone(), g.rotation.clone()];
     ud.pose('sleep', 0, 0, { blend: 0 }); g.rotation.set(0, DESK_YAW, 0); g.position.set(0, 0, 0); g.updateMatrixWorld(true);
@@ -1507,6 +1767,9 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   function petModel(pt, look){
     const g = makePet(T, look); g.scale.multiplyScalar(PET_SC); g.rotation.order = 'YXZ'; pt.g = g; pt.gs = g.scale.x; pt.look = look; world.add(g); petBits.push(g);
+    /* bs: the standing pet's height, bounding radius and body length in its own units (objList picks with them; the bowls' side step uses the length) */
+    { g.userData.pose('stand', 0, 0, { blend: 0 }); g.position.set(0, 0, 0); g.updateMatrixWorld(true); const b = new T.Box3(), s = pt.gs; g.traverse(c => { if(c.isMesh && !c.isInstancedMesh && c.visible) b.expandByObject(c, true); });
+      pt.bs = b.isEmpty() ? { h: 0.5, r: 0.4, len: 0.6 } : { h: (b.max.y - Math.max(0, b.min.y)) / s, r: b.getBoundingSphere(new T.Sphere()).radius / s, len: (b.max.z - b.min.z) / s }; }
     pt.S = pt.gs; petFit(pt);
   }
   /* one pet and its things; build: false when a live preview adds it after the build (its bowls then are not in the floor grid) */
@@ -1519,23 +1782,44 @@ export function mountOfficeScene(container, data, opts = {}){
     const gx = o.x - 1.45, sit = { x: gx, z: o.z + 1.8 };   /* the mouth of the gap, level with the desk's front edge: in view of the default camera and out of the aisle */
     const pt = { o, lane, seed: id + ':pet', ph: petHash(id + ':ph') * 10, n: 0, q: [], seg: null, st: 0, x: sit.x, y: petFloorY(sit.x, sit.z), z: sit.z, yaw: 0, pose: 'sit', force: null, prev: null,
       tilt: 0, sq: 0, ks: 1, v: 0, amp: 0, phase: 0, blend: null, toys: !!o.p.petToys, toy: null, toyMode: 'pile', toyT: 0, toyA: null, play: null, slot: null, spots: null };
-    pt.spots = { bowl: b, pile: petCtx.pile, sit: { ...sit, yaw: face(sit, own) }, hop: { x: gx, z: o.z + 1.2, yaw: Math.PI / 2 } };
+    pt.spots = { bowl: b, pile: petCtx.pile, sit: { ...sit, yaw: face(sit, own) }, hop: { x: o.x + DESK_HOP.x, z: o.z + DESK_HOP.z, yaw: Math.PI } };
     petModel(pt, look);
     const reach = 0.3 * pt.gs; pt.spots.eat = { x: b.x - reach, z: b.z + 0.11 * BOWL_SC, yaw: Math.PI / 2 }; pt.spots.drink = { x: b.x - reach, z: b.z - 0.11 * BOWL_SC, yaw: Math.PI / 2 };
     pt.yaw = pt.spots.sit.yaw;
     const bw = makeBowls(T); bw.scale.setScalar(BOWL_SC); bw.rotation.y = -Math.PI / 2; bw.position.set(b.x, petFloorY(b.x, b.z), b.z);   /* food (local +x) toward the front */ world.add(bw); petBits.push(bw); pt.bowls = bw;
-    if(o.p.pet && o.p.pet.photo){ const fr = makePhotoFrame(T, String(o.p.pet.photo), () => { renderer.shadowMap.needsUpdate = true; request(); }); fr.scale.setScalar(1.8); fr.rotation.y = 0.6; fr.position.set(o.x - 0.98, DESK_Y, o.z + 0.64);   /* back corner, so the pet asleep in front of it leaves the photo in view */ world.add(fr); petBits.push(fr); pt.frame = fr; }
+    { const src = petPhotoSrc(o); if(src) petFrameAdd(pt, src); }
     if(pt.toys){ const tk = petHash(id + ':toy') < 0.5; pt.toy = makeToy(T, look.kind === 'cat' ? (tk ? 'yarn' : 'mouse') : tk ? 'ball' : 'bone'); pt.toy.visible = false; world.add(pt.toy); petBits.push(pt.toy);   /* the toy lives in the pile until the pet fetches it */
       pt.toyBlob = track(new T.Mesh(sets.disc, petCtx.blobM)); pt.toyBlob.visible = false; world.add(pt.toyBlob); }
-    pt.blob = track(new T.Mesh(sets.disc, petCtx.blobM)); world.add(pt.blob);
+    pt.blobMat = petCtx.blobM.clone(); pt.blob = track(new T.Mesh(sets.disc, pt.blobMat)); world.add(pt.blob);   /* its own material: it fades with the lift (stepPets) */
     pets.push(pt);
     if(!build && renderer) renderer.shadowMap.needsUpdate = true;
     return pt;
   }
+  /* The desk frame's photo: the viewer's own photo kept in this browser first, else a shared copy fetched for this person (opts.petPhotos, see petPhotosAsk).
+     A coworker's desk has a frame only once a shared photo arrived. */
+  const photoCache = new Map();   /* person id -> data URL, or null once asked without an answer; kept for the page's lifetime */
+  const petPhotoSrc = o => { const own = o.p.self && o.p.pet && typeof o.p.pet.photo === 'string' && /^data:image\//.test(o.p.pet.photo) ? o.p.pet.photo : null; return own || photoCache.get(String(o.p.id)) || null; };
+  function petFrameAdd(pt, src){
+    const o = pt.o, fr = makePhotoFrame(T, String(src), () => { if(renderer) renderer.shadowMap.needsUpdate = true; request(); });
+    fr.scale.setScalar(1.8); fr.rotation.y = 0.6; fr.position.set(o.x + DESK_FRAME.x, DESK_Y, o.z + DESK_FRAME.z);   /* see DESK_FRAME */
+    world.add(fr); petBits.push(fr); pt.frame = fr; pt.photo = String(src);
+  }
+  /* once per build: the drawn pets whose owner shares a photo (pet.shared) and that have no frame yet; every answer is checked (petPhotosClean) */
+  function petPhotosAsk(){
+    const fn = opts.petPhotos; if(typeof fn !== 'function') return;
+    const ids = pets.filter(pt => pt.o.p.pet && pt.o.p.pet.shared === true && !pt.frame && !photoCache.has(String(pt.o.p.id))).map(pt => String(pt.o.p.id)).slice(0, PET_MAX);
+    if(!ids.length) return;
+    ids.forEach(id => photoCache.set(id, null));
+    Promise.resolve().then(() => fn(ids)).then(res => {
+      if(destroyed) return; const ok = petPhotosClean(res, ids);
+      Object.entries(ok).forEach(([id, u]) => { photoCache.set(id, u); const pt = pets.find(q => String(q.o.p.id) === id); if(pt && !pt.frame) petFrameAdd(pt, u); });
+      if(Object.keys(ok).length){ if(renderer) renderer.shadowMap.needsUpdate = true; request(); }
+    }, () => {});
+  }
   function petRemove(pt){
     petFree(pt);
     [pt.g, pt.bowls, pt.frame, pt.toy].forEach(h => { if(!h) return; if(h.parent) h.parent.remove(h); h.userData.dispose(); petBits = petBits.filter(q => q !== h); });
-    [pt.blob, pt.toyBlob].forEach(b => { if(b && b.parent) b.parent.remove(b); });
+    [pt.blob, pt.toyBlob].forEach(b => { if(b && b.parent) b.parent.remove(b); }); if(pt.blobMat) pt.blobMat.dispose();
     pets = pets.filter(q => q !== pt); if(renderer) renderer.shadowMap.needsUpdate = true; request();
   }
   /* a new model for the same pet (a live preview with another shape): it keeps where it is and what it is doing */
@@ -1546,38 +1830,68 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   /* the toy has one size in every state (the pet's own units) and is always in the world: in the pile it is hidden, in the mouth it follows the mouth */
   const PET_TOY_K = 1.3, petToyR = 0.05 * PET_TOY_K;   /* one size table: the toy is PET_TOY_K times its pets.js size in the pet's own units, in every state */
-  function petToySet(pt, mode){ pt.toyMode = mode; pt.toyT = 0; pt.toyA = pt.toy ? pt.toy.position.clone() : null; pt.toyR = pt.toy ? pt.toy.rotation.clone() : null; }
+  function petToySet(pt, mode){ pt.toyMode = mode; pt.toyT = 0; pt.toyA = pt.toy ? pt.toy.position.clone() : null; pt.toyR = pt.toy ? pt.toy.rotation.clone() : null; pt.toyQ = pt.toy ? toySpinOf(pt.toy).quaternion.clone() : null; pt.toyTop = null; pt.toyRolled = false; }
+  /* the part of a toy that rolls: userData.spin (pets.js), else the whole toy as before; round: ball and yarn roll, a bone and a mouse never tip over */
+  const toySpinOf = t => (t.userData && t.userData.spin) || t, toyRound = t => (t.userData && t.userData.round != null ? !!t.userData.round : t.userData.kind === 'ball' || t.userData.kind === 'yarn');
+  const toyFlat = t => { const s = toySpinOf(t); if(s !== t) s.quaternion.identity(); else s.rotation.x = 0; };   /* upright: the spin group back to rest (never the toy's own yaw) */
+  const toyCarry = t => { const v = t.userData && t.userData.carryYaw; return Number.isFinite(v) ? v : Math.PI / 2; };   /* the turn it is held at in the mouth, relative to the heading */
   const V3 = () => new T.Vector3();
-  const _m = { v: null };
+  const _m = { v: null, ax: null, q: null, q0: null };
   function petMouth(pt){ const v = _m.v || (_m.v = V3()); pt.g.updateMatrixWorld(true); pt.g.userData.mouth.getWorldPosition(v); return v; }
+  /* where a toy comes out of the pile and goes back in: the top of the present (or the basket) nearest to the point, never bare floor */
+  function pileTop(x, z){
+    const tops = (petCtx && petCtx.tops) || []; let best = null, bd = Infinity;
+    tops.forEach(p => { const d = Math.hypot(p.x - x, p.z - z); if(d < bd){ bd = d; best = p; } });
+    return best || { x, z, y: petFloorY(x, z) };
+  }
+  const TOY_POP = 0.15, TOY_UP = 0.45, TOY_DOWN = 0.4;   /* the scale-in (and out) on top of the present, then the trip to the mouth (and back) */
   function stepToy(pt, dt){
     const t = pt.toy; if(!t) return;
-    pt.toyT += dt; const gs = pt.gs, m = pt.toyMode, e = k => easeIO(k), yaw = pt.yaw;
-    t.scale.setScalar(gs * PET_TOY_K); t.visible = m !== 'pile'; pt.toyBlob.visible = false;
+    pt.toyT += dt; const gs = pt.gs, m = pt.toyMode, e = k => easeIO(k), yaw = pt.yaw, full = gs * PET_TOY_K, ck = toyCarry(t);
+    t.scale.setScalar(full); t.visible = m !== 'pile'; pt.toyBlob.visible = false;
     if(m === 'pile') return;
     const M = petMouth(pt), mouth = { x: M.x, y: M.y - petToyR * gs, z: M.z };
     const floor = (x, z) => petFloorY(x, z);
     if(m === 'rise' || m === 'mouth' || m === 'back'){
-      let p = mouth;
-      if(m === 'rise'){ const k = e(pt.toyT / 0.45); p = { x: mouth.x, y: mouth.y - 0.28 * gs * (1 - k), z: mouth.z }; if(pt.toyT >= 0.45) pt.toyMode = 'mouth'; }
-      if(m === 'back'){ const k = e(pt.toyT / 0.4); p = { x: mouth.x, y: mouth.y - 0.28 * gs * k, z: mouth.z }; if(pt.toyT >= 0.4){ pt.toyMode = 'pile'; t.visible = false; return; } }
-      t.position.set(p.x, p.y, p.z); t.rotation.set(0, yaw + Math.PI / 2, 0); return;
+      let p = mouth, s = 1;
+      if(m !== 'mouth'){
+        /* rise: it grows out of the present's top in TOY_POP, then travels on a small arc into the mouth; back: the same in reverse */
+        const top = pt.toyTop || (pt.toyTop = pileTop(M.x, M.z)), up = m === 'rise', tt = pt.toyT;
+        const u = up ? Math.max(0, tt - TOY_POP) / TOY_UP : 1 - Math.min(1, tt / TOY_DOWN), k = e(Math.min(1, Math.max(0, u)));   /* k: 0 on the present, 1 in the mouth */
+        s = up ? Math.min(1, tt / TOY_POP) : Math.min(1, Math.max(0, (TOY_DOWN + TOY_POP - tt) / TOY_POP));
+        p = { x: top.x + (mouth.x - top.x) * k, y: top.y + (mouth.y - top.y) * k + 0.1 * gs * Math.sin(Math.PI * k), z: top.z + (mouth.z - top.z) * k };   /* the toy's origin is its base: on the present it rests on the lid */
+        if(up && tt >= TOY_POP + TOY_UP) pt.toyMode = 'mouth';
+        if(!up && tt >= TOY_DOWN + TOY_POP){ pt.toyMode = 'pile'; t.visible = false; return; }
+      }
+      t.scale.setScalar(full * Math.max(0.001, s));
+      t.position.set(p.x, Math.max(p.y, floor(p.x, p.z)), p.z); t.rotation.set(0, yaw + ck, 0); toyFlat(t); return;
     }
     if(m === 'drop' || m === 'pick'){
-      const k = e(pt.toyT / 0.32), fx = pt.x + Math.sin(yaw) * PET_PLAY_Z * gs, fz = pt.z + Math.cos(yaw) * PET_PLAY_Z * gs, fl = { x: fx, y: floor(fx, fz), z: fz };
+      const k = e(pt.toyT / 0.32), Z = pz(pt), fx = pt.x + Math.sin(yaw) * Z * gs, fz = pt.z + Math.cos(yaw) * Z * gs, fl = { x: fx, y: floor(fx, fz), z: fz };
       const A = m === 'drop' ? mouth : (pt.toyA || fl), B = m === 'drop' ? fl : mouth;
       if(m === 'pick' && pt.toyA){ A.x = pt.toyA.x; A.y = pt.toyA.y; A.z = pt.toyA.z; }
       t.position.set(A.x + (B.x - A.x) * k, A.y + (B.y - A.y) * k, A.z + (B.z - A.z) * k);
-      if(m === 'drop') t.rotation.set(0, yaw + Math.PI / 2 * (1 - k), 0); else { const r0 = pt.toyR || t.rotation; t.rotation.set(r0.x * (1 - k), r0.y + angTo(r0.y, yaw + Math.PI / 2) * k, 0); }
+      if(m === 'drop'){ t.rotation.set(0, yaw + ck * (1 - k), 0); toyFlat(t); }
+      else { const r0 = pt.toyR || t.rotation; t.rotation.set(0, r0.y + angTo(r0.y, yaw + ck) * k, 0); const sp = toySpinOf(t);
+        if(sp !== t && pt.toyQ){ const q0 = _m.q0 || (_m.q0 = new T.Quaternion()); sp.quaternion.copy(pt.toyQ).slerp(q0.identity(), k); } else toyFlat(t); }   /* the roll unwinds as it is picked up */
       if(pt.toyT >= 0.32){ pt.toyMode = m === 'drop' ? 'floor' : 'mouth'; pt.toyA = null; }
     }
     if(pt.toyMode === 'floor'){
-      const st = pt.play ? petPlayAt(pt.play.seq, pt.play.t) : { tx: 0, tz: PET_PLAY_Z, roll: 0 }, cy = Math.cos(yaw), sy = Math.sin(yaw);
-      const x = pt.x + (st.tx * cy + st.tz * sy) * gs, z = pt.z + (-st.tx * sy + st.tz * cy) * gs;
-      t.position.set(x, floor(x, z), z); t.rotation.set(st.roll, yaw + st.roll * 0.4, 0);
+      const Z = pz(pt), st = pt.play ? petPlayAt(pt.play.seq, pt.play.t, Z) : { tx: 0, tz: Z, roll: 0 }, cy = Math.cos(yaw), sy = Math.sin(yaw);
+      const x = pt.x + (st.tx * cy + st.tz * sy) * gs, z = pt.z + (-st.tx * sy + st.tz * cy) * gs, sp = toySpinOf(t);
+      if(toyRound(t) && sp !== t){
+        /* a ball or yarn rolls by its own travel: about the horizontal axis across the move, by distance over radius, so it never slides or spins in place.
+           The group keeps the yaw it was put down with (no turn about the vertical axis); the axis is turned into its frame. */
+        const dx = x - t.position.x, dz = z - t.position.z, dd = Math.hypot(dx, dz), R = Math.max(1e-3, (Number(t.userData.r) || petToyR / PET_TOY_K) * t.scale.x);
+        if(pt.toyRolled && dd > 1e-6 && dd < 0.6){ const ax = _m.ax || (_m.ax = V3()), q = _m.q || (_m.q = new T.Quaternion()), a = -t.rotation.y, c = Math.cos(a), s = Math.sin(a), wx = dz / dd, wz = -dx / dd;
+          ax.set(wx * c + wz * s, 0, -wx * s + wz * c); q.setFromAxisAngle(ax, dd / R); sp.quaternion.premultiply(q); }
+        pt.toyRolled = true; t.position.set(x, floor(x, z), z);
+      } else { t.position.set(x, floor(x, z), z); t.rotation.set(0, yaw + st.roll * 0.4, 0); toyFlat(t); }   /* a bone or a mouse slides and turns flat */
     }
     if(pt.toyMode === 'floor' || pt.toyMode === 'drop' || pt.toyMode === 'pick'){ const b = pt.toyBlob, h = Math.max(0, t.position.y - floor(t.position.x, t.position.z)); b.visible = true; b.position.set(t.position.x, floor(t.position.x, t.position.z) + 0.004, t.position.z); const k = 0.13 * gs * Math.max(0.4, 1 - h / 0.4); b.scale.set(k, 1, k); }
   }
+  /* for the rec hook: the lowest point of the toy's meshes (vertices, not boxes) above the floor under it, while it is out of the pile */
+  function toyLow(pt){ const t = pt.toy; if(!t || !t.visible) return null; t.updateMatrixWorld(true); const b = new T.Box3().setFromObject(t, true); return b.isEmpty() ? null : b.min.y - petFloorY(t.position.x, t.position.z); }
   function petRoam(pt){ const o = pt.o, h = k => petHash(pt.seed + ':r' + pt.n + k); return [{ x: o.x - 1.3 + 1.65 * h('a'), z: o.z + 2.22 + 0.24 * h('b') }, { x: o.x - 1.3 + 1.65 * h('c'), z: o.z + 2.22 + 0.24 * h('d') }]; }
   /* the next act as a queue of steps: walk to a spot, hold a pose (turning to its heading first), hop between the floor and the desk, or do something */
   function petNext(pt){
@@ -1587,7 +1901,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const S = pt.spots, q = pt.q, go = (to, gait = 'walk') => q.push({ k: 'walk', to, gait }), still = (pose, d, yaw) => q.push({ k: 'pose', pose, dur: d, yaw }), act = fn => q.push({ k: 'do', fn });
     if(kind === 'play' && pt.toys){ const sl = petSlot(pt); if(!sl) kind = 'roam'; else pt.slot = sl; }
     if(kind === 'sit') { go(S.sit); still('sit', dur, S.sit.yaw); }
-    else if(kind === 'eat' || kind === 'drink'){ go(S[kind]); still(kind, dur, S[kind].yaw); }
+    else if(kind === 'eat' || kind === 'drink'){ const to = S[kind]; if(pt.y < 0.5 && Math.hypot(to.x - pt.x, to.z - pt.z) < (pt.bs ? pt.bs.len : 0.6) * pt.gs) q.push({ k: 'side', to }); else go(to); still(kind, dur, to.yaw); }
     else if(kind === 'sleep'){ go(S.hop); q.push({ k: 'hop', to: S.desk, up: true }); still('stand', 0.3, S.desk.yaw); still('sleep', dur, S.desk.yaw); still('stand', 0.7); q.push({ k: 'hop', to: { ...S.hop, y: petFloorY(S.hop.x, S.hop.z) }, up: false }); }
     else if(kind === 'play'){
       /* fetch: to the pile, dig with the head over the boxes, the toy comes up into the mouth; carry it a few steps to open floor and put it down;
@@ -1595,9 +1909,9 @@ export function mountOfficeScene(container, data, opts = {}){
       const sl = pt.slot, play = dur < 1e5 ? Math.max(5, dur * 0.6) : 1e4;
       go(sl.fetch); still('sniff', 1.1, sl.fetch.yaw); act(p => petToySet(p, 'rise')); still('sniff', 0.5, sl.fetch.yaw); still('stand', 0.25);
       go(sl.play, 'carry'); still('stand', 0.2, sl.play.yaw); still('eat', 0.15); act(p => petToySet(p, 'drop')); still('eat', 0.35);
-      act(p => { p.play = { seq: petPlaySeq(p.seed + ':' + p.n, play), t: 0 }; }); q.push({ k: 'play' });
+      act(p => { p.play = { seq: petPlaySeq(p.seed + ':' + p.n, play, pz(p)), t: 0 }; }); q.push({ k: 'play' });
       act(p => { p.play = null; }); still('eat', 0.12); act(p => petToySet(p, 'pick')); still('eat', 0.38); still('stand', 0.2);
-      go(sl.fetch, 'carry'); still('sniff', 0.45, sl.fetch.yaw); act(p => petToySet(p, 'back')); still('sniff', 0.5, sl.fetch.yaw); act(petFree);
+      go(sl.fetch, 'carry'); still('sniff', 0.45, sl.fetch.yaw); act(p => petToySet(p, 'back')); still('sniff', 0.6, sl.fetch.yaw); act(petFree);
       go(S.sit); still('sit', 1.5, S.sit.yaw);
     }
     else { const r = petRoam(pt); go(r[0]); still('sniff', 0.9 + petHash(pt.seed + 'w' + pt.n), undefined); go(r[1]); still('stand', 0.8 + (dur < 1e5 ? Math.min(3, dur * 0.2) : 0), undefined); }   /* roam: two strolls along the aisle and a sniff at the floor between them */
@@ -1613,7 +1927,7 @@ export function mountOfficeScene(container, data, opts = {}){
     pt.ks = 1;
     if(kind === 'sleep'){ at(S.desk, DESK_Y); pt.ks = pt.deskK; }
     else if(kind === 'eat' || kind === 'drink') at(S[kind]);
-    else if(kind === 'play'){ const sl = petSlot(pt); if(sl){ pt.slot = sl; at(sl.play); pt.pose = 'play'; pt.play = { seq: petPlaySeq(pt.seed + ':f' + pt.n, 1e4), t: 0 }; if(pt.toy) petToySet(pt, 'floor'); pt.q.push({ k: 'play' }); pt.blend = 0; return; } kind = 'roam'; pt.force = 'roam'; }
+    else if(kind === 'play'){ const sl = petSlot(pt); if(sl){ pt.slot = sl; at(sl.play); pt.pose = 'play'; pt.play = { seq: petPlaySeq(pt.seed + ':f' + pt.n, 1e4, pz(pt)), t: 0 }; if(pt.toy) petToySet(pt, 'floor'); pt.q.push({ k: 'play' }); pt.blend = 0; return; } kind = 'roam'; pt.force = 'roam'; }
     if(kind === 'roam') at({ x: S.eat.x - 0.3, z: S.eat.z + 0.2, yaw: Math.PI / 2 });
     else if(kind !== 'sleep' && kind !== 'eat' && kind !== 'drink') at(S.sit);
     pt.blend = 0;
@@ -1622,14 +1936,16 @@ export function mountOfficeScene(container, data, opts = {}){
   /* turning on the spot: small steps (the gait advances with the angle turned), at most PET_TURN rad/s, easing out at the end; true once facing yawT */
   function petTurn(pt, yawT, dt){
     const e = angTo(pt.yaw, yawT), d = Math.max(-PET_TURN * dt, Math.min(PET_TURN * dt, e * 10 * dt));
-    pt.yaw += d; pt.phase += Math.abs(d) * 0.16 / PET_STRIDE; pt.turning = Math.abs(e) > 0.05; return !pt.turning;
+    pt.yaw += d; pt.phase += Math.abs(d) * 0.16 / (PET_STRIDE * lk(pt)); pt.turning = Math.abs(e) > 0.05; return !pt.turning;
   }
+  const lk = pt => { const v = pt.g.userData.legK; return Number.isFinite(v) && v > 0 ? v : 1; }, pz = pt => { const v = pt.g.userData.playZ; return Number.isFinite(v) ? Math.max(v, PET_PLAY_Z) : PET_PLAY_Z; };
   const petOnDesk = (pt, x, z) => Math.abs(x - pt.o.x) < 1.1 && z > pt.o.z + 0.55 && z < pt.o.z + 1.75;
   /* one segment for dt seconds; returns true when it is done */
   function petSeg(pt, sg, dt){
     pt.turning = false;
     if(sg.k === 'walk'){
       if(!sg.pts){ sg.pts = petPath(petNav, pt.x, pt.z, sg.to.x, sg.to.z, pt.lane); sg.i = 1; }
+      if(sg.pts.length < 2){ pt.x = sg.to.x; pt.z = sg.to.z; pt.v = 0; return true; }   /* already there: petPath gives one point, and pts[1] would throw and stop the frame loop */
       let i = sg.i; while(i < sg.pts.length - 1 && Math.hypot(sg.pts[i][0] - pt.x, sg.pts[i][1] - pt.z) < 0.02) i++; sg.i = i;
       const P = sg.pts[i], dx = P[0] - pt.x, dz = P[1] - pt.z, L = Math.hypot(dx, dz);
       let rem = L; for(let j = i + 1; j < sg.pts.length; j++) rem += Math.hypot(sg.pts[j][0] - sg.pts[j - 1][0], sg.pts[j][1] - sg.pts[j - 1][1]);
@@ -1638,8 +1954,16 @@ export function mountOfficeScene(container, data, opts = {}){
       const dy = Math.max(-PET_TURN * dt, Math.min(PET_TURN * dt, err * 9 * dt)); pt.yaw += dy; pt.turning = Math.abs(err) > 0.25 && pt.v < 0.2;
       pt.v = petSpeedStep(pt.v, rem, Math.abs(angTo(pt.yaw, head)), dt, PET_SPEED, PET_ACC);
       const step = Math.min(L, pt.v * dt); if(L > 1e-6){ pt.x += dx / L * step; pt.z += dz / L * step; }
-      pt.phase = petGait(pt.phase, step, pt.gs * pt.ks); if(pt.turning) pt.phase += Math.abs(dy) * 0.16 / PET_STRIDE;   /* turning on the spot steps too */
+      pt.phase = petGait(pt.phase, step, pt.gs * pt.ks, lk(pt)); if(pt.turning) pt.phase += Math.abs(dy) * 0.16 / (PET_STRIDE * lk(pt));   /* turning on the spot steps too */
       pt.y = petFloorY(pt.x, pt.z); pt.pose = sg.gait; return false;
+    }
+    if(sg.k === 'side'){
+      /* closer than a body length (food to water): face the target heading, then step sideways onto it instead of walking a loop */
+      if(!sg.faced){ if(!petTurn(pt, sg.to.yaw, dt)){ pt.pose = 'walk'; return false; } sg.faced = true; }
+      const dx = sg.to.x - pt.x, dz = sg.to.z - pt.z, L = Math.hypot(dx, dz);
+      if(L < 0.004){ pt.x = sg.to.x; pt.z = sg.to.z; pt.v = 0; return true; }
+      const v = Math.min(0.35, L * 3 + 0.08), st = Math.min(L, v * dt); pt.x += dx / L * st; pt.z += dz / L * st; pt.v = v;
+      pt.phase = petGait(pt.phase, st * 1.6, pt.gs * pt.ks, lk(pt)); pt.y = petFloorY(pt.x, pt.z); pt.pose = 'walk'; return false;
     }
     if(sg.k === 'pose'){
       if(sg.yaw != null && !sg.faced){ if(!petTurn(pt, sg.yaw, dt)){ pt.pose = pt.y > 0.5 ? 'walk' : (pt.toyMode === 'mouth' ? 'carry' : 'walk'); return false; } sg.faced = true; }
@@ -1656,10 +1980,10 @@ export function mountOfficeScene(container, data, opts = {}){
       if(sg.ph === 'turn'){ pt.pose = 'walk'; if(petTurn(pt, sg.yaw, dt)){ sg.ph = 'crouch'; sg.t = 0; } return false; }
       sg.t += dt;
       if(sg.ph === 'crouch'){ pt.pose = 'crouch'; if(sg.t >= 0.32){ sg.ph = 'air'; sg.t = 0; } return false; }
-      const T1 = sg.up ? 0.5 : 0.46, A = sg.a;
+      const T1 = sg.up ? 0.56 : 0.5, A = sg.a;
       if(sg.ph === 'air'){
         const f = Math.min(1, sg.t / T1), dy = by - A.y;
-        pt.x = A.x + (B.x - A.x) * f; pt.z = A.z + (B.z - A.z) * f;
+        const fh = hopAlong(f, sg.up); pt.x = A.x + (B.x - A.x) * fh; pt.z = A.z + (B.z - A.z) * fh;
         pt.y = sg.up ? A.y + dy * (2 * f - f * f) + 0.28 * 4 * f * (1 - f) : A.y + dy * f * f + 0.25 * 4 * f * (1 - f);
         pt.tilt = sg.up ? -0.5 * Math.sin(Math.PI * Math.min(1, f / 0.75)) + 0.12 * Math.sin(Math.PI * Math.max(0, (f - 0.6) / 0.4)) : 0.42 * Math.sin(Math.PI * Math.min(1, f / 0.9));
         pt.pose = 'leap'; pt.blend = 0.12;
@@ -1690,11 +2014,13 @@ export function mountOfficeScene(container, data, opts = {}){
       const moving = pt.pose === 'walk' || pt.pose === 'carry', ampT = moving ? Math.max(pt.v / PET_SPEED, pt.turning ? 0.65 : 0) : 0; pt.amp += (ampT - pt.amp) * Math.min(1, dt0 * 10);
       const g = pt.g, tt = time + pt.ph, sc = pt.gs * pt.ks;
       g.position.set(pt.x, pt.y, pt.z); g.rotation.set(pt.tilt, pt.yaw, 0); g.scale.set(sc * (1 + 0.1 * pt.sq), sc * (1 - 0.16 * pt.sq), sc * (1 + 0.1 * pt.sq));
-      g.userData.pose(pt.pose, 0, reduced && !pt.force ? 0 : tt, { phase: pt.phase, amp: pt.amp, play: pt.pose === 'play' && pt.play ? petPlayAt(pt.play.seq, pt.play.t) : null, blend: reduced && !pt.force ? 0 : pt.blend });
+      g.userData.pose(pt.pose, 0, reduced && !pt.force ? 0 : tt, { phase: pt.phase, amp: pt.amp, play: pt.pose === 'play' && pt.play ? petPlayAt(pt.play.seq, pt.play.t, pz(pt)) : null, blend: reduced && !pt.force ? 0 : pt.blend });
       stepToy(pt, dt0);
-      /* the contact shadow stays on the floor until the pet is over the desk top */
-      const gy = petOnDesk(pt, pt.x, pt.z) ? DESK_Y : petFloorY(pt.x, pt.z), lift = Math.max(0, pt.y - gy), k = Math.max(0.35, 1 - lift / 1.4), sl = pt.pose === 'sleep';
-      pt.blob.position.set(pt.x, gy + 0.004, pt.z); pt.blob.rotation.y = pt.yaw; pt.blob.scale.set((sl ? 0.75 : 0.58) * sc * k, 1, (sl ? 0.95 : 0.9) * sc * k);
+      /* the contact shadow stays on the floor until the pet is over the desk top; it shrinks and fades with the lift, the hop's and the pose's own (userData.air:
+         a pounce, in the pet's units) */
+      const airL = Number.isFinite(g.userData.air) ? Math.max(0, g.userData.air) * sc : 0;
+      const gy = petOnDesk(pt, pt.x, pt.z) ? DESK_Y : petFloorY(pt.x, pt.z), lift = Math.max(0, pt.y - gy) + airL, k = Math.max(0.35, 1 - lift / 1.1), sl = pt.pose === 'sleep';
+      pt.blob.position.set(pt.x, gy + 0.004, pt.z); pt.blob.rotation.y = pt.yaw; pt.blob.scale.set((sl ? 0.75 : 0.58) * sc * k, 1, (sl ? 0.95 : 0.9) * sc * k); if(pt.blobMat) pt.blobMat.opacity = 0.34 * (0.3 + 0.7 * k);
     });
   }
   /* the shop's live preview in the scene: the member's own pet takes the look being edited (repainted in place when only colours change, a new model
@@ -2256,8 +2582,8 @@ export function mountOfficeScene(container, data, opts = {}){
     const dr = dressOf(o), kind = dr.hol;
     if(dr.head){ const g = headPiece(dr.head, o.gk, o.p.id); if(g){ add(g); g.userData.keepLook = true; } }   /* no sprite sheet carries head gear, so it always stays drawn in 3D */
     if(!kind) return;
-    if(kind === 'santa') return add(santaHat(T));
-    if(kind === 'rudolph' && !ANTLER_SKIP.has(o.gk)) add(reindeerAntlers(T));
+    if(kind === 'santa') return add(santaHat(T, o.gk));
+    if(kind === 'rudolph' && !ANTLER_SKIP.has(o.gk)) add(reindeerAntlers(T, o.gk));
     if(NO_NOSE.has(o.gk)) return;
     const key = pose + o.gk, tip = key in noseTips ? noseTips[key] : (noseTips[key] = noseTipOf(T, m));   /* the nose tip differs by species, so it is read off the loaded model once */
     if(tip) add(rudolphNose(T, tip));
@@ -2291,6 +2617,7 @@ export function mountOfficeScene(container, data, opts = {}){
     time += dt; if(hol.length) hol.forEach(h => { const u = h.userData; if(!u.tick) return; if(u.gearHead) u.tick(time, envN, reduced); else h.userData.tick(time, envN); });   /* head gear holds still under reduced motion */
     if(gearBits.length) gearBits.forEach(h => { if(h.userData.tick) h.userData.tick(time, envN, reduced); });
     if(pets.length) stepPets(dt);
+    if(pets.length) hoverRefresh(dt);   /* a still pointer over a walking pet */
     view.update(dt, time); updateWalls();
     { const az = view.azimuth(), flip = Math.cos(az) < 0;   /* floor text flips 180 degrees when the camera is on the far side, signs face the camera */
       if(flip !== decFlip){ decFlip = flip; decals.forEach(m => { m.rotation.y = flip ? Math.PI : 0; }); } signs.forEach(m => { m.rotation.y = az; }); }
@@ -2467,11 +2794,13 @@ export function mountOfficeScene(container, data, opts = {}){
     if(!w || !h || !renderer) return;
     const was = mobile(); W = w; H = h; renderer.setSize(w, h, false); if(post) post.setSize(w, h);
     if(was !== mobile() && cur) return build(cur);
-    fit(); request();
+    fit(); request(); if(vw && vw.on) vwFit();
+    if(shop && chrome.isOpen()) sheetSync(true);   /* crossing 520 px turns the sheet on or off */
   }
 
   /* ── pointer: drag rotates within +-35 degrees, hover tooltip, click opens the person ── */
-  function nearest(px, py){
+  function nearest(px, py, noObj){
+    if(!noObj){ const ob = objPick(px, py, objList()); if(ob) return { obj: ob }; }   /* hover: a desk item, frame or pet under the pointer wins over the person behind it (a tap decides objects at the press, see onTap) */
     let best = null, bd = 1e9; const rad = Math.max(16, Math.min(46, scale * view.zoom() * 0.9));
     people.forEach(o => { const [x, y] = proj(HP.set(o.x, 2.0, o.z + 0.2), PT), dd = Math.hypot(x - px, y - py); if(dd < rad && dd < bd){ bd = dd; best = o; } });
     if(best) return { person: best };
@@ -2481,6 +2810,9 @@ export function mountOfficeScene(container, data, opts = {}){
     return null;
   }
   function showTip(h, px, py){
+    if(h && h.obj){ const inf = objInfo(h.obj.kind, h.obj.o); if(!inf){ elTip.hidden = true; return; } elTip.innerHTML = `<b>${esc(inf.title)}</b><small>${esc(vwUi().tip || '')}</small>`; elTip.classList.add('one'); elTip.hidden = false;
+      const tw = elTip.offsetWidth, th = elTip.offsetHeight; elTip.style.transform = `translate(${Math.round(Math.max(6, Math.min(W - tw - 6, px + 14)))}px,${Math.round(Math.max(6, Math.min(H - th - 6, py + 14)))}px)`; return; }
+    elTip.classList.remove('one');
     if(!h || !(h.person || h.team)){ elTip.hidden = true; return; }
     { const o = h.person; if(o && !o.ghost && sprOn && sprKit && sprMan && cardOf(sprMan, o.gk)) sprKit.card(o.gk); }   /* hovering fetches the card sheet, so a click usually finds it loaded */
     const p = h.person && h.person.p;
@@ -2490,19 +2822,28 @@ export function mountOfficeScene(container, data, opts = {}){
     elTip.style.transform = `translate(${Math.round(Math.max(6, Math.min(W - tw - 6, px + 14)))}px,${Math.round(Math.max(6, Math.min(H - th - 6, py + 14)))}px)`;
   }
   function setHover(h, px, py){
-    const key = h && (h.person || h.team || 'srv');
+    const key = h && (h.obj ? h.obj.kind + ':' + h.obj.o.p.id : h.person || h.team || 'srv');
     if(hover !== key){ hover = key; canvas.classList.toggle('hit', !!h); }
     showTip(h, px, py);
   }
   const pt = ev => { const r = canvas.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+  let downObj = null, ptrAt = null, hoverT = 0;   /* the object under the last press; the last hover position, so the hover follows pets that walk under a still pointer */
+  function hoverRefresh(dt){ if(!ptrAt || (vw && vw.on)) return; hoverT += dt; if(hoverT < 0.15) return; hoverT = 0; setHover(nearest(ptrAt[0], ptrAt[1]), ptrAt[0], ptrAt[1]); }
   function bindView(){
     view = makeView({ T, canvas, stage, camera, target0: [0, 0.9, 0], theta0: Math.PI / 4, phi0: Math.atan2(Math.hypot(20, 20), 16.6), dist: Math.hypot(20, 16.6, 20), reduced,
       bounds: () => ({ x0: BB.x0, x1: BB.x1, z0: BB.z0, z1: BB.z1 }), size: () => [W, H], ppu: () => scale, isFs: () => chrome.fsOn(), request,
-      onFocus: () => chrome.hideHint(), onEnter: () => chrome.showHint(), onDrag: on => { if(on) setHover(null); },
-      onMove: (px, py) => { const h = nearest(px, py); setHover(h, px, py); const f = zoneAt(px, py); setTint(f && f.zn && f.zn.kind === 'team' ? f.zn : null); },
-      onLeave: () => { setHover(null); setTint(null); },
+      onFocus: () => chrome.hideHint(), onEnter: () => chrome.showHint(), onDrag: on => { if(on){ setHover(null); ptrAt = null; } },
+      onMove: (px, py) => { ptrAt = [px, py]; const h = nearest(px, py); setHover(h, px, py); const f = zoneAt(px, py); setTint(f && f.zn && f.zn.kind === 'team' ? f.zn : null); },
+      onLeave: () => { ptrAt = null; setHover(null); setTint(null); },
+      /* an object (desk item, frame, pet) is taken at the press and opens at the release only while the pointer is still near it (objTap); a press that began on
+         one never falls through to the person behind it or closes the drawer. People, team signs and the server pick at the release as before. */
+      onDown: (px, py, ev) => { const mr = pickMinR(ev && ev.pointerType), ob = objPick(px, py, objList(), mr); downObj = ob ? { kind: ob.kind, o: ob.o, mr } : null; },
       onTap: (px, py) => {
-        const h = nearest(px, py);
+        const d = downObj; downObj = null;
+        const v = objTap(d, d ? objList().find(e => e.kind === d.kind && e.o === d.o) : null, px, py, d ? d.mr : 10);
+        if(v === 'open'){ viewOpen(d.kind, d.o); return; }   /* the viewer: no drawer, no camera move */
+        if(v === 'keep'){ setHover(null); return; }
+        const h = nearest(px, py, true);
         if(!h){ setHover(null); if(sel) closeDrawer(); return; }
         if(h.server){ if(!opts.readOnly && opts.onServer) opts.onServer(); return; }
         if(h.team){ if(!opts.readOnly && opts.onTeam) opts.onTeam(h.team.id); return; }
@@ -2565,19 +2906,28 @@ export function mountOfficeScene(container, data, opts = {}){
     server: () => (srv ? { x: srv.x, z: srv.z } : null),
     selectPerson(id, opts){ const o = people.find(q => q.p.id === id); if(o) openDrawer(o, !(opts && opts.fly === false)); return !!o; },   /* fly:false keeps a scripted camera where the script put it */
     closeDrawer: () => chrome.close(),
+    /* the object viewer, for scripted screenshots: viewObject(kind, id) opens 'desk', 'frame' or 'pet' of that person (false when there is none; not named view,
+       which is the camera above), viewInfo() says what is open; objects() lists the clickable objects with their projected centre and radius in canvas px */
+    viewObject(kind, id){ const o = people.find(q => q.p.id === id); return !!o && viewOpen(kind, o); },
+    viewClose: () => viewClose(),
+    viewInfo: () => (vw && vw.on ? { kind: vw.info.kind, id: vw.info.o.p.id, title: vw.info.title, sub: vw.info.sub.slice(), hint: vw.info.hint || '', pin: !!vw.info.pin, size: vw.s, photo: !!vw.info.photo, live: !!vw.g, focus: document.activeElement === vw.x } : null),
+    tip: () => (elTip.hidden ? null : elTip.textContent),   /* the hover tooltip's text, null when hidden */
+    objects: () => objList().map(e => ({ kind: e.kind, id: e.o.p.id, x: e.x, y: e.y, r: e.r })),
     /* pets, for scripted recordings and screenshots: setPet(id, pet) replaces one person's pet (a look plus photo) and rebuilds; petAct(id, kind) holds the pet in
        'roam', 'sit', 'eat', 'drink', 'sleep' or 'play' until petAct(id, null) hands it back to its schedule; pets() lists where each one is */
-    setPet(id, pet, toys){ const p = cur && (cur.people || []).find(q => q.id === id); if(!p) return false; p.pet = pet || null; if(toys !== undefined) p.petToys = !!toys; if(started === true) build(cur); return true; },   /* toys: whether the pet may fetch and play (left as it was when omitted) */
+    setPet(id, pet, toys){ const p = cur && (cur.people || []).find(q => q.id === id); if(!p) return false; p.pet = pet || null; if(pet && typeof pet.photo === 'string') photoCache.set(String(id), pet.photo);   /* a scripted photo stands for a shared one */ if(toys !== undefined) p.petToys = !!toys; if(started === true) build(cur); return true; },   /* toys: whether the pet may fetch and play (left as it was when omitted) */
     petAct(id, kind, walk, dur){ const pt = pets.find(q => q.o.p.id === id); if(!pt) return false; pt.forceDur = dur > 0 ? +dur : 0; petForce(pt, kind || null, !!walk); request(); return true; },   /* walk: play the whole act from where the pet is instead of starting it in place; dur: seconds the act lasts (held until changed when left out) */
-    pets: () => pets.map(pt => ({ id: pt.o.p.id, kind: pt.look.kind, x: pt.x, y: pt.y, z: pt.z, yaw: pt.yaw, act: pt.force || pt.prev, pose: pt.pose, seg: pt.seg ? pt.seg.k + (pt.seg.ph ? ':' + pt.seg.ph : '') : null, v: pt.v, scale: pt.g.scale.y, deskK: pt.deskK,
-      toy: pt.toy ? { mode: pt.toyMode, x: pt.toy.position.x, y: pt.toy.position.y, z: pt.toy.position.z, s: pt.toy.scale.x, shown: pt.toy.visible } : null, play: pt.play ? petPlayAt(pt.play.seq, pt.play.t).k : null,
-      slot: pt.slot ? { k: pt.slot.k, fetch: pt.slot.fetch, play: pt.slot.play } : null, seat: { x: pt.o.x, z: pt.o.z }, bowls: pt.spots.bowl, pile: pt.spots.pile, desk: pt.spots.desk, hop: pt.spots.hop, sit: pt.spots.sit, furCalls: petFurCalls, deskBox: pt.deskBox, blob: { y: pt.blob.position.y } })),
+    petToy(id, kind){ const pt = pets.find(q => q.o.p.id === id); if(!pt || !pt.toy) return false; const t0 = pt.toy, t1 = makeToy(T, kind); t1.visible = t0.visible; t1.position.copy(t0.position); t1.rotation.copy(t0.rotation); t1.scale.copy(t0.scale);
+      world.remove(t0); t0.userData.dispose(); petBits = petBits.filter(q => q !== t0); world.add(t1); petBits.push(t1); pt.toy = t1; request(); return true; },   /* scripted checks of each toy kind: swap this pet's toy */
+    pets: () => pets.map(pt => ({ id: pt.o.p.id, kind: pt.look.kind, x: pt.x, y: pt.y, z: pt.z, yaw: pt.yaw, air: Number(pt.g.userData.air) || 0, legK: lk(pt), playZ: pz(pt), bs: pt.bs, frame: pt.frame ? { x: pt.frame.position.x, z: pt.frame.position.z } : null, act: pt.force || pt.prev, pose: pt.pose, seg: pt.seg ? pt.seg.k + (pt.seg.ph ? ':' + pt.seg.ph : '') : null, v: pt.v, scale: pt.g.scale.y, deskK: pt.deskK,
+      toy: pt.toy ? { kind: pt.toy.userData.kind, mode: pt.toyMode, x: pt.toy.position.x, y: pt.toy.position.y, z: pt.toy.position.z, s: pt.toy.scale.x, shown: pt.toy.visible, low: toyLow(pt) } : null, play: pt.play ? petPlayAt(pt.play.seq, pt.play.t, pz(pt)).k : null, toyQ: pt.toy ? toySpinOf(pt.toy).quaternion.toArray().map(v => +v.toFixed(4)) : null, carryYaw: pt.toy ? toyCarry(pt.toy) : null,
+      slot: pt.slot ? { k: pt.slot.k, fetch: pt.slot.fetch, play: pt.slot.play } : null, seat: { x: pt.o.x, z: pt.o.z }, bowls: pt.spots.bowl, pile: pt.spots.pile, desk: pt.spots.desk, hop: pt.spots.hop, sit: pt.spots.sit, furCalls: petFurCalls, deskBox: pt.deskBox, blob: { y: pt.blob.position.y, s: pt.blob.scale.x, o: pt.blobMat ? pt.blobMat.opacity : null } })),
     destroy(){
       destroyed = true; if(sprKit){ sprKit.dispose(); sprKit = null; } if(pr){ hidePortrait(); pr.r.dispose(); pr.el.remove(); pr = null; } if(raf) cancelAnimationFrame(raf); if(rr) cancelAnimationFrame(rr); clearInterval(minuteTimer);
       if(io) io.disconnect(); if(ro) ro.disconnect();
       document.removeEventListener('visibilitychange', onVis); chrome.destroy();
       if(started === true){
-        clear(); disposePetShared(T); disposeGearShared(T); shopKill(); wxs = null; lamps.forEach(L => { scene.remove(L); L.dispose(); }); lamps = []; statics.forEach(o => o.dispose && o.dispose()); if(post) post.dispose(); renderer.dispose();
+        document.documentElement.classList.remove('of-sheet-on'); viewKill(); clear(); disposePetShared(T); disposeGearShared(T); shopKill(); wxs = null; lamps.forEach(L => { scene.remove(L); L.dispose(); }); lamps = []; statics.forEach(o => o.dispose && o.dispose()); if(post) post.dispose(); renderer.dispose();
         const x = renderer.getContext().getExtension('WEBGL_lose_context'); if(x) x.loseContext();
         if(canvas.parentNode) canvas.parentNode.removeChild(canvas);
       }
@@ -2597,7 +2947,7 @@ export const lvOf = v => { const n = Math.floor(Number(v)); return Number.isFini
 const GEAR_SLOT = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, g.slot]));
 /* { head, desk } with known ids in the right slot, anything else null */
 export function gearOf(g){ const ok = (id, slot) => (typeof id === 'string' && GEAR_SLOT[id] === slot ? id : null); return { head: ok(g && g.head, 'head'), desk: ok(g && g.desk, 'desk') }; }
-export const HOL_HAT_SKIP = new Set(['panda', 'raccoon', 'squirrel']);   /* species that already wear a hat: in the season they take the Rudolph set */
+export const HOL_HAT_SKIP = new Set([]);   /* species that already wear a hat take the Rudolph set in the season; since the cast models lost their built-in accessories (3.127.0-2) none does */
 /* What goes on a head. o: { ghost, crown, head (gear id or null), skip (headGearFit says the species cannot wear it), xmas, species, coin (0..1 hash) }.
  * The crown wins over head gear. In the year-end season a chosen head gear replaces the Santa hat or the antlers and the red nose stays ('nose').
  * hol is null, 'santa', 'rudolph' (antlers where the species takes them, and the nose) or 'nose'. */
@@ -2607,11 +2957,13 @@ export function headDress(o){
   const hol = !o.xmas ? null : crown || head ? 'nose' : HOL_HAT_SKIP.has(o.species) ? 'rudolph' : o.coin < 0.5 ? 'santa' : 'rudolph';
   return { crown, head, hol };
 }
-/* A person's cosmetics for the scene. p: { lvl, gear, pet, toys? } as the server sends them; o: { off (closed organization or a ghost: nothing),
+/* A person's cosmetics for the scene. p: { lvl, gear, pet, toys?, photo? } as the server sends them; o: { off (closed organization or a ghost: nothing),
  * toysLvl (the level from which pets play with toys), keepPet (keep the pet object as it is, photo included; otherwise the normalized look only) } */
 export function cosmeticsOf(p, o = {}){
   if(o.off || !p) return { lvl: 0, gear: { head: null, desk: null }, pet: null, petToys: false };
-  const lvl = lvOf(p.lvl), look = normalizePetLook(p.pet), pet = look ? (o.keepPet ? p.pet : look) : null, tl = o.toysLvl == null ? NaN : Number(o.toysLvl);
+  const lvl = lvOf(p.lvl), look = normalizePetLook(p.pet), tl = o.toysLvl == null ? NaN : Number(o.toysLvl);
+  /* photo: true on a row says the member shares a photo; the pet then carries shared: true and the scene asks for the photo itself (opts.petPhotos) */
+  let pet = look ? (o.keepPet ? p.pet : look) : null; if(pet && p.photo === true) pet = { ...pet, shared: true };
   return { lvl, gear: gearOf(p.gear), pet, petToys: !!pet && (p.toys === true || (Number.isFinite(tl) && lvl >= tl)) };
 }
 /* The unlock block: where the viewer stands and what the next level needs. u is data.shop. Thresholds come from the server (u.levels), never from here.
@@ -2633,14 +2985,133 @@ export function shopTiles(u, slot){
 export const fmtMoney = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : (Number(v) || 0).toFixed(2));
 /* the shop's strings (office-i18n.js of.sh.*, of.gear.*, of.pet.*), resolved by the page's t() so the scene stays free of i18n */
 export const SHOP_KEYS = ['title', 'scope', 'level', 'spent', 'dlg', 'runs', 'need', 'need1', 'next', 'top', 'ghost', 'open', 'back', 'tabs', 'tab.head', 'tab.desk', 'tab.pet', 'none', 'locked', 'lockedSr', 'skip', 'skipSr', 'save', 'cancel', 'saving',
-  'saved', 'err', 'err.locked', 'err.many', 'err.na', 'err.link', 'err.input', 'err.org', 'pet.locked', 'pet.drop', 'pet.add', 'pet.file', 'pet.change', 'pet.photo', 'pet.private', 'pet.bad', 'pet.read', 'pet.kind', 'pet.pattern', 'pet.ear',
-  'pet.tail', 'pet.size', 'pet.fluff', 'pet.colors', 'pet.c0', 'pet.c1', 'pet.c2', 'pet.use', 'pet.name', 'pet.remove', 'pet.ask', 'pet.keep', 'pet.removed', 'pet.preview', 'pet.toys', 'pet.toysOn', 'pet.hand', 'item.pet', 'item.toys', 'wearing'];
+  'saved', 'saved.private', 'saved.shared', 'err', 'err.locked', 'err.many', 'err.na', 'err.link', 'err.input', 'err.org', 'pet.locked', 'pet.drop', 'pet.add', 'pet.file', 'pet.change', 'pet.photo', 'pet.bad', 'pet.read', 'pet.readBreed', 'pet.pick',
+  'pet.kind', 'pet.pattern', 'pet.ear', 'pet.tail', 'pet.size', 'pet.fluff', 'pet.fur', 'pet.colors', 'pet.use', 'pet.name', 'pet.remove', 'pet.ask', 'pet.keep', 'pet.removed', 'pet.preview', 'pet.zoom', 'pet.toys', 'pet.toysOn', 'item.pet', 'item.toys', 'wearing',
+  'err.photo', 'pet.breed', 'pet.breedNote', 'pet.custom', 'pet.dogs', 'pet.cats', 'pet.vis', 'pet.visMe', 'pet.visShare', 'pet.visMeNote', 'pet.visShareNote', 'pet.visEx', 'pet.g.basic', 'pet.g.coat', 'pet.g.shape', 'pet.g.face',
+  'pet.earsize', 'pet.snout', 'pet.legs', 'pet.length', 'pet.build', ...['fluff', 'earsize', 'snout', 'legs', 'length', 'build'].flatMap(k => ['pet.' + k + '.lo', 'pet.' + k + '.hi']),
+  'pet.marks', 'pet.markColor', 'pet.eye', 'pet.nose', 'pet.auto', 'pet.collar', 'pet.collarOn', 'pet.collarColor'];
+/* every coat role any pattern names (pets.js petCoatRoles), for the labels of the colour inputs */
+export const petRoleKeys = () => [...new Set(PET_PATTERNS.flatMap(p => petCoatRoles(p).map(r => r.key)))];
 export function shopUi(t){
   const ui = {}; SHOP_KEYS.forEach(k => { ui[k] = t('of.sh.' + k); });
   ui.gear = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, t('of.gear.' + g.id)]));
-  ui.opt = Object.fromEntries([...PET_KINDS, ...PET_PATTERNS.map(x => 'pat.' + x), ...PET_EARS.map(x => 'ear.' + x), ...PET_TAILS.map(x => 'tail.' + x), ...PET_SIZES.map(x => 'size.' + x)].map(k => [k, t('of.pet.' + k)]));
+  ui.opt = Object.fromEntries([...PET_KINDS, ...PET_PATTERNS.map(x => 'pat.' + x), ...PET_EARS.map(x => 'ear.' + x), ...PET_TAILS.map(x => 'tail.' + x), ...PET_SIZES.map(x => 'size.' + x),
+    ...petRoleKeys().map(x => 'role.' + x), ...PET_MARKS.map(x => 'mark.' + x), ...PET_FUR_LIST.map(x => 'fur.' + x)].map(k => [k, t('of.pet.' + k)]));
   return ui;
 }
+/* the object viewer's strings (office-i18n.js of.vw.*), with the item names and the pet kinds, for every page (it is not tied to the shop) */
+export const VIEW_KEYS = ['title', 'close', 'photo', 'pet', 'drag', 'ownPet', 'ownDesk', 'shared', 'mine', 'mineShared', 'tip'];
+export function viewUi(t){
+  const ui = {}; VIEW_KEYS.forEach(k => { ui[k] = t('of.vw.' + k); });
+  ui.gear = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, t('of.gear.' + g.id)])); ui.kind = Object.fromEntries(PET_KINDS.map(k => [k, t('of.pet.' + k)]));
+  return ui;
+}
+
+/* ── shared pet photos (server: member_pet_photos). A photo is a small JPEG or WebP data URL; anything else never reaches an image source. ── */
+export const PET_PHOTO_RE = /^data:image\/(jpeg|webp);base64,[A-Za-z0-9+/]+=*$/, PET_PHOTO_MAX = 48000, PET_PHOTO_UP = 46000;
+export const petPhotoOk = s => typeof s === 'string' && s.length <= PET_PHOTO_MAX && PET_PHOTO_RE.test(s);
+/* a town_pet_photos or org_pet_photos reply, { id: dataUrl }: only the ids asked for and only valid photos; anything else reads as no photos */
+export function petPhotosClean(res, ids){
+  const out = {}; if(!res || typeof res !== 'object' || Array.isArray(res)) return out;
+  const want = new Set((ids || []).map(String)); for(const k of Object.keys(res)) if(want.has(k) && petPhotoOk(res[k])) out[k] = res[k];
+  return out;
+}
+/* What a pet save does with the shared copy. extra: { photo (this browser's photo), fresh (picked in this visit), share (the member's choice), shared (the
+ * server has a copy) }. 'upload' when sharing and the server lacks this photo, 'clear' when going private while the server has one, else null. Removing
+ * the pet clears the copy on the server by itself. */
+export function petPhotoPlan(change, extra){
+  if(!change || !change.pet || change.petClear || !extra) return null;
+  if(extra.share === true) return extra.photo && (extra.fresh || !extra.shared) ? 'upload' : null;
+  return extra.share === false && extra.shared ? 'clear' : null;
+}
+/* town_cosmetics_set arguments; upload is the downscaled data URL for plan 'upload' (dropped unless valid) */
+export function cosmeticsArgs(tok, change, plan, upload){
+  const a = { p_token: tok };
+  if(change.gear) a.p_gear = change.gear;
+  if(change.petClear){ a.p_pet_clear = true; return a; }
+  if(change.pet){ a.p_pet = change.pet; if(plan === 'upload' && petPhotoOk(upload) && upload.length <= PET_PHOTO_UP) a.p_photo = upload; else if(plan === 'clear') a.p_photo_clear = true; }
+  return a;
+}
+/* the upload copy: encode(q) re-encodes the photo as a JPEG at quality q (the page draws it on a canvas, longest side 256 px, which drops EXIF); the first
+   quality that fits PET_PHOTO_UP wins, null when none does */
+export const PET_PHOTO_Q = [0.82, 0.74, 0.66, 0.58, 0.5, 0.42, 0.34, 0.26];
+export function fitJpeg(encode, max = PET_PHOTO_UP){
+  for(const q of PET_PHOTO_Q){ let u; try{ u = encode(q); }catch(e){ return null; } if(typeof u === 'string' && u.length <= max && petPhotoOk(u)) return u; }
+  return null;
+}
+/* a procedural stand-in photo for the demos (no real photographs): a soft backdrop and a round face in the pet's coat colours */
+export function demoPetPhoto(look, seed = 0){
+  const L = normalizePetLook(look) || { kind: 'dog', coat: ['#d9b48f'] }, c = document.createElement('canvas'); c.width = 192; c.height = 240; const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, 240); g.addColorStop(0, seed % 2 ? '#cfe6f5' : '#f6dcc8'); g.addColorStop(1, seed % 2 ? '#f2ead9' : '#fff4e2'); x.fillStyle = g; x.fillRect(0, 0, 192, 240);
+  const a = L.coat[0], b = L.coat[1] || a, cat = L.kind === 'cat';
+  x.fillStyle = b; x.beginPath(); x.ellipse(96, 214, 70, 44, 0, 0, Math.PI * 2); x.fill();
+  x.fillStyle = a; for(const s of [-1, 1]){ x.beginPath(); if(cat){ x.moveTo(96 + s * 22, 86); x.lineTo(96 + s * 58, 40); x.lineTo(96 + s * 62, 104); } else x.ellipse(96 + s * 50, 116, 16, 36, s * 0.35, 0, Math.PI * 2); x.fill(); }
+  x.beginPath(); x.arc(96, 128, 52, 0, Math.PI * 2); x.fill();
+  x.fillStyle = b; x.beginPath(); x.ellipse(96, 150, 26, 20, 0, 0, Math.PI * 2); x.fill();
+  x.fillStyle = '#2d2323'; for(const s of [-1, 1]){ x.beginPath(); x.arc(96 + s * 19, 118, 5.5, 0, Math.PI * 2); x.fill(); } x.beginPath(); x.ellipse(96, 142, 7, 5, 0, 0, Math.PI * 2); x.fill();
+  return c.toDataURL('image/jpeg', 0.8);
+}
+
+/* ── breeds (server: pet_breeds()). rows: [{ key, kind, en, ko, look }]; the clean list keeps valid rows, dogs first, each look normalized with its kind and
+   breed key. An error or an empty list hides the breed select. ── */
+export const BREED_KEY = /^[a-z0-9_]{1,32}$/;
+export function breedList(rows){
+  const ok = (Array.isArray(rows) ? rows : []).filter(r => r && typeof r.key === 'string' && BREED_KEY.test(r.key) && PET_KINDS.includes(r.kind) && r.look && typeof r.look === 'object')
+    .map(r => { const look = normalizePetLook({ ...r.look, kind: r.kind, breed: r.key }); return look ? { key: r.key, kind: r.kind, en: String(r.en || r.key).slice(0, 40), ko: String(r.ko || r.en || r.key).slice(0, 40), look } : null; }).filter(Boolean);
+  const seen = new Set(); return PET_KINDS.flatMap(k => ok.filter(r => r.kind === k && !seen.has(r.key) && seen.add(r.key)));
+}
+export const breedName = (b, lang) => (b ? (/^ko/.test(lang || '') ? b.ko : b.en) || '' : '');
+/* Coat colours for a pattern's roles (pets.js petCoatRoles), kept by position. A role the pattern needs and the coat lacks takes the colour the member last
+   had there (mem) or one derived from the first colour: lighter for the white, belly and muzzle roles, darker otherwise. Optional roles stay as they are. */
+const LIGHT_ROLES = new Set(['white', 'under', 'muzzle']);
+export function petCoatFor(coat, roles, mem = []){
+  const c0 = (coat && coat[0]) || mem[0] || '#d9b48f', out = [];
+  roles.forEach((r, i) => { const c = (coat && coat[i]) || null; if(c) out.push(c); else if(!r.optional && out.length === i) out.push(mem[i] || mixHex(c0, LIGHT_ROLES.has(r.key) ? '#f3efe8' : '#3a2c22', LIGHT_ROLES.has(r.key) ? 0.75 : 0.45)); });
+  return out.slice(0, roles.length);
+}
+/* Hit priority for a click or hover: list holds the clickable objects (desk items, photo frames, pets) with their projected centre x, y and radius r in px.
+   The nearest object (by distance over radius) wins when the pointer is inside its radius (at least minR px); null leaves the person, team and server picking. */
+export function objPick(px, py, list, minR = 10){
+  let best = null, bk = Infinity;
+  (list || []).forEach(e => { const r = Math.max(minR, Number(e.r) || 0), d = Math.hypot(e.x - px, e.y - py); if(d < r && d / r < bk){ bk = d / r; best = e; } });
+  return best;
+}
+/* the pick radius is OBJ_R of an object's bounding sphere (close to its silhouette); a finger gets at least 22 px, a mouse 10 */
+export const OBJ_R = 0.6;
+export const pickMinR = type => (type === 'touch' || type === 'pen' ? 22 : 10);
+/* A tap on a moving object: down is the object taken at the press (null when the press missed every object), now its entry in the list at the release
+   (null when it is gone). 'open' when the release is still within 1.5 times its radius, 'keep' when the press began on an object but the release is away from
+   it (nothing happens: no person behind it, no closing the drawer), 'pass' when the press began on no object (people, teams and the server as before). */
+export function objTap(down, now, px, py, minR = 10){
+  if(!down) return 'pass';
+  return now && Math.hypot(now.x - px, now.y - py) <= 1.5 * Math.max(minR, Number(now.r) || 0) ? 'open' : 'keep';
+}
+/* The home camera (theta0 = pi/4, the office's default view) looks along -x and -z, 30 degrees down: a floor point is seen when the line from it toward the
+   camera (horizontal direction dir, rising slope per unit) passes over every box [x0, z0, x1, z1, top] it crosses. A point inside a box is not seen. */
+export const HOME_DIR = [Math.SQRT1_2, Math.SQRT1_2], HOME_SLOPE = 16.6 / Math.hypot(20, 20);
+export function floorSeen(x, z, boxes, dir = HOME_DIR, slope = HOME_SLOPE, h0 = 0){
+  for(const b of boxes || []){
+    const [x0, z0, x1, z1, top] = b; if(!(top > h0)) continue;
+    let s0 = 0, s1 = (top - h0) / slope;   /* the stretch of the line still under the box's top */
+    for(const [p, d, lo, hi] of [[x, dir[0], x0, x1], [z, dir[1], z0, z1]]){
+      if(Math.abs(d) < 1e-9){ if(p < lo || p > hi){ s0 = 1; s1 = 0; } continue; }
+      let a = (lo - p) / d, c = (hi - p) / d; if(a > c){ const w = a; a = c; c = w; } s0 = Math.max(s0, a); s1 = Math.min(s1, c);
+    }
+    if(s0 <= s1) return false;
+  }
+  return true;
+}
+export const playSeen = (pts, boxes) => (pts || []).every(([x, z]) => floorSeen(x, z, boxes));
+/* the hop's horizontal progress at flight fraction f: going up it lags (the pet rises before it moves over the desk's edge), coming down it leads */
+export const hopAlong = (f, up) => { const u = Math.min(1, Math.max(0, f)); return up ? u ** 2.2 : 1 - (1 - u) ** 2.2; };
+/* the shop's message after a save: a pet with a photo says who sees the photo (a private photo stays mine, a shared one shows in my desk frame to coworkers) */
+export function saveMsgKey(change, extra){
+  if(change && change.petClear) return 'pet.removed';
+  if(!change || !change.pet || !extra || !extra.photo) return 'saved';
+  return extra.share === true ? 'saved.shared' : 'saved.private';
+}
+/* the coat textures for the form (pets.js PET_FURS; the first is the standard coat, which writes no key) */
+export const PET_FUR_LIST = Array.isArray(PETS_NS.PET_FURS) && PETS_NS.PET_FURS.length ? PETS_NS.PET_FURS.slice() : ['plush', 'curly', 'silky'];
 
 const numOrNaN = v => (v == null ? NaN : Number(v));
 /* Total usage over a set of machines (team_member_usage rows): per day, the gateway figure once per hash, plus total (else spent) of the rest;
@@ -2857,7 +3328,7 @@ export function officeSceneData(o){
       .concat([{ k: 'ghost', tier: 'nodata', no: '', name: gl('ghost'), role: t('of.tier.nodata'), range: t('of.gr.ghost'), n: cntG('ghost') }]).map(r => ({ ...r, nText: t('of.book.n', { n: r.n }, true) })),
     note: t('of.book.note', { s: fw(W_FULL[0]), d: fw(W_FULL[1]), p: fw(W_FULL[2]), s2: fw(W_NOPR[0]), d2: fw(W_NOPR[1]) }, true),
     small: n >= 2 && n < SMALL_TEAM.n ? t('of.book.small', { k: SMALL_TEAM.n }, true) : '' };
-  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', back: 'of.back', runs: 'of.runs', models: 'of.d.models', modelsNone: 'of.d.models.none', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.total', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book', lv: 'of.lv' }).map(([k, v]) => [k, t(v)]));
+  const ui = Object.fromEntries(Object.entries({ fs: 'of.fs', fsExit: 'of.fs.exit', close: 'of.close', hint: 'of.hint', reset: 'of.reset', turnL: 'of.turnL', turnR: 'of.turnR', zoomIn: 'of.zoomIn', zoomOut: 'of.zoomOut', total: 'of.d.total', back: 'of.back', runs: 'of.runs', models: 'of.d.models', modelsNone: 'of.d.models.none', daily: 'of.d.daily', pdaily: 'of.d.pdaily', seats: 'of.d.seats', prompts: 'of.d.prompts', cmp: 'of.d.cmp', machines: 'of.d.machines', up: 'of.d.up', seen: 'of.d.seen', events: 'of.d.events', spent: 'of.total', saved: 'of.saved', none: 'of.d.none', pname: 'of.prompts', book: 'of.book', lv: 'of.lv' }).map(([k, v]) => [k, t(v)])); ui.view = viewUi(t);
   return { ui, teams, people, free, freeLabel: free ? t('of.free', { n: free }, true) : '', more: Math.max(0, more), moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') + ' · ' + t('of.total') + ' ' + money(totSpent) + ' · ' + t('of.saved') + ' ' + money(totSaved) },
     activity: act, book, hud: { title: o.orgName + ' ' + t('of.town') + ' · ' + o.rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,
@@ -2913,7 +3384,7 @@ export function memberTownData(v, o){
     promptRows = pm ? [{ member_id: pm.member_id, prompts: q.prompts || 0, chars: q.chars || 0, last_prompt_at: q.last_prompt_at || null, by_day: q.by_day || [] }] : [];
   }
   const base = officeSceneData({ rows: ms, usage, promptRows, teams, used, limit, orgName: org.name || '', rangeLabel, closed, demoBubbles: null, events: [], t, rel: o.rel, os: o.os });
-  let me = null;
+  let me = null, stored = null;   /* stored: the viewer's saved gear and pet whether or not they are drawn (the shop edits these) */
   if(selfP){
     const own = base.people.find(p => p.id === sf.id) || base.people[0] || null, tier = tierOf({ tier: st.tier || selfP.tier, grade: st.grade || selfP.grade });
     const grade = tier === 'nodata' ? 'ghost' : (st.grade || selfP.grade), rank = tier === 'nodata' ? 0 : Number(st.rank) || 0, ranked = Number(st.ranked) || 0;
@@ -2940,8 +3411,12 @@ export function memberTownData(v, o){
       const m0 = mini(selfP);
       me = { ...m0, name: m0.name + you, self: true, detail: { ...m0.detail, why: t('of.d.none'), redacted: false } };
     }
-    const mc = cosmeticsOf({ lvl: un ? un.level : selfP.lvl, gear: sf.gear || selfP.gear, pet: sf.pet !== undefined ? sf.pet : selfP.pet }, { off: closed || me.tier === 'nodata', toysLvl });
-    if(mc.pet && typeof o.petPhoto === 'string' && /^data:image\//.test(o.petPhoto)) mc.pet = { ...mc.pet, photo: o.petPhoto };
+    const mine = { lvl: un ? un.level : selfP.lvl, gear: sf.gear || selfP.gear, pet: sf.pet !== undefined ? sf.pet : selfP.pet, photo: sf.photo !== undefined ? sf.photo : selfP.photo };
+    const withPhoto = c => { if(c.pet && typeof o.petPhoto === 'string' && /^data:image\//.test(o.petPhoto)) c.pet = { ...c.pet, photo: o.petPhoto }; return c; };
+    const mc = withPhoto(cosmeticsOf(mine, { off: closed || me.tier === 'nodata', toysLvl }));
+    /* the shop edits what is stored, drawn or not: a paused member's animal is a ghost that wears nothing, but opening the shop with empty choices and saving
+       would overwrite the stored pet and gear with defaults */
+    stored = withPhoto(cosmeticsOf(mine, { toysLvl }));
     Object.assign(me, mc);
   }
   let people = list.map(p => (p === selfP && me ? me : mini(p)));
@@ -2971,7 +3446,7 @@ export function memberTownData(v, o){
   const shop = un && me && !closed ? { level: lvOf(un.level), spent: Number(un.spent) || 0, saved: Number(un.saved) || 0, dlg: Number(un.dlg) || 0, runs: Number(un.runs) || 0,
     levels: Array.isArray(un.levels) ? un.levels.map(l => ({ lvl: lvOf(l.lvl), min_spent: Number(l.min_spent) || 0, min_dlg: Number(l.min_dlg) || 0 })) : [],
     items: Array.isArray(un.items) ? un.items.filter(i => i && GEAR_SLOT[i.id] === i.slot).map(i => ({ id: i.id, slot: i.slot, lvl: lvOf(i.lvl) })) : [],
-    petLvl: un.pet_lvl != null ? lvOf(un.pet_lvl) : null, toysLvl: toysLvl != null ? lvOf(toysLvl) : null, gear: me.gear, pet: me.pet, fmt: fmtMoney, ui: shopUi(t) } : null;
+    petLvl: un.pet_lvl != null ? lvOf(un.pet_lvl) : null, toysLvl: toysLvl != null ? lvOf(toysLvl) : null, gear: (stored || me).gear, pet: (stored || me).pet, photoShared: sf.photo === true, fmt: fmtMoney, ui: shopUi(t) } : null;
   return { ui: { ...base.ui, redacted: t('of.redacted') }, teams, people, free, shop, freeLabel: free ? t('of.free', { n: free }, true) : '', more, moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') }, activity: act, book,
     hud: { title: (org.name || '') + ' ' + t('of.town') + ' · ' + rangeLabel, stats, closed: t('of.tag.closed') }, legend, strip,

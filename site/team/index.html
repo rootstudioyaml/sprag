@@ -804,7 +804,7 @@
 <script src="/assets/admin-ux.js?v=3.127.0"></script>
 <script src="/assets/admin-mfa.js?v=3.127.0"></script>
 <script src="/assets/sign-in-captcha.js?v=3.127.0"></script>
-<script src="/assets/scene/office-i18n.js?v=3.127.0-1"></script>
+<script src="/assets/scene/office-i18n.js?v=3.127.0-3"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -2856,7 +2856,9 @@ const DEMO_GEAR = { 0: [4, 'wizard', 'aquarium'], 1: [1, 'cap', null], 2: [3, 't
 /* the delegation share of the demo machines that hold the higher levels (cost delegated over total), so a Lv.4 card never shows 1 %: the server's table asks for
    1 % at level 2, 5 % at level 3 and 10 % at level 4. Everyone else delegates 1.5 % of their spend. */
 const DEMO_SHARE = { 0: 0.17, 9: 0.15, 2: 0.08, 11: 0.07 };
-function demoCosmetics(orgId){ return Object.entries(DEMO_GEAR).map(([i, [lvl, head, desk]]) => ({ member_id: orgId + '-m' + i, lvl, gear: { head, desk }, pet: DEMO_PETS[i] || null, toys: true })); }
+/* two demo pets share a photo (photo: true on the row); the picture is drawn on a canvas from the pet's colours, never a real photograph */
+const DEMO_PHOTO = new Set(['2', '9']);
+function demoCosmetics(orgId){ return Object.entries(DEMO_GEAR).map(([i, [lvl, head, desk]]) => ({ member_id: orgId + '-m' + i, lvl, gear: { head, desk }, pet: DEMO_PETS[i] || null, toys: true, photo: !!DEMO_PETS[i] && DEMO_PHOTO.has(i) })); }
 function demoSeatStore(orgId, teams){
   if(demoSeatStores[orgId]) return demoSeatStores[orgId];
   const day = 864e5, ago = d => new Date(Date.now() - d * day).toISOString();
@@ -2936,6 +2938,14 @@ const SceneHost = (function(){
     if(DEMO) return demoCosmetics(org.id);
     try{ const { data, error } = await sb.rpc('org_cosmetics', { p_org_id: org.id }); return error || !Array.isArray(data) ? [] : data; }catch(e){ return []; }
   }
+  /* the shared pet photos for the desk frames (org_pet_photos, keyed by the seat group key the rows use); the scene checks every value, and any error reads as none */
+  async function petPhotos(ids){
+    if(DEMO){ const out = {}; ids.forEach((id, i) => { const c = cosmetics.find(r => r.member_id === id); if(c && c.photo && c.pet) out[id] = mod.demoPetPhoto(c.pet, i); }); return out; }
+    try{ const { data, error } = await sb.rpc('org_pet_photos', { p_org_id: org.id, p_member_ids: ids.slice(0, 16) }); return error || !data || typeof data !== 'object' ? {} : data; }catch(e){ return {}; }
+  }
+  /* breed presets (pet_breeds, static public data) for the breed name under a pet, read once; an error reads as no names */
+  let breedsP = null;
+  const petBreeds = () => breedsP || (breedsP = DEMO ? Promise.resolve([]) : sb.rpc('pet_breeds').then(({ data, error }) => (error || !Array.isArray(data) ? [] : data), () => []));
   function fail(){ dead = true; showState('error', t('ux.scene.err'), { label: AdminUX.u('retry'), run: () => { dead = false; sync(); } }); }
   async function sync(){
     if(!(user && org && isAdmin() && view === 'overview')) return stop();
@@ -2952,7 +2962,7 @@ const SceneHost = (function(){
       const [u, pr, cm] = await Promise.all([fetchUsage(ids), fetchPrompts(), fetchCosmetics()]); if(my !== seq) return;
       usage = u; promptRows = pr; cosmetics = cm; ukey = uk;
     }
-    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.127.0-1'); }catch(e){ return fail(); } if(my !== seq) return; }
+    if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.127.0-3'); }catch(e){ return fail(); } if(my !== seq) return; }
     const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: org.seats_used, limit: org.seat_limit, orgName: org.name, rangeLabel: Range.label(), closed: false, t, rel, os: osLabel, events: Seats.events(), cosmetics,
       demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
     if(ctl && mounted !== org.id){ ctl.destroy(); ctl = null; }
@@ -2964,6 +2974,7 @@ const SceneHost = (function(){
       onPrompts: async id => { const m = curData && curData.people.find(x => x.id === id); go('prompts', null, null, true); if(!(m && m.promptId && await Prompts.openMember(m.promptId))) { Seats.focus({ id }); go('seats', null, null, true); } },
       onTeam: id => go('teams', id, null, true),
       onServer: () => { const n = $('scene-card').nextElementSibling; if(n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+      petPhotos, breeds: petBreeds,
       onFail: () => { fail(); }
     });
     if(DEMO && new URLSearchParams(location.search).get('rec') === '1') window.__sprag = { town: null, office: ctl };   /* video/tour recordings (demo only) */

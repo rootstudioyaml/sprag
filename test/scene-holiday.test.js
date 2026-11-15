@@ -59,7 +59,7 @@ test('office-scene wires the holiday dressing behind holidayOn and frees it on e
   assert.match(src, /hol\.forEach\(h => \{ if\(h\.parent\) h\.parent\.remove\(h\); h\.userData\.dispose\(\); \}\)/, 'clear() disposes everything');
   assert.match(src, /h\.userData\.tick\(time, envN\)/, 'step() ticks the lights with the night amount');
   assert.match(src, /holWall\.visible = !wallHid\.z/, 'the wall decorations fold away with the back wall');
-  assert.match(src, /HAT_SKIP = new Set\(\['panda', 'raccoon', 'squirrel'\]\)/, 'species that already wear a hat skip the Santa hat');
+  assert.match(src, /HAT_SKIP = new Set\(\[\]\)/, 'no species wears a hat of its own since the cast models lost their accessories, so none skips the Santa hat');
   assert.match(src, /ANTLER_SKIP = new Set\(\[[^\]]*'deer'/, 'species with horns or antlers of their own keep the nose only');
   assert.match(src, /coin: hash\(o\.p\.id \+ ':xmas'\)/, 'the same person always gets the same set');
   assert.match(src, /o\.coin < 0\.5 \? 'santa' : 'rudolph'/, 'by a hash of the id (headDress)');
@@ -73,4 +73,12 @@ test('holiday.js keeps makeGinkgo next to makeWorldTree', async () => {
   const m = await import('../site/assets/scene/holiday.js');
   assert.equal(typeof m.makeGinkgo, 'function');
   assert.equal(typeof m.makeWorldTree, 'function');
+});
+
+test('holLift: the Santa hat and the antler band rest on the crowns that differ from the dog the pieces were drawn on', async () => {
+  const { holLift } = await import('../site/assets/scene/holiday.js');
+  for(const k of ['dog', 'cat', 'panda', 'nosuchanimal', undefined]) for(const p of ['santa', 'antlers']) assert.equal(holLift(p, k), 0, k + ' ' + p + ' wears it as drawn');
+  assert.ok(holLift('santa', 'squirrel') < -0.02 && holLift('antlers', 'bear') < -0.01, 'lower crowns take the pieces down');
+  assert.ok(holLift('santa', 'sheep') > 0.03 && holLift('antlers', 'raccoon') > 0.01, 'the wool and the fuller crown lift them');
+  for(const k of ['raccoon', 'bear', 'squirrel', 'sheep']) for(const p of ['santa', 'antlers']) assert.ok(Math.abs(holLift(p, k)) < 0.08, k + ' ' + p + ' stays a small nudge');
 });

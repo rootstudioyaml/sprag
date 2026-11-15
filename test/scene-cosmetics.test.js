@@ -25,7 +25,8 @@ test('headDress: the crown wins over head gear, and in the season a head gear re
   assert.deepEqual(headDress({ head: 'cap', xmas: true, species: 'panda', coin: 0.9 }), { crown: false, head: 'cap', hol: 'nose' }, 'gear replaces the antlers');
   assert.equal(headDress({ xmas: true, species: 'fox', coin: 0.1 }).hol, 'santa');
   assert.equal(headDress({ xmas: true, species: 'fox', coin: 0.9 }).hol, 'rudolph');
-  assert.equal(headDress({ xmas: true, species: [...HOL_HAT_SKIP][0], coin: 0.1 }).hol, 'rudolph', 'species with a hat of their own take the Rudolph set');
+  assert.equal(HOL_HAT_SKIP.size, 0, 'the cast models lost their built-in hats (3.127.0-2), so no species is held to the Rudolph set');
+  assert.equal(headDress({ xmas: true, species: 'panda', coin: 0.1 }).hol, 'santa', 'a species that used to wear a hat now takes the coin like everyone');
   assert.deepEqual(headDress({ head: 'cap', skip: true, xmas: true, species: 'fox', coin: 0.1 }), { crown: false, head: null, hol: 'santa' }, 'a piece the fit skips is not drawn and the season piece stays');
   assert.deepEqual(headDress({ ghost: true, crown: true, head: 'cap', xmas: true }), { crown: false, head: null, hol: null });
 });
@@ -90,12 +91,13 @@ test('every shop string exists in both languages, Korean prose has no middle dot
   for(const k of keys){ const v = OFFICE.ko[k]; assert.ok(!/[가-힣] ?\u00b7 ?[가-힣]|\u2014/.test(v), `ko ${k}: ${v}`); }
   for(const g of GEAR_ITEMS) for(const lang of ['en', 'ko']) assert.ok(OFFICE[lang]['of.gear.' + g.id].length <= 14 && !/[.!?]$/.test(OFFICE[lang]['of.gear.' + g.id]), `${lang} ${g.id}`);
   const ui = shopUi(k => OFFICE.ko[k]);
-  assert.equal(ui.gear.cap, OFFICE.ko['of.gear.cap']); assert.equal(ui.opt['pat.tabby'], OFFICE.ko['of.pet.pat.tabby']); assert.equal(ui['pet.private'], OFFICE.ko['of.sh.pet.private']);
+  assert.equal(ui.gear.cap, OFFICE.ko['of.gear.cap']); assert.equal(ui.opt['pat.tabby'], OFFICE.ko['of.pet.pat.tabby']); assert.equal(ui['pet.visMeNote'], OFFICE.ko['of.sh.pet.visMeNote']); assert.equal(ui.opt['fur.curly'], OFFICE.ko['of.pet.fur.curly']);
 });
 
 test('the scene wires gear and the shop: imports, crown rule, season sheet, disposal on rebuild and destroy, desk ticks, shop only with data.shop and opts.shop', () => {
-  assert.match(SCENE, /import \{ GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeDeskItem, disposeGearShared \} from '\.\/gear\.js\?v=g1'/);
-  assert.match(SCENE, /from '\.\/pets\.js\?v=p3'/);
+  assert.match(SCENE, /import \{ GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeDeskItem, disposeGearShared \} from '\.\/gear\.js\?v=g2'/);
+  assert.match(SCENE, /from '\.\/pets\.js\?v=p5'/); assert.ok(!/pets\.js\?v=p[0-46-9]/.test(SCENE), 'every import of pets.js carries the same query');
+  assert.match(SCENE, /export const CAST_Q = '\?v=3\.127\.0-2';/, 'the cast files without accessories need a new cache key');
   assert.match(SCENE, /function dressOf\(o\)\{[^\n]*headDress\(\{ ghost: o\.ghost, crown: o\.p\.crown/);
   assert.match(SCENE, /wantVariant\(hk === 'nose' \? 'crown' : hk/, 'a head gear in the season uses the nose-only sheet');
   assert.match(SCENE, /gearBits\.forEach\(h => \{ if\(h\.parent\) h\.parent\.remove\(h\); h\.userData\.dispose\(\); \}\); gearBits = \[\];/, 'clear() frees the desk items on every rebuild');
@@ -111,14 +113,16 @@ test('pages: one office-scene.js query everywhere (town-scene.js included), the 
   const q = [...(TOWN + TEAM + OPS + TOWNSCENE).matchAll(/office-scene\.js\?v=([^'"]+)/g)].map(m => m[1]);
   /* one value on every page; the value itself is rewritten at each release (scripts/sync-site-version.mjs), so only its shape is pinned */
   assert.ok(q.length >= 4); assert.equal(new Set(q).size, 1, String(q)); assert.match(q[0], /^\d+\.\d+\.\d+(-\d+)?$/);
-  assert.match(TOWN, /shop: \{ save: saveCosmetics \}/);
+  assert.match(TOWN, /shop: \{ save: saveCosmetics, breeds: petBreeds \}, petPhotos,/);
   assert.match(TOWN, /\/rest\/v1\/rpc\/town_cosmetics_set/);
   assert.match(TOWN, /if\(res\.status === 404 && code === 'PGRST202'\) noShop = true;/);
   assert.match(TOWN, /const PHOTO_KEY = 'sprag\.town\.petphoto';/);
   assert.match(TOWN, /petPhoto: lsGet\(PHOTO_KEY\)/);
   assert.match(TOWN, /if\(change\.petClear\) lsDel\(PHOTO_KEY\);/);
   const save = TOWN.slice(TOWN.indexOf('async function saveCosmetics'), TOWN.indexOf('/* ── demo (?demo=1)'));
-  assert.ok(!/photo/.test(save.slice(0, save.indexOf('applyCosmetics('))), 'the photo never goes into the request');
+  assert.match(save, /const plan = mod\.petPhotoPlan\(change, extra\);/, 'the photo goes into the request only by the plan: shared on upload, cleared on going private');
+  assert.match(save, /const args = mod\.cosmeticsArgs\(tok, change, plan, up\);/);
+  assert.ok(!/extra\.photo/.test(save.slice(save.indexOf('const args'), save.indexOf('applyCosmetics('))), 'the local photo itself never goes into the request, only the shrunk copy');
   assert.match(TOWN, /if\(DEMO\)\{ fixedPeriod = true; view = demoTown\(\); return show\(\); \}/, 'the demo needs no token and makes no call');
   assert.match(TEAM, /sb\.rpc\('org_cosmetics', \{ p_org_id: org\.id \}\)/);
   assert.match(TEAM, /return error \|\| !Array\.isArray\(data\) \? \[\] : data;/, 'an old server reads as nobody wearing anything');
@@ -135,7 +139,7 @@ test('review fixes, strings: the next level says what to do and that both condit
   assert.equal(OFFICE.ko['of.sh.dlg'], '위임 비율');
   assert.deepEqual(['s', 'm', 'l'].map(x => OFFICE.ko['of.pet.size.' + x]), ['소형', '중형', '대형']);
   assert.deepEqual(['up', 'flop', 'fold'].map(x => OFFICE.ko['of.pet.ear.' + x]), ['쫑긋한 귀', '늘어진 귀', '접힌 귀']);
-  assert.ok(!/포인트/.test(OFFICE.ko['of.pet.pat.point']));
+  assert.deepEqual(PET_PATTERNS.map(x => OFFICE.ko['of.pet.pat.' + x]), ['단색', '얼룩', '줄무늬', '턱시도', '포인트', '투톤', '등 무늬', '점박이', '삼색'], 'one short noun per pattern');
   assert.match(SCENE, /if\(\/\^ko\/\.test\(lang\)\) return a\.join\(', '\);/, 'Korean item lists join with commas');
   for(const lang of ['en', 'ko']) assert.ok(!/drop|끌어/i.test(OFFICE[lang]['of.sh.pet.add']), 'the touch prompt never says drop');
 });
@@ -167,7 +171,12 @@ test('review fixes, the shop panel: Save pinned under a scrolling body, tiles wi
   assert.match(SCENE, /data-sh="petask"/); assert.match(SCENE, /if\(a === 'petask' \|\| a === 'petkeep'\)/, 'removing the pet asks once');
   assert.match(SCENE, /class="pet-toy\$\{toyOn \? '' : ' off'\}"/, 'the toys line sits under the preview');
   assert.match(SCENE, /chrome\.el\.classList\.toggle\('shop', !!inShop\); stage\.classList\.toggle\('of-shop', !!inShop\);/);
-  assert.match(SCENE, /\.of-stage\.has-drawer\.of-shop \.of-drawer\{height:calc\(100% - 190px\)\}/);
+  assert.ok(!/190px/.test(SCENE), 'the phone shop no longer squeezes the scene into a band');
+  assert.match(SCENE, /sheetSync\(inShop\);/); assert.match(SCENE, /\.of-stage\.of-sheet\{contain:none\}/, 'contain would trap the fixed sheet inside the stage');
+  assert.match(SCENE, /\.of-card \.of-stage\.of-sheet \.of-drawer\.shop\{position:fixed;inset:0;/); assert.match(SCENE, /env\(safe-area-inset-bottom\)/);
+  assert.match(SCENE, /\.of-drawer\.shop \.bkbar\{flex:none;[^}]*background:#fffdf8;border-bottom:/, 'the Back row is opaque with a border');
+  assert.match(SCENE, /\.pet-wrap>\.pet-pvc\{order:-1;position:sticky;top:0;z-index:2;[^}]*background:#fffdf8;border-bottom:/, 'the preview is pinned on top of the sheet, opaque');
+  assert.match(SCENE, /onClose: \(\) => \{ shopReset\(\); sheetSync\(false\);/); assert.match(SCENE, /document\.documentElement\.classList\.remove\('of-sheet-on'\); viewKill\(\);/);
 });
 
 test('review fixes, the profile card: level badge in the header, readable on gold, frames told apart, hologram turned by a transform and paused while tilted', () => {
@@ -197,4 +206,243 @@ test('review fixes, demo data: the member demo uses the server thresholds and fi
   const need = { 3: 0.05, 4: 0.1 };
   for(const [i, [lvl]] of Object.entries(gear)) if(lvl >= 3) assert.ok((share[i] || 0.015) >= need[lvl], `machine ${i} at level ${lvl} delegates ${share[i] || 0.015}`);
   assert.match(TEAM, /dr = DEMO_SHARE\[String\(o\.member_id\)\.replace\(\/\^\.\*-m\/, ''\)\] \* k \|\| 0\.015;/);
+});
+
+/* ── round 2: shared photos, breeds, coat roles, the object viewer, the toy ── */
+const { petPhotoOk, petPhotosClean, petPhotoPlan, cosmeticsArgs, fitJpeg, PET_PHOTO_UP, breedList, breedName, petCoatFor, objPick, viewUi, VIEW_KEYS, petRoleKeys } = S;
+const { petCoatRoles, PET_MARKS } = await import('../site/assets/scene/pets.js');
+const JPG = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+
+test('petPhotoOk and petPhotosClean: only small JPEG or WebP data URLs, only for the ids asked', () => {
+  assert.ok(petPhotoOk(JPG)); assert.ok(petPhotoOk('data:image/webp;base64,UklGRg=='));
+  for(const bad of ['data:image/png;base64,iVBORw0KGgo=', 'data:image/svg+xml;base64,PHN2Zz4=', 'https://example.com/a.jpg', 'data:image/jpeg;base64,AA"onerror=x', 'javascript:alert(1)', null, 42,
+    'data:image/jpeg;base64,' + 'A'.repeat(48001)]) assert.equal(petPhotoOk(bad), false, String(bad).slice(0, 40));
+  assert.deepEqual(petPhotosClean({ a: JPG, b: 'data:image/png;base64,AA==', c: JPG, z: JPG }, ['a', 'b', 'c']), { a: JPG, c: JPG }, 'an id not asked for and a PNG are dropped');
+  for(const r of [null, [], 'x', 7]) assert.deepEqual(petPhotosClean(r, ['a']), {});
+});
+
+test('petPhotoPlan and cosmeticsArgs: share uploads once, private clears a server copy, removing the pet clears by itself', () => {
+  const pet = { kind: 'dog', coat: ['#d9a35f'] }, ch = { pet };
+  assert.equal(petPhotoPlan(ch, { photo: JPG, fresh: true, share: true, shared: true }), 'upload', 'a new photo while sharing replaces the copy');
+  assert.equal(petPhotoPlan(ch, { photo: JPG, fresh: false, share: true, shared: false }), 'upload', 'turning sharing on uploads the photo kept here');
+  assert.equal(petPhotoPlan(ch, { photo: JPG, fresh: false, share: true, shared: true }), null, 'already shared: nothing to send');
+  assert.equal(petPhotoPlan(ch, { photo: null, share: true, shared: false }), null, 'no photo, nothing to share');
+  assert.equal(petPhotoPlan(ch, { photo: JPG, share: false, shared: true }), 'clear');
+  assert.equal(petPhotoPlan(ch, { photo: JPG, share: false, shared: false }), null, 'private by default: no photo argument at all');
+  assert.equal(petPhotoPlan({ petClear: true }, { share: false, shared: true }), null);
+  assert.equal(petPhotoPlan({ gear: { head: 'cap' } }, { share: true, photo: JPG }), null);
+  assert.deepEqual(cosmeticsArgs('t', ch, 'upload', JPG), { p_token: 't', p_pet: pet, p_photo: JPG });
+  assert.deepEqual(cosmeticsArgs('t', ch, 'clear', null), { p_token: 't', p_pet: pet, p_photo_clear: true });
+  assert.deepEqual(cosmeticsArgs('t', ch, null, null), { p_token: 't', p_pet: pet });
+  assert.deepEqual(cosmeticsArgs('t', ch, 'upload', 'data:image/png;base64,AA=='), { p_token: 't', p_pet: pet }, 'an invalid copy is never sent');
+  assert.deepEqual(cosmeticsArgs('t', { petClear: true }, 'clear', JPG), { p_token: 't', p_pet_clear: true }, 'p_pet_clear deletes the photo on the server too');
+  assert.deepEqual(cosmeticsArgs('t', { gear: { head: 'cap', desk: null } }, null, null), { p_token: 't', p_gear: { head: 'cap', desk: null } });
+});
+
+test('fitJpeg: the first quality from 0.82 down whose data URL fits 46,000 characters, else null', () => {
+  const tried = [], enc = q => { tried.push(q); return 'data:image/jpeg;base64,' + 'A'.repeat(Math.round(q * 80000)); };
+  const u = fitJpeg(enc); assert.ok(u && u.length <= PET_PHOTO_UP); assert.equal(tried[0], 0.82); assert.ok(tried.every((q, i) => !i || q < tried[i - 1]), 'quality only goes down');
+  assert.equal(fitJpeg(() => 'data:image/jpeg;base64,' + 'A'.repeat(50000)), null);
+  assert.equal(fitJpeg(() => 'data:image/png;base64,AA=='), null);
+  assert.equal(fitJpeg(() => { throw new Error('tainted'); }), null);
+});
+
+test('breedList: valid rows only, dogs first, each look carries its kind and breed; breedName follows the page language', () => {
+  const rows = [{ key: 'korat', kind: 'cat', en: 'Korat', ko: '코랏', look: { coat: ['#8a8f99'] } }, { key: 'jindo', kind: 'dog', en: 'Jindo', ko: '진돗개', look: { coat: ['#e8c48e'], ear: 'up' } },
+    { key: 'Bad Key', kind: 'dog', en: 'x', look: { coat: ['#ffffff'] } }, { key: 'fox', kind: 'fox', en: 'Fox', look: { coat: ['#ffffff'] } }, { key: 'nolook', kind: 'cat', en: 'x' }, { key: 'nocoat', kind: 'dog', look: { coat: [] } },
+    { key: 'jindo', kind: 'dog', en: 'dup', look: { coat: ['#000000'] } }];
+  const b = breedList(rows);
+  assert.deepEqual(b.map(r => r.key), ['jindo', 'korat']);
+  assert.equal(b[0].look.kind, 'dog'); assert.equal(b[0].look.breed, 'jindo'); assert.equal(b[1].look.kind, 'cat');
+  assert.deepEqual(breedList(null), []); assert.deepEqual(breedList({ error: 1 }), []);
+  assert.equal(breedName(b[0], 'ko'), '진돗개'); assert.equal(breedName(b[0], 'en'), 'Jindo'); assert.equal(breedName(null, 'en'), '');
+});
+
+test('petCoatFor: colours stay by position, a newly required one is filled (from memory, else derived), an optional one is left out', () => {
+  const r = p => petCoatRoles(p);
+  assert.deepEqual(petCoatFor(['#aa7744'], r('solid')), ['#aa7744']);
+  assert.deepEqual(petCoatFor(['#aa7744', '#ffffff', '#000000'], r('solid')), ['#aa7744'], 'extra colours are dropped');
+  const tux = petCoatFor(['#45434a'], r('tuxedo')); assert.equal(tux.length, 2); assert.equal(tux[0], '#45434a'); assert.match(tux[1], /^#[0-9a-f]{6}$/);
+  assert.deepEqual(petCoatFor(['#45434a'], r('tuxedo'), ['#45434a', '#ece8e1']), ['#45434a', '#ece8e1'], 'the colour last used there comes back');
+  assert.equal(petCoatFor(['#aa7744'], r('patch')).length, 2, 'the optional ear colour stays off');
+  assert.equal(petCoatFor(['#aa7744'], r('calico')).length, 3);
+  const lightOf = h => parseInt(h.slice(1, 3), 16) + parseInt(h.slice(3, 5), 16) + parseInt(h.slice(5, 7), 16);
+  assert.ok(lightOf(petCoatFor(['#7a5a3a'], r('tuxedo'))[1]) > lightOf('#7a5a3a'), 'the white role is derived lighter');
+  assert.ok(lightOf(petCoatFor(['#c9a070'], r('point'))[1]) < lightOf('#c9a070'), 'the points role is derived darker');
+});
+
+test('objPick: an object wins only inside its own projected radius (at least 10 px), the nearest by distance over radius', () => {
+  const desk = { kind: 'desk', x: 100, y: 100, r: 4 }, pet = { kind: 'pet', x: 130, y: 100, r: 40 };
+  assert.equal(objPick(108, 100, [desk]), desk, 'a small item still takes a 10 px radius');
+  assert.equal(objPick(111, 100, [desk]), null, 'outside it: the person behind is picked as before');
+  assert.equal(objPick(104, 100, [desk, pet]), desk, 'well inside the small one beats the edge of the big one');
+  assert.equal(objPick(125, 100, [desk, pet]), pet);
+  assert.equal(objPick(0, 0, []), null); assert.equal(objPick(0, 0, null), null);
+});
+
+test('photo flags: a row with photo true gives the pet shared, the viewer\'s self.photo becomes shop.photoShared', () => {
+  const pet = { kind: 'cat', coat: ['#e39a5c'] };
+  assert.equal(cosmeticsOf({ lvl: 2, pet, photo: true }).pet.shared, true);
+  assert.ok(!('shared' in cosmeticsOf({ lvl: 2, pet, photo: false }).pet));
+  assert.equal(cosmeticsOf({ lvl: 2, pet }, { keepPet: true }).pet, pet, 'no photo flag: the object is kept as it is');
+  assert.equal(cosmeticsOf({ lvl: 2, pet, photo: true }, { off: true }).pet, null);
+  const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const d = officeSceneData({ rows: [{ member_id: 'a', display_name: 'A', team_id: 't1', team_name: 'T', signal: 'ok' }], usage: {}, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 1, limit: 2, orgName: 'O', rangeLabel: 'r', t: tt, rel: x => x, os: () => '', events: [],
+    cosmetics: [{ member_id: 'a', lvl: 3, pet, photo: true }] });
+  assert.equal(d.people[0].pet.shared, true); assert.equal(d.ui.view.photo, 'of.vw.photo'); assert.equal(d.ui.view.gear.lamp, 'of.gear.lamp'); assert.equal(d.ui.view.kind.cat, 'of.pet.cat');
+});
+
+test('round 2 strings: coat roles, marks, the viewer and the pet tab in both languages; Korean follows the house rules and says what sharing does', () => {
+  const keys = petRoleKeys().map(k => 'of.pet.role.' + k).concat(PET_MARKS.map(m => 'of.pet.mark.' + m), VIEW_KEYS.map(k => 'of.vw.' + k));
+  for(const p of PET_PATTERNS) for(const r of petCoatRoles(p)) assert.ok(keys.includes('of.pet.role.' + r.key), `${p} ${r.key}`);
+  for(const lang of ['en', 'ko']) for(const k of keys) assert.equal(typeof OFFICE[lang][k], 'string', `${lang} ${k}`);
+  for(const k of Object.keys(OFFICE.en)) assert.ok(k in OFFICE.ko, `ko ${k}`);
+  for(const k of Object.keys(OFFICE.ko)) assert.ok(k in OFFICE.en, `en ${k}`);
+  const ko = Object.entries(OFFICE.ko).filter(([k]) => /^of\.(sh|pet|vw)\./.test(k));
+  for(const [k, v] of ko){ assert.ok(!/\u00b7|\u2014/.test(v), `ko ${k}: ${v}`); assert.ok(!/[가-힣](고|며|서|면|지만),/.test(v), `ko ${k}: comma after a connective ending`); }
+  const fresh = /^of\.(vw|pet\.role|pet\.mark)\.|^of\.sh\.(err\.photo|pet\.(breed|custom|dogs|cats|vis|g\.|earsize|snout|legs|length|build|fluff\.|marks|markColor|eye|nose|auto|collar))/;   /* this round's strings */
+  for(const [k, v] of ko.filter(([k]) => fresh.test(k))) assert.ok(!/[^다]\.$/.test(v), `ko ${k}: a period only after 다`);
+  for(const k of petRoleKeys()) assert.ok(OFFICE.ko['of.pet.role.' + k].length <= 12 && !/[.!?]$/.test(OFFICE.ko['of.pet.role.' + k]), `role ${k} is a short noun phrase`);
+  const me = OFFICE.ko['of.sh.pet.visMeNote'], sh = OFFICE.ko['of.sh.pet.visShareNote']; assert.match(me, /^나만 보기를 고르면/); assert.match(me, /지웁니다/); assert.match(sh, /서버/); assert.match(sh, /같은 조직/); assert.match(sh, /액자/);
+  assert.equal(OFFICE.ko['of.sh.pet.visMe'], '나만 보기');
+  const ui = shopUi(k => OFFICE.en[k]); assert.equal(ui.opt['role.white'], OFFICE.en['of.pet.role.white']); assert.equal(ui.opt['mark.socks'], OFFICE.en['of.pet.mark.socks']);
+  const vu = viewUi(k => OFFICE.ko[k]); assert.equal(vu.photo, '{n} 사진');
+});
+
+test('the scene: the viewer, shared photo frames, breeds and the pet tab are wired as designed', () => {
+  assert.match(SCENE, /const ok = petPhotosClean\(res, ids\);/, 'every fetched photo is checked before it becomes an image');
+  assert.match(SCENE, /pt\.o\.p\.pet && pt\.o\.p\.pet\.shared === true && !pt\.frame && !photoCache\.has/, 'only pets whose owner shares, once per page');
+  assert.match(SCENE, /const own = o\.p\.self && o\.p\.pet && typeof o\.p\.pet\.photo === 'string'/, 'only the viewer\'s own pet uses the photo in the data; a coworker\'s frame needs a shared photo');
+  assert.match(SCENE, /viewKill\(\); clear\(\); disposePetShared\(T\);/, 'destroy frees the viewer renderer');
+  assert.match(SCENE, /window\.addEventListener\('keydown', vwKey, true\)/); assert.match(SCENE, /window\.removeEventListener\('keydown', vwKey, true\)/);
+  assert.match(SCENE, /make: \(\) => makeDeskItem\(T, id\)/); assert.match(SCENE, /make: \(\) => makePet\(T, L\)/, 'the viewer shows fresh instances');
+  assert.match(SCENE, /if\(!noObj\)\{ const ob = objPick\(px, py, objList\(\)\); if\(ob\) return \{ obj: ob \}; \}/, 'hover: an object wins over the person behind it');
+  assert.match(SCENE, /onDown: \(px, py, ev\) => \{ const mr = pickMinR\(ev && ev\.pointerType\), ob = objPick\(px, py, objList\(\), mr\);/, 'a tap takes its object at the press');
+  assert.match(SCENE, /if\(v === 'open'\)\{ viewOpen\(d\.kind, d\.o\); return; \}/); assert.match(SCENE, /const h = nearest\(px, py, true\);\n        if\(!h\)\{ setHover\(null\); if\(sel\) closeDrawer\(\); return; \}/, 'people, teams and the server pick at the release as before');
+  assert.match(SCENE, /if\(ptrs\.size === 1 && cfg\.onDown\) cfg\.onDown\(\.\.\.pt\(ev\), ev\);/);
+  assert.match(SCENE, /\['pointerdown', 'pointermove', 'pointerup', 'click', 'dblclick', 'contextmenu'\]\.forEach\(ev => \[bg, el\]/, 'the viewer swallows its own presses');
+  assert.match(SCENE, /vw\.x\.focus\(\{ preventScroll: true \}\)/); assert.match(SCENE, /if\(focus && canvas\) canvas\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(SCENE, /t\.rotation\.set\(0, yaw \+ st\.roll \* 0\.4, 0\); toyFlat\(t\); \}   \/\* a bone or a mouse slides and turns flat \*\//, 'a flat toy slides and turns about y only');
+  assert.match(SCENE, /q\.setFromAxisAngle\(ax, dd \/ R\); sp\.quaternion\.premultiply\(q\);/, 'a round toy rolls by its own travel, distance over radius');
+  assert.ok(!/t\.rotation\.set\(st\.roll/.test(SCENE));
+  for(const id of ["sel1('kind'", "sel1('size'", "sel1('pattern'", "sel1('ear'", "sel1('tail'", 'o-pf-breed', 'o-pf-vis-', 'o-pf-name', 'o-pf-c${i}', 'o-pf-use${i}', 'o-pf-mark-${m}', 'o-pf-mark"', 'o-pf-auto-${k}', 'o-pf-use-collar', 'o-pf-collar"'])
+    assert.ok(SCENE.includes(id), id);
+  assert.match(SCENE, /<details class="pet-g" data-g="\$\{k\}"/); assert.match(SCENE, /open: \(shop && shop\.pet && shop\.pet\.open\) \|\| \{ basic: true, coat: true, shape: false, face: false \}/);
+  assert.match(SCENE, /\.of-drawer \.pet-wrap>\.pet-pvc\{position:sticky;top:0/);
+});
+
+test('pages: shared photos and breeds go through their RPCs, the demo answers locally', () => {
+  assert.match(TOWN, /\/rest\/v1\/rpc\/town_pet_photos/); assert.match(TOWN, /p_ids: ids\.slice\(0, 16\)/);
+  assert.match(TOWN, /\/rest\/v1\/rpc\/pet_breeds/); assert.match(TOWN, /if\(DEMO\) return Promise\.resolve\(DEMO_BREEDS\);/);
+  assert.match(TOWN, /const k = Math\.min\(1, 256 \/ Math\.max\(w, h\)\)/); assert.match(TOWN, /mod\.fitJpeg\(q => c\.toDataURL\('image\/jpeg', q\)\)/);
+  assert.match(TOWN, /sf\.photo = !!\(r && r\.photo === true\);/);
+  assert.match(TEAM, /sb\.rpc\('org_pet_photos', \{ p_org_id: org\.id, p_member_ids: ids\.slice\(0, 16\) \}\)/);
+  assert.match(TEAM, /petPhotos, breeds: petBreeds,/);
+  const demo = TOWN.slice(TOWN.indexOf('const DEMO_BREEDS'), TOWN.indexOf('if(DEMO) window.__spragDemoLog'));
+  const rows = Function('return ' + demo.slice(demo.indexOf('['), demo.lastIndexOf(']') + 1))();
+  assert.equal(rows.length, 6); assert.deepEqual(rows.map(r => r.kind), ['dog', 'dog', 'dog', 'cat', 'cat', 'cat']); assert.equal(breedList(rows).length, 6, 'the demo breeds are valid rows');
+  assert.ok(!/data:image\/jpeg;base64,[A-Za-z0-9+/]{40}/.test(TOWN + TEAM), 'no embedded photograph in the pages: the demo draws its photos');
+});
+
+test('pets: a walk to where the pet already stands ends at once, and a toy rising from the pile or going back starts and ends on the floor', () => {
+  assert.match(SCENE, /if\(sg\.pts\.length < 2\)\{ pt\.x = sg\.to\.x; pt\.z = sg\.to\.z; pt\.v = 0; return true; \}/, 'a one-point path no longer throws and stops the frame loop');
+  assert.match(SCENE, /t\.position\.set\(p\.x, Math\.max\(p\.y, floor\(p\.x, p\.z\)\), p\.z\)/);
+  assert.match(SCENE, /low: toyLow\(pt\)/, 'the rec hook reports the toy\'s lowest point above the floor');
+});
+
+/* ── round 2 fixes (UI) ── */
+const { objTap, pickMinR, OBJ_R, floorSeen, playSeen, HOME_DIR, HOME_SLOPE, hopAlong, saveMsgKey, PET_FUR_LIST } = S;
+
+test('a tap on a moving object: taken at the press, opened at the release only within 1.5 radii; a press on no object picks people as before', () => {
+  assert.equal(pickMinR('touch'), 22); assert.equal(pickMinR('pen'), 22); assert.equal(pickMinR('mouse'), 10); assert.equal(pickMinR(undefined), 10);
+  assert.equal(OBJ_R, 0.6, 'the pick radius follows the silhouette, not the bounding sphere');
+  const pet = { kind: 'pet', x: 100, y: 100, r: 8 };
+  assert.equal(objPick(117, 100, [pet], 22), pet, 'a finger gets 22 px'); assert.equal(objPick(117, 100, [pet], 10), null, 'a mouse 10');
+  assert.equal(objTap(null, pet, 100, 100), 'pass', 'nothing under the press: the person, team or server below decides');
+  assert.equal(objTap({ kind: 'pet' }, { x: 110, y: 100, r: 10 }, 100, 100, 10), 'open', 'it walked 10 px between press and release: still within 1.5 radii');
+  assert.equal(objTap({ kind: 'pet' }, { x: 120, y: 100, r: 10 }, 100, 100, 10), 'keep', 'it walked away: nothing opens, and the person behind is not picked either');
+  assert.equal(objTap({ kind: 'pet' }, null, 100, 100), 'keep', 'it is gone (rebuilt): a press that began on an object never closes the drawer');
+  assert.equal(objTap({ kind: 'pet' }, { x: 120, y: 100, r: 4 }, 100, 100, 22), 'open', 'a finger: 1.5 times the 22 px floor');
+});
+
+test('play spots: the toy area must be in clear view of the home camera; desks, sitters and boxes between it and the camera rule a spot out', () => {
+  assert.deepEqual(HOME_DIR.map(v => +v.toFixed(4)), [0.7071, 0.7071], 'the default camera stands at +x +z (theta0 = pi/4)');
+  assert.ok(Math.abs(HOME_SLOPE - 16.6 / Math.hypot(20, 20)) < 1e-12);
+  const desk = [-1.1, 0.55, 1.1, 1.75, 1.62];
+  assert.equal(floorSeen(-0.5, -0.5, [desk]), false, 'right behind a desk from the camera: hidden');
+  assert.equal(floorSeen(0, 2.2, [desk]), true, 'in front of it: seen'); assert.equal(floorSeen(2, 0, [desk]), true, 'beside it on the camera side: seen');
+  assert.equal(floorSeen(-4, -4, [desk]), true, 'far behind: the line has risen over the desk top by then');
+  assert.equal(floorSeen(0, 1, [desk]), false, 'under the desk');
+  assert.equal(floorSeen(-0.5, -0.5, [[-1.1, 0.55, 1.1, 1.75, 0]]), true, 'a box with no height hides nothing');
+  assert.equal(playSeen([[0, 2.2], [-0.5, -0.5]], [desk]), false, 'every point of the area must be seen'); assert.equal(playSeen([[0, 2.2], [2, 0]], [desk]), true);
+  assert.match(SCENE, /&& playSeen\(area\.map\(/, 'petSlotSpots tests the toy area'); assert.match(SCENE, /const area = \[\[0, Z\], \[0, Z \+ 0\.3\]/, 'measured from the pet\'s own toy distance (playZ)');
+});
+
+test('the hop: horizontal travel lags going up and leads coming down; it takes off from the desk front the home camera sees, and the frame moved out of the sleeping pet\'s way', () => {
+  assert.equal(hopAlong(0, true), 0); assert.equal(hopAlong(1, true), 1); assert.equal(hopAlong(0, false), 0); assert.equal(hopAlong(1, false), 1);
+  for(let f = 0.05; f < 1; f += 0.05){ assert.ok(hopAlong(f, true) < f, `up lags at ${f}`); assert.ok(hopAlong(f, false) > f, `down leads at ${f}`); assert.ok(hopAlong(f + 0.01, true) > hopAlong(f, true)); }
+  assert.match(SCENE, /const DESK_HOP = \{ x: \(DESK_FIT\.x0 \+ DESK_FIT\.x1\) \/ 2, z: 2\.3 \}, DESK_FRAME = \{ x: 0\.98, z: 0\.64 \};/);
+  assert.match(SCENE, /hop: \{ x: o\.x \+ DESK_HOP\.x, z: o\.z \+ DESK_HOP\.z, yaw: Math\.PI \}/, 'facing the desk from its front');
+  /* seen from the home camera the frame in the back right corner has nothing of the sleeping spot between it and the camera */
+  const fit = [-1.1, 0.72, -0.42, 1.93, 1.4]; assert.equal(floorSeen(0.98, 0.64, [fit]), true); assert.equal(floorSeen(-0.98, 0.64, [fit]), false, 'where it stood before, the pet hid it');
+});
+
+test('save messages say who sees the photo; the strings for them exist in both languages', () => {
+  assert.equal(saveMsgKey({ gear: { head: 'cap' } }, undefined), 'saved'); assert.equal(saveMsgKey({ pet: {} }, { photo: null, share: true }), 'saved', 'no photo: one plain message');
+  assert.equal(saveMsgKey({ pet: {} }, { photo: 'data:', share: false }), 'saved.private'); assert.equal(saveMsgKey({ pet: {} }, { photo: 'data:', share: true }), 'saved.shared');
+  assert.equal(saveMsgKey({ petClear: true }, {}), 'pet.removed');
+  assert.equal(OFFICE.ko['of.sh.saved'], '저장했습니다. 동료에게도 보입니다.');
+  assert.equal(OFFICE.ko['of.sh.saved.private'], '저장했습니다. 반려동물은 동료에게도 보이고 사진은 나만 봅니다.');
+  assert.equal(OFFICE.ko['of.sh.saved.shared'], '저장했습니다. 사진도 동료 화면의 내 책상 액자에 보입니다.');
+  assert.match(SCENE, /shop\.msg = \{ text: ui\[saveMsgKey\(change, extra\)\] \|\| ui\.saved \};/);
+});
+
+test('round 2 fix strings: the skip note names the body, the photo block says what choosing does, slider ends pair up, removing says take out', () => {
+  assert.equal(OFFICE.ko['of.sh.skip'].split('. ')[0] + '.', '이 동물은 뿔이나 귀 때문에 이 소품을 쓸 수 없습니다.'); assert.ok(!/모자를 쓰고/.test(OFFICE.ko['of.sh.skip'])); assert.match(OFFICE.en['of.sh.skip'], /horns, antlers or ears/);
+  assert.equal(OFFICE.ko['of.sh.pet.read'], '사진에서 털 색과 무늬를 읽었습니다.'); assert.equal(OFFICE.ko['of.sh.pet.readBreed'], '사진에서 털 색만 읽었습니다. 무늬는 품종을 따릅니다.');
+  assert.match(OFFICE.ko['of.sh.pet.pick'], /이 브라우저/); assert.match(OFFICE.ko['of.sh.pet.pick'], /올라가지 않습니다/);
+  for(const k of ['of.sh.pet.c0', 'of.sh.pet.c1', 'of.sh.pet.c2', 'of.sh.pet.private', 'of.sh.pet.visNote', 'of.sh.pet.visOff', 'of.sh.pet.hand']) for(const lang of ['en', 'ko']) assert.ok(!(k in OFFICE[lang]), `${lang} ${k} is gone`);
+  assert.ok(!Object.values(OFFICE.ko).some(v => /두 번째 색/.test(v)));
+  assert.deepEqual(['fluff', 'earsize', 'snout', 'legs', 'length', 'build'].map(k => [OFFICE.ko[`of.sh.pet.${k}.lo`], OFFICE.ko[`of.sh.pet.${k}.hi`]]),
+    [['짧게', '길게'], ['작게', '크게'], ['짧게', '길게'], ['짧게', '길게'], ['짧게', '길게'], ['날씬하게', '통통하게']], 'slider ends as pairs');
+  assert.equal(OFFICE.ko['of.sh.pet.remove'], '반려동물 빼기'); assert.equal(OFFICE.ko['of.sh.pet.ask'], '사무실에서 뺄까요?'); assert.equal(OFFICE.ko['of.sh.pet.auto'], '털 색에 맞춤');
+  assert.equal(OFFICE.ko['of.sh.pet.g.face'], '얼굴과 목줄'); assert.equal(OFFICE.ko['of.pet.mark.tip'], '꼬리 끝 무늬');
+  assert.deepEqual(PET_FUR_LIST.map(x => OFFICE.ko['of.pet.fur.' + x]), ['보통', '곱슬', '긴 직모']); assert.equal(PET_FUR_LIST[0], 'plush');
+  const roles = { coat: '털 색', base: '바탕색', patch: '얼룩 색', ear: '귀 색', stripe: '줄무늬 색', muzzle: '주둥이 색', main: '바탕색', white: '가슴과 발 색', body: '바탕색', points: '포인트 색', top: '등 색', under: '배와 다리 색', saddle: '등 무늬 색', spot: '점 색', patch1: '얼룩 색', patch2: '다른 얼룩 색' };
+  for(const [k, v] of Object.entries(roles)) assert.equal(OFFICE.ko['of.pet.role.' + k], v, k);
+  assert.equal(OFFICE.ko['of.vw.tip'], '눌러서 크게 보기'); assert.equal(OFFICE.ko['of.vw.ownPet'], '{n}의 반려동물');
+  for(const k of ['of.sh.saved.private', 'of.sh.saved.shared', 'of.sh.pet.pick', 'of.sh.pet.readBreed', 'of.sh.pet.breedNote', 'of.sh.pet.visMeNote', 'of.sh.pet.visShareNote', 'of.sh.pet.visEx', 'of.vw.shared', 'of.vw.mine', 'of.vw.mineShared']){
+    const v = OFFICE.ko[k]; assert.ok(/다\.$/.test(v), `ko ${k}: whole sentences ending in 다.`); assert.ok(!/·|—|[가-힣](고|며|서|면|지만),/.test(v), `ko ${k}`); }
+});
+
+test('the pet tab and the viewer as fixed: kind above breed, the coat texture, the photo block, the preview opens the viewer, one viewer layout', () => {
+  const f = SCENE.slice(SCENE.indexOf('  function petHtml(){'), SCENE.indexOf('  function shopHtml(){'));
+  assert.ok(f.indexOf("${sel1('kind', PET_KINDS, '')}${breed}") > 0, 'kind directly above the breed');
+  assert.match(f, /sel1\('fur', PET_FUR_LIST, 'fur\.'\)/); assert.match(SCENE, /else if\(k === 'fur'\)\{ if\(PET_FUR_LIST\.includes\(el\.value\) && el\.value !== PET_FUR_LIST\[0\]\) L\.fur = el\.value; else delete L\.fur; \}/, 'the standard coat writes no key');
+  assert.match(f, /const vis = can \? `<fieldset class="pet-vis">/, 'the visibility group only with a photo here or on the server');
+  assert.ok(!/sh-note off|9b2c1f/.test(f), 'no red text in the photo block');
+  assert.match(f, /photoSafe\(P\.shown\) \? `<p class="pet-ex"/, 'the example frame carries a data URL only after the check');
+  assert.match(f, /data-sh="pvopen"/); assert.match(SCENE, /if\(a === 'pvopen'\)\{ if\(sel\) viewOpen\('pet', sel, \{ look:/);
+  assert.ok(f.indexOf('id="o-pf-auto-${k}"') < f.indexOf('<input type="color" id="o-pf-${k}"'), 'checkbox first, then the swatch');
+  assert.match(SCENE, /\.of-drawer \.pet-rng::before\{content:"";position:absolute;left:50%/, 'a tick at the default');
+  assert.match(SCENE, /\.of-stage \.of-view\{border-radius:16px!important\}/, 'the profile card\'s corners win over tokens.css');
+  assert.match(SCENE, /\.of-view \.x\{flex:none;width:32px;height:32px;display:grid;place-items:center;padding:0;border:1px solid/, 'a bordered square close like the tool buttons');
+  assert.ok(!/\.of-view\.photo \.vw-drag\{display:none\}/.test(SCENE) && !/\.of-view\.photo \.vw-art\{background/.test(SCENE), 'one background and one hint line for the three kinds');
+  assert.match(SCENE, /vw\.clr = setTimeout\(\(\) => \{ if\(vw && !vw\.on\)\{ vw\.clr = 0; viewClear\(\);/, 'closing clears after the fade');
+  assert.match(SCENE, /if\(!info\.photo\) vw\.raf = requestAnimationFrame\(\(\) => \{/, 'the model is built on the next frame');
+  assert.match(SCENE, /u\.fur\(vw\.ppu\); \}/, 'fur stays on under reduced motion');
+  assert.match(SCENE, /vw\.hold = performance\.now\(\) \+ 2000;/, 'after a drag the auto-turn waits 2 s');
+  assert.match(SCENE, /pin: photoSafe\(ph\) \? ph : null/, 'a pet\'s photo beside the model only after the check');
+});
+
+test('the scene follows the pets contract with fallbacks: legK in the gait, playZ for the toy, air for the contact disc, carryYaw in the mouth', () => {
+  assert.match(SCENE, /const lk = pt => \{ const v = pt\.g\.userData\.legK; return Number\.isFinite\(v\) && v > 0 \? v : 1; \}/);
+  assert.match(SCENE, /pz = pt => \{ const v = pt\.g\.userData\.playZ; return Number\.isFinite\(v\) \? Math\.max\(v, PET_PLAY_Z\) : PET_PLAY_Z; \}/);
+  assert.deepEqual((SCENE.match(/petGait\(pt\.phase, [^;]*;/g) || []).filter(c => !/lk\(pt\)\);/.test(c)), [], 'every gait call passes the leg factor');
+  assert.equal((SCENE.match(/\/ PET_STRIDE\b(?! \*)/g) || []).length, 0, 'every stride divides by PET_STRIDE * legK');
+  assert.deepEqual((SCENE.match(/petPlaySeq\([^;]*?\), t: 0/g) || []).filter(c => !/pz\(pt?\)\), t: 0$/.test(c)), [], 'every play sequence starts at the toy distance');
+  assert.ok(!/PET_PLAY_Z \* gs/.test(SCENE), 'the toy is put down at the pet\'s own distance');
+  assert.match(SCENE, /const toyCarry = t => \{ const v = t\.userData && t\.userData\.carryYaw; return Number\.isFinite\(v\) \? v : Math\.PI \/ 2; \};/);
+  assert.match(SCENE, /const airL = Number\.isFinite\(g\.userData\.air\)/); assert.match(SCENE, /pt\.blobMat\.opacity = 0\.34 \* \(0\.3 \+ 0\.7 \* k\)/);
+  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p5';/, 'newer exports are read off the namespace, so an older pets.js still links');
 });

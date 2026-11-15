@@ -21,100 +21,108 @@ const SKULL_Y = -0.37, SKULL_R = 0.36;
 /* ---------- fit ---------- */
 /* Hat-type pieces: item -> species -> [y, z, s, rx] (cap and beanie add c, the cover angle). y lifts the piece above the anchor, z moves it along the
  * face direction, s scales it, rx tilts it back (negative) or forward. The values come from a fit solver run on the seated and the standing model of each
- * species: it counts model vertices that would pass through the piece (ears, horns, sunglasses, crests) and rejects any fit where the piece floats over
+ * species: it counts model vertices that would pass through the piece (ears, horns, antlers, crests) and rejects any fit where the piece floats over
  * the head, sinks too far, or overhangs the head at its rim; among the clean fits it keeps the largest, least shifted one. A species missing from a list
- * uses FIT0. See the fit notes for the method and the sheets it was checked on. */
+ * uses FIT0. See the fit notes for the method and the sheets it was checked on. Re-solved on the models without their own headwear (3.127.0-2) for the
+ * species that lost some; the rest keep their checked fits. By hand: the pig's beanie and wizard hat (the solver tipped them back until they slid off),
+ * the wolf's top hat, wizard hat and party hat (its standing head sits 0.05 lower than the seated one, so they split the difference), and the owl's top hat
+ * (less tilt, so the front of the brim stays on the standing head).
+ * One size policy (3.127.0-3): a piece that is shown is never drawn below 0.8 or above 1.25 of its standard scale, so a hat looks the same size on a
+ * coworker's animal; where it cannot sit inside that range the species skips it (SKIPS). The wolf and the fox wear the wizard hat at 0.85 with the brim
+ * in front of their ears, the cat and the fox the top hat at 0.85 for the same reason. The cap comes in two looks, each the same size on every species
+ * that wears it: over the whole head (cover 0.95) on heads without ears on top, and a small cap between the ears (cover 0.5) on tiger, wolf, fox,
+ * husky, panda, koala, raccoon, cat, bear, squirrel, rabbit, pig and mouse (the rabbit's sits forward of its ears, tipped down onto the brow). The lion's
+ * pieces sit on the mane, not on the skull under it. The dragon's beanie lets the horns through the knit; the unicorn's sits behind the horn. On the
+ * dragon and the deer the ribbon and the flower sit on the head in front of the horn or antler base. */
 const FIT = {
   cap: {
-    dragon: [0.068, -0.08, 1, -0.4, 0.55], unicorn: [0.14, -0.12, 1, -0.2, 0.95], lion: [0.234, -0.04, 1, -0.1, 0.95], tiger: [0.014, 0.12, 1, 0, 0.7],
-    eagle: [0.002, 0.04, 1, -0.1, 0.9], wolf: [0.048, 0.12, 1, -0.1, 0.55], cheetah: [0, 0.04, 1, -0.1, 0.65], fox: [0.008, 0, 1, 0, 0.45],
-    owl: [0.022, 0.04, 0.93, -0.1, 0.95], husky: [0.08, 0, 1, 0.1, 0.65], panda: [0.04, 0.12, 1, 0.1, 0.7], koala: [-0.06, 0, 1, -0.1, 0.5],
-    penguin: [-0.012, 0, 1, -0.1, 0.95], raccoon: [0.048, 0, 1, -0.1, 0.6], cat: [-0.02, 0, 1, -0.1, 0.45], dog: [-0.006, 0, 1, -0.1, 0.95],
-    bear: [-0.006, 0, 1, 0, 0.5], sheep: [0.134, -0.04, 1, 0.1, 0.8], squirrel: [0.014, -0.12, 0.93, -0.3, 0.95], hedgehog: [0.04, 0, 1, -0.1, 0.95],
-    rabbit: [-0.018, 0.12, 1, -0.1, 0.45], monkey: [0.008, -0.04, 1, -0.2, 0.95], pig: [-0.006, 0.04, 1, -0.2, 0.5],
-    mouse: [-0.02, 0.12, 1, 0.1, 0.65], elephant: [0, 0, 1, -0.1, 0.9], frog: [0.022, 0, 1, -0.3, 0.95], duck: [-0.006, -0.04, 1, -0.2, 0.9],
-    hamster: [-0.052, 0, 1, -0.1, 0.45], chick: [0.014, 0, 1, 0.1, 0.9]
+    dragon: [0.068, -0.08, 1, -0.4, 0.55], unicorn: [0.114, -0.12, 1, -0.1, 0.95], lion: [0.222, -0.08, 1, -0.1, 0.95],
+    tiger: [-0.038, 0, 1, -0.1, 0.5], eagle: [-0.02, 0, 1, -0.1, 0.95], wolf: [0, 0, 1, -0.1, 0.5], cheetah: [-0.026, 0.04, 1, -0.1, 0.95],
+    fox: [0.008, 0, 1, 0, 0.5], owl: [0.022, 0.04, 1, -0.1, 0.95], husky: [-0.04, 0, 1, -0.1, 0.5], panda: [0.02, 0.12, 1, -0.1, 0.5],
+    koala: [-0.06, 0, 1, -0.1, 0.5], penguin: [-0.012, 0, 1, -0.1, 0.95], raccoon: [0, 0, 1, -0.1, 0.5], cat: [-0.006, 0, 1, 0, 0.5],
+    dog: [-0.02, 0, 1, 0, 0.95], bear: [-0.006, 0.12, 1, -0.1, 0.5], sheep: [0.075, 0, 1, -0.1, 0.95], squirrel: [-0.052, 0.04, 1, 0, 0.5],
+    hedgehog: [0.04, 0, 1, -0.1, 0.95], rabbit: [-0.006, 0.18, 1, 0.3, 0.5], monkey: [0.008, -0.04, 1, -0.2, 0.95], pig: [-0.026, 0.08, 1, -0.1, 0.5],
+    mouse: [-0.026, 0.12, 1, 0.1, 0.5], elephant: [-0.02, 0, 1, 0, 0.95], frog: [0.022, 0, 1, -0.3, 0.95], duck: [-0.006, -0.04, 1, -0.2, 0.95],
+    hamster: [-0.04, 0, 1, -0.1, 0.95], chick: [-0.026, 0, 1, -0.1, 0.95]
   },
   beanie: {
-    dragon: [0.034, 0, 1, -0.3, 0.95], unicorn: [0.148, 0, 1, -0.1, 0.95], lion: [0.214, 0, 1, -0.2, 0.95], tiger: [-0.026, 0, 1, -0.1, 0.6],
-    eagle: [-0.026, 0, 1, -0.1, 0.95], wolf: [0.008, 0, 1, -0.1, 0.5], cheetah: [-0.006, -0.04, 1, -0.2, 0.95], fox: [-0.012, 0.04, 1, -0.1, 0.5],
-    owl: [-0.032, 0, 1, -0.2, 0.95], husky: [0.034, 0, 1, 0.1, 0.7], panda: [0.054, 0, 1, 0, 0.8], koala: [-0.058, 0, 1, -0.1, 0.55],
-    penguin: [-0.086, 0, 1, -0.1, 0.95], raccoon: [0.02, 0, 1, 0, 0.95], cat: [-0.006, 0.12, 1, -0.1, 0.65], dog: [-0.052, 0, 1, -0.1, 0.95],
-    deer: [0.122, 0, 1, -0.3, 0.4], bear: [-0.018, 0, 1, -0.1, 0.6], sheep: [0.14, 0, 1, 0, 0.95], squirrel: [-0.026, -0.04, 1, -0.1, 0.95],
-    hedgehog: [-0.018, 0, 1, -0.1, 0.95], rabbit: [-0.106, 0.12, 1, 0, 0.4], monkey: [-0.046, 0, 1, -0.1, 0.95], pig: [-0.03, 0.06, 1, -0.1, 0.5],
+    dragon: [-0.05, 0, 1, -0.2, 0.9], unicorn: [0.09, -0.12, 1, -0.35, 0.8], lion: [0.214, 0, 1, -0.2, 0.95], tiger: [-0.032, 0.12, 1, -0.1, 0.65],
+    eagle: [-0.1, 0, 1, -0.1, 0.95], wolf: [0.008, 0.12, 1, -0.1, 0.55], cheetah: [-0.038, -0.08, 1, -0.1, 0.95], fox: [-0.012, 0.04, 1, -0.1, 0.5],
+    owl: [-0.032, 0, 1, -0.2, 0.95], husky: [-0.026, 0.12, 1, -0.1, 0.6], panda: [-0.04, 0.12, 1, -0.1, 0.55], koala: [-0.058, 0, 1, -0.1, 0.55],
+    penguin: [-0.086, 0, 1, -0.1, 0.95], raccoon: [-0.006, 0.12, 1, -0.1, 0.7], cat: [-0.026, 0.08, 1, -0.1, 0.6], dog: [-0.052, 0, 1, -0.1, 0.95],
+    deer: [0.128, 0, 1, -0.2, 0.4], bear: [-0.072, 0.12, 1, -0.1, 0.55], sheep: [0.008, 0, 1, -0.1, 0.95], squirrel: [-0.06, -0.04, 1, 0, 0.9],
+    hedgehog: [-0.018, 0, 1, -0.1, 0.95], rabbit: [-0.106, 0.12, 1, 0.1, 0.5], monkey: [-0.046, 0, 1, -0.1, 0.95], pig: [-0.05, 0.06, 1, -0.1, 0.5],
     mouse: [-0.072, 0.12, 1, -0.1, 0.55], elephant: [-0.046, 0, 1, -0.1, 0.95], frog: [-0.026, 0, 1, -0.4, 0.95], duck: [-0.066, 0, 1, -0.1, 0.95],
-    hamster: [-0.04, -0.08, 1, -0.3, 0.95], chick: [-0.046, -0.04, 1, -0.1, 0.95]
+    hamster: [-0.04, -0.08, 1, -0.3, 0.95], chick: [-0.1, 0, 1, -0.1, 0.95]
   },
   ribbon: {
-    dragon: [0.128, 0, 1, -0.3], unicorn: [0.094, 0, 1, -0.1], lion: [0.2, 0.1, 0.9, -0.2], tiger: [0.02, 0.04, 1, -0.1],
-    eagle: [-0.046, -0.12, 1, -0.4], wolf: [0.042, 0.04, 1, -0.1], cheetah: [0, -0.04, 0.8, 0.1], fox: [0.008, 0, 1, -0.2], owl: [0.02, 0, 1, -0.1],
-    husky: [0.054, 0, 0.9, 0.1], panda: [0.04, -0.04, 1, 0], koala: [-0.038, 0.04, 1, -0.1], penguin: [0, -0.12, 1, 0.1],
-    raccoon: [0.042, -0.08, 0.8, -0.3], cat: [-0.006, 0, 0.95, -0.4], dog: [-0.032, 0, 0.95, -0.4], deer: [0.06, -0.12, 1, -0.2],
-    bear: [-0.006, 0, 1, -0.2], sheep: [0.1, 0.04, 0.95, -0.1], squirrel: [0, 0, 0.75, -0.1], hedgehog: [0.008, -0.04, 1, -0.3],
-    rabbit: [-0.026, 0, 0.95, -0.1], monkey: [0.028, 0, 1, 0.1], pig: [-0.012, 0.04, 0.85, -0.3], mouse: [-0.046, 0.04, 1, -0.1],
+    dragon: [-0.01, 0.1, 1, -0.1], unicorn: [0.008, 0, 1, -0.1], lion: [0.214, -0.04, 1, 0], tiger: [-0.026, 0.04, 1, -0.2],
+    eagle: [0, -0.08, 1, 0.1], wolf: [-0.006, 0.08, 1, -0.1], cheetah: [-0.02, -0.08, 1, -0.2], fox: [0.008, 0, 1, -0.2], owl: [0.02, 0, 1, -0.1],
+    husky: [-0.04, 0.08, 1, -0.1], panda: [-0.038, 0.08, 1, -0.2], koala: [-0.038, 0.04, 1, -0.1], penguin: [0, -0.12, 1, 0.1],
+    raccoon: [-0.032, 0.12, 0.95, -0.1], cat: [-0.012, 0.08, 1, -0.1], dog: [-0.018, 0, 1, -0.1], deer: [-0.03, 0.14, 1, 0.1],
+    bear: [-0.06, 0.08, 1, -0.2], sheep: [0.042, 0.08, 0.85, -0.1], squirrel: [-0.018, -0.04, 1, 0.1], hedgehog: [0.008, -0.04, 1, -0.3],
+    rabbit: [-0.026, -0.08, 1, 0], monkey: [0.028, 0, 1, 0.1], pig: [-0.078, 0.12, 1, -0.2], mouse: [-0.092, 0.12, 1, -0.3],
     elephant: [-0.012, -0.04, 1, -0.1], frog: [0, -0.08, 1, -0.1], duck: [0.002, -0.04, 0.85, 0.1], hamster: [-0.04, 0.04, 1, -0.2],
-    chick: [0.022, -0.04, 0.75, -0.1]
+    chick: [-0.026, -0.12, 1, -0.1]
   },
   flower: {
-    dragon: [0.134, 0, 1, -0.1], unicorn: [0.148, 0, 1, -0.1], lion: [0.208, 0, 1, -0.1], tiger: [0.042, 0, 1, -0.2], eagle: [0.034, 0, 1, -0.2],
-    wolf: [0.074, 0, 1, -0.2], cheetah: [0.002, 0, 1, -0.1], fox: [0.028, 0, 1, -0.1], owl: [0.068, 0, 1, -0.1], husky: [0.048, 0, 1, -0.1],
-    panda: [0.034, 0, 1, -0.1], koala: [-0.026, 0, 1, -0.1], penguin: [-0.006, 0, 1, -0.1], raccoon: [0.04, 0, 1, -0.1], cat: [0.008, 0, 1, -0.1],
-    dog: [-0.02, 0, 1, -0.1], deer: [0.208, 0, 1, -0.1], bear: [-0.006, 0, 1, -0.1], sheep: [0.134, 0, 1, -0.1], squirrel: [0.002, 0, 1, -0.1],
+    dragon: [0, 0.1, 1, -0.1], unicorn: [0.028, 0, 1, -0.1], lion: [0.17, 0, 1, -0.1], tiger: [-0.018, 0, 1, -0.1], eagle: [-0.012, 0, 1, -0.1],
+    wolf: [0.054, 0, 1, -0.1], cheetah: [-0.012, 0, 1, -0.1], fox: [0.028, 0, 1, -0.1], owl: [0.068, 0, 1, -0.1], husky: [-0.012, 0, 1, -0.1],
+    panda: [-0.012, 0, 1, -0.1], koala: [-0.026, 0, 1, -0.1], penguin: [-0.006, 0, 1, -0.1], raccoon: [0, 0, 1, -0.1], cat: [0.008, 0, 1, -0.1],
+    dog: [-0.02, 0, 1, -0.1], deer: [-0.01, 0.12, 1, 0.1], bear: [-0.038, 0, 1, -0.1], sheep: [0.06, 0, 1, -0.1], squirrel: [-0.04, 0, 1, -0.1],
     hedgehog: [0.02, 0, 1, -0.1], rabbit: [-0.032, 0, 1, -0.1], monkey: [0.008, 0, 1, -0.1], pig: [0.014, 0, 1, -0.1], mouse: [-0.04, 0, 1, -0.1],
-    elephant: [-0.018, 0, 1, -0.1], frog: [0.088, 0, 1, -0.1], duck: [-0.012, 0, 1, -0.1], hamster: [-0.032, 0, 1, -0.1], chick: [-0.012, 0, 1, -0.1]
+    elephant: [-0.018, 0, 1, -0.1], frog: [0.06, 0, 1, -0.1], duck: [-0.012, 0, 1, -0.1], hamster: [-0.032, 0, 1, -0.1], chick: [-0.012, 0, 1, -0.1]
   },
   party: {
-    dragon: [0.094, -0.04, 1, -0.1], unicorn: [0.1, -0.06, 1, -0.25], lion: [0.194, 0, 1, -0.1], tiger: [0.02, 0, 1, -0.1],
-    eagle: [-0.026, 0, 1, -0.1], wolf: [0.08, 0, 1, -0.1], cheetah: [-0.006, 0, 1, -0.1], fox: [0.06, 0, 1, -0.1], owl: [-0.006, 0, 1, -0.1],
-    husky: [0.088, 0, 1, -0.1], panda: [0.054, 0, 1, -0.1], koala: [0, 0, 1, -0.1], penguin: [-0.06, 0, 1, -0.1], raccoon: [0.022, 0, 1, -0.1],
-    cat: [0.054, 0, 1, -0.1], dog: [-0.02, 0, 1, -0.1], deer: [0.188, -0.04, 1, -0.1], bear: [0.028, 0, 1, -0.1], sheep: [0.148, 0, 1, -0.1],
-    squirrel: [0.048, 0, 1, -0.1], hedgehog: [-0.012, -0.04, 1, 0], rabbit: [-0.052, 0.04, 0.65, 0], monkey: [0.008, -0.12, 1, -0.1],
-    pig: [0, 0, 1, -0.1], mouse: [0.014, 0.04, 1, 0], elephant: [-0.058, -0.04, 1, -0.1], frog: [0.04, 0, 1, -0.1], duck: [-0.006, -0.12, 1, -0.1],
-    hamster: [-0.006, 0, 1, -0.1], chick: [0.04, 0, 1, -0.1]
+    dragon: [0.094, -0.04, 1, -0.1], unicorn: [0.12, 0, 1, -0.1], lion: [0.194, 0, 1, -0.1], tiger: [0.014, 0, 1, -0.1], eagle: [-0.066, 0, 1, -0.1],
+    wolf: [0.06, 0.02, 0.9, -0.1], cheetah: [-0.006, 0, 1, -0.1], fox: [0.06, 0, 1, -0.1], owl: [-0.006, 0, 1, -0.1], husky: [0.02, 0.04, 1, -0.1],
+    panda: [0.04, 0.04, 1, -0.1], koala: [0, 0, 1, -0.1], penguin: [-0.06, 0, 1, -0.1], raccoon: [0.034, 0, 1, -0.1], cat: [0.02, 0, 1, -0.1],
+    dog: [-0.018, 0, 1, -0.1], deer: [0.194, -0.04, 1, -0.1], bear: [0.02, 0.04, 1, -0.1], sheep: [0.008, 0, 1, -0.1], squirrel: [-0.018, 0, 1, -0.1],
+    hedgehog: [-0.012, -0.04, 1, 0], rabbit: [0.008, 0.12, 1, -0.1], monkey: [0.008, -0.12, 1, -0.1], pig: [0, 0, 1, -0.1], mouse: [0.022, 0.04, 1, 0],
+    elephant: [-0.052, -0.04, 1, -0.1], frog: [0.04, 0, 1, -0.1], duck: [-0.006, -0.12, 1, -0.1], hamster: [-0.006, 0, 1, -0.1],
+    chick: [-0.066, 0, 1, -0.1]
   },
   tophat: {
-    dragon: [0.12, 0, 0.75, -0.2], unicorn: [0.13, -0.14, 0.9, -0.25], lion: [0.2, 0, 1, -0.1], tiger: [0.014, 0, 1, -0.1], eagle: [0, 0, 1, -0.1],
-    wolf: [0.054, 0.04, 0.95, -0.1], cheetah: [-0.012, 0, 1, -0.1], fox: [0.04, 0.04, 1, -0.1], owl: [0.022, 0, 1, -0.3],
-    husky: [0.108, -0.04, 1, -0.1], panda: [0.042, 0, 1, -0.1], koala: [-0.02, 0, 1, -0.1], penguin: [-0.006, 0, 1, -0.1], raccoon: [0.06, 0, 1, -0.1],
-    cat: [0.034, 0, 1, -0.1], dog: [0, 0, 1, -0.1], deer: [0.2, -0.04, 0.85, -0.1], bear: [0.014, 0, 1, -0.1], sheep: [0.214, 0, 1, -0.1],
-    squirrel: [0.074, -0.04, 1, -0.1], hedgehog: [0.014, 0, 1, -0.1], monkey: [0.008, 0, 1, -0.1], pig: [0, 0, 1, -0.1],
-    mouse: [-0.02, 0.04, 0.85, 0.1], elephant: [-0.02, 0, 1, -0.1], frog: [0.04, 0.04, 1, -0.3], duck: [-0.012, -0.04, 1, -0.1],
-    hamster: [-0.026, 0, 1, -0.1], chick: [0.08, 0, 1, -0.1]
+    dragon: [0.12, 0, 0.75, -0.2], unicorn: [0.14, -0.04, 1, -0.1], lion: [0.15, 0, 1, -0.1], tiger: [0, 0, 1, -0.1], eagle: [-0.02, 0, 1, -0.1],
+    wolf: [-0.01, 0.02, 0.8, 0], cheetah: [-0.012, 0, 1, -0.1], fox: [0.04, 0.06, 0.85, -0.1], owl: [0.022, 0, 1, -0.2], husky: [0.008, 0.04, 1, -0.1],
+    panda: [0.02, 0, 1, 0.1], koala: [-0.02, 0, 1, -0.1], penguin: [-0.006, 0, 1, -0.1], raccoon: [0.02, 0, 1, -0.1], cat: [0.034, 0.06, 0.85, -0.1],
+    dog: [-0.006, 0, 1, -0.1], deer: [0.2, -0.04, 0.85, -0.1], bear: [-0.006, 0, 1, 0.1], sheep: [0.054, 0, 1, -0.1], squirrel: [-0.032, 0, 1, -0.1],
+    hedgehog: [0.014, 0, 1, -0.1], rabbit: [-0.02, 0.12, 0.95, 0.1], monkey: [0.008, 0, 1, -0.1], pig: [-0.012, 0, 1, -0.1],
+    mouse: [-0.006, 0.12, 1, -0.1], elephant: [-0.02, 0, 1, -0.1], frog: [0.04, 0.04, 1, -0.3], duck: [-0.012, -0.04, 1, -0.1],
+    hamster: [-0.026, 0, 1, -0.1], chick: [-0.018, 0, 1, -0.1]
   },
   wizard: {
-    dragon: [0.148, 0, 1, -0.1], unicorn: [0.13, -0.1, 1, -0.25], lion: [0.22, 0, 1, -0.1], tiger: [0.042, 0, 1, -0.1], eagle: [0.014, 0, 1, -0.1],
-    wolf: [0.06, 0.04, 0.6, -0.1], cheetah: [0.02, 0, 1, -0.1], fox: [0.068, 0.04, 0.75, -0.1], owl: [0.048, 0, 1, -0.2], husky: [0.134, 0, 1, -0.1],
-    panda: [0.082, 0, 1, -0.1], koala: [0.028, 0, 1, 0], penguin: [-0.02, 0, 1, -0.1], raccoon: [0.068, 0, 1, -0.1], cat: [0.06, 0.04, 0.85, 0.1],
-    dog: [0.008, 0, 1, -0.1], deer: [0.24, 0, 1, -0.1], bear: [0.054, 0, 1, -0.1], sheep: [0.22, 0, 1, -0.1], squirrel: [0.1, 0, 1, -0.1],
-    hedgehog: [0.008, 0, 1, -0.1], monkey: [0.028, 0, 1, 0.1], pig: [0.034, 0, 1, -0.1], mouse: [0.06, -0.12, 1, -0.1], elephant: [-0.026, 0, 1, -0.1],
-    frog: [0.06, 0, 1, -0.1], duck: [0.028, -0.04, 1, 0.1], hamster: [0.008, 0, 1, -0.1], chick: [0.08, 0, 1, -0.1]
+    dragon: [0.148, 0, 1, -0.1], unicorn: [0.154, 0, 1, -0.1], lion: [0.15, 0, 1, -0.1], tiger: [0.04, 0, 1, -0.1], eagle: [-0.026, 0, 1, -0.1],
+    wolf: [0.01, 0.06, 0.85, 0], cheetah: [0.02, 0, 1, -0.1], fox: [0.045, 0.04, 0.85, -0.1], owl: [0.048, 0, 1, -0.2], husky: [0.02, 0.12, 0.95, 0.1],
+    panda: [0.054, 0, 1, 0.1], koala: [0.028, 0, 1, 0], penguin: [-0.02, 0, 1, -0.1], raccoon: [0.068, 0, 1, -0.1], cat: [0.06, 0.12, 1, 0.1],
+    dog: [0.008, 0, 1, -0.1], deer: [0.24, 0, 1, -0.1], bear: [0.034, 0, 1, 0.1], sheep: [0.054, 0, 1, -0.1], squirrel: [0.008, 0, 1, -0.1],
+    hedgehog: [0.008, 0, 1, -0.1], rabbit: [0, 0.12, 0.65, 0], monkey: [0.028, 0, 1, 0.1], pig: [0.034, 0, 1, -0.1], mouse: [0.062, -0.12, 1, -0.1],
+    elephant: [-0.026, 0, 1, -0.1], frog: [0.06, 0, 1, -0.1], duck: [0.028, -0.04, 1, 0.1], hamster: [0.008, 0, 1, -0.1], chick: [-0.026, 0, 1, -0.1]
   },
 };
 const FIT0 = { y: 0, z: 0, s: 1, rx: -0.1, c: 0.85 };
-/* Headphones (band height, head width factor, nudge back) and the halo's lift, per species; measured on the head profile and checked on the sheets */
+/* Headphones (band height, head width factor, nudge back) and the halo's lift, per species. The band's inner edge rests about 0.02 into the fur at the
+ * crown, so its height follows the head top at the centre line (the dog's, 1.016, is 0); the halo hovers the same distance over every crown. Remeasured
+ * on the models without their own hats (3.127.0-2): the husky's, squirrel's, bear's and pig's bands and the husky's, panda's, raccoon's, bear's,
+ * sheep's, squirrel's and chick's halos came down with their crowns (the husky by 0.12, the sheep and squirrel by 0.09). Checked on the sheets.
+ * The lion's band goes over the mane, wide enough that the cups sit outside it; the rabbit's halo floats over the tips of its ears, the unicorn's over
+ * the tip of its horn (3.127.0-3). */
 const PHONES = {
-  lion: [0.1, 1.3, -0.04], deer: [0.05, 1, -0.08], husky: [0.02, 1, -0.03], sheep: [0.06, 1.12, 0], squirrel: [0.02, 1, -0.03], hedgehog: [0.04, 1.08, 0],
+  lion: [0.15, 1.4, -0.04], deer: [0.05, 1, -0.08], husky: [0, 1, -0.03], sheep: [0.06, 1.12, 0], squirrel: [-0.03, 1, -0.03], hedgehog: [0.04, 1.08, 0],
   monkey: [0.02, 1.08, 0], raccoon: [0.02, 1.1, 0], frog: [0.02, 1, -0.02], unicorn: [0, 1, -0.1], dragon: [0, 1, -0.06], wolf: [0, 1.02, -0.04],
-  fox: [0, 1, -0.04], cat: [0, 1.05, -0.03], tiger: [0, 1.04, 0], panda: [0, 1.1, 0], koala: [0, 1.05, 0], dog: [0, 1.05, 0], bear: [0, 1.1, 0],
-  pig: [0, 1.02, 0], mouse: [0, 1.05, 0], elephant: [0, 1.12, 0], rabbit: [0, 1, 0.04],
+  fox: [0, 1, -0.04], cat: [0, 1.05, -0.03], tiger: [0, 1.04, 0], panda: [0, 1.1, 0], koala: [0, 1.05, 0], dog: [0, 1.05, 0], bear: [-0.01, 1.1, 0],
+  pig: [-0.01, 1.02, 0], mouse: [0, 1.05, 0], elephant: [0, 1.12, 0], rabbit: [0, 1, 0.04],
 };
-const HALO_Y = { dragon: 0.06, unicorn: 0.05, lion: 0.15, wolf: 0.02, fox: 0.02, husky: 0.06, panda: 0.05, raccoon: 0.04, cat: 0.02, deer: 0.1, bear: 0.02,
-  sheep: 0.1, squirrel: 0.04, hedgehog: 0.06, rabbit: 0.02, monkey: 0.05, frog: 0.03, duck: 0.01, chick: 0.03 };
-/* Pieces a species cannot wear, with the reason. The model is two merged meshes, so its own headwear cannot be hidden: a hat-type piece on a species
- * that already wears one would be a second hat. The shop reads this through headGearSkips() and tells the member the item is not shown on that animal. */
+const HALO_Y = { dragon: 0.06, unicorn: 0.09, lion: 0.15, wolf: 0.02, fox: 0.02, raccoon: 0.025, cat: 0.02, deer: 0.1, sheep: 0.07, squirrel: -0.03,
+  hedgehog: 0.06, rabbit: 0.33, monkey: 0.05, frog: 0.03, duck: 0.01 };
+/* Pieces a species cannot wear because of its own body, with the body part. The cast models wear nothing on the head of their own since 3.127.0-2,
+ * so every other piece is fitted, with a per-species adjustment where needed. The shop reads this through headGearSkips() and tells the member the
+ * item is not shown on that animal. */
 const SKIPS = {
-  husky: ['cap', 'beanie', 'party', 'tophat', 'wizard'],   /* a red knit hat with a pom-pom over the whole crown, the ears through it */
-  panda: ['cap', 'beanie', 'party', 'tophat', 'wizard', 'headphones'],   /* a straw hat with a wide brim: hats would stack on it, the headphone band would cut the brim */
-  raccoon: ['cap', 'beanie', 'party', 'tophat', 'wizard'],   /* an orange cap over the crown, its brim to the side */
-  bear: ['cap', 'beanie', 'party', 'tophat', 'wizard'],   /* a teal cap over the crown, its brim at the back */
-  sheep: ['cap', 'beanie', 'party', 'tophat', 'wizard', 'ribbon'],   /* a red beret over the right of the crown; the bow would sit on it */
-  squirrel: ['cap', 'beanie', 'party', 'tophat', 'wizard'],   /* a green knit hat with a cuff and a pom-pom, one ear through it */
-  chick: ['party', 'tophat', 'wizard'],   /* an eggshell cap: the cap and the beanie cover it, a perched hat leaves it showing underneath */
-  rabbit: ['ribbon', 'tophat', 'wizard'],   /* a pink bow of its own; the long ears rise from the middle of the crown, so a brimmed hat cannot sit between them */
-  pig: ['ribbon'],   /* heart sunglasses pushed up on the crown, read as a second bow */
-  unicorn: ['tophat', 'wizard'],   /* the horn rises from the forehead to brim height and the sunglasses sit in front of the crown: a brim rests on the horn tip */
+  unicorn: ['tophat', 'wizard'],   /* the horn rises from the forehead to brim height: a brim rests on its tip or the crown swallows it */
   dragon: ['cap', 'party', 'tophat', 'wizard'],   /* two horns beside the crown: a cap or a brim between them is tiny, a larger one rests on the horn tips */
   deer: ['cap', 'beanie', 'party', 'tophat', 'wizard'],   /* the antlers rise from the crown: every hat either swallows them or rests on their tips */
+  rabbit: ['wizard'],   /* the long ears rise from the middle of the crown: the cone's wide brim hangs on them (the top hat fits in front of them) */
 };
 export function headGearSkips(species){ return (SKIPS[species] || []).slice(); }
 const num = (v, d) => Number.isFinite(v) ? v : d;

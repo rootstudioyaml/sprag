@@ -37,21 +37,21 @@ test('headGearFit: headphones follow the head width, other pieces keep w = 1', (
   for(const id of HEAD_IDS.filter(i => i !== 'headphones')) assert.equal(headGearFit(id, 'lion').w, 1, id);
 });
 
-/* Species whose model already wears something on the head (the cast glbs are two merged meshes, so it cannot be hidden), or whose horns,
- * antlers or ears leave no clean place for a hat. The shop shows "not shown on your current animal" for these; change it with the fit notes. */
+/* Species whose own body leaves no honest place for a piece: horns or antlers that a brim would rest on, ears that rise from the middle of the crown.
+ * The shop shows "not shown on your current animal" for these; change it with the fit notes. Since 3.127.0-2 the cast models wear no hats, glasses,
+ * bows or headphones of their own, so headwear is never a reason. */
 const SKIP_TABLE = {
-  husky: ['cap', 'beanie', 'party', 'tophat', 'wizard'],
-  panda: ['cap', 'beanie', 'party', 'tophat', 'wizard', 'headphones'],
-  raccoon: ['cap', 'beanie', 'party', 'tophat', 'wizard'],
-  bear: ['cap', 'beanie', 'party', 'tophat', 'wizard'],
-  sheep: ['cap', 'beanie', 'party', 'tophat', 'wizard', 'ribbon'],
-  squirrel: ['cap', 'beanie', 'party', 'tophat', 'wizard'],
-  chick: ['party', 'tophat', 'wizard'],
-  rabbit: ['ribbon', 'tophat', 'wizard'],
-  pig: ['ribbon'],
   unicorn: ['tophat', 'wizard'],
   dragon: ['cap', 'party', 'tophat', 'wizard'],
   deer: ['cap', 'beanie', 'party', 'tophat', 'wizard'],
+  rabbit: ['wizard'],
+};
+/* The species that had headwear baked into the model until 3.127.0-2, each with the most it may skip now: only what its horns, antlers or ears
+ * rule out (the same reasons as SKIP_TABLE). Everything else they unlock is drawn. */
+const LOST_HEADWEAR = {
+  bear: [], cat: [], cheetah: [], chick: [], dog: [], elephant: [], eagle: [], lion: [], pig: [], tiger: [], wolf: [], husky: [], squirrel: [],
+  mouse: [], panda: [], raccoon: [], sheep: [],
+  dragon: ['cap', 'party', 'tophat', 'wizard'], unicorn: ['tophat', 'wizard'], deer: ['cap', 'beanie', 'party', 'tophat', 'wizard'], rabbit: ['wizard'],
 };
 
 test('headGearSkips: the skip table, as data, and headGearFit agrees with it', () => {
@@ -62,9 +62,49 @@ test('headGearSkips: the skip table, as data, and headGearFit agrees with it', (
     for(const id of got) assert.ok(HEAD_IDS.includes(id), k + ': ' + id + ' is a head item');
     for(const id of HEAD_IDS) assert.equal(headGearFit(id, k).skip, got.includes(id), k + ' ' + id);
   }
-  headGearSkips('panda').push('halo');
-  assert.ok(!headGearSkips('panda').includes('halo'), 'callers get a copy');
+  headGearSkips('dragon').push('halo');
+  assert.ok(!headGearSkips('dragon').includes('halo'), 'callers get a copy');
   assert.ok(SPECIES.every(k => !headGearSkips(k).includes('halo')), 'the halo floats over every head');
+  assert.ok(SPECIES.every(k => !headGearSkips(k).includes('flower') && !headGearSkips(k).includes('headphones')), 'a flower pin and headphones go on every head');
+});
+
+test('headGearSkips: no species skips a piece because of headwear it no longer has', () => {
+  for(const [k, may] of Object.entries(LOST_HEADWEAR)){
+    assert.ok(SPECIES.includes(k), k + ' is a cast species');
+    for(const id of headGearSkips(k)) assert.ok(may.includes(id), k + ' skips ' + id + ', which only its horns, antlers or ears could justify');
+  }
+  /* every entry of the table names the body part that rules the pieces out, and none of them blames a hat, glasses, a bow or headphones */
+  const block = SRC.slice(SRC.indexOf('const SKIPS = {'), SRC.indexOf('\n};', SRC.indexOf('const SKIPS = {')));
+  const rows = block.split('\n').slice(1).filter(l => /^\s+[a-z]+: \[/.test(l));
+  assert.equal(rows.length, Object.keys(SKIP_TABLE).length, 'one line per species');
+  for(const l of rows){
+    assert.match(l, /\/\*.*\b(horns?|antlers?|ears?)\b.*\*\//, 'a comment naming the body part: ' + l.trim().slice(0, 40));
+    assert.doesNotMatch(l, /\b(hat|cap|beanie|beret|bow|ribbon|sunglasses|glasses|headphones) of its own\b/, 'no headwear reason: ' + l.trim().slice(0, 40));
+  }
+});
+
+/* One size policy (3.127.0-3): a member who unlocks a piece expects it to look the same size on their animal as on a coworker's, so a piece that is shown
+ * is drawn at 0.8 to 1.25 of its standard scale; where it cannot sit inside that range the species skips it. The cap has two looks, each one size:
+ * over the whole head, or a small cap between the ears on heads with ears on top. The ghost wears nothing. */
+const WEARERS = SPECIES.filter(k => k !== 'ghost');
+const CAP_BETWEEN_EARS = ['tiger', 'wolf', 'fox', 'husky', 'panda', 'koala', 'raccoon', 'cat', 'bear', 'squirrel', 'rabbit', 'pig', 'mouse'];
+
+test('headGearFit: every piece that is shown is within 0.8 to 1.25 of its standard scale', () => {
+  assert.equal(WEARERS.length, 30, 'thirty species wear gear');
+  for(const id of HEAD_IDS) for(const k of WEARERS){
+    const f = headGearFit(id, k);
+    if(!f.skip) assert.ok(f.s >= 0.8 && f.s <= 1.25, id + ' on ' + k + ' is drawn at ' + f.s);
+  }
+});
+
+test('headGearFit: the cap is over the whole head or a small cap between the ears, each look one size on every species that wears it', () => {
+  for(const k of CAP_BETWEEN_EARS) assert.ok(WEARERS.includes(k), k + ' is a cast species');
+  for(const k of WEARERS){
+    const f = headGearFit('cap', k);
+    if(f.skip) continue;
+    assert.equal(f.s, 1, 'cap on ' + k);
+    assert.equal(f.c, CAP_BETWEEN_EARS.includes(k) ? 0.5 : 0.95, 'cap look on ' + k);
+  }
 });
 
 test('placeHeadGear puts the piece at the crown anchor plus the fit and hands the width and the cover angle to the piece', () => {
