@@ -1368,6 +1368,26 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
   const gradeSeg = relaxClockText
     ? `${c(GRAY)}${verbose ? `relax until ${relaxClockText}` : `relax →${relaxClockText}`}${c(RESET)}`
     : null;
+  // The delegation level the prompt hook is applying because a usage window is
+  // filling up (capPressure: L1 from 70%, L2 from 90%). It says what the hook
+  // adds at that level, so the user can see the leaning is on. Hidden below 70%,
+  // while routing is off, and while a relax window is open (the relax chip
+  // already says delegation is widened).
+  //   text "L1 delegate if unsure"  |  icon "🔀L1 delegate if unsure"
+  //   verbose "delegation L1 at 7D 80%: delegate when unsure (sprag routing relax widens it)"
+  const lv = data.delegationLevel;
+  const lvN = lv && lv.level === 'critical' ? 2 : lv && lv.level === 'high' ? 1 : 0;
+  let levelSeg = null;
+  if (lvN && !relaxClockText) {
+    const what = lvN === 2 ? 'delegate multi-step too' : 'delegate if unsure';
+    const at = `${labelForKey(lv.key).short} ${Math.round(Number(lv.pct) || 0)}%`;
+    const body = verbose
+      ? (lvN === 2
+        ? `delegation L2 at ${at}: multi-step work too, consider /model`
+        : `delegation L1 at ${at}: delegate when unsure (sprag routing relax widens it)`)
+      : isIcon ? `${g.routing}L${lvN} ${what}` : `L${lvN} ${what}`;
+    levelSeg = `${c(lvN === 2 ? ORANGE : YELLOW)}${body}${c(RESET)}`;
+  }
 
   // Routing-savings headline line (multi-line layout). The lifetime sum from
   // the delegation ledger — the number the whole tool exists to grow, so it
@@ -1452,9 +1472,9 @@ function buildDelegatedSeg(data, singleLine, c, isIcon, verbose, g) {
     // same way, and stays on line 2 while there is no line to carry it.
     chips: totalsLine
       ? (totalsNum === 0
-        ? [unresolvedSeg, guardLine ? null : raisedSeg, modelUpSeg, gradeSeg]
-        : [guardLine ? null : raisedSeg, modelUpSeg, gradeSeg])
-      : [delegateSeg, guardLine ? null : raisedSeg, modelUpSeg, gradeSeg, delegateExtra],
+        ? [unresolvedSeg, guardLine ? null : raisedSeg, modelUpSeg, gradeSeg, levelSeg]
+        : [guardLine ? null : raisedSeg, modelUpSeg, gradeSeg, levelSeg])
+      : [delegateSeg, guardLine ? null : raisedSeg, modelUpSeg, gradeSeg, levelSeg, delegateExtra],
     headline: totalsLine ? { usd: Number(totals && totals.total) || 0, line: totalsLine, short: totalsShort } : null,
     guardLine,
   };

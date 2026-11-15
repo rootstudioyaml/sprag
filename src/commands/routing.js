@@ -128,6 +128,23 @@ export async function run({ args }) {
     try { agentsOn = (await import('../delegation-agents.js')).delegationAgentStatus().enabled; } catch { /* default on */ }
     console.log(`routing: ${on ? 'on' : 'off'}`);
     console.log(isRelaxed() ? `relax: until ${relaxClock(relaxUntil())}` : 'relax: off');
+    // The usage-limit level the prompt hook applies (capPressure, same thresholds
+    // as the statusline chip) and what it adds at that level.
+    try {
+      const { capPressure, CAP_PRESSURE_HIGH, CAP_PRESSURE_CRITICAL } = await import('../caps-cache.js');
+      const { labelForKey } = await import('../window-labels.js');
+      const p = on ? capPressure() : null;
+      const at = p ? `${labelForKey(p.key).short} ${Math.round(p.pct)}%` : '';
+      const lv = !p ? null : p.level === 'critical' ? 2 : p.level === 'high' ? 1 : 0;
+      if (lv === null) console.log(ko ? '한도 레벨: 알 수 없음 (상태줄 사용량 기록이 없거나 오래됨)' : 'limit level: unknown (no recent statusline usage)');
+      else if (lv === 0) console.log(ko ? `한도 레벨: L0 (${at}). 룰대로만 위임합니다. ${CAP_PRESSURE_HIGH}%부터 L1입니다.` : `limit level: L0 (${at}). Delegation follows the rules only; L1 starts at ${CAP_PRESSURE_HIGH}%.`);
+      else if (lv === 1) console.log(ko
+        ? `한도 레벨: L1 (${at}). 위임 안내에 "판단이 애매하면 위임하십시오"를 붙입니다.${isRelaxed() ? '' : ' 더 넓히려면 sprag routing relax 를 실행합니다.'}`
+        : `limit level: L1 (${at}). Delegation hints add "when in doubt, delegate".${isRelaxed() ? '' : ' Run sprag routing relax to widen it.'}`);
+      else console.log(ko
+        ? `한도 레벨: L2 (${at}, ${CAP_PRESSURE_CRITICAL}% 이상). 여러 단계 작업도 위임 대상으로 보고 /model 변경을 권합니다.`
+        : `limit level: L2 (${at}, ${CAP_PRESSURE_CRITICAL}%+). Multi-step work counts as delegable too, and /model is suggested.`);
+    } catch { /* the level line is optional */ }
     console.log(`effort hint: ${effortHintEnabled() ? 'on' : 'off'}`);
     console.log(ko ? `구현 분업 상기: ${implementationFollowUpEnabled() ? '켜짐' : '꺼짐'}` : `Implementation reminder: ${implementationFollowUpEnabled() ? 'on' : 'off'}`);
     console.log(ko ? `등록된 룰: ${n}건` : `registered rules: ${n}`);

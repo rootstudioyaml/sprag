@@ -1118,6 +1118,23 @@ async function main() {
   } catch (e) {
     debug('grade-counts:totals', e);
   }
+  // How hard the prompt hook is leaning on delegation right now: the same
+  // capPressure the hook reads (brief.js), from this render's caps. Null while
+  // routing is off or no window is at 70%, so the chip only shows when the hook
+  // is actually adding something.
+  let delegationLevel = null;
+  if (isStatusline) {
+    try {
+      const { routingEnabled } = await import('../src/routing-switch.js');
+      if (routingEnabled() && caps) {
+        const { capPressure } = await import('../src/caps-cache.js');
+        const p = capPressure({ snapshot: { caps }, sessionModel: liveModelIdOf(stdinJson) || model });
+        if (p && p.level !== 'normal') delegationLevel = { level: p.level, key: p.key, pct: p.pct };
+      }
+    } catch (e) {
+      debug('statusline:delegation-level', e);
+    }
+  }
   // 'auto' unless the user pinned a bucket. Read here rather than in the
   // statusline branch below because the table and JSON formatters want the
   // same answer.
@@ -1212,6 +1229,7 @@ async function main() {
     effortRaises: isStatusline ? effortRaises : undefined,
     gradeActions: isStatusline ? gradeActions : undefined,
     relaxUntil: isStatusline ? relaxUntilNow : undefined,
+    delegationLevel: isStatusline ? delegationLevel : undefined,
     sessionDelegation,
     runningSubagents: runningNow,
     ruleStats,

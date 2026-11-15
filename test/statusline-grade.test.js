@@ -102,3 +102,22 @@ test('they ride with the delegated segment name: no new segment to list', () => 
   assert.match(strip(formatReport(d, { ...one, segments: ['delegated'] })), /model↑1/);
   assert.doesNotMatch(strip(formatReport(d, { ...one, segments: ['saved'] })), /model↑1/);
 });
+
+test('the delegation level chip says what the prompt hook adds at 70% and 90%, and steps aside for relax', () => {
+  const L1 = { level: 'high', key: 'seven_day', pct: 80.6 }, L2 = { level: 'critical', key: 'five_hour', pct: 93 };
+  assert.match(formatReport(data({ delegationLevel: L1 }), one), /L1 delegate if unsure/);
+  assert.match(formatReport(data({ delegationLevel: L2 }), one), /L2 delegate multi-step too/);
+  assert.match(formatReport(data({ delegationLevel: L1 }), { ...one, mode: 'icon' }), /🔀L1 delegate if unsure/);
+  assert.match(formatReport(data({ delegationLevel: L1 }), { ...one, verbose: true }), /delegation L1 at 7D 81%: delegate when unsure \(sprag routing relax widens it\)/);
+  assert.match(formatReport(data({ delegationLevel: L2 }), { ...one, verbose: true }), /delegation L2 at 5H 93%: multi-step work too, consider \/model/);
+  const relaxed = formatReport(data({ delegationLevel: L1, relaxUntil: new Date(2099, 5, 1, 21, 30).getTime() }), one);
+  assert.match(relaxed, /relax →/); assert.doesNotMatch(relaxed, /L1 delegate/, 'the relax chip already says delegation is widened');
+  for (const lv of [null, undefined, { level: 'normal', key: 'seven_day', pct: 40 }]) assert.equal(formatReport(data({ delegationLevel: lv }), one), formatReport(data(), one));
+});
+
+test('the CLI hands the statusline the same capPressure the prompt hook reads, only while routing is on', async () => {
+  const { readFileSync } = await import('node:fs');
+  const cli = readFileSync(new URL('../bin/cli.js', import.meta.url), 'utf8');
+  assert.match(cli, /if \(routingEnabled\(\) && caps\) \{\s*const \{ capPressure \} = await import\('\.\.\/src\/caps-cache\.js'\);/);
+  assert.match(cli, /delegationLevel: isStatusline \? delegationLevel : undefined,/);
+});
