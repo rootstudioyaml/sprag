@@ -381,8 +381,11 @@ test('play spots: the toy area must be in clear view of the home camera; desks, 
 test('the hop: horizontal travel lags going up and leads coming down; it takes off from the desk front the home camera sees, and the frame moved out of the sleeping pet\'s way', () => {
   assert.equal(hopAlong(0, true), 0); assert.equal(hopAlong(1, true), 1); assert.equal(hopAlong(0, false), 0); assert.equal(hopAlong(1, false), 1);
   for(let f = 0.05; f < 1; f += 0.05){ assert.ok(hopAlong(f, true) < f, `up lags at ${f}`); assert.ok(hopAlong(f, false) > f, `down leads at ${f}`); assert.ok(hopAlong(f + 0.01, true) > hopAlong(f, true)); }
-  assert.match(SCENE, /const DESK_HOP = \{ x: \(DESK_FIT\.x0 \+ DESK_FIT\.x1\) \/ 2, z: 2\.3 \}, DESK_FRAME = \{ x: 0\.98, z: 0\.64 \};/);
-  assert.match(SCENE, /hop: \{ x: o\.x \+ DESK_HOP\.x, z: o\.z \+ DESK_HOP\.z, yaw: Math\.PI \}/, 'facing the desk from its front');
+  assert.match(SCENE, /const DESK_HOP = \{ x: 0\.1, z: 2\.3 \}, DESK_FRAME = \{ x: 0\.98, z: 0\.64 \};/, 'the take-off is in front of the desk middle, where the home camera sees the floor');
+  assert.match(SCENE, /hop: \{ x: o\.x \+ DESK_HOP\.x, z: o\.z \+ DESK_HOP\.z, yaw: DESK_HOP_YAW \}/, 'facing the sleeping spot on a diagonal');
+  /* the next row's sitter (a person box 3.1 ahead in the same column) hides the floor in front of the left end but not the new take-off point */
+  const sitter = [-0.35, 2.85, 0.35, 3.35, 1.6];
+  assert.equal(floorSeen(0.1, 2.3, [sitter]), true, 'the take-off is in view'); assert.equal(floorSeen(-0.76, 2.3, [sitter]), false, 'the old take-off was hidden');
   /* seen from the home camera the frame in the back right corner has nothing of the sleeping spot between it and the camera */
   const fit = [-1.1, 0.72, -0.42, 1.93, 1.4]; assert.equal(floorSeen(0.98, 0.64, [fit]), true); assert.equal(floorSeen(-0.98, 0.64, [fit]), false, 'where it stood before, the pet hid it');
 });

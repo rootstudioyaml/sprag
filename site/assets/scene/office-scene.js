@@ -1752,10 +1752,13 @@ export function mountOfficeScene(container, data, opts = {}){
   /* The left end is narrow (the laptop and the desk item take the rest), so the pet lies lengthwise, facing the front edge: the camera then sees its face three
      quarters on, and a large dog fits at 0.95 of its size with its chin at the very front edge. The back of the box stops short of the photo frame. */
   const DESK_FIT = { x0: -1.1, x1: -0.42, z0: 0.72, z1: 1.93 }, DESK_YAW = 0;
-  /* The home camera looks along -x and -z, so the desk's front (+z) faces it: the pet takes off from the floor in front of the left end (DESK_HOP, facing -z) and
-     lands on its sleeping spot, never behind the desk or past its owner. The photo frame stands in the back right corner (DESK_FRAME): seen from that camera
-     nothing on the desk lies in front of it, while the sleeping pet on the left end lies across its line of sight. */
-  const DESK_HOP = { x: (DESK_FIT.x0 + DESK_FIT.x1) / 2, z: 2.3 }, DESK_FRAME = { x: 0.98, z: 0.64 };
+  /* The home camera looks along -x and -z, so the desk's front (+z) faces it. The pet takes off diagonally from the floor in front of the desk's middle (DESK_HOP)
+     and lands on its sleeping spot on the left end, never behind the desk or past its owner. In front of the left end itself the next row's sitter hides the
+     floor from that camera (only x >= -0.2 at the front edge is in view), so a straight jump from there showed no crouch and no take-off. The diagonal path
+     crosses the front edge at about x -0.2, in front of the desk item and the laptop, already above the desk top. The photo frame stands in the back right
+     corner (DESK_FRAME): seen from that camera nothing on the desk lies in front of it, while the sleeping pet on the left end lies across its line of sight. */
+  const DESK_HOP = { x: 0.1, z: 2.3 }, DESK_FRAME = { x: 0.98, z: 0.64 };
+  const DESK_HOP_YAW = Math.atan2((DESK_FIT.x0 + DESK_FIT.x1) / 2 - DESK_HOP.x, (DESK_FIT.z0 + DESK_FIT.z1) / 2 - DESK_HOP.z);   /* facing the sleeping spot, so the hop needs no turn */
   function petFit(pt){
     const g = pt.g, o = pt.o, ud = g.userData, sc = g.scale.x, keep = [g.position.clone(), g.rotation.clone()];
     ud.pose('sleep', 0, 0, { blend: 0 }); g.rotation.set(0, DESK_YAW, 0); g.position.set(0, 0, 0); g.updateMatrixWorld(true);
@@ -1782,7 +1785,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const gx = o.x - 1.45, sit = { x: gx, z: o.z + 1.8 };   /* the mouth of the gap, level with the desk's front edge: in view of the default camera and out of the aisle */
     const pt = { o, lane, seed: id + ':pet', ph: petHash(id + ':ph') * 10, n: 0, q: [], seg: null, st: 0, x: sit.x, y: petFloorY(sit.x, sit.z), z: sit.z, yaw: 0, pose: 'sit', force: null, prev: null,
       tilt: 0, sq: 0, ks: 1, v: 0, amp: 0, phase: 0, blend: null, toys: !!o.p.petToys, toy: null, toyMode: 'pile', toyT: 0, toyA: null, play: null, slot: null, spots: null };
-    pt.spots = { bowl: b, pile: petCtx.pile, sit: { ...sit, yaw: face(sit, own) }, hop: { x: o.x + DESK_HOP.x, z: o.z + DESK_HOP.z, yaw: Math.PI } };
+    pt.spots = { bowl: b, pile: petCtx.pile, sit: { ...sit, yaw: face(sit, own) }, hop: { x: o.x + DESK_HOP.x, z: o.z + DESK_HOP.z, yaw: DESK_HOP_YAW } };
     petModel(pt, look);
     const reach = 0.3 * pt.gs; pt.spots.eat = { x: b.x - reach, z: b.z + 0.11 * BOWL_SC, yaw: Math.PI / 2 }; pt.spots.drink = { x: b.x - reach, z: b.z - 0.11 * BOWL_SC, yaw: Math.PI / 2 };
     pt.yaw = pt.spots.sit.yaw;
