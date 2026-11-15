@@ -15,6 +15,7 @@
  * have rejected. SPRAG_TEAM_API_URL / SPRAG_TEAM_ANON_KEY point it at a local stack.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
+import { shapeLike as shape } from './presets-shape.mjs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { evaluateBundle } from '../src/presets-source.js';
@@ -46,7 +47,12 @@ for (const [name, key, list] of files) {
   const path = join(root, 'presets', name);
   const before = readFileSync(path, 'utf8');
   const data = JSON.parse(before);
-  data[key] = list;
+  // The server returns jsonb, which reorders object keys (shorter keys first). Keep the key
+  // order the committed file uses at every depth, so a pull of the same content leaves the
+  // file unchanged and the bundle-shape test (it compares key order) still passes. An item is
+  // matched to the committed one with the same id or name, else the one at its index; keys the
+  // committed file lacks go last.
+  data[key] = shape(list, data[key]);
   const after = JSON.stringify(data, null, 2) + '\n';
   if (after === before) { console.log(`unchanged  presets/${name}`); continue; }
   changed += 1;

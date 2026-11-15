@@ -16,132 +16,132 @@
     {
       "id": "run-t2",
       "tier": "T2",
-      "label": "명령 실행 (빌드·테스트·git)",
-      "budget": {
-        "out": 1500,
-        "calls": 8
-      },
-      "example": "npm test 돌려봐",
-      "labelEn": "running commands (build/test/git)",
       "category": "run",
-      "exampleEn": "run npm test"
+      "label": "명령 실행 (빌드·테스트·git)",
+      "labelEn": "running commands (build/test/git)",
+      "example": "npm test 돌려봐",
+      "exampleEn": "run npm test",
+      "budget": {
+        "calls": 8,
+        "out": 1500
+      }
     },
     {
       "id": "run-t1",
       "tier": "T1",
-      "label": "명령 실행 (빌드·테스트·git)",
-      "budget": {
-        "out": 6000,
-        "calls": null
-      },
-      "example": "빌드하고 실패한 테스트만 보여줘",
-      "labelEn": "running commands (build/test/git)",
       "category": "run",
-      "exampleEn": "build it and show only the failing tests"
+      "label": "명령 실행 (빌드·테스트·git)",
+      "labelEn": "running commands (build/test/git)",
+      "example": "빌드하고 실패한 테스트만 보여줘",
+      "exampleEn": "build it and show only the failing tests",
+      "budget": {
+        "calls": null,
+        "out": 6000
+      }
     },
     {
       "id": "explore-t2",
       "tier": "T2",
-      "label": "탐색·조회 (파일/값 찾기)",
-      "budget": {
-        "out": 1500,
-        "calls": 8
-      },
-      "example": "이 설정값 어느 파일에 있어?",
-      "labelEn": "lookup (finding files/values)",
       "category": "explore",
-      "exampleEn": "which file holds this config value?"
+      "label": "탐색·조회 (파일/값 찾기)",
+      "labelEn": "lookup (finding files/values)",
+      "example": "이 설정값 어느 파일에 있어?",
+      "exampleEn": "which file holds this config value?",
+      "budget": {
+        "calls": 8,
+        "out": 1500
+      }
     },
     {
       "id": "explore-t1",
       "tier": "T1",
-      "label": "탐색·조회 (파일/값 찾기)",
-      "budget": {
-        "out": 6000,
-        "calls": null
-      },
-      "example": "이 함수를 호출하는 곳 전부 찾아줘",
-      "labelEn": "lookup (finding files/values)",
       "category": "explore",
-      "exampleEn": "find every caller of this function"
+      "label": "탐색·조회 (파일/값 찾기)",
+      "labelEn": "lookup (finding files/values)",
+      "example": "이 함수를 호출하는 곳 전부 찾아줘",
+      "exampleEn": "find every caller of this function",
+      "budget": {
+        "calls": null,
+        "out": 6000
+      }
     },
     {
       "id": "check-t2",
       "tier": "T2",
-      "label": "상태 확인·검증",
-      "budget": {
-        "out": 1500,
-        "calls": 8
-      },
-      "example": "지금 배포된 버전이 뭔지 확인해줘",
-      "labelEn": "status checks / verification",
       "category": "check",
-      "exampleEn": "check which version is deployed right now"
+      "label": "상태 확인·검증",
+      "labelEn": "status checks / verification",
+      "example": "지금 배포된 버전이 뭔지 확인해줘",
+      "exampleEn": "check which version is deployed right now",
+      "budget": {
+        "calls": 8,
+        "out": 1500
+      }
     },
     {
       "id": "check-t1",
       "tier": "T1",
-      "label": "상태 확인·검증",
-      "budget": {
-        "out": 6000,
-        "calls": null
-      },
-      "example": "마이그레이션이 실제로 적용됐는지 확인해줘",
-      "labelEn": "status checks / verification",
       "category": "check",
-      "exampleEn": "verify the migration actually applied"
+      "label": "상태 확인·검증",
+      "labelEn": "status checks / verification",
+      "example": "마이그레이션이 실제로 적용됐는지 확인해줘",
+      "exampleEn": "verify the migration actually applied",
+      "budget": {
+        "calls": null,
+        "out": 6000
+      }
     },
     {
       "id": "paste-t2",
       "tier": "T2",
-      "label": "붙여넣은 화면·로그 질문",
-      "budget": {
-        "out": 1500,
-        "calls": 8
-      },
-      "example": "이 에러 로그는 무슨 뜻이야?",
-      "labelEn": "questions about pasted screens/logs",
       "category": "paste",
-      "exampleEn": "what does this error log mean?"
+      "label": "붙여넣은 화면·로그 질문",
+      "labelEn": "questions about pasted screens/logs",
+      "example": "이 에러 로그는 무슨 뜻이야?",
+      "exampleEn": "what does this error log mean?",
+      "budget": {
+        "calls": 8,
+        "out": 1500
+      }
     },
     {
       "id": "paste-t1",
       "tier": "T1",
-      "label": "붙여넣은 화면·로그 질문",
-      "budget": {
-        "out": 8000,
-        "calls": null
-      },
-      "example": "이 스택트레이스에서 어느 모듈이 죽은 건지 짚어줘",
-      "labelEn": "questions about pasted screens/logs",
       "category": "paste",
-      "exampleEn": "point out which module failed in this stack trace"
+      "label": "붙여넣은 화면·로그 질문",
+      "labelEn": "questions about pasted screens/logs",
+      "example": "이 스택트레이스에서 어느 모듈이 죽은 건지 짚어줘",
+      "exampleEn": "point out which module failed in this stack trace",
+      "budget": {
+        "calls": null,
+        "out": 8000
+      }
     },
     {
       "id": "read-t2",
       "tier": "T2",
-      "label": "읽기·요약·설명",
-      "budget": {
-        "out": 1900,
-        "calls": 8
-      },
-      "example": "이 README 요약해줘",
-      "labelEn": "reading / summarizing / explaining",
       "category": "read",
-      "exampleEn": "summarize this README"
+      "label": "읽기·요약·설명",
+      "labelEn": "reading / summarizing / explaining",
+      "example": "이 README 요약해줘",
+      "exampleEn": "summarize this README",
+      "budget": {
+        "calls": 8,
+        "out": 1900
+      }
     },
     {
       "id": "read-t1",
       "tier": "T1",
-      "label": "읽기·요약·설명",
-      "budget": {
-        "out": 8000,
-        "calls": null
-      },
-      "example": "이 함수가 하는 일을 단계별로 정리해줘",
-      "labelEn": "reading / summarizing / explaining",
       "category": "read",
-      "exampleEn": "walk through what this function does, step by step"
+      "label": "읽기·요약·설명",
+      "labelEn": "reading / summarizing / explaining",
+      "example": "이 함수가 하는 일을 단계별로 정리해줘",
+      "exampleEn": "walk through what this function does, step by step",
+      "budget": {
+        "calls": null,
+        "out": 8000
+      }
     }
   ]
 }
