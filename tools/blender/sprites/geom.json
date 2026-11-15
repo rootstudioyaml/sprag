@@ -1,0 +1,343 @@
+{
+ "elev": 30.409,
+ "Hu": 1.9009973812103274,
+ "unitsPerPx": 0.004243297725915909,
+ "uc": 0.562023252248764,
+ "anchor": [
+  192.0,
+  356.45
+ ],
+ "rmax": 0.629554271697998,
+ "umin": -0.2866362929344177,
+ "umax": 1.4106827974319458,
+ "per": {
+  "bear": [
+   0.477,
+   -0.262,
+   1.262
+  ],
+  "cat": [
+   0.48,
+   -0.262,
+   1.262
+  ],
+  "cheetah": [
+   0.492,
+   -0.261,
+   1.262
+  ],
+  "chick": [
+   0.426,
+   -0.287,
+   1.262
+  ],
+  "deer": [
+   0.477,
+   -0.261,
+   1.262
+  ],
+  "dog": [
+   0.48,
+   -0.262,
+   1.262
+  ],
+  "dragon": [
+   0.63,
+   -0.262,
+   1.262
+  ],
+  "duck": [
+   0.426,
+   -0.287,
+   1.262
+  ],
+  "eagle": [
+   0.516,
+   -0.287,
+   1.262
+  ],
+  "elephant": [
+   0.608,
+   -0.262,
+   1.262
+  ],
+  "fox": [
+   0.556,
+   -0.262,
+   1.262
+  ],
+  "frog": [
+   0.477,
+   -0.262,
+   1.262
+  ],
+  "ghost": [
+   0.403,
+   0.039,
+   0.969
+  ],
+  "hamster": [
+   0.477,
+   -0.262,
+   1.262
+  ],
+  "hedgehog": [
+   0.477,
+   -0.262,
+   1.262
+  ],
+  "husky": [
+   0.48,
+   -0.261,
+   1.262
+  ],
+  "koala": [
+   0.516,
+   -0.262,
+   1.262
+  ],
+  "lion": [
+   0.555,
+   -0.261,
+   1.262
+  ],
+  "monkey": [
+   0.488,
+   -0.262,
+   1.262
+  ],
+  "mouse": [
+   0.477,
+   -0.262,
+   1.262
+  ],
+  "owl": [
+   0.426,
+   -0.287,
+   1.262
+  ],
+  "panda": [
+   0.477,
+   -0.262,
+   1.047
+  ],
+  "penguin": [
+   0.402,
+   -0.287,
+   1.262
+  ],
+  "pig": [
+   0.477,
+   -0.262,
+   1.262
+  ],
+  "rabbit": [
+   0.476,
+   -0.262,
+   1.411
+  ],
+  "raccoon": [
+   0.559,
+   -0.262,
+   1.043
+  ],
+  "sheep": [
+   0.476,
+   -0.262,
+   1.262
+  ],
+  "squirrel": [
+   0.507,
+   -0.262,
+   1.022
+  ],
+  "tiger": [
+   0.496,
+   -0.262,
+   1.262
+  ],
+  "unicorn": [
+   0.556,
+   -0.262,
+   1.262
+  ],
+  "wolf": [
+   0.556,
+   -0.261,
+   1.262
+  ]
+ },
+ "variants": {
+  "bear": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "cat": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "cheetah": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "chick": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "deer": [
+   "plain",
+   "santa",
+   "nose"
+  ],
+  "dog": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "dragon": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "duck": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "eagle": [
+   "plain",
+   "santa",
+   "reindeer"
+  ],
+  "elephant": [
+   "plain",
+   "santa",
+   "reindeer"
+  ],
+  "fox": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "frog": [
+   "plain",
+   "santa",
+   "reindeer"
+  ],
+  "ghost": [
+   "plain"
+  ],
+  "hamster": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "hedgehog": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "husky": [
+   "plain",
+   "santa",
+   "nose"
+  ],
+  "koala": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "lion": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "monkey": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "mouse": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "owl": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "panda": [
+   "plain",
+   "nose"
+  ],
+  "penguin": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "pig": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "rabbit": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "raccoon": [
+   "plain",
+   "nose"
+  ],
+  "sheep": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "squirrel": [
+   "plain",
+   "nose"
+  ],
+  "tiger": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ],
+  "unicorn": [
+   "plain",
+   "santa",
+   "nose"
+  ],
+  "wolf": [
+   "plain",
+   "santa",
+   "reindeer",
+   "nose"
+  ]
+ }
+}
