@@ -465,8 +465,10 @@ test('by default a head wears nothing in the season: no Santa hat, antlers or re
 });
 
 test('team names lie on the floor strip in front of each rug, and picking a person flies to the closest zoom that still shows the desk', () => {
-  assert.match(SCENE, /const dm = decal\(zn\.name, zn\.dw, LANE - 0\.3, [^\n]*zn\.gh\); dm\.position\.set\(zn\.dx \+ zn\.dw \/ 2, 0\.085, zn\.cz \+ zn\.d \/ 2 - LANE \/ 2\); decals\.push\(dm\);/);
+  assert.match(SCENE, /const dm = decal\(zn\.name, zn\.dw, LANE - 0\.3, [^\n]*getStyle\(\)\); dm\.position\.set\(zn\.dx \+ zn\.dw \/ 2, 0\.085, zn\.cz \+ zn\.d \/ 2 - LANE \/ 2\); decals\.push\(dm\);/);
   assert.doesNotMatch(SCENE, /teamSign\(|signs\.push|overlay: \(\) => signs/, 'no upright board stands over the front desks');
+  assert.match(SCENE, /function decal\(text, width, height, color\)\{[^]*?maxW = cw - 2 \* pad;/, 'the name gets the whole strip: no ghost badge on the floor');
+  assert.match(SCENE, /h\.team\.gh \?/, 'the ghost count is in the hover tip of the team name');
   assert.match(SCENE, /const ZMAX = \(\) => \{[^\n]*Math\.max\(4, /, 'never closer-limited than before');
   assert.match(SCENE, /ppu: \(\) => scale, near: 6,/, 'the office lets one desk with its sitter fill the view');
   assert.match(SCENE, /zoom: view\.zoomMax\(\), ox: side \/ 2 \}\)/, 'a pick flies to that zoom');

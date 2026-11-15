@@ -989,25 +989,17 @@ export function mountOfficeScene(container, data, opts = {}){
   const setK = (m, i, o, x, y, z, rx, sx = 1, sy = 1, sz = 1) => { fpt(o, x, y, z, TMP); setM(m, i, TMP.x, TMP.y, TMP.z, rx, 0, sx * K, sy * K, sz * K); faceCam(m, i, o); };
 
   /* ── 3D text: each zone's name is painted on the floor strip (LANE) in front of its rug. An upright board on a post used to carry it (2026-10-20 to
-     2026-11-15), but the board stood over the front desks and hid them. The type shrinks before the name is cut (down to 0.45 of the strip, then "…"),
-     a team with ghosts gets a small ghost badge with their number after the name, and a faint copy drawn without depth keeps the name readable where a
-     desk or a person stands in front of it. ── */
-  function decal(text, width, height, color, gh){
+     2026-11-15), but the board stood over the front desks and hid them. The name gets the whole strip: the type shrinks before the name is cut (down to
+     0.45 of the strip, then "…"). The ghost count stays off the floor (a badge there shrank the name); hovering the name shows it. A faint copy drawn
+     without depth keeps the name readable where a desk or a person stands in front of it. ── */
+  function decal(text, width, height, color){
     const cw = 2048, ch = Math.round(cw * height / width), c = document.createElement('canvas'), x = c.getContext('2d'); c.width = cw; c.height = ch;
-    const fam = '"Noto Sans KR","Geist",-apple-system,"Segoe UI",sans-serif', pad = 32, bw = gh ? Math.round(ch * 1.25) : 0, maxW = cw - 2 * pad - (gh ? bw + pad : 0);
+    const fam = '"Noto Sans KR","Geist",-apple-system,"Segoe UI",sans-serif', pad = 32, maxW = cw - 2 * pad;
     let fs = Math.round(ch * 0.7); x.font = `800 ${fs}px ${fam}`;
     const fit = () => x.measureText(String(text)).width <= maxW;
     while(!fit() && fs > ch * 0.45){ fs -= 4; x.font = `800 ${fs}px ${fam}`; }
     let tx = String(text); if(!fit()){ while(tx.length > 1 && x.measureText(tx + '…').width > maxW) tx = tx.slice(0, -1); tx += '…'; }
     x.textBaseline = 'middle'; x.fillStyle = color; x.fillText(tx, pad, ch * 0.54);
-    if(gh){   /* the ghost badge: a white pill with a small ghost and the count, right after the name */
-      const bh = ch * 0.62, bx = Math.min(cw - pad - bw, pad + x.measureText(tx).width + pad), by = ch / 2, r = bh / 2, gs = bh / 108;
-      x.fillStyle = 'rgba(255,255,255,0.92)'; x.beginPath(); x.moveTo(bx + r, by - r); x.arcTo(bx + bw, by - r, bx + bw, by + r, r); x.arcTo(bx + bw, by + r, bx, by + r, r); x.arcTo(bx, by + r, bx, by - r, r); x.arcTo(bx, by - r, bx + bw, by - r, r); x.closePath(); x.fill();
-      const gx = bx + 22 * gs, gy = by; x.fillStyle = '#ffffff'; x.strokeStyle = '#b8b2a6'; x.lineWidth = 5 * gs;
-      x.beginPath(); x.arc(gx + 24 * gs, gy - 4 * gs, 24 * gs, Math.PI, 0); x.lineTo(gx + 48 * gs, gy + 24 * gs); x.lineTo(gx + 38 * gs, gy + 15 * gs); x.lineTo(gx + 28 * gs, gy + 24 * gs); x.lineTo(gx + 18 * gs, gy + 15 * gs); x.lineTo(gx + 8 * gs, gy + 24 * gs); x.lineTo(gx, gy + 15 * gs); x.lineTo(gx, gy - 4 * gs); x.closePath(); x.fill(); x.stroke();
-      x.fillStyle = '#8a8f9c'; x.beginPath(); x.arc(gx + 16 * gs, gy - 8 * gs, 4.5 * gs, 0, 6.3); x.fill(); x.beginPath(); x.arc(gx + 32 * gs, gy - 8 * gs, 4.5 * gs, 0, 6.3); x.fill();
-      x.fillStyle = '#5a4630'; x.font = `800 ${Math.round(66 * gs)}px ${fam}`; x.fillText(String(gh), gx + 64 * gs, gy);
-    }
     const tex = track(new T.CanvasTexture(c)); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     const g = track(new T.PlaneGeometry(width, height)); g.rotateX(-Math.PI / 2);
     const m = track(new T.Mesh(g, track(new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false })))); world.add(m);
@@ -2148,11 +2140,11 @@ export function mountOfficeScene(container, data, opts = {}){
         if(p.tier === 'low' && !ghost){ fpt(o, x + 0.55, 1.04, mz(z + 0.04), TMP); B('#fffaf0', 0.22, 0.28, 0.22, TMP.x, TMP.y + 0.02, TMP.z); }   /* the coffee mug of the lowest tier, on the desk beside the laptop */
       });
       if(zn.kind === 'team' || zn.kind === 'free'){
-        /* the zone's name painted on the floor strip in front of the rug (decal), ink in a darker shade of the rug colour; a team's also counts its ghosts */
+        /* the zone's name painted on the floor strip in front of the rug (decal), ink in a darker shade of the rug colour; zn.gh (ghosts) is for the hover tip */
         const hsl = {}; C(rc).getHSL(hsl); const ink = zn.kind === 'free' ? C('#8a7a66') : C().setHSL(hsl.h, Math.min(0.62, hsl.s + 0.2), 0.3);
         zn.gh = zn.kind === 'team' ? zn.ps.filter(q => q.tag).length : 0;
         zn.dw = Math.min(zn.w - 0.8, 9); zn.dx = zn.cx - zn.w / 2 + 0.4;
-        const dm = decal(zn.name, zn.dw, LANE - 0.3, (closed ? ink.clone().lerp(grey, 0.5) : ink).getStyle(), zn.gh); dm.position.set(zn.dx + zn.dw / 2, 0.085, zn.cz + zn.d / 2 - LANE / 2); decals.push(dm);
+        const dm = decal(zn.name, zn.dw, LANE - 0.3, (closed ? ink.clone().lerp(grey, 0.5) : ink).getStyle()); dm.position.set(zn.dx + zn.dw / 2, 0.085, zn.cz + zn.d / 2 - LANE / 2); decals.push(dm);
         if(zn.kind === 'team'){
           zi2.push(zn);
           /* floor lamp in the aisle at the back-left corner of the rug; lit in the evening with a warm pool over the team */
