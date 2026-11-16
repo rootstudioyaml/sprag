@@ -160,7 +160,7 @@ test('officeSceneData hands a machine\'s pet to its person; people without one g
 test('office-scene wires pets: import query, data contract, drawn set, still life, rebuild and destroy, step, reduced motion, recording hooks', async () => {
   const { readFile } = await import('node:fs/promises');
   const src = await readFile(new URL('../site/assets/scene/office-scene.js', import.meta.url), 'utf8');
-  assert.match(src, /import \{[^}]*normalizePetLook[^}]*pickPets[^}]*petPlan[^}]*makePet[^}]*makeBowls[^}]*makeToy[^}]*makeToyBasket[^}]*makePhotoFrame[^}]*disposePetShared[^}]*PET_MAX[^}]*\} from '\.\/pets\.js\?v=p5'/);
+  assert.match(src, /import \{[^}]*normalizePetLook[^}]*pickPets[^}]*petPlan[^}]*makePet[^}]*makeBowls[^}]*makeToy[^}]*makeToyBasket[^}]*makePhotoFrame[^}]*disposePetShared[^}]*PET_MAX[^}]*\} from '\.\/pets\.js\?v=p6'/);
   assert.match(src, /people\[\]\.pet \(optional\)/, 'the data contract names the field');
   assert.match(src, /if\(d\.closed\) return new Set\(\);/, 'a closed organization shows no pets');
   assert.match(src, /filter\(p => p && p\.tier !== 'nodata' && p\.pet\)/, 'ghosts have no pets');
@@ -371,12 +371,13 @@ test('eating at the extremes brings the mouth to about the height today\'s propo
 
 test('makeToy: the origin stays on the floor, the rolling parts turn about the toy\'s centre, nothing dips under the floor', () => {
   const T = { ...fakeThree(), SphereGeometry: class { constructor(r = 1){ this.pts = SPH.map(p => p.map(c => c * r)); } dispose(){} },
-    CapsuleGeometry: class { constructor(r = 1, len = 1){ this.pts = CAPS(r, len); } dispose(){} } };
+    CapsuleGeometry: class { constructor(r = 1, len = 1){ this.pts = CAPS(r, len); } dispose(){} },
+    TorusGeometry: class { constructor(R = 1, r = 0.4){ this.pts = []; for(let i = 0; i < 24; i++) for(let j = 0; j < 12; j++){ const a = i / 24 * 2 * Math.PI, b = j / 12 * 2 * Math.PI; this.pts.push([(R + r * Math.cos(b)) * Math.cos(a), (R + r * Math.cos(b)) * Math.sin(a), r * Math.sin(b)]); } } dispose(){} } };
   const low = g => { let m = Infinity; const walk = o => o.children.forEach(c => { if(c.geometry) m = Math.min(m, lowest(c, c.geometry.pts, g)); walk(c); }); walk(g); return m; };
   const angles = [0, 0.7, 1.6, 2.5, Math.PI, 3.9, 5.1];
   for(const kind of P.PET_TOYS){ const g = P.makeToy(T, kind), ud = g.userData;
     assert.equal(g.position.y, 0); assert.ok(ud.spin && ud.spin.parent === g, kind + ' has a spin group'); assert.equal(ud.spin.position.y, ud.r, kind + ': spin sits at the centre height r');
-    assert.equal(ud.round, kind === 'ball' || kind === 'yarn', kind);
+    assert.equal(ud.round, kind === 'ball' || kind === 'yarn' || kind === 'bell', kind);
     assert.ok(Math.abs(low(g)) < 1e-3, kind + ' rests on the floor: ' + low(g));
     for(const a of angles) for(const b of angles){
       if(ud.round){ ud.spin.rotation.set(a, b, a * 0.5 + b); assert.ok(low(g) >= -1e-6, `${kind} rolled (${a}, ${b}) dips to ${low(g)}`); }
@@ -464,6 +465,30 @@ test('userData.air is 0 standing and positive at the top of a pounce', () => {
   ud.pose('walk', 0, 1, { phase: 0.25, blend: 0 }); assert.equal(ud.air, 0, 'the walk bob is not air');
   ud.pose('play', 0, 2, { play: P.petPlayAt(seq, m.t0 + (m.t1 - m.t0) * 0.42), blend: 0 }); assert.ok(ud.air > 0.03, 'pounce top: ' + ud.air);
   ud.pose('play', 0, 3, { play: P.petPlayAt(seq, m.t0 + 0.001), blend: 0 }); assert.equal(ud.air, 0, 'still crouched at the start');
+});
+
+test('PET_TOYS: ten toys, the first four unchanged, and every toy carries the contract fields', () => {
+  assert.deepEqual(P.PET_TOYS, ['ball', 'bone', 'yarn', 'mouse', 'frisbee', 'rope', 'duck', 'feather', 'fish', 'bell']);
+  const T = fakeThree();
+  for(const kind of P.PET_TOYS){ const g = P.makeToy(T, kind), u = g.userData;
+    assert.equal(u.kind, kind); assert.ok(u.spin && u.spin.parent === g, kind); assert.ok(u.r > 0 && u.r <= 0.045, kind + ' r'); assert.equal(typeof u.round, 'boolean', kind); assert.equal(typeof u.dispose, 'function', kind);
+    let n = 0; g.children.forEach(function walk(c){ if(c.geometry){ n++; assert.equal(c.castShadow, false, kind + ' casts no shadow'); assert.equal(c.receiveShadow, true, kind); } (c.children || []).forEach(walk); }); assert.ok(n >= 1, kind + ' has a part'); u.dispose(); }
+  assert.deepEqual(P.PET_TOYS.filter(k => P.makeToy(T, k).userData.carryYaw === 0), ['bone', 'frisbee', 'rope'], 'held along the mouth: the bone, the rope and the frisbee');
+  assert.deepEqual(P.PET_TOYS.filter(k => P.makeToy(T, k).userData.round), ['ball', 'yarn', 'bell']);
+});
+
+test('normalizePetLook keeps a known toy and drops any other value; a look without one stays without; a breed pick keeps the toy', () => {
+  const base = { kind: 'dog', coat: ['#c89159'] };
+  for(const t of P.PET_TOYS) assert.equal(P.normalizePetLook({ ...base, toy: t }).toy, t, t);
+  assert.equal(P.normalizePetLook({ ...base, toy: 'duck' }).toy, 'duck');
+  for(const bad of ['laser', '', null, 3, ['duck'], undefined]) assert.ok(!('toy' in P.normalizePetLook({ ...base, toy: bad })), 'toy ' + JSON.stringify(bad) + ' is removed');
+  assert.ok(!('toy' in P.normalizePetLook(base)), 'no key when absent');
+  assert.deepEqual(P.normalizePetLook(P.normalizePetLook({ ...base, toy: 'fish' })), P.normalizePetLook({ ...base, toy: 'fish' }), 'idempotent');
+  const picked = P.petApplyBreed({ ...base, toy: 'bell', name: 'Mo' }, { kind: 'cat', coat: ['#efe3cf', '#5a4538'], pattern: 'point', toy: 'yarn' });
+  assert.equal(picked.toy, 'bell'); assert.equal(picked.name, 'Mo'); assert.equal(picked.kind, 'cat');
+  assert.ok(!('toy' in P.petApplyBreed(base, { kind: 'cat', coat: ['#efe3cf'], toy: 'yarn' })), 'a breed look\'s toy is not the member\'s choice');
+  const T = fakeThree(); assert.equal(P.petShapeKey({ ...base, toy: 'rope' }), P.petShapeKey(base), 'a toy is not a body shape, so the model is only repainted');
+  assert.equal(P.petRecolor(P.makePet(T, base), { ...base, toy: 'rope' }), true);
 });
 
 test('makeToy: every toy says how it is held in the mouth (carryYaw): the bone crosswise, the rest a quarter turn', () => {

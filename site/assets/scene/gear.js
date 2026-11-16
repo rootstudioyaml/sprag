@@ -1,4 +1,4 @@
-/* Cosmetics for the team office: nine head pieces for the cast animals and eight desk items.
+/* Cosmetics for the team office: fifteen head pieces and seven pairs of wings for the cast animals, and ten desk items.
  * Like holiday.js and pets.js this file imports nothing: every maker takes the three instance T (the same three@0.160.0 build office-scene.js
  * imports), and GEAR_ITEMS and headGearFit are pure, so Node can test them. The server decides which items a person has unlocked; this file only
  * draws them. Geometries are shared per T (freed by disposeGearShared); each piece owns its materials and frees them with userData.dispose().
@@ -7,13 +7,17 @@
  * Head pieces are in cast model units with the origin on the top of the skull, where castCrown() in office-scene.js sits (HEAD_ANCHOR). Add one
  * to a cast model before it is scaled and place it with placeHeadGear(g, headGearFit(id, species)). The skull is close to a ball of radius 0.36
  * whose centre is 0.37 below the anchor; the front is +z.
+ * Wings (the back slot) are made for the standing and the seated cast model alike: place them with placeBackGear(g, backAnchorOf(T, model), backGearFit(id, species)).
+ * The anchor is read off the loaded model once (the back surface at the height of the lower back, x = 0); a wing pair is symmetric about x = 0, each wing
+ * hung from a pivot 0.06 beside the anchor and swept out and back, so from the front it shows beside the head. Species with wings of their own skip them.
  * Desk items stand on y = 0 (the desk top) and face +z; each fits in 0.5 x 0.5 and is at most about 0.7 tall, in desk units. */
 
 /* the catalogue; the server's _cosmetic_items() carries the same ids and decides the unlock levels */
-export const GEAR_SLOTS = ['head', 'desk'];
+export const GEAR_SLOTS = ['head', 'back', 'desk'];
 export const GEAR_ITEMS = [
-  ...['cap', 'beanie', 'ribbon', 'flower', 'party', 'headphones', 'tophat', 'wizard', 'halo'].map(id => ({ id, slot: 'head' })),
-  ...['plant', 'lamp', 'figurine', 'snowglobe', 'trophy', 'lavalamp', 'aquarium', 'neon'].map(id => ({ id, slot: 'desk' })),
+  ...['cap', 'beanie', 'ribbon', 'flower', 'party', 'headphones', 'tophat', 'wizard', 'halo', 'antenna', 'tiara', 'orbit', 'starcrown', 'flame', 'aurora'].map(id => ({ id, slot: 'head' })),
+  ...['angel', 'butterfly', 'bat', 'fairy', 'drake', 'phoenix', 'prism'].map(id => ({ id, slot: 'back' })),
+  ...['plant', 'lamp', 'figurine', 'snowglobe', 'trophy', 'lavalamp', 'aquarium', 'neon', 'crystalball', 'galaxy'].map(id => ({ id, slot: 'desk' })),
 ];
 export const HEAD_ANCHOR = [0, 1.04, -0.02];
 const SKULL_Y = -0.37, SKULL_R = 0.36;
@@ -130,11 +134,39 @@ const num = (v, d) => Number.isFinite(v) ? v : d;
  * and whether the piece is left off this species */
 export function headGearFit(id, species){
   const skip = !!(SKIPS[species] && SKIPS[species].includes(id));
-  if(id === 'headphones'){ const p = PHONES[species] || [0, 1, 0]; return { y: p[0], z: p[2], s: 1, rx: -0.1, c: FIT0.c, w: p[1], skip }; }
-  if(id === 'halo') return { y: num(HALO_Y[species], 0), z: 0, s: 1, rx: 0, c: FIT0.c, w: 1, skip };
+  if(id === 'headphones' || id === 'antenna' || id === 'tiara' || id === 'orbit'){ const p = PHONES[species] || [0, 1, 0]; return { y: p[0], z: p[2], s: 1, rx: -0.1, c: FIT0.c, w: p[1], skip }; }   /* the band pieces and the orbit follow the head width */
+  if(id === 'halo' || id === 'starcrown' || id === 'flame' || id === 'aurora') return { y: num(HALO_Y[species], 0), z: 0, s: 1, rx: 0, c: FIT0.c, w: 1, skip };
   const f = (FIT[id] || {})[species];
   return f ? { y: num(f[0], 0), z: num(f[1], 0), s: num(f[2], 1), rx: num(f[3], FIT0.rx), c: num(f[4], FIT0.c), w: 1, skip } : { ...FIT0, w: 1, skip };
 }
+/* ---------- fit: wings ---------- */
+/* Species with wings of their own wear none. BACK_FIT holds per-species corrections, item -> species -> [y, z, s]; empty until a fit run finds one needed. */
+const BACK_SKIP = ['chick', 'dragon', 'duck', 'eagle', 'owl', 'penguin'];
+const BACK_FIT = {};
+/* the wing ids this species cannot wear (all of them for the species in BACK_SKIP), as a copy like headGearSkips */
+export function backGearSkips(species){ return BACK_SKIP.includes(species) ? GEAR_ITEMS.filter(i => i.slot === 'back').map(i => i.id) : []; }
+/* { y, z, s, skip }: lift above the anchor, nudge along z (the default tucks the roots 0.02 into the back), scale, and whether this species wears none */
+export function backGearFit(id, species){
+  const f = (BACK_FIT[id] || {})[species], skip = BACK_SKIP.includes(species);
+  return { y: num(f && f[0], 0), z: num(f && f[1], -0.02), s: num(f && f[2], 1), skip };
+}
+/* where wings hang on a loaded cast model, in the model's own space (front is +z): the back surface behind the lower back, or null without one */
+export function backAnchorOf(T, root){
+  root.updateMatrixWorld(true);
+  const inv = new T.Matrix4().copy(root.matrixWorld).invert(), m4 = new T.Matrix4(), v = new T.Vector3();
+  let minZ = Infinity;
+  root.traverse(o => {
+    const pos = o.isMesh && o.geometry && o.geometry.attributes && o.geometry.attributes.position; if(!pos) return;
+    m4.multiplyMatrices(inv, o.matrixWorld);
+    for(let i = 0; i < pos.count; i++){ v.fromBufferAttribute(pos, i).applyMatrix4(m4); if(Math.abs(v.x) < 0.12 && v.y >= 0.10 && v.y <= 0.34 && v.z < minZ) minZ = v.z; }
+  });
+  return Number.isFinite(minZ) ? { x: 0, y: 0.24, z: minZ } : null;
+}
+export function placeBackGear(g, anchor, fit){
+  g.position.set(anchor.x, anchor.y + fit.y, anchor.z + fit.z); g.scale.setScalar(fit.s);
+  return g;
+}
+
 /* put a head piece where headGearFit says, in the model space of a cast model (before the model is scaled) */
 export function placeHeadGear(g, fit){
   g.position.set(HEAD_ANCHOR[0], HEAD_ANCHOR[1] + fit.y, HEAD_ANCHOR[2] + fit.z);
@@ -242,6 +274,16 @@ function setInst(im, i, T, p, r, s, color){
   M.compose(new T.Vector3(...p), q, Array.isArray(s) ? new T.Vector3(...s) : new T.Vector3(s, s, s)); im.setMatrixAt(i, M);
   if(color) im.setColorAt(i, new T.Color(color));
 }
+
+/* low-poly shapes for swarms of tiny parts and for gems */
+const ico0 = T => geo(T, 'ico0', () => new T.IcosahedronGeometry(1, 0));
+const gemGeo = T => geo(T, 'gem', () => new T.OctahedronGeometry(1));
+/* the antenna spring: a helix of four turns rising COIL_H, one tube */
+const COIL_H = 0.26;
+const coil = T => geo(T, 'coil', () => {
+  const pts = []; for(let i = 0; i <= 28; i++){ const u = i / 28, a = u * Math.PI * 8, r = 0.016 * (1 - 0.25 * u); pts.push(new T.Vector3(Math.cos(a) * r, u * COIL_H, Math.sin(a) * r)); }
+  return new T.TubeGeometry(new T.CatmullRomCurve3(pts), 140, 0.005, 5, false);
+});
 
 /* ---------- head pieces ---------- */
 const HEAD = {
@@ -362,12 +404,312 @@ const HEAD = {
     };
     g.userData.tick(0, 0, true);
   },
+  /* an alice band over the crown with two springy antennae that sway, each ending in a glowing ball (pink and cyan); setWidth(w) follows the head like the headphones */
+  antenna(T, K, b, g){
+    const piv = new T.Group(); piv.position.y = SKULL_Y; piv.rotation.x = -0.12; b.add(piv);
+    const R = SKULL_R + 0.01, band = K.mesh(torus(T, R, 0.022, Math.PI, 8, 40), K.std('#6d7cff', { roughness: 0.4, metalness: 0.2 }), piv); band.scale.y = 0.96;
+    const spring = K.std('#c9d1e6', { roughness: 0.3, metalness: 0.6 });
+    const ants = [-1, 1].map(s => {
+      const root = new T.Group(), sway = new T.Group(); root.add(sway); piv.add(root);
+      K.mesh(coil(T), spring, sway);
+      const bm = K.glow(s < 0 ? '#ff7ac6' : '#6fe6ff', 0.7), ball = K.mesh(unitSph(T), bm, sway, [0, COIL_H, 0], null, 0.034); ball.userData.noShadow = true;
+      return { root, sway, s, bm };
+    });
+    g.userData.setWidth = w => {
+      const ww = Math.max(0.6, Number(w) || 1); band.scale.x = ww;
+      ants.forEach(({ root, s }) => { const a = Math.PI / 2 - s * 0.42; root.position.set(R * ww * Math.cos(a), R * 0.96 * Math.sin(a), 0); root.rotation.z = -s * 0.3; });
+    };
+    g.userData.setWidth(1);
+    g.userData.tick = (t, night, reduced) => {
+      const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+      ants.forEach(({ sway, s, bm }, i) => { sway.rotation.set(0.16 * Math.sin(tt * 2.4 + i * 1.7), 0, 0.1 * Math.sin(tt * 1.9 + i)); bm.emissiveIntensity = 0.7 + 2.2 * n; });
+    };
+    g.userData.tick(0, 0, true);
+  },
+  /* a silver tiara on the band's path over the crown: five spikes, the middle one tallest, a gem on each and four little stars that twinkle; setWidth(w) as the headphones */
+  tiara(T, K, b, g){
+    const piv = new T.Group(); piv.position.y = SKULL_Y; piv.rotation.x = -0.12; b.add(piv);
+    const R = SKULL_R + 0.012, silver = K.std('#e4eaf5', { roughness: 0.25, metalness: 0.7 }), band = K.mesh(torus(T, R, 0.014, Math.PI, 8, 40), silver, piv); band.scale.y = 0.96;
+    const SP = [[0, 0.13, 0.034, '#ff5fa2'], [-0.27, 0.09, 0.022, '#7fd8ff'], [0.27, 0.09, 0.022, '#7fd8ff'], [-0.52, 0.055, 0.017, '#ffe58a'], [0.52, 0.055, 0.017, '#ffe58a']];
+    const gemM = SP.map(([, , , c]) => K.glow(c, 0.3, { roughness: 0.15, flatShading: true }));
+    const parts = SP.map(([da, h, gs], i) => {
+      const spike = K.mesh(geo(T, 'cone', () => new T.ConeGeometry(1, 1, 10)), silver, piv, null, null, [0.02, h, 0.012]);
+      const gem = K.mesh(gemGeo(T), gemM[i], piv, null, null, gs); gem.userData.noShadow = true;
+      return { spike, gem, a: Math.PI / 2 + da, h, gs };
+    });
+    const sp = K.inst(starGeo(T), K.glow('#ffffff', 0.9), 4, piv); sp.userData.noShadow = true; sp.frustumCulled = false;
+    const M = new T.Matrix4(), Q = new T.Quaternion(), V = new T.Vector3(), S = new T.Vector3();
+    const STAR = [[-0.4, 0.16], [0.4, 0.16], [-0.14, 0.2], [0.14, 0.2]];
+    let ww = 1;
+    g.userData.setWidth = w => {
+      ww = Math.max(0.6, Number(w) || 1); band.scale.x = ww;
+      parts.forEach(({ spike, gem, a, h, gs }) => {
+        const ca = Math.cos(a), sa = Math.sin(a), x = R * ww * ca, y = R * 0.96 * sa;
+        spike.position.set(x + ca * h / 2, y + sa * h / 2, 0); spike.rotation.z = a - Math.PI / 2;
+        gem.position.set(x + ca * (h + gs * 0.6), y + sa * (h + gs * 0.6), 0);
+      });
+    };
+    g.userData.setWidth(1);
+    g.userData.tick = (t, night, reduced) => {
+      const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+      gemM.forEach(m => { m.emissiveIntensity = 0.3 + 1.4 * n; });
+      STAR.forEach(([da, off], i) => {
+        const a = Math.PI / 2 + da, k = reduced ? 1 : Math.max(0, Math.sin(tt * 2.7 + i * 1.9));
+        V.set(R * ww * Math.cos(a) * (1 + off), R * 0.96 * Math.sin(a) * (1 + off), 0.03); S.setScalar(0.022 * k); M.compose(V, Q, S); sp.setMatrixAt(i, M);
+      });
+      sp.instanceMatrix.needsUpdate = true;
+    };
+    g.userData.tick(0, 0, true);
+  },
+  /* a thin tilted ring round the skull with three planets circling it (one ringed like Saturn); the ring and the planets scale with the head width */
+  orbit(T, K, b, g){
+    const ob = new T.Group(); ob.position.y = SKULL_Y; b.add(ob);
+    const tilt = new T.Group(); tilt.rotation.set(0.5, 0, 0.22); ob.add(tilt);
+    const ringM = K.glow('#9fb4ff', 0.3, { roughness: 0.3 }), R = 0.5;
+    K.mesh(torus(T, R, 0.007, Math.PI * 2, 6, 72), ringM, tilt, null, [Math.PI / 2, 0, 0]).userData.noShadow = true;
+    const PL = [[0.05, '#ff9f5a', 0.0, 0.7], [0.04, '#6fc3ff', 2.1, 0.5], [0.045, '#ffd27a', 4.2, 0.35]];
+    const bodies = PL.map(([r, c, a0, sp], i) => {
+      const piv = new T.Group(); tilt.add(piv);
+      const m = K.std(c, { roughness: 0.45, emissive: c, emissiveIntensity: 0.1 });
+      K.mesh(unitSph(T), m, piv, [R, 0, 0], null, r);
+      if(i === 2) K.mesh(torus(T, 1.7, 0.1, Math.PI * 2, 6, 32), K.std('#f3e2b4', { roughness: 0.5, side: T.DoubleSide }), piv, [R, 0, 0], [Math.PI / 2 - 0.35, 0, 0], r);
+      return { piv, a0, sp, m };
+    });
+    g.userData.setWidth = w => { ob.scale.setScalar(Math.max(0.6, Number(w) || 1)); };
+    g.userData.setWidth(1);
+    g.userData.tick = (t, night, reduced) => {
+      const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+      ringM.emissiveIntensity = 0.3 + 1.2 * n;
+      bodies.forEach(({ piv, a0, sp, m }) => { piv.rotation.y = a0 + tt * sp; m.emissiveIntensity = 0.1 + 0.6 * n; });
+    };
+    g.userData.tick(0, 0, true);
+  },
+  /* a crown of five gold stars that circle slowly over the head with a large star in the middle; it bobs like the halo */
+  starcrown(T, K, b, g){
+    const gold = K.glow('#ffd23f', 0.5, { metalness: 0.3, roughness: 0.3 }), hov = new T.Group(), spin = new T.Group(); hov.position.y = 0.2; hov.add(spin); b.add(hov);
+    const st = K.inst(starGeo(T), gold, 5, spin);
+    for(let i = 0; i < 5; i++){ const a = i / 5 * Math.PI * 2; setInst(st, i, T, [Math.cos(a) * 0.22, 0, Math.sin(a) * 0.22], [0, Math.PI / 2 - a, 0], 0.06); }
+    st.instanceMatrix.needsUpdate = true;
+    K.mesh(starGeo(T), gold, spin, [0, 0.1, 0], null, 0.095);
+    g.userData.tick = (t, night, reduced) => {
+      const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+      hov.position.y = 0.2 + 0.025 * Math.sin(tt * 1.4); spin.rotation.y = tt * 0.5; gold.emissiveIntensity = 0.5 + 1.1 * n;
+    };
+    g.userData.tick(0, 0, true);
+  },
+  /* a crown of eight flames over the head: orange tongues with yellow cores whose height, width and lean flicker out of step, strong at night */
+  flame(T, K, b, g){
+    const N = 8, outer = K.glow('#ff7a1a', 0.8, { roughness: 0.5 }), inner = K.glow('#ffd43b', 1.0, { roughness: 0.5 }), ember = K.glow('#ff5a1a', 0.9), hov = new T.Group();
+    hov.position.y = 0.12; b.add(hov);
+    K.mesh(torus(T, 0.17, 0.02, Math.PI * 2, 8, 32), ember, hov, null, [Math.PI / 2, 0, 0]).userData.noShadow = true;
+    const cone = geo(T, 'cone', () => new T.ConeGeometry(1, 1, 10)), o = K.inst(cone, outer, N, hov), c = K.inst(cone, inner, N, hov);
+    [o, c].forEach(m => { m.userData.noShadow = true; m.frustumCulled = false; });
+    const M = new T.Matrix4(), Q = new T.Quaternion(), E = new T.Euler(), V = new T.Vector3(), S = new T.Vector3();
+    g.userData.tick = (t, night, reduced) => {
+      const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+      outer.emissiveIntensity = 0.8 + 2.2 * n; inner.emissiveIntensity = 1.0 + 2.6 * n; ember.emissiveIntensity = 0.9 + 1.8 * n;
+      for(let i = 0; i < N; i++){
+        const a = i / N * Math.PI * 2, ph = i * 2.399, h = 0.2 * (1 + 0.3 * Math.sin(tt * 5.1 + ph) + 0.15 * Math.sin(tt * 8.7 + ph * 1.9)), w = 0.05 * (1 - 0.2 * Math.sin(tt * 4 + ph)), lean = 0.12 * Math.sin(tt * 3.3 + ph);
+        Q.setFromEuler(E.set(lean, 0, lean * 0.7));
+        V.set(Math.cos(a) * 0.17, h / 2, Math.sin(a) * 0.17); S.set(w, h, w); M.compose(V, Q, S); o.setMatrixAt(i, M);
+        V.set(Math.cos(a) * 0.17, h * 0.3, Math.sin(a) * 0.17); S.set(w * 0.55, h * 0.6, w * 0.55); M.compose(V, Q, S); c.setMatrixAt(i, M);
+      }
+      o.instanceMatrix.needsUpdate = true; c.instanceMatrix.needsUpdate = true;
+    };
+    g.userData.tick(0, 0, true);
+  },
+  /* a ring of beads floating over the head whose colours turn slowly through the rainbow (HSL), with six light motes circling it */
+  aurora(T, K, b, g){
+    const N = 40, mat = K.std('#ffffff', { roughness: 0.3, emissive: '#ffffff', emissiveIntensity: 0.2 }), hr = new T.Group(); hr.position.y = 0.13; hr.rotation.x = Math.PI / 2 - 0.22; b.add(hr);
+    const beads = K.inst(unitSph(T), mat, N, hr), moteM = K.glow('#ffffff', 1.4), motes = K.inst(ico0(T), moteM, 6, hr);
+    [beads, motes].forEach(m => { m.userData.noShadow = true; m.frustumCulled = false; });
+    const M = new T.Matrix4(), Q = new T.Quaternion(), V = new T.Vector3(), S = new T.Vector3(), C = new T.Color();
+    g.userData.tick = (t, night, reduced) => {
+      const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+      b.position.y = 0.025 * Math.sin(tt * 1.5); mat.emissiveIntensity = 0.2 + 0.5 * n; moteM.emissiveIntensity = 1.4 + 1.6 * n;
+      for(let i = 0; i < N; i++){
+        const a = i / N * Math.PI * 2;
+        V.set(Math.cos(a) * 0.21, Math.sin(a) * 0.21, 0); S.setScalar(0.026 + 0.008 * Math.sin(tt * 2 + i * 0.7)); M.compose(V, Q, S); beads.setMatrixAt(i, M);
+        beads.setColorAt(i, C.setHSL((i / N + tt * 0.07) % 1, 0.85, 0.66));
+      }
+      for(let i = 0; i < 6; i++){ const a = tt * 0.9 + i * 1.047; V.set(Math.cos(a) * 0.27, Math.sin(a) * 0.27, 0.03 * Math.sin(tt * 2 + i)); S.setScalar(0.014); M.compose(V, Q, S); motes.setMatrixAt(i, M); }
+      beads.instanceMatrix.needsUpdate = true; if(beads.instanceColor) beads.instanceColor.needsUpdate = true; motes.instanceMatrix.needsUpdate = true;
+    };
+    g.userData.tick(0, 0, true);
+  },
 };
 export function makeHeadGear(T, id){
   const K = kit(T), g = new T.Group(), b = new T.Group(); g.add(b);
   g.name = 'gear-' + id; g.userData.gear = id; g.userData.keepLook = true;
   const make = HEAD[id];
   if(make) make(T, K, b, g);
+  return done(g, K);
+}
+
+/* ---------- wings (the back slot) ---------- */
+/* Every wing is built as the right one in a group whose origin is the shoulder (x outward, y up, the membrane facing +z) and mirrored for the left by
+ * scale.x = -1. The pivot sits WING_X from the middle and is swept back by WING_YAW; flapping turns it about y. */
+const WING_X = 0.06, WING_YAW = 0.32, WING_LIFT = 0.08, FLAP_HZ = 7.54;   /* 1.2 Hz in radians per second */
+function wingPair(T, g, k = 1){
+  return [-1, 1].map(s => {
+    const piv = new T.Group(), w = new T.Group();
+    piv.position.x = s * WING_X; piv.scale.x = s; piv.rotation.y = s * WING_YAW; w.rotation.z = WING_LIFT; w.scale.setScalar(k); piv.add(w); g.add(piv);
+    return { piv, w, s };
+  });
+}
+/* wingPair(T, g, k): k sizes the wing so that a pair reaches about 0.5 to each side of the middle, whatever its drawn span */
+/* the shared tick of a wing pair: the pivots flap a little inward (still under reduced motion), extra(tt, n, reduced) animates what else the pair has */
+function wingTick(g, ws, extra){
+  g.userData.tick = (t, night, reduced) => {
+    const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+    ws.forEach(({ piv, s }) => { piv.rotation.y = s * (WING_YAW + 0.12 * Math.sin(tt * FLAP_HZ)); });
+    if(extra) extra(tt, n, reduced);
+  };
+  g.userData.tick(0, 0, true);
+}
+/* a flat wing from a drawn outline, coloured per vertex by colorAt(x, y, C) */
+function wingGeo(T, key, draw, colorAt, seg = 12){
+  return geo(T, 'wing' + key, () => {
+    const sh = new T.Shape(); draw(sh);
+    const g = new T.ShapeGeometry(sh, seg), p = g.attributes.position, col = new Float32Array(p.count * 3), C = new T.Color();
+    for(let i = 0; i < p.count; i++){ colorAt(p.getX(i), p.getY(i), C); col.set([C.r, C.g, C.b], i * 3); }
+    g.setAttribute('color', new T.BufferAttribute(col, 3)); return g;
+  });
+}
+const clamp01 = x => Math.max(0, Math.min(1, x));
+/* three colours along k = 0..1 */
+const ramp = (C, k, a, b, c) => { k = clamp01(k); return k < 0.5 ? C.set(a).lerp(new C.constructor(b), k * 2) : C.set(b).lerp(new C.constructor(c), k * 2 - 1); };
+/* feathers hung from the wing arm, as tiers of instanced ellipsoids: tiers of { n, L: [from the root, to the tip], w, d, z, mat, geo, color(u, i) }.
+ * Returns { pose(tt, amp), ims }; amp > 0 makes the feather ends waver out of step (the phoenix). */
+const ARM = u => [0.05 + 0.26 * u, 0.04 + 0.5 * Math.pow(u, 0.85)];
+function featherFan(T, K, parent, tiers){
+  const ims = tiers.map(t => { const im = K.inst(t.geo || unitSph(T), t.mat, t.n, parent); im.frustumCulled = false; return im; });
+  const pose = (tt, amp) => {
+    tiers.forEach((t, k) => {
+      for(let i = 0; i < t.n; i++){
+        const u = (i + 0.5) / t.n, [bx, by] = ARM(u), L = t.L[0] + (t.L[1] - t.L[0]) * u;
+        const ph = (125 - 70 * u) * Math.PI / 180 + (amp ? amp * 0.09 * (0.4 + u) * Math.sin(tt * 3.2 + i * 0.9 + k * 1.7) : 0);
+        setInst(ims[k], i, T, [bx + Math.sin(ph) * L / 2, by + Math.cos(ph) * L / 2, t.z], [0, 0, -ph], [t.w, L / 2, t.d || 0.012]);
+      }
+      ims[k].instanceMatrix.needsUpdate = true;
+    });
+  };
+  pose(0, 0);
+  tiers.forEach((t, k) => { if(t.color){ for(let i = 0; i < t.n; i++) ims[k].setColorAt(i, new T.Color(t.color((i + 0.5) / t.n, i))); ims[k].instanceColor.needsUpdate = true; } });
+  return { pose, ims };
+}
+/* a bat or dragon wing: an arm to the wrist, finger bones to the tips and a membrane scalloped between the tips.
+ * spec: { key, arm: [[x, y, z]...] shoulder to wrist, tips: [[x, y]...], color(x, y, C), bone, r (bone radius), claw (colour or null) } */
+function leatherWing(T, K, w, spec){
+  const wr = spec.arm[spec.arm.length - 1], top = [0.02, 0.02];
+  const mem = wingGeo(T, spec.key, sh => {
+    sh.moveTo(top[0], top[1]); sh.lineTo(wr[0], wr[1]); sh.lineTo(spec.tips[0][0], spec.tips[0][1]);
+    for(let i = 1; i < spec.tips.length; i++){ const a = spec.tips[i - 1], b = spec.tips[i], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2; sh.quadraticCurveTo(mx + (wr[0] - mx) * 0.35, my + (wr[1] - my) * 0.35, b[0], b[1]); }
+    const e = spec.tips[spec.tips.length - 1]; sh.quadraticCurveTo((e[0] + 0.05) / 2, (e[1] - 0.04) / 2 - 0.02, 0.05, -0.03); sh.lineTo(top[0], top[1]);
+  }, spec.color, 8);
+  K.mesh(mem, K.std('#ffffff', { vertexColors: true, side: T.DoubleSide, roughness: 0.7 }), w, [0, 0, 0]);
+  const bone = K.std(spec.bone, { roughness: 0.5 });
+  K.mesh(tube(T, spec.key + 'arm', spec.arm, spec.r * 1.3, 10), bone, w, [0, 0, 0.006]);
+  spec.tips.forEach((tp, i) => {
+    K.mesh(tube(T, spec.key + 'f' + i, [[wr[0], wr[1], 0.006], [(wr[0] + tp[0]) / 2, (wr[1] + tp[1]) / 2, 0.006], [tp[0], tp[1], 0.006]], spec.r, 4), bone, w);
+    if(spec.claw){ const dx = tp[0] - wr[0], dy = tp[1] - wr[1]; K.mesh(geo(T, 'cone', () => new T.ConeGeometry(1, 1, 10)), K.std(spec.claw, { roughness: 0.4 }), w, [tp[0], tp[1], 0.006], [0, 0, -Math.atan2(dx, dy)], [spec.r * 1.4, 0.04, spec.r * 1.4]); }
+  });
+  K.mesh(geo(T, 'cone', () => new T.ConeGeometry(1, 1, 10)), K.std(spec.claw || spec.bone, { roughness: 0.4 }), w, [wr[0], wr[1] + 0.02, 0.006], [0, 0, 0.2], [spec.r * 1.6, 0.05, spec.r * 1.6]);
+}
+const BACK = {
+  /* three tiers of white feathers fanned from a curved arm, the longest ones tipped with pale gold */
+  angel(T, K, g){
+    const white = K.std('#ffffff', { roughness: 0.85 }), cream = K.std('#fffaf0', { roughness: 0.85 }), ws = wingPair(T, g, 0.87);
+    ws.forEach(({ w }) => featherFan(T, K, w, [
+      { n: 6, L: [0.2, 0.12], w: 0.032, z: 0.018, mat: white, color: () => '#ffffff' },
+      { n: 7, L: [0.34, 0.2], w: 0.036, z: 0.009, mat: cream, color: u => u > 0.7 ? '#fff4d2' : '#ffffff' },
+      { n: 8, L: [0.46, 0.28], w: 0.04, z: 0, mat: white, color: u => u > 0.8 ? '#ffe9a8' : u > 0.45 ? '#fff6dc' : '#ffffff' },
+    ]));
+    wingTick(g, ws);
+  },
+  /* two pastel wings a side, pink and lilac fading to sky blue at the edge, with glowing spots */
+  butterfly(T, K, g){
+    const up = wingGeo(T, 'bf-up', sh => { sh.moveTo(0.02, 0); sh.bezierCurveTo(0.05, 0.3, 0.2, 0.62, 0.38, 0.6); sh.bezierCurveTo(0.52, 0.58, 0.52, 0.36, 0.42, 0.22); sh.bezierCurveTo(0.3, 0.08, 0.15, 0.02, 0.02, 0); },
+      (x, y, C) => ramp(C, Math.hypot(x, y) / 0.65, '#ffc2e8', '#c3b5ff', '#9fe3ff'));
+    const lo = wingGeo(T, 'bf-lo', sh => { sh.moveTo(0.02, 0); sh.bezierCurveTo(0.2, 0.05, 0.4, 0.1, 0.38, -0.12); sh.bezierCurveTo(0.34, -0.3, 0.16, -0.38, 0.08, -0.26); sh.bezierCurveTo(0.03, -0.16, 0.02, -0.06, 0.02, 0); },
+      (x, y, C) => ramp(C, Math.hypot(x, y) / 0.45, '#a6e8ff', '#d2b9ff', '#ffb8e0'));
+    const wm = K.std('#ffffff', { vertexColors: true, side: T.DoubleSide, roughness: 0.45, transparent: true, opacity: 0.82, depthWrite: false }), dotM = K.glow('#fff4ff', 0.6);
+    const ws = wingPair(T, g);
+    ws.forEach(({ w }) => {
+      K.mesh(up, wm, w, [0, 0, 0.004]).userData.noShadow = true; K.mesh(lo, wm, w, [0, 0, 0]).userData.noShadow = true;
+      [[0.34, 0.46, 0.028], [0.24, 0.3, 0.02], [0.42, 0.3, 0.016], [0.26, -0.14, 0.022], [0.16, -0.22, 0.015]].forEach(([x, y, r]) => { K.mesh(unitSph(T), dotM, w, [x, y, 0.012], null, [r, r, 0.004]).userData.noShadow = true; });
+    });
+    wingTick(g, ws, (tt, n) => { dotM.emissiveIntensity = 0.6 + 2.0 * n; });
+  },
+  /* a bat wing: four finger bones and a scalloped membrane, deep purple at the arm and magenta at the edge */
+  bat(T, K, g){
+    const ws = wingPair(T, g);
+    ws.forEach(({ w }) => leatherWing(T, K, w, { key: 'bat', arm: [[0.02, 0.02, 0], [0.1, 0.3, 0.01], [0.2, 0.5, 0]], tips: [[0.46, 0.62], [0.5, 0.34], [0.42, 0.08], [0.26, -0.08]],
+      color: (x, y, C) => ramp(C, Math.hypot(x, y - 0.1) / 0.55, '#2a1450', '#7b2a86', '#c23a96'), bone: '#1c0d33', r: 0.012, claw: '#d9c8ef' }));
+    wingTick(g, ws);
+  },
+  /* four dragonfly wings, clear and rainbow tinted, with glittering motes drifting round them */
+  fairy(T, K, g){
+    const rb = (x, y, C) => C.setHSL((x * 1.2 + y * 0.6 + 0.55 + 10) % 1, 0.75, 0.78);
+    const up = wingGeo(T, 'fy-up', sh => { sh.moveTo(0.02, 0); sh.bezierCurveTo(0, 0.3, 0.18, 0.55, 0.42, 0.52); sh.bezierCurveTo(0.5, 0.4, 0.38, 0.22, 0.2, 0.1); sh.bezierCurveTo(0.12, 0.04, 0.06, 0, 0.02, 0); }, rb);
+    const lo = wingGeo(T, 'fy-lo', sh => { sh.moveTo(0.02, -0.01); sh.bezierCurveTo(0.2, 0.04, 0.4, -0.04, 0.46, -0.16); sh.bezierCurveTo(0.36, -0.3, 0.16, -0.24, 0.04, -0.06); }, rb);
+    const wm = K.std('#ffffff', { vertexColors: true, side: T.DoubleSide, roughness: 0.2, transparent: true, opacity: 0.5, depthWrite: false });
+    const ws = wingPair(T, g);
+    ws.forEach(({ w }) => { K.mesh(up, wm, w, [0, 0, 0.003]).userData.noShadow = true; K.mesh(lo, wm, w, [0, 0, 0]).userData.noShadow = true; });
+    const N = 16, moteM = K.glow('#ffffff', 1.2), motes = K.inst(ico0(T), moteM, N, g); motes.userData.noShadow = true; motes.frustumCulled = false;
+    const M = new T.Matrix4(), Q = new T.Quaternion(), V = new T.Vector3(), S = new T.Vector3();
+    wingTick(g, ws, (tt, n, reduced) => {
+      moteM.emissiveIntensity = 1.2 + 1.6 * n;
+      for(let i = 0; i < N; i++){
+        const s = i % 2 ? 1 : -1, u = (i * 0.37 + tt * 0.12) % 1;
+        V.set(s * (0.15 + 0.3 * ((i * 0.618) % 1) + 0.05 * Math.sin(tt * 1.3 + i)), 0.05 + 0.5 * u, -0.06 - 0.04 * Math.sin(tt * 0.9 + i)); S.setScalar(0.012 * (0.6 + 0.4 * Math.sin(tt * 3 + i)) * Math.sin(Math.PI * u) + 0.002); M.compose(V, Q, S); motes.setMatrixAt(i, M);
+      }
+      motes.instanceMatrix.needsUpdate = true;
+    });
+  },
+  /* a dragon wing: a larger leather wing with banded scales, emerald at the arm and teal at the edge, and a claw at every finger */
+  drake(T, K, g){
+    const ws = wingPair(T, g, 0.9);
+    ws.forEach(({ w }) => leatherWing(T, K, w, { key: 'drake', arm: [[0.02, 0.02, 0], [0.08, 0.32, 0.01], [0.18, 0.56, 0]], tips: [[0.42, 0.78], [0.54, 0.5], [0.5, 0.2], [0.34, 0.0]],
+      color: (x, y, C) => { const d = Math.hypot(x, y - 0.1); ramp(C, d / 0.7, '#0b6b5b', '#14a085', '#34d399'); return C.multiplyScalar(0.86 + 0.14 * (Math.floor(d * 16) % 2)); }, bone: '#12805f', r: 0.014, claw: '#f2efd0' }));
+    wingTick(g, ws);
+  },
+  /* flame feathers in gold, orange and crimson that glow and waver at the tips, strongest at night */
+  phoenix(T, K, g){
+    const gold = K.glow('#ffc82e', 0.6, { roughness: 0.5 }), orange = K.glow('#ff7a1a', 0.6, { roughness: 0.5 }), red = K.glow('#e0182d', 0.6, { roughness: 0.5 }), ws = wingPair(T, g, 0.83);
+    const fans = ws.map(({ w }) => featherFan(T, K, w, [
+      { n: 8, L: [0.5, 0.3], w: 0.042, z: -0.01, mat: red },
+      { n: 7, L: [0.36, 0.22], w: 0.038, z: 0.004, mat: orange },
+      { n: 6, L: [0.22, 0.13], w: 0.032, z: 0.016, mat: gold },
+    ]));
+    fans.forEach(f => f.ims.forEach(m => { m.userData.noShadow = true; }));
+    wingTick(g, ws, (tt, n, reduced) => {
+      red.emissiveIntensity = 0.6 + 2.0 * n; orange.emissiveIntensity = 0.7 + 2.4 * n; gold.emissiveIntensity = 0.8 + 2.6 * n;
+      fans.forEach(f => f.pose(tt, reduced ? 0 : 1));
+    });
+  },
+  /* angular crystal plates in two tiers whose colours turn through the rainbow, with star glints that blink */
+  prism(T, K, g){
+    const oct = gemGeo(T), plate = K.std('#ffffff', { roughness: 0.25, metalness: 0.45, flatShading: true, emissive: '#8a8cff', emissiveIntensity: 0.15 }), ws = wingPair(T, g, 0.8);
+    const fans = ws.map(({ w }) => featherFan(T, K, w, [
+      { n: 6, L: [0.52, 0.32], w: 0.055, d: 0.035, z: -0.01, mat: plate, geo: oct },
+      { n: 5, L: [0.34, 0.2], w: 0.05, d: 0.03, z: 0.012, mat: plate, geo: oct },
+    ]));
+    const glint = K.glow('#ffffff', 0.9), gl = ws.map(({ w }) => { const im = K.inst(starGeo(T), glint, 4, w); im.userData.noShadow = true; im.frustumCulled = false; return im; });
+    const C = new T.Color(), M = new T.Matrix4(), Q = new T.Quaternion(), V = new T.Vector3(), S = new T.Vector3(), TIP = [[0.45, 0.0], [0.4, 0.28], [0.32, 0.5], [0.2, 0.32]];
+    wingTick(g, ws, (tt, n, reduced) => {
+      plate.emissiveIntensity = 0.15 + 0.7 * n;
+      fans.forEach(f => f.ims.forEach((im, k) => { for(let i = 0; i < im.count; i++) im.setColorAt(i, C.setHSL(((i * 0.11 + k * 0.3 + tt * 0.04) % 1 + 1) % 1, 0.7, 0.72)); im.instanceColor.needsUpdate = true; }));
+      gl.forEach((im, wi) => { TIP.forEach(([x, y], i) => { V.set(x, y, 0.03); S.setScalar(0.03 * (reduced ? 1 : Math.max(0, Math.sin(tt * 2.6 + i * 1.7 + wi * 0.9)))); M.compose(V, Q, S); im.setMatrixAt(i, M); }); im.instanceMatrix.needsUpdate = true; });
+    });
+  },
+};
+/* a wing pair for the back of a cast model; place it with placeBackGear (the standing and the seated model use the same anchor) */
+export function makeBackGear(T, id){
+  const K = kit(T), g = new T.Group();
+  g.name = 'gear-' + id; g.userData.gear = id; g.userData.keepLook = true;
+  const make = BACK[id];
+  if(make) make(T, K, g);
   return done(g, K);
 }
 
@@ -512,6 +854,48 @@ const DESK = {
     g.userData.tick = (t, night, reduced) => {
       const n = nightOf(night), tt = t + phaseOf(g), f = reduced ? 1 : 0.94 + 0.06 * Math.sin(tt * 23) * Math.sin(tt * 3.1);
       pink.emissiveIntensity = (0.3 + 2.6 * n) * f; cyan.emissiveIntensity = (0.25 + 2.4 * n) * f;
+    };
+    g.userData.tick(0, 0, true);
+  },
+  /* a crystal ball on a brass stand: purple and teal mist swirls inside the glass and glows at night */
+  crystalball(T, K, g){
+    const brass = K.std('#c9a24a', { roughness: 0.3, metalness: 0.6 });
+    K.mesh(cyl(T, 0.1, 0.125, 0.04, 28), brass, g, [0, 0.02, 0]);
+    K.mesh(torus(T, 0.085, 0.016, Math.PI * 2, 8, 28), brass, g, [0, 0.055, 0], [Math.PI / 2, 0, 0]);
+    const purple = K.glow('#a06bff', 0.5, { transparent: true, opacity: 0.8 }), teal = K.glow('#35e0c8', 0.5, { transparent: true, opacity: 0.8 }), N = 6;
+    const pm = K.inst(fluffy(T), purple, N, g), tm = K.inst(fluffy(T), teal, N, g);
+    [pm, tm].forEach(m => { m.userData.noShadow = true; m.frustumCulled = false; });
+    const glass = K.mesh(unitSph(T), K.glass('#e9e4ff', 0.18), g, [0, 0.2, 0], null, 0.15); glass.userData.noShadow = true;
+    const M = new T.Matrix4(), Q = new T.Quaternion(), V = new T.Vector3(), S = new T.Vector3();
+    g.userData.tick = (t, night, reduced) => {
+      const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+      purple.emissiveIntensity = 0.5 + 1.8 * n; teal.emissiveIntensity = 0.5 + 1.8 * n;
+      [pm, tm].forEach((im, k) => {
+        for(let i = 0; i < N; i++){
+          const a = tt * (0.7 + i * 0.11) * (k ? -1 : 1) + i * 1.05 + k * 0.5, r = 0.035 + 0.045 * ((i * 0.37 + k * 0.2) % 1), y = 0.2 + 0.07 * Math.sin(tt * 0.8 + i * 1.3 + k * 2), sz = 0.04 + 0.014 * Math.sin(tt * 1.6 + i);
+          V.set(Math.cos(a) * r, y, Math.sin(a) * r); S.setScalar(sz); M.compose(V, Q, S); im.setMatrixAt(i, M);
+        }
+        im.instanceMatrix.needsUpdate = true;
+      });
+    };
+    g.userData.tick(0, 0, true);
+  },
+  /* a spiral galaxy of about 150 glowing points turning slowly under a glass dome: gold core, blue and violet arms, much brighter at night */
+  galaxy(T, K, g){
+    K.mesh(cyl(T, 0.2, 0.22, 0.05, 32), K.std('#2a2a46', { roughness: 0.4, metalness: 0.3 }), g, [0, 0.025, 0]);
+    const dome = K.mesh(geo(T, 'hemi', () => new T.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2)), K.glass('#cfd8ff', 0.16), g, [0, 0.05, 0], null, 0.19); dome.userData.noShadow = true;
+    const spin = new T.Group(); spin.position.y = 0.13; spin.rotation.x = 0.22; g.add(spin);
+    const core = K.glow('#ffe9a8', 1.0), mid = K.glow('#8fa8ff', 1.0), edge = K.glow('#d79cff', 1.0), N = [30, 60, 60];
+    const ims = [core, mid, edge].map((m, k) => { const im = K.inst(ico0(T), m, N[k], spin); im.userData.noShadow = true; im.frustumCulled = false; return im; });
+    const R0 = [0.0, 0.05, 0.11], R1 = [0.05, 0.11, 0.17];
+    ims.forEach((im, k) => { for(let i = 0; i < N[k]; i++){
+      const u = (i + 0.5) / N[k], r = R0[k] + (R1[k] - R0[k]) * u, a = r * 26 + (i % 2) * Math.PI + Math.sin(i * 12.9898) * 0.25, yy = Math.sin(i * 78.233) * 0.012 * (1 - r / 0.17);
+      setInst(im, i, T, [Math.cos(a) * r, yy, Math.sin(a) * r], null, 0.006 + 0.005 * ((i * 0.61) % 1) + (k === 0 ? 0.002 : 0));
+    } im.instanceMatrix.needsUpdate = true; });
+    K.mesh(unitSph(T), K.glow('#fff6d8', 1.4), spin, null, null, 0.02).userData.noShadow = true;
+    g.userData.tick = (t, night, reduced) => {
+      const n = nightOf(night), tt = reduced ? 0 : t + phaseOf(g);
+      spin.rotation.y = tt * 0.25; core.emissiveIntensity = 1.0 + 2.4 * n; mid.emissiveIntensity = 1.0 + 2.4 * n; edge.emissiveIntensity = 1.0 + 2.4 * n;
     };
     g.userData.tick(0, 0, true);
   },

@@ -22,6 +22,9 @@ export const PET_HEX_KEYS = ['eye', 'nose', 'collar', 'mark'];
 export const PET_BREED_RE = /^[a-z0-9_]{1,32}$/;
 /* look v3: the coat's texture. 'plush' is the standard short coat and is never stored (an absent key means plush), so only the other two are kept */
 export const PET_FURS = ['plush', 'curly', 'silky'];
+/* look v4: the toy the pet plays with. Absent means automatic (a cat's yarn or mouse, a dog's ball or bone, by a hash of the owner), so a look from before
+   stays as it was; the list is mirrored by the server's _pet_clean, new values at the end */
+export const PET_TOYS = ['ball', 'bone', 'yarn', 'mouse', 'frisbee', 'rope', 'duck', 'feather', 'fish', 'bell'];
 
 const HEX6 = /^#[0-9a-f]{6}$/;
 export function normHex(c){ if(typeof c !== 'string') return null; const h = c.trim().toLowerCase(); return HEX6.test(h) ? h : null; }
@@ -43,6 +46,7 @@ export function normalizePetLook(raw){
   if(Array.isArray(raw.marks)){ const m = PET_MARKS.filter(x => raw.marks.includes(x)); if(m.length) look.marks = m; }
   if(typeof raw.breed === 'string' && PET_BREED_RE.test(raw.breed)) look.breed = raw.breed;
   if(raw.fur === 'curly' || raw.fur === 'silky') look.fur = raw.fur;
+  if(PET_TOYS.includes(raw.toy)) look.toy = raw.toy;
   const n = petName(raw.name); if(n) look.name = n;
   return look;
 }
@@ -51,10 +55,11 @@ export function normalizePetLook(raw){
 const ROLES = { solid: ['coat'], patch: ['base', 'patch', 'ear?'], tabby: ['base', 'stripe', 'muzzle?'], tuxedo: ['main', 'white'], point: ['body', 'points'],
   bicolor: ['top', 'under'], saddle: ['body', 'saddle'], spots: ['base', 'spot'], calico: ['base', 'patch1', 'patch2'] };
 export const petCoatRoles = pattern => ROLES[pick(pattern, PET_PATTERNS, PET_DEFAULTS.pattern)].map(r => ({ key: r.replace('?', ''), optional: r.endsWith('?') }));
-/* picking a breed: every field comes from the breed's look, only the pet's name stays (a breed look carries no name of its own) */
+/* picking a breed: every field comes from the breed's look, only the pet's name and toy stay (a breed look carries neither of its own) */
 export function petApplyBreed(look, breedLook){
   const b = normalizePetLook(breedLook); if(!b) return normalizePetLook(look);
   delete b.name; const n = petName(look && look.name); if(n) b.name = n;
+  delete b.toy; if(look && PET_TOYS.includes(look.toy)) b.toy = look.toy;   /* the toy is the member's choice, not the breed's */
   return b;
 }
 
@@ -776,13 +781,14 @@ export function makeBowls(T){
   return g;
 }
 
-/* toys: 'ball', 'bone', 'yarn', 'mouse'. The group's origin is on the floor; the parts that roll sit in an inner group userData.spin whose origin is the
+/* toys: PET_TOYS above. The group's origin is on the floor; the parts that roll sit in an inner group userData.spin whose origin is the
    toy's centre, userData.r above the floor, so turning spin about any axis keeps a round toy (userData.round: ball, yarn) on the floor instead of
-   swinging its centre under it. A bone or a mouse is flat: the scene turns it about the vertical only. The yarn's loose strand lies outside spin. */
-export const PET_TOYS = ['ball', 'bone', 'yarn', 'mouse'];
+   swinging its centre under it. A bone, a mouse and the other flat toys are turned about the vertical only. The yarn's loose strand lies outside spin. */
+const TOY_R = { bone: 0.019, mouse: 0.034, frisbee: 0.01, rope: 0.02, duck: 0.026, feather: 0.024, fish: 0.028, bell: 0.035 };   /* the centre height of each toy; the others are 0.045 */
+const TOY_ROUND = ['ball', 'yarn', 'bell'], TOY_ACROSS = ['bone', 'rope', 'frisbee'];   /* the ones that roll; the ones held along the mouth's axis (carryYaw 0) */
 export function makeToy(T, kind = 'ball'){
   const K = kit(), g = new T.Group(); g.name = 'petToy';
-  const r = kind === 'bone' ? 0.019 : kind === 'mouse' ? 0.034 : 0.045, spin = new T.Group(); spin.name = 'petToySpin'; spin.position.set(0, r, 0); g.add(spin);
+  const r = TOY_R[kind] || 0.045, spin = new T.Group(); spin.name = 'petToySpin'; spin.position.set(0, r, 0); g.add(spin);
   const std = c => K.mat(new T.MeshStandardMaterial({ color: c, roughness: 0.75 })), sph = K.geo(new T.SphereGeometry(1, 16, 12));
   /* y is the height above the floor, as before; parts in spin are placed relative to its centre */
   const add = (geo, m, x, y, z, sx, sy = sx, sz = sx, parent = spin) => { const o = new T.Mesh(geo, m); o.position.set(x, parent === spin ? y - r : y, z); o.scale.set(sx, sy, sz); o.castShadow = false; o.receiveShadow = true; parent.add(o); return o; };   /* a toy moves, so it casts no shadow-map shadow (the scene gives it a contact disc) */
@@ -794,10 +800,29 @@ export function makeToy(T, kind = 'ball'){
   /* the mouse: a darker grey body with two large round pink ears standing up and a long tail on the floor, so it reads as a mouse and not a grey blur */
   else if(kind === 'mouse'){ const m = std('#8b8597'); add(sph, m, 0, 0.034, 0, 0.038, 0.034, 0.064); for(const x of [-0.026, 0.026]){ const e = add(sph, std('#f29db2'), x, 0.07, 0.03, 0.022, 0.022, 0.007); e.rotation.y = x > 0 ? -0.35 : 0.35; }
     add(K.geo(new T.CapsuleGeometry(1, 1, 4, 8)), m, 0, 0.0055, -0.105, 0.0055, 0.03, 0.0055).rotation.x = Math.PI / 2; }
+  /* the frisbee: an orange disc 0.11 across with a white ring on top and an orange centre, flat on the floor */
+  else if(kind === 'frisbee'){ const o = std('#ff7a1a'); add(sph, o, 0, 0.01, 0, 0.055, 0.01, 0.055); add(sph, std('#fffaf0'), 0, 0.0112, 0, 0.047, 0.0108, 0.047); add(sph, o, 0, 0.0116, 0, 0.032, 0.011, 0.032); }
+  /* the rope: a red and white twisted bar 0.15 long with a knot at each end, lying on its side like the bone */
+  else if(kind === 'rope'){ add(K.geo(new T.CapsuleGeometry(1, 1, 4, 10)), striped('#e63946', '#fffaf0', [0.5, 1, 0.3], 16), 0, 0.012, 0, 0.012, 0.05, 0.012).rotation.z = Math.PI / 2;
+    add(sph, std('#e63946'), -0.078, 0.02, 0, 0.02); add(sph, std('#fffaf0'), 0.078, 0.02, 0, 0.02); }
+  /* the rubber duck: a yellow body with a head, tail and wings, an orange beak and black eyes, facing +z */
+  else if(kind === 'duck'){ const y = std('#ffd93b'), k = std('#1c1c24');
+    add(sph, y, 0, 0.026, -0.004, 0.036, 0.026, 0.046); add(sph, y, 0, 0.062, 0.026, 0.022); add(sph, y, 0, 0.034, -0.046, 0.013, 0.012, 0.014); add(sph, std('#ff8a1f'), 0, 0.058, 0.05, 0.013, 0.005, 0.015);
+    for(const s of [-1, 1]){ add(sph, k, s * 0.011, 0.068, 0.043, 0.004); add(sph, y, s * 0.035, 0.03, -0.006, 0.006, 0.016, 0.026); } }
+  /* the cat teaser: a pink pompom with three feathers (yellow, teal, violet) fanned out on the floor */
+  else if(kind === 'feather'){ add(sph, std('#ff8fb8'), 0, 0.024, -0.03, 0.024);
+    [[-0.55, '#f9d65a'], [0, '#59c3c3'], [0.55, '#8e7cf3']].forEach(([a, c]) => { add(sph, std(c), Math.sin(a) * 0.05, 0.005, -0.03 + Math.cos(a) * 0.05, 0.011, 0.005, 0.05).rotation.y = a; }); }
+  /* the fish plush: a teal striped body, a split tail, a dorsal and two side fins, white eyes with dark pupils */
+  else if(kind === 'fish'){ const fin = std('#1f9e94');
+    add(sph, striped('#2ec4b6', '#e0fbf4', [0, 0, 1], 12), 0, 0.028, 0, 0.03, 0.028, 0.058); add(sph, fin, 0, 0.057, -0.006, 0.004, 0.014, 0.03);
+    for(const s of [-1, 1]){ add(sph, fin, 0, 0.03, -0.078, 0.005, 0.028, 0.024).rotation.x = s * 0.45; add(sph, fin, s * 0.03, 0.02, 0, 0.004, 0.01, 0.016); add(sph, std('#ffffff'), s * 0.024, 0.04, 0.034, 0.008); add(sph, std('#1c1c24'), s * 0.029, 0.04, 0.039, 0.0045); } }
+  /* the bell ball: three crossed gold rings (the ball is as wide as r, so the bottom one touches the floor) round a gold bell */
+  else if(kind === 'bell'){ const gold = K.mat(new T.MeshStandardMaterial({ color: '#e9b949', roughness: 0.35, metalness: 0.5 })), ring = K.geo(new T.TorusGeometry(1, 0.09, 8, 24));
+    add(ring, gold, 0, 0.035, 0, 0.032); add(ring, gold, 0, 0.035, 0, 0.032).rotation.y = Math.PI / 2; add(ring, gold, 0, 0.035, 0, 0.032).rotation.x = Math.PI / 2; add(sph, std('#ffd34d'), 0, 0.035, 0, 0.012); }
   else add(sph, striped('#fb7185', '#fde68a', [0, 1, 0], 9), 0, 0.045, 0, 0.045);
   /* carryYaw: the turn about the vertical, relative to the pet's heading, at which the toy is held in the mouth: a bone crosswise (its long axis, x,
      across the muzzle), the rest a quarter turn as before (the mouse held across the middle of its body) */
-  g.userData = { kind, spin, r, round: kind === 'ball' || kind === 'yarn', carryYaw: kind === 'bone' ? 0 : Math.PI / 2, dispose: K.dispose };
+  g.userData = { kind, spin, r, round: TOY_ROUND.includes(kind), carryYaw: TOY_ACROSS.includes(kind) ? 0 : Math.PI / 2, dispose: K.dispose };
   return g;
 }
 /* a small wicker basket with toys peeking out, where the presents pile stands when the year-end dressing is off */

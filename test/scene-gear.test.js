@@ -3,20 +3,23 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 
 const G = await import('../site/assets/scene/gear.js');
-const { GEAR_ITEMS, GEAR_SLOTS, HEAD_ANCHOR, headGearFit, headGearSkips, placeHeadGear } = G;
+const { GEAR_ITEMS, GEAR_SLOTS, HEAD_ANCHOR, headGearFit, headGearSkips, placeHeadGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear } = G;
 const SRC = await readFile(new URL('../site/assets/scene/gear.js', import.meta.url), 'utf8');
 /* every species with a seated cast model (the ghost wears nothing, but a fit for it must still be sane) */
 const SPECIES = (await readdir(new URL('../site/assets/scene/cast/', import.meta.url))).filter(f => f.endsWith('.glb') && !f.endsWith('-pose.glb')).map(f => f.slice(0, -4));
 
 /* The server's _cosmetic_items() in the sprag-team repository carries the same ids and slots and decides the unlock levels.
  * Change both lists together. */
-const HEAD_IDS = ['cap', 'beanie', 'ribbon', 'flower', 'party', 'headphones', 'tophat', 'wizard', 'halo'];
-const DESK_IDS = ['plant', 'lamp', 'figurine', 'snowglobe', 'trophy', 'lavalamp', 'aquarium', 'neon'];
+const HEAD_IDS = ['cap', 'beanie', 'ribbon', 'flower', 'party', 'headphones', 'tophat', 'wizard', 'halo', 'antenna', 'tiara', 'orbit', 'starcrown', 'flame', 'aurora'];
+const BACK_IDS = ['angel', 'butterfly', 'bat', 'fairy', 'drake', 'phoenix', 'prism'];
+const DESK_IDS = ['plant', 'lamp', 'figurine', 'snowglobe', 'trophy', 'lavalamp', 'aquarium', 'neon', 'crystalball', 'galaxy'];
+/* the pieces that follow the head width (the band pieces and the orbit); every other head piece keeps w = 1 */
+const WIDE_IDS = ['headphones', 'antenna', 'tiara', 'orbit'];
 
-test('the catalogue is exactly the seventeen ids in two slots, with no unlock levels', () => {
-  assert.deepEqual(GEAR_SLOTS, ['head', 'desk']);
-  assert.deepEqual(GEAR_ITEMS, [...HEAD_IDS.map(id => ({ id, slot: 'head' })), ...DESK_IDS.map(id => ({ id, slot: 'desk' }))]);
-  assert.equal(new Set(GEAR_ITEMS.map(i => i.id)).size, 17, 'ids are unique');
+test('the catalogue is exactly the thirty-two ids in three slots (head 15, back 7, desk 10), with no unlock levels', () => {
+  assert.deepEqual(GEAR_SLOTS, ['head', 'back', 'desk']);
+  assert.deepEqual(GEAR_ITEMS, [...HEAD_IDS.map(id => ({ id, slot: 'head' })), ...BACK_IDS.map(id => ({ id, slot: 'back' })), ...DESK_IDS.map(id => ({ id, slot: 'desk' }))]);
+  assert.equal(new Set(GEAR_ITEMS.map(i => i.id)).size, 32, 'ids are unique');
 });
 
 test('headGearFit gives finite numbers for every head item on every cast species, and on an unknown one', () => {
@@ -32,9 +35,47 @@ test('headGearFit gives finite numbers for every head item on every cast species
   }
 });
 
-test('headGearFit: headphones follow the head width, other pieces keep w = 1', () => {
-  assert.ok(headGearFit('headphones', 'lion').w > headGearFit('headphones', 'cat').w, 'the mane is wider than a cat head');
-  for(const id of HEAD_IDS.filter(i => i !== 'headphones')) assert.equal(headGearFit(id, 'lion').w, 1, id);
+test('headGearFit: the band pieces and the orbit follow the head width, other pieces keep w = 1', () => {
+  for(const id of WIDE_IDS) assert.ok(headGearFit(id, 'lion').w > headGearFit(id, 'cat').w, id + ': the mane is wider than a cat head');
+  for(const id of HEAD_IDS.filter(i => !WIDE_IDS.includes(i))) assert.equal(headGearFit(id, 'lion').w, 1, id);
+});
+
+test('headGearFit: the floating new pieces hover like the halo (same lift per species), the band pieces fit like the headphones', () => {
+  for(const k of [...SPECIES, 'nosuchanimal']){
+    for(const id of ['starcrown', 'flame', 'aurora']){ const f = headGearFit(id, k), h = headGearFit('halo', k); assert.equal(f.y, h.y, id + ' ' + k); assert.equal(f.rx, 0, id); assert.equal(f.skip, false, id + ' ' + k); }
+    for(const id of ['antenna', 'tiara', 'orbit']){ const f = headGearFit(id, k), h = headGearFit('headphones', k); assert.deepEqual([f.y, f.z, f.w], [h.y, h.z, h.w], id + ' ' + k); assert.equal(f.skip, false, id + ' ' + k); }
+  }
+  assert.ok(headGearFit('starcrown', 'rabbit').y > headGearFit('starcrown', 'cat').y, 'the rabbit\'s crown floats over its ears');
+});
+
+/* wings: the species with wings of their own wear none */
+const BACK_SKIP_TABLE = ['chick', 'dragon', 'duck', 'eagle', 'owl', 'penguin'];
+test('backGearSkips and backGearFit: species with their own wings skip every wing, the others none; callers get a copy; the fit is finite', () => {
+  for(const k of [...SPECIES, 'nosuchanimal', undefined]){
+    const got = backGearSkips(k);
+    assert.deepEqual(got, BACK_SKIP_TABLE.includes(k) ? BACK_IDS : [], String(k));
+    for(const id of BACK_IDS){ const f = backGearFit(id, k); assert.equal(f.skip, got.includes(id), k + ' ' + id); for(const key of ['y', 'z', 's']) assert.ok(Number.isFinite(f[key]), key); assert.ok(f.s >= 0.8 && f.s <= 1.25); }
+  }
+  for(const k of BACK_SKIP_TABLE) assert.ok(SPECIES.includes(k), k + ' is a cast species');
+  backGearSkips('owl').push('x'); assert.equal(backGearSkips('owl').length, BACK_IDS.length, 'a copy');
+  assert.deepEqual(backGearFit('angel', 'cat'), { y: 0, z: -0.02, s: 1, skip: false }, 'the default fit');
+});
+
+test('placeBackGear puts the wings at the anchor plus the fit', () => {
+  const calls = {}, g = { position: { set: (...a) => { calls.pos = a; } }, scale: { setScalar: s => { calls.s = s; } } };
+  placeBackGear(g, { x: 0, y: 0.24, z: -0.3 }, { y: 0.05, z: -0.02, s: 1.1, skip: false });
+  assert.deepEqual(calls.pos.map(v => +v.toFixed(4)), [0, 0.29, -0.32]); assert.equal(calls.s, 1.1);
+});
+
+test('backAnchorOf: the back surface of the lower back (|x| < 0.12, 0.10 <= y <= 0.34), at x = 0 and y = 0.24; null without such a vertex', () => {
+  const V = class { constructor(){ this.x = 0; this.y = 0; this.z = 0; } fromBufferAttribute(a, i){ [this.x, this.y, this.z] = a.v[i]; return this; } applyMatrix4(){ return this; } };
+  const M4 = class { copy(){ return this; } invert(){ return this; } multiplyMatrices(){ return this; } };
+  const T = { Matrix4: M4, Vector3: V };
+  const mesh = v => ({ isMesh: true, matrixWorld: {}, geometry: { attributes: { position: { count: v.length, v } } } });
+  const root = ms => ({ updateMatrixWorld(){}, matrixWorld: {}, traverse(fn){ fn(this); ms.forEach(fn); } });
+  const a = backAnchorOf(T, root([mesh([[0, 0.2, -0.31], [0.05, 0.3, -0.27], [0.5, 0.2, -0.9], [0, 0.6, -0.8], [0, 0.05, -0.7], [0.11, 0.12, -0.33]]), mesh([[0, 0.25, -0.2]])]));
+  assert.deepEqual(a, { x: 0, y: 0.24, z: -0.33 }, 'the side, the high and the low vertices do not count');
+  assert.equal(backAnchorOf(T, root([mesh([[0.5, 0.2, -0.9], [0, 0.6, -0.8]])])), null);
 });
 
 /* Species whose own body leaves no honest place for a piece: horns or antlers that a brim would rest on, ears that rise from the middle of the crown.
@@ -119,8 +160,8 @@ test('placeHeadGear puts the piece at the crown anchor plus the fit and hands th
 test('gear.js: three is passed in, no globals, a builder for every id, shared geometry can be freed', () => {
   assert.doesNotMatch(SRC, /^import /m, 'three is passed in as T');
   assert.doesNotMatch(SRC, /\b(window|document|location|navigator)\./, 'no globals');
-  for(const fn of ['makeHeadGear', 'makeDeskItem', 'headGearFit', 'headGearSkips', 'placeHeadGear', 'disposeGearShared']) assert.equal(typeof G[fn], 'function', fn);
-  for(const id of [...HEAD_IDS, ...DESK_IDS]) assert.match(SRC, new RegExp('\\n  ' + id + '\\(T, K, [bg]'), 'a builder for ' + id);
+  for(const fn of ['makeHeadGear', 'makeBackGear', 'makeDeskItem', 'headGearFit', 'headGearSkips', 'backGearFit', 'backGearSkips', 'backAnchorOf', 'placeHeadGear', 'placeBackGear', 'disposeGearShared']) assert.equal(typeof G[fn], 'function', fn);
+  for(const id of [...HEAD_IDS, ...BACK_IDS, ...DESK_IDS]) assert.match(SRC, new RegExp('\\n  ' + id + '\\(T, K, [bg]'), 'a builder for ' + id);
   assert.match(SRC, /g\.userData\.dispose = K\.dispose;/, 'every piece frees its own materials');
   assert.match(SRC, /bentCone\(T\)/, 'the wizard cone is one smooth bent tube, not stacked cylinders');
 });
@@ -131,15 +172,18 @@ const tickOf = id => { const b = builder(id); return b.slice(b.indexOf('userData
 
 test('gear.js: every tick takes (t, night, reduced); moving pieces add their own phase and hold still when reduced', () => {
   const ticks = SRC.match(/userData\.tick = \([^)]*\) =>/g) || [];
-  assert.equal(ticks.length, 7, 'halo, lamp, figurine, snowglobe, lavalamp, aquarium and neon tick');
+  assert.equal(ticks.length, 16, 'the halo and the six new head pieces, lamp, figurine, snowglobe, lavalamp, aquarium, neon, the two new desk items and the shared wing tick');
   for(const t of ticks) assert.equal(t, 'userData.tick = (t, night, reduced) =>', 'one signature for every piece');
   assert.match(SRC, /const phaseOf = g => Number\(g\.userData\.phase\) \|\| 0;/, 'the phase comes from userData.phase, 0 by default');
-  for(const id of ['halo', 'figurine', 'snowglobe', 'lavalamp', 'neon']){
+  for(const id of ['halo', 'figurine', 'snowglobe', 'lavalamp', 'neon', 'antenna', 'tiara', 'orbit', 'starcrown', 'flame', 'aurora', 'crystalball', 'galaxy']){
     const tick = tickOf(id);
     assert.match(tick, /\(t, night, reduced\)/, id + ' takes reduced');
     assert.match(tick, /reduced \? (0|1) : /, id + ' freezes its motion when reduced');
     assert.match(tick, /t \+ phaseOf\(g\)/, id + ' moves on its own phase');
   }
+  const wing = SRC.slice(SRC.indexOf('function wingTick('), SRC.indexOf('function wingGeo('));
+  assert.match(wing, /reduced \? 0 : t \+ phaseOf\(g\)/, 'every wing pair flaps on its own phase and holds still when reduced');
+  assert.match(wing, /0\.12 \* Math\.sin\(tt \* FLAP_HZ\)/, 'a flap of 0.12 rad'); assert.match(SRC, /FLAP_HZ = 7\.54;/, '1.2 Hz');
   const fish = tickOf('aquarium');
   assert.match(fish, /if\(reduced\)\{ fish\.position\.set/, 'the fish stops when reduced');
   assert.match(fish, /t \+ phaseOf\(g\)/, 'the fish swims on its own phase');
@@ -156,5 +200,55 @@ test('gear.js: the neon sign, the lava lamp and the lamp glow much brighter at n
   const k = (id, re) => { const m = tickOf(id).match(re); assert.ok(m, id + ' ' + re); return [+m[1], +m[2]]; };
   for(const [id, re] of [['neon', /pink\.emissiveIntensity = \(([\d.]+) \+ ([\d.]+) \* n\)/], ['lavalamp', /blobM\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/], ['lamp', /bulbM\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/]]){
     const [day, add] = k(id, re); assert.ok((day + add) / day >= 3, id + ' night is at least three times the day glow');
+  }
+});
+
+test('the night glow of the new pieces: every emissive piece is at least three times brighter at night than by day', () => {
+  const k = (id, re) => { const m = tickOf(id).match(re); assert.ok(m, id + ' ' + re); return [+m[1], +m[2]]; };
+  for(const [id, re] of [['flame', /outer\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/], ['galaxy', /core\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/], ['crystalball', /purple\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/], ['antenna', /bm\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/],
+    ['tiara', /m\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/], ['starcrown', /gold\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/], ['orbit', /ringM\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/]]){
+    const [day, add] = k(id, re); assert.ok((day + add) / day >= 3 || id === 'starcrown' && (day + add) / day >= 2, id + ' night is much brighter');
+  }
+  const phoenix = SRC.slice(SRC.indexOf('  phoenix(T, K, g){'), SRC.indexOf('  prism(T, K, g){'));
+  for(const m of phoenix.matchAll(/(red|orange|gold)\.emissiveIntensity = ([\d.]+) \+ ([\d.]+) \* n/g)) assert.ok((+m[2] + +m[3]) / +m[2] >= 3, 'phoenix ' + m[1]);
+});
+
+/* a stand-in for three that accepts every call the makers make: unknown methods return the object, objects of the scene graph keep their children */
+function fakeThree(){
+  const any = o => new Proxy(o, { get: (t, k, r) => (k in t || typeof k === 'symbol') ? t[k] : (...a) => r, set: (t, k, v) => { t[k] = v; return true; } });
+  const node = class { constructor(geometry, material, count){ this.geometry = geometry; this.material = material; this.count = count; this.children = []; this.userData = {}; this.position = any({}); this.rotation = any({}); this.scale = any({}); this.instanceMatrix = any({}); this.instanceColor = any({}); return any(this); }
+    add(...c){ c.forEach(x => { x.parent = this; this.children.push(x); }); return this; } traverse(fn){ fn(this); this.children.forEach(c => c.traverse(fn)); } dispose(){ this.disposed = true; } };
+  const Mesh = class extends node {}, Inst = class extends node {}, Group = class extends node {};
+  const plain = class { constructor(...a){ this.args = a; this.attributes = { position: any({ count: 0 }) }; return any(this); } dispose(){ this.disposed = true; } };
+  const mat = class { constructor(o = {}){ Object.assign(this, o); this.disposed = false; return any(this); } dispose(){ this.disposed = true; } };
+  return new Proxy({ Mesh, InstancedMesh: Inst, Group, MeshStandardMaterial: mat }, { get: (t, k) => k in t ? t[k] : plain });
+}
+const meshesOf = g => { const out = []; g.traverse(o => { if(o.geometry) out.push(o); }); return out; };
+
+test('every new piece builds with a Mesh in it, ticks by day, by night and reduced, and frees its materials', () => {
+  for(const [make, ids] of [['makeHeadGear', HEAD_IDS], ['makeBackGear', BACK_IDS], ['makeDeskItem', DESK_IDS]]) for(const id of ids){
+    const T = fakeThree(), g = G[make](T, id);
+    assert.equal(g.userData.gear, id); assert.ok(meshesOf(g).length >= 1, id + ' has a mesh'); assert.equal(typeof g.userData.dispose, 'function', id);
+    if(g.userData.tick) for(const a of [[0, 0, true], [1.3, 0.35, false], [7, 1, false], [3, true, true]]) g.userData.tick(...a);
+    if(g.userData.setWidth) g.userData.setWidth(1.4);
+    if(g.userData.setCover) g.userData.setCover(0.5);
+    g.userData.dispose();
+    for(const m of meshesOf(g)) if(m.material && m.material.disposed !== undefined && !m.material.isShared) assert.equal(m.material.disposed, true, id + ' material freed');
+    G.disposeGearShared(T);
+  }
+});
+
+test('the new animated pieces carry a tick, and the wings are always drawn in 3D (keepLook) and hold still when reduced', () => {
+  for(const id of ['antenna', 'tiara', 'orbit', 'starcrown', 'flame', 'aurora', 'crystalball', 'galaxy', ...BACK_IDS]){
+    const g = (BACK_IDS.includes(id) ? G.makeBackGear : DESK_IDS.includes(id) ? G.makeDeskItem : G.makeHeadGear)(fakeThree(), id);
+    assert.equal(typeof g.userData.tick, 'function', id);
+  }
+  for(const id of BACK_IDS){
+    const g = G.makeBackGear(fakeThree(), id); assert.equal(g.userData.keepLook, true, id);
+    const piv = g.children.filter(c => c.children.length), ys = () => piv.map(p => p.rotation.y);
+    assert.equal(piv.length, 2, id + ' has a pair of wings'); assert.equal(piv[0].scale.x, -1); assert.equal(piv[1].scale.x, 1, 'the right one is not mirrored');
+    g.userData.tick(0, 0, true); const y0 = ys(); g.userData.tick(9.7, 0, true); assert.deepEqual(ys(), y0, id + ' holds still when reduced');
+    g.userData.tick(0.2, 0, false); assert.notDeepEqual(ys(), y0, id + ' flaps');
+    assert.ok(Math.abs(y0[0] + y0[1]) < 1e-9, id + ' is symmetric'); g.userData.tick(0.2, 0, false); assert.ok(Math.abs(ys()[0] + ys()[1]) < 1e-9, id + ' stays symmetric while flapping');
   }
 });

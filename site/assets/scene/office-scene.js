@@ -10,7 +10,7 @@
  * people[].os is the OS name of the person's most recently seen machine; it picks the lid colour and logo (see laptopKind).
  * people[].pet (optional) is the member's pet: a pets.js look { kind, coat, pattern, ear, tail, size, fluff, name? } plus photo (an image or data URL for the
  * desk frame). Ghosts and a closed organization show no pets; at most PET_MAX are drawn, the viewer's own (people[].self) first. See the pets section in mountOfficeScene.
- * Cosmetics (see cosmeticsOf): people[].lvl (0..4, the unlock level), people[].gear ({ head, desk }: gear.js ids or null), people[].petToys (the pet may fetch
+ * Cosmetics (see cosmeticsOf): people[].lvl (0..6, the unlock level), people[].gear ({ head, back, desk }: gear.js ids or null), people[].petToys (the pet may fetch
  * and play with toys). data.shop (the viewer's own unlock state, member town only) together with opts.shop = { save(change, extra) } shows the unlock block
  * and the shop in the viewer's own drawer; change is { gear }, { pet } or { petClear: true }, extra carries { photo } for a pet saved from a photo (kept
  * by the page in this browser only), and save resolves { level, gear, pet } or rejects { code, message }.
@@ -26,9 +26,9 @@ import { makeFur, softNight } from './fur.js?v=f1';
 import { parseManifest, pickVariant, pickCell, relAzimuth, elevOk, nightTint, wantVariant, makeSpriteKit, zoomOk, cardOf } from './sprites.js?v=s2';   /* Blender fur sprites of the seated animals; the query keeps the module in step with this file */
 import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g6';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { normalizePetLook, pickPets, petPlan, petHash, makePet, makeBowls, makeToy, makeToyBasket, makePhotoFrame, disposePetShared, PET_MAX, petLookFromPixels, PET_KINDS, PET_PATTERNS, PET_EARS, PET_TAILS, PET_SIZES, PET_NAME_MAX, PET_COAT_MAX, PET_DEFAULTS,
-  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed } from './pets.js?v=p5';
-import * as PETS_NS from './pets.js?v=p5';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
-import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeDeskItem, disposeGearShared } from './gear.js?v=g2';   /* unlockable head and desk gear; the query keeps the module in step with this file */
+  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed, PET_TOYS } from './pets.js?v=p6';
+import * as PETS_NS from './pets.js?v=p6';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
+import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared } from './gear.js?v=g3';   /* unlockable head, wing and desk gear; the query keeps the module in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
@@ -504,31 +504,39 @@ export const OF_CSS = `
 .of-drawer .hd b svg{width:16px;height:16px;margin-right:4px;vertical-align:-2px}
 .of-drawer .bknote{margin:12px 0 0;padding:8px 10px;border-radius:10px;background:#f1ebff;color:#3b2a78;font-size:12px}
 .of-drawer .grp{margin:0 0 14px}.of-drawer .grp+.grp{margin-top:18px;padding-top:12px;border-top:1px dashed rgba(120,90,60,.22)}.of-drawer .grp>h4{margin:0 0 6px;font-size:11.5px;color:#3a2f27}
-/* unlock levels on the profile card (lv-1..lv-4 sit beside the tier and crown classes), each one told apart in a still image of the same tier:
+/* unlock levels on the profile card (lv-1..lv-6 sit beside the tier and crown classes), each one told apart in a still image of the same tier:
    1 a soft inner border; 2 a double border with corner studs; 3 a gold foil frame with the studs and a sheen that follows the pointer; 4 a holographic frame,
-   jewelled corners and a border of small stars. The frame layers (pc-foil, pc-star) are masked to the 7 px frame, so the art and the text never change.
+   jewelled corners and a border of small stars; 5 the same frame turning faster in brighter colours with a glow that pulses; 6 a gold and flame frame turning
+   with a golden glow that pulses. The frame layers (pc-foil, pc-star) are masked to the 7 px frame, so the art and the text never change.
    The hologram is one pre-drawn conic layer turned by a transform (no repaint per frame), paused while the card is tilted like pc-holo */
 .of-pcard .pc-orn,.of-pcard .pc-foil,.of-pcard .pc-spk,.of-pcard .pc-star{position:absolute;inset:0;border-radius:inherit;pointer-events:none;display:none}
 .of-pcard .pc-foil,.of-pcard .pc-star{padding:7px;overflow:hidden;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
 .of-pcard.lv-1 .pc-in{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--tc) 55%,#fff),inset 0 0 10px color-mix(in srgb,var(--tc) 35%,transparent)}
-.of-pcard.lv-2 .pc-in,.of-pcard.lv-3 .pc-in,.of-pcard.lv-4 .pc-in{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--tc) 60%,#8a6a48),inset 0 0 0 4px #fffaf0,inset 0 0 0 5px color-mix(in srgb,var(--tc) 70%,#c99a3e)}
+.of-pcard.lv-2 .pc-in,.of-pcard.lv-3 .pc-in,.of-pcard.lv-4 .pc-in,.of-pcard.lv-5 .pc-in,.of-pcard.lv-6 .pc-in{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--tc) 60%,#8a6a48),inset 0 0 0 4px #fffaf0,inset 0 0 0 5px color-mix(in srgb,var(--tc) 70%,#c99a3e)}
 .of-pcard.lv-2 .pc-orn,.of-pcard.lv-3 .pc-orn{display:block;z-index:2;--oc:color-mix(in srgb,var(--tc) 30%,#b9852a);background:radial-gradient(circle at 8.5px 8.5px,#fffaf0 0 1.3px,var(--oc) 1.7px 3.4px,transparent 3.9px),radial-gradient(circle at calc(100% - 8.5px) 8.5px,#fffaf0 0 1.3px,var(--oc) 1.7px 3.4px,transparent 3.9px),radial-gradient(circle at 8.5px calc(100% - 8.5px),#fffaf0 0 1.3px,var(--oc) 1.7px 3.4px,transparent 3.9px),radial-gradient(circle at calc(100% - 8.5px) calc(100% - 8.5px),#fffaf0 0 1.3px,var(--oc) 1.7px 3.4px,transparent 3.9px)}
 .of-pcard.lv-3 .pc-foil{display:block;z-index:0;background:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.9) 47%,transparent 60%) var(--mx) var(--my)/240% 240%,linear-gradient(135deg,#f6e3a1 0,#c9952e 20%,#fff1c2 40%,#b07f22 58%,#f3d27a 78%,#c08a2a 100%)}
-.of-pcard.lv-4 .pc-foil{display:block;z-index:0;background:#efe4ff}
-.of-pcard.lv-4 .pc-foil::before{content:"";position:absolute;left:50%;top:50%;width:190%;aspect-ratio:1;background:conic-gradient(#ff8fcf,#ffd96b,#8ff0a8,#7fd0ff,#b996ff,#ff8fcf);transform:translate(-50%,-50%);animation:pc-spin 14s linear infinite}
-.of-pcard.lv-4 .pc-foil::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.75) 47%,transparent 60%) var(--mx) var(--my)/240% 240%}
+.of-pcard.lv-4 .pc-foil,.of-pcard.lv-5 .pc-foil,.of-pcard.lv-6 .pc-foil{display:block;z-index:0;background:#efe4ff}
+.of-pcard.lv-6 .pc-foil{background:#3b0d05}
+.of-pcard.lv-4 .pc-foil::before,.of-pcard.lv-5 .pc-foil::before,.of-pcard.lv-6 .pc-foil::before{content:"";position:absolute;left:50%;top:50%;width:190%;aspect-ratio:1;background:conic-gradient(#ff8fcf,#ffd96b,#8ff0a8,#7fd0ff,#b996ff,#ff8fcf);transform:translate(-50%,-50%);animation:pc-spin 14s linear infinite}
+.of-pcard.lv-4 .pc-foil::after,.of-pcard.lv-5 .pc-foil::after,.of-pcard.lv-6 .pc-foil::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.75) 47%,transparent 60%) var(--mx) var(--my)/240% 240%}
+.of-pcard.lv-5 .pc-foil::before{background:conic-gradient(#ff4fc0,#ffe84a,#4dffa0,#3fd0ff,#8a63ff,#ff4fc0);animation-duration:8s}
+.of-pcard.lv-6 .pc-foil::before{background:conic-gradient(#ffd24a,#ff7a1a,#e0112b,#ff7a1a,#ffd24a,#fff3b0,#ffd24a);animation-duration:7s}
+.of-pcard.lv-6 .pc-foil::after{background:linear-gradient(115deg,transparent 34%,rgba(255,244,196,.85) 47%,transparent 60%) var(--mx) var(--my)/240% 240%}
 .of-pcard.tilt .pc-foil::before{animation-play-state:paused}
-.of-pcard.lv-4 .pc-star{display:block;z-index:1;--st:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 .6l1.3 2.7 3 .4-2.2 2.1.5 3L5 7.4 2.4 8.8l.5-3L.7 3.7l3-.4z' fill='%23fff' stroke='%23b8862a' stroke-width='.6'/%3E%3C/svg%3E");background:var(--st) 0 0/7px 7px space no-repeat,var(--st) 0 100%/7px 7px space no-repeat,var(--st) 0 0/7px 7px no-repeat space,var(--st) 100% 0/7px 7px no-repeat space;opacity:.95}
-.of-pcard.lv-4 .pc-orn{display:block;z-index:2;background:radial-gradient(circle at 10px 10px,#fff 0 1.2px,#ff5c8a 1.8px 3.2px,#a3123f 4.6px,#f6d77c 5px 6.4px,#8a5a12 6.9px,transparent 7.3px),radial-gradient(circle at calc(100% - 10px) 10px,#fff 0 1.2px,#5cb8ff 1.8px 3.2px,#124a8a 4.6px,#f6d77c 5px 6.4px,#8a5a12 6.9px,transparent 7.3px),radial-gradient(circle at 10px calc(100% - 10px),#fff 0 1.2px,#5fe3a0 1.8px 3.2px,#0f6b43 4.6px,#f6d77c 5px 6.4px,#8a5a12 6.9px,transparent 7.3px),radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#fff 0 1.2px,#c58cff 1.8px 3.2px,#5a1fa0 4.6px,#f6d77c 5px 6.4px,#8a5a12 6.9px,transparent 7.3px)}
-.of-pcard.lv-4 .pc-spk{display:block;z-index:3}
-.of-pcard.lv-4 .pc-spk::before,.of-pcard.lv-4 .pc-spk::after{content:"";position:absolute;inset:0;border-radius:inherit;animation:pc-spk 3.6s ease-in-out infinite}
-.of-pcard.lv-4 .pc-spk::before{background:radial-gradient(circle,#fff 0 1.4px,transparent 2px) 6% 18%/9px 9px no-repeat,radial-gradient(circle,#fff6c8 0 1.5px,transparent 2px) 3% 78%/9px 9px no-repeat,radial-gradient(circle,#fff 0 1.2px,transparent 1.8px) 50% 1.5%/8px 8px no-repeat}
-.of-pcard.lv-4 .pc-spk::after{background:radial-gradient(circle,#fff6c8 0 1.6px,transparent 2.2px) 96% 40%/10px 10px no-repeat,radial-gradient(circle,#fff 0 1.3px,transparent 1.9px) 94% 92%/9px 9px no-repeat,radial-gradient(circle,#fff 0 1.2px,transparent 1.8px) 30% 99%/8px 8px no-repeat;animation-duration:4.4s;animation-delay:-1.9s}
+.of-pcard.lv-4 .pc-star,.of-pcard.lv-5 .pc-star,.of-pcard.lv-6 .pc-star{display:block;z-index:1;--st:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 .6l1.3 2.7 3 .4-2.2 2.1.5 3L5 7.4 2.4 8.8l.5-3L.7 3.7l3-.4z' fill='%23fff' stroke='%23b8862a' stroke-width='.6'/%3E%3C/svg%3E");background:var(--st) 0 0/7px 7px space no-repeat,var(--st) 0 100%/7px 7px space no-repeat,var(--st) 0 0/7px 7px no-repeat space,var(--st) 100% 0/7px 7px no-repeat space;opacity:.95}
+.of-pcard.lv-4 .pc-orn,.of-pcard.lv-5 .pc-orn,.of-pcard.lv-6 .pc-orn{display:block;z-index:2;background:radial-gradient(circle at 10px 10px,#fff 0 1.2px,#ff5c8a 1.8px 3.2px,#a3123f 4.6px,#f6d77c 5px 6.4px,#8a5a12 6.9px,transparent 7.3px),radial-gradient(circle at calc(100% - 10px) 10px,#fff 0 1.2px,#5cb8ff 1.8px 3.2px,#124a8a 4.6px,#f6d77c 5px 6.4px,#8a5a12 6.9px,transparent 7.3px),radial-gradient(circle at 10px calc(100% - 10px),#fff 0 1.2px,#5fe3a0 1.8px 3.2px,#0f6b43 4.6px,#f6d77c 5px 6.4px,#8a5a12 6.9px,transparent 7.3px),radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#fff 0 1.2px,#c58cff 1.8px 3.2px,#5a1fa0 4.6px,#f6d77c 5px 6.4px,#8a5a12 6.9px,transparent 7.3px)}
+.of-pcard.lv-4 .pc-spk,.of-pcard.lv-5 .pc-spk,.of-pcard.lv-6 .pc-spk{display:block;z-index:3}
+.of-pcard.lv-4 .pc-spk::before,.of-pcard.lv-4 .pc-spk::after,.of-pcard.lv-5 .pc-spk::before,.of-pcard.lv-5 .pc-spk::after,.of-pcard.lv-6 .pc-spk::before,.of-pcard.lv-6 .pc-spk::after{content:"";position:absolute;inset:0;border-radius:inherit;animation:pc-spk 3.6s ease-in-out infinite}
+.of-pcard.lv-4 .pc-spk::before,.of-pcard.lv-5 .pc-spk::before,.of-pcard.lv-6 .pc-spk::before{background:radial-gradient(circle,#fff 0 1.4px,transparent 2px) 6% 18%/9px 9px no-repeat,radial-gradient(circle,#fff6c8 0 1.5px,transparent 2px) 3% 78%/9px 9px no-repeat,radial-gradient(circle,#fff 0 1.2px,transparent 1.8px) 50% 1.5%/8px 8px no-repeat}
+.of-pcard.lv-4 .pc-spk::after,.of-pcard.lv-5 .pc-spk::after,.of-pcard.lv-6 .pc-spk::after{background:radial-gradient(circle,#fff6c8 0 1.6px,transparent 2.2px) 96% 40%/10px 10px no-repeat,radial-gradient(circle,#fff 0 1.3px,transparent 1.9px) 94% 92%/9px 9px no-repeat,radial-gradient(circle,#fff 0 1.2px,transparent 1.8px) 30% 99%/8px 8px no-repeat;animation-duration:4.4s;animation-delay:-1.9s}
 @keyframes pc-spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
 @keyframes pc-spk{0%,100%{opacity:.2}50%{opacity:1}}
+.of-pcard.lv-5{animation:pc-glow5 3.2s ease-in-out infinite}.of-pcard.lv-6{animation:pc-glow6 2.6s ease-in-out infinite}
+@keyframes pc-glow5{0%,100%{box-shadow:0 14px 34px rgba(60,40,20,.28),0 0 0 1px rgba(60,40,20,.28),inset 0 0 0 1px rgba(255,255,255,.6),0 0 8px 0 rgba(168,120,255,.3)}50%{box-shadow:0 14px 34px rgba(60,40,20,.28),0 0 0 1px rgba(60,40,20,.28),inset 0 0 0 1px rgba(255,255,255,.6),0 0 20px 3px rgba(255,120,220,.55)}}
+@keyframes pc-glow6{0%,100%{box-shadow:0 14px 34px rgba(60,40,20,.28),0 0 0 1px rgba(60,40,20,.28),inset 0 0 0 1px rgba(255,255,255,.6),0 0 10px 1px rgba(255,190,60,.4)}50%{box-shadow:0 14px 34px rgba(60,40,20,.28),0 0 0 1px rgba(60,40,20,.28),inset 0 0 0 1px rgba(255,255,255,.6),0 0 26px 5px rgba(255,150,30,.7)}}
 .of-pcard .lvb{flex:none;padding:1px 6px;border-radius:999px;font-size:10.5px;line-height:1.25;font-weight:800;color:#fff;background:#5b46d6}
-.of-pcard.lv-3 .lvb,.of-pcard.lv-4 .lvb{color:#ffe08a;background:#3a2410;box-shadow:inset 0 0 0 1px #c99a3e}
-@media (prefers-reduced-motion:reduce){.of-pcard.lv-4 .pc-foil,.of-pcard.lv-4 .pc-spk{animation:none}.of-pcard.lv-4 .pc-foil::before,.of-pcard.lv-4 .pc-spk::before,.of-pcard.lv-4 .pc-spk::after{animation:none}.of-pcard.lv-4 .pc-spk::before,.of-pcard.lv-4 .pc-spk::after{opacity:.8}}
+.of-pcard.lv-3 .lvb,.of-pcard.lv-4 .lvb,.of-pcard.lv-5 .lvb,.of-pcard.lv-6 .lvb{color:#ffe08a;background:#3a2410;box-shadow:inset 0 0 0 1px #c99a3e}
+@media (prefers-reduced-motion:reduce){.of-pcard.lv-4 .pc-foil,.of-pcard.lv-4 .pc-spk,.of-pcard.lv-5,.of-pcard.lv-6{animation:none}.of-pcard.lv-4 .pc-foil::before,.of-pcard.lv-5 .pc-foil::before,.of-pcard.lv-6 .pc-foil::before,.of-pcard.lv-4 .pc-spk::before,.of-pcard.lv-4 .pc-spk::after,.of-pcard.lv-5 .pc-spk::before,.of-pcard.lv-5 .pc-spk::after,.of-pcard.lv-6 .pc-spk::before,.of-pcard.lv-6 .pc-spk::after{animation:none}.of-pcard.lv-4 .pc-spk::before,.of-pcard.lv-4 .pc-spk::after,.of-pcard.lv-5 .pc-spk::before,.of-pcard.lv-5 .pc-spk::after,.of-pcard.lv-6 .pc-spk::before,.of-pcard.lv-6 .pc-spk::after{opacity:.8}}
 .of-drawer .badge.lvb{background:#5b46d6;color:#fff}
 /* the unlock block and the shop (the viewer's own drawer on the member page) */
 .of-drawer .ulk{margin:0 0 16px;padding:10px 12px 12px;border-radius:12px;background:#fff;border:1px solid rgba(120,90,60,.22);box-shadow:0 1px 2px rgba(60,40,20,.06)}   /* neutral, so it reads apart from the lavender strip under it */
@@ -632,6 +640,35 @@ export const OF_CSS = `
 .of-stage.of-sheet .of-drawer .pet-wrap>.pet-pvc{order:-1;position:sticky;top:0;z-index:2;margin:0 -12px;padding:8px 12px;background:#fffdf8;border-bottom:1px solid rgba(120,90,60,.16);flex-direction:row;align-items:center;gap:12px}
 .of-stage.of-sheet .of-drawer .pet-pv{width:124px;height:124px;flex:none}.of-stage.of-sheet .of-drawer .pet-toy{flex:1}
 @media (prefers-reduced-motion:reduce){.of-drawer .ulk-bar i{animation:none}}
+/* the collection tab: a count with a bar, then one card per level. The level badge borrows the look of that level's profile frame (1 a soft border, 2 a double border,
+   3 gold foil, 4 hologram, 5 a faster prism, 6 gold and flame); the hologram is one conic layer turned by a transform, stopped under reduced motion */
+.of-drawer .bk-sum{margin:0 0 10px;padding:8px 10px 10px;border-radius:12px;background:#fff;border:1px solid rgba(120,90,60,.22);font-size:12.5px;color:#3a2f27}.of-drawer .bk-sum b{display:block;margin:0 0 4px;font-weight:700}.of-drawer .bk-sum .ulk-bar{margin-top:0}
+.of-drawer .bk-card{position:relative;margin:0 0 10px;padding:10px;border-radius:12px;background:#fff;border:1px solid rgba(120,90,60,.22);box-shadow:0 1px 2px rgba(60,40,20,.06)}
+.of-drawer .bk-card.next{border-color:#6d5ce7;box-shadow:0 0 0 2px rgba(109,92,231,.28),0 2px 8px rgba(60,40,120,.12)}
+.of-drawer .bk-card.locked{background:#f7f3ea}.of-drawer .bk-card.locked .bk-hd b,.of-drawer .bk-card.locked .bk-t .nm{color:#7a6a58}
+.of-drawer .bk-hd{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0 0 4px}.of-drawer .bk-hd b{flex:1 1 130px;min-width:0;font-size:12px;line-height:1.35;color:#3a2f27;font-weight:700}
+.of-drawer .bk-lv{position:relative;isolation:isolate;overflow:hidden;flex:none;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;line-height:1.3;color:#4c1d95;background:#efe9ff;box-shadow:inset 0 0 0 1.5px #b9a8f0}
+.of-drawer .bk-lv.lv-2{background:#fffaf0;color:#6b4a14;box-shadow:inset 0 0 0 1.5px #8a6a48,inset 0 0 0 3px #fffaf0,inset 0 0 0 4px #c99a3e}
+.of-drawer .bk-lv.lv-3{background:linear-gradient(135deg,#f6e3a1 0,#c9952e 22%,#fff1c2 42%,#b07f22 60%,#f3d27a 80%,#c08a2a 100%);color:#3a2410;box-shadow:inset 0 0 0 1px #8a5a12}
+.of-drawer .bk-lv.lv-4,.of-drawer .bk-lv.lv-5,.of-drawer .bk-lv.lv-6{color:#2b1a5e;text-shadow:0 0 3px rgba(255,255,255,.9);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.8),0 0 0 1px #c99a3e}
+.of-drawer .bk-lv.lv-4::before,.of-drawer .bk-lv.lv-5::before,.of-drawer .bk-lv.lv-6::before{content:"";position:absolute;left:50%;top:50%;width:300%;aspect-ratio:1;z-index:-1;background:conic-gradient(#ff8fcf,#ffd96b,#8ff0a8,#7fd0ff,#b996ff,#ff8fcf);transform:translate(-50%,-50%);animation:pc-spin 14s linear infinite}
+.of-drawer .bk-lv.lv-5::before{background:conic-gradient(#ff4fc0,#ffe84a,#4dffa0,#3fd0ff,#8a63ff,#ff4fc0);animation-duration:8s}
+.of-drawer .bk-lv.lv-6{color:#3a1203;text-shadow:0 0 3px rgba(255,236,160,.95)}.of-drawer .bk-lv.lv-6::before{background:conic-gradient(#ffd24a,#ff7a1a,#e0112b,#ff7a1a,#ffd24a,#fff3b0,#ffd24a);animation-duration:7s}
+.of-drawer .bk-lv.lv-4::after,.of-drawer .bk-lv.lv-5::after,.of-drawer .bk-lv.lv-6::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.8) 48%,transparent 62%) 150% 0/250% 100% no-repeat;animation:bk-shine 3.2s ease-in-out infinite}
+@keyframes bk-shine{0%{background-position:150% 0}60%,100%{background-position:-50% 0}}
+.of-drawer .bk-stamp{display:inline-grid;place-items:center;flex:none;min-width:42px;height:42px;padding:0 3px;box-sizing:border-box;border-radius:50%;border:2px solid #2f8f5b;color:#2f8f5b;font-size:10.5px;font-weight:800;line-height:1.1;text-align:center;transform:rotate(-12deg);box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 3px rgba(47,143,91,.45)}
+.of-drawer .bk-nx{flex:none;padding:2px 9px;border-radius:999px;background:#6d5ce7;color:#fff;font-size:10.5px;font-weight:800}
+.of-drawer .bk-lk{display:inline-flex;align-items:center;gap:3px;flex:none;font-size:10.5px;font-weight:700;color:#6a5a4a}.of-drawer .bk-lk svg{width:11px;height:11px}
+.of-drawer .bk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;margin-top:8px}
+.of-drawer .bk-t{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;font:inherit;font-size:10.5px;color:#3a2f27;background:#f7f1e4;border:2px solid transparent;border-radius:12px;padding:12px 3px 5px;cursor:pointer;transition:border-color .12s,background-color .12s}
+.of-drawer .bk-t:hover{border-color:#d4c9f6;background:#fbf8ff}.of-drawer .bk-t:focus-visible{outline:2px solid #6d5ce7;outline-offset:1px}
+.of-drawer .bk-t img,.of-drawer .bk-t .ph{width:100%;max-width:56px;aspect-ratio:1;display:block}
+.of-drawer .bk-t .nm{max-width:100%;font-weight:600;line-height:1.2;text-align:center;overflow-wrap:anywhere}
+.of-drawer .bk-t.lock img{filter:brightness(0);opacity:.62}.of-drawer .bk-t.lock .ph{opacity:.5}
+.of-drawer .bk-sl{position:absolute;top:3px;left:5px;font-size:9px;font-weight:700;color:#8a6a2a}
+.of-drawer .ph.tx{display:grid;place-items:center;font-size:11px;font-weight:700;color:#6a5a4a;text-align:center;line-height:1.2}.of-drawer .sh-tile .ph.tx{width:56px;height:56px}
+@media (max-width:480px){.of-drawer .bk-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.of-drawer .sh-tabs button{padding:6px 3px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@media (prefers-reduced-motion:reduce){.of-drawer .bk-lv::before,.of-drawer .bk-lv::after{animation:none}}
 @media (prefers-reduced-motion:reduce){.of-drawer,.of-drawer.open,.of-fs{transition:none}}
 @media (max-width:640px){.of-strip .sp .of-th{--px:15px;margin:0;vertical-align:-3px}}
 @media (max-width:640px){.of-legend .keys,.of-strip .tg em,.of-strip b{display:none}.of-strip .sp svg{width:12px;height:12px}.of-tb{width:28px;height:28px}.of-tools{gap:4px}.of-stage{height:300px}.of-hud{left:12px;right:12px;top:46px;font-size:11px;background:#fff;padding:5px 8px;border:1px solid rgba(16,24,32,.14)}.of-hud b{font-size:13px}.of-legend{left:8px;bottom:6px;font-size:11px;gap:0 10px;padding:3px 8px;max-width:calc(100% - 16px)}.of-btn,.of-lbl{font-size:11px;padding:4px 8px}}
@@ -898,7 +935,7 @@ export function mountOfficeScene(container, data, opts = {}){
   /* Who wears what, only while HOL_HEADS is on (off by default): a crown gets only the red nose, a person without one gets a Santa hat or the Rudolph set (antlers band and red nose) by a hash of the id.
    * HOL_HAT_SKIP (module level, used by headDress): species that always take the Rudolph set instead of a Santa hat; empty since the cast lost its built-in hats. ANTLER_SKIP: the band would tangle with horns or antlers of their own, so the nose goes on alone.
    * NO_NOSE: species where a red ball on the nose looks wrong (the eagle's hooked beak). Species with no nose or beak mesh (frog, elephant) get no ball anyway. */
-  const ANTLER_SKIP = new Set(['deer', 'unicorn']), NO_NOSE = new Set(['eagle']), noseTips = {};
+  const ANTLER_SKIP = new Set(['deer', 'unicorn']), NO_NOSE = new Set(['eagle']), noseTips = {}, backAnchors = {};   /* backAnchors: the wing anchor of a loaded model, by pose and species, like noseTips */
   const track = o => { dyn.push(o); return o; };
   const mobile = () => W < 520;
   const C = h => new T.Color(h);
@@ -1284,6 +1321,7 @@ export function mountOfficeScene(container, data, opts = {}){
      the card are redressed); Save calls opts.shop.save, Cancel and a failure put the saved choice back. The pet tab reads a photo in this browser
      (petLookFromPixels) into a form with a small turning preview; the photo itself goes to the page through save's extra argument and stays local. ── */
   let shop = null, shopNa = false, naNote = false, thumbR = null, pv = null; const thumbs = {};
+  const SHOP_TABS = ['book', 'head', 'back', 'desk', 'pet'];   /* the collection comes first, then the three gear slots and the pet */
   const shopFor = o => !!(o && o.p && o.p.self && cur.shop && opts.shop && typeof opts.shop.save === 'function' && !shopNa && !cur.closed);
   const fillT = (s, v) => { let r = String(s || ''); for(const k in v) r = r.split('{' + k + '}').join(String(v[k])); return r; };
   const listOf = a => { const lang = document.documentElement.lang || 'en'; if(/^ko/.test(lang)) return a.join(', ');   /* Korean lists join with commas, never with 및 */
@@ -1294,12 +1332,12 @@ export function mountOfficeScene(container, data, opts = {}){
     /* share: the photo visibility choice (the server's state to begin with); mem: the last colour per coat position, so a pattern switched back gets it again;
        open: which form groups are expanded (kept across re-renders) */
     return { look: look || { ...PET_DEFAULTS, coat: [PET_SPARE[0]] }, had: !!look, photo: null, shown: (u.pet && typeof u.pet.photo === 'string' && u.pet.photo) || null, read: false, dirty: false,
-      share: u.photoShared === true, mem: (look ? look.coat : [PET_SPARE[0]]).slice(), hex: {}, open: (shop && shop.pet && shop.pet.open) || { basic: true, coat: true, shape: false, face: false } };
+      share: u.photoShared === true, mem: (look ? look.coat : [PET_SPARE[0]]).slice(), hex: {}, open: (shop && shop.pet && shop.pet.open) || { basic: true, coat: true, shape: false, face: false, toy: false } };
   }
   /* under 520 px the open shop is a sheet over the page (CSS .of-sheet): the page under it stops scrolling until it closes */
   function sheetSync(on){ const s = !!on && window.innerWidth < 520; stage.classList.toggle('of-sheet', s); document.documentElement.classList.toggle('of-sheet-on', s); }
-  function shopStart(){ const g = gearOf(cur.shop.gear); shop = { open: true, tab: 'head', base: g, draft: { ...g }, pet: petState(), busy: false, msg: null }; }
-  const gearDirty = () => !!shop && (shop.draft.head !== shop.base.head || shop.draft.desk !== shop.base.desk);
+  function shopStart(){ const g = gearOf(cur.shop.gear); shop = { open: true, tab: 'book', base: g, draft: { ...g }, pet: petState(), busy: false, msg: null }; }
+  const gearDirty = () => !!shop && (shop.draft.head !== shop.base.head || shop.draft.back !== shop.base.back || shop.draft.desk !== shop.base.desk);
   function previewGear(){
     const o = sel; if(!o || !shop) return;
     o.p.gear = { ...shop.draft };
@@ -1339,10 +1377,11 @@ export function mountOfficeScene(container, data, opts = {}){
   const HIDE_SVG = SV('0 0 16 16', '<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2" fill="currentColor"/><path d="M2.5 13.5l11-11" stroke="#fff" stroke-width="3"/><path d="M2.5 13.5l11-11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>');
   const TOY_SVG = SV('0 0 12 12', '<circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2 4.6c2.6 1 5.4 1 8 0M2 7.4c2.6-1 5.4-1 8 0" fill="none" stroke="currentColor" stroke-width="1"/>');
   const shopFoot = (dirty, saveOk) => `<div class="sh-foot">${msgHtml()}<div class="sh-act"><button type="button" class="of-dbtn plain" data-sh="cancel"${dirty && !shop.busy ? '' : ' disabled'}>${esc(cur.shop.ui.cancel)}</button><button type="button" class="of-dbtn pri" data-sh="save"${saveOk && !shop.busy ? '' : ' disabled'}>${esc(cur.shop.ui.save)}</button></div></div>`;
-  /* one slot's tiles and the bar under the panel. Head items the viewer's present animal does not draw (its horns, antlers or ears leave no room for it, gear.js headGearSkips)
+  /* one slot's tiles and the bar under the panel. Head items the viewer's present animal does not draw (its horns, antlers or ears leave no room for it, gear.js headGearSkips;
+     wings the same way for a species with wings of its own, backGearSkips)
      stay selectable, since the animal changes with rank; the tile and a note under the grid say so */
   function gearHtml(slot){
-    const u = cur.shop, ui = u.ui, now = shop.draft[slot], dirty = gearDirty(), skips = slot === 'head' && sel ? headGearSkips(sel.gk) : [];
+    const u = cur.shop, ui = u.ui, now = shop.draft[slot], dirty = gearDirty(), skips = !sel ? [] : slot === 'head' ? headGearSkips(sel.gk) : slot === 'back' ? backGearSkips(sel.gk) : [];
     const tile = (id, name, open, lvl) => { const sk = !!id && skips.includes(id), tip = [open ? '' : fillT(ui.lockedSr, { n: lvl }), sk ? ui.skipSr : ''].filter(Boolean).join(' ');
       return `<button type="button" class="sh-tile" aria-pressed="${now === id}"${open ? '' : ' aria-disabled="true"'}${tip ? ` title="${esc(tip)}"` : ''} data-sh="pick" data-v="${id || ''}">`
         + (id ? `<img alt="" data-th="${esc(id)}"${thumbs[id] ? ` src="${thumbs[id]}"` : ''}>` : `<span class="ph" aria-hidden="true">${NONE_SVG}</span>`) + `<span class="nm">${esc(name)}</span>`
@@ -1350,6 +1389,27 @@ export function mountOfficeScene(container, data, opts = {}){
         + (open ? '' : `<span class="lk" aria-hidden="true">${LOCK_SVG}${esc(fillT(ui.locked, { n: lvl }))}</span><span class="of-sr">${esc(fillT(ui.lockedSr, { n: lvl }))}</span>`) + '</button>'; };
     const note = now && skips.includes(now) ? `<p class="sh-note sk" role="status">${esc(ui.skip)}</p>` : '';
     return [`<div class="sh-grid" role="group" aria-label="${esc(ui['tab.' + slot])}">${tile(null, ui.none, true, 0)}${shopTiles(u, slot).map(t => tile(t.id, ui.gear[t.id] || t.id, t.open, t.lvl)).join('')}</div>` + note, shopFoot(dirty, dirty)];
+  }
+  /* The collection (the first tab): the viewer's level table as a book. One card per level the server's table lists: the level badge in the look of that
+     level's profile frame, what it asks (the server's figures, formatted here), a stamp when reached, the two progress bars on the next goal, and a grid of what
+     the level opens. An item that is open shows in colour, a locked one as a silhouette with its name; a tile goes to its tab and picks the item when open. */
+  function bookHtml(){
+    const u = cur.shop, ui = u.ui, b = bookOf(u), fm = u.fmt || fmtMoney, pc1 = v => (v * 100).toFixed(1) + '%', pc0 = v => +(v * 100).toFixed(1) + '%', runs = Math.min(1, Number(u.runs) || 0);
+    const bar = (label, a, z, k, id) => `<div class="ulk-r"><span id="${id}">${esc(label)}</span><b>${esc(a)} / ${esc(z)}</b></div><div class="ulk-bar" role="progressbar" aria-labelledby="${id}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(k * 100)}" aria-valuetext="${esc(a + ' / ' + z)}"><i style="--k:${k.toFixed(3)}"></i></div>`;
+    const tile = (key, label, open, slotLabel, thumb) => `<button type="button" class="bk-t${open ? '' : ' lock'}" data-sh="bkgo" data-v="${esc(key)}" aria-label="${esc(open ? label : label + ', ' + ui['book.locked'])}">`
+      + `<span class="bk-sl" aria-hidden="true">${esc(slotLabel)}</span>${thumb}<span class="nm">${esc(label)}</span></button>`;
+    const img = id => `<img alt="" data-th="${esc(id)}"${thumbs[id] ? ` src="${thumbs[id]}"` : ''}>`;
+    const cards = b.pages.map(pg => {
+      const dl = pg.dlg > 0, hid = 'o-bk-' + pg.lvl;
+      const tiles = pg.items.map(it => tile(it.slot + '|' + it.id, (ui.gear || {})[it.id] || it.id, it.open, ui['slot.' + it.slot] || it.slot, img(it.id))).join('')
+        + pg.feats.map(f => f === 'pet' ? tile('pet|pet', ui['book.pet'], pg.state === 'done', '', `<span class="ph tx" aria-hidden="true">${esc(ui['book.pet'])}</span>`) : tile('pet|toys', ui['book.toys'], pg.state === 'done', '', img('toy:ball'))).join('');
+      const mark = pg.state === 'done' ? `<span class="bk-stamp">${esc(ui['book.done'])}</span>` : pg.state === 'next' ? `<span class="bk-nx">${esc(ui['book.next'])}</span>` : `<span class="bk-lk">${LOCK_SVG}${esc(ui['book.locked'])}</span>`;
+      const bars = pg.state !== 'next' ? '' : bar(ui['book.spent'], fm(u.spent || 0), fm(pg.spent), pg.spentK, hid + '-s')
+        + (dl ? bar(ui['book.dlg'], pc1(u.dlg || 0), pc0(pg.dlg), pg.dlgK, hid + '-d') : bar(ui.runs, String(runs), '1', runs, hid + '-d'));
+      return `<section class="bk-card ${pg.state}" aria-labelledby="${hid}"><div class="bk-hd"><span class="bk-lv lv-${pg.lvl}">${esc(lvText(pg.lvl))}</span><b id="${hid}">${esc(fillT(dl ? ui['book.need'] : ui['book.need1'], { s: fm(pg.spent), d: pc0(pg.dlg) }))}</b>${mark}</div>${bars}<div class="bk-grid">${tiles}</div></section>`;
+    }).join('');
+    const k = b.total ? b.got / b.total : 0;
+    return [`<div class="bk-sum"><b id="o-bk-n">${esc(fillT(ui['book.got'], { n: b.got, m: b.total }))}</b><div class="ulk-bar" role="progressbar" aria-labelledby="o-bk-n" aria-valuemin="0" aria-valuemax="${b.total}" aria-valuenow="${b.got}"><i style="--k:${k.toFixed(3)}"></i></div></div>${cards}`, ''];
   }
   /* The pet tab (SPEC E): breed, the photo and who sees it, then four collapsible groups (basics, coat, shape, face and extras) left of a preview that stays in
      view while the form scrolls. Every colour input says what it paints (the pattern's coat roles, pets.js petCoatRoles); sliders carry captions at both ends. */
@@ -1393,6 +1453,11 @@ export function mountOfficeScene(container, data, opts = {}){
       + `<input type="color" id="o-pf-${k}" data-pf="${k}" aria-labelledby="o-pf-${k}-l" value="${esc(L[k] || P.hex[k] || hexDef(k))}"${L[k] ? dis : ' disabled'}></div></div>`;
     const collar = `<div class="pet-row" role="group" aria-labelledby="o-pf-collar-l"><span id="o-pf-collar-l">${esc(ui['pet.collar'])}</span><div class="pet-inl"><label class="ck"><input type="checkbox" id="o-pf-use-collar" data-pf="use-collar"${L.collar ? ' checked' : ''}${dis}>${esc(ui['pet.collarOn'])}</label>`
       + `<input type="color" id="o-pf-collar" data-pf="collar" aria-label="${esc(ui['pet.collarColor'])}" value="${esc(L.collar || P.hex.collar || HEX_DEF.collar)}"${L.collar ? dis : ' disabled'}></div></div>`;
+    /* the toy: Auto (a hash of the owner picks one, as before) or one of the toys; shown once the toys level is reached */
+    const toyTile = id => `<button type="button" class="sh-tile" aria-pressed="${(L.toy || '') === id}" data-sh="toy" data-v="${id}"${dis}>`
+      + (id ? `<img alt="" data-th="toy:${esc(id)}"${thumbs['toy:' + id] ? ` src="${thumbs['toy:' + id]}"` : ''}>` : `<span class="ph tx" aria-hidden="true">${esc(ui['pet.toyAuto'])}</span>`)
+      + `<span class="nm">${esc(id ? op['toy.' + id] || id : ui['pet.toyAuto'])}</span></button>`;
+    const toyGrp = !toyOn ? '' : `<details class="pet-g" data-g="toy"${P.open.toy ? ' open' : ''}><summary>${esc(ui['pet.toy'])}</summary><div class="pet-gb"><div class="sh-grid" role="group" aria-label="${esc(ui['pet.toy'])}">${['', ...PET_TOYS].map(toyTile).join('')}</div></div></details>`;
     const grp = (k, body) => `<details class="pet-g" data-g="${k}"${P.open[k] ? ' open' : ''}><summary>${esc(ui['pet.g.' + k])}</summary><div class="pet-gb">${body}</div></details>`;
     const rm = !u.pet ? '' : `<div class="sh-rm">${P.ask ? `<p class="sh-note" role="alert">${esc(ui['pet.ask'])}</p><div class="row"><button type="button" class="of-dbtn warn" data-sh="petclear"${dis}>${esc(ui['pet.remove'])}</button><button type="button" class="of-dbtn plain" data-sh="petkeep"${dis}>${esc(ui['pet.keep'])}</button></div>`
       : `<button type="button" class="lnk" data-sh="petask"${dis}>${esc(ui['pet.remove'])}</button>`}</div>`;
@@ -1401,17 +1466,17 @@ export function mountOfficeScene(container, data, opts = {}){
       + grp('basic', sel1('size', PET_SIZES, 'size.') + row('o-pf-name', ui['pet.name'], `<input type="text" id="o-pf-name" data-pf="name" maxlength="${PET_NAME_MAX}" autocomplete="off" value="${esc(L.name || '')}"${dis}>`))
       + grp('coat', sel1('pattern', PET_PATTERNS, 'pat.') + `<div class="pet-cols" role="group" aria-label="${esc(ui['pet.colors'])}">${cols}</div>` + sel1('fur', PET_FUR_LIST, 'fur.') + rng('fluff') + marks)
       + grp('shape', sel1('ear', PET_EARS, 'ear.') + rng('earsize') + sel1('tail', PET_TAILS, 'tail.') + rng('snout') + rng('legs') + rng('length') + rng('build'))
-      + grp('face', auto('eye') + auto('nose') + collar) + rm
+      + grp('face', auto('eye') + auto('nose') + collar) + toyGrp + rm
       + `</div><div class="pet-pvc"><div class="pet-pv" role="button" tabindex="0" data-sh="pvopen" aria-label="${esc(ui['pet.zoom'])}" title="${esc(ui['pet.zoom'])}"></div>${toys}</div></div>`,
       shopFoot(P.dirty, P.dirty)];   /* save needs an edit: with no pet the form shows the default dog, and saving it untouched put a pet back right after it was taken out */
   }
   function shopHtml(){
-    const ui = cur.shop.ui, tab = shop.tab, [body, foot] = tab === 'pet' ? petHtml() : gearHtml(tab);
-    const tl = `<div class="sh-tabs" role="tablist" aria-label="${esc(ui.tabs)}">${['head', 'desk', 'pet'].map(k => `<button type="button" role="tab" id="o-sh-t-${k}" aria-controls="o-sh-p" aria-selected="${k === tab}" tabindex="${k === tab ? 0 : -1}" data-sh="tab" data-v="${k}">${esc(ui['tab.' + k])}</button>`).join('')}</div>`;
+    const ui = cur.shop.ui, tab = shop.tab, [body, foot] = tab === 'pet' ? petHtml() : tab === 'book' ? bookHtml() : gearHtml(tab);
+    const tl = `<div class="sh-tabs" role="tablist" aria-label="${esc(ui.tabs)}">${SHOP_TABS.map(k => `<button type="button" role="tab" id="o-sh-t-${k}" aria-controls="o-sh-p" aria-selected="${k === tab}" tabindex="${k === tab ? 0 : -1}" data-sh="tab" data-v="${k}">${esc(ui['tab.' + k])}</button>`).join('')}</div>`;
     const ghost = sel && sel.ghost ? `<p class="ulk-g">${esc(ui.ghost)}</p>` : '';
     return `<div class="bkbar"><button type="button" class="bk" data-sh="back">← ${esc(ui.back)}</button></div><div class="bd">${ghost}${tl}<div role="tabpanel" id="o-sh-p" aria-labelledby="o-sh-t-${tab}">${body}</div></div>${foot}`;
   }
-  function shopAfter(){ if(shop.tab === 'pet'){ breedsLoad(); petPreview(); } else { pvStop(); fillThumbs(); } }
+  function shopAfter(){ if(shop.tab === 'pet'){ breedsLoad(); petPreview(); } else pvStop(); fillThumbs(); }   /* thumbnails: the gear tiles, the collection, the toy tiles */
   /* item thumbnails: each item rendered once by a small renderer of its own into a data URL, one per frame; the renderer goes once all are cached */
   function thumbOf(id){
     if(thumbs[id] !== undefined) return thumbs[id];
@@ -1423,10 +1488,10 @@ export function mountOfficeScene(container, data, opts = {}){
         thumbR = { r, sc, cam: new T.PerspectiveCamera(28, 1, 0.01, 50) };
       }catch(e){ return (thumbs[id] = ''); }
     }
-    const head = GEAR_SLOT[id] === 'head'; let g;
-    try{ g = head ? makeHeadGear(T, id) : makeDeskItem(T, id); }catch(e){ return (thumbs[id] = ''); }
+    const toy = id.startsWith('toy:'), slot = GEAR_SLOT[id], head = slot === 'head', back = slot === 'back'; let g;
+    try{ g = toy ? makeToy(T, id.slice(4)) : head ? makeHeadGear(T, id) : back ? makeBackGear(T, id) : makeDeskItem(T, id); }catch(e){ return (thumbs[id] = ''); }
     if(g.userData.tick) g.userData.tick(1.3, 0.35, false);
-    g.rotation.set(head ? 0.35 : 0, -0.45, 0); thumbR.sc.add(g); g.updateMatrixWorld(true);
+    g.rotation.set(head ? 0.35 : back ? 0.12 : 0, back ? 0.35 : -0.45, 0);   /* wings from a little to the side so both show wide */ thumbR.sc.add(g); g.updateMatrixWorld(true);
     const b = new T.Box3().setFromObject(g), c = b.getCenter(new T.Vector3()), sz = b.getSize(new T.Vector3()), d = Math.max(1e-3, sz.x, sz.y, sz.z) * 2.35;   /* the widest side fills about 85 % of the tile */
     thumbR.cam.position.set(c.x, c.y + d * 0.3, c.z + d * 0.95); thumbR.cam.lookAt(c); thumbR.cam.updateProjectionMatrix();
     thumbR.r.render(thumbR.sc, thumbR.cam); const url = thumbR.r.domElement.toDataURL('image/png');
@@ -1438,7 +1503,7 @@ export function mountOfficeScene(container, data, opts = {}){
   let thumbRaf = 0;
   function fillThumbs(){
     if(thumbRaf) return;
-    const go = () => { thumbRaf = 0; if(destroyed) return; const im = [...chrome.el.querySelectorAll('img[data-th]')].find(i => !i.getAttribute('src')); if(!im) return;
+    const go = () => { thumbRaf = 0; if(destroyed) return; const im = [...chrome.el.querySelectorAll('img[data-th]')].find(i => !i.getAttribute('src')); if(!im){ thumbKill(); return; }   /* nothing left to draw on this tab: free the renderer (a later tab makes a new one) */
       const u = thumbOf(im.dataset.th); chrome.el.querySelectorAll(`img[data-th="${im.dataset.th}"]`).forEach(i => { i.setAttribute('src', u || 'data:,'); }); thumbRaf = requestAnimationFrame(go); };
     thumbRaf = requestAnimationFrame(go);
   }
@@ -1559,7 +1624,10 @@ export function mountOfficeScene(container, data, opts = {}){
     if(a === 'back'){ shopReset(); renderDrawer(); const o2 = chrome.el.querySelector('[data-sh="open"]'); if(o2) o2.focus(); return; }
     if(shop.busy) return;
     if(a === 'tab'){ if(v !== shop.tab){ if(gearDirty()){ shop.draft = { ...shop.base }; previewGear(); } shop.tab = v; shop.msg = null; rerender(); } return; }
-    if(a === 'pick'){ if(b.getAttribute('aria-disabled') === 'true') return; const slot = shop.tab; if(slot !== 'head' && slot !== 'desk') return; shop.draft[slot] = v || null; shop.msg = null; previewGear(); rerender(); return; }
+    if(a === 'pick'){ if(b.getAttribute('aria-disabled') === 'true') return; const slot = shop.tab; if(slot !== 'head' && slot !== 'back' && slot !== 'desk') return; shop.draft[slot] = v || null; shop.msg = null; previewGear(); rerender(); return; }
+    if(a === 'toy'){ const P = shop.pet, L = { ...P.look }; if(v) L.toy = v; else delete L.toy; const n = normalizePetLook(L); if(n){ P.look = n; P.dirty = true; shop.msg = null; petPreviewSet(); rerender(); } return; }   /* a toy tile in the pet tab: '' is Auto */
+    if(a === 'bkgo'){ const [slot, id] = String(v).split('|'), it = bookOf(cur.shop).pages.flatMap(q => q.items).find(q => q.id === id);   /* a tile in the collection: go to its tab, and pick it when it is open */
+      shop.tab = slot === 'back' || slot === 'head' || slot === 'desk' ? slot : 'pet'; if(it && it.open){ shop.draft[it.slot] = id; previewGear(); } shop.msg = null; rerender(); return; }
     if(a === 'cancel'){ shop.msg = null; if(shop.tab === 'pet') shop.pet = petState(); else { shop.draft = { ...shop.base }; previewGear(); } rerender(); petPreviewSet(); return; }
     /* a pet save tells the page about the photo: this browser's photo (fresh when picked in this visit), the visibility choice and whether the server has a
        copy; the page uploads, clears or leaves the shared copy (petPhotoPlan) */
@@ -1573,7 +1641,7 @@ export function mountOfficeScene(container, data, opts = {}){
   chrome.el.addEventListener('toggle', ev => { const d = ev.target; if(shop && shop.pet && d && d.dataset && d.dataset.g) shop.pet.open[d.dataset.g] = d.open; }, true);   /* toggle does not bubble */
   chrome.el.addEventListener('keydown', ev => {
     const t = ev.target; if(!shop || !t || !t.getAttribute || t.getAttribute('role') !== 'tab') return;
-    const ks = ['head', 'desk', 'pet'], i = ks.indexOf(t.dataset.v), j = ev.key === 'ArrowRight' ? (i + 1) % 3 : ev.key === 'ArrowLeft' ? (i + 2) % 3 : ev.key === 'Home' ? 0 : ev.key === 'End' ? 2 : -1; if(j < 0) return;
+    const ks = SHOP_TABS, nk = ks.length, i = ks.indexOf(t.dataset.v), j = ev.key === 'ArrowRight' ? (i + 1) % nk : ev.key === 'ArrowLeft' ? (i + nk - 1) % nk : ev.key === 'Home' ? 0 : ev.key === 'End' ? nk - 1 : -1; if(j < 0) return;
     ev.preventDefault(); if(shop.busy) return; if(gearDirty()){ shop.draft = { ...shop.base }; previewGear(); } shop.tab = ks[j]; shop.msg = null; renderDrawer(); const n = chrome.el.querySelector('#o-sh-t-' + ks[j]); if(n) n.focus();
   });
   chrome.el.addEventListener('keydown', ev => { const t = ev.target; if((ev.key === 'Enter' || ev.key === ' ') && t && t.dataset && t.dataset.sh === 'pvopen'){ ev.preventDefault(); t.click(); } });
@@ -1753,6 +1821,14 @@ export function mountOfficeScene(container, data, opts = {}){
       pt.bs = b.isEmpty() ? { h: 0.5, r: 0.4, len: 0.6 } : { h: (b.max.y - Math.max(0, b.min.y)) / s, r: b.getBoundingSphere(new T.Sphere()).radius / s, len: (b.max.z - b.min.z) / s }; }
     pt.S = pt.gs; petFit(pt);
   }
+  /* the toy a pet plays with: the one chosen in its look, else the automatic one (a cat's yarn or mouse, a dog's ball or bone, by a hash of the owner) */
+  const toyKindFor = (look, id) => { if(look.toy) return look.toy; const tk = petHash(id + ':toy') < 0.5; return look.kind === 'cat' ? (tk ? 'yarn' : 'mouse') : tk ? 'ball' : 'bone'; };
+  /* swap a pet's toy for another kind in place (same state, place and size) */
+  function petToyReplace(pt, kind){
+    const t0 = pt.toy, t1 = makeToy(T, kind); t1.visible = t0.visible; t1.position.copy(t0.position); t1.rotation.copy(t0.rotation); t1.scale.copy(t0.scale);
+    world.remove(t0); t0.userData.dispose(); petBits = petBits.filter(q => q !== t0); world.add(t1); petBits.push(t1); pt.toy = t1;
+  }
+  function petToyFix(pt, look){ if(pt && pt.toy && look){ const k = toyKindFor(look, pt.o.p.id); if(pt.toy.userData.kind !== k) petToyReplace(pt, k); } }
   /* one pet and its things; build: false when a live preview adds it after the build (its bowls then are not in the floor grid) */
   function petAdd(o, look, build){
     if(!petCtx || !look) return null;
@@ -1769,7 +1845,7 @@ export function mountOfficeScene(container, data, opts = {}){
     pt.yaw = pt.spots.sit.yaw;
     const bw = makeBowls(T); bw.scale.setScalar(BOWL_SC); bw.rotation.y = -Math.PI / 2; bw.position.set(b.x, petFloorY(b.x, b.z), b.z);   /* food (local +x) toward the front */ world.add(bw); petBits.push(bw); pt.bowls = bw;
     { const src = petPhotoSrc(o); if(src) petFrameAdd(pt, src); }
-    if(pt.toys){ const tk = petHash(id + ':toy') < 0.5; pt.toy = makeToy(T, look.kind === 'cat' ? (tk ? 'yarn' : 'mouse') : tk ? 'ball' : 'bone'); pt.toy.visible = false; world.add(pt.toy); petBits.push(pt.toy);   /* the toy lives in the pile until the pet fetches it */
+    if(pt.toys){ pt.toy = makeToy(T, toyKindFor(look, id)); pt.toy.visible = false; world.add(pt.toy); petBits.push(pt.toy);   /* the toy lives in the pile until the pet fetches it */
       pt.toyBlob = track(new T.Mesh(sets.disc, petCtx.blobM)); pt.toyBlob.visible = false; world.add(pt.toyBlob); }
     pt.blobMat = petCtx.blobM.clone(); pt.blob = track(new T.Mesh(sets.disc, pt.blobMat)); world.add(pt.blob);   /* its own material: it fades with the lift (stepPets) */
     pets.push(pt);
@@ -1813,7 +1889,7 @@ export function mountOfficeScene(container, data, opts = {}){
   const PET_TOY_K = 1.3, petToyR = 0.05 * PET_TOY_K;   /* one size table: the toy is PET_TOY_K times its pets.js size in the pet's own units, in every state */
   function petToySet(pt, mode){ pt.toyMode = mode; pt.toyT = 0; pt.toyA = pt.toy ? pt.toy.position.clone() : null; pt.toyR = pt.toy ? pt.toy.rotation.clone() : null; pt.toyQ = pt.toy ? toySpinOf(pt.toy).quaternion.clone() : null; pt.toyTop = null; pt.toyRolled = false; }
   /* the part of a toy that rolls: userData.spin (pets.js), else the whole toy as before; round: ball and yarn roll, a bone and a mouse never tip over */
-  const toySpinOf = t => (t.userData && t.userData.spin) || t, toyRound = t => (t.userData && t.userData.round != null ? !!t.userData.round : t.userData.kind === 'ball' || t.userData.kind === 'yarn');
+  const toySpinOf = t => (t.userData && t.userData.spin) || t, toyRound = t => (t.userData && t.userData.round != null ? !!t.userData.round : t.userData.kind === 'ball' || t.userData.kind === 'yarn' || t.userData.kind === 'bell');
   const toyFlat = t => { const s = toySpinOf(t); if(s !== t) s.quaternion.identity(); else s.rotation.x = 0; };   /* upright: the spin group back to rest (never the toy's own yaw) */
   const toyCarry = t => { const v = t.userData && t.userData.carryYaw; return Number.isFinite(v) ? v : Math.PI / 2; };   /* the turn it is held at in the mouth, relative to the heading */
   const V3 = () => new T.Vector3();
@@ -2012,8 +2088,8 @@ export function mountOfficeScene(container, data, opts = {}){
     const pt = pets.find(q => q.o === o), want = look ? normalizePetLook(look) : (sets.petIds.has(o.p.id) ? normalizePetLook(o.p.pet) : null);
     clearTimeout(petLiveTm); petLiveTm = 0;
     if(!want){ if(pt) petRemove(pt); return; }
-    if(pt && petRecolor(pt.g, want)){ pt.look = want; request(); return; }
-    const go = () => { petLiveTm = 0; if(destroyed) return; const p2 = pets.find(q => q.o === o); if(p2) petSwap(p2, want); else petAdd(o, want, false); request(); };
+    if(pt && petRecolor(pt.g, want)){ pt.look = want; petToyFix(pt, want); request(); return; }
+    const go = () => { petLiveTm = 0; if(destroyed) return; const p2 = pets.find(q => q.o === o); if(p2){ petSwap(p2, want); petToyFix(p2, want); } else petAdd(o, want, false); request(); };
     if(pt) petLiveTm = setTimeout(go, 180); else go();
   }
   function build(d){
@@ -2560,6 +2636,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const add = h => { h.userData.holPiece = true; if(pose) h.userData.keepLook = true; m.add(h); hol.push(h); (m.userData.hol = m.userData.hol || []).push(h); };   /* the standing model is never a sprite, so its pieces always stay drawn; a seated one gets keepLook from sprAttach only when its sheet lacks the piece. holPiece lets the profile card keep them either way */
     const dr = dressOf(o), kind = dr.hol;
     if(dr.head){ const g = headPiece(dr.head, o.gk, o.p.id); if(g){ add(g); g.userData.keepLook = true; } }   /* no sprite sheet carries head gear, so it always stays drawn in 3D */
+    { const g = backPiece(m, o, pose); if(g) add(g); }   /* wings too: no sheet has them, and they do not depend on the crown */
     if(!kind) return;
     if(kind === 'santa') return add(santaHat(T, o.gk));
     if(kind === 'rudolph' && !ANTLER_SKIP.has(o.gk)) add(reindeerAntlers(T, o.gk));
@@ -2573,6 +2650,15 @@ export function mountOfficeScene(container, data, opts = {}){
     let g; try{ g = makeHeadGear(T, id); }catch(e){ return null; } if(!g) return null;
     g.userData.phase = hash(String(pid) + ':head') * 10;   /* two people with the same piece do not move in step */
     placeHeadGear(g, f); g.userData.gearHead = true; ownDispose(g); return g;
+  }
+  /* wings (gear.js) for a model: hung from the back anchor read off the model once per pose and species, flapping on a phase of their own; null for a ghost, no
+     wings chosen, a species with wings of its own, or a model with no back to hang them on. gearHead makes the step pass reduced motion on, like head gear. */
+  function backPiece(m, o, pose){
+    const id = o.p.gear && o.p.gear.back, f = id ? backGearFit(id, o.gk) : null; if(!f || f.skip) return null;
+    const key = pose + o.gk, an = key in backAnchors ? backAnchors[key] : (backAnchors[key] = backAnchorOf(T, m)); if(!an) return null;
+    let g; try{ g = makeBackGear(T, id); }catch(e){ return null; } if(!g) return null;
+    g.userData.phase = hash(String(o.p.id) + ':back') * 10; g.userData.keepLook = true; g.userData.gearHead = true;
+    placeBackGear(g, an, f); ownDispose(g); return g;
   }
   /* redress a model in place (the shop's preview): its season and gear pieces come off and go on again from o.p.gear */
   function redress(m, o, pose){
@@ -2896,8 +2982,7 @@ export function mountOfficeScene(container, data, opts = {}){
        'roam', 'sit', 'eat', 'drink', 'sleep' or 'play' until petAct(id, null) hands it back to its schedule; pets() lists where each one is */
     setPet(id, pet, toys){ const p = cur && (cur.people || []).find(q => q.id === id); if(!p) return false; p.pet = pet || null; if(pet && typeof pet.photo === 'string') photoCache.set(String(id), pet.photo);   /* a scripted photo stands for a shared one */ if(toys !== undefined) p.petToys = !!toys; if(started === true) build(cur); return true; },   /* toys: whether the pet may fetch and play (left as it was when omitted) */
     petAct(id, kind, walk, dur){ const pt = pets.find(q => q.o.p.id === id); if(!pt) return false; pt.forceDur = dur > 0 ? +dur : 0; petForce(pt, kind || null, !!walk); request(); return true; },   /* walk: play the whole act from where the pet is instead of starting it in place; dur: seconds the act lasts (held until changed when left out) */
-    petToy(id, kind){ const pt = pets.find(q => q.o.p.id === id); if(!pt || !pt.toy) return false; const t0 = pt.toy, t1 = makeToy(T, kind); t1.visible = t0.visible; t1.position.copy(t0.position); t1.rotation.copy(t0.rotation); t1.scale.copy(t0.scale);
-      world.remove(t0); t0.userData.dispose(); petBits = petBits.filter(q => q !== t0); world.add(t1); petBits.push(t1); pt.toy = t1; request(); return true; },   /* scripted checks of each toy kind: swap this pet's toy */
+    petToy(id, kind){ const pt = pets.find(q => q.o.p.id === id); if(!pt || !pt.toy) return false; petToyReplace(pt, kind); request(); return true; },   /* scripted checks of each toy kind: swap this pet's toy */
     pets: () => pets.map(pt => ({ id: pt.o.p.id, kind: pt.look.kind, x: pt.x, y: pt.y, z: pt.z, yaw: pt.yaw, air: Number(pt.g.userData.air) || 0, legK: lk(pt), playZ: pz(pt), bs: pt.bs, frame: pt.frame ? { x: pt.frame.position.x, z: pt.frame.position.z } : null, act: pt.force || pt.prev, pose: pt.pose, seg: pt.seg ? pt.seg.k + (pt.seg.ph ? ':' + pt.seg.ph : '') : null, v: pt.v, scale: pt.g.scale.y, deskK: pt.deskK,
       toy: pt.toy ? { kind: pt.toy.userData.kind, mode: pt.toyMode, x: pt.toy.position.x, y: pt.toy.position.y, z: pt.toy.position.z, s: pt.toy.scale.x, shown: pt.toy.visible, low: toyLow(pt) } : null, play: pt.play ? petPlayAt(pt.play.seq, pt.play.t, pz(pt)).k : null, toyQ: pt.toy ? toySpinOf(pt.toy).quaternion.toArray().map(v => +v.toFixed(4)) : null, carryYaw: pt.toy ? toyCarry(pt.toy) : null,
       slot: pt.slot ? { k: pt.slot.k, fetch: pt.slot.fetch, play: pt.slot.play } : null, seat: { x: pt.o.x, z: pt.o.z }, bowls: pt.spots.bowl, pile: pt.spots.pile, desk: pt.spots.desk, hop: pt.spots.hop, sit: pt.spots.sit, furCalls: petFurCalls, deskBox: pt.deskBox, blob: { y: pt.blob.position.y, s: pt.blob.scale.x, o: pt.blobMat ? pt.blobMat.opacity : null } })),
@@ -2918,14 +3003,14 @@ export function mountOfficeScene(container, data, opts = {}){
 /* the office is seen closer than the town: lighter tilt-shift so the desks at the top and bottom edges stay readable */
 const OFFICE_LOOK = { tilt: 0.55 };
 
-/* ── cosmetics: unlock levels, head and desk gear (gear.js) and pets, shared by both data mappers and the scene ──
+/* ── cosmetics: unlock levels, head, wing and desk gear (gear.js) and pets, shared by both data mappers and the scene ──
  * The server computes the level (0..LV_MAX) from use since joining and returns each person's choices; the page never adds up anyone's figures.
  * A missing field means level 0, nothing worn and no pet, so an old server gives exactly the page it gave before. */
-export const LV_MAX = 4;
+export const LV_MAX = 6;
 export const lvOf = v => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.min(LV_MAX, Math.max(0, n)) : 0; };
 const GEAR_SLOT = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, g.slot]));
-/* { head, desk } with known ids in the right slot, anything else null */
-export function gearOf(g){ const ok = (id, slot) => (typeof id === 'string' && GEAR_SLOT[id] === slot ? id : null); return { head: ok(g && g.head, 'head'), desk: ok(g && g.desk, 'desk') }; }
+/* { head, back, desk } with known ids in the right slot, anything else null */
+export function gearOf(g){ const ok = (id, slot) => (typeof id === 'string' && GEAR_SLOT[id] === slot ? id : null); return { head: ok(g && g.head, 'head'), desk: ok(g && g.desk, 'desk'), back: ok(g && g.back, 'back') }; }
 export const HOL_HAT_SKIP = new Set([]);   /* species that already wear a hat take the Rudolph set in the season; since the cast models lost their built-in accessories (3.127.0-2) none does */
 /* HOL_HEADS: whether the year-end season puts a Santa hat, antlers or a red nose on heads. Off since 2026-11-15: by default a head wears only what the member
    chose (the crown or a head gear); the season still dresses the room (tree, presents, garland, wreaths). */
@@ -2942,7 +3027,7 @@ export function headDress(o){
 /* A person's cosmetics for the scene. p: { lvl, gear, pet, toys?, photo? } as the server sends them; o: { off (closed organization or a ghost: nothing),
  * toysLvl (the level from which pets play with toys), keepPet (keep the pet object as it is, photo included; otherwise the normalized look only) } */
 export function cosmeticsOf(p, o = {}){
-  if(o.off || !p) return { lvl: 0, gear: { head: null, desk: null }, pet: null, petToys: false };
+  if(o.off || !p) return { lvl: 0, gear: { head: null, back: null, desk: null }, pet: null, petToys: false };
   const lvl = lvOf(p.lvl), look = normalizePetLook(p.pet), tl = o.toysLvl == null ? NaN : Number(o.toysLvl);
   /* photo: true on a row says the member shares a photo; the pet then carries shared: true and the scene asks for the photo itself (opts.petPhotos) */
   let pet = look ? (o.keepPet ? p.pet : look) : null; if(pet && p.photo === true) pet = { ...pet, shared: true };
@@ -2959,6 +3044,25 @@ export function unlockNext(u){
   return { level, top: levels.length > 0 && !next, next, spent, dlg, runs, noDlg: runs <= 0,
     spentK: next ? (next.spent > 0 ? clamp1(spent / next.spent) : 1) : 1, dlgK: next ? (next.dlg > 0 ? clamp1(dlg / next.dlg) : 1) : 1, opens };
 }
+/* The collection (the shop's first tab) from data.shop: one page per level of the server's table (u.levels, lowest first), never from numbers kept here.
+ * state: 'done' (the level is reached), 'next' (the one after the viewer's level) or 'locked'. items: what the level opens (unknown ids dropped, in gear.js order),
+ * open once the level is reached; feats: 'pet' and 'toys' on the level that opens them. spentK and dlgK (0..1) are the progress toward the next goal only
+ * (a base of 0 counts as met); a reached page reads 1 and a locked one 0. got: the open items, total: the items on show. */
+export function bookOf(u){
+  const level = lvOf(u && u.level), spent = Number(u && u.spent) || 0, dlg = Number(u && u.dlg) || 0, clamp1 = x => Math.min(1, Math.max(0, x)), at = (x, base) => base > 0 ? clamp1(x / base) : 1;
+  const levels = (Array.isArray(u && u.levels) ? u.levels : []).map(l => ({ lvl: lvOf(l && l.lvl), spent: Number(l && l.min_spent) || 0, dlg: Number(l && l.min_dlg) || 0 })).filter(l => l.lvl > 0).sort((a, b) => a.lvl - b.lvl);
+  const order = new Map(GEAR_ITEMS.map((g, i) => [g.id, i])), items = (Array.isArray(u && u.items) ? u.items : []).filter(i => i && GEAR_SLOT[i.id]).sort((a, b) => order.get(a.id) - order.get(b.id));
+  const feat = (v, n) => v != null && lvOf(v) === n;
+  let got = 0, total = 0;
+  const pages = levels.map(l => {
+    const state = l.lvl <= level ? 'done' : l.lvl === level + 1 ? 'next' : 'locked';
+    const its = items.filter(i => lvOf(i.lvl) === l.lvl).map(i => ({ id: i.id, slot: GEAR_SLOT[i.id], open: l.lvl <= level }));
+    total += its.length; got += its.filter(i => i.open).length;
+    return { lvl: l.lvl, spent: l.spent, dlg: l.dlg, state, spentK: state === 'next' ? at(spent, l.spent) : state === 'done' ? 1 : 0, dlgK: state === 'next' ? at(dlg, l.dlg) : state === 'done' ? 1 : 0,
+      items: its, feats: [...(feat(u && u.petLvl, l.lvl) ? ['pet'] : []), ...(feat(u && u.toysLvl, l.lvl) ? ['toys'] : [])] };
+  });
+  return { got, total, pages };
+}
 /* the shop's tiles for one slot: the server's item list (unknown ids dropped) in gear.js order, each with its level and whether it is open */
 export function shopTiles(u, slot){
   const lv = lvOf(u && u.level), by = {}; ((u && u.items) || []).forEach(i => { if(i && GEAR_SLOT[i.id] === slot) by[i.id] = lvOf(i.lvl); });
@@ -2966,19 +3070,19 @@ export function shopTiles(u, slot){
 }
 export const fmtMoney = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : (Number(v) || 0).toFixed(2));
 /* the shop's strings (office-i18n.js of.sh.*, of.gear.*, of.pet.*), resolved by the page's t() so the scene stays free of i18n */
-export const SHOP_KEYS = ['title', 'scope', 'level', 'spent', 'dlg', 'runs', 'need', 'need1', 'next', 'top', 'ghost', 'open', 'back', 'tabs', 'tab.head', 'tab.desk', 'tab.pet', 'none', 'locked', 'lockedSr', 'skip', 'skipSr', 'save', 'cancel', 'saving',
+export const SHOP_KEYS = ['title', 'scope', 'level', 'spent', 'dlg', 'runs', 'need', 'need1', 'next', 'top', 'ghost', 'open', 'back', 'tabs', 'tab.book', 'tab.head', 'tab.back', 'tab.desk', 'tab.pet', 'book.got', 'book.need', 'book.need1', 'book.done', 'book.next', 'book.locked', 'book.spent', 'book.dlg', 'book.pet', 'book.toys', 'slot.head', 'slot.back', 'slot.desk', 'none', 'locked', 'lockedSr', 'skip', 'skipSr', 'save', 'cancel', 'saving',
   'saved', 'saved.private', 'saved.shared', 'err', 'err.locked', 'err.many', 'err.na', 'err.link', 'err.input', 'err.org', 'pet.locked', 'pet.drop', 'pet.add', 'pet.file', 'pet.change', 'pet.photo', 'pet.bad', 'pet.read', 'pet.readBreed', 'pet.pick',
   'pet.kind', 'pet.pattern', 'pet.ear', 'pet.tail', 'pet.size', 'pet.fluff', 'pet.fur', 'pet.colors', 'pet.use', 'pet.name', 'pet.remove', 'pet.ask', 'pet.keep', 'pet.removed', 'pet.preview', 'pet.zoom', 'pet.toys', 'pet.toysOn', 'item.pet', 'item.toys', 'wearing',
   'err.photo', 'pet.breed', 'pet.breedNote', 'pet.custom', 'pet.dogs', 'pet.cats', 'pet.vis', 'pet.visMe', 'pet.visShare', 'pet.visMeNote', 'pet.visShareNote', 'pet.visEx', 'pet.g.basic', 'pet.g.coat', 'pet.g.shape', 'pet.g.face',
   'pet.earsize', 'pet.snout', 'pet.legs', 'pet.length', 'pet.build', ...['fluff', 'earsize', 'snout', 'legs', 'length', 'build'].flatMap(k => ['pet.' + k + '.lo', 'pet.' + k + '.hi']),
-  'pet.marks', 'pet.markColor', 'pet.eye', 'pet.nose', 'pet.auto', 'pet.collar', 'pet.collarOn', 'pet.collarColor'];
+  'pet.marks', 'pet.markColor', 'pet.eye', 'pet.nose', 'pet.auto', 'pet.collar', 'pet.collarOn', 'pet.collarColor', 'pet.toy', 'pet.toyAuto'];
 /* every coat role any pattern names (pets.js petCoatRoles), for the labels of the colour inputs */
 export const petRoleKeys = () => [...new Set(PET_PATTERNS.flatMap(p => petCoatRoles(p).map(r => r.key)))];
 export function shopUi(t){
   const ui = {}; SHOP_KEYS.forEach(k => { ui[k] = t('of.sh.' + k); });
   ui.gear = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, t('of.gear.' + g.id)]));
   ui.opt = Object.fromEntries([...PET_KINDS, ...PET_PATTERNS.map(x => 'pat.' + x), ...PET_EARS.map(x => 'ear.' + x), ...PET_TAILS.map(x => 'tail.' + x), ...PET_SIZES.map(x => 'size.' + x),
-    ...petRoleKeys().map(x => 'role.' + x), ...PET_MARKS.map(x => 'mark.' + x), ...PET_FUR_LIST.map(x => 'fur.' + x)].map(k => [k, t('of.pet.' + k)]));
+    ...petRoleKeys().map(x => 'role.' + x), ...PET_MARKS.map(x => 'mark.' + x), ...PET_FUR_LIST.map(x => 'fur.' + x), ...PET_TOYS.map(x => 'toy.' + x)].map(k => [k, t('of.pet.' + k)]));
   return ui;
 }
 /* the object viewer's strings (office-i18n.js of.vw.*), with the item names and the pet kinds, for every page (it is not tied to the shop) */
