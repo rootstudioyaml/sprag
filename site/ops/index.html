@@ -2651,7 +2651,7 @@ const TownHost = (function(){
 
 /* ── seat field: three.js hero scene at the top of the organization overview (machines from org_seats, spend from team_member_usage) ── */
 const SceneHost = (function(){
-  let ctl = null, mod = null, dead = false, sig = '', lastRows = null, mounted = '', usage = {}, curData = null, promptRows = null, ukey = '', seq = 0;
+  let ctl = null, mod = null, dead = false, sig = '', lastRows = null, mounted = '', usage = {}, curData = null, promptRows = null, cosmetics = [], ukey = '', seq = 0;
   function drop(){ seq++; if(ctl){ ctl.destroy(); ctl = null; } mounted = ''; sig = ''; lastRows = null; }
   function stop(){ drop(); $('scene-card').hidden = true; }
   function showState(kind, msg, action){ drop(); $('scene-card').hidden = false; $('scene-box').replaceChildren(AdminUX.state(kind, msg, action)); }
@@ -2667,6 +2667,17 @@ const SceneHost = (function(){
     if(sel.plan !== 'enterprise') return null;
     try{ const d = await rpc('org_prompt_usage', { p_org_id: sel.id, p_days: 30, ...Range.args() }); return (d && d.members) || []; }catch(e){ return null; }
   }
+  /* members' unlock levels and cosmetics (org_cosmetics, which lets the platform admin read any organization), as the team page does; any error reads as nobody wearing anything */
+  async function fetchCosmetics(){
+    try{ const d = await rpc('org_cosmetics', { p_org_id: sel.id }); return Array.isArray(d) ? d : []; }catch(e){ return []; }
+  }
+  /* the shared pet photos for the desk frames (org_pet_photos, at most 16 seat groups); any error reads as none */
+  async function petPhotos(ids){
+    try{ const d = await rpc('org_pet_photos', { p_org_id: sel.id, p_member_ids: ids.slice(0, 16) }); return d && typeof d === 'object' && !Array.isArray(d) ? d : {}; }catch(e){ return {}; }
+  }
+  /* breed presets (pet_breeds, static public data) for the breed name under a pet, read once */
+  let breedsP = null;
+  const petBreeds = () => breedsP || (breedsP = rpc('pet_breeds').then(d => (Array.isArray(d) ? d : []), () => []));
   async function sync(){
     if(!(user && sel && curTab === 'overview' && !$('view-detail').hidden)) return stop();
     if(dead) return fail();
@@ -2679,11 +2690,11 @@ const SceneHost = (function(){
     $('scene-card').hidden = false;
     if(ukey !== uk){
       const ids = [...new Set([...tl.map(x => x.id), ...rows.map(r => r.team_id)])].filter(Boolean);
-      const [u, pr] = await Promise.all([fetchUsage(ids), fetchPrompts()]); if(my !== seq) return;
-      usage = u; promptRows = pr; ukey = uk;
+      const [u, pr, cm] = await Promise.all([fetchUsage(ids), fetchPrompts(), fetchCosmetics()]); if(my !== seq) return;
+      usage = u; promptRows = pr; cosmetics = cm; ukey = uk;
     }
     if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.129.1-1'); }catch(e){ return fail(); } if(my !== seq) return; }
-    const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: sel.seats_used, limit: sel.seat_limit, orgName: sel.name, rangeLabel: Range.label(), closed: sel.status === 'suspended', t, rel, os: osLabel, events: Seats.events(),
+    const data = curData = mod.officeSceneData({ rows, usage, promptRows, teams: tl, used: sel.seats_used, limit: sel.seat_limit, orgName: sel.name, rangeLabel: Range.label(), closed: sel.status === 'suspended', t, rel, os: osLabel, events: Seats.events(), cosmetics,
       demoBubbles: DEMO ? [{ text: t('of.demo.0', null, true), ai: true }, { text: t('of.demo.1', null, true) }, { text: t('of.demo.2', null, true), ai: true }] : null });
     if(ctl && mounted !== sel.id){ ctl.destroy(); ctl = null; }
     if(ctl){ ctl.update(data); return; }
@@ -2694,6 +2705,7 @@ const SceneHost = (function(){
       onPrompts: async id => { const m = curData && curData.people.find(x => x.id === id), base = '#org/' + encodeURIComponent(sel.id); go(base + '/prompts'); if(!(m && m.promptId && await Prompts.openMember(m.promptId))){ Seats.focus({ id }); go(base + '/seats'); } },
       onTeam: id => { Seats.focus({ team: id }); go('#org/' + encodeURIComponent(sel.id) + '/seats'); },
       onServer: () => { const n = $('scene-card').nextElementSibling; if(n) n.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+      petPhotos, breeds: petBreeds,
       onFail: () => { fail(); }
     });
     if(REC) window.__sprag.office = ctl;

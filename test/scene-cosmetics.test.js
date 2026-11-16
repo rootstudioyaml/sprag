@@ -601,3 +601,13 @@ test('the viewer\'s progress is rounded down, so a share or a spend short of the
   assert.doesNotMatch(SCENE, /pc1 = v => \(v \* 100\)\.toFixed\(1\)/, 'no progress figure rounds up');
   assert.match(SCENE, /bar\(ui\.spent, fm\(moneyDown\(x\.spent\)\)/); assert.match(SCENE, /bar\(ui\['book\.spent'\], fm\(moneyDown\(u\.spent\)\)/);
 });
+
+test('the ops office reads org_cosmetics like the team page, so the platform admin sees what members wear', () => {
+  /* the ops page mounted the office without cosmetics, so every animal there was bare while the member town showed hats and pets */
+  assert.match(OPS, /rpc\('org_cosmetics', \{ p_org_id: sel\.id \}\)/);
+  assert.match(OPS, /const \[u, pr, cm\] = await Promise\.all\(\[fetchUsage\(ids\), fetchPrompts\(\), fetchCosmetics\(\)\]\)/);
+  assert.match(OPS, /events: Seats\.events\(\), cosmetics,/);
+  assert.match(OPS, /rpc\('org_pet_photos', \{ p_org_id: sel\.id, p_member_ids: ids\.slice\(0, 16\) \}\)/);
+  const mount = OPS.slice(OPS.indexOf('ctl = mod.mountOfficeScene'), OPS.indexOf('ctl = mod.mountOfficeScene') + 900);
+  assert.match(mount, /petPhotos, breeds: petBreeds,/); assert.ok(!/shop:/.test(mount), 'no shop on the ops page');
+});
