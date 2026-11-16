@@ -812,6 +812,7 @@
 <script src="/assets/admin-mfa.js?v=3.129.1"></script>
 <script src="/assets/sign-in-captcha.js?v=3.129.1"></script>
 <script src="/assets/preset-sign.js?v=3.129.1"></script>
+<script src="/assets/scene/office-i18n.js?v=3.129.1-2"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -1177,6 +1178,9 @@ Object.assign(I18N.ko, {
 });
 Object.assign(I18N.en, {"d.sv.h":"Savings by team"});
 Object.assign(I18N.ko, {"d.sv.h":"팀별 절감 상세"});
+/* The office scene's strings live in /assets/scene/office-i18n.js (team and town load it too). This page keeps its own copies of the older of.* keys,
+   so only the keys it lacks are filled in: without this the unlock level read "of.lv" and the new gear names read as keys once the ops office showed cosmetics */
+for(const lg of ['en', 'ko']){ const src = (window.SPRAG_OFFICE_I18N || {})[lg] || {}; for(const k in src) if(I18N[lg][k] === undefined) I18N[lg][k] = src[k]; }
 let lang = 'en';
 function t(k, vars, raw){
   let s = (I18N[lang][k] !== undefined ? I18N[lang][k] : I18N.en[k]) || k;

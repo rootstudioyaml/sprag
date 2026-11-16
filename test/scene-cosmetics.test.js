@@ -622,3 +622,10 @@ test('every scene module a page loads carries one query, the string table includ
   const scene = [...TOWN.matchAll(/office-scene\.js\?v=([^'"]+)/g)][0][1];
   assert.equal([...TOWN.matchAll(/office-i18n\.js\?v=([^'"]+)/g)][0][1], scene); assert.equal([...TEAM.matchAll(/office-i18n\.js\?v=([^'"]+)/g)][0][1], scene);
 });
+
+test('the ops page loads the office string table, so the unlock level and the gear names are words, not keys', () => {
+  /* the ops office showed "of.lv" beside the No. badge once it drew cosmetics: the page kept its own copy of the of.* strings and never loaded office-i18n.js */
+  assert.match(OPS, /<script src="\/assets\/scene\/office-i18n\.js\?v=[^"]+"><\/script>/);
+  assert.match(OPS, /for\(const lg of \['en', 'ko'\]\)\{ const src = \(window\.SPRAG_OFFICE_I18N \|\| \{\}\)\[lg\] \|\| \{\}; for\(const k in src\) if\(I18N\[lg\]\[k\] === undefined\) I18N\[lg\]\[k\] = src\[k\]; \}/);
+  assert.ok(OPS.indexOf('office-i18n.js?v=') < OPS.indexOf('const I18N = {'), 'the table is loaded before the page reads it');
+});
