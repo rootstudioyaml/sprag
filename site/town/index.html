@@ -144,6 +144,7 @@ const PAGE = {
     'pg.busy': 'Updating',
     'pg.pnet': 'Could not load that period. Showing the previous one.',
     'pg.exp': 'Link valid until {when}',
+    'pg.stale': 'This link has expired, so the town stopped updating. Run sprag team town in the terminal for a new link to see fresh numbers.',
   },
   ko: {
     'pg.title': 'Sprag 타운, 멤버 보기',
@@ -168,6 +169,7 @@ const PAGE = {
     'pg.busy': '불러오는 중',
     'pg.pnet': '이 기간을 불러오지 못했습니다. 이전 기간을 그대로 보여 줍니다.',
     'pg.exp': '링크 유효 시간: {when}까지',
+    'pg.stale': '링크가 만료되어 타운 갱신을 멈췄습니다. 새 수치를 보려면 터미널에서 sprag team town을 다시 실행하십시오.',
   },
 };
 const I18N = { en: { ...PAGE.en, ...window.SPRAG_OFFICE_I18N.en }, ko: { ...PAGE.ko, ...window.SPRAG_OFFICE_I18N.ko } };
@@ -307,7 +309,12 @@ function shrinkPhoto(src){
       if(at !== H){ at = H; c.width = W; c.height = H; x.imageSmoothingQuality = 'high'; x.drawImage(im, sx, sy, cw, ch, 0, 0, W, H); }
       return c.toDataURL(type, q); })); }; im.onerror = () => ok(null); im.src = src; });
 }
+let saving = false;   /* a cosmetics save is in flight: refresh() waits, so a reply fetched before the save cannot land on top of it */
 async function saveCosmetics(change, extra){
+  saving = true;
+  try{ return await saveCosmeticsNow(change, extra); }finally{ saving = false; }
+}
+async function saveCosmeticsNow(change, extra){
   const plan = mod.petPhotoPlan(change, extra);   /* 'upload', 'clear' or null: see office-scene.js */
   const up = plan === 'upload' ? await shrinkPhoto(extra.photo) : null;
   if(plan === 'upload' && !up) throw { code: 'photo', message: 'photo' };
@@ -432,7 +439,7 @@ async function show(){
   if(ctl){ ctl.update(data); shown = lang; return; }
   $('box').textContent = '';
   ctl = mod.mountOfficeScene($('box'), data, { readOnly: true, shop: { save: saveCosmetics, breeds: petBreeds }, petPhotos, onFail: () => { failed = true; if(ctl){ ctl.destroy(); ctl = null; } showMsg('pg.nowebgl'); failed = true; } });
-  shown = lang;
+  shown = lang; startRefresh();
   if(DEMO && new URLSearchParams(location.search).get('rec') === '1') window.__sprag = { town: null, office: ctl };   /* screenshots and recordings (demo only) */
   /* select the viewer's own character once the scene is up, on every screen size: the camera flies to them and their drawer opens (the selection ring is the "you" marker) */
   const self = view.self && view.self.id, start = Date.now();
@@ -505,6 +512,31 @@ async function changePeriod(next, rng){
   paintHead();
   $('h-err').textContent = t('pg.pnet'); $('h-err').hidden = false;
 }
+/* ── live figures: while the tab is visible the page asks for the same period again every minute and repaints in place (ctl.update takes the soft path when
+   only figures changed, so nothing flickers). A network or server error is skipped quietly and tried again on the next tick. A 401, 403 or 28000 means the
+   link has expired: the timer stops, the town stays as it is and the error line says why. ── */
+const REFRESH_MS = 60000, REFRESH_GAP = 15000;
+let refreshTm = 0, inflight = false, lastOk = Date.now(), stale = false;
+function stopRefresh(){ clearInterval(refreshTm); refreshTm = 0; }
+function startRefresh(){ if(!refreshTm && !DEMO) refreshTm = setInterval(refresh, REFRESH_MS); }
+async function refresh(){
+  if(DEMO || !view || busy || failed || !ctl || document.hidden || saving || inflight) return;
+  const tok = ssGet(TOKEN_KEY);
+  if(!tok || !TOKEN_RE.test(tok)) return stopRefresh();
+  const at = period + JSON.stringify(custom);
+  inflight = true;
+  let r; try{ r = await fetchTown(tok, period); }finally{ inflight = false; }
+  if(busy || saving || failed || !ctl || !mod || at !== period + JSON.stringify(custom)) return;   /* the page moved on while the reply was on its way */
+  if(r.ok){
+    view = r.body; lastOk = Date.now();
+    paintHead(); ctl.update(sceneData()); shown = lang;
+    return;
+  }
+  if(!r.net && (r.status === 401 || r.status === 403 || (r.status >= 400 && r.status < 500 && r.body && r.body.code === '28000'))){
+    stopRefresh(); stale = true; $('h-err').textContent = t('pg.stale'); $('h-err').hidden = false;
+  }
+}
+document.addEventListener('visibilitychange', () => { if(!document.hidden && !stale && Date.now() - lastOk >= REFRESH_GAP) refresh(); });
 $('period').addEventListener('change', e => changePeriod(e.target.value));
 ['pc-from', 'pc-to'].forEach(id => $(id).addEventListener('change', () => {
   const f = $('pc-from').value, e = $('pc-to').value;
@@ -523,7 +555,7 @@ function setLang(next, remember){
   if(remember) lsSet('sprag.lang', lang);
   if(view && !failed && mod && ctl && shown !== lang) show();
   else if(view) paintHead();
-  if(!$('h-err').hidden) $('h-err').textContent = t('pg.pnet');
+  if(!$('h-err').hidden) $('h-err').textContent = t(stale ? 'pg.stale' : 'pg.pnet');
   if(!view && msgKey) showMsg(msgKey, msgBtn ? load : null);
 }
 document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));

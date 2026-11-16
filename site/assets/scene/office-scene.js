@@ -892,6 +892,29 @@ export function makeChrome(stage, container, o){
     destroy(){ document.removeEventListener('keydown', onKey); document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('webkitfullscreenchange', onFs); exitFs(); } };
 }
 
+/* ── what the 3D room is built from ──
+ * sceneKey(d) is the data minus the fields that are only text and figures: the HUD, legend, strip, field guide, aria label, shop and ui strings, and per person the
+ * drawer detail, the tip rows, spent, rank, the grade and tier labels and the prompt id. All of those are read after the build (drawer, card, tooltip, chrome), never
+ * while the room is made, so update() repaints them in place when two data sets share a key. Everything else stays in the key, so a new tier, grade, crown, gear,
+ * pet, os, team or seat rebuilds the room. Two reads at build time are kept in a smaller form: the bubble list as its length (only "has bubbles" picks who talks;
+ * the text is read when a bubble opens) and a pet photo as its length plus both ends (a data URL can be hundreds of kilobytes). hud.closed is the suspended sign's text,
+ * and whether a field guide exists decides whether an open one may stay. */
+const SOFT_TOP = new Set(['hud', 'legend', 'strip', 'book', 'aria', 'shop', 'ui']), SOFT_PERSON = new Set(['detail', 'tip', 'spent', 'rank', 'gradeLabel', 'tierText', 'promptId']);
+const photoKey = s => (typeof s === 'string' && s.length > 80 ? s.length + ':' + s.slice(0, 32) + ':' + s.slice(-32) : s);
+export function sceneKey(d){
+  const k = {};
+  Object.keys(d || {}).forEach(n => { if(!SOFT_TOP.has(n) && n !== 'people') k[n] = d[n]; });
+  k.hudClosed = d && d.hud ? d.hud.closed : undefined; k.hasBook = !!(d && d.book);   /* build() closes an open field guide that the new data no longer has */
+  k.people = ((d && d.people) || []).map(p => {
+    const q = {};
+    Object.keys(p || {}).forEach(n => { if(!SOFT_PERSON.has(n)) q[n] = p[n]; });
+    if(Array.isArray(p.bubbles)) q.bubbles = p.bubbles.length;
+    if(p.pet && typeof p.pet === 'object' && typeof p.pet.photo === 'string') q.pet = { ...p.pet, photo: photoKey(p.pet.photo) };
+    return q;
+  });
+  return JSON.stringify(k);
+}
+
 export function mountOfficeScene(container, data, opts = {}){
   const noop = { update(){}, destroy(){} };
   if(!container) return noop;
@@ -922,6 +945,8 @@ export function mountOfficeScene(container, data, opts = {}){
 
   let T = null, renderer = null, scene = null, camera = null, world = null, canvas = null, ro = null, io = null, sun = null, hemi = null, rim = null;
   let post = null;   /* post-processing chain (post.js): null until it loads, on phones and with ?fx=0 */
+  let builtKey = null;   /* sceneKey of the data the room was last built from: update() rebuilds only when the next data's key differs */
+  const keyOf = d => sceneKey(d) + (holidayOn() ? '|xmas' : '');   /* the year-end dressing is part of what is built */
   let cur = data, destroyed = false, visible = false, raf = 0, rr = 0, last = 0, time = 0, W = 0, H = 0, started = false, frames = 0;
   let statics = [], dyn = [], hover = null, scale = 10, view = null, wallIdx = { z: [], x: [] }, wallHid = { z: false, x: false }, decals = [], decFlip = false;
   let people = [], bots = [], trails = [], zones = [], sets = null, scr = null, srvLights = [], srv = null, lab = { zones: [], tags: [], server: null, more: null, sign: null }, bubs = [], nextBub = 1.2, sFlash = 0, FW = 10, FD = 10, sparks = [], hudBox = null, BB = { x0: -5, x1: 5, z0: -5, z1: 5 };
@@ -2100,9 +2125,9 @@ export function mountOfficeScene(container, data, opts = {}){
     const go = () => { petLiveTm = 0; if(destroyed) return; const p2 = pets.find(q => q.o === o); if(p2){ petSwap(p2, want); petToyFix(p2, want); } else petAdd(o, want, false); request(); };
     if(pt) petLiveTm = setTimeout(go, 180); else go();
   }
-  function build(d){
-    cur = d; clear(); xmas = holidayOn();
-    const closed = !!d.closed, pl = d.people || [];
+  /* the HUD, the legend with its strip, the field guide button and the aria labels: text only, so update() repaints them without a rebuild */
+  function paintChrome(d){
+    const closed = !!d.closed;
     elHud.innerHTML = `<b>${esc(d.hud.title)}${closed ? `<em>${esc(d.hud.closed)}</em>` : ''}</b>${esc(d.hud.stats)}`; elHud.appendChild(elChip); renderChip();
     elLegend.innerHTML = (d.strip ? `<div class="of-strip"><button type="button" class="sbk" aria-label="${esc(d.strip.title)}"><b>${BOOK_ICON}${esc(d.strip.title)}</b></button>${d.strip.tiers.map(g => `<span class="tg t-${g.tier}"><em>${esc(g.label)}</em>${g.items.map(q => q.n ? `<button type="button" class="sp" data-k="${esc(q.k)}" title="${esc(q.name + ' · ' + q.n)}" aria-label="${esc(q.name + ' · ' + q.n)}">${speciesThumb(q.k)}</button>` : `<span class="sp z" title="${esc(q.name)}">${speciesThumb(q.k)}</span>`).join('')}</span>`).join('')}</div>` : '')
       + `<div class="keys">${(d.legend || []).map(l => `<span>${l.k ? (l.k === 'crown' ? iconSvg(l.k) : speciesThumb(l.k)) : l.bots ? '' : l.c ? `<i style="background:${l.c}"></i>` : ''}${esc(l.label)}${(l.fams || []).map(f => `<i class="fm" style="background:${f.c}"></i>${esc(f.label)}`).join('')}</span>`).join('')}</div>`;
@@ -2115,6 +2140,11 @@ export function mountOfficeScene(container, data, opts = {}){
     if(chrome.bookBtn) chrome.bookBtn.style.display = d.book ? '' : 'none';
     if(canvas) canvas.setAttribute('aria-label', d.aria || '');
     (container.closest('.of-card') || container).setAttribute('aria-label', d.hud.title);
+  }
+  function build(d){
+    cur = d; clear(); xmas = holidayOn();
+    const closed = !!d.closed, pl = d.people || [];
+    paintChrome(d);
     zones = layout(d);
     /* lights, backdrop and lawn follow the time of day and the weather in applyEnv(); a suspended office stays grey there too */
     const R = Math.hypot(FW, FD) / 2 + 4; Object.assign(sun.shadow.camera, { left: -R, right: R, top: R, bottom: -R }); sun.shadow.camera.updateProjectionMatrix();
@@ -2403,7 +2433,24 @@ export function mountOfficeScene(container, data, opts = {}){
     sets.act = Math.max(0, Math.min(1, d.activity || 0));
     applyEnv();
     fit(); frames = 0; renderer.shadowMap.needsUpdate = true;
+    builtKey = keyOf(d);
     step(0); request();
+  }
+  /* The same room with new figures: swap each person's data in place and repaint the text (HUD, legend, drawer, card, tooltip). Nothing is cleared, so the animals,
+   * the pets' places, the fur and the sprites stay as they are. A person that cannot be matched by id means the key was wrong, so the room is rebuilt. */
+  function soft(d){
+    const byId = new Map((d.people || []).map(q => [q.id, q])), next = people.map(o => byId.get(o.p.id));
+    if(next.some(q => !q)){ build(d); return; }
+    cur = d;
+    people.forEach((o, i) => { const keep = shop && sel === o ? o.p.gear : null; o.p = next[i]; if(keep) o.p.gear = keep; });   /* an unsaved gear preview in the open shop stays on the desk */
+    paintChrome(d); syncFs();
+    if(!shop){   /* an open shop holds a draft, so the drawer is left alone while it is up */
+      if(sel) rerender();   /* the drawer's own scroll position and focus come back after the repaint */
+      else if(bookOpen && chrome.isOpen() && d.book){ const bd = chrome.el.querySelector('.bd'), top = bd ? bd.scrollTop : 0; renderBook(); const bd2 = chrome.el.querySelector('.bd'); if(bd2) bd2.scrollTop = top; }
+    }
+    if(sel && pr && pr.on){ const tilt = pr.el.classList.contains('tilt'); pcFill(sel); if(tilt) pr.el.classList.add('tilt'); }   /* only the card's text: the model and the baked image stay */
+    if(!ptrAt){ hover = null; elTip.hidden = true; }   /* with a pointer over the room hoverRefresh() redraws the tooltip from the new tip within 0.15 s */
+    request();
   }
   /* ── day / night and weather (logic shared through sky.js): meshes are made per build, colours and intensities are set in applyEnv()
      (every build and every minute), motion runs in stepWx(). Particles exist only while animating; reduced motion keeps clouds and snow cover. ── */
@@ -2972,7 +3019,7 @@ export function mountOfficeScene(container, data, opts = {}){
   elHud.innerHTML = `<b>${esc(data.hud.title)}</b>`; elHud.appendChild(elChip); renderChip(); syncFs();
 
   return {
-    update(d){ cur = d; if(started === true) build(d); },
+    update(d){ cur = d; if(started !== true) return; if(builtKey !== null && keyOf(d) === builtKey) soft(d); else build(d); },   /* the same structure repaints in place (soft), anything else rebuilds */
     get view(){ return view; },
     ready: () => started === true && !!view,
     bench(n = 60){ const gl = renderer.getContext(), b = new Uint8Array(4); let t = 0; for(let i = 0; i < n; i++){ const s0 = performance.now(); render(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, b); t += performance.now() - s0; } return t / n; },   /* GPU-synced ms per frame, for measurements */
