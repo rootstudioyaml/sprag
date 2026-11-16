@@ -160,7 +160,7 @@ test('officeSceneData hands a machine\'s pet to its person; people without one g
 test('office-scene wires pets: import query, data contract, drawn set, still life, rebuild and destroy, step, reduced motion, recording hooks', async () => {
   const { readFile } = await import('node:fs/promises');
   const src = await readFile(new URL('../site/assets/scene/office-scene.js', import.meta.url), 'utf8');
-  assert.match(src, /import \{[^}]*normalizePetLook[^}]*pickPets[^}]*petPlan[^}]*makePet[^}]*makeBowls[^}]*makeToy[^}]*makeToyBasket[^}]*makePhotoFrame[^}]*disposePetShared[^}]*PET_MAX[^}]*\} from '\.\/pets\.js\?v=p6'/);
+  assert.match(src, /import \{[^}]*normalizePetLook[^}]*pickPets[^}]*petPlan[^}]*makePet[^}]*makeBowls[^}]*makeToy[^}]*makeToyBasket[^}]*makePhotoFrame[^}]*disposePetShared[^}]*PET_MAX[^}]*\} from '\.\/pets\.js\?v=p7'/);
   assert.match(src, /people\[\]\.pet \(optional\)/, 'the data contract names the field');
   assert.match(src, /if\(d\.closed\) return new Set\(\);/, 'a closed organization shows no pets');
   assert.match(src, /filter\(p => p && p\.tier !== 'nodata' && p\.pet\)/, 'ghosts have no pets');

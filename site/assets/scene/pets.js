@@ -835,8 +835,10 @@ export function makeToyBasket(T){
   g.userData = { dispose: () => { toys.forEach(t => t.userData.dispose()); K.dispose(); } };
   return g;
 }
-/* a standing picture frame for the desk; src is a Texture (the frame takes ownership) or an image or data URL. The photo is cover-cropped. 3 meshes */
-export function makePhotoFrame(T, src, onLoad){
+/* a standing picture frame for the desk; src is a Texture (the frame takes ownership) or an image or data URL. The photo is cover-cropped. 3 meshes.
+   aniso: the texture's anisotropic filtering (the renderer's maximum, capped by the caller). The photo sits 0.002 in front of the frame's face and draws
+   with a polygon offset, so at the far default zoom the depth buffer never lets the wood show through it; a little emissive keeps it readable at night. */
+export function makePhotoFrame(T, src, onLoad, aniso = 1){
   const K = kit(), g = new T.Group(); g.name = 'petFrame';
   const PW = 0.19, PH = 0.24, lean = new T.Group(); lean.rotation.x = -0.18; g.add(lean);
   const wood = K.mat(new T.MeshStandardMaterial({ color: '#f5e6d3', roughness: 0.6 }));
@@ -844,9 +846,10 @@ export function makePhotoFrame(T, src, onLoad){
   const tex = typeof src === 'string' ? new T.TextureLoader().load(src, t => { cover(t); if(onLoad) onLoad(); }) : src || null;
   const cover = t => { const img = t.image; if(!img || !img.width) return; const a = img.width / img.height, want = PW / PH;
     t.colorSpace = T.SRGBColorSpace; if(a > want){ t.repeat.set(want / a, 1); t.offset.set((1 - want / a) / 2, 0); }else{ t.repeat.set(1, a / want); t.offset.set(0, (1 - a / want) / 2); } t.needsUpdate = true; };
-  if(tex){ tex.colorSpace = T.SRGBColorSpace; if(tex.image) cover(tex); }
-  const pm = K.mat(new T.MeshStandardMaterial({ color: tex ? '#ffffff' : '#dbeafe', map: tex, roughness: 0.55 })); pm.userData.ownMap = !!tex;
-  const ph = new T.Mesh(K.geo(new T.PlaneGeometry(PW, PH)), pm); ph.position.set(0, (PH + 0.05) / 2, 0.0115); lean.add(ph);
+  if(tex){ tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = Math.max(1, aniso); if(tex.image) cover(tex); }
+  const pm = K.mat(new T.MeshStandardMaterial({ color: tex ? '#ffffff' : '#dbeafe', map: tex, roughness: 0.8, emissive: tex ? '#ffffff' : '#000000', emissiveMap: tex, emissiveIntensity: tex ? 0.18 : 0,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); pm.userData.ownMap = !!tex;
+  const ph = new T.Mesh(K.geo(new T.PlaneGeometry(PW, PH)), pm); ph.position.set(0, (PH + 0.05) / 2, 0.013); lean.add(ph);
   const st = new T.Mesh(K.geo(new T.BoxGeometry(0.05, 0.2, 0.012)), wood); st.position.set(0, 0.1, -0.06); st.rotation.x = 0.45; st.castShadow = true; g.add(st);
   g.userData = { dispose: K.dispose };
   return g;

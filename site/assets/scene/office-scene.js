@@ -26,8 +26,8 @@ import { makeFur, softNight } from './fur.js?v=f1';
 import { parseManifest, pickVariant, pickCell, relAzimuth, elevOk, nightTint, wantVariant, makeSpriteKit, zoomOk, cardOf } from './sprites.js?v=s2';   /* Blender fur sprites of the seated animals; the query keeps the module in step with this file */
 import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g6';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { normalizePetLook, pickPets, petPlan, petHash, makePet, makeBowls, makeToy, makeToyBasket, makePhotoFrame, disposePetShared, PET_MAX, petLookFromPixels, PET_KINDS, PET_PATTERNS, PET_EARS, PET_TAILS, PET_SIZES, PET_NAME_MAX, PET_COAT_MAX, PET_DEFAULTS,
-  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed, PET_TOYS } from './pets.js?v=p6';
-import * as PETS_NS from './pets.js?v=p6';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
+  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed, PET_TOYS } from './pets.js?v=p7';
+import * as PETS_NS from './pets.js?v=p7';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
 import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared } from './gear.js?v=g3';   /* unlockable head, wing and desk gear; the query keeps the module in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
@@ -1198,7 +1198,7 @@ export function mountOfficeScene(container, data, opts = {}){
      destroy like the card's; they turn slowly (not under reduced motion) and by drag, and animated items keep ticking. The frame shows the photo itself.
      Opening it leaves the drawer and the camera alone. Keyboard: the close button takes focus, Escape closes, focus goes back to the stage. ── */
   const VW_MAX = 420, VW_ROT0 = -0.45; let vw = null;   /* VW_ROT0: the front three-quarter view every piece opens at */
-  const photoSafe = s => typeof s === 'string' && s.length < 400000 && PET_PHOTO_RE.test(s);   /* the browser's own photo may be larger than a shared one; the pattern is the safety part */
+  const photoSafe = s => typeof s === 'string' && s.length < PET_PHOTO_LOCAL && PET_PHOTO_RE.test(s);   /* the browser's own photo may be larger than a shared one; the pattern is the safety part */
   const vwUi = () => (cur && cur.ui && cur.ui.view) || {};
   const petTitle = look => (look && look.name) || (vwUi().kind || {})[look && look.kind] || '';
   /* what the viewer shows: one layout for the three kinds (title, a sub line naming the owner the same way, the art, a hint line that is always there). over: a
@@ -1302,7 +1302,7 @@ export function mountOfficeScene(container, data, opts = {}){
       if(!sp){ g.updateMatrixWorld(true); sp = g.userData.vbs = b.setFromObject(g).getBoundingSphere(new T.Sphere()); }
       const [x, y] = proj(HP.copy(sp.center), PT); out.push({ kind, o, x, y, r: sp.radius * k * OBJ_R }); };
     people.forEach(o => { if(o.desk && !o.ghost) add('desk', o, o.desk); });
-    pets.forEach(pt => { if(pt.frame) add('frame', pt.o, pt.frame); if(!pt.g.visible) return;
+    pets.forEach(pt => { if(pt.frame && pt.frame.visible) add('frame', pt.o, pt.frame); if(!pt.g.visible) return;
       const s = pt.g.scale.y, bs = pt.bs || { h: 0.5, r: 0.4 }, [x, y] = proj(HP.set(pt.x, pt.y + bs.h * s * 0.5, pt.z), PT); out.push({ kind: 'pet', o: pt.o, x, y, r: bs.r * s * k * OBJ_R }); });
     return out;
   }
@@ -1582,7 +1582,11 @@ export function mountOfficeScene(container, data, opts = {}){
     const w0 = im.naturalWidth || im.width, h0 = im.naturalHeight || im.height; if(!w0 || !h0) return bad();
     const draw = (mx, q) => { const k = Math.min(1, mx / Math.max(w0, h0)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w0 * k)); c.height = Math.max(1, Math.round(h0 * k)); const x = c.getContext('2d', { willReadFrequently: !q }); x.drawImage(im, 0, 0, c.width, c.height); return { c, x }; };
     let res = null, photo = null;
-    try{ const a = draw(480); res = petLookFromPixels(a.x.getImageData(0, 0, a.c.width, a.c.height).data, a.c.width, a.c.height); photo = draw(256, true).c.toDataURL('image/jpeg', 0.85); }catch(e){ return bad(); }
+    /* the copy kept in this browser: up to 1024 px on the longest side, the first step that stays under PET_PHOTO_LOCAL (the desk frame, the large viewer
+       and the shared copy are all drawn from it, so a 256 px copy left them blurry) */
+    const keep = () => { for(const [mx, q] of PET_PHOTO_KEEP){ const u = draw(mx, true).c.toDataURL('image/jpeg', q); if(u.length < PET_PHOTO_LOCAL) return u; } return null; };
+    try{ const a = draw(480); res = petLookFromPixels(a.x.getImageData(0, 0, a.c.width, a.c.height).data, a.c.width, a.c.height); photo = keep(); }catch(e){ return bad(); }
+    if(!photo) return bad();
     if(!shop) return;
     const P = shop.pet; P.photo = photo; P.shown = photo; P.read = res ? (P.look.breed ? 'coat' : 'all') : false; P.dirty = true; shop.msg = null;
     /* with a breed chosen the breed keeps its pattern and the photo only recolours it, colour by colour in the pattern's order (a Shiba stays two-toned in the
@@ -1803,8 +1807,10 @@ export function mountOfficeScene(container, data, opts = {}){
      and lands on its sleeping spot on the left end, never behind the desk or past its owner. In front of the left end itself the next row's sitter hides the
      floor from that camera (only x >= -0.2 at the front edge is in view), so a straight jump from there showed no crouch and no take-off. The diagonal path
      crosses the front edge at about x -0.2, in front of the desk item and the laptop, already above the desk top. The photo frame stands in the back right
-     corner (DESK_FRAME): seen from that camera nothing on the desk lies in front of it, while the sleeping pet on the left end lies across its line of sight. */
-  const DESK_HOP = { x: 0.1, z: 2.3 }, DESK_FRAME = { x: 0.98, z: 0.64 };
+     corner (DESK_FRAME): seen from that camera nothing on the desk lies in front of it, while the sleeping pet on the left end lies across its line of sight.
+     Its whole footprint, the stand's foot included, stays at least 0.05 inside the desk top (x within 1.1, z from 0.55): at x 0.98, z 0.64 the right edge
+     stuck out past the side and the stand's foot hung off the back edge. */
+  const DESK_HOP = { x: 0.1, z: 2.3 }, DESK_FRAME = { x: 0.84, z: 0.79 };
   const DESK_HOP_YAW = Math.atan2((DESK_FIT.x0 + DESK_FIT.x1) / 2 - DESK_HOP.x, (DESK_FIT.z0 + DESK_FIT.z1) / 2 - DESK_HOP.z);   /* facing the sleeping spot, so the hop needs no turn */
   function petFit(pt){
     const g = pt.g, o = pt.o, ud = g.userData, sc = g.scale.x, keep = [g.position.clone(), g.rotation.clone()];
@@ -1858,9 +1864,10 @@ export function mountOfficeScene(container, data, opts = {}){
   const photoCache = new Map();   /* person id -> data URL, or null once asked without an answer; kept for the page's lifetime */
   const petPhotoSrc = o => { const own = o.p.self && o.p.pet && typeof o.p.pet.photo === 'string' && /^data:image\//.test(o.p.pet.photo) ? o.p.pet.photo : null; return own || photoCache.get(String(o.p.id)) || null; };
   function petFrameAdd(pt, src){
-    const o = pt.o, fr = makePhotoFrame(T, String(src), () => { if(renderer) renderer.shadowMap.needsUpdate = true; request(); });
+    const o = pt.o, aniso = renderer ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 1;   /* the photo leans back and is seen at a slant: anisotropic filtering keeps it sharp */
+    const fr = makePhotoFrame(T, String(src), () => { if(renderer) renderer.shadowMap.needsUpdate = true; request(); }, aniso);
     fr.scale.setScalar(1.8); fr.rotation.y = 0.6; fr.position.set(o.x + DESK_FRAME.x, DESK_Y, o.z + DESK_FRAME.z);   /* see DESK_FRAME */
-    world.add(fr); petBits.push(fr); pt.frame = fr; pt.photo = String(src);
+    fr.visible = !o.pose; world.add(fr); petBits.push(fr); pt.frame = fr; pt.photo = String(src);   /* hidden while its owner stands on the desk (frameShow) */
   }
   /* once per build: the drawn pets whose owner shares a photo (pet.shared) and that have no frame yet; every answer is checked (petPhotosClean) */
   function petPhotosAsk(){
@@ -2629,7 +2636,7 @@ export function mountOfficeScene(container, data, opts = {}){
       if(!o.ghost && o.p.crown) m.add(castCrown(T));
       holDress(m, o, 'pose-');
       m.userData.flaps = [m.getObjectByName('flap_L'), m.getObjectByName('flap_R')];
-      world.add(m); o.pose = m; o.glb.visible = false; portrait(o); request();
+      world.add(m); o.pose = m; o.glb.visible = false; frameShow(o); portrait(o); request();
     }).catch(() => { o.poseLoading = false; o.poseFailed = true; if(sel === o && pr && pr.on && !destroyed) portrait(o); });   /* no standing model: the seated one stays in its chair and the card shows it live */
   }
   function holDress(m, o, pose){   /* in the same model space as castCrown(); what goes on is remembered in m.userData.hol so unpose() can free it */
@@ -2667,7 +2674,9 @@ export function mountOfficeScene(container, data, opts = {}){
     (m.userData.hol || []).forEach(h => { hol = hol.filter(q => q !== h); if(h.parent) h.parent.remove(h); h.userData.dispose(); }); m.userData.hol = [];
     holDress(m, o, pose);
   }
-  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ (o.pose.userData.hol || []).forEach(h => { hol = hol.filter(q => q !== h); h.userData.dispose(); }); castFxRelease(o.pose); world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; }
+  function unpose(o){ if(!o) return; o.poseLoading = false; if(o.pose){ (o.pose.userData.hol || []).forEach(h => { hol = hol.filter(q => q !== h); h.userData.dispose(); }); castFxRelease(o.pose); world.remove(o.pose); o.pose = null; } if(o.glb) o.glb.visible = true; frameShow(o); }
+  /* the picked one stands at POSE_X, POSE_Z on its own desk, across the photo frame's corner: the frame steps aside while it stands there */
+  function frameShow(o){ const pt = pets.find(q => q.o === o); if(pt && pt.frame){ pt.frame.visible = !o.pose; if(renderer) renderer.shadowMap.needsUpdate = true; } }
   function flapAt(m, t){ const f = m.userData.flaps; if(!f) return; const a = reduced ? 0.25 : 0.32 + 0.38 * Math.sin(t * 13); if(f[0]) f[0].rotation.z = -a; if(f[1]) f[1].rotation.z = a; }
   function stepCast(dt){
     if(!castOn) return;
@@ -3130,6 +3139,21 @@ export const PET_PHOTO_Q = [0.82, 0.74, 0.66, 0.58, 0.5, 0.42, 0.34, 0.26];
 export function fitJpeg(encode, max = PET_PHOTO_UP){
   for(const q of PET_PHOTO_Q){ let u; try{ u = encode(q); }catch(e){ return null; } if(typeof u === 'string' && u.length <= max && petPhotoOk(u)) return u; }
   return null;
+}
+/* the copy kept in this browser: [longest side, JPEG quality] steps, the first under PET_PHOTO_LOCAL characters wins (photoSafe takes it below that) */
+export const PET_PHOTO_LOCAL = 400000, PET_PHOTO_KEEP = [[1024, 0.86], [1024, 0.76], [768, 0.8], [512, 0.8], [256, 0.85]];
+/* The shared copy, as large as the server's limit allows. The page crops the photo to the frame's shape, PET_PHOTO_ASPECT (width over height, the PW / PH
+   of makePhotoFrame in pets.js), so no byte goes to what the frame would cut off, and encode(h, type, q) draws it h px high and encodes it. Each height in
+   PET_PHOTO_SIDES is tried at PET_PHOTO_QS, WebP before JPEG: WebP looks the same at about two thirds of the size, and a browser that cannot encode it hands
+   back PNG, which is skipped. The first that fits PET_PHOTO_UP wins; after the last height, fitJpeg's whole ladder at 256 px; null when nothing fits. */
+export const PET_PHOTO_ASPECT = 0.19 / 0.24, PET_PHOTO_SIDES = [640, 560, 480, 400, 320], PET_PHOTO_QS = [0.86, 0.8, 0.74, 0.68];
+export function fitPhoto(encode, max = PET_PHOTO_UP){
+  for(const h of PET_PHOTO_SIDES) for(const type of ['image/webp', 'image/jpeg']) for(const q of PET_PHOTO_QS){
+    let u; try{ u = encode(h, type, q); }catch(e){ return null; }
+    if(typeof u !== 'string' || !u.startsWith('data:' + type + ';')) break;   /* the browser does not encode this type: the next one */
+    if(u.length <= max && petPhotoOk(u)) return u;
+  }
+  return fitJpeg(q => encode(256, 'image/jpeg', q), max);
 }
 /* a procedural stand-in photo for the demos (no real photographs): a soft backdrop and a round face in the pet's coat colours */
 export function demoPetPhoto(look, seed = 0){

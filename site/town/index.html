@@ -298,11 +298,14 @@ function applyCosmetics(r, change, extra){
   else if(change.pet && extra && typeof extra.photo === 'string' && /^data:image\/jpeg;base64,/.test(extra.photo)) lsSet(PHOTO_KEY, extra.photo);
   if(mod && ctl && !failed) ctl.update(sceneData());
 }
-/* the shared copy: the photo redrawn on a canvas (longest side 256 px, which also drops EXIF) and re-encoded as JPEG, lowering the quality until it fits */
+/* the shared copy: the middle of the photo cropped to the frame's shape and redrawn on a canvas (which also drops EXIF), as large as fits the server's
+   limit (fitPhoto in office-scene.js picks the height, format and quality); never drawn larger than the crop itself */
 function shrinkPhoto(src){
   return new Promise(ok => { const im = new Image(); im.onload = () => { const w = im.naturalWidth, h = im.naturalHeight; if(!w || !h) return ok(null);
-    const k = Math.min(1, 256 / Math.max(w, h)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
-    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(mod.fitJpeg(q => c.toDataURL('image/jpeg', q))); }; im.onerror = () => ok(null); im.src = src; });
+    const A = mod.PET_PHOTO_ASPECT, cw = Math.min(w, h * A), ch = cw / A, sx = (w - cw) / 2, sy = (h - ch) / 2, c = document.createElement('canvas'), x = c.getContext('2d'); let at = 0;
+    ok(mod.fitPhoto((side, type, q) => { const H = Math.max(1, Math.round(Math.min(side, ch))), W = Math.max(1, Math.round(H * A));
+      if(at !== H){ at = H; c.width = W; c.height = H; x.imageSmoothingQuality = 'high'; x.drawImage(im, sx, sy, cw, ch, 0, 0, W, H); }
+      return c.toDataURL(type, q); })); }; im.onerror = () => ok(null); im.src = src; });
 }
 async function saveCosmetics(change, extra){
   const plan = mod.petPhotoPlan(change, extra);   /* 'upload', 'clear' or null: see office-scene.js */

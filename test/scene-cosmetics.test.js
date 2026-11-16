@@ -98,7 +98,7 @@ test('every shop string exists in both languages, Korean prose has no middle dot
 
 test('the scene wires gear and the shop: imports, crown rule, season sheet, disposal on rebuild and destroy, desk ticks, shop only with data.shop and opts.shop', () => {
   assert.match(SCENE, /import \{ GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared \} from '\.\/gear\.js\?v=g3'/);
-  assert.match(SCENE, /from '\.\/pets\.js\?v=p6'/); assert.ok(!/pets\.js\?v=p[0-57-9]/.test(SCENE), 'every import of pets.js carries the same query');
+  assert.match(SCENE, /from '\.\/pets\.js\?v=p7'/); assert.ok(!/pets\.js\?v=p[0-68-9]/.test(SCENE), 'every import of pets.js carries the same query');
   assert.match(SCENE, /export const CAST_Q = '\?v=3\.127\.0-2';/, 'the cast files without accessories need a new cache key');
   assert.match(SCENE, /function dressOf\(o\)\{[^\n]*headDress\(\{ ghost: o\.ghost, crown: o\.p\.crown/);
   assert.match(SCENE, /wantVariant\(hk === 'nose' \? 'crown' : hk/, 'a head gear in the season uses the nose-only sheet');
@@ -253,6 +253,33 @@ test('fitJpeg: the first quality from 0.82 down whose data URL fits 46,000 chara
   assert.equal(fitJpeg(() => { throw new Error('tainted'); }), null);
 });
 
+test('fitPhoto: the tallest height that fits, WebP before JPEG, PNG answers skipped, then fitJpeg at 256 px', () => {
+  const { fitPhoto, PET_PHOTO_SIDES, PET_PHOTO_QS, PET_PHOTO_ASPECT } = S;
+  /* a fake encoder: the length grows with the area and the quality, WebP at two thirds of JPEG */
+  const sz = (h, type, q) => Math.round(h * h * PET_PHOTO_ASPECT * q * (type === 'image/webp' ? 0.2 : 0.3));
+  const mk = (type, n) => `data:${type};base64,` + 'A'.repeat(n);
+  let tried = []; const enc = webp => (h, type, q) => { tried.push([h, type, q]); return mk(type === 'image/webp' && !webp ? 'image/png' : type, sz(h, type, q)); };
+  const u = fitPhoto(enc(true)); assert.ok(u && u.length <= PET_PHOTO_UP); assert.match(u, /^data:image\/webp;/);
+  const [h0] = tried[tried.length - 1]; assert.ok(PET_PHOTO_SIDES.includes(h0) && h0 >= 480, `a large copy (${h0} px) fits the server limit`);
+  assert.ok(tried.every(([h]) => h >= h0), 'heights only go down');
+  tried = []; const j = fitPhoto(enc(false)); assert.match(j, /^data:image\/jpeg;/, 'no WebP encoder: JPEG');
+  assert.ok(tried.filter(([, t]) => t === 'image/webp').every(([, , q]) => q === PET_PHOTO_QS[0]), 'one try per height finds that WebP is not encoded');
+  tried = []; assert.match(fitPhoto((h, type, q) => { tried.push(h); return mk('image/jpeg', h === 256 ? 30000 : 90000); }), /^data:image\/jpeg;/, 'the 256 px ladder is the last resort');
+  assert.equal(tried[tried.length - 1], 256);
+  assert.equal(fitPhoto(() => mk('image/jpeg', 90000)), null); assert.equal(fitPhoto(() => { throw new Error('tainted'); }), null);
+  /* the frame's shape is the photo plane of makePhotoFrame */
+  const PETS = readFileSync(new URL('../site/assets/scene/pets.js', import.meta.url), 'utf8'); const m = PETS.match(/const PW = ([\d.]+), PH = ([\d.]+), lean/);
+  assert.ok(m); assert.equal(PET_PHOTO_ASPECT, +m[1] / +m[2]);
+});
+
+test('the copy kept in this browser: up to 1024 px, every step under the local limit the viewer accepts', () => {
+  const { PET_PHOTO_KEEP, PET_PHOTO_LOCAL } = S;
+  assert.deepEqual(PET_PHOTO_KEEP[0], [1024, 0.86]); assert.equal(PET_PHOTO_KEEP[PET_PHOTO_KEEP.length - 1][0], 256, 'the last step is the old size, which always fits');
+  assert.ok(PET_PHOTO_KEEP.every(([s], i) => !i || s <= PET_PHOTO_KEEP[i - 1][0]));
+  assert.match(SCENE, /const photoSafe = s => typeof s === 'string' && s\.length < PET_PHOTO_LOCAL && PET_PHOTO_RE\.test\(s\);/);
+  assert.match(SCENE, /if\(u\.length < PET_PHOTO_LOCAL\) return u;/); assert.equal(PET_PHOTO_LOCAL, 400000);
+});
+
 test('breedList: valid rows only, dogs first, each look carries its kind and breed; breedName follows the page language', () => {
   const rows = [{ key: 'korat', kind: 'cat', en: 'Korat', ko: '코랏', look: { coat: ['#8a8f99'] } }, { key: 'jindo', kind: 'dog', en: 'Jindo', ko: '진돗개', look: { coat: ['#e8c48e'], ear: 'up' } },
     { key: 'Bad Key', kind: 'dog', en: 'x', look: { coat: ['#ffffff'] } }, { key: 'fox', kind: 'fox', en: 'Fox', look: { coat: ['#ffffff'] } }, { key: 'nolook', kind: 'cat', en: 'x' }, { key: 'nocoat', kind: 'dog', look: { coat: [] } },
@@ -340,7 +367,9 @@ test('the scene: the viewer, shared photo frames, breeds and the pet tab are wir
 test('pages: shared photos and breeds go through their RPCs, the demo answers locally', () => {
   assert.match(TOWN, /\/rest\/v1\/rpc\/town_pet_photos/); assert.match(TOWN, /p_ids: ids\.slice\(0, 16\)/);
   assert.match(TOWN, /\/rest\/v1\/rpc\/pet_breeds/); assert.match(TOWN, /if\(DEMO\) return Promise\.resolve\(DEMO_BREEDS\);/);
-  assert.match(TOWN, /const k = Math\.min\(1, 256 \/ Math\.max\(w, h\)\)/); assert.match(TOWN, /mod\.fitJpeg\(q => c\.toDataURL\('image\/jpeg', q\)\)/);
+  assert.match(TOWN, /const A = mod\.PET_PHOTO_ASPECT, cw = Math\.min\(w, h \* A\), ch = cw \/ A/, 'the shared copy is cropped to the frame\'s shape');
+  assert.match(TOWN, /ok\(mod\.fitPhoto\(\(side, type, q\) => \{ const H = Math\.max\(1, Math\.round\(Math\.min\(side, ch\)\)\)/, 'never drawn larger than the crop');
+  assert.match(TOWN, /return c\.toDataURL\(type, q\);/);
   assert.match(TOWN, /sf\.photo = !!\(r && r\.photo === true\);/);
   assert.match(TEAM, /sb\.rpc\('org_pet_photos', \{ p_org_id: org\.id, p_member_ids: ids\.slice\(0, 16\) \}\)/);
   assert.match(TEAM, /petPhotos, breeds: petBreeds,/);
@@ -387,13 +416,34 @@ test('play spots: the toy area must be in clear view of the home camera; desks, 
 test('the hop: horizontal travel lags going up and leads coming down; it takes off from the desk front the home camera sees, and the frame moved out of the sleeping pet\'s way', () => {
   assert.equal(hopAlong(0, true), 0); assert.equal(hopAlong(1, true), 1); assert.equal(hopAlong(0, false), 0); assert.equal(hopAlong(1, false), 1);
   for(let f = 0.05; f < 1; f += 0.05){ assert.ok(hopAlong(f, true) < f, `up lags at ${f}`); assert.ok(hopAlong(f, false) > f, `down leads at ${f}`); assert.ok(hopAlong(f + 0.01, true) > hopAlong(f, true)); }
-  assert.match(SCENE, /const DESK_HOP = \{ x: 0\.1, z: 2\.3 \}, DESK_FRAME = \{ x: 0\.98, z: 0\.64 \};/, 'the take-off is in front of the desk middle, where the home camera sees the floor');
+  assert.match(SCENE, /const DESK_HOP = \{ x: 0\.1, z: 2\.3 \}, DESK_FRAME = \{ x: 0\.84, z: 0\.79 \};/, 'the take-off is in front of the desk middle, where the home camera sees the floor');
   assert.match(SCENE, /hop: \{ x: o\.x \+ DESK_HOP\.x, z: o\.z \+ DESK_HOP\.z, yaw: DESK_HOP_YAW \}/, 'facing the sleeping spot on a diagonal');
   /* the next row's sitter (a person box 3.1 ahead in the same column) hides the floor in front of the left end but not the new take-off point */
   const sitter = [-0.35, 2.85, 0.35, 3.35, 1.6];
   assert.equal(floorSeen(0.1, 2.3, [sitter]), true, 'the take-off is in view'); assert.equal(floorSeen(-0.76, 2.3, [sitter]), false, 'the old take-off was hidden');
   /* seen from the home camera the frame in the back right corner has nothing of the sleeping spot between it and the camera */
-  const fit = [-1.1, 0.72, -0.42, 1.93, 1.4]; assert.equal(floorSeen(0.98, 0.64, [fit]), true); assert.equal(floorSeen(-0.98, 0.64, [fit]), false, 'where it stood before, the pet hid it');
+  const fit = [-1.1, 0.72, -0.42, 1.93, 1.4]; assert.equal(floorSeen(0.84, 0.79, [fit]), true); assert.equal(floorSeen(-0.98, 0.64, [fit]), false, 'where it stood before, the pet hid it');
+});
+
+test('the desk frame stands wholly on the desk top: frame and stand foot at least 0.05 inside its edges', () => {
+  /* the desk top spans x -1.1..1.1 and z 0.55..1.75 around the seat (office-scene.js: a 2.2 by 1.2 box centred at z + 1.15) */
+  const [, fx, fz] = SCENE.match(/DESK_FRAME = \{ x: ([\d.-]+), z: ([\d.-]+) \}/).map(Number);
+  const [, sc, yaw] = SCENE.match(/fr\.scale\.setScalar\(([\d.]+)\); fr\.rotation\.y = ([\d.]+);/).map(Number);
+  const PETS = readFileSync(new URL('../site/assets/scene/pets.js', import.meta.url), 'utf8');
+  const [, PW] = PETS.match(/const PW = ([\d.]+), PH/).map(Number);
+  assert.match(PETS, /new T\.BoxGeometry\(PW \+ 0\.05, PH \+ 0\.05, 0\.022\)/); assert.match(PETS, /st\.position\.set\(0, 0\.1, -0\.06\); st\.rotation\.x = 0\.45;/, 'the numbers below');
+  /* local points (x, z) in the frame's own units: the frame's four bottom corners and the stand's foot (its lower end, 0.1 down the tilted bar, plus half its depth) */
+  const hw = (PW + 0.05) / 2, foot = -0.06 - 0.1 * Math.sin(0.45) - 0.006;
+  const pts = [[hw, 0.011], [hw, -0.011], [-hw, 0.011], [-hw, -0.011], [0.025, foot], [-0.025, foot]];
+  for(const [lx, lz] of pts){
+    const x = fx + sc * (lx * Math.cos(yaw) + lz * Math.sin(yaw)), z = fz + sc * (-lx * Math.sin(yaw) + lz * Math.cos(yaw));
+    assert.ok(x <= 1.1 - 0.05 && x >= -1.1 + 0.05, `x ${x.toFixed(3)} inside the side edges`); assert.ok(z >= 0.55 + 0.05 && z <= 1.75 - 0.05, `z ${z.toFixed(3)} inside the back and front edges`);
+  }
+  /* the picked one stands at POSE_X, POSE_Z across the frame's corner: the frame hides while it stands there and can't be clicked meanwhile */
+  assert.match(SCENE, /o\.pose = m; o\.glb\.visible = false; frameShow\(o\);/); assert.match(SCENE, /if\(o\.glb\) o\.glb\.visible = true; frameShow\(o\); \}/);
+  assert.match(SCENE, /pt\.frame\.visible = !o\.pose;/); assert.match(SCENE, /fr\.visible = !o\.pose; world\.add\(fr\);/); assert.match(SCENE, /if\(pt\.frame && pt\.frame\.visible\) add\('frame'/);
+  /* the old spot fails the same check: the right edge passed x 1.1 */
+  const xOld = 0.98 + sc * (hw * Math.cos(yaw) + 0.011 * Math.sin(yaw)); assert.ok(xOld > 1.1 - 0.05);
 });
 
 test('save messages say who sees the photo; the strings for them exist in both languages', () => {
@@ -453,7 +503,7 @@ test('the scene follows the pets contract with fallbacks: legK in the gait, play
   assert.ok(!/PET_PLAY_Z \* gs/.test(SCENE), 'the toy is put down at the pet\'s own distance');
   assert.match(SCENE, /const toyCarry = t => \{ const v = t\.userData && t\.userData\.carryYaw; return Number\.isFinite\(v\) \? v : Math\.PI \/ 2; \};/);
   assert.match(SCENE, /const airL = Number\.isFinite\(g\.userData\.air\)/); assert.match(SCENE, /pt\.blobMat\.opacity = 0\.34 \* \(0\.3 \+ 0\.7 \* k\)/);
-  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p6';/, 'newer exports are read off the namespace, so an older pets.js still links');
+  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p7';/, 'newer exports are read off the namespace, so an older pets.js still links');
 });
 
 test('an untouched pet form never saves: after the pet is taken out the form shows the default dog, and Save stays off until a field changes', () => {
