@@ -663,6 +663,7 @@ export const OF_CSS = `
 .of-drawer .bk-t{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;font:inherit;font-size:10.5px;color:#3a2f27;background:#f7f1e4;border:2px solid transparent;border-radius:12px;padding:12px 3px 5px;cursor:pointer;transition:border-color .12s,background-color .12s}
 .of-drawer .bk-t:hover{border-color:#d4c9f6;background:#fbf8ff}.of-drawer .bk-t:focus-visible{outline:2px solid #6d5ce7;outline-offset:1px}
 .of-drawer .bk-t img,.of-drawer .bk-t .ph{width:100%;max-width:56px;aspect-ratio:1;display:block}
+.of-drawer .bk-t .ph svg{display:block;width:62%;height:62%;margin:19%;color:#b7791f}
 .of-drawer .bk-t .nm{max-width:100%;font-weight:600;line-height:1.2;text-align:center;overflow-wrap:anywhere}
 .of-drawer .bk-t.lock img{filter:brightness(0);opacity:.62}.of-drawer .bk-t.lock .ph{opacity:.5}
 .of-drawer .bk-sl{position:absolute;top:3px;left:5px;font-size:9px;font-weight:700;color:#8a6a2a}
@@ -1402,7 +1403,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const cards = b.pages.map(pg => {
       const dl = pg.dlg > 0, hid = 'o-bk-' + pg.lvl;
       const tiles = pg.items.map(it => tile(it.slot + '|' + it.id, (ui.gear || {})[it.id] || it.id, it.open, ui['slot.' + it.slot] || it.slot, img(it.id))).join('')
-        + pg.feats.map(f => f === 'pet' ? tile('pet|pet', ui['book.pet'], pg.state === 'done', '', `<span class="ph tx" aria-hidden="true">${esc(ui['book.pet'])}</span>`) : tile('pet|toys', ui['book.toys'], pg.state === 'done', '', img('toy:ball'))).join('');
+        + pg.feats.map(f => f === 'pet' ? tile('pet|pet', ui['book.pet'], pg.state === 'done', '', `<span class="ph" aria-hidden="true">${PAW_SVG}</span>`) : tile('pet|toys', ui['book.toys'], pg.state === 'done', '', img('toy:ball'))).join('');
       const mark = pg.state === 'done' ? `<span class="bk-stamp">${esc(ui['book.done'])}</span>` : pg.state === 'next' ? `<span class="bk-nx">${esc(ui['book.next'])}</span>` : `<span class="bk-lk">${LOCK_SVG}${esc(ui['book.locked'])}</span>`;
       const bars = pg.state !== 'next' ? '' : bar(ui['book.spent'], fm(moneyDown(u.spent)), fm(pg.spent), pg.spentK, hid + '-s')
         + (dl ? bar(ui['book.dlg'], pc1(u.dlg || 0), pc0(pg.dlg), pg.dlgK, hid + '-d') : bar(ui.runs, String(runs), '1', runs, hid + '-d'));
