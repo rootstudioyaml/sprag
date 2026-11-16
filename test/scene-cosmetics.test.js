@@ -590,3 +590,14 @@ test('the collection cards join their item tiles into one string, so no stray co
   assert.match(SCENE, /\.of-drawer \.bk-t\.lock img\{filter:brightness\(0\);opacity:\.62\}/, 'a locked item reads as a dark silhouette');
   assert.doesNotMatch(SCENE, /\.bk-card\.locked\{opacity:/, 'a locked card is not faded on top of its silhouettes');
 });
+
+test('the viewer\'s progress is rounded down, so a share or a spend short of the goal never reads as the goal', async () => {
+  const { moneyDown, pctDown, fmtMoney } = await import('../site/assets/scene/office-scene.js');
+  assert.equal(pctDown(0.009523), '0.9%', '0.952 % is short of 1 % and must not read 1.0 %');
+  assert.equal(pctDown(0.01), '1.0%'); assert.equal(pctDown(0.0105), '1.0%'); assert.equal(pctDown(0.15), '15.0%'); assert.equal(pctDown(0.086), '8.6%');
+  assert.equal(pctDown(0), '0.0%'); assert.equal(pctDown(undefined), '0.0%');
+  assert.equal(fmtMoney(moneyDown(49.996)), '$49.99'); assert.equal(fmtMoney(moneyDown(999.6)), '$999'); assert.equal(fmtMoney(moneyDown(1240)), '$1,240'); assert.equal(fmtMoney(moneyDown(50)), '$50.00');
+  assert.equal(moneyDown(null), 0);
+  assert.doesNotMatch(SCENE, /pc1 = v => \(v \* 100\)\.toFixed\(1\)/, 'no progress figure rounds up');
+  assert.match(SCENE, /bar\(ui\.spent, fm\(moneyDown\(x\.spent\)\)/); assert.match(SCENE, /bar\(ui\['book\.spent'\], fm\(moneyDown\(u\.spent\)\)/);
+});

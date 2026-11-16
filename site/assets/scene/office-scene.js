@@ -1355,14 +1355,14 @@ export function mountOfficeScene(container, data, opts = {}){
     if(key && key !== '||'){ const m = [...chrome.el.querySelectorAll('[data-sh],[data-pf]')].find(e => kf(e) === key); if(m) m.focus({ preventScroll: true }); }
   }
   function unlockHtml(){
-    const u = cur.shop, ui = u.ui || {}, x = unlockNext(u), fm = u.fmt || fmtMoney, pc1 = v => (v * 100).toFixed(1) + '%', pc0 = v => +(v * 100).toFixed(1) + '%';
+    const u = cur.shop, ui = u.ui || {}, x = unlockNext(u), fm = u.fmt || fmtMoney, pc1 = pctDown, pc0 = v => +(v * 100).toFixed(1) + '%';
     const bar = (label, a, b, k, id) => `<div class="ulk-r"><span id="${id}">${esc(label)}</span><b>${esc(a)} / ${esc(b)}</b></div><div class="ulk-bar" role="progressbar" aria-labelledby="${id}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(k * 100)}" aria-valuetext="${esc(a + ' / ' + b)}"><i style="--k:${k.toFixed(3)}"></i></div>`;
     let body = '';
     if(x.top) body = `<p class="ulk-n">${esc(ui.top)}</p>`;
     else if(x.next){
       /* both conditions are needed: the spend bar and either the delegation share bar or, where the level asks only for a delegation, a run count out of one */
       const dl = x.next.dlg > 0, n = x.next.lvl;
-      body = bar(ui.spent, fm(x.spent), fm(x.next.spent), x.spentK, 'o-ulk-s')
+      body = bar(ui.spent, fm(moneyDown(x.spent)), fm(x.next.spent), x.spentK, 'o-ulk-s')
         + (dl ? bar(ui.dlg, pc1(x.dlg), pc0(x.next.dlg), x.dlgK, 'o-ulk-d') : bar(ui.runs, String(Math.min(x.runs, 1)), '1', x.runs > 0 ? 1 : 0, 'o-ulk-d'))
         + `<p class="ulk-n">${esc(fillT(dl ? ui.need : ui.need1, { n, s: fm(x.next.spent), d: pc0(x.next.dlg) }))}</p>`;
       if(x.opens.length) body += `<p class="ulk-n">${esc(fillT(ui.next, { n, x: listOf(x.opens.map(id => id === 'pet' ? ui['item.pet'] : id === 'toys' ? ui['item.toys'] : (ui.gear || {})[id] || id)) }))}</p>`;
@@ -1394,7 +1394,7 @@ export function mountOfficeScene(container, data, opts = {}){
      level's profile frame, what it asks (the server's figures, formatted here), a stamp when reached, the two progress bars on the next goal, and a grid of what
      the level opens. An item that is open shows in colour, a locked one as a silhouette with its name; a tile goes to its tab and picks the item when open. */
   function bookHtml(){
-    const u = cur.shop, ui = u.ui, b = bookOf(u), fm = u.fmt || fmtMoney, pc1 = v => (v * 100).toFixed(1) + '%', pc0 = v => +(v * 100).toFixed(1) + '%', runs = Math.min(1, Number(u.runs) || 0);
+    const u = cur.shop, ui = u.ui, b = bookOf(u), fm = u.fmt || fmtMoney, pc1 = pctDown, pc0 = v => +(v * 100).toFixed(1) + '%', runs = Math.min(1, Number(u.runs) || 0);
     const bar = (label, a, z, k, id) => `<div class="ulk-r"><span id="${id}">${esc(label)}</span><b>${esc(a)} / ${esc(z)}</b></div><div class="ulk-bar" role="progressbar" aria-labelledby="${id}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(k * 100)}" aria-valuetext="${esc(a + ' / ' + z)}"><i style="--k:${k.toFixed(3)}"></i></div>`;
     const tile = (key, label, open, slotLabel, thumb) => `<button type="button" class="bk-t${open ? '' : ' lock'}" data-sh="bkgo" data-v="${esc(key)}" aria-label="${esc(open ? label : label + ', ' + ui['book.locked'])}">`
       + `<span class="bk-sl" aria-hidden="true">${esc(slotLabel)}</span>${thumb}<span class="nm">${esc(label)}</span></button>`;
@@ -1404,7 +1404,7 @@ export function mountOfficeScene(container, data, opts = {}){
       const tiles = pg.items.map(it => tile(it.slot + '|' + it.id, (ui.gear || {})[it.id] || it.id, it.open, ui['slot.' + it.slot] || it.slot, img(it.id))).join('')
         + pg.feats.map(f => f === 'pet' ? tile('pet|pet', ui['book.pet'], pg.state === 'done', '', `<span class="ph tx" aria-hidden="true">${esc(ui['book.pet'])}</span>`) : tile('pet|toys', ui['book.toys'], pg.state === 'done', '', img('toy:ball'))).join('');
       const mark = pg.state === 'done' ? `<span class="bk-stamp">${esc(ui['book.done'])}</span>` : pg.state === 'next' ? `<span class="bk-nx">${esc(ui['book.next'])}</span>` : `<span class="bk-lk">${LOCK_SVG}${esc(ui['book.locked'])}</span>`;
-      const bars = pg.state !== 'next' ? '' : bar(ui['book.spent'], fm(u.spent || 0), fm(pg.spent), pg.spentK, hid + '-s')
+      const bars = pg.state !== 'next' ? '' : bar(ui['book.spent'], fm(moneyDown(u.spent)), fm(pg.spent), pg.spentK, hid + '-s')
         + (dl ? bar(ui['book.dlg'], pc1(u.dlg || 0), pc0(pg.dlg), pg.dlgK, hid + '-d') : bar(ui.runs, String(runs), '1', runs, hid + '-d'));
       return `<section class="bk-card ${pg.state}" aria-labelledby="${hid}"><div class="bk-hd"><span class="bk-lv lv-${pg.lvl}">${esc(lvText(pg.lvl))}</span><b id="${hid}">${esc(fillT(dl ? ui['book.need'] : ui['book.need1'], { s: fm(pg.spent), d: pc0(pg.dlg) }))}</b>${mark}</div>${bars}<div class="bk-grid">${tiles}</div></section>`;
     }).join('');
@@ -3069,6 +3069,11 @@ export function shopTiles(u, slot){
   return GEAR_ITEMS.filter(g => g.slot === slot && g.id in by).map(g => ({ id: g.id, lvl: by[g.id], open: by[g.id] <= lv }));
 }
 export const fmtMoney = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : (Number(v) || 0).toFixed(2));
+/* The viewer's own progress next to a goal is rounded down to what is shown, so a figure short of the goal never reads as the goal: a share of 0.952 %
+ * read "1.0% / 1%" while level 2 stayed shut (2026-11-16), and $49.996 would read "$50.00 / $50". moneyDown keeps whole dollars from $100 (fmtMoney's
+ * precision there) and cents below; pctDown keeps one decimal. The 1e-9 keeps a share computed as 0.15 by the server from showing 14.9 %. */
+export const moneyDown = v => { const n = Number(v) || 0; return n >= 100 ? Math.floor(n + 1e-9) : Math.floor(n * 100 + 1e-9) / 100; };
+export const pctDown = v => (Math.floor((Number(v) || 0) * 1000 + 1e-9) / 10).toFixed(1) + '%';
 /* the shop's strings (office-i18n.js of.sh.*, of.gear.*, of.pet.*), resolved by the page's t() so the scene stays free of i18n */
 export const SHOP_KEYS = ['title', 'scope', 'level', 'spent', 'dlg', 'runs', 'need', 'need1', 'next', 'top', 'ghost', 'open', 'back', 'tabs', 'tab.book', 'tab.head', 'tab.back', 'tab.desk', 'tab.pet', 'book.got', 'book.need', 'book.need1', 'book.done', 'book.next', 'book.locked', 'book.spent', 'book.dlg', 'book.pet', 'book.toys', 'slot.head', 'slot.back', 'slot.desk', 'none', 'locked', 'lockedSr', 'skip', 'skipSr', 'save', 'cancel', 'saving',
   'saved', 'saved.private', 'saved.shared', 'err', 'err.locked', 'err.many', 'err.na', 'err.link', 'err.input', 'err.org', 'pet.locked', 'pet.drop', 'pet.add', 'pet.file', 'pet.change', 'pet.photo', 'pet.bad', 'pet.read', 'pet.readBreed', 'pet.pick',
