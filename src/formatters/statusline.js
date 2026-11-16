@@ -31,7 +31,7 @@ import { modelFamily } from '../savings-ledger.js';
 import { shareLegend } from '../model-share.js';
 import { STAR_URL } from '../star-note.js';
 import { GRADES, speciesLabel } from '../office-species.js';
-import { scorePctOf, nextOf, nextGradeUp, floorPct } from '../team-standing.js';
+import { scorePctOf, nextOf, nextGradeUp, floorPct, rankMonthLabel } from '../team-standing.js';
 import { cellWidth } from '../cell-width.js';
 
 // The 8-color ANSI defaults (RED=31, GREEN=32, YELLOW=33…) read as garish
@@ -403,7 +403,9 @@ const TEAM_STANDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /**
  * Team chip: the member id, the organization and, once the server has told us,
  * the overall-score rank and the animal that member is in the team's virtual
- * office (`member-1a2b3c4d acmeco overall score #3 of 12 🦊 Fox`). Renders only
+ * office (`member-1a2b3c4d acmeco overall score #3 of 12 🦊 Fox`; when the
+ * standing covers one calendar month the month leads the rank: `acmeco Nov
+ * overall score #3 of 12 🦊 Fox`, `acmeco 11월 종합 점수 12명 중 3위 🦊 여우`). Renders only
  * for a joined machine. A missing, unknown or day-old standing leaves just the
  * member label (and the organization, when known). The office page calls the
  * ranked figure the overall score (spend rank, delegation rank, prompt rank). Gray like the other identity chips; the emoji brings its own colour.
@@ -423,7 +425,9 @@ function buildTeamSeg(team, c, mode = 'icon', now = Date.now()) {
   const inTeam = ranked && Number.isInteger(st.teamRank) && Number.isInteger(st.teamRanked)
     && st.teamRank >= 1 && st.teamRanked >= st.teamRank && st.teamRanked < st.ranked && typeof team.team === 'string' && team.team;
   const teamPlace = inTeam ? (team.lang === 'ko' ? `, ${team.team} 팀 ${st.teamRanked}명 중 ${st.teamRank}위` : `, team ${team.team} #${st.teamRank} of ${st.teamRanked}`) : '';
-  const place = ranked ? (team.lang === 'ko' ? ` 종합 점수 ${st.ranked}명 중 ${st.rank}위${teamPlace}` : ` overall score #${st.rank} of ${st.ranked}${teamPlace}`) : '';
+  const month = ranked ? rankMonthLabel(st, team.lang) : null;
+  const monthPre = month ? ` ${month}` : '';
+  const place = ranked ? (team.lang === 'ko' ? `${monthPre} 종합 점수 ${st.ranked}명 중 ${st.rank}위${teamPlace}` : `${monthPre} overall score #${st.rank} of ${st.ranked}${teamPlace}`) : '';
   const org = typeof team.org === 'string' && team.org ? ` ${team.org}` : '';
   // The plan leads (`Pro`, `Enterprise`): the chip describes a licensed team, so
   // the license is the first thing it says, and the standing follows.
@@ -443,6 +447,8 @@ function buildTeamSeg(team, c, mode = 'icon', now = Date.now()) {
  * that has not joined; the chip above stands in on the single-line layouts.
  *   icon:  "👥 Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  🦊 여우 ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 치타 77%  |  종합 3/12위 · 팀 1/4위 · 사용량 2/12위 · 위임률 5/12위"
  *   text:  "Pro · acmeco · DEV-OPS · member-1a2b3c4d  |  Fox 75% → Cheetah 77%  |  overall #3/12 · team #1/4 · spend #2/12 · delegation #5/12"
+ * When the standing covers one calendar month, only the overall entry carries
+ * the month: "11월 종합 3/12위" / "Nov overall #3/12" (crown 👑 stays in front).
  * Text mode draws no gauge, as the other gauges do not. An older server sends no
  * axis ranks, and the second group then holds the overall rank (and the team's).
  */
@@ -497,7 +503,8 @@ function buildTeamLine(team, c, isIcon, g, mode = 'icon', now = Date.now(), colo
           && st.teamRank >= 1 && st.teamRanked >= st.teamRank && st.teamRanked < st.ranked;
         const has = (v) => Number.isFinite(v);
         const rk = (koName, enName, r, n) => (ko ? `${koName} ${r}/${n}위` : `${enName} #${r}/${n}`);
-        const ranks = [`${st.crown && emoji ? '👑 ' : ''}${rk('종합', 'overall', st.rank, st.ranked)}`];
+        const month = rankMonthLabel(st, team.lang);
+        const ranks = [`${st.crown && emoji ? '👑 ' : ''}${rk(month ? `${month} 종합` : '종합', month ? `${month} overall` : 'overall', st.rank, st.ranked)}`];
         if (inTeam) ranks.push(rk('팀', 'team', st.teamRank, st.teamRanked));
         if (has(st.spendRank)) ranks.push(rk('사용량', 'spend', st.spendRank, st.ranked));
         if (has(st.dlgRank)) ranks.push(rk('위임률', 'delegation', st.dlgRank, st.ranked));

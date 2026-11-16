@@ -124,13 +124,16 @@ test('officeSceneData assigns grades, standings, book rows and day/today groups'
   assert.equal(d.people.find(p => p.id === 'm4').detail.groups[1].rows[2][1], '4');
 });
 
-/* a small fixture: person i spends 10 * (i + 1), a share list gives each one a delegation share, runs gives the delegated runs */
-function fixture(shares, { runs = null, noShare = false, spend = null } = {}){
+/* a small fixture: person i spends 10 * (i + 1), a share list gives each one a delegation share, runs gives the delegated runs.
+   The share is savings over spend plus savings (sprag-team 20261116000400), so saved = spent * sh / (1 - sh); delegated_cost carries the same
+   share for the HUD's cost figure. noShare leaves both out: no savings is a share of 0 and the HUD's cost share is unknown. costOnly keeps the cost
+   and no savings, for the HUD's figures. */
+function fixture(shares, { runs = null, noShare = false, spend = null, costOnly = false } = {}){
   const rows = [], usage = {};
   shares.forEach((sh, i) => {
     const id = 'm' + i, spent = spend ? spend[i] : 10 * (i + 1);
     rows.push({ member_id: id, display_name: 'P' + i, team_id: 't1', team_name: 'T', signal: 'ok' });
-    usage[id] = { spent, delegated: runs ? runs[i] : i, saved: 0, ...(noShare ? {} : { delegated_cost: spent * sh }) };
+    usage[id] = { spent, delegated: runs ? runs[i] : i, saved: noShare || costOnly ? 0 : spent * sh / (1 - sh), ...(noShare ? {} : { delegated_cost: spent * sh }) };
   });
   const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
   return officeSceneData({ rows, usage, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: shares.length, limit: 30, orgName: 'O', rangeLabel: '30d', t: tt, rel: x => x, os: () => '' });
@@ -203,7 +206,7 @@ test('one median: the drawer shows the same company median that grading uses (ev
 });
 
 test('HUD: savings and the company delegation share lead the stats; unknown without a known share', () => {
-  const d = fixture([0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6, 0.5, 0.05]);
+  const d = fixture([0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6, 0.5, 0.05], { costOnly: true });
   /* sum of dcost / sum of spent: 10 * (0.1 + 2 * 0.9 + 3 * 0.2 + ...) / 550 */
   const spent = [...Array(10)].map((_, i) => 10 * (i + 1)), sh = [0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6, 0.5, 0.05];
   const want = Math.round(spent.reduce((a, s, i) => a + s * sh[i], 0) / spent.reduce((a, s) => a + s, 0) * 100) + '%';
@@ -225,4 +228,28 @@ test('the drawer prints no em dash placeholder', () => {
   const cells = d.people[0].detail.grid.map(r => r[1]);
   assert.ok(!cells.includes('\u2014'));
   assert.ok(cells.includes('of.unknown'));
+});
+
+/* The delegation axis counts savings over spend plus savings from the day each machine joined (sprag-team 20261116000400, _office_standings),
+   while the spend axis keeps the whole period. Same numbers as standing_smoke.sql (b18..b21) in sprag-team, so the console and the server agree. */
+test('delegation share: savings since the install, not the delegated cost, and spend keeps the pre-install days (server parity)', () => {
+  const day = (d, total, saved, dc = null) => ({ day: d, spent: total, total, saved, delegated_cost: dc });
+  const row = id => ({ member_id: id, display_name: id, team_id: 't1', team_name: 'T', signal: 'ok' });
+  const u = (since, series) => ({ since, series, spent: series.reduce((a, q) => a + q.total, 0), saved: series.reduce((a, q) => a + q.saved, 0),
+    delegated_cost: series.reduce((a, q) => a + (q.delegated_cost || 0), 0) });
+  const usage = {
+    A: u('2026-11-16', [day('2026-11-16', 120, 60, 40)]),
+    B: u('2026-11-16', [day('2026-11-16', 60, 90, 36)]),
+    /* C: $1000 uploaded for the day before joining, then $30 with $5 saved and a huge delegated cost */
+    C: u('2026-11-16', [day('2026-11-15', 1000, 0), day('2026-11-16', 30, 5, 10000)]),
+    D: u('2026-11-16', [day('2026-11-16', 10, 0, 0)]),
+  };
+  const tt = (k, v) => k + (v ? JSON.stringify(v) : '');
+  const d = officeSceneData({ rows: ['A', 'B', 'C', 'D'].map(row), usage, promptRows: null, teams: [{ id: 't1', name: 'T' }], used: 4, limit: 30, orgName: 'O', rangeLabel: 'r', t: tt, rel: x => x, os: () => '' });
+  const share = id => d.people.find(p => p.id === id).detail.cmp.find(c => c.label === 'of.deleg').items[0].v;
+  assert.equal(d.people.find(p => p.id === 'C').spent, 1030, 'spend keeps the day before the install');
+  assert.ok(Math.abs(share('C') - 5 / 35) < 1e-12, 'the share skips it and ignores the delegated cost');
+  assert.ok(Math.abs(share('A') - 60 / 180) < 1e-12);
+  assert.ok(Math.abs(share('B') - 0.6) < 1e-12);
+  assert.equal(share('D'), 0);
 });

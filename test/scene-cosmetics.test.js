@@ -206,10 +206,10 @@ test('review fixes, gear motion and pets: per person phase, reduced motion for h
 });
 
 test('review fixes, demo data: the member demo uses the server thresholds and figures since joining that differ from the period; admin Lv.3 and Lv.4 people delegate enough', () => {
-  assert.match(TOWN, /levels: \[\{ lvl: 1, min_spent: 10, min_dlg: 0 \}, \{ lvl: 2, min_spent: 50, min_dlg: 0\.01 \}, \{ lvl: 3, min_spent: 200, min_dlg: 0\.05 \}, \{ lvl: 4, min_spent: 1000, min_dlg: 0\.1 \},\s*\{ lvl: 5, min_spent: 2500, min_dlg: 0\.15 \}, \{ lvl: 6, min_spent: 5000, min_dlg: 0\.2 \}\]/);
+  assert.match(TOWN, /levels: \[\{ lvl: 1, min_spent: 10, min_dlg: 0 \}, \{ lvl: 2, min_spent: 50, min_dlg: 0\.002 \}, \{ lvl: 3, min_spent: 200, min_dlg: 0\.01 \}, \{ lvl: 4, min_spent: 1000, min_dlg: 0\.03 \},\s*\{ lvl: 5, min_spent: 2500, min_dlg: 0\.07 \}, \{ lvl: 6, min_spent: 5000, min_dlg: 0\.12 \}\]/);
   assert.match(TOWN, /unlock: \{ level: 3, spent: 1240,/);
   const share = Function('return ' + TEAM.match(/const DEMO_SHARE = (\{[^}]*\})/)[1])(), gear = Function('return ' + TEAM.match(/const DEMO_GEAR = (\{[\s\S]*?\});/)[1])();
-  const need = { 3: 0.05, 4: 0.1 };
+  const need = { 3: 0.01, 4: 0.03 };   /* the floors of sprag-team 20261116000400 */
   for(const [i, [lvl]] of Object.entries(gear)) if(lvl >= 3) assert.ok((share[i] || 0.015) >= need[lvl], `machine ${i} at level ${lvl} delegates ${share[i] || 0.015}`);
   assert.match(TEAM, /dr = DEMO_SHARE\[String\(o\.member_id\)\.replace\(\/\^\.\*-m\/, ''\)\] \* k \|\| 0\.015;/);
 });
@@ -579,7 +579,7 @@ test('the member demo shows all six levels in the collection: the server table, 
     plant: 1, lamp: 1, figurine: 2, snowglobe: 2, trophy: 3, lavalamp: 3, aquarium: 4, neon: 4, crystalball: 5, galaxy: 6 };
   for(const [id, lvl] of Object.entries(want)) assert.equal(rows.find(r => r.id === id).lvl, lvl, id);
   const book = bookOf({ level: 3, spent: 1240, dlg: 0.086, petLvl: 2, toysLvl: 3, levels: LEVELS6, items: rows }); assert.equal(book.pages.length, 6); assert.equal(book.total, 32);
-  assert.match(TOWN, /\{ lvl: 5, min_spent: 2500, min_dlg: 0\.15 \}, \{ lvl: 6, min_spent: 5000, min_dlg: 0\.2 \}/);
+  assert.match(TOWN, /\{ lvl: 5, min_spent: 2500, min_dlg: 0\.07 \}, \{ lvl: 6, min_spent: 5000, min_dlg: 0\.12 \}/);
   assert.match(TOWN, /gear: \{ head: 'tophat', back: 'angel', desk: 'lamp' \}, pet: pets\.me/); assert.equal((TOWN.match(/back: '(drake|phoenix)'/g) || []).length, 2, 'two coworkers wear wings');
   assert.match(TOWN, /\[change\.gear\.head, change\.gear\.back, change\.gear\.desk\]\.some/); assert.match(TOWN, /back: change\.gear\.back \|\| null/);
 });

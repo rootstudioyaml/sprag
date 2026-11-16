@@ -6,7 +6,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { standingGuideLines, fieldGuideLines, nextGradeUp, scorePctOf, nextOf } from '../src/team-standing.js';
+import { standingGuideLines, fieldGuideLines, nextGradeUp, scorePctOf, nextOf, rankMonthLabel } from '../src/team-standing.js';
 import { GRADES, SMALL_TEAM, squeezeSr, speciesLabel } from '../src/office-species.js';
 
 const guided = (extra = {}) => ({
@@ -30,7 +30,7 @@ test('the full block in Korean: rank and people ahead, formula, how to move, own
     '순위: acmeco 종합 점수 12명 중 3위 · 🦊 여우 (2026-10-09 ~ 2026-11-07)',
     '  앞에 2명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.',
     '  종합 점수는 기간 지출 순위 62.5%와 위임 비율 순위 37.5%를 더한 값입니다.',
-    '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 같은 지출에서 싼 모델에 맡기는 몫을 늘려야 오릅니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
+    '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 위임이 낸 절감의 몫이 커져야 오릅니다. 이 몫은 설치한 뒤부터 센 절감액 ÷ (지출 + 절감액)입니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
     '  이 PC: 지출 $481.20 · 위임 비율 31% (회사 중앙값 28%) · 점수 백분위 75%',
     '  다음 등급: 🐆 치타. 지금 백분위 75%, 2%p 더 오르면 됩니다 (2명 앞지르기).',
   ]);
@@ -43,7 +43,7 @@ test('the full block in English', () => {
   assert.equal(lines[0], 'Standing: acmeco overall score #3 of 12 · 🦊 Fox (2026-10-09 to 2026-11-07)');
   assert.equal(lines[1], '  2 ahead of you; reach #1 and you wear the crown 👑.');
   assert.equal(lines[2], '  The overall score adds the spend rank (62.5%) and the delegation-share rank (37.5%).');
-  assert.match(lines[3], /^  The spend rank rises with more tokens; the delegation rank rises by handing a larger share of the same spend to cheaper models\. The six species from Wolf up also need a delegation share at or above the company median\.$/);
+  assert.match(lines[3], /^  The spend rank rises with more tokens; the delegation rank rises with the share of savings that delegation brings, counted since this machine joined \(saved ÷ \(spend \+ saved\)\)\. The six species from Wolf up also need a delegation share at or above the company median\.$/);
   assert.equal(lines[4], '  This machine: spent $481.20 · delegation share 31% (company median 28%) · score percentile 75%');
   assert.equal(lines[5], '  Next species: 🐆 Cheetah. Percentile now 75%; 2 pts more and you are there (pass 2).');
   assert.deepEqual(lines.slice(6), fieldGuideLines('fox', 'en'));
@@ -116,7 +116,7 @@ test('an older server: the percentile and the distance are read off the rank, th
     '순위: acmeco 종합 점수 13명 중 4위 · 🦊 여우',
     '  앞에 3명이 있습니다. 1위에 오르면 👑 왕관을 씁니다.',
     '  종합 점수는 기간 지출 순위 62.5%와 위임 비율 순위 37.5%를 더한 값입니다. 프롬프트 수집을 켠 Enterprise 조직은 50%, 30%, 20%로 프롬프트 수 순위까지 더합니다.',
-    '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 같은 지출에서 싼 모델에 맡기는 몫을 늘려야 오릅니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
+    '  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 위임이 낸 절감의 몫이 커져야 오릅니다. 이 몫은 설치한 뒤부터 센 절감액 ÷ (지출 + 절감액)입니다. 늑대 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.',
     '  다음 등급: 🐆 치타. 지금 백분위 75%, 2%p 더 오르면 됩니다 (1명 앞지르기).',
   ]);
   assert.equal(lines.length, 5 + GUIDE_LINES);
@@ -200,4 +200,31 @@ test('small team: a server that sent next: null gets the same line, and four ran
   assert.ok(!standingGuideLines({ ...five, grade: 'fox', rank: 2 }, { lang: 'en' }).join('\n').includes('higher species open'));
   // Alone: the solo line is unchanged.
   assert.match(line({ grade: 'cat', rank: 1, ranked: 1 }, 'en'), /^ {2}Next species: alone, the percentile stays at 50%/);
+});
+
+test('rankMonthLabel: a label only for one calendar month so far', () => {
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-11-01', rangeTo: '2026-11-16' }, 'ko'), '11월');
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-11-01', rangeTo: '2026-11-16' }, 'en'), 'Nov');
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-11-01', rangeTo: '2026-11-16' }), 'Nov');
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-01-01', rangeTo: '2026-01-31' }, 'ko'), '1월');
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-12-01', rangeTo: '2026-12-02' }, 'en'), 'Dec');
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-10-09', rangeTo: '2026-11-07' }, 'ko'), null);
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-11-01', rangeTo: '2026-12-03' }, 'ko'), null);
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-11-01', rangeTo: '2027-11-03' }, 'ko'), null);
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-11-01', rangeTo: '2026-11-31' }, 'ko'), null);
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-13-01', rangeTo: '2026-13-05' }, 'ko'), null);
+  assert.equal(rankMonthLabel({ rangeFrom: '2026-11-01' }, 'ko'), null);
+  assert.equal(rankMonthLabel({ rangeTo: '2026-11-16' }, 'ko'), null);
+  assert.equal(rankMonthLabel({ rangeFrom: null, rangeTo: null }, 'ko'), null);
+  assert.equal(rankMonthLabel({}, 'ko'), null);
+  assert.equal(rankMonthLabel(null, 'ko'), null);
+  assert.equal(rankMonthLabel(undefined), null);
+});
+
+test('standing guide: the month leads the overall rank for a calendar-month period, and only then', () => {
+  const m = guided({ rangeFrom: '2026-11-01', rangeTo: '2026-11-16' });
+  assert.equal(standingGuideLines(m, { lang: 'ko', org: 'acmeco' })[0], '순위: acmeco 11월 종합 점수 12명 중 3위 · 🦊 여우 (2026-11-01 ~ 2026-11-16)');
+  assert.equal(standingGuideLines(m, { lang: 'en', org: 'acmeco' })[0], 'Standing: acmeco Nov overall score #3 of 12 · 🦊 Fox (2026-11-01 to 2026-11-16)');
+  assert.equal(standingGuideLines(m, { lang: 'ko' })[0], '순위: 11월 종합 점수 12명 중 3위 · 🦊 여우 (2026-11-01 ~ 2026-11-16)');
+  assert.doesNotMatch(standingGuideLines(guided(), { lang: 'ko', org: 'acmeco' })[0], /월 종합/);
 });

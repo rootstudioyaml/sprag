@@ -3,14 +3,16 @@
  * standing in the organization's virtual office, what moving up takes, and the
  * field guide of species to climb through.
  *
- * The statusline chip says `Pro member-1a2b3c4d acmeco 종합 점수 12명 중 3위
- * 🦊 여우` and no more. This answers the questions that chip raises: how many
- * people stand ahead, whether the rank is earned by spending more tokens or by
- * using them better, which species is next and what the whole ladder looks
- * like. The score adds the spend rank and the delegation-share rank (and the
- * prompt-count rank where prompt capture is on), so the spend rank rises with
- * more tokens and the delegation rank rises by handing a larger share of the
- * same spend to cheaper models. The species follow the score's percentile
+ * The statusline chip says `Pro member-1a2b3c4d acmeco 11월 종합 점수 12명 중
+ * 3위 🦊 여우` and no more (the standing covers the current calendar month, so
+ * the month leads the rank). This answers the questions that chip raises: how
+ * many people stand ahead, whether the rank is earned by spending more tokens
+ * or by using them better, which species is next and what the whole ladder
+ * looks like. The score adds the spend rank and the delegation-share rank (and
+ * the prompt-count rank where prompt capture is on), so the spend rank rises
+ * with more tokens and the delegation rank rises with the share of savings
+ * that delegation brings, counted since the machine joined (saved ÷ (spend +
+ * saved)). The species follow the score's percentile
  * (GRADES in office-species.js), and the six species from the wolf up also
  * need the delegation share at or above the company median.
  *
@@ -95,6 +97,30 @@ export function nextOf(st, sr = scorePctOf(st)) {
   return { grade: up.key, pass: Math.max(0, Math.ceil((up.minSr - sr) / span * (st.ranked - 1) - 1e-6)), needDlg: up.needDlg && !dlgOk };
 }
 
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * The month the standing covers when its period is one calendar month so far:
+ * `rangeFrom` is the 1st of a month and `rangeTo` a valid date in that same
+ * year and month. Korean `11월`, English `Nov` (a fixed table, no locale
+ * dependency). Null for any other period (a rolling window such as
+ * 2026-10-09..2026-11-07), a missing field or an impossible month.
+ * @param {{ rangeFrom?: string|null, rangeTo?: string|null }|null|undefined} st
+ * @param {'ko'|'en'} [lang]
+ * @returns {string|null}
+ */
+export function rankMonthLabel(st, lang = 'en') {
+  if (!st || typeof st !== 'object') return null;
+  const from = typeof st.rangeFrom === 'string' ? /^(\d{4})-(\d{2})-01$/.exec(st.rangeFrom) : null;
+  const to = typeof st.rangeTo === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(st.rangeTo) : null;
+  if (!from || !to) return null;
+  const month = Number(from[2]);
+  if (month < 1 || month > 12 || from[1] !== to[1] || from[2] !== to[2]) return null;
+  const day = Number(to[3]);
+  if (day < 1 || day > new Date(Date.UTC(Number(to[1]), month, 0)).getUTCDate()) return null;
+  return lang === 'ko' ? `${month}월` : MONTHS_EN[month - 1];
+}
+
 /**
  * @param {object|null|undefined} st team.json `standing`
  * @param {{ lang?: 'ko'|'en', org?: string|null }} [opts]
@@ -124,9 +150,10 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
     return lines;
   }
 
+  const month = rankMonthLabel(st, lang);
   lines.push(ko
-    ? `순위: ${where}종합 점수 ${st.ranked}명 중 ${st.rank}위${teamPlace} · ${animal}${period}`
-    : `Standing: ${where}overall score #${st.rank} of ${st.ranked}${teamPlace} · ${animal}${period}`);
+    ? `순위: ${where}${month ? `${month} ` : ''}종합 점수 ${st.ranked}명 중 ${st.rank}위${teamPlace} · ${animal}${period}`
+    : `Standing: ${where}${month ? `${month} ` : ''}overall score #${st.rank} of ${st.ranked}${teamPlace} · ${animal}${period}`);
 
   // Where that rank puts you: the people ahead, or the crown.
   if (st.crown) {
@@ -159,8 +186,8 @@ export function standingGuideLines(st, { lang = 'en', org = null, team = null } 
       : '  The overall score adds the spend rank (62.5%) and the delegation-share rank (37.5%). An Enterprise organization with prompt capture on uses 50%, 30% and 20%, with the prompt-count rank as the third.');
   }
   lines.push(ko
-    ? `  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 같은 지출에서 싼 모델에 맡기는 몫을 늘려야 오릅니다. ${speciesLabel('wolf', 'ko', { emoji: false })} 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.`
-    : `  The spend rank rises with more tokens; the delegation rank rises by handing a larger share of the same spend to cheaper models. The six species from ${speciesLabel('wolf', 'en', { emoji: false })} up also need a delegation share at or above the company median.`);
+    ? `  지출 순위는 토큰을 더 써야 오르고 위임 비율 순위는 위임이 낸 절감의 몫이 커져야 오릅니다. 이 몫은 설치한 뒤부터 센 절감액 ÷ (지출 + 절감액)입니다. ${speciesLabel('wolf', 'ko', { emoji: false })} 이상 여섯 종은 위임 비율이 회사 중앙값 이상이어야 합니다.`
+    : `  The spend rank rises with more tokens; the delegation rank rises with the share of savings that delegation brings, counted since this machine joined (saved ÷ (spend + saved)). The six species from ${speciesLabel('wolf', 'en', { emoji: false })} up also need a delegation share at or above the company median.`);
 
   // The caller's own figures, when the server sent them.
   if (has(st.dlg) || has(st.spent) || has(st.scorePct)) {

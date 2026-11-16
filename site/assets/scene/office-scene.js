@@ -3300,18 +3300,19 @@ export function officeSceneData(o){
     if(pr) rs.forEach(r => { const p = pr.find(x => x.member_id === r.member_id) || pr.find(x => x.display_name && x.display_name === r.display_name); if(p){ prompts += Number(p.prompts) || 0; chars += Number(p.chars) || 0; promptId = promptId || p.member_id;
       if(p.last_prompt_at && (!lastPrompt || p.last_prompt_at > lastPrompt)) lastPrompt = p.last_prompt_at; (p.by_day || []).forEach(q => { pdays[q.day] = (pdays[q.day] || 0) + (Number(q.prompts) || 0); }); } });
     today += Object.values(todayGw).reduce((a, b) => a + b, 0);
-    /* since-install basis for the HUD's org delegation share only; p.dlg, ranks and grades keep the full-range figures */
+    /* since-install figures: the HUD's org delegation share, and p.dlg, the delegation axis of the ranks and grades: savings over spend plus savings from the day
+       each machine joined (sprag-team 20261116000400 _office_standings). Spend for the spend axis keeps the whole period. A server without `since` gives full-range figures. */
     const sinceUs = rs.map(r => sinceUsage(usage[r.member_id] || {})), spentSince = usageTotal(sinceUs).total;
     let dcostSince = null, savedSince = 0; sinceUs.forEach(u => { const c = num(u.delegated_cost); if(Number.isFinite(c)) dcostSince = (dcostSince || 0) + c; savedSince += Number(u.saved) || 0; });
     const hasSince = rs.some(r => { const u0 = usage[r.member_id]; return !!(u0 && u0.since && Array.isArray(u0.series)); });
     return { id: key, host, rs, spent, spentSince, dcostSince, savedSince, hasSince, local, dcost, codexRuns, unpriced, saved, runs, today, savedToday, delToday, errors, days, pdays, chars, lastPrompt,
-      mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: dcost != null && spent > 0 ? dcost / spent : null };
+      mix: fam ? mix : null, models, prompts, promptId, ok: !closed && rs.some(r => r.signal === 'ok'), dlg: spentSince + savedSince > 0 ? savedSince / (spentSince + savedSince) : 0 };
   });
   all.sort((a, b) => b.spent - a.spent);
   const shown = all.slice(0, MAXP), more = all.length - shown.length;
   const ranked = all.filter(p => p.ok), n = ranked.length;
   const rank = (arr, v) => { if(n < 2) return 0.5; let lo = 0, eq = 0; arr.forEach(x => { if(x < v) lo++; else if(x === v) eq++; }); return (lo + (eq - 1) / 2) / (n - 1); };
-  /* an unknown delegation share ranks as 0 but stays out of the medians */
+  /* the delegation share is never unknown now (0 with nothing since the install); an older shape's null still ranks as 0 and stays out of the medians */
   const sp = ranked.map(p => p.spent), dl = ranked.map(p => p.dlg ?? 0), pm = ranked.map(p => p.prompts), w = pr ? W_FULL : W_NOPR;
   const dlKnown = ranked.map(p => p.dlg).filter(x => x != null);
   const median = a => { if(!a.length) return 0; const q = [...a].sort((x, y) => x - y), m = Math.floor(q.length / 2); return q.length % 2 ? q[m] : (q[m - 1] + q[m]) / 2; };

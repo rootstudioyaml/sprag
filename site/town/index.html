@@ -137,6 +137,7 @@ const PAGE = {
     'pg.p.d30': 'Last 30 days',
     'pg.p.d90': 'Last 90 days',
     'pg.p.custom': 'Custom dates',
+    'pg.rank': '{m} ranking',
     'pg.pfrom': 'Start date',
     'pg.pto': 'End date',
     'pg.pbad': 'Pick a start date on or before the end date. A period can be up to 365 days.',
@@ -160,6 +161,7 @@ const PAGE = {
     'pg.p.d30': '최근 30일',
     'pg.p.d90': '최근 90일',
     'pg.p.custom': '직접 선택',
+    'pg.rank': '{m} 랭킹',
     'pg.pfrom': '시작일',
     'pg.pto': '종료일',
     'pg.pbad': '시작일은 종료일과 같거나 앞서야 하고 기간은 최대 365일입니다.',
@@ -194,6 +196,13 @@ function rel(d){
 }
 const osLabel = r => { const a = [[r.os, r.os_version].filter(Boolean).join(' '), r.arch].filter(Boolean); return a.length ? a.join(' · ') : '—'; };
 /* "Nov 3–Nov 9" / "11.3–11.9", with the year only when it is not this one */
+/* "November ranking" / "11월 랭킹" when the range is one calendar month from its 1st (this month so far, or last month); else '' */
+function monthTitle(r){
+  const a = /^(\d{4})-(\d{2})-01$/.exec((r && r.from) || ''), b = /^(\d{4})-(\d{2})-\d{2}$/.exec((r && r.to) || '');
+  if(!a || !b || a[1] !== b[1] || a[2] !== b[2]) return '';
+  const m = lang === 'ko' ? Number(a[2]) + '월' : new Date(+a[1], +a[2] - 1, 1).toLocaleDateString('en-US', { month: 'long' });
+  return t('pg.rank', { m }, true);
+}
 function rangeLabel(r){
   if(!r || !r.from || !r.to) return '';
   const a = new Date(r.from + 'T00:00:00'), b = new Date(r.to + 'T00:00:00'), y = new Date().getFullYear(), yr = a.getFullYear() !== y || b.getFullYear() !== y;
@@ -253,7 +262,7 @@ function paintHead(){
   if(!view) return;
   $('head').hidden = false;
   const o = view.org || {};
-  $('h-org').textContent = [o.name, rangeLabel(view.range)].filter(Boolean).join(' · ');
+  $('h-org').textContent = [o.name, monthTitle(view.range), rangeLabel(view.range)].filter(Boolean).join(' · ');
   $('h-only').textContent = t('pg.only');
   const sel = $('period');
   if(!sel.options.length) PERIODS.forEach(k => { const o = document.createElement('option'); o.value = k; sel.appendChild(o); });
@@ -377,8 +386,8 @@ function demoTown(){
       /* the unlock figures run since joining, so they differ from this period's ($412.50, 21%): spend is past level 4 and the delegation share is not yet,
          which shows that a level needs both. The thresholds are the server's table (six levels). */
       unlock: { level: 3, spent: 1240, saved: 268.4, dlg: 0.086, runs: 412, pet_lvl: 2, toys_lvl: 3, items,
-        levels: [{ lvl: 1, min_spent: 10, min_dlg: 0 }, { lvl: 2, min_spent: 50, min_dlg: 0.01 }, { lvl: 3, min_spent: 200, min_dlg: 0.05 }, { lvl: 4, min_spent: 1000, min_dlg: 0.1 },
-          { lvl: 5, min_spent: 2500, min_dlg: 0.15 }, { lvl: 6, min_spent: 5000, min_dlg: 0.2 }] },
+        levels: [{ lvl: 1, min_spent: 10, min_dlg: 0 }, { lvl: 2, min_spent: 50, min_dlg: 0.002 }, { lvl: 3, min_spent: 200, min_dlg: 0.01 }, { lvl: 4, min_spent: 1000, min_dlg: 0.03 },
+          { lvl: 5, min_spent: 2500, min_dlg: 0.07 }, { lvl: 6, min_spent: 5000, min_dlg: 0.12 }] },
       gear: { head: 'tophat', back: 'angel', desk: 'lamp' }, pet: pets.me,
     },
   };

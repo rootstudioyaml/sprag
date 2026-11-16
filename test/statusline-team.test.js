@@ -190,3 +190,27 @@ test('readTeamChip: joined, left and never joined; reads only and creates nothin
   saveTeamState({ left: true, displayName: 'member-1a2b3c4d' }, dir);
   assert.equal(readTeamChip({ dir }), null);
 });
+
+const MONTH = { rangeFrom: '2026-11-01', rangeTo: '2026-11-16' };
+
+test('calendar-month standing: the month leads the overall rank on the team line and the chip (ko and en)', () => {
+  const st = standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, scorePct: 0.75, next: { grade: 'cheetah', pass: 2, needDlg: false }, ...AXES, ...MONTH });
+  assert.equal(multi(pro({ lang: 'ko', standing: st }))[0], `${HEAD}🦊 여우 ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 치타 77%  |  11월 종합 3/12위 · 팀 1/4위 · 사용량 2/12위 · 위임률 5/12위`);
+  assert.equal(multi(pro({ lang: 'en', standing: st }))[0], `${HEAD}🦊 Fox ▰▰▰▰▰▰▰▰▰▱▱▱ 75% → 🐆 Cheetah 77%  |  Nov overall #3/12 · team #1/4 · spend #2/12 · delegation #5/12`);
+  // The crown stays in front of the month.
+  assert.match(multi(pro({ lang: 'ko', standing: { ...st, rank: 1, crown: true } }))[0], /\| {2}👑 11월 종합 1\/12위/);
+  // The chip (single-line layout) says the month too.
+  assert.equal(chip(pro({ lang: 'ko', standing: standing({ rank: 3, ranked: 12, ...MONTH }) })), 'Pro member-1a2b3c4d acmeco 11월 종합 점수 12명 중 3위 🦊 여우');
+  assert.equal(chip(pro({ lang: 'en', standing: standing({ rank: 3, ranked: 12, ...MONTH }) })), 'Pro member-1a2b3c4d acmeco Nov overall score #3 of 12 🦊 Fox');
+  assert.equal(chip(pro({ lang: 'ko', standing: standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, ...MONTH }) })), 'Pro member-1a2b3c4d acmeco 11월 종합 점수 12명 중 3위, DEV-OPS 팀 4명 중 1위 🦊 여우');
+});
+
+test('a rolling or missing range leaves the team line and the chip as they were', () => {
+  const rolling = { rangeFrom: '2026-10-09', rangeTo: '2026-11-07' };
+  const st = standing({ rank: 3, ranked: 12, teamRank: 1, teamRanked: 4, scorePct: 0.75, next: { grade: 'cheetah', pass: 2, needDlg: false }, ...AXES });
+  for (const extra of [rolling, { rangeFrom: '2026-11-01', rangeTo: '2026-12-03' }, {}]) {
+    assert.equal(multi(pro({ lang: 'ko', standing: { ...st, ...extra } }))[0], multi(pro({ lang: 'ko', standing: st }))[0]);
+    assert.equal(chip(pro({ lang: 'en', standing: standing({ rank: 3, ranked: 12, ...extra }) })), 'Pro member-1a2b3c4d acmeco overall score #3 of 12 🦊 Fox');
+  }
+  assert.doesNotMatch(multi(pro({ lang: 'ko', standing: { ...st, ...rolling } }))[0], /월 종합/);
+});
