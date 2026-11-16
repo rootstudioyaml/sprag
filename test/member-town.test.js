@@ -221,7 +221,7 @@ test('the town page is standalone, noindex, keeps the token out of the address b
 
 test('the town page has a period picker that calls the same RPC with a range and updates the scene in place', () => {
   assert.match(TOWN, /<select class="per" id="period">/);
-  for(const k of ['month', 'last', 'd7', 'd30', 'd90']) for(const lang of ['en', 'ko']) assert.match(TOWN, new RegExp(`'pg\\.p\\.${k}': '`), `${lang} label for ${k}`);
+  for(const k of ['month', 'last', 'd7', 'd30', 'd90', 'custom']) for(const lang of ['en', 'ko']) assert.match(TOWN, new RegExp(`'pg\\.p\\.${k}': '`), `${lang} label for ${k}`);
   assert.match(TOWN, /\{ p_token: tok, p_from: r\.from, p_to: r\.to \}/, 'the first load sends the range too');
   assert.match(TOWN, /res\.status === 404 && body && body\.code === 'PGRST202'/, 'a server without the period arguments falls back to the token-only call');
   assert.match(TOWN, /sel\.hidden = fixedPeriod/, 'and the picker hides there');
@@ -240,6 +240,30 @@ test('the town page has a period picker that calls the same RPC with a range and
   const rng = vm.runInNewContext(TOWN.slice(a, b) + ';(k => periodRange(k))', { Date: FakeDate, String, Number });
   assert.deepEqual(['month', 'last', 'd7', 'd30', 'd90'].map(k => { const r = rng(k); return r.from + '..' + r.to; }),
     ['2026-11-01..2026-11-12', '2026-10-01..2026-10-31', '2026-11-06..2026-11-12', '2026-10-14..2026-11-12', '2026-08-15..2026-11-12']);
+  // custom dates: valid days, from on or before to, at most 365 days, the console's limits; "custom" without a range falls back to this month
+  const cr = vm.runInNewContext(TOWN.slice(a, b) + ';({ customRange, periodRange, set: c => { custom = c; } })', { Date: FakeDate, String, Number, Math, JSON });
+  assert.deepEqual(JSON.parse(JSON.stringify(cr.periodRange('custom'))), { from: '2026-11-01', to: '2026-11-12' });
+  assert.deepEqual(JSON.parse(JSON.stringify(cr.customRange('2026-09-03', '2026-09-20'))), { from: '2026-09-03', to: '2026-09-20' });
+  assert.deepEqual(JSON.parse(JSON.stringify(cr.customRange('2026-09-20', '2026-09-20'))), { from: '2026-09-20', to: '2026-09-20' });
+  for(const [f, e] of [['2026-09-21', '2026-09-20'], ['2026-02-30', '2026-03-01'], ['', '2026-03-01'], ['2025-01-01', '2026-01-01']]) assert.equal(cr.customRange(f, e), null, f + '..' + e);
+  assert.ok(cr.customRange('2025-01-02', '2026-01-01'), '365 days is allowed');
+  cr.set({ from: '2026-09-03', to: '2026-09-20' });
+  assert.deepEqual(JSON.parse(JSON.stringify(cr.periodRange('custom'))), { from: '2026-09-03', to: '2026-09-20' });
+  // the date inputs, their change handler, and the custom range kept for the tab like the choice
+  assert.match(TOWN, /<input type="date" class="per" id="pc-from" \/><i>–<\/i><input type="date" class="per" id="pc-to" \/>/);
+  assert.match(TOWN, /\$\('pc'\)\.hidden = fixedPeriod \|\| period !== 'custom'/);
+  assert.match(TOWN, /changePeriod\('custom', rng\)/);
+  assert.match(TOWN, /ssSet\(CUSTOM_KEY, JSON\.stringify\(custom\)\)/);
+});
+
+test('the console and ops date range open on this month, like the member town and the statusline standing', () => {
+  for(const f of ['site/team/index.html', 'site/ops/index.html']){
+    const html = read('../' + f);
+    assert.match(html, /else \{ const d = bounds\('this'\); from = ymd\(d\[0\]\); to = ymd\(d\[1\]\); \}/, f + ' default');
+    assert.match(html, /if\(key === 'this'\)\{ q\.delete\('from'\); q\.delete\('to'\); \}/, f + ' keeps the default out of the address');
+    assert.ok(!/bounds\('30d'\); from =/.test(html), f + ' no 30-day default left');
+  }
+  assert.match(TOWN, /\(p => PERIODS\.includes\(p\) && \(p !== 'custom' \|\| custom\) \? p : 'month'\)/);
 });
 
 test('the member town says nothing about the period being fixed', () => {

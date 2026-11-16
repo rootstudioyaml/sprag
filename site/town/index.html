@@ -52,6 +52,8 @@
   .head .per{border:1px solid var(--line2);background:var(--surface);color:var(--ink);border-radius:var(--r);padding:4px 8px;font:500 12.5px/1.4 var(--sans)}
   .head .per:hover:not(:disabled){border-color:var(--accent2)}
   .head .per:disabled{opacity:.6;cursor:progress}
+  .head .pc{display:inline-flex;align-items:center;gap:6px}
+  .head .pc i{font-style:normal;color:var(--dim)}
   .head .busy,.head .perr{font-size:12px}
   .head .busy{color:var(--faint)}
   .head .perr{color:var(--warn)}
@@ -91,6 +93,7 @@
     <div class="hrow">
       <h1 id="h-org"></h1>
       <select class="per" id="period"></select>
+      <span class="pc" id="pc" hidden><input type="date" class="per" id="pc-from" /><i>–</i><input type="date" class="per" id="pc-to" /></span>
       <span class="busy" id="h-busy" role="status" hidden></span>
     </div>
     <p class="perr" id="h-err" role="alert" hidden></p>
@@ -133,6 +136,10 @@ const PAGE = {
     'pg.p.d7': 'Last 7 days',
     'pg.p.d30': 'Last 30 days',
     'pg.p.d90': 'Last 90 days',
+    'pg.p.custom': 'Custom dates',
+    'pg.pfrom': 'Start date',
+    'pg.pto': 'End date',
+    'pg.pbad': 'Pick a start date on or before the end date. A period can be up to 365 days.',
     'pg.busy': 'Updating',
     'pg.pnet': 'Could not load that period. Showing the previous one.',
     'pg.exp': 'Link valid until {when}',
@@ -152,6 +159,10 @@ const PAGE = {
     'pg.p.d7': '최근 7일',
     'pg.p.d30': '최근 30일',
     'pg.p.d90': '최근 90일',
+    'pg.p.custom': '직접 선택',
+    'pg.pfrom': '시작일',
+    'pg.pto': '종료일',
+    'pg.pbad': '시작일은 종료일과 같거나 앞서야 하고 기간은 최대 365일입니다.',
     'pg.busy': '불러오는 중',
     'pg.pnet': '이 기간을 불러오지 못했습니다. 이전 기간을 그대로 보여 줍니다.',
     'pg.exp': '링크 유효 시간: {when}까지',
@@ -204,10 +215,19 @@ function takeToken(){
   return have && TOKEN_RE.test(have) ? have : null;
 }
 
-/* ── period: presets computed in the browser in local dates (YYYY-MM-DD); the choice lives in this tab only ── */
-const PERIODS = ['month', 'last', 'd7', 'd30', 'd90'], PERIOD_KEY = 'sprag.town.p';
+/* ── period: presets computed in the browser in local dates (YYYY-MM-DD), or custom dates (from..to, at most MAX_DAYS like the console);
+   the choice lives in this tab only ── */
+const PERIODS = ['month', 'last', 'd7', 'd30', 'd90', 'custom'], PERIOD_KEY = 'sprag.town.p', CUSTOM_KEY = 'sprag.town.pc', MAX_DAYS = 365;
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const parseDay = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); if(!m) return null; const d = new Date(+m[1], +m[2] - 1, +m[3]); return ymd(d) === s ? d : null; };
+/* a usable custom range: both days valid, from on or before to, at most MAX_DAYS days; else null */
+function customRange(from, to){
+  const a = parseDay(from), b = parseDay(to);
+  return a && b && a <= b && Math.round((b - a) / 864e5) + 1 <= MAX_DAYS ? { from, to } : null;
+}
+let custom = null;   /* the custom range in use ({ from, to }), kept beside the choice */
 function periodRange(k){
+  if(k === 'custom' && custom) return { from: custom.from, to: custom.to };
   const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate();
   const back = days => ({ from: ymd(new Date(y, m, d - days + 1)), to: ymd(new Date(y, m, d)) });
   if(k === 'last') return { from: ymd(new Date(y, m - 1, 1)), to: ymd(new Date(y, m, 0)) };
@@ -216,7 +236,8 @@ function periodRange(k){
   if(k === 'd90') return back(90);
   return { from: ymd(new Date(y, m, 1)), to: ymd(new Date(y, m, d)) };
 }
-let period = (p => PERIODS.includes(p) ? p : 'month')(ssGet(PERIOD_KEY)), busy = false;
+custom = (() => { try{ const c = JSON.parse(ssGet(CUSTOM_KEY) || 'null'); return c ? customRange(c.from, c.to) : null; }catch(e){ return null; } })();
+let period = (p => PERIODS.includes(p) && (p !== 'custom' || custom) ? p : 'month')(ssGet(PERIOD_KEY)), busy = false;
 
 /* ── state ── */
 let view = null, mod = null, ctl = null, shown = '';   /* view: the town_view reply; shown: which language the mounted scene was built for */
@@ -238,6 +259,9 @@ function paintHead(){
   if(!sel.options.length) PERIODS.forEach(k => { const o = document.createElement('option'); o.value = k; sel.appendChild(o); });
   [...sel.options].forEach(o => { o.textContent = t('pg.p.' + o.value); });
   sel.value = period; sel.disabled = busy; sel.hidden = fixedPeriod; sel.setAttribute('aria-label', t('pg.period'));
+  $('pc').hidden = fixedPeriod || period !== 'custom';
+  const cr = periodRange(period);
+  [['pc-from', cr.from, 'pg.pfrom'], ['pc-to', cr.to, 'pg.pto']].forEach(([id, v, k]) => { const i = $(id); if(document.activeElement !== i) i.value = v; i.disabled = busy; i.setAttribute('aria-label', t(k)); });
   $('head').setAttribute('aria-busy', String(busy));
   $('h-busy').hidden = !busy; $('h-busy').textContent = busy ? t('pg.busy') : '';
   const when = view.expires_at ? new Date(view.expires_at).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US') : '';
@@ -441,15 +465,24 @@ async function load(){
 }
 
 /* a new period: same scene, new numbers (ctl.update, no remount). A network or server error keeps the old view and says so; an invalid link ends the page like a first load would. */
-async function changePeriod(next){
+/* Choosing "custom" starts from the dates on screen, so nothing reloads until a date changes; rng is the new custom range. */
+async function changePeriod(next, rng){
   const tok = ssGet(TOKEN_KEY);
-  if(!view || busy || next === period || !PERIODS.includes(next)) return paintHead();
+  if(!view || busy || !PERIODS.includes(next)) return paintHead();
+  if(next === 'custom' && !rng){
+    if(period !== 'custom'){ const v = view.range || {}; custom = customRange(v.from, v.to) || periodRange(period); period = 'custom'; ssSet(PERIOD_KEY, period); ssSet(CUSTOM_KEY, JSON.stringify(custom)); }
+    return paintHead();
+  }
+  if(next === period && (next !== 'custom' || (custom && rng.from === custom.from && rng.to === custom.to))) return paintHead();
   if(!tok || !TOKEN_RE.test(tok)) return showMsg('pg.invalid');
+  const prev = custom;
+  if(next === 'custom') custom = rng;
   busy = true; $('h-err').hidden = true; paintHead();
   const r = await fetchTown(tok, next);
   busy = false;
+  if(!r.ok) custom = prev;
   if(r.ok){
-    period = next; ssSet(PERIOD_KEY, period); view = r.body;
+    period = next; ssSet(PERIOD_KEY, period); if(period === 'custom') ssSet(CUSTOM_KEY, JSON.stringify(custom)); view = r.body;
     if(mod && ctl && !failed){ paintHead(); ctl.update(sceneData()); shown = lang; } else show();
     return;
   }
@@ -461,6 +494,13 @@ async function changePeriod(next){
   $('h-err').textContent = t('pg.pnet'); $('h-err').hidden = false;
 }
 $('period').addEventListener('change', e => changePeriod(e.target.value));
+['pc-from', 'pc-to'].forEach(id => $(id).addEventListener('change', () => {
+  const f = $('pc-from').value, e = $('pc-to').value;
+  if(!f || !e) return;
+  const rng = customRange(f, e);
+  if(!rng){ $('h-err').textContent = t('pg.pbad'); $('h-err').hidden = false; return; }
+  changePeriod('custom', rng);
+}));
 
 /* ── language ── */
 function setLang(next, remember){

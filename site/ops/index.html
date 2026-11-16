@@ -1214,12 +1214,12 @@ const Range = (function(){
   let from, to, key, err = '', host = null; const subs = [];
   (function(){
     const q = new URLSearchParams(location.search), a = parse(q.get('from')), b = parse(q.get('to'));
-    if(a && b && a <= b && spanOf(a, b) <= MAXD){ from = ymd(a); to = ymd(b); } else { const d = bounds('30d'); from = ymd(d[0]); to = ymd(d[1]); }
+    if(a && b && a <= b && spanOf(a, b) <= MAXD){ from = ymd(a); to = ymd(b); } else { const d = bounds('this'); from = ymd(d[0]); to = ymd(d[1]); }   /* default: this month, the same period as the member town and the statusline */
     key = keyOf(from, to);
   })();
   function persist(){
     const q = new URLSearchParams(location.search);
-    if(key === '30d'){ q.delete('from'); q.delete('to'); } else { q.set('from', from); q.set('to', to); }
+    if(key === 'this'){ q.delete('from'); q.delete('to'); } else { q.set('from', from); q.set('to', to); }
     const s = q.toString();
     try{ history.replaceState(history.state, '', location.pathname + (s ? '?' + s : '') + location.hash); }catch(e){}
   }
