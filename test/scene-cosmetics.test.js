@@ -611,3 +611,14 @@ test('the ops office reads org_cosmetics like the team page, so the platform adm
   const mount = OPS.slice(OPS.indexOf('ctl = mod.mountOfficeScene'), OPS.indexOf('ctl = mod.mountOfficeScene') + 900);
   assert.match(mount, /petPhotos, breeds: petBreeds,/); assert.ok(!/shop:/.test(mount), 'no shop on the ops page');
 });
+
+test('every scene module a page loads carries one query, the string table included', () => {
+  /* 2026-11-16: office-scene.js moved to 3.129.1-1 by hand while office-i18n.js stayed on 3.129.1, so browsers kept the cached string table and the
+     shop showed raw keys (of.sh.tab.book, of.gear.angel). A hand bump has to move every /assets/scene module on the page at once. */
+  for(const [name, html] of [['town', TOWN], ['team', TEAM], ['ops', OPS]]){
+    const q = [...html.matchAll(/\/assets\/scene\/[a-z0-9-]+\.js\?v=([^'"]+)/g)].map(m => m[1]);
+    assert.ok(q.length >= 1, name); assert.equal(new Set(q).size, 1, `${name}: ${q.join(', ')}`);
+  }
+  const scene = [...TOWN.matchAll(/office-scene\.js\?v=([^'"]+)/g)][0][1];
+  assert.equal([...TOWN.matchAll(/office-i18n\.js\?v=([^'"]+)/g)][0][1], scene); assert.equal([...TEAM.matchAll(/office-i18n\.js\?v=([^'"]+)/g)][0][1], scene);
+});
