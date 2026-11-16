@@ -7,6 +7,7 @@ import {
   capNewest, versionLabel, buildParentMessage, parseEnvFile, verdictLine,
   splitAnalysis, buildPosts,
   parseAnthropicPricing, parseOpenAIPricing, diffAnthropicPrices, diffOpenAIPrices, newModels, findingsDigest, buildPricingMessage,
+  needsSummary, buildSummaryMessage, localDate,
 } from '../scripts/upstream-watch.mjs';
 
 const CHANGELOG = `# Changelog
@@ -280,4 +281,39 @@ test('buildPricingMessage counts findings, leaves empty sections out, and avoids
   const fetchFail = buildPricingMessage({ openai: [{ kind: 'fetch', source: 'openai', page: 'u', reason: 'timeout' }], date: '2026-11-07' });
   assert.ok(fetchFail.includes('가격 페이지 확인 실패'));
   assert.ok(fetchFail.includes('차이 1건'));
+});
+
+test('needsSummary: quiet runs and failures get a summary, a run that posted cleanly does not', () => {
+  assert.equal(needsSummary([{ product: 'claude', status: 'quiet' }, { product: 'pricing', status: 'quiet' }]), true);
+  assert.equal(needsSummary([{ product: 'pricing', status: 'held', count: 2 }]), true);
+  assert.equal(needsSummary([{ product: 'claude', status: 'posted', version: '2.1.326' }, { product: 'codex', status: 'quiet' }]), false);
+  assert.equal(needsSummary([{ product: 'claude', status: 'posted', version: '2.1.326' }, { product: 'codex', status: 'failed', error: 'x' }]), true);
+});
+
+test('buildSummaryMessage: one line per product, failure count in the header', () => {
+  const quiet = buildSummaryMessage({
+    date: '2026-11-16',
+    results: [
+      { product: 'claude', status: 'quiet', version: '2.1.325' },
+      { product: 'codex', status: 'quiet', version: '0.169.0' },
+      { product: 'pricing', status: 'held', count: 3 },
+    ],
+  });
+  assert.ok(quiet.startsWith('*릴리스 점검 (2026-11-16): 새 소식 없음*'));
+  assert.ok(quiet.includes('Claude Code: 새 버전이 없습니다 (최신 2.1.325)'));
+  assert.ok(quiet.includes('Codex: 새 버전이 없습니다 (최신 0.169.0)'));
+  assert.ok(quiet.includes('가격표: 차이 3건이 남아 있고'));
+  assert.equal(/[·—]/.test(quiet), false);
+
+  const broken = buildSummaryMessage({
+    date: '2026-11-16',
+    results: [{ product: 'codex', status: 'failed', error: 'gh api failed: HTTP 502' }, { product: 'pricing', status: 'quiet' }],
+  });
+  assert.ok(broken.startsWith('*릴리스 점검 (2026-11-16): 실패 1건*'));
+  assert.ok(broken.includes('Codex: 점검하지 못했습니다 (gh api failed: HTTP 502)'));
+  assert.ok(broken.includes('가격표: 공식 가격과 차이가 없습니다'));
+});
+
+test('localDate uses the local calendar day', () => {
+  assert.equal(localDate(new Date(2026, 10, 16, 6, 0)), '2026-11-16');
 });

@@ -41,6 +41,11 @@
  * src/cost.js and src/openai-prices.js. It makes no LLM call. It posts only when
  * there is a difference that differs from the last posted one, so an unfixed
  * difference is not repeated every day. `--dry-run --only pricing` prints the message.
+ *
+ * A run that posted nothing, or in which a product failed, ends with one summary
+ * message listing each product's state (no new version, findings already posted,
+ * or the error). A quiet day is then visible in the channel and cannot be
+ * mistaken for a run that never happened. `--dry-run` prints the summary instead.
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -511,6 +516,43 @@ export function buildPricingMessage({ anthropic = [], openai = [], newAnthropic 
   return lines.join('\n');
 }
 
+/**
+ * True when the run should end with a one-message summary: nothing reached the
+ * channel, or a product failed. Without it a quiet day and a broken run looked
+ * the same from Slack (an empty channel), and only the launchd log told them apart.
+ */
+export function needsSummary(results) {
+  return results.some((r) => r.status === 'failed') || !results.some((r) => r.status === 'posted');
+}
+
+function summaryLine(r) {
+  const name = r.product === 'pricing' ? '가격표' : PRODUCTS[r.product].name;
+  switch (r.status) {
+    case 'posted':
+      return r.product === 'pricing' ? `• ${name}: 차이 ${r.count}건을 위에 올렸습니다` : `• ${name}: ${r.version} 소식을 위에 올렸습니다`;
+    case 'held':
+      return `• ${name}: 차이 ${r.count}건이 남아 있고 이미 알린 내용과 같습니다`;
+    case 'failed':
+      return `• ${name}: 점검하지 못했습니다 (${String(r.error || '').slice(0, 200)})`;
+    default:
+      if (r.product === 'pricing') return `• ${name}: 공식 가격과 차이가 없습니다`;
+      return r.version ? `• ${name}: 새 버전이 없습니다 (최신 ${r.version})` : `• ${name}: 새 버전이 없습니다`;
+  }
+}
+
+/** Slack mrkdwn (Korean) for the end-of-run summary, one line per product. */
+export function buildSummaryMessage({ date, results }) {
+  const failed = results.filter((r) => r.status === 'failed').length;
+  const head = failed ? `*릴리스 점검 (${date}): 실패 ${failed}건*` : `*릴리스 점검 (${date}): 새 소식 없음*`;
+  return [head, ...results.map(summaryLine)].join('\n');
+}
+
+/** YYYY-MM-DD in the machine's time zone, so a 06:00 KST run is dated today, not yesterday in UTC. */
+export function localDate(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 // ---------------------------------------------------------------------------
 // Everything below touches the network, the disk or a child process.
 
@@ -630,14 +672,14 @@ async function runProduct(product, opts, state, contract, slack) {
   const found = product === 'claude' ? await gatherClaude(since) : gatherCodex(since);
   if (!found.versions.length) {
     console.log(`${name}: no new versions${since ? ` since ${since}` : ''}`);
-    return { ok: true };
+    return { status: 'quiet', version: found.latest ?? since };
   }
   const { versions, skipped, links } = found;
   console.log(`${name}: ${versions.length} new version(s) ${versionLabel(versions)}${skipped ? `, ${skipped} older skipped` : ''}`);
 
   if (opts.noLlm) {
     printExcerpts(product, versions);
-    return { ok: true };
+    return { status: 'posted', version: versionLabel(versions) };
   }
 
   const analysis = analyze(buildPrompt({ product, versions, contract }));
@@ -647,7 +689,7 @@ async function runProduct(product, opts, state, contract, slack) {
     console.log('--- parent message ---');
     console.log(parent);
     chunks.forEach((c, i) => { console.log(`--- thread reply ${i + 1}/${chunks.length} ---`); console.log(c); });
-    return { ok: true };
+    return { status: 'posted', version: versionLabel(versions) };
   }
 
   const ts = await slackPost(slack, parent);
@@ -655,7 +697,7 @@ async function runProduct(product, opts, state, contract, slack) {
   writeState({ ...state, [product]: versions[0].version });
   state[product] = versions[0].version;
   console.log(`${name}: posted ${versionLabel(versions)} (${chunks.length} reply message(s))`);
-  return { ok: true };
+  return { status: 'posted', version: versionLabel(versions) };
 }
 
 /** One official page, parsed. A failed fetch or a parse with no rows becomes a `fetch` finding, never "no differences". */
@@ -701,16 +743,16 @@ async function runPricing(opts, state, getSlack) {
   console.log(`Pricing: ${findings.length} finding(s), ${newAnthropic.length + newOpenAI.length} new model(s)`);
   if (opts.dryRun) {
     if (findings.length) { console.log('--- message ---'); console.log(message); }
-    return { ok: true };
+    return findings.length ? { status: 'posted', count: findings.length } : { status: 'quiet' };
   }
   if (!findings.length) {
     writeState(nextState());
     Object.assign(state, nextState());
-    return { ok: true };
+    return { status: 'quiet' };
   }
   if (digest === prev.lastDigest) {
     console.log('Pricing: same findings as the last post, not posting again');
-    return { ok: true };
+    return { status: 'held', count: findings.length };
   }
   const slack = getSlack();
   const chunks = chunkText(message, SLACK_CHUNK);
@@ -719,7 +761,7 @@ async function runPricing(opts, state, getSlack) {
   writeState(nextState());
   Object.assign(state, nextState());
   console.log(`Pricing: posted ${findings.length} finding(s)`);
-  return { ok: true };
+  return { status: 'posted', count: findings.length };
 }
 
 async function main(argv) {
@@ -736,14 +778,35 @@ async function main(argv) {
     if (!opts.dryRun && llmProducts.length) slack = slackConfig(opts.envFile);
   } catch (e) { console.error(`upstream-watch: ${e.message}`); return 1; }
 
-  let failed = false;
+  const getSlack = () => { slack = slack || slackConfig(opts.envFile); return slack; };
+  const results = [];
   for (const product of products) {
     try {
-      if (product === 'pricing') await runPricing(opts, state, () => slack || slackConfig(opts.envFile));
-      else await runProduct(product, opts, state, contract, slack);
+      const r = product === 'pricing'
+        ? await runPricing(opts, state, getSlack)
+        : await runProduct(product, opts, state, contract, slack);
+      results.push({ product, ...r });
     } catch (e) {
-      failed = true;
+      results.push({ product, status: 'failed', error: e.message });
       console.error(`upstream-watch: ${PRODUCTS[product].name}: ${e.message}`);
+    }
+  }
+  const failed = results.some((r) => r.status === 'failed');
+
+  // --no-llm prints excerpts for a person at the terminal; a summary adds nothing there.
+  if (!opts.noLlm && needsSummary(results)) {
+    const summary = buildSummaryMessage({ date: localDate(), results });
+    if (opts.dryRun) {
+      console.log('--- summary ---');
+      console.log(summary);
+    } else {
+      try {
+        await slackPost(getSlack(), summary);
+        console.log('Summary: posted');
+      } catch (e) {
+        console.error(`upstream-watch: summary: ${e.message}`);
+        return 1;
+      }
     }
   }
   return failed ? 1 : 0;
