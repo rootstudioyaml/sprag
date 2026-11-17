@@ -110,6 +110,75 @@ test('stray ANSI escapes and blank lines are dropped', async ($, on) => {
   expect(await band.findAll({ type: 'Text' })).toHaveLength(2)
 })
 
+test('the band width reaches sprag as --columns, so it wraps at chip boundaries', async ($, on) => {
+  const w = world(on, 'desktop', { exitCode: 0, stdout: 'Opus | Ctx 12%\n' })
+  on('turn.complete', () => ({ text: '' }))
+  await completeTurn($)
+  // The first run knows no width yet; the draw learns it and runs again
+  expect(w.ran[0].argv).toEqual(['sprag', '--statusline', '--no-color'])
+  await $.ui.mount({ plugin: 'sprag-statusline', surface: 'desktop', component: 'AbovePrompt', props: { ...props, bodyColumns: 64 } })
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setTimeout(resolve, 0))
+  expect(w.ran.at(-1)?.argv).toEqual(['sprag', '--statusline', '--no-color', '--columns', '64'])
+})
+
+test('a command that names its own width keeps it', async ($, on) => {
+  const w = world(on, 'desktop', { exitCode: 0, stdout: 'x\n' }, { statusLine: { command: 'sprag --statusline --columns 90' } })
+  on('turn.complete', () => ({ text: '' }))
+  await completeTurn($)
+  await $.ui.mount({ plugin: 'sprag-statusline', surface: 'desktop', component: 'AbovePrompt', props: { ...props, bodyColumns: 64 } })
+  await completeTurn($)
+  expect(w.ran.at(-1)?.argv).toEqual(['sprag', '--statusline', '--columns', '90', '--no-color'])
+})
+
+test('an engine older than 2.1.326 gets no clip props', async ($, on) => {
+  world(on, 'desktop', { exitCode: 0, stdout: 'Opus | Ctx 12%\n' })
+  on('session.version', () => ({ value: { version: '2.1.325', base: '2.1.325' } }))
+  on('turn.complete', () => ({ text: '' }))
+  await completeTurn($)
+  const band = await $.ui.mount({ plugin: 'sprag-statusline', surface: 'desktop', component: 'AbovePrompt', props })
+  const [box] = await band.findAll({ type: 'Box' })
+  const [text] = await band.findAll({ type: 'Text' })
+  expect(box.props.overflowX).toBeUndefined()
+  expect(text.props.wrap).toBeUndefined()
+  expect(text.text).toBe('Opus | Ctx 12%')
+})
+
+test('an engine that cannot tell its version counts as older', async ($, on) => {
+  world(on, 'desktop', { exitCode: 0, stdout: 'Opus | Ctx 12%\n' })
+  on('session.version', () => {
+    throw new Error('no version here')
+  })
+  on('turn.complete', () => ({ text: '' }))
+  await completeTurn($)
+  const band = await $.ui.mount({ plugin: 'sprag-statusline', surface: 'desktop', component: 'AbovePrompt', props })
+  const [text] = await band.findAll({ type: 'Text' })
+  expect(text.props.wrap).toBeUndefined()
+  expect(text.text).toBe('Opus | Ctx 12%')
+})
+
+test('an engine at 2.1.326 or later scrolls a wide line instead of wrapping it', async ($, on) => {
+  world(on, 'desktop', { exitCode: 0, stdout: 'Opus | Ctx 12%\n' })
+  on('session.version', () => ({ value: { version: '2.1.326', base: '2.1.326' } }))
+  on('turn.complete', () => ({ text: '' }))
+  await completeTurn($)
+  // The engine running this test checks the tree as well. One older than
+  // 2.1.326 skips the hook ('Box prop "overflowX" is not allowed', seen on
+  // 2.1.319 on 2026-11-18), which is why the mod asks for the version first.
+  // There this case ends; `claude` 2.1.326 or later runs it all.
+  let band
+  try {
+    band = await $.ui.mount({ plugin: 'sprag-statusline', surface: 'desktop', component: 'AbovePrompt', props })
+  } catch (err) {
+    if (/prop "(overflowX|wrap|maxLines)"[^\n]*not allowed|must be one of/.test(String(err))) return
+    throw err
+  }
+  const [box] = await band.findAll({ type: 'Box' })
+  const [text] = await band.findAll({ type: 'Text' })
+  expect(box.props.overflowX).toBe('scroll')
+  expect(text.props.wrap).toBe('clip')
+  expect(text.text).toBe('Opus | Ctx 12%')
+})
+
 test('session.usage figures reach the statusline as its stdin keys', async ($, on) => {
   const w = world(on, 'desktop', { exitCode: 0, stdout: 'x\n' })
   on('turn.complete', () => ({ text: '' }))

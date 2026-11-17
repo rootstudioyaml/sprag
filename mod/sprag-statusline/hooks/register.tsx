@@ -99,6 +99,36 @@ export function statuslinePayload(input: {
   return payload
 }
 
+/**
+ * The argv with `--columns <n>` added, so sprag fits its chips to the band and
+ * wraps them at chip boundaries instead of the band wrapping them mid-chip. A
+ * command that already names its width, or an unknown width, is left as it is.
+ */
+export function withColumns(argv: string[], columns: number | undefined): string[] {
+  if (!columns || !Number.isFinite(columns) || columns < 20) return argv
+  if (argv.includes('--columns')) return argv
+  return [...argv, '--columns', String(Math.floor(columns))]
+}
+
+// First engine whose Box takes overflowX="scroll" and whose Text takes
+// wrap="clip". Older engines check a tree's props by name and value and skip a
+// hook whose tree has one they do not know, so the band would vanish there.
+export const CLIP_MIN_VERSION = '2.1.326'
+
+/** Whether a release version (`2.1.326`, `2.1.330-dev`) is at least `min`. */
+export function atLeast(version: string | undefined, min: string): boolean {
+  const parse = (v: string) => /^(\d+)\.(\d+)\.(\d+)/.exec(v)?.slice(1).map(Number)
+  const a = version ? parse(version) : undefined
+  const b = parse(min)
+  if (!a || !b) return false
+  for (let i = 0; i < 3; i++) {
+    const x = a[i] ?? 0
+    const y = b[i] ?? 0
+    if (x !== y) return x > y
+  }
+  return true
+}
+
 /** Output with stray ANSI escapes removed and blank lines dropped. */
 export function cleanOutput(text: string): string[] {
   return text
@@ -111,6 +141,19 @@ export function cleanOutput(text: string): string[] {
 
 let isRunning = false
 let timer: { cancel: () => void } | undefined
+// The band's width as the last draw saw it; the next run fits the text to it
+let bandColumns: number | undefined
+// Whether this engine takes the clip props; read once, after a reload again
+let canClip: Promise<boolean> | undefined
+
+/** Whether the engine is CLIP_MIN_VERSION or later. An engine that cannot say counts as older. */
+function engineCanClip($: EngineInterface): Promise<boolean> {
+  canClip ??= $.session
+    .version()
+    .then(v => atLeast(v.base ?? v.version, CLIP_MIN_VERSION))
+    .catch(() => false)
+  return canClip
+}
 
 /** Runs the statusline once and stores its text; any failure leaves the last text as it was. */
 async function refresh($: EngineInterface): Promise<void> {
@@ -125,7 +168,7 @@ async function refresh($: EngineInterface): Promise<void> {
       $.session.usage(),
       $.settings.read(),
     ])
-    const run = await $.process.run(statuslineArgv(settings), {
+    const run = await $.process.run(withColumns(statuslineArgv(settings), bandColumns), {
       stdin: JSON.stringify(statuslinePayload({ sessionId, cwd, model, usage })),
       timeoutMs: RUN_TIMEOUT_MS,
     })
@@ -158,15 +201,27 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.surface !== 'desktop' || e.props.hasSurvey) return next(e)
+    // A new width refits the text now rather than at the next tick
+    const columns = e.props.bodyColumns
+    if (typeof columns === 'number' && columns !== bandColumns) {
+      bandColumns = columns
+      void refresh($)
+    }
     const shown = (await read($, lines)).slice(0, Math.max(0, e.props.maxRows))
     if (!shown.length) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
+    // On an engine that has them, a line wider than the band stays on its row
+    // and scrolls sideways instead of wrapping in the middle of a chip. They go
+    // in as spreads so the module still type-checks against older engine types.
+    const clip = await engineCanClip($)
+    const boxProps = clip ? { overflowX: 'scroll' as const } : {}
+    const textProps = clip ? { wrap: 'clip' as const } : {}
     // One statusline line per row; a Box lays its children out in a row unless told otherwise
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" {...boxProps}>
         {shown.map((line, i) => (
-          <Text key={`line-${i}`} dimColor>
+          <Text key={`line-${i}`} dimColor {...textProps}>
             {line}
           </Text>
         ))}
