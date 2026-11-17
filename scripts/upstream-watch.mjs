@@ -140,6 +140,34 @@ export function pickCodexReleases(list, sinceExclusive) {
   return sinceExclusive == null ? out.slice(0, 1) : out;
 }
 
+/**
+ * True when a Codex release body says nothing about what changed: no list item
+ * other than the "Full Changelog" link, or the "No verified release highlights"
+ * placeholder. 0.169.1 (2026-11-18) shipped such a body while adding GPT-6.2
+ * Sol and Astra to the model catalogs, and the analysis reported no change.
+ */
+export function isThinReleaseBody(body) {
+  const text = String(body || '');
+  if (/No verified release highlights/i.test(text)) return true;
+  return !text.split('\n').some((l) => /^\s*[-*]\s+\S/.test(l) && !/Full Changelog/i.test(l));
+}
+
+/** The previous stable rust-vX.Y.Z version below `version` in a releases list, or null. */
+export function previousCodexVersion(list, version) {
+  const stable = pickCodexReleases(list, '0.0.0').map((r) => r.version);
+  return stable.find((v) => cmpVersion(v, version) < 0) ?? null;
+}
+
+/** A thin body with the commit subjects of the release appended, so the analysis has something to read. */
+export function withCommitSubjects(body, subjects, max = 60) {
+  // The release commit's subject is a Markdown heading ("## Chores"), not a change.
+  const lines = subjects.map((s) => String(s || '').split('\n')[0].trim()).filter((s) => s && !s.startsWith('#'));
+  if (!lines.length) return body;
+  const shown = lines.slice(0, max).map((s) => `- ${s}`);
+  if (lines.length > max) shown.push(`- (and ${lines.length - max} more commits)`);
+  return `${String(body || '').trim()}\n\n## Commits in this release (the release notes list no changes)\n${shown.join('\n')}`;
+}
+
 /** The newest `max` entries of a newest-first list, and how many were left out. */
 export function capNewest(list, max = MAX_VERSIONS) {
   return { kept: list.slice(0, max), skipped: Math.max(0, list.length - max) };
@@ -624,6 +652,15 @@ function gatherCodex(since) {
   try { list = JSON.parse(r.stdout); } catch { throw new Error('gh api returned something that is not JSON'); }
   const found = pickCodexReleases(list, since);
   const { kept, skipped } = capNewest(found);
+  for (const v of kept) {
+    if (!isThinReleaseBody(v.body)) continue;
+    const prev = previousCodexVersion(list, v.version);
+    if (!prev) continue;
+    const c = spawnSync('gh', ['api', `repos/openai/codex/compare/rust-v${prev}...rust-v${v.version}`, '--jq', '.commits[].commit.message | split("\n")[0]'],
+      { encoding: 'utf8', timeout: 60_000, maxBuffer: 20 * 1024 * 1024 });
+    // The release still goes out with its own body when the compare call fails.
+    if (c.status === 0) v.body = withCommitSubjects(v.body, c.stdout.split('\n'));
+  }
   return { versions: kept, skipped, links: kept.map((v) => `<${v.url}|${v.version}>`) };
 }
 

@@ -8,6 +8,7 @@ import {
   splitAnalysis, buildPosts,
   parseAnthropicPricing, parseOpenAIPricing, diffAnthropicPrices, diffOpenAIPrices, newModels, findingsDigest, buildPricingMessage,
   needsSummary, buildSummaryMessage, localDate,
+  isThinReleaseBody, previousCodexVersion, withCommitSubjects,
 } from '../scripts/upstream-watch.mjs';
 
 const CHANGELOG = `# Changelog
@@ -324,4 +325,36 @@ test('buildSummaryMessage: one line per product, failure count in the header', (
 
 test('localDate uses the local calendar day', () => {
   assert.equal(localDate(new Date(2026, 10, 16, 6, 0)), '2026-11-16');
+});
+
+test('isThinReleaseBody: the empty Codex 0.169.1 body is thin, a body with changes is not', () => {
+  const empty = '## Chores\n\nNo verified release highlights available.\n\n## Changelog\n\nFull Changelog: https://github.com/openai/codex/compare/rust-v0.169.0...rust-v0.169.1';
+  assert.equal(isThinReleaseBody(empty), true);
+  assert.equal(isThinReleaseBody('## Changelog\n\n- Full Changelog: https://example.invalid/compare'), true);
+  assert.equal(isThinReleaseBody(''), true);
+  assert.equal(isThinReleaseBody('## New Features\n- Add GPT-6.2 Sol to the model picker'), false);
+});
+
+test('previousCodexVersion: the stable tag below, skipping alphas and drafts', () => {
+  const list = [
+    { tag_name: 'rust-v0.169.1' },
+    { tag_name: 'rust-v0.171.0-alpha.12', prerelease: true },
+    { tag_name: 'rust-v0.169.0' },
+    { tag_name: 'rust-v0.168.0', draft: true },
+    { tag_name: 'rust-v0.167.2' },
+  ];
+  assert.equal(previousCodexVersion(list, '0.169.1'), '0.169.0');
+  assert.equal(previousCodexVersion(list, '0.169.0'), '0.167.2');
+  assert.equal(previousCodexVersion(list, '0.167.2'), null);
+});
+
+test('withCommitSubjects: appends subjects, drops the release heading, caps the list', () => {
+  const out = withCommitSubjects('## Chores', ['Add GPT-6.2 Sol and Astra to model catalogs (#62106)', '## Chores', '', 'Fix X\n\nbody']);
+  assert.ok(out.startsWith('## Chores\n\n## Commits in this release'));
+  assert.ok(out.includes('- Add GPT-6.2 Sol and Astra to model catalogs (#62106)'));
+  assert.ok(out.includes('- Fix X'));
+  assert.ok(!out.includes('- ## Chores'));
+  assert.equal(withCommitSubjects('body', []), 'body');
+  const many = withCommitSubjects('b', Array.from({ length: 5 }, (_, i) => `c${i}`), 3);
+  assert.ok(many.includes('- c2') && !many.includes('- c3') && many.includes('(and 2 more commits)'));
 });
