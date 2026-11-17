@@ -26,8 +26,8 @@ import { makeFur, softNight } from './fur.js?v=f1';
 import { parseManifest, pickVariant, pickCell, relAzimuth, elevOk, nightTint, wantVariant, makeSpriteKit, zoomOk, cardOf } from './sprites.js?v=s2';   /* Blender fur sprites of the seated animals; the query keeps the module in step with this file */
 import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g6';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { normalizePetLook, pickPets, petPlan, petHash, makePet, makeBowls, makeToy, makeToyBasket, makePhotoFrame, disposePetShared, PET_MAX, petLookFromPixels, PET_KINDS, PET_PATTERNS, PET_EARS, PET_TAILS, PET_SIZES, PET_NAME_MAX, PET_COAT_MAX, PET_DEFAULTS,
-  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed, PET_TOYS, PET_TAGS, PET_NECKS } from './pets.js?v=p8';
-import * as PETS_NS from './pets.js?v=p8';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
+  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed, PET_TOYS, PET_TAGS, PET_BODIES, PET_HATS, PET_WINGS } from './pets.js?v=p9';
+import * as PETS_NS from './pets.js?v=p9';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
 import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared } from './gear.js?v=g5';   /* unlockable head, wing and desk gear; the query keeps the module in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 /* the gear.js makers a pet's hat and wings are built with (pets.js imports none of them, so the scene hands them in) */
@@ -590,7 +590,7 @@ export const OF_CSS = `
 .of-drawer .pet-vis .vd{margin:-2px 0 2px 20px;font-size:11px;line-height:1.4;color:#5a4a3c}
 .of-drawer .pet-ex{display:flex;align-items:center;gap:8px;margin:0 0 2px 20px;font-size:11px;color:#5a4a3c}.of-drawer .pet-ex i{flex:none;width:34px;height:42px;box-sizing:border-box;border:4px solid #f5e6d3;box-shadow:0 0 0 1px rgba(60,40,20,.25),0 2px 4px rgba(60,40,20,.18);background:#efe4cf center/cover no-repeat}
 .of-drawer .pet-rng{position:relative}.of-drawer .pet-rng::before{content:"";position:absolute;left:50%;top:17px;width:1px;height:5px;margin-left:-.5px;background:#a8987f;pointer-events:none}   /* the default, 0.5 */
-.of-drawer .pet-pv{cursor:zoom-in}.of-drawer .sh-note.bn{margin:0;font-size:11px;color:#5a4a3c}
+.of-drawer .pg-s{display:flex;flex-direction:column;gap:6px}.of-drawer .pg-h{margin:2px 0 0;font-size:12px;font-weight:700;color:#3a2f27}.of-drawer .pet-pv{cursor:zoom-in}.of-drawer .sh-note.bn{margin:0;font-size:11px;color:#5a4a3c}
 .of-drawer .ck{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#3a2f27}.of-drawer input[type=radio],.of-drawer .ck input[type=checkbox]{accent-color:#6d5ce7;width:14px;height:14px;margin:0;flex:none}
 .of-drawer .ck:has(input:disabled){cursor:default;color:#8a7a6a}
 .of-drawer .pet-cks{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px}.of-drawer .pet-c.in{margin-top:4px}
@@ -1350,7 +1350,8 @@ export function mountOfficeScene(container, data, opts = {}){
      the card are redressed); Save calls opts.shop.save, Cancel and a failure put the saved choice back. The pet tab reads a photo in this browser
      (petLookFromPixels) into a form with a small turning preview; the photo itself goes to the page through save's extra argument and stays local. ── */
   let shop = null, shopNa = false, naNote = false, thumbR = null, pv = null; const thumbs = {};
-  const SHOP_TABS = ['book', 'head', 'back', 'desk', 'pet'];   /* the collection comes first, then the three gear slots and the pet */
+  const SHOP_TABS = ['book', 'head', 'back', 'desk', 'pet', 'petgear'];   /* the collection comes first, then the three gear slots, the pet and its goods */
+  const petTab = t => t === 'pet' || t === 'petgear';   /* the two tabs edit one look (shop.pet), with one preview and one save */
   const shopFor = o => !!(o && o.p && o.p.self && cur.shop && opts.shop && typeof opts.shop.save === 'function' && !shopNa && !cur.closed);
   const fillT = (s, v) => { let r = String(s || ''); for(const k in v) r = r.split('{' + k + '}').join(String(v[k])); return r; };
   const listOf = a => { const lang = document.documentElement.lang || 'en'; if(/^ko/.test(lang)) return a.join(', ');   /* Korean lists join with commas, never with 및 */
@@ -1361,7 +1362,7 @@ export function mountOfficeScene(container, data, opts = {}){
     /* share: the photo visibility choice (the server's state to begin with); mem: the last colour per coat position, so a pattern switched back gets it again;
        open: which form groups are expanded (kept across re-renders) */
     return { look: look || { ...PET_DEFAULTS, coat: [PET_SPARE[0]] }, had: !!look, photo: null, shown: (u.pet && typeof u.pet.photo === 'string' && u.pet.photo) || null, read: false, dirty: false,
-      share: u.photoShared === true, mem: (look ? look.coat : [PET_SPARE[0]]).slice(), hex: {}, open: (shop && shop.pet && shop.pet.open) || { basic: true, coat: true, shape: false, face: false, wear: false, toy: false } };
+      share: u.photoShared === true, mem: (look ? look.coat : [PET_SPARE[0]]).slice(), hex: {}, open: (shop && shop.pet && shop.pet.open) || { basic: true, coat: true, shape: false, face: false } };
   }
   /* under 520 px the open shop is a sheet over the page (CSS .of-sheet): the page under it stops scrolling until it closes */
   function sheetSync(on){ const s = !!on && window.innerWidth < 520; stage.classList.toggle('of-sheet', s); document.documentElement.classList.toggle('of-sheet-on', s); }
@@ -1394,7 +1395,7 @@ export function mountOfficeScene(container, data, opts = {}){
       body = bar(ui.spent, fm(moneyDown(x.spent)), fm(x.next.spent), x.spentK, 'o-ulk-s')
         + (dl ? bar(ui.dlg, pc1(x.dlg), pc0(x.next.dlg), x.dlgK, 'o-ulk-d') : bar(ui.runs, String(Math.min(x.runs, 1)), '1', x.runs > 0 ? 1 : 0, 'o-ulk-d'))
         + `<p class="ulk-n">${esc(fillT(dl ? ui.need : ui.need1, { n, s: fm(x.next.spent), d: pc0(x.next.dlg) }))}</p>`;
-      if(x.opens.length) body += `<p class="ulk-n">${esc(fillT(ui.next, { n, x: listOf(x.opens.map(id => id === 'pet' ? ui['item.pet'] : id === 'toys' ? ui['item.toys'] : (ui.gear || {})[id] || id)) }))}</p>`;
+      if(x.opens.length) body += `<p class="ulk-n">${esc(fillT(ui.next, { n, x: listOf(x.opens.map(id => id === 'pet' ? ui['item.pet'] : id === 'toys' ? ui['item.toys'] : id.startsWith('pg:') ? fillT(ui['pg.opens'], { n: id.slice(3) }) : (ui.gear || {})[id] || id)) }))}</p>`;
     }
     const ghost = sel && sel.ghost ? `<p class="ulk-g">${esc(ui.ghost)}</p>` : '';   /* a ghost wears nothing: say why, and keep saving possible */
     return `<div class="ulk" role="group" aria-labelledby="o-ulk-h"><div class="ulk-h"><b id="o-ulk-h">${esc(ui.title)}</b><span class="badge lvb">${esc(lvText(x.level))}</span><small>${esc(ui.scope)}</small></div>${body}${ghost}<button type="button" class="of-dbtn out" data-sh="open">${esc(ui.open)}</button></div>`;
@@ -1409,15 +1410,45 @@ export function mountOfficeScene(container, data, opts = {}){
   /* one slot's tiles and the bar under the panel. Head items the viewer's present animal does not draw (its horns, antlers or ears leave no room for it, gear.js headGearSkips;
      wings the same way for a species with wings of its own, backGearSkips)
      stay selectable, since the animal changes with rank; the tile and a note under the grid say so */
+  /* one tile of a shop grid. o: act (the data-sh action), slot (data-slot, pet goods), id ('' is the none tile), th (the thumbnail key when it is not the id), name, noneTx (text for
+     the none tile instead of the crossed circle), open, lvl, pressed, skip, dis. The gear tabs and the pet goods tab share this markup. */
+  const shopTile = (ui, o) => { const sk = !!o.skip, th = o.th || o.id, tip = [o.open ? '' : fillT(ui.lockedSr, { n: o.lvl }), sk ? ui.skipSr : ''].filter(Boolean).join(' ');
+    return `<button type="button" class="sh-tile" aria-pressed="${!!o.pressed}"${o.open ? '' : ' aria-disabled="true"'}${tip ? ` title="${esc(tip)}"` : ''} data-sh="${o.act}"${o.slot ? ` data-slot="${o.slot}"` : ''} data-v="${o.id || ''}"${o.dis || ''}>`
+      + (o.id ? `<img alt="" data-th="${esc(th)}"${thumbs[th] ? ` src="${thumbs[th]}"` : ''}>` : o.noneTx ? `<span class="ph tx" aria-hidden="true">${esc(o.noneTx)}</span>` : `<span class="ph" aria-hidden="true">${NONE_SVG}</span>`) + `<span class="nm">${esc(o.name)}</span>`
+      + (sk ? `<span class="sk" aria-hidden="true">${HIDE_SVG}</span><span class="of-sr">${esc(ui.skipSr)}</span>` : '')
+      + (o.open ? '' : `<span class="lk" aria-hidden="true">${LOCK_SVG}${esc(fillT(ui.locked, { n: o.lvl }))}</span><span class="of-sr">${esc(fillT(ui.lockedSr, { n: o.lvl }))}</span>`) + '</button>'; };
   function gearHtml(slot){
     const u = cur.shop, ui = u.ui, now = shop.draft[slot], dirty = gearDirty(), skips = !sel ? [] : slot === 'head' ? headGearSkips(sel.gk) : slot === 'back' ? backGearSkips(sel.gk) : [];
-    const tile = (id, name, open, lvl) => { const sk = !!id && skips.includes(id), tip = [open ? '' : fillT(ui.lockedSr, { n: lvl }), sk ? ui.skipSr : ''].filter(Boolean).join(' ');
-      return `<button type="button" class="sh-tile" aria-pressed="${now === id}"${open ? '' : ' aria-disabled="true"'}${tip ? ` title="${esc(tip)}"` : ''} data-sh="pick" data-v="${id || ''}">`
-        + (id ? `<img alt="" data-th="${esc(id)}"${thumbs[id] ? ` src="${thumbs[id]}"` : ''}>` : `<span class="ph" aria-hidden="true">${NONE_SVG}</span>`) + `<span class="nm">${esc(name)}</span>`
-        + (sk ? `<span class="sk" aria-hidden="true">${HIDE_SVG}</span><span class="of-sr">${esc(ui.skipSr)}</span>` : '')
-        + (open ? '' : `<span class="lk" aria-hidden="true">${LOCK_SVG}${esc(fillT(ui.locked, { n: lvl }))}</span><span class="of-sr">${esc(fillT(ui.lockedSr, { n: lvl }))}</span>`) + '</button>'; };
+    const tile = (id, name, open, lvl) => shopTile(ui, { act: 'pick', id, name, open, lvl, pressed: now === id, skip: !!id && skips.includes(id) });
     const note = now && skips.includes(now) ? `<p class="sh-note sk" role="status">${esc(ui.skip)}</p>` : '';
     return [`<div class="sh-grid" role="group" aria-label="${esc(ui['tab.' + slot])}">${tile(null, ui.none, true, 0)}${shopTiles(u, slot).map(t => tile(t.id, ui.gear[t.id] || t.id, t.open, t.lvl)).join('')}</div>` + note, shopFoot(dirty, dirty)];
+  }
+  /* The pet goods tab (after the pet): the pet's collar and tag, hat, wings, harness and clothes, and toys, each a grid of tiles like the gear tabs (a none tile, then every item of
+     the slot, a locked one with its level). A pick edits the look the pet tab edits (shop.pet.look), so the two tabs share one draft, one preview and one save. The
+     toys' none tile is Auto: the pet picks one as before. A pet is needed first: the tab says so and links to the pet tab. */
+  const PG_SECTIONS = [['pet_head', 'hat', 'pg.head'], ['pet_back', 'wing', 'pg.back'], ['pet_body', 'body', 'pg.body'], ['pet_toy', 'toy', 'pg.toy']];
+  function petGearHtml(){
+    const u = cur.shop, ui = u.ui, lv = lvOf(u.level), pl = u.petLvl, op = ui.opt || {};
+    if(pl == null || lv < pl) return [`<p class="sh-note">${esc(fillT(ui['pet.locked'], { n: pl == null ? LV_MAX : pl }))}</p>`, ''];
+    const P = shop.pet, L = P.look, dis = shop.busy ? ' disabled' : '';
+    if(!P.had) return [`<p class="sh-note">${esc(ui['pg.nopet'])}</p><button type="button" class="of-dbtn out" data-sh="tab" data-v="pet"${dis}>${esc(ui['pg.toPet'])}</button>`, ''];
+    /* the collar and its tag come first: collar tiles (none, the collar), the colour while it is on, then the tag tiles (the round one is the default), switched off with a note while there is no collar */
+    const colItems = shopTiles(u, 'pet_collar'), tagItems = shopTiles(u, 'pet_tag'), colOn = !!L.collar;
+    const colHtml = !colItems.length && !tagItems.length ? '' : `<section class="pg-s"><h4 class="pg-h" id="o-pg-collar">${esc(ui['pg.collar'])}</h4>`
+      + (!colItems.length ? '' : `<div class="sh-grid" role="group" aria-label="${esc(ui['pet.collar'])}">${shopTile(ui, { act: 'pgpick', slot: 'pet_collar', id: '', name: ui.none, open: true, pressed: !colOn, dis })}`
+        + colItems.map(t => shopTile(ui, { act: 'pgpick', slot: 'pet_collar', id: t.id, th: 'pcol:' + t.id, name: ui['pet.collar'], open: t.open, lvl: t.lvl, pressed: colOn, dis })).join('') + '</div>')
+      + (!colOn ? '' : `<div class="pet-row"><label for="o-pf-collar">${esc(ui['pet.collarColor'])}</label><div class="pet-inl"><input type="color" id="o-pf-collar" data-pf="collar" value="${esc(L.collar)}"${dis}></div></div>`)
+      + (!tagItems.length ? '' : (colOn ? '' : `<p class="sh-note">${esc(ui['pg.tagNote'])}</p>`) + `<div class="sh-grid" role="group" aria-label="${esc(ui['pet.tag'])}">`
+        + tagItems.map(t => shopTile(ui, { act: 'pgpick', slot: 'pet_tag', id: t.id, th: 'ptag:' + t.id, name: op['tag.' + t.id] || t.id, open: t.open, lvl: t.lvl, pressed: (L.tag || PET_TAGS[0]) === t.id, dis: dis || (colOn ? '' : ' disabled') })).join('') + '</div>') + '</section>';
+    const sections = colHtml + PG_SECTIONS.map(([slot, key, hk]) => {
+      const items = shopTiles(u, slot); if(!items.length) return '';
+      const toy = slot === 'pet_toy', bodyS = slot === 'pet_body';
+      const none = shopTile(ui, { act: 'pgpick', slot, id: '', name: toy ? ui['pet.toyAuto'] : ui.none, noneTx: toy ? ui['pet.toyAuto'] : '', open: true, pressed: !L[key], dis });
+      const tiles = items.map(t => shopTile(ui, { act: 'pgpick', slot, id: t.id, th: toy ? 'toy:' + t.id : bodyS ? 'pbody:' + t.id : t.id, name: toy ? op['toy.' + t.id] || t.id : bodyS ? op['body.' + t.id] || t.id : ui.gear[t.id] || t.id,
+        open: t.open, lvl: t.lvl, pressed: L[key] === t.id, dis })).join('');
+      return `<section class="pg-s"><h4 class="pg-h" id="o-pg-${slot}">${esc(ui[hk])}</h4><div class="sh-grid" role="group" aria-labelledby="o-pg-${slot}">${none}${tiles}</div></section>`;
+    }).join('');
+    return [`<div class="pet-wrap"><div class="pet-f">${sections}</div><div class="pet-pvc"><div class="pet-pv" role="button" tabindex="0" data-sh="pvopen" aria-label="${esc(ui['pet.zoom'])}" title="${esc(ui['pet.zoom'])}"></div></div></div>`, shopFoot(P.dirty, P.dirty)];
   }
   /* The collection (the first tab): the viewer's level table as a book. One card per level the server's table lists: the level badge in the look of that
      level's profile frame, what it asks (the server's figures, formatted here), a stamp when reached, the two progress bars on the next goal, and a grid of what
@@ -1480,22 +1511,6 @@ export function mountOfficeScene(container, data, opts = {}){
     const hexDef = k => (typeof HEX_DEF[k] === 'object' ? HEX_DEF[k][L.kind] : HEX_DEF[k]);
     const auto = k => `<div class="pet-row" role="group" aria-labelledby="o-pf-${k}-l"><span id="o-pf-${k}-l">${esc(ui['pet.' + k])}</span><div class="pet-inl"><label class="ck"><input type="checkbox" id="o-pf-auto-${k}" data-pf="auto-${k}"${L[k] ? '' : ' checked'}${dis}>${esc(ui['pet.auto'])}</label>`
       + `<input type="color" id="o-pf-${k}" data-pf="${k}" aria-labelledby="o-pf-${k}-l" value="${esc(L[k] || P.hex[k] || hexDef(k))}"${L[k] ? dis : ' disabled'}></div></div>`;
-    const collar = `<div class="pet-row" role="group" aria-labelledby="o-pf-collar-l"><span id="o-pf-collar-l">${esc(ui['pet.collar'])}</span><div class="pet-inl"><label class="ck"><input type="checkbox" id="o-pf-use-collar" data-pf="use-collar"${L.collar ? ' checked' : ''}${dis}>${esc(ui['pet.collarOn'])}</label>`
-      + `<input type="color" id="o-pf-collar" data-pf="collar" aria-label="${esc(ui['pet.collarColor'])}" value="${esc(L.collar || P.hex.collar || HEX_DEF.collar)}"${L.collar ? dis : ' disabled'}></div></div>`;
-    /* the toy: Auto (a hash of the owner picks one, as before) or one of the toys; shown once the toys level is reached */
-    const toyTile = id => `<button type="button" class="sh-tile" aria-pressed="${(L.toy || '') === id}" data-sh="toy" data-v="${id}"${dis}>`
-      + (id ? `<img alt="" data-th="toy:${esc(id)}"${thumbs['toy:' + id] ? ` src="${thumbs['toy:' + id]}"` : ''}>` : `<span class="ph tx" aria-hidden="true">${esc(ui['pet.toyAuto'])}</span>`)
-      + `<span class="nm">${esc(id ? op['toy.' + id] || id : ui['pet.toyAuto'])}</span></button>`;
-    /* the accessories group: the collar, the tag on it (the five shapes, disabled while there is no collar), a neck piece, then hat and wing tiles. Only what the
-       member has unlocked shows (locked tiles are not listed; with none open a single note says how to get them). The tiles reuse the gear thumbnails. */
-    const sel2 = (k, list, pre, now, none, off = '') => row('o-pf-' + k, ui['pet.' + k], `<select id="o-pf-${k}" data-pf="${k}"${dis}${off}>${list.map(v => `<option value="${v === none ? '' : v}"${now === v ? ' selected' : ''}>${esc(op[pre + v] || v)}</option>`).join('')}</select>`);
-    const wTile = (act, now, id, name) => `<button type="button" class="sh-tile" aria-pressed="${(now || '') === id}" data-sh="${act}" data-v="${id}"${dis}>`
-      + (id ? `<img alt="" data-th="${esc(id)}"${thumbs[id] ? ` src="${thumbs[id]}"` : ''}>` : `<span class="ph" aria-hidden="true">${NONE_SVG}</span>`) + `<span class="nm">${esc(name)}</span></button>`;
-    const wRow = (act, now, items, label, lid) => `<div class="pet-row" role="group" aria-labelledby="${lid}"><span id="${lid}">${esc(label)}</span><div class="sh-grid">${wTile(act, now, '', ui.none)}${items.map(t => wTile(act, now, t.id, ui.gear[t.id] || t.id)).join('')}</div></div>`;
-    const hats = shopTiles(u, 'head').filter(t => t.open), wings = shopTiles(u, 'back').filter(t => t.open);
-    const wearRows = !hats.length && !wings.length ? `<p class="sh-note">${esc(ui['pet.wearNone'])}</p>`
-      : (hats.length ? wRow('pethat', L.hat, hats, ui['pet.hat'], 'o-pf-hat-l') : '') + (wings.length ? wRow('petwing', L.wing, wings, ui['pet.wing'], 'o-pf-wing-l') : '');
-    const toyGrp = !toyOn ? '' : `<details class="pet-g" data-g="toy"${P.open.toy ? ' open' : ''}><summary>${esc(ui['pet.toy'])}</summary><div class="pet-gb"><div class="sh-grid" role="group" aria-label="${esc(ui['pet.toy'])}">${['', ...PET_TOYS].map(toyTile).join('')}</div></div></details>`;
     const grp = (k, body) => `<details class="pet-g" data-g="${k}"${P.open[k] ? ' open' : ''}><summary>${esc(ui['pet.g.' + k])}</summary><div class="pet-gb">${body}</div></details>`;
     const rm = !u.pet ? '' : `<div class="sh-rm">${P.ask ? `<p class="sh-note" role="alert">${esc(ui['pet.ask'])}</p><div class="row"><button type="button" class="of-dbtn warn" data-sh="petclear"${dis}>${esc(ui['pet.remove'])}</button><button type="button" class="of-dbtn plain" data-sh="petkeep"${dis}>${esc(ui['pet.keep'])}</button></div>`
       : `<button type="button" class="lnk" data-sh="petask"${dis}>${esc(ui['pet.remove'])}</button>`}</div>`;
@@ -1504,18 +1519,22 @@ export function mountOfficeScene(container, data, opts = {}){
       + grp('basic', sel1('size', PET_SIZES, 'size.') + row('o-pf-name', ui['pet.name'], `<input type="text" id="o-pf-name" data-pf="name" maxlength="${PET_NAME_MAX}" autocomplete="off" value="${esc(L.name || '')}"${dis}>`))
       + grp('coat', sel1('pattern', PET_PATTERNS, 'pat.') + `<div class="pet-cols" role="group" aria-label="${esc(ui['pet.colors'])}">${cols}</div>` + sel1('fur', PET_FUR_LIST, 'fur.') + rng('fluff') + marks)
       + grp('shape', sel1('ear', PET_EARS, 'ear.') + rng('earsize') + sel1('tail', PET_TAILS, 'tail.') + rng('snout') + rng('legs') + rng('length') + rng('build'))
-      + grp('face', auto('eye') + auto('nose')) + grp('wear', collar + sel2('tag', PET_TAGS, 'tag.', L.tag || PET_TAGS[0], null, L.collar ? '' : ' disabled') + sel2('neck', ['none', ...PET_NECKS], 'neck.', L.neck || 'none', 'none') + wearRows) + toyGrp + rm
+      + grp('face', auto('eye') + auto('nose')) + rm
       + `</div><div class="pet-pvc"><div class="pet-pv" role="button" tabindex="0" data-sh="pvopen" aria-label="${esc(ui['pet.zoom'])}" title="${esc(ui['pet.zoom'])}"></div>${toys}</div></div>`,
       shopFoot(P.dirty, P.dirty)];   /* save needs an edit: with no pet the form shows the default dog, and saving it untouched put a pet back right after it was taken out */
   }
   function shopHtml(){
-    const ui = cur.shop.ui, tab = shop.tab, [body, foot] = tab === 'pet' ? petHtml() : tab === 'book' ? bookHtml() : gearHtml(tab);
+    const ui = cur.shop.ui, tab = shop.tab, [body, foot] = tab === 'pet' ? petHtml() : tab === 'petgear' ? petGearHtml() : tab === 'book' ? bookHtml() : gearHtml(tab);
     const tl = `<div class="sh-tabs" role="tablist" aria-label="${esc(ui.tabs)}">${SHOP_TABS.map(k => `<button type="button" role="tab" id="o-sh-t-${k}" aria-controls="o-sh-p" aria-selected="${k === tab}" tabindex="${k === tab ? 0 : -1}" data-sh="tab" data-v="${k}">${esc(ui['tab.' + k])}</button>`).join('')}</div>`;
     const ghost = sel && sel.ghost ? `<p class="ulk-g">${esc(ui.ghost)}</p>` : '';
     return `<div class="bkbar"><button type="button" class="bk" data-sh="back">← ${esc(ui.back)}</button></div><div class="bd">${ghost}${tl}<div role="tabpanel" id="o-sh-p" aria-labelledby="o-sh-t-${tab}">${body}</div></div>${foot}`;
   }
-  function shopAfter(){ if(shop.tab === 'pet'){ breedsLoad(); petPreview(); } else pvStop(); fillThumbs(); }   /* thumbnails: the gear tiles, the collection, the toy tiles */
+  function shopAfter(){ if(petTab(shop.tab)){ if(shop.tab === 'pet') breedsLoad(); petPreview(); } else pvStop(); fillThumbs(); }   /* thumbnails: the gear tiles, the collection, the toy tiles */
   /* item thumbnails: each item rendered once by a small renderer of its own into a data URL, one per frame; the renderer goes once all are cached */
+  /* the pet goods that are thumbnailed by dressing the default dog, and the look that does it */
+  const PET_THUMBS = [...PET_BODIES.map(x => 'pbody:' + x), 'pcol:collar', ...PET_TAGS.map(x => 'ptag:' + x)];
+  const petThumbLook = id => { const dog = { kind: 'dog', coat: ['#d9b48f'], fluff: 0.4 }, col = HEX_DEF.collar;
+    return id.startsWith('pbody:') ? { ...dog, body: id.slice(6) } : id === 'pcol:collar' ? { ...dog, collar: col } : id.startsWith('ptag:') ? { ...dog, collar: col, tag: id.slice(5), name: 'Bori' } : null; };
   function thumbOf(id){
     if(thumbs[id] !== undefined) return thumbs[id];
     if(!T) return '';
@@ -1526,15 +1545,19 @@ export function mountOfficeScene(container, data, opts = {}){
         thumbR = { r, sc, cam: new T.PerspectiveCamera(28, 1, 0.01, 50) };
       }catch(e){ return (thumbs[id] = ''); }
     }
-    const toy = id.startsWith('toy:'), slot = GEAR_SLOT[id], head = slot === 'head', back = slot === 'back'; let g;
-    try{ g = toy ? makeToy(T, id.slice(4)) : head ? makeHeadGear(T, id) : back ? makeBackGear(T, id) : makeDeskItem(T, id); }catch(e){ return (thumbs[id] = ''); }
+    /* pbody:<id>, pcol:collar and ptag:<id> are the default dog wearing that body piece, the collar, or the collar with that tag (petThumbLook) */
+    const toy = id.startsWith('toy:'), slot = GEAR_SLOT[id], head = slot === 'head', back = slot === 'back', pl = petThumbLook(id), pb = !!pl; let g;
+    try{ g = toy ? makeToy(T, id.slice(4)) : pb ? makePet(T, pl, PET_GEAR) : head ? makeHeadGear(T, id) : back ? makeBackGear(T, id) : makeDeskItem(T, id); }catch(e){ return (thumbs[id] = ''); }
     if(g.userData.tick) g.userData.tick(1.3, 0.35, false);
-    g.rotation.set(head ? 0.35 : back ? 0.12 : 0, back ? 0.35 : -0.45, 0);   /* wings from a little to the side so both show wide */ thumbR.sc.add(g); g.updateMatrixWorld(true);
-    const b = new T.Box3().setFromObject(g), c = b.getCenter(new T.Vector3()), sz = b.getSize(new T.Vector3()), d = Math.max(1e-3, sz.x, sz.y, sz.z) * 2.35;   /* the widest side fills about 85 % of the tile */
+    if(pb) g.userData.pose('stand', 0, 0, { blend: 0 });
+    g.rotation.set(head ? 0.35 : back ? 0.12 : 0, back ? 0.35 : -0.45, 0);   /* wings from a little to the side so both show wide */ if(pb) g.rotation.y = pl.body ? 0.7 : 0.4; thumbR.sc.add(g); g.updateMatrixWorld(true);
+    let c, d;
+    if(pb){ c = pl.body ? new T.Vector3(0.04, 0.38, 0.08) : new T.Vector3(0.06, 0.34, 0.16); d = pl.body ? 1.12 : 0.95; }   /* centred a little toward the snout, which the turn swings to the right, so it stays in the tile */   /* about 0.5 of the pet's own units across the tile for a body piece (the neck, the chest and the back), 0.4 for the collar and the tag (the neck and the chest) */
+    else{ const b = new T.Box3().setFromObject(g), sz = b.getSize(new T.Vector3()); c = b.getCenter(new T.Vector3()); d = Math.max(1e-3, sz.x, sz.y, sz.z) * 2.35; }   /* the widest side fills about 85 % of the tile */
     thumbR.cam.position.set(c.x, c.y + d * 0.3, c.z + d * 0.95); thumbR.cam.lookAt(c); thumbR.cam.updateProjectionMatrix();
     thumbR.r.render(thumbR.sc, thumbR.cam); const url = thumbR.r.domElement.toDataURL('image/png');
     thumbR.sc.remove(g); g.userData.dispose();
-    if(GEAR_ITEMS.every(q => thumbs[q.id] !== undefined || q.id === id)) setTimeout(thumbKill, 0);
+    if(GEAR_ITEMS.every(q => thumbs[q.id] !== undefined || q.id === id) && PET_THUMBS.every(q => thumbs[q] !== undefined || q === id)) setTimeout(thumbKill, 0);
     return (thumbs[id] = url);
   }
   function thumbKill(){ if(!thumbR) return; thumbR.r.dispose(); thumbR.r.forceContextLoss(); thumbR = null; }
@@ -1580,7 +1603,7 @@ export function mountOfficeScene(container, data, opts = {}){
   }
   function pvLoop(once){
     if(!pv || (pv.raf && !once)) return;
-    const loop = () => { pv.raf = 0; if(!pv || !shop || shop.tab !== 'pet' || !chrome.isOpen() || !pv.r.domElement.isConnected || destroyed) return;
+    const loop = () => { pv.raf = 0; if(!pv || !shop || !petTab(shop.tab) || !chrome.isOpen() || !pv.r.domElement.isConnected || destroyed) return;
       const now = performance.now(), t = (now - pv.t0) / 1000, dt = Math.min(0.05, (now - pv.last) / 1000); pv.last = now;
       if(pv.g){ const held = now - pv.chg < 2000, yT = PV_YAW + (reduced || held ? 0 : 0.3 * Math.sin((now - pv.chg - 2000) / 1000 * 0.6));   /* sways 0.2 to 0.8 rad: never faces away */
         pv.yaw = reduced ? yT : pv.yaw + (yT - pv.yaw) * Math.min(1, dt * 5); pv.g.rotation.y = pv.yaw;
@@ -1647,9 +1670,8 @@ export function mountOfficeScene(container, data, opts = {}){
     else if(k === 'fur'){ if(PET_FUR_LIST.includes(el.value) && el.value !== PET_FUR_LIST[0]) L.fur = el.value; else delete L.fur; }   /* the standard coat writes no key */
     else if(/^mark-/.test(k)){ const m = k.slice(5); L.marks = PET_MARKS.filter(x => (x === m ? el.checked : L.marks.includes(x))); re = true; }
     else if(/^auto-/.test(k)){ const h = k.slice(5); if(el.checked){ if(L[h]) P.hex[h] = L[h]; delete L[h]; } else L[h] = cv(h) || P.hex[h]; re = true; }
-    else if(k === 'use-collar'){ if(el.checked) L.collar = cv('collar') || P.hex.collar || HEX_DEF.collar; else { if(L.collar) P.hex.collar = L.collar; delete L.collar; } re = true; }
-    else if(k === 'tag' || k === 'neck'){ if(!el.value || (k === 'tag' && el.value === PET_TAGS[0])) delete L[k]; else L[k] = el.value; }   /* none, and the round tag (the default), write no key */
-    else{ L[k] = el.value; if(k === 'kind') re = true; }   /* kind, size, ear, tail and the eye, nose, collar and mark colours */
+    else if(k === 'collar'){ L.collar = el.value; P.hex.collar = el.value; }   /* the colour picker in the pet goods tab, shown while the collar is on */
+    else{ L[k] = el.value; if(k === 'kind') re = true; }   /* kind, size, ear, tail and the eye, nose and mark colours */
     if(L.breed && !(breedRows || []).some(b => b.key === L.breed && b.kind === L.kind)) delete L.breed;   /* another kind is no longer that breed */
     if(!L.marks.length) delete L.marks;
     L.coat = L.coat.filter(Boolean).slice(0, PET_COAT_MAX);
@@ -1669,14 +1691,17 @@ export function mountOfficeScene(container, data, opts = {}){
     if(shop.busy) return;
     if(a === 'tab'){ if(v !== shop.tab){ if(gearDirty()){ shop.draft = { ...shop.base }; previewGear(); } shop.tab = v; shop.msg = null; rerender(); } return; }
     if(a === 'pick'){ if(b.getAttribute('aria-disabled') === 'true') return; const slot = shop.tab; if(slot !== 'head' && slot !== 'back' && slot !== 'desk') return; shop.draft[slot] = v || null; shop.msg = null; previewGear(); rerender(); return; }
-    if(a === 'toy'){ const P = shop.pet, L = { ...P.look }; if(v) L.toy = v; else delete L.toy; const n = normalizePetLook(L); if(n){ P.look = n; P.dirty = true; shop.msg = null; petPreviewSet(); rerender(); } return; }   /* a toy tile in the pet tab: '' is Auto */
-    if(a === 'pethat' || a === 'petwing'){ const P = shop.pet, L = { ...P.look }, k = a === 'pethat' ? 'hat' : 'wing'; if(v) L[k] = v; else delete L[k]; const n = normalizePetLook(L); if(n){ P.look = n; P.dirty = true; shop.msg = null; petPreviewSet(); rerender(); } return; }   /* a hat or wing tile in the pet tab: '' is none */
+    if(a === 'pgpick'){ if(b.getAttribute('aria-disabled') === 'true') return; const k = PET_SLOT_KEY[b.dataset.slot]; if(!k) return; const P = shop.pet, L = { ...P.look };   /* a pet goods tile: '' is none (Auto for toys), a locked tile does nothing */
+      if(k === 'collar'){ if(v) L.collar = P.hex.collar || HEX_DEF.collar; else { if(L.collar) P.hex.collar = L.collar; delete L.collar; } }   /* the collar is a colour: on takes the last one or the default */
+      else if(k === 'tag' && v === PET_TAGS[0]) delete L.tag;   /* the round tag is the default and writes no key */
+      else if(v) L[k] = v; else delete L[k];
+      const n = normalizePetLook(L); if(n){ P.look = n; P.dirty = true; shop.msg = null; petPreviewSet(); rerender(); } return; }
     if(a === 'bkgo'){ const [slot, id] = String(v).split('|'), it = bookOf(cur.shop).pages.flatMap(q => q.items).find(q => q.id === id);   /* a tile in the collection: go to its tab, and pick it when it is open */
       shop.tab = slot === 'back' || slot === 'head' || slot === 'desk' ? slot : 'pet'; if(it && it.open){ shop.draft[it.slot] = id; previewGear(); } shop.msg = null; rerender(); return; }
-    if(a === 'cancel'){ shop.msg = null; if(shop.tab === 'pet') shop.pet = petState(); else { shop.draft = { ...shop.base }; previewGear(); } rerender(); petPreviewSet(); return; }
+    if(a === 'cancel'){ shop.msg = null; if(petTab(shop.tab)) shop.pet = petState(); else { shop.draft = { ...shop.base }; previewGear(); } rerender(); petPreviewSet(); return; }
     /* a pet save tells the page about the photo: this browser's photo (fresh when picked in this visit), the visibility choice and whether the server has a
        copy; the page uploads, clears or leaves the shared copy (petPhotoPlan) */
-    if(a === 'save'){ if(shop.tab === 'pet'){ const P = shop.pet, look = normalizePetLook(P.look); if(look && P.dirty) shopSave({ pet: look }, { photo: P.photo || P.shown || null, fresh: !!P.photo, share: !!P.share, shared: cur.shop.photoShared === true }); } else if(gearDirty()) shopSave({ gear: { ...shop.draft } }); return; }
+    if(a === 'save'){ if(petTab(shop.tab)){ const P = shop.pet, look = normalizePetLook(P.look); if(look && P.dirty) shopSave({ pet: look }, { photo: P.photo || P.shown || null, fresh: !!P.photo, share: !!P.share, shared: cur.shop.photoShared === true }); } else if(gearDirty()) shopSave({ gear: { ...shop.draft } }); return; }
     if(a === 'petask' || a === 'petkeep'){ shop.pet.ask = a === 'petask'; rerender(); const f = chrome.el.querySelector(a === 'petask' ? '[data-sh="petkeep"]' : '[data-sh="petask"]'); if(f) f.focus(); return; }   /* removing asks once */
     if(a === 'petclear'){ shopSave({ petClear: true }); return; }
   });
@@ -3210,6 +3235,15 @@ const OFFICE_LOOK = { tilt: 0.55 };
 export const LV_MAX = 6;
 export const lvOf = v => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.min(LV_MAX, Math.max(0, n)) : 0; };
 const GEAR_SLOT = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, g.slot]));
+/* The server's catalogue carries nine slots: the character's head, back and desk, and the pet's goods pet_collar, pet_tag, pet_head, pet_back, pet_body and pet_toy. A pet item repeats
+   the id of a character item (cap is in head and in pet_head), so every lookup keys on the slot and the id together. itemSlot is the slot of one item, or null when
+   it is not one this build knows; an item with no slot (an older server) is a character item by its id. PET_SLOT_KEY is the look key a pet slot sets. */
+const CHAR_SLOTS = ['head', 'back', 'desk'], PET_SLOT_IDS = { pet_head: PET_HATS, pet_back: PET_WINGS, pet_body: PET_BODIES, pet_toy: PET_TOYS, pet_collar: ['collar'], pet_tag: PET_TAGS };
+const PET_SLOT_KEY = { pet_head: 'hat', pet_back: 'wing', pet_body: 'body', pet_toy: 'toy', pet_collar: 'collar', pet_tag: 'tag' };
+const itemSlot = i => !i ? null : i.slot ? ((CHAR_SLOTS.includes(i.slot) ? GEAR_SLOT[i.id] === i.slot : (PET_SLOT_IDS[i.slot] || []).includes(i.id)) ? i.slot : null) : GEAR_SLOT[i.id] || null;
+const charItem = i => CHAR_SLOTS.includes(itemSlot(i));
+/* what a level opens in the pet goods, as one entry 'pg:<count>' (the level-up note says "pet goods (3)" once, not every name) */
+const petGoodsOpens = (u, lvl) => { const n = (u.items || []).filter(i => i && lvOf(i.lvl) === lvl && PET_SLOT_KEY[itemSlot(i)]).length; return n ? ['pg:' + n] : []; };
 /* { head, back, desk } with known ids in the right slot, anything else null */
 export function gearOf(g){ const ok = (id, slot) => (typeof id === 'string' && GEAR_SLOT[id] === slot ? id : null); return { head: ok(g && g.head, 'head'), desk: ok(g && g.desk, 'desk'), back: ok(g && g.back, 'back') }; }
 export const HOL_HAT_SKIP = new Set([]);   /* species that already wear a hat take the Rudolph set in the season; since the cast models lost their built-in accessories (3.127.0-2) none does */
@@ -3240,8 +3274,8 @@ export function unlockNext(u){
   const level = lvOf(u && u.level), clamp1 = x => Math.min(1, Math.max(0, x));
   const levels = (Array.isArray(u && u.levels) ? u.levels : []).map(l => ({ lvl: lvOf(l && l.lvl), spent: Number(l && l.min_spent) || 0, dlg: Number(l && l.min_dlg) || 0 })).filter(l => l.lvl > 0).sort((a, b) => a.lvl - b.lvl);
   const next = levels.find(l => l.lvl > level) || null, spent = Number(u && u.spent) || 0, dlg = Number(u && u.dlg) || 0, runs = Number(u && u.runs) || 0;
-  const opens = !next ? [] : (u.items || []).filter(i => lvOf(i.lvl) === next.lvl && GEAR_SLOT[i.id]).map(i => i.id)
-    .concat(lvOf(u.petLvl) === next.lvl && u.petLvl != null ? ['pet'] : [], lvOf(u.toysLvl) === next.lvl && u.toysLvl != null ? ['toys'] : []);
+  const opens = !next ? [] : (u.items || []).filter(i => lvOf(i.lvl) === next.lvl && charItem(i)).map(i => i.id)
+    .concat(petGoodsOpens(u, next.lvl), lvOf(u.petLvl) === next.lvl && u.petLvl != null ? ['pet'] : [], lvOf(u.toysLvl) === next.lvl && u.toysLvl != null ? ['toys'] : []);
   return { level, top: levels.length > 0 && !next, next, spent, dlg, runs, noDlg: runs <= 0,
     spentK: next ? (next.spent > 0 ? clamp1(spent / next.spent) : 1) : 1, dlgK: next ? (next.dlg > 0 ? clamp1(dlg / next.dlg) : 1) : 1, opens };
 }
@@ -3252,22 +3286,24 @@ export function unlockNext(u){
 export function bookOf(u){
   const level = lvOf(u && u.level), spent = Number(u && u.spent) || 0, dlg = Number(u && u.dlg) || 0, clamp1 = x => Math.min(1, Math.max(0, x)), at = (x, base) => base > 0 ? clamp1(x / base) : 1;
   const levels = (Array.isArray(u && u.levels) ? u.levels : []).map(l => ({ lvl: lvOf(l && l.lvl), spent: Number(l && l.min_spent) || 0, dlg: Number(l && l.min_dlg) || 0 })).filter(l => l.lvl > 0).sort((a, b) => a.lvl - b.lvl);
-  const order = new Map(GEAR_ITEMS.map((g, i) => [g.id, i])), items = (Array.isArray(u && u.items) ? u.items : []).filter(i => i && GEAR_SLOT[i.id]).sort((a, b) => order.get(a.id) - order.get(b.id));
+  const order = new Map(GEAR_ITEMS.map((g, i) => [g.id, i])), items = (Array.isArray(u && u.items) ? u.items : []).filter(i => charItem(i)).sort((a, b) => order.get(a.id) - order.get(b.id));
   const feat = (v, n) => v != null && lvOf(v) === n;
   let got = 0, total = 0;
   const pages = levels.map(l => {
     const state = l.lvl <= level ? 'done' : l.lvl === level + 1 ? 'next' : 'locked';
-    const its = items.filter(i => lvOf(i.lvl) === l.lvl).map(i => ({ id: i.id, slot: GEAR_SLOT[i.id], open: l.lvl <= level }));
+    const its = items.filter(i => lvOf(i.lvl) === l.lvl).map(i => ({ id: i.id, slot: itemSlot(i), open: l.lvl <= level }));
     total += its.length; got += its.filter(i => i.open).length;
     return { lvl: l.lvl, spent: l.spent, dlg: l.dlg, state, spentK: state === 'next' ? at(spent, l.spent) : state === 'done' ? 1 : 0, dlgK: state === 'next' ? at(dlg, l.dlg) : state === 'done' ? 1 : 0,
       items: its, feats: [...(feat(u && u.petLvl, l.lvl) ? ['pet'] : []), ...(feat(u && u.toysLvl, l.lvl) ? ['toys'] : [])] };
   });
   return { got, total, pages };
 }
-/* the shop's tiles for one slot: the server's item list (unknown ids dropped) in gear.js order, each with its level and whether it is open */
+/* the shop's tiles for one of the nine slots (head, back, desk, pet_head, pet_back, pet_body, pet_toy, pet_collar, pet_tag): the server's item list (unknown ids dropped), matched on slot and id together, in gear.js order
+ * for the character and in the pets.js list for the pet, each with its level and whether it is open */
 export function shopTiles(u, slot){
-  const lv = lvOf(u && u.level), by = {}; ((u && u.items) || []).forEach(i => { if(i && GEAR_SLOT[i.id] === slot) by[i.id] = lvOf(i.lvl); });
-  return GEAR_ITEMS.filter(g => g.slot === slot && g.id in by).map(g => ({ id: g.id, lvl: by[g.id], open: by[g.id] <= lv }));
+  const lv = lvOf(u && u.level), by = {}; ((u && u.items) || []).forEach(i => { if(i && itemSlot(i) === slot) by[i.id] = lvOf(i.lvl); });
+  const order = CHAR_SLOTS.includes(slot) ? GEAR_ITEMS.filter(g => g.slot === slot).map(g => g.id) : PET_SLOT_IDS[slot] || [];   /* gear.js order for the character, the pets.js list for the pet */
+  return order.filter(id => id in by).map(id => ({ id, lvl: by[id], open: by[id] <= lv }));
 }
 export const fmtMoney = v => '$' + (v >= 100 ? Math.round(v).toLocaleString('en-US') : (Number(v) || 0).toFixed(2));
 /* The viewer's own progress next to a goal is rounded down to what is shown, so a figure short of the goal never reads as the goal: a share of 0.952 %
@@ -3279,16 +3315,16 @@ export const pctDown = v => (Math.floor((Number(v) || 0) * 1000 + 1e-9) / 10).to
 export const SHOP_KEYS = ['title', 'scope', 'level', 'spent', 'dlg', 'runs', 'need', 'need1', 'next', 'top', 'ghost', 'open', 'back', 'tabs', 'tab.book', 'tab.head', 'tab.back', 'tab.desk', 'tab.pet', 'book.got', 'book.need', 'book.need1', 'book.done', 'book.next', 'book.locked', 'book.spent', 'book.dlg', 'book.pet', 'book.toys', 'slot.head', 'slot.back', 'slot.desk', 'none', 'locked', 'lockedSr', 'skip', 'skipSr', 'save', 'cancel', 'saving',
   'saved', 'saved.private', 'saved.shared', 'err', 'err.locked', 'err.many', 'err.na', 'err.link', 'err.input', 'err.org', 'pet.locked', 'pet.drop', 'pet.add', 'pet.file', 'pet.change', 'pet.photo', 'pet.bad', 'pet.read', 'pet.readBreed', 'pet.pick',
   'pet.kind', 'pet.pattern', 'pet.ear', 'pet.tail', 'pet.size', 'pet.fluff', 'pet.fur', 'pet.colors', 'pet.use', 'pet.name', 'pet.remove', 'pet.ask', 'pet.keep', 'pet.removed', 'pet.preview', 'pet.zoom', 'pet.toys', 'pet.toysOn', 'item.pet', 'item.toys', 'wearing',
-  'err.photo', 'pet.breed', 'pet.breedNote', 'pet.custom', 'pet.dogs', 'pet.cats', 'pet.vis', 'pet.visMe', 'pet.visShare', 'pet.visMeNote', 'pet.visShareNote', 'pet.visEx', 'pet.g.basic', 'pet.g.coat', 'pet.g.shape', 'pet.g.face', 'pet.g.wear', 'pet.tag', 'pet.neck', 'pet.hat', 'pet.wing', 'pet.wearNone',
+  'err.photo', 'pet.breed', 'pet.breedNote', 'pet.custom', 'pet.dogs', 'pet.cats', 'pet.vis', 'pet.visMe', 'pet.visShare', 'pet.visMeNote', 'pet.visShareNote', 'pet.visEx', 'pet.g.basic', 'pet.g.coat', 'pet.g.shape', 'pet.g.face', 'pet.tag', 'tab.petgear', 'pg.collar', 'pg.tagNote', 'pg.head', 'pg.back', 'pg.body', 'pg.toy', 'pg.nopet', 'pg.toPet', 'pg.opens',
   'pet.earsize', 'pet.snout', 'pet.legs', 'pet.length', 'pet.build', ...['fluff', 'earsize', 'snout', 'legs', 'length', 'build'].flatMap(k => ['pet.' + k + '.lo', 'pet.' + k + '.hi']),
-  'pet.marks', 'pet.markColor', 'pet.eye', 'pet.nose', 'pet.auto', 'pet.collar', 'pet.collarOn', 'pet.collarColor', 'pet.toy', 'pet.toyAuto'];
+  'pet.marks', 'pet.markColor', 'pet.eye', 'pet.nose', 'pet.auto', 'pet.collar', 'pet.collarColor', 'pet.toyAuto'];
 /* every coat role any pattern names (pets.js petCoatRoles), for the labels of the colour inputs */
 export const petRoleKeys = () => [...new Set(PET_PATTERNS.flatMap(p => petCoatRoles(p).map(r => r.key)))];
 export function shopUi(t){
   const ui = {}; SHOP_KEYS.forEach(k => { ui[k] = t('of.sh.' + k); });
   ui.gear = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, t('of.gear.' + g.id)]));
   ui.opt = Object.fromEntries([...PET_KINDS, ...PET_PATTERNS.map(x => 'pat.' + x), ...PET_EARS.map(x => 'ear.' + x), ...PET_TAILS.map(x => 'tail.' + x), ...PET_SIZES.map(x => 'size.' + x),
-    ...petRoleKeys().map(x => 'role.' + x), ...PET_MARKS.map(x => 'mark.' + x), ...PET_FUR_LIST.map(x => 'fur.' + x), ...PET_TOYS.map(x => 'toy.' + x), ...PET_TAGS.map(x => 'tag.' + x), ...['none', ...PET_NECKS].map(x => 'neck.' + x)].map(k => [k, t('of.pet.' + k)]));
+    ...petRoleKeys().map(x => 'role.' + x), ...PET_MARKS.map(x => 'mark.' + x), ...PET_FUR_LIST.map(x => 'fur.' + x), ...PET_TOYS.map(x => 'toy.' + x), ...PET_TAGS.map(x => 'tag.' + x), ...PET_BODIES.map(x => 'body.' + x)].map(k => [k, t('of.pet.' + k)]));
   return ui;
 }
 /* the object viewer's strings (office-i18n.js of.vw.*), with the item names and the pet kinds, for every page (it is not tied to the shop) */
@@ -3753,7 +3789,7 @@ export function memberTownData(v, o){
   /* the shop: the viewer's own unlock state, only when the server sends it (an old server has none) and the organization is open */
   const shop = un && me && !closed ? { level: lvOf(un.level), spent: Number(un.spent) || 0, saved: Number(un.saved) || 0, dlg: Number(un.dlg) || 0, runs: Number(un.runs) || 0,
     levels: Array.isArray(un.levels) ? un.levels.map(l => ({ lvl: lvOf(l.lvl), min_spent: Number(l.min_spent) || 0, min_dlg: Number(l.min_dlg) || 0 })) : [],
-    items: Array.isArray(un.items) ? un.items.filter(i => i && GEAR_SLOT[i.id] === i.slot).map(i => ({ id: i.id, slot: i.slot, lvl: lvOf(i.lvl) })) : [],
+    items: Array.isArray(un.items) ? un.items.filter(i => i && i.slot && itemSlot(i) === i.slot).map(i => ({ id: i.id, slot: i.slot, lvl: lvOf(i.lvl) })) : [],
     petLvl: un.pet_lvl != null ? lvOf(un.pet_lvl) : null, toysLvl: toysLvl != null ? lvOf(toysLvl) : null, gear: (stored || me).gear, pet: (stored || me).pet, photoShared: sf.photo === true, fmt: fmtMoney, ui: shopUi(t) } : null;
   return { ui: { ...base.ui, redacted: t('of.redacted') }, teams, people, free, shop, freeLabel: free ? t('of.free', { n: free }, true) : '', more, moreLabel: more > 0 ? t('of.more', { n: more }, true) : '', closed,
     server: { label: closed ? t('of.server') + ' · ' + t('of.tag.closed') : t('of.server') }, activity: act, book,

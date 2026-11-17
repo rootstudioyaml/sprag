@@ -104,7 +104,7 @@
   <section class="card of-card" id="scene-card" hidden><div id="box"></div></section>
 </main>
 
-<script src="/assets/scene/office-i18n.js?v=3.130.0-6"></script>
+<script src="/assets/scene/office-i18n.js?v=3.130.0-8"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -364,8 +364,8 @@ function demoTown(){
   const tm = i => teams[i % 3];
   const P = (i, name, os, grade, tier, lvl, gear, pet, extra) => ({ id: 'demo-p' + i, name, os, team_id: tm(i).id, team_name: tm(i).name, grade, tier, crown: false, state: 'ok', self: false, lvl, gear, pet, ...extra });
   const pets = {
-    me: { kind: 'dog', coat: ['#e0a25a', '#f4e3c6'], pattern: 'solid', ear: 'flop', tail: 'fluff', size: 'm', fluff: 0.8, name: 'Bori', collar: '#d9534f', tag: 'plate', hat: 'party', wing: 'angel' },
-    cat: { kind: 'cat', coat: ['#e39a5c', '#b0683a', '#f3e2cc'], pattern: 'tabby', ear: 'up', tail: 'long', size: 'm', fluff: 0.4, name: 'Mandu', breed: 'korean_cheese', neck: 'bell', hat: 'tophat' },
+    me: { kind: 'dog', coat: ['#e0a25a', '#f4e3c6'], pattern: 'solid', ear: 'flop', tail: 'fluff', size: 'm', fluff: 0.8, name: 'Bori', collar: '#d9534f', tag: 'heart', hat: 'party', wing: 'angel', body: 'harness' },
+    cat: { kind: 'cat', coat: ['#e39a5c', '#b0683a', '#f3e2cc'], pattern: 'tabby', ear: 'up', tail: 'long', size: 'm', fluff: 0.4, name: 'Mandu', breed: 'korean_cheese', body: 'chime', hat: 'tophat' },
     tux: { kind: 'cat', coat: ['#45434a', '#ece8e1'], pattern: 'tuxedo', ear: 'up', tail: 'long', size: 'm', fluff: 0.3, name: 'Kong' } };
   const people = [
     P(0, 'ana-macbook', 'macOS', 'fox', 'active', 3, { head: 'tophat', back: 'angel', desk: 'lamp' }, pets.me, { self: true }),
@@ -383,7 +383,14 @@ function demoTown(){
   const items = [['cap', 'head', 1], ['beanie', 'head', 1], ['ribbon', 'head', 1], ['flower', 'head', 2], ['party', 'head', 2], ['headphones', 'head', 3], ['tophat', 'head', 3], ['wizard', 'head', 4], ['halo', 'head', 4],
     ['antenna', 'head', 3], ['tiara', 'head', 4], ['orbit', 'head', 5], ['starcrown', 'head', 5], ['flame', 'head', 6], ['aurora', 'head', 6],
     ['angel', 'back', 3], ['butterfly', 'back', 4], ['bat', 'back', 4], ['fairy', 'back', 5], ['drake', 'back', 5], ['phoenix', 'back', 6], ['prism', 'back', 6],
-    ['plant', 'desk', 1], ['lamp', 'desk', 1], ['figurine', 'desk', 2], ['snowglobe', 'desk', 2], ['trophy', 'desk', 3], ['lavalamp', 'desk', 3], ['aquarium', 'desk', 4], ['neon', 'desk', 4], ['crystalball', 'desk', 5], ['galaxy', 'desk', 6]].map(([id, slot, lvl]) => ({ id, slot, lvl }));
+    ['plant', 'desk', 1], ['lamp', 'desk', 1], ['figurine', 'desk', 2], ['snowglobe', 'desk', 2], ['trophy', 'desk', 3], ['lavalamp', 'desk', 3], ['aquarium', 'desk', 4], ['neon', 'desk', 4], ['crystalball', 'desk', 5], ['galaxy', 'desk', 6],
+    /* the pet goods: ids repeat the character's (cap is in head and in pet_head), the levels of the first two slots follow head and back */
+    ['cap', 'pet_head', 1], ['beanie', 'pet_head', 1], ['ribbon', 'pet_head', 1], ['flower', 'pet_head', 2], ['party', 'pet_head', 2], ['headphones', 'pet_head', 3], ['tophat', 'pet_head', 3], ['wizard', 'pet_head', 4], ['halo', 'pet_head', 4],
+    ['antenna', 'pet_head', 3], ['tiara', 'pet_head', 4], ['orbit', 'pet_head', 5], ['starcrown', 'pet_head', 5], ['flame', 'pet_head', 6], ['aurora', 'pet_head', 6],
+    ['angel', 'pet_back', 3], ['butterfly', 'pet_back', 4], ['bat', 'pet_back', 4], ['fairy', 'pet_back', 5], ['drake', 'pet_back', 5], ['phoenix', 'pet_back', 6], ['prism', 'pet_back', 6],
+    ['bandana', 'pet_body', 2], ['chime', 'pet_body', 2], ['harness', 'pet_body', 3], ['bowtie', 'pet_body', 3], ['scarf', 'pet_body', 4], ['vest', 'pet_body', 4], ['raincoat', 'pet_body', 5], ['cape', 'pet_body', 6],
+    ['collar', 'pet_collar', 2], ['round', 'pet_tag', 2], ['bone', 'pet_tag', 2], ['heart', 'pet_tag', 3], ['star', 'pet_tag', 3], ['plate', 'pet_tag', 4],
+    ['ball', 'pet_toy', 3], ['bone', 'pet_toy', 3], ['yarn', 'pet_toy', 3], ['mouse', 'pet_toy', 3], ['duck', 'pet_toy', 4], ['rope', 'pet_toy', 4], ['frisbee', 'pet_toy', 5], ['feather', 'pet_toy', 5], ['fish', 'pet_toy', 6], ['bell', 'pet_toy', 6]].map(([id, slot, lvl]) => ({ id, slot, lvl }));
   return {
     org: { name: 'Northwind Labs', closed: false, seats_used: 9, seat_limit: 24 }, range: { from: ymd(29), to: ymd(0) }, has_prompts: false, expires_at: iso(-0.5),
     teams, people,
@@ -433,7 +440,7 @@ if(DEMO) window.__spragDemoLog = demoLog;
 async function show(){
   if(!view) return;
   paintHead();
-  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.130.0-6'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
+  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.130.0-8'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
   $('msg').hidden = true; $('scene-card').hidden = false;
   const data = sceneData();
   if(ctl){ ctl.update(data); shown = lang; return; }

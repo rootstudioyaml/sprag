@@ -160,7 +160,7 @@ test('officeSceneData hands a machine\'s pet to its person; people without one g
 test('office-scene wires pets: import query, data contract, drawn set, still life, rebuild and destroy, step, reduced motion, recording hooks', async () => {
   const { readFile } = await import('node:fs/promises');
   const src = await readFile(new URL('../site/assets/scene/office-scene.js', import.meta.url), 'utf8');
-  assert.match(src, /import \{[^}]*normalizePetLook[^}]*pickPets[^}]*petPlan[^}]*makePet[^}]*makeBowls[^}]*makeToy[^}]*makeToyBasket[^}]*makePhotoFrame[^}]*disposePetShared[^}]*PET_MAX[^}]*\} from '\.\/pets\.js\?v=p8'/);
+  assert.match(src, /import \{[^}]*normalizePetLook[^}]*pickPets[^}]*petPlan[^}]*makePet[^}]*makeBowls[^}]*makeToy[^}]*makeToyBasket[^}]*makePhotoFrame[^}]*disposePetShared[^}]*PET_MAX[^}]*\} from '\.\/pets\.js\?v=p9'/);
   assert.match(src, /people\[\]\.pet \(optional\)/, 'the data contract names the field');
   assert.match(src, /if\(d\.closed\) return new Set\(\);/, 'a closed organization shows no pets');
   assert.match(src, /filter\(p => p && p\.tier !== 'nodata' && p\.pet\)/, 'ghosts have no pets');
@@ -186,7 +186,7 @@ function fakeThree(){
   class M { constructor(o = {}){ Object.assign(this, o); this.userData = {}; this.color = { set(){} }; } dispose(){} }
   class Sh { constructor(){ this.cmds = []; } moveTo(...a){ this.cmds.push(['m', ...a]); } lineTo(...a){ this.cmds.push(['l', ...a]); } bezierCurveTo(...a){ this.cmds.push(['b', ...a]); } quadraticCurveTo(...a){ this.cmds.push(['q', ...a]); } closePath(){} }
   class X extends G { constructor(shape, opt){ super(); this.shape = shape; this.opt = opt; } }
-  return { Group: O, Mesh: O, InstancedMesh: O, SphereGeometry: G, CapsuleGeometry: G, ConeGeometry: G, TorusGeometry: G, LatheGeometry: G, PlaneGeometry: G, ExtrudeGeometry: X, Shape: Sh, BufferGeometry: G, Float32BufferAttribute: class { constructor(a, n){ this.array = a; this.itemSize = n; } },
+  return { DoubleSide: 2, Group: O, Mesh: O, InstancedMesh: O, SphereGeometry: G, CapsuleGeometry: G, ConeGeometry: G, TorusGeometry: G, LatheGeometry: G, PlaneGeometry: G, ExtrudeGeometry: X, Shape: Sh, BufferGeometry: G, Float32BufferAttribute: class { constructor(a, n){ this.array = a; this.itemSize = n; } },
     Vector2: V, Vector3: V, Color: class { constructor(c){ this.c = c; } set(c){ this.c = c; } }, MeshStandardMaterial: M };
 }
 
@@ -347,24 +347,25 @@ test('mesh budget: a pet without a collar keeps 15 meshes, a collar adds 2', () 
   for(const ear of PET_EARS){ const look = { kind: 'cat', coat: ['#e39a5c'], ear, tail: 'long' }; assert.equal(count(P.makePet(T, look)), 15, ear); assert.equal(count(P.makePet(T, { ...look, collar: '#e0685f' })), 17, ear + ' with a collar'); }
 });
 
-/* the accessories (look v5): a tag shape, a neck piece, a hat and wings. The hat and wing lists are copies of gear.js ids, since pets.js imports nothing. */
-test('the accessory lists: tags, neck pieces, and the hat and wing ids equal the head and back ids of gear.js in order', async () => {
+/* the accessories (look v5): a tag shape, a body piece, a hat and wings. The hat and wing lists are copies of gear.js ids, since pets.js imports nothing. */
+test('the accessory lists: tags, body pieces, and the hat and wing ids equal the head and back ids of gear.js in order', async () => {
   const { GEAR_ITEMS } = await import('../site/assets/scene/gear.js');
   assert.deepEqual(P.PET_TAGS, ['round', 'bone', 'heart', 'star', 'plate']);
-  assert.deepEqual(P.PET_NECKS, ['bandana', 'bowtie', 'scarf', 'bell']);
+  assert.deepEqual(P.PET_BODIES, ['bandana', 'chime', 'harness', 'bowtie', 'scarf', 'vest', 'raincoat', 'cape']); assert.equal('PET_NECKS' in P, false, 'the neck list is gone');
   assert.deepEqual(P.PET_HATS, GEAR_ITEMS.filter(g => g.slot === 'head').map(g => g.id)); assert.equal(P.PET_HATS.length, 15);
   assert.deepEqual(P.PET_WINGS, GEAR_ITEMS.filter(g => g.slot === 'back').map(g => g.id)); assert.equal(P.PET_WINGS.length, 7);
 });
 
-test('normalizePetLook keeps a known tag, neck piece, hat and wing and drops any other value; a look without them stays without', () => {
+test('normalizePetLook keeps a known tag, body piece, hat and wing and drops any other value (and the old neck key); a look without them stays without', () => {
   const base = { kind: 'dog', coat: ['#c89159'] };
-  assert.deepEqual(normalizePetLook({ ...base, tag: 'heart', neck: 'scarf', hat: 'tophat', wing: 'angel' }), { ...normalizePetLook(base), tag: 'heart', neck: 'scarf', hat: 'tophat', wing: 'angel' });
-  for(const k of ['tag', 'neck', 'hat', 'wing']) for(const bad of ['nope', '', 7, null, ['round'], 'Round', 'desk']) assert.equal(k in normalizePetLook({ ...base, [k]: bad }), false, k + ' ' + JSON.stringify(bad));
+  assert.deepEqual(normalizePetLook({ ...base, tag: 'heart', body: 'scarf', hat: 'tophat', wing: 'angel' }), { ...normalizePetLook(base), tag: 'heart', body: 'scarf', hat: 'tophat', wing: 'angel' });
+  assert.equal('neck' in normalizePetLook({ ...base, neck: 'bandana' }), false, 'neck was renamed body'); assert.equal('body' in normalizePetLook({ ...base, body: 'bell' }), false, 'bell is the chime now');
+  for(const k of ['tag', 'body', 'hat', 'wing']) for(const bad of ['nope', '', 7, null, ['round'], 'Round', 'desk']) assert.equal(k in normalizePetLook({ ...base, [k]: bad }), false, k + ' ' + JSON.stringify(bad));
   assert.equal('hat' in normalizePetLook({ ...base, hat: 'angel' }), false, 'a wing id is not a hat');
   assert.equal('wing' in normalizePetLook({ ...base, wing: 'cap' }), false, 'a hat id is not a wing');
-  for(const k of ['tag', 'neck', 'hat', 'wing']) assert.equal(k in normalizePetLook(base), false, k + ' is never filled in');
+  for(const k of ['tag', 'body', 'hat', 'wing']) assert.equal(k in normalizePetLook(base), false, k + ' is never filled in');
   for(const v of P.PET_TAGS) assert.equal(normalizePetLook({ ...base, tag: v }).tag, v);
-  for(const v of P.PET_NECKS) assert.equal(normalizePetLook({ ...base, neck: v }).neck, v);
+  for(const v of P.PET_BODIES) assert.equal(normalizePetLook({ ...base, body: v }).body, v);
   for(const v of P.PET_HATS) assert.equal(normalizePetLook({ ...base, hat: v }).hat, v);
   for(const v of P.PET_WINGS) assert.equal(normalizePetLook({ ...base, wing: v }).wing, v);
 });
@@ -372,7 +373,7 @@ test('normalizePetLook keeps a known tag, neck piece, hat and wing and drops any
 test('petShapeKey changes with each accessory key; the name matters only to a plate tag', () => {
   const base = { kind: 'dog', coat: ['#c89159'], collar: '#e0685f', name: 'Bori' }, K = P.petShapeKey, k0 = K(base);
   const seen = new Set([k0]);
-  for(const ch of [{ tag: 'bone' }, { tag: 'heart' }, { neck: 'bandana' }, { neck: 'bell' }, { hat: 'cap' }, { hat: 'tophat' }, { wing: 'angel' }, { wing: 'bat' }]){ const k = K({ ...base, ...ch }); assert.ok(!seen.has(k), JSON.stringify(ch)); seen.add(k); }
+  for(const ch of [{ tag: 'bone' }, { tag: 'heart' }, { body: 'bandana' }, { body: 'chime' }, { body: 'harness' }, { body: 'vest' }, { body: 'raincoat' }, { body: 'cape' }, { hat: 'cap' }, { hat: 'tophat' }, { wing: 'angel' }, { wing: 'bat' }]){ const k = K({ ...base, ...ch }); assert.ok(!seen.has(k), JSON.stringify(ch)); seen.add(k); }
   assert.equal(K({ ...base, name: 'Mo' }), k0, 'the name is a repaint for every tag but the plate');
   assert.equal(K({ ...base, tag: 'star', name: 'Mo' }), K({ ...base, tag: 'star' }));
   assert.notEqual(K({ ...base, tag: 'plate', name: 'Mo' }), K({ ...base, tag: 'plate', name: 'Bori' }), 'a plate prints the name, so a new name is a new model');
@@ -388,45 +389,66 @@ function fakeGear(T){
 }
 const meshCount = g => { let n = 0; const walk = o => { o.children.forEach(c => { if(c.geometry && c.name !== 'petFur') n++; walk(c); }); }; walk(g); return n; };
 
-test('mesh budget with accessories: the collar band and a round tag are 2, the other tags and the neck pieces add their own parts', () => {
+test('mesh budget with accessories: the collar band and a round tag are 2, the other tags and the body pieces add their own parts', () => {
   const T = fakeThree(), look = { kind: 'dog', coat: ['#c89159'] }, N = o => meshCount(P.makePet(T, { ...look, ...o }));
   assert.equal(N({}), 15); assert.equal(N({ collar: '#e0685f' }), 17); assert.equal(N({ collar: '#e0685f', tag: 'round' }), 17, 'round is the default tag');
   assert.equal(N({ collar: '#e0685f', tag: 'bone' }), 15 + 1 + 5, 'band, four knobs and a shaft');
   assert.equal(N({ collar: '#e0685f', tag: 'heart' }), 17); assert.equal(N({ collar: '#e0685f', tag: 'star' }), 17);
   assert.equal(N({ collar: '#e0685f', tag: 'plate' }), 17, 'a blank plate is one mesh'); assert.equal(N({ collar: '#e0685f', tag: 'plate', name: 'Bori' }), 18, 'the name is a plane over the plate');
   assert.equal(N({ tag: 'bone' }), 15, 'a tag hangs from the collar: with none it is not drawn');
-  assert.equal(N({ neck: 'bandana' }), 16); assert.equal(N({ neck: 'bowtie' }), 18); assert.equal(N({ neck: 'scarf' }), 18); assert.equal(N({ neck: 'bell' }), 17);
-  assert.equal(N({ collar: '#e0685f', neck: 'bowtie' }), 17 + 3, 'a bow tie sits on the collar');
-  assert.equal(N({ collar: '#e0685f', neck: 'bell' }), 17 + 2, 'the bell hangs beside the tag');
-  for(const kind of ['dog', 'cat']) for(const neck of P.PET_NECKS) for(const tag of P.PET_TAGS) assert.ok(meshCount(P.makePet(T, { kind, coat: ['#c89159'], collar: '#e0685f', neck, tag, name: 'Mo' })) >= 17, kind + neck + tag);
+  assert.equal(N({ body: 'bandana' }), 16); assert.equal(N({ body: 'bowtie' }), 18); assert.equal(N({ body: 'scarf' }), 18); assert.equal(N({ body: 'chime' }), 18, 'without a collar the chime hangs on a cord');
+  assert.equal(N({ collar: '#e0685f', body: 'bowtie' }), 17 + 3, 'a bow tie sits on the collar');
+  assert.equal(N({ collar: '#e0685f', body: 'chime' }), 17 + 2, 'the chime hangs beside the tag');
+  /* the pieces that cover the body: harness = chest ring, neck band, back strap, chest strap and a D-ring; vest and raincoat = the shell and a D-ring or a hood; cape = the cloth and a clasp */
+  assert.equal(N({ body: 'harness' }), 15 + 5); assert.equal(N({ body: 'vest' }), 15 + 2); assert.equal(N({ body: 'raincoat' }), 15 + 2); assert.equal(N({ body: 'cape' }), 15 + 2);
+  assert.equal(N({ collar: '#e0685f', body: 'harness' }), 17 + 5, 'the harness and the collar both show');
+  assert.equal(N({ collar: '#e0685f', tag: 'star', body: 'cape' }), 17 + 2);
+  for(const kind of ['dog', 'cat']) for(const body of P.PET_BODIES) for(const tag of P.PET_TAGS) assert.ok(meshCount(P.makePet(T, { kind, coat: ['#c89159'], collar: '#e0685f', body, tag, name: 'Mo' })) >= 17, kind + body + tag);
 });
 
-test('makePet draws every tag shape and neck piece with and without a collar, on every build, fluff and kind, with finite geometry', () => {
+test('makePet draws every tag shape and body piece with and without a collar, on every build, fluff and kind, with finite geometry', () => {
   const T = fakeThree();
-  for(const kind of ['dog', 'cat']) for(const fluff of [0, 0.5, 1]) for(const build of [0, 0.5, 1]) for(const neck of [undefined, ...P.PET_NECKS]) for(const tag of [undefined, ...P.PET_TAGS]) for(const collar of [undefined, '#336699']){
-    const look = { kind, coat: ['#c89159'], fluff, build, name: 'Bori' }; if(neck) look.neck = neck; if(tag) look.tag = tag; if(collar) look.collar = collar;
+  for(const kind of ['dog', 'cat']) for(const fluff of [0, 0.5, 1]) for(const build of [0, 0.5, 1]) for(const body of [undefined, ...P.PET_BODIES]) for(const tag of [undefined, ...P.PET_TAGS]) for(const collar of [undefined, '#336699']){
+    const look = { kind, coat: ['#c89159'], fluff, build, name: 'Bori' }; if(body) look.body = body; if(tag) look.tag = tag; if(collar) look.collar = collar;
     const g = P.makePet(T, look), tag2 = JSON.stringify(look); g.userData.pose('stand', 0, 0, { blend: 0 });
     const walk = o => { o.children.forEach(c => { for(const v of [c.position, c.scale]) assert.ok([v.x, v.y, v.z].every(Number.isFinite), tag2 + ' transform');
       const at = c.geometry && c.geometry.attrs && c.geometry.attrs.position; if(at) assert.ok(at.array.every(Number.isFinite), tag2 + ' vertices'); walk(c); }); };
     walk(g); g.userData.dispose();
   }
-  const g = P.makePet(T, { kind: 'dog', coat: ['#c89159'], neck: 'scarf' }); assert.ok(g.userData.nodes.collar, 'a neck piece alone hangs on the collar joint, so it follows the head');
+  const g = P.makePet(T, { kind: 'dog', coat: ['#c89159'], body: 'scarf' }); assert.ok(g.userData.nodes.collar, 'a body piece alone hangs on the collar joint, so it follows the head');
   const cat = P.makePet(T, { kind: 'cat', coat: ['#c89159'], collar: '#336699', tag: 'heart' }), tg = cat.userData.nodes.collar.children.find(c => !c.geometry || !c.geometry.attrs);
   assert.ok(tg && tg.quaternion.to, 'the tag faces forward through a quaternion from +z to the collar frame\'s front');
 });
 
-test('the neck pieces and the tag take the right colour: the collar colour when set, else their own', () => {
+test('the body pieces and the tag take the right colour: the collar colour when set (not for the chime, raincoat and cape), else their own', () => {
   const T = fakeThree(), role = (look, r) => { const g = P.makePet(T, look); const m = g.userData.mats.find(x => x.role === r); return m && m.m.userData.pet.uPetC0.value.c; };
-  const base = { kind: 'dog', coat: ['#c89159'] };
-  assert.equal(role({ ...base, neck: 'bandana' }, 'neck'), '#4a7bd6'); assert.equal(role({ ...base, neck: 'bowtie' }, 'neck'), '#d9534f');
-  assert.equal(role({ ...base, neck: 'scarf' }, 'neck'), '#e8a23a'); assert.equal(role({ ...base, neck: 'bell' }, 'neck'), '#e8c56a');
-  assert.equal(role({ ...base, neck: 'scarf', collar: '#123456' }, 'neck'), '#123456');
+  const base = { kind: 'dog', coat: ['#c89159'] }, own = { bandana: '#4a7bd6', chime: '#e8c56a', harness: '#2f8f6b', bowtie: '#d9534f', scarf: '#e8a23a', vest: '#c8414b', raincoat: '#f2c230', cape: '#8b3fd1' };
+  for(const body of P.PET_BODIES){
+    assert.equal(role({ ...base, body }, 'wear'), own[body], body + ' own colour');
+    assert.equal(role({ ...base, body, collar: '#123456' }, 'wear'), ['chime', 'raincoat', 'cape'].includes(body) ? own[body] : '#123456', body + ' with a collar colour');
+  }
   assert.equal(role({ ...base, collar: '#123456', tag: 'heart' }, 'tag'), '#e8c56a', 'the tag is always gold');
-  assert.equal(role(base, 'neck'), undefined, 'no neck piece, no neck material');
-  const g = P.makePet(T, { ...base, neck: 'scarf', collar: '#336699' }); assert.equal(P.petRecolor(g, { ...base, neck: 'scarf', collar: '#abcdef' }), true, 'a collar colour is a repaint');
-  assert.equal(P.petRecolor(P.makePet(T, { ...base, neck: 'scarf' }), { ...base, neck: 'scarf', collar: '#abcdef' }), false, 'putting a collar on is a new model');
-  assert.equal(g.userData.mats.find(x => x.role === 'neck').m.userData.pet.uPetC0.value.c, '#abcdef');
-  assert.equal(P.petRecolor(g, { ...base, neck: 'bell' }), false, 'a different piece is a new model');
+  assert.equal(role(base, 'wear'), undefined, 'no body piece, no wear material');
+  assert.equal(role({ ...base, body: 'harness' }, 'metal'), '#b9bdc6', 'the D-ring is metal'); assert.equal(role({ ...base, body: 'vest' }, 'metal'), '#b9bdc6'); assert.equal(role({ ...base, body: 'cape' }, 'metal'), undefined, 'the cape has a gold clasp, no ring');
+  const g = P.makePet(T, { ...base, body: 'scarf', collar: '#336699' }); assert.equal(P.petRecolor(g, { ...base, body: 'scarf', collar: '#abcdef' }), true, 'a collar colour is a repaint');
+  assert.equal(P.petRecolor(P.makePet(T, { ...base, body: 'scarf' }), { ...base, body: 'scarf', collar: '#abcdef' }), false, 'putting a collar on is a new model');
+  assert.equal(g.userData.mats.find(x => x.role === 'wear').m.userData.pet.uPetC0.value.c, '#abcdef');
+  assert.equal(P.petRecolor(g, { ...base, body: 'chime' }), false, 'a different piece is a new model');
+});
+
+test('the body pieces: the harness, vest, raincoat and cape sit over the body ellipsoid, on every build, fluff and length, and the cloth is drawn from both sides', () => {
+  const T = fakeThree(), W = P.PET_WEAR_K;
+  assert.deepEqual(W.vestZ, [-0.15, 0.75]); assert.deepEqual(W.coatZ, [-0.85, 0.8]); assert.equal(W.ringZ, 0.3);
+  for(const kind of ['dog', 'cat']) for(const fluff of [0, 0.5, 1]) for(const build of [0, 0.5, 1]) for(const length of [0, 1]) for(const body of ['harness', 'vest', 'raincoat', 'cape']){
+    const look = { kind, coat: ['#c89159'], fluff, build, length, body }, tag = JSON.stringify(look), g = P.makePet(T, look);
+    const puff = 1 + 0.08 * fluff, sh = P.petShape(look), kb = sh.build, bl = (kind === 'cat' ? 0.165 : 0.175) * sh.length, bw = (kind === 'cat' ? 0.105 : 0.125) * kb;
+    const fur = fluff <= 0.05 ? 0 : P.petFurLen(fluff), R = [bw * puff + fur, 0.115 * kb * puff + fur, bl + fur];
+    const pts = []; const walk = o => { o.children.forEach(c => { const at = c.geometry && c.geometry.attrs && c.geometry.attrs.position; if(at && o.name === 'body') for(let i = 0; i < at.array.length; i += 3) pts.push([at.array[i], at.array[i + 1], at.array[i + 2]]); walk(c); }); };
+    walk(g); assert.ok(pts.length > 0, tag + ' draws on the body node');
+    for(const p of pts){ assert.ok(p.every(Number.isFinite), tag); const q = Math.sqrt((p[0] / R[0]) ** 2 + (p[1] / R[1]) ** 2 + (p[2] / R[2]) ** 2); assert.ok(q >= 0.99, tag + ': never inside the body ' + q.toFixed(3)); assert.ok(q < 1.8, tag + ': close to the body, not in the air ' + q.toFixed(3)); }
+    g.userData.dispose();
+  }
+  for(const body of P.PET_BODIES) assert.equal(P.makePet(T, { kind: 'dog', coat: ['#c89159'], body }).userData.mats.find(x => x.role === 'wear').m.side, T.DoubleSide, body + ' is drawn from both sides');
 });
 
 test('a plate tag with a name needs the DOM for its texture: in Node the name plane stays invisible, and the texture is freed with the pet', () => {
@@ -476,8 +498,8 @@ test('without gear makers a hat and wings are not drawn; a pet without them has 
 });
 
 test('petApplyBreed keeps the member\'s accessories, like the toy', () => {
-  const mine = { kind: 'dog', coat: ['#111111'], tag: 'star', neck: 'bell', hat: 'cap', wing: 'bat', name: 'Mo' }, out = P.petApplyBreed(mine, { kind: 'cat', coat: ['#efe3cf'], tag: 'heart', hat: 'beanie' });
-  assert.deepEqual([out.tag, out.neck, out.hat, out.wing, out.name, out.kind], ['star', 'bell', 'cap', 'bat', 'Mo', 'cat']);
+  const mine = { kind: 'dog', coat: ['#111111'], tag: 'star', body: 'harness', hat: 'cap', wing: 'bat', name: 'Mo' }, out = P.petApplyBreed(mine, { kind: 'cat', coat: ['#efe3cf'], tag: 'heart', hat: 'beanie' });
+  assert.deepEqual([out.tag, out.body, out.hat, out.wing, out.name, out.kind], ['star', 'harness', 'cap', 'bat', 'Mo', 'cat']);
   const none = P.petApplyBreed({ kind: 'dog', coat: ['#111111'] }, { kind: 'cat', coat: ['#efe3cf'], hat: 'beanie' }); assert.equal('hat' in none, false, 'a breed look\'s accessories are not the member\'s choice');
 });
 

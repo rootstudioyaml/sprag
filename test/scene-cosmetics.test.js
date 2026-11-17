@@ -99,7 +99,7 @@ test('every shop string exists in both languages, Korean prose has no middle dot
 
 test('the scene wires gear and the shop: imports, crown rule, season sheet, disposal on rebuild and destroy, desk ticks, shop only with data.shop and opts.shop', () => {
   assert.match(SCENE, /import \{ GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared \} from '\.\/gear\.js\?v=g5'/);
-  assert.match(SCENE, /from '\.\/pets\.js\?v=p8'/); assert.ok(!/pets\.js\?v=p[0-79]/.test(SCENE), 'every import of pets.js carries the same query');
+  assert.match(SCENE, /from '\.\/pets\.js\?v=p9'/); assert.ok(!/pets\.js\?v=p[0-8]/.test(SCENE), 'every import of pets.js carries the same query');
   assert.match(SCENE, /export const CAST_Q = '\?v=3\.127\.0-2';/, 'the cast files without accessories need a new cache key');
   assert.match(SCENE, /function dressOf\(o\)\{[^\n]*headDress\(\{ ghost: o\.ghost, crown: o\.p\.crown/);
   assert.match(SCENE, /wantVariant\(hk === 'nose' \? 'crown' : hk/, 'a head gear in the season uses the nose-only sheet');
@@ -359,9 +359,9 @@ test('the scene: the viewer, shared photo frames, breeds and the pet tab are wir
   assert.match(SCENE, /t\.rotation\.set\(0, yaw \+ st\.roll \* 0\.4, 0\); toyFlat\(t\); \}   \/\* a bone or a mouse slides and turns flat \*\//, 'a flat toy slides and turns about y only');
   assert.match(SCENE, /q\.setFromAxisAngle\(ax, dd \/ R\); sp\.quaternion\.premultiply\(q\);/, 'a round toy rolls by its own travel, distance over radius');
   assert.ok(!/t\.rotation\.set\(st\.roll/.test(SCENE));
-  for(const id of ["sel1('kind'", "sel1('size'", "sel1('pattern'", "sel1('ear'", "sel1('tail'", 'o-pf-breed', 'o-pf-vis-', 'o-pf-name', 'o-pf-c${i}', 'o-pf-use${i}', 'o-pf-mark-${m}', 'o-pf-mark"', 'o-pf-auto-${k}', 'o-pf-use-collar', 'o-pf-collar"'])
+  for(const id of ["sel1('kind'", "sel1('size'", "sel1('pattern'", "sel1('ear'", "sel1('tail'", 'o-pf-breed', 'o-pf-vis-', 'o-pf-name', 'o-pf-c${i}', 'o-pf-use${i}', 'o-pf-mark-${m}', 'o-pf-mark"', 'o-pf-auto-${k}'])
     assert.ok(SCENE.includes(id), id);
-  assert.match(SCENE, /<details class="pet-g" data-g="\$\{k\}"/); assert.match(SCENE, /open: \(shop && shop\.pet && shop\.pet\.open\) \|\| \{ basic: true, coat: true, shape: false, face: false, wear: false, toy: false \}/);
+  assert.match(SCENE, /<details class="pet-g" data-g="\$\{k\}"/); assert.match(SCENE, /open: \(shop && shop\.pet && shop\.pet\.open\) \|\| \{ basic: true, coat: true, shape: false, face: false \}/);
   assert.match(SCENE, /\.of-drawer \.pet-wrap>\.pet-pvc\{position:sticky;top:0/);
 });
 
@@ -504,7 +504,7 @@ test('the scene follows the pets contract with fallbacks: legK in the gait, play
   assert.ok(!/PET_PLAY_Z \* gs/.test(SCENE), 'the toy is put down at the pet\'s own distance');
   assert.match(SCENE, /const toyCarry = t => \{ const v = t\.userData && t\.userData\.carryYaw; return Number\.isFinite\(v\) \? v : Math\.PI \/ 2; \};/);
   assert.match(SCENE, /const airL = Number\.isFinite\(g\.userData\.air\)/); assert.match(SCENE, /pt\.blobMat\.opacity = 0\.34 \* \(0\.3 \+ 0\.7 \* k\)/);
-  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p8';/, 'newer exports are read off the namespace, so an older pets.js still links');
+  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p9';/, 'newer exports are read off the namespace, so an older pets.js still links');
 });
 
 test('an untouched pet form never saves: after the pet is taken out the form shows the default dog, and Save stays off until a field changes', () => {
@@ -535,7 +535,7 @@ test('team names lie on the floor strip in front of each rug, and picking a pers
 test('LV_MAX is 6, wings are a slot of their own in the shop (tab, tiles, thumbnails, save), and the wing piece hangs on the model like head gear', () => {
   assert.equal(LV_MAX, 6); assert.equal(lvOf(6), 6); assert.equal(lvOf(7), 6);
   assert.deepEqual(shopTiles({ level: 5, items: GEAR_ITEMS.map((g, i) => ({ id: g.id, lvl: 1 + i % 6 })) }, 'back').map(t => t.id), ['angel', 'butterfly', 'bat', 'fairy', 'drake', 'phoenix', 'prism']);
-  assert.match(SCENE, /const SHOP_TABS = \['book', 'head', 'back', 'desk', 'pet'\];/, 'the tab order: collection, head, wings, desk, pet');
+  assert.match(SCENE, /const SHOP_TABS = \['book', 'head', 'back', 'desk', 'pet', 'petgear'\];/, 'the tab order: collection, head, wings, desk, pet, pet goods');
   assert.match(SCENE, /shop = \{ open: true, tab: 'book',/, 'the shop opens on the collection');
   assert.match(SCENE, /draft\.back !== shop\.base\.back/, 'a changed wing choice is a change to save');
   assert.match(SCENE, /if\(slot !== 'head' && slot !== 'back' && slot !== 'desk'\) return; shop\.draft\[slot\] = v \|\| null;/);
@@ -554,16 +554,17 @@ test('pet toys: the scene picks the chosen toy and otherwise the automatic one e
   assert.match(SCENE, /pt\.toy = makeToy\(T, toyKindFor\(look, id\)\)/);
   assert.match(SCENE, /if\(pt && petRecolor\(pt\.g, want\)\)\{ pt\.look = want; petToyFix\(pt, want\); request\(\); return; \}/, 'a toy chosen in the shop shows on the pet in the room at once');
   assert.match(SCENE, /petToy\(id, kind\)\{[^\n]*petToyReplace\(pt, kind\)/, 'the scripted petToy uses the same swap');
-  assert.match(SCENE, /const toyGrp = !toyOn \? '' : /, 'only from the toys level'); assert.match(SCENE, /\['', \.\.\.PET_TOYS\]\.map\(toyTile\)/);
-  assert.match(SCENE, /if\(a === 'toy'\)\{ const P = shop\.pet, L = \{ \.\.\.P\.look \}; if\(v\) L\.toy = v; else delete L\.toy;/, 'Auto removes the key');
+  assert.ok(!/const toyGrp|toyTile/.test(SCENE), 'the toys left the pet form for the pet goods tab');
+  assert.match(SCENE, /\['pet_toy', 'toy', 'pg\.toy'\]/); assert.match(SCENE, /noneTx: toy \? ui\['pet\.toyAuto'\] : ''/, 'the toys\' none tile is Auto');
+  assert.match(SCENE, /if\(a === 'pgpick'\)\{[\s\S]*?else if\(v\) L\[k\] = v; else delete L\[k\];/, 'Auto removes the key');
   assert.match(SCENE, /t\.userData\.kind === 'bell'/, 'a bell rolls like a ball');
   assert.match(SCENE, /id\.startsWith\('toy:'\)[\s\S]{0,200}makeToy\(T, id\.slice\(4\)\)/, 'toy thumbnails are made by the same renderer');
   const ui = shopUi(k => k); for(const t of PET_TOYS) assert.equal(ui.opt['toy.' + t], 'of.pet.toy.' + t);
-  assert.equal(ui['pet.toy'], 'of.sh.pet.toy'); assert.equal(ui['pet.toyAuto'], 'of.sh.pet.toyAuto');
+  assert.equal(ui['pg.toy'], 'of.sh.pg.toy'); assert.equal(ui['pet.toyAuto'], 'of.sh.pet.toyAuto');
   const ko = ['공', '뼈다귀', '털실', '쥐 인형', '원반', '밧줄', '고무 오리', '깃털 장난감', '물고기 인형', '방울 공'];
   assert.deepEqual(PET_TOYS.map(t => OFFICE.ko['of.pet.toy.' + t]), ko);
   for(const lang of ['en', 'ko']) for(const t of PET_TOYS) assert.equal(typeof OFFICE[lang]['of.pet.toy.' + t], 'string', lang + ' ' + t);
-  assert.equal(OFFICE.ko['of.sh.pet.toy'], '장난감'); assert.equal(OFFICE.ko['of.sh.pet.toyAuto'], '자동');
+  assert.equal(OFFICE.ko['of.sh.pg.toy'], '장난감'); assert.equal(OFFICE.ko['of.sh.pet.toyAuto'], '자동');
 });
 
 test('the new gear names: both languages, ko as listed, en short noun phrases', () => {
@@ -606,7 +607,7 @@ test('bookOf: unknown item ids are left out, items on a level the table lacks ar
 });
 
 test('the collection tab: the first tab, one card per level, the level badge in the look of its frame, a stamp, two bars on the next goal, silhouettes for locked items, reduced motion', () => {
-  assert.match(SCENE, /tab === 'pet' \? petHtml\(\) : tab === 'book' \? bookHtml\(\) : gearHtml\(tab\)/);
+  assert.match(SCENE, /tab === 'pet' \? petHtml\(\) : tab === 'petgear' \? petGearHtml\(\) : tab === 'book' \? bookHtml\(\) : gearHtml\(tab\)/);
   assert.match(SCENE, /<span class="bk-lv lv-\$\{pg\.lvl\}">/, 'the badge carries the level class'); assert.match(SCENE, /class="bk-card \$\{pg\.state\}"/);
   assert.match(SCENE, /dl \? ui\['book\.need'\] : ui\['book\.need1'\]/, 'level 1 asks for one delegation, the others for a share'); assert.match(SCENE, /bar\(ui\['book\.spent'\][^\n]*\n[^\n]*bar\(ui\['book\.dlg'\]/, 'two bars on the next goal');
   assert.match(SCENE, /bk-stamp/); assert.match(SCENE, /\.bk-stamp\{[^}]*transform:rotate\(-12deg\)/); assert.match(SCENE, /\.bk-t\.lock img\{filter:brightness\(0\);opacity:\.62\}/);
@@ -681,49 +682,114 @@ test('the ops page loads the office string table, so the unlock level and the ge
   assert.ok(OPS.indexOf('office-i18n.js?v=') < OPS.indexOf('const I18N = {'), 'the table is loaded before the page reads it');
 });
 
-/* pet accessories (look v5): a tag shape, a neck piece, a hat and wings. The strings, the shop group and the scene's wiring. */
-test('pet accessories: the strings exist in both languages and the options resolve through shopUi', () => {
-  const { PET_TAGS, PET_NECKS } = P5;
-  const ko = { 'of.sh.pet.g.wear': '꾸미기', 'of.sh.pet.g.face': '얼굴', 'of.sh.pet.tag': '이름표', 'of.sh.pet.neck': '목 장식', 'of.sh.pet.hat': '모자', 'of.sh.pet.wing': '날개',
-    'of.sh.pet.wearNone': '모자와 날개를 해금하면 반려동물에게도 씌울 수 있습니다.', 'of.pet.tag.round': '동그라미', 'of.pet.tag.bone': '뼈다귀', 'of.pet.tag.heart': '하트', 'of.pet.tag.star': '별', 'of.pet.tag.plate': '이름판',
-    'of.pet.neck.none': '없음', 'of.pet.neck.bandana': '반다나', 'of.pet.neck.bowtie': '나비넥타이', 'of.pet.neck.scarf': '목도리', 'of.pet.neck.bell': '방울' };
+/* pet goods (look v5): a tag shape on the collar, and the shop items hat, wings, body piece and toy, each sold by level in its own slot */
+test('pet goods: the strings exist in both languages and the options resolve through shopUi', () => {
+  const { PET_TAGS, PET_BODIES } = P5;
+  const ko = { 'of.sh.pet.g.face': '얼굴', 'of.sh.pg.collar': '목걸이와 이름표', 'of.sh.pet.collar': '목걸이', 'of.sh.pet.collarColor': '목걸이 색', 'of.sh.pet.tag': '이름표', 'of.sh.pg.tagNote': '목걸이를 채우면 이름표를 고를 수 있습니다.', 'of.sh.tab.petgear': '펫 용품', 'of.sh.pg.head': '모자', 'of.sh.pg.back': '날개', 'of.sh.pg.body': '하네스와 옷', 'of.sh.pg.toy': '장난감',
+    'of.sh.pg.opens': '펫 용품 {n}개', 'of.pet.tag.round': '동그라미', 'of.pet.tag.bone': '뼈다귀', 'of.pet.tag.heart': '하트', 'of.pet.tag.star': '별', 'of.pet.tag.plate': '이름판',
+    'of.pet.body.bandana': '반다나', 'of.pet.body.chime': '방울', 'of.pet.body.harness': '하네스', 'of.pet.body.bowtie': '나비넥타이', 'of.pet.body.scarf': '목도리', 'of.pet.body.vest': '패딩 조끼', 'of.pet.body.raincoat': '우비', 'of.pet.body.cape': '망토' };
   for(const [k, v] of Object.entries(ko)) assert.equal(OFFICE.ko[k], v, k);
-  assert.equal(OFFICE.en['of.sh.pet.g.wear'], 'Accessories'); assert.equal(OFFICE.en['of.sh.pet.tag'], 'Tag'); assert.equal(OFFICE.en['of.sh.pet.neck'], 'Neck');
-  assert.equal(OFFICE.en['of.sh.pet.hat'], 'Hat'); assert.equal(OFFICE.en['of.sh.pet.wing'], 'Wings'); assert.equal(OFFICE.en['of.sh.pet.wearNone'], 'Unlock hats and wings to put them on your pet.');
-  assert.ok(!/collar/i.test(OFFICE.en['of.sh.pet.g.face']), 'the collar moved out of the face group');
+  assert.equal(OFFICE.en['of.sh.pg.collar'], 'Collar and tag'); assert.equal(OFFICE.en['of.sh.pg.tagNote'], 'Put on a collar to choose a tag.'); assert.equal(OFFICE.en['of.sh.tab.petgear'], 'Pet goods'); assert.equal(OFFICE.en['of.sh.pg.opens'], 'pet goods ({n})');
+  assert.equal(OFFICE.en['of.sh.pg.body'], 'Harness and clothes'); assert.equal(OFFICE.en['of.sh.pg.head'], 'Hat'); assert.equal(OFFICE.en['of.sh.pg.back'], 'Wings'); assert.equal(OFFICE.en['of.sh.pg.toy'], 'Toys');
+  assert.ok(!/collar/i.test(OFFICE.en['of.sh.pet.g.face']), 'the collar is not in the pet form');
+  for(const lang of ['en', 'ko']) for(const k of Object.keys(OFFICE[lang])) assert.ok(!/^of\.(pet\.neck\.|sh\.pet\.(neck|hat|wing|wearNone|toy|g\.wear|g\.collar|collarOn)$)/.test(k), lang + ' ' + k + ' is no longer used');
+  for(const k of ['of.sh.pg.nopet', 'of.sh.pg.toPet', 'of.sh.pg.tagNote']) for(const lang of ['en', 'ko']) assert.equal(typeof OFFICE[lang][k], 'string', lang + ' ' + k);
+  assert.ok(/다\.$/.test(OFFICE.ko['of.sh.pg.nopet']) && !/·|—|[가-힣](고|며|서|면|지만),/.test(OFFICE.ko['of.sh.pg.nopet']), 'the ko note is a whole sentence');
   const ui = shopUi(k => k);
   for(const t of PET_TAGS){ assert.equal(ui.opt['tag.' + t], 'of.pet.tag.' + t); assert.ok(OFFICE.en['of.pet.tag.' + t] && OFFICE.ko['of.pet.tag.' + t]); }
-  for(const n of ['none', ...PET_NECKS]){ assert.equal(ui.opt['neck.' + n], 'of.pet.neck.' + n); assert.ok(OFFICE.en['of.pet.neck.' + n] && OFFICE.ko['of.pet.neck.' + n]); }
-  for(const k of ['pet.g.wear', 'pet.tag', 'pet.neck', 'pet.hat', 'pet.wing', 'pet.wearNone']) assert.ok(SHOP_KEYS.includes(k), k);
+  for(const b of PET_BODIES){ assert.equal(ui.opt['body.' + b], 'of.pet.body.' + b); assert.ok(OFFICE.en['of.pet.body.' + b] && OFFICE.ko['of.pet.body.' + b]); }
+  for(const k of ['pet.tag', 'pet.collar', 'pet.collarColor', 'pg.collar', 'pg.tagNote', 'tab.petgear', 'pg.head', 'pg.back', 'pg.body', 'pg.toy', 'pg.nopet', 'pg.toPet', 'pg.opens']) assert.ok(SHOP_KEYS.includes(k), k);
+  for(const k of ['pet.g.wear', 'pet.g.collar', 'pet.collarOn', 'pet.neck', 'pet.hat', 'pet.wing', 'pet.wearNone', 'pet.toy']) assert.ok(!SHOP_KEYS.includes(k), k + ' is gone');
 });
 
-test('pet accessories: the scene hands the gear makers to every makePet, ticks the pieces, and the pet tab offers only open hats and wings', () => {
+test('shopTiles: all nine slots, matched on slot and id together, so a pet item never answers for the character item of the same id', () => {
+  const { PET_HATS, PET_WINGS, PET_BODIES } = P5, ids = (u, slot) => shopTiles(u, slot).map(t => t.id);
+  const lv = (id, slot, n) => ({ id, slot, lvl: n });
+  const items = [lv('cap', 'head', 1), lv('cap', 'pet_head', 4), lv('angel', 'back', 3), lv('angel', 'pet_back', 5), lv('lamp', 'desk', 1),
+    lv('harness', 'pet_body', 3), lv('bandana', 'pet_body', 2), lv('duck', 'pet_toy', 4), lv('ball', 'pet_toy', 3), lv('cap', 'pet_toy', 1), lv('harness', 'head', 1), lv('beanie', 'pet_head', 2)];
+  const u = { level: 3, items };
+  assert.deepEqual(shopTiles(u, 'head'), [{ id: 'cap', lvl: 1, open: true }], 'the character tab shows its cap, and no foreign id');
+  assert.deepEqual(shopTiles(u, 'pet_head'), [{ id: 'cap', lvl: 4, open: false }, { id: 'beanie', lvl: 2, open: true }].sort((a, b) => PET_HATS.indexOf(a.id) - PET_HATS.indexOf(b.id)), 'the pet cap has its own level, and the pets.js order');
+  assert.deepEqual(shopTiles(u, 'back'), [{ id: 'angel', lvl: 3, open: true }]); assert.deepEqual(shopTiles(u, 'pet_back'), [{ id: 'angel', lvl: 5, open: false }]);
+  assert.deepEqual(ids(u, 'pet_body'), ['bandana', 'harness'], 'the order of PET_BODIES'); assert.deepEqual(ids(u, 'pet_toy'), ['ball', 'duck'], 'the order of PET_TOYS, and a head id is not a toy');
+  assert.deepEqual(ids(u, 'desk'), ['lamp']);
+  for(const slot of ['head', 'back', 'desk', 'pet_head', 'pet_back', 'pet_body', 'pet_toy', 'pet_collar', 'pet_tag']) assert.ok(Array.isArray(shopTiles(u, slot)), slot);
+  /* the collar and its tags: one collar item, the five tags in the pets.js order, each with its own level */
+  const cu = { level: 2, items: [lv('collar', 'pet_collar', 2), lv('plate', 'pet_tag', 4), lv('round', 'pet_tag', 2), lv('heart', 'pet_tag', 3), lv('bone', 'pet_tag', 2), lv('star', 'pet_tag', 3), lv('collar', 'pet_body', 1), lv('round', 'pet_head', 1), lv('bone', 'pet_toy', 3)] };
+  assert.deepEqual(shopTiles(cu, 'pet_collar'), [{ id: 'collar', lvl: 2, open: true }], 'one collar item, and a body piece with that id is not it');
+  assert.deepEqual(shopTiles(cu, 'pet_tag').map(t => t.id + t.lvl + (t.open ? '+' : '-')), ['round2+', 'bone2+', 'heart3-', 'star3-', 'plate4-'], 'the order of PET_TAGS, locked above the level');
+  assert.deepEqual(shopTiles({ level: 5, items: cu.items }, 'pet_tag').map(t => t.open), [true, true, true, true, true]); assert.deepEqual(ids(cu, 'pet_toy'), ['bone'], 'the toy bone is not the tag bone');
+  assert.deepEqual(shopTiles({ level: 6, items: [lv('collar', 'pet_collar', 2), lv('bone', 'pet_tag', 2)] }, 'head'), [], 'neither slot leaks into the character tabs');
+  assert.deepEqual(shopTiles({ level: 6, items: [{ id: 'collar', lvl: 2 }, { id: 'round', lvl: 2 }] }, 'pet_collar'), [], 'a pet item needs its slot (an older server sends none)');
+  assert.deepEqual(shopTiles({ level: 6, items: PET_BODIES.map(id => lv(id, 'pet_body', 1)).concat(PET_WINGS.map(id => lv(id, 'pet_back', 1))) }, 'pet_body').map(t => t.id), PET_BODIES);
+  assert.deepEqual(shopTiles({ level: 1, items: [{ id: 'cap', lvl: 1 }, { id: 'angel', lvl: 1 }] }, 'head').map(t => t.id), ['cap'], 'an item with no slot (an older server) is a character item by its id');
+  assert.deepEqual(shopTiles({ level: 1, items: [{ id: 'cap', lvl: 1 }] }, 'pet_head'), []);
+  /* the collection and the next-level note count character items only, and the pet goods become one entry */
+  const book = bookOf({ level: 3, levels: [{ lvl: 1 }, { lvl: 2 }, { lvl: 3 }, { lvl: 4 }, { lvl: 5 }], items });
+  assert.deepEqual(book.pages.flatMap(p => p.items).map(i => i.slot + ':' + i.id).sort(), ['back:angel', 'desk:lamp', 'head:cap'], 'no pet item in the book, no duplicate cap');
+  assert.deepEqual(unlockNext({ level: 3, levels: [{ lvl: 1, min_spent: 1 }, { lvl: 4, min_spent: 5 }, { lvl: 5, min_spent: 9 }], items }).opens, ['pg:2'], 'the pet cap and the duck, once');
+  assert.deepEqual(unlockNext({ level: 4, levels: [{ lvl: 1, min_spent: 1 }, { lvl: 5, min_spent: 9 }], items }).opens, ['pg:1']);
+  assert.deepEqual(unlockNext({ level: 1, levels: [{ lvl: 1, min_spent: 1 }, { lvl: 2, min_spent: 5 }], items: [lv('collar', 'pet_collar', 2), lv('round', 'pet_tag', 2), lv('bone', 'pet_tag', 2), lv('cap', 'head', 2)] }).opens, ['cap', 'pg:3'], 'the collar and the tags count in the one phrase');
+});
+
+test('pet goods: the scene hands the gear makers to every makePet, ticks the pieces, and the pet goods tab offers every item of its four slots', () => {
   assert.match(SCENE, /const PET_GEAR = \{ gear: \{ head: makeHeadGear, back: makeBackGear, placeHead: placeHeadGear, headFit: headGearFit, placeBack: placeBackGear, backFit: backGearFit \} \};/);
-  const calls = SCENE.match(/makePet\(T, [^)]*\)/g); assert.equal(calls.length, 3, 'the office pets, the preview and the viewer');
-  for(const c of calls) assert.match(c, /, PET_GEAR\)$/, c);
+  assert.equal(SCENE.match(/\bmakePet\(T, /g).length, 4, 'the office pets, the preview, the viewer and the body thumbnails');
+  for(const m of SCENE.matchAll(/\bmakePet\(T, [^\n]*/g)) assert.match(m[0], /PET_GEAR\)/, m[0].slice(0, 60));
   assert.match(SCENE, /const gp = g\.userData\.gearParts; if\(gp && gp\.length\) gp\.forEach\(h => \{ if\(h\.userData\.tick\) h\.userData\.tick\(time, envN, reduced\); \}\);/, 'the office pets');
   assert.match(SCENE, /\(u\.gearParts \|\| \[\]\)\.forEach\(h => \{ if\(h\.userData\.tick\) h\.userData\.tick\(ts, envN, reduced\); \}\); u\.fur\(vw\.ppu\);/, 'the viewer');
   assert.match(SCENE, /\(pv\.g\.userData\.gearParts \|\| \[\]\)\.forEach\(h => \{ if\(h\.userData\.tick\) h\.userData\.tick\(t, envN, reduced\); \}\);/, 'the preview');
-  /* the group, in order: collar row, tag select (disabled without a collar), neck select, then hat and wing tiles from the open items */
-  assert.match(SCENE, /grp\('face', auto\('eye'\) \+ auto\('nose'\)\) \+ grp\('wear', collar \+ sel2\('tag', PET_TAGS, 'tag\.', L\.tag \|\| PET_TAGS\[0\], null, L\.collar \? '' : ' disabled'\) \+ sel2\('neck', \['none', \.\.\.PET_NECKS\], 'neck\.', L\.neck \|\| 'none', 'none'\) \+ wearRows\)/);
-  assert.match(SCENE, /const hats = shopTiles\(u, 'head'\)\.filter\(t => t\.open\), wings = shopTiles\(u, 'back'\)\.filter\(t => t\.open\);/, 'locked items are not listed');
-  assert.match(SCENE, /!hats\.length && !wings\.length \? `<p class="sh-note">\$\{esc\(ui\['pet\.wearNone'\]\)\}<\/p>`/, 'with none open one note replaces the tiles');
-  assert.match(SCENE, /data-sh="\$\{act\}" data-v="\$\{id\}"/); assert.match(SCENE, /wRow\('pethat', L\.hat,/); assert.match(SCENE, /wRow\('petwing', L\.wing,/);
-  assert.match(SCENE, /if\(a === 'pethat' \|\| a === 'petwing'\)\{[^\n]*if\(v\) L\[k\] = v; else delete L\[k\];/, 'a tile sets or deletes the key, like the toy');
-  assert.match(SCENE, /else if\(k === 'tag' \|\| k === 'neck'\)\{ if\(!el\.value \|\| \(k === 'tag' && el\.value === PET_TAGS\[0\]\)\) delete L\[k\]; else L\[k\] = el\.value; \}/, 'the selects: none and the round tag write no key');
-  /* the tiles list the same open items the gear tabs do */
-  const u = { level: 2, items: [{ id: 'cap', lvl: 1 }, { id: 'tophat', lvl: 3 }, { id: 'angel', lvl: 2 }, { id: 'bat', lvl: 5 }] };
-  assert.deepEqual(shopTiles(u, 'head').filter(t => t.open).map(t => t.id), ['cap']); assert.deepEqual(shopTiles(u, 'back').filter(t => t.open).map(t => t.id), ['angel']);
-  assert.deepEqual(shopTiles({ level: 0, items: u.items }, 'head').filter(t => t.open), [], 'none open: the note shows');
+  /* the pet form: the collar group holds the collar and its tag; no hat, wing, body or toy choice is left in it */
+  const f = SCENE.slice(SCENE.indexOf('  function petHtml(){'), SCENE.indexOf('  function shopHtml(){'));
+  assert.match(f, /grp\('face', auto\('eye'\) \+ auto\('nose'\)\) \+ rm/, 'the form ends with the face group: no collar group');
+  assert.ok(!/pethat|petwing|wearRows|toyGrp|toyTile|PET_NECKS|'neck'|collar|sel2|PET_TAGS|use-collar/.test(f) && !/shopTiles/.test(f), 'the pet form carries no pet goods, no collar and no tag');
+  assert.ok(!/use-collar/.test(SCENE) && !/data-pf="tag"/.test(SCENE), 'no collar checkbox and no tag select anywhere');
+  assert.match(SCENE, /else if\(k === 'collar'\)\{ L\.collar = el\.value; P\.hex\.collar = el\.value; \}/, 'the colour picker in the pet goods tab writes look.collar');
+  /* the pet goods tab */
+  const g = SCENE.slice(SCENE.indexOf('  function petGearHtml(){'), SCENE.indexOf('  /* The collection (the first tab)'));
+  assert.match(SCENE, /const PG_SECTIONS = \[\['pet_head', 'hat', 'pg\.head'\], \['pet_back', 'wing', 'pg\.back'\], \['pet_body', 'body', 'pg\.body'\], \['pet_toy', 'toy', 'pg\.toy'\]\];/, 'hat, wings, harness and clothes, toys, in that order');
+  assert.match(g, /if\(pl == null \|\| lv < pl\) return \[`<p class="sh-note">\$\{esc\(fillT\(ui\['pet\.locked'\]/, 'without the pet level: the pet tab\'s locked note');
+  assert.match(g, /if\(!P\.had\) return \[`<p class="sh-note">\$\{esc\(ui\['pg\.nopet'\]\)\}<\/p><button type="button" class="of-dbtn out" data-sh="tab" data-v="pet"/, 'no pet yet: a note and a button to the pet tab');
+  /* the first section: the collar tiles, the colour while it is on, then the tag tiles (off with a note while there is no collar) */
+  assert.ok(g.indexOf("id=\"o-pg-collar\"") > 0 && g.indexOf("id=\"o-pg-collar\"") < g.indexOf('const sections = colHtml + PG_SECTIONS.map'), 'the collar section comes before the hat');
+  assert.match(g, /const colItems = shopTiles\(u, 'pet_collar'\), tagItems = shopTiles\(u, 'pet_tag'\), colOn = !!L\.collar;/);
+  assert.match(g, /slot: 'pet_collar', id: '', name: ui\.none, open: true, pressed: !colOn/); assert.match(g, /slot: 'pet_collar', id: t\.id, th: 'pcol:' \+ t\.id, name: ui\['pet\.collar'\], open: t\.open, lvl: t\.lvl, pressed: colOn/, 'the collar tile is locked by level like the others');
+  assert.match(g, /\(!colOn \? '' : `<div class="pet-row"><label for="o-pf-collar">\$\{esc\(ui\['pet\.collarColor'\]\)\}<\/label><div class="pet-inl"><input type="color" id="o-pf-collar" data-pf="collar" value="\$\{esc\(L\.collar\)\}"/, 'the colour only while the collar is on');
+  assert.match(g, /\(colOn \? '' : `<p class="sh-note">\$\{esc\(ui\['pg\.tagNote'\]\)\}<\/p>`\)/); assert.match(g, /th: 'ptag:' \+ t\.id, name: op\['tag\.' \+ t\.id\] \|\| t\.id, open: t\.open, lvl: t\.lvl, pressed: \(L\.tag \|\| PET_TAGS\[0\]\) === t\.id, dis: dis \|\| \(colOn \? '' : ' disabled'\)/);
+  assert.match(SCENE, /if\(k === 'collar'\)\{ if\(v\) L\.collar = P\.hex\.collar \|\| HEX_DEF\.collar; else \{ if\(L\.collar\) P\.hex\.collar = L\.collar; delete L\.collar; \} \}/, 'on takes the last colour or the default');
+  assert.match(SCENE, /else if\(k === 'tag' && v === PET_TAGS\[0\]\) delete L\.tag;/, 'the round tag writes no key');
+  assert.match(g, /const items = shopTiles\(u, slot\)/); assert.ok(!/filter\(t => t\.open\)/.test(g), 'locked items are listed too, with their level');
+  assert.match(g, /th: toy \? 'toy:' \+ t\.id : bodyS \? 'pbody:' \+ t\.id : t\.id/, 'thumbnails: the gear thumbnail, toy:<id>, pbody:<id>');
+  assert.match(g, /open: t\.open, lvl: t\.lvl, pressed: L\[key\] === t\.id/); assert.match(g, /class="pet-pv" role="button"/, 'the live preview'); assert.match(g, /shopFoot\(P\.dirty, P\.dirty\)\]/, 'the pet tab\'s save and cancel');
+  assert.match(SCENE, /pl = petThumbLook\(id\), pb = !!pl/); assert.match(SCENE, /pb \? makePet\(T, pl, PET_GEAR\)/, 'the default dog wearing the piece');
+  assert.match(SCENE, /id\.startsWith\('pbody:'\) \? \{ \.\.\.dog, body: id\.slice\(6\) \} : id === 'pcol:collar' \? \{ \.\.\.dog, collar: col \} : id\.startsWith\('ptag:'\) \? \{ \.\.\.dog, collar: col, tag: id\.slice\(5\), name: 'Bori' \} : null/, 'pbody, pcol and ptag thumbnails');
+  assert.match(SCENE, /const PET_THUMBS = \[\.\.\.PET_BODIES\.map\(x => 'pbody:' \+ x\), 'pcol:collar', \.\.\.PET_TAGS\.map\(x => 'ptag:' \+ x\)\];/);
+  /* a pick edits the shared look; a locked tile does nothing; the two pet tabs share one draft, one preview and one save */
+  assert.match(SCENE, /if\(a === 'pgpick'\)\{ if\(b\.getAttribute\('aria-disabled'\) === 'true'\) return; const k = PET_SLOT_KEY\[b\.dataset\.slot\]; if\(!k\) return; const P = shop\.pet, L = \{ \.\.\.P\.look \};/);
+  assert.match(SCENE, /const petTab = t => t === 'pet' \|\| t === 'petgear';/); assert.match(SCENE, /if\(a === 'save'\)\{ if\(petTab\(shop\.tab\)\)\{/); assert.match(SCENE, /if\(petTab\(shop\.tab\)\) shop\.pet = petState\(\); else/);
+  assert.match(SCENE, /if\(petTab\(shop\.tab\)\)\{ if\(shop\.tab === 'pet'\) breedsLoad\(\); petPreview\(\); \} else pvStop\(\);/); assert.match(SCENE, /!shop \|\| !petTab\(shop\.tab\) \|\| !chrome\.isOpen\(\)/, 'the preview loop runs on both tabs');
+  assert.match(SCENE, /'pet\.g\.face', 'pet\.tag', 'tab\.petgear', 'pg\.collar', 'pg\.tagNote', 'pg\.head', 'pg\.back', 'pg\.body', 'pg\.toy', 'pg\.nopet', 'pg\.toPet', 'pg\.opens'/);
+  assert.match(SCENE, /id\.startsWith\('pg:'\) \? fillT\(ui\['pg\.opens'\], \{ n: id\.slice\(3\) \}\)/, 'the level-up note names the pet goods once');
+  /* the gear tabs and the pet goods tab draw one tile */
+  assert.equal(SCENE.match(/class="sh-tile"/g).length, 1, 'one tile markup');
 });
 
-test('pet accessories: cosmeticsOf keeps the new keys of a pet, and the demo, the privacy page and the module queries follow', () => {
-  const pet = { kind: 'dog', coat: ['#c89159'], collar: '#d9534f', tag: 'plate', neck: 'bell', hat: 'party', wing: 'angel', name: 'Bori' };
-  for(const keep of [false, true]){ const c = cosmeticsOf({ lvl: 3, pet }, { keepPet: keep }); for(const k of ['tag', 'neck', 'hat', 'wing']) assert.equal(c.pet[k], pet[k], k + (keep ? ' kept as is' : ' normalized')); }
-  assert.match(TOWN, /name: 'Bori', collar: '#d9534f', tag: 'plate', hat: 'party', wing: 'angel' \}/); assert.match(TOWN, /breed: 'korean_cheese', neck: 'bell', hat: 'tophat' \}/);
+test('pet goods: cosmeticsOf keeps the new keys of a pet, and the demo, the privacy page and the module queries follow', () => {
+  const pet = { kind: 'dog', coat: ['#c89159'], collar: '#d9534f', tag: 'plate', body: 'harness', hat: 'party', wing: 'angel', toy: 'duck', name: 'Bori', neck: 'bandana' };
+  for(const keep of [false, true]){ const c = cosmeticsOf({ lvl: 3, pet }, { keepPet: keep }); for(const k of ['tag', 'body', 'hat', 'wing', 'toy']) assert.equal(c.pet[k], pet[k], k + (keep ? ' kept as is' : ' normalized')); }
+  assert.equal('neck' in cosmeticsOf({ lvl: 3, pet }).pet, false, 'the old neck key does not survive normalizing');
+  assert.match(TOWN, /name: 'Bori', collar: '#d9534f', tag: 'heart', hat: 'party', wing: 'angel', body: 'harness' \}/); assert.match(TOWN, /breed: 'korean_cheese', body: 'chime', hat: 'tophat' \}/);
+  /* the demo's catalogue is the server's: seven slots, the pet slots repeating the character ids */
+  const m = TOWN.match(/const items = (\[[\s\S]*?\])\.map\(\(\[id, slot, lvl\]\)/), items = JSON.parse(JSON.stringify(vm.runInNewContext(m[1]))).map(([id, slot, lvl]) => ({ id, slot, lvl }));
+  const by = slot => items.filter(i => i.slot === slot);
+  assert.deepEqual(by('pet_collar').map(i => i.id + i.lvl), ['collar2']); assert.deepEqual(by('pet_tag').map(i => i.id + i.lvl), ['round2', 'bone2', 'heart3', 'star3', 'plate4']);
+  assert.deepEqual(by('pet_head').map(i => [i.id, i.lvl]), by('head').map(i => [i.id, i.lvl])); assert.deepEqual(by('pet_back').map(i => [i.id, i.lvl]), by('back').map(i => [i.id, i.lvl]));
+  assert.deepEqual(by('pet_body').map(i => i.id + i.lvl), ['bandana2', 'chime2', 'harness3', 'bowtie3', 'scarf4', 'vest4', 'raincoat5', 'cape6']);
+  assert.deepEqual(by('pet_toy').map(i => i.id + i.lvl), ['ball3', 'bone3', 'yarn3', 'mouse3', 'duck4', 'rope4', 'frisbee5', 'feather5', 'fish6', 'bell6']);
+  assert.equal(by('pet_head').length, 15); assert.equal(by('pet_back').length, 7);
   const PRIV = read('../site/privacy/index.html');
-  assert.ok(PRIV.includes('눈과 코 색, 목걸이, 이름표, 목 장식, 모자와 날개)') && !PRIV.includes('목줄'), 'the Korean list');
-  assert.ok(PRIV.includes('eye and nose colours, collar, tag, neck piece, hat and wings)'), 'the English list');
-  for(const [name, src] of [['town-scene', TOWNSCENE], ['ops', OPS], ['team', TEAM], ['town', TOWN]]) assert.ok(!/3\.130\.0-5/.test(src), name + ' has no stale office-scene query');
-  assert.match(TOWNSCENE, /office-scene\.js\?v=3\.130\.0-6/); assert.match(TOWN, /office-i18n\.js\?v=3\.130\.0-6/);
+  assert.ok(PRIV.includes('눈과 코 색, 목걸이, 이름표, 모자, 날개, 하네스와 옷, 고른 장난감)') && !PRIV.includes('목줄') && !PRIV.includes('목 장식'), 'the Korean list');
+  assert.ok(PRIV.includes('eye and nose colours, collar, tag, hat, wings, harness or clothes, chosen toy)'), 'the English list');
+  for(const [name, src] of [['town-scene', TOWNSCENE], ['ops', OPS], ['team', TEAM], ['town', TOWN]]) assert.ok(!/3\.130\.0-[0-7]\b/.test(src), name + ' has no stale office-scene query');
+  assert.match(TOWNSCENE, /office-scene\.js\?v=3\.130\.0-8/); assert.match(TOWN, /office-i18n\.js\?v=3\.130\.0-8/);
 });
