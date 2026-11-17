@@ -290,6 +290,14 @@ test('needsSummary: quiet runs and failures get a summary, a run that posted cle
   assert.equal(needsSummary([{ product: 'claude', status: 'posted', version: '2.1.326' }, { product: 'codex', status: 'failed', error: 'x' }]), true);
 });
 
+test('needsSummary: a later run of the same day stays quiet unless something failed', () => {
+  const quiet = [{ product: 'claude', status: 'quiet' }, { product: 'codex', status: 'quiet' }, { product: 'pricing', status: 'held', count: 2 }];
+  assert.equal(needsSummary(quiet, { reportedToday: true }), false);
+  assert.equal(needsSummary(quiet, { reportedToday: false }), true);
+  assert.equal(needsSummary([{ product: 'codex', status: 'failed', error: 'x' }], { reportedToday: true }), true);
+  assert.equal(needsSummary([{ product: 'codex', status: 'posted', version: '0.169.1' }], { reportedToday: true }), false);
+});
+
 test('buildSummaryMessage: one line per product, failure count in the header', () => {
   const quiet = buildSummaryMessage({
     date: '2026-11-16',

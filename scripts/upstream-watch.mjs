@@ -46,6 +46,9 @@
  * message listing each product's state (no new version, findings already posted,
  * or the error). A quiet day is then visible in the channel and cannot be
  * mistaken for a run that never happened. `--dry-run` prints the summary instead.
+ * The job runs at 06:00, 12:00 and 18:00, so a quiet summary goes out only on the
+ * first quiet run of a day that has had no post yet (state `reportedOn`); a
+ * failure is reported on every run.
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -520,9 +523,16 @@ export function buildPricingMessage({ anthropic = [], openai = [], newAnthropic 
  * True when the run should end with a one-message summary: nothing reached the
  * channel, or a product failed. Without it a quiet day and a broken run looked
  * the same from Slack (an empty channel), and only the launchd log told them apart.
+ *
+ * The job runs several times a day, because a release that lands after the
+ * morning run used to wait a whole day (Codex 0.169.1 came out at 07:21 KST on
+ * 2026-11-18, an hour after the 06:00 run). So a quiet run speaks only when the
+ * channel heard nothing from the job yet that day (`reportedToday` false); a
+ * failure always speaks.
  */
-export function needsSummary(results) {
-  return results.some((r) => r.status === 'failed') || !results.some((r) => r.status === 'posted');
+export function needsSummary(results, { reportedToday = false } = {}) {
+  if (results.some((r) => r.status === 'failed')) return true;
+  return !results.some((r) => r.status === 'posted') && !reportedToday;
 }
 
 function summaryLine(r) {
@@ -712,7 +722,8 @@ async function loadPricingPage(source, url, parse) {
 }
 
 async function runPricing(opts, state, getSlack) {
-  const date = new Date().toISOString().slice(0, 10);
+  // Local date, as the summary uses: the UTC date labeled the 06:00 KST post with yesterday.
+  const date = localDate();
   const [a, o] = await Promise.all([
     loadPricingPage('anthropic', ANTHROPIC_PRICING_URL, parseAnthropicPricing),
     loadPricingPage('openai', OPENAI_PRICING_URL, parseOpenAIPricing),
@@ -792,9 +803,17 @@ async function main(argv) {
     }
   }
   const failed = results.some((r) => r.status === 'failed');
+  const today = localDate();
+  // A run that posted anything has reported for the day, so the later runs stay quiet.
+  const markReported = () => {
+    if (opts.dryRun || state.reportedOn === today) return;
+    state.reportedOn = today;
+    writeState(state);
+  };
+  if (results.some((r) => r.status === 'posted')) markReported();
 
   // --no-llm prints excerpts for a person at the terminal; a summary adds nothing there.
-  if (!opts.noLlm && needsSummary(results)) {
+  if (!opts.noLlm && needsSummary(results, { reportedToday: state.reportedOn === today })) {
     const summary = buildSummaryMessage({ date: localDate(), results });
     if (opts.dryRun) {
       console.log('--- summary ---');
@@ -803,6 +822,7 @@ async function main(argv) {
       try {
         await slackPost(getSlack(), summary);
         console.log('Summary: posted');
+        markReported();
       } catch (e) {
         console.error(`upstream-watch: summary: ${e.message}`);
         return 1;
