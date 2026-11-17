@@ -24,8 +24,10 @@ export const smooth = u => u * u * (3 - 2 * u);
 export const ANC = {
   night: { c0: '#2b3a78', c1: '#0b1030', sc: '#8fa8ff', si: 0.62, sp: [16, 32, 18], hs: '#4a5c9c', hg: '#232a50', hi: 0.7, fi: 0.1, ex: 1.05, n: 1 },
   dawn:  { c0: '#ffe0cf', c1: '#f0bfae', sc: '#ffb58a', si: 1.5, sp: [-28, 20, 14], hs: '#ffe2d0', hg: '#e8c4a6', hi: 0.95, fi: 0.25, ex: 1.08, n: 0.3 },
-  day:   { c0: '#fffaf0', c1: '#f6ead2', sc: '#fff0d4', si: 2.0, sp: [-12, 34, 16], hs: '#eaf3ff', hg: '#f0e2c8', hi: 1.0, fi: 0.4, ex: 1.1, n: 0 },
-  dusk:  { c0: '#ffd5b0', c1: '#e5a186', sc: '#ff9460', si: 1.6, sp: [30, 17, 10], hs: '#ffd9c0', hg: '#d9b0a0', hi: 0.9, fi: 0.2, ex: 1.05, n: 0.45 }
+  /* day and dusk (2026-11-17): a stronger sun over a weaker, cooler sky fill, so shadows read as blue-grey shapes and the island stops looking flat;
+   * dusk keeps the warm sun but gives the shade a lilac sky, which leaves the lawns green instead of olive */
+  day:   { c0: '#fffaf0', c1: '#f6ead2', sc: '#fff0d4', si: 2.5, sp: [-12, 34, 16], hs: '#dce9ff', hg: '#eadcc4', hi: 0.72, fi: 0.3, ex: 1.1, n: 0 },
+  dusk:  { c0: '#ffd5b0', c1: '#e5a186', sc: '#ff9a66', si: 2.1, sp: [30, 17, 10], hs: '#d6c6ee', hg: '#c9adab', hi: 0.7, fi: 0.2, ex: 1.05, n: 0.45 }
 };
 export const TL = [[0, 'night'], [4.5, 'night'], [6, 'dawn'], [7.5, 'day'], [16.5, 'day'], [18, 'dusk'], [19.5, 'night'], [24, 'night']];
 export const WXK = { clear: ['맑음', 'Clear', '☀'], clouds: ['흐림', 'Cloudy', '☁'], fog: ['안개', 'Fog', '🌫'], rain: ['비', 'Rain', '🌧'], snow: ['눈', 'Snow', '❄'], storm: ['뇌우', 'Storm', '⛈'] };

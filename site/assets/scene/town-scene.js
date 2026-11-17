@@ -671,7 +671,11 @@ export function mountTownScene(container, data, opts = {}){
     const isl = (rad, y, h, mats) => { const m = track(new T.Mesh(track(new T.CylinderGeometry(1, 1, h, 96)), mats)); m.scale.set(rad[0], 1, rad[1]); m.rotation.y = Math.PI / 4; m.position.y = y; m.receiveShadow = true; m.castShadow = false; world.add(m); return m; };
     { const gt = isl([gu, gv], -0.2, 0.4, [MT.side, MT.grassTop, MT.side]); 
       const sc = (hex) => { const m = std({ color: hex, roughness: 0.95 }); return m; };
-      isl([gu + 0.3, gv + 0.3], -0.5, 0.2, sc('#ece1c8')); isl([gu - 0.3, gv - 0.3], -1.0, 0.8, sc('#bd9b72')); isl([gu - 1.4, gv - 1.4], -1.7, 0.6, sc('#8f7b66')); }
+      /* a deep diorama base: a sandy rim, then soil and rock strata stepping inward, so the island reads as a solid block, not a thin plate */
+      isl([gu + 0.3, gv + 0.3], -0.5, 0.2, sc('#ece1c8')); isl([gu - 0.2, gv - 0.2], -1.05, 0.9, sc('#c49a6c')); isl([gu - 0.5, gv - 0.5], -1.8, 0.6, sc('#a98864'));
+      isl([gu - 0.9, gv - 0.9], -2.45, 0.7, sc('#8c7a6c')); isl([gu - 1.5, gv - 1.5], -3.05, 0.5, sc('#6e6575')); }
+    /* the base bottom joins the fit, so the strata are never cut off at the foot of the stage (kept shallow: every metre here shrinks the whole town) */
+    for(let k = 0; k < 8; k++){ const a = k * Math.PI / 4, lx = Math.cos(a) * gu, lz = Math.sin(a) * gv; pts.push([(lx + lz) * 0.7071, -3.3, (lz - lx) * 0.7071]); }
     /* soil colour of the grass edge */
     MT.side.color.set('#b6dc9b');
     bb = { pts, gu, gv, h: bb.h, x1: gu * 0.7, z1: gv * 0.7 };
@@ -692,7 +696,8 @@ export function mountTownScene(container, data, opts = {}){
       if(TR.some(q => Math.hypot(x - q[0], z - q[1]) < 2.3)) continue;
       TR.push([x, z, R2()]);
     }
-    const tint = hex => (snowy ? C(hex).lerp(SNOWC, 0.45) : C(hex));
+    /* snow keeps the foliage its own colour (washing every tree toward white turned the island a muddy grey-green); white caps on top carry the snow instead */
+    const tint = hex => (snowy ? C(hex).lerp(SNOWC, 0.12) : C(hex));
     const treeCol = () => { const r = R2(); return r < 0.06 ? '#f4b3c8' : r < 0.14 ? '#e5a24a' : greens[Math.floor(R2() * greens.length)]; };
     const trk = [], treeIx = [];   /* treeIx[i]: where tree i lives in the instanced meshes (trunk, canopy spheres, canopy cones), so a picked company can clear the view of its cast */
     /* canopies are built from several puffs: the main one, a darker one low on the shaded side (the sun comes from -x, +z), a fuller one on the lit side and a lighter crown on top; pines get a third tier */
@@ -718,6 +723,12 @@ export function mountTownScene(container, data, opts = {}){
       }
     }
     SH.forEach(s => CAN.push(['s', s[0], s[1], s[2], s[3], s[3] * 0.85, s[3], s[4]]));
+    if(snowy){   /* snow caps: a flattened white puff on each canopy and hedge puff, a white collar cone over each pine tier; caps carry the tree index so a picked company still clears them */
+      const SNW = '#f7fbff', caps = [];
+      CAN.forEach(q => { if(q[0] === 's' && q[4] >= 0.4) caps.push(['s', q[1], q[2] + q[5] * 0.5, q[3], q[4] * 0.82, q[5] * 0.42, q[6] * 0.82, SNW, q[8]]);
+        else if(q[0] === 'c') caps.push(['c', q[1], q[2] + q[5] * 0.25, q[3], q[4] * 0.6, q[5] * 0.55, q[6] * 0.6, SNW, q[8]]); });
+      CAN.push(...caps);
+    }
     if(GB.cs){ const cc3 = cs.find(c => c.closed), cvs = document.createElement('canvas'), x3 = cvs.getContext('2d'); cvs.width = 260; cvs.height = 104; x3.fillStyle = '#f3ecd9'; x3.fillRect(0, 0, 260, 104); x3.lineWidth = 8; x3.strokeStyle = '#b4443f'; x3.strokeRect(6, 6, 248, 92); x3.fillStyle = '#b4443f'; x3.font = '800 54px "Noto Sans KR","Geist",sans-serif'; x3.textAlign = 'center'; x3.textBaseline = 'middle'; x3.fillText(cc3 ? cc3.sign.seats : 'Closed', 130, 56);
       meshes.csMat = track(new T.MeshBasicMaterial({ map: tex(cvs), toneMapped: false })); }
     flushGB();
@@ -812,7 +823,9 @@ export function mountTownScene(container, data, opts = {}){
     scene.fog.color.copy(s0).lerp(s1, 0.5); scene.fog.density = st === 'fog' ? 0.013 : wet ? 0.0045 : 0.0012;
     Object.values(MT).forEach(m => { if(m.userData && m.userData.e != null) m.envMapIntensity = m.userData.e * (1 - 0.78 * night); });
     MT.road.roughness = wet ? 0.26 : 0.92; MT.road.envMapIntensity = MT.road.userData.e * (1 - 0.78 * night) * (wet ? 3.4 : 1); MT.road.color.setScalar(wet ? 0.82 : 1);
-    MT.grassTop.color.copy(C('#c4e6a6')).lerp(C('#f2f7fb'), snow ? 0.82 : 0); MT.side.color.copy(C('#b6dc9b')).lerp(C('#e9f1f6'), snow ? 0.6 : 0);
+    /* snow: the lawn goes almost white and the sky behind turns a cool slate, so the white island stands off its backdrop instead of melting into a grey page */
+    if(snow) stage.style.background = `#${s0.clone().lerp(C('#8592ad'), 0.7 * (1 - night)).getHexString()}`;
+    MT.grassTop.color.copy(C('#c4e6a6')).lerp(C('#f6f9fc'), snow ? 0.92 : 0); MT.side.color.copy(C('#b6dc9b')).lerp(C('#e9f1f6'), snow ? 0.6 : 0);
     MT.cloud.color.copy(C('#ffffff')).lerp(C('#6d7aa8'), night * 0.85).lerp(C('#c9ced8'), wet ? 0.5 : 0);
     MT.bulb.color.copy(C('#d9d3c0')).lerp(C('#ffe8a6'), night); MT.pool.opacity = night * 0.55; if(meshes.pool) meshes.pool.visible = night > 0.03;
     MT.halo.opacity = 0.26 + 0.5 * night; MT.signHalo.opacity = 0.1 + 0.6 * night;
@@ -934,7 +947,8 @@ export function mountTownScene(container, data, opts = {}){
   function proj(v, out){ out.copy(v).applyMatrix4(world.matrixWorld).project(camera); return [(out.x * 0.5 + 0.5) * W, (-out.y * 0.5 + 0.5) * H]; }
   function render(){
     if(view) castFxLod(scale * view.zoom() * CAST_SC);
-    if(post && post.on) post.render(); else renderer.render(scene, camera);
+    /* the zoom reaches the post chain as in the office: zoomed in, the tilt-shift band widens and the HQ spire stays sharp */
+    if(post && post.on){ if(view) post.setZoom(view.zoom()); post.render(); } else renderer.render(scene, camera);
     if(moreLbl){ const [x, y] = proj(V1.set(bb.x1 - 2, 0.3, bb.z1 - 1), TMP); const off = x < -30 || x > W + 30 || y < -30 || y > H + 30; moreLbl.style.display = off ? 'none' : ''; moreLbl.style.transform = `translate(${Math.round(Math.min(W - moreLbl.offsetWidth - 4, Math.max(4, x)))}px,${Math.round(Math.min(H - 40, y))}px)`; }
   }
   function frame(now){
@@ -1078,7 +1092,7 @@ export function mountTownScene(container, data, opts = {}){
       frame: merge(fg), cross: merge([bxg(0.07, 1, 1, 0, 0, 0), bxg(1, 0.07, 1, 0, 0, 0)]) };
     started = true; bindView(); ro = new ResizeObserver(resize); ro.observe(stage);
     W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false); build(cur); request();
-    makePost(T, renderer, scene, camera, { mobile, overlay: () => meshes.hqSign ? billboards.concat(meshes.hqSign) : billboards }).then(p => { if(destroyed){ if(p) p.dispose(); return; } post = p; if(post){ post.setSize(W, H); post.setNight(night); request(); } }).catch(() => {});
+    makePost(T, renderer, scene, camera, { mobile, look: { tiltZoom: 1.6 }, overlay: () => meshes.hqSign ? billboards.concat(meshes.hqSign) : billboards }).then(p => { if(destroyed){ if(p) p.dispose(); return; } post = p; if(post){ post.setSize(W, H); post.setNight(night); request(); } }).catch(() => {});
     if(opts.probe) opts.probe({ T, renderer, camera, scene, view, bld: () => bld, info: () => renderer.info });
     minuteTimer = setInterval(() => { if(started === true && !destroyed) applyEnv(); }, 60000);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if(started === true && !destroyed) build(cur); });

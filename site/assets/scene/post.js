@@ -51,7 +51,8 @@ export async function makePost(T, renderer, scene, camera, opts = {}){
   if(!renderer.capabilities.isWebGL2) return null;
   const [{ EffectComposer }, { RenderPass }, { GTAOPass }, { UnrealBloomPass }, { OutputPass }, { ShaderPass }] = await Promise.all(
     ['postprocessing/EffectComposer', 'postprocessing/RenderPass', 'postprocessing/GTAOPass', 'postprocessing/UnrealBloomPass', 'postprocessing/OutputPass', 'postprocessing/ShaderPass'].map(ADDON));
-  const o = { ao: 1, aoRadius: 4, bloom: 0.9, tilt: 1, sat: 1.12, aoview: 0, aoscale: 1.5, aothick: 10, ...opts.look };
+  /* tiltZoom: how fast the tilt-shift fades with the zoom (blur / zoom^tiltZoom); the office keeps 0.5, the town passes more so a zoomed spire stays sharp */
+  const o = { ao: 1, aoRadius: 4, bloom: 0.9, tilt: 1, tiltZoom: 0.5, sat: 1.12, aoview: 0, aoscale: 1.5, aothick: 10, ...opts.look };
   /* ?fxl=ao:0.5,tilt:0 overrides the look numbers (tuning only) */
   const fxl = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('fxl') : null;
   if(fxl) fxl.split(',').forEach(kv => { const [k, v] = kv.split(':'); if(k in o && isFinite(+v)) o[k] = +v; });
@@ -93,7 +94,7 @@ export async function makePost(T, renderer, scene, camera, opts = {}){
    * and the tilt-shift starts blurring the very desks being looked at: both shrink with the zoom factor */
   const zk = () => Math.max(1, zm);
   function tilt(){
-    const amt = 0.9 * o.tilt / Math.sqrt(zk());
+    const amt = 0.9 * o.tilt / Math.pow(zk(), o.tiltZoom);
     th.uniforms.dir.value = [amt / W, 0]; tv.uniforms.dir.value = [0, amt / H];
     th.enabled = tv.enabled = o.tilt > 0;
   }
