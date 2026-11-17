@@ -8,7 +8,7 @@
  * to a cast model before it is scaled and place it with placeHeadGear(g, headGearFit(id, species)). The skull is close to a ball of radius 0.36
  * whose centre is 0.37 below the anchor; the front is +z.
  * Wings (the back slot) are made for the standing and the seated cast model alike: place them with placeBackGear(g, backAnchorOf(T, model), backGearFit(id, species)).
- * The anchor is read off the loaded model once (the back surface at the height of the lower back, x = 0); a wing pair is symmetric about x = 0, each wing
+ * The anchor is read off the loaded model once (the torso's back surface at the height of the lower back, x = 0, never the tail); a wing pair is symmetric about x = 0, each wing
  * hung from a pivot 0.06 beside the anchor and swept out and back, so from the front it shows beside the head. Species with wings of their own skip them.
  * Desk items stand on y = 0 (the desk top) and face +z; each fits in 0.5 x 0.5 and is at most about 0.7 tall, in desk units. */
 
@@ -150,16 +150,27 @@ export function backGearFit(id, species){
   const f = (BACK_FIT[id] || {})[species], skip = BACK_SKIP.includes(species);
   return { y: num(f && f[0], 0), z: num(f && f[1], -0.02), s: num(f && f[2], 1), skip };
 }
-/* where wings hang on a loaded cast model, in the model's own space (front is +z): the back surface behind the lower back, or null without one */
+/* Where wings hang on a loaded cast model, in the model's own space (front is +z): the rear surface of the torso at the lower back, or null without one.
+ * The torso's rear surface is made of the vertices near the centre line (|x| < 0.1, 0.21 <= y <= 0.33) behind the middle (z < 0) whose normal points
+ * back (n.z < -0.6). Sorted from the front, it is the first run of their z values with no step over 0.03. A tail also faces back there but starts a new
+ * run further back, so it is left out. Until 3.130.0-3 the deepest vertex of the band was the anchor: on the fox, wolf, cat, dog, husky and squirrel
+ * that was the tail, and the wings hung up to 0.25 behind the back (measured on all thirty models, the torso's rear is at -0.25 to -0.28, the pig's
+ * curly tail starts below 0.21). A model without normals falls back to the deepest vertex of the wider band. */
 export function backAnchorOf(T, root){
   root.updateMatrixWorld(true);
-  const inv = new T.Matrix4().copy(root.matrixWorld).invert(), m4 = new T.Matrix4(), v = new T.Vector3();
-  let minZ = Infinity;
+  const inv = new T.Matrix4().copy(root.matrixWorld).invert(), m4 = new T.Matrix4(), nm = new T.Matrix3(), v = new T.Vector3(), n = new T.Vector3();
+  const zs = []; let minZ = Infinity;
   root.traverse(o => {
-    const pos = o.isMesh && o.geometry && o.geometry.attributes && o.geometry.attributes.position; if(!pos) return;
-    m4.multiplyMatrices(inv, o.matrixWorld);
-    for(let i = 0; i < pos.count; i++){ v.fromBufferAttribute(pos, i).applyMatrix4(m4); if(Math.abs(v.x) < 0.12 && v.y >= 0.10 && v.y <= 0.34 && v.z < minZ) minZ = v.z; }
+    const at = o.isMesh && o.geometry && o.geometry.attributes, pos = at && at.position; if(!pos) return;
+    const nor = at.normal; m4.multiplyMatrices(inv, o.matrixWorld); if(nor) nm.getNormalMatrix(m4);
+    for(let i = 0; i < pos.count; i++){
+      v.fromBufferAttribute(pos, i).applyMatrix4(m4);
+      if(!nor){ if(Math.abs(v.x) < 0.12 && v.y >= 0.10 && v.y <= 0.34 && v.z < minZ) minZ = v.z; continue; }
+      if(Math.abs(v.x) >= 0.1 || v.y < 0.21 || v.y > 0.33 || v.z >= 0) continue;
+      if(n.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize().z < -0.6) zs.push(v.z);
+    }
   });
+  if(zs.length){ zs.sort((a, b) => b - a); let k = 0; while(k + 1 < zs.length && zs[k] - zs[k + 1] < 0.03) k++; minZ = zs[k]; }
   return Number.isFinite(minZ) ? { x: 0, y: 0.24, z: minZ } : null;
 }
 export function placeBackGear(g, anchor, fit){

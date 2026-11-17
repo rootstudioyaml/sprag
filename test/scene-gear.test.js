@@ -67,15 +67,38 @@ test('placeBackGear puts the wings at the anchor plus the fit', () => {
   assert.deepEqual(calls.pos.map(v => +v.toFixed(4)), [0, 0.29, -0.32]); assert.equal(calls.s, 1.1);
 });
 
-test('backAnchorOf: the back surface of the lower back (|x| < 0.12, 0.10 <= y <= 0.34), at x = 0 and y = 0.24; null without such a vertex', () => {
-  const V = class { constructor(){ this.x = 0; this.y = 0; this.z = 0; } fromBufferAttribute(a, i){ [this.x, this.y, this.z] = a.v[i]; return this; } applyMatrix4(){ return this; } };
+/* identity transforms are enough here: the cast models are read in their own space */
+const anchorKit = () => {
+  const V = class { constructor(){ this.x = 0; this.y = 0; this.z = 0; } fromBufferAttribute(a, i){ [this.x, this.y, this.z] = a.v[i]; return this; } applyMatrix4(){ return this; } applyMatrix3(){ return this; }
+    normalize(){ const l = Math.hypot(this.x, this.y, this.z) || 1; this.x /= l; this.y /= l; this.z /= l; return this; } };
   const M4 = class { copy(){ return this; } invert(){ return this; } multiplyMatrices(){ return this; } };
-  const T = { Matrix4: M4, Vector3: V };
-  const mesh = v => ({ isMesh: true, matrixWorld: {}, geometry: { attributes: { position: { count: v.length, v } } } });
+  const M3 = class { getNormalMatrix(){ return this; } };
+  const T = { Matrix4: M4, Matrix3: M3, Vector3: V };
+  const attr = v => ({ count: v.length, v });
+  const mesh = (v, n) => ({ isMesh: true, matrixWorld: {}, geometry: { attributes: n ? { position: attr(v), normal: attr(n) } : { position: attr(v) } } });
   const root = ms => ({ updateMatrixWorld(){}, matrixWorld: {}, traverse(fn){ fn(this); ms.forEach(fn); } });
+  return { T, mesh, root };
+};
+
+test('backAnchorOf without normals: the deepest vertex of the lower back (|x| < 0.12, 0.10 <= y <= 0.34), at x = 0 and y = 0.24; null without one', () => {
+  const { T, mesh, root } = anchorKit();
   const a = backAnchorOf(T, root([mesh([[0, 0.2, -0.31], [0.05, 0.3, -0.27], [0.5, 0.2, -0.9], [0, 0.6, -0.8], [0, 0.05, -0.7], [0.11, 0.12, -0.33]]), mesh([[0, 0.25, -0.2]])]));
   assert.deepEqual(a, { x: 0, y: 0.24, z: -0.33 }, 'the side, the high and the low vertices do not count');
   assert.equal(backAnchorOf(T, root([mesh([[0.5, 0.2, -0.9], [0, 0.6, -0.8]])])), null);
+});
+
+test('backAnchorOf: the torso\'s rear surface, never a tail behind it (the wings of the fox and the wolf hung on the tail tip until 3.130.0-3)', () => {
+  const { T, mesh, root } = anchorKit(), back = [0, 0, -1], front = [0, 0, 1];
+  /* a torso whose rear surface runs from -0.22 to -0.25 near the spine, a tail behind it from -0.30 to -0.46, a belly and folded arms in front */
+  const pts = [[0, 0.25, -0.22], [0.06, 0.28, -0.23], [0, 0.3, -0.25], [0.02, 0.22, -0.24],
+    [0, 0.26, -0.30], [0, 0.24, -0.46], [0.03, 0.3, -0.41],
+    [0, 0.25, 0.24], [0.05, 0.26, 0.2]];
+  const nrm = [back, back, back, back, front, back, back, front, back];
+  assert.deepEqual(backAnchorOf(T, root([mesh(pts, nrm)])), { x: 0, y: 0.24, z: -0.25 }, 'the tail and the arms in front do not count');
+  /* the tail's front faces the body (n.z > 0), so it never joins the torso's run; a sideways normal (n.z > -0.6) does not count either */
+  assert.deepEqual(backAnchorOf(T, root([mesh([[0, 0.25, -0.24], [0, 0.25, -0.26], [0, 0.25, -0.27]], [back, back, [1, 0, -0.3]])])), { x: 0, y: 0.24, z: -0.26 });
+  /* outside 0.21 <= y <= 0.33 or |x| >= 0.1 nothing counts: the pig's curly tail starts below the band */
+  assert.equal(backAnchorOf(T, root([mesh([[0, 0.18, -0.36], [0.12, 0.25, -0.3], [0, 0.4, -0.3]], [back, back, back])])), null);
 });
 
 /* Species whose own body leaves no honest place for a piece: horns or antlers that a brim would rest on, ears that rise from the middle of the crown.
