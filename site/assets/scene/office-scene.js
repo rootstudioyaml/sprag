@@ -28,7 +28,7 @@ import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaH
 import { normalizePetLook, pickPets, petPlan, petHash, makePet, makeBowls, makeToy, makeToyBasket, makePhotoFrame, disposePetShared, PET_MAX, petLookFromPixels, PET_KINDS, PET_PATTERNS, PET_EARS, PET_TAILS, PET_SIZES, PET_NAME_MAX, PET_COAT_MAX, PET_DEFAULTS,
   petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed, PET_TOYS } from './pets.js?v=p7';
 import * as PETS_NS from './pets.js?v=p7';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
-import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared } from './gear.js?v=g4';   /* unlockable head, wing and desk gear; the query keeps the module in step with this file */
+import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared } from './gear.js?v=g5';   /* unlockable head, wing and desk gear; the query keeps the module in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;

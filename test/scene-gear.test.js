@@ -148,10 +148,11 @@ test('headGearSkips: no species skips a piece because of headwear it no longer h
 });
 
 /* One size policy (3.127.0-3): a member who unlocks a piece expects it to look the same size on their animal as on a coworker's, so a piece that is shown
- * is drawn at 0.8 to 1.25 of its standard scale; where it cannot sit inside that range the species skips it. The cap has two looks, each one size:
- * over the whole head, or a small cap between the ears on heads with ears on top. The ghost wears nothing. */
+ * is drawn at 0.8 to 1.25 of its standard scale; where it cannot sit inside that range the species skips it. Since 3.130.0-4 the cap and the beanie
+ * have one look, over the whole head, and ears pass through them; the small cap between the ears hung over the crown. The ghost wears nothing. */
 const WEARERS = SPECIES.filter(k => k !== 'ghost');
-const CAP_BETWEEN_EARS = ['tiger', 'wolf', 'fox', 'husky', 'panda', 'koala', 'raccoon', 'cat', 'bear', 'squirrel', 'rabbit', 'pig', 'mouse'];
+/* beanies that stop short of horns (dragon, unicorn) or sit behind the squirrel's tufted ears */
+const BEANIE_COVER = { dragon: 0.9, unicorn: 0.8, squirrel: 0.9 };
 
 test('headGearFit: every piece that is shown is within 0.8 to 1.25 of its standard scale', () => {
   assert.equal(WEARERS.length, 30, 'thirty species wear gear');
@@ -161,14 +162,28 @@ test('headGearFit: every piece that is shown is within 0.8 to 1.25 of its standa
   }
 });
 
-test('headGearFit: the cap is over the whole head or a small cap between the ears, each look one size on every species that wears it', () => {
-  for(const k of CAP_BETWEEN_EARS) assert.ok(WEARERS.includes(k), k + ' is a cast species');
+test('headGearFit: the cap and the beanie cover the whole head on every species that wears them, one size', () => {
+  for(const k of Object.keys(BEANIE_COVER)) assert.ok(WEARERS.includes(k), k + ' is a cast species');
   for(const k of WEARERS){
-    const f = headGearFit('cap', k);
-    if(f.skip) continue;
-    assert.equal(f.s, 1, 'cap on ' + k);
-    assert.equal(f.c, CAP_BETWEEN_EARS.includes(k) ? 0.5 : 0.95, 'cap look on ' + k);
+    const c = headGearFit('cap', k), b = headGearFit('beanie', k);
+    if(!c.skip){ assert.equal(c.s, 1, 'cap on ' + k); assert.equal(c.c, 0.95, 'cap look on ' + k); }
+    if(!b.skip){ assert.equal(b.s, 1, 'beanie on ' + k); assert.equal(b.c, BEANIE_COVER[k] || 0.95, 'beanie look on ' + k); }
   }
+});
+
+test('the top hat and the wizard hat sit level on the crown with a brim that bends down over the head (3.130.0-4)', () => {
+  for(const id of ['tophat', 'wizard']) for(const k of WEARERS){ const f = headGearFit(id, k); if(!f.skip) assert.equal(f.rx, 0, id + ' on ' + k + ' sits level'); }
+  for(const id of ['tophat', 'wizard']){
+    const brims = meshesOf(G.makeHeadGear(fakeThree(), id)).filter(m => m.userData.brim);
+    assert.equal(brims.length, 1, id + ' has one brim');
+  }
+  /* the brim's top follows a ball of radius R from ri out to ro: it bends down, but not so far that it reaches the eyes */
+  const m = SRC.match(/const BRIM = \{ tophat: \[([\d., ]+)\], wizard: \[([\d., ]+)\] \};/); assert.ok(m, 'BRIM table');
+  for(const [id, s] of [['tophat', m[1]], ['wizard', m[2]]]){
+    const [ri, ro, R] = s.split(',').map(Number), drop = Math.sqrt(R * R - ri * ri) - Math.sqrt(R * R - ro * ro);
+    assert.ok(drop > 0.02 && drop < 0.08, id + ' brim drops ' + drop.toFixed(3) + ' at its edge');
+  }
+  assert.ok(!/cyl\(T, 0\.25, 0\.25, 0\.03, 32\)|cyl\(T, 0\.34, 0\.33, 0\.026, 40\)/.test(SRC), 'no flat brim disc is left');
 });
 
 test('placeHeadGear puts the piece at the crown anchor plus the fit and hands the width and the cover angle to the piece', () => {

@@ -97,7 +97,7 @@ test('every shop string exists in both languages, Korean prose has no middle dot
 });
 
 test('the scene wires gear and the shop: imports, crown rule, season sheet, disposal on rebuild and destroy, desk ticks, shop only with data.shop and opts.shop', () => {
-  assert.match(SCENE, /import \{ GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared \} from '\.\/gear\.js\?v=g4'/);
+  assert.match(SCENE, /import \{ GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared \} from '\.\/gear\.js\?v=g5'/);
   assert.match(SCENE, /from '\.\/pets\.js\?v=p7'/); assert.ok(!/pets\.js\?v=p[0-68-9]/.test(SCENE), 'every import of pets.js carries the same query');
   assert.match(SCENE, /export const CAST_Q = '\?v=3\.127\.0-2';/, 'the cast files without accessories need a new cache key');
   assert.match(SCENE, /function dressOf\(o\)\{[^\n]*headDress\(\{ ghost: o\.ghost, crown: o\.p\.crown/);
