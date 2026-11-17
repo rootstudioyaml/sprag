@@ -956,6 +956,7 @@ export function mountOfficeScene(container, data, opts = {}){
   let gearBits = [];   /* desk items (gear.js) on this build's desks: ticked in step(), freed on every rebuild like the pets */
   const ownDispose = g => { if(typeof g.userData.dispose !== 'function') g.userData.dispose = () => {}; return g; };
   const lvText = n => String((cur && cur.ui && cur.ui.lv) || 'Lv.{n}').split('{n}').join(String(n));
+  let loungeObs = { rects: [], occ: [] };   /* the lounge's footprints for the pets' floor grid and their view test (set by build) */
   let pets = [], petBits = [], petNav = null, petCtx = null, petFurCalls = 0;   /* pets (pets.js): pets holds each pet's state, petBits every Group to dispose, petNav the floor grid they walk on */
   let xmas = false, hol = [], holWall = null, holFit = null;   /* year-end dressing (holiday.js): on from Nov 1 to Dec 30 Seoul time or with ?season=xmas; hol holds every Group to tick and dispose */
   /* Who wears what, only while HOL_HEADS is on (off by default): a crown gets only the red nose, a person without one gets a Santa hat or the Rudolph set (antlers band and red nose) by a hash of the id.
@@ -1809,6 +1810,7 @@ export function mountOfficeScene(container, data, opts = {}){
     rects.push([srv.x - 1.3, srv.z - 0.8, srv.x + 1.3, srv.z + 0.85], ...pr); block.push([srv.x - 1.3, srv.z - 0.8, srv.x + 1.3, srv.z + 0.85]);
     [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z]) => rects.push([x - 0.4, z - 0.4, x + 0.4, z + 0.4]));   /* potted plants */
     lampList.forEach(l => rects.push([l.x - 0.22, l.z - 0.22, l.x + 0.22, l.z + 0.22]));
+    loungeObs.rects.forEach(r => rects.push(r));   /* the sofa, the table, the big plants and the standing lamp of the lounge */
     owners.forEach(o => { const b = petBowlAt(o); rects.push([b.x - 0.2, b.z - 0.35, b.x + 0.2, b.z + 0.35, 0.1]); });   /* the bowls, with a small margin so the pet still reaches them */
     petNav = petNavGrid(rects);
     /* rays start from the middle of the boxes (the pile's own origin is at its back edge) */
@@ -1816,6 +1818,7 @@ export function mountOfficeScene(container, data, opts = {}){
     /* occluders between the floor and the home camera (playSeen): desks with what stands on them, the chairs with their sitters, the kiosk, the plants and the pile */
     const occ = []; zones.forEach(zn => zn.seats.forEach(s => occ.push([s.x - 1.1, s.z + 0.55, s.x + 1.1, s.z + 1.75, 1.62], [s.x - 0.5, s.z - 0.22, s.x + 0.5, s.z + 0.72, 2.3])));
     occ.push([srv.x - 1.3, srv.z - 0.8, srv.x + 1.3, srv.z + 0.85, 2.4]); [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z]) => occ.push([x - 0.4, z - 0.4, x + 0.4, z + 0.4, 1.8]));
+    loungeObs.occ.forEach(r => occ.push(r));
     const tops = pileTops(); tops.forEach(t => occ.push([t.x0, t.z0, t.x1, t.z1, t.y]));
     petCtx = { pile: pc, rects: pr, block, occ, tops, taken: new Map(), blobM: bas({ color: '#3a2a20', map: sets.soft, transparent: true, opacity: 0.34, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }) };
     owners.forEach(o => petAdd(o, normalizePetLook(o.p.pet), true));
@@ -2142,7 +2145,7 @@ export function mountOfficeScene(container, data, opts = {}){
     (container.closest('.of-card') || container).setAttribute('aria-label', d.hud.title);
   }
   function build(d){
-    cur = d; clear(); xmas = holidayOn();
+    cur = d; clear(); loungeObs = { rects: [], occ: [] }; xmas = holidayOn();
     const closed = !!d.closed, pl = d.people || [];
     paintChrome(d);
     zones = layout(d);
@@ -2153,12 +2156,14 @@ export function mountOfficeScene(container, data, opts = {}){
     const W0 = wxs = { outB: [], outS: [], glass: [], patch: [], wins: [], lamps: [], stones: [], glassBase: [], ao: [] };
 
     let ws = null, wd = false; wallIdx = { z: [], x: [] }; wallHid = { z: false, x: false };   /* wd: trim on a wall (wainscot, rails, window bars, sills) is stored as ~index and vanishes with its wall instead of leaving a strip */
-    const sb = [], B = (c, w, h, dd, x, y, z) => { sb.push([c, w, h, dd, x, y, z]); if(ws) wallIdx[ws].push(wd ? ~(sb.length - 1) : sb.length - 1); };       /* static boxes */
+    const sb = [], B = (c, w, h, dd, x, y, z, ry = 0) => { sb.push([c, w, h, dd, x, y, z, ry]); if(ws) wallIdx[ws].push(wd ? ~(sb.length - 1) : sb.length - 1); };       /* static boxes (ry: an optional turn about y, for the lounge armchairs) */
     const sp = [], Sp = (c, r, x, y, z, sx = 1, sy = 1, sz = 1) => sp.push([c, r, x, y, z, sx, sy, sz]);   /* static spheres */
     const OB = (kind, ...a) => { B(...a); W0.outB.push([sb.length - 1, col(a[0]), kind]); }, OS = (kind, ...a) => { Sp(...a); W0.outS.push([sp.length - 1, col(a[0]), kind]); };   /* outdoors: tinted by applyEnv */
     const IW = FW + 4, ID = FD + 4;
     OB('lawn', '#cfe8b5', IW, 0.5, ID, 0, -0.45, 0);                                  /* garden island */
     OB('soil', '#b99a73', IW - 0.6, 0.3, ID - 0.6, 0, -0.85, 0);
+    OB('soil', '#a98864', IW - 1.0, 0.45, ID - 1.0, 0, -1.22, 0);                     /* two more soil layers, stepping inward: the island reads as a diorama base, not a slab */
+    OB('soil', '#8c7a6c', IW - 1.6, 0.4, ID - 1.6, 0, -1.64, 0);
     B('#e9c99a', FW, 0.4, FD, 0, -0.2, 0);                                            /* wood floor slab */
     B('#b48a5a', FW - 0.04, 0.008, FD - 0.04, 0, 0.004, 0);                           /* dark underlay: it shows only in the seams between the planks */
     { /* planks 0.6 wide running along x, butt joints staggered row by row, a hashed tone per plank and 0.03 seams; the outer edges stay flush with the slab, and a row never ends in a sliver */
@@ -2294,27 +2299,127 @@ export function mountOfficeScene(container, data, opts = {}){
       const rx = Math.min(FW * 0.7, 15), rz = Math.min(FD * 0.7, 15), roomA = { x0: CN + 0.4, x1: CN + rx, z0: CN + 0.4, z1: CN + 4.5, y: 0.06 }, roomB = { x0: CN + 0.4, x1: CN + 4.5, z0: CN + 4.5, z1: CN + rz, y: 0.06 }, roomC = { x0: CN + 4.5, x1: CN + rx * 0.8, z0: CN + 4.5, z1: CN + rz * 0.8, y: 0.06 };
       const roomFall = [{ ...roomA, n: 26, top: 15 }, { ...roomB, n: 26, top: 15 }, { ...roomC, n: 34, top: 15 }], roomFloor = [{ ...roomA, n: 30 }, { ...roomB, n: 30 }, { ...roomC, n: 16 }];
       OB('lawn', '#cfe8b5', FW + 7.5, 0.5, 6.5, -1.75, -0.45, -FD / 2 - 5.25); OB('soil', '#b99a73', FW + 6.9, 0.3, 6.5, -1.75, -0.85, -FD / 2 - 4.95);
+      OB('soil', '#a98864', FW + 6.5, 0.45, 6.1, -1.75, -1.22, -FD / 2 - 4.95); OB('soil', '#8c7a6c', FW + 6.1, 0.4, 5.7, -1.75, -1.64, -FD / 2 - 4.95);   /* the same two layers under the grown lawn pieces */
       OB('lawn', '#cfe8b5', 3.5, 0.5, FD + 4, -FW / 2 - 3.75, -0.45, 0); OB('soil', '#b99a73', 3.5, 0.3, FD + 3.4, -FW / 2 - 3.45, -0.85, 0);
+      OB('soil', '#a98864', 3.1, 0.45, FD + 3.0, -FW / 2 - 3.45, -1.22, 0); OB('soil', '#8c7a6c', 2.7, 0.4, FD + 2.6, -FW / 2 - 3.45, -1.64, 0);
       const tr = makeWorldTree(T, { carpet: lawnR(460, 110, -0.17), fall: [...lawnR(60, 14, -0.17), srvFall, ...roomFall], floor: [srvFloor, ...roomFloor], srv: srvAt, corner: CN });
       tr.position.set(gx, 0, gz); world.add(tr); hol.push(tr); holFit = { x: gx, z: gz, pts: [[3.0, 3.2], [7.4, 4.0]] };
       const pl = makePresents(T); pl.userData.pile = true; pl.scale.setScalar(0.75); pl.rotation.y = -0.35; pl.position.set(srv.x + 1.9, 0, srv.z + 1.3); world.add(pl); hol.push(pl);   /* the present pile stands in front of the kiosk */
     }
-    /* potted plants in three corners: a terracotta pot with a rolled rim round dark soil, and a different plant in each (a bushy fern, a tall fiddle-leaf fig, a snake plant) */
-    [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => {
-      B('#d98f68', 0.6, 0.5, 0.6, x, 0.25, z); B('#c27a56', 0.74, 0.04, 0.74, x, 0.02, z); B('#5e4330', 0.58, 0.04, 0.58, x, 0.58, z);   /* pot, saucer, soil */
-      [[0, 0.33, 0.74, 0.08], [0, -0.33, 0.74, 0.08], [0.33, 0, 0.08, 0.58], [-0.33, 0, 0.08, 0.58]].forEach(([ox, oz, sx, sz]) => B('#eaa983', sx, 0.14, sz, x + ox, 0.55, z + oz));
+    /* potted plants: a terracotta pot with a rolled rim round dark soil, and a different plant per kind i (0 a bushy fern, 1 a tall fiddle-leaf fig, 2 a snake plant); s scales the whole plant about its foot */
+    const plant = (x, z, i, s = 1) => {
+      const Bs = (c, w, h, dd, ox, y, oz) => B(c, w * s, h * s, dd * s, x + ox * s, y * s, z + oz * s), Ss = (c, r, ox, y, oz, sx = 1, sy = 1, sz = 1) => Sp(c, r * s, x + ox * s, y * s, z + oz * s, sx, sy, sz);
+      Bs('#d98f68', 0.6, 0.5, 0.6, 0, 0.25, 0); Bs('#c27a56', 0.74, 0.04, 0.74, 0, 0.02, 0); Bs('#5e4330', 0.58, 0.04, 0.58, 0, 0.58, 0);   /* pot, saucer, soil */
+      [[0, 0.33, 0.74, 0.08], [0, -0.33, 0.74, 0.08], [0.33, 0, 0.08, 0.58], [-0.33, 0, 0.08, 0.58]].forEach(([ox, oz, sx, sz]) => Bs('#eaa983', sx, 0.14, sz, ox, 0.55, oz));
       if(i === 0){
-        Sp('#8fcf9b', 0.5, x, 0.95, z, 1, 0.72, 1); Sp('#7fc08c', 0.36, x + 0.3, 1.05, z - 0.12); Sp('#a8dba0', 0.34, x - 0.28, 1.08, z + 0.15);
-        Sp('#9fd49a', 0.3, x + 0.05, 1.32, z - 0.06); Sp('#7fc08c', 0.24, x + 0.22, 1.4, z + 0.2); Sp('#b9e4ad', 0.2, x - 0.1, 1.55, z + 0.05);
+        Ss('#8fcf9b', 0.5, 0, 0.95, 0, 1, 0.72, 1); Ss('#7fc08c', 0.36, 0.3, 1.05, -0.12); Ss('#a8dba0', 0.34, -0.28, 1.08, 0.15);
+        Ss('#9fd49a', 0.3, 0.05, 1.32, -0.06); Ss('#7fc08c', 0.24, 0.22, 1.4, 0.2); Ss('#b9e4ad', 0.2, -0.1, 1.55, 0.05);
       } else if(i === 1){
-        B('#7a5a3a', 0.06, 1.35, 0.06, x, 1.25, z);
+        Bs('#7a5a3a', 0.06, 1.35, 0.06, 0, 1.25, 0);
         [[0.2, 1.15, 0.06, 0.27, '#6fb67d'], [-0.2, 1.42, -0.08, 0.3, '#8fcf9b'], [0.12, 1.7, 0.1, 0.32, '#7cc48a'], [-0.1, 1.96, -0.03, 0.27, '#a8dba0'], [0.06, 2.2, 0.02, 0.18, '#9fd49a']]
-          .forEach(([ox, y, oz, r, c]) => Sp(c, r, x + ox, y, z + oz, 1, 0.72, 0.85));
+          .forEach(([ox, y, oz, r, c]) => Ss(c, r, ox, y, oz, 1, 0.72, 0.85));
       } else {
         [[0, 0, 0.82, '#5f9e6e'], [0.12, 0.06, 0.66, '#79b77f'], [-0.12, 0.04, 0.72, '#6aa874'], [0.05, -0.12, 0.58, '#a9c96a'], [-0.06, 0.14, 0.52, '#79b77f'], [0.16, -0.08, 0.46, '#5f9e6e'], [-0.15, -0.1, 0.62, '#8cbf6e']]
-          .forEach(([ox, oz, h, c], j) => Sp(c, 1, x + ox, 0.58 + h * 0.45, z + oz, j % 2 ? 0.05 : 0.085, h * 0.5, j % 2 ? 0.085 : 0.05));
+          .forEach(([ox, oz, h, c], j) => Ss(c, 1, ox, 0.58 + h * 0.45, oz, j % 2 ? 0.05 : 0.085, h * 0.5, j % 2 ? 0.085 : 0.05));
       }
-    });
+    };
+    [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z], i) => plant(x, z, i));   /* the three corners */
+    { /* lounge: the biggest open floor left between the zones, the lamps, the corner plants, the shelf strips and the present pile gets a rug, a sofa, a coffee table, a big plant and a standing lamp (no randomness: the same office always lays out the same) */
+      const CS = 0.25, X0 = -FW / 2 + 0.8, Z0 = -FD / 2 + 0.8, nx = Math.floor((FW - 1.6) / CS), nz = Math.floor((FD - 1.6) / CS), occ = new Uint8Array(Math.max(0, nx * nz));
+      const markR = (x0, z0, x1, z1) => { for(let k = Math.max(0, Math.floor((z0 - Z0) / CS)); k < Math.min(nz, Math.ceil((z1 - Z0) / CS)); k++) for(let i = Math.max(0, Math.floor((x0 - X0) / CS)); i < Math.min(nx, Math.ceil((x1 - X0) / CS)); i++) occ[k * nx + i] = 1; };
+      const markC = (cx, cz, r) => { for(let k = Math.max(0, Math.floor((cz - r - Z0) / CS)); k < Math.min(nz, Math.ceil((cz + r - Z0) / CS)); k++) for(let i = Math.max(0, Math.floor((cx - r - X0) / CS)); i < Math.min(nx, Math.ceil((cx + r - X0) / CS)); i++){
+        const ax = X0 + i * CS, az = Z0 + k * CS; if(Math.hypot(cx - Math.min(Math.max(cx, ax), ax + CS), cz - Math.min(Math.max(cz, az), az + CS)) < r) occ[k * nx + i] = 1; } };
+      /* every maximal empty rectangle (histogram stack, row by row) that passes ok(w, d); the largest wins, ties go to the smaller z then x */
+      const best = ok => {
+        let top = null; const h = new Int32Array(nx);
+        for(let k = 0; k < nz; k++){
+          for(let i = 0; i < nx; i++) h[i] = occ[k * nx + i] ? 0 : h[i] + 1;
+          const st = [];
+          for(let i = 0; i <= nx; i++){
+            const cur = i < nx ? h[i] : 0; let start = i;
+            while(st.length && st[st.length - 1][1] >= cur){
+              const [s0, hh] = st.pop(), w = (i - s0) * CS, d = hh * CS; start = s0;
+              if(hh && ok(w, d)){ const r = { x0: X0 + s0 * CS, z0: Z0 + (k - hh + 1) * CS, w, d, a: w * d }; if(!top || r.a > top.a + 1e-9 || (Math.abs(r.a - top.a) < 1e-9 && (r.z0 < top.z0 - 1e-9 || (Math.abs(r.z0 - top.z0) < 1e-9 && r.x0 < top.x0)))) top = r; }
+            }
+            st.push([start, cur]);
+          }
+        }
+        return top;
+      };
+      zones.forEach(zn => markR(zn.cx - zn.w / 2 - 1.2, zn.cz - zn.d / 2 - 1.2, zn.cx + zn.w / 2 + 1.2, zn.cz + zn.d / 2 + 1.2));   /* 1.2 round every zone, so the open floor found below is the inner area */
+      W0.lamps.forEach(l => markC(l.x, l.z, 0.8));
+      [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].forEach(([x, z]) => markC(x, z, 1.0));
+      markR(X0 - 1, Z0 - 1, FW / 2, -FD / 2 + 1.0); markR(X0 - 1, Z0 - 1, -FW / 2 + 1.0, FD / 2);   /* the strips along the back and left walls (shelves, sills) */
+      if(xmas && srv) markC(srv.x + 1.9, srv.z + 1.3, 1.6);
+      const R1 = best((w, d) => w >= 4.2 && d >= 3.4);
+      if(R1){
+        const cx0 = R1.x0 + R1.w / 2, cz0 = R1.z0 + R1.d / 2, rw = Math.min(8, Math.max(4.2, R1.w * 0.7)), rd = Math.min(6, Math.max(3.4, R1.d * 0.7)), lx = cx0, lz = cz0;   /* the rug: 70% of the open floor, 4.2 x 3.4 to 8 x 6, in its middle */
+        const rg = { x0: lx - rw / 2, x1: lx + rw / 2, z0: lz - rd / 2, z1: lz + rd / 2 }, big = rw >= 6 && rd >= 4.5, stn = rg.x1 + 0.75 <= R1.x0 + R1.w;
+        const obs = (x0, z0, x1, z1, hh) => { loungeObs.rects.push([x0, z0, x1, z1]); loungeObs.occ.push([x0, z0, x1, z1, hh]); };
+        const BY = (yaw, ox, oz) => (c, w, h, dd, u, y, v) => B(c, w, h, dd, ox + u * Math.cos(yaw) + v * Math.sin(yaw), y, oz - u * Math.sin(yaw) + v * Math.cos(yaw), yaw);   /* a box placed in a frame turned by yaw about its centre (local -z is the front) */
+        /* rug: two overlapping boxes cut the corners, a woven border band inside */
+        B('#e9dcc8', rw, 0.04, rd - 0.5, lx, 0.05, lz); B('#e9dcc8', rw - 0.5, 0.039, rd, lx, 0.0495, lz);
+        [[rw - 0.6, 0.035, 0, -(rd / 2 - 0.3)], [rw - 0.6, 0.035, 0, rd / 2 - 0.3], [0.035, rd - 0.6, -(rw / 2 - 0.3), 0], [0.035, rd - 0.6, rw / 2 - 0.3, 0]].forEach(([w, d, ox, oz]) => B('#cdb899', w, 0.004, d, lx + ox, 0.072, lz + oz));
+        /* three-seat sofa on the rug's back edge, facing the camera */
+        const sx = lx, sz = lz - rd / 2 + 0.65;
+        B('#7aa3b6', 2.3, 0.3, 0.9, sx, 0.24, sz); B('#7aa3b6', 2.3, 0.52, 0.22, sx, 0.65, sz - 0.34); B('#7aa3b6', 0.22, 0.52, 0.9, sx - 1.04, 0.6, sz); B('#7aa3b6', 0.22, 0.52, 0.9, sx + 1.04, 0.6, sz);
+        [-0.62, 0, 0.62].forEach(o => { B('#8fb8c9', 0.6, 0.14, 0.62, sx + o, 0.46, sz + 0.12); B('#9cc3d3', 0.58, 0.4, 0.14, sx + o, 0.66, sz - 0.18); });
+        B('#f0c060', 0.34, 0.34, 0.12, sx - 0.78, 0.66, sz + 0.0); B('#e98a7a', 0.34, 0.34, 0.12, sx + 0.8, 0.66, sz + 0.0);
+        W0.ao.push([sx, sz, 2.9, 1.5]); obs(sx - 1.2, sz - 0.5, sx + 1.2, sz + 0.5, 0.95);
+        /* two armchairs at the front corners of the rug, turned about 30 degrees in toward the sofa */
+        const chz = lz + rd / 2 - 1.0, chx = Math.min(2.4, Math.max(1.3, rw * 0.28));
+        [[-1, -Math.PI / 6], [1, Math.PI / 6]].forEach(([sg, yaw]) => {
+          const cx = lx + sg * chx, P = BY(yaw, cx, chz);
+          P('#d99a78', 0.9, 0.3, 0.85, 0, 0.24, 0); P('#e8b794', 0.7, 0.14, 0.62, 0, 0.46, -0.08); P('#d99a78', 0.9, 0.52, 0.2, 0, 0.65, 0.33); P('#e8b794', 0.62, 0.38, 0.12, 0, 0.66, 0.2);
+          P('#d99a78', 0.18, 0.5, 0.85, -0.36, 0.6, 0); P('#d99a78', 0.18, 0.5, 0.85, 0.36, 0.6, 0);
+          W0.ao.push([cx, chz, 1.3, 1.3]); obs(cx - 0.65, chz - 0.65, cx + 0.65, chz + 0.65, 0.95);
+        });
+        /* low coffee table in the middle, with a mug and a book */
+        const tx = lx, tz = (sz + 0.45 + chz) / 2;
+        B('#d9b98c', 1.2, 0.07, 0.64, tx, 0.38, tz); [[-0.52, -0.25], [0.52, -0.25], [-0.52, 0.25], [0.52, 0.25]].forEach(([ox, oz]) => B('#b98a58', 0.07, 0.32, 0.07, tx + ox, 0.22, tz + oz));
+        B('#fffaf0', 0.09, 0.1, 0.09, tx - 0.3, 0.465, tz - 0.08); B('#e46f5f', 0.28, 0.04, 0.2, tx + 0.22, 0.435, tz + 0.06); B('#fffaf0', 0.25, 0.03, 0.19, tx + 0.23, 0.44, tz + 0.07);
+        W0.ao.push([tx, tz, 1.6, 1.1]); obs(tx - 0.65, tz - 0.35, tx + 0.65, tz + 0.35, 0.5);
+        /* two big plants (the corner plant at 1.3x) in the back corners of the rug, and a standing lamp (decoration only: it is not one of W0.lamps, so it does not light at night) */
+        const px = Math.max(rw / 2 - 0.55, 1.65), pz = lz - rd / 2 + 0.55, pk = Math.floor(hash('lounge-plant') * 3);
+        [[-1, pk], [1, (pk + 1) % 3]].forEach(([sg, k]) => { plant(lx + sg * px, pz, k, 1.3); W0.ao.push([lx + sg * px, pz, 1.2, 1.2]); obs(lx + sg * px - 0.45, pz - 0.45, lx + sg * px + 0.45, pz + 0.45, 2.6); });
+        const lp = big ? [lx - 1.75, sz] : [lx + px, pz + 0.85];
+        B('#8a7a66', 0.34, 0.05, 0.34, lp[0], 0.055, lp[1]); B('#8a7a66', 0.05, 1.5, 0.05, lp[0], 0.8, lp[1]); B('#fff1cf', 0.46, 0.32, 0.46, lp[0], 1.7, lp[1]); B('#f6e3b5', 0.3, 0.04, 0.3, lp[0], 1.88, lp[1]);
+        W0.ao.push([lp[0], lp[1], 0.7, 0.7]); obs(lp[0] - 0.25, lp[1] - 0.25, lp[0] + 0.25, lp[1] + 0.25, 1.95);
+        if(big){   /* a big rug (6 x 4.5 or more) also gets a side table with a small plant next to the sofa */
+          const ax = lx + 1.7;
+          B('#d9b98c', 0.5, 0.05, 0.5, ax, 0.52, sz); [[-0.19, -0.19], [0.19, -0.19], [-0.19, 0.19], [0.19, 0.19]].forEach(([ox, oz]) => B('#b98a58', 0.05, 0.46, 0.05, ax + ox, 0.275, sz + oz));
+          B('#d98f68', 0.2, 0.16, 0.2, ax, 0.62, sz); Sp('#8fcf9b', 0.15, ax, 0.8, sz, 1, 0.85, 1); Sp('#7fc08c', 0.1, ax + 0.07, 0.88, sz - 0.03);
+          W0.ao.push([ax, sz, 0.8, 0.8]); obs(ax - 0.3, sz - 0.3, ax + 0.3, sz + 0.3, 1.0);
+        }
+        /* the coffee station stands just outside the rug's right edge, mid-depth, its front toward -x so it reads as part of the group (left out when there is no room) */
+        if(stn){
+          const kx = rg.x1 + 0.35, kz = lz;
+          B('#c99a66', 0.5, 0.8, 1.8, kx, 0.43, kz); B('#ddb07c', 0.56, 0.04, 1.86, kx, 0.85, kz);
+          [-0.45, 0, 0.45].forEach(o => B('#b98a58', 0.01, 0.6, 0.02, kx - 0.255, 0.43, kz + o));
+          B('#5f5a6e', 0.32, 0.38, 0.4, kx + 0.05, 1.06, kz - 0.5); B('#e46f5f', 0.28, 0.05, 0.36, kx + 0.05, 1.275, kz - 0.5); B('#fffaf0', 0.1, 0.12, 0.1, kx - 0.05, 0.93, kz + 0.2); B('#fffaf0', 0.1, 0.12, 0.1, kx - 0.05, 0.93, kz + 0.45);
+          W0.ao.push([kx, kz, 1.0, 2.2]); obs(kx - 0.3, kz - 0.95, kx + 0.3, kz + 0.95, 1.4);
+        }
+        /* a screen of three pots along a zone-side edge of the open floor where 3 x 3 or more is left beside the lounge: on a line 0.9 off the zone, 1.6 apart (two low pots round a big one) */
+        const rb = { x0: rg.x0, x1: rg.x1 + (stn ? 0.75 : 0), z0: rg.z0, z1: rg.z1 }, E = R1.x0 + R1.w, F = R1.z0 + R1.d;
+        const blocked = (x, z, r) => zones.some(zn => x > zn.cx - zn.w / 2 - r - 0.3 && x < zn.cx + zn.w / 2 + r + 0.3 && z > zn.cz - zn.d / 2 - r - 0.3 && z < zn.cz + zn.d / 2 + r + 0.3)
+          || W0.lamps.some(l => Math.hypot(l.x - x, l.z - z) < r + 0.5) || [[-FW / 2 + 1, -FD / 2 + 1], [FW / 2 - 1, -FD / 2 + 1], [-FW / 2 + 1, FD / 2 - 1]].some(([a, b]) => Math.hypot(a - x, b - z) < r + 0.6)
+          || x - r < -FW / 2 + 1.0 || z - r < -FD / 2 + 1.0 || x + r > FW / 2 - 0.8 || z + r > FD / 2 - 0.8 || (xmas && srv && Math.hypot(srv.x + 1.9 - x, srv.z + 1.3 - z) < r + 0.8)
+          || loungeObs.rects.some(([a, b, c, d]) => x > a - r - 0.2 && x < c + r + 0.2 && z > b - r - 0.2 && z < d + r + 0.2);
+        [['x', -1, rb.x0 - R1.x0, R1.d, R1.z0, F, zn => zn.cx + zn.w / 2, R1.x0 - 1.2], ['x', 1, E - rb.x1, R1.d, R1.z0, F, zn => zn.cx - zn.w / 2, E + 1.2],
+          ['z', -1, rb.z0 - R1.z0, R1.w, R1.x0, E, zn => zn.cz + zn.d / 2, R1.z0 - 1.2], ['z', 1, F - rb.z1, R1.w, R1.x0, E, zn => zn.cz - zn.d / 2, F + 1.2]].forEach(([ax, sg, thick, len, a0, a1, edgeOf, want]) => {
+          if(thick < 3 || len < 3) return;
+          let pick = null;
+          zones.forEach(zn => { if(Math.abs(edgeOf(zn) - want) > 0.4) return; const z0 = ax === 'x' ? zn.cz - zn.d / 2 : zn.cx - zn.w / 2, z1 = ax === 'x' ? zn.cz + zn.d / 2 : zn.cx + zn.w / 2, lo = Math.max(a0, z0), hi = Math.min(a1, z1); if(hi - lo >= 4 && (!pick || hi - lo > pick.hi - pick.lo)) pick = { lo, hi, line: edgeOf(zn) - sg * 0.9 }; });
+          if(!pick) return;
+          const m = (pick.lo + pick.hi) / 2, line = pick.line;
+          [[-1.6, 0], [0, 1], [1.6, 0]].forEach(([o, bigOne], j) => {
+            const x = ax === 'x' ? line : m + o, z = ax === 'x' ? m + o : line, s = bigOne ? 1.3 : 0.85, r = 0.4 * s;
+            if(blocked(x, z, r)) return;
+            plant(x, z, bigOne ? Math.floor(hash('row' + ax + sg) * 3) : j === 0 ? 0 : 2, s); W0.ao.push([x, z, 1.1 * s, 1.1 * s]); obs(x - r, z - r, x + r, z + r, bigOne ? 2.6 : 2.0);
+          });
+        });
+      }
+    }
     { /* low bookshelves against the back and left walls, in the gaps between windows clear of the server corner and the floor lamps; under the year-end wreaths they stay below the ring */
       const BK = ['#d9604f', '#4f86c6', '#e8b04a', '#5aa77a', '#8a6fc4', '#f1ece0', '#c45a7a', '#3f6f8a', '#e98a5a'], W = 1.9, Hh = 0.62, D = 0.42, v0 = 0.06;
       const free = (au, alongX) => (alongX ? !(srv && Math.abs(au - srv.x) < 4.6) && !W0.lamps.some(l => Math.abs(l.x - au) < 1.3 && l.z < -FD / 2 + 1.0)
@@ -2338,6 +2443,30 @@ export function mountOfficeScene(container, data, opts = {}){
       };
       for(let x = -FW / 2 + 3.5; x + 6.5 < FW / 2 - 1.5; x += 6.5){ const u = x + 3.25; if(free(u, true)) shelf(u, true, 'bz' + u.toFixed(1)); }
       for(let z = -FD / 2 + 3.5; z + 6.5 < FD / 2 - 1.5; z += 6.5){ const u = z + 3.25; if(free(u, false)) shelf(u, false, 'bx' + u.toFixed(1)); }
+      /* pictures and a clock on the wall between the windows: boxes only, tagged to their wall (ws, wd) so updateWalls() hides them with it instead of leaving them hanging in the air; the gap's own middle at y 1.3 stays clear for the year-end wreath */
+      const FR = ['#fffaf0', '#c99a66', '#8a6448'], AC = ['#f2a48b', '#8fb8c9', '#f3cd7a', '#9ccf9f', '#b7a2ee', '#e98a7a'];
+      const W2 = (au, alongX) => (c, u, y, v, su, sy, sv) => (alongX ? B(c, su, sy, sv, au + u, y, -FD / 2 + 0.15 + v) : B(c, sv, sy, su, -FW / 2 + 0.15 + v, y, au + u));   /* v runs from the wall's inner face into the room */
+      const picture = (au, alongX, u, seed) => {
+        const P = W2(au, alongX), y = 1.5, a = AC[Math.floor(hash(seed + 'a') * AC.length)], b = AC[(Math.floor(hash(seed + 'b') * (AC.length - 1)) + 1 + AC.indexOf(a)) % AC.length], kind = Math.floor(hash(seed + 'k') * 3);
+        P(FR[Math.floor(hash(seed + 'f') * FR.length)], u, y, 0.02, 1.0, 0.78, 0.04); P('#fffaf0', u, y, 0.045, 0.84, 0.62, 0.01);
+        if(kind === 0){ P('#cfe6f4', u, y, 0.055, 0.7, 0.48, 0.01); P(a, u - 0.16, y - 0.16, 0.065, 0.48, 0.16, 0.01); P(b, u + 0.16, y - 0.11, 0.065, 0.36, 0.26, 0.01); P('#fff2b8', u + 0.16, y + 0.13, 0.065, 0.13, 0.13, 0.01); }   /* hills and a sun */
+        else if(kind === 1){ P(a, u - 0.22, y, 0.055, 0.22, 0.48, 0.01); P(b, u, y - 0.06, 0.055, 0.22, 0.36, 0.01); P('#f3cd7a', u + 0.22, y + 0.03, 0.055, 0.22, 0.42, 0.01); }   /* three bars */
+        else { P(a, u, y, 0.055, 0.7, 0.48, 0.01); P(b, u, y, 0.065, 0.4, 0.32, 0.01); P('#fffaf0', u, y, 0.075, 0.16, 0.16, 0.01); }   /* nested blocks */
+      };
+      const clock = (au, alongX) => {   /* 0.6 across: an octagon of three overlapping boxes, a face, four ticks, two hands */
+        const P = W2(au, alongX), y = 1.82;
+        [[0.68, 0.46], [0.46, 0.68], [0.6, 0.6]].forEach(([w, h]) => P('#8a6448', 0, y, 0.03, w, h, 0.06));
+        [[0.56, 0.34], [0.34, 0.56], [0.5, 0.5]].forEach(([w, h]) => P('#fffaf0', 0, y, 0.065, w, h, 0.02));
+        [[0, 0.22], [0, -0.22], [0.22, 0], [-0.22, 0]].forEach(([ou, oy]) => P('#8a7a66', ou, y + oy, 0.08, ou ? 0.05 : 0.035, ou ? 0.035 : 0.05, 0.01));
+        P('#3d3a4a', 0, y + 0.1, 0.09, 0.04, 0.2, 0.012); P('#3d3a4a', 0.08, y, 0.09, 0.16, 0.04, 0.012); P('#e46f5f', 0, y, 0.1, 0.06, 0.06, 0.012);
+      };
+      const gaps = [], gapsX = [];   /* gap middles that have room for decoration: same test as the shelves */
+      for(let x = -FW / 2 + 3.5; x + 6.5 < FW / 2 - 1.5; x += 6.5){ const u = x + 3.25; if(free(u, true)) gaps.push(u); }
+      for(let z = -FD / 2 + 3.5; z + 6.5 < FD / 2 - 1.5; z += 6.5){ const u = z + 3.25; if(free(u, false)) gapsX.push(u); }
+      ws = 'z'; wd = true; gaps.forEach(u => [-1.15, 1.15].forEach(du => picture(u, true, du, 'pz' + u.toFixed(1) + ':' + du)));
+      ws = 'x'; gapsX.forEach(u => [-1.15, 1.15].forEach(du => picture(u, false, du, 'px' + u.toFixed(1) + ':' + du)));
+      if(gapsX.length){ ws = 'x'; clock(gapsX[0], false); } else if(gaps.length){ ws = 'z'; clock(gaps[0], true); }
+      ws = null; wd = false;
     }
     people.forEach(o => {   /* the nearest desk in the same row: whom to glance at */
       let best = null, bd = 4; people.forEach(q => { if(q !== o && Math.abs(q.z - o.z) < 0.5 && Math.abs(q.x - o.x) < bd){ bd = Math.abs(q.x - o.x); best = q; } });
@@ -2345,7 +2474,7 @@ export function mountOfficeScene(container, data, opts = {}){
     });
     buildPets(W0.lamps);
     if(!closed) people.forEach(o => placeDesk(o));
-    const sm = sets.sm = mk(sets.box, std({}), sb.length); tintZ = null; sets.sb = sb; sb.forEach((b, i) => { setM(sm, i, b[4], b[5], b[6], 0, 0, b[1], b[2], b[3]); sm.setColorAt(i, col(b[0])); });
+    const sm = sets.sm = mk(sets.box, std({}), sb.length); tintZ = null; sets.sb = sb; sb.forEach((b, i) => { setM(sm, i, b[4], b[5], b[6], 0, b[7] || 0, b[1], b[2], b[3]); sm.setColorAt(i, col(b[0])); });
     sm.instanceMatrix.needsUpdate = true; sm.instanceColor.needsUpdate = true;
     const sh = sets.sh = mk(sets.sph, std({}), sp.length); sp.forEach((b, i) => { setM(sh, i, b[2], b[3], b[4], 0, 0, b[1] * b[5], b[1] * b[6], b[1] * b[7]); sh.setColorAt(i, col(b[0])); });
     sh.instanceMatrix.needsUpdate = true; sh.instanceColor.needsUpdate = true;
