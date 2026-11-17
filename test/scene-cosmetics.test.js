@@ -12,6 +12,7 @@ const S = await import('../site/assets/scene/office-scene.js');
 const { headDress, HOL_HEADS, cosmeticsOf, gearOf, lvOf, LV_MAX, unlockNext, bookOf, shopTiles, shopUi, SHOP_KEYS, officeSceneData, HOL_HAT_SKIP } = S;
 const { GEAR_ITEMS } = await import('../site/assets/scene/gear.js');
 const { PET_KINDS, PET_PATTERNS, PET_EARS, PET_TAILS, PET_SIZES, PET_TOYS } = await import('../site/assets/scene/pets.js');
+const P5 = await import('../site/assets/scene/pets.js');
 const read = p => readFileSync(new URL(p, import.meta.url), 'utf8');
 const SCENE = read('../site/assets/scene/office-scene.js'), TOWN = read('../site/town/index.html'), TEAM = read('../site/team/index.html'), OPS = read('../site/ops/index.html');
 const TOWNSCENE = read('../site/assets/scene/town-scene.js');
@@ -98,7 +99,7 @@ test('every shop string exists in both languages, Korean prose has no middle dot
 
 test('the scene wires gear and the shop: imports, crown rule, season sheet, disposal on rebuild and destroy, desk ticks, shop only with data.shop and opts.shop', () => {
   assert.match(SCENE, /import \{ GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared \} from '\.\/gear\.js\?v=g5'/);
-  assert.match(SCENE, /from '\.\/pets\.js\?v=p7'/); assert.ok(!/pets\.js\?v=p[0-68-9]/.test(SCENE), 'every import of pets.js carries the same query');
+  assert.match(SCENE, /from '\.\/pets\.js\?v=p8'/); assert.ok(!/pets\.js\?v=p[0-79]/.test(SCENE), 'every import of pets.js carries the same query');
   assert.match(SCENE, /export const CAST_Q = '\?v=3\.127\.0-2';/, 'the cast files without accessories need a new cache key');
   assert.match(SCENE, /function dressOf\(o\)\{[^\n]*headDress\(\{ ghost: o\.ghost, crown: o\.p\.crown/);
   assert.match(SCENE, /wantVariant\(hk === 'nose' \? 'crown' : hk/, 'a head gear in the season uses the nose-only sheet');
@@ -348,7 +349,7 @@ test('the scene: the viewer, shared photo frames, breeds and the pet tab are wir
   assert.match(SCENE, /const own = o\.p\.self && o\.p\.pet && typeof o\.p\.pet\.photo === 'string'/, 'only the viewer\'s own pet uses the photo in the data; a coworker\'s frame needs a shared photo');
   assert.match(SCENE, /viewKill\(\); clear\(\); disposePetShared\(T\);/, 'destroy frees the viewer renderer');
   assert.match(SCENE, /window\.addEventListener\('keydown', vwKey, true\)/); assert.match(SCENE, /window\.removeEventListener\('keydown', vwKey, true\)/);
-  assert.match(SCENE, /make: \(\) => makeDeskItem\(T, id\)/); assert.match(SCENE, /make: \(\) => makePet\(T, L\)/, 'the viewer shows fresh instances');
+  assert.match(SCENE, /make: \(\) => makeDeskItem\(T, id\)/); assert.match(SCENE, /make: \(\) => makePet\(T, L, PET_GEAR\)/, 'the viewer shows fresh instances');
   assert.match(SCENE, /if\(!noObj\)\{ const ob = objPick\(px, py, objList\(\)\); if\(ob\) return \{ obj: ob \}; \}/, 'hover: an object wins over the person behind it');
   assert.match(SCENE, /onDown: \(px, py, ev\) => \{ const mr = pickMinR\(ev && ev\.pointerType\), ob = objPick\(px, py, objList\(\), mr\);/, 'a tap takes its object at the press');
   assert.match(SCENE, /if\(v === 'open'\)\{ viewOpen\(d\.kind, d\.o\); return; \}/); assert.match(SCENE, /const h = nearest\(px, py, true\);\n        if\(!h\)\{ setHover\(null\); if\(sel\) closeDrawer\(\); return; \}/, 'people, teams and the server pick at the release as before');
@@ -360,7 +361,7 @@ test('the scene: the viewer, shared photo frames, breeds and the pet tab are wir
   assert.ok(!/t\.rotation\.set\(st\.roll/.test(SCENE));
   for(const id of ["sel1('kind'", "sel1('size'", "sel1('pattern'", "sel1('ear'", "sel1('tail'", 'o-pf-breed', 'o-pf-vis-', 'o-pf-name', 'o-pf-c${i}', 'o-pf-use${i}', 'o-pf-mark-${m}', 'o-pf-mark"', 'o-pf-auto-${k}', 'o-pf-use-collar', 'o-pf-collar"'])
     assert.ok(SCENE.includes(id), id);
-  assert.match(SCENE, /<details class="pet-g" data-g="\$\{k\}"/); assert.match(SCENE, /open: \(shop && shop\.pet && shop\.pet\.open\) \|\| \{ basic: true, coat: true, shape: false, face: false, toy: false \}/);
+  assert.match(SCENE, /<details class="pet-g" data-g="\$\{k\}"/); assert.match(SCENE, /open: \(shop && shop\.pet && shop\.pet\.open\) \|\| \{ basic: true, coat: true, shape: false, face: false, wear: false, toy: false \}/);
   assert.match(SCENE, /\.of-drawer \.pet-wrap>\.pet-pvc\{position:sticky;top:0/);
 });
 
@@ -465,7 +466,7 @@ test('round 2 fix strings: the skip note names the body, the photo block says wh
   assert.deepEqual(['fluff', 'earsize', 'snout', 'legs', 'length', 'build'].map(k => [OFFICE.ko[`of.sh.pet.${k}.lo`], OFFICE.ko[`of.sh.pet.${k}.hi`]]),
     [['짧게', '길게'], ['작게', '크게'], ['짧게', '길게'], ['짧게', '길게'], ['짧게', '길게'], ['날씬하게', '통통하게']], 'slider ends as pairs');
   assert.equal(OFFICE.ko['of.sh.pet.remove'], '반려동물 빼기'); assert.equal(OFFICE.ko['of.sh.pet.ask'], '사무실에서 뺄까요?'); assert.equal(OFFICE.ko['of.sh.pet.auto'], '털 색에 맞춤');
-  assert.equal(OFFICE.ko['of.sh.pet.g.face'], '얼굴과 목줄'); assert.equal(OFFICE.ko['of.pet.mark.tip'], '꼬리 끝 무늬');
+  assert.equal(OFFICE.ko['of.sh.pet.g.face'], '얼굴'); assert.equal(OFFICE.ko['of.pet.mark.tip'], '꼬리 끝 무늬');
   assert.deepEqual(PET_FUR_LIST.map(x => OFFICE.ko['of.pet.fur.' + x]), ['보통', '곱슬', '긴 직모']); assert.equal(PET_FUR_LIST[0], 'plush');
   const roles = { coat: '털 색', base: '바탕색', patch: '얼룩 색', ear: '귀 색', stripe: '줄무늬 색', muzzle: '주둥이 색', main: '바탕색', white: '가슴과 발 색', body: '바탕색', points: '포인트 색', top: '등 색', under: '배와 다리 색', saddle: '등 무늬 색', spot: '점 색', patch1: '얼룩 색', patch2: '다른 얼룩 색' };
   for(const [k, v] of Object.entries(roles)) assert.equal(OFFICE.ko['of.pet.role.' + k], v, k);
@@ -503,7 +504,7 @@ test('the scene follows the pets contract with fallbacks: legK in the gait, play
   assert.ok(!/PET_PLAY_Z \* gs/.test(SCENE), 'the toy is put down at the pet\'s own distance');
   assert.match(SCENE, /const toyCarry = t => \{ const v = t\.userData && t\.userData\.carryYaw; return Number\.isFinite\(v\) \? v : Math\.PI \/ 2; \};/);
   assert.match(SCENE, /const airL = Number\.isFinite\(g\.userData\.air\)/); assert.match(SCENE, /pt\.blobMat\.opacity = 0\.34 \* \(0\.3 \+ 0\.7 \* k\)/);
-  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p7';/, 'newer exports are read off the namespace, so an older pets.js still links');
+  assert.match(SCENE, /import \* as PETS_NS from '\.\/pets\.js\?v=p8';/, 'newer exports are read off the namespace, so an older pets.js still links');
 });
 
 test('an untouched pet form never saves: after the pet is taken out the form shows the default dog, and Save stays off until a field changes', () => {
@@ -678,4 +679,51 @@ test('the ops page loads the office string table, so the unlock level and the ge
   assert.match(OPS, /<script src="\/assets\/scene\/office-i18n\.js\?v=[^"]+"><\/script>/);
   assert.match(OPS, /for\(const lg of \['en', 'ko'\]\)\{ const src = \(window\.SPRAG_OFFICE_I18N \|\| \{\}\)\[lg\] \|\| \{\}; for\(const k in src\) if\(I18N\[lg\]\[k\] === undefined\) I18N\[lg\]\[k\] = src\[k\]; \}/);
   assert.ok(OPS.indexOf('office-i18n.js?v=') < OPS.indexOf('const I18N = {'), 'the table is loaded before the page reads it');
+});
+
+/* pet accessories (look v5): a tag shape, a neck piece, a hat and wings. The strings, the shop group and the scene's wiring. */
+test('pet accessories: the strings exist in both languages and the options resolve through shopUi', () => {
+  const { PET_TAGS, PET_NECKS } = P5;
+  const ko = { 'of.sh.pet.g.wear': '꾸미기', 'of.sh.pet.g.face': '얼굴', 'of.sh.pet.tag': '이름표', 'of.sh.pet.neck': '목 장식', 'of.sh.pet.hat': '모자', 'of.sh.pet.wing': '날개',
+    'of.sh.pet.wearNone': '모자와 날개를 해금하면 반려동물에게도 씌울 수 있습니다.', 'of.pet.tag.round': '동그라미', 'of.pet.tag.bone': '뼈다귀', 'of.pet.tag.heart': '하트', 'of.pet.tag.star': '별', 'of.pet.tag.plate': '이름판',
+    'of.pet.neck.none': '없음', 'of.pet.neck.bandana': '반다나', 'of.pet.neck.bowtie': '나비넥타이', 'of.pet.neck.scarf': '목도리', 'of.pet.neck.bell': '방울' };
+  for(const [k, v] of Object.entries(ko)) assert.equal(OFFICE.ko[k], v, k);
+  assert.equal(OFFICE.en['of.sh.pet.g.wear'], 'Accessories'); assert.equal(OFFICE.en['of.sh.pet.tag'], 'Tag'); assert.equal(OFFICE.en['of.sh.pet.neck'], 'Neck');
+  assert.equal(OFFICE.en['of.sh.pet.hat'], 'Hat'); assert.equal(OFFICE.en['of.sh.pet.wing'], 'Wings'); assert.equal(OFFICE.en['of.sh.pet.wearNone'], 'Unlock hats and wings to put them on your pet.');
+  assert.ok(!/collar/i.test(OFFICE.en['of.sh.pet.g.face']), 'the collar moved out of the face group');
+  const ui = shopUi(k => k);
+  for(const t of PET_TAGS){ assert.equal(ui.opt['tag.' + t], 'of.pet.tag.' + t); assert.ok(OFFICE.en['of.pet.tag.' + t] && OFFICE.ko['of.pet.tag.' + t]); }
+  for(const n of ['none', ...PET_NECKS]){ assert.equal(ui.opt['neck.' + n], 'of.pet.neck.' + n); assert.ok(OFFICE.en['of.pet.neck.' + n] && OFFICE.ko['of.pet.neck.' + n]); }
+  for(const k of ['pet.g.wear', 'pet.tag', 'pet.neck', 'pet.hat', 'pet.wing', 'pet.wearNone']) assert.ok(SHOP_KEYS.includes(k), k);
+});
+
+test('pet accessories: the scene hands the gear makers to every makePet, ticks the pieces, and the pet tab offers only open hats and wings', () => {
+  assert.match(SCENE, /const PET_GEAR = \{ gear: \{ head: makeHeadGear, back: makeBackGear, placeHead: placeHeadGear, headFit: headGearFit, placeBack: placeBackGear, backFit: backGearFit \} \};/);
+  const calls = SCENE.match(/makePet\(T, [^)]*\)/g); assert.equal(calls.length, 3, 'the office pets, the preview and the viewer');
+  for(const c of calls) assert.match(c, /, PET_GEAR\)$/, c);
+  assert.match(SCENE, /const gp = g\.userData\.gearParts; if\(gp && gp\.length\) gp\.forEach\(h => \{ if\(h\.userData\.tick\) h\.userData\.tick\(time, envN, reduced\); \}\);/, 'the office pets');
+  assert.match(SCENE, /\(u\.gearParts \|\| \[\]\)\.forEach\(h => \{ if\(h\.userData\.tick\) h\.userData\.tick\(ts, envN, reduced\); \}\); u\.fur\(vw\.ppu\);/, 'the viewer');
+  assert.match(SCENE, /\(pv\.g\.userData\.gearParts \|\| \[\]\)\.forEach\(h => \{ if\(h\.userData\.tick\) h\.userData\.tick\(t, envN, reduced\); \}\);/, 'the preview');
+  /* the group, in order: collar row, tag select (disabled without a collar), neck select, then hat and wing tiles from the open items */
+  assert.match(SCENE, /grp\('face', auto\('eye'\) \+ auto\('nose'\)\) \+ grp\('wear', collar \+ sel2\('tag', PET_TAGS, 'tag\.', L\.tag \|\| PET_TAGS\[0\], null, L\.collar \? '' : ' disabled'\) \+ sel2\('neck', \['none', \.\.\.PET_NECKS\], 'neck\.', L\.neck \|\| 'none', 'none'\) \+ wearRows\)/);
+  assert.match(SCENE, /const hats = shopTiles\(u, 'head'\)\.filter\(t => t\.open\), wings = shopTiles\(u, 'back'\)\.filter\(t => t\.open\);/, 'locked items are not listed');
+  assert.match(SCENE, /!hats\.length && !wings\.length \? `<p class="sh-note">\$\{esc\(ui\['pet\.wearNone'\]\)\}<\/p>`/, 'with none open one note replaces the tiles');
+  assert.match(SCENE, /data-sh="\$\{act\}" data-v="\$\{id\}"/); assert.match(SCENE, /wRow\('pethat', L\.hat,/); assert.match(SCENE, /wRow\('petwing', L\.wing,/);
+  assert.match(SCENE, /if\(a === 'pethat' \|\| a === 'petwing'\)\{[^\n]*if\(v\) L\[k\] = v; else delete L\[k\];/, 'a tile sets or deletes the key, like the toy');
+  assert.match(SCENE, /else if\(k === 'tag' \|\| k === 'neck'\)\{ if\(!el\.value \|\| \(k === 'tag' && el\.value === PET_TAGS\[0\]\)\) delete L\[k\]; else L\[k\] = el\.value; \}/, 'the selects: none and the round tag write no key');
+  /* the tiles list the same open items the gear tabs do */
+  const u = { level: 2, items: [{ id: 'cap', lvl: 1 }, { id: 'tophat', lvl: 3 }, { id: 'angel', lvl: 2 }, { id: 'bat', lvl: 5 }] };
+  assert.deepEqual(shopTiles(u, 'head').filter(t => t.open).map(t => t.id), ['cap']); assert.deepEqual(shopTiles(u, 'back').filter(t => t.open).map(t => t.id), ['angel']);
+  assert.deepEqual(shopTiles({ level: 0, items: u.items }, 'head').filter(t => t.open), [], 'none open: the note shows');
+});
+
+test('pet accessories: cosmeticsOf keeps the new keys of a pet, and the demo, the privacy page and the module queries follow', () => {
+  const pet = { kind: 'dog', coat: ['#c89159'], collar: '#d9534f', tag: 'plate', neck: 'bell', hat: 'party', wing: 'angel', name: 'Bori' };
+  for(const keep of [false, true]){ const c = cosmeticsOf({ lvl: 3, pet }, { keepPet: keep }); for(const k of ['tag', 'neck', 'hat', 'wing']) assert.equal(c.pet[k], pet[k], k + (keep ? ' kept as is' : ' normalized')); }
+  assert.match(TOWN, /name: 'Bori', collar: '#d9534f', tag: 'plate', hat: 'party', wing: 'angel' \}/); assert.match(TOWN, /breed: 'korean_cheese', neck: 'bell', hat: 'tophat' \}/);
+  const PRIV = read('../site/privacy/index.html');
+  assert.ok(PRIV.includes('눈과 코 색, 목걸이, 이름표, 목 장식, 모자와 날개)') && !PRIV.includes('목줄'), 'the Korean list');
+  assert.ok(PRIV.includes('eye and nose colours, collar, tag, neck piece, hat and wings)'), 'the English list');
+  for(const [name, src] of [['town-scene', TOWNSCENE], ['ops', OPS], ['team', TEAM], ['town', TOWN]]) assert.ok(!/3\.130\.0-5/.test(src), name + ' has no stale office-scene query');
+  assert.match(TOWNSCENE, /office-scene\.js\?v=3\.130\.0-6/); assert.match(TOWN, /office-i18n\.js\?v=3\.130\.0-6/);
 });

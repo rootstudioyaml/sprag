@@ -26,10 +26,12 @@ import { makeFur, softNight } from './fur.js?v=f1';
 import { parseManifest, pickVariant, pickCell, relAzimuth, elevOk, nightTint, wantVariant, makeSpriteKit, zoomOk, cardOf } from './sprites.js?v=s2';   /* Blender fur sprites of the seated animals; the query keeps the module in step with this file */
 import { holidayOn, makeWorldTree, makePresents, makeGarland, makeWreath, santaHat, reindeerAntlers, rudolphNose, noseTipOf } from './holiday.js?v=g6';   /* holiday.js changes often this season and the CDN keeps it 4 h: the query keeps it in step with this file */
 import { normalizePetLook, pickPets, petPlan, petHash, makePet, makeBowls, makeToy, makeToyBasket, makePhotoFrame, disposePetShared, PET_MAX, petLookFromPixels, PET_KINDS, PET_PATTERNS, PET_EARS, PET_TAILS, PET_SIZES, PET_NAME_MAX, PET_COAT_MAX, PET_DEFAULTS,
-  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed, PET_TOYS } from './pets.js?v=p7';
-import * as PETS_NS from './pets.js?v=p7';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
+  petPlaySeq, petPlayAt, petSpeedStep, petGait, petRecolor, easeIO, PET_STRIDE, PET_PLAY_Z, mixHex, PET_MARKS, PET_NUMS, petCoatRoles, petApplyBreed, PET_TOYS, PET_TAGS, PET_NECKS } from './pets.js?v=p8';
+import * as PETS_NS from './pets.js?v=p8';   /* the same module: read for exports a newer pets.js adds (PET_FURS), without failing to link against an older one */
 import { GEAR_ITEMS, makeHeadGear, headGearFit, headGearSkips, placeHeadGear, makeBackGear, backGearFit, backGearSkips, backAnchorOf, placeBackGear, makeDeskItem, disposeGearShared } from './gear.js?v=g5';   /* unlockable head, wing and desk gear; the query keeps the module in step with this file */
 import { hourOf, blendAnchors, fetchWeather, weatherFromCode, parseOverrides, chipText, injectSkyCss, starsBackground, clampN, WX_CLEAR } from './sky.js';
+/* the gear.js makers a pet's hat and wings are built with (pets.js imports none of them, so the scene hands them in) */
+const PET_GEAR = { gear: { head: makeHeadGear, back: makeBackGear, placeHead: placeHeadGear, headFit: headGearFit, placeBack: placeBackGear, backFit: backGearFit } };
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';   /* the +esm build, so the glTF and Draco loaders below share this one three instance */
 export const CAST_URL = new URL('./cast/', import.meta.url).href;
 export const CAST_Q = '?v=3.127.0-2';   /* the model files change in place and the CDN keeps them 4 h: bump this with the files */
@@ -1233,7 +1235,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const pt = pets.find(q => q.o === o), ui = vwUi(), owner = (o && o.p && o.p.name) || '', of = k => fillT(ui[k], { n: owner });
     if(kind === 'desk'){ const id = o.desk && o.p.gear && o.p.gear.desk; return id ? { kind, o, title: (ui.gear || {})[id] || id, sub: [of('ownDesk')], hint: ui.drag, make: () => makeDeskItem(T, id) } : null; }
     if(kind === 'pet'){ const L = (over && over.look) || (pt && pt.look); if(!L) return null; const ph = over && over.pin !== undefined ? over.pin : petPhotoSrc(o);
-      return { kind, o, title: petTitle(L), sub: [of('ownPet'), breedOf(L.breed)].filter(Boolean), hint: ui.drag, pin: photoSafe(ph) ? ph : null, make: () => makePet(T, L) }; }
+      return { kind, o, title: petTitle(L), sub: [of('ownPet'), breedOf(L.breed)].filter(Boolean), hint: ui.drag, pin: photoSafe(ph) ? ph : null, make: () => makePet(T, L, PET_GEAR) }; }
     if(!pt) return null;
     if(kind === 'frame' && pt.frame && pt.photo) return { kind, o, title: fillT(ui.photo, { n: petTitle(pt.look) }), sub: [of('ownDesk')], photo: pt.photo,
       hint: o.p.self ? ui[cur.shop && cur.shop.photoShared === true ? 'mineShared' : 'mine'] : of('shared') };
@@ -1305,7 +1307,7 @@ export function mountOfficeScene(container, data, opts = {}){
     const dt = Math.min(0.05, Math.max(0, (now - vw.last) / 1000)), ts = (now - vw.t0) / 1000, u = vw.g.userData; vw.last = now;
     if(!reduced && !vw.drag){ vw.sp += ((now >= vw.hold ? 0.45 : 0) - vw.sp) * Math.min(1, dt * 1.6); vw.rot += vw.sp * dt; }   /* eases in, never jumps to speed */
     vw.pivot.rotation.y = vw.rot;
-    if(vw.info.kind === 'pet'){ u.pose(reduced ? 'sit' : 'stand', 0, reduced ? 0 : ts, { blend: reduced ? 0 : undefined }); u.fur(vw.ppu); }   /* fur stays on under reduced motion: it is a still look, not motion */
+    if(vw.info.kind === 'pet'){ u.pose(reduced ? 'sit' : 'stand', 0, reduced ? 0 : ts, { blend: reduced ? 0 : undefined }); (u.gearParts || []).forEach(h => { if(h.userData.tick) h.userData.tick(ts, envN, reduced); }); u.fur(vw.ppu); }   /* fur stays on under reduced motion: it is a still look, not motion */
     else if(u.tick) u.tick(ts, envN, reduced);
     vw.r.render(vw.sc, vw.cam);
   }
@@ -1359,7 +1361,7 @@ export function mountOfficeScene(container, data, opts = {}){
     /* share: the photo visibility choice (the server's state to begin with); mem: the last colour per coat position, so a pattern switched back gets it again;
        open: which form groups are expanded (kept across re-renders) */
     return { look: look || { ...PET_DEFAULTS, coat: [PET_SPARE[0]] }, had: !!look, photo: null, shown: (u.pet && typeof u.pet.photo === 'string' && u.pet.photo) || null, read: false, dirty: false,
-      share: u.photoShared === true, mem: (look ? look.coat : [PET_SPARE[0]]).slice(), hex: {}, open: (shop && shop.pet && shop.pet.open) || { basic: true, coat: true, shape: false, face: false, toy: false } };
+      share: u.photoShared === true, mem: (look ? look.coat : [PET_SPARE[0]]).slice(), hex: {}, open: (shop && shop.pet && shop.pet.open) || { basic: true, coat: true, shape: false, face: false, wear: false, toy: false } };
   }
   /* under 520 px the open shop is a sheet over the page (CSS .of-sheet): the page under it stops scrolling until it closes */
   function sheetSync(on){ const s = !!on && window.innerWidth < 520; stage.classList.toggle('of-sheet', s); document.documentElement.classList.toggle('of-sheet-on', s); }
@@ -1484,6 +1486,15 @@ export function mountOfficeScene(container, data, opts = {}){
     const toyTile = id => `<button type="button" class="sh-tile" aria-pressed="${(L.toy || '') === id}" data-sh="toy" data-v="${id}"${dis}>`
       + (id ? `<img alt="" data-th="toy:${esc(id)}"${thumbs['toy:' + id] ? ` src="${thumbs['toy:' + id]}"` : ''}>` : `<span class="ph tx" aria-hidden="true">${esc(ui['pet.toyAuto'])}</span>`)
       + `<span class="nm">${esc(id ? op['toy.' + id] || id : ui['pet.toyAuto'])}</span></button>`;
+    /* the accessories group: the collar, the tag on it (the five shapes, disabled while there is no collar), a neck piece, then hat and wing tiles. Only what the
+       member has unlocked shows (locked tiles are not listed; with none open a single note says how to get them). The tiles reuse the gear thumbnails. */
+    const sel2 = (k, list, pre, now, none, off = '') => row('o-pf-' + k, ui['pet.' + k], `<select id="o-pf-${k}" data-pf="${k}"${dis}${off}>${list.map(v => `<option value="${v === none ? '' : v}"${now === v ? ' selected' : ''}>${esc(op[pre + v] || v)}</option>`).join('')}</select>`);
+    const wTile = (act, now, id, name) => `<button type="button" class="sh-tile" aria-pressed="${(now || '') === id}" data-sh="${act}" data-v="${id}"${dis}>`
+      + (id ? `<img alt="" data-th="${esc(id)}"${thumbs[id] ? ` src="${thumbs[id]}"` : ''}>` : `<span class="ph" aria-hidden="true">${NONE_SVG}</span>`) + `<span class="nm">${esc(name)}</span></button>`;
+    const wRow = (act, now, items, label, lid) => `<div class="pet-row" role="group" aria-labelledby="${lid}"><span id="${lid}">${esc(label)}</span><div class="sh-grid">${wTile(act, now, '', ui.none)}${items.map(t => wTile(act, now, t.id, ui.gear[t.id] || t.id)).join('')}</div></div>`;
+    const hats = shopTiles(u, 'head').filter(t => t.open), wings = shopTiles(u, 'back').filter(t => t.open);
+    const wearRows = !hats.length && !wings.length ? `<p class="sh-note">${esc(ui['pet.wearNone'])}</p>`
+      : (hats.length ? wRow('pethat', L.hat, hats, ui['pet.hat'], 'o-pf-hat-l') : '') + (wings.length ? wRow('petwing', L.wing, wings, ui['pet.wing'], 'o-pf-wing-l') : '');
     const toyGrp = !toyOn ? '' : `<details class="pet-g" data-g="toy"${P.open.toy ? ' open' : ''}><summary>${esc(ui['pet.toy'])}</summary><div class="pet-gb"><div class="sh-grid" role="group" aria-label="${esc(ui['pet.toy'])}">${['', ...PET_TOYS].map(toyTile).join('')}</div></div></details>`;
     const grp = (k, body) => `<details class="pet-g" data-g="${k}"${P.open[k] ? ' open' : ''}><summary>${esc(ui['pet.g.' + k])}</summary><div class="pet-gb">${body}</div></details>`;
     const rm = !u.pet ? '' : `<div class="sh-rm">${P.ask ? `<p class="sh-note" role="alert">${esc(ui['pet.ask'])}</p><div class="row"><button type="button" class="of-dbtn warn" data-sh="petclear"${dis}>${esc(ui['pet.remove'])}</button><button type="button" class="of-dbtn plain" data-sh="petkeep"${dis}>${esc(ui['pet.keep'])}</button></div>`
@@ -1493,7 +1504,7 @@ export function mountOfficeScene(container, data, opts = {}){
       + grp('basic', sel1('size', PET_SIZES, 'size.') + row('o-pf-name', ui['pet.name'], `<input type="text" id="o-pf-name" data-pf="name" maxlength="${PET_NAME_MAX}" autocomplete="off" value="${esc(L.name || '')}"${dis}>`))
       + grp('coat', sel1('pattern', PET_PATTERNS, 'pat.') + `<div class="pet-cols" role="group" aria-label="${esc(ui['pet.colors'])}">${cols}</div>` + sel1('fur', PET_FUR_LIST, 'fur.') + rng('fluff') + marks)
       + grp('shape', sel1('ear', PET_EARS, 'ear.') + rng('earsize') + sel1('tail', PET_TAILS, 'tail.') + rng('snout') + rng('legs') + rng('length') + rng('build'))
-      + grp('face', auto('eye') + auto('nose') + collar) + toyGrp + rm
+      + grp('face', auto('eye') + auto('nose')) + grp('wear', collar + sel2('tag', PET_TAGS, 'tag.', L.tag || PET_TAGS[0], null, L.collar ? '' : ' disabled') + sel2('neck', ['none', ...PET_NECKS], 'neck.', L.neck || 'none', 'none') + wearRows) + toyGrp + rm
       + `</div><div class="pet-pvc"><div class="pet-pv" role="button" tabindex="0" data-sh="pvopen" aria-label="${esc(ui['pet.zoom'])}" title="${esc(ui['pet.zoom'])}"></div>${toys}</div></div>`,
       shopFoot(P.dirty, P.dirty)];   /* save needs an edit: with no pet the form shows the default dog, and saving it untouched put a pet back right after it was taken out */
   }
@@ -1564,7 +1575,7 @@ export function mountOfficeScene(container, data, opts = {}){
     pv.chg = performance.now();   /* any change: the pet turns front three-quarter and holds there awake for 2 s */
     if(pv.g && petRecolor(pv.g, look)){ pv.key = key; if(reduced) pvLoop(true); return; }
     const make = () => { pv.tm = 0; if(!pv || !shop) return; const L = shop.pet.look, k = JSON.stringify(L); if(k === pv.key) return; pv.key = k;
-      if(pv.g){ pv.sc.remove(pv.g); pv.g.userData.dispose(); } pv.g = makePet(T, L); pv.sc.add(pv.g); pvFit(); pv.chg = performance.now(); if(reduced) pvLoop(true); };
+      if(pv.g){ pv.sc.remove(pv.g); pv.g.userData.dispose(); } pv.g = makePet(T, L, PET_GEAR); pv.sc.add(pv.g); pvFit(); pv.chg = performance.now(); if(reduced) pvLoop(true); };
     clearTimeout(pv.tm); if(pv.g) pv.tm = setTimeout(make, 160); else make();
   }
   function pvLoop(once){
@@ -1573,7 +1584,8 @@ export function mountOfficeScene(container, data, opts = {}){
       const now = performance.now(), t = (now - pv.t0) / 1000, dt = Math.min(0.05, (now - pv.last) / 1000); pv.last = now;
       if(pv.g){ const held = now - pv.chg < 2000, yT = PV_YAW + (reduced || held ? 0 : 0.3 * Math.sin((now - pv.chg - 2000) / 1000 * 0.6));   /* sways 0.2 to 0.8 rad: never faces away */
         pv.yaw = reduced ? yT : pv.yaw + (yT - pv.yaw) * Math.min(1, dt * 5); pv.g.rotation.y = pv.yaw;
-        pv.g.userData.pose('stand', 0, reduced ? 0 : t, { blend: reduced ? 0 : undefined }); pv.g.userData.fur(124 * pv.r.getPixelRatio()); }
+        pv.g.userData.pose('stand', 0, reduced ? 0 : t, { blend: reduced ? 0 : undefined }); pv.g.userData.fur(124 * pv.r.getPixelRatio());
+        (pv.g.userData.gearParts || []).forEach(h => { if(h.userData.tick) h.userData.tick(t, envN, reduced); }); }
       pv.r.render(pv.sc, pv.cam); if(!reduced) pv.raf = requestAnimationFrame(loop); };
     if(once && pv.raf){ cancelAnimationFrame(pv.raf); pv.raf = 0; }
     loop();
@@ -1636,6 +1648,7 @@ export function mountOfficeScene(container, data, opts = {}){
     else if(/^mark-/.test(k)){ const m = k.slice(5); L.marks = PET_MARKS.filter(x => (x === m ? el.checked : L.marks.includes(x))); re = true; }
     else if(/^auto-/.test(k)){ const h = k.slice(5); if(el.checked){ if(L[h]) P.hex[h] = L[h]; delete L[h]; } else L[h] = cv(h) || P.hex[h]; re = true; }
     else if(k === 'use-collar'){ if(el.checked) L.collar = cv('collar') || P.hex.collar || HEX_DEF.collar; else { if(L.collar) P.hex.collar = L.collar; delete L.collar; } re = true; }
+    else if(k === 'tag' || k === 'neck'){ if(!el.value || (k === 'tag' && el.value === PET_TAGS[0])) delete L[k]; else L[k] = el.value; }   /* none, and the round tag (the default), write no key */
     else{ L[k] = el.value; if(k === 'kind') re = true; }   /* kind, size, ear, tail and the eye, nose, collar and mark colours */
     if(L.breed && !(breedRows || []).some(b => b.key === L.breed && b.kind === L.kind)) delete L.breed;   /* another kind is no longer that breed */
     if(!L.marks.length) delete L.marks;
@@ -1657,6 +1670,7 @@ export function mountOfficeScene(container, data, opts = {}){
     if(a === 'tab'){ if(v !== shop.tab){ if(gearDirty()){ shop.draft = { ...shop.base }; previewGear(); } shop.tab = v; shop.msg = null; rerender(); } return; }
     if(a === 'pick'){ if(b.getAttribute('aria-disabled') === 'true') return; const slot = shop.tab; if(slot !== 'head' && slot !== 'back' && slot !== 'desk') return; shop.draft[slot] = v || null; shop.msg = null; previewGear(); rerender(); return; }
     if(a === 'toy'){ const P = shop.pet, L = { ...P.look }; if(v) L.toy = v; else delete L.toy; const n = normalizePetLook(L); if(n){ P.look = n; P.dirty = true; shop.msg = null; petPreviewSet(); rerender(); } return; }   /* a toy tile in the pet tab: '' is Auto */
+    if(a === 'pethat' || a === 'petwing'){ const P = shop.pet, L = { ...P.look }, k = a === 'pethat' ? 'hat' : 'wing'; if(v) L[k] = v; else delete L[k]; const n = normalizePetLook(L); if(n){ P.look = n; P.dirty = true; shop.msg = null; petPreviewSet(); rerender(); } return; }   /* a hat or wing tile in the pet tab: '' is none */
     if(a === 'bkgo'){ const [slot, id] = String(v).split('|'), it = bookOf(cur.shop).pages.flatMap(q => q.items).find(q => q.id === id);   /* a tile in the collection: go to its tab, and pick it when it is open */
       shop.tab = slot === 'back' || slot === 'head' || slot === 'desk' ? slot : 'pet'; if(it && it.open){ shop.draft[it.slot] = id; previewGear(); } shop.msg = null; rerender(); return; }
     if(a === 'cancel'){ shop.msg = null; if(shop.tab === 'pet') shop.pet = petState(); else { shop.draft = { ...shop.base }; previewGear(); } rerender(); petPreviewSet(); return; }
@@ -1850,7 +1864,7 @@ export function mountOfficeScene(container, data, opts = {}){
     g.position.copy(keep[0]); g.rotation.copy(keep[1]); g.scale.setScalar(sc); ud.bkey = null; ud.bon = false;
   }
   function petModel(pt, look){
-    const g = makePet(T, look); g.scale.multiplyScalar(PET_SC); g.rotation.order = 'YXZ'; pt.g = g; pt.gs = g.scale.x; pt.look = look; world.add(g); petBits.push(g);
+    const g = makePet(T, look, PET_GEAR); g.scale.multiplyScalar(PET_SC); g.rotation.order = 'YXZ'; pt.g = g; pt.gs = g.scale.x; pt.look = look; world.add(g); petBits.push(g);
     /* bs: the standing pet's height, bounding radius and body length in its own units (objList picks with them; the bowls' side step uses the length) */
     { g.userData.pose('stand', 0, 0, { blend: 0 }); g.position.set(0, 0, 0); g.updateMatrixWorld(true); const b = new T.Box3(), s = pt.gs; g.traverse(c => { if(c.isMesh && !c.isInstancedMesh && c.visible) b.expandByObject(c, true); });
       pt.bs = b.isEmpty() ? { h: 0.5, r: 0.4, len: 0.6 } : { h: (b.max.y - Math.max(0, b.min.y)) / s, r: b.getBoundingSphere(new T.Sphere()).radius / s, len: (b.max.z - b.min.z) / s }; }
@@ -2108,6 +2122,7 @@ export function mountOfficeScene(container, data, opts = {}){
       const g = pt.g, tt = time + pt.ph, sc = pt.gs * pt.ks;
       g.position.set(pt.x, pt.y, pt.z); g.rotation.set(pt.tilt, pt.yaw, 0); g.scale.set(sc * (1 + 0.1 * pt.sq), sc * (1 - 0.16 * pt.sq), sc * (1 + 0.1 * pt.sq));
       g.userData.pose(pt.pose, 0, reduced && !pt.force ? 0 : tt, { phase: pt.phase, amp: pt.amp, play: pt.pose === 'play' && pt.play ? petPlayAt(pt.play.seq, pt.play.t, pz(pt)) : null, blend: reduced && !pt.force ? 0 : pt.blend });
+      { const gp = g.userData.gearParts; if(gp && gp.length) gp.forEach(h => { if(h.userData.tick) h.userData.tick(time, envN, reduced); }); }   /* the pet's hat and wings, like the people's head gear */
       stepToy(pt, dt0);
       /* the contact shadow stays on the floor until the pet is over the desk top; it shrinks and fades with the lift, the hop's and the pose's own (userData.air:
          a pounce, in the pet's units) */
@@ -3264,7 +3279,7 @@ export const pctDown = v => (Math.floor((Number(v) || 0) * 1000 + 1e-9) / 10).to
 export const SHOP_KEYS = ['title', 'scope', 'level', 'spent', 'dlg', 'runs', 'need', 'need1', 'next', 'top', 'ghost', 'open', 'back', 'tabs', 'tab.book', 'tab.head', 'tab.back', 'tab.desk', 'tab.pet', 'book.got', 'book.need', 'book.need1', 'book.done', 'book.next', 'book.locked', 'book.spent', 'book.dlg', 'book.pet', 'book.toys', 'slot.head', 'slot.back', 'slot.desk', 'none', 'locked', 'lockedSr', 'skip', 'skipSr', 'save', 'cancel', 'saving',
   'saved', 'saved.private', 'saved.shared', 'err', 'err.locked', 'err.many', 'err.na', 'err.link', 'err.input', 'err.org', 'pet.locked', 'pet.drop', 'pet.add', 'pet.file', 'pet.change', 'pet.photo', 'pet.bad', 'pet.read', 'pet.readBreed', 'pet.pick',
   'pet.kind', 'pet.pattern', 'pet.ear', 'pet.tail', 'pet.size', 'pet.fluff', 'pet.fur', 'pet.colors', 'pet.use', 'pet.name', 'pet.remove', 'pet.ask', 'pet.keep', 'pet.removed', 'pet.preview', 'pet.zoom', 'pet.toys', 'pet.toysOn', 'item.pet', 'item.toys', 'wearing',
-  'err.photo', 'pet.breed', 'pet.breedNote', 'pet.custom', 'pet.dogs', 'pet.cats', 'pet.vis', 'pet.visMe', 'pet.visShare', 'pet.visMeNote', 'pet.visShareNote', 'pet.visEx', 'pet.g.basic', 'pet.g.coat', 'pet.g.shape', 'pet.g.face',
+  'err.photo', 'pet.breed', 'pet.breedNote', 'pet.custom', 'pet.dogs', 'pet.cats', 'pet.vis', 'pet.visMe', 'pet.visShare', 'pet.visMeNote', 'pet.visShareNote', 'pet.visEx', 'pet.g.basic', 'pet.g.coat', 'pet.g.shape', 'pet.g.face', 'pet.g.wear', 'pet.tag', 'pet.neck', 'pet.hat', 'pet.wing', 'pet.wearNone',
   'pet.earsize', 'pet.snout', 'pet.legs', 'pet.length', 'pet.build', ...['fluff', 'earsize', 'snout', 'legs', 'length', 'build'].flatMap(k => ['pet.' + k + '.lo', 'pet.' + k + '.hi']),
   'pet.marks', 'pet.markColor', 'pet.eye', 'pet.nose', 'pet.auto', 'pet.collar', 'pet.collarOn', 'pet.collarColor', 'pet.toy', 'pet.toyAuto'];
 /* every coat role any pattern names (pets.js petCoatRoles), for the labels of the colour inputs */
@@ -3273,7 +3288,7 @@ export function shopUi(t){
   const ui = {}; SHOP_KEYS.forEach(k => { ui[k] = t('of.sh.' + k); });
   ui.gear = Object.fromEntries(GEAR_ITEMS.map(g => [g.id, t('of.gear.' + g.id)]));
   ui.opt = Object.fromEntries([...PET_KINDS, ...PET_PATTERNS.map(x => 'pat.' + x), ...PET_EARS.map(x => 'ear.' + x), ...PET_TAILS.map(x => 'tail.' + x), ...PET_SIZES.map(x => 'size.' + x),
-    ...petRoleKeys().map(x => 'role.' + x), ...PET_MARKS.map(x => 'mark.' + x), ...PET_FUR_LIST.map(x => 'fur.' + x), ...PET_TOYS.map(x => 'toy.' + x)].map(k => [k, t('of.pet.' + k)]));
+    ...petRoleKeys().map(x => 'role.' + x), ...PET_MARKS.map(x => 'mark.' + x), ...PET_FUR_LIST.map(x => 'fur.' + x), ...PET_TOYS.map(x => 'toy.' + x), ...PET_TAGS.map(x => 'tag.' + x), ...['none', ...PET_NECKS].map(x => 'neck.' + x)].map(k => [k, t('of.pet.' + k)]));
   return ui;
 }
 /* the object viewer's strings (office-i18n.js of.vw.*), with the item names and the pet kinds, for every page (it is not tied to the shop) */

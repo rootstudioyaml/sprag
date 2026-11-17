@@ -25,6 +25,13 @@ export const PET_FURS = ['plush', 'curly', 'silky'];
 /* look v4: the toy the pet plays with. Absent means automatic (a cat's yarn or mouse, a dog's ball or bone, by a hash of the owner), so a look from before
    stays as it was; the list is mirrored by the server's _pet_clean, new values at the end */
 export const PET_TOYS = ['ball', 'bone', 'yarn', 'mouse', 'frisbee', 'rope', 'duck', 'feather', 'fish', 'bell'];
+/* look v5, all optional (absent means none): the shape of the collar's tag (absent with a collar on means round), a neck piece worn with or without the
+   collar, and a hat and wings like the animal characters wear. PET_HATS and PET_WINGS are the head and back ids of gear.js GEAR_ITEMS in that order;
+   they are copied here because this file imports nothing (a test keeps them in step). New values go at the end. */
+export const PET_TAGS = ['round', 'bone', 'heart', 'star', 'plate'];
+export const PET_NECKS = ['bandana', 'bowtie', 'scarf', 'bell'];
+export const PET_HATS = ['cap', 'beanie', 'ribbon', 'flower', 'party', 'headphones', 'tophat', 'wizard', 'halo', 'antenna', 'tiara', 'orbit', 'starcrown', 'flame', 'aurora'];
+export const PET_WINGS = ['angel', 'butterfly', 'bat', 'fairy', 'drake', 'phoenix', 'prism'];
 
 const HEX6 = /^#[0-9a-f]{6}$/;
 export function normHex(c){ if(typeof c !== 'string') return null; const h = c.trim().toLowerCase(); return HEX6.test(h) ? h : null; }
@@ -47,6 +54,10 @@ export function normalizePetLook(raw){
   if(typeof raw.breed === 'string' && PET_BREED_RE.test(raw.breed)) look.breed = raw.breed;
   if(raw.fur === 'curly' || raw.fur === 'silky') look.fur = raw.fur;
   if(PET_TOYS.includes(raw.toy)) look.toy = raw.toy;
+  if(PET_TAGS.includes(raw.tag)) look.tag = raw.tag;
+  if(PET_NECKS.includes(raw.neck)) look.neck = raw.neck;
+  if(PET_HATS.includes(raw.hat)) look.hat = raw.hat;
+  if(PET_WINGS.includes(raw.wing)) look.wing = raw.wing;
   const n = petName(raw.name); if(n) look.name = n;
   return look;
 }
@@ -55,11 +66,12 @@ export function normalizePetLook(raw){
 const ROLES = { solid: ['coat'], patch: ['base', 'patch', 'ear?'], tabby: ['base', 'stripe', 'muzzle?'], tuxedo: ['main', 'white'], point: ['body', 'points'],
   bicolor: ['top', 'under'], saddle: ['body', 'saddle'], spots: ['base', 'spot'], calico: ['base', 'patch1', 'patch2'] };
 export const petCoatRoles = pattern => ROLES[pick(pattern, PET_PATTERNS, PET_DEFAULTS.pattern)].map(r => ({ key: r.replace('?', ''), optional: r.endsWith('?') }));
-/* picking a breed: every field comes from the breed's look, only the pet's name and toy stay (a breed look carries neither of its own) */
+/* picking a breed: every field comes from the breed's look, only the pet's name, toy and accessories stay (a breed look carries none of them of its own) */
 export function petApplyBreed(look, breedLook){
   const b = normalizePetLook(breedLook); if(!b) return normalizePetLook(look);
   delete b.name; const n = petName(look && look.name); if(n) b.name = n;
   delete b.toy; if(look && PET_TOYS.includes(look.toy)) b.toy = look.toy;   /* the toy is the member's choice, not the breed's */
+  for(const [k, list] of [['tag', PET_TAGS], ['neck', PET_NECKS], ['hat', PET_HATS], ['wing', PET_WINGS]]){ delete b[k]; if(look && list.includes(look[k])) b[k] = look[k]; }   /* so are the accessories */
   return b;
 }
 
@@ -510,6 +522,7 @@ function paints(look){
   r.lid = p(dark ? '#efe8e1' : '#3b3036');
   r.head.eye = e;
   r.collar = p(look.collar || '#e0685f'); r.tag = p('#e8c56a');
+  r.neck = p(look.neck === 'bell' ? NECK_COLOR.bell : look.collar || NECK_COLOR[look.neck] || NECK_COLOR.bandana); r.slit = p('#3a2c1e');   /* a neck piece takes the collar's colour when one is set, else its own; the bell's slit stays dark */
   /* marks: socks on the lower 45 % of each leg capsule (y below -0.15 of its -1.5..1.5), a chest patch, the blaze (head band plus the whole muzzle), the tip */
   const has = k => !!(look.marks && look.marks.includes(k)), cm = look.mark || WHITE;
   if(has('socks')) r.leg.mk = { k: 2, d: [0, -1, 0], th: 0.15 };
@@ -530,8 +543,53 @@ function petEyeDir(look){
   return v.map(x => x / l);
 }
 const SIZE = { s: 0.82, m: 1, l: 1.2 };
-/* the parts of a look that change the model's shape; anything else (colours, pattern, name) is repainted in place by petRecolor */
-export const petShapeKey = look => { const l = normalizePetLook(look); return l ? [l.kind, l.ear, l.tail, l.size, l.fluff, ...PET_NUMS.map(k => l[k] == null ? 0.5 : l[k]), (l.marks || []).join(','), l.collar ? 'c' : '', l.fur || 'plush'].join('|') : ''; };
+/* the neck pieces' own colours (a collar colour, when the look has one, wins) */
+const NECK_COLOR = { bandana: '#4a7bd6', bowtie: '#d9534f', scarf: '#e8a23a', bell: '#e8c56a' };
+/* The collar (3.130.0-5) follows the neck's crease: the line where the head's surface goes into the body. The old band was a circle of one radius
+   on an axis leaned back; it sank into the fur over most of its length, so from the side only a strip across the shoulder showed and it read as a
+   leash, and its tag sat inside the chest fur. Planar rings measured per angle were tried next: their front hung in the air under the chin like a
+   hoop. Here, at each of N angles round the axis from the head's centre to the body's, the head's surface is walked from the point facing the body
+   outward until it leaves the body; that point, lifted over the fur, is where the band runs. The band lies across the crease (its width runs along
+   the walk) and its thickness stands out from the head. s: the shape numbers makePet already has (hr, cat, bl, bw, kb, puff, headFur, bodyFur), in
+   the head joint's space. Pure, so tests can check it. */
+export const PET_COLLAR_N = 48;
+export function petCollarFrame(look, s){
+  const kh = 1 + 0.5 * (s.kb - 1), w = 0.05 * kh, N = PET_COLLAR_N;
+  const hc = [0, 0.1, 0.04], hR = [s.hr * (s.cat ? 1.1 : 1) + s.headFur, s.hr * (s.cat ? 0.93 : 1) + s.headFur, s.hr + s.headFur];
+  const bc = [0, -0.08, -s.bl * 0.72], bR = [s.bw * s.puff + s.bodyFur, 0.115 * s.kb * s.puff + s.bodyFur, s.bl + s.bodyFur];
+  const hb = bc.map((x, i) => x - hc[i]), hl = Math.hypot(...hb), a = hb.map(x => x / hl), u = [1, 0, 0];
+  const v0 = [a[1] * u[2] - a[2] * u[1], a[2] * u[0] - a[0] * u[2], a[0] * u[1] - a[1] * u[0]], vl = Math.hypot(...v0), v = v0.map(x => x / vl);   /* v = a x u: perpendicular to the axis, forward and down */
+  /* the gap over the modelled fur: the shell shader also jitters the surface itself by up to 0.55 of the fur length (coatMat) */
+  const gap = 0.004 + 0.6 * Math.max(s.headFur, s.bodyFur);
+  const inB = p => ((p[0] - bc[0]) / bR[0]) ** 2 + ((p[1] - bc[1]) / bR[1]) ** 2 + ((p[2] - bc[2]) / bR[2]) ** 2;
+  const onHead = e => { const k = 1 / Math.sqrt((e[0] / hR[0]) ** 2 + (e[1] / hR[1]) ** 2 + (e[2] / hR[2]) ** 2); return hc.map((x, i) => x + e[i] * k); };
+  const pts = [], nrm = [], wid = [];
+  for(let i = 0; i < N; i++){
+    const th = i / N * Math.PI * 2, d = u.map((x, k) => Math.cos(th) * x + Math.sin(th) * v[k]);
+    /* walk psi from the axis (facing the body) toward the far side of the head; the crease is the first point outside the body */
+    let ps = Math.PI;
+    for(let q = 0; q <= Math.PI; q += 0.02){ const e = a.map((x, k) => Math.cos(q) * x + Math.sin(q) * d[k]); if(inB(onHead(e)) >= 1){ ps = q; break; } }
+    const e = a.map((x, k) => Math.cos(ps) * x + Math.sin(ps) * d[k]), t = a.map((x, k) => -Math.sin(ps) * x + Math.cos(ps) * d[k]), P = onHead(e);
+    /* lifted along the head's normal; where that grazes the body (a thin neck), pushed out of the body along its own normal as well */
+    const p = P.map((x, k) => x + e[k] * gap);
+    for(let n = 0; n < 40 && inB(p) < 1; n++){ const g = p.map((x, k) => (x - bc[k]) / (bR[k] * bR[k])), gl = Math.hypot(...g); for(let k = 0; k < 3; k++) p[k] += g[k] / gl * 0.002; }
+    pts.push(p); nrm.push(e); wid.push(t.map(x => -x));   /* wid: along the walk, from the head toward the body */
+  }
+  /* the tag hangs straight down from the band's front (th = 90 degrees, the v direction), just clear of it */
+  const iF = N / 4, P = pts[iF], tagAt = P.map((x, k) => x + nrm[iF][k] * 0.01 + (k === 1 ? -(0.3 * w + 0.012 * kh) : 0));
+  return { pts, nrm, wid, w, front: nrm[iF], tagAt, thick: 0.013, body: { c: bc, R: bR }, gap };
+}
+/* the band along the frame's points: thick outward (nrm), w wide across the crease (wid), with rounded edges */
+function petCollarGeo(T, f){
+  const prof = [[0, -0.5], [0.4, -0.47], [0.85, -0.36], [1, -0.2], [1, 0.2], [0.85, 0.36], [0.4, 0.47], [0, 0.5]], N = PET_COLLAR_N, M = prof.length, pos = [], idx = [];
+  for(let i = 0; i <= N; i++){ const P = f.pts[i % N], n = f.nrm[i % N], b = f.wid[i % N];
+    for(const [o, h] of prof) pos.push(...P.map((x, k) => x + n[k] * o * f.thick + b[k] * h * f.w)); }
+  for(let i = 0; i < N; i++) for(let j = 0; j < M - 1; j++){ const p = i * M + j, q = p + M; idx.push(p, q, p + 1, q, q + 1, p + 1); }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+/* the parts of a look that change the model's shape; anything else (colours, pattern, name) is repainted in place by petRecolor. The four accessory keys add
+   meshes, so each one rebuilds the model; the name matters only to a plate tag, which prints it on a texture that petRecolor cannot redraw. */
+export const petShapeKey = look => { const l = normalizePetLook(look); return l ? [l.kind, l.ear, l.tail, l.size, l.fluff, ...PET_NUMS.map(k => l[k] == null ? 0.5 : l[k]), (l.marks || []).join(','), l.collar ? 'c' : '', l.fur || 'plush', l.tag || '', l.neck || '', l.hat || '', l.wing || '', l.tag === 'plate' ? l.name || '' : ''].join('|') : ''; };
 /* the shape numbers as part scales: 0.5 is 1 (today), piecewise linear to the ends */
 const lerp2 = (v, lo, hi) => v == null ? 1 : v < 0.5 ? lo + (1 - lo) * v / 0.5 : 1 + (hi - 1) * (v - 0.5) / 0.5;
 export const petShape = look => ({ snout: lerp2(look.snout, 0.15, 1.8), ear: lerp2(look.earsize, 0.6, 1.5), legs: lerp2(look.legs, 0.55, 1.35), length: lerp2(look.length, 0.85, 1.4), build: lerp2(look.build, 0.85, 1.25) });
@@ -545,11 +603,85 @@ export const petShellCount = (len, px) => { const f = len * px; return f < 1.5 ?
    draws no more of them than the longest plush coat. */
 const FUR_TEX = { 0: { freq: 230, len: 1, sag: 0 }, 1: { freq: 70, len: 1.1, sag: 0 }, 2: { freq: 150, len: 1.55, sag: 1.25 } };
 
+/* ---------- accessories: tag shapes, neck pieces, hat and wings ---------- */
+/* Hats and wings are the animal characters' gear (gear.js, passed in as o.gear by the caller so this file stays free of it). A hat is built in the
+   character's head space: a skull ball of radius PET_HAT_SKULL_R centred at PET_HAT_SKULL. The wrapper maps that ball onto the pet's head ellipsoid (centre
+   PET_HEAD_C in the head joint): scaled by PET_HAT_K times the head's mean radius over the skull's, and moved so the two centres meet. Wings are built
+   with their roots at the origin, which sits at the top of the back near the shoulders (PET_WING_Z of the body's half length behind the middle, half the
+   fur's height above the surface) and scaled by PET_WING_K times the body's half width over 0.125 (a medium dog's). Tuned by eye in the preview. */
+export const PET_HAT_K = 1, PET_HEAD_C = [0, 0.1, 0.04], PET_HAT_SKULL = [0, 0.67, -0.02], PET_HAT_SKULL_R = 0.36;
+export const PET_WING_K = 0.42, PET_WING_Z = 0, PET_WING_FUR = 0.5;
+/* the hat wrapper for a head with semi-axes hR (the head joint's units, fur included): { k: scale, pos: position in the head joint } */
+export function petHatWrap(hR){
+  const k = PET_HAT_K * ((hR[0] + hR[2]) / 2) / PET_HAT_SKULL_R;
+  /* the crown anchor (PET_HAT_SKULL raised by the skull radius plus 0.01, gear.js HEAD_ANCHOR) lands on the top of the head ellipsoid, not where a ball
+     of the mean radius would put it: a cat's head is 0.93 as tall as it is deep and 1.1 as wide, and centring the balls hung its hats over the crown */
+  const top = PET_HAT_SKULL[1] + PET_HAT_SKULL_R + 0.01;
+  return { k, pos: [PET_HEAD_C[0] - k * PET_HAT_SKULL[0], PET_HEAD_C[1] + hR[1] - k * top, PET_HEAD_C[2] - k * PET_HAT_SKULL[2]] };
+}
+/* outlines for the extruded tags, each in a box of about 1 unit centred on the origin (the mesh's scale makes them 0.05 across) */
+function heartShape(T){
+  const s = new T.Shape(); s.moveTo(0, -0.5); s.bezierCurveTo(-0.12, -0.36, -0.5, -0.12, -0.5, 0.16); s.bezierCurveTo(-0.5, 0.4, -0.22, 0.5, 0, 0.26);
+  s.bezierCurveTo(0.22, 0.5, 0.5, 0.4, 0.5, 0.16); s.bezierCurveTo(0.5, -0.12, 0.12, -0.36, 0, -0.5); return s;
+}
+function starShape(T){
+  const s = new T.Shape();
+  for(let i = 0; i < 10; i++){ const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.21 : 0.5, x = Math.cos(a) * r, y = Math.sin(a) * r - 0.03; if(i) s.lineTo(x, y); else s.moveTo(x, y); }
+  s.closePath(); return s;
+}
+/* a rounded rectangle, 1 wide and 0.5 tall */
+function plateShape(T){
+  const s = new T.Shape(), r = 0.14, x = 0.5, y = 0.25; s.moveTo(-x + r, -y); s.lineTo(x - r, -y); s.quadraticCurveTo(x, -y, x, -y + r); s.lineTo(x, y - r); s.quadraticCurveTo(x, y, x - r, y);
+  s.lineTo(-x + r, y); s.quadraticCurveTo(-x, y, -x, y - r); s.lineTo(-x, -y + r); s.quadraticCurveTo(-x, -y, -x + r, -y); return s;
+}
+const extrude = (T, shape, depth, bev) => new T.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 1, curveSegments: 8 });
+/* the name on a plate tag: dark bold text on a transparent canvas, the font shrunk until the name fits. Null without a DOM (Node tests) or three's CanvasTexture. */
+const PLATE_W = 256, PLATE_H = 122;
+function plateTexture(T, name){
+  const doc = typeof document !== 'undefined' ? document : null;
+  if(!doc || !T.CanvasTexture || !name) return null;
+  const cv = doc.createElement('canvas'); cv.width = PLATE_W; cv.height = PLATE_H; const c = cv.getContext && cv.getContext('2d'); if(!c) return null;
+  const face = px => `bold ${px}px "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif`; let px = 78;
+  c.font = face(px); while(px > 14 && c.measureText(name).width > PLATE_W - 22){ px -= 4; c.font = face(px); }
+  c.fillStyle = '#3a2a12'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(name, PLATE_W / 2, PLATE_H / 2 + px * 0.05);
+  const tx = new T.CanvasTexture(cv); if(T.SRGBColorSpace) tx.colorSpace = T.SRGBColorSpace; return tx;
+}
+/* half the width of each tag, in units of kh, so a bell can hang beside it */
+const TAG_HALF = { round: 0.024, bone: 0.027, heart: 0.025, star: 0.025, plate: 0.035 };
+/* half the height of each tag (kh units), so its top meets the band, and the tag's size factor */
+const TAG_HALF_H = { round: 0.024, bone: 0.015, heart: 0.025, star: 0.025, plate: 0.0175 };
+export const TAG_K = 1.5;
+const lerpAt = (arr, fi) => { const N = arr.length, i0 = Math.floor(fi), t = fi - i0, a = arr[((i0 % N) + N) % N], b = arr[(((i0 + 1) % N) + N) % N]; return a.map((x, k) => x + (b[k] - x) * t); };
+const unit3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+/* a bandana: a triangle of cloth hanging from the front third of the crease (the frame's front arc), its point down on the chest. Rows run from the
+   top edge (t = 0, the arc) to the point (t = 1); each vertex drops along the walk toward the body and a little straight down, and stands further off
+   the surface toward the point, so the cloth clears the chest. Two layers a few thousandths apart make it slightly thick; the caller draws both sides. */
+function petBandanaGeo(T, f, kh){
+  const N = f.pts.length, iF = N / 4, half = N / 6, R = 6, C = 16, L = 0.11 * kh, e = 0.0025, pos = [], idx = [];
+  for(const side of [1, -1]) for(let j = 0; j <= R; j++){
+    const t = j / R;
+    for(let i = 0; i <= C; i++){
+      const fi = iF + (2 * i / C - 1) * (1 - t) * half, P = lerpAt(f.pts, fi), n = unit3(lerpAt(f.nrm, fi)), w = lerpAt(f.wid, fi), off = 0.5 * f.thick + 0.014 * t * t + side * e;
+      const q = [P[0] + n[0] * off, P[1] + n[1] * off - t * L, P[2] + n[2] * off];
+      /* off the chest: a point inside the body (plus the fur gap) is pushed out along the body's normal, then the layer offset is added again */
+      const B = f.body, gp = f.gap + side * e + 0.004, inB = x => ((x[0] - B.c[0]) / (B.R[0] + gp)) ** 2 + ((x[1] - B.c[1]) / (B.R[1] + gp)) ** 2 + ((x[2] - B.c[2]) / (B.R[2] + gp)) ** 2;
+      for(let it = 0; it < 60 && B && inB(q) < 1; it++){ const g = q.map((x, k) => (x - B.c[k]) / (B.R[k] * B.R[k])), gl = Math.hypot(...g); for(let k = 0; k < 3; k++) q[k] += g[k] / gl * 0.002; }
+      pos.push(q[0], q[1], q[2]);
+    }
+  }
+  const per = (R + 1) * (C + 1);
+  for(let side = 0; side < 2; side++) for(let j = 0; j < R; j++) for(let i = 0; i < C; i++){
+    const a = side * per + j * (C + 1) + i, b = a + 1, c = a + C + 1, d = c + 1;
+    if(side) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+  }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+
 /* the pet: Group 'pet' > 'rig' > named joints (body, head with eyeL eyeR lidL lidR mouth, earL earR, legFL legFR legBL legBR, tail). 15 or 16 meshes,
    and shell fur on the body, the head, the four legs and the tail (6 or 7 instanced meshes of up to PET_SHELLS layers each) that userData.fur(px) switches on when the pet
    is large on screen. No part casts a shadow-map shadow: the scene draws a contact shadow under the pet, which follows it every frame. */
-export function makePet(T, raw){
-  const look = normalizePetLook(raw) || normalizePetLook({ coat: ['#d9b48f'] }), G = shared(T), cat = look.kind === 'cat', f = look.fluff, K = kit(), P = paints(look), seed = look.coat.join('') + look.pattern;
+export function makePet(T, raw, o = {}){
+  const GEAR = o && o.gear, look = normalizePetLook(raw) || normalizePetLook({ coat: ['#d9b48f'] }), G = shared(T), cat = look.kind === 'cat', f = look.fluff, K = kit(), P = paints(look), seed = look.coat.join('') + look.pattern;
   const mats = [], shells = [], shellN = { value: PET_SHELLS }, furLen = petFurLen(f), fk = petFurK(look), FT = FUR_TEX[Math.max(0, fk)];
   /* shape: every part scales around today's proportions. Longer legs lift everything above the hips by dh so the feet stay on y = 0; build widens the
      body, the legs a little, and the head by half as much (kh), the face parts following the head through hy and hr */
@@ -605,17 +737,68 @@ export function makePet(T, raw){
     else if(look.ear === 'half'){ const g = en(s * 0.085, 0.2, 0.03); g.rotation.set(0.05, 0, -s * (cat ? 0.25 : 0.3)); mesh(G.half, mat('ear'), g, 0, cat ? 0.055 : 0.05, 0, cat ? 0.06 : 0.066, cat ? 0.12 : 0.105, cat ? 0.035 : 0.034); }
     else{ const g = en(s * 0.085, 0.2, 0.03); g.rotation.set(cat ? 0.1 : 0, 0, -s * (cat ? 0.25 : 0.35)); if(cat) mesh(G.cone, mat('ear'), g, 0, 0.05, 0, 0.06, 0.11, 0.035); else { g.rotation.z = -s * 0.5; mesh(G.cone, mat('ear'), g, 0, 0.035, 0, 0.068, 0.075, 0.034); } }   /* cats get tall pointed cones; a dog's pricked ear is a short wide triangle tipped outward (shiba, corgi) */
   }
-  /* the collar: a flat band round the neck where the head meets the body, on the axis from the head's centre toward the body's, deep enough on that
-     axis that its girth is the neck's (it follows build and fluff through hr and the fur length), sitting on the fur, and a round tag under the chin.
-     It hangs on its own joint at the neck pivot (the head node's origin), which posePet turns half as far as the head about all three axes, so the band
-     stays round the neck when the head dips to a bowl, turns or tilts. 2 meshes */
-  if(look.collar){
-    const ay0 = (0.25 + dh) - (0.33 + dh) - 0.1, az0 = -bl * 0.72 - 0.04, al = Math.hypot(ay0, az0), t = 0.8 * hr, cy = 0.1 + ay0 / al * t, cz = 0.04 + az0 / al * t;
-    /* the band's axis leans further back than the head-to-body axis, so its front rides low on the chest under the chin, where the camera above and
-       in front can see it, and its back sits on the nape */
-    const bl2 = Math.hypot(0.55 * ay0, az0), ay = 0.55 * ay0 / bl2, az = az0 / bl2;
-    const cn = node('collar', head, 0, 0, 0), rc = 0.6 * hr + (fk < 0 ? 0 : furLen * FT.len * 1.05) + 0.006, w = 0.05 * kh, band = mesh(G.band, mat('collar', 0.5), cn, 0, cy, cz, rc, w, rc); band.rotation.x = Math.atan2(-az, -ay);
-    const tr = rc * 1.07 + 0.011; mesh(G.sph, mat('tag', 0.3), cn, 0, cy + tr * az - 0.01, cz - tr * ay, 0.02, 0.022, 0.007);
+  /* the collar: a band along the neck's crease, over the fur (petCollarFrame), and a tag hanging under the chin. A neck piece (bandana, bow tie, scarf,
+     bell) hangs from the same frame, with or without the collar. All of it hangs on its own joint at the neck pivot (the head node's origin), which
+     posePet turns half as far as the head about all three axes, so it stays round the neck when the head dips to a bowl, turns or tilts. The collar is
+     2 meshes (the band and a round tag); the other tags and the neck pieces add theirs. */
+  if(look.collar || look.neck){
+    const cn = node('collar', head, 0, 0, 0), cf = petCollarFrame(look, { hr, cat, bl, bw, kb, puff, headFur, bodyFur: fk < 0 ? 0 : furLen * FT.len }), Z = new T.Vector3(0, 0, 1), iF = cf.pts.length / 4;
+    /* a small group at a point on the collar, its +z along dir (outward), so a flat piece built facing +z faces forward */
+    const spot = (at, dir) => { const g = new T.Group(); g.position.set(at[0], at[1], at[2]); g.quaternion.setFromUnitVectors(Z, new T.Vector3(dir[0], dir[1], dir[2])); cn.add(g); return g; };
+    const tagMat = () => mat('tag', 0.3), neckMat = () => mat('neck', 0.55);
+    let tagBox = 0;
+    if(look.collar){
+      const band = new T.Mesh(K.geo(petCollarGeo(T, cf)), mat('collar', 0.5)); band.receiveShadow = true; band.castShadow = false; cn.add(band);
+      /* the tag hangs from the band's lowest front point, facing forward: a flattened sphere (the first tag), a bone, a heart, a star, or a plate with the
+         pet's name. All are gold and about 0.05 across. */
+      /* 1.5 times the first size so the shape reads in the office, upright and facing forward (the crease's normal points down there, which laid the tag
+         flat), its top at the band's lower edge */
+      const tk = look.tag || 'round', TK = TAG_K, S = 0.05 * kh * TK, hh = (TAG_HALF_H[tk] || TAG_HALF_H.round) * kh * TK, Pf = cf.pts[iF], nf = unit3(cf.nrm[iF]);
+      const top = [Pf[0] + nf[0] * cf.thick, Pf[1] + nf[1] * cf.thick - 0.35 * cf.w, Pf[2] + nf[2] * cf.thick];
+      const tg = spot([top[0], top[1] - hh, top[2]], unit3([0, -0.25, 1])); tagBox = (TAG_HALF[tk] || TAG_HALF.round) * TK;
+      if(tk === 'bone'){
+        const m = tagMat(), q = kh * TK, sp = 0.0095 * q;
+        for(const sx of [1, -1]) for(const sy of [1, -1]) mesh(G.sph, m, tg, sx * 0.0165 * q, sy * 0.0055 * q, 0, sp, sp, sp * 0.55);
+        const sh = mesh(G.cap, m, tg, 0, 0, 0, 0.006 * q, 0.011 * q, 0.0035 * q); sh.rotation.z = Math.PI / 2;   /* the shaft: a capsule 0.033 long laid along x */
+      }else if(tk === 'heart' || tk === 'star'){
+        const d = 0.2, g = K.geo(extrude(T, tk === 'heart' ? heartShape(T) : starShape(T), d, 0.03)); mesh(g, tagMat(), tg, 0, 0, -d / 2 * S, S, S, S);
+      }else if(tk === 'plate'){
+        const d = 0.12, W = 0.07 * kh * TK, g = K.geo(extrude(T, plateShape(T), d, 0.02)); mesh(g, tagMat(), tg, 0, 0, -d / 2 * W, W, W, W);
+        /* the name: a transparent plane just in front of the plate's face; a blank plate has none. Without a DOM the plane is left invisible. */
+        if(look.name){
+          const tx = plateTexture(T, look.name), m = K.mat(new T.MeshStandardMaterial({ roughness: 0.5, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 }));
+          if(tx){ m.map = tx; m.userData.ownMap = true; }
+          const pl = new T.Mesh(K.geo(new T.PlaneGeometry(1, 1)), m); pl.position.set(0, 0, (d / 2 + 0.02 + 0.003) * W); pl.scale.set(0.84 * W, 0.4 * W, 1); pl.castShadow = false; pl.receiveShadow = false; pl.visible = !!tx; tg.add(pl);
+        }
+      }else mesh(G.sph, tagMat(), tg, 0, 0, 0, 0.024 * kh * TK, 0.024 * kh * TK, 0.008 * TK);
+    }
+    if(look.neck === 'scarf'){
+      /* a thicker, wider band over the same points, with two short tails hanging at the front on the pet's left */
+      const m = neckMat(), sb = new T.Mesh(K.geo(petCollarGeo(T, { ...cf, w: cf.w * 1.6, thick: cf.thick * 2 })), m); sb.receiveShadow = true; sb.castShadow = false; cn.add(sb);
+      [[iF - 3, 0.075, 0.9], [iF - 5, 0.055, 0.7]].forEach(([i, len, lean]) => {
+        const P = cf.pts[i], n = unit3(cf.nrm[i]), w = cf.wid[i], dir = unit3([w[0] * lean, w[1] * lean - 0.7, w[2] * lean]), L = len * kh, at = P.map((x, k) => x + n[k] * (cf.thick * 2.4) + dir[k] * L * 0.5);
+        const tl = new T.Group(); tl.position.set(at[0], at[1], at[2]); tl.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), new T.Vector3(dir[0], dir[1], dir[2])); cn.add(tl);
+        mesh(G.cap, m, tl, 0, 0, 0, 0.016 * kh, L / 3, 0.006 * kh);
+      });
+    }else if(look.neck === 'bandana'){
+      const m = neckMat(); m.side = T.DoubleSide;
+      const b = new T.Mesh(K.geo(petBandanaGeo(T, cf, kh)), m); b.receiveShadow = true; b.castShadow = false; cn.add(b);
+    }else if(look.neck === 'bowtie'){
+      /* two flattened cones, their points meeting at a knot, on top of the collar when there is one */
+      const m = neckMat(), P = cf.pts[iF], n = unit3(cf.nrm[iF]), up = look.collar ? 0.022 : 0.012, at = P.map((x, k) => x + n[k] * up), bw2 = spot(at, n), h = 0.05 * kh;
+      for(const sx of [1, -1]){ const c = mesh(G.cone, m, bw2, sx * h / 2, 0, 0, 0.03 * kh, h, 0.011 * kh); c.rotation.z = sx * Math.PI / 2; }
+      mesh(G.sph, m, bw2, 0, 0, 0, 0.011 * kh, 0.011 * kh, 0.011 * kh);
+    }else if(look.neck === 'bell'){
+      /* a gold ball with a dark slit at the tag's place; beside the tag when the collar has one, hung under the band at the same drop */
+      let at = cf.tagAt, dir = cf.front;
+      if(look.collar){
+        const want = cf.tagAt[0] + (tagBox + 0.019) * kh; let jb = iF;
+        for(let j = Math.round(iF - cf.pts.length / 6); j <= iF; j++) if(Math.abs(cf.pts[j][0] - want) < Math.abs(cf.pts[jb][0] - want)) jb = j;
+        const P = cf.pts[jb], n = unit3(cf.nrm[jb]), drop = -(0.35 * cf.w + 0.016 * kh);   /* hung from the band's lower edge, like the tag */
+        at = [P[0] + n[0] * 0.01, P[1] + n[1] * 0.01 + drop, P[2] + n[2] * 0.01]; dir = n;
+      }
+      const bg = spot(at, dir), r = 0.016 * kh; mesh(G.sph, neckMat(), bg, 0, 0, 0, r, r, r); mesh(G.sph, mat('slit', 0.8), bg, 0, -0.003 * kh, r * 0.93, 0.011 * kh, 0.0022 * kh, 0.003 * kh);
+    }
   }
   const tail = node('tail', rig, 0, 0.29 + dh, -bl * 0.92), tm = mat('tail');
   if(look.tail === 'short'){ tail.rotation.x = -0.9; mesh(G.sph, tm, tail, 0, 0.03, 0, 0.045, 0.045, 0.045); }
@@ -623,6 +806,29 @@ export function makePet(T, raw){
   else if(look.tail === 'fluff'){ tail.rotation.x = -0.95; const r = 0.05 + 0.02 * f; fur(mesh(G.plume, tm, tail, 0, -0.01, 0, r, 0.21, r), furLen * 1.3, [0, 0.3, -1]); }
   /* a tapered tail with a slight curve toward the tip: a cat holds it up like a question mark, a dog carries it out behind */
   else{ tail.rotation.x = cat ? -0.3 : -0.85; const r = cat ? 0.03 : 0.034; fur(mesh(G.tail, tm, tail, 0, -0.01, 0, r, cat ? 0.25 : 0.2, r), furLen * 0.7, [0, 0.3, -1]); }
+  /* hat and wings (gear.js pieces built by the caller's makers): each in a wrapper that maps the character's space onto this pet, kept in gearParts so the
+     scene can tick them and dispose frees them. A piece that fails to build is left off; the pet still shows. */
+  const gearParts = [];
+  const addGear = (parent, wrap, g) => { wrap.add(g); parent.add(wrap); const walk = c => { if(c.isMesh) c.castShadow = false; (c.children || []).forEach(walk); }; walk(g); gearParts.push(g); };
+  if(GEAR && look.hat && GEAR.head && GEAR.headFit && GEAR.placeHead){
+    try{
+      const fit = GEAR.headFit(look.hat, 'dog');   /* the dog character's fits for every pet: the cat character's lift its hats over tall ears the pet cat does not have */
+      if(!fit || !fit.skip){
+        const hw = petHatWrap([hr * (cat ? 1.1 : 1) + headFur, hr * (cat ? 0.93 : 1) + headFur, hr + headFur]), wrap = new T.Group(); wrap.name = 'hat'; wrap.scale.setScalar(hw.k); wrap.position.set(hw.pos[0], hw.pos[1], hw.pos[2]);
+        const g = GEAR.head(T, look.hat); g.userData.phase = hash(seed + ':hat') * 10; GEAR.placeHead(g, fit); addGear(head, wrap, g);
+      }
+    }catch(e){ /* left off */ }
+  }
+  if(GEAR && look.wing && GEAR.back && GEAR.backFit && GEAR.placeBack){
+    try{
+      const fit = GEAR.backFit(look.wing, look.kind);
+      if(!fit || !fit.skip){
+        const kw = PET_WING_K * (bw * puff) / 0.125, wrap = new T.Group(); wrap.name = 'wings'; wrap.scale.setScalar(kw);
+        wrap.position.set(0, 0.115 * kb * puff + (fk < 0 ? 0 : furLen * FT.len) * PET_WING_FUR, bl * PET_WING_Z);
+        const g = GEAR.back(T, look.wing); g.userData.phase = hash(seed + ':wing') * 10; GEAR.placeBack(g, { x: 0, y: 0, z: 0 }, fit); addGear(body, wrap, g);
+      }
+    }catch(e){ /* left off */ }
+  }
   root.scale.setScalar(SIZE[look.size]);
   /* eating and drinking: the head pitch that brings the mouth to the height today's proportions reach (the bowls do not change with the shape), within
      a natural range; what the pitch cannot cover moves the head a little */
@@ -649,7 +855,8 @@ export function makePet(T, raw){
     pose: (kind, u, t, o) => posePet(root, kind, u, t, o),
     /* shell fur for the on-screen size: px is screen pixels per world unit at the pet; returns the draw calls the shells add */
     fur: px => { const n = petShellCount(furLen, px * root.scale.x); if(n) shellN.value = n; shells.forEach(im => { im.count = n; im.visible = n > 0; }); return n ? shells.length : 0; },
-    dispose: K.dispose };
+    gearParts,
+    dispose: () => { gearParts.forEach(g => { if(g.userData.dispose) g.userData.dispose(); }); K.dispose(); } };
   return root;
 }
 /* repaint a pet in place for a new look with the same shape (petShapeKey): colours and pattern only, no new geometry or programs. False when the shape differs. */

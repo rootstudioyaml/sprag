@@ -104,7 +104,7 @@
   <section class="card of-card" id="scene-card" hidden><div id="box"></div></section>
 </main>
 
-<script src="/assets/scene/office-i18n.js?v=3.130.0-5"></script>
+<script src="/assets/scene/office-i18n.js?v=3.130.0-6"></script>
 <script>
 // Local test stack: only on localhost / 127.0.0.1 AND with ?api=local. The key below is the
 // Supabase CLI's default local anon key (public, identical on every machine), never a live secret.
@@ -364,8 +364,8 @@ function demoTown(){
   const tm = i => teams[i % 3];
   const P = (i, name, os, grade, tier, lvl, gear, pet, extra) => ({ id: 'demo-p' + i, name, os, team_id: tm(i).id, team_name: tm(i).name, grade, tier, crown: false, state: 'ok', self: false, lvl, gear, pet, ...extra });
   const pets = {
-    me: { kind: 'dog', coat: ['#e0a25a', '#f4e3c6'], pattern: 'solid', ear: 'flop', tail: 'fluff', size: 'm', fluff: 0.8, name: 'Bori' },
-    cat: { kind: 'cat', coat: ['#e39a5c', '#b0683a', '#f3e2cc'], pattern: 'tabby', ear: 'up', tail: 'long', size: 'm', fluff: 0.4, name: 'Mandu', breed: 'korean_cheese' },
+    me: { kind: 'dog', coat: ['#e0a25a', '#f4e3c6'], pattern: 'solid', ear: 'flop', tail: 'fluff', size: 'm', fluff: 0.8, name: 'Bori', collar: '#d9534f', tag: 'plate', hat: 'party', wing: 'angel' },
+    cat: { kind: 'cat', coat: ['#e39a5c', '#b0683a', '#f3e2cc'], pattern: 'tabby', ear: 'up', tail: 'long', size: 'm', fluff: 0.4, name: 'Mandu', breed: 'korean_cheese', neck: 'bell', hat: 'tophat' },
     tux: { kind: 'cat', coat: ['#45434a', '#ece8e1'], pattern: 'tuxedo', ear: 'up', tail: 'long', size: 'm', fluff: 0.3, name: 'Kong' } };
   const people = [
     P(0, 'ana-macbook', 'macOS', 'fox', 'active', 3, { head: 'tophat', back: 'angel', desk: 'lamp' }, pets.me, { self: true }),
@@ -433,7 +433,7 @@ if(DEMO) window.__spragDemoLog = demoLog;
 async function show(){
   if(!view) return;
   paintHead();
-  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.130.0-5'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
+  if(!mod){ try{ mod = await import('/assets/scene/office-scene.js?v=3.130.0-6'); }catch(e){ return showMsg('pg.net', () => { mod = null; show(); }); } }
   $('msg').hidden = true; $('scene-card').hidden = false;
   const data = sceneData();
   if(ctl){ ctl.update(data); shown = lang; return; }
