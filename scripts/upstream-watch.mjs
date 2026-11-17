@@ -46,7 +46,7 @@
  * message listing each product's state (no new version, findings already posted,
  * or the error). A quiet day is then visible in the channel and cannot be
  * mistaken for a run that never happened. `--dry-run` prints the summary instead.
- * The job runs at 06:00, 12:00 and 18:00, so a quiet summary goes out only on the
+ * The job runs at 06:00, 08:00, 10:00, 12:00 and 18:00, so a quiet summary goes out only on the
  * first quiet run of a day that has had no post yet (state `reportedOn`); a
  * failure is reported on every run.
  */
